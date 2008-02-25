@@ -213,6 +213,9 @@ static struct irq_chip bfin_internal_irqchip = {
 	.ack = ack_noop,
 	.mask = bfin_internal_mask_irq,
 	.unmask = bfin_internal_unmask_irq,
+	.mask_ack = bfin_internal_mask_irq,
+	.disable = bfin_internal_mask_irq,
+	.enable = bfin_internal_unmask_irq,
 #ifdef CONFIG_PM
 	.set_wake = bfin_internal_set_wake,
 #endif
