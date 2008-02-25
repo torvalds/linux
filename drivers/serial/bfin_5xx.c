@@ -415,7 +415,6 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 	 */
 	bfin_serial_mctrl_check(uart);
 
-	spin_lock_irqsave(&uart->port.lock, flags);
 	uart->tx_count = CIRC_CNT(xmit->head, xmit->tail, UART_XMIT_SIZE);
 	if (uart->tx_count > (UART_XMIT_SIZE - xmit->tail))
 		uart->tx_count = UART_XMIT_SIZE - xmit->tail;
@@ -439,7 +438,6 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 	ier |= ETBEI;
 	UART_PUT_IER(uart, ier);
 #endif
-	spin_unlock_irqrestore(&uart->port.lock, flags);
 }
 
 static void bfin_serial_dma_rx_chars(struct bfin_serial_port *uart)
@@ -450,7 +448,9 @@ static void bfin_serial_dma_rx_chars(struct bfin_serial_port *uart)
 	status = UART_GET_LSR(uart);
 	UART_CLEAR_LSR(uart);
 
-	uart->port.icount.rx += CIRC_CNT(uart->rx_dma_buf.head, uart->rx_dma_buf.tail, UART_XMIT_SIZE);;
+	uart->port.icount.rx +=
+		CIRC_CNT(uart->rx_dma_buf.head, uart->rx_dma_buf.tail,
+		UART_XMIT_SIZE);
 
 	if (status & BI) {
 		uart->port.icount.brk++;
@@ -476,10 +476,12 @@ static void bfin_serial_dma_rx_chars(struct bfin_serial_port *uart)
 	else
 		flg = TTY_NORMAL;
 
-	for (i = uart->rx_dma_buf.head; i < uart->rx_dma_buf.tail; i++) {
-		if (uart_handle_sysrq_char(&uart->port, uart->rx_dma_buf.buf[i]))
-			goto dma_ignore_char;
-		uart_insert_char(&uart->port, status, OE, uart->rx_dma_buf.buf[i], flg);
+	for (i = uart->rx_dma_buf.tail; i != uart->rx_dma_buf.head; i++) {
+		if (i >= UART_XMIT_SIZE)
+			i = 0;
+		if (!uart_handle_sysrq_char(&uart->port, uart->rx_dma_buf.buf[i]))
+			uart_insert_char(&uart->port, status, OE,
+				uart->rx_dma_buf.buf[i], flg);
 	}
 
  dma_ignore_char:
@@ -492,16 +494,20 @@ void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 	int flags = 0;
 
 	spin_lock_irqsave(&uart->port.lock, flags);
-	x_pos = DMA_RX_XCOUNT - get_dma_curr_xcount(uart->rx_dma_channel);
+	uart->rx_dma_nrows = get_dma_curr_ycount(uart->rx_dma_channel);
+	x_pos = get_dma_curr_xcount(uart->rx_dma_channel);
+	uart->rx_dma_nrows = DMA_RX_YCOUNT - uart->rx_dma_nrows;
+	if (uart->rx_dma_nrows == DMA_RX_YCOUNT)
+		uart->rx_dma_nrows = 0;
+	x_pos = DMA_RX_XCOUNT - x_pos;
 	if (x_pos == DMA_RX_XCOUNT)
 		x_pos = 0;
 
 	pos = uart->rx_dma_nrows * DMA_RX_XCOUNT + x_pos;
-
-	if (pos>uart->rx_dma_buf.tail) {
-		uart->rx_dma_buf.tail = pos;
+	if (pos != uart->rx_dma_buf.tail) {
+		uart->rx_dma_buf.head = pos;
 		bfin_serial_dma_rx_chars(uart);
-		uart->rx_dma_buf.head = uart->rx_dma_buf.tail;
+		uart->rx_dma_buf.tail = uart->rx_dma_buf.head;
 	}
 	spin_unlock_irqrestore(&uart->port.lock, flags);
 	uart->rx_dma_timer.expires = jiffies + DMA_RX_FLUSH_JIFFIES;
@@ -525,11 +531,11 @@ static irqreturn_t bfin_serial_dma_tx_int(int irq, void *dev_id)
 		ier &= ~ETBEI;
 		UART_PUT_IER(uart, ier);
 #endif
-		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-			uart_write_wakeup(&uart->port);
-
 		xmit->tail = (xmit->tail + uart->tx_count) & (UART_XMIT_SIZE - 1);
 		uart->port.icount.tx += uart->tx_count;
+
+		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+			uart_write_wakeup(&uart->port);
 
 		bfin_serial_dma_tx_chars(uart);
 	}
@@ -542,15 +548,16 @@ static irqreturn_t bfin_serial_dma_rx_int(int irq, void *dev_id)
 {
 	struct bfin_serial_port *uart = dev_id;
 	unsigned short irqstat;
+	int pos;
 
-	uart->rx_dma_nrows++;
-	uart->rx_dma_buf.tail = DMA_RX_XCOUNT * uart->rx_dma_nrows;
-	bfin_serial_dma_rx_chars(uart);
-	if (uart->rx_dma_nrows >= DMA_RX_YCOUNT) {
-		uart->rx_dma_nrows = 0;
-		uart->rx_dma_buf.tail = 0;
+	uart->rx_dma_nrows = DMA_RX_YCOUNT -
+		get_dma_curr_ycount(uart->rx_dma_channel);
+	pos = DMA_RX_XCOUNT * uart->rx_dma_nrows;
+	if (pos != uart->rx_dma_buf.tail) {
+		uart->rx_dma_buf.head = pos;
+		bfin_serial_dma_rx_chars(uart);
+		uart->rx_dma_buf.tail = uart->rx_dma_buf.head;
 	}
-	uart->rx_dma_buf.head = uart->rx_dma_buf.tail;
 
 	spin_lock(&uart->port.lock);
 	irqstat = get_dma_curr_irqstat(uart->rx_dma_channel);
