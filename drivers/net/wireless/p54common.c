@@ -291,6 +291,10 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		case PDR_END:
 			i = len;
 			break;
+		default:
+			printk(KERN_INFO "p54: unknown eeprom code : 0x%x\n",
+				le16_to_cpu(entry->code));
+			break;
 		}
 
 		entry = (void *)entry + (entry_len + 1)*2;
