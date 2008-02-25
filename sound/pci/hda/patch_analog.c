@@ -1778,9 +1778,9 @@ static hda_nid_t ad1988_capsrc_nids[3] = {
 static struct hda_input_mux ad1988_6stack_capture_source = {
 	.num_items = 5,
 	.items = {
-		{ "Front Mic", 0x0 },
-		{ "Line", 0x1 },
-		{ "Mic", 0x4 },
+		{ "Front Mic", 0x1 },	/* port-B */
+		{ "Line", 0x2 },	/* port-C */
+		{ "Mic", 0x4 },		/* port-E */
 		{ "CD", 0x5 },
 		{ "Mix", 0x9 },
 	},
@@ -1789,7 +1789,7 @@ static struct hda_input_mux ad1988_6stack_capture_source = {
 static struct hda_input_mux ad1988_laptop_capture_source = {
 	.num_items = 3,
 	.items = {
-		{ "Mic/Line", 0x0 },
+		{ "Mic/Line", 0x1 },	/* port-B */
 		{ "CD", 0x5 },
 		{ "Mix", 0x9 },
 	},
