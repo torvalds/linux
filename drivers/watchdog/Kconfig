@@ -643,6 +643,16 @@ config SBC_EPX_C3_WATCHDOG
 
 # MIPS Architecture
 
+config RC32434_WDT
+	tristate "IDT RC32434 SoC Watchdog Timer"
+	depends on MIKROTIK_RB532
+	help
+	  Hardware driver for the IDT RC32434 SoC built-in
+	  watchdog timer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rc32434_wdt.
+
 config INDYDOG
 	tristate "Indy/I2 Hardware Watchdog"
 	depends on SGI_HAS_INDYDOG
