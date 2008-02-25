@@ -212,13 +212,6 @@ static struct bfin5xx_spi_chip spi_si3xxx_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_AD5304) || defined(CONFIG_AD5304_MODULE)
-static struct bfin5xx_spi_chip ad5304_chip_info = {
-	.enable_dma = 0,
-	.bits_per_word = 16,
-};
-#endif
-
 #if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
 static struct bfin5xx_spi_chip spi_mmc_chip_info = {
 	.enable_dma = 1,
@@ -308,17 +301,6 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
-#if defined(CONFIG_AD5304) || defined(CONFIG_AD5304_MODULE)
-	{
-		.modalias = "ad5304_spi",
-		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num = 0,
-		.chip_select = 2,
-		.platform_data = NULL,
-		.controller_data = &ad5304_chip_info,
-		.mode = SPI_MODE_2,
-	},
-#endif
 #if defined(CONFIG_SPI_SPIDEV) || defined(CONFIG_SPI_SPIDEV_MODULE)
 	{
 		.modalias = "spidev",

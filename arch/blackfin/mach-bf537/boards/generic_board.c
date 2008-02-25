@@ -371,13 +371,6 @@ static struct bfin5xx_spi_chip spi_si3xxx_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_AD5304) || defined(CONFIG_AD5304_MODULE)
-static struct bfin5xx_spi_chip ad5304_chip_info = {
-	.enable_dma = 0,
-	.bits_per_word = 16,
-};
-#endif
-
 #if defined(CONFIG_TOUCHSCREEN_AD7877) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE)
 static struct bfin5xx_spi_chip spi_ad7877_chip_info = {
 	.enable_dma = 0,
@@ -481,17 +474,6 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.chip_select = 8 - CONFIG_J19_JUMPER,
 		.controller_data = &spi_si3xxx_chip_info,
 		.mode = SPI_MODE_3,
-	},
-#endif
-#if defined(CONFIG_AD5304) || defined(CONFIG_AD5304_MODULE)
-	{
-		.modalias = "ad5304_spi",
-		.max_speed_hz = 1250000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num = 0,
-		.chip_select = 2,
-		.platform_data = NULL,
-		.controller_data = &ad5304_chip_info,
-		.mode = SPI_MODE_2,
 	},
 #endif
 #if defined(CONFIG_TOUCHSCREEN_AD7877) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE)
