@@ -246,7 +246,7 @@ static hda_nid_t stac92hd71bxx_dmux_nids[1] = {
 	0x1c,
 };
 
-static hda_nid_t stac92hd71bxx_dac_nids[2] = {
+static hda_nid_t stac92hd71bxx_dac_nids[1] = {
 	0x10, /*0x11, */
 };
 
@@ -3550,7 +3550,7 @@ again:
 	spec->num_pwrs = ARRAY_SIZE(stac92hd71bxx_pwr_nids);
 	spec->pwr_nids = stac92hd71bxx_pwr_nids;
 
-	spec->multiout.num_dacs = 2;
+	spec->multiout.num_dacs = 1;
 	spec->multiout.hp_nid = 0x11;
 	spec->multiout.dac_nids = stac92hd71bxx_dac_nids;
 
