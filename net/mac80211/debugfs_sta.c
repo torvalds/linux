@@ -98,31 +98,6 @@ static ssize_t sta_num_ps_buf_frames_read(struct file *file,
 }
 STA_OPS(num_ps_buf_frames);
 
-static ssize_t sta_last_ack_rssi_read(struct file *file, char __user *userbuf,
-				      size_t count, loff_t *ppos)
-{
-	char buf[100];
-	struct sta_info *sta = file->private_data;
-	int res = scnprintf(buf, sizeof(buf), "%d %d %d\n",
-			    sta->last_ack_rssi[0],
-			    sta->last_ack_rssi[1],
-			    sta->last_ack_rssi[2]);
-	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
-}
-STA_OPS(last_ack_rssi);
-
-static ssize_t sta_last_ack_ms_read(struct file *file, char __user *userbuf,
-				    size_t count, loff_t *ppos)
-{
-	char buf[20];
-	struct sta_info *sta = file->private_data;
-	int res = scnprintf(buf, sizeof(buf), "%d\n",
-			    sta->last_ack ?
-			    jiffies_to_msecs(jiffies - sta->last_ack) : -1);
-	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
-}
-STA_OPS(last_ack_ms);
-
 static ssize_t sta_inactive_ms_read(struct file *file, char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
@@ -311,8 +286,6 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 
 	DEBUGFS_ADD(flags);
 	DEBUGFS_ADD(num_ps_buf_frames);
-	DEBUGFS_ADD(last_ack_rssi);
-	DEBUGFS_ADD(last_ack_ms);
 	DEBUGFS_ADD(inactive_ms);
 	DEBUGFS_ADD(last_seq_ctrl);
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
@@ -326,8 +299,6 @@ void ieee80211_sta_debugfs_remove(struct sta_info *sta)
 {
 	DEBUGFS_DEL(flags);
 	DEBUGFS_DEL(num_ps_buf_frames);
-	DEBUGFS_DEL(last_ack_rssi);
-	DEBUGFS_DEL(last_ack_ms);
 	DEBUGFS_DEL(inactive_ms);
 	DEBUGFS_DEL(last_seq_ctrl);
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS

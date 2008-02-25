@@ -131,9 +131,6 @@ static void rate_control_simple_tx_status(void *priv, struct net_device *dev,
 		sta->tx_num_consecutive_failures++;
 		sta->tx_num_mpdu_fail++;
 	} else {
-		sta->last_ack_rssi[0] = sta->last_ack_rssi[1];
-		sta->last_ack_rssi[1] = sta->last_ack_rssi[2];
-		sta->last_ack_rssi[2] = status->ack_signal;
 		sta->tx_num_consecutive_failures = 0;
 		sta->tx_num_mpdu_ok++;
 	}

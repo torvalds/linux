@@ -177,8 +177,6 @@ struct sta_info {
 	int last_rssi; /* RSSI of last received frame from this STA */
 	int last_signal; /* signal of last received frame from this STA */
 	int last_noise; /* noise of last received frame from this STA */
-	int last_ack_rssi[3]; /* RSSI of last received ACKs from this STA */
-	unsigned long last_ack;
 	int channel_use;
 	int channel_use_raw;
 
@@ -200,8 +198,6 @@ struct sta_info {
 		struct dentry *dir;
 		struct dentry *flags;
 		struct dentry *num_ps_buf_frames;
-		struct dentry *last_ack_rssi;
-		struct dentry *last_ack_ms;
 		struct dentry *inactive_ms;
 		struct dentry *last_seq_ctrl;
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
