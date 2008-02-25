@@ -49,33 +49,42 @@ static void __init copy_bootdata(char *real_mode_data)
 	}
 }
 
-#define EBDA_ADDR_POINTER 0x40E
+#define BIOS_EBDA_SEGMENT 0x40E
+#define BIOS_LOWMEM_KILOBYTES 0x413
 
+/*
+ * The BIOS places the EBDA/XBDA at the top of conventional
+ * memory, and usually decreases the reported amount of
+ * conventional memory (int 0x12) too.
+ */
 static __init void reserve_ebda(void)
 {
-	unsigned ebda_addr, ebda_size;
+	unsigned int lowmem, ebda_addr;
 
-	/*
-	 * there is a real-mode segmented pointer pointing to the
-	 * 4K EBDA area at 0x40E
-	 */
-	ebda_addr = *(unsigned short *)__va(EBDA_ADDR_POINTER);
+	/* end of low (conventional) memory */
+	lowmem = *(unsigned short *)__va(BIOS_LOWMEM_KILOBYTES);
+	lowmem <<= 10;
+
+	/* start of EBDA area */
+	ebda_addr = *(unsigned short *)__va(BIOS_EBDA_SEGMENT);
 	ebda_addr <<= 4;
 
-	if (!ebda_addr)
-		return;
+	/* Fixup: bios puts an EBDA in the top 64K segment */
+	/* of conventional memory, but does not adjust lowmem. */
+	if ((lowmem - ebda_addr) <= 0x10000)
+		lowmem = ebda_addr;
 
-	ebda_size = *(unsigned short *)__va(ebda_addr);
+	/* Fixup: bios does not report an EBDA at all. */
+	/* Some old Dells seem to need 4k anyhow (bugzilla 2990) */
+	if ((ebda_addr == 0) && (lowmem >= 0x9f000))
+		lowmem = 0x9f000;
 
-	/* Round EBDA up to pages */
-	if (ebda_size == 0)
-		ebda_size = 1;
-	ebda_size <<= 10;
-	ebda_size = round_up(ebda_size + (ebda_addr & ~PAGE_MASK), PAGE_SIZE);
-	if (ebda_size > 64*1024)
-		ebda_size = 64*1024;
+	/* Paranoia: should never happen, but... */
+	if (lowmem >= 0x100000)
+		lowmem = 0xa0000;
 
-	reserve_early(ebda_addr, ebda_addr + ebda_size, "EBDA");
+	/* reserve all memory between lowmem and the 1MB mark */
+	reserve_early(lowmem, 0x100000, "BIOS reserved");
 }
 
 void __init x86_64_start_kernel(char * real_mode_data)
