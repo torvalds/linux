@@ -383,6 +383,7 @@ static void __init runtime_code_page_mkexec(void)
 {
 	efi_memory_desc_t *md;
 	void *p;
+	u64 addr, npages;
 
 	/* Make EFI runtime service code area executable */
 	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
@@ -391,7 +392,10 @@ static void __init runtime_code_page_mkexec(void)
 		if (md->type != EFI_RUNTIME_SERVICES_CODE)
 			continue;
 
-		set_memory_x(md->virt_addr, md->num_pages);
+		addr = md->virt_addr;
+		npages = md->num_pages;
+		memrange_efi_to_native(&addr, &npages);
+		set_memory_x(addr, npages);
 	}
 }
 
@@ -408,7 +412,7 @@ void __init efi_enter_virtual_mode(void)
 	efi_memory_desc_t *md;
 	efi_status_t status;
 	unsigned long size;
-	u64 end, systab;
+	u64 end, systab, addr, npages;
 	void *p, *va;
 
 	efi.systab = NULL;
@@ -420,7 +424,7 @@ void __init efi_enter_virtual_mode(void)
 		size = md->num_pages << EFI_PAGE_SHIFT;
 		end = md->phys_addr + size;
 
-		if ((end >> PAGE_SHIFT) <= max_pfn_mapped)
+		if (PFN_UP(end) <= max_pfn_mapped)
 			va = __va(md->phys_addr);
 		else
 			va = efi_ioremap(md->phys_addr, size);
@@ -433,8 +437,12 @@ void __init efi_enter_virtual_mode(void)
 			continue;
 		}
 
-		if (!(md->attribute & EFI_MEMORY_WB))
-			set_memory_uc(md->virt_addr, md->num_pages);
+		if (!(md->attribute & EFI_MEMORY_WB)) {
+			addr = md->virt_addr;
+			npages = md->num_pages;
+			memrange_efi_to_native(&addr, &npages);
+			set_memory_uc(addr, npages);
+		}
 
 		systab = (u64) (unsigned long) efi_phys.systab;
 		if (md->phys_addr <= systab && systab < end) {
