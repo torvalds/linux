@@ -969,15 +969,11 @@ int __init init_arch_irq(void)
 #if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561)
 	bfin_write_SIC_IMASK0(SIC_UNMASK_ALL);
 	bfin_write_SIC_IMASK1(SIC_UNMASK_ALL);
-	bfin_write_SIC_IWR0(IWR_ENABLE_ALL);
-	bfin_write_SIC_IWR1(IWR_ENABLE_ALL);
 # ifdef CONFIG_BF54x
 	bfin_write_SIC_IMASK2(SIC_UNMASK_ALL);
-	bfin_write_SIC_IWR2(IWR_ENABLE_ALL);
 # endif
 #else
 	bfin_write_SIC_IMASK(SIC_UNMASK_ALL);
-	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 #endif
 	SSYNC();
 
@@ -1105,6 +1101,16 @@ int __init init_arch_irq(void)
 	irq_flags = irq_flags | IMASK_IVG15 |
 	    IMASK_IVG14 | IMASK_IVG13 | IMASK_IVG12 | IMASK_IVG11 |
 	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
+
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561)
+	bfin_write_SIC_IWR0(IWR_ENABLE_ALL);
+	bfin_write_SIC_IWR1(IWR_ENABLE_ALL);
+# ifdef CONFIG_BF54x
+	bfin_write_SIC_IWR2(IWR_ENABLE_ALL);
+# endif
+#else
+	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+#endif
 
 	return 0;
 }
