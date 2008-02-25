@@ -61,11 +61,33 @@ EXPORT_SYMBOL_GPL(rt2x00lib_get_ring);
 /*
  * Link tuning handlers
  */
-static void rt2x00lib_start_link_tuner(struct rt2x00_dev *rt2x00dev)
+void rt2x00lib_reset_link_tuner(struct rt2x00_dev *rt2x00dev)
 {
+	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
+		return;
+
+	/*
+	 * Reset link information.
+	 * Both the currently active vgc level as well as
+	 * the link tuner counter should be reset. Resetting
+	 * the counter is important for devices where the
+	 * device should only perform link tuning during the
+	 * first minute after being enabled.
+	 */
 	rt2x00dev->link.count = 0;
 	rt2x00dev->link.vgc_level = 0;
 
+	/*
+	 * Reset the link tuner.
+	 */
+	rt2x00dev->ops->lib->reset_tuner(rt2x00dev);
+}
+
+static void rt2x00lib_start_link_tuner(struct rt2x00_dev *rt2x00dev)
+{
+	/*
+	 * Clear all (possibly) pre-existing quality statistics.
+	 */
 	memset(&rt2x00dev->link.qual, 0, sizeof(rt2x00dev->link.qual));
 
 	/*
@@ -79,10 +101,7 @@ static void rt2x00lib_start_link_tuner(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->link.qual.rx_percentage = 50;
 	rt2x00dev->link.qual.tx_percentage = 50;
 
-	/*
-	 * Reset the link tuner.
-	 */
-	rt2x00dev->ops->lib->reset_tuner(rt2x00dev);
+	rt2x00lib_reset_link_tuner(rt2x00dev);
 
 	queue_delayed_work(rt2x00dev->hw->workqueue,
 			   &rt2x00dev->link.work, LINK_TUNE_INTERVAL);
@@ -91,15 +110,6 @@ static void rt2x00lib_start_link_tuner(struct rt2x00_dev *rt2x00dev)
 static void rt2x00lib_stop_link_tuner(struct rt2x00_dev *rt2x00dev)
 {
 	cancel_delayed_work_sync(&rt2x00dev->link.work);
-}
-
-void rt2x00lib_reset_link_tuner(struct rt2x00_dev *rt2x00dev)
-{
-	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
-		return;
-
-	rt2x00lib_stop_link_tuner(rt2x00dev);
-	rt2x00lib_start_link_tuner(rt2x00dev);
 }
 
 /*
@@ -433,15 +443,16 @@ static void rt2x00lib_link_tuner(struct work_struct *work)
 		rt2x00dev->ops->lib->link_tuner(rt2x00dev);
 
 	/*
-	 * Evaluate antenna setup.
-	 */
-	rt2x00lib_evaluate_antenna(rt2x00dev);
-
-	/*
 	 * Precalculate a portion of the link signal which is
 	 * in based on the tx/rx success/failure counters.
 	 */
 	rt2x00lib_precalculate_link_signal(&rt2x00dev->link.qual);
+
+	/*
+	 * Evaluate antenna setup, make this the last step since this could
+	 * possibly reset some statistics.
+	 */
+	rt2x00lib_evaluate_antenna(rt2x00dev);
 
 	/*
 	 * Increase tuner counter, and reschedule the next link tuner run.
