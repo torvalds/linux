@@ -58,12 +58,12 @@ static int sputrace_sprint(char *tbuf, int n)
 		ktime_to_timespec(ktime_sub(t->tstamp, sputrace_start));
 
 	return snprintf(tbuf, n,
-		"[%lu.%09lu] %d: %s (thread = %d, spu = %d)\n",
+		"[%lu.%09lu] %d: %s (ctxthread = %d, spu = %d)\n",
 		(unsigned long) tv.tv_sec,
 		(unsigned long) tv.tv_nsec,
-		t->owner_tid,
-		t->name,
 		t->curr_tid,
+		t->name,
+		t->owner_tid,
 		t->number);
 }
 
@@ -188,6 +188,7 @@ struct spu_probe spu_probes[] = {
 	{ "spufs_ps_nopfn__insert", "%p %p", spu_context_event },
 	{ "spu_acquire_saved__enter", "%p", spu_context_nospu_event },
 	{ "destroy_spu_context__enter", "%p", spu_context_nospu_event },
+	{ "spufs_stop_callback__enter", "%p %p", spu_context_event },
 };
 
 static int __init sputrace_init(void)
