@@ -95,7 +95,7 @@ static int ps3rom_slave_configure(struct scsi_device *scsi_dev)
  */
 static int fill_from_dev_buffer(struct scsi_cmnd *cmd, const void *buf)
 {
-	int k, req_len, act_len, len, active;
+	int k, req_len, len, fin;
 	void *kaddr;
 	struct scatterlist *sgpnt;
 	unsigned int buflen;
@@ -107,24 +107,22 @@ static int fill_from_dev_buffer(struct scsi_cmnd *cmd, const void *buf)
 	if (!scsi_sglist(cmd))
 		return -1;
 
-	active = 1;
-	req_len = act_len = 0;
+	req_len = fin = 0;
 	scsi_for_each_sg(cmd, sgpnt, scsi_sg_count(cmd), k) {
-		if (active) {
-			kaddr = kmap_atomic(sg_page(sgpnt), KM_IRQ0);
-			len = sgpnt->length;
-			if ((req_len + len) > buflen) {
-				active = 0;
-				len = buflen - req_len;
-			}
-			memcpy(kaddr + sgpnt->offset, buf + req_len, len);
-			flush_kernel_dcache_page(sg_page(sgpnt));
-			kunmap_atomic(kaddr, KM_IRQ0);
-			act_len += len;
+		kaddr = kmap_atomic(sg_page(sgpnt), KM_IRQ0);
+		len = sgpnt->length;
+		if ((req_len + len) > buflen) {
+			len = buflen - req_len;
+			fin = 1;
 		}
-		req_len += sgpnt->length;
+		memcpy(kaddr + sgpnt->offset, buf + req_len, len);
+		flush_kernel_dcache_page(sg_page(sgpnt));
+		kunmap_atomic(kaddr, KM_IRQ0);
+		req_len += len;
+		if (fin)
+			break;
 	}
-	scsi_set_resid(cmd, buflen - act_len);
+	scsi_set_resid(cmd, buflen - req_len);
 	return 0;
 }
 
