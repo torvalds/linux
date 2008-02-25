@@ -465,6 +465,16 @@ config PC87413_WDT
 
 	  Most people will say N.
 
+config RDC321X_WDT
+	tristate "RDC R-321x SoC watchdog"
+	depends on X86_RDC321X
+	help
+	  This is the driver for the built in hardware watchdog
+	  in the RDC R-321x SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rdc321x_wdt.
+
 config 60XX_WDT
 	tristate "SBC-60XX Watchdog Timer"
 	depends on X86
