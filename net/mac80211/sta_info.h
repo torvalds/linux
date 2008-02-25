@@ -209,11 +209,11 @@ struct sta_info {
 	__le16 llid;		/* Local link ID */
 	__le16 plid;		/* Peer link ID */
 	__le16 reason;		/* Buffer for cancel reason on HOLDING state */
+	u8 plink_retries;	/* Retries in establishment */
+	bool ignore_plink_timer;
 	enum plink_state plink_state;
 	u32 plink_timeout;
 	struct timer_list plink_timer;
-	u8 plink_retries;	/* Retries in establishment */
-	bool ignore_plink_timer;
 	spinlock_t plink_lock;	/* For peer_state reads / updates and other
 				   updates in the structure. Ensures robust
 				   transitions for the peerlink FSM */
