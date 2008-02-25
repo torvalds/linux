@@ -280,7 +280,7 @@ static int sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 	ssec->sid = SECINITSID_UNLABELED;
 	sk->sk_security = ssec;
 
-	selinux_netlbl_sk_security_init(ssec, family);
+	selinux_netlbl_sk_security_reset(ssec, family);
 
 	return 0;
 }
@@ -4139,7 +4139,7 @@ static void selinux_sk_clone_security(const struct sock *sk, struct sock *newsk)
 	newssec->peer_sid = ssec->peer_sid;
 	newssec->sclass = ssec->sclass;
 
-	selinux_netlbl_sk_security_clone(ssec, newssec);
+	selinux_netlbl_sk_security_reset(newssec, newsk->sk_family);
 }
 
 static void selinux_sk_getsecid(struct sock *sk, u32 *secid)
