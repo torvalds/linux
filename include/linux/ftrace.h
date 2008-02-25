@@ -106,16 +106,16 @@ static inline void tracer_disable(void)
 #endif
 
 #ifdef CONFIG_IRQSOFF_TRACER
-  extern void notrace time_hardirqs_on(unsigned long a0, unsigned long a1);
-  extern void notrace time_hardirqs_off(unsigned long a0, unsigned long a1);
+  extern void time_hardirqs_on(unsigned long a0, unsigned long a1);
+  extern void time_hardirqs_off(unsigned long a0, unsigned long a1);
 #else
 # define time_hardirqs_on(a0, a1)		do { } while (0)
 # define time_hardirqs_off(a0, a1)		do { } while (0)
 #endif
 
 #ifdef CONFIG_PREEMPT_TRACER
-  extern void notrace trace_preempt_on(unsigned long a0, unsigned long a1);
-  extern void notrace trace_preempt_off(unsigned long a0, unsigned long a1);
+  extern void trace_preempt_on(unsigned long a0, unsigned long a1);
+  extern void trace_preempt_off(unsigned long a0, unsigned long a1);
 #else
 # define trace_preempt_on(a0, a1)		do { } while (0)
 # define trace_preempt_off(a0, a1)		do { } while (0)
