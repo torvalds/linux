@@ -124,7 +124,7 @@ static int fill_from_dev_buffer(struct scsi_cmnd *cmd, const void *buf)
 		}
 		req_len += sgpnt->length;
 	}
-	scsi_set_resid(cmd, req_len - act_len);
+	scsi_set_resid(cmd, buflen - act_len);
 	return 0;
 }
 
