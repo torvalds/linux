@@ -1824,7 +1824,7 @@ choice
 	 Allows the configuration of the timer frequency.
 
 	config HZ_48
-		bool "48 HZ" if SYS_SUPPORTS_48HZ
+		bool "48 HZ" if SYS_SUPPORTS_48HZ || SYS_SUPPORTS_ARBIT_HZ
 
 	config HZ_100
 		bool "100 HZ" if SYS_SUPPORTS_100HZ || SYS_SUPPORTS_ARBIT_HZ
