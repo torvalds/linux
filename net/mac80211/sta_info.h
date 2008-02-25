@@ -235,6 +235,14 @@ struct sta_info {
 #endif
 };
 
+static inline enum plink_state sta_plink_state(struct sta_info *sta)
+{
+#ifdef CONFIG_MAC80211_MESH
+	return sta->plink_state;
+#endif
+	return LISTEN;
+}
+
 
 /* Maximum number of concurrently registered stations */
 #define MAX_STA_COUNT 2007

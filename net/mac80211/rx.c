@@ -391,13 +391,14 @@ ieee80211_rx_h_passive_scan(struct ieee80211_txrx_data *rx)
 	return RX_CONTINUE;
 }
 
-#ifdef CONFIG_MAC80211_MESH
-#define msh_h_get(h, l) ((struct ieee80211s_hdr *) ((u8 *)h + l))
 static ieee80211_rx_result
 ieee80211_rx_mesh_check(struct ieee80211_txrx_data *rx)
 {
 	int hdrlen = ieee80211_get_hdrlen(rx->fc);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) rx->skb->data;
+
+#define msh_h_get(h, l) ((struct ieee80211s_hdr *) ((u8 *)h + l))
+
 	if ((rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA) {
 		if (!((rx->fc & IEEE80211_FCTL_FROMDS) &&
 		      (rx->fc & IEEE80211_FCTL_TODS)))
@@ -410,8 +411,9 @@ ieee80211_rx_mesh_check(struct ieee80211_txrx_data *rx)
 	 * establisment frame, beacon or probe, drop the frame.
 	 */
 
-	if (!rx->sta || rx->sta->plink_state != ESTAB) {
+	if (!rx->sta || sta_plink_state(rx->sta) != ESTAB) {
 		struct ieee80211_mgmt *mgmt;
+
 		if ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT)
 			return RX_DROP_MONITOR;
 
@@ -434,17 +436,10 @@ ieee80211_rx_mesh_check(struct ieee80211_txrx_data *rx)
 		    is_broadcast_ether_addr(hdr->addr1) &&
 		    mesh_rmc_check(hdr->addr4, msh_h_get(hdr, hdrlen), rx->dev))
 		return RX_DROP_MONITOR;
-	else
-		return RX_CONTINUE;
-}
 #undef msh_h_get
-#else
-static inline ieee80211_rx_result
-ieee80211_rx_mesh_check(struct ieee80211_txrx_data *rx)
-{
+
 	return RX_CONTINUE;
 }
-#endif
 
 
 static ieee80211_rx_result
