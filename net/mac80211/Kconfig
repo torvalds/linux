@@ -85,8 +85,9 @@ config MAC80211_MESH
 	bool "Enable mac80211 mesh networking (pre-802.11s) support"
 	depends on MAC80211 && EXPERIMENTAL && BROKEN
 	---help---
-	 This options enables support of pre-802.11s mesh interfaces.
-	 For more information visit http://o11s.org
+	 This options enables support of Draft 802.11s mesh networking.
+	 The implementation is based on Draft 1.08 of the Mesh Networking
+	 amendment. For more information visit http://o11s.org/.
 
 
 config MAC80211_LEDS
