@@ -31,9 +31,6 @@
 #include <asm/blackfin.h>
 #include <asm/mach/irq.h>
 
-.text
-
-#if !defined(CONFIG_BF561)
 
 .section .l1.text
 
@@ -328,10 +325,12 @@ ENTRY(_set_sic_iwr)
 	RTS;
 
 ENTRY(_set_rtc_istat)
+#ifndef CONFIG_BF561
 	P0.H = hi(RTC_ISTAT);
 	P0.L = lo(RTC_ISTAT);
 	w[P0] = R0.L;
 	SSYNC;
+#endif
 	RTS;
 
 ENTRY(_test_pll_locked)
@@ -342,4 +341,3 @@ ENTRY(_test_pll_locked)
 	CC = BITTST(R0,5);
 	IF !CC JUMP 1b;
 	RTS;
-#endif
