@@ -183,6 +183,7 @@ static int ieee80211_open(struct net_device *dev)
 	struct ieee80211_if_init_conf conf;
 	int res;
 	bool need_hw_reconfig = 0;
+	struct sta_info *sta;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
@@ -256,6 +257,20 @@ static int ieee80211_open(struct net_device *dev)
 	case IEEE80211_IF_TYPE_WDS:
 		if (is_zero_ether_addr(sdata->u.wds.remote_addr))
 			return -ENOLINK;
+
+		/* Create STA entry for the WDS peer */
+		sta = sta_info_alloc(sdata, sdata->u.wds.remote_addr,
+				     GFP_KERNEL);
+		if (!sta)
+			return -ENOMEM;
+
+		sta->flags |= WLAN_STA_AUTHORIZED;
+
+		res = sta_info_insert(sta);
+		if (res) {
+			sta_info_destroy(sta);
+			return res;
+		}
 		break;
 	case IEEE80211_IF_TYPE_VLAN:
 		if (!sdata->u.vlan.ap)
@@ -367,14 +382,20 @@ static int ieee80211_open(struct net_device *dev)
 
 static int ieee80211_stop(struct net_device *dev)
 {
-	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_init_conf conf;
 	struct sta_info *sta;
 	int i;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	/*
+	 * Stop TX on this interface first.
+	 */
+	netif_stop_queue(dev);
 
+	/*
+	 * Now delete all active aggregation sessions.
+	 */
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
@@ -388,7 +409,24 @@ static int ieee80211_stop(struct net_device *dev)
 
 	rcu_read_unlock();
 
-	netif_stop_queue(dev);
+	/*
+	 * Remove all stations associated with this interface.
+	 *
+	 * This must be done before calling ops->remove_interface()
+	 * because otherwise we can later invoke ops->sta_notify()
+	 * whenever the STAs are removed, and that invalidates driver
+	 * assumptions about always getting a vif pointer that is valid
+	 * (because if we remove a STA after ops->remove_interface()
+	 * the driver will have removed the vif info already!)
+	 *
+	 * We could relax this and only unlink the stations from the
+	 * hash table and list but keep them on a per-sdata list that
+	 * will be inserted back again when the interface is brought
+	 * up again, but I don't currently see a use case for that,
+	 * except with WDS which gets a STA entry created when it is
+	 * brought up.
+	 */
+	sta_info_flush(local, sdata);
 
 	/*
 	 * Don't count this interface for promisc/allmulti while it
@@ -453,8 +491,6 @@ static int ieee80211_stop(struct net_device *dev)
 		netif_tx_unlock_bh(local->mdev);
 		break;
 	case IEEE80211_IF_TYPE_MESH_POINT:
-		sta_info_flush(local, sdata);
-		/* fall through */
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		sdata->u.sta.state = IEEE80211_DISABLED;
@@ -890,57 +926,6 @@ void ieee80211_if_setup(struct net_device *dev)
 	dev->open = ieee80211_open;
 	dev->stop = ieee80211_stop;
 	dev->destructor = ieee80211_if_free;
-}
-
-/* WDS specialties */
-
-int ieee80211_if_update_wds(struct net_device *dev, u8 *remote_addr)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct sta_info *sta;
-	int err;
-	DECLARE_MAC_BUF(mac);
-
-	might_sleep();
-
-	if (compare_ether_addr(remote_addr, sdata->u.wds.remote_addr) == 0)
-		return 0;
-
-	/* Create STA entry for the new peer */
-	sta = sta_info_alloc(sdata, remote_addr, GFP_KERNEL);
-	if (!sta)
-		return -ENOMEM;
-
-	sta->flags |= WLAN_STA_AUTHORIZED;
-	err = sta_info_insert(sta);
-	if (err) {
-		sta_info_destroy(sta);
-		return err;
-	}
-
-	rcu_read_lock();
-
-	/* Remove STA entry for the old peer */
-	sta = sta_info_get(local, sdata->u.wds.remote_addr);
-	if (sta)
-		sta_info_unlink(&sta);
-	else
-		printk(KERN_DEBUG "%s: could not find STA entry for WDS link "
-		       "peer %s\n",
-		       dev->name, print_mac(mac, sdata->u.wds.remote_addr));
-
-	/* Update WDS link data */
-	memcpy(&sdata->u.wds.remote_addr, remote_addr, ETH_ALEN);
-
-	rcu_read_unlock();
-
-	if (sta) {
-		synchronize_rcu();
-		sta_info_destroy(sta);
-	}
-
-	return 0;
 }
 
 /* everything else */

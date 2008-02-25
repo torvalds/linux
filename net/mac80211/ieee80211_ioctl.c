@@ -468,10 +468,20 @@ static int ieee80211_ioctl_siwap(struct net_device *dev,
 		ieee80211_sta_req_auth(dev, &sdata->u.sta);
 		return 0;
 	} else if (sdata->vif.type == IEEE80211_IF_TYPE_WDS) {
-		if (memcmp(sdata->u.wds.remote_addr, (u8 *) &ap_addr->sa_data,
-			   ETH_ALEN) == 0)
-			return 0;
-		return ieee80211_if_update_wds(dev, (u8 *) &ap_addr->sa_data);
+		/*
+		 * If it is necessary to update the WDS peer address
+		 * while the interface is running, then we need to do
+		 * more work here, namely if it is running we need to
+		 * add a new and remove the old STA entry, this is
+		 * normally handled by _open() and _stop().
+		 */
+		if (netif_running(dev))
+			return -EBUSY;
+
+		memcpy(&sdata->u.wds.remote_addr, (u8 *) &ap_addr->sa_data,
+		       ETH_ALEN);
+
+		return 0;
 	}
 
 	return -EOPNOTSUPP;

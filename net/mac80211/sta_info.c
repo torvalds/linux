@@ -258,6 +258,8 @@ int sta_info_insert(struct sta_info *sta)
 	unsigned long flags;
 	DECLARE_MAC_BUF(mac);
 
+	WARN_ON(!netif_running(sdata->dev));
+
 	spin_lock_irqsave(&local->sta_lock, flags);
 	/* check if STA exists already */
 	if (__sta_info_find(local, sta->addr)) {
@@ -608,14 +610,18 @@ void sta_info_stop(struct ieee80211_local *local)
 
 /**
  * sta_info_flush - flush matching STA entries from the STA table
+ *
+ * Returns the number of removed STA entries.
+ *
  * @local: local interface data
  * @sdata: matching rule for the net device (sta->dev) or %NULL to match all STAs
  */
-void sta_info_flush(struct ieee80211_local *local,
+int sta_info_flush(struct ieee80211_local *local,
 		    struct ieee80211_sub_if_data *sdata)
 {
 	struct sta_info *sta, *tmp;
 	LIST_HEAD(tmp_list);
+	int ret = 0;
 	unsigned long flags;
 
 	might_sleep();
@@ -624,8 +630,10 @@ void sta_info_flush(struct ieee80211_local *local,
 	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
 		if (!sdata || sdata == sta->sdata) {
 			__sta_info_unlink(&sta);
-			if (sta)
+			if (sta) {
 				list_add_tail(&sta->list, &tmp_list);
+				ret++;
+			}
 		}
 	}
 	spin_unlock_irqrestore(&local->sta_lock, flags);
@@ -634,4 +642,6 @@ void sta_info_flush(struct ieee80211_local *local,
 
 	list_for_each_entry_safe(sta, tmp, &tmp_list, list)
 		sta_info_destroy(sta);
+
+	return ret;
 }
