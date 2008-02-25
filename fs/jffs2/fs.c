@@ -149,6 +149,7 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	if (ivalid & ATTR_SIZE && inode->i_size < iattr->ia_size) {
 		jffs2_add_full_dnode_to_inode(c, f, new_metadata);
 		inode->i_size = iattr->ia_size;
+		inode->i_blocks = (inode->i_size + 511) >> 9;
 		f->metadata = NULL;
 	} else {
 		f->metadata = new_metadata;
@@ -167,8 +168,10 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	   We are protected from a simultaneous write() extending i_size
 	   back past iattr->ia_size, because do_truncate() holds the
 	   generic inode semaphore. */
-	if (ivalid & ATTR_SIZE && inode->i_size > iattr->ia_size)
-		vmtruncate(inode, iattr->ia_size);
+	if (ivalid & ATTR_SIZE && inode->i_size > iattr->ia_size) {
+		vmtruncate(inode, iattr->ia_size);	
+		inode->i_blocks = (inode->i_size + 511) >> 9;
+	}	
 
 	return 0;
 }
