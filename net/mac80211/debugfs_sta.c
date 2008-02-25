@@ -67,7 +67,7 @@ STA_FILE(last_rssi, last_rssi, D);
 STA_FILE(last_signal, last_signal, D);
 STA_FILE(last_noise, last_noise, D);
 STA_FILE(channel_use, channel_use, D);
-STA_FILE(wep_weak_iv_count, wep_weak_iv_count, D);
+STA_FILE(wep_weak_iv_count, wep_weak_iv_count, LU);
 
 static ssize_t sta_flags_read(struct file *file, char __user *userbuf,
 			      size_t count, loff_t *ppos)

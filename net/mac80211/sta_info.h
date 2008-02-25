@@ -139,69 +139,42 @@ struct sta_ampdu_mlme {
 #define STA_INFO_PIN_STAT_PINNED	1
 #define STA_INFO_PIN_STAT_DESTROY	2
 
-
+/**
+ * struct sta_info - STA information
+ *
+ * This structure collects information about a station that
+ * mac80211 is communicating with.
+ *
+ * @list: global linked list entry
+ * @hnext: hash table linked list pointer
+ * @local: pointer to the global information
+ * @addr: MAC address of this STA
+ * @aid: STA's unique AID (1..2007, 0 = not assigned yet),
+ *	only used in AP (and IBSS?) mode
+ * @flags: STA flags, see &enum ieee80211_sta_info_flags
+ * @ps_tx_buf: buffer of frames to transmit to this station
+ *	when it leaves power saving state
+ * @tx_filtered: buffer of frames we already tried to transmit
+ *	but were filtered by hardware due to STA having entered
+ *	power saving state
+ * @rx_packets: Number of MSDUs received from this STA
+ * @rx_bytes: Number of bytes received from this STA
+ * @supp_rates: Bitmap of supported rates (per band)
+ * @ht_info: HT capabilities of this STA
+ */
 struct sta_info {
+	/* General information, mostly static */
 	struct list_head list;
-	struct sta_info *hnext; /* next entry in hash table list */
-
+	struct sta_info *hnext;
 	struct ieee80211_local *local;
-
-	u8 addr[ETH_ALEN];
-	u16 aid; /* STA's unique AID (1..2007), 0 = not yet assigned */
-	u32 flags; /* WLAN_STA_ */
-
-	struct sk_buff_head ps_tx_buf; /* buffer of TX frames for station in
-					* power saving state */
-	struct sk_buff_head tx_filtered; /* buffer of TX frames that were
-					  * already given to low-level driver,
-					  * but were filtered */
-	unsigned long rx_packets, tx_packets; /* number of RX/TX MSDUs */
-	unsigned long rx_bytes, tx_bytes;
-	unsigned long tx_retry_failed, tx_retry_count;
-	unsigned long tx_filtered_count;
-	/* moving percentage of failed MSDUs */
-	unsigned int fail_avg;
-
-	unsigned int wep_weak_iv_count; /* number of RX frames with weak IV */
-
-	unsigned long last_rx;
-	/* bitmap of supported rates per band */
-	u64 supp_rates[IEEE80211_NUM_BANDS];
-	int txrate_idx;
-	/* last rates used to send a frame to this STA */
-	int last_txrate_idx, last_nonerp_txrate_idx;
-
-	/* sub_if_data this sta belongs to */
 	struct ieee80211_sub_if_data *sdata;
-
 	struct ieee80211_key *key;
-
-	u32 tx_num_consecutive_failures;
-	u32 tx_num_mpdu_ok;
-	u32 tx_num_mpdu_fail;
-
 	struct rate_control_ref *rate_ctrl;
 	void *rate_ctrl_priv;
-
-	/* last received seq/frag number from this STA (per RX queue) */
-	__le16 last_seq_ctrl[NUM_RX_DATA_QUEUES];
-	unsigned long num_duplicates; /* number of duplicate frames received
-				       * from this STA */
-	unsigned long tx_fragments; /* number of transmitted MPDUs */
-	unsigned long rx_fragments; /* number of received MPDUs */
-	unsigned long rx_dropped; /* number of dropped MPDUs from this STA */
-
-	int last_rssi; /* RSSI of last received frame from this STA */
-	int last_signal; /* signal of last received frame from this STA */
-	int last_noise; /* noise of last received frame from this STA */
-	int channel_use;
-	int channel_use_raw;
-
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-	unsigned int wme_rx_queue[NUM_RX_DATA_QUEUES];
-	unsigned int wme_tx_queue[NUM_RX_DATA_QUEUES];
-#endif /* CONFIG_MAC80211_DEBUG_COUNTERS */
-
+	struct ieee80211_ht_info ht_info;
+	u64 supp_rates[IEEE80211_NUM_BANDS];
+	u8 addr[ETH_ALEN];
+	u16 aid;
 	u16 listen_interval;
 
 	/*
@@ -210,13 +183,69 @@ struct sta_info {
 	 */
 	u8 pin_status;
 
-	struct ieee80211_ht_info ht_info; /* 802.11n HT capabilities
-					     of this STA */
+	/* frequently updated information, needs locking? */
+	u32 flags;
+
+	/*
+	 * STA powersave frame queues, no more than the internal
+	 * locking required.
+	 */
+	struct sk_buff_head ps_tx_buf;
+	struct sk_buff_head tx_filtered;
+
+	/* Updated from RX path only, no locking requirements */
+	unsigned long rx_packets, rx_bytes;
+	unsigned long wep_weak_iv_count;
+	unsigned long last_rx;
+	unsigned long num_duplicates; /* number of duplicate frames received
+				       * from this STA */
+	unsigned long rx_fragments; /* number of received MPDUs */
+	unsigned long rx_dropped; /* number of dropped MPDUs from this STA */
+	int last_rssi; /* RSSI of last received frame from this STA */
+	int last_signal; /* signal of last received frame from this STA */
+	int last_noise; /* noise of last received frame from this STA */
+	/* last received seq/frag number from this STA (per RX queue) */
+	__le16 last_seq_ctrl[NUM_RX_DATA_QUEUES];
+#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
+	unsigned int wme_rx_queue[NUM_RX_DATA_QUEUES];
+#endif
+
+	/* Updated from TX status path only, no locking requirements */
+	unsigned long tx_filtered_count;
+	unsigned long tx_retry_failed, tx_retry_count;
+	/* TODO: update in generic code not rate control? */
+	u32 tx_num_consecutive_failures;
+	u32 tx_num_mpdu_ok;
+	u32 tx_num_mpdu_fail;
+	/* moving percentage of failed MSDUs */
+	unsigned int fail_avg;
+
+	/* Updated from TX path only, no locking requirements */
+	unsigned long tx_packets; /* number of RX/TX MSDUs */
+	unsigned long tx_bytes;
+	unsigned long tx_fragments; /* number of transmitted MPDUs */
+	int txrate_idx;
+	int last_txrate_idx;
+#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
+	unsigned int wme_tx_queue[NUM_RX_DATA_QUEUES];
+#endif
+
+	/* Debug counters, no locking doesn't matter */
+	int channel_use;
+	int channel_use_raw;
+
+	/*
+	 * Aggregation information, comes with own locking.
+	 */
 	struct sta_ampdu_mlme ampdu_mlme;
-	u8 timer_to_tid[STA_TID_NUM];	/* convert timer id to tid */
+	u8 timer_to_tid[STA_TID_NUM];	/* identity mapping to ID timers */
 	u8 tid_to_tx_q[STA_TID_NUM];	/* map tid to tx queue */
+
 #ifdef CONFIG_MAC80211_MESH
-	/* mesh peer link attributes */
+	/*
+	 * Mesh peer link attributes
+	 * TODO: move to a sub-structure that is referenced with pointer?
+	 */
 	__le16 llid;		/* Local link ID */
 	__le16 plid;		/* Peer link ID */
 	__le16 reason;		/* Buffer for cancel reason on HOLDING state */
