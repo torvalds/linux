@@ -32,6 +32,7 @@
 static DEFINE_PER_CPU(struct cpu, cpu_devices);
 
 u16 _bfin_swrst;
+EXPORT_SYMBOL(_bfin_swrst);
 
 unsigned long memory_start, memory_end, physical_mem_end;
 unsigned long reserved_mem_dcache_on;
