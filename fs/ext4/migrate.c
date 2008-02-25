@@ -43,6 +43,7 @@ static int finish_range(handle_t *handle, struct inode *inode,
 
 	if (IS_ERR(path)) {
 		retval = PTR_ERR(path);
+		path = NULL;
 		goto err_out;
 	}
 
@@ -74,6 +75,10 @@ static int finish_range(handle_t *handle, struct inode *inode,
 	}
 	retval = ext4_ext_insert_extent(handle, inode, path, &newext);
 err_out:
+	if (path) {
+		ext4_ext_drop_refs(path);
+		kfree(path);
+	}
 	lb->first_pblock = 0;
 	return retval;
 }

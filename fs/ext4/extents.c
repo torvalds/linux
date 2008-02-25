@@ -349,7 +349,7 @@ static void ext4_ext_show_leaf(struct inode *inode, struct ext4_ext_path *path)
 #define ext4_ext_show_leaf(inode,path)
 #endif
 
-static void ext4_ext_drop_refs(struct ext4_ext_path *path)
+void ext4_ext_drop_refs(struct ext4_ext_path *path)
 {
 	int depth = path->p_depth;
 	int i;
@@ -2200,10 +2200,10 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		newdepth = ext_depth(inode);
 		if (newdepth != depth) {
 			depth = newdepth;
-			path = ext4_ext_find_extent(inode, iblock, NULL);
+			ext4_ext_drop_refs(path);
+			path = ext4_ext_find_extent(inode, iblock, path);
 			if (IS_ERR(path)) {
 				err = PTR_ERR(path);
-				path = NULL;
 				goto out;
 			}
 			eh = path[depth].p_hdr;
