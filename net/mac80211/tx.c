@@ -327,10 +327,8 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 		}
 		total += skb_queue_len(&ap->ps_bc_buf);
 	}
-	rcu_read_unlock();
 
-	read_lock_bh(&local->sta_lock);
-	list_for_each_entry(sta, &local->sta_list, list) {
+	list_for_each_entry_rcu(sta, &local->sta_list, list) {
 		skb = skb_dequeue(&sta->ps_tx_buf);
 		if (skb) {
 			purged++;
@@ -338,7 +336,8 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 		}
 		total += skb_queue_len(&sta->ps_tx_buf);
 	}
-	read_unlock_bh(&local->sta_lock);
+
+	rcu_read_unlock();
 
 	local->total_ps_buffered = total;
 	printk(KERN_DEBUG "%s: PS buffers full - purged %d frames\n",
@@ -1141,19 +1140,16 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 		return 0;
 	}
 
+	rcu_read_lock();
+
 	/* initialises tx */
 	res_prepare = __ieee80211_tx_prepare(&tx, skb, dev, control);
 
 	if (res_prepare == TX_DROP) {
 		dev_kfree_skb(skb);
+		rcu_read_unlock();
 		return 0;
 	}
-
-	/*
-	 * key references are protected using RCU and this requires that
-	 * we are in a read-site RCU section during receive processing
-	 */
-	rcu_read_lock();
 
 	sta = tx.sta;
 	tx.channel = local->hw.conf.channel;
@@ -1166,9 +1162,6 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 	}
 
 	skb = tx.skb; /* handlers are allowed to change skb */
-
-	if (sta)
-		sta_info_put(sta);
 
 	if (unlikely(res == TX_DROP)) {
 		I802_DEBUG_INC(local->tx_handlers_drop);
@@ -1489,11 +1482,11 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	 * in AP mode)
 	 */
 	if (!is_multicast_ether_addr(hdr.addr1)) {
+		rcu_read_lock();
 		sta = sta_info_get(local, hdr.addr1);
-		if (sta) {
+		if (sta)
 			sta_flags = sta->flags;
-			sta_info_put(sta);
-		}
+		rcu_read_unlock();
 	}
 
 	/* receiver is QoS enabled, use a QoS type frame */
@@ -1722,7 +1715,6 @@ static void ieee80211_beacon_add_tim(struct ieee80211_local *local,
 
 	/* Generate bitmap for TIM only if there are any STAs in power save
 	 * mode. */
-	read_lock_bh(&local->sta_lock);
 	if (atomic_read(&bss->num_sta_ps) > 0)
 		/* in the hope that this is faster than
 		 * checking byte-for-byte */
@@ -1773,7 +1765,6 @@ static void ieee80211_beacon_add_tim(struct ieee80211_local *local,
 		*pos++ = aid0; /* Bitmap control */
 		*pos++ = 0; /* Part Virt Bitmap */
 	}
-	read_unlock_bh(&local->sta_lock);
 }
 
 struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
@@ -1821,7 +1812,22 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 			ieee80211_include_sequence(sdata,
 					(struct ieee80211_hdr *)skb->data);
 
-			ieee80211_beacon_add_tim(local, ap, skb, beacon);
+			/*
+			 * Not very nice, but we want to allow the driver to call
+			 * ieee80211_beacon_get() as a response to the set_tim()
+			 * callback. That, however, is already invoked under the
+			 * sta_lock to guarantee consistent and race-free update
+			 * of the tim bitmap in mac80211 and the driver.
+			 */
+			if (local->tim_in_locked_section) {
+				ieee80211_beacon_add_tim(local, ap, skb, beacon);
+			} else {
+				unsigned long flags;
+
+				spin_lock_irqsave(&local->sta_lock, flags);
+				ieee80211_beacon_add_tim(local, ap, skb, beacon);
+				spin_unlock_irqrestore(&local->sta_lock, flags);
+			}
 
 			if (beacon->tail)
 				memcpy(skb_put(skb, beacon->tail_len),
@@ -1965,7 +1971,6 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 		rcu_read_unlock();
 		return NULL;
 	}
-	rcu_read_unlock();
 
 	if (bss->dtim_count != 0)
 		return NULL; /* send buffered bc/mc only after DTIM beacon */
@@ -2010,8 +2015,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 		skb = NULL;
 	}
 
-	if (sta)
-		sta_info_put(sta);
+	rcu_read_unlock();
 
 	return skb;
 }

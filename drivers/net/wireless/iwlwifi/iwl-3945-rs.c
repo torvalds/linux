@@ -471,10 +471,11 @@ static void rs_tx_status(void *priv_rate,
 		return;
 	}
 
+	rcu_read_lock();
+
 	sta = sta_info_get(local, hdr->addr1);
 	if (!sta || !sta->rate_ctrl_priv) {
-		if (sta)
-			sta_info_put(sta);
+		rcu_read_unlock();
 		IWL_DEBUG_RATE("leave: No STA priv data to update!\n");
 		return;
 	}
@@ -547,7 +548,7 @@ static void rs_tx_status(void *priv_rate,
 
 	spin_unlock_irqrestore(&rs_sta->lock, flags);
 
-	sta_info_put(sta);
+	rcu_read_unlock();
 
 	IWL_DEBUG_RATE("leave\n");
 
@@ -658,6 +659,8 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 
 	IWL_DEBUG_RATE("enter\n");
 
+	rcu_read_lock();
+
 	sta = sta_info_get(local, hdr->addr1);
 
 	/* Send management frames and broadcast/multicast data using lowest
@@ -668,8 +671,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 	    !sta || !sta->rate_ctrl_priv) {
 		IWL_DEBUG_RATE("leave: No STA priv data to update!\n");
 		sel->rate = rate_lowest(local, band, sta);
-		if (sta)
-			sta_info_put(sta);
+		rcu_read_unlock();
 		return;
 	}
 
@@ -811,7 +813,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 	else
 		sta->txrate_idx = sta->last_txrate_idx;
 
-	sta_info_put(sta);
+	rcu_read_unlock();
 
 	IWL_DEBUG_RATE("leave: %d\n", index);
 
@@ -843,13 +845,15 @@ int iwl3945_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 	unsigned long now = jiffies;
 	u32 max_time = 0;
 
+	rcu_read_lock();
+
 	sta = sta_info_get(local, priv->stations[sta_id].sta.sta.addr);
 	if (!sta || !sta->rate_ctrl_priv) {
-		if (sta) {
-			sta_info_put(sta);
+		if (sta)
 			IWL_DEBUG_RATE("leave - no private rate data!\n");
-		} else
+		else
 			IWL_DEBUG_RATE("leave - no station!\n");
+		rcu_read_unlock();
 		return sprintf(buf, "station %d not found\n", sta_id);
 	}
 
@@ -890,7 +894,7 @@ int iwl3945_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 		i = j;
 	}
 	spin_unlock_irqrestore(&rs_sta->lock, flags);
-	sta_info_put(sta);
+	rcu_read_unlock();
 
 	/* Display the average rate of all samples taken.
 	 *
@@ -927,11 +931,12 @@ void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 		return;
 	}
 
+	rcu_read_lock();
+
 	sta = sta_info_get(local, priv->stations[sta_id].sta.sta.addr);
 	if (!sta || !sta->rate_ctrl_priv) {
-		if (sta)
-			sta_info_put(sta);
 		IWL_DEBUG_RATE("leave - no private rate data!\n");
+		rcu_read_unlock();
 		return;
 	}
 
@@ -958,7 +963,7 @@ void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 		break;
 	}
 
-	sta_info_put(sta);
+	rcu_read_unlock();
 	spin_unlock_irqrestore(&rs_sta->lock, flags);
 
 	rssi = priv->last_rx_rssi;

@@ -240,14 +240,17 @@ void ieee80211_key_link(struct ieee80211_key *key,
 		if (sdata->vif.type == IEEE80211_IF_TYPE_STA) {
 			struct sta_info *ap;
 
+			rcu_read_lock();
+
 			/* same here, the AP could be using QoS */
 			ap = sta_info_get(key->local, key->sdata->u.sta.bssid);
 			if (ap) {
 				if (ap->flags & WLAN_STA_WME)
 					key->conf.flags |=
 						IEEE80211_KEY_FLAG_WMM_STA;
-				sta_info_put(ap);
 			}
+
+			rcu_read_unlock();
 		}
 	}
 
@@ -290,6 +293,9 @@ void ieee80211_key_free(struct ieee80211_key *key)
 			__ieee80211_key_replace(key->sdata, key->sta,
 						key, NULL);
 
+		/*
+		 * Do NOT remove this without looking at sta_info_destroy()
+		 */
 		synchronize_rcu();
 
 		/*

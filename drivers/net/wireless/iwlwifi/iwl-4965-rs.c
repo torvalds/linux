@@ -847,12 +847,12 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	if (retries > 15)
 		retries = 15;
 
+	rcu_read_lock();
 
 	sta = sta_info_get(local, hdr->addr1);
 
 	if (!sta || !sta->rate_ctrl_priv) {
-		if (sta)
-			sta_info_put(sta);
+		rcu_read_unlock();
 		return;
 	}
 
@@ -891,7 +891,7 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	if ((rs_index < 0) || (rs_index >= IWL_RATE_COUNT)) {
 		IWL_DEBUG_RATE("bad rate index at: %d rate 0x%X\n",
 			     rs_index, tx_mcs.rate_n_flags);
-		sta_info_put(sta);
+		rcu_read_unlock();
 		return;
 	}
 
@@ -909,7 +909,7 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 		IWL_DEBUG_RATE("initial rate does not match 0x%x 0x%x\n",
 				tx_mcs.rate_n_flags,
 				le32_to_cpu(table->rs_table[0].rate_n_flags));
-		sta_info_put(sta);
+		rcu_read_unlock();
 		return;
 	}
 
@@ -1025,7 +1025,7 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 
 	/* See if there's a better rate or modulation mode to try. */
 	rs_rate_scale_perform(priv, dev, hdr, sta);
-	sta_info_put(sta);
+	rcu_read_unlock();
 	return;
 }
 
@@ -2219,6 +2219,8 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 
 	IWL_DEBUG_RATE_LIMIT("rate scale calculate new rate for skb\n");
 
+	rcu_read_lock();
+
 	sta = sta_info_get(local, hdr->addr1);
 
 	/* Send management frames and broadcast/multicast data using lowest
@@ -2227,8 +2229,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 	if (!ieee80211_is_data(fc) || is_multicast_ether_addr(hdr->addr1) ||
 	    !sta || !sta->rate_ctrl_priv) {
 		sel->rate = rate_lowest(local, sband, sta);
-		if (sta)
-			sta_info_put(sta);
+		rcu_read_unlock();
 		return;
 	}
 
@@ -2261,7 +2262,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 		sel->rate = rate_lowest(local, sband, sta);
 		return;
 	}
-	sta_info_put(sta);
+	rcu_read_unlock();
 
 	sel->rate = &priv->ieee_rates[i];
 }
@@ -2735,13 +2736,15 @@ int iwl4965_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 	u32 max_time = 0;
 	u8 lq_type, antenna;
 
+	rcu_read_lock();
+
 	sta = sta_info_get(local, priv->stations[sta_id].sta.sta.addr);
 	if (!sta || !sta->rate_ctrl_priv) {
-		if (sta) {
-			sta_info_put(sta);
+		if (sta)
 			IWL_DEBUG_RATE("leave - no private rate data!\n");
-		} else
+		else
 			IWL_DEBUG_RATE("leave - no station!\n");
+		rcu_read_unlock();
 		return sprintf(buf, "station %d not found\n", sta_id);
 	}
 
@@ -2808,7 +2811,7 @@ int iwl4965_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 			 "active_search %d rate index %d\n", lq_type, antenna,
 			 lq_sta->search_better_tbl, sta->last_txrate_idx);
 
-	sta_info_put(sta);
+	rcu_read_unlock();
 	return cnt;
 }
 

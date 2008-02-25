@@ -294,7 +294,6 @@ static u32 hwmp_route_info_get(struct net_device *dev,
 		orig_metric = PREP_IE_METRIC(hwmp_ie);
 		break;
 	default:
-		sta_info_put(sta);
 		rcu_read_unlock();
 		return 0;
 	}
@@ -330,7 +329,6 @@ static u32 hwmp_route_info_get(struct net_device *dev,
 			mpath = mesh_path_lookup(orig_addr, dev);
 			if (!mpath) {
 				rcu_read_unlock();
-				sta_info_put(sta);
 				return 0;
 			}
 			spin_lock_bh(&mpath->state_lock);
@@ -372,7 +370,6 @@ static u32 hwmp_route_info_get(struct net_device *dev,
 			mpath = mesh_path_lookup(ta, dev);
 			if (!mpath) {
 				rcu_read_unlock();
-				sta_info_put(sta);
 				return 0;
 			}
 			spin_lock_bh(&mpath->state_lock);
@@ -391,7 +388,6 @@ static u32 hwmp_route_info_get(struct net_device *dev,
 			spin_unlock_bh(&mpath->state_lock);
 	}
 
-	sta_info_put(sta);
 	rcu_read_unlock();
 
 	return process ? new_metric : 0;
@@ -861,5 +857,5 @@ void mesh_path_timer(unsigned long data)
 endmpathtimer:
 	rcu_read_unlock();
 	if (delete)
-		mesh_path_del(mpath->dst, mpath->dev);
+		mesh_path_del(mpath->dst, mpath->dev, false);
 }

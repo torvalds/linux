@@ -65,9 +65,10 @@ enum mesh_path_flags {
  * @state_lock: mesh pat state lock
  *
  *
- * The combination of dst and dev is unique in the mesh path table. A reference
- * to the next_hop sta will be kept and in case this sta is removed, the
- * mesh_path structure must be also removed or substitued in a rcu safe way
+ * The combination of dst and dev is unique in the mesh path table. Since the
+ * next_hop STA is only protected by RCU as well, deleting the STA must also
+ * remove/substitute the mesh_path structure and wait until that is no longer
+ * reachable before destroying the STA completely.
  */
 struct mesh_path {
 	u8 dst[ETH_ALEN];
@@ -230,8 +231,9 @@ void mesh_neighbour_update(u8 *hw_addr, u64 rates, struct net_device *dev,
 		bool add);
 bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie,
 			      struct net_device *dev);
-void mesh_accept_plinks_update(struct net_device *dev);
-struct sta_info *mesh_plink_add(u8 *hw_addr, u64 rates, struct net_device *dev);
+void mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata);
+struct sta_info *mesh_plink_add(u8 *hw_addr, u64 rates,
+				struct ieee80211_sub_if_data *sdata);
 void mesh_plink_broken(struct sta_info *sta);
 void mesh_plink_deactivate(struct sta_info *sta);
 int mesh_plink_open(struct sta_info *sta);
@@ -254,7 +256,7 @@ void mesh_path_flush_pending(struct mesh_path *mpath);
 void mesh_path_tx_pending(struct mesh_path *mpath);
 int mesh_pathtbl_init(void);
 void mesh_pathtbl_unregister(void);
-int mesh_path_del(u8 *addr, struct net_device *dev);
+int mesh_path_del(u8 *addr, struct net_device *dev, bool force);
 void mesh_path_timer(unsigned long data);
 void mesh_path_flush_by_nexthop(struct sta_info *sta);
 void mesh_path_discard_frame(struct sk_buff *skb, struct net_device *dev);
@@ -270,7 +272,7 @@ static inline int mesh_plink_free_count(struct ieee80211_sub_if_data *sdata)
 
 static inline bool mesh_plink_availables(struct ieee80211_sub_if_data *sdata)
 {
-	return (min(mesh_plink_free_count(sdata),
+	return (min_t(long, mesh_plink_free_count(sdata),
 		   MESH_MAX_PLINKS - sdata->local->num_sta)) > 0;
 }
 

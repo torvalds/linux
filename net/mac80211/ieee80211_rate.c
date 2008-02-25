@@ -170,8 +170,11 @@ void rate_control_get_rate(struct net_device *dev,
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct rate_control_ref *ref = local->rate_ctrl;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	struct sta_info *sta = sta_info_get(local, hdr->addr1);
+	struct sta_info *sta;
 	int i;
+
+	rcu_read_lock();
+	sta = sta_info_get(local, hdr->addr1);
 
 	memset(sel, 0, sizeof(struct rate_selection));
 
@@ -190,8 +193,7 @@ void rate_control_get_rate(struct net_device *dev,
 		}
 	}
 
-	if (sta)
-		sta_info_put(sta);
+	rcu_read_unlock();
 }
 
 struct rate_control_ref *rate_control_get(struct rate_control_ref *ref)

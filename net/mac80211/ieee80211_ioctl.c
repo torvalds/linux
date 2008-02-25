@@ -33,8 +33,7 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 				    size_t key_len)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	int ret;
-	struct sta_info *sta = NULL;
+	struct sta_info *sta;
 	struct ieee80211_key *key;
 	struct ieee80211_sub_if_data *sdata;
 
@@ -51,23 +50,22 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 			key = sdata->keys[idx];
 		} else {
 			sta = sta_info_get(local, sta_addr);
-			if (!sta) {
-				ret = -ENOENT;
-				key = NULL;
-				goto err_out;
-			}
-
+			if (!sta)
+				return -ENOENT;
 			key = sta->key;
 		}
 
 		if (!key)
-			ret = -ENOENT;
-		else
-			ret = 0;
+			return -ENOENT;
+
+		ieee80211_key_free(key);
+		return 0;
 	} else {
 		key = ieee80211_key_alloc(alg, idx, key_len, _key);
 		if (!key)
 			return -ENOMEM;
+
+		sta = NULL;
 
 		if (!is_broadcast_ether_addr(sta_addr)) {
 			set_tx_key = 0;
@@ -78,14 +76,14 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 			 * work around this.
 			 */
 			if (idx != 0 && alg != ALG_WEP) {
-				ret = -EINVAL;
-				goto err_out;
+				ieee80211_key_free(key);
+				return -EINVAL;
 			}
 
 			sta = sta_info_get(local, sta_addr);
 			if (!sta) {
-				ret = -ENOENT;
-				goto err_out;
+				ieee80211_key_free(key);
+				return -ENOENT;
 			}
 		}
 
@@ -93,18 +91,9 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 
 		if (set_tx_key || (!sta && !sdata->default_key && key))
 			ieee80211_set_default_key(sdata, idx);
-
-		/* don't free key later */
-		key = NULL;
-
-		ret = 0;
 	}
 
- err_out:
-	if (sta)
-		sta_info_put(sta);
-	ieee80211_key_free(key);
-	return ret;
+	return 0;
 }
 
 static int ieee80211_ioctl_siwgenie(struct net_device *dev,
@@ -625,7 +614,7 @@ static int ieee80211_ioctl_giwrate(struct net_device *dev,
 	else
 		rate->value = 0;
 	rate->value *= 100000;
-	sta_info_put(sta);
+
 	return 0;
 }
 
@@ -1000,7 +989,6 @@ static struct iw_statistics *ieee80211_get_wireless_stats(struct net_device *dev
 		wstats->qual.qual = sta->last_signal;
 		wstats->qual.noise = sta->last_noise;
 		wstats->qual.updated = local->wstats_flags;
-		sta_info_put(sta);
 	}
 	return wstats;
 }

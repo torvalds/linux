@@ -77,7 +77,7 @@ static void rate_control_pid_adjust_rate(struct ieee80211_local *local,
 	int cur_sorted, new_sorted, probe, tmp, n_bitrates, band;
 	int cur = sta->txrate_idx;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+	sdata = sta->sdata;
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 	band = sband->band;
 	n_bitrates = sband->n_bitrates;
@@ -149,7 +149,7 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 				    struct sta_info *sta)
 {
 #ifdef CONFIG_MAC80211_MESH
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
 #endif
 	struct rc_pid_sta_info *spinfo = sta->rate_ctrl_priv;
 	struct rc_pid_rateinfo *rinfo = pinfo->rinfo;
@@ -249,23 +249,25 @@ static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
 	unsigned long period;
 	struct ieee80211_supported_band *sband;
 
+	rcu_read_lock();
+
 	sta = sta_info_get(local, hdr->addr1);
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
 	if (!sta)
-		return;
+		goto unlock;
 
 	/* Don't update the state if we're not controlling the rate. */
-	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+	sdata = sta->sdata;
 	if (sdata->bss && sdata->bss->force_unicast_rateidx > -1) {
 		sta->txrate_idx = sdata->bss->max_ratectrl_rateidx;
-		return;
+		goto unlock;
 	}
 
 	/* Ignore all frames that were sent with a different rate than the rate
 	 * we currently advise mac80211 to use. */
 	if (status->control.tx_rate != &sband->bitrates[sta->txrate_idx])
-		goto ignore;
+		goto unlock;
 
 	spinfo = sta->rate_ctrl_priv;
 	spinfo->tx_num_xmit++;
@@ -303,8 +305,8 @@ static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
 	if (time_after(jiffies, spinfo->last_sample + period))
 		rate_control_pid_sample(pinfo, local, sta);
 
-ignore:
-	sta_info_put(sta);
+ unlock:
+	rcu_read_unlock();
 }
 
 static void rate_control_pid_get_rate(void *priv, struct net_device *dev,
@@ -319,6 +321,8 @@ static void rate_control_pid_get_rate(void *priv, struct net_device *dev,
 	int rateidx;
 	u16 fc;
 
+	rcu_read_lock();
+
 	sta = sta_info_get(local, hdr->addr1);
 
 	/* Send management frames and broadcast/multicast data using lowest
@@ -327,8 +331,7 @@ static void rate_control_pid_get_rate(void *priv, struct net_device *dev,
 	if ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
 	    is_multicast_ether_addr(hdr->addr1) || !sta) {
 		sel->rate = rate_lowest(local, sband, sta);
-		if (sta)
-			sta_info_put(sta);
+		rcu_read_unlock();
 		return;
 	}
 
@@ -344,7 +347,7 @@ static void rate_control_pid_get_rate(void *priv, struct net_device *dev,
 
 	sta->last_txrate_idx = rateidx;
 
-	sta_info_put(sta);
+	rcu_read_unlock();
 
 	sel->rate = &sband->bitrates[rateidx];
 

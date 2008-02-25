@@ -240,15 +240,20 @@ void ieee80211_if_reinit(struct net_device *dev)
 		break;
 	}
 	case IEEE80211_IF_TYPE_WDS:
+		rcu_read_lock();
 		sta = sta_info_get(local, sdata->u.wds.remote_addr);
 		if (sta) {
-			sta_info_free(sta);
-			sta_info_put(sta);
+			sta_info_unlink(&sta);
 		} else {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 			printk(KERN_DEBUG "%s: Someone had deleted my STA "
 			       "entry for the WDS link\n", dev->name);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
+		}
+		rcu_read_unlock();
+		if (sta) {
+			synchronize_rcu();
+			sta_info_destroy(sta);
 		}
 		break;
 	case IEEE80211_IF_TYPE_MESH_POINT:
@@ -275,7 +280,7 @@ void ieee80211_if_reinit(struct net_device *dev)
 	}
 
 	/* remove all STAs that are bound to this virtual interface */
-	sta_info_flush(local, dev);
+	sta_info_flush(local, sdata);
 
 	memset(&sdata->u, 0, sizeof(sdata->u));
 	ieee80211_if_sdata_init(sdata);

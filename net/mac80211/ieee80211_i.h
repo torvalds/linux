@@ -574,6 +574,7 @@ struct ieee80211_local {
 	unsigned int filter_flags; /* FIF_* */
 	struct iw_statistics wstats;
 	u8 wstats_flags;
+	bool tim_in_locked_section; /* see ieee80211_beacon_get() */
 	int tx_headroom; /* required headroom for hardware/radiotap */
 
 	enum {
@@ -591,9 +592,15 @@ struct ieee80211_local {
 	struct sk_buff_head skb_queue;
 	struct sk_buff_head skb_queue_unreliable;
 
-	/* Station data structures */
-	rwlock_t sta_lock; /* protects STA data structures */
-	int num_sta; /* number of stations in sta_list */
+	/* Station data */
+	/*
+	 * The lock only protects the list, hash, timer and counter
+	 * against manipulation, reads are done in RCU. Additionally,
+	 * the lock protects each BSS's TIM bitmap and a few items
+	 * in a STA info structure.
+	 */
+	spinlock_t sta_lock;
+	unsigned long num_sta;
 	struct list_head sta_list;
 	struct sta_info *sta_hash[STA_HASH_SIZE];
 	struct timer_list sta_cleanup;

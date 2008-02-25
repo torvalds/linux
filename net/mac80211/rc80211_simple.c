@@ -40,7 +40,7 @@ static void rate_control_rate_inc(struct ieee80211_local *local,
 	int i = sta->txrate_idx;
 	int maxrate;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+	sdata = sta->sdata;
 	if (sdata->bss && sdata->bss->force_unicast_rateidx > -1) {
 		/* forced unicast rate - do not change STA rate */
 		return;
@@ -70,7 +70,7 @@ static void rate_control_rate_dec(struct ieee80211_local *local,
 	struct ieee80211_supported_band *sband;
 	int i = sta->txrate_idx;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+	sdata = sta->sdata;
 	if (sdata->bss && sdata->bss->force_unicast_rateidx > -1) {
 		/* forced unicast rate - do not change STA rate */
 		return;
@@ -118,10 +118,12 @@ static void rate_control_simple_tx_status(void *priv, struct net_device *dev,
 	struct sta_info *sta;
 	struct sta_rate_control *srctrl;
 
+	rcu_read_lock();
+
 	sta = sta_info_get(local, hdr->addr1);
 
 	if (!sta)
-	    return;
+		goto unlock;
 
 	srctrl = sta->rate_ctrl_priv;
 	srctrl->tx_num_xmit++;
@@ -191,7 +193,8 @@ static void rate_control_simple_tx_status(void *priv, struct net_device *dev,
 		}
 	}
 
-	sta_info_put(sta);
+ unlock:
+	rcu_read_unlock();
 }
 
 
@@ -208,6 +211,8 @@ rate_control_simple_get_rate(void *priv, struct net_device *dev,
 	int rateidx;
 	u16 fc;
 
+	rcu_read_lock();
+
 	sta = sta_info_get(local, hdr->addr1);
 
 	/* Send management frames and broadcast/multicast data using lowest
@@ -216,8 +221,7 @@ rate_control_simple_get_rate(void *priv, struct net_device *dev,
 	if ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
 	    is_multicast_ether_addr(hdr->addr1) || !sta) {
 		sel->rate = rate_lowest(local, sband, sta);
-		if (sta)
-			sta_info_put(sta);
+		rcu_read_unlock();
 		return;
 	}
 
@@ -233,7 +237,7 @@ rate_control_simple_get_rate(void *priv, struct net_device *dev,
 
 	sta->last_txrate_idx = rateidx;
 
-	sta_info_put(sta);
+	rcu_read_unlock();
 
 	sel->rate = &sband->bitrates[rateidx];
 }
