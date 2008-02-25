@@ -94,10 +94,9 @@ enum usb_interface_condition {
  * @altsetting: array of interface structures, one for each alternate
  * 	setting that may be selected.  Each one includes a set of
  * 	endpoint configurations.  They will be in no particular order.
- * @num_altsetting: number of altsettings defined.
  * @cur_altsetting: the current altsetting.
+ * @num_altsetting: number of altsettings defined.
  * @intf_assoc: interface association descriptor
- * @driver: the USB driver that is bound to this interface.
  * @minor: the minor number assigned to this interface, if this
  *	interface is bound to a driver that uses the USB major number.
  *	If this interface does not use the USB major, this field should
