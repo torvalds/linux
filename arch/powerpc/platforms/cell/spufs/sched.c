@@ -246,7 +246,7 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 	spu_switch_notify(spu, ctx);
 	ctx->state = SPU_STATE_RUNNABLE;
 
-	spuctx_switch_state(ctx, SPU_UTIL_IDLE_LOADED);
+	spuctx_switch_state(ctx, SPU_UTIL_USER);
 }
 
 /*
