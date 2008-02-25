@@ -343,7 +343,7 @@ static struct platform_device net2272_bfin_device = {
 static struct mtd_partition stamp_partitions[] = {
 	{
 		.name       = "Bootloader",
-		.size       = 0x20000,
+		.size       = 0x40000,
 		.offset     = 0,
 	}, {
 		.name       = "Kernel",
@@ -351,7 +351,7 @@ static struct mtd_partition stamp_partitions[] = {
 		.offset     = MTDPART_OFS_APPEND,
 	}, {
 		.name       = "RootFS",
-		.size       = 0x400000 - 0x20000 - 0xE0000 - 0x10000,
+		.size       = 0x400000 - 0x40000 - 0xE0000 - 0x10000,
 		.offset     = MTDPART_OFS_APPEND,
 	}, {
 		.name       = "MAC Address",
@@ -391,17 +391,17 @@ static struct platform_device stamp_flash_device = {
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
 		.name = "bootloader",
-		.size = 0x00020000,
+		.size = 0x00040000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
 	}, {
 		.name = "kernel",
 		.size = 0xe0000,
-		.offset = 0x20000
+		.offset = MTDPART_OFS_APPEND,
 	}, {
 		.name = "file system",
-		.size = 0x700000,
-		.offset = 0x00100000,
+		.size = MTDPART_SIZ_FULL,
+		.offset = MTDPART_OFS_APPEND,
 	}
 };
 
