@@ -38,7 +38,11 @@
  * called in hardware interrupt context. The low-level driver must not call any
  * other functions in hardware interrupt context. If there is a need for such
  * call, the low-level driver should first ACK the interrupt and perform the
- * IEEE 802.11 code call after this, e.g. from a scheduled workqueue function.
+ * IEEE 802.11 code call after this, e.g. from a scheduled workqueue or even
+ * tasklet function.
+ *
+ * NOTE: If the driver opts to use the _irqsafe() functions, it may not also
+ *	 use the non-irqsafe functions!
  */
 
 /**
@@ -1204,7 +1208,10 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
  * buffer in @skb must start with an IEEE 802.11 header or a radiotap
  * header if %RX_FLAG_RADIOTAP is set in the @status flags.
  *
- * This function may not be called in IRQ context.
+ * This function may not be called in IRQ context. Calls to this function
+ * for a single hardware must be synchronized against each other. Calls
+ * to this function and ieee80211_rx_irqsafe() may not be mixed for a
+ * single hardware.
  *
  * @hw: the hardware this frame came in on
  * @skb: the buffer to receive, owned by mac80211 after this call
@@ -1221,7 +1228,10 @@ static inline void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
  * ieee80211_rx_irqsafe - receive frame
  *
  * Like ieee80211_rx() but can be called in IRQ context
- * (internally defers to a workqueue.)
+ * (internally defers to a tasklet.)
+ *
+ * Calls to this function and ieee80211_rx() may not be mixed for a
+ * single hardware.
  *
  * @hw: the hardware this frame came in on
  * @skb: the buffer to receive, owned by mac80211 after this call
@@ -1240,6 +1250,11 @@ void ieee80211_rx_irqsafe(struct ieee80211_hw *hw,
  * transmitted. It is permissible to not call this function for
  * multicast frames but this can affect statistics.
  *
+ * This function may not be called in IRQ context. Calls to this function
+ * for a single hardware must be synchronized against each other. Calls
+ * to this function and ieee80211_tx_status_irqsafe() may not be mixed
+ * for a single hardware.
+ *
  * @hw: the hardware the frame was transmitted by
  * @skb: the frame that was transmitted, owned by mac80211 after this call
  * @status: status information for this frame; the status pointer need not
@@ -1249,6 +1264,22 @@ void ieee80211_rx_irqsafe(struct ieee80211_hw *hw,
 void ieee80211_tx_status(struct ieee80211_hw *hw,
 			 struct sk_buff *skb,
 			 struct ieee80211_tx_status *status);
+
+/**
+ * ieee80211_tx_status_irqsafe - irq-safe transmit status callback
+ *
+ * Like ieee80211_tx_status() but can be called in IRQ context
+ * (internally defers to a tasklet.)
+ *
+ * Calls to this function and ieee80211_tx_status() may not be mixed for a
+ * single hardware.
+ *
+ * @hw: the hardware the frame was transmitted by
+ * @skb: the frame that was transmitted, owned by mac80211 after this call
+ * @status: status information for this frame; the status pointer need not
+ *	be valid after this function returns and is not freed by mac80211,
+ *	it is recommended that it points to a stack area
+ */
 void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
 				 struct sk_buff *skb,
 				 struct ieee80211_tx_status *status);
