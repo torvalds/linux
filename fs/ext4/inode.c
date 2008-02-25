@@ -908,11 +908,38 @@ out:
  */
 #define DIO_CREDITS 25
 
+
+/*
+ *
+ *
+ * ext4_ext4 get_block() wrapper function
+ * It will do a look up first, and returns if the blocks already mapped.
+ * Otherwise it takes the write lock of the i_data_sem and allocate blocks
+ * and store the allocated blocks in the result buffer head and mark it
+ * mapped.
+ *
+ * If file type is extents based, it will call ext4_ext_get_blocks(),
+ * Otherwise, call with ext4_get_blocks_handle() to handle indirect mapping
+ * based files
+ *
+ * On success, it returns the number of blocks being mapped or allocate.
+ * if create==0 and the blocks are pre-allocated and uninitialized block,
+ * the result buffer head is unmapped. If the create ==1, it will make sure
+ * the buffer head is mapped.
+ *
+ * It returns 0 if plain look up failed (blocks have not been allocated), in
+ * that casem, buffer head is unmapped
+ *
+ * It returns the error in case of allocation failure.
+ */
 int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 			unsigned long max_blocks, struct buffer_head *bh,
 			int create, int extend_disksize)
 {
 	int retval;
+
+	clear_buffer_mapped(bh);
+
 	/*
 	 * Try to see if we can get  the block without requesting
 	 * for new file system block.
@@ -926,12 +953,26 @@ int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 				inode, block, max_blocks, bh, 0, 0);
 	}
 	up_read((&EXT4_I(inode)->i_data_sem));
-	if (!create || (retval > 0))
+
+	/* If it is only a block(s) look up */
+	if (!create)
 		return retval;
 
 	/*
-	 * We need to allocate new blocks which will result
-	 * in i_data update
+	 * Returns if the blocks have already allocated
+	 *
+	 * Note that if blocks have been preallocated
+	 * ext4_ext_get_block() returns th create = 0
+	 * with buffer head unmapped.
+	 */
+	if (retval > 0 && buffer_mapped(bh))
+		return retval;
+
+	/*
+	 * New blocks allocate and/or writing to uninitialized extent
+	 * will possibly result in updating i_data, so we take
+	 * the write lock of i_data_sem, and call get_blocks()
+	 * with create == 1 flag.
 	 */
 	down_write((&EXT4_I(inode)->i_data_sem));
 	/*

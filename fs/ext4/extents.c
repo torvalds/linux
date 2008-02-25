@@ -2287,9 +2287,22 @@ out:
 }
 
 /*
+ * Block allocation/map/preallocation routine for extents based files
+ *
+ *
  * Need to be called with
  * down_read(&EXT4_I(inode)->i_data_sem) if not allocating file system block
  * (ie, create is zero). Otherwise down_write(&EXT4_I(inode)->i_data_sem)
+ *
+ * return > 0, number of of blocks already mapped/allocated
+ *          if create == 0 and these are pre-allocated blocks
+ *          	buffer head is unmapped
+ *          otherwise blocks are mapped
+ *
+ * return = 0, if plain look up failed (blocks have not been allocated)
+ *          buffer head is unmapped
+ *
+ * return < 0, error case.
  */
 int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 			ext4_lblk_t iblock,
