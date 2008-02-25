@@ -211,6 +211,10 @@ static void ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 	case IOAPIC_LOWEST_PRIORITY:
 		vcpu = kvm_get_lowest_prio_vcpu(ioapic->kvm, vector,
 				deliver_bitmask);
+#ifdef CONFIG_X86
+		if (irq == 0)
+			vcpu = ioapic->kvm->vcpus[0];
+#endif
 		if (vcpu != NULL)
 			ioapic_inj_irq(ioapic, vcpu, vector,
 				       trig_mode, delivery_mode);
@@ -220,6 +224,10 @@ static void ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 				     deliver_bitmask, vector, IOAPIC_LOWEST_PRIORITY);
 		break;
 	case IOAPIC_FIXED:
+#ifdef CONFIG_X86
+		if (irq == 0)
+			deliver_bitmask = 1;
+#endif
 		for (vcpu_id = 0; deliver_bitmask != 0; vcpu_id++) {
 			if (!(deliver_bitmask & (1 << vcpu_id)))
 				continue;
