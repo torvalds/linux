@@ -691,6 +691,7 @@ void mesh_rx_plink_frame(struct net_device *dev, struct ieee80211_mgmt *mgmt,
 			spin_unlock_bh(&sta->plink_lock);
 			mesh_plink_frame_tx(dev, PLINK_CLOSE, sta->addr, llid,
 					    plid, reason);
+			break;
 		case OPN_ACPT:
 			if (del_timer(&sta->plink_timer))
 				sta_info_put(sta);
