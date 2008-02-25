@@ -834,6 +834,81 @@ void __init at32_add_system_devices(void)
 }
 
 /* --------------------------------------------------------------------
+ *  PSIF
+ * -------------------------------------------------------------------- */
+static struct resource atmel_psif0_resource[] __initdata = {
+	{
+		.start	= 0xffe03c00,
+		.end	= 0xffe03cff,
+		.flags	= IORESOURCE_MEM,
+	},
+	IRQ(18),
+};
+static struct clk atmel_psif0_pclk = {
+	.name		= "pclk",
+	.parent		= &pba_clk,
+	.mode		= pba_clk_mode,
+	.get_rate	= pba_clk_get_rate,
+	.index		= 15,
+};
+
+static struct resource atmel_psif1_resource[] __initdata = {
+	{
+		.start	= 0xffe03d00,
+		.end	= 0xffe03dff,
+		.flags	= IORESOURCE_MEM,
+	},
+	IRQ(18),
+};
+static struct clk atmel_psif1_pclk = {
+	.name		= "pclk",
+	.parent		= &pba_clk,
+	.mode		= pba_clk_mode,
+	.get_rate	= pba_clk_get_rate,
+	.index		= 15,
+};
+
+struct platform_device *__init at32_add_device_psif(unsigned int id)
+{
+	struct platform_device *pdev;
+
+	if (!(id == 0 || id == 1))
+		return NULL;
+
+	pdev = platform_device_alloc("atmel_psif", id);
+	if (!pdev)
+		return NULL;
+
+	switch (id) {
+	case 0:
+		if (platform_device_add_resources(pdev, atmel_psif0_resource,
+					ARRAY_SIZE(atmel_psif0_resource)))
+			goto err_add_resources;
+		atmel_psif0_pclk.dev = &pdev->dev;
+		select_peripheral(PA(8), PERIPH_A, 0); /* CLOCK */
+		select_peripheral(PA(9), PERIPH_A, 0); /* DATA  */
+		break;
+	case 1:
+		if (platform_device_add_resources(pdev, atmel_psif1_resource,
+					ARRAY_SIZE(atmel_psif1_resource)))
+			goto err_add_resources;
+		atmel_psif1_pclk.dev = &pdev->dev;
+		select_peripheral(PB(11), PERIPH_A, 0); /* CLOCK */
+		select_peripheral(PB(12), PERIPH_A, 0); /* DATA  */
+		break;
+	default:
+		return NULL;
+	}
+
+	platform_device_add(pdev);
+	return pdev;
+
+err_add_resources:
+	platform_device_put(pdev);
+	return NULL;
+}
+
+/* --------------------------------------------------------------------
  *  USART
  * -------------------------------------------------------------------- */
 
@@ -1934,6 +2009,8 @@ struct clk *at32_clock_list[] = {
 	&pio4_mck,
 	&at32_tcb0_t0_clk,
 	&at32_tcb1_t0_clk,
+	&atmel_psif0_pclk,
+	&atmel_psif1_pclk,
 	&atmel_usart0_usart,
 	&atmel_usart1_usart,
 	&atmel_usart2_usart,

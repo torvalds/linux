@@ -80,6 +80,7 @@ struct platform_device *at32_add_device_twi(unsigned int id,
 struct platform_device *at32_add_device_mci(unsigned int id);
 struct platform_device *at32_add_device_ac97c(unsigned int id);
 struct platform_device *at32_add_device_abdac(unsigned int id);
+struct platform_device *at32_add_device_psif(unsigned int id);
 
 struct cf_platform_data {
 	int	detect_pin;
