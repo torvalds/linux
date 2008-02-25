@@ -312,7 +312,7 @@ void sta_info_free(struct sta_info *sta)
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 	ieee80211_key_free(sta->key);
-	sta->key = NULL;
+	WARN_ON(sta->key);
 
 	if (local->ops->sta_notify) {
 		struct ieee80211_sub_if_data *sdata;
