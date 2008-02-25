@@ -3835,6 +3835,16 @@ static int b43_op_ibss_beacon_update(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static void b43_op_sta_notify(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      enum sta_notify_cmd notify_cmd,
+			      const u8 *addr)
+{
+	struct b43_wl *wl = hw_to_b43_wl(hw);
+
+	B43_WARN_ON(!vif || wl->vif != vif);
+}
+
 static const struct ieee80211_ops b43_hw_ops = {
 	.tx			= b43_op_tx,
 	.conf_tx		= b43_op_conf_tx,
@@ -3851,6 +3861,7 @@ static const struct ieee80211_ops b43_hw_ops = {
 	.set_retry_limit	= b43_op_set_retry_limit,
 	.set_tim		= b43_op_beacon_set_tim,
 	.beacon_update		= b43_op_ibss_beacon_update,
+	.sta_notify		= b43_op_sta_notify,
 };
 
 /* Hard-reset the chip. Do not call this directly.
