@@ -260,19 +260,11 @@ static void rt2x00lib_evaluate_antenna_sample(struct rt2x00_dev *rt2x00dev)
 	if (sample_a == sample_b)
 		return;
 
-	if (rt2x00dev->link.ant.flags & ANTENNA_RX_DIVERSITY) {
-		if (sample_a > sample_b && rx == ANTENNA_B)
-			rx = ANTENNA_A;
-		else if (rx == ANTENNA_A)
-			rx = ANTENNA_B;
-	}
+	if (rt2x00dev->link.ant.flags & ANTENNA_RX_DIVERSITY)
+		rx = (sample_a > sample_b) ? ANTENNA_A : ANTENNA_B;
 
-	if (rt2x00dev->link.ant.flags & ANTENNA_TX_DIVERSITY) {
-		if (sample_a > sample_b && tx == ANTENNA_B)
-			tx = ANTENNA_A;
-		else if (tx == ANTENNA_A)
-			tx = ANTENNA_B;
-	}
+	if (rt2x00dev->link.ant.flags & ANTENNA_TX_DIVERSITY)
+		tx = (sample_a > sample_b) ? ANTENNA_A : ANTENNA_B;
 
 	rt2x00lib_config_antenna(rt2x00dev, rx, tx);
 }
@@ -327,7 +319,7 @@ static void rt2x00lib_evaluate_antenna(struct rt2x00_dev *rt2x00dev)
 
 	if (!(rt2x00dev->link.ant.flags & ANTENNA_RX_DIVERSITY) &&
 	    !(rt2x00dev->link.ant.flags & ANTENNA_TX_DIVERSITY)) {
-		rt2x00dev->link.ant.flags &= ~ANTENNA_MODE_SAMPLE;
+		rt2x00dev->link.ant.flags = 0;
 		return;
 	}
 
