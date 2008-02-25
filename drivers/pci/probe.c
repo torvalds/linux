@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/cpumask.h>
+#include <linux/pci-aspm.h>
 #include "pci.h"
 
 #define CARDBUS_LATENCY_TIMER	176	/* secondary latency timer */
@@ -1014,6 +1015,10 @@ int pci_scan_slot(struct pci_bus *bus, int devfn)
 				break;
 		}
 	}
+
+	if (bus->self)
+		pcie_aspm_init_link_state(bus->self);
+
 	return nr;
 }
 
