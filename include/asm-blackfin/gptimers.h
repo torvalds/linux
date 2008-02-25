@@ -1,12 +1,11 @@
 /*
- * include/asm/bf5xx_timers.h
+ * gptimers.h - Blackfin General Purpose Timer structs/defines/prototypes
  *
- * This file contains the major Data structures and constants
- * used for General Purpose Timer Implementation in BF5xx
- *
+ * Copyright (c) 2005-2008 Analog Devices Inc.
  * Copyright (C) 2005 John DeHority
  * Copyright (C) 2006 Hella Aglaia GmbH (awe@aglaia-gmbh.de)
  *
+ * Licensed under the GPL-2.
  */
 
 #ifndef _BLACKFIN_TIMERS_H_
