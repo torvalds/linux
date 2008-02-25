@@ -852,28 +852,39 @@ static long kvm_vcpu_ioctl(struct file *filp,
 		r = kvm_arch_vcpu_ioctl_run(vcpu, vcpu->run);
 		break;
 	case KVM_GET_REGS: {
-		struct kvm_regs kvm_regs;
+		struct kvm_regs *kvm_regs;
 
-		memset(&kvm_regs, 0, sizeof kvm_regs);
-		r = kvm_arch_vcpu_ioctl_get_regs(vcpu, &kvm_regs);
+		r = -ENOMEM;
+		kvm_regs = kzalloc(sizeof(struct kvm_regs), GFP_KERNEL);
+		if (!kvm_regs)
+			goto out;
+		r = kvm_arch_vcpu_ioctl_get_regs(vcpu, kvm_regs);
 		if (r)
-			goto out;
+			goto out_free1;
 		r = -EFAULT;
-		if (copy_to_user(argp, &kvm_regs, sizeof kvm_regs))
-			goto out;
+		if (copy_to_user(argp, kvm_regs, sizeof(struct kvm_regs)))
+			goto out_free1;
 		r = 0;
+out_free1:
+		kfree(kvm_regs);
 		break;
 	}
 	case KVM_SET_REGS: {
-		struct kvm_regs kvm_regs;
+		struct kvm_regs *kvm_regs;
 
+		r = -ENOMEM;
+		kvm_regs = kzalloc(sizeof(struct kvm_regs), GFP_KERNEL);
+		if (!kvm_regs)
+			goto out;
 		r = -EFAULT;
-		if (copy_from_user(&kvm_regs, argp, sizeof kvm_regs))
-			goto out;
-		r = kvm_arch_vcpu_ioctl_set_regs(vcpu, &kvm_regs);
+		if (copy_from_user(kvm_regs, argp, sizeof(struct kvm_regs)))
+			goto out_free2;
+		r = kvm_arch_vcpu_ioctl_set_regs(vcpu, kvm_regs);
 		if (r)
-			goto out;
+			goto out_free2;
 		r = 0;
+out_free2:
+		kfree(kvm_regs);
 		break;
 	}
 	case KVM_GET_SREGS: {
