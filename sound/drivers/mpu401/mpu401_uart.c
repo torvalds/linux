@@ -425,16 +425,17 @@ static void snd_mpu401_uart_input_read(struct snd_mpu401 * mpu)
 static void snd_mpu401_uart_output_write(struct snd_mpu401 * mpu)
 {
 	unsigned char byte;
-	int max = 256, timeout;
+	int max = 256;
 
 	do {
 		if (snd_rawmidi_transmit_peek(mpu->substream_output,
 					      &byte, 1) == 1) {
-			for (timeout = 100; timeout > 0; timeout--) {
-				if (snd_mpu401_output_ready(mpu))
-					break;
-			}
-			if (timeout == 0)
+			/*
+			 * Try twice because there is hardware that insists on
+			 * setting the output busy bit after each write.
+			 */
+			if (!snd_mpu401_output_ready(mpu) &&
+			    !snd_mpu401_output_ready(mpu))
 				break;	/* Tx FIFO full - try again later */
 			mpu->write(mpu, byte, MPU401D(mpu));
 			snd_rawmidi_transmit_ack(mpu->substream_output, 1);
