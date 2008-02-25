@@ -142,26 +142,13 @@ typedef unsigned __bitwise__ ieee80211_tx_result;
 #define TX_DROP		((__force ieee80211_tx_result) 1u)
 #define TX_QUEUED	((__force ieee80211_tx_result) 2u)
 
-typedef unsigned __bitwise__ ieee80211_rx_result;
-#define RX_CONTINUE		((__force ieee80211_rx_result) 0u)
-#define RX_DROP_UNUSABLE	((__force ieee80211_rx_result) 1u)
-#define RX_DROP_MONITOR		((__force ieee80211_rx_result) 2u)
-#define RX_QUEUED		((__force ieee80211_rx_result) 3u)
+#define IEEE80211_TX_FRAGMENTED		BIT(0)
+#define IEEE80211_TX_UNICAST		BIT(1)
+#define IEEE80211_TX_PS_BUFFERED	BIT(2)
+#define IEEE80211_TX_PROBE_LAST_FRAG	BIT(3)
+#define IEEE80211_TX_INJECTED		BIT(4)
 
-
-/* flags used in struct ieee80211_txrx_data.flags */
-/* whether the MSDU was fragmented */
-#define IEEE80211_TXRXD_FRAGMENTED		BIT(0)
-#define IEEE80211_TXRXD_TXUNICAST		BIT(1)
-#define IEEE80211_TXRXD_TXPS_BUFFERED		BIT(2)
-#define IEEE80211_TXRXD_TXPROBE_LAST_FRAG	BIT(3)
-#define IEEE80211_TXRXD_RXIN_SCAN		BIT(4)
-/* frame is destined to interface currently processed (incl. multicast frames) */
-#define IEEE80211_TXRXD_RXRA_MATCH		BIT(5)
-#define IEEE80211_TXRXD_TX_INJECTED		BIT(6)
-#define IEEE80211_TXRXD_RX_AMSDU		BIT(7)
-#define IEEE80211_TXRXD_RX_CMNTR_REPORTED	BIT(8)
-struct ieee80211_txrx_data {
+struct ieee80211_tx_data {
 	struct sk_buff *skb;
 	struct net_device *dev;
 	struct ieee80211_local *local;
@@ -170,31 +157,52 @@ struct ieee80211_txrx_data {
 	u16 fc, ethertype;
 	struct ieee80211_key *key;
 	unsigned int flags;
-	union {
-		struct {
-			struct ieee80211_tx_control *control;
-			struct ieee80211_channel *channel;
-			struct ieee80211_rate *rate;
-			/* use this rate (if set) for last fragment; rate can
-			 * be set to lower rate for the first fragments, e.g.,
-			 * when using CTS protection with IEEE 802.11g. */
-			struct ieee80211_rate *last_frag_rate;
 
-			/* Extra fragments (in addition to the first fragment
-			 * in skb) */
-			int num_extra_frag;
-			struct sk_buff **extra_frag;
-		} tx;
-		struct {
-			struct ieee80211_rx_status *status;
-			struct ieee80211_rate *rate;
-			int sent_ps_buffered;
-			int queue;
-			int load;
-			u32 tkip_iv32;
-			u16 tkip_iv16;
-		} rx;
-	} u;
+	struct ieee80211_tx_control *control;
+	struct ieee80211_channel *channel;
+	struct ieee80211_rate *rate;
+	/* use this rate (if set) for last fragment; rate can
+	 * be set to lower rate for the first fragments, e.g.,
+	 * when using CTS protection with IEEE 802.11g. */
+	struct ieee80211_rate *last_frag_rate;
+
+	/* Extra fragments (in addition to the first fragment
+	 * in skb) */
+	int num_extra_frag;
+	struct sk_buff **extra_frag;
+};
+
+
+typedef unsigned __bitwise__ ieee80211_rx_result;
+#define RX_CONTINUE		((__force ieee80211_rx_result) 0u)
+#define RX_DROP_UNUSABLE	((__force ieee80211_rx_result) 1u)
+#define RX_DROP_MONITOR		((__force ieee80211_rx_result) 2u)
+#define RX_QUEUED		((__force ieee80211_rx_result) 3u)
+
+#define IEEE80211_RX_IN_SCAN		BIT(0)
+/* frame is destined to interface currently processed (incl. multicast frames) */
+#define IEEE80211_RX_RA_MATCH		BIT(1)
+#define IEEE80211_RX_AMSDU		BIT(2)
+#define IEEE80211_RX_CMNTR_REPORTED	BIT(3)
+#define IEEE80211_RX_FRAGMENTED		BIT(4)
+
+struct ieee80211_rx_data {
+	struct sk_buff *skb;
+	struct net_device *dev;
+	struct ieee80211_local *local;
+	struct ieee80211_sub_if_data *sdata;
+	struct sta_info *sta;
+	u16 fc, ethertype;
+	struct ieee80211_key *key;
+	unsigned int flags;
+
+	struct ieee80211_rx_status *status;
+	struct ieee80211_rate *rate;
+	int sent_ps_buffered;
+	int queue;
+	int load;
+	u32 tkip_iv32;
+	u16 tkip_iv16;
 };
 
 /* flags used in struct ieee80211_tx_packet_data.flags */
@@ -842,7 +850,7 @@ static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 int ieee80211_hw_config(struct ieee80211_local *local);
 int ieee80211_if_config(struct net_device *dev);
 int ieee80211_if_config_beacon(struct net_device *dev);
-void ieee80211_tx_set_iswep(struct ieee80211_txrx_data *tx);
+void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx);
 int ieee80211_if_update_wds(struct net_device *dev, u8 *remote_addr);
 void ieee80211_if_setup(struct net_device *dev);
 int ieee80211_hw_config_ht(struct ieee80211_local *local, int enable_ht,

@@ -306,14 +306,14 @@ u8 * ieee80211_wep_is_weak_iv(struct sk_buff *skb, struct ieee80211_key *key)
 }
 
 ieee80211_rx_result
-ieee80211_crypto_wep_decrypt(struct ieee80211_txrx_data *rx)
+ieee80211_crypto_wep_decrypt(struct ieee80211_rx_data *rx)
 {
 	if ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA &&
 	    ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT ||
 	     (rx->fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_AUTH))
 		return RX_CONTINUE;
 
-	if (!(rx->u.rx.status->flag & RX_FLAG_DECRYPTED)) {
+	if (!(rx->status->flag & RX_FLAG_DECRYPTED)) {
 		if (ieee80211_wep_decrypt(rx->local, rx->skb, rx->key)) {
 #ifdef CONFIG_MAC80211_DEBUG
 			if (net_ratelimit())
@@ -322,7 +322,7 @@ ieee80211_crypto_wep_decrypt(struct ieee80211_txrx_data *rx)
 #endif /* CONFIG_MAC80211_DEBUG */
 			return RX_DROP_UNUSABLE;
 		}
-	} else if (!(rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED)) {
+	} else if (!(rx->status->flag & RX_FLAG_IV_STRIPPED)) {
 		ieee80211_wep_remove_iv(rx->local, rx->skb, rx->key);
 		/* remove ICV */
 		skb_trim(rx->skb, rx->skb->len - 4);
@@ -331,13 +331,13 @@ ieee80211_crypto_wep_decrypt(struct ieee80211_txrx_data *rx)
 	return RX_CONTINUE;
 }
 
-static int wep_encrypt_skb(struct ieee80211_txrx_data *tx, struct sk_buff *skb)
+static int wep_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 {
 	if (!(tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)) {
 		if (ieee80211_wep_encrypt(tx->local, skb, tx->key))
 			return -1;
 	} else {
-		tx->u.tx.control->key_idx = tx->key->conf.hw_key_idx;
+		tx->control->key_idx = tx->key->conf.hw_key_idx;
 		if (tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV) {
 			if (!ieee80211_wep_add_iv(tx->local, skb, tx->key))
 				return -1;
@@ -347,21 +347,21 @@ static int wep_encrypt_skb(struct ieee80211_txrx_data *tx, struct sk_buff *skb)
 }
 
 ieee80211_tx_result
-ieee80211_crypto_wep_encrypt(struct ieee80211_txrx_data *tx)
+ieee80211_crypto_wep_encrypt(struct ieee80211_tx_data *tx)
 {
-	tx->u.tx.control->iv_len = WEP_IV_LEN;
-	tx->u.tx.control->icv_len = WEP_ICV_LEN;
-	ieee80211_tx_set_iswep(tx);
+	tx->control->iv_len = WEP_IV_LEN;
+	tx->control->icv_len = WEP_ICV_LEN;
+	ieee80211_tx_set_protected(tx);
 
 	if (wep_encrypt_skb(tx, tx->skb) < 0) {
 		I802_DEBUG_INC(tx->local->tx_handlers_drop_wep);
 		return TX_DROP;
 	}
 
-	if (tx->u.tx.extra_frag) {
+	if (tx->extra_frag) {
 		int i;
-		for (i = 0; i < tx->u.tx.num_extra_frag; i++) {
-			if (wep_encrypt_skb(tx, tx->u.tx.extra_frag[i]) < 0) {
+		for (i = 0; i < tx->num_extra_frag; i++) {
+			if (wep_encrypt_skb(tx, tx->extra_frag[i]) < 0) {
 				I802_DEBUG_INC(tx->local->
 					       tx_handlers_drop_wep);
 				return TX_DROP;

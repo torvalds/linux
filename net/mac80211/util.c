@@ -165,17 +165,17 @@ int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr)
 	}
 }
 
-void ieee80211_tx_set_iswep(struct ieee80211_txrx_data *tx)
+void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx->skb->data;
 
 	hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
-	if (tx->u.tx.extra_frag) {
+	if (tx->extra_frag) {
 		struct ieee80211_hdr *fhdr;
 		int i;
-		for (i = 0; i < tx->u.tx.num_extra_frag; i++) {
+		for (i = 0; i < tx->num_extra_frag; i++) {
 			fhdr = (struct ieee80211_hdr *)
-				tx->u.tx.extra_frag[i]->data;
+				tx->extra_frag[i]->data;
 			fhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 		}
 	}
