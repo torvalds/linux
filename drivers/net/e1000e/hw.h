@@ -184,7 +184,7 @@ enum e1e_registers {
 	E1000_ICRXDMTC = 0x04120, /* Irq Cause Rx Desc MinThreshold Count */
 	E1000_ICRXOC   = 0x04124, /* Irq Cause Receiver Overrun Count */
 	E1000_RXCSUM   = 0x05000, /* RX Checksum Control - RW */
-	E1000_RFCTL    = 0x05008, /* Receive Filter Control*/
+	E1000_RFCTL    = 0x05008, /* Receive Filter Control */
 	E1000_MTA      = 0x05200, /* Multicast Table Array - RW Array */
 	E1000_RA       = 0x05400, /* Receive Address - RW Array */
 	E1000_VFTA     = 0x05600, /* VLAN Filter Table Array - RW Array */
@@ -202,7 +202,7 @@ enum e1e_registers {
 	E1000_FACTPS    = 0x05B30, /* Function Active and Power State to MNG */
 	E1000_SWSM      = 0x05B50, /* SW Semaphore */
 	E1000_FWSM      = 0x05B54, /* FW Semaphore */
-	E1000_HICR      = 0x08F00, /* Host Inteface Control */
+	E1000_HICR      = 0x08F00, /* Host Interface Control */
 };
 
 /* RSS registers */
