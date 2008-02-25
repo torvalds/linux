@@ -943,7 +943,6 @@ static struct super_block* get_gfs2_sb(const char *dev_name)
 {
 	struct kstat stat;
 	struct nameidata nd;
-	struct file_system_type *fstype;
 	struct super_block *sb = NULL, *s;
 	int error;
 
@@ -955,8 +954,7 @@ static struct super_block* get_gfs2_sb(const char *dev_name)
 	}
 	error = vfs_getattr(nd.path.mnt, nd.path.dentry, &stat);
 
-	fstype = get_fs_type("gfs2");
-	list_for_each_entry(s, &fstype->fs_supers, s_instances) {
+	list_for_each_entry(s, &gfs2_fs_type.fs_supers, s_instances) {
 		if ((S_ISBLK(stat.mode) && s->s_dev == stat.rdev) ||
 		    (S_ISDIR(stat.mode) &&
 		     s == nd.path.dentry->d_inode->i_sb)) {
