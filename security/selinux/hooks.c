@@ -161,7 +161,6 @@ static int task_alloc_security(struct task_struct *task)
 	if (!tsec)
 		return -ENOMEM;
 
-	tsec->task = task;
 	tsec->osid = tsec->sid = tsec->ptrace_sid = SECINITSID_UNLABELED;
 	task->security = tsec;
 
@@ -218,7 +217,6 @@ static int file_alloc_security(struct file *file)
 	if (!fsec)
 		return -ENOMEM;
 
-	fsec->file = file;
 	fsec->sid = tsec->sid;
 	fsec->fown_sid = tsec->sid;
 	file->f_security = fsec;
@@ -275,7 +273,6 @@ static int sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 	if (!ssec)
 		return -ENOMEM;
 
-	ssec->sk = sk;
 	ssec->peer_sid = SECINITSID_UNLABELED;
 	ssec->sid = SECINITSID_UNLABELED;
 	sk->sk_security = ssec;
@@ -1889,7 +1886,6 @@ static int selinux_bprm_alloc_security(struct linux_binprm *bprm)
 	if (!bsec)
 		return -ENOMEM;
 
-	bsec->bprm = bprm;
 	bsec->sid = SECINITSID_UNLABELED;
 	bsec->set = 0;
 
@@ -4561,7 +4557,6 @@ static int ipc_alloc_security(struct task_struct *task,
 		return -ENOMEM;
 
 	isec->sclass = sclass;
-	isec->ipc_perm = perm;
 	isec->sid = tsec->sid;
 	perm->security = isec;
 
@@ -4583,7 +4578,6 @@ static int msg_msg_alloc_security(struct msg_msg *msg)
 	if (!msec)
 		return -ENOMEM;
 
-	msec->msg = msg;
 	msec->sid = SECINITSID_UNLABELED;
 	msg->security = msec;
 
@@ -5194,7 +5188,6 @@ static int selinux_key_alloc(struct key *k, struct task_struct *tsk,
 	if (!ksec)
 		return -ENOMEM;
 
-	ksec->obj = k;
 	if (tsec->keycreate_sid)
 		ksec->sid = tsec->keycreate_sid;
 	else
