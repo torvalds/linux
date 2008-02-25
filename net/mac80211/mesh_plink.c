@@ -131,7 +131,7 @@ struct sta_info *mesh_plink_add(u8 *hw_addr, u64 rates, struct net_device *dev)
 }
 
 /**
- * __mesh_plink_deactivate - deactivate mesh peer link
+ * mesh_plink_deactivate - deactivate mesh peer link
  *
  * @sta: mesh peer link to deactivate
  *
