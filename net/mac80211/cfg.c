@@ -571,6 +571,12 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 
+	/*
+	 * FIXME: updating the flags is racy when this function is
+	 *	  called from ieee80211_change_station(), this will
+	 *	  be resolved in a future patch.
+	 */
+
 	if (params->station_flags & STATION_FLAG_CHANGED) {
 		sta->flags &= ~WLAN_STA_AUTHORIZED;
 		if (params->station_flags & STATION_FLAG_AUTHORIZED)
@@ -584,6 +590,13 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 		if (params->station_flags & STATION_FLAG_WME)
 			sta->flags |= WLAN_STA_WME;
 	}
+
+	/*
+	 * FIXME: updating the following information is racy when this
+	 *	  function is called from ieee80211_change_station().
+	 *	  However, all this information should be static so
+	 *	  maybe we should just reject attemps to change it.
+	 */
 
 	if (params->aid) {
 		sta->aid = params->aid;
@@ -626,6 +639,7 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *sdata;
+	int err;
 
 	/* Prevent a race with changing the rate control algorithm */
 	if (!netif_running(dev))
@@ -641,22 +655,32 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 		sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	if (ieee80211_vif_is_mesh(&sdata->vif))
-		sta = mesh_plink_add(mac, DEFAULT_RATES, sdata);
+		sta = mesh_plink_alloc(sdata, mac, DEFAULT_RATES, GFP_KERNEL);
 	else
-		sta = sta_info_add(sdata, mac);
-
-	if (IS_ERR(sta))
-		return PTR_ERR(sta);
-
-	if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN ||
-	    sdata->vif.type == IEEE80211_IF_TYPE_AP)
-		ieee80211_send_layer2_update(sta);
+		sta = sta_info_alloc(sdata, mac, GFP_KERNEL);
+	if (!sta)
+		return -ENOMEM;
 
 	sta->flags = WLAN_STA_AUTH | WLAN_STA_ASSOC;
 
 	sta_apply_parameters(local, sta, params);
 
 	rate_control_rate_init(sta, local);
+
+	rcu_read_lock();
+
+	err = sta_info_insert(sta);
+	if (err) {
+		sta_info_destroy(sta);
+		rcu_read_unlock();
+		return err;
+	}
+
+	if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN ||
+	    sdata->vif.type == IEEE80211_IF_TYPE_AP)
+		ieee80211_send_layer2_update(sta);
+
+	rcu_read_unlock();
 
 	return 0;
 }

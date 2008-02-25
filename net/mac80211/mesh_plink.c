@@ -89,44 +89,41 @@ static inline void mesh_plink_fsm_restart(struct sta_info *sta)
 }
 
 /**
- * mesh_plink_add - allocate and add a new mesh peer link
+ * mesh_plink_alloc - allocate a new mesh peer link
  *
+ * @sdata: local mesh interface
  * @hw_addr: hardware address (ETH_ALEN length)
  * @rates: rates the mesh peer supports
- * @dev: local mesh interface
  *
  * The initial state of the new plink is set to LISTEN
  *
- * Returns: non-NULL on success, ERR_PTR() on error.
+ * Returns: NULL on error.
  */
-struct sta_info *mesh_plink_add(u8 *hw_addr, u64 rates,
-				struct ieee80211_sub_if_data *sdata)
+struct sta_info *mesh_plink_alloc(struct ieee80211_sub_if_data *sdata,
+				  u8 *hw_addr, u64 rates, gfp_t gfp)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 
 	if (compare_ether_addr(hw_addr, sdata->dev->dev_addr) == 0)
 		/* never add ourselves as neighbours */
-		return ERR_PTR(-EINVAL);
+		return NULL;
 
 	if (is_multicast_ether_addr(hw_addr))
-		return ERR_PTR(-EINVAL);
+		return NULL;
 
 	if (local->num_sta >= MESH_MAX_PLINKS)
-		return ERR_PTR(-ENOSPC);
+		return NULL;
 
-	sta = sta_info_add(sdata, hw_addr);
-	if (IS_ERR(sta))
-		return sta;
+	sta = sta_info_alloc(sdata, hw_addr, gfp);
+	if (!sta)
+		return NULL;
 
 	sta->plink_state = LISTEN;
 	spin_lock_init(&sta->plink_lock);
 	init_timer(&sta->plink_timer);
 	sta->flags |= WLAN_STA_AUTHORIZED;
 	sta->supp_rates[local->hw.conf.channel->band] = rates;
-	rate_control_rate_init(sta, local);
-
-	mesh_accept_plinks_update(sdata);
 
 	return sta;
 }
@@ -252,8 +249,13 @@ void mesh_neighbour_update(u8 *hw_addr, u64 rates, struct net_device *dev,
 
 	sta = sta_info_get(local, hw_addr);
 	if (!sta) {
-		sta = mesh_plink_add(hw_addr, rates, sdata);
-		if (IS_ERR(sta)) {
+		sta = mesh_plink_alloc(sdata, hw_addr, rates, GFP_ATOMIC);
+		if (!sta) {
+			rcu_read_unlock();
+			return;
+		}
+		if (sta_info_insert(sta)) {
+			sta_info_destroy(sta);
 			rcu_read_unlock();
 			return;
 		}
@@ -516,9 +518,14 @@ void mesh_rx_plink_frame(struct net_device *dev, struct ieee80211_mgmt *mgmt,
 		}
 
 		rates = ieee80211_sta_get_rates(local, &elems, rx_status->band);
-		sta = mesh_plink_add(mgmt->sa, rates, sdata);
-		if (IS_ERR(sta)) {
+		sta = mesh_plink_alloc(sdata, mgmt->sa, rates, GFP_ATOMIC);
+		if (!sta) {
 			mpl_dbg("Mesh plink error: plink table full\n");
+			rcu_read_unlock();
+			return;
+		}
+		if (sta_info_insert(sta)) {
+			sta_info_destroy(sta);
 			rcu_read_unlock();
 			return;
 		}

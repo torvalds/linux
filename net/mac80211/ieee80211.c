@@ -899,6 +899,7 @@ int ieee80211_if_update_wds(struct net_device *dev, u8 *remote_addr)
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct sta_info *sta;
+	int err;
 	DECLARE_MAC_BUF(mac);
 
 	might_sleep();
@@ -906,16 +907,19 @@ int ieee80211_if_update_wds(struct net_device *dev, u8 *remote_addr)
 	if (compare_ether_addr(remote_addr, sdata->u.wds.remote_addr) == 0)
 		return 0;
 
-	rcu_read_lock();
-
 	/* Create STA entry for the new peer */
-	sta = sta_info_add(sdata, remote_addr);
-	if (IS_ERR(sta)) {
-		rcu_read_unlock();
-		return PTR_ERR(sta);
-	}
+	sta = sta_info_alloc(sdata, remote_addr, GFP_KERNEL);
+	if (!sta)
+		return -ENOMEM;
 
 	sta->flags |= WLAN_STA_AUTHORIZED;
+	err = sta_info_insert(sta);
+	if (err) {
+		sta_info_destroy(sta);
+		return err;
+	}
+
+	rcu_read_lock();
 
 	/* Remove STA entry for the old peer */
 	sta = sta_info_get(local, sdata->u.wds.remote_addr);

@@ -31,12 +31,13 @@
  * for faster lookup and a list for iteration. They are managed using
  * RCU, i.e. access to the list and hash table is protected by RCU.
  *
- * STA info structures are always "alive" when they are added with
- * @sta_info_add() [this may be changed in the future to allow allocating
- * outside of a critical section!], they are then added to the hash
- * table and list. Therefore, @sta_info_add() must also be RCU protected,
- * also, the caller of @sta_info_add() cannot assume that it owns the
- * structure.
+ * Upon allocating a STA info structure with @sta_info_alloc() or
+ * mesh_plink_alloc(), the caller owns that structure. It must then either
+ * destroy it using @sta_info_destroy() (which is pretty useless) or insert
+ * it into the hash table using @sta_info_insert() which demotes the reference
+ * from ownership to a regular RCU-protected reference; if the function
+ * is called without protection by an RCU critical section the reference
+ * is instantly invalidated.
  *
  * Because there are debugfs entries for each station, and adding those
  * must be able to sleep, it is also possible to "pin" a station entry,
@@ -131,6 +132,10 @@ void sta_info_destroy(struct sta_info *sta)
 	struct ieee80211_local *local = sta->local;
 	struct sk_buff *skb;
 	int i;
+	DECLARE_MAC_BUF(mbuf);
+
+	if (!sta)
+		return;
 
 	ASSERT_RTNL();
 	might_sleep();
@@ -171,6 +176,11 @@ void sta_info_destroy(struct sta_info *sta)
 	rate_control_free_sta(sta->rate_ctrl, sta->rate_ctrl_priv);
 	rate_control_put(sta->rate_ctrl);
 
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+	printk(KERN_DEBUG "%s: Destroyed STA %s\n",
+	       wiphy_name(local->hw.wiphy), print_mac(mbuf, sta->addr));
+#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
+
 	kfree(sta);
 }
 
@@ -183,18 +193,17 @@ static void sta_info_hash_add(struct ieee80211_local *local,
 	rcu_assign_pointer(local->sta_hash[STA_HASH(sta->addr)], sta);
 }
 
-struct sta_info *sta_info_add(struct ieee80211_sub_if_data *sdata,
-			      u8 *addr)
+struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
+				u8 *addr, gfp_t gfp)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	int i;
-	DECLARE_MAC_BUF(mac);
-	unsigned long flags;
+	DECLARE_MAC_BUF(mbuf);
 
-	sta = kzalloc(sizeof(*sta), GFP_ATOMIC);
+	sta = kzalloc(sizeof(*sta), gfp);
 	if (!sta)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	memcpy(sta->addr, addr, ETH_ALEN);
 	sta->local = local;
@@ -202,11 +211,11 @@ struct sta_info *sta_info_add(struct ieee80211_sub_if_data *sdata,
 
 	sta->rate_ctrl = rate_control_get(local->rate_ctrl);
 	sta->rate_ctrl_priv = rate_control_alloc_sta(sta->rate_ctrl,
-						     GFP_ATOMIC);
+						     gfp);
 	if (!sta->rate_ctrl_priv) {
 		rate_control_put(sta->rate_ctrl);
 		kfree(sta);
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 	}
 
 	spin_lock_init(&sta->ampdu_mlme.ampdu_rx);
@@ -233,11 +242,27 @@ struct sta_info *sta_info_add(struct ieee80211_sub_if_data *sdata,
 	}
 	skb_queue_head_init(&sta->ps_tx_buf);
 	skb_queue_head_init(&sta->tx_filtered);
+
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+	printk(KERN_DEBUG "%s: Allocated STA %s\n",
+	       wiphy_name(local->hw.wiphy), print_mac(mbuf, sta->addr));
+#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
+
+	return sta;
+}
+
+int sta_info_insert(struct sta_info *sta)
+{
+	struct ieee80211_local *local = sta->local;
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	unsigned long flags;
+	DECLARE_MAC_BUF(mac);
+
 	spin_lock_irqsave(&local->sta_lock, flags);
 	/* check if STA exists already */
-	if (__sta_info_find(local, addr)) {
+	if (__sta_info_find(local, sta->addr)) {
 		spin_unlock_irqrestore(&local->sta_lock, flags);
-		return ERR_PTR(-EEXIST);
+		return -EEXIST;
 	}
 	list_add(&sta->list, &local->sta_list);
 	local->num_sta++;
@@ -249,15 +274,15 @@ struct sta_info *sta_info_add(struct ieee80211_sub_if_data *sdata,
 			sdata = sdata->u.vlan.ap;
 
 		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
-				       STA_NOTIFY_ADD, addr);
+				       STA_NOTIFY_ADD, sta->addr);
 	}
 
-	spin_unlock_irqrestore(&local->sta_lock, flags);
-
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: Added STA %s\n",
-	       wiphy_name(local->hw.wiphy), print_mac(mac, addr));
+	printk(KERN_DEBUG "%s: Inserted STA %s\n",
+	       wiphy_name(local->hw.wiphy), print_mac(mac, sta->addr));
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
+
+	spin_unlock_irqrestore(&local->sta_lock, flags);
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	/* debugfs entry adding might sleep, so schedule process
@@ -266,7 +291,10 @@ struct sta_info *sta_info_add(struct ieee80211_sub_if_data *sdata,
 	queue_work(local->hw.workqueue, &local->sta_debugfs_add);
 #endif
 
-	return sta;
+	if (ieee80211_vif_is_mesh(&sdata->vif))
+		mesh_accept_plinks_update(sdata);
+
+	return 0;
 }
 
 static inline void __bss_tim_set(struct ieee80211_if_ap *bss, u16 aid)

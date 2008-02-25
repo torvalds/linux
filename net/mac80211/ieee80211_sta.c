@@ -1454,7 +1454,7 @@ void sta_addba_resp_timer_expired(unsigned long data)
 {
 	/* not an elegant detour, but there is no choice as the timer passes
 	 * only one argument, and both sta_info and TID are needed, so init
-	 * flow in sta_info_add gives the TID as data, while the timer_to_id
+	 * flow in sta_info_create gives the TID as data, while the timer_to_id
 	 * array gives the sta through container_of */
 	u16 tid = *(int *)data;
 	struct sta_info *temp_sta = container_of((void *)data,
@@ -1505,7 +1505,7 @@ void sta_rx_agg_session_timer_expired(unsigned long data)
 {
 	/* not an elegant detour, but there is no choice as the timer passes
 	 * only one argument, and verious sta_info are needed here, so init
-	 * flow in sta_info_add gives the TID as data, while the timer_to_id
+	 * flow in sta_info_create gives the TID as data, while the timer_to_id
 	 * array gives the sta through container_of */
 	u8 *ptid = (u8 *)data;
 	u8 *timer_to_id = ptid - *ptid;
@@ -1829,11 +1829,12 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	sta = sta_info_get(local, ifsta->bssid);
 	if (!sta) {
 		struct ieee80211_sta_bss *bss;
+		int err;
 
-		sta = sta_info_add(sdata, ifsta->bssid);
-		if (IS_ERR(sta)) {
-			printk(KERN_DEBUG "%s: failed to add STA entry for the"
-			       " AP (error %ld)\n", dev->name, PTR_ERR(sta));
+		sta = sta_info_alloc(sdata, ifsta->bssid, GFP_ATOMIC);
+		if (!sta) {
+			printk(KERN_DEBUG "%s: failed to alloc STA entry for"
+			       " the AP\n", dev->name);
 			rcu_read_unlock();
 			return;
 		}
@@ -1846,7 +1847,26 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 			sta->last_noise = bss->noise;
 			ieee80211_rx_bss_put(dev, bss);
 		}
+
+		err = sta_info_insert(sta);
+		if (err) {
+			printk(KERN_DEBUG "%s: failed to insert STA entry for"
+			       " the AP (error %d)\n", dev->name, err);
+			sta_info_destroy(sta);
+			rcu_read_unlock();
+			return;
+		}
 	}
+
+	/*
+	 * FIXME: Do we really need to update the sta_info's information here?
+	 *	  We already know about the AP (we found it in our list) so it
+	 *	  should already be filled with the right info, no?
+	 *	  As is stands, all this is racy because typically we assume
+	 *	  the information that is filled in here (except flags) doesn't
+	 *	  change while a STA structure is alive. As such, it should move
+	 *	  to between the sta_info_alloc() and sta_info_insert() above.
+	 */
 
 	sta->flags |= WLAN_STA_AUTH | WLAN_STA_ASSOC | WLAN_STA_ASSOC_AP |
 		      WLAN_STA_AUTHORIZED;
@@ -2588,10 +2608,8 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 				       "local TSF - IBSS merge with BSSID %s\n",
 				       dev->name, print_mac(mac, mgmt->bssid));
 			ieee80211_sta_join_ibss(dev, &sdata->u.sta, bss);
-			rcu_read_lock();
 			ieee80211_ibss_add_sta(dev, NULL,
 					       mgmt->bssid, mgmt->sa);
-			rcu_read_unlock();
 		}
 	}
 
@@ -4023,7 +4041,6 @@ int ieee80211_sta_set_extra_ie(struct net_device *dev, char *ie, size_t len)
 }
 
 
-/* must be called under RCU read lock */
 struct sta_info * ieee80211_ibss_add_sta(struct net_device *dev,
 					 struct sk_buff *skb, u8 *bssid,
 					 u8 *addr)
@@ -4046,8 +4063,8 @@ struct sta_info * ieee80211_ibss_add_sta(struct net_device *dev,
 	printk(KERN_DEBUG "%s: Adding new IBSS station %s (dev=%s)\n",
 	       wiphy_name(local->hw.wiphy), print_mac(mac, addr), dev->name);
 
-	sta = sta_info_add(sdata, addr);
-	if (IS_ERR(sta))
+	sta = sta_info_alloc(sdata, addr, GFP_ATOMIC);
+	if (!sta)
 		return NULL;
 
 	sta->flags |= WLAN_STA_AUTHORIZED;
@@ -4056,6 +4073,11 @@ struct sta_info * ieee80211_ibss_add_sta(struct net_device *dev,
 		sdata->u.sta.supp_rates_bits[local->hw.conf.channel->band];
 
 	rate_control_rate_init(sta, local);
+
+	if (sta_info_insert(sta)) {
+		sta_info_destroy(sta);
+		return NULL;
+	}
 
 	return sta;
 }

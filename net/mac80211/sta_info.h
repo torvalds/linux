@@ -283,12 +283,19 @@ struct sta_info *sta_info_get(struct ieee80211_local *local, u8 *addr);
 struct sta_info *sta_info_get_by_idx(struct ieee80211_local *local, int idx,
 				      struct net_device *dev);
 /*
- * Add a new STA info, must be under RCU read lock
- * because otherwise the returned reference isn't
- * necessarily valid long enough.
+ * Create a new STA info, caller owns returned structure
+ * until sta_info_insert().
  */
-struct sta_info *sta_info_add(struct ieee80211_sub_if_data *sdata,
-			      u8 *addr);
+struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
+				u8 *addr, gfp_t gfp);
+/*
+ * Insert STA info into hash table/list, returns zero or a
+ * -EEXIST if (if the same MAC address is already present).
+ *
+ * Calling this without RCU protection makes the caller
+ * relinquish its reference to @sta.
+ */
+int sta_info_insert(struct sta_info *sta);
 /*
  * Unlink a STA info from the hash table/list.
  * This can NULL the STA pointer if somebody else
