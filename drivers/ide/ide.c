@@ -1031,10 +1031,9 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 			drive->nice1 = (arg >> IDE_NICE_1) & 1;
 			return 0;
 		case HDIO_DRIVE_RESET:
-		{
-			unsigned long flags;
-			if (!capable(CAP_SYS_ADMIN)) return -EACCES;
-			
+			if (!capable(CAP_SYS_ADMIN))
+				return -EACCES;
+
 			/*
 			 *	Abort the current command on the
 			 *	group if there is one, taking
@@ -1053,17 +1052,15 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 			ide_abort(drive, "drive reset");
 
 			BUG_ON(HWGROUP(drive)->handler);
-				
+
 			/* Ensure nothing gets queued after we
 			   drop the lock. Reset will clear the busy */
-		   
+
 			HWGROUP(drive)->busy = 1;
 			spin_unlock_irqrestore(&ide_lock, flags);
 			(void) ide_do_reset(drive);
 
 			return 0;
-		}
-
 		case HDIO_GET_BUSSTATE:
 			if (!capable(CAP_SYS_ADMIN))
 				return -EACCES;
