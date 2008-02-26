@@ -1639,6 +1639,7 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 	locks_init_lock(&fl);
 	fl.fl_lmops = &nfsd_lease_mng_ops;
 	fl.fl_flags = FL_LEASE;
+	fl.fl_type = flag == NFS4_OPEN_DELEGATE_READ? F_RDLCK: F_WRLCK;
 	fl.fl_end = OFFSET_MAX;
 	fl.fl_owner =  (fl_owner_t)dp;
 	fl.fl_file = stp->st_vfs_file;
@@ -1647,8 +1648,7 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 	/* vfs_setlease checks to see if delegation should be handed out.
 	 * the lock_manager callbacks fl_mylease and fl_change are used
 	 */
-	if ((status = vfs_setlease(stp->st_vfs_file,
-		flag == NFS4_OPEN_DELEGATE_READ? F_RDLCK: F_WRLCK, &flp))) {
+	if ((status = vfs_setlease(stp->st_vfs_file, fl.fl_type, &flp))) {
 		dprintk("NFSD: setlease failed [%d], no delegation\n", status);
 		unhash_delegation(dp);
 		flag = NFS4_OPEN_DELEGATE_NONE;
