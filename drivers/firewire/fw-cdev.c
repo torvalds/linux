@@ -109,15 +109,17 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	struct client *client;
 	unsigned long flags;
 
-	device = fw_device_from_devt(inode->i_rdev);
+	device = fw_device_get_by_devt(inode->i_rdev);
 	if (device == NULL)
 		return -ENODEV;
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
-	if (client == NULL)
+	if (client == NULL) {
+		fw_device_put(device);
 		return -ENOMEM;
+	}
 
-	client->device = fw_device_get(device);
+	client->device = device;
 	INIT_LIST_HEAD(&client->event_list);
 	INIT_LIST_HEAD(&client->resource_list);
 	spin_lock_init(&client->lock);
@@ -644,6 +646,10 @@ static int ioctl_create_iso_context(struct client *client, void *buffer)
 	struct fw_cdev_create_iso_context *request = buffer;
 	struct fw_iso_context *context;
 
+	/* We only support one context at this time. */
+	if (client->iso_context != NULL)
+		return -EBUSY;
+
 	if (request->channel > 63)
 		return -EINVAL;
 
@@ -790,8 +796,9 @@ static int ioctl_start_iso(struct client *client, void *buffer)
 {
 	struct fw_cdev_start_iso *request = buffer;
 
-	if (request->handle != 0)
+	if (client->iso_context == NULL || request->handle != 0)
 		return -EINVAL;
+
 	if (client->iso_context->type == FW_ISO_CONTEXT_RECEIVE) {
 		if (request->tags == 0 || request->tags > 15)
 			return -EINVAL;
@@ -808,7 +815,7 @@ static int ioctl_stop_iso(struct client *client, void *buffer)
 {
 	struct fw_cdev_stop_iso *request = buffer;
 
-	if (request->handle != 0)
+	if (client->iso_context == NULL || request->handle != 0)
 		return -EINVAL;
 
 	return fw_iso_context_stop(client->iso_context);
