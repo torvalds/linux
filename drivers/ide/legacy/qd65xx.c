@@ -444,6 +444,8 @@ static int __init qd_probe(int base)
 		printk(KERN_DEBUG "qd6580: config=%#x, control=%#x, ID3=%u\n",
 			config, control, QD_ID3);
 
+		outb(QD_DEF_CONTR, QD_CONTROL_PORT);
+
 		if (control & QD_CONTR_SEC_DISABLED) {
 			/* secondary disabled */
 
@@ -459,8 +461,6 @@ static int __init qd_probe(int base)
 			idx[unit] = unit;
 
 			ide_device_add(idx, &qd65xx_port_info);
-
-			outb(QD_DEF_CONTR, QD_CONTROL_PORT);
 
 			return 1;
 		} else {
@@ -486,8 +486,6 @@ static int __init qd_probe(int base)
 			idx[1] = 1;
 
 			ide_device_add(idx, &qd65xx_port_info);
-
-			outb(QD_DEF_CONTR, QD_CONTROL_PORT);
 
 			return 0; /* no other qd65xx possible */
 		}
