@@ -670,8 +670,8 @@ static void cdrom_buffer_sectors (ide_drive_t *drive, unsigned long sector,
  * and attempt to recover if there are problems.  Returns  0 if everything's
  * ok; nonzero if the request has been terminated.
  */
-static
-int ide_cd_check_ireason(ide_drive_t *drive, int len, int ireason, int rw)
+static int ide_cd_check_ireason(ide_drive_t *drive, struct request *rq,
+				int len, int ireason, int rw)
 {
 	/*
 	 * ireason == 0: the drive wants to receive data from us
@@ -700,6 +700,9 @@ int ide_cd_check_ireason(ide_drive_t *drive, int len, int ireason, int rw)
 		printk(KERN_ERR "%s: %s: bad interrupt reason 0x%02x\n",
 				drive->name, __FUNCTION__, ireason);
 	}
+
+	if (rq->cmd_type == REQ_TYPE_ATA_PC)
+		rq->cmd_flags |= REQ_FAILED;
 
 	cdrom_end_request(drive, 0);
 	return -1;
@@ -1071,11 +1074,11 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	/*
 	 * check which way to transfer data
 	 */
-	if (blk_fs_request(rq) || blk_pc_request(rq)) {
-		if (ide_cd_check_ireason(drive, len, ireason, write))
-			return ide_stopped;
+	if (ide_cd_check_ireason(drive, rq, len, ireason, write))
+		return ide_stopped;
 
-		if (blk_fs_request(rq) && write == 0) {
+	if (blk_fs_request(rq)) {
+		if (write == 0) {
 			int nskip;
 
 			if (ide_cd_check_transfer_size(drive, len)) {
@@ -1101,16 +1104,9 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	if (ireason == 0) {
 		write = 1;
 		xferfunc = HWIF(drive)->atapi_output_bytes;
-	} else if (ireason == 2 || (ireason == 1 &&
-		   (blk_fs_request(rq) || blk_pc_request(rq)))) {
+	} else {
 		write = 0;
 		xferfunc = HWIF(drive)->atapi_input_bytes;
-	} else {
-		printk(KERN_ERR "%s: %s: The drive "
-				"appears confused (ireason = 0x%02x). "
-				"Trying to recover by ending request.\n",
-				drive->name, __FUNCTION__, ireason);
-		goto end_request;
 	}
 
 	/*
