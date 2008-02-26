@@ -282,12 +282,12 @@ static void __cpuinit init_c3(struct cpuinfo_x86 *c)
 		rdmsr(MSR_VIA_FCR, lo, hi);
 		lo |= (1<<1 | 1<<7);
 		wrmsr(MSR_VIA_FCR, lo, hi);
-		set_bit(X86_FEATURE_CX8, c->x86_capability);
+		set_cpu_cap(c, X86_FEATURE_CX8);
 	}
 
 	/* Before Nehemiah, the C3's had 3dNOW! */
 	if (c->x86_model >= 6 && c->x86_model < 9)
-		set_bit(X86_FEATURE_3DNOW, c->x86_capability);
+		set_cpu_cap(c, X86_FEATURE_3DNOW);
 
 	get_model_name(c);
 	display_cacheinfo(c);
@@ -327,7 +327,7 @@ static void __cpuinit init_centaur(struct cpuinfo_x86 *c)
 	 * Bit 31 in normal CPUID used for nonstandard 3DNow ID;
 	 * 3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
 	 */
-	clear_bit(0*32+31, c->x86_capability);
+	clear_cpu_cap(c, 0*32+31);
 
 	switch (c->x86) {
 	case 5:
@@ -337,7 +337,7 @@ static void __cpuinit init_centaur(struct cpuinfo_x86 *c)
 			fcr_set = ECX8|DSMC|EDCTLB|EMMX|ERETSTK;
 			fcr_clr = DPDC;
 			printk(KERN_NOTICE "Disabling bugged TSC.\n");
-			clear_bit(X86_FEATURE_TSC, c->x86_capability);
+			clear_cpu_cap(c, X86_FEATURE_TSC);
 #ifdef CONFIG_X86_OOSTORE
 			centaur_create_optimal_mcr();
 			/*
@@ -418,12 +418,12 @@ static void __cpuinit init_centaur(struct cpuinfo_x86 *c)
 			printk(KERN_INFO "Centaur FCR is 0x%X\n", lo);
 		}
 		/* Emulate MTRRs using Centaur's MCR. */
-		set_bit(X86_FEATURE_CENTAUR_MCR, c->x86_capability);
+		set_cpu_cap(c, X86_FEATURE_CENTAUR_MCR);
 		/* Report CX8 */
-		set_bit(X86_FEATURE_CX8, c->x86_capability);
+		set_cpu_cap(c, X86_FEATURE_CX8);
 		/* Set 3DNow! on Winchip 2 and above. */
 		if (c->x86_model >= 8)
-			set_bit(X86_FEATURE_3DNOW, c->x86_capability);
+			set_cpu_cap(c, X86_FEATURE_3DNOW);
 		/* See if we can find out some more. */
 		if (cpuid_eax(0x80000000) >= 0x80000005) {
 			/* Yes, we can. */
