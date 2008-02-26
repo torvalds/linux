@@ -1269,10 +1269,6 @@ platforms are moved over to use the flattened-device-tree model.
 
   Recommended properties:
 
-    - linux,network-index : This is the intended "index" of this
-      network device.  This is used by the bootwrapper to interpret
-      MAC addresses passed by the firmware when no information other
-      than indices is available to associate an address with a device.
     - phy-connection-type : a string naming the controller/PHY interface type,
       i.e., "mii" (default), "rmii", "gmii", "rgmii", "rgmii-id", "sgmii",
       "tbi", or "rtbi".  This property is only really needed if the connection
@@ -1667,10 +1663,6 @@ platforms are moved over to use the flattened-device-tree model.
    - phy-handle : The phandle for the PHY connected to this controller.
 
    Recommended properties:
-   - linux,network-index : This is the intended "index" of this
-     network device.  This is used by the bootwrapper to interpret
-     MAC addresses passed by the firmware when no information other
-     than indices is available to associate an address with a device.
    - phy-connection-type : a string naming the controller/PHY interface type,
      i.e., "mii" (default), "rmii", "gmii", "rgmii", "rgmii-id" (Internal
      Delay), "rgmii-txid" (delay on TX only), "rgmii-rxid" (delay on RX only),
@@ -1995,7 +1987,6 @@ platforms are moved over to use the flattened-device-tree model.
 		interrupts = <20 8>;
 		interrupt-parent = <&PIC>;
 		phy-handle = <&PHY0>;
-		linux,network-index = <0>;
 		fsl,cpm-command = <12000300>;
 	};
 
@@ -2217,12 +2208,6 @@ platforms are moved over to use the flattened-device-tree model.
 			  EMAC, that is the content of the current (bogus) "phy-port"
 			  property.
 
-    Recommended properties:
-    - linux,network-index : This is the intended "index" of this
-      network device.  This is used by the bootwrapper to interpret
-      MAC addresses passed by the firmware when no information other
-      than indices is available to associate an address with a device.
-
     Optional properties:
     - phy-address       : 1 cell, optional, MDIO address of the PHY. If absent,
 			  a search is performed.
@@ -2246,7 +2231,6 @@ platforms are moved over to use the flattened-device-tree model.
     Example:
 
 	EMAC0: ethernet@40000800 {
-		linux,network-index = <0>;
 		device_type = "network";
 		compatible = "ibm,emac-440gp", "ibm,emac";
 		interrupt-parent = <&UIC1>;

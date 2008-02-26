@@ -75,7 +75,8 @@ static void ebony_fixups(void)
 
 	ibm440gp_fixup_clocks(sysclk, 6 * 1843200);
 	ibm4xx_sdram_fixup_memsize();
-	dt_fixup_mac_addresses(ebony_mac0, ebony_mac1);
+	dt_fixup_mac_address_by_alias("ethernet0", ebony_mac0);
+	dt_fixup_mac_address_by_alias("ethernet1", ebony_mac1);
 	ibm4xx_fixup_ebc_ranges("/plb/opb/ebc");
 	ebony_flashsel_fixup();
 }

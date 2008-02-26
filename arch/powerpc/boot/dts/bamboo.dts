@@ -204,7 +204,6 @@
 			};
 
 			EMAC0: ethernet@ef600e00 {
-				linux,network-index = <0>;
 				device_type = "network";
 				compatible = "ibm,emac-440ep", "ibm,emac-440gp", "ibm,emac";
 				interrupt-parent = <&UIC1>;
@@ -225,7 +224,6 @@
 			};
 
 			EMAC1: ethernet@ef600f00 {
-				linux,network-index = <1>;
 				device_type = "network";
 				compatible = "ibm,emac-440ep", "ibm,emac-440gp", "ibm,emac";
 				interrupt-parent = <&UIC1>;

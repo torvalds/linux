@@ -241,7 +241,6 @@
 			};
 
 			EMAC0: ethernet@40000800 {
-				linux,network-index = <0>;
 				device_type = "network";
 				compatible = "ibm,emac-440gp", "ibm,emac";
 				interrupt-parent = <&UIC1>;
@@ -261,7 +260,6 @@
 				zmii-channel = <0>;
 			};
 			EMAC1: ethernet@40000900 {
-				linux,network-index = <1>;
 				device_type = "network";
 				compatible = "ibm,emac-440gp", "ibm,emac";
 				interrupt-parent = <&UIC1>;

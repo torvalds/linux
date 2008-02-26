@@ -235,7 +235,6 @@
 
 			EMAC0: ethernet@40000800 {
 				unused = <1>;
-				linux,network-index = <2>;
 				device_type = "network";
 				compatible = "ibm,emac-440gx", "ibm,emac4";
 				interrupt-parent = <&UIC1>;
@@ -256,7 +255,6 @@
 			};
 		 	EMAC1: ethernet@40000900 {
 				unused = <1>;
-				linux,network-index = <3>;
 				device_type = "network";
 				compatible = "ibm,emac-440gx", "ibm,emac4";
 				interrupt-parent = <&UIC1>;
@@ -277,7 +275,6 @@
 			};
 
 		 	EMAC2: ethernet@40000c00 {
-				linux,network-index = <0>;
 				device_type = "network";
 				compatible = "ibm,emac-440gx", "ibm,emac4";
 				interrupt-parent = <&UIC2>;
@@ -300,7 +297,6 @@
 			};
 
 		 	EMAC3: ethernet@40000e00 {
-				linux,network-index = <1>;
 				device_type = "network";
 				compatible = "ibm,emac-440gx", "ibm,emac4";
 				interrupt-parent = <&UIC2>;

@@ -33,7 +33,8 @@ static void bamboo_fixups(void)
 	ibm440ep_fixup_clocks(sysclk, 11059200, 25000000);
 	ibm4xx_sdram_fixup_memsize();
 	ibm4xx_quiesce_eth((u32 *)0xef600e00, (u32 *)0xef600f00);
-	dt_fixup_mac_addresses(bamboo_mac0, bamboo_mac1);
+	dt_fixup_mac_address_by_alias("ethernet0", bamboo_mac0);
+	dt_fixup_mac_address_by_alias("ethernet1", bamboo_mac1);
 }
 
 void bamboo_init(void *mac0, void *mac1)
