@@ -29,5 +29,5 @@ int match_token(char *, match_table_t table, substring_t args[]);
 int match_int(substring_t *, int *result);
 int match_octal(substring_t *, int *result);
 int match_hex(substring_t *, int *result);
-void match_strcpy(char *, const substring_t *);
+size_t match_strlcpy(char *, const substring_t *, size_t);
 char *match_strdup(const substring_t *);

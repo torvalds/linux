@@ -125,10 +125,10 @@ static void v9fs_parse_options(struct v9fs_session_info *v9ses)
 			v9ses->afid = option;
 			break;
 		case Opt_uname:
-			match_strcpy(v9ses->uname, &args[0]);
+			match_strlcpy(v9ses->uname, &args[0], PATH_MAX);
 			break;
 		case Opt_remotename:
-			match_strcpy(v9ses->aname, &args[0]);
+			match_strlcpy(v9ses->aname, &args[0], PATH_MAX);
 			break;
 		case Opt_nodevmap:
 			v9ses->nodev = 1;
