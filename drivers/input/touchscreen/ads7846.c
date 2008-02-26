@@ -28,13 +28,6 @@
 #include <linux/spi/ads7846.h>
 #include <asm/irq.h>
 
-#ifdef	CONFIG_ARM
-#include <asm/mach-types.h>
-#ifdef	CONFIG_ARCH_OMAP
-#include <asm/arch/gpio.h>
-#endif
-#endif
-
 
 /*
  * This code has been heavily tested on a Nokia 770, and lightly
@@ -1174,31 +1167,6 @@ static struct spi_driver ads7846_driver = {
 
 static int __init ads7846_init(void)
 {
-	/* grr, board-specific init should stay out of drivers!! */
-
-#ifdef	CONFIG_ARCH_OMAP
-	if (machine_is_omap_osk()) {
-		/* GPIO4 = PENIRQ; GPIO6 = BUSY */
-		omap_request_gpio(4);
-		omap_set_gpio_direction(4, 1);
-		omap_request_gpio(6);
-		omap_set_gpio_direction(6, 1);
-	}
-	// also TI 1510 Innovator, bitbanging through FPGA
-	// also Nokia 770
-	// also Palm Tungsten T2
-#endif
-
-	// PXA:
-	// also Dell Axim X50
-	// also HP iPaq H191x/H192x/H415x/H435x
-	// also Intel Lubbock (additional to UCB1400; as temperature sensor)
-	// also Sharp Zaurus C7xx, C8xx (corgi/sheperd/husky)
-
-	// Atmel at91sam9261-EK uses ads7843
-
-	// also various AMD Au1x00 devel boards
-
 	return spi_register_driver(&ads7846_driver);
 }
 module_init(ads7846_init);
@@ -1206,14 +1174,6 @@ module_init(ads7846_init);
 static void __exit ads7846_exit(void)
 {
 	spi_unregister_driver(&ads7846_driver);
-
-#ifdef	CONFIG_ARCH_OMAP
-	if (machine_is_omap_osk()) {
-		omap_free_gpio(4);
-		omap_free_gpio(6);
-	}
-#endif
-
 }
 module_exit(ads7846_exit);
 
