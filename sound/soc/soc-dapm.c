@@ -1334,10 +1334,11 @@ int snd_soc_dapm_set_endpoint(struct snd_soc_codec *codec,
 	list_for_each_entry(w, &codec->dapm_widgets, list) {
 		if (!strcmp(w->name, endpoint)) {
 			w->connected = status;
+			return 0;
 		}
 	}
 
-	return 0;
+	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_set_endpoint);
 
