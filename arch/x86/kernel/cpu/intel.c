@@ -143,12 +143,12 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 		unsigned eax = cpuid_eax(10);
 		/* Check for version and the number of counters */
 		if ((eax & 0xff) && (((eax>>8) & 0xff) > 1))
-			set_bit(X86_FEATURE_ARCH_PERFMON, c->x86_capability);
+			set_cpu_cap(c, X86_FEATURE_ARCH_PERFMON);
 	}
 
 	/* SEP CPUID bug: Pentium Pro reports SEP but doesn't have it until model 3 mask 3 */
 	if ((c->x86<<8 | c->x86_model<<4 | c->x86_mask) < 0x633)
-		clear_bit(X86_FEATURE_SEP, c->x86_capability);
+		clear_cpu_cap(c, X86_FEATURE_SEP);
 
 	/*
 	 * Names for the Pentium II/Celeron processors
@@ -209,19 +209,19 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 #endif
 
 	if (cpu_has_xmm2)
-		set_bit(X86_FEATURE_LFENCE_RDTSC, c->x86_capability);
+		set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
 	if (c->x86 == 15) {
-		set_bit(X86_FEATURE_P4, c->x86_capability);
+		set_cpu_cap(c, X86_FEATURE_P4);
 	}
 	if (c->x86 == 6)
-		set_bit(X86_FEATURE_P3, c->x86_capability);
+		set_cpu_cap(c, X86_FEATURE_P3);
 	if (cpu_has_ds) {
 		unsigned int l1;
 		rdmsr(MSR_IA32_MISC_ENABLE, l1, l2);
 		if (!(l1 & (1<<11)))
-			set_bit(X86_FEATURE_BTS, c->x86_capability);
+			set_cpu_cap(c, X86_FEATURE_BTS);
 		if (!(l1 & (1<<12)))
-			set_bit(X86_FEATURE_PEBS, c->x86_capability);
+			set_cpu_cap(c, X86_FEATURE_PEBS);
 	}
 
 	if (cpu_has_bts)
