@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/serial.h>
 #include <linux/io.h>
-#include <asm/sci.h>
+#include <linux/serial_sci.h>
 #include <asm/rtc.h>
 
 #define INTC_ICR1	0xA4140010UL
