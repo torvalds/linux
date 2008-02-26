@@ -58,17 +58,11 @@ struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
 	return p;
 }
 
-static void nfs_readdata_rcu_free(struct rcu_head *head)
+static void nfs_readdata_free(struct nfs_read_data *p)
 {
-	struct nfs_read_data *p = container_of(head, struct nfs_read_data, task.u.tk_rcu);
 	if (p && (p->pagevec != &p->page_array[0]))
 		kfree(p->pagevec);
 	mempool_free(p, nfs_rdata_mempool);
-}
-
-static void nfs_readdata_free(struct nfs_read_data *rdata)
-{
-	call_rcu_bh(&rdata->task.u.tk_rcu, nfs_readdata_rcu_free);
 }
 
 void nfs_readdata_release(void *data)

@@ -393,11 +393,9 @@ static void rpc_wake_up_task_queue_locked(struct rpc_wait_queue *queue, struct r
  */
 void rpc_wake_up_queued_task(struct rpc_wait_queue *queue, struct rpc_task *task)
 {
-	rcu_read_lock_bh();
-	spin_lock(&queue->lock);
+	spin_lock_bh(&queue->lock);
 	rpc_wake_up_task_queue_locked(queue, task);
-	spin_unlock(&queue->lock);
-	rcu_read_unlock_bh();
+	spin_unlock_bh(&queue->lock);
 }
 EXPORT_SYMBOL_GPL(rpc_wake_up_queued_task);
 
@@ -470,16 +468,14 @@ struct rpc_task * rpc_wake_up_next(struct rpc_wait_queue *queue)
 
 	dprintk("RPC:       wake_up_next(%p \"%s\")\n",
 			queue, rpc_qname(queue));
-	rcu_read_lock_bh();
-	spin_lock(&queue->lock);
+	spin_lock_bh(&queue->lock);
 	if (RPC_IS_PRIORITY(queue))
 		task = __rpc_wake_up_next_priority(queue);
 	else {
 		task_for_first(task, &queue->tasks[0])
 			rpc_wake_up_task_queue_locked(queue, task);
 	}
-	spin_unlock(&queue->lock);
-	rcu_read_unlock_bh();
+	spin_unlock_bh(&queue->lock);
 
 	return task;
 }
@@ -496,8 +492,7 @@ void rpc_wake_up(struct rpc_wait_queue *queue)
 	struct rpc_task *task, *next;
 	struct list_head *head;
 
-	rcu_read_lock_bh();
-	spin_lock(&queue->lock);
+	spin_lock_bh(&queue->lock);
 	head = &queue->tasks[queue->maxpriority];
 	for (;;) {
 		list_for_each_entry_safe(task, next, head, u.tk_wait.list)
@@ -506,8 +501,7 @@ void rpc_wake_up(struct rpc_wait_queue *queue)
 			break;
 		head--;
 	}
-	spin_unlock(&queue->lock);
-	rcu_read_unlock_bh();
+	spin_unlock_bh(&queue->lock);
 }
 EXPORT_SYMBOL_GPL(rpc_wake_up);
 
@@ -523,8 +517,7 @@ void rpc_wake_up_status(struct rpc_wait_queue *queue, int status)
 	struct rpc_task *task, *next;
 	struct list_head *head;
 
-	rcu_read_lock_bh();
-	spin_lock(&queue->lock);
+	spin_lock_bh(&queue->lock);
 	head = &queue->tasks[queue->maxpriority];
 	for (;;) {
 		list_for_each_entry_safe(task, next, head, u.tk_wait.list) {
@@ -535,8 +528,7 @@ void rpc_wake_up_status(struct rpc_wait_queue *queue, int status)
 			break;
 		head--;
 	}
-	spin_unlock(&queue->lock);
-	rcu_read_unlock_bh();
+	spin_unlock_bh(&queue->lock);
 }
 EXPORT_SYMBOL_GPL(rpc_wake_up_status);
 
@@ -848,13 +840,6 @@ rpc_alloc_task(void)
 	return (struct rpc_task *)mempool_alloc(rpc_task_mempool, GFP_NOFS);
 }
 
-static void rpc_free_task_rcu(struct rcu_head *rcu)
-{
-	struct rpc_task *task = container_of(rcu, struct rpc_task, u.tk_rcu);
-	dprintk("RPC: %5u freeing task\n", task->tk_pid);
-	mempool_free(task, rpc_task_mempool);
-}
-
 /*
  * Create a new task for the specified client.
  */
@@ -883,8 +868,10 @@ static void rpc_free_task(struct rpc_task *task)
 	const struct rpc_call_ops *tk_ops = task->tk_ops;
 	void *calldata = task->tk_calldata;
 
-	if (task->tk_flags & RPC_TASK_DYNAMIC)
-		call_rcu_bh(&task->u.tk_rcu, rpc_free_task_rcu);
+	if (task->tk_flags & RPC_TASK_DYNAMIC) {
+		dprintk("RPC: %5u freeing task\n", task->tk_pid);
+		mempool_free(task, rpc_task_mempool);
+	}
 	rpc_release_calldata(tk_ops, calldata);
 }
 
