@@ -323,7 +323,7 @@ static const struct abituguru3_motherboard_info abituguru3_motherboards[] = {
 		{ "AUX1 Fan",		36, 2, 60, 1, 0 },
 		{ NULL, 0, 0, 0, 0, 0 } }
 	},
-	{ 0x0013, "unknown", {
+	{ 0x0013, "Abit AW8D", {
 		{ "CPU Core",		 0, 0, 10, 1, 0 },
 		{ "DDR",		 1, 0, 10, 1, 0 },
 		{ "DDR VTT",		 2, 0, 10, 1, 0 },
@@ -349,6 +349,7 @@ static const struct abituguru3_motherboard_info abituguru3_motherboards[] = {
 		{ "AUX2 Fan",		36, 2, 60, 1, 0 },
 		{ "AUX3 Fan",		37, 2, 60, 1, 0 },
 		{ "AUX4 Fan",		38, 2, 60, 1, 0 },
+		{ "AUX5 Fan",		39, 2, 60, 1, 0 },
 		{ NULL, 0, 0, 0, 0, 0 } }
 	},
 	{ 0x0014, "Abit AB9 Pro", {
