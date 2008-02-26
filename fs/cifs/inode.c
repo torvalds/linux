@@ -790,7 +790,7 @@ psx_del_no_retry:
 }
 
 static void posix_fill_in_inode(struct inode *tmp_inode,
-	FILE_UNIX_BASIC_INFO *pData, int *pobject_type, int isNewInode)
+	FILE_UNIX_BASIC_INFO *pData, int isNewInode)
 {
 	struct cifsInodeInfo *cifsInfo = CIFS_I(tmp_inode);
 	loff_t local_size;
@@ -873,7 +873,6 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			cFYI(1, ("posix mkdir returned 0x%x", rc));
 			d_drop(direntry);
 		} else {
-			int obj_type;
 			if (pInfo->Type == cpu_to_le32(-1)) {
 				/* no return info, go query for it */
 				kfree(pInfo);
@@ -909,7 +908,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			/* we already checked in POSIXCreate whether
 			   frame was long enough */
 			posix_fill_in_inode(direntry->d_inode,
-					pInfo, &obj_type, 1 /* NewInode */);
+					pInfo, 1 /* NewInode */);
 #ifdef CONFIG_CIFS_DEBUG2
 			cFYI(1, ("instantiated dentry %p %s to inode %p",
 				direntry, direntry->d_name.name, newinode));
