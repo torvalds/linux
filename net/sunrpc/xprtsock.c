@@ -1073,6 +1073,7 @@ static void xs_tcp_data_ready(struct sock *sk, int bytes)
 {
 	struct rpc_xprt *xprt;
 	read_descriptor_t rd_desc;
+	int read;
 
 	dprintk("RPC:       xs_tcp_data_ready...\n");
 
@@ -1084,8 +1085,10 @@ static void xs_tcp_data_ready(struct sock *sk, int bytes)
 
 	/* We use rd_desc to pass struct xprt to xs_tcp_data_recv */
 	rd_desc.arg.data = xprt;
-	rd_desc.count = 65536;
-	tcp_read_sock(sk, &rd_desc, xs_tcp_data_recv);
+	do {
+		rd_desc.count = 65536;
+		read = tcp_read_sock(sk, &rd_desc, xs_tcp_data_recv);
+	} while (read > 0);
 out:
 	read_unlock(&sk->sk_callback_lock);
 }
