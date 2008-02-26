@@ -32,7 +32,6 @@
 #include <linux/marker.h>
 
 #include <asm/io.h>
-#include <asm/semaphore.h>
 #include <asm/spu.h>
 #include <asm/spu_info.h>
 #include <asm/uaccess.h>

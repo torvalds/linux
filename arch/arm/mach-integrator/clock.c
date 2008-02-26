@@ -17,7 +17,6 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 
-#include <asm/semaphore.h>
 #include <asm/hardware/icst525.h>
 
 #include "clock.h"

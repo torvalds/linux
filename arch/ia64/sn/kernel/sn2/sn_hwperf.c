@@ -37,7 +37,6 @@
 
 #include <asm/processor.h>
 #include <asm/topology.h>
-#include <asm/semaphore.h>
 #include <asm/uaccess.h>
 #include <asm/sal.h>
 #include <asm/sn/io.h>
