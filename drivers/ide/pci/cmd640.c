@@ -787,7 +787,8 @@ static int __init cmd640x_init(void)
 	/*
 	 * Try to enable the secondary interface, if not already enabled
 	 */
-	if (cmd_hwif1->noprobe) {
+	if (cmd_hwif1->noprobe ||
+	    (cmd_hwif1->drives[0].noprobe && cmd_hwif1->drives[1].noprobe)) {
 		port2 = "not probed";
 	} else {
 		b = get_cmd640_reg(CNTRL);
