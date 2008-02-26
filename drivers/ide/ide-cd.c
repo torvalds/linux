@@ -1178,10 +1178,9 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 			else
 				rq->data += blen;
 		}
+		if (!write && blk_sense_request(rq))
+			rq->sense_len += blen;
 	}
-
-	if (write && blk_sense_request(rq))
-		rq->sense_len += thislen;
 
 	/*
 	 * pad, if necessary
