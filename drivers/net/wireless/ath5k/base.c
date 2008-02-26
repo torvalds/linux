@@ -1717,11 +1717,11 @@ ath5k_check_ibss_hw_merge(struct ath5k_softc *sc, struct sk_buff *skb)
 	u32 hw_tu;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 
-	if ((mgmt->frame_control & IEEE80211_FCTL_FTYPE) ==
+	if ((le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_FTYPE) ==
 		IEEE80211_FTYPE_MGMT &&
-	    (mgmt->frame_control & IEEE80211_FCTL_STYPE) ==
+	    (le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_STYPE) ==
 		IEEE80211_STYPE_BEACON &&
-	    mgmt->u.beacon.capab_info & WLAN_CAPABILITY_IBSS &&
+	    le16_to_cpu(mgmt->u.beacon.capab_info) & WLAN_CAPABILITY_IBSS &&
 	    memcmp(mgmt->bssid, sc->ah->ah_bssid, ETH_ALEN) == 0) {
 		/*
 		 * Received an IBSS beacon with the same BSSID. Hardware might
@@ -1730,7 +1730,7 @@ ath5k_check_ibss_hw_merge(struct ath5k_softc *sc, struct sk_buff *skb)
 		hw_tu = TSF_TO_TU(ath5k_hw_get_tsf64(sc->ah));
 		if (hw_tu >= sc->nexttbtt) {
 			ath5k_beacon_update_timers(sc,
-				mgmt->u.beacon.timestamp);
+				le64_to_cpu(mgmt->u.beacon.timestamp));
 			ATH5K_DBG_UNLIMIT(sc, ATH5K_DEBUG_BEACON,
 				"detected HW merge from received beacon\n");
 		}

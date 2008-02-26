@@ -531,8 +531,8 @@ static inline void ath5k_hw_write_rate_duration(struct ath5k_hw *ah,
 		 * actual rate for this rate. See mac80211 tx.c
 		 * ieee80211_duration() for a brief description of
 		 * what rate we should choose to TX ACKs. */
-		tx_time = ieee80211_generic_frame_duration(sc->hw,
-			sc->vif, 10, &srate);
+		tx_time = le16_to_cpu(ieee80211_generic_frame_duration(sc->hw,
+							sc->vif, 10, &srate));
 
 		ath5k_hw_reg_write(ah, tx_time, reg);
 
