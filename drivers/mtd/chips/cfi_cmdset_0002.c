@@ -723,10 +723,10 @@ static void __xipram xip_udelay(struct map_info *map, struct flchip *chip,
 			chip->erase_suspended = 1;
 			map_write(map, CMD(0xf0), adr);
 			(void) map_read(map, adr);
-			asm volatile (".rep 8; nop; .endr");
+			xip_iprefetch();
 			local_irq_enable();
 			spin_unlock(chip->mutex);
-			asm volatile (".rep 8; nop; .endr");
+			xip_iprefetch();
 			cond_resched();
 
 			/*
