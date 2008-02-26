@@ -301,7 +301,6 @@ static void mesh_path_node_reclaim(struct rcu_head *rp)
 	struct ieee80211_sub_if_data *sdata =
 		IEEE80211_DEV_TO_SUB_IF(node->mpath->dev);
 
-	rcu_assign_pointer(node->mpath->next_hop, NULL);
 	atomic_dec(&sdata->u.sta.mpaths);
 	kfree(node->mpath);
 	kfree(node);
