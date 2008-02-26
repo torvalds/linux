@@ -1096,7 +1096,7 @@ static int validate_classes(struct policydb *p)
 			continue;
 		if (i > p->p_classes.nprim) {
 			printk(KERN_INFO
-			       "security:  class %s not defined in policy\n",
+			       "SELinux:  class %s not defined in policy\n",
 			       def_class);
 			if (p->reject_unknown)
 				return -EINVAL;
@@ -1107,7 +1107,7 @@ static int validate_classes(struct policydb *p)
 		pol_class = p->p_class_val_to_name[i-1];
 		if (strcmp(pol_class, def_class)) {
 			printk(KERN_ERR
-			       "security:  class %d is incorrect, found %s but should be %s\n",
+			       "SELinux:  class %d is incorrect, found %s but should be %s\n",
 			       i, pol_class, def_class);
 			return -EINVAL;
 		}
@@ -1125,7 +1125,7 @@ static int validate_classes(struct policydb *p)
 		nprim = 1 << (perms->nprim - 1);
 		if (perm_val > nprim) {
 			printk(KERN_INFO
-			       "security:  permission %s in class %s not defined in policy\n",
+			       "SELinux:  permission %s in class %s not defined in policy\n",
 			       def_perm, pol_class);
 			if (p->reject_unknown)
 				return -EINVAL;
@@ -1136,14 +1136,14 @@ static int validate_classes(struct policydb *p)
 		perdatum = hashtab_search(perms->table, def_perm);
 		if (perdatum == NULL) {
 			printk(KERN_ERR
-			       "security:  permission %s in class %s not found in policy, bad policy\n",
+			       "SELinux:  permission %s in class %s not found in policy, bad policy\n",
 			       def_perm, pol_class);
 			return -EINVAL;
 		}
 		pol_val = 1 << (perdatum->value - 1);
 		if (pol_val != perm_val) {
 			printk(KERN_ERR
-			       "security:  permission %s in class %s has incorrect value\n",
+			       "SELinux:  permission %s in class %s has incorrect value\n",
 			       def_perm, pol_class);
 			return -EINVAL;
 		}
@@ -1157,7 +1157,7 @@ static int validate_classes(struct policydb *p)
 		BUG_ON(!cladatum);
 		if (!cladatum->comdatum) {
 			printk(KERN_ERR
-			       "security:  class %s should have an inherits clause but does not\n",
+			       "SELinux:  class %s should have an inherits clause but does not\n",
 			       pol_class);
 			return -EINVAL;
 		}
@@ -1172,7 +1172,7 @@ static int validate_classes(struct policydb *p)
 			def_perm = kdefs->av_inherit[i].common_pts[j];
 			if (j >= perms->nprim) {
 				printk(KERN_INFO
-				       "security:  permission %s in class %s not defined in policy\n",
+				       "SELinux:  permission %s in class %s not defined in policy\n",
 				       def_perm, pol_class);
 				if (p->reject_unknown)
 					return -EINVAL;
@@ -1183,13 +1183,13 @@ static int validate_classes(struct policydb *p)
 			perdatum = hashtab_search(perms->table, def_perm);
 			if (perdatum == NULL) {
 				printk(KERN_ERR
-				       "security:  permission %s in class %s not found in policy, bad policy\n",
+				       "SELinux:  permission %s in class %s not found in policy, bad policy\n",
 				       def_perm, pol_class);
 				return -EINVAL;
 			}
 			if (perdatum->value != j + 1) {
 				printk(KERN_ERR
-				       "security:  permission %s in class %s has incorrect value\n",
+				       "SELinux:  permission %s in class %s has incorrect value\n",
 				       def_perm, pol_class);
 				return -EINVAL;
 			}
@@ -1219,7 +1219,7 @@ static inline int convert_context_handle_invalid_context(struct context *context
 		u32 len;
 
 		context_struct_to_string(context, &s, &len);
-		printk(KERN_ERR "security:  context %s is invalid\n", s);
+		printk(KERN_ERR "SELinux:  context %s is invalid\n", s);
 		kfree(s);
 	}
 	return rc;
@@ -1299,7 +1299,7 @@ out:
 bad:
 	context_struct_to_string(&oldc, &s, &len);
 	context_destroy(&oldc);
-	printk(KERN_ERR "security:  invalidating context %s\n", s);
+	printk(KERN_ERR "SELinux:  invalidating context %s\n", s);
 	kfree(s);
 	goto out;
 }
@@ -1350,7 +1350,7 @@ int security_load_policy(void *data, size_t len)
 		/* Verify that the kernel defined classes are correct. */
 		if (validate_classes(&policydb)) {
 			printk(KERN_ERR
-			       "security:  the definition of a class is incorrect\n");
+			       "SELinux:  the definition of a class is incorrect\n");
 			LOAD_UNLOCK;
 			sidtab_destroy(&sidtab);
 			policydb_destroy(&policydb);
@@ -1384,14 +1384,14 @@ int security_load_policy(void *data, size_t len)
 	/* Verify that the kernel defined classes are correct. */
 	if (validate_classes(&newpolicydb)) {
 		printk(KERN_ERR
-		       "security:  the definition of a class is incorrect\n");
+		       "SELinux:  the definition of a class is incorrect\n");
 		rc = -EINVAL;
 		goto err;
 	}
 
 	rc = security_preserve_bools(&newpolicydb);
 	if (rc) {
-		printk(KERN_ERR "security:  unable to preserve booleans\n");
+		printk(KERN_ERR "SELinux:  unable to preserve booleans\n");
 		goto err;
 	}
 
