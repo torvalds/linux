@@ -20,8 +20,8 @@
 #include "aes_ccm.h"
 
 
-/*
- * Key handling basics
+/**
+ * DOC: Key handling basics
  *
  * Key handling in mac80211 is done based on per-interface (sub_if_data)
  * keys and per-station keys. Since each station belongs to an interface,

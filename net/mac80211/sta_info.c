@@ -31,10 +31,10 @@
  * for faster lookup and a list for iteration. They are managed using
  * RCU, i.e. access to the list and hash table is protected by RCU.
  *
- * Upon allocating a STA info structure with @sta_info_alloc() or
+ * Upon allocating a STA info structure with sta_info_alloc() or
  * mesh_plink_alloc(), the caller owns that structure. It must then either
- * destroy it using @sta_info_destroy() (which is pretty useless) or insert
- * it into the hash table using @sta_info_insert() which demotes the reference
+ * destroy it using sta_info_destroy() (which is pretty useless) or insert
+ * it into the hash table using sta_info_insert() which demotes the reference
  * from ownership to a regular RCU-protected reference; if the function
  * is called without protection by an RCU critical section the reference
  * is instantly invalidated.
@@ -42,19 +42,19 @@
  * Because there are debugfs entries for each station, and adding those
  * must be able to sleep, it is also possible to "pin" a station entry,
  * that means it can be removed from the hash table but not be freed.
- * See the comment in @__sta_info_unlink() for more information.
+ * See the comment in __sta_info_unlink() for more information.
  *
  * In order to remove a STA info structure, the caller needs to first
- * unlink it (@sta_info_unlink()) from the list and hash tables and
+ * unlink it (sta_info_unlink()) from the list and hash tables and
  * then wait for an RCU synchronisation before it can be freed. Due to
  * the pinning and the possibility of multiple callers trying to remove
- * the same STA info at the same time, @sta_info_unlink() can clear the
+ * the same STA info at the same time, sta_info_unlink() can clear the
  * STA info pointer it is passed to indicate that the STA info is owned
  * by somebody else now.
  *
- * If @sta_info_unlink() did not clear the pointer then the caller owns
+ * If sta_info_unlink() did not clear the pointer then the caller owns
  * the STA info structure now and is responsible of destroying it with
- * a call to @sta_info_destroy(), not before RCU synchronisation, of
+ * a call to sta_info_destroy(), not before RCU synchronisation, of
  * course. Note that sta_info_destroy() must be protected by the RTNL.
  *
  * In all other cases, there is no concept of ownership on a STA entry,

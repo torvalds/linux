@@ -407,7 +407,6 @@ enum ieee80211_conf_flags {
  * @channel: the channel to tune to
  */
 struct ieee80211_conf {
-	unsigned int regulatory_domain;
 	int radio_enabled;
 
 	int beacon_int;
@@ -437,6 +436,7 @@ struct ieee80211_conf {
  * @IEEE80211_IF_TYPE_WDS: interface in WDS mode.
  * @IEEE80211_IF_TYPE_VLAN: VLAN interface bound to an AP, drivers
  *	will never see this type.
+ * @IEEE80211_IF_TYPE_MESH_POINT: 802.11s mesh point
  */
 enum ieee80211_if_types {
 	IEEE80211_IF_TYPE_INVALID,
@@ -1096,8 +1096,9 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 /**
  * ieee80211_register_hw - Register hardware device
  *
- * You must call this function before any other functions
- * except ieee80211_register_hwmode.
+ * You must call this function before any other functions in
+ * mac80211. Note that before a hardware can be registered, you
+ * need to fill the contained wiphy's information.
  *
  * @hw: the device to register as returned by ieee80211_alloc_hw()
  */
