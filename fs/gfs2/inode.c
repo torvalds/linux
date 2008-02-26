@@ -149,7 +149,7 @@ void gfs2_set_iop(struct inode *inode)
 	} else if (S_ISLNK(mode)) {
 		inode->i_op = &gfs2_symlink_iops;
 	} else {
-		inode->i_op = &gfs2_dev_iops;
+		inode->i_op = &gfs2_file_iops;
 	}
 
 	unlock_new_inode(inode);

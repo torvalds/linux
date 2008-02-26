@@ -1149,16 +1149,6 @@ const struct inode_operations gfs2_file_iops = {
 	.removexattr = gfs2_removexattr,
 };
 
-const struct inode_operations gfs2_dev_iops = {
-	.permission = gfs2_permission,
-	.setattr = gfs2_setattr,
-	.getattr = gfs2_getattr,
-	.setxattr = gfs2_setxattr,
-	.getxattr = gfs2_getxattr,
-	.listxattr = gfs2_listxattr,
-	.removexattr = gfs2_removexattr,
-};
-
 const struct inode_operations gfs2_dir_iops = {
 	.create = gfs2_create,
 	.lookup = gfs2_lookup,
