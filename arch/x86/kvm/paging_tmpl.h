@@ -300,7 +300,6 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		u64 shadow_pte;
 		int metaphysical;
 		gfn_t table_gfn;
-		bool new_page = 0;
 
 		shadow_ent = ((u64 *)__va(shadow_addr)) + index;
 		if (level == PT_PAGE_TABLE_LEVEL)
@@ -322,8 +321,8 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		}
 		shadow_page = kvm_mmu_get_page(vcpu, table_gfn, addr, level-1,
 					       metaphysical, access,
-					       shadow_ent, &new_page);
-		if (new_page && !metaphysical) {
+					       shadow_ent);
+		if (!metaphysical) {
 			int r;
 			pt_element_t curr_pte;
 			r = kvm_read_guest_atomic(vcpu->kvm,
