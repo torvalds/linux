@@ -12,6 +12,8 @@
 # for "archclean" cleaning up for this architecture.
 #
 
+KBUILD_DEFCONFIG := ip22_defconfig
+
 cflags-y :=
 
 #
