@@ -374,7 +374,7 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 #else
 			c->apicid = (ebx >> 24) & 0xFF;
 #endif
-			if (c->x86_capability[0] & (1<<19))
+			if (test_cpu_cap(c, X86_FEATURE_CLFLSH))
 				c->x86_clflush_size = ((ebx >> 8) & 0xff) * 8;
 		} else {
 			/* Have CPUID level 0 only - unheard of */

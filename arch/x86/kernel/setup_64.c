@@ -687,7 +687,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	/* Bit 31 in normal CPUID used for nonstandard 3DNow ID;
 	   3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway */
-	clear_bit(0*32+31, (unsigned long *)&c->x86_capability);
+	clear_cpu_cap(c, 0*32+31);
 
 	/* On C+ stepping K8 rep microcode works well for copy/memset */
 	level = cpuid_eax(1);
@@ -823,7 +823,7 @@ static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 {
 	if ((c->x86 == 0xf && c->x86_model >= 0x03) ||
 	    (c->x86 == 0x6 && c->x86_model >= 0x0e))
-		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
+		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 }
 
 static void __cpuinit init_intel(struct cpuinfo_x86 *c)
@@ -929,7 +929,7 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 			c->x86 += (tfms >> 20) & 0xff;
 		if (c->x86 >= 0x6)
 			c->x86_model += ((tfms >> 16) & 0xF) << 4;
-		if (c->x86_capability[0] & (1<<19))
+		if (test_cpu_cap(c, X86_FEATURE_CLFLSH))
 			c->x86_clflush_size = ((misc >> 8) & 0xff) * 8;
 	} else {
 		/* Have CPUID level 0 only - unheard of */
