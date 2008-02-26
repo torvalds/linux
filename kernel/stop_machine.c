@@ -11,7 +11,6 @@
 #include <linux/interrupt.h>
 
 #include <asm/atomic.h>
-#include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
 /* Since we effect priority and affinity (both of which are visible
