@@ -22,7 +22,7 @@ LIBS	:= arch/xtensa/boot/lib/lib.a arch/xtensa/lib/lib.a
 LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
 zImage: vmlinux $(OBJS) $(LIBS)
-	$(OBJCOPY) --strip-all -R .comment -R .xt.insn -O binary \
+	$(OBJCOPY) --strip-all -R .comment -R .note.gnu.build-id -O binary \
 		vmlinux vmlinux.tmp
 	gzip -vf9 vmlinux.tmp
 	$(OBJCOPY) $(OBJCOPY_ARGS) -R .comment \

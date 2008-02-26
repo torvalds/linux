@@ -718,36 +718,35 @@ static int netlbl_cipsov4_remove(struct sk_buff *skb, struct genl_info *info)
  * NetLabel Generic NETLINK Command Definitions
  */
 
-static struct genl_ops netlbl_cipsov4_genl_c_add = {
+static struct genl_ops netlbl_cipsov4_ops[] = {
+	{
 	.cmd = NLBL_CIPSOV4_C_ADD,
 	.flags = GENL_ADMIN_PERM,
 	.policy = netlbl_cipsov4_genl_policy,
 	.doit = netlbl_cipsov4_add,
 	.dumpit = NULL,
-};
-
-static struct genl_ops netlbl_cipsov4_genl_c_remove = {
+	},
+	{
 	.cmd = NLBL_CIPSOV4_C_REMOVE,
 	.flags = GENL_ADMIN_PERM,
 	.policy = netlbl_cipsov4_genl_policy,
 	.doit = netlbl_cipsov4_remove,
 	.dumpit = NULL,
-};
-
-static struct genl_ops netlbl_cipsov4_genl_c_list = {
+	},
+	{
 	.cmd = NLBL_CIPSOV4_C_LIST,
 	.flags = 0,
 	.policy = netlbl_cipsov4_genl_policy,
 	.doit = netlbl_cipsov4_list,
 	.dumpit = NULL,
-};
-
-static struct genl_ops netlbl_cipsov4_genl_c_listall = {
+	},
+	{
 	.cmd = NLBL_CIPSOV4_C_LISTALL,
 	.flags = 0,
 	.policy = netlbl_cipsov4_genl_policy,
 	.doit = NULL,
 	.dumpit = netlbl_cipsov4_listall,
+	},
 };
 
 /*
@@ -762,30 +761,20 @@ static struct genl_ops netlbl_cipsov4_genl_c_listall = {
  * mechanism.  Returns zero on success, negative values on failure.
  *
  */
-int netlbl_cipsov4_genl_init(void)
+int __init netlbl_cipsov4_genl_init(void)
 {
-	int ret_val;
+	int ret_val, i;
 
 	ret_val = genl_register_family(&netlbl_cipsov4_gnl_family);
 	if (ret_val != 0)
 		return ret_val;
 
-	ret_val = genl_register_ops(&netlbl_cipsov4_gnl_family,
-				    &netlbl_cipsov4_genl_c_add);
-	if (ret_val != 0)
-		return ret_val;
-	ret_val = genl_register_ops(&netlbl_cipsov4_gnl_family,
-				    &netlbl_cipsov4_genl_c_remove);
-	if (ret_val != 0)
-		return ret_val;
-	ret_val = genl_register_ops(&netlbl_cipsov4_gnl_family,
-				    &netlbl_cipsov4_genl_c_list);
-	if (ret_val != 0)
-		return ret_val;
-	ret_val = genl_register_ops(&netlbl_cipsov4_gnl_family,
-				    &netlbl_cipsov4_genl_c_listall);
-	if (ret_val != 0)
-		return ret_val;
+	for (i = 0; i < ARRAY_SIZE(netlbl_cipsov4_ops); i++) {
+		ret_val = genl_register_ops(&netlbl_cipsov4_gnl_family,
+				&netlbl_cipsov4_ops[i]);
+		if (ret_val != 0)
+			return ret_val;
+	}
 
 	return 0;
 }

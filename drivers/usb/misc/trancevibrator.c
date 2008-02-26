@@ -59,13 +59,14 @@ static ssize_t set_speed(struct device *dev, struct device_attribute *attr,
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct trancevibrator *tv = usb_get_intfdata(intf);
-	int temp, retval;
+	int temp, retval, old;
 
 	temp = simple_strtoul(buf, NULL, 10);
 	if (temp > 255)
 		temp = 255;
 	else if (temp < 0)
 		temp = 0;
+	old = tv->speed;
 	tv->speed = temp;
 
 	dev_dbg(&tv->udev->dev, "speed = %d\n", tv->speed);
@@ -77,6 +78,7 @@ static ssize_t set_speed(struct device *dev, struct device_attribute *attr,
 				 tv->speed, /* speed value */
 				 0, NULL, 0, USB_CTRL_GET_TIMEOUT);
 	if (retval) {
+		tv->speed = old;
 		dev_dbg(&tv->udev->dev, "retval = %d\n", retval);
 		return retval;
 	}

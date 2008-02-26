@@ -45,9 +45,6 @@ prom_feval(char *fstring)
 	spin_unlock_irqrestore(&prom_lock, flags);
 }
 
-/* We want to do this more nicely some day. */
-extern void (*prom_palette)(int);
-
 /* Drop into the prom, with the chance to continue with the 'go'
  * prom command.
  */
@@ -58,8 +55,6 @@ prom_cmdline(void)
 	extern void install_linux_ticker(void);
 	unsigned long flags;
 
-	if (prom_palette)
-		prom_palette (1);
 	spin_lock_irqsave(&prom_lock, flags);
 	install_obp_ticker();
 	(*(romvec->pv_abort))();
@@ -69,8 +64,6 @@ prom_cmdline(void)
 #ifdef CONFIG_SUN_AUXIO
 	set_auxio(AUXIO_LED, 0);
 #endif
-	if (prom_palette)
-		prom_palette (0);
 }
 
 /* Drop into the prom, but completely terminate the program.

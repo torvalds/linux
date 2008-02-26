@@ -171,7 +171,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 	dev_priv->allow_batchbuffer = 1;
 
 	/* Program Hardware Status Page */
-	if (!IS_G33(dev)) {
+	if (!I915_NEED_GFX_HWS(dev)) {
 		dev_priv->status_page_dmah =
 			drm_pci_alloc(dev, PAGE_SIZE, PAGE_SIZE, 0xffffffff);
 
@@ -719,6 +719,9 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_i915_hws_addr_t *hws = data;
+
+	if (!I915_NEED_GFX_HWS(dev))
+		return -EINVAL;
 
 	if (!dev_priv) {
 		DRM_ERROR("called with no initialization\n");

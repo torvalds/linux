@@ -231,7 +231,7 @@ static struct {
 	{ ISCSI_SESSION_FREE,		"FREE" },
 };
 
-const char *iscsi_session_state_name(int state)
+static const char *iscsi_session_state_name(int state)
 {
 	int i;
 	char *name = NULL;
@@ -373,7 +373,7 @@ static void session_recovery_timedout(struct work_struct *work)
 	scsi_target_unblock(&session->dev);
 }
 
-void __iscsi_unblock_session(struct iscsi_cls_session *session)
+static void __iscsi_unblock_session(struct iscsi_cls_session *session)
 {
 	if (!cancel_delayed_work(&session->recovery_work))
 		flush_workqueue(iscsi_eh_timer_workq);

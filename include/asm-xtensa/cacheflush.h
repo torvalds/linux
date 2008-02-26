@@ -70,6 +70,8 @@ extern void __flush_invalidate_dcache_page_alias(unsigned long, unsigned long);
 #endif
 #if (ICACHE_WAY_SIZE > PAGE_SIZE)
 extern void __invalidate_icache_page_alias(unsigned long, unsigned long);
+#else
+# define __invalidate_icache_page_alias(v,p)	do { } while(0)
 #endif
 
 /*

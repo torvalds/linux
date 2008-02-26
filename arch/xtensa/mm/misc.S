@@ -295,7 +295,7 @@ ENTRY(__tlbtemp_mapping_itlb)
 ENTRY(__invalidate_icache_page_alias)
 	entry	sp, 16
 
-	addi	a6, a3, (PAGE_KERNEL | _PAGE_HW_WRITE)
+	addi	a6, a3, (PAGE_KERNEL_EXEC | _PAGE_HW_WRITE)
 	mov	a4, a2
 	witlb	a6, a2
 	isync

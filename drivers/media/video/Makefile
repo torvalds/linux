@@ -10,8 +10,9 @@ msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
 
 stkwebcam-objs	:=	stk-webcam.o stk-sensor.o
 
-obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-common.o compat_ioctl32.o \
-			   v4l2-int-device.o
+obj-$(CONFIG_VIDEO_DEV) += videodev.o compat_ioctl32.o v4l2-int-device.o
+
+obj-$(CONFIG_VIDEO_V4L2_COMMON) += v4l2-common.o
 
 ifeq ($(CONFIG_VIDEO_V4L1_COMPAT),y)
   obj-$(CONFIG_VIDEO_DEV) += v4l1-compat.o

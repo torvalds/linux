@@ -53,32 +53,29 @@
 
 /* Registers used by strace */
 
-#define REG_A_BASE	0xfc000000
-#define REG_AR_BASE	0x04000000
-#define REG_PC		0x14000000
-#define REG_PS		0x080000e6
-#define REG_WB		0x08000048
-#define REG_WS		0x08000049
-#define REG_LBEG	0x08000000
-#define REG_LEND	0x08000001
-#define REG_LCOUNT	0x08000002
-#define REG_SAR		0x08000003
-#define REG_DEPC	0x080000c0
-#define	REG_EXCCAUSE	0x080000e8
-#define REG_EXCVADDR	0x080000ee
-#define SYSCALL_NR	0x1
+#define REG_A_BASE	0x0000
+#define REG_AR_BASE	0x0100
+#define REG_PC		0x0020
+#define REG_PS		0x02e6
+#define REG_WB		0x0248
+#define REG_WS		0x0249
+#define REG_LBEG	0x0200
+#define REG_LEND	0x0201
+#define REG_LCOUNT	0x0202
+#define REG_SAR		0x0203
 
-#define AR_REGNO_TO_A_REGNO(ar, wb) (ar - wb*4) & ~(XCHAL_NUM_AREGS - 1)
+#define SYSCALL_NR	0x00ff
 
 /* Other PTRACE_ values defined in <linux/ptrace.h> using values 0-9,16,17,24 */
 
-#define PTRACE_GETREGS            12
-#define PTRACE_SETREGS            13
-#define PTRACE_GETFPREGS          14
-#define PTRACE_SETFPREGS          15
-#define PTRACE_GETFPREGSIZE       18
+#define PTRACE_GETREGS		12
+#define PTRACE_SETREGS		13
+#define PTRACE_GETXTREGS	18
+#define PTRACE_SETXTREGS	19
 
 #ifndef __ASSEMBLY__
+
+#ifdef __KERNEL__
 
 /*
  * This struct defines the way the registers are stored on the
@@ -102,6 +99,9 @@ struct pt_regs {
 	unsigned long icountlevel;	/*  60 */
 	int reserved[1];		/*  64 */
 
+	/* Additional configurable registers that are used by the compiler. */
+	xtregs_opt_t xtregs_opt;
+
 	/* Make sure the areg field is 16 bytes aligned. */
 	int align[0] __attribute__ ((aligned(16)));
 
@@ -110,8 +110,6 @@ struct pt_regs {
 	 */
 	unsigned long areg[16];		/* 128 (64) */
 };
-
-#ifdef __KERNEL__
 
 #include <asm/variant/core.h>
 

@@ -463,7 +463,7 @@ struct hifn_device
 
 	unsigned int		pk_clk_freq;
 
-#ifdef CRYPTO_DEV_HIFN_795X_RNG
+#ifdef CONFIG_CRYPTO_DEV_HIFN_795X_RNG
 	unsigned int		rng_wait_time;
 	ktime_t			rngtime;
 	struct hwrng		rng;
@@ -795,7 +795,7 @@ static struct pci2id {
 	}
 };
 
-#ifdef CRYPTO_DEV_HIFN_795X_RNG
+#ifdef CONFIG_CRYPTO_DEV_HIFN_795X_RNG
 static int hifn_rng_data_present(struct hwrng *rng, int wait)
 {
 	struct hifn_device *dev = (struct hifn_device *)rng->priv;
@@ -880,7 +880,7 @@ static int hifn_init_pubrng(struct hifn_device *dev)
 	dprintk("Chip %s: RNG engine has been successfully initialised.\n",
 			dev->name);
 
-#ifdef CRYPTO_DEV_HIFN_795X_RNG
+#ifdef CONFIG_CRYPTO_DEV_HIFN_795X_RNG
 	/* First value must be discarded */
 	hifn_read_1(dev, HIFN_1_RNG_DATA);
 	dev->rngtime = ktime_get();

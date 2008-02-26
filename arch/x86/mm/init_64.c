@@ -171,6 +171,33 @@ set_pte_phys(unsigned long vaddr, unsigned long phys, pgprot_t prot)
 	__flush_tlb_one(vaddr);
 }
 
+/*
+ * The head.S code sets up the kernel high mapping from:
+ * __START_KERNEL_map to __START_KERNEL_map + KERNEL_TEXT_SIZE
+ *
+ * phys_addr holds the negative offset to the kernel, which is added
+ * to the compile time generated pmds. This results in invalid pmds up
+ * to the point where we hit the physaddr 0 mapping.
+ *
+ * We limit the mappings to the region from _text to _end.  _end is
+ * rounded up to the 2MB boundary. This catches the invalid pmds as
+ * well, as they are located before _text:
+ */
+void __init cleanup_highmap(void)
+{
+	unsigned long vaddr = __START_KERNEL_map;
+	unsigned long end = round_up((unsigned long)_end, PMD_SIZE) - 1;
+	pmd_t *pmd = level2_kernel_pgt;
+	pmd_t *last_pmd = pmd + PTRS_PER_PMD;
+
+	for (; pmd < last_pmd; pmd++, vaddr += PMD_SIZE) {
+		if (!pmd_present(*pmd))
+			continue;
+		if (vaddr < (unsigned long) _text || vaddr > end)
+			set_pmd(pmd, __pmd(0));
+	}
+}
+
 /* NOTE: this is meant to be run only at boot */
 void __init
 __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)

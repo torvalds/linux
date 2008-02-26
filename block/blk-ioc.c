@@ -17,17 +17,13 @@ static struct kmem_cache *iocontext_cachep;
 
 static void cfq_dtor(struct io_context *ioc)
 {
-	struct cfq_io_context *cic[1];
-	int r;
+	if (!hlist_empty(&ioc->cic_list)) {
+		struct cfq_io_context *cic;
 
-	/*
-	 * We don't have a specific key to lookup with, so use the gang
-	 * lookup to just retrieve the first item stored. The cfq exit
-	 * function will iterate the full tree, so any member will do.
-	 */
-	r = radix_tree_gang_lookup(&ioc->radix_root, (void **) cic, 0, 1);
-	if (r > 0)
-		cic[0]->dtor(ioc);
+		cic = list_entry(ioc->cic_list.first, struct cfq_io_context,
+								cic_list);
+		cic->dtor(ioc);
+	}
 }
 
 /*
@@ -57,18 +53,16 @@ EXPORT_SYMBOL(put_io_context);
 
 static void cfq_exit(struct io_context *ioc)
 {
-	struct cfq_io_context *cic[1];
-	int r;
-
 	rcu_read_lock();
-	/*
-	 * See comment for cfq_dtor()
-	 */
-	r = radix_tree_gang_lookup(&ioc->radix_root, (void **) cic, 0, 1);
-	rcu_read_unlock();
 
-	if (r > 0)
-		cic[0]->exit(ioc);
+	if (!hlist_empty(&ioc->cic_list)) {
+		struct cfq_io_context *cic;
+
+		cic = list_entry(ioc->cic_list.first, struct cfq_io_context,
+								cic_list);
+		cic->exit(ioc);
+	}
+	rcu_read_unlock();
 }
 
 /* Called by the exitting task */
@@ -105,6 +99,7 @@ struct io_context *alloc_io_context(gfp_t gfp_flags, int node)
 		ret->nr_batch_requests = 0; /* because this is 0 */
 		ret->aic = NULL;
 		INIT_RADIX_TREE(&ret->radix_root, GFP_ATOMIC | __GFP_HIGH);
+		INIT_HLIST_HEAD(&ret->cic_list);
 		ret->ioc_data = NULL;
 	}
 
@@ -176,7 +171,7 @@ void copy_io_context(struct io_context **pdst, struct io_context **psrc)
 }
 EXPORT_SYMBOL(copy_io_context);
 
-int __init blk_ioc_init(void)
+static int __init blk_ioc_init(void)
 {
 	iocontext_cachep = kmem_cache_create("blkdev_ioc",
 			sizeof(struct io_context), 0, SLAB_PANIC, NULL);

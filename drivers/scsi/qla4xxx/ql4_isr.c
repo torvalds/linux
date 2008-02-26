@@ -100,8 +100,7 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 
 		if (sts_entry->iscsiFlags &ISCSI_FLAG_RESIDUAL_UNDER) {
 			scsi_set_resid(cmd, residual);
-			if (!scsi_status && ((scsi_bufflen(cmd) - residual) <
-				cmd->underflow)) {
+			if ((scsi_bufflen(cmd) - residual) < cmd->underflow) {
 
 				cmd->result = DID_ERROR << 16;
 

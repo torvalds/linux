@@ -719,7 +719,7 @@ static void tcp_v4_reqsk_send_ack(struct sk_buff *skb,
 }
 
 /*
- *	Send a SYN-ACK after having received an ACK.
+ *	Send a SYN-ACK after having received a SYN.
  *	This still operates on a request_sock only, not on a big
  *	socket.
  */

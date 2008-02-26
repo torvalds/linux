@@ -46,9 +46,6 @@ static unsigned int nmi_hz = HZ;
 
 static DEFINE_PER_CPU(short, wd_enabled);
 
-/* local prototypes */
-static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu);
-
 /* Run after command line and cpu_init init, but before all other checks */
 void nmi_watchdog_default(void)
 {
@@ -394,15 +391,6 @@ asmlinkage __kprobes void do_nmi(struct pt_regs * regs, long error_code)
 	nmi_exit();
 }
 
-int do_nmi_callback(struct pt_regs * regs, int cpu)
-{
-#ifdef CONFIG_SYSCTL
-	if (unknown_nmi_panic)
-		return unknown_nmi_panic_callback(regs, cpu);
-#endif
-	return 0;
-}
-
 void stop_nmi(void)
 {
 	acpi_nmi_disable();
@@ -463,6 +451,15 @@ int proc_nmi_enabled(struct ctl_table *table, int write, struct file *file,
 }
 
 #endif
+
+int do_nmi_callback(struct pt_regs *regs, int cpu)
+{
+#ifdef CONFIG_SYSCTL
+	if (unknown_nmi_panic)
+		return unknown_nmi_panic_callback(regs, cpu);
+#endif
+	return 0;
+}
 
 void __trigger_all_cpu_backtrace(void)
 {

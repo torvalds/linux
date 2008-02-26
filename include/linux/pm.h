@@ -143,6 +143,9 @@ typedef struct pm_message {
  * 		the upcoming system state (such as PCI_D3hot), and enable
  * 		wakeup events as appropriate.
  *
+ * HIBERNATE	Enter a low power device state appropriate for the hibernation
+ * 		state (eg. ACPI S4) and enable wakeup events as appropriate.
+ *
  * FREEZE	Quiesce operations so that a consistent image can be saved;
  * 		but do NOT otherwise enter a low power device state, and do
  * 		NOT emit system wakeup events.
@@ -166,11 +169,15 @@ typedef struct pm_message {
 #define PM_EVENT_ON 0
 #define PM_EVENT_FREEZE 1
 #define PM_EVENT_SUSPEND 2
-#define PM_EVENT_PRETHAW 3
+#define PM_EVENT_HIBERNATE 4
+#define PM_EVENT_PRETHAW 8
+
+#define PM_EVENT_SLEEP	(PM_EVENT_SUSPEND | PM_EVENT_HIBERNATE)
 
 #define PMSG_FREEZE	((struct pm_message){ .event = PM_EVENT_FREEZE, })
 #define PMSG_PRETHAW	((struct pm_message){ .event = PM_EVENT_PRETHAW, })
 #define PMSG_SUSPEND	((struct pm_message){ .event = PM_EVENT_SUSPEND, })
+#define PMSG_HIBERNATE	((struct pm_message){ .event = PM_EVENT_HIBERNATE, })
 #define PMSG_ON		((struct pm_message){ .event = PM_EVENT_ON, })
 
 struct dev_pm_info {

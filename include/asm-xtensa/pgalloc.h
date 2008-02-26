@@ -47,7 +47,7 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 	return kmem_cache_alloc(pgtable_cache, GFP_KERNEL|__GFP_REPEAT);
 }
 
-static inline pte_token_t pte_alloc_one(struct mm_struct *mm,
+static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
 					unsigned long addr)
 {
 	struct page *page;

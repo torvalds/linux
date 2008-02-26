@@ -1791,8 +1791,6 @@ static const char *sun4v_err_type_to_str(u32 type)
 	};
 }
 
-extern void __show_regs(struct pt_regs * regs);
-
 static void sun4v_log_error(struct pt_regs *regs, struct sun4v_error_entry *ent, int cpu, const char *pfx, atomic_t *ocnt)
 {
 	int cnt;

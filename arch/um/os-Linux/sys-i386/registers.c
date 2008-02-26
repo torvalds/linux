@@ -56,6 +56,22 @@ unsigned long get_thread_reg(int reg, jmp_buf *buf)
 
 int have_fpx_regs = 1;
 
+int get_fp_registers(int pid, unsigned long *regs)
+{
+	if (have_fpx_regs)
+		return save_fpx_registers(pid, regs);
+	else
+		return save_fp_registers(pid, regs);
+}
+
+int put_fp_registers(int pid, unsigned long *regs)
+{
+	if (have_fpx_regs)
+		return restore_fpx_registers(pid, regs);
+	else
+		return restore_fp_registers(pid, regs);
+}
+
 void arch_init_registers(int pid)
 {
 	unsigned long fpx_regs[HOST_XFP_SIZE];

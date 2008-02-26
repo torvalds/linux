@@ -309,7 +309,7 @@ void show_mem(void)
 
 struct kmem_cache *pgtable_cache __read_mostly;
 
-static void pgd_ctor(void *addr, struct kmem_cache *cache, unsigned long flags)
+static void pgd_ctor(struct kmem_cache *cache, void* addr)
 {
 	pte_t* ptep = (pte_t*)addr;
 	int i;

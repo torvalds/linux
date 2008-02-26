@@ -171,7 +171,7 @@ static struct netlbl_dom_map *netlbl_domhsh_search_def(const char *domain)
  * values on error.
  *
  */
-int netlbl_domhsh_init(u32 size)
+int __init netlbl_domhsh_init(u32 size)
 {
 	u32 iter;
 	struct netlbl_domhsh_tbl *hsh_tbl;

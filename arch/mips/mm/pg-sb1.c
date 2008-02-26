@@ -216,7 +216,7 @@ void sb1_dma_init(void)
 	int i;
 
 	for (i = 0; i < DM_NUM_CHANNELS; i++) {
-		const u64 base_val = CPHYSADDR(&page_descr[i]) |
+		const u64 base_val = CPHYSADDR((unsigned long)&page_descr[i]) |
 				     V_DM_DSCR_BASE_RINGSZ(1);
 		void *base_reg = IOADDR(A_DM_REGISTER(i, R_DM_DSCR_BASE));
 
@@ -228,11 +228,11 @@ void sb1_dma_init(void)
 
 void clear_page(void *page)
 {
-	u64 to_phys = CPHYSADDR(page);
+	u64 to_phys = CPHYSADDR((unsigned long)page);
 	unsigned int cpu = smp_processor_id();
 
 	/* if the page is not in KSEG0, use old way */
-	if ((long)KSEGX(page) != (long)CKSEG0)
+	if ((long)KSEGX((unsigned long)page) != (long)CKSEG0)
 		return clear_page_cpu(page);
 
 	page_descr[cpu].dscr_a = to_phys | M_DM_DSCRA_ZERO_MEM |
@@ -252,13 +252,13 @@ void clear_page(void *page)
 
 void copy_page(void *to, void *from)
 {
-	u64 from_phys = CPHYSADDR(from);
-	u64 to_phys = CPHYSADDR(to);
+	u64 from_phys = CPHYSADDR((unsigned long)from);
+	u64 to_phys = CPHYSADDR((unsigned long)to);
 	unsigned int cpu = smp_processor_id();
 
 	/* if any page is not in KSEG0, use old way */
-	if ((long)KSEGX(to) != (long)CKSEG0
-	    || (long)KSEGX(from) != (long)CKSEG0)
+	if ((long)KSEGX((unsigned long)to) != (long)CKSEG0
+	    || (long)KSEGX((unsigned long)from) != (long)CKSEG0)
 		return copy_page_cpu(to, from);
 
 	page_descr[cpu].dscr_a = to_phys | M_DM_DSCRA_L2C_DEST |

@@ -443,8 +443,8 @@ err_out:
 static int
 nfqnl_mangle(void *data, int data_len, struct nf_queue_entry *e)
 {
+	struct sk_buff *nskb;
 	int diff;
-	int err;
 
 	diff = data_len - e->skb->len;
 	if (diff < 0) {
@@ -454,14 +454,16 @@ nfqnl_mangle(void *data, int data_len, struct nf_queue_entry *e)
 		if (data_len > 0xFFFF)
 			return -EINVAL;
 		if (diff > skb_tailroom(e->skb)) {
-			err = pskb_expand_head(e->skb, 0,
+			nskb = skb_copy_expand(e->skb, 0,
 					       diff - skb_tailroom(e->skb),
 					       GFP_ATOMIC);
-			if (err) {
+			if (!nskb) {
 				printk(KERN_WARNING "nf_queue: OOM "
 				      "in mangle, dropping packet\n");
-				return err;
+				return -ENOMEM;
 			}
+			kfree_skb(e->skb);
+			e->skb = nskb;
 		}
 		skb_put(e->skb, diff);
 	}

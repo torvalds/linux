@@ -774,9 +774,6 @@ hashlimit_mt_check(const char *tablename, const void *inf,
 		return false;
 	}
 	mutex_unlock(&hlimit_mutex);
-
-	/* Ugly hack: For SMP, we only want to use one set */
-	info->master = info;
 	return true;
 }
 

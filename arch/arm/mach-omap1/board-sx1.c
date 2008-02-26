@@ -61,6 +61,7 @@ int sx1_i2c_write_byte(u8 devaddr, u8 regoffset, u8 value)
 	data[0] = regoffset;	/* register num */
 	data[1] = value;		/* register data */
 	err = i2c_transfer(adap, msg, 1);
+	i2c_put_adapter(adap);
 	if (err >= 0)
 		return 0;
 	return err;
@@ -91,6 +92,7 @@ int sx1_i2c_read_byte(u8 devaddr, u8 regoffset, u8 *value)
 	msg->buf = data;
 	err = i2c_transfer(adap, msg, 1);
 	*value = data[0];
+	i2c_put_adapter(adap);
 
 	if (err >= 0)
 		return 0;

@@ -164,7 +164,6 @@ unsigned long mmu_cr4_features = X86_CR4_PAE;
 unsigned int machine_id;
 unsigned int machine_submodel_id;
 unsigned int BIOS_revision;
-unsigned int mca_pentium_flag;
 
 /* Boot loader ID as an integer, for the benefit of proc_dointvec */
 int bootloader_type;

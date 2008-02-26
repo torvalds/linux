@@ -221,15 +221,15 @@ enum zoran_map_mode {
 };
 
 enum gpio_type {
-	GPIO_JPEG_SLEEP = 0,
-	GPIO_JPEG_RESET,
-	GPIO_JPEG_FRAME,
-	GPIO_VID_DIR,
-	GPIO_VID_EN,
-	GPIO_VID_RESET,
-	GPIO_CLK_SEL1,
-	GPIO_CLK_SEL2,
-	GPIO_MAX,
+	ZR_GPIO_JPEG_SLEEP = 0,
+	ZR_GPIO_JPEG_RESET,
+	ZR_GPIO_JPEG_FRAME,
+	ZR_GPIO_VID_DIR,
+	ZR_GPIO_VID_EN,
+	ZR_GPIO_VID_RESET,
+	ZR_GPIO_CLK_SEL1,
+	ZR_GPIO_CLK_SEL2,
+	ZR_GPIO_MAX,
 };
 
 enum gpcs_type {
@@ -378,11 +378,11 @@ struct card_info {
 
 	u32 jpeg_int;		/* JPEG interrupt */
 	u32 vsync_int;		/* VSYNC interrupt */
-	s8 gpio[GPIO_MAX];
+	s8 gpio[ZR_GPIO_MAX];
 	u8 gpcs[GPCS_MAX];
 
 	struct vfe_polarity vfe_pol;
-	u8 gpio_pol[GPIO_MAX];
+	u8 gpio_pol[ZR_GPIO_MAX];
 
 	/* is the /GWS line conected? */
 	u8 gws_not_connected;

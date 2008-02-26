@@ -549,7 +549,7 @@ static irqreturn_t atmel_interrupt(int irq, void *dev_id)
 		atmel_handle_transmit(port, pending);
 	} while (pass_counter++ < ATMEL_ISR_PASS_LIMIT);
 
-	return IRQ_HANDLED;
+	return pass_counter ? IRQ_HANDLED : IRQ_NONE;
 }
 
 /*

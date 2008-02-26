@@ -531,7 +531,7 @@ struct pagemapread {
 #define PM_RESERVED_BITS    3
 #define PM_RESERVED_OFFSET  (64 - PM_RESERVED_BITS)
 #define PM_RESERVED_MASK    (((1LL<<PM_RESERVED_BITS)-1) << PM_RESERVED_OFFSET)
-#define PM_SPECIAL(nr)      (((nr) << PM_RESERVED_OFFSET) | PM_RESERVED_MASK)
+#define PM_SPECIAL(nr)      (((nr) << PM_RESERVED_OFFSET) & PM_RESERVED_MASK)
 #define PM_NOT_PRESENT      PM_SPECIAL(1LL)
 #define PM_SWAP             PM_SPECIAL(2LL)
 #define PM_END_OF_BUFFER    1

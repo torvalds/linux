@@ -234,7 +234,7 @@ int strict_strto##type(const char *cp, unsigned int base, valtype *res)	\
 	int ret;							\
 	if (*cp == '-') {						\
 		ret = strict_strtou##type(cp+1, base, res);		\
-		if (ret != 0)						\
+		if (!ret)						\
 			*res = -(*res);					\
 	} else								\
 		ret = strict_strtou##type(cp, base, res);		\

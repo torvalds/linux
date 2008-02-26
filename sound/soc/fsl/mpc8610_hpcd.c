@@ -315,7 +315,7 @@ static int mpc8610_hpcd_probe(struct of_device *ofdev,
 		machine_data->dai_format = SND_SOC_DAIFMT_LEFT_J;
 		machine_data->codec_clk_direction = SND_SOC_CLOCK_IN;
 		machine_data->cpu_clk_direction = SND_SOC_CLOCK_OUT;
-	} else if (strcasecmp(sprop, "rj-master") == 0) {
+	} else if (strcasecmp(sprop, "rj-slave") == 0) {
 		machine_data->dai_format = SND_SOC_DAIFMT_RIGHT_J;
 		machine_data->codec_clk_direction = SND_SOC_CLOCK_OUT;
 		machine_data->cpu_clk_direction = SND_SOC_CLOCK_IN;

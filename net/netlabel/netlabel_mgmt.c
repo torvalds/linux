@@ -517,68 +517,63 @@ version_failure:
  * NetLabel Generic NETLINK Command Definitions
  */
 
-static struct genl_ops netlbl_mgmt_genl_c_add = {
+static struct genl_ops netlbl_mgmt_genl_ops[] = {
+	{
 	.cmd = NLBL_MGMT_C_ADD,
 	.flags = GENL_ADMIN_PERM,
 	.policy = netlbl_mgmt_genl_policy,
 	.doit = netlbl_mgmt_add,
 	.dumpit = NULL,
-};
-
-static struct genl_ops netlbl_mgmt_genl_c_remove = {
+	},
+	{
 	.cmd = NLBL_MGMT_C_REMOVE,
 	.flags = GENL_ADMIN_PERM,
 	.policy = netlbl_mgmt_genl_policy,
 	.doit = netlbl_mgmt_remove,
 	.dumpit = NULL,
-};
-
-static struct genl_ops netlbl_mgmt_genl_c_listall = {
+	},
+	{
 	.cmd = NLBL_MGMT_C_LISTALL,
 	.flags = 0,
 	.policy = netlbl_mgmt_genl_policy,
 	.doit = NULL,
 	.dumpit = netlbl_mgmt_listall,
-};
-
-static struct genl_ops netlbl_mgmt_genl_c_adddef = {
+	},
+	{
 	.cmd = NLBL_MGMT_C_ADDDEF,
 	.flags = GENL_ADMIN_PERM,
 	.policy = netlbl_mgmt_genl_policy,
 	.doit = netlbl_mgmt_adddef,
 	.dumpit = NULL,
-};
-
-static struct genl_ops netlbl_mgmt_genl_c_removedef = {
+	},
+	{
 	.cmd = NLBL_MGMT_C_REMOVEDEF,
 	.flags = GENL_ADMIN_PERM,
 	.policy = netlbl_mgmt_genl_policy,
 	.doit = netlbl_mgmt_removedef,
 	.dumpit = NULL,
-};
-
-static struct genl_ops netlbl_mgmt_genl_c_listdef = {
+	},
+	{
 	.cmd = NLBL_MGMT_C_LISTDEF,
 	.flags = 0,
 	.policy = netlbl_mgmt_genl_policy,
 	.doit = netlbl_mgmt_listdef,
 	.dumpit = NULL,
-};
-
-static struct genl_ops netlbl_mgmt_genl_c_protocols = {
+	},
+	{
 	.cmd = NLBL_MGMT_C_PROTOCOLS,
 	.flags = 0,
 	.policy = netlbl_mgmt_genl_policy,
 	.doit = NULL,
 	.dumpit = netlbl_mgmt_protocols,
-};
-
-static struct genl_ops netlbl_mgmt_genl_c_version = {
+	},
+	{
 	.cmd = NLBL_MGMT_C_VERSION,
 	.flags = 0,
 	.policy = netlbl_mgmt_genl_policy,
 	.doit = netlbl_mgmt_version,
 	.dumpit = NULL,
+	},
 };
 
 /*
@@ -593,46 +588,20 @@ static struct genl_ops netlbl_mgmt_genl_c_version = {
  * mechanism.  Returns zero on success, negative values on failure.
  *
  */
-int netlbl_mgmt_genl_init(void)
+int __init netlbl_mgmt_genl_init(void)
 {
-	int ret_val;
+	int ret_val, i;
 
 	ret_val = genl_register_family(&netlbl_mgmt_gnl_family);
 	if (ret_val != 0)
 		return ret_val;
 
-	ret_val = genl_register_ops(&netlbl_mgmt_gnl_family,
-				    &netlbl_mgmt_genl_c_add);
-	if (ret_val != 0)
-		return ret_val;
-	ret_val = genl_register_ops(&netlbl_mgmt_gnl_family,
-				    &netlbl_mgmt_genl_c_remove);
-	if (ret_val != 0)
-		return ret_val;
-	ret_val = genl_register_ops(&netlbl_mgmt_gnl_family,
-				    &netlbl_mgmt_genl_c_listall);
-	if (ret_val != 0)
-		return ret_val;
-	ret_val = genl_register_ops(&netlbl_mgmt_gnl_family,
-				    &netlbl_mgmt_genl_c_adddef);
-	if (ret_val != 0)
-		return ret_val;
-	ret_val = genl_register_ops(&netlbl_mgmt_gnl_family,
-				    &netlbl_mgmt_genl_c_removedef);
-	if (ret_val != 0)
-		return ret_val;
-	ret_val = genl_register_ops(&netlbl_mgmt_gnl_family,
-				    &netlbl_mgmt_genl_c_listdef);
-	if (ret_val != 0)
-		return ret_val;
-	ret_val = genl_register_ops(&netlbl_mgmt_gnl_family,
-				    &netlbl_mgmt_genl_c_protocols);
-	if (ret_val != 0)
-		return ret_val;
-	ret_val = genl_register_ops(&netlbl_mgmt_gnl_family,
-				    &netlbl_mgmt_genl_c_version);
-	if (ret_val != 0)
-		return ret_val;
+	for (i = 0; i < ARRAY_SIZE(netlbl_mgmt_genl_ops); i++) {
+		ret_val = genl_register_ops(&netlbl_mgmt_gnl_family,
+				&netlbl_mgmt_genl_ops[i]);
+		if (ret_val != 0)
+			return ret_val;
+	}
 
 	return 0;
 }

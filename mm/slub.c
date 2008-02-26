@@ -149,13 +149,6 @@ static inline void ClearSlabDebug(struct page *page)
 /* Enable to test recovery from slab corruption on boot */
 #undef SLUB_RESILIENCY_TEST
 
-/*
- * Currently fastpath is not supported if preemption is enabled.
- */
-#if defined(CONFIG_FAST_CMPXCHG_LOCAL) && !defined(CONFIG_PREEMPT)
-#define SLUB_FASTPATH
-#endif
-
 #if PAGE_SHIFT <= 12
 
 /*
@@ -1514,11 +1507,7 @@ static void *__slab_alloc(struct kmem_cache *s,
 {
 	void **object;
 	struct page *new;
-#ifdef SLUB_FASTPATH
-	unsigned long flags;
 
-	local_irq_save(flags);
-#endif
 	if (!c->page)
 		goto new_slab;
 
@@ -1541,9 +1530,6 @@ load_freelist:
 unlock_out:
 	slab_unlock(c->page);
 	stat(c, ALLOC_SLOWPATH);
-#ifdef SLUB_FASTPATH
-	local_irq_restore(flags);
-#endif
 	return object;
 
 another_slab:
@@ -1575,9 +1561,7 @@ new_slab:
 		c->page = new;
 		goto load_freelist;
 	}
-#ifdef SLUB_FASTPATH
-	local_irq_restore(flags);
-#endif
+
 	/*
 	 * No memory available.
 	 *
@@ -1619,34 +1603,6 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 {
 	void **object;
 	struct kmem_cache_cpu *c;
-
-/*
- * The SLUB_FASTPATH path is provisional and is currently disabled if the
- * kernel is compiled with preemption or if the arch does not support
- * fast cmpxchg operations. There are a couple of coming changes that will
- * simplify matters and allow preemption. Ultimately we may end up making
- * SLUB_FASTPATH the default.
- *
- * 1. The introduction of the per cpu allocator will avoid array lookups
- *    through get_cpu_slab(). A special register can be used instead.
- *
- * 2. The introduction of per cpu atomic operations (cpu_ops) means that
- *    we can realize the logic here entirely with per cpu atomics. The
- *    per cpu atomic ops will take care of the preemption issues.
- */
-
-#ifdef SLUB_FASTPATH
-	c = get_cpu_slab(s, raw_smp_processor_id());
-	do {
-		object = c->freelist;
-		if (unlikely(is_end(object) || !node_match(c, node))) {
-			object = __slab_alloc(s, gfpflags, node, addr, c);
-			break;
-		}
-		stat(c, ALLOC_FASTPATH);
-	} while (cmpxchg_local(&c->freelist, object, object[c->offset])
-								!= object);
-#else
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -1661,7 +1617,6 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 		stat(c, ALLOC_FASTPATH);
 	}
 	local_irq_restore(flags);
-#endif
 
 	if (unlikely((gfpflags & __GFP_ZERO) && object))
 		memset(object, 0, c->objsize);
@@ -1698,11 +1653,6 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
 	void **object = (void *)x;
 	struct kmem_cache_cpu *c;
 
-#ifdef SLUB_FASTPATH
-	unsigned long flags;
-
-	local_irq_save(flags);
-#endif
 	c = get_cpu_slab(s, raw_smp_processor_id());
 	stat(c, FREE_SLOWPATH);
 	slab_lock(page);
@@ -1734,9 +1684,6 @@ checks_ok:
 
 out_unlock:
 	slab_unlock(page);
-#ifdef SLUB_FASTPATH
-	local_irq_restore(flags);
-#endif
 	return;
 
 slab_empty:
@@ -1749,9 +1696,6 @@ slab_empty:
 	}
 	slab_unlock(page);
 	stat(c, FREE_SLAB);
-#ifdef SLUB_FASTPATH
-	local_irq_restore(flags);
-#endif
 	discard_slab(s, page);
 	return;
 
@@ -1777,34 +1721,6 @@ static __always_inline void slab_free(struct kmem_cache *s,
 {
 	void **object = (void *)x;
 	struct kmem_cache_cpu *c;
-
-#ifdef SLUB_FASTPATH
-	void **freelist;
-
-	c = get_cpu_slab(s, raw_smp_processor_id());
-	debug_check_no_locks_freed(object, s->objsize);
-	do {
-		freelist = c->freelist;
-		barrier();
-		/*
-		 * If the compiler would reorder the retrieval of c->page to
-		 * come before c->freelist then an interrupt could
-		 * change the cpu slab before we retrieve c->freelist. We
-		 * could be matching on a page no longer active and put the
-		 * object onto the freelist of the wrong slab.
-		 *
-		 * On the other hand: If we already have the freelist pointer
-		 * then any change of cpu_slab will cause the cmpxchg to fail
-		 * since the freelist pointers are unique per slab.
-		 */
-		if (unlikely(page != c->page || c->node < 0)) {
-			__slab_free(s, page, x, addr, c->offset);
-			break;
-		}
-		object[c->offset] = freelist;
-		stat(c, FREE_FASTPATH);
-	} while (cmpxchg_local(&c->freelist, freelist, object) != freelist);
-#else
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -1818,7 +1734,6 @@ static __always_inline void slab_free(struct kmem_cache *s,
 		__slab_free(s, page, x, addr, c->offset);
 
 	local_irq_restore(flags);
-#endif
 }
 
 void kmem_cache_free(struct kmem_cache *s, void *x)

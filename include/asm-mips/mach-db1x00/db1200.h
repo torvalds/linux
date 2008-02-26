@@ -25,6 +25,7 @@
 #define __ASM_DB1200_H
 
 #include <linux/types.h>
+#include <asm/mach-au1x00/au1xxx_psc.h>
 
 // This is defined in au1000.h with bogus value
 #undef AU1X00_EXTERNAL_INT

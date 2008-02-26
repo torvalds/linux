@@ -37,7 +37,7 @@ SECTIONS
 	KPROBES_TEXT
 	*(.fixup)
 	*(.gnu.warning)
-	_etext = .;			/* End of text section */
+	_etext = .;		/* End of text section */
   } :text = 0x9090
 
   . = ALIGN(16);		/* Exception table */
@@ -60,7 +60,7 @@ SECTIONS
   	__tracedata_end = .;
   }
 
-  . = ALIGN(PAGE_SIZE);        /* Align data segment to page size boundary */
+  . = ALIGN(PAGE_SIZE);		/* Align data segment to page size boundary */
 				/* Data */
   .data : AT(ADDR(.data) - LOAD_OFFSET) {
 	DATA_DATA
@@ -119,7 +119,7 @@ SECTIONS
   .vsyscall_3 ADDR(.vsyscall_0) + 3072: AT(VLOAD(.vsyscall_3))
 		{ *(.vsyscall_3) }
 
-  . = VSYSCALL_VIRT_ADDR + 4096;
+  . = VSYSCALL_VIRT_ADDR + PAGE_SIZE;
 
 #undef VSYSCALL_ADDR
 #undef VSYSCALL_PHYS_ADDR
@@ -129,28 +129,28 @@ SECTIONS
 #undef VVIRT_OFFSET
 #undef VVIRT
 
-  . = ALIGN(8192);		/* init_task */
+  . = ALIGN(THREAD_SIZE);	/* init_task */
   .data.init_task : AT(ADDR(.data.init_task) - LOAD_OFFSET) {
 	*(.data.init_task)
   }:data.init
 
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   .data.page_aligned : AT(ADDR(.data.page_aligned) - LOAD_OFFSET) {
 	*(.data.page_aligned)
   }
 
   /* might get freed after init */
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   __smp_alt_begin = .;
   __smp_locks = .;
   .smp_locks : AT(ADDR(.smp_locks) - LOAD_OFFSET) {
 	*(.smp_locks)
   }
   __smp_locks_end = .;
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   __smp_alt_end = .;
 
-  . = ALIGN(4096);		/* Init code and data */
+  . = ALIGN(PAGE_SIZE);		/* Init code and data */
   __init_begin = .;
   .init.text : AT(ADDR(.init.text) - LOAD_OFFSET) {
 	_sinittext = .;
@@ -191,7 +191,7 @@ SECTIONS
   .altinstructions : AT(ADDR(.altinstructions) - LOAD_OFFSET) {
 	*(.altinstructions)
   }
-  __alt_instructions_end = .; 
+  __alt_instructions_end = .;
   .altinstr_replacement : AT(ADDR(.altinstr_replacement) - LOAD_OFFSET) {
 	*(.altinstr_replacement)
   }
@@ -207,25 +207,25 @@ SECTIONS
 /* vdso blob that is mapped into user space */
   vdso_start = . ;
   .vdso  : AT(ADDR(.vdso) - LOAD_OFFSET) { *(.vdso) }
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   vdso_end = .;
 
 #ifdef CONFIG_BLK_DEV_INITRD
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   __initramfs_start = .;
   .init.ramfs : AT(ADDR(.init.ramfs) - LOAD_OFFSET) { *(.init.ramfs) }
   __initramfs_end = .;
 #endif
 
-  PERCPU(4096)
+  PERCPU(PAGE_SIZE)
 
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   __init_end = .;
 
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   __nosave_begin = .;
   .data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) { *(.data.nosave) }
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   __nosave_end = .;
 
   __bss_start = .;		/* BSS */

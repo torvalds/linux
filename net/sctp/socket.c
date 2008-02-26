@@ -6488,6 +6488,7 @@ struct proto sctp_prot = {
 	.memory_pressure = &sctp_memory_pressure,
 	.enter_memory_pressure = sctp_enter_memory_pressure,
 	.memory_allocated = &sctp_memory_allocated,
+	.sockets_allocated = &sctp_sockets_allocated,
 	REF_PROTO_INUSE(sctp)
 };
 
@@ -6521,6 +6522,7 @@ struct proto sctpv6_prot = {
 	.memory_pressure = &sctp_memory_pressure,
 	.enter_memory_pressure = sctp_enter_memory_pressure,
 	.memory_allocated = &sctp_memory_allocated,
+	.sockets_allocated = &sctp_sockets_allocated,
 	REF_PROTO_INUSE(sctpv6)
 };
 #endif /* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */

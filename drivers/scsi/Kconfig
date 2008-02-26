@@ -992,6 +992,16 @@ config SCSI_IZIP_SLOW_CTR
 
 	  Generally, saying N is fine.
 
+config SCSI_MVSAS
+	tristate "Marvell 88SE6440 SAS/SATA support"
+	depends on PCI && SCSI
+	select SCSI_SAS_LIBSAS
+	help
+	  This driver supports Marvell SAS/SATA PCI devices.
+
+	  To compiler this driver as a module, choose M here: the module
+	  will be called mvsas.
+
 config SCSI_NCR53C406A
 	tristate "NCR53c406a SCSI support"
 	depends on ISA && SCSI

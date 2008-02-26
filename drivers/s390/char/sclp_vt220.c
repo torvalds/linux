@@ -202,7 +202,7 @@ sclp_vt220_callback(struct sclp_req *request, void *data)
 static int
 __sclp_vt220_emit(struct sclp_vt220_request *request)
 {
-	if (!(sclp_vt220_register.sclp_send_mask & EVTYP_VT220MSG_MASK)) {
+	if (!(sclp_vt220_register.sclp_receive_mask & EVTYP_VT220MSG_MASK)) {
 		request->sclp_req.status = SCLP_REQ_FAILED;
 		return -EIO;
 	}

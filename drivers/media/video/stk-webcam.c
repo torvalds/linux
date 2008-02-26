@@ -63,7 +63,7 @@ static struct usb_device_id stkwebcam_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, stkwebcam_table);
 
-void stk_camera_cleanup(struct kref *kref)
+static void stk_camera_cleanup(struct kref *kref)
 {
 	struct stk_camera *dev = to_stk_camera(kref);
 
@@ -682,6 +682,7 @@ static int v4l_stk_open(struct inode *inode, struct file *fp)
 		return -ENXIO;
 	fp->private_data = vdev;
 	kref_get(&dev->kref);
+	usb_autopm_get_interface(dev->interface);
 
 	return 0;
 }
@@ -703,6 +704,7 @@ static int v4l_stk_release(struct inode *inode, struct file *fp)
 	}
 
 	if (dev->owner != fp) {
+		usb_autopm_put_interface(dev->interface);
 		kref_put(&dev->kref, stk_camera_cleanup);
 		return 0;
 	}
@@ -713,6 +715,7 @@ static int v4l_stk_release(struct inode *inode, struct file *fp)
 
 	dev->owner = NULL;
 
+	usb_autopm_put_interface(dev->interface);
 	kref_put(&dev->kref, stk_camera_cleanup);
 
 	return 0;
@@ -993,6 +996,10 @@ static int stk_vidioc_enum_fmt_cap(struct file *filp,
 		fmtd->pixelformat = V4L2_PIX_FMT_SBGGR8;
 		strcpy(fmtd->description, "Raw bayer");
 		break;
+	case 4:
+		fmtd->pixelformat = V4L2_PIX_FMT_YUYV;
+		strcpy(fmtd->description, "yuv4:2:2");
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1048,6 +1055,7 @@ static int stk_vidioc_try_fmt_cap(struct file *filp,
 	case V4L2_PIX_FMT_RGB565:
 	case V4L2_PIX_FMT_RGB565X:
 	case V4L2_PIX_FMT_UYVY:
+	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_SBGGR8:
 		break;
 	default:
@@ -1080,6 +1088,42 @@ static int stk_vidioc_try_fmt_cap(struct file *filp,
 	return 0;
 }
 
+static int stk_setup_format(struct stk_camera *dev)
+{
+	int i = 0;
+	int depth;
+	if (dev->vsettings.palette == V4L2_PIX_FMT_SBGGR8)
+		depth = 1;
+	else
+		depth = 2;
+	while (stk_sizes[i].m != dev->vsettings.mode
+			&& i < ARRAY_SIZE(stk_sizes))
+		i++;
+	if (i == ARRAY_SIZE(stk_sizes)) {
+		STK_ERROR("Something is broken in %s\n", __FUNCTION__);
+		return -EFAULT;
+	}
+	/* This registers controls some timings, not sure of what. */
+	stk_camera_write_reg(dev, 0x001b, 0x0e);
+	if (dev->vsettings.mode == MODE_SXGA)
+		stk_camera_write_reg(dev, 0x001c, 0x0e);
+	else
+		stk_camera_write_reg(dev, 0x001c, 0x46);
+	/*
+	 * Registers 0x0115 0x0114 are the size of each line (bytes),
+	 * regs 0x0117 0x0116 are the heigth of the image.
+	 */
+	stk_camera_write_reg(dev, 0x0115,
+		((stk_sizes[i].w * depth) >> 8) & 0xff);
+	stk_camera_write_reg(dev, 0x0114,
+		(stk_sizes[i].w * depth) & 0xff);
+	stk_camera_write_reg(dev, 0x0117,
+		(stk_sizes[i].h >> 8) & 0xff);
+	stk_camera_write_reg(dev, 0x0116,
+		stk_sizes[i].h & 0xff);
+	return stk_sensor_configure(dev);
+}
+
 static int stk_vidioc_s_fmt_cap(struct file *filp,
 		void *priv, struct v4l2_format *fmtd)
 {
@@ -1094,10 +1138,10 @@ static int stk_vidioc_s_fmt_cap(struct file *filp,
 		return -EBUSY;
 	if (dev->owner && dev->owner != filp)
 		return -EBUSY;
-	dev->owner = filp;
 	ret = stk_vidioc_try_fmt_cap(filp, priv, fmtd);
 	if (ret)
 		return ret;
+	dev->owner = filp;
 
 	dev->vsettings.palette = fmtd->fmt.pix.pixelformat;
 	stk_free_buffers(dev);
@@ -1105,25 +1149,7 @@ static int stk_vidioc_s_fmt_cap(struct file *filp,
 	dev->vsettings.mode = stk_sizes[fmtd->fmt.pix.priv].m;
 
 	stk_initialise(dev);
-	/* This registers controls some timings, not sure of what. */
-	stk_camera_write_reg(dev, 0x001b, 0x0e);
-	if (dev->vsettings.mode == MODE_SXGA)
-		stk_camera_write_reg(dev, 0x001c, 0x0e);
-	else
-		stk_camera_write_reg(dev, 0x001c, 0x46);
-	/*
-	 * Registers 0x0115 0x0114 are the size of each line (bytes),
-	 * regs 0x0117 0x0116 are the heigth of the image.
-	 */
-	stk_camera_write_reg(dev, 0x0115,
-		(fmtd->fmt.pix.bytesperline >> 8) & 0xff);
-	stk_camera_write_reg(dev, 0x0114,
-		fmtd->fmt.pix.bytesperline & 0xff);
-	stk_camera_write_reg(dev, 0x0117,
-		(fmtd->fmt.pix.height >> 8) & 0xff);
-	stk_camera_write_reg(dev, 0x0116,
-		fmtd->fmt.pix.height & 0xff);
-	return stk_sensor_configure(dev);
+	return stk_setup_format(dev);
 }
 
 static int stk_vidioc_reqbufs(struct file *filp,
@@ -1288,6 +1314,9 @@ static struct file_operations v4l_stk_fops = {
 	.poll = v4l_stk_poll,
 	.mmap = v4l_stk_mmap,
 	.ioctl = video_ioctl2,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = v4l_compat_ioctl32,
+#endif
 	.llseek = no_llseek
 };
 
@@ -1403,7 +1432,7 @@ static int stk_camera_probe(struct usb_interface *interface,
 	dev->vsettings.brightness = 0x7fff;
 	dev->vsettings.palette = V4L2_PIX_FMT_RGB565;
 	dev->vsettings.mode = MODE_VGA;
-	dev->frame_size = 640*480*2;
+	dev->frame_size = 640 * 480 * 2;
 
 	INIT_LIST_HEAD(&dev->sio_avail);
 	INIT_LIST_HEAD(&dev->sio_full);
@@ -1417,6 +1446,7 @@ static int stk_camera_probe(struct usb_interface *interface,
 	}
 
 	stk_create_sysfs_files(&dev->vdev);
+	usb_autopm_enable(dev->interface);
 
 	return 0;
 }
@@ -1434,11 +1464,41 @@ static void stk_camera_disconnect(struct usb_interface *interface)
 	kref_put(&dev->kref, stk_camera_cleanup);
 }
 
+#ifdef CONFIG_PM
+int stk_camera_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct stk_camera *dev = usb_get_intfdata(intf);
+	if (is_streaming(dev)) {
+		stk_stop_stream(dev);
+		/* yes, this is ugly */
+		set_streaming(dev);
+	}
+	return 0;
+}
+
+int stk_camera_resume(struct usb_interface *intf)
+{
+	struct stk_camera *dev = usb_get_intfdata(intf);
+	if (!is_initialised(dev))
+		return 0;
+	unset_initialised(dev);
+	stk_initialise(dev);
+	stk_setup_format(dev);
+	if (is_streaming(dev))
+		stk_start_stream(dev);
+	return 0;
+}
+#endif
+
 static struct usb_driver stk_camera_driver = {
 	.name = "stkwebcam",
 	.probe = stk_camera_probe,
 	.disconnect = stk_camera_disconnect,
 	.id_table = stkwebcam_table,
+#ifdef CONFIG_PM
+	.suspend = stk_camera_suspend,
+	.resume = stk_camera_resume,
+#endif
 };
 
 

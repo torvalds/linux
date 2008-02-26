@@ -1006,14 +1006,6 @@ static int __cpufreq_remove_dev (struct sys_device * sys_dev)
 	}
 #endif
 
-
-	if (!kobject_get(&data->kobj)) {
-		spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
-		cpufreq_debug_enable_ratelimit();
-		unlock_policy_rwsem_write(cpu);
-		return -EFAULT;
-	}
-
 #ifdef CONFIG_SMP
 
 #ifdef CONFIG_HOTPLUG_CPU

@@ -687,6 +687,12 @@ static int iwl3945_enqueue_hcmd(struct iwl3945_priv *priv, struct iwl3945_host_c
 	BUG_ON((fix_size > TFD_MAX_PAYLOAD_SIZE) &&
 	       !(cmd->meta.flags & CMD_SIZE_HUGE));
 
+
+	if (iwl3945_is_rfkill(priv)) {
+		IWL_DEBUG_INFO("Not sending command - RF KILL");
+		return -EIO;
+	}
+
 	if (iwl3945_queue_space(q) < ((cmd->meta.flags & CMD_ASYNC) ? 2 : 1)) {
 		IWL_ERROR("No space for Tx\n");
 		return -ENOSPC;
@@ -1580,7 +1586,7 @@ static inline int iwl3945_eeprom_acquire_semaphore(struct iwl3945_priv *priv)
  */
 int iwl3945_eeprom_init(struct iwl3945_priv *priv)
 {
-	__le16 *e = (__le16 *)&priv->eeprom;
+	u16 *e = (u16 *)&priv->eeprom;
 	u32 gp = iwl3945_read32(priv, CSR_EEPROM_GP);
 	u32 r;
 	int sz = sizeof(priv->eeprom);
@@ -1623,7 +1629,7 @@ int iwl3945_eeprom_init(struct iwl3945_priv *priv)
 			IWL_ERROR("Time out reading EEPROM[%d]", addr);
 			return -ETIMEDOUT;
 		}
-		e[addr / 2] = cpu_to_le16(r >> 16);
+		e[addr / 2] = le16_to_cpu((__force __le16)(r >> 16));
 	}
 
 	return 0;
@@ -2806,7 +2812,8 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv,
 #endif
 
 	/* drop all data frame if we are not associated */
-	if ((!iwl3945_is_associated(priv) || !priv->assoc_id) &&
+	if ((!iwl3945_is_associated(priv) ||
+	     ((priv->iw_mode == IEEE80211_IF_TYPE_STA) && !priv->assoc_id)) &&
 	    ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA)) {
 		IWL_DEBUG_DROP("Dropping - !iwl3945_is_associated\n");
 		goto drop_unlock;
@@ -4281,7 +4288,7 @@ static void iwl3945_rx_handle(struct iwl3945_priv *priv)
 	int reclaim;
 	unsigned long flags;
 	u8 fill_rx = 0;
-	u32 count = 0;
+	u32 count = 8;
 
 	/* uCode's read index (stored in shared DRAM) indicates the last Rx
 	 * buffer that the driver may process (last buffer filled by ucode). */
@@ -6256,6 +6263,8 @@ static void __iwl3945_down(struct iwl3945_priv *priv)
 					STATUS_RF_KILL_HW |
 			       test_bit(STATUS_RF_KILL_SW, &priv->status) <<
 					STATUS_RF_KILL_SW |
+			       test_bit(STATUS_GEO_CONFIGURED, &priv->status) <<
+					STATUS_GEO_CONFIGURED |
 			       test_bit(STATUS_IN_SUSPEND, &priv->status) <<
 					STATUS_IN_SUSPEND;
 		goto exit;
@@ -6267,6 +6276,8 @@ static void __iwl3945_down(struct iwl3945_priv *priv)
 				STATUS_RF_KILL_HW |
 			test_bit(STATUS_RF_KILL_SW, &priv->status) <<
 				STATUS_RF_KILL_SW |
+			test_bit(STATUS_GEO_CONFIGURED, &priv->status) <<
+				STATUS_GEO_CONFIGURED |
 			test_bit(STATUS_IN_SUSPEND, &priv->status) <<
 				STATUS_IN_SUSPEND |
 			test_bit(STATUS_FW_ERROR, &priv->status) <<

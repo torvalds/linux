@@ -1000,9 +1000,10 @@ static int audit_log_single_execve_arg(struct audit_context *context,
 	 * for strings that are too long, we should not have created
 	 * any.
 	 */
-	if (unlikely((len  = -1) || len > MAX_ARG_STRLEN - 1)) {
+	if (unlikely((len == -1) || len > MAX_ARG_STRLEN - 1)) {
 		WARN_ON(1);
 		send_sig(SIGKILL, current, 0);
+		return -1;
 	}
 
 	/* walk the whole argument looking for non-ascii chars */
@@ -1020,6 +1021,7 @@ static int audit_log_single_execve_arg(struct audit_context *context,
 		if (ret) {
 			WARN_ON(1);
 			send_sig(SIGKILL, current, 0);
+			return -1;
 		}
 		buf[to_send] = '\0';
 		has_cntl = audit_string_contains_control(buf, to_send);
@@ -1083,6 +1085,7 @@ static int audit_log_single_execve_arg(struct audit_context *context,
 		if (ret) {
 			WARN_ON(1);
 			send_sig(SIGKILL, current, 0);
+			return -1;
 		}
 		buf[to_send] = '\0';
 

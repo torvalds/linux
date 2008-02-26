@@ -754,6 +754,9 @@ skip_std_specific:
 		goto check_device;
 	}
 
+	if (new_fw.type & FM)
+		goto check_device;
+
 	/* Load SCODE firmware, if exists */
 	tuner_dbg("Trying to load scode %d\n", new_fw.scode_nr);
 

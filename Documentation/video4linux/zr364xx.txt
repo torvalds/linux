@@ -25,7 +25,7 @@ modprobe zr364xx debug=X mode=Y
  - debug      : set to 1 to enable verbose debug messages
  - mode       : 0 = 320x240, 1 = 160x120, 2 = 640x480
 You can then use the camera with V4L2 compatible applications, for example Ekiga.
-To capture a single image, try this: dd if=/dev/video0 of=test.jpg bs=1 count=1
+To capture a single image, try this: dd if=/dev/video0 of=test.jpg bs=1M count=1
 
 links :
 http://mxhaard.free.fr/ (support for many others cams including some Aiptek PocketDV)
@@ -63,3 +63,5 @@ Vendor  Product  Distributor     Model
 0x06d6  0x0034   Trust           Powerc@m 750
 0x0a17  0x0062   Pentax          Optio 50L
 0x06d6  0x003b   Trust           Powerc@m 970Z
+0x0a17  0x004e   Pentax          Optio 50
+0x041e  0x405d   Creative        DiVi CAM 516
