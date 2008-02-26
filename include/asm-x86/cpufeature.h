@@ -120,6 +120,9 @@
 extern const char * const x86_cap_flags[NCAPINTS*32];
 extern const char * const x86_power_flags[32];
 
+#define test_cpu_cap(c, bit)						\
+	 test_bit(bit, (unsigned long *)((c)->x86_capability))
+
 #define cpu_has(c, bit)							\
 	(__builtin_constant_p(bit) &&					\
 	 ( (((bit)>>5)==0 && (1UL<<((bit)&31) & REQUIRED_MASK0)) ||	\
@@ -131,7 +134,8 @@ extern const char * const x86_power_flags[32];
 	   (((bit)>>5)==6 && (1UL<<((bit)&31) & REQUIRED_MASK6)) ||	\
 	   (((bit)>>5)==7 && (1UL<<((bit)&31) & REQUIRED_MASK7)) )	\
 	  ? 1 :								\
-	 test_bit(bit, (unsigned long *)((c)->x86_capability)))
+	 test_cpu_cap(c, bit))
+
 #define boot_cpu_has(bit)	cpu_has(&boot_cpu_data, bit)
 
 #define set_cpu_cap(c, bit)	set_bit(bit, (unsigned long *)((c)->x86_capability))
