@@ -37,6 +37,12 @@ static int detect_memory_e820(void)
 		      "=m" (*desc)
 		    : "D" (desc), "d" (SMAP), "a" (0xe820));
 
+		/* BIOSes which terminate the chain with CF = 1 as opposed
+		   to %ebx = 0 don't always report the SMAP signature on
+		   the final, failing, probe. */
+		if (err)
+			break;
+
 		/* Some BIOSes stop returning SMAP in the middle of
 		   the search loop.  We don't know exactly how the BIOS
 		   screwed up the map at that point, we might have a
@@ -46,9 +52,6 @@ static int detect_memory_e820(void)
 			count = 0;
 			break;
 		}
-
-		if (err)
-			break;
 
 		count++;
 		desc++;

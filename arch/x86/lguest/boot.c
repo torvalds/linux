@@ -57,6 +57,7 @@
 #include <linux/lguest_launcher.h>
 #include <linux/virtio_console.h>
 #include <linux/pm.h>
+#include <asm/lguest.h>
 #include <asm/paravirt.h>
 #include <asm/param.h>
 #include <asm/page.h>
@@ -74,15 +75,6 @@
  * The Guest in our tale is a simple creature: identical to the Host but
  * behaving in simplified but equivalent ways.  In particular, the Guest is the
  * same kernel as the Host (or at least, built from the same source code). :*/
-
-/* Declarations for definitions in lguest_guest.S */
-extern char lguest_noirq_start[], lguest_noirq_end[];
-extern const char lgstart_cli[], lgend_cli[];
-extern const char lgstart_sti[], lgend_sti[];
-extern const char lgstart_popf[], lgend_popf[];
-extern const char lgstart_pushf[], lgend_pushf[];
-extern const char lgstart_iret[], lgend_iret[];
-extern void lguest_iret(void);
 
 struct lguest_data lguest_data = {
 	.hcall_status = { [0 ... LHCALL_RING_SIZE-1] = 0xFF },
@@ -489,7 +481,7 @@ static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
 {
 	*pmdp = pmdval;
 	lazy_hcall(LHCALL_SET_PMD, __pa(pmdp)&PAGE_MASK,
-		   (__pa(pmdp)&(PAGE_SIZE-1))/4, 0);
+		   (__pa(pmdp)&(PAGE_SIZE-1)), 0);
 }
 
 /* There are a couple of legacy places where the kernel sets a PTE, but we
