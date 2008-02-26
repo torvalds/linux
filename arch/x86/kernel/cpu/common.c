@@ -409,7 +409,7 @@ static void __cpuinit squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
 		lo |= 0x200000;
 		wrmsr(MSR_IA32_BBL_CR_CTL, lo, hi);
 		printk(KERN_NOTICE "CPU serial number disabled.\n");
-		clear_bit(X86_FEATURE_PN, c->x86_capability);
+		clear_cpu_cap(c, X86_FEATURE_PN);
 
 		/* Disabling the serial number may affect the cpuid level */
 		c->cpuid_level = cpuid_eax(0);
