@@ -590,11 +590,6 @@ void ide_unregister(unsigned int index, int init_default, int restore)
 		hwif->extra_ports = 0;
 	}
 
-	/*
-	 * Note that we only release the standard ports,
-	 * and do not even try to handle any extra ports
-	 * allocated for weird IDE interface chipsets.
-	 */
 	ide_hwif_release_regions(hwif);
 
 	/* copy original settings */
