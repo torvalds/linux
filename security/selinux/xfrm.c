@@ -45,7 +45,6 @@
 #include <net/xfrm.h>
 #include <net/checksum.h>
 #include <net/udp.h>
-#include <asm/semaphore.h>
 #include <asm/atomic.h>
 
 #include "avc.h"

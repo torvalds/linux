@@ -11,7 +11,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
-#include <asm/semaphore.h>
 #include <linux/slab.h>
 
 #include "security.h"
