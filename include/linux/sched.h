@@ -61,7 +61,6 @@ struct sched_param {
 #include <linux/mm_types.h>
 
 #include <asm/system.h>
-#include <asm/semaphore.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
 #include <asm/cputime.h>

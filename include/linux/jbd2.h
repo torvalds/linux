@@ -30,8 +30,6 @@
 #include <linux/bit_spinlock.h>
 #include <linux/mutex.h>
 #include <linux/timer.h>
-
-#include <asm/semaphore.h>
 #endif
 
 #define journal_oom_retry 1

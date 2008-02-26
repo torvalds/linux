@@ -32,7 +32,6 @@
 #include <scsi/sas.h>
 #include <linux/libata.h>
 #include <linux/list.h>
-#include <asm/semaphore.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_transport_sas.h>
