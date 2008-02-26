@@ -190,12 +190,12 @@ static void __cpuinit init_cyrix(struct cpuinfo_x86 *c)
 	 * Bit 31 in normal CPUID used for nonstandard 3DNow ID;
 	 * 3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
 	 */
-	clear_bit(0*32+31, c->x86_capability);
+	clear_cpu_cap(c, 0*32+31);
 
 	/* Cyrix used bit 24 in extended (AMD) CPUID for Cyrix MMX extensions */
-	if (test_bit(1*32+24, c->x86_capability)) {
-		clear_bit(1*32+24, c->x86_capability);
-		set_bit(X86_FEATURE_CXMMX, c->x86_capability);
+	if (test_cpu_cap(c, 1*32+24)) {
+		clear_cpu_cap(c, 1*32+24);
+		set_cpu_cap(c, X86_FEATURE_CXMMX);
 	}
 
 	do_cyrix_devid(&dir0, &dir1);
@@ -242,7 +242,7 @@ static void __cpuinit init_cyrix(struct cpuinfo_x86 *c)
 		} else             /* 686 */
 			p = Cx86_cb+1;
 		/* Emulate MTRRs using Cyrix's ARRs. */
-		set_bit(X86_FEATURE_CYRIX_ARR, c->x86_capability);
+		set_cpu_cap(c, X86_FEATURE_CYRIX_ARR);
 		/* 6x86's contain this bug */
 		c->coma_bug = 1;
 		break;
@@ -319,7 +319,7 @@ static void __cpuinit init_cyrix(struct cpuinfo_x86 *c)
 		if (((dir1 & 0x0f) > 4) || ((dir1 & 0xf0) == 0x20))
 			(c->x86_model)++;
 		/* Emulate MTRRs using Cyrix's ARRs. */
-		set_bit(X86_FEATURE_CYRIX_ARR, c->x86_capability);
+		set_cpu_cap(c, X86_FEATURE_CYRIX_ARR);
 		break;
 
 	case 0xf:  /* Cyrix 486 without DEVID registers */
