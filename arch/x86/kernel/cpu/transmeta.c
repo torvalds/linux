@@ -74,7 +74,7 @@ static void __cpuinit init_transmeta(struct cpuinfo_x86 *c)
 	wrmsr(0x80860004, cap_mask, uk);
 
 	/* All Transmeta CPUs have a constant TSC */
-	set_bit(X86_FEATURE_CONSTANT_TSC, c->x86_capability);
+	set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 
 #ifdef CONFIG_SYSCTL
 	/*
