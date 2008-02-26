@@ -68,7 +68,7 @@ static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 	if (cpuid_eax(0x80000000) >= 0x80000007) {
 		c->x86_power = cpuid_edx(0x80000007);
 		if (c->x86_power & (1<<8))
-			set_bit(X86_FEATURE_CONSTANT_TSC, c->x86_capability);
+			set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 	}
 }
 
@@ -105,9 +105,9 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	/*
 	 * Bit 31 in normal CPUID used for nonstandard 3DNow ID;
-	 * DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
+	 * 3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
 	 */
-	clear_bit(0*32+31, c->x86_capability);
+	clear_cpu_cap(c, 0*32+31);
 
 	r = get_model_name(c);
 
@@ -131,8 +131,8 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 			if (c->x86_model < 6) {
 				/* Based on AMD doc 20734R - June 2000 */
 				if (c->x86_model == 0) {
-					clear_bit(X86_FEATURE_APIC, c->x86_capability);
-					set_bit(X86_FEATURE_PGE, c->x86_capability);
+					clear_cpu_cap(c, X86_FEATURE_APIC);
+					set_cpu_cap(c, X86_FEATURE_PGE);
 				}
 				break;
 			}
@@ -208,7 +208,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 				/*  Set MTRR capability flag if appropriate */
 				if (c->x86_model == 13 || c->x86_model == 9 ||
 				   (c->x86_model == 8 && c->x86_mask >= 8))
-					set_bit(X86_FEATURE_K6_MTRR, c->x86_capability);
+					set_cpu_cap(c, X86_FEATURE_K6_MTRR);
 				break;
 			}
 
@@ -231,7 +231,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 					rdmsr(MSR_K7_HWCR, l, h);
 					l &= ~0x00008000;
 					wrmsr(MSR_K7_HWCR, l, h);
-					set_bit(X86_FEATURE_XMM, c->x86_capability);
+					set_cpu_cap(c, X86_FEATURE_XMM);
 				}
 			}
 
@@ -256,14 +256,14 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	/* Use K8 tuning for Fam10h and Fam11h */
 	case 0x10:
 	case 0x11:
-		set_bit(X86_FEATURE_K8, c->x86_capability);
+		set_cpu_cap(c, X86_FEATURE_K8);
 		break;
 	case 6:
-		set_bit(X86_FEATURE_K7, c->x86_capability);
+		set_cpu_cap(c, X86_FEATURE_K7);
 		break;
 	}
 	if (c->x86 >= 6)
-		set_bit(X86_FEATURE_FXSAVE_LEAK, c->x86_capability);
+		set_cpu_cap(c, X86_FEATURE_FXSAVE_LEAK);
 
 	display_cacheinfo(c);
 
@@ -304,10 +304,10 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	/* K6s reports MCEs but don't actually have all the MSRs */
 	if (c->x86 < 6)
-		clear_bit(X86_FEATURE_MCE, c->x86_capability);
+		clear_cpu_cap(c, X86_FEATURE_MCE);
 
 	if (cpu_has_xmm2)
-		set_bit(X86_FEATURE_MFENCE_RDTSC, c->x86_capability);
+		set_cpu_cap(c, X86_FEATURE_MFENCE_RDTSC);
 }
 
 static unsigned int __cpuinit amd_size_cache(struct cpuinfo_x86 *c, unsigned int size)
