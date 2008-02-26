@@ -3188,11 +3188,12 @@ static int patch_ad1884(struct hda_codec *codec)
  * Lenovo Thinkpad T61/X61
  */
 static struct hda_input_mux ad1984_thinkpad_capture_source = {
-	.num_items = 3,
+	.num_items = 4,
 	.items = {
 		{ "Mic", 0x0 },
 		{ "Internal Mic", 0x1 },
 		{ "Mix", 0x3 },
+		{ "Docking-Station", 0x4 },
 	},
 };
 
