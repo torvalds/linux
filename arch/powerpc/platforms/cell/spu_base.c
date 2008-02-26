@@ -148,7 +148,11 @@ static inline void spu_load_slb(struct spu *spu, int slbe, struct spu_slb *slb)
 			__func__, slbe, slb->vsid, slb->esid);
 
 	out_be64(&priv2->slb_index_W, slbe);
+	/* set invalid before writing vsid */
+	out_be64(&priv2->slb_esid_RW, 0);
+	/* now it's safe to write the vsid */
 	out_be64(&priv2->slb_vsid_RW, slb->vsid);
+	/* setting the new esid makes the entry valid again */
 	out_be64(&priv2->slb_esid_RW, slb->esid);
 }
 
