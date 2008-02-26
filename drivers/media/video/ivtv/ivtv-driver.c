@@ -699,6 +699,9 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	itv->vbi.in.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
 	itv->vbi.sliced_in = &itv->vbi.in.fmt.sliced;
 
+	/* Init the sg table for osd/yuv output */
+	sg_init_table(itv->udma.SGlist, IVTV_DMA_SG_OSD_ENT);
+
 	/* OSD */
 	itv->osd_global_alpha_state = 1;
 	itv->osd_global_alpha = 255;
