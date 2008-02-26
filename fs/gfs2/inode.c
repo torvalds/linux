@@ -150,6 +150,7 @@ void gfs2_set_iop(struct inode *inode)
 		inode->i_op = &gfs2_symlink_iops;
 	} else {
 		inode->i_op = &gfs2_file_iops;
+		init_special_inode(inode, inode->i_mode, inode->i_rdev);
 	}
 
 	unlock_new_inode(inode);
