@@ -31,6 +31,7 @@
 #include <linux/cache.h>
 #include <linux/init.h>
 #include <linux/signal.h>
+#include <linux/lmb.h>
 
 #include <asm/processor.h>
 #include <asm/pgtable.h>
@@ -41,7 +42,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/machdep.h>
-#include <asm/lmb.h>
+#include <asm/prom.h>
 #include <asm/abs_addr.h>
 #include <asm/tlbflush.h>
 #include <asm/io.h>

@@ -31,10 +31,10 @@
 #include <linux/kexec.h>
 #include <linux/debugfs.h>
 #include <linux/irq.h>
+#include <linux/lmb.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
-#include <asm/lmb.h>
 #include <asm/page.h>
 #include <asm/processor.h>
 #include <asm/irq.h>

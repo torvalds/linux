@@ -3,7 +3,7 @@
  *
  * Peter Bergner, IBM Corp.	June 2001.
  * Copyright (C) 2001 Peter Bergner.
- * 
+ *
  *      This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
  *      as published by the Free Software Foundation; either version
@@ -13,19 +13,12 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
-#include <asm/types.h>
-#include <asm/page.h>
-#include <asm/prom.h>
-#include <asm/lmb.h>
-#ifdef CONFIG_PPC32
-#include "mmu_decl.h"		/* for __max_low_memory */
-#endif
+#include <linux/lmb.h>
 
 #undef DEBUG
 
 #ifdef DEBUG
-#include <asm/udbg.h>
-#define DBG(fmt...) udbg_printf(fmt)
+#define DBG(fmt...) LMB_DBG(fmt)
 #else
 #define DBG(fmt...)
 #endif
@@ -41,33 +34,34 @@ void lmb_dump_all(void)
 
 	DBG("lmb_dump_all:\n");
 	DBG("    memory.cnt		  = 0x%lx\n", lmb.memory.cnt);
-	DBG("    memory.size		  = 0x%lx\n", lmb.memory.size);
+	DBG("    memory.size		  = 0x%llx\n",
+	    (unsigned long long)lmb.memory.size);
 	for (i=0; i < lmb.memory.cnt ;i++) {
-		DBG("    memory.region[0x%x].base       = 0x%lx\n",
-			    i, lmb.memory.region[i].base);
-		DBG("		      .size     = 0x%lx\n",
-			    lmb.memory.region[i].size);
+		DBG("    memory.region[0x%x].base       = 0x%llx\n",
+		    i, (unsigned long long)lmb.memory.region[i].base);
+		DBG("		      .size     = 0x%llx\n",
+		    (unsigned long long)lmb.memory.region[i].size);
 	}
 
 	DBG("\n    reserved.cnt	  = 0x%lx\n", lmb.reserved.cnt);
 	DBG("    reserved.size	  = 0x%lx\n", lmb.reserved.size);
 	for (i=0; i < lmb.reserved.cnt ;i++) {
-		DBG("    reserved.region[0x%x].base       = 0x%lx\n",
-			    i, lmb.reserved.region[i].base);
-		DBG("		      .size     = 0x%lx\n",
-			    lmb.reserved.region[i].size);
+		DBG("    reserved.region[0x%x].base       = 0x%llx\n",
+		    i, (unsigned long long)lmb.reserved.region[i].base);
+		DBG("		      .size     = 0x%llx\n",
+		    (unsigned long long)lmb.reserved.region[i].size);
 	}
 #endif /* DEBUG */
 }
 
-static unsigned long __init lmb_addrs_overlap(unsigned long base1,
-		unsigned long size1, unsigned long base2, unsigned long size2)
+static unsigned long __init lmb_addrs_overlap(u64 base1,
+		u64 size1, u64 base2, u64 size2)
 {
 	return ((base1 < (base2+size2)) && (base2 < (base1+size1)));
 }
 
-static long __init lmb_addrs_adjacent(unsigned long base1, unsigned long size1,
-		unsigned long base2, unsigned long size2)
+static long __init lmb_addrs_adjacent(u64 base1, u64 size1,
+		u64 base2, u64 size2)
 {
 	if (base2 == base1 + size1)
 		return 1;
@@ -80,10 +74,10 @@ static long __init lmb_addrs_adjacent(unsigned long base1, unsigned long size1,
 static long __init lmb_regions_adjacent(struct lmb_region *rgn,
 		unsigned long r1, unsigned long r2)
 {
-	unsigned long base1 = rgn->region[r1].base;
-	unsigned long size1 = rgn->region[r1].size;
-	unsigned long base2 = rgn->region[r2].base;
-	unsigned long size2 = rgn->region[r2].size;
+	u64 base1 = rgn->region[r1].base;
+	u64 size1 = rgn->region[r1].size;
+	u64 base2 = rgn->region[r2].base;
+	u64 size2 = rgn->region[r2].size;
 
 	return lmb_addrs_adjacent(base1, size1, base2, size2);
 }
@@ -135,16 +129,21 @@ void __init lmb_analyze(void)
 }
 
 /* This routine called with relocation disabled. */
-static long __init lmb_add_region(struct lmb_region *rgn, unsigned long base,
-				  unsigned long size)
+static long __init lmb_add_region(struct lmb_region *rgn, u64 base, u64 size)
 {
 	unsigned long coalesced = 0;
 	long adjacent, i;
 
+	if ((rgn->cnt == 1) && (rgn->region[0].size == 0)) {
+		rgn->region[0].base = base;
+		rgn->region[0].size = size;
+		return 0;
+	}
+
 	/* First try and coalesce this LMB with another. */
 	for (i=0; i < rgn->cnt; i++) {
-		unsigned long rgnbase = rgn->region[i].base;
-		unsigned long rgnsize = rgn->region[i].size;
+		u64 rgnbase = rgn->region[i].base;
+		u64 rgnsize = rgn->region[i].size;
 
 		if ((rgnbase == base) && (rgnsize == size))
 			/* Already have this region, so we're done */
@@ -185,13 +184,18 @@ static long __init lmb_add_region(struct lmb_region *rgn, unsigned long base,
 			break;
 		}
 	}
+
+	if (base < rgn->region[0].base) {
+		rgn->region[0].base = base;
+		rgn->region[0].size = size;
+	}
 	rgn->cnt++;
 
 	return 0;
 }
 
 /* This routine may be called with relocation disabled. */
-long __init lmb_add(unsigned long base, unsigned long size)
+long __init lmb_add(u64 base, u64 size)
 {
 	struct lmb_region *_rgn = &(lmb.memory);
 
@@ -203,7 +207,7 @@ long __init lmb_add(unsigned long base, unsigned long size)
 
 }
 
-long __init lmb_reserve(unsigned long base, unsigned long size)
+long __init lmb_reserve(u64 base, u64 size)
 {
 	struct lmb_region *_rgn = &(lmb.reserved);
 
@@ -212,14 +216,14 @@ long __init lmb_reserve(unsigned long base, unsigned long size)
 	return lmb_add_region(_rgn, base, size);
 }
 
-long __init lmb_overlaps_region(struct lmb_region *rgn, unsigned long base,
-				unsigned long size)
+long __init lmb_overlaps_region(struct lmb_region *rgn, u64 base,
+				u64 size)
 {
 	unsigned long i;
 
 	for (i=0; i < rgn->cnt; i++) {
-		unsigned long rgnbase = rgn->region[i].base;
-		unsigned long rgnsize = rgn->region[i].size;
+		u64 rgnbase = rgn->region[i].base;
+		u64 rgnsize = rgn->region[i].size;
 		if ( lmb_addrs_overlap(base,size,rgnbase,rgnsize) ) {
 			break;
 		}
@@ -228,54 +232,61 @@ long __init lmb_overlaps_region(struct lmb_region *rgn, unsigned long base,
 	return (i < rgn->cnt) ? i : -1;
 }
 
-unsigned long __init lmb_alloc(unsigned long size, unsigned long align)
+u64 __init lmb_alloc(u64 size, u64 align)
 {
 	return lmb_alloc_base(size, align, LMB_ALLOC_ANYWHERE);
 }
 
-unsigned long __init lmb_alloc_base(unsigned long size, unsigned long align,
-				    unsigned long max_addr)
+u64 __init lmb_alloc_base(u64 size, u64 align, u64 max_addr)
 {
-	unsigned long alloc;
+	u64 alloc;
 
 	alloc = __lmb_alloc_base(size, align, max_addr);
 
 	if (alloc == 0)
-		panic("ERROR: Failed to allocate 0x%lx bytes below 0x%lx.\n",
-				size, max_addr);
+		panic("ERROR: Failed to allocate 0x%llx bytes below 0x%llx.\n",
+		      (unsigned long long) size, (unsigned long long) max_addr);
 
 	return alloc;
 }
 
-unsigned long __init __lmb_alloc_base(unsigned long size, unsigned long align,
-				    unsigned long max_addr)
+static u64 lmb_align_down(u64 addr, u64 size)
+{
+	return addr & ~(size - 1);
+}
+
+static u64 lmb_align_up(u64 addr, u64 size)
+{
+	return (addr + (size - 1)) & ~(size - 1);
+}
+
+u64 __init __lmb_alloc_base(u64 size, u64 align, u64 max_addr)
 {
 	long i, j;
-	unsigned long base = 0;
+	u64 base = 0;
 
 	BUG_ON(0 == size);
 
-#ifdef CONFIG_PPC32
-	/* On 32-bit, make sure we allocate lowmem */
+	/* On some platforms, make sure we allocate lowmem */
 	if (max_addr == LMB_ALLOC_ANYWHERE)
-		max_addr = __max_low_memory;
-#endif
+		max_addr = LMB_REAL_LIMIT;
+
 	for (i = lmb.memory.cnt-1; i >= 0; i--) {
-		unsigned long lmbbase = lmb.memory.region[i].base;
-		unsigned long lmbsize = lmb.memory.region[i].size;
+		u64 lmbbase = lmb.memory.region[i].base;
+		u64 lmbsize = lmb.memory.region[i].size;
 
 		if (max_addr == LMB_ALLOC_ANYWHERE)
-			base = _ALIGN_DOWN(lmbbase + lmbsize - size, align);
+			base = lmb_align_down(lmbbase + lmbsize - size, align);
 		else if (lmbbase < max_addr) {
 			base = min(lmbbase + lmbsize, max_addr);
-			base = _ALIGN_DOWN(base - size, align);
+			base = lmb_align_down(base - size, align);
 		} else
 			continue;
 
 		while ((lmbbase <= base) &&
 		       ((j = lmb_overlaps_region(&lmb.reserved, base, size)) >= 0) )
-			base = _ALIGN_DOWN(lmb.reserved.region[j].base - size,
-					   align);
+			base = lmb_align_down(lmb.reserved.region[j].base - size,
+					      align);
 
 		if ((base != 0) && (lmbbase <= base))
 			break;
@@ -284,18 +295,19 @@ unsigned long __init __lmb_alloc_base(unsigned long size, unsigned long align,
 	if (i < 0)
 		return 0;
 
-	lmb_add_region(&lmb.reserved, base, size);
+	if (lmb_add_region(&lmb.reserved, base, lmb_align_up(size, align)) < 0)
+		return 0;
 
 	return base;
 }
 
 /* You must call lmb_analyze() before this. */
-unsigned long __init lmb_phys_mem_size(void)
+u64 __init lmb_phys_mem_size(void)
 {
 	return lmb.memory.size;
 }
 
-unsigned long __init lmb_end_of_DRAM(void)
+u64 __init lmb_end_of_DRAM(void)
 {
 	int idx = lmb.memory.cnt - 1;
 
@@ -303,9 +315,10 @@ unsigned long __init lmb_end_of_DRAM(void)
 }
 
 /* You must call lmb_analyze() after this. */
-void __init lmb_enforce_memory_limit(unsigned long memory_limit)
+void __init lmb_enforce_memory_limit(u64 memory_limit)
 {
-	unsigned long i, limit;
+	unsigned long i;
+	u64 limit;
 	struct lmb_property *p;
 
 	if (! memory_limit)
@@ -343,13 +356,13 @@ void __init lmb_enforce_memory_limit(unsigned long memory_limit)
 	}
 }
 
-int __init lmb_is_reserved(unsigned long addr)
+int __init lmb_is_reserved(u64 addr)
 {
 	int i;
 
 	for (i = 0; i < lmb.reserved.cnt; i++) {
-		unsigned long upper = lmb.reserved.region[i].base +
-				      lmb.reserved.region[i].size - 1;
+		u64 upper = lmb.reserved.region[i].base +
+			lmb.reserved.region[i].size - 1;
 		if ((addr >= lmb.reserved.region[i].base) && (addr <= upper))
 			return 1;
 	}

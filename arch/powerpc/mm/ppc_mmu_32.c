@@ -26,11 +26,11 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/highmem.h>
+#include <linux/lmb.h>
 
 #include <asm/prom.h>
 #include <asm/mmu.h>
 #include <asm/machdep.h>
-#include <asm/lmb.h>
 
 #include "mmu_decl.h"
 
