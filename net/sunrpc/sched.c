@@ -384,12 +384,8 @@ static void __rpc_do_wake_up_task(struct rpc_wait_queue *queue, struct rpc_task 
  */
 static void rpc_wake_up_task_queue_locked(struct rpc_wait_queue *queue, struct rpc_task *task)
 {
-	if (!RPC_IS_QUEUED(task) || task->tk_waitqueue != queue)
-		return;
-	if (rpc_start_wakeup(task)) {
-			__rpc_do_wake_up_task(queue, task);
-		rpc_finish_wakeup(task);
-	}
+	if (RPC_IS_QUEUED(task) && task->tk_waitqueue == queue)
+		__rpc_do_wake_up_task(queue, task);
 }
 
 /*

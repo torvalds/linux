@@ -142,8 +142,7 @@ struct rpc_task_setup {
 
 #define RPC_TASK_RUNNING	0
 #define RPC_TASK_QUEUED		1
-#define RPC_TASK_WAKEUP		2
-#define RPC_TASK_ACTIVE		3
+#define RPC_TASK_ACTIVE		2
 
 #define RPC_IS_RUNNING(t)	test_bit(RPC_TASK_RUNNING, &(t)->tk_runstate)
 #define rpc_set_running(t)	set_bit(RPC_TASK_RUNNING, &(t)->tk_runstate)
@@ -162,15 +161,6 @@ struct rpc_task_setup {
 	do { \
 		smp_mb__before_clear_bit(); \
 		clear_bit(RPC_TASK_QUEUED, &(t)->tk_runstate); \
-		smp_mb__after_clear_bit(); \
-	} while (0)
-
-#define rpc_start_wakeup(t) \
-	(test_and_set_bit(RPC_TASK_WAKEUP, &(t)->tk_runstate) == 0)
-#define rpc_finish_wakeup(t) \
-	do { \
-		smp_mb__before_clear_bit(); \
-		clear_bit(RPC_TASK_WAKEUP, &(t)->tk_runstate); \
 		smp_mb__after_clear_bit(); \
 	} while (0)
 
