@@ -348,6 +348,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	p->thread.cpu_context.ksp = (unsigned long)childregs;
 	p->thread.cpu_context.pc = (unsigned long)ret_from_fork;
 
+	clear_tsk_thread_flag(p, TIF_DEBUG);
 	if ((clone_flags & CLONE_PTRACE) && test_thread_flag(TIF_DEBUG))
 		ocd_enable(p);
 
