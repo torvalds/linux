@@ -17,8 +17,6 @@
 #include "ieee80211_rate.h"
 #include "mesh.h"
 
-#define DEFAULT_RATES 0
-
 static enum ieee80211_if_types
 nl80211_type_to_mac80211_type(enum nl80211_iftype type)
 {
@@ -654,10 +652,13 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	} else
 		sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	if (ieee80211_vif_is_mesh(&sdata->vif))
-		sta = mesh_plink_alloc(sdata, mac, DEFAULT_RATES, GFP_KERNEL);
-	else
-		sta = sta_info_alloc(sdata, mac, GFP_KERNEL);
+	if (compare_ether_addr(mac, dev->dev_addr) == 0)
+		return -EINVAL;
+
+	if (is_multicast_ether_addr(mac))
+		return -EINVAL;
+
+	sta = sta_info_alloc(sdata, mac, GFP_KERNEL);
 	if (!sta)
 		return -ENOMEM;
 

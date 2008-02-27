@@ -31,13 +31,12 @@
  * for faster lookup and a list for iteration. They are managed using
  * RCU, i.e. access to the list and hash table is protected by RCU.
  *
- * Upon allocating a STA info structure with sta_info_alloc() or
- * mesh_plink_alloc(), the caller owns that structure. It must then either
- * destroy it using sta_info_destroy() (which is pretty useless) or insert
- * it into the hash table using sta_info_insert() which demotes the reference
- * from ownership to a regular RCU-protected reference; if the function
- * is called without protection by an RCU critical section the reference
- * is instantly invalidated.
+ * Upon allocating a STA info structure with sta_info_alloc(), the caller owns
+ * that structure. It must then either destroy it using sta_info_destroy()
+ * (which is pretty useless) or insert it into the hash table using
+ * sta_info_insert() which demotes the reference from ownership to a regular
+ * RCU-protected reference; if the function is called without protection by an
+ * RCU critical section the reference is instantly invalidated.
  *
  * Because there are debugfs entries for each station, and adding those
  * must be able to sleep, it is also possible to "pin" a station entry,
@@ -248,6 +247,12 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	       wiphy_name(local->hw.wiphy), print_mac(mbuf, sta->addr));
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
+#ifdef CONFIG_MAC80211_MESH
+	sta->plink_state = LISTEN;
+	spin_lock_init(&sta->plink_lock);
+	init_timer(&sta->plink_timer);
+#endif
+
 	return sta;
 }
 
@@ -258,7 +263,19 @@ int sta_info_insert(struct sta_info *sta)
 	unsigned long flags;
 	DECLARE_MAC_BUF(mac);
 
-	WARN_ON(!netif_running(sdata->dev));
+	/*
+	 * Can't be a WARN_ON because it can be triggered through a race:
+	 * something inserts a STA (on one CPU) without holding the RTNL
+	 * and another CPU turns off the net device.
+	 */
+	if (unlikely(!netif_running(sdata->dev)))
+		return -ENETDOWN;
+
+	if (WARN_ON(compare_ether_addr(sta->addr, sdata->dev->dev_addr) == 0))
+		return -EINVAL;
+
+	if (WARN_ON(is_multicast_ether_addr(sta->addr)))
+		return -EINVAL;
 
 	spin_lock_irqsave(&local->sta_lock, flags);
 	/* check if STA exists already */
