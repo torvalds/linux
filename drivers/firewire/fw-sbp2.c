@@ -769,6 +769,7 @@ static void sbp2_release_target(struct kref *kref)
 	struct Scsi_Host *shost =
 		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
 	struct scsi_device *sdev;
+	struct fw_device *device = fw_device(tgt->unit->device.parent);
 
 	/* prevent deadlocks */
 	sbp2_unblock(tgt);
@@ -791,6 +792,7 @@ static void sbp2_release_target(struct kref *kref)
 
 	put_device(&tgt->unit->device);
 	scsi_host_put(shost);
+	fw_device_put(device);
 }
 
 static struct workqueue_struct *sbp2_wq;
@@ -1087,6 +1089,8 @@ static int sbp2_probe(struct device *dev)
 
 	if (scsi_add_host(shost, &unit->device) < 0)
 		goto fail_shost_put;
+
+	fw_device_get(device);
 
 	/* Initialize to values that won't match anything in our table. */
 	firmware_revision = 0xff000000;

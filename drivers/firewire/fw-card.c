@@ -18,6 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/crc-itu-t.h>
@@ -398,6 +399,7 @@ fw_card_initialize(struct fw_card *card, const struct fw_card_driver *driver,
 	static atomic_t index = ATOMIC_INIT(-1);
 
 	kref_init(&card->kref);
+	atomic_set(&card->device_count, 0);
 	card->index = atomic_inc_return(&index);
 	card->driver = driver;
 	card->device = device;
@@ -528,8 +530,14 @@ fw_core_remove_card(struct fw_card *card)
 	card->driver = &dummy_driver;
 
 	fw_destroy_nodes(card);
-	flush_scheduled_work();
+	/*
+	 * Wait for all device workqueue jobs to finish.  Otherwise the
+	 * firewire-core module could be unloaded before the jobs ran.
+	 */
+	while (atomic_read(&card->device_count) > 0)
+		msleep(100);
 
+	cancel_delayed_work_sync(&card->work);
 	fw_flush_transactions(card);
 	del_timer_sync(&card->flush_timer);
 

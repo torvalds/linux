@@ -26,6 +26,7 @@
 #include <linux/fs.h>
 #include <linux/dma-mapping.h>
 #include <linux/firewire-constants.h>
+#include <asm/atomic.h>
 
 #define TCODE_IS_READ_REQUEST(tcode)	(((tcode) & ~1) == 4)
 #define TCODE_IS_BLOCK_PACKET(tcode)	(((tcode) &  1) != 0)
@@ -219,6 +220,7 @@ extern struct bus_type fw_bus_type;
 struct fw_card {
 	const struct fw_card_driver *driver;
 	struct device *device;
+	atomic_t device_count;
 	struct kref kref;
 
 	int node_id;

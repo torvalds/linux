@@ -150,21 +150,10 @@ struct bus_type fw_bus_type = {
 };
 EXPORT_SYMBOL(fw_bus_type);
 
-struct fw_device *fw_device_get(struct fw_device *device)
-{
-	get_device(&device->device);
-
-	return device;
-}
-
-void fw_device_put(struct fw_device *device)
-{
-	put_device(&device->device);
-}
-
 static void fw_device_release(struct device *dev)
 {
 	struct fw_device *device = fw_device(dev);
+	struct fw_card *card = device->card;
 	unsigned long flags;
 
 	/*
@@ -176,9 +165,9 @@ static void fw_device_release(struct device *dev)
 	spin_unlock_irqrestore(&device->card->lock, flags);
 
 	fw_node_put(device->node);
-	fw_card_put(device->card);
 	kfree(device->config_rom);
 	kfree(device);
+	atomic_dec(&card->device_count);
 }
 
 int fw_device_enable_phys_dma(struct fw_device *device)
@@ -668,7 +657,8 @@ static void fw_device_init(struct work_struct *work)
 	 */
 
 	if (read_bus_info_block(device, device->generation) < 0) {
-		if (device->config_rom_retries < MAX_RETRIES) {
+		if (device->config_rom_retries < MAX_RETRIES &&
+		    atomic_read(&device->state) == FW_DEVICE_INITIALIZING) {
 			device->config_rom_retries++;
 			schedule_delayed_work(&device->work, RETRY_DELAY);
 		} else {
@@ -805,7 +795,8 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		 */
 		device_initialize(&device->device);
 		atomic_set(&device->state, FW_DEVICE_INITIALIZING);
-		device->card = fw_card_get(card);
+		atomic_inc(&card->device_count);
+		device->card = card;
 		device->node = fw_node_get(node);
 		device->node_id = node->node_id;
 		device->generation = card->generation;
