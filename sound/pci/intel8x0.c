@@ -1708,6 +1708,12 @@ static struct ac97_pcm ac97_pcm_defs[] __devinitdata = {
 };
 
 static struct ac97_quirk ac97_quirks[] __devinitdata = {
+        {
+		.subvendor = 0x0e11,
+		.subdevice = 0x000e,
+		.name = "Compaq Deskpro EN",	/* AD1885 */
+		.type = AC97_TUNE_HP_ONLY
+        },
 	{
 		.subvendor = 0x0e11,
 		.subdevice = 0x008a,
