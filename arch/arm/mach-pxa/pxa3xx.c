@@ -129,28 +129,20 @@ static void clk_pxa3xx_cken_enable(struct clk *clk)
 {
 	unsigned long mask = 1ul << (clk->cken & 0x1f);
 
-	local_irq_disable();
-
 	if (clk->cken < 32)
 		CKENA |= mask;
 	else
 		CKENB |= mask;
-
-	local_irq_enable();
 }
 
 static void clk_pxa3xx_cken_disable(struct clk *clk)
 {
 	unsigned long mask = 1ul << (clk->cken & 0x1f);
 
-	local_irq_disable();
-
 	if (clk->cken < 32)
 		CKENA &= ~mask;
 	else
 		CKENB &= ~mask;
-
-	local_irq_enable();
 }
 
 static const struct clkops clk_pxa3xx_cken_ops = {
