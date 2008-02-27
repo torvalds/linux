@@ -150,6 +150,7 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 	key->conf.keyidx = idx;
 	key->conf.keylen = key_len;
 	memcpy(key->conf.key, key_data, key_len);
+	INIT_LIST_HEAD(&key->list);
 
 	if (alg == ALG_CCMP) {
 		/*
@@ -189,6 +190,8 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 			ieee80211_set_default_key(sdata, -1);
 
 		rcu_assign_pointer(sdata->keys[idx], new);
+		if (new)
+			list_add(&new->list, &sdata->key_list);
 
 		if (defkey && new)
 			ieee80211_set_default_key(sdata, new->conf.keyidx);
@@ -196,7 +199,11 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 
 	if (key) {
 		ieee80211_key_mark_hw_accel_off(key);
-		list_del(&key->list);
+		/*
+		 * We'll use an empty list to indicate that the key
+		 * has already been removed.
+		 */
+		list_del_init(&key->list);
 	}
 }
 
@@ -251,12 +258,13 @@ void ieee80211_key_link(struct ieee80211_key *key,
 
 	__ieee80211_key_replace(sdata, sta, old_key, key);
 
-	list_add(&key->list, &sdata->key_list);
+	if (old_key) {
+		synchronize_rcu();
+		ieee80211_key_free(old_key);
+	}
 
-	synchronize_rcu();
-
-	ieee80211_key_free(old_key);
-	ieee80211_key_enable_hw_accel(key);
+	if (netif_running(sdata->dev))
+		ieee80211_key_enable_hw_accel(key);
 }
 
 void ieee80211_key_free(struct ieee80211_key *key)
@@ -274,8 +282,13 @@ void ieee80211_key_free(struct ieee80211_key *key)
 		 * Because other code may have key reference (RCU protected)
 		 * right now, we then wait for a grace period before freeing
 		 * it.
+		 * An empty list indicates it was never added to the key list
+		 * or has been removed already. It may, however, still be in
+		 * hardware for acceleration.
 		 */
-		__ieee80211_key_replace(key->sdata, key->sta, key, NULL);
+		if (!list_empty(&key->list))
+			__ieee80211_key_replace(key->sdata, key->sta,
+						key, NULL);
 
 		synchronize_rcu();
 
