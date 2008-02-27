@@ -122,7 +122,7 @@ conntrack_addrcmp(const union nf_inet_addr *kaddr,
                   const union nf_inet_addr *umask, unsigned int l3proto)
 {
 	if (l3proto == AF_INET)
-		return (kaddr->ip & umask->ip) == uaddr->ip;
+		return ((kaddr->ip ^ uaddr->ip) & umask->ip) == 0;
 	else if (l3proto == AF_INET6)
 		return ipv6_masked_addr_cmp(&kaddr->in6, &umask->in6,
 		       &uaddr->in6) == 0;
