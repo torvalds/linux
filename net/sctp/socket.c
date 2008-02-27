@@ -1964,7 +1964,7 @@ static int sctp_setsockopt_disable_fragments(struct sock *sk,
 static int sctp_setsockopt_events(struct sock *sk, char __user *optval,
 					int optlen)
 {
-	if (optlen != sizeof(struct sctp_event_subscribe))
+	if (optlen > sizeof(struct sctp_event_subscribe))
 		return -EINVAL;
 	if (copy_from_user(&sctp_sk(sk)->subscribe, optval, optlen))
 		return -EFAULT;
@@ -5094,6 +5094,8 @@ static int sctp_getsockopt_peer_auth_chunks(struct sock *sk, int len,
 	len = num_chunks;
 	if (put_user(len, optlen))
 		return -EFAULT;
+	if (put_user(num_chunks, &p->gauth_number_of_chunks))
+		return -EFAULT;
 	if (copy_to_user(to, ch->chunks, len))
 		return -EFAULT;
 
@@ -5132,6 +5134,8 @@ static int sctp_getsockopt_local_auth_chunks(struct sock *sk, int len,
 
 	len = num_chunks;
 	if (put_user(len, optlen))
+		return -EFAULT;
+	if (put_user(num_chunks, &p->gauth_number_of_chunks))
 		return -EFAULT;
 	if (copy_to_user(to, ch->chunks, len))
 		return -EFAULT;
