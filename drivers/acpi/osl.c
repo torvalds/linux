@@ -1237,7 +1237,7 @@ int acpi_check_resource_conflict(struct resource *res)
 
 	if (clash) {
 		if (acpi_enforce_resources != ENFORCE_RESOURCES_NO) {
-			printk(KERN_INFO "%sACPI: %s resource %s [0x%llx-0x%llx]"
+			printk("%sACPI: %s resource %s [0x%llx-0x%llx]"
 			       " conflicts with ACPI region %s"
 			       " [0x%llx-0x%llx]\n",
 			       acpi_enforce_resources == ENFORCE_RESOURCES_LAX
