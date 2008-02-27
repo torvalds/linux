@@ -25,6 +25,7 @@
 #include <linux/mm.h>
 #include <linux/page-flags.h>
 #include <linux/highmem.h>
+#include <linux/console.h>
 
 #include <xen/interface/xen.h>
 #include <xen/interface/physdev.h>
@@ -1227,6 +1228,9 @@ asmlinkage void __init xen_start_kernel(void)
 	boot_params.hdr.ramdisk_image = xen_start_info->mod_start
 		? __pa(xen_start_info->mod_start) : 0;
 	boot_params.hdr.ramdisk_size = xen_start_info->mod_len;
+
+	if (!is_initial_xendomain())
+		add_preferred_console("hvc", 0, NULL);
 
 	/* Start the world */
 	start_kernel();
