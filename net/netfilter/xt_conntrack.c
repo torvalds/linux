@@ -231,7 +231,7 @@ conntrack_mt(const struct sk_buff *skb, const struct net_device *in,
 			if (test_bit(IPS_DST_NAT_BIT, &ct->status))
 				statebit |= XT_CONNTRACK_STATE_DNAT;
 		}
-		if ((info->state_mask & statebit) ^
+		if (!!(info->state_mask & statebit) ^
 		    !(info->invert_flags & XT_CONNTRACK_STATE))
 			return false;
 	}
