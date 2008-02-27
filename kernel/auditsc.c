@@ -1070,7 +1070,7 @@ static int audit_log_single_execve_arg(struct audit_context *context,
 		 * so we can be sure nothing was lost.
 		 */
 		if ((i == 0) && (too_long))
-			audit_log_format(*ab, "a%d_len=%ld ", arg_num,
+			audit_log_format(*ab, "a%d_len=%zu ", arg_num,
 					 has_cntl ? 2*len : len);
 
 		/*
