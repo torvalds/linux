@@ -210,7 +210,7 @@ extern long_ad *udf_get_filelongad(uint8_t *, int, uint32_t *, int);
 extern short_ad *udf_get_fileshortad(uint8_t *, int, uint32_t *, int);
 
 /* crc.c */
-extern uint16_t udf_crc(uint8_t *, uint32_t, uint16_t);
+extern uint16_t udf_crc(const uint8_t *, uint32_t, uint16_t);
 
 /* udftime.c */
 extern time_t *udf_stamp_to_time(time_t *, long *, kernel_timestamp);

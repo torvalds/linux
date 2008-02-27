@@ -23,7 +23,7 @@
 
 #include "udfdecl.h"
 
-static uint16_t crc_table[256] = {
+static const uint16_t crc_table[256] = {
 	0x0000U, 0x1021U, 0x2042U, 0x3063U, 0x4084U, 0x50a5U, 0x60c6U, 0x70e7U,
 	0x8108U, 0x9129U, 0xa14aU, 0xb16bU, 0xc18cU, 0xd1adU, 0xe1ceU, 0xf1efU,
 	0x1231U, 0x0210U, 0x3273U, 0x2252U, 0x52b5U, 0x4294U, 0x72f7U, 0x62d6U,
@@ -79,7 +79,7 @@ static uint16_t crc_table[256] = {
  *	July 21, 1997 - Andrew E. Mileski
  *	Adapted from OSTA-UDF(tm) 1.50 standard.
  */
-uint16_t udf_crc(uint8_t *data, uint32_t size, uint16_t crc)
+uint16_t udf_crc(const uint8_t *data, uint32_t size, uint16_t crc)
 {
 	while (size--)
 		crc = crc_table[(crc >> 8 ^ *(data++)) & 0xffU] ^ (crc << 8);
