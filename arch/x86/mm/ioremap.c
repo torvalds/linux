@@ -35,6 +35,18 @@ unsigned long __phys_addr(unsigned long x)
 }
 EXPORT_SYMBOL(__phys_addr);
 
+static inline int phys_addr_valid(unsigned long addr)
+{
+	return addr < (1UL << boot_cpu_data.x86_phys_bits);
+}
+
+#else
+
+static inline int phys_addr_valid(unsigned long addr)
+{
+	return 1;
+}
+
 #endif
 
 int page_is_ram(unsigned long pagenr)
@@ -117,6 +129,13 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 	last_addr = phys_addr + size - 1;
 	if (!size || last_addr < phys_addr)
 		return NULL;
+
+	if (!phys_addr_valid(phys_addr)) {
+		printk(KERN_WARNING "ioremap: invalid physical address %lx\n",
+		       phys_addr);
+		WARN_ON_ONCE(1);
+		return NULL;
+	}
 
 	/*
 	 * Don't remap the low PCI/ISA area, it's always mapped..
