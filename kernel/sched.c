@@ -7726,9 +7726,7 @@ static unsigned long to_ratio(u64 period, u64 runtime)
 	if (runtime == RUNTIME_INF)
 		return 1ULL << 16;
 
-	runtime *= (1ULL << 16);
-	div64_64(runtime, period);
-	return runtime;
+	return div64_64(runtime << 16, period);
 }
 
 static int __rt_schedulable(struct task_group *tg, u64 period, u64 runtime)
@@ -7757,18 +7755,16 @@ int sched_group_set_rt_runtime(struct task_group *tg, long rt_runtime_us)
 	u64 rt_runtime, rt_period;
 	int err = 0;
 
-	rt_period = sysctl_sched_rt_period * NSEC_PER_USEC;
+	rt_period = (u64)sysctl_sched_rt_period * NSEC_PER_USEC;
 	rt_runtime = (u64)rt_runtime_us * NSEC_PER_USEC;
 	if (rt_runtime_us == -1)
-		rt_runtime = rt_period;
+		rt_runtime = RUNTIME_INF;
 
 	mutex_lock(&rt_constraints_mutex);
 	if (!__rt_schedulable(tg, rt_period, rt_runtime)) {
 		err = -EINVAL;
 		goto unlock;
 	}
-	if (rt_runtime_us == -1)
-		rt_runtime = RUNTIME_INF;
 	tg->rt_runtime = rt_runtime;
  unlock:
 	mutex_unlock(&rt_constraints_mutex);
