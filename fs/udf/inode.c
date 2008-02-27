@@ -1136,20 +1136,6 @@ static void __udf_read_inode(struct inode *inode)
 	brelse(bh);
 }
 
-static void udf_fill_inode_time(struct timespec *tspec,
-				const timestamp *tstamp,
-				struct udf_sb_info *sbi)
-{
-	time_t convtime;
-	long convtime_usec;
-	if (udf_stamp_to_time(&convtime, &convtime_usec,
-				lets_to_cpu(*tstamp))) {
-		tspec->tv_sec = convtime;
-		tspec->tv_nsec = convtime_usec * 1000;
-	} else
-		*tspec = sbi->s_record_time;
-}
-
 static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 {
 	struct fileEntry *fe;
@@ -1241,10 +1227,17 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 		inode->i_blocks = le64_to_cpu(fe->logicalBlocksRecorded) <<
 			(inode->i_sb->s_blocksize_bits - 9);
 
-		udf_fill_inode_time(&inode->i_atime, &fe->accessTime, sbi);
-		udf_fill_inode_time(&inode->i_mtime, &fe->modificationTime,
-				    sbi);
-		udf_fill_inode_time(&inode->i_ctime, &fe->attrTime, sbi);
+		if (!udf_stamp_to_time(&inode->i_atime,
+					lets_to_cpu(fe->accessTime)))
+			inode->i_atime = sbi->s_record_time;
+
+		if (!udf_stamp_to_time(&inode->i_mtime,
+					lets_to_cpu(fe->modificationTime)))
+			inode->i_mtime = sbi->s_record_time;
+
+		if (!udf_stamp_to_time(&inode->i_ctime,
+					lets_to_cpu(fe->attrTime)))
+			inode->i_ctime = sbi->s_record_time;
 
 		iinfo->i_unique = le64_to_cpu(fe->uniqueID);
 		iinfo->i_lenEAttr = le32_to_cpu(fe->lengthExtendedAttr);
@@ -1254,11 +1247,21 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 		inode->i_blocks = le64_to_cpu(efe->logicalBlocksRecorded) <<
 		    (inode->i_sb->s_blocksize_bits - 9);
 
-		udf_fill_inode_time(&inode->i_atime, &efe->accessTime, sbi);
-		udf_fill_inode_time(&inode->i_mtime, &efe->modificationTime,
-				    sbi);
-		udf_fill_inode_time(&iinfo->i_crtime, &efe->createTime, sbi);
-		udf_fill_inode_time(&inode->i_ctime, &efe->attrTime, sbi);
+		if (!udf_stamp_to_time(&inode->i_atime,
+					lets_to_cpu(efe->accessTime)))
+			inode->i_atime = sbi->s_record_time;
+
+		if (!udf_stamp_to_time(&inode->i_mtime,
+					lets_to_cpu(efe->modificationTime)))
+			inode->i_mtime = sbi->s_record_time;
+
+		if (!udf_stamp_to_time(&iinfo->i_crtime,
+					lets_to_cpu(efe->createTime)))
+			iinfo->i_crtime = sbi->s_record_time;
+
+		if (!udf_stamp_to_time(&inode->i_ctime,
+					lets_to_cpu(efe->attrTime)))
+			inode->i_ctime = sbi->s_record_time;
 
 		iinfo->i_unique = le64_to_cpu(efe->uniqueID);
 		iinfo->i_lenEAttr = le32_to_cpu(efe->lengthExtendedAttr);

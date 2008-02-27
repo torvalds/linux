@@ -85,7 +85,7 @@ extern struct timezone sys_tz;
 #define SECS_PER_HOUR	(60 * 60)
 #define SECS_PER_DAY	(SECS_PER_HOUR * 24)
 
-time_t *udf_stamp_to_time(time_t *dest, long *dest_usec, kernel_timestamp src)
+struct timespec *udf_stamp_to_time(struct timespec *dest, kernel_timestamp src)
 {
 	int yday;
 	uint8_t type = src.typeAndTimezone >> 12;
@@ -97,23 +97,20 @@ time_t *udf_stamp_to_time(time_t *dest, long *dest_usec, kernel_timestamp src)
 		offset = (offset >> 4);
 		if (offset == -2047) /* unspecified offset */
 			offset = 0;
-	} else {
+	} else
 		offset = 0;
-	}
 
 	if ((src.year < EPOCH_YEAR) ||
 	    (src.year >= EPOCH_YEAR + MAX_YEAR_SECONDS)) {
-		*dest = -1;
-		*dest_usec = -1;
 		return NULL;
 	}
-	*dest = year_seconds[src.year - EPOCH_YEAR];
-	*dest -= offset * 60;
+	dest->tv_sec = year_seconds[src.year - EPOCH_YEAR];
+	dest->tv_sec -= offset * 60;
 
 	yday = ((__mon_yday[__isleap(src.year)][src.month - 1]) + src.day - 1);
-	*dest += (((yday * 24) + src.hour) * 60 + src.minute) * 60 + src.second;
-	*dest_usec = src.centiseconds * 10000 +
-			src.hundredsOfMicroseconds * 100 + src.microseconds;
+	dest->tv_sec += (((yday * 24) + src.hour) * 60 + src.minute) * 60 + src.second;
+	dest->tv_nsec = 1000 * (src.centiseconds * 10000 +
+			src.hundredsOfMicroseconds * 100 + src.microseconds);
 	return dest;
 }
 

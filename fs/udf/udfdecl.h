@@ -222,7 +222,7 @@ extern short_ad *udf_get_fileshortad(uint8_t *, int, uint32_t *, int);
 extern uint16_t udf_crc(const uint8_t *, uint32_t, uint16_t);
 
 /* udftime.c */
-extern time_t *udf_stamp_to_time(time_t *, long *, kernel_timestamp);
-extern kernel_timestamp *udf_time_to_stamp(kernel_timestamp *, struct timespec);
+extern struct timespec *udf_stamp_to_time(struct timespec *dest, kernel_timestamp src);
+extern kernel_timestamp *udf_time_to_stamp(kernel_timestamp *dest, struct timespec src);
 
 #endif				/* __UDF_DECL_H */

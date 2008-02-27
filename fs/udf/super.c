@@ -938,24 +938,19 @@ static int udf_find_fileset(struct super_block *sb,
 static void udf_load_pvoldesc(struct super_block *sb, struct buffer_head *bh)
 {
 	struct primaryVolDesc *pvoldesc;
-	time_t recording;
-	long recording_usec;
 	struct ustr instr;
 	struct ustr outstr;
 
 	pvoldesc = (struct primaryVolDesc *)bh->b_data;
 
-	if (udf_stamp_to_time(&recording, &recording_usec,
+	if (udf_stamp_to_time(&UDF_SB(sb)->s_record_time,
 			      lets_to_cpu(pvoldesc->recordingDateAndTime))) {
 		kernel_timestamp ts;
 		ts = lets_to_cpu(pvoldesc->recordingDateAndTime);
-		udf_debug("recording time %ld/%ld, %04u/%02u/%02u"
+		udf_debug("recording time %04u/%02u/%02u"
 			  " %02u:%02u (%x)\n",
-			  recording, recording_usec,
 			  ts.year, ts.month, ts.day, ts.hour,
 			  ts.minute, ts.typeAndTimezone);
-		UDF_SB(sb)->s_record_time.tv_sec = recording;
-		UDF_SB(sb)->s_record_time.tv_nsec = recording_usec * 1000;
 	}
 
 	if (!udf_build_ustr(&instr, pvoldesc->volIdent, 32))
