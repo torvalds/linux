@@ -244,16 +244,8 @@ static void do_kernel_fault(struct pt_regs *regs, int si_code, int fault_code,
 	if (regs->tstate & TSTATE_PRIV) {
 		const struct exception_table_entry *entry;
 
-		if (asi == ASI_P && (insn & 0xc0800000) == 0xc0800000) {
-			if (insn & 0x2000)
-				asi = (regs->tstate >> 24);
-			else
-				asi = (insn >> 5);
-		}
-	
-		/* Look in asi.h: All _S asis have LS bit set */
-		if ((asi & 0x1) &&
-		    (entry = search_exception_tables(regs->tpc))) {
+		entry = search_exception_tables(regs->tpc);
+		if (entry) {
 			regs->tpc = entry->fixup;
 			regs->tnpc = regs->tpc + 4;
 			return;
