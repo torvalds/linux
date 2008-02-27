@@ -158,6 +158,7 @@ run_osc_out:
 /**
  * __pci_osc_support_set - register OS support to Firmware
  * @flags: OS support bits
+ * @hid: hardware ID
  *
  * Update OS support fields and doing a _OSC Query to obtain an update
  * from Firmware on supported control bits.
@@ -241,8 +242,6 @@ EXPORT_SYMBOL(pci_osc_control_set);
  *	choose from highest power _SxD to lowest power _SxW
  * else // no _PRW at S-state x
  * 	choose highest power _SxD or any lower power
- *
- * currently we simply return _SxD, if present.
  */
 
 static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev,

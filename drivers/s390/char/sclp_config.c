@@ -64,7 +64,7 @@ static int __init sclp_conf_init(void)
 		return rc;
 	}
 
-	if (!(sclp_conf_register.sclp_receive_mask & EVTYP_CONFMGMDATA_MASK)) {
+	if (!(sclp_conf_register.sclp_send_mask & EVTYP_CONFMGMDATA_MASK)) {
 		printk(KERN_WARNING TAG "no configuration management.\n");
 		sclp_unregister(&sclp_conf_register);
 		rc = -ENOSYS;

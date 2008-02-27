@@ -45,7 +45,8 @@ struct xc5000_config {
 /* xc5000 callback command */
 #define XC5000_TUNER_RESET		0
 
-#if defined(CONFIG_DVB_TUNER_XC5000) || defined(CONFIG_DVB_TUNER_XC5000_MODULE)
+#if defined(CONFIG_DVB_TUNER_XC5000) || \
+    (defined(CONFIG_DVB_TUNER_XC5000_MODULE) && defined(MODULE))
 extern struct dvb_frontend* xc5000_attach(struct dvb_frontend *fe,
 					  struct i2c_adapter *i2c,
 					  struct xc5000_config *cfg);

@@ -92,9 +92,9 @@
  91 -> AVerMedia A169 B                         [1461:7360]
  92 -> AVerMedia A169 B1                        [1461:6360]
  93 -> Medion 7134 Bridge #2                    [16be:0005]
- 94 -> LifeView FlyDVB-T Hybrid Cardbus/MSI TV @nywhere A/D NB [5168:3306,5168:3502,4e42:3502]
+ 94 -> LifeView FlyDVB-T Hybrid Cardbus/MSI TV @nywhere A/D NB [5168:3306,5168:3502,5168:3307,4e42:3502]
  95 -> LifeView FlyVIDEO3000 (NTSC)             [5169:0138]
- 96 -> Medion Md8800 Quadro                     [16be:0007,16be:0008]
+ 96 -> Medion Md8800 Quadro                     [16be:0007,16be:0008,16be:000d]
  97 -> LifeView FlyDVB-S /Acorp TV134DS         [5168:0300,4e42:0300]
  98 -> Proteus Pro 2309                         [0919:2003]
  99 -> AVerMedia TV Hybrid A16AR                [1461:2c00]
@@ -129,3 +129,5 @@
 128 -> Beholder BeholdTV Columbus TVFM          [0000:5201]
 129 -> Beholder BeholdTV 607 / BeholdTV 609     [5ace:6070,5ace:6071,5ace:6072,5ace:6073,5ace:6090,5ace:6091,5ace:6092,5ace:6093]
 130 -> Beholder BeholdTV M6 / BeholdTV M6 Extra [5ace:6190,5ace:6193]
+131 -> Twinhan Hybrid DTV-DVB 3056 PCI          [1822:0022]
+132 -> Genius TVGO AM11MCE

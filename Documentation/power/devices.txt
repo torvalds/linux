@@ -310,9 +310,12 @@ used with suspend-to-disk:
     PM_EVENT_SUSPEND -- quiesce the driver and put hardware into a low-power
 	state.  When used with system sleep states like "suspend-to-RAM" or
 	"standby", the upcoming resume() call will often be able to rely on
-	state kept in hardware, or issue system wakeup events.  When used
-	instead with suspend-to-disk, few devices support this capability;
-	most are completely powered off.
+	state kept in hardware, or issue system wakeup events.
+
+    PM_EVENT_HIBERNATE -- Put hardware into a low-power state and enable wakeup
+	events as appropriate.  It is only used with hibernation
+	(suspend-to-disk) and few devices are able to wake up the system from
+	this state; most are completely powered off.
 
     PM_EVENT_FREEZE -- quiesce the driver, but don't necessarily change into
 	any low power mode.  A system snapshot is about to be taken, often
@@ -329,8 +332,8 @@ used with suspend-to-disk:
 	wakeup events nor DMA are allowed.
 
 To enter "standby" (ACPI S1) or "Suspend to RAM" (STR, ACPI S3) states, or
-the similarly named APM states, only PM_EVENT_SUSPEND is used; for "Suspend
-to Disk" (STD, hibernate, ACPI S4), all of those event codes are used.
+the similarly named APM states, only PM_EVENT_SUSPEND is used; the other event
+codes are used for hibernation ("Suspend to Disk", STD, ACPI S4).
 
 There's also PM_EVENT_ON, a value which never appears as a suspend event
 but is sometimes used to record the "not suspended" device state.

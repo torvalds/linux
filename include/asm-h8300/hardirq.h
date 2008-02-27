@@ -12,6 +12,8 @@ typedef struct {
 
 #include <linux/irq_cpustat.h>	/* Standard mappings for irq_cpustat_t above */
 
+extern void ack_bad_irq(unsigned int irq);
+
 #define HARDIRQ_BITS	8
 
 /*

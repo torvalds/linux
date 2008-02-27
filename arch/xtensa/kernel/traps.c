@@ -118,28 +118,28 @@ static dispatch_init_table_t __initdata dispatch_init_table[] = {
 { EXCCAUSE_STORE_CACHE_ATTRIBUTE,	0,	   do_page_fault },
 { EXCCAUSE_LOAD_CACHE_ATTRIBUTE,	0,	   do_page_fault },
 /* XCCHAL_EXCCAUSE_FLOATING_POINT unhandled */
-#if (XCHAL_CP_MASK & 1)
+#if XTENSA_HAVE_COPROCESSOR(0)
 COPROCESSOR(0),
 #endif
-#if (XCHAL_CP_MASK & 2)
+#if XTENSA_HAVE_COPROCESSOR(1)
 COPROCESSOR(1),
 #endif
-#if (XCHAL_CP_MASK & 4)
+#if XTENSA_HAVE_COPROCESSOR(2)
 COPROCESSOR(2),
 #endif
-#if (XCHAL_CP_MASK & 8)
+#if XTENSA_HAVE_COPROCESSOR(3)
 COPROCESSOR(3),
 #endif
-#if (XCHAL_CP_MASK & 16)
+#if XTENSA_HAVE_COPROCESSOR(4)
 COPROCESSOR(4),
 #endif
-#if (XCHAL_CP_MASK & 32)
+#if XTENSA_HAVE_COPROCESSOR(5)
 COPROCESSOR(5),
 #endif
-#if (XCHAL_CP_MASK & 64)
+#if XTENSA_HAVE_COPROCESSOR(6)
 COPROCESSOR(6),
 #endif
-#if (XCHAL_CP_MASK & 128)
+#if XTENSA_HAVE_COPROCESSOR(7)
 COPROCESSOR(7),
 #endif
 { EXCCAUSE_MAPPED_DEBUG,		0,		do_debug },
@@ -349,9 +349,7 @@ void show_regs(struct pt_regs * regs)
 
 	wmask = regs->wmask & ~1;
 
-	for (i = 0; i < 32; i++) {
-		if (wmask & (1 << (i / 4)))
-			break;
+	for (i = 0; i < 16; i++) {
 		if ((i % 8) == 0)
 			printk ("\n" KERN_INFO "a%02d: ", i);
 		printk("%08lx ", regs->areg[i]);

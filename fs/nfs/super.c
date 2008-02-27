@@ -190,6 +190,10 @@ static match_table_t nfs_secflavor_tokens = {
 	{ Opt_sec_lkeyi, "lkeyi" },
 	{ Opt_sec_lkeyp, "lkeyp" },
 
+	{ Opt_sec_spkm, "spkm3" },
+	{ Opt_sec_spkmi, "spkm3i" },
+	{ Opt_sec_spkmp, "spkm3p" },
+
 	{ Opt_sec_err, NULL }
 };
 

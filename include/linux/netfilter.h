@@ -51,7 +51,7 @@ enum nf_inet_hooks {
 };
 
 union nf_inet_addr {
-	u_int32_t	all[4];
+	__u32		all[4];
 	__be32		ip;
 	__be32		ip6[4];
 	struct in_addr	in;

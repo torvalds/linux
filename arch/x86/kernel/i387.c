@@ -39,7 +39,7 @@
 #define HAVE_HWFP 1
 #endif
 
-unsigned int mxcsr_feature_mask __read_mostly = 0xffffffffu;
+static unsigned int mxcsr_feature_mask __read_mostly = 0xffffffffu;
 
 void mxcsr_feature_mask_init(void)
 {

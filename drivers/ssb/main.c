@@ -557,6 +557,7 @@ static int ssb_fetch_invariants(struct ssb_bus *bus,
 		goto out;
 	memcpy(&bus->boardinfo, &iv.boardinfo, sizeof(iv.boardinfo));
 	memcpy(&bus->sprom, &iv.sprom, sizeof(iv.sprom));
+	bus->has_cardbus_slot = iv.has_cardbus_slot;
 out:
 	return err;
 }
@@ -569,6 +570,9 @@ static int ssb_bus_register(struct ssb_bus *bus,
 
 	spin_lock_init(&bus->bar_lock);
 	INIT_LIST_HEAD(&bus->list);
+#ifdef CONFIG_SSB_EMBEDDED
+	spin_lock_init(&bus->gpio_lock);
+#endif
 
 	/* Powerup the bus */
 	err = ssb_pci_xtal(bus, SSB_GPIO_XTAL | SSB_GPIO_PLL, 1);

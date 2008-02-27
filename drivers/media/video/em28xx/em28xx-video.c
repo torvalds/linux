@@ -189,7 +189,7 @@ static void video_mux(struct em28xx *dev, int index)
 		em28xx_i2c_call_clients(dev, VIDIOC_INT_S_AUDIO_ROUTING, &route);
 	}
 
-	em28xx_set_audio_source(dev);
+	em28xx_audio_analog_set(dev);
 }
 
 /* Usage lock check functions */
@@ -830,6 +830,63 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	return 0;
 }
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int em28xx_reg_len(int reg)
+{
+	switch (reg) {
+	case AC97LSB_REG:
+	case HSCALELOW_REG:
+	case VSCALELOW_REG:
+		return 2;
+	default:
+		return 1;
+	}
+}
+
+static int vidioc_g_register(struct file *file, void *priv,
+			     struct v4l2_register *reg)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	int ret;
+
+	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+		return -EINVAL;
+
+	if (em28xx_reg_len(reg->reg) == 1) {
+		ret = em28xx_read_reg(dev, reg->reg);
+		if (ret < 0)
+			return ret;
+
+		reg->val = ret;
+	} else {
+		u64 val = 0;
+		ret = em28xx_read_reg_req_len(dev, USB_REQ_GET_STATUS,
+						   reg->reg, (char *)&val, 2);
+		if (ret < 0)
+			return ret;
+
+		reg->val = cpu_to_le64((__u64)val);
+	}
+
+	return 0;
+}
+
+static int vidioc_s_register(struct file *file, void *priv,
+			     struct v4l2_register *reg)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	u64 buf;
+
+	buf = le64_to_cpu((__u64)reg->val);
+
+	return em28xx_write_regs(dev, reg->reg, (char *)&buf,
+				 em28xx_reg_len(reg->reg));
+}
+#endif
+
+
 static int vidioc_cropcap(struct file *file, void *priv,
 					struct v4l2_cropcap *cc)
 {
@@ -1295,8 +1352,6 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 	filp->private_data = fh;
 
 	if (dev->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && dev->users == 0) {
-		em28xx_set_alternate(dev);
-
 		dev->width = norm_maxw(dev);
 		dev->height = norm_maxh(dev);
 		dev->frame_size = dev->width * dev->height * 2;
@@ -1305,6 +1360,7 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 		dev->hscale = 0;
 		dev->vscale = 0;
 
+		em28xx_set_alternate(dev);
 		em28xx_capture_start(dev, 1);
 		em28xx_resolution_set(dev);
 
@@ -1730,6 +1786,10 @@ static const struct video_device em28xx_video_template = {
 	.vidioc_s_tuner             = vidioc_s_tuner,
 	.vidioc_g_frequency         = vidioc_g_frequency,
 	.vidioc_s_frequency         = vidioc_s_frequency,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.vidioc_g_register          = vidioc_g_register,
+	.vidioc_s_register          = vidioc_s_register,
+#endif
 
 	.tvnorms                    = V4L2_STD_ALL,
 	.current_norm               = V4L2_STD_PAL,
@@ -1752,6 +1812,10 @@ static struct video_device em28xx_radio_template = {
 	.vidioc_s_ctrl        = vidioc_s_ctrl,
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_s_frequency   = vidioc_s_frequency,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.vidioc_g_register    = vidioc_g_register,
+	.vidioc_s_register    = vidioc_s_register,
+#endif
 };
 
 /******************************** usb interface *****************************************/
@@ -1796,10 +1860,10 @@ void em28xx_unregister_extension(struct em28xx_ops *ops)
 }
 EXPORT_SYMBOL(em28xx_unregister_extension);
 
-struct video_device *em28xx_vdev_init(struct em28xx *dev,
-				      const struct video_device *template,
-				      const int type,
-				      const char *type_name)
+static struct video_device *em28xx_vdev_init(struct em28xx *dev,
+					     const struct video_device *template,
+					     const int type,
+					     const char *type_name)
 {
 	struct video_device *vfd;
 
@@ -2064,6 +2128,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	snprintf(dev->name, 29, "em28xx #%d", nr);
 	dev->devno = nr;
 	dev->model = id->driver_info;
+	dev->alt   = -1;
 
 	/* Checks if audio is provided by some interface */
 	for (i = 0; i < udev->config->desc.bNumInterfaces; i++) {

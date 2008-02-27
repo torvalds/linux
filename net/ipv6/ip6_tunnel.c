@@ -229,18 +229,11 @@ static struct ip6_tnl *ip6_tnl_create(struct ip6_tnl_parm *p)
 	char name[IFNAMSIZ];
 	int err;
 
-	if (p->name[0]) {
+	if (p->name[0])
 		strlcpy(name, p->name, IFNAMSIZ);
-	} else {
-		int i;
-		for (i = 1; i < IP6_TNL_MAX; i++) {
-			sprintf(name, "ip6tnl%d", i);
-			if (__dev_get_by_name(&init_net, name) == NULL)
-				break;
-		}
-		if (i == IP6_TNL_MAX)
-			goto failed;
-	}
+	else
+		sprintf(name, "ip6tnl%%d");
+
 	dev = alloc_netdev(sizeof (*t), name, ip6_tnl_dev_setup);
 	if (dev == NULL)
 		goto failed;
@@ -550,6 +543,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			ip_rt_put(rt);
 			goto out;
 		}
+		skb2->dst = (struct dst_entry *)rt;
 	} else {
 		ip_rt_put(rt);
 		if (ip_route_input(skb2, eiph->daddr, eiph->saddr, eiph->tos,

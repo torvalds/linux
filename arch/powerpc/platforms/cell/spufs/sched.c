@@ -856,21 +856,18 @@ static noinline void spusched_tick(struct spu_context *ctx)
 {
 	struct spu_context *new = NULL;
 	struct spu *spu = NULL;
-	u32 status;
 
 	if (spu_acquire(ctx))
 		BUG();	/* a kernel thread never has signals pending */
 
 	if (ctx->state != SPU_STATE_RUNNABLE)
 		goto out;
-	if (spu_stopped(ctx, &status))
-		goto out;
 	if (ctx->flags & SPU_CREATE_NOSCHED)
 		goto out;
 	if (ctx->policy == SCHED_FIFO)
 		goto out;
 
-	if (--ctx->time_slice)
+	if (--ctx->time_slice && ctx->policy != SCHED_IDLE)
 		goto out;
 
 	spu = ctx->spu;
@@ -880,7 +877,8 @@ static noinline void spusched_tick(struct spu_context *ctx)
 	new = grab_runnable_context(ctx->prio + 1, spu->node);
 	if (new) {
 		spu_unschedule(spu, ctx);
-		spu_add_to_rq(ctx);
+		if (ctx->policy != SCHED_IDLE)
+			spu_add_to_rq(ctx);
 	} else {
 		spu_context_nospu_trace(spusched_tick__newslice, ctx);
 		ctx->time_slice++;

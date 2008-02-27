@@ -358,12 +358,9 @@ static ssize_t
 guid_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct fw_device *device = fw_device(dev);
-	u64 guid;
 
-	guid = ((u64)device->config_rom[3] << 32) | device->config_rom[4];
-
-	return snprintf(buf, PAGE_SIZE, "0x%016llx\n",
-			(unsigned long long)guid);
+	return snprintf(buf, PAGE_SIZE, "0x%08x%08x\n",
+			device->config_rom[3], device->config_rom[4]);
 }
 
 static struct device_attribute fw_device_attributes[] = {
@@ -610,12 +607,14 @@ static DECLARE_RWSEM(idr_rwsem);
 static DEFINE_IDR(fw_device_idr);
 int fw_cdev_major;
 
-struct fw_device *fw_device_from_devt(dev_t devt)
+struct fw_device *fw_device_get_by_devt(dev_t devt)
 {
 	struct fw_device *device;
 
 	down_read(&idr_rwsem);
 	device = idr_find(&fw_device_idr, MINOR(devt));
+	if (device)
+		fw_device_get(device);
 	up_read(&idr_rwsem);
 
 	return device;
@@ -627,13 +626,14 @@ static void fw_device_shutdown(struct work_struct *work)
 		container_of(work, struct fw_device, work.work);
 	int minor = MINOR(device->device.devt);
 
-	down_write(&idr_rwsem);
-	idr_remove(&fw_device_idr, minor);
-	up_write(&idr_rwsem);
-
 	fw_device_cdev_remove(device);
 	device_for_each_child(&device->device, NULL, shutdown_unit);
 	device_unregister(&device->device);
+
+	down_write(&idr_rwsem);
+	idr_remove(&fw_device_idr, minor);
+	up_write(&idr_rwsem);
+	fw_device_put(device);
 }
 
 static struct device_type fw_device_type = {
@@ -682,10 +682,13 @@ static void fw_device_init(struct work_struct *work)
 	}
 
 	err = -ENOMEM;
+
+	fw_device_get(device);
 	down_write(&idr_rwsem);
 	if (idr_pre_get(&fw_device_idr, GFP_KERNEL))
 		err = idr_get_new(&fw_device_idr, device, &minor);
 	up_write(&idr_rwsem);
+
 	if (err < 0)
 		goto error;
 
@@ -717,13 +720,22 @@ static void fw_device_init(struct work_struct *work)
 	 */
 	if (atomic_cmpxchg(&device->state,
 		    FW_DEVICE_INITIALIZING,
-		    FW_DEVICE_RUNNING) == FW_DEVICE_SHUTDOWN)
+		    FW_DEVICE_RUNNING) == FW_DEVICE_SHUTDOWN) {
 		fw_device_shutdown(&device->work.work);
-	else
-		fw_notify("created new fw device %s "
-			  "(%d config rom retries, S%d00)\n",
-			  device->device.bus_id, device->config_rom_retries,
-			  1 << device->max_speed);
+	} else {
+		if (device->config_rom_retries)
+			fw_notify("created device %s: GUID %08x%08x, S%d00, "
+				  "%d config ROM retries\n",
+				  device->device.bus_id,
+				  device->config_rom[3], device->config_rom[4],
+				  1 << device->max_speed,
+				  device->config_rom_retries);
+		else
+			fw_notify("created device %s: GUID %08x%08x, S%d00\n",
+				  device->device.bus_id,
+				  device->config_rom[3], device->config_rom[4],
+				  1 << device->max_speed);
+	}
 
 	/*
 	 * Reschedule the IRM work if we just finished reading the
@@ -741,7 +753,9 @@ static void fw_device_init(struct work_struct *work)
 	idr_remove(&fw_device_idr, minor);
 	up_write(&idr_rwsem);
  error:
-	put_device(&device->device);
+	fw_device_put(device);		/* fw_device_idr's reference */
+
+	put_device(&device->device);	/* our reference */
 }
 
 static int update_unit(struct device *dev, void *data)

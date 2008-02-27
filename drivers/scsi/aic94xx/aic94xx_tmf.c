@@ -151,8 +151,6 @@ static int asd_clear_nexus_I_T(struct domain_device *dev)
 	CLEAR_NEXUS_PRE;
 	scb->clear_nexus.nexus = NEXUS_I_T;
 	scb->clear_nexus.flags = SEND_Q | EXEC_Q | NOTINQ;
-	if (dev->tproto)
-		scb->clear_nexus.flags |= SUSPEND_TX;
 	scb->clear_nexus.conn_handle = cpu_to_le16((u16)(unsigned long)
 						   dev->lldd_dev);
 	CLEAR_NEXUS_POST;
@@ -169,8 +167,6 @@ static int asd_clear_nexus_I_T_L(struct domain_device *dev, u8 *lun)
 	CLEAR_NEXUS_PRE;
 	scb->clear_nexus.nexus = NEXUS_I_T_L;
 	scb->clear_nexus.flags = SEND_Q | EXEC_Q | NOTINQ;
-	if (dev->tproto)
-		scb->clear_nexus.flags |= SUSPEND_TX;
 	memcpy(scb->clear_nexus.ssp_task.lun, lun, 8);
 	scb->clear_nexus.conn_handle = cpu_to_le16((u16)(unsigned long)
 						   dev->lldd_dev);

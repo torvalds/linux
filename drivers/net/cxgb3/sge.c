@@ -1059,6 +1059,14 @@ static void write_tx_pkt_wr(struct adapter *adap, struct sk_buff *skb,
 			 htonl(V_WR_TID(q->token)));
 }
 
+static inline void t3_stop_queue(struct net_device *dev, struct sge_qset *qs,
+				 struct sge_txq *q)
+{
+	netif_stop_queue(dev);
+	set_bit(TXQ_ETH, &qs->txq_stopped);
+	q->stops++;
+}
+
 /**
  *	eth_xmit - add a packet to the Ethernet Tx queue
  *	@skb: the packet
@@ -1090,31 +1098,18 @@ int t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	ndesc = calc_tx_descs(skb);
 
 	if (unlikely(credits < ndesc)) {
-		if (!netif_queue_stopped(dev)) {
-			netif_stop_queue(dev);
-			set_bit(TXQ_ETH, &qs->txq_stopped);
-			q->stops++;
-			dev_err(&adap->pdev->dev,
-				"%s: Tx ring %u full while queue awake!\n",
-				dev->name, q->cntxt_id & 7);
-		}
+		t3_stop_queue(dev, qs, q);
+		dev_err(&adap->pdev->dev,
+			"%s: Tx ring %u full while queue awake!\n",
+			dev->name, q->cntxt_id & 7);
 		spin_unlock(&q->lock);
 		return NETDEV_TX_BUSY;
 	}
 
 	q->in_use += ndesc;
-	if (unlikely(credits - ndesc < q->stop_thres)) {
-		q->stops++;
-		netif_stop_queue(dev);
-		set_bit(TXQ_ETH, &qs->txq_stopped);
-#if !USE_GTS
-		if (should_restart_tx(q) &&
-		    test_and_clear_bit(TXQ_ETH, &qs->txq_stopped)) {
-			q->restarts++;
-			netif_wake_queue(dev);
-		}
-#endif
-	}
+	if (unlikely(credits - ndesc < q->stop_thres))
+		if (USE_GTS || !should_restart_tx(q))
+			t3_stop_queue(dev, qs, q);
 
 	gen = q->gen;
 	q->unacked += ndesc;

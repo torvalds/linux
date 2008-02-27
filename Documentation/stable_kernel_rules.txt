@@ -16,8 +16,9 @@ Rules on what kind of patches are accepted, and which ones are not, into the
    race can be exploited is also provided.
  - It cannot contain any "trivial" fixes in it (spelling changes,
    whitespace cleanups, etc).
- - It must be accepted by the relevant subsystem maintainer.
  - It must follow the Documentation/SubmittingPatches rules.
+ - It or an equivalent fix must already exist in Linus' tree.  Quote the
+   respective commit ID in Linus' tree in your patch submission to -stable.
 
 
 Procedure for submitting patches to the -stable tree:
@@ -28,7 +29,9 @@ Procedure for submitting patches to the -stable tree:
    queue, or a NAK if the patch is rejected.  This response might take a few
    days, according to the developer's schedules.
  - If accepted, the patch will be added to the -stable queue, for review by
-   other developers.
+   other developers and by the relevant subsystem maintainer.
+ - If the stable@kernel.org address is added to a patch, when it goes into
+   Linus's tree it will automatically be emailed to the stable team.
  - Security patches should not be sent to this alias, but instead to the
    documented security@kernel.org address.
 

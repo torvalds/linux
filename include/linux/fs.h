@@ -1590,7 +1590,6 @@ extern void bd_set_size(struct block_device *, loff_t size);
 extern void bd_forget(struct inode *inode);
 extern void bdput(struct block_device *);
 extern struct block_device *open_by_devnum(dev_t, unsigned);
-extern const struct address_space_operations def_blk_aops;
 #else
 static inline void bd_forget(struct inode *inode) {}
 #endif

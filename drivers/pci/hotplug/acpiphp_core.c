@@ -392,6 +392,9 @@ static int __init acpiphp_init(void)
 {
 	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 
+	if (acpi_pci_disabled)
+		return 0;
+
 	acpiphp_debug = debug;
 
 	/* read all the ACPI info from the system */
@@ -401,6 +404,9 @@ static int __init acpiphp_init(void)
 
 static void __exit acpiphp_exit(void)
 {
+	if (acpi_pci_disabled)
+		return;
+
 	/* deallocate internal data structures etc. */
 	acpiphp_glue_exit();
 }

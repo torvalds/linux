@@ -372,7 +372,8 @@ static struct fib_node *fib_find_node(struct fn_zone *fz, __be32 key)
 static int fn_hash_insert(struct fib_table *tb, struct fib_config *cfg)
 {
 	struct fn_hash *table = (struct fn_hash *) tb->tb_data;
-	struct fib_node *new_f, *f;
+	struct fib_node *new_f = NULL;
+	struct fib_node *f;
 	struct fib_alias *fa, *new_fa;
 	struct fn_zone *fz;
 	struct fib_info *fi;
@@ -496,7 +497,6 @@ static int fn_hash_insert(struct fib_table *tb, struct fib_config *cfg)
 
 	err = -ENOBUFS;
 
-	new_f = NULL;
 	if (!f) {
 		new_f = kmem_cache_zalloc(fn_hash_kmem, GFP_KERNEL);
 		if (new_f == NULL)
@@ -512,7 +512,7 @@ static int fn_hash_insert(struct fib_table *tb, struct fib_config *cfg)
 	if (new_fa->fa_info != NULL) {
 		new_fa = kmem_cache_alloc(fn_alias_kmem, GFP_KERNEL);
 		if (new_fa == NULL)
-			goto out_free_new_f;
+			goto out;
 	}
 	new_fa->fa_info = fi;
 	new_fa->fa_tos = tos;
@@ -540,9 +540,9 @@ static int fn_hash_insert(struct fib_table *tb, struct fib_config *cfg)
 		  &cfg->fc_nlinfo, 0);
 	return 0;
 
-out_free_new_f:
-	kmem_cache_free(fn_hash_kmem, new_f);
 out:
+	if (new_f)
+		kmem_cache_free(fn_hash_kmem, new_f);
 	fib_release_info(fi);
 	return err;
 }

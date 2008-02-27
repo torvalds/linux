@@ -20,10 +20,8 @@
 
 #include <xen/interface/xen.h>
 
-#ifdef CONFIG_LGUEST_GUEST
 #include <linux/lguest.h>
 #include "../../../drivers/lguest/lg.h"
-#endif
 
 #define DEFINE(sym, val) \
         asm volatile("\n->" #sym " %0 " #val : : "i" (val))
@@ -130,10 +128,12 @@ void foo(void)
 	OFFSET(XEN_vcpu_info_pending, vcpu_info, evtchn_upcall_pending);
 #endif
 
-#ifdef CONFIG_LGUEST_GUEST
+#if defined(CONFIG_LGUEST) || defined(CONFIG_LGUEST_GUEST) || defined(CONFIG_LGUEST_MODULE)
 	BLANK();
 	OFFSET(LGUEST_DATA_irq_enabled, lguest_data, irq_enabled);
 	OFFSET(LGUEST_DATA_pgdir, lguest_data, pgdir);
+
+	BLANK();
 	OFFSET(LGUEST_PAGES_host_gdt_desc, lguest_pages, state.host_gdt_desc);
 	OFFSET(LGUEST_PAGES_host_idt_desc, lguest_pages, state.host_idt_desc);
 	OFFSET(LGUEST_PAGES_host_cr3, lguest_pages, state.host_cr3);

@@ -234,6 +234,7 @@ static int spu_run_fini(struct spu_context *ctx, u32 *npc,
 	*npc = ctx->ops->npc_read(ctx);
 
 	spuctx_switch_state(ctx, SPU_UTIL_IDLE_LOADED);
+	ctx->policy = SCHED_IDLE;
 	spu_release(ctx);
 
 	if (signal_pending(current))

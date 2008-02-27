@@ -1207,9 +1207,13 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 end_request:
 	if (blk_pc_request(rq)) {
 		unsigned long flags;
+		unsigned int dlen = rq->data_len;
+
+		if (dma)
+			rq->data_len = 0;
 
 		spin_lock_irqsave(&ide_lock, flags);
-		if (__blk_end_request(rq, 0, rq->data_len))
+		if (__blk_end_request(rq, 0, dlen))
 			BUG();
 		HWGROUP(drive)->rq = NULL;
 		spin_unlock_irqrestore(&ide_lock, flags);

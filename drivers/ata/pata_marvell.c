@@ -85,8 +85,8 @@ static int marvell_cable_detect(struct ata_port *ap)
 
 static void marvell_error_handler(struct ata_port *ap)
 {
-	return ata_bmdma_drive_eh(ap, marvell_pre_reset, ata_std_softreset,
-				  NULL, ata_std_postreset);
+	ata_bmdma_drive_eh(ap, marvell_pre_reset, ata_std_softreset, NULL,
+			   ata_std_postreset);
 }
 
 /* No PIO or DMA methods needed for this device */

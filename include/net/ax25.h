@@ -324,6 +324,7 @@ extern void ax25_dama_on(ax25_cb *);
 extern void ax25_dama_off(ax25_cb *);
 
 /* ax25_ds_timer.c */
+extern void ax25_ds_setup_timer(ax25_dev *);
 extern void ax25_ds_set_timer(ax25_dev *);
 extern void ax25_ds_del_timer(ax25_dev *);
 extern void ax25_ds_timer(ax25_cb *);
@@ -416,6 +417,7 @@ extern void ax25_calculate_rtt(ax25_cb *);
 extern void ax25_disconnect(ax25_cb *, int);
 
 /* ax25_timer.c */
+extern void ax25_setup_timers(ax25_cb *);
 extern void ax25_start_heartbeat(ax25_cb *);
 extern void ax25_start_t1timer(ax25_cb *);
 extern void ax25_start_t2timer(ax25_cb *);

@@ -518,7 +518,7 @@ static void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 }
 
 #ifdef CONFIG_NUMA
-static int nearby_node(int apicid)
+static int __cpuinit nearby_node(int apicid)
 {
 	int i, node;
 
@@ -791,7 +791,7 @@ static int __cpuinit intel_num_cpu_cores(struct cpuinfo_x86 *c)
 		return 1;
 }
 
-static void srat_detect_node(void)
+static void __cpuinit srat_detect_node(void)
 {
 #ifdef CONFIG_NUMA
 	unsigned node;
@@ -1021,7 +1021,7 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 
 	/* Clear all flags overriden by options */
 	for (i = 0; i < NCAPINTS; i++)
-		c->x86_capability[i] ^= cleared_cpu_caps[i];
+		c->x86_capability[i] &= ~cleared_cpu_caps[i];
 
 #ifdef CONFIG_X86_MCE
 	mcheck_init(c);
@@ -1046,7 +1046,7 @@ __setup("noclflush", setup_noclflush);
 void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 {
 	if (c->x86_model_id[0])
-		printk(KERN_INFO "%s", c->x86_model_id);
+		printk(KERN_CONT "%s", c->x86_model_id);
 
 	if (c->x86_mask || c->cpuid_level >= 0)
 		printk(KERN_CONT " stepping %02x\n", c->x86_mask);

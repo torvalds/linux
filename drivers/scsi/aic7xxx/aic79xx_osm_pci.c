@@ -89,7 +89,7 @@ ahd_linux_pci_dev_suspend(struct pci_dev *pdev, pm_message_t mesg)
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 
-	if (mesg.event == PM_EVENT_SUSPEND)
+	if (mesg.event & PM_EVENT_SLEEP)
 		pci_set_power_state(pdev, PCI_D3hot);
 
 	return rc;

@@ -165,6 +165,7 @@ static int ieee80211_open(struct net_device *dev)
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_if_init_conf conf;
 	int res;
+	bool need_hw_reconfig = 0;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
@@ -218,7 +219,7 @@ static int ieee80211_open(struct net_device *dev)
 			res = local->ops->start(local_to_hw(local));
 		if (res)
 			return res;
-		ieee80211_hw_config(local);
+		need_hw_reconfig = 1;
 		ieee80211_led_radio(local, local->hw.conf.radio_enabled);
 	}
 
@@ -282,6 +283,8 @@ static int ieee80211_open(struct net_device *dev)
 		atomic_inc(&local->iff_promiscs);
 
 	local->open_count++;
+	if (need_hw_reconfig)
+		ieee80211_hw_config(local);
 
 	netif_start_queue(dev);
 

@@ -111,7 +111,7 @@ secmark_tg_check(const char *tablename, const void *entry,
 	return true;
 }
 
-void secmark_tg_destroy(const struct xt_target *target, void *targinfo)
+static void secmark_tg_destroy(const struct xt_target *target, void *targinfo)
 {
 	switch (mode) {
 	case SECMARK_MODE_SEL:

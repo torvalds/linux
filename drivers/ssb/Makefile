@@ -1,5 +1,6 @@
 # core
 ssb-y					+= main.o scan.o
+ssb-$(CONFIG_SSB_EMBEDDED)		+= embedded.o
 
 # host support
 ssb-$(CONFIG_SSB_PCIHOST)		+= pci.o pcihost_wrapper.o

@@ -92,12 +92,17 @@ EXPORT_SYMBOL(__flush_dcache_page);
 
 void __flush_anon_page(struct page *page, unsigned long vmaddr)
 {
-	if (pages_do_alias((unsigned long)page_address(page), vmaddr)) {
-		void *kaddr;
+	unsigned long addr = (unsigned long) page_address(page);
 
-		kaddr = kmap_coherent(page, vmaddr);
-		flush_data_cache_page((unsigned long)kaddr);
-		kunmap_coherent();
+	if (pages_do_alias(addr, vmaddr)) {
+		if (page_mapped(page) && !Page_dcache_dirty(page)) {
+			void *kaddr;
+
+			kaddr = kmap_coherent(page, vmaddr);
+			flush_data_cache_page((unsigned long)kaddr);
+			kunmap_coherent();
+		} else
+			flush_data_cache_page(addr);
 	}
 }
 

@@ -3,6 +3,8 @@
  * Copyright (C) 2007 David S. Miller <davem@davemloft.net>
  */
 
+#include <linux/init.h>
+
 #include <asm/thread_info.h>
 #include <asm/hypervisor.h>
 #include <asm/scratchpad.h>
@@ -13,7 +15,7 @@
 #include <asm/head.h>
 #include <asm/asi.h>
 
-	.text
+	__CPUINIT
 	.align		8
 	.globl		hv_cpu_startup, hv_cpu_startup_end
 

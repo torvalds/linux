@@ -568,7 +568,7 @@ struct drm_driver {
 	void (*postclose) (struct drm_device *, struct drm_file *);
 	void (*lastclose) (struct drm_device *);
 	int (*unload) (struct drm_device *);
-	int (*suspend) (struct drm_device *);
+	int (*suspend) (struct drm_device *, pm_message_t state);
 	int (*resume) (struct drm_device *);
 	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
 	void (*dma_ready) (struct drm_device *);

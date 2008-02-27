@@ -57,10 +57,10 @@
 					    of the queue to 0 */
 
 #define QDIO_ESTABLISH_TIMEOUT (1*HZ)
-#define QDIO_ACTIVATE_TIMEOUT (5*HZ)
 #define QDIO_CLEANUP_CLEAR_TIMEOUT (20*HZ)
 #define QDIO_CLEANUP_HALT_TIMEOUT (10*HZ)
 #define QDIO_FORCE_CHECK_TIMEOUT (10*HZ)
+#define QDIO_ACTIVATE_TIMEOUT (5) /* 5 ms */
 
 enum qdio_irq_states {
 	QDIO_IRQ_STATE_INACTIVE,

@@ -903,7 +903,7 @@ void bio_set_pages_dirty(struct bio *bio)
 	}
 }
 
-void bio_release_pages(struct bio *bio)
+static void bio_release_pages(struct bio *bio)
 {
 	struct bio_vec *bvec = bio->bi_io_vec;
 	int i;

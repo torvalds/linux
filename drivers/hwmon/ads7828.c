@@ -44,7 +44,7 @@
 #define ADS7828_INT_VREF_MV 2500 /* Internal vref is 2.5V, 2500mV */
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
+static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
 	I2C_CLIENT_END };
 
 /* Insmod parameters */

@@ -5140,7 +5140,7 @@ static void ipr_build_ata_ioadl(struct ipr_cmnd *ipr_cmd,
 	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
 	struct ipr_ioadl_desc *ioadl = ipr_cmd->ioadl;
 	struct ipr_ioadl_desc *last_ioadl = NULL;
-	int len = qc->nbytes + qc->pad_len;
+	int len = qc->nbytes;
 	struct scatterlist *sg;
 	unsigned int si;
 
@@ -5206,7 +5206,7 @@ static unsigned int ipr_qc_issue(struct ata_queued_cmd *qc)
 	ioarcb->cmd_pkt.request_type = IPR_RQTYPE_ATA_PASSTHRU;
 	ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_NO_LINK_DESC;
 	ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_NO_ULEN_CHK;
-	ipr_cmd->dma_use_sg = qc->pad_len ? qc->n_elem + 1 : qc->n_elem;
+	ipr_cmd->dma_use_sg = qc->n_elem;
 
 	ipr_build_ata_ioadl(ipr_cmd, qc);
 	regs->flags |= IPR_ATA_FLAG_STATUS_ON_GOOD_COMPLETION;

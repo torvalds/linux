@@ -2,7 +2,7 @@ OUTPUT_ARCH(xtensa)
 
 SECTIONS
 {
-	.start 0xD0200000 : { *(.start) }
+	.start 0xD1000000 : { *(.start) }
 
 	.text :
 	{

@@ -689,10 +689,12 @@ const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_BROADCAST]	= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
 	[IFLA_MAP]		= { .len = sizeof(struct rtnl_link_ifmap) },
 	[IFLA_MTU]		= { .type = NLA_U32 },
+	[IFLA_LINK]		= { .type = NLA_U32 },
 	[IFLA_TXQLEN]		= { .type = NLA_U32 },
 	[IFLA_WEIGHT]		= { .type = NLA_U32 },
 	[IFLA_OPERSTATE]	= { .type = NLA_U8 },
 	[IFLA_LINKMODE]		= { .type = NLA_U8 },
+	[IFLA_LINKINFO]		= { .type = NLA_NESTED },
 	[IFLA_NET_NS_PID]	= { .type = NLA_U32 },
 };
 
@@ -718,6 +720,21 @@ static struct net *get_net_ns_by_pid(pid_t pid)
 	}
 	rcu_read_unlock();
 	return net;
+}
+
+static int validate_linkmsg(struct net_device *dev, struct nlattr *tb[])
+{
+	if (dev) {
+		if (tb[IFLA_ADDRESS] &&
+		    nla_len(tb[IFLA_ADDRESS]) < dev->addr_len)
+			return -EINVAL;
+
+		if (tb[IFLA_BROADCAST] &&
+		    nla_len(tb[IFLA_BROADCAST]) < dev->addr_len)
+			return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
@@ -892,12 +909,7 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		goto errout;
 	}
 
-	if (tb[IFLA_ADDRESS] &&
-	    nla_len(tb[IFLA_ADDRESS]) < dev->addr_len)
-		goto errout_dev;
-
-	if (tb[IFLA_BROADCAST] &&
-	    nla_len(tb[IFLA_BROADCAST]) < dev->addr_len)
+	if ((err = validate_linkmsg(dev, tb)) < 0)
 		goto errout_dev;
 
 	err = do_setlink(dev, ifm, tb, ifname, 0);
@@ -1017,6 +1029,9 @@ replay:
 		dev = __dev_get_by_name(net, ifname);
 	else
 		dev = NULL;
+
+	if ((err = validate_linkmsg(dev, tb)) < 0)
+		return err;
 
 	if (tb[IFLA_LINKINFO]) {
 		err = nla_parse_nested(linkinfo, IFLA_INFO_MAX,

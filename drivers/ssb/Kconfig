@@ -105,6 +105,12 @@ config SSB_DRIVER_MIPS
 
 	  If unsure, say N
 
+# Assumption: We are on embedded, if we compile the MIPS core.
+config SSB_EMBEDDED
+	bool
+	depends on SSB_DRIVER_MIPS
+	default y
+
 config SSB_DRIVER_EXTIF
 	bool "SSB Broadcom EXTIF core driver (EXPERIMENTAL)"
 	depends on SSB_DRIVER_MIPS && EXPERIMENTAL

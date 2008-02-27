@@ -129,7 +129,7 @@ static int cpi_req(void)
 			"to hardware console.\n");
 		goto out;
 	}
-	if (!(sclp_cpi_event.sclp_send_mask & EVTYP_CTLPROGIDENT_MASK)) {
+	if (!(sclp_cpi_event.sclp_receive_mask & EVTYP_CTLPROGIDENT_MASK)) {
 		printk(KERN_WARNING "cpi: no control program "
 			"identification support\n");
 		rc = -EOPNOTSUPP;

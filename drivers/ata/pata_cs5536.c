@@ -40,7 +40,7 @@
 #include <asm/msr.h>
 
 #define DRV_NAME	"pata_cs5536"
-#define DRV_VERSION	"0.0.6"
+#define DRV_VERSION	"0.0.7"
 
 enum {
 	CFG			= 0,
@@ -85,7 +85,7 @@ static const u8 pci_reg[4] = {
 	PCI_IDE_CFG, PCI_IDE_DTC, PCI_IDE_CAST, PCI_IDE_ETC,
 };
 
-static inline int cs5536_read(struct pci_dev *pdev, int reg, int *val)
+static inline int cs5536_read(struct pci_dev *pdev, int reg, u32 *val)
 {
 	if (unlikely(use_msr)) {
 		u32 dummy;
@@ -153,8 +153,8 @@ static void cs5536_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	struct ata_device *pair = ata_dev_pair(adev);
 	int mode = adev->pio_mode - XFER_PIO_0;
 	int cmdmode = mode;
-	int dshift = ap->port_no ? IDE_D1_SHIFT : IDE_D0_SHIFT;
-	int cshift = ap->port_no ? IDE_CAST_D1_SHIFT : IDE_CAST_D0_SHIFT;
+	int dshift = adev->devno ? IDE_D1_SHIFT : IDE_D0_SHIFT;
+	int cshift = adev->devno ? IDE_CAST_D1_SHIFT : IDE_CAST_D0_SHIFT;
 	u32 dtc, cast, etc;
 
 	if (pair)
@@ -201,7 +201,7 @@ static void cs5536_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u32 dtc, etc;
 	int mode = adev->dma_mode;
-	int dshift = ap->port_no ? IDE_D1_SHIFT : IDE_D0_SHIFT;
+	int dshift = adev->devno ? IDE_D1_SHIFT : IDE_D0_SHIFT;
 
 	if (mode >= XFER_UDMA_0) {
 		cs5536_read(pdev, ETC, &etc);

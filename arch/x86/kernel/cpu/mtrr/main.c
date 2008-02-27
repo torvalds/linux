@@ -43,6 +43,7 @@
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include <asm/msr.h>
+#include <asm/kvm_para.h>
 #include "mtrr.h"
 
 u32 num_var_ranges = 0;
@@ -649,6 +650,7 @@ static __init int amd_special_default_mtrr(void)
 
 /**
  * mtrr_trim_uncached_memory - trim RAM not covered by MTRRs
+ * @end_pfn: ending page frame number
  *
  * Some buggy BIOSes don't setup the MTRRs properly for systems with certain
  * memory configurations.  This routine checks that the highest MTRR matches
@@ -688,8 +690,11 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 
 	/* kvm/qemu doesn't have mtrr set right, don't trim them all */
 	if (!highest_pfn) {
-		printk(KERN_WARNING "WARNING: strange, CPU MTRRs all blank?\n");
-		WARN_ON(1);
+		if (!kvm_para_available()) {
+			printk(KERN_WARNING
+				"WARNING: strange, CPU MTRRs all blank?\n");
+			WARN_ON(1);
+		}
 		return 0;
 	}
 

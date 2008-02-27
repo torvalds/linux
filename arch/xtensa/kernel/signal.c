@@ -35,13 +35,17 @@ asmlinkage int do_signal(struct pt_regs *regs, sigset_t *oldset);
 
 extern struct task_struct *coproc_owners[];
 
-extern void release_all_cp (struct task_struct *);
-
 struct rt_sigframe
 {
 	struct siginfo info;
 	struct ucontext uc;
-	cp_state_t cpstate;
+	struct {
+		xtregs_opt_t opt;
+		xtregs_user_t user;
+#if XTENSA_HAVE_COPROCESSORS
+		xtregs_coprocessor_t cp;
+#endif
+	} xtregs;
 	unsigned char retcode[6];
 	unsigned int window[4];
 };
@@ -49,8 +53,6 @@ struct rt_sigframe
 /* 
  * Flush register windows stored in pt_regs to stack.
  * Returns 1 for errors.
- *
- * Note that windowbase, windowstart, and wmask are not updated!
  */
 
 int
@@ -116,6 +118,9 @@ flush_window_regs_user(struct pt_regs *regs)
 		base += inc;
 	}
 
+	regs->wmask = 1;
+	regs->windowstart = 1 << wb;
+
 	return 0;
 
 errout:
@@ -131,9 +136,10 @@ errout:
  */
 
 static int
-setup_sigcontext(struct sigcontext __user *sc, cp_state_t *cpstate,
-		 struct pt_regs *regs, unsigned long mask)
+setup_sigcontext(struct rt_sigframe __user *frame, struct pt_regs *regs)
 {
+	struct sigcontext __user *sc = &frame->uc.uc_mcontext;
+	struct thread_info *ti = current_thread_info();
 	int err = 0;
 
 #define COPY(x)	err |= __put_user(regs->x, &sc->sc_##x)
@@ -147,23 +153,32 @@ setup_sigcontext(struct sigcontext __user *sc, cp_state_t *cpstate,
 
 	err |= flush_window_regs_user(regs);
 	err |= __copy_to_user (sc->sc_a, regs->areg, 16 * 4);
+	err |= __put_user(0, &sc->sc_xtregs);
 
-	// err |= __copy_to_user (sc->sc_a, regs->areg, XCHAL_NUM_AREGS * 4)
+	if (err)
+		return err;
 
-#if XCHAL_HAVE_CP
-# error Coprocessors unsupported
-	err |= save_cpextra(cpstate);
-	err |= __put_user(err ? NULL : cpstate, &sc->sc_cpstate);
+#if XTENSA_HAVE_COPROCESSORS
+	coprocessor_flush_all(ti);
+	coprocessor_release_all(ti);
+	err |= __copy_to_user(&frame->xtregs.cp, &ti->xtregs_cp,
+			      sizeof (frame->xtregs.cp));
 #endif
-	/* non-iBCS2 extensions.. */
-	err |= __put_user(mask, &sc->oldmask);
+	err |= __copy_to_user(&frame->xtregs.opt, &regs->xtregs_opt,
+			      sizeof (xtregs_opt_t));
+	err |= __copy_to_user(&frame->xtregs.user, &ti->xtregs_user,
+			      sizeof (xtregs_user_t));
+
+	err |= __put_user(err ? NULL : &frame->xtregs, &sc->sc_xtregs);
 
 	return err;
 }
 
 static int
-restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
+restore_sigcontext(struct pt_regs *regs, struct rt_sigframe __user *frame)
 {
+	struct sigcontext __user *sc = &frame->uc.uc_mcontext;
+	struct thread_info *ti = current_thread_info();
 	unsigned int err = 0;
 	unsigned long ps;
 
@@ -181,6 +196,8 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	regs->windowbase = 0;
 	regs->windowstart = 1;
 
+	regs->syscall = -1;		/* disable syscall checks */
+
 	/* For PS, restore only PS.CALLINC.
 	 * Assume that all other bits are either the same as for the signal
 	 * handler, or the user mode value doesn't matter (e.g. PS.OWB).
@@ -196,8 +213,9 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 
 	err |= __copy_from_user(regs->areg, sc->sc_a, 16 * 4);
 
-#if XCHAL_HAVE_CP
-# error Coprocessors unsupported
+	if (err)
+		return err;
+
  	/* The signal handler may have used coprocessors in which
 	 * case they are still enabled.  We disable them to force a
 	 * reloading of the original task's CP state by the lazy
@@ -205,18 +223,18 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	 * Also, we essentially discard any coprocessor state that the
 	 * signal handler created. */
 
-	if (!err) {
-	  struct task_struct *tsk = current;
-	  release_all_cp(tsk);
-	  err |= __copy_from_user(tsk->thread.cpextra, sc->sc_cpstate, 
-	      			  XTENSA_CP_EXTRA_SIZE);
-	}
+#if XTENSA_HAVE_COPROCESSORS
+	coprocessor_release_all(ti);
+	err |= __copy_from_user(&ti->xtregs_cp, &frame->xtregs.cp,
+				sizeof (frame->xtregs.cp));
 #endif
+	err |= __copy_from_user(&ti->xtregs_user, &frame->xtregs.user,
+				sizeof (xtregs_user_t));
+	err |= __copy_from_user(&regs->xtregs_opt, &frame->xtregs.opt,
+				sizeof (xtregs_opt_t));
 
-	regs->syscall = -1;		/* disable syscall checks */
 	return err;
 }
-
 
 
 /*
@@ -247,7 +265,7 @@ asmlinkage long xtensa_rt_sigreturn(long a0, long a1, long a2, long a3,
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))
+	if (restore_sigcontext(regs, frame))
 		goto badframe;
 
 	ret = regs->areg[2];
@@ -360,18 +378,22 @@ static void setup_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __put_user(sas_ss_flags(regs->areg[1]),
 			  &frame->uc.uc_stack.ss_flags);
 	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
-	err |= setup_sigcontext(&frame->uc.uc_mcontext, &frame->cpstate,
-			        regs, set->sig[0]);
+	err |= setup_sigcontext(frame, regs);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 
-	/* Create sys_rt_sigreturn syscall in stack frame */
+	if (ka->sa.sa_flags & SA_RESTORER) {
+		ra = (unsigned long)ka->sa.sa_restorer;
+	} else {
 
-	err |= gen_return_code(frame->retcode);
+		/* Create sys_rt_sigreturn syscall in stack frame */
 
-	if (err) {
-		goto give_sigsegv;
+		err |= gen_return_code(frame->retcode);
+
+		if (err) {
+			goto give_sigsegv;
+		}
+		ra = (unsigned long) frame->retcode;
 	}
-		
 
 	/* 
 	 * Create signal handler execution context.
@@ -385,7 +407,6 @@ static void setup_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Set up a stack frame for a call4
 	 * Note: PS.CALLINC is set to one by start_thread
 	 */
-	ra = (unsigned long) frame->retcode;
 	regs->areg[4] = (((unsigned long) ra) & 0x3fffffff) | 0x40000000;
 	regs->areg[6] = (unsigned long) signal;
 	regs->areg[7] = (unsigned long) &frame->info;

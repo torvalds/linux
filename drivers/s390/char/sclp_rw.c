@@ -452,10 +452,10 @@ sclp_emit_buffer(struct sclp_buffer *buffer,
 		return -EIO;
 
 	sccb = buffer->sccb;
-	if (sclp_rw_event.sclp_send_mask & EVTYP_MSG_MASK)
+	if (sclp_rw_event.sclp_receive_mask & EVTYP_MSG_MASK)
 		/* Use normal write message */
 		sccb->msg_buf.header.type = EVTYP_MSG;
-	else if (sclp_rw_event.sclp_send_mask & EVTYP_PMSGCMD_MASK)
+	else if (sclp_rw_event.sclp_receive_mask & EVTYP_PMSGCMD_MASK)
 		/* Use write priority message */
 		sccb->msg_buf.header.type = EVTYP_PMSGCMD;
 	else

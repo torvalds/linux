@@ -104,12 +104,14 @@ struct snd_usb_midi {
 	struct usb_protocol_ops* usb_protocol_ops;
 	struct list_head list;
 	struct timer_list error_timer;
+	spinlock_t disc_lock;
 
 	struct snd_usb_midi_endpoint {
 		struct snd_usb_midi_out_endpoint *out;
 		struct snd_usb_midi_in_endpoint *in;
 	} endpoints[MIDI_MAX_ENDPOINTS];
 	unsigned long input_triggered;
+	unsigned char disconnected;
 };
 
 struct snd_usb_midi_out_endpoint {
@@ -306,6 +308,11 @@ static void snd_usbmidi_error_timer(unsigned long data)
 	struct snd_usb_midi *umidi = (struct snd_usb_midi *)data;
 	int i;
 
+	spin_lock(&umidi->disc_lock);
+	if (umidi->disconnected) {
+		spin_unlock(&umidi->disc_lock);
+		return;
+	}
 	for (i = 0; i < MIDI_MAX_ENDPOINTS; ++i) {
 		struct snd_usb_midi_in_endpoint *in = umidi->endpoints[i].in;
 		if (in && in->error_resubmit) {
@@ -316,6 +323,7 @@ static void snd_usbmidi_error_timer(unsigned long data)
 		if (umidi->endpoints[i].out)
 			snd_usbmidi_do_output(umidi->endpoints[i].out);
 	}
+	spin_unlock(&umidi->disc_lock);
 }
 
 /* helper function to send static data that may not DMA-able */
@@ -1049,7 +1057,14 @@ void snd_usbmidi_disconnect(struct list_head* p)
 	int i;
 
 	umidi = list_entry(p, struct snd_usb_midi, list);
-	del_timer_sync(&umidi->error_timer);
+	/*
+	 * an URB's completion handler may start the timer and
+	 * a timer may submit an URB. To reliably break the cycle
+	 * a flag under lock must be used
+	 */
+	spin_lock_irq(&umidi->disc_lock);
+	umidi->disconnected = 1;
+	spin_unlock_irq(&umidi->disc_lock);
 	for (i = 0; i < MIDI_MAX_ENDPOINTS; ++i) {
 		struct snd_usb_midi_endpoint* ep = &umidi->endpoints[i];
 		if (ep->out)
@@ -1062,6 +1077,7 @@ void snd_usbmidi_disconnect(struct list_head* p)
 		if (ep->in)
 			usb_kill_urb(ep->in->urb);
 	}
+	del_timer_sync(&umidi->error_timer);
 }
 
 static void snd_usbmidi_rawmidi_free(struct snd_rawmidi *rmidi)
@@ -1685,6 +1701,7 @@ int snd_usb_create_midi_interface(struct snd_usb_audio* chip,
 	umidi->quirk = quirk;
 	umidi->usb_protocol_ops = &snd_usbmidi_standard_ops;
 	init_timer(&umidi->error_timer);
+	spin_lock_init(&umidi->disc_lock);
 	umidi->error_timer.function = snd_usbmidi_error_timer;
 	umidi->error_timer.data = (unsigned long)umidi;
 

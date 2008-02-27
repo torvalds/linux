@@ -56,8 +56,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.7.3"
-#define DRV_MODULE_RELDATE	"January 29, 2008"
+#define DRV_MODULE_VERSION	"1.7.4"
+#define DRV_MODULE_RELDATE	"February 18, 2008"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -1273,14 +1273,20 @@ bnx2_set_link(struct bnx2 *bp)
 
 	if ((bp->phy_flags & BNX2_PHY_FLAG_SERDES) &&
 	    (CHIP_NUM(bp) == CHIP_NUM_5706)) {
-		u32 val;
+		u32 val, an_dbg;
 
 		if (bp->phy_flags & BNX2_PHY_FLAG_FORCED_DOWN) {
 			bnx2_5706s_force_link_dn(bp, 0);
 			bp->phy_flags &= ~BNX2_PHY_FLAG_FORCED_DOWN;
 		}
 		val = REG_RD(bp, BNX2_EMAC_STATUS);
-		if (val & BNX2_EMAC_STATUS_LINK)
+
+		bnx2_write_phy(bp, MII_BNX2_MISC_SHADOW, MISC_SHDW_AN_DBG);
+		bnx2_read_phy(bp, MII_BNX2_MISC_SHADOW, &an_dbg);
+		bnx2_read_phy(bp, MII_BNX2_MISC_SHADOW, &an_dbg);
+
+		if ((val & BNX2_EMAC_STATUS_LINK) &&
+		    !(an_dbg & MISC_SHDW_AN_DBG_NOSYNC))
 			bmsr |= BMSR_LSTATUS;
 		else
 			bmsr &= ~BMSR_LSTATUS;
@@ -5356,10 +5362,14 @@ bnx2_test_intr(struct bnx2 *bp)
 	return -ENODEV;
 }
 
+/* Determining link for parallel detection. */
 static int
 bnx2_5706_serdes_has_link(struct bnx2 *bp)
 {
 	u32 mode_ctl, an_dbg, exp;
+
+	if (bp->phy_flags & BNX2_PHY_FLAG_NO_PARALLEL)
+		return 0;
 
 	bnx2_write_phy(bp, MII_BNX2_MISC_SHADOW, MISC_SHDW_MODE_CTL);
 	bnx2_read_phy(bp, MII_BNX2_MISC_SHADOW, &mode_ctl);
@@ -5390,13 +5400,6 @@ bnx2_5706_serdes_timer(struct bnx2 *bp)
 	int check_link = 1;
 
 	spin_lock(&bp->phy_lock);
-	if (bp->phy_flags & BNX2_PHY_FLAG_FORCED_DOWN) {
-		bnx2_5706s_force_link_dn(bp, 0);
-		bp->phy_flags &= ~BNX2_PHY_FLAG_FORCED_DOWN;
-		spin_unlock(&bp->phy_lock);
-		return;
-	}
-
 	if (bp->serdes_an_pending) {
 		bp->serdes_an_pending--;
 		check_link = 0;
@@ -5420,7 +5423,6 @@ bnx2_5706_serdes_timer(struct bnx2 *bp)
 		 (bp->phy_flags & BNX2_PHY_FLAG_PARALLEL_DETECT)) {
 		u32 phy2;
 
-		check_link = 0;
 		bnx2_write_phy(bp, 0x17, 0x0f01);
 		bnx2_read_phy(bp, 0x15, &phy2);
 		if (phy2 & 0x20) {
@@ -5435,17 +5437,21 @@ bnx2_5706_serdes_timer(struct bnx2 *bp)
 	} else
 		bp->current_interval = bp->timer_interval;
 
-	if (bp->link_up && (bp->autoneg & AUTONEG_SPEED) && check_link) {
+	if (check_link) {
 		u32 val;
 
 		bnx2_write_phy(bp, MII_BNX2_MISC_SHADOW, MISC_SHDW_AN_DBG);
 		bnx2_read_phy(bp, MII_BNX2_MISC_SHADOW, &val);
 		bnx2_read_phy(bp, MII_BNX2_MISC_SHADOW, &val);
 
-		if (val & MISC_SHDW_AN_DBG_NOSYNC) {
-			bnx2_5706s_force_link_dn(bp, 1);
-			bp->phy_flags |= BNX2_PHY_FLAG_FORCED_DOWN;
-		}
+		if (bp->link_up && (val & MISC_SHDW_AN_DBG_NOSYNC)) {
+			if (!(bp->phy_flags & BNX2_PHY_FLAG_FORCED_DOWN)) {
+				bnx2_5706s_force_link_dn(bp, 1);
+				bp->phy_flags |= BNX2_PHY_FLAG_FORCED_DOWN;
+			} else
+				bnx2_set_link(bp);
+		} else if (!bp->link_up && !(val & MISC_SHDW_AN_DBG_NOSYNC))
+			bnx2_set_link(bp);
 	}
 	spin_unlock(&bp->phy_lock);
 }
@@ -7326,7 +7332,15 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 			bp->flags |= BNX2_FLAG_NO_WOL;
 			bp->wol = 0;
 		}
-		if (CHIP_NUM(bp) != CHIP_NUM_5706) {
+		if (CHIP_NUM(bp) == CHIP_NUM_5706) {
+			/* Don't do parallel detect on this board because of
+			 * some board problems.  The link will not go down
+			 * if we do parallel detect.
+			 */
+			if (pdev->subsystem_vendor == PCI_VENDOR_ID_HP &&
+			    pdev->subsystem_device == 0x310c)
+				bp->phy_flags |= BNX2_PHY_FLAG_NO_PARALLEL;
+		} else {
 			bp->phy_addr = 2;
 			if (reg & BNX2_SHARED_HW_CFG_PHY_2_5G)
 				bp->phy_flags |= BNX2_PHY_FLAG_2_5G_CAPABLE;
