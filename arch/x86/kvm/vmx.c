@@ -638,6 +638,7 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 {
 	int save_nmsrs;
 
+	vmx_load_host_state(vmx);
 	save_nmsrs = 0;
 #ifdef CONFIG_X86_64
 	if (is_long_mode(&vmx->vcpu)) {
