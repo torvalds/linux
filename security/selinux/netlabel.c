@@ -34,6 +34,7 @@
 
 #include "objsec.h"
 #include "security.h"
+#include "netlabel.h"
 
 /**
  * selinux_netlbl_sidlookup_cached - Cache a SID lookup
