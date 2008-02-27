@@ -555,10 +555,6 @@ extern int			compat_ipv6_getsockopt(struct sock *sk,
 						char __user *optval,
 						int __user *optlen);
 
-extern int			ipv6_packet_init(void);
-
-extern void			ipv6_packet_cleanup(void);
-
 extern int			ip6_datagram_connect(struct sock *sk, 
 						     struct sockaddr *addr, int addr_len);
 

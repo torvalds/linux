@@ -678,6 +678,129 @@ int ipv6_opt_accepted(struct sock *sk, struct sk_buff *skb)
 
 EXPORT_SYMBOL_GPL(ipv6_opt_accepted);
 
+static struct inet6_protocol *ipv6_gso_pull_exthdrs(struct sk_buff *skb,
+						    int proto)
+{
+	struct inet6_protocol *ops = NULL;
+
+	for (;;) {
+		struct ipv6_opt_hdr *opth;
+		int len;
+
+		if (proto != NEXTHDR_HOP) {
+			ops = rcu_dereference(inet6_protos[proto]);
+
+			if (unlikely(!ops))
+				break;
+
+			if (!(ops->flags & INET6_PROTO_GSO_EXTHDR))
+				break;
+		}
+
+		if (unlikely(!pskb_may_pull(skb, 8)))
+			break;
+
+		opth = (void *)skb->data;
+		len = ipv6_optlen(opth);
+
+		if (unlikely(!pskb_may_pull(skb, len)))
+			break;
+
+		proto = opth->nexthdr;
+		__skb_pull(skb, len);
+	}
+
+	return ops;
+}
+
+static int ipv6_gso_send_check(struct sk_buff *skb)
+{
+	struct ipv6hdr *ipv6h;
+	struct inet6_protocol *ops;
+	int err = -EINVAL;
+
+	if (unlikely(!pskb_may_pull(skb, sizeof(*ipv6h))))
+		goto out;
+
+	ipv6h = ipv6_hdr(skb);
+	__skb_pull(skb, sizeof(*ipv6h));
+	err = -EPROTONOSUPPORT;
+
+	rcu_read_lock();
+	ops = ipv6_gso_pull_exthdrs(skb, ipv6h->nexthdr);
+	if (likely(ops && ops->gso_send_check)) {
+		skb_reset_transport_header(skb);
+		err = ops->gso_send_check(skb);
+	}
+	rcu_read_unlock();
+
+out:
+	return err;
+}
+
+static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb, int features)
+{
+	struct sk_buff *segs = ERR_PTR(-EINVAL);
+	struct ipv6hdr *ipv6h;
+	struct inet6_protocol *ops;
+
+	if (!(features & NETIF_F_V6_CSUM))
+		features &= ~NETIF_F_SG;
+
+	if (unlikely(skb_shinfo(skb)->gso_type &
+		     ~(SKB_GSO_UDP |
+		       SKB_GSO_DODGY |
+		       SKB_GSO_TCP_ECN |
+		       SKB_GSO_TCPV6 |
+		       0)))
+		goto out;
+
+	if (unlikely(!pskb_may_pull(skb, sizeof(*ipv6h))))
+		goto out;
+
+	ipv6h = ipv6_hdr(skb);
+	__skb_pull(skb, sizeof(*ipv6h));
+	segs = ERR_PTR(-EPROTONOSUPPORT);
+
+	rcu_read_lock();
+	ops = ipv6_gso_pull_exthdrs(skb, ipv6h->nexthdr);
+	if (likely(ops && ops->gso_segment)) {
+		skb_reset_transport_header(skb);
+		segs = ops->gso_segment(skb, features);
+	}
+	rcu_read_unlock();
+
+	if (unlikely(IS_ERR(segs)))
+		goto out;
+
+	for (skb = segs; skb; skb = skb->next) {
+		ipv6h = ipv6_hdr(skb);
+		ipv6h->payload_len = htons(skb->len - skb->mac_len -
+					   sizeof(*ipv6h));
+	}
+
+out:
+	return segs;
+}
+
+static struct packet_type ipv6_packet_type = {
+	.type = __constant_htons(ETH_P_IPV6),
+	.func = ipv6_rcv,
+	.gso_send_check = ipv6_gso_send_check,
+	.gso_segment = ipv6_gso_segment,
+};
+
+static int __init ipv6_packet_init(void)
+{
+	dev_add_pack(&ipv6_packet_type);
+	return 0;
+}
+
+static void ipv6_packet_cleanup(void)
+{
+	dev_remove_pack(&ipv6_packet_type);
+}
+
 static int __init init_ipv6_mibs(void)
 {
 	if (snmp_mib_init((void **)ipv6_statistics,
