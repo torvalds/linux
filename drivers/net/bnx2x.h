@@ -545,8 +545,6 @@ struct bnx2x {
 	spinlock_t      	phy_lock;
 
 	struct work_struct      reset_task;
-	u16     		in_reset_task;
-
 	struct work_struct      sp_task;
 
 	struct timer_list       timer;
@@ -560,7 +558,6 @@ struct bnx2x {
 #define CHIP_ID(bp)     		(((bp)->chip_id) & 0xfffffff0)
 
 #define CHIP_NUM(bp)    		(((bp)->chip_id) & 0xffff0000)
-#define CHIP_NUM_5710   		0x57100000
 
 #define CHIP_REV(bp)    		(((bp)->chip_id) & 0x0000f000)
 #define CHIP_REV_Ax     		0x00000000
