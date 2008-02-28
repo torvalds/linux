@@ -1635,20 +1635,20 @@ static int __devinit snd_ensoniq_1371_mixer(struct ensoniq *ensoniq,
 	if (has_spdif > 0 ||
 	    (!has_spdif && es1371_quirk_lookup(ensoniq, es1371_spdif_present))) {
 		struct snd_kcontrol *kctl;
-		int i, index = 0;
+		int i, is_spdif = 0;
 
 		ensoniq->spdif_default = ensoniq->spdif_stream =
 			SNDRV_PCM_DEFAULT_CON_SPDIF;
 		outl(ensoniq->spdif_default, ES_REG(ensoniq, CHANNEL_STATUS));
 
 		if (ensoniq->u.es1371.ac97->ext_id & AC97_EI_SPDIF)
-			index++;
+			is_spdif++;
 
 		for (i = 0; i < ARRAY_SIZE(snd_es1371_mixer_spdif); i++) {
 			kctl = snd_ctl_new1(&snd_es1371_mixer_spdif[i], ensoniq);
 			if (!kctl)
 				return -ENOMEM;
-			kctl->id.index = index;
+			kctl->id.index = is_spdif;
 			err = snd_ctl_add(card, kctl);
 			if (err < 0)
 				return err;
