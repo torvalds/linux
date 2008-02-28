@@ -2206,7 +2206,7 @@ qla24xx_abort_target(fc_port_t *fcport)
 	tsk->p.tsk.entry_type = TSK_MGMT_IOCB_TYPE;
 	tsk->p.tsk.entry_count = 1;
 	tsk->p.tsk.nport_handle = cpu_to_le16(fcport->loop_id);
-	tsk->p.tsk.timeout = __constant_cpu_to_le16(25);
+	tsk->p.tsk.timeout = cpu_to_le16(ha->r_a_tov / 10 * 2);
 	tsk->p.tsk.control_flags = __constant_cpu_to_le32(TCF_TARGET_RESET);
 	tsk->p.tsk.port_id[0] = fcport->d_id.b.al_pa;
 	tsk->p.tsk.port_id[1] = fcport->d_id.b.area;

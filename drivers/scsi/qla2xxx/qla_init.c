@@ -1733,8 +1733,8 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 	ha->login_timeout = nv->login_timeout;
 	icb->login_timeout = nv->login_timeout;
 
-	/* Set minimum RATOV to 200 tenths of a second. */
-	ha->r_a_tov = 200;
+	/* Set minimum RATOV to 100 tenths of a second. */
+	ha->r_a_tov = 100;
 
 	ha->loop_reset_delay = nv->reset_delay;
 
@@ -3645,8 +3645,8 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	ha->login_timeout = le16_to_cpu(nv->login_timeout);
 	icb->login_timeout = cpu_to_le16(nv->login_timeout);
 
-	/* Set minimum RATOV to 200 tenths of a second. */
-	ha->r_a_tov = 200;
+	/* Set minimum RATOV to 100 tenths of a second. */
+	ha->r_a_tov = 100;
 
 	ha->loop_reset_delay = nv->reset_delay;
 
