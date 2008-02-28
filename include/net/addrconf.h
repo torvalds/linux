@@ -214,29 +214,25 @@ static inline void addrconf_addr_solict_mult(const struct in6_addr *addr,
 					     struct in6_addr *solicited)
 {
 	ipv6_addr_set(solicited,
-		      __constant_htonl(0xFF020000), 0,
-		      __constant_htonl(0x1),
-		      __constant_htonl(0xFF000000) | addr->s6_addr32[3]);
+		      htonl(0xFF020000), 0,
+		      htonl(0x1),
+		      htonl(0xFF000000) | addr->s6_addr32[3]);
 }
 
 
 static inline void ipv6_addr_all_nodes(struct in6_addr *addr)
 {
-	ipv6_addr_set(addr,
-		      __constant_htonl(0xFF020000), 0, 0,
-		      __constant_htonl(0x1));
+	ipv6_addr_set(addr, htonl(0xFF020000), 0, 0, htonl(0x1));
 }
 
 static inline void ipv6_addr_all_routers(struct in6_addr *addr)
 {
-	ipv6_addr_set(addr,
-		      __constant_htonl(0xFF020000), 0, 0,
-		      __constant_htonl(0x2));
+	ipv6_addr_set(addr, htonl(0xFF020000), 0, 0, htonl(0x2));
 }
 
 static inline int ipv6_addr_is_multicast(const struct in6_addr *addr)
 {
-	return (addr->s6_addr32[0] & __constant_htonl(0xFF000000)) == __constant_htonl(0xFF000000);
+	return (addr->s6_addr32[0] & htonl(0xFF000000)) == htonl(0xFF000000);
 }
 
 static inline int ipv6_addr_is_ll_all_nodes(const struct in6_addr *addr)
