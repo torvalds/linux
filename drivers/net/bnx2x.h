@@ -867,6 +867,11 @@ struct bnx2x {
 		       DPM_TRIGER_TYPE); \
 	} while (0)
 
+/* PCIE link and speed */
+#define PCICFG_LINK_WIDTH		0x1f00000
+#define PCICFG_LINK_WIDTH_SHIFT		20
+#define PCICFG_LINK_SPEED		0xf0000
+#define PCICFG_LINK_SPEED_SHIFT		16
 
 /* stuff added to make the code fit 80Col */
 
