@@ -1121,7 +1121,7 @@ static inline unsigned int ata_tag_valid(unsigned int tag)
 
 static inline unsigned int ata_tag_internal(unsigned int tag)
 {
-	return tag == ATA_MAX_QUEUE - 1;
+	return tag == ATA_TAG_INTERNAL;
 }
 
 /*
