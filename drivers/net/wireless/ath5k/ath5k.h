@@ -171,13 +171,13 @@ struct ath5k_srev_name {
 #define AR5K_SREV_VER_AR5213A	0x59
 #define AR5K_SREV_VER_AR2413	0x78
 #define AR5K_SREV_VER_AR2414	0x79
-#define AR5K_SREV_VER_AR2424	0xa0
-#define AR5K_SREV_VER_AR5424	0xa3
+#define AR5K_SREV_VER_AR2424	0xa0 /* PCI-E */
+#define AR5K_SREV_VER_AR5424	0xa3 /* PCI-E */
 #define AR5K_SREV_VER_AR5413	0xa4
 #define AR5K_SREV_VER_AR5414	0xa5
-#define AR5K_SREV_VER_AR5416	0xc0	/* ? */
-#define AR5K_SREV_VER_AR5418	0xca
-#define AR5K_SREV_VER_AR2425	0xe2
+#define AR5K_SREV_VER_AR5416	0xc0 /* PCI-E */
+#define AR5K_SREV_VER_AR5418	0xca /* PCI-E */
+#define AR5K_SREV_VER_AR2425	0xe2 /* PCI-E */
 
 #define AR5K_SREV_RAD_5110	0x00
 #define AR5K_SREV_RAD_5111	0x10

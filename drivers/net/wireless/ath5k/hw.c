@@ -300,7 +300,8 @@ err:
  */
 static int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 {
-	u32 turbo, mode, clock;
+	struct pci_dev *pdev = ah->ah_sc->pdev;
+	u32 turbo, mode, clock, bus_flags;
 	int ret;
 
 	turbo = 0;
@@ -377,9 +378,15 @@ static int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 					AR5K_PHY_TURBO);
 	}
 
-	/* ...reset chipset and PCI device */
-	if (ah->ah_single_chip == false && ath5k_hw_nic_reset(ah,
-				AR5K_RESET_CTL_CHIP | AR5K_RESET_CTL_PCI)) {
+	/* reseting PCI on PCI-E cards results card to hang
+	 * and always return 0xffff... so we ingore that flag
+	 * for PCI-E cards */
+	bus_flags = (pdev->is_pcie) ? 0 : AR5K_RESET_CTL_PCI;
+
+	/* Reset chipset */
+	ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
+		AR5K_RESET_CTL_BASEBAND | bus_flags);
+	if (ret) {
 		ATH5K_ERR(ah->ah_sc, "failed to reset the MAC Chip + PCI\n");
 		return -EIO;
 	}
@@ -588,7 +595,8 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 	struct ieee80211_channel *channel, bool change_channel)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
-	u32 data, s_seq, s_ant, s_led[3];
+	struct pci_dev *pdev = ah->ah_sc->pdev;
+	u32 data, s_seq, s_ant, s_led[3], dma_size;
 	unsigned int i, mode, freq, ee_mode, ant[2];
 	int ret;
 
@@ -900,13 +908,24 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 
 	/*
 	 * Set Rx/Tx DMA Configuration
-	 *(passing dma size not available on 5210)
+	 *
+	 * Set maximum DMA size (512) except for PCI-E cards since
+	 * it causes rx overruns and tx errors (tested on 5424 but since
+	 * rx overruns also occur on 5416/5418 with madwifi we set 128
+	 * for all PCI-E cards to be safe).
+	 *
+	 * In dumps this is 128 for allchips.
+	 *
+	 * XXX: need to check 5210 for this
+	 * TODO: Check out tx triger level, it's always 64 on dumps but I
+	 * guess we can tweak it and see how it goes ;-)
 	 */
+	dma_size = (pdev->is_pcie) ? AR5K_DMASIZE_128B : AR5K_DMASIZE_512B;
 	if (ah->ah_version != AR5K_AR5210) {
-		AR5K_REG_WRITE_BITS(ah, AR5K_TXCFG, AR5K_TXCFG_SDMAMR,
-				AR5K_DMASIZE_512B | AR5K_TXCFG_DMASIZE);
-		AR5K_REG_WRITE_BITS(ah, AR5K_RXCFG, AR5K_RXCFG_SDMAMW,
-				AR5K_DMASIZE_512B);
+		AR5K_REG_WRITE_BITS(ah, AR5K_TXCFG,
+			AR5K_TXCFG_SDMAMR, dma_size);
+		AR5K_REG_WRITE_BITS(ah, AR5K_RXCFG,
+			AR5K_RXCFG_SDMAMW, dma_size);
 	}
 
 	/*
