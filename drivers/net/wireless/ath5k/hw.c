@@ -640,7 +640,8 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 	if (ah->ah_version != AR5K_AR5210) {
 		if (ah->ah_radio != AR5K_RF5111 &&
 			ah->ah_radio != AR5K_RF5112 &&
-			ah->ah_radio != AR5K_RF5413) {
+			ah->ah_radio != AR5K_RF5413 &&
+			ah->ah_radio != AR5K_RF2413) {
 			ATH5K_ERR(ah->ah_sc,
 				"invalid phy radio: %u\n", ah->ah_radio);
 			return -EINVAL;
@@ -1002,9 +1003,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 		ath5k_hw_reg_write(ah, AR5K_PHY_SCAL_32MHZ, AR5K_PHY_SCAL);
 		ath5k_hw_reg_write(ah, AR5K_PHY_SCLOCK_32MHZ, AR5K_PHY_SCLOCK);
 		ath5k_hw_reg_write(ah, AR5K_PHY_SDELAY_32MHZ, AR5K_PHY_SDELAY);
-		ath5k_hw_reg_write(ah, ah->ah_radio == AR5K_RF5111 ?
-			AR5K_PHY_SPENDING_RF5111 : AR5K_PHY_SPENDING_RF5112,
-			AR5K_PHY_SPENDING);
+		ath5k_hw_reg_write(ah, ah->ah_phy_spending, AR5K_PHY_SPENDING);
 	}
 
 	/*

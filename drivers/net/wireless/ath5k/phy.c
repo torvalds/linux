@@ -2178,6 +2178,15 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		return -EINVAL;
 	}
 
+	/*
+	 * RF2413 for some reason can't
+	 * transmit anything if we call
+	 * this funtion, so we skip it
+	 * until we fix txpower.
+	 */
+	if (ah->ah_radio == AR5K_RF2413)
+		return 0;
+
 	/* Reset TX power values */
 	memset(&ah->ah_txpower, 0, sizeof(ah->ah_txpower));
 	ah->ah_txpower.txp_tpc = tpc;
