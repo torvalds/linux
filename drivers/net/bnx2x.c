@@ -63,8 +63,8 @@
 #include "bnx2x.h"
 #include "bnx2x_init.h"
 
-#define DRV_MODULE_VERSION      "0.40.15"
-#define DRV_MODULE_RELDATE      "$DateTime: 2007/11/15 07:28:37 $"
+#define DRV_MODULE_VERSION      "1.40.22"
+#define DRV_MODULE_RELDATE      "2007/11/27"
 #define BNX2X_BC_VER    	0x040200
 
 /* Time in jiffies before concluding the transmitter is hung. */
@@ -78,7 +78,6 @@ MODULE_AUTHOR("Eliezer Tamir <eliezert@broadcom.com>");
 MODULE_DESCRIPTION("Broadcom NetXtreme II BCM57710 Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
-MODULE_INFO(cvs_version, "$Revision: #404 $");
 
 static int use_inta;
 static int poll;
