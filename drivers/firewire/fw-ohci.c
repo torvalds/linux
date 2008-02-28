@@ -1097,6 +1097,11 @@ static void bus_reset_tasklet(unsigned long data)
 		reg_write(ohci, OHCI1394_ConfigROMhdr, ohci->next_header);
 	}
 
+#ifdef CONFIG_FIREWIRE_OHCI_REMOTE_DMA
+	reg_write(ohci, OHCI1394_PhyReqFilterHiSet, ~0);
+	reg_write(ohci, OHCI1394_PhyReqFilterLoSet, ~0);
+#endif
+
 	spin_unlock_irqrestore(&ohci->lock, flags);
 
 	if (free_rom)
@@ -1435,6 +1440,9 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 static int
 ohci_enable_phys_dma(struct fw_card *card, int node_id, int generation)
 {
+#ifdef CONFIG_FIREWIRE_OHCI_REMOTE_DMA
+	return 0;
+#else
 	struct fw_ohci *ohci = fw_ohci(card);
 	unsigned long flags;
 	int n, retval = 0;
@@ -1466,6 +1474,7 @@ ohci_enable_phys_dma(struct fw_card *card, int node_id, int generation)
  out:
 	spin_unlock_irqrestore(&ohci->lock, flags);
 	return retval;
+#endif /* CONFIG_FIREWIRE_OHCI_REMOTE_DMA */
 }
 
 static u64
