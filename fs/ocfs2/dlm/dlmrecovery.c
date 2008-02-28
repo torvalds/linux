@@ -1191,7 +1191,7 @@ static int dlm_add_lock_to_array(struct dlm_lock *lock,
 			    (ml->type == LKM_EXMODE ||
 			     memcmp(mres->lvb, lock->lksb->lvb, DLM_LVB_LEN))) {
 				mlog(ML_ERROR, "mismatched lvbs!\n");
-				__dlm_print_one_lock_resource(lock->lockres);
+				dlm_print_one_lock_resource(lock->lockres);
 				BUG();
 			}
 			memcpy(mres->lvb, lock->lksb->lvb, DLM_LVB_LEN);

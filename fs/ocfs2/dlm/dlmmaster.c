@@ -2348,7 +2348,7 @@ int dlm_deref_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
 			mlog(ML_ERROR, "%s:%.*s: node %u trying to drop ref "
 		     	"but it is already dropped!\n", dlm->name,
 		     	res->lockname.len, res->lockname.name, node);
-			__dlm_print_one_lock_resource(res);
+			dlm_print_one_lock_resource(res);
 		}
 		ret = 0;
 		goto done;
@@ -2408,7 +2408,7 @@ static void dlm_deref_lockres_worker(struct dlm_work_item *item, void *data)
 		mlog(ML_ERROR, "%s:%.*s: node %u trying to drop ref "
 		     "but it is already dropped!\n", dlm->name,
 		     res->lockname.len, res->lockname.name, node);
-		__dlm_print_one_lock_resource(res);
+		dlm_print_one_lock_resource(res);
 	}
 
 	dlm_lockres_put(res);
