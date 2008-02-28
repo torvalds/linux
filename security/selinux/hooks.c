@@ -1615,6 +1615,35 @@ static inline u32 file_mask_to_av(int mode, int mask)
 	return av;
 }
 
+/*
+ * Convert a file mask to an access vector and include the correct open
+ * open permission.
+ */
+static inline u32 open_file_mask_to_av(int mode, int mask)
+{
+	u32 av = file_mask_to_av(mode, mask);
+
+	if (selinux_policycap_openperm) {
+		/*
+		 * lnk files and socks do not really have an 'open'
+		 */
+		if (S_ISREG(mode))
+			av |= FILE__OPEN;
+		else if (S_ISCHR(mode))
+			av |= CHR_FILE__OPEN;
+		else if (S_ISBLK(mode))
+			av |= BLK_FILE__OPEN;
+		else if (S_ISFIFO(mode))
+			av |= FIFO_FILE__OPEN;
+		else if (S_ISDIR(mode))
+			av |= DIR__OPEN;
+		else
+			printk(KERN_ERR "SELinux: WARNING: inside open_file_to_av "
+				"with unknown mode:%x\n", mode);
+	}
+	return av;
+}
+
 /* Convert a Linux file to an access vector. */
 static inline u32 file_to_av(struct file *file)
 {
@@ -2532,7 +2561,7 @@ static int selinux_inode_permission(struct inode *inode, int mask,
 	}
 
 	return inode_has_perm(current, inode,
-			       file_mask_to_av(inode->i_mode, mask), NULL);
+			       open_file_mask_to_av(inode->i_mode, mask), NULL);
 }
 
 static int selinux_inode_setattr(struct dentry *dentry, struct iattr *iattr)

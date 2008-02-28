@@ -48,11 +48,13 @@ extern int selinux_mls_enabled;
 /* Policy capabilities */
 enum {
 	POLICYDB_CAPABILITY_NETPEER,
+	POLICYDB_CAPABILITY_OPENPERM,
 	__POLICYDB_CAPABILITY_MAX
 };
 #define POLICYDB_CAPABILITY_MAX (__POLICYDB_CAPABILITY_MAX - 1)
 
 extern int selinux_policycap_netpeer;
+extern int selinux_policycap_openperm;
 
 int security_load_policy(void * data, size_t len);
 

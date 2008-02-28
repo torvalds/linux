@@ -61,6 +61,7 @@ extern void selnl_notify_policyload(u32 seqno);
 unsigned int policydb_loaded_version;
 
 int selinux_policycap_netpeer;
+int selinux_policycap_openperm;
 
 /*
  * This is declared in avc.c
@@ -1308,6 +1309,8 @@ static void security_load_policycaps(void)
 {
 	selinux_policycap_netpeer = ebitmap_get_bit(&policydb.policycaps,
 						  POLICYDB_CAPABILITY_NETPEER);
+	selinux_policycap_openperm = ebitmap_get_bit(&policydb.policycaps,
+						  POLICYDB_CAPABILITY_OPENPERM);
 }
 
 extern void selinux_complete_init(void);

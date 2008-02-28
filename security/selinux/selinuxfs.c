@@ -42,7 +42,8 @@
 
 /* Policy capability filenames */
 static char *policycap_names[] = {
-	"network_peer_controls"
+	"network_peer_controls",
+	"open_perms"
 };
 
 unsigned int selinux_checkreqprot = CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE;
