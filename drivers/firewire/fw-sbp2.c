@@ -1454,7 +1454,6 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	orb->cmd  = cmd;
 
 	orb->request.next.high   = cpu_to_be32(SBP2_ORB_NULL);
-	orb->request.next.low    = 0x0;
 	/*
 	 * At speed 100 we can do 512 bytes per packet, at speed 200,
 	 * 1024 bytes per packet etc.  The SBP-2 max_payload field
@@ -1474,8 +1473,6 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	if (scsi_sg_count(cmd) && sbp2_map_scatterlist(orb, device, lu) < 0)
 		goto out;
 
-	memset(orb->request.command_block,
-	       0, sizeof(orb->request.command_block));
 	memcpy(orb->request.command_block, cmd->cmnd, COMMAND_SIZE(*cmd->cmnd));
 
 	orb->base.callback = complete_command_orb;
