@@ -528,20 +528,19 @@ static int __devinit smbios_present(const char __iomem *p)
 	return -ENODEV;
 }
 
-static int __devinit smbios_scan_machine(void)
+static void __devinit smbios_scan_machine(void)
 {
 	char __iomem *p, *q;
-	int rc;
 
 	if (efi_enabled) {
 		if (efi.smbios == EFI_INVALID_TABLE_ADDR)
-			return -ENODEV;
+			return;
 
 		p = ioremap(efi.smbios, 32);
 		if (p == NULL)
-			return -ENOMEM;
+			return;
 
-		rc = smbios_present(p);
+		smbios_present(p);
 		iounmap(p);
 	} else {
 		/*
@@ -549,14 +548,12 @@ static int __devinit smbios_scan_machine(void)
 		 */
 		p = ioremap(PCI_ROM_BASE1, ROM_SIZE);
 		if (p == NULL)
-			return -ENOMEM;
+			return;
 
-		for (q = p; q < p + ROM_SIZE; q += 16) {
-			rc = smbios_present(q);
-			if (!rc) {
+		for (q = p; q < p + ROM_SIZE; q += 16)
+			if (!smbios_present(q))
 				break;
-			}
-		}
+
 		iounmap(p);
 	}
 }
