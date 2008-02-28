@@ -316,3 +316,15 @@ Why:	Largely unmaintained and almost entirely unused.  File system
 	is largely pointless as without a lot of work only the most
 	trivial of Solaris binaries can work with the emulation code.
 Who:	David S. Miller <davem@davemloft.net>
+
+---------------------------
+
+What:	init_mm export
+When:	2.6.26
+Why:	Not used in-tree. The current out-of-tree users used it to
+	work around problems in the CPA code which should be resolved
+	by now. One usecase was described to provide verification code
+	of the CPA operation. That's a good idea in general, but such
+	code / infrastructure should be in the kernel and not in some
+	out-of-tree driver.
+Who:	Thomas Gleixner <tglx@linutronix.de>
