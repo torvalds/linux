@@ -632,11 +632,39 @@ int sysctl_sched_rt_runtime = 950000;
  */
 #define RUNTIME_INF	((u64)~0ULL)
 
+static const unsigned long long time_sync_thresh = 100000;
+
+static DEFINE_PER_CPU(unsigned long long, time_offset);
+static DEFINE_PER_CPU(unsigned long long, prev_cpu_time);
+
 /*
- * For kernel-internal use: high-speed (but slightly incorrect) per-cpu
- * clock constructed from sched_clock():
+ * Global lock which we take every now and then to synchronize
+ * the CPUs time. This method is not warp-safe, but it's good
+ * enough to synchronize slowly diverging time sources and thus
+ * it's good enough for tracing:
  */
-unsigned long long cpu_clock(int cpu)
+static DEFINE_SPINLOCK(time_sync_lock);
+static unsigned long long prev_global_time;
+
+static unsigned long long __sync_cpu_clock(cycles_t time, int cpu)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&time_sync_lock, flags);
+
+	if (time < prev_global_time) {
+		per_cpu(time_offset, cpu) += prev_global_time - time;
+		time = prev_global_time;
+	} else {
+		prev_global_time = time;
+	}
+
+	spin_unlock_irqrestore(&time_sync_lock, flags);
+
+	return time;
+}
+
+static unsigned long long __cpu_clock(int cpu)
 {
 	unsigned long long now;
 	unsigned long flags;
@@ -656,6 +684,24 @@ unsigned long long cpu_clock(int cpu)
 	local_irq_restore(flags);
 
 	return now;
+}
+
+/*
+ * For kernel-internal use: high-speed (but slightly incorrect) per-cpu
+ * clock constructed from sched_clock():
+ */
+unsigned long long cpu_clock(int cpu)
+{
+	unsigned long long prev_cpu_time, time, delta_time;
+
+	prev_cpu_time = per_cpu(prev_cpu_time, cpu);
+	time = __cpu_clock(cpu) + per_cpu(time_offset, cpu);
+	delta_time = time-prev_cpu_time;
+
+	if (unlikely(delta_time > time_sync_thresh))
+		time = __sync_cpu_clock(time, cpu);
+
+	return time;
 }
 EXPORT_SYMBOL_GPL(cpu_clock);
 
