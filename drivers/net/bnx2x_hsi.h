@@ -1,6 +1,6 @@
 /* bnx2x_hsi.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007 Broadcom Corporation
+ * Copyright (c) 2007-2008 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -8,169 +8,9 @@
  */
 
 
-#define FUNC_0				0
-#define FUNC_1				1
-#define FUNC_MAX			2
-
-
-/* This value (in milliseconds) determines the frequency of the driver
- * issuing the PULSE message code.  The firmware monitors this periodic
- * pulse to determine when to switch to an OS-absent mode. */
-#define DRV_PULSE_PERIOD_MS		250
-
-/* This value (in milliseconds) determines how long the driver should
- * wait for an acknowledgement from the firmware before timing out.  Once
- * the firmware has timed out, the driver will assume there is no firmware
- * running and there won't be any firmware-driver synchronization during a
- * driver reset. */
-#define FW_ACK_TIME_OUT_MS		5000
-
-#define FW_ACK_POLL_TIME_MS		1
-
-#define FW_ACK_NUM_OF_POLL	(FW_ACK_TIME_OUT_MS/FW_ACK_POLL_TIME_MS)
-
-/* LED Blink rate that will achieve ~15.9Hz */
-#define LED_BLINK_RATE_VAL		480
-
-/****************************************************************************
- * Driver <-> FW Mailbox						    *
- ****************************************************************************/
-struct drv_fw_mb {
-	u32 drv_mb_header;
-#define DRV_MSG_CODE_MASK			0xffff0000
-#define DRV_MSG_CODE_LOAD_REQ			0x10000000
-#define DRV_MSG_CODE_LOAD_DONE			0x11000000
-#define DRV_MSG_CODE_UNLOAD_REQ_WOL_EN		0x20000000
-#define DRV_MSG_CODE_UNLOAD_REQ_WOL_DIS 	0x20010000
-#define DRV_MSG_CODE_UNLOAD_REQ_WOL_MCP 	0x20020000
-#define DRV_MSG_CODE_UNLOAD_DONE		0x21000000
-#define DRV_MSG_CODE_DIAG_ENTER_REQ		0x50000000
-#define DRV_MSG_CODE_DIAG_EXIT_REQ		0x60000000
-#define DRV_MSG_CODE_VALIDATE_KEY		0x70000000
-#define DRV_MSG_CODE_GET_CURR_KEY		0x80000000
-#define DRV_MSG_CODE_GET_UPGRADE_KEY		0x81000000
-#define DRV_MSG_CODE_GET_MANUF_KEY		0x82000000
-#define DRV_MSG_CODE_LOAD_L2B_PRAM		0x90000000
-
-#define DRV_MSG_SEQ_NUMBER_MASK 		0x0000ffff
-
-	u32 drv_mb_param;
-
-	u32 fw_mb_header;
-#define FW_MSG_CODE_MASK			0xffff0000
-#define FW_MSG_CODE_DRV_LOAD_COMMON		0x11000000
-#define FW_MSG_CODE_DRV_LOAD_PORT		0x12000000
-#define FW_MSG_CODE_DRV_LOAD_REFUSED		0x13000000
-#define FW_MSG_CODE_DRV_LOAD_DONE		0x14000000
-#define FW_MSG_CODE_DRV_UNLOAD_COMMON		0x21000000
-#define FW_MSG_CODE_DRV_UNLOAD_PORT		0x22000000
-#define FW_MSG_CODE_DRV_UNLOAD_DONE		0x23000000
-#define FW_MSG_CODE_DIAG_ENTER_DONE		0x50000000
-#define FW_MSG_CODE_DIAG_REFUSE 		0x51000000
-#define FW_MSG_CODE_VALIDATE_KEY_SUCCESS	0x70000000
-#define FW_MSG_CODE_VALIDATE_KEY_FAILURE	0x71000000
-#define FW_MSG_CODE_GET_KEY_DONE		0x80000000
-#define FW_MSG_CODE_NO_KEY			0x8f000000
-#define FW_MSG_CODE_LIC_INFO_NOT_READY		0x8f800000
-#define FW_MSG_CODE_L2B_PRAM_LOADED		0x90000000
-#define FW_MSG_CODE_L2B_PRAM_T_LOAD_FAILURE	0x91000000
-#define FW_MSG_CODE_L2B_PRAM_C_LOAD_FAILURE	0x92000000
-#define FW_MSG_CODE_L2B_PRAM_X_LOAD_FAILURE	0x93000000
-#define FW_MSG_CODE_L2B_PRAM_U_LOAD_FAILURE	0x94000000
-
-#define FW_MSG_SEQ_NUMBER_MASK			0x0000ffff
-
-	u32 fw_mb_param;
-
-	u32 link_status;
-	/* Driver should update this field on any link change event */
-
-#define LINK_STATUS_LINK_FLAG_MASK		0x00000001
-#define LINK_STATUS_LINK_UP			0x00000001
-#define LINK_STATUS_SPEED_AND_DUPLEX_MASK	0x0000001E
-#define LINK_STATUS_SPEED_AND_DUPLEX_AN_NOT_COMPLETE	(0<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_10THD		(1<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_10TFD		(2<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_100TXHD		(3<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_100T4		(4<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_100TXFD		(5<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_1000THD		(6<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_1000TFD		(7<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_1000XFD		(7<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_2500THD		(8<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_2500TFD		(9<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_2500XFD		(9<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_10GTFD		(10<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_10GXFD		(10<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_12GTFD		(11<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_12GXFD		(11<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_12_5GTFD		(12<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_12_5GXFD		(12<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_13GTFD		(13<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_13GXFD		(13<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_15GTFD		(14<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_15GXFD		(14<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_16GTFD		(15<<1)
-#define LINK_STATUS_SPEED_AND_DUPLEX_16GXFD		(15<<1)
-
-#define LINK_STATUS_AUTO_NEGOTIATE_FLAG_MASK		0x00000020
-#define LINK_STATUS_AUTO_NEGOTIATE_ENABLED		0x00000020
-
-#define LINK_STATUS_AUTO_NEGOTIATE_COMPLETE		0x00000040
-#define LINK_STATUS_PARALLEL_DETECTION_FLAG_MASK	0x00000080
-#define LINK_STATUS_PARALLEL_DETECTION_USED		0x00000080
-
-#define LINK_STATUS_LINK_PARTNER_1000TFD_CAPABLE	0x00000200
-#define LINK_STATUS_LINK_PARTNER_1000THD_CAPABLE	0x00000400
-#define LINK_STATUS_LINK_PARTNER_100T4_CAPABLE		0x00000800
-#define LINK_STATUS_LINK_PARTNER_100TXFD_CAPABLE	0x00001000
-#define LINK_STATUS_LINK_PARTNER_100TXHD_CAPABLE	0x00002000
-#define LINK_STATUS_LINK_PARTNER_10TFD_CAPABLE		0x00004000
-#define LINK_STATUS_LINK_PARTNER_10THD_CAPABLE		0x00008000
-
-#define LINK_STATUS_TX_FLOW_CONTROL_FLAG_MASK		0x00010000
-#define LINK_STATUS_TX_FLOW_CONTROL_ENABLED		0x00010000
-
-#define LINK_STATUS_RX_FLOW_CONTROL_FLAG_MASK		0x00020000
-#define LINK_STATUS_RX_FLOW_CONTROL_ENABLED		0x00020000
-
-#define LINK_STATUS_LINK_PARTNER_FLOW_CONTROL_MASK	0x000C0000
-#define LINK_STATUS_LINK_PARTNER_NOT_PAUSE_CAPABLE	(0<<18)
-#define LINK_STATUS_LINK_PARTNER_SYMMETRIC_PAUSE	(1<<18)
-#define LINK_STATUS_LINK_PARTNER_ASYMMETRIC_PAUSE	(2<<18)
-#define LINK_STATUS_LINK_PARTNER_BOTH_PAUSE		(3<<18)
-
-#define LINK_STATUS_SERDES_LINK 			0x00100000
-
-#define LINK_STATUS_LINK_PARTNER_2500XFD_CAPABLE	0x00200000
-#define LINK_STATUS_LINK_PARTNER_2500XHD_CAPABLE	0x00400000
-#define LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE 	0x00800000
-#define LINK_STATUS_LINK_PARTNER_12GXFD_CAPABLE 	0x01000000
-#define LINK_STATUS_LINK_PARTNER_12_5GXFD_CAPABLE	0x02000000
-#define LINK_STATUS_LINK_PARTNER_13GXFD_CAPABLE 	0x04000000
-#define LINK_STATUS_LINK_PARTNER_15GXFD_CAPABLE 	0x08000000
-#define LINK_STATUS_LINK_PARTNER_16GXFD_CAPABLE 	0x10000000
-
-	u32 drv_pulse_mb;
-#define DRV_PULSE_SEQ_MASK				0x00007fff
-#define DRV_PULSE_SYSTEM_TIME_MASK			0xffff0000
-	/* The system time is in the format of
-	 * (year-2001)*12*32 + month*32 + day. */
-#define DRV_PULSE_ALWAYS_ALIVE				0x00008000
-	/* Indicate to the firmware not to go into the
-	 * OS-absent when it is not getting driver pulse.
-	 * This is used for debugging as well for PXE(MBA). */
-
-	u32 mcp_pulse_mb;
-#define MCP_PULSE_SEQ_MASK				0x00007fff
-#define MCP_PULSE_ALWAYS_ALIVE				0x00008000
-	/* Indicates to the driver not to assert due to lack
-	 * of MCP response */
-#define MCP_EVENT_MASK					0xffff0000
-#define MCP_EVENT_OTHER_DRIVER_RESET_REQ		0x00010000
-
-};
-
+#define PORT_0				0
+#define PORT_1				1
+#define PORT_MAX			2
 
 /****************************************************************************
  * Shared HW configuration						    *
@@ -249,7 +89,7 @@ struct shared_hw_cfg {					 /* NVRAM Offset */
 #define SHARED_HW_CFG_SMBUS_TIMING_100KHZ	    0x00000000
 #define SHARED_HW_CFG_SMBUS_TIMING_400KHZ	    0x00001000
 
-#define SHARED_HW_CFG_HIDE_FUNC1		    0x00002000
+#define SHARED_HW_CFG_HIDE_PORT1		    0x00002000
 
 	u32 power_dissipated;					/* 0x11c */
 #define SHARED_HW_CFG_POWER_DIS_CMN_MASK	    0xff000000
@@ -290,6 +130,8 @@ struct shared_hw_cfg {					 /* NVRAM Offset */
 #define SHARED_HW_CFG_BOARD_TYPE_BCM957710T1015G    0x00000006
 #define SHARED_HW_CFG_BOARD_TYPE_BCM957710A1020G    0x00000007
 #define SHARED_HW_CFG_BOARD_TYPE_BCM957710T1003G    0x00000008
+#define SHARED_HW_CFG_BOARD_TYPE_BCM957710A1022G    0x00000009
+#define SHARED_HW_CFG_BOARD_TYPE_BCM957710A1021G    0x0000000a
 
 #define SHARED_HW_CFG_BOARD_VER_MASK		    0xffff0000
 #define SHARED_HW_CFG_BOARD_VER_SHIFT		    16
@@ -304,13 +146,12 @@ struct shared_hw_cfg {					 /* NVRAM Offset */
 
 };
 
+
 /****************************************************************************
  * Port HW configuration						    *
  ****************************************************************************/
-struct port_hw_cfg {	/* function 0: 0x12c-0x2bb, function 1: 0x2bc-0x44b */
+struct port_hw_cfg {			    /* port 0: 0x12c  port 1: 0x2bc */
 
-	/* Fields below are port specific (in anticipation of dual port
-	   devices */
 	u32 pci_id;
 #define PORT_HW_CFG_PCI_VENDOR_ID_MASK		    0xffff0000
 #define PORT_HW_CFG_PCI_DEVICE_ID_MASK		    0x0000ffff
@@ -420,6 +261,8 @@ struct port_hw_cfg {	/* function 0: 0x12c-0x2bb, function 1: 0x2bc-0x44b */
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706	    0x00000500
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8276	    0x00000600
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481	    0x00000700
+#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101	    0x00000800
+#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE	    0x0000fd00
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN	    0x0000ff00
 
 #define PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK	    0x000000ff
@@ -462,11 +305,13 @@ struct port_hw_cfg {	/* function 0: 0x12c-0x2bb, function 1: 0x2bc-0x44b */
 
 };
 
+
 /****************************************************************************
  * Shared Feature configuration 					    *
  ****************************************************************************/
 struct shared_feat_cfg {				 /* NVRAM Offset */
-	u32 bmc_common; 					/* 0x450 */
+
+	u32 config;						/* 0x450 */
 #define SHARED_FEATURE_BMC_ECHO_MODE_EN 	    0x00000001
 
 };
@@ -475,7 +320,8 @@ struct shared_feat_cfg {				 /* NVRAM Offset */
 /****************************************************************************
  * Port Feature configuration						    *
  ****************************************************************************/
-struct port_feat_cfg {	/* function 0: 0x454-0x4c7, function 1: 0x4c8-0x53b */
+struct port_feat_cfg {			    /* port 0: 0x454  port 1: 0x4c8 */
+
 	u32 config;
 #define PORT_FEATURE_BAR1_SIZE_MASK		    0x0000000f
 #define PORT_FEATURE_BAR1_SIZE_SHIFT		    0
@@ -609,8 +455,7 @@ struct port_feat_cfg {	/* function 0: 0x454-0x4c7, function 1: 0x4c8-0x53b */
 #define PORT_FEATURE_SMBUS_ADDR_MASK		    0x000000fe
 #define PORT_FEATURE_SMBUS_ADDR_SHIFT		    1
 
-	u32 iscsib_boot_cfg;
-#define PORT_FEATURE_ISCSIB_SKIP_TARGET_BOOT	    0x00000001
+	u32 reserved1;
 
 	u32 link_config;    /* Used as HW defaults for the driver */
 #define PORT_FEATURE_CONNECTED_SWITCH_MASK	    0x03000000
@@ -657,20 +502,201 @@ struct port_feat_cfg {	/* function 0: 0x454-0x4c7, function 1: 0x4c8-0x53b */
 };
 
 
+/*****************************************************************************
+ * Device Information							     *
+ *****************************************************************************/
+struct dev_info {						     /* size */
+
+	u32    bc_rev; /* 8 bits each: major, minor, build */	        /* 4 */
+
+	struct shared_hw_cfg	 shared_hw_config;		       /* 40 */
+
+	struct port_hw_cfg	 port_hw_config[PORT_MAX];      /* 400*2=800 */
+
+	struct shared_feat_cfg	 shared_feature_config; 	        /* 4 */
+
+	struct port_feat_cfg	 port_feature_config[PORT_MAX]; /* 116*2=232 */
+
+};
+
+
+#define FUNC_0				0
+#define FUNC_1				1
+#define E1_FUNC_MAX			2
+#define FUNC_MAX			E1_FUNC_MAX
+
+
+/* This value (in milliseconds) determines the frequency of the driver
+ * issuing the PULSE message code.  The firmware monitors this periodic
+ * pulse to determine when to switch to an OS-absent mode. */
+#define DRV_PULSE_PERIOD_MS		250
+
+/* This value (in milliseconds) determines how long the driver should
+ * wait for an acknowledgement from the firmware before timing out.  Once
+ * the firmware has timed out, the driver will assume there is no firmware
+ * running and there won't be any firmware-driver synchronization during a
+ * driver reset. */
+#define FW_ACK_TIME_OUT_MS		5000
+
+#define FW_ACK_POLL_TIME_MS		1
+
+#define FW_ACK_NUM_OF_POLL	(FW_ACK_TIME_OUT_MS/FW_ACK_POLL_TIME_MS)
+
+/* LED Blink rate that will achieve ~15.9Hz */
+#define LED_BLINK_RATE_VAL		480
+
 /****************************************************************************
- * Device Information							    *
+ * Driver <-> FW Mailbox						    *
  ****************************************************************************/
-struct dev_info {						    /* size */
+struct drv_port_mb {
 
-	u32    bc_rev; /* 8 bits each: major, minor, build */	       /* 4 */
+	u32 link_status;
+	/* Driver should update this field on any link change event */
 
-	struct shared_hw_cfg	 shared_hw_config;		      /* 40 */
+#define LINK_STATUS_LINK_FLAG_MASK			0x00000001
+#define LINK_STATUS_LINK_UP				0x00000001
+#define LINK_STATUS_SPEED_AND_DUPLEX_MASK		0x0000001E
+#define LINK_STATUS_SPEED_AND_DUPLEX_AN_NOT_COMPLETE	(0<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_10THD		(1<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_10TFD		(2<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_100TXHD		(3<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_100T4		(4<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_100TXFD		(5<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_1000THD		(6<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_1000TFD		(7<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_1000XFD		(7<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_2500THD		(8<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_2500TFD		(9<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_2500XFD		(9<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_10GTFD		(10<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_10GXFD		(10<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_12GTFD		(11<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_12GXFD		(11<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_12_5GTFD		(12<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_12_5GXFD		(12<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_13GTFD		(13<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_13GXFD		(13<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_15GTFD		(14<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_15GXFD		(14<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_16GTFD		(15<<1)
+#define LINK_STATUS_SPEED_AND_DUPLEX_16GXFD		(15<<1)
 
-	struct port_hw_cfg	 port_hw_config[FUNC_MAX];     /* 400*2=800 */
+#define LINK_STATUS_AUTO_NEGOTIATE_FLAG_MASK		0x00000020
+#define LINK_STATUS_AUTO_NEGOTIATE_ENABLED		0x00000020
 
-	struct shared_feat_cfg	 shared_feature_config; 	       /* 4 */
+#define LINK_STATUS_AUTO_NEGOTIATE_COMPLETE		0x00000040
+#define LINK_STATUS_PARALLEL_DETECTION_FLAG_MASK	0x00000080
+#define LINK_STATUS_PARALLEL_DETECTION_USED		0x00000080
 
-	struct port_feat_cfg	 port_feature_config[FUNC_MAX];/* 116*2=232 */
+#define LINK_STATUS_LINK_PARTNER_1000TFD_CAPABLE	0x00000200
+#define LINK_STATUS_LINK_PARTNER_1000THD_CAPABLE	0x00000400
+#define LINK_STATUS_LINK_PARTNER_100T4_CAPABLE		0x00000800
+#define LINK_STATUS_LINK_PARTNER_100TXFD_CAPABLE	0x00001000
+#define LINK_STATUS_LINK_PARTNER_100TXHD_CAPABLE	0x00002000
+#define LINK_STATUS_LINK_PARTNER_10TFD_CAPABLE		0x00004000
+#define LINK_STATUS_LINK_PARTNER_10THD_CAPABLE		0x00008000
+
+#define LINK_STATUS_TX_FLOW_CONTROL_FLAG_MASK		0x00010000
+#define LINK_STATUS_TX_FLOW_CONTROL_ENABLED		0x00010000
+
+#define LINK_STATUS_RX_FLOW_CONTROL_FLAG_MASK		0x00020000
+#define LINK_STATUS_RX_FLOW_CONTROL_ENABLED		0x00020000
+
+#define LINK_STATUS_LINK_PARTNER_FLOW_CONTROL_MASK	0x000C0000
+#define LINK_STATUS_LINK_PARTNER_NOT_PAUSE_CAPABLE	(0<<18)
+#define LINK_STATUS_LINK_PARTNER_SYMMETRIC_PAUSE	(1<<18)
+#define LINK_STATUS_LINK_PARTNER_ASYMMETRIC_PAUSE	(2<<18)
+#define LINK_STATUS_LINK_PARTNER_BOTH_PAUSE		(3<<18)
+
+#define LINK_STATUS_SERDES_LINK 			0x00100000
+
+#define LINK_STATUS_LINK_PARTNER_2500XFD_CAPABLE	0x00200000
+#define LINK_STATUS_LINK_PARTNER_2500XHD_CAPABLE	0x00400000
+#define LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE 	0x00800000
+#define LINK_STATUS_LINK_PARTNER_12GXFD_CAPABLE 	0x01000000
+#define LINK_STATUS_LINK_PARTNER_12_5GXFD_CAPABLE	0x02000000
+#define LINK_STATUS_LINK_PARTNER_13GXFD_CAPABLE 	0x04000000
+#define LINK_STATUS_LINK_PARTNER_15GXFD_CAPABLE 	0x08000000
+#define LINK_STATUS_LINK_PARTNER_16GXFD_CAPABLE 	0x10000000
+
+	u32 reserved[3];
+
+};
+
+
+struct drv_func_mb {
+
+	u32 drv_mb_header;
+#define DRV_MSG_CODE_MASK				0xffff0000
+#define DRV_MSG_CODE_LOAD_REQ				0x10000000
+#define DRV_MSG_CODE_LOAD_DONE				0x11000000
+#define DRV_MSG_CODE_UNLOAD_REQ_WOL_EN			0x20000000
+#define DRV_MSG_CODE_UNLOAD_REQ_WOL_DIS 		0x20010000
+#define DRV_MSG_CODE_UNLOAD_REQ_WOL_MCP 		0x20020000
+#define DRV_MSG_CODE_UNLOAD_DONE			0x21000000
+#define DRV_MSG_CODE_DIAG_ENTER_REQ			0x50000000
+#define DRV_MSG_CODE_DIAG_EXIT_REQ			0x60000000
+#define DRV_MSG_CODE_VALIDATE_KEY			0x70000000
+#define DRV_MSG_CODE_GET_CURR_KEY			0x80000000
+#define DRV_MSG_CODE_GET_UPGRADE_KEY			0x81000000
+#define DRV_MSG_CODE_GET_MANUF_KEY			0x82000000
+#define DRV_MSG_CODE_LOAD_L2B_PRAM			0x90000000
+
+#define DRV_MSG_SEQ_NUMBER_MASK 			0x0000ffff
+
+	u32 drv_mb_param;
+
+	u32 fw_mb_header;
+#define FW_MSG_CODE_MASK				0xffff0000
+#define FW_MSG_CODE_DRV_LOAD_COMMON			0x10100000
+#define FW_MSG_CODE_DRV_LOAD_PORT			0x10110000
+#define FW_MSG_CODE_DRV_LOAD_FUNCTION			0x10120000
+#define FW_MSG_CODE_DRV_LOAD_REFUSED			0x10200000
+#define FW_MSG_CODE_DRV_LOAD_DONE			0x11100000
+#define FW_MSG_CODE_DRV_UNLOAD_COMMON			0x20100000
+#define FW_MSG_CODE_DRV_UNLOAD_PORT			0x20110000
+#define FW_MSG_CODE_DRV_UNLOAD_FUNCTION 		0x20120000
+#define FW_MSG_CODE_DRV_UNLOAD_DONE			0x21100000
+#define FW_MSG_CODE_DIAG_ENTER_DONE			0x50100000
+#define FW_MSG_CODE_DIAG_REFUSE 			0x50200000
+#define FW_MSG_CODE_DIAG_EXIT_DONE			0x60100000
+#define FW_MSG_CODE_VALIDATE_KEY_SUCCESS		0x70100000
+#define FW_MSG_CODE_VALIDATE_KEY_FAILURE		0x70200000
+#define FW_MSG_CODE_GET_KEY_DONE			0x80100000
+#define FW_MSG_CODE_NO_KEY				0x80f00000
+#define FW_MSG_CODE_LIC_INFO_NOT_READY			0x80f80000
+#define FW_MSG_CODE_L2B_PRAM_LOADED			0x90100000
+#define FW_MSG_CODE_L2B_PRAM_T_LOAD_FAILURE		0x90210000
+#define FW_MSG_CODE_L2B_PRAM_C_LOAD_FAILURE		0x90220000
+#define FW_MSG_CODE_L2B_PRAM_X_LOAD_FAILURE		0x90230000
+#define FW_MSG_CODE_L2B_PRAM_U_LOAD_FAILURE		0x90240000
+
+#define FW_MSG_SEQ_NUMBER_MASK				0x0000ffff
+
+	u32 fw_mb_param;
+
+	u32 drv_pulse_mb;
+#define DRV_PULSE_SEQ_MASK				0x00007fff
+#define DRV_PULSE_SYSTEM_TIME_MASK			0xffff0000
+	/* The system time is in the format of
+	 * (year-2001)*12*32 + month*32 + day. */
+#define DRV_PULSE_ALWAYS_ALIVE				0x00008000
+	/* Indicate to the firmware not to go into the
+	 * OS-absent when it is not getting driver pulse.
+	 * This is used for debugging as well for PXE(MBA). */
+
+	u32 mcp_pulse_mb;
+#define MCP_PULSE_SEQ_MASK				0x00007fff
+#define MCP_PULSE_ALWAYS_ALIVE				0x00008000
+	/* Indicates to the driver not to assert due to lack
+	 * of MCP response */
+#define MCP_EVENT_MASK					0xffff0000
+#define MCP_EVENT_OTHER_DRIVER_RESET_REQ		0x00010000
+
+	u32 iscsi_boot_signature;
+	u32 iscsi_boot_block_offset;
+
+	u32 reserved[3];
 
 };
 
@@ -678,9 +704,8 @@ struct dev_info {						    /* size */
 /****************************************************************************
  * Management firmware state						    *
  ****************************************************************************/
-/* Allocate 320 bytes for management firmware: still not known exactly
- * how much IMD needs. */
-#define MGMTFW_STATE_WORD_SIZE				    80
+/* Allocate 440 bytes for management firmware */
+#define MGMTFW_STATE_WORD_SIZE				    110
 
 struct mgmtfw_state {
 	u32 opaque[MGMTFW_STATE_WORD_SIZE];
@@ -691,31 +716,40 @@ struct mgmtfw_state {
  * Shared Memory Region 						    *
  ****************************************************************************/
 struct shmem_region {			       /*   SharedMem Offset (size) */
-	u32		    validity_map[FUNC_MAX];    /* 0x0 (4 * 2 = 0x8) */
-#define SHR_MEM_VALIDITY_PCI_CFG		    0x00000001
-#define SHR_MEM_VALIDITY_MB			    0x00000002
-#define SHR_MEM_VALIDITY_DEV_INFO		    0x00000004
+
+	u32			validity_map[PORT_MAX];  /* 0x0 (4*2 = 0x8) */
+#define SHR_MEM_FORMAT_REV_ID			    ('A'<<24)
+#define SHR_MEM_FORMAT_REV_MASK 		    0xff000000
+	/* validity bits */
+#define SHR_MEM_VALIDITY_PCI_CFG		    0x00100000
+#define SHR_MEM_VALIDITY_MB			    0x00200000
+#define SHR_MEM_VALIDITY_DEV_INFO		    0x00400000
+#define SHR_MEM_VALIDITY_RESERVED		    0x00000007
 	/* One licensing bit should be set */
 #define SHR_MEM_VALIDITY_LIC_KEY_IN_EFFECT_MASK     0x00000038
 #define SHR_MEM_VALIDITY_LIC_MANUF_KEY_IN_EFFECT    0x00000008
 #define SHR_MEM_VALIDITY_LIC_UPGRADE_KEY_IN_EFFECT  0x00000010
 #define SHR_MEM_VALIDITY_LIC_NO_KEY_IN_EFFECT	    0x00000020
+	/* Active MFW */
+#define SHR_MEM_VALIDITY_ACTIVE_MFW_UNKNOWN	    0x00000000
+#define SHR_MEM_VALIDITY_ACTIVE_MFW_IPMI	    0x00000040
+#define SHR_MEM_VALIDITY_ACTIVE_MFW_UMP 	    0x00000080
+#define SHR_MEM_VALIDITY_ACTIVE_MFW_NCSI	    0x000000c0
+#define SHR_MEM_VALIDITY_ACTIVE_MFW_NONE	    0x000001c0
+#define SHR_MEM_VALIDITY_ACTIVE_MFW_MASK	    0x000001c0
 
-	struct drv_fw_mb    drv_fw_mb[FUNC_MAX];     /* 0x8 (28 * 2 = 0x38) */
+	struct dev_info 	dev_info;		 /* 0x8     (0x438) */
 
-	struct dev_info     dev_info;			    /* 0x40 (0x438) */
-
-#ifdef _LICENSE_H
-	license_key_t	    drv_lic_key[FUNC_MAX]; /* 0x478 (52 * 2 = 0x68) */
-#else /* Linux! */
-	u8		    reserved[52*FUNC_MAX];
-#endif
+	u8			reserved[52*PORT_MAX];
 
 	/* FW information (for internal FW use) */
-	u32		    fw_info_fio_offset; 	   /* 0x4e0 (0x4)   */
-	struct mgmtfw_state mgmtfw_state;		   /* 0x4e4 (0x140) */
+	u32			fw_info_fio_offset;    /* 0x4a8       (0x4) */
+	struct mgmtfw_state	mgmtfw_state;	       /* 0x4ac     (0x1b8) */
 
-};							   /* 0x624 */
+	struct drv_port_mb	port_mb[PORT_MAX];     /* 0x664 (16*2=0x20) */
+	struct drv_func_mb	func_mb[FUNC_MAX];     /* 0x684 (44*2=0x58) */
+
+};						       /* 0x6dc */
 
 
 #define BCM_5710_FW_MAJOR_VERSION			4
