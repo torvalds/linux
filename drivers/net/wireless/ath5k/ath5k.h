@@ -140,7 +140,8 @@ enum ath5k_radio {
 	AR5K_RF5110	= 0,
 	AR5K_RF5111	= 1,
 	AR5K_RF5112	= 2,
-	AR5K_RF5413	= 3,
+	AR5K_RF2413	= 3,
+	AR5K_RF5413	= 4,
 };
 
 /*
@@ -168,12 +169,15 @@ struct ath5k_srev_name {
 #define AR5K_SREV_VER_AR5212	0x50
 #define AR5K_SREV_VER_AR5213	0x55
 #define AR5K_SREV_VER_AR5213A	0x59
+#define AR5K_SREV_VER_AR2413	0x78
+#define AR5K_SREV_VER_AR2414	0x79
 #define AR5K_SREV_VER_AR2424	0xa0
 #define AR5K_SREV_VER_AR5424	0xa3
 #define AR5K_SREV_VER_AR5413	0xa4
 #define AR5K_SREV_VER_AR5414	0xa5
 #define AR5K_SREV_VER_AR5416	0xc0	/* ? */
 #define AR5K_SREV_VER_AR5418	0xca
+#define AR5K_SREV_VER_AR2425	0xe2
 
 #define AR5K_SREV_RAD_5110	0x00
 #define AR5K_SREV_RAD_5111	0x10
@@ -183,8 +187,9 @@ struct ath5k_srev_name {
 #define AR5K_SREV_RAD_5112A	0x35
 #define AR5K_SREV_RAD_2112	0x40
 #define AR5K_SREV_RAD_2112A	0x45
+#define AR5K_SREV_RAD_SC0	0x56	/* Found on 2413/2414 */
 #define AR5K_SREV_RAD_SC1	0x63	/* Found on 5413/5414 */
-#define AR5K_SREV_RAD_SC2	0xa2	/* Found on 2424/5424 */
+#define AR5K_SREV_RAD_SC2	0xa2	/* Found on 2424-5/5424 */
 #define AR5K_SREV_RAD_5133	0xc0	/* MIMO found on 5418 */
 
 /* IEEE defs */
