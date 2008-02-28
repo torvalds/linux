@@ -259,10 +259,10 @@ static void snd_card_dummy_pcm_timer_function(unsigned long data)
 	dpcm->timer.expires = 1 + jiffies;
 	add_timer(&dpcm->timer);
 	dpcm->pcm_irq_pos += dpcm->pcm_bps;
+	dpcm->pcm_buf_pos += dpcm->pcm_bps;
+	dpcm->pcm_buf_pos %= dpcm->pcm_buffer_size * dpcm->pcm_hz;
 	if (dpcm->pcm_irq_pos >= dpcm->pcm_period_size * dpcm->pcm_hz) {
 		dpcm->pcm_irq_pos %= dpcm->pcm_period_size * dpcm->pcm_hz;
-		dpcm->pcm_buf_pos += dpcm->pcm_period_size;
-		dpcm->pcm_buf_pos %= dpcm->pcm_buffer_size;
 		spin_unlock_irqrestore(&dpcm->lock, flags);
 		snd_pcm_period_elapsed(dpcm->substream);
 	} else
@@ -274,7 +274,7 @@ static snd_pcm_uframes_t snd_card_dummy_pcm_pointer(struct snd_pcm_substream *su
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_dummy_pcm *dpcm = runtime->private_data;
 
-	return bytes_to_frames(runtime, dpcm->pcm_buf_pos);
+	return bytes_to_frames(runtime, dpcm->pcm_buf_pos / dpcm->pcm_hz);
 }
 
 static struct snd_pcm_hardware snd_card_dummy_playback =
