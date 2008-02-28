@@ -26,6 +26,7 @@
 #define ELF_ARCH	EM_IA_64
 
 #define USE_ELF_CORE_DUMP
+#define CORE_DUMP_USE_REGSET
 
 /* Least-significant four bits of ELF header's e_flags are OS-specific.  The bits are
    interpreted as follows by Linux: */
@@ -206,12 +207,6 @@ extern void ia64_elf_core_copy_regs (struct pt_regs *src, elf_gregset_t dst);
 	((executable_stack!=EXSTACK_DISABLE_X) && ((ex).e_flags & EF_IA_64_LINUX_EXECUTABLE_STACK) != 0)
 
 struct task_struct;
-
-extern int dump_task_regs(struct task_struct *, elf_gregset_t *);
-extern int dump_task_fpu (struct task_struct *, elf_fpregset_t *);
-
-#define ELF_CORE_COPY_TASK_REGS(tsk, elf_gregs) dump_task_regs(tsk, elf_gregs)
-#define ELF_CORE_COPY_FPREGS(tsk, elf_fpregs) dump_task_fpu(tsk, elf_fpregs)
 
 #define GATE_EHDR	((const struct elfhdr *) GATE_ADDR)
 
