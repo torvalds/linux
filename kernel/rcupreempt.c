@@ -952,9 +952,11 @@ static void rcu_process_callbacks(struct softirq_action *unused)
 {
 	unsigned long flags;
 	struct rcu_head *next, *list;
-	struct rcu_data *rdp = RCU_DATA_ME();
+	struct rcu_data *rdp;
 
-	spin_lock_irqsave(&rdp->lock, flags);
+	local_irq_save(flags);
+	rdp = RCU_DATA_ME();
+	spin_lock(&rdp->lock);
 	list = rdp->donelist;
 	if (list == NULL) {
 		spin_unlock_irqrestore(&rdp->lock, flags);
