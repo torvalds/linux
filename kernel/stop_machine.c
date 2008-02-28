@@ -22,8 +22,16 @@ enum stopmachine_state {
 	STOPMACHINE_WAIT,
 	STOPMACHINE_PREPARE,
 	STOPMACHINE_DISABLE_IRQ,
+	STOPMACHINE_RUN,
 	STOPMACHINE_EXIT,
 };
+
+struct stop_machine_data {
+	int (*fn)(void *);
+	void *data;
+	struct completion done;
+	int run_all;
+} smdata;
 
 static enum stopmachine_state stopmachine_state;
 static unsigned int stopmachine_num_threads;
@@ -33,6 +41,7 @@ static int stopmachine(void *cpu)
 {
 	int irqs_disabled = 0;
 	int prepared = 0;
+	int ran = 0;
 	cpumask_of_cpu_ptr(cpumask, (int)(long)cpu);
 
 	set_cpus_allowed_ptr(current, cpumask);
@@ -56,6 +65,11 @@ static int stopmachine(void *cpu)
 			/* Everyone is in place, hold CPU. */
 			preempt_disable();
 			prepared = 1;
+			smp_mb(); /* Must read state first. */
+			atomic_inc(&stopmachine_thread_ack);
+		} else if (stopmachine_state == STOPMACHINE_RUN && !ran) {
+			smdata.fn(smdata.data);
+			ran = 1;
 			smp_mb(); /* Must read state first. */
 			atomic_inc(&stopmachine_thread_ack);
 		}
@@ -136,11 +150,10 @@ static void restart_machine(void)
 	preempt_enable_no_resched();
 }
 
-struct stop_machine_data {
-	int (*fn)(void *);
-	void *data;
-	struct completion done;
-};
+static void run_other_cpus(void)
+{
+	stopmachine_set_state(STOPMACHINE_RUN);
+}
 
 static int do_stop(void *_smdata)
 {
@@ -150,6 +163,8 @@ static int do_stop(void *_smdata)
 	ret = stop_machine();
 	if (ret == 0) {
 		ret = smdata->fn(smdata->data);
+		if (smdata->run_all)
+			run_other_cpus();
 		restart_machine();
 	}
 
@@ -173,14 +188,17 @@ struct task_struct *__stop_machine_run(int (*fn)(void *), void *data,
 	struct stop_machine_data smdata;
 	struct task_struct *p;
 
-	smdata.fn = fn;
-	smdata.data = data;
-	init_completion(&smdata.done);
-
 	mutex_lock(&stopmachine_mutex);
 
+	smdata.fn = fn;
+	smdata.data = data;
+	smdata.run_all = (cpu == ALL_CPUS) ? 1 : 0;
+	init_completion(&smdata.done);
+
+	smp_wmb(); /* make sure other cpus see smdata updates */
+
 	/* If they don't care which CPU fn runs on, bind to any online one. */
-	if (cpu == NR_CPUS)
+	if (cpu == NR_CPUS || cpu == ALL_CPUS)
 		cpu = raw_smp_processor_id();
 
 	p = kthread_create(do_stop, &smdata, "kstopmachine");

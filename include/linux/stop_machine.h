@@ -8,11 +8,17 @@
 #include <asm/system.h>
 
 #if defined(CONFIG_STOP_MACHINE) && defined(CONFIG_SMP)
+
+#define ALL_CPUS ~0U
+
 /**
  * stop_machine_run: freeze the machine on all CPUs and run this function
  * @fn: the function to run
  * @data: the data ptr for the @fn()
- * @cpu: the cpu to run @fn() on (or any, if @cpu == NR_CPUS.
+ * @cpu: if @cpu == n, run @fn() on cpu n
+ *       if @cpu == NR_CPUS, run @fn() on any cpu
+ *       if @cpu == ALL_CPUS, run @fn() first on the calling cpu, and then
+ *       concurrently on all the other cpus
  *
  * Description: This causes a thread to be scheduled on every other cpu,
  * each of which disables interrupts, and finally interrupts are disabled
