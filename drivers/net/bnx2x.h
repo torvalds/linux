@@ -854,8 +854,8 @@ struct bnx2x {
 #define MAX_SPQ_PENDING 		8
 
 
-#define BNX2X_NUM_STATS 		31
-#define BNX2X_NUM_TESTS 		2
+#define BNX2X_NUM_STATS			34
+#define BNX2X_NUM_TESTS			1
 
 
 #define DPM_TRIGER_TYPE 		0x40
