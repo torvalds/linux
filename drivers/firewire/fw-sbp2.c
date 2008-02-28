@@ -175,9 +175,6 @@ struct sbp2_target {
 #define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
 #define SBP2_RETRY_LIMIT		0xf	/* 15 retries */
 
-#define SBP2_DIRECTION_TO_MEDIA		0x0
-#define SBP2_DIRECTION_FROM_MEDIA	0x1
-
 /* Unit directory keys */
 #define SBP2_CSR_UNIT_CHARACTERISTICS	0x3a
 #define SBP2_CSR_FIRMWARE_REVISION	0x3c
@@ -273,7 +270,7 @@ struct sbp2_login_response {
 #define COMMAND_ORB_PAGE_TABLE_PRESENT	((1) << 19)
 #define COMMAND_ORB_MAX_PAYLOAD(v)	((v) << 20)
 #define COMMAND_ORB_SPEED(v)		((v) << 24)
-#define COMMAND_ORB_DIRECTION(v)	((v) << 27)
+#define COMMAND_ORB_DIRECTION		((1) << 27)
 #define COMMAND_ORB_REQUEST_FORMAT(v)	((v) << 29)
 #define COMMAND_ORB_NOTIFY		((1) << 31)
 
@@ -1472,11 +1469,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 		COMMAND_ORB_NOTIFY);
 
 	if (cmd->sc_data_direction == DMA_FROM_DEVICE)
-		orb->request.misc |= cpu_to_be32(
-			COMMAND_ORB_DIRECTION(SBP2_DIRECTION_FROM_MEDIA));
-	else if (cmd->sc_data_direction == DMA_TO_DEVICE)
-		orb->request.misc |= cpu_to_be32(
-			COMMAND_ORB_DIRECTION(SBP2_DIRECTION_TO_MEDIA));
+		orb->request.misc |= cpu_to_be32(COMMAND_ORB_DIRECTION);
 
 	if (scsi_sg_count(cmd) && sbp2_map_scatterlist(orb, device, lu) < 0)
 		goto out;
