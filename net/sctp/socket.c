@@ -1964,7 +1964,7 @@ static int sctp_setsockopt_disable_fragments(struct sock *sk,
 static int sctp_setsockopt_events(struct sock *sk, char __user *optval,
 					int optlen)
 {
-	if (optlen != sizeof(struct sctp_event_subscribe))
+	if (optlen > sizeof(struct sctp_event_subscribe))
 		return -EINVAL;
 	if (copy_from_user(&sctp_sk(sk)->subscribe, optval, optlen))
 		return -EFAULT;
@@ -5070,6 +5070,7 @@ static int sctp_getsockopt_peer_auth_chunks(struct sock *sk, int len,
 	struct sctp_authchunks val;
 	struct sctp_association *asoc;
 	struct sctp_chunks_param *ch;
+	u32    num_chunks;
 	char __user *to;
 
 	if (len <= sizeof(struct sctp_authchunks))
@@ -5086,11 +5087,14 @@ static int sctp_getsockopt_peer_auth_chunks(struct sock *sk, int len,
 	ch = asoc->peer.peer_chunks;
 
 	/* See if the user provided enough room for all the data */
-	if (len < ntohs(ch->param_hdr.length))
+	num_chunks = ntohs(ch->param_hdr.length) - sizeof(sctp_paramhdr_t);
+	if (len < num_chunks)
 		return -EINVAL;
 
-	len = ntohs(ch->param_hdr.length);
+	len = num_chunks;
 	if (put_user(len, optlen))
+		return -EFAULT;
+	if (put_user(num_chunks, &p->gauth_number_of_chunks))
 		return -EFAULT;
 	if (copy_to_user(to, ch->chunks, len))
 		return -EFAULT;
@@ -5105,6 +5109,7 @@ static int sctp_getsockopt_local_auth_chunks(struct sock *sk, int len,
 	struct sctp_authchunks val;
 	struct sctp_association *asoc;
 	struct sctp_chunks_param *ch;
+	u32    num_chunks;
 	char __user *to;
 
 	if (len <= sizeof(struct sctp_authchunks))
@@ -5123,11 +5128,14 @@ static int sctp_getsockopt_local_auth_chunks(struct sock *sk, int len,
 	else
 		ch = sctp_sk(sk)->ep->auth_chunk_list;
 
-	if (len < ntohs(ch->param_hdr.length))
+	num_chunks = ntohs(ch->param_hdr.length) - sizeof(sctp_paramhdr_t);
+	if (len < num_chunks)
 		return -EINVAL;
 
-	len = ntohs(ch->param_hdr.length);
+	len = num_chunks;
 	if (put_user(len, optlen))
+		return -EFAULT;
+	if (put_user(num_chunks, &p->gauth_number_of_chunks))
 		return -EFAULT;
 	if (copy_to_user(to, ch->chunks, len))
 		return -EFAULT;
