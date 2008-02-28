@@ -650,11 +650,11 @@ static int __devinit rename_ctl(struct snd_card *card, const char *src, const ch
 
 #define ADD_CTLS(emu, ctls)						\
 	do {								\
-		int i, err;						\
+		int i, _err;						\
 		for (i = 0; i < ARRAY_SIZE(ctls); i++) {		\
-			err = snd_ctl_add(card, snd_ctl_new1(&ctls[i], emu)); \
-			if (err < 0)					\
-				return err;				\
+			_err = snd_ctl_add(card, snd_ctl_new1(&ctls[i], emu)); \
+			if (_err < 0)					\
+				return _err;				\
 		}							\
 	} while (0)
 
