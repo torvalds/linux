@@ -435,22 +435,22 @@ int snd_ca0106_i2c_write(struct snd_ca0106 *emu,
 static void snd_ca0106_intr_enable(struct snd_ca0106 *emu, unsigned int intrenb)
 {
 	unsigned long flags;
-	unsigned int enable;
-  
+	unsigned int intr_enable;
+
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	enable = inl(emu->port + INTE) | intrenb;
-	outl(enable, emu->port + INTE);
+	intr_enable = inl(emu->port + INTE) | intrenb;
+	outl(intr_enable, emu->port + INTE);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 static void snd_ca0106_intr_disable(struct snd_ca0106 *emu, unsigned int intrenb)
 {
 	unsigned long flags;
-	unsigned int enable;
-  
+	unsigned int intr_enable;
+
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	enable = inl(emu->port + INTE) & ~intrenb;
-	outl(enable, emu->port + INTE);
+	intr_enable = inl(emu->port + INTE) & ~intrenb;
+	outl(intr_enable, emu->port + INTE);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
