@@ -1,6 +1,6 @@
 /* bnx2x.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007 Broadcom Corporation
+ * Copyright (c) 2007-2008 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -431,8 +431,6 @@ struct bnx2x_fastpath {
 #define BNX2X_FP_STATE_OPEN     	0xa0000
 #define BNX2X_FP_STATE_HALTING  	0xb0000
 #define BNX2X_FP_STATE_HALTED   	0xc0000
-#define BNX2X_FP_STATE_DELETED  	0xd0000
-#define BNX2X_FP_STATE_CLOSE_IRQ	0xe0000
 
 	int     		index;
 
@@ -513,7 +511,6 @@ struct bnx2x {
 	struct eth_spe  	*spq;
 	dma_addr_t      	spq_mapping;
 	u16     		spq_prod_idx;
-	u16     		dsb_sp_prod_idx;
 	struct eth_spe  	*spq_prod_bd;
 	struct eth_spe  	*spq_last_bd;
 	u16     		*dsb_sp_prod;
