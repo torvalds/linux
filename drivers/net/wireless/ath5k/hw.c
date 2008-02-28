@@ -208,7 +208,7 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 
 	/* Identify single chip solutions */
 	if((srev <= AR5K_SREV_VER_AR5414) &&
-	(srev >= AR5K_SREV_VER_AR2424)) {
+	(srev >= AR5K_SREV_VER_AR2413)) {
 		ah->ah_single_chip = true;
 	} else {
 		ah->ah_single_chip = false;
@@ -223,10 +223,33 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 		ah->ah_radio = AR5K_RF5110;
 	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5112) {
 		ah->ah_radio = AR5K_RF5111;
-	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC1) {
+		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5111;
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC0) {
+
 		ah->ah_radio = AR5K_RF5112;
+
+		if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5112A) {
+			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112;
+		} else {
+			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
+		}
+
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC1) {
+		ah->ah_radio = AR5K_RF2413;
+		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
 	} else {
+
 		ah->ah_radio = AR5K_RF5413;
+
+		if (ah->ah_mac_srev <= AR5K_SREV_VER_AR5424 &&
+			ah->ah_mac_srev >= AR5K_SREV_VER_AR2424)
+			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5424;
+		else if (ah->ah_mac_srev >= AR5K_SREV_VER_AR2425)
+			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112;
+		else
+			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
+
+
 	}
 
 	ah->ah_phy = AR5K_PHY(0);
