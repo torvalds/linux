@@ -88,7 +88,7 @@ struct smbios_entry_point {
 	u8 intermediate_anchor[5];
 	u8 intermediate_checksum;
 	u16 table_length;
-	u64 table_address;
+	u32 table_address;
 	u16 table_num_structs;
 	u8 bcd_revision;
 };
