@@ -517,7 +517,7 @@ struct bnx2x {
 	 */
 	u8      		stat_pending;
 
-	/* End of fileds used in the performance code paths */
+	/* End of fields used in the performance code paths */
 
 	int     		panic;
 	int     		msglevel;
