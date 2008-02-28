@@ -154,6 +154,30 @@ extern void ia64_init_addr_space (void);
 #define ELF_NGREG	128	/* we really need just 72 but let's leave some headroom... */
 #define ELF_NFPREG	128	/* f0 and f1 could be omitted, but so what... */
 
+/* elf_gregset_t register offsets */
+#define ELF_GR_0_OFFSET     0
+#define ELF_NAT_OFFSET     (32 * sizeof(elf_greg_t))
+#define ELF_PR_OFFSET      (33 * sizeof(elf_greg_t))
+#define ELF_BR_0_OFFSET    (34 * sizeof(elf_greg_t))
+#define ELF_CR_IIP_OFFSET  (42 * sizeof(elf_greg_t))
+#define ELF_CFM_OFFSET     (43 * sizeof(elf_greg_t))
+#define ELF_CR_IPSR_OFFSET (44 * sizeof(elf_greg_t))
+#define ELF_GR_OFFSET(i)   (ELF_GR_0_OFFSET + i * sizeof(elf_greg_t))
+#define ELF_BR_OFFSET(i)   (ELF_BR_0_OFFSET + i * sizeof(elf_greg_t))
+#define ELF_AR_RSC_OFFSET  (45 * sizeof(elf_greg_t))
+#define ELF_AR_BSP_OFFSET  (46 * sizeof(elf_greg_t))
+#define ELF_AR_BSPSTORE_OFFSET (47 * sizeof(elf_greg_t))
+#define ELF_AR_RNAT_OFFSET (48 * sizeof(elf_greg_t))
+#define ELF_AR_CCV_OFFSET  (49 * sizeof(elf_greg_t))
+#define ELF_AR_UNAT_OFFSET (50 * sizeof(elf_greg_t))
+#define ELF_AR_FPSR_OFFSET (51 * sizeof(elf_greg_t))
+#define ELF_AR_PFS_OFFSET  (52 * sizeof(elf_greg_t))
+#define ELF_AR_LC_OFFSET   (53 * sizeof(elf_greg_t))
+#define ELF_AR_EC_OFFSET   (54 * sizeof(elf_greg_t))
+#define ELF_AR_CSD_OFFSET  (55 * sizeof(elf_greg_t))
+#define ELF_AR_SSD_OFFSET  (56 * sizeof(elf_greg_t))
+#define ELF_AR_END_OFFSET  (57 * sizeof(elf_greg_t))
+
 typedef unsigned long elf_fpxregset_t;
 
 typedef unsigned long elf_greg_t;
