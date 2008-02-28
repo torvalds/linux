@@ -693,10 +693,8 @@ static void sbp2_conditionally_block(struct sbp2_logical_unit *lu)
 	if (!tgt->dont_block && !lu->blocked &&
 	    lu->generation != card->generation) {
 		lu->blocked = true;
-		if (++tgt->blocked == 1) {
+		if (++tgt->blocked == 1)
 			scsi_block_requests(shost);
-			fw_notify("blocked %s\n", lu->tgt->bus_id);
-		}
 	}
 	spin_unlock_irqrestore(&card->lock, flags);
 }
@@ -723,10 +721,8 @@ static void sbp2_conditionally_unblock(struct sbp2_logical_unit *lu)
 	}
 	spin_unlock_irqrestore(&card->lock, flags);
 
-	if (unblock) {
+	if (unblock)
 		scsi_unblock_requests(shost);
-		fw_notify("unblocked %s\n", lu->tgt->bus_id);
-	}
 }
 
 /*
