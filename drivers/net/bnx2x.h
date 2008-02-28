@@ -869,6 +869,9 @@ struct bnx2x {
 #define PCICFG_LINK_SPEED_SHIFT		16
 
 #define BMAC_CONTROL_RX_ENABLE		2
+
+#define pbd_tcp_flags(skb)  	(ntohl(tcp_flag_word(tcp_hdr(skb)))>>16 & 0xff)
+
 /* stuff added to make the code fit 80Col */
 
 #define TPA_TYPE_START  		ETH_FAST_PATH_RX_CQE_START_FLG
