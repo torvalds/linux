@@ -2314,5 +2314,10 @@ static const struct user_regset_view user_ia64_view = {
 
 const struct user_regset_view *task_user_regset_view(struct task_struct *tsk)
 {
+#ifdef CONFIG_IA32_SUPPORT
+	extern const struct user_regset_view user_ia32_view;
+	if (IS_IA32_PROCESS(task_pt_regs(tsk)))
+		return &user_ia32_view;
+#endif
 	return &user_ia64_view;
 }
