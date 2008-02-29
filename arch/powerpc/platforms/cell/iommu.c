@@ -882,38 +882,45 @@ static void cell_dma_dev_setup_fixed(struct device *dev)
 	dev_dbg(dev, "iommu: fixed addr = %lx\n", addr);
 }
 
+static void insert_16M_pte(unsigned long addr, unsigned long *ptab,
+			   unsigned long base_pte)
+{
+	unsigned long segment, offset;
+
+	segment = addr >> IO_SEGMENT_SHIFT;
+	offset = (addr >> 24) - (segment << IO_PAGENO_BITS(24));
+	ptab = ptab + (segment * (1 << 12) / sizeof(unsigned long));
+
+	pr_debug("iommu: addr %lx ptab %p segment %lx offset %lx\n",
+		  addr, ptab, segment, offset);
+
+	ptab[offset] = base_pte | (__pa(addr) & IOPTE_RPN_Mask);
+}
+
 static void cell_iommu_setup_fixed_ptab(struct cbe_iommu *iommu,
 	struct device_node *np, unsigned long dbase, unsigned long dsize,
 	unsigned long fbase, unsigned long fsize)
 {
-	int i;
-	unsigned long base_pte, uaddr, *io_pte, *ptab;
+	unsigned long base_pte, uaddr, ioaddr, *ptab;
 
-	ptab = cell_iommu_alloc_ptab(iommu, fbase, fsize, dbase, dsize,
-				     IOMMU_PAGE_SHIFT);
+	ptab = cell_iommu_alloc_ptab(iommu, fbase, fsize, dbase, dsize, 24);
 
 	dma_iommu_fixed_base = fbase;
 
-	/* convert from bytes into page table indices */
-	dbase = dbase >> IOMMU_PAGE_SHIFT;
-	dsize = dsize >> IOMMU_PAGE_SHIFT;
-	fbase = fbase >> IOMMU_PAGE_SHIFT;
-	fsize = fsize >> IOMMU_PAGE_SHIFT;
-
 	pr_debug("iommu: mapping 0x%lx pages from 0x%lx\n", fsize, fbase);
 
-	io_pte = ptab;
 	base_pte = IOPTE_PP_W | IOPTE_PP_R | IOPTE_M | IOPTE_SO_RW
 		    | (cell_iommu_get_ioid(np) & IOPTE_IOID_Mask);
 
-	uaddr = 0;
-	for (i = fbase; i < fbase + fsize; i++, uaddr += IOMMU_PAGE_SIZE) {
+	for (uaddr = 0; uaddr < fsize; uaddr += (1 << 24)) {
 		/* Don't touch the dynamic region */
-		if (i >= dbase && i < (dbase + dsize)) {
+		ioaddr = uaddr + fbase;
+		if (ioaddr >= dbase && ioaddr < (dbase + dsize)) {
 			pr_debug("iommu: fixed/dynamic overlap, skipping\n");
 			continue;
 		}
-		io_pte[i - fbase] = base_pte | (__pa(uaddr) & IOPTE_RPN_Mask);
+
+		insert_16M_pte(uaddr, ptab, base_pte);
 	}
 
 	mb();
