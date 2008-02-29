@@ -850,6 +850,7 @@ extern struct sock		*sk_alloc(struct net *net, int family,
 					  gfp_t priority,
 					  struct proto *prot);
 extern void			sk_free(struct sock *sk);
+extern void			sk_release_kernel(struct sock *sk);
 extern struct sock		*sk_clone(const struct sock *sk,
 					  const gfp_t priority);
 
@@ -1332,6 +1333,18 @@ static inline void sk_eat_skb(struct sock *sk, struct sk_buff *skb, int copied_e
 	__kfree_skb(skb);
 }
 #endif
+
+/*
+ * Kernel sockets, f.e. rtnl or icmp_socket, are a part of a namespace.
+ * They should not hold a referrence to a namespace in order to allow
+ * to stop it.
+ * Sockets after sk_change_net should be released using sk_release_kernel
+ */
+static inline void sk_change_net(struct sock *sk, struct net *net)
+{
+	put_net(sk->sk_net);
+	sk->sk_net = net;
+}
 
 extern void sock_enable_timestamp(struct sock *sk);
 extern int sock_get_timestamp(struct sock *, struct timeval __user *);
