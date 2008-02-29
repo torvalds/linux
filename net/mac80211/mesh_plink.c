@@ -85,7 +85,8 @@ void mesh_plink_dec_estab_count(struct ieee80211_sub_if_data *sdata)
 static inline void mesh_plink_fsm_restart(struct sta_info *sta)
 {
 	sta->plink_state = LISTEN;
-	sta->llid = sta->plid = sta->reason = sta->plink_retries = 0;
+	sta->llid = sta->plid = sta->reason = 0;
+	sta->plink_retries = 0;
 }
 
 static struct sta_info *mesh_plink_alloc(struct ieee80211_sub_if_data *sdata,
@@ -373,7 +374,7 @@ void mesh_plink_block(struct sta_info *sta)
 int mesh_plink_close(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	int llid, plid, reason;
+	__le16 llid, plid, reason;
 #ifdef CONFIG_MAC80211_VERBOSE_MPL_DEBUG
 	DECLARE_MAC_BUF(mac);
 #endif

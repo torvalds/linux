@@ -30,16 +30,16 @@
 #define PREQ_IE_FLAGS(x) (*(x))
 #define PREQ_IE_HOPCOUNT(x) (*(x + 1))
 #define PREQ_IE_TTL(x) (*(x + 2))
-#define PREQ_IE_PREQ_ID(x) le32_to_cpu(*((u32 *) (x + 3)))
+#define PREQ_IE_PREQ_ID(x) le32_to_cpu(*((__le32 *) (x + 3)))
 #define PREQ_IE_ORIG_ADDR(x) (x + 7)
-#define PREQ_IE_ORIG_DSN(x) le32_to_cpu(*((u32 *) (x + 13)))
-#define PREQ_IE_LIFETIME(x) le32_to_cpu(*((u32 *) \
+#define PREQ_IE_ORIG_DSN(x) le32_to_cpu(*((__le32 *) (x + 13)))
+#define PREQ_IE_LIFETIME(x) le32_to_cpu(*((__le32 *) \
 			(AE_F_SET(x) ? x + 23 : x + 17)))
-#define PREQ_IE_METRIC(x) le32_to_cpu(*((u32 *) \
+#define PREQ_IE_METRIC(x) le32_to_cpu(*((__le32 *) \
 			(AE_F_SET(x) ? x + 27 : x + 21)))
 #define PREQ_IE_DST_F(x) (*(AE_F_SET(x) ? x + 32 : x + 26))
 #define PREQ_IE_DST_ADDR(x) (AE_F_SET(x) ? x + 33 : x + 27)
-#define PREQ_IE_DST_DSN(x) le32_to_cpu(*((u32 *) \
+#define PREQ_IE_DST_DSN(x) le32_to_cpu(*((__le32 *) \
 			(AE_F_SET(x) ? x + 39 : x + 33)))
 
 
@@ -47,17 +47,17 @@
 #define PREP_IE_HOPCOUNT(x) PREQ_IE_HOPCOUNT(x)
 #define PREP_IE_TTL(x) PREQ_IE_TTL(x)
 #define PREP_IE_ORIG_ADDR(x) (x + 3)
-#define PREP_IE_ORIG_DSN(x) le32_to_cpu(*((u32 *) (x + 9)))
-#define PREP_IE_LIFETIME(x) le32_to_cpu(*((u32 *) \
+#define PREP_IE_ORIG_DSN(x) le32_to_cpu(*((__le32 *) (x + 9)))
+#define PREP_IE_LIFETIME(x) le32_to_cpu(*((__le32 *) \
 			(AE_F_SET(x) ? x + 19 : x + 13)))
-#define PREP_IE_METRIC(x) le32_to_cpu(*((u32 *) \
+#define PREP_IE_METRIC(x) le32_to_cpu(*((__le32 *) \
 			(AE_F_SET(x) ? x + 23 : x + 17)))
 #define PREP_IE_DST_ADDR(x) (AE_F_SET(x) ? x + 27 : x + 21)
-#define PREP_IE_DST_DSN(x) le32_to_cpu(*((u32 *) \
+#define PREP_IE_DST_DSN(x) le32_to_cpu(*((__le32 *) \
 			(AE_F_SET(x) ? x + 33 : x + 27)))
 
 #define PERR_IE_DST_ADDR(x) (x + 2)
-#define PERR_IE_DST_DSN(x) le32_to_cpu(*((u32 *) (x + 8)))
+#define PERR_IE_DST_DSN(x) le32_to_cpu(*((__le32 *) (x + 8)))
 
 #define TU_TO_EXP_TIME(x) (jiffies + msecs_to_jiffies(x * 1024 / 1000))
 #define MSEC_TO_TU(x) (x*1000/1024)
@@ -566,8 +566,8 @@ static void hwmp_perr_frame_process(struct net_device *dev,
 			mpath->flags &= ~MESH_PATH_ACTIVE;
 			mpath->dsn = dst_dsn;
 			spin_unlock_bh(&mpath->state_lock);
-			mesh_path_error_tx(dst_addr, dst_dsn, dev->broadcast,
-					dev);
+			mesh_path_error_tx(dst_addr, __cpu_to_le32(dst_dsn),
+					   dev->broadcast, dev);
 		} else
 			spin_unlock_bh(&mpath->state_lock);
 	}
