@@ -114,8 +114,6 @@ void cpu_idle(void)
 	}
 }
 
-extern char reboot_command [];
-
 void machine_halt(void)
 {
 	sstate_halt();

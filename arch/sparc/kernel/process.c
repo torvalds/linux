@@ -139,8 +139,6 @@ void cpu_idle(void)
 
 #endif
 
-extern char reboot_command [];
-
 /* XXX cli/sti -> local_irq_xxx here, check this works once SMP is fixed. */
 void machine_halt(void)
 {
