@@ -330,6 +330,7 @@ config CPU_SUBTYPE_SH5_101
 
 config CPU_SUBTYPE_SH5_103
 	bool "Support SH5-103 processor"
+	select CPU_SH5
 
 endchoice
 

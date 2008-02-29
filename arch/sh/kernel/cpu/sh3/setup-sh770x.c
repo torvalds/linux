@@ -16,7 +16,7 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/serial.h>
-#include <asm/sci.h>
+#include <linux/serial_sci.h>
 
 enum {
 	UNUSED = 0,
@@ -123,15 +123,15 @@ static struct resource rtc_resources[] = {
 		.flags  = IORESOURCE_IO,
 	},
 	[1] =	{
-		.start  = 20,
+		.start  = 21,
 		.flags	= IORESOURCE_IRQ,
 	},
 	[2] =	{
-		.start	= 21,
+		.start	= 22,
 		.flags	= IORESOURCE_IRQ,
 	},
 	[3] =	{
-		.start	= 22,
+		.start	= 20,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
