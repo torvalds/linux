@@ -47,10 +47,6 @@ config GENERIC_IRQ_PROBE
 	bool
 	default y
 
-config GENERIC_TIME
-	bool
-	default n
-
 config GENERIC_GPIO
 	bool
 	default y
@@ -414,6 +410,30 @@ config MIN_SCLK_HZ
 comment "Kernel Timer/Scheduler"
 
 source kernel/Kconfig.hz
+
+config GENERIC_TIME
+	bool "Generic time"
+	default y
+
+config GENERIC_CLOCKEVENTS
+	bool "Generic clock events"
+	depends on GENERIC_TIME
+	default y
+
+config CYCLES_CLOCKSOURCE
+	bool "Use 'CYCLES' as a clocksource (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on GENERIC_CLOCKEVENTS
+	depends on !BFIN_SCRATCH_REG_CYCLES
+	default n
+	help
+	  If you say Y here, you will enable support for using the 'cycles'
+	  registers as a clock source.  Doing so means you will be unable to
+	  safely write to the 'cycles' register during runtime.  You will
+	  still be able to read it (such as for performance monitoring), but
+	  writing the registers will most likely crash the kernel.
+
+source kernel/time/Kconfig
 
 comment "Memory Setup"
 

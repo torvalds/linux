@@ -32,6 +32,8 @@
 #include <linux/unistd.h>
 #include <linux/user.h>
 #include <linux/uaccess.h>
+#include <linux/sched.h>
+#include <linux/tick.h>
 #include <linux/fs.h>
 #include <linux/err.h>
 
@@ -69,33 +71,44 @@ EXPORT_SYMBOL(pm_power_off);
  * The idle loop on BFIN
  */
 #ifdef CONFIG_IDLE_L1
-void default_idle(void)__attribute__((l1_text));
+static void default_idle(void)__attribute__((l1_text));
 void cpu_idle(void)__attribute__((l1_text));
 #endif
 
-void default_idle(void)
+/*
+ * This is our default idle handler.  We need to disable
+ * interrupts here to ensure we don't miss a wakeup call.
+ */
+static void default_idle(void)
 {
-	while (!need_resched()) {
-		local_irq_disable();
-		if (likely(!need_resched()))
-			idle_with_irq_disabled();
-		local_irq_enable();
-	}
+	local_irq_disable();
+	if (!need_resched())
+		idle_with_irq_disabled();
+
+	local_irq_enable();
 }
 
-void (*idle)(void) = default_idle;
-
 /*
- * The idle thread. There's no useful work to be
- * done, so just try to conserve power and have a
- * low exit latency (ie sit in a loop waiting for
- * somebody to say that they'd like to reschedule)
+ * The idle thread.  We try to conserve power, while trying to keep
+ * overall latency low.  The architecture specific idle is passed
+ * a value to indicate the level of "idleness" of the system.
  */
 void cpu_idle(void)
 {
 	/* endless idle loop with no priority at all */
 	while (1) {
-		idle();
+		void (*idle)(void) = pm_idle;
+
+#ifdef CONFIG_HOTPLUG_CPU
+		if (cpu_is_offline(smp_processor_id()))
+			cpu_die();
+#endif
+		if (!idle)
+			idle = default_idle;
+		tick_nohz_stop_sched_tick();
+		while (!need_resched())
+			idle();
+		tick_nohz_restart_sched_tick();
 		preempt_enable_no_resched();
 		schedule();
 		preempt_disable();
