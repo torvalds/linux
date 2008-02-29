@@ -229,14 +229,14 @@ static const struct icmp_control icmp_pointers[NR_ICMP_TYPES+1];
  *
  *	On SMP we have one ICMP socket per-cpu.
  */
-static DEFINE_PER_CPU(struct socket *, __icmp_socket) = NULL;
-#define icmp_socket	__get_cpu_var(__icmp_socket)
+static DEFINE_PER_CPU(struct sock *, __icmp_sk) = NULL;
+#define icmp_sk		__get_cpu_var(__icmp_sk)
 
 static inline int icmp_xmit_lock(void)
 {
 	local_bh_disable();
 
-	if (unlikely(!spin_trylock(&icmp_socket->sk->sk_lock.slock))) {
+	if (unlikely(!spin_trylock(&icmp_sk->sk_lock.slock))) {
 		/* This can happen if the output path signals a
 		 * dst_link_failure() for an outgoing ICMP packet.
 		 */
@@ -248,7 +248,7 @@ static inline int icmp_xmit_lock(void)
 
 static inline void icmp_xmit_unlock(void)
 {
-	spin_unlock_bh(&icmp_socket->sk->sk_lock.slock);
+	spin_unlock_bh(&icmp_sk->sk_lock.slock);
 }
 
 /*
@@ -349,7 +349,7 @@ static void icmp_push_reply(struct icmp_bxm *icmp_param,
 	struct sock *sk;
 	struct sk_buff *skb;
 
-	sk = icmp_socket->sk;
+	sk = icmp_sk;
 	if (ip_append_data(sk, icmp_glue_bits, icmp_param,
 			   icmp_param->data_len+icmp_param->head_len,
 			   icmp_param->head_len,
@@ -378,7 +378,7 @@ static void icmp_push_reply(struct icmp_bxm *icmp_param,
 
 static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 {
-	struct sock *sk = icmp_socket->sk;
+	struct sock *sk = icmp_sk;
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipcm_cookie ipc;
 	struct rtable *rt = (struct rtable *)skb->dst;
@@ -546,7 +546,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	icmp_param.data.icmph.checksum	 = 0;
 	icmp_param.skb	  = skb_in;
 	icmp_param.offset = skb_network_offset(skb_in);
-	inet_sk(icmp_socket->sk)->tos = tos;
+	inet_sk(icmp_sk)->tos = tos;
 	ipc.addr = iph->saddr;
 	ipc.opt = &icmp_param.replyopts;
 
@@ -1146,13 +1146,13 @@ static void __exit icmp_exit(void)
 	int i;
 
 	for_each_possible_cpu(i) {
-		struct socket *sock;
+		struct sock *sk;
 
-		sock = per_cpu(__icmp_socket, i);
-		if (sock == NULL)
+		sk = per_cpu(__icmp_sk, i);
+		if (sk == NULL)
 			continue;
-		per_cpu(__icmp_socket, i) = NULL;
-		sock_release(sock);
+		per_cpu(__icmp_sk, i) = NULL;
+		sock_release(sk->sk_socket);
 	}
 }
 
@@ -1169,8 +1169,7 @@ int __init icmp_init(void)
 		if (err < 0)
 			goto fail;
 
-		per_cpu(__icmp_socket, i) = sock;
-		sk = sock->sk;
+		per_cpu(__icmp_sk, i) = sk = sock->sk;
 		sk->sk_allocation = GFP_ATOMIC;
 
 		/* Enough space for 2 64K ICMP packets, including

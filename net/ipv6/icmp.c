@@ -80,8 +80,8 @@ EXPORT_SYMBOL(icmpv6msg_statistics);
  *
  *	On SMP we have one ICMP socket per-cpu.
  */
-static DEFINE_PER_CPU(struct socket *, __icmpv6_socket) = NULL;
-#define icmpv6_socket	__get_cpu_var(__icmpv6_socket)
+static DEFINE_PER_CPU(struct sock *, __icmpv6_sk) = NULL;
+#define icmpv6_sk	__get_cpu_var(__icmpv6_sk)
 
 static int icmpv6_rcv(struct sk_buff *skb);
 
@@ -94,7 +94,7 @@ static __inline__ int icmpv6_xmit_lock(void)
 {
 	local_bh_disable();
 
-	if (unlikely(!spin_trylock(&icmpv6_socket->sk->sk_lock.slock))) {
+	if (unlikely(!spin_trylock(&icmpv6_sk->sk_lock.slock))) {
 		/* This can happen if the output path (f.e. SIT or
 		 * ip6ip6 tunnel) signals dst_link_failure() for an
 		 * outgoing ICMP6 packet.
@@ -107,7 +107,7 @@ static __inline__ int icmpv6_xmit_lock(void)
 
 static __inline__ void icmpv6_xmit_unlock(void)
 {
-	spin_unlock_bh(&icmpv6_socket->sk->sk_lock.slock);
+	spin_unlock_bh(&icmpv6_sk->sk_lock.slock);
 }
 
 /*
@@ -392,7 +392,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	if (icmpv6_xmit_lock())
 		return;
 
-	sk = icmpv6_socket->sk;
+	sk = icmpv6_sk;
 	np = inet6_sk(sk);
 
 	if (!icmpv6_xrlim_allow(sk, type, &fl))
@@ -538,7 +538,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	if (icmpv6_xmit_lock())
 		return;
 
-	sk = icmpv6_socket->sk;
+	sk = icmpv6_sk;
 	np = inet6_sk(sk);
 
 	if (!fl.oif && ipv6_addr_is_multicast(&fl.fl6_dst))
@@ -776,7 +776,7 @@ drop_no_count:
 }
 
 /*
- * Special lock-class for __icmpv6_socket:
+ * Special lock-class for __icmpv6_sk:
  */
 static struct lock_class_key icmpv6_socket_sk_dst_lock_key;
 
@@ -786,8 +786,9 @@ int __init icmpv6_init(void)
 	int err, i, j;
 
 	for_each_possible_cpu(i) {
+		struct socket *sock;
 		err = sock_create_kern(PF_INET6, SOCK_RAW, IPPROTO_ICMPV6,
-				       &per_cpu(__icmpv6_socket, i));
+				       &sock);
 		if (err < 0) {
 			printk(KERN_ERR
 			       "Failed to initialize the ICMP6 control socket "
@@ -796,12 +797,12 @@ int __init icmpv6_init(void)
 			goto fail;
 		}
 
-		sk = per_cpu(__icmpv6_socket, i)->sk;
+		per_cpu(__icmpv6_sk, i) = sk = sock->sk;
 		sk->sk_allocation = GFP_ATOMIC;
 		/*
 		 * Split off their lock-class, because sk->sk_dst_lock
 		 * gets used from softirqs, which is safe for
-		 * __icmpv6_socket (because those never get directly used
+		 * __icmpv6_sk (because those never get directly used
 		 * via userspace syscalls), but unsafe for normal sockets.
 		 */
 		lockdep_set_class(&sk->sk_dst_lock,
@@ -829,7 +830,7 @@ int __init icmpv6_init(void)
 	for (j = 0; j < i; j++) {
 		if (!cpu_possible(j))
 			continue;
-		sock_release(per_cpu(__icmpv6_socket, j));
+		sock_release(per_cpu(__icmpv6_sk, j)->sk_socket);
 	}
 
 	return err;
@@ -840,7 +841,7 @@ void icmpv6_cleanup(void)
 	int i;
 
 	for_each_possible_cpu(i) {
-		sock_release(per_cpu(__icmpv6_socket, i));
+		sock_release(per_cpu(__icmpv6_sk, i)->sk_socket);
 	}
 	inet6_del_protocol(&icmpv6_protocol, IPPROTO_ICMPV6);
 }
