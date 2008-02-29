@@ -232,11 +232,11 @@ static const struct icmp_control icmp_pointers[NR_ICMP_TYPES+1];
 static DEFINE_PER_CPU(struct sock *, __icmp_sk) = NULL;
 #define icmp_sk		__get_cpu_var(__icmp_sk)
 
-static inline int icmp_xmit_lock(void)
+static inline int icmp_xmit_lock(struct sock *sk)
 {
 	local_bh_disable();
 
-	if (unlikely(!spin_trylock(&icmp_sk->sk_lock.slock))) {
+	if (unlikely(!spin_trylock(&sk->sk_lock.slock))) {
 		/* This can happen if the output path signals a
 		 * dst_link_failure() for an outgoing ICMP packet.
 		 */
@@ -246,9 +246,9 @@ static inline int icmp_xmit_lock(void)
 	return 0;
 }
 
-static inline void icmp_xmit_unlock(void)
+static inline void icmp_xmit_unlock(struct sock *sk)
 {
-	spin_unlock_bh(&icmp_sk->sk_lock.slock);
+	spin_unlock_bh(&sk->sk_lock.slock);
 }
 
 /*
@@ -387,7 +387,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	if (ip_options_echo(&icmp_param->replyopts, skb))
 		return;
 
-	if (icmp_xmit_lock())
+	if (icmp_xmit_lock(sk))
 		return;
 
 	icmp_param->data.icmph.checksum = 0;
@@ -415,7 +415,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 		icmp_push_reply(icmp_param, &ipc, rt);
 	ip_rt_put(rt);
 out_unlock:
-	icmp_xmit_unlock();
+	icmp_xmit_unlock(sk);
 }
 
 
@@ -440,6 +440,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	__be32 saddr;
 	u8  tos;
 	struct net *net;
+	struct sock *sk = icmp_sk;
 
 	if (!rt)
 		goto out;
@@ -507,7 +508,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		}
 	}
 
-	if (icmp_xmit_lock())
+	if (icmp_xmit_lock(sk))
 		return;
 
 	/*
@@ -546,7 +547,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	icmp_param.data.icmph.checksum	 = 0;
 	icmp_param.skb	  = skb_in;
 	icmp_param.offset = skb_network_offset(skb_in);
-	inet_sk(icmp_sk)->tos = tos;
+	inet_sk(sk)->tos = tos;
 	ipc.addr = iph->saddr;
 	ipc.opt = &icmp_param.replyopts;
 
@@ -654,7 +655,7 @@ route_done:
 ende:
 	ip_rt_put(rt);
 out_unlock:
-	icmp_xmit_unlock();
+	icmp_xmit_unlock(sk);
 out:;
 }
 

@@ -90,11 +90,11 @@ static struct inet6_protocol icmpv6_protocol = {
 	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
 
-static __inline__ int icmpv6_xmit_lock(void)
+static __inline__ int icmpv6_xmit_lock(struct sock *sk)
 {
 	local_bh_disable();
 
-	if (unlikely(!spin_trylock(&icmpv6_sk->sk_lock.slock))) {
+	if (unlikely(!spin_trylock(&sk->sk_lock.slock))) {
 		/* This can happen if the output path (f.e. SIT or
 		 * ip6ip6 tunnel) signals dst_link_failure() for an
 		 * outgoing ICMP6 packet.
@@ -105,9 +105,9 @@ static __inline__ int icmpv6_xmit_lock(void)
 	return 0;
 }
 
-static __inline__ void icmpv6_xmit_unlock(void)
+static __inline__ void icmpv6_xmit_unlock(struct sock *sk)
 {
-	spin_unlock_bh(&icmpv6_sk->sk_lock.slock);
+	spin_unlock_bh(&sk->sk_lock.slock);
 }
 
 /*
@@ -389,11 +389,11 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	fl.fl_icmp_code = code;
 	security_skb_classify_flow(skb, &fl);
 
-	if (icmpv6_xmit_lock())
-		return;
-
 	sk = icmpv6_sk;
 	np = inet6_sk(sk);
+
+	if (icmpv6_xmit_lock(sk))
+		return;
 
 	if (!icmpv6_xrlim_allow(sk, type, &fl))
 		goto out;
@@ -498,7 +498,7 @@ out_put:
 out_dst_release:
 	dst_release(dst);
 out:
-	icmpv6_xmit_unlock();
+	icmpv6_xmit_unlock(sk);
 }
 
 EXPORT_SYMBOL(icmpv6_send);
@@ -535,11 +535,11 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	fl.fl_icmp_type = ICMPV6_ECHO_REPLY;
 	security_skb_classify_flow(skb, &fl);
 
-	if (icmpv6_xmit_lock())
-		return;
-
 	sk = icmpv6_sk;
 	np = inet6_sk(sk);
+
+	if (icmpv6_xmit_lock(sk))
+		return;
 
 	if (!fl.oif && ipv6_addr_is_multicast(&fl.fl6_dst))
 		fl.oif = np->mcast_oif;
@@ -584,7 +584,7 @@ out_put:
 		in6_dev_put(idev);
 	dst_release(dst);
 out:
-	icmpv6_xmit_unlock();
+	icmpv6_xmit_unlock(sk);
 }
 
 static void icmpv6_notify(struct sk_buff *skb, int type, int code, __be32 info)
