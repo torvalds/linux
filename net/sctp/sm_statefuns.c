@@ -5312,6 +5312,8 @@ sctp_disposition_t sctp_sf_t2_timer_expire(const struct sctp_endpoint *ep,
 	SCTP_DEBUG_PRINTK("Timer T2 expired.\n");
 	SCTP_INC_STATS(SCTP_MIB_T2_SHUTDOWN_EXPIREDS);
 
+	((struct sctp_association *)asoc)->shutdown_retries++;
+
 	if (asoc->overall_error_count >= asoc->max_retrans) {
 		sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR,
 				SCTP_ERROR(ETIMEDOUT));

@@ -494,6 +494,8 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 		 */
 		if (transport == transport->asoc->peer.retran_path)
 			sctp_assoc_update_retran_path(transport->asoc);
+		transport->asoc->rtx_data_chunks +=
+			transport->asoc->unack_data;
 		break;
 	case SCTP_RTXR_FAST_RTX:
 		SCTP_INC_STATS(SCTP_MIB_FAST_RETRANSMITS);
@@ -504,6 +506,7 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 		break;
 	case SCTP_RTXR_T1_RTX:
 		SCTP_INC_STATS(SCTP_MIB_T1_RETRANSMITS);
+		transport->asoc->init_retries++;
 		break;
 	default:
 		BUG();

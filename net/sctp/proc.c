@@ -281,8 +281,10 @@ static void * sctp_assocs_seq_start(struct seq_file *seq, loff_t *pos)
 		*pos = 0;
 
 	if (*pos == 0)
-		seq_printf(seq, " ASSOC     SOCK   STY SST ST HBKT ASSOC-ID TX_QUEUE RX_QUEUE UID INODE LPORT "
-				"RPORT LADDRS <-> RADDRS\n");
+		seq_printf(seq, " ASSOC     SOCK   STY SST ST HBKT "
+				"ASSOC-ID TX_QUEUE RX_QUEUE UID INODE LPORT "
+				"RPORT LADDRS <-> RADDRS "
+				"HBINT INS OUTS MAXRT T1X T2X RTXC\n");
 
 	return (void *)pos;
 }
@@ -321,15 +323,21 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 		assoc = sctp_assoc(epb);
 		sk = epb->sk;
 		seq_printf(seq,
-			   "%8p %8p %-3d %-3d %-2d %-4d %4d %8d %8d %7d %5lu %-5d %5d ",
+			   "%8p %8p %-3d %-3d %-2d %-4d "
+			   "%4d %8d %8d %7d %5lu %-5d %5d "
+			   "%8d %5d %5d %4d %4d %4d %8d ",
 			   assoc, sk, sctp_sk(sk)->type, sk->sk_state,
-			   assoc->state, hash, assoc->assoc_id,
+			   assoc->state, hash,
+			   assoc->assoc_id,
 			   assoc->sndbuf_used,
 			   atomic_read(&assoc->rmem_alloc),
 			   sock_i_uid(sk), sock_i_ino(sk),
 			   epb->bind_addr.port,
-			   assoc->peer.port);
-
+			   assoc->peer.port,
+			   assoc->hbinterval, assoc->c.sinit_max_instreams,
+			   assoc->c.sinit_num_ostreams, assoc->max_retrans,
+			   assoc->init_retries, assoc->shutdown_retries,
+			   assoc->rtx_data_chunks);
 		seq_printf(seq, " ");
 		sctp_seq_dump_local_addrs(seq, epb);
 		seq_printf(seq, "<-> ");
