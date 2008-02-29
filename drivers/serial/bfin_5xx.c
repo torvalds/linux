@@ -48,7 +48,7 @@
 #define DMA_RX_XCOUNT		512
 #define DMA_RX_YCOUNT		(PAGE_SIZE / DMA_RX_XCOUNT)
 
-#define DMA_RX_FLUSH_JIFFIES	5
+#define DMA_RX_FLUSH_JIFFIES	(HZ / 50)
 
 #ifdef CONFIG_SERIAL_BFIN_DMA
 static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart);
@@ -393,7 +393,6 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 {
 	struct circ_buf *xmit = &uart->port.info->xmit;
 	unsigned short ier;
-	int flags = 0;
 
 	uart->tx_done = 0;
 
@@ -491,9 +490,7 @@ static void bfin_serial_dma_rx_chars(struct bfin_serial_port *uart)
 void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 {
 	int x_pos, pos;
-	int flags = 0;
 
-	spin_lock_irqsave(&uart->port.lock, flags);
 	uart->rx_dma_nrows = get_dma_curr_ycount(uart->rx_dma_channel);
 	x_pos = get_dma_curr_xcount(uart->rx_dma_channel);
 	uart->rx_dma_nrows = DMA_RX_YCOUNT - uart->rx_dma_nrows;
@@ -509,7 +506,7 @@ void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 		bfin_serial_dma_rx_chars(uart);
 		uart->rx_dma_buf.tail = uart->rx_dma_buf.head;
 	}
-	spin_unlock_irqrestore(&uart->port.lock, flags);
+
 	uart->rx_dma_timer.expires = jiffies + DMA_RX_FLUSH_JIFFIES;
 	add_timer(&(uart->rx_dma_timer));
 }
@@ -548,22 +545,16 @@ static irqreturn_t bfin_serial_dma_rx_int(int irq, void *dev_id)
 {
 	struct bfin_serial_port *uart = dev_id;
 	unsigned short irqstat;
-	int pos;
-
-	uart->rx_dma_nrows = DMA_RX_YCOUNT -
-		get_dma_curr_ycount(uart->rx_dma_channel);
-	pos = DMA_RX_XCOUNT * uart->rx_dma_nrows;
-	if (pos != uart->rx_dma_buf.tail) {
-		uart->rx_dma_buf.head = pos;
-		bfin_serial_dma_rx_chars(uart);
-		uart->rx_dma_buf.tail = uart->rx_dma_buf.head;
-	}
 
 	spin_lock(&uart->port.lock);
 	irqstat = get_dma_curr_irqstat(uart->rx_dma_channel);
 	clear_dma_irqstat(uart->rx_dma_channel);
-
 	spin_unlock(&uart->port.lock);
+
+	del_timer(&(uart->rx_dma_timer));
+	uart->rx_dma_timer.expires = jiffies;
+	add_timer(&(uart->rx_dma_timer));
+
 	return IRQ_HANDLED;
 }
 #endif
