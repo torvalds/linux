@@ -348,9 +348,8 @@ static unsigned long *cell_iommu_alloc_ptab(struct cbe_iommu *iommu,
 	ptab = page_address(page);
 	memset(ptab, 0, ptab_size);
 
-	/* number of pages needed for a page table */
-	n_pte_pages = (pages_per_segment *
-		       sizeof(unsigned long)) >> IOMMU_PAGE_SHIFT;
+	/* number of 4K pages needed for a page table */
+	n_pte_pages = (pages_per_segment * sizeof(unsigned long)) >> 12;
 
 	pr_debug("%s: iommu[%d]: stab at %p, ptab at %p, n_pte_pages: %lu\n",
 			__FUNCTION__, iommu->nid, iommu->stab, ptab,
@@ -377,8 +376,8 @@ static unsigned long *cell_iommu_alloc_ptab(struct cbe_iommu *iommu,
 			pr_debug("\toverlap at %d, skipping\n", i);
 			continue;
 		}
-		iommu->stab[i] = reg | (__pa(ptab) + n_pte_pages *
-					IOMMU_PAGE_SIZE * (i - start_seg));
+		iommu->stab[i] = reg | (__pa(ptab) + (n_pte_pages << 12) *
+					(i - start_seg));
 		pr_debug("\t[%d] 0x%016lx\n", i, iommu->stab[i]);
 	}
 
