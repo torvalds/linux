@@ -473,7 +473,7 @@ void __init tlb_init(void)
 	 *   - On R4600 1.7 the tlbp never hits for pages smaller than
 	 *     the value in the c0_pagemask register.
 	 *   - The entire mm handling assumes the c0_pagemask register to
-	 *     be set for 4kb pages.
+	 *     be set to fixed-size pages.
 	 */
 	probe_tlb(config);
 	write_c0_pagemask(PM_DEFAULT_MASK);
