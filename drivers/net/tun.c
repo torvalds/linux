@@ -663,7 +663,11 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 	case SIOCSIFHWADDR:
 	{
 		/* try to set the actual net device's hw address */
-		int ret = dev_set_mac_address(tun->dev, &ifr.ifr_hwaddr);
+		int ret;
+
+		rtnl_lock();
+		ret = dev_set_mac_address(tun->dev, &ifr.ifr_hwaddr);
+		rtnl_unlock();
 
 		if (ret == 0) {
 			/** Set the character device's hardware address. This is used when
