@@ -2701,9 +2701,6 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void 
 	int err;
 	struct sk_buff *skb;
 
-	if (net != &init_net)
-		return -EINVAL;
-
 	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_ipv4_policy);
 	if (err < 0)
 		goto errout;
@@ -2733,7 +2730,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void 
 	if (iif) {
 		struct net_device *dev;
 
-		dev = __dev_get_by_index(&init_net, iif);
+		dev = __dev_get_by_index(net, iif);
 		if (dev == NULL) {
 			err = -ENODEV;
 			goto errout_free;
@@ -2759,7 +2756,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void 
 			},
 			.oif = tb[RTA_OIF] ? nla_get_u32(tb[RTA_OIF]) : 0,
 		};
-		err = ip_route_output_key(&init_net, &rt, &fl);
+		err = ip_route_output_key(net, &rt, &fl);
 	}
 
 	if (err)
@@ -2770,11 +2767,11 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void 
 		rt->rt_flags |= RTCF_NOTIFY;
 
 	err = rt_fill_info(skb, NETLINK_CB(in_skb).pid, nlh->nlmsg_seq,
-				RTM_NEWROUTE, 0, 0);
+			   RTM_NEWROUTE, 0, 0);
 	if (err <= 0)
 		goto errout_free;
 
-	err = rtnl_unicast(skb, &init_net, NETLINK_CB(in_skb).pid);
+	err = rtnl_unicast(skb, net, NETLINK_CB(in_skb).pid);
 errout:
 	return err;
 
@@ -2788,6 +2785,9 @@ int ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb)
 	struct rtable *rt;
 	int h, s_h;
 	int idx, s_idx;
+	struct net *net;
+
+	net = skb->sk->sk_net;
 
 	s_h = cb->args[0];
 	if (s_h < 0)
@@ -2797,7 +2797,7 @@ int ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb)
 		rcu_read_lock_bh();
 		for (rt = rcu_dereference(rt_hash_table[h].chain), idx = 0; rt;
 		     rt = rcu_dereference(rt->u.dst.rt_next), idx++) {
-			if (idx < s_idx)
+			if (rt->u.dst.dev->nd_net != net || idx < s_idx)
 				continue;
 			if (rt->rt_genid != atomic_read(&rt_genid))
 				continue;
