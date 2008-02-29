@@ -762,8 +762,6 @@ struct symbol **sym_re_search(const char *pattern)
 }
 
 
-struct symbol *sym_check_deps(struct symbol *sym);
-
 static struct symbol *sym_check_expr_deps(struct expr *e)
 {
 	struct symbol *sym;
@@ -795,6 +793,65 @@ static struct symbol *sym_check_expr_deps(struct expr *e)
 }
 
 /* return NULL when dependencies are OK */
+static struct symbol *sym_check_sym_deps(struct symbol *sym)
+{
+	struct symbol *sym2;
+	struct property *prop;
+
+	sym2 = sym_check_expr_deps(sym->rev_dep.expr);
+	if (sym2)
+		return sym2;
+
+	for (prop = sym->prop; prop; prop = prop->next) {
+		if (prop->type == P_CHOICE || prop->type == P_SELECT)
+			continue;
+		sym2 = sym_check_expr_deps(prop->visible.expr);
+		if (sym2)
+			break;
+		if (prop->type != P_DEFAULT || sym_is_choice(sym))
+			continue;
+		sym2 = sym_check_expr_deps(prop->expr);
+		if (sym2)
+			break;
+	}
+
+	return sym2;
+}
+
+static struct symbol *sym_check_choice_deps(struct symbol *choice)
+{
+	struct symbol *sym, *sym2;
+	struct property *prop;
+	struct expr *e;
+
+	prop = sym_get_choice_prop(choice);
+	expr_list_for_each_sym(prop->expr, e, sym)
+		sym->flags |= (SYMBOL_CHECK | SYMBOL_CHECKED);
+
+	choice->flags |= (SYMBOL_CHECK | SYMBOL_CHECKED);
+	sym2 = sym_check_sym_deps(choice);
+	choice->flags &= ~SYMBOL_CHECK;
+	if (sym2)
+		goto out;
+
+	expr_list_for_each_sym(prop->expr, e, sym) {
+		sym2 = sym_check_sym_deps(sym);
+		if (sym2) {
+			fprintf(stderr, " -> %s", sym->name);
+			break;
+		}
+	}
+out:
+	expr_list_for_each_sym(prop->expr, e, sym)
+		sym->flags &= ~SYMBOL_CHECK;
+
+	if (sym2 && sym_is_choice_value(sym2) &&
+	    prop_get_symbol(sym_get_choice_prop(sym2)) == choice)
+		sym2 = choice;
+
+	return sym2;
+}
+
 struct symbol *sym_check_deps(struct symbol *sym)
 {
 	struct symbol *sym2;
@@ -802,33 +859,34 @@ struct symbol *sym_check_deps(struct symbol *sym)
 
 	if (sym->flags & SYMBOL_CHECK) {
 		fprintf(stderr, "%s:%d:error: found recursive dependency: %s",
-		        sym->prop->file->name, sym->prop->lineno, sym->name);
+		        sym->prop->file->name, sym->prop->lineno,
+			sym->name ? sym->name : "<choice>");
 		return sym;
 	}
 	if (sym->flags & SYMBOL_CHECKED)
 		return NULL;
 
-	sym->flags |= (SYMBOL_CHECK | SYMBOL_CHECKED);
-	sym2 = sym_check_expr_deps(sym->rev_dep.expr);
-	if (sym2)
-		goto out;
-
-	for (prop = sym->prop; prop; prop = prop->next) {
-		if (prop->type == P_CHOICE || prop->type == P_SELECT)
-			continue;
-		sym2 = sym_check_expr_deps(prop->visible.expr);
-		if (sym2)
-			goto out;
-		if (prop->type != P_DEFAULT || sym_is_choice(sym))
-			continue;
-		sym2 = sym_check_expr_deps(prop->expr);
-		if (sym2)
-			goto out;
+	if (sym_is_choice_value(sym)) {
+		/* for choice groups start the check with main choice symbol */
+		prop = sym_get_choice_prop(sym);
+		sym2 = sym_check_deps(prop_get_symbol(prop));
+	} else if (sym_is_choice(sym)) {
+		sym2 = sym_check_choice_deps(sym);
+	} else {
+		sym->flags |= (SYMBOL_CHECK | SYMBOL_CHECKED);
+		sym2 = sym_check_sym_deps(sym);
+		sym->flags &= ~SYMBOL_CHECK;
 	}
-out:
-	if (sym2)
-		fprintf(stderr, " -> %s%s", sym->name, sym2 == sym? "\n": "");
-	sym->flags &= ~SYMBOL_CHECK;
+
+	if (sym2) {
+		fprintf(stderr, " -> %s", sym->name ? sym->name : "<choice>");
+		if (sym2 == sym) {
+			fprintf(stderr, "\n");
+			zconfnerrs++;
+			sym2 = NULL;
+		}
+	}
+
 	return sym2;
 }
 
