@@ -3976,18 +3976,35 @@ ieee80211_sta_scan_result(struct net_device *dev,
 	if (bss_mesh_cfg(bss)) {
 		char *buf;
 		u8 *cfg = bss_mesh_cfg(bss);
-		buf = kmalloc(200, GFP_ATOMIC);
+		buf = kmalloc(50, GFP_ATOMIC);
 		if (buf) {
 			memset(&iwe, 0, sizeof(iwe));
 			iwe.cmd = IWEVCUSTOM;
-			sprintf(buf, "Mesh network (version %d)\n"
-			"\t\t\tPath Selection Protocol ID: 0x%02X%02X%02X%02X\n"
-			"\t\t\tPath Selection Metric ID: 0x%02X%02X%02X%02X\n"
-			"\t\t\tCongestion Control Mode ID: 0x%02X%02X%02X%02X\n"
-			"\t\t\tChannel Precedence: 0x%02X%02X%02X%02X",
-			cfg[0], cfg[1], cfg[2], cfg[3], cfg[4], cfg[5], cfg[6],
-			cfg[7], cfg[8], cfg[9], cfg[10], cfg[11], cfg[12],
-			cfg[13], cfg[14], cfg[15], cfg[16]);
+			sprintf(buf, "Mesh network (version %d)", cfg[0]);
+			iwe.u.data.length = strlen(buf);
+			current_ev = iwe_stream_add_point(current_ev, end_buf,
+							  &iwe, buf);
+			sprintf(buf, "Path Selection Protocol ID: "
+				"0x%02X%02X%02X%02X", cfg[1], cfg[2], cfg[3],
+							cfg[4]);
+			iwe.u.data.length = strlen(buf);
+			current_ev = iwe_stream_add_point(current_ev, end_buf,
+							  &iwe, buf);
+			sprintf(buf, "Path Selection Metric ID: "
+				"0x%02X%02X%02X%02X", cfg[5], cfg[6], cfg[7],
+							cfg[8]);
+			iwe.u.data.length = strlen(buf);
+			current_ev = iwe_stream_add_point(current_ev, end_buf,
+							  &iwe, buf);
+			sprintf(buf, "Congestion Control Mode ID: "
+				"0x%02X%02X%02X%02X", cfg[9], cfg[10],
+							cfg[11], cfg[12]);
+			iwe.u.data.length = strlen(buf);
+			current_ev = iwe_stream_add_point(current_ev, end_buf,
+							  &iwe, buf);
+			sprintf(buf, "Channel Precedence: "
+				"0x%02X%02X%02X%02X", cfg[13], cfg[14],
+							cfg[15], cfg[16]);
 			iwe.u.data.length = strlen(buf);
 			current_ev = iwe_stream_add_point(current_ev, end_buf,
 							  &iwe, buf);
