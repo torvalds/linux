@@ -1004,6 +1004,7 @@ void sk_release_kernel(struct sock *sk)
 	sk->sk_net = get_net(&init_net);
 	sock_put(sk);
 }
+EXPORT_SYMBOL(sk_release_kernel);
 
 struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 {
