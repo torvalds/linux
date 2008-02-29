@@ -294,7 +294,8 @@ static struct rtable *rt_cache_get_first(struct rt_cache_iter_state *st)
 	return r;
 }
 
-static struct rtable *rt_cache_get_next(struct rt_cache_iter_state *st, struct rtable *r)
+static struct rtable *__rt_cache_get_next(struct rt_cache_iter_state *st,
+					  struct rtable *r)
 {
 	r = r->u.dst.rt_next;
 	while (!r) {
@@ -307,16 +308,23 @@ static struct rtable *rt_cache_get_next(struct rt_cache_iter_state *st, struct r
 	return rcu_dereference(r);
 }
 
+static struct rtable *rt_cache_get_next(struct rt_cache_iter_state *st,
+					struct rtable *r)
+{
+	while ((r = __rt_cache_get_next(st, r)) != NULL) {
+		if (r->rt_genid == st->genid)
+			break;
+	}
+	return r;
+}
+
 static struct rtable *rt_cache_get_idx(struct rt_cache_iter_state *st, loff_t pos)
 {
 	struct rtable *r = rt_cache_get_first(st);
 
 	if (r)
-		while (pos && (r = rt_cache_get_next(st, r))) {
-			if (r->rt_genid != st->genid)
-				continue;
+		while (pos && (r = rt_cache_get_next(st, r)))
 			--pos;
-		}
 	return pos ? NULL : r;
 }
 
