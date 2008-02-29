@@ -172,7 +172,7 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 	int err;
 
 	wrap = (struct eeprom_pda_wrap *) eeprom;
-	entry = (void *)wrap->data + wrap->len;
+	entry = (void *)wrap->data + le16_to_cpu(wrap->len);
 	i += 2;
 	i += le16_to_cpu(entry->len)*2;
 	while (i < len) {
