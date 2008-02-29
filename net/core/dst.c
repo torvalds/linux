@@ -295,9 +295,6 @@ static int dst_dev_event(struct notifier_block *this, unsigned long event, void 
 	struct net_device *dev = ptr;
 	struct dst_entry *dst, *last = NULL;
 
-	if (dev->nd_net != &init_net)
-		return NOTIFY_DONE;
-
 	switch (event) {
 	case NETDEV_UNREGISTER:
 	case NETDEV_DOWN:
