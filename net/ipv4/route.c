@@ -1131,10 +1131,12 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 	__be32  skeys[2] = { saddr, 0 };
 	int  ikeys[2] = { dev->ifindex, 0 };
 	struct netevent_redirect netevent;
+	struct net *net;
 
 	if (!in_dev)
 		return;
 
+	net = dev->nd_net;
 	if (new_gw == old_gw || !IN_DEV_RX_REDIRECTS(in_dev)
 	    || ipv4_is_multicast(new_gw) || ipv4_is_lbcast(new_gw)
 	    || ipv4_is_zeronet(new_gw))
@@ -1146,7 +1148,7 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 		if (IN_DEV_SEC_REDIRECTS(in_dev) && ip_fib_check_default(new_gw, dev))
 			goto reject_redirect;
 	} else {
-		if (inet_addr_type(&init_net, new_gw) != RTN_UNICAST)
+		if (inet_addr_type(net, new_gw) != RTN_UNICAST)
 			goto reject_redirect;
 	}
 
@@ -1164,7 +1166,8 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 				    rth->fl.fl4_src != skeys[i] ||
 				    rth->fl.oif != ikeys[k] ||
 				    rth->fl.iif != 0 ||
-				    rth->rt_genid != atomic_read(&rt_genid)) {
+				    rth->rt_genid != atomic_read(&rt_genid) ||
+				    rth->u.dst.dev->nd_net != net) {
 					rthp = &rth->u.dst.rt_next;
 					continue;
 				}
