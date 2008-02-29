@@ -46,6 +46,7 @@ EXPORT_SYMBOL(xfrm_cfg_mutex);
 
 static DEFINE_RWLOCK(xfrm_policy_lock);
 
+static struct list_head xfrm_policy_bytype[XFRM_POLICY_TYPE_MAX];
 unsigned int xfrm_policy_count[XFRM_POLICY_MAX*2];
 EXPORT_SYMBOL(xfrm_policy_count);
 
@@ -208,6 +209,7 @@ struct xfrm_policy *xfrm_policy_alloc(gfp_t gfp)
 	policy = kzalloc(sizeof(struct xfrm_policy), gfp);
 
 	if (policy) {
+		INIT_LIST_HEAD(&policy->bytype);
 		INIT_HLIST_NODE(&policy->bydst);
 		INIT_HLIST_NODE(&policy->byidx);
 		rwlock_init(&policy->lock);
@@ -229,6 +231,10 @@ void xfrm_policy_destroy(struct xfrm_policy *policy)
 
 	if (del_timer(&policy->timer))
 		BUG();
+
+	write_lock_bh(&xfrm_policy_lock);
+	list_del(&policy->bytype);
+	write_unlock_bh(&xfrm_policy_lock);
 
 	security_xfrm_policy_free(policy);
 	kfree(policy);
@@ -584,6 +590,7 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 	policy->curlft.use_time = 0;
 	if (!mod_timer(&policy->timer, jiffies + HZ))
 		xfrm_pol_hold(policy);
+	list_add_tail(&policy->bytype, &xfrm_policy_bytype[policy->type]);
 	write_unlock_bh(&xfrm_policy_lock);
 
 	if (delpol)
@@ -822,57 +829,60 @@ out:
 }
 EXPORT_SYMBOL(xfrm_policy_flush);
 
-int xfrm_policy_walk(u8 type, int (*func)(struct xfrm_policy *, int, int, void*),
+int xfrm_policy_walk(struct xfrm_policy_walk *walk,
+		     int (*func)(struct xfrm_policy *, int, int, void*),
 		     void *data)
 {
-	struct xfrm_policy *pol, *last = NULL;
-	struct hlist_node *entry;
-	int dir, last_dir = 0, count, error;
+	struct xfrm_policy *old, *pol, *last = NULL;
+	int error = 0;
 
+	if (walk->type >= XFRM_POLICY_TYPE_MAX &&
+	    walk->type != XFRM_POLICY_TYPE_ANY)
+		return -EINVAL;
+
+	if (walk->policy == NULL && walk->count != 0)
+		return 0;
+
+	old = pol = walk->policy;
+	walk->policy = NULL;
 	read_lock_bh(&xfrm_policy_lock);
-	count = 0;
 
-	for (dir = 0; dir < 2*XFRM_POLICY_MAX; dir++) {
-		struct hlist_head *table = xfrm_policy_bydst[dir].table;
-		int i;
+	for (; walk->cur_type < XFRM_POLICY_TYPE_MAX; walk->cur_type++) {
+		if (walk->type != walk->cur_type &&
+		    walk->type != XFRM_POLICY_TYPE_ANY)
+			continue;
 
-		hlist_for_each_entry(pol, entry,
-				     &xfrm_policy_inexact[dir], bydst) {
-			if (pol->type != type)
+		if (pol == NULL) {
+			pol = list_first_entry(&xfrm_policy_bytype[walk->cur_type],
+					       struct xfrm_policy, bytype);
+		}
+		list_for_each_entry_from(pol, &xfrm_policy_bytype[walk->cur_type], bytype) {
+			if (pol->dead)
 				continue;
 			if (last) {
-				error = func(last, last_dir % XFRM_POLICY_MAX,
-					     count, data);
-				if (error)
+				error = func(last, xfrm_policy_id2dir(last->index),
+					     walk->count, data);
+				if (error) {
+					xfrm_pol_hold(last);
+					walk->policy = last;
 					goto out;
+				}
 			}
 			last = pol;
-			last_dir = dir;
-			count++;
+			walk->count++;
 		}
-		for (i = xfrm_policy_bydst[dir].hmask; i >= 0; i--) {
-			hlist_for_each_entry(pol, entry, table + i, bydst) {
-				if (pol->type != type)
-					continue;
-				if (last) {
-					error = func(last, last_dir % XFRM_POLICY_MAX,
-						     count, data);
-					if (error)
-						goto out;
-				}
-				last = pol;
-				last_dir = dir;
-				count++;
-			}
-		}
+		pol = NULL;
 	}
-	if (count == 0) {
+	if (walk->count == 0) {
 		error = -ENOENT;
 		goto out;
 	}
-	error = func(last, last_dir % XFRM_POLICY_MAX, 0, data);
+	if (last)
+		error = func(last, xfrm_policy_id2dir(last->index), 0, data);
 out:
 	read_unlock_bh(&xfrm_policy_lock);
+	if (old != NULL)
+		xfrm_pol_put(old);
 	return error;
 }
 EXPORT_SYMBOL(xfrm_policy_walk);
@@ -2364,6 +2374,9 @@ static void __init xfrm_policy_init(void)
 		if (!htab->table)
 			panic("XFRM: failed to allocate bydst hash\n");
 	}
+
+	for (dir = 0; dir < XFRM_POLICY_TYPE_MAX; dir++)
+		INIT_LIST_HEAD(&xfrm_policy_bytype[dir]);
 
 	INIT_WORK(&xfrm_policy_gc_work, xfrm_policy_gc_task);
 	register_netdevice_notifier(&xfrm_dev_notifier);

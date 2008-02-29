@@ -1742,12 +1742,18 @@ static int pfkey_dump(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr
 {
 	u8 proto;
 	struct pfkey_dump_data data = { .skb = skb, .hdr = hdr, .sk = sk };
+	struct xfrm_state_walk walk;
+	int rc;
 
 	proto = pfkey_satype2proto(hdr->sadb_msg_satype);
 	if (proto == 0)
 		return -EINVAL;
 
-	return xfrm_state_walk(proto, dump_sa, &data);
+	xfrm_state_walk_init(&walk, proto);
+	rc = xfrm_state_walk(&walk, dump_sa, &data);
+	xfrm_state_walk_done(&walk);
+
+	return rc;
 }
 
 static int pfkey_promisc(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr, void **ext_hdrs)
@@ -1780,7 +1786,9 @@ static int check_reqid(struct xfrm_policy *xp, int dir, int count, void *ptr)
 
 static u32 gen_reqid(void)
 {
+	struct xfrm_policy_walk walk;
 	u32 start;
+	int rc;
 	static u32 reqid = IPSEC_MANUAL_REQID_MAX;
 
 	start = reqid;
@@ -1788,8 +1796,10 @@ static u32 gen_reqid(void)
 		++reqid;
 		if (reqid == 0)
 			reqid = IPSEC_MANUAL_REQID_MAX+1;
-		if (xfrm_policy_walk(XFRM_POLICY_TYPE_MAIN, check_reqid,
-				     (void*)&reqid) != -EEXIST)
+		xfrm_policy_walk_init(&walk, XFRM_POLICY_TYPE_MAIN);
+		rc = xfrm_policy_walk(&walk, check_reqid, (void*)&reqid);
+		xfrm_policy_walk_done(&walk);
+		if (rc != -EEXIST)
 			return reqid;
 	} while (reqid != start);
 	return 0;
@@ -2665,8 +2675,14 @@ static int dump_sp(struct xfrm_policy *xp, int dir, int count, void *ptr)
 static int pfkey_spddump(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr, void **ext_hdrs)
 {
 	struct pfkey_dump_data data = { .skb = skb, .hdr = hdr, .sk = sk };
+	struct xfrm_policy_walk walk;
+	int rc;
 
-	return xfrm_policy_walk(XFRM_POLICY_TYPE_MAIN, dump_sp, &data);
+	xfrm_policy_walk_init(&walk, XFRM_POLICY_TYPE_MAIN);
+	rc = xfrm_policy_walk(&walk, dump_sp, &data);
+	xfrm_policy_walk_done(&walk);
+
+	return rc;
 }
 
 static int key_notify_policy_flush(struct km_event *c)
