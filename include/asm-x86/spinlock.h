@@ -78,7 +78,7 @@ static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
 	return (((tmp >> 8) & 0xff) - (tmp & 0xff)) > 1;
 }
 
-static inline void __raw_spin_lock(raw_spinlock_t *lock)
+static __always_inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
 	short inc = 0x0100;
 
@@ -99,7 +99,7 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 
-static inline int __raw_spin_trylock(raw_spinlock_t *lock)
+static __always_inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	int tmp;
 	short new;
@@ -120,7 +120,7 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 	return tmp;
 }
 
-static inline void __raw_spin_unlock(raw_spinlock_t *lock)
+static __always_inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
 	asm volatile(UNLOCK_LOCK_PREFIX "incb %0"
 		     : "+m" (lock->slock)
@@ -142,7 +142,7 @@ static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
 	return (((tmp >> 16) & 0xffff) - (tmp & 0xffff)) > 1;
 }
 
-static inline void __raw_spin_lock(raw_spinlock_t *lock)
+static __always_inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
 	int inc = 0x00010000;
 	int tmp;
@@ -165,7 +165,7 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 
-static inline int __raw_spin_trylock(raw_spinlock_t *lock)
+static __always_inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	int tmp;
 	int new;
@@ -187,7 +187,7 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 	return tmp;
 }
 
-static inline void __raw_spin_unlock(raw_spinlock_t *lock)
+static __always_inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
 	asm volatile(UNLOCK_LOCK_PREFIX "incw %0"
 		     : "+m" (lock->slock)
