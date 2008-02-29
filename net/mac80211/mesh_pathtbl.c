@@ -277,7 +277,7 @@ void mesh_path_flush_by_nexthop(struct sta_info *sta)
 	for_each_mesh_entry(mesh_paths, p, node, i) {
 		mpath = node->mpath;
 		if (mpath->next_hop == sta)
-			mesh_path_del(mpath->dst, mpath->dev, true);
+			mesh_path_del(mpath->dst, mpath->dev);
 	}
 }
 
@@ -291,7 +291,7 @@ void mesh_path_flush(struct net_device *dev)
 	for_each_mesh_entry(mesh_paths, p, node, i) {
 		mpath = node->mpath;
 		if (mpath->dev == dev)
-			mesh_path_del(mpath->dst, mpath->dev, false);
+			mesh_path_del(mpath->dst, mpath->dev);
 	}
 }
 
@@ -314,12 +314,8 @@ static void mesh_path_node_reclaim(struct rcu_head *rp)
  * @dev: local interface
  *
  * Returns: 0 if succesful
- *
- * State: if the path is being resolved, the deletion will be postponed until
- * the path resolution completes or times out, unless the force parameter
- * is given.
  */
-int mesh_path_del(u8 *addr, struct net_device *dev, bool force)
+int mesh_path_del(u8 *addr, struct net_device *dev)
 {
 	struct mesh_path *mpath;
 	struct mpath_node *node;
@@ -338,14 +334,10 @@ int mesh_path_del(u8 *addr, struct net_device *dev, bool force)
 		if (mpath->dev == dev &&
 				memcmp(addr, mpath->dst, ETH_ALEN) == 0) {
 			spin_lock_bh(&mpath->state_lock);
-			if (!force && mpath->flags & MESH_PATH_RESOLVING) {
-				mpath->flags |= MESH_PATH_DELETE;
-			} else {
-				mpath->flags |= MESH_PATH_RESOLVING;
-				hlist_del_rcu(&node->list);
-				call_rcu(&node->rcu, mesh_path_node_reclaim);
-				atomic_dec(&mesh_paths->entries);
-			}
+			mpath->flags |= MESH_PATH_RESOLVING;
+			hlist_del_rcu(&node->list);
+			call_rcu(&node->rcu, mesh_path_node_reclaim);
+			atomic_dec(&mesh_paths->entries);
 			spin_unlock_bh(&mpath->state_lock);
 			goto enddel;
 		}
@@ -508,7 +500,7 @@ void mesh_path_expire(struct net_device *dev)
 			time_after(jiffies,
 			 mpath->exp_time + MESH_PATH_EXPIRE)) {
 			spin_unlock_bh(&mpath->state_lock);
-			mesh_path_del(mpath->dst, mpath->dev, false);
+			mesh_path_del(mpath->dst, mpath->dev);
 		} else
 			spin_unlock_bh(&mpath->state_lock);
 	}

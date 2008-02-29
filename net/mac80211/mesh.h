@@ -30,7 +30,6 @@
  * @MESH_PATH_FIXED: the mesh path has been manually set and should not be
  * 	modified
  * @MESH_PATH_RESOLVED: the mesh path can has been resolved
- * @MESH_PATH_DELETE: the mesh path is scheduled to be deleted
  *
  * MESH_PATH_RESOLVED and MESH_PATH_DELETE are used by the mesh path timer to
  * decide when to stop or cancel the mesh path discovery.
@@ -41,7 +40,6 @@ enum mesh_path_flags {
 	MESH_PATH_DSN_VALID =	BIT(2),
 	MESH_PATH_FIXED	=	BIT(3),
 	MESH_PATH_RESOLVED =	BIT(4),
-	MESH_PATH_DELETE =	BIT(5),
 };
 
 /**
@@ -254,7 +252,7 @@ void mesh_path_flush_pending(struct mesh_path *mpath);
 void mesh_path_tx_pending(struct mesh_path *mpath);
 int mesh_pathtbl_init(void);
 void mesh_pathtbl_unregister(void);
-int mesh_path_del(u8 *addr, struct net_device *dev, bool force);
+int mesh_path_del(u8 *addr, struct net_device *dev);
 void mesh_path_timer(unsigned long data);
 void mesh_path_flush_by_nexthop(struct sta_info *sta);
 void mesh_path_discard_frame(struct sk_buff *skb, struct net_device *dev);

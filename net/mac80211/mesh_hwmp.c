@@ -828,7 +828,6 @@ void mesh_path_timer(unsigned long data)
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct mesh_path *mpath;
-	bool delete = false;
 
 	rcu_read_lock();
 	mpath = (struct mesh_path *) data;
@@ -837,10 +836,7 @@ void mesh_path_timer(unsigned long data)
 		goto endmpathtimer;
 	spin_lock_bh(&mpath->state_lock);
 	sdata = IEEE80211_DEV_TO_SUB_IF(mpath->dev);
-	if (mpath->flags & MESH_PATH_DELETE) {
-		mpath->flags = 0;
-		delete = true;
-	} else if (mpath->flags & MESH_PATH_RESOLVED ||
+	if (mpath->flags & MESH_PATH_RESOLVED ||
 			(!(mpath->flags & MESH_PATH_RESOLVING)))
 		mpath->flags &= ~(MESH_PATH_RESOLVING | MESH_PATH_RESOLVED);
 	else if (mpath->discovery_retries < max_preq_retries(sdata)) {
@@ -856,6 +852,4 @@ void mesh_path_timer(unsigned long data)
 	spin_unlock_bh(&mpath->state_lock);
 endmpathtimer:
 	rcu_read_unlock();
-	if (delete)
-		mesh_path_del(mpath->dst, mpath->dev, false);
 }

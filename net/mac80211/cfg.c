@@ -785,7 +785,7 @@ static int ieee80211_del_mpath(struct wiphy *wiphy, struct net_device *dev,
 				 u8 *dst)
 {
 	if (dst)
-		return mesh_path_del(dst, dev, false);
+		return mesh_path_del(dst, dev);
 
 	mesh_path_flush(dev);
 	return 0;
