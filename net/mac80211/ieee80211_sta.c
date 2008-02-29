@@ -3878,8 +3878,8 @@ ieee80211_sta_scan_result(struct net_device *dev,
 						  bss->ssid);
 	}
 
-	if (bss->capability & (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS
-	    || bss_mesh_cfg(bss))) {
+	if (bss->capability & (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS)
+	    || bss_mesh_cfg(bss)) {
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = SIOCGIWMODE;
 		if (bss_mesh_cfg(bss))
