@@ -2849,11 +2849,11 @@ static int stac9200_auto_create_lfe_ctls(struct hda_codec *codec,
 	if (lfe_pin == 0 && spec->autocfg.speaker_outs == 0) {
 		for (i = 0; i < spec->autocfg.line_outs && lfe_pin == 0x0; i++) {
 			hda_nid_t pin = spec->autocfg.line_out_pins[i];
-			unsigned long cfg;
-			cfg = snd_hda_codec_read(codec, pin, 0,
+			unsigned long defcfg;
+			defcfg = snd_hda_codec_read(codec, pin, 0,
 						 AC_VERB_GET_CONFIG_DEFAULT,
 						 0x00);
-			if (get_defcfg_device(cfg) == AC_JACK_SPEAKER) {
+			if (get_defcfg_device(defcfg) == AC_JACK_SPEAKER) {
 				unsigned long wcaps = get_wcaps(codec, pin);
 				wcaps &= (AC_WCAP_STEREO | AC_WCAP_OUT_AMP);
 				if (wcaps == AC_WCAP_OUT_AMP)
