@@ -2363,7 +2363,7 @@ static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 	unsigned int wid_caps, pincap;
 
 
-	for (i = 0; i < cfg->line_outs; i++) {
+	for (i = 0; i < cfg->line_outs && i < spec->multiout.num_dacs; i++) {
 		if (!spec->multiout.dac_nids[i])
 			continue;
 
