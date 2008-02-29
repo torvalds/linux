@@ -128,13 +128,11 @@ static int __init irlan_init(void)
 
 #ifdef CONFIG_PROC_FS
 	{ struct proc_dir_entry *proc;
-	proc = create_proc_entry("irlan", 0, proc_irda);
+	proc = proc_create("irlan", 0, proc_irda, &irlan_fops);
 	if (!proc) {
 		printk(KERN_ERR "irlan_init: can't create /proc entry!\n");
 		return -ENODEV;
 	}
-
-	proc->proc_fops = &irlan_fops;
 	}
 #endif /* CONFIG_PROC_FS */
 
