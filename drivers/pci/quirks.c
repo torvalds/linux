@@ -1652,9 +1652,8 @@ static void __devinit quirk_via_cx700_pci_parking_caching(struct pci_dev *dev)
 			pci_write_config_byte(dev, 0x75, 0x1);
 			pci_write_config_byte(dev, 0x77, 0x0);
 
-			printk(KERN_INFO
-				"PCI: VIA CX700 PCI parking/caching fixup on %s\n",
-				pci_name(dev));
+			dev_info(&dev->dev,
+				"Disabling VIA CX700 PCI parking/caching\n");
 		}
 	}
 }
