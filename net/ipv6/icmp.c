@@ -780,7 +780,7 @@ drop_no_count:
  */
 static struct lock_class_key icmpv6_socket_sk_dst_lock_key;
 
-int __init icmpv6_init(struct net_proto_family *ops)
+int __init icmpv6_init(void)
 {
 	struct sock *sk;
 	int err, i, j;

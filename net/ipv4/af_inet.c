@@ -1415,7 +1415,7 @@ static int __init inet_init(void)
 
 	ip_init();
 
-	tcp_v4_init(&inet_family_ops);
+	tcp_v4_init();
 
 	/* Setup TCP slab cache for open requests. */
 	tcp_init();
@@ -1430,7 +1430,7 @@ static int __init inet_init(void)
 	 *	Set the ICMP layer up
 	 */
 
-	icmp_init(&inet_family_ops);
+	icmp_init();
 
 	/*
 	 *	Initialise the multicast router

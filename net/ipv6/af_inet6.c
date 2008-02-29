@@ -808,13 +808,13 @@ static int __init inet6_init(void)
 	if (err)
 		goto sysctl_fail;
 #endif
-	err = icmpv6_init(&inet6_family_ops);
+	err = icmpv6_init();
 	if (err)
 		goto icmp_fail;
-	err = ndisc_init(&inet6_family_ops);
+	err = ndisc_init();
 	if (err)
 		goto ndisc_fail;
-	err = igmp6_init(&inet6_family_ops);
+	err = igmp6_init();
 	if (err)
 		goto igmp_fail;
 	err = ipv6_netfilter_init();

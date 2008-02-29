@@ -176,7 +176,7 @@ extern void				icmpv6_send(struct sk_buff *skb,
 						    __u32 info, 
 						    struct net_device *dev);
 
-extern int				icmpv6_init(struct net_proto_family *ops);
+extern int				icmpv6_init(void);
 extern int				icmpv6_err_convert(int type, int code,
 							   int *err);
 extern void				icmpv6_cleanup(void);

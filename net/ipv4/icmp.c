@@ -1139,7 +1139,7 @@ static const struct icmp_control icmp_pointers[NR_ICMP_TYPES + 1] = {
 	},
 };
 
-void __init icmp_init(struct net_proto_family *ops)
+void __init icmp_init(void)
 {
 	struct inet_sock *inet;
 	int i;

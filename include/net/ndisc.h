@@ -77,7 +77,7 @@ struct nd_opt_hdr {
 } __attribute__((__packed__));
 
 
-extern int			ndisc_init(struct net_proto_family *ops);
+extern int			ndisc_init(void);
 
 extern void			ndisc_cleanup(void);
 
@@ -107,7 +107,7 @@ extern int			ndisc_mc_map(struct in6_addr *addr, char *buf, struct net_device *d
 /*
  *	IGMP
  */
-extern int			igmp6_init(struct net_proto_family *ops);
+extern int			igmp6_init(void);
 
 extern void			igmp6_cleanup(void);
 

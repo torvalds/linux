@@ -1733,7 +1733,7 @@ static int ndisc_ifinfo_sysctl_strategy(ctl_table *ctl, int __user *name,
 
 #endif
 
-int __init ndisc_init(struct net_proto_family *ops)
+int __init ndisc_init(void)
 {
 	struct ipv6_pinfo *np;
 	struct sock *sk;

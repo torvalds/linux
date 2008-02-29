@@ -2597,7 +2597,7 @@ static const struct file_operations igmp6_mcf_seq_fops = {
 };
 #endif
 
-int __init igmp6_init(struct net_proto_family *ops)
+int __init igmp6_init(void)
 {
 	struct ipv6_pinfo *np;
 	struct sock *sk;
