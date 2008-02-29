@@ -428,6 +428,7 @@ static int dpm_suspend(pm_message_t state)
 
 		mutex_unlock(&dpm_list_mtx);
 		error = suspend_device(dev, state);
+		mutex_lock(&dpm_list_mtx);
 		if (error) {
 			printk(KERN_ERR "Could not suspend device %s: "
 					"error %d%s\n",
@@ -438,7 +439,6 @@ static int dpm_suspend(pm_message_t state)
 					""));
 			break;
 		}
-		mutex_lock(&dpm_list_mtx);
 		if (!list_empty(&dev->power.entry))
 			list_move(&dev->power.entry, &dpm_off);
 	}
