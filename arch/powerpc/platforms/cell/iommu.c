@@ -200,7 +200,7 @@ static void tce_build_cell(struct iommu_table *tbl, long index, long npages,
 		(window->ioid & IOPTE_IOID_Mask);
 #endif
 
-	io_pte = (unsigned long *)tbl->it_base + (index - window->pte_offset);
+	io_pte = (unsigned long *)tbl->it_base + (index - tbl->it_offset);
 
 	for (i = 0; i < npages; i++, uaddr += IOMMU_PAGE_SIZE)
 		io_pte[i] = base_pte | (__pa(uaddr) & IOPTE_RPN_Mask);
@@ -232,7 +232,7 @@ static void tce_free_cell(struct iommu_table *tbl, long index, long npages)
 		| (window->ioid & IOPTE_IOID_Mask);
 #endif
 
-	io_pte = (unsigned long *)tbl->it_base + (index - window->pte_offset);
+	io_pte = (unsigned long *)tbl->it_base + (index - tbl->it_offset);
 
 	for (i = 0; i < npages; i++)
 		io_pte[i] = pte;
