@@ -357,4 +357,5 @@ MACHINE_START(TS209, "QNAP TS-109/TS-209")
 	.map_io		= orion_map_io,
 	.init_irq	= orion_init_irq,
 	.timer		= &orion_timer,
+	.fixup		= tag_fixup_mem32,
 MACHINE_END
