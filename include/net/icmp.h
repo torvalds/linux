@@ -48,7 +48,7 @@ struct sk_buff;
 extern void	icmp_send(struct sk_buff *skb_in,  int type, int code, __be32 info);
 extern int	icmp_rcv(struct sk_buff *skb);
 extern int	icmp_ioctl(struct sock *sk, int cmd, unsigned long arg);
-extern void	icmp_init(void);
+extern int	icmp_init(void);
 extern void	icmp_out_count(unsigned char type);
 
 /* Move into dst.h ? */

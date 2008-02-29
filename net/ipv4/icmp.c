@@ -1139,19 +1139,32 @@ static const struct icmp_control icmp_pointers[NR_ICMP_TYPES + 1] = {
 	},
 };
 
-void __init icmp_init(void)
+static void __exit icmp_exit(void)
 {
-	struct inet_sock *inet;
 	int i;
 
 	for_each_possible_cpu(i) {
-		int err;
+		struct socket *sock;
 
+		sock = per_cpu(__icmp_socket, i);
+		if (sock == NULL)
+			continue;
+		per_cpu(__icmp_socket, i) = NULL;
+		sock_release(sock);
+	}
+}
+
+int __init icmp_init(void)
+{
+	struct inet_sock *inet;
+	int i, err;
+
+	for_each_possible_cpu(i) {
 		err = sock_create_kern(PF_INET, SOCK_RAW, IPPROTO_ICMP,
 				       &per_cpu(__icmp_socket, i));
 
 		if (err < 0)
-			panic("Failed to create the ICMP control socket.\n");
+			goto fail;
 
 		per_cpu(__icmp_socket, i)->sk->sk_allocation = GFP_ATOMIC;
 
@@ -1171,6 +1184,11 @@ void __init icmp_init(void)
 		 */
 		per_cpu(__icmp_socket, i)->sk->sk_prot->unhash(per_cpu(__icmp_socket, i)->sk);
 	}
+	return 0;
+
+fail:
+	icmp_exit();
+	return err;
 }
 
 EXPORT_SYMBOL(icmp_err_convert);

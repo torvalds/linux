@@ -1430,7 +1430,8 @@ static int __init inet_init(void)
 	 *	Set the ICMP layer up
 	 */
 
-	icmp_init();
+	if (icmp_init() < 0)
+		panic("Failed to create the ICMP control socket.\n");
 
 	/*
 	 *	Initialise the multicast router
