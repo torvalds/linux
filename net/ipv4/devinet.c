@@ -446,9 +446,6 @@ static int inet_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg
 
 	ASSERT_RTNL();
 
-	if (net != &init_net)
-		return -EINVAL;
-
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_ipv4_policy);
 	if (err < 0)
 		goto errout;
@@ -559,9 +556,6 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg
 	struct in_ifaddr *ifa;
 
 	ASSERT_RTNL();
-
-	if (net != &init_net)
-		return -EINVAL;
 
 	ifa = rtm_to_ifaddr(net, nlh);
 	if (IS_ERR(ifa))
@@ -1169,9 +1163,6 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 	struct in_device *in_dev;
 	struct in_ifaddr *ifa;
 	int s_ip_idx, s_idx = cb->args[0];
-
-	if (net != &init_net)
-		return 0;
 
 	s_ip_idx = ip_idx = cb->args[1];
 	idx = 0;
