@@ -114,31 +114,13 @@ static int __vcc_seq_open(struct inode *inode, struct file *file,
 	int family, const struct seq_operations *ops)
 {
 	struct vcc_state *state;
-	struct seq_file *seq;
-	int rc = -ENOMEM;
 
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
-	if (!state)
-		goto out;
-
-	rc = seq_open(file, ops);
-	if (rc)
-		goto out_kfree;
+	state = __seq_open_private(file, ops, sizeof(*state));
+	if (state == NULL)
+		return -ENOMEM;
 
 	state->family = family;
-
-	seq = file->private_data;
-	seq->private = state;
-out:
-	return rc;
-out_kfree:
-	kfree(state);
-	goto out;
-}
-
-static int vcc_seq_release(struct inode *inode, struct file *file)
-{
-	return seq_release_private(inode, file);
+	return 0;
 }
 
 static void *vcc_seq_start(struct seq_file *seq, loff_t *pos)
@@ -314,7 +296,7 @@ static const struct file_operations pvc_seq_fops = {
 	.open		= pvc_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= vcc_seq_release,
+	.release	= seq_release_private,
 };
 
 static int vcc_seq_show(struct seq_file *seq, void *v)
@@ -348,7 +330,7 @@ static const struct file_operations vcc_seq_fops = {
 	.open		= vcc_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= vcc_seq_release,
+	.release	= seq_release_private,
 };
 
 static int svc_seq_show(struct seq_file *seq, void *v)
@@ -383,7 +365,7 @@ static const struct file_operations svc_seq_fops = {
 	.open		= svc_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= vcc_seq_release,
+	.release	= seq_release_private,
 };
 
 static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,

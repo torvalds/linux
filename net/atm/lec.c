@@ -1169,32 +1169,7 @@ static const struct seq_operations lec_seq_ops = {
 
 static int lec_seq_open(struct inode *inode, struct file *file)
 {
-	struct lec_state *state;
-	struct seq_file *seq;
-	int rc = -EAGAIN;
-
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
-	if (!state) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	rc = seq_open(file, &lec_seq_ops);
-	if (rc)
-		goto out_kfree;
-	seq = file->private_data;
-	seq->private = state;
-out:
-	return rc;
-
-out_kfree:
-	kfree(state);
-	goto out;
-}
-
-static int lec_seq_release(struct inode *inode, struct file *file)
-{
-	return seq_release_private(inode, file);
+	return seq_open_private(file, &lec_seq_ops, sizeof(struct lec_state));
 }
 
 static const struct file_operations lec_seq_fops = {
@@ -1202,7 +1177,7 @@ static const struct file_operations lec_seq_fops = {
 	.open = lec_seq_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = lec_seq_release,
+	.release = seq_release_private,
 };
 #endif
 
