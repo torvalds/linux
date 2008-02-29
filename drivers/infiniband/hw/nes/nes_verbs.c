@@ -929,7 +929,7 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 				NES_MAX_USER_DB_REGIONS, nesucontext->first_free_db);
 		nes_debug(NES_DBG_PD, "find_first_zero_biton doorbells returned %u, mapping pd_id %u.\n",
 				nespd->mmap_db_index, nespd->pd_id);
-		if (nespd->mmap_db_index > NES_MAX_USER_DB_REGIONS) {
+		if (nespd->mmap_db_index >= NES_MAX_USER_DB_REGIONS) {
 			nes_debug(NES_DBG_PD, "mmap_db_index > MAX\n");
 			nes_free_resource(nesadapter, nesadapter->allocated_pds, pd_num);
 			kfree(nespd);
@@ -1327,7 +1327,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 								  (long long unsigned int)req.user_wqe_buffers);
 							nes_free_resource(nesadapter, nesadapter->allocated_qps, qp_num);
 							kfree(nesqp->allocated_buffer);
-							return ERR_PTR(-ENOMEM);
+							return ERR_PTR(-EFAULT);
 						}
 					}
 
@@ -1674,6 +1674,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 		}
 		nes_debug(NES_DBG_CQ, "CQ Virtual Address = %08lX, size = %u.\n",
 				(unsigned long)req.user_cq_buffer, entries);
+		err = 1;
 		list_for_each_entry(nespbl, &nes_ucontext->cq_reg_mem_list, list) {
 			if (nespbl->user_base == (unsigned long )req.user_cq_buffer) {
 				list_del(&nespbl->list);
@@ -1686,7 +1687,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 		if (err) {
 			nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
 			kfree(nescq);
-			return ERR_PTR(err);
+			return ERR_PTR(-EFAULT);
 		}
 
 		pbl_entries = nespbl->pbl_size >> 3;
@@ -1831,9 +1832,6 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 				spin_unlock_irqrestore(&nesdev->cqp.lock, flags);
 			}
 		}
-		nes_debug(NES_DBG_CQ, "iWARP CQ%u create timeout expired, major code = 0x%04X,"
-				" minor code = 0x%04X\n",
-				nescq->hw_cq.cq_number, cqp_request->major_code, cqp_request->minor_code);
 		if (!context)
 			pci_free_consistent(nesdev->pcidev, nescq->cq_mem_size, mem,
 					nescq->hw_cq.cq_pbase);
