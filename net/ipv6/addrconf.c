@@ -1125,6 +1125,11 @@ int ipv6_dev_get_saddr(struct net_device *daddr_dev,
 			if (hiscore.rule < 7)
 				hiscore.rule++;
 #endif
+
+			/* Skip rule 8 for orchid -> non-orchid address pairs. */
+			if (ipv6_addr_orchid(&ifa->addr) && !ipv6_addr_orchid(daddr))
+				continue;
+
 			/* Rule 8: Use longest matching prefix */
 			if (hiscore.rule < 8) {
 				hiscore.matchlen = ipv6_addr_diff(&ifa_result->addr, daddr);

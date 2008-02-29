@@ -384,6 +384,16 @@ static inline int ipv6_addr_v4mapped(const struct in6_addr *a)
 }
 
 /*
+ * Check for a RFC 4843 ORCHID address
+ * (Overlay Routable Cryptographic Hash Identifiers)
+ */
+static inline int ipv6_addr_orchid(const struct in6_addr *a)
+{
+	return ((a->s6_addr32[0] & htonl(0xfffffff0))
+		== htonl(0x20010010));
+}
+
+/*
  * find the first different bit between two addresses
  * length of address must be a multiple of 32bits
  */
