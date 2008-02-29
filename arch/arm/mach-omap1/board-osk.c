@@ -32,6 +32,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/i2c.h>
+#include <linux/leds.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -183,11 +184,80 @@ static struct platform_device *osk5912_devices[] __initdata = {
 	&osk5912_mcbsp1_device,
 };
 
+static struct gpio_led tps_leds[] = {
+	/* NOTE:  D9 and D2 have hardware blink support.
+	 * Also, D9 requires non-battery power.
+	 */
+	{ .gpio = OSK_TPS_GPIO_LED_D9, .name = "d9", },
+	{ .gpio = OSK_TPS_GPIO_LED_D2, .name = "d2", },
+	{ .gpio = OSK_TPS_GPIO_LED_D3, .name = "d3", .active_low = 1,
+			.default_trigger = "heartbeat", },
+};
+
+static struct gpio_led_platform_data tps_leds_data = {
+	.num_leds	= 3,
+	.leds		= tps_leds,
+};
+
+static struct platform_device osk5912_tps_leds = {
+	.name			= "leds-gpio",
+	.id			= 0,
+	.dev.platform_data	= &tps_leds_data,
+};
+
+static int osk_tps_setup(struct i2c_client *client, void *context)
+{
+	/* Set GPIO 1 HIGH to disable VBUS power supply;
+	 * OHCI driver powers it up/down as needed.
+	 */
+	gpio_request(OSK_TPS_GPIO_USB_PWR_EN, "n_vbus_en");
+	gpio_direction_output(OSK_TPS_GPIO_USB_PWR_EN, 1);
+
+	/* Set GPIO 2 high so LED D3 is off by default */
+	tps65010_set_gpio_out_value(GPIO2, HIGH);
+
+	/* Set GPIO 3 low to take ethernet out of reset */
+	gpio_request(OSK_TPS_GPIO_LAN_RESET, "smc_reset");
+	gpio_direction_output(OSK_TPS_GPIO_LAN_RESET, 0);
+
+	/* GPIO4 is VDD_DSP */
+	gpio_request(OSK_TPS_GPIO_DSP_PWR_EN, "dsp_power");
+	gpio_direction_output(OSK_TPS_GPIO_DSP_PWR_EN, 1);
+	/* REVISIT if DSP support isn't configured, power it off ... */
+
+	/* Let LED1 (D9) blink; leds-gpio may override it */
+	tps65010_set_led(LED1, BLINK);
+
+	/* Set LED2 off by default */
+	tps65010_set_led(LED2, OFF);
+
+	/* Enable LOW_PWR handshake */
+	tps65010_set_low_pwr(ON);
+
+	/* Switch VLDO2 to 3.0V for AIC23 */
+	tps65010_config_vregs1(TPS_LDO2_ENABLE | TPS_VLDO2_3_0V
+			| TPS_LDO1_ENABLE);
+
+	/* register these three LEDs */
+	osk5912_tps_leds.dev.parent = &client->dev;
+	platform_device_register(&osk5912_tps_leds);
+
+	return 0;
+}
+
+static struct tps65010_board tps_board = {
+	.base		= OSK_TPS_GPIO_BASE,
+	.outmask	= 0x0f,
+	.setup		= osk_tps_setup,
+};
+
 static struct i2c_board_info __initdata osk_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("tps65010", 0x48),
 		.type		= "tps65010",
 		.irq		= OMAP_GPIO_IRQ(OMAP_MPUIO(1)),
+		.platform_data	= &tps_board,
+
 	},
 	/* TODO when driver support is ready:
 	 *  - aic23 audio chip at 0x1a
@@ -487,44 +557,6 @@ static void __init osk_map_io(void)
 {
 	omap1_map_common_io();
 }
-
-#ifdef CONFIG_TPS65010
-static int __init osk_tps_init(void)
-{
-	if (!machine_is_omap_osk())
-		return 0;
-
-	/* Let LED1 (D9) blink */
-	tps65010_set_led(LED1, BLINK);
-
-	/* Disable LED 2 (D2) */
-	tps65010_set_led(LED2, OFF);
-
-	/* Set GPIO 1 HIGH to disable VBUS power supply;
-	 * OHCI driver powers it up/down as needed.
-	 */
-	tps65010_set_gpio_out_value(GPIO1, HIGH);
-
-	/* Set GPIO 2 low to turn on LED D3 */
-	tps65010_set_gpio_out_value(GPIO2, HIGH);
-
-	/* Set GPIO 3 low to take ethernet out of reset */
-	tps65010_set_gpio_out_value(GPIO3, LOW);
-
-	/* gpio4 for VDD_DSP */
-	/* FIXME send power to DSP iff it's configured */
-
-	/* Enable LOW_PWR */
-	tps65010_set_low_pwr(ON);
-
-	/* Switch VLDO2 to 3.0V for AIC23 */
-	tps65010_config_vregs1(TPS_LDO2_ENABLE | TPS_VLDO2_3_0V
-			| TPS_LDO1_ENABLE);
-
-	return 0;
-}
-fs_initcall(osk_tps_init);
-#endif
 
 MACHINE_START(OMAP_OSK, "TI-OSK")
 	/* Maintainer: Dirk Behme <dirk.behme@de.bosch.com> */
