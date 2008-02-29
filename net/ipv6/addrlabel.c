@@ -58,6 +58,7 @@ static struct ip6addrlbl_table
  * ::ffff:0:0/96	V4MAPPED	4
  * fc00::/7		N/A		5		ULA (RFC 4193)
  * 2001::/32		N/A		6		Teredo (RFC 4380)
+ * 2001:10::/28		N/A		7		ORCHID (RFC 4843)
  *
  * Note: 0xffffffff is used if we do not have any policies.
  */
@@ -85,6 +86,10 @@ static const __initdata struct ip6addrlbl_init_table
 		.prefix = &(struct in6_addr){{{ 0x20, 0x01 }}},
 		.prefixlen = 32,
 		.label = 6,
+	},{	/* 2001:10::/28 */
+		.prefix = &(struct in6_addr){{{ 0x20, 0x01, 0x00, 0x10 }}},
+		.prefixlen = 28,
+		.label = 7,
 	},{	/* ::ffff:0:0 */
 		.prefix = &(struct in6_addr){{{ [10] = 0xff, [11] = 0xff }}},
 		.prefixlen = 96,
