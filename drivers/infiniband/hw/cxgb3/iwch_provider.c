@@ -819,8 +819,11 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 		kfree(qhp);
 		return ERR_PTR(-ENOMEM);
 	}
+
 	attrs->cap.max_recv_wr = rqsize - 1;
 	attrs->cap.max_send_wr = sqsize;
+	attrs->cap.max_inline_data = T3_MAX_INLINE;
+
 	qhp->rhp = rhp;
 	qhp->attr.pd = php->pdid;
 	qhp->attr.scq = ((struct iwch_cq *) attrs->send_cq)->cq.cqid;
