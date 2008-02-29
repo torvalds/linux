@@ -498,14 +498,14 @@ static struct snd_kcontrol_new snd_vortex_mixer_spdif[] __devinitdata = {
 };
 
 /* create a pcm device */
-static int __devinit snd_vortex_new_pcm(vortex_t * chip, int idx, int nr)
+static int __devinit snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 {
 	struct snd_pcm *pcm;
 	struct snd_kcontrol *kctl;
 	int i;
 	int err, nr_capt;
 
-	if ((chip == 0) || (idx < 0) || (idx >= VORTEX_PCM_LAST))
+	if (!chip || idx < 0 || idx >= VORTEX_PCM_LAST)
 		return -ENODEV;
 
 	/* idx indicates which kind of PCM device. ADB, SPDIF, I2S and A3D share the 
@@ -514,9 +514,9 @@ static int __devinit snd_vortex_new_pcm(vortex_t * chip, int idx, int nr)
 		nr_capt = nr;
 	else
 		nr_capt = 0;
-	if ((err =
-	     snd_pcm_new(chip->card, vortex_pcm_prettyname[idx], idx, nr,
-			 nr_capt, &pcm)) < 0)
+	err = snd_pcm_new(chip->card, vortex_pcm_prettyname[idx], idx, nr,
+			  nr_capt, &pcm);
+	if (err < 0)
 		return err;
 	strcpy(pcm->name, vortex_pcm_name[idx]);
 	chip->pcm[idx] = pcm;
