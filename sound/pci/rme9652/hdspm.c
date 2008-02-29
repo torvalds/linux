@@ -1028,9 +1028,9 @@ static inline void snd_hdspm_midi_write_byte (struct hdspm *hdspm, int id,
 {
 	/* the hardware already does the relevant bit-mask with 0xff */
 	if (id)
-		return hdspm_write(hdspm, HDSPM_midiDataOut1, val);
+		hdspm_write(hdspm, HDSPM_midiDataOut1, val);
 	else
-		return hdspm_write(hdspm, HDSPM_midiDataOut0, val);
+		hdspm_write(hdspm, HDSPM_midiDataOut0, val);
 }
 
 static inline int snd_hdspm_midi_input_available (struct hdspm *hdspm, int id)
