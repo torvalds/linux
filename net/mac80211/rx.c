@@ -411,7 +411,7 @@ ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 	 * establisment frame, beacon or probe, drop the frame.
 	 */
 
-	if (!rx->sta || sta_plink_state(rx->sta) != ESTAB) {
+	if (!rx->sta || sta_plink_state(rx->sta) != PLINK_ESTAB) {
 		struct ieee80211_mgmt *mgmt;
 
 		if ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT)

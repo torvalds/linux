@@ -91,9 +91,9 @@ void mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata)
 
 	/* In case mesh_plink_free_count > 0 and mesh_plinktbl_capacity == 0,
 	 * the mesh interface might be able to establish plinks with peers that
-	 * are already on the table but are not on ESTAB state. However, in
-	 * general the mesh interface is not accepting peer link requests from
-	 * new peers, and that must be reflected in the beacon
+	 * are already on the table but are not on PLINK_ESTAB state. However,
+	 * in general the mesh interface is not accepting peer link requests
+	 * from new peers, and that must be reflected in the beacon
 	 */
 	free_plinks = mesh_plink_availables(sdata);
 

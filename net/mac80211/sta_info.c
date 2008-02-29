@@ -248,7 +248,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 #ifdef CONFIG_MAC80211_MESH
-	sta->plink_state = LISTEN;
+	sta->plink_state = PLINK_LISTEN;
 	spin_lock_init(&sta->plink_lock);
 	init_timer(&sta->plink_timer);
 #endif

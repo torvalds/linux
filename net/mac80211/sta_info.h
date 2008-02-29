@@ -106,14 +106,27 @@ struct tid_ampdu_rx {
 	struct timer_list session_timer;
 };
 
+/**
+ * enum plink_state - state of a mesh peer link finite state machine
+ *
+ * @PLINK_LISTEN: initial state, considered the implicit state of non existant
+ * 	mesh peer links
+ * @PLINK_OPN_SNT: mesh plink open frame has been sent to this mesh peer
+ * @PLINK_OPN_RCVD: mesh plink open frame has been received from this mesh peer
+ * @PLINK_CNF_RCVD: mesh plink confirm frame has been received from this mesh
+ * 	peer
+ * @PLINK_ESTAB: mesh peer link is established
+ * @PLINK_HOLDING: mesh peer link is being closed or cancelled
+ * @PLINK_BLOCKED: all frames transmitted from this mesh plink are discarded
+ */
 enum plink_state {
-	LISTEN,
-	OPN_SNT,
-	OPN_RCVD,
-	CNF_RCVD,
-	ESTAB,
-	HOLDING,
-	BLOCKED
+	PLINK_LISTEN,
+	PLINK_OPN_SNT,
+	PLINK_OPN_RCVD,
+	PLINK_CNF_RCVD,
+	PLINK_ESTAB,
+	PLINK_HOLDING,
+	PLINK_BLOCKED
 };
 
 /**
@@ -248,7 +261,7 @@ struct sta_info {
 	 */
 	__le16 llid;		/* Local link ID */
 	__le16 plid;		/* Peer link ID */
-	__le16 reason;		/* Buffer for cancel reason on HOLDING state */
+	__le16 reason;		/* Cancel reason on PLINK_HOLDING state */
 	u8 plink_retries;	/* Retries in establishment */
 	bool ignore_plink_timer;
 	enum plink_state plink_state;
@@ -280,7 +293,7 @@ static inline enum plink_state sta_plink_state(struct sta_info *sta)
 #ifdef CONFIG_MAC80211_MESH
 	return sta->plink_state;
 #endif
-	return LISTEN;
+	return PLINK_LISTEN;
 }
 
 

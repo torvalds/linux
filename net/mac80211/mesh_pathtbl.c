@@ -261,9 +261,9 @@ EXPORT_SYMBOL(mesh_plink_broken);
  *
  * @sta - mesh peer to match
  *
- * RCU notes: this function is called when a mesh plink transitions from ESTAB
- * to any other state, since ESTAB state is the only one that allows path
- * creation. This will happen before the sta can be freed (because
+ * RCU notes: this function is called when a mesh plink transitions from
+ * PLINK_ESTAB to any other state, since PLINK_ESTAB state is the only one that
+ * allows path creation. This will happen before the sta can be freed (because
  * sta_info_destroy() calls this) so any reader in a rcu read block will be
  * protected against the plink disappearing.
  */
