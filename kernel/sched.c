@@ -8318,9 +8318,9 @@ struct cpuacct {
 struct cgroup_subsys cpuacct_subsys;
 
 /* return cpu accounting group corresponding to this container */
-static inline struct cpuacct *cgroup_ca(struct cgroup *cont)
+static inline struct cpuacct *cgroup_ca(struct cgroup *cgrp)
 {
-	return container_of(cgroup_subsys_state(cont, cpuacct_subsys_id),
+	return container_of(cgroup_subsys_state(cgrp, cpuacct_subsys_id),
 			    struct cpuacct, css);
 }
 
@@ -8333,7 +8333,7 @@ static inline struct cpuacct *task_ca(struct task_struct *tsk)
 
 /* create a new cpu accounting group */
 static struct cgroup_subsys_state *cpuacct_create(
-	struct cgroup_subsys *ss, struct cgroup *cont)
+	struct cgroup_subsys *ss, struct cgroup *cgrp)
 {
 	struct cpuacct *ca = kzalloc(sizeof(*ca), GFP_KERNEL);
 
@@ -8351,18 +8351,18 @@ static struct cgroup_subsys_state *cpuacct_create(
 
 /* destroy an existing cpu accounting group */
 static void
-cpuacct_destroy(struct cgroup_subsys *ss, struct cgroup *cont)
+cpuacct_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp)
 {
-	struct cpuacct *ca = cgroup_ca(cont);
+	struct cpuacct *ca = cgroup_ca(cgrp);
 
 	free_percpu(ca->cpuusage);
 	kfree(ca);
 }
 
 /* return total cpu usage (in nanoseconds) of a group */
-static u64 cpuusage_read(struct cgroup *cont, struct cftype *cft)
+static u64 cpuusage_read(struct cgroup *cgrp, struct cftype *cft)
 {
-	struct cpuacct *ca = cgroup_ca(cont);
+	struct cpuacct *ca = cgroup_ca(cgrp);
 	u64 totalcpuusage = 0;
 	int i;
 
@@ -8388,9 +8388,9 @@ static struct cftype files[] = {
 	},
 };
 
-static int cpuacct_populate(struct cgroup_subsys *ss, struct cgroup *cont)
+static int cpuacct_populate(struct cgroup_subsys *ss, struct cgroup *cgrp)
 {
-	return cgroup_add_files(cont, ss, files, ARRAY_SIZE(files));
+	return cgroup_add_files(cgrp, ss, files, ARRAY_SIZE(files));
 }
 
 /*
