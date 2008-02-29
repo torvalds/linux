@@ -9,6 +9,7 @@
  * the Free Software Foundation.
  */
 #include <linux/interrupt.h>
+#include <linux/kernel_stat.h>
 #include <asm/io.h>
 #include <asm/mach/irq.h>
 #include <asm/mach-types.h>
@@ -52,6 +53,43 @@ static struct irq_chip ns9xxx_chip = {
 	.unmask		= ns9xxx_unmask_irq,
 };
 
+#if 0
+#define handle_irq handle_level_irq
+#else
+void handle_prio_irq(unsigned int irq, struct irq_desc *desc)
+{
+	unsigned int cpu = smp_processor_id();
+	struct irqaction *action;
+	irqreturn_t action_ret;
+
+	spin_lock(&desc->lock);
+
+	if (unlikely(desc->status & IRQ_INPROGRESS))
+		goto out_unlock;
+
+	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
+	kstat_cpu(cpu).irqs[irq]++;
+
+	action = desc->action;
+	if (unlikely(!action || (desc->status & IRQ_DISABLED)))
+		goto out_unlock;
+
+	desc->status |= IRQ_INPROGRESS;
+	spin_unlock(&desc->lock);
+
+	action_ret = handle_IRQ_event(irq, action);
+
+	spin_lock(&desc->lock);
+	desc->status &= ~IRQ_INPROGRESS;
+	if (!(desc->status & IRQ_DISABLED) && desc->chip->ack)
+		desc->chip->ack(irq);
+
+out_unlock:
+	spin_unlock(&desc->lock);
+}
+#define handle_irq handle_prio_irq
+#endif
+
 void __init ns9xxx_init_irq(void)
 {
 	int i;
@@ -69,7 +107,7 @@ void __init ns9xxx_init_irq(void)
 
 	for (i = 0; i <= 31; ++i) {
 		set_irq_chip(i, &ns9xxx_chip);
-		set_irq_handler(i, handle_level_irq);
+		set_irq_handler(i, handle_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 }
