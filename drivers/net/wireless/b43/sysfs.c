@@ -47,29 +47,6 @@ static int get_integer(const char *buf, size_t count)
 	return ret;
 }
 
-static int get_boolean(const char *buf, size_t count)
-{
-	if (count != 0) {
-		if (buf[0] == '1')
-			return 1;
-		if (buf[0] == '0')
-			return 0;
-		if (count >= 4 && memcmp(buf, "true", 4) == 0)
-			return 1;
-		if (count >= 5 && memcmp(buf, "false", 5) == 0)
-			return 0;
-		if (count >= 3 && memcmp(buf, "yes", 3) == 0)
-			return 1;
-		if (count >= 2 && memcmp(buf, "no", 2) == 0)
-			return 0;
-		if (count >= 2 && memcmp(buf, "on", 2) == 0)
-			return 1;
-		if (count >= 3 && memcmp(buf, "off", 3) == 0)
-			return 0;
-	}
-	return -EINVAL;
-}
-
 static ssize_t b43_attr_interfmode_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
@@ -155,82 +132,18 @@ static ssize_t b43_attr_interfmode_store(struct device *dev,
 static DEVICE_ATTR(interference, 0644,
 		   b43_attr_interfmode_show, b43_attr_interfmode_store);
 
-static ssize_t b43_attr_preamble_show(struct device *dev,
-				      struct device_attribute *attr, char *buf)
-{
-	struct b43_wldev *wldev = dev_to_b43_wldev(dev);
-	ssize_t count;
-
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	mutex_lock(&wldev->wl->mutex);
-
-	if (wldev->short_preamble)
-		count =
-		    snprintf(buf, PAGE_SIZE, "1 (Short Preamble enabled)\n");
-	else
-		count =
-		    snprintf(buf, PAGE_SIZE, "0 (Short Preamble disabled)\n");
-
-	mutex_unlock(&wldev->wl->mutex);
-
-	return count;
-}
-
-static ssize_t b43_attr_preamble_store(struct device *dev,
-				       struct device_attribute *attr,
-				       const char *buf, size_t count)
-{
-	struct b43_wldev *wldev = dev_to_b43_wldev(dev);
-	unsigned long flags;
-	int value;
-
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	value = get_boolean(buf, count);
-	if (value < 0)
-		return value;
-	mutex_lock(&wldev->wl->mutex);
-	spin_lock_irqsave(&wldev->wl->irq_lock, flags);
-
-	wldev->short_preamble = !!value;
-
-	spin_unlock_irqrestore(&wldev->wl->irq_lock, flags);
-	mutex_unlock(&wldev->wl->mutex);
-
-	return count;
-}
-
-static DEVICE_ATTR(shortpreamble, 0644,
-		   b43_attr_preamble_show, b43_attr_preamble_store);
-
 int b43_sysfs_register(struct b43_wldev *wldev)
 {
 	struct device *dev = wldev->dev->dev;
-	int err;
 
 	B43_WARN_ON(b43_status(wldev) != B43_STAT_INITIALIZED);
 
-	err = device_create_file(dev, &dev_attr_interference);
-	if (err)
-		goto out;
-	err = device_create_file(dev, &dev_attr_shortpreamble);
-	if (err)
-		goto err_remove_interfmode;
-
-      out:
-	return err;
-      err_remove_interfmode:
-	device_remove_file(dev, &dev_attr_interference);
-	goto out;
+	return device_create_file(dev, &dev_attr_interference);
 }
 
 void b43_sysfs_unregister(struct b43_wldev *wldev)
 {
 	struct device *dev = wldev->dev->dev;
 
-	device_remove_file(dev, &dev_attr_shortpreamble);
 	device_remove_file(dev, &dev_attr_interference);
 }

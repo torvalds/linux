@@ -185,7 +185,7 @@ struct zd_mac {
 	struct sk_buff_head ack_wait_queue;
 	struct ieee80211_channel channels[14];
 	struct ieee80211_rate rates[12];
-	struct ieee80211_hw_mode modes[2];
+	struct ieee80211_supported_band band;
 
 	/* Short preamble (used for RTS/CTS) */
 	unsigned int short_preamble:1;

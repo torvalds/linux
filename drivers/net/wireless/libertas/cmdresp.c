@@ -74,7 +74,7 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 		lbs_deb_cmd("disconnected, so exit PS mode\n");
 		lbs_ps_wakeup(priv, 0);
 	}
-	lbs_deb_leave(LBS_DEB_CMD);
+	lbs_deb_leave(LBS_DEB_ASSOC);
 }
 
 /**
@@ -568,9 +568,9 @@ int lbs_process_rx_command(struct lbs_private *priv)
 	respcmd = le16_to_cpu(resp->command);
 	result = le16_to_cpu(resp->result);
 
-	lbs_deb_host("CMD_RESP: response 0x%04x, seq %d, size %d, jiffies %lu\n",
+	lbs_deb_cmd("CMD_RESP: response 0x%04x, seq %d, size %d, jiffies %lu\n",
 		     respcmd, le16_to_cpu(resp->seqnum), priv->upld_len, jiffies);
-	lbs_deb_hex(LBS_DEB_HOST, "CMD_RESP", (void *) resp, priv->upld_len);
+	lbs_deb_hex(LBS_DEB_CMD, "CMD_RESP", (void *) resp, priv->upld_len);
 
 	if (resp->seqnum != resp->seqnum) {
 		lbs_pr_info("Received CMD_RESP with invalid sequence %d (expected %d)\n",

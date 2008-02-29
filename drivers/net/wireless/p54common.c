@@ -27,6 +27,46 @@ MODULE_DESCRIPTION("Softmac Prism54 common code");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("prism54common");
 
+static struct ieee80211_rate p54_rates[] = {
+	{ .bitrate = 10, .hw_value = 0, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
+	{ .bitrate = 20, .hw_value = 1, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
+	{ .bitrate = 55, .hw_value = 2, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
+	{ .bitrate = 110, .hw_value = 3, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
+	{ .bitrate = 60, .hw_value = 4, },
+	{ .bitrate = 90, .hw_value = 5, },
+	{ .bitrate = 120, .hw_value = 6, },
+	{ .bitrate = 180, .hw_value = 7, },
+	{ .bitrate = 240, .hw_value = 8, },
+	{ .bitrate = 360, .hw_value = 9, },
+	{ .bitrate = 480, .hw_value = 10, },
+	{ .bitrate = 540, .hw_value = 11, },
+};
+
+static struct ieee80211_channel p54_channels[] = {
+	{ .center_freq = 2412, .hw_value = 1, },
+	{ .center_freq = 2417, .hw_value = 2, },
+	{ .center_freq = 2422, .hw_value = 3, },
+	{ .center_freq = 2427, .hw_value = 4, },
+	{ .center_freq = 2432, .hw_value = 5, },
+	{ .center_freq = 2437, .hw_value = 6, },
+	{ .center_freq = 2442, .hw_value = 7, },
+	{ .center_freq = 2447, .hw_value = 8, },
+	{ .center_freq = 2452, .hw_value = 9, },
+	{ .center_freq = 2457, .hw_value = 10, },
+	{ .center_freq = 2462, .hw_value = 11, },
+	{ .center_freq = 2467, .hw_value = 12, },
+	{ .center_freq = 2472, .hw_value = 13, },
+	{ .center_freq = 2484, .hw_value = 14, },
+};
+
+static struct ieee80211_supported_band band_2GHz = {
+	.channels = p54_channels,
+	.n_channels = ARRAY_SIZE(p54_channels),
+	.bitrates = p54_rates,
+	.n_bitrates = ARRAY_SIZE(p54_rates),
+};
+
+
 void p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 {
 	struct p54_common *priv = dev->priv;
@@ -251,6 +291,10 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		case PDR_END:
 			i = len;
 			break;
+		default:
+			printk(KERN_INFO "p54: unknown eeprom code : 0x%x\n",
+				le16_to_cpu(entry->code));
+			break;
 		}
 
 		entry = (void *)entry + (entry_len + 1)*2;
@@ -308,10 +352,10 @@ static void p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	u16 freq = le16_to_cpu(hdr->freq);
 
 	rx_status.ssi = hdr->rssi;
-	rx_status.rate = hdr->rate & 0x1f; /* report short preambles & CCK too */
-	rx_status.channel = freq == 2484 ? 14 : (freq - 2407)/5;
+	/* XX correct? */
+	rx_status.rate_idx = hdr->rate & 0xf;
 	rx_status.freq = freq;
-	rx_status.phymode = MODE_IEEE80211G;
+	rx_status.band = IEEE80211_BAND_2GHZ;
 	rx_status.antenna = hdr->antenna;
 	rx_status.mactime = le64_to_cpu(hdr->timestamp);
 	rx_status.flag |= RX_FLAG_TSFT;
@@ -349,7 +393,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 	while (entry != (struct sk_buff *)&priv->tx_queue) {
 		range = (struct memrecord *)&entry->cb;
 		if (range->start_addr == addr) {
-			struct ieee80211_tx_status status = {{0}};
+			struct ieee80211_tx_status status;
 			struct p54_control_hdr *entry_hdr;
 			struct p54_tx_control_allocdata *entry_data;
 			int pad = 0;
@@ -365,6 +409,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 				kfree_skb(entry);
 				break;
 			}
+			memset(&status, 0, sizeof(status));
 			memcpy(&status.control, range->control,
 			       sizeof(status.control));
 			kfree(range->control);
@@ -547,7 +592,9 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	txhdr->padding2 = 0;
 
 	/* TODO: add support for alternate retry TX rates */
-	rate = control->tx_rate;
+	rate = control->tx_rate->hw_value;
+	if (control->flags & IEEE80211_TXCTL_SHORT_PREAMBLE)
+		rate |= 0x10;
 	if (control->flags & IEEE80211_TXCTL_USE_RTS_CTS)
 		rate |= 0x40;
 	else if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT)
@@ -717,13 +764,12 @@ static int p54_set_leds(struct ieee80211_hw *dev, int mode, int link, int act)
 	return 0;
 }
 
-#define P54_SET_QUEUE(queue, ai_fs, cw_min, cw_max, burst)	\
+#define P54_SET_QUEUE(queue, ai_fs, cw_min, cw_max, _txop)	\
 do {	 							\
 	queue.aifs = cpu_to_le16(ai_fs);			\
 	queue.cwmin = cpu_to_le16(cw_min);			\
 	queue.cwmax = cpu_to_le16(cw_max);			\
-	queue.txop = (burst == 0) ? 				\
-		0 : cpu_to_le16((burst * 100) / 32 + 1);	\
+	queue.txop = cpu_to_le16(_txop);			\
 } while(0)
 
 static void p54_init_vdcf(struct ieee80211_hw *dev)
@@ -741,10 +787,10 @@ static void p54_init_vdcf(struct ieee80211_hw *dev)
 
 	vdcf = (struct p54_tx_control_vdcf *) hdr->data;
 
-	P54_SET_QUEUE(vdcf->queue[0], 0x0002, 0x0003, 0x0007, 0x000f);
-	P54_SET_QUEUE(vdcf->queue[1], 0x0002, 0x0007, 0x000f, 0x001e);
-	P54_SET_QUEUE(vdcf->queue[2], 0x0002, 0x000f, 0x03ff, 0x0014);
-	P54_SET_QUEUE(vdcf->queue[3], 0x0007, 0x000f, 0x03ff, 0x0000);
+	P54_SET_QUEUE(vdcf->queue[0], 0x0002, 0x0003, 0x0007, 47);
+	P54_SET_QUEUE(vdcf->queue[1], 0x0002, 0x0007, 0x000f, 94);
+	P54_SET_QUEUE(vdcf->queue[2], 0x0003, 0x000f, 0x03ff, 0);
+	P54_SET_QUEUE(vdcf->queue[3], 0x0007, 0x000f, 0x03ff, 0);
 }
 
 static void p54_set_vdcf(struct ieee80211_hw *dev)
@@ -849,7 +895,7 @@ static int p54_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 {
 	int ret;
 
-	ret = p54_set_freq(dev, cpu_to_le16(conf->freq));
+	ret = p54_set_freq(dev, cpu_to_le16(conf->channel->center_freq));
 	p54_set_vdcf(dev);
 	return ret;
 }
@@ -897,7 +943,7 @@ static int p54_conf_tx(struct ieee80211_hw *dev, int queue,
 
 	if ((params) && !((queue < 0) || (queue > 4))) {
 		P54_SET_QUEUE(vdcf->queue[queue], params->aifs,
-			params->cw_min, params->cw_max, params->burst_time);
+			params->cw_min, params->cw_max, params->txop);
 	} else
 		return -EINVAL;
 
@@ -944,7 +990,6 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 {
 	struct ieee80211_hw *dev;
 	struct p54_common *priv;
-	int i;
 
 	dev = ieee80211_alloc_hw(priv_data_len, &p54_ops);
 	if (!dev)
@@ -953,18 +998,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	priv = dev->priv;
 	priv->mode = IEEE80211_IF_TYPE_INVALID;
 	skb_queue_head_init(&priv->tx_queue);
-	memcpy(priv->channels, p54_channels, sizeof(p54_channels));
-	memcpy(priv->rates, p54_rates, sizeof(p54_rates));
-	priv->modes[1].mode = MODE_IEEE80211B;
-	priv->modes[1].num_rates = 4;
-	priv->modes[1].rates = priv->rates;
-	priv->modes[1].num_channels = ARRAY_SIZE(p54_channels);
-	priv->modes[1].channels = priv->channels;
-	priv->modes[0].mode = MODE_IEEE80211G;
-	priv->modes[0].num_rates = ARRAY_SIZE(p54_rates);
-	priv->modes[0].rates = priv->rates;
-	priv->modes[0].num_channels = ARRAY_SIZE(p54_channels);
-	priv->modes[0].channels = priv->channels;
+	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &band_2GHz;
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING | /* not sure */
 		    IEEE80211_HW_RX_INCLUDES_FCS;
 	dev->channel_change_time = 1000;	/* TODO: find actual value */
@@ -985,14 +1019,6 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	}
 
 	p54_init_vdcf(dev);
-
-	for (i = 0; i < 2; i++) {
-		if (ieee80211_register_hwmode(dev, &priv->modes[i])) {
-			kfree(priv->cached_vdcf);
-			ieee80211_free_hw(dev);
-			return NULL;
-		}
-	}
 
 	return dev;
 }

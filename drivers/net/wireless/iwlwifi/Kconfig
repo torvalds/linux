@@ -24,18 +24,10 @@ config IWL4965
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
 	  module will be called iwl4965.ko.
 
-config IWL4965_QOS
-	bool "Enable Wireless QoS in iwl4965 driver"
-	depends on IWL4965
-	---help---
-	  This option will enable wireless quality of service (QoS) for the
-	  iwl4965 driver.
-
 config IWL4965_HT
 	bool "Enable 802.11n HT features in iwl4965 driver"
 	depends on EXPERIMENTAL
-	depends on IWL4965 && IWL4965_QOS
-	depends on n
+	depends on IWL4965
 	---help---
 	  This option enables IEEE 802.11n High Throughput features
 	  for the iwl4965 driver.
@@ -104,13 +96,6 @@ config IWL3945
 	  inserted in and remvoed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
 	  module will be called iwl3945.ko.
-
-config IWL3945_QOS
-	bool "Enable Wireless QoS in iwl3945 driver"
-	depends on IWL3945
-	---help---
-	  This option will enable wireless quality of service (QoS) for the
-	  iwl3945 driver.
 
 config IWL3945_SPECTRUM_MEASUREMENT
 	bool "Enable Spectrum Measurement in iwl3945 drivers"

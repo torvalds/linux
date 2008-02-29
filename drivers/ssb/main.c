@@ -505,6 +505,14 @@ error:
 	return err;
 }
 
+static u8 ssb_ssb_read8(struct ssb_device *dev, u16 offset)
+{
+	struct ssb_bus *bus = dev->bus;
+
+	offset += dev->core_index * SSB_CORE_SIZE;
+	return readb(bus->mmio + offset);
+}
+
 static u16 ssb_ssb_read16(struct ssb_device *dev, u16 offset)
 {
 	struct ssb_bus *bus = dev->bus;
@@ -519,6 +527,14 @@ static u32 ssb_ssb_read32(struct ssb_device *dev, u16 offset)
 
 	offset += dev->core_index * SSB_CORE_SIZE;
 	return readl(bus->mmio + offset);
+}
+
+static void ssb_ssb_write8(struct ssb_device *dev, u16 offset, u8 value)
+{
+	struct ssb_bus *bus = dev->bus;
+
+	offset += dev->core_index * SSB_CORE_SIZE;
+	writeb(value, bus->mmio + offset);
 }
 
 static void ssb_ssb_write16(struct ssb_device *dev, u16 offset, u16 value)
@@ -539,8 +555,10 @@ static void ssb_ssb_write32(struct ssb_device *dev, u16 offset, u32 value)
 
 /* Ops for the plain SSB bus without a host-device (no PCI or PCMCIA). */
 static const struct ssb_bus_ops ssb_ssb_ops = {
+	.read8		= ssb_ssb_read8,
 	.read16		= ssb_ssb_read16,
 	.read32		= ssb_ssb_read32,
+	.write8		= ssb_ssb_write8,
 	.write16	= ssb_ssb_write16,
 	.write32	= ssb_ssb_write32,
 };

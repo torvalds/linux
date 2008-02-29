@@ -55,48 +55,34 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 	return -ENOENT;
 }
 
+/* must hold local->sta_lock */
+static struct sta_info *__sta_info_find(struct ieee80211_local *local,
+					u8 *addr)
+{
+	struct sta_info *sta;
+
+	sta = local->sta_hash[STA_HASH(addr)];
+	while (sta) {
+		if (compare_ether_addr(sta->addr, addr) == 0)
+			break;
+		sta = sta->hnext;
+	}
+	return sta;
+}
+
 struct sta_info *sta_info_get(struct ieee80211_local *local, u8 *addr)
 {
 	struct sta_info *sta;
 
 	read_lock_bh(&local->sta_lock);
-	sta = local->sta_hash[STA_HASH(addr)];
-	while (sta) {
-		if (memcmp(sta->addr, addr, ETH_ALEN) == 0) {
-			__sta_info_get(sta);
-			break;
-		}
-		sta = sta->hnext;
-	}
+	sta = __sta_info_find(local, addr);
+	if (sta)
+		__sta_info_get(sta);
 	read_unlock_bh(&local->sta_lock);
 
 	return sta;
 }
 EXPORT_SYMBOL(sta_info_get);
-
-int sta_info_min_txrate_get(struct ieee80211_local *local)
-{
-	struct sta_info *sta;
-	struct ieee80211_hw_mode *mode;
-	int min_txrate = 9999999;
-	int i;
-
-	read_lock_bh(&local->sta_lock);
-	mode = local->oper_hw_mode;
-	for (i = 0; i < STA_HASH_SIZE; i++) {
-		sta = local->sta_hash[i];
-		while (sta) {
-			if (sta->txrate < min_txrate)
-				min_txrate = sta->txrate;
-			sta = sta->hnext;
-		}
-	}
-	read_unlock_bh(&local->sta_lock);
-	if (min_txrate == 9999999)
-		min_txrate = 0;
-
-	return mode->rates[min_txrate].rate;
-}
 
 
 static void sta_info_release(struct kref *kref)
@@ -117,8 +103,10 @@ static void sta_info_release(struct kref *kref)
 	while ((skb = skb_dequeue(&sta->tx_filtered)) != NULL) {
 		dev_kfree_skb_any(skb);
 	}
-	for (i = 0; i <  STA_TID_NUM; i++)
+	for (i = 0; i <  STA_TID_NUM; i++) {
 		del_timer_sync(&sta->ampdu_mlme.tid_rx[i].session_timer);
+		del_timer_sync(&sta->ampdu_mlme.tid_tx[i].addba_resp_timer);
+	}
 	rate_control_free_sta(sta->rate_ctrl, sta->rate_ctrl_priv);
 	rate_control_put(sta->rate_ctrl);
 	kfree(sta);
@@ -132,8 +120,8 @@ void sta_info_put(struct sta_info *sta)
 EXPORT_SYMBOL(sta_info_put);
 
 
-struct sta_info * sta_info_add(struct ieee80211_local *local,
-			       struct net_device *dev, u8 *addr, gfp_t gfp)
+struct sta_info *sta_info_add(struct ieee80211_local *local,
+			      struct net_device *dev, u8 *addr, gfp_t gfp)
 {
 	struct sta_info *sta;
 	int i;
@@ -141,7 +129,7 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 
 	sta = kzalloc(sizeof(*sta), gfp);
 	if (!sta)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	kref_init(&sta->kref);
 
@@ -150,30 +138,45 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 	if (!sta->rate_ctrl_priv) {
 		rate_control_put(sta->rate_ctrl);
 		kfree(sta);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	memcpy(sta->addr, addr, ETH_ALEN);
 	sta->local = local;
 	sta->dev = dev;
 	spin_lock_init(&sta->ampdu_mlme.ampdu_rx);
+	spin_lock_init(&sta->ampdu_mlme.ampdu_tx);
 	for (i = 0; i < STA_TID_NUM; i++) {
 		/* timer_to_tid must be initialized with identity mapping to
 		 * enable session_timer's data differentiation. refer to
 		 * sta_rx_agg_session_timer_expired for useage */
 		sta->timer_to_tid[i] = i;
+		/* tid to tx queue: initialize according to HW (0 is valid) */
+		sta->tid_to_tx_q[i] = local->hw.queues;
 		/* rx timers */
 		sta->ampdu_mlme.tid_rx[i].session_timer.function =
 			sta_rx_agg_session_timer_expired;
 		sta->ampdu_mlme.tid_rx[i].session_timer.data =
 			(unsigned long)&sta->timer_to_tid[i];
 		init_timer(&sta->ampdu_mlme.tid_rx[i].session_timer);
+		/* tx timers */
+		sta->ampdu_mlme.tid_tx[i].addba_resp_timer.function =
+			sta_addba_resp_timer_expired;
+		sta->ampdu_mlme.tid_tx[i].addba_resp_timer.data =
+			(unsigned long)&sta->timer_to_tid[i];
+		init_timer(&sta->ampdu_mlme.tid_tx[i].addba_resp_timer);
 	}
 	skb_queue_head_init(&sta->ps_tx_buf);
 	skb_queue_head_init(&sta->tx_filtered);
-	__sta_info_get(sta);	/* sta used by caller, decremented by
-				 * sta_info_put() */
 	write_lock_bh(&local->sta_lock);
+	/* mark sta as used (by caller) */
+	__sta_info_get(sta);
+	/* check if STA exists already */
+	if (__sta_info_find(local, addr)) {
+		write_unlock_bh(&local->sta_lock);
+		sta_info_put(sta);
+		return ERR_PTR(-EEXIST);
+	}
 	list_add(&sta->list, &local->sta_list);
 	local->num_sta++;
 	sta_info_hash_add(local, sta);
@@ -204,6 +207,64 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 	return sta;
 }
 
+static inline void __bss_tim_set(struct ieee80211_if_ap *bss, u16 aid)
+{
+	/*
+	 * This format has been mandated by the IEEE specifications,
+	 * so this line may not be changed to use the __set_bit() format.
+	 */
+	bss->tim[aid / 8] |= (1 << (aid % 8));
+}
+
+static inline void __bss_tim_clear(struct ieee80211_if_ap *bss, u16 aid)
+{
+	/*
+	 * This format has been mandated by the IEEE specifications,
+	 * so this line may not be changed to use the __clear_bit() format.
+	 */
+	bss->tim[aid / 8] &= ~(1 << (aid % 8));
+}
+
+static void __sta_info_set_tim_bit(struct ieee80211_if_ap *bss,
+				   struct sta_info *sta)
+{
+	if (bss)
+		__bss_tim_set(bss, sta->aid);
+	if (sta->local->ops->set_tim)
+		sta->local->ops->set_tim(local_to_hw(sta->local), sta->aid, 1);
+}
+
+void sta_info_set_tim_bit(struct sta_info *sta)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+
+	read_lock_bh(&sta->local->sta_lock);
+	__sta_info_set_tim_bit(sdata->bss, sta);
+	read_unlock_bh(&sta->local->sta_lock);
+}
+
+static void __sta_info_clear_tim_bit(struct ieee80211_if_ap *bss,
+				     struct sta_info *sta)
+{
+	if (bss)
+		__bss_tim_clear(bss, sta->aid);
+	if (sta->local->ops->set_tim)
+		sta->local->ops->set_tim(local_to_hw(sta->local), sta->aid, 0);
+}
+
+void sta_info_clear_tim_bit(struct sta_info *sta)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+
+	read_lock_bh(&sta->local->sta_lock);
+	__sta_info_clear_tim_bit(sdata->bss, sta);
+	read_unlock_bh(&sta->local->sta_lock);
+}
+
 /* Caller must hold local->sta_lock */
 void sta_info_remove(struct sta_info *sta)
 {
@@ -220,10 +281,9 @@ void sta_info_remove(struct sta_info *sta)
 		sta->flags &= ~WLAN_STA_PS;
 		if (sdata->bss)
 			atomic_dec(&sdata->bss->num_sta_ps);
+		__sta_info_clear_tim_bit(sdata->bss, sta);
 	}
 	local->num_sta--;
-	sta_info_remove_aid_ptr(sta);
-
 }
 
 void sta_info_free(struct sta_info *sta)
@@ -252,7 +312,7 @@ void sta_info_free(struct sta_info *sta)
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 	ieee80211_key_free(sta->key);
-	sta->key = NULL;
+	WARN_ON(sta->key);
 
 	if (local->ops->sta_notify) {
 		struct ieee80211_sub_if_data *sdata;
@@ -299,6 +359,7 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 {
 	unsigned long flags;
 	struct sk_buff *skb;
+	struct ieee80211_sub_if_data *sdata;
 	DECLARE_MAC_BUF(mac);
 
 	if (skb_queue_empty(&sta->ps_tx_buf))
@@ -307,21 +368,23 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 	for (;;) {
 		spin_lock_irqsave(&sta->ps_tx_buf.lock, flags);
 		skb = skb_peek(&sta->ps_tx_buf);
-		if (sta_info_buffer_expired(local, sta, skb)) {
+		if (sta_info_buffer_expired(local, sta, skb))
 			skb = __skb_dequeue(&sta->ps_tx_buf);
-			if (skb_queue_empty(&sta->ps_tx_buf))
-				sta->flags &= ~WLAN_STA_TIM;
-		} else
+		else
 			skb = NULL;
 		spin_unlock_irqrestore(&sta->ps_tx_buf.lock, flags);
 
-		if (skb) {
-			local->total_ps_buffered--;
-			printk(KERN_DEBUG "Buffered frame expired (STA "
-			       "%s)\n", print_mac(mac, sta->addr));
-			dev_kfree_skb(skb);
-		} else
+		if (!skb)
 			break;
+
+		sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+		local->total_ps_buffered--;
+		printk(KERN_DEBUG "Buffered frame expired (STA "
+		       "%s)\n", print_mac(mac, sta->addr));
+		dev_kfree_skb(skb);
+
+		if (skb_queue_empty(&sta->ps_tx_buf))
+			sta_info_clear_tim_bit(sta);
 	}
 }
 
@@ -399,23 +462,6 @@ void sta_info_stop(struct ieee80211_local *local)
 	del_timer(&local->sta_cleanup);
 	sta_info_flush(local, NULL);
 }
-
-void sta_info_remove_aid_ptr(struct sta_info *sta)
-{
-	struct ieee80211_sub_if_data *sdata;
-
-	if (sta->aid <= 0)
-		return;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
-
-	if (sdata->local->ops->set_tim)
-		sdata->local->ops->set_tim(local_to_hw(sdata->local),
-					  sta->aid, 0);
-	if (sdata->bss)
-		__bss_tim_clear(sdata->bss, sta->aid);
-}
-
 
 /**
  * sta_info_flush - flush matching STA entries from the STA table

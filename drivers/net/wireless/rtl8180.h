@@ -102,7 +102,7 @@ struct rtl8180_priv {
 	struct rtl8180_tx_ring tx_ring[4];
 	struct ieee80211_channel channels[14];
 	struct ieee80211_rate rates[12];
-	struct ieee80211_hw_mode modes[2];
+	struct ieee80211_supported_band band;
 	struct pci_dev *pdev;
 	u32 rx_conf;
 

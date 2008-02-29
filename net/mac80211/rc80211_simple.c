@@ -7,6 +7,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/jiffies.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/types.h>
@@ -35,8 +36,8 @@ static void rate_control_rate_inc(struct ieee80211_local *local,
 				  struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_hw_mode *mode;
-	int i = sta->txrate;
+	struct ieee80211_supported_band *sband;
+	int i = sta->txrate_idx;
 	int maxrate;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
@@ -45,18 +46,17 @@ static void rate_control_rate_inc(struct ieee80211_local *local,
 		return;
 	}
 
-	mode = local->oper_hw_mode;
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 	maxrate = sdata->bss ? sdata->bss->max_ratectrl_rateidx : -1;
 
-	if (i > mode->num_rates)
-		i = mode->num_rates - 2;
+	if (i > sband->n_bitrates)
+		i = sband->n_bitrates - 2;
 
-	while (i + 1 < mode->num_rates) {
+	while (i + 1 < sband->n_bitrates) {
 		i++;
-		if (sta->supp_rates & BIT(i) &&
-		    mode->rates[i].flags & IEEE80211_RATE_SUPPORTED &&
+		if (rate_supported(sta, sband->band, i) &&
 		    (maxrate < 0 || i <= maxrate)) {
-			sta->txrate = i;
+			sta->txrate_idx = i;
 			break;
 		}
 	}
@@ -67,8 +67,8 @@ static void rate_control_rate_dec(struct ieee80211_local *local,
 				  struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_hw_mode *mode;
-	int i = sta->txrate;
+	struct ieee80211_supported_band *sband;
+	int i = sta->txrate_idx;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
 	if (sdata->bss && sdata->bss->force_unicast_rateidx > -1) {
@@ -76,15 +76,14 @@ static void rate_control_rate_dec(struct ieee80211_local *local,
 		return;
 	}
 
-	mode = local->oper_hw_mode;
-	if (i > mode->num_rates)
-		i = mode->num_rates;
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+	if (i > sband->n_bitrates)
+		i = sband->n_bitrates;
 
 	while (i > 0) {
 		i--;
-		if (sta->supp_rates & BIT(i) &&
-		    mode->rates[i].flags & IEEE80211_RATE_SUPPORTED) {
-			sta->txrate = i;
+		if (rate_supported(sta, sband->band, i)) {
+			sta->txrate_idx = i;
 			break;
 		}
 	}
@@ -132,9 +131,6 @@ static void rate_control_simple_tx_status(void *priv, struct net_device *dev,
 		sta->tx_num_consecutive_failures++;
 		sta->tx_num_mpdu_fail++;
 	} else {
-		sta->last_ack_rssi[0] = sta->last_ack_rssi[1];
-		sta->last_ack_rssi[1] = sta->last_ack_rssi[2];
-		sta->last_ack_rssi[2] = status->ack_signal;
 		sta->tx_num_consecutive_failures = 0;
 		sta->tx_num_mpdu_ok++;
 	}
@@ -168,7 +164,7 @@ static void rate_control_simple_tx_status(void *priv, struct net_device *dev,
 		} else if (per_failed < RATE_CONTROL_NUM_UP) {
 			rate_control_rate_inc(local, sta);
 		}
-		srctrl->tx_avg_rate_sum += status->control.rate->rate;
+		srctrl->tx_avg_rate_sum += status->control.tx_rate->bitrate;
 		srctrl->tx_avg_rate_num++;
 		srctrl->tx_num_failures = 0;
 		srctrl->tx_num_xmit = 0;
@@ -177,7 +173,7 @@ static void rate_control_simple_tx_status(void *priv, struct net_device *dev,
 		rate_control_rate_dec(local, sta);
 	}
 
-	if (srctrl->avg_rate_update + 60 * HZ < jiffies) {
+	if (time_after(jiffies, srctrl->avg_rate_update + 60 * HZ)) {
 		srctrl->avg_rate_update = jiffies;
 		if (srctrl->tx_avg_rate_num > 0) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -201,7 +197,7 @@ static void rate_control_simple_tx_status(void *priv, struct net_device *dev,
 
 static void
 rate_control_simple_get_rate(void *priv, struct net_device *dev,
-			     struct ieee80211_hw_mode *mode,
+			     struct ieee80211_supported_band *sband,
 			     struct sk_buff *skb,
 			     struct rate_selection *sel)
 {
@@ -219,7 +215,7 @@ rate_control_simple_get_rate(void *priv, struct net_device *dev,
 	fc = le16_to_cpu(hdr->frame_control);
 	if ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
 	    is_multicast_ether_addr(hdr->addr1) || !sta) {
-		sel->rate = rate_lowest(local, mode, sta);
+		sel->rate = rate_lowest(local, sband, sta);
 		if (sta)
 			sta_info_put(sta);
 		return;
@@ -228,18 +224,18 @@ rate_control_simple_get_rate(void *priv, struct net_device *dev,
 	/* If a forced rate is in effect, select it. */
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (sdata->bss && sdata->bss->force_unicast_rateidx > -1)
-		sta->txrate = sdata->bss->force_unicast_rateidx;
+		sta->txrate_idx = sdata->bss->force_unicast_rateidx;
 
-	rateidx = sta->txrate;
+	rateidx = sta->txrate_idx;
 
-	if (rateidx >= mode->num_rates)
-		rateidx = mode->num_rates - 1;
+	if (rateidx >= sband->n_bitrates)
+		rateidx = sband->n_bitrates - 1;
 
-	sta->last_txrate = rateidx;
+	sta->last_txrate_idx = rateidx;
 
 	sta_info_put(sta);
 
-	sel->rate = &mode->rates[rateidx];
+	sel->rate = &sband->bitrates[rateidx];
 }
 
 
@@ -247,21 +243,15 @@ static void rate_control_simple_rate_init(void *priv, void *priv_sta,
 					  struct ieee80211_local *local,
 					  struct sta_info *sta)
 {
-	struct ieee80211_hw_mode *mode;
-	int i;
-	sta->txrate = 0;
-	mode = local->oper_hw_mode;
+	struct ieee80211_supported_band *sband;
+
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+
 	/* TODO: This routine should consider using RSSI from previous packets
 	 * as we need to have IEEE 802.1X auth succeed immediately after assoc..
 	 * Until that method is implemented, we will use the lowest supported rate
 	 * as a workaround, */
-	for (i = 0; i < mode->num_rates; i++) {
-		if ((sta->supp_rates & BIT(i)) &&
-		    (mode->rates[i].flags & IEEE80211_RATE_SUPPORTED)) {
-			sta->txrate = i;
-			break;
-		}
-	}
+	sta->txrate_idx = rate_lowest_index(local, sband, sta);
 }
 
 

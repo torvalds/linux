@@ -727,14 +727,20 @@ struct iwl4965_qosparam_cmd {
 #define STA_CONTROL_MODIFY_MSK		0x01
 
 /* key flags __le16*/
-#define STA_KEY_FLG_ENCRYPT_MSK	__constant_cpu_to_le16(0x7)
-#define STA_KEY_FLG_NO_ENC	__constant_cpu_to_le16(0x0)
-#define STA_KEY_FLG_WEP		__constant_cpu_to_le16(0x1)
-#define STA_KEY_FLG_CCMP	__constant_cpu_to_le16(0x2)
-#define STA_KEY_FLG_TKIP	__constant_cpu_to_le16(0x3)
+#define STA_KEY_FLG_ENCRYPT_MSK	__constant_cpu_to_le16(0x0007)
+#define STA_KEY_FLG_NO_ENC	__constant_cpu_to_le16(0x0000)
+#define STA_KEY_FLG_WEP		__constant_cpu_to_le16(0x0001)
+#define STA_KEY_FLG_CCMP	__constant_cpu_to_le16(0x0002)
+#define STA_KEY_FLG_TKIP	__constant_cpu_to_le16(0x0003)
 
 #define STA_KEY_FLG_KEYID_POS	8
 #define STA_KEY_FLG_INVALID 	__constant_cpu_to_le16(0x0800)
+/* wep key is either from global key (0) or from station info array (1) */
+#define STA_KEY_FLG_MAP_KEY_MSK	__constant_cpu_to_le16(0x0008)
+
+/* wep key in STA: 5-bytes (0) or 13-bytes (1) */
+#define STA_KEY_FLG_KEY_SIZE_MSK     __constant_cpu_to_le16(0x1000)
+#define STA_KEY_MULTICAST_MSK        __constant_cpu_to_le16(0x4000)
 
 /* Flags indicate whether to modify vs. don't change various station params */
 #define	STA_MODIFY_KEY_MASK		0x01
@@ -752,7 +758,8 @@ struct iwl4965_keyinfo {
 	u8 tkip_rx_tsc_byte2;	/* TSC[2] for key mix ph1 detection */
 	u8 reserved1;
 	__le16 tkip_rx_ttak[5];	/* 10-byte unicast TKIP TTAK */
-	__le16 reserved2;
+	u8 key_offset;
+	u8 reserved2;
 	u8 key[16];		/* 16-byte unicast decryption key */
 } __attribute__ ((packed));
 
@@ -1300,6 +1307,25 @@ struct iwl4965_tx_resp {
 	__le32 status;	/* TX status (for aggregation status of 1st frame) */
 } __attribute__ ((packed));
 
+struct agg_tx_status {
+	__le16 status;
+	__le16 sequence;
+} __attribute__ ((packed));
+
+struct iwl4965_tx_resp_agg {
+	u8 frame_count;         /* 1 no aggregation, >1 aggregation */
+	u8 reserved1;
+	u8 failure_rts;
+	u8 failure_frame;
+	__le32 rate_n_flags;
+	__le16 wireless_media_time;
+	__le16 reserved3;
+	__le32 pa_power1;
+	__le32 pa_power2;
+	struct agg_tx_status status;    /* TX status (for aggregation status */
+					/* of 1st frame) */
+} __attribute__ ((packed));
+
 /*
  * REPLY_COMPRESSED_BA = 0xc5 (response only, not a command)
  *
@@ -1313,9 +1339,8 @@ struct iwl4965_compressed_ba_resp {
 	/* Index of recipient (BA-sending) station in uCode's station table */
 	u8 sta_id;
 	u8 tid;
-	__le16 ba_seq_ctl;
-	__le32 ba_bitmap0;
-	__le32 ba_bitmap1;
+	__le16 seq_ctl;
+	__le64 bitmap;
 	__le16 scd_flow;
 	__le16 scd_ssn;
 } __attribute__ ((packed));

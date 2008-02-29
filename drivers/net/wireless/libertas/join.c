@@ -99,23 +99,6 @@ static void lbs_set_basic_rate_flags(u8 *rates, size_t len)
 }
 
 /**
- *  @brief Unsets the MSB on basic rates
- *
- * Scan through an array and unset the MSB for basic data rates.
- *
- *  @param rates     buffer of data rates
- *  @param len       size of buffer
- */
-void lbs_unset_basic_rate_flags(u8 *rates, size_t len)
-{
-	int i;
-
-	for (i = 0; i < len; i++)
-		rates[i] &= 0x7f;
-}
-
-
-/**
  *  @brief Associate to a specific BSS discovered in a scan
  *
  *  @param priv      A pointer to struct lbs_private structure
@@ -768,9 +751,6 @@ int lbs_ret_80211_associate(struct lbs_private *priv,
 	memcpy(&priv->curbssparams.ssid, &bss->ssid, IW_ESSID_MAX_SIZE);
 	priv->curbssparams.ssid_len = bss->ssid_len;
 	memcpy(priv->curbssparams.bssid, bss->bssid, ETH_ALEN);
-
-	lbs_deb_assoc("ASSOC_RESP: currentpacketfilter is 0x%x\n",
-		priv->currentpacketfilter);
 
 	priv->SNR[TYPE_RXPD][TYPE_AVG] = 0;
 	priv->NF[TYPE_RXPD][TYPE_AVG] = 0;

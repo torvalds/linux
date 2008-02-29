@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2007 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -93,8 +93,8 @@ enum rt2x00_dump_type {
  * @chip_rf: RF chipset
  * @chip_rev: Chipset revision
  * @type: The frame type (&rt2x00_dump_type)
- * @ring_index: The index number of the data ring.
- * @entry_index: The index number of the entry inside the data ring.
+ * @queue_index: The index number of the data queue.
+ * @entry_index: The index number of the entry inside the data queue.
  * @timestamp_sec: Timestamp - seconds
  * @timestamp_usec: Timestamp - microseconds
  */
@@ -111,7 +111,7 @@ struct rt2x00dump_hdr {
 	__le32 chip_rev;
 
 	__le16 type;
-	__u8 ring_index;
+	__u8 queue_index;
 	__u8 entry_index;
 
 	__le32 timestamp_sec;

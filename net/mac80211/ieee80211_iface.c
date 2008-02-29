@@ -118,6 +118,8 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 	sdata->bss = NULL;
 	sdata->vif.type = type;
 
+	sdata->basic_rates = 0;
+
 	switch (type) {
 	case IEEE80211_IF_TYPE_WDS:
 		/* nothing special */
@@ -158,6 +160,8 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 	case IEEE80211_IF_TYPE_MNTR:
 		dev->type = ARPHRD_IEEE80211_RADIOTAP;
 		dev->hard_start_xmit = ieee80211_monitor_start_xmit;
+		sdata->u.mntr_flags = MONITOR_FLAG_CONTROL |
+				      MONITOR_FLAG_OTHER_BSS;
 		break;
 	default:
 		printk(KERN_WARNING "%s: %s: Unknown interface type 0x%x",
@@ -189,6 +193,7 @@ void ieee80211_if_reinit(struct net_device *dev)
 		/* Remove all virtual interfaces that use this BSS
 		 * as their sdata->bss */
 		struct ieee80211_sub_if_data *tsdata, *n;
+		struct beacon_data *beacon;
 
 		list_for_each_entry_safe(tsdata, n, &local->interfaces, list) {
 			if (tsdata != sdata && tsdata->bss == &sdata->u.ap) {
@@ -206,7 +211,10 @@ void ieee80211_if_reinit(struct net_device *dev)
 			}
 		}
 
-		kfree(sdata->u.ap.beacon);
+		beacon = sdata->u.ap.beacon;
+		rcu_assign_pointer(sdata->u.ap.beacon, NULL);
+		synchronize_rcu();
+		kfree(beacon);
 
 		while ((skb = skb_dequeue(&sdata->u.ap.ps_bc_buf))) {
 			local->total_ps_buffered--;

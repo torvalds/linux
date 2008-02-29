@@ -163,6 +163,26 @@ struct station_stats {
 	u32 tx_bytes;
 };
 
+/**
+ * enum monitor_flags - monitor flags
+ *
+ * Monitor interface configuration flags. Note that these must be the bits
+ * according to the nl80211 flags.
+ *
+ * @MONITOR_FLAG_FCSFAIL: pass frames with bad FCS
+ * @MONITOR_FLAG_PLCPFAIL: pass frames with bad PLCP
+ * @MONITOR_FLAG_CONTROL: pass control frames
+ * @MONITOR_FLAG_OTHER_BSS: disable BSSID filtering
+ * @MONITOR_FLAG_COOK_FRAMES: report frames after processing
+ */
+enum monitor_flags {
+	MONITOR_FLAG_FCSFAIL		= 1<<NL80211_MNTR_FLAG_FCSFAIL,
+	MONITOR_FLAG_PLCPFAIL		= 1<<NL80211_MNTR_FLAG_PLCPFAIL,
+	MONITOR_FLAG_CONTROL		= 1<<NL80211_MNTR_FLAG_CONTROL,
+	MONITOR_FLAG_OTHER_BSS		= 1<<NL80211_MNTR_FLAG_OTHER_BSS,
+	MONITOR_FLAG_COOK_FRAMES	= 1<<NL80211_MNTR_FLAG_COOK_FRAMES,
+};
+
 /* from net/wireless.h */
 struct wiphy;
 
@@ -213,10 +233,10 @@ struct wiphy;
  */
 struct cfg80211_ops {
 	int	(*add_virtual_intf)(struct wiphy *wiphy, char *name,
-				    enum nl80211_iftype type);
+				    enum nl80211_iftype type, u32 *flags);
 	int	(*del_virtual_intf)(struct wiphy *wiphy, int ifindex);
 	int	(*change_virtual_intf)(struct wiphy *wiphy, int ifindex,
-				       enum nl80211_iftype type);
+				       enum nl80211_iftype type, u32 *flags);
 
 	int	(*add_key)(struct wiphy *wiphy, struct net_device *netdev,
 			   u8 key_index, u8 *mac_addr,

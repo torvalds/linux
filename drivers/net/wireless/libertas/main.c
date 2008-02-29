@@ -985,6 +985,18 @@ out:
 	lbs_deb_leave(LBS_DEB_CMD);
 }
 
+static void lbs_sync_channel_worker(struct work_struct *work)
+{
+	struct lbs_private *priv = container_of(work, struct lbs_private,
+		sync_channel);
+
+	lbs_deb_enter(LBS_DEB_MAIN);
+	if (lbs_update_channel(priv))
+		lbs_pr_info("Channel synchronization failed.");
+	lbs_deb_leave(LBS_DEB_MAIN);
+}
+
+
 static int lbs_init_adapter(struct lbs_private *priv)
 {
 	size_t bufsize;
@@ -1128,7 +1140,7 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	priv->work_thread = create_singlethread_workqueue("lbs_worker");
 	INIT_DELAYED_WORK(&priv->assoc_work, lbs_association_worker);
 	INIT_DELAYED_WORK(&priv->scan_work, lbs_scan_worker);
-	INIT_WORK(&priv->sync_channel, lbs_sync_channel);
+	INIT_WORK(&priv->sync_channel, lbs_sync_channel_worker);
 
 	sprintf(priv->mesh_ssid, "mesh");
 	priv->mesh_ssid_len = 4;

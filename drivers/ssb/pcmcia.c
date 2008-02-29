@@ -172,6 +172,22 @@ static int select_core_and_segment(struct ssb_device *dev,
 	return 0;
 }
 
+static u8 ssb_pcmcia_read8(struct ssb_device *dev, u16 offset)
+{
+	struct ssb_bus *bus = dev->bus;
+	unsigned long flags;
+	int err;
+	u8 value = 0xFF;
+
+	spin_lock_irqsave(&bus->bar_lock, flags);
+	err = select_core_and_segment(dev, &offset);
+	if (likely(!err))
+		value = readb(bus->mmio + offset);
+	spin_unlock_irqrestore(&bus->bar_lock, flags);
+
+	return value;
+}
+
 static u16 ssb_pcmcia_read16(struct ssb_device *dev, u16 offset)
 {
 	struct ssb_bus *bus = dev->bus;
@@ -206,6 +222,20 @@ static u32 ssb_pcmcia_read32(struct ssb_device *dev, u16 offset)
 	return (lo | (hi << 16));
 }
 
+static void ssb_pcmcia_write8(struct ssb_device *dev, u16 offset, u8 value)
+{
+	struct ssb_bus *bus = dev->bus;
+	unsigned long flags;
+	int err;
+
+	spin_lock_irqsave(&bus->bar_lock, flags);
+	err = select_core_and_segment(dev, &offset);
+	if (likely(!err))
+		writeb(value, bus->mmio + offset);
+	mmiowb();
+	spin_unlock_irqrestore(&bus->bar_lock, flags);
+}
+
 static void ssb_pcmcia_write16(struct ssb_device *dev, u16 offset, u16 value)
 {
 	struct ssb_bus *bus = dev->bus;
@@ -238,8 +268,10 @@ static void ssb_pcmcia_write32(struct ssb_device *dev, u16 offset, u32 value)
 
 /* Not "static", as it's used in main.c */
 const struct ssb_bus_ops ssb_pcmcia_ops = {
+	.read8		= ssb_pcmcia_read8,
 	.read16		= ssb_pcmcia_read16,
 	.read32		= ssb_pcmcia_read32,
+	.write8		= ssb_pcmcia_write8,
 	.write16	= ssb_pcmcia_write16,
 	.write32	= ssb_pcmcia_write32,
 };

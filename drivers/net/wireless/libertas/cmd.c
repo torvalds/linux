@@ -1153,9 +1153,9 @@ static void lbs_submit_command(struct lbs_private *priv,
 	    command == CMD_802_11_AUTHENTICATE)
 		timeo = 10 * HZ;
 
-	lbs_deb_host("DNLD_CMD: command 0x%04x, seq %d, size %d, jiffies %lu\n",
+	lbs_deb_cmd("DNLD_CMD: command 0x%04x, seq %d, size %d, jiffies %lu\n",
 		     command, le16_to_cpu(cmd->seqnum), cmdsize, jiffies);
-	lbs_deb_hex(LBS_DEB_HOST, "DNLD_CMD", (void *) cmdnode->cmdbuf, cmdsize);
+	lbs_deb_hex(LBS_DEB_CMD, "DNLD_CMD", (void *) cmdnode->cmdbuf, cmdsize);
 
 	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) cmd, cmdsize);
 
@@ -1164,9 +1164,7 @@ static void lbs_submit_command(struct lbs_private *priv,
 		/* Let the timer kick in and retry, and potentially reset
 		   the whole thing if the condition persists */
 		timeo = HZ;
-	} else
-		lbs_deb_cmd("DNLD_CMD: sent command 0x%04x, jiffies %lu\n",
-			    command, jiffies);
+	}
 
 	/* Setup the timer after transmit command */
 	mod_timer(&priv->command_timer, jiffies + timeo);
@@ -1185,7 +1183,7 @@ static int lbs_cmd_mac_control(struct lbs_private *priv,
 	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_mac_control) + S_DS_GEN);
 	mac->action = cpu_to_le16(priv->currentpacketfilter);
 
-	lbs_deb_cmd("MAC_CONTROL: action 0x%x, size %d\n",
+	lbs_deb_cmd("MAC_CONTROL: action 0x%04x, size %d\n",
 		    le16_to_cpu(mac->action), le16_to_cpu(cmd->size));
 
 	lbs_deb_leave(LBS_DEB_CMD);
@@ -1741,9 +1739,9 @@ int lbs_execute_next_command(struct lbs_private *priv)
 	unsigned long flags;
 	int ret = 0;
 
-	// Debug group is LBS_DEB_THREAD and not LBS_DEB_HOST, because the
-	// only caller to us is lbs_thread() and we get even when a
-	// data packet is received
+	/* Debug group is LBS_DEB_THREAD and not LBS_DEB_HOST, because the
+	 * only caller to us is lbs_thread() and we get even when a
+	 * data packet is received */
 	lbs_deb_enter(LBS_DEB_THREAD);
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
@@ -2043,15 +2041,8 @@ int lbs_cmd_copyback(struct lbs_private *priv, unsigned long extra,
 	struct cmd_header *buf = (void *)extra;
 	uint16_t copy_len;
 
-	lbs_deb_enter(LBS_DEB_CMD);
-
 	copy_len = min(le16_to_cpu(buf->size), le16_to_cpu(resp->size));
-	lbs_deb_cmd("Copying back %u bytes; command response was %u bytes, "
-		    "copy back buffer was %u bytes\n", copy_len,
-		    le16_to_cpu(resp->size), le16_to_cpu(buf->size));
 	memcpy(buf, resp, copy_len);
-
-	lbs_deb_leave(LBS_DEB_CMD);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(lbs_cmd_copyback);

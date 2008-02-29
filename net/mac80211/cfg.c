@@ -34,10 +34,13 @@ nl80211_type_to_mac80211_type(enum nl80211_iftype type)
 }
 
 static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
-			       enum nl80211_iftype type)
+			       enum nl80211_iftype type, u32 *flags)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	enum ieee80211_if_types itype;
+	struct net_device *dev;
+	struct ieee80211_sub_if_data *sdata;
+	int err;
 
 	if (unlikely(local->reg_state != IEEE80211_DEV_REGISTERED))
 		return -ENODEV;
@@ -46,7 +49,13 @@ static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
 	if (itype == IEEE80211_IF_TYPE_INVALID)
 		return -EINVAL;
 
-	return ieee80211_if_add(local->mdev, name, NULL, itype);
+	err = ieee80211_if_add(local->mdev, name, &dev, itype);
+	if (err || itype != IEEE80211_IF_TYPE_MNTR || !flags)
+		return err;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	sdata->u.mntr_flags = *flags;
+	return 0;
 }
 
 static int ieee80211_del_iface(struct wiphy *wiphy, int ifindex)
@@ -69,7 +78,7 @@ static int ieee80211_del_iface(struct wiphy *wiphy, int ifindex)
 }
 
 static int ieee80211_change_iface(struct wiphy *wiphy, int ifindex,
-				  enum nl80211_iftype type)
+				  enum nl80211_iftype type, u32 *flags)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct net_device *dev;
@@ -99,6 +108,10 @@ static int ieee80211_change_iface(struct wiphy *wiphy, int ifindex,
 	ieee80211_if_reinit(dev);
 	ieee80211_if_set_type(dev, itype);
 
+	if (sdata->vif.type != IEEE80211_IF_TYPE_MNTR || !flags)
+		return 0;
+
+	sdata->u.mntr_flags = *flags;
 	return 0;
 }
 
@@ -110,6 +123,7 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	struct sta_info *sta = NULL;
 	enum ieee80211_key_alg alg;
 	int ret;
+	struct ieee80211_key *key;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
@@ -128,16 +142,21 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 		return -EINVAL;
 	}
 
+	key = ieee80211_key_alloc(alg, key_idx, params->key_len, params->key);
+	if (!key)
+		return -ENOMEM;
+
 	if (mac_addr) {
 		sta = sta_info_get(sdata->local, mac_addr);
-		if (!sta)
+		if (!sta) {
+			ieee80211_key_free(key);
 			return -ENOENT;
+		}
 	}
 
+	ieee80211_key_link(key, sdata, sta);
+
 	ret = 0;
-	if (!ieee80211_key_alloc(sdata, sta, alg, key_idx,
-				 params->key_len, params->key))
-		ret = -ENOMEM;
 
 	if (sta)
 		sta_info_put(sta);
@@ -151,6 +170,7 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
 	int ret;
+	struct ieee80211_key *key;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
@@ -160,9 +180,11 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 			return -ENOENT;
 
 		ret = 0;
-		if (sta->key)
-			ieee80211_key_free(sta->key);
-		else
+		if (sta->key) {
+			key = sta->key;
+			ieee80211_key_free(key);
+			WARN_ON(sta->key);
+		} else
 			ret = -ENOENT;
 
 		sta_info_put(sta);
@@ -172,7 +194,9 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 	if (!sdata->keys[key_idx])
 		return -ENOENT;
 
-	ieee80211_key_free(sdata->keys[key_idx]);
+	key = sdata->keys[key_idx];
+	ieee80211_key_free(key);
+	WARN_ON(sdata->keys[key_idx]);
 
 	return 0;
 }
@@ -498,7 +522,7 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 {
 	u32 rates;
 	int i, j;
-	struct ieee80211_hw_mode *mode;
+	struct ieee80211_supported_band *sband;
 
 	if (params->station_flags & STATION_FLAG_CHANGED) {
 		sta->flags &= ~WLAN_STA_AUTHORIZED;
@@ -525,15 +549,16 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 
 	if (params->supported_rates) {
 		rates = 0;
-		mode = local->oper_hw_mode;
+		sband = local->hw.wiphy->bands[local->oper_channel->band];
+
 		for (i = 0; i < params->supported_rates_len; i++) {
 			int rate = (params->supported_rates[i] & 0x7f) * 5;
-			for (j = 0; j < mode->num_rates; j++) {
-				if (mode->rates[j].rate == rate)
+			for (j = 0; j < sband->n_bitrates; j++) {
+				if (sband->bitrates[j].bitrate == rate)
 					rates |= BIT(j);
 			}
 		}
-		sta->supp_rates = rates;
+		sta->supp_rates[local->oper_channel->band] = rates;
 	}
 }
 
@@ -548,13 +573,6 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	if (!netif_running(dev))
 		return -ENETDOWN;
 
-	/* XXX: get sta belonging to dev */
-	sta = sta_info_get(local, mac);
-	if (sta) {
-		sta_info_put(sta);
-		return -EEXIST;
-	}
-
 	if (params->vlan) {
 		sdata = IEEE80211_DEV_TO_SUB_IF(params->vlan);
 
@@ -565,8 +583,8 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 		sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	sta = sta_info_add(local, dev, mac, GFP_KERNEL);
-	if (!sta)
-		return -ENOMEM;
+	if (IS_ERR(sta))
+		return PTR_ERR(sta);
 
 	sta->dev = sdata->dev;
 	if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN ||

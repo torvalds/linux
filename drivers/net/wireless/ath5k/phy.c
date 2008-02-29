@@ -1018,7 +1018,7 @@ static int ath5k_hw_rf5111_rfregs(struct ath5k_hw *ah,
 	int obdb = -1, bank = -1;
 	u32 ee_mode;
 
-	AR5K_ASSERT_ENTRY(mode, AR5K_INI_VAL_MAX);
+	AR5K_ASSERT_ENTRY(mode, AR5K_MODE_MAX);
 
 	rf = ah->ah_rf_banks;
 
@@ -1038,8 +1038,8 @@ static int ath5k_hw_rf5111_rfregs(struct ath5k_hw *ah,
 	}
 
 	/* Modify bank 0 */
-	if (channel->val & CHANNEL_2GHZ) {
-		if (channel->val & CHANNEL_CCK)
+	if (channel->hw_value & CHANNEL_2GHZ) {
+		if (channel->hw_value & CHANNEL_CCK)
 			ee_mode = AR5K_EEPROM_MODE_11B;
 		else
 			ee_mode = AR5K_EEPROM_MODE_11G;
@@ -1058,10 +1058,10 @@ static int ath5k_hw_rf5111_rfregs(struct ath5k_hw *ah,
 	} else {
 		/* For 11a, Turbo and XR */
 		ee_mode = AR5K_EEPROM_MODE_11A;
-		obdb =	 channel->freq >= 5725 ? 3 :
-			(channel->freq >= 5500 ? 2 :
-			(channel->freq >= 5260 ? 1 :
-			 (channel->freq > 4000 ? 0 : -1)));
+		obdb =	 channel->center_freq >= 5725 ? 3 :
+			(channel->center_freq >= 5500 ? 2 :
+			(channel->center_freq >= 5260 ? 1 :
+			 (channel->center_freq > 4000 ? 0 : -1)));
 
 		if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[6],
 				ee->ee_pwd_84, 1, 51, 3, true))
@@ -1119,12 +1119,12 @@ static int ath5k_hw_rf5112_rfregs(struct ath5k_hw *ah,
 	int obdb = -1, bank = -1;
 	u32 ee_mode;
 
-	AR5K_ASSERT_ENTRY(mode, AR5K_INI_VAL_MAX);
+	AR5K_ASSERT_ENTRY(mode, AR5K_MODE_MAX);
 
 	rf = ah->ah_rf_banks;
 
 	if (ah->ah_radio_5ghz_revision >= AR5K_SREV_RAD_2112A
-		&& !test_bit(MODE_IEEE80211A, ah->ah_capabilities.cap_mode)){
+		&& !test_bit(AR5K_MODE_11A, ah->ah_capabilities.cap_mode)) {
 		rf_ini = rfregs_2112a;
 		rf_size = ARRAY_SIZE(rfregs_5112a);
 		if (mode < 2) {
@@ -1156,8 +1156,8 @@ static int ath5k_hw_rf5112_rfregs(struct ath5k_hw *ah,
 	}
 
 	/* Modify bank 6 */
-	if (channel->val & CHANNEL_2GHZ) {
-		if (channel->val & CHANNEL_OFDM)
+	if (channel->hw_value & CHANNEL_2GHZ) {
+		if (channel->hw_value & CHANNEL_OFDM)
 			ee_mode = AR5K_EEPROM_MODE_11G;
 		else
 			ee_mode = AR5K_EEPROM_MODE_11B;
@@ -1173,10 +1173,13 @@ static int ath5k_hw_rf5112_rfregs(struct ath5k_hw *ah,
 	} else {
 		/* For 11a, Turbo and XR */
 		ee_mode = AR5K_EEPROM_MODE_11A;
-		obdb = channel->freq >= 5725 ? 3 :
-		    (channel->freq >= 5500 ? 2 :
-			(channel->freq >= 5260 ? 1 :
-			    (channel->freq > 4000 ? 0 : -1)));
+		obdb = channel->center_freq >= 5725 ? 3 :
+		    (channel->center_freq >= 5500 ? 2 :
+			(channel->center_freq >= 5260 ? 1 :
+			    (channel->center_freq > 4000 ? 0 : -1)));
+
+		if (obdb == -1)
+			return -EINVAL;
 
 		if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[6],
 				ee->ee_ob[ee_mode][obdb], 3, 279, 0, true))
@@ -1219,7 +1222,7 @@ static int ath5k_hw_rf5413_rfregs(struct ath5k_hw *ah,
 	unsigned int rf_size, i;
 	int bank = -1;
 
-	AR5K_ASSERT_ENTRY(mode, AR5K_INI_VAL_MAX);
+	AR5K_ASSERT_ENTRY(mode, AR5K_MODE_MAX);
 
 	rf = ah->ah_rf_banks;
 
@@ -1445,9 +1448,10 @@ static u32 ath5k_hw_rf5110_chan2athchan(struct ieee80211_channel *channel)
 	 * newer chipsets like the AR5212A who have a completely
 	 * different RF/PHY part.
 	 */
-	athchan = (ath5k_hw_bitswap((channel->chan - 24) / 2, 5) << 1) |
-		(1 << 6) | 0x1;
-
+	athchan = (ath5k_hw_bitswap(
+			(ieee80211_frequency_to_channel(
+				channel->center_freq) - 24) / 2, 5)
+				<< 1) | (1 << 6) | 0x1;
 	return athchan;
 }
 
@@ -1506,7 +1510,8 @@ static int ath5k_hw_rf5111_channel(struct ath5k_hw *ah,
 		struct ieee80211_channel *channel)
 {
 	struct ath5k_athchan_2ghz ath5k_channel_2ghz;
-	unsigned int ath5k_channel = channel->chan;
+	unsigned int ath5k_channel =
+		ieee80211_frequency_to_channel(channel->center_freq);
 	u32 data0, data1, clock;
 	int ret;
 
@@ -1515,10 +1520,11 @@ static int ath5k_hw_rf5111_channel(struct ath5k_hw *ah,
 	 */
 	data0 = data1 = 0;
 
-	if (channel->val & CHANNEL_2GHZ) {
+	if (channel->hw_value & CHANNEL_2GHZ) {
 		/* Map 2GHz channel to 5GHz Atheros channel ID */
-		ret = ath5k_hw_rf5111_chan2athchan(channel->chan,
-				&ath5k_channel_2ghz);
+		ret = ath5k_hw_rf5111_chan2athchan(
+			ieee80211_frequency_to_channel(channel->center_freq),
+			&ath5k_channel_2ghz);
 		if (ret)
 			return ret;
 
@@ -1555,7 +1561,7 @@ static int ath5k_hw_rf5112_channel(struct ath5k_hw *ah,
 	u16 c;
 
 	data = data0 = data1 = data2 = 0;
-	c = channel->freq;
+	c = channel->center_freq;
 
 	/*
 	 * Set the channel on the RF5112 or newer
@@ -1599,19 +1605,17 @@ static int ath5k_hw_rf5112_channel(struct ath5k_hw *ah,
 int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 {
 	int ret;
-
 	/*
-	 * Check bounds supported by the PHY
-	 * (don't care about regulation restrictions at this point)
-	 */
-	if ((channel->freq < ah->ah_capabilities.cap_range.range_2ghz_min ||
-	    channel->freq > ah->ah_capabilities.cap_range.range_2ghz_max) &&
-	    (channel->freq < ah->ah_capabilities.cap_range.range_5ghz_min ||
-	    channel->freq > ah->ah_capabilities.cap_range.range_5ghz_max)) {
+	 * Check bounds supported by the PHY (we don't care about regultory
+	 * restrictions at this point). Note: hw_value already has the band
+	 * (CHANNEL_2GHZ, or CHANNEL_5GHZ) so we inform ath5k_channel_ok()
+	 * of the band by that */
+	if (!ath5k_channel_ok(ah, channel->center_freq, channel->hw_value)) {
 		ATH5K_ERR(ah->ah_sc,
-			"channel out of supported range (%u MHz)\n",
-			channel->freq);
-		return -EINVAL;
+			"channel frequency (%u MHz) out of supported "
+			"band range\n",
+			channel->center_freq);
+			return -EINVAL;
 	}
 
 	/*
@@ -1632,9 +1636,9 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 	if (ret)
 		return ret;
 
-	ah->ah_current_channel.freq = channel->freq;
-	ah->ah_current_channel.val = channel->val;
-	ah->ah_turbo = channel->val == CHANNEL_T ? true : false;
+	ah->ah_current_channel.center_freq = channel->center_freq;
+	ah->ah_current_channel.hw_value = channel->hw_value;
+	ah->ah_turbo = channel->hw_value == CHANNEL_T ? true : false;
 
 	return 0;
 }
@@ -1797,11 +1801,11 @@ static int ath5k_hw_rf5110_calibrate(struct ath5k_hw *ah,
 
 	if (ret) {
 		ATH5K_ERR(ah->ah_sc, "calibration timeout (%uMHz)\n",
-				channel->freq);
+				channel->center_freq);
 		return ret;
 	}
 
-	ret = ath5k_hw_noise_floor_calibration(ah, channel->freq);
+	ret = ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
 	if (ret)
 		return ret;
 
@@ -1848,10 +1852,10 @@ static int ath5k_hw_rf511x_calibrate(struct ath5k_hw *ah,
 		((u32)q_coff) | ((u32)i_coff << AR5K_PHY_IQ_CORR_Q_I_COFF_S));
 
 done:
-	ath5k_hw_noise_floor_calibration(ah, channel->freq);
+	ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
 
 	/* Request RF gain */
-	if (channel->val & CHANNEL_5GHZ) {
+	if (channel->hw_value & CHANNEL_5GHZ) {
 		ath5k_hw_reg_write(ah, AR5K_REG_SM(ah->ah_txpower.txp_max,
 			AR5K_PHY_PAPD_PROBE_TXPOWER) |
 			AR5K_PHY_PAPD_PROBE_TX_NEXT, AR5K_PHY_PAPD_PROBE);

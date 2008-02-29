@@ -13,6 +13,7 @@
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include <linux/rcupdate.h>
+#include <linux/rtnetlink.h>
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 #include "debugfs_key.h"
@@ -34,6 +35,10 @@
  *
  * All operations here are called under RTNL so no extra locking is
  * required.
+ *
+ * NOTE: This code requires that sta info *destruction* is done under
+ *	 RTNL, otherwise it can try to access already freed STA structs
+ *	 when a STA key is being freed.
  */
 
 static const u8 bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
@@ -84,16 +89,25 @@ static void ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 		       key->conf.keyidx, print_mac(mac, addr), ret);
 }
 
+static void ieee80211_key_mark_hw_accel_off(struct ieee80211_key *key)
+{
+	if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
+		key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
+		key->flags |= KEY_FLAG_REMOVE_FROM_HARDWARE;
+	}
+}
+
 static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 {
 	const u8 *addr;
 	int ret;
 	DECLARE_MAC_BUF(mac);
 
-	if (!key->local->ops->set_key)
+	if (!key || !key->local->ops->set_key)
 		return;
 
-	if (!(key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
+	if (!(key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
+	    !(key->flags & KEY_FLAG_REMOVE_FROM_HARDWARE))
 		return;
 
 	addr = get_mac_for_key(key);
@@ -108,12 +122,11 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 		       wiphy_name(key->local->hw.wiphy),
 		       key->conf.keyidx, print_mac(mac, addr), ret);
 
-	key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
+	key->flags &= ~(KEY_FLAG_UPLOADED_TO_HARDWARE |
+			KEY_FLAG_REMOVE_FROM_HARDWARE);
 }
 
-struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
-					  struct sta_info *sta,
-					  enum ieee80211_key_alg alg,
+struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 					  int idx,
 					  size_t key_len,
 					  const u8 *key_data)
@@ -137,10 +150,7 @@ struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
 	key->conf.keyidx = idx;
 	key->conf.keylen = key_len;
 	memcpy(key->conf.key, key_data, key_len);
-
-	key->local = sdata->local;
-	key->sdata = sdata;
-	key->sta = sta;
+	INIT_LIST_HEAD(&key->list);
 
 	if (alg == ALG_CCMP) {
 		/*
@@ -154,13 +164,68 @@ struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	ieee80211_debugfs_key_add(key->local, key);
+	return key;
+}
 
-	/* remove key first */
-	if (sta)
-		ieee80211_key_free(sta->key);
-	else
-		ieee80211_key_free(sdata->keys[idx]);
+static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
+				    struct sta_info *sta,
+				    struct ieee80211_key *key,
+				    struct ieee80211_key *new)
+{
+	int idx, defkey;
+
+	if (sta) {
+		rcu_assign_pointer(sta->key, new);
+	} else {
+		WARN_ON(new && key && new->conf.keyidx != key->conf.keyidx);
+
+		if (key)
+			idx = key->conf.keyidx;
+		else
+			idx = new->conf.keyidx;
+
+		defkey = key && sdata->default_key == key;
+
+		if (defkey && !new)
+			ieee80211_set_default_key(sdata, -1);
+
+		rcu_assign_pointer(sdata->keys[idx], new);
+		if (new)
+			list_add(&new->list, &sdata->key_list);
+
+		if (defkey && new)
+			ieee80211_set_default_key(sdata, new->conf.keyidx);
+	}
+
+	if (key) {
+		ieee80211_key_mark_hw_accel_off(key);
+		/*
+		 * We'll use an empty list to indicate that the key
+		 * has already been removed.
+		 */
+		list_del_init(&key->list);
+	}
+}
+
+void ieee80211_key_link(struct ieee80211_key *key,
+			struct ieee80211_sub_if_data *sdata,
+			struct sta_info *sta)
+{
+	struct ieee80211_key *old_key;
+	int idx;
+
+	ASSERT_RTNL();
+	might_sleep();
+
+	BUG_ON(!sdata);
+	BUG_ON(!key);
+
+	idx = key->conf.keyidx;
+	key->local = sdata->local;
+	key->sdata = sdata;
+	key->sta = sta;
+
+	ieee80211_debugfs_key_add(key->local, key);
 
 	if (sta) {
 		ieee80211_debugfs_key_sta_link(key, sta);
@@ -186,49 +251,58 @@ struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	/* enable hwaccel if appropriate */
-	if (netif_running(key->sdata->dev))
-		ieee80211_key_enable_hw_accel(key);
-
 	if (sta)
-		rcu_assign_pointer(sta->key, key);
+		old_key = sta->key;
 	else
-		rcu_assign_pointer(sdata->keys[idx], key);
+		old_key = sdata->keys[idx];
 
-	list_add(&key->list, &sdata->key_list);
+	__ieee80211_key_replace(sdata, sta, old_key, key);
 
-	return key;
+	if (old_key) {
+		synchronize_rcu();
+		ieee80211_key_free(old_key);
+	}
+
+	if (netif_running(sdata->dev))
+		ieee80211_key_enable_hw_accel(key);
 }
 
 void ieee80211_key_free(struct ieee80211_key *key)
 {
+	ASSERT_RTNL();
+	might_sleep();
+
 	if (!key)
 		return;
 
-	if (key->sta) {
-		rcu_assign_pointer(key->sta->key, NULL);
-	} else {
-		if (key->sdata->default_key == key)
-			ieee80211_set_default_key(key->sdata, -1);
-		if (key->conf.keyidx >= 0 &&
-		    key->conf.keyidx < NUM_DEFAULT_KEYS)
-			rcu_assign_pointer(key->sdata->keys[key->conf.keyidx],
-					   NULL);
-		else
-			WARN_ON(1);
+	if (key->sdata) {
+		/*
+		 * Replace key with nothingness.
+		 *
+		 * Because other code may have key reference (RCU protected)
+		 * right now, we then wait for a grace period before freeing
+		 * it.
+		 * An empty list indicates it was never added to the key list
+		 * or has been removed already. It may, however, still be in
+		 * hardware for acceleration.
+		 */
+		if (!list_empty(&key->list))
+			__ieee80211_key_replace(key->sdata, key->sta,
+						key, NULL);
+
+		synchronize_rcu();
+
+		/*
+		 * Remove from hwaccel if appropriate, this will
+		 * only happen when the key is actually unlinked,
+		 * it will already be done when the key was replaced.
+		 */
+		ieee80211_key_disable_hw_accel(key);
 	}
-
-	/* wait for all key users to complete */
-	synchronize_rcu();
-
-	/* remove from hwaccel if appropriate */
-	ieee80211_key_disable_hw_accel(key);
 
 	if (key->conf.alg == ALG_CCMP)
 		ieee80211_aes_key_free(key->u.ccmp.tfm);
 	ieee80211_debugfs_key_remove(key);
-
-	list_del(&key->list);
 
 	kfree(key);
 }
@@ -253,6 +327,10 @@ void ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata, int idx)
 void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_key *key, *tmp;
+	LIST_HEAD(tmp_list);
+
+	ASSERT_RTNL();
+	might_sleep();
 
 	list_for_each_entry_safe(key, tmp, &sdata->key_list, list)
 		ieee80211_key_free(key);
@@ -262,8 +340,10 @@ void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_key *key;
 
-	WARN_ON(!netif_running(sdata->dev));
-	if (!netif_running(sdata->dev))
+	ASSERT_RTNL();
+	might_sleep();
+
+	if (WARN_ON(!netif_running(sdata->dev)))
 		return;
 
 	list_for_each_entry(key, &sdata->key_list, list)
@@ -273,6 +353,9 @@ void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata)
 void ieee80211_disable_keys(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_key *key;
+
+	ASSERT_RTNL();
+	might_sleep();
 
 	list_for_each_entry(key, &sdata->key_list, list)
 		ieee80211_key_disable_hw_accel(key);

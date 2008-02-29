@@ -195,7 +195,7 @@ struct iwl3945_channel_info {
 
 	u8 group_index;	  /* 0-4, maps channel to group1/2/3/4/5 */
 	u8 band_index;	  /* 0-4, maps channel to band1/2/3/4/5 */
-	u8 phymode;	  /* MODE_IEEE80211{A,B,G} */
+	enum ieee80211_band band;
 
 	/* Radio/DSP gain settings for each "normal" data Tx rate.
 	 * These include, in addition to RF and DSP gain, a few fields for
@@ -431,8 +431,6 @@ union iwl3945_ht_rate_supp {
 	};
 };
 
-#ifdef CONFIG_IWL3945_QOS
-
 union iwl3945_qos_capabity {
 	struct {
 		u8 edca_count:4;	/* bit 0-3 */
@@ -460,7 +458,6 @@ struct iwl3945_qos_info {
 	union iwl3945_qos_capabity qos_cap;
 	struct iwl3945_qosparam_cmd def_qos_parm;
 };
-#endif /*CONFIG_IWL3945_QOS */
 
 #define STA_PS_STATUS_WAKE             0
 #define STA_PS_STATUS_SLEEP            1
@@ -511,8 +508,8 @@ struct iwl3945_ibss_seq {
 /**
  * struct iwl3945_driver_hw_info
  * @max_txq_num: Max # Tx queues supported
- * @ac_queue_count: # Tx queues for EDCA Access Categories (AC)
  * @tx_cmd_len: Size of Tx command (but not including frame itself)
+ * @tx_ant_num: Number of TX antennas
  * @max_rxq_size: Max # Rx frames in Rx queue (must be power-of-2)
  * @rx_buf_size:
  * @max_pkt_size:
@@ -524,8 +521,8 @@ struct iwl3945_ibss_seq {
  */
 struct iwl3945_driver_hw_info {
 	u16 max_txq_num;
-	u16 ac_queue_count;
 	u16 tx_cmd_len;
+	u16 tx_ant_num;
 	u16 max_rxq_size;
 	u32 rx_buf_size;
 	u32 max_pkt_size;
@@ -699,14 +696,14 @@ struct iwl3945_priv {
 	struct list_head free_frames;
 	int frames_count;
 
-	u8 phymode;
+	enum ieee80211_band band;
 	int alloc_rxb_skb;
 	bool add_radiotap;
 
 	void (*rx_handlers[REPLY_MAX])(struct iwl3945_priv *priv,
 				       struct iwl3945_rx_mem_buffer *rxb);
 
-	const struct ieee80211_hw_mode *modes;
+	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 
 #ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
 	/* spectrum measurement report caching */
@@ -869,9 +866,7 @@ struct iwl3945_priv {
 	u16 assoc_capability;
 	u8 ps_mode;
 
-#ifdef CONFIG_IWL3945_QOS
 	struct iwl3945_qos_info qos_data;
-#endif /*CONFIG_IWL3945_QOS */
 
 	struct workqueue_struct *workqueue;
 
@@ -937,13 +932,12 @@ static inline int is_channel_radar(const struct iwl3945_channel_info *ch_info)
 
 static inline u8 is_channel_a_band(const struct iwl3945_channel_info *ch_info)
 {
-	return ch_info->phymode == MODE_IEEE80211A;
+	return ch_info->band == IEEE80211_BAND_5GHZ;
 }
 
 static inline u8 is_channel_bg_band(const struct iwl3945_channel_info *ch_info)
 {
-	return ((ch_info->phymode == MODE_IEEE80211B) ||
-		(ch_info->phymode == MODE_IEEE80211G));
+	return ch_info->band == IEEE80211_BAND_2GHZ;
 }
 
 static inline int is_channel_passive(const struct iwl3945_channel_info *ch)
@@ -967,7 +961,7 @@ static inline int iwl3945_rate_index_from_plcp(int plcp)
 }
 
 extern const struct iwl3945_channel_info *iwl3945_get_channel_info(
-	const struct iwl3945_priv *priv, int phymode, u16 channel);
+	const struct iwl3945_priv *priv, enum ieee80211_band band, u16 channel);
 
 /* Requires full declaration of iwl3945_priv before including */
 #include "iwl-3945-io.h"

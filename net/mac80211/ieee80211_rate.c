@@ -163,7 +163,8 @@ static void rate_control_release(struct kref *kref)
 }
 
 void rate_control_get_rate(struct net_device *dev,
-			   struct ieee80211_hw_mode *mode, struct sk_buff *skb,
+			   struct ieee80211_supported_band *sband,
+			   struct sk_buff *skb,
 			   struct rate_selection *sel)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
@@ -174,17 +175,17 @@ void rate_control_get_rate(struct net_device *dev,
 
 	memset(sel, 0, sizeof(struct rate_selection));
 
-	ref->ops->get_rate(ref->priv, dev, mode, skb, sel);
+	ref->ops->get_rate(ref->priv, dev, sband, skb, sel);
 
 	/* Select a non-ERP backup rate. */
 	if (!sel->nonerp) {
-		for (i = 0; i < mode->num_rates - 1; i++) {
-			struct ieee80211_rate *rate = &mode->rates[i];
-			if (sel->rate->rate < rate->rate)
+		for (i = 0; i < sband->n_bitrates; i++) {
+			struct ieee80211_rate *rate = &sband->bitrates[i];
+			if (sel->rate->bitrate < rate->bitrate)
 				break;
 
-			if (rate_supported(sta, mode, i) &&
-			    !(rate->flags & IEEE80211_RATE_ERP))
+			if (rate_supported(sta, sband->band, i) &&
+			    !(rate->flags & IEEE80211_RATE_ERP_G))
 				sel->nonerp = rate;
 		}
 	}

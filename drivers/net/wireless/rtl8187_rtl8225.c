@@ -283,8 +283,8 @@ static void rtl8225_rf_set_tx_power(struct ieee80211_hw *dev, int channel)
 	u32 reg;
 	int i;
 
-	cck_power = priv->channels[channel - 1].val & 0xF;
-	ofdm_power = priv->channels[channel - 1].val >> 4;
+	cck_power = priv->channels[channel - 1].hw_value & 0xF;
+	ofdm_power = priv->channels[channel - 1].hw_value >> 4;
 
 	cck_power = min(cck_power, (u8)11);
 	ofdm_power = min(ofdm_power, (u8)35);
@@ -500,8 +500,8 @@ static void rtl8225z2_rf_set_tx_power(struct ieee80211_hw *dev, int channel)
 	u32 reg;
 	int i;
 
-	cck_power = priv->channels[channel - 1].val & 0xF;
-	ofdm_power = priv->channels[channel - 1].val >> 4;
+	cck_power = priv->channels[channel - 1].hw_value & 0xF;
+	ofdm_power = priv->channels[channel - 1].hw_value >> 4;
 
 	cck_power = min(cck_power, (u8)15);
 	cck_power += priv->txpwr_base & 0xF;
@@ -735,13 +735,14 @@ static void rtl8225_rf_set_channel(struct ieee80211_hw *dev,
 				   struct ieee80211_conf *conf)
 {
 	struct rtl8187_priv *priv = dev->priv;
+	int chan = ieee80211_frequency_to_channel(conf->channel->center_freq);
 
 	if (priv->rf->init == rtl8225_rf_init)
-		rtl8225_rf_set_tx_power(dev, conf->channel);
+		rtl8225_rf_set_tx_power(dev, chan);
 	else
-		rtl8225z2_rf_set_tx_power(dev, conf->channel);
+		rtl8225z2_rf_set_tx_power(dev, chan);
 
-	rtl8225_write(dev, 0x7, rtl8225_chan[conf->channel - 1]);
+	rtl8225_write(dev, 0x7, rtl8225_chan[chan - 1]);
 	msleep(10);
 }
 

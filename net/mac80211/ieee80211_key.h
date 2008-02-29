@@ -13,6 +13,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/crypto.h>
+#include <linux/rcupdate.h>
 #include <net/mac80211.h>
 
 /* ALG_TKIP
@@ -45,7 +46,19 @@ struct ieee80211_local;
 struct ieee80211_sub_if_data;
 struct sta_info;
 
-#define KEY_FLAG_UPLOADED_TO_HARDWARE	(1<<0)
+/**
+ * enum ieee80211_internal_key_flags - internal key flags
+ *
+ * @KEY_FLAG_UPLOADED_TO_HARDWARE: Indicates that this key is present
+ *	in the hardware for TX crypto hardware acceleration.
+ * @KEY_FLAG_REMOVE_FROM_HARDWARE: Indicates to the key code that this
+ *	key is present in the hardware (but it cannot be used for
+ *	hardware acceleration any more!)
+ */
+enum ieee80211_internal_key_flags {
+	KEY_FLAG_UPLOADED_TO_HARDWARE	= BIT(0),
+	KEY_FLAG_REMOVE_FROM_HARDWARE	= BIT(1),
+};
 
 struct ieee80211_key {
 	struct ieee80211_local *local;
@@ -112,12 +125,17 @@ struct ieee80211_key {
 	struct ieee80211_key_conf conf;
 };
 
-struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
-					  struct sta_info *sta,
-					  enum ieee80211_key_alg alg,
+struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 					  int idx,
 					  size_t key_len,
 					  const u8 *key_data);
+/*
+ * Insert a key into data structures (sdata, sta if necessary)
+ * to make it used, free old key.
+ */
+void ieee80211_key_link(struct ieee80211_key *key,
+			struct ieee80211_sub_if_data *sdata,
+			struct sta_info *sta);
 void ieee80211_key_free(struct ieee80211_key *key);
 void ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata, int idx);
 void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata);

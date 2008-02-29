@@ -73,6 +73,23 @@ static const u8 bcastmac[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 /*                                                                   */
 /*********************************************************************/
 
+/**
+ *  @brief Unsets the MSB on basic rates
+ *
+ * Scan through an array and unset the MSB for basic data rates.
+ *
+ *  @param rates     buffer of data rates
+ *  @param len       size of buffer
+ */
+static void lbs_unset_basic_rate_flags(u8 *rates, size_t len)
+{
+	int i;
+
+	for (i = 0; i < len; i++)
+		rates[i] &= 0x7f;
+}
+
+
 static inline void clear_bss_descriptor (struct bss_descriptor * bss)
 {
 	/* Don't blow away ->list, just BSS data */
@@ -595,13 +612,13 @@ int lbs_scan_networks(struct lbs_private *priv,
 	}
 
 	/* Prepare to continue an interrupted scan */
-	lbs_deb_scan("chan_count %d, last_scanned_channel %d\n",
-		     chan_count, priv->last_scanned_channel);
+	lbs_deb_scan("chan_count %d, scan_channel %d\n",
+		     chan_count, priv->scan_channel);
 	curr_chans = chan_list;
 	/* advance channel list by already-scanned-channels */
-	if (priv->last_scanned_channel > 0) {
-		curr_chans += priv->last_scanned_channel;
-		chan_count -= priv->last_scanned_channel;
+	if (priv->scan_channel > 0) {
+		curr_chans += priv->scan_channel;
+		chan_count -= priv->scan_channel;
 	}
 
 	/* Send scan command(s)
@@ -627,10 +644,10 @@ int lbs_scan_networks(struct lbs_private *priv,
 		    !full_scan &&
 		    !priv->surpriseremoved) {
 			/* -1 marks just that we're currently scanning */
-			if (priv->last_scanned_channel < 0)
-				priv->last_scanned_channel = to_scan;
+			if (priv->scan_channel < 0)
+				priv->scan_channel = to_scan;
 			else
-				priv->last_scanned_channel += to_scan;
+				priv->scan_channel += to_scan;
 			cancel_delayed_work(&priv->scan_work);
 			queue_delayed_work(priv->work_thread, &priv->scan_work,
 				msecs_to_jiffies(300));
@@ -654,7 +671,7 @@ int lbs_scan_networks(struct lbs_private *priv,
 #endif
 
 out2:
-	priv->last_scanned_channel = 0;
+	priv->scan_channel = 0;
 
 out:
 	if (priv->connect_status == LBS_CONNECTED) {
@@ -1376,7 +1393,7 @@ int lbs_set_scan(struct net_device *dev, struct iw_request_info *info,
 		queue_delayed_work(priv->work_thread, &priv->scan_work,
 			msecs_to_jiffies(50));
 	/* set marker that currently a scan is taking place */
-	priv->last_scanned_channel = -1;
+	priv->scan_channel = -1;
 
 	if (priv->surpriseremoved)
 		return -EIO;
@@ -1410,7 +1427,7 @@ int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
 	lbs_deb_enter(LBS_DEB_SCAN);
 
 	/* iwlist should wait until the current scan is finished */
-	if (priv->last_scanned_channel)
+	if (priv->scan_channel)
 		return -EAGAIN;
 
 	/* Update RSSI if current BSS is a locally created ad-hoc BSS */

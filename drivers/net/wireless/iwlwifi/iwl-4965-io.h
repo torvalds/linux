@@ -59,28 +59,28 @@
  *
  */
 
-#define _iwl4965_write32(iwl, ofs, val) writel((val), (iwl)->hw_base + (ofs))
+#define _iwl4965_write32(priv, ofs, val) writel((val), (priv)->hw_base + (ofs))
 #ifdef CONFIG_IWL4965_DEBUG
-static inline void __iwl4965_write32(const char *f, u32 l, struct iwl4965_priv *iwl,
+static inline void __iwl4965_write32(const char *f, u32 l, struct iwl4965_priv *priv,
 				 u32 ofs, u32 val)
 {
 	IWL_DEBUG_IO("write32(0x%08X, 0x%08X) - %s %d\n", ofs, val, f, l);
-	_iwl4965_write32(iwl, ofs, val);
+	_iwl4965_write32(priv, ofs, val);
 }
-#define iwl4965_write32(iwl, ofs, val) \
-	__iwl4965_write32(__FILE__, __LINE__, iwl, ofs, val)
+#define iwl4965_write32(priv, ofs, val) \
+	__iwl4965_write32(__FILE__, __LINE__, priv, ofs, val)
 #else
-#define iwl4965_write32(iwl, ofs, val) _iwl4965_write32(iwl, ofs, val)
+#define iwl4965_write32(priv, ofs, val) _iwl4965_write32(priv, ofs, val)
 #endif
 
-#define _iwl4965_read32(iwl, ofs) readl((iwl)->hw_base + (ofs))
+#define _iwl4965_read32(priv, ofs) readl((priv)->hw_base + (ofs))
 #ifdef CONFIG_IWL4965_DEBUG
-static inline u32 __iwl4965_read32(char *f, u32 l, struct iwl4965_priv *iwl, u32 ofs)
+static inline u32 __iwl4965_read32(char *f, u32 l, struct iwl4965_priv *priv, u32 ofs)
 {
 	IWL_DEBUG_IO("read_direct32(0x%08X) - %s %d\n", ofs, f, l);
-	return _iwl4965_read32(iwl, ofs);
+	return _iwl4965_read32(priv, ofs);
 }
-#define iwl4965_read32(iwl, ofs) __iwl4965_read32(__FILE__, __LINE__, iwl, ofs)
+#define iwl4965_read32(priv, ofs) __iwl4965_read32(__FILE__, __LINE__, priv, ofs)
 #else
 #define iwl4965_read32(p, o) _iwl4965_read32(p, o)
 #endif
@@ -105,18 +105,13 @@ static inline int __iwl4965_poll_bit(const char *f, u32 l,
 				 u32 bits, u32 mask, int timeout)
 {
 	int ret = _iwl4965_poll_bit(priv, addr, bits, mask, timeout);
-	if (unlikely(ret  == -ETIMEDOUT))
-		IWL_DEBUG_IO
-		    ("poll_bit(0x%08X, 0x%08X, 0x%08X) - timedout - %s %d\n",
-		     addr, bits, mask, f, l);
-	else
-		IWL_DEBUG_IO
-		    ("poll_bit(0x%08X, 0x%08X, 0x%08X) = 0x%08X - %s %d\n",
-		     addr, bits, mask, ret, f, l);
+	IWL_DEBUG_IO("poll_bit(0x%08X, 0x%08X, 0x%08X) - %s- %s %d\n",
+		     addr, bits, mask,
+		     unlikely(ret  == -ETIMEDOUT)?"timeout":"", f, l);
 	return ret;
 }
-#define iwl4965_poll_bit(iwl, addr, bits, mask, timeout) \
-	__iwl4965_poll_bit(__FILE__, __LINE__, iwl, addr, bits, mask, timeout)
+#define iwl4965_poll_bit(priv, addr, bits, mask, timeout) \
+	__iwl4965_poll_bit(__FILE__, __LINE__, priv, addr, bits, mask, timeout)
 #else
 #define iwl4965_poll_bit(p, a, b, m, t) _iwl4965_poll_bit(p, a, b, m, t)
 #endif
@@ -321,8 +316,8 @@ static inline int __iwl4965_poll_direct_bit(const char *f, u32 l,
 			     "- %s %d\n", addr, mask, ret, f, l);
 	return ret;
 }
-#define iwl4965_poll_direct_bit(iwl, addr, mask, timeout) \
-	__iwl4965_poll_direct_bit(__FILE__, __LINE__, iwl, addr, mask, timeout)
+#define iwl4965_poll_direct_bit(priv, addr, mask, timeout) \
+	__iwl4965_poll_direct_bit(__FILE__, __LINE__, priv, addr, mask, timeout)
 #else
 #define iwl4965_poll_direct_bit _iwl4965_poll_direct_bit
 #endif

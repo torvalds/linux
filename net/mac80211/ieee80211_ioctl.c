@@ -33,8 +33,8 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 				    size_t key_len)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	int ret = 0;
-	struct sta_info *sta;
+	int ret;
+	struct sta_info *sta = NULL;
 	struct ieee80211_key *key;
 	struct ieee80211_sub_if_data *sdata;
 
@@ -46,58 +46,64 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 		return -EINVAL;
 	}
 
-	if (is_broadcast_ether_addr(sta_addr)) {
-		sta = NULL;
-		key = sdata->keys[idx];
-	} else {
-		set_tx_key = 0;
-		/*
-		 * According to the standard, the key index of a pairwise
-		 * key must be zero. However, some AP are broken when it
-		 * comes to WEP key indices, so we work around this.
-		 */
-		if (idx != 0 && alg != ALG_WEP) {
-			printk(KERN_DEBUG "%s: set_encrypt - non-zero idx for "
-			       "individual key\n", dev->name);
-			return -EINVAL;
-		}
-
-		sta = sta_info_get(local, sta_addr);
-		if (!sta) {
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-			DECLARE_MAC_BUF(mac);
-			printk(KERN_DEBUG "%s: set_encrypt - unknown addr "
-			       "%s\n",
-			       dev->name, print_mac(mac, sta_addr));
-#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
-
-			return -ENOENT;
-		}
-
-		key = sta->key;
-	}
-
 	if (remove) {
-		ieee80211_key_free(key);
-		key = NULL;
-	} else {
-		/*
-		 * Automatically frees any old key if present.
-		 */
-		key = ieee80211_key_alloc(sdata, sta, alg, idx, key_len, _key);
-		if (!key) {
-			ret = -ENOMEM;
-			goto err_out;
+		if (is_broadcast_ether_addr(sta_addr)) {
+			key = sdata->keys[idx];
+		} else {
+			sta = sta_info_get(local, sta_addr);
+			if (!sta) {
+				ret = -ENOENT;
+				key = NULL;
+				goto err_out;
+			}
+
+			key = sta->key;
 		}
+
+		if (!key)
+			ret = -ENOENT;
+		else
+			ret = 0;
+	} else {
+		key = ieee80211_key_alloc(alg, idx, key_len, _key);
+		if (!key)
+			return -ENOMEM;
+
+		if (!is_broadcast_ether_addr(sta_addr)) {
+			set_tx_key = 0;
+			/*
+			 * According to the standard, the key index of a
+			 * pairwise key must be zero. However, some AP are
+			 * broken when it comes to WEP key indices, so we
+			 * work around this.
+			 */
+			if (idx != 0 && alg != ALG_WEP) {
+				ret = -EINVAL;
+				goto err_out;
+			}
+
+			sta = sta_info_get(local, sta_addr);
+			if (!sta) {
+				ret = -ENOENT;
+				goto err_out;
+			}
+		}
+
+		ieee80211_key_link(key, sdata, sta);
+
+		if (set_tx_key || (!sta && !sdata->default_key && key))
+			ieee80211_set_default_key(sdata, idx);
+
+		/* don't free key later */
+		key = NULL;
+
+		ret = 0;
 	}
 
-	if (set_tx_key || (!sta && !sdata->default_key && key))
-		ieee80211_set_default_key(sdata, idx);
-
-	ret = 0;
  err_out:
 	if (sta)
 		sta_info_put(sta);
+	ieee80211_key_free(key);
 	return ret;
 }
 
@@ -129,22 +135,7 @@ static int ieee80211_ioctl_giwname(struct net_device *dev,
 				   struct iw_request_info *info,
 				   char *name, char *extra)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	switch (local->hw.conf.phymode) {
-	case MODE_IEEE80211A:
-		strcpy(name, "IEEE 802.11a");
-		break;
-	case MODE_IEEE80211B:
-		strcpy(name, "IEEE 802.11b");
-		break;
-	case MODE_IEEE80211G:
-		strcpy(name, "IEEE 802.11g");
-		break;
-	default:
-		strcpy(name, "IEEE 802.11");
-		break;
-	}
+	strcpy(name, "IEEE 802.11");
 
 	return 0;
 }
@@ -156,7 +147,7 @@ static int ieee80211_ioctl_giwrange(struct net_device *dev,
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct iw_range *range = (struct iw_range *) extra;
-	struct ieee80211_hw_mode *mode = NULL;
+	enum ieee80211_band band;
 	int c = 0;
 
 	data->length = sizeof(struct iw_range);
@@ -191,24 +182,27 @@ static int ieee80211_ioctl_giwrange(struct net_device *dev,
 	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
 			  IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
 
-	list_for_each_entry(mode, &local->modes_list, list) {
-		int i = 0;
 
-		if (!(local->enabled_modes & (1 << mode->mode)) ||
-		    (local->hw_modes & local->enabled_modes &
-		     (1 << MODE_IEEE80211G) && mode->mode == MODE_IEEE80211B))
+	for (band = 0; band < IEEE80211_NUM_BANDS; band ++) {
+		int i;
+		struct ieee80211_supported_band *sband;
+
+		sband = local->hw.wiphy->bands[band];
+
+		if (!sband)
 			continue;
 
-		while (i < mode->num_channels && c < IW_MAX_FREQUENCIES) {
-			struct ieee80211_channel *chan = &mode->channels[i];
+		for (i = 0; i < sband->n_channels && c < IW_MAX_FREQUENCIES; i++) {
+			struct ieee80211_channel *chan = &sband->channels[i];
 
-			if (chan->flag & IEEE80211_CHAN_W_SCAN) {
-				range->freq[c].i = chan->chan;
-				range->freq[c].m = chan->freq * 100000;
-				range->freq[c].e = 1;
+			if (!(chan->flags & IEEE80211_CHAN_DISABLED)) {
+				range->freq[c].i =
+					ieee80211_frequency_to_channel(
+						chan->center_freq);
+				range->freq[c].m = chan->center_freq;
+				range->freq[c].e = 6;
 				c++;
 			}
-			i++;
 		}
 	}
 	range->num_channels = c;
@@ -294,22 +288,29 @@ static int ieee80211_ioctl_giwmode(struct net_device *dev,
 	return 0;
 }
 
-int ieee80211_set_channel(struct ieee80211_local *local, int channel, int freq)
+int ieee80211_set_freq(struct ieee80211_local *local, int freqMHz)
 {
-	struct ieee80211_hw_mode *mode;
-	int c, set = 0;
+	int set = 0;
 	int ret = -EINVAL;
+	enum ieee80211_band band;
+	struct ieee80211_supported_band *sband;
+	int i;
 
-	list_for_each_entry(mode, &local->modes_list, list) {
-		if (!(local->enabled_modes & (1 << mode->mode)))
+	for (band = 0; band < IEEE80211_NUM_BANDS; band ++) {
+		sband = local->hw.wiphy->bands[band];
+
+		if (!sband)
 			continue;
-		for (c = 0; c < mode->num_channels; c++) {
-			struct ieee80211_channel *chan = &mode->channels[c];
-			if (chan->flag & IEEE80211_CHAN_W_SCAN &&
-			    ((chan->chan == channel) || (chan->freq == freq))) {
-				local->oper_channel = chan;
-				local->oper_hw_mode = mode;
+
+		for (i = 0; i < sband->n_channels; i++) {
+			struct ieee80211_channel *chan = &sband->channels[i];
+
+			if (chan->flags & IEEE80211_CHAN_DISABLED)
+				continue;
+
+			if (chan->center_freq == freqMHz) {
 				set = 1;
+				local->oper_channel = chan;
 				break;
 			}
 		}
@@ -347,13 +348,14 @@ static int ieee80211_ioctl_siwfreq(struct net_device *dev,
 					IEEE80211_STA_AUTO_CHANNEL_SEL;
 			return 0;
 		} else
-			return ieee80211_set_channel(local, freq->m, -1);
+			return ieee80211_set_freq(local,
+				ieee80211_channel_to_frequency(freq->m));
 	} else {
 		int i, div = 1000000;
 		for (i = 0; i < freq->e; i++)
 			div /= 10;
 		if (div > 0)
-			return ieee80211_set_channel(local, -1, freq->m / div);
+			return ieee80211_set_freq(local, freq->m / div);
 		else
 			return -EINVAL;
 	}
@@ -366,10 +368,7 @@ static int ieee80211_ioctl_giwfreq(struct net_device *dev,
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 
-	/* TODO: in station mode (Managed/Ad-hoc) might need to poll low-level
-	 * driver for the current channel with firmware-based management */
-
-	freq->m = local->hw.conf.freq;
+	freq->m = local->hw.conf.channel->center_freq;
 	freq->e = 6;
 
 	return 0;
@@ -566,15 +565,17 @@ static int ieee80211_ioctl_siwrate(struct net_device *dev,
 				  struct iw_param *rate, char *extra)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_hw_mode *mode;
-	int i;
+	int i, err = -EINVAL;
 	u32 target_rate = rate->value / 100000;
 	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_supported_band *sband;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (!sdata->bss)
 		return -ENODEV;
-	mode = local->oper_hw_mode;
+
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+
 	/* target_rate = -1, rate->fixed = 0 means auto only, so use all rates
 	 * target_rate = X, rate->fixed = 1 means only rate X
 	 * target_rate = X, rate->fixed = 0 means all rates <= X */
@@ -582,18 +583,20 @@ static int ieee80211_ioctl_siwrate(struct net_device *dev,
 	sdata->bss->force_unicast_rateidx = -1;
 	if (rate->value < 0)
 		return 0;
-	for (i=0; i < mode->num_rates; i++) {
-		struct ieee80211_rate *rates = &mode->rates[i];
-		int this_rate = rates->rate;
+
+	for (i=0; i< sband->n_bitrates; i++) {
+		struct ieee80211_rate *brate = &sband->bitrates[i];
+		int this_rate = brate->bitrate;
 
 		if (target_rate == this_rate) {
 			sdata->bss->max_ratectrl_rateidx = i;
 			if (rate->fixed)
 				sdata->bss->force_unicast_rateidx = i;
-			return 0;
+			err = 0;
+			break;
 		}
 	}
-	return -EINVAL;
+	return err;
 }
 
 static int ieee80211_ioctl_giwrate(struct net_device *dev,
@@ -603,18 +606,24 @@ static int ieee80211_ioctl_giwrate(struct net_device *dev,
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_supported_band *sband;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
 	if (sdata->vif.type == IEEE80211_IF_TYPE_STA)
 		sta = sta_info_get(local, sdata->u.sta.bssid);
 	else
 		return -EOPNOTSUPP;
 	if (!sta)
 		return -ENODEV;
-	if (sta->txrate < local->oper_hw_mode->num_rates)
-		rate->value = local->oper_hw_mode->rates[sta->txrate].rate * 100000;
+
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+
+	if (sta->txrate_idx < sband->n_bitrates)
+		rate->value = sband->bitrates[sta->txrate_idx].bitrate;
 	else
 		rate->value = 0;
+	rate->value *= 100000;
 	sta_info_put(sta);
 	return 0;
 }
@@ -625,7 +634,7 @@ static int ieee80211_ioctl_siwtxpower(struct net_device *dev,
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	bool need_reconfig = 0;
-	u8 new_power_level;
+	int new_power_level;
 
 	if ((data->txpower.flags & IW_TXPOW_TYPE) != IW_TXPOW_DBM)
 		return -EINVAL;
@@ -635,13 +644,15 @@ static int ieee80211_ioctl_siwtxpower(struct net_device *dev,
 	if (data->txpower.fixed) {
 		new_power_level = data->txpower.value;
 	} else {
-		/* Automatic power level. Get the px power from the current
-		 * channel. */
-		struct ieee80211_channel* chan = local->oper_channel;
+		/*
+		 * Automatic power level. Use maximum power for the current
+		 * channel. Should be part of rate control.
+		 */
+		struct ieee80211_channel* chan = local->hw.conf.channel;
 		if (!chan)
 			return -EINVAL;
 
-		new_power_level = chan->power_level;
+		new_power_level = chan->max_power;
 	}
 
 	if (local->hw.conf.power_level != new_power_level) {

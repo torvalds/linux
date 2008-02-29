@@ -19,7 +19,6 @@ mac80211-y := \
 	ieee80211_iface.o \
 	ieee80211_rate.o \
 	michael.o \
-	regdomain.o \
 	tkip.o \
 	aes_ccm.o \
 	cfg.o \

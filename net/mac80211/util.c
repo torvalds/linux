@@ -41,92 +41,6 @@ const unsigned char bridge_tunnel_header[] =
 	{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
 
 
-static int rate_list_match(const int *rate_list, int rate)
-{
-	int i;
-
-	if (!rate_list)
-		return 0;
-
-	for (i = 0; rate_list[i] >= 0; i++)
-		if (rate_list[i] == rate)
-			return 1;
-
-	return 0;
-}
-
-void ieee80211_prepare_rates(struct ieee80211_local *local,
-			     struct ieee80211_hw_mode *mode)
-{
-	int i;
-
-	for (i = 0; i < mode->num_rates; i++) {
-		struct ieee80211_rate *rate = &mode->rates[i];
-
-		rate->flags &= ~(IEEE80211_RATE_SUPPORTED |
-				 IEEE80211_RATE_BASIC);
-
-		if (local->supp_rates[mode->mode]) {
-			if (!rate_list_match(local->supp_rates[mode->mode],
-					     rate->rate))
-				continue;
-		}
-
-		rate->flags |= IEEE80211_RATE_SUPPORTED;
-
-		/* Use configured basic rate set if it is available. If not,
-		 * use defaults that are sane for most cases. */
-		if (local->basic_rates[mode->mode]) {
-			if (rate_list_match(local->basic_rates[mode->mode],
-					    rate->rate))
-				rate->flags |= IEEE80211_RATE_BASIC;
-		} else switch (mode->mode) {
-		case MODE_IEEE80211A:
-			if (rate->rate == 60 || rate->rate == 120 ||
-			    rate->rate == 240)
-				rate->flags |= IEEE80211_RATE_BASIC;
-			break;
-		case MODE_IEEE80211B:
-			if (rate->rate == 10 || rate->rate == 20)
-				rate->flags |= IEEE80211_RATE_BASIC;
-			break;
-		case MODE_IEEE80211G:
-			if (rate->rate == 10 || rate->rate == 20 ||
-			    rate->rate == 55 || rate->rate == 110)
-				rate->flags |= IEEE80211_RATE_BASIC;
-			break;
-		case NUM_IEEE80211_MODES:
-			/* not useful */
-			break;
-		}
-
-		/* Set ERP and MANDATORY flags based on phymode */
-		switch (mode->mode) {
-		case MODE_IEEE80211A:
-			if (rate->rate == 60 || rate->rate == 120 ||
-			    rate->rate == 240)
-				rate->flags |= IEEE80211_RATE_MANDATORY;
-			break;
-		case MODE_IEEE80211B:
-			if (rate->rate == 10)
-				rate->flags |= IEEE80211_RATE_MANDATORY;
-			break;
-		case MODE_IEEE80211G:
-			if (rate->rate == 10 || rate->rate == 20 ||
-			    rate->rate == 55 || rate->rate == 110 ||
-			    rate->rate == 60 || rate->rate == 120 ||
-			    rate->rate == 240)
-				rate->flags |= IEEE80211_RATE_MANDATORY;
-			break;
-		case NUM_IEEE80211_MODES:
-			/* not useful */
-			break;
-		}
-		if (ieee80211_is_erp_rate(mode->mode, rate->rate))
-			rate->flags |= IEEE80211_RATE_ERP;
-	}
-}
-
 u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 			enum ieee80211_if_types type)
 {
@@ -262,7 +176,7 @@ int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
 	 * DIV_ROUND_UP() operations.
 	 */
 
-	if (local->hw.conf.phymode == MODE_IEEE80211A || erp) {
+	if (local->hw.conf.channel->band == IEEE80211_BAND_5GHZ || erp) {
 		/*
 		 * OFDM:
 		 *
@@ -304,15 +218,19 @@ int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
 /* Exported duration function for driver use */
 __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif,
-					size_t frame_len, int rate)
+					size_t frame_len,
+					struct ieee80211_rate *rate)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	u16 dur;
 	int erp;
 
-	erp = ieee80211_is_erp_rate(hw->conf.phymode, rate);
-	dur = ieee80211_frame_duration(local, frame_len, rate, erp,
+	erp = 0;
+	if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
+		erp = rate->flags & IEEE80211_RATE_ERP_G;
+
+	dur = ieee80211_frame_duration(local, frame_len, rate->bitrate, erp,
 				       sdata->bss_conf.use_short_preamble);
 
 	return cpu_to_le16(dur);
@@ -332,17 +250,20 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 
 	short_preamble = sdata->bss_conf.use_short_preamble;
 
-	rate = frame_txctl->rts_rate;
-	erp = !!(rate->flags & IEEE80211_RATE_ERP);
+	rate = frame_txctl->rts_cts_rate;
+
+	erp = 0;
+	if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
+		erp = rate->flags & IEEE80211_RATE_ERP_G;
 
 	/* CTS duration */
-	dur = ieee80211_frame_duration(local, 10, rate->rate,
+	dur = ieee80211_frame_duration(local, 10, rate->bitrate,
 				       erp, short_preamble);
 	/* Data frame duration */
-	dur += ieee80211_frame_duration(local, frame_len, rate->rate,
+	dur += ieee80211_frame_duration(local, frame_len, rate->bitrate,
 					erp, short_preamble);
 	/* ACK duration */
-	dur += ieee80211_frame_duration(local, 10, rate->rate,
+	dur += ieee80211_frame_duration(local, 10, rate->bitrate,
 					erp, short_preamble);
 
 	return cpu_to_le16(dur);
@@ -363,42 +284,23 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 
 	short_preamble = sdata->bss_conf.use_short_preamble;
 
-	rate = frame_txctl->rts_rate;
-	erp = !!(rate->flags & IEEE80211_RATE_ERP);
+	rate = frame_txctl->rts_cts_rate;
+	erp = 0;
+	if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
+		erp = rate->flags & IEEE80211_RATE_ERP_G;
 
 	/* Data frame duration */
-	dur = ieee80211_frame_duration(local, frame_len, rate->rate,
+	dur = ieee80211_frame_duration(local, frame_len, rate->bitrate,
 				       erp, short_preamble);
 	if (!(frame_txctl->flags & IEEE80211_TXCTL_NO_ACK)) {
 		/* ACK duration */
-		dur += ieee80211_frame_duration(local, 10, rate->rate,
+		dur += ieee80211_frame_duration(local, 10, rate->bitrate,
 						erp, short_preamble);
 	}
 
 	return cpu_to_le16(dur);
 }
 EXPORT_SYMBOL(ieee80211_ctstoself_duration);
-
-struct ieee80211_rate *
-ieee80211_get_rate(struct ieee80211_local *local, int phymode, int hw_rate)
-{
-	struct ieee80211_hw_mode *mode;
-	int r;
-
-	list_for_each_entry(mode, &local->modes_list, list) {
-		if (mode->mode != phymode)
-			continue;
-		for (r = 0; r < mode->num_rates; r++) {
-			struct ieee80211_rate *rate = &mode->rates[r];
-			if (rate->val == hw_rate ||
-			    (rate->flags & IEEE80211_RATE_PREAMBLE2 &&
-			     rate->val2 == hw_rate))
-				return rate;
-		}
-	}
-
-	return NULL;
-}
 
 void ieee80211_wake_queue(struct ieee80211_hw *hw, int queue)
 {

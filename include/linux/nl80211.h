@@ -161,6 +161,12 @@ enum nl80211_commands {
  *	given for %NL80211_CMD_GET_STATION, nested attribute containing
  *	info as possible, see &enum nl80211_sta_stats.
  *
+ * @NL80211_ATTR_WIPHY_BANDS: Information about an operating bands,
+ *	consisting of a nested array.
+ *
+ * @NL80211_ATTR_MNTR_FLAGS: flags, nested element with NLA_FLAG attributes of
+ *      &enum nl80211_mntr_flags.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -194,6 +200,10 @@ enum nl80211_attrs {
 	NL80211_ATTR_STA_SUPPORTED_RATES,
 	NL80211_ATTR_STA_VLAN,
 	NL80211_ATTR_STA_STATS,
+
+	NL80211_ATTR_WIPHY_BANDS,
+
+	NL80211_ATTR_MNTR_FLAGS,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -278,6 +288,95 @@ enum nl80211_sta_stats {
 	/* keep last */
 	__NL80211_STA_STAT_AFTER_LAST,
 	NL80211_STA_STAT_MAX = __NL80211_STA_STAT_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_band_attr - band attributes
+ * @__NL80211_BAND_ATTR_INVALID: attribute number 0 is reserved
+ * @NL80211_BAND_ATTR_FREQS: supported frequencies in this band,
+ *	an array of nested frequency attributes
+ * @NL80211_BAND_ATTR_RATES: supported bitrates in this band,
+ *	an array of nested bitrate attributes
+ */
+enum nl80211_band_attr {
+	__NL80211_BAND_ATTR_INVALID,
+	NL80211_BAND_ATTR_FREQS,
+	NL80211_BAND_ATTR_RATES,
+
+	/* keep last */
+	__NL80211_BAND_ATTR_AFTER_LAST,
+	NL80211_BAND_ATTR_MAX = __NL80211_BAND_ATTR_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_frequency_attr - frequency attributes
+ * @NL80211_FREQUENCY_ATTR_FREQ: Frequency in MHz
+ * @NL80211_FREQUENCY_ATTR_DISABLED: Channel is disabled in current
+ *	regulatory domain.
+ * @NL80211_FREQUENCY_ATTR_PASSIVE_SCAN: Only passive scanning is
+ *	permitted on this channel in current regulatory domain.
+ * @NL80211_FREQUENCY_ATTR_NO_IBSS: IBSS networks are not permitted
+ *	on this channel in current regulatory domain.
+ * @NL80211_FREQUENCY_ATTR_RADAR: Radar detection is mandatory
+ *	on this channel in current regulatory domain.
+ */
+enum nl80211_frequency_attr {
+	__NL80211_FREQUENCY_ATTR_INVALID,
+	NL80211_FREQUENCY_ATTR_FREQ,
+	NL80211_FREQUENCY_ATTR_DISABLED,
+	NL80211_FREQUENCY_ATTR_PASSIVE_SCAN,
+	NL80211_FREQUENCY_ATTR_NO_IBSS,
+	NL80211_FREQUENCY_ATTR_RADAR,
+
+	/* keep last */
+	__NL80211_FREQUENCY_ATTR_AFTER_LAST,
+	NL80211_FREQUENCY_ATTR_MAX = __NL80211_FREQUENCY_ATTR_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_bitrate_attr - bitrate attributes
+ * @NL80211_BITRATE_ATTR_RATE: Bitrate in units of 100 kbps
+ * @NL80211_BITRATE_ATTR_2GHZ_SHORTPREAMBLE: Short preamble supported
+ *	in 2.4 GHz band.
+ */
+enum nl80211_bitrate_attr {
+	__NL80211_BITRATE_ATTR_INVALID,
+	NL80211_BITRATE_ATTR_RATE,
+	NL80211_BITRATE_ATTR_2GHZ_SHORTPREAMBLE,
+
+	/* keep last */
+	__NL80211_BITRATE_ATTR_AFTER_LAST,
+	NL80211_BITRATE_ATTR_MAX = __NL80211_BITRATE_ATTR_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_mntr_flags - monitor configuration flags
+ *
+ * Monitor configuration flags.
+ *
+ * @__NL80211_MNTR_FLAG_INVALID: reserved
+ *
+ * @NL80211_MNTR_FLAG_FCSFAIL: pass frames with bad FCS
+ * @NL80211_MNTR_FLAG_PLCPFAIL: pass frames with bad PLCP
+ * @NL80211_MNTR_FLAG_CONTROL: pass control frames
+ * @NL80211_MNTR_FLAG_OTHER_BSS: disable BSSID filtering
+ * @NL80211_MNTR_FLAG_COOK_FRAMES: report frames after processing.
+ *	overrides all other flags.
+ *
+ * @__NL80211_MNTR_FLAG_AFTER_LAST: internal use
+ * @NL80211_MNTR_FLAG_MAX: highest possible monitor flag
+ */
+enum nl80211_mntr_flags {
+	__NL80211_MNTR_FLAG_INVALID,
+	NL80211_MNTR_FLAG_FCSFAIL,
+	NL80211_MNTR_FLAG_PLCPFAIL,
+	NL80211_MNTR_FLAG_CONTROL,
+	NL80211_MNTR_FLAG_OTHER_BSS,
+	NL80211_MNTR_FLAG_COOK_FRAMES,
+
+	/* keep last */
+	__NL80211_MNTR_FLAG_AFTER_LAST,
+	NL80211_MNTR_FLAG_MAX = __NL80211_MNTR_FLAG_AFTER_LAST - 1
 };
 
 #endif /* __LINUX_NL80211_H */
