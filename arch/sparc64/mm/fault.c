@@ -286,7 +286,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 		unsigned long tpc = regs->tpc;
 
 		/* Sanity check the PC. */
-		if ((tpc >= KERNBASE && tpc < (unsigned long) _etext) ||
+		if ((tpc >= KERNBASE && tpc < (unsigned long) __init_end) ||
 		    (tpc >= MODULES_VADDR && tpc < MODULES_END)) {
 			/* Valid, no problems... */
 		} else {
