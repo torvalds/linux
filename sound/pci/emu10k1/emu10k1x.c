@@ -327,22 +327,22 @@ static void snd_emu10k1x_ptr_write(struct emu10k1x *emu,
 static void snd_emu10k1x_intr_enable(struct emu10k1x *emu, unsigned int intrenb)
 {
 	unsigned long flags;
-	unsigned int enable;
-  
+	unsigned int intr_enable;
+
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	enable = inl(emu->port + INTE) | intrenb;
-	outl(enable, emu->port + INTE);
+	intr_enable = inl(emu->port + INTE) | intrenb;
+	outl(intr_enable, emu->port + INTE);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 static void snd_emu10k1x_intr_disable(struct emu10k1x *emu, unsigned int intrenb)
 {
 	unsigned long flags;
-	unsigned int enable;
-  
+	unsigned int intr_enable;
+
 	spin_lock_irqsave(&emu->emu_lock, flags);
-	enable = inl(emu->port + INTE) & ~intrenb;
-	outl(enable, emu->port + INTE);
+	intr_enable = inl(emu->port + INTE) & ~intrenb;
+	outl(intr_enable, emu->port + INTE);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
@@ -795,9 +795,9 @@ static irqreturn_t snd_emu10k1x_interrupt(int irq, void *dev_id)
 
 	// capture interrupt
 	if (status & (IPR_CAP_0_LOOP | IPR_CAP_0_HALF_LOOP)) {
-		struct emu10k1x_voice *pvoice = &chip->capture_voice;
-		if (pvoice->use)
-			snd_emu10k1x_pcm_interrupt(chip, pvoice);
+		struct emu10k1x_voice *cap_voice = &chip->capture_voice;
+		if (cap_voice->use)
+			snd_emu10k1x_pcm_interrupt(chip, cap_voice);
 		else
 			snd_emu10k1x_intr_disable(chip, 
 						  INTE_CAP_0_LOOP |
