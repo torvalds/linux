@@ -1693,7 +1693,9 @@ static int acpi_processor_setup_cpuidle(struct acpi_processor *pr)
 		switch (cx->type) {
 			case ACPI_STATE_C1:
 			state->flags |= CPUIDLE_FLAG_SHALLOW;
-			state->flags |= CPUIDLE_FLAG_TIME_VALID;
+			if (cx->entry_method == ACPI_CSTATE_FFH)
+				state->flags |= CPUIDLE_FLAG_TIME_VALID;
+
 			state->enter = acpi_idle_enter_c1;
 			dev->safe_state = state;
 			break;

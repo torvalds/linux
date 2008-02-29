@@ -224,7 +224,7 @@ static void poll_idle_init(struct cpuidle_device *dev)
 	state->exit_latency = 0;
 	state->target_residency = 0;
 	state->power_usage = -1;
-	state->flags = CPUIDLE_FLAG_POLL | CPUIDLE_FLAG_TIME_VALID;
+	state->flags = CPUIDLE_FLAG_POLL;
 	state->enter = poll_idle;
 }
 #else
