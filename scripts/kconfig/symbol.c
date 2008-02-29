@@ -40,7 +40,7 @@ void sym_add_default(struct symbol *sym, const char *def)
 {
 	struct property *prop = prop_alloc(P_DEFAULT, sym);
 
-	prop->expr = expr_alloc_symbol(sym_lookup(def, 1));
+	prop->expr = expr_alloc_symbol(sym_lookup(def, SYMBOL_CONST));
 }
 
 void sym_init(void)
@@ -350,9 +350,6 @@ void sym_calc_value(struct symbol *sym)
 		;
 	}
 
-	if (sym->flags & SYMBOL_AUTO)
-		sym->flags &= ~SYMBOL_WRITE;
-
 	sym->curr = newval;
 	if (sym_is_choice(sym) && newval.tri == yes)
 		sym->curr.val = sym_calc_choice(sym);
@@ -377,6 +374,9 @@ void sym_calc_value(struct symbol *sym)
 				sym_set_changed(choice_sym);
 		}
 	}
+
+	if (sym->flags & SYMBOL_AUTO)
+		sym->flags &= ~SYMBOL_WRITE;
 }
 
 void sym_clear_all_valid(void)
@@ -651,7 +651,7 @@ bool sym_is_changable(struct symbol *sym)
 	return sym->visible > sym->rev_dep.tri;
 }
 
-struct symbol *sym_lookup(const char *name, int isconst)
+struct symbol *sym_lookup(const char *name, int flags)
 {
 	struct symbol *symbol;
 	const char *ptr;
@@ -671,11 +671,10 @@ struct symbol *sym_lookup(const char *name, int isconst)
 		hash &= 0xff;
 
 		for (symbol = symbol_hash[hash]; symbol; symbol = symbol->next) {
-			if (!strcmp(symbol->name, name)) {
-				if ((isconst && symbol->flags & SYMBOL_CONST) ||
-				    (!isconst && !(symbol->flags & SYMBOL_CONST)))
-					return symbol;
-			}
+			if (!strcmp(symbol->name, name) &&
+			    (flags ? symbol->flags & flags
+				   : !(symbol->flags & (SYMBOL_CONST|SYMBOL_CHOICE))))
+				return symbol;
 		}
 		new_name = strdup(name);
 	} else {
@@ -687,8 +686,7 @@ struct symbol *sym_lookup(const char *name, int isconst)
 	memset(symbol, 0, sizeof(*symbol));
 	symbol->name = new_name;
 	symbol->type = S_UNKNOWN;
-	if (isconst)
-		symbol->flags |= SYMBOL_CONST;
+	symbol->flags |= flags;
 
 	symbol->next = symbol_hash[hash];
 	symbol_hash[hash] = symbol;
@@ -962,7 +960,7 @@ void prop_add_env(const char *env)
 	}
 
 	prop = prop_alloc(P_ENV, sym);
-	prop->expr = expr_alloc_symbol(sym_lookup(env, 1));
+	prop->expr = expr_alloc_symbol(sym_lookup(env, SYMBOL_CONST));
 
 	sym_env_list = expr_alloc_one(E_LIST, sym_env_list);
 	sym_env_list->right.sym = sym;

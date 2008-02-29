@@ -21,7 +21,7 @@ P(menu_get_help,const char *,(struct menu *menu));
 /* symbol.c */
 P(symbol_hash,struct symbol *,[SYMBOL_HASHSIZE]);
 
-P(sym_lookup,struct symbol *,(const char *name, int isconst));
+P(sym_lookup,struct symbol *,(const char *name, int flags));
 P(sym_find,struct symbol *,(const char *name));
 P(sym_re_search,struct symbol **,(const char *pattern));
 P(sym_type_name,const char *,(enum symbol_type type));

@@ -91,7 +91,7 @@ static struct menu *current_menu, *current_entry;
 %type <id> end
 %type <id> option_name
 %type <menu> if_entry menu_entry choice_entry
-%type <string> symbol_option_arg
+%type <string> symbol_option_arg word_opt
 
 %destructor {
 	fprintf(stderr, "%s:%d: missing end statement for this entry\n",
@@ -239,10 +239,10 @@ symbol_option_arg:
 
 /* choice entry */
 
-choice: T_CHOICE T_EOL
+choice: T_CHOICE word_opt T_EOL
 {
-	struct symbol *sym = sym_lookup(NULL, 0);
-	sym->flags |= SYMBOL_CHOICE;
+	struct symbol *sym = sym_lookup($2, SYMBOL_CHOICE);
+	sym->flags |= SYMBOL_AUTO;
 	menu_add_entry(sym);
 	menu_add_expr(P_CHOICE, NULL, NULL);
 	printd(DEBUG_PARSE, "%s:%d:choice\n", zconf_curname(), zconf_lineno());
@@ -456,8 +456,11 @@ expr:	  symbol				{ $$ = expr_alloc_symbol($1); }
 ;
 
 symbol:	  T_WORD	{ $$ = sym_lookup($1, 0); free($1); }
-	| T_WORD_QUOTE	{ $$ = sym_lookup($1, 1); free($1); }
+	| T_WORD_QUOTE	{ $$ = sym_lookup($1, SYMBOL_CONST); free($1); }
 ;
+
+word_opt: /* empty */			{ $$ = NULL; }
+	| T_WORD
 
 %%
 
