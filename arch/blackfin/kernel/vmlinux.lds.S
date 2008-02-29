@@ -147,44 +147,64 @@ SECTIONS
 
 	__l1_lma_start = .;
 
+#if L1_CODE_LENGTH
+# define LDS_L1_CODE *(.l1.text)
+#else
+# define LDS_L1_CODE
+#endif
 	.text_l1 L1_CODE_START : AT(LOADADDR(.init.ramfs) + SIZEOF(.init.ramfs))
 	{
 		. = ALIGN(4);
 		__stext_l1 = .;
-		*(.l1.text)
-
+		LDS_L1_CODE
 		. = ALIGN(4);
 		__etext_l1 = .;
 	}
 
+#if L1_DATA_A_LENGTH
+# define LDS_L1_A_DATA  *(.l1.data)
+# define LDS_L1_A_BSS   *(.l1.bss)
+# define LDS_L1_A_CACHE *(.data_l1.cacheline_aligned)
+#else
+# define LDS_L1_A_DATA
+# define LDS_L1_A_BSS
+# define LDS_L1_A_CACHE
+#endif
 	.data_l1 L1_DATA_A_START : AT(LOADADDR(.text_l1) + SIZEOF(.text_l1))
 	{
 		. = ALIGN(4);
 		__sdata_l1 = .;
-		*(.l1.data)
+		LDS_L1_A_DATA
 		__edata_l1 = .;
 
 		. = ALIGN(4);
 		__sbss_l1 = .;
-		*(.l1.bss)
+		LDS_L1_A_BSS
 
 		. = ALIGN(32);
-		*(.data_l1.cacheline_aligned)
+		LDS_L1_A_CACHE
 
 		. = ALIGN(4);
 		__ebss_l1 = .;
 	}
 
+#if L1_DATA_B_LENGTH
+# define LDS_L1_B_DATA  *(.l1.data.B)
+# define LDS_L1_B_BSS   *(.l1.bss.B)
+#else
+# define LDS_L1_B_DATA
+# define LDS_L1_B_BSS
+#endif
 	.data_b_l1 L1_DATA_B_START : AT(LOADADDR(.data_l1) + SIZEOF(.data_l1))
 	{
 		. = ALIGN(4);
 		__sdata_b_l1 = .;
-		*(.l1.data.B)
+		LDS_L1_B_DATA
 		__edata_b_l1 = .;
 
 		. = ALIGN(4);
 		__sbss_b_l1 = .;
-		*(.l1.bss.B)
+		LDS_L1_B_BSS
 
 		. = ALIGN(4);
 		__ebss_b_l1 = .;
