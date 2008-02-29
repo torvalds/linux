@@ -1284,9 +1284,7 @@ static inline struct neigh_parms *lookup_neigh_params(struct neigh_table *tbl,
 	struct neigh_parms *p;
 
 	for (p = &tbl->parms; p; p = p->next) {
-		if (p->net != net)
-			continue;
-		if ((p->dev && p->dev->ifindex == ifindex) ||
+		if ((p->dev && p->dev->ifindex == ifindex && p->net == net) ||
 		    (!p->dev && !ifindex))
 			return p;
 	}
