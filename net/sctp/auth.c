@@ -838,11 +838,11 @@ int sctp_auth_set_key(struct sctp_endpoint *ep,
 	}
 
 	/* Create a new key data based on the info passed in */
-	key = sctp_auth_create_key(auth_key->sca_keylen, GFP_KERNEL);
+	key = sctp_auth_create_key(auth_key->sca_keylength, GFP_KERNEL);
 	if (!key)
 		goto nomem;
 
-	memcpy(key->data, &auth_key->sca_key[0], auth_key->sca_keylen);
+	memcpy(key->data, &auth_key->sca_key[0], auth_key->sca_keylength);
 
 	/* If we are replacing, remove the old keys data from the
 	 * key id.  If we are adding new key id, add it to the

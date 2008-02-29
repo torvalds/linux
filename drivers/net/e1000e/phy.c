@@ -121,7 +121,7 @@ s32 e1000e_phy_reset_dsp(struct e1000_hw *hw)
  *  @offset: register offset to be read
  *  @data: pointer to the read data
  *
- *  Reads the MDI control regsiter in the PHY at offset and stores the
+ *  Reads the MDI control register in the PHY at offset and stores the
  *  information read to data.
  **/
 static s32 e1000_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
@@ -1172,7 +1172,7 @@ s32 e1000e_set_d3_lplu_state(struct e1000_hw *hw, bool active)
 }
 
 /**
- *  e1000e_check_downshift - Checks whether a downshift in speed occured
+ *  e1000e_check_downshift - Checks whether a downshift in speed occurred
  *  @hw: pointer to the HW structure
  *
  *  Success returns 0, Failure returns 1
@@ -1388,8 +1388,8 @@ s32 e1000e_get_cable_length_m88(struct e1000_hw *hw)
  *
  *  The automatic gain control (agc) normalizes the amplitude of the
  *  received signal, adjusting for the attenuation produced by the
- *  cable.  By reading the AGC registers, which reperesent the
- *  cobination of course and fine gain value, the value can be put
+ *  cable.  By reading the AGC registers, which represent the
+ *  combination of course and fine gain value, the value can be put
  *  into a lookup table to obtain the approximate cable length
  *  for each channel.
  **/
@@ -1619,7 +1619,7 @@ s32 e1000e_phy_sw_reset(struct e1000_hw *hw)
  *  Verify the reset block is not blocking us from resetting.  Acquire
  *  semaphore (if necessary) and read/set/write the device control reset
  *  bit in the PHY.  Wait the appropriate delay time for the device to
- *  reset and relase the semaphore (if necessary).
+ *  reset and release the semaphore (if necessary).
  **/
 s32 e1000e_phy_hw_reset_generic(struct e1000_hw *hw)
 {

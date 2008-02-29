@@ -752,6 +752,7 @@ int devinet_ioctl(unsigned int cmd, void __user *arg)
 			inet_del_ifa(in_dev, ifap, 0);
 			ifa->ifa_broadcast = 0;
 			ifa->ifa_anycast = 0;
+			ifa->ifa_scope = 0;
 		}
 
 		ifa->ifa_address = ifa->ifa_local = sin->sin_addr.s_addr;

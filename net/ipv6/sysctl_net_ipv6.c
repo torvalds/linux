@@ -102,9 +102,6 @@ static int ipv6_sysctl_net_init(struct net *net)
 	net->ipv6.sysctl.table = register_net_sysctl_table(net, net_ipv6_ctl_path,
 							   ipv6_table);
 	if (!net->ipv6.sysctl.table)
-		return -ENOMEM;
-
-	if (!net->ipv6.sysctl.table)
 		goto out_ipv6_icmp_table;
 
 	err = 0;

@@ -1116,9 +1116,10 @@ static void ieee80211_sta_process_addba_request(struct net_device *dev,
 	/* prepare reordering buffer */
 	tid_agg_rx->reorder_buf =
 		kmalloc(buf_size * sizeof(struct sk_buf *), GFP_ATOMIC);
-	if ((!tid_agg_rx->reorder_buf) && net_ratelimit()) {
-		printk(KERN_ERR "can not allocate reordering buffer "
-						"to tid %d\n", tid);
+	if (!tid_agg_rx->reorder_buf) {
+		if (net_ratelimit())
+			printk(KERN_ERR "can not allocate reordering buffer "
+			       "to tid %d\n", tid);
 		goto end;
 	}
 	memset(tid_agg_rx->reorder_buf, 0,

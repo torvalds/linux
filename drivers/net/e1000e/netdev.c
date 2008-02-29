@@ -1006,7 +1006,7 @@ static void e1000_irq_enable(struct e1000_adapter *adapter)
  * e1000_get_hw_control - get control of the h/w from f/w
  * @adapter: address of board private structure
  *
- * e1000_get_hw_control sets {CTRL_EXT|FWSM}:DRV_LOAD bit.
+ * e1000_get_hw_control sets {CTRL_EXT|SWSM}:DRV_LOAD bit.
  * For ASF and Pass Through versions of f/w this means that
  * the driver is loaded. For AMT version (only with 82573)
  * of the f/w this means that the network i/f is open.
@@ -1032,7 +1032,7 @@ static void e1000_get_hw_control(struct e1000_adapter *adapter)
  * e1000_release_hw_control - release control of the h/w to f/w
  * @adapter: address of board private structure
  *
- * e1000_release_hw_control resets {CTRL_EXT|FWSM}:DRV_LOAD bit.
+ * e1000_release_hw_control resets {CTRL_EXT|SWSM}:DRV_LOAD bit.
  * For ASF and Pass Through versions of f/w this means that the
  * driver is no longer loaded. For AMT version (only with 82573) i
  * of the f/w this means that the network i/f is closed.
@@ -1241,6 +1241,11 @@ void e1000e_free_rx_resources(struct e1000_adapter *adapter)
 
 /**
  * e1000_update_itr - update the dynamic ITR value based on statistics
+ * @adapter: pointer to adapter
+ * @itr_setting: current adapter->itr
+ * @packets: the number of packets during this measurement interval
+ * @bytes: the number of bytes during this measurement interval
+ *
  *      Stores a new ITR value based on packets and byte
  *      counts during the last interrupt.  The advantage of per interrupt
  *      computation is faster updates and more accurate ITR for the current
@@ -1250,10 +1255,6 @@ void e1000e_free_rx_resources(struct e1000_adapter *adapter)
  *      while increasing bulk throughput.
  *      this functionality is controlled by the InterruptThrottleRate module
  *      parameter (see e1000_param.c)
- * @adapter: pointer to adapter
- * @itr_setting: current adapter->itr
- * @packets: the number of packets during this measurement interval
- * @bytes: the number of bytes during this measurement interval
  **/
 static unsigned int e1000_update_itr(struct e1000_adapter *adapter,
 				     u16 itr_setting, int packets,
@@ -1366,6 +1367,7 @@ set_itr_now:
 /**
  * e1000_clean - NAPI Rx polling callback
  * @adapter: board private structure
+ * @budget: amount of packets driver is allowed to process this poll
  **/
 static int e1000_clean(struct napi_struct *napi, int budget)
 {
@@ -2000,7 +2002,7 @@ static void e1000_power_down_phy(struct e1000_adapter *adapter)
 	    e1000_check_reset_block(hw))
 		return;
 
-	/* managebility (AMT) is enabled */
+	/* manageability (AMT) is enabled */
 	if (er32(MANC) & E1000_MANC_SMBUS_EN)
 		return;
 
@@ -3488,7 +3490,6 @@ static int e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 static void e1000e_disable_l1aspm(struct pci_dev *pdev)
 {
 	int pos;
-	u32 cap;
 	u16 val;
 
 	/*
@@ -3503,7 +3504,6 @@ static void e1000e_disable_l1aspm(struct pci_dev *pdev)
 	 * active.
 	 */
 	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
-	pci_read_config_dword(pdev, pos + PCI_EXP_LNKCAP, &cap);
 	pci_read_config_word(pdev, pos + PCI_EXP_LNKCTL, &val);
 	if (val & 0x2) {
 		dev_warn(&pdev->dev, "Disabling L1 ASPM\n");

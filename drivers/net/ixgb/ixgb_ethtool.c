@@ -67,6 +67,7 @@ static struct ixgb_stats ixgb_gstrings_stats[] = {
 	{"rx_over_errors", IXGB_STAT(net_stats.rx_over_errors)},
 	{"rx_crc_errors", IXGB_STAT(net_stats.rx_crc_errors)},
 	{"rx_frame_errors", IXGB_STAT(net_stats.rx_frame_errors)},
+	{"rx_no_buffer_count", IXGB_STAT(stats.rnbc)},
 	{"rx_fifo_errors", IXGB_STAT(net_stats.rx_fifo_errors)},
 	{"rx_missed_errors", IXGB_STAT(net_stats.rx_missed_errors)},
 	{"tx_aborted_errors", IXGB_STAT(net_stats.tx_aborted_errors)},

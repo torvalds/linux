@@ -256,13 +256,19 @@ __nf_conntrack_find(const struct nf_conntrack_tuple *tuple)
 	struct hlist_node *n;
 	unsigned int hash = hash_conntrack(tuple);
 
+	/* Disable BHs the entire time since we normally need to disable them
+	 * at least once for the stats anyway.
+	 */
+	local_bh_disable();
 	hlist_for_each_entry_rcu(h, n, &nf_conntrack_hash[hash], hnode) {
 		if (nf_ct_tuple_equal(tuple, &h->tuple)) {
 			NF_CT_STAT_INC(found);
+			local_bh_enable();
 			return h;
 		}
 		NF_CT_STAT_INC(searched);
 	}
+	local_bh_enable();
 
 	return NULL;
 }
@@ -400,17 +406,20 @@ nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
 	struct hlist_node *n;
 	unsigned int hash = hash_conntrack(tuple);
 
-	rcu_read_lock();
+	/* Disable BHs the entire time since we need to disable them at
+	 * least once for the stats anyway.
+	 */
+	rcu_read_lock_bh();
 	hlist_for_each_entry_rcu(h, n, &nf_conntrack_hash[hash], hnode) {
 		if (nf_ct_tuplehash_to_ctrack(h) != ignored_conntrack &&
 		    nf_ct_tuple_equal(tuple, &h->tuple)) {
 			NF_CT_STAT_INC(found);
-			rcu_read_unlock();
+			rcu_read_unlock_bh();
 			return 1;
 		}
 		NF_CT_STAT_INC(searched);
 	}
-	rcu_read_unlock();
+	rcu_read_unlock_bh();
 
 	return 0;
 }

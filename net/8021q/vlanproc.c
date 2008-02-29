@@ -161,11 +161,10 @@ int __init vlan_proc_init(void)
 	if (!proc_vlan_dir)
 		goto err;
 
-	proc_vlan_conf = create_proc_entry(name_conf, S_IFREG|S_IRUSR|S_IWUSR,
-					   proc_vlan_dir);
+	proc_vlan_conf = proc_create(name_conf, S_IFREG|S_IRUSR|S_IWUSR,
+				     proc_vlan_dir, &vlan_fops);
 	if (!proc_vlan_conf)
 		goto err;
-	proc_vlan_conf->proc_fops = &vlan_fops;
 	return 0;
 
 err:
@@ -182,13 +181,11 @@ int vlan_proc_add_dev(struct net_device *vlandev)
 {
 	struct vlan_dev_info *dev_info = vlan_dev_info(vlandev);
 
-	dev_info->dent = create_proc_entry(vlandev->name,
-					   S_IFREG|S_IRUSR|S_IWUSR,
-					   proc_vlan_dir);
+	dev_info->dent = proc_create(vlandev->name, S_IFREG|S_IRUSR|S_IWUSR,
+				     proc_vlan_dir, &vlandev_fops);
 	if (!dev_info->dent)
 		return -ENOBUFS;
 
-	dev_info->dent->proc_fops = &vlandev_fops;
 	dev_info->dent->data = vlandev;
 	return 0;
 }

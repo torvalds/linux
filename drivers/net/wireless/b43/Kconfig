@@ -32,6 +32,7 @@ config B43_PCI_AUTOSELECT
 	bool
 	depends on B43 && SSB_PCIHOST_POSSIBLE
 	select SSB_PCIHOST
+	select SSB_B43_PCI_BRIDGE
 	default y
 
 # Auto-select SSB PCICORE driver, if possible
