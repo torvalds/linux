@@ -549,7 +549,7 @@ static void cell_dma_dev_setup_iommu(struct device *dev)
 	archdata->dma_data = &window->table;
 }
 
-static void cell_dma_dev_setup_static(struct device *dev);
+static void cell_dma_dev_setup_fixed(struct device *dev);
 
 static void cell_dma_dev_setup(struct device *dev)
 {
@@ -557,7 +557,7 @@ static void cell_dma_dev_setup(struct device *dev)
 
 	/* Order is important here, these are not mutually exclusive */
 	if (get_dma_ops(dev) == &dma_iommu_fixed_ops)
-		cell_dma_dev_setup_static(dev);
+		cell_dma_dev_setup_fixed(dev);
 	else if (get_pci_dma_ops() == &dma_iommu_ops)
 		cell_dma_dev_setup_iommu(dev);
 	else if (get_pci_dma_ops() == &dma_direct_ops)
@@ -858,7 +858,7 @@ static int dma_set_mask_and_switch(struct device *dev, u64 dma_mask)
 	return 0;
 }
 
-static void cell_dma_dev_setup_static(struct device *dev)
+static void cell_dma_dev_setup_fixed(struct device *dev)
 {
 	struct dev_archdata *archdata = &dev->archdata;
 	u64 addr;
@@ -894,7 +894,7 @@ static void cell_iommu_setup_fixed_ptab(struct cbe_iommu *iommu,
 	for (i = fbase; i < fbase + fsize; i++, uaddr += IOMMU_PAGE_SIZE) {
 		/* Don't touch the dynamic region */
 		if (i >= dbase && i < (dbase + dsize)) {
-			pr_debug("iommu: static/dynamic overlap, skipping\n");
+			pr_debug("iommu: fixed/dynamic overlap, skipping\n");
 			continue;
 		}
 		io_pte[i] = base_pte | (__pa(uaddr) & IOPTE_RPN_Mask);
