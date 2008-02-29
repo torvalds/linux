@@ -125,4 +125,13 @@ config SSB_DRIVER_EXTIF
 
 	  If unsure, say N
 
+config SSB_DRIVER_GIGE
+	bool "SSB Broadcom Gigabit Ethernet driver"
+	depends on SSB_PCIHOST_POSSIBLE && SSB_EMBEDDED && MIPS
+	help
+	  Driver for the Sonics Silicon Backplane attached
+	  Broadcom Gigabit Ethernet.
+
+	  If unsure, say N
+
 endmenu

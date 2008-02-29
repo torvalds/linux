@@ -118,6 +118,8 @@ extern u32 ssb_calc_clock_rate(u32 plltype, u32 n, u32 m);
 extern int ssb_devices_freeze(struct ssb_bus *bus);
 extern int ssb_devices_thaw(struct ssb_bus *bus);
 extern struct ssb_bus *ssb_pci_dev_to_bus(struct pci_dev *pdev);
+int ssb_for_each_bus_call(unsigned long data,
+			  int (*func)(struct ssb_bus *bus, unsigned long data));
 
 /* b43_pci_bridge.c */
 #ifdef CONFIG_SSB_B43_PCI_BRIDGE
