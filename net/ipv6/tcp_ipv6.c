@@ -455,8 +455,7 @@ out:
 }
 
 
-static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
-			      struct dst_entry *dst)
+static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req)
 {
 	struct inet6_request_sock *treq = inet6_rsk(req);
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -464,6 +463,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 	struct ipv6_txoptions *opt = NULL;
 	struct in6_addr * final_p = NULL, final;
 	struct flowi fl;
+	struct dst_entry *dst;
 	int err = -1;
 
 	memset(&fl, 0, sizeof(fl));
@@ -476,23 +476,21 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 	fl.fl_ip_sport = inet_sk(sk)->sport;
 	security_req_classify_flow(req, &fl);
 
-	if (dst == NULL) {
-		opt = np->opt;
-		if (opt && opt->srcrt) {
-			struct rt0_hdr *rt0 = (struct rt0_hdr *) opt->srcrt;
-			ipv6_addr_copy(&final, &fl.fl6_dst);
-			ipv6_addr_copy(&fl.fl6_dst, rt0->addr);
-			final_p = &final;
-		}
-
-		err = ip6_dst_lookup(sk, &dst, &fl);
-		if (err)
-			goto done;
-		if (final_p)
-			ipv6_addr_copy(&fl.fl6_dst, final_p);
-		if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
-			goto done;
+	opt = np->opt;
+	if (opt && opt->srcrt) {
+		struct rt0_hdr *rt0 = (struct rt0_hdr *) opt->srcrt;
+		ipv6_addr_copy(&final, &fl.fl6_dst);
+		ipv6_addr_copy(&fl.fl6_dst, rt0->addr);
+		final_p = &final;
 	}
+
+	err = ip6_dst_lookup(sk, &dst, &fl);
+	if (err)
+		goto done;
+	if (final_p)
+		ipv6_addr_copy(&fl.fl6_dst, final_p);
+	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
+		goto done;
 
 	skb = tcp_make_synack(sk, dst, req);
 	if (skb) {
@@ -1294,7 +1292,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 
 	security_inet_conn_request(sk, skb, req);
 
-	if (tcp_v6_send_synack(sk, req, NULL))
+	if (tcp_v6_send_synack(sk, req))
 		goto drop;
 
 	inet6_csk_reqsk_queue_hash_add(sk, req, TCP_TIMEOUT_INIT);

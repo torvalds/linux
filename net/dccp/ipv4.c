@@ -471,15 +471,14 @@ static struct dst_entry* dccp_v4_route_skb(struct sock *sk,
 	return &rt->u.dst;
 }
 
-static int dccp_v4_send_response(struct sock *sk, struct request_sock *req,
-				 struct dst_entry *dst)
+static int dccp_v4_send_response(struct sock *sk, struct request_sock *req)
 {
 	int err = -1;
 	struct sk_buff *skb;
+	struct dst_entry *dst;
 
-	/* First, grab a route. */
-
-	if (dst == NULL && (dst = inet_csk_route_req(sk, req)) == NULL)
+	dst = inet_csk_route_req(sk, req);
+	if (dst == NULL)
 		goto out;
 
 	skb = dccp_make_response(sk, dst, req);
@@ -620,7 +619,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	dreq->dreq_iss	   = dccp_v4_init_sequence(skb);
 	dreq->dreq_service = service;
 
-	if (dccp_v4_send_response(sk, req, NULL))
+	if (dccp_v4_send_response(sk, req))
 		goto drop_and_free;
 
 	inet_csk_reqsk_queue_hash_add(sk, req, DCCP_TIMEOUT_INIT);

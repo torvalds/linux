@@ -31,8 +31,7 @@ struct request_sock_ops {
 	int		obj_size;
 	struct kmem_cache	*slab;
 	int		(*rtx_syn_ack)(struct sock *sk,
-				       struct request_sock *req,
-				       struct dst_entry *dst);
+				       struct request_sock *req);
 	void		(*send_ack)(struct sk_buff *skb,
 				    struct request_sock *req);
 	void		(*send_reset)(struct sock *sk,

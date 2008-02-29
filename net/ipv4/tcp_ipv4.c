@@ -723,8 +723,8 @@ static void tcp_v4_reqsk_send_ack(struct sk_buff *skb,
  *	This still operates on a request_sock only, not on a big
  *	socket.
  */
-static int tcp_v4_send_synack(struct sock *sk, struct request_sock *req,
-			      struct dst_entry *dst)
+static int __tcp_v4_send_synack(struct sock *sk, struct request_sock *req,
+				struct dst_entry *dst)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	int err = -1;
@@ -732,7 +732,7 @@ static int tcp_v4_send_synack(struct sock *sk, struct request_sock *req,
 
 	/* First, grab a route. */
 	if (!dst && (dst = inet_csk_route_req(sk, req)) == NULL)
-		goto out;
+		return -1;
 
 	skb = tcp_make_synack(sk, dst, req);
 
@@ -751,9 +751,13 @@ static int tcp_v4_send_synack(struct sock *sk, struct request_sock *req,
 		err = net_xmit_eval(err);
 	}
 
-out:
 	dst_release(dst);
 	return err;
+}
+
+static int tcp_v4_send_synack(struct sock *sk, struct request_sock *req)
+{
+	return __tcp_v4_send_synack(sk, req, NULL);
 }
 
 /*
@@ -1380,7 +1384,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	}
 	tcp_rsk(req)->snt_isn = isn;
 
-	if (tcp_v4_send_synack(sk, req, dst))
+	if (__tcp_v4_send_synack(sk, req, dst))
 		goto drop_and_free;
 
 	if (want_cookie) {
