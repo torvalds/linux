@@ -3061,6 +3061,7 @@ struct niu_parent {
 #define PLAT_TYPE_NIU		0x02
 #define PLAT_TYPE_VF_P0		0x03
 #define PLAT_TYPE_VF_P1		0x04
+#define PLAT_TYPE_ATCA_CP3220	0x08
 
 	u8			num_ports;
 
@@ -3198,10 +3199,11 @@ struct niu {
 	struct niu_parent		*parent;
 
 	u32				flags;
+#define NIU_FLAGS_VPD_VALID		0x00800000 /* VPD has valid version */
 #define NIU_FLAGS_MSIX			0x00400000 /* MSI-X in use */
 #define NIU_FLAGS_MCAST			0x00200000 /* multicast filter enabled */
 #define NIU_FLAGS_PROMISC		0x00100000 /* PROMISC enabled */
-#define NIU_FLAGS_VPD_VALID		0x00080000 /* VPD has valid version */
+#define NIU_FLAGS_XCVR_SERDES		0x00080000 /* 0=PHY 1=SERDES */
 #define NIU_FLAGS_10G			0x00040000 /* 0=1G 1=10G */
 #define NIU_FLAGS_FIBER			0x00020000 /* 0=COPPER 1=FIBER */
 #define NIU_FLAGS_XMAC			0x00010000 /* 0=BMAC 1=XMAC */
