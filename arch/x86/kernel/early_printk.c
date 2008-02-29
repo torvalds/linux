@@ -13,7 +13,7 @@
 #define VGABASE		(__ISA_IO_base + 0xb8000)
 
 static int max_ypos = 25, max_xpos = 80;
-static int current_ypos = 25, current_xpos = 0;
+static int current_ypos = 25, current_xpos;
 
 static void early_vga_write(struct console *con, const char *str, unsigned n)
 {
@@ -194,7 +194,7 @@ static struct console simnow_console = {
 
 /* Direct interface for emergencies */
 static struct console *early_console = &early_vga_console;
-static int early_console_initialized = 0;
+static int early_console_initialized;
 
 void early_printk(const char *fmt, ...)
 {
