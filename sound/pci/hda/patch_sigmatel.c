@@ -534,6 +534,24 @@ static struct hda_verb stac92hd73xx_6ch_core_init[] = {
 	{}
 };
 
+static struct hda_verb dell_m6_core_init[] = {
+	/* set master volume and direct control */
+	{ 0x1f, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
+	/* setup audio connections */
+	{ 0x0a, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{ 0x0d, AC_VERB_SET_CONNECT_SEL, 0x01},
+	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x02},
+	/* setup adcs to point to mixer */
+	{ 0x20, AC_VERB_SET_CONNECT_SEL, 0x0b},
+	{ 0x21, AC_VERB_SET_CONNECT_SEL, 0x0b},
+	/* setup import muxs */
+	{ 0x28, AC_VERB_SET_CONNECT_SEL, 0x01},
+	{ 0x29, AC_VERB_SET_CONNECT_SEL, 0x01},
+	{ 0x2a, AC_VERB_SET_CONNECT_SEL, 0x01},
+	{ 0x2b, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{}
+};
+
 static struct hda_verb stac92hd73xx_8ch_core_init[] = {
 	/* set master volume and direct control */
 	{ 0x1f, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
@@ -3442,6 +3460,7 @@ again:
 
 	switch (spec->board_config) {
 	case STAC_DELL_M6:
+		spec->init = dell_m6_core_init;
 		switch (codec->subsystem_id) {
 		case 0x1028025e: /* Analog Mics */
 		case 0x1028025f:
