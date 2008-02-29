@@ -1198,7 +1198,9 @@ int __net_init icmp_sk_init(struct net *net)
 	return 0;
 
 fail:
-	icmp_sk_exit(net);
+	for_each_possible_cpu(i)
+		sk_release_kernel(net->ipv4.icmp_sk[i]);
+	kfree(net->ipv4.icmp_sk);
 	return err;
 }
 
