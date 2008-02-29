@@ -344,12 +344,6 @@ static void cell_iommu_setup_page_tables(struct cbe_iommu *iommu,
 	iommu->ptab = page_address(page);
 	memset(iommu->ptab, 0, ptab_size);
 
-	/* allocate a bogus page for the end of each mapping */
-	page = alloc_pages_node(iommu->nid, GFP_KERNEL, 0);
-	BUG_ON(!page);
-	iommu->pad_page = page_address(page);
-	clear_page(iommu->pad_page);
-
 	/* number of pages needed for a page table */
 	n_pte_pages = (pages_per_segment *
 		       sizeof(unsigned long)) >> IOMMU_PAGE_SHIFT;
@@ -463,6 +457,7 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 			unsigned long pte_offset)
 {
 	struct iommu_window *window;
+	struct page *page;
 	u32 ioid;
 
 	ioid = cell_iommu_get_ioid(np);
@@ -501,6 +496,11 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 	 * This code also assumes that we have a window that starts at 0,
 	 * which is the case on all spider based blades.
 	 */
+	page = alloc_pages_node(iommu->nid, GFP_KERNEL, 0);
+	BUG_ON(!page);
+	iommu->pad_page = page_address(page);
+	clear_page(iommu->pad_page);
+
 	__set_bit(0, window->table.it_map);
 	tce_build_cell(&window->table, window->table.it_offset, 1,
 		       (unsigned long)iommu->pad_page, DMA_TO_DEVICE);
