@@ -27,6 +27,7 @@
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
+#include "hda_patch.h"
 
 struct atihdmi_spec {
 	struct hda_multi_out multiout;

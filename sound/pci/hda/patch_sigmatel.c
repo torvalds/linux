@@ -32,6 +32,7 @@
 #include <sound/asoundef.h>
 #include "hda_codec.h"
 #include "hda_local.h"
+#include "hda_patch.h"
 
 #define NUM_CONTROL_ALLOC	32
 #define STAC_PWR_EVENT		0x20

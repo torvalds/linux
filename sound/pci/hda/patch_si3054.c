@@ -28,7 +28,7 @@
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
-
+#include "hda_patch.h"
 
 /* si3054 verbs */
 #define SI3054_VERB_READ_NODE  0x900

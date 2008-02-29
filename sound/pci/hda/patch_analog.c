@@ -28,6 +28,7 @@
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
+#include "hda_patch.h"
 
 struct ad198x_spec {
 	struct snd_kcontrol_new *mixers[5];

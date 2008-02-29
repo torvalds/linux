@@ -39,7 +39,7 @@
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
-
+#include "hda_patch.h"
 
 /* amp values */
 #define AMP_VAL_IDX_SHIFT	19
