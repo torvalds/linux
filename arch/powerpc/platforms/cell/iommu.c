@@ -123,7 +123,6 @@ struct iommu_window {
 	struct cbe_iommu *iommu;
 	unsigned long offset;
 	unsigned long size;
-	unsigned long pte_offset;
 	unsigned int ioid;
 	struct iommu_table table;
 };
@@ -475,13 +474,11 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 	window->size = size;
 	window->ioid = ioid;
 	window->iommu = iommu;
-	window->pte_offset = pte_offset;
 
 	window->table.it_blocksize = 16;
 	window->table.it_base = (unsigned long)iommu->ptab;
 	window->table.it_index = iommu->nid;
-	window->table.it_offset = (offset >> IOMMU_PAGE_SHIFT) +
-		window->pte_offset;
+	window->table.it_offset = (offset >> IOMMU_PAGE_SHIFT) + pte_offset;
 	window->table.it_size = size >> IOMMU_PAGE_SHIFT;
 
 	iommu_init_table(&window->table, iommu->nid);
