@@ -872,6 +872,7 @@ __be32 inet_select_addr(const struct net_device *dev, __be32 dst, int scope)
 {
 	__be32 addr = 0;
 	struct in_device *in_dev;
+	struct net *net = dev->nd_net;
 
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev);
@@ -900,7 +901,7 @@ no_in_dev:
 	 */
 	read_lock(&dev_base_lock);
 	rcu_read_lock();
-	for_each_netdev(&init_net, dev) {
+	for_each_netdev(net, dev) {
 		if ((in_dev = __in_dev_get_rcu(dev)) == NULL)
 			continue;
 
