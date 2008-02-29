@@ -258,7 +258,8 @@ void __init pci_direct_init(int type)
 {
 	if (type == 0)
 		return;
-	printk(KERN_INFO "PCI: Using configuration type %d\n", type);
+	printk(KERN_INFO "PCI: Using configuration type %d for base access\n",
+		 type);
 	if (type == 1)
 		raw_pci_ops = &pci_direct_conf1;
 	else
@@ -275,8 +276,10 @@ int __init pci_direct_probe(void)
 	if (!region)
 		goto type2;
 
-	if (pci_check_type1())
+	if (pci_check_type1()) {
+		raw_pci_ops = &pci_direct_conf1;
 		return 1;
+	}
 	release_resource(region);
 
  type2:
@@ -290,7 +293,6 @@ int __init pci_direct_probe(void)
 		goto fail2;
 
 	if (pci_check_type2()) {
-		printk(KERN_INFO "PCI: Using configuration type 2\n");
 		raw_pci_ops = &pci_direct_conf2;
 		return 2;
 	}

@@ -28,7 +28,7 @@ static int __initdata pci_mmcfg_resources_inserted;
 static const char __init *pci_mmcfg_e7520(void)
 {
 	u32 win;
-	pci_direct_conf1.read(0, 0, PCI_DEVFN(0,0), 0xce, 2, &win);
+	raw_pci_ops->read(0, 0, PCI_DEVFN(0, 0), 0xce, 2, &win);
 
 	win = win & 0xf000;
 	if(win == 0x0000 || win == 0xf000)
@@ -53,7 +53,7 @@ static const char __init *pci_mmcfg_intel_945(void)
 
 	pci_mmcfg_config_num = 1;
 
-	pci_direct_conf1.read(0, 0, PCI_DEVFN(0,0), 0x48, 4, &pciexbar);
+	raw_pci_ops->read(0, 0, PCI_DEVFN(0, 0), 0x48, 4, &pciexbar);
 
 	/* Enable bit */
 	if (!(pciexbar & 1))
@@ -179,6 +179,9 @@ static int __init pci_mmcfg_check_hostbridge(void)
 	int i;
 	const char *name;
 
+	if (!raw_pci_ops)
+		return 0;
+
 	pci_mmcfg_config_num = 0;
 	pci_mmcfg_config = NULL;
 	name = NULL;
@@ -186,7 +189,7 @@ static int __init pci_mmcfg_check_hostbridge(void)
 	for (i = 0; !name && i < ARRAY_SIZE(pci_mmcfg_probes); i++) {
 		bus =  pci_mmcfg_probes[i].bus;
 		devfn = pci_mmcfg_probes[i].devfn;
-		pci_direct_conf1.read(0, bus, devfn, 0, 4, &l);
+		raw_pci_ops->read(0, bus, devfn, 0, 4, &l);
 		vendor = l & 0xffff;
 		device = (l >> 16) & 0xffff;
 
@@ -304,7 +307,7 @@ static int __init is_acpi_reserved(unsigned long start, unsigned long end)
 	return mcfg_res.flags;
 }
 
-static void __init pci_mmcfg_reject_broken(int type, int early)
+static void __init pci_mmcfg_reject_broken(int early)
 {
 	typeof(pci_mmcfg_config[0]) *cfg;
 	int i;
@@ -342,8 +345,8 @@ static void __init pci_mmcfg_reject_broken(int type, int early)
 			       " reserved in ACPI motherboard resources\n",
 			       cfg->address);
 		/* Don't try to do this check unless configuration
-		   type 1 is available. */
-		if (type == 1 && e820_all_mapped(cfg->address,
+		   type 1 is available. how about type 2 ?*/
+		if (raw_pci_ops && e820_all_mapped(cfg->address,
 						  cfg->address + size - 1,
 						  E820_RESERVED)) {
 			printk(KERN_NOTICE
@@ -368,7 +371,7 @@ reject:
 
 static int __initdata known_bridge;
 
-void __init __pci_mmcfg_init(int type, int early)
+void __init __pci_mmcfg_init(int early)
 {
 	/* MMCONFIG disabled */
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
@@ -382,14 +385,14 @@ void __init __pci_mmcfg_init(int type, int early)
 	if (known_bridge)
 		return;
 
-	if (early && type == 1) {
+	if (early) {
 		if (pci_mmcfg_check_hostbridge())
 			known_bridge = 1;
 	}
 
 	if (!known_bridge) {
 		acpi_table_parse(ACPI_SIG_MCFG, acpi_parse_mcfg);
-		pci_mmcfg_reject_broken(type, early);
+		pci_mmcfg_reject_broken(early);
 	}
 
 	if ((pci_mmcfg_config_num == 0) ||
@@ -410,19 +413,14 @@ void __init __pci_mmcfg_init(int type, int early)
 	}
 }
 
-void __init pci_mmcfg_early_init(int type)
+void __init pci_mmcfg_early_init(void)
 {
-	__pci_mmcfg_init(type, 1);
+	__pci_mmcfg_init(1);
 }
 
 void __init pci_mmcfg_late_init(void)
 {
-	int type = 0;
-
-	if (pci_probe & PCI_PROBE_CONF1)
-		type = 1;
-
-	__pci_mmcfg_init(type, 0);
+	__pci_mmcfg_init(0);
 }
 
 static int __init pci_mmcfg_late_insert_resources(void)
