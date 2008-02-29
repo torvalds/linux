@@ -937,7 +937,7 @@ static int dlm_send_join_cancels(struct dlm_ctxt *dlm,
 			 sizeof(unsigned long))) {
 		mlog(ML_ERROR,
 		     "map_size %u != BITS_TO_LONGS(O2NM_MAX_NODES) %u\n",
-		     map_size, BITS_TO_LONGS(O2NM_MAX_NODES));
+		     map_size, (unsigned)BITS_TO_LONGS(O2NM_MAX_NODES));
 		return -EINVAL;
 	}
 
