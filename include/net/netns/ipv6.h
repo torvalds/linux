@@ -36,5 +36,6 @@ struct netns_ipv6 {
 	struct xt_table		*ip6table_mangle;
 	struct xt_table		*ip6table_raw;
 #endif
+	struct sock		**icmp_sk;
 };
 #endif
