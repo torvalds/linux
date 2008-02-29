@@ -3042,7 +3042,7 @@ static int ocfs2_data_convert_worker(struct ocfs2_lock_res *lockres,
        	inode = ocfs2_lock_res_inode(lockres);
 	mapping = inode->i_mapping;
 
-	if (S_ISREG(inode->i_mode))
+	if (!S_ISREG(inode->i_mode))
 		goto out;
 
 	/*
