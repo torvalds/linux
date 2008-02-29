@@ -4,5 +4,7 @@ kconfig-language.txt
 	- specification of Config Language, the language in Kconfig files
 makefiles.txt
 	- developer information for linux kernel makefiles
+kconfig.txt
+	- usage help for make *config
 modules.txt
 	- how to build modules and to install them
