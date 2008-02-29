@@ -557,7 +557,7 @@ void mesh_rx_plink_frame(struct net_device *dev, struct ieee80211_mgmt *mgmt,
 
 	mpl_dbg("Mesh plink (peer, state, llid, plid, event): %s %d %d %d %d\n",
 			print_mac(mac, mgmt->sa), sta->plink_state,
-			__le16_to_cpu(sta->llid), __le16_to_cpu(sta->plid),
+			le16_to_cpu(sta->llid), le16_to_cpu(sta->plid),
 			event);
 	reason = 0;
 	switch (sta->plink_state) {

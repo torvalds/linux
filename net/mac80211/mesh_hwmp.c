@@ -449,9 +449,9 @@ static void hwmp_preq_frame_process(struct net_device *dev,
 		ttl = ifsta->mshcfg.dot11MeshTTL;
 		if (ttl != 0)
 			mesh_path_sel_frame_tx(MPATH_PREP, 0, dst_addr,
-				__cpu_to_le32(dst_dsn), 0, orig_addr,
-				__cpu_to_le32(orig_dsn), mgmt->sa, 0, ttl,
-				__cpu_to_le32(lifetime), __cpu_to_le32(metric),
+				cpu_to_le32(dst_dsn), 0, orig_addr,
+				cpu_to_le32(orig_dsn), mgmt->sa, 0, ttl,
+				cpu_to_le32(lifetime), cpu_to_le32(metric),
 				0, dev);
 		else
 			ifsta->mshstats.dropped_frames_ttl++;
@@ -472,10 +472,10 @@ static void hwmp_preq_frame_process(struct net_device *dev,
 		preq_id = PREQ_IE_PREQ_ID(preq_elem);
 		hopcount = PREQ_IE_HOPCOUNT(preq_elem) + 1;
 		mesh_path_sel_frame_tx(MPATH_PREQ, flags, orig_addr,
-				__cpu_to_le32(orig_dsn), dst_flags, dst_addr,
-				__cpu_to_le32(dst_dsn), dev->broadcast,
-				hopcount, ttl, __cpu_to_le32(lifetime),
-				__cpu_to_le32(metric), __cpu_to_le32(preq_id),
+				cpu_to_le32(orig_dsn), dst_flags, dst_addr,
+				cpu_to_le32(dst_dsn), dev->broadcast,
+				hopcount, ttl, cpu_to_le32(lifetime),
+				cpu_to_le32(metric), cpu_to_le32(preq_id),
 				dev);
 		ifsta->mshstats.fwded_frames++;
 	}
@@ -531,9 +531,9 @@ static void hwmp_prep_frame_process(struct net_device *dev,
 	orig_dsn = PREP_IE_ORIG_DSN(prep_elem);
 
 	mesh_path_sel_frame_tx(MPATH_PREP, flags, orig_addr,
-		__cpu_to_le32(orig_dsn), 0, dst_addr,
-		__cpu_to_le32(dst_dsn), mpath->next_hop->addr, hopcount, ttl,
-		__cpu_to_le32(lifetime), __cpu_to_le32(metric),
+		cpu_to_le32(orig_dsn), 0, dst_addr,
+		cpu_to_le32(dst_dsn), mpath->next_hop->addr, hopcount, ttl,
+		cpu_to_le32(lifetime), cpu_to_le32(metric),
 		0, dev);
 	rcu_read_unlock();
 	sdata->u.sta.mshstats.fwded_frames++;
@@ -566,7 +566,7 @@ static void hwmp_perr_frame_process(struct net_device *dev,
 			mpath->flags &= ~MESH_PATH_ACTIVE;
 			mpath->dsn = dst_dsn;
 			spin_unlock_bh(&mpath->state_lock);
-			mesh_path_error_tx(dst_addr, __cpu_to_le32(dst_dsn),
+			mesh_path_error_tx(dst_addr, cpu_to_le32(dst_dsn),
 					   dev->broadcast, dev);
 		} else
 			spin_unlock_bh(&mpath->state_lock);
@@ -745,10 +745,10 @@ void mesh_path_start_discovery(struct net_device *dev)
 
 	spin_unlock_bh(&mpath->state_lock);
 	mesh_path_sel_frame_tx(MPATH_PREQ, 0, dev->dev_addr,
-			__cpu_to_le32(ifsta->dsn), dst_flags, mpath->dst,
-			__cpu_to_le32(mpath->dsn), dev->broadcast, 0,
-			ttl, __cpu_to_le32(lifetime), 0,
-			__cpu_to_le32(ifsta->preq_id++), dev);
+			cpu_to_le32(ifsta->dsn), dst_flags, mpath->dst,
+			cpu_to_le32(mpath->dsn), dev->broadcast, 0,
+			ttl, cpu_to_le32(lifetime), 0,
+			cpu_to_le32(ifsta->preq_id++), dev);
 	mod_timer(&mpath->timer, jiffies + mpath->discovery_timeout);
 
 enddiscovery:
