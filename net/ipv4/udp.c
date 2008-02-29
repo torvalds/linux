@@ -1127,7 +1127,7 @@ static inline int udp4_csum_init(struct sk_buff *skb, struct udphdr *uh,
 	UDP_SKB_CB(skb)->partial_cov = 0;
 	UDP_SKB_CB(skb)->cscov = skb->len;
 
-	if (proto == IPPROTO_UDPLITE) {
+	if (IS_PROTO_UDPLITE(proto)) {
 		err = udplite_checksum_init(skb, uh);
 		if (err)
 			return err;
@@ -1175,7 +1175,7 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 	if (ulen > skb->len)
 		goto short_packet;
 
-	if (proto == IPPROTO_UDP) {
+	if (IS_PROTO_UDPLITE(proto)) {
 		/* UDP validates ulen. */
 		if (ulen < sizeof(*uh) || pskb_trim_rcsum(skb, ulen))
 			goto short_packet;
@@ -1217,7 +1217,7 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 	if (udp_lib_checksum_complete(skb))
 		goto csum_error;
 
-	UDP_INC_STATS_BH(UDP_MIB_NOPORTS, proto == IPPROTO_UDPLITE);
+	UDP_INC_STATS_BH(UDP_MIB_NOPORTS, IS_PROTO_UDPLITE(proto));
 	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
 
 	/*
@@ -1229,7 +1229,7 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 
 short_packet:
 	LIMIT_NETDEBUG(KERN_DEBUG "UDP%s: short packet: From %u.%u.%u.%u:%u %d/%d to %u.%u.%u.%u:%u\n",
-		       proto == IPPROTO_UDPLITE ? "-Lite" : "",
+		       IS_PROTO_UDPLITE(proto) ? "-Lite" : "",
 		       NIPQUAD(saddr),
 		       ntohs(uh->source),
 		       ulen,
@@ -1244,14 +1244,14 @@ csum_error:
 	 * the network is concerned, anyway) as per 4.1.3.4 (MUST).
 	 */
 	LIMIT_NETDEBUG(KERN_DEBUG "UDP%s: bad checksum. From %d.%d.%d.%d:%d to %d.%d.%d.%d:%d ulen %d\n",
-		       proto == IPPROTO_UDPLITE ? "-Lite" : "",
+		       IS_PROTO_UDPLITE(proto) ? "-Lite" : "",
 		       NIPQUAD(saddr),
 		       ntohs(uh->source),
 		       NIPQUAD(daddr),
 		       ntohs(uh->dest),
 		       ulen);
 drop:
-	UDP_INC_STATS_BH(UDP_MIB_INERRORS, proto == IPPROTO_UDPLITE);
+	UDP_INC_STATS_BH(UDP_MIB_INERRORS, IS_PROTO_UDPLITE(proto));
 	kfree_skb(skb);
 	return 0;
 }
@@ -1279,7 +1279,9 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 	struct udp_sock *up = udp_sk(sk);
 	int val;
 	int err = 0;
+#ifdef CONFIG_IP_UDPLITE
 	int is_udplite = IS_UDPLITE(sk);
+#endif
 
 	if (optlen<sizeof(int))
 		return -EINVAL;
@@ -1315,6 +1317,7 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 		}
 		break;
 
+#ifdef CONFIG_IP_UDPLITE
 	/*
 	 * 	UDP-Lite's partial checksum coverage (RFC 3828).
 	 */
@@ -1340,6 +1343,7 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 		up->pcrlen = val;
 		up->pcflag |= UDPLITE_RECV_CC;
 		break;
+#endif
 
 	default:
 		err = -ENOPROTOOPT;
@@ -1352,7 +1356,7 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 int udp_setsockopt(struct sock *sk, int level, int optname,
 		   char __user *optval, int optlen)
 {
-	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
+	if (IS_SOL_UDPFAMILY(level))
 		return udp_lib_setsockopt(sk, level, optname, optval, optlen,
 					  udp_push_pending_frames);
 	return ip_setsockopt(sk, level, optname, optval, optlen);
@@ -1362,7 +1366,7 @@ int udp_setsockopt(struct sock *sk, int level, int optname,
 int compat_udp_setsockopt(struct sock *sk, int level, int optname,
 			  char __user *optval, int optlen)
 {
-	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
+	if (IS_SOL_UDPFAMILY(level))
 		return udp_lib_setsockopt(sk, level, optname, optval, optlen,
 					  udp_push_pending_frames);
 	return compat_ip_setsockopt(sk, level, optname, optval, optlen);
@@ -1416,7 +1420,7 @@ int udp_lib_getsockopt(struct sock *sk, int level, int optname,
 int udp_getsockopt(struct sock *sk, int level, int optname,
 		   char __user *optval, int __user *optlen)
 {
-	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
+	if (IS_SOL_UDPFAMILY(level))
 		return udp_lib_getsockopt(sk, level, optname, optval, optlen);
 	return ip_getsockopt(sk, level, optname, optval, optlen);
 }
@@ -1425,7 +1429,7 @@ int udp_getsockopt(struct sock *sk, int level, int optname,
 int compat_udp_getsockopt(struct sock *sk, int level, int optname,
 				 char __user *optval, int __user *optlen)
 {
-	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
+	if (IS_SOL_UDPFAMILY(level))
 		return udp_lib_getsockopt(sk, level, optname, optval, optlen);
 	return compat_ip_getsockopt(sk, level, optname, optval, optlen);
 }

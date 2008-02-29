@@ -400,7 +400,7 @@ static inline int udp6_csum_init(struct sk_buff *skb, struct udphdr *uh,
 	UDP_SKB_CB(skb)->partial_cov = 0;
 	UDP_SKB_CB(skb)->cscov = skb->len;
 
-	if (proto == IPPROTO_UDPLITE) {
+	if (IS_PROTO_UDPLITE(proto)) {
 		err = udplite_checksum_init(skb, uh);
 		if (err)
 			return err;
@@ -489,7 +489,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 
 		if (udp_lib_checksum_complete(skb))
 			goto discard;
-		UDP6_INC_STATS_BH(UDP_MIB_NOPORTS, proto == IPPROTO_UDPLITE);
+		UDP6_INC_STATS_BH(UDP_MIB_NOPORTS, IS_PROTO_UDPLITE(proto));
 
 		icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0, dev);
 
@@ -510,11 +510,11 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 
 short_packet:
 	LIMIT_NETDEBUG(KERN_DEBUG "UDP%sv6: short packet: %d/%u\n",
-		       proto == IPPROTO_UDPLITE ? "-Lite" : "",
+		       IS_PROTO_UDPLITE(proto) ? "-Lite" : "",
 		       ulen, skb->len);
 
 discard:
-	UDP6_INC_STATS_BH(UDP_MIB_INERRORS, proto == IPPROTO_UDPLITE);
+	UDP6_INC_STATS_BH(UDP_MIB_INERRORS, IS_PROTO_UDPLITE(proto));
 	kfree_skb(skb);
 	return 0;
 }
@@ -890,7 +890,7 @@ int udpv6_destroy_sock(struct sock *sk)
 int udpv6_setsockopt(struct sock *sk, int level, int optname,
 		     char __user *optval, int optlen)
 {
-	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
+	if (IS_SOL_UDPFAMILY(level))
 		return udp_lib_setsockopt(sk, level, optname, optval, optlen,
 					  udp_v6_push_pending_frames);
 	return ipv6_setsockopt(sk, level, optname, optval, optlen);
@@ -900,7 +900,7 @@ int udpv6_setsockopt(struct sock *sk, int level, int optname,
 int compat_udpv6_setsockopt(struct sock *sk, int level, int optname,
 			    char __user *optval, int optlen)
 {
-	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
+	if (IS_SOL_UDPFAMILY(level))
 		return udp_lib_setsockopt(sk, level, optname, optval, optlen,
 					  udp_v6_push_pending_frames);
 	return compat_ipv6_setsockopt(sk, level, optname, optval, optlen);
@@ -910,7 +910,7 @@ int compat_udpv6_setsockopt(struct sock *sk, int level, int optname,
 int udpv6_getsockopt(struct sock *sk, int level, int optname,
 		     char __user *optval, int __user *optlen)
 {
-	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
+	if (IS_SOL_UDPFAMILY(level))
 		return udp_lib_getsockopt(sk, level, optname, optval, optlen);
 	return ipv6_getsockopt(sk, level, optname, optval, optlen);
 }
@@ -919,7 +919,7 @@ int udpv6_getsockopt(struct sock *sk, int level, int optname,
 int compat_udpv6_getsockopt(struct sock *sk, int level, int optname,
 			    char __user *optval, int __user *optlen)
 {
-	if (level == SOL_UDP  ||  level == SOL_UDPLITE)
+	if (IS_SOL_UDPFAMILY(level))
 		return udp_lib_getsockopt(sk, level, optname, optval, optlen);
 	return compat_ipv6_getsockopt(sk, level, optname, optval, optlen);
 }

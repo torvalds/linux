@@ -632,5 +632,15 @@ config TCP_MD5SIG
 
 	  If unsure, say N.
 
+config IP_UDPLITE
+	bool "IP: UDP-Lite Protocol (RFC 3828)"
+	default n
+	---help---
+	  UDP-Lite (RFC 3828) is a UDP-like protocol with variable-length
+	  checksum.  Read <file:Documentation/networking/udplite.txt> for
+	  details.
+
+	  If unsure, say N.
+
 source "net/ipv4/ipvs/Kconfig"
 

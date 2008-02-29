@@ -239,7 +239,9 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			struct sk_buff *pktopt;
 
 			if (sk->sk_protocol != IPPROTO_UDP &&
+#ifdef CONFIG_IP_UDPLITE
 			    sk->sk_protocol != IPPROTO_UDPLITE &&
+#endif
 			    sk->sk_protocol != IPPROTO_TCP)
 				break;
 
@@ -279,7 +281,7 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			} else {
 				struct proto *prot = &udp_prot;
 
-				if (sk->sk_protocol == IPPROTO_UDPLITE)
+				if (IS_PROTO_UDPLITE(sk->sk_protocol))
 					prot = &udplite_prot;
 				local_bh_disable();
 				sock_prot_inuse_add(sk->sk_prot, -1);
@@ -844,7 +846,9 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 	switch (optname) {
 	case IPV6_ADDRFORM:
 		if (sk->sk_protocol != IPPROTO_UDP &&
+#ifdef CONFIG_IP_UDPLITE
 		    sk->sk_protocol != IPPROTO_UDPLITE &&
+#endif
 		    sk->sk_protocol != IPPROTO_TCP)
 			return -EINVAL;
 		if (sk->sk_state != TCP_ESTABLISHED)
