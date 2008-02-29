@@ -80,8 +80,8 @@ EXPORT_SYMBOL(icmpv6msg_statistics);
  *
  *	On SMP we have one ICMP socket per-cpu.
  */
-static DEFINE_PER_CPU(struct sock *, __icmpv6_sk) = NULL;
-#define icmpv6_sk	__get_cpu_var(__icmpv6_sk)
+static struct sock **__icmpv6_sk = NULL;
+#define icmpv6_sk	(__icmpv6_sk[smp_processor_id()])
 
 static int icmpv6_rcv(struct sk_buff *skb);
 
@@ -785,6 +785,10 @@ int __init icmpv6_init(void)
 	struct sock *sk;
 	int err, i, j;
 
+	__icmpv6_sk = kzalloc(nr_cpu_ids * sizeof(struct sock *), GFP_KERNEL);
+	if (__icmpv6_sk == NULL)
+		return -ENOMEM;
+
 	for_each_possible_cpu(i) {
 		struct socket *sock;
 		err = sock_create_kern(PF_INET6, SOCK_RAW, IPPROTO_ICMPV6,
@@ -797,7 +801,7 @@ int __init icmpv6_init(void)
 			goto fail;
 		}
 
-		per_cpu(__icmpv6_sk, i) = sk = sock->sk;
+		__icmpv6_sk[i] = sk = sock->sk;
 		sk->sk_allocation = GFP_ATOMIC;
 		/*
 		 * Split off their lock-class, because sk->sk_dst_lock
@@ -830,7 +834,7 @@ int __init icmpv6_init(void)
 	for (j = 0; j < i; j++) {
 		if (!cpu_possible(j))
 			continue;
-		sock_release(per_cpu(__icmpv6_sk, j)->sk_socket);
+		sock_release(__icmpv6_sk[j]->sk_socket);
 	}
 
 	return err;
@@ -841,7 +845,7 @@ void icmpv6_cleanup(void)
 	int i;
 
 	for_each_possible_cpu(i) {
-		sock_release(per_cpu(__icmpv6_sk, i)->sk_socket);
+		sock_release(__icmpv6_sk[i]->sk_socket);
 	}
 	inet6_del_protocol(&icmpv6_protocol, IPPROTO_ICMPV6);
 }

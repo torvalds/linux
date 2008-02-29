@@ -229,8 +229,8 @@ static const struct icmp_control icmp_pointers[NR_ICMP_TYPES+1];
  *
  *	On SMP we have one ICMP socket per-cpu.
  */
-static DEFINE_PER_CPU(struct sock *, __icmp_sk) = NULL;
-#define icmp_sk		__get_cpu_var(__icmp_sk)
+static struct sock **__icmp_sk = NULL;
+#define icmp_sk		(__icmp_sk[smp_processor_id()])
 
 static inline int icmp_xmit_lock(struct sock *sk)
 {
@@ -1149,17 +1149,22 @@ static void __exit icmp_exit(void)
 	for_each_possible_cpu(i) {
 		struct sock *sk;
 
-		sk = per_cpu(__icmp_sk, i);
+		sk = __icmp_sk[i];
 		if (sk == NULL)
 			continue;
-		per_cpu(__icmp_sk, i) = NULL;
 		sock_release(sk->sk_socket);
 	}
+	kfree(__icmp_sk);
+	__icmp_sk = NULL;
 }
 
 int __init icmp_init(void)
 {
 	int i, err;
+
+	__icmp_sk = kzalloc(nr_cpu_ids * sizeof(struct sock *), GFP_KERNEL);
+	if (__icmp_sk == NULL)
+		return -ENOMEM;
 
 	for_each_possible_cpu(i) {
 		struct sock *sk;
@@ -1170,7 +1175,7 @@ int __init icmp_init(void)
 		if (err < 0)
 			goto fail;
 
-		per_cpu(__icmp_sk, i) = sk = sock->sk;
+		__icmp_sk[i] = sk = sock->sk;
 		sk->sk_allocation = GFP_ATOMIC;
 
 		/* Enough space for 2 64K ICMP packets, including
