@@ -2741,7 +2741,8 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 	neigh_path[NEIGH_CTL_PATH_PROTO].procname = p_name;
 	neigh_path[NEIGH_CTL_PATH_PROTO].ctl_name = p_id;
 
-	t->sysctl_header = register_sysctl_paths(neigh_path, t->neigh_vars);
+	t->sysctl_header =
+		register_net_sysctl_table(p->net, neigh_path, t->neigh_vars);
 	if (!t->sysctl_header)
 		goto free_procname;
 
