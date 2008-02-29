@@ -3016,11 +3016,15 @@ static int stac92xx_init(struct hda_codec *codec)
 					? STAC_HP_EVENT : STAC_PWR_EVENT;
 		int pinctl = snd_hda_codec_read(codec, spec->pwr_nids[i],
 					0, AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+		int def_conf = snd_hda_codec_read(codec, spec->pwr_nids[i],
+					0, AC_VERB_GET_CONFIG_DEFAULT, 0);
 		/* outputs are only ports capable of power management
 		 * any attempts on powering down a input port cause the
 		 * referenced VREF to act quirky.
 		 */
 		if (pinctl & AC_PINCTL_IN_EN)
+			continue;
+		if (get_defcfg_connect(def_conf) != AC_JACK_PORT_FIXED)
 			continue;
 		enable_pin_detect(codec, spec->pwr_nids[i], event | i);
 		codec->patch_ops.unsol_event(codec, (event | i) << 26);
