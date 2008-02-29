@@ -802,6 +802,8 @@ int __init icmpv6_init(void)
 		}
 
 		__icmpv6_sk[i] = sk = sock->sk;
+		sk_change_net(sk, &init_net);
+
 		sk->sk_allocation = GFP_ATOMIC;
 		/*
 		 * Split off their lock-class, because sk->sk_dst_lock
@@ -831,11 +833,8 @@ int __init icmpv6_init(void)
 	return 0;
 
  fail:
-	for (j = 0; j < i; j++) {
-		if (!cpu_possible(j))
-			continue;
-		sock_release(__icmpv6_sk[j]->sk_socket);
-	}
+	for (j = 0; j < i; j++)
+		sk_release_kernel(__icmpv6_sk[j]);
 
 	return err;
 }
@@ -845,7 +844,7 @@ void icmpv6_cleanup(void)
 	int i;
 
 	for_each_possible_cpu(i) {
-		sock_release(__icmpv6_sk[i]->sk_socket);
+		sk_release_kernel(__icmpv6_sk[i]);
 	}
 	inet6_del_protocol(&icmpv6_protocol, IPPROTO_ICMPV6);
 }

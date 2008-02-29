@@ -1146,14 +1146,8 @@ static void __exit icmp_exit(void)
 {
 	int i;
 
-	for_each_possible_cpu(i) {
-		struct sock *sk;
-
-		sk = __icmp_sk[i];
-		if (sk == NULL)
-			continue;
-		sock_release(sk->sk_socket);
-	}
+	for_each_possible_cpu(i)
+		sk_release_kernel(__icmp_sk[i]);
 	kfree(__icmp_sk);
 	__icmp_sk = NULL;
 }
@@ -1176,6 +1170,8 @@ int __init icmp_init(void)
 			goto fail;
 
 		__icmp_sk[i] = sk = sock->sk;
+		sk_change_net(sk, &init_net);
+
 		sk->sk_allocation = GFP_ATOMIC;
 
 		/* Enough space for 2 64K ICMP packets, including
