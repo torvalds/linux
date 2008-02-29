@@ -8381,10 +8381,34 @@ static u64 cpuusage_read(struct cgroup *cgrp, struct cftype *cft)
 	return totalcpuusage;
 }
 
+static int cpuusage_write(struct cgroup *cgrp, struct cftype *cftype,
+								u64 reset)
+{
+	struct cpuacct *ca = cgroup_ca(cgrp);
+	int err = 0;
+	int i;
+
+	if (reset) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	for_each_possible_cpu(i) {
+		u64 *cpuusage = percpu_ptr(ca->cpuusage, i);
+
+		spin_lock_irq(&cpu_rq(i)->lock);
+		*cpuusage = 0;
+		spin_unlock_irq(&cpu_rq(i)->lock);
+	}
+out:
+	return err;
+}
+
 static struct cftype files[] = {
 	{
 		.name = "usage",
 		.read_uint = cpuusage_read,
+		.write_uint = cpuusage_write,
 	},
 };
 
