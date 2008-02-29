@@ -412,7 +412,7 @@ static void snd_emu_proc_emu1010_reg_read(struct snd_info_entry *entry,
 				     struct snd_info_buffer *buffer)
 {
 	struct snd_emu10k1 *emu = entry->private_data;
-	int value;
+	u32 value;
 	unsigned long flags;
 	int i;
 	snd_iprintf(buffer, "EMU1010 Registers:\n\n");
