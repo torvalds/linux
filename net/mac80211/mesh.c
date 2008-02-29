@@ -48,11 +48,6 @@ bool mesh_matches_local(struct ieee802_11_elems *ie, struct net_device *dev)
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_if_sta *sta = &sdata->u.sta;
 
-	if (sta->mesh_id_len == ie->mesh_id_len &&
-		memcmp(sta->mesh_id, ie->mesh_id, ie->mesh_id_len) == 0 &&
-		memcmp(sta->mesh_pp_id, ie->mesh_config + PP_OFFSET, 4) == 0 &&
-		memcmp(sta->mesh_pm_id, ie->mesh_config + PM_OFFSET, 4) == 0 &&
-		memcmp(sta->mesh_cc_id, ie->mesh_config + CC_OFFSET, 4) == 0)
 	/*
 	 * As support for each feature is added, check for matching
 	 * - On mesh config capabilities
@@ -63,6 +58,11 @@ bool mesh_matches_local(struct ieee802_11_elems *ie, struct net_device *dev)
 	 *   - MDA enabled
 	 * - Power management control on fc
 	 */
+	if (sta->mesh_id_len == ie->mesh_id_len &&
+		memcmp(sta->mesh_id, ie->mesh_id, ie->mesh_id_len) == 0 &&
+		memcmp(sta->mesh_pp_id, ie->mesh_config + PP_OFFSET, 4) == 0 &&
+		memcmp(sta->mesh_pm_id, ie->mesh_config + PM_OFFSET, 4) == 0 &&
+		memcmp(sta->mesh_cc_id, ie->mesh_config + CC_OFFSET, 4) == 0)
 		return true;
 
 	return false;
