@@ -3511,6 +3511,9 @@ static int bond_inetaddr_event(struct notifier_block *this, unsigned long event,
 	struct bonding *bond, *bond_next;
 	struct vlan_entry *vlan, *vlan_next;
 
+	if (ifa->ifa_dev->dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	list_for_each_entry_safe(bond, bond_next, &bond_dev_list, bond_list) {
 		if (bond->dev == event_dev) {
 			switch (event) {

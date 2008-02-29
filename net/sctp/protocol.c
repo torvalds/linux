@@ -629,6 +629,9 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
 	struct sctp_sockaddr_entry *addr = NULL;
 	struct sctp_sockaddr_entry *temp;
 
+	if (ifa->ifa_dev->dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	switch (ev) {
 	case NETDEV_UP:
 		addr = kmalloc(sizeof(struct sctp_sockaddr_entry), GFP_ATOMIC);

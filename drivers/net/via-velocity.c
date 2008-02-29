@@ -3464,6 +3464,9 @@ static int velocity_netdev_event(struct notifier_block *nb, unsigned long notifi
 	struct velocity_info *vptr;
 	unsigned long flags;
 
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	spin_lock_irqsave(&velocity_dev_list_lock, flags);
 	list_for_each_entry(vptr, &velocity_dev_list, list) {
 		if (vptr->dev == dev) {
