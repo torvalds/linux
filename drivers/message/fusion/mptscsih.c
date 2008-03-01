@@ -1533,7 +1533,7 @@ mptscsih_freeChainBuffers(MPT_ADAPTER *ioc, int req_idx)
  *
  *	Remark: Currently invoked from a non-interrupt thread (_bh).
  *
- *	Remark: With old EH code, at most 1 SCSI TaskMgmt function per IOC
+ *	Note: With old EH code, at most 1 SCSI TaskMgmt function per IOC
  *	will be active.
  *
  *	Returns 0 for SUCCESS, or %FAILED.
@@ -2537,14 +2537,12 @@ mptscsih_copy_sense_data(struct scsi_cmnd *sc, MPT_SCSI_HOST *hd, MPT_FRAME_HDR 
 
 /**
  * mptscsih_get_scsi_lookup
- *
- * retrieves scmd entry from ScsiLookup[] array list
- *
  * @ioc: Pointer to MPT_ADAPTER structure
  * @i: index into the array
  *
- * Returns the scsi_cmd pointer
+ * retrieves scmd entry from ScsiLookup[] array list
  *
+ * Returns the scsi_cmd pointer
  **/
 static struct scsi_cmnd *
 mptscsih_get_scsi_lookup(MPT_ADAPTER *ioc, int i)
@@ -2561,14 +2559,12 @@ mptscsih_get_scsi_lookup(MPT_ADAPTER *ioc, int i)
 
 /**
  * mptscsih_getclear_scsi_lookup
- *
- * retrieves and clears scmd entry from ScsiLookup[] array list
- *
  * @ioc: Pointer to MPT_ADAPTER structure
  * @i: index into the array
  *
- * Returns the scsi_cmd pointer
+ * retrieves and clears scmd entry from ScsiLookup[] array list
  *
+ * Returns the scsi_cmd pointer
  **/
 static struct scsi_cmnd *
 mptscsih_getclear_scsi_lookup(MPT_ADAPTER *ioc, int i)
