@@ -1537,20 +1537,18 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe, struct dvbfe_pa
 
 	u32 SearchRange, gain;
 
+	i_params->freq	= params->frequency;
 	switch (state->delsys) {
 	case DVBFE_DELSYS_DVBS:
 		dprintk(verbose, FE_ERROR, 1, "set DVB-S params");
-		i_params->freq	= params->frequency;
 		i_params->srate	= params->delsys.dvbs.symbol_rate;
 		break;
 	case DVBFE_DELSYS_DSS:
 		dprintk(verbose, FE_ERROR, 1, "set DSS params");
-		i_params->freq	= params->frequency;
 		i_params->srate	= params->delsys.dss.symbol_rate;
 		break;
 	case DVBFE_DELSYS_DVBS2:
 		dprintk(verbose, FE_ERROR, 1, "set DVB-S2 params");
-		i_params->freq	= params->frequency;
 		i_params->srate	= params->delsys.dvbs2.symbol_rate;
 		break;
 	default:
