@@ -291,32 +291,15 @@ static inline struct kmem_cache_cpu *get_cpu_slab(struct kmem_cache *s, int cpu)
 #endif
 }
 
-/*
- * The end pointer in a slab is special. It points to the first object in the
- * slab but has bit 0 set to mark it.
- *
- * Note that SLUB relies on page_mapping returning NULL for pages with bit 0
- * in the mapping set.
- */
-static inline int is_end(void *addr)
-{
-	return (unsigned long)addr & PAGE_MAPPING_ANON;
-}
-
-static void *slab_address(struct page *page)
-{
-	return page->end - PAGE_MAPPING_ANON;
-}
-
 static inline int check_valid_pointer(struct kmem_cache *s,
 				struct page *page, const void *object)
 {
 	void *base;
 
-	if (object == page->end)
+	if (!object)
 		return 1;
 
-	base = slab_address(page);
+	base = page_address(page);
 	if (object < base || object >= base + s->objects * s->size ||
 		(object - base) % s->size) {
 		return 0;
@@ -349,8 +332,7 @@ static inline void set_freepointer(struct kmem_cache *s, void *object, void *fp)
 
 /* Scan freelist */
 #define for_each_free_object(__p, __s, __free) \
-	for (__p = (__free); (__p) != page->end; __p = get_freepointer((__s),\
-		__p))
+	for (__p = (__free); __p; __p = get_freepointer((__s), __p))
 
 /* Determine object index from a given position */
 static inline int slab_index(void *p, struct kmem_cache *s, void *addr)
@@ -502,7 +484,7 @@ static void slab_fix(struct kmem_cache *s, char *fmt, ...)
 static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
 {
 	unsigned int off;	/* Offset of last byte */
-	u8 *addr = slab_address(page);
+	u8 *addr = page_address(page);
 
 	print_tracking(s, p);
 
@@ -680,7 +662,7 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
 	if (!(s->flags & SLAB_POISON))
 		return 1;
 
-	start = slab_address(page);
+	start = page_address(page);
 	end = start + (PAGE_SIZE << s->order);
 	length = s->objects * s->size;
 	remainder = end - (start + length);
@@ -748,7 +730,7 @@ static int check_object(struct kmem_cache *s, struct page *page,
 		 * of the free objects in this slab. May cause
 		 * another error because the object count is now wrong.
 		 */
-		set_freepointer(s, p, page->end);
+		set_freepointer(s, p, NULL);
 		return 0;
 	}
 	return 1;
@@ -782,18 +764,18 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
 	void *fp = page->freelist;
 	void *object = NULL;
 
-	while (fp != page->end && nr <= s->objects) {
+	while (fp && nr <= s->objects) {
 		if (fp == search)
 			return 1;
 		if (!check_valid_pointer(s, page, fp)) {
 			if (object) {
 				object_err(s, page, object,
 					"Freechain corrupt");
-				set_freepointer(s, object, page->end);
+				set_freepointer(s, object, NULL);
 				break;
 			} else {
 				slab_err(s, page, "Freepointer corrupt");
-				page->freelist = page->end;
+				page->freelist = NULL;
 				page->inuse = s->objects;
 				slab_fix(s, "Freelist cleared");
 				return 0;
@@ -899,7 +881,7 @@ bad:
 		 */
 		slab_fix(s, "Marking all objects used");
 		page->inuse = s->objects;
-		page->freelist = page->end;
+		page->freelist = NULL;
 	}
 	return 0;
 }
@@ -939,7 +921,7 @@ static int free_debug_processing(struct kmem_cache *s, struct page *page,
 	}
 
 	/* Special debug activities for freeing objects */
-	if (!SlabFrozen(page) && page->freelist == page->end)
+	if (!SlabFrozen(page) && !page->freelist)
 		remove_full(s, page);
 	if (s->flags & SLAB_STORE_USER)
 		set_track(s, object, TRACK_FREE, addr);
@@ -1124,7 +1106,6 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 		SetSlabDebug(page);
 
 	start = page_address(page);
-	page->end = start + 1;
 
 	if (unlikely(s->flags & SLAB_POISON))
 		memset(start, POISON_INUSE, PAGE_SIZE << s->order);
@@ -1136,7 +1117,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 		last = p;
 	}
 	setup_object(s, page, last);
-	set_freepointer(s, last, page->end);
+	set_freepointer(s, last, NULL);
 
 	page->freelist = start;
 	page->inuse = 0;
@@ -1152,7 +1133,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 		void *p;
 
 		slab_pad_check(s, page);
-		for_each_object(p, s, slab_address(page))
+		for_each_object(p, s, page_address(page))
 			check_object(s, page, p, 0);
 		ClearSlabDebug(page);
 	}
@@ -1162,7 +1143,6 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
 		-pages);
 
-	page->mapping = NULL;
 	__free_pages(page, s->order);
 }
 
@@ -1366,7 +1346,7 @@ static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
 	ClearSlabFrozen(page);
 	if (page->inuse) {
 
-		if (page->freelist != page->end) {
+		if (page->freelist) {
 			add_partial(n, page, tail);
 			stat(c, tail ? DEACTIVATE_TO_TAIL : DEACTIVATE_TO_HEAD);
 		} else {
@@ -1410,12 +1390,8 @@ static void deactivate_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
 	 * Merge cpu freelist into freelist. Typically we get here
 	 * because both freelists are empty. So this is unlikely
 	 * to occur.
-	 *
-	 * We need to use _is_end here because deactivate slab may
-	 * be called for a debug slab. Then c->freelist may contain
-	 * a dummy pointer.
 	 */
-	while (unlikely(!is_end(c->freelist))) {
+	while (unlikely(c->freelist)) {
 		void **object;
 
 		tail = 0;	/* Hot objects. Put the slab first */
@@ -1517,7 +1493,7 @@ static void *__slab_alloc(struct kmem_cache *s,
 	stat(c, ALLOC_REFILL);
 load_freelist:
 	object = c->page->freelist;
-	if (unlikely(object == c->page->end))
+	if (unlikely(!object))
 		goto another_slab;
 	if (unlikely(SlabDebug(c->page)))
 		goto debug;
@@ -1525,7 +1501,7 @@ load_freelist:
 	object = c->page->freelist;
 	c->freelist = object[c->offset];
 	c->page->inuse = s->objects;
-	c->page->freelist = c->page->end;
+	c->page->freelist = NULL;
 	c->node = page_to_nid(c->page);
 unlock_out:
 	slab_unlock(c->page);
@@ -1607,7 +1583,7 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 
 	local_irq_save(flags);
 	c = get_cpu_slab(s, smp_processor_id());
-	if (unlikely(is_end(c->freelist) || !node_match(c, node)))
+	if (unlikely(!c->freelist || !node_match(c, node)))
 
 		object = __slab_alloc(s, gfpflags, node, addr, c);
 
@@ -1677,7 +1653,7 @@ checks_ok:
 	 * was not on the partial list before
 	 * then add it.
 	 */
-	if (unlikely(prior == page->end)) {
+	if (unlikely(!prior)) {
 		add_partial(get_node(s, page_to_nid(page)), page, 1);
 		stat(c, FREE_ADD_PARTIAL);
 	}
@@ -1687,7 +1663,7 @@ out_unlock:
 	return;
 
 slab_empty:
-	if (prior != page->end) {
+	if (prior) {
 		/*
 		 * Slab still on the partial list.
 		 */
@@ -1910,7 +1886,7 @@ static void init_kmem_cache_cpu(struct kmem_cache *s,
 			struct kmem_cache_cpu *c)
 {
 	c->page = NULL;
-	c->freelist = (void *)PAGE_MAPPING_ANON;
+	c->freelist = NULL;
 	c->node = 0;
 	c->offset = s->offset / sizeof(void *);
 	c->objsize = s->objsize;
@@ -3199,7 +3175,7 @@ static int validate_slab(struct kmem_cache *s, struct page *page,
 						unsigned long *map)
 {
 	void *p;
-	void *addr = slab_address(page);
+	void *addr = page_address(page);
 
 	if (!check_slab(s, page) ||
 			!on_freelist(s, page, NULL))
@@ -3482,7 +3458,7 @@ static int add_location(struct loc_track *t, struct kmem_cache *s,
 static void process_slab(struct loc_track *t, struct kmem_cache *s,
 		struct page *page, enum track_item alloc)
 {
-	void *addr = slab_address(page);
+	void *addr = page_address(page);
 	DECLARE_BITMAP(map, s->objects);
 	void *p;
 
