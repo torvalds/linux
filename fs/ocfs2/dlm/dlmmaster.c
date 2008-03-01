@@ -2933,6 +2933,9 @@ static void dlm_remove_nonlocal_locks(struct dlm_ctxt *dlm,
 				dlm_lockres_clear_refmap_bit(lock->ml.node, res);
 				list_del_init(&lock->list);
 				dlm_lock_put(lock);
+				/* In a normal unlock, we would have added a
+				 * DLM_UNLOCK_FREE_LOCK action. Force it. */
+				dlm_lock_put(lock);
 			}
 		}
 		queue++;

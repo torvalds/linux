@@ -2130,10 +2130,15 @@ static void dlm_free_dead_locks(struct dlm_ctxt *dlm,
 	assert_spin_locked(&dlm->spinlock);
 	assert_spin_locked(&res->spinlock);
 
+	/* We do two dlm_lock_put(). One for removing from list and the other is
+	 * to force the DLM_UNLOCK_FREE_LOCK action so as to free the locks */
+
 	/* TODO: check pending_asts, pending_basts here */
 	list_for_each_entry_safe(lock, next, &res->granted, list) {
 		if (lock->ml.node == dead_node) {
 			list_del_init(&lock->list);
+			dlm_lock_put(lock);
+			/* Can't schedule DLM_UNLOCK_FREE_LOCK - do manually */
 			dlm_lock_put(lock);
 			freed++;
 		}
@@ -2142,12 +2147,16 @@ static void dlm_free_dead_locks(struct dlm_ctxt *dlm,
 		if (lock->ml.node == dead_node) {
 			list_del_init(&lock->list);
 			dlm_lock_put(lock);
+			/* Can't schedule DLM_UNLOCK_FREE_LOCK - do manually */
+			dlm_lock_put(lock);
 			freed++;
 		}
 	}
 	list_for_each_entry_safe(lock, next, &res->blocked, list) {
 		if (lock->ml.node == dead_node) {
 			list_del_init(&lock->list);
+			dlm_lock_put(lock);
+			/* Can't schedule DLM_UNLOCK_FREE_LOCK - do manually */
 			dlm_lock_put(lock);
 			freed++;
 		}
