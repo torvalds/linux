@@ -1694,11 +1694,16 @@ void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
 	u8 *rbuf;
 	unsigned int buflen, rc;
 	struct scsi_cmnd *cmd = args->cmd;
+	unsigned long flags;
+
+	local_irq_save(flags);
 
 	buflen = ata_scsi_rbuf_get(cmd, &rbuf);
 	memset(rbuf, 0, buflen);
 	rc = actor(args, rbuf, buflen);
 	ata_scsi_rbuf_put(cmd, rbuf);
+
+	local_irq_restore(flags);
 
 	if (rc == 0)
 		cmd->result = SAM_STAT_GOOD;
@@ -2473,6 +2478,9 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
 		if ((scsicmd[0] == INQUIRY) && ((scsicmd[1] & 0x03) == 0)) {
 			u8 *buf = NULL;
 			unsigned int buflen;
+			unsigned long flags;
+
+			local_irq_save(flags);
 
 			buflen = ata_scsi_rbuf_get(cmd, &buf);
 
@@ -2490,6 +2498,8 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
 			}
 
 			ata_scsi_rbuf_put(cmd, buf);
+
+			local_irq_restore(flags);
 		}
 
 		cmd->result = SAM_STAT_GOOD;
