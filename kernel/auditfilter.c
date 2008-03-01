@@ -28,6 +28,7 @@
 #include <linux/netlink.h>
 #include <linux/sched.h>
 #include <linux/inotify.h>
+#include <linux/security.h>
 #include <linux/selinux.h>
 #include "audit.h"
 
@@ -1515,11 +1516,12 @@ static void audit_log_rule_change(uid_t loginuid, u32 sid, char *action,
 	if (sid) {
 		char *ctx = NULL;
 		u32 len;
-		if (selinux_sid_to_string(sid, &ctx, &len))
+		if (security_secid_to_secctx(sid, &ctx, &len))
 			audit_log_format(ab, " ssid=%u", sid);
-		else
+		else {
 			audit_log_format(ab, " subj=%s", ctx);
-		kfree(ctx);
+			security_release_secctx(ctx, len);
+		}
 	}
 	audit_log_format(ab, " op=%s rule key=", action);
 	if (rule->filterkey)
