@@ -2054,6 +2054,35 @@ static const struct fw_card_driver ohci_driver = {
 	.stop_iso		= ohci_stop_iso,
 };
 
+#ifdef CONFIG_PPC_PMAC
+static void ohci_pmac_on(struct pci_dev *dev)
+{
+	if (machine_is(powermac)) {
+		struct device_node *ofn = pci_device_to_OF_node(dev);
+
+		if (ofn) {
+			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, ofn, 0, 1);
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 1);
+		}
+	}
+}
+
+static void ohci_pmac_off(struct pci_dev *dev)
+{
+	if (machine_is(powermac)) {
+		struct device_node *ofn = pci_device_to_OF_node(dev);
+
+		if (ofn) {
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 0);
+			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, ofn, 0, 0);
+		}
+	}
+}
+#else
+#define ohci_pmac_on(dev)
+#define ohci_pmac_off(dev)
+#endif /* CONFIG_PPC_PMAC */
+
 static int __devinit
 pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 {
@@ -2063,17 +2092,7 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	int err;
 	size_t size;
 
-#ifdef CONFIG_PPC_PMAC
-	/* Necessary on some machines if fw-ohci was loaded/ unloaded before */
-	if (machine_is(powermac)) {
-		struct device_node *ofn = pci_device_to_OF_node(dev);
-
-		if (ofn) {
-			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, ofn, 0, 1);
-			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 1);
-		}
-	}
-#endif /* CONFIG_PPC_PMAC */
+	ohci_pmac_on(dev);
 
 	ohci = kzalloc(sizeof(*ohci), GFP_KERNEL);
 	if (ohci == NULL) {
@@ -2212,75 +2231,41 @@ static void pci_remove(struct pci_dev *dev)
 	pci_release_region(dev, 0);
 	pci_disable_device(dev);
 	kfree(&ohci->card);
-
-#ifdef CONFIG_PPC_PMAC
-	/* On UniNorth, power down the cable and turn off the chip clock
-	 * to save power on laptops */
-	if (machine_is(powermac)) {
-		struct device_node *ofn = pci_device_to_OF_node(dev);
-
-		if (ofn) {
-			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 0);
-			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, ofn, 0, 0);
-		}
-	}
-#endif /* CONFIG_PPC_PMAC */
+	ohci_pmac_off(dev);
 
 	fw_notify("Removed fw-ohci device.\n");
 }
 
 #ifdef CONFIG_PM
-static int pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int pci_suspend(struct pci_dev *dev, pm_message_t state)
 {
-	struct fw_ohci *ohci = pci_get_drvdata(pdev);
+	struct fw_ohci *ohci = pci_get_drvdata(dev);
 	int err;
 
 	software_reset(ohci);
-	free_irq(pdev->irq, ohci);
-	err = pci_save_state(pdev);
+	free_irq(dev->irq, ohci);
+	err = pci_save_state(dev);
 	if (err) {
 		fw_error("pci_save_state failed\n");
 		return err;
 	}
-	err = pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	err = pci_set_power_state(dev, pci_choose_state(dev, state));
 	if (err)
 		fw_error("pci_set_power_state failed with %d\n", err);
-
-/* PowerMac suspend code comes last */
-#ifdef CONFIG_PPC_PMAC
-	if (machine_is(powermac)) {
-		struct device_node *ofn = pci_device_to_OF_node(pdev);
-
-		if (ofn) {
-			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 0);
-			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, ofn, 0, 0);
-		}
-	}
-#endif /* CONFIG_PPC_PMAC */
+	ohci_pmac_off(dev);
 
 	return 0;
 }
 
-static int pci_resume(struct pci_dev *pdev)
+static int pci_resume(struct pci_dev *dev)
 {
-	struct fw_ohci *ohci = pci_get_drvdata(pdev);
+	struct fw_ohci *ohci = pci_get_drvdata(dev);
 	int err;
 
-/* PowerMac resume code comes first */
-#ifdef CONFIG_PPC_PMAC
-	if (machine_is(powermac)) {
-		struct device_node *ofn = pci_device_to_OF_node(pdev);
-
-		if (ofn) {
-			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, ofn, 0, 1);
-			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 1);
-		}
-	}
-#endif /* CONFIG_PPC_PMAC */
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	err = pci_enable_device(pdev);
+	ohci_pmac_on(dev);
+	pci_set_power_state(dev, PCI_D0);
+	pci_restore_state(dev);
+	err = pci_enable_device(dev);
 	if (err) {
 		fw_error("pci_enable_device failed\n");
 		return err;
