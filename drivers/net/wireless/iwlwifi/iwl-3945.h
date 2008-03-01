@@ -800,7 +800,6 @@ struct iwl3945_priv {
 	struct iwl3945_tx_queue txq[IWL_MAX_NUM_QUEUES];
 
 	unsigned long status;
-	u32 config;
 
 	int last_rx_rssi;	/* From Rx packet statisitics */
 	int last_rx_noise;	/* From beacon statistics */

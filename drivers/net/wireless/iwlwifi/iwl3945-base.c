@@ -4506,8 +4506,7 @@ static void iwl3945_dump_nic_error_log(struct iwl3945_priv *priv)
 
 	if (ERROR_START_OFFSET <= count * ERROR_ELEM_SIZE) {
 		IWL_ERROR("Start IWL Error Log Dump:\n");
-		IWL_ERROR("Status: 0x%08lX, Config: %08X count: %d\n",
-			  priv->status, priv->config, count);
+		IWL_ERROR("Status: 0x%08lX, count: %d\n", priv->status, count);
 	}
 
 	IWL_ERROR("Desc       Time       asrtPC  blink2 "

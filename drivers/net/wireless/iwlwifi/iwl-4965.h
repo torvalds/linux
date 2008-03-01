@@ -1104,7 +1104,6 @@ struct iwl4965_priv {
 	u32 scd_base_addr;	/* scheduler sram base address */
 
 	unsigned long status;
-	u32 config;
 
 	int last_rx_rssi;	/* From Rx packet statisitics */
 	int last_rx_noise;	/* From beacon statistics */

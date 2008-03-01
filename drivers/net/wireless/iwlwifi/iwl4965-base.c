@@ -4886,8 +4886,7 @@ static void iwl4965_dump_nic_error_log(struct iwl4965_priv *priv)
 
 	if (ERROR_START_OFFSET <= count * ERROR_ELEM_SIZE) {
 		IWL_ERROR("Start IWL Error Log Dump:\n");
-		IWL_ERROR("Status: 0x%08lX, Config: %08X count: %d\n",
-			  priv->status, priv->config, count);
+		IWL_ERROR("Status: 0x%08lX, count: %d\n", priv->status, count);
 	}
 
 	desc = iwl4965_read_targ_mem(priv, base + 1 * sizeof(u32));
