@@ -838,9 +838,6 @@ static int ibmvstgt_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	if (!shost)
 		goto free_vport;
 	shost->transportt = ibmvstgt_transport_template;
-	err = scsi_tgt_alloc_queue(shost);
-	if (err)
-		goto put_host;
 
 	target = host_to_srp_target(shost);
 	target->shost = shost;
@@ -869,6 +866,10 @@ static int ibmvstgt_probe(struct vio_dev *dev, const struct vio_device_id *id)
 		goto free_srp_target;
 
 	err = scsi_add_host(shost, target->dev);
+	if (err)
+		goto destroy_queue;
+
+	err = scsi_tgt_alloc_queue(shost);
 	if (err)
 		goto destroy_queue;
 
