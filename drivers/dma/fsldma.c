@@ -685,7 +685,6 @@ static irqreturn_t fsl_dma_chan_do_interrupt(int irq, void *data)
 				"nlndar 0x%016llx\n", (u64)get_cdar(fsl_chan),
 				(u64)get_ndar(fsl_chan));
 		stat &= ~FSL_DMA_SR_EOSI;
-		fsl_chan_ld_cleanup(fsl_chan);
 	}
 
 	/* If it current transfer is the end-of-transfer,
