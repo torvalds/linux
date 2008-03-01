@@ -36,8 +36,8 @@ struct iwl3945_rate_info {
 	u8 next_rs;		/* next rate used in rs algo */
 	u8 prev_rs_tgg;		/* previous rate used in TGG rs algo */
 	u8 next_rs_tgg;		/* next rate used in TGG rs algo */
-        u8 table_rs_index;	/* index in rate scale table cmd */
-        u8 prev_table_rs;	/* prev in rate table cmd */
+	u8 table_rs_index;	/* index in rate scale table cmd */
+	u8 prev_table_rs;	/* prev in rate table cmd */
 };
 
 /*

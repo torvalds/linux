@@ -5118,11 +5118,12 @@ static int iwl3945_init_channel_map(struct iwl3945_priv *priv)
 			ch_info->scan_power = eeprom_ch_info[ch].max_power_avg;
 			ch_info->min_power = 0;
 
-			IWL_DEBUG_INFO("Ch. %d [%sGHz] %s%s%s%s%s%s(0x%02x"
+			IWL_DEBUG_INFO("Ch. %d [%sGHz] %s%s%s%s%s%s%s(0x%02x"
 				       " %ddBm): Ad-Hoc %ssupported\n",
 				       ch_info->channel,
 				       is_channel_a_band(ch_info) ?
 				       "5.2" : "2.4",
+				       CHECK_AND_PRINT(VALID),
 				       CHECK_AND_PRINT(IBSS),
 				       CHECK_AND_PRINT(ACTIVE),
 				       CHECK_AND_PRINT(RADAR),
@@ -5332,7 +5333,7 @@ static void iwl3945_init_hw_rates(struct iwl3945_priv *priv,
 static int iwl3945_init_geos(struct iwl3945_priv *priv)
 {
 	struct iwl3945_channel_info *ch;
-	struct ieee80211_supported_band *band;
+	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *channels;
 	struct ieee80211_channel *geo_ch;
 	struct ieee80211_rate *rates;
@@ -5350,7 +5351,7 @@ static int iwl3945_init_geos(struct iwl3945_priv *priv)
 	if (!channels)
 		return -ENOMEM;
 
-	rates = kzalloc((sizeof(struct ieee80211_rate) * (IWL_MAX_RATES + 1)),
+	rates = kzalloc((sizeof(struct ieee80211_rate) * (IWL_RATE_COUNT + 1)),
 			GFP_KERNEL);
 	if (!rates) {
 		kfree(channels);
@@ -5358,38 +5359,38 @@ static int iwl3945_init_geos(struct iwl3945_priv *priv)
 	}
 
 	/* 5.2GHz channels start after the 2.4GHz channels */
-	band = &priv->bands[IEEE80211_BAND_5GHZ];
-	band->channels = &channels[ARRAY_SIZE(iwl3945_eeprom_band_1)];
-	band->bitrates = &rates[4];
-	band->n_bitrates = 8;	/* just OFDM */
+	sband = &priv->bands[IEEE80211_BAND_5GHZ];
+	sband->channels = &channels[ARRAY_SIZE(iwl3945_eeprom_band_1)];
+	/* just OFDM */
+	sband->bitrates = &rates[IWL_FIRST_OFDM_RATE];
+	sband->n_bitrates = IWL_RATE_COUNT - IWL_FIRST_OFDM_RATE;
 
-	band = &priv->bands[IEEE80211_BAND_2GHZ];
-	band->channels = channels;
-	band->bitrates = rates;
-	band->n_bitrates = 12;	/* OFDM & CCK */
+	sband = &priv->bands[IEEE80211_BAND_2GHZ];
+	sband->channels = channels;
+	/* OFDM & CCK */
+	sband->bitrates = rates;
+	sband->n_bitrates = IWL_RATE_COUNT;
 
 	priv->ieee_channels = channels;
 	priv->ieee_rates = rates;
 
 	iwl3945_init_hw_rates(priv, rates);
 
-	for (i = 0, geo_ch = channels; i < priv->channel_count; i++) {
+	for (i = 0;  i < priv->channel_count; i++) {
 		ch = &priv->channel_info[i];
 
-		if (!is_channel_valid(ch)) {
-			IWL_DEBUG_INFO("Channel %d [%sGHz] is restricted -- "
-				    "skipping.\n",
-				    ch->channel, is_channel_a_band(ch) ?
-				    "5.2" : "2.4");
+		/* FIXME: might be removed if scan is OK*/
+		if (!is_channel_valid(ch))
 			continue;
-		}
 
 		if (is_channel_a_band(ch))
-			geo_ch = &priv->bands[IEEE80211_BAND_5GHZ].channels[priv->bands[IEEE80211_BAND_5GHZ].n_channels++];
+			sband =  &priv->bands[IEEE80211_BAND_5GHZ];
 		else
-			geo_ch = &priv->bands[IEEE80211_BAND_2GHZ].channels[priv->bands[IEEE80211_BAND_2GHZ].n_channels++];
+			sband =  &priv->bands[IEEE80211_BAND_2GHZ];
 
-		geo_ch->center_freq = ieee80211chan2mhz(ch->channel);
+		geo_ch = &sband->channels[sband->n_channels++];
+
+		geo_ch->center_freq = ieee80211_channel_to_frequency(ch->channel);
 		geo_ch->max_power = ch->max_power_avg;
 		geo_ch->max_antenna_gain = 0xff;
 		geo_ch->hw_value = ch->channel;
@@ -5407,8 +5408,19 @@ static int iwl3945_init_geos(struct iwl3945_priv *priv)
 			if (ch->max_power_avg > priv->max_channel_txpower_limit)
 				priv->max_channel_txpower_limit =
 				    ch->max_power_avg;
-		} else
+		} else {
 			geo_ch->flags |= IEEE80211_CHAN_DISABLED;
+		}
+
+		/* Save flags for reg domain usage */
+		geo_ch->orig_flags = geo_ch->flags;
+
+		IWL_DEBUG_INFO("Channel %d Freq=%d[%sGHz] %s flag=0%X\n",
+				ch->channel, geo_ch->center_freq,
+				is_channel_a_band(ch) ?  "5.2" : "2.4",
+				geo_ch->flags & IEEE80211_CHAN_DISABLED ?
+				"restricted" : "valid",
+				 geo_ch->flags);
 	}
 
 	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) && priv->is_abg) {
