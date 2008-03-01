@@ -1120,3 +1120,28 @@ int security_key_permission(key_ref_t key_ref,
 }
 
 #endif	/* CONFIG_KEYS */
+
+#ifdef CONFIG_AUDIT
+
+int security_audit_rule_init(u32 field, u32 op, char *rulestr, void **lsmrule)
+{
+	return security_ops->audit_rule_init(field, op, rulestr, lsmrule);
+}
+
+int security_audit_rule_known(struct audit_krule *krule)
+{
+	return security_ops->audit_rule_known(krule);
+}
+
+void security_audit_rule_free(void *lsmrule)
+{
+	security_ops->audit_rule_free(lsmrule);
+}
+
+int security_audit_rule_match(u32 secid, u32 field, u32 op, void *lsmrule,
+			      struct audit_context *actx)
+{
+	return security_ops->audit_rule_match(secid, field, op, lsmrule, actx);
+}
+
+#endif /* CONFIG_AUDIT */

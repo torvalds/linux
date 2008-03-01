@@ -37,6 +37,7 @@
 extern unsigned securebits;
 
 struct ctl_table;
+struct audit_krule;
 
 /*
  * These functions are in security/capability.c and are used
@@ -1235,6 +1236,37 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@secdata contains the security context.
  *	@seclen contains the length of the security context.
  *
+ * Security hooks for Audit
+ *
+ * @audit_rule_init:
+ *	Allocate and initialize an LSM audit rule structure.
+ *	@field contains the required Audit action. Fields flags are defined in include/linux/audit.h
+ *	@op contains the operator the rule uses.
+ *	@rulestr contains the context where the rule will be applied to.
+ *	@lsmrule contains a pointer to receive the result.
+ *	Return 0 if @lsmrule has been successfully set,
+ *	-EINVAL in case of an invalid rule.
+ *
+ * @audit_rule_known:
+ *	Specifies whether given @rule contains any fields related to current LSM.
+ *	@rule contains the audit rule of interest.
+ *	Return 1 in case of relation found, 0 otherwise.
+ *
+ * @audit_rule_match:
+ *	Determine if given @secid matches a rule previously approved
+ *	by @audit_rule_known.
+ *	@secid contains the security id in question.
+ *	@field contains the field which relates to current LSM.
+ *	@op contains the operator that will be used for matching.
+ *	@rule points to the audit rule that will be checked against.
+ *	@actx points to the audit context associated with the check.
+ *	Return 1 if secid matches the rule, 0 if it does not, -ERRNO on failure.
+ *
+ * @audit_rule_free:
+ *	Deallocate the LSM audit rule structure previously allocated by
+ *	audit_rule_init.
+ *	@rule contains the allocated rule
+ *
  * This is the main security structure.
  */
 struct security_operations {
@@ -1494,6 +1526,13 @@ struct security_operations {
 
 #endif	/* CONFIG_KEYS */
 
+#ifdef CONFIG_AUDIT
+	int (*audit_rule_init)(u32 field, u32 op, char *rulestr, void **lsmrule);
+	int (*audit_rule_known)(struct audit_krule *krule);
+	int (*audit_rule_match)(u32 secid, u32 field, u32 op, void *lsmrule,
+				struct audit_context *actx);
+	void (*audit_rule_free)(void *lsmrule);
+#endif /* CONFIG_AUDIT */
 };
 
 /* prototypes */
@@ -2699,6 +2738,39 @@ static inline int security_key_permission(key_ref_t key_ref,
 
 #endif
 #endif /* CONFIG_KEYS */
+
+#ifdef CONFIG_AUDIT
+#ifdef CONFIG_SECURITY
+int security_audit_rule_init(u32 field, u32 op, char *rulestr, void **lsmrule);
+int security_audit_rule_known(struct audit_krule *krule);
+int security_audit_rule_match(u32 secid, u32 field, u32 op, void *lsmrule,
+			      struct audit_context *actx);
+void security_audit_rule_free(void *lsmrule);
+
+#else
+
+static inline int security_audit_rule_init(u32 field, u32 op, char *rulestr,
+					   void **lsmrule)
+{
+	return 0;
+}
+
+static inline int security_audit_rule_known(struct audit_krule *krule)
+{
+	return 0;
+}
+
+static inline int security_audit_rule_match(u32 secid, u32 field, u32 op,
+				   void *lsmrule, struct audit_context *actx)
+{
+	return 0;
+}
+
+static inline void security_audit_rule_free(void *lsmrule)
+{ }
+
+#endif /* CONFIG_SECURITY */
+#endif /* CONFIG_AUDIT */
 
 #endif /* ! __LINUX_SECURITY_H */
 

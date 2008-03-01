@@ -993,6 +993,30 @@ static inline int dummy_key_permission(key_ref_t key_ref,
 }
 #endif /* CONFIG_KEYS */
 
+#ifdef CONFIG_AUDIT
+static inline int dummy_audit_rule_init(u32 field, u32 op, char *rulestr,
+					void **lsmrule)
+{
+	return 0;
+}
+
+static inline int dummy_audit_rule_known(struct audit_krule *krule)
+{
+	return 0;
+}
+
+static inline int dummy_audit_rule_match(u32 secid, u32 field, u32 op,
+					 void *lsmrule,
+					 struct audit_context *actx)
+{
+	return 0;
+}
+
+static inline void dummy_audit_rule_free(void *lsmrule)
+{ }
+
+#endif /* CONFIG_AUDIT */
+
 struct security_operations dummy_security_ops;
 
 #define set_to_dummy_if_null(ops, function)				\
@@ -1182,6 +1206,11 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, key_free);
 	set_to_dummy_if_null(ops, key_permission);
 #endif	/* CONFIG_KEYS */
-
+#ifdef CONFIG_AUDIT
+	set_to_dummy_if_null(ops, audit_rule_init);
+	set_to_dummy_if_null(ops, audit_rule_known);
+	set_to_dummy_if_null(ops, audit_rule_match);
+	set_to_dummy_if_null(ops, audit_rule_free);
+#endif
 }
 
