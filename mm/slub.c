@@ -2592,13 +2592,24 @@ void *__kmalloc(size_t size, gfp_t flags)
 }
 EXPORT_SYMBOL(__kmalloc);
 
+static void *kmalloc_large_node(size_t size, gfp_t flags, int node)
+{
+	struct page *page = alloc_pages_node(node, flags | __GFP_COMP,
+						get_order(size));
+
+	if (page)
+		return page_address(page);
+	else
+		return NULL;
+}
+
 #ifdef CONFIG_NUMA
 void *__kmalloc_node(size_t size, gfp_t flags, int node)
 {
 	struct kmem_cache *s;
 
 	if (unlikely(size > PAGE_SIZE))
-		return kmalloc_large(size, flags);
+		return kmalloc_large_node(size, flags, node);
 
 	s = get_slab(size, flags);
 
@@ -3146,7 +3157,7 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 	struct kmem_cache *s;
 
 	if (unlikely(size > PAGE_SIZE))
-		return kmalloc_large(size, gfpflags);
+		return kmalloc_large_node(size, gfpflags, node);
 
 	s = get_slab(size, gfpflags);
 
