@@ -83,6 +83,7 @@
 #include "netport.h"
 #include "xfrm.h"
 #include "netlabel.h"
+#include "audit.h"
 
 #define XATTR_SELINUX_SUFFIX "selinux"
 #define XATTR_NAME_SELINUX XATTR_SECURITY_PREFIX XATTR_SELINUX_SUFFIX
@@ -5477,6 +5478,13 @@ static struct security_operations selinux_ops = {
 	.key_alloc =                    selinux_key_alloc,
 	.key_free =                     selinux_key_free,
 	.key_permission =               selinux_key_permission,
+#endif
+
+#ifdef CONFIG_AUDIT
+	.audit_rule_init =		selinux_audit_rule_init,
+	.audit_rule_known =		selinux_audit_rule_known,
+	.audit_rule_match =		selinux_audit_rule_match,
+	.audit_rule_free =		selinux_audit_rule_free,
 #endif
 };
 
