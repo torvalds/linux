@@ -523,6 +523,11 @@ int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer
 	return security_ops->inode_listsecurity(inode, buffer, buffer_size);
 }
 
+void security_inode_getsecid(const struct inode *inode, u32 *secid)
+{
+	security_ops->inode_getsecid(inode, secid);
+}
+
 int security_file_permission(struct file *file, int mask)
 {
 	return security_ops->file_permission(file, mask);
@@ -710,6 +715,11 @@ void security_task_to_inode(struct task_struct *p, struct inode *inode)
 int security_ipc_permission(struct kern_ipc_perm *ipcp, short flag)
 {
 	return security_ops->ipc_permission(ipcp, flag);
+}
+
+void security_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid)
+{
+	security_ops->ipc_getsecid(ipcp, secid);
 }
 
 int security_msg_msg_alloc(struct msg_msg *msg)
