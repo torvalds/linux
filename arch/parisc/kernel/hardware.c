@@ -274,6 +274,7 @@ static struct hp_hardware hp_hardware_list[] __devinitdata = {
 	{HPHW_NPROC,0x887,0x4,0x91,"Storm Peak Slow"},
 	{HPHW_NPROC,0x888,0x4,0x91,"Storm Peak Fast DC-"},
 	{HPHW_NPROC,0x889,0x4,0x91,"Storm Peak Fast"},
+	{HPHW_NPROC,0x88A,0x4,0x91,"Crestone Peak Slow"},
 	{HPHW_NPROC,0x88C,0x4,0x91,"Orca Mako+"},
 	{HPHW_NPROC,0x88D,0x4,0x91,"Rainier/Medel Mako+ Slow"},
 	{HPHW_NPROC,0x88E,0x4,0x91,"Rainier/Medel Mako+ Fast"},
