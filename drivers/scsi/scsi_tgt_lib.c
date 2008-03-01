@@ -381,6 +381,11 @@ static int scsi_map_user_pages(struct scsi_tgt_cmd *tcmd, struct scsi_cmnd *cmd,
 		scsi_release_buffers(cmd);
 		goto unmap_rq;
 	}
+	/*
+	 * we use REQ_TYPE_BLOCK_PC so scsi_init_io doesn't set the
+	 * length for us.
+	 */
+	cmd->sdb.length = rq->data_len;
 
 	return 0;
 
