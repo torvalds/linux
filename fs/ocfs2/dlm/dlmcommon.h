@@ -176,6 +176,7 @@ struct dlm_mig_lockres_priv
 {
 	struct dlm_lock_resource *lockres;
 	u8 real_master;
+	u8 extra_ref;
 };
 
 struct dlm_assert_master_priv
