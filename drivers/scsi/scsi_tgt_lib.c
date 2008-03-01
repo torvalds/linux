@@ -103,7 +103,6 @@ struct scsi_cmnd *scsi_host_get_command(struct Scsi_Host *shost,
 	if (!cmd)
 		goto release_rq;
 
-	memset(cmd, 0, sizeof(*cmd));
 	cmd->sc_data_direction = data_dir;
 	cmd->jiffies_at_alloc = jiffies;
 	cmd->request = rq;
