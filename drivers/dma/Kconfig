@@ -4,7 +4,7 @@
 
 menuconfig DMADEVICES
 	bool "DMA Engine support"
-	depends on (PCI && X86) || ARCH_IOP32X || ARCH_IOP33X || ARCH_IOP13XX
+	depends on (PCI && X86) || ARCH_IOP32X || ARCH_IOP33X || ARCH_IOP13XX || PPC
 	depends on !HIGHMEM64G
 	help
 	  DMA engines can do asynchronous data transfers without
@@ -36,6 +36,23 @@ config INTEL_IOP_ADMA
 	select DMA_ENGINE
 	help
 	  Enable support for the Intel(R) IOP Series RAID engines.
+
+config FSL_DMA
+	bool "Freescale MPC85xx/MPC83xx DMA support"
+	depends on PPC
+	select DMA_ENGINE
+	---help---
+	  Enable support for the Freescale DMA engine. Now, it support
+	  MPC8560/40, MPC8555, MPC8548 and MPC8641 processors.
+	  The MPC8349, MPC8360 is also supported.
+
+config FSL_DMA_SELFTEST
+	bool "Enable the self test for each DMA channel"
+	depends on FSL_DMA
+	default y
+	---help---
+	  Enable the self test for each DMA channel. A self test will be
+	  performed after the channel probed to ensure the DMA works well.
 
 config DMA_ENGINE
 	bool
