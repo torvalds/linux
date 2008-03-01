@@ -627,8 +627,7 @@ repeat:
 }
 
 /**
- * sync_mapping_buffers - write out and wait upon a mapping's "associated"
- *                        buffers
+ * sync_mapping_buffers - write out & wait upon a mapping's "associated" buffers
  * @mapping: the mapping which wants those buffers written
  *
  * Starts I/O against the buffers at mapping->private_list, and waits upon
