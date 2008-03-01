@@ -385,15 +385,60 @@ unsigned long __init find_max_low_pfn(void)
 	return max_low_pfn;
 }
 
+#define BIOS_EBDA_SEGMENT 0x40E
+#define BIOS_LOWMEM_KILOBYTES 0x413
+
 /*
- * workaround for Dell systems that neglect to reserve EBDA
+ * The BIOS places the EBDA/XBDA at the top of conventional
+ * memory, and usually decreases the reported amount of
+ * conventional memory (int 0x12) too. This also contains a
+ * workaround for Dell systems that neglect to reserve EBDA.
+ * The same workaround also avoids a problem with the AMD768MPX
+ * chipset: reserve a page before VGA to prevent PCI prefetch
+ * into it (errata #56). Usually the page is reserved anyways,
+ * unless you have no PS/2 mouse plugged in.
  */
 static void __init reserve_ebda_region(void)
 {
-	unsigned int addr;
-	addr = get_bios_ebda();
-	if (addr)
-		reserve_bootmem(addr, PAGE_SIZE, BOOTMEM_DEFAULT);
+	unsigned int lowmem, ebda_addr;
+
+	/* To determine the position of the EBDA and the */
+	/* end of conventional memory, we need to look at */
+	/* the BIOS data area. In a paravirtual environment */
+	/* that area is absent. We'll just have to assume */
+	/* that the paravirt case can handle memory setup */
+	/* correctly, without our help. */
+#ifdef CONFIG_PARAVIRT
+	if ((boot_params.hdr.version >= 0x207) &&
+			(boot_params.hdr.hardware_subarch != 0)) {
+		return;
+	}
+#endif
+
+	/* end of low (conventional) memory */
+	lowmem = *(unsigned short *)__va(BIOS_LOWMEM_KILOBYTES);
+	lowmem <<= 10;
+
+	/* start of EBDA area */
+	ebda_addr = *(unsigned short *)__va(BIOS_EBDA_SEGMENT);
+	ebda_addr <<= 4;
+
+	/* Fixup: bios puts an EBDA in the top 64K segment */
+	/* of conventional memory, but does not adjust lowmem. */
+	if ((lowmem - ebda_addr) <= 0x10000)
+		lowmem = ebda_addr;
+
+	/* Fixup: bios does not report an EBDA at all. */
+	/* Some old Dells seem to need 4k anyhow (bugzilla 2990) */
+	if ((ebda_addr == 0) && (lowmem >= 0x9f000))
+		lowmem = 0x9f000;
+
+	/* Paranoia: should never happen, but... */
+	if ((lowmem == 0) || (lowmem >= 0x100000))
+		lowmem = 0x9f000;
+
+	/* reserve all memory between lowmem and the 1MB mark */
+	reserve_bootmem(lowmem, 0x100000 - lowmem, BOOTMEM_DEFAULT);
 }
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
@@ -617,15 +662,8 @@ void __init setup_bootmem_allocator(void)
 	 */
 	reserve_bootmem(0, PAGE_SIZE, BOOTMEM_DEFAULT);
 
-	/* reserve EBDA region, it's a 4K region */
+	/* reserve EBDA region */
 	reserve_ebda_region();
-
-    /* could be an AMD 768MPX chipset. Reserve a page  before VGA to prevent
-       PCI prefetch into it (errata #56). Usually the page is reserved anyways,
-       unless you have no PS/2 mouse plugged in. */
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
-	    boot_cpu_data.x86 == 6)
-	     reserve_bootmem(0xa0000 - 4096, 4096, BOOTMEM_DEFAULT);
 
 #ifdef CONFIG_SMP
 	/*
