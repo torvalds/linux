@@ -174,6 +174,9 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 {
 	int idx, defkey;
 
+	if (new)
+		list_add(&new->list, &sdata->key_list);
+
 	if (sta) {
 		rcu_assign_pointer(sta->key, new);
 	} else {
@@ -190,9 +193,6 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 			ieee80211_set_default_key(sdata, -1);
 
 		rcu_assign_pointer(sdata->keys[idx], new);
-		if (new)
-			list_add(&new->list, &sdata->key_list);
-
 		if (defkey && new)
 			ieee80211_set_default_key(sdata, new->conf.keyidx);
 	}
