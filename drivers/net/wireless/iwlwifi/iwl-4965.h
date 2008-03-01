@@ -633,16 +633,6 @@ extern int iwl4965_is_network_packet(struct iwl4965_priv *priv,
 				 struct ieee80211_hdr *header);
 extern int iwl4965_power_init_handle(struct iwl4965_priv *priv);
 extern int iwl4965_eeprom_init(struct iwl4965_priv *priv);
-#ifdef CONFIG_IWL4965_DEBUG
-extern void iwl4965_report_frame(struct iwl4965_priv *priv,
-			     struct iwl4965_rx_packet *pkt,
-			     struct ieee80211_hdr *header, int group100);
-#else
-static inline void iwl4965_report_frame(struct iwl4965_priv *priv,
-				    struct iwl4965_rx_packet *pkt,
-				    struct ieee80211_hdr *header,
-				    int group100) {}
-#endif
 extern void iwl4965_handle_data_packet_monitor(struct iwl4965_priv *priv,
 					   struct iwl4965_rx_mem_buffer *rxb,
 					   void *data, short len,

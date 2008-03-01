@@ -162,17 +162,6 @@ static const char *iwl3945_escape_essid(const char *essid, u8 essid_len)
 	return escaped;
 }
 
-static void iwl3945_print_hex_dump(int level, void *p, u32 len)
-{
-#ifdef CONFIG_IWL3945_DEBUG
-	if (!(iwl3945_debug_level & level))
-		return;
-
-	print_hex_dump(KERN_DEBUG, "iwl data: ", DUMP_PREFIX_OFFSET, 16, 1,
-			p, len, 1);
-#endif
-}
-
 /*************** DMA-QUEUE-GENERAL-FUNCTIONS  *****
  * DMA services
  *
@@ -1629,151 +1618,6 @@ int iwl3945_eeprom_init(struct iwl3945_priv *priv)
 
 	return 0;
 }
-
-/******************************************************************************
- *
- * Misc. internal state and helper functions
- *
- ******************************************************************************/
-#ifdef CONFIG_IWL3945_DEBUG
-
-/**
- * iwl3945_report_frame - dump frame to syslog during debug sessions
- *
- * You may hack this function to show different aspects of received frames,
- * including selective frame dumps.
- * group100 parameter selects whether to show 1 out of 100 good frames.
- */
-void iwl3945_report_frame(struct iwl3945_priv *priv,
-		      struct iwl3945_rx_packet *pkt,
-		      struct ieee80211_hdr *header, int group100)
-{
-	u32 to_us;
-	u32 print_summary = 0;
-	u32 print_dump = 0;	/* set to 1 to dump all frames' contents */
-	u32 hundred = 0;
-	u32 dataframe = 0;
-	u16 fc;
-	u16 seq_ctl;
-	u16 channel;
-	u16 phy_flags;
-	int rate_sym;
-	u16 length;
-	u16 status;
-	u16 bcn_tmr;
-	u32 tsf_low;
-	u64 tsf;
-	u8 rssi;
-	u8 agc;
-	u16 sig_avg;
-	u16 noise_diff;
-	struct iwl3945_rx_frame_stats *rx_stats = IWL_RX_STATS(pkt);
-	struct iwl3945_rx_frame_hdr *rx_hdr = IWL_RX_HDR(pkt);
-	struct iwl3945_rx_frame_end *rx_end = IWL_RX_END(pkt);
-	u8 *data = IWL_RX_DATA(pkt);
-
-	/* MAC header */
-	fc = le16_to_cpu(header->frame_control);
-	seq_ctl = le16_to_cpu(header->seq_ctrl);
-
-	/* metadata */
-	channel = le16_to_cpu(rx_hdr->channel);
-	phy_flags = le16_to_cpu(rx_hdr->phy_flags);
-	rate_sym = rx_hdr->rate;
-	length = le16_to_cpu(rx_hdr->len);
-
-	/* end-of-frame status and timestamp */
-	status = le32_to_cpu(rx_end->status);
-	bcn_tmr = le32_to_cpu(rx_end->beacon_timestamp);
-	tsf_low = le64_to_cpu(rx_end->timestamp) & 0x0ffffffff;
-	tsf = le64_to_cpu(rx_end->timestamp);
-
-	/* signal statistics */
-	rssi = rx_stats->rssi;
-	agc = rx_stats->agc;
-	sig_avg = le16_to_cpu(rx_stats->sig_avg);
-	noise_diff = le16_to_cpu(rx_stats->noise_diff);
-
-	to_us = !compare_ether_addr(header->addr1, priv->mac_addr);
-
-	/* if data frame is to us and all is good,
-	 *   (optionally) print summary for only 1 out of every 100 */
-	if (to_us && (fc & ~IEEE80211_FCTL_PROTECTED) ==
-	    (IEEE80211_FCTL_FROMDS | IEEE80211_FTYPE_DATA)) {
-		dataframe = 1;
-		if (!group100)
-			print_summary = 1;	/* print each frame */
-		else if (priv->framecnt_to_us < 100) {
-			priv->framecnt_to_us++;
-			print_summary = 0;
-		} else {
-			priv->framecnt_to_us = 0;
-			print_summary = 1;
-			hundred = 1;
-		}
-	} else {
-		/* print summary for all other frames */
-		print_summary = 1;
-	}
-
-	if (print_summary) {
-		char *title;
-		u32 rate;
-
-		if (hundred)
-			title = "100Frames";
-		else if (fc & IEEE80211_FCTL_RETRY)
-			title = "Retry";
-		else if (ieee80211_is_assoc_response(fc))
-			title = "AscRsp";
-		else if (ieee80211_is_reassoc_response(fc))
-			title = "RasRsp";
-		else if (ieee80211_is_probe_response(fc)) {
-			title = "PrbRsp";
-			print_dump = 1;	/* dump frame contents */
-		} else if (ieee80211_is_beacon(fc)) {
-			title = "Beacon";
-			print_dump = 1;	/* dump frame contents */
-		} else if (ieee80211_is_atim(fc))
-			title = "ATIM";
-		else if (ieee80211_is_auth(fc))
-			title = "Auth";
-		else if (ieee80211_is_deauth(fc))
-			title = "DeAuth";
-		else if (ieee80211_is_disassoc(fc))
-			title = "DisAssoc";
-		else
-			title = "Frame";
-
-		rate = iwl3945_rate_index_from_plcp(rate_sym);
-		if (rate == -1)
-			rate = 0;
-		else
-			rate = iwl3945_rates[rate].ieee / 2;
-
-		/* print frame summary.
-		 * MAC addresses show just the last byte (for brevity),
-		 *    but you can hack it to show more, if you'd like to. */
-		if (dataframe)
-			IWL_DEBUG_RX("%s: mhd=0x%04x, dst=0x%02x, "
-				     "len=%u, rssi=%d, chnl=%d, rate=%u, \n",
-				     title, fc, header->addr1[5],
-				     length, rssi, channel, rate);
-		else {
-			/* src/dst addresses assume managed mode */
-			IWL_DEBUG_RX("%s: 0x%04x, dst=0x%02x, "
-				     "src=0x%02x, rssi=%u, tim=%lu usec, "
-				     "phy=0x%02x, chnl=%d\n",
-				     title, fc, header->addr1[5],
-				     header->addr3[5], rssi,
-				     tsf_low - priv->scan_start_tsf,
-				     phy_flags, channel);
-		}
-	}
-	if (print_dump)
-		iwl3945_print_hex_dump(IWL_DL_RX, data, length);
-}
-#endif
 
 static void iwl3945_unset_hw_setting(struct iwl3945_priv *priv)
 {
@@ -7895,31 +7739,6 @@ static DEVICE_ATTR(measurement, S_IRUSR | S_IWUSR,
 		   show_measurement, store_measurement);
 #endif /* CONFIG_IWL3945_SPECTRUM_MEASUREMENT */
 
-static ssize_t show_rate(struct device *d,
-			 struct device_attribute *attr, char *buf)
-{
-	struct iwl3945_priv *priv = dev_get_drvdata(d);
-	unsigned long flags;
-	int i;
-
-	spin_lock_irqsave(&priv->sta_lock, flags);
-	if (priv->iw_mode == IEEE80211_IF_TYPE_STA)
-		i = priv->stations[IWL_AP_ID].current_rate.s.rate;
-	else
-		i = priv->stations[IWL_STA_ID].current_rate.s.rate;
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
-
-	i = iwl3945_rate_index_from_plcp(i);
-	if (i == -1)
-		return sprintf(buf, "0\n");
-
-	return sprintf(buf, "%d%s\n",
-		       (iwl3945_rates[i].ieee >> 1),
-		       (iwl3945_rates[i].ieee & 0x1) ? ".5" : "");
-}
-
-static DEVICE_ATTR(rate, S_IRUSR, show_rate, NULL);
-
 static ssize_t store_retry_rate(struct device *d,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
@@ -8210,7 +8029,6 @@ static struct attribute *iwl3945_sysfs_entries[] = {
 	&dev_attr_measurement.attr,
 #endif
 	&dev_attr_power_level.attr,
-	&dev_attr_rate.attr,
 	&dev_attr_retry_rate.attr,
 	&dev_attr_rf_kill.attr,
 	&dev_attr_rs_window.attr,

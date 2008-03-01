@@ -558,16 +558,6 @@ extern int iwl3945_is_network_packet(struct iwl3945_priv *priv,
 				 struct ieee80211_hdr *header);
 extern int iwl3945_power_init_handle(struct iwl3945_priv *priv);
 extern int iwl3945_eeprom_init(struct iwl3945_priv *priv);
-#ifdef CONFIG_IWL3945_DEBUG
-extern void iwl3945_report_frame(struct iwl3945_priv *priv,
-			     struct iwl3945_rx_packet *pkt,
-			     struct ieee80211_hdr *header, int group100);
-#else
-static inline void iwl3945_report_frame(struct iwl3945_priv *priv,
-				    struct iwl3945_rx_packet *pkt,
-				    struct ieee80211_hdr *header,
-				    int group100) {}
-#endif
 extern void iwl3945_handle_data_packet_monitor(struct iwl3945_priv *priv,
 					   struct iwl3945_rx_mem_buffer *rxb,
 					   void *data, short len,
@@ -947,16 +937,6 @@ static inline int is_channel_passive(const struct iwl3945_channel_info *ch)
 static inline int is_channel_ibss(const struct iwl3945_channel_info *ch)
 {
 	return ((ch->flags & EEPROM_CHANNEL_IBSS)) ? 1 : 0;
-}
-
-static inline int iwl3945_rate_index_from_plcp(int plcp)
-{
-	int i;
-
-	for (i = 0; i < IWL_RATE_COUNT; i++)
-		if (iwl3945_rates[i].plcp == plcp)
-			return i;
-	return -1;
 }
 
 extern const struct iwl3945_channel_info *iwl3945_get_channel_info(

@@ -570,7 +570,7 @@ static int rs_get_tbl_info_from_mcs(const struct iwl4965_rate *mcs_rate,
 	int index;
 	u32 ant_msk;
 
-	index = iwl4965_rate_index_from_plcp(mcs_rate->rate_n_flags);
+	index = iwl4965_hwrate_to_plcp_idx(mcs_rate->rate_n_flags);
 
 	if (index  == IWL_RATE_INVALID) {
 		*rate_idx = -1;
@@ -1921,7 +1921,7 @@ static void rs_rate_scale_perform(struct iwl4965_priv *priv,
 			tbl = &(lq_sta->lq_info[active_tbl]);
 
 			/* Revert to "active" rate and throughput info */
-			index = iwl4965_rate_index_from_plcp(
+			index = iwl4965_hwrate_to_plcp_idx(
 				tbl->current_rate.rate_n_flags);
 			current_tpt = lq_sta->last_tpt;
 
@@ -2077,7 +2077,7 @@ static void rs_rate_scale_perform(struct iwl4965_priv *priv,
 				rs_rate_scale_clear_window(&(tbl->win[i]));
 
 			/* Use new "search" start rate */
-			index = iwl4965_rate_index_from_plcp(
+			index = iwl4965_hwrate_to_plcp_idx(
 					tbl->current_rate.rate_n_flags);
 
 			IWL_DEBUG_HT("Switch current  mcs: %X index: %d\n",
