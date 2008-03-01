@@ -519,9 +519,9 @@ static int dlm_do_recovery(struct dlm_ctxt *dlm)
 	return 0;
 
 master_here:
-	mlog(0, "(%d) mastering recovery of %s:%u here(this=%u)!\n",
-	     task_pid_nr(dlm->dlm_reco_thread_task),
-	     dlm->name, dlm->reco.dead_node, dlm->node_num);
+	mlog(ML_NOTICE, "(%d) Node %u is the Recovery Master for the Dead Node "
+	     "%u for Domain %s\n", task_pid_nr(dlm->dlm_reco_thread_task),
+	     dlm->node_num, dlm->reco.dead_node, dlm->name);
 
 	status = dlm_remaster_locks(dlm, dlm->reco.dead_node);
 	if (status < 0) {
