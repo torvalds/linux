@@ -98,7 +98,7 @@ struct mesh_path *mesh_path_lookup(u8 *dst, struct net_device *dev)
 /**
  * mesh_path_lookup_by_idx - look up a path in the mesh path table by its index
  * @idx: index
- * @dev: local interface
+ * @dev: local interface, or NULL for all entries
  *
  * Returns: pointer to the mesh path structure, or NULL if not found.
  *
@@ -111,7 +111,9 @@ struct mesh_path *mesh_path_lookup_by_idx(int idx, struct net_device *dev)
 	int i;
 	int j = 0;
 
-	for_each_mesh_entry(mesh_paths, p, node, i)
+	for_each_mesh_entry(mesh_paths, p, node, i) {
+		if (dev && node->mpath->dev != dev)
+			continue;
 		if (j++ == idx) {
 			if (MPATH_EXPIRED(node->mpath)) {
 				spin_lock_bh(&node->mpath->state_lock);
@@ -121,6 +123,7 @@ struct mesh_path *mesh_path_lookup_by_idx(int idx, struct net_device *dev)
 			}
 			return node->mpath;
 		}
+	}
 
 	return NULL;
 }

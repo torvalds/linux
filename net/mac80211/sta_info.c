@@ -115,12 +115,13 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_local *local, int idx,
 	int i = 0;
 
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		if (dev && dev != sta->sdata->dev)
+			continue;
 		if (i < idx) {
 			++i;
 			continue;
-		} else if (!dev || dev == sta->sdata->dev) {
-			return sta;
 		}
+		return sta;
 	}
 
 	return NULL;
