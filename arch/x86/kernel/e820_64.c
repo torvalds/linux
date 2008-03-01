@@ -621,10 +621,10 @@ static int __init copy_e820_map(struct e820entry *biosmap, int nr_map)
 		return -1;
 
 	do {
-		unsigned long start = biosmap->addr;
-		unsigned long size = biosmap->size;
-		unsigned long end = start + size;
-		unsigned long type = biosmap->type;
+		u64 start = biosmap->addr;
+		u64 size = biosmap->size;
+		u64 end = start + size;
+		u32 type = biosmap->type;
 
 		/* Overflow in 64 bits? Ignore the memory map. */
 		if (start > end)

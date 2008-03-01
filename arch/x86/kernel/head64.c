@@ -55,11 +55,29 @@ static void __init copy_bootdata(char *real_mode_data)
 /*
  * The BIOS places the EBDA/XBDA at the top of conventional
  * memory, and usually decreases the reported amount of
- * conventional memory (int 0x12) too.
+ * conventional memory (int 0x12) too. This also contains a
+ * workaround for Dell systems that neglect to reserve EBDA.
+ * The same workaround also avoids a problem with the AMD768MPX
+ * chipset: reserve a page before VGA to prevent PCI prefetch
+ * into it (errata #56). Usually the page is reserved anyways,
+ * unless you have no PS/2 mouse plugged in.
  */
-static __init void reserve_ebda(void)
+static void __init reserve_ebda_region(void)
 {
 	unsigned int lowmem, ebda_addr;
+
+	/* To determine the position of the EBDA and the */
+	/* end of conventional memory, we need to look at */
+	/* the BIOS data area. In a paravirtual environment */
+	/* that area is absent. We'll just have to assume */
+	/* that the paravirt case can handle memory setup */
+	/* correctly, without our help. */
+#ifdef CONFIG_PARAVIRT
+	if ((boot_params.hdr.version >= 0x207) &&
+			(boot_params.hdr.hardware_subarch != 0)) {
+		return;
+	}
+#endif
 
 	/* end of low (conventional) memory */
 	lowmem = *(unsigned short *)__va(BIOS_LOWMEM_KILOBYTES);
@@ -80,8 +98,8 @@ static __init void reserve_ebda(void)
 		lowmem = 0x9f000;
 
 	/* Paranoia: should never happen, but... */
-	if (lowmem >= 0x100000)
-		lowmem = 0xa0000;
+	if ((lowmem == 0) || (lowmem >= 0x100000))
+		lowmem = 0x9f000;
 
 	/* reserve all memory between lowmem and the 1MB mark */
 	reserve_early(lowmem, 0x100000, "BIOS reserved");
@@ -140,7 +158,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 		reserve_early(ramdisk_image, ramdisk_end, "RAMDISK");
 	}
 
-	reserve_ebda();
+	reserve_ebda_region();
 
 	/*
 	 * At this point everything still needed from the boot loader
