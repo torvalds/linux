@@ -2251,8 +2251,10 @@ static int pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (machine_is(powermac)) {
 		struct device_node *ofn = pci_device_to_OF_node(pdev);
 
-		if (ofn)
+		if (ofn) {
 			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 0);
+			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, ofn, 0, 0);
+		}
 	}
 #endif /* CONFIG_PPC_PMAC */
 
@@ -2269,8 +2271,10 @@ static int pci_resume(struct pci_dev *pdev)
 	if (machine_is(powermac)) {
 		struct device_node *ofn = pci_device_to_OF_node(pdev);
 
-		if (ofn)
+		if (ofn) {
+			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, ofn, 0, 1);
 			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 1);
+		}
 	}
 #endif /* CONFIG_PPC_PMAC */
 
