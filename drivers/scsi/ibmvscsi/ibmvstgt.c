@@ -290,7 +290,7 @@ static int ibmvstgt_cmd_done(struct scsi_cmnd *sc,
 	int err = 0;
 
 	dprintk("%p %p %x %u\n", iue, target, vio_iu(iue)->srp.cmd.cdb[0],
-		cmd->usg_sg);
+		scsi_sg_count(sc));
 
 	if (scsi_sg_count(sc))
 		err = srp_transfer_data(sc, &vio_iu(iue)->srp.cmd, ibmvstgt_rdma, 1, 1);
