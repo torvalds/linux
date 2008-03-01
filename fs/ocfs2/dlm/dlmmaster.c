@@ -1663,7 +1663,12 @@ way_up_top:
 		dlm_put_mle(tmpmle);
 	}
 send_response:
-
+	/*
+	 * __dlm_lookup_lockres() grabbed a reference to this lockres.
+	 * The reference is released by dlm_assert_master_worker() under
+	 * the call to dlm_dispatch_assert_master().  If
+	 * dlm_assert_master_worker() isn't called, we drop it here.
+	 */
 	if (dispatch_assert) {
 		if (response != DLM_MASTER_RESP_YES)
 			mlog(ML_ERROR, "invalid response %d\n", response);
@@ -1678,7 +1683,11 @@ send_response:
 		if (ret < 0) {
 			mlog(ML_ERROR, "failed to dispatch assert master work\n");
 			response = DLM_MASTER_RESP_ERROR;
+			dlm_lockres_put(res);
 		}
+	} else {
+		if (res)
+			dlm_lockres_put(res);
 	}
 
 	dlm_put(dlm);
