@@ -28,7 +28,8 @@ EXPORT_SYMBOL_GPL(tsc_khz);
 static int __init tsc_setup(char *str)
 {
 	printk(KERN_WARNING "notsc: Kernel compiled with CONFIG_X86_TSC, "
-				"cannot disable TSC.\n");
+				"cannot disable TSC completely.\n");
+	mark_tsc_unstable("user disabled TSC");
 	return 1;
 }
 #else

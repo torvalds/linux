@@ -82,5 +82,27 @@ extern struct rcupreempt_trace *rcupreempt_trace_cpu(int cpu);
 
 struct softirq_action;
 
+#ifdef CONFIG_NO_HZ
+DECLARE_PER_CPU(long, dynticks_progress_counter);
+
+static inline void rcu_enter_nohz(void)
+{
+	__get_cpu_var(dynticks_progress_counter)++;
+	WARN_ON(__get_cpu_var(dynticks_progress_counter) & 0x1);
+	mb();
+}
+
+static inline void rcu_exit_nohz(void)
+{
+	mb();
+	__get_cpu_var(dynticks_progress_counter)++;
+	WARN_ON(!(__get_cpu_var(dynticks_progress_counter) & 0x1));
+}
+
+#else /* CONFIG_NO_HZ */
+#define rcu_enter_nohz()	do { } while (0)
+#define rcu_exit_nohz()		do { } while (0)
+#endif /* CONFIG_NO_HZ */
+
 #endif /* __KERNEL__ */
 #endif /* __LINUX_RCUPREEMPT_H */

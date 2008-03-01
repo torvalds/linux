@@ -229,9 +229,8 @@ do_register(const char *name, void *data, const struct file_operations *fops)
 	rpc_proc_init();
 	dprintk("RPC:       registering /proc/net/rpc/%s\n", name);
 
-	ent = create_proc_entry(name, 0, proc_net_rpc);
+	ent = proc_create(name, 0, proc_net_rpc, fops);
 	if (ent) {
-		ent->proc_fops = fops;
 		ent->data = data;
 	}
 	return ent;

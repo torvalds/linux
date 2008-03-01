@@ -84,12 +84,15 @@ static const char* temperature_sensors_sets[][36] = {
 /* Set 0: Macbook Pro */
 	{ "TA0P", "TB0T", "TC0D", "TC0P", "TG0H", "TG0P", "TG0T", "Th0H",
 	  "Th1H", "Tm0P", "Ts0P", "Ts1P", NULL },
-/* Set 1: Macbook set */
+/* Set 1: Macbook2 set */
+	{ "TB0T", "TC0D", "TC0P", "TM0P", "TN0P", "TN1P", "TTF0", "Th0H",
+	  "Th0S", "Th1H", NULL },
+/* Set 2: Macbook set */
 	{ "TB0T", "TC0D", "TC0P", "TM0P", "TN0P", "TN1P", "Th0H", "Th0S",
 	  "Th1H", "Ts0P", NULL },
-/* Set 2: Macmini set */
+/* Set 3: Macmini set */
 	{ "TC0D", "TC0P", NULL },
-/* Set 3: Mac Pro (2 x Quad-Core) */
+/* Set 4: Mac Pro (2 x Quad-Core) */
 	{ "TA0P", "TCAG", "TCAH", "TCBG", "TCBH", "TC0C", "TC0D", "TC0P",
 	  "TC1C", "TC1D", "TC2C", "TC2D", "TC3C", "TC3D", "THTG", "TH0P",
 	  "TH1P", "TH2P", "TH3P", "TMAP", "TMAS", "TMBS", "TM0P", "TM0S",
@@ -1212,12 +1215,14 @@ static void applesmc_release_accelerometer(void)
 static __initdata struct dmi_match_data applesmc_dmi_data[] = {
 /* MacBook Pro: accelerometer, backlight and temperature set 0 */
 	{ .accelerometer = 1, .light = 1, .temperature_set = 0 },
-/* MacBook: accelerometer and temperature set 1 */
+/* MacBook2: accelerometer and temperature set 1 */
 	{ .accelerometer = 1, .light = 0, .temperature_set = 1 },
-/* MacMini: temperature set 2 */
-	{ .accelerometer = 0, .light = 0, .temperature_set = 2 },
-/* MacPro: temperature set 3 */
+/* MacBook: accelerometer and temperature set 2 */
+	{ .accelerometer = 1, .light = 0, .temperature_set = 2 },
+/* MacMini: temperature set 3 */
 	{ .accelerometer = 0, .light = 0, .temperature_set = 3 },
+/* MacPro: temperature set 4 */
+	{ .accelerometer = 0, .light = 0, .temperature_set = 4 },
 };
 
 /* Note that DMI_MATCH(...,"MacBook") will match "MacBookPro1,1".
@@ -1229,16 +1234,20 @@ static __initdata struct dmi_system_id applesmc_whitelist[] = {
 		(void*)&applesmc_dmi_data[0]},
 	{ applesmc_dmi_match, "Apple MacBook", {
 	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
-	  DMI_MATCH(DMI_PRODUCT_NAME,"MacBook") },
+	  DMI_MATCH(DMI_PRODUCT_NAME,"MacBook2") },
 		(void*)&applesmc_dmi_data[1]},
+	{ applesmc_dmi_match, "Apple MacBook", {
+	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME,"MacBook") },
+		(void*)&applesmc_dmi_data[2]},
 	{ applesmc_dmi_match, "Apple Macmini", {
 	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
 	  DMI_MATCH(DMI_PRODUCT_NAME,"Macmini") },
-		(void*)&applesmc_dmi_data[2]},
+		(void*)&applesmc_dmi_data[3]},
 	{ applesmc_dmi_match, "Apple MacPro2", {
 	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
 	  DMI_MATCH(DMI_PRODUCT_NAME,"MacPro2") },
-		(void*)&applesmc_dmi_data[3]},
+		(void*)&applesmc_dmi_data[4]},
 	{ .ident = NULL }
 };
 

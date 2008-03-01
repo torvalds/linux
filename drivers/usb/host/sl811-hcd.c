@@ -1766,6 +1766,7 @@ sl811h_suspend(struct platform_device *dev, pm_message_t state)
 		retval = sl811h_bus_suspend(hcd);
 		break;
 	case PM_EVENT_SUSPEND:
+	case PM_EVENT_HIBERNATE:
 	case PM_EVENT_PRETHAW:		/* explicitly discard hw state */
 		port_power(sl811, 0);
 		break;

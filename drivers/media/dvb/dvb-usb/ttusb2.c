@@ -144,6 +144,7 @@ static int ttusb2_power_ctrl(struct dvb_usb_device *d, int onoff)
 static struct tda10086_config tda10086_config = {
 	.demod_address = 0x0e,
 	.invert = 0,
+	.diseqc_tone = 1,
 };
 
 static int ttusb2_frontend_attach(struct dvb_usb_adapter *adap)

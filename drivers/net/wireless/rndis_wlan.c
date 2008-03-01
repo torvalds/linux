@@ -228,9 +228,9 @@ struct NDIS_WLAN_BSSID_EX {
 	struct NDIS_802_11_SSID Ssid;
 	__le32 Privacy;
 	__le32 Rssi;
-	enum NDIS_802_11_NETWORK_TYPE NetworkTypeInUse;
+	__le32 NetworkTypeInUse;
 	struct NDIS_802_11_CONFIGURATION Configuration;
-	enum NDIS_802_11_NETWORK_INFRASTRUCTURE InfrastructureMode;
+	__le32 InfrastructureMode;
 	u8 SupportedRates[NDIS_802_11_LENGTH_RATES_EX];
 	__le32 IELength;
 	u8 IEs[0];
@@ -279,11 +279,11 @@ struct RNDIS_CONFIG_PARAMETER_INFOBUFFER {
 } __attribute__((packed));
 
 /* these have to match what is in wpa_supplicant */
-enum { WPA_ALG_NONE, WPA_ALG_WEP, WPA_ALG_TKIP, WPA_ALG_CCMP } wpa_alg;
-enum { CIPHER_NONE, CIPHER_WEP40, CIPHER_TKIP, CIPHER_CCMP, CIPHER_WEP104 }
-	wpa_cipher;
-enum { KEY_MGMT_802_1X, KEY_MGMT_PSK, KEY_MGMT_NONE, KEY_MGMT_802_1X_NO_WPA,
-	KEY_MGMT_WPA_NONE } wpa_key_mgmt;
+enum wpa_alg { WPA_ALG_NONE, WPA_ALG_WEP, WPA_ALG_TKIP, WPA_ALG_CCMP };
+enum wpa_cipher { CIPHER_NONE, CIPHER_WEP40, CIPHER_TKIP, CIPHER_CCMP,
+		  CIPHER_WEP104 };
+enum wpa_key_mgmt { KEY_MGMT_802_1X, KEY_MGMT_PSK, KEY_MGMT_NONE,
+		    KEY_MGMT_802_1X_NO_WPA, KEY_MGMT_WPA_NONE };
 
 /*
  *  private data
@@ -2300,7 +2300,7 @@ static void rndis_update_wireless_stats(struct work_struct *work)
 	struct usbnet *usbdev = priv->usbdev;
 	struct iw_statistics iwstats;
 	__le32 rssi, tmp;
-	int len, ret, bitrate, j;
+	int len, ret, j;
 	unsigned long flags;
 	int update_jiffies = STATS_UPDATE_JIFFIES;
 	void *buf;
@@ -2352,14 +2352,10 @@ static void rndis_update_wireless_stats(struct work_struct *work)
 	if (ret == 0)
 		iwstats.discard.misc += le32_to_cpu(tmp);
 
-	/* Workaround transfer stalls on poor quality links. */
-	len = sizeof(tmp);
-	ret = rndis_query_oid(usbdev, OID_GEN_LINK_SPEED, &tmp, &len);
-	if (ret == 0) {
-		bitrate = le32_to_cpu(tmp) * 100;
-		if (bitrate > 11000000)
-			goto end;
-
+	/* Workaround transfer stalls on poor quality links.
+	 * TODO: find right way to fix these stalls (as stalls do not happen
+	 * with ndiswrapper/windows driver). */
+	if (iwstats.qual.qual <= 25) {
 		/* Decrease stats worker interval to catch stalls.
 		 * faster. Faster than 400-500ms causes packet loss,
 		 * Slower doesn't catch stalls fast enough.

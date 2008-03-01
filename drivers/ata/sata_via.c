@@ -333,8 +333,8 @@ static int vt6420_prereset(struct ata_link *link, unsigned long deadline)
 
 static void vt6420_error_handler(struct ata_port *ap)
 {
-	return ata_bmdma_drive_eh(ap, vt6420_prereset, ata_std_softreset,
-				  NULL, ata_std_postreset);
+	ata_bmdma_drive_eh(ap, vt6420_prereset, ata_std_softreset, NULL,
+			   ata_std_postreset);
 }
 
 static int vt6421_pata_cable_detect(struct ata_port *ap)

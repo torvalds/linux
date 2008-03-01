@@ -668,7 +668,10 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 	 * return false w/o doing anything.  MAC's that do
 	 * support it will return true w/o doing anything.
 	 */
-	if (ah->ah_setup_xtx_desc(ah, NULL, 0, 0, 0, 0, 0, 0))
+	ret = ah->ah_setup_xtx_desc(ah, NULL, 0, 0, 0, 0, 0, 0);
+	if (ret < 0)
+		goto err;
+	if (ret > 0)
 		__set_bit(ATH_STAT_MRRETRY, sc->status);
 
 	/*
@@ -1256,7 +1259,7 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf,
 	if (ctl->flags & IEEE80211_TXCTL_NO_ACK)
 		flags |= AR5K_TXDESC_NOACK;
 
-	pktlen = skb->len + FCS_LEN;
+	pktlen = skb->len;
 
 	if (!(ctl->flags & IEEE80211_TXCTL_DO_NOT_ENCRYPT)) {
 		keyidx = ctl->key_idx;
@@ -1715,6 +1718,7 @@ ath5k_tasklet_rx(unsigned long data)
 			break;
 		else if (unlikely(ret)) {
 			ATH5K_ERR(sc, "error in processing rx descriptor\n");
+			spin_unlock(&sc->rxbuflock);
 			return;
 		}
 
@@ -1952,7 +1956,7 @@ ath5k_beacon_setup(struct ath5k_softc *sc, struct ath5k_buf *bf,
 	}
 
 	ds->ds_data = bf->skbaddr;
-	ret = ah->ah_setup_tx_desc(ah, ds, skb->len + FCS_LEN,
+	ret = ah->ah_setup_tx_desc(ah, ds, skb->len,
 			ieee80211_get_hdrlen_from_skb(skb),
 			AR5K_PKT_TYPE_BEACON, (ctl->power_level * 2), ctl->tx_rate, 1,
 			AR5K_TXKEYIX_INVALID, antenna, flags, 0, 0);
@@ -2126,8 +2130,9 @@ ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf)
 			"updated timers based on beacon TSF\n");
 
 	ATH5K_DBG_UNLIMIT(sc, ATH5K_DEBUG_BEACON,
-		"bc_tsf %llx hw_tsf %llx bc_tu %u hw_tu %u nexttbtt %u\n",
-		bc_tsf, hw_tsf, bc_tu, hw_tu, nexttbtt);
+			  "bc_tsf %llx hw_tsf %llx bc_tu %u hw_tu %u nexttbtt %u\n",
+			  (unsigned long long) bc_tsf,
+			  (unsigned long long) hw_tsf, bc_tu, hw_tu, nexttbtt);
 	ATH5K_DBG_UNLIMIT(sc, ATH5K_DEBUG_BEACON, "intval %u %s %s\n",
 		intval & AR5K_BEACON_PERIOD,
 		intval & AR5K_BEACON_ENA ? "AR5K_BEACON_ENA" : "",
@@ -2385,10 +2390,11 @@ ath5k_intr(int irq, void *dev_id)
 					u64 tsf = ath5k_hw_get_tsf64(ah);
 					sc->nexttbtt += sc->bintval;
 					ATH5K_DBG(sc, ATH5K_DEBUG_BEACON,
-						"SWBA nexttbtt: %x hw_tu: %x "
-						"TSF: %llx\n",
-						sc->nexttbtt,
-						TSF_TO_TU(tsf), tsf);
+						  "SWBA nexttbtt: %x hw_tu: %x "
+						  "TSF: %llx\n",
+						  sc->nexttbtt,
+						  TSF_TO_TU(tsf),
+						  (unsigned long long) tsf);
 				} else {
 					ath5k_beacon_send(sc);
 				}

@@ -220,7 +220,6 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_adapter *adapter,
 			tx_ring->stats.bytes += tx_buffer_info->length;
 			if (cleaned) {
 				struct sk_buff *skb = tx_buffer_info->skb;
-#ifdef NETIF_F_TSO
 				unsigned int segs, bytecount;
 				segs = skb_shinfo(skb)->gso_segs ?: 1;
 				/* multiply data chunks by size of headers */
@@ -228,10 +227,6 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_adapter *adapter,
 					    skb->len;
 				total_tx_packets += segs;
 				total_tx_bytes += bytecount;
-#else
-				total_tx_packets++;
-				total_tx_bytes += skb->len;
-#endif
 			}
 			ixgbe_unmap_and_free_tx_resource(adapter,
 							 tx_buffer_info);
@@ -1942,6 +1937,10 @@ static int ixgbe_open(struct net_device *netdev)
 	int err;
 	u32 num_rx_queues = adapter->num_rx_queues;
 
+	/* disallow open during test */
+	if (test_bit(__IXGBE_TESTING, &adapter->state))
+		return -EBUSY;
+
 try_intr_reinit:
 	/* allocate transmit descriptors */
 	err = ixgbe_setup_all_tx_resources(adapter);
@@ -2278,11 +2277,29 @@ static bool ixgbe_tx_csum(struct ixgbe_adapter *adapter,
 				    IXGBE_ADVTXD_DTYP_CTXT);
 
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			if (skb->protocol == htons(ETH_P_IP))
+			switch (skb->protocol) {
+			case __constant_htons(ETH_P_IP):
 				type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV4;
+				if (ip_hdr(skb)->protocol == IPPROTO_TCP)
+					type_tucmd_mlhl |=
+						IXGBE_ADVTXD_TUCMD_L4T_TCP;
+				break;
 
-			if (skb->sk->sk_protocol == IPPROTO_TCP)
-				type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_TCP;
+			case __constant_htons(ETH_P_IPV6):
+				/* XXX what about other V6 headers?? */
+				if (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP)
+					type_tucmd_mlhl |=
+						IXGBE_ADVTXD_TUCMD_L4T_TCP;
+				break;
+
+			default:
+				if (unlikely(net_ratelimit())) {
+					DPRINTK(PROBE, WARNING,
+					 "partial checksum but proto=%x!\n",
+					 skb->protocol);
+				}
+				break;
+			}
 		}
 
 		context_desc->type_tucmd_mlhl = cpu_to_le32(type_tucmd_mlhl);
@@ -2777,6 +2794,14 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	dev_info(&pdev->dev, "MAC: %d, PHY: %d, PBA No: %06x-%03x\n",
 		 hw->mac.type, hw->phy.type,
 		 (part_num >> 8), (part_num & 0xff));
+
+	if (link_width <= IXGBE_PCI_LINK_WIDTH_4) {
+		dev_warn(&pdev->dev, "PCI-Express bandwidth available for "
+			 "this card is not sufficient for optimal "
+			 "performance.\n");
+		dev_warn(&pdev->dev, "For optimal performance a x8 "
+			 "PCI-Express slot is required.\n");
+	}
 
 	/* reset the hardware with the new settings */
 	ixgbe_start_hw(hw);

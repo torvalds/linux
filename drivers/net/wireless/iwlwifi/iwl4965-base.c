@@ -692,6 +692,11 @@ static int iwl4965_enqueue_hcmd(struct iwl4965_priv *priv, struct iwl4965_host_c
 	BUG_ON((fix_size > TFD_MAX_PAYLOAD_SIZE) &&
 	       !(cmd->meta.flags & CMD_SIZE_HUGE));
 
+	if (iwl4965_is_rfkill(priv)) {
+		IWL_DEBUG_INFO("Not sending command - RF KILL");
+		return -EIO;
+	}
+
 	if (iwl4965_queue_space(q) < ((cmd->meta.flags & CMD_ASYNC) ? 2 : 1)) {
 		IWL_ERROR("No space for Tx\n");
 		return -ENOSPC;
@@ -1654,7 +1659,7 @@ static inline void iwl4965_eeprom_release_semaphore(struct iwl4965_priv *priv)
  */
 int iwl4965_eeprom_init(struct iwl4965_priv *priv)
 {
-	__le16 *e = (__le16 *)&priv->eeprom;
+	u16 *e = (u16 *)&priv->eeprom;
 	u32 gp = iwl4965_read32(priv, CSR_EEPROM_GP);
 	u32 r;
 	int sz = sizeof(priv->eeprom);
@@ -1698,7 +1703,7 @@ int iwl4965_eeprom_init(struct iwl4965_priv *priv)
 			rc = -ETIMEDOUT;
 			goto done;
 		}
-		e[addr / 2] = cpu_to_le16(r >> 16);
+		e[addr / 2] = le16_to_cpu((__force __le16)(r >> 16));
 	}
 	rc = 0;
 
@@ -2935,7 +2940,7 @@ static int iwl4965_tx_skb(struct iwl4965_priv *priv,
 	/* drop all data frame if we are not associated */
 	if (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA) &&
 	   (!iwl4965_is_associated(priv) ||
-	    !priv->assoc_id ||
+	    ((priv->iw_mode == IEEE80211_IF_TYPE_STA) && !priv->assoc_id) ||
 	    !priv->assoc_station_added)) {
 		IWL_DEBUG_DROP("Dropping - !iwl4965_is_associated\n");
 		goto drop_unlock;
@@ -4664,7 +4669,7 @@ static void iwl4965_rx_handle(struct iwl4965_priv *priv)
 	int reclaim;
 	unsigned long flags;
 	u8 fill_rx = 0;
-	u32 count = 0;
+	u32 count = 8;
 
 	/* uCode's read index (stored in shared DRAM) indicates the last Rx
 	 * buffer that the driver may process (last buffer filled by ucode). */
@@ -6680,6 +6685,8 @@ static void __iwl4965_down(struct iwl4965_priv *priv)
 					STATUS_RF_KILL_HW |
 			       test_bit(STATUS_RF_KILL_SW, &priv->status) <<
 					STATUS_RF_KILL_SW |
+			       test_bit(STATUS_GEO_CONFIGURED, &priv->status) <<
+					STATUS_GEO_CONFIGURED |
 			       test_bit(STATUS_IN_SUSPEND, &priv->status) <<
 					STATUS_IN_SUSPEND;
 		goto exit;
@@ -6691,6 +6698,8 @@ static void __iwl4965_down(struct iwl4965_priv *priv)
 				STATUS_RF_KILL_HW |
 			test_bit(STATUS_RF_KILL_SW, &priv->status) <<
 				STATUS_RF_KILL_SW |
+			test_bit(STATUS_GEO_CONFIGURED, &priv->status) <<
+				STATUS_GEO_CONFIGURED |
 			test_bit(STATUS_IN_SUSPEND, &priv->status) <<
 				STATUS_IN_SUSPEND |
 			test_bit(STATUS_FW_ERROR, &priv->status) <<

@@ -377,6 +377,19 @@ config X86_OOSTORE
 	def_bool y
 	depends on (MWINCHIP3D || MWINCHIP2 || MWINCHIPC6) && MTRR
 
+#
+# P6_NOPs are a relatively minor optimization that require a family >=
+# 6 processor, except that it is broken on certain VIA chips.
+# Furthermore, AMD chips prefer a totally different sequence of NOPs
+# (which work on all CPUs).  As a result, disallow these if we're
+# compiling X86_GENERIC but not X86_64 (these NOPs do work on all
+# x86-64 capable chips); the list of processors in the right-hand clause
+# are the cores that benefit from this optimization.
+#
+config X86_P6_NOP
+	def_bool y
+	depends on (X86_64 || !X86_GENERIC) && (M686 || MPENTIUMII || MPENTIUMIII || MPENTIUMM || MCORE2 || PENTIUM4)
+
 config X86_TSC
 	def_bool y
 	depends on ((MWINCHIP3D || MWINCHIP2 || MCRUSOE || MEFFICEON || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || MK8 || MVIAC3_2 || MVIAC7 || MGEODEGX1 || MGEODE_LX || MCORE2) && !X86_NUMAQ) || X86_64
@@ -390,6 +403,7 @@ config X86_CMOV
 config X86_MINIMUM_CPU_FAMILY
 	int
 	default "64" if X86_64
+	default "6" if X86_32 && X86_P6_NOP
 	default "4" if X86_32 && (X86_XADD || X86_CMPXCHG || X86_BSWAP || X86_WP_WORKS_OK)
 	default "3"
 

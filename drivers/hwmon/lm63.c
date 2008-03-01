@@ -53,7 +53,7 @@
  * Address is fully defined internally and cannot be changed.
  */
 
-static unsigned short normal_i2c[] = { 0x4c, I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { 0x4c, I2C_CLIENT_END };
 
 /*
  * Insmod parameters

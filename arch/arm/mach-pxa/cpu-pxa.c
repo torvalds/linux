@@ -43,7 +43,7 @@
 
 #ifdef DEBUG
 static unsigned int freq_debug;
-MODULE_PARM(freq_debug, "i");
+module_param(freq_debug, uint, 0);
 MODULE_PARM_DESC(freq_debug, "Set the debug messages to on=1/off=0");
 #else
 #define freq_debug  0
@@ -134,7 +134,7 @@ static int pxa_set_target(struct cpufreq_policy *policy,
 	struct cpufreq_frequency_table *pxa_freqs_table;
 	pxa_freqs_t *pxa_freq_settings;
 	struct cpufreq_freqs freqs;
-	int idx;
+	unsigned int idx;
 	unsigned long flags;
 	unsigned int unused, preset_mdrefr, postset_mdrefr;
 	void *ramstart = phys_to_virt(0xa0000000);
@@ -233,6 +233,11 @@ static int pxa_set_target(struct cpufreq_policy *policy,
 	return 0;
 }
 
+static unsigned int pxa_cpufreq_get(unsigned int cpu)
+{
+	return get_clk_frequency_khz(0);
+}
+
 static int pxa_cpufreq_init(struct cpufreq_policy *policy)
 {
 	int i;
@@ -269,6 +274,7 @@ static struct cpufreq_driver pxa_cpufreq_driver = {
 	.verify	= pxa_verify_policy,
 	.target	= pxa_set_target,
 	.init	= pxa_cpufreq_init,
+	.get	= pxa_cpufreq_get,
 	.name	= "PXA25x",
 };
 

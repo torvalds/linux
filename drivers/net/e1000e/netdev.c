@@ -1006,7 +1006,7 @@ static void e1000_irq_enable(struct e1000_adapter *adapter)
  * e1000_get_hw_control - get control of the h/w from f/w
  * @adapter: address of board private structure
  *
- * e1000_get_hw_control sets {CTRL_EXT|FWSM}:DRV_LOAD bit.
+ * e1000_get_hw_control sets {CTRL_EXT|SWSM}:DRV_LOAD bit.
  * For ASF and Pass Through versions of f/w this means that
  * the driver is loaded. For AMT version (only with 82573)
  * of the f/w this means that the network i/f is open.
@@ -1032,7 +1032,7 @@ static void e1000_get_hw_control(struct e1000_adapter *adapter)
  * e1000_release_hw_control - release control of the h/w to f/w
  * @adapter: address of board private structure
  *
- * e1000_release_hw_control resets {CTRL_EXT|FWSM}:DRV_LOAD bit.
+ * e1000_release_hw_control resets {CTRL_EXT|SWSM}:DRV_LOAD bit.
  * For ASF and Pass Through versions of f/w this means that the
  * driver is no longer loaded. For AMT version (only with 82573) i
  * of the f/w this means that the network i/f is closed.
@@ -1052,23 +1052,6 @@ static void e1000_release_hw_control(struct e1000_adapter *adapter)
 		ctrl_ext = er32(CTRL_EXT);
 		ew32(CTRL_EXT,
 				ctrl_ext & ~E1000_CTRL_EXT_DRV_LOAD);
-	}
-}
-
-static void e1000_release_manageability(struct e1000_adapter *adapter)
-{
-	if (adapter->flags & FLAG_MNG_PT_ENABLED) {
-		struct e1000_hw *hw = &adapter->hw;
-
-		u32 manc = er32(MANC);
-
-		/* re-enable hardware interception of ARP */
-		manc |= E1000_MANC_ARP_EN;
-		manc &= ~E1000_MANC_EN_MNG2HOST;
-
-		/* don't explicitly have to mess with MANC2H since
-		 * MANC has an enable disable that gates MANC2H */
-		ew32(MANC, manc);
 	}
 }
 
@@ -1258,6 +1241,11 @@ void e1000e_free_rx_resources(struct e1000_adapter *adapter)
 
 /**
  * e1000_update_itr - update the dynamic ITR value based on statistics
+ * @adapter: pointer to adapter
+ * @itr_setting: current adapter->itr
+ * @packets: the number of packets during this measurement interval
+ * @bytes: the number of bytes during this measurement interval
+ *
  *      Stores a new ITR value based on packets and byte
  *      counts during the last interrupt.  The advantage of per interrupt
  *      computation is faster updates and more accurate ITR for the current
@@ -1267,10 +1255,6 @@ void e1000e_free_rx_resources(struct e1000_adapter *adapter)
  *      while increasing bulk throughput.
  *      this functionality is controlled by the InterruptThrottleRate module
  *      parameter (see e1000_param.c)
- * @adapter: pointer to adapter
- * @itr_setting: current adapter->itr
- * @packets: the number of packets during this measurement interval
- * @bytes: the number of bytes during this measurement interval
  **/
 static unsigned int e1000_update_itr(struct e1000_adapter *adapter,
 				     u16 itr_setting, int packets,
@@ -1383,6 +1367,7 @@ set_itr_now:
 /**
  * e1000_clean - NAPI Rx polling callback
  * @adapter: board private structure
+ * @budget: amount of packets driver is allowed to process this poll
  **/
 static int e1000_clean(struct napi_struct *napi, int budget)
 {
@@ -1561,9 +1546,6 @@ static void e1000_init_manageability(struct e1000_adapter *adapter)
 
 	manc = er32(MANC);
 
-	/* disable hardware interception of ARP */
-	manc &= ~(E1000_MANC_ARP_EN);
-
 	/* enable receiving management packets to the host. this will probably
 	 * generate destination unreachable messages from the host OS, but
 	 * the packets will be handled on SMBUS */
@@ -1690,6 +1672,9 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 	else
 		rctl |= E1000_RCTL_LPE;
 
+	/* Enable hardware CRC frame stripping */
+	rctl |= E1000_RCTL_SECRC;
+
 	/* Setup buffer sizes */
 	rctl &= ~E1000_RCTL_SZ_4096;
 	rctl |= E1000_RCTL_BSEX;
@@ -1755,9 +1740,6 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 
 		/* Enable Packet split descriptors */
 		rctl |= E1000_RCTL_DTYP_PS;
-		
-		/* Enable hardware CRC frame stripping */
-		rctl |= E1000_RCTL_SECRC;
 
 		psrctl |= adapter->rx_ps_bsize0 >>
 			E1000_PSRCTL_BSIZE0_SHIFT;
@@ -2008,7 +1990,7 @@ static void e1000_power_down_phy(struct e1000_adapter *adapter)
 	u16 mii_reg;
 
 	/* WoL is enabled */
-	if (!adapter->wol)
+	if (adapter->wol)
 		return;
 
 	/* non-copper PHY? */
@@ -2020,7 +2002,7 @@ static void e1000_power_down_phy(struct e1000_adapter *adapter)
 	    e1000_check_reset_block(hw))
 		return;
 
-	/* managebility (AMT) is enabled */
+	/* manageability (AMT) is enabled */
 	if (er32(MANC) & E1000_MANC_SMBUS_EN)
 		return;
 
@@ -2140,8 +2122,6 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		phy_data &= ~IGP02E1000_PM_SPD;
 		e1e_wphy(hw, IGP02E1000_PHY_POWER_MGMT, phy_data);
 	}
-
-	e1000_release_manageability(adapter);
 }
 
 int e1000e_up(struct e1000_adapter *adapter)
@@ -3487,8 +3467,6 @@ static int e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 		pci_enable_wake(pdev, PCI_D3cold, 0);
 	}
 
-	e1000_release_manageability(adapter);
-
 	/* make sure adapter isn't asleep if manageability is enabled */
 	if (adapter->flags & FLAG_MNG_PT_ENABLED) {
 		pci_enable_wake(pdev, PCI_D3hot, 1);
@@ -3512,7 +3490,6 @@ static int e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 static void e1000e_disable_l1aspm(struct pci_dev *pdev)
 {
 	int pos;
-	u32 cap;
 	u16 val;
 
 	/*
@@ -3527,7 +3504,6 @@ static void e1000e_disable_l1aspm(struct pci_dev *pdev)
 	 * active.
 	 */
 	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
-	pci_read_config_dword(pdev, pos + PCI_EXP_LNKCAP, &cap);
 	pci_read_config_word(pdev, pos + PCI_EXP_LNKCTL, &val);
 	if (val & 0x2) {
 		dev_warn(&pdev->dev, "Disabling L1 ASPM\n");
@@ -4053,8 +4029,6 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 	del_timer_sync(&adapter->phy_info_timer);
 
 	flush_scheduled_work();
-
-	e1000_release_manageability(adapter);
 
 	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
 	 * would have already happened in close and is redundant. */

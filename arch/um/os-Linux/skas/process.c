@@ -115,6 +115,14 @@ void get_skas_faultinfo(int pid, struct faultinfo * fi)
 			       sizeof(struct ptrace_faultinfo));
 	}
 	else {
+		unsigned long fpregs[FP_SIZE];
+
+		err = get_fp_registers(pid, fpregs);
+		if (err < 0) {
+			printk(UM_KERN_ERR "save_fp_registers returned %d\n",
+			       err);
+			fatal_sigsegv();
+		}
 		err = ptrace(PTRACE_CONT, pid, 0, SIGSEGV);
 		if (err) {
 			printk(UM_KERN_ERR "Failed to continue stub, pid = %d, "
@@ -128,6 +136,13 @@ void get_skas_faultinfo(int pid, struct faultinfo * fi)
 		 * the stub stack page. We just have to copy it.
 		 */
 		memcpy(fi, (void *)current_stub_stack(), sizeof(*fi));
+
+		err = put_fp_registers(pid, fpregs);
+		if (err < 0) {
+			printk(UM_KERN_ERR "put_fp_registers returned %d\n",
+			       err);
+			fatal_sigsegv();
+		}
 	}
 }
 

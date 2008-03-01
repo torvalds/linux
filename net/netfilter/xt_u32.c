@@ -26,7 +26,6 @@ static bool u32_match_it(const struct xt_u32 *data,
 	u_int32_t pos;
 	u_int32_t val;
 	u_int32_t at;
-	int ret;
 
 	/*
 	 * Small example: "0 >> 28 == 4 && 8 & 0xFF0000 >> 16 = 6, 17"
@@ -40,8 +39,8 @@ static bool u32_match_it(const struct xt_u32 *data,
 		if (skb->len < 4 || pos > skb->len - 4)
 			return false;
 
-		ret   = skb_copy_bits(skb, pos, &n, sizeof(n));
-		BUG_ON(ret < 0);
+		if (skb_copy_bits(skb, pos, &n, sizeof(n)) < 0)
+			BUG();
 		val   = ntohl(n);
 		nnums = ct->nnums;
 
@@ -67,9 +66,9 @@ static bool u32_match_it(const struct xt_u32 *data,
 				    pos > skb->len - at - 4)
 					return false;
 
-				ret = skb_copy_bits(skb, at + pos, &n,
-						    sizeof(n));
-				BUG_ON(ret < 0);
+				if (skb_copy_bits(skb, at + pos, &n,
+						    sizeof(n)) < 0)
+					BUG();
 				val = ntohl(n);
 				break;
 			}

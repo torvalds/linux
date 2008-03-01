@@ -23,7 +23,7 @@ qla2x00_dfs_fce_show(struct seq_file *s, void *unused)
 	mutex_lock(&ha->fce_mutex);
 
 	seq_printf(s, "FCE Trace Buffer\n");
-	seq_printf(s, "In Pointer = %llx\n\n", ha->fce_wr);
+	seq_printf(s, "In Pointer = %llx\n\n", (unsigned long long)ha->fce_wr);
 	seq_printf(s, "Base = %llx\n\n", (unsigned long long) ha->fce_dma);
 	seq_printf(s, "FCE Enable Registers\n");
 	seq_printf(s, "%08x %08x %08x %08x %08x %08x\n",

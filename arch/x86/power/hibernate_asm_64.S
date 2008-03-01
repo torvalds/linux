@@ -20,6 +20,7 @@
 #include <asm/segment.h>
 #include <asm/page.h>
 #include <asm/asm-offsets.h>
+#include <asm/processor-flags.h>
 
 ENTRY(swsusp_arch_suspend)
 	movq	$saved_context, %rax
@@ -60,7 +61,7 @@ ENTRY(restore_image)
 	/* Flush TLB */
 	movq	mmu_cr4_features(%rip), %rax
 	movq	%rax, %rdx
-	andq	$~(1<<7), %rdx	# PGE
+	andq	$~(X86_CR4_PGE), %rdx
 	movq	%rdx, %cr4;  # turn off PGE
 	movq	%cr3, %rcx;  # flush TLB
 	movq	%rcx, %cr3;
@@ -112,7 +113,7 @@ ENTRY(restore_registers)
 	/* Flush TLB, including "global" things (vmalloc) */
 	movq	mmu_cr4_features(%rip), %rax
 	movq	%rax, %rdx
-	andq	$~(1<<7), %rdx;  # PGE
+	andq	$~(X86_CR4_PGE), %rdx
 	movq	%rdx, %cr4;  # turn off PGE
 	movq	%cr3, %rcx;  # flush TLB
 	movq	%rcx, %cr3

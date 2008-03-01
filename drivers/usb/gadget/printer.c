@@ -1299,7 +1299,7 @@ printer_unbind(struct usb_gadget *gadget)
 		printer_req_free(dev->in_ep, req);
 	}
 
-	if (dev->current_rx_req != NULL);
+	if (dev->current_rx_req != NULL)
 		printer_req_free(dev->out_ep, dev->current_rx_req);
 
 	while (!list_empty(&dev->rx_reqs)) {

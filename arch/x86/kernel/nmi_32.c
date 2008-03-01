@@ -46,9 +46,6 @@ static unsigned int nmi_hz = HZ;
 
 static DEFINE_PER_CPU(short, wd_enabled);
 
-/* local prototypes */
-static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu);
-
 static int endflag __initdata = 0;
 
 #ifdef CONFIG_SMP
@@ -391,15 +388,6 @@ __kprobes int nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 	return rc;
 }
 
-int do_nmi_callback(struct pt_regs * regs, int cpu)
-{
-#ifdef CONFIG_SYSCTL
-	if (unknown_nmi_panic)
-		return unknown_nmi_panic_callback(regs, cpu);
-#endif
-	return 0;
-}
-
 #ifdef CONFIG_SYSCTL
 
 static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu)
@@ -452,6 +440,15 @@ int proc_nmi_enabled(struct ctl_table *table, int write, struct file *file,
 }
 
 #endif
+
+int do_nmi_callback(struct pt_regs *regs, int cpu)
+{
+#ifdef CONFIG_SYSCTL
+	if (unknown_nmi_panic)
+		return unknown_nmi_panic_callback(regs, cpu);
+#endif
+	return 0;
+}
 
 void __trigger_all_cpu_backtrace(void)
 {

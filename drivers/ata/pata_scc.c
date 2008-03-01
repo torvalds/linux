@@ -1007,6 +1007,8 @@ static const struct ata_port_operations scc_pata_ops = {
 	.qc_issue		= ata_qc_issue_prot,
 
 	.freeze			= scc_bmdma_freeze,
+	.thaw			= ata_bmdma_thaw,
+
 	.error_handler		= scc_error_handler,
 	.post_internal_cmd	= scc_bmdma_stop,
 

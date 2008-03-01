@@ -1001,8 +1001,12 @@ static int rt2500usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		rt2500usb_disable_radio(rt2x00dev);
 		break;
 	case STATE_RADIO_RX_ON:
+	case STATE_RADIO_RX_ON_LINK:
+		rt2500usb_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
+		break;
 	case STATE_RADIO_RX_OFF:
-		rt2500usb_toggle_rx(rt2x00dev, state);
+	case STATE_RADIO_RX_OFF_LINK:
+		rt2500usb_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
 		break;
 	case STATE_DEEP_SLEEP:
 	case STATE_SLEEP:
@@ -1839,11 +1843,11 @@ static struct usb_device_id rt2500usb_device_table[] = {
 	/* Hercules */
 	{ USB_DEVICE(0x06f8, 0xe000), USB_DEVICE_DATA(&rt2500usb_ops) },
 	/* Melco */
+	{ USB_DEVICE(0x0411, 0x005e), USB_DEVICE_DATA(&rt2500usb_ops) },
 	{ USB_DEVICE(0x0411, 0x0066), USB_DEVICE_DATA(&rt2500usb_ops) },
 	{ USB_DEVICE(0x0411, 0x0067), USB_DEVICE_DATA(&rt2500usb_ops) },
 	{ USB_DEVICE(0x0411, 0x008b), USB_DEVICE_DATA(&rt2500usb_ops) },
 	{ USB_DEVICE(0x0411, 0x0097), USB_DEVICE_DATA(&rt2500usb_ops) },
-
 	/* MSI */
 	{ USB_DEVICE(0x0db0, 0x6861), USB_DEVICE_DATA(&rt2500usb_ops) },
 	{ USB_DEVICE(0x0db0, 0x6865), USB_DEVICE_DATA(&rt2500usb_ops) },

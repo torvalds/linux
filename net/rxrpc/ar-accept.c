@@ -156,8 +156,7 @@ static int rxrpc_accept_incoming_call(struct rxrpc_local *local,
 						  false);
 			spin_unlock(&call->lock);
 			notification = NULL;
-			if (ret < 0)
-				BUG();
+			BUG_ON(ret < 0);
 		}
 		spin_unlock(&call->conn->state_lock);
 

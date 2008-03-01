@@ -250,7 +250,7 @@ void
 jpeg_codec_sleep (struct zoran *zr,
 		  int           sleep)
 {
-	GPIO(zr, zr->card.gpio[GPIO_JPEG_SLEEP], !sleep);
+	GPIO(zr, zr->card.gpio[ZR_GPIO_JPEG_SLEEP], !sleep);
 	if (!sleep) {
 		dprintk(3,
 			KERN_DEBUG
@@ -277,9 +277,9 @@ jpeg_codec_reset (struct zoran *zr)
 				  0);
 		udelay(2);
 	} else {
-		GPIO(zr, zr->card.gpio[GPIO_JPEG_RESET], 0);
+		GPIO(zr, zr->card.gpio[ZR_GPIO_JPEG_RESET], 0);
 		udelay(2);
-		GPIO(zr, zr->card.gpio[GPIO_JPEG_RESET], 1);
+		GPIO(zr, zr->card.gpio[ZR_GPIO_JPEG_RESET], 1);
 		udelay(2);
 	}
 
@@ -688,7 +688,7 @@ static inline void
 set_frame (struct zoran *zr,
 	   int           val)
 {
-	GPIO(zr, zr->card.gpio[GPIO_JPEG_FRAME], val);
+	GPIO(zr, zr->card.gpio[ZR_GPIO_JPEG_FRAME], val);
 }
 
 static void
@@ -704,8 +704,8 @@ set_videobus_dir (struct zoran *zr,
 			GPIO(zr, 5, 1);
 		break;
 	default:
-		GPIO(zr, zr->card.gpio[GPIO_VID_DIR],
-		     zr->card.gpio_pol[GPIO_VID_DIR] ? !val : val);
+		GPIO(zr, zr->card.gpio[ZR_GPIO_VID_DIR],
+		     zr->card.gpio_pol[ZR_GPIO_VID_DIR] ? !val : val);
 		break;
 	}
 }

@@ -258,8 +258,6 @@ Summary of ide driver parameters for kernel command line
 			  As for VLB, it is safest to not specify it.
 			  Bigger values are safer than smaller ones.
 
- "idex=noprobe"		: do not attempt to access/use this interface
- 
  "idex=base"		: probe for an interface at the addr specified,
 			  where "base" is usually 0x1f0 or 0x170
 			  and "ctl" is assumed to be "base"+0x206
@@ -306,53 +304,6 @@ i.e. to enable probing for ALI M14xx chipsets (ali14xx host driver) use:
 Also for legacy CMD640 host driver (cmd640) you need to use "probe_vlb"
 kernel paremeter to enable probing for VLB version of the chipset (PCI ones
 are detected automatically).
-
-================================================================================
-
-IDE ATAPI streaming tape driver
--------------------------------
-
-This driver is a part of the Linux ide driver and works in co-operation
-with linux/drivers/block/ide.c.
-
-The driver, in co-operation with ide.c, basically traverses the
-request-list for the block device interface. The character device
-interface, on the other hand, creates new requests, adds them
-to the request-list of the block device, and waits for their completion.
-
-Pipelined operation mode is now supported on both reads and writes.
-
-The block device major and minor numbers are determined from the
-tape's relative position in the ide interfaces, as explained in ide.c.
-
-The character device interface consists of the following devices:
-
- ht0		major 37, minor 0	first  IDE tape, rewind on close.
- ht1		major 37, minor 1	second IDE tape, rewind on close.
- ...
- nht0		major 37, minor 128	first  IDE tape, no rewind on close.
- nht1		major 37, minor 129	second IDE tape, no rewind on close.
- ...
-
-Run /dev/MAKEDEV to create the above entries.
-
-The general magnetic tape commands compatible interface, as defined by
-include/linux/mtio.h, is accessible through the character device.
-
-General ide driver configuration options, such as the interrupt-unmask
-flag, can be configured by issuing an ioctl to the block device interface,
-as any other ide device.
-
-Our own ide-tape ioctl's can be issued to either the block device or
-the character device interface.
-
-Maximal throughput with minimal bus load will usually be achieved in the
-following scenario:
-
-	1.	ide-tape is operating in the pipelined operation mode.
-	2.	No buffering is performed by the user backup program.
-
-
 
 ================================================================================
 

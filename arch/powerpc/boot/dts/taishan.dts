@@ -203,7 +203,6 @@
 
 			IIC0: i2c@40000400 {
 				/* FIXME */
-				device_type = "i2c";
 				compatible = "ibm,iic-440gp", "ibm,iic";
 				reg = <40000400 14>;
 				interrupt-parent = <&UIC0>;
@@ -211,7 +210,6 @@
 			};
 			IIC1: i2c@40000500 {
 				/* FIXME */
-				device_type = "i2c";
 				compatible = "ibm,iic-440gp", "ibm,iic";
 				reg = <40000500 14>;
 				interrupt-parent = <&UIC0>;
@@ -225,13 +223,11 @@
 			};
 
 			ZMII0: emac-zmii@40000780 {
-				device_type = "zgmii-interface";
 				compatible = "ibm,zmii-440gx", "ibm,zmii";
 				reg = <40000780 c>;
 			};
 
 			RGMII0: emac-rgmii@40000790 {
-				device_type = "rgmii-interface";
 				compatible = "ibm,rgmii";
 				reg = <40000790 8>;
 			};

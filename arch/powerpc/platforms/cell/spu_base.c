@@ -160,13 +160,6 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 
 	pr_debug("%s\n", __FUNCTION__);
 
-	if (test_bit(SPU_CONTEXT_SWITCH_ACTIVE, &spu->flags)) {
-		/* SLBs are pre-loaded for context switch, so
-		 * we should never get here!
-		 */
-		printk("%s: invalid access during switch!\n", __func__);
-		return 1;
-	}
 	slb.esid = (ea & ESID_MASK) | SLB_ESID_V;
 
 	switch(REGION_ID(ea)) {
@@ -224,11 +217,6 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 	    && hash_page(ea, _PAGE_PRESENT, 0x300) == 0) {
 		spu_restart_dma(spu);
 		return 0;
-	}
-
-	if (test_bit(SPU_CONTEXT_SWITCH_ACTIVE, &spu->flags)) {
-		printk("%s: invalid access during switch!\n", __func__);
-		return 1;
 	}
 
 	spu->class_0_pending = 0;

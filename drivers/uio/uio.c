@@ -57,29 +57,29 @@ struct uio_map {
 };
 #define to_map(map) container_of(map, struct uio_map, kobj)
 
-
-static ssize_t map_attr_show(struct kobject *kobj, struct kobj_attribute *attr,
-			     char *buf)
+static ssize_t map_addr_show(struct uio_mem *mem, char *buf)
 {
-	struct uio_map *map = to_map(kobj);
-	struct uio_mem *mem = map->mem;
-
-	if (strncmp(attr->attr.name, "addr", 4) == 0)
-		return sprintf(buf, "0x%lx\n", mem->addr);
-
-	if (strncmp(attr->attr.name, "size", 4) == 0)
-		return sprintf(buf, "0x%lx\n", mem->size);
-
-	return -ENODEV;
+	return sprintf(buf, "0x%lx\n", mem->addr);
 }
 
-static struct kobj_attribute attr_attribute =
-	__ATTR(addr, S_IRUGO, map_attr_show, NULL);
-static struct kobj_attribute size_attribute =
-	__ATTR(size, S_IRUGO, map_attr_show, NULL);
+static ssize_t map_size_show(struct uio_mem *mem, char *buf)
+{
+	return sprintf(buf, "0x%lx\n", mem->size);
+}
+
+struct uio_sysfs_entry {
+	struct attribute attr;
+	ssize_t (*show)(struct uio_mem *, char *);
+	ssize_t (*store)(struct uio_mem *, const char *, size_t);
+};
+
+static struct uio_sysfs_entry addr_attribute =
+	__ATTR(addr, S_IRUGO, map_addr_show, NULL);
+static struct uio_sysfs_entry size_attribute =
+	__ATTR(size, S_IRUGO, map_size_show, NULL);
 
 static struct attribute *attrs[] = {
-	&attr_attribute.attr,
+	&addr_attribute.attr,
 	&size_attribute.attr,
 	NULL,	/* need to NULL terminate the list of attributes */
 };
@@ -90,8 +90,28 @@ static void map_release(struct kobject *kobj)
 	kfree(map);
 }
 
+static ssize_t map_type_show(struct kobject *kobj, struct attribute *attr,
+			     char *buf)
+{
+	struct uio_map *map = to_map(kobj);
+	struct uio_mem *mem = map->mem;
+	struct uio_sysfs_entry *entry;
+
+	entry = container_of(attr, struct uio_sysfs_entry, attr);
+
+	if (!entry->show)
+		return -EIO;
+
+	return entry->show(mem, buf);
+}
+
+static struct sysfs_ops uio_sysfs_ops = {
+	.show = map_type_show,
+};
+
 static struct kobj_type map_attr_type = {
 	.release	= map_release,
+	.sysfs_ops	= &uio_sysfs_ops,
 	.default_attrs	= attrs,
 };
 

@@ -584,7 +584,8 @@ static void print_codec_info(struct snd_info_entry *entry,
 			print_amp_caps(buffer, codec, nid, HDA_INPUT);
 			snd_iprintf(buffer, "  Amp-In vals: ");
 			print_amp_vals(buffer, codec, nid, HDA_INPUT,
-				       wid_caps & AC_WCAP_STEREO, conn_len);
+				       wid_caps & AC_WCAP_STEREO,
+				       wid_type == AC_WID_PIN ? 1 : conn_len);
 		}
 		if (wid_caps & AC_WCAP_OUT_AMP) {
 			snd_iprintf(buffer, "  Amp-Out caps: ");

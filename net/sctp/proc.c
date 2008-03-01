@@ -108,11 +108,9 @@ int __init sctp_snmp_proc_init(void)
 {
 	struct proc_dir_entry *p;
 
-	p = create_proc_entry("snmp", S_IRUGO, proc_net_sctp);
+	p = proc_create("snmp", S_IRUGO, proc_net_sctp, &sctp_snmp_seq_fops);
 	if (!p)
 		return -ENOMEM;
-
-	p->proc_fops = &sctp_snmp_seq_fops;
 
 	return 0;
 }

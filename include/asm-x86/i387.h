@@ -20,7 +20,6 @@
 #include <asm/uaccess.h>
 
 extern void fpu_init(void);
-extern unsigned int mxcsr_feature_mask;
 extern void mxcsr_feature_mask_init(void);
 extern void init_fpu(struct task_struct *child);
 extern asmlinkage void math_state_restore(void);

@@ -966,12 +966,21 @@ static u8 iframe_header[] = { 0x00, 0x00, 0x01, 0xe0, 0x00, 0x00, 0x80, 0x00, 0x
 static int play_iframe(struct av7110 *av7110, char __user *buf, unsigned int len, int nonblock)
 {
 	int i, n;
+	int progressive = 0;
 
 	dprintk(2, "av7110:%p, \n", av7110);
 
 	if (!(av7110->playing & RP_VIDEO)) {
 		if (av7110_av_start_play(av7110, RP_VIDEO) < 0)
 			return -EBUSY;
+	}
+
+	for (i = 0; i < len - 5; i++) {
+		/* get progressive flag from picture extension */
+		if (buf[i] == 0x00 && buf[i+1] == 0x00 &&
+		    buf[i+2] == 0x01 && (unsigned char)buf[i+3] == 0xb5 &&
+		    (buf[i+4] & 0xf0) == 0x10)
+			progressive = buf[i+5] & 0x08;
 	}
 
 	/* setting n always > 1, fixes problems when playing stillframes
@@ -985,7 +994,11 @@ static int play_iframe(struct av7110 *av7110, char __user *buf, unsigned int len
 		dvb_play(av7110, buf, len, 0, 1);
 
 	av7110_ipack_flush(&av7110->ipack[1]);
-	return 0;
+
+	if (progressive)
+		return vidcom(av7110, AV_VIDEO_CMD_FREEZE, 1);
+	else
+		return 0;
 }
 
 

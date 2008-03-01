@@ -731,6 +731,9 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 
 		device->cdev = thermal_cooling_device_register("LCD",
 					device->dev, &video_cooling_ops);
+		if (IS_ERR(device->cdev))
+			return;
+
 		if (device->cdev) {
 			printk(KERN_INFO PREFIX
 				"%s is registered as cooling_device%d\n",

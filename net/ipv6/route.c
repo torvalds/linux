@@ -1719,6 +1719,8 @@ static void rtmsg_to_fib6_config(struct in6_rtmsg *rtmsg,
 	cfg->fc_src_len = rtmsg->rtmsg_src_len;
 	cfg->fc_flags = rtmsg->rtmsg_flags;
 
+	cfg->fc_nlinfo.nl_net = &init_net;
+
 	ipv6_addr_copy(&cfg->fc_dst, &rtmsg->rtmsg_dst);
 	ipv6_addr_copy(&cfg->fc_src, &rtmsg->rtmsg_src);
 	ipv6_addr_copy(&cfg->fc_gateway, &rtmsg->rtmsg_gateway);

@@ -439,7 +439,7 @@ static int igb_request_irq(struct igb_adapter *adapter)
 		err = igb_request_msix(adapter);
 		if (!err) {
 			/* enable IAM, auto-mask,
-			 * DO NOT USE EIAME or IAME in legacy mode */
+			 * DO NOT USE EIAM or IAM in legacy mode */
 			wr32(E1000_IAM, IMS_ENABLE_MASK);
 			goto request_done;
 		}
@@ -465,14 +465,9 @@ static int igb_request_irq(struct igb_adapter *adapter)
 	err = request_irq(adapter->pdev->irq, &igb_intr, IRQF_SHARED,
 			  netdev->name, netdev);
 
-	if (err) {
+	if (err)
 		dev_err(&adapter->pdev->dev, "Error %d getting interrupt\n",
 			err);
-		goto request_done;
-	}
-
-	/* enable IAM, auto-mask */
-	wr32(E1000_IAM, IMS_ENABLE_MASK);
 
 request_done:
 	return err;
@@ -606,9 +601,6 @@ static void igb_init_manageability(struct igb_adapter *adapter)
 		u32 manc2h = rd32(E1000_MANC2H);
 		u32 manc = rd32(E1000_MANC);
 
-		/* disable hardware interception of ARP */
-		manc &= ~(E1000_MANC_ARP_EN);
-
 		/* enable receiving management packets to the host */
 		/* this will probably generate destination unreachable messages
 		 * from the host OS, but the packets will be handled on SMBUS */
@@ -619,25 +611,6 @@ static void igb_init_manageability(struct igb_adapter *adapter)
 		manc2h |= E1000_MNG2HOST_PORT_664;
 		wr32(E1000_MANC2H, manc2h);
 
-		wr32(E1000_MANC, manc);
-	}
-}
-
-static void igb_release_manageability(struct igb_adapter *adapter)
-{
-	struct e1000_hw *hw = &adapter->hw;
-
-	if (adapter->en_mng_pt) {
-		u32 manc = rd32(E1000_MANC);
-
-		/* re-enable hardware interception of ARP */
-		manc |= E1000_MANC_ARP_EN;
-		manc &= ~E1000_MANC_EN_MNG2HOST;
-
-		/* don't explicitly have to mess with MANC2H since
-		 * MANC has an enable disable that gates MANC2H */
-
-		/* XXX stop the hardware watchdog ? */
 		wr32(E1000_MANC, manc);
 	}
 }
@@ -843,8 +816,8 @@ void igb_reset(struct igb_adapter *adapter)
 	wr32(E1000_VET, ETHERNET_IEEE_VLAN_TYPE);
 
 	igb_reset_adaptive(&adapter->hw);
-	adapter->hw.phy.ops.get_phy_info(&adapter->hw);
-	igb_release_manageability(adapter);
+	if (adapter->hw.phy.ops.get_phy_info)
+		adapter->hw.phy.ops.get_phy_info(&adapter->hw);
 }
 
 /**
@@ -1177,9 +1150,6 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 	del_timer_sync(&adapter->phy_info_timer);
 
 	flush_scheduled_work();
-
-
-	igb_release_manageability(adapter);
 
 	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
 	 * would have already happened in close and is redundant. */
@@ -2083,7 +2053,8 @@ static void igb_set_multi(struct net_device *netdev)
 static void igb_update_phy_info(unsigned long data)
 {
 	struct igb_adapter *adapter = (struct igb_adapter *) data;
-	adapter->hw.phy.ops.get_phy_info(&adapter->hw);
+	if (adapter->hw.phy.ops.get_phy_info)
+		adapter->hw.phy.ops.get_phy_info(&adapter->hw);
 }
 
 /**
@@ -3954,8 +3925,6 @@ static int igb_suspend(struct pci_dev *pdev, pm_message_t state)
 		pci_enable_wake(pdev, PCI_D3hot, 0);
 		pci_enable_wake(pdev, PCI_D3cold, 0);
 	}
-
-	igb_release_manageability(adapter);
 
 	/* make sure adapter isn't asleep if manageability is enabled */
 	if (adapter->en_mng_pt) {

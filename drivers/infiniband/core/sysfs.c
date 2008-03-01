@@ -686,8 +686,10 @@ int ib_device_register_sysfs(struct ib_device *device)
 
 	device->ports_parent = kobject_create_and_add("ports",
 					kobject_get(&class_dev->kobj));
-	if (!device->ports_parent)
+	if (!device->ports_parent) {
+		ret = -ENOMEM;
 		goto err_put;
+	}
 
 	if (device->node_type == RDMA_NODE_IB_SWITCH) {
 		ret = add_port(device, 0);

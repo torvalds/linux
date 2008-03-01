@@ -19,7 +19,7 @@ target(struct sk_buff *skb,
 	unsigned char *arpptr;
 	int pln, hln;
 
-	if (skb_make_writable(skb, skb->len))
+	if (!skb_make_writable(skb, skb->len))
 		return NF_DROP;
 
 	arp = arp_hdr(skb);

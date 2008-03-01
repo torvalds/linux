@@ -368,8 +368,8 @@ static int hpet_clocksource_register(void)
 	return 0;
 }
 
-/*
- * Try to setup the HPET timer
+/**
+ * hpet_enable - Try to setup the HPET timer. Returns 1 on success.
  */
 int __init hpet_enable(void)
 {

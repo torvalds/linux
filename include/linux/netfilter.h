@@ -31,7 +31,7 @@
 #define NF_VERDICT_QMASK 0xffff0000
 #define NF_VERDICT_QBITS 16
 
-#define NF_QUEUE_NR(x) (((x << NF_VERDICT_QBITS) & NF_VERDICT_QMASK) | NF_QUEUE)
+#define NF_QUEUE_NR(x) ((((x) << NF_VERDICT_BITS) & NF_VERDICT_QMASK) | NF_QUEUE)
 
 /* only for userspace compatibility */
 #ifndef __KERNEL__
@@ -51,7 +51,7 @@ enum nf_inet_hooks {
 };
 
 union nf_inet_addr {
-	u_int32_t	all[4];
+	__u32		all[4];
 	__be32		ip;
 	__be32		ip6[4];
 	struct in_addr	in;

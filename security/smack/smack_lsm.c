@@ -584,14 +584,20 @@ static int smack_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
 static int smack_inode_setxattr(struct dentry *dentry, char *name,
 				void *value, size_t size, int flags)
 {
-	if (!capable(CAP_MAC_ADMIN)) {
-		if (strcmp(name, XATTR_NAME_SMACK) == 0 ||
-		    strcmp(name, XATTR_NAME_SMACKIPIN) == 0 ||
-		    strcmp(name, XATTR_NAME_SMACKIPOUT) == 0)
-			return -EPERM;
-	}
+	int rc = 0;
 
-	return smk_curacc(smk_of_inode(dentry->d_inode), MAY_WRITE);
+	if (strcmp(name, XATTR_NAME_SMACK) == 0 ||
+	    strcmp(name, XATTR_NAME_SMACKIPIN) == 0 ||
+	    strcmp(name, XATTR_NAME_SMACKIPOUT) == 0) {
+		if (!capable(CAP_MAC_ADMIN))
+			rc = -EPERM;
+	} else
+		rc = cap_inode_setxattr(dentry, name, value, size, flags);
+
+	if (rc == 0)
+		rc = smk_curacc(smk_of_inode(dentry->d_inode), MAY_WRITE);
+
+	return rc;
 }
 
 /**
@@ -658,10 +664,20 @@ static int smack_inode_getxattr(struct dentry *dentry, char *name)
  */
 static int smack_inode_removexattr(struct dentry *dentry, char *name)
 {
-	if (strcmp(name, XATTR_NAME_SMACK) == 0 && !capable(CAP_MAC_ADMIN))
-		return -EPERM;
+	int rc = 0;
 
-	return smk_curacc(smk_of_inode(dentry->d_inode), MAY_WRITE);
+	if (strcmp(name, XATTR_NAME_SMACK) == 0 ||
+	    strcmp(name, XATTR_NAME_SMACKIPIN) == 0 ||
+	    strcmp(name, XATTR_NAME_SMACKIPOUT) == 0) {
+		if (!capable(CAP_MAC_ADMIN))
+			rc = -EPERM;
+	} else
+		rc = cap_inode_removexattr(dentry, name);
+
+	if (rc == 0)
+		rc = smk_curacc(smk_of_inode(dentry->d_inode), MAY_WRITE);
+
+	return rc;
 }
 
 /**
@@ -1016,7 +1032,12 @@ static void smack_task_getsecid(struct task_struct *p, u32 *secid)
  */
 static int smack_task_setnice(struct task_struct *p, int nice)
 {
-	return smk_curacc(p->security, MAY_WRITE);
+	int rc;
+
+	rc = cap_task_setnice(p, nice);
+	if (rc == 0)
+		rc = smk_curacc(p->security, MAY_WRITE);
+	return rc;
 }
 
 /**
@@ -1028,7 +1049,12 @@ static int smack_task_setnice(struct task_struct *p, int nice)
  */
 static int smack_task_setioprio(struct task_struct *p, int ioprio)
 {
-	return smk_curacc(p->security, MAY_WRITE);
+	int rc;
+
+	rc = cap_task_setioprio(p, ioprio);
+	if (rc == 0)
+		rc = smk_curacc(p->security, MAY_WRITE);
+	return rc;
 }
 
 /**
@@ -1053,7 +1079,12 @@ static int smack_task_getioprio(struct task_struct *p)
 static int smack_task_setscheduler(struct task_struct *p, int policy,
 				   struct sched_param *lp)
 {
-	return smk_curacc(p->security, MAY_WRITE);
+	int rc;
+
+	rc = cap_task_setscheduler(p, policy, lp);
+	if (rc == 0)
+		rc = smk_curacc(p->security, MAY_WRITE);
+	return rc;
 }
 
 /**
@@ -1093,6 +1124,11 @@ static int smack_task_movememory(struct task_struct *p)
 static int smack_task_kill(struct task_struct *p, struct siginfo *info,
 			   int sig, u32 secid)
 {
+	int rc;
+
+	rc = cap_task_kill(p, info, sig, secid);
+	if (rc != 0)
+		return rc;
 	/*
 	 * Special cases where signals really ought to go through
 	 * in spite of policy. Stephen Smalley suggests it may
@@ -1251,9 +1287,8 @@ static void smack_to_secattr(char *smack, struct netlbl_lsm_secattr *nlsp)
 
 	switch (smack_net_nltype) {
 	case NETLBL_NLTYPE_CIPSOV4:
-		nlsp->domain = NULL;
-		nlsp->flags = NETLBL_SECATTR_DOMAIN;
-		nlsp->flags |= NETLBL_SECATTR_MLS_LVL;
+		nlsp->domain = kstrdup(smack, GFP_ATOMIC);
+		nlsp->flags = NETLBL_SECATTR_DOMAIN | NETLBL_SECATTR_MLS_LVL;
 
 		rc = smack_to_cipso(smack, &cipso);
 		if (rc == 0) {
@@ -1282,15 +1317,14 @@ static int smack_netlabel(struct sock *sk)
 {
 	struct socket_smack *ssp;
 	struct netlbl_lsm_secattr secattr;
-	int rc = 0;
+	int rc;
 
 	ssp = sk->sk_security;
 	netlbl_secattr_init(&secattr);
 	smack_to_secattr(ssp->smk_out, &secattr);
-	if (secattr.flags != NETLBL_SECATTR_NONE)
-		rc = netlbl_sock_setattr(sk, &secattr);
-
+	rc = netlbl_sock_setattr(sk, &secattr);
 	netlbl_secattr_destroy(&secattr);
+
 	return rc;
 }
 
@@ -1313,6 +1347,7 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 	struct inode_smack *nsp = inode->i_security;
 	struct socket_smack *ssp;
 	struct socket *sock;
+	int rc = 0;
 
 	if (value == NULL || size > SMK_LABELLEN)
 		return -EACCES;
@@ -1341,7 +1376,10 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 		ssp->smk_in = sp;
 	else if (strcmp(name, XATTR_SMACK_IPOUT) == 0) {
 		ssp->smk_out = sp;
-		return smack_netlabel(sock->sk);
+		rc = smack_netlabel(sock->sk);
+		if (rc != 0)
+			printk(KERN_WARNING "Smack: \"%s\" netlbl error %d.\n",
+			       __func__, -rc);
 	} else
 		return -EOPNOTSUPP;
 
@@ -1774,6 +1812,27 @@ static int smack_ipc_permission(struct kern_ipc_perm *ipp, short flag)
 
 	may = smack_flags_to_may(flag);
 	return smk_curacc(isp, may);
+}
+
+/* module stacking operations */
+
+/**
+ * smack_register_security - stack capability module
+ * @name: module name
+ * @ops: module operations - ignored
+ *
+ * Allow the capability module to register.
+ */
+static int smack_register_security(const char *name,
+				   struct security_operations *ops)
+{
+	if (strcmp(name, "capability") != 0)
+		return -EINVAL;
+
+	printk(KERN_INFO "%s:  Registering secondary module %s\n",
+	       __func__, name);
+
+	return 0;
 }
 
 /**
@@ -2214,6 +2273,9 @@ static void smack_sock_graft(struct sock *sk, struct socket *parent)
 	ssp->smk_packet[0] = '\0';
 
 	rc = smack_netlabel(sk);
+	if (rc != 0)
+		printk(KERN_WARNING "Smack: \"%s\" netlbl error %d.\n",
+		       __func__, -rc);
 }
 
 /**
@@ -2346,6 +2408,20 @@ static int smack_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 }
 
 /*
+ * smack_secctx_to_secid - return the secid for a smack label
+ * @secdata: smack label
+ * @seclen: how long result is
+ * @secid: outgoing integer
+ *
+ * Exists for audit and networking code.
+ */
+static int smack_secctx_to_secid(char *secdata, u32 seclen, u32 *secid)
+{
+	*secid = smack_to_secid(secdata);
+	return 0;
+}
+
+/*
  * smack_release_secctx - don't do anything.
  * @key_ref: unused
  * @context: unused
@@ -2393,6 +2469,8 @@ static struct security_operations smack_ops = {
 	.inode_post_setxattr = 		smack_inode_post_setxattr,
 	.inode_getxattr = 		smack_inode_getxattr,
 	.inode_removexattr = 		smack_inode_removexattr,
+	.inode_need_killpriv =		cap_inode_need_killpriv,
+	.inode_killpriv =		cap_inode_killpriv,
 	.inode_getsecurity = 		smack_inode_getsecurity,
 	.inode_setsecurity = 		smack_inode_setsecurity,
 	.inode_listsecurity = 		smack_inode_listsecurity,
@@ -2452,6 +2530,8 @@ static struct security_operations smack_ops = {
 	.netlink_send =			cap_netlink_send,
 	.netlink_recv = 		cap_netlink_recv,
 
+	.register_security = 		smack_register_security,
+
 	.d_instantiate = 		smack_d_instantiate,
 
 	.getprocattr = 			smack_getprocattr,
@@ -2475,6 +2555,7 @@ static struct security_operations smack_ops = {
 	.key_permission = 		smack_key_permission,
 #endif /* CONFIG_KEYS */
 	.secid_to_secctx = 		smack_secid_to_secctx,
+	.secctx_to_secid = 		smack_secctx_to_secid,
 	.release_secctx = 		smack_release_secctx,
 };
 

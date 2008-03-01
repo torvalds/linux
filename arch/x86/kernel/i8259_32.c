@@ -26,8 +26,6 @@
  * present in the majority of PC/AT boxes.
  * plus some generic x86 specific things if generic specifics makes
  * any sense at all.
- * this file should become arch/i386/kernel/irq.c when the old irq.c
- * moves to arch independent land
  */
 
 static int i8259A_auto_eoi;
@@ -362,23 +360,12 @@ void __init init_ISA_irqs (void)
 #endif
 	init_8259A(0);
 
-	for (i = 0; i < NR_IRQS; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = NULL;
-		irq_desc[i].depth = 1;
-
-		if (i < 16) {
-			/*
-			 * 16 old-style INTA-cycle interrupts:
-			 */
-			set_irq_chip_and_handler_name(i, &i8259A_chip,
-						      handle_level_irq, "XT");
-		} else {
-			/*
-			 * 'high' PCI IRQs filled in on demand
-			 */
-			irq_desc[i].chip = &no_irq_chip;
-		}
+	/*
+	 * 16 old-style INTA-cycle interrupts:
+	 */
+	for (i = 0; i < 16; i++) {
+		set_irq_chip_and_handler_name(i, &i8259A_chip,
+					      handle_level_irq, "XT");
 	}
 }
 

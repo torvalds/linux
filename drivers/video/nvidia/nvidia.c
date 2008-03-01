@@ -1066,7 +1066,7 @@ static int nvidiafb_suspend(struct pci_dev *dev, pm_message_t mesg)
 	acquire_console_sem();
 	par->pm_state = mesg.event;
 
-	if (mesg.event == PM_EVENT_SUSPEND) {
+	if (mesg.event & PM_EVENT_SLEEP) {
 		fb_set_suspend(info, 1);
 		nvidiafb_blank(FB_BLANK_POWERDOWN, info);
 		nvidia_write_regs(par, &par->SavedReg);

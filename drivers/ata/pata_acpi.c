@@ -77,8 +77,8 @@ static int pacpi_cable_detect(struct ata_port *ap)
 
 static void pacpi_error_handler(struct ata_port *ap)
 {
-	return ata_bmdma_drive_eh(ap, pacpi_pre_reset, ata_std_softreset,
-				  NULL, ata_std_postreset);
+	ata_bmdma_drive_eh(ap, pacpi_pre_reset, ata_std_softreset, NULL,
+			   ata_std_postreset);
 }
 
 /**

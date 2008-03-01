@@ -1145,38 +1145,19 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 /*
  * Call func for each cic attached to this ioc. Returns number of cic's seen.
  */
-#define CIC_GANG_NR	16
 static unsigned int
 call_for_each_cic(struct io_context *ioc,
 		  void (*func)(struct io_context *, struct cfq_io_context *))
 {
-	struct cfq_io_context *cics[CIC_GANG_NR];
-	unsigned long index = 0;
-	unsigned int called = 0;
-	int nr;
+	struct cfq_io_context *cic;
+	struct hlist_node *n;
+	int called = 0;
 
 	rcu_read_lock();
-
-	do {
-		int i;
-
-		/*
-		 * Perhaps there's a better way - this just gang lookups from
-		 * 0 to the end, restarting after each CIC_GANG_NR from the
-		 * last key + 1.
-		 */
-		nr = radix_tree_gang_lookup(&ioc->radix_root, (void **) cics,
-						index, CIC_GANG_NR);
-		if (!nr)
-			break;
-
-		called += nr;
-		index = 1 + (unsigned long) cics[nr - 1]->key;
-
-		for (i = 0; i < nr; i++)
-			func(ioc, cics[i]);
-	} while (nr == CIC_GANG_NR);
-
+	hlist_for_each_entry_rcu(cic, n, &ioc->cic_list, cic_list) {
+		func(ioc, cic);
+		called++;
+	}
 	rcu_read_unlock();
 
 	return called;
@@ -1190,6 +1171,7 @@ static void cic_free_func(struct io_context *ioc, struct cfq_io_context *cic)
 
 	spin_lock_irqsave(&ioc->lock, flags);
 	radix_tree_delete(&ioc->radix_root, cic->dead_key);
+	hlist_del_rcu(&cic->cic_list);
 	spin_unlock_irqrestore(&ioc->lock, flags);
 
 	kmem_cache_free(cfq_ioc_pool, cic);
@@ -1280,6 +1262,7 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 	if (cic) {
 		cic->last_end_request = jiffies;
 		INIT_LIST_HEAD(&cic->queue_list);
+		INIT_HLIST_NODE(&cic->cic_list);
 		cic->dtor = cfq_free_io_context;
 		cic->exit = cfq_exit_io_context;
 		elv_ioc_count_inc(ioc_count);
@@ -1501,6 +1484,7 @@ cfq_drop_dead_cic(struct cfq_data *cfqd, struct io_context *ioc,
 		rcu_assign_pointer(ioc->ioc_data, NULL);
 
 	radix_tree_delete(&ioc->radix_root, (unsigned long) cfqd);
+	hlist_del_rcu(&cic->cic_list);
 	spin_unlock_irqrestore(&ioc->lock, flags);
 
 	cfq_cic_free(cic);
@@ -1561,6 +1545,8 @@ static int cfq_cic_link(struct cfq_data *cfqd, struct io_context *ioc,
 		spin_lock_irqsave(&ioc->lock, flags);
 		ret = radix_tree_insert(&ioc->radix_root,
 						(unsigned long) cfqd, cic);
+		if (!ret)
+			hlist_add_head_rcu(&cic->cic_list, &ioc->cic_list);
 		spin_unlock_irqrestore(&ioc->lock, flags);
 
 		radix_tree_preload_end();

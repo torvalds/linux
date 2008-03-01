@@ -166,7 +166,8 @@ static inline int save_add_info(void) {return 0;}
  * Both SPARSE and RESERVE need nodes_add information.
  * This code supports one contiguous hot add area per node.
  */
-static int reserve_hotadd(int node, unsigned long start, unsigned long end)
+static int __init
+reserve_hotadd(int node, unsigned long start, unsigned long end)
 {
 	unsigned long s_pfn = start >> PAGE_SHIFT;
 	unsigned long e_pfn = end >> PAGE_SHIFT;

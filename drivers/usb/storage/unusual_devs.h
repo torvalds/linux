@@ -357,7 +357,7 @@ UNUSUAL_DEV(  0x04b0, 0x040f, 0x0100, 0x0200,
 		US_FL_FIX_CAPACITY),
 
 /* Reported by Emil Larsson <emil@swip.net> */
-UNUSUAL_DEV(  0x04b0, 0x0411, 0x0100, 0x0101,
+UNUSUAL_DEV(  0x04b0, 0x0411, 0x0100, 0x0110,
 		"NIKON",
 		"NIKON DSC D80",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
@@ -758,6 +758,18 @@ UNUSUAL_DEV(  0x0595, 0x4343, 0x0000, 0x2210,
 		"Fujifilm",
 		"Digital Camera EX-20 DSC",
 		US_SC_8070, US_PR_DEVICE, NULL, 0 ),
+
+/* Reported by Andre Welter <a.r.welter@gmx.de>
+ * This antique device predates the release of the Bulk-only Transport
+ * spec, and if it gets a Get-Max-LUN then it requires the host to do a
+ * Clear-Halt on the bulk endpoints.  The SINGLE_LUN flag will prevent
+ * us from sending the request.
+ */
+UNUSUAL_DEV(  0x059b, 0x0001, 0x0100, 0x0100,
+		"Iomega",
+		"ZIP 100",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN ),
 
 /* Reported by <Hendryk.Pfeiffer@gmx.de> */
 UNUSUAL_DEV(  0x059f, 0x0643, 0x0000, 0x0000,
@@ -1412,6 +1424,17 @@ UNUSUAL_DEV(  0x0ed1, 0x7636, 0x0103, 0x0103,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE | US_FL_GO_SLOW | US_FL_MAX_SECTORS_64),
 
+/* Patch by Leonid Petrov mail at lpetrov.net
+ * Reported by Robert Spitzenpfeil <robert@spitzenpfeil.org>
+ * http://www.qbik.ch/usb/devices/showdev.php?id=1705
+ * Updated to 103 device by MJ Ray mjr at phonecoop.coop
+ */
+UNUSUAL_DEV(  0x0f19, 0x0103, 0x0100, 0x0100,
+		"Oracom Co., Ltd",
+		"ORC-200M",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
+
 /* David Kuehling <dvdkhlng@gmx.de>:
  * for MP3-Player AVOX WSX-300ER (bought in Japan).  Reports lots of SCSI
  * errors when trying to write.
@@ -1476,6 +1499,15 @@ UNUSUAL_DEV(  0x1019, 0x0c55, 0x0000, 0x0110,
 		"UCR-61S2B",
 		US_SC_DEVICE, US_PR_DEVICE, usb_stor_ucr61s2b_init,
 		0 ),
+
+/* Reported by Fabio Venturi <f.venturi@tdnet.it>
+ * The device reports a vendor-specific bDeviceClass.
+ */
+UNUSUAL_DEV(  0x10d6, 0x2200, 0x0100, 0x0100,
+		"Actions Semiconductor",
+		"Mtp device",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		0),
 
 /* Reported by Kevin Lloyd <linux@sierrawireless.com>
  * Entry is needed for the initializer function override,

@@ -698,7 +698,8 @@ static int media_bay_suspend(struct macio_dev *mdev, pm_message_t state)
 {
 	struct media_bay_info	*bay = macio_get_drvdata(mdev);
 
-	if (state.event != mdev->ofdev.dev.power.power_state.event && state.event == PM_EVENT_SUSPEND) {
+	if (state.event != mdev->ofdev.dev.power.power_state.event
+	    && (state.event & PM_EVENT_SLEEP)) {
 		down(&bay->lock);
 		bay->sleeping = 1;
 		set_mb_power(bay, 0);

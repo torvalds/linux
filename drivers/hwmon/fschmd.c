@@ -44,7 +44,7 @@
 #include <linux/dmi.h>
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = { 0x73, I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { 0x73, I2C_CLIENT_END };
 
 /* Insmod parameters */
 I2C_CLIENT_INSMOD_5(fscpos, fscher, fscscy, fschrc, fschmd);

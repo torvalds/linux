@@ -36,6 +36,7 @@
 #include <linux/net.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/ethtool.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -297,17 +298,10 @@ static void tsi108_check_phy(struct net_device *dev)
 	u32 speed;
 	unsigned long flags;
 
-	/* Do a dummy read, as for some reason the first read
-	 * after a link becomes up returns link down, even if
-	 * it's been a while since the link came up.
-	 */
-
 	spin_lock_irqsave(&phy_lock, flags);
 
 	if (!data->phy_ok)
 		goto out;
-
-	tsi108_read_mii(data, MII_BMSR);
 
 	duplex = mii_check_media(&data->mii_if, netif_msg_link(data), data->init_media);
 	data->init_media = 0;
@@ -345,22 +339,21 @@ static void tsi108_check_phy(struct net_device *dev)
 
 			TSI_WRITE(TSI108_MAC_CFG2, mac_cfg2_reg);
 			TSI_WRITE(TSI108_EC_PORTCTRL, portctrl_reg);
-
-			if (data->link_up == 0) {
-				/* The manual says it can take 3-4 usecs for the speed change
-				 * to take effect.
-				 */
-				udelay(5);
-
-				spin_lock(&data->txlock);
-				if (is_valid_ether_addr(dev->dev_addr) && data->txfree)
-					netif_wake_queue(dev);
-
-				data->link_up = 1;
-				spin_unlock(&data->txlock);
-			}
 		}
 
+		if (data->link_up == 0) {
+			/* The manual says it can take 3-4 usecs for the speed change
+			 * to take effect.
+			 */
+			udelay(5);
+
+			spin_lock(&data->txlock);
+			if (is_valid_ether_addr(dev->dev_addr) && data->txfree)
+				netif_wake_queue(dev);
+
+			data->link_up = 1;
+			spin_unlock(&data->txlock);
+		}
 	} else {
 		if (data->link_up == 1) {
 			netif_stop_queue(dev);
@@ -1274,12 +1267,11 @@ static void tsi108_init_phy(struct net_device *dev)
 	 * PHY_STAT register before the link up status bit is set.
 	 */
 
-	data->link_up = 1;
+	data->link_up = 0;
 
 	while (!((phyval = tsi108_read_mii(data, MII_BMSR)) &
 		 BMSR_LSTATUS)) {
 		if (i++ > (MII_READ_DELAY / 10)) {
-			data->link_up = 0;
 			break;
 		}
 		spin_unlock_irqrestore(&phy_lock, flags);
@@ -1287,6 +1279,7 @@ static void tsi108_init_phy(struct net_device *dev)
 		spin_lock_irqsave(&phy_lock, flags);
 	}
 
+	data->mii_if.supports_gmii = mii_check_gmii_support(&data->mii_if);
 	printk(KERN_DEBUG "PHY_STAT reg contains %08x\n", phyval);
 	data->phy_ok = 1;
 	data->init_media = 1;
@@ -1527,11 +1520,45 @@ static void tsi108_init_mac(struct net_device *dev)
 	TSI_WRITE(TSI108_EC_INTMASK, ~0);
 }
 
+static int tsi108_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct tsi108_prv_data *data = netdev_priv(dev);
+	unsigned long flags;
+	int rc;
+	
+	spin_lock_irqsave(&data->txlock, flags);
+	rc = mii_ethtool_gset(&data->mii_if, cmd);
+	spin_unlock_irqrestore(&data->txlock, flags);
+
+	return rc;
+}
+
+static int tsi108_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct tsi108_prv_data *data = netdev_priv(dev);
+	unsigned long flags;
+	int rc;
+
+	spin_lock_irqsave(&data->txlock, flags);
+	rc = mii_ethtool_sset(&data->mii_if, cmd);
+	spin_unlock_irqrestore(&data->txlock, flags);
+	
+	return rc;
+}
+
 static int tsi108_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct tsi108_prv_data *data = netdev_priv(dev);
+	if (!netif_running(dev))
+		return -EINVAL;
 	return generic_mii_ioctl(&data->mii_if, if_mii(rq), cmd, NULL);
 }
+
+static const struct ethtool_ops tsi108_ethtool_ops = {
+	.get_link 	= ethtool_op_get_link,
+	.get_settings	= tsi108_get_settings,
+	.set_settings	= tsi108_set_settings,
+};
 
 static int
 tsi108_init_one(struct platform_device *pdev)
@@ -1584,7 +1611,6 @@ tsi108_init_one(struct platform_device *pdev)
 	data->mii_if.phy_id = einfo->phy;
 	data->mii_if.phy_id_mask = 0x1f;
 	data->mii_if.reg_num_mask = 0x1f;
-	data->mii_if.supports_gmii = mii_check_gmii_support(&data->mii_if);
 
 	data->phy = einfo->phy;
 	data->phy_type = einfo->phy_type;
@@ -1598,6 +1624,7 @@ tsi108_init_one(struct platform_device *pdev)
 	dev->get_stats = tsi108_get_stats;
 	netif_napi_add(dev, &data->napi, tsi108_poll, 64);
 	dev->do_ioctl = tsi108_do_ioctl;
+	dev->ethtool_ops = &tsi108_ethtool_ops;
 
 	/* Apparently, the Linux networking code won't use scatter-gather
 	 * if the hardware doesn't do checksums.  However, it's faster
@@ -1629,6 +1656,7 @@ tsi108_init_one(struct platform_device *pdev)
 		goto register_fail;
 	}
 
+	platform_set_drvdata(pdev, dev);
 	printk(KERN_INFO "%s: Tsi108 Gigabit Ethernet, MAC: %s\n",
 	       dev->name, print_mac(mac, dev->dev_addr));
 #ifdef DEBUG

@@ -292,14 +292,12 @@ int __init wanrouter_proc_init(void)
 	if (!proc_router)
 		goto fail;
 
-	p = create_proc_entry("config", S_IRUGO, proc_router);
+	p = proc_create("config", S_IRUGO, proc_router, &config_fops);
 	if (!p)
 		goto fail_config;
-	p->proc_fops = &config_fops;
-	p = create_proc_entry("status", S_IRUGO, proc_router);
+	p = proc_create("status", S_IRUGO, proc_router, &status_fops);
 	if (!p)
 		goto fail_stat;
-	p->proc_fops = &status_fops;
 	return 0;
 fail_stat:
 	remove_proc_entry("config", proc_router);
@@ -329,10 +327,10 @@ int wanrouter_proc_add(struct wan_device* wandev)
 	if (wandev->magic != ROUTER_MAGIC)
 		return -EINVAL;
 
-	wandev->dent = create_proc_entry(wandev->name, S_IRUGO, proc_router);
+	wandev->dent = proc_create(wandev->name, S_IRUGO,
+				   proc_router, &wandev_fops);
 	if (!wandev->dent)
 		return -ENOMEM;
-	wandev->dent->proc_fops	= &wandev_fops;
 	wandev->dent->data	= wandev;
 	return 0;
 }

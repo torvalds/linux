@@ -1014,10 +1014,6 @@ static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb,
 	}
 
 	req->buffer = NULL;
-	if (blk_pc_request(req))
-		sdb->length = req->data_len;
-	else
-		sdb->length = req->nr_sectors << 9;
 
 	/* 
 	 * Next, walk the list, and fill in the addresses and sizes of
@@ -1026,6 +1022,10 @@ static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb,
 	count = blk_rq_map_sg(req->q, req, sdb->table.sgl);
 	BUG_ON(count > sdb->table.nents);
 	sdb->table.nents = count;
+	if (blk_pc_request(req))
+		sdb->length = req->data_len;
+	else
+		sdb->length = req->nr_sectors << 9;
 	return BLKPREP_OK;
 }
 

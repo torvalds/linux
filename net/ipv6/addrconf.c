@@ -1557,6 +1557,7 @@ addrconf_prefix_route(struct in6_addr *pfx, int plen, struct net_device *dev,
 		.fc_expires = expires,
 		.fc_dst_len = plen,
 		.fc_flags = RTF_UP | flags,
+		.fc_nlinfo.nl_net = &init_net,
 	};
 
 	ipv6_addr_copy(&cfg.fc_dst, pfx);
@@ -1583,6 +1584,7 @@ static void addrconf_add_mroute(struct net_device *dev)
 		.fc_ifindex = dev->ifindex,
 		.fc_dst_len = 8,
 		.fc_flags = RTF_UP,
+		.fc_nlinfo.nl_net = &init_net,
 	};
 
 	ipv6_addr_set(&cfg.fc_dst, htonl(0xFF000000), 0, 0, 0);
@@ -1599,6 +1601,7 @@ static void sit_route_add(struct net_device *dev)
 		.fc_ifindex = dev->ifindex,
 		.fc_dst_len = 96,
 		.fc_flags = RTF_UP | RTF_NONEXTHOP,
+		.fc_nlinfo.nl_net = &init_net,
 	};
 
 	/* prefix length - 96 bits "::d.d.d.d" */

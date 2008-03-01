@@ -27,11 +27,11 @@ const int __initdata h8300_saved_vectors[]={
 };
 
 /* trap entry table */
-const unsigned long __initdata h8300_trap_table[NR_TRAPS]={
+const H8300_VECTOR __initdata h8300_trap_table[] = {
 	0,0,0,0,0,
-	(unsigned long)trace_break,  /* TRACE */
+	trace_break,  /* TRACE */
 	0,0,
-	(unsigned long)system_call,  /* TRAPA #0 */
+	system_call,  /* TRAPA #0 */
 	0,0,0,0,0,0,0
 };
 
@@ -50,7 +50,7 @@ static const struct irq_pins irq_assign_table0[16]={
 	{H8300_GPIO_P6,H8300_GPIO_B2},{H8300_GPIO_P6,H8300_GPIO_B3},
 	{H8300_GPIO_P6,H8300_GPIO_B4},{H8300_GPIO_P6,H8300_GPIO_B5},
 	{H8300_GPIO_PF,H8300_GPIO_B1},{H8300_GPIO_PF,H8300_GPIO_B2},
-}; 
+};
 /* ISTR = 1 */
 static const struct irq_pins irq_assign_table1[16]={
 	{H8300_GPIO_P8,H8300_GPIO_B0},{H8300_GPIO_P8,H8300_GPIO_B1},

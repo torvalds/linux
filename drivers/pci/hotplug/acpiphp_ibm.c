@@ -395,33 +395,34 @@ static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
 {
 	acpi_handle *phandle = (acpi_handle *)context;
 	acpi_status status; 
-	struct acpi_device_info info; 
-	struct acpi_buffer info_buffer = {
-		.length = sizeof(struct acpi_device_info),
-		.pointer = &info,
-	};
+	struct acpi_device_info *info;
+	struct acpi_buffer info_buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	int retval = 0;
 
 	status = acpi_get_object_info(handle, &info_buffer);
 	if (ACPI_FAILURE(status)) {
-		err("%s:  Failed to get device information\n", __FUNCTION__);
-		return 0;
+		err("%s:  Failed to get device information status=0x%x\n",
+			__FUNCTION__, status);
+		return retval;
 	}
-	info.hardware_id.value[sizeof(info.hardware_id.value) - 1] = '\0';
+	info = info_buffer.pointer;
+	info->hardware_id.value[sizeof(info->hardware_id.value) - 1] = '\0';
 
-	if (info.current_status && (info.valid & ACPI_VALID_HID) &&
-			(!strcmp(info.hardware_id.value, IBM_HARDWARE_ID1) ||
-			!strcmp(info.hardware_id.value, IBM_HARDWARE_ID2))) {
-		dbg("found hardware: %s, handle: %p\n", info.hardware_id.value,
-				handle);
+	if (info->current_status && (info->valid & ACPI_VALID_HID) &&
+			(!strcmp(info->hardware_id.value, IBM_HARDWARE_ID1) ||
+			 !strcmp(info->hardware_id.value, IBM_HARDWARE_ID2))) {
+		dbg("found hardware: %s, handle: %p\n",
+			info->hardware_id.value, handle);
 		*phandle = handle;
 		/* returning non-zero causes the search to stop
 		 * and returns this value to the caller of 
 		 * acpi_walk_namespace, but it also causes some warnings
 		 * in the acpi debug code to print...
 		 */
-		return FOUND_APCI;
+		retval = FOUND_APCI;
 	}
-	return 0;
+	kfree(info);
+	return retval;
 }
 
 static int __init ibm_acpiphp_init(void)

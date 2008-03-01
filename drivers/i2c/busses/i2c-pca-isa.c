@@ -125,6 +125,13 @@ static int __devinit pca_isa_probe(struct device *dev, unsigned int id)
 
 	dev_info(dev, "i/o base %#08lx. irq %d\n", base, irq);
 
+#ifdef CONFIG_PPC_MERGE
+	if (check_legacy_ioport(base)) {
+		dev_err(dev, "I/O address %#08lx is not available\n", base);
+		goto out;
+	}
+#endif
+
 	if (!request_region(base, IO_SIZE, "i2c-pca-isa")) {
 		dev_err(dev, "I/O address %#08lx is in use\n", base);
 		goto out;

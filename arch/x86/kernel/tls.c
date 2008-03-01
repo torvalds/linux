@@ -91,7 +91,9 @@ int do_set_thread_area(struct task_struct *p, int idx,
 
 asmlinkage int sys_set_thread_area(struct user_desc __user *u_info)
 {
-	return do_set_thread_area(current, -1, u_info, 1);
+	int ret = do_set_thread_area(current, -1, u_info, 1);
+	prevent_tail_call(ret);
+	return ret;
 }
 
 
@@ -139,7 +141,9 @@ int do_get_thread_area(struct task_struct *p, int idx,
 
 asmlinkage int sys_get_thread_area(struct user_desc __user *u_info)
 {
-	return do_get_thread_area(current, -1, u_info);
+	int ret = do_get_thread_area(current, -1, u_info);
+	prevent_tail_call(ret);
+	return ret;
 }
 
 int regset_tls_active(struct task_struct *target,

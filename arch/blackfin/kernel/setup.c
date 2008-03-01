@@ -32,6 +32,7 @@
 static DEFINE_PER_CPU(struct cpu, cpu_devices);
 
 u16 _bfin_swrst;
+EXPORT_SYMBOL(_bfin_swrst);
 
 unsigned long memory_start, memory_end, physical_mem_end;
 unsigned long reserved_mem_dcache_on;
@@ -514,6 +515,7 @@ static __init void  memory_setup(void)
 	printk(KERN_INFO "Kernel Managed Memory: %ldMB\n", _ramend >> 20);
 
 	printk(KERN_INFO "Memory map:\n"
+		KERN_INFO "  fixedcode = 0x%p-0x%p\n"
 		KERN_INFO "  text      = 0x%p-0x%p\n"
 		KERN_INFO "  rodata    = 0x%p-0x%p\n"
 		KERN_INFO "  bss       = 0x%p-0x%p\n"
@@ -527,7 +529,8 @@ static __init void  memory_setup(void)
 #if DMA_UNCACHED_REGION > 0
 		KERN_INFO "  DMA Zone  = 0x%p-0x%p\n"
 #endif
-		, _stext, _etext,
+		, (void *)FIXED_CODE_START, (void *)FIXED_CODE_END,
+		_stext, _etext,
 		__start_rodata, __end_rodata,
 		__bss_start, __bss_stop,
 		_sdata, _edata,

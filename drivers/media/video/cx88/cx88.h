@@ -336,6 +336,7 @@ struct cx88_core {
 	/* cx88-video needs to access cx8802 for hybrid tuner pll access. */
 	struct cx8802_dev          *dvbdev;
 	enum cx88_board_type       active_type_id;
+	int			   active_ref;
 };
 
 struct cx8800_dev;

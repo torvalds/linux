@@ -8,193 +8,328 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2003 - 2005 Tensilica Inc.
- *
- * Marc Gauthier <marc@tensilica.com> <marc@alumni.uwaterloo.ca>
+ * Copyright (C) 2003 - 2007 Tensilica Inc.
  */
 
-/*
- * This module contains a table that describes the layout of the various
- * custom registers and states associated with each coprocessor, as well
- * as those not associated with any coprocessor ("extra state").
- * This table is included with core dumps and is available via the ptrace
- * interface, allowing the layout of such register/state information to
- * be modified in the kernel without affecting the debugger.  Each
- * register or state is identified using a 32-bit "libdb target number"
- * assigned when the Xtensa processor is generated.
- */
 
 #include <linux/linkage.h>
+#include <asm/asm-offsets.h>
 #include <asm/processor.h>
+#include <asm/coprocessor.h>
+#include <asm/thread_info.h>
+#include <asm/uaccess.h>
+#include <asm/unistd.h>
+#include <asm/ptrace.h>
+#include <asm/current.h>
+#include <asm/pgtable.h>
+#include <asm/page.h>
+#include <asm/signal.h>
+#include <asm/tlbflush.h>
 
-#if XCHAL_HAVE_CP
+/*
+ * Entry condition:
+ *
+ *   a0:	trashed, original value saved on stack (PT_AREG0)
+ *   a1:	a1
+ *   a2:	new stack pointer, original in DEPC
+ *   a3:	dispatch table
+ *   depc:	a2, original value saved on stack (PT_DEPC)
+ *   excsave_1:	a3
+ *
+ *   PT_DEPC >= VALID_DOUBLE_EXCEPTION_ADDRESS: double exception, DEPC
+ *	     <  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
+ */
 
-#define CP_LAST ((XCHAL_CP_MAX - 1) * COPROCESSOR_INFO_SIZE)
+/* IO protection is currently unsupported. */
 
-ENTRY(release_coprocessors)
+ENTRY(fast_io_protect)
+	wsr	a0, EXCSAVE_1
+	movi	a0, unrecoverable_exception
+	callx0	a0
 
-	entry	a1, 16
-						# a2: task
-	movi	a3, 1 << XCHAL_CP_MAX 		# a3: coprocessor-bit
-	movi	a4, coprocessor_info+CP_LAST	# a4: owner-table
-						# a5: tmp
-	movi	a6, 0				# a6: 0
-	rsil	a7, LOCKLEVEL			# a7: PS
+#if XTENSA_HAVE_COPROCESSORS
 
-1:	/* Check if task is coprocessor owner of coprocessor[i]. */
+/*
+ * Macros for lazy context switch. 
+ */
 
-	l32i	a5, a4, COPROCESSOR_INFO_OWNER
-	srli	a3, a3, 1
+#define SAVE_CP_REGS(x)							\
+	.align 4;							\
+	.Lsave_cp_regs_cp##x:						\
+	.if XTENSA_HAVE_COPROCESSOR(x);					\
+		xchal_cp##x##_store a2 a4 a5 a6 a7;			\
+	.endif;								\
+	jx	a0
+
+#define SAVE_CP_REGS_TAB(x)						\
+	.if XTENSA_HAVE_COPROCESSOR(x);					\
+		.long .Lsave_cp_regs_cp##x - .Lsave_cp_regs_jump_table;	\
+	.else;								\
+		.long 0;						\
+	.endif;								\
+	.long THREAD_XTREGS_CP##x
+
+
+#define LOAD_CP_REGS(x)							\
+	.align 4;							\
+	.Lload_cp_regs_cp##x:						\
+	.if XTENSA_HAVE_COPROCESSOR(x);					\
+		xchal_cp##x##_load a2 a4 a5 a6 a7;			\
+	.endif;								\
+	jx	a0
+
+#define LOAD_CP_REGS_TAB(x)						\
+	.if XTENSA_HAVE_COPROCESSOR(x);					\
+		.long .Lload_cp_regs_cp##x - .Lload_cp_regs_jump_table; \
+	.else;								\
+		.long 0;						\
+	.endif;								\
+	.long THREAD_XTREGS_CP##x
+
+	SAVE_CP_REGS(0)
+	SAVE_CP_REGS(1)
+	SAVE_CP_REGS(2)
+	SAVE_CP_REGS(3)
+	SAVE_CP_REGS(4)
+	SAVE_CP_REGS(5)
+	SAVE_CP_REGS(6)
+	SAVE_CP_REGS(7)
+
+	LOAD_CP_REGS(0)
+	LOAD_CP_REGS(1)
+	LOAD_CP_REGS(2)
+	LOAD_CP_REGS(3)
+	LOAD_CP_REGS(4)
+	LOAD_CP_REGS(5)
+	LOAD_CP_REGS(6)
+	LOAD_CP_REGS(7)
+
+	.align 4
+.Lsave_cp_regs_jump_table:
+	SAVE_CP_REGS_TAB(0)
+	SAVE_CP_REGS_TAB(1)
+	SAVE_CP_REGS_TAB(2)
+	SAVE_CP_REGS_TAB(3)
+	SAVE_CP_REGS_TAB(4)
+	SAVE_CP_REGS_TAB(5)
+	SAVE_CP_REGS_TAB(6)
+	SAVE_CP_REGS_TAB(7)
+
+.Lload_cp_regs_jump_table:
+	LOAD_CP_REGS_TAB(0)
+	LOAD_CP_REGS_TAB(1)
+	LOAD_CP_REGS_TAB(2)
+	LOAD_CP_REGS_TAB(3)
+	LOAD_CP_REGS_TAB(4)
+	LOAD_CP_REGS_TAB(5)
+	LOAD_CP_REGS_TAB(6)
+	LOAD_CP_REGS_TAB(7)
+
+/*
+ * coprocessor_save(buffer, index) 
+ *                    a2      a3
+ * coprocessor_load(buffer, index)
+ *                    a2      a3
+ *
+ * Save or load coprocessor registers for coprocessor 'index'. 
+ * The register values are saved to or loaded from them 'buffer' address.
+ *
+ * Note that these functions don't update the coprocessor_owner information!
+ *
+ */
+
+ENTRY(coprocessor_save)
+	entry	a1, 32
+	s32i	a0, a1, 0
+	movi	a0, .Lsave_cp_regs_jump_table
+	addx8	a3, a3, a0
+	l32i	a3, a3, 0
 	beqz	a3, 1f
-	addi	a4, a4, -8
-	beq	a2, a5, 1b
-
-	/* Found an entry: Clear entry CPENABLE bit to disable CP. */
-
-	rsr	a5, CPENABLE
-	s32i	a6, a4, COPROCESSOR_INFO_OWNER
-	xor	a5, a3, a5
-	wsr	a5, CPENABLE
-
-	bnez	a3, 1b
-
-1:	wsr	a7, PS
-	rsync
+	add	a0, a0, a3
+	callx0	a0
+1:	l32i	a0, a1, 0
 	retw
 
-
-ENTRY(disable_coprocessor)
-	entry	sp, 16
-	rsil	a7, LOCKLEVEL
-	rsr	a3, CPENABLE
-	movi	a4, 1
-	ssl	a2
-	sll	a4, a4
-	and	a4, a3, a4
-	xor	a3, a3, a4
-	wsr	a3, CPENABLE
-	wsr	a7, PS
-	rsync
+ENTRY(coprocessor_load)
+	entry	a1, 32
+	s32i	a0, a1, 0
+	movi	a0, .Lload_cp_regs_jump_table
+	addx4	a3, a3, a0
+	l32i	a3, a3, 0
+	beqz	a3, 1f
+	add	a0, a0, a3
+	callx0	a0
+1:	l32i	a0, a1, 0
 	retw
-
-ENTRY(enable_coprocessor)
-	entry	sp, 16
-	rsil	a7, LOCKLEVEL
-	rsr	a3, CPENABLE
-	movi	a4, 1
-	ssl	a2
-	sll	a4, a4
-	or	a3, a3, a4
-	wsr	a3, CPENABLE
-	wsr	a7, PS
-	rsync
-	retw
-
-
-ENTRY(save_coprocessor_extra)
-	entry	sp, 16
-	xchal_extra_store_funcbody
-	retw
-
-ENTRY(restore_coprocessor_extra)
-	entry	sp, 16
-	xchal_extra_load_funcbody
-	retw
-
-ENTRY(save_coprocessor_registers)
-	entry	sp, 16
-	xchal_cpi_store_funcbody
-	retw
-
-ENTRY(restore_coprocessor_registers)
-	entry	sp, 16
-	xchal_cpi_load_funcbody
-	retw
-
 
 /*
- *  The Xtensa compile-time HAL (core.h) XCHAL_*_SA_CONTENTS_LIBDB macros
- *  describe the contents of coprocessor & extra save areas in terms of
- *  undefined CONTENTS_LIBDB_{SREG,UREG,REGF} macros.  We define these
- *  latter macros here; they expand into a table of the format we want.
- *  The general format is:
+ * coprocessor_flush(struct task_info*, index) 
+ *                             a2        a3
+ * coprocessor_restore(struct task_info*, index)
+ *                              a2         a3
  *
- *	CONTENTS_LIBDB_SREG(libdbnum, offset, size, align, rsv1, name, sregnum,
- *			    bitmask, rsv2, rsv3)
- *	CONTENTS_LIBDB_UREG(libdbnum, offset, size, align, rsv1, name, uregnum,
- *			    bitmask, rsv2, rsv3)
- *	CONTENTS_LIBDB_REGF(libdbnum, offset, size, align, rsv1, name, index,
- *			    numentries, contentsize, regname_base,
- *			    regfile_name, rsv2, rsv3)
+ * Save or load coprocessor registers for coprocessor 'index'. 
+ * The register values are saved to or loaded from the coprocessor area 
+ * inside the task_info structure.
  *
- *  For this table, we only care about the <libdbnum>, <offset> and <size>
- *  fields.
+ * Note that these functions don't update the coprocessor_owner information!
+ *
  */
 
-/*  Map all XCHAL CONTENTS macros to the reg_entry asm macro defined below:  */
 
-#define CONTENTS_LIBDB_SREG(libdbnum,offset,size,align,rsv1,name,sregnum,     \
-			    bitmask, rsv2, rsv3)			      \
-		reg_entry libdbnum, offset, size ;
-#define CONTENTS_LIBDB_UREG(libdbnum,offset,size,align,rsv1,name,uregnum,     \
-			    bitmask, rsv2, rsv3)			      \
-		reg_entry libdbnum, offset, size ;
-#define CONTENTS_LIBDB_REGF(libdbnum, offset, size, align, rsv1, name, index, \
-			    numentries, contentsize, regname_base,	      \
-			    regfile_name, rsv2, rsv3)			      \
-		reg_entry libdbnum, offset, size ;
+ENTRY(coprocessor_flush)
+	entry	a1, 32
+	s32i	a0, a1, 0
+	movi	a0, .Lsave_cp_regs_jump_table
+	addx8	a3, a3, a0
+	l32i	a4, a3, 4
+	l32i	a3, a3, 0
+	add	a2, a2, a4
+	beqz	a3, 1f
+	add	a0, a0, a3
+	callx0	a0
+1:	l32i	a0, a1, 0
+	retw
 
-/* A single table entry: */
-	.macro	reg_entry	libdbnum, offset, size
-	 .ifne	(__last_offset-(__last_group_offset+\offset))
-	  /* padding entry */
-	  .word	(0xFC000000+__last_offset-(__last_group_offset+\offset))
-	 .endif
-	 .word	\libdbnum				/* actual entry */
-	 .set	__last_offset, __last_group_offset+\offset+\size
-	.endm	/* reg_entry */
-
-
-/* Table entry that marks the beginning of a group (coprocessor or "extra"): */
-	.macro	reg_group	cpnum, num_entries, align
-	 .set	__last_group_offset, (__last_offset + \align- 1) & -\align
-	 .ifne	\num_entries
-	  .word	0xFD000000+(\cpnum<<16)+\num_entries
-	 .endif
-	.endm	/* reg_group */
+ENTRY(coprocessor_restore)
+	entry	a1, 32
+	s32i	a0, a1, 0
+	movi	a0, .Lload_cp_regs_jump_table
+	addx4	a3, a3, a0
+	l32i	a4, a3, 4
+	l32i	a3, a3, 0
+	add	a2, a2, a4
+	beqz	a3, 1f
+	add	a0, a0, a3
+	callx0	a0
+1:	l32i	a0, a1, 0
+	retw
 
 /*
- * Register info tables.
+ * Entry condition:
+ *
+ *   a0:	trashed, original value saved on stack (PT_AREG0)
+ *   a1:	a1
+ *   a2:	new stack pointer, original in DEPC
+ *   a3:	dispatch table
+ *   depc:	a2, original value saved on stack (PT_DEPC)
+ *   excsave_1:	a3
+ *
+ *   PT_DEPC >= VALID_DOUBLE_EXCEPTION_ADDRESS: double exception, DEPC
+ *	     <  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
  */
 
-	.section .rodata, "a"
-	.globl	_xtensa_reginfo_tables
-	.globl	_xtensa_reginfo_table_size
-	.align	4
-_xtensa_reginfo_table_size:
-	.word	_xtensa_reginfo_table_end - _xtensa_reginfo_tables
+ENTRY(fast_coprocessor_double)
+	wsr	a0, EXCSAVE_1
+	movi	a0, unrecoverable_exception
+	callx0	a0
 
-_xtensa_reginfo_tables:
-	.set	__last_offset, 0
-	reg_group 0xFF, XCHAL_EXTRA_SA_CONTENTS_LIBDB_NUM, XCHAL_EXTRA_SA_ALIGN
-	XCHAL_EXTRA_SA_CONTENTS_LIBDB
-	reg_group 0, XCHAL_CP0_SA_CONTENTS_LIBDB_NUM, XCHAL_CP0_SA_ALIGN
-	XCHAL_CP0_SA_CONTENTS_LIBDB
-	reg_group 1, XCHAL_CP1_SA_CONTENTS_LIBDB_NUM, XCHAL_CP1_SA_ALIGN
-	XCHAL_CP1_SA_CONTENTS_LIBDB
-	reg_group 2, XCHAL_CP2_SA_CONTENTS_LIBDB_NUM, XCHAL_CP2_SA_ALIGN
-	XCHAL_CP2_SA_CONTENTS_LIBDB
-	reg_group 3, XCHAL_CP3_SA_CONTENTS_LIBDB_NUM, XCHAL_CP3_SA_ALIGN
-	XCHAL_CP3_SA_CONTENTS_LIBDB
-	reg_group 4, XCHAL_CP4_SA_CONTENTS_LIBDB_NUM, XCHAL_CP4_SA_ALIGN
-	XCHAL_CP4_SA_CONTENTS_LIBDB
-	reg_group 5, XCHAL_CP5_SA_CONTENTS_LIBDB_NUM, XCHAL_CP5_SA_ALIGN
-	XCHAL_CP5_SA_CONTENTS_LIBDB
-	reg_group 6, XCHAL_CP6_SA_CONTENTS_LIBDB_NUM, XCHAL_CP6_SA_ALIGN
-	XCHAL_CP6_SA_CONTENTS_LIBDB
-	reg_group 7, XCHAL_CP7_SA_CONTENTS_LIBDB_NUM, XCHAL_CP7_SA_ALIGN
-	XCHAL_CP7_SA_CONTENTS_LIBDB
-	.word	0xFC000000	/* invalid register number,marks end of table*/
-_xtensa_reginfo_table_end:
-#endif
+
+ENTRY(fast_coprocessor)
+
+	/* Save remaining registers a1-a3 and SAR */
+
+	xsr	a3, EXCSAVE_1
+	s32i	a3, a2, PT_AREG3
+	rsr	a3, SAR
+	s32i	a1, a2, PT_AREG1
+	s32i	a3, a2, PT_SAR
+	mov	a1, a2
+	rsr	a2, DEPC
+	s32i	a2, a1, PT_AREG2
+
+	/*
+	 * The hal macros require up to 4 temporary registers. We use a3..a6.
+	 */
+
+	s32i	a4, a1, PT_AREG4
+	s32i	a5, a1, PT_AREG5
+	s32i	a6, a1, PT_AREG6
+
+	/* Find coprocessor number. Subtract first CP EXCCAUSE from EXCCAUSE */
+
+	rsr	a3, EXCCAUSE
+	addi	a3, a3, -EXCCAUSE_COPROCESSOR0_DISABLED
+
+	/* Set corresponding CPENABLE bit -> (sar:cp-index, a3: 1<<cp-index)*/
+
+	ssl	a3			# SAR: 32 - coprocessor_number
+	movi	a2, 1
+	rsr	a0, CPENABLE
+	sll	a2, a2
+	or	a0, a0, a2
+	wsr	a0, CPENABLE
+	rsync
+
+	/* Retrieve previous owner. (a3 still holds CP number) */
+
+	movi	a0, coprocessor_owner	# list of owners
+	addx4	a0, a3, a0		# entry for CP
+	l32i	a4, a0, 0
+
+	beqz	a4, 1f			# skip 'save' if no previous owner
+
+	/* Disable coprocessor for previous owner. (a2 = 1 << CP number) */
+
+	l32i	a5, a4, THREAD_CPENABLE
+	xor	a5, a5, a2		# (1 << cp-id) still in a2
+	s32i	a5, a4, THREAD_CPENABLE
+
+	/*
+	 * Get context save area and 'call' save routine. 
+	 * (a4 still holds previous owner (thread_info), a3 CP number)
+	 */
+
+	movi	a5, .Lsave_cp_regs_jump_table
+	movi	a0, 2f			# a0: 'return' address
+	addx8	a3, a3, a5		# a3: coprocessor number
+	l32i	a2, a3, 4		# a2: xtregs offset
+	l32i	a3, a3, 0		# a3: jump offset
+	add	a2, a2, a4
+	add	a4, a3, a5		# a4: address of save routine
+	jx	a4
+
+	/* Note that only a0 and a1 were preserved. */
+
+2:	rsr	a3, EXCCAUSE
+	addi	a3, a3, -EXCCAUSE_COPROCESSOR0_DISABLED
+	movi	a0, coprocessor_owner
+	addx4	a0, a3, a0
+
+	/* Set new 'owner' (a0 points to the CP owner, a3 contains the CP nr) */
+
+1:	GET_THREAD_INFO (a4, a1)
+	s32i	a4, a0, 0
+
+	/* Get context save area and 'call' load routine. */
+
+	movi	a5, .Lload_cp_regs_jump_table
+	movi	a0, 1f
+	addx8	a3, a3, a5
+	l32i	a2, a3, 4		# a2: xtregs offset
+	l32i	a3, a3, 0		# a3: jump offset
+	add	a2, a2, a4
+	add	a4, a3, a5
+	jx	a4
+
+	/* Restore all registers and return from exception handler. */
+
+1:	l32i	a6, a1, PT_AREG6
+	l32i	a5, a1, PT_AREG5
+	l32i	a4, a1, PT_AREG4
+
+	l32i	a0, a1, PT_SAR
+	l32i	a3, a1, PT_AREG3
+	l32i	a2, a1, PT_AREG2
+	wsr	a0, SAR
+	l32i	a0, a1, PT_AREG0
+	l32i	a1, a1, PT_AREG1
+
+	rfe
+
+	.data
+ENTRY(coprocessor_owner)
+	.fill XCHAL_CP_MAX, 4, 0
+
+#endif /* XTENSA_HAVE_COPROCESSORS */
 
