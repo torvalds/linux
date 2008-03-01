@@ -64,6 +64,7 @@ extern int scsi_get_sense_info_fld(const u8 * sense_buffer, int sb_len,
 #define SCSI_TRY_RESET_DEVICE	1
 #define SCSI_TRY_RESET_BUS	2
 #define SCSI_TRY_RESET_HOST	3
+#define SCSI_TRY_RESET_TARGET	4
 
 extern int scsi_reset_provider(struct scsi_device *, int);
 
