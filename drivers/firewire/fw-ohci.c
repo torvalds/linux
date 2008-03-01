@@ -33,6 +33,10 @@
 #include <asm/page.h>
 #include <asm/system.h>
 
+#ifdef CONFIG_PPC_PMAC
+#include <asm/pmac_feature.h>
+#endif
+
 #include "fw-ohci.h"
 #include "fw-transaction.h"
 
@@ -2048,6 +2052,18 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	int err;
 	size_t size;
 
+#ifdef CONFIG_PPC_PMAC
+	/* Necessary on some machines if fw-ohci was loaded/ unloaded before */
+	if (machine_is(powermac)) {
+		struct device_node *ofn = pci_device_to_OF_node(dev);
+
+		if (ofn) {
+			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, ofn, 0, 1);
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 1);
+		}
+	}
+#endif /* CONFIG_PPC_PMAC */
+
 	ohci = kzalloc(sizeof(*ohci), GFP_KERNEL);
 	if (ohci == NULL) {
 		fw_error("Could not malloc fw_ohci data.\n");
@@ -2182,6 +2198,19 @@ static void pci_remove(struct pci_dev *dev)
 	pci_disable_device(dev);
 	fw_card_put(&ohci->card);
 
+#ifdef CONFIG_PPC_PMAC
+	/* On UniNorth, power down the cable and turn off the chip clock
+	 * to save power on laptops */
+	if (machine_is(powermac)) {
+		struct device_node *ofn = pci_device_to_OF_node(dev);
+
+		if (ofn) {
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 0);
+			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, ofn, 0, 0);
+		}
+	}
+#endif /* CONFIG_PPC_PMAC */
+
 	fw_notify("Removed fw-ohci device.\n");
 }
 
@@ -2202,6 +2231,16 @@ static int pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (err)
 		fw_error("pci_set_power_state failed with %d\n", err);
 
+/* PowerMac suspend code comes last */
+#ifdef CONFIG_PPC_PMAC
+	if (machine_is(powermac)) {
+		struct device_node *ofn = pci_device_to_OF_node(pdev);
+
+		if (ofn)
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 0);
+	}
+#endif /* CONFIG_PPC_PMAC */
+
 	return 0;
 }
 
@@ -2209,6 +2248,16 @@ static int pci_resume(struct pci_dev *pdev)
 {
 	struct fw_ohci *ohci = pci_get_drvdata(pdev);
 	int err;
+
+/* PowerMac resume code comes first */
+#ifdef CONFIG_PPC_PMAC
+	if (machine_is(powermac)) {
+		struct device_node *ofn = pci_device_to_OF_node(pdev);
+
+		if (ofn)
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 1);
+	}
+#endif /* CONFIG_PPC_PMAC */
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
