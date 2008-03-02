@@ -4785,7 +4785,7 @@ static int md_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int md_ioctl(struct inode *inode, struct file *file,
+static int md_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
 	int err = 0;
@@ -4823,7 +4823,7 @@ static int md_ioctl(struct inode *inode, struct file *file,
 	 * Commands creating/starting a new array:
 	 */
 
-	mddev = inode->i_bdev->bd_disk->private_data;
+	mddev = bdev->bd_disk->private_data;
 
 	if (!mddev) {
 		BUG();
@@ -4996,13 +4996,13 @@ abort:
 	return err;
 }
 
-static int md_open(struct inode *inode, struct file *file)
+static int md_open(struct block_device *bdev, fmode_t mode)
 {
 	/*
 	 * Succeed if we can lock the mddev, which confirms that
 	 * it isn't being stopped right now.
 	 */
-	mddev_t *mddev = inode->i_bdev->bd_disk->private_data;
+	mddev_t *mddev = bdev->bd_disk->private_data;
 	int err;
 
 	if ((err = mutex_lock_interruptible_nested(&mddev->reconfig_mutex, 1)))
@@ -5013,14 +5013,14 @@ static int md_open(struct inode *inode, struct file *file)
 	atomic_inc(&mddev->openers);
 	mddev_unlock(mddev);
 
-	check_disk_change(inode->i_bdev);
+	check_disk_change(bdev);
  out:
 	return err;
 }
 
-static int md_release(struct inode *inode, struct file * file)
+static int md_release(struct gendisk *disk, fmode_t mode)
 {
- 	mddev_t *mddev = inode->i_bdev->bd_disk->private_data;
+ 	mddev_t *mddev = disk->private_data;
 
 	BUG_ON(!mddev);
 	atomic_dec(&mddev->openers);
@@ -5046,9 +5046,9 @@ static int md_revalidate(struct gendisk *disk)
 static struct block_device_operations md_fops =
 {
 	.owner		= THIS_MODULE,
-	.__open		= md_open,
-	.__release	= md_release,
-	.__ioctl		= md_ioctl,
+	.open		= md_open,
+	.release	= md_release,
+	.locked_ioctl	= md_ioctl,
 	.getgeo		= md_getgeo,
 	.media_changed	= md_media_changed,
 	.revalidate_disk= md_revalidate,
