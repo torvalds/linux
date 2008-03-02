@@ -2089,17 +2089,15 @@ static ide_driver_t ide_cdrom_driver = {
 #endif
 };
 
-static int idecd_open(struct inode *inode, struct file *file)
+static int idecd_open(struct block_device *bdev, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct cdrom_info *info;
+	struct cdrom_info *info = ide_cd_get(bdev->bd_disk);
 	int rc = -ENOMEM;
 
-	info = ide_cd_get(disk);
 	if (!info)
 		return -ENXIO;
 
-	rc = cdrom_open(&info->devinfo, inode->i_bdev, file->f_mode);
+	rc = cdrom_open(&info->devinfo, bdev, mode);
 
 	if (rc < 0)
 		ide_cd_put(info);
@@ -2107,12 +2105,11 @@ static int idecd_open(struct inode *inode, struct file *file)
 	return rc;
 }
 
-static int idecd_release(struct inode *inode, struct file *file)
+static int idecd_release(struct gendisk *disk, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
 	struct cdrom_info *info = ide_drv_g(disk, cdrom_info);
 
-	cdrom_release(&info->devinfo, file ? file->f_mode : 0);
+	cdrom_release(&info->devinfo, mode);
 
 	ide_cd_put(info);
 
@@ -2158,10 +2155,9 @@ static int idecd_get_spindown(struct cdrom_device_info *cdi, unsigned long arg)
 	return 0;
 }
 
-static int idecd_ioctl(struct inode *inode, struct file *file,
+static int idecd_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
-	struct block_device *bdev = inode->i_bdev;
 	struct cdrom_info *info = ide_drv_g(bdev->bd_disk, cdrom_info);
 	int err;
 
@@ -2176,8 +2172,7 @@ static int idecd_ioctl(struct inode *inode, struct file *file,
 
 	err = generic_ide_ioctl(info->drive, bdev, cmd, arg);
 	if (err == -EINVAL)
-		err = cdrom_ioctl(&info->devinfo, bdev,
-				  file ? file->f_mode : 0, cmd, arg);
+		err = cdrom_ioctl(&info->devinfo, bdev, mode, cmd, arg);
 
 	return err;
 }
@@ -2200,9 +2195,9 @@ static int idecd_revalidate_disk(struct gendisk *disk)
 
 static struct block_device_operations idecd_ops = {
 	.owner			= THIS_MODULE,
-	.__open			= idecd_open,
-	.__release		= idecd_release,
-	.__ioctl			= idecd_ioctl,
+	.open			= idecd_open,
+	.release		= idecd_release,
+	.locked_ioctl		= idecd_ioctl,
 	.media_changed		= idecd_media_changed,
 	.revalidate_disk	= idecd_revalidate_disk
 };
