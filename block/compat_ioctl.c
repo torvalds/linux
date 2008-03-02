@@ -708,16 +708,6 @@ static int compat_blkdev_driver_ioctl(struct inode *inode, struct file *file,
 		return -ENOIOCTLCMD;
 	}
 
-	if (disk->fops->__unlocked_ioctl)
-		return disk->fops->__unlocked_ioctl(file, cmd, arg);
-
-	if (disk->fops->__ioctl) {
-		lock_kernel();
-		ret = disk->fops->__ioctl(inode, file, cmd, arg);
-		unlock_kernel();
-		return ret;
-	}
-
 	return __blkdev_driver_ioctl(inode->i_bdev, file->f_mode, cmd, arg);
 }
 
@@ -805,8 +795,6 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 
 	lock_kernel();
 	ret = compat_blkdev_locked_ioctl(inode, file, bdev, cmd, arg);
-	if (ret == -ENOIOCTLCMD && disk->fops->__compat_ioctl)
-		ret = disk->fops->__compat_ioctl(file, cmd, arg);
 	unlock_kernel();
 	if (ret == -ENOIOCTLCMD && disk->fops->compat_ioctl)
 		ret = disk->fops->compat_ioctl(bdev, file->f_mode, cmd, arg);

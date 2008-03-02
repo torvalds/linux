@@ -1057,15 +1057,7 @@ static inline int blk_integrity_rq(struct request *rq)
 
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
 
-struct file;
-struct inode;
-
 struct block_device_operations {
-	int (*__open) (struct inode *, struct file *);
-	int (*__release) (struct inode *, struct file *);
-	int (*__ioctl) (struct inode *, struct file *, unsigned, unsigned long);
-	long (*__unlocked_ioctl) (struct file *, unsigned, unsigned long);
-	long (*__compat_ioctl) (struct file *, unsigned, unsigned long);
 	int (*open) (struct block_device *, fmode_t);
 	int (*release) (struct gendisk *, fmode_t);
 	int (*locked_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);

@@ -276,16 +276,6 @@ int blkdev_driver_ioctl(struct inode *inode, struct file *file,
 			mode |= FMODE_NDELAY_NOW;
 	}
 
-	if (disk->fops->__unlocked_ioctl)
-		return disk->fops->__unlocked_ioctl(file, cmd, arg);
-
-	if (disk->fops->__ioctl) {
-		lock_kernel();
-		ret = disk->fops->__ioctl(inode, file, cmd, arg);
-		unlock_kernel();
-		return ret;
-	}
-
 	return __blkdev_driver_ioctl(inode->i_bdev, mode, cmd, arg);
 }
 EXPORT_SYMBOL_GPL(blkdev_driver_ioctl);
@@ -295,22 +285,6 @@ int __blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	struct gendisk *disk = bdev->bd_disk;
 	int ret;
-	/* you bet it'll go away by the end of patch series */
-	struct file fake_file = {};
-	struct dentry fake_dentry = {};
-	fake_file.f_mode = mode;
-	fake_file.f_path.dentry = &fake_dentry;
-	fake_dentry.d_inode = bdev->bd_inode;
-
-	if (disk->fops->__unlocked_ioctl)
-		return disk->fops->__unlocked_ioctl(&fake_file, cmd, arg);
-
-	if (disk->fops->__ioctl) {
-		lock_kernel();
-		ret = disk->fops->__ioctl(bdev->bd_inode, &fake_file, cmd, arg);
-		unlock_kernel();
-		return ret;
-	}
 
 	if (disk->fops->ioctl)
 		return disk->fops->ioctl(bdev, mode, cmd, arg);
