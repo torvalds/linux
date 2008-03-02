@@ -92,18 +92,17 @@ static void mmc_blk_put(struct mmc_blk_data *md)
 	mutex_unlock(&open_lock);
 }
 
-static int mmc_blk_open(struct inode *inode, struct file *filp)
+static int mmc_blk_open(struct block_device *bdev, fmode_t mode)
 {
-	struct mmc_blk_data *md;
+	struct mmc_blk_data *md = mmc_blk_get(bdev->bd_disk);
 	int ret = -ENXIO;
 
-	md = mmc_blk_get(inode->i_bdev->bd_disk);
 	if (md) {
 		if (md->usage == 2)
-			check_disk_change(inode->i_bdev);
+			check_disk_change(bdev);
 		ret = 0;
 
-		if ((filp->f_mode & FMODE_WRITE) && md->read_only) {
+		if ((mode & FMODE_WRITE) && md->read_only) {
 			mmc_blk_put(md);
 			ret = -EROFS;
 		}
@@ -112,9 +111,9 @@ static int mmc_blk_open(struct inode *inode, struct file *filp)
 	return ret;
 }
 
-static int mmc_blk_release(struct inode *inode, struct file *filp)
+static int mmc_blk_release(struct gendisk *disk, fmode_t mode)
 {
-	struct mmc_blk_data *md = inode->i_bdev->bd_disk->private_data;
+	struct mmc_blk_data *md = disk->private_data;
 
 	mmc_blk_put(md);
 	return 0;
@@ -130,8 +129,8 @@ mmc_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 }
 
 static struct block_device_operations mmc_bdops = {
-	.__open			= mmc_blk_open,
-	.__release		= mmc_blk_release,
+	.open			= mmc_blk_open,
+	.release		= mmc_blk_release,
 	.getgeo			= mmc_blk_getgeo,
 	.owner			= THIS_MODULE,
 };
