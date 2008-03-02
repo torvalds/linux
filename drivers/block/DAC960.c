@@ -72,9 +72,9 @@ static long disk_size(DAC960_Controller_T *p, int drive_nr)
 	}
 }
 
-static int DAC960_open(struct inode *inode, struct file *file)
+static int DAC960_open(struct block_device *bdev, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
+	struct gendisk *disk = bdev->bd_disk;
 	DAC960_Controller_T *p = disk->queue->queuedata;
 	int drive_nr = (long)disk->private_data;
 
@@ -89,7 +89,7 @@ static int DAC960_open(struct inode *inode, struct file *file)
 			return -ENXIO;
 	}
 
-	check_disk_change(inode->i_bdev);
+	check_disk_change(bdev);
 
 	if (!get_capacity(p->disks[drive_nr]))
 		return -ENXIO;
@@ -153,7 +153,7 @@ static int DAC960_revalidate_disk(struct gendisk *disk)
 
 static struct block_device_operations DAC960_BlockDeviceOperations = {
 	.owner			= THIS_MODULE,
-	.__open			= DAC960_open,
+	.open			= DAC960_open,
 	.getgeo			= DAC960_getgeo,
 	.media_changed		= DAC960_media_changed,
 	.revalidate_disk	= DAC960_revalidate_disk,
