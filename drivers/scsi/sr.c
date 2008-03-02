@@ -524,7 +524,8 @@ static int sr_block_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 	 * case fall through to scsi_ioctl, which will return ENDOEV again
 	 * if it doesn't recognise the ioctl
 	 */
-	ret = scsi_nonblockable_ioctl(sdev, cmd, argp, NULL);
+	ret = scsi_nonblockable_ioctl(sdev, cmd, argp,
+					file ? file->f_flags & O_NDELAY : 0);
 	if (ret != -ENODEV)
 		return ret;
 	return scsi_ioctl(sdev, cmd, argp);
