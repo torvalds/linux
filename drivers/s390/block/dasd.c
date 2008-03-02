@@ -2011,10 +2011,9 @@ static void dasd_flush_request_queue(struct dasd_block *block)
 	spin_unlock_irq(&block->request_queue_lock);
 }
 
-static int dasd_open(struct inode *inp, struct file *filp)
+static int dasd_open(struct block_device *bdev, fmode_t mode)
 {
-	struct gendisk *disk = inp->i_bdev->bd_disk;
-	struct dasd_block *block = disk->private_data;
+	struct dasd_block *block = bdev->bd_disk->private_data;
 	struct dasd_device *base = block->base;
 	int rc;
 
@@ -2052,9 +2051,8 @@ unlock:
 	return rc;
 }
 
-static int dasd_release(struct inode *inp, struct file *filp)
+static int dasd_release(struct gendisk *disk, fmode_t mode)
 {
-	struct gendisk *disk = inp->i_bdev->bd_disk;
 	struct dasd_block *block = disk->private_data;
 
 	atomic_dec(&block->open_count);
@@ -2087,10 +2085,9 @@ static int dasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 struct block_device_operations
 dasd_device_operations = {
 	.owner		= THIS_MODULE,
-	.__open		= dasd_open,
-	.__release	= dasd_release,
-	.__ioctl		= dasd_ioctl,
-	.__compat_ioctl	= dasd_compat_ioctl,
+	.open		= dasd_open,
+	.release	= dasd_release,
+	.locked_ioctl	= dasd_ioctl,
 	.getgeo		= dasd_getgeo,
 };
 
