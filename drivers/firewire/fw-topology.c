@@ -383,6 +383,7 @@ void fw_destroy_nodes(struct fw_card *card)
 	card->color++;
 	if (card->local_node != NULL)
 		for_each_fw_node(card, card->local_node, report_lost_node);
+	card->local_node = NULL;
 	spin_unlock_irqrestore(&card->lock, flags);
 }
 
