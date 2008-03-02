@@ -132,7 +132,7 @@ static int xd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
 static struct block_device_operations xd_fops = {
 	.owner	= THIS_MODULE,
-	.ioctl	= xd_ioctl,
+	.__ioctl	= xd_ioctl,
 	.getgeo = xd_getgeo,
 };
 static DECLARE_WAIT_QUEUE_HEAD(xd_wait_int);

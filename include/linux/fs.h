@@ -79,6 +79,7 @@ extern int dir_notify_enable;
 #define FMODE_NDELAY	((__force fmode_t)32)
 #define FMODE_EXCL	((__force fmode_t)64)
 #define FMODE_WRITE_IOCTL	((__force fmode_t)128)
+#define FMODE_NDELAY_NOW	((__force fmode_t)256)
 
 #define RW_MASK		1
 #define RWA_MASK	2

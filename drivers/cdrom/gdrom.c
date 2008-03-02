@@ -514,10 +514,10 @@ static int gdrom_bdops_ioctl(struct inode *inode, struct file *file,
 
 static struct block_device_operations gdrom_bdops = {
 	.owner			= THIS_MODULE,
-	.open			= gdrom_bdops_open,
-	.release		= gdrom_bdops_release,
+	.__open			= gdrom_bdops_open,
+	.__release		= gdrom_bdops_release,
 	.media_changed		= gdrom_bdops_mediachanged,
-	.ioctl			= gdrom_bdops_ioctl,
+	.__ioctl			= gdrom_bdops_ioctl,
 };
 
 static irqreturn_t gdrom_command_interrupt(int irq, void *dev_id)

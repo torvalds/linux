@@ -130,8 +130,8 @@ mmc_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 }
 
 static struct block_device_operations mmc_bdops = {
-	.open			= mmc_blk_open,
-	.release		= mmc_blk_release,
+	.__open			= mmc_blk_open,
+	.__release		= mmc_blk_release,
 	.getgeo			= mmc_blk_getgeo,
 	.owner			= THIS_MODULE,
 };

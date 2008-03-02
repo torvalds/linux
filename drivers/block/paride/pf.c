@@ -264,9 +264,9 @@ static char *pf_buf;		/* buffer for request in progress */
 
 static struct block_device_operations pf_fops = {
 	.owner		= THIS_MODULE,
-	.open		= pf_open,
-	.release	= pf_release,
-	.ioctl		= pf_ioctl,
+	.__open		= pf_open,
+	.__release	= pf_release,
+	.__ioctl		= pf_ioctl,
 	.getgeo		= pf_getgeo,
 	.media_changed	= pf_check_media,
 };

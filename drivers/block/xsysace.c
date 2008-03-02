@@ -919,8 +919,8 @@ static int ace_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 
 static struct block_device_operations ace_fops = {
 	.owner = THIS_MODULE,
-	.open = ace_open,
-	.release = ace_release,
+	.__open = ace_open,
+	.__release = ace_release,
 	.media_changed = ace_media_changed,
 	.revalidate_disk = ace_revalidate_disk,
 	.getgeo = ace_getgeo,

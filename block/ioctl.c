@@ -269,17 +269,24 @@ int blkdev_driver_ioctl(struct inode *inode, struct file *file,
 			struct gendisk *disk, unsigned cmd, unsigned long arg)
 {
 	int ret;
-	if (disk->fops->unlocked_ioctl)
-		return disk->fops->unlocked_ioctl(file, cmd, arg);
+	fmode_t mode = 0;
+	if (file) {
+		mode = file->f_mode;
+		if (file->f_flags & O_NDELAY)
+			mode |= FMODE_NDELAY_NOW;
+	}
 
-	if (disk->fops->ioctl) {
+	if (disk->fops->__unlocked_ioctl)
+		return disk->fops->__unlocked_ioctl(file, cmd, arg);
+
+	if (disk->fops->__ioctl) {
 		lock_kernel();
-		ret = disk->fops->ioctl(inode, file, cmd, arg);
+		ret = disk->fops->__ioctl(inode, file, cmd, arg);
 		unlock_kernel();
 		return ret;
 	}
 
-	return -ENOTTY;
+	return __blkdev_driver_ioctl(inode->i_bdev, mode, cmd, arg);
 }
 EXPORT_SYMBOL_GPL(blkdev_driver_ioctl);
 
@@ -295,12 +302,22 @@ int __blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 	fake_file.f_path.dentry = &fake_dentry;
 	fake_dentry.d_inode = bdev->bd_inode;
 
-	if (disk->fops->unlocked_ioctl)
-		return disk->fops->unlocked_ioctl(&fake_file, cmd, arg);
+	if (disk->fops->__unlocked_ioctl)
+		return disk->fops->__unlocked_ioctl(&fake_file, cmd, arg);
 
-	if (disk->fops->ioctl) {
+	if (disk->fops->__ioctl) {
 		lock_kernel();
-		ret = disk->fops->ioctl(bdev->bd_inode, &fake_file, cmd, arg);
+		ret = disk->fops->__ioctl(bdev->bd_inode, &fake_file, cmd, arg);
+		unlock_kernel();
+		return ret;
+	}
+
+	if (disk->fops->ioctl)
+		return disk->fops->ioctl(bdev, mode, cmd, arg);
+
+	if (disk->fops->locked_ioctl) {
+		lock_kernel();
+		ret = disk->fops->locked_ioctl(bdev, mode, cmd, arg);
 		unlock_kernel();
 		return ret;
 	}

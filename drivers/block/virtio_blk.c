@@ -180,7 +180,7 @@ static int virtblk_getgeo(struct block_device *bd, struct hd_geometry *geo)
 }
 
 static struct block_device_operations virtblk_fops = {
-	.ioctl  = virtblk_ioctl,
+	.__ioctl  = virtblk_ioctl,
 	.owner  = THIS_MODULE,
 	.getgeo = virtblk_getgeo,
 };

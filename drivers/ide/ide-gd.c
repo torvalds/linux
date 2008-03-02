@@ -298,9 +298,9 @@ static int ide_gd_ioctl(struct inode *inode, struct file *file,
 
 static struct block_device_operations ide_gd_ops = {
 	.owner			= THIS_MODULE,
-	.open			= ide_gd_open,
-	.release		= ide_gd_release,
-	.ioctl			= ide_gd_ioctl,
+	.__open			= ide_gd_open,
+	.__release		= ide_gd_release,
+	.__ioctl			= ide_gd_ioctl,
 	.getgeo			= ide_gd_getgeo,
 	.media_changed		= ide_gd_media_changed,
 	.revalidate_disk	= ide_gd_revalidate_disk

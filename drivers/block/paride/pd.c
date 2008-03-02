@@ -807,9 +807,9 @@ static int pd_revalidate(struct gendisk *p)
 
 static struct block_device_operations pd_fops = {
 	.owner		= THIS_MODULE,
-	.open		= pd_open,
-	.release	= pd_release,
-	.ioctl		= pd_ioctl,
+	.__open		= pd_open,
+	.__release	= pd_release,
+	.__ioctl		= pd_ioctl,
 	.getgeo		= pd_getgeo,
 	.media_changed	= pd_check_media,
 	.revalidate_disk= pd_revalidate

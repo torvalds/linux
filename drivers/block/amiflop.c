@@ -1648,9 +1648,9 @@ static int amiga_floppy_change(struct gendisk *disk)
 
 static struct block_device_operations floppy_fops = {
 	.owner		= THIS_MODULE,
-	.open		= floppy_open,
-	.release	= floppy_release,
-	.ioctl		= fd_ioctl,
+	.__open		= floppy_open,
+	.__release	= floppy_release,
+	.__ioctl		= fd_ioctl,
 	.getgeo		= fd_getgeo,
 	.media_changed	= amiga_floppy_change,
 };

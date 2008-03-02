@@ -239,8 +239,8 @@ aoeblk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 }
 
 static struct block_device_operations aoe_bdops = {
-	.open = aoeblk_open,
-	.release = aoeblk_release,
+	.__open = aoeblk_open,
+	.__release = aoeblk_release,
 	.getgeo = aoeblk_getgeo,
 	.owner = THIS_MODULE,
 };

@@ -195,9 +195,9 @@ static inline ctlr_info_t *get_host(struct gendisk *disk)
 
 static struct block_device_operations ida_fops  = {
 	.owner		= THIS_MODULE,
-	.open		= ida_open,
-	.release	= ida_release,
-	.ioctl		= ida_ioctl,
+	.__open		= ida_open,
+	.__release	= ida_release,
+	.__ioctl		= ida_ioctl,
 	.getgeo		= ida_getgeo,
 	.revalidate_disk= ida_revalidate,
 };

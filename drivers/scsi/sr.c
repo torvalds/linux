@@ -540,9 +540,9 @@ static int sr_block_media_changed(struct gendisk *disk)
 static struct block_device_operations sr_bdops =
 {
 	.owner		= THIS_MODULE,
-	.open		= sr_block_open,
-	.release	= sr_block_release,
-	.ioctl		= sr_block_ioctl,
+	.__open		= sr_block_open,
+	.__release	= sr_block_release,
+	.__ioctl		= sr_block_ioctl,
 	.media_changed	= sr_block_media_changed,
 	/* 
 	 * No compat_ioctl for now because sr_block_ioctl never

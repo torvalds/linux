@@ -998,9 +998,9 @@ static int floppy_revalidate(struct gendisk *disk)
 }
 
 static struct block_device_operations floppy_fops = {
-	.open		= floppy_open,
-	.release	= floppy_release,
-	.ioctl		= floppy_ioctl,
+	.__open		= floppy_open,
+	.__release	= floppy_release,
+	.__ioctl		= floppy_ioctl,
 	.media_changed	= floppy_check_change,
 	.revalidate_disk= floppy_revalidate,
 };

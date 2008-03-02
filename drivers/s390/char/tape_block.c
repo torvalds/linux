@@ -52,9 +52,9 @@ static int tapeblock_revalidate_disk(struct gendisk *);
 
 static struct block_device_operations tapeblock_fops = {
 	.owner		 = THIS_MODULE,
-	.open		 = tapeblock_open,
-	.release	 = tapeblock_release,
-	.ioctl           = tapeblock_ioctl,
+	.__open		 = tapeblock_open,
+	.__release	 = tapeblock_release,
+	.__ioctl           = tapeblock_ioctl,
 	.media_changed   = tapeblock_medium_changed,
 	.revalidate_disk = tapeblock_revalidate_disk,
 };

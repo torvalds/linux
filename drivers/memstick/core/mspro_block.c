@@ -237,8 +237,8 @@ static int mspro_block_bd_getgeo(struct block_device *bdev,
 }
 
 static struct block_device_operations ms_block_bdops = {
-	.open    = mspro_block_bd_open,
-	.release = mspro_block_bd_release,
+	.__open    = mspro_block_bd_open,
+	.__release = mspro_block_bd_release,
 	.getgeo  = mspro_block_bd_getgeo,
 	.owner   = THIS_MODULE
 };

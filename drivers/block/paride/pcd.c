@@ -252,9 +252,9 @@ static int pcd_block_media_changed(struct gendisk *disk)
 
 static struct block_device_operations pcd_bdops = {
 	.owner		= THIS_MODULE,
-	.open		= pcd_block_open,
-	.release	= pcd_block_release,
-	.ioctl		= pcd_block_ioctl,
+	.__open		= pcd_block_open,
+	.__release	= pcd_block_release,
+	.__ioctl		= pcd_block_ioctl,
 	.media_changed	= pcd_block_media_changed,
 };
 

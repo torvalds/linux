@@ -691,7 +691,7 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 static struct block_device_operations nbd_fops =
 {
 	.owner =	THIS_MODULE,
-	.ioctl =	nbd_ioctl,
+	.__ioctl =	nbd_ioctl,
 };
 
 /*

@@ -1033,8 +1033,13 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 		bdev->bd_contains = bdev;
 		if (!partno) {
 			struct backing_dev_info *bdi;
+			if (disk->fops->__open) {
+				ret = disk->fops->__open(bdev->bd_inode, file);
+				if (ret)
+					goto out_first;
+			}
 			if (disk->fops->open) {
-				ret = disk->fops->open(bdev->bd_inode, file);
+				ret = disk->fops->open(bdev, file->f_mode);
 				if (ret)
 					goto out_clear;
 			}
@@ -1074,8 +1079,13 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 		part = NULL;
 		disk = NULL;
 		if (bdev->bd_contains == bdev) {
+			if (bdev->bd_disk->fops->__open) {
+				ret = bdev->bd_disk->fops->__open(bdev->bd_inode, file);
+				if (ret)
+					goto out;
+			}
 			if (bdev->bd_disk->fops->open) {
-				ret = bdev->bd_disk->fops->open(bdev->bd_inode, file);
+				ret = bdev->bd_disk->fops->open(bdev, file->f_mode);
 				if (ret)
 					goto out_unlock_bdev;
 			}
@@ -1184,8 +1194,10 @@ static int __blkdev_put(struct block_device *bdev, int for_part)
 		kill_bdev(bdev);
 	}
 	if (bdev->bd_contains == bdev) {
+		if (disk->fops->__release)
+			ret = disk->fops->__release(bd_inode, NULL);
 		if (disk->fops->release)
-			ret = disk->fops->release(bd_inode, NULL);
+			ret = disk->fops->release(disk, 0);
 	}
 	if (!bdev->bd_openers) {
 		struct module *owner = disk->fops->owner;

@@ -180,9 +180,9 @@ static int viocd_blk_media_changed(struct gendisk *disk)
 
 struct block_device_operations viocd_fops = {
 	.owner =		THIS_MODULE,
-	.open =			viocd_blk_open,
-	.release =		viocd_blk_release,
-	.ioctl =		viocd_blk_ioctl,
+	.__open =			viocd_blk_open,
+	.__release =		viocd_blk_release,
+	.__ioctl =		viocd_blk_ioctl,
 	.media_changed =	viocd_blk_media_changed,
 };
 

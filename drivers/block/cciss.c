@@ -197,12 +197,12 @@ static long cciss_compat_ioctl(struct file *f, unsigned cmd, unsigned long arg);
 
 static struct block_device_operations cciss_fops = {
 	.owner = THIS_MODULE,
-	.open = cciss_open,
-	.release = cciss_release,
-	.ioctl = cciss_ioctl,
+	.__open = cciss_open,
+	.__release = cciss_release,
+	.__ioctl = cciss_ioctl,
 	.getgeo = cciss_getgeo,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl = cciss_compat_ioctl,
+	.__compat_ioctl = cciss_compat_ioctl,
 #endif
 	.revalidate_disk = cciss_revalidate,
 };

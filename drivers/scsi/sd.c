@@ -962,12 +962,12 @@ static long sd_compat_ioctl(struct file *file, unsigned int cmd, unsigned long a
 
 static struct block_device_operations sd_fops = {
 	.owner			= THIS_MODULE,
-	.open			= sd_open,
-	.release		= sd_release,
-	.ioctl			= sd_ioctl,
+	.__open			= sd_open,
+	.__release		= sd_release,
+	.__ioctl			= sd_ioctl,
 	.getgeo			= sd_getgeo,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl		= sd_compat_ioctl,
+	.__compat_ioctl		= sd_compat_ioctl,
 #endif
 	.media_changed		= sd_media_changed,
 	.revalidate_disk	= sd_revalidate_disk,

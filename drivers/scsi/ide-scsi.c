@@ -483,9 +483,9 @@ static int idescsi_ide_ioctl(struct inode *inode, struct file *file,
 
 static struct block_device_operations idescsi_ops = {
 	.owner		= THIS_MODULE,
-	.open		= idescsi_ide_open,
-	.release	= idescsi_ide_release,
-	.ioctl		= idescsi_ide_ioctl,
+	.__open		= idescsi_ide_open,
+	.__release	= idescsi_ide_release,
+	.__ioctl		= idescsi_ide_ioctl,
 };
 
 static int idescsi_slave_configure(struct scsi_device * sdp)

@@ -2087,10 +2087,10 @@ static int dasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 struct block_device_operations
 dasd_device_operations = {
 	.owner		= THIS_MODULE,
-	.open		= dasd_open,
-	.release	= dasd_release,
-	.ioctl		= dasd_ioctl,
-	.compat_ioctl	= dasd_compat_ioctl,
+	.__open		= dasd_open,
+	.__release	= dasd_release,
+	.__ioctl		= dasd_ioctl,
+	.__compat_ioctl	= dasd_compat_ioctl,
 	.getgeo		= dasd_getgeo,
 };
 

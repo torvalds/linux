@@ -221,8 +221,8 @@ static int viodasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
  */
 static struct block_device_operations viodasd_fops = {
 	.owner = THIS_MODULE,
-	.open = viodasd_open,
-	.release = viodasd_release,
+	.__open = viodasd_open,
+	.__release = viodasd_release,
 	.getgeo = viodasd_getgeo,
 };
 

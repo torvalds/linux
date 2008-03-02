@@ -2200,9 +2200,9 @@ static int idecd_revalidate_disk(struct gendisk *disk)
 
 static struct block_device_operations idecd_ops = {
 	.owner			= THIS_MODULE,
-	.open			= idecd_open,
-	.release		= idecd_release,
-	.ioctl			= idecd_ioctl,
+	.__open			= idecd_open,
+	.__release		= idecd_release,
+	.__ioctl			= idecd_ioctl,
 	.media_changed		= idecd_media_changed,
 	.revalidate_disk	= idecd_revalidate_disk
 };

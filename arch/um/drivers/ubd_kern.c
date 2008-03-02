@@ -108,9 +108,9 @@ static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
 static struct block_device_operations ubd_blops = {
         .owner		= THIS_MODULE,
-        .open		= ubd_open,
-        .release	= ubd_release,
-        .ioctl		= ubd_ioctl,
+        .__open		= ubd_open,
+        .__release	= ubd_release,
+        .__ioctl		= ubd_ioctl,
 	.getgeo		= ubd_getgeo,
 };
 

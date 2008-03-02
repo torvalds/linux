@@ -2376,9 +2376,9 @@ static int idetape_ioctl(struct inode *inode, struct file *file,
 
 static struct block_device_operations idetape_block_ops = {
 	.owner		= THIS_MODULE,
-	.open		= idetape_open,
-	.release	= idetape_release,
-	.ioctl		= idetape_ioctl,
+	.__open		= idetape_open,
+	.__release	= idetape_release,
+	.__ioctl		= idetape_ioctl,
 };
 
 static int ide_tape_probe(ide_drive_t *drive)

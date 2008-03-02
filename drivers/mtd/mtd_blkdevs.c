@@ -213,9 +213,9 @@ static int blktrans_ioctl(struct inode *inode, struct file *file,
 
 static struct block_device_operations mtd_blktrans_ops = {
 	.owner		= THIS_MODULE,
-	.open		= blktrans_open,
-	.release	= blktrans_release,
-	.ioctl		= blktrans_ioctl,
+	.__open		= blktrans_open,
+	.__release	= blktrans_release,
+	.__ioctl		= blktrans_ioctl,
 	.getgeo		= blktrans_getgeo,
 };
 

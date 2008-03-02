@@ -1698,9 +1698,9 @@ int dm_noflush_suspending(struct dm_target *ti)
 EXPORT_SYMBOL_GPL(dm_noflush_suspending);
 
 static struct block_device_operations dm_blk_dops = {
-	.open = dm_blk_open,
-	.release = dm_blk_close,
-	.ioctl = dm_blk_ioctl,
+	.__open = dm_blk_open,
+	.__release = dm_blk_close,
+	.__ioctl = dm_blk_ioctl,
 	.getgeo = dm_blk_getgeo,
 	.owner = THIS_MODULE
 };

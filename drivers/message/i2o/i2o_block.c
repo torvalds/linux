@@ -931,9 +931,9 @@ static void i2o_block_request_fn(struct request_queue *q)
 /* I2O Block device operations definition */
 static struct block_device_operations i2o_block_fops = {
 	.owner = THIS_MODULE,
-	.open = i2o_block_open,
-	.release = i2o_block_release,
-	.ioctl = i2o_block_ioctl,
+	.__open = i2o_block_open,
+	.__release = i2o_block_release,
+	.__ioctl = i2o_block_ioctl,
 	.getgeo = i2o_block_getgeo,
 	.media_changed = i2o_block_media_changed
 };

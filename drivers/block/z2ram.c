@@ -314,8 +314,8 @@ z2_release( struct inode *inode, struct file *filp )
 static struct block_device_operations z2_fops =
 {
 	.owner		= THIS_MODULE,
-	.open		= z2_open,
-	.release	= z2_release,
+	.__open		= z2_open,
+	.__release	= z2_release,
 };
 
 static struct kobject *z2_find(dev_t dev, int *part, void *data)

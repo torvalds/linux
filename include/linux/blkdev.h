@@ -1061,11 +1061,16 @@ struct file;
 struct inode;
 
 struct block_device_operations {
-	int (*open) (struct inode *, struct file *);
-	int (*release) (struct inode *, struct file *);
-	int (*ioctl) (struct inode *, struct file *, unsigned, unsigned long);
-	long (*unlocked_ioctl) (struct file *, unsigned, unsigned long);
-	long (*compat_ioctl) (struct file *, unsigned, unsigned long);
+	int (*__open) (struct inode *, struct file *);
+	int (*__release) (struct inode *, struct file *);
+	int (*__ioctl) (struct inode *, struct file *, unsigned, unsigned long);
+	long (*__unlocked_ioctl) (struct file *, unsigned, unsigned long);
+	long (*__compat_ioctl) (struct file *, unsigned, unsigned long);
+	int (*open) (struct block_device *, fmode_t);
+	int (*release) (struct gendisk *, fmode_t);
+	int (*locked_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
 	int (*direct_access) (struct block_device *, sector_t,
 						void **, unsigned long *);
 	int (*media_changed) (struct gendisk *);

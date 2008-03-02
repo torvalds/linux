@@ -153,7 +153,7 @@ static int DAC960_revalidate_disk(struct gendisk *disk)
 
 static struct block_device_operations DAC960_BlockDeviceOperations = {
 	.owner			= THIS_MODULE,
-	.open			= DAC960_open,
+	.__open			= DAC960_open,
 	.getgeo			= DAC960_getgeo,
 	.media_changed		= DAC960_media_changed,
 	.revalidate_disk	= DAC960_revalidate_disk,

@@ -42,8 +42,8 @@ static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
 static int dcssblk_major;
 static struct block_device_operations dcssblk_devops = {
 	.owner   	= THIS_MODULE,
-	.open    	= dcssblk_open,
-	.release 	= dcssblk_release,
+	.__open    	= dcssblk_open,
+	.__release 	= dcssblk_release,
 	.direct_access 	= dcssblk_direct_access,
 };
 

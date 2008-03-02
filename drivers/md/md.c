@@ -5046,9 +5046,9 @@ static int md_revalidate(struct gendisk *disk)
 static struct block_device_operations md_fops =
 {
 	.owner		= THIS_MODULE,
-	.open		= md_open,
-	.release	= md_release,
-	.ioctl		= md_ioctl,
+	.__open		= md_open,
+	.__release	= md_release,
+	.__ioctl		= md_ioctl,
 	.getgeo		= md_getgeo,
 	.media_changed	= md_media_changed,
 	.revalidate_disk= md_revalidate,

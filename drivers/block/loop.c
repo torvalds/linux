@@ -1355,11 +1355,11 @@ static int lo_release(struct inode *inode, struct file *file)
 
 static struct block_device_operations lo_fops = {
 	.owner =	THIS_MODULE,
-	.open =		lo_open,
-	.release =	lo_release,
-	.ioctl =	lo_ioctl,
+	.__open =		lo_open,
+	.__release =	lo_release,
+	.__ioctl =	lo_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl =	lo_compat_ioctl,
+	.__compat_ioctl =	lo_compat_ioctl,
 #endif
 };
 

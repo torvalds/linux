@@ -376,7 +376,7 @@ static int brd_ioctl(struct inode *inode, struct file *file,
 
 static struct block_device_operations brd_fops = {
 	.owner =		THIS_MODULE,
-	.ioctl =		brd_ioctl,
+	.__ioctl =		brd_ioctl,
 #ifdef CONFIG_BLK_DEV_XIP
 	.direct_access =	brd_direct_access,
 #endif

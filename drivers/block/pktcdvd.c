@@ -2847,9 +2847,9 @@ static int pkt_media_changed(struct gendisk *disk)
 
 static struct block_device_operations pktcdvd_ops = {
 	.owner =		THIS_MODULE,
-	.open =			pkt_open,
-	.release =		pkt_close,
-	.ioctl =		pkt_ioctl,
+	.__open =			pkt_open,
+	.__release =		pkt_close,
+	.__ioctl =		pkt_ioctl,
 	.media_changed =	pkt_media_changed,
 };
 

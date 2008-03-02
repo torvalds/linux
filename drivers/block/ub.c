@@ -1791,9 +1791,9 @@ static int ub_bd_media_changed(struct gendisk *disk)
 
 static struct block_device_operations ub_bd_fops = {
 	.owner		= THIS_MODULE,
-	.open		= ub_bd_open,
-	.release	= ub_bd_release,
-	.ioctl		= ub_bd_ioctl,
+	.__open		= ub_bd_open,
+	.__release	= ub_bd_release,
+	.__ioctl		= ub_bd_ioctl,
 	.media_changed	= ub_bd_media_changed,
 	.revalidate_disk = ub_bd_revalidate,
 };
