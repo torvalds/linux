@@ -2411,7 +2411,7 @@ static struct pktcdvd_device *pkt_find_dev_from_minor(int dev_minor)
 	return pkt_devs[dev_minor];
 }
 
-static int pkt_open(struct inode *inode, struct file *file)
+static int pkt_open(struct block_device *bdev, fmode_t mode)
 {
 	struct pktcdvd_device *pd = NULL;
 	int ret;
@@ -2419,7 +2419,7 @@ static int pkt_open(struct inode *inode, struct file *file)
 	VPRINTK(DRIVER_NAME": entering open\n");
 
 	mutex_lock(&ctl_mutex);
-	pd = pkt_find_dev_from_minor(iminor(inode));
+	pd = pkt_find_dev_from_minor(MINOR(bdev->bd_dev));
 	if (!pd) {
 		ret = -ENODEV;
 		goto out;
@@ -2428,20 +2428,20 @@ static int pkt_open(struct inode *inode, struct file *file)
 
 	pd->refcnt++;
 	if (pd->refcnt > 1) {
-		if ((file->f_mode & FMODE_WRITE) &&
+		if ((mode & FMODE_WRITE) &&
 		    !test_bit(PACKET_WRITABLE, &pd->flags)) {
 			ret = -EBUSY;
 			goto out_dec;
 		}
 	} else {
-		ret = pkt_open_dev(pd, file->f_mode & FMODE_WRITE);
+		ret = pkt_open_dev(pd, mode & FMODE_WRITE);
 		if (ret)
 			goto out_dec;
 		/*
 		 * needed here as well, since ext2 (among others) may change
 		 * the blocksize at mount time
 		 */
-		set_blocksize(inode->i_bdev, CD_FRAMESIZE);
+		set_blocksize(bdev, CD_FRAMESIZE);
 	}
 
 	mutex_unlock(&ctl_mutex);
@@ -2455,9 +2455,9 @@ out:
 	return ret;
 }
 
-static int pkt_close(struct inode *inode, struct file *file)
+static int pkt_close(struct gendisk *disk, fmode_t mode)
 {
-	struct pktcdvd_device *pd = inode->i_bdev->bd_disk->private_data;
+	struct pktcdvd_device *pd = disk->private_data;
 	int ret = 0;
 
 	mutex_lock(&ctl_mutex);
@@ -2796,11 +2796,12 @@ out_mem:
 	return ret;
 }
 
-static int pkt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static int pkt_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg)
 {
-	struct pktcdvd_device *pd = inode->i_bdev->bd_disk->private_data;
+	struct pktcdvd_device *pd = bdev->bd_disk->private_data;
 
-	VPRINTK("pkt_ioctl: cmd %x, dev %d:%d\n", cmd, imajor(inode), iminor(inode));
+	VPRINTK("pkt_ioctl: cmd %x, dev %d:%d\n", cmd,
+		MAJOR(bdev->bd_dev), MINOR(bdev->bd_dev));
 
 	switch (cmd) {
 	case CDROMEJECT:
@@ -2819,8 +2820,7 @@ static int pkt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 	case CDROM_LAST_WRITTEN:
 	case CDROM_SEND_PACKET:
 	case SCSI_IOCTL_SEND_COMMAND:
-		return __blkdev_driver_ioctl(pd->bdev, file ? file->f_mode : 0,
-					cmd, arg);
+		return __blkdev_driver_ioctl(pd->bdev, mode, cmd, arg);
 
 	default:
 		VPRINTK(DRIVER_NAME": Unknown ioctl for %s (%x)\n", pd->name, cmd);
@@ -2847,9 +2847,9 @@ static int pkt_media_changed(struct gendisk *disk)
 
 static struct block_device_operations pktcdvd_ops = {
 	.owner =		THIS_MODULE,
-	.__open =			pkt_open,
-	.__release =		pkt_close,
-	.__ioctl =		pkt_ioctl,
+	.open =			pkt_open,
+	.release =		pkt_close,
+	.locked_ioctl =		pkt_ioctl,
 	.media_changed =	pkt_media_changed,
 };
 
