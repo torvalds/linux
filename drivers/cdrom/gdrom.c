@@ -490,14 +490,14 @@ static struct cdrom_device_ops gdrom_ops = {
 	.n_minors		= 1,
 };
 
-static int gdrom_bdops_open(struct inode *inode, struct file *file)
+static int gdrom_bdops_open(struct block_device *bdev, fmode_t mode)
 {
-	return cdrom_open(gd.cd_info, inode->i_bdev, file->f_mode);
+	return cdrom_open(gd.cd_info, bdev, mode);
 }
 
-static int gdrom_bdops_release(struct inode *inode, struct file *file)
+static int gdrom_bdops_release(struct block_device *bdev, fmode_t mode)
 {
-	return cdrom_release(gd.cd_info, file ? file->f_mode : 0);
+	return cdrom_release(gd.cd_info, mode);
 }
 
 static int gdrom_bdops_mediachanged(struct gendisk *disk)
@@ -505,19 +505,18 @@ static int gdrom_bdops_mediachanged(struct gendisk *disk)
 	return cdrom_media_changed(gd.cd_info);
 }
 
-static int gdrom_bdops_ioctl(struct inode *inode, struct file *file,
+static int gdrom_bdops_ioctl(struct block_device *bdev, fmode_t mode,
 	unsigned cmd, unsigned long arg)
 {
-	return cdrom_ioctl(gd.cd_info, inode->i_bdev,
-			file ? file->f_mode : 0, cmd, arg);
+	return cdrom_ioctl(gd.cd_info, bdev, mode, cmd, arg);
 }
 
 static struct block_device_operations gdrom_bdops = {
 	.owner			= THIS_MODULE,
-	.__open			= gdrom_bdops_open,
-	.__release		= gdrom_bdops_release,
+	.open			= gdrom_bdops_open,
+	.release		= gdrom_bdops_release,
 	.media_changed		= gdrom_bdops_mediachanged,
-	.__ioctl			= gdrom_bdops_ioctl,
+	.locked_ioctl		= gdrom_bdops_ioctl,
 };
 
 static irqreturn_t gdrom_command_interrupt(int irq, void *dev_id)
