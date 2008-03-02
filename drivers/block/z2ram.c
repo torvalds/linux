@@ -137,8 +137,7 @@ get_chipram( void )
     return;
 }
 
-static int
-z2_open( struct inode *inode, struct file *filp )
+static int z2_open(struct block_device *bdev, fmode_t mode)
 {
     int device;
     int max_z2_map = ( Z2RAM_SIZE / Z2RAM_CHUNKSIZE ) *
@@ -147,7 +146,7 @@ z2_open( struct inode *inode, struct file *filp )
 	sizeof( z2ram_map[0] );
     int rc = -ENOMEM;
 
-    device = iminor(inode);
+    device = MINOR(bdev->bd_dev);
 
     if ( current_device != -1 && current_device != device )
     {
@@ -299,7 +298,7 @@ err_out:
 }
 
 static int
-z2_release( struct inode *inode, struct file *filp )
+z2_release(struct gendisk *disk, fmode_t mode)
 {
     if ( current_device == -1 )
 	return 0;     
@@ -314,8 +313,8 @@ z2_release( struct inode *inode, struct file *filp )
 static struct block_device_operations z2_fops =
 {
 	.owner		= THIS_MODULE,
-	.__open		= z2_open,
-	.__release	= z2_release,
+	.open		= z2_open,
+	.release	= z2_release,
 };
 
 static struct kobject *z2_find(dev_t dev, int *part, void *data)
