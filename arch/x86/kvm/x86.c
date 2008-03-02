@@ -1840,20 +1840,27 @@ mmio:
 	return X86EMUL_UNHANDLEABLE;
 }
 
+int __emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
+			  const void *val, int bytes)
+{
+	int ret;
+
+	ret = kvm_write_guest(vcpu->kvm, gpa, val, bytes);
+	if (ret < 0)
+		return 0;
+	kvm_mmu_pte_write(vcpu, gpa, val, bytes);
+	return 1;
+}
+
 static int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
-			       const void *val, int bytes)
+			const void *val, int bytes)
 {
 	int ret;
 
 	down_read(&vcpu->kvm->slots_lock);
-	ret = kvm_write_guest(vcpu->kvm, gpa, val, bytes);
-	if (ret < 0) {
-		up_read(&vcpu->kvm->slots_lock);
-		return 0;
-	}
-	kvm_mmu_pte_write(vcpu, gpa, val, bytes);
+	ret =__emulator_write_phys(vcpu, gpa, val, bytes);
 	up_read(&vcpu->kvm->slots_lock);
-	return 1;
+	return ret;
 }
 
 static int emulator_write_emulated_onepage(unsigned long addr,
