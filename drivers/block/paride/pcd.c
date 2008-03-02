@@ -223,25 +223,24 @@ static int pcd_warned;		/* Have we logged a phase warning ? */
 
 /* kernel glue structures */
 
-static int pcd_block_open(struct inode *inode, struct file *file)
+static int pcd_block_open(struct block_device *bdev, fmode_t mode)
 {
-	struct pcd_unit *cd = inode->i_bdev->bd_disk->private_data;
-	return cdrom_open(&cd->info, inode->i_bdev, file->f_mode);
+	struct pcd_unit *cd = bdev->bd_disk->private_data;
+	return cdrom_open(&cd->info, bdev, mode);
 }
 
-static int pcd_block_release(struct inode *inode, struct file *file)
+static int pcd_block_release(struct gendisk *disk, fmode_t mode)
 {
-	struct pcd_unit *cd = inode->i_bdev->bd_disk->private_data;
-	cdrom_release(&cd->info, file ? file->f_mode : 0);
+	struct pcd_unit *cd = disk->private_data;
+	cdrom_release(&cd->info, mode);
 	return 0;
 }
 
-static int pcd_block_ioctl(struct inode *inode, struct file *file,
+static int pcd_block_ioctl(struct block_device *bdev, fmode_t mode,
 				unsigned cmd, unsigned long arg)
 {
-	struct pcd_unit *cd = inode->i_bdev->bd_disk->private_data;
-	return cdrom_ioctl(&cd->info, inode->i_bdev,
-			   file ? file->f_mode : 0, cmd, arg);
+	struct pcd_unit *cd = bdev->bd_disk->private_data;
+	return cdrom_ioctl(&cd->info, bdev, mode, cmd, arg);
 }
 
 static int pcd_block_media_changed(struct gendisk *disk)
@@ -252,9 +251,9 @@ static int pcd_block_media_changed(struct gendisk *disk)
 
 static struct block_device_operations pcd_bdops = {
 	.owner		= THIS_MODULE,
-	.__open		= pcd_block_open,
-	.__release	= pcd_block_release,
-	.__ioctl		= pcd_block_ioctl,
+	.open		= pcd_block_open,
+	.release	= pcd_block_release,
+	.locked_ioctl	= pcd_block_ioctl,
 	.media_changed	= pcd_block_media_changed,
 };
 
