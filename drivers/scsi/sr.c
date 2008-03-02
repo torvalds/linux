@@ -471,34 +471,31 @@ static int sr_prep_fn(struct request_queue *q, struct request *rq)
 	return scsi_prep_return(q, rq, ret);
 }
 
-static int sr_block_open(struct inode *inode, struct file *file)
+static int sr_block_open(struct block_device *bdev, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct scsi_cd *cd;
-	int ret = 0;
+	struct scsi_cd *cd = scsi_cd_get(bdev->bd_disk);
+	int ret = -ENXIO;
 
-	if(!(cd = scsi_cd_get(disk)))
-		return -ENXIO;
-
-	if((ret = cdrom_open(&cd->cdi, inode->i_bdev, file->f_mode)) != 0)
-		scsi_cd_put(cd);
-
+	if (cd) {
+		ret = cdrom_open(&cd->cdi, bdev, mode);
+		if (ret)
+			scsi_cd_put(cd);
+	}
 	return ret;
 }
 
-static int sr_block_release(struct inode *inode, struct file *file)
+static int sr_block_release(struct gendisk *disk, fmode_t mode)
 {
-	struct scsi_cd *cd = scsi_cd(inode->i_bdev->bd_disk);
-	cdrom_release(&cd->cdi, file ? file->f_mode : 0);
+	struct scsi_cd *cd = scsi_cd(disk);
+	cdrom_release(&cd->cdi, mode);
 	scsi_cd_put(cd);
-
 	return 0;
 }
 
-static int sr_block_ioctl(struct inode *inode, struct file *file, unsigned cmd,
+static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 			  unsigned long arg)
 {
-	struct scsi_cd *cd = scsi_cd(inode->i_bdev->bd_disk);
+	struct scsi_cd *cd = scsi_cd(bdev->bd_disk);
 	struct scsi_device *sdev = cd->device;
 	void __user *argp = (void __user *)arg;
 	int ret;
@@ -513,8 +510,7 @@ static int sr_block_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 		return scsi_ioctl(sdev, cmd, argp);
 	}
 
-	ret = cdrom_ioctl(&cd->cdi, inode->i_bdev,
-			  file ? file->f_mode : 0, cmd, arg);
+	ret = cdrom_ioctl(&cd->cdi, bdev, mode, cmd, arg);
 	if (ret != -ENOSYS)
 		return ret;
 
@@ -525,7 +521,7 @@ static int sr_block_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 	 * if it doesn't recognise the ioctl
 	 */
 	ret = scsi_nonblockable_ioctl(sdev, cmd, argp,
-					file ? file->f_flags & O_NDELAY : 0);
+					(mode & FMODE_NDELAY_NOW) != 0);
 	if (ret != -ENODEV)
 		return ret;
 	return scsi_ioctl(sdev, cmd, argp);
@@ -540,9 +536,9 @@ static int sr_block_media_changed(struct gendisk *disk)
 static struct block_device_operations sr_bdops =
 {
 	.owner		= THIS_MODULE,
-	.__open		= sr_block_open,
-	.__release	= sr_block_release,
-	.__ioctl		= sr_block_ioctl,
+	.open		= sr_block_open,
+	.release	= sr_block_release,
+	.locked_ioctl	= sr_block_ioctl,
 	.media_changed	= sr_block_media_changed,
 	/* 
 	 * No compat_ioctl for now because sr_block_ioctl never
