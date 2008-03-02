@@ -50,7 +50,6 @@
 #include <linux/stat.h>
 
 #include "scsi_logging.h"
-#include "scsi_debug.h"
 
 #define SCSI_DEBUG_VERSION "1.81"
 static const char * scsi_debug_version_date = "20070104";
@@ -167,6 +166,9 @@ static int sdebug_sectors_per;		/* sectors per cylinder */
 
 #define SDEBUG_SENSE_LEN 32
 
+#define SCSI_DEBUG_CANQUEUE  255
+#define SCSI_DEBUG_MAX_CMD_LEN 16
+
 struct sdebug_dev_info {
 	struct list_head dev_list;
 	unsigned char sense_buff[SDEBUG_SENSE_LEN];	/* weak nexus */
@@ -203,29 +205,6 @@ struct sdebug_queued_cmd {
 	int scsi_result;
 };
 static struct sdebug_queued_cmd queued_arr[SCSI_DEBUG_CANQUEUE];
-
-static struct scsi_host_template sdebug_driver_template = {
-	.proc_info =		scsi_debug_proc_info,
-	.name =			"SCSI DEBUG",
-	.info =			scsi_debug_info,
-	.slave_alloc =		scsi_debug_slave_alloc,
-	.slave_configure =	scsi_debug_slave_configure,
-	.slave_destroy =	scsi_debug_slave_destroy,
-	.ioctl =		scsi_debug_ioctl,
-	.queuecommand =		scsi_debug_queuecommand,
-	.eh_abort_handler =	scsi_debug_abort,
-	.eh_bus_reset_handler = scsi_debug_bus_reset,
-	.eh_device_reset_handler = scsi_debug_device_reset,
-	.eh_host_reset_handler = scsi_debug_host_reset,
-	.bios_param =		scsi_debug_biosparam,
-	.can_queue =		SCSI_DEBUG_CANQUEUE,
-	.this_id =		7,
-	.sg_tablesize =		256,
-	.cmd_per_lun =		16,
-	.max_sectors =		0xffff,
-	.use_clustering = 	DISABLE_CLUSTERING,
-	.module =		THIS_MODULE,
-};
 
 static unsigned char * fake_storep;	/* ramdisk storage */
 
@@ -375,7 +354,8 @@ int scsi_debug_queuecommand(struct scsi_cmnd * SCpnt, done_funct_t done)
 			printk("%02x ", (int)cmd[k]);
 		printk("\n");
 	}
-        if(target == sdebug_driver_template.this_id) {
+
+	if (target == SCpnt->device->host->hostt->this_id) {
 		printk(KERN_INFO "scsi_debug: initiator's id used as "
 		       "target!\n");
 		return schedule_resp(SCpnt, NULL, done,
@@ -2923,8 +2903,6 @@ static int __init scsi_debug_init(void)
 
 	init_all_queued();
 
-	sdebug_driver_template.proc_name = sdebug_proc_name;
-
 	host_to_add = scsi_debug_add_host;
         scsi_debug_add_host = 0;
 
@@ -3083,6 +3061,30 @@ static void sdebug_remove_adapter(void)
         device_unregister(&sdbg_host->dev);
         --scsi_debug_add_host;
 }
+
+static struct scsi_host_template sdebug_driver_template = {
+	.proc_info =		scsi_debug_proc_info,
+	.proc_name =		sdebug_proc_name,
+	.name =			"SCSI DEBUG",
+	.info =			scsi_debug_info,
+	.slave_alloc =		scsi_debug_slave_alloc,
+	.slave_configure =	scsi_debug_slave_configure,
+	.slave_destroy =	scsi_debug_slave_destroy,
+	.ioctl =		scsi_debug_ioctl,
+	.queuecommand =		scsi_debug_queuecommand,
+	.eh_abort_handler =	scsi_debug_abort,
+	.eh_bus_reset_handler = scsi_debug_bus_reset,
+	.eh_device_reset_handler = scsi_debug_device_reset,
+	.eh_host_reset_handler = scsi_debug_host_reset,
+	.bios_param =		scsi_debug_biosparam,
+	.can_queue =		SCSI_DEBUG_CANQUEUE,
+	.this_id =		7,
+	.sg_tablesize =		256,
+	.cmd_per_lun =		16,
+	.max_sectors =		0xffff,
+	.use_clustering = 	DISABLE_CLUSTERING,
+	.module =		THIS_MODULE,
+};
 
 static int sdebug_driver_probe(struct device * dev)
 {
