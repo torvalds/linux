@@ -750,7 +750,7 @@ static void forget_original_parent(struct task_struct *father)
  * Send signals to all our closest relatives so that they know
  * to properly mourn us..
  */
-static void exit_notify(struct task_struct *tsk)
+static void exit_notify(struct task_struct *tsk, int group_dead)
 {
 	int state;
 
@@ -766,7 +766,8 @@ static void exit_notify(struct task_struct *tsk)
 	exit_task_namespaces(tsk);
 
 	write_lock_irq(&tasklist_lock);
-	kill_orphaned_pgrp(tsk, NULL);
+	if (group_dead)
+		kill_orphaned_pgrp(tsk->group_leader, NULL);
 
 	/* Let father know we died
 	 *
@@ -981,7 +982,7 @@ NORET_TYPE void do_exit(long code)
 		module_put(tsk->binfmt->module);
 
 	proc_exit_connector(tsk);
-	exit_notify(tsk);
+	exit_notify(tsk, group_dead);
 #ifdef CONFIG_NUMA
 	mpol_free(tsk->mempolicy);
 	tsk->mempolicy = NULL;
