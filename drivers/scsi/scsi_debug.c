@@ -39,9 +39,11 @@
 #include <linux/vmalloc.h>
 #include <linux/moduleparam.h>
 #include <linux/scatterlist.h>
-
 #include <linux/blkdev.h>
-#include "scsi.h"
+
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsicam.h>
 
