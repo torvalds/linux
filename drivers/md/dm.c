@@ -21,7 +21,6 @@
 #include <linux/idr.h>
 #include <linux/hdreg.h>
 #include <linux/blktrace_api.h>
-#include <linux/smp_lock.h>
 
 #define DM_MSG_PREFIX "core"
 
@@ -249,13 +248,13 @@ static void __exit dm_exit(void)
 /*
  * Block device functions
  */
-static int dm_blk_open(struct inode *inode, struct file *file)
+static int dm_blk_open(struct block_device *bdev, fmode_t mode)
 {
 	struct mapped_device *md;
 
 	spin_lock(&_minor_lock);
 
-	md = inode->i_bdev->bd_disk->private_data;
+	md = bdev->bd_disk->private_data;
 	if (!md)
 		goto out;
 
@@ -274,11 +273,9 @@ out:
 	return md ? 0 : -ENXIO;
 }
 
-static int dm_blk_close(struct inode *inode, struct file *file)
+static int dm_blk_close(struct gendisk *disk, fmode_t mode)
 {
-	struct mapped_device *md;
-
-	md = inode->i_bdev->bd_disk->private_data;
+	struct mapped_device *md = disk->private_data;
 	atomic_dec(&md->open_count);
 	dm_put(md);
 	return 0;
@@ -315,20 +312,13 @@ static int dm_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return dm_get_geometry(md, geo);
 }
 
-static int dm_blk_ioctl(struct inode *inode, struct file *file,
+static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
-	struct mapped_device *md;
-	struct dm_table *map;
+	struct mapped_device *md = bdev->bd_disk->private_data;
+	struct dm_table *map = dm_get_table(md);
 	struct dm_target *tgt;
 	int r = -ENOTTY;
-
-	/* We don't really need this lock, but we do need 'inode'. */
-	unlock_kernel();
-
-	md = inode->i_bdev->bd_disk->private_data;
-
-	map = dm_get_table(md);
 
 	if (!map || !dm_table_get_size(map))
 		goto out;
@@ -350,7 +340,6 @@ static int dm_blk_ioctl(struct inode *inode, struct file *file,
 out:
 	dm_table_put(map);
 
-	lock_kernel();
 	return r;
 }
 
@@ -1698,9 +1687,9 @@ int dm_noflush_suspending(struct dm_target *ti)
 EXPORT_SYMBOL_GPL(dm_noflush_suspending);
 
 static struct block_device_operations dm_blk_dops = {
-	.__open = dm_blk_open,
-	.__release = dm_blk_close,
-	.__ioctl = dm_blk_ioctl,
+	.open = dm_blk_open,
+	.release = dm_blk_close,
+	.ioctl = dm_blk_ioctl,
 	.getgeo = dm_blk_getgeo,
 	.owner = THIS_MODULE
 };
