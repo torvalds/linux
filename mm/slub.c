@@ -3564,8 +3564,8 @@ enum slab_stat_type {
 #define SO_CPU		(1 << SL_CPU)
 #define SO_OBJECTS	(1 << SL_OBJECTS)
 
-static unsigned long show_slab_objects(struct kmem_cache *s,
-			char *buf, unsigned long flags)
+static ssize_t show_slab_objects(struct kmem_cache *s,
+			    char *buf, unsigned long flags)
 {
 	unsigned long total = 0;
 	int cpu;
@@ -3575,6 +3575,8 @@ static unsigned long show_slab_objects(struct kmem_cache *s,
 	unsigned long *per_cpu;
 
 	nodes = kzalloc(2 * sizeof(unsigned long) * nr_node_ids, GFP_KERNEL);
+	if (!nodes)
+		return -ENOMEM;
 	per_cpu = nodes + nr_node_ids;
 
 	for_each_possible_cpu(cpu) {
