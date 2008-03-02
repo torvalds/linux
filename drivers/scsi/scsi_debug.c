@@ -2076,8 +2076,8 @@ static struct sdebug_dev_info * devInfoReg(struct scsi_device * sdev)
 
 	if (devip)
 		return devip;
-	sdbg_host = *(struct sdebug_host_info **) sdev->host->hostdata;
-        if(! sdbg_host) {
+	sdbg_host = *(struct sdebug_host_info **)shost_priv(sdev->host);
+	if (!sdbg_host) {
                 printk(KERN_ERR "Host info NULL\n");
 		return NULL;
         }
@@ -2204,7 +2204,7 @@ static int scsi_debug_bus_reset(struct scsi_cmnd * SCpnt)
 		printk(KERN_INFO "scsi_debug: bus_reset\n");
 	++num_bus_resets;
 	if (SCpnt && ((sdp = SCpnt->device)) && ((hp = sdp->host))) {
-		sdbg_host = *(struct sdebug_host_info **) hp->hostdata;
+		sdbg_host = *(struct sdebug_host_info **)shost_priv(hp);
 		if (sdbg_host) {
 			list_for_each_entry(dev_info,
                                             &sdbg_host->dev_info_list,
