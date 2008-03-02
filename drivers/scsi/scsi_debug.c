@@ -344,9 +344,6 @@ int scsi_debug_queuecommand(struct scsi_cmnd * SCpnt, done_funct_t done)
 	int inj_transport = 0;
 	int delay_override = 0;
 
-	if (done == NULL)
-		return 0;	/* assume mid level reprocessing command */
-
 	scsi_set_resid(SCpnt, 0);
 	if ((SCSI_DEBUG_OPT_NOISE & scsi_debug_opts) && cmd) {
 		printk(KERN_INFO "scsi_debug: cmd ");
