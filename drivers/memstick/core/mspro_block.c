@@ -1127,8 +1127,8 @@ static int mspro_block_init_disk(struct memstick_dev *card)
 	u64 limit = BLK_BOUNCE_HIGH;
 	unsigned long capacity;
 
-	if (host->cdev.dev->dma_mask && *(host->cdev.dev->dma_mask))
-		limit = *(host->cdev.dev->dma_mask);
+	if (host->dev.dma_mask && *(host->dev.dma_mask))
+		limit = *(host->dev.dma_mask);
 
 	for (rc = 0; msb->attr_group.attrs[rc]; ++rc) {
 		s_attr = mspro_from_sysfs_attr(msb->attr_group.attrs[rc]);
