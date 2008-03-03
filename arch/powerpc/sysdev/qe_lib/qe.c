@@ -509,7 +509,7 @@ int qe_upload_firmware(const struct qe_firmware *firmware)
 	}
 
 	/* Validate some of the fields */
-	if ((firmware->count < 1) || (firmware->count >= MAX_QE_RISC)) {
+	if ((firmware->count < 1) || (firmware->count > MAX_QE_RISC)) {
 		printk(KERN_ERR "qe-firmware: invalid data\n");
 		return -EINVAL;
 	}
