@@ -13,11 +13,7 @@
 #include <asm/pda.h>
 #include <asm/thread_info.h>
 
-extern cpumask_t cpu_callout_map;
 extern cpumask_t cpu_initialized;
-
-extern int smp_num_siblings;
-extern unsigned int num_processors;
 
 extern int smp_call_function_mask(cpumask_t mask, void (*func)(void *),
 				  void *info, int wait);

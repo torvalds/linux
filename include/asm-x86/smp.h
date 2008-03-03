@@ -1,6 +1,12 @@
 #ifndef _ASM_X86_SMP_H_
 #define _ASM_X86_SMP_H_
 #ifndef __ASSEMBLY__
+#include <linux/cpumask.h>
+
+extern cpumask_t cpu_callout_map;
+
+extern int smp_num_siblings;
+extern unsigned int num_processors;
 
 #ifdef CONFIG_X86_32
 # include "smp_32.h"

@@ -16,11 +16,7 @@
 # endif
 #endif
 
-extern cpumask_t cpu_callout_map;
 extern cpumask_t cpu_callin_map;
-
-extern int smp_num_siblings;
-extern unsigned int num_processors;
 
 extern void (*mtrr_hook) (void);
 extern void zap_low_mappings (void);
