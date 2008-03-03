@@ -185,7 +185,7 @@ static void __cpuinit smp_callin(void)
 		 */
 		if (cpu_isset(cpuid, cpu_callout_map))
 			break;
-		rep_nop();
+		cpu_relax();
 	}
 
 	if (!time_before(jiffies, timeout)) {
@@ -242,7 +242,7 @@ static void __cpuinit start_secondary(void *unused)
 	preempt_disable();
 	smp_callin();
 	while (!cpu_isset(smp_processor_id(), smp_commenced_mask))
-		rep_nop();
+		cpu_relax();
 	/*
 	 * Check TSC synchronization with the BP:
 	 */
