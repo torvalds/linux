@@ -162,6 +162,7 @@
 #define SST49LF030A	0x001C
 #define SST49LF040A	0x0051
 #define SST49LF080A	0x005B
+#define SST36VF3203	0x7354
 
 /* Toshiba */
 #define TC58FVT160	0x00C2
@@ -1412,6 +1413,18 @@ static const struct amd_flash_info jedec_table[] = {
 		.regions	= {
 			ERASEINFO(0x1000,256),
 			ERASEINFO(0x1000,256)
+		}
+	}, {
+		.mfr_id		= MANUFACTURER_SST,
+		.dev_id		= SST36VF3203,
+		.name		= "SST 36VF3203",
+		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
+		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
+		.dev_size	= SIZE_4MiB,
+		.cmd_set	= P_ID_AMD_STD,
+		.nr_regions	= 1,
+		.regions	= {
+			ERASEINFO(0x10000,64),
 		}
 	}, {
 		.mfr_id		= MANUFACTURER_ST,
