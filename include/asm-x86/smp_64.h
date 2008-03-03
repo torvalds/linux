@@ -19,10 +19,6 @@ extern cpumask_t cpu_initialized;
 extern int smp_num_siblings;
 extern unsigned int num_processors;
 
-extern void smp_alloc_memory(void);
-extern void lock_ipi_call_lock(void);
-extern void unlock_ipi_call_lock(void);
-
 extern int smp_call_function_mask(cpumask_t mask, void (*func)(void *),
 				  void *info, int wait);
 

@@ -22,10 +22,6 @@ extern cpumask_t cpu_callin_map;
 extern int smp_num_siblings;
 extern unsigned int num_processors;
 
-extern void smp_alloc_memory(void);
-extern void lock_ipi_call_lock(void);
-extern void unlock_ipi_call_lock(void);
-
 extern void (*mtrr_hook) (void);
 extern void zap_low_mappings (void);
 
