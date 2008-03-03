@@ -355,9 +355,7 @@ union i387_union {
 	struct i387_soft_struct		soft;
 };
 
-#ifdef CONFIG_X86_32
-DECLARE_PER_CPU(u8, cpu_llc_id);
-#else
+#ifdef CONFIG_X86_64
 DECLARE_PER_CPU(struct orig_ist, orig_ist);
 #endif
 
