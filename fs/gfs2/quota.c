@@ -617,8 +617,9 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	int err = -EIO;
 
 	if (gfs2_is_stuffed(ip)) {
-		struct gfs2_alloc *al = NULL;
-		al = gfs2_alloc_get(ip);
+		struct gfs2_alloc *al = gfs2_alloc_get(ip);
+		if (!al)
+			return -ENOMEM;
 		/* just request 1 blk */
 		al->al_requested = 1;
 		gfs2_inplace_reserve(ip);
@@ -729,6 +730,10 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 
 	if (nalloc) {
 		al = gfs2_alloc_get(ip);
+		if (!al) {
+			error = -ENOMEM;
+			goto out_gunlock;
+		}
 
 		al->al_requested = nalloc * (data_blocks + ind_blocks);
 

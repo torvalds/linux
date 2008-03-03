@@ -200,6 +200,10 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 
 	if (alloc_required) {
 		struct gfs2_alloc *al = gfs2_alloc_get(dip);
+		if (!al) {
+			error = -ENOMEM;
+			goto out_gunlock;
+		}
 
 		error = gfs2_quota_lock(dip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
 		if (error)
@@ -716,6 +720,10 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 
 	if (alloc_required) {
 		struct gfs2_alloc *al = gfs2_alloc_get(ndip);
+		if (!al) {
+			error = -ENOMEM;
+			goto out_gunlock;
+		}
 
 		error = gfs2_quota_lock(ndip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
 		if (error)
@@ -953,7 +961,8 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 	if (!(attr->ia_valid & ATTR_GID) || ogid == ngid)
 		ogid = ngid = NO_QUOTA_CHANGE;
 
-	gfs2_alloc_get(ip);
+	if (!gfs2_alloc_get(ip))
+		return -ENOMEM;
 
 	error = gfs2_quota_lock(ip, nuid, ngid);
 	if (error)

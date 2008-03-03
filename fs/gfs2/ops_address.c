@@ -649,6 +649,10 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 
 	if (alloc_required) {
 		al = gfs2_alloc_get(ip);
+		if (!al) {
+			error = -ENOMEM;
+			goto out_unlock;
+		}
 
 		error = gfs2_quota_lock(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
 		if (error)
