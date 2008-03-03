@@ -97,4 +97,16 @@ void usb_detect_quirks(struct usb_device *udev)
 	if (udev->descriptor.bDeviceClass != USB_CLASS_HUB)
 		udev->autosuspend_disabled = 1;
 #endif
+
+#ifdef	CONFIG_PM
+	/* Hubs are automatically enabled for USB-PERSIST */
+	if (udev->descriptor.bDeviceClass == USB_CLASS_HUB)
+		udev->persist_enabled = 1;
+#else
+	/* In the absense of PM, we can safely enable USB-PERSIST
+	 * for all devices.  It will affect things like hub resets
+	 * and EMF-related port disables.
+	 */
+	udev->persist_enabled = 1;
+#endif	/* CONFIG_PM */
 }

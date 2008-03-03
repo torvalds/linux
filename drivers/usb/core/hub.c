@@ -30,12 +30,6 @@
 #include "hcd.h"
 #include "hub.h"
 
-#ifdef	CONFIG_USB_PERSIST
-#define	USB_PERSIST	1
-#else
-#define	USB_PERSIST	0
-#endif
-
 /* if we are in debug mode, always announce new devices */
 #ifdef DEBUG
 #ifndef CONFIG_USB_ANNOUNCE_NEW_DEVICES
@@ -695,7 +689,7 @@ static void hub_restart(struct usb_hub *hub, int type)
 		 * turn off the various status changes to prevent
 		 * khubd from disconnecting it later.
 		 */
-		if (USB_PERSIST && udev->persist_enabled && status == 0 &&
+		if (udev->persist_enabled && status == 0 &&
 				!(portstatus & USB_PORT_STAT_ENABLE)) {
 			if (portchange & USB_PORT_STAT_C_ENABLE)
 				clear_port_feature(hub->hdev, port1,
@@ -1923,9 +1917,8 @@ static int finish_port_resume(struct usb_device *udev)
  * the host and the device is the same as it was when the device
  * suspended.
  *
- * If CONFIG_USB_PERSIST and @udev->reset_resume are both set then this
- * routine won't check that the port is still enabled.  Furthermore,
- * if @udev->reset_resume is set then finish_port_resume() above will
+ * If @udev->reset_resume is set then this routine won't check that the
+ * port is still enabled.  Furthermore, finish_port_resume() above will
  * reset @udev.  The end result is that a broken power session can be
  * recovered and @udev will appear to persist across a loss of VBUS power.
  *
@@ -1937,8 +1930,8 @@ static int finish_port_resume(struct usb_device *udev)
  * to it will be lost.  Using the USB_PERSIST facility, the device can be
  * made to appear as if it had not disconnected.
  *
- * This facility is inherently dangerous.  Although usb_reset_device()
- * makes every effort to insure that the same device is present after the
+ * This facility can be dangerous.  Although usb_reset_device() makes
+ * every effort to insure that the same device is present after the
  * reset as before, it cannot provide a 100% guarantee.  Furthermore it's
  * quite possible for a device to remain unaltered but its media to be
  * changed.  If the user replaces a flash memory card while the system is
@@ -1983,7 +1976,7 @@ int usb_port_resume(struct usb_device *udev)
 		status = hub_port_status(hub, port1, &portstatus, &portchange);
 
  SuspendCleared:
-		if (USB_PERSIST && udev->reset_resume)
+		if (udev->reset_resume)
 			want_flags = USB_PORT_STAT_POWER
 					| USB_PORT_STAT_CONNECTION;
 		else
@@ -2113,10 +2106,10 @@ static int hub_reset_resume(struct usb_interface *intf)
  *
  * The USB host controller driver calls this function when its root hub
  * is resumed and Vbus power has been interrupted or the controller
- * has been reset.  The routine marks @rhdev as having lost power.  When
- * the hub driver is resumed it will take notice; if CONFIG_USB_PERSIST
- * is enabled then it will carry out power-session recovery, otherwise
- * it will disconnect all the child devices.
+ * has been reset.  The routine marks @rhdev as having lost power.
+ * When the hub driver is resumed it will take notice and carry out
+ * power-session recovery for all the "USB-PERSIST"-enabled child devices;
+ * the others will be disconnected.
  */
 void usb_root_hub_lost_power(struct usb_device *rhdev)
 {

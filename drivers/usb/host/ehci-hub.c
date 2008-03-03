@@ -28,7 +28,7 @@
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef	CONFIG_USB_PERSIST
+#ifdef	CONFIG_PM
 
 static int ehci_hub_control(
 	struct usb_hcd	*hcd,
@@ -103,15 +103,6 @@ static void ehci_handover_companion_ports(struct ehci_hcd *ehci)
 
 	ehci->owned_ports = 0;
 }
-
-#else	/* CONFIG_USB_PERSIST */
-
-static inline void ehci_handover_companion_ports(struct ehci_hcd *ehci)
-{ }
-
-#endif
-
-#ifdef	CONFIG_PM
 
 static int ehci_bus_suspend (struct usb_hcd *hcd)
 {

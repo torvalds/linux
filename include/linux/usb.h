@@ -387,6 +387,7 @@ struct usb_device {
 
 	unsigned can_submit:1;		/* URBs may be submitted */
 	unsigned discon_suspended:1;	/* Disconnected while suspended */
+	unsigned persist_enabled:1;	/* USB_PERSIST enabled for this dev */
 	unsigned have_langid:1;		/* whether string_langid is valid */
 	unsigned authorized:1;		/* Policy has said we can use it */
 	unsigned wusb:1;		/* Device is Wireless USB */
@@ -433,7 +434,6 @@ struct usb_device {
 	unsigned auto_pm:1;		/* autosuspend/resume in progress */
 	unsigned do_remote_wakeup:1;	/* remote wakeup should be enabled */
 	unsigned reset_resume:1;	/* needs reset instead of resume */
-	unsigned persist_enabled:1;	/* USB_PERSIST enabled for this dev */
 	unsigned autosuspend_disabled:1; /* autosuspend and autoresume */
 	unsigned autoresume_disabled:1;  /*  disabled by the user */
 	unsigned skip_sys_resume:1;	/* skip the next system resume */
