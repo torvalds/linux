@@ -429,7 +429,7 @@ void __init smp_store_cpu_info(int id)
 }
 
 /* set up the trampoline and return the physical address of the code */
-static __u32 __init setup_trampoline(void)
+unsigned long __init setup_trampoline(void)
 {
 	/* these two are global symbols in trampoline.S */
 	extern const __u8 trampoline_end[];
