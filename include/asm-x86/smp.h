@@ -70,6 +70,9 @@ void native_smp_prepare_cpus(unsigned int max_cpus);
 void native_smp_cpus_done(unsigned int max_cpus);
 int native_cpu_up(unsigned int cpunum);
 
+extern int __cpu_disable(void);
+extern void __cpu_die(unsigned int cpu);
+
 extern unsigned disabled_cpus;
 extern void prefill_possible_map(void);
 #endif

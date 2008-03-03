@@ -2,6 +2,13 @@
 #include <linux/smp.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/percpu.h>
+
+#include <asm/nmi.h>
+#include <asm/irq.h>
+#include <asm/smp.h>
+#include <asm/cpu.h>
+#include <asm/numa.h>
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
@@ -180,6 +187,84 @@ __init void prefill_possible_map(void)
 
 	for (i = 0; i < possible; i++)
 		cpu_set(i, cpu_possible_map);
+}
+
+static void __ref remove_cpu_from_maps(int cpu)
+{
+	cpu_clear(cpu, cpu_online_map);
+#ifdef CONFIG_X86_64
+	cpu_clear(cpu, cpu_callout_map);
+	cpu_clear(cpu, cpu_callin_map);
+	/* was set by cpu_init() */
+	clear_bit(cpu, (unsigned long *)&cpu_initialized);
+	clear_node_cpumask(cpu);
+#endif
+}
+
+int __cpu_disable(void)
+{
+	int cpu = smp_processor_id();
+
+	/*
+	 * Perhaps use cpufreq to drop frequency, but that could go
+	 * into generic code.
+	 *
+	 * We won't take down the boot processor on i386 due to some
+	 * interrupts only being able to be serviced by the BSP.
+	 * Especially so if we're not using an IOAPIC	-zwane
+	 */
+	if (cpu == 0)
+		return -EBUSY;
+
+	if (nmi_watchdog == NMI_LOCAL_APIC)
+		stop_apic_nmi_watchdog(NULL);
+	clear_local_APIC();
+
+	/*
+	 * HACK:
+	 * Allow any queued timer interrupts to get serviced
+	 * This is only a temporary solution until we cleanup
+	 * fixup_irqs as we do for IA64.
+	 */
+	local_irq_enable();
+	mdelay(1);
+
+	local_irq_disable();
+	remove_siblinginfo(cpu);
+
+	/* It's now safe to remove this processor from the online map */
+	remove_cpu_from_maps(cpu);
+	fixup_irqs(cpu_online_map);
+	return 0;
+}
+
+void __cpu_die(unsigned int cpu)
+{
+	/* We don't do anything here: idle task is faking death itself. */
+	unsigned int i;
+
+	for (i = 0; i < 10; i++) {
+		/* They ack this in play_dead by setting CPU_DEAD */
+		if (per_cpu(cpu_state, cpu) == CPU_DEAD) {
+			printk(KERN_INFO "CPU %d is now offline\n", cpu);
+			if (1 == num_online_cpus())
+				alternatives_smp_switch(0);
+			return;
+		}
+		msleep(100);
+	}
+	printk(KERN_ERR "CPU %u didn't die...\n", cpu);
+}
+#else /* ... !CONFIG_HOTPLUG_CPU */
+int __cpu_disable(void)
+{
+	return -ENOSYS;
+}
+
+void __cpu_die(unsigned int cpu)
+{
+	/* We said "no" in __cpu_disable */
+	BUG();
 }
 #endif
 

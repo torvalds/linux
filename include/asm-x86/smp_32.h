@@ -34,9 +34,6 @@ DECLARE_PER_CPU(u16, x86_cpu_to_apicid);
 #define startup_ipi_hook(phys_apicid, start_eip, start_esp) do { } while (0)
 #endif
 
-extern int __cpu_disable(void);
-extern void __cpu_die(unsigned int cpu);
-
 /*
  * This function is needed by all SMP systems. It must _always_ be valid
  * from the initial startup. We map APIC_BASE very early in page_setup(),
