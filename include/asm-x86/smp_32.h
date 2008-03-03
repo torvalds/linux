@@ -39,8 +39,6 @@ extern void remove_siblinginfo(int cpu);
 extern void set_cpu_sibling_map(int cpu);
 
 #ifdef CONFIG_SMP
-extern struct smp_ops smp_ops;
-
 static inline void smp_prepare_boot_cpu(void)
 {
 	smp_ops.smp_prepare_boot_cpu();

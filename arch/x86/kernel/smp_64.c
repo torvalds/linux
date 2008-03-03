@@ -528,3 +528,5 @@ asmlinkage void smp_call_function_interrupt(void)
 	}
 }
 
+struct smp_ops smp_ops;
+EXPORT_SYMBOL_GPL(smp_ops);

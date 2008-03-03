@@ -21,6 +21,9 @@ struct smp_ops {
 				      int wait);
 };
 
+#ifdef CONFIG_SMP
+extern struct smp_ops smp_ops;
+#endif
 
 #ifdef CONFIG_X86_32
 # include "smp_32.h"
