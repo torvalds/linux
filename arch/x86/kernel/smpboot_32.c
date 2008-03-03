@@ -1041,6 +1041,11 @@ void __init native_smp_prepare_boot_cpu(void)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
+static void __ref remove_cpu_from_maps(int cpu)
+{
+	cpu_clear(cpu, cpu_online_map);
+}
+
 int __cpu_disable(void)
 {
 	cpumask_t map = cpu_online_map;
@@ -1066,7 +1071,7 @@ int __cpu_disable(void)
 
 	remove_siblinginfo(cpu);
 
-	cpu_clear(cpu, map);
+	remove_cpu_from_maps(cpu);
 	fixup_irqs(map);
 	/* It's now safe to remove this processor from the online map */
 	cpu_clear(cpu, cpu_online_map);

@@ -838,10 +838,9 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void __ref remove_cpu_from_maps(void)
+static void __ref remove_cpu_from_maps(int cpu)
 {
-	int cpu = smp_processor_id();
-
+	cpu_clear(cpu, cpu_online_map);
 	cpu_clear(cpu, cpu_callout_map);
 	cpu_clear(cpu, cpu_callin_map);
 	clear_bit(cpu, (unsigned long *)&cpu_initialized); /* was set by cpu_init() */
@@ -880,8 +879,7 @@ int __cpu_disable(void)
 	remove_siblinginfo(cpu);
 
 	/* It's now safe to remove this processor from the online map */
-	cpu_clear(cpu, cpu_online_map);
-	remove_cpu_from_maps();
+	remove_cpu_from_maps(cpu);
 	fixup_irqs(cpu_online_map);
 	return 0;
 }
