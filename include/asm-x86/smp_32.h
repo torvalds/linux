@@ -39,10 +39,6 @@ extern void remove_siblinginfo(int cpu);
 extern void set_cpu_sibling_map(int cpu);
 
 #ifdef CONFIG_SMP
-static inline void smp_prepare_cpus(unsigned int max_cpus)
-{
-	smp_ops.smp_prepare_cpus(max_cpus);
-}
 static inline void smp_cpus_done(unsigned int max_cpus)
 {
 	smp_ops.smp_cpus_done(max_cpus);
@@ -53,7 +49,6 @@ static inline void smp_send_stop(void)
 	smp_ops.smp_send_stop();
 }
 
-void native_smp_prepare_cpus(unsigned int max_cpus);
 void native_smp_cpus_done(unsigned int max_cpus);
 
 #ifndef CONFIG_PARAVIRT

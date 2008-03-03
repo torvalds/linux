@@ -29,6 +29,11 @@ static inline void smp_prepare_boot_cpu(void)
 	smp_ops.smp_prepare_boot_cpu();
 }
 
+static inline void smp_prepare_cpus(unsigned int max_cpus)
+{
+	smp_ops.smp_prepare_cpus(max_cpus);
+}
+
 static inline int __cpu_up(unsigned int cpu)
 {
 	return smp_ops.cpu_up(cpu);
@@ -47,6 +52,7 @@ static inline int smp_call_function_mask(cpumask_t mask,
 }
 
 void native_smp_prepare_boot_cpu(void);
+void native_smp_prepare_cpus(unsigned int max_cpus);
 int native_cpu_up(unsigned int cpunum);
 #endif
 
