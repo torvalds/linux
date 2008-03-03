@@ -1355,8 +1355,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 			    (s32)(peer->tcp_ts - req->ts_recent) >
 							TCP_PAWS_WINDOW) {
 				NET_INC_STATS_BH(LINUX_MIB_PAWSPASSIVEREJECTED);
-				dst_release(dst);
-				goto drop_and_free;
+				goto drop_and_release;
 			}
 		}
 		/* Kill the following clause, if you dislike this way. */
@@ -1376,24 +1375,21 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 				       "request from %u.%u.%u.%u/%u\n",
 				       NIPQUAD(saddr),
 				       ntohs(tcp_hdr(skb)->source));
-			dst_release(dst);
-			goto drop_and_free;
+			goto drop_and_release;
 		}
 
 		isn = tcp_v4_init_sequence(skb);
 	}
 	tcp_rsk(req)->snt_isn = isn;
 
-	if (__tcp_v4_send_synack(sk, req, dst))
+	if (__tcp_v4_send_synack(sk, req, dst) || want_cookie)
 		goto drop_and_free;
 
-	if (want_cookie) {
-		reqsk_free(req);
-	} else {
-		inet_csk_reqsk_queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
-	}
+	inet_csk_reqsk_queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
 	return 0;
 
+drop_and_release:
+	dst_release(dst);
 drop_and_free:
 	reqsk_free(req);
 drop:
