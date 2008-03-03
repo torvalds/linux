@@ -658,7 +658,7 @@ static void start_apic_timer(struct kvm_lapic *apic)
 	apic_debug("%s: bus cycle is %" PRId64 "ns, now 0x%016"
 			   PRIx64 ", "
 			   "timer initial count 0x%x, period %lldns, "
-			   "expire @ 0x%016" PRIx64 ".\n", __FUNCTION__,
+			   "expire @ 0x%016" PRIx64 ".\n", __func__,
 			   APIC_BUS_CYCLE_NS, ktime_to_ns(now),
 			   apic_get_reg(apic, APIC_TMICT),
 			   apic->timer.period,
@@ -691,7 +691,7 @@ static void apic_mmio_write(struct kvm_io_device *this,
 	/* too common printing */
 	if (offset != APIC_EOI)
 		apic_debug("%s: offset 0x%x with length 0x%x, and value is "
-			   "0x%x\n", __FUNCTION__, offset, len, val);
+			   "0x%x\n", __func__, offset, len, val);
 
 	offset &= 0xff0;
 
@@ -869,7 +869,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 	struct kvm_lapic *apic;
 	int i;
 
-	apic_debug("%s\n", __FUNCTION__);
+	apic_debug("%s\n", __func__);
 
 	ASSERT(vcpu);
 	apic = vcpu->arch.apic;
@@ -907,7 +907,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 	apic_update_ppr(apic);
 
 	apic_debug(KERN_INFO "%s: vcpu=%p, id=%d, base_msr="
-		   "0x%016" PRIx64 ", base_address=0x%0lx.\n", __FUNCTION__,
+		   "0x%016" PRIx64 ", base_address=0x%0lx.\n", __func__,
 		   vcpu, kvm_apic_id(apic),
 		   vcpu->arch.apic_base, apic->base_address);
 }

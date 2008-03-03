@@ -563,15 +563,15 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		break;
 	case MSR_IA32_MC0_STATUS:
 		pr_unimpl(vcpu, "%s: MSR_IA32_MC0_STATUS 0x%llx, nop\n",
-		       __FUNCTION__, data);
+		       __func__, data);
 		break;
 	case MSR_IA32_MCG_STATUS:
 		pr_unimpl(vcpu, "%s: MSR_IA32_MCG_STATUS 0x%llx, nop\n",
-			__FUNCTION__, data);
+			__func__, data);
 		break;
 	case MSR_IA32_MCG_CTL:
 		pr_unimpl(vcpu, "%s: MSR_IA32_MCG_CTL 0x%llx, nop\n",
-			__FUNCTION__, data);
+			__func__, data);
 		break;
 	case MSR_IA32_UCODE_REV:
 	case MSR_IA32_UCODE_WRITE:
@@ -1939,7 +1939,7 @@ int emulator_get_dr(struct x86_emulate_ctxt *ctxt, int dr, unsigned long *dest)
 		*dest = kvm_x86_ops->get_dr(vcpu, dr);
 		return X86EMUL_CONTINUE;
 	default:
-		pr_unimpl(vcpu, "%s: unexpected dr %u\n", __FUNCTION__, dr);
+		pr_unimpl(vcpu, "%s: unexpected dr %u\n", __func__, dr);
 		return X86EMUL_UNHANDLEABLE;
 	}
 }
@@ -2486,7 +2486,7 @@ unsigned long realmode_get_cr(struct kvm_vcpu *vcpu, int cr)
 	case 8:
 		return kvm_get_cr8(vcpu);
 	default:
-		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __FUNCTION__, cr);
+		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __func__, cr);
 		return 0;
 	}
 }
@@ -2512,7 +2512,7 @@ void realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long val,
 		kvm_set_cr8(vcpu, val & 0xfUL);
 		break;
 	default:
-		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __FUNCTION__, cr);
+		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __func__, cr);
 	}
 }
 

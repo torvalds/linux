@@ -649,7 +649,7 @@ static int is_empty_shadow_page(u64 *spt)
 
 	for (pos = spt, end = pos + PAGE_SIZE / sizeof(u64); pos != end; pos++)
 		if (*pos != shadow_trap_nonpresent_pte) {
-			printk(KERN_ERR "%s: %p %llx\n", __FUNCTION__,
+			printk(KERN_ERR "%s: %p %llx\n", __func__,
 			       pos, *pos);
 			return 0;
 		}
@@ -772,14 +772,14 @@ static struct kvm_mmu_page *kvm_mmu_lookup_page(struct kvm *kvm, gfn_t gfn)
 	struct kvm_mmu_page *sp;
 	struct hlist_node *node;
 
-	pgprintk("%s: looking for gfn %lx\n", __FUNCTION__, gfn);
+	pgprintk("%s: looking for gfn %lx\n", __func__, gfn);
 	index = kvm_page_table_hashfn(gfn);
 	bucket = &kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry(sp, node, bucket, hash_link)
 		if (sp->gfn == gfn && !sp->role.metaphysical
 		    && !sp->role.invalid) {
 			pgprintk("%s: found role %x\n",
-				 __FUNCTION__, sp->role.word);
+				 __func__, sp->role.word);
 			return sp;
 		}
 	return NULL;
@@ -810,21 +810,21 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 		quadrant &= (1 << ((PT32_PT_BITS - PT64_PT_BITS) * level)) - 1;
 		role.quadrant = quadrant;
 	}
-	pgprintk("%s: looking gfn %lx role %x\n", __FUNCTION__,
+	pgprintk("%s: looking gfn %lx role %x\n", __func__,
 		 gfn, role.word);
 	index = kvm_page_table_hashfn(gfn);
 	bucket = &vcpu->kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry(sp, node, bucket, hash_link)
 		if (sp->gfn == gfn && sp->role.word == role.word) {
 			mmu_page_add_parent_pte(vcpu, sp, parent_pte);
-			pgprintk("%s: found\n", __FUNCTION__);
+			pgprintk("%s: found\n", __func__);
 			return sp;
 		}
 	++vcpu->kvm->stat.mmu_cache_miss;
 	sp = kvm_mmu_alloc_page(vcpu, parent_pte);
 	if (!sp)
 		return sp;
-	pgprintk("%s: adding gfn %lx role %x\n", __FUNCTION__, gfn, role.word);
+	pgprintk("%s: adding gfn %lx role %x\n", __func__, gfn, role.word);
 	sp->gfn = gfn;
 	sp->role = role;
 	hlist_add_head(&sp->hash_link, bucket);
@@ -960,13 +960,13 @@ static int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn)
 	struct hlist_node *node, *n;
 	int r;
 
-	pgprintk("%s: looking for gfn %lx\n", __FUNCTION__, gfn);
+	pgprintk("%s: looking for gfn %lx\n", __func__, gfn);
 	r = 0;
 	index = kvm_page_table_hashfn(gfn);
 	bucket = &kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry_safe(sp, node, n, bucket, hash_link)
 		if (sp->gfn == gfn && !sp->role.metaphysical) {
-			pgprintk("%s: gfn %lx role %x\n", __FUNCTION__, gfn,
+			pgprintk("%s: gfn %lx role %x\n", __func__, gfn,
 				 sp->role.word);
 			kvm_mmu_zap_page(kvm, sp);
 			r = 1;
@@ -979,7 +979,7 @@ static void mmu_unshadow(struct kvm *kvm, gfn_t gfn)
 	struct kvm_mmu_page *sp;
 
 	while ((sp = kvm_mmu_lookup_page(kvm, gfn)) != NULL) {
-		pgprintk("%s: zap %lx %x\n", __FUNCTION__, gfn, sp->role.word);
+		pgprintk("%s: zap %lx %x\n", __func__, gfn, sp->role.word);
 		kvm_mmu_zap_page(kvm, sp);
 	}
 }
@@ -1021,7 +1021,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 
 	pgprintk("%s: spte %llx access %x write_fault %d"
 		 " user_fault %d gfn %lx\n",
-		 __FUNCTION__, *shadow_pte, pt_access,
+		 __func__, *shadow_pte, pt_access,
 		 write_fault, user_fault, gfn);
 
 	if (is_rmap_pte(*shadow_pte)) {
@@ -1046,7 +1046,6 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 				was_rmapped = 1;
 		}
 	}
-
 
 	/*
 	 * We don't set the accessed bit, since we sometimes want to see
@@ -1081,7 +1080,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 		if (shadow ||
 		   (largepage && has_wrprotected_page(vcpu->kvm, gfn))) {
 			pgprintk("%s: found shadow page for %lx, marking ro\n",
-				 __FUNCTION__, gfn);
+				 __func__, gfn);
 			pte_access &= ~ACC_WRITE_MASK;
 			if (is_writeble_pte(spte)) {
 				spte &= ~PT_WRITABLE_MASK;
@@ -1097,7 +1096,7 @@ unshadowed:
 	if (pte_access & ACC_WRITE_MASK)
 		mark_page_dirty(vcpu->kvm, gfn);
 
-	pgprintk("%s: setting spte %llx\n", __FUNCTION__, spte);
+	pgprintk("%s: setting spte %llx\n", __func__, spte);
 	pgprintk("instantiating %s PTE (%s) at %d (%llx) addr %llx\n",
 		 (spte&PT_PAGE_SIZE_MASK)? "2MB" : "4kB",
 		 (spte&PT_WRITABLE_MASK)?"RW":"R", gfn, spte, shadow_pte);
@@ -1317,7 +1316,7 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 	gfn_t gfn;
 	int r;
 
-	pgprintk("%s: gva %lx error %x\n", __FUNCTION__, gva, error_code);
+	pgprintk("%s: gva %lx error %x\n", __func__, gva, error_code);
 	r = mmu_topup_memory_caches(vcpu);
 	if (r)
 		return r;
@@ -1395,7 +1394,7 @@ void kvm_mmu_flush_tlb(struct kvm_vcpu *vcpu)
 
 static void paging_new_cr3(struct kvm_vcpu *vcpu)
 {
-	pgprintk("%s: cr3 %lx\n", __FUNCTION__, vcpu->arch.cr3);
+	pgprintk("%s: cr3 %lx\n", __func__, vcpu->arch.cr3);
 	mmu_free_roots(vcpu);
 }
 
@@ -1691,7 +1690,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	int npte;
 	int r;
 
-	pgprintk("%s: gpa %llx bytes %d\n", __FUNCTION__, gpa, bytes);
+	pgprintk("%s: gpa %llx bytes %d\n", __func__, gpa, bytes);
 	mmu_guess_page_from_pte_write(vcpu, gpa, new, bytes);
 	spin_lock(&vcpu->kvm->mmu_lock);
 	kvm_mmu_free_some_pages(vcpu);
@@ -2139,7 +2138,7 @@ static void audit_rmap(struct kvm_vcpu *vcpu)
 
 	if (n_rmap != n_actual)
 		printk(KERN_ERR "%s: (%s) rmap %d actual %d\n",
-		       __FUNCTION__, audit_msg, n_rmap, n_actual);
+		       __func__, audit_msg, n_rmap, n_actual);
 }
 
 static void audit_write_protection(struct kvm_vcpu *vcpu)
@@ -2159,7 +2158,7 @@ static void audit_write_protection(struct kvm_vcpu *vcpu)
 		if (*rmapp)
 			printk(KERN_ERR "%s: (%s) shadow page has writable"
 			       " mappings: gfn %lx role %x\n",
-			       __FUNCTION__, audit_msg, sp->gfn,
+			       __func__, audit_msg, sp->gfn,
 			       sp->role.word);
 	}
 }
