@@ -2646,10 +2646,7 @@ static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 	if (!slave || !slave_do_arp_validate(bond, slave))
 		goto out_unlock;
 
-	/* ARP header, plus 2 device addresses, plus 2 IP addresses.  */
-	if (!pskb_may_pull(skb, (sizeof(struct arphdr) +
-				 (2 * dev->addr_len) +
-				 (2 * sizeof(u32)))))
+	if (!pskb_may_pull(skb, arp_hdr_len(dev)))
 		goto out_unlock;
 
 	arp = arp_hdr(skb);

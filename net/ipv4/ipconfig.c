@@ -459,10 +459,7 @@ ic_rarp_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	if (rarp->ar_pro != htons(ETH_P_IP))
 		goto drop;
 
-	if (!pskb_may_pull(skb,
-			   sizeof(struct arphdr) +
-			   (2 * dev->addr_len) +
-			   (2 * 4)))
+	if (!pskb_may_pull(skb, arp_hdr_len(dev)))
 		goto drop;
 
 	/* OK, it is all there and looks valid, process... */

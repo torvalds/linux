@@ -233,10 +233,7 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 	void *table_base;
 	struct xt_table_info *private;
 
-	/* ARP header, plus 2 device addresses, plus 2 IP addresses.  */
-	if (!pskb_may_pull(skb, (sizeof(struct arphdr) +
-				 (2 * skb->dev->addr_len) +
-				 (2 * sizeof(u32)))))
+	if (!pskb_may_pull(skb, arp_hdr_len(skb->dev)))
 		return NF_DROP;
 
 	indev = in ? in->name : nulldevname;
