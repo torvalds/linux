@@ -260,20 +260,6 @@ static void __cpuinit smp_callin(void)
 
 static int cpucount;
 
-/* maps the cpu to the sched domain representing multi-core */
-cpumask_t cpu_coregroup_map(int cpu)
-{
-	struct cpuinfo_x86 *c = &cpu_data(cpu);
-	/*
-	 * For perf, we return last level cache shared map.
-	 * And for power savings, we return cpu_core_map
-	 */
-	if (sched_mc_power_savings || sched_smt_power_savings)
-		return per_cpu(cpu_core_map, cpu);
-	else
-		return c->llc_shared_map;
-}
-
 /*
  * Activate a secondary processor.
  */

@@ -1,6 +1,7 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/module.h>
+#include <linux/sched.h>
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
@@ -94,6 +95,21 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 		}
 	}
 }
+
+/* maps the cpu to the sched domain representing multi-core */
+cpumask_t cpu_coregroup_map(int cpu)
+{
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
+	/*
+	 * For perf, we return last level cache shared map.
+	 * And for power savings, we return cpu_core_map
+	 */
+	if (sched_mc_power_savings || sched_smt_power_savings)
+		return per_cpu(cpu_core_map, cpu);
+	else
+		return c->llc_shared_map;
+}
+
 
 #ifdef CONFIG_HOTPLUG_CPU
 void remove_siblinginfo(int cpu)
