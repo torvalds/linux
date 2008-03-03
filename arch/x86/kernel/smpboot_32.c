@@ -1073,8 +1073,7 @@ int __cpu_disable(void)
 
 	remove_cpu_from_maps(cpu);
 	fixup_irqs(map);
-	/* It's now safe to remove this processor from the online map */
-	cpu_clear(cpu, cpu_online_map);
+
 	return 0;
 }
 
