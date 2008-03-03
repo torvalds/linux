@@ -73,12 +73,6 @@ EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
 
 u8 apicid_2_node[MAX_APICID];
 
-/*
- * Trampoline 80x86 program as an array.
- */
-
-extern const unsigned char trampoline_data [];
-extern const unsigned char trampoline_end  [];
 static unsigned char *trampoline_base;
 
 static void map_cpu_to_logical_apicid(void);

@@ -9,6 +9,12 @@ extern cpumask_t cpu_callout_map;
 extern int smp_num_siblings;
 extern unsigned int num_processors;
 
+/*
+ * Trampoline 80x86 program as an array.
+ */
+extern const unsigned char trampoline_data [];
+extern const unsigned char trampoline_end  [];
+
 struct smp_ops {
 	void (*smp_prepare_boot_cpu)(void);
 	void (*smp_prepare_cpus)(unsigned max_cpus);

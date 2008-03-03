@@ -63,13 +63,6 @@
 /* Set when the idlers are all forked */
 int smp_threads_ready;
 
-/*
- * Trampoline 80x86 program as an array.
- */
-
-extern const unsigned char trampoline_data[];
-extern const unsigned char trampoline_end[];
-
 /* State of each CPU */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
 
