@@ -24,6 +24,7 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 #include <mach_apic.h>
+#include <asm/proto.h>
 
 /*
  *	Some notes on x86 processor bugs affecting SMP operation:
@@ -622,10 +623,14 @@ static void stop_this_cpu (void * dummy)
 
 static void native_smp_send_stop(void)
 {
-	/* Don't deadlock on the call lock in panic */
-	int nolock = !spin_trylock(&call_lock);
+	int nolock;
 	unsigned long flags;
 
+	if (reboot_force)
+		return;
+
+	/* Don't deadlock on the call lock in panic */
+	nolock = !spin_trylock(&call_lock);
 	local_irq_save(flags);
 	__smp_call_function(stop_this_cpu, NULL, 0, 0);
 	if (!nolock)
