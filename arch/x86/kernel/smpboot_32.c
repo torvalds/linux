@@ -62,34 +62,7 @@
 /* Set if we find a B stepping CPU */
 static int __cpuinitdata smp_b_stepping;
 
-/* Number of siblings per CPU package */
-int smp_num_siblings = 1;
-EXPORT_SYMBOL(smp_num_siblings);
-
-/* Last level cache ID of each logical CPU */
-DEFINE_PER_CPU(u16, cpu_llc_id) = BAD_APICID;
-
-/* representing HT siblings of each logical CPU */
-DEFINE_PER_CPU(cpumask_t, cpu_sibling_map);
-EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
-
-/* representing HT and core siblings of each logical CPU */
-DEFINE_PER_CPU(cpumask_t, cpu_core_map);
-EXPORT_PER_CPU_SYMBOL(cpu_core_map);
-
-/* bitmap of online cpus */
-cpumask_t cpu_online_map __read_mostly;
-EXPORT_SYMBOL(cpu_online_map);
-
-cpumask_t cpu_callin_map;
-cpumask_t cpu_callout_map;
-cpumask_t cpu_possible_map;
-EXPORT_SYMBOL(cpu_possible_map);
 static cpumask_t smp_commenced_mask;
-
-/* Per CPU bogomips and other parameters */
-DEFINE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
-EXPORT_PER_CPU_SYMBOL(cpu_info);
 
 /* which logical CPU number maps to which CPU (physical APIC ID) */
 u16 x86_cpu_to_apicid_init[NR_CPUS] __initdata =
