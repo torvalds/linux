@@ -844,7 +844,7 @@ static void __net_exit icmpv6_sk_exit(struct net *net)
 	kfree(net->ipv6.icmp_sk);
 }
 
-static struct pernet_operations __net_initdata icmpv6_sk_ops = {
+static struct pernet_operations icmpv6_sk_ops = {
        .init = icmpv6_sk_init,
        .exit = icmpv6_sk_exit,
 };
@@ -868,7 +868,7 @@ fail:
 	return err;
 }
 
-void __exit icmpv6_cleanup(void)
+void icmpv6_cleanup(void)
 {
 	unregister_pernet_subsys(&icmpv6_sk_ops);
 	inet6_del_protocol(&icmpv6_protocol, IPPROTO_ICMPV6);
