@@ -918,7 +918,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 /*
  * Early setup to make printk work.
  */
-void __init smp_prepare_boot_cpu(void)
+void __init native_smp_prepare_boot_cpu(void)
 {
 	int me = smp_processor_id();
 	/* already set me in cpu_online_map in boot_cpu_init() */

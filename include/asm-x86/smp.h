@@ -24,6 +24,11 @@ struct smp_ops {
 #ifdef CONFIG_SMP
 extern struct smp_ops smp_ops;
 
+static inline void smp_prepare_boot_cpu(void)
+{
+	smp_ops.smp_prepare_boot_cpu();
+}
+
 static inline int __cpu_up(unsigned int cpu)
 {
 	return smp_ops.cpu_up(cpu);
@@ -41,6 +46,7 @@ static inline int smp_call_function_mask(cpumask_t mask,
 	return smp_ops.smp_call_function_mask(mask, func, info, wait);
 }
 
+void native_smp_prepare_boot_cpu(void);
 int native_cpu_up(unsigned int cpunum);
 #endif
 
