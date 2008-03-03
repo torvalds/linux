@@ -70,6 +70,8 @@ unsigned int boot_cpu_physical_apicid = -1U;
 /* Internal processor count */
 unsigned int num_processors;
 
+unsigned disabled_cpus __cpuinitdata;
+
 /* Bitmask of physically existing CPUs */
 physid_mask_t phys_cpu_present_map;
 
@@ -108,8 +110,10 @@ static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
  	int ver, apicid;
 	physid_mask_t phys_cpu;
  	
-	if (!(m->mpc_cpuflag & CPU_ENABLED))
+	if (!(m->mpc_cpuflag & CPU_ENABLED)) {
+		disabled_cpus++;
 		return;
+	}
 
 	apicid = mpc_apic_id(m, translation_table[mpc_record]);
 
