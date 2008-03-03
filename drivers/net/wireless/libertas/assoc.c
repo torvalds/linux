@@ -349,11 +349,7 @@ static int assoc_helper_wpa_keys(struct lbs_private *priv,
 
 	if (test_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags)) {
 		clear_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags);
-		ret = lbs_prepare_and_send_command(priv,
-					CMD_802_11_KEY_MATERIAL,
-					CMD_ACT_SET,
-					CMD_OPTION_WAITFORRSP,
-					0, assoc_req);
+		ret = lbs_cmd_802_11_key_material(priv, CMD_ACT_SET, assoc_req);
 		assoc_req->flags = flags;
 	}
 
@@ -363,11 +359,7 @@ static int assoc_helper_wpa_keys(struct lbs_private *priv,
 	if (test_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags)) {
 		clear_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags);
 
-		ret = lbs_prepare_and_send_command(priv,
-					CMD_802_11_KEY_MATERIAL,
-					CMD_ACT_SET,
-					CMD_OPTION_WAITFORRSP,
-					0, assoc_req);
+		ret = lbs_cmd_802_11_key_material(priv, CMD_ACT_SET, assoc_req);
 		assoc_req->flags = flags;
 	}
 

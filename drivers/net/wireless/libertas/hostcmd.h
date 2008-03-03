@@ -572,6 +572,8 @@ struct cmd_ds_host_sleep {
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_key_material {
+	struct cmd_header hdr;
+
 	__le16 action;
 	struct MrvlIEtype_keyParamSet keyParamSet[2];
 } __attribute__ ((packed));
@@ -712,7 +714,6 @@ struct cmd_ds_command {
 		struct cmd_ds_802_11_rssi_rsp rssirsp;
 		struct cmd_ds_802_11_disassociate dassociate;
 		struct cmd_ds_802_11_mac_address macadd;
-		struct cmd_ds_802_11_key_material keymaterial;
 		struct cmd_ds_mac_reg_access macreg;
 		struct cmd_ds_bbp_reg_access bbpreg;
 		struct cmd_ds_rf_reg_access rfreg;

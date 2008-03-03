@@ -204,61 +204,6 @@ static int lbs_ret_802_11_snmp_mib(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_key_material(struct lbs_private *priv,
-					struct cmd_ds_command *resp)
-{
-	struct cmd_ds_802_11_key_material *pkeymaterial =
-	    &resp->params.keymaterial;
-	u16 action = le16_to_cpu(pkeymaterial->action);
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	/* Copy the returned key to driver private data */
-	if (action == CMD_ACT_GET) {
-		u8 * buf_ptr = (u8 *) &pkeymaterial->keyParamSet;
-		u8 * resp_end = (u8 *) (resp + le16_to_cpu(resp->size));
-
-		while (buf_ptr < resp_end) {
-			struct MrvlIEtype_keyParamSet * pkeyparamset =
-			    (struct MrvlIEtype_keyParamSet *) buf_ptr;
-			struct enc_key * pkey;
-			u16 param_set_len = le16_to_cpu(pkeyparamset->length);
-			u16 key_len = le16_to_cpu(pkeyparamset->keylen);
-			u16 key_flags = le16_to_cpu(pkeyparamset->keyinfo);
-			u16 key_type = le16_to_cpu(pkeyparamset->keytypeid);
-			u8 * end;
-
-			end = (u8 *) pkeyparamset + sizeof (pkeyparamset->type)
-			                          + sizeof (pkeyparamset->length)
-			                          + param_set_len;
-			/* Make sure we don't access past the end of the IEs */
-			if (end > resp_end)
-				break;
-
-			if (key_flags & KEY_INFO_WPA_UNICAST)
-				pkey = &priv->wpa_unicast_key;
-			else if (key_flags & KEY_INFO_WPA_MCAST)
-				pkey = &priv->wpa_mcast_key;
-			else
-				break;
-
-			/* Copy returned key into driver */
-			memset(pkey, 0, sizeof(struct enc_key));
-			if (key_len > sizeof(pkey->key))
-				break;
-			pkey->type = key_type;
-			pkey->flags = key_flags;
-			pkey->len = key_len;
-			memcpy(pkey->key, pkeyparamset->key, pkey->len);
-
-			buf_ptr = end + 1;
-		}
-	}
-
-	lbs_deb_enter(LBS_DEB_CMD);
-	return 0;
-}
-
 static int lbs_ret_802_11_mac_address(struct lbs_private *priv,
 				       struct cmd_ds_command *resp)
 {
@@ -473,10 +418,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 
 	case CMD_RET(CMD_802_11_AD_HOC_STOP):
 		ret = lbs_ret_80211_ad_hoc_stop(priv, resp);
-		break;
-
-	case CMD_RET(CMD_802_11_KEY_MATERIAL):
-		ret = lbs_ret_802_11_key_material(priv, resp);
 		break;
 
 	case CMD_RET(CMD_802_11_EEPROM_ACCESS):
