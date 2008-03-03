@@ -46,6 +46,9 @@
 
 #include "buffer_head_io.h"
 
+#define NOT_ALLOC_NEW_GROUP		0
+#define ALLOC_NEW_GROUP			1
+
 static inline void ocfs2_debug_bg(struct ocfs2_group_desc *bg);
 static inline void ocfs2_debug_suballoc_inode(struct ocfs2_dinode *fe);
 static inline u16 ocfs2_find_victim_chain(struct ocfs2_chain_list *cl);
@@ -391,7 +394,8 @@ bail:
 static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 				       struct ocfs2_alloc_context *ac,
 				       int type,
-				       u32 slot)
+				       u32 slot,
+				       int alloc_new_group)
 {
 	int status;
 	u32 bits_wanted = ac->ac_bits_wanted;
@@ -446,6 +450,14 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 			goto bail;
 		}
 
+		if (alloc_new_group != ALLOC_NEW_GROUP) {
+			mlog(0, "Alloc File %u Full: wanted=%u, free_bits=%u, "
+			     "and we don't alloc a new group for it.\n",
+			     slot, bits_wanted, free_bits);
+			status = -ENOSPC;
+			goto bail;
+		}
+
 		status = ocfs2_block_group_alloc(osb, alloc_inode, bh);
 		if (status < 0) {
 			if (status != -ENOSPC)
@@ -490,7 +502,8 @@ int ocfs2_reserve_new_metadata(struct ocfs2_super *osb,
 	(*ac)->ac_group_search = ocfs2_block_group_search;
 
 	status = ocfs2_reserve_suballoc_bits(osb, (*ac),
-					     EXTENT_ALLOC_SYSTEM_INODE, slot);
+					     EXTENT_ALLOC_SYSTEM_INODE,
+					     slot, ALLOC_NEW_GROUP);
 	if (status < 0) {
 		if (status != -ENOSPC)
 			mlog_errno(status);
@@ -527,7 +540,7 @@ int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 
 	status = ocfs2_reserve_suballoc_bits(osb, *ac,
 					     INODE_ALLOC_SYSTEM_INODE,
-					     osb->slot_num);
+					     osb->slot_num, ALLOC_NEW_GROUP);
 	if (status < 0) {
 		if (status != -ENOSPC)
 			mlog_errno(status);
@@ -557,7 +570,8 @@ int ocfs2_reserve_cluster_bitmap_bits(struct ocfs2_super *osb,
 
 	status = ocfs2_reserve_suballoc_bits(osb, ac,
 					     GLOBAL_BITMAP_SYSTEM_INODE,
-					     OCFS2_INVALID_SLOT);
+					     OCFS2_INVALID_SLOT,
+					     ALLOC_NEW_GROUP);
 	if (status < 0 && status != -ENOSPC) {
 		mlog_errno(status);
 		goto bail;
