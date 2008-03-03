@@ -149,9 +149,11 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 	for (pfn = phys_addr >> PAGE_SHIFT;
 				(pfn << PAGE_SHIFT) < last_addr; pfn++) {
 
-		if (page_is_ram(pfn) && pfn_valid(pfn) &&
-		    !PageReserved(pfn_to_page(pfn)))
+		int is_ram = page_is_ram(pfn);
+
+		if (is_ram && pfn_valid(pfn) && !PageReserved(pfn_to_page(pfn)))
 			return NULL;
+		WARN_ON_ONCE(is_ram);
 	}
 
 	switch (mode) {
