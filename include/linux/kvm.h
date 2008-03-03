@@ -260,6 +260,8 @@ struct kvm_vapic_addr {
 #define KVM_GET_IRQCHIP		  _IOWR(KVMIO, 0x62, struct kvm_irqchip)
 #define KVM_SET_IRQCHIP		  _IOR(KVMIO,  0x63, struct kvm_irqchip)
 #define KVM_CREATE_PIT		  _IO(KVMIO,  0x64)
+#define KVM_GET_PIT		  _IOWR(KVMIO, 0x65, struct kvm_pit_state)
+#define KVM_SET_PIT		  _IOR(KVMIO,  0x66, struct kvm_pit_state)
 
 /*
  * ioctls for vcpu fds

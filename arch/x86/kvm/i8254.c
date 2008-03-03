@@ -288,6 +288,13 @@ static void pit_load_count(struct kvm *kvm, int channel, u32 val)
 	}
 }
 
+void kvm_pit_load_count(struct kvm *kvm, int channel, u32 val)
+{
+	mutex_lock(&kvm->arch.vpit->pit_state.lock);
+	pit_load_count(kvm, channel, val);
+	mutex_unlock(&kvm->arch.vpit->pit_state.lock);
+}
+
 static void pit_ioport_write(struct kvm_io_device *this,
 			     gpa_t addr, int len, const void *data)
 {

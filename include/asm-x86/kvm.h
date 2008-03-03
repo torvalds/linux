@@ -188,4 +188,25 @@ struct kvm_cpuid2 {
 	struct kvm_cpuid_entry2 entries[0];
 };
 
+/* for KVM_GET_PIT and KVM_SET_PIT */
+struct kvm_pit_channel_state {
+	__u32 count; /* can be 65536 */
+	__u16 latched_count;
+	__u8 count_latched;
+	__u8 status_latched;
+	__u8 status;
+	__u8 read_state;
+	__u8 write_state;
+	__u8 write_latch;
+	__u8 rw_mode;
+	__u8 mode;
+	__u8 bcd;
+	__u8 gate;
+	__s64 count_load_time;
+};
+
+struct kvm_pit_state {
+	struct kvm_pit_channel_state channels[3];
+};
+
 #endif

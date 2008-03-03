@@ -1504,6 +1504,23 @@ static int kvm_vm_ioctl_set_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 	return r;
 }
 
+static int kvm_vm_ioctl_get_pit(struct kvm *kvm, struct kvm_pit_state *ps)
+{
+	int r = 0;
+
+	memcpy(ps, &kvm->arch.vpit->pit_state, sizeof(struct kvm_pit_state));
+	return r;
+}
+
+static int kvm_vm_ioctl_set_pit(struct kvm *kvm, struct kvm_pit_state *ps)
+{
+	int r = 0;
+
+	memcpy(&kvm->arch.vpit->pit_state, ps, sizeof(struct kvm_pit_state));
+	kvm_pit_load_count(kvm, 0, ps->channels[0].count);
+	return r;
+}
+
 /*
  * Get (and clear) the dirty memory log for a memory slot.
  */
@@ -1652,6 +1669,37 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (!irqchip_in_kernel(kvm))
 			goto out;
 		r = kvm_vm_ioctl_set_irqchip(kvm, &chip);
+		if (r)
+			goto out;
+		r = 0;
+		break;
+	}
+	case KVM_GET_PIT: {
+		struct kvm_pit_state ps;
+		r = -EFAULT;
+		if (copy_from_user(&ps, argp, sizeof ps))
+			goto out;
+		r = -ENXIO;
+		if (!kvm->arch.vpit)
+			goto out;
+		r = kvm_vm_ioctl_get_pit(kvm, &ps);
+		if (r)
+			goto out;
+		r = -EFAULT;
+		if (copy_to_user(argp, &ps, sizeof ps))
+			goto out;
+		r = 0;
+		break;
+	}
+	case KVM_SET_PIT: {
+		struct kvm_pit_state ps;
+		r = -EFAULT;
+		if (copy_from_user(&ps, argp, sizeof ps))
+			goto out;
+		r = -ENXIO;
+		if (!kvm->arch.vpit)
+			goto out;
+		r = kvm_vm_ioctl_set_pit(kvm, &ps);
 		if (r)
 			goto out;
 		r = 0;
