@@ -17,7 +17,7 @@
 
 static struct backlight_ops pmu_backlight_data;
 static DEFINE_SPINLOCK(pmu_backlight_lock);
-static int sleeping;
+static int sleeping, uses_pmu_bl;
 static u8 bl_curve[FB_BACKLIGHT_LEVELS];
 
 static void pmu_backlight_init_curve(u8 off, u8 min, u8 max)
@@ -128,7 +128,7 @@ void pmu_backlight_set_sleep(int sleep)
 
 	spin_lock_irqsave(&pmu_backlight_lock, flags);
 	sleeping = sleep;
-	if (pmac_backlight) {
+	if (pmac_backlight && uses_pmu_bl) {
 		if (sleep) {
 			struct adb_request req;
 
@@ -166,6 +166,7 @@ void __init pmu_backlight_init()
 		printk(KERN_ERR "PMU Backlight registration failed\n");
 		return;
 	}
+	uses_pmu_bl = 1;
 	bd->props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
 	pmu_backlight_init_curve(0x7F, 0x46, 0x0E);
 
