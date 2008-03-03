@@ -2670,7 +2670,7 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 	t = stop_time.tv_sec - start_time.tv_sec;
 	t *= 1000000;
 	t += stop_time.tv_usec - start_time.tv_usec;
-	printk(KERN_INFO "%s: measured %lu usecs\n", __FUNCTION__, t);
+	printk(KERN_INFO "%s: measured %lu usecs\n", __func__, t);
 	if (t == 0) {
 		snd_printk(KERN_ERR "?? calculation error..\n");
 		return;

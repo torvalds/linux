@@ -264,10 +264,10 @@ snd_ad1889_ac97_ready(struct snd_ad1889 *chip)
 		mdelay(1);
 	if (!retry) {
 		snd_printk(KERN_ERR PFX "[%s] Link is not ready.\n",
-		       __FUNCTION__);
+		       __func__);
 		return -EIO;
 	}
-	ad1889_debug("[%s] ready after %d ms\n", __FUNCTION__, 400 - retry);
+	ad1889_debug("[%s] ready after %d ms\n", __func__, 400 - retry);
 
 	return 0;
 }

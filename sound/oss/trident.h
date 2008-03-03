@@ -322,7 +322,7 @@ enum miscint_bits {
 #define VALIDATE_MAGIC(FOO,MAG)				\
 ({						  	\
 	if (!(FOO) || (FOO)->magic != MAG) { 		\
-		printk(invalid_magic,__FUNCTION__);	\
+		printk(invalid_magic,__func__);	\
 		return -ENXIO;			  	\
 	}					  	\
 })

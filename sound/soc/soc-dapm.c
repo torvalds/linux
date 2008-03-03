@@ -1288,7 +1288,7 @@ int snd_soc_dapm_stream_event(struct snd_soc_codec *codec,
 	mutex_unlock(&codec->mutex);
 
 	dapm_power_widgets(codec, event);
-	dump_dapm(codec, __FUNCTION__);
+	dump_dapm(codec, __func__);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_stream_event);

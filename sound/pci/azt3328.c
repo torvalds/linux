@@ -157,8 +157,8 @@ MODULE_SUPPORTED_DEVICE("{{Aztech,AZF3328}}");
 
 #if DEBUG_CALLS
 #define snd_azf3328_dbgcalls(format, args...) printk(format, ##args)
-#define snd_azf3328_dbgcallenter() printk(KERN_ERR "--> %s\n", __FUNCTION__)
-#define snd_azf3328_dbgcallleave() printk(KERN_ERR "<-- %s\n", __FUNCTION__)
+#define snd_azf3328_dbgcallenter() printk(KERN_ERR "--> %s\n", __func__)
+#define snd_azf3328_dbgcallleave() printk(KERN_ERR "<-- %s\n", __func__)
 #else
 #define snd_azf3328_dbgcalls(format, args...)
 #define snd_azf3328_dbgcallenter()
