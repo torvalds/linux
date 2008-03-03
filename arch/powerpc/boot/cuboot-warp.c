@@ -11,6 +11,7 @@
 #include "4xx.h"
 #include "cuboot.h"
 
+#define TARGET_4xx
 #define TARGET_44x
 #include "ppcboot.h"
 

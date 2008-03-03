@@ -21,7 +21,9 @@
 #include "dcr.h"
 #include "4xx.h"
 
+#define TARGET_4xx
 #define TARGET_44x
+#define TARGET_440GX
 #include "ppcboot.h"
 
 static bd_t bd;
