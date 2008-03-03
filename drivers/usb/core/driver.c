@@ -1523,9 +1523,14 @@ static int usb_suspend(struct device *dev, pm_message_t message)
 	udev = to_usb_device(dev);
 
 	/* If udev is already suspended, we can skip this suspend and
-	 * we should also skip the upcoming system resume. */
+	 * we should also skip the upcoming system resume.  High-speed
+	 * root hubs are an exception; they need to resume whenever the
+	 * system wakes up in order for USB-PERSIST port handover to work
+	 * properly.
+	 */
 	if (udev->state == USB_STATE_SUSPENDED) {
-		udev->skip_sys_resume = 1;
+		if (udev->parent || udev->speed != USB_SPEED_HIGH)
+			udev->skip_sys_resume = 1;
 		return 0;
 	}
 

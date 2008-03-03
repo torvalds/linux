@@ -2890,7 +2890,13 @@ loop:
 
 static int hub_thread(void *__unused)
 {
+	/* khubd needs to be freezable to avoid intefering with USB-PERSIST
+	 * port handover.  Otherwise it might see that a full-speed device
+	 * was gone before the EHCI controller had handed its port over to
+	 * the companion full-speed controller.
+	 */
 	set_freezable();
+
 	do {
 		hub_events();
 		wait_event_freezable(khubd_wait,

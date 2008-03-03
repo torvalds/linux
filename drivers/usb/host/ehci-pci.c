@@ -329,7 +329,6 @@ static int ehci_pci_resume(struct usb_hcd *hcd)
 
 	/* here we "know" root ports should always stay powered */
 	ehci_port_power(ehci, 1);
-	ehci_handover_companion_ports(ehci);
 
 	hcd->state = HC_STATE_SUSPENDED;
 	return 0;

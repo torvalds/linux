@@ -281,9 +281,7 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	ehci_writel(ehci, INTR_MASK, &ehci->regs->intr_enable);
 
 	spin_unlock_irq (&ehci->lock);
-
-	if (!power_okay)
-		ehci_handover_companion_ports(ehci);
+	ehci_handover_companion_ports(ehci);
 	return 0;
 }
 
