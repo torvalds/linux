@@ -333,6 +333,27 @@ static int get_port_status(struct usb_device *hdev, int port1,
 	return status;
 }
 
+static int hub_port_status(struct usb_hub *hub, int port1,
+		u16 *status, u16 *change)
+{
+	int ret;
+
+	mutex_lock(&hub->status_mutex);
+	ret = get_port_status(hub->hdev, port1, &hub->status->port);
+	if (ret < 4) {
+		dev_err(hub->intfdev,
+			"%s failed (err = %d)\n", __func__, ret);
+		if (ret >= 0)
+			ret = -EIO;
+	} else {
+		*status = le16_to_cpu(hub->status->port.wPortStatus);
+		*change = le16_to_cpu(hub->status->port.wPortChange);
+		ret = 0;
+	}
+	mutex_unlock(&hub->status_mutex);
+	return ret;
+}
+
 static void kick_khubd(struct usb_hub *hub)
 {
 	unsigned long	flags;
@@ -610,9 +631,8 @@ static void hub_port_logical_disconnect(struct usb_hub *hub, int port1)
 }
 
 /* caller has locked the hub device */
-static int hub_pre_reset(struct usb_interface *intf)
+static void hub_stop(struct usb_hub *hub)
 {
-	struct usb_hub *hub = usb_get_intfdata(intf);
 	struct usb_device *hdev = hub->hdev;
 	int i;
 
@@ -622,6 +642,14 @@ static int hub_pre_reset(struct usb_interface *intf)
 			usb_disconnect(&hdev->children[i]);
 	}
 	hub_quiesce(hub);
+}
+
+/* caller has locked the hub device */
+static int hub_pre_reset(struct usb_interface *intf)
+{
+	struct usb_hub *hub = usb_get_intfdata(intf);
+
+	hub_stop(hub);
 	return 0;
 }
 
@@ -910,7 +938,7 @@ static void hub_disconnect(struct usb_interface *intf)
 
 	/* Disconnect all children and quiesce the hub */
 	hub->error = 0;
-	hub_pre_reset(intf);
+	hub_stop(hub);
 
 	usb_set_intfdata (intf, NULL);
 
@@ -1507,28 +1535,6 @@ error_autoresume:
 out_authorized:
 	usb_unlock_device(usb_dev);	// complements locktree
 	return result;
-}
-
-
-static int hub_port_status(struct usb_hub *hub, int port1,
-			       u16 *status, u16 *change)
-{
-	int ret;
-
-	mutex_lock(&hub->status_mutex);
-	ret = get_port_status(hub->hdev, port1, &hub->status->port);
-	if (ret < 4) {
-		dev_err (hub->intfdev,
-			"%s failed (err = %d)\n", __FUNCTION__, ret);
-		if (ret >= 0)
-			ret = -EIO;
-	} else {
-		*status = le16_to_cpu(hub->status->port.wPortStatus);
-		*change = le16_to_cpu(hub->status->port.wPortChange); 
-		ret = 0;
-	}
-	mutex_unlock(&hub->status_mutex);
-	return ret;
 }
 
 
@@ -2726,7 +2732,7 @@ static void hub_events(void)
 		/* If the hub has died, clean up after it */
 		if (hdev->state == USB_STATE_NOTATTACHED) {
 			hub->error = -ENODEV;
-			hub_pre_reset(intf);
+			hub_stop(hub);
 			goto loop;
 		}
 
