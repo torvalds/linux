@@ -420,9 +420,6 @@ int smp_call_function_single (int cpu, void (*func) (void *info), void *info,
 	/* prevent preemption and reschedule on another processor */
 	int ret, me = get_cpu();
 
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON(irqs_disabled());
-
 	if (cpu == me) {
 		local_irq_disable();
 		func(info);
