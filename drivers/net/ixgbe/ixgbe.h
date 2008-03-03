@@ -36,6 +36,9 @@
 #include "ixgbe_type.h"
 #include "ixgbe_common.h"
 
+#ifdef CONFIG_DCA
+#include <linux/dca.h>
+#endif
 
 #define IXGBE_ERR(args...) printk(KERN_ERR "ixgbe: " args)
 
@@ -142,6 +145,11 @@ struct ixgbe_ring {
 	u16 reg_idx; /* holds the special value that gets the hardware register
 		      * offset associated with this ring, which is different
 		      * for DCE and RSS modes */
+
+#ifdef CONFIG_DCA
+	/* cpu for tx queue */
+	int cpu;
+#endif
 	struct ixgbe_queue_stats stats;
 	u8 v_idx; /* maps directly to the index for this ring in the hardware
 		   * vector array, can also be used for finding the bit in EICR
@@ -261,6 +269,7 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG_IMIR_ENABLED                 (u32)(1 << 5)
 #define IXGBE_FLAG_RSS_ENABLED                  (u32)(1 << 6)
 #define IXGBE_FLAG_VMDQ_ENABLED                 (u32)(1 << 7)
+#define IXGBE_FLAG_DCA_ENABLED                  (u32)(1 << 8)
 
 	/* OS defined structs */
 	struct net_device *netdev;
