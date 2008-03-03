@@ -416,8 +416,9 @@ static void stop_this_cpu(void *dummy)
 	 */
 	cpu_clear(smp_processor_id(), cpu_online_map);
 	disable_local_APIC();
-	for (;;)
-		halt();
+	if (hlt_works(smp_processor_id()))
+		for (;;) halt();
+	for (;;);
 }
 
 void smp_send_stop(void)
