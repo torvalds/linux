@@ -73,39 +73,10 @@ EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
 
 u8 apicid_2_node[MAX_APICID];
 
-static unsigned char *trampoline_base;
-
 static void map_cpu_to_logical_apicid(void);
 
 /* State of each CPU. */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
-
-/*
- * Currently trivial. Write the real->protected mode
- * bootstrap into the page concerned. The caller
- * has made sure it's suitably aligned.
- */
-
-static unsigned long __cpuinit setup_trampoline(void)
-{
-	memcpy(trampoline_base, trampoline_data, trampoline_end - trampoline_data);
-	return virt_to_phys(trampoline_base);
-}
-
-/*
- * We are called very early to get the low memory for the
- * SMP bootup trampoline page.
- */
-void __init smp_alloc_memory(void)
-{
-	trampoline_base = alloc_bootmem_low_pages(PAGE_SIZE);
-	/*
-	 * Has to be in very low memory so we can execute
-	 * real-mode AP code.
-	 */
-	if (__pa(trampoline_base) >= 0x9F000)
-		BUG();
-}
 
 /*
  * The bootstrap kernel entry code has set these up. Save them for

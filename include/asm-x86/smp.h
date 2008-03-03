@@ -14,6 +14,7 @@ extern unsigned int num_processors;
  */
 extern const unsigned char trampoline_data [];
 extern const unsigned char trampoline_end  [];
+extern unsigned char *trampoline_base;
 
 struct smp_ops {
 	void (*smp_prepare_boot_cpu)(void);
@@ -81,6 +82,9 @@ extern void __cpu_die(unsigned int cpu);
 
 extern unsigned disabled_cpus;
 extern void prefill_possible_map(void);
+
+#define SMP_TRAMPOLINE_BASE 0x6000
+extern unsigned long setup_trampoline(void);
 #endif
 
 #ifdef CONFIG_X86_32

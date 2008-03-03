@@ -85,20 +85,6 @@ struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
 #define set_idle_for_cpu(x,p)   (idle_thread_array[(x)] = (p))
 #endif
 
-
-/*
- * Currently trivial. Write the real->protected mode
- * bootstrap into the page concerned. The caller
- * has made sure it's suitably aligned.
- */
-
-static unsigned long __cpuinit setup_trampoline(void)
-{
-	void *tramp = __va(SMP_TRAMPOLINE_BASE); 
-	memcpy(tramp, trampoline_data, trampoline_end - trampoline_data);
-	return virt_to_phys(tramp);
-}
-
 /*
  * The bootstrap kernel entry code has set these up. Save them for
  * a given CPU

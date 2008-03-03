@@ -3,6 +3,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/percpu.h>
+#include <linux/bootmem.h>
 
 #include <asm/nmi.h>
 #include <asm/irq.h>
@@ -37,6 +38,9 @@ EXPORT_PER_CPU_SYMBOL(cpu_core_map);
 /* Per CPU bogomips and other parameters */
 DEFINE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
+
+/* ready for x86_64, no harm for x86, since it will overwrite after alloc */
+unsigned char *trampoline_base = __va(SMP_TRAMPOLINE_BASE);
 
 /* representing cpus for which sibling maps can be computed */
 static cpumask_t cpu_sibling_setup_map;
@@ -117,6 +121,35 @@ cpumask_t cpu_coregroup_map(int cpu)
 		return c->llc_shared_map;
 }
 
+/*
+ * Currently trivial. Write the real->protected mode
+ * bootstrap into the page concerned. The caller
+ * has made sure it's suitably aligned.
+ */
+
+unsigned long __cpuinit setup_trampoline(void)
+{
+	memcpy(trampoline_base, trampoline_data,
+	       trampoline_end - trampoline_data);
+	return virt_to_phys(trampoline_base);
+}
+
+#ifdef CONFIG_X86_32
+/*
+ * We are called very early to get the low memory for the
+ * SMP bootup trampoline page.
+ */
+void __init smp_alloc_memory(void)
+{
+	trampoline_base = alloc_bootmem_low_pages(PAGE_SIZE);
+	/*
+	 * Has to be in very low memory so we can execute
+	 * real-mode AP code.
+	 */
+	if (__pa(trampoline_base) >= 0x9F000)
+		BUG();
+}
+#endif
 
 #ifdef CONFIG_HOTPLUG_CPU
 void remove_siblinginfo(int cpu)
