@@ -325,7 +325,7 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq,
 			   "%8p %8p %-3d %-3d %-2d %-4d "
 			   "%4d %8d %8d %7d %5lu %-5d %5d "
-			   "%8d %5d %5d %4d %4d %4d %8d ",
+			   "%8lu %5d %5d %4d %4d %4d %8d ",
 			   assoc, sk, sctp_sk(sk)->type, sk->sk_state,
 			   assoc->state, hash,
 			   assoc->assoc_id,
