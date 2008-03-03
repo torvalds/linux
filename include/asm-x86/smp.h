@@ -63,6 +63,7 @@ void native_smp_cpus_done(unsigned int max_cpus);
 int native_cpu_up(unsigned int cpunum);
 
 extern unsigned disabled_cpus;
+extern void prefill_possible_map(void);
 #endif
 
 #ifdef CONFIG_X86_32
