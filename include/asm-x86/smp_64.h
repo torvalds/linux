@@ -65,8 +65,6 @@ static inline int num_booting_cpus(void)
 	return cpus_weight(cpu_callout_map);
 }
 
-extern void smp_send_reschedule(int cpu);
-
 #else /* CONFIG_SMP */
 
 extern unsigned int boot_cpu_id;

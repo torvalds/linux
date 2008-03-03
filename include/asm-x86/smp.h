@@ -23,6 +23,11 @@ struct smp_ops {
 
 #ifdef CONFIG_SMP
 extern struct smp_ops smp_ops;
+
+static inline void smp_send_reschedule(int cpu)
+{
+	smp_ops.smp_send_reschedule(cpu);
+}
 #endif
 
 #ifdef CONFIG_X86_32

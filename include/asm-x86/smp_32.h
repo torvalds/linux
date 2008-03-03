@@ -60,10 +60,6 @@ static inline void smp_send_stop(void)
 {
 	smp_ops.smp_send_stop();
 }
-static inline void smp_send_reschedule(int cpu)
-{
-	smp_ops.smp_send_reschedule(cpu);
-}
 static inline int smp_call_function_mask(cpumask_t mask,
 					 void (*func) (void *info), void *info,
 					 int wait)

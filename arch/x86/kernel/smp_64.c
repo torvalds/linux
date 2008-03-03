@@ -290,8 +290,9 @@ void flush_tlb_all(void)
  * anything. Worst case is that we lose a reschedule ...
  */
 
-void smp_send_reschedule(int cpu)
+static void native_smp_send_reschedule(int cpu)
 {
+	WARN_ON(cpu_is_offline(cpu));
 	send_IPI_mask(cpumask_of_cpu(cpu), RESCHEDULE_VECTOR);
 }
 
@@ -528,5 +529,7 @@ asmlinkage void smp_call_function_interrupt(void)
 	}
 }
 
-struct smp_ops smp_ops;
+struct smp_ops smp_ops = {
+	.smp_send_reschedule = native_smp_send_reschedule,
+};
 EXPORT_SYMBOL_GPL(smp_ops);
