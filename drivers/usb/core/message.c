@@ -784,7 +784,7 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 	if (size <= 0 || !buf || !index)
 		return -EINVAL;
 	buf[0] = 0;
-	tbuf = kmalloc(256, GFP_KERNEL);
+	tbuf = kmalloc(256, GFP_NOIO);
 	if (!tbuf)
 		return -ENOMEM;
 

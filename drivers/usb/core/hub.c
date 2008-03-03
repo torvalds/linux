@@ -3010,16 +3010,36 @@ void usb_hub_cleanup(void)
 	usb_deregister(&hub_driver);
 } /* usb_hub_cleanup() */
 
-static int config_descriptors_changed(struct usb_device *udev)
+static int descriptors_changed(struct usb_device *udev,
+		struct usb_device_descriptor *old_device_descriptor)
 {
-	unsigned			index;
-	unsigned			len = 0;
-	struct usb_config_descriptor	*buf;
+	int		changed = 0;
+	unsigned	index;
+	unsigned	serial_len = 0;
+	unsigned	len;
+	unsigned	old_length;
+	int		length;
+	char		*buf;
 
+	if (memcmp(&udev->descriptor, old_device_descriptor,
+			sizeof(*old_device_descriptor)) != 0)
+		return 1;
+
+	/* Since the idVendor, idProduct, and bcdDevice values in the
+	 * device descriptor haven't changed, we will assume the
+	 * Manufacturer and Product strings haven't changed either.
+	 * But the SerialNumber string could be different (e.g., a
+	 * different flash card of the same brand).
+	 */
+	if (udev->serial)
+		serial_len = strlen(udev->serial) + 1;
+
+	len = serial_len;
 	for (index = 0; index < udev->descriptor.bNumConfigurations; index++) {
-		if (len < le16_to_cpu(udev->config[index].desc.wTotalLength))
-			len = le16_to_cpu(udev->config[index].desc.wTotalLength);
+		old_length = le16_to_cpu(udev->config[index].desc.wTotalLength);
+		len = max(len, old_length);
 	}
+
 	buf = kmalloc(len, GFP_NOIO);
 	if (buf == NULL) {
 		dev_err(&udev->dev, "no mem to re-read configs after reset\n");
@@ -3027,25 +3047,41 @@ static int config_descriptors_changed(struct usb_device *udev)
 		return 1;
 	}
 	for (index = 0; index < udev->descriptor.bNumConfigurations; index++) {
-		int length;
-		int old_length = le16_to_cpu(udev->config[index].desc.wTotalLength);
-
+		old_length = le16_to_cpu(udev->config[index].desc.wTotalLength);
 		length = usb_get_descriptor(udev, USB_DT_CONFIG, index, buf,
 				old_length);
-		if (length < old_length) {
+		if (length != old_length) {
 			dev_dbg(&udev->dev, "config index %d, error %d\n",
 					index, length);
+			changed = 1;
 			break;
 		}
 		if (memcmp (buf, udev->rawdescriptors[index], old_length)
 				!= 0) {
 			dev_dbg(&udev->dev, "config index %d changed (#%d)\n",
-				index, buf->bConfigurationValue);
+				index,
+				((struct usb_config_descriptor *) buf)->
+					bConfigurationValue);
+			changed = 1;
 			break;
 		}
 	}
+
+	if (!changed && serial_len) {
+		length = usb_string(udev, udev->descriptor.iSerialNumber,
+				buf, serial_len);
+		if (length + 1 != serial_len) {
+			dev_dbg(&udev->dev, "serial string error %d\n",
+					length);
+			changed = 1;
+		} else if (memcmp(buf, udev->serial, length) != 0) {
+			dev_dbg(&udev->dev, "serial string changed\n");
+			changed = 1;
+		}
+	}
+
 	kfree(buf);
-	return index != udev->descriptor.bNumConfigurations;
+	return changed;
 }
 
 /**
@@ -3118,8 +3154,7 @@ int usb_reset_device(struct usb_device *udev)
 		goto re_enumerate;
  
 	/* Device might have changed firmware (DFU or similar) */
-	if (memcmp(&udev->descriptor, &descriptor, sizeof descriptor)
-			|| config_descriptors_changed (udev)) {
+	if (descriptors_changed(udev, &descriptor)) {
 		dev_info(&udev->dev, "device firmware changed\n");
 		udev->descriptor = descriptor;	/* for disconnect() calls */
 		goto re_enumerate;

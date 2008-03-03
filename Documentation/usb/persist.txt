@@ -136,10 +136,10 @@ aren't guaranteed to be 100% accurate.
 
 If you replace one USB device with another of the same type (same
 manufacturer, same IDs, and so on) there's an excellent chance the
-kernel won't detect the change.  Serial numbers and other strings are
-not compared.  In many cases it wouldn't help if they were, because
-manufacturers frequently omit serial numbers entirely in their
-devices.
+kernel won't detect the change.  The serial number string and other
+descriptors are compared with the kernel's stored values, but this
+might not help since manufacturers frequently omit serial numbers
+entirely in their devices.
 
 Furthermore it's quite possible to leave a USB device exactly the same
 while changing its media.  If you replace the flash memory card in a
