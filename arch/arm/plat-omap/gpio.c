@@ -136,7 +136,6 @@ struct gpio_bank {
 	u16 irq;
 	u16 virtual_irq_start;
 	int method;
-	u32 reserved_map;
 #if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
 	u32 suspend_wakeup;
 	u32 saved_wakeup;
@@ -150,6 +149,7 @@ struct gpio_bank {
 	u32 saved_risingdetect;
 #endif
 	spinlock_t lock;
+	struct gpio_chip chip;
 };
 
 #define METHOD_MPUIO		0
@@ -903,19 +903,17 @@ int omap_request_gpio(int gpio)
 {
 	struct gpio_bank *bank;
 	unsigned long flags;
+	int status;
 
 	if (check_gpio(gpio) < 0)
 		return -EINVAL;
 
+	status = gpio_request(gpio, NULL);
+	if (status < 0)
+		return status;
+
 	bank = get_gpio_bank(gpio);
 	spin_lock_irqsave(&bank->lock, flags);
-	if (unlikely(bank->reserved_map & (1 << get_gpio_index(gpio)))) {
-		printk(KERN_ERR "omap-gpio: GPIO %d is already reserved!\n", gpio);
-		dump_stack();
-		spin_unlock_irqrestore(&bank->lock, flags);
-		return -1;
-	}
-	bank->reserved_map |= (1 << get_gpio_index(gpio));
 
 	/* Set trigger to none. You need to enable the desired trigger with
 	 * request_irq() or set_irq_type().
@@ -945,10 +943,11 @@ void omap_free_gpio(int gpio)
 		return;
 	bank = get_gpio_bank(gpio);
 	spin_lock_irqsave(&bank->lock, flags);
-	if (unlikely(!(bank->reserved_map & (1 << get_gpio_index(gpio))))) {
+	if (unlikely(!gpiochip_is_requested(&bank->chip,
+				get_gpio_index(gpio)))) {
+		spin_unlock_irqrestore(&bank->lock, flags);
 		printk(KERN_ERR "omap-gpio: GPIO %d wasn't reserved!\n", gpio);
 		dump_stack();
-		spin_unlock_irqrestore(&bank->lock, flags);
 		return;
 	}
 #ifdef CONFIG_ARCH_OMAP16XX
@@ -965,9 +964,9 @@ void omap_free_gpio(int gpio)
 		__raw_writel(1 << get_gpio_index(gpio), reg);
 	}
 #endif
-	bank->reserved_map &= ~(1 << get_gpio_index(gpio));
 	_reset_gpio(bank, gpio);
 	spin_unlock_irqrestore(&bank->lock, flags);
+	gpio_free(gpio);
 }
 
 /*
@@ -1266,6 +1265,53 @@ static inline void mpuio_init(void) {}
 
 /*---------------------------------------------------------------------*/
 
+/* REVISIT these are stupid implementations!  replace by ones that
+ * don't switch on METHOD_* and which mostly avoid spinlocks
+ */
+
+static int gpio_input(struct gpio_chip *chip, unsigned offset)
+{
+	struct gpio_bank *bank;
+	unsigned long flags;
+
+	bank = container_of(chip, struct gpio_bank, chip);
+	spin_lock_irqsave(&bank->lock, flags);
+	_set_gpio_direction(bank, offset, 1);
+	spin_unlock_irqrestore(&bank->lock, flags);
+	return 0;
+}
+
+static int gpio_get(struct gpio_chip *chip, unsigned offset)
+{
+	return omap_get_gpio_datain(chip->base + offset);
+}
+
+static int gpio_output(struct gpio_chip *chip, unsigned offset, int value)
+{
+	struct gpio_bank *bank;
+	unsigned long flags;
+
+	bank = container_of(chip, struct gpio_bank, chip);
+	spin_lock_irqsave(&bank->lock, flags);
+	_set_gpio_dataout(bank, offset, value);
+	_set_gpio_direction(bank, offset, 0);
+	spin_unlock_irqrestore(&bank->lock, flags);
+	return 0;
+}
+
+static void gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+{
+	struct gpio_bank *bank;
+	unsigned long flags;
+
+	bank = container_of(chip, struct gpio_bank, chip);
+	spin_lock_irqsave(&bank->lock, flags);
+	_set_gpio_dataout(bank, offset, value);
+	spin_unlock_irqrestore(&bank->lock, flags);
+}
+
+/*---------------------------------------------------------------------*/
+
 static int initialized;
 #if !defined(CONFIG_ARCH_OMAP3)
 static struct clk * gpio_ick;
@@ -1293,6 +1339,7 @@ static struct lock_class_key gpio_lock_class;
 static int __init _omap_gpio_init(void)
 {
 	int i;
+	int gpio = 0;
 	struct gpio_bank *bank;
 #if defined(CONFIG_ARCH_OMAP3)
 	char clk_name[11];
@@ -1423,7 +1470,6 @@ static int __init _omap_gpio_init(void)
 		int j, gpio_count = 16;
 
 		bank = &gpio_bank[i];
-		bank->reserved_map = 0;
 		bank->base = IO_ADDRESS(bank->base);
 		spin_lock_init(&bank->lock);
 		if (bank_is_mpuio(bank))
@@ -1461,6 +1507,26 @@ static int __init _omap_gpio_init(void)
 			gpio_count = 32;
 		}
 #endif
+
+		/* REVISIT eventually switch from OMAP-specific gpio structs
+		 * over to the generic ones
+		 */
+		bank->chip.direction_input = gpio_input;
+		bank->chip.get = gpio_get;
+		bank->chip.direction_output = gpio_output;
+		bank->chip.set = gpio_set;
+		if (bank_is_mpuio(bank)) {
+			bank->chip.label = "mpuio";
+			bank->chip.base = OMAP_MPUIO(0);
+		} else {
+			bank->chip.label = "gpio";
+			bank->chip.base = gpio;
+			gpio += gpio_count;
+		}
+		bank->chip.ngpio = gpio_count;
+
+		gpiochip_add(&bank->chip);
+
 		for (j = bank->virtual_irq_start;
 		     j < bank->virtual_irq_start + gpio_count; j++) {
 			lockdep_set_class(&irq_desc[j].lock, &gpio_lock_class);
@@ -1757,8 +1823,10 @@ static int dbg_gpio_show(struct seq_file *s, void *unused)
 
 		for (j = 0; j < bankwidth; j++, gpio++, mask <<= 1) {
 			unsigned	irq, value, is_in, irqstat;
+			const char	*label;
 
-			if (!(bank->reserved_map & mask))
+			label = gpiochip_is_requested(&bank->chip, j);
+			if (!label)
 				continue;
 
 			irq = bank->virtual_irq_start + j;
@@ -1766,12 +1834,15 @@ static int dbg_gpio_show(struct seq_file *s, void *unused)
 			is_in = gpio_is_input(bank, mask);
 
 			if (bank_is_mpuio(bank))
-				seq_printf(s, "MPUIO %2d: ", j);
+				seq_printf(s, "MPUIO %2d ", j);
 			else
-				seq_printf(s, "GPIO %3d: ", gpio);
-			seq_printf(s, "%s %s",
+				seq_printf(s, "GPIO %3d ", gpio);
+			seq_printf(s, "(%10s): %s %s",
+					label,
 					is_in ? "in " : "out",
 					value ? "hi"  : "lo");
+
+/* FIXME for at least omap2, show pullup/pulldown state */
 
 			irqstat = irq_desc[irq].status;
 			if (is_in && ((bank->suspend_wakeup & mask)
@@ -1795,10 +1866,10 @@ static int dbg_gpio_show(struct seq_file *s, void *unused)
 					trigger = "high";
 					break;
 				case IRQ_TYPE_NONE:
-					trigger = "(unspecified)";
+					trigger = "(?)";
 					break;
 				}
-				seq_printf(s, ", irq-%d %s%s",
+				seq_printf(s, ", irq-%d %-8s%s",
 						irq, trigger,
 						(bank->suspend_wakeup & mask)
 							? " wakeup" : "");
