@@ -210,7 +210,7 @@ static int cpucount = 0;
 /* steal a page from the bottom of memory for the trampoline and
  * squirrel its address away here.  This will be in kernel virtual
  * space */
-static __u32 trampoline_base;
+unsigned char *trampoline_base;
 
 /* The per cpu profile stuff - used in smp_local_timer_interrupt */
 static DEFINE_PER_CPU(int, prof_multiplier) = 1;
@@ -435,9 +435,9 @@ static __u32 __init setup_trampoline(void)
 	extern const __u8 trampoline_end[];
 	extern const __u8 trampoline_data[];
 
-	memcpy((__u8 *) trampoline_base, trampoline_data,
+	memcpy(trampoline_base, trampoline_data,
 	       trampoline_end - trampoline_data);
-	return virt_to_phys((__u8 *) trampoline_base);
+	return virt_to_phys(trampoline_base);
 }
 
 /* Routine initially called when a non-boot CPU is brought online */
@@ -1166,7 +1166,7 @@ void flush_tlb_all(void)
  * is sorted out */
 void __init smp_alloc_memory(void)
 {
-	trampoline_base = (__u32) alloc_bootmem_low_pages(PAGE_SIZE);
+	trampoline_base = alloc_bootmem_low_pages(PAGE_SIZE);
 	if (__pa(trampoline_base) >= 0x93000)
 		BUG();
 }
