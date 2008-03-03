@@ -367,6 +367,13 @@ static unsigned long spufs_ps_nopfn(struct vm_area_struct *vma,
 		return NOPFN_SIGBUS;
 
 	/*
+	 * Because we release the mmap_sem, the context may be destroyed while
+	 * we're in spu_wait. Grab an extra reference so it isn't destroyed
+	 * in the meantime.
+	 */
+	get_spu_context(ctx);
+
+	/*
 	 * We have to wait for context to be loaded before we have
 	 * pages to hand out to the user, but we don't want to wait
 	 * with the mmap_sem held.
@@ -375,7 +382,7 @@ static unsigned long spufs_ps_nopfn(struct vm_area_struct *vma,
 	 * hanged.
 	 */
 	if (spu_acquire(ctx))
-		return NOPFN_REFAULT;
+		goto refault;
 
 	if (ctx->state == SPU_STATE_SAVED) {
 		up_read(&current->mm->mmap_sem);
@@ -391,6 +398,9 @@ static unsigned long spufs_ps_nopfn(struct vm_area_struct *vma,
 
 	if (!ret)
 		spu_release(ctx);
+
+refault:
+	put_spu_context(ctx);
 	return NOPFN_REFAULT;
 }
 

@@ -235,7 +235,7 @@
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
 			#address-cells = <3>;
-			compatible = "ibm,plb-pciex-405exr", "ibm,plb-pciex";
+			compatible = "ibm,plb-pciex-405ex", "ibm,plb-pciex";
 			primary;
 			port = <0>; /* port number */
 			reg = <a0000000 20000000	/* Config space access */

@@ -109,13 +109,12 @@ void spu_forget(struct spu_context *ctx)
 
 	/*
 	 * This is basically an open-coded spu_acquire_saved, except that
-	 * we don't acquire the state mutex interruptible.
+	 * we don't acquire the state mutex interruptible, and we don't
+	 * want this context to be rescheduled on release.
 	 */
 	mutex_lock(&ctx->state_mutex);
-	if (ctx->state != SPU_STATE_SAVED) {
-		set_bit(SPU_SCHED_WAS_ACTIVE, &ctx->sched_flags);
+	if (ctx->state != SPU_STATE_SAVED)
 		spu_deactivate(ctx);
-	}
 
 	mm = ctx->owner;
 	ctx->owner = NULL;

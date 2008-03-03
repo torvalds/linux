@@ -34,6 +34,7 @@
 
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <linux/hardirq.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -117,6 +118,8 @@ static inline void disable_interrupts(struct spu_state *csa, struct spu *spu)
 	 *     Write INT_MASK_class1 with value of 0.
 	 *     Save INT_Mask_class2 in CSA.
 	 *     Write INT_MASK_class2 with value of 0.
+	 *     Synchronize all three interrupts to be sure
+	 *     we no longer execute a handler on another CPU.
 	 */
 	spin_lock_irq(&spu->register_lock);
 	if (csa) {
@@ -129,6 +132,9 @@ static inline void disable_interrupts(struct spu_state *csa, struct spu *spu)
 	spu_int_mask_set(spu, 2, 0ul);
 	eieio();
 	spin_unlock_irq(&spu->register_lock);
+	synchronize_irq(spu->irqs[0]);
+	synchronize_irq(spu->irqs[1]);
+	synchronize_irq(spu->irqs[2]);
 }
 
 static inline void set_watchdog_timer(struct spu_state *csa, struct spu *spu)
