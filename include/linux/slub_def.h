@@ -61,7 +61,7 @@ struct kmem_cache {
 	int size;		/* The size of an object including meta data */
 	int objsize;		/* The size of an object without meta data */
 	int offset;		/* Free pointer offset. */
-	int order;
+	int order;		/* Current preferred allocation order */
 
 	/*
 	 * Avoid an extra cache line for UP, SMP and for the node local to
@@ -138,11 +138,11 @@ static __always_inline int kmalloc_index(size_t size)
 	if (size <=        512) return 9;
 	if (size <=       1024) return 10;
 	if (size <=   2 * 1024) return 11;
+	if (size <=   4 * 1024) return 12;
 /*
  * The following is only needed to support architectures with a larger page
  * size than 4k.
  */
-	if (size <=   4 * 1024) return 12;
 	if (size <=   8 * 1024) return 13;
 	if (size <=  16 * 1024) return 14;
 	if (size <=  32 * 1024) return 15;
