@@ -26,6 +26,7 @@
 #include <asm/mach-types.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 #include <asm/arch/sharpsl.h>
 #include "sharpsl.h"
 

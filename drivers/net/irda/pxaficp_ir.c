@@ -36,6 +36,7 @@
 #include <asm/hardware.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 
 #ifdef CONFIG_MACH_MAINSTONE
 #include <asm/arch/mainstone.h>

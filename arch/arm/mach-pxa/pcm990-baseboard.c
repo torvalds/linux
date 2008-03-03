@@ -25,6 +25,7 @@
 #include <linux/ide.h>
 #include <asm/mach/map.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/pcm990_baseboard.h>
