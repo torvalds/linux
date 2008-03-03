@@ -583,7 +583,7 @@ native_smp_call_function_mask(cpumask_t mask,
 		atomic_set(&data.finished, 0);
 
 	call_data = &data;
-	mb();
+	wmb();
 
 	/* Send a message to other CPUs */
 	if (cpus_equal(mask, allbutself))
