@@ -987,7 +987,7 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 /*
  * Finish the SMP boot.
  */
-void __init smp_cpus_done(unsigned int max_cpus)
+void __init native_smp_cpus_done(unsigned int max_cpus)
 {
 	smp_cleanup_boot();
 	setup_ioapic_dest();
