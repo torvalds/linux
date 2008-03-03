@@ -32,6 +32,7 @@
 
 /* Have we found an MP table */
 int smp_found_config;
+unsigned int __cpuinitdata maxcpus = NR_CPUS;
 
 /*
  * Various Linux-internal data structures created from the
@@ -112,6 +113,12 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 	if (num_processors >= NR_CPUS) {
 		printk(KERN_WARNING "WARNING: NR_CPUS limit of %i reached."
 			" Processor ignored.\n", NR_CPUS);
+		return;
+	}
+
+	if (num_processors >= maxcpus) {
+		printk(KERN_WARNING "WARNING: maxcpus limit of %i reached."
+			" Processor ignored.\n", maxcpus);
 		return;
 	}
 
