@@ -29,12 +29,6 @@ DECLARE_PER_CPU(cpumask_t, cpu_core_map);
 DECLARE_PER_CPU(u16, cpu_llc_id);
 DECLARE_PER_CPU(u16, x86_cpu_to_apicid);
 
-#ifdef CONFIG_HOTPLUG_CPU
-extern void cpu_exit_clear(void);
-extern void cpu_uninit(void);
-extern void remove_siblinginfo(int cpu);
-#endif
-
 #ifdef CONFIG_SMP
 #ifndef CONFIG_PARAVIRT
 #define startup_ipi_hook(phys_apicid, start_eip, start_esp) do { } while (0)

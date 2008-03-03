@@ -80,6 +80,12 @@ extern void prefill_possible_map(void);
 # include "smp_64.h"
 #endif
 
+#ifdef CONFIG_HOTPLUG_CPU
+extern void cpu_exit_clear(void);
+extern void cpu_uninit(void);
+extern void remove_siblinginfo(int cpu);
+#endif
+
 extern void smp_alloc_memory(void);
 extern void lock_ipi_call_lock(void);
 extern void unlock_ipi_call_lock(void);
