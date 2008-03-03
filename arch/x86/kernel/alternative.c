@@ -205,7 +205,7 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
 	struct alt_instr *a;
 	char insnbuf[MAX_PATCH_LEN];
 
-	DPRINTK("%s: alt table %p -> %p\n", __FUNCTION__, start, end);
+	DPRINTK("%s: alt table %p -> %p\n", __func__, start, end);
 	for (a = start; a < end; a++) {
 		u8 *instr = a->instr;
 		BUG_ON(a->replacementlen > a->instrlen);
@@ -217,7 +217,7 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
 		if (instr >= (u8 *)VSYSCALL_START && instr < (u8*)VSYSCALL_END) {
 			instr = __va(instr - (u8*)VSYSCALL_START + (u8*)__pa_symbol(&__vsyscall_0));
 			DPRINTK("%s: vsyscall fixup: %p => %p\n",
-				__FUNCTION__, a->instr, instr);
+				__func__, a->instr, instr);
 		}
 #endif
 		memcpy(insnbuf, a->replacement, a->replacementlen);
@@ -307,7 +307,7 @@ void alternatives_smp_module_add(struct module *mod, char *name,
 	smp->text	= text;
 	smp->text_end	= text_end;
 	DPRINTK("%s: locks %p -> %p, text %p -> %p, name %s\n",
-		__FUNCTION__, smp->locks, smp->locks_end,
+		__func__, smp->locks, smp->locks_end,
 		smp->text, smp->text_end, smp->name);
 
 	spin_lock_irqsave(&smp_alt, flags);
@@ -332,7 +332,7 @@ void alternatives_smp_module_del(struct module *mod)
 			continue;
 		list_del(&item->next);
 		spin_unlock_irqrestore(&smp_alt, flags);
-		DPRINTK("%s: %s\n", __FUNCTION__, item->name);
+		DPRINTK("%s: %s\n", __func__, item->name);
 		kfree(item);
 		return;
 	}
