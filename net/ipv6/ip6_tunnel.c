@@ -229,33 +229,33 @@ static struct ip6_tnl *ip6_tnl_create(struct ip6_tnl_parm *p)
 	char name[IFNAMSIZ];
 	int err;
 
-	if (p->name[0]) {
+	if (p->name[0])
 		strlcpy(name, p->name, IFNAMSIZ);
-	} else {
-		int i;
-		for (i = 1; i < IP6_TNL_MAX; i++) {
-			sprintf(name, "ip6tnl%d", i);
-			if (__dev_get_by_name(&init_net, name) == NULL)
-				break;
-		}
-		if (i == IP6_TNL_MAX)
-			goto failed;
-	}
+	else
+		sprintf(name, "ip6tnl%%d");
+
 	dev = alloc_netdev(sizeof (*t), name, ip6_tnl_dev_setup);
 	if (dev == NULL)
 		goto failed;
+
+	if (strchr(name, '%')) {
+		if (dev_alloc_name(dev, name) < 0)
+			goto failed_free;
+	}
 
 	t = netdev_priv(dev);
 	dev->init = ip6_tnl_dev_init;
 	t->parms = *p;
 
-	if ((err = register_netdevice(dev)) < 0) {
-		free_netdev(dev);
-		goto failed;
-	}
+	if ((err = register_netdevice(dev)) < 0)
+		goto failed_free;
+
 	dev_hold(dev);
 	ip6_tnl_link(t);
 	return t;
+
+failed_free:
+	free_netdev(dev);
 failed:
 	return NULL;
 }

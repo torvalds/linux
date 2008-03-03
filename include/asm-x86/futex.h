@@ -102,6 +102,13 @@ futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 static inline int
 futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 {
+
+#if defined(CONFIG_X86_32) && !defined(CONFIG_X86_BSWAP)
+	/* Real i386 machines have no cmpxchg instruction */
+	if (boot_cpu_data.x86 == 3)
+		return -ENOSYS;
+#endif
+
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 

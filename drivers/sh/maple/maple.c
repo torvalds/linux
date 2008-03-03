@@ -1,7 +1,7 @@
 /*
  * Core maple bus functionality
  *
- *  Copyright (C) 2007 Adrian McMenamin
+ *  Copyright (C) 2007, 2008 Adrian McMenamin
  *
  * Based on 2.4 code by:
  *
@@ -18,7 +18,6 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/io.h>
@@ -54,13 +53,16 @@ static struct device maple_bus;
 static int subdevice_map[MAPLE_PORTS];
 static unsigned long *maple_sendbuf, *maple_sendptr, *maple_lastptr;
 static unsigned long maple_pnp_time;
-static int started, scanning, liststatus, realscan;
+static int started, scanning, liststatus, fullscan;
 static struct kmem_cache *maple_queue_cache;
 
 struct maple_device_specify {
 	int port;
 	int unit;
 };
+
+static bool checked[4];
+static struct maple_device *baseunits[4];
 
 /**
  *  maple_driver_register - register a device driver
@@ -309,11 +311,9 @@ static void maple_attach_driver(struct maple_device *mdev)
 		else
 			break;
 
-	if (realscan) {
-		printk(KERN_INFO "Maple device detected: %s\n",
-			mdev->product_name);
-		printk(KERN_INFO "Maple device: %s\n", mdev->product_licence);
-	}
+	printk(KERN_INFO "Maple device detected: %s\n",
+		mdev->product_name);
+	printk(KERN_INFO "Maple device: %s\n", mdev->product_licence);
 
 	function = be32_to_cpu(mdev->devinfo.function);
 
@@ -323,10 +323,9 @@ static void maple_attach_driver(struct maple_device *mdev)
 		mdev->driver = &maple_dummy_driver;
 		sprintf(mdev->dev.bus_id, "%d:0.port", mdev->port);
 	} else {
-		if (realscan)
-			printk(KERN_INFO
-				"Maple bus at (%d, %d): Function 0x%lX\n",
-				mdev->port, mdev->unit, function);
+		printk(KERN_INFO
+			"Maple bus at (%d, %d): Function 0x%lX\n",
+			mdev->port, mdev->unit, function);
 
 		matched =
 		    bus_for_each_drv(&maple_bus_type, NULL, mdev,
@@ -334,9 +333,8 @@ static void maple_attach_driver(struct maple_device *mdev)
 
 		if (matched == 0) {
 			/* Driver does not exist yet */
-			if (realscan)
-				printk(KERN_INFO
-					"No maple driver found.\n");
+			printk(KERN_INFO
+				"No maple driver found.\n");
 			mdev->driver = &maple_dummy_driver;
 		}
 		sprintf(mdev->dev.bus_id, "%d:0%d.%lX", mdev->port,
@@ -472,9 +470,12 @@ static void maple_response_none(struct maple_device *mdev,
 		maple_detach_driver(mdev);
 		return;
 	}
-	if (!started) {
-		printk(KERN_INFO "No maple devices attached to port %d\n",
-		       mdev->port);
+	if (!started || !fullscan) {
+		if (checked[mdev->port] == false) {
+			checked[mdev->port] = true;
+			printk(KERN_INFO "No maple devices attached"
+				" to port %d\n", mdev->port);
+		}
 		return;
 	}
 	maple_clean_submap(mdev);
@@ -485,8 +486,14 @@ static void maple_response_devinfo(struct maple_device *mdev,
 				   char *recvbuf)
 {
 	char submask;
-	if ((!started) || (scanning == 2)) {
-		maple_attach_driver(mdev);
+	if (!started || (scanning == 2) || !fullscan) {
+		if ((mdev->unit == 0) && (checked[mdev->port] == false)) {
+			checked[mdev->port] = true;
+			maple_attach_driver(mdev);
+		} else {
+			if (mdev->unit != 0)
+				maple_attach_driver(mdev);
+		}
 		return;
 	}
 	if (mdev->unit == 0) {
@@ -505,6 +512,7 @@ static void maple_dma_handler(struct work_struct *work)
 	struct maple_device *dev;
 	char *recvbuf;
 	enum maple_code code;
+	int i;
 
 	if (!maple_dma_done())
 		return;
@@ -557,6 +565,19 @@ static void maple_dma_handler(struct work_struct *work)
 		} else
 			scanning = 0;
 
+		if (!fullscan) {
+			fullscan = 1;
+			for (i = 0; i < MAPLE_PORTS; i++) {
+				if (checked[i] == false) {
+					fullscan = 0;
+					dev = baseunits[i];
+					dev->mq->command =
+						MAPLE_COMMAND_DEVINFO;
+					dev->mq->length = 0;
+					maple_add_packet(dev->mq);
+				}
+			}
+		}
 		if (started == 0)
 			started = 1;
 	}
@@ -694,7 +715,9 @@ static int __init maple_bus_init(void)
 
 	/* setup maple ports */
 	for (i = 0; i < MAPLE_PORTS; i++) {
+		checked[i] = false;
 		mdev[i] = maple_alloc_dev(i, 0);
+		baseunits[i] = mdev[i];
 		if (!mdev[i]) {
 			while (i-- > 0)
 				maple_free_dev(mdev[i]);
@@ -703,12 +726,9 @@ static int __init maple_bus_init(void)
 		mdev[i]->mq->command = MAPLE_COMMAND_DEVINFO;
 		mdev[i]->mq->length = 0;
 		maple_add_packet(mdev[i]->mq);
-		/* delay aids hardware detection */
-		mdelay(5);
 		subdevice_map[i] = 0;
 	}
 
-	realscan = 1;
 	/* setup maplebus hardware */
 	maplebus_dma_reset();
 	/* initial detection */

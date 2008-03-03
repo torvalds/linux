@@ -3213,7 +3213,7 @@ static int u132_suspend(struct platform_device *pdev, pm_message_t state)
                 dev_err(&u132->platform_dev->dev, "device is being removed\n");
                 return -ESHUTDOWN;
         } else {
-                int retval = 0;
+		int retval = 0, ports;
 
 		switch (state.event) {
 		case PM_EVENT_FREEZE:
@@ -3221,7 +3221,7 @@ static int u132_suspend(struct platform_device *pdev, pm_message_t state)
 			break;
 		case PM_EVENT_SUSPEND:
 		case PM_EVENT_HIBERNATE:
-                        int ports = MAX_U132_PORTS;
+			ports = MAX_U132_PORTS;
                         while (ports-- > 0) {
                                 port_power(u132, ports, 0);
                         }

@@ -110,7 +110,7 @@ static struct p9_req_t *p9_lookup_tag(struct virtio_chan *c, u16 tag)
 		}
 		for (count = old_max; count < c->max_tag; count++) {
 			c->reqs[count].status = REQ_STATUS_IDLE;
-			c->reqs[count].wq = kmalloc(sizeof(wait_queue_t),
+			c->reqs[count].wq = kmalloc(sizeof(wait_queue_head_t),
 								GFP_ATOMIC);
 			if (!c->reqs[count].wq) {
 				printk(KERN_ERR "Couldn't grow tag array\n");

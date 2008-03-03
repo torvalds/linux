@@ -35,7 +35,7 @@ static unsigned int sata_pmp_read(struct ata_link *link, int reg, u32 *r_val)
 	ata_tf_init(pmp_dev, &tf);
 	tf.command = ATA_CMD_PMP_READ;
 	tf.protocol = ATA_PROT_NODATA;
-	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE | ATA_TFLAG_LBA48;
 	tf.feature = reg;
 	tf.device = link->pmp;
 
@@ -71,7 +71,7 @@ static unsigned int sata_pmp_write(struct ata_link *link, int reg, u32 val)
 	ata_tf_init(pmp_dev, &tf);
 	tf.command = ATA_CMD_PMP_WRITE;
 	tf.protocol = ATA_PROT_NODATA;
-	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE | ATA_TFLAG_LBA48;
 	tf.feature = reg;
 	tf.device = link->pmp;
 	tf.nsect = val & 0xff;

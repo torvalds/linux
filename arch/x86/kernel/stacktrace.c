@@ -25,6 +25,8 @@ static int save_stack_stack(void *data, char *name)
 static void save_stack_address(void *data, unsigned long addr, int reliable)
 {
 	struct stack_trace *trace = data;
+	if (!reliable)
+		return;
 	if (trace->skip > 0) {
 		trace->skip--;
 		return;
@@ -37,6 +39,8 @@ static void
 save_stack_address_nosched(void *data, unsigned long addr, int reliable)
 {
 	struct stack_trace *trace = (struct stack_trace *)data;
+	if (!reliable)
+		return;
 	if (in_sched_functions(addr))
 		return;
 	if (trace->skip > 0) {

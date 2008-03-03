@@ -312,20 +312,18 @@ int __init x25_proc_init(void)
 	if (!x25_proc_dir)
 		goto out;
 
-	p = create_proc_entry("route", S_IRUGO, x25_proc_dir);
+	p = proc_create("route", S_IRUGO, x25_proc_dir, &x25_seq_route_fops);
 	if (!p)
 		goto out_route;
-	p->proc_fops = &x25_seq_route_fops;
 
-	p = create_proc_entry("socket", S_IRUGO, x25_proc_dir);
+	p = proc_create("socket", S_IRUGO, x25_proc_dir, &x25_seq_socket_fops);
 	if (!p)
 		goto out_socket;
-	p->proc_fops = &x25_seq_socket_fops;
 
-	p = create_proc_entry("forward", S_IRUGO, x25_proc_dir);
+	p = proc_create("forward", S_IRUGO, x25_proc_dir,
+			&x25_seq_forward_fops);
 	if (!p)
 		goto out_forward;
-	p->proc_fops = &x25_seq_forward_fops;
 	rc = 0;
 
 out:

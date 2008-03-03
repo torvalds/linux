@@ -113,7 +113,7 @@ int atapi_enabled = 1;
 module_param(atapi_enabled, int, 0444);
 MODULE_PARM_DESC(atapi_enabled, "Enable discovery of ATAPI devices (0=off, 1=on)");
 
-int atapi_dmadir = 0;
+static int atapi_dmadir = 0;
 module_param(atapi_dmadir, int, 0444);
 MODULE_PARM_DESC(atapi_dmadir, "Enable ATAPI DMADIR bridge support (0=off, 1=on)");
 
@@ -153,7 +153,7 @@ MODULE_VERSION(DRV_VERSION);
 
 /**
  *	ata_force_cbl - force cable type according to libata.force
- *	@link: ATA link of interest
+ *	@ap: ATA port of interest
  *
  *	Force cable type according to libata.force and whine about it.
  *	The last entry which has matching port number is used, so it
@@ -2396,6 +2396,7 @@ int ata_dev_configure(struct ata_device *dev)
 	else if (dev->class == ATA_DEV_ATAPI) {
 		const char *cdb_intr_string = "";
 		const char *atapi_an_string = "";
+		const char *dma_dir_string = "";
 		u32 sntf;
 
 		rc = atapi_cdb_len(id);
@@ -2436,13 +2437,19 @@ int ata_dev_configure(struct ata_device *dev)
 			cdb_intr_string = ", CDB intr";
 		}
 
+		if (atapi_dmadir || atapi_id_dmadir(dev->id)) {
+			dev->flags |= ATA_DFLAG_DMADIR;
+			dma_dir_string = ", DMADIR";
+		}
+
 		/* print device info to dmesg */
 		if (ata_msg_drv(ap) && print_info)
 			ata_dev_printk(dev, KERN_INFO,
-				       "ATAPI: %s, %s, max %s%s%s\n",
+				       "ATAPI: %s, %s, max %s%s%s%s\n",
 				       modelbuf, fwrevbuf,
 				       ata_mode_string(xfer_mask),
-				       cdb_intr_string, atapi_an_string);
+				       cdb_intr_string, atapi_an_string,
+				       dma_dir_string);
 	}
 
 	/* determine max_sectors */

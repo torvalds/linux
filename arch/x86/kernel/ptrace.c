@@ -544,6 +544,8 @@ static int ptrace_set_debugreg(struct task_struct *child,
 	return 0;
 }
 
+#ifdef X86_BTS
+
 static int ptrace_bts_get_size(struct task_struct *child)
 {
 	if (!child->thread.ds_area_msr)
@@ -826,6 +828,7 @@ void ptrace_bts_take_timestamp(struct task_struct *tsk,
 
 	ptrace_bts_write_record(tsk, &rec);
 }
+#endif /* X86_BTS */
 
 /*
  * Called by kernel/ptrace.c when detaching..
@@ -839,7 +842,9 @@ void ptrace_disable(struct task_struct *child)
 	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 #endif
 	if (child->thread.ds_area_msr) {
+#ifdef X86_BTS
 		ptrace_bts_realloc(child, 0, 0);
+#endif
 		child->thread.debugctlmsr &= ~ds_debugctl_mask();
 		if (!child->thread.debugctlmsr)
 			clear_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
@@ -961,6 +966,10 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 #endif
 
+	/*
+	 * These bits need more cooking - not enabled yet:
+	 */
+#ifdef X86_BTS
 	case PTRACE_BTS_CONFIG:
 		ret = ptrace_bts_config
 			(child, data, (struct ptrace_bts_config __user *)addr);
@@ -988,6 +997,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = ptrace_bts_drain
 			(child, data, (struct bts_struct __user *) addr);
 		break;
+#endif
 
 	default:
 		ret = ptrace_request(child, request, addr, data);
@@ -1226,12 +1236,14 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 	case PTRACE_SETOPTIONS:
 	case PTRACE_SET_THREAD_AREA:
 	case PTRACE_GET_THREAD_AREA:
+#ifdef X86_BTS
 	case PTRACE_BTS_CONFIG:
 	case PTRACE_BTS_STATUS:
 	case PTRACE_BTS_SIZE:
 	case PTRACE_BTS_GET:
 	case PTRACE_BTS_CLEAR:
 	case PTRACE_BTS_DRAIN:
+#endif
 		return sys_ptrace(request, pid, addr, data);
 
 	default:

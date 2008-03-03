@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/serial.h>
 #include <linux/io.h>
-#include <asm/sci.h>
+#include <linux/serial_sci.h>
 
 static struct resource rtc_resources[] = {
 	[0] = {

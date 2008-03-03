@@ -160,5 +160,8 @@ extern void rcu_restart_cpu(int cpu);
 extern long rcu_batches_completed(void);
 extern long rcu_batches_completed_bh(void);
 
+#define rcu_enter_nohz()	do { } while (0)
+#define rcu_exit_nohz()		do { } while (0)
+
 #endif /* __KERNEL__ */
 #endif /* __LINUX_RCUCLASSIC_H */

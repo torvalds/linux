@@ -479,6 +479,33 @@ static int retire_playback_sync_urb_hs(struct snd_usb_substream *subs,
 	return 0;
 }
 
+/*
+ * process after E-Mu 0202/0404 high speed playback sync complete
+ *
+ * These devices return the number of samples per packet instead of the number
+ * of samples per microframe.
+ */
+static int retire_playback_sync_urb_hs_emu(struct snd_usb_substream *subs,
+					   struct snd_pcm_runtime *runtime,
+					   struct urb *urb)
+{
+	unsigned int f;
+	unsigned long flags;
+
+	if (urb->iso_frame_desc[0].status == 0 &&
+	    urb->iso_frame_desc[0].actual_length == 4) {
+		f = combine_quad((u8*)urb->transfer_buffer) & 0x0fffffff;
+		f >>= subs->datainterval;
+		if (f >= subs->freqn - subs->freqn / 8 && f <= subs->freqmax) {
+			spin_lock_irqsave(&subs->lock, flags);
+			subs->freqm = f;
+			spin_unlock_irqrestore(&subs->lock, flags);
+		}
+	}
+
+	return 0;
+}
+
 /* determine the number of frames in the next packet */
 static int snd_usb_audio_next_packet_size(struct snd_usb_substream *subs)
 {
@@ -2219,10 +2246,17 @@ static void init_substream(struct snd_usb_stream *as, int stream, struct audiofo
 	subs->stream = as;
 	subs->direction = stream;
 	subs->dev = as->chip->dev;
-	if (snd_usb_get_speed(subs->dev) == USB_SPEED_FULL)
+	if (snd_usb_get_speed(subs->dev) == USB_SPEED_FULL) {
 		subs->ops = audio_urb_ops[stream];
-	else
+	} else {
 		subs->ops = audio_urb_ops_high_speed[stream];
+		switch (as->chip->usb_id) {
+		case USB_ID(0x041e, 0x3f02): /* E-Mu 0202 USB */
+		case USB_ID(0x041e, 0x3f04): /* E-Mu 0404 USB */
+			subs->ops.retire_sync = retire_playback_sync_urb_hs_emu;
+			break;
+		}
+	}
 	snd_pcm_set_ops(as->pcm, stream,
 			stream == SNDRV_PCM_STREAM_PLAYBACK ?
 			&snd_usb_playback_ops : &snd_usb_capture_ops);

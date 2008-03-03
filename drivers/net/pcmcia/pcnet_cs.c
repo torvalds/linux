@@ -590,6 +590,13 @@ static int pcnet_config(struct pcmcia_device *link)
 	dev->if_port = 0;
     }
 
+    if ((link->conf.ConfigBase == 0x03c0)
+	&& (link->manf_id == 0x149) && (link->card_id = 0xc1ab)) {
+	printk(KERN_INFO "pcnet_cs: this is an AX88190 card!\n");
+	printk(KERN_INFO "pcnet_cs: use axnet_cs instead.\n");
+	goto failed;
+    }
+
     local_hw_info = get_hwinfo(link);
     if (local_hw_info == NULL)
 	local_hw_info = get_prom(link);
@@ -1567,12 +1574,11 @@ static struct pcmcia_device_id pcnet_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0104, 0x0145),
 	PCMCIA_DEVICE_MANF_CARD(0x0149, 0x0230),
 	PCMCIA_DEVICE_MANF_CARD(0x0149, 0x4530),
-/*	PCMCIA_DEVICE_MANF_CARD(0x0149, 0xc1ab), conflict with axnet_cs */
+	PCMCIA_DEVICE_MANF_CARD(0x0149, 0xc1ab),
 	PCMCIA_DEVICE_MANF_CARD(0x0186, 0x0110),
 	PCMCIA_DEVICE_MANF_CARD(0x01bf, 0x2328),
 	PCMCIA_DEVICE_MANF_CARD(0x01bf, 0x8041),
 	PCMCIA_DEVICE_MANF_CARD(0x0213, 0x2452),
-/*	PCMCIA_DEVICE_MANF_CARD(0x021b, 0x0202), conflict with axnet_cs */
 	PCMCIA_DEVICE_MANF_CARD(0x026f, 0x0300),
 	PCMCIA_DEVICE_MANF_CARD(0x026f, 0x0307),
 	PCMCIA_DEVICE_MANF_CARD(0x026f, 0x030a),

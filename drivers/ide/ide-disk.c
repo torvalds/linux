@@ -867,7 +867,7 @@ static void idedisk_setup (ide_drive_t *drive)
 
 	/* Only print cache size when it was specified */
 	if (id->buf_size)
-		printk (" w/%dKiB Cache", id->buf_size/2);
+		printk(KERN_CONT " w/%dKiB Cache", id->buf_size / 2);
 
 	printk(KERN_CONT ", CHS=%d/%d/%d\n",
 			 drive->bios_cyl, drive->bios_head, drive->bios_sect);
@@ -949,7 +949,8 @@ static void ide_device_shutdown(ide_drive_t *drive)
 		return;
 	}
 
-	printk("Shutdown: %s\n", drive->name);
+	printk(KERN_INFO "Shutdown: %s\n", drive->name);
+
 	drive->gendev.bus->suspend(&drive->gendev, PMSG_SUSPEND);
 }
 

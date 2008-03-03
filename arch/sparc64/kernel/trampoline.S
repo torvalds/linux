@@ -4,6 +4,8 @@
  * Copyright (C) 1997 David S. Miller (davem@caip.rutgers.edu)
  */
 
+#include <linux/init.h>
+
 #include <asm/head.h>
 #include <asm/asi.h>
 #include <asm/lsu.h>
@@ -36,7 +38,7 @@ dtlb_load:
 tramp_stack:
 	.skip	TRAMP_STACK_SIZE
 
-	.text
+	__CPUINIT
 	.align		8
 	.globl		sparc64_cpu_startup, sparc64_cpu_startup_end
 sparc64_cpu_startup:

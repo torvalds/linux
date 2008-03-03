@@ -671,7 +671,7 @@ static s32 e1000_get_phy_info_ich8lan(struct e1000_hw *hw)
  *  e1000_check_polarity_ife_ich8lan - Check cable polarity for IFE PHY
  *  @hw: pointer to the HW structure
  *
- *  Polarity is determined on the polarity reveral feature being enabled.
+ *  Polarity is determined on the polarity reversal feature being enabled.
  *  This function is only called by other family-specific
  *  routines.
  **/
@@ -947,7 +947,7 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 	/* Either we should have a hardware SPI cycle in progress
 	 * bit to check against, in order to start a new cycle or
 	 * FDONE bit should be changed in the hardware so that it
-	 * is 1 after harware reset, which can then be used as an
+	 * is 1 after hardware reset, which can then be used as an
 	 * indication whether a cycle is in progress or has been
 	 * completed.
 	 */
@@ -1155,7 +1155,7 @@ static s32 e1000_write_nvm_ich8lan(struct e1000_hw *hw, u16 offset, u16 words,
  *  which writes the checksum to the shadow ram.  The changes in the shadow
  *  ram are then committed to the EEPROM by processing each bank at a time
  *  checking for the modified bit and writing only the pending changes.
- *  After a succesful commit, the shadow ram is cleared and is ready for
+ *  After a successful commit, the shadow ram is cleared and is ready for
  *  future writes.
  **/
 static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
@@ -1680,7 +1680,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
  *   - initialize LED identification
  *   - setup receive address registers
  *   - setup flow control
- *   - setup transmit discriptors
+ *   - setup transmit descriptors
  *   - clear statistics
  **/
 static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
@@ -1961,7 +1961,7 @@ static s32 e1000_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw)
 		     E1000_PHY_CTRL_NOND0A_GBE_DISABLE);
 	ew32(PHY_CTRL, phy_ctrl);
 
-	/* Call gig speed drop workaround on Giga disable before accessing
+	/* Call gig speed drop workaround on Gig disable before accessing
 	 * any PHY registers */
 	e1000e_gig_downshift_workaround_ich8lan(hw);
 
@@ -1972,7 +1972,7 @@ static s32 e1000_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw)
 /**
  *  e1000_set_kmrn_lock_loss_workaound_ich8lan - Set Kumeran workaround state
  *  @hw: pointer to the HW structure
- *  @state: boolean value used to set the current Kumaran workaround state
+ *  @state: boolean value used to set the current Kumeran workaround state
  *
  *  If ICH8, set the current Kumeran workaround state (enabled - TRUE
  *  /disabled - FALSE).
@@ -2017,7 +2017,7 @@ void e1000e_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw)
 			E1000_PHY_CTRL_NOND0A_GBE_DISABLE);
 		ew32(PHY_CTRL, reg);
 
-		/* Call gig speed drop workaround on Giga disable before
+		/* Call gig speed drop workaround on Gig disable before
 		 * accessing any PHY registers */
 		if (hw->mac.type == e1000_ich8lan)
 			e1000e_gig_downshift_workaround_ich8lan(hw);
@@ -2045,7 +2045,7 @@ void e1000e_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw)
  *  @hw: pointer to the HW structure
  *
  *  Steps to take when dropping from 1Gb/s (eg. link cable removal (LSC),
- *  LPLU, Giga disable, MDIC PHY reset):
+ *  LPLU, Gig disable, MDIC PHY reset):
  *    1) Set Kumeran Near-end loopback
  *    2) Clear Kumeran Near-end loopback
  *  Should only be called for ICH8[m] devices with IGP_3 Phy.
@@ -2089,10 +2089,10 @@ static s32 e1000_cleanup_led_ich8lan(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_led_on_ich8lan - Turn LED's on
+ *  e1000_led_on_ich8lan - Turn LEDs on
  *  @hw: pointer to the HW structure
  *
- *  Turn on the LED's.
+ *  Turn on the LEDs.
  **/
 static s32 e1000_led_on_ich8lan(struct e1000_hw *hw)
 {
@@ -2105,10 +2105,10 @@ static s32 e1000_led_on_ich8lan(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_led_off_ich8lan - Turn LED's off
+ *  e1000_led_off_ich8lan - Turn LEDs off
  *  @hw: pointer to the HW structure
  *
- *  Turn off the LED's.
+ *  Turn off the LEDs.
  **/
 static s32 e1000_led_off_ich8lan(struct e1000_hw *hw)
 {

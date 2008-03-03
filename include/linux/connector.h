@@ -170,7 +170,5 @@ int cn_cb_equal(struct cb_id *, struct cb_id *);
 
 void cn_queue_wrapper(struct work_struct *work);
 
-extern int cn_already_initialized;
-
 #endif				/* __KERNEL__ */
 #endif				/* __CONNECTOR_H */

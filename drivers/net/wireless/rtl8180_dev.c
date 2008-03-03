@@ -135,12 +135,14 @@ static void rtl8180_handle_tx(struct ieee80211_hw *dev, unsigned int prio)
 	while (skb_queue_len(&ring->queue)) {
 		struct rtl8180_tx_desc *entry = &ring->desc[ring->idx];
 		struct sk_buff *skb;
-		struct ieee80211_tx_status status = { {0} };
+		struct ieee80211_tx_status status;
 		struct ieee80211_tx_control *control;
 		u32 flags = le32_to_cpu(entry->flags);
 
 		if (flags & RTL8180_TX_DESC_FLAG_OWN)
 			return;
+
+		memset(&status, 0, sizeof(status));
 
 		ring->idx = (ring->idx + 1) % ring->entries;
 		skb = __skb_dequeue(&ring->queue);

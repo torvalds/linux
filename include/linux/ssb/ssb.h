@@ -282,6 +282,13 @@ struct ssb_bus {
 	struct ssb_boardinfo boardinfo;
 	/* Contents of the SPROM. */
 	struct ssb_sprom sprom;
+	/* If the board has a cardbus slot, this is set to true. */
+	bool has_cardbus_slot;
+
+#ifdef CONFIG_SSB_EMBEDDED
+	/* Lock for GPIO register access. */
+	spinlock_t gpio_lock;
+#endif /* EMBEDDED */
 
 	/* Internal-only stuff follows. Do not touch. */
 	struct list_head list;
@@ -294,8 +301,13 @@ struct ssb_bus {
 
 /* The initialization-invariants. */
 struct ssb_init_invariants {
+	/* Versioning information about the PCB. */
 	struct ssb_boardinfo boardinfo;
+	/* The SPROM information. That's either stored in an
+	 * EEPROM or NVRAM on the board. */
 	struct ssb_sprom sprom;
+	/* If the board has a cardbus slot, this is set to true. */
+	bool has_cardbus_slot;
 };
 /* Type of function to fetch the invariants. */
 typedef int (*ssb_invariants_func_t)(struct ssb_bus *bus,

@@ -181,7 +181,7 @@ void __init mem_init(void)
 	}
 }
 
-static __init void free_init_pages(const char *what, unsigned long begin, unsigned long end)
+static void __init free_init_pages(const char *what, unsigned long begin, unsigned long end)
 {
 	unsigned long addr;
 	/* next to check that the page we free is not a partial page */
@@ -203,7 +203,7 @@ void __init free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
-void __init free_initmem(void)
+void __init_refok free_initmem(void)
 {
 #if defined CONFIG_RAMKERNEL && !defined CONFIG_MPU
 	free_init_pages("unused kernel memory",
