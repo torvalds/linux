@@ -1382,10 +1382,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		ret = lbs_cmd_802_11_ps_mode(priv, cmdptr, cmd_action);
 		break;
 
-	case CMD_802_11_SCAN:
-		ret = lbs_cmd_80211_scan(priv, cmdptr, pdata_buf);
-		break;
-
 	case CMD_MAC_CONTROL:
 		ret = lbs_cmd_mac_control(priv, cmdptr);
 		break;

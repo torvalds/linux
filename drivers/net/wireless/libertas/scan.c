@@ -20,6 +20,7 @@
 #include "dev.h"
 #include "scan.h"
 #include "join.h"
+#include "cmd.h"
 
 //! Approximate amount of data needed to pass a scan result back to iwlist
 #define MAX_SCAN_CELL_SIZE  (IW_EV_ADDR_LEN             \
@@ -39,10 +40,9 @@
 //! Memory needed to store a max number/size SSID TLV for a firmware scan
 #define SSID_TLV_MAX_SIZE  (1 * sizeof(struct mrvlietypes_ssidparamset))
 
-//! Maximum memory needed for a lbs_scan_cmd_config with all TLVs at max
-#define MAX_SCAN_CFG_ALLOC (sizeof(struct lbs_scan_cmd_config)  \
-                            + CHAN_TLV_MAX_SIZE                 \
-                            + SSID_TLV_MAX_SIZE)
+//! Maximum memory needed for a cmd_ds_802_11_scan with all TLVs at max
+#define MAX_SCAN_CFG_ALLOC (sizeof(struct cmd_ds_802_11_scan)	\
+                            + CHAN_TLV_MAX_SIZE + SSID_TLV_MAX_SIZE)
 
 //! The maximum number of channels the firmware can scan per command
 #define MRVDRV_MAX_CHANNELS_PER_SCAN   14
@@ -64,8 +64,8 @@
 static const u8 zeromac[ETH_ALEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 static const u8 bcastmac[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
-
-
+static int lbs_ret_80211_scan(struct lbs_private *priv, unsigned long dummy,
+			      struct cmd_header *resp);
 
 /*********************************************************************/
 /*                                                                   */
@@ -492,24 +492,22 @@ static int lbs_scan_add_rates_tlv(u8 *tlv)
  * Generate the CMD_802_11_SCAN command with the proper tlv
  * for a bunch of channels.
  */
-static int lbs_do_scan(struct lbs_private *priv,
-	u8 bsstype,
-	struct chanscanparamset *chan_list,
-	int chan_count,
-	const struct lbs_ioctl_user_scan_cfg *user_cfg)
+static int lbs_do_scan(struct lbs_private *priv, uint8_t bsstype,
+		       struct chanscanparamset *chan_list, int chan_count,
+		       const struct lbs_ioctl_user_scan_cfg *user_cfg)
 {
 	int ret = -ENOMEM;
-	struct lbs_scan_cmd_config *scan_cmd;
-	u8 *tlv;    /* pointer into our current, growing TLV storage area */
+	struct cmd_ds_802_11_scan *scan_cmd;
+	uint8_t *tlv;	/* pointer into our current, growing TLV storage area */
 
-	lbs_deb_enter_args(LBS_DEB_SCAN, "bsstype %d, chanlist[].chan %d, "
-		"chan_count %d",
-		bsstype, chan_list[0].channumber, chan_count);
+	lbs_deb_enter_args(LBS_DEB_SCAN, "bsstype %d, chanlist[].chan %d, chan_count %d",
+			   bsstype, chan_list[0].channumber, chan_count);
 
 	/* create the fixed part for scan command */
 	scan_cmd = kzalloc(MAX_SCAN_CFG_ALLOC, GFP_KERNEL);
 	if (scan_cmd == NULL)
 		goto out;
+
 	tlv = scan_cmd->tlvbuffer;
 	if (user_cfg)
 		memcpy(scan_cmd->bssid, user_cfg->bssid, ETH_ALEN);
@@ -523,13 +521,16 @@ static int lbs_do_scan(struct lbs_private *priv,
 	tlv += lbs_scan_add_rates_tlv(tlv);
 
 	/* This is the final data we are about to send */
-	scan_cmd->tlvbufferlen = tlv - scan_cmd->tlvbuffer;
-	lbs_deb_hex(LBS_DEB_SCAN, "SCAN_CMD", (void *)scan_cmd, 1+6);
+	scan_cmd->hdr.size = cpu_to_le16(tlv - (uint8_t *)scan_cmd);
+	lbs_deb_hex(LBS_DEB_SCAN, "SCAN_CMD", (void *)scan_cmd,
+		    sizeof(*scan_cmd));
 	lbs_deb_hex(LBS_DEB_SCAN, "SCAN_TLV", scan_cmd->tlvbuffer,
-		scan_cmd->tlvbufferlen);
+		    tlv - scan_cmd->tlvbuffer);
 
-	ret = lbs_prepare_and_send_command(priv, CMD_802_11_SCAN, 0,
-		CMD_OPTION_WAITFORRSP, 0, scan_cmd);
+	ret = __lbs_cmd(priv, CMD_802_11_SCAN, &scan_cmd->hdr,
+			le16_to_cpu(scan_cmd->hdr.size),
+			lbs_ret_80211_scan, 0);
+
 out:
 	kfree(scan_cmd);
 	lbs_deb_leave_args(LBS_DEB_SCAN, "ret %d", ret);
@@ -1485,44 +1486,6 @@ int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
 
 
 /**
- *  @brief Prepare a scan command to be sent to the firmware
- *
- *  Called via lbs_prepare_and_send_command(priv, CMD_802_11_SCAN, ...)
- *  from cmd.c
- *
- *  Sends a fixed length data part (specifying the BSS type and BSSID filters)
- *  as well as a variable number/length of TLVs to the firmware.
- *
- *  @param priv       A pointer to struct lbs_private structure
- *  @param cmd        A pointer to cmd_ds_command structure to be sent to
- *                    firmware with the cmd_DS_801_11_SCAN structure
- *  @param pdata_buf  Void pointer cast of a lbs_scan_cmd_config struct used
- *                    to set the fields/TLVs for the command sent to firmware
- *
- *  @return           0 or -1
- */
-int lbs_cmd_80211_scan(struct lbs_private *priv,
-	struct cmd_ds_command *cmd, void *pdata_buf)
-{
-	struct cmd_ds_802_11_scan *pscan = &cmd->params.scan;
-	struct lbs_scan_cmd_config *pscancfg = pdata_buf;
-
-	lbs_deb_enter(LBS_DEB_SCAN);
-
-	/* Set fixed field variables in scan command */
-	pscan->bsstype = pscancfg->bsstype;
-	memcpy(pscan->bssid, pscancfg->bssid, ETH_ALEN);
-	memcpy(pscan->tlvbuffer, pscancfg->tlvbuffer, pscancfg->tlvbufferlen);
-
-	/* size is equal to the sizeof(fixed portions) + the TLV len + header */
-	cmd->size = cpu_to_le16(sizeof(pscan->bsstype) + ETH_ALEN
-				+ pscancfg->tlvbufferlen + S_DS_GEN);
-
-	lbs_deb_leave(LBS_DEB_SCAN);
-	return 0;
-}
-
-/**
  *  @brief This function handles the command response of scan
  *
  *  Called from handle_cmd_response() in cmdrespc.
@@ -1548,13 +1511,14 @@ int lbs_cmd_80211_scan(struct lbs_private *priv,
  *
  *  @return        0 or -1
  */
-int lbs_ret_80211_scan(struct lbs_private *priv, struct cmd_ds_command *resp)
+static int lbs_ret_80211_scan(struct lbs_private *priv, unsigned long dummy,
+			      struct cmd_header *resp)
 {
-	struct cmd_ds_802_11_scan_rsp *pscan;
+	struct cmd_ds_802_11_scan_rsp *scanresp = (void *)resp;
 	struct bss_descriptor * iter_bss;
 	struct bss_descriptor * safe;
-	u8 *pbssinfo;
-	u16 scanrespsize;
+	uint8_t *bssinfo;
+	uint16_t scanrespsize;
 	int bytesleft;
 	int idx;
 	int tlvbufsize;
@@ -1571,48 +1535,45 @@ int lbs_ret_80211_scan(struct lbs_private *priv, struct cmd_ds_command *resp)
 		clear_bss_descriptor(iter_bss);
 	}
 
-	pscan = &resp->params.scanresp;
-
-	if (pscan->nr_sets > MAX_NETWORK_COUNT) {
-		lbs_deb_scan(
-		       "SCAN_RESP: too many scan results (%d, max %d)!!\n",
-		       pscan->nr_sets, MAX_NETWORK_COUNT);
+	if (scanresp->nr_sets > MAX_NETWORK_COUNT) {
+		lbs_deb_scan("SCAN_RESP: too many scan results (%d, max %d)\n",
+			     scanresp->nr_sets, MAX_NETWORK_COUNT);
 		ret = -1;
 		goto done;
 	}
 
-	bytesleft = le16_to_cpu(pscan->bssdescriptsize);
+	bytesleft = le16_to_cpu(scanresp->bssdescriptsize);
 	lbs_deb_scan("SCAN_RESP: bssdescriptsize %d\n", bytesleft);
 
 	scanrespsize = le16_to_cpu(resp->size);
-	lbs_deb_scan("SCAN_RESP: scan results %d\n", pscan->nr_sets);
+	lbs_deb_scan("SCAN_RESP: scan results %d\n", scanresp->nr_sets);
 
-	pbssinfo = pscan->bssdesc_and_tlvbuffer;
+	bssinfo = scanresp->bssdesc_and_tlvbuffer;
 
 	/* The size of the TLV buffer is equal to the entire command response
 	 *   size (scanrespsize) minus the fixed fields (sizeof()'s), the
 	 *   BSS Descriptions (bssdescriptsize as bytesLef) and the command
 	 *   response header (S_DS_GEN)
 	 */
-	tlvbufsize = scanrespsize - (bytesleft + sizeof(pscan->bssdescriptsize)
-				     + sizeof(pscan->nr_sets)
+	tlvbufsize = scanrespsize - (bytesleft + sizeof(scanresp->bssdescriptsize)
+				     + sizeof(scanresp->nr_sets)
 				     + S_DS_GEN);
 
 	/*
-	 *  Process each scan response returned (pscan->nr_sets).  Save
+	 *  Process each scan response returned (scanresp->nr_sets). Save
 	 *    the information in the newbssentry and then insert into the
 	 *    driver scan table either as an update to an existing entry
 	 *    or as an addition at the end of the table
 	 */
-	for (idx = 0; idx < pscan->nr_sets && bytesleft; idx++) {
+	for (idx = 0; idx < scanresp->nr_sets && bytesleft; idx++) {
 		struct bss_descriptor new;
-		struct bss_descriptor * found = NULL;
-		struct bss_descriptor * oldest = NULL;
+		struct bss_descriptor *found = NULL;
+		struct bss_descriptor *oldest = NULL;
 		DECLARE_MAC_BUF(mac);
 
 		/* Process the data fields and IEs returned for this BSS */
 		memset(&new, 0, sizeof (struct bss_descriptor));
-		if (lbs_process_bss(&new, &pbssinfo, &bytesleft) != 0) {
+		if (lbs_process_bss(&new, &bssinfo, &bytesleft) != 0) {
 			/* error parsing the scan response, skipped */
 			lbs_deb_scan("SCAN_RESP: process_bss returned ERROR\n");
 			continue;
@@ -1647,8 +1608,7 @@ int lbs_ret_80211_scan(struct lbs_private *priv, struct cmd_ds_command *resp)
 			continue;
 		}
 
-		lbs_deb_scan("SCAN_RESP: BSSID %s\n",
-			     print_mac(mac, new.bssid));
+		lbs_deb_scan("SCAN_RESP: BSSID %s\n", print_mac(mac, new.bssid));
 
 		/* Copy the locally created newbssentry to the scan table */
 		memcpy(found, &new, offsetof(struct bss_descriptor, list));

@@ -174,9 +174,11 @@ struct cmd_ds_802_11_subscribe_event {
  * Define data structure for CMD_802_11_SCAN
  */
 struct cmd_ds_802_11_scan {
-	u8 bsstype;
-	u8 bssid[ETH_ALEN];
-	u8 tlvbuffer[1];
+	struct cmd_header hdr;
+
+	uint8_t bsstype;
+	uint8_t bssid[ETH_ALEN];
+	uint8_t tlvbuffer[0];
 #if 0
 	mrvlietypes_ssidparamset_t ssidParamSet;
 	mrvlietypes_chanlistparamset_t ChanListParamSet;
@@ -185,9 +187,11 @@ struct cmd_ds_802_11_scan {
 };
 
 struct cmd_ds_802_11_scan_rsp {
+	struct cmd_header hdr;
+
 	__le16 bssdescriptsize;
-	u8 nr_sets;
-	u8 bssdesc_and_tlvbuffer[1];
+	uint8_t nr_sets;
+	uint8_t bssdesc_and_tlvbuffer[0];
 };
 
 struct cmd_ds_802_11_get_log {
@@ -691,8 +695,6 @@ struct cmd_ds_command {
 	/* command Body */
 	union {
 		struct cmd_ds_802_11_ps_mode psmode;
-		struct cmd_ds_802_11_scan scan;
-		struct cmd_ds_802_11_scan_rsp scanresp;
 		struct cmd_ds_mac_control macctrl;
 		struct cmd_ds_802_11_associate associate;
 		struct cmd_ds_802_11_deauthenticate deauth;

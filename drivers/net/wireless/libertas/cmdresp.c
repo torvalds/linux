@@ -352,10 +352,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 		ret = lbs_ret_reg_access(priv, respcmd, resp);
 		break;
 
-	case CMD_RET(CMD_802_11_SCAN):
-		ret = lbs_ret_80211_scan(priv, resp);
-		break;
-
 	case CMD_RET(CMD_802_11_GET_LOG):
 		ret = lbs_ret_get_log(priv, resp);
 		break;

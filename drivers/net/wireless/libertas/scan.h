@@ -17,55 +17,14 @@
  */
 #define LBS_IOCTL_USER_SCAN_CHAN_MAX  50
 
-//! Infrastructure BSS scan type in lbs_scan_cmd_config
+//! Infrastructure BSS scan type in cmd_ds_802_11_scan
 #define LBS_SCAN_BSS_TYPE_BSS         1
 
-//! Adhoc BSS scan type in lbs_scan_cmd_config
+//! Adhoc BSS scan type in cmd_ds_802_11_scan
 #define LBS_SCAN_BSS_TYPE_IBSS        2
 
-//! Adhoc or Infrastructure BSS scan type in lbs_scan_cmd_config, no filter
+//! Adhoc or Infrastructure BSS scan type in cmd_ds_802_11_scan, no filter
 #define LBS_SCAN_BSS_TYPE_ANY         3
-
-/**
- * @brief Structure used internally in the wlan driver to configure a scan.
- *
- * Sent to the command processing module to configure the firmware
- *   scan command prepared by lbs_cmd_80211_scan.
- *
- * @sa lbs_scan_networks
- *
- */
-struct lbs_scan_cmd_config {
-    /**
-     *  @brief BSS type to be sent in the firmware command
-     *
-     *  Field can be used to restrict the types of networks returned in the
-     *    scan.  valid settings are:
-     *
-     *   - LBS_SCAN_BSS_TYPE_BSS  (infrastructure)
-     *   - LBS_SCAN_BSS_TYPE_IBSS (adhoc)
-     *   - LBS_SCAN_BSS_TYPE_ANY  (unrestricted, adhoc and infrastructure)
-     */
-	u8 bsstype;
-
-    /**
-     *  @brief Specific BSSID used to filter scan results in the firmware
-     */
-	u8 bssid[ETH_ALEN];
-
-    /**
-     *  @brief length of TLVs sent in command starting at tlvBuffer
-     */
-	int tlvbufferlen;
-
-    /**
-     *  @brief SSID TLV(s) and ChanList TLVs to be sent in the firmware command
-     *
-     *  @sa TLV_TYPE_CHANLIST, mrvlietypes_chanlistparamset_t
-     *  @sa TLV_TYPE_SSID, mrvlietypes_ssidparamset_t
-     */
-	u8 tlvbuffer[1];	//!< SSID TLV(s) and ChanList TLVs are stored here
-};
 
 /**
  *  @brief IOCTL channel sub-structure sent in lbs_ioctl_user_scan_cfg
@@ -178,13 +137,6 @@ int lbs_find_best_network_ssid(struct lbs_private *priv, u8 *out_ssid,
 
 int lbs_send_specific_ssid_scan(struct lbs_private *priv, u8 *ssid,
 				u8 ssid_len, u8 clear_ssid);
-
-int lbs_cmd_80211_scan(struct lbs_private *priv,
-				struct cmd_ds_command *cmd,
-				void *pdata_buf);
-
-int lbs_ret_80211_scan(struct lbs_private *priv,
-				struct cmd_ds_command *resp);
 
 int lbs_scan_networks(struct lbs_private *priv,
 	const struct lbs_ioctl_user_scan_cfg *puserscanin,
