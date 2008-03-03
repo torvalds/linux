@@ -400,7 +400,6 @@ int native_smp_call_function_mask(cpumask_t mask,
 	spin_unlock(&call_lock);
 	return ret;
 }
-EXPORT_SYMBOL(smp_call_function_mask);
 
 /*
  * smp_call_function_single - Run a function on a specific CPU
