@@ -1001,6 +1001,11 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	return 1;
 }
 
+/* ia64 does not need this */
+void __kprobes jprobe_return(void)
+{
+}
+
 int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
