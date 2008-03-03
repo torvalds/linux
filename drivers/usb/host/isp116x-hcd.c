@@ -911,8 +911,7 @@ static int isp116x_hub_status_data(struct usb_hcd *hcd, char *buf)
 		buf[0] = 0;
 
 	for (i = 0; i < ports; i++) {
-		u32 status = isp116x->rhport[i] =
-		    isp116x_read_reg32(isp116x, i ? HCRHPORT2 : HCRHPORT1);
+		u32 status = isp116x_read_reg32(isp116x, i ? HCRHPORT2 : HCRHPORT1);
 
 		if (status & (RH_PS_CSC | RH_PS_PESC | RH_PS_PSSC
 			      | RH_PS_OCIC | RH_PS_PRSC)) {
@@ -1031,7 +1030,9 @@ static int isp116x_hub_control(struct usb_hcd *hcd,
 		DBG("GetPortStatus\n");
 		if (!wIndex || wIndex > ports)
 			goto error;
-		tmp = isp116x->rhport[--wIndex];
+		spin_lock_irqsave(&isp116x->lock, flags);
+		tmp = isp116x_read_reg32(isp116x, (--wIndex) ? HCRHPORT2 : HCRHPORT1);
+		spin_unlock_irqrestore(&isp116x->lock, flags);
 		*(__le32 *) buf = cpu_to_le32(tmp);
 		DBG("GetPortStatus: port[%d]  %08x\n", wIndex + 1, tmp);
 		break;
@@ -1080,8 +1081,6 @@ static int isp116x_hub_control(struct usb_hcd *hcd,
 		spin_lock_irqsave(&isp116x->lock, flags);
 		isp116x_write_reg32(isp116x, wIndex
 				    ? HCRHPORT2 : HCRHPORT1, tmp);
-		isp116x->rhport[wIndex] =
-		    isp116x_read_reg32(isp116x, wIndex ? HCRHPORT2 : HCRHPORT1);
 		spin_unlock_irqrestore(&isp116x->lock, flags);
 		break;
 	case SetPortFeature:
@@ -1095,24 +1094,22 @@ static int isp116x_hub_control(struct usb_hcd *hcd,
 			spin_lock_irqsave(&isp116x->lock, flags);
 			isp116x_write_reg32(isp116x, wIndex
 					    ? HCRHPORT2 : HCRHPORT1, RH_PS_PSS);
+			spin_unlock_irqrestore(&isp116x->lock, flags);
 			break;
 		case USB_PORT_FEAT_POWER:
 			DBG("USB_PORT_FEAT_POWER\n");
 			spin_lock_irqsave(&isp116x->lock, flags);
 			isp116x_write_reg32(isp116x, wIndex
 					    ? HCRHPORT2 : HCRHPORT1, RH_PS_PPS);
+			spin_unlock_irqrestore(&isp116x->lock, flags);
 			break;
 		case USB_PORT_FEAT_RESET:
 			DBG("USB_PORT_FEAT_RESET\n");
 			root_port_reset(isp116x, wIndex);
-			spin_lock_irqsave(&isp116x->lock, flags);
 			break;
 		default:
 			goto error;
 		}
-		isp116x->rhport[wIndex] =
-		    isp116x_read_reg32(isp116x, wIndex ? HCRHPORT2 : HCRHPORT1);
-		spin_unlock_irqrestore(&isp116x->lock, flags);
 		break;
 
 	default:
