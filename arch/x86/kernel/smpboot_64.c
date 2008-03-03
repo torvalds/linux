@@ -100,6 +100,13 @@ static void __cpuinit smp_store_cpu_info(int id)
 	print_cpu_info(c);
 }
 
+static inline void wait_for_init_deassert(atomic_t *deassert)
+{
+	while (!atomic_read(deassert))
+		cpu_relax();
+	return;
+}
+
 static atomic_t init_deasserted __cpuinitdata;
 
 /*
@@ -117,8 +124,7 @@ void __cpuinit smp_callin(void)
 	 * our local APIC.  We have to wait for the IPI or we'll
 	 * lock up on an APIC access.
 	 */
-	while (!atomic_read(&init_deasserted))
-		cpu_relax();
+	wait_for_init_deassert(&init_deasserted);
 
 	/*
 	 * (This works even if the APIC is not enabled.)
