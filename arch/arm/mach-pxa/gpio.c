@@ -129,56 +129,26 @@ static void pxa_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 		__raw_writel(mask, pxa->regbase + GPCR_OFFSET);
 }
 
+#define GPIO_CHIP(_n)							\
+	[_n] = {							\
+		.regbase = GPIO##_n##_BASE,				\
+		.chip = {						\
+			.label		  = "gpio-" #_n,		\
+			.direction_input  = pxa_gpio_direction_input,	\
+			.direction_output = pxa_gpio_direction_output,	\
+			.get		  = pxa_gpio_get,		\
+			.set		  = pxa_gpio_set,		\
+			.base		  = (_n) * 32,			\
+			.ngpio		  = 32,				\
+		},							\
+	}
+
 static struct pxa_gpio_chip pxa_gpio_chip[] = {
-	[0] = {
-		.regbase = GPIO0_BASE,
-		.chip = {
-			.label            = "gpio-0",
-			.direction_input  = pxa_gpio_direction_input,
-			.direction_output = pxa_gpio_direction_output,
-			.get              = pxa_gpio_get,
-			.set              = pxa_gpio_set,
-			.base             = 0,
-			.ngpio            = 32,
-		},
-	},
-	[1] = {
-		.regbase = GPIO1_BASE,
-		.chip = {
-			.label            = "gpio-1",
-			.direction_input  = pxa_gpio_direction_input,
-			.direction_output = pxa_gpio_direction_output,
-			.get              = pxa_gpio_get,
-			.set              = pxa_gpio_set,
-			.base             = 32,
-			.ngpio            = 32,
-		},
-	},
-	[2] = {
-		.regbase = GPIO2_BASE,
-		.chip = {
-			.label            = "gpio-2",
-			.direction_input  = pxa_gpio_direction_input,
-			.direction_output = pxa_gpio_direction_output,
-			.get              = pxa_gpio_get,
-			.set              = pxa_gpio_set,
-			.base             = 64,
-			.ngpio            = 32, /* 21 for PXA25x */
-		},
-	},
+	GPIO_CHIP(0),
+	GPIO_CHIP(1),
+	GPIO_CHIP(2),
 #if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
-	[3] = {
-		.regbase = GPIO3_BASE,
-		.chip = {
-			.label            = "gpio-3",
-			.direction_input  = pxa_gpio_direction_input,
-			.direction_output = pxa_gpio_direction_output,
-			.get              = pxa_gpio_get,
-			.set              = pxa_gpio_set,
-			.base             = 96,
-			.ngpio            = 32,
-		},
-	},
+	GPIO_CHIP(3),
 #endif
 };
 
