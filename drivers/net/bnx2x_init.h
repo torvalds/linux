@@ -1,6 +1,6 @@
 /* bnx2x_init.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007 Broadcom Corporation
+ * Copyright (c) 2007-2008 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -409,7 +409,7 @@ static void bnx2x_init_pxp(struct bnx2x *bp)
 
 	pci_read_config_word(bp->pdev,
 			     bp->pcie_cap + PCI_EXP_DEVCTL, (u16 *)&val);
-	DP(NETIF_MSG_HW, "read 0x%x from devctl\n", val);
+	DP(NETIF_MSG_HW, "read 0x%x from devctl\n", (u16)val);
 	w_order = ((val & PCI_EXP_DEVCTL_PAYLOAD) >> 5);
 	r_order = ((val & PCI_EXP_DEVCTL_READRQ) >> 12);
 
@@ -472,10 +472,14 @@ static void bnx2x_init_pxp(struct bnx2x *bp)
 	REG_WR(bp, PXP2_REG_PSWRQ_BW_WR, val);
 
 	REG_WR(bp, PXP2_REG_RQ_WR_MBS0, w_order);
-	REG_WR(bp, PXP2_REG_RQ_WR_MBS0 + 8, w_order);
+	REG_WR(bp, PXP2_REG_RQ_WR_MBS1, w_order);
 	REG_WR(bp, PXP2_REG_RQ_RD_MBS0, r_order);
-	REG_WR(bp, PXP2_REG_RQ_RD_MBS0 + 8, r_order);
+	REG_WR(bp, PXP2_REG_RQ_RD_MBS1, r_order);
 
+	if (r_order == MAX_RD_ORD)
+		REG_WR(bp, PXP2_REG_RQ_PDR_LIMIT, 0xe00);
+
+	REG_WR(bp, PXP2_REG_WR_USDMDP_TH, (0x18 << w_order));
 	REG_WR(bp, PXP2_REG_WR_DMAE_TH, (128 << w_order)/16);
 }
 

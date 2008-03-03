@@ -567,12 +567,12 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 
 	/* Init the adapter */
 	nesdev->nesadapter = nes_init_adapter(nesdev, hw_rev);
-	nesdev->nesadapter->et_rx_coalesce_usecs_irq = interrupt_mod_interval;
 	if (!nesdev->nesadapter) {
 		printk(KERN_ERR PFX "Unable to initialize adapter.\n");
 		ret = -ENOMEM;
 		goto bail5;
 	}
+	nesdev->nesadapter->et_rx_coalesce_usecs_irq = interrupt_mod_interval;
 
 	/* nesdev->base_doorbell_index =
 			nesdev->nesadapter->pd_config_base[PCI_FUNC(nesdev->pcidev->devfn)]; */

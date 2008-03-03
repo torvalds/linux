@@ -126,9 +126,7 @@ static int transport_setup_classdev(struct attribute_container *cont,
 }
 
 /**
- * transport_setup_device - declare a new dev for transport class association
- *			    but don't make it visible yet.
- *
+ * transport_setup_device - declare a new dev for transport class association but don't make it visible yet.
  * @dev: the generic device representing the entity being added
  *
  * Usually, dev represents some component in the HBA system (either

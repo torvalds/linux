@@ -281,8 +281,8 @@ xfs_start_flags(
 		mp->m_readio_log = mp->m_writeio_log = ap->iosizelog;
 	}
 
-	if (ap->flags & XFSMNT_IDELETE)
-		mp->m_flags |= XFS_MOUNT_IDELETE;
+	if (ap->flags & XFSMNT_IKEEP)
+		mp->m_flags |= XFS_MOUNT_IKEEP;
 	if (ap->flags & XFSMNT_DIRSYNC)
 		mp->m_flags |= XFS_MOUNT_DIRSYNC;
 	if (ap->flags & XFSMNT_ATTR2)

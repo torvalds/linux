@@ -1351,8 +1351,6 @@ done:
 	lbs_deb_leave_args(LBS_DEB_MESH, "ret %d", ret);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(lbs_add_mesh);
-
 
 static void lbs_remove_mesh(struct lbs_private *priv)
 {
@@ -1372,7 +1370,6 @@ static void lbs_remove_mesh(struct lbs_private *priv)
 	free_netdev(mesh_dev);
 	lbs_deb_leave(LBS_DEB_MESH);
 }
-EXPORT_SYMBOL_GPL(lbs_remove_mesh);
 
 /**
  *  @brief This function finds the CFP in
@@ -1457,20 +1454,6 @@ void lbs_interrupt(struct lbs_private *priv)
 	lbs_deb_leave(LBS_DEB_THREAD);
 }
 EXPORT_SYMBOL_GPL(lbs_interrupt);
-
-int lbs_reset_device(struct lbs_private *priv)
-{
-	int ret;
-
-	lbs_deb_enter(LBS_DEB_MAIN);
-	ret = lbs_prepare_and_send_command(priv, CMD_802_11_RESET,
-				    CMD_ACT_HALT, 0, 0, NULL);
-	msleep_interruptible(10);
-
-	lbs_deb_leave_args(LBS_DEB_MAIN, "ret %d", ret);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(lbs_reset_device);
 
 static int __init lbs_init_module(void)
 {

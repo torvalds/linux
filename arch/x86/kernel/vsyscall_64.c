@@ -222,10 +222,19 @@ long __vsyscall(3) venosys_1(void)
 }
 
 #ifdef CONFIG_SYSCTL
+
+static int
+vsyscall_sysctl_change(ctl_table *ctl, int write, struct file * filp,
+		       void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	return proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
+}
+
 static ctl_table kernel_table2[] = {
 	{ .procname = "vsyscall64",
 	  .data = &vsyscall_gtod_data.sysctl_enabled, .maxlen = sizeof(int),
-	  .mode = 0644 },
+	  .mode = 0644,
+	  .proc_handler = vsyscall_sysctl_change },
 	{}
 };
 

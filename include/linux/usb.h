@@ -781,8 +781,7 @@ static inline int usb_endpoint_is_isoc_out(
 	.idVendor = (vend), \
 	.idProduct = (prod)
 /**
- * USB_DEVICE_VER - macro used to describe a specific usb device with a
- *		version range
+ * USB_DEVICE_VER - describe a specific usb device with a version range
  * @vend: the 16 bit USB Vendor ID
  * @prod: the 16 bit USB Product ID
  * @lo: the bcdDevice_lo value
@@ -799,8 +798,7 @@ static inline int usb_endpoint_is_isoc_out(
 	.bcdDevice_hi = (hi)
 
 /**
- * USB_DEVICE_INTERFACE_PROTOCOL - macro used to describe a usb
- *		device with a specific interface protocol
+ * USB_DEVICE_INTERFACE_PROTOCOL - describe a usb device with a specific interface protocol
  * @vend: the 16 bit USB Vendor ID
  * @prod: the 16 bit USB Product ID
  * @pr: bInterfaceProtocol value
@@ -846,8 +844,7 @@ static inline int usb_endpoint_is_isoc_out(
 	.bInterfaceProtocol = (pr)
 
 /**
- * USB_DEVICE_AND_INTERFACE_INFO - macro used to describe a specific usb device
- * 		with a class of usb interfaces
+ * USB_DEVICE_AND_INTERFACE_INFO - describe a specific usb device with a class of usb interfaces
  * @vend: the 16 bit USB Vendor ID
  * @prod: the 16 bit USB Product ID
  * @cl: bInterfaceClass value

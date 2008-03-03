@@ -90,6 +90,11 @@ config MACVLAN
 	  This allows one to create virtual interfaces that map packets to
 	  or from specific MAC addresses to a particular interface.
 
+	  Macvlan devices can be added using the "ip" command from the
+	  iproute2 package starting with the iproute2-2.6.23 release:
+
+	  "ip link add link <real dev> [ address MAC ] [ NAME ] type macvlan"
+
 	  To compile this driver as a module, choose M here: the module
 	  will be called macvlan.
 
@@ -2363,6 +2368,7 @@ config GELIC_NET
 config GELIC_WIRELESS
        bool "PS3 Wireless support"
        depends on GELIC_NET
+       select WIRELESS_EXT
        help
         This option adds the support for the wireless feature of PS3.
         If you have the wireless-less model of PS3 or have no plan to

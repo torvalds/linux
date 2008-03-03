@@ -767,14 +767,14 @@ S:	Maintained
 
 BLACKFIN ARCHITECTURE
 P:	Bryan Wu
-M:	bryan.wu@analog.com
+M:	cooloney@kernel.org
 L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
 W:	http://blackfin.uclinux.org
 S:	Supported
 
 BLACKFIN EMAC DRIVER
 P:	Bryan Wu
-M:	bryan.wu@analog.com
+M:	cooloney@kernel.org
 L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
 W:	http://blackfin.uclinux.org
 S:	Supported
@@ -979,6 +979,12 @@ S:	Supported
 BROADCOM BNX2 GIGABIT ETHERNET DRIVER
 P:	Michael Chan
 M:	mchan@broadcom.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
+BROADCOM BNX2X 10 GIGABIT ETHERNET DRIVER
+P:	Eliezer Tamir
+M:	eliezert@broadcom.com
 L:	netdev@vger.kernel.org
 S:	Supported
 
@@ -2744,6 +2750,8 @@ S:	Maintained
 NETEFFECT IWARP RNIC DRIVER (IW_NES)
 P:	Faisal Latif
 M:	flatif@neteffect.com
+P:	Nishi Gupta
+M:	ngupta@neteffect.com
 P:	Glenn Streiff
 M:	gstreiff@neteffect.com
 L:	general@lists.openfabrics.org
@@ -3884,10 +3892,13 @@ M:	trivial@kernel.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
-TULIP NETWORK DRIVER
-L:	tulip-users@lists.sourceforge.net
-W:	http://sourceforge.net/projects/tulip/
-S:	Orphan
+TULIP NETWORK DRIVERS
+P:	Grant Grundler
+M:	grundler@parisc-linux.org
+P:	Kyle McMartin
+M:	kyle@parisc-linux.org
+L:	netdev@vger.kernel.org
+S:	Maintained
 
 TUN/TAP driver
 P:	Maxim Krasnyansky

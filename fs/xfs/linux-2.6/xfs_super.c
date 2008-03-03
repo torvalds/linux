@@ -171,7 +171,7 @@ xfs_parseargs(
 	char			*this_char, *value, *eov;
 	int			dsunit, dswidth, vol_dsunit, vol_dswidth;
 	int			iosize;
-	int			ikeep = 0;
+	int			dmapi_implies_ikeep = 1;
 
 	args->flags |= XFSMNT_BARRIER;
 	args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
@@ -302,10 +302,10 @@ xfs_parseargs(
 		} else if (!strcmp(this_char, MNTOPT_NOBARRIER)) {
 			args->flags &= ~XFSMNT_BARRIER;
 		} else if (!strcmp(this_char, MNTOPT_IKEEP)) {
-			ikeep = 1;
-			args->flags &= ~XFSMNT_IDELETE;
+			args->flags |= XFSMNT_IKEEP;
 		} else if (!strcmp(this_char, MNTOPT_NOIKEEP)) {
-			args->flags |= XFSMNT_IDELETE;
+			dmapi_implies_ikeep = 0;
+			args->flags &= ~XFSMNT_IKEEP;
 		} else if (!strcmp(this_char, MNTOPT_LARGEIO)) {
 			args->flags2 &= ~XFSMNT2_COMPAT_IOSIZE;
 		} else if (!strcmp(this_char, MNTOPT_NOLARGEIO)) {
@@ -410,8 +410,8 @@ xfs_parseargs(
 	 * Note that if "ikeep" or "noikeep" mount options are
 	 * supplied, then they are honored.
 	 */
-	if (!(args->flags & XFSMNT_DMAPI) && !ikeep)
-		args->flags |= XFSMNT_IDELETE;
+	if ((args->flags & XFSMNT_DMAPI) && dmapi_implies_ikeep)
+		args->flags |= XFSMNT_IKEEP;
 
 	if ((args->flags & XFSMNT_NOALIGN) != XFSMNT_NOALIGN) {
 		if (dsunit) {
@@ -446,6 +446,7 @@ xfs_showargs(
 {
 	static struct proc_xfs_info xfs_info_set[] = {
 		/* the few simple ones we can get from the mount struct */
+		{ XFS_MOUNT_IKEEP,		"," MNTOPT_IKEEP },
 		{ XFS_MOUNT_WSYNC,		"," MNTOPT_WSYNC },
 		{ XFS_MOUNT_INO64,		"," MNTOPT_INO64 },
 		{ XFS_MOUNT_NOALIGN,		"," MNTOPT_NOALIGN },
@@ -461,7 +462,6 @@ xfs_showargs(
 	};
 	static struct proc_xfs_info xfs_info_unset[] = {
 		/* the few simple ones we can get from the mount struct */
-		{ XFS_MOUNT_IDELETE,		"," MNTOPT_IKEEP },
 		{ XFS_MOUNT_COMPAT_IOSIZE,	"," MNTOPT_LARGEIO },
 		{ XFS_MOUNT_BARRIER,		"," MNTOPT_NOBARRIER },
 		{ XFS_MOUNT_SMALL_INUMS,	"," MNTOPT_64BITINODE },

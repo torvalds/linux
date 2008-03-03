@@ -120,10 +120,10 @@ extern int ssb_devices_thaw(struct ssb_bus *bus);
 extern struct ssb_bus *ssb_pci_dev_to_bus(struct pci_dev *pdev);
 
 /* b43_pci_bridge.c */
-#ifdef CONFIG_SSB_PCIHOST
+#ifdef CONFIG_SSB_B43_PCI_BRIDGE
 extern int __init b43_pci_ssb_bridge_init(void);
 extern void __exit b43_pci_ssb_bridge_exit(void);
-#else /* CONFIG_SSB_PCIHOST */
+#else /* CONFIG_SSB_B43_PCI_BRIDGR */
 static inline int b43_pci_ssb_bridge_init(void)
 {
 	return 0;

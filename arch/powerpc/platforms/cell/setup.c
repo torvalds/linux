@@ -149,6 +149,11 @@ static void __init cell_init_irq(void)
 	mpic_init_IRQ();
 }
 
+static void __init cell_set_dabrx(void)
+{
+	mtspr(SPRN_DABRX, DABRX_KERNEL | DABRX_USER);
+}
+
 static void __init cell_setup_arch(void)
 {
 #ifdef CONFIG_SPU_BASE
@@ -157,6 +162,8 @@ static void __init cell_setup_arch(void)
 #endif
 
 	cbe_regs_init();
+
+	cell_set_dabrx();
 
 #ifdef CONFIG_CBE_RAS
 	cbe_ras_init();

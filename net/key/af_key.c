@@ -3807,17 +3807,16 @@ static int pfkey_init_proc(void)
 {
 	struct proc_dir_entry *e;
 
-	e = create_proc_entry("pfkey", 0, init_net.proc_net);
+	e = proc_net_fops_create(&init_net, "pfkey", 0, &pfkey_proc_ops);
 	if (e == NULL)
 		return -ENOMEM;
 
-	e->proc_fops = &pfkey_proc_ops;
 	return 0;
 }
 
 static void pfkey_exit_proc(void)
 {
-	remove_proc_entry("net/pfkey", NULL);
+	proc_net_remove(&init_net, "pfkey");
 }
 #else
 static inline int pfkey_init_proc(void)

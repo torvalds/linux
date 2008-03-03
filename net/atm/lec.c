@@ -1249,9 +1249,7 @@ static int __init lane_module_init(void)
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *p;
 
-	p = create_proc_entry("lec", S_IRUGO, atm_proc_root);
-	if (p)
-		p->proc_fops = &lec_seq_fops;
+	p = proc_create("lec", S_IRUGO, atm_proc_root, &lec_seq_fops);
 #endif
 
 	register_atm_ioctl(&lane_ioctl_ops);

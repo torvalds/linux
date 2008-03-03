@@ -82,7 +82,7 @@ void tipc_zone_attach_cluster(struct _zone *z_ptr, struct cluster *c_ptr)
 
 	assert(c_ptr->addr);
 	assert(c_num <= tipc_max_clusters);
-	assert(z_ptr->clusters[c_num] == 0);
+	assert(z_ptr->clusters[c_num] == NULL);
 	z_ptr->clusters[c_num] = c_ptr;
 }
 

@@ -58,7 +58,7 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
-#if defined(CONFIG_FB_PXA) || (CONFIG_FB_PXA_MODULES)
+#if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
 static void zylonite_backlight_power(int on)
 {
 	gpio_set_value(gpio_backlight, on);

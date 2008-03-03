@@ -2690,6 +2690,7 @@ int gelic_wl_driver_probe(struct gelic_card *card)
 		return -ENOMEM;
 
 	/* setup net_device structure */
+	SET_NETDEV_DEV(netdev, &card->dev->core);
 	gelic_wl_setup_netdev_ops(netdev);
 
 	/* setup some of net_device and register it */

@@ -1570,10 +1570,12 @@ static int __devinit hpt366_init_one(struct pci_dev *dev, const struct pci_devic
 		if (rev < 3)
 			info = &hpt36x;
 		else {
-			static const struct hpt_info *hpt37x_info[] =
-				{ &hpt370, &hpt370a, &hpt372, &hpt372n };
-
-			info = hpt37x_info[min_t(u8, rev, 6) - 3];
+			switch (min_t(u8, rev, 6)) {
+			case 3: info = &hpt370;  break;
+			case 4: info = &hpt370a; break;
+			case 5: info = &hpt372;  break;
+			case 6: info = &hpt372n; break;
+			}
 			idx++;
 		}
 		break;
@@ -1626,7 +1628,7 @@ static int __devinit hpt366_init_one(struct pci_dev *dev, const struct pci_devic
 	return ide_setup_pci_device(dev, &d);
 }
 
-static const struct pci_device_id hpt366_pci_tbl[] = {
+static const struct pci_device_id hpt366_pci_tbl[] __devinitconst = {
 	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT366),  0 },
 	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT372),  1 },
 	{ PCI_VDEVICE(TTI, PCI_DEVICE_ID_TTI_HPT302),  2 },

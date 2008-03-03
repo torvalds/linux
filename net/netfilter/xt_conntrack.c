@@ -122,7 +122,7 @@ conntrack_addrcmp(const union nf_inet_addr *kaddr,
                   const union nf_inet_addr *umask, unsigned int l3proto)
 {
 	if (l3proto == AF_INET)
-		return (kaddr->ip & umask->ip) == uaddr->ip;
+		return ((kaddr->ip ^ uaddr->ip) & umask->ip) == 0;
 	else if (l3proto == AF_INET6)
 		return ipv6_masked_addr_cmp(&kaddr->in6, &umask->in6,
 		       &uaddr->in6) == 0;
@@ -231,7 +231,7 @@ conntrack_mt(const struct sk_buff *skb, const struct net_device *in,
 			if (test_bit(IPS_DST_NAT_BIT, &ct->status))
 				statebit |= XT_CONNTRACK_STATE_DNAT;
 		}
-		if ((info->state_mask & statebit) ^
+		if (!!(info->state_mask & statebit) ^
 		    !(info->invert_flags & XT_CONNTRACK_STATE))
 			return false;
 	}

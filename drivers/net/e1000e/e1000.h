@@ -42,8 +42,7 @@
 struct e1000_info;
 
 #define ndev_printk(level, netdev, format, arg...) \
-	printk(level "%s: %s: " format, (netdev)->dev.parent->bus_id, \
-	       (netdev)->name, ## arg)
+	printk(level "%s: " format, (netdev)->name, ## arg)
 
 #ifdef DEBUG
 #define ndev_dbg(netdev, format, arg...) \

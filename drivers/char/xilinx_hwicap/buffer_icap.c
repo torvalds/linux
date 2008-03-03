@@ -73,8 +73,8 @@
 #define XHI_BUFFER_START 0
 
 /**
- * buffer_icap_get_status: Get the contents of the status register.
- * @parameter base_address: is the base address of the device
+ * buffer_icap_get_status - Get the contents of the status register.
+ * @base_address: is the base address of the device
  *
  * The status register contains the ICAP status and the done bit.
  *
@@ -94,9 +94,9 @@ static inline u32 buffer_icap_get_status(void __iomem *base_address)
 }
 
 /**
- * buffer_icap_get_bram: Reads data from the storage buffer bram.
- * @parameter base_address: contains the base address of the component.
- * @parameter offset: The word offset from which the data should be read.
+ * buffer_icap_get_bram - Reads data from the storage buffer bram.
+ * @base_address: contains the base address of the component.
+ * @offset: The word offset from which the data should be read.
  *
  * A bram is used as a configuration memory cache.  One frame of data can
  * be stored in this "storage buffer".
@@ -108,8 +108,8 @@ static inline u32 buffer_icap_get_bram(void __iomem *base_address,
 }
 
 /**
- * buffer_icap_busy: Return true if the icap device is busy
- * @parameter base_address: is the base address of the device
+ * buffer_icap_busy - Return true if the icap device is busy
+ * @base_address: is the base address of the device
  *
  * The queries the low order bit of the status register, which
  * indicates whether the current configuration or readback operation
@@ -121,8 +121,8 @@ static inline bool buffer_icap_busy(void __iomem *base_address)
 }
 
 /**
- * buffer_icap_busy: Return true if the icap device is not busy
- * @parameter base_address: is the base address of the device
+ * buffer_icap_busy - Return true if the icap device is not busy
+ * @base_address: is the base address of the device
  *
  * The queries the low order bit of the status register, which
  * indicates whether the current configuration or readback operation
@@ -134,9 +134,9 @@ static inline bool buffer_icap_done(void __iomem *base_address)
 }
 
 /**
- * buffer_icap_set_size: Set the size register.
- * @parameter base_address: is the base address of the device
- * @parameter data: The size in bytes.
+ * buffer_icap_set_size - Set the size register.
+ * @base_address: is the base address of the device
+ * @data: The size in bytes.
  *
  * The size register holds the number of 8 bit bytes to transfer between
  * bram and the icap (or icap to bram).
@@ -148,9 +148,9 @@ static inline void buffer_icap_set_size(void __iomem *base_address,
 }
 
 /**
- * buffer_icap_mSetoffsetReg: Set the bram offset register.
- * @parameter base_address: contains the base address of the device.
- * @parameter data: is the value to be written to the data register.
+ * buffer_icap_set_offset - Set the bram offset register.
+ * @base_address: contains the base address of the device.
+ * @data: is the value to be written to the data register.
  *
  * The bram offset register holds the starting bram address to transfer
  * data from during configuration or write data to during readback.
@@ -162,9 +162,9 @@ static inline void buffer_icap_set_offset(void __iomem *base_address,
 }
 
 /**
- * buffer_icap_set_rnc: Set the RNC (Readback not Configure) register.
- * @parameter base_address: contains the base address of the device.
- * @parameter data: is the value to be written to the data register.
+ * buffer_icap_set_rnc - Set the RNC (Readback not Configure) register.
+ * @base_address: contains the base address of the device.
+ * @data: is the value to be written to the data register.
  *
  * The RNC register determines the direction of the data transfer.  It
  * controls whether a configuration or readback take place.  Writing to
@@ -178,10 +178,10 @@ static inline void buffer_icap_set_rnc(void __iomem *base_address,
 }
 
 /**
- * buffer_icap_set_bram: Write data to the storage buffer bram.
- * @parameter base_address: contains the base address of the component.
- * @parameter offset: The word offset at which the data should be written.
- * @parameter data: The value to be written to the bram offset.
+ * buffer_icap_set_bram - Write data to the storage buffer bram.
+ * @base_address: contains the base address of the component.
+ * @offset: The word offset at which the data should be written.
+ * @data: The value to be written to the bram offset.
  *
  * A bram is used as a configuration memory cache.  One frame of data can
  * be stored in this "storage buffer".
@@ -193,10 +193,10 @@ static inline void buffer_icap_set_bram(void __iomem *base_address,
 }
 
 /**
- * buffer_icap_device_read: Transfer bytes from ICAP to the storage buffer.
- * @parameter drvdata: a pointer to the drvdata.
- * @parameter offset: The storage buffer start address.
- * @parameter count: The number of words (32 bit) to read from the
+ * buffer_icap_device_read - Transfer bytes from ICAP to the storage buffer.
+ * @drvdata: a pointer to the drvdata.
+ * @offset: The storage buffer start address.
+ * @count: The number of words (32 bit) to read from the
  *           device (ICAP).
  **/
 static int buffer_icap_device_read(struct hwicap_drvdata *drvdata,
@@ -227,10 +227,10 @@ static int buffer_icap_device_read(struct hwicap_drvdata *drvdata,
 };
 
 /**
- * buffer_icap_device_write: Transfer bytes from ICAP to the storage buffer.
- * @parameter drvdata: a pointer to the drvdata.
- * @parameter offset: The storage buffer start address.
- * @parameter count: The number of words (32 bit) to read from the
+ * buffer_icap_device_write - Transfer bytes from ICAP to the storage buffer.
+ * @drvdata: a pointer to the drvdata.
+ * @offset: The storage buffer start address.
+ * @count: The number of words (32 bit) to read from the
  *           device (ICAP).
  **/
 static int buffer_icap_device_write(struct hwicap_drvdata *drvdata,
@@ -261,8 +261,8 @@ static int buffer_icap_device_write(struct hwicap_drvdata *drvdata,
 };
 
 /**
- * buffer_icap_reset: Reset the logic of the icap device.
- * @parameter drvdata: a pointer to the drvdata.
+ * buffer_icap_reset - Reset the logic of the icap device.
+ * @drvdata: a pointer to the drvdata.
  *
  * Writing to the status register resets the ICAP logic in an internal
  * version of the core.  For the version of the core published in EDK,
@@ -274,10 +274,10 @@ void buffer_icap_reset(struct hwicap_drvdata *drvdata)
 }
 
 /**
- * buffer_icap_set_configuration: Load a partial bitstream from system memory.
- * @parameter drvdata: a pointer to the drvdata.
- * @parameter data: Kernel address of the partial bitstream.
- * @parameter size: the size of the partial bitstream in 32 bit words.
+ * buffer_icap_set_configuration - Load a partial bitstream from system memory.
+ * @drvdata: a pointer to the drvdata.
+ * @data: Kernel address of the partial bitstream.
+ * @size: the size of the partial bitstream in 32 bit words.
  **/
 int buffer_icap_set_configuration(struct hwicap_drvdata *drvdata, u32 *data,
 			     u32 size)
@@ -333,10 +333,10 @@ int buffer_icap_set_configuration(struct hwicap_drvdata *drvdata, u32 *data,
 };
 
 /**
- * buffer_icap_get_configuration: Read configuration data from the device.
- * @parameter drvdata: a pointer to the drvdata.
- * @parameter data: Address of the data representing the partial bitstream
- * @parameter size: the size of the partial bitstream in 32 bit words.
+ * buffer_icap_get_configuration - Read configuration data from the device.
+ * @drvdata: a pointer to the drvdata.
+ * @data: Address of the data representing the partial bitstream
+ * @size: the size of the partial bitstream in 32 bit words.
  **/
 int buffer_icap_get_configuration(struct hwicap_drvdata *drvdata, u32 *data,
 			     u32 size)

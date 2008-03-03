@@ -285,6 +285,21 @@ struct nes_device {
 };
 
 
+static inline __le32 get_crc_value(struct nes_v4_quad *nes_quad)
+{
+	u32 crc_value;
+	crc_value = crc32c(~0, (void *)nes_quad, sizeof (struct nes_v4_quad));
+
+	/*
+	 * With commit ef19454b ("[LIB] crc32c: Keep intermediate crc
+	 * state in cpu order"), behavior of crc32c changes on
+	 * big-endian platforms.  Our algorithm expects the previous
+	 * behavior; otherwise we have RDMA connection establishment
+	 * issue on big-endian.
+	 */
+	return cpu_to_le32(crc_value);
+}
+
 static inline void
 set_wqe_64bit_value(__le32 *wqe_words, u32 index, u64 value)
 {

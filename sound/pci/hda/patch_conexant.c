@@ -1230,6 +1230,11 @@ static struct hda_verb cxt5047_toshiba_init_verbs[] = {
 static struct hda_verb cxt5047_hp_init_verbs[] = {
 	/* pin sensing on HP jack */
 	{0x13, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | CONEXANT_HP_EVENT},
+	/* 0x13 is actually shared by both HP and speaker;
+	 * setting the connection to 0 (=0x19) makes the master volume control
+	 * working mysteriouslly...
+	 */
+	{0x13, AC_VERB_SET_CONNECT_SEL, 0x0},
 	/* Record selector: Ext Mic */
 	{0x12, AC_VERB_SET_CONNECT_SEL,0x03},
 	{0x19, AC_VERB_SET_AMP_GAIN_MUTE,

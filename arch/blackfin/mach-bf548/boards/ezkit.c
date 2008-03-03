@@ -285,8 +285,8 @@ static struct mtd_partition partition_info[] = {
 	},
 	{
 		.name = "File System",
-		.offset = 4 * SIZE_1M,
-		.size = (256 - 4) * SIZE_1M,
+		.offset = MTDPART_OFS_APPEND,
+		.size = MTDPART_SIZ_FULL,
 	},
 };
 
@@ -333,7 +333,7 @@ static struct platform_device bf54x_sdh_device = {
 static struct mtd_partition ezkit_partitions[] = {
 	{
 		.name       = "Bootloader",
-		.size       = 0x20000,
+		.size       = 0x40000,
 		.offset     = 0,
 	}, {
 		.name       = "Kernel",
@@ -381,8 +381,8 @@ static struct mtd_partition bfin_spi_flash_partitions[] = {
 		.mask_flags = MTD_CAP_ROM
 	}, {
 		.name = "linux kernel",
-		.size = 0x1c0000,
-		.offset = 0x40000
+		.size = MTDPART_SIZ_FULL,
+		.offset = MTDPART_OFS_APPEND,
 	}
 };
 
@@ -594,6 +594,19 @@ static struct platform_device bfin_device_gpiokeys = {
 };
 #endif
 
+static struct resource bfin_gpios_resources = {
+	.start = 0,
+	.end   = MAX_BLACKFIN_GPIOS - 1,
+	.flags = IORESOURCE_IRQ,
+};
+
+static struct platform_device bfin_gpios_device = {
+	.name = "simple-gpio",
+	.id = -1,
+	.num_resources = 1,
+	.resource = &bfin_gpios_resources,
+};
+
 static struct platform_device *ezkit_devices[] __initdata = {
 #if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
 	&rtc_device,
@@ -646,6 +659,8 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
 	&bfin_device_gpiokeys,
 #endif
+
+	&bfin_gpios_device,
 	&ezkit_flash_device,
 };
 

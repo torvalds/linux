@@ -604,11 +604,13 @@ static inline void __switch_to_xtra(struct task_struct *prev_p,
 		memset(tss->io_bitmap, 0xff, prev->io_bitmap_max);
 	}
 
+#ifdef X86_BTS
 	if (test_tsk_thread_flag(prev_p, TIF_BTS_TRACE_TS))
 		ptrace_bts_take_timestamp(prev_p, BTS_TASK_DEPARTS);
 
 	if (test_tsk_thread_flag(next_p, TIF_BTS_TRACE_TS))
 		ptrace_bts_take_timestamp(next_p, BTS_TASK_ARRIVES);
+#endif
 }
 
 /*
