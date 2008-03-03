@@ -136,6 +136,8 @@ struct ixgbe_ring {
 	u16 head;
 	u16 tail;
 
+	unsigned int total_bytes;
+	unsigned int total_packets;
 
 	u16 reg_idx; /* holds the special value that gets the hardware register
 		      * offset associated with this ring, which is different
@@ -174,6 +176,8 @@ struct ixgbe_q_vector {
 	DECLARE_BITMAP(txr_idx, MAX_TX_QUEUES); /* Tx ring indices */
 	u8 rxr_count;     /* Rx ring count assigned to this vector */
 	u8 txr_count;     /* Tx ring count assigned to this vector */
+	u8 tx_eitr;
+	u8 rx_eitr;
 	u32 eitr;
 };
 
@@ -214,6 +218,11 @@ struct ixgbe_adapter {
 	struct work_struct reset_task;
 	struct ixgbe_q_vector q_vector[MAX_MSIX_Q_VECTORS];
 	char name[MAX_MSIX_COUNT][IFNAMSIZ + 5];
+
+	/* Interrupt Throttle Rate */
+	u32 itr_setting;
+	u16 eitr_low;
+	u16 eitr_high;
 
 	/* TX */
 	struct ixgbe_ring *tx_ring;	/* One per active queue */
