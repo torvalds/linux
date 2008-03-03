@@ -424,6 +424,7 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 	}
 
 	ac->ac_inode = alloc_inode;
+	ac->ac_alloc_slot = slot;
 
 	fe = (struct ocfs2_dinode *) bh->b_data;
 	if (!OCFS2_IS_VALID_DINODE(fe)) {

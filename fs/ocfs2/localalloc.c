@@ -523,6 +523,8 @@ int ocfs2_reserve_local_alloc_bits(struct ocfs2_super *osb,
 	}
 
 	ac->ac_inode = local_alloc_inode;
+	/* We should never use localalloc from another slot */
+	ac->ac_alloc_slot = osb->slot_num;
 	ac->ac_which = OCFS2_AC_USE_LOCAL;
 	get_bh(osb->local_alloc_bh);
 	ac->ac_bh = osb->local_alloc_bh;
