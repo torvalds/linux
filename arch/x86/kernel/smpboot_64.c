@@ -929,7 +929,7 @@ void __init smp_prepare_boot_cpu(void)
 /*
  * Entry point to boot a CPU.
  */
-int __cpuinit __cpu_up(unsigned int cpu)
+int __cpuinit native_cpu_up(unsigned int cpu)
 {
 	int apicid = cpu_present_to_apicid(cpu);
 	unsigned long flags;

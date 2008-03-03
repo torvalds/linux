@@ -47,10 +47,6 @@ static inline void smp_prepare_cpus(unsigned int max_cpus)
 {
 	smp_ops.smp_prepare_cpus(max_cpus);
 }
-static inline int __cpu_up(unsigned int cpu)
-{
-	return smp_ops.cpu_up(cpu);
-}
 static inline void smp_cpus_done(unsigned int max_cpus)
 {
 	smp_ops.smp_cpus_done(max_cpus);
@@ -63,7 +59,6 @@ static inline void smp_send_stop(void)
 
 void native_smp_prepare_boot_cpu(void);
 void native_smp_prepare_cpus(unsigned int max_cpus);
-int native_cpu_up(unsigned int cpunum);
 void native_smp_cpus_done(unsigned int max_cpus);
 
 #ifndef CONFIG_PARAVIRT

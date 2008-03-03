@@ -532,5 +532,6 @@ asmlinkage void smp_call_function_interrupt(void)
 struct smp_ops smp_ops = {
 	.smp_send_reschedule = native_smp_send_reschedule,
 	.smp_call_function_mask = native_smp_call_function_mask,
+	.cpu_up = native_cpu_up,
 };
 EXPORT_SYMBOL_GPL(smp_ops);

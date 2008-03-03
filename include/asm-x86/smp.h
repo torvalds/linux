@@ -24,6 +24,11 @@ struct smp_ops {
 #ifdef CONFIG_SMP
 extern struct smp_ops smp_ops;
 
+static inline int __cpu_up(unsigned int cpu)
+{
+	return smp_ops.cpu_up(cpu);
+}
+
 static inline void smp_send_reschedule(int cpu)
 {
 	smp_ops.smp_send_reschedule(cpu);
@@ -35,6 +40,8 @@ static inline int smp_call_function_mask(cpumask_t mask,
 {
 	return smp_ops.smp_call_function_mask(mask, func, info, wait);
 }
+
+int native_cpu_up(unsigned int cpunum);
 #endif
 
 #ifdef CONFIG_X86_32
