@@ -381,3 +381,10 @@ void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 }
 
 #endif
+
+int pmd_bad(pmd_t pmd)
+{
+	WARN_ON_ONCE(pmd_bad_v1(pmd) != pmd_bad_v2(pmd));
+
+	return pmd_bad_v1(pmd);
+}
