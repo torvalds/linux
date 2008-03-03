@@ -35,9 +35,6 @@ extern void cpu_uninit(void);
 extern void remove_siblinginfo(int cpu);
 #endif
 
-/* Globals due to paravirt */
-extern void set_cpu_sibling_map(int cpu);
-
 #ifdef CONFIG_SMP
 #ifndef CONFIG_PARAVIRT
 #define startup_ipi_hook(phys_apicid, start_eip, start_esp) do { } while (0)

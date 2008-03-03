@@ -22,6 +22,9 @@ struct smp_ops {
 				      int wait);
 };
 
+/* Globals due to paravirt */
+extern void set_cpu_sibling_map(int cpu);
+
 #ifdef CONFIG_SMP
 extern struct smp_ops smp_ops;
 
