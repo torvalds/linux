@@ -261,9 +261,9 @@ void __cpuinit start_secondary(void)
 	/*
 	 * Allow the master to continue.
 	 */
+	spin_unlock(&vector_lock);
 	cpu_set(smp_processor_id(), cpu_online_map);
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
-	spin_unlock(&vector_lock);
 
 	unlock_ipi_call_lock();
 
@@ -879,10 +879,8 @@ int __cpu_disable(void)
 	local_irq_disable();
 	remove_siblinginfo(cpu);
 
-	spin_lock(&vector_lock);
 	/* It's now safe to remove this processor from the online map */
 	cpu_clear(cpu, cpu_online_map);
-	spin_unlock(&vector_lock);
 	remove_cpu_from_maps();
 	fixup_irqs(cpu_online_map);
 	return 0;
