@@ -144,6 +144,15 @@ DECLARE_PER_CPU(struct cpuinfo_x86, cpu_info);
 #define current_cpu_data	boot_cpu_data
 #endif
 
+static inline int hlt_works(int cpu)
+{
+#ifdef CONFIG_X86_32
+	return cpu_data(cpu).hlt_works_ok;
+#else
+	return 1;
+#endif
+}
+
 #define cache_line_size()	(boot_cpu_data.x86_cache_alignment)
 
 extern void cpu_detect(struct cpuinfo_x86 *c);
