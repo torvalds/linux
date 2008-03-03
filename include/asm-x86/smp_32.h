@@ -38,20 +38,6 @@ extern void remove_siblinginfo(int cpu);
 /* Globals due to paravirt */
 extern void set_cpu_sibling_map(int cpu);
 
-struct smp_ops
-{
-	void (*smp_prepare_boot_cpu)(void);
-	void (*smp_prepare_cpus)(unsigned max_cpus);
-	int (*cpu_up)(unsigned cpu);
-	void (*smp_cpus_done)(unsigned max_cpus);
-
-	void (*smp_send_stop)(void);
-	void (*smp_send_reschedule)(int cpu);
-	int (*smp_call_function_mask)(cpumask_t mask,
-				      void (*func)(void *info), void *info,
-				      int wait);
-};
-
 #ifdef CONFIG_SMP
 extern struct smp_ops smp_ops;
 
