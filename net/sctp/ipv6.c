@@ -313,7 +313,8 @@ static void sctp_v6_get_saddr(struct sctp_association *asoc,
 			  __FUNCTION__, asoc, dst, NIP6(daddr->v6.sin6_addr));
 
 	if (!asoc) {
-		ipv6_get_saddr(dst, &daddr->v6.sin6_addr,&saddr->v6.sin6_addr);
+		ipv6_dev_get_saddr(dst ? ip6_dst_idev(dst)->dev : NULL,
+				   &daddr->v6.sin6_addr, &saddr->v6.sin6_addr);
 		SCTP_DEBUG_PRINTK("saddr from ipv6_get_saddr: " NIP6_FMT "\n",
 				  NIP6(saddr->v6.sin6_addr));
 		return;

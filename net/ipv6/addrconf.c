@@ -1167,14 +1167,7 @@ record_it:
 	return 0;
 }
 
-
-int ipv6_get_saddr(struct dst_entry *dst,
-		   struct in6_addr *daddr, struct in6_addr *saddr)
-{
-	return ipv6_dev_get_saddr(dst ? ip6_dst_idev(dst)->dev : NULL, daddr, saddr);
-}
-
-EXPORT_SYMBOL(ipv6_get_saddr);
+EXPORT_SYMBOL(ipv6_dev_get_saddr);
 
 int ipv6_get_lladdr(struct net_device *dev, struct in6_addr *addr,
 		    unsigned char banned_flags)
