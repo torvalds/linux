@@ -25,6 +25,11 @@ struct smp_ops {
 #ifdef CONFIG_SMP
 extern struct smp_ops smp_ops;
 
+static inline void smp_send_stop(void)
+{
+	smp_ops.smp_send_stop();
+}
+
 static inline void smp_prepare_boot_cpu(void)
 {
 	smp_ops.smp_prepare_boot_cpu();

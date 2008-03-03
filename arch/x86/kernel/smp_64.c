@@ -421,7 +421,7 @@ static void stop_this_cpu(void *dummy)
 	for (;;);
 }
 
-void smp_send_stop(void)
+void native_smp_send_stop(void)
 {
 	int nolock;
 	unsigned long flags;
@@ -482,6 +482,7 @@ struct smp_ops smp_ops = {
 	.smp_prepare_cpus = native_smp_prepare_cpus,
 	.smp_cpus_done = native_smp_cpus_done,
 
+	.smp_send_stop = native_smp_send_stop,
 	.smp_send_reschedule = native_smp_send_reschedule,
 	.smp_call_function_mask = native_smp_call_function_mask,
 	.cpu_up = native_cpu_up,
