@@ -29,7 +29,95 @@ EXPORT_PER_CPU_SYMBOL(cpu_core_map);
 /* Per CPU bogomips and other parameters */
 DEFINE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
+
+/* representing cpus for which sibling maps can be computed */
+static cpumask_t cpu_sibling_setup_map;
+
+void __cpuinit set_cpu_sibling_map(int cpu)
+{
+	int i;
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
+
+	cpu_set(cpu, cpu_sibling_setup_map);
+
+	if (smp_num_siblings > 1) {
+		for_each_cpu_mask(i, cpu_sibling_setup_map) {
+			if (c->phys_proc_id == cpu_data(i).phys_proc_id &&
+			    c->cpu_core_id == cpu_data(i).cpu_core_id) {
+				cpu_set(i, per_cpu(cpu_sibling_map, cpu));
+				cpu_set(cpu, per_cpu(cpu_sibling_map, i));
+				cpu_set(i, per_cpu(cpu_core_map, cpu));
+				cpu_set(cpu, per_cpu(cpu_core_map, i));
+				cpu_set(i, c->llc_shared_map);
+				cpu_set(cpu, cpu_data(i).llc_shared_map);
+			}
+		}
+	} else {
+		cpu_set(cpu, per_cpu(cpu_sibling_map, cpu));
+	}
+
+	cpu_set(cpu, c->llc_shared_map);
+
+	if (current_cpu_data.x86_max_cores == 1) {
+		per_cpu(cpu_core_map, cpu) = per_cpu(cpu_sibling_map, cpu);
+		c->booted_cores = 1;
+		return;
+	}
+
+	for_each_cpu_mask(i, cpu_sibling_setup_map) {
+		if (per_cpu(cpu_llc_id, cpu) != BAD_APICID &&
+		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i)) {
+			cpu_set(i, c->llc_shared_map);
+			cpu_set(cpu, cpu_data(i).llc_shared_map);
+		}
+		if (c->phys_proc_id == cpu_data(i).phys_proc_id) {
+			cpu_set(i, per_cpu(cpu_core_map, cpu));
+			cpu_set(cpu, per_cpu(cpu_core_map, i));
+			/*
+			 *  Does this new cpu bringup a new core?
+			 */
+			if (cpus_weight(per_cpu(cpu_sibling_map, cpu)) == 1) {
+				/*
+				 * for each core in package, increment
+				 * the booted_cores for this new cpu
+				 */
+				if (first_cpu(per_cpu(cpu_sibling_map, i)) == i)
+					c->booted_cores++;
+				/*
+				 * increment the core count for all
+				 * the other cpus in this package
+				 */
+				if (i != cpu)
+					cpu_data(i).booted_cores++;
+			} else if (i != cpu && !c->booted_cores)
+				c->booted_cores = cpu_data(i).booted_cores;
+		}
+	}
+}
+
 #ifdef CONFIG_HOTPLUG_CPU
+void remove_siblinginfo(int cpu)
+{
+	int sibling;
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
+
+	for_each_cpu_mask(sibling, per_cpu(cpu_core_map, cpu)) {
+		cpu_clear(cpu, per_cpu(cpu_core_map, sibling));
+		/*/
+		 * last thread sibling in this cpu core going down
+		 */
+		if (cpus_weight(per_cpu(cpu_sibling_map, cpu)) == 1)
+			cpu_data(sibling).booted_cores--;
+	}
+
+	for_each_cpu_mask(sibling, per_cpu(cpu_sibling_map, cpu))
+		cpu_clear(cpu, per_cpu(cpu_sibling_map, sibling));
+	cpus_clear(per_cpu(cpu_sibling_map, cpu));
+	cpus_clear(per_cpu(cpu_core_map, cpu));
+	c->phys_proc_id = 0;
+	c->cpu_core_id = 0;
+	cpu_clear(cpu, cpu_sibling_setup_map);
+}
 
 int additional_cpus __initdata = -1;
 
