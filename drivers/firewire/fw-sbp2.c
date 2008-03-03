@@ -122,7 +122,6 @@ static const char sbp2_driver_name[] = "sbp2";
 struct sbp2_logical_unit {
 	struct sbp2_target *tgt;
 	struct list_head link;
-	struct scsi_device *sdev;
 	struct fw_address_handler address_handler;
 	struct list_head orb_list;
 
@@ -139,6 +138,7 @@ struct sbp2_logical_unit {
 	int generation;
 	int retries;
 	struct delayed_work work;
+	bool has_sdev;
 	bool blocked;
 };
 
@@ -751,20 +751,34 @@ static void sbp2_unblock(struct sbp2_target *tgt)
 	scsi_unblock_requests(shost);
 }
 
+static int sbp2_lun2int(u16 lun)
+{
+	struct scsi_lun eight_bytes_lun;
+
+	memset(&eight_bytes_lun, 0, sizeof(eight_bytes_lun));
+	eight_bytes_lun.scsi_lun[0] = (lun >> 8) & 0xff;
+	eight_bytes_lun.scsi_lun[1] = lun & 0xff;
+
+	return scsilun_to_int(&eight_bytes_lun);
+}
+
 static void sbp2_release_target(struct kref *kref)
 {
 	struct sbp2_target *tgt = container_of(kref, struct sbp2_target, kref);
 	struct sbp2_logical_unit *lu, *next;
 	struct Scsi_Host *shost =
 		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
+	struct scsi_device *sdev;
+	struct fw_device *device = fw_device(tgt->unit->device.parent);
 
 	/* prevent deadlocks */
 	sbp2_unblock(tgt);
 
 	list_for_each_entry_safe(lu, next, &tgt->lu_list, link) {
-		if (lu->sdev) {
-			scsi_remove_device(lu->sdev);
-			scsi_device_put(lu->sdev);
+		sdev = scsi_device_lookup(shost, 0, 0, sbp2_lun2int(lu->lun));
+		if (sdev) {
+			scsi_remove_device(sdev);
+			scsi_device_put(sdev);
 		}
 		sbp2_send_management_orb(lu, tgt->node_id, lu->generation,
 				SBP2_LOGOUT_REQUEST, lu->login_id, NULL);
@@ -778,6 +792,7 @@ static void sbp2_release_target(struct kref *kref)
 
 	put_device(&tgt->unit->device);
 	scsi_host_put(shost);
+	fw_device_put(device);
 }
 
 static struct workqueue_struct *sbp2_wq;
@@ -807,7 +822,6 @@ static void sbp2_login(struct work_struct *work)
 	struct fw_device *device = fw_device(tgt->unit->device.parent);
 	struct Scsi_Host *shost;
 	struct scsi_device *sdev;
-	struct scsi_lun eight_bytes_lun;
 	struct sbp2_login_response response;
 	int generation, node_id, local_node_id;
 
@@ -820,7 +834,7 @@ static void sbp2_login(struct work_struct *work)
 	local_node_id = device->card->node_id;
 
 	/* If this is a re-login attempt, log out, or we might be rejected. */
-	if (lu->sdev)
+	if (lu->has_sdev)
 		sbp2_send_management_orb(lu, device->node_id, generation,
 				SBP2_LOGOUT_REQUEST, lu->login_id, NULL);
 
@@ -859,7 +873,7 @@ static void sbp2_login(struct work_struct *work)
 	sbp2_agent_reset(lu);
 
 	/* This was a re-login. */
-	if (lu->sdev) {
+	if (lu->has_sdev) {
 		sbp2_cancel_orbs(lu);
 		sbp2_conditionally_unblock(lu);
 		goto out;
@@ -868,13 +882,8 @@ static void sbp2_login(struct work_struct *work)
 	if (lu->tgt->workarounds & SBP2_WORKAROUND_DELAY_INQUIRY)
 		ssleep(SBP2_INQUIRY_DELAY);
 
-	memset(&eight_bytes_lun, 0, sizeof(eight_bytes_lun));
-	eight_bytes_lun.scsi_lun[0] = (lu->lun >> 8) & 0xff;
-	eight_bytes_lun.scsi_lun[1] = lu->lun & 0xff;
 	shost = container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
-
-	sdev = __scsi_add_device(shost, 0, 0,
-				 scsilun_to_int(&eight_bytes_lun), lu);
+	sdev = __scsi_add_device(shost, 0, 0, sbp2_lun2int(lu->lun), lu);
 	/*
 	 * FIXME:  We are unable to perform reconnects while in sbp2_login().
 	 * Therefore __scsi_add_device() will get into trouble if a bus reset
@@ -896,7 +905,8 @@ static void sbp2_login(struct work_struct *work)
 	}
 
 	/* No error during __scsi_add_device() */
-	lu->sdev = sdev;
+	lu->has_sdev = true;
+	scsi_device_put(sdev);
 	sbp2_allow_block(lu);
 	goto out;
 
@@ -934,11 +944,11 @@ static int sbp2_add_logical_unit(struct sbp2_target *tgt, int lun_entry)
 		return -ENOMEM;
 	}
 
-	lu->tgt  = tgt;
-	lu->sdev = NULL;
-	lu->lun  = lun_entry & 0xffff;
-	lu->retries = 0;
-	lu->blocked = false;
+	lu->tgt      = tgt;
+	lu->lun      = lun_entry & 0xffff;
+	lu->retries  = 0;
+	lu->has_sdev = false;
+	lu->blocked  = false;
 	++tgt->dont_block;
 	INIT_LIST_HEAD(&lu->orb_list);
 	INIT_DELAYED_WORK(&lu->work, sbp2_login);
@@ -1079,6 +1089,8 @@ static int sbp2_probe(struct device *dev)
 
 	if (scsi_add_host(shost, &unit->device) < 0)
 		goto fail_shost_put;
+
+	fw_device_get(device);
 
 	/* Initialize to values that won't match anything in our table. */
 	firmware_revision = 0xff000000;
