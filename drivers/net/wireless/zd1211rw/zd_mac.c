@@ -475,6 +475,46 @@ static void cs_set_control(struct zd_mac *mac, struct zd_ctrlset *cs,
 	/* FIXME: Management frame? */
 }
 
+void zd_mac_config_beacon(struct ieee80211_hw *hw, struct sk_buff *beacon)
+{
+	struct zd_mac *mac = zd_hw_mac(hw);
+	u32 tmp, j = 0;
+	/* 4 more bytes for tail CRC */
+	u32 full_len = beacon->len + 4;
+	zd_iowrite32(&mac->chip, CR_BCN_FIFO_SEMAPHORE, 0);
+	zd_ioread32(&mac->chip, CR_BCN_FIFO_SEMAPHORE, &tmp);
+	while (tmp & 0x2) {
+		zd_ioread32(&mac->chip, CR_BCN_FIFO_SEMAPHORE, &tmp);
+		if ((++j % 100) == 0) {
+			printk(KERN_ERR "CR_BCN_FIFO_SEMAPHORE not ready\n");
+			if (j >= 500)  {
+				printk(KERN_ERR "Giving up beacon config.\n");
+				return;
+			}
+		}
+		msleep(1);
+	}
+
+	zd_iowrite32(&mac->chip, CR_BCN_FIFO, full_len - 1);
+	if (zd_chip_is_zd1211b(&mac->chip))
+		zd_iowrite32(&mac->chip, CR_BCN_LENGTH, full_len - 1);
+
+	for (j = 0 ; j < beacon->len; j++)
+		zd_iowrite32(&mac->chip, CR_BCN_FIFO,
+				*((u8 *)(beacon->data + j)));
+
+	for (j = 0; j < 4; j++)
+		zd_iowrite32(&mac->chip, CR_BCN_FIFO, 0x0);
+
+	zd_iowrite32(&mac->chip, CR_BCN_FIFO_SEMAPHORE, 1);
+	/* 802.11b/g 2.4G CCK 1Mb
+	 * 802.11a, not yet implemented, uses different values (see GPL vendor
+	 * driver)
+	 */
+	zd_iowrite32(&mac->chip, CR_BCN_PLCP_CFG, 0x00000400 |
+			(full_len << 19));
+}
+
 static int fill_ctrlset(struct zd_mac *mac,
 			struct sk_buff *skb,
 			struct ieee80211_tx_control *control)
@@ -709,6 +749,7 @@ static int zd_op_add_interface(struct ieee80211_hw *hw,
 
 	switch (conf->type) {
 	case IEEE80211_IF_TYPE_MNTR:
+	case IEEE80211_IF_TYPE_MESH_POINT:
 	case IEEE80211_IF_TYPE_STA:
 		mac->type = conf->type;
 		break;
@@ -738,14 +779,42 @@ static int zd_op_config_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_if_conf *conf)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
+	int associated;
+
+	if (mac->type == IEEE80211_IF_TYPE_MESH_POINT) {
+		associated = true;
+		if (conf->beacon) {
+			zd_mac_config_beacon(hw, conf->beacon);
+			kfree_skb(conf->beacon);
+			zd_set_beacon_interval(&mac->chip, BCN_MODE_IBSS |
+					hw->conf.beacon_int);
+		}
+	} else
+		associated = is_valid_ether_addr(conf->bssid);
 
 	spin_lock_irq(&mac->lock);
-	mac->associated = is_valid_ether_addr(conf->bssid);
+	mac->associated = associated;
 	spin_unlock_irq(&mac->lock);
 
 	/* TODO: do hardware bssid filtering */
 	return 0;
 }
+
+void zd_process_intr(struct work_struct *work)
+{
+	u16 int_status;
+	struct zd_mac *mac = container_of(work, struct zd_mac, process_intr);
+
+	int_status = le16_to_cpu(*(u16 *)(mac->intr_buffer+4));
+	if (int_status & INT_CFG_NEXT_BCN) {
+		if (net_ratelimit())
+			dev_dbg_f(zd_mac_dev(mac), "INT_CFG_NEXT_BCN\n");
+	} else
+		dev_dbg_f(zd_mac_dev(mac), "Unsupported interrupt\n");
+
+	zd_chip_enable_hwint(&mac->chip);
+}
+
 
 static void set_multicast_hash_handler(struct work_struct *work)
 {
@@ -912,7 +981,8 @@ struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf)
 
 	hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &mac->band;
 
-	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS;
+	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
+		    IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE;
 	hw->max_rssi = 100;
 	hw->max_signal = 100;
 
@@ -926,6 +996,7 @@ struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf)
 	INIT_WORK(&mac->set_multicast_hash_work, set_multicast_hash_handler);
 	INIT_WORK(&mac->set_rts_cts_work, set_rts_cts_work);
 	INIT_WORK(&mac->set_rx_filter_work, set_rx_filter_handler);
+	INIT_WORK(&mac->process_intr, zd_process_intr);
 
 	SET_IEEE80211_DEV(hw, &intf->dev);
 	return hw;
