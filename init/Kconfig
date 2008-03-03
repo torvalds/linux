@@ -382,10 +382,11 @@ config SYSFS_DEPRECATED
 
 	  If enabled, this option will also move any device structures
 	  that belong to a class, back into the /sys/class hierarchy, in
-	  order to support older versions of udev.
+	  order to support older versions of udev and some userspace
+	  programs.
 
-	  If you are using a distro that was released in 2006 or later,
-	  it should be safe to say N here.
+	  If you are using a distro with the most recent userspace
+	  packages, it should be safe to say N here.
 
 config CGROUP_MEM_CONT
 	bool "Memory controller for cgroups"
