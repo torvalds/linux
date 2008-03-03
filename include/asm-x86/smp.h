@@ -2,6 +2,7 @@
 #define _ASM_X86_SMP_H_
 #ifndef __ASSEMBLY__
 #include <linux/cpumask.h>
+#include <linux/init.h>
 
 extern cpumask_t cpu_callout_map;
 
@@ -60,6 +61,8 @@ void native_smp_prepare_boot_cpu(void);
 void native_smp_prepare_cpus(unsigned int max_cpus);
 void native_smp_cpus_done(unsigned int max_cpus);
 int native_cpu_up(unsigned int cpunum);
+
+extern unsigned disabled_cpus;
 #endif
 
 #ifdef CONFIG_X86_32

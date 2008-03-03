@@ -44,7 +44,6 @@ static inline int cpu_present_to_apicid(int mps_cpu)
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 extern void prefill_possible_map(void);
-extern unsigned __cpuinitdata disabled_cpus;
 
 #define raw_smp_processor_id()	read_pda(cpunumber)
 #define cpu_physical_id(cpu)	per_cpu(x86_cpu_to_apicid, cpu)
