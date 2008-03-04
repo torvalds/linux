@@ -323,7 +323,7 @@ static struct platform_device bf5xx_nand_device = {
 };
 #endif
 
-#if defined(CONFIG_SDH_BFIN) || defined(CONFIG_SDH_BFIN)
+#if defined(CONFIG_SDH_BFIN) || defined(CONFIG_SDH_BFIN_MODULE)
 static struct platform_device bf54x_sdh_device = {
 	.name = "bfin-sdh",
 	.id = 0,
@@ -636,7 +636,7 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&bf5xx_nand_device,
 #endif
 
-#if defined(CONFIG_SDH_BFIN) || defined(CONFIG_SDH_BFIN)
+#if defined(CONFIG_SDH_BFIN) || defined(CONFIG_SDH_BFIN_MODULE)
 	&bf54x_sdh_device,
 #endif
 
