@@ -629,7 +629,36 @@ static int raid10_congested(void *data, int bits)
 	return ret;
 }
 
+static int flush_pending_writes(conf_t *conf)
+{
+	/* Any writes that have been queued but are awaiting
+	 * bitmap updates get flushed here.
+	 * We return 1 if any requests were actually submitted.
+	 */
+	int rv = 0;
 
+	spin_lock_irq(&conf->device_lock);
+
+	if (conf->pending_bio_list.head) {
+		struct bio *bio;
+		bio = bio_list_get(&conf->pending_bio_list);
+		blk_remove_plug(conf->mddev->queue);
+		spin_unlock_irq(&conf->device_lock);
+		/* flush any pending bitmap writes to disk
+		 * before proceeding w/ I/O */
+		bitmap_unplug(conf->mddev->bitmap);
+
+		while (bio) { /* submit pending writes */
+			struct bio *next = bio->bi_next;
+			bio->bi_next = NULL;
+			generic_make_request(bio);
+			bio = next;
+		}
+		rv = 1;
+	} else
+		spin_unlock_irq(&conf->device_lock);
+	return rv;
+}
 /* Barriers....
  * Sometimes we need to suspend IO while we do something else,
  * either some resync/recovery, or reconfigure the array.
@@ -720,7 +749,8 @@ static void freeze_array(conf_t *conf)
 	wait_event_lock_irq(conf->wait_barrier,
 			    conf->barrier+conf->nr_pending == conf->nr_queued+2,
 			    conf->resync_lock,
-			    raid10_unplug(conf->mddev->queue));
+			    ({ flush_pending_writes(conf);
+			       raid10_unplug(conf->mddev->queue); }));
 	spin_unlock_irq(&conf->resync_lock);
 }
 
@@ -891,6 +921,9 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	bio_list_merge(&conf->pending_bio_list, &bl);
 	blk_plug_device(mddev->queue);
 	spin_unlock_irqrestore(&conf->device_lock, flags);
+
+	/* In case raid10d snuck in to freeze_array */
+	wake_up(&conf->wait_barrier);
 
 	if (do_sync)
 		md_wakeup_thread(mddev->thread);
@@ -1464,28 +1497,14 @@ static void raid10d(mddev_t *mddev)
 
 	for (;;) {
 		char b[BDEVNAME_SIZE];
+
+		unplug += flush_pending_writes(conf);
+
 		spin_lock_irqsave(&conf->device_lock, flags);
-
-		if (conf->pending_bio_list.head) {
-			bio = bio_list_get(&conf->pending_bio_list);
-			blk_remove_plug(mddev->queue);
+		if (list_empty(head)) {
 			spin_unlock_irqrestore(&conf->device_lock, flags);
-			/* flush any pending bitmap writes to disk before proceeding w/ I/O */
-			bitmap_unplug(mddev->bitmap);
-
-			while (bio) { /* submit pending writes */
-				struct bio *next = bio->bi_next;
-				bio->bi_next = NULL;
-				generic_make_request(bio);
-				bio = next;
-			}
-			unplug = 1;
-
-			continue;
-		}
-
-		if (list_empty(head))
 			break;
+		}
 		r10_bio = list_entry(head->prev, r10bio_t, retry_list);
 		list_del(head->prev);
 		conf->nr_queued--;
@@ -1548,7 +1567,6 @@ static void raid10d(mddev_t *mddev)
 			}
 		}
 	}
-	spin_unlock_irqrestore(&conf->device_lock, flags);
 	if (unplug)
 		unplug_slaves(mddev);
 }
