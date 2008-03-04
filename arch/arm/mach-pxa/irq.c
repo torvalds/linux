@@ -178,73 +178,31 @@ static struct irq_chip pxa_low_gpio_chip = {
  * Demux handler for GPIO>=2 edge detect interrupts
  */
 
+#define GEDR_BITS	(sizeof(gedr) * BITS_PER_BYTE)
+
 static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
 {
-	unsigned int mask;
-	int loop;
+	int loop, bit, n;
+	unsigned long gedr[4];
 
 	do {
+		gedr[0] = GEDR0 & GPIO_IRQ_mask[0] & ~3;
+		gedr[1] = GEDR1 & GPIO_IRQ_mask[1];
+		gedr[2] = GEDR2 & GPIO_IRQ_mask[2];
+		gedr[3] = GEDR3 & GPIO_IRQ_mask[3];
+
+		GEDR0 = gedr[0]; GEDR1 = gedr[1];
+		GEDR2 = gedr[2]; GEDR3 = gedr[3];
+
 		loop = 0;
-
-		mask = GEDR0 & GPIO_IRQ_mask[0] & ~3;
-		if (mask) {
-			GEDR0 = mask;
-			irq = IRQ_GPIO(2);
-			desc = irq_desc + irq;
-			mask >>= 2;
-			do {
-				if (mask & 1)
-					desc_handle_irq(irq, desc);
-				irq++;
-				desc++;
-				mask >>= 1;
-			} while (mask);
+		bit = find_first_bit(gedr, GEDR_BITS);
+		while (bit < GEDR_BITS) {
 			loop = 1;
-		}
 
-		mask = GEDR1 & GPIO_IRQ_mask[1];
-		if (mask) {
-			GEDR1 = mask;
-			irq = IRQ_GPIO(32);
-			desc = irq_desc + irq;
-			do {
-				if (mask & 1)
-					desc_handle_irq(irq, desc);
-				irq++;
-				desc++;
-				mask >>= 1;
-			} while (mask);
-			loop = 1;
-		}
+			n = PXA_GPIO_IRQ_BASE + bit;
+			desc_handle_irq(n, irq_desc + n);
 
-		mask = GEDR2 & GPIO_IRQ_mask[2];
-		if (mask) {
-			GEDR2 = mask;
-			irq = IRQ_GPIO(64);
-			desc = irq_desc + irq;
-			do {
-				if (mask & 1)
-					desc_handle_irq(irq, desc);
-				irq++;
-				desc++;
-				mask >>= 1;
-			} while (mask);
-			loop = 1;
-		}
-
-		mask = GEDR3 & GPIO_IRQ_mask[3];
-		if (mask) {
-			GEDR3 = mask;
-			irq = IRQ_GPIO(96);
-			desc = irq_desc + irq;
-			do {
-				if (mask & 1)
-					desc_handle_irq(irq, desc);
-				irq++;
-				desc++;
-				mask >>= 1;
-			} while (mask);
-			loop = 1;
+			bit = find_next_bit(gedr, GEDR_BITS, bit + 1);
 		}
 	} while (loop);
 }
