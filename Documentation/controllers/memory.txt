@@ -1,4 +1,8 @@
-Memory Controller
+Memory Resource Controller
+
+NOTE: The Memory Resource Controller has been generically been referred
+to as the memory controller in this document. Do not confuse memory controller
+used here with the memory controller that is used in hardware.
 
 Salient features
 
@@ -152,7 +156,7 @@ The memory controller uses the following hierarchy
 
 a. Enable CONFIG_CGROUPS
 b. Enable CONFIG_RESOURCE_COUNTERS
-c. Enable CONFIG_CGROUP_MEM_CONT
+c. Enable CONFIG_CGROUP_MEM_RES_CTLR
 
 1. Prepare the cgroups
 # mkdir -p /cgroups

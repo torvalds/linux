@@ -25,7 +25,7 @@ struct page_cgroup;
 struct page;
 struct mm_struct;
 
-#ifdef CONFIG_CGROUP_MEM_CONT
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
 
 extern void mm_init_cgroup(struct mm_struct *mm, struct task_struct *p);
 extern void mm_free_cgroup(struct mm_struct *mm);
@@ -72,7 +72,7 @@ extern long mem_cgroup_calc_reclaim_active(struct mem_cgroup *mem,
 extern long mem_cgroup_calc_reclaim_inactive(struct mem_cgroup *mem,
 				struct zone *zone, int priority);
 
-#else /* CONFIG_CGROUP_MEM_CONT */
+#else /* CONFIG_CGROUP_MEM_RES_CTLR */
 static inline void mm_init_cgroup(struct mm_struct *mm,
 					struct task_struct *p)
 {
