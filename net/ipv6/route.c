@@ -1697,13 +1697,13 @@ struct rt6_info *rt6_add_dflt_router(struct in6_addr *gwaddr,
 	return rt6_get_dflt_router(gwaddr, dev);
 }
 
-void rt6_purge_dflt_routers(void)
+void rt6_purge_dflt_routers(struct net *net)
 {
 	struct rt6_info *rt;
 	struct fib6_table *table;
 
 	/* NOTE: Keep consistent with rt6_get_dflt_router */
-	table = fib6_get_table(&init_net, RT6_TABLE_DFLT);
+	table = fib6_get_table(net, RT6_TABLE_DFLT);
 	if (table == NULL)
 		return;
 

@@ -493,7 +493,7 @@ static void addrconf_fixup_forwarding(struct ctl_table *table, int *p, int old)
 		dev_forward_change((struct inet6_dev *)table->extra1);
 
 	if (*p)
-		rt6_purge_dflt_routers();
+		rt6_purge_dflt_routers(net);
 }
 #endif
 

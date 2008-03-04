@@ -95,7 +95,7 @@ extern struct rt6_info *	rt6_add_dflt_router(struct in6_addr *gwaddr,
 						    struct net_device *dev,
 						    unsigned int pref);
 
-extern void			rt6_purge_dflt_routers(void);
+extern void			rt6_purge_dflt_routers(struct net *net);
 
 extern int			rt6_route_rcv(struct net_device *dev,
 					      u8 *opt, int len,
