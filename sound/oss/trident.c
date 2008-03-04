@@ -3076,8 +3076,7 @@ ali_ac97_get(struct trident_card *card, int secondary, u8 reg)
 	u16 wcontrol;
 	unsigned long flags;
 
-	if (!card)
-		BUG();
+	BUG_ON(!card);
 
 	address = ALI_AC97_READ;
 	if (card->revision == ALI_5451_V02) {
@@ -3148,8 +3147,7 @@ ali_ac97_set(struct trident_card *card, int secondary, u8 reg, u16 val)
 
 	data = ((u32) val) << 16;
 
-	if (!card)
-		BUG();
+	BUG_ON(!card);
 
 	address = ALI_AC97_WRITE;
 	mask = ALI_AC97_WRITE_ACTION | ALI_AC97_AUDIO_BUSY;
@@ -3213,8 +3211,7 @@ ali_ac97_read(struct ac97_codec *codec, u8 reg)
 	struct trident_card *card = NULL;
 
 	/* Added by Matt Wu */
-	if (!codec)
-		BUG();
+	BUG_ON(!codec);
 
 	card = (struct trident_card *) codec->private_data;
 
@@ -3240,8 +3237,7 @@ ali_ac97_write(struct ac97_codec *codec, u8 reg, u16 val)
 	struct trident_card *card;
 
 	/*  Added by Matt Wu */
-	if (!codec)
-		BUG();
+	BUG_ON(!codec);
 
 	card = (struct trident_card *) codec->private_data;
 
