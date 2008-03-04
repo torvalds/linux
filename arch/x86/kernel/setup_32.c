@@ -64,6 +64,7 @@
 #include <setup_arch.h>
 #include <bios_ebda.h>
 #include <asm/cacheflush.h>
+#include <asm/processor.h>
 
 /* This value is set up by the early boot code to point to the value
    immediately after the boot time page tables.  It contains a *physical*
@@ -408,12 +409,8 @@ static void __init reserve_ebda_region(void)
 	/* that area is absent. We'll just have to assume */
 	/* that the paravirt case can handle memory setup */
 	/* correctly, without our help. */
-#ifdef CONFIG_PARAVIRT
-	if ((boot_params.hdr.version >= 0x207) &&
-			(boot_params.hdr.hardware_subarch != 0)) {
+	if (paravirt_enabled())
 		return;
-	}
-#endif
 
 	/* end of low (conventional) memory */
 	lowmem = *(unsigned short *)__va(BIOS_LOWMEM_KILOBYTES);
