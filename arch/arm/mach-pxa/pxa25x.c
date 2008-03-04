@@ -267,7 +267,7 @@ set_pwer:
 
 void __init pxa25x_init_irq(void)
 {
-	pxa_init_irq_low();
+	pxa_init_irq(32);
 	pxa_init_irq_gpio(85);
 	pxa_init_irq_set_wake(pxa25x_set_wake);
 }

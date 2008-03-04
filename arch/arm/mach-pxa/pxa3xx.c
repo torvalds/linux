@@ -513,8 +513,7 @@ void __init pxa3xx_init_irq(void)
 	value |= (1 << 6);
 	__asm__ __volatile__("mcr p15, 0, %0, c15, c1, 0\n": :"r"(value));
 
-	pxa_init_irq_low();
-	pxa_init_irq_high();
+	pxa_init_irq(56);
 	pxa_init_irq_gpio(128);
 	pxa3xx_init_irq_pm();
 }
@@ -538,10 +537,6 @@ static struct platform_device *devices[] __initdata = {
 
 static struct sys_device pxa3xx_sysdev[] = {
 	{
-		.id	= 0,
-		.cls	= &pxa_irq_sysclass,
-	}, {
-		.id	= 1,
 		.cls	= &pxa_irq_sysclass,
 	}, {
 		.cls	= &pxa_gpio_sysclass,

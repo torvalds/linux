@@ -1129,6 +1129,11 @@
 #define ICPR		__REG(0x40D00010)  /* Interrupt Controller Pending Register */
 #define ICCR		__REG(0x40D00014)  /* Interrupt Controller Control Register */
 
+#define ICIP2		__REG(0x40D0009C)  /* Interrupt Controller IRQ Pending Register 2 */
+#define ICMR2		__REG(0x40D000A0)  /* Interrupt Controller Mask Register 2 */
+#define ICLR2		__REG(0x40D000A4)  /* Interrupt Controller Level Register 2 */
+#define ICFP2		__REG(0x40D000A8)  /* Interrupt Controller FIQ Pending Register 2 */
+#define ICPR2		__REG(0x40D000AC)  /* Interrupt Controller Pending Register 2 */
 
 /*
  * General Purpose I/O
@@ -1199,12 +1204,6 @@
 #if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 
 /* Interrupt Controller */
-
-#define ICIP2		__REG(0x40D0009C)  /* Interrupt Controller IRQ Pending Register 2 */
-#define ICMR2		__REG(0x40D000A0)  /* Interrupt Controller Mask Register 2 */
-#define ICLR2		__REG(0x40D000A4)  /* Interrupt Controller Level Register 2 */
-#define ICFP2		__REG(0x40D000A8)  /* Interrupt Controller FIQ Pending Register 2 */
-#define ICPR2		__REG(0x40D000AC)  /* Interrupt Controller Pending Register 2 */
 
 #define _GPLR(x)	__REG2(0x40E00000, ((x) & 0x60) >> 3)
 #define _GPDR(x)	__REG2(0x40E0000C, ((x) & 0x60) >> 3)

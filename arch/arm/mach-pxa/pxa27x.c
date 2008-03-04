@@ -340,8 +340,7 @@ set_pwer:
 
 void __init pxa27x_init_irq(void)
 {
-	pxa_init_irq_low();
-	pxa_init_irq_high();
+	pxa_init_irq(34);
 	pxa_init_irq_gpio(128);
 	pxa_init_irq_set_wake(pxa27x_set_wake);
 }
@@ -389,10 +388,6 @@ static struct platform_device *devices[] __initdata = {
 
 static struct sys_device pxa27x_sysdev[] = {
 	{
-		.id	= 0,
-		.cls	= &pxa_irq_sysclass,
-	}, {
-		.id	= 1,
 		.cls	= &pxa_irq_sysclass,
 	}, {
 		.cls	= &pxa_gpio_sysclass,

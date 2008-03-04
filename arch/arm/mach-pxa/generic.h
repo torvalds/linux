@@ -12,8 +12,7 @@
 struct sys_timer;
 
 extern struct sys_timer pxa_timer;
-extern void __init pxa_init_irq_low(void);
-extern void __init pxa_init_irq_high(void);
+extern void __init pxa_init_irq(int irq_nr);
 extern void __init pxa_init_irq_gpio(int gpio_nr);
 extern void __init pxa_init_irq_set_wake(int (*set_wake)(unsigned int, unsigned int));
 extern void __init pxa_init_gpio_set_wake(int (*set_wake)(unsigned int, unsigned int));

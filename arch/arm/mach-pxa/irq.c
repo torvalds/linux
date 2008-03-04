@@ -24,92 +24,57 @@
 
 #include "generic.h"
 
+#define IRQ_BIT(n)	(((n) - PXA_IRQ(0)) & 0x1f)
+#define _ICMR(n)	(*((((n) - PXA_IRQ(0)) & ~0x1f) ? &ICMR2 : &ICMR))
+#define _ICLR(n)	(*((((n) - PXA_IRQ(0)) & ~0x1f) ? &ICLR2 : &ICLR))
 
 /*
  * This is for peripheral IRQs internal to the PXA chip.
  */
 
-static void pxa_mask_low_irq(unsigned int irq)
+static int pxa_internal_irq_nr;
+
+static void pxa_mask_irq(unsigned int irq)
 {
-	ICMR &= ~(1 << irq);
+	_ICMR(irq) &= ~(1 << IRQ_BIT(irq));
 }
 
-static void pxa_unmask_low_irq(unsigned int irq)
+static void pxa_unmask_irq(unsigned int irq)
 {
-	ICMR |= (1 << irq);
+	_ICMR(irq) |= 1 << IRQ_BIT(irq);
 }
 
-static struct irq_chip pxa_internal_chip_low = {
+static struct irq_chip pxa_internal_irq_chip = {
 	.name		= "SC",
-	.ack		= pxa_mask_low_irq,
-	.mask		= pxa_mask_low_irq,
-	.unmask		= pxa_unmask_low_irq,
+	.ack		= pxa_mask_irq,
+	.mask		= pxa_mask_irq,
+	.unmask		= pxa_unmask_irq,
 };
 
-void __init pxa_init_irq_low(void)
+void __init pxa_init_irq(int irq_nr)
 {
 	int irq;
 
-	/* disable all IRQs */
-	ICMR = 0;
+	pxa_internal_irq_nr = irq_nr;
 
-	/* all IRQs are IRQ, not FIQ */
-	ICLR = 0;
+	for (irq = 0; irq < irq_nr; irq += 32) {
+		_ICMR(irq) = 0;	/* disable all IRQs */
+		_ICLR(irq) = 0;	/* all IRQs are IRQ, not FIQ */
+	}
 
 	/* only unmasked interrupts kick us out of idle */
 	ICCR = 1;
 
-	for (irq = PXA_IRQ(0); irq <= PXA_IRQ(31); irq++) {
-		set_irq_chip(irq, &pxa_internal_chip_low);
+	for (irq = PXA_IRQ(0); irq < PXA_IRQ(irq_nr); irq++) {
+		set_irq_chip(irq, &pxa_internal_irq_chip);
 		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 }
-
-#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
-
-/*
- * This is for the second set of internal IRQs as found on the PXA27x.
- */
-
-static void pxa_mask_high_irq(unsigned int irq)
-{
-	ICMR2 &= ~(1 << (irq - 32));
-}
-
-static void pxa_unmask_high_irq(unsigned int irq)
-{
-	ICMR2 |= (1 << (irq - 32));
-}
-
-static struct irq_chip pxa_internal_chip_high = {
-	.name		= "SC-hi",
-	.ack		= pxa_mask_high_irq,
-	.mask		= pxa_mask_high_irq,
-	.unmask		= pxa_unmask_high_irq,
-};
-
-void __init pxa_init_irq_high(void)
-{
-	int irq;
-
-	ICMR2 = 0;
-	ICLR2 = 0;
-
-	for (irq = PXA_IRQ(32); irq < PXA_IRQ(64); irq++) {
-		set_irq_chip(irq, &pxa_internal_chip_high);
-		set_irq_handler(irq, handle_level_irq);
-		set_irq_flags(irq, IRQF_VALID);
-	}
-}
-#endif
 
 void __init pxa_init_irq_set_wake(int (*set_wake)(unsigned int, unsigned int))
 {
-	pxa_internal_chip_low.set_wake = set_wake;
-#ifdef CONFIG_PXA27x
-	pxa_internal_chip_high.set_wake = set_wake;
-#endif
+	pxa_internal_irq_chip.set_wake = set_wake;
 	pxa_init_gpio_set_wake(set_wake);
 }
 
@@ -118,19 +83,11 @@ static unsigned long saved_icmr[2];
 
 static int pxa_irq_suspend(struct sys_device *dev, pm_message_t state)
 {
-	switch (dev->id) {
-	case 0:
-		saved_icmr[0] = ICMR;
-		ICMR = 0;
-		break;
-#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
-	case 1:
-		saved_icmr[1] = ICMR2;
-		ICMR2 = 0;
-		break;
-#endif
-	default:
-		return -EINVAL;
+	int i, irq = PXA_IRQ(0);
+
+	for (i = 0; irq < PXA_IRQ(pxa_internal_irq_nr); i++, irq += 32) {
+		saved_icmr[i] = _ICMR(irq);
+		_ICMR(irq) = 0;
 	}
 
 	return 0;
@@ -138,22 +95,14 @@ static int pxa_irq_suspend(struct sys_device *dev, pm_message_t state)
 
 static int pxa_irq_resume(struct sys_device *dev)
 {
-	switch (dev->id) {
-	case 0:
-		ICMR = saved_icmr[0];
-		ICLR = 0;
-		ICCR = 1;
-		break;
-#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
-	case 1:
-		ICMR2 = saved_icmr[1];
-		ICLR2 = 0;
-		break;
-#endif
-	default:
-		return -EINVAL;
+	int i, irq = PXA_IRQ(0);
+
+	for (i = 0; irq < PXA_IRQ(pxa_internal_irq_nr); i++, irq += 32) {
+		_ICMR(irq) = saved_icmr[i];
+		_ICLR(irq) = 0;
 	}
 
+	ICCR = 1;
 	return 0;
 }
 #else
