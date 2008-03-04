@@ -864,8 +864,9 @@ static void qla4xxx_flush_active_srbs(struct scsi_qla_host *ha)
  * qla4xxx_recover_adapter - recovers adapter after a fatal error
  * @ha: Pointer to host adapter structure.
  * @renew_ddb_list: Indicates what to do with the adapter's ddb list
- *	after adapter recovery has completed.
- *	0=preserve ddb list, 1=destroy and rebuild ddb list
+ *
+ * renew_ddb_list value can be 0=preserve ddb list, 1=destroy and rebuild
+ * ddb list.
  **/
 static int qla4xxx_recover_adapter(struct scsi_qla_host *ha,
 				uint8_t renew_ddb_list)
@@ -874,6 +875,7 @@ static int qla4xxx_recover_adapter(struct scsi_qla_host *ha,
 
 	/* Stall incoming I/O until we are done */
 	clear_bit(AF_ONLINE, &ha->flags);
+
 	DEBUG2(printk("scsi%ld: %s calling qla4xxx_cmd_wait\n", ha->host_no,
 		      __func__));
 
@@ -1600,9 +1602,12 @@ static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd)
 		return FAILED;
 	}
 
-	if (qla4xxx_recover_adapter(ha, PRESERVE_DDB_LIST) == QLA_SUCCESS) {
+	/* make sure the dpc thread is stopped while we reset the hba */
+	clear_bit(AF_ONLINE, &ha->flags);
+	flush_workqueue(ha->dpc_thread);
+
+	if (qla4xxx_recover_adapter(ha, PRESERVE_DDB_LIST) == QLA_SUCCESS)
 		return_status = SUCCESS;
-	}
 
 	dev_info(&ha->pdev->dev, "HOST RESET %s.\n",
 		   return_status == FAILED ? "FAILED" : "SUCCEDED");
