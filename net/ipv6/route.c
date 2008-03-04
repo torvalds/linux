@@ -40,6 +40,7 @@
 #include <linux/if_arp.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/nsproxy.h>
 #include <net/net_namespace.h>
 #include <net/snmp.h>
 #include <net/ipv6.h>
@@ -995,7 +996,7 @@ static int ip6_dst_gc(struct dst_ops *ops)
 		goto out;
 
 	expire++;
-	fib6_run_gc(expire);
+	fib6_run_gc(expire, &init_net);
 	last_gc = now;
 	if (atomic_read(&ip6_dst_ops.entries) < ip6_dst_ops.gc_thresh)
 		expire = init_net.ipv6.sysctl.ip6_rt_gc_timeout>>1;
@@ -2413,10 +2414,11 @@ static
 int ipv6_sysctl_rtcache_flush(ctl_table *ctl, int write, struct file * filp,
 			      void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	int delay = init_net.ipv6.sysctl.flush_delay;
+	struct net *net = current->nsproxy->net_ns;
+	int delay = net->ipv6.sysctl.flush_delay;
 	if (write) {
 		proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
-		fib6_run_gc(delay <= 0 ? ~0UL : (unsigned long)delay);
+		fib6_run_gc(delay <= 0 ? ~0UL : (unsigned long)delay, net);
 		return 0;
 	} else
 		return -EINVAL;

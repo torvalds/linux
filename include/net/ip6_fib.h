@@ -209,7 +209,8 @@ extern int			fib6_del(struct rt6_info *rt,
 extern void			inet6_rt_notify(int event, struct rt6_info *rt,
 						struct nl_info *info);
 
-extern void			fib6_run_gc(unsigned long dummy);
+extern void			fib6_run_gc(unsigned long expires,
+					    struct net *net);
 
 extern void			fib6_gc_cleanup(void);
 

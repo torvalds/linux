@@ -93,7 +93,10 @@ static int fib6_walk_continue(struct fib6_walker_t *w);
 
 static __u32 rt_sernum;
 
-static DEFINE_TIMER(ip6_fib_timer, fib6_run_gc, 0, 0);
+static void fib6_gc_timer_cb(unsigned long arg);
+
+static DEFINE_TIMER(ip6_fib_timer, fib6_gc_timer_cb, 0,
+		    (unsigned long)&init_net);
 
 static struct fib6_walker_t fib6_walker_list = {
 	.prev	= &fib6_walker_list,
@@ -1432,12 +1435,12 @@ static int fib6_age(struct rt6_info *rt, void *arg)
 
 static DEFINE_SPINLOCK(fib6_gc_lock);
 
-void fib6_run_gc(unsigned long dummy)
+void fib6_run_gc(unsigned long expires, struct net *net)
 {
-	if (dummy != ~0UL) {
+	if (expires != ~0UL) {
 		spin_lock_bh(&fib6_gc_lock);
-		gc_args.timeout = dummy ? (int)dummy :
-			init_net.ipv6.sysctl.ip6_rt_gc_interval;
+		gc_args.timeout = expires ? (int)expires :
+			net->ipv6.sysctl.ip6_rt_gc_interval;
 	} else {
 		local_bh_disable();
 		if (!spin_trylock(&fib6_gc_lock)) {
@@ -1445,22 +1448,27 @@ void fib6_run_gc(unsigned long dummy)
 			local_bh_enable();
 			return;
 		}
-		gc_args.timeout = init_net.ipv6.sysctl.ip6_rt_gc_interval;
+		gc_args.timeout = net->ipv6.sysctl.ip6_rt_gc_interval;
 	}
 	gc_args.more = 0;
 
 	icmp6_dst_gc(&gc_args.more);
 
-	fib6_clean_all(&init_net, fib6_age, 0, NULL);
+	fib6_clean_all(net, fib6_age, 0, NULL);
 
 	if (gc_args.more)
 		mod_timer(&ip6_fib_timer, jiffies +
-			  init_net.ipv6.sysctl.ip6_rt_gc_interval);
+			  net->ipv6.sysctl.ip6_rt_gc_interval);
 	else {
 		del_timer(&ip6_fib_timer);
 		ip6_fib_timer.expires = 0;
 	}
 	spin_unlock_bh(&fib6_gc_lock);
+}
+
+static void fib6_gc_timer_cb(unsigned long arg)
+{
+	fib6_run_gc(0, (struct net *)arg);
 }
 
 static int fib6_net_init(struct net *net)
