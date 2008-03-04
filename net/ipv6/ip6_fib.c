@@ -66,6 +66,7 @@ enum fib_walk_state_t
 struct fib6_cleaner_t
 {
 	struct fib6_walker_t w;
+	struct net *net;
 	int (*func)(struct rt6_info *, void *arg);
 	void *arg;
 };
@@ -78,7 +79,8 @@ static DEFINE_RWLOCK(fib6_walker_lock);
 #define FWS_INIT FWS_L
 #endif
 
-static void fib6_prune_clones(struct fib6_node *fn, struct rt6_info *rt);
+static void fib6_prune_clones(struct net *net, struct fib6_node *fn,
+			      struct rt6_info *rt);
 static struct rt6_info * fib6_find_prefix(struct fib6_node *fn);
 static struct fib6_node * fib6_repair_tree(struct fib6_node *fn);
 static int fib6_walk(struct fib6_walker_t *w);
@@ -762,7 +764,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info)
 	if (err == 0) {
 		fib6_start_gc(info->nl_net, rt);
 		if (!(rt->rt6i_flags&RTF_CACHE))
-			fib6_prune_clones(pn, rt);
+			fib6_prune_clones(info->nl_net, pn, rt);
 	}
 
 out:
@@ -1168,7 +1170,7 @@ int fib6_del(struct rt6_info *rt, struct nl_info *info)
 			pn = pn->parent;
 		}
 #endif
-		fib6_prune_clones(pn, rt);
+		fib6_prune_clones(info->nl_net, pn, rt);
 	}
 
 	/*
@@ -1298,12 +1300,12 @@ static int fib6_walk(struct fib6_walker_t *w)
 
 static int fib6_clean_node(struct fib6_walker_t *w)
 {
-	struct nl_info info = {
-		.nl_net = &init_net,
-	};
 	int res;
 	struct rt6_info *rt;
 	struct fib6_cleaner_t *c = container_of(w, struct fib6_cleaner_t, w);
+	struct nl_info info = {
+		.nl_net = c->net,
+	};
 
 	for (rt = w->leaf; rt; rt = rt->u.dst.rt6_next) {
 		res = c->func(rt, c->arg);
@@ -1335,7 +1337,7 @@ static int fib6_clean_node(struct fib6_walker_t *w)
  *	ignoring pure split nodes) will be scanned.
  */
 
-static void fib6_clean_tree(struct fib6_node *root,
+static void fib6_clean_tree(struct net *net, struct fib6_node *root,
 			    int (*func)(struct rt6_info *, void *arg),
 			    int prune, void *arg)
 {
@@ -1346,6 +1348,7 @@ static void fib6_clean_tree(struct fib6_node *root,
 	c.w.prune = prune;
 	c.func = func;
 	c.arg = arg;
+	c.net = net;
 
 	fib6_walk(&c.w);
 }
@@ -1363,7 +1366,8 @@ void fib6_clean_all(struct net *net, int (*func)(struct rt6_info *, void *arg),
 		head = &net->ipv6.fib_table_hash[h];
 		hlist_for_each_entry_rcu(table, node, head, tb6_hlist) {
 			write_lock_bh(&table->tb6_lock);
-			fib6_clean_tree(&table->tb6_root, func, prune, arg);
+			fib6_clean_tree(net, &table->tb6_root,
+					func, prune, arg);
 			write_unlock_bh(&table->tb6_lock);
 		}
 	}
@@ -1380,9 +1384,10 @@ static int fib6_prune_clone(struct rt6_info *rt, void *arg)
 	return 0;
 }
 
-static void fib6_prune_clones(struct fib6_node *fn, struct rt6_info *rt)
+static void fib6_prune_clones(struct net *net, struct fib6_node *fn,
+			      struct rt6_info *rt)
 {
-	fib6_clean_tree(fn, fib6_prune_clone, 1, rt);
+	fib6_clean_tree(net, fn, fib6_prune_clone, 1, rt);
 }
 
 /*
