@@ -665,14 +665,14 @@ void mem_cgroup_uncharge_page(struct page *page)
 		page_assign_page_cgroup(page, NULL);
 		unlock_page_cgroup(page);
 
-		mem = pc->mem_cgroup;
-		css_put(&mem->css);
-		res_counter_uncharge(&mem->res, PAGE_SIZE);
-
 		mz = page_cgroup_zoneinfo(pc);
 		spin_lock_irqsave(&mz->lru_lock, flags);
 		__mem_cgroup_remove_list(pc);
 		spin_unlock_irqrestore(&mz->lru_lock, flags);
+
+		mem = pc->mem_cgroup;
+		res_counter_uncharge(&mem->res, PAGE_SIZE);
+		css_put(&mem->css);
 
 		kfree(pc);
 		return;
@@ -774,9 +774,9 @@ retry:
 		if (page_get_page_cgroup(page) == pc) {
 			page_assign_page_cgroup(page, NULL);
 			unlock_page_cgroup(page);
-			css_put(&mem->css);
-			res_counter_uncharge(&mem->res, PAGE_SIZE);
 			__mem_cgroup_remove_list(pc);
+			res_counter_uncharge(&mem->res, PAGE_SIZE);
+			css_put(&mem->css);
 			kfree(pc);
 		} else {
 			/* racing uncharge: let page go then retry */
