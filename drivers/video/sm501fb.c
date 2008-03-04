@@ -286,13 +286,13 @@ static int sm501fb_check_var(struct fb_var_screeninfo *var,
 
 	case 16:
 		if (sm->pdata->flags & SM501_FBPD_SWAP_FB_ENDIAN) {
-			var->red.offset		= 11;
-			var->green.offset	= 5;
-			var->blue.offset	= 0;
-		} else {
 			var->blue.offset	= 11;
 			var->green.offset	= 5;
 			var->red.offset		= 0;
+		} else {
+			var->red.offset		= 11;
+			var->green.offset	= 5;
+			var->blue.offset	= 0;
 		}
 
 		var->red.length		= 5;
