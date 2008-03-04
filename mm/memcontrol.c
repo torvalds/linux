@@ -407,11 +407,13 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
 /*
  * This routine assumes that the appropriate zone's lru lock is already held
  */
-void mem_cgroup_move_lists(struct page_cgroup *pc, bool active)
+void mem_cgroup_move_lists(struct page *page, bool active)
 {
+	struct page_cgroup *pc;
 	struct mem_cgroup_per_zone *mz;
 	unsigned long flags;
 
+	pc = page_get_page_cgroup(page);
 	if (!pc)
 		return;
 
