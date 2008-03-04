@@ -2354,11 +2354,13 @@ static const struct file_operations ipv6_route_proc_fops = {
 static int rt6_stats_seq_show(struct seq_file *seq, void *v)
 {
 	seq_printf(seq, "%04x %04x %04x %04x %04x %04x %04x\n",
-		      rt6_stats->fib_nodes, rt6_stats->fib_route_nodes,
-		      rt6_stats->fib_rt_alloc, rt6_stats->fib_rt_entries,
-		      rt6_stats->fib_rt_cache,
-		      atomic_read(&ip6_dst_ops.entries),
-		      rt6_stats->fib_discarded_routes);
+		   init_net.ipv6.rt6_stats->fib_nodes,
+		   init_net.ipv6.rt6_stats->fib_route_nodes,
+		   init_net.ipv6.rt6_stats->fib_rt_alloc,
+		   init_net.ipv6.rt6_stats->fib_rt_entries,
+		   init_net.ipv6.rt6_stats->fib_rt_cache,
+		   atomic_read(&ip6_dst_ops.entries),
+		   init_net.ipv6.rt6_stats->fib_discarded_routes);
 
 	return 0;
 }

@@ -48,8 +48,6 @@
 #define RT6_TRACE(x...) do { ; } while (0)
 #endif
 
-struct rt6_statistics *rt6_stats;
-
 static struct kmem_cache * fib6_node_kmem __read_mostly;
 
 enum fib_walk_state_t
@@ -653,10 +651,10 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 	rt->rt6i_node = fn;
 	atomic_inc(&rt->rt6i_ref);
 	inet6_rt_notify(RTM_NEWROUTE, rt, info);
-	rt6_stats->fib_rt_entries++;
+	info->nl_net->ipv6.rt6_stats->fib_rt_entries++;
 
 	if ((fn->fn_flags & RTN_RTINFO) == 0) {
-		rt6_stats->fib_route_nodes++;
+		info->nl_net->ipv6.rt6_stats->fib_route_nodes++;
 		fn->fn_flags |= RTN_RTINFO;
 	}
 
@@ -1087,14 +1085,15 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 {
 	struct fib6_walker_t *w;
 	struct rt6_info *rt = *rtp;
+	struct net *net = info->nl_net;
 
 	RT6_TRACE("fib6_del_route\n");
 
 	/* Unlink it */
 	*rtp = rt->u.dst.rt6_next;
 	rt->rt6i_node = NULL;
-	rt6_stats->fib_rt_entries--;
-	rt6_stats->fib_discarded_routes++;
+	net->ipv6.rt6_stats->fib_rt_entries--;
+	net->ipv6.rt6_stats->fib_discarded_routes++;
 
 	/* Reset round-robin state, if necessary */
 	if (fn->rr_ptr == rt)
@@ -1117,7 +1116,7 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 	/* If it was last route, expunge its radix tree node */
 	if (fn->leaf == NULL) {
 		fn->fn_flags &= ~RTN_RTINFO;
-		rt6_stats->fib_route_nodes--;
+		net->ipv6.rt6_stats->fib_route_nodes--;
 		fn = fib6_repair_tree(fn);
 	}
 
@@ -1486,11 +1485,15 @@ static int fib6_net_init(struct net *net)
 	setup_timer(timer, fib6_gc_timer_cb, (unsigned long)net);
 	net->ipv6.ip6_fib_timer = timer;
 
+	net->ipv6.rt6_stats = kzalloc(sizeof(*net->ipv6.rt6_stats), GFP_KERNEL);
+	if (!net->ipv6.rt6_stats)
+		goto out_timer;
+
 	net->ipv6.fib_table_hash =
 		kzalloc(sizeof(*net->ipv6.fib_table_hash)*FIB_TABLE_HASHSZ,
 			GFP_KERNEL);
 	if (!net->ipv6.fib_table_hash)
-		goto out_timer;
+		goto out_rt6_stats;
 
 	net->ipv6.fib6_main_tbl = kzalloc(sizeof(*net->ipv6.fib6_main_tbl),
 					  GFP_KERNEL);
@@ -1524,6 +1527,8 @@ out_fib6_main_tbl:
 #endif
 out_fib_table_hash:
 	kfree(net->ipv6.fib_table_hash);
+out_rt6_stats:
+	kfree(net->ipv6.rt6_stats);
 out_timer:
 	kfree(timer);
 	goto out;
@@ -1538,6 +1543,7 @@ static void fib6_net_exit(struct net *net)
 #endif
 	kfree(net->ipv6.fib6_main_tbl);
 	kfree(net->ipv6.fib_table_hash);
+	kfree(net->ipv6.rt6_stats);
 }
 
 static struct pernet_operations fib6_net_ops = {
@@ -1556,14 +1562,9 @@ int __init fib6_init(void)
 	if (!fib6_node_kmem)
 		goto out;
 
-	ret = -ENOMEM;
-	rt6_stats = kzalloc(sizeof(*rt6_stats), GFP_KERNEL);
-	if (!rt6_stats)
-		goto out_kmem_cache_create;
-
 	ret = register_pernet_subsys(&fib6_net_ops);
 	if (ret)
-		goto out_rt6_stats;
+		goto out_kmem_cache_create;
 
 	ret = __rtnl_register(PF_INET6, RTM_GETROUTE, NULL, inet6_dump_fib);
 	if (ret)
@@ -1573,8 +1574,6 @@ out:
 
 out_unregister_subsys:
 	unregister_pernet_subsys(&fib6_net_ops);
-out_rt6_stats:
-	kfree(rt6_stats);
 out_kmem_cache_create:
 	kmem_cache_destroy(fib6_node_kmem);
 	goto out;
@@ -1583,6 +1582,5 @@ out_kmem_cache_create:
 void fib6_gc_cleanup(void)
 {
 	unregister_pernet_subsys(&fib6_net_ops);
-	kfree(rt6_stats);
 	kmem_cache_destroy(fib6_node_kmem);
 }
