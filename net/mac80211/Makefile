@@ -44,9 +44,7 @@ mac80211-$(CONFIG_MAC80211_MESH) += \
 
 
 # Build rate control algorithm(s)
-CFLAGS_rc80211_simple.o += -DRC80211_SIMPLE_COMPILE
 CFLAGS_rc80211_pid_algo.o += -DRC80211_PID_COMPILE
-mac80211-$(CONFIG_MAC80211_RC_SIMPLE) += rc80211_simple.o
 mac80211-$(CONFIG_MAC80211_RC_PID) += $(rc-pid-$(CONFIG_MAC80211_RC_PID))
 
 # Modular rate algorithms are assigned to mac80211-m - make separate modules
