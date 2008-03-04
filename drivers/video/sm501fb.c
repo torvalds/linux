@@ -397,7 +397,7 @@ static int sm501fb_set_par_common(struct fb_info *info,
 		break;
 
 	case 16:
-		info->fix.visual = FB_VISUAL_DIRECTCOLOR;
+		info->fix.visual = FB_VISUAL_TRUECOLOR;
 		break;
 
 	case 32:
@@ -613,6 +613,7 @@ static int sm501fb_set_par_crt(struct fb_info *info)
 
 	case 16:
 		control |= SM501_DC_CRT_CONTROL_16BPP;
+		sm501fb_setup_gamma(fbi, SM501_DC_CRT_PALETTE);
 		break;
 
 	case 32:
@@ -750,6 +751,7 @@ static int sm501fb_set_par_pnl(struct fb_info *info)
 
 	case 16:
 		control |= SM501_DC_PANEL_CONTROL_16BPP;
+		sm501fb_setup_gamma(fbi, SM501_DC_PANEL_PALETTE);
 		break;
 
 	case 32:
