@@ -88,10 +88,12 @@ static void		ip6_link_failure(struct sk_buff *skb);
 static void		ip6_rt_update_pmtu(struct dst_entry *dst, u32 mtu);
 
 #ifdef CONFIG_IPV6_ROUTE_INFO
-static struct rt6_info *rt6_add_route_info(struct in6_addr *prefix, int prefixlen,
+static struct rt6_info *rt6_add_route_info(struct net *net,
+					   struct in6_addr *prefix, int prefixlen,
 					   struct in6_addr *gwaddr, int ifindex,
 					   unsigned pref);
-static struct rt6_info *rt6_get_route_info(struct in6_addr *prefix, int prefixlen,
+static struct rt6_info *rt6_get_route_info(struct net *net,
+					   struct in6_addr *prefix, int prefixlen,
 					   struct in6_addr *gwaddr, int ifindex);
 #endif
 
@@ -442,6 +444,7 @@ static struct rt6_info *rt6_select(struct fib6_node *fn, int oif, int strict)
 int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 		  struct in6_addr *gwaddr)
 {
+	struct net *net = dev->nd_net;
 	struct route_info *rinfo = (struct route_info *) opt;
 	struct in6_addr prefix_buf, *prefix;
 	unsigned int pref;
@@ -489,7 +492,8 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 		prefix = &prefix_buf;
 	}
 
-	rt = rt6_get_route_info(prefix, rinfo->prefix_len, gwaddr, dev->ifindex);
+	rt = rt6_get_route_info(net, prefix, rinfo->prefix_len, gwaddr,
+				dev->ifindex);
 
 	if (rt && !lifetime) {
 		ip6_del_rt(rt);
@@ -497,7 +501,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 	}
 
 	if (!rt && lifetime)
-		rt = rt6_add_route_info(prefix, rinfo->prefix_len, gwaddr, dev->ifindex,
+		rt = rt6_add_route_info(net, prefix, rinfo->prefix_len, gwaddr, dev->ifindex,
 					pref);
 	else if (rt)
 		rt->rt6i_flags = RTF_ROUTEINFO |
@@ -1588,14 +1592,15 @@ static struct rt6_info * ip6_rt_copy(struct rt6_info *ort)
 }
 
 #ifdef CONFIG_IPV6_ROUTE_INFO
-static struct rt6_info *rt6_get_route_info(struct in6_addr *prefix, int prefixlen,
+static struct rt6_info *rt6_get_route_info(struct net *net,
+					   struct in6_addr *prefix, int prefixlen,
 					   struct in6_addr *gwaddr, int ifindex)
 {
 	struct fib6_node *fn;
 	struct rt6_info *rt = NULL;
 	struct fib6_table *table;
 
-	table = fib6_get_table(&init_net, RT6_TABLE_INFO);
+	table = fib6_get_table(net, RT6_TABLE_INFO);
 	if (table == NULL)
 		return NULL;
 
@@ -1619,7 +1624,8 @@ out:
 	return rt;
 }
 
-static struct rt6_info *rt6_add_route_info(struct in6_addr *prefix, int prefixlen,
+static struct rt6_info *rt6_add_route_info(struct net *net,
+					   struct in6_addr *prefix, int prefixlen,
 					   struct in6_addr *gwaddr, int ifindex,
 					   unsigned pref)
 {
@@ -1630,6 +1636,9 @@ static struct rt6_info *rt6_add_route_info(struct in6_addr *prefix, int prefixle
 		.fc_dst_len	= prefixlen,
 		.fc_flags	= RTF_GATEWAY | RTF_ADDRCONF | RTF_ROUTEINFO |
 				  RTF_UP | RTF_PREF(pref),
+		.fc_nlinfo.pid = 0,
+		.fc_nlinfo.nlh = NULL,
+		.fc_nlinfo.nl_net = net,
 	};
 
 	ipv6_addr_copy(&cfg.fc_dst, prefix);
@@ -1641,7 +1650,7 @@ static struct rt6_info *rt6_add_route_info(struct in6_addr *prefix, int prefixle
 
 	ip6_route_add(&cfg);
 
-	return rt6_get_route_info(prefix, prefixlen, gwaddr, ifindex);
+	return rt6_get_route_info(net, prefix, prefixlen, gwaddr, ifindex);
 }
 #endif
 
