@@ -654,7 +654,7 @@ static void TIChasePort(struct edgeport_port *port, unsigned long timeout, int f
 	/* (TIIsTxActive doesn't seem to wait for the last byte) */
 	if ((baud_rate=port->baud_rate) == 0)
 		baud_rate = 50;
-	msleep(max(1,(10000+baud_rate-1)/baud_rate));
+	msleep(max(1, DIV_ROUND_UP(10000, baud_rate)));
 }
 
 static int TIChooseConfiguration (struct usb_device *dev)

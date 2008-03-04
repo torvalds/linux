@@ -960,9 +960,9 @@ static void prepare_packet_read(struct r8a66597 *r8a66597,
 				r8a66597_write(r8a66597, TRCLR,
 						td->pipe->pipetre);
 				r8a66597_write(r8a66597,
-						(urb->transfer_buffer_length
-						+ td->maxpacket - 1)
-						/ td->maxpacket,
+						DIV_ROUND_UP
+						  (urb->transfer_buffer_length,
+						   td->maxpacket),
 						td->pipe->pipetrn);
 				r8a66597_bset(r8a66597, TRENB,
 						td->pipe->pipetre);

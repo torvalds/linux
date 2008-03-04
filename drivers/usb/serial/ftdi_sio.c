@@ -1406,7 +1406,7 @@ static void ftdi_write_bulk_callback (struct urb *urb)
 	data_offset = priv->write_offset;
 	if (data_offset > 0) {
 		/* Subtract the control bytes */
-		countback -= (data_offset * ((countback + (PKTSZ - 1)) / PKTSZ));
+		countback -= (data_offset * DIV_ROUND_UP(countback, PKTSZ));
 	}
 	spin_lock_irqsave(&priv->tx_lock, flags);
 	--priv->tx_outstanding_urbs;
@@ -1506,7 +1506,7 @@ static void ftdi_read_bulk_callback (struct urb *urb)
 
 	/* count data bytes, but not status bytes */
 	countread = urb->actual_length;
-	countread -= 2 * ((countread + (PKTSZ - 1)) / PKTSZ);
+	countread -= 2 * DIV_ROUND_UP(countread, PKTSZ);
 	spin_lock_irqsave(&priv->rx_lock, flags);
 	priv->rx_bytes += countread;
 	spin_unlock_irqrestore(&priv->rx_lock, flags);

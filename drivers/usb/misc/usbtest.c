@@ -1404,7 +1404,7 @@ static struct urb *iso_alloc_urb (
 		return NULL;
 	maxp = 0x7ff & le16_to_cpu(desc->wMaxPacketSize);
 	maxp *= 1 + (0x3 & (le16_to_cpu(desc->wMaxPacketSize) >> 11));
-	packets = (bytes + maxp - 1) / maxp;
+	packets = DIV_ROUND_UP(bytes, maxp);
 
 	urb = usb_alloc_urb (packets, GFP_KERNEL);
 	if (!urb)
