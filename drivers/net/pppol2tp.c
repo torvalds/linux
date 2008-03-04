@@ -455,6 +455,7 @@ static void pppol2tp_recv_dequeue(struct pppol2tp_session *session)
 			       skb_queue_len(&session->reorder_q));
 			__skb_unlink(skb, &session->reorder_q);
 			kfree_skb(skb);
+			sock_put(session->sock);
 			continue;
 		}
 
