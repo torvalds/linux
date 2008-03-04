@@ -835,7 +835,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 		smp_mb();
 		if (buffer_dirty(bh)) {
 			list_add(&bh->b_assoc_buffers,
-				 &bh->b_assoc_map->private_list);
+				 &mapping->private_list);
 			bh->b_assoc_map = mapping;
 		}
 		spin_unlock(lock);
