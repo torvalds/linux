@@ -296,8 +296,10 @@ static int gather_surplus_pages(int delta)
 	int needed, allocated;
 
 	needed = (resv_huge_pages + delta) - free_huge_pages;
-	if (needed <= 0)
+	if (needed <= 0) {
+		resv_huge_pages += delta;
 		return 0;
+	}
 
 	allocated = 0;
 	INIT_LIST_HEAD(&surplus_list);
@@ -335,9 +337,12 @@ retry:
 	 * The surplus_list now contains _at_least_ the number of extra pages
 	 * needed to accomodate the reservation.  Add the appropriate number
 	 * of pages to the hugetlb pool and free the extras back to the buddy
-	 * allocator.
+	 * allocator.  Commit the entire reservation here to prevent another
+	 * process from stealing the pages as they are added to the pool but
+	 * before they are reserved.
 	 */
 	needed += allocated;
+	resv_huge_pages += delta;
 	ret = 0;
 free:
 	list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
@@ -370,6 +375,9 @@ static void return_unused_surplus_pages(unsigned long unused_resv_pages)
 	static int nid = -1;
 	struct page *page;
 	unsigned long nr_pages;
+
+	/* Uncommit the reservation */
+	resv_huge_pages -= unused_resv_pages;
 
 	nr_pages = min(unused_resv_pages, surplus_huge_pages);
 
@@ -1205,12 +1213,13 @@ static int hugetlb_acct_memory(long delta)
 		if (gather_surplus_pages(delta) < 0)
 			goto out;
 
-		if (delta > cpuset_mems_nr(free_huge_pages_node))
+		if (delta > cpuset_mems_nr(free_huge_pages_node)) {
+			return_unused_surplus_pages(delta);
 			goto out;
+		}
 	}
 
 	ret = 0;
-	resv_huge_pages += delta;
 	if (delta < 0)
 		return_unused_surplus_pages((unsigned long) -delta);
 
