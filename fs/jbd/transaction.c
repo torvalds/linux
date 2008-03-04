@@ -369,7 +369,7 @@ out:
 
 
 /**
- * int journal_restart() - restart a handle .
+ * int journal_restart() - restart a handle.
  * @handle:  handle to restart
  * @nblocks: nr credits requested
  *
@@ -844,8 +844,7 @@ out:
 }
 
 /**
- * int journal_get_undo_access() -  Notify intent to modify metadata with
- *     non-rewindable consequences
+ * int journal_get_undo_access() - Notify intent to modify metadata with non-rewindable consequences
  * @handle: transaction
  * @bh: buffer to undo
  * @credits: store the number of taken credits here (if not NULL)
@@ -921,11 +920,13 @@ out:
 }
 
 /**
- * int journal_dirty_data() -  mark a buffer as containing dirty data which
- *                             needs to be flushed before we can commit the
- *                             current transaction.
+ * int journal_dirty_data() - mark a buffer as containing dirty data to be flushed
  * @handle: transaction
  * @bh: bufferhead to mark
+ *
+ * Description:
+ * Mark a buffer as containing dirty data which needs to be flushed before
+ * we can commit the current transaction.
  *
  * The buffer is placed on the transaction's data list and is marked as
  * belonging to the transaction.
@@ -1098,11 +1099,11 @@ no_journal:
 }
 
 /**
- * int journal_dirty_metadata() -  mark a buffer as containing dirty metadata
+ * int journal_dirty_metadata() - mark a buffer as containing dirty metadata
  * @handle: transaction to add buffer to.
  * @bh: buffer to mark
  *
- * mark dirty metadata which needs to be journaled as part of the current
+ * Mark dirty metadata which needs to be journaled as part of the current
  * transaction.
  *
  * The buffer is placed on the transaction's metadata list and is marked

@@ -48,9 +48,9 @@ struct hwicap_drvdata {
 	u8 write_buffer[4];
 	u32 read_buffer_in_use;	  /* Always in [0,3] */
 	u8 read_buffer[4];
-	u32 mem_start;		  /* phys. address of the control registers */
-	u32 mem_end;		  /* phys. address of the control registers */
-	u32 mem_size;
+	resource_size_t mem_start;/* phys. address of the control registers */
+	resource_size_t mem_end;  /* phys. address of the control registers */
+	resource_size_t mem_size;
 	void __iomem *base_address;/* virt. address of the control registers */
 
 	struct device *dev;
@@ -61,7 +61,7 @@ struct hwicap_drvdata {
 	const struct config_registers *config_regs;
 	void *private_data;
 	bool is_open;
-	struct semaphore sem;
+	struct mutex sem;
 };
 
 struct hwicap_driver_config {
@@ -164,29 +164,29 @@ struct config_registers {
 #define XHI_DISABLED_AUTO_CRC       0x0000DEFCUL
 
 /**
- * hwicap_type_1_read: Generates a Type 1 read packet header.
- * @parameter: Register is the address of the register to be read back.
+ * hwicap_type_1_read - Generates a Type 1 read packet header.
+ * @reg: is the address of the register to be read back.
  *
  * Generates a Type 1 read packet header, which is used to indirectly
  * read registers in the configuration logic.  This packet must then
  * be sent through the icap device, and a return packet received with
  * the information.
  **/
-static inline u32 hwicap_type_1_read(u32 Register)
+static inline u32 hwicap_type_1_read(u32 reg)
 {
 	return (XHI_TYPE_1 << XHI_TYPE_SHIFT) |
-		(Register << XHI_REGISTER_SHIFT) |
+		(reg << XHI_REGISTER_SHIFT) |
 		(XHI_OP_READ << XHI_OP_SHIFT);
 }
 
 /**
- * hwicap_type_1_write: Generates a Type 1 write packet header
- * @parameter: Register is the address of the register to be read back.
+ * hwicap_type_1_write - Generates a Type 1 write packet header
+ * @reg: is the address of the register to be read back.
  **/
-static inline u32 hwicap_type_1_write(u32 Register)
+static inline u32 hwicap_type_1_write(u32 reg)
 {
 	return (XHI_TYPE_1 << XHI_TYPE_SHIFT) |
-		(Register << XHI_REGISTER_SHIFT) |
+		(reg << XHI_REGISTER_SHIFT) |
 		(XHI_OP_WRITE << XHI_OP_SHIFT);
 }
 

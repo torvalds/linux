@@ -99,8 +99,7 @@ struct usb_interface *usb_ifnum_to_if(const struct usb_device *dev,
 EXPORT_SYMBOL_GPL(usb_ifnum_to_if);
 
 /**
- * usb_altnum_to_altsetting - get the altsetting structure with a given
- *	alternate setting number.
+ * usb_altnum_to_altsetting - get the altsetting structure with a given alternate setting number.
  * @intf: the interface containing the altsetting in question
  * @altnum: the desired alternate setting number
  *
@@ -442,8 +441,7 @@ EXPORT_SYMBOL_GPL(usb_put_intf);
  */
 
 /**
- * usb_lock_device_for_reset - cautiously acquire the lock for a
- *	usb device structure
+ * usb_lock_device_for_reset - cautiously acquire the lock for a usb device structure
  * @udev: device that's being locked
  * @iface: interface bound to the driver making the request (optional)
  *
