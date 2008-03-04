@@ -6,7 +6,9 @@ and sync so that events like out of disk space get reported properly on
 cached files. Fix setxattr failure to certain Samba versions. Fix mount
 of second share to disconnected server session (autoreconnect on this).
 Add ability to modify cifs acls for handling chmod (when mounted with
-cifsacl flag).
+cifsacl flag). Fix prefixpath path separator so we can handle mounts
+with prefixpaths longer than one directory (one path component) when
+mounted to Windows servers.
 
 Version 1.51
 ------------

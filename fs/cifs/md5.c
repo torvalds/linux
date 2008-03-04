@@ -161,7 +161,7 @@ MD5Final(unsigned char digest[16], struct MD5Context *ctx)
 
 /* This is the central step in the MD5 algorithm. */
 #define MD5STEP(f, w, x, y, z, data, s) \
-	( w += f(x, y, z) + data,  w = w<<s | w>>(32-s),  w += x )
+	(w += f(x, y, z) + data,  w = w<<s | w>>(32-s),  w += x)
 
 /*
  * The core of the MD5 algorithm, this alters an existing MD5 hash to
@@ -302,9 +302,8 @@ hmac_md5_init_limK_to_64(const unsigned char *key, int key_len,
 	int i;
 
 	/* if key is longer than 64 bytes truncate it */
-	if (key_len > 64) {
+	if (key_len > 64)
 		key_len = 64;
-	}
 
 	/* start out by storing key in pads */
 	memset(ctx->k_ipad, 0, sizeof(ctx->k_ipad));
@@ -359,9 +358,9 @@ hmac_md5(unsigned char key[16], unsigned char *data, int data_len,
 {
 	struct HMACMD5Context ctx;
 	hmac_md5_init_limK_to_64(key, 16, &ctx);
-	if (data_len != 0) {
+	if (data_len != 0)
 		hmac_md5_update(data, data_len, &ctx);
-	}
+
 	hmac_md5_final(digest, &ctx);
 }
 #endif
