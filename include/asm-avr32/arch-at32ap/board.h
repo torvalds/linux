@@ -38,9 +38,7 @@ struct platform_device *
 at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
 		     unsigned long fbmem_start, unsigned long fbmem_len);
 
-struct usba_platform_data {
-	int vbus_pin;
-};
+struct usba_platform_data;
 struct platform_device *
 at32_add_device_usba(unsigned int id, struct usba_platform_data *data);
 

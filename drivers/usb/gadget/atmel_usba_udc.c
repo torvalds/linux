@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/atmel_usba_udc.h>
 #include <linux/delay.h>
 
 #include <asm/gpio.h>
@@ -27,6 +28,7 @@
 
 
 static struct usba_udc the_udc;
+static struct usba_ep *usba_ep;
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 #include <linux/debugfs.h>
@@ -982,33 +984,6 @@ static const struct usb_gadget_ops usba_udc_ops = {
 	.set_selfpowered	= usba_udc_set_selfpowered,
 };
 
-#define EP(nam, idx, maxpkt, maxbk, dma, isoc)			\
-{								\
-	.ep	= {						\
-		.ops		= &usba_ep_ops,			\
-		.name		= nam,				\
-		.maxpacket	= maxpkt,			\
-	},							\
-	.udc		= &the_udc,				\
-	.queue		= LIST_HEAD_INIT(usba_ep[idx].queue),	\
-	.fifo_size	= maxpkt,				\
-	.nr_banks	= maxbk,				\
-	.index		= idx,					\
-	.can_dma	= dma,					\
-	.can_isoc	= isoc,					\
-}
-
-static struct usba_ep usba_ep[] = {
-	EP("ep0",     0,   64, 1, 0, 0),
-	EP("ep1",     1,  512, 2, 1, 1),
-	EP("ep2",     2,  512, 2, 1, 1),
-	EP("ep3-int", 3,   64, 3, 1, 0),
-	EP("ep4-int", 4,   64, 3, 1, 0),
-	EP("ep5",     5, 1024, 3, 1, 1),
-	EP("ep6",     6, 1024, 3, 1, 1),
-};
-#undef EP
-
 static struct usb_endpoint_descriptor usba_ep0_desc = {
 	.bLength = USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType = USB_DT_ENDPOINT,
@@ -1027,7 +1002,6 @@ static void nop_release(struct device *dev)
 static struct usba_udc the_udc = {
 	.gadget	= {
 		.ops		= &usba_udc_ops,
-		.ep0		= &usba_ep[0].ep,
 		.ep_list	= LIST_HEAD_INIT(the_udc.gadget.ep_list),
 		.is_dualspeed	= 1,
 		.name		= "atmel_usba_udc",
@@ -1861,7 +1835,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, CTRL_IOMEM_ID);
 	fifo = platform_get_resource(pdev, IORESOURCE_MEM, FIFO_IOMEM_ID);
-	if (!regs || !fifo)
+	if (!regs || !fifo || !pdata)
 		return -ENXIO;
 
 	irq = platform_get_irq(pdev, 0);
@@ -1909,16 +1883,44 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 	usba_writel(udc, CTRL, 0);
 	clk_disable(pclk);
 
+	usba_ep = kmalloc(sizeof(struct usba_ep) * pdata->num_ep,
+			  GFP_KERNEL);
+	if (!usba_ep)
+		goto err_alloc_ep;
+
+	the_udc.gadget.ep0 = &usba_ep[0].ep;
+
 	INIT_LIST_HEAD(&usba_ep[0].ep.ep_list);
 	usba_ep[0].ep_regs = udc->regs + USBA_EPT_BASE(0);
 	usba_ep[0].dma_regs = udc->regs + USBA_DMA_BASE(0);
 	usba_ep[0].fifo = udc->fifo + USBA_FIFO_BASE(0);
-	for (i = 1; i < ARRAY_SIZE(usba_ep); i++) {
+	usba_ep[0].ep.ops = &usba_ep_ops;
+	usba_ep[0].ep.name = pdata->ep[0].name;
+	usba_ep[0].ep.maxpacket = pdata->ep[0].fifo_size;
+	usba_ep[0].udc = &the_udc;
+	INIT_LIST_HEAD(&usba_ep[0].queue);
+	usba_ep[0].fifo_size = pdata->ep[0].fifo_size;
+	usba_ep[0].nr_banks = pdata->ep[0].nr_banks;
+	usba_ep[0].index = pdata->ep[0].index;
+	usba_ep[0].can_dma = pdata->ep[0].can_dma;
+	usba_ep[0].can_isoc = pdata->ep[0].can_isoc;
+
+	for (i = 1; i < pdata->num_ep; i++) {
 		struct usba_ep *ep = &usba_ep[i];
 
 		ep->ep_regs = udc->regs + USBA_EPT_BASE(i);
 		ep->dma_regs = udc->regs + USBA_DMA_BASE(i);
 		ep->fifo = udc->fifo + USBA_FIFO_BASE(i);
+		ep->ep.ops = &usba_ep_ops;
+		ep->ep.name = pdata->ep[i].name;
+		ep->ep.maxpacket = pdata->ep[i].fifo_size;
+		ep->udc = &the_udc;
+		INIT_LIST_HEAD(&ep->queue);
+		ep->fifo_size = pdata->ep[i].fifo_size;
+		ep->nr_banks = pdata->ep[i].nr_banks;
+		ep->index = pdata->ep[i].index;
+		ep->can_dma = pdata->ep[i].can_dma;
+		ep->can_isoc = pdata->ep[i].can_isoc;
 
 		list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
 	}
@@ -1937,7 +1939,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 		goto err_device_add;
 	}
 
-	if (pdata && pdata->vbus_pin >= 0) {
+	if (pdata->vbus_pin >= 0) {
 		if (!gpio_request(pdata->vbus_pin, "atmel_usba_udc")) {
 			udc->vbus_pin = pdata->vbus_pin;
 
@@ -1957,7 +1959,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 	}
 
 	usba_init_debugfs(udc);
-	for (i = 1; i < ARRAY_SIZE(usba_ep); i++)
+	for (i = 1; i < pdata->num_ep; i++)
 		usba_ep_init_debugfs(udc, &usba_ep[i]);
 
 	return 0;
@@ -1965,6 +1967,8 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 err_device_add:
 	free_irq(irq, udc);
 err_request_irq:
+	kfree(usba_ep);
+err_alloc_ep:
 	iounmap(udc->fifo);
 err_map_fifo:
 	iounmap(udc->regs);
@@ -1982,10 +1986,11 @@ static int __exit usba_udc_remove(struct platform_device *pdev)
 {
 	struct usba_udc *udc;
 	int i;
+	struct usba_platform_data *pdata = pdev->dev.platform_data;
 
 	udc = platform_get_drvdata(pdev);
 
-	for (i = 1; i < ARRAY_SIZE(usba_ep); i++)
+	for (i = 1; i < pdata->num_ep; i++)
 		usba_ep_cleanup_debugfs(&usba_ep[i]);
 	usba_cleanup_debugfs(udc);
 
