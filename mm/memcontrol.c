@@ -623,13 +623,13 @@ retry:
 		goto retry;
 	}
 	page_assign_page_cgroup(page, pc);
-	unlock_page_cgroup(page);
 
 	mz = page_cgroup_zoneinfo(pc);
 	spin_lock_irqsave(&mz->lru_lock, flags);
 	__mem_cgroup_add_list(pc);
 	spin_unlock_irqrestore(&mz->lru_lock, flags);
 
+	unlock_page_cgroup(page);
 done:
 	return 0;
 out:
@@ -677,13 +677,13 @@ void mem_cgroup_uncharge_page(struct page *page)
 	VM_BUG_ON(pc->ref_cnt <= 0);
 
 	if (--(pc->ref_cnt) == 0) {
-		page_assign_page_cgroup(page, NULL);
-		unlock_page_cgroup(page);
-
 		mz = page_cgroup_zoneinfo(pc);
 		spin_lock_irqsave(&mz->lru_lock, flags);
 		__mem_cgroup_remove_list(pc);
 		spin_unlock_irqrestore(&mz->lru_lock, flags);
+
+		page_assign_page_cgroup(page, NULL);
+		unlock_page_cgroup(page);
 
 		mem = pc->mem_cgroup;
 		res_counter_uncharge(&mem->res, PAGE_SIZE);
@@ -736,23 +736,24 @@ void mem_cgroup_page_migration(struct page *page, struct page *newpage)
 		return;
 	}
 
-	page_assign_page_cgroup(page, NULL);
-	unlock_page_cgroup(page);
-
 	mz = page_cgroup_zoneinfo(pc);
 	spin_lock_irqsave(&mz->lru_lock, flags);
 	__mem_cgroup_remove_list(pc);
 	spin_unlock_irqrestore(&mz->lru_lock, flags);
 
+	page_assign_page_cgroup(page, NULL);
+	unlock_page_cgroup(page);
+
 	pc->page = newpage;
 	lock_page_cgroup(newpage);
 	page_assign_page_cgroup(newpage, pc);
-	unlock_page_cgroup(newpage);
 
 	mz = page_cgroup_zoneinfo(pc);
 	spin_lock_irqsave(&mz->lru_lock, flags);
 	__mem_cgroup_add_list(pc);
 	spin_unlock_irqrestore(&mz->lru_lock, flags);
+
+	unlock_page_cgroup(newpage);
 }
 
 /*
