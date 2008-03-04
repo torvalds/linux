@@ -293,6 +293,23 @@ void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
 EXPORT_SYMBOL(blk_queue_stack_limits);
 
 /**
+ * blk_queue_dma_pad - set pad mask
+ * @q:     the request queue for the device
+ * @mask:  pad mask
+ *
+ * Set pad mask.  Direct IO requests are padded to the mask specified.
+ *
+ * Appending pad buffer to a request modifies ->data_len such that it
+ * includes the pad buffer.  The original requested data length can be
+ * obtained using blk_rq_raw_data_len().
+ **/
+void blk_queue_dma_pad(struct request_queue *q, unsigned int mask)
+{
+	q->dma_pad_mask = mask;
+}
+EXPORT_SYMBOL(blk_queue_dma_pad);
+
+/**
  * blk_queue_dma_drain - Set up a drain buffer for excess dma.
  * @q:  the request queue for the device
  * @dma_drain_needed: fn which returns non-zero if drain is necessary
