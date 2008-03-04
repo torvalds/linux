@@ -106,9 +106,6 @@ void b43_dummy_transmission(struct b43_wldev *dev);
 
 void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags);
 
-void b43_mac_suspend(struct b43_wldev *dev);
-void b43_mac_enable(struct b43_wldev *dev);
-
 void b43_controller_restart(struct b43_wldev *dev, const char *reason);
 
 #define B43_PS_ENABLED	(1 << 0)	/* Force enable hardware power saving */
