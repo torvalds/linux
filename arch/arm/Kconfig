@@ -12,6 +12,7 @@ config ARM
 	select SYS_SUPPORTS_APM_EMULATION
 	select HAVE_OPROFILE
 	select HAVE_KPROBES if (!XIP_KERNEL)
+	select HAVE_KRETPROBES if (HAVE_KPROBES)
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and

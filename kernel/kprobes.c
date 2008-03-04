@@ -678,8 +678,7 @@ void __kprobes unregister_jprobe(struct jprobe *jp)
 	unregister_kprobe(&jp->kp);
 }
 
-#ifdef ARCH_SUPPORTS_KRETPROBES
-
+#ifdef CONFIG_KRETPROBES
 /*
  * This kprobe pre_handler is registered with every kretprobe. When probe
  * hits it will set up the return probe.
@@ -769,8 +768,7 @@ int __kprobes register_kretprobe(struct kretprobe *rp)
 	return ret;
 }
 
-#else /* ARCH_SUPPORTS_KRETPROBES */
-
+#else /* CONFIG_KRETPROBES */
 int __kprobes register_kretprobe(struct kretprobe *rp)
 {
 	return -ENOSYS;
@@ -781,8 +779,7 @@ static int __kprobes pre_handler_kretprobe(struct kprobe *p,
 {
 	return 0;
 }
-
-#endif /* ARCH_SUPPORTS_KRETPROBES */
+#endif /* CONFIG_KRETPROBES */
 
 void __kprobes unregister_kretprobe(struct kretprobe *rp)
 {
