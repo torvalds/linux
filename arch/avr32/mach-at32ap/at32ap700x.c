@@ -2048,16 +2048,7 @@ struct clk *at32_clock_list[] = {
 };
 unsigned int at32_nr_clocks = ARRAY_SIZE(at32_clock_list);
 
-void __init at32_portmux_init(void)
-{
-	at32_init_pio(&pio0_device);
-	at32_init_pio(&pio1_device);
-	at32_init_pio(&pio2_device);
-	at32_init_pio(&pio3_device);
-	at32_init_pio(&pio4_device);
-}
-
-void __init at32_clock_init(void)
+void __init setup_platform(void)
 {
 	u32 cpu_mask = 0, hsb_mask = 0, pba_mask = 0, pbb_mask = 0;
 	int i;
@@ -2112,4 +2103,11 @@ void __init at32_clock_init(void)
 	pm_writel(HSB_MASK, hsb_mask);
 	pm_writel(PBA_MASK, pba_mask);
 	pm_writel(PBB_MASK, pbb_mask);
+
+	/* Initialize the port muxes */
+	at32_init_pio(&pio0_device);
+	at32_init_pio(&pio1_device);
+	at32_init_pio(&pio2_device);
+	at32_init_pio(&pio3_device);
+	at32_init_pio(&pio4_device);
 }
