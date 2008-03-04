@@ -36,6 +36,11 @@ struct netns_ipv6 {
 	struct xt_table		*ip6table_mangle;
 	struct xt_table		*ip6table_raw;
 #endif
+	struct hlist_head       *fib_table_hash;
+	struct fib6_table       *fib6_main_tbl;
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+	struct fib6_table       *fib6_local_tbl;
+#endif
 	struct sock		**icmp_sk;
 };
 #endif

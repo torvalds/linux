@@ -571,7 +571,7 @@ struct rt6_info *rt6_lookup(struct in6_addr *daddr, struct in6_addr *saddr,
 		flags |= RT6_LOOKUP_F_HAS_SADDR;
 	}
 
-	dst = fib6_rule_lookup(&fl, flags, ip6_pol_route_lookup);
+	dst = fib6_rule_lookup(&init_net, &fl, flags, ip6_pol_route_lookup);
 	if (dst->error == 0)
 		return (struct rt6_info *) dst;
 
@@ -758,7 +758,7 @@ void ip6_route_input(struct sk_buff *skb)
 	if (rt6_need_strict(&iph->daddr))
 		flags |= RT6_LOOKUP_F_IFACE;
 
-	skb->dst = fib6_rule_lookup(&fl, flags, ip6_pol_route_input);
+	skb->dst = fib6_rule_lookup(&init_net, &fl, flags, ip6_pol_route_input);
 }
 
 static struct rt6_info *ip6_pol_route_output(struct fib6_table *table,
@@ -777,7 +777,7 @@ struct dst_entry * ip6_route_output(struct sock *sk, struct flowi *fl)
 	if (!ipv6_addr_any(&fl->fl6_src))
 		flags |= RT6_LOOKUP_F_HAS_SADDR;
 
-	return fib6_rule_lookup(fl, flags, ip6_pol_route_output);
+	return fib6_rule_lookup(&init_net, fl, flags, ip6_pol_route_output);
 }
 
 EXPORT_SYMBOL(ip6_route_output);
@@ -1069,7 +1069,7 @@ int ip6_route_add(struct fib6_config *cfg)
 	if (cfg->fc_metric == 0)
 		cfg->fc_metric = IP6_RT_PRIO_USER;
 
-	table = fib6_new_table(cfg->fc_table);
+	table = fib6_new_table(&init_net, cfg->fc_table);
 	if (table == NULL) {
 		err = -ENOBUFS;
 		goto out;
@@ -1275,7 +1275,7 @@ static int ip6_route_del(struct fib6_config *cfg)
 	struct rt6_info *rt;
 	int err = -ESRCH;
 
-	table = fib6_get_table(cfg->fc_table);
+	table = fib6_get_table(&init_net, cfg->fc_table);
 	if (table == NULL)
 		return err;
 
@@ -1390,7 +1390,9 @@ static struct rt6_info *ip6_route_redirect(struct in6_addr *dest,
 	if (rt6_need_strict(dest))
 		flags |= RT6_LOOKUP_F_IFACE;
 
-	return (struct rt6_info *)fib6_rule_lookup((struct flowi *)&rdfl, flags, __ip6_route_redirect);
+	return (struct rt6_info *)fib6_rule_lookup(&init_net,
+						   (struct flowi *)&rdfl,
+						   flags, __ip6_route_redirect);
 }
 
 void rt6_redirect(struct in6_addr *dest, struct in6_addr *src,
@@ -1589,7 +1591,7 @@ static struct rt6_info *rt6_get_route_info(struct in6_addr *prefix, int prefixle
 	struct rt6_info *rt = NULL;
 	struct fib6_table *table;
 
-	table = fib6_get_table(RT6_TABLE_INFO);
+	table = fib6_get_table(&init_net, RT6_TABLE_INFO);
 	if (table == NULL)
 		return NULL;
 
@@ -1644,7 +1646,7 @@ struct rt6_info *rt6_get_dflt_router(struct in6_addr *addr, struct net_device *d
 	struct rt6_info *rt;
 	struct fib6_table *table;
 
-	table = fib6_get_table(RT6_TABLE_DFLT);
+	table = fib6_get_table(&init_net, RT6_TABLE_DFLT);
 	if (table == NULL)
 		return NULL;
 
@@ -1688,7 +1690,7 @@ void rt6_purge_dflt_routers(void)
 	struct fib6_table *table;
 
 	/* NOTE: Keep consistent with rt6_get_dflt_router */
-	table = fib6_get_table(RT6_TABLE_DFLT);
+	table = fib6_get_table(&init_net, RT6_TABLE_DFLT);
 	if (table == NULL)
 		return;
 
@@ -1851,7 +1853,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 
 	ipv6_addr_copy(&rt->rt6i_dst.addr, addr);
 	rt->rt6i_dst.plen = 128;
-	rt->rt6i_table = fib6_get_table(RT6_TABLE_LOCAL);
+	rt->rt6i_table = fib6_get_table(&init_net, RT6_TABLE_LOCAL);
 
 	atomic_set(&rt->u.dst.__refcnt, 1);
 

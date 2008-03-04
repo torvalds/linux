@@ -31,8 +31,8 @@ struct fib6_rule
 
 static struct fib_rules_ops fib6_rules_ops;
 
-struct dst_entry *fib6_rule_lookup(struct flowi *fl, int flags,
-				   pol_lookup_t lookup)
+struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi *fl,
+				   int flags, pol_lookup_t lookup)
 {
 	struct fib_lookup_arg arg = {
 		.lookup_ptr = lookup,
@@ -71,7 +71,7 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 		goto discard_pkt;
 	}
 
-	table = fib6_get_table(rule->table);
+	table = fib6_get_table(&init_net, rule->table);
 	if (table)
 		rt = lookup(table, flp, flags);
 
@@ -151,7 +151,7 @@ static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 		if (rule->table == RT6_TABLE_UNSPEC)
 			goto errout;
 
-		if (fib6_new_table(rule->table) == NULL) {
+		if (fib6_new_table(&init_net, rule->table) == NULL) {
 			err = -ENOBUFS;
 			goto errout;
 		}

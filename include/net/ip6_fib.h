@@ -181,10 +181,11 @@ typedef struct rt6_info *(*pol_lookup_t)(struct fib6_table *,
  *	exported functions
  */
 
-extern struct fib6_table *	fib6_get_table(u32 id);
-extern struct fib6_table *	fib6_new_table(u32 id);
-extern struct dst_entry *	fib6_rule_lookup(struct flowi *fl, int flags,
-						 pol_lookup_t lookup);
+extern struct fib6_table        *fib6_get_table(struct net *net, u32 id);
+extern struct fib6_table        *fib6_new_table(struct net *net, u32 id);
+extern struct dst_entry         *fib6_rule_lookup(struct net *net,
+						  struct flowi *fl, int flags,
+						  pol_lookup_t lookup);
 
 extern struct fib6_node		*fib6_lookup(struct fib6_node *root,
 					     struct in6_addr *daddr,
