@@ -217,7 +217,6 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 	rq->buffer = rq->data = NULL;
 	return 0;
 }
-EXPORT_SYMBOL(blk_rq_map_user_iov);
 
 /**
  * blk_rq_unmap_user - unmap a request with user data
