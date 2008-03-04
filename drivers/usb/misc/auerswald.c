@@ -983,7 +983,7 @@ static void auerswald_int_complete (struct urb * urb)
         pauerbuf_t   bp = NULL;
         pauerswald_t cp = (pauerswald_t) urb->context;
 
-        dbg ("%s called", __FUNCTION__);
+        dbg ("%s called", __func__);
 
 	switch (status) {
 	case 0:
@@ -993,10 +993,10 @@ static void auerswald_int_complete (struct urb * urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__, status);
+		dbg("%s - urb shutting down with status: %d", __func__, status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d", __FUNCTION__, status);
+		dbg("%s - nonzero urb status received: %d", __func__, status);
 		goto exit;
 	}
 
@@ -1081,7 +1081,7 @@ exit:
 	ret = usb_submit_urb (urb, GFP_ATOMIC);
 	if (ret)
 		err ("%s - usb_submit_urb failed with result %d",
-		     __FUNCTION__, ret);
+		     __func__, ret);
 }
 
 /* int memory deallocation

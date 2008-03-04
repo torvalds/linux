@@ -1335,7 +1335,7 @@ static int
 sl811h_bus_suspend(struct usb_hcd *hcd)
 {
 	// SOFs off
-	DBG("%s\n", __FUNCTION__);
+	DBG("%s\n", __func__);
 	return 0;
 }
 
@@ -1343,7 +1343,7 @@ static int
 sl811h_bus_resume(struct usb_hcd *hcd)
 {
 	// SOFs on
-	DBG("%s\n", __FUNCTION__);
+	DBG("%s\n", __func__);
 	return 0;
 }
 

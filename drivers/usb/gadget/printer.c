@@ -915,7 +915,7 @@ static void printer_reset_interface(struct printer_dev *dev)
 	if (dev->interface < 0)
 		return;
 
-	DBG(dev, "%s\n", __FUNCTION__);
+	DBG(dev, "%s\n", __func__);
 
 	if (dev->in)
 		usb_ep_disable(dev->in_ep);
@@ -1284,7 +1284,7 @@ printer_disconnect(struct usb_gadget *gadget)
 	struct printer_dev	*dev = get_gadget_data(gadget);
 	unsigned long		flags;
 
-	DBG(dev, "%s\n", __FUNCTION__);
+	DBG(dev, "%s\n", __func__);
 
 	spin_lock_irqsave(&dev->lock, flags);
 
@@ -1300,7 +1300,7 @@ printer_unbind(struct usb_gadget *gadget)
 	struct usb_request	*req;
 
 
-	DBG(dev, "%s\n", __FUNCTION__);
+	DBG(dev, "%s\n", __func__);
 
 	/* Remove sysfs files */
 	device_destroy(usb_gadget_class, g_printer_devno);

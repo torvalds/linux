@@ -312,7 +312,7 @@ static void sg_complete(struct urb *urb)
 				    retval != -EBUSY)
 					dev_err(&io->dev->dev,
 						"%s, unlink --> %d\n",
-						__FUNCTION__, retval);
+						__func__, retval);
 			} else if (urb == io->urbs [i])
 				found = 1;
 		}
@@ -550,7 +550,7 @@ void usb_sg_wait(struct usb_sg_request *io)
 			io->urbs[i]->dev = NULL;
 			io->urbs[i]->status = retval;
 			dev_dbg(&io->dev->dev, "%s, submit --> %d\n",
-				__FUNCTION__, retval);
+				__func__, retval);
 			usb_sg_cancel(io);
 		}
 		spin_lock_irq(&io->lock);
@@ -600,7 +600,7 @@ void usb_sg_cancel(struct usb_sg_request *io)
 			retval = usb_unlink_urb(io->urbs [i]);
 			if (retval != -EINPROGRESS && retval != -EBUSY)
 				dev_warn(&io->dev->dev, "%s, unlink --> %d\n",
-					__FUNCTION__, retval);
+					__func__, retval);
 		}
 		spin_lock(&io->lock);
 	}
@@ -1068,7 +1068,7 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 {
 	int i;
 
-	dev_dbg(&dev->dev, "%s nuking %s URBs\n", __FUNCTION__,
+	dev_dbg(&dev->dev, "%s nuking %s URBs\n", __func__,
 		skip_ep0 ? "non-ep0" : "all");
 	for (i = skip_ep0; i < 16; ++i) {
 		usb_disable_endpoint(dev, i);

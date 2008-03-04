@@ -88,7 +88,7 @@ static int skel_open(struct inode *inode, struct file *file)
 	interface = usb_find_interface(&skel_driver, subminor);
 	if (!interface) {
 		err ("%s - error, can't find device for minor %d",
-		     __FUNCTION__, subminor);
+		     __func__, subminor);
 		retval = -ENODEV;
 		goto exit;
 	}
@@ -220,7 +220,7 @@ static void skel_write_bulk_callback(struct urb *urb)
 		    urb->status == -ECONNRESET ||
 		    urb->status == -ESHUTDOWN))
 			err("%s - nonzero write bulk status received: %d",
-			    __FUNCTION__, urb->status);
+			    __func__, urb->status);
 
 		spin_lock(&dev->err_lock);
 		dev->errors = urb->status;
@@ -301,7 +301,7 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 	retval = usb_submit_urb(urb, GFP_KERNEL);
 	mutex_unlock(&dev->io_mutex);
 	if (retval) {
-		err("%s - failed submitting write urb, error %d", __FUNCTION__, retval);
+		err("%s - failed submitting write urb, error %d", __func__, retval);
 		goto error_unanchor;
 	}
 

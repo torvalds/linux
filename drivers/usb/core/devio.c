@@ -1530,60 +1530,60 @@ static int usbdev_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 	case USBDEVFS_CONTROL:
-		snoop(&dev->dev, "%s: CONTROL\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: CONTROL\n", __func__);
 		ret = proc_control(ps, p);
 		if (ret >= 0)
 			inode->i_mtime = CURRENT_TIME;
 		break;
 
 	case USBDEVFS_BULK:
-		snoop(&dev->dev, "%s: BULK\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: BULK\n", __func__);
 		ret = proc_bulk(ps, p);
 		if (ret >= 0)
 			inode->i_mtime = CURRENT_TIME;
 		break;
 
 	case USBDEVFS_RESETEP:
-		snoop(&dev->dev, "%s: RESETEP\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: RESETEP\n", __func__);
 		ret = proc_resetep(ps, p);
 		if (ret >= 0)
 			inode->i_mtime = CURRENT_TIME;
 		break;
 
 	case USBDEVFS_RESET:
-		snoop(&dev->dev, "%s: RESET\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: RESET\n", __func__);
 		ret = proc_resetdevice(ps);
 		break;
 
 	case USBDEVFS_CLEAR_HALT:
-		snoop(&dev->dev, "%s: CLEAR_HALT\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: CLEAR_HALT\n", __func__);
 		ret = proc_clearhalt(ps, p);
 		if (ret >= 0)
 			inode->i_mtime = CURRENT_TIME;
 		break;
 
 	case USBDEVFS_GETDRIVER:
-		snoop(&dev->dev, "%s: GETDRIVER\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: GETDRIVER\n", __func__);
 		ret = proc_getdriver(ps, p);
 		break;
 
 	case USBDEVFS_CONNECTINFO:
-		snoop(&dev->dev, "%s: CONNECTINFO\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: CONNECTINFO\n", __func__);
 		ret = proc_connectinfo(ps, p);
 		break;
 
 	case USBDEVFS_SETINTERFACE:
-		snoop(&dev->dev, "%s: SETINTERFACE\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: SETINTERFACE\n", __func__);
 		ret = proc_setintf(ps, p);
 		break;
 
 	case USBDEVFS_SETCONFIGURATION:
-		snoop(&dev->dev, "%s: SETCONFIGURATION\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: SETCONFIGURATION\n", __func__);
 		ret = proc_setconfig(ps, p);
 		break;
 
 	case USBDEVFS_SUBMITURB:
-		snoop(&dev->dev, "%s: SUBMITURB\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: SUBMITURB\n", __func__);
 		ret = proc_submiturb(ps, p);
 		if (ret >= 0)
 			inode->i_mtime = CURRENT_TIME;
@@ -1592,60 +1592,60 @@ static int usbdev_ioctl(struct inode *inode, struct file *file,
 #ifdef CONFIG_COMPAT
 
 	case USBDEVFS_SUBMITURB32:
-		snoop(&dev->dev, "%s: SUBMITURB32\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: SUBMITURB32\n", __func__);
 		ret = proc_submiturb_compat(ps, p);
 		if (ret >= 0)
 			inode->i_mtime = CURRENT_TIME;
 		break;
 
 	case USBDEVFS_REAPURB32:
-		snoop(&dev->dev, "%s: REAPURB32\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: REAPURB32\n", __func__);
 		ret = proc_reapurb_compat(ps, p);
 		break;
 
 	case USBDEVFS_REAPURBNDELAY32:
-		snoop(&dev->dev, "%s: REAPURBDELAY32\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: REAPURBDELAY32\n", __func__);
 		ret = proc_reapurbnonblock_compat(ps, p);
 		break;
 
 	case USBDEVFS_IOCTL32:
-		snoop(&dev->dev, "%s: IOCTL\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: IOCTL\n", __func__);
 		ret = proc_ioctl_compat(ps, ptr_to_compat(p));
 		break;
 #endif
 
 	case USBDEVFS_DISCARDURB:
-		snoop(&dev->dev, "%s: DISCARDURB\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: DISCARDURB\n", __func__);
 		ret = proc_unlinkurb(ps, p);
 		break;
 
 	case USBDEVFS_REAPURB:
-		snoop(&dev->dev, "%s: REAPURB\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: REAPURB\n", __func__);
 		ret = proc_reapurb(ps, p);
 		break;
 
 	case USBDEVFS_REAPURBNDELAY:
-		snoop(&dev->dev, "%s: REAPURBDELAY\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: REAPURBDELAY\n", __func__);
 		ret = proc_reapurbnonblock(ps, p);
 		break;
 
 	case USBDEVFS_DISCSIGNAL:
-		snoop(&dev->dev, "%s: DISCSIGNAL\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: DISCSIGNAL\n", __func__);
 		ret = proc_disconnectsignal(ps, p);
 		break;
 
 	case USBDEVFS_CLAIMINTERFACE:
-		snoop(&dev->dev, "%s: CLAIMINTERFACE\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: CLAIMINTERFACE\n", __func__);
 		ret = proc_claiminterface(ps, p);
 		break;
 
 	case USBDEVFS_RELEASEINTERFACE:
-		snoop(&dev->dev, "%s: RELEASEINTERFACE\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: RELEASEINTERFACE\n", __func__);
 		ret = proc_releaseinterface(ps, p);
 		break;
 
 	case USBDEVFS_IOCTL:
-		snoop(&dev->dev, "%s: IOCTL\n", __FUNCTION__);
+		snoop(&dev->dev, "%s: IOCTL\n", __func__);
 		ret = proc_ioctl_default(ps, p);
 		break;
 	}

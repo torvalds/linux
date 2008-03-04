@@ -173,7 +173,7 @@ static void ark3116_set_termios(struct usb_serial_port *port,
 
 	config = 0;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (!priv->termios_initialized) {
@@ -323,7 +323,7 @@ static int ark3116_open(struct usb_serial_port *port, struct file *filp)
 	char *buf;
 	int result = 0;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	buf = kmalloc(1, GFP_KERNEL);
 	if (!buf) {
@@ -395,7 +395,7 @@ static int ark3116_ioctl(struct usb_serial_port *port, struct file *file,
 			return -EFAULT;
 		return 0;
 	default:
-		dbg("%s cmd 0x%04x not supported", __FUNCTION__, cmd);
+		dbg("%s cmd 0x%04x not supported", __func__, cmd);
 		break;
 	}
 

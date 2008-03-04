@@ -191,7 +191,7 @@ static int klsi_105_chg_port_settings(struct usb_serial_port *port,
 	if (rc < 0)
 		err("Change port settings failed (error = %d)", rc);
 	info("%s - %d byte block, baudrate %x, databits %d, u1 %d, u2 %d",
-	    __FUNCTION__,
+	    __func__,
 	    settings->pktlen,
 	    settings->baudrate, settings->databits,
 	    settings->unknown1, settings->unknown2);
@@ -222,7 +222,7 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 	__u8 status_buf[KLSI_STATUSBUF_LEN] = { -1,-1};
 	__u16 status;
 
-	info("%s - sending SIO Poll request", __FUNCTION__);
+	info("%s - sending SIO Poll request", __func__);
         rc = usb_control_msg(port->serial->dev,
 			     usb_rcvctrlpipe(port->serial->dev, 0),
 			     KL5KUSB105A_SIO_POLL,
@@ -237,7 +237,7 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 	else {
 		status = le16_to_cpu(*(u16 *)status_buf);
 
-		info("%s - read status %x %x", __FUNCTION__,
+		info("%s - read status %x %x", __func__,
 		     status_buf[0], status_buf[1]);
 
 		*line_state_p = klsi_105_status2linestate(status);
@@ -265,7 +265,7 @@ static int klsi_105_startup (struct usb_serial *serial)
 		priv = kmalloc(sizeof(struct klsi_105_private),
 						   GFP_KERNEL);
 		if (!priv) {
-			dbg("%skmalloc for klsi_105_private failed.", __FUNCTION__);
+			dbg("%skmalloc for klsi_105_private failed.", __func__);
 			i--;
 			goto err_cleanup;
 		}
@@ -295,7 +295,7 @@ static int klsi_105_startup (struct usb_serial *serial)
 			urb->transfer_buffer = kmalloc (URB_TRANSFER_BUFFER_SIZE,
 							GFP_KERNEL);
 			if (!urb->transfer_buffer) {
-				err("%s - out of memory for urb buffers.", __FUNCTION__);
+				err("%s - out of memory for urb buffers.", __func__);
 				goto err_cleanup;
 			}
 		}
@@ -325,7 +325,7 @@ static void klsi_105_shutdown (struct usb_serial *serial)
 {
 	int i;
 	
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	/* stop reads and writes on all ports */
 	for (i=0; i < serial->num_ports; ++i) {
@@ -370,7 +370,7 @@ static int  klsi_105_open (struct usb_serial_port *port, struct file *filp)
 	struct klsi_105_port_settings cfg;
 	unsigned long flags;
 
-	dbg("%s port %d", __FUNCTION__, port->number);
+	dbg("%s port %d", __func__, port->number);
 
 	/* force low_latency on so that our tty_push actually forces
 	 * the data through
@@ -416,7 +416,7 @@ static int  klsi_105_open (struct usb_serial_port *port, struct file *filp)
 
 	rc = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (rc) {
-		err("%s - failed submitting read urb, error %d", __FUNCTION__, rc);
+		err("%s - failed submitting read urb, error %d", __func__, rc);
 		retval = rc;
 		goto exit;
 	}
@@ -434,14 +434,14 @@ static int  klsi_105_open (struct usb_serial_port *port, struct file *filp)
 		err("Enabling read failed (error = %d)", rc);
 		retval = rc;
 	} else 
-		dbg("%s - enabled reading", __FUNCTION__);
+		dbg("%s - enabled reading", __func__);
 
 	rc = klsi_105_get_line_state(port, &line_state);
 	if (rc >= 0) {
 		spin_lock_irqsave (&priv->lock, flags);
 		priv->line_state = line_state;
 		spin_unlock_irqrestore (&priv->lock, flags);
-		dbg("%s - read line state 0x%lx", __FUNCTION__, line_state);
+		dbg("%s - read line state 0x%lx", __func__, line_state);
 		retval = 0;
 	} else
 		retval = rc;
@@ -456,7 +456,7 @@ static void klsi_105_close (struct usb_serial_port *port, struct file *filp)
 	struct klsi_105_private *priv = usb_get_serial_port_data(port);
 	int rc;
 
-	dbg("%s port %d", __FUNCTION__, port->number);
+	dbg("%s port %d", __func__, port->number);
 
 	mutex_lock(&port->serial->disc_mutex);
 	if (!port->serial->disconnected) {
@@ -499,7 +499,7 @@ static int klsi_105_write (struct usb_serial_port *port,
 	int result, size;
 	int bytes_sent=0;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	while (count > 0) {
 		/* try to find a free urb (write 0 bytes if none) */
@@ -511,21 +511,21 @@ static int klsi_105_write (struct usb_serial_port *port,
 		for (i=0; i<NUM_URBS; i++) {
 			if (priv->write_urb_pool[i]->status != -EINPROGRESS) {
 				urb = priv->write_urb_pool[i];
-				dbg("%s - using pool URB %d", __FUNCTION__, i);
+				dbg("%s - using pool URB %d", __func__, i);
 				break;
 			}
 		}
 		spin_unlock_irqrestore (&priv->lock, flags);
 
 		if (urb==NULL) {
-			dbg("%s - no more free urbs", __FUNCTION__);
+			dbg("%s - no more free urbs", __func__);
 			goto exit;
 		}
 
 		if (urb->transfer_buffer == NULL) {
 			urb->transfer_buffer = kmalloc (URB_TRANSFER_BUFFER_SIZE, GFP_ATOMIC);
 			if (urb->transfer_buffer == NULL) {
-				err("%s - no more kernel memory...", __FUNCTION__);
+				err("%s - no more kernel memory...", __func__);
 				goto exit;
 			}
 		}
@@ -551,7 +551,7 @@ static int klsi_105_write (struct usb_serial_port *port,
 		/* send the data out the bulk port */
 		result = usb_submit_urb(urb, GFP_ATOMIC);
 		if (result) {
-			err("%s - failed submitting write urb, error %d", __FUNCTION__, result);
+			err("%s - failed submitting write urb, error %d", __func__, result);
 			goto exit;
 		}
 		buf += size;
@@ -570,10 +570,10 @@ static void klsi_105_write_bulk_callback ( struct urb *urb)
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	int status = urb->status;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (status) {
-		dbg("%s - nonzero write bulk status received: %d", __FUNCTION__,
+		dbg("%s - nonzero write bulk status received: %d", __func__,
 		    status);
 		return;
 	}
@@ -600,7 +600,7 @@ static int klsi_105_chars_in_buffer (struct usb_serial_port *port)
 
 	spin_unlock_irqrestore (&priv->lock, flags);
 
-	dbg("%s - returns %d", __FUNCTION__, chars);
+	dbg("%s - returns %d", __func__, chars);
 	return (chars);
 }
 
@@ -620,7 +620,7 @@ static int klsi_105_write_room (struct usb_serial_port *port)
 
 	spin_unlock_irqrestore (&priv->lock, flags);
 
-	dbg("%s - returns %d", __FUNCTION__, room);
+	dbg("%s - returns %d", __func__, room);
 	return (room);
 }
 
@@ -635,11 +635,11 @@ static void klsi_105_read_bulk_callback (struct urb *urb)
 	int rc;
 	int status = urb->status;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	/* The urb might have been killed. */
 	if (status) {
-		dbg("%s - nonzero read bulk status received: %d", __FUNCTION__,
+		dbg("%s - nonzero read bulk status received: %d", __func__,
 		    status);
 		return;
 	}
@@ -649,12 +649,12 @@ static void klsi_105_read_bulk_callback (struct urb *urb)
 	 */
 	if (urb->actual_length == 0) {
 		/* empty urbs seem to happen, we ignore them */
-		/* dbg("%s - emtpy URB", __FUNCTION__); */
+		/* dbg("%s - emtpy URB", __func__); */
 	       ;
 	} else if (urb->actual_length <= 2) {
-		dbg("%s - size %d URB not understood", __FUNCTION__,
+		dbg("%s - size %d URB not understood", __func__,
 		    urb->actual_length);
-		usb_serial_debug_data(debug, &port->dev, __FUNCTION__,
+		usb_serial_debug_data(debug, &port->dev, __func__,
 				      urb->actual_length, data);
 	} else {
 		int bytes_sent = ((__u8 *) data)[0] +
@@ -666,12 +666,12 @@ static void klsi_105_read_bulk_callback (struct urb *urb)
 		 * intermixed tty_flip_buffer_push()s
 		 * FIXME
 		 */ 
-		usb_serial_debug_data(debug, &port->dev, __FUNCTION__,
+		usb_serial_debug_data(debug, &port->dev, __func__,
 				      urb->actual_length, data);
 
 		if (bytes_sent + 2 > urb->actual_length) {
 			dbg("%s - trying to read more data than available"
-			    " (%d vs. %d)", __FUNCTION__,
+			    " (%d vs. %d)", __func__,
 			    bytes_sent+2, urb->actual_length);
 			/* cap at implied limit */
 			bytes_sent = urb->actual_length - 2;
@@ -694,7 +694,7 @@ static void klsi_105_read_bulk_callback (struct urb *urb)
 		      port);
 	rc = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 	if (rc)
-		err("%s - failed resubmitting read urb, error %d", __FUNCTION__, rc);
+		err("%s - failed resubmitting read urb, error %d", __func__, rc);
 } /* klsi_105_read_bulk_callback */
 
 
@@ -718,7 +718,7 @@ static void klsi_105_set_termios (struct usb_serial_port *port,
 	if( (cflag & CBAUD) != (old_cflag & CBAUD) ) {
 	        /* reassert DTR and (maybe) RTS on transition from B0 */
 		if( (old_cflag & CBAUD) == B0 ) {
-			dbg("%s: baud was B0", __FUNCTION__);
+			dbg("%s: baud was B0", __func__);
 #if 0
 			priv->control_state |= TIOCM_DTR;
 			/* don't set RTS if using hardware flow control */
@@ -764,7 +764,7 @@ static void klsi_105_set_termios (struct usb_serial_port *port,
 			break;
 		}
 		if ((cflag & CBAUD) == B0 ) {
-			dbg("%s: baud is B0", __FUNCTION__);
+			dbg("%s: baud is B0", __func__);
 			/* Drop RTS and DTR */
 			/* maybe this should be simulated by sending read
 			 * disable and read enable messages?
@@ -781,11 +781,11 @@ static void klsi_105_set_termios (struct usb_serial_port *port,
 		/* set the number of data bits */
 		switch (cflag & CSIZE) {
 		case CS5:
-			dbg("%s - 5 bits/byte not supported", __FUNCTION__);
+			dbg("%s - 5 bits/byte not supported", __func__);
 			spin_unlock_irqrestore (&priv->lock, flags);
 			return ;
 		case CS6:
-			dbg("%s - 6 bits/byte not supported", __FUNCTION__);
+			dbg("%s - 6 bits/byte not supported", __func__);
 			spin_unlock_irqrestore (&priv->lock, flags);
 			return ;
 		case CS7:
@@ -859,7 +859,7 @@ static void mct_u232_break_ctl( struct usb_serial_port *port, int break_state )
 	struct mct_u232_private *priv = (struct mct_u232_private *)port->private;
 	unsigned char lcr = priv->last_lcr;
 
-	dbg("%sstate=%d", __FUNCTION__, break_state);
+	dbg("%sstate=%d", __func__, break_state);
 
 	if (break_state)
 		lcr |= MCT_U232_SET_BREAK;
@@ -874,7 +874,7 @@ static int klsi_105_tiocmget (struct usb_serial_port *port, struct file *file)
 	unsigned long flags;
 	int rc;
 	unsigned long line_state;
-	dbg("%s - request, just guessing", __FUNCTION__);
+	dbg("%s - request, just guessing", __func__);
 
 	rc = klsi_105_get_line_state(port, &line_state);
 	if (rc < 0) {
@@ -886,7 +886,7 @@ static int klsi_105_tiocmget (struct usb_serial_port *port, struct file *file)
 	spin_lock_irqsave (&priv->lock, flags);
 	priv->line_state = line_state;
 	spin_unlock_irqrestore (&priv->lock, flags);
-	dbg("%s - read line state 0x%lx", __FUNCTION__, line_state);
+	dbg("%s - read line state 0x%lx", __func__, line_state);
 	return (int)line_state;
 }
 
@@ -895,7 +895,7 @@ static int klsi_105_tiocmset (struct usb_serial_port *port, struct file *file,
 {
 	int retval = -EINVAL;
 	
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 /* if this ever gets implemented, it should be done something like this:
 	struct usb_serial *serial = port->serial;
@@ -921,7 +921,7 @@ static int klsi_105_tiocmset (struct usb_serial_port *port, struct file *file,
 
 static void klsi_105_throttle (struct usb_serial_port *port)
 {
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 	usb_kill_urb(port->read_urb);
 }
 
@@ -929,12 +929,12 @@ static void klsi_105_unthrottle (struct usb_serial_port *port)
 {
 	int result;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	port->read_urb->dev = port->serial->dev;
 	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 	if (result)
-		err("%s - failed submitting read urb, error %d", __FUNCTION__,
+		err("%s - failed submitting read urb, error %d", __func__,
 		    result);
 }
 

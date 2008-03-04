@@ -195,7 +195,7 @@ static void belkin_sa_shutdown (struct usb_serial *serial)
 	struct belkin_sa_private *priv;
 	int i;
 	
-	dbg ("%s", __FUNCTION__);
+	dbg ("%s", __func__);
 
 	/* stop reads and writes on all ports */
 	for (i=0; i < serial->num_ports; ++i) {
@@ -210,7 +210,7 @@ static int  belkin_sa_open (struct usb_serial_port *port, struct file *filp)
 {
 	int retval = 0;
 
-	dbg("%s port %d", __FUNCTION__, port->number);
+	dbg("%s port %d", __func__, port->number);
 
 	/*Start reading from the device*/
 	/* TODO: Look at possibility of submitting multiple URBs to device to
@@ -237,7 +237,7 @@ exit:
 
 static void belkin_sa_close (struct usb_serial_port *port, struct file *filp)
 {
-	dbg("%s port %d", __FUNCTION__, port->number);
+	dbg("%s port %d", __func__, port->number);
 
 	/* shutdown our bulk reads and writes */
 	usb_kill_urb(port->write_urb);
@@ -264,15 +264,15 @@ static void belkin_sa_read_int_callback (struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 		return;
 	default:
 		dbg("%s - nonzero urb status received: %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 		goto exit;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, urb->actual_length, data);
+	usb_serial_debug_data(debug, &port->dev, __func__, urb->actual_length, data);
 
 	/* Handle known interrupt data */
 	/* ignore data[0] and data[1] */
@@ -331,7 +331,7 @@ exit:
 	retval = usb_submit_urb (urb, GFP_ATOMIC);
 	if (retval)
 		err ("%s - usb_submit_urb failed with result %d",
-		     __FUNCTION__, retval);
+		     __func__, retval);
 }
 
 static void belkin_sa_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
@@ -478,7 +478,7 @@ static int belkin_sa_tiocmget (struct usb_serial_port *port, struct file *file)
 	unsigned long control_state;
 	unsigned long flags;
 	
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	control_state = priv->control_state;
@@ -499,7 +499,7 @@ static int belkin_sa_tiocmset (struct usb_serial_port *port, struct file *file,
 	int rts = 0;
 	int dtr = 0;
 	
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	control_state = priv->control_state;

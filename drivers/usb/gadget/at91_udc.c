@@ -460,7 +460,7 @@ static void nuke(struct at91_ep *ep, int status)
 	if (list_empty(&ep->queue))
 		return;
 
-	VDBG("%s %s\n", __FUNCTION__, ep->ep.name);
+	VDBG("%s %s\n", __func__, ep->ep.name);
 	while (!list_empty(&ep->queue)) {
 		req = list_entry(ep->queue.next, struct at91_request, queue);
 		done(ep, req, status);
@@ -795,7 +795,7 @@ static int at91_wakeup(struct usb_gadget *gadget)
 	int		status = -EINVAL;
 	unsigned long	flags;
 
-	DBG("%s\n", __FUNCTION__ );
+	DBG("%s\n", __func__ );
 	local_irq_save(flags);
 
 	if (!udc->clocked || !udc->suspended)

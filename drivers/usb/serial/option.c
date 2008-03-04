@@ -408,24 +408,24 @@ module_exit(option_exit);
 
 static void option_rx_throttle(struct usb_serial_port *port)
 {
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 }
 
 static void option_rx_unthrottle(struct usb_serial_port *port)
 {
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 }
 
 static void option_break_ctl(struct usb_serial_port *port, int break_state)
 {
 	/* Unfortunately, I don't know how to send a break */
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 }
 
 static void option_set_termios(struct usb_serial_port *port,
 			struct ktermios *old_termios)
 {
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 	/* Doesn't support option setting */
 	tty_termios_copy_hw(port->tty->termios, old_termios);
 	option_send_setup(port);
@@ -486,7 +486,7 @@ static int option_write(struct usb_serial_port *port,
 
 	portdata = usb_get_serial_port_data(port);
 
-	dbg("%s: write (%d chars)", __FUNCTION__, count);
+	dbg("%s: write (%d chars)", __func__, count);
 
 	i = 0;
 	left = count;
@@ -507,7 +507,7 @@ static int option_write(struct usb_serial_port *port,
 			dbg("usb_write %p failed (err=%d)",
 				this_urb, this_urb->status);
 
-		dbg("%s: endpoint %d buf %d", __FUNCTION__,
+		dbg("%s: endpoint %d buf %d", __func__,
 			usb_pipeendpoint(this_urb->pipe), i);
 
 		/* send the data */
@@ -529,7 +529,7 @@ static int option_write(struct usb_serial_port *port,
 	}
 
 	count -= left;
-	dbg("%s: wrote (did %d)", __FUNCTION__, count);
+	dbg("%s: wrote (did %d)", __func__, count);
 	return count;
 }
 
@@ -542,14 +542,14 @@ static void option_indat_callback(struct urb *urb)
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
 
-	dbg("%s: %p", __FUNCTION__, urb);
+	dbg("%s: %p", __func__, urb);
 
 	endpoint = usb_pipeendpoint(urb->pipe);
 	port = (struct usb_serial_port *) urb->context;
 
 	if (status) {
 		dbg("%s: nonzero status: %d on endpoint %02x.",
-		    __FUNCTION__, status, endpoint);
+		    __func__, status, endpoint);
 	} else {
 		tty = port->tty;
 		if (urb->actual_length) {
@@ -557,7 +557,7 @@ static void option_indat_callback(struct urb *urb)
 			tty_insert_flip_string(tty, data, urb->actual_length);
 			tty_flip_buffer_push(tty);
 		} else {
-			dbg("%s: empty read urb received", __FUNCTION__);
+			dbg("%s: empty read urb received", __func__);
 		}
 
 		/* Resubmit urb so we continue receiving */
@@ -565,7 +565,7 @@ static void option_indat_callback(struct urb *urb)
 			err = usb_submit_urb(urb, GFP_ATOMIC);
 			if (err)
 				printk(KERN_ERR "%s: resubmit read urb failed. "
-					"(%d)", __FUNCTION__, err);
+					"(%d)", __func__, err);
 		}
 	}
 	return;
@@ -577,7 +577,7 @@ static void option_outdat_callback(struct urb *urb)
 	struct option_port_private *portdata;
 	int i;
 
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	port = (struct usb_serial_port *) urb->context;
 
@@ -601,15 +601,15 @@ static void option_instat_callback(struct urb *urb)
 	struct option_port_private *portdata = usb_get_serial_port_data(port);
 	struct usb_serial *serial = port->serial;
 
-	dbg("%s", __FUNCTION__);
-	dbg("%s: urb %p port %p has data %p", __FUNCTION__,urb,port,portdata);
+	dbg("%s", __func__);
+	dbg("%s: urb %p port %p has data %p", __func__,urb,port,portdata);
 
 	if (status == 0) {
 		struct usb_ctrlrequest *req_pkt =
 				(struct usb_ctrlrequest *)urb->transfer_buffer;
 
 		if (!req_pkt) {
-			dbg("%s: NULL req_pkt\n", __FUNCTION__);
+			dbg("%s: NULL req_pkt\n", __func__);
 			return;
 		}
 		if ((req_pkt->bRequestType == 0xA1) &&
@@ -619,7 +619,7 @@ static void option_instat_callback(struct urb *urb)
 					urb->transfer_buffer +
 					sizeof(struct usb_ctrlrequest));
 
-			dbg("%s: signal x%x", __FUNCTION__, signals);
+			dbg("%s: signal x%x", __func__, signals);
 
 			old_dcd_state = portdata->dcd_state;
 			portdata->cts_state = 1;
@@ -631,11 +631,11 @@ static void option_instat_callback(struct urb *urb)
 					old_dcd_state && !portdata->dcd_state)
 				tty_hangup(port->tty);
 		} else {
-			dbg("%s: type %x req %x", __FUNCTION__,
+			dbg("%s: type %x req %x", __func__,
 				req_pkt->bRequestType,req_pkt->bRequest);
 		}
 	} else
-		dbg("%s: error %d", __FUNCTION__, status);
+		dbg("%s: error %d", __func__, status);
 
 	/* Resubmit urb so we continue receiving IRQ data */
 	if (status != -ESHUTDOWN) {
@@ -643,7 +643,7 @@ static void option_instat_callback(struct urb *urb)
 		err = usb_submit_urb(urb, GFP_ATOMIC);
 		if (err)
 			dbg("%s: resubmit intr urb failed. (%d)",
-				__FUNCTION__, err);
+				__func__, err);
 	}
 }
 
@@ -662,7 +662,7 @@ static int option_write_room(struct usb_serial_port *port)
 			data_len += OUT_BUFLEN;
 	}
 
-	dbg("%s: %d", __FUNCTION__, data_len);
+	dbg("%s: %d", __func__, data_len);
 	return data_len;
 }
 
@@ -680,7 +680,7 @@ static int option_chars_in_buffer(struct usb_serial_port *port)
 		if (this_urb && test_bit(i, &portdata->out_busy))
 			data_len += this_urb->transfer_buffer_length;
 	}
-	dbg("%s: %d", __FUNCTION__, data_len);
+	dbg("%s: %d", __func__, data_len);
 	return data_len;
 }
 
@@ -693,7 +693,7 @@ static int option_open(struct usb_serial_port *port, struct file *filp)
 
 	portdata = usb_get_serial_port_data(port);
 
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	/* Set some sane defaults */
 	portdata->rts_state = 1;
@@ -705,7 +705,7 @@ static int option_open(struct usb_serial_port *port, struct file *filp)
 		if (! urb)
 			continue;
 		if (urb->dev != serial->dev) {
-			dbg("%s: dev %p != %p", __FUNCTION__,
+			dbg("%s: dev %p != %p", __func__,
 				urb->dev, serial->dev);
 			continue;
 		}
@@ -719,7 +719,7 @@ static int option_open(struct usb_serial_port *port, struct file *filp)
 		err = usb_submit_urb(urb, GFP_KERNEL);
 		if (err) {
 			dbg("%s: submit urb %d failed (%d) %d",
-				__FUNCTION__, i, err,
+				__func__, i, err,
 				urb->transfer_buffer_length);
 		}
 	}
@@ -747,7 +747,7 @@ static void option_close(struct usb_serial_port *port, struct file *filp)
 	struct usb_serial *serial = port->serial;
 	struct option_port_private *portdata;
 
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 	portdata = usb_get_serial_port_data(port);
 
 	portdata->rts_state = 0;
@@ -780,7 +780,7 @@ static struct urb *option_setup_urb(struct usb_serial *serial, int endpoint,
 
 	urb = usb_alloc_urb(0, GFP_KERNEL);		/* No ISO */
 	if (urb == NULL) {
-		dbg("%s: alloc for endpoint %d failed.", __FUNCTION__, endpoint);
+		dbg("%s: alloc for endpoint %d failed.", __func__, endpoint);
 		return NULL;
 	}
 
@@ -799,7 +799,7 @@ static void option_setup_urbs(struct usb_serial *serial)
 	struct usb_serial_port *port;
 	struct option_port_private *portdata;
 
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
@@ -832,7 +832,7 @@ static int option_send_setup(struct usb_serial_port *port)
 	struct usb_serial *serial = port->serial;
 	struct option_port_private *portdata;
 	int ifNum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	portdata = usb_get_serial_port_data(port);
 
@@ -858,7 +858,7 @@ static int option_startup(struct usb_serial *serial)
 	struct option_port_private *portdata;
 	u8 *buffer;
 
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	/* Now setup per port private data */
 	for (i = 0; i < serial->num_ports; i++) {
@@ -866,7 +866,7 @@ static int option_startup(struct usb_serial *serial)
 		portdata = kzalloc(sizeof(*portdata), GFP_KERNEL);
 		if (!portdata) {
 			dbg("%s: kmalloc for option_port_private (%d) failed!.",
-					__FUNCTION__, i);
+					__func__, i);
 			return (1);
 		}
 
@@ -891,7 +891,7 @@ static int option_startup(struct usb_serial *serial)
 		err = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 		if (err)
 			dbg("%s: submit irq_in urb failed %d",
-				__FUNCTION__, err);
+				__func__, err);
 	}
 
 	option_setup_urbs(serial);
@@ -915,7 +915,7 @@ static void option_shutdown(struct usb_serial *serial)
 	struct usb_serial_port *port;
 	struct option_port_private *portdata;
 
-	dbg("%s", __FUNCTION__);
+	dbg("%s", __func__);
 
 	/* Stop reading/writing urbs */
 	for (i = 0; i < serial->num_ports; ++i) {

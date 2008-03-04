@@ -334,7 +334,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		dev_dbg(&dev->dev,
 			"bogus endpoint ep%d%s in %s (bad maxpacket %d)\n",
 			usb_endpoint_num(&ep->desc), is_out ? "out" : "in",
-			__FUNCTION__, max);
+			__func__, max);
 		return -EMSGSIZE;
 	}
 
