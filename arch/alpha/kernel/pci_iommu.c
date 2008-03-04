@@ -132,12 +132,15 @@ iommu_arena_find_pages(struct pci_iommu_arena *arena, long n, long mask)
 {
 	unsigned long *ptes;
 	long i, p, nent;
+	int pass = 0;
 
 	/* Search forward for the first mask-aligned sequence of N free ptes */
 	ptes = arena->ptes;
 	nent = arena->size >> PAGE_SHIFT;
 	p = ALIGN(arena->next_entry, mask + 1);
 	i = 0;
+
+again:
 	while (i < n && p+i < nent) {
 		if (ptes[p+i])
 			p = ALIGN(p + i + 1, mask + 1), i = 0;
@@ -146,19 +149,18 @@ iommu_arena_find_pages(struct pci_iommu_arena *arena, long n, long mask)
 	}
 
 	if (i < n) {
-                /* Reached the end.  Flush the TLB and restart the
-                   search from the beginning.  */
-		alpha_mv.mv_pci_tbi(arena->hose, 0, -1);
+		if (pass < 1) {
+			/*
+			 * Reached the end.  Flush the TLB and restart
+			 * the search from the beginning.
+			*/
+			alpha_mv.mv_pci_tbi(arena->hose, 0, -1);
 
-		p = 0, i = 0;
-		while (i < n && p+i < nent) {
-			if (ptes[p+i])
-				p = ALIGN(p + i + 1, mask + 1), i = 0;
-			else
-				i = i + 1;
-		}
-
-		if (i < n)
+			pass++;
+			p = 0;
+			i = 0;
+			goto again;
+		} else
 			return -1;
 	}
 
