@@ -41,6 +41,7 @@ struct netns_ipv6 {
 	struct timer_list       *ip6_fib_timer;
 	struct hlist_head       *fib_table_hash;
 	struct fib6_table       *fib6_main_tbl;
+	struct dst_ops		*ip6_dst_ops;
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 	struct rt6_info         *ip6_prohibit_entry;
 	struct rt6_info         *ip6_blk_hole_entry;

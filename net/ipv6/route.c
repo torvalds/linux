@@ -113,8 +113,6 @@ static struct dst_ops ip6_dst_ops_template = {
 	.entries		=	ATOMIC_INIT(0),
 };
 
-static struct dst_ops *ip6_dst_ops;
-
 static void ip6_rt_blackhole_update_pmtu(struct dst_entry *dst, u32 mtu)
 {
 }
@@ -188,9 +186,9 @@ static struct rt6_info ip6_blk_hole_entry_template = {
 #endif
 
 /* allocate dst with ip6_dst_ops */
-static __inline__ struct rt6_info *ip6_dst_alloc(void)
+static inline struct rt6_info *ip6_dst_alloc(struct dst_ops *ops)
 {
-	return (struct rt6_info *)dst_alloc(ip6_dst_ops);
+	return (struct rt6_info *)dst_alloc(ops);
 }
 
 static void ip6_dst_destroy(struct dst_entry *dst)
@@ -925,7 +923,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	if (unlikely(idev == NULL))
 		return NULL;
 
-	rt = ip6_dst_alloc();
+	rt = ip6_dst_alloc(net->ipv6.ip6_dst_ops);
 	if (unlikely(rt == NULL)) {
 		in6_dev_put(idev);
 		goto out;
@@ -999,18 +997,18 @@ static int ip6_dst_gc(struct dst_ops *ops)
 	unsigned long now = jiffies;
 
 	if (time_after(last_gc + init_net.ipv6.sysctl.ip6_rt_gc_min_interval, now) &&
-	    atomic_read(&ip6_dst_ops->entries) <= init_net.ipv6.sysctl.ip6_rt_max_size)
+	    atomic_read(&init_net.ipv6.ip6_dst_ops->entries) <= init_net.ipv6.sysctl.ip6_rt_max_size)
 		goto out;
 
 	expire++;
 	fib6_run_gc(expire, &init_net);
 	last_gc = now;
-	if (atomic_read(&ip6_dst_ops->entries) < ip6_dst_ops->gc_thresh)
+	if (atomic_read(&init_net.ipv6.ip6_dst_ops->entries) < init_net.ipv6.ip6_dst_ops->gc_thresh)
 		expire = init_net.ipv6.sysctl.ip6_rt_gc_timeout>>1;
 
 out:
 	expire -= expire>>init_net.ipv6.sysctl.ip6_rt_gc_elasticity;
-	return (atomic_read(&ip6_dst_ops->entries) > init_net.ipv6.sysctl.ip6_rt_max_size);
+	return (atomic_read(&init_net.ipv6.ip6_dst_ops->entries) > init_net.ipv6.sysctl.ip6_rt_max_size);
 }
 
 /* Clean host part of a prefix. Not necessary in radix tree,
@@ -1084,7 +1082,7 @@ int ip6_route_add(struct fib6_config *cfg)
 		goto out;
 	}
 
-	rt = ip6_dst_alloc();
+	rt = ip6_dst_alloc(net->ipv6.ip6_dst_ops);
 
 	if (rt == NULL) {
 		err = -ENOMEM;
@@ -1570,7 +1568,8 @@ out:
 
 static struct rt6_info * ip6_rt_copy(struct rt6_info *ort)
 {
-	struct rt6_info *rt = ip6_dst_alloc();
+	struct net *net = ort->rt6i_dev->nd_net;
+	struct rt6_info *rt = ip6_dst_alloc(net->ipv6.ip6_dst_ops);
 
 	if (rt) {
 		rt->u.dst.input = ort->u.dst.input;
@@ -1849,7 +1848,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 				    int anycast)
 {
 	struct net *net = idev->dev->nd_net;
-	struct rt6_info *rt = ip6_dst_alloc();
+	struct rt6_info *rt = ip6_dst_alloc(net->ipv6.ip6_dst_ops);
 
 	if (rt == NULL)
 		return ERR_PTR(-ENOMEM);
@@ -2407,7 +2406,7 @@ static int rt6_stats_seq_show(struct seq_file *seq, void *v)
 		   net->ipv6.rt6_stats->fib_rt_alloc,
 		   net->ipv6.rt6_stats->fib_rt_entries,
 		   net->ipv6.rt6_stats->fib_rt_cache,
-		   atomic_read(&ip6_dst_ops->entries),
+		   atomic_read(&net->ipv6.ip6_dst_ops->entries),
 		   net->ipv6.rt6_stats->fib_discarded_routes);
 
 	return 0;
@@ -2552,7 +2551,7 @@ struct ctl_table *ipv6_route_sysctl_init(struct net *net)
 
 	if (table) {
 		table[0].data = &net->ipv6.sysctl.flush_delay;
-		table[1].data = &ip6_dst_ops_template.gc_thresh;
+		table[1].data = &net->ipv6.ip6_dst_ops->gc_thresh;
 		table[2].data = &net->ipv6.sysctl.ip6_rt_max_size;
 		table[3].data = &net->ipv6.sysctl.ip6_rt_gc_min_interval;
 		table[4].data = &net->ipv6.sysctl.ip6_rt_gc_timeout;
@@ -2571,14 +2570,21 @@ static int ip6_route_net_init(struct net *net)
 	int ret = 0;
 
 	ret = -ENOMEM;
+	net->ipv6.ip6_dst_ops = kmemdup(&ip6_dst_ops_template,
+					sizeof(*net->ipv6.ip6_dst_ops),
+					GFP_KERNEL);
+	if (!net->ipv6.ip6_dst_ops)
+		goto out;
+	net->ipv6.ip6_dst_ops->dst_net = net;
+
 	net->ipv6.ip6_null_entry = kmemdup(&ip6_null_entry_template,
 					   sizeof(*net->ipv6.ip6_null_entry),
 					   GFP_KERNEL);
 	if (!net->ipv6.ip6_null_entry)
-		goto out;
+		goto out_ip6_dst_ops;
 	net->ipv6.ip6_null_entry->u.dst.path =
 		(struct dst_entry *)net->ipv6.ip6_null_entry;
-	net->ipv6.ip6_null_entry->u.dst.ops = ip6_dst_ops;
+	net->ipv6.ip6_null_entry->u.dst.ops = net->ipv6.ip6_dst_ops;
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 	net->ipv6.ip6_prohibit_entry = kmemdup(&ip6_prohibit_entry_template,
@@ -2590,7 +2596,7 @@ static int ip6_route_net_init(struct net *net)
 	}
 	net->ipv6.ip6_prohibit_entry->u.dst.path =
 		(struct dst_entry *)net->ipv6.ip6_prohibit_entry;
-	net->ipv6.ip6_prohibit_entry->u.dst.ops = ip6_dst_ops;
+	net->ipv6.ip6_prohibit_entry->u.dst.ops = net->ipv6.ip6_dst_ops;
 
 	net->ipv6.ip6_blk_hole_entry = kmemdup(&ip6_blk_hole_entry_template,
 					       sizeof(*net->ipv6.ip6_blk_hole_entry),
@@ -2602,7 +2608,7 @@ static int ip6_route_net_init(struct net *net)
 	}
 	net->ipv6.ip6_blk_hole_entry->u.dst.path =
 		(struct dst_entry *)net->ipv6.ip6_blk_hole_entry;
-	net->ipv6.ip6_blk_hole_entry->u.dst.ops = ip6_dst_ops;
+	net->ipv6.ip6_blk_hole_entry->u.dst.ops = net->ipv6.ip6_dst_ops;
 #endif
 
 #ifdef CONFIG_PROC_FS
@@ -2612,6 +2618,10 @@ static int ip6_route_net_init(struct net *net)
 	ret = 0;
 out:
 	return ret;
+
+out_ip6_dst_ops:
+	kfree(net->ipv6.ip6_dst_ops);
+	goto out;
 }
 
 static void ip6_route_net_exit(struct net *net)
@@ -2625,6 +2635,7 @@ static void ip6_route_net_exit(struct net *net)
 	kfree(net->ipv6.ip6_prohibit_entry);
 	kfree(net->ipv6.ip6_blk_hole_entry);
 #endif
+	kfree(net->ipv6.ip6_dst_ops);
 }
 
 static struct pernet_operations ip6_route_net_ops = {
@@ -2641,20 +2652,12 @@ int __init ip6_route_init(void)
 {
 	int ret;
 
-	ip6_dst_ops = kmemdup(&ip6_dst_ops_template,
-			      sizeof(*ip6_dst_ops), GFP_KERNEL);
-	if (!ip6_dst_ops)
-		return -ENOMEM;
-
 	ret = -ENOMEM;
 	ip6_dst_ops_template.kmem_cachep =
 		kmem_cache_create("ip6_dst_cache", sizeof(struct rt6_info), 0,
 				  SLAB_HWCACHE_ALIGN, NULL);
 	if (!ip6_dst_ops_template.kmem_cachep)
-		goto out_ip6_dst_ops;
-
-	ip6_dst_ops->kmem_cachep = ip6_dst_ops_template.kmem_cachep;
-	ip6_dst_blackhole_ops.kmem_cachep = ip6_dst_ops_template.kmem_cachep;
+		goto out;;
 
 	ret = register_pernet_subsys(&ip6_route_net_ops);
 	if (ret)
@@ -2705,9 +2708,7 @@ out_fib6_init:
 out_register_subsys:
 	unregister_pernet_subsys(&ip6_route_net_ops);
 out_kmem_cache:
-	kmem_cache_destroy(ip6_dst_ops->kmem_cachep);
-out_ip6_dst_ops:
-	kfree(ip6_dst_ops);
+	kmem_cache_destroy(ip6_dst_ops_template.kmem_cachep);
 	goto out;
 }
 
@@ -2718,6 +2719,5 @@ void ip6_route_cleanup(void)
 	xfrm6_fini();
 	fib6_gc_cleanup();
 	unregister_pernet_subsys(&ip6_route_net_ops);
-	kmem_cache_destroy(ip6_dst_ops->kmem_cachep);
-	kfree(ip6_dst_ops);
+	kmem_cache_destroy(ip6_dst_ops_template.kmem_cachep);
 }
