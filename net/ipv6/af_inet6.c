@@ -440,6 +440,7 @@ EXPORT_SYMBOL(inet6_getname);
 int inet6_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct sock *sk = sock->sk;
+	struct net *net = sk->sk_net;
 
 	switch(cmd)
 	{
@@ -452,7 +453,7 @@ int inet6_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	case SIOCADDRT:
 	case SIOCDELRT:
 
-		return(ipv6_route_ioctl(cmd,(void __user *)arg));
+		return(ipv6_route_ioctl(net, cmd, (void __user *)arg));
 
 	case SIOCSIFADDR:
 		return addrconf_add_ifaddr((void __user *) arg);

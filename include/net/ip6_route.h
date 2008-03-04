@@ -49,7 +49,9 @@ extern struct dst_entry *	ip6_route_output(struct sock *sk,
 extern int			ip6_route_init(void);
 extern void			ip6_route_cleanup(void);
 
-extern int			ipv6_route_ioctl(unsigned int cmd, void __user *arg);
+extern int			ipv6_route_ioctl(struct net *net,
+						 unsigned int cmd,
+						 void __user *arg);
 
 extern int			ip6_route_add(struct fib6_config *cfg);
 extern int			ip6_ins_rt(struct rt6_info *);
