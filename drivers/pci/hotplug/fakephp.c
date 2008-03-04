@@ -320,7 +320,7 @@ static int disable_slot(struct hotplug_slot *slot)
 		return -ENODEV;
 	dslot = slot->private;
 
-	dbg("%s - physical_slot = %s\n", __FUNCTION__, slot->name);
+	dbg("%s - physical_slot = %s\n", __func__, slot->name);
 
 	/* don't disable bridged devices just yet, we can't handle them easily... */
 	if (dslot->dev->subordinate) {

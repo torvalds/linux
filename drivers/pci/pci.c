@@ -425,7 +425,7 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	 */
 	if (state != PCI_D0 && dev->current_state > state) {
 		printk(KERN_ERR "%s(): %s: state=%d, current state=%d\n",
-			__FUNCTION__, pci_name(dev), state, dev->current_state);
+			__func__, pci_name(dev), state, dev->current_state);
 		return -EINVAL;
 	} else if (dev->current_state == state)
 		return 0;        /* we're already there */

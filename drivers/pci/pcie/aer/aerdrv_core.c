@@ -691,7 +691,7 @@ static void aer_isr_one_error(struct pcie_device *p_device,
 			e_info.flags |= AER_MULTI_ERROR_VALID_FLAG;
 		if (!(s_device = find_source_device(p_device->port, id))) {
 			printk(KERN_DEBUG "%s->can't find device of ID%04x\n",
-				__FUNCTION__, id);
+				__func__, id);
 			continue;
 		}
 		if (get_device_error_info(to_pci_dev(s_device), &e_info) ==

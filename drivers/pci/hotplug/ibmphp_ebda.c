@@ -127,18 +127,18 @@ static void __init print_bus_info (void)
 	
 	list_for_each (ptr1, &bus_info_head) {
 		ptr = list_entry (ptr1, struct bus_info, bus_info_list);
-		debug ("%s - slot_min = %x\n", __FUNCTION__, ptr->slot_min);
-		debug ("%s - slot_max = %x\n", __FUNCTION__, ptr->slot_max);
-		debug ("%s - slot_count = %x\n", __FUNCTION__, ptr->slot_count);
-		debug ("%s - bus# = %x\n", __FUNCTION__, ptr->busno);
-		debug ("%s - current_speed = %x\n", __FUNCTION__, ptr->current_speed);
-		debug ("%s - controller_id = %x\n", __FUNCTION__, ptr->controller_id);
+		debug ("%s - slot_min = %x\n", __func__, ptr->slot_min);
+		debug ("%s - slot_max = %x\n", __func__, ptr->slot_max);
+		debug ("%s - slot_count = %x\n", __func__, ptr->slot_count);
+		debug ("%s - bus# = %x\n", __func__, ptr->busno);
+		debug ("%s - current_speed = %x\n", __func__, ptr->current_speed);
+		debug ("%s - controller_id = %x\n", __func__, ptr->controller_id);
 		
-		debug ("%s - slots_at_33_conv = %x\n", __FUNCTION__, ptr->slots_at_33_conv);
-		debug ("%s - slots_at_66_conv = %x\n", __FUNCTION__, ptr->slots_at_66_conv);
-		debug ("%s - slots_at_66_pcix = %x\n", __FUNCTION__, ptr->slots_at_66_pcix);
-		debug ("%s - slots_at_100_pcix = %x\n", __FUNCTION__, ptr->slots_at_100_pcix);
-		debug ("%s - slots_at_133_pcix = %x\n", __FUNCTION__, ptr->slots_at_133_pcix);
+		debug ("%s - slots_at_33_conv = %x\n", __func__, ptr->slots_at_33_conv);
+		debug ("%s - slots_at_66_conv = %x\n", __func__, ptr->slots_at_66_conv);
+		debug ("%s - slots_at_66_pcix = %x\n", __func__, ptr->slots_at_66_pcix);
+		debug ("%s - slots_at_100_pcix = %x\n", __func__, ptr->slots_at_100_pcix);
+		debug ("%s - slots_at_133_pcix = %x\n", __func__, ptr->slots_at_133_pcix);
 
 	}
 }
@@ -150,12 +150,12 @@ static void print_lo_info (void)
 	debug ("print_lo_info ----\n");	
 	list_for_each (ptr1, &rio_lo_head) {
 		ptr = list_entry (ptr1, struct rio_detail, rio_detail_list);
-		debug ("%s - rio_node_id = %x\n", __FUNCTION__, ptr->rio_node_id);
-		debug ("%s - rio_type = %x\n", __FUNCTION__, ptr->rio_type);
-		debug ("%s - owner_id = %x\n", __FUNCTION__, ptr->owner_id);
-		debug ("%s - first_slot_num = %x\n", __FUNCTION__, ptr->first_slot_num);
-		debug ("%s - wpindex = %x\n", __FUNCTION__, ptr->wpindex);
-		debug ("%s - chassis_num = %x\n", __FUNCTION__, ptr->chassis_num);
+		debug ("%s - rio_node_id = %x\n", __func__, ptr->rio_node_id);
+		debug ("%s - rio_type = %x\n", __func__, ptr->rio_type);
+		debug ("%s - owner_id = %x\n", __func__, ptr->owner_id);
+		debug ("%s - first_slot_num = %x\n", __func__, ptr->first_slot_num);
+		debug ("%s - wpindex = %x\n", __func__, ptr->wpindex);
+		debug ("%s - chassis_num = %x\n", __func__, ptr->chassis_num);
 
 	}
 }
@@ -164,15 +164,15 @@ static void print_vg_info (void)
 {
 	struct rio_detail *ptr;
 	struct list_head *ptr1;
-	debug ("%s ---\n", __FUNCTION__);
+	debug ("%s ---\n", __func__);
 	list_for_each (ptr1, &rio_vg_head) {
 		ptr = list_entry (ptr1, struct rio_detail, rio_detail_list);
-		debug ("%s - rio_node_id = %x\n", __FUNCTION__, ptr->rio_node_id);
-		debug ("%s - rio_type = %x\n", __FUNCTION__, ptr->rio_type);
-		debug ("%s - owner_id = %x\n", __FUNCTION__, ptr->owner_id);
-		debug ("%s - first_slot_num = %x\n", __FUNCTION__, ptr->first_slot_num);
-		debug ("%s - wpindex = %x\n", __FUNCTION__, ptr->wpindex);
-		debug ("%s - chassis_num = %x\n", __FUNCTION__, ptr->chassis_num);
+		debug ("%s - rio_node_id = %x\n", __func__, ptr->rio_node_id);
+		debug ("%s - rio_type = %x\n", __func__, ptr->rio_type);
+		debug ("%s - owner_id = %x\n", __func__, ptr->owner_id);
+		debug ("%s - first_slot_num = %x\n", __func__, ptr->first_slot_num);
+		debug ("%s - wpindex = %x\n", __func__, ptr->wpindex);
+		debug ("%s - chassis_num = %x\n", __func__, ptr->chassis_num);
 
 	}
 }
@@ -185,7 +185,7 @@ static void __init print_ebda_pci_rsrc (void)
 	list_for_each (ptr1, &ibmphp_ebda_pci_rsrc_head) {
 		ptr = list_entry (ptr1, struct ebda_pci_rsrc, ebda_pci_rsrc_list);
 		debug ("%s - rsrc type: %x bus#: %x dev_func: %x start addr: %x end addr: %x\n", 
-			__FUNCTION__, ptr->rsrc_type ,ptr->bus_num, ptr->dev_fun,ptr->start_addr, ptr->end_addr);
+			__func__, ptr->rsrc_type ,ptr->bus_num, ptr->dev_fun,ptr->start_addr, ptr->end_addr);
 	}
 }
 
@@ -196,7 +196,7 @@ static void __init print_ibm_slot (void)
 
 	list_for_each (ptr1, &ibmphp_slot_head) {
 		ptr = list_entry (ptr1, struct slot, ibm_slot_list);
-		debug ("%s - slot_number: %x\n", __FUNCTION__, ptr->number); 
+		debug ("%s - slot_number: %x\n", __func__, ptr->number);
 	}
 }
 
@@ -204,13 +204,13 @@ static void __init print_opt_vg (void)
 {
 	struct opt_rio *ptr;
 	struct list_head *ptr1;
-	debug ("%s ---\n", __FUNCTION__);
+	debug ("%s ---\n", __func__);
 	list_for_each (ptr1, &opt_vg_head) {
 		ptr = list_entry (ptr1, struct opt_rio, opt_rio_list);
-		debug ("%s - rio_type %x\n", __FUNCTION__, ptr->rio_type); 
-		debug ("%s - chassis_num: %x\n", __FUNCTION__, ptr->chassis_num); 
-		debug ("%s - first_slot_num: %x\n", __FUNCTION__, ptr->first_slot_num); 
-		debug ("%s - middle_num: %x\n", __FUNCTION__, ptr->middle_num); 
+		debug ("%s - rio_type %x\n", __func__, ptr->rio_type);
+		debug ("%s - chassis_num: %x\n", __func__, ptr->chassis_num);
+		debug ("%s - first_slot_num: %x\n", __func__, ptr->first_slot_num);
+		debug ("%s - middle_num: %x\n", __func__, ptr->middle_num);
 	}
 }
 
@@ -225,35 +225,35 @@ static void __init print_ebda_hpc (void)
 		hpc_ptr = list_entry (ptr1, struct controller, ebda_hpc_list); 
 
 		for (index = 0; index < hpc_ptr->slot_count; index++) {
-			debug ("%s - physical slot#: %x\n", __FUNCTION__, hpc_ptr->slots[index].slot_num);
-			debug ("%s - pci bus# of the slot: %x\n", __FUNCTION__, hpc_ptr->slots[index].slot_bus_num);
-			debug ("%s - index into ctlr addr: %x\n", __FUNCTION__, hpc_ptr->slots[index].ctl_index);
-			debug ("%s - cap of the slot: %x\n", __FUNCTION__, hpc_ptr->slots[index].slot_cap);
+			debug ("%s - physical slot#: %x\n", __func__, hpc_ptr->slots[index].slot_num);
+			debug ("%s - pci bus# of the slot: %x\n", __func__, hpc_ptr->slots[index].slot_bus_num);
+			debug ("%s - index into ctlr addr: %x\n", __func__, hpc_ptr->slots[index].ctl_index);
+			debug ("%s - cap of the slot: %x\n", __func__, hpc_ptr->slots[index].slot_cap);
 		}
 
 		for (index = 0; index < hpc_ptr->bus_count; index++) {
-			debug ("%s - bus# of each bus controlled by this ctlr: %x\n", __FUNCTION__, hpc_ptr->buses[index].bus_num);
+			debug ("%s - bus# of each bus controlled by this ctlr: %x\n", __func__, hpc_ptr->buses[index].bus_num);
 		}
 
-		debug ("%s - type of hpc: %x\n", __FUNCTION__, hpc_ptr->ctlr_type);
+		debug ("%s - type of hpc: %x\n", __func__, hpc_ptr->ctlr_type);
 		switch (hpc_ptr->ctlr_type) {
 		case 1:
-			debug ("%s - bus: %x\n", __FUNCTION__, hpc_ptr->u.pci_ctlr.bus);
-			debug ("%s - dev_fun: %x\n", __FUNCTION__, hpc_ptr->u.pci_ctlr.dev_fun);
-			debug ("%s - irq: %x\n", __FUNCTION__, hpc_ptr->irq);
+			debug ("%s - bus: %x\n", __func__, hpc_ptr->u.pci_ctlr.bus);
+			debug ("%s - dev_fun: %x\n", __func__, hpc_ptr->u.pci_ctlr.dev_fun);
+			debug ("%s - irq: %x\n", __func__, hpc_ptr->irq);
 			break;
 
 		case 0:
-			debug ("%s - io_start: %x\n", __FUNCTION__, hpc_ptr->u.isa_ctlr.io_start);
-			debug ("%s - io_end: %x\n", __FUNCTION__, hpc_ptr->u.isa_ctlr.io_end);
-			debug ("%s - irq: %x\n", __FUNCTION__, hpc_ptr->irq);
+			debug ("%s - io_start: %x\n", __func__, hpc_ptr->u.isa_ctlr.io_start);
+			debug ("%s - io_end: %x\n", __func__, hpc_ptr->u.isa_ctlr.io_end);
+			debug ("%s - irq: %x\n", __func__, hpc_ptr->irq);
 			break;
 
 		case 2:
 		case 4:
-			debug ("%s - wpegbbar: %lx\n", __FUNCTION__, hpc_ptr->u.wpeg_ctlr.wpegbbar);
-			debug ("%s - i2c_addr: %x\n", __FUNCTION__, hpc_ptr->u.wpeg_ctlr.i2c_addr);
-			debug ("%s - irq: %x\n", __FUNCTION__, hpc_ptr->irq);
+			debug ("%s - wpegbbar: %lx\n", __func__, hpc_ptr->u.wpeg_ctlr.wpegbbar);
+			debug ("%s - i2c_addr: %x\n", __func__, hpc_ptr->u.wpeg_ctlr.i2c_addr);
+			debug ("%s - irq: %x\n", __func__, hpc_ptr->irq);
 			break;
 		}
 	}

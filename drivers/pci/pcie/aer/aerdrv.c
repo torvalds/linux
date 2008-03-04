@@ -220,7 +220,7 @@ static int __devinit aer_probe (struct pcie_device *dev,
 	/* Alloc rpc data structure */
 	if (!(rpc = aer_alloc_rpc(dev))) {
 		printk(KERN_DEBUG "%s: Alloc rpc fails on PCIE device[%s]\n",
-			__FUNCTION__, device->bus_id);
+			__func__, device->bus_id);
 		aer_remove(dev);
 		return -ENOMEM;
 	}
@@ -229,7 +229,7 @@ static int __devinit aer_probe (struct pcie_device *dev,
 	if ((status = request_irq(dev->irq, aer_irq, IRQF_SHARED, "aerdrv",
 				dev))) {
 		printk(KERN_DEBUG "%s: Request ISR fails on PCIE device[%s]\n",
-			__FUNCTION__, device->bus_id);
+			__func__, device->bus_id);
 		aer_remove(dev);
 		return status;
 	}
