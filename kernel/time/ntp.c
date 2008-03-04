@@ -42,12 +42,13 @@ long time_esterror = NTP_PHASE_LIMIT;	/* estimated error (us)		*/
 long time_freq;				/* frequency offset (scaled ppm)*/
 static long time_reftime;		/* time at last adjustment (s)	*/
 long time_adjust;
+static long ntp_tick_adj;
 
 static void ntp_update_frequency(void)
 {
 	u64 second_length = (u64)(tick_usec * NSEC_PER_USEC * USER_HZ)
 				<< TICK_LENGTH_SHIFT;
-	second_length += (s64)CLOCK_TICK_ADJUST << TICK_LENGTH_SHIFT;
+	second_length += (s64)ntp_tick_adj << TICK_LENGTH_SHIFT;
 	second_length += (s64)time_freq << (TICK_LENGTH_SHIFT - SHIFT_NSEC);
 
 	tick_length_base = second_length;
@@ -402,3 +403,11 @@ leave:	if ((time_status & (STA_UNSYNC|STA_CLOCKERR)) != 0)
 	notify_cmos_timer();
 	return(result);
 }
+
+static int __init ntp_tick_adj_setup(char *str)
+{
+	ntp_tick_adj = simple_strtol(str, NULL, 0);
+	return 1;
+}
+
+__setup("ntp_tick_adj=", ntp_tick_adj_setup);
