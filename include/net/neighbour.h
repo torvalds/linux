@@ -284,12 +284,6 @@ static inline void neigh_confirm(struct neighbour *neigh)
 		neigh->confirmed = jiffies;
 }
 
-static inline int neigh_is_connected(struct neighbour *neigh)
-{
-	return neigh->nud_state&NUD_CONNECTED;
-}
-
-
 static inline int neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 {
 	neigh->used = jiffies;
