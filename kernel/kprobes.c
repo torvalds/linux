@@ -498,27 +498,36 @@ static int __kprobes in_kprobes_functions(unsigned long addr)
 	return 0;
 }
 
+/*
+ * If we have a symbol_name argument, look it up and add the offset field
+ * to it. This way, we can specify a relative address to a symbol.
+ */
+static kprobe_opcode_t __kprobes *kprobe_addr(struct kprobe *p)
+{
+	kprobe_opcode_t *addr = p->addr;
+	if (p->symbol_name) {
+		if (addr)
+			return NULL;
+		kprobe_lookup_name(p->symbol_name, addr);
+	}
+
+	if (!addr)
+		return NULL;
+	return (kprobe_opcode_t *)(((char *)addr) + p->offset);
+}
+
 static int __kprobes __register_kprobe(struct kprobe *p,
 	unsigned long called_from)
 {
 	int ret = 0;
 	struct kprobe *old_p;
 	struct module *probed_mod;
+	kprobe_opcode_t *addr;
 
-	/*
-	 * If we have a symbol_name argument look it up,
-	 * and add it to the address.  That way the addr
-	 * field can either be global or relative to a symbol.
-	 */
-	if (p->symbol_name) {
-		if (p->addr)
-			return -EINVAL;
-		kprobe_lookup_name(p->symbol_name, p->addr);
-	}
-
-	if (!p->addr)
+	addr = kprobe_addr(p);
+	if (!addr)
 		return -EINVAL;
-	p->addr = (kprobe_opcode_t *)(((char *)p->addr)+ p->offset);
+	p->addr = addr;
 
 	if (!kernel_text_address((unsigned long) p->addr) ||
 	    in_kprobes_functions((unsigned long) p->addr))
@@ -721,12 +730,12 @@ int __kprobes register_kretprobe(struct kretprobe *rp)
 	int ret = 0;
 	struct kretprobe_instance *inst;
 	int i;
-	void *addr = rp->kp.addr;
+	void *addr;
 
 	if (kretprobe_blacklist_size) {
-		if (addr == NULL)
-			kprobe_lookup_name(rp->kp.symbol_name, addr);
-		addr += rp->kp.offset;
+		addr = kprobe_addr(&rp->kp);
+		if (!addr)
+			return -EINVAL;
 
 		for (i = 0; kretprobe_blacklist[i].name != NULL; i++) {
 			if (kretprobe_blacklist[i].addr == addr)
