@@ -1138,6 +1138,12 @@ L:	accessrunner-general@lists.sourceforge.net
 W:	http://accessrunner.sourceforge.net/
 S:	Maintained
 
+CONTROL GROUPS (CGROUPS)
+P:	Paul Menage
+M:	menage@google.com
+L:	containers@lists.linux-foundation.org
+S:	Maintained
+
 CORETEMP HARDWARE MONITORING DRIVER
 P:	Rudolf Marek
 M:	r.marek@assembler.cz
