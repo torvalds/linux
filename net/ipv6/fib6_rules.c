@@ -29,8 +29,6 @@ struct fib6_rule
 	u8			tclass;
 };
 
-static struct fib_rules_ops *fib6_rules_ops;
-
 struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi *fl,
 				   int flags, pol_lookup_t lookup)
 {
@@ -38,7 +36,7 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi *fl,
 		.lookup_ptr = lookup,
 	};
 
-	fib_rules_lookup(fib6_rules_ops, fl, flags, &arg);
+	fib_rules_lookup(net->ipv6.fib6_rules_ops, fl, flags, &arg);
 	if (arg.rule)
 		fib_rule_put(arg.rule);
 
@@ -71,7 +69,7 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 		goto discard_pkt;
 	}
 
-	table = fib6_get_table(&init_net, rule->table);
+	table = fib6_get_table(rule->fr_net, rule->table);
 	if (table)
 		rt = lookup(table, flp, flags);
 
@@ -145,13 +143,14 @@ static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 			       struct nlattr **tb)
 {
 	int err = -EINVAL;
+	struct net *net = skb->sk->sk_net;
 	struct fib6_rule *rule6 = (struct fib6_rule *) rule;
 
 	if (rule->action == FR_ACT_TO_TBL) {
 		if (rule->table == RT6_TABLE_UNSPEC)
 			goto errout;
 
-		if (fib6_new_table(&init_net, rule->table) == NULL) {
+		if (fib6_new_table(net, rule->table) == NULL) {
 			err = -ENOBUFS;
 			goto errout;
 		}
@@ -251,49 +250,60 @@ static struct fib_rules_ops fib6_rules_ops_template = {
 	.fro_net		= &init_net,
 };
 
-static int __init fib6_default_rules_init(void)
+static int fib6_rules_net_init(struct net *net)
 {
-	int err;
+	int err = -ENOMEM;
 
-	fib6_rules_ops = kmemdup(&fib6_rules_ops_template,
-				 sizeof(*fib6_rules_ops), GFP_KERNEL);
-	if (!fib6_rules_ops)
-		return -ENOMEM;
-
-	INIT_LIST_HEAD(&fib6_rules_ops->rules_list);
-
-	err = fib_default_rule_add(fib6_rules_ops, 0,
-				   RT6_TABLE_LOCAL, FIB_RULE_PERMANENT);
-	if (err < 0)
-		return err;
-	err = fib_default_rule_add(fib6_rules_ops, 0x7FFE, RT6_TABLE_MAIN, 0);
-	if (err < 0)
-		return err;
-	return 0;
-}
-
-int __init fib6_rules_init(void)
-{
-	int ret;
-
-	ret = fib6_default_rules_init();
-	if (ret)
+	net->ipv6.fib6_rules_ops = kmemdup(&fib6_rules_ops_template,
+					   sizeof(*net->ipv6.fib6_rules_ops),
+					   GFP_KERNEL);
+	if (!net->ipv6.fib6_rules_ops)
 		goto out;
 
-	ret = fib_rules_register(fib6_rules_ops);
-	if (ret)
-		goto out_default_rules_init;
-out:
-	return ret;
+	net->ipv6.fib6_rules_ops->fro_net = net;
+	INIT_LIST_HEAD(&net->ipv6.fib6_rules_ops->rules_list);
 
-out_default_rules_init:
-	fib_rules_cleanup_ops(fib6_rules_ops);
-	kfree(fib6_rules_ops);
+	err = fib_default_rule_add(net->ipv6.fib6_rules_ops, 0,
+				   RT6_TABLE_LOCAL, FIB_RULE_PERMANENT);
+	if (err)
+		goto out_fib6_rules_ops;
+
+	err = fib_default_rule_add(net->ipv6.fib6_rules_ops,
+				   0x7FFE, RT6_TABLE_MAIN, 0);
+	if (err)
+		goto out_fib6_default_rule_add;
+
+	err = fib_rules_register(net->ipv6.fib6_rules_ops);
+	if (err)
+		goto out_fib6_default_rule_add;
+out:
+	return err;
+
+out_fib6_default_rule_add:
+	fib_rules_cleanup_ops(net->ipv6.fib6_rules_ops);
+out_fib6_rules_ops:
+	kfree(net->ipv6.fib6_rules_ops);
 	goto out;
 }
 
+static void fib6_rules_net_exit(struct net *net)
+{
+	fib_rules_unregister(net->ipv6.fib6_rules_ops);
+	kfree(net->ipv6.fib6_rules_ops);
+}
+
+static struct pernet_operations fib6_rules_net_ops = {
+	.init = fib6_rules_net_init,
+	.exit = fib6_rules_net_exit,
+};
+
+int __init fib6_rules_init(void)
+{
+	return register_pernet_subsys(&fib6_rules_net_ops);
+}
+
+
 void fib6_rules_cleanup(void)
 {
-	fib_rules_unregister(fib6_rules_ops);
-	kfree(fib6_rules_ops);
+	return unregister_pernet_subsys(&fib6_rules_net_ops);
 }

@@ -41,6 +41,7 @@ struct netns_ipv6 {
 	struct fib6_table       *fib6_main_tbl;
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 	struct fib6_table       *fib6_local_tbl;
+	struct fib_rules_ops    *fib6_rules_ops;
 #endif
 	struct sock		**icmp_sk;
 };
