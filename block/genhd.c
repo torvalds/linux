@@ -17,6 +17,8 @@
 #include <linux/buffer_head.h>
 #include <linux/mutex.h>
 
+#include "blk.h"
+
 static DEFINE_MUTEX(block_class_lock);
 #ifndef CONFIG_SYSFS_DEPRECATED
 struct kobject *block_depr;
@@ -345,8 +347,6 @@ const struct seq_operations partitions_op = {
 };
 #endif
 
-
-extern int blk_dev_init(void);
 
 static struct kobject *base_probe(dev_t devt, int *part, void *data)
 {
