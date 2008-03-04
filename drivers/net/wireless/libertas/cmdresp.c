@@ -562,9 +562,7 @@ int lbs_process_rx_command(struct lbs_private *priv)
 	}
 
 	resp = (void *)priv->upld_buf;
-
-	curcmd = le16_to_cpu(resp->command);
-
+	curcmd = le16_to_cpu(priv->cur_cmd->cmdbuf->command);
 	respcmd = le16_to_cpu(resp->command);
 	result = le16_to_cpu(resp->result);
 
