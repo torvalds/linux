@@ -1818,6 +1818,8 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 				if (j == conf->copies) {
 					/* Cannot recover, so abort the recovery */
 					put_buf(r10_bio);
+					if (rb2)
+						atomic_dec(&rb2->remaining);
 					r10_bio = rb2;
 					if (!test_and_set_bit(MD_RECOVERY_ERR, &mddev->recovery))
 						printk(KERN_INFO "raid10: %s: insufficient working devices for recovery.\n",
