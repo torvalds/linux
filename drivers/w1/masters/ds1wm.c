@@ -17,6 +17,7 @@
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/ds1wm.h>
 
@@ -374,8 +375,8 @@ static int ds1wm_probe(struct platform_device *pdev)
 		goto err1;
 
 	ds1wm_data->clk = clk_get(&pdev->dev, "ds1wm");
-	if (!ds1wm_data->clk) {
-		ret = -ENOENT;
+	if (IS_ERR(ds1wm_data->clk)) {
+		ret = PTR_ERR(ds1wm_data->clk);
 		goto err2;
 	}
 
