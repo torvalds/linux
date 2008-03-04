@@ -18,10 +18,12 @@
 #define dev_to_disk(device) container_of(device, struct gendisk, dev)
 #define dev_to_part(device) container_of(device, struct hd_struct, dev)
 
-extern struct device_type disk_type;
 extern struct device_type part_type;
 extern struct kobject *block_depr;
 extern struct class block_class;
+
+extern const struct seq_operations partitions_op;
+extern const struct seq_operations diskstats_op;
 
 enum {
 /* These three have identical behaviour; use the second one if DOS FDISK gets
@@ -556,7 +558,6 @@ extern struct gendisk *alloc_disk_node(int minors, int node_id);
 extern struct gendisk *alloc_disk(int minors);
 extern struct kobject *get_disk(struct gendisk *disk);
 extern void put_disk(struct gendisk *disk);
-extern void genhd_media_change_notify(struct gendisk *disk);
 extern void blk_register_region(dev_t devt, unsigned long range,
 			struct module *module,
 			struct kobject *(*probe)(dev_t, int *, void *),

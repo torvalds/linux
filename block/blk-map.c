@@ -19,7 +19,6 @@ int blk_rq_append_bio(struct request_queue *q, struct request *rq,
 		rq->biotail->bi_next = bio;
 		rq->biotail = bio;
 
-		rq->raw_data_len += bio->bi_size;
 		rq->data_len += bio->bi_size;
 	}
 	return 0;
@@ -44,6 +43,7 @@ static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
 			     void __user *ubuf, unsigned int len)
 {
 	unsigned long uaddr;
+	unsigned int alignment;
 	struct bio *bio, *orig_bio;
 	int reading, ret;
 
@@ -54,8 +54,8 @@ static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
 	 * direct dma. else, set up kernel bounce buffers
 	 */
 	uaddr = (unsigned long) ubuf;
-	if (!(uaddr & queue_dma_alignment(q)) &&
-	    !(len & queue_dma_alignment(q)))
+	alignment = queue_dma_alignment(q) | q->dma_pad_mask;
+	if (!(uaddr & alignment) && !(len & alignment))
 		bio = bio_map_user(q, NULL, uaddr, len, reading);
 	else
 		bio = bio_copy_user(q, uaddr, len, reading);
@@ -142,20 +142,22 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 
 	/*
 	 * __blk_rq_map_user() copies the buffers if starting address
-	 * or length isn't aligned.  As the copied buffer is always
-	 * page aligned, we know that there's enough room for padding.
-	 * Extend the last bio and update rq->data_len accordingly.
+	 * or length isn't aligned to dma_pad_mask.  As the copied
+	 * buffer is always page aligned, we know that there's enough
+	 * room for padding.  Extend the last bio and update
+	 * rq->data_len accordingly.
 	 *
 	 * On unmap, bio_uncopy_user() will use unmodified
 	 * bio_map_data pointed to by bio->bi_private.
 	 */
-	if (len & queue_dma_alignment(q)) {
-		unsigned int pad_len = (queue_dma_alignment(q) & ~len) + 1;
-		struct bio *bio = rq->biotail;
+	if (len & q->dma_pad_mask) {
+		unsigned int pad_len = (q->dma_pad_mask & ~len) + 1;
+		struct bio *tail = rq->biotail;
 
-		bio->bi_io_vec[bio->bi_vcnt - 1].bv_len += pad_len;
-		bio->bi_size += pad_len;
-		rq->data_len += pad_len;
+		tail->bi_io_vec[tail->bi_vcnt - 1].bv_len += pad_len;
+		tail->bi_size += pad_len;
+
+		rq->extra_len += pad_len;
 	}
 
 	rq->buffer = rq->data = NULL;
@@ -215,7 +217,6 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 	rq->buffer = rq->data = NULL;
 	return 0;
 }
-EXPORT_SYMBOL(blk_rq_map_user_iov);
 
 /**
  * blk_rq_unmap_user - unmap a request with user data
