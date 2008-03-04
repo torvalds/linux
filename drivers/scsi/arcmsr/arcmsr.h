@@ -341,13 +341,13 @@ struct MessageUnit_B
 	uint32_t	done_qbuffer[ARCMSR_MAX_HBB_POSTQUEUE];
 	uint32_t	postq_index;
 	uint32_t	doneq_index;
-	uint32_t	__iomem *drv2iop_doorbell_reg;
-	uint32_t	__iomem *drv2iop_doorbell_mask_reg;
-	uint32_t	__iomem *iop2drv_doorbell_reg;
-	uint32_t	__iomem *iop2drv_doorbell_mask_reg;
-	uint32_t	__iomem *msgcode_rwbuffer_reg;
-	uint32_t	__iomem *ioctl_wbuffer_reg;
-	uint32_t	__iomem *ioctl_rbuffer_reg;
+	void		__iomem *drv2iop_doorbell_reg;
+	void		__iomem *drv2iop_doorbell_mask_reg;
+	void		__iomem *iop2drv_doorbell_reg;
+	void		__iomem *iop2drv_doorbell_mask_reg;
+	void		__iomem *msgcode_rwbuffer_reg;
+	void		__iomem *ioctl_wbuffer_reg;
+	void		__iomem *ioctl_rbuffer_reg;
 };
 
 /*
