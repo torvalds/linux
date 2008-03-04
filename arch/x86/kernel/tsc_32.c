@@ -392,13 +392,15 @@ void __init tsc_init(void)
 	int cpu;
 
 	if (!cpu_has_tsc)
-		goto out_no_tsc;
+		return;
 
 	cpu_khz = calculate_cpu_khz();
 	tsc_khz = cpu_khz;
 
-	if (!cpu_khz)
-		goto out_no_tsc;
+	if (!cpu_khz) {
+		mark_tsc_unstable("could not calculate TSC khz");
+		return;
+	}
 
 	printk("Detected %lu.%03lu MHz processor.\n",
 				(unsigned long)cpu_khz / 1000,
@@ -431,9 +433,4 @@ void __init tsc_init(void)
 		tsc_enabled = 1;
 
 	clocksource_register(&clocksource_tsc);
-
-	return;
-
-out_no_tsc:
-	setup_clear_cpu_cap(X86_FEATURE_TSC);
 }
