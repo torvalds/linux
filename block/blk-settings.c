@@ -332,7 +332,7 @@ EXPORT_SYMBOL(blk_queue_dma_pad);
  * device can support otherwise there won't be room for the drain
  * buffer.
  */
-extern int blk_queue_dma_drain(struct request_queue *q,
+int blk_queue_dma_drain(struct request_queue *q,
 			       dma_drain_needed_fn *dma_drain_needed,
 			       void *buf, unsigned int size)
 {
