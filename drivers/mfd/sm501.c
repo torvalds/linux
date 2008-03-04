@@ -53,26 +53,7 @@ struct sm501_devdata {
 #define MHZ (1000 * 1000)
 
 #ifdef DEBUG
-static const unsigned int misc_div[] = {
-	[0]		= 1,
-	[1]		= 2,
-	[2]		= 4,
-	[3]		= 8,
-	[4]		= 16,
-	[5]		= 32,
-	[6]		= 64,
-	[7]		= 128,
-	[8]		= 3,
-	[9]		= 6,
-	[10]		= 12,
-	[11]		= 24,
-	[12]		= 48,
-	[13]		= 96,
-	[14]		= 192,
-	[15]		= 384,
-};
-
-static const unsigned int px_div[] = {
+static const unsigned int div_tab[] = {
 	[0]		= 1,
 	[1]		= 2,
 	[2]		= 4,
@@ -101,12 +82,12 @@ static const unsigned int px_div[] = {
 
 static unsigned long decode_div(unsigned long pll2, unsigned long val,
 				unsigned int lshft, unsigned int selbit,
-				unsigned long mask, const unsigned int *dtab)
+				unsigned long mask)
 {
 	if (val & selbit)
 		pll2 = 288 * MHZ;
 
-	return pll2 / dtab[(val >> lshft) & mask];
+	return pll2 / div_tab[(val >> lshft) & mask];
 }
 
 #define fmt_freq(x) ((x) / MHZ), ((x) % MHZ), (x)
@@ -141,10 +122,10 @@ static void sm501_dump_clk(struct sm501_devdata *sm)
 	}
 
 	sdclk0 = (misct & (1<<12)) ? pll2 : 288 * MHZ;
-	sdclk0 /= misc_div[((misct >> 8) & 0xf)];
+	sdclk0 /= div_tab[((misct >> 8) & 0xf)];
 
 	sdclk1 = (misct & (1<<20)) ? pll2 : 288 * MHZ;
-	sdclk1 /= misc_div[((misct >> 16) & 0xf)];
+	sdclk1 /= div_tab[((misct >> 16) & 0xf)];
 
 	dev_dbg(sm->dev, "MISCT=%08lx, PM0=%08lx, PM1=%08lx\n",
 		misct, pm0, pm1);
@@ -158,19 +139,19 @@ static void sm501_dump_clk(struct sm501_devdata *sm)
 		 "P2 %ld.%ld MHz (%ld), V2 %ld.%ld (%ld), "
 		 "M %ld.%ld (%ld), MX1 %ld.%ld (%ld)\n",
 		 (pmc & 3 ) == 0 ? '*' : '-',
-		 fmt_freq(decode_div(pll2, pm0, 24, 1<<29, 31, px_div)),
-		 fmt_freq(decode_div(pll2, pm0, 16, 1<<20, 15, misc_div)),
-		 fmt_freq(decode_div(pll2, pm0, 8,  1<<12, 15, misc_div)),
-		 fmt_freq(decode_div(pll2, pm0, 0,  1<<4,  15, misc_div)));
+		 fmt_freq(decode_div(pll2, pm0, 24, 1<<29, 31)),
+		 fmt_freq(decode_div(pll2, pm0, 16, 1<<20, 15)),
+		 fmt_freq(decode_div(pll2, pm0, 8,  1<<12, 15)),
+		 fmt_freq(decode_div(pll2, pm0, 0,  1<<4,  15)));
 
 	dev_dbg(sm->dev, "PM1[%c]: "
 		"P2 %ld.%ld MHz (%ld), V2 %ld.%ld (%ld), "
 		"M %ld.%ld (%ld), MX1 %ld.%ld (%ld)\n",
 		(pmc & 3 ) == 1 ? '*' : '-',
-		fmt_freq(decode_div(pll2, pm1, 24, 1<<29, 31, px_div)),
-		fmt_freq(decode_div(pll2, pm1, 16, 1<<20, 15, misc_div)),
-		fmt_freq(decode_div(pll2, pm1, 8,  1<<12, 15, misc_div)),
-		fmt_freq(decode_div(pll2, pm1, 0,  1<<4,  15, misc_div)));
+		fmt_freq(decode_div(pll2, pm1, 24, 1<<29, 31)),
+		fmt_freq(decode_div(pll2, pm1, 16, 1<<20, 15)),
+		fmt_freq(decode_div(pll2, pm1, 8,  1<<12, 15)),
+		fmt_freq(decode_div(pll2, pm1, 0,  1<<4,  15)));
 }
 
 static void sm501_dump_regs(struct sm501_devdata *sm)
