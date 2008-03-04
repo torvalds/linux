@@ -24,6 +24,8 @@ struct iova {
 	struct rb_node	node;
 	unsigned long	pfn_hi; /* IOMMU dish out addr hi */
 	unsigned long	pfn_lo; /* IOMMU dish out addr lo */
+	struct list_head list;
+	void *dmar;
 };
 
 /* holds all the iova translations for a domain */

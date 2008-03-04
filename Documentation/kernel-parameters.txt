@@ -847,6 +847,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			than 32 bit addressing. The default is to look
 			for translation below 32 bit and if not available
 			then look in the higher range.
+		strict [Default Off]
+			With this option on every unmap_single operation will
+			result in a hardware IOTLB flush operation as opposed
+			to batching them for performance.
 
 	io_delay=	[X86-32,X86-64] I/O delay method
 		0x80
