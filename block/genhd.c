@@ -24,6 +24,8 @@ static DEFINE_MUTEX(block_class_lock);
 struct kobject *block_depr;
 #endif
 
+static struct device_type disk_type;
+
 /*
  * Can be deleted altogether. Later.
  *
@@ -502,7 +504,7 @@ struct class block_class = {
 	.name		= "block",
 };
 
-struct device_type disk_type = {
+static struct device_type disk_type = {
 	.name		= "disk",
 	.groups		= disk_attr_groups,
 	.release	= disk_release,
@@ -632,12 +634,14 @@ static void media_change_notify_thread(struct work_struct *work)
 	put_device(gd->driverfs_dev);
 }
 
+#if 0
 void genhd_media_change_notify(struct gendisk *disk)
 {
 	get_device(disk->driverfs_dev);
 	schedule_work(&disk->async_notify);
 }
 EXPORT_SYMBOL_GPL(genhd_media_change_notify);
+#endif  /*  0  */
 
 dev_t blk_lookup_devt(const char *name)
 {
