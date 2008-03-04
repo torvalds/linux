@@ -72,12 +72,8 @@ static void __init reserve_ebda_region(void)
 	/* that area is absent. We'll just have to assume */
 	/* that the paravirt case can handle memory setup */
 	/* correctly, without our help. */
-#ifdef CONFIG_PARAVIRT
-	if ((boot_params.hdr.version >= 0x207) &&
-			(boot_params.hdr.hardware_subarch != 0)) {
+	if (paravirt_enabled())
 		return;
-	}
-#endif
 
 	/* end of low (conventional) memory */
 	lowmem = *(unsigned short *)__va(BIOS_LOWMEM_KILOBYTES);
