@@ -152,10 +152,10 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 	 */
 	if (len & q->dma_pad_mask) {
 		unsigned int pad_len = (q->dma_pad_mask & ~len) + 1;
-		struct bio *bio = rq->biotail;
+		struct bio *tail = rq->biotail;
 
-		bio->bi_io_vec[bio->bi_vcnt - 1].bv_len += pad_len;
-		bio->bi_size += pad_len;
+		tail->bi_io_vec[tail->bi_vcnt - 1].bv_len += pad_len;
+		tail->bi_size += pad_len;
 
 		rq->extra_len += pad_len;
 	}
