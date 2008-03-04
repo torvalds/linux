@@ -992,23 +992,22 @@ int icmp6_dst_gc(int *more)
 
 static int ip6_dst_gc(struct dst_ops *ops)
 {
-	static unsigned expire = 30*HZ;
-	static unsigned long last_gc;
+	struct net *net = ops->dst_net;
 	unsigned long now = jiffies;
 
-	if (time_after(last_gc + init_net.ipv6.sysctl.ip6_rt_gc_min_interval, now) &&
-	    atomic_read(&init_net.ipv6.ip6_dst_ops->entries) <= init_net.ipv6.sysctl.ip6_rt_max_size)
+	if (time_after(net->ipv6.ip6_rt_last_gc + net->ipv6.sysctl.ip6_rt_gc_min_interval, now) &&
+	    atomic_read(&net->ipv6.ip6_dst_ops->entries) <= net->ipv6.sysctl.ip6_rt_max_size)
 		goto out;
 
-	expire++;
-	fib6_run_gc(expire, &init_net);
-	last_gc = now;
-	if (atomic_read(&init_net.ipv6.ip6_dst_ops->entries) < init_net.ipv6.ip6_dst_ops->gc_thresh)
-		expire = init_net.ipv6.sysctl.ip6_rt_gc_timeout>>1;
+	net->ipv6.ip6_rt_gc_expire++;
+	fib6_run_gc(net->ipv6.ip6_rt_gc_expire, net);
+	net->ipv6.ip6_rt_last_gc = now;
+	if (atomic_read(&net->ipv6.ip6_dst_ops->entries) < net->ipv6.ip6_dst_ops->gc_thresh)
+		net->ipv6.ip6_rt_gc_expire = net->ipv6.sysctl.ip6_rt_gc_timeout>>1;
 
 out:
-	expire -= expire>>init_net.ipv6.sysctl.ip6_rt_gc_elasticity;
-	return (atomic_read(&init_net.ipv6.ip6_dst_ops->entries) > init_net.ipv6.sysctl.ip6_rt_max_size);
+	net->ipv6.ip6_rt_gc_expire -= net->ipv6.ip6_rt_gc_expire>>net->ipv6.sysctl.ip6_rt_gc_elasticity;
+	return (atomic_read(&net->ipv6.ip6_dst_ops->entries) > net->ipv6.sysctl.ip6_rt_max_size);
 }
 
 /* Clean host part of a prefix. Not necessary in radix tree,
@@ -2615,6 +2614,8 @@ static int ip6_route_net_init(struct net *net)
 	proc_net_fops_create(net, "ipv6_route", 0, &ipv6_route_proc_fops);
 	proc_net_fops_create(net, "rt6_stats", S_IRUGO, &rt6_stats_seq_fops);
 #endif
+	net->ipv6.ip6_rt_gc_expire = 30*HZ;
+
 	ret = 0;
 out:
 	return ret;
