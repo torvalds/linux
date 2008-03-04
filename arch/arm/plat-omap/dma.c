@@ -137,7 +137,7 @@ static void omap_disable_channel_irq(int lch);
 static inline void omap_enable_channel_irq(int lch);
 
 #define REVISIT_24XX()		printk(KERN_ERR "FIXME: no %s on 24xx\n", \
-						__FUNCTION__);
+						__func__);
 
 #ifdef CONFIG_ARCH_OMAP15XX
 /* Returns 1 if the DMA module is in OMAP1510-compatible mode, 0 otherwise */
@@ -699,7 +699,7 @@ omap_dma_set_global_params(int arb_rate, int max_fifo_depth, int tparams)
 	u32 reg;
 
 	if (!cpu_class_is_omap2()) {
-		printk(KERN_ERR "FIXME: no %s on 15xx/16xx\n", __FUNCTION__);
+		printk(KERN_ERR "FIXME: no %s on 15xx/16xx\n", __func__);
 		return;
 	}
 

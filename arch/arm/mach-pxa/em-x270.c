@@ -264,7 +264,7 @@ static int em_x270_mci_init(struct device *dev,
 			  "MMC card detect", data);
 	if (err) {
 		printk(KERN_ERR "%s: can't request MMC card detect IRQ: %d\n",
-		       __FUNCTION__, err);
+		       __func__, err);
 		return err;
 	}
 
