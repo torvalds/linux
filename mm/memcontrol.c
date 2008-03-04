@@ -277,6 +277,11 @@ static void lock_page_cgroup(struct page *page)
 	bit_spin_lock(PAGE_CGROUP_LOCK_BIT, &page->page_cgroup);
 }
 
+static int try_lock_page_cgroup(struct page *page)
+{
+	return bit_spin_trylock(PAGE_CGROUP_LOCK_BIT, &page->page_cgroup);
+}
+
 static void unlock_page_cgroup(struct page *page)
 {
 	bit_spin_unlock(PAGE_CGROUP_LOCK_BIT, &page->page_cgroup);
@@ -348,17 +353,49 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
 void mem_cgroup_move_lists(struct page *page, bool active)
 {
 	struct page_cgroup *pc;
+	struct mem_cgroup *mem;
 	struct mem_cgroup_per_zone *mz;
 	unsigned long flags;
 
-	pc = page_get_page_cgroup(page);
-	if (!pc)
+	/*
+	 * We cannot lock_page_cgroup while holding zone's lru_lock,
+	 * because other holders of lock_page_cgroup can be interrupted
+	 * with an attempt to rotate_reclaimable_page.  But we cannot
+	 * safely get to page_cgroup without it, so just try_lock it:
+	 * mem_cgroup_isolate_pages allows for page left on wrong list.
+	 */
+	if (!try_lock_page_cgroup(page))
 		return;
 
-	mz = page_cgroup_zoneinfo(pc);
-	spin_lock_irqsave(&mz->lru_lock, flags);
-	__mem_cgroup_move_lists(pc, active);
-	spin_unlock_irqrestore(&mz->lru_lock, flags);
+	/*
+	 * Now page_cgroup is stable, but we cannot acquire mz->lru_lock
+	 * while holding it, because mem_cgroup_force_empty_list does the
+	 * reverse.  Get a hold on the mem_cgroup before unlocking, so that
+	 * the zoneinfo remains stable, then take mz->lru_lock; then check
+	 * that page still points to pc and pc (even if freed and reassigned
+	 * to that same page meanwhile) still points to the same mem_cgroup.
+	 * Then we know mz still points to the right spinlock, so it's safe
+	 * to move_lists (page->page_cgroup might be reset while we do so, but
+	 * that doesn't matter: pc->page is stable till we drop mz->lru_lock).
+	 * We're being a little naughty not to try_lock_page_cgroup again
+	 * inside there, but we are safe, aren't we?  Aren't we?  Whistle...
+	 */
+	pc = page_get_page_cgroup(page);
+	if (pc) {
+		mem = pc->mem_cgroup;
+		mz = page_cgroup_zoneinfo(pc);
+		css_get(&mem->css);
+
+		unlock_page_cgroup(page);
+
+		spin_lock_irqsave(&mz->lru_lock, flags);
+		if (page_get_page_cgroup(page) == pc && pc->mem_cgroup == mem)
+			__mem_cgroup_move_lists(pc, active);
+		spin_unlock_irqrestore(&mz->lru_lock, flags);
+
+		css_put(&mem->css);
+	} else
+		unlock_page_cgroup(page);
 }
 
 /*
