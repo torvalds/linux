@@ -717,8 +717,7 @@ int ocfs2_journal_load(struct ocfs2_journal *journal, int local)
 
 	mlog_entry_void();
 
-	if (!journal)
-		BUG();
+	BUG_ON(!journal);
 
 	osb = journal->j_osb;
 
