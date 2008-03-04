@@ -39,6 +39,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/dma-mapping.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/slab.h>
