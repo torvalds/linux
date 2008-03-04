@@ -43,8 +43,8 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi *fl,
 	if (arg.result)
 		return arg.result;
 
-	dst_hold(&ip6_null_entry.u.dst);
-	return &ip6_null_entry.u.dst;
+	dst_hold(&ip6_null_entry->u.dst);
+	return &ip6_null_entry->u.dst;
 }
 
 static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
@@ -58,14 +58,14 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 	case FR_ACT_TO_TBL:
 		break;
 	case FR_ACT_UNREACHABLE:
-		rt = &ip6_null_entry;
+		rt = ip6_null_entry;
 		goto discard_pkt;
 	default:
 	case FR_ACT_BLACKHOLE:
-		rt = &ip6_blk_hole_entry;
+		rt = ip6_blk_hole_entry;
 		goto discard_pkt;
 	case FR_ACT_PROHIBIT:
-		rt = &ip6_prohibit_entry;
+		rt = ip6_prohibit_entry;
 		goto discard_pkt;
 	}
 
@@ -73,7 +73,7 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 	if (table)
 		rt = lookup(table, flp, flags);
 
-	if (rt != &ip6_null_entry) {
+	if (rt != ip6_null_entry) {
 		struct fib6_rule *r = (struct fib6_rule *)rule;
 
 		/*

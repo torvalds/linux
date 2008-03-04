@@ -200,7 +200,7 @@ static struct fib6_table *fib6_alloc_table(u32 id)
 	table = kzalloc(sizeof(*table), GFP_ATOMIC);
 	if (table != NULL) {
 		table->tb6_id = id;
-		table->tb6_root.leaf = &ip6_null_entry;
+		table->tb6_root.leaf = ip6_null_entry;
 		table->tb6_root.fn_flags = RTN_ROOT | RTN_TL_ROOT | RTN_RTINFO;
 	}
 
@@ -717,8 +717,8 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info)
 			if (sfn == NULL)
 				goto st_failure;
 
-			sfn->leaf = &ip6_null_entry;
-			atomic_inc(&ip6_null_entry.rt6i_ref);
+			sfn->leaf = ip6_null_entry;
+			atomic_inc(&ip6_null_entry->rt6i_ref);
 			sfn->fn_flags = RTN_ROOT;
 			sfn->fn_sernum = fib6_new_sernum();
 
@@ -777,7 +777,7 @@ out:
 #if RT6_DEBUG >= 2
 			if (!pn->leaf) {
 				BUG_TRAP(pn->leaf != NULL);
-				pn->leaf = &ip6_null_entry;
+				pn->leaf = ip6_null_entry;
 			}
 #endif
 			atomic_inc(&pn->leaf->rt6i_ref);
@@ -962,7 +962,7 @@ struct fib6_node * fib6_locate(struct fib6_node *root,
 static struct rt6_info * fib6_find_prefix(struct fib6_node *fn)
 {
 	if (fn->fn_flags&RTN_ROOT)
-		return &ip6_null_entry;
+		return ip6_null_entry;
 
 	while(fn) {
 		if(fn->left)
@@ -1012,7 +1012,7 @@ static struct fib6_node * fib6_repair_tree(struct fib6_node *fn)
 #if RT6_DEBUG >= 2
 			if (fn->leaf==NULL) {
 				BUG_TRAP(fn->leaf);
-				fn->leaf = &ip6_null_entry;
+				fn->leaf = ip6_null_entry;
 			}
 #endif
 			atomic_inc(&fn->leaf->rt6i_ref);
@@ -1154,7 +1154,7 @@ int fib6_del(struct rt6_info *rt, struct nl_info *info)
 		return -ENOENT;
 	}
 #endif
-	if (fn == NULL || rt == &ip6_null_entry)
+	if (fn == NULL || rt == ip6_null_entry)
 		return -ENOENT;
 
 	BUG_TRAP(fn->fn_flags&RTN_RTINFO);
@@ -1501,7 +1501,7 @@ static int fib6_net_init(struct net *net)
 		goto out_fib_table_hash;
 
 	net->ipv6.fib6_main_tbl->tb6_id = RT6_TABLE_MAIN;
-	net->ipv6.fib6_main_tbl->tb6_root.leaf = &ip6_null_entry;
+	net->ipv6.fib6_main_tbl->tb6_root.leaf = ip6_null_entry;
 	net->ipv6.fib6_main_tbl->tb6_root.fn_flags =
 		RTN_ROOT | RTN_TL_ROOT | RTN_RTINFO;
 
@@ -1511,7 +1511,7 @@ static int fib6_net_init(struct net *net)
 	if (!net->ipv6.fib6_local_tbl)
 		goto out_fib6_main_tbl;
 	net->ipv6.fib6_local_tbl->tb6_id = RT6_TABLE_LOCAL;
-	net->ipv6.fib6_local_tbl->tb6_root.leaf = &ip6_null_entry;
+	net->ipv6.fib6_local_tbl->tb6_root.leaf = ip6_null_entry;
 	net->ipv6.fib6_local_tbl->tb6_root.fn_flags =
 		RTN_ROOT | RTN_TL_ROOT | RTN_RTINFO;
 #endif

@@ -127,7 +127,7 @@ static struct dst_ops ip6_dst_blackhole_ops = {
 	.entries		=	ATOMIC_INIT(0),
 };
 
-struct rt6_info ip6_null_entry = {
+static struct rt6_info ip6_null_entry_template = {
 	.u = {
 		.dst = {
 			.__refcnt	= ATOMIC_INIT(1),
@@ -138,7 +138,6 @@ struct rt6_info ip6_null_entry = {
 			.input		= ip6_pkt_discard,
 			.output		= ip6_pkt_discard_out,
 			.ops		= &ip6_dst_ops,
-			.path		= (struct dst_entry*)&ip6_null_entry,
 		}
 	},
 	.rt6i_flags	= (RTF_REJECT | RTF_NONEXTHOP),
@@ -146,12 +145,14 @@ struct rt6_info ip6_null_entry = {
 	.rt6i_ref	= ATOMIC_INIT(1),
 };
 
+struct rt6_info *ip6_null_entry;
+
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 
 static int ip6_pkt_prohibit(struct sk_buff *skb);
 static int ip6_pkt_prohibit_out(struct sk_buff *skb);
 
-struct rt6_info ip6_prohibit_entry = {
+struct rt6_info ip6_prohibit_entry_template = {
 	.u = {
 		.dst = {
 			.__refcnt	= ATOMIC_INIT(1),
@@ -162,7 +163,6 @@ struct rt6_info ip6_prohibit_entry = {
 			.input		= ip6_pkt_prohibit,
 			.output		= ip6_pkt_prohibit_out,
 			.ops		= &ip6_dst_ops,
-			.path		= (struct dst_entry*)&ip6_prohibit_entry,
 		}
 	},
 	.rt6i_flags	= (RTF_REJECT | RTF_NONEXTHOP),
@@ -170,7 +170,9 @@ struct rt6_info ip6_prohibit_entry = {
 	.rt6i_ref	= ATOMIC_INIT(1),
 };
 
-struct rt6_info ip6_blk_hole_entry = {
+struct rt6_info *ip6_prohibit_entry;
+
+static struct rt6_info ip6_blk_hole_entry_template = {
 	.u = {
 		.dst = {
 			.__refcnt	= ATOMIC_INIT(1),
@@ -181,13 +183,14 @@ struct rt6_info ip6_blk_hole_entry = {
 			.input		= dst_discard,
 			.output		= dst_discard,
 			.ops		= &ip6_dst_ops,
-			.path		= (struct dst_entry*)&ip6_blk_hole_entry,
 		}
 	},
 	.rt6i_flags	= (RTF_REJECT | RTF_NONEXTHOP),
 	.rt6i_metric	= ~(u32) 0,
 	.rt6i_ref	= ATOMIC_INIT(1),
 };
+
+struct rt6_info *ip6_blk_hole_entry;
 
 #endif
 
@@ -271,7 +274,7 @@ static __inline__ struct rt6_info *rt6_device_match(struct rt6_info *rt,
 			return local;
 
 		if (strict)
-			return &ip6_null_entry;
+			return ip6_null_entry;
 	}
 	return rt;
 }
@@ -437,7 +440,7 @@ static struct rt6_info *rt6_select(struct fib6_node *fn, int oif, int strict)
 	RT6_TRACE("%s() => %p\n",
 		  __FUNCTION__, match);
 
-	return (match ? match : &ip6_null_entry);
+	return (match ? match : ip6_null_entry);
 }
 
 #ifdef CONFIG_IPV6_ROUTE_INFO
@@ -522,7 +525,7 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 
 #define BACKTRACK(saddr) \
 do { \
-	if (rt == &ip6_null_entry) { \
+	if (rt == ip6_null_entry) { \
 		struct fib6_node *pn; \
 		while (1) { \
 			if (fn->fn_flags & RTN_TL_ROOT) \
@@ -686,7 +689,7 @@ restart_2:
 restart:
 	rt = rt6_select(fn, oif, strict | reachable);
 	BACKTRACK(&fl->fl6_src);
-	if (rt == &ip6_null_entry ||
+	if (rt == ip6_null_entry ||
 	    rt->rt6i_flags & RTF_CACHE)
 		goto out;
 
@@ -704,7 +707,7 @@ restart:
 	}
 
 	dst_release(&rt->u.dst);
-	rt = nrt ? : &ip6_null_entry;
+	rt = nrt ? : ip6_null_entry;
 
 	dst_hold(&rt->u.dst);
 	if (nrt) {
@@ -1257,7 +1260,7 @@ static int __ip6_del_rt(struct rt6_info *rt, struct nl_info *info)
 	int err;
 	struct fib6_table *table;
 
-	if (rt == &ip6_null_entry)
+	if (rt == ip6_null_entry)
 		return -ENOENT;
 
 	table = rt->rt6i_table;
@@ -1369,7 +1372,7 @@ restart:
 	}
 
 	if (!rt)
-		rt = &ip6_null_entry;
+		rt = ip6_null_entry;
 	BACKTRACK(&fl->fl6_src);
 out:
 	dst_hold(&rt->u.dst);
@@ -1415,7 +1418,7 @@ void rt6_redirect(struct in6_addr *dest, struct in6_addr *src,
 
 	rt = ip6_route_redirect(dest, src, saddr, neigh->dev);
 
-	if (rt == &ip6_null_entry) {
+	if (rt == ip6_null_entry) {
 		if (net_ratelimit())
 			printk(KERN_DEBUG "rt6_redirect: source isn't a valid nexthop "
 			       "for redirect target\n");
@@ -1886,7 +1889,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 static int fib6_ifdown(struct rt6_info *rt, void *arg)
 {
 	if (((void*)rt->rt6i_dev == arg || arg == NULL) &&
-	    rt != &ip6_null_entry) {
+	    rt != ip6_null_entry) {
 		RT6_TRACE("deleted by ifdown %p\n", rt);
 		return -1;
 	}
@@ -2565,9 +2568,30 @@ int __init ip6_route_init(void)
 
 	ip6_dst_blackhole_ops.kmem_cachep = ip6_dst_ops.kmem_cachep;
 
+	ret = -ENOMEM;
+	ip6_null_entry = kmemdup(&ip6_null_entry_template,
+				 sizeof(*ip6_null_entry), GFP_KERNEL);
+	if (!ip6_null_entry)
+		goto out_kmem_cache;
+	ip6_null_entry->u.dst.path = (struct dst_entry *)ip6_null_entry;
+
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+	ip6_prohibit_entry = kmemdup(&ip6_prohibit_entry_template,
+				     sizeof(*ip6_prohibit_entry), GFP_KERNEL);
+	if (!ip6_prohibit_entry)
+		goto out_ip6_null_entry;
+	ip6_prohibit_entry->u.dst.path = (struct dst_entry *)ip6_prohibit_entry;
+
+	ip6_blk_hole_entry = kmemdup(&ip6_blk_hole_entry_template,
+				     sizeof(*ip6_blk_hole_entry), GFP_KERNEL);
+	if (!ip6_blk_hole_entry)
+		goto out_ip6_prohibit_entry;
+	ip6_blk_hole_entry->u.dst.path = (struct dst_entry *)ip6_blk_hole_entry;
+#endif
+
 	ret = fib6_init();
 	if (ret)
-		goto out_kmem_cache;
+		goto out_ip6_blk_hole_entry;
 
 	ret = xfrm6_init();
 	if (ret)
@@ -2595,6 +2619,14 @@ xfrm6_init:
 	xfrm6_fini();
 out_fib6_init:
 	fib6_gc_cleanup();
+out_ip6_blk_hole_entry:
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+	kfree(ip6_blk_hole_entry);
+out_ip6_prohibit_entry:
+	kfree(ip6_prohibit_entry);
+out_ip6_null_entry:
+#endif
+	kfree(ip6_null_entry);
 out_kmem_cache:
 	kmem_cache_destroy(ip6_dst_ops.kmem_cachep);
 	goto out;
@@ -2607,4 +2639,10 @@ void ip6_route_cleanup(void)
 	xfrm6_fini();
 	fib6_gc_cleanup();
 	kmem_cache_destroy(ip6_dst_ops.kmem_cachep);
+
+	kfree(ip6_null_entry);
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+	kfree(ip6_prohibit_entry);
+	kfree(ip6_blk_hole_entry);
+#endif
 }

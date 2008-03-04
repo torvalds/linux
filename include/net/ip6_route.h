@@ -34,11 +34,11 @@ struct route_info {
 #define RT6_LOOKUP_F_REACHABLE	0x2
 #define RT6_LOOKUP_F_HAS_SADDR	0x4
 
-extern struct rt6_info	ip6_null_entry;
+extern struct rt6_info	*ip6_null_entry;
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
-extern struct rt6_info	ip6_prohibit_entry;
-extern struct rt6_info	ip6_blk_hole_entry;
+extern struct rt6_info	*ip6_prohibit_entry;
+extern struct rt6_info	*ip6_blk_hole_entry;
 #endif
 
 extern void			ip6_route_input(struct sk_buff *skb);
