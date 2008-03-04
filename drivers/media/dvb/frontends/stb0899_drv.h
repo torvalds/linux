@@ -117,6 +117,8 @@ struct stb0899_config {
 	u8	out_rate_comp;
 	u8	i2c_repeater;
 //	int	inversion;
+	int	lo_clk;
+	int	hi_clk;
 
 	u32	esno_ave;
 	u32	esno_quant;

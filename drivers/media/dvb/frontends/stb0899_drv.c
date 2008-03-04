@@ -1534,6 +1534,7 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe, struct dvbfe_pa
 	struct stb0899_state *state = fe->demodulator_priv;
 	struct stb0899_params *i_params = &state->params;
 	struct stb0899_internal *internal = &state->internal;
+	struct stb0899_config *config = state->config;
 
 	u32 SearchRange, gain;
 
@@ -1575,9 +1576,9 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe, struct dvbfe_pa
 		}
 
 		if (i_params->srate <= 5000000)
-			stb0899_set_mclk(state, 76500000);
+			stb0899_set_mclk(state, config->lo_clk);
 		else
-			stb0899_set_mclk(state, 99000000);
+			stb0899_set_mclk(state, config->hi_clk);
 
 		switch (state->delsys) {
 		case DVBFE_DELSYS_DVBS:

@@ -1127,6 +1127,9 @@ static struct stb0899_config knc1_dvbs2_config = {
 	.xtal_freq		= 27000000,
 	.inversion		= IQ_SWAP_OFF, /* 1 */
 
+	.lo_clk			= 76500000,
+	.hi_clk			= 90000000,
+
 	.esno_ave		= STB0899_DVBS2_ESNO_AVE,
 	.esno_quant		= STB0899_DVBS2_ESNO_QUANT,
 	.avframes_coarse	= STB0899_DVBS2_AVFRAMES_COARSE,
