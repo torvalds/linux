@@ -111,9 +111,9 @@ DECLARE_EXPORT(__movmem_i4_even);
 DECLARE_EXPORT(__movmem_i4_odd);
 DECLARE_EXPORT(__movmemSI12_i4);
 
-#if (__GNUC_MINOR__ == 2 || defined(__GNUC_STM_RELEASE__))
+#if (__GNUC_MINOR__ >= 2 || defined(__GNUC_STM_RELEASE__))
 /*
- * GCC 4.2 emits these for division, as do GCC 4.1.x versions of the ST
+ * GCC >= 4.2 emits these for division, as do GCC 4.1.x versions of the ST
  * compiler which include backported patches.
  */
 DECLARE_EXPORT(__sdivsi3_i4i);
