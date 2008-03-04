@@ -48,7 +48,7 @@
 #define RT6_TRACE(x...) do { ; } while (0)
 #endif
 
-struct rt6_statistics	rt6_stats;
+struct rt6_statistics *rt6_stats;
 
 static struct kmem_cache * fib6_node_kmem __read_mostly;
 
@@ -653,10 +653,10 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 	rt->rt6i_node = fn;
 	atomic_inc(&rt->rt6i_ref);
 	inet6_rt_notify(RTM_NEWROUTE, rt, info);
-	rt6_stats.fib_rt_entries++;
+	rt6_stats->fib_rt_entries++;
 
 	if ((fn->fn_flags & RTN_RTINFO) == 0) {
-		rt6_stats.fib_route_nodes++;
+		rt6_stats->fib_route_nodes++;
 		fn->fn_flags |= RTN_RTINFO;
 	}
 
@@ -1093,8 +1093,8 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 	/* Unlink it */
 	*rtp = rt->u.dst.rt6_next;
 	rt->rt6i_node = NULL;
-	rt6_stats.fib_rt_entries--;
-	rt6_stats.fib_discarded_routes++;
+	rt6_stats->fib_rt_entries--;
+	rt6_stats->fib_discarded_routes++;
 
 	/* Reset round-robin state, if necessary */
 	if (fn->rr_ptr == rt)
@@ -1117,7 +1117,7 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 	/* If it was last route, expunge its radix tree node */
 	if (fn->leaf == NULL) {
 		fn->fn_flags &= ~RTN_RTINFO;
-		rt6_stats.fib_route_nodes--;
+		rt6_stats->fib_route_nodes--;
 		fn = fib6_repair_tree(fn);
 	}
 
@@ -1556,9 +1556,14 @@ int __init fib6_init(void)
 	if (!fib6_node_kmem)
 		goto out;
 
+	ret = -ENOMEM;
+	rt6_stats = kzalloc(sizeof(*rt6_stats), GFP_KERNEL);
+	if (!rt6_stats)
+		goto out_kmem_cache_create;
+
 	ret = register_pernet_subsys(&fib6_net_ops);
 	if (ret)
-		goto out_kmem_cache_create;
+		goto out_rt6_stats;
 
 	ret = __rtnl_register(PF_INET6, RTM_GETROUTE, NULL, inet6_dump_fib);
 	if (ret)
@@ -1568,6 +1573,8 @@ out:
 
 out_unregister_subsys:
 	unregister_pernet_subsys(&fib6_net_ops);
+out_rt6_stats:
+	kfree(rt6_stats);
 out_kmem_cache_create:
 	kmem_cache_destroy(fib6_node_kmem);
 	goto out;
@@ -1576,5 +1583,6 @@ out_kmem_cache_create:
 void fib6_gc_cleanup(void)
 {
 	unregister_pernet_subsys(&fib6_net_ops);
+	kfree(rt6_stats);
 	kmem_cache_destroy(fib6_node_kmem);
 }
