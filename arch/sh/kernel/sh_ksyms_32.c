@@ -146,5 +146,6 @@ EXPORT_SYMBOL(csum_partial_copy_generic);
 EXPORT_SYMBOL(csum_ipv6_magic);
 #endif
 EXPORT_SYMBOL(clear_page);
+EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(__clear_user);
 EXPORT_SYMBOL(_ebss);
