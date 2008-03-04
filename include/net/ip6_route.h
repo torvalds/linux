@@ -78,7 +78,7 @@ extern struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 					 struct in6_addr *addr);
 extern int icmp6_dst_gc(int *more);
 
-extern void fib6_force_start_gc(void);
+extern void fib6_force_start_gc(struct net *net);
 
 extern struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 					   const struct in6_addr *addr,

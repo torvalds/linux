@@ -952,7 +952,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	icmp6_dst_gc_list = &rt->u.dst;
 	spin_unlock_bh(&icmp6_dst_lock);
 
-	fib6_force_start_gc();
+	fib6_force_start_gc(dev->nd_net);
 
 out:
 	return &rt->u.dst;
@@ -1230,6 +1230,9 @@ install_route:
 	rt->u.dst.dev = dev;
 	rt->rt6i_idev = idev;
 	rt->rt6i_table = table;
+
+	cfg->fc_nlinfo.nl_net = dev->nd_net;
+
 	return __ip6_ins_rt(rt, &cfg->fc_nlinfo);
 
 out:
