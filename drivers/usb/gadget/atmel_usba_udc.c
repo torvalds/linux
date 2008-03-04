@@ -324,53 +324,6 @@ static int vbus_is_present(struct usba_udc *udc)
 	return 1;
 }
 
-static void copy_to_fifo(void __iomem *fifo, const void *buf, int len)
-{
-	unsigned long tmp;
-
-	DBG(DBG_FIFO, "copy to FIFO (len %d):\n", len);
-	for (; len > 0; len -= 4, buf += 4, fifo += 4) {
-		tmp = *(unsigned long *)buf;
-		if (len >= 4) {
-			DBG(DBG_FIFO, "  -> %08lx\n", tmp);
-			__raw_writel(tmp, fifo);
-		} else {
-			do {
-				DBG(DBG_FIFO, "  -> %02lx\n", tmp >> 24);
-				__raw_writeb(tmp >> 24, fifo);
-				fifo++;
-				tmp <<= 8;
-			} while (--len);
-			break;
-		}
-	}
-}
-
-static void copy_from_fifo(void *buf, void __iomem *fifo, int len)
-{
-	union {
-		unsigned long *w;
-		unsigned char *b;
-	} p;
-	unsigned long tmp;
-
-	DBG(DBG_FIFO, "copy from FIFO (len %d):\n", len);
-	for (p.w = buf; len > 0; len -= 4, p.w++, fifo += 4) {
-		if (len >= 4) {
-			tmp = __raw_readl(fifo);
-			*p.w = tmp;
-			DBG(DBG_FIFO, "  -> %08lx\n", tmp);
-		} else {
-			do {
-				tmp = __raw_readb(fifo);
-				*p.b = tmp;
-				DBG(DBG_FIFO, " -> %02lx\n", tmp);
-				fifo++, p.b++;
-			} while (--len);
-		}
-	}
-}
-
 static void next_fifo_transaction(struct usba_ep *ep, struct usba_request *req)
 {
 	unsigned int transaction_len;
@@ -387,7 +340,7 @@ static void next_fifo_transaction(struct usba_ep *ep, struct usba_request *req)
 		ep->ep.name, req, transaction_len,
 		req->last_transaction ? ", done" : "");
 
-	copy_to_fifo(ep->fifo, req->req.buf + req->req.actual, transaction_len);
+	memcpy_toio(ep->fifo, req->req.buf + req->req.actual, transaction_len);
 	usba_ep_writel(ep, SET_STA, USBA_TX_PK_RDY);
 	req->req.actual += transaction_len;
 }
@@ -476,7 +429,7 @@ static void receive_data(struct usba_ep *ep)
 			bytecount = req->req.length - req->req.actual;
 		}
 
-		copy_from_fifo(req->req.buf + req->req.actual,
+		memcpy_fromio(req->req.buf + req->req.actual,
 				ep->fifo, bytecount);
 		req->req.actual += bytecount;
 
@@ -1231,7 +1184,7 @@ static int do_test_mode(struct usba_udc *udc)
 		} else {
 			usba_ep_writel(ep, CTL_ENB, USBA_EPT_ENABLE);
 			usba_writel(udc, TST, USBA_TST_PKT_MODE);
-			copy_to_fifo(ep->fifo, test_packet_buffer,
+			memcpy_toio(ep->fifo, test_packet_buffer,
 					sizeof(test_packet_buffer));
 			usba_ep_writel(ep, SET_STA, USBA_TX_PK_RDY);
 			dev_info(dev, "Entering Test_Packet mode...\n");
@@ -1536,7 +1489,7 @@ restart:
 		}
 
 		DBG(DBG_FIFO, "Copying ctrl request from 0x%p:\n", ep->fifo);
-		copy_from_fifo(crq.data, ep->fifo, sizeof(crq));
+		memcpy_fromio(crq.data, ep->fifo, sizeof(crq));
 
 		/* Free up one bank in the FIFO so that we can
 		 * generate or receive a reply right away. */
