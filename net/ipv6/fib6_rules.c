@@ -29,7 +29,7 @@ struct fib6_rule
 	u8			tclass;
 };
 
-static struct fib_rules_ops fib6_rules_ops;
+static struct fib_rules_ops *fib6_rules_ops;
 
 struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi *fl,
 				   int flags, pol_lookup_t lookup)
@@ -38,7 +38,7 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi *fl,
 		.lookup_ptr = lookup,
 	};
 
-	fib_rules_lookup(&fib6_rules_ops, fl, flags, &arg);
+	fib_rules_lookup(fib6_rules_ops, fl, flags, &arg);
 	if (arg.rule)
 		fib_rule_put(arg.rule);
 
@@ -234,7 +234,7 @@ static size_t fib6_rule_nlmsg_payload(struct fib_rule *rule)
 	       + nla_total_size(16); /* src */
 }
 
-static struct fib_rules_ops fib6_rules_ops = {
+static struct fib_rules_ops fib6_rules_ops_template = {
 	.family			= AF_INET6,
 	.rule_size		= sizeof(struct fib6_rule),
 	.addr_size		= sizeof(struct in6_addr),
@@ -247,7 +247,6 @@ static struct fib_rules_ops fib6_rules_ops = {
 	.nlmsg_payload		= fib6_rule_nlmsg_payload,
 	.nlgroup		= RTNLGRP_IPV6_RULE,
 	.policy			= fib6_rule_policy,
-	.rules_list		= LIST_HEAD_INIT(fib6_rules_ops.rules_list),
 	.owner			= THIS_MODULE,
 	.fro_net		= &init_net,
 };
@@ -256,11 +255,18 @@ static int __init fib6_default_rules_init(void)
 {
 	int err;
 
-	err = fib_default_rule_add(&fib6_rules_ops, 0,
+	fib6_rules_ops = kmemdup(&fib6_rules_ops_template,
+				 sizeof(*fib6_rules_ops), GFP_KERNEL);
+	if (!fib6_rules_ops)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&fib6_rules_ops->rules_list);
+
+	err = fib_default_rule_add(fib6_rules_ops, 0,
 				   RT6_TABLE_LOCAL, FIB_RULE_PERMANENT);
 	if (err < 0)
 		return err;
-	err = fib_default_rule_add(&fib6_rules_ops, 0x7FFE, RT6_TABLE_MAIN, 0);
+	err = fib_default_rule_add(fib6_rules_ops, 0x7FFE, RT6_TABLE_MAIN, 0);
 	if (err < 0)
 		return err;
 	return 0;
@@ -274,18 +280,20 @@ int __init fib6_rules_init(void)
 	if (ret)
 		goto out;
 
-	ret = fib_rules_register(&fib6_rules_ops);
+	ret = fib_rules_register(fib6_rules_ops);
 	if (ret)
 		goto out_default_rules_init;
 out:
 	return ret;
 
 out_default_rules_init:
-	fib_rules_cleanup_ops(&fib6_rules_ops);
+	fib_rules_cleanup_ops(fib6_rules_ops);
+	kfree(fib6_rules_ops);
 	goto out;
 }
 
 void fib6_rules_cleanup(void)
 {
-	fib_rules_unregister(&fib6_rules_ops);
+	fib_rules_unregister(fib6_rules_ops);
+	kfree(fib6_rules_ops);
 }
