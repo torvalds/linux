@@ -35,7 +35,8 @@ extern void mm_free_cgroup(struct mm_struct *mm);
 extern struct page_cgroup *page_get_page_cgroup(struct page *page);
 extern int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask);
-extern void mem_cgroup_uncharge(struct page_cgroup *pc);
+extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+					gfp_t gfp_mask);
 extern void mem_cgroup_uncharge_page(struct page *page);
 extern void mem_cgroup_move_lists(struct page *page, bool active);
 extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
@@ -45,8 +46,6 @@ extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 					struct mem_cgroup *mem_cont,
 					int active);
 extern void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask);
-extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
-					gfp_t gfp_mask);
 int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
 
 #define mm_match_cgroup(mm, cgroup)	\
@@ -92,14 +91,16 @@ static inline struct page_cgroup *page_get_page_cgroup(struct page *page)
 	return NULL;
 }
 
-static inline int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
-					gfp_t gfp_mask)
+static inline int mem_cgroup_charge(struct page *page,
+					struct mm_struct *mm, gfp_t gfp_mask)
 {
 	return 0;
 }
 
-static inline void mem_cgroup_uncharge(struct page_cgroup *pc)
+static inline int mem_cgroup_cache_charge(struct page *page,
+					struct mm_struct *mm, gfp_t gfp_mask)
 {
+	return 0;
 }
 
 static inline void mem_cgroup_uncharge_page(struct page *page)
@@ -108,13 +109,6 @@ static inline void mem_cgroup_uncharge_page(struct page *page)
 
 static inline void mem_cgroup_move_lists(struct page *page, bool active)
 {
-}
-
-static inline int mem_cgroup_cache_charge(struct page *page,
-						struct mm_struct *mm,
-						gfp_t gfp_mask)
-{
-	return 0;
 }
 
 static inline int mm_match_cgroup(struct mm_struct *mm, struct mem_cgroup *mem)
