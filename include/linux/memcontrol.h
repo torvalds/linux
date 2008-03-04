@@ -29,8 +29,9 @@ struct mm_struct;
 
 extern void mm_init_cgroup(struct mm_struct *mm, struct task_struct *p);
 extern void mm_free_cgroup(struct mm_struct *mm);
-extern void page_assign_page_cgroup(struct page *page,
-					struct page_cgroup *pc);
+
+#define page_reset_bad_cgroup(page)	((page)->page_cgroup = 0)
+
 extern struct page_cgroup *page_get_page_cgroup(struct page *page);
 extern int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask);
@@ -82,8 +83,7 @@ static inline void mm_free_cgroup(struct mm_struct *mm)
 {
 }
 
-static inline void page_assign_page_cgroup(struct page *page,
-						struct page_cgroup *pc)
+static inline void page_reset_bad_cgroup(struct page *page)
 {
 }
 
