@@ -107,6 +107,7 @@ struct kvm_memory_slot {
 struct kvm {
 	struct mutex lock; /* protects the vcpus array and APIC accesses */
 	spinlock_t mmu_lock;
+	struct rw_semaphore slots_lock;
 	struct mm_struct *mm; /* userspace tied to this vm */
 	int nmemslots;
 	struct kvm_memory_slot memslots[KVM_MEMORY_SLOTS +
