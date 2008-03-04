@@ -9,10 +9,8 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <sound/pcm.h>
-#include <sound/pcm_params.h>
 #include <linux/interrupt.h>
 #include <asm/io.h>
-#include <asm/i8253.h>
 #include "pcsp.h"
 
 static int nforce_wa;
@@ -45,7 +43,7 @@ static void pcsp_start_timer(unsigned long dummy)
  * The only solution I could find was to move the
  * hrtimer_start() into a tasklet. -stsp
  */
-DECLARE_TASKLET(pcsp_start_timer_tasklet, pcsp_start_timer, 0);
+static DECLARE_TASKLET(pcsp_start_timer_tasklet, pcsp_start_timer, 0);
 
 enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 {
