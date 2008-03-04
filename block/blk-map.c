@@ -19,7 +19,6 @@ int blk_rq_append_bio(struct request_queue *q, struct request *rq,
 		rq->biotail->bi_next = bio;
 		rq->biotail = bio;
 
-		rq->raw_data_len += bio->bi_size;
 		rq->data_len += bio->bi_size;
 	}
 	return 0;
@@ -151,11 +150,8 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 	 */
 	if (len & queue_dma_alignment(q)) {
 		unsigned int pad_len = (queue_dma_alignment(q) & ~len) + 1;
-		struct bio *bio = rq->biotail;
 
-		bio->bi_io_vec[bio->bi_vcnt - 1].bv_len += pad_len;
-		bio->bi_size += pad_len;
-		rq->data_len += pad_len;
+		rq->extra_len += pad_len;
 	}
 
 	rq->buffer = rq->data = NULL;
