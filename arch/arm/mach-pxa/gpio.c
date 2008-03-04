@@ -153,20 +153,6 @@ static struct pxa_gpio_chip pxa_gpio_chip[] = {
 #endif
 };
 
-void __init pxa_init_gpio(int gpio_nr)
-{
-	int i;
-
-	/* add a GPIO chip for each register bank.
-	 * the last PXA25x register only contains 21 GPIOs
-	 */
-	for (i = 0; i < gpio_nr; i += 32) {
-		if (i+32 > gpio_nr)
-			pxa_gpio_chip[i/32].chip.ngpio = gpio_nr - i;
-		gpiochip_add(&pxa_gpio_chip[i/32].chip);
-	}
-}
-
 /*
  * PXA GPIO edge detection for IRQs:
  * IRQs are generated on Falling-Edge, Rising-Edge, or both.
@@ -309,9 +295,9 @@ static struct irq_chip pxa_muxed_gpio_chip = {
 	.set_type	= pxa_gpio_irq_type,
 };
 
-void __init pxa_init_irq_gpio(int gpio_nr)
+void __init pxa_init_gpio(int gpio_nr, set_wake_t fn)
 {
-	int irq, i;
+	int irq, i, gpio;
 
 	pxa_last_gpio = gpio_nr - 1;
 
@@ -340,11 +326,15 @@ void __init pxa_init_irq_gpio(int gpio_nr)
 	/* Install handler for GPIO>=2 edge detect interrupts */
 	set_irq_chained_handler(IRQ_GPIO_2_x, pxa_gpio_demux_handler);
 
-	pxa_init_gpio(gpio_nr);
-}
+	pxa_low_gpio_chip.set_wake = fn;
+	pxa_muxed_gpio_chip.set_wake = fn;
 
-void __init pxa_init_gpio_set_wake(int (*set_wake)(unsigned int, unsigned int))
-{
-	pxa_low_gpio_chip.set_wake = set_wake;
-	pxa_muxed_gpio_chip.set_wake = set_wake;
+	/* add a GPIO chip for each register bank.
+	 * the last PXA25x register only contains 21 GPIOs
+	 */
+	for (gpio = 0, i = 0; gpio < gpio_nr; gpio += 32, i++) {
+		if (gpio + 32 > gpio_nr)
+			pxa_gpio_chip[i].chip.ngpio = gpio_nr - gpio;
+		gpiochip_add(&pxa_gpio_chip[i].chip);
+	}
 }

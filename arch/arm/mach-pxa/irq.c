@@ -51,7 +51,7 @@ static struct irq_chip pxa_internal_irq_chip = {
 	.unmask		= pxa_unmask_irq,
 };
 
-void __init pxa_init_irq(int irq_nr)
+void __init pxa_init_irq(int irq_nr, set_wake_t fn)
 {
 	int irq;
 
@@ -70,12 +70,8 @@ void __init pxa_init_irq(int irq_nr)
 		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
-}
 
-void __init pxa_init_irq_set_wake(int (*set_wake)(unsigned int, unsigned int))
-{
-	pxa_internal_irq_chip.set_wake = set_wake;
-	pxa_init_gpio_set_wake(set_wake);
+	pxa_internal_irq_chip.set_wake = fn;
 }
 
 #ifdef CONFIG_PM

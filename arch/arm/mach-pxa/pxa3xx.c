@@ -494,15 +494,9 @@ static int pxa3xx_set_wake(unsigned int irq, unsigned int on)
 
 	return 0;
 }
-
-static void pxa3xx_init_irq_pm(void)
-{
-	pxa_init_irq_set_wake(pxa3xx_set_wake);
-}
-
 #else
 static inline void pxa3xx_init_pm(void) {}
-static inline void pxa3xx_init_irq_pm(void) {}
+#define pxa3xx_set_wake	NULL
 #endif
 
 void __init pxa3xx_init_irq(void)
@@ -513,9 +507,8 @@ void __init pxa3xx_init_irq(void)
 	value |= (1 << 6);
 	__asm__ __volatile__("mcr p15, 0, %0, c15, c1, 0\n": :"r"(value));
 
-	pxa_init_irq(56);
-	pxa_init_irq_gpio(128);
-	pxa3xx_init_irq_pm();
+	pxa_init_irq(56, pxa3xx_set_wake);
+	pxa_init_gpio(128, NULL);
 }
 
 /*
