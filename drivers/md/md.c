@@ -2001,9 +2001,11 @@ rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 	char *e;
 	unsigned long long size = simple_strtoull(buf, &e, 10);
 	unsigned long long oldsize = rdev->size;
+	mddev_t *my_mddev = rdev->mddev;
+
 	if (e==buf || (*e && *e != '\n'))
 		return -EINVAL;
-	if (rdev->mddev->pers)
+	if (my_mddev->pers)
 		return -EBUSY;
 	rdev->size = size;
 	if (size > oldsize && rdev->mddev->external) {
@@ -2016,7 +2018,7 @@ rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 		int overlap = 0;
 		struct list_head *tmp, *tmp2;
 
-		mddev_unlock(rdev->mddev);
+		mddev_unlock(my_mddev);
 		for_each_mddev(mddev, tmp) {
 			mdk_rdev_t *rdev2;
 
@@ -2036,7 +2038,7 @@ rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 				break;
 			}
 		}
-		mddev_lock(rdev->mddev);
+		mddev_lock(my_mddev);
 		if (overlap) {
 			/* Someone else could have slipped in a size
 			 * change here, but doing so is just silly.
@@ -2048,8 +2050,8 @@ rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 			return -EBUSY;
 		}
 	}
-	if (size < rdev->mddev->size || rdev->mddev->size == 0)
-		rdev->mddev->size = size;
+	if (size < my_mddev->size || my_mddev->size == 0)
+		my_mddev->size = size;
 	return len;
 }
 
@@ -2070,10 +2072,21 @@ rdev_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 {
 	struct rdev_sysfs_entry *entry = container_of(attr, struct rdev_sysfs_entry, attr);
 	mdk_rdev_t *rdev = container_of(kobj, mdk_rdev_t, kobj);
+	mddev_t *mddev = rdev->mddev;
+	ssize_t rv;
 
 	if (!entry->show)
 		return -EIO;
-	return entry->show(rdev, page);
+
+	rv = mddev ? mddev_lock(mddev) : -EBUSY;
+	if (!rv) {
+		if (rdev->mddev == NULL)
+			rv = -EBUSY;
+		else
+			rv = entry->show(rdev, page);
+		mddev_unlock(mddev);
+	}
+	return rv;
 }
 
 static ssize_t
@@ -2082,15 +2095,19 @@ rdev_attr_store(struct kobject *kobj, struct attribute *attr,
 {
 	struct rdev_sysfs_entry *entry = container_of(attr, struct rdev_sysfs_entry, attr);
 	mdk_rdev_t *rdev = container_of(kobj, mdk_rdev_t, kobj);
-	int rv;
+	ssize_t rv;
+	mddev_t *mddev = rdev->mddev;
 
 	if (!entry->store)
 		return -EIO;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
-	rv = mddev_lock(rdev->mddev);
+	rv = mddev ? mddev_lock(mddev): -EBUSY;
 	if (!rv) {
-		rv = entry->store(rdev, page, length);
+		if (rdev->mddev == NULL)
+			rv = -EBUSY;
+		else
+			rv = entry->store(rdev, page, length);
 		mddev_unlock(rdev->mddev);
 	}
 	return rv;
