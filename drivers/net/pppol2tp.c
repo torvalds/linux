@@ -1111,6 +1111,8 @@ static void pppol2tp_tunnel_closeall(struct pppol2tp_tunnel *tunnel)
 	for (hash = 0; hash < PPPOL2TP_HASH_SIZE; hash++) {
 again:
 		hlist_for_each_safe(walk, tmp, &tunnel->session_hlist[hash]) {
+			struct sk_buff *skb;
+
 			session = hlist_entry(walk, struct pppol2tp_session, hlist);
 
 			sk = session->sock;
@@ -1139,7 +1141,10 @@ again:
 			/* Purge any queued data */
 			skb_queue_purge(&sk->sk_receive_queue);
 			skb_queue_purge(&sk->sk_write_queue);
-			skb_queue_purge(&session->reorder_q);
+			while ((skb = skb_dequeue(&session->reorder_q))) {
+				kfree_skb(skb);
+				sock_put(sk);
+			}
 
 			release_sock(sk);
 			sock_put(sk);
