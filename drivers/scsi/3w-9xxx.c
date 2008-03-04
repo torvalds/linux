@@ -2025,8 +2025,6 @@ static int __devinit twa_probe(struct pci_dev *pdev, const struct pci_device_id 
 	}
 	tw_dev = (TW_Device_Extension *)host->hostdata;
 
-	memset(tw_dev, 0, sizeof(TW_Device_Extension));
-
 	/* Save values to device extension */
 	tw_dev->host = host;
 	tw_dev->tw_pci_dev = pdev;
