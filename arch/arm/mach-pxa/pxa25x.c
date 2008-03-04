@@ -129,6 +129,8 @@ static struct clk pxa25x_clks[] = {
 	INIT_CKEN("SSPCLK", NSSP, 3686400, 0, &pxa25x_device_nssp.dev),
 	INIT_CKEN("SSPCLK", ASSP, 3686400, 0, &pxa25x_device_assp.dev),
 
+	INIT_CKEN("AC97CLK",     AC97,     24576000, 0, NULL),
+
 	/*
 	INIT_CKEN("PWMCLK",  PWM0, 3686400,  0, NULL),
 	INIT_CKEN("PWMCLK",  PWM0, 3686400,  0, NULL),
