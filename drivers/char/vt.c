@@ -702,6 +702,7 @@ void redraw_screen(struct vc_data *vc, int is_switch)
 	if (is_switch) {
 		set_leds();
 		compute_shiftstate();
+		notify_update(vc);
 	}
 }
 
