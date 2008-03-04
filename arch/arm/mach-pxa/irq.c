@@ -166,11 +166,21 @@ static void pxa_ack_low_gpio(unsigned int irq)
 	GEDR0 = (1 << (irq - IRQ_GPIO0));
 }
 
+static void pxa_mask_low_gpio(unsigned int irq)
+{
+	ICMR &= ~(1 << (irq - PXA_IRQ(0)));
+}
+
+static void pxa_unmask_low_gpio(unsigned int irq)
+{
+	ICMR |= 1 << (irq - PXA_IRQ(0));
+}
+
 static struct irq_chip pxa_low_gpio_chip = {
 	.name		= "GPIO-l",
 	.ack		= pxa_ack_low_gpio,
-	.mask		= pxa_mask_low_irq,
-	.unmask		= pxa_unmask_low_irq,
+	.mask		= pxa_mask_low_gpio,
+	.unmask		= pxa_unmask_low_gpio,
 	.set_type	= pxa_gpio_irq_type,
 };
 
@@ -267,10 +277,15 @@ void __init pxa_init_irq_gpio(int gpio_nr)
 	}
 
 	/* Install handler for GPIO>=2 edge detect interrupts */
-	set_irq_chip(IRQ_GPIO_2_x, &pxa_internal_chip_low);
 	set_irq_chained_handler(IRQ_GPIO_2_x, pxa_gpio_demux_handler);
 
 	pxa_init_gpio(gpio_nr);
+}
+
+void __init pxa_init_gpio_set_wake(int (*set_wake)(unsigned int, unsigned int))
+{
+	pxa_low_gpio_chip.set_wake = set_wake;
+	pxa_muxed_gpio_chip.set_wake = set_wake;
 }
 
 void __init pxa_init_irq_set_wake(int (*set_wake)(unsigned int, unsigned int))
@@ -279,8 +294,7 @@ void __init pxa_init_irq_set_wake(int (*set_wake)(unsigned int, unsigned int))
 #ifdef CONFIG_PXA27x
 	pxa_internal_chip_high.set_wake = set_wake;
 #endif
-	pxa_low_gpio_chip.set_wake = set_wake;
-	pxa_muxed_gpio_chip.set_wake = set_wake;
+	pxa_init_gpio_set_wake(set_wake);
 }
 
 #ifdef CONFIG_PM
