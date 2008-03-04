@@ -36,11 +36,14 @@ struct netns_ipv6 {
 	struct xt_table		*ip6table_mangle;
 	struct xt_table		*ip6table_raw;
 #endif
+	struct rt6_info         *ip6_null_entry;
 	struct rt6_statistics   *rt6_stats;
 	struct timer_list       *ip6_fib_timer;
 	struct hlist_head       *fib_table_hash;
 	struct fib6_table       *fib6_main_tbl;
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
+	struct rt6_info         *ip6_prohibit_entry;
+	struct rt6_info         *ip6_blk_hole_entry;
 	struct fib6_table       *fib6_local_tbl;
 	struct fib_rules_ops    *fib6_rules_ops;
 #endif

@@ -174,7 +174,8 @@ struct fib6_table {
 #define RT6_TABLE_LOCAL		RT6_TABLE_MAIN
 #endif
 
-typedef struct rt6_info *(*pol_lookup_t)(struct fib6_table *,
+typedef struct rt6_info *(*pol_lookup_t)(struct net *,
+					 struct fib6_table *,
 					 struct flowi *, int);
 
 /*

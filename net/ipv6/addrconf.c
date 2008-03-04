@@ -4301,15 +4301,6 @@ int __init addrconf_init(void)
 	if (err)
 		goto errlo;
 
-	ip6_null_entry->u.dst.dev = init_net.loopback_dev;
-	ip6_null_entry->rt6i_idev = in6_dev_get(init_net.loopback_dev);
-#ifdef CONFIG_IPV6_MULTIPLE_TABLES
-	ip6_prohibit_entry->u.dst.dev = init_net.loopback_dev;
-	ip6_prohibit_entry->rt6i_idev = in6_dev_get(init_net.loopback_dev);
-	ip6_blk_hole_entry->u.dst.dev = init_net.loopback_dev;
-	ip6_blk_hole_entry->rt6i_idev = in6_dev_get(init_net.loopback_dev);
-#endif
-
 	register_netdevice_notifier(&ipv6_dev_notf);
 
 	addrconf_verify(0);

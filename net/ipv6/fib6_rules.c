@@ -43,8 +43,8 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi *fl,
 	if (arg.result)
 		return arg.result;
 
-	dst_hold(&ip6_null_entry->u.dst);
-	return &ip6_null_entry->u.dst;
+	dst_hold(&net->ipv6.ip6_null_entry->u.dst);
+	return &net->ipv6.ip6_null_entry->u.dst;
 }
 
 static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
@@ -52,28 +52,29 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 {
 	struct rt6_info *rt = NULL;
 	struct fib6_table *table;
+	struct net *net = rule->fr_net;
 	pol_lookup_t lookup = arg->lookup_ptr;
 
 	switch (rule->action) {
 	case FR_ACT_TO_TBL:
 		break;
 	case FR_ACT_UNREACHABLE:
-		rt = ip6_null_entry;
+		rt = net->ipv6.ip6_null_entry;
 		goto discard_pkt;
 	default:
 	case FR_ACT_BLACKHOLE:
-		rt = ip6_blk_hole_entry;
+		rt = net->ipv6.ip6_blk_hole_entry;
 		goto discard_pkt;
 	case FR_ACT_PROHIBIT:
-		rt = ip6_prohibit_entry;
+		rt = net->ipv6.ip6_prohibit_entry;
 		goto discard_pkt;
 	}
 
-	table = fib6_get_table(rule->fr_net, rule->table);
+	table = fib6_get_table(net, rule->table);
 	if (table)
-		rt = lookup(table, flp, flags);
+		rt = lookup(net, table, flp, flags);
 
-	if (rt != ip6_null_entry) {
+	if (rt != net->ipv6.ip6_null_entry) {
 		struct fib6_rule *r = (struct fib6_rule *)rule;
 
 		/*
