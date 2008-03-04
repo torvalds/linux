@@ -71,7 +71,25 @@ static void enqueue_huge_page(struct page *page)
 	free_huge_pages_node[nid]++;
 }
 
-static struct page *dequeue_huge_page(struct vm_area_struct *vma,
+static struct page *dequeue_huge_page(void)
+{
+	int nid;
+	struct page *page = NULL;
+
+	for (nid = 0; nid < MAX_NUMNODES; ++nid) {
+		if (!list_empty(&hugepage_freelists[nid])) {
+			page = list_entry(hugepage_freelists[nid].next,
+					  struct page, lru);
+			list_del(&page->lru);
+			free_huge_pages--;
+			free_huge_pages_node[nid]--;
+			break;
+		}
+	}
+	return page;
+}
+
+static struct page *dequeue_huge_page_vma(struct vm_area_struct *vma,
 				unsigned long address)
 {
 	int nid;
@@ -410,7 +428,7 @@ static struct page *alloc_huge_page_shared(struct vm_area_struct *vma,
 	struct page *page;
 
 	spin_lock(&hugetlb_lock);
-	page = dequeue_huge_page(vma, addr);
+	page = dequeue_huge_page_vma(vma, addr);
 	spin_unlock(&hugetlb_lock);
 	return page ? page : ERR_PTR(-VM_FAULT_OOM);
 }
@@ -425,7 +443,7 @@ static struct page *alloc_huge_page_private(struct vm_area_struct *vma,
 
 	spin_lock(&hugetlb_lock);
 	if (free_huge_pages > resv_huge_pages)
-		page = dequeue_huge_page(vma, addr);
+		page = dequeue_huge_page_vma(vma, addr);
 	spin_unlock(&hugetlb_lock);
 	if (!page) {
 		page = alloc_buddy_huge_page(vma, addr);
@@ -578,7 +596,7 @@ static unsigned long set_max_huge_pages(unsigned long count)
 	min_count = max(count, min_count);
 	try_to_free_low(min_count);
 	while (min_count < persistent_huge_pages) {
-		struct page *page = dequeue_huge_page(NULL, 0);
+		struct page *page = dequeue_huge_page();
 		if (!page)
 			break;
 		update_and_free_page(page);
