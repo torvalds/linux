@@ -379,8 +379,8 @@ efi_get_pal_addr (void)
 		 * a dedicated ITR for the PAL code.
 		 */
 		if ((vaddr & mask) == (KERNEL_START & mask)) {
-			printk(KERN_INFO "%s: no need to install ITR for "
-			       "PAL code\n", __FUNCTION__);
+			printk(KERN_INFO "%s: no need to install ITR for PAL code\n",
+			       __func__);
 			continue;
 		}
 
@@ -399,7 +399,7 @@ efi_get_pal_addr (void)
 		return __va(md->phys_addr);
 	}
 	printk(KERN_WARNING "%s: no PAL-code memory-descriptor found\n",
-	       __FUNCTION__);
+	       __func__);
 	return NULL;
 }
 

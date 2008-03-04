@@ -780,14 +780,14 @@ convert_to_non_syscall (struct task_struct *child, struct pt_regs  *pt,
 		if ((long)((unsigned long)child + IA64_STK_OFFSET - sp)
 		    < IA64_PT_REGS_SIZE) {
 			dprintk("ptrace.%s: ran off the top of the kernel "
-				"stack\n", __FUNCTION__);
+				"stack\n", __func__);
 			return;
 		}
 		if (unw_get_pr (&prev_info, &pr) < 0) {
 			unw_get_rp(&prev_info, &ip);
 			dprintk("ptrace.%s: failed to read "
 				"predicate register (ip=0x%lx)\n",
-				__FUNCTION__, ip);
+				__func__, ip);
 			return;
 		}
 		if (unw_is_intr_frame(&info)

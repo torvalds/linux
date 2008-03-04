@@ -507,7 +507,7 @@ ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 			if (unlikely(irq < 0)) {
 				printk(KERN_ERR "%s: Unexpected interrupt "
 				       "vector %d on CPU %d is not mapped "
-				       "to any IRQ!\n", __FUNCTION__, vector,
+				       "to any IRQ!\n", __func__, vector,
 				       smp_processor_id());
 			} else
 				generic_handle_irq(irq);
@@ -572,7 +572,7 @@ void ia64_process_pending_intr(void)
 			if (unlikely(irq < 0)) {
 				printk(KERN_ERR "%s: Unexpected interrupt "
 				       "vector %d on CPU %d not being mapped "
-				       "to any IRQ!!\n", __FUNCTION__, vector,
+				       "to any IRQ!!\n", __func__, vector,
 				       smp_processor_id());
 			} else {
 				vectors_in_migration[irq]=0;
