@@ -43,6 +43,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/scatterlist.h>
+#include <linux/iommu-helper.h>
 
 #include <asm/byteorder.h>
 #include <asm/cache.h>		/* for L1_CACHE_BYTES */
@@ -302,13 +303,17 @@ static int ioc_count;
 */
 #define CCIO_SEARCH_LOOP(ioc, res_idx, mask, size)  \
        for(; res_ptr < res_end; ++res_ptr) { \
-               if(0 == (*res_ptr & mask)) { \
-                       *res_ptr |= mask; \
-                       res_idx = (unsigned int)((unsigned long)res_ptr - (unsigned long)ioc->res_map); \
-                       ioc->res_hint = res_idx + (size >> 3); \
-                       goto resource_found; \
-               } \
-       }
+		int ret;\
+		unsigned int idx;\
+		idx = (unsigned int)((unsigned long)res_ptr - (unsigned long)ioc->res_map); \
+		ret = iommu_is_span_boundary(idx << 3, pages_needed, 0, boundary_size);\
+		if ((0 == (*res_ptr & mask)) && !ret) { \
+			*res_ptr |= mask; \
+			res_idx = idx;\
+			ioc->res_hint = res_idx + (size >> 3); \
+			goto resource_found; \
+		} \
+	}
 
 #define CCIO_FIND_FREE_MAPPING(ioa, res_idx, mask, size) \
        u##size *res_ptr = (u##size *)&((ioc)->res_map[ioa->res_hint & ~((size >> 3) - 1)]); \
@@ -345,6 +350,7 @@ ccio_alloc_range(struct ioc *ioc, struct device *dev, size_t size)
 {
 	unsigned int pages_needed = size >> IOVP_SHIFT;
 	unsigned int res_idx;
+	unsigned long boundary_size;
 #ifdef CCIO_SEARCH_TIME
 	unsigned long cr_start = mfctl(16);
 #endif
@@ -359,6 +365,9 @@ ccio_alloc_range(struct ioc *ioc, struct device *dev, size_t size)
 	** "seek and ye shall find"...praying never hurts either...
 	** ggg sacrifices another 710 to the computer gods.
 	*/
+
+	boundary_size = ALIGN(dma_get_seg_boundary(dev) + 1, 1 << IOVP_SHIFT);
+	boundary_size >>= IOVP_SHIFT;
 
 	if (pages_needed <= 8) {
 		/*
