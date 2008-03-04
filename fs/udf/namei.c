@@ -303,11 +303,9 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 {
 	struct super_block *sb = dir->i_sb;
 	struct fileIdentDesc *fi = NULL;
-	char name[UDF_NAME_LEN], fname[UDF_NAME_LEN];
+	char name[UDF_NAME_LEN];
 	int namelen;
 	loff_t f_pos;
-	int flen;
-	char *nameptr;
 	loff_t size = udf_ext0_offset(dir) + dir->i_size;
 	int nfidlen;
 	uint8_t lfi;
@@ -385,26 +383,6 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 		liu = le16_to_cpu(cfi->lengthOfImpUse);
 		lfi = cfi->lengthFileIdent;
 
-		if (fibh->sbh == fibh->ebh)
-			nameptr = fi->fileIdent + liu;
-		else {
-			int poffset;	/* Unpaded ending offset */
-
-			poffset = fibh->soffset + sizeof(struct fileIdentDesc) +
-					liu + lfi;
-
-			if (poffset >= lfi)
-				nameptr = (char *)(fibh->ebh->b_data +
-						   poffset - lfi);
-			else {
-				nameptr = fname;
-				memcpy(nameptr, fi->fileIdent + liu,
-					lfi - poffset);
-				memcpy(nameptr + lfi - poffset,
-					fibh->ebh->b_data, poffset);
-			}
-		}
-
 		if ((cfi->fileCharacteristics & FID_FILE_CHAR_DELETED) != 0) {
 			if (((sizeof(struct fileIdentDesc) +
 					liu + lfi + 3) & ~3) == nfidlen) {
@@ -422,20 +400,6 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 					return NULL;
 				}
 			}
-		}
-
-		if (!lfi || !dentry)
-			continue;
-
-		flen = udf_get_filename(dir->i_sb, nameptr, fname, lfi);
-		if (flen && udf_match(flen, fname, dentry->d_name.len,
-				      dentry->d_name.name)) {
-			if (fibh->sbh != fibh->ebh)
-				brelse(fibh->ebh);
-			brelse(fibh->sbh);
-			brelse(epos.bh);
-			*err = -EEXIST;
-			return NULL;
 		}
 	}
 
