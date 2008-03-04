@@ -2431,6 +2431,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 {
 	struct inet6_dev *idev;
 	struct inet6_ifaddr *ifa, **bifa;
+	struct net *net = dev->nd_net;
 	int i;
 
 	ASSERT_RTNL();
@@ -2438,7 +2439,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 	if (dev == init_net.loopback_dev && how == 1)
 		how = 0;
 
-	rt6_ifdown(dev);
+	rt6_ifdown(net, dev);
 	neigh_ifdown(&nd_tbl, dev);
 
 	idev = __in6_dev_get(dev);

@@ -1350,7 +1350,7 @@ static void fib6_clean_tree(struct fib6_node *root,
 	fib6_walk(&c.w);
 }
 
-void fib6_clean_all(int (*func)(struct rt6_info *, void *arg),
+void fib6_clean_all(struct net *net, int (*func)(struct rt6_info *, void *arg),
 		    int prune, void *arg)
 {
 	struct fib6_table *table;
@@ -1360,7 +1360,7 @@ void fib6_clean_all(int (*func)(struct rt6_info *, void *arg),
 
 	rcu_read_lock();
 	for (h = 0; h < FIB_TABLE_HASHSZ; h++) {
-		head = &init_net.ipv6.fib_table_hash[h];
+		head = &net->ipv6.fib_table_hash[h];
 		hlist_for_each_entry_rcu(table, node, head, tb6_hlist) {
 			write_lock_bh(&table->tb6_lock);
 			fib6_clean_tree(&table->tb6_root, func, prune, arg);
@@ -1450,7 +1450,8 @@ void fib6_run_gc(unsigned long dummy)
 	gc_args.more = 0;
 
 	icmp6_dst_gc(&gc_args.more);
-	fib6_clean_all(fib6_age, 0, NULL);
+
+	fib6_clean_all(&init_net, fib6_age, 0, NULL);
 
 	if (gc_args.more)
 		mod_timer(&ip6_fib_timer, jiffies +

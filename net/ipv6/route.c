@@ -1870,9 +1870,9 @@ static int fib6_ifdown(struct rt6_info *rt, void *arg)
 	return 0;
 }
 
-void rt6_ifdown(struct net_device *dev)
+void rt6_ifdown(struct net *net, struct net_device *dev)
 {
-	fib6_clean_all(fib6_ifdown, 0, dev);
+	fib6_clean_all(net, fib6_ifdown, 0, dev);
 }
 
 struct rt6_mtu_change_arg
@@ -1928,7 +1928,7 @@ void rt6_mtu_change(struct net_device *dev, unsigned mtu)
 		.mtu = mtu,
 	};
 
-	fib6_clean_all(rt6_mtu_change_route, 0, &arg);
+	fib6_clean_all(dev->nd_net, rt6_mtu_change_route, 0, &arg);
 }
 
 static const struct nla_policy rtm_ipv6_policy[RTA_MAX+1] = {
@@ -2318,13 +2318,25 @@ static int rt6_info_route(struct rt6_info *rt, void *p_arg)
 
 static int ipv6_route_show(struct seq_file *m, void *v)
 {
-	fib6_clean_all(rt6_info_route, 0, m);
+	struct net *net = (struct net *)m->private;
+	fib6_clean_all(net, rt6_info_route, 0, m);
 	return 0;
 }
 
 static int ipv6_route_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, ipv6_route_show, NULL);
+	struct net *net = get_proc_net(inode);
+	if (!net)
+		return -ENXIO;
+	return single_open(file, ipv6_route_show, net);
+}
+
+static int ipv6_route_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *seq = file->private_data;
+	struct net *net = seq->private;
+	put_net(net);
+	return single_release(inode, file);
 }
 
 static const struct file_operations ipv6_route_proc_fops = {
@@ -2332,7 +2344,7 @@ static const struct file_operations ipv6_route_proc_fops = {
 	.open		= ipv6_route_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= single_release,
+	.release	= ipv6_route_release,
 };
 
 static int rt6_stats_seq_show(struct seq_file *seq, void *v)
@@ -2570,7 +2582,7 @@ xfrm6_init:
 out_proc_init:
 	ipv6_route_proc_fini(&init_net);
 out_fib6_init:
-	rt6_ifdown(NULL);
+	rt6_ifdown(&init_net, NULL);
 	fib6_gc_cleanup();
 out_kmem_cache:
 	kmem_cache_destroy(ip6_dst_ops.kmem_cachep);
@@ -2582,7 +2594,7 @@ void ip6_route_cleanup(void)
 	fib6_rules_cleanup();
 	ipv6_route_proc_fini(&init_net);
 	xfrm6_fini();
-	rt6_ifdown(NULL);
+	rt6_ifdown(&init_net, NULL);
 	fib6_gc_cleanup();
 	kmem_cache_destroy(ip6_dst_ops.kmem_cachep);
 }
