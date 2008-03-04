@@ -2353,21 +2353,31 @@ static const struct file_operations ipv6_route_proc_fops = {
 
 static int rt6_stats_seq_show(struct seq_file *seq, void *v)
 {
+	struct net *net = (struct net *)seq->private;
 	seq_printf(seq, "%04x %04x %04x %04x %04x %04x %04x\n",
-		   init_net.ipv6.rt6_stats->fib_nodes,
-		   init_net.ipv6.rt6_stats->fib_route_nodes,
-		   init_net.ipv6.rt6_stats->fib_rt_alloc,
-		   init_net.ipv6.rt6_stats->fib_rt_entries,
-		   init_net.ipv6.rt6_stats->fib_rt_cache,
+		   net->ipv6.rt6_stats->fib_nodes,
+		   net->ipv6.rt6_stats->fib_route_nodes,
+		   net->ipv6.rt6_stats->fib_rt_alloc,
+		   net->ipv6.rt6_stats->fib_rt_entries,
+		   net->ipv6.rt6_stats->fib_rt_cache,
 		   atomic_read(&ip6_dst_ops.entries),
-		   init_net.ipv6.rt6_stats->fib_discarded_routes);
+		   net->ipv6.rt6_stats->fib_discarded_routes);
 
 	return 0;
 }
 
 static int rt6_stats_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, rt6_stats_seq_show, NULL);
+	struct net *net = get_proc_net(inode);
+	return single_open(file, rt6_stats_seq_show, net);
+}
+
+static int rt6_stats_seq_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *seq = file->private_data;
+	struct net *net = (struct net *)seq->private;
+	put_net(net);
+	return single_release(inode, file);
 }
 
 static const struct file_operations rt6_stats_seq_fops = {
@@ -2375,7 +2385,7 @@ static const struct file_operations rt6_stats_seq_fops = {
 	.open	 = rt6_stats_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = single_release,
+	.release = rt6_stats_seq_release,
 };
 #endif	/* CONFIG_PROC_FS */
 
