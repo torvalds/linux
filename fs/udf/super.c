@@ -1425,7 +1425,7 @@ static noinline int udf_process_sequence(struct super_block *sb, long block,
 static int udf_check_valid(struct super_block *sb, int novrs, int silent)
 {
 	long block;
-	struct udf_sb_info *sbi;
+	struct udf_sb_info *sbi = UDF_SB(sb);
 
 	if (novrs) {
 		udf_debug("Validity check skipped because of novrs option\n");
@@ -1434,15 +1434,12 @@ static int udf_check_valid(struct super_block *sb, int novrs, int silent)
 	/* Check that it is NSR02 compliant */
 	/* Process any "CD-ROM Volume Descriptor Set" (ECMA 167 2/8.3.1) */
 	block = udf_vrs(sb, silent);
-	if (block != -1)
-		return !block;
-
-	sbi = UDF_SB(sb);
-	udf_debug("Failed to read byte 32768. Assuming open "
-			"disc. Skipping validity check\n");
-	if (!sbi->s_last_block)
+	if (block == -1)
+		udf_debug("Failed to read byte 32768. Assuming open "
+			  "disc. Skipping validity check\n");
+	if (block && !sbi->s_last_block)
 		sbi->s_last_block = udf_get_last_block(sb);
-	return 0;
+	return !block;
 }
 
 static int udf_load_partition(struct super_block *sb, kernel_lb_addr *fileset)
