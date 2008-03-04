@@ -230,15 +230,6 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ---------------------------
 
-What:	bcm43xx wireless network driver
-When:	2.6.26
-Files:	drivers/net/wireless/bcm43xx
-Why:	This driver's functionality has been replaced by the
-	mac80211-based b43 and b43legacy drivers.
-Who:	John W. Linville <linville@tuxdriver.com>
-
----------------------------
-
 What:	ieee80211 softmac wireless networking component
 When:	2.6.26 (or after removal of bcm43xx and port of zd1211rw to mac80211)
 Files:	net/ieee80211/softmac
