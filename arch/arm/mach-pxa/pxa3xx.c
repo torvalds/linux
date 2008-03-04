@@ -110,6 +110,25 @@ unsigned int pxa3xx_get_memclk_frequency_10khz(void)
 }
 
 /*
+ * Return the current AC97 clock frequency.
+ */
+static unsigned long clk_pxa3xx_ac97_getrate(struct clk *clk)
+{
+	unsigned long rate = 312000000;
+	unsigned long ac97_div;
+
+	ac97_div = AC97_DIV;
+
+	/* This may loose precision for some rates but won't for the
+	 * standard 24.576MHz.
+	 */
+	rate /= (ac97_div >> 12) & 0x7fff;
+	rate *= (ac97_div & 0xfff);
+
+	return rate;
+}
+
+/*
  * Return the current HSIO bus clock frequency
  */
 static unsigned long clk_pxa3xx_hsio_getrate(struct clk *clk)
@@ -156,6 +175,12 @@ static const struct clkops clk_pxa3xx_hsio_ops = {
 	.getrate	= clk_pxa3xx_hsio_getrate,
 };
 
+static const struct clkops clk_pxa3xx_ac97_ops = {
+	.enable		= clk_pxa3xx_cken_enable,
+	.disable	= clk_pxa3xx_cken_disable,
+	.getrate	= clk_pxa3xx_ac97_getrate,
+};
+
 static void clk_pout_enable(struct clk *clk)
 {
 	OSCC |= OSCC_PEN;
@@ -197,8 +222,9 @@ static struct clk pxa3xx_clks[] = {
 		.delay          = 70,
 	},
 
-	PXA3xx_CK("LCDCLK", LCD,    &clk_pxa3xx_hsio_ops, &pxa_device_fb.dev),
-	PXA3xx_CK("CAMCLK", CAMERA, &clk_pxa3xx_hsio_ops, NULL),
+	PXA3xx_CK("LCDCLK",  LCD,    &clk_pxa3xx_hsio_ops, &pxa_device_fb.dev),
+	PXA3xx_CK("CAMCLK",  CAMERA, &clk_pxa3xx_hsio_ops, NULL),
+	PXA3xx_CK("AC97CLK", AC97,   &clk_pxa3xx_ac97_ops, NULL),
 
 	PXA3xx_CKEN("UARTCLK", FFUART, 14857000, 1, &pxa_device_ffuart.dev),
 	PXA3xx_CKEN("UARTCLK", BTUART, 14857000, 1, &pxa_device_btuart.dev),
