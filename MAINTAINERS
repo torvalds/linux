@@ -3548,12 +3548,6 @@ M:	mhoffman@lightlink.com
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
-SOFTMAC LAYER (IEEE 802.11)
-P:	Daniel Drake
-M:	dsd@gentoo.org
-L:	linux-wireless@vger.kernel.org
-S:	Obsolete
-
 SOFTWARE RAID (Multiple Disks) SUPPORT
 P:	Ingo Molnar
 M:	mingo@redhat.com
