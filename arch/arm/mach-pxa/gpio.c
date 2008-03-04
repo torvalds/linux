@@ -164,6 +164,20 @@ static long GPIO_IRQ_rising_edge[4];
 static long GPIO_IRQ_falling_edge[4];
 static long GPIO_IRQ_mask[4];
 
+/*
+ * On PXA25x and PXA27x, GAFRx and GPDRx together decide the alternate
+ * function of a GPIO, and GPDRx cannot be altered once configured. It
+ * is attributed as "occupied" here (I know this terminology isn't
+ * accurate, you are welcome to propose a better one :-)
+ */
+static int __gpio_is_occupied(unsigned gpio)
+{
+	if (cpu_is_pxa25x() || cpu_is_pxa27x())
+		return GAFR(gpio) & (0x3 << (((gpio) & 0xf) * 2));
+	else
+		return 0;
+}
+
 static int pxa_gpio_irq_type(unsigned int irq, unsigned int type)
 {
 	int gpio, idx;
@@ -179,12 +193,14 @@ static int pxa_gpio_irq_type(unsigned int irq, unsigned int type)
 		     GPIO_IRQ_falling_edge[idx] |
 		     GPDR(gpio)) & GPIO_bit(gpio))
 			return 0;
-		if (GAFR(gpio) & (0x3 << (((gpio) & 0xf)*2)))
+
+		if (__gpio_is_occupied(gpio))
 			return 0;
+
 		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
 	}
 
-	pxa_gpio_mode(gpio | GPIO_IN);
+	GPDR(gpio) &= ~GPIO_bit(gpio);
 
 	if (type & IRQ_TYPE_EDGE_RISING)
 		__set_bit(gpio, GPIO_IRQ_rising_edge);
