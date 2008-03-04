@@ -602,7 +602,7 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		skb_reset_network_header(skb2);
 
 		/* Try to guess incoming interface */
-		rt = rt6_lookup(&ipv6_hdr(skb2)->saddr, NULL, 0, 0);
+		rt = rt6_lookup(&init_net, &ipv6_hdr(skb2)->saddr, NULL, 0, 0);
 
 		if (rt && rt->rt6i_dev)
 			skb2->dev = rt->rt6i_dev;
@@ -1112,7 +1112,7 @@ static void ip6_tnl_link_config(struct ip6_tnl *t)
 		int strict = (ipv6_addr_type(&p->raddr) &
 			      (IPV6_ADDR_MULTICAST|IPV6_ADDR_LINKLOCAL));
 
-		struct rt6_info *rt = rt6_lookup(&p->raddr, &p->laddr,
+		struct rt6_info *rt = rt6_lookup(&init_net, &p->raddr, &p->laddr,
 						 p->link, strict);
 
 		if (rt == NULL)

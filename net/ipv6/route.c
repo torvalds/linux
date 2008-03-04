@@ -553,8 +553,8 @@ out:
 
 }
 
-struct rt6_info *rt6_lookup(struct in6_addr *daddr, struct in6_addr *saddr,
-			    int oif, int strict)
+struct rt6_info *rt6_lookup(struct net *net, struct in6_addr *daddr,
+			    struct in6_addr *saddr, int oif, int strict)
 {
 	struct flowi fl = {
 		.oif = oif,
@@ -572,7 +572,7 @@ struct rt6_info *rt6_lookup(struct in6_addr *daddr, struct in6_addr *saddr,
 		flags |= RT6_LOOKUP_F_HAS_SADDR;
 	}
 
-	dst = fib6_rule_lookup(&init_net, &fl, flags, ip6_pol_route_lookup);
+	dst = fib6_rule_lookup(net, &fl, flags, ip6_pol_route_lookup);
 	if (dst->error == 0)
 		return (struct rt6_info *) dst;
 
@@ -1159,7 +1159,7 @@ int ip6_route_add(struct fib6_config *cfg)
 			if (!(gwa_type&IPV6_ADDR_UNICAST))
 				goto out;
 
-			grt = rt6_lookup(gw_addr, NULL, cfg->fc_ifindex, 1);
+			grt = rt6_lookup(&init_net, gw_addr, NULL, cfg->fc_ifindex, 1);
 
 			err = -EHOSTUNREACH;
 			if (grt == NULL)
@@ -1483,7 +1483,7 @@ void rt6_pmtu_discovery(struct in6_addr *daddr, struct in6_addr *saddr,
 	struct rt6_info *rt, *nrt;
 	int allfrag = 0;
 
-	rt = rt6_lookup(daddr, saddr, dev->ifindex, 0);
+	rt = rt6_lookup(dev->nd_net, daddr, saddr, dev->ifindex, 0);
 	if (rt == NULL)
 		return;
 

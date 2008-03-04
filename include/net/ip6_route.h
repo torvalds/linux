@@ -69,7 +69,8 @@ extern void			rt6_sndmsg(int type, struct in6_addr *dst,
 					   int dstlen, int srclen,
 					   int metric, __u32 flags);
 
-extern struct rt6_info		*rt6_lookup(struct in6_addr *daddr,
+extern struct rt6_info		*rt6_lookup(struct net *net,
+					    struct in6_addr *daddr,
 					    struct in6_addr *saddr,
 					    int oif, int flags);
 

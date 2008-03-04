@@ -753,7 +753,7 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 		struct rt6_info *rt;
 
 		ipv6_addr_prefix(&prefix, &ifp->addr, ifp->prefix_len);
-		rt = rt6_lookup(&prefix, NULL, ifp->idev->dev->ifindex, 1);
+		rt = rt6_lookup(&init_net, &prefix, NULL, ifp->idev->dev->ifindex, 1);
 
 		if (rt && ((rt->rt6i_flags & (RTF_GATEWAY | RTF_DEFAULT)) == 0)) {
 			if (onlink == 0) {
@@ -1700,7 +1700,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len)
 
 	if (pinfo->onlink) {
 		struct rt6_info *rt;
-		rt = rt6_lookup(&pinfo->prefix, NULL, dev->ifindex, 1);
+		rt = rt6_lookup(&init_net, &pinfo->prefix, NULL, dev->ifindex, 1);
 
 		if (rt && ((rt->rt6i_flags & (RTF_GATEWAY | RTF_DEFAULT)) == 0)) {
 			if (rt->rt6i_flags&RTF_EXPIRES) {
