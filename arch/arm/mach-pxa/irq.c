@@ -121,39 +121,37 @@ static int pxa_gpio_irq_type(unsigned int irq, unsigned int type)
 	gpio = IRQ_TO_GPIO(irq);
 	idx = gpio >> 5;
 
-	if (type == IRQT_PROBE) {
-	    /* Don't mess with enabled GPIOs using preconfigured edges or
-	       GPIOs set to alternate function or to output during probe */
-		if ((GPIO_IRQ_rising_edge[idx] | GPIO_IRQ_falling_edge[idx] | GPDR(gpio)) &
-		    GPIO_bit(gpio))
+	if (type == IRQ_TYPE_PROBE) {
+		/* Don't mess with enabled GPIOs using preconfigured edges or
+		 * GPIOs set to alternate function or to output during probe
+		 */
+		if ((GPIO_IRQ_rising_edge[idx] |
+		     GPIO_IRQ_falling_edge[idx] |
+		     GPDR(gpio)) & GPIO_bit(gpio))
 			return 0;
 		if (GAFR(gpio) & (0x3 << (((gpio) & 0xf)*2)))
 			return 0;
-		type = __IRQT_RISEDGE | __IRQT_FALEDGE;
+		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
 	}
-
-	/* printk(KERN_DEBUG "IRQ%d (GPIO%d): ", irq, gpio); */
 
 	pxa_gpio_mode(gpio | GPIO_IN);
 
-	if (type & __IRQT_RISEDGE) {
-		/* printk("rising "); */
-		__set_bit (gpio, GPIO_IRQ_rising_edge);
-	} else {
-		__clear_bit (gpio, GPIO_IRQ_rising_edge);
-	}
+	if (type & IRQ_TYPE_EDGE_RISING)
+		__set_bit(gpio, GPIO_IRQ_rising_edge);
+	else
+		__clear_bit(gpio, GPIO_IRQ_rising_edge);
 
-	if (type & __IRQT_FALEDGE) {
-		/* printk("falling "); */
-		__set_bit (gpio, GPIO_IRQ_falling_edge);
-	} else {
-		__clear_bit (gpio, GPIO_IRQ_falling_edge);
-	}
-
-	/* printk("edges\n"); */
+	if (type & IRQ_TYPE_EDGE_FALLING)
+		__set_bit(gpio, GPIO_IRQ_falling_edge);
+	else
+		__clear_bit(gpio, GPIO_IRQ_falling_edge);
 
 	GRER(gpio) = GPIO_IRQ_rising_edge[idx] & GPIO_IRQ_mask[idx];
 	GFER(gpio) = GPIO_IRQ_falling_edge[idx] & GPIO_IRQ_mask[idx];
+
+	pr_debug("%s: IRQ%d (GPIO%d) - edge%s%s\n", __func__, irq, gpio,
+		((type & IRQ_TYPE_EDGE_RISING)  ? " rising"  : ""),
+		((type & IRQ_TYPE_EDGE_FALLING) ? " falling" : ""));
 	return 0;
 }
 
