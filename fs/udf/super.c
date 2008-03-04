@@ -1292,7 +1292,7 @@ static void udf_load_logicalvolint(struct super_block *sb, kernel_extent_ad loc)
  *	July 1, 1997 - Andrew E. Mileski
  *	Written, tested, and released.
  */
-static int udf_process_sequence(struct super_block *sb, long block,
+static noinline int udf_process_sequence(struct super_block *sb, long block,
 				long lastblock, kernel_lb_addr *fileset)
 {
 	struct buffer_head *bh = NULL;
