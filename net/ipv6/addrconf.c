@@ -4259,15 +4259,6 @@ static void addrconf_net_exit(struct net *net)
 {
 	struct net_device *dev;
 
-	/*
-	 * Remove loopback references from default routing entries
-	 */
-/* 	in6_dev_put(net->ipv6.ip6_null_entry->rt6i_idev); */
-/* #ifdef CONFIG_IPV6_MULTIPLE_TABLES */
-/* 	in6_dev_put(net->ipv6.ip6_prohibit_entry->rt6i_idev); */
-/* 	in6_dev_put(net->ipv6.ip6_blk_hole_entry->rt6i_idev); */
-/* #endif */
-
 	rtnl_lock();
 	/* clean dev list */
 	for_each_netdev(net, dev) {
