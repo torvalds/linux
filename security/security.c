@@ -244,10 +244,11 @@ void security_sb_free(struct super_block *sb)
 	security_ops->sb_free_security(sb);
 }
 
-int security_sb_copy_data(struct file_system_type *type, void *orig, void *copy)
+int security_sb_copy_data(char *orig, char *copy)
 {
-	return security_ops->sb_copy_data(type, orig, copy);
+	return security_ops->sb_copy_data(orig, copy);
 }
+EXPORT_SYMBOL(security_sb_copy_data);
 
 int security_sb_kern_mount(struct super_block *sb, void *data)
 {
@@ -306,24 +307,30 @@ void security_sb_post_pivotroot(struct nameidata *old_nd, struct nameidata *new_
 }
 
 int security_sb_get_mnt_opts(const struct super_block *sb,
-			      char ***mount_options,
-			      int **flags, int *num_opts)
+				struct security_mnt_opts *opts)
 {
-	return security_ops->sb_get_mnt_opts(sb, mount_options, flags, num_opts);
+	return security_ops->sb_get_mnt_opts(sb, opts);
 }
 
 int security_sb_set_mnt_opts(struct super_block *sb,
-			      char **mount_options,
-			      int *flags, int num_opts)
+				struct security_mnt_opts *opts)
 {
-	return security_ops->sb_set_mnt_opts(sb, mount_options, flags, num_opts);
+	return security_ops->sb_set_mnt_opts(sb, opts);
 }
+EXPORT_SYMBOL(security_sb_set_mnt_opts);
 
 void security_sb_clone_mnt_opts(const struct super_block *oldsb,
 				struct super_block *newsb)
 {
 	security_ops->sb_clone_mnt_opts(oldsb, newsb);
 }
+EXPORT_SYMBOL(security_sb_clone_mnt_opts);
+
+int security_sb_parse_opts_str(char *options, struct security_mnt_opts *opts)
+{
+	return security_ops->sb_parse_opts_str(options, opts);
+}
+EXPORT_SYMBOL(security_sb_parse_opts_str);
 
 int security_inode_alloc(struct inode *inode)
 {
