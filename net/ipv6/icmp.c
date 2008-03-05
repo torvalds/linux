@@ -163,6 +163,7 @@ static inline int icmpv6_xrlim_allow(struct sock *sk, int type,
 				     struct flowi *fl)
 {
 	struct dst_entry *dst;
+	struct net *net = sk->sk_net;
 	int res = 0;
 
 	/* Informational messages are not limited. */
@@ -178,7 +179,7 @@ static inline int icmpv6_xrlim_allow(struct sock *sk, int type,
 	 * XXX: perhaps the expire for routing entries cloned by
 	 * this lookup should be more aggressive (not longer than timeout).
 	 */
-	dst = ip6_route_output(&init_net, sk, fl);
+	dst = ip6_route_output(net, sk, fl);
 	if (dst->error) {
 		IP6_INC_STATS(ip6_dst_idev(dst),
 			      IPSTATS_MIB_OUTNOROUTES);
@@ -186,7 +187,7 @@ static inline int icmpv6_xrlim_allow(struct sock *sk, int type,
 		res = 1;
 	} else {
 		struct rt6_info *rt = (struct rt6_info *)dst;
-		int tmo = init_net.ipv6.sysctl.icmpv6_time;
+		int tmo = net->ipv6.sysctl.icmpv6_time;
 
 		/* Give more bandwidth to wider prefixes. */
 		if (rt->rt6i_dst.plen < 128)
@@ -305,6 +306,7 @@ static inline void mip6_addr_swap(struct sk_buff *skb) {}
 void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 		 struct net_device *dev)
 {
+	struct net *net = skb->dev->nd_net;
 	struct inet6_dev *idev = NULL;
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct sock *sk;
@@ -334,7 +336,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	 */
 	addr_type = ipv6_addr_type(&hdr->daddr);
 
-	if (ipv6_chk_addr(&init_net, &hdr->daddr, skb->dev, 0))
+	if (ipv6_chk_addr(net, &hdr->daddr, skb->dev, 0))
 		saddr = &hdr->daddr;
 
 	/*
@@ -391,7 +393,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	fl.fl_icmp_code = code;
 	security_skb_classify_flow(skb, &fl);
 
-	sk = icmpv6_sk(&init_net);
+	sk = icmpv6_sk(net);
 	np = inet6_sk(sk);
 
 	if (icmpv6_xmit_lock(sk))
@@ -507,6 +509,7 @@ EXPORT_SYMBOL(icmpv6_send);
 
 static void icmpv6_echo_reply(struct sk_buff *skb)
 {
+	struct net *net = skb->dev->nd_net;
 	struct sock *sk;
 	struct inet6_dev *idev;
 	struct ipv6_pinfo *np;
@@ -537,7 +540,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	fl.fl_icmp_type = ICMPV6_ECHO_REPLY;
 	security_skb_classify_flow(skb, &fl);
 
-	sk = icmpv6_sk(&init_net);
+	sk = icmpv6_sk(net);
 	np = inet6_sk(sk);
 
 	if (icmpv6_xmit_lock(sk))
