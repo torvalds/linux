@@ -772,7 +772,8 @@ static struct rt6_info *ip6_pol_route_output(struct net *net, struct fib6_table 
 	return ip6_pol_route(net, table, fl->oif, fl, flags);
 }
 
-struct dst_entry * ip6_route_output(struct sock *sk, struct flowi *fl)
+struct dst_entry * ip6_route_output(struct net *net, struct sock *sk,
+				    struct flowi *fl)
 {
 	int flags = 0;
 
@@ -782,7 +783,7 @@ struct dst_entry * ip6_route_output(struct sock *sk, struct flowi *fl)
 	if (!ipv6_addr_any(&fl->fl6_src))
 		flags |= RT6_LOOKUP_F_HAS_SADDR;
 
-	return fib6_rule_lookup(&init_net, fl, flags, ip6_pol_route_output);
+	return fib6_rule_lookup(net, fl, flags, ip6_pol_route_output);
 }
 
 EXPORT_SYMBOL(ip6_route_output);
@@ -2260,7 +2261,7 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void
 	skb_reset_mac_header(skb);
 	skb_reserve(skb, MAX_HEADER + sizeof(struct ipv6hdr));
 
-	rt = (struct rt6_info*) ip6_route_output(NULL, &fl);
+	rt = (struct rt6_info*) ip6_route_output(&init_net, NULL, &fl);
 	skb->dst = &rt->u.dst;
 
 	err = rt6_fill_node(skb, rt, &fl.fl6_dst, &fl.fl6_src, iif,

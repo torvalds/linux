@@ -93,7 +93,7 @@ static void send_reset(struct sk_buff *oldskb)
 	fl.fl_ip_sport = otcph.dest;
 	fl.fl_ip_dport = otcph.source;
 	security_skb_classify_flow(oldskb, &fl);
-	dst = ip6_route_output(NULL, &fl);
+	dst = ip6_route_output(&init_net, NULL, &fl);
 	if (dst == NULL)
 		return;
 	if (dst->error || xfrm_lookup(&dst, &fl, NULL, 0))

@@ -847,7 +847,7 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	if ((dst = ip6_tnl_dst_check(t)) != NULL)
 		dst_hold(dst);
 	else {
-		dst = ip6_route_output(NULL, fl);
+		dst = ip6_route_output(&init_net, NULL, fl);
 
 		if (dst->error || xfrm_lookup(&dst, fl, NULL, 0) < 0)
 			goto tx_err_link_failure;

@@ -257,7 +257,7 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 			NIP6(fl.fl6_src));
 	}
 
-	dst = ip6_route_output(NULL, &fl);
+	dst = ip6_route_output(&init_net, NULL, &fl);
 	if (!dst->error) {
 		struct rt6_info *rt;
 		rt = (struct rt6_info *)dst;

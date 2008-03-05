@@ -23,7 +23,7 @@ int ip6_route_me_harder(struct sk_buff *skb)
 		    .saddr = iph->saddr, } },
 	};
 
-	dst = ip6_route_output(skb->sk, &fl);
+	dst = ip6_route_output(&init_net, skb->sk, &fl);
 
 #ifdef CONFIG_XFRM
 	if (!(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
@@ -86,7 +86,7 @@ static int nf_ip6_reroute(struct sk_buff *skb,
 
 static int nf_ip6_route(struct dst_entry **dst, struct flowi *fl)
 {
-	*dst = ip6_route_output(NULL, fl);
+	*dst = ip6_route_output(&init_net, NULL, fl);
 	return (*dst)->error;
 }
 

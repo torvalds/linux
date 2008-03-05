@@ -178,7 +178,7 @@ static inline int icmpv6_xrlim_allow(struct sock *sk, int type,
 	 * XXX: perhaps the expire for routing entries cloned by
 	 * this lookup should be more aggressive (not longer than timeout).
 	 */
-	dst = ip6_route_output(sk, fl);
+	dst = ip6_route_output(&init_net, sk, fl);
 	if (dst->error) {
 		IP6_INC_STATS(ip6_dst_idev(dst),
 			      IPSTATS_MIB_OUTNOROUTES);

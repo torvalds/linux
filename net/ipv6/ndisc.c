@@ -1427,7 +1427,7 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 	icmpv6_flow_init(ndisc_socket->sk, &fl, NDISC_REDIRECT,
 			 &saddr_buf, &ipv6_hdr(skb)->saddr, dev->ifindex);
 
-	dst = ip6_route_output(NULL, &fl);
+	dst = ip6_route_output(&init_net, NULL, &fl);
 	if (dst == NULL)
 		return;
 

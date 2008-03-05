@@ -38,7 +38,7 @@ static struct dst_entry *xfrm6_dst_lookup(int tos, xfrm_address_t *saddr,
 	if (saddr)
 		memcpy(&fl.fl6_src, saddr, sizeof(fl.fl6_src));
 
-	dst = ip6_route_output(NULL, &fl);
+	dst = ip6_route_output(&init_net, NULL, &fl);
 
 	err = dst->error;
 	if (dst->error) {

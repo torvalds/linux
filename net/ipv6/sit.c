@@ -393,7 +393,7 @@ isatap_srcok(struct sk_buff *skb, struct iphdr *iph, struct net_device *dev)
 	fl.oif = dev->ifindex;
 	security_skb_classify_flow(skb, &fl);
 
-	dst = ip6_route_output(NULL, &fl);
+	dst = ip6_route_output(&init_net, NULL, &fl);
 	if (!dst->error && (dst->dev == dev) && (neigh = dst->neighbour)) {
 
 		addr6 = (struct in6_addr*)&neigh->primary_key;

@@ -43,7 +43,8 @@ extern struct rt6_info	*ip6_blk_hole_entry;
 
 extern void			ip6_route_input(struct sk_buff *skb);
 
-extern struct dst_entry *	ip6_route_output(struct sock *sk,
+extern struct dst_entry *	ip6_route_output(struct net *net,
+						 struct sock *sk,
 						 struct flowi *fl);
 
 extern int			ip6_route_init(void);
