@@ -220,6 +220,9 @@ int snmp6_register_dev(struct inet6_dev *idev)
 	if (!idev || !idev->dev)
 		return -EINVAL;
 
+	if (idev->dev->nd_net != &init_net)
+		return 0;
+
 	if (!proc_net_devsnmp6)
 		return -ENOENT;
 
