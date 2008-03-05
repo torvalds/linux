@@ -4422,7 +4422,7 @@ int task_nice(const struct task_struct *p)
 {
 	return TASK_NICE(p);
 }
-EXPORT_SYMBOL_GPL(task_nice);
+EXPORT_SYMBOL(task_nice);
 
 /**
  * idle_cpu - is a given cpu idle currently?
