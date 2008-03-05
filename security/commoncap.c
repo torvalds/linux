@@ -267,7 +267,7 @@ static int get_file_caps(struct linux_binprm *bprm)
 	rc = cap_from_disk(&vcaps, bprm, rc);
 	if (rc)
 		printk(KERN_NOTICE "%s: cap_from_disk returned %d for %s\n",
-			__FUNCTION__, rc, bprm->filename);
+			__func__, rc, bprm->filename);
 
 out:
 	dput(dentry);
@@ -302,7 +302,7 @@ int cap_bprm_set_security (struct linux_binprm *bprm)
 	ret = get_file_caps(bprm);
 	if (ret)
 		printk(KERN_NOTICE "%s: get_file_caps returned %d for %s\n",
-			__FUNCTION__, ret, bprm->filename);
+			__func__, ret, bprm->filename);
 
 	/*  To support inheritance of root-permissions and suid-root
 	 *  executables under compatibility mode, we raise all three

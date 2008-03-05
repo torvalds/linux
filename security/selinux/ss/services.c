@@ -413,7 +413,7 @@ static int context_struct_compute_av(struct context *scontext,
 	return 0;
 
 inval_class:
-	printk(KERN_ERR "%s:  unrecognized class %d\n", __FUNCTION__, tclass);
+	printk(KERN_ERR "%s:  unrecognized class %d\n", __func__, tclass);
 	return -EINVAL;
 }
 
@@ -2206,7 +2206,7 @@ int security_get_permissions(char *class, char ***perms, int *nperms)
 	match = hashtab_search(policydb.p_classes.table, class);
 	if (!match) {
 		printk(KERN_ERR "%s:  unrecognized class %s\n",
-			__FUNCTION__, class);
+			__func__, class);
 		rc = -EINVAL;
 		goto out;
 	}

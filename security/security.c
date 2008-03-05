@@ -57,7 +57,7 @@ int __init security_init(void)
 
 	if (verify(&dummy_security_ops)) {
 		printk(KERN_ERR "%s could not verify "
-		       "dummy_security_ops structure.\n", __FUNCTION__);
+		       "dummy_security_ops structure.\n", __func__);
 		return -EIO;
 	}
 
@@ -82,7 +82,7 @@ int register_security(struct security_operations *ops)
 {
 	if (verify(ops)) {
 		printk(KERN_DEBUG "%s could not verify "
-		       "security_operations structure.\n", __FUNCTION__);
+		       "security_operations structure.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -110,13 +110,13 @@ int mod_reg_security(const char *name, struct security_operations *ops)
 {
 	if (verify(ops)) {
 		printk(KERN_INFO "%s could not verify "
-		       "security operations.\n", __FUNCTION__);
+		       "security operations.\n", __func__);
 		return -EINVAL;
 	}
 
 	if (ops == security_ops) {
 		printk(KERN_INFO "%s security operations "
-		       "already registered.\n", __FUNCTION__);
+		       "already registered.\n", __func__);
 		return -EINVAL;
 	}
 

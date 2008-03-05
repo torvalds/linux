@@ -49,7 +49,7 @@ module_param(debug, bool, 0600);
 	do {							\
 		if (debug)					\
 			printk(KERN_DEBUG "%s: %s: " fmt ,	\
-				MY_NAME , __FUNCTION__ , 	\
+				MY_NAME , __func__ , 	\
 				## arg);			\
 	} while (0)
 
