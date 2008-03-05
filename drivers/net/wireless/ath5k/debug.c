@@ -500,11 +500,13 @@ static inline void
 ath5k_debug_printrxbuf(struct ath5k_buf *bf, int done)
 {
 	struct ath5k_desc *ds = bf->desc;
+	struct ath5k_hw_all_rx_desc *rd = &ds->ud.ds_rx;
 
 	printk(KERN_DEBUG "R (%p %llx) %08x %08x %08x %08x %08x %08x %c\n",
 		ds, (unsigned long long)bf->daddr,
-		ds->ds_link, ds->ds_data, ds->ds_ctl0, ds->ds_ctl1,
-		ds->ds_hw[0], ds->ds_hw[1],
+		ds->ds_link, ds->ds_data,
+		rd->rx_ctl.rx_control_0, rd->rx_ctl.rx_control_1,
+		rd->u.rx_stat.rx_status_0, rd->u.rx_stat.rx_status_0,
 		!done ? ' ' : (ds->ds_rxstat.rs_status == 0) ? '*' : '!');
 }
 
@@ -554,14 +556,16 @@ ath5k_debug_printtxbuf(struct ath5k_softc *sc,
 			struct ath5k_buf *bf, int done)
 {
 	struct ath5k_desc *ds = bf->desc;
+	struct ath5k_hw_5212_tx_desc *td = &ds->ud.ds_tx5212;
 
 	if (likely(!(sc->debug.level & ATH5K_DEBUG_RESET)))
 		return;
 
 	printk(KERN_DEBUG "T (%p %llx) %08x %08x %08x %08x %08x %08x %08x "
 		"%08x %c\n", ds, (unsigned long long)bf->daddr, ds->ds_link,
-		ds->ds_data, ds->ds_ctl0, ds->ds_ctl1,
-		ds->ds_hw[0], ds->ds_hw[1], ds->ds_hw[2], ds->ds_hw[3],
+		ds->ds_data, td->tx_ctl.tx_control_0, td->tx_ctl.tx_control_1,
+		td->tx_ctl.tx_control_2, td->tx_ctl.tx_control_3,
+		td->tx_stat.tx_status_0, td->tx_stat.tx_status_1,
 		!done ? ' ' : (ds->ds_txstat.ts_status == 0) ? '*' : '!');
 }
 
