@@ -999,13 +999,13 @@ static const struct usb_gadget_ops usba_udc_ops = {
 }
 
 static struct usba_ep usba_ep[] = {
-	EP("ep0", 0, 64, 1, 0, 0),
-	EP("ep1in-bulk", 1, 512, 2, 1, 1),
-	EP("ep2out-bulk", 2, 512, 2, 1, 1),
-	EP("ep3in-int", 3, 64, 3, 1, 0),
-	EP("ep4out-int", 4, 64, 3, 1, 0),
-	EP("ep5in-iso", 5, 1024, 3, 1, 1),
-	EP("ep6out-iso", 6, 1024, 3, 1, 1),
+	EP("ep0",     0,   64, 1, 0, 0),
+	EP("ep1",     1,  512, 2, 1, 1),
+	EP("ep2",     2,  512, 2, 1, 1),
+	EP("ep3-int", 3,   64, 3, 1, 0),
+	EP("ep4-int", 4,   64, 3, 1, 0),
+	EP("ep5",     5, 1024, 3, 1, 1),
+	EP("ep6",     6, 1024, 3, 1, 1),
 };
 #undef EP
 
