@@ -1937,7 +1937,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 		goto err_device_add;
 	}
 
-	if (pdata && pdata->vbus_pin != GPIO_PIN_NONE) {
+	if (pdata && pdata->vbus_pin >= 0) {
 		if (!gpio_request(pdata->vbus_pin, "atmel_usba_udc")) {
 			udc->vbus_pin = pdata->vbus_pin;
 
