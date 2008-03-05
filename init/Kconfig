@@ -382,9 +382,13 @@ config CGROUP_MEM_RES_CTLR
 	  sure you need the memory resource controller.
 
 config SYSFS_DEPRECATED
+	bool
+
+config SYSFS_DEPRECATED_V2
 	bool "Create deprecated sysfs files"
 	depends on SYSFS
 	default y
+	select SYSFS_DEPRECATED
 	help
 	  This option creates deprecated symlinks such as the
 	  "device"-link, the <subsystem>:<name>-link, and the
@@ -397,10 +401,11 @@ config SYSFS_DEPRECATED
 
 	  If enabled, this option will also move any device structures
 	  that belong to a class, back into the /sys/class hierarchy, in
-	  order to support older versions of udev.
+	  order to support older versions of udev and some userspace
+	  programs.
 
-	  If you are using a distro that was released in 2006 or later,
-	  it should be safe to say N here.
+	  If you are using a distro with the most recent userspace
+	  packages, it should be safe to say N here.
 
 config PROC_PID_CPUSET
 	bool "Include legacy /proc/<pid>/cpuset file"
