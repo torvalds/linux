@@ -1107,9 +1107,11 @@ static void prio_changed_rt(struct rq *rq, struct task_struct *p,
 			pull_rt_task(rq);
 		/*
 		 * If there's a higher priority task waiting to run
-		 * then reschedule.
+		 * then reschedule. Note, the above pull_rt_task
+		 * can release the rq lock and p could migrate.
+		 * Only reschedule if p is still on the same runqueue.
 		 */
-		if (p->prio > rq->rt.highest_prio)
+		if (p->prio > rq->rt.highest_prio && rq->curr == p)
 			resched_task(p);
 #else
 		/* For UP simply resched on drop of prio */
