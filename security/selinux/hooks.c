@@ -2671,7 +2671,7 @@ static void selinux_inode_post_setxattr(struct dentry *dentry, char *name,
 	rc = security_context_to_sid(value, size, &newsid);
 	if (rc) {
 		printk(KERN_WARNING "%s:  unable to obtain SID for context "
-		       "%s, rc=%d\n", __func__, (char*)value, -rc);
+		       "%s, rc=%d\n", __func__, (char *)value, -rc);
 		return;
 	}
 
