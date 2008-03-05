@@ -1367,7 +1367,7 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
  * a normal way
  */
 static struct sk_buff *tcp_sacktag_skip(struct sk_buff *skb, struct sock *sk,
-					u32 skip_to_seq)
+					u32 skip_to_seq, int *fack_count)
 {
 	tcp_for_write_queue_from(skb, sk) {
 		if (skb == tcp_send_head(sk))
@@ -1375,6 +1375,8 @@ static struct sk_buff *tcp_sacktag_skip(struct sk_buff *skb, struct sock *sk,
 
 		if (!before(TCP_SKB_CB(skb)->end_seq, skip_to_seq))
 			break;
+
+		*fack_count += tcp_skb_pcount(skb);
 	}
 	return skb;
 }
@@ -1390,7 +1392,7 @@ static struct sk_buff *tcp_maybe_skipping_dsack(struct sk_buff *skb,
 		return skb;
 
 	if (before(next_dup->start_seq, skip_to_seq)) {
-		skb = tcp_sacktag_skip(skb, sk, next_dup->start_seq);
+		skb = tcp_sacktag_skip(skb, sk, next_dup->start_seq, fack_count);
 		tcp_sacktag_walk(skb, sk, NULL,
 				 next_dup->start_seq, next_dup->end_seq,
 				 1, fack_count, reord, flag);
@@ -1537,7 +1539,8 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb,
 
 			/* Head todo? */
 			if (before(start_seq, cache->start_seq)) {
-				skb = tcp_sacktag_skip(skb, sk, start_seq);
+				skb = tcp_sacktag_skip(skb, sk, start_seq,
+						       &fack_count);
 				skb = tcp_sacktag_walk(skb, sk, next_dup,
 						       start_seq,
 						       cache->start_seq,
@@ -1565,7 +1568,8 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb,
 				goto walk;
 			}
 
-			skb = tcp_sacktag_skip(skb, sk, cache->end_seq);
+			skb = tcp_sacktag_skip(skb, sk, cache->end_seq,
+					       &fack_count);
 			/* Check overlap against next cached too (past this one already) */
 			cache++;
 			continue;
@@ -1577,7 +1581,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb,
 				break;
 			fack_count = tp->fackets_out;
 		}
-		skb = tcp_sacktag_skip(skb, sk, start_seq);
+		skb = tcp_sacktag_skip(skb, sk, start_seq, &fack_count);
 
 walk:
 		skb = tcp_sacktag_walk(skb, sk, next_dup, start_seq, end_seq,

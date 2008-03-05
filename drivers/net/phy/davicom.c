@@ -37,6 +37,7 @@
 
 #define MII_DM9161_SCR		0x10
 #define MII_DM9161_SCR_INIT	0x0610
+#define MII_DM9161_SCR_RMII	0x0100
 
 /* DM9161 Interrupt Register */
 #define MII_DM9161_INTR	0x15
@@ -103,7 +104,7 @@ static int dm9161_config_aneg(struct phy_device *phydev)
 
 static int dm9161_config_init(struct phy_device *phydev)
 {
-	int err;
+	int err, temp;
 
 	/* Isolate the PHY */
 	err = phy_write(phydev, MII_BMCR, BMCR_ISOLATE);
@@ -111,9 +112,19 @@ static int dm9161_config_init(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	/* Do not bypass the scrambler/descrambler */
-	err = phy_write(phydev, MII_DM9161_SCR, MII_DM9161_SCR_INIT);
+	switch (phydev->interface) {
+	case PHY_INTERFACE_MODE_MII:
+		temp = MII_DM9161_SCR_INIT;
+		break;
+	case PHY_INTERFACE_MODE_RMII:
+		temp =  MII_DM9161_SCR_INIT | MII_DM9161_SCR_RMII;
+		break;
+	default:
+		return -EINVAL;
+	}
 
+	/* Do not bypass the scrambler/descrambler */
+	err = phy_write(phydev, MII_DM9161_SCR, temp);
 	if (err < 0)
 		return err;
 

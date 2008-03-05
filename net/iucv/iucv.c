@@ -621,7 +621,6 @@ static int iucv_sever_pathid(u16 pathid, u8 userdata[16])
 	return iucv_call_b2f0(IUCV_SEVER, parm);
 }
 
-#ifdef CONFIG_SMP
 /**
  * __iucv_cleanup_queue
  * @dummy: unused dummy argument
@@ -632,7 +631,6 @@ static int iucv_sever_pathid(u16 pathid, u8 userdata[16])
 static void __iucv_cleanup_queue(void *dummy)
 {
 }
-#endif
 
 /**
  * iucv_cleanup_queue

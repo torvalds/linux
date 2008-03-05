@@ -417,7 +417,8 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 		l2cap_sock_kill(sk);
 	}
 
-	del_timer_sync(&conn->info_timer);
+	if (conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_SENT)
+		del_timer_sync(&conn->info_timer);
 
 	hcon->l2cap_data = NULL;
 	kfree(conn);

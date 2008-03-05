@@ -336,8 +336,6 @@ struct lance_addr {
 
 /***************************** Prototypes *****************************/
 
-static int addr_accessible( volatile void *regp, int wordflag, int
-                            writeflag );
 static unsigned long lance_probe1( struct net_device *dev, struct lance_addr
                                    *init_rec );
 static int lance_open( struct net_device *dev );
@@ -406,7 +404,8 @@ struct net_device * __init atarilance_probe(int unit)
 
 /* Derived from hwreg_present() in atari/config.c: */
 
-static int __init addr_accessible( volatile void *regp, int wordflag, int writeflag )
+static noinline int __init addr_accessible(volatile void *regp, int wordflag,
+					   int writeflag)
 {
 	int		ret;
 	long	flags;
