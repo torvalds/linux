@@ -61,7 +61,7 @@
  * determine the maximum free string for four (lower level) nodes
  * of the tree.
  */
-static __inline signed char TREEMAX(signed char *cp)
+static inline signed char TREEMAX(signed char *cp)
 {
 	signed char tmp1, tmp2;
 
