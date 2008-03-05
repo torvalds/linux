@@ -216,7 +216,7 @@ static void cpufreq_debug_disable_ratelimit(void)
 }
 
 void cpufreq_debug_printk(unsigned int type, const char *prefix,
-							const char *fmt, ...)
+			const char *fmt, ...)
 {
 	char s[256];
 	va_list args;
@@ -378,7 +378,7 @@ static struct cpufreq_governor *__find_governor(const char *str_governor)
 /**
  * cpufreq_parse_governor - parse a governor string
  */
-static int cpufreq_parse_governor (char *str_governor, unsigned int *policy,
+static int cpufreq_parse_governor(char *str_governor, unsigned int *policy,
 				struct cpufreq_governor **governor)
 {
 	int err = -EINVAL;
@@ -446,7 +446,7 @@ extern struct sysdev_class cpu_sysdev_class;
 
 #define show_one(file_name, object)			\
 static ssize_t show_##file_name				\
-(struct cpufreq_policy * policy, char *buf)		\
+(struct cpufreq_policy *policy, char *buf)		\
 {							\
 	return sprintf (buf, "%u\n", policy->object);	\
 }
@@ -465,7 +465,7 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
  */
 #define store_one(file_name, object)			\
 static ssize_t store_##file_name					\
-(struct cpufreq_policy * policy, const char *buf, size_t count)		\
+(struct cpufreq_policy *policy, const char *buf, size_t count)		\
 {									\
 	unsigned int ret = -EINVAL;					\
 	struct cpufreq_policy new_policy;				\
@@ -490,8 +490,8 @@ store_one(scaling_max_freq,max);
 /**
  * show_cpuinfo_cur_freq - current CPU frequency as detected by hardware
  */
-static ssize_t show_cpuinfo_cur_freq (struct cpufreq_policy * policy,
-							char *buf)
+static ssize_t show_cpuinfo_cur_freq(struct cpufreq_policy *policy,
+					char *buf)
 {
 	unsigned int cur_freq = __cpufreq_get(policy->cpu);
 	if (!cur_freq)
@@ -503,8 +503,7 @@ static ssize_t show_cpuinfo_cur_freq (struct cpufreq_policy * policy,
 /**
  * show_scaling_governor - show the current policy for the specified CPU
  */
-static ssize_t show_scaling_governor (struct cpufreq_policy * policy,
-							char *buf)
+static ssize_t show_scaling_governor(struct cpufreq_policy *policy, char *buf)
 {
 	if(policy->policy == CPUFREQ_POLICY_POWERSAVE)
 		return sprintf(buf, "powersave\n");
@@ -519,8 +518,8 @@ static ssize_t show_scaling_governor (struct cpufreq_policy * policy,
 /**
  * store_scaling_governor - store policy for the specified CPU
  */
-static ssize_t store_scaling_governor (struct cpufreq_policy * policy,
-				       const char *buf, size_t count)
+static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
+					const char *buf, size_t count)
 {
 	unsigned int ret = -EINVAL;
 	char	str_governor[16];
@@ -554,7 +553,7 @@ static ssize_t store_scaling_governor (struct cpufreq_policy * policy,
 /**
  * show_scaling_driver - show the cpufreq driver currently loaded
  */
-static ssize_t show_scaling_driver (struct cpufreq_policy * policy, char *buf)
+static ssize_t show_scaling_driver(struct cpufreq_policy *policy, char *buf)
 {
 	return scnprintf(buf, CPUFREQ_NAME_LEN, "%s\n", cpufreq_driver->name);
 }
@@ -562,8 +561,8 @@ static ssize_t show_scaling_driver (struct cpufreq_policy * policy, char *buf)
 /**
  * show_scaling_available_governors - show the available CPUfreq governors
  */
-static ssize_t show_scaling_available_governors (struct cpufreq_policy *policy,
-				char *buf)
+static ssize_t show_scaling_available_governors(struct cpufreq_policy *policy,
+						char *buf)
 {
 	ssize_t i = 0;
 	struct cpufreq_governor *t;
@@ -585,7 +584,7 @@ out:
 /**
  * show_affected_cpus - show the CPUs affected by each transition
  */
-static ssize_t show_affected_cpus (struct cpufreq_policy * policy, char *buf)
+static ssize_t show_affected_cpus(struct cpufreq_policy *policy, char *buf)
 {
 	ssize_t i = 0;
 	unsigned int cpu;
@@ -602,7 +601,7 @@ static ssize_t show_affected_cpus (struct cpufreq_policy * policy, char *buf)
 }
 
 static ssize_t store_scaling_setspeed(struct cpufreq_policy *policy,
-		const char *buf, size_t count)
+					const char *buf, size_t count)
 {
 	unsigned int freq = 0;
 	unsigned int ret;
@@ -651,7 +650,7 @@ define_one_rw(scaling_max_freq);
 define_one_rw(scaling_governor);
 define_one_rw(scaling_setspeed);
 
-static struct attribute * default_attrs[] = {
+static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
 	&cpuinfo_max_freq.attr,
 	&scaling_min_freq.attr,
@@ -667,10 +666,10 @@ static struct attribute * default_attrs[] = {
 #define to_policy(k) container_of(k,struct cpufreq_policy,kobj)
 #define to_attr(a) container_of(a,struct freq_attr,attr)
 
-static ssize_t show(struct kobject * kobj, struct attribute * attr ,char * buf)
+static ssize_t show(struct kobject *kobj, struct attribute *attr ,char *buf)
 {
-	struct cpufreq_policy * policy = to_policy(kobj);
-	struct freq_attr * fattr = to_attr(attr);
+	struct cpufreq_policy *policy = to_policy(kobj);
+	struct freq_attr *fattr = to_attr(attr);
 	ssize_t ret = -EINVAL;
 	policy = cpufreq_cpu_get(policy->cpu);
 	if (!policy)
@@ -691,11 +690,11 @@ no_policy:
 	return ret;
 }
 
-static ssize_t store(struct kobject * kobj, struct attribute * attr,
-		     const char * buf, size_t count)
+static ssize_t store(struct kobject *kobj, struct attribute *attr,
+		     const char *buf, size_t count)
 {
-	struct cpufreq_policy * policy = to_policy(kobj);
-	struct freq_attr * fattr = to_attr(attr);
+	struct cpufreq_policy *policy = to_policy(kobj);
+	struct freq_attr *fattr = to_attr(attr);
 	ssize_t ret = -EINVAL;
 	policy = cpufreq_cpu_get(policy->cpu);
 	if (!policy)
@@ -716,9 +715,9 @@ no_policy:
 	return ret;
 }
 
-static void cpufreq_sysfs_release(struct kobject * kobj)
+static void cpufreq_sysfs_release(struct kobject *kobj)
 {
-	struct cpufreq_policy * policy = to_policy(kobj);
+	struct cpufreq_policy *policy = to_policy(kobj);
 	dprintk("last reference is dropped\n");
 	complete(&policy->kobj_unregister);
 }
@@ -740,7 +739,7 @@ static struct kobj_type ktype_cpufreq = {
  *
  * Adds the cpufreq interface for a CPU device.
  */
-static int cpufreq_add_dev (struct sys_device * sys_dev)
+static int cpufreq_add_dev(struct sys_device *sys_dev)
 {
 	unsigned int cpu = sys_dev->id;
 	int ret = 0;
@@ -967,7 +966,7 @@ module_out:
  * Caller should already have policy_rwsem in write mode for this CPU.
  * This routine frees the rwsem before returning.
  */
-static int __cpufreq_remove_dev (struct sys_device * sys_dev)
+static int __cpufreq_remove_dev(struct sys_device *sys_dev)
 {
 	unsigned int cpu = sys_dev->id;
 	unsigned long flags;
@@ -1071,7 +1070,7 @@ static int __cpufreq_remove_dev (struct sys_device * sys_dev)
 }
 
 
-static int cpufreq_remove_dev (struct sys_device * sys_dev)
+static int cpufreq_remove_dev(struct sys_device *sys_dev)
 {
 	unsigned int cpu = sys_dev->id;
 	int retval;
@@ -1199,7 +1198,7 @@ EXPORT_SYMBOL(cpufreq_get);
  *	cpufreq_suspend - let the low level driver prepare for suspend
  */
 
-static int cpufreq_suspend(struct sys_device * sysdev, pm_message_t pmsg)
+static int cpufreq_suspend(struct sys_device *sysdev, pm_message_t pmsg)
 {
 	int cpu = sysdev->id;
 	int ret = 0;
@@ -1277,7 +1276,7 @@ out:
  *	3.) schedule call cpufreq_update_policy() ASAP as interrupts are
  *	    restored.
  */
-static int cpufreq_resume(struct sys_device * sysdev)
+static int cpufreq_resume(struct sys_device *sysdev)
 {
 	int cpu = sysdev->id;
 	int ret = 0;
