@@ -27,6 +27,7 @@
 
 #define MAX_TXCH 64
 #define MAX_RXCH 64
+#define MAX_FLAGS 64
 
 static struct pasdma_status *dma_status;
 
@@ -44,6 +45,7 @@ static struct pci_dev *dma_pdev;
 
 static DECLARE_BITMAP(txch_free, MAX_TXCH);
 static DECLARE_BITMAP(rxch_free, MAX_RXCH);
+static DECLARE_BITMAP(flags_free, MAX_FLAGS);
 
 /* pasemi_read_iob_reg - read IOB register
  * @reg: Register to read (offset into PCI CFG space)
@@ -374,6 +376,71 @@ void pasemi_dma_free_buf(struct pasemi_dmachan *chan, int size,
 }
 EXPORT_SYMBOL(pasemi_dma_free_buf);
 
+/* pasemi_dma_alloc_flag - Allocate a flag (event) for channel syncronization
+ *
+ * Allocates a flag for use with channel syncronization (event descriptors).
+ * Returns allocated flag (0-63), < 0 on error.
+ */
+int pasemi_dma_alloc_flag(void)
+{
+	int bit;
+
+retry:
+	bit = find_next_bit(flags_free, MAX_FLAGS, 0);
+	if (bit >= MAX_FLAGS)
+		return -ENOSPC;
+	if (!test_and_clear_bit(bit, flags_free))
+		goto retry;
+
+	return bit;
+}
+EXPORT_SYMBOL(pasemi_dma_alloc_flag);
+
+
+/* pasemi_dma_free_flag - Deallocates a flag (event)
+ * @flag: Flag number to deallocate
+ *
+ * Frees up a flag so it can be reused for other purposes.
+ */
+void pasemi_dma_free_flag(int flag)
+{
+	BUG_ON(test_bit(flag, flags_free));
+	BUG_ON(flag >= MAX_FLAGS);
+	set_bit(flag, flags_free);
+}
+EXPORT_SYMBOL(pasemi_dma_free_flag);
+
+
+/* pasemi_dma_set_flag - Sets a flag (event) to 1
+ * @flag: Flag number to set active
+ *
+ * Sets the flag provided to 1.
+ */
+void pasemi_dma_set_flag(int flag)
+{
+	BUG_ON(flag >= MAX_FLAGS);
+	if (flag < 32)
+		pasemi_write_dma_reg(PAS_DMA_TXF_SFLG0, 1 << flag);
+	else
+		pasemi_write_dma_reg(PAS_DMA_TXF_SFLG1, 1 << flag);
+}
+EXPORT_SYMBOL(pasemi_dma_set_flag);
+
+/* pasemi_dma_clear_flag - Sets a flag (event) to 0
+ * @flag: Flag number to set inactive
+ *
+ * Sets the flag provided to 0.
+ */
+void pasemi_dma_clear_flag(int flag)
+{
+	BUG_ON(flag >= MAX_FLAGS);
+	if (flag < 32)
+		pasemi_write_dma_reg(PAS_DMA_TXF_CFLG0, 1 << flag);
+	else
+		pasemi_write_dma_reg(PAS_DMA_TXF_CFLG1, 1 << flag);
+}
+EXPORT_SYMBOL(pasemi_dma_clear_flag);
+
 static void *map_onedev(struct pci_dev *p, int index)
 {
 	struct device_node *dn;
@@ -507,6 +574,13 @@ int pasemi_dma_init(void)
 
 	/* enable rx section */
 	pasemi_write_dma_reg(PAS_DMA_COM_RXCMD, PAS_DMA_COM_RXCMD_EN);
+
+	for (i = 0; i < MAX_FLAGS; i++)
+		__set_bit(i, flags_free);
+
+	/* clear all status flags */
+	pasemi_write_dma_reg(PAS_DMA_TXF_CFLG0, 0xffffffff);
+	pasemi_write_dma_reg(PAS_DMA_TXF_CFLG1, 0xffffffff);
 
 	printk(KERN_INFO "PA Semi PWRficient DMA library initialized "
 		"(%d tx, %d rx channels)\n", num_txch, num_rxch);
