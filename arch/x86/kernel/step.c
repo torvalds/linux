@@ -166,7 +166,7 @@ static void enable_step(struct task_struct *child, bool block)
 				  child->thread.debugctlmsr | DEBUGCTLMSR_BTF);
 	} else {
 	    write_debugctlmsr(child,
-			      child->thread.debugctlmsr & ~TIF_DEBUGCTLMSR);
+			      child->thread.debugctlmsr & ~DEBUGCTLMSR_BTF);
 
 	    if (!child->thread.debugctlmsr)
 		    clear_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
@@ -189,7 +189,7 @@ void user_disable_single_step(struct task_struct *child)
 	 * Make sure block stepping (BTF) is disabled.
 	 */
 	write_debugctlmsr(child,
-			  child->thread.debugctlmsr & ~TIF_DEBUGCTLMSR);
+			  child->thread.debugctlmsr & ~DEBUGCTLMSR_BTF);
 
 	if (!child->thread.debugctlmsr)
 		clear_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
