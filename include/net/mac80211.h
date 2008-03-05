@@ -229,7 +229,11 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TXCTL_EAPOL_FRAME: internal to mac80211
  * @IEEE80211_TXCTL_SEND_AFTER_DTIM: send this frame after DTIM beacon
  * @IEEE80211_TXCTL_AMPDU: this frame should be sent as part of an A-MPDU
- * @IEEE80211_TXCTL_OFDM_HT: this frame can be sent in HT OFDM rates
+ * @IEEE80211_TXCTL_OFDM_HT: this frame can be sent in HT OFDM rates. number
+ * 			     of streams when this flag is on can be extracted
+ *			     from antenna_sel_tx, so if 1 antenna is marked
+ *			     use SISO, 2 antennas marked use MIMO, n antennas
+ *			     marked use MIMO_n.
  * @IEEE80211_TXCTL_GREEN_FIELD: use green field protection for this frame
  * @IEEE80211_TXCTL_40_MHZ_WIDTH: send this frame using 40 Mhz channel width
  * @IEEE80211_TXCTL_DUP_DATA: duplicate data frame on both 20 Mhz channels
