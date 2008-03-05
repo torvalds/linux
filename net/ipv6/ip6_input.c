@@ -61,11 +61,6 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	u32 		pkt_len;
 	struct inet6_dev *idev;
 
-	if (dev->nd_net != &init_net) {
-		kfree_skb(skb);
-		return 0;
-	}
-
 	if (skb->pkt_type == PACKET_OTHERHOST) {
 		kfree_skb(skb);
 		return 0;
