@@ -5,45 +5,41 @@
  *  General FPU state handling cleanups
  *	Gareth Hughes <gareth@valinux.com>, May 2000
  */
-
-#include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/regset.h>
-#include <asm/processor.h>
-#include <asm/i387.h>
-#include <asm/math_emu.h>
+#include <linux/sched.h>
+
 #include <asm/sigcontext.h>
-#include <asm/user.h>
-#include <asm/ptrace.h>
+#include <asm/processor.h>
+#include <asm/math_emu.h>
 #include <asm/uaccess.h>
+#include <asm/ptrace.h>
+#include <asm/i387.h>
+#include <asm/user.h>
 
 #ifdef CONFIG_X86_64
-
-#include <asm/sigcontext32.h>
-#include <asm/user32.h>
-
+# include <asm/sigcontext32.h>
+# include <asm/user32.h>
 #else
-
-#define	save_i387_ia32		save_i387
-#define	restore_i387_ia32	restore_i387
-
-#define _fpstate_ia32 		_fpstate
-#define user_i387_ia32_struct	user_i387_struct
-#define user32_fxsr_struct	user_fxsr_struct
-
+# define save_i387_ia32		save_i387
+# define restore_i387_ia32	restore_i387
+# define _fpstate_ia32		_fpstate
+# define user_i387_ia32_struct	user_i387_struct
+# define user32_fxsr_struct	user_fxsr_struct
 #endif
 
 #ifdef CONFIG_MATH_EMULATION
-#define HAVE_HWFP (boot_cpu_data.hard_math)
+# define HAVE_HWFP		(boot_cpu_data.hard_math)
 #else
-#define HAVE_HWFP 1
+# define HAVE_HWFP		1
 #endif
 
-static unsigned int mxcsr_feature_mask __read_mostly = 0xffffffffu;
+static unsigned int		mxcsr_feature_mask __read_mostly = 0xffffffffu;
 
 void mxcsr_feature_mask_init(void)
 {
 	unsigned long mask = 0;
+
 	clts();
 	if (cpu_has_fxsr) {
 		memset(&current->thread.i387.fxsave, 0,
@@ -69,10 +65,11 @@ void __cpuinit fpu_init(void)
 
 	if (offsetof(struct task_struct, thread.i387.fxsave) & 15)
 		__bad_fxsave_alignment();
+
 	set_in_cr4(X86_CR4_OSFXSR);
 	set_in_cr4(X86_CR4_OSXMMEXCPT);
 
-	write_cr0(oldcr0 & ~((1UL<<3)|(1UL<<2))); /* clear TS and EM */
+	write_cr0(oldcr0 & ~(X86_CR0_TS|X86_CR0_EM)); /* clear TS and EM */
 
 	mxcsr_feature_mask_init();
 	/* clean state in init */
@@ -178,6 +175,7 @@ static inline unsigned short twd_i387_to_fxsr(unsigned short twd)
 	tmp = (tmp | (tmp >> 1)) & 0x3333; /* 00VV00VV00VV00VV */
 	tmp = (tmp | (tmp >> 2)) & 0x0f0f; /* 0000VVVV0000VVVV */
 	tmp = (tmp | (tmp >> 4)) & 0x00ff; /* 00000000VVVVVVVV */
+
 	return tmp;
 }
 
@@ -232,8 +230,8 @@ static inline u32 twd_fxsr_to_i387(struct i387_fxsave_struct *fxsave)
  * FXSR floating point environment conversions.
  */
 
-static void convert_from_fxsr(struct user_i387_ia32_struct *env,
-			      struct task_struct *tsk)
+static void
+convert_from_fxsr(struct user_i387_ia32_struct *env, struct task_struct *tsk)
 {
 	struct i387_fxsave_struct *fxsave = &tsk->thread.i387.fxsave;
 	struct _fpreg *to = (struct _fpreg *) &env->st_space[0];
@@ -252,10 +250,11 @@ static void convert_from_fxsr(struct user_i387_ia32_struct *env,
 		 * should be actually ds/cs at fpu exception time, but
 		 * that information is not available in 64bit mode.
 		 */
-		asm("mov %%ds,%0" : "=r" (env->fos));
-		asm("mov %%cs,%0" : "=r" (env->fcs));
+		asm("mov %%ds, %[fos]" : [fos] "=r" (env->fos));
+		asm("mov %%cs, %[fcs]" : [fcs] "=r" (env->fcs));
 	} else {
 		struct pt_regs *regs = task_pt_regs(tsk);
+
 		env->fos = 0xffff0000 | tsk->thread.ds;
 		env->fcs = regs->cs;
 	}
@@ -309,9 +308,10 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 
 	init_fpu(target);
 
-	if (!cpu_has_fxsr)
+	if (!cpu_has_fxsr) {
 		return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 					   &target->thread.i387.fsave, 0, -1);
+	}
 
 	if (kbuf && pos == 0 && count == sizeof(env)) {
 		convert_from_fxsr(kbuf, target);
@@ -319,6 +319,7 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 	}
 
 	convert_from_fxsr(&env, target);
+
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, &env, 0, -1);
 }
 
@@ -335,9 +336,10 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	init_fpu(target);
 	set_stopped_child_used_math(target);
 
-	if (!cpu_has_fxsr)
+	if (!cpu_has_fxsr) {
 		return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 					  &target->thread.i387.fsave, 0, -1);
+	}
 
 	if (pos > 0 || count < sizeof(env))
 		convert_from_fxsr(&env, target);
@@ -392,28 +394,28 @@ int save_i387_ia32(struct _fpstate_ia32 __user *buf)
 {
 	if (!used_math())
 		return 0;
-
-	/* This will cause a "finit" to be triggered by the next
+	/*
+	 * This will cause a "finit" to be triggered by the next
 	 * attempted FPU operation by the 'current' process.
 	 */
 	clear_used_math();
 
-	if (HAVE_HWFP) {
-		if (cpu_has_fxsr) {
-			return save_i387_fxsave(buf);
-		} else {
-			return save_i387_fsave(buf);
-		}
-	} else {
+	if (!HAVE_HWFP) {
 		return fpregs_soft_get(current, NULL,
 				       0, sizeof(struct user_i387_ia32_struct),
 				       NULL, buf) ? -1 : 1;
 	}
+
+	if (cpu_has_fxsr)
+		return save_i387_fxsave(buf);
+	else
+		return save_i387_fsave(buf);
 }
 
 static inline int restore_i387_fsave(struct _fpstate_ia32 __user *buf)
 {
 	struct task_struct *tsk = current;
+
 	clear_fpu(tsk);
 	return __copy_from_user(&tsk->thread.i387.fsave, buf,
 				sizeof(struct i387_fsave_struct));
@@ -421,9 +423,10 @@ static inline int restore_i387_fsave(struct _fpstate_ia32 __user *buf)
 
 static int restore_i387_fxsave(struct _fpstate_ia32 __user *buf)
 {
-	int err;
 	struct task_struct *tsk = current;
 	struct user_i387_ia32_struct env;
+	int err;
+
 	clear_fpu(tsk);
 	err = __copy_from_user(&tsk->thread.i387.fxsave, &buf->_fxsr_env[0],
 			       sizeof(struct i387_fxsave_struct));
@@ -432,6 +435,7 @@ static int restore_i387_fxsave(struct _fpstate_ia32 __user *buf)
 	if (err || __copy_from_user(&env, buf, sizeof(env)))
 		return 1;
 	convert_to_fxsr(tsk, &env);
+
 	return 0;
 }
 
@@ -440,17 +444,17 @@ int restore_i387_ia32(struct _fpstate_ia32 __user *buf)
 	int err;
 
 	if (HAVE_HWFP) {
-		if (cpu_has_fxsr) {
+		if (cpu_has_fxsr)
 			err = restore_i387_fxsave(buf);
-		} else {
+		else
 			err = restore_i387_fsave(buf);
-		}
 	} else {
 		err = fpregs_soft_set(current, NULL,
 				      0, sizeof(struct user_i387_ia32_struct),
 				      NULL, buf) != 0;
 	}
 	set_used_math();
+
 	return err;
 }
 
@@ -463,8 +467,8 @@ int restore_i387_ia32(struct _fpstate_ia32 __user *buf)
  */
 int dump_fpu(struct pt_regs *regs, struct user_i387_struct *fpu)
 {
-	int fpvalid;
 	struct task_struct *tsk = current;
+	int fpvalid;
 
 	fpvalid = !!used_math();
 	if (fpvalid)
