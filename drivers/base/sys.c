@@ -195,7 +195,7 @@ int sysdev_driver_register(struct sysdev_class *cls, struct sysdev_driver *drv)
 		}
 	} else {
 		err = -EINVAL;
-		printk(KERN_ERR "%s: invalid device class\n", __FUNCTION__);
+		printk(KERN_ERR "%s: invalid device class\n", __func__);
 		WARN_ON(1);
 	}
 	mutex_unlock(&sysdev_drivers_lock);

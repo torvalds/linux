@@ -207,7 +207,7 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 		retval = dev->bus->uevent(dev, env);
 		if (retval)
 			pr_debug("device: '%s': %s: bus uevent() returned %d\n",
-				 dev->bus_id, __FUNCTION__, retval);
+				 dev->bus_id, __func__, retval);
 	}
 
 	/* have the class specific function add its stuff */
@@ -216,7 +216,7 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 		if (retval)
 			pr_debug("device: '%s': %s: class uevent() "
 				 "returned %d\n", dev->bus_id,
-				 __FUNCTION__, retval);
+				 __func__, retval);
 	}
 
 	/* have the device type specific fuction add its stuff */
@@ -225,7 +225,7 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 		if (retval)
 			pr_debug("device: '%s': %s: dev_type uevent() "
 				 "returned %d\n", dev->bus_id,
-				 __FUNCTION__, retval);
+				 __func__, retval);
 	}
 
 	return retval;
@@ -782,7 +782,7 @@ int device_add(struct device *dev)
 		goto Done;
 	}
 
-	pr_debug("device: '%s': %s\n", dev->bus_id, __FUNCTION__);
+	pr_debug("device: '%s': %s\n", dev->bus_id, __func__);
 
 	parent = get_device(dev->parent);
 	setup_parent(dev, parent);
@@ -980,7 +980,7 @@ void device_del(struct device *dev)
  */
 void device_unregister(struct device *dev)
 {
-	pr_debug("device: '%s': %s\n", dev->bus_id, __FUNCTION__);
+	pr_debug("device: '%s': %s\n", dev->bus_id, __func__);
 	device_del(dev);
 	put_device(dev);
 }
@@ -1075,7 +1075,7 @@ EXPORT_SYMBOL_GPL(device_remove_file);
 
 static void device_create_release(struct device *dev)
 {
-	pr_debug("device: '%s': %s\n", dev->bus_id, __FUNCTION__);
+	pr_debug("device: '%s': %s\n", dev->bus_id, __func__);
 	kfree(dev);
 }
 
@@ -1180,7 +1180,7 @@ int device_rename(struct device *dev, char *new_name)
 		return -EINVAL;
 
 	pr_debug("device: '%s': %s: renaming to '%s'\n", dev->bus_id,
-		 __FUNCTION__, new_name);
+		 __func__, new_name);
 
 #ifdef CONFIG_SYSFS_DEPRECATED
 	if ((dev->class) && (dev->parent))
@@ -1219,7 +1219,7 @@ int device_rename(struct device *dev, char *new_name)
 					  dev->bus_id);
 		if (error) {
 			dev_err(dev, "%s: sysfs_create_symlink failed (%d)\n",
-				__FUNCTION__, error);
+				__func__, error);
 		}
 	}
 #endif
@@ -1295,7 +1295,7 @@ int device_move(struct device *dev, struct device *new_parent)
 	new_parent_kobj = get_device_parent(dev, new_parent);
 
 	pr_debug("device: '%s': %s: moving to '%s'\n", dev->bus_id,
-		 __FUNCTION__, new_parent ? new_parent->bus_id : "<NULL>");
+		 __func__, new_parent ? new_parent->bus_id : "<NULL>");
 	error = kobject_move(&dev->kobj, new_parent_kobj);
 	if (error) {
 		cleanup_glue_dir(dev, new_parent_kobj);

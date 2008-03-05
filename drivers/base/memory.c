@@ -186,7 +186,7 @@ memory_block_action(struct memory_block *mem, unsigned long action)
 			break;
 		default:
 			printk(KERN_WARNING "%s(%p, %ld) unknown action: %ld\n",
-					__FUNCTION__, mem, action, action);
+					__func__, mem, action, action);
 			WARN_ON(1);
 			ret = -EINVAL;
 	}
@@ -444,6 +444,6 @@ int __init memory_dev_init(void)
 		ret = err;
 out:
 	if (ret)
-		printk(KERN_ERR "%s() failed: %d\n", __FUNCTION__, ret);
+		printk(KERN_ERR "%s() failed: %d\n", __func__, ret);
 	return ret;
 }

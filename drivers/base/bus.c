@@ -79,7 +79,7 @@ static void driver_release(struct kobject *kobj)
 {
 	struct driver_private *drv_priv = to_driver(kobj);
 
-	pr_debug("driver: '%s': %s\n", kobject_name(kobj), __FUNCTION__);
+	pr_debug("driver: '%s': %s\n", kobject_name(kobj), __func__);
 	kfree(drv_priv);
 }
 
@@ -677,19 +677,19 @@ int bus_add_driver(struct device_driver *drv)
 	error = driver_create_file(drv, &driver_attr_uevent);
 	if (error) {
 		printk(KERN_ERR "%s: uevent attr (%s) failed\n",
-			__FUNCTION__, drv->name);
+			__func__, drv->name);
 	}
 	error = driver_add_attrs(bus, drv);
 	if (error) {
 		/* How the hell do we get out of this pickle? Give up */
 		printk(KERN_ERR "%s: driver_add_attrs(%s) failed\n",
-			__FUNCTION__, drv->name);
+			__func__, drv->name);
 	}
 	error = add_bind_files(drv);
 	if (error) {
 		/* Ditto */
 		printk(KERN_ERR "%s: add_bind_files(%s) failed\n",
-			__FUNCTION__, drv->name);
+			__func__, drv->name);
 	}
 
 	kobject_uevent(&priv->kobj, KOBJ_ADD);
