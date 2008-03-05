@@ -256,11 +256,9 @@ int __init sctp_eps_proc_init(void)
 {
 	struct proc_dir_entry *p;
 
-	p = create_proc_entry("eps", S_IRUGO, proc_net_sctp);
+	p = proc_create("eps", S_IRUGO, proc_net_sctp, &sctp_eps_seq_fops);
 	if (!p)
 		return -ENOMEM;
-
-	p->proc_fops = &sctp_eps_seq_fops;
 
 	return 0;
 }
@@ -367,11 +365,10 @@ int __init sctp_assocs_proc_init(void)
 {
 	struct proc_dir_entry *p;
 
-	p = create_proc_entry("assocs", S_IRUGO, proc_net_sctp);
+	p = proc_create("assocs", S_IRUGO, proc_net_sctp,
+			&sctp_assocs_seq_fops);
 	if (!p)
 		return -ENOMEM;
-
-	p->proc_fops = &sctp_assocs_seq_fops;
 
 	return 0;
 }

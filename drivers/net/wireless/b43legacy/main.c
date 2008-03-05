@@ -3829,7 +3829,7 @@ static void b43legacy_print_driverinfo(void)
 #ifdef CONFIG_B43LEGACY_DMA
 	feat_dma = "D";
 #endif
-	printk(KERN_INFO "Broadcom 43xx driver loaded "
+	printk(KERN_INFO "Broadcom 43xx-legacy driver loaded "
 	       "[ Features: %s%s%s%s%s, Firmware-ID: "
 	       B43legacy_SUPPORTED_FIRMWARE_ID " ]\n",
 	       feat_pci, feat_leds, feat_rfkill, feat_pio, feat_dma);

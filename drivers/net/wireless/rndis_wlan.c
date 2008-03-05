@@ -260,7 +260,7 @@ struct NDIS_802_11_KEY {
 	__le32 KeyLength;
 	u8 Bssid[6];
 	u8 Padding[6];
-	__le64 KeyRSC;
+	u8 KeyRSC[8];
 	u8 KeyMaterial[32];
 } __attribute__((packed));
 
@@ -1508,7 +1508,7 @@ static int rndis_iw_set_encode_ext(struct net_device *dev,
 	struct usbnet *usbdev = dev->priv;
 	struct rndis_wext_private *priv = get_rndis_wext_priv(usbdev);
 	struct NDIS_802_11_KEY ndis_key;
-	int i, keyidx, ret;
+	int keyidx, ret;
 	u8 *addr;
 
 	keyidx = wrqu->encoding.flags & IW_ENCODE_INDEX;
@@ -1543,9 +1543,7 @@ static int rndis_iw_set_encode_ext(struct net_device *dev,
 	ndis_key.KeyIndex = cpu_to_le32(keyidx);
 
 	if (ext->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID) {
-		for (i = 0; i < 6; i++)
-			ndis_key.KeyRSC |=
-				cpu_to_le64(ext->rx_seq[i] << (i * 8));
+		memcpy(ndis_key.KeyRSC, ext->rx_seq, 6);
 		ndis_key.KeyIndex |= cpu_to_le32(1 << 29);
 	}
 
