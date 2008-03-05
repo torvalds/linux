@@ -100,7 +100,7 @@ static char *ocfs2_lock_type_strings[] = {
 static inline const char *ocfs2_lock_type_string(enum ocfs2_lock_type type)
 {
 #ifdef __KERNEL__
-	mlog_bug_on_msg(type >= OCFS2_NUM_LOCK_TYPES, "%d\n", type);
+	BUG_ON(type >= OCFS2_NUM_LOCK_TYPES);
 #endif
 	return ocfs2_lock_type_strings[type];
 }
