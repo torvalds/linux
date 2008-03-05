@@ -41,6 +41,7 @@ extern struct pci_device_id iwl4965_hw_card_ids[];
 
 #define DRV_NAME        "iwl4965"
 #include "iwl-4965-hw.h"
+#include "iwl-csr.h"
 #include "iwl-prph.h"
 #include "iwl-4965-debug.h"
 

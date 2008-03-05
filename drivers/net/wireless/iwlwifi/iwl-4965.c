@@ -604,9 +604,9 @@ int iwl4965_hw_nic_init(struct iwl4965_priv *priv)
 	/* set CSR_HW_CONFIG_REG for uCode use */
 
 	iwl4965_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-			CSR_HW_IF_CONFIG_REG_BIT_KEDRON_R |
-			CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
-			CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
+			CSR49_HW_IF_CONFIG_REG_BIT_4965_R |
+			CSR49_HW_IF_CONFIG_REG_BIT_RADIO_SI |
+			CSR49_HW_IF_CONFIG_REG_BIT_MAC_SI);
 
 	rc = iwl4965_grab_nic_access(priv);
 	if (rc < 0) {

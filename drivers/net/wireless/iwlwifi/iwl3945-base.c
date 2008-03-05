@@ -4570,9 +4570,9 @@ static void iwl3945_irq_tasklet(struct iwl3945_priv *priv)
 	 * atomic, make sure that inta covers all the interrupts that
 	 * we've discovered, even if FH interrupt came in just after
 	 * reading CSR_INT. */
-	if (inta_fh & CSR_FH_INT_RX_MASK)
+	if (inta_fh & CSR39_FH_INT_RX_MASK)
 		inta |= CSR_INT_BIT_FH_RX;
-	if (inta_fh & CSR_FH_INT_TX_MASK)
+	if (inta_fh & CSR39_FH_INT_TX_MASK)
 		inta |= CSR_INT_BIT_FH_TX;
 
 	/* Now service all interrupt bits discovered above. */

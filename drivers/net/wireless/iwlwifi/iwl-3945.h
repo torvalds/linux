@@ -40,8 +40,9 @@
 extern struct pci_device_id iwl3945_hw_card_ids[];
 
 #define DRV_NAME	"iwl3945"
-#include "iwl-3945-hw.h"
+#include "iwl-csr.h"
 #include "iwl-prph.h"
+#include "iwl-3945-hw.h"
 #include "iwl-3945-debug.h"
 
 /* Default noise level to report when noise measurement is not available.

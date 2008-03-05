@@ -1154,19 +1154,19 @@ int iwl3945_hw_nic_init(struct iwl3945_priv *priv)
 	if (rev_id & PCI_CFG_REV_ID_BIT_RTP)
 		IWL_DEBUG_INFO("RTP type \n");
 	else if (rev_id & PCI_CFG_REV_ID_BIT_BASIC_SKU) {
-		IWL_DEBUG_INFO("ALM-MB type\n");
+		IWL_DEBUG_INFO("3945 RADIO-MB type\n");
 		iwl3945_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_BIT_ALMAGOR_MB);
+			    CSR39_HW_IF_CONFIG_REG_BIT_3945_MB);
 	} else {
-		IWL_DEBUG_INFO("ALM-MM type\n");
+		IWL_DEBUG_INFO("3945 RADIO-MM type\n");
 		iwl3945_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_BIT_ALMAGOR_MM);
+			    CSR39_HW_IF_CONFIG_REG_BIT_3945_MM);
 	}
 
 	if (EEPROM_SKU_CAP_OP_MODE_MRC == priv->eeprom.sku_cap) {
 		IWL_DEBUG_INFO("SKU OP mode is mrc\n");
 		iwl3945_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_BIT_SKU_MRC);
+			    CSR39_HW_IF_CONFIG_REG_BIT_SKU_MRC);
 	} else
 		IWL_DEBUG_INFO("SKU OP mode is basic\n");
 
@@ -1174,24 +1174,24 @@ int iwl3945_hw_nic_init(struct iwl3945_priv *priv)
 		IWL_DEBUG_INFO("3945ABG revision is 0x%X\n",
 			       priv->eeprom.board_revision);
 		iwl3945_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_BIT_BOARD_TYPE);
+			    CSR39_HW_IF_CONFIG_REG_BIT_BOARD_TYPE);
 	} else {
 		IWL_DEBUG_INFO("3945ABG revision is 0x%X\n",
 			       priv->eeprom.board_revision);
 		iwl3945_clear_bit(priv, CSR_HW_IF_CONFIG_REG,
-			      CSR_HW_IF_CONFIG_REG_BIT_BOARD_TYPE);
+			      CSR39_HW_IF_CONFIG_REG_BIT_BOARD_TYPE);
 	}
 
 	if (priv->eeprom.almgor_m_version <= 1) {
 		iwl3945_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_A);
+			    CSR39_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_A);
 		IWL_DEBUG_INFO("Card M type A version is 0x%X\n",
 			       priv->eeprom.almgor_m_version);
 	} else {
 		IWL_DEBUG_INFO("Card M type B version is 0x%X\n",
 			       priv->eeprom.almgor_m_version);
 		iwl3945_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_B);
+			    CSR39_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_B);
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
