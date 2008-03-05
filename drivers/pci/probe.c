@@ -794,6 +794,7 @@ static void pci_release_dev(struct device *dev)
 	struct pci_dev *pci_dev;
 
 	pci_dev = to_pci_dev(dev);
+	pci_vpd_release(pci_dev);
 	kfree(pci_dev);
 }
 
@@ -932,6 +933,8 @@ pci_scan_device(struct pci_bus *bus, int devfn)
 		kfree(dev);
 		return NULL;
 	}
+
+	pci_vpd_pci22_init(dev);
 
 	return dev;
 }

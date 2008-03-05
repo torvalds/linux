@@ -20,6 +20,8 @@
 /* Include the pci register defines */
 #include <linux/pci_regs.h>
 
+struct pci_vpd;
+
 /*
  * The PCI interface treats multi-function devices as independent
  * devices.  The slot/function address of each device is encoded
@@ -206,6 +208,7 @@ struct pci_dev {
 #ifdef CONFIG_PCI_MSI
 	struct list_head msi_list;
 #endif
+	struct pci_vpd *vpd;
 };
 
 extern struct pci_dev *alloc_pci_dev(void);
