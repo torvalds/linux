@@ -95,11 +95,6 @@ int iwl4965_param_amsdu_size_8K;   /* def: enable 8K amsdu size */
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2007 Intel Corporation"
 #define DRV_VERSION     IWLWIFI_VERSION
 
-/* Change firmware file name, using "-" and incrementing number,
- *   *only* when uCode interface or architecture changes so that it
- *   is not compatible with earlier drivers.
- * This number will also appear in << 8 position of 1st dword of uCode file */
-#define IWL4965_UCODE_API "-1"
 
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_VERSION(DRV_VERSION);
@@ -6019,7 +6014,7 @@ static int iwl4965_read_ucode(struct iwl4965_priv *priv)
 	struct iwl4965_ucode *ucode;
 	int ret;
 	const struct firmware *ucode_raw;
-	const char *name = "iwlwifi-4965" IWL4965_UCODE_API ".ucode";
+	const char *name = priv->cfg->fw_name;
 	u8 *src;
 	size_t len;
 	u32 ver, inst_size, data_size, init_size, init_data_size, boot_size;

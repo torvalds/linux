@@ -2526,11 +2526,13 @@ void iwl3945_hw_cancel_deferred_work(struct iwl3945_priv *priv)
 
 static struct iwl_3945_cfg iwl3945_bg_cfg = {
 	.name = "3945BG",
+	.fw_name = "iwlwifi-3945" IWL3945_UCODE_API ".ucode",
 	.sku = IWL_SKU_G,
 };
 
 static struct iwl_3945_cfg iwl3945_abg_cfg = {
 	.name = "3945ABG",
+	.fw_name = "iwlwifi-3945" IWL3945_UCODE_API ".ucode",
 	.sku = IWL_SKU_A|IWL_SKU_G,
 };
 

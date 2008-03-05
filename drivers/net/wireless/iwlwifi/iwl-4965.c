@@ -4823,6 +4823,7 @@ void iwl4965_hw_cancel_deferred_work(struct iwl4965_priv *priv)
 
 static struct iwl_cfg iwl4965_agn_cfg = {
 	.name = "4965AGN",
+	.fw_name = "iwlwifi-4965" IWL4965_UCODE_API ".ucode",
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 };
 

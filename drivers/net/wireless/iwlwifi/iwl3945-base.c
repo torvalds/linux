@@ -96,11 +96,6 @@ int iwl3945_param_queues_num = IWL_MAX_NUM_QUEUES; /* def: 8 Tx queues */
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2007 Intel Corporation"
 #define DRV_VERSION     IWLWIFI_VERSION
 
-/* Change firmware file name, using "-" and incrementing number,
- *   *only* when uCode interface or architecture changes so that it
- *   is not compatible with earlier drivers.
- * This number will also appear in << 8 position of 1st dword of uCode file */
-#define IWL3945_UCODE_API "-1"
 
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_VERSION(DRV_VERSION);
@@ -5621,7 +5616,7 @@ static int iwl3945_read_ucode(struct iwl3945_priv *priv)
 	int ret = 0;
 	const struct firmware *ucode_raw;
 	/* firmware file name contains uCode/driver compatibility version */
-	const char *name = "iwlwifi-3945" IWL3945_UCODE_API ".ucode";
+	const char *name = priv->cfg->fw_name;
 	u8 *src;
 	size_t len;
 	u32 ver, inst_size, data_size, init_size, init_data_size, boot_size;

@@ -45,6 +45,13 @@ extern struct pci_device_id iwl4965_hw_card_ids[];
 #include "iwl-prph.h"
 #include "iwl-4965-debug.h"
 
+/* Change firmware file name, using "-" and incrementing number,
+ *   *only* when uCode interface or architecture changes so that it
+ *   is not compatible with earlier drivers.
+ * This number will also appear in << 8 position of 1st dword of uCode file */
+#define IWL4965_UCODE_API "-1"
+
+
 /* Default noise level to report when noise measurement is not available.
  *   This may be because we're:
  *   1)  Not associated (4965, no beacon statistics being sent to driver)
