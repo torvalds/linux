@@ -416,6 +416,18 @@ config IT8712F_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called it8712f_wdt.
 
+config IT87_WDT
+	tristate "IT87 Watchdog Timer"
+	depends on X86 && EXPERIMENTAL
+	---help---
+	  This is the driver for the hardware watchdog on the ITE IT8716,
+	  IT8718, IT8726, IT8712(Version J,K) Super I/O chips. This watchdog
+	  simply watches your kernel to make sure it doesn't freeze, and if
+	  it does, it reboots your computer after a certain amount of time.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called it87_wdt.
+
 config HP_WATCHDOG
 	tristate "HP Proliant iLO 2 Hardware Watchdog Timer"
 	depends on X86
