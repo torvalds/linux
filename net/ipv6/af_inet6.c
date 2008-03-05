@@ -934,12 +934,6 @@ static int __init inet6_init(void)
 	err = register_pernet_subsys(&inet6_net_ops);
 	if (err)
 		goto register_pernet_fail;
-
-#ifdef CONFIG_SYSCTL
-	err = ipv6_sysctl_register();
-	if (err)
-		goto sysctl_fail;
-#endif
 	err = icmpv6_init();
 	if (err)
 		goto icmp_fail;
@@ -1006,9 +1000,19 @@ static int __init inet6_init(void)
 	err = ipv6_packet_init();
 	if (err)
 		goto ipv6_packet_fail;
+
+#ifdef CONFIG_SYSCTL
+	err = ipv6_sysctl_register();
+	if (err)
+		goto sysctl_fail;
+#endif
 out:
 	return err;
 
+#ifdef CONFIG_SYSCTL
+sysctl_fail:
+	ipv6_packet_cleanup();
+#endif
 ipv6_packet_fail:
 	tcpv6_exit();
 tcpv6_fail:
@@ -1050,10 +1054,6 @@ igmp_fail:
 ndisc_fail:
 	icmpv6_cleanup();
 icmp_fail:
-#ifdef CONFIG_SYSCTL
-	ipv6_sysctl_unregister();
-sysctl_fail:
-#endif
 	unregister_pernet_subsys(&inet6_net_ops);
 register_pernet_fail:
 	cleanup_ipv6_mibs();
@@ -1083,6 +1083,9 @@ static void __exit inet6_exit(void)
 	/* Disallow any further netlink messages */
 	rtnl_unregister_all(PF_INET6);
 
+#ifdef CONFIG_SYSCTL
+	ipv6_sysctl_unregister();
+#endif
 	udpv6_exit();
 #ifdef CONFIG_IP_UDPLITE
 	udplitev6_exit();
@@ -1112,9 +1115,7 @@ static void __exit inet6_exit(void)
 	ndisc_cleanup();
 	icmpv6_cleanup();
 	rawv6_exit();
-#ifdef CONFIG_SYSCTL
-	ipv6_sysctl_unregister();
-#endif
+
 	unregister_pernet_subsys(&inet6_net_ops);
 	cleanup_ipv6_mibs();
 	proto_unregister(&rawv6_prot);
