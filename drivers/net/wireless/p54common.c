@@ -166,18 +166,23 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 	struct p54_common *priv = dev->priv;
 	struct eeprom_pda_wrap *wrap = NULL;
 	struct pda_entry *entry;
-	int i = 0;
 	unsigned int data_len, entry_len;
 	void *tmp;
 	int err;
+	u8 *end = (u8 *)eeprom + len;
 
 	wrap = (struct eeprom_pda_wrap *) eeprom;
-	entry = (void *)wrap->data + wrap->len;
-	i += 2;
-	i += le16_to_cpu(entry->len)*2;
-	while (i < len) {
+	entry = (void *)wrap->data + le16_to_cpu(wrap->len);
+
+	/* verify that at least the entry length/code fits */
+	while ((u8 *)entry <= end - sizeof(*entry)) {
 		entry_len = le16_to_cpu(entry->len);
 		data_len = ((entry_len - 1) << 1);
+
+		/* abort if entry exceeds whole structure */
+		if ((u8 *)entry + sizeof(*entry) + data_len > end)
+			break;
+
 		switch (le16_to_cpu(entry->code)) {
 		case PDR_MAC_ADDRESS:
 			SET_IEEE80211_PERM_ADDR(dev, entry->data);
@@ -249,13 +254,12 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 			priv->version = *(u8 *)(entry->data + 1);
 			break;
 		case PDR_END:
-			i = len;
+			/* make it overrun */
+			entry_len = len;
 			break;
 		}
 
 		entry = (void *)entry + (entry_len + 1)*2;
-		i += 2;
-		i += entry_len*2;
 	}
 
 	if (!priv->iq_autocal || !priv->output_limit || !priv->curve_data) {

@@ -562,9 +562,7 @@ int lbs_process_rx_command(struct lbs_private *priv)
 	}
 
 	resp = (void *)priv->upld_buf;
-
-	curcmd = le16_to_cpu(resp->command);
-
+	curcmd = le16_to_cpu(priv->cur_cmd->cmdbuf->command);
 	respcmd = le16_to_cpu(resp->command);
 	result = le16_to_cpu(resp->result);
 
@@ -572,9 +570,9 @@ int lbs_process_rx_command(struct lbs_private *priv)
 		     respcmd, le16_to_cpu(resp->seqnum), priv->upld_len, jiffies);
 	lbs_deb_hex(LBS_DEB_HOST, "CMD_RESP", (void *) resp, priv->upld_len);
 
-	if (resp->seqnum != resp->seqnum) {
+	if (resp->seqnum != priv->cur_cmd->cmdbuf->seqnum) {
 		lbs_pr_info("Received CMD_RESP with invalid sequence %d (expected %d)\n",
-			    le16_to_cpu(resp->seqnum), le16_to_cpu(resp->seqnum));
+			    le16_to_cpu(resp->seqnum), le16_to_cpu(priv->cur_cmd->cmdbuf->seqnum));
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		ret = -1;
 		goto done;

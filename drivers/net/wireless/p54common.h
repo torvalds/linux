@@ -53,10 +53,10 @@ struct pda_entry {
 } __attribute__ ((packed));
 
 struct eeprom_pda_wrap {
-	u32 magic;
-	u16 pad;
-	u16 len;
-	u32 arm_opcode;
+	__le32 magic;
+	__le16 pad;
+	__le16 len;
+	__le32 arm_opcode;
 	u8 data[0];
 } __attribute__ ((packed));
 
