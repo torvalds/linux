@@ -345,7 +345,7 @@ iosapic_set_affinity (unsigned int irq, cpumask_t mask)
 	if (cpus_empty(mask))
 		return;
 
-	if (reassign_irq_vector(irq, first_cpu(mask)))
+	if (irq_prepare_move(irq, first_cpu(mask)))
 		return;
 
 	dest = cpu_physical_id(first_cpu(mask));
@@ -397,6 +397,7 @@ iosapic_end_level_irq (unsigned int irq)
 	struct iosapic_rte_info *rte;
 	int do_unmask_irq = 0;
 
+	irq_complete_move(irq);
 	if (unlikely(irq_desc[irq].status & IRQ_MOVE_PENDING)) {
 		do_unmask_irq = 1;
 		mask_irq(irq);
@@ -450,6 +451,7 @@ iosapic_ack_edge_irq (unsigned int irq)
 {
 	irq_desc_t *idesc = irq_desc + irq;
 
+	irq_complete_move(irq);
 	move_native_irq(irq);
 	/*
 	 * Once we have recorded IRQ_PENDING already, we can mask the
