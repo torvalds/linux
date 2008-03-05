@@ -7424,6 +7424,12 @@ static int iwl4965_mac_config_interface(struct ieee80211_hw *hw,
 	if (conf == NULL)
 		return -EIO;
 
+	if (priv->vif != vif) {
+		IWL_DEBUG_MAC80211("leave - priv->vif != vif\n");
+		mutex_unlock(&priv->mutex);
+		return 0;
+	}
+
 	if ((priv->iw_mode == IEEE80211_IF_TYPE_AP) &&
 	    (!conf->beacon || !conf->ssid_len)) {
 		IWL_DEBUG_MAC80211
@@ -7446,17 +7452,6 @@ static int iwl4965_mac_config_interface(struct ieee80211_hw *hw,
 	if (unlikely(test_bit(STATUS_SCANNING, &priv->status)) &&
 	    !(priv->hw->flags & IEEE80211_HW_NO_PROBE_FILTERING)) {
  */
-	if (unlikely(test_bit(STATUS_SCANNING, &priv->status))) {
-		IWL_DEBUG_MAC80211("leave - scanning\n");
-		mutex_unlock(&priv->mutex);
-		return 0;
-	}
-
-	if (priv->vif != vif) {
-		IWL_DEBUG_MAC80211("leave - priv->vif != vif\n");
-		mutex_unlock(&priv->mutex);
-		return 0;
-	}
 
 	if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {
 		if (!conf->bssid) {
