@@ -3576,6 +3576,13 @@ static void ieee80211_send_nullfunc(struct ieee80211_local *local,
 }
 
 
+static void ieee80211_restart_sta_timer(struct ieee80211_sub_if_data *sdata)
+{
+	if (sdata->vif.type == IEEE80211_IF_TYPE_STA ||
+	    ieee80211_vif_is_mesh(&sdata->vif))
+		ieee80211_sta_timer((unsigned long)sdata);
+}
+
 void ieee80211_scan_completed(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -3589,6 +3596,12 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 
 	if (local->sta_hw_scanning) {
 		local->sta_hw_scanning = 0;
+		/* Restart STA timer for HW scan case */
+		rcu_read_lock();
+		list_for_each_entry_rcu(sdata, &local->interfaces, list)
+			ieee80211_restart_sta_timer(sdata);
+		rcu_read_unlock();
+
 		goto done;
 	}
 
@@ -3615,14 +3628,12 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 		if (sdata->dev == local->mdev)
 			continue;
 
-		if (sdata->vif.type == IEEE80211_IF_TYPE_STA) {
-			if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED)
-				ieee80211_send_nullfunc(local, sdata, 0);
-			ieee80211_sta_timer((unsigned long)sdata);
-		}
+		/* Tell AP we're back */
+		if (sdata->vif.type == IEEE80211_IF_TYPE_STA &&
+		    sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED)
+			ieee80211_send_nullfunc(local, sdata, 0);
 
-		if (sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT)
-			ieee80211_sta_timer((unsigned long)sdata);
+		ieee80211_restart_sta_timer(sdata);
 
 		netif_wake_queue(sdata->dev);
 	}
