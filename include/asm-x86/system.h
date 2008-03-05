@@ -29,7 +29,14 @@ struct task_struct *__switch_to(struct task_struct *prev,
  */
 #define switch_to(prev, next, last)					\
 do {									\
-	unsigned long esi, edi;						\
+	/*								\
+	 * Context-switching clobbers all registers, so we clobber	\
+	 * them explicitly, via unused output variables.		\
+	 * (EAX and EBP is not listed because EBP is saved/restored	\
+	 * explicitly for wchan access and EAX is the return value of	\
+	 * __switch_to())						\
+	 */								\
+	unsigned long ebx, ecx, edx, esi, edi;				\
 									\
 	asm volatile(							\
 		"pushfl			\n\t"	/* save    flags */	\
@@ -49,6 +56,7 @@ do {									\
 			    "=a" (last),				\
 									\
 		  /* clobbered output registers: */			\
+		  "=b" (ebx), "=c" (ecx), "=d" (edx),			\
 		  "=S" (esi), "=D" (edi)				\
 									\
 		  /* input parameters: */				\
