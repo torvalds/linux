@@ -472,6 +472,10 @@ extern void pasemi_dma_free_flag(int flag);
 extern void pasemi_dma_set_flag(int flag);
 extern void pasemi_dma_clear_flag(int flag);
 
+/* Routines to allocate function engines */
+extern int  pasemi_dma_alloc_fun(void);
+extern void pasemi_dma_free_fun(int fun);
+
 /* Initialize the library, must be called before any other functions */
 extern int pasemi_dma_init(void);
 

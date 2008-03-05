@@ -28,6 +28,7 @@
 #define MAX_TXCH 64
 #define MAX_RXCH 64
 #define MAX_FLAGS 64
+#define MAX_FUN 8
 
 static struct pasdma_status *dma_status;
 
@@ -46,6 +47,7 @@ static struct pci_dev *dma_pdev;
 static DECLARE_BITMAP(txch_free, MAX_TXCH);
 static DECLARE_BITMAP(rxch_free, MAX_RXCH);
 static DECLARE_BITMAP(flags_free, MAX_FLAGS);
+static DECLARE_BITMAP(fun_free, MAX_FUN);
 
 /* pasemi_read_iob_reg - read IOB register
  * @reg: Register to read (offset into PCI CFG space)
@@ -441,6 +443,41 @@ void pasemi_dma_clear_flag(int flag)
 }
 EXPORT_SYMBOL(pasemi_dma_clear_flag);
 
+/* pasemi_dma_alloc_fun - Allocate a function engine
+ *
+ * Allocates a function engine to use for crypto/checksum offload
+ * Returns allocated engine (0-8), < 0 on error.
+ */
+int pasemi_dma_alloc_fun(void)
+{
+	int bit;
+
+retry:
+	bit = find_next_bit(fun_free, MAX_FLAGS, 0);
+	if (bit >= MAX_FLAGS)
+		return -ENOSPC;
+	if (!test_and_clear_bit(bit, fun_free))
+		goto retry;
+
+	return bit;
+}
+EXPORT_SYMBOL(pasemi_dma_alloc_fun);
+
+
+/* pasemi_dma_free_fun - Deallocates a function engine
+ * @flag: Engine number to deallocate
+ *
+ * Frees up a function engine so it can be used for other purposes.
+ */
+void pasemi_dma_free_fun(int fun)
+{
+	BUG_ON(test_bit(fun, fun_free));
+	BUG_ON(fun >= MAX_FLAGS);
+	set_bit(fun, fun_free);
+}
+EXPORT_SYMBOL(pasemi_dma_free_fun);
+
+
 static void *map_onedev(struct pci_dev *p, int index)
 {
 	struct device_node *dn;
@@ -577,6 +614,9 @@ int pasemi_dma_init(void)
 
 	for (i = 0; i < MAX_FLAGS; i++)
 		__set_bit(i, flags_free);
+
+	for (i = 0; i < MAX_FUN; i++)
+		__set_bit(i, fun_free);
 
 	/* clear all status flags */
 	pasemi_write_dma_reg(PAS_DMA_TXF_CFLG0, 0xffffffff);
