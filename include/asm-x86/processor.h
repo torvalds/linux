@@ -289,42 +289,47 @@ struct orig_ist {
 #define	MXCSR_DEFAULT		0x1f80
 
 struct i387_fsave_struct {
-	u32			cwd;
-	u32			swd;
-	u32			twd;
-	u32			fip;
-	u32			fcs;
-	u32			foo;
-	u32			fos;
-	/* 8*10 bytes for each FP-reg = 80 bytes: */
+	u32			cwd;	/* FPU Control Word		*/
+	u32			swd;	/* FPU Status Word		*/
+	u32			twd;	/* FPU Tag Word			*/
+	u32			fip;	/* FPU IP Offset		*/
+	u32			fcs;	/* FPU IP Selector		*/
+	u32			foo;	/* FPU Operand Pointer Offset	*/
+	u32			fos;	/* FPU Operand Pointer Selector	*/
+
+	/* 8*10 bytes for each FP-reg = 80 bytes:			*/
 	u32			st_space[20];
-	/* Software status information: */
+
+	/* Software status information [not touched by FSAVE ]:		*/
 	u32			status;
 };
 
 struct i387_fxsave_struct {
-	u16			cwd;
-	u16			swd;
-	u16			twd;
-	u16			fop;
+	u16			cwd; /* Control Word			*/
+	u16			swd; /* Status Word			*/
+	u16			twd; /* Tag Word			*/
+	u16			fop; /* Last Instruction Opcode		*/
 	union {
 		struct {
-			u64	rip;
-			u64	rdp;
+			u64	rip; /* Instruction Pointer		*/
+			u64	rdp; /* Data Pointer			*/
 		};
 		struct {
-			u32	fip;
-			u32	fcs;
-			u32	foo;
-			u32	fos;
+			u32	fip; /* FPU IP Offset			*/
+			u32	fcs; /* FPU IP Selector			*/
+			u32	foo; /* FPU Operand Offset		*/
+			u32	fos; /* FPU Operand Selector		*/
 		};
 	};
-	u32			mxcsr;
-	u32			mxcsr_mask;
-	/* 8*16 bytes for each FP-reg = 128 bytes: */
+	u32			mxcsr;		/* MXCSR Register State */
+	u32			mxcsr_mask;	/* MXCSR Mask		*/
+
+	/* 8*16 bytes for each FP-reg = 128 bytes:			*/
 	u32			st_space[32];
-	/* 16*16 bytes for each XMM-reg = 256 bytes: */
+
+	/* 16*16 bytes for each XMM-reg = 256 bytes:			*/
 	u32			xmm_space[64];
+
 	u32			padding[24];
 
 } __attribute__((aligned(16)));
