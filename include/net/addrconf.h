@@ -55,9 +55,12 @@ struct prefix_info {
 extern int			addrconf_init(void);
 extern void			addrconf_cleanup(void);
 
-extern int			addrconf_add_ifaddr(void __user *arg);
-extern int			addrconf_del_ifaddr(void __user *arg);
-extern int			addrconf_set_dstaddr(void __user *arg);
+extern int			addrconf_add_ifaddr(struct net *net,
+						    void __user *arg);
+extern int			addrconf_del_ifaddr(struct net *net,
+						    void __user *arg);
+extern int			addrconf_set_dstaddr(struct net *net,
+						     void __user *arg);
 
 extern int			ipv6_chk_addr(struct net *net,
 					      struct in6_addr *addr,
