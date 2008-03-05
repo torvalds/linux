@@ -99,6 +99,8 @@
 #define B43_MMIO_TSF_2			0x636	/* core rev < 3 only */
 #define B43_MMIO_TSF_3			0x638	/* core rev < 3 only */
 #define B43_MMIO_RNG			0x65A
+#define B43_MMIO_IFSCTL			0x688 /* Interframe space control */
+#define  B43_MMIO_IFSCTL_USE_EDCF	0x0004
 #define B43_MMIO_POWERUP_DELAY		0x6A8
 
 /* SPROM boardflags_lo values */
@@ -621,6 +623,35 @@ struct b43_key {
 	u8 algorithm;
 };
 
+/* SHM offsets to the QOS data structures for the 4 different queues. */
+#define B43_QOS_PARAMS(queue)	(B43_SHM_SH_EDCFQ + \
+				 (B43_NR_QOSPARAMS * sizeof(u16) * (queue)))
+#define B43_QOS_BACKGROUND	B43_QOS_PARAMS(0)
+#define B43_QOS_BESTEFFORT	B43_QOS_PARAMS(1)
+#define B43_QOS_VIDEO		B43_QOS_PARAMS(2)
+#define B43_QOS_VOICE		B43_QOS_PARAMS(3)
+
+/* QOS parameter hardware data structure offsets. */
+#define B43_NR_QOSPARAMS	22
+enum {
+	B43_QOSPARAM_TXOP = 0,
+	B43_QOSPARAM_CWMIN,
+	B43_QOSPARAM_CWMAX,
+	B43_QOSPARAM_CWCUR,
+	B43_QOSPARAM_AIFS,
+	B43_QOSPARAM_BSLOTS,
+	B43_QOSPARAM_REGGAP,
+	B43_QOSPARAM_STATUS,
+};
+
+/* QOS parameters for a queue. */
+struct b43_qos_params {
+	/* The QOS parameters */
+	struct ieee80211_tx_queue_params p;
+	/* Does this need to get uploaded to hardware? */
+	bool need_hw_update;
+};
+
 struct b43_wldev;
 
 /* Data structure for the WLAN parts (802.11 cores) of the b43 chip. */
@@ -673,6 +704,12 @@ struct b43_wl {
 	struct sk_buff *current_beacon;
 	bool beacon0_uploaded;
 	bool beacon1_uploaded;
+
+	/* The current QOS parameters for the 4 queues.
+	 * This is protected by the irq_lock. */
+	struct b43_qos_params qos_params[4];
+	/* Workqueue for updating QOS parameters in hardware. */
+	struct work_struct qos_update_work;
 };
 
 /* In-memory representation of a cached microcode file. */

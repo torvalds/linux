@@ -245,6 +245,9 @@ struct b43_dmaring {
 	enum b43_dmatype type;
 	/* Boolean. Is this ring stopped at ieee80211 level? */
 	bool stopped;
+	/* The QOS priority assigned to this ring. Only used for TX rings.
+	 * This is the mac80211 "queue" value. */
+	u8 queue_prio;
 	/* Lock, only used for TX. */
 	spinlock_t lock;
 	struct b43_wldev *dev;
