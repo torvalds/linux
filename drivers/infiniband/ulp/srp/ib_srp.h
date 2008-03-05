@@ -97,7 +97,7 @@ struct srp_device {
 };
 
 struct srp_host {
-	struct srp_device      *dev;
+	struct srp_device      *srp_dev;
 	u8			port;
 	struct class_device	class_dev;
 	struct list_head	target_list;
