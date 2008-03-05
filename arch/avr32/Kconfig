@@ -88,6 +88,7 @@ config PLATFORM_AT32AP
 	select MMU
 	select PERFORMANCE_COUNTERS
 	select HAVE_GPIO_LIB
+	select GENERIC_ALLOCATOR
 
 #
 # CPU types

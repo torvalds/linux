@@ -20,6 +20,7 @@
 #include <asm/arch/at32ap700x.h>
 #include <asm/arch/board.h>
 #include <asm/arch/portmux.h>
+#include <asm/arch/sram.h>
 
 #include <video/atmel_lcdc.h>
 
@@ -2120,3 +2121,28 @@ void __init setup_platform(void)
 	at32_init_pio(&pio3_device);
 	at32_init_pio(&pio4_device);
 }
+
+struct gen_pool *sram_pool;
+
+static int __init sram_init(void)
+{
+	struct gen_pool *pool;
+
+	/* 1KiB granularity */
+	pool = gen_pool_create(10, -1);
+	if (!pool)
+		goto fail;
+
+	if (gen_pool_add(pool, 0x24000000, 0x8000, -1))
+		goto err_pool_add;
+
+	sram_pool = pool;
+	return 0;
+
+err_pool_add:
+	gen_pool_destroy(pool);
+fail:
+	pr_err("Failed to create SRAM pool\n");
+	return -ENOMEM;
+}
+core_initcall(sram_init);
