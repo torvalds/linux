@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 PA Semi, Inc
+ * Copyright (C) 2006-2008 PA Semi, Inc
  *
  * Hardware register layout and descriptor formats for the on-board
  * DMA engine on PA Semi PWRficient. Used by ethernet, function and security
@@ -40,6 +40,11 @@ enum {
 	PAS_DMA_COM_TXSTA = 0x104,	/* Transmit Status Register   */
 	PAS_DMA_COM_RXCMD = 0x108,	/* Receive Command Register   */
 	PAS_DMA_COM_RXSTA = 0x10c,	/* Receive Status Register    */
+	PAS_DMA_COM_CFG   = 0x114,	/* Common config reg	      */
+	PAS_DMA_TXF_SFLG0 = 0x140,	/* Set flags                  */
+	PAS_DMA_TXF_SFLG1 = 0x144,	/* Set flags                  */
+	PAS_DMA_TXF_CFLG0 = 0x148,	/* Set flags                  */
+	PAS_DMA_TXF_CFLG1 = 0x14c,	/* Set flags                  */
 };
 
 

@@ -17,6 +17,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -410,6 +411,7 @@ int pasemi_dma_init(void)
 	struct resource res;
 	struct device_node *dn;
 	int i, intf, err = 0;
+	unsigned long timeout;
 	u32 tmp;
 
 	if (!machine_is(pasemi))
@@ -477,6 +479,34 @@ int pasemi_dma_init(void)
 
 	for (i = 0; i < MAX_RXCH; i++)
 		__set_bit(i, rxch_free);
+
+	timeout = jiffies + HZ;
+	pasemi_write_dma_reg(PAS_DMA_COM_RXCMD, 0);
+	while (pasemi_read_dma_reg(PAS_DMA_COM_RXSTA) & 1) {
+		if (time_after(jiffies, timeout)) {
+			pr_warning("Warning: Could not disable RX section\n");
+			break;
+		}
+	}
+
+	timeout = jiffies + HZ;
+	pasemi_write_dma_reg(PAS_DMA_COM_TXCMD, 0);
+	while (pasemi_read_dma_reg(PAS_DMA_COM_TXSTA) & 1) {
+		if (time_after(jiffies, timeout)) {
+			pr_warning("Warning: Could not disable TX section\n");
+			break;
+		}
+	}
+
+	/* setup resource allocations for the different DMA sections */
+	tmp = pasemi_read_dma_reg(PAS_DMA_COM_CFG);
+	pasemi_write_dma_reg(PAS_DMA_COM_CFG, tmp | 0x18000000);
+
+	/* enable tx section */
+	pasemi_write_dma_reg(PAS_DMA_COM_TXCMD, PAS_DMA_COM_TXCMD_EN);
+
+	/* enable rx section */
+	pasemi_write_dma_reg(PAS_DMA_COM_RXCMD, PAS_DMA_COM_RXCMD_EN);
 
 	printk(KERN_INFO "PA Semi PWRficient DMA library initialized "
 		"(%d tx, %d rx channels)\n", num_txch, num_rxch);
