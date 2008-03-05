@@ -261,7 +261,7 @@ static void convert_from_fxsr(struct user_i387_ia32_struct *env,
 	}
 #else
 	env->fip = fxsave->fip;
-	env->fcs = fxsave->fcs;
+	env->fcs = (u16) fxsave->fcs | ((u32) fxsave->fop << 16);
 	env->foo = fxsave->foo;
 	env->fos = fxsave->fos;
 #endif
