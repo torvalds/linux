@@ -4416,7 +4416,7 @@ static u8 iwl4965_is_channel_extension(struct iwl4965_priv *priv,
 	if (!is_channel_valid(ch_info))
 		return 0;
 
-	if (extension_chan_offset == IWL_EXT_CHANNEL_OFFSET_AUTO)
+	if (extension_chan_offset == IWL_EXT_CHANNEL_OFFSET_NONE)
 		return 0;
 
 	if ((ch_info->fat_extension_channel == extension_chan_offset) ||
@@ -4433,7 +4433,7 @@ static u8 iwl4965_is_fat_tx_allowed(struct iwl4965_priv *priv,
 
 	if ((!iwl_ht_conf->is_ht) ||
 	   (iwl_ht_conf->supported_chan_width != IWL_CHANNEL_WIDTH_40MHZ) ||
-	   (iwl_ht_conf->extension_chan_offset == IWL_EXT_CHANNEL_OFFSET_AUTO))
+	   (iwl_ht_conf->extension_chan_offset == IWL_EXT_CHANNEL_OFFSET_NONE))
 		return 0;
 
 	if (sta_ht_inf) {
@@ -4478,9 +4478,7 @@ void iwl4965_set_rxon_ht(struct iwl4965_priv *priv, struct iwl_ht_info *ht_info)
 	case IWL_EXT_CHANNEL_OFFSET_BELOW:
 		rxon->flags |= RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK;
 		break;
-	case IWL_EXT_CHANNEL_OFFSET_AUTO:
-		rxon->flags &= ~RXON_FLG_CHANNEL_MODE_MIXED_MSK;
-		break;
+	case IWL_EXT_CHANNEL_OFFSET_NONE:
 	default:
 		rxon->flags &= ~RXON_FLG_CHANNEL_MODE_MIXED_MSK;
 		break;
