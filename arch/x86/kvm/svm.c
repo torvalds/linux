@@ -290,11 +290,7 @@ static void svm_hardware_enable(void *garbage)
 
 	struct svm_cpu_data *svm_data;
 	uint64_t efer;
-#ifdef CONFIG_X86_64
 	struct desc_ptr gdt_descr;
-#else
-	struct desc_ptr gdt_descr;
-#endif
 	struct desc_struct *gdt;
 	int me = raw_smp_processor_id();
 
