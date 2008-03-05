@@ -505,6 +505,7 @@ struct ath5k_beacon_state {
 
 /*
  * Atheros hardware descriptor
+ * This is read and written to by the hardware
  */
 struct ath5k_desc {
 	u32	ds_link;	/* physical address of the next descriptor */
@@ -515,15 +516,6 @@ struct ath5k_desc {
 		struct ath5k_hw_5212_tx_desc	ds_tx5212;
 		struct ath5k_hw_all_rx_desc	ds_rx;
 	} ud;
-
-	union {
-		struct ath5k_rx_status rx;
-		struct ath5k_tx_status tx;
-	} ds_us;
-
-#define ds_rxstat ds_us.rx
-#define ds_txstat ds_us.tx
-
 } __packed;
 
 #define AR5K_RXDESC_INTREQ	0x0020
@@ -1043,8 +1035,10 @@ struct ath5k_hw {
 	int (*ah_setup_xtx_desc)(struct ath5k_hw *, struct ath5k_desc *,
 		unsigned int, unsigned int, unsigned int, unsigned int,
 		unsigned int, unsigned int);
-	int (*ah_proc_tx_desc)(struct ath5k_hw *, struct ath5k_desc *);
-	int (*ah_proc_rx_desc)(struct ath5k_hw *, struct ath5k_desc *);
+	int (*ah_proc_tx_desc)(struct ath5k_hw *, struct ath5k_desc *,
+		struct ath5k_tx_status *);
+	int (*ah_proc_rx_desc)(struct ath5k_hw *, struct ath5k_desc *,
+		struct ath5k_rx_status *);
 };
 
 /*

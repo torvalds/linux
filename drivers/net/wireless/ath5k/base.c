@@ -283,7 +283,8 @@ static int 	ath5k_rx_start(struct ath5k_softc *sc);
 static void 	ath5k_rx_stop(struct ath5k_softc *sc);
 static unsigned int ath5k_rx_decrypted(struct ath5k_softc *sc,
 					struct ath5k_desc *ds,
-					struct sk_buff *skb);
+					struct sk_buff *skb,
+					struct ath5k_rx_status *rs);
 static void 	ath5k_tasklet_rx(unsigned long data);
 /* Tx handling */
 static void 	ath5k_tx_processq(struct ath5k_softc *sc,
@@ -1563,8 +1564,7 @@ ath5k_txq_drainq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 	 */
 	spin_lock_bh(&txq->lock);
 	list_for_each_entry_safe(bf, bf0, &txq->q, list) {
-		ath5k_debug_printtxbuf(sc, bf, !sc->ah->ah_proc_tx_desc(sc->ah,
-					bf->desc));
+		ath5k_debug_printtxbuf(sc, bf);
 
 		ath5k_txbuf_free(sc, bf);
 
@@ -1689,20 +1689,20 @@ ath5k_rx_stop(struct ath5k_softc *sc)
 
 static unsigned int
 ath5k_rx_decrypted(struct ath5k_softc *sc, struct ath5k_desc *ds,
-		struct sk_buff *skb)
+		struct sk_buff *skb, struct ath5k_rx_status *rs)
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	unsigned int keyix, hlen = ieee80211_get_hdrlen_from_skb(skb);
 
-	if (!(ds->ds_rxstat.rs_status & AR5K_RXERR_DECRYPT) &&
-			ds->ds_rxstat.rs_keyix != AR5K_RXKEYIX_INVALID)
+	if (!(rs->rs_status & AR5K_RXERR_DECRYPT) &&
+			rs->rs_keyix != AR5K_RXKEYIX_INVALID)
 		return RX_FLAG_DECRYPTED;
 
 	/* Apparently when a default key is used to decrypt the packet
 	   the hw does not set the index used to decrypt.  In such cases
 	   get the index from the packet. */
 	if ((le16_to_cpu(hdr->frame_control) & IEEE80211_FCTL_PROTECTED) &&
-			!(ds->ds_rxstat.rs_status & AR5K_RXERR_DECRYPT) &&
+			!(rs->rs_status & AR5K_RXERR_DECRYPT) &&
 			skb->len >= hlen + 4) {
 		keyix = skb->data[hlen + 3] >> 6;
 
@@ -1745,12 +1745,11 @@ static void
 ath5k_tasklet_rx(unsigned long data)
 {
 	struct ieee80211_rx_status rxs = {};
+	struct ath5k_rx_status rs = {};
 	struct sk_buff *skb;
 	struct ath5k_softc *sc = (void *)data;
 	struct ath5k_buf *bf;
 	struct ath5k_desc *ds;
-	u16 len;
-	u8 stat;
 	int ret;
 	int hdrlen;
 	int pad;
@@ -1773,7 +1772,7 @@ ath5k_tasklet_rx(unsigned long data)
 		if (unlikely(ds->ds_link == bf->daddr)) /* this is the end */
 			break;
 
-		ret = sc->ah->ah_proc_rx_desc(sc->ah, ds);
+		ret = sc->ah->ah_proc_rx_desc(sc->ah, ds, &rs);
 		if (unlikely(ret == -EINPROGRESS))
 			break;
 		else if (unlikely(ret)) {
@@ -1782,16 +1781,15 @@ ath5k_tasklet_rx(unsigned long data)
 			return;
 		}
 
-		if (unlikely(ds->ds_rxstat.rs_more)) {
+		if (unlikely(rs.rs_more)) {
 			ATH5K_WARN(sc, "unsupported jumbo\n");
 			goto next;
 		}
 
-		stat = ds->ds_rxstat.rs_status;
-		if (unlikely(stat)) {
-			if (stat & AR5K_RXERR_PHY)
+		if (unlikely(rs.rs_status)) {
+			if (rs.rs_status & AR5K_RXERR_PHY)
 				goto next;
-			if (stat & AR5K_RXERR_DECRYPT) {
+			if (rs.rs_status & AR5K_RXERR_DECRYPT) {
 				/*
 				 * Decrypt error.  If the error occurred
 				 * because there was no hardware key, then
@@ -1802,30 +1800,29 @@ ath5k_tasklet_rx(unsigned long data)
 				 *
 				 * XXX do key cache faulting
 				 */
-				if (ds->ds_rxstat.rs_keyix ==
-						AR5K_RXKEYIX_INVALID &&
-						!(stat & AR5K_RXERR_CRC))
+				if (rs.rs_keyix == AR5K_RXKEYIX_INVALID &&
+				    !(rs.rs_status & AR5K_RXERR_CRC))
 					goto accept;
 			}
-			if (stat & AR5K_RXERR_MIC) {
+			if (rs.rs_status & AR5K_RXERR_MIC) {
 				rxs.flag |= RX_FLAG_MMIC_ERROR;
 				goto accept;
 			}
 
 			/* let crypto-error packets fall through in MNTR */
-			if ((stat & ~(AR5K_RXERR_DECRYPT|AR5K_RXERR_MIC)) ||
+			if ((rs.rs_status &
+				~(AR5K_RXERR_DECRYPT|AR5K_RXERR_MIC)) ||
 					sc->opmode != IEEE80211_IF_TYPE_MNTR)
 				goto next;
 		}
 accept:
-		len = ds->ds_rxstat.rs_datalen;
-		pci_dma_sync_single_for_cpu(sc->pdev, bf->skbaddr, len,
-				PCI_DMA_FROMDEVICE);
+		pci_dma_sync_single_for_cpu(sc->pdev, bf->skbaddr,
+				rs.rs_datalen, PCI_DMA_FROMDEVICE);
 		pci_unmap_single(sc->pdev, bf->skbaddr, sc->rxbufsize,
 				PCI_DMA_FROMDEVICE);
 		bf->skb = NULL;
 
-		skb_put(skb, len);
+		skb_put(skb, rs.rs_datalen);
 
 		/*
 		 * the hardware adds a padding to 4 byte boundaries between
@@ -1848,7 +1845,7 @@ accept:
 		 * 32768usec (about 32ms). it might be necessary to move this to
 		 * the interrupt handler, like it is done in madwifi.
 		 */
-		rxs.mactime = ath5k_extend_tsf(sc->ah, ds->ds_rxstat.rs_tstamp);
+		rxs.mactime = ath5k_extend_tsf(sc->ah, rs.rs_tstamp);
 		rxs.flag |= RX_FLAG_TSFT;
 
 		rxs.freq = sc->curchan->center_freq;
@@ -1862,17 +1859,16 @@ accept:
 		/* noise floor in dBm, from the last noise calibration */
 		rxs.noise = sc->ah->ah_noise_floor;
 		/* signal level in dBm */
-		rxs.ssi = rxs.noise + ds->ds_rxstat.rs_rssi;
+		rxs.ssi = rxs.noise + rs.rs_rssi;
 		/*
 		 * "signal" is actually displayed as Link Quality by iwconfig
 		 * we provide a percentage based on rssi (assuming max rssi 64)
 		 */
-		rxs.signal = ds->ds_rxstat.rs_rssi * 100 / 64;
+		rxs.signal = rs.rs_rssi * 100 / 64;
 
-		rxs.antenna = ds->ds_rxstat.rs_antenna;
-		rxs.rate_idx = ath5k_hw_to_driver_rix(sc,
-			ds->ds_rxstat.rs_rate);
-		rxs.flag |= ath5k_rx_decrypted(sc, ds, skb);
+		rxs.antenna = rs.rs_antenna;
+		rxs.rate_idx = ath5k_hw_to_driver_rix(sc, rs.rs_rate);
+		rxs.flag |= ath5k_rx_decrypted(sc, ds, skb, &rs);
 
 		ath5k_debug_dump_skb(sc, skb, "RX  ", 0);
 
@@ -1881,7 +1877,7 @@ accept:
 			ath5k_check_ibss_hw_merge(sc, skb);
 
 		__ieee80211_rx(sc->hw, skb, &rxs);
-		sc->led_rxrate = ds->ds_rxstat.rs_rate;
+		sc->led_rxrate = rs.rs_rate;
 		ath5k_led_event(sc, ATH_LED_RX);
 next:
 		list_move_tail(&bf->list, &sc->rxbuf);
@@ -1900,6 +1896,7 @@ static void
 ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 {
 	struct ieee80211_tx_status txs = {};
+	struct ath5k_tx_status ts = {};
 	struct ath5k_buf *bf, *bf0;
 	struct ath5k_desc *ds;
 	struct sk_buff *skb;
@@ -1912,7 +1909,7 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 		/* TODO only one segment */
 		pci_dma_sync_single_for_cpu(sc->pdev, sc->desc_daddr,
 				sc->desc_len, PCI_DMA_FROMDEVICE);
-		ret = sc->ah->ah_proc_tx_desc(sc->ah, ds);
+		ret = sc->ah->ah_proc_tx_desc(sc->ah, ds, &ts);
 		if (unlikely(ret == -EINPROGRESS))
 			break;
 		else if (unlikely(ret)) {
@@ -1927,17 +1924,16 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 				PCI_DMA_TODEVICE);
 
 		txs.control = bf->ctl;
-		txs.retry_count = ds->ds_txstat.ts_shortretry +
-			ds->ds_txstat.ts_longretry / 6;
-		if (unlikely(ds->ds_txstat.ts_status)) {
+		txs.retry_count = ts.ts_shortretry + ts.ts_longretry / 6;
+		if (unlikely(ts.ts_status)) {
 			sc->ll_stats.dot11ACKFailureCount++;
-			if (ds->ds_txstat.ts_status & AR5K_TXERR_XRETRY)
+			if (ts.ts_status & AR5K_TXERR_XRETRY)
 				txs.excessive_retries = 1;
-			else if (ds->ds_txstat.ts_status & AR5K_TXERR_FILT)
+			else if (ts.ts_status & AR5K_TXERR_FILT)
 				txs.flags |= IEEE80211_TX_STATUS_TX_FILTERED;
 		} else {
 			txs.flags |= IEEE80211_TX_STATUS_ACK;
-			txs.ack_signal = ds->ds_txstat.ts_rssi;
+			txs.ack_signal = ts.ts_rssi;
 		}
 
 		ieee80211_tx_status(sc->hw, skb, &txs);

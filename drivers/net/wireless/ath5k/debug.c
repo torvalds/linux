@@ -497,7 +497,8 @@ ath5k_debug_dump_bands(struct ath5k_softc *sc)
 }
 
 static inline void
-ath5k_debug_printrxbuf(struct ath5k_buf *bf, int done)
+ath5k_debug_printrxbuf(struct ath5k_buf *bf, int done,
+		       struct ath5k_rx_status *rs)
 {
 	struct ath5k_desc *ds = bf->desc;
 	struct ath5k_hw_all_rx_desc *rd = &ds->ud.ds_rx;
@@ -507,7 +508,7 @@ ath5k_debug_printrxbuf(struct ath5k_buf *bf, int done)
 		ds->ds_link, ds->ds_data,
 		rd->rx_ctl.rx_control_0, rd->rx_ctl.rx_control_1,
 		rd->u.rx_stat.rx_status_0, rd->u.rx_stat.rx_status_0,
-		!done ? ' ' : (ds->ds_rxstat.rs_status == 0) ? '*' : '!');
+		!done ? ' ' : (rs->rs_status == 0) ? '*' : '!');
 }
 
 void
@@ -515,6 +516,7 @@ ath5k_debug_printrxbuffs(struct ath5k_softc *sc, struct ath5k_hw *ah)
 {
 	struct ath5k_desc *ds;
 	struct ath5k_buf *bf;
+	struct ath5k_rx_status rs = {};
 	int status;
 
 	if (likely(!(sc->debug.level & ATH5K_DEBUG_RESET)))
@@ -526,9 +528,9 @@ ath5k_debug_printrxbuffs(struct ath5k_softc *sc, struct ath5k_hw *ah)
 	spin_lock_bh(&sc->rxbuflock);
 	list_for_each_entry(bf, &sc->rxbuf, list) {
 		ds = bf->desc;
-		status = ah->ah_proc_rx_desc(ah, ds);
+		status = ah->ah_proc_rx_desc(ah, ds, &rs);
 		if (!status)
-			ath5k_debug_printrxbuf(bf, status == 0);
+			ath5k_debug_printrxbuf(bf, status == 0, &rs);
 	}
 	spin_unlock_bh(&sc->rxbuflock);
 }
@@ -552,21 +554,24 @@ ath5k_debug_dump_skb(struct ath5k_softc *sc,
 }
 
 void
-ath5k_debug_printtxbuf(struct ath5k_softc *sc,
-			struct ath5k_buf *bf, int done)
+ath5k_debug_printtxbuf(struct ath5k_softc *sc, struct ath5k_buf *bf)
 {
 	struct ath5k_desc *ds = bf->desc;
 	struct ath5k_hw_5212_tx_desc *td = &ds->ud.ds_tx5212;
+	struct ath5k_tx_status ts = {};
+	int done;
 
 	if (likely(!(sc->debug.level & ATH5K_DEBUG_RESET)))
 		return;
+
+	done = sc->ah->ah_proc_tx_desc(sc->ah, bf->desc, &ts);
 
 	printk(KERN_DEBUG "T (%p %llx) %08x %08x %08x %08x %08x %08x %08x "
 		"%08x %c\n", ds, (unsigned long long)bf->daddr, ds->ds_link,
 		ds->ds_data, td->tx_ctl.tx_control_0, td->tx_ctl.tx_control_1,
 		td->tx_ctl.tx_control_2, td->tx_ctl.tx_control_3,
 		td->tx_stat.tx_status_0, td->tx_stat.tx_status_1,
-		!done ? ' ' : (ds->ds_txstat.ts_status == 0) ? '*' : '!');
+		done ? ' ' : (ts.ts_status == 0) ? '*' : '!');
 }
 
 #endif /* ifdef CONFIG_ATH5K_DEBUG */

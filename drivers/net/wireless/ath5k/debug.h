@@ -160,8 +160,7 @@ ath5k_debug_dump_skb(struct ath5k_softc *sc,
 			struct sk_buff *skb, const char *prefix, int tx);
 
 void
-ath5k_debug_printtxbuf(struct ath5k_softc *sc,
-			struct ath5k_buf *bf, int done);
+ath5k_debug_printtxbuf(struct ath5k_softc *sc, struct ath5k_buf *bf);
 
 #else /* no debugging */
 
@@ -199,8 +198,7 @@ ath5k_debug_dump_skb(struct ath5k_softc *sc,
 			struct sk_buff *skb, const char *prefix, int tx) {}
 
 static inline void
-ath5k_debug_printtxbuf(struct ath5k_softc *sc,
-			struct ath5k_buf *bf, int done) {}
+ath5k_debug_printtxbuf(struct ath5k_softc *sc, struct ath5k_buf *bf) {}
 
 #endif /* ifdef CONFIG_ATH5K_DEBUG */
 
