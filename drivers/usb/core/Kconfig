@@ -87,12 +87,13 @@ config USB_DYNAMIC_MINORS
 	  If you are unsure about this, say N here.
 
 config USB_SUSPEND
-	bool "USB selective suspend/resume and wakeup (EXPERIMENTAL)"
-	depends on USB && PM && EXPERIMENTAL
+	bool "USB selective suspend/resume and wakeup"
+	depends on USB && PM
 	help
 	  If you say Y here, you can use driver calls or the sysfs
-	  "power/state" file to suspend or resume individual USB
-	  peripherals.
+	  "power/level" file to suspend or resume individual USB
+	  peripherals and to enable or disable autosuspend (see
+	  Documentation/usb/power-management.txt for more details).
 
 	  Also, USB "remote wakeup" signaling is supported, whereby some
 	  USB devices (like keyboards and network adapters) can wake up
