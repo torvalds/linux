@@ -27,22 +27,38 @@ struct task_struct *__switch_to(struct task_struct *prev,
  * Saving eflags is important. It switches not only IOPL between tasks,
  * it also protects other tasks from NT leaking through sysenter etc.
  */
-#define switch_to(prev, next, last) do {				\
+#define switch_to(prev, next, last)					\
+do {									\
 	unsigned long esi, edi;						\
-	asm volatile("pushfl\n\t"		/* Save flags */	\
-		     "pushl %%ebp\n\t"					\
-		     "movl %%esp,%0\n\t"	/* save ESP */		\
-		     "movl %5,%%esp\n\t"	/* restore ESP */	\
-		     "movl $1f,%1\n\t"		/* save EIP */		\
-		     "pushl %6\n\t"		/* restore EIP */	\
-		     "jmp __switch_to\n"				\
-		     "1:\t"						\
-		     "popl %%ebp\n\t"					\
-		     "popfl"						\
-		     :"=m" (prev->thread.sp), "=m" (prev->thread.ip),	\
-		      "=a" (last), "=S" (esi), "=D" (edi)		\
-		     :"m" (next->thread.sp), "m" (next->thread.ip),	\
-		      "2" (prev), "d" (next));				\
+									\
+	asm volatile(							\
+		"pushfl			\n\t"	/* save    flags */	\
+		"pushl %%ebp		\n\t"	/* save    EBP   */	\
+		"movl %%esp,%[prev_sp]	\n\t"	/* save    ESP   */	\
+		"movl %[next_sp],%%esp	\n\t"	/* restore ESP   */	\
+		"movl $1f,%[prev_ip]	\n\t"	/* save    EIP   */	\
+		"pushl %[next_ip]	\n\t"	/* restore EIP   */	\
+		"jmp __switch_to	\n"	/* regparm call  */	\
+		"1:			\t"				\
+		"popl %%ebp		\n\t"	/* restore EBP   */	\
+		"popfl			\n"	/* restore flags */	\
+									\
+		  /* output parameters */				\
+		: [prev_sp] "=m" (prev->thread.sp),			\
+		  [prev_ip] "=m" (prev->thread.ip),			\
+			    "=a" (last),				\
+									\
+		  /* clobbered output registers: */			\
+		  "=S" (esi), "=D" (edi)				\
+									\
+		  /* input parameters: */				\
+		: [next_sp]  "m" (next->thread.sp),			\
+		  [next_ip]  "m" (next->thread.ip),			\
+									\
+		  /* regparm parameters for __switch_to(): */		\
+		  [prev]     "a" (prev),				\
+		  [next]     "d" (next)					\
+	);								\
 } while (0)
 
 /*
