@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.62 2000/12/15 00:41:17 davem Exp $
+#
 # Makefile for the linux kernel.
 #
 
@@ -12,7 +12,8 @@ obj-y    := entry.o wof.o wuf.o etrap.o rtrap.o traps.o $(IRQ_OBJS) \
 	    sys_sparc.o sunos_asm.o systbls.o \
 	    time.o windows.o cpu.o devices.o sclow.o \
 	    tadpole.o tick14.o ptrace.o sys_solaris.o \
-	    unaligned.o muldiv.o semaphore.o prom.o of_device.o devres.o
+	    unaligned.o una_asm.o muldiv.o semaphore.o \
+	    prom.o of_device.o devres.o
 
 devres-y = ../../../kernel/irq/devres.o
 
