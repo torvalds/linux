@@ -45,6 +45,7 @@
 
 #include <asm/div64.h>
 
+#include "iwl-core.h"
 #include "iwl-4965.h"
 #include "iwl-helpers.h"
 
@@ -5663,12 +5664,13 @@ static int iwl4965_init_geos(struct iwl4965_priv *priv)
 				 geo_ch->flags);
 	}
 
-	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) && priv->is_abg) {
+	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
+	     priv->cfg->sku & IWL_SKU_A) {
 		printk(KERN_INFO DRV_NAME
 		       ": Incorrectly detected BG card as ABG.  Please send "
 		       "your PCI ID 0x%04X:0x%04X to maintainer.\n",
 		       priv->pci_dev->device, priv->pci_dev->subsystem_device);
-		priv->is_abg = 0;
+		priv->cfg->sku &= ~IWL_SKU_A;
 	}
 
 	printk(KERN_INFO DRV_NAME
@@ -8613,6 +8615,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	int err = 0;
 	struct iwl4965_priv *priv;
 	struct ieee80211_hw *hw;
+	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
 	int i;
 	DECLARE_MAC_BUF(mac);
 
@@ -8646,6 +8649,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	IWL_DEBUG_INFO("*** LOAD DRIVER ***\n");
 	priv = hw->priv;
 	priv->hw = hw;
+	priv->cfg = cfg;
 
 	priv->pci_dev = pdev;
 	priv->antenna = (enum iwl4965_antenna)iwl4965_param_antenna;
@@ -8748,8 +8752,9 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	/* Choose which receivers/antennas to use */
 	iwl4965_set_rxon_chain(priv);
 
+
 	printk(KERN_INFO DRV_NAME
-	       ": Detected Intel Wireless WiFi Link 4965AGN\n");
+		": Detected Intel Wireless WiFi Link %s\n", priv->cfg->name);
 
 	/* Device-specific setup */
 	if (iwl4965_hw_set_hw_setting(priv)) {

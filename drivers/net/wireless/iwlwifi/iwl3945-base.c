@@ -46,6 +46,7 @@
 
 #include <asm/div64.h>
 
+#include "iwl-3945-core.h"
 #include "iwl-3945.h"
 #include "iwl-helpers.h"
 
@@ -5267,12 +5268,13 @@ static int iwl3945_init_geos(struct iwl3945_priv *priv)
 				 geo_ch->flags);
 	}
 
-	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) && priv->is_abg) {
+	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
+	     priv->cfg->sku & IWL_SKU_A) {
 		printk(KERN_INFO DRV_NAME
 		       ": Incorrectly detected BG card as ABG.  Please send "
 		       "your PCI ID 0x%04X:0x%04X to maintainer.\n",
 		       priv->pci_dev->device, priv->pci_dev->subsystem_device);
-		priv->is_abg = 0;
+		 priv->cfg->sku &= ~IWL_SKU_A;
 	}
 
 	printk(KERN_INFO DRV_NAME
@@ -8067,9 +8069,9 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int err = 0;
-	u32 pci_id;
 	struct iwl3945_priv *priv;
 	struct ieee80211_hw *hw;
+	struct iwl_3945_cfg *cfg = (struct iwl_3945_cfg *)(ent->driver_data);
 	int i;
 	DECLARE_MAC_BUF(mac);
 
@@ -8105,6 +8107,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	priv->hw = hw;
 
 	priv->pci_dev = pdev;
+	priv->cfg = cfg;
 
 	/* Select antenna (may be helpful if only one antenna is connected) */
 	priv->antenna = (enum iwl3945_antenna)iwl3945_param_antenna;
@@ -8194,32 +8197,8 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	priv->iw_mode = IEEE80211_IF_TYPE_STA;
 
-	pci_id =
-	    (priv->pci_dev->device << 16) | priv->pci_dev->subsystem_device;
-
-	switch (pci_id) {
-	case 0x42221005:	/* 0x4222 0x8086 0x1005 is BG SKU */
-	case 0x42221034:	/* 0x4222 0x8086 0x1034 is BG SKU */
-	case 0x42271014:	/* 0x4227 0x8086 0x1014 is BG SKU */
-	case 0x42221044:	/* 0x4222 0x8086 0x1044 is BG SKU */
-		priv->is_abg = 0;
-		break;
-
-	/*
-	 * Rest are assumed ABG SKU -- if this is not the
-	 * case then the card will get the wrong 'Detected'
-	 * line in the kernel log however the code that
-	 * initializes the GEO table will detect no A-band
-	 * channels and remove the is_abg mask.
-	 */
-	default:
-		priv->is_abg = 1;
-		break;
-	}
-
 	printk(KERN_INFO DRV_NAME
-	       ": Detected Intel PRO/Wireless 3945%sBG Network Connection\n",
-	       priv->is_abg ? "A" : "");
+		": Detected Intel Wireless WiFi Link %s\n", priv->cfg->name);
 
 	/* Device-specific setup */
 	if (iwl3945_hw_set_hw_setting(priv)) {

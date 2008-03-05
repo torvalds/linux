@@ -38,6 +38,7 @@
 #include <linux/etherdevice.h>
 #include <asm/unaligned.h>
 
+#include "iwl-core.h"
 #include "iwl-4965.h"
 #include "iwl-helpers.h"
 
@@ -4820,9 +4821,14 @@ void iwl4965_hw_cancel_deferred_work(struct iwl4965_priv *priv)
 	cancel_delayed_work(&priv->init_alive_start);
 }
 
+static struct iwl_cfg iwl4965_agn_cfg = {
+	.name = "4965AGN",
+	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
+};
+
 struct pci_device_id iwl4965_hw_card_ids[] = {
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x4229)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x4230)},
+	{IWL_PCI_DEVICE(0x4229, PCI_ANY_ID, iwl4965_agn_cfg)},
+	{IWL_PCI_DEVICE(0x4230, PCI_ANY_ID, iwl4965_agn_cfg)},
 	{0}
 };
 

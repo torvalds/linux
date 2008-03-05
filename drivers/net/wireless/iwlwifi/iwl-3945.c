@@ -39,6 +39,7 @@
 #include <asm/unaligned.h>
 #include <net/mac80211.h>
 
+#include "iwl-3945-core.h"
 #include "iwl-3945.h"
 #include "iwl-helpers.h"
 #include "iwl-3945-rs.h"
@@ -2523,9 +2524,23 @@ void iwl3945_hw_cancel_deferred_work(struct iwl3945_priv *priv)
 	cancel_delayed_work(&priv->thermal_periodic);
 }
 
+static struct iwl_3945_cfg iwl3945_bg_cfg = {
+	.name = "3945BG",
+	.sku = IWL_SKU_G,
+};
+
+static struct iwl_3945_cfg iwl3945_abg_cfg = {
+	.name = "3945ABG",
+	.sku = IWL_SKU_A|IWL_SKU_G,
+};
+
 struct pci_device_id iwl3945_hw_card_ids[] = {
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x4222)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x4227)},
+	{IWL_PCI_DEVICE(0x4222, 0x1005, iwl3945_bg_cfg)},
+	{IWL_PCI_DEVICE(0x4222, 0x1034, iwl3945_bg_cfg)},
+	{IWL_PCI_DEVICE(0x4222, 0x1044, iwl3945_bg_cfg)},
+	{IWL_PCI_DEVICE(0x4227, 0x1014, iwl3945_bg_cfg)},
+	{IWL_PCI_DEVICE(0x4222, PCI_ANY_ID, iwl3945_abg_cfg)},
+	{IWL_PCI_DEVICE(0x4227, PCI_ANY_ID, iwl3945_abg_cfg)},
 	{0}
 };
 
