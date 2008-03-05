@@ -1930,15 +1930,15 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 
 	if (elems.wmm_param && (ifsta->flags & IEEE80211_STA_WMM_ENABLED)) {
 		sta->flags |= WLAN_STA_WME;
+		rcu_read_unlock();
 		ieee80211_sta_wmm_params(dev, ifsta, elems.wmm_param,
 					 elems.wmm_param_len);
-	}
+	} else
+		rcu_read_unlock();
 
 	/* set AID, ieee80211_set_associated() will tell the driver */
 	bss_conf->aid = aid;
 	ieee80211_set_associated(dev, ifsta, 1);
-
-	rcu_read_unlock();
 
 	ieee80211_associated(dev, ifsta);
 }
