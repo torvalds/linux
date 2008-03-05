@@ -913,7 +913,7 @@ static int ip6_dst_lookup_tail(struct sock *sk,
 	int err;
 
 	if (*dst == NULL)
-		*dst = ip6_route_output(&init_net, sk, fl);
+		*dst = ip6_route_output(sk->sk_net, sk, fl);
 
 	if ((err = (*dst)->error))
 		goto out_err_release;
@@ -954,7 +954,7 @@ static int ip6_dst_lookup_tail(struct sock *sk,
 				dst_release(*dst);
 				memcpy(&fl_gw, fl, sizeof(struct flowi));
 				memset(&fl_gw.fl6_dst, 0, sizeof(struct in6_addr));
-				*dst = ip6_route_output(&init_net, sk, &fl_gw);
+				*dst = ip6_route_output(sk->sk_net, sk, &fl_gw);
 				if ((err = (*dst)->error))
 					goto out_err_release;
 			}

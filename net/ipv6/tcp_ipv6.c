@@ -1071,8 +1071,11 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 	fl.fl_ip_sport = t1->source;
 	security_skb_classify_flow(skb, &fl);
 
-	/* sk = NULL, but it is safe for now. RST socket required. */
-	if (!ip6_dst_lookup(NULL, &buff->dst, &fl)) {
+	/* Pass a socket to ip6_dst_lookup either it is for RST
+	 * Underlying function will use this to retrieve the network
+	 * namespace
+	 */
+	if (!ip6_dst_lookup(tcp6_socket->sk, &buff->dst, &fl)) {
 
 		if (xfrm_lookup(&buff->dst, &fl, NULL, 0) >= 0) {
 			ip6_xmit(tcp6_socket->sk, buff, &fl, NULL, 0);
@@ -1172,7 +1175,7 @@ static void tcp_v6_send_ack(struct tcp_timewait_sock *tw,
 	fl.fl_ip_sport = t1->source;
 	security_skb_classify_flow(skb, &fl);
 
-	if (!ip6_dst_lookup(NULL, &buff->dst, &fl)) {
+	if (!ip6_dst_lookup(tcp6_socket->sk, &buff->dst, &fl)) {
 		if (xfrm_lookup(&buff->dst, &fl, NULL, 0) >= 0) {
 			ip6_xmit(tcp6_socket->sk, buff, &fl, NULL, 0);
 			TCP_INC_STATS_BH(TCP_MIB_OUTSEGS);
