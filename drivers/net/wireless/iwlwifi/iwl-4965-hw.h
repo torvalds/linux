@@ -410,50 +410,6 @@ struct iwl4965_eeprom {
 #define PCI_REG_WUM8       0x0E8
 #define PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT         (0x80000000)
 
-/*=== HBUS (Host-side Bus) ===*/
-#define HBUS_BASE	(0x400)
-
-/*
- * Registers for accessing device's internal SRAM memory (e.g. SCD SRAM
- * structures, error log, event log, verifying uCode load).
- * First write to address register, then read from or write to data register
- * to complete the job.  Once the address register is set up, accesses to
- * data registers auto-increment the address by one dword.
- * Bit usage for address registers (read or write):
- *  0-31:  memory address within device
- */
-#define HBUS_TARG_MEM_RADDR     (HBUS_BASE+0x00c)
-#define HBUS_TARG_MEM_WADDR     (HBUS_BASE+0x010)
-#define HBUS_TARG_MEM_WDAT      (HBUS_BASE+0x018)
-#define HBUS_TARG_MEM_RDAT      (HBUS_BASE+0x01c)
-
-/*
- * Registers for accessing device's internal peripheral registers
- * (e.g. SCD, BSM, etc.).  First write to address register,
- * then read from or write to data register to complete the job.
- * Bit usage for address registers (read or write):
- *  0-15:  register address (offset) within device
- * 24-25:  (# bytes - 1) to read or write (e.g. 3 for dword)
- */
-#define HBUS_TARG_PRPH_WADDR    (HBUS_BASE+0x044)
-#define HBUS_TARG_PRPH_RADDR    (HBUS_BASE+0x048)
-#define HBUS_TARG_PRPH_WDAT     (HBUS_BASE+0x04c)
-#define HBUS_TARG_PRPH_RDAT     (HBUS_BASE+0x050)
-
-/*
- * Per-Tx-queue write pointer (index, really!) (3945 and 4965).
- * Driver sets this to indicate index to next TFD that driver will fill
- * (1 past latest filled).
- * Bit usage:
- *  0-7:  queue write index (0-255)
- * 11-8:  queue selector (0-15)
- */
-#define HBUS_TARG_WRPTR         (HBUS_BASE+0x060)
-
-#define HBUS_TARG_MBX_C         (HBUS_BASE+0x030)
-
-#define HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED         (0x00000004)
-
 #define TFD_QUEUE_SIZE_MAX      (256)
 
 #define IWL_NUM_SCAN_RATES         (2)
