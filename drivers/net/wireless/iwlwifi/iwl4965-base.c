@@ -3410,9 +3410,9 @@ static int iwl4965_tx_status_reply_tx(struct iwl4965_priv *priv,
 		tx_status->control.flags &= ~IEEE80211_TXCTL_AMPDU;
 		tx_status->flags = iwl4965_is_tx_success(status)?
 			IEEE80211_TX_STATUS_ACK : 0;
-		/* FIXME Wrong Rate
-		tx_status->control.tx_rate =
-				iwl4965_hw_get_rate_n_flags(tx_resp->rate_n_flags); */
+		iwl4965_hwrate_to_tx_control(priv,
+					     le32_to_cpu(tx_resp->rate_n_flags),
+					     &tx_status->control);
 		/* FIXME: code repetition end */
 
 		IWL_DEBUG_TX_REPLY("1 Frame 0x%x failure :%d\n",
@@ -3569,9 +3569,10 @@ static void iwl4965_rx_reply_tx(struct iwl4965_priv *priv,
 	tx_status->queue_number = status;
 	tx_status->queue_length = tx_resp->bt_kill_count;
 	tx_status->queue_length |= tx_resp->failure_rts;
-
 	tx_status->flags =
 	    iwl4965_is_tx_success(status) ? IEEE80211_TX_STATUS_ACK : 0;
+	iwl4965_hwrate_to_tx_control(priv, le32_to_cpu(tx_resp->rate_n_flags),
+				     &tx_status->control);
 
 	IWL_DEBUG_TX("Tx queue %d Status %s (0x%08x) rate_n_flags 0x%x "
 		     "retries %d\n", txq_id, iwl4965_get_tx_fail_reason(status),

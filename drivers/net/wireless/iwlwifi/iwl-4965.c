@@ -150,6 +150,35 @@ int iwl4965_hwrate_to_plcp_idx(u32 rate_n_flags)
 	return -1;
 }
 
+/**
+ * translate ucode response to mac80211 tx status control values
+ */
+void iwl4965_hwrate_to_tx_control(struct iwl4965_priv *priv, u32 rate_n_flags,
+				  struct ieee80211_tx_control *control)
+{
+	int rate_index;
+
+	control->antenna_sel_tx =
+		((rate_n_flags & RATE_MCS_ANT_AB_MSK) >> RATE_MCS_ANT_A_POS);
+	if (rate_n_flags & RATE_MCS_HT_MSK)
+		control->flags |= IEEE80211_TXCTL_OFDM_HT;
+	if (rate_n_flags & RATE_MCS_GF_MSK)
+		control->flags |= IEEE80211_TXCTL_GREEN_FIELD;
+	if (rate_n_flags & RATE_MCS_FAT_MSK)
+		control->flags |= IEEE80211_TXCTL_40_MHZ_WIDTH;
+	if (rate_n_flags & RATE_MCS_DUP_MSK)
+		control->flags |= IEEE80211_TXCTL_DUP_DATA;
+	if (rate_n_flags & RATE_MCS_SGI_MSK)
+		control->flags |= IEEE80211_TXCTL_SHORT_GI;
+	/* since iwl4965_hwrate_to_plcp_idx is band indifferent, we always use
+	 * IEEE80211_BAND_2GHZ band as it contains all the rates */
+	rate_index = iwl4965_hwrate_to_plcp_idx(rate_n_flags);
+	if (rate_index == -1)
+		control->tx_rate = NULL;
+	else
+		control->tx_rate =
+			&priv->bands[IEEE80211_BAND_2GHZ].bitrates[rate_index];
+}
 
 /*
  * Determine how many receiver/antenna chains to use.
@@ -4084,9 +4113,8 @@ static int iwl4965_tx_status_reply_compressed_ba(struct iwl4965_priv *priv,
 	tx_status->flags |= IEEE80211_TX_STATUS_AMPDU;
 	tx_status->ampdu_ack_map = successes;
 	tx_status->ampdu_ack_len = agg->frame_count;
-	/* FIXME Wrong rate
-	tx_status->control.tx_rate = agg->rate_n_flags;
-	*/
+	iwl4965_hwrate_to_tx_control(priv, agg->rate_n_flags,
+				     &tx_status->control);
 
 	IWL_DEBUG_TX_REPLY("Bitmap %llx\n", bitmap);
 

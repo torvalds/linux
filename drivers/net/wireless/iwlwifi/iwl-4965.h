@@ -757,6 +757,9 @@ extern int iwl4965_set_fat_chan_info(struct iwl4965_priv *priv,
 				const struct iwl4965_eeprom_channel *eeprom_ch,
 				u8 fat_extension_channel);
 extern void iwl4965_rf_kill_ct_config(struct iwl4965_priv *priv);
+extern void iwl4965_hwrate_to_tx_control(struct iwl4965_priv *priv,
+					 u32 rate_n_flags,
+					 struct ieee80211_tx_control *control);
 
 #ifdef CONFIG_IWL4965_HT
 void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info,

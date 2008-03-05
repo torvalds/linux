@@ -823,6 +823,7 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct iwl4965_priv *priv = (struct iwl4965_priv *)priv_rate;
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_hw *hw = local_to_hw(local);
 	struct iwl4965_rate_scale_data *window = NULL;
 	struct iwl4965_rate_scale_data *search_win = NULL;
 	struct iwl4965_rate tx_mcs;
@@ -884,17 +885,6 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	search_win = (struct iwl4965_rate_scale_data *)
 	    &(search_tbl->win[0]);
 
-	tx_mcs.rate_n_flags = tx_resp->control.tx_rate->hw_value;
-
-	rs_get_tbl_info_from_mcs(&tx_mcs, priv->band,
-				  &tbl_type, &rs_index);
-	if ((rs_index < 0) || (rs_index >= IWL_RATE_COUNT)) {
-		IWL_DEBUG_RATE("bad rate index at: %d rate 0x%X\n",
-			     rs_index, tx_mcs.rate_n_flags);
-		rcu_read_unlock();
-		return;
-	}
-
 	/*
 	 * Ignore this Tx frame response if its initial rate doesn't match
 	 * that of latest Link Quality command.  There may be stragglers
@@ -903,12 +893,28 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	 * to check "search" mode, or a prior "search" mode after we've moved
 	 * to a new "search" mode (which might become the new "active" mode).
 	 */
-	if (retries &&
-	    (tx_mcs.rate_n_flags !=
-				le32_to_cpu(table->rs_table[0].rate_n_flags))) {
-		IWL_DEBUG_RATE("initial rate does not match 0x%x 0x%x\n",
-				tx_mcs.rate_n_flags,
-				le32_to_cpu(table->rs_table[0].rate_n_flags));
+	tx_mcs.rate_n_flags = le32_to_cpu(table->rs_table[0].rate_n_flags);
+	rs_get_tbl_info_from_mcs(&tx_mcs, priv->band, &tbl_type, &rs_index);
+	if (priv->band == IEEE80211_BAND_5GHZ)
+		rs_index -= IWL_FIRST_OFDM_RATE;
+
+	if ((tx_resp->control.tx_rate == NULL) ||
+	    (tbl_type.is_SGI ^
+		!!(tx_resp->control.flags & IEEE80211_TXCTL_SHORT_GI)) ||
+	    (tbl_type.is_fat ^
+		!!(tx_resp->control.flags & IEEE80211_TXCTL_40_MHZ_WIDTH)) ||
+	    (tbl_type.is_dup ^
+		!!(tx_resp->control.flags & IEEE80211_TXCTL_DUP_DATA)) ||
+	    (tbl_type.antenna_type ^
+		tx_resp->control.antenna_sel_tx) ||
+	    (!!(tx_mcs.rate_n_flags & RATE_MCS_HT_MSK) ^
+		!!(tx_resp->control.flags & IEEE80211_TXCTL_OFDM_HT)) ||
+	    (!!(tx_mcs.rate_n_flags & RATE_MCS_GF_MSK) ^
+		!!(tx_resp->control.flags & IEEE80211_TXCTL_GREEN_FIELD)) ||
+	    (hw->wiphy->bands[priv->band]->bitrates[rs_index].bitrate !=
+		tx_resp->control.tx_rate->bitrate)) {
+		IWL_DEBUG_RATE("initial rate does not match 0x%x\n",
+				tx_mcs.rate_n_flags);
 		rcu_read_unlock();
 		return;
 	}
@@ -959,14 +965,8 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	 * if Tx was successful first try, use original rate,
 	 * else look up the rate that was, finally, successful.
 	 */
-	if (!tx_resp->retry_count)
-		tx_mcs.rate_n_flags = tx_resp->control.tx_rate->hw_value;
-	else
-		tx_mcs.rate_n_flags =
-			le32_to_cpu(table->rs_table[index].rate_n_flags);
-
-	rs_get_tbl_info_from_mcs(&tx_mcs, priv->band,
-				  &tbl_type, &rs_index);
+	tx_mcs.rate_n_flags = le32_to_cpu(table->rs_table[index].rate_n_flags);
+	rs_get_tbl_info_from_mcs(&tx_mcs, priv->band, &tbl_type, &rs_index);
 
 	/* Update frame history window with "success" if Tx got ACKed ... */
 	if (tx_resp->flags & IEEE80211_TX_STATUS_ACK)
