@@ -1715,8 +1715,10 @@ ath5k_rx_decrypted(struct ath5k_softc *sc, struct ath5k_desc *ds,
 
 
 static void
-ath5k_check_ibss_hw_merge(struct ath5k_softc *sc, struct sk_buff *skb)
+ath5k_check_ibss_tsf(struct ath5k_softc *sc, struct sk_buff *skb,
+		     struct ieee80211_rx_status *rxs)
 {
+	u64 tsf, bc_tstamp;
 	u32 hw_tu;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 
@@ -1727,16 +1729,45 @@ ath5k_check_ibss_hw_merge(struct ath5k_softc *sc, struct sk_buff *skb)
 	    le16_to_cpu(mgmt->u.beacon.capab_info) & WLAN_CAPABILITY_IBSS &&
 	    memcmp(mgmt->bssid, sc->ah->ah_bssid, ETH_ALEN) == 0) {
 		/*
-		 * Received an IBSS beacon with the same BSSID. Hardware might
-		 * have updated the TSF, check if we need to update timers.
+		 * Received an IBSS beacon with the same BSSID. Hardware *must*
+		 * have updated the local TSF. We have to work around various
+		 * hardware bugs, though...
 		 */
-		hw_tu = TSF_TO_TU(ath5k_hw_get_tsf64(sc->ah));
-		if (hw_tu >= sc->nexttbtt) {
-			ath5k_beacon_update_timers(sc,
-				le64_to_cpu(mgmt->u.beacon.timestamp));
+		tsf = ath5k_hw_get_tsf64(sc->ah);
+		bc_tstamp = le64_to_cpu(mgmt->u.beacon.timestamp);
+		hw_tu = TSF_TO_TU(tsf);
+
+		ATH5K_DBG_UNLIMIT(sc, ATH5K_DEBUG_BEACON,
+			"beacon %llx mactime %llx (diff %lld) tsf now %llx\n",
+			bc_tstamp, rxs->mactime,
+			(rxs->mactime - bc_tstamp), tsf);
+
+		/*
+		 * Sometimes the HW will give us a wrong tstamp in the rx
+		 * status, causing the timestamp extension to go wrong.
+		 * (This seems to happen especially with beacon frames bigger
+		 * than 78 byte (incl. FCS))
+		 * But we know that the receive timestamp must be later than the
+		 * timestamp of the beacon since HW must have synced to that.
+		 *
+		 * NOTE: here we assume mactime to be after the frame was
+		 * received, not like mac80211 which defines it at the start.
+		 */
+		if (bc_tstamp > rxs->mactime) {
 			ATH5K_DBG_UNLIMIT(sc, ATH5K_DEBUG_BEACON,
-				"detected HW merge from received beacon\n");
+				"fixing mactime from %llx to %llx\n",
+				rxs->mactime, tsf);
+			rxs->mactime = tsf;
 		}
+
+		/*
+		 * Local TSF might have moved higher than our beacon timers,
+		 * in that case we have to update them to continue sending
+		 * beacons. This also takes care of synchronizing beacon sending
+		 * times with other stations.
+		 */
+		if (hw_tu >= sc->nexttbtt)
+			ath5k_beacon_update_timers(sc, bc_tstamp);
 	}
 }
 
@@ -1885,7 +1916,7 @@ accept:
 
 		/* check beacons in IBSS mode */
 		if (sc->opmode == IEEE80211_IF_TYPE_IBSS)
-			ath5k_check_ibss_hw_merge(sc, skb);
+			ath5k_check_ibss_tsf(sc, skb, &rxs);
 
 		__ieee80211_rx(sc->hw, skb, &rxs);
 		sc->led_rxrate = rs.rs_rate;
@@ -2118,7 +2149,7 @@ ath5k_beacon_send(struct ath5k_softc *sc)
  * beacon timer registers.
  *
  * This is called in a variety of situations, e.g. when a beacon is received,
- * when a HW merge has been detected, but also when an new IBSS is created or
+ * when a TSF update has been detected, but also when an new IBSS is created or
  * when we otherwise know we have to update the timers, but we keep it in this
  * function to have it all together in one place.
  */
@@ -2218,7 +2249,7 @@ ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf)
  * another AP to associate with.
  *
  * In IBSS mode we use a self-linked tx descriptor if possible. We enable SWBA
- * interrupts to detect HW merges only.
+ * interrupts to detect TSF updates only.
  *
  * AP mode is missing.
  */
@@ -2238,7 +2269,7 @@ ath5k_beacon_config(struct ath5k_softc *sc)
 		 * hardware send the beacons automatically. We have to load it
 		 * only once here.
 		 * We use the SWBA interrupt only to keep track of the beacon
-		 * timers in order to detect HW merges (automatic TSF updates).
+		 * timers in order to detect automatic TSF updates.
 		 */
 		ath5k_beaconq_config(sc);
 
@@ -2451,8 +2482,8 @@ ath5k_intr(int irq, void *dev_id)
 				*
 				* In IBSS mode we use this interrupt just to
 				* keep track of the next TBTT (target beacon
-				* transmission time) in order to detect hardware
-				* merges (TSF updates).
+				* transmission time) in order to detect wether
+				* automatic TSF updates happened.
 				*/
 				if (sc->opmode == IEEE80211_IF_TYPE_IBSS) {
 					 /* XXX: only if VEOL suppported */
