@@ -71,7 +71,6 @@ static match_table_t tokens = {
 
 /**
  * v9fs_parse_options - parse mount options into session structure
- * @options: options string passed from mount
  * @v9ses: existing v9fs session information
  *
  */
@@ -256,9 +255,12 @@ void v9fs_session_close(struct v9fs_session_info *v9ses)
 }
 
 /**
- * v9fs_session_cancel - mark transport as disconnected
- * 	and cancel all pending requests.
+ * v9fs_session_cancel - terminate a session
+ * @v9ses: session to terminate
+ *
+ * mark transport as disconnected and cancel all pending requests.
  */
+
 void v9fs_session_cancel(struct v9fs_session_info *v9ses) {
 	P9_DPRINTK(P9_DEBUG_ERROR, "cancel session %p\n", v9ses);
 	p9_client_disconnect(v9ses->clnt);

@@ -75,6 +75,7 @@ static int v9fs_set_super(struct super_block *s, void *data)
  * v9fs_fill_super - populate superblock with info
  * @sb: superblock
  * @v9ses: session information
+ * @flags: flags propagated from v9fs_get_sb()
  *
  */
 

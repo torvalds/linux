@@ -39,9 +39,6 @@ module_param_named(debug, p9_debug_level, uint, 0);
 MODULE_PARM_DESC(debug, "9P debugging level");
 #endif
 
-extern int p9_mux_global_init(void);
-extern void p9_mux_global_exit(void);
-
 /*
  * Dynamic Transport Registration Routines
  *
@@ -52,7 +49,7 @@ static struct p9_trans_module *v9fs_default_transport;
 
 /**
  * v9fs_register_trans - register a new transport with 9p
- * @m - structure describing the transport module and entry points
+ * @m: structure describing the transport module and entry points
  *
  */
 void v9fs_register_trans(struct p9_trans_module *m)
@@ -65,7 +62,7 @@ EXPORT_SYMBOL(v9fs_register_trans);
 
 /**
  * v9fs_match_trans - match transport versus registered transports
- * @arg: string identifying transport
+ * @name: string identifying transport
  *
  */
 struct p9_trans_module *v9fs_match_trans(const substring_t *name)
