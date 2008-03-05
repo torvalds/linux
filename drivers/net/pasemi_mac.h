@@ -27,6 +27,7 @@
 #include <linux/phy.h>
 
 #define MAX_LRO_DESCRIPTORS 8
+#define MAX_CS	2
 
 struct pasemi_mac_txring {
 	struct pasemi_dmachan chan; /* Must be first */
@@ -51,6 +52,15 @@ struct pasemi_mac_rxring {
 	struct pasemi_mac *mac;	/* Needed in intr handler */
 };
 
+struct pasemi_mac_csring {
+	struct pasemi_dmachan chan;
+	unsigned int	size;
+	unsigned int	next_to_fill;
+	int		events[2];
+	int		last_event;
+	int		fun;
+};
+
 struct pasemi_mac {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
@@ -60,10 +70,12 @@ struct pasemi_mac {
 	struct napi_struct napi;
 
 	int		bufsz; /* RX ring buffer size */
+	int		last_cs;
+	int		num_cs;
+	u32		dma_if;
 	u8		type;
 #define MAC_TYPE_GMAC	1
 #define MAC_TYPE_XAUI	2
-	u32	dma_if;
 
 	u8		mac_addr[6];
 
@@ -74,6 +86,7 @@ struct pasemi_mac {
 
 	struct pasemi_mac_txring *tx;
 	struct pasemi_mac_rxring *rx;
+	struct pasemi_mac_csring *cs[MAX_CS];
 	char		tx_irq_name[10];		/* "eth%d tx" */
 	char		rx_irq_name[10];		/* "eth%d rx" */
 	int	link;
