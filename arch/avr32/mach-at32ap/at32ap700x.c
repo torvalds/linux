@@ -675,6 +675,14 @@ static struct clk hramc_clk = {
 	.users		= 1,
 	.index		= 3,
 };
+static struct clk sdramc_clk = {
+	.name		= "sdramc_clk",
+	.parent		= &pbb_clk,
+	.mode		= pbb_clk_mode,
+	.get_rate	= pbb_clk_get_rate,
+	.users		= 1,
+	.index		= 14,
+};
 
 static struct resource smc0_resource[] = {
 	PBMEM(0xfff03400),
@@ -1998,6 +2006,7 @@ struct clk *at32_clock_list[] = {
 	&hmatrix_clk,
 	&ebi_clk,
 	&hramc_clk,
+	&sdramc_clk,
 	&smc0_pclk,
 	&smc0_mck,
 	&pdc_hclk,
