@@ -1652,9 +1652,8 @@ static void __devinit quirk_via_cx700_pci_parking_caching(struct pci_dev *dev)
 			pci_write_config_byte(dev, 0x75, 0x1);
 			pci_write_config_byte(dev, 0x77, 0x0);
 
-			printk(KERN_INFO
-				"PCI: VIA CX700 PCI parking/caching fixup on %s\n",
-				pci_name(dev));
+			dev_info(&dev->dev,
+				"Disabling VIA CX700 PCI parking/caching\n");
 		}
 	}
 }
@@ -1726,32 +1725,6 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_HT2
 			quirk_msi_ht_cap);
 
 
-/*
- *  Force enable MSI mapping capability on HT bridges
- */
-static void __devinit quirk_msi_ht_cap_enable(struct pci_dev *dev)
-{
-	int pos, ttl = 48;
-
-	pos = pci_find_ht_capability(dev, HT_CAPTYPE_MSI_MAPPING);
-	while (pos && ttl--) {
-		u8 flags;
-
-		if (pci_read_config_byte(dev, pos + HT_MSI_FLAGS, &flags) == 0) {
-			printk(KERN_INFO "PCI: Enabling HT MSI Mapping on %s\n",
-			       pci_name(dev));
-
-			pci_write_config_byte(dev, pos + HT_MSI_FLAGS,
-					      flags | HT_MSI_FLAGS_ENABLE);
-		}
-		pos = pci_find_next_ht_capability(dev, pos,
-						  HT_CAPTYPE_MSI_MAPPING);
-	}
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SERVERWORKS,
-			 PCI_DEVICE_ID_SERVERWORKS_HT1000_PXB,
-			 quirk_msi_ht_cap_enable);
-
 /* The nVidia CK804 chipset may have 2 HT MSI mappings.
  * MSI are supported if the MSI capability set in any of these mappings.
  */
@@ -1778,9 +1751,8 @@ static void __devinit quirk_nvidia_ck804_msi_ht_cap(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_CK804_PCIE,
 			quirk_nvidia_ck804_msi_ht_cap);
 
-/*
- *  Force enable MSI mapping capability on HT bridges  */
-static inline void ht_enable_msi_mapping(struct pci_dev *dev)
+/* Force enable MSI mapping capability on HT bridges */
+static void __devinit ht_enable_msi_mapping(struct pci_dev *dev)
 {
 	int pos, ttl = 48;
 
@@ -1799,6 +1771,9 @@ static inline void ht_enable_msi_mapping(struct pci_dev *dev)
 						  HT_CAPTYPE_MSI_MAPPING);
 	}
 }
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SERVERWORKS,
+			 PCI_DEVICE_ID_SERVERWORKS_HT1000_PXB,
+			 ht_enable_msi_mapping);
 
 static void __devinit nv_msi_ht_cap_quirk(struct pci_dev *dev)
 {
@@ -1830,7 +1805,7 @@ static void __devinit nv_msi_ht_cap_quirk(struct pci_dev *dev)
 
 		if (pci_read_config_byte(dev, pos + HT_MSI_FLAGS,
 					 &flags) == 0) {
-			dev_info(&dev->dev, "Quirk disabling HT MSI mapping");
+			dev_info(&dev->dev, "Disabling HT MSI mapping");
 			pci_write_config_byte(dev, pos + HT_MSI_FLAGS,
 					      flags & ~HT_MSI_FLAGS_ENABLE);
 		}
