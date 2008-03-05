@@ -9,7 +9,7 @@
 #ifndef _ASM_MUTEX_H
 #define _ASM_MUTEX_H
 
-#include "asm/alternative.h"
+#include <asm/alternative.h>
 
 /**
  *  __mutex_fastpath_lock - try to take the lock by moving the count
