@@ -420,7 +420,8 @@ extern int icache_44x_need_flush;
 #define _PAGE_IO	(_PAGE_KERNEL | _PAGE_NO_CACHE | _PAGE_GUARDED)
 #define _PAGE_RAM	(_PAGE_KERNEL | _PAGE_HWEXEC)
 
-#if defined(CONFIG_KGDB) || defined(CONFIG_XMON) || defined(CONFIG_BDI_SWITCH)
+#if defined(CONFIG_KGDB) || defined(CONFIG_XMON) || defined(CONFIG_BDI_SWITCH) ||\
+	defined(CONFIG_KPROBES)
 /* We want the debuggers to be able to set breakpoints anywhere, so
  * don't write protect the kernel text */
 #define _PAGE_RAM_TEXT	_PAGE_RAM
