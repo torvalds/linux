@@ -149,6 +149,8 @@ struct lbs_private {
 	struct work_struct sync_channel;
 	/* remember which channel was scanned last, != 0 if currently scanning */
 	int scan_channel;
+	u8 scan_ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 scan_ssid_len;
 
 	/** Hardware access */
 	int (*hw_host_to_card) (struct lbs_private *priv, u8 type, u8 *payload, u16 nb);

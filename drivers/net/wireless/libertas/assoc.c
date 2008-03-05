@@ -38,7 +38,7 @@ static int assoc_helper_essid(struct lbs_private *priv,
 	              escape_essid(assoc_req->ssid, assoc_req->ssid_len));
 	if (assoc_req->mode == IW_MODE_INFRA) {
 		lbs_send_specific_ssid_scan(priv, assoc_req->ssid,
-			assoc_req->ssid_len, 0);
+			assoc_req->ssid_len);
 
 		bss = lbs_find_ssid_in_list(priv, assoc_req->ssid,
 				assoc_req->ssid_len, NULL, IW_MODE_INFRA, channel);
@@ -53,7 +53,7 @@ static int assoc_helper_essid(struct lbs_private *priv,
 		 *   scan data will cause us to join a non-existant adhoc network
 		 */
 		lbs_send_specific_ssid_scan(priv, assoc_req->ssid,
-			assoc_req->ssid_len, 1);
+			assoc_req->ssid_len);
 
 		/* Search for the requested SSID in the scan table */
 		bss = lbs_find_ssid_in_list(priv, assoc_req->ssid,

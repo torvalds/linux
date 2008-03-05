@@ -12,8 +12,6 @@
 
 /**
  *  @brief Maximum number of channels that can be sent in a setuserscan ioctl
- *
- *  @sa lbs_ioctl_user_scan_cfg
  */
 #define LBS_IOCTL_USER_SCAN_CHAN_MAX  50
 
@@ -25,60 +23,6 @@
 
 //! Adhoc or Infrastructure BSS scan type in cmd_ds_802_11_scan, no filter
 #define LBS_SCAN_BSS_TYPE_ANY         3
-
-/**
- *  @brief IOCTL channel sub-structure sent in lbs_ioctl_user_scan_cfg
- *
- *  Multiple instances of this structure are included in the IOCTL command
- *   to configure a instance of a scan on the specific channel.
- */
-struct lbs_ioctl_user_scan_chan {
-	u8 channumber;		//!< channel Number to scan
-	u8 radiotype;		//!< Radio type: 'B/G' band = 0, 'A' band = 1
-	u8 scantype;		//!< Scan type: Active = 0, Passive = 1
-	u16 scantime;		//!< Scan duration in milliseconds; if 0 default used
-};
-
-/**
- *  @brief IOCTL input structure to configure an immediate scan cmd to firmware
- *
- *  Used in the setuserscan (LBS_SET_USER_SCAN) private ioctl.  Specifies
- *   a number of parameters to be used in general for the scan as well
- *   as a channel list (lbs_ioctl_user_scan_chan) for each scan period
- *   desired.
- *
- *  @sa lbs_set_user_scan_ioctl
- */
-struct lbs_ioctl_user_scan_cfg {
-    /**
-     *  @brief BSS type to be sent in the firmware command
-     *
-     *  Field can be used to restrict the types of networks returned in the
-     *    scan.  valid settings are:
-     *
-     *   - LBS_SCAN_BSS_TYPE_BSS  (infrastructure)
-     *   - LBS_SCAN_BSS_TYPE_IBSS (adhoc)
-     *   - LBS_SCAN_BSS_TYPE_ANY  (unrestricted, adhoc and infrastructure)
-     */
-	u8 bsstype;
-
-	/**
-	 *  @brief BSSID filter sent in the firmware command to limit the results
-	 */
-	u8 bssid[ETH_ALEN];
-
-	/* Clear existing scan results matching this BSSID */
-	u8 clear_bssid;
-
-	/**
-	 *  @brief SSID filter sent in the firmware command to limit the results
-	 */
-	char ssid[IW_ESSID_MAX_SIZE];
-	u8 ssid_len;
-
-	/* Clear existing scan results matching this SSID */
-	u8 clear_ssid;
-};
 
 /**
  *  @brief Structure used to store information for each beacon/probe response
@@ -136,21 +80,12 @@ int lbs_find_best_network_ssid(struct lbs_private *priv, u8 *out_ssid,
 			u8 *out_ssid_len, u8 preferred_mode, u8 *out_mode);
 
 int lbs_send_specific_ssid_scan(struct lbs_private *priv, u8 *ssid,
-				u8 ssid_len, u8 clear_ssid);
+				u8 ssid_len);
 
-int lbs_scan_networks(struct lbs_private *priv,
-	const struct lbs_ioctl_user_scan_cfg *puserscanin,
-                int full_scan);
-
-struct ifreq;
-
-struct iw_point;
-struct iw_param;
-struct iw_request_info;
 int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
 			 struct iw_point *dwrq, char *extra);
 int lbs_set_scan(struct net_device *dev, struct iw_request_info *info,
-			 struct iw_param *vwrq, char *extra);
+			 union iwreq_data *wrqu, char *extra);
 
 void lbs_scan_worker(struct work_struct *work);
 

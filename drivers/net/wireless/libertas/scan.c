@@ -260,23 +260,11 @@ done:
 
 
 
-
 /*********************************************************************/
 /*                                                                   */
 /*  Main scanning support                                            */
 /*                                                                   */
 /*********************************************************************/
-
-void lbs_scan_worker(struct work_struct *work)
-{
-	struct lbs_private *priv =
-		container_of(work, struct lbs_private, scan_work.work);
-
-	lbs_deb_enter(LBS_DEB_SCAN);
-	lbs_scan_networks(priv, NULL, 0);
-	lbs_deb_leave(LBS_DEB_SCAN);
-}
-
 
 /**
  *  @brief Create a channel list for the driver to scan based on region info
@@ -289,17 +277,11 @@ void lbs_scan_worker(struct work_struct *work)
  *
  *  @param priv          A pointer to struct lbs_private structure
  *  @param scanchanlist  Output parameter: resulting channel list to scan
- *  @param filteredscan  Flag indicating whether or not a BSSID or SSID filter
- *                       is being sent in the command to firmware.  Used to
- *                       increase the number of channels sent in a scan
- *                       command and to disable the firmware channel scan
- *                       filter.
  *
  *  @return              void
  */
 static int lbs_scan_create_channel_list(struct lbs_private *priv,
-					struct chanscanparamset *scanchanlist,
-					uint8_t filteredscan)
+					struct chanscanparamset *scanchanlist)
 {
 	struct region_channel *scanregion;
 	struct chan_freq_power *cfp;
@@ -354,9 +336,6 @@ static int lbs_scan_create_channel_list(struct lbs_private *priv,
 			}
 
 			chan->channumber = cfp->channel;
-
-			if (filteredscan)
-				chan->chanscanmode.disablechanfilt = 1;
 		}
 	}
 	return chanidx;
@@ -370,15 +349,14 @@ static int lbs_scan_create_channel_list(struct lbs_private *priv,
  * length          06 00
  * ssid            4d 4e 54 45 53 54
  */
-static int lbs_scan_add_ssid_tlv(uint8_t *tlv,
-				 const struct lbs_ioctl_user_scan_cfg *user_cfg)
+static int lbs_scan_add_ssid_tlv(struct lbs_private *priv, u8 *tlv)
 {
 	struct mrvlietypes_ssidparamset *ssid_tlv = (void *)tlv;
 
 	ssid_tlv->header.type = cpu_to_le16(TLV_TYPE_SSID);
-	ssid_tlv->header.len = cpu_to_le16(user_cfg->ssid_len);
-	memcpy(ssid_tlv->ssid, user_cfg->ssid, user_cfg->ssid_len);
-	return sizeof(ssid_tlv->header) + user_cfg->ssid_len;
+	ssid_tlv->header.len = cpu_to_le16(priv->scan_ssid_len);
+	memcpy(ssid_tlv->ssid, priv->scan_ssid, priv->scan_ssid_len);
+	return sizeof(ssid_tlv->header) + priv->scan_ssid_len;
 }
 
 
@@ -461,8 +439,7 @@ static int lbs_scan_add_rates_tlv(uint8_t *tlv)
  * for a bunch of channels.
  */
 static int lbs_do_scan(struct lbs_private *priv, uint8_t bsstype,
-		       struct chanscanparamset *chan_list, int chan_count,
-		       const struct lbs_ioctl_user_scan_cfg *user_cfg)
+		       struct chanscanparamset *chan_list, int chan_count)
 {
 	int ret = -ENOMEM;
 	struct cmd_ds_802_11_scan *scan_cmd;
@@ -477,13 +454,13 @@ static int lbs_do_scan(struct lbs_private *priv, uint8_t bsstype,
 		goto out;
 
 	tlv = scan_cmd->tlvbuffer;
-	if (user_cfg)
-		memcpy(scan_cmd->bssid, user_cfg->bssid, ETH_ALEN);
+	/* TODO: do we need to scan for a specific BSSID?
+	memcpy(scan_cmd->bssid, priv->scan_bssid, ETH_ALEN); */
 	scan_cmd->bsstype = bsstype;
 
 	/* add TLVs */
-	if (user_cfg && user_cfg->ssid_len)
-		tlv += lbs_scan_add_ssid_tlv(tlv, user_cfg);
+	if (priv->scan_ssid_len)
+		tlv += lbs_scan_add_ssid_tlv(priv, tlv);
 	if (chan_list && chan_count)
 		tlv += lbs_scan_add_chanlist_tlv(tlv, chan_list, chan_count);
 	tlv += lbs_scan_add_rates_tlv(tlv);
@@ -516,14 +493,11 @@ out:
  *    update the internal driver scan table
  *
  *  @param priv          A pointer to struct lbs_private structure
- *  @param puserscanin   Pointer to the input configuration for the requested
- *                       scan.
+ *  @param full_scan     Do a full-scan (blocking)
  *
  *  @return              0 or < 0 if error
  */
-int lbs_scan_networks(struct lbs_private *priv,
-		      const struct lbs_ioctl_user_scan_cfg *user_cfg,
-		      int full_scan)
+static int lbs_scan_networks(struct lbs_private *priv, int full_scan)
 {
 	int ret = -ENOMEM;
 	struct chanscanparamset *chan_list;
@@ -531,7 +505,6 @@ int lbs_scan_networks(struct lbs_private *priv,
 	int chan_count;
 	uint8_t bsstype = CMD_BSS_TYPE_ANY;
 	int numchannels = MRVDRV_CHANNELS_PER_SCAN_CMD;
-	int filteredscan = 0;
 	union iwreq_data wrqu;
 #ifdef CONFIG_LIBERTAS_DEBUG
 	struct bss_descriptor *iter;
@@ -547,17 +520,16 @@ int lbs_scan_networks(struct lbs_private *priv,
 	if (full_scan && delayed_work_pending(&priv->scan_work))
 		cancel_delayed_work(&priv->scan_work);
 
-	/* Determine same scan parameters */
+	/* User-specified bsstype or channel list
+	TODO: this can be implemented if some user-space application
+	need the feature. Formerly, it was accessible from debugfs,
+	but then nowhere used.
 	if (user_cfg) {
 		if (user_cfg->bsstype)
-			bsstype = user_cfg->bsstype;
-		if (!is_zero_ether_addr(user_cfg->bssid)) {
-			numchannels = MRVDRV_MAX_CHANNELS_PER_SCAN;
-			filteredscan = 1;
-		}
-	}
-	lbs_deb_scan("numchannels %d, bsstype %d, filteredscan %d\n",
-		     numchannels, bsstype, filteredscan);
+		bsstype = user_cfg->bsstype;
+	} */
+
+	lbs_deb_scan("numchannels %d, bsstype %d\n", numchannels, bsstype);
 
 	/* Create list of channels to scan */
 	chan_list = kzalloc(sizeof(struct chanscanparamset) *
@@ -568,7 +540,7 @@ int lbs_scan_networks(struct lbs_private *priv,
 	}
 
 	/* We want to scan all channels */
-	chan_count = lbs_scan_create_channel_list(priv, chan_list, filteredscan);
+	chan_count = lbs_scan_create_channel_list(priv, chan_list);
 
 	netif_stop_queue(priv->dev);
 	netif_carrier_off(priv->dev);
@@ -597,7 +569,7 @@ int lbs_scan_networks(struct lbs_private *priv,
 		lbs_deb_scan("scanning %d of %d channels\n",
 			     to_scan, chan_count);
 		ret = lbs_do_scan(priv, bsstype, curr_chans,
-				  to_scan, user_cfg);
+				  to_scan);
 		if (ret) {
 			lbs_pr_err("SCAN_CMD failed\n");
 			goto out2;
@@ -656,6 +628,17 @@ out:
 }
 
 
+
+
+void lbs_scan_worker(struct work_struct *work)
+{
+	struct lbs_private *priv =
+		container_of(work, struct lbs_private, scan_work.work);
+
+	lbs_deb_enter(LBS_DEB_SCAN);
+	lbs_scan_networks(priv, 0);
+	lbs_deb_leave(LBS_DEB_SCAN);
+}
 
 
 /*********************************************************************/
@@ -1068,7 +1051,7 @@ static struct bss_descriptor *lbs_find_best_ssid_in_list(struct lbs_private *pri
 }
 
 /**
- *  @brief Find the AP with specific ssid in the scan list
+ *  @brief Find the best AP
  *
  *  Used from association worker.
  *
@@ -1086,7 +1069,8 @@ int lbs_find_best_network_ssid(struct lbs_private *priv, uint8_t *out_ssid,
 
 	lbs_deb_enter(LBS_DEB_SCAN);
 
-	lbs_scan_networks(priv, NULL, 1);
+	priv->scan_ssid_len = 0;
+	lbs_scan_networks(priv, 1);
 	if (priv->surpriseremoved)
 		goto out;
 
@@ -1112,29 +1096,24 @@ out:
  *  @param priv             A pointer to struct lbs_private structure
  *  @param ssid             A pointer to the SSID to scan for
  *  @param ssid_len         Length of the SSID
- *  @param clear_ssid       Should existing scan results with this SSID
- *                          be cleared?
  *
  *  @return                0-success, otherwise fail
  */
 int lbs_send_specific_ssid_scan(struct lbs_private *priv, uint8_t *ssid,
-				uint8_t ssid_len, uint8_t clear_ssid)
+				uint8_t ssid_len)
 {
-	struct lbs_ioctl_user_scan_cfg scancfg;
 	int ret = 0;
 
-	lbs_deb_enter_args(LBS_DEB_SCAN, "SSID '%s', clear %d",
-			   escape_essid(ssid, ssid_len), clear_ssid);
+	lbs_deb_enter_args(LBS_DEB_SCAN, "SSID '%s'\n",
+			   escape_essid(ssid, ssid_len));
 
 	if (!ssid_len)
 		goto out;
 
-	memset(&scancfg, 0x00, sizeof(scancfg));
-	memcpy(scancfg.ssid, ssid, ssid_len);
-	scancfg.ssid_len = ssid_len;
-	scancfg.clear_ssid = clear_ssid;
+	memcpy(priv->scan_ssid, ssid, ssid_len);
+	priv->scan_ssid_len = ssid_len;
 
-	lbs_scan_networks(priv, &scancfg, 1);
+	lbs_scan_networks(priv, 1);
 	if (priv->surpriseremoved) {
 		ret = -1;
 		goto out;
@@ -1317,27 +1296,36 @@ out:
  *  @return             0 --success, otherwise fail
  */
 int lbs_set_scan(struct net_device *dev, struct iw_request_info *info,
-		 struct iw_param *wrqu, char *extra)
+		 union iwreq_data *wrqu, char *extra)
 {
 	struct lbs_private *priv = dev->priv;
+	int ret = 0;
 
-	lbs_deb_enter(LBS_DEB_SCAN);
+	lbs_deb_enter(LBS_DEB_WEXT);
 
-	if (!netif_running(dev))
-		return -ENETDOWN;
+	if (!netif_running(dev)) {
+		ret = -ENETDOWN;
+		goto out;
+	}
 
 	/* mac80211 does this:
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	if (sdata->type != IEEE80211_IF_TYPE_xxx)
-		return -EOPNOTSUPP;
+	if (sdata->type != IEEE80211_IF_TYPE_xxx) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+	*/
 
 	if (wrqu->data.length == sizeof(struct iw_scan_req) &&
 	    wrqu->data.flags & IW_SCAN_THIS_ESSID) {
-		req = (struct iw_scan_req *)extra;
-			ssid = req->essid;
-		ssid_len = req->essid_len;
+		struct iw_scan_req *req = (struct iw_scan_req *)extra;
+		priv->scan_ssid_len = req->essid_len;
+		memcpy(priv->scan_ssid, req->essid, priv->scan_ssid_len);
+		lbs_deb_wext("set_scan, essid '%s'\n",
+			escape_essid(priv->scan_ssid, priv->scan_ssid_len));
+	} else {
+		priv->scan_ssid_len = 0;
 	}
-	*/
 
 	if (!delayed_work_pending(&priv->scan_work))
 		queue_delayed_work(priv->work_thread, &priv->scan_work,
@@ -1346,10 +1334,11 @@ int lbs_set_scan(struct net_device *dev, struct iw_request_info *info,
 	priv->scan_channel = -1;
 
 	if (priv->surpriseremoved)
-		return -EIO;
+		ret = -EIO;
 
-	lbs_deb_leave(LBS_DEB_SCAN);
-	return 0;
+out:
+	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
+	return ret;
 }
 
 
@@ -1374,7 +1363,7 @@ int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
 	struct bss_descriptor *iter_bss;
 	struct bss_descriptor *safe;
 
-	lbs_deb_enter(LBS_DEB_SCAN);
+	lbs_deb_enter(LBS_DEB_WEXT);
 
 	/* iwlist should wait until the current scan is finished */
 	if (priv->scan_channel)
@@ -1418,7 +1407,7 @@ int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
 	dwrq->length = (ev - extra);
 	dwrq->flags = 0;
 
-	lbs_deb_leave_args(LBS_DEB_SCAN, "ret %d", err);
+	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", err);
 	return err;
 }
 

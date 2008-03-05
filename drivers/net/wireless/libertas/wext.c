@@ -579,6 +579,9 @@ static int lbs_get_range(struct net_device *dev, struct iw_request_info *info,
 	       range->num_bitrates);
 
 	range->num_frequency = 0;
+
+	range->scan_capa = IW_SCAN_CAPA_ESSID;
+
 	if (priv->enable11d &&
 	    (priv->connect_status == LBS_CONNECTED ||
 	    priv->mesh_connect_status == LBS_CONNECTED)) {
