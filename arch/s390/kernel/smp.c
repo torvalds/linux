@@ -629,14 +629,8 @@ static int __cpuinit smp_alloc_lowcore(int cpu)
 	panic_stack = __get_free_page(GFP_KERNEL);
 	if (!panic_stack || !async_stack)
 		goto out;
-	/*
-	 * Only need to copy the first 512 bytes from address 0. But since
-	 * the compiler emits a warning if src == NULL for memcpy use copy_page
-	 * instead. Copies more than needed but this code is not performance
-	 * critical.
-	 */
-	copy_page(lowcore, &S390_lowcore);
-	memset((void *)lowcore + 512, 0, sizeof(*lowcore) - 512);
+	memcpy(lowcore, &S390_lowcore, 512);
+	memset((char *)lowcore + 512, 0, sizeof(*lowcore) - 512);
 	lowcore->async_stack = async_stack + ASYNC_SIZE;
 	lowcore->panic_stack = panic_stack + PAGE_SIZE;
 

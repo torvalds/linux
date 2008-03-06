@@ -152,6 +152,10 @@ static void default_idle(void)
 	local_mcck_disable();
 	if (test_thread_flag(TIF_MCCK_PENDING)) {
 		local_mcck_enable();
+		/* disable monitor call class 0 */
+		__ctl_clear_bit(8, 15);
+		atomic_notifier_call_chain(&idle_chain, S390_CPU_NOT_IDLE,
+					   hcpu);
 		local_irq_enable();
 		s390_handle_mcck();
 		return;

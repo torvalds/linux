@@ -209,8 +209,6 @@ static void stop_hz_timer(void)
  */
 static void start_hz_timer(void)
 {
-	BUG_ON(!in_interrupt());
-
 	if (!cpu_isset(smp_processor_id(), nohz_cpu_mask))
 		return;
 	account_ticks(get_clock());
