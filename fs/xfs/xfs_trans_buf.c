@@ -304,7 +304,8 @@ xfs_trans_read_buf(
 	if (tp == NULL) {
 		bp = xfs_buf_read_flags(target, blkno, len, flags | BUF_BUSY);
 		if (!bp)
-			return XFS_ERROR(ENOMEM);
+			return (flags & XFS_BUF_TRYLOCK) ?
+					EAGAIN : XFS_ERROR(ENOMEM);
 
 		if ((bp != NULL) && (XFS_BUF_GETERROR(bp) != 0)) {
 			xfs_ioerror_alert("xfs_trans_read_buf", mp,

@@ -896,7 +896,8 @@ xfs_fs_write_inode(
 	struct inode		*inode,
 	int			sync)
 {
-	int			error = 0, flags = FLUSH_INODE;
+	int			error = 0;
+	int			flags = 0;
 
 	xfs_itrace_entry(XFS_I(inode));
 	if (sync) {

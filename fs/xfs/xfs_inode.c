@@ -145,11 +145,16 @@ xfs_imap_to_bp(
 	xfs_buf_t	*bp;
 
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, imap->im_blkno,
-				   (int)imap->im_len, XFS_BUF_LOCK, &bp);
+				   (int)imap->im_len, buf_flags, &bp);
 	if (error) {
-		cmn_err(CE_WARN, "xfs_imap_to_bp: xfs_trans_read_buf()returned "
+		if (error != EAGAIN) {
+			cmn_err(CE_WARN,
+				"xfs_imap_to_bp: xfs_trans_read_buf()returned "
 				"an error %d on %s.  Returning error.",
 				error, mp->m_fsname);
+		} else {
+			ASSERT(buf_flags & XFS_BUF_TRYLOCK);
+		}
 		return error;
 	}
 
@@ -274,7 +279,8 @@ xfs_itobp(
 	xfs_dinode_t	**dipp,
 	xfs_buf_t	**bpp,
 	xfs_daddr_t	bno,
-	uint		imap_flags)
+	uint		imap_flags,
+	uint		buf_flags)
 {
 	xfs_imap_t	imap;
 	xfs_buf_t	*bp;
@@ -305,9 +311,16 @@ xfs_itobp(
 	}
 	ASSERT(bno == 0 || bno == imap.im_blkno);
 
-	error = xfs_imap_to_bp(mp, tp, &imap, &bp, XFS_BUF_LOCK, imap_flags);
+	error = xfs_imap_to_bp(mp, tp, &imap, &bp, buf_flags, imap_flags);
 	if (error)
 		return error;
+
+	if (!bp) {
+		ASSERT(buf_flags & XFS_BUF_TRYLOCK);
+		ASSERT(tp == NULL);
+		*bpp = NULL;
+		return EAGAIN;
+	}
 
 	*dipp = (xfs_dinode_t *)xfs_buf_offset(bp, imap.im_boffset);
 	*bpp = bp;
@@ -812,7 +825,7 @@ xfs_iread(
 	 * return NULL as well.  Set i_blkno to 0 so that xfs_itobp() will
 	 * know that this is a new incore inode.
 	 */
-	error = xfs_itobp(mp, tp, ip, &dip, &bp, bno, imap_flags);
+	error = xfs_itobp(mp, tp, ip, &dip, &bp, bno, imap_flags, XFS_BUF_LOCK);
 	if (error) {
 		kmem_zone_free(xfs_inode_zone, ip);
 		return error;
@@ -1901,7 +1914,7 @@ xfs_iunlink(
 		 * Here we put the head pointer into our next pointer,
 		 * and then we fall through to point the head at us.
 		 */
-		error = xfs_itobp(mp, tp, ip, &dip, &ibp, 0, 0);
+		error = xfs_itobp(mp, tp, ip, &dip, &ibp, 0, 0, XFS_BUF_LOCK);
 		if (error)
 			return error;
 
@@ -2009,7 +2022,7 @@ xfs_iunlink_remove(
 		 * of dealing with the buffer when there is no need to
 		 * change it.
 		 */
-		error = xfs_itobp(mp, tp, ip, &dip, &ibp, 0, 0);
+		error = xfs_itobp(mp, tp, ip, &dip, &ibp, 0, 0, XFS_BUF_LOCK);
 		if (error) {
 			cmn_err(CE_WARN,
 				"xfs_iunlink_remove: xfs_itobp()  returned an error %d on %s.  Returning error.",
@@ -2071,7 +2084,7 @@ xfs_iunlink_remove(
 		 * Now last_ibp points to the buffer previous to us on
 		 * the unlinked list.  Pull us from the list.
 		 */
-		error = xfs_itobp(mp, tp, ip, &dip, &ibp, 0, 0);
+		error = xfs_itobp(mp, tp, ip, &dip, &ibp, 0, 0, XFS_BUF_LOCK);
 		if (error) {
 			cmn_err(CE_WARN,
 				"xfs_iunlink_remove: xfs_itobp()  returned an error %d on %s.  Returning error.",
@@ -2334,7 +2347,7 @@ xfs_ifree(
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
-	error = xfs_itobp(ip->i_mount, tp, ip, &dip, &ibp, 0, 0);
+	error = xfs_itobp(ip->i_mount, tp, ip, &dip, &ibp, 0, 0, XFS_BUF_LOCK);
 	if (error)
 		return error;
 
@@ -2777,38 +2790,41 @@ xfs_iunpin(
 }
 
 /*
- * This is called to wait for the given inode to be unpinned.
- * It will sleep until this happens.  The caller must have the
- * inode locked in at least shared mode so that the buffer cannot
- * be subsequently pinned once someone is waiting for it to be
- * unpinned.
+ * This is called to unpin an inode. It can be directed to wait or to return
+ * immediately without waiting for the inode to be unpinned.  The caller must
+ * have the inode locked in at least shared mode so that the buffer cannot be
+ * subsequently pinned once someone is waiting for it to be unpinned.
  */
 STATIC void
+__xfs_iunpin_wait(
+	xfs_inode_t	*ip,
+	int		wait)
+{
+	xfs_inode_log_item_t	*iip = ip->i_itemp;
+
+	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE | MR_ACCESS));
+	if (atomic_read(&ip->i_pincount) == 0)
+		return;
+
+	/* Give the log a push to start the unpinning I/O */
+	xfs_log_force(ip->i_mount, (iip && iip->ili_last_lsn) ?
+				iip->ili_last_lsn : 0, XFS_LOG_FORCE);
+	if (wait)
+		wait_event(ip->i_ipin_wait, (atomic_read(&ip->i_pincount) == 0));
+}
+
+static inline void
 xfs_iunpin_wait(
 	xfs_inode_t	*ip)
 {
-	xfs_inode_log_item_t	*iip;
-	xfs_lsn_t	lsn;
+	__xfs_iunpin_wait(ip, 1);
+}
 
-	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE | MR_ACCESS));
-
-	if (atomic_read(&ip->i_pincount) == 0) {
-		return;
-	}
-
-	iip = ip->i_itemp;
-	if (iip && iip->ili_last_lsn) {
-		lsn = iip->ili_last_lsn;
-	} else {
-		lsn = (xfs_lsn_t)0;
-	}
-
-	/*
-	 * Give the log a push so we don't wait here too long.
-	 */
-	xfs_log_force(ip->i_mount, lsn, XFS_LOG_FORCE);
-
-	wait_event(ip->i_ipin_wait, (atomic_read(&ip->i_pincount) == 0));
+static inline void
+xfs_iunpin_nowait(
+	xfs_inode_t	*ip)
+{
+	__xfs_iunpin_wait(ip, 0);
 }
 
 
@@ -3003,6 +3019,7 @@ xfs_iflush(
 	int			bufwasdelwri;
 	struct hlist_node	*entry;
 	enum { INT_DELWRI = (1 << 0), INT_ASYNC = (1 << 1) };
+	int			noblock = (flags == XFS_IFLUSH_ASYNC_NOBLOCK);
 
 	XFS_STATS_INC(xs_iflush_count);
 
@@ -3027,11 +3044,21 @@ xfs_iflush(
 	}
 
 	/*
-	 * We can't flush the inode until it is unpinned, so
-	 * wait for it.  We know noone new can pin it, because
-	 * we are holding the inode lock shared and you need
-	 * to hold it exclusively to pin the inode.
+	 * We can't flush the inode until it is unpinned, so wait for it if we
+	 * are allowed to block.  We know noone new can pin it, because we are
+	 * holding the inode lock shared and you need to hold it exclusively to
+	 * pin the inode.
+	 *
+	 * If we are not allowed to block, force the log out asynchronously so
+	 * that when we come back the inode will be unpinned. If other inodes
+	 * in the same cluster are dirty, they will probably write the inode
+	 * out for us if they occur after the log force completes.
 	 */
+	if (noblock && xfs_ipincount(ip)) {
+		xfs_iunpin_nowait(ip);
+		xfs_ifunlock(ip);
+		return EAGAIN;
+	}
 	xfs_iunpin_wait(ip);
 
 	/*
@@ -3045,15 +3072,6 @@ xfs_iflush(
 			iip->ili_format.ilf_fields = 0;
 		xfs_ifunlock(ip);
 		return XFS_ERROR(EIO);
-	}
-
-	/*
-	 * Get the buffer containing the on-disk inode.
-	 */
-	error = xfs_itobp(mp, NULL, ip, &dip, &bp, 0, 0);
-	if (error) {
-		xfs_ifunlock(ip);
-		return error;
 	}
 
 	/*
@@ -3072,6 +3090,7 @@ xfs_iflush(
 		case XFS_IFLUSH_DELWRI_ELSE_SYNC:
 			flags = 0;
 			break;
+		case XFS_IFLUSH_ASYNC_NOBLOCK:
 		case XFS_IFLUSH_ASYNC:
 		case XFS_IFLUSH_DELWRI_ELSE_ASYNC:
 			flags = INT_ASYNC;
@@ -3091,6 +3110,7 @@ xfs_iflush(
 		case XFS_IFLUSH_DELWRI:
 			flags = INT_DELWRI;
 			break;
+		case XFS_IFLUSH_ASYNC_NOBLOCK:
 		case XFS_IFLUSH_ASYNC:
 			flags = INT_ASYNC;
 			break;
@@ -3105,12 +3125,29 @@ xfs_iflush(
 	}
 
 	/*
+	 * Get the buffer containing the on-disk inode.
+	 */
+	error = xfs_itobp(mp, NULL, ip, &dip, &bp, 0, 0,
+				noblock ? XFS_BUF_TRYLOCK : XFS_BUF_LOCK);
+	if (error || !bp) {
+		xfs_ifunlock(ip);
+		return error;
+	}
+
+	/*
 	 * First flush out the inode that xfs_iflush was called with.
 	 */
 	error = xfs_iflush_int(ip, bp);
 	if (error) {
 		goto corrupt_out;
 	}
+
+	/*
+	 * If the buffer is pinned then push on the log now so we won't
+	 * get stuck waiting in the write for too long.
+	 */
+	if (XFS_BUF_ISPINNED(bp))
+		xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE);
 
 	/*
 	 * inode clustering:
@@ -3179,14 +3216,6 @@ xfs_iflush(
 	if (clcount) {
 		XFS_STATS_INC(xs_icluster_flushcnt);
 		XFS_STATS_ADD(xs_icluster_flushinode, clcount);
-	}
-
-	/*
-	 * If the buffer is pinned then push on the log so we won't
-	 * get stuck waiting in the write for too long.
-	 */
-	if (XFS_BUF_ISPINNED(bp)){
-		xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE);
 	}
 
 	if (flags & INT_DELWRI) {

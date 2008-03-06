@@ -3214,7 +3214,8 @@ xlog_recover_process_iunlinks(
 					 * next inode in the bucket.
 					 */
 					error = xfs_itobp(mp, NULL, ip, &dip,
-							&ibp, 0, 0);
+							&ibp, 0, 0,
+							XFS_BUF_LOCK);
 					ASSERT(error || (dip != NULL));
 				}
 
