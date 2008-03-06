@@ -519,6 +519,14 @@ static struct hda_input_mux cxt5045_capture_source_benq = {
 	}
 };
 
+static struct hda_input_mux cxt5045_capture_source_hp530 = {
+	.num_items = 2,
+	.items = {
+		{ "ExtMic", 0x1 },
+		{ "IntMic", 0x2 },
+	}
+};
+
 /* turn on/off EAPD (+ mute HP) as a master switch */
 static int cxt5045_hp_master_sw_put(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
@@ -643,6 +651,37 @@ static struct snd_kcontrol_new cxt5045_benq_mixers[] = {
 	HDA_CODEC_MUTE("Line In Capture Switch", 0x1a, 0x03, HDA_INPUT),
 	HDA_CODEC_VOLUME("Line In Playback Volume", 0x17, 0x3, HDA_INPUT),
 	HDA_CODEC_MUTE("Line In Playback Switch", 0x17, 0x3, HDA_INPUT),
+
+	{}
+};
+
+static struct snd_kcontrol_new cxt5045_mixers_hp530[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Capture Source",
+		.info = conexant_mux_enum_info,
+		.get = conexant_mux_enum_get,
+		.put = conexant_mux_enum_put
+	},
+	HDA_CODEC_VOLUME("Int Mic Capture Volume", 0x1a, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Int Mic Capture Switch", 0x1a, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Ext Mic Capture Volume", 0x1a, 0x01, HDA_INPUT),
+	HDA_CODEC_MUTE("Ext Mic Capture Switch", 0x1a, 0x01, HDA_INPUT),
+	HDA_CODEC_VOLUME("PCM Playback Volume", 0x17, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("PCM Playback Switch", 0x17, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Int Mic Playback Volume", 0x17, 0x2, HDA_INPUT),
+	HDA_CODEC_MUTE("Int Mic Playback Switch", 0x17, 0x2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Ext Mic Playback Volume", 0x17, 0x1, HDA_INPUT),
+	HDA_CODEC_MUTE("Ext Mic Playback Switch", 0x17, 0x1, HDA_INPUT),
+	HDA_BIND_VOL("Master Playback Volume", &cxt5045_hp_bind_master_vol),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Master Playback Switch",
+		.info = cxt_eapd_info,
+		.get = cxt_eapd_get,
+		.put = cxt5045_hp_master_sw_put,
+		.private_value = 0x10,
+	},
 
 	{}
 };
@@ -841,6 +880,7 @@ enum {
 	CXT5045_LAPTOP_MICSENSE,
 	CXT5045_LAPTOP_HPMICSENSE,
 	CXT5045_BENQ,
+	CXT5045_LAPTOP_HP530,
 #ifdef CONFIG_SND_DEBUG
 	CXT5045_TEST,
 #endif
@@ -852,6 +892,7 @@ static const char *cxt5045_models[CXT5045_MODELS] = {
 	[CXT5045_LAPTOP_MICSENSE]	= "laptop-micsense",
 	[CXT5045_LAPTOP_HPMICSENSE]	= "laptop-hpmicsense",
 	[CXT5045_BENQ]			= "benq",
+	[CXT5045_LAPTOP_HP530]		= "laptop-hp530",
 #ifdef CONFIG_SND_DEBUG
 	[CXT5045_TEST]		= "test",
 #endif
@@ -865,7 +906,7 @@ static struct snd_pci_quirk cxt5045_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x30bb, "HP DV8000", CXT5045_LAPTOP_HPSENSE),
 	SND_PCI_QUIRK(0x103c, 0x30cd, "HP DV Series", CXT5045_LAPTOP_HPSENSE),
 	SND_PCI_QUIRK(0x103c, 0x30cf, "HP DV9533EG", CXT5045_LAPTOP_HPSENSE),
-	SND_PCI_QUIRK(0x103c, 0x30d5, "HP 530", CXT5045_LAPTOP_HPSENSE),
+	SND_PCI_QUIRK(0x103c, 0x30d5, "HP 530", CXT5045_LAPTOP_HP530),
 	SND_PCI_QUIRK(0x103c, 0x30d9, "HP Spartan", CXT5045_LAPTOP_HPSENSE),
 	SND_PCI_QUIRK(0x152d, 0x0753, "Benq R55E", CXT5045_BENQ),
 	SND_PCI_QUIRK(0x1734, 0x10ad, "Fujitsu Si1520", CXT5045_LAPTOP_MICSENSE),
@@ -947,6 +988,14 @@ static int patch_cxt5045(struct hda_codec *codec)
 		spec->mixers[0] = cxt5045_mixers;
 		spec->mixers[1] = cxt5045_benq_mixers;
 		spec->num_mixers = 2;
+		codec->patch_ops.init = cxt5045_init;
+		break;
+	case CXT5045_LAPTOP_HP530:
+		codec->patch_ops.unsol_event = cxt5045_hp_unsol_event;
+		spec->input_mux = &cxt5045_capture_source_hp530;
+		spec->num_init_verbs = 2;
+		spec->init_verbs[1] = cxt5045_hp_sense_init_verbs;
+		spec->mixers[0] = cxt5045_mixers_hp530;
 		codec->patch_ops.init = cxt5045_init;
 		break;
 #ifdef CONFIG_SND_DEBUG
