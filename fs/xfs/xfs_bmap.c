@@ -5869,6 +5869,10 @@ xfs_getbmap(
 		/* xfs_fsize_t last_byte = xfs_file_last_byte(ip); */
 		error = xfs_flush_pages(ip, (xfs_off_t)0,
 					       -1, 0, FI_REMAPF);
+		if (error) {
+			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
+		return error;
+		}
 	}
 
 	ASSERT(whichfork == XFS_ATTR_FORK || ip->i_delayed_blks == 0);
