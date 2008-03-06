@@ -36,7 +36,6 @@
 #include "xfs_bmap.h"
 #include "xfs_error.h"
 #include "xfs_quota.h"
-#include "xfs_refcache.h"
 #include "xfs_utils.h"
 #include "xfs_trans_space.h"
 #include "xfs_vnodeops.h"
@@ -580,10 +579,8 @@ xfs_rename(
 	 * the vnode references.
 	 */
 	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
-	if (target_ip != NULL) {
-		xfs_refcache_purge_ip(target_ip);
+	if (target_ip != NULL)
 		IRELE(target_ip);
-	}
 	/*
 	 * Let interposed file systems know about removed links.
 	 */

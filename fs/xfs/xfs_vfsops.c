@@ -43,7 +43,6 @@
 #include "xfs_error.h"
 #include "xfs_bmap.h"
 #include "xfs_rw.h"
-#include "xfs_refcache.h"
 #include "xfs_buf_item.h"
 #include "xfs_log_priv.h"
 #include "xfs_dir2_trace.h"
@@ -157,7 +156,6 @@ xfs_cleanup(void)
 
 	xfs_cleanup_procfs();
 	xfs_sysctl_unregister();
-	xfs_refcache_destroy();
 	xfs_filestream_uninit();
 	xfs_mru_cache_uninit();
 	xfs_acl_zone_destroy(xfs_acl_zone);
@@ -584,11 +582,6 @@ xfs_unmount(
 					0 : DM_FLAGS_UNWANTED;
 	}
 #endif
-	/*
-	 * First blow any referenced inode from this file system
-	 * out of the reference cache, and delete the timer.
-	 */
-	xfs_refcache_purge_mp(mp);
 
 	/*
 	 * Blow away any referenced inode in the filestreams cache.
@@ -652,7 +645,6 @@ xfs_quiesce_fs(
 {
 	int			count = 0, pincount;
 
-	xfs_refcache_purge_mp(mp);
 	xfs_flush_buftarg(mp->m_ddev_targp, 0);
 	xfs_finish_reclaim_all(mp, 0);
 
@@ -1320,18 +1312,6 @@ xfs_syncsub(
 		if (error) {
 			last_error = error;
 		}
-	}
-
-	/*
-	 * If this is the periodic sync, then kick some entries out of
-	 * the reference cache.  This ensures that idle entries are
-	 * eventually kicked out of the cache.
-	 */
-	if (flags & SYNC_REFCACHE) {
-		if (flags & SYNC_WAIT)
-			xfs_refcache_purge_mp(mp);
-		else
-			xfs_refcache_purge_some(mp);
 	}
 
 	/*

@@ -240,10 +240,6 @@ typedef struct xfs_inode {
 	atomic_t		i_pincount;	/* inode pin count */
 	wait_queue_head_t	i_ipin_wait;	/* inode pinning wait queue */
 	spinlock_t		i_flags_lock;	/* inode i_flags lock */
-#ifdef HAVE_REFCACHE
-	struct xfs_inode	**i_refcache;	/* ptr to entry in ref cache */
-	struct xfs_inode	*i_release;	/* inode to unref */
-#endif
 	/* Miscellaneous state. */
 	unsigned short		i_flags;	/* see defined flags below */
 	unsigned char		i_update_core;	/* timestamps/size is dirty */
