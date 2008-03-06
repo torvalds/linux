@@ -27,6 +27,8 @@
 
 #define MODNAME "hp6x0_apm"
 
+#define PGDR	0xa400012c
+
 static void hp6x0_apm_get_power_status(struct apm_power_info *info)
 {
 	int battery, backup, charging, percentage;
