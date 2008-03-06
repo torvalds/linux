@@ -228,11 +228,11 @@ xfs_read(
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 
 	if (DM_EVENT_ENABLED(ip, DM_EVENT_READ) && !(ioflags & IO_INVIS)) {
-		bhv_vrwlock_t locktype = VRWLOCK_READ;
 		int dmflags = FILP_DELAY_FLAG(file) | DM_SEM_FLAG_RD(ioflags);
+		int iolock = XFS_IOLOCK_SHARED;
 
 		ret = -XFS_SEND_DATA(mp, DM_EVENT_READ, vp, *offset, size,
-					dmflags, &locktype);
+					dmflags, &iolock);
 		if (ret) {
 			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 			if (unlikely(ioflags & IO_ISDIRECT))
@@ -287,11 +287,11 @@ xfs_splice_read(
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 
 	if (DM_EVENT_ENABLED(ip, DM_EVENT_READ) && !(ioflags & IO_INVIS)) {
-		bhv_vrwlock_t locktype = VRWLOCK_READ;
+		int iolock = XFS_IOLOCK_SHARED;
 		int error;
 
 		error = XFS_SEND_DATA(mp, DM_EVENT_READ, vp, *ppos, count,
-					FILP_DELAY_FLAG(infilp), &locktype);
+					FILP_DELAY_FLAG(infilp), &iolock);
 		if (error) {
 			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 			return -error;
@@ -330,11 +330,11 @@ xfs_splice_write(
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
 
 	if (DM_EVENT_ENABLED(ip, DM_EVENT_WRITE) && !(ioflags & IO_INVIS)) {
-		bhv_vrwlock_t locktype = VRWLOCK_WRITE;
+		int iolock = XFS_IOLOCK_EXCL;
 		int error;
 
 		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, vp, *ppos, count,
-					FILP_DELAY_FLAG(outfilp), &locktype);
+					FILP_DELAY_FLAG(outfilp), &iolock);
 		if (error) {
 			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 			return -error;
@@ -580,7 +580,6 @@ xfs_write(
 	xfs_fsize_t		isize, new_size;
 	int			iolock;
 	int			eventsent = 0;
-	bhv_vrwlock_t		locktype;
 	size_t			ocount = 0, count;
 	loff_t			pos;
 	int			need_i_mutex;
@@ -607,11 +606,9 @@ xfs_write(
 relock:
 	if (ioflags & IO_ISDIRECT) {
 		iolock = XFS_IOLOCK_SHARED;
-		locktype = VRWLOCK_WRITE_DIRECT;
 		need_i_mutex = 0;
 	} else {
 		iolock = XFS_IOLOCK_EXCL;
-		locktype = VRWLOCK_WRITE;
 		need_i_mutex = 1;
 		mutex_lock(&inode->i_mutex);
 	}
@@ -635,8 +632,7 @@ start:
 
 		xfs_iunlock(xip, XFS_ILOCK_EXCL);
 		error = XFS_SEND_DATA(xip->i_mount, DM_EVENT_WRITE, vp,
-				      pos, count,
-				      dmflags, &locktype);
+				      pos, count, dmflags, &iolock);
 		if (error) {
 			goto out_unlock_internal;
 		}
@@ -667,7 +663,6 @@ start:
 		if (!need_i_mutex && (VN_CACHED(vp) || pos > xip->i_size)) {
 			xfs_iunlock(xip, XFS_ILOCK_EXCL|iolock);
 			iolock = XFS_IOLOCK_EXCL;
-			locktype = VRWLOCK_WRITE;
 			need_i_mutex = 1;
 			mutex_lock(&inode->i_mutex);
 			xfs_ilock(xip, XFS_ILOCK_EXCL|iolock);
@@ -744,7 +739,6 @@ retry:
 			mutex_unlock(&inode->i_mutex);
 
 			iolock = XFS_IOLOCK_SHARED;
-			locktype = VRWLOCK_WRITE_DIRECT;
 			need_i_mutex = 0;
 		}
 
@@ -781,7 +775,7 @@ retry:
 
 	if (ret == -ENOSPC &&
 	    DM_EVENT_ENABLED(xip, DM_EVENT_NOSPACE) && !(ioflags & IO_INVIS)) {
-		xfs_rwunlock(xip, locktype);
+		xfs_iunlock(xip, iolock);
 		if (need_i_mutex)
 			mutex_unlock(&inode->i_mutex);
 		error = XFS_SEND_NAMESP(xip->i_mount, DM_EVENT_NOSPACE, vp,
@@ -789,7 +783,7 @@ retry:
 				0, 0, 0); /* Delay flag intentionally  unused */
 		if (need_i_mutex)
 			mutex_lock(&inode->i_mutex);
-		xfs_rwlock(xip, locktype);
+		xfs_ilock(xip, iolock);
 		if (error)
 			goto out_unlock_internal;
 		pos = xip->i_size;
@@ -817,7 +811,8 @@ retry:
 	/* Handle various SYNC-type writes */
 	if ((file->f_flags & O_SYNC) || IS_SYNC(inode)) {
 		int error2;
-		xfs_rwunlock(xip, locktype);
+
+		xfs_iunlock(xip, iolock);
 		if (need_i_mutex)
 			mutex_unlock(&inode->i_mutex);
 		error2 = sync_page_range(inode, mapping, pos, ret);
@@ -825,7 +820,7 @@ retry:
 			error = error2;
 		if (need_i_mutex)
 			mutex_lock(&inode->i_mutex);
-		xfs_rwlock(xip, locktype);
+		xfs_ilock(xip, iolock);
 		error2 = xfs_write_sync_logforce(mp, xip);
 		if (!error)
 			error = error2;
@@ -846,7 +841,7 @@ retry:
 			xip->i_d.di_size = xip->i_size;
 		xfs_iunlock(xip, XFS_ILOCK_EXCL);
 	}
-	xfs_rwunlock(xip, locktype);
+	xfs_iunlock(xip, iolock);
  out_unlock_mutex:
 	if (need_i_mutex)
 		mutex_unlock(&inode->i_mutex);

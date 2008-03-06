@@ -1532,9 +1532,9 @@ xfs_vm_bmap(
 	struct xfs_inode	*ip = XFS_I(inode);
 
 	xfs_itrace_entry(XFS_I(inode));
-	xfs_rwlock(ip, VRWLOCK_READ);
+	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	xfs_flush_pages(ip, (xfs_off_t)0, -1, 0, FI_REMAPF);
-	xfs_rwunlock(ip, VRWLOCK_READ);
+	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 	return generic_block_bmap(mapping, block, xfs_get_blocks);
 }
 

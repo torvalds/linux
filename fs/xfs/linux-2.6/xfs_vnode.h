@@ -46,18 +46,6 @@ static inline struct inode *vn_to_inode(bhv_vnode_t *vnode)
 }
 
 /*
- * Values for the vop_rwlock/rwunlock flags parameter.
- */
-typedef enum bhv_vrwlock {
-	VRWLOCK_NONE,
-	VRWLOCK_READ,
-	VRWLOCK_WRITE,
-	VRWLOCK_WRITE_DIRECT,
-	VRWLOCK_TRY_READ,
-	VRWLOCK_TRY_WRITE
-} bhv_vrwlock_t;
-
-/*
  * Return values for xfs_inactive.  A return value of
  * VN_INACTIVE_NOCACHE implies that the file system behavior
  * has disassociated its state and bhv_desc_t from the vnode.

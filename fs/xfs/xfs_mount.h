@@ -67,7 +67,7 @@ struct xfs_mru_cache;
  */
 
 typedef int	(*xfs_send_data_t)(int, bhv_vnode_t *,
-			xfs_off_t, size_t, int, bhv_vrwlock_t *);
+			xfs_off_t, size_t, int, int *);
 typedef int	(*xfs_send_mmap_t)(struct vm_area_struct *, uint);
 typedef int	(*xfs_send_destroy_t)(bhv_vnode_t *, dm_right_t);
 typedef int	(*xfs_send_namesp_t)(dm_eventtype_t, struct xfs_mount *,

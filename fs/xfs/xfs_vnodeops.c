@@ -3375,47 +3375,6 @@ std_return:
 }
 
 int
-xfs_rwlock(
-	xfs_inode_t	*ip,
-	bhv_vrwlock_t	locktype)
-{
-	if (S_ISDIR(ip->i_d.di_mode))
-		return 1;
-	if (locktype == VRWLOCK_WRITE) {
-		xfs_ilock(ip, XFS_IOLOCK_EXCL);
-	} else if (locktype == VRWLOCK_TRY_READ) {
-		return xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED);
-	} else if (locktype == VRWLOCK_TRY_WRITE) {
-		return xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL);
-	} else {
-		ASSERT((locktype == VRWLOCK_READ) ||
-		       (locktype == VRWLOCK_WRITE_DIRECT));
-		xfs_ilock(ip, XFS_IOLOCK_SHARED);
-	}
-
-	return 1;
-}
-
-
-void
-xfs_rwunlock(
-	xfs_inode_t     *ip,
-	bhv_vrwlock_t	locktype)
-{
- 	if (S_ISDIR(ip->i_d.di_mode))
-  		return;
-	if (locktype == VRWLOCK_WRITE) {
-		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-	} else {
-		ASSERT((locktype == VRWLOCK_READ) ||
-		       (locktype == VRWLOCK_WRITE_DIRECT));
-		xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-	}
-	return;
-}
-
-
-int
 xfs_inode_flush(
 	xfs_inode_t	*ip,
 	int		flags)
