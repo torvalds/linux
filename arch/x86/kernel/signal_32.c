@@ -212,13 +212,13 @@ asmlinkage unsigned long sys_sigreturn(unsigned long __unused)
 
 badframe:
 	if (show_unhandled_signals && printk_ratelimit()) {
-		printk("%s%s[%d] bad frame in sigreturn frame:%p ip:%lx"
-		       " sp:%lx oeax:%lx",
+		printk(KERN_INFO "%s%s[%d] bad frame in sigreturn frame:"
+			"%p ip:%lx sp:%lx oeax:%lx",
 		    task_pid_nr(current) > 1 ? KERN_INFO : KERN_EMERG,
 		    current->comm, task_pid_nr(current), frame, regs->ip,
 		    regs->sp, regs->orig_ax);
 		print_vma_addr(" in ", regs->ip);
-		printk("\n");
+		printk(KERN_CONT "\n");
 	}
 
 	force_sig(SIGSEGV, current);
