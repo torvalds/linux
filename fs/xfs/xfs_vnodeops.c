@@ -3454,7 +3454,6 @@ xfs_inode_flush(
 	int		flags)
 {
 	xfs_mount_t	*mp = ip->i_mount;
-	xfs_inode_log_item_t *iip = ip->i_itemp;
 	int		error = 0;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
@@ -3464,8 +3463,7 @@ xfs_inode_flush(
 	 * Bypass inodes which have already been cleaned by
 	 * the inode flush clustering code inside xfs_iflush
 	 */
-	if ((ip->i_update_core == 0) &&
-	    ((iip == NULL) || !(iip->ili_format.ilf_fields & XFS_ILOG_ALL)))
+	if (xfs_inode_clean(ip))
 		return 0;
 
 	/*

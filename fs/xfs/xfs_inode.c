@@ -2118,13 +2118,6 @@ xfs_iunlink_remove(
 	return 0;
 }
 
-STATIC_INLINE int xfs_inode_clean(xfs_inode_t *ip)
-{
-	return (((ip->i_itemp == NULL) ||
-		!(ip->i_itemp->ili_format.ilf_fields & XFS_ILOG_ALL)) &&
-		(ip->i_update_core == 0));
-}
-
 STATIC void
 xfs_ifree_cluster(
 	xfs_inode_t	*free_ip,
@@ -3004,7 +2997,6 @@ xfs_iflush_cluster(
 	int			ilist_size;
 	xfs_inode_t		**ilist;
 	xfs_inode_t		*iq;
-	xfs_inode_log_item_t	*iip;
 	int			nr_found;
 	int			clcount = 0;
 	int			bufwasdelwri;
@@ -3040,13 +3032,8 @@ xfs_iflush_cluster(
 		 * is a candidate for flushing.  These checks will be repeated
 		 * later after the appropriate locks are acquired.
 		 */
-		iip = iq->i_itemp;
-		if ((iq->i_update_core == 0) &&
-		    ((iip == NULL) ||
-		     !(iip->ili_format.ilf_fields & XFS_ILOG_ALL)) &&
-		      xfs_ipincount(iq) == 0) {
+		if (xfs_inode_clean(iq) && xfs_ipincount(iq) == 0)
 			continue;
-		}
 
 		/*
 		 * Try to get locks.  If any are unavailable or it is pinned,
@@ -3069,10 +3056,8 @@ xfs_iflush_cluster(
 		 * arriving here means that this inode can be flushed.  First
 		 * re-check that it's dirty before flushing.
 		 */
-		iip = iq->i_itemp;
-		if ((iq->i_update_core != 0) || ((iip != NULL) &&
-		     (iip->ili_format.ilf_fields & XFS_ILOG_ALL))) {
-			int error;
+		if (!xfs_inode_clean(iq)) {
+			int	error;
 			error = xfs_iflush_int(iq, bp);
 			if (error) {
 				xfs_iunlock(iq, XFS_ILOCK_SHARED);
@@ -3176,8 +3161,7 @@ xfs_iflush(
 	 * If the inode isn't dirty, then just release the inode
 	 * flush lock and do nothing.
 	 */
-	if ((ip->i_update_core == 0) &&
-	    ((iip == NULL) || !(iip->ili_format.ilf_fields & XFS_ILOG_ALL))) {
+	if (xfs_inode_clean(ip)) {
 		ASSERT((iip != NULL) ?
 			 !(iip->ili_item.li_flags & XFS_LI_IN_AIL) : 1);
 		xfs_ifunlock(ip);
@@ -3343,8 +3327,7 @@ xfs_iflush_int(
 	 * If the inode isn't dirty, then just release the inode
 	 * flush lock and do nothing.
 	 */
-	if ((ip->i_update_core == 0) &&
-	    ((iip == NULL) || !(iip->ili_format.ilf_fields & XFS_ILOG_ALL))) {
+	if (xfs_inode_clean(ip)) {
 		xfs_ifunlock(ip);
 		return 0;
 	}
