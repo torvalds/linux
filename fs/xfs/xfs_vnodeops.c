@@ -3694,12 +3694,12 @@ xfs_finish_reclaim(
 	 * We get the flush lock regardless, though, just to make sure
 	 * we don't free it while it is being flushed.
 	 */
-	if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-		if (!locked) {
-			xfs_ilock(ip, XFS_ILOCK_EXCL);
-			xfs_iflock(ip);
-		}
+	if (!locked) {
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		xfs_iflock(ip);
+	}
 
+	if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
 		if (ip->i_update_core ||
 		    ((ip->i_itemp != NULL) &&
 		     (ip->i_itemp->ili_format.ilf_fields != 0))) {
@@ -3719,16 +3719,10 @@ xfs_finish_reclaim(
 		ASSERT(ip->i_update_core == 0);
 		ASSERT(ip->i_itemp == NULL ||
 		       ip->i_itemp->ili_format.ilf_fields == 0);
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	} else if (locked) {
-		/*
-		 * We are not interested in doing an iflush if we're
-		 * in the process of shutting down the filesystem forcibly.
-		 * So, just reclaim the inode.
-		 */
-		xfs_ifunlock(ip);
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	}
+
+	xfs_ifunlock(ip);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
  reclaim:
 	xfs_ireclaim(ip);
