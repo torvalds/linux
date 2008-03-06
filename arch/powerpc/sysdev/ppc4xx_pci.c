@@ -646,7 +646,7 @@ static int __init ppc440spe_pciex_core_init(struct device_node *np)
 	int time_out = 20;
 
 	/* Set PLL clock receiver to LVPECL */
-	mtdcri(SDR0, PESDR0_PLLLCT1, mfdcri(SDR0, PESDR0_PLLLCT1) | 1 << 28);
+	dcri_clrset(SDR0, PESDR0_PLLLCT1, 0, 1 << 28);
 
 	/* Shouldn't we do all the calibration stuff etc... here ? */
 	if (ppc440spe_pciex_check_reset(np))
@@ -660,8 +660,7 @@ static int __init ppc440spe_pciex_core_init(struct device_node *np)
 	}
 
 	/* De-assert reset of PCIe PLL, wait for lock */
-	mtdcri(SDR0, PESDR0_PLLLCT1,
-	       mfdcri(SDR0, PESDR0_PLLLCT1) & ~(1 << 24));
+	dcri_clrset(SDR0, PESDR0_PLLLCT1, 1 << 24, 0);
 	udelay(3);
 
 	while (time_out) {
@@ -713,9 +712,8 @@ static int ppc440spe_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
 		mtdcri(SDR0, port->sdr_base + PESDRn_440SPE_HSSL7SET1,
 		       0x35000000);
 	}
-	val = mfdcri(SDR0, port->sdr_base + PESDRn_RCSSET);
-	mtdcri(SDR0, port->sdr_base + PESDRn_RCSSET,
-	       (val & ~(1 << 24 | 1 << 16)) | 1 << 12);
+	dcri_clrset(SDR0, port->sdr_base + PESDRn_RCSSET,
+			(1 << 24) | (1 << 16), 1 << 12);
 
 	return 0;
 }
@@ -1156,8 +1154,7 @@ static int __init ppc4xx_pciex_port_init(struct ppc4xx_pciex_port *port)
 		port->link = 0;
 	}
 
-	mtdcri(SDR0, port->sdr_base + PESDRn_RCSSET,
-	       mfdcri(SDR0, port->sdr_base + PESDRn_RCSSET) | 1 << 20);
+	dcri_clrset(SDR0, port->sdr_base + PESDRn_RCSSET, 0, 1 << 20);
 	msleep(100);
 
 	return 0;
