@@ -1419,7 +1419,7 @@ exit:
 /**
  * shutdown - shutdown socket connection
  * @sock: socket structure
- * @how: direction to close (unused; always treated as read + write)
+ * @how: direction to close (must be SHUT_RDWR)
  *
  * Terminates connection (if necessary), then purges socket's receive queue.
  *
@@ -1432,7 +1432,8 @@ static int shutdown(struct socket *sock, int how)
 	struct sk_buff *buf;
 	int res;
 
-	/* Could return -EINVAL for an invalid "how", but why bother? */
+	if (how != SHUT_RDWR)
+		return -EINVAL;
 
 	if (mutex_lock_interruptible(&tsock->lock))
 		return -ERESTARTSYS;
