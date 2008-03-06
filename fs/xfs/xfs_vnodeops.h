@@ -26,12 +26,12 @@ int xfs_inactive(struct xfs_inode *ip);
 int xfs_lookup(struct xfs_inode *dp, bhv_vname_t *dentry,
 		bhv_vnode_t **vpp);
 int xfs_create(struct xfs_inode *dp, bhv_vname_t *dentry, mode_t mode,
-		xfs_dev_t rdev, bhv_vnode_t **vpp, struct cred *credp);
+		xfs_dev_t rdev, struct xfs_inode **ipp, struct cred *credp);
 int xfs_remove(struct xfs_inode *dp, bhv_vname_t	*dentry);
 int xfs_link(struct xfs_inode *tdp, bhv_vnode_t *src_vp,
 		bhv_vname_t *dentry);
 int xfs_mkdir(struct xfs_inode *dp, bhv_vname_t *dentry,
-		mode_t mode, bhv_vnode_t **vpp, struct cred *credp);
+		mode_t mode, struct xfs_inode **ipp, struct cred *credp);
 int xfs_rmdir(struct xfs_inode *dp, bhv_vname_t *dentry);
 int xfs_readdir(struct xfs_inode	*dp, void *dirent, size_t bufsize,
 		       xfs_off_t *offset, filldir_t filldir);

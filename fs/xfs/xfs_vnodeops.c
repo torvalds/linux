@@ -1791,14 +1791,12 @@ xfs_create(
 	bhv_vname_t		*dentry,
 	mode_t			mode,
 	xfs_dev_t		rdev,
-	bhv_vnode_t		**vpp,
+	xfs_inode_t		**ipp,
 	cred_t			*credp)
 {
 	char			*name = VNAME(dentry);
 	xfs_mount_t	        *mp = dp->i_mount;
-	bhv_vnode_t		*dir_vp = XFS_ITOV(dp);
 	xfs_inode_t		*ip;
-	bhv_vnode_t	        *vp = NULL;
 	xfs_trans_t		*tp;
 	int                     error;
 	xfs_bmap_free_t		free_list;
@@ -1812,7 +1810,7 @@ xfs_create(
 	uint			resblks;
 	int			namelen;
 
-	ASSERT(!*vpp);
+	ASSERT(!*ipp);
 	xfs_itrace_entry(dp);
 
 	namelen = VNAMELEN(dentry);
@@ -1911,7 +1909,7 @@ xfs_create(
 	 * the transaction cancel unlocking dp so don't do it explicitly in the
 	 * error path.
 	 */
-	VN_HOLD(dir_vp);
+	IHOLD(dp);
 	xfs_trans_ijoin(tp, dp, XFS_ILOCK_EXCL);
 	unlock_dp_on_error = B_FALSE;
 
@@ -1949,7 +1947,6 @@ xfs_create(
 	 * vnode to the caller, we bump the vnode ref count now.
 	 */
 	IHOLD(ip);
-	vp = XFS_ITOV(ip);
 
 	error = xfs_bmap_finish(&tp, &free_list, &committed);
 	if (error) {
@@ -1967,16 +1964,16 @@ xfs_create(
 	XFS_QM_DQRELE(mp, udqp);
 	XFS_QM_DQRELE(mp, gdqp);
 
-	*vpp = vp;
+	*ipp = ip;
 
 	/* Fallthrough to std_return with error = 0  */
 
 std_return:
-	if ((*vpp || (error != 0 && dm_event_sent != 0)) &&
+	if ((*ipp || (error != 0 && dm_event_sent != 0)) &&
 	    DM_EVENT_ENABLED(dp, DM_EVENT_POSTCREATE)) {
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTCREATE,
 			dp, DM_RIGHT_NULL,
-			*vpp ? ip : NULL,
+			*ipp ? ip : NULL,
 			DM_RIGHT_NULL, name, NULL,
 			mode, error, 0);
 	}
@@ -2634,15 +2631,13 @@ xfs_mkdir(
 	xfs_inode_t             *dp,
 	bhv_vname_t		*dentry,
 	mode_t			mode,
-	bhv_vnode_t		**vpp,
+	xfs_inode_t		**ipp,
 	cred_t			*credp)
 {
-	bhv_vnode_t		*dir_vp = XFS_ITOV(dp);
 	char			*dir_name = VNAME(dentry);
 	int			dir_namelen = VNAMELEN(dentry);
 	xfs_mount_t		*mp = dp->i_mount;
 	xfs_inode_t		*cdp;	/* inode of created dir */
-	bhv_vnode_t		*cvp;	/* vnode of created dir */
 	xfs_trans_t		*tp;
 	int			cancel_flags;
 	int			error;
@@ -2749,7 +2744,7 @@ xfs_mkdir(
 	 * from here on will result in the transaction cancel
 	 * unlocking dp so don't do it explicitly in the error path.
 	 */
-	VN_HOLD(dir_vp);
+	IHOLD(dp);
 	xfs_trans_ijoin(tp, dp, XFS_ILOCK_EXCL);
 	unlock_dp_on_error = B_FALSE;
 
@@ -2780,11 +2775,9 @@ xfs_mkdir(
 	if (error)
 		goto error2;
 
-	cvp = XFS_ITOV(cdp);
-
 	created = B_TRUE;
 
-	*vpp = cvp;
+	*ipp = cdp;
 	IHOLD(cdp);
 
 	/*

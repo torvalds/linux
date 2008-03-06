@@ -273,7 +273,7 @@ xfs_vn_mknod(
 	dev_t		rdev)
 {
 	struct inode	*inode;
-	bhv_vnode_t	*vp = NULL, *dvp = vn_from_inode(dir);
+	struct xfs_inode *ip = NULL;
 	xfs_acl_t	*default_acl = NULL;
 	attrexists_t	test_default_acl = _ACL_DEFAULT_EXISTS;
 	int		error;
@@ -285,11 +285,11 @@ xfs_vn_mknod(
 	if (unlikely(!sysv_valid_dev(rdev) || MAJOR(rdev) & ~0x1ff))
 		return -EINVAL;
 
-	if (test_default_acl && test_default_acl(dvp)) {
+	if (test_default_acl && test_default_acl(dir)) {
 		if (!_ACL_ALLOC(default_acl)) {
 			return -ENOMEM;
 		}
-		if (!_ACL_GET_DEFAULT(dvp, default_acl)) {
+		if (!_ACL_GET_DEFAULT(dir, default_acl)) {
 			_ACL_FREE(default_acl);
 			default_acl = NULL;
 		}
@@ -305,10 +305,10 @@ xfs_vn_mknod(
 	case S_IFSOCK:
 		rdev = sysv_encode_dev(rdev);
 	case S_IFREG:
-		error = xfs_create(XFS_I(dir), dentry, mode, rdev, &vp, NULL);
+		error = xfs_create(XFS_I(dir), dentry, mode, rdev, &ip, NULL);
 		break;
 	case S_IFDIR:
-		error = xfs_mkdir(XFS_I(dir), dentry, mode, &vp, NULL);
+		error = xfs_mkdir(XFS_I(dir), dentry, mode, &ip, NULL);
 		break;
 	default:
 		error = EINVAL;
@@ -318,19 +318,20 @@ xfs_vn_mknod(
 	if (unlikely(error))
 		goto out_free_acl;
 
-	error = xfs_init_security(vp, dir);
+	inode = ip->i_vnode;
+
+	error = xfs_init_security(inode, dir);
 	if (unlikely(error))
 		goto out_cleanup_inode;
 
 	if (default_acl) {
-		error = _ACL_INHERIT(vp, mode, default_acl);
+		error = _ACL_INHERIT(inode, mode, default_acl);
 		if (unlikely(error))
 			goto out_cleanup_inode;
-		xfs_iflags_set(XFS_I(vp), XFS_IMODIFIED);
+		xfs_iflags_set(ip, XFS_IMODIFIED);
 		_ACL_FREE(default_acl);
 	}
 
-	inode = vn_to_inode(vp);
 
 	if (S_ISDIR(mode))
 		xfs_validate_fields(inode);
@@ -339,7 +340,7 @@ xfs_vn_mknod(
 	return -error;
 
  out_cleanup_inode:
-	xfs_cleanup_inode(dir, vp, dentry, mode);
+	xfs_cleanup_inode(dir, inode, dentry, mode);
  out_free_acl:
 	if (default_acl)
 		_ACL_FREE(default_acl);
