@@ -800,6 +800,22 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 		goto fail;
 	}
 
+	hid->name[0] = 0;
+
+	if (dev->manufacturer)
+		strlcpy(hid->name, dev->manufacturer, sizeof(hid->name));
+
+	if (dev->product) {
+		if (dev->manufacturer)
+			strlcat(hid->name, " ", sizeof(hid->name));
+		strlcat(hid->name, dev->product, sizeof(hid->name));
+	}
+
+	if (!strlen(hid->name))
+		snprintf(hid->name, sizeof(hid->name), "HID %04x:%04x",
+			 le16_to_cpu(dev->descriptor.idVendor),
+			 le16_to_cpu(dev->descriptor.idProduct));
+
 	for (n = 0; n < interface->desc.bNumEndpoints; n++) {
 
 		struct usb_endpoint_descriptor *endpoint;
@@ -811,6 +827,14 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 			continue;
 
 		interval = endpoint->bInterval;
+
+		/* Some vendors give fullspeed interval on highspeed devides */
+		if (quirks & HID_QUIRK_FULLSPEED_INTERVAL  &&
+		    dev->speed == USB_SPEED_HIGH) {
+			interval = fls(endpoint->bInterval*8);
+			printk(KERN_INFO "%s: Fixing fullspeed to highspeed interval: %d -> %d\n",
+			       hid->name, endpoint->bInterval, interval);
+		}
 
 		/* Change the polling interval of mice. */
 		if (hid->collection->usage == HID_GD_MOUSE && hid_mousepoll_interval > 0)
@@ -858,22 +882,6 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	hid->dev = &intf->dev;
 	usbhid->intf = intf;
 	usbhid->ifnum = interface->desc.bInterfaceNumber;
-
-	hid->name[0] = 0;
-
-	if (dev->manufacturer)
-		strlcpy(hid->name, dev->manufacturer, sizeof(hid->name));
-
-	if (dev->product) {
-		if (dev->manufacturer)
-			strlcat(hid->name, " ", sizeof(hid->name));
-		strlcat(hid->name, dev->product, sizeof(hid->name));
-	}
-
-	if (!strlen(hid->name))
-		snprintf(hid->name, sizeof(hid->name), "HID %04x:%04x",
-			 le16_to_cpu(dev->descriptor.idVendor),
-			 le16_to_cpu(dev->descriptor.idProduct));
 
 	hid->bus = BUS_USB;
 	hid->vendor = le16_to_cpu(dev->descriptor.idVendor);
