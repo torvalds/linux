@@ -184,6 +184,7 @@ extern void				icmpv6_param_prob(struct sk_buff *skb,
 							  int code, int pos);
 
 struct flowi;
+struct in6_addr;
 extern void				icmpv6_flow_init(struct sock *sk,
 							 struct flowi *fl,
 							 u8 type,
