@@ -9775,8 +9775,12 @@ static struct snd_kcontrol_new alc268_acer_mixer[] = {
 };
 
 static struct hda_verb alc268_acer_verbs[] = {
+	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN}, /* internal dmic? */
+	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
 
 	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
 	{ }
@@ -9987,6 +9991,15 @@ static struct hda_input_mux alc268_capture_source = {
 		{ "Front Mic", 0x1 },
 		{ "Line", 0x2 },
 		{ "CD", 0x3 },
+	},
+};
+
+static struct hda_input_mux alc268_acer_capture_source = {
+	.num_items = 3,
+	.items = {
+		{ "Mic", 0x0 },
+		{ "Internal Mic", 0x6 },
+		{ "Line", 0x2 },
 	},
 };
 
@@ -10332,7 +10345,7 @@ static struct alc_config_preset alc268_presets[] = {
 		.hp_nid = 0x02,
 		.num_channel_mode = ARRAY_SIZE(alc268_modes),
 		.channel_mode = alc268_modes,
-		.input_mux = &alc268_capture_source,
+		.input_mux = &alc268_acer_capture_source,
 		.unsol_event = alc268_acer_unsol_event,
 		.init_hook = alc268_acer_init_hook,
 	},
