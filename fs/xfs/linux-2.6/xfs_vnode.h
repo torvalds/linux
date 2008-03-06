@@ -227,7 +227,7 @@ static inline bhv_vnode_t *vn_grab(bhv_vnode_t *vp)
  */
 #define VNAME(dentry)		((char *) (dentry)->d_name.name)
 #define VNAMELEN(dentry)	((dentry)->d_name.len)
-#define VNAME_TO_VNODE(dentry)	(vn_from_inode((dentry)->d_inode))
+#define VNAME_TO_INODE(dentry)	(XFS_I((dentry)->d_inode))
 
 /*
  * Dealing with bad inodes

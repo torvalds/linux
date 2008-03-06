@@ -40,28 +40,6 @@
 #include "xfs_itable.h"
 #include "xfs_utils.h"
 
-/*
- * xfs_get_dir_entry is used to get a reference to an inode given
- * its parent directory inode and the name of the file.	 It does
- * not lock the child inode, and it unlocks the directory before
- * returning.  The directory's generation number is returned for
- * use by a later call to xfs_lock_dir_and_entry.
- */
-int
-xfs_get_dir_entry(
-	bhv_vname_t	*dentry,
-	xfs_inode_t	**ipp)
-{
-	bhv_vnode_t	*vp;
-
-	vp = VNAME_TO_VNODE(dentry);
-
-	*ipp = xfs_vtoi(vp);
-	if (!*ipp)
-		return XFS_ERROR(ENOENT);
-	VN_HOLD(vp);
-	return 0;
-}
 
 int
 xfs_dir_lookup_int(

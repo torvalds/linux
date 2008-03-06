@@ -2270,40 +2270,29 @@ xfs_remove(
 	bhv_vnode_t		*dir_vp = XFS_ITOV(dp);
 	char			*name = VNAME(dentry);
 	xfs_mount_t		*mp = dp->i_mount;
-	xfs_inode_t             *ip;
+	xfs_inode_t             *ip = VNAME_TO_INODE(dentry);
+	int			namelen = VNAMELEN(dentry);
 	xfs_trans_t             *tp = NULL;
 	int                     error = 0;
 	xfs_bmap_free_t         free_list;
 	xfs_fsblock_t           first_block;
 	int			cancel_flags;
 	int			committed;
-	int			dm_di_mode = 0;
 	int			link_zero;
 	uint			resblks;
-	int			namelen;
 
 	xfs_itrace_entry(dp);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
 
-	namelen = VNAMELEN(dentry);
-
-	if (!xfs_get_dir_entry(dentry, &ip)) {
-	        dm_di_mode = ip->i_d.di_mode;
-		IRELE(ip);
-	}
-
 	if (DM_EVENT_ENABLED(dp, DM_EVENT_REMOVE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_REMOVE, dir_vp,
 					DM_RIGHT_NULL, NULL, DM_RIGHT_NULL,
-					name, NULL, dm_di_mode, 0, 0);
+					name, NULL, ip->i_d.di_mode, 0, 0);
 		if (error)
 			return error;
 	}
-
-	/* From this point on, return through std_return */
-	ip = NULL;
 
 	/*
 	 * We need to get a reference to ip before we get our log
@@ -2317,13 +2306,7 @@ xfs_remove(
 	 * when we call xfs_iget.  Instead we get an unlocked reference
 	 * to the inode before getting our log reservation.
 	 */
-	error = xfs_get_dir_entry(dentry, &ip);
-	if (error) {
-		REMOVE_DEBUG_TRACE(__LINE__);
-		goto std_return;
-	}
-
-	dm_di_mode = ip->i_d.di_mode;
+	IHOLD(ip);
 
 	xfs_itrace_entry(ip);
 	xfs_itrace_ref(ip);
@@ -2459,7 +2442,7 @@ xfs_remove(
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTREMOVE,
 				dir_vp, DM_RIGHT_NULL,
 				NULL, DM_RIGHT_NULL,
-				name, NULL, dm_di_mode, error, 0);
+				name, NULL, ip->i_d.di_mode, error, 0);
 	}
 	return error;
 
@@ -2868,14 +2851,13 @@ xfs_rmdir(
 	char			*name = VNAME(dentry);
 	int			namelen = VNAMELEN(dentry);
 	xfs_mount_t		*mp = dp->i_mount;
-  	xfs_inode_t             *cdp;   /* child directory */
+  	xfs_inode_t             *cdp = VNAME_TO_INODE(dentry);
 	xfs_trans_t             *tp;
 	int                     error;
 	xfs_bmap_free_t         free_list;
 	xfs_fsblock_t           first_block;
 	int			cancel_flags;
 	int			committed;
-	int			dm_di_mode = S_IFDIR;
 	int			last_cdp_link;
 	uint			resblks;
 
@@ -2884,23 +2866,14 @@ xfs_rmdir(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
 
-	if (!xfs_get_dir_entry(dentry, &cdp)) {
-	        dm_di_mode = cdp->i_d.di_mode;
-		IRELE(cdp);
-	}
-
 	if (DM_EVENT_ENABLED(dp, DM_EVENT_REMOVE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_REMOVE,
 					dir_vp, DM_RIGHT_NULL,
 					NULL, DM_RIGHT_NULL,
-					name, NULL, dm_di_mode, 0, 0);
+					name, NULL, cdp->i_d.di_mode, 0, 0);
 		if (error)
 			return XFS_ERROR(error);
 	}
-
-	/* Return through std_return after this point. */
-
-	cdp = NULL;
 
 	/*
 	 * We need to get a reference to cdp before we get our log
@@ -2914,13 +2887,7 @@ xfs_rmdir(
 	 * when we call xfs_iget.  Instead we get an unlocked reference
 	 * to the inode before getting our log reservation.
 	 */
-	error = xfs_get_dir_entry(dentry, &cdp);
-	if (error) {
-		REMOVE_DEBUG_TRACE(__LINE__);
-		goto std_return;
-	}
-	mp = dp->i_mount;
-	dm_di_mode = cdp->i_d.di_mode;
+	IHOLD(cdp);
 
 	/*
 	 * Get the dquots for the inodes.
@@ -3077,7 +3044,7 @@ xfs_rmdir(
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTREMOVE,
 					dir_vp, DM_RIGHT_NULL,
 					NULL, DM_RIGHT_NULL,
-					name, NULL, dm_di_mode,
+					name, NULL, cdp->i_d.di_mode,
 					error, 0);
 	}
 	return error;

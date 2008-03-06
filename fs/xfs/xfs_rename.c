@@ -93,7 +93,8 @@ xfs_lock_for_rename(
 	xfs_inode_t	**i_tab,/* array of inode returned, sorted */
 	int		*num_inodes)  /* number of inodes in array */
 {
-	xfs_inode_t		*ip1, *ip2, *temp;
+	xfs_inode_t		*ip1 = VNAME_TO_INODE(vname1);
+	xfs_inode_t		*ip2, *temp;
 	xfs_ino_t		inum1, inum2;
 	int			error;
 	int			i, j;
@@ -109,16 +110,11 @@ xfs_lock_for_rename(
 	 * to see if we still have the right inodes, directories, etc.
 	 */
 	lock_mode = xfs_ilock_map_shared(dp1);
-	error = xfs_get_dir_entry(vname1, &ip1);
-	if (error) {
-		xfs_iunlock_map_shared(dp1, lock_mode);
-		return error;
-	}
+	IHOLD(ip1);
+	xfs_itrace_ref(ip1);
 
 	inum1 = ip1->i_ino;
 
-	ASSERT(ip1);
-	xfs_itrace_ref(ip1);
 
 	/*
 	 * Unlock dp1 and lock dp2 if they are different.
