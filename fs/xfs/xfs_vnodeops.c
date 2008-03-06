@@ -1763,7 +1763,7 @@ int
 xfs_lookup(
 	xfs_inode_t		*dp,
 	bhv_vname_t		*dentry,
-	bhv_vnode_t		**vpp)
+	xfs_inode_t		**ipp)
 {
 	xfs_inode_t		*ip;
 	xfs_ino_t		e_inum;
@@ -1778,7 +1778,7 @@ xfs_lookup(
 	lock_mode = xfs_ilock_map_shared(dp);
 	error = xfs_dir_lookup_int(dp, lock_mode, dentry, &e_inum, &ip);
 	if (!error) {
-		*vpp = XFS_ITOV(ip);
+		*ipp = ip;
 		xfs_itrace_ref(ip);
 	}
 	xfs_iunlock_map_shared(dp, lock_mode);

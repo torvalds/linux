@@ -372,13 +372,13 @@ xfs_vn_lookup(
 	struct dentry	*dentry,
 	struct nameidata *nd)
 {
-	bhv_vnode_t	*cvp;
+	struct xfs_inode *cip;
 	int		error;
 
 	if (dentry->d_name.len >= MAXNAMELEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	error = xfs_lookup(XFS_I(dir), dentry, &cvp);
+	error = xfs_lookup(XFS_I(dir), dentry, &cip);
 	if (unlikely(error)) {
 		if (unlikely(error != ENOENT))
 			return ERR_PTR(-error);
@@ -386,7 +386,7 @@ xfs_vn_lookup(
 		return NULL;
 	}
 
-	return d_splice_alias(vn_to_inode(cvp), dentry);
+	return d_splice_alias(cip->i_vnode, dentry);
 }
 
 STATIC int

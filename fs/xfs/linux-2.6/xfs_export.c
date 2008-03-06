@@ -213,17 +213,16 @@ xfs_fs_get_parent(
 	struct dentry		*child)
 {
 	int			error;
-	bhv_vnode_t		*cvp;
+	struct xfs_inode	*cip;
 	struct dentry		*parent;
 
-	cvp = NULL;
-	error = xfs_lookup(XFS_I(child->d_inode), &dotdot, &cvp);
+	error = xfs_lookup(XFS_I(child->d_inode), &dotdot, &cip);
 	if (unlikely(error))
 		return ERR_PTR(-error);
 
-	parent = d_alloc_anon(vn_to_inode(cvp));
+	parent = d_alloc_anon(cip->i_vnode);
 	if (unlikely(!parent)) {
-		VN_RELE(cvp);
+		iput(cip->i_vnode);
 		return ERR_PTR(-ENOMEM);
 	}
 	return parent;
