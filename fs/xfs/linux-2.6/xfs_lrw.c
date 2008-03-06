@@ -176,7 +176,6 @@ xfs_read(
 {
 	struct file		*file = iocb->ki_filp;
 	struct inode		*inode = file->f_mapping->host;
-	bhv_vnode_t		*vp = XFS_ITOV(ip);
 	xfs_mount_t		*mp = ip->i_mount;
 	size_t			size = 0;
 	ssize_t			ret = 0;
@@ -242,7 +241,7 @@ xfs_read(
 	}
 
 	if (unlikely(ioflags & IO_ISDIRECT)) {
-		if (VN_CACHED(vp))
+		if (inode->i_mapping->nrpages)
 			ret = xfs_flushinval_pages(ip, (*offset & PAGE_CACHE_MASK),
 						    -1, FI_REMAPF_LOCKED);
 		mutex_unlock(&inode->i_mutex);
@@ -571,7 +570,6 @@ xfs_write(
 	struct file		*file = iocb->ki_filp;
 	struct address_space	*mapping = file->f_mapping;
 	struct inode		*inode = mapping->host;
-	bhv_vnode_t		*vp = XFS_ITOV(xip);
 	unsigned long		segs = nsegs;
 	xfs_mount_t		*mp;
 	ssize_t			ret = 0, error = 0;
@@ -658,7 +656,7 @@ start:
 			return XFS_ERROR(-EINVAL);
 		}
 
-		if (!need_i_mutex && (VN_CACHED(vp) || pos > xip->i_size)) {
+		if (!need_i_mutex && (mapping->nrpages || pos > xip->i_size)) {
 			xfs_iunlock(xip, XFS_ILOCK_EXCL|iolock);
 			iolock = XFS_IOLOCK_EXCL;
 			need_i_mutex = 1;
@@ -720,7 +718,7 @@ retry:
 	current->backing_dev_info = mapping->backing_dev_info;
 
 	if ((ioflags & IO_ISDIRECT)) {
-		if (VN_CACHED(vp)) {
+		if (mapping->nrpages) {
 			WARN_ON(need_i_mutex == 0);
 			xfs_inval_cached_trace(xip, pos, -1,
 					(pos & PAGE_CACHE_MASK), -1);
