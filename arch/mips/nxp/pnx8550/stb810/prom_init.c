@@ -28,7 +28,7 @@ extern char *prom_getenv(char *envname);
 
 const char *get_system_type(void)
 {
-	return "Philips PNX8550/STB810";
+	return "NXP PNX8950/STB810";
 }
 
 void __init prom_init(void)

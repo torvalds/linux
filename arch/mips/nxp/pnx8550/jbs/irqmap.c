@@ -1,5 +1,5 @@
 /*
- *  Philips JBS board irqmap.
+ *  NXP JBS board irqmap.
  *
  *  Copyright 2005 Embedded Alley Solutions, Inc
  *  source@embeddealley.com
@@ -33,4 +33,3 @@ char pnx8550_irq_tab[][5] __initdata = {
 	[9]	= { -1, PNX8550_INT_PCI_INTA, 0xff, 0xff, 0xff},
 	[17]	= { -1, PNX8550_INT_PCI_INTA, 0xff, 0xff, 0xff},
 };
-

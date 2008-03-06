@@ -310,12 +310,12 @@ config MACH_VR41XX
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config PNX8550_JBS
-	bool "Philips PNX8550 based JBS board"
+	bool "NXP PNX8550 based JBS board"
 	select PNX8550
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
 config PNX8550_STB810
-	bool "Philips PNX8550 based STB810 board"
+	bool "NXP PNX8550 based STB810 board"
 	select PNX8550
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 

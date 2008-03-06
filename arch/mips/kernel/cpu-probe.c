@@ -790,7 +790,7 @@ static inline void cpu_probe_sandcraft(struct cpuinfo_mips *c)
 	}
 }
 
-static inline void cpu_probe_philips(struct cpuinfo_mips *c)
+static inline void cpu_probe_nxp(struct cpuinfo_mips *c)
 {
 	decode_configs(c);
 	switch (c->processor_id & 0xff00) {
@@ -799,7 +799,7 @@ static inline void cpu_probe_philips(struct cpuinfo_mips *c)
 		c->isa_level = MIPS_CPU_ISA_M32R1;
 		break;
 	default:
-		panic("Unknown Philips Core!"); /* REVISIT: die? */
+		panic("Unknown NXP Core!"); /* REVISIT: die? */
 		break;
 	}
 }
@@ -938,8 +938,8 @@ __cpuinit void cpu_probe(void)
 	case PRID_COMP_SANDCRAFT:
 		cpu_probe_sandcraft(c);
 		break;
- 	case PRID_COMP_PHILIPS:
-		cpu_probe_philips(c);
+	case PRID_COMP_NXP:
+		cpu_probe_nxp(c);
 		break;
 	default:
 		c->cputype = CPU_UNKNOWN;

@@ -1,5 +1,5 @@
 /*
- * Platform device support for Philips PNX8550 SoCs
+ * Platform device support for NXP PNX8550 SoCs
  *
  * Copyright 2005, Embedded Alley Solutions, Inc
  *
