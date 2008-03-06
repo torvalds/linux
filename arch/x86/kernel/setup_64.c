@@ -562,9 +562,9 @@ static void __cpuinit amd_detect_cmp(struct cpuinfo_x86 *c)
 	bits = c->x86_coreid_bits;
 
 	/* Low order bits define the core id (index of core in socket) */
-	c->cpu_core_id = c->phys_proc_id & ((1 << bits)-1);
-	/* Convert the APIC ID into the socket ID */
-	c->phys_proc_id = (c->apicid - boot_cpu_id) >> bits;
+	c->cpu_core_id = c->initial_apicid & ((1 << bits)-1);
+	/* Convert the initial APIC ID into the socket ID */
+	c->phys_proc_id = c->initial_apicid >> bits;
 
 #ifdef CONFIG_NUMA
 	node = c->phys_proc_id;
@@ -581,7 +581,7 @@ static void __cpuinit amd_detect_cmp(struct cpuinfo_x86 *c)
 		   If that doesn't result in a usable node fall back to the
 		   path for the previous case.  */
 
-		int ht_nodeid = apicid - boot_cpu_id;
+		int ht_nodeid = c->initial_apicid;
 
 		if (ht_nodeid >= 0 &&
 		    apicid_to_node[ht_nodeid] != NUMA_NO_NODE)
@@ -936,8 +936,9 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 		c->x86 = 4;
 	}
 
+	c->initial_apicid = (cpuid_ebx(1) >> 24) & 0xff;
 #ifdef CONFIG_SMP
-	c->phys_proc_id = (cpuid_ebx(1) >> 24) & 0xff;
+	c->phys_proc_id = c->initial_apicid;
 #endif
 	/* AMD-defined flags: level 0x80000001 */
 	xlvl = cpuid_eax(0x80000000);

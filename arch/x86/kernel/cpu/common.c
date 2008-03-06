@@ -369,10 +369,12 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 			if (c->x86 >= 0x6)
 				c->x86_model += ((tfms >> 16) & 0xF) << 4;
 			c->x86_mask = tfms & 15;
+			c->initial_apicid = (ebx >> 24) & 0xFF;
 #ifdef CONFIG_X86_HT
-			c->apicid = phys_pkg_id((ebx >> 24) & 0xFF, 0);
+			c->apicid = phys_pkg_id(c->initial_apicid, 0);
+			c->phys_proc_id = c->initial_apicid;
 #else
-			c->apicid = (ebx >> 24) & 0xFF;
+			c->apicid = c->initial_apicid;
 #endif
 			if (test_cpu_cap(c, X86_FEATURE_CLFLSH))
 				c->x86_clflush_size = ((ebx >> 8) & 0xff) * 8;
@@ -395,9 +397,6 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 		init_scattered_cpuid_features(c);
 	}
 
-#ifdef CONFIG_X86_HT
-	c->phys_proc_id = (cpuid_ebx(1) >> 24) & 0xff;
-#endif
 }
 
 static void __cpuinit squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
@@ -554,7 +553,7 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 		}
 
 		index_msb = get_count_order(smp_num_siblings);
-		c->phys_proc_id = phys_pkg_id((ebx >> 24) & 0xFF, index_msb);
+		c->phys_proc_id = phys_pkg_id(c->initial_apicid, index_msb);
 
 		printk(KERN_INFO  "CPU: Physical Processor ID: %d\n",
 		       c->phys_proc_id);
@@ -565,7 +564,7 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 
 		core_bits = get_count_order(c->x86_max_cores);
 
-		c->cpu_core_id = phys_pkg_id((ebx >> 24) & 0xFF, index_msb) &
+		c->cpu_core_id = phys_pkg_id(c->initial_apicid, index_msb) &
 					       ((1 << core_bits) - 1);
 
 		if (c->x86_max_cores > 1)

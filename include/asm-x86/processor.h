@@ -101,6 +101,7 @@ struct cpuinfo_x86 {
 	/* cpuid returned max cores value: */
 	u16			 x86_max_cores;
 	u16			apicid;
+	u16			initial_apicid;
 	u16			x86_clflush_size;
 #ifdef CONFIG_SMP
 	/* number of cores as seen by the OS: */
