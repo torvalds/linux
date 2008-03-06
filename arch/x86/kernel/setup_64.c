@@ -564,7 +564,7 @@ static void __cpuinit amd_detect_cmp(struct cpuinfo_x86 *c)
 	/* Low order bits define the core id (index of core in socket) */
 	c->cpu_core_id = c->phys_proc_id & ((1 << bits)-1);
 	/* Convert the APIC ID into the socket ID */
-	c->phys_proc_id = phys_pkg_id(bits);
+	c->phys_proc_id = (c->apicid - boot_cpu_id) >> bits;
 
 #ifdef CONFIG_NUMA
 	node = c->phys_proc_id;
@@ -581,7 +581,7 @@ static void __cpuinit amd_detect_cmp(struct cpuinfo_x86 *c)
 		   If that doesn't result in a usable node fall back to the
 		   path for the previous case.  */
 
-		int ht_nodeid = apicid - (cpu_data(0).phys_proc_id << bits);
+		int ht_nodeid = apicid - boot_cpu_id;
 
 		if (ht_nodeid >= 0 &&
 		    apicid_to_node[ht_nodeid] != NUMA_NO_NODE)
