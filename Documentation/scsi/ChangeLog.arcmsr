@@ -109,4 +109,10 @@
 **						8.replace pci_alloc_consistent()/pci_free_consistent() with kmalloc()/kfree() in arcmsr_iop_message_xfer()
 **						9. fix the release of dma memory for type B in arcmsr_free_ccb_pool()
 **						10.fix the arcmsr_polling_hbb_ccbdone()
+** 1.20.00.15	02/27/2008	Erich Chen & Nick Cheng
+**						1.arcmsr_iop_message_xfer() is called from atomic context under the
+**						queuecommand scsi_host_template handler. James Bottomley pointed out
+**						that the current GFP_KERNEL|GFP_DMA flags are wrong: firstly we are in
+**						atomic context, secondly this memory is not used for DMA.
+**						Also removed some unneeded casts. Thanks to Daniel Drake <dsd@gentoo.org>
 **************************************************************************

@@ -124,7 +124,7 @@ static int fill_from_dev_buffer(struct scsi_cmnd *cmd, const void *buf)
 		}
 		req_len += sgpnt->length;
 	}
-	scsi_set_resid(cmd, req_len - act_len);
+	scsi_set_resid(cmd, buflen - act_len);
 	return 0;
 }
 
@@ -427,7 +427,7 @@ static struct scsi_host_template ps3rom_host_template = {
 	.cmd_per_lun =		1,
 	.emulated =             1,		/* only sg driver uses this */
 	.max_sectors =		PS3ROM_MAX_SECTORS,
-	.use_clustering =	ENABLE_CLUSTERING,
+	.use_clustering =	DISABLE_CLUSTERING,
 	.module =		THIS_MODULE,
 };
 

@@ -102,6 +102,7 @@ int  asd_abort_task_set(struct domain_device *, u8 *lun);
 int  asd_clear_aca(struct domain_device *, u8 *lun);
 int  asd_clear_task_set(struct domain_device *, u8 *lun);
 int  asd_lu_reset(struct domain_device *, u8 *lun);
+int  asd_I_T_nexus_reset(struct domain_device *dev);
 int  asd_query_task(struct sas_task *);
 
 /* ---------- Adapter and Port management ---------- */
