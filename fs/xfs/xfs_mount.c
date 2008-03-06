@@ -225,7 +225,7 @@ xfs_mount_validate_sb(
 		return XFS_ERROR(EWRONGFS);
 	}
 
-	if (!XFS_SB_GOOD_VERSION(sbp)) {
+	if (!xfs_sb_good_version(sbp)) {
 		xfs_fs_mount_cmn_err(flags, "bad version");
 		return XFS_ERROR(EWRONGFS);
 	}
@@ -300,7 +300,7 @@ xfs_mount_validate_sb(
 	/*
 	 * Version 1 directory format has never worked on Linux.
 	 */
-	if (unlikely(!XFS_SB_VERSION_HASDIRV2(sbp))) {
+	if (unlikely(!xfs_sb_version_hasdirv2(sbp))) {
 		xfs_fs_mount_cmn_err(flags,
 			"file system using version 1 directory format");
 		return XFS_ERROR(ENOSYS);
@@ -781,7 +781,7 @@ xfs_update_alignment(xfs_mount_t *mp, int mfsi_flags, __uint64_t *update_flags)
 		 * Update superblock with new values
 		 * and log changes
 		 */
-		if (XFS_SB_VERSION_HASDALIGN(sbp)) {
+		if (xfs_sb_version_hasdalign(sbp)) {
 			if (sbp->sb_unit != mp->m_dalign) {
 				sbp->sb_unit = mp->m_dalign;
 				*update_flags |= XFS_SB_UNIT;
@@ -792,7 +792,7 @@ xfs_update_alignment(xfs_mount_t *mp, int mfsi_flags, __uint64_t *update_flags)
 			}
 		}
 	} else if ((mp->m_flags & XFS_MOUNT_NOALIGN) != XFS_MOUNT_NOALIGN &&
-		    XFS_SB_VERSION_HASDALIGN(&mp->m_sb)) {
+		    xfs_sb_version_hasdalign(&mp->m_sb)) {
 			mp->m_dalign = sbp->sb_unit;
 			mp->m_swidth = sbp->sb_width;
 	}
@@ -869,7 +869,7 @@ xfs_set_rw_sizes(xfs_mount_t *mp)
 STATIC void
 xfs_set_inoalignment(xfs_mount_t *mp)
 {
-	if (XFS_SB_VERSION_HASALIGN(&mp->m_sb) &&
+	if (xfs_sb_version_hasalign(&mp->m_sb) &&
 	    mp->m_sb.sb_inoalignmt >=
 	    XFS_B_TO_FSBT(mp, mp->m_inode_cluster_size))
 		mp->m_inoalign_mask = mp->m_sb.sb_inoalignmt - 1;
