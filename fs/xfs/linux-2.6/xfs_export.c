@@ -66,7 +66,7 @@ xfs_fs_encode_fh(
 	int			len;
 
 	/* Directories don't need their parent encoded, they have ".." */
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(inode->i_mode) || !connectable)
 		fileid_type = FILEID_INO32_GEN;
 	else
 		fileid_type = FILEID_INO32_GEN_PARENT;
