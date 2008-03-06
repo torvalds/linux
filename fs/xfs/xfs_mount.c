@@ -44,7 +44,7 @@
 #include "xfs_quota.h"
 #include "xfs_fsops.h"
 
-STATIC void	xfs_mount_log_sbunit(xfs_mount_t *, __int64_t);
+STATIC void	xfs_mount_log_sb(xfs_mount_t *, __int64_t);
 STATIC int	xfs_uuid_mount(xfs_mount_t *);
 STATIC void	xfs_uuid_unmount(xfs_mount_t *mp);
 STATIC void	xfs_unmountfs_wait(xfs_mount_t *);
@@ -119,6 +119,7 @@ static const struct {
     { offsetof(xfs_sb_t, sb_logsectsize),0 },
     { offsetof(xfs_sb_t, sb_logsunit),	 0 },
     { offsetof(xfs_sb_t, sb_features2),	 0 },
+    { offsetof(xfs_sb_t, sb_bad_features2), 0 },
     { sizeof(xfs_sb_t),			 0 }
 };
 
@@ -449,6 +450,7 @@ xfs_sb_from_disk(
 	to->sb_logsectsize = be16_to_cpu(from->sb_logsectsize);
 	to->sb_logsunit = be32_to_cpu(from->sb_logsunit);
 	to->sb_features2 = be32_to_cpu(from->sb_features2);
+	to->sb_bad_features2 = be32_to_cpu(from->sb_bad_features2);
 }
 
 /*
@@ -970,6 +972,26 @@ xfs_mountfs(
 	xfs_mount_common(mp, sbp);
 
 	/*
+	 * Check for a bad features2 field alignment. This happened on
+	 * some platforms due to xfs_sb_t not being 64bit size aligned
+	 * when sb_features was added and hence the compiler put it in
+	 * the wrong place.
+	 *
+	 * If we detect a bad field, we or the set bits into the existing
+	 * features2 field in case it has already been modified and we
+	 * don't want to lose any features. Zero the bad one and mark
+	 * the two fields as needing updates once the transaction subsystem
+	 * is online.
+	 */
+	if (xfs_sb_has_bad_features2(sbp)) {
+		cmn_err(CE_WARN,
+			"XFS: correcting sb_features alignment problem");
+		sbp->sb_features2 |= sbp->sb_bad_features2;
+		sbp->sb_bad_features2 = 0;
+		update_flags |= XFS_SB_FEATURES2 | XFS_SB_BAD_FEATURES2;
+	}
+
+	/*
 	 * Check if sb_agblocks is aligned at stripe boundary
 	 * If sb_agblocks is NOT aligned turn off m_dalign since
 	 * allocator alignment is within an ag, therefore ag has
@@ -1159,11 +1181,10 @@ xfs_mountfs(
 	}
 
 	/*
-	 * If fs is not mounted readonly, then update the superblock
-	 * unit and width changes.
+	 * If fs is not mounted readonly, then update the superblock changes.
 	 */
 	if (update_flags && !(mp->m_flags & XFS_MOUNT_RDONLY))
-		xfs_mount_log_sbunit(mp, update_flags);
+		xfs_mount_log_sb(mp, update_flags);
 
 	/*
 	 * Initialise the XFS quota management subsystem for this mount
@@ -1878,13 +1899,14 @@ xfs_uuid_unmount(
  * be altered by the mount options. Only the first superblock is updated.
  */
 STATIC void
-xfs_mount_log_sbunit(
+xfs_mount_log_sb(
 	xfs_mount_t	*mp,
 	__int64_t	fields)
 {
 	xfs_trans_t	*tp;
 
-	ASSERT(fields & (XFS_SB_UNIT|XFS_SB_WIDTH|XFS_SB_UUID));
+	ASSERT(fields & (XFS_SB_UNIT | XFS_SB_WIDTH | XFS_SB_UUID |
+			 XFS_SB_FEATURES2 | XFS_SB_BAD_FEATURES2));
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SB_UNIT);
 	if (xfs_trans_reserve(tp, 0, mp->m_sb.sb_sectsize + 128, 0, 0,
