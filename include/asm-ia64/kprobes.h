@@ -117,7 +117,7 @@ struct arch_specific_insn {
 	unsigned short slot;
 };
 
-extern int kprobes_fault_handler(struct pt_regs *regs, int trapnr);
+extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
 extern int kprobe_exceptions_notify(struct notifier_block *self,
 				    unsigned long val, void *data);
 
