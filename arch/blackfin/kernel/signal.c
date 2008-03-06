@@ -55,13 +55,13 @@ struct rt_sigframe {
 	struct ucontext uc;
 };
 
-asmlinkage int sys_sigaltstack(const stack_t * uss, stack_t * uoss)
+asmlinkage int sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
 {
 	return do_sigaltstack(uss, uoss, rdusp());
 }
 
 static inline int
-rt_restore_sigcontext(struct pt_regs *regs, struct sigcontext *sc, int *pr0)
+rt_restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *pr0)
 {
 	unsigned long usp = 0;
 	int err = 0;

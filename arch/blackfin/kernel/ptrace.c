@@ -193,6 +193,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	int ret;
 	int add = 0;
+	unsigned long __user *datap = (unsigned long __user *)data;
 
 	switch (request) {
 		/* when I and D space are separate, these will need to be fixed. */
@@ -229,7 +230,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			pr_debug("ptrace: copied size %d [0x%08lx]\n", copied, tmp);
 			if (copied != sizeof(tmp))
 				break;
-			ret = put_user(tmp, (unsigned long *)data);
+			ret = put_user(tmp, datap);
 			break;
 		}
 
@@ -263,7 +264,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			} else {
 				tmp = get_reg(child, addr);
 			}
-			ret = put_user(tmp, (unsigned long *)data);
+			ret = put_user(tmp, datap);
 			break;
 		}
 
@@ -389,7 +390,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		{
 
 			/* Get all gp regs from the child. */
-			ret = ptrace_getregs(child, (void __user *)data);
+			ret = ptrace_getregs(child, datap);
 			break;
 		}
 

@@ -506,7 +506,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 
 	info.si_signo = sig;
 	info.si_errno = 0;
-	info.si_addr = (void *)fp->pc;
+	info.si_addr = (void __user *)fp->pc;
 	force_sig_info(sig, &info, current);
 
 	trace_buffer_restore(j);
