@@ -339,7 +339,7 @@ typedef struct xlog_iclog_fields {
 #endif
 	int			ic_size;
 	int			ic_offset;
-	int			ic_refcnt;
+	atomic_t		ic_refcnt;
 	int			ic_bwritecnt;
 	ushort_t		ic_state;
 	char			*ic_datap;	/* pointer to iclog data */
