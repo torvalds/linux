@@ -5772,7 +5772,6 @@ xfs_getbmap(
 	int			error;		/* return value */
 	__int64_t		fixlen;		/* length for -1 case */
 	int			i;		/* extent number */
-	bhv_vnode_t		*vp;		/* corresponding vnode */
 	int			lock;		/* lock state */
 	xfs_bmbt_irec_t		*map;		/* buffer for user's data */
 	xfs_mount_t		*mp;		/* file system mount point */
@@ -5789,7 +5788,6 @@ xfs_getbmap(
 	int			bmapi_flags;	/* flags for xfs_bmapi */
 	__int32_t		oflags;		/* getbmapx bmv_oflags field */
 
-	vp = XFS_ITOV(ip);
 	mp = ip->i_mount;
 
 	whichfork = interface & BMV_IF_ATTRFORK ? XFS_ATTR_FORK : XFS_DATA_FORK;
