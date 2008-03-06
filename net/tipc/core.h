@@ -180,6 +180,12 @@ extern int  tipc_core_start(void);
 extern void tipc_core_stop(void);
 extern int  tipc_core_start_net(void);
 extern void tipc_core_stop_net(void);
+extern int  tipc_handler_start(void);
+extern void tipc_handler_stop(void);
+extern int  tipc_netlink_start(void);
+extern void tipc_netlink_stop(void);
+extern int  tipc_socket_init(void);
+extern void tipc_socket_stop(void);
 
 static inline int delimit(int val, int min, int max)
 {
