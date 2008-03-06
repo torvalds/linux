@@ -326,7 +326,7 @@ xfs_setattr(
 		if (DM_EVENT_ENABLED(ip, DM_EVENT_TRUNCATE) &&
 		    !(flags & ATTR_DMI)) {
 			int dmflags = AT_DELAY_FLAG(flags) | DM_SEM_FLAG_WR;
-			code = XFS_SEND_DATA(mp, DM_EVENT_TRUNCATE, vp,
+			code = XFS_SEND_DATA(mp, DM_EVENT_TRUNCATE, ip,
 				vap->va_size, 0, dmflags, NULL);
 			if (code) {
 				lock_flags = 0;
@@ -881,7 +881,7 @@ xfs_setattr(
 
 	if (DM_EVENT_ENABLED(ip, DM_EVENT_ATTRIBUTE) &&
 	    !(flags & ATTR_DMI)) {
-		(void) XFS_SEND_NAMESP(mp, DM_EVENT_ATTRIBUTE, vp, DM_RIGHT_NULL,
+		(void) XFS_SEND_NAMESP(mp, DM_EVENT_ATTRIBUTE, ip, DM_RIGHT_NULL,
 					NULL, DM_RIGHT_NULL, NULL, NULL,
 					0, 0, AT_DELAY_FLAG(flags));
 	}
@@ -1586,9 +1586,8 @@ xfs_inactive(
 
 	mp = ip->i_mount;
 
-	if (ip->i_d.di_nlink == 0 && DM_EVENT_ENABLED(ip, DM_EVENT_DESTROY)) {
-		(void) XFS_SEND_DESTROY(mp, vp, DM_RIGHT_NULL);
-	}
+	if (ip->i_d.di_nlink == 0 && DM_EVENT_ENABLED(ip, DM_EVENT_DESTROY))
+		XFS_SEND_DESTROY(mp, ip, DM_RIGHT_NULL);
 
 	error = 0;
 
@@ -1820,7 +1819,7 @@ xfs_create(
 
 	if (DM_EVENT_ENABLED(dp, DM_EVENT_CREATE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_CREATE,
-				dir_vp, DM_RIGHT_NULL, NULL,
+				dp, DM_RIGHT_NULL, NULL,
 				DM_RIGHT_NULL, name, NULL,
 				mode, 0, 0);
 
@@ -1976,8 +1975,8 @@ std_return:
 	if ((*vpp || (error != 0 && dm_event_sent != 0)) &&
 	    DM_EVENT_ENABLED(dp, DM_EVENT_POSTCREATE)) {
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTCREATE,
-			dir_vp, DM_RIGHT_NULL,
-			*vpp ? vp:NULL,
+			dp, DM_RIGHT_NULL,
+			*vpp ? ip : NULL,
 			DM_RIGHT_NULL, name, NULL,
 			mode, error, 0);
 	}
@@ -2272,7 +2271,6 @@ xfs_remove(
 	xfs_inode_t             *dp,
 	bhv_vname_t		*dentry)
 {
-	bhv_vnode_t		*dir_vp = XFS_ITOV(dp);
 	char			*name = VNAME(dentry);
 	xfs_mount_t		*mp = dp->i_mount;
 	xfs_inode_t             *ip = VNAME_TO_INODE(dentry);
@@ -2292,7 +2290,7 @@ xfs_remove(
 		return XFS_ERROR(EIO);
 
 	if (DM_EVENT_ENABLED(dp, DM_EVENT_REMOVE)) {
-		error = XFS_SEND_NAMESP(mp, DM_EVENT_REMOVE, dir_vp,
+		error = XFS_SEND_NAMESP(mp, DM_EVENT_REMOVE, dp,
 					DM_RIGHT_NULL, NULL, DM_RIGHT_NULL,
 					name, NULL, ip->i_d.di_mode, 0, 0);
 		if (error)
@@ -2445,7 +2443,7 @@ xfs_remove(
  std_return:
 	if (DM_EVENT_ENABLED(dp, DM_EVENT_POSTREMOVE)) {
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTREMOVE,
-				dir_vp, DM_RIGHT_NULL,
+				dp, DM_RIGHT_NULL,
 				NULL, DM_RIGHT_NULL,
 				name, NULL, ip->i_d.di_mode, error, 0);
 	}
@@ -2504,8 +2502,8 @@ xfs_link(
 
 	if (DM_EVENT_ENABLED(tdp, DM_EVENT_LINK)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_LINK,
-					target_dir_vp, DM_RIGHT_NULL,
-					src_vp, DM_RIGHT_NULL,
+					tdp, DM_RIGHT_NULL,
+					sip, DM_RIGHT_NULL,
 					target_name, NULL, 0, 0, 0);
 		if (error)
 			return error;
@@ -2615,8 +2613,8 @@ xfs_link(
 std_return:
 	if (DM_EVENT_ENABLED(sip, DM_EVENT_POSTLINK)) {
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTLINK,
-				target_dir_vp, DM_RIGHT_NULL,
-				src_vp, DM_RIGHT_NULL,
+				tdp, DM_RIGHT_NULL,
+				sip, DM_RIGHT_NULL,
 				target_name, NULL, 0, error, 0);
 	}
 	return error;
@@ -2665,7 +2663,7 @@ xfs_mkdir(
 
 	if (DM_EVENT_ENABLED(dp, DM_EVENT_CREATE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_CREATE,
-					dir_vp, DM_RIGHT_NULL, NULL,
+					dp, DM_RIGHT_NULL, NULL,
 					DM_RIGHT_NULL, dir_name, NULL,
 					mode, 0, 0);
 		if (error)
@@ -2823,8 +2821,8 @@ std_return:
 	if ((created || (error != 0 && dm_event_sent != 0)) &&
 	    DM_EVENT_ENABLED(dp, DM_EVENT_POSTCREATE)) {
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTCREATE,
-					dir_vp, DM_RIGHT_NULL,
-					created ? XFS_ITOV(cdp):NULL,
+					dp, DM_RIGHT_NULL,
+					created ? cdp : NULL,
 					DM_RIGHT_NULL,
 					dir_name, NULL,
 					mode, error, 0);
@@ -2873,7 +2871,7 @@ xfs_rmdir(
 
 	if (DM_EVENT_ENABLED(dp, DM_EVENT_REMOVE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_REMOVE,
-					dir_vp, DM_RIGHT_NULL,
+					dp, DM_RIGHT_NULL,
 					NULL, DM_RIGHT_NULL,
 					name, NULL, cdp->i_d.di_mode, 0, 0);
 		if (error)
@@ -3047,7 +3045,7 @@ xfs_rmdir(
  std_return:
 	if (DM_EVENT_ENABLED(dp, DM_EVENT_POSTREMOVE)) {
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTREMOVE,
-					dir_vp, DM_RIGHT_NULL,
+					dp, DM_RIGHT_NULL,
 					NULL, DM_RIGHT_NULL,
 					name, NULL, cdp->i_d.di_mode,
 					error, 0);
@@ -3144,7 +3142,7 @@ xfs_symlink(
 	}
 
 	if (DM_EVENT_ENABLED(dp, DM_EVENT_SYMLINK)) {
-		error = XFS_SEND_NAMESP(mp, DM_EVENT_SYMLINK, dir_vp,
+		error = XFS_SEND_NAMESP(mp, DM_EVENT_SYMLINK, dp,
 					DM_RIGHT_NULL, NULL, DM_RIGHT_NULL,
 					link_name, target_path, 0, 0, 0);
 		if (error)
@@ -3348,8 +3346,8 @@ xfs_symlink(
 std_return:
 	if (DM_EVENT_ENABLED(dp, DM_EVENT_POSTSYMLINK)) {
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTSYMLINK,
-					dir_vp, DM_RIGHT_NULL,
-					error ? NULL : XFS_ITOV(ip),
+					dp, DM_RIGHT_NULL,
+					error ? NULL : ip,
 					DM_RIGHT_NULL, link_name, target_path,
 					0, error, 0);
 	}
@@ -3707,9 +3705,8 @@ xfs_alloc_file_space(
 		end_dmi_offset = offset+len;
 		if (end_dmi_offset > ip->i_size)
 			end_dmi_offset = ip->i_size;
-		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, XFS_ITOV(ip),
-			offset, end_dmi_offset - offset,
-			0, NULL);
+		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, ip, offset,
+				      end_dmi_offset - offset, 0, NULL);
 		if (error)
 			return error;
 	}
@@ -3818,8 +3815,8 @@ dmapi_enospc_check:
 	if (error == ENOSPC && (attr_flags & ATTR_DMI) == 0 &&
 	    DM_EVENT_ENABLED(ip, DM_EVENT_NOSPACE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_NOSPACE,
-				XFS_ITOV(ip), DM_RIGHT_NULL,
-				XFS_ITOV(ip), DM_RIGHT_NULL,
+				ip, DM_RIGHT_NULL,
+				ip, DM_RIGHT_NULL,
 				NULL, NULL, 0, 0, 0); /* Delay flag intentionally unused */
 		if (error == 0)
 			goto retry;	/* Maybe DMAPI app. has made space */
@@ -3964,7 +3961,7 @@ xfs_free_file_space(
 	    DM_EVENT_ENABLED(ip, DM_EVENT_WRITE)) {
 		if (end_dmi_offset > ip->i_size)
 			end_dmi_offset = ip->i_size;
-		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, vp,
+		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, ip,
 				offset, end_dmi_offset - offset,
 				AT_DELAY_FLAG(attr_flags), NULL);
 		if (error)

@@ -231,7 +231,7 @@ xfs_read(
 		int dmflags = FILP_DELAY_FLAG(file) | DM_SEM_FLAG_RD(ioflags);
 		int iolock = XFS_IOLOCK_SHARED;
 
-		ret = -XFS_SEND_DATA(mp, DM_EVENT_READ, vp, *offset, size,
+		ret = -XFS_SEND_DATA(mp, DM_EVENT_READ, ip, *offset, size,
 					dmflags, &iolock);
 		if (ret) {
 			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
@@ -276,7 +276,6 @@ xfs_splice_read(
 	int			flags,
 	int			ioflags)
 {
-	bhv_vnode_t		*vp = XFS_ITOV(ip);
 	xfs_mount_t		*mp = ip->i_mount;
 	ssize_t			ret;
 
@@ -290,7 +289,7 @@ xfs_splice_read(
 		int iolock = XFS_IOLOCK_SHARED;
 		int error;
 
-		error = XFS_SEND_DATA(mp, DM_EVENT_READ, vp, *ppos, count,
+		error = XFS_SEND_DATA(mp, DM_EVENT_READ, ip, *ppos, count,
 					FILP_DELAY_FLAG(infilp), &iolock);
 		if (error) {
 			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
@@ -317,7 +316,6 @@ xfs_splice_write(
 	int			flags,
 	int			ioflags)
 {
-	bhv_vnode_t		*vp = XFS_ITOV(ip);
 	xfs_mount_t		*mp = ip->i_mount;
 	ssize_t			ret;
 	struct inode		*inode = outfilp->f_mapping->host;
@@ -333,7 +331,7 @@ xfs_splice_write(
 		int iolock = XFS_IOLOCK_EXCL;
 		int error;
 
-		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, vp, *ppos, count,
+		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, ip, *ppos, count,
 					FILP_DELAY_FLAG(outfilp), &iolock);
 		if (error) {
 			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
@@ -631,7 +629,7 @@ start:
 			dmflags |= DM_FLAGS_IMUX;
 
 		xfs_iunlock(xip, XFS_ILOCK_EXCL);
-		error = XFS_SEND_DATA(xip->i_mount, DM_EVENT_WRITE, vp,
+		error = XFS_SEND_DATA(xip->i_mount, DM_EVENT_WRITE, xip,
 				      pos, count, dmflags, &iolock);
 		if (error) {
 			goto out_unlock_internal;
@@ -778,8 +776,8 @@ retry:
 		xfs_iunlock(xip, iolock);
 		if (need_i_mutex)
 			mutex_unlock(&inode->i_mutex);
-		error = XFS_SEND_NAMESP(xip->i_mount, DM_EVENT_NOSPACE, vp,
-				DM_RIGHT_NULL, vp, DM_RIGHT_NULL, NULL, NULL,
+		error = XFS_SEND_NAMESP(xip->i_mount, DM_EVENT_NOSPACE, xip,
+				DM_RIGHT_NULL, xip, DM_RIGHT_NULL, NULL, NULL,
 				0, 0, 0); /* Delay flag intentionally  unused */
 		if (need_i_mutex)
 			mutex_lock(&inode->i_mutex);

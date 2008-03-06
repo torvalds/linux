@@ -469,16 +469,11 @@ xfs_file_open_exec(
 	struct inode	*inode)
 {
 	struct xfs_mount *mp = XFS_M(inode->i_sb);
+	struct xfs_inode *ip = XFS_I(inode);
 
-	if (unlikely(mp->m_flags & XFS_MOUNT_DMAPI)) {
-		if (DM_EVENT_ENABLED(XFS_I(inode), DM_EVENT_READ)) {
-			bhv_vnode_t *vp = vn_from_inode(inode);
-
-			return -XFS_SEND_DATA(mp, DM_EVENT_READ,
-						vp, 0, 0, 0, NULL);
-		}
-	}
-
+	if (unlikely(mp->m_flags & XFS_MOUNT_DMAPI) &&
+	             DM_EVENT_ENABLED(ip, DM_EVENT_READ))
+		return -XFS_SEND_DATA(mp, DM_EVENT_READ, ip, 0, 0, 0, NULL);
 	return 0;
 }
 #endif /* HAVE_FOP_OPEN_EXEC */

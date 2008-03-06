@@ -258,8 +258,8 @@ xfs_rename(
 	if (DM_EVENT_ENABLED(src_dp, DM_EVENT_RENAME) ||
 	    DM_EVENT_ENABLED(target_dp, DM_EVENT_RENAME)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_RENAME,
-					src_dir_vp, DM_RIGHT_NULL,
-					target_dir_vp, DM_RIGHT_NULL,
+					src_dp, DM_RIGHT_NULL,
+					target_dp, DM_RIGHT_NULL,
 					src_name, target_name,
 					0, 0, 0);
 		if (error) {
@@ -591,8 +591,8 @@ std_return:
 	if (DM_EVENT_ENABLED(src_dp, DM_EVENT_POSTRENAME) ||
 	    DM_EVENT_ENABLED(target_dp, DM_EVENT_POSTRENAME)) {
 		(void) XFS_SEND_NAMESP (mp, DM_EVENT_POSTRENAME,
-					src_dir_vp, DM_RIGHT_NULL,
-					target_dir_vp, DM_RIGHT_NULL,
+					src_dp, DM_RIGHT_NULL,
+					target_dp, DM_RIGHT_NULL,
 					src_name, target_name,
 					0, error, 0);
 	}

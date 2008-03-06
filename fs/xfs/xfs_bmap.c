@@ -5811,7 +5811,7 @@ xfs_getbmap(
 	if ((interface & BMV_IF_NO_DMAPI_READ) == 0 &&
 	    DM_EVENT_ENABLED(ip, DM_EVENT_READ) &&
 	    whichfork == XFS_DATA_FORK) {
-		error = XFS_SEND_DATA(mp, DM_EVENT_READ, vp, 0, 0, 0, NULL);
+		error = XFS_SEND_DATA(mp, DM_EVENT_READ, ip, 0, 0, 0, NULL);
 		if (error)
 			return XFS_ERROR(error);
 	}
