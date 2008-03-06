@@ -1705,14 +1705,8 @@ static int omap2_dma_handle_ch(int ch)
 		status = OMAP_DMA_CSR_REG(ch);
 	}
 
-	if (likely(dma_chan[ch].callback != NULL)) {
-		if (dma_chan[ch].chain_id != -1)
-			dma_chan[ch].callback(dma_chan[ch].chain_id, status,
-					      dma_chan[ch].data);
-		else
-			dma_chan[ch].callback(ch, status, dma_chan[ch].data);
-
-	}
+	if (likely(dma_chan[ch].callback != NULL))
+		dma_chan[ch].callback(ch, status, dma_chan[ch].data);
 
 	OMAP_DMA_CSR_REG(ch) = status;
 
