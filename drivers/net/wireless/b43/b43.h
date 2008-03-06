@@ -589,15 +589,13 @@ struct b43_phy {
 
 /* Data structures for DMA transmission, per 80211 core. */
 struct b43_dma {
-	struct b43_dmaring *tx_ring0;
-	struct b43_dmaring *tx_ring1;
-	struct b43_dmaring *tx_ring2;
-	struct b43_dmaring *tx_ring3;
-	struct b43_dmaring *tx_ring4;
-	struct b43_dmaring *tx_ring5;
+	struct b43_dmaring *tx_ring_AC_BK; /* Background */
+	struct b43_dmaring *tx_ring_AC_BE; /* Best Effort */
+	struct b43_dmaring *tx_ring_AC_VI; /* Video */
+	struct b43_dmaring *tx_ring_AC_VO; /* Voice */
+	struct b43_dmaring *tx_ring_mcast; /* Multicast */
 
-	struct b43_dmaring *rx_ring0;
-	struct b43_dmaring *rx_ring3;	/* only available on core.rev < 5 */
+	struct b43_dmaring *rx_ring;
 };
 
 /* Context information for a noise calculation (Link Quality). */

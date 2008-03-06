@@ -1594,11 +1594,10 @@ static void b43_interrupt_tasklet(struct b43_wldev *dev)
 
 	/* Check the DMA reason registers for received data. */
 	if (dma_reason[0] & B43_DMAIRQ_RX_DONE)
-		b43_dma_rx(dev->dma.rx_ring0);
-	if (dma_reason[3] & B43_DMAIRQ_RX_DONE)
-		b43_dma_rx(dev->dma.rx_ring3);
+		b43_dma_rx(dev->dma.rx_ring);
 	B43_WARN_ON(dma_reason[1] & B43_DMAIRQ_RX_DONE);
 	B43_WARN_ON(dma_reason[2] & B43_DMAIRQ_RX_DONE);
+	B43_WARN_ON(dma_reason[3] & B43_DMAIRQ_RX_DONE);
 	B43_WARN_ON(dma_reason[4] & B43_DMAIRQ_RX_DONE);
 	B43_WARN_ON(dma_reason[5] & B43_DMAIRQ_RX_DONE);
 
