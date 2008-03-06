@@ -16,7 +16,6 @@ unifdef-y += ist.h
 unifdef-y += mce.h
 unifdef-y += msr.h
 unifdef-y += mtrr.h
-unifdef-y += page.h
 unifdef-y += posix_types_32.h
 unifdef-y += posix_types_64.h
 unifdef-y += ptrace.h
