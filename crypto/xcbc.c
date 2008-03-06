@@ -124,6 +124,11 @@ static int crypto_xcbc_digest_update2(struct hash_desc *pdesc,
 		unsigned int offset = sg[i].offset;
 		unsigned int slen = sg[i].length;
 
+		if (unlikely(slen > nbytes))
+			slen = nbytes;
+
+		nbytes -= slen;
+
 		while (slen > 0) {
 			unsigned int len = min(slen, ((unsigned int)(PAGE_SIZE)) - offset);
 			char *p = crypto_kmap(pg, 0) + offset;
@@ -177,7 +182,6 @@ static int crypto_xcbc_digest_update2(struct hash_desc *pdesc,
 			offset = 0;
 			pg++;
 		}
-		nbytes-=sg[i].length;
 		i++;
 	} while (nbytes>0);
 
