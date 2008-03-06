@@ -223,8 +223,8 @@ static int br_nf_pre_routing_finish_ipv6(struct sk_buff *skb)
 	}
 	nf_bridge->mask ^= BRNF_NF_BRIDGE_PREROUTING;
 
-	skb->dst = (struct dst_entry *)&__fake_rtable;
-	dst_hold(skb->dst);
+	skb->rtable = &__fake_rtable;
+	dst_hold(&__fake_rtable.u.dst);
 
 	skb->dev = nf_bridge->physindev;
 	nf_bridge_push_encap_header(skb);
@@ -388,8 +388,8 @@ bridged_dnat:
 			skb->pkt_type = PACKET_HOST;
 		}
 	} else {
-		skb->dst = (struct dst_entry *)&__fake_rtable;
-		dst_hold(skb->dst);
+		skb->rtable = &__fake_rtable;
+		dst_hold(&__fake_rtable.u.dst);
 	}
 
 	skb->dev = nf_bridge->physindev;
@@ -608,9 +608,9 @@ static unsigned int br_nf_local_in(unsigned int hook, struct sk_buff *skb,
 				   const struct net_device *out,
 				   int (*okfn)(struct sk_buff *))
 {
-	if (skb->dst == (struct dst_entry *)&__fake_rtable) {
-		dst_release(skb->dst);
-		skb->dst = NULL;
+	if (skb->rtable == &__fake_rtable) {
+		dst_release(&__fake_rtable.u.dst);
+		skb->rtable = NULL;
 	}
 
 	return NF_ACCEPT;

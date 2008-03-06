@@ -528,7 +528,7 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (!dst) {
 		/* NBMA tunnel */
-		if ((rt = (struct rtable*)skb->dst) == NULL) {
+		if ((rt = skb->rtable) == NULL) {
 			tunnel->stat.tx_fifo_errors++;
 			goto tx_error;
 		}

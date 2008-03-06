@@ -256,7 +256,10 @@ struct sk_buff {
 	ktime_t			tstamp;
 	struct net_device	*dev;
 
-	struct  dst_entry	*dst;
+	union {
+		struct  dst_entry	*dst;
+		struct  rtable		*rtable;
+	};
 	struct	sec_path	*sp;
 
 	/*

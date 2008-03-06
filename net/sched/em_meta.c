@@ -256,10 +256,10 @@ META_COLLECTOR(int_rtclassid)
 
 META_COLLECTOR(int_rtiif)
 {
-	if (unlikely(skb->dst == NULL))
+	if (unlikely(skb->rtable == NULL))
 		*err = -1;
 	else
-		dst->value = ((struct rtable*) skb->dst)->fl.iif;
+		dst->value = skb->rtable->fl.iif;
 }
 
 /**************************************************************************

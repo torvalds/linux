@@ -77,7 +77,7 @@ masquerade_tg(struct sk_buff *skb, const struct net_device *in,
 		return NF_ACCEPT;
 
 	mr = targinfo;
-	rt = (struct rtable *)skb->dst;
+	rt = skb->rtable;
 	newsrc = inet_select_addr(out, rt->rt_gateway, RT_SCOPE_UNIVERSE);
 	if (!newsrc) {
 		printk("MASQUERADE: %s ate my IP address\n", out->name);

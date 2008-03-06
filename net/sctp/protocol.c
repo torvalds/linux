@@ -363,7 +363,7 @@ static int sctp_v4_addr_valid(union sctp_addr *addr,
 		return 0;
 
 	/* Is this a broadcast address? */
-	if (skb && ((struct rtable *)skb->dst)->rt_flags & RTCF_BROADCAST)
+	if (skb && skb->rtable->rt_flags & RTCF_BROADCAST)
 		return 0;
 
 	return 1;
@@ -539,7 +539,7 @@ static void sctp_v4_get_saddr(struct sctp_association *asoc,
 /* What interface did this skb arrive on? */
 static int sctp_v4_skb_iif(const struct sk_buff *skb)
 {
-	return ((struct rtable *)skb->dst)->rt_iif;
+	return skb->rtable->rt_iif;
 }
 
 /* Was this packet marked by Explicit Congestion Notification? */
@@ -828,8 +828,8 @@ static inline int sctp_v4_xmit(struct sk_buff *skb,
 	SCTP_DEBUG_PRINTK("%s: skb:%p, len:%d, "
 			  "src:%u.%u.%u.%u, dst:%u.%u.%u.%u\n",
 			  __FUNCTION__, skb, skb->len,
-			  NIPQUAD(((struct rtable *)skb->dst)->rt_src),
-			  NIPQUAD(((struct rtable *)skb->dst)->rt_dst));
+			  NIPQUAD(skb->rtable->rt_src),
+			  NIPQUAD(skb->rtable->rt_dst));
 
 	SCTP_INC_STATS(SCTP_MIB_OUTSCTPPACKS);
 	return ip_queue_xmit(skb, ipfragok);

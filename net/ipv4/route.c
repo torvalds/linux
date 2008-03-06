@@ -1289,7 +1289,7 @@ reject_redirect:
 
 static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst)
 {
-	struct rtable *rt = (struct rtable*)dst;
+	struct rtable *rt = (struct rtable *)dst;
 	struct dst_entry *ret = dst;
 
 	if (rt) {
@@ -1330,7 +1330,7 @@ static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst)
 
 void ip_rt_send_redirect(struct sk_buff *skb)
 {
-	struct rtable *rt = (struct rtable*)skb->dst;
+	struct rtable *rt = skb->rtable;
 	struct in_device *in_dev = in_dev_get(rt->u.dst.dev);
 
 	if (!in_dev)
@@ -1379,7 +1379,7 @@ out:
 
 static int ip_error(struct sk_buff *skb)
 {
-	struct rtable *rt = (struct rtable*)skb->dst;
+	struct rtable *rt = skb->rtable;
 	unsigned long now;
 	int code;
 
@@ -1548,7 +1548,7 @@ static void ipv4_link_failure(struct sk_buff *skb)
 
 	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_HOST_UNREACH, 0);
 
-	rt = (struct rtable *) skb->dst;
+	rt = skb->rtable;
 	if (rt)
 		dst_set_expires(&rt->u.dst, 0);
 }
@@ -1708,7 +1708,7 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 
 	in_dev_put(in_dev);
 	hash = rt_hash(daddr, saddr, dev->ifindex);
-	return rt_intern_hash(hash, rth, (struct rtable**) &skb->dst);
+	return rt_intern_hash(hash, rth, &skb->rtable);
 
 e_nobufs:
 	in_dev_put(in_dev);
@@ -1869,7 +1869,7 @@ static inline int ip_mkroute_input(struct sk_buff *skb,
 
 	/* put it into the cache */
 	hash = rt_hash(daddr, saddr, fl->iif);
-	return rt_intern_hash(hash, rth, (struct rtable**)&skb->dst);
+	return rt_intern_hash(hash, rth, &skb->rtable);
 }
 
 /*
@@ -2025,7 +2025,7 @@ local_input:
 	}
 	rth->rt_type	= res.type;
 	hash = rt_hash(daddr, saddr, fl.iif);
-	err = rt_intern_hash(hash, rth, (struct rtable**)&skb->dst);
+	err = rt_intern_hash(hash, rth, &skb->rtable);
 	goto done;
 
 no_route:
@@ -2091,7 +2091,7 @@ int ip_route_input(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 			dst_use(&rth->u.dst, jiffies);
 			RT_CACHE_STAT_INC(in_hit);
 			rcu_read_unlock();
-			skb->dst = (struct dst_entry*)rth;
+			skb->rtable = rth;
 			return 0;
 		}
 		RT_CACHE_STAT_INC(in_hlist_search);
@@ -2598,7 +2598,7 @@ int ip_route_output_key(struct net *net, struct rtable **rp, struct flowi *flp)
 static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 			int nowait, unsigned int flags)
 {
-	struct rtable *rt = (struct rtable*)skb->dst;
+	struct rtable *rt = skb->rtable;
 	struct rtmsg *r;
 	struct nlmsghdr *nlh;
 	long expires;
@@ -2742,7 +2742,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void 
 		err = ip_route_input(skb, dst, src, rtm->rtm_tos, dev);
 		local_bh_enable();
 
-		rt = (struct rtable*) skb->dst;
+		rt = skb->rtable;
 		if (err == 0 && rt->u.dst.error)
 			err = -rt->u.dst.error;
 	} else {
@@ -2762,7 +2762,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void 
 	if (err)
 		goto errout_free;
 
-	skb->dst = &rt->u.dst;
+	skb->rtable = rt;
 	if (rtm->rtm_flags & RTM_F_NOTIFY)
 		rt->rt_flags |= RTCF_NOTIFY;
 

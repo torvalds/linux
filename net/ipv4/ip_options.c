@@ -107,7 +107,7 @@ int ip_options_echo(struct ip_options * dopt, struct sk_buff * skb)
 	sptr = skb_network_header(skb);
 	dptr = dopt->__data;
 
-	daddr = ((struct rtable*)skb->dst)->rt_spec_dst;
+	daddr = skb->rtable->rt_spec_dst;
 
 	if (sopt->rr) {
 		optlen  = sptr[sopt->rr+1];
@@ -258,7 +258,7 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 	unsigned char * optptr;
 	int optlen;
 	unsigned char * pp_ptr = NULL;
-	struct rtable *rt = skb ? (struct rtable*)skb->dst : NULL;
+	struct rtable *rt = skb ? skb->rtable : NULL;
 
 	if (!opt) {
 		opt = &(IPCB(skb)->opt);
@@ -558,7 +558,7 @@ void ip_forward_options(struct sk_buff *skb)
 {
 	struct   ip_options * opt	= &(IPCB(skb)->opt);
 	unsigned char * optptr;
-	struct rtable *rt = (struct rtable*)skb->dst;
+	struct rtable *rt = skb->rtable;
 	unsigned char *raw = skb_network_header(skb);
 
 	if (opt->rr_needaddr) {
@@ -606,7 +606,7 @@ int ip_options_rcv_srr(struct sk_buff *skb)
 	__be32 nexthop;
 	struct iphdr *iph = ip_hdr(skb);
 	unsigned char *optptr = skb_network_header(skb) + opt->srr;
-	struct rtable *rt = (struct rtable*)skb->dst;
+	struct rtable *rt = skb->rtable;
 	struct rtable *rt2;
 	int err;
 
@@ -631,13 +631,13 @@ int ip_options_rcv_srr(struct sk_buff *skb)
 		}
 		memcpy(&nexthop, &optptr[srrptr-1], 4);
 
-		rt = (struct rtable*)skb->dst;
-		skb->dst = NULL;
+		rt = skb->rtable;
+		skb->rtable = NULL;
 		err = ip_route_input(skb, nexthop, iph->saddr, iph->tos, skb->dev);
-		rt2 = (struct rtable*)skb->dst;
+		rt2 = skb->rtable;
 		if (err || (rt2->rt_type != RTN_UNICAST && rt2->rt_type != RTN_LOCAL)) {
 			ip_rt_put(rt2);
-			skb->dst = &rt->u.dst;
+			skb->rtable = rt;
 			return -EINVAL;
 		}
 		ip_rt_put(rt);

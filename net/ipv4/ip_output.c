@@ -142,7 +142,7 @@ int ip_build_and_send_pkt(struct sk_buff *skb, struct sock *sk,
 			  __be32 saddr, __be32 daddr, struct ip_options *opt)
 {
 	struct inet_sock *inet = inet_sk(sk);
-	struct rtable *rt = (struct rtable *)skb->dst;
+	struct rtable *rt = skb->rtable;
 	struct iphdr *iph;
 
 	/* Build the IP header. */
@@ -240,7 +240,7 @@ static int ip_finish_output(struct sk_buff *skb)
 int ip_mc_output(struct sk_buff *skb)
 {
 	struct sock *sk = skb->sk;
-	struct rtable *rt = (struct rtable*)skb->dst;
+	struct rtable *rt = skb->rtable;
 	struct net_device *dev = rt->u.dst.dev;
 
 	/*
@@ -321,7 +321,7 @@ int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
 	/* Skip all of this if the packet is already routed,
 	 * f.e. by something like SCTP.
 	 */
-	rt = (struct rtable *) skb->dst;
+	rt = skb->rtable;
 	if (rt != NULL)
 		goto packet_routed;
 
@@ -441,7 +441,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 	unsigned int mtu, hlen, left, len, ll_rs, pad;
 	int offset;
 	__be16 not_last_frag;
-	struct rtable *rt = (struct rtable*)skb->dst;
+	struct rtable *rt = skb->rtable;
 	int err = 0;
 
 	dev = rt->u.dst.dev;
@@ -1357,7 +1357,7 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 	} replyopts;
 	struct ipcm_cookie ipc;
 	__be32 daddr;
-	struct rtable *rt = (struct rtable*)skb->dst;
+	struct rtable *rt = skb->rtable;
 
 	if (ip_options_echo(&replyopts.opt, skb))
 		return;

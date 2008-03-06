@@ -1283,7 +1283,7 @@ static int ip_mr_forward(struct sk_buff *skb, struct mfc_cache *cache, int local
 	if (vif_table[vif].dev != skb->dev) {
 		int true_vifi;
 
-		if (((struct rtable*)skb->dst)->fl.iif == 0) {
+		if (skb->rtable->fl.iif == 0) {
 			/* It is our own packet, looped back.
 			   Very complicated situation...
 
@@ -1357,7 +1357,7 @@ dont_forward:
 int ip_mr_input(struct sk_buff *skb)
 {
 	struct mfc_cache *cache;
-	int local = ((struct rtable*)skb->dst)->rt_flags&RTCF_LOCAL;
+	int local = skb->rtable->rt_flags&RTCF_LOCAL;
 
 	/* Packet is looped back after forward, it should not be
 	   forwarded second time, but still can be delivered locally.
@@ -1594,7 +1594,7 @@ int ipmr_get_route(struct sk_buff *skb, struct rtmsg *rtm, int nowait)
 {
 	int err;
 	struct mfc_cache *cache;
-	struct rtable *rt = (struct rtable*)skb->dst;
+	struct rtable *rt = skb->rtable;
 
 	read_lock(&mrt_lock);
 	cache = ipmr_cache_find(rt->rt_src, rt->rt_dst);

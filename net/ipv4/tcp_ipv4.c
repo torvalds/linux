@@ -552,7 +552,7 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 	if (th->rst)
 		return;
 
-	if (((struct rtable *)skb->dst)->rt_type != RTN_LOCAL)
+	if (skb->rtable->rt_type != RTN_LOCAL)
 		return;
 
 	/* Swap the send and the receive. */
@@ -1262,8 +1262,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 #endif
 
 	/* Never answer to SYNs send to broadcast or multicast */
-	if (((struct rtable *)skb->dst)->rt_flags &
-	    (RTCF_BROADCAST | RTCF_MULTICAST))
+	if (skb->rtable->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST))
 		goto drop;
 
 	/* TW buckets are converted to open requests without

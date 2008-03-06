@@ -948,7 +948,7 @@ int igmp_rcv(struct sk_buff *skb)
 	case IGMPV2_HOST_MEMBERSHIP_REPORT:
 	case IGMPV3_HOST_MEMBERSHIP_REPORT:
 		/* Is it our report looped back? */
-		if (((struct rtable*)skb->dst)->fl.iif == 0)
+		if (skb->rtable->fl.iif == 0)
 			break;
 		/* don't rely on MC router hearing unicast reports */
 		if (skb->pkt_type == PACKET_MULTICAST ||
