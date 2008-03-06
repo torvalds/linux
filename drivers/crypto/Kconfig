@@ -101,6 +101,17 @@ config CRYPTO_SHA256_S390
 	  This version of SHA implements a 256 bit hash with 128 bits of
 	  security against collision attacks.
 
+config CRYPTO_SHA512_S390
+	tristate "SHA512 digest algorithm"
+	depends on S390
+	select CRYPTO_ALGAPI
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  SHA512 secure hash standard.
+
+	  This version of SHA implements a 512 bit hash with 256 bits of
+	  security against collision attacks.
+
 config CRYPTO_DES_S390
 	tristate "DES and Triple DES cipher algorithms"
 	depends on S390

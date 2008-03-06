@@ -59,12 +59,15 @@ void s390_sha_final(struct crypto_tfm *tfm, u8 *out)
 	struct s390_sha_ctx *ctx = crypto_tfm_ctx(tfm);
 	unsigned int bsize = crypto_tfm_alg_blocksize(tfm);
 	u64 bits;
-	unsigned int index, end;
+	unsigned int index, end, plen;
 	int ret;
+
+	/* SHA-512 uses 128 bit padding length */
+	plen = (bsize > SHA256_BLOCK_SIZE) ? 16 : 8;
 
 	/* must perform manual padding */
 	index = ctx->count & (bsize - 1);
-	end = (index < bsize - 8) ? bsize : (2 * bsize);
+	end = (index < bsize - plen) ? bsize : (2 * bsize);
 
 	/* start pad with 1 */
 	ctx->buf[index] = 0x80;
@@ -73,6 +76,10 @@ void s390_sha_final(struct crypto_tfm *tfm, u8 *out)
 	/* pad with zeros */
 	memset(ctx->buf + index, 0x00, end - index - 8);
 
+	/*
+	 * Append message length. Well, SHA-512 wants a 128 bit lenght value,
+	 * nevertheless we use u64, should be enough for now...
+	 */
 	bits = ctx->count * 8;
 	memcpy(ctx->buf + end - 8, &bits, sizeof(bits));
 
