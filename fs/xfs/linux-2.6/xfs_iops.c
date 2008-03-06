@@ -395,23 +395,22 @@ xfs_vn_link(
 	struct inode	*dir,
 	struct dentry	*dentry)
 {
-	struct inode	*ip;	/* inode of guy being linked to */
-	bhv_vnode_t	*vp;	/* vp of name being linked */
+	struct inode	*inode;	/* inode of guy being linked to */
 	int		error;
 
-	ip = old_dentry->d_inode;	/* inode being linked to */
-	vp = vn_from_inode(ip);
+	inode = old_dentry->d_inode;
 
-	VN_HOLD(vp);
-	error = xfs_link(XFS_I(dir), vp, dentry);
+	igrab(inode);
+	error = xfs_link(XFS_I(dir), XFS_I(inode), dentry);
 	if (unlikely(error)) {
-		VN_RELE(vp);
-	} else {
-		xfs_iflags_set(XFS_I(dir), XFS_IMODIFIED);
-		xfs_validate_fields(ip);
-		d_instantiate(dentry, ip);
+		iput(inode);
+		return -error;
 	}
-	return -error;
+
+	xfs_iflags_set(XFS_I(dir), XFS_IMODIFIED);
+	xfs_validate_fields(inode);
+	d_instantiate(dentry, inode);
+	return 0;
 }
 
 STATIC int

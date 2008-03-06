@@ -2471,12 +2471,10 @@ xfs_remove(
 int
 xfs_link(
 	xfs_inode_t		*tdp,
-	bhv_vnode_t		*src_vp,
+	xfs_inode_t		*sip,
 	bhv_vname_t		*dentry)
 {
-	bhv_vnode_t		*target_dir_vp = XFS_ITOV(tdp);
 	xfs_mount_t		*mp = tdp->i_mount;
-	xfs_inode_t		*sip = xfs_vtoi(src_vp);
 	xfs_trans_t		*tp;
 	xfs_inode_t		*ips[2];
 	int			error;
@@ -2489,10 +2487,10 @@ xfs_link(
 	int			target_namelen;
 
 	xfs_itrace_entry(tdp);
-	xfs_itrace_entry(xfs_vtoi(src_vp));
+	xfs_itrace_entry(sip);
 
 	target_namelen = VNAMELEN(dentry);
-	ASSERT(!VN_ISDIR(src_vp));
+	ASSERT(!S_ISDIR(sip->i_d.di_mode));
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -2544,8 +2542,8 @@ xfs_link(
 	 * xfs_trans_cancel will both unlock the inodes and
 	 * decrement the associated ref counts.
 	 */
-	VN_HOLD(src_vp);
-	VN_HOLD(target_dir_vp);
+	IHOLD(sip);
+	IHOLD(tdp);
 	xfs_trans_ijoin(tp, sip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, tdp, XFS_ILOCK_EXCL);
 

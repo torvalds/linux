@@ -28,7 +28,7 @@ int xfs_lookup(struct xfs_inode *dp, bhv_vname_t *dentry,
 int xfs_create(struct xfs_inode *dp, bhv_vname_t *dentry, mode_t mode,
 		xfs_dev_t rdev, struct xfs_inode **ipp, struct cred *credp);
 int xfs_remove(struct xfs_inode *dp, bhv_vname_t	*dentry);
-int xfs_link(struct xfs_inode *tdp, bhv_vnode_t *src_vp,
+int xfs_link(struct xfs_inode *tdp, struct xfs_inode *sip,
 		bhv_vname_t *dentry);
 int xfs_mkdir(struct xfs_inode *dp, bhv_vname_t *dentry,
 		mode_t mode, struct xfs_inode **ipp, struct cred *credp);
