@@ -169,17 +169,17 @@ int irttp_disconnect_request(struct tsap_cb *self, struct sk_buff *skb,
 void irttp_flow_request(struct tsap_cb *self, LOCAL_FLOW flow);
 struct tsap_cb *irttp_dup(struct tsap_cb *self, void *instance);
 
-static __inline __u32 irttp_get_saddr(struct tsap_cb *self)
+static inline __u32 irttp_get_saddr(struct tsap_cb *self)
 {
 	return irlmp_get_saddr(self->lsap);
 }
 
-static __inline __u32 irttp_get_daddr(struct tsap_cb *self)
+static inline __u32 irttp_get_daddr(struct tsap_cb *self)
 {
 	return irlmp_get_daddr(self->lsap);
 }
 
-static __inline __u32 irttp_get_max_seg_size(struct tsap_cb *self)
+static inline __u32 irttp_get_max_seg_size(struct tsap_cb *self)
 {
 	return self->max_seg_size;
 }
