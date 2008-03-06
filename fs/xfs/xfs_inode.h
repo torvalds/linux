@@ -133,19 +133,6 @@ typedef struct dm_attrs_s {
 } dm_attrs_t;
 
 /*
- * This is the xfs inode cluster structure.  This structure is used by
- * xfs_iflush to find inodes that share a cluster and can be flushed to disk at
- * the same time.
- */
-typedef struct xfs_icluster {
-	struct hlist_head	icl_inodes;	/* list of inodes on cluster */
-	xfs_daddr_t		icl_blkno;	/* starting block number of
-						 * the cluster */
-	struct xfs_buf		*icl_buf;	/* the inode buffer */
-	spinlock_t		icl_lock;	/* inode list lock */
-} xfs_icluster_t;
-
-/*
  * This is the xfs in-core inode structure.
  * Most of the on-disk inode is embedded in the i_d field.
  *
@@ -248,8 +235,6 @@ typedef struct xfs_inode {
 	unsigned int		i_delayed_blks;	/* count of delay alloc blks */
 
 	xfs_icdinode_t		i_d;		/* most of ondisk inode */
-	xfs_icluster_t		*i_cluster;	/* cluster list header */
-	struct hlist_node	i_cnode;	/* cluster link node */
 
 	xfs_fsize_t		i_size;		/* in-memory size */
 	xfs_fsize_t		i_new_size;	/* size when write completes */
@@ -594,7 +579,6 @@ void		xfs_inobp_check(struct xfs_mount *, struct xfs_buf *);
 #define	xfs_inobp_check(mp, bp)
 #endif /* DEBUG */
 
-extern struct kmem_zone	*xfs_icluster_zone;
 extern struct kmem_zone	*xfs_ifork_zone;
 extern struct kmem_zone	*xfs_inode_zone;
 extern struct kmem_zone	*xfs_ili_zone;

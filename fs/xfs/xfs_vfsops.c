@@ -112,9 +112,6 @@ xfs_init(void)
 	xfs_ili_zone =
 		kmem_zone_init_flags(sizeof(xfs_inode_log_item_t), "xfs_ili",
 					KM_ZONE_SPREAD, NULL);
-	xfs_icluster_zone =
-		kmem_zone_init_flags(sizeof(xfs_icluster_t), "xfs_icluster",
-					KM_ZONE_SPREAD, NULL);
 
 	/*
 	 * Allocate global trace buffers.
@@ -152,7 +149,6 @@ xfs_cleanup(void)
 	extern kmem_zone_t	*xfs_inode_zone;
 	extern kmem_zone_t	*xfs_efd_zone;
 	extern kmem_zone_t	*xfs_efi_zone;
-	extern kmem_zone_t	*xfs_icluster_zone;
 
 	xfs_cleanup_procfs();
 	xfs_sysctl_unregister();
@@ -187,7 +183,6 @@ xfs_cleanup(void)
 	kmem_zone_destroy(xfs_efi_zone);
 	kmem_zone_destroy(xfs_ifork_zone);
 	kmem_zone_destroy(xfs_ili_zone);
-	kmem_zone_destroy(xfs_icluster_zone);
 }
 
 /*

@@ -55,7 +55,6 @@
 
 kmem_zone_t *xfs_ifork_zone;
 kmem_zone_t *xfs_inode_zone;
-kmem_zone_t *xfs_icluster_zone;
 
 /*
  * Used in xfs_itruncate().  This is the maximum number of extents
@@ -2994,6 +2993,153 @@ xfs_iflush_fork(
 	return 0;
 }
 
+STATIC int
+xfs_iflush_cluster(
+	xfs_inode_t	*ip,
+	xfs_buf_t	*bp)
+{
+	xfs_mount_t		*mp = ip->i_mount;
+	xfs_perag_t		*pag = xfs_get_perag(mp, ip->i_ino);
+	unsigned long		first_index, mask;
+	int			ilist_size;
+	xfs_inode_t		**ilist;
+	xfs_inode_t		*iq;
+	xfs_inode_log_item_t	*iip;
+	int			nr_found;
+	int			clcount = 0;
+	int			bufwasdelwri;
+	int			i;
+
+	ASSERT(pag->pagi_inodeok);
+	ASSERT(pag->pag_ici_init);
+
+	ilist_size = XFS_INODE_CLUSTER_SIZE(mp) * sizeof(xfs_inode_t *);
+	ilist = kmem_alloc(ilist_size, KM_MAYFAIL);
+	if (!ilist)
+		return 0;
+
+	mask = ~(((XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog)) - 1);
+	first_index = XFS_INO_TO_AGINO(mp, ip->i_ino) & mask;
+	read_lock(&pag->pag_ici_lock);
+	/* really need a gang lookup range call here */
+	nr_found = radix_tree_gang_lookup(&pag->pag_ici_root, (void**)ilist,
+					first_index,
+					XFS_INODE_CLUSTER_SIZE(mp));
+	if (nr_found == 0)
+		goto out_free;
+
+	for (i = 0; i < nr_found; i++) {
+		iq = ilist[i];
+		if (iq == ip)
+			continue;
+		/* if the inode lies outside this cluster, we're done. */
+		if ((XFS_INO_TO_AGINO(mp, iq->i_ino) & mask) != first_index)
+			break;
+		/*
+		 * Do an un-protected check to see if the inode is dirty and
+		 * is a candidate for flushing.  These checks will be repeated
+		 * later after the appropriate locks are acquired.
+		 */
+		iip = iq->i_itemp;
+		if ((iq->i_update_core == 0) &&
+		    ((iip == NULL) ||
+		     !(iip->ili_format.ilf_fields & XFS_ILOG_ALL)) &&
+		      xfs_ipincount(iq) == 0) {
+			continue;
+		}
+
+		/*
+		 * Try to get locks.  If any are unavailable or it is pinned,
+		 * then this inode cannot be flushed and is skipped.
+		 */
+
+		if (!xfs_ilock_nowait(iq, XFS_ILOCK_SHARED))
+			continue;
+		if (!xfs_iflock_nowait(iq)) {
+			xfs_iunlock(iq, XFS_ILOCK_SHARED);
+			continue;
+		}
+		if (xfs_ipincount(iq)) {
+			xfs_ifunlock(iq);
+			xfs_iunlock(iq, XFS_ILOCK_SHARED);
+			continue;
+		}
+
+		/*
+		 * arriving here means that this inode can be flushed.  First
+		 * re-check that it's dirty before flushing.
+		 */
+		iip = iq->i_itemp;
+		if ((iq->i_update_core != 0) || ((iip != NULL) &&
+		     (iip->ili_format.ilf_fields & XFS_ILOG_ALL))) {
+			int error;
+			error = xfs_iflush_int(iq, bp);
+			if (error) {
+				xfs_iunlock(iq, XFS_ILOCK_SHARED);
+				goto cluster_corrupt_out;
+			}
+			clcount++;
+		} else {
+			xfs_ifunlock(iq);
+		}
+		xfs_iunlock(iq, XFS_ILOCK_SHARED);
+	}
+
+	if (clcount) {
+		XFS_STATS_INC(xs_icluster_flushcnt);
+		XFS_STATS_ADD(xs_icluster_flushinode, clcount);
+	}
+
+out_free:
+	read_unlock(&pag->pag_ici_lock);
+	kmem_free(ilist, ilist_size);
+	return 0;
+
+
+cluster_corrupt_out:
+	/*
+	 * Corruption detected in the clustering loop.  Invalidate the
+	 * inode buffer and shut down the filesystem.
+	 */
+	read_unlock(&pag->pag_ici_lock);
+	/*
+	 * Clean up the buffer.  If it was B_DELWRI, just release it --
+	 * brelse can handle it with no problems.  If not, shut down the
+	 * filesystem before releasing the buffer.
+	 */
+	bufwasdelwri = XFS_BUF_ISDELAYWRITE(bp);
+	if (bufwasdelwri)
+		xfs_buf_relse(bp);
+
+	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+
+	if (!bufwasdelwri) {
+		/*
+		 * Just like incore_relse: if we have b_iodone functions,
+		 * mark the buffer as an error and call them.  Otherwise
+		 * mark it as stale and brelse.
+		 */
+		if (XFS_BUF_IODONE_FUNC(bp)) {
+			XFS_BUF_CLR_BDSTRAT_FUNC(bp);
+			XFS_BUF_UNDONE(bp);
+			XFS_BUF_STALE(bp);
+			XFS_BUF_SHUT(bp);
+			XFS_BUF_ERROR(bp,EIO);
+			xfs_biodone(bp);
+		} else {
+			XFS_BUF_STALE(bp);
+			xfs_buf_relse(bp);
+		}
+	}
+
+	/*
+	 * Unlocks the flush lock
+	 */
+	xfs_iflush_abort(iq);
+	kmem_free(ilist, ilist_size);
+	return XFS_ERROR(EFSCORRUPTED);
+}
+
 /*
  * xfs_iflush() will write a modified inode's changes out to the
  * inode's on disk home.  The caller must have the inode lock held
@@ -3013,13 +3159,8 @@ xfs_iflush(
 	xfs_dinode_t		*dip;
 	xfs_mount_t		*mp;
 	int			error;
-	/* REFERENCED */
-	xfs_inode_t		*iq;
-	int			clcount;	/* count of inodes clustered */
-	int			bufwasdelwri;
-	struct hlist_node	*entry;
-	enum { INT_DELWRI = (1 << 0), INT_ASYNC = (1 << 1) };
 	int			noblock = (flags == XFS_IFLUSH_ASYNC_NOBLOCK);
+	enum { INT_DELWRI = (1 << 0), INT_ASYNC = (1 << 1) };
 
 	XFS_STATS_INC(xs_iflush_count);
 
@@ -3138,9 +3279,8 @@ xfs_iflush(
 	 * First flush out the inode that xfs_iflush was called with.
 	 */
 	error = xfs_iflush_int(ip, bp);
-	if (error) {
+	if (error)
 		goto corrupt_out;
-	}
 
 	/*
 	 * If the buffer is pinned then push on the log now so we won't
@@ -3153,70 +3293,9 @@ xfs_iflush(
 	 * inode clustering:
 	 * see if other inodes can be gathered into this write
 	 */
-	spin_lock(&ip->i_cluster->icl_lock);
-	ip->i_cluster->icl_buf = bp;
-
-	clcount = 0;
-	hlist_for_each_entry(iq, entry, &ip->i_cluster->icl_inodes, i_cnode) {
-		if (iq == ip)
-			continue;
-
-		/*
-		 * Do an un-protected check to see if the inode is dirty and
-		 * is a candidate for flushing.  These checks will be repeated
-		 * later after the appropriate locks are acquired.
-		 */
-		iip = iq->i_itemp;
-		if ((iq->i_update_core == 0) &&
-		    ((iip == NULL) ||
-		     !(iip->ili_format.ilf_fields & XFS_ILOG_ALL)) &&
-		      xfs_ipincount(iq) == 0) {
-			continue;
-		}
-
-		/*
-		 * Try to get locks.  If any are unavailable,
-		 * then this inode cannot be flushed and is skipped.
-		 */
-
-		/* get inode locks (just i_lock) */
-		if (xfs_ilock_nowait(iq, XFS_ILOCK_SHARED)) {
-			/* get inode flush lock */
-			if (xfs_iflock_nowait(iq)) {
-				/* check if pinned */
-				if (xfs_ipincount(iq) == 0) {
-					/* arriving here means that
-					 * this inode can be flushed.
-					 * first re-check that it's
-					 * dirty
-					 */
-					iip = iq->i_itemp;
-					if ((iq->i_update_core != 0)||
-					    ((iip != NULL) &&
-					     (iip->ili_format.ilf_fields & XFS_ILOG_ALL))) {
-						clcount++;
-						error = xfs_iflush_int(iq, bp);
-						if (error) {
-							xfs_iunlock(iq,
-								    XFS_ILOCK_SHARED);
-							goto cluster_corrupt_out;
-						}
-					} else {
-						xfs_ifunlock(iq);
-					}
-				} else {
-					xfs_ifunlock(iq);
-				}
-			}
-			xfs_iunlock(iq, XFS_ILOCK_SHARED);
-		}
-	}
-	spin_unlock(&ip->i_cluster->icl_lock);
-
-	if (clcount) {
-		XFS_STATS_INC(xs_icluster_flushcnt);
-		XFS_STATS_ADD(xs_icluster_flushinode, clcount);
-	}
+	error = xfs_iflush_cluster(ip, bp);
+	if (error)
+		goto cluster_corrupt_out;
 
 	if (flags & INT_DELWRI) {
 		xfs_bdwrite(mp, bp);
@@ -3230,52 +3309,11 @@ xfs_iflush(
 corrupt_out:
 	xfs_buf_relse(bp);
 	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
-	xfs_iflush_abort(ip);
-	/*
-	 * Unlocks the flush lock
-	 */
-	return XFS_ERROR(EFSCORRUPTED);
-
 cluster_corrupt_out:
-	/* Corruption detected in the clustering loop.  Invalidate the
-	 * inode buffer and shut down the filesystem.
-	 */
-	spin_unlock(&ip->i_cluster->icl_lock);
-
-	/*
-	 * Clean up the buffer.  If it was B_DELWRI, just release it --
-	 * brelse can handle it with no problems.  If not, shut down the
-	 * filesystem before releasing the buffer.
-	 */
-	if ((bufwasdelwri= XFS_BUF_ISDELAYWRITE(bp))) {
-		xfs_buf_relse(bp);
-	}
-
-	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
-
-	if(!bufwasdelwri)  {
-		/*
-		 * Just like incore_relse: if we have b_iodone functions,
-		 * mark the buffer as an error and call them.  Otherwise
-		 * mark it as stale and brelse.
-		 */
-		if (XFS_BUF_IODONE_FUNC(bp)) {
-			XFS_BUF_CLR_BDSTRAT_FUNC(bp);
-			XFS_BUF_UNDONE(bp);
-			XFS_BUF_STALE(bp);
-			XFS_BUF_SHUT(bp);
-			XFS_BUF_ERROR(bp,EIO);
-			xfs_biodone(bp);
-		} else {
-			XFS_BUF_STALE(bp);
-			xfs_buf_relse(bp);
-		}
-	}
-
-	xfs_iflush_abort(iq);
 	/*
 	 * Unlocks the flush lock
 	 */
+	xfs_iflush_abort(ip);
 	return XFS_ERROR(EFSCORRUPTED);
 }
 
