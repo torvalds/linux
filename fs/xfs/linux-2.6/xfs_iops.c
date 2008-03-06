@@ -62,12 +62,11 @@ void
 xfs_synchronize_atime(
 	xfs_inode_t	*ip)
 {
-	bhv_vnode_t	*vp;
+	struct inode	*inode = ip->i_vnode;
 
-	vp = XFS_ITOV_NULL(ip);
-	if (vp) {
-		ip->i_d.di_atime.t_sec = (__int32_t)vp->i_atime.tv_sec;
-		ip->i_d.di_atime.t_nsec = (__int32_t)vp->i_atime.tv_nsec;
+	if (inode) {
+		ip->i_d.di_atime.t_sec = (__int32_t)inode->i_atime.tv_sec;
+		ip->i_d.di_atime.t_nsec = (__int32_t)inode->i_atime.tv_nsec;
 	}
 }
 
@@ -80,11 +79,10 @@ void
 xfs_mark_inode_dirty_sync(
 	xfs_inode_t	*ip)
 {
-	bhv_vnode_t	*vp;
+	struct inode	*inode = ip->i_vnode;
 
-	vp = XFS_ITOV_NULL(ip);
-	if (vp)
-		mark_inode_dirty_sync(vn_to_inode(vp));
+	if (inode)
+		mark_inode_dirty_sync(inode);
 }
 
 /*
@@ -215,26 +213,26 @@ xfs_validate_fields(
  */
 STATIC int
 xfs_init_security(
-	bhv_vnode_t	*vp,
+	struct inode	*inode,
 	struct inode	*dir)
 {
-	struct inode	*ip = vn_to_inode(vp);
+	struct xfs_inode *ip = XFS_I(inode);
 	size_t		length;
 	void		*value;
 	char		*name;
 	int		error;
 
-	error = security_inode_init_security(ip, dir, &name, &value, &length);
+	error = security_inode_init_security(inode, dir, &name,
+					     &value, &length);
 	if (error) {
 		if (error == -EOPNOTSUPP)
 			return 0;
 		return -error;
 	}
 
-	error = xfs_attr_set(XFS_I(ip), name, value,
-			length, ATTR_SECURE);
+	error = xfs_attr_set(ip, name, value, length, ATTR_SECURE);
 	if (!error)
-		xfs_iflags_set(XFS_I(ip), XFS_IMODIFIED);
+		xfs_iflags_set(ip, XFS_IMODIFIED);
 
 	kfree(name);
 	kfree(value);
@@ -244,7 +242,7 @@ xfs_init_security(
 STATIC void
 xfs_cleanup_inode(
 	struct inode	*dir,
-	bhv_vnode_t	*vp,
+	struct inode	*inode,
 	struct dentry	*dentry,
 	int		mode)
 {
@@ -255,14 +253,14 @@ xfs_cleanup_inode(
 	 * xfs_init_security we must back out.
 	 * ENOSPC can hit here, among other things.
 	 */
-	teardown.d_inode = vn_to_inode(vp);
+	teardown.d_inode = inode;
 	teardown.d_name = dentry->d_name;
 
 	if (S_ISDIR(mode))
 		xfs_rmdir(XFS_I(dir), &teardown);
 	else
 		xfs_remove(XFS_I(dir), &teardown);
-	VN_RELE(vp);
+	iput(inode);
 }
 
 STATIC int
