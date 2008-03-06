@@ -1,3 +1,6 @@
+obj-$(CONFIG_IWLCORE)	+= iwlcore.o
+iwlcore-objs 		= iwl-core.o
+
 obj-$(CONFIG_IWL3945)	+= iwl3945.o
 iwl3945-objs		= iwl3945-base.o iwl-3945.o iwl-3945-rs.o
 

@@ -63,6 +63,9 @@
 #ifndef __iwl_core_h__
 #define __iwl_core_h__
 
+#define IWLWIFI_VERSION "1.2.26k"
+#define DRV_COPYRIGHT	"Copyright(c) 2003-2008 Intel Corporation"
+
 #define IWL_PCI_DEVICE(dev, subdev, cfg) \
 	.vendor = PCI_VENDOR_ID_INTEL,  .device = (dev), \
 	.subvendor = PCI_ANY_ID, .subdevice = (subdev), \

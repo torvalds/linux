@@ -1,7 +1,12 @@
+config IWLCORE
+	tristate "Intel Wireless Wifi Core"
+	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
+
 config IWL4965
 	tristate "Intel Wireless WiFi 4965AGN"
 	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
 	select FW_LOADER
+	select IWLCORE
 	---help---
 	  Select to build the driver supporting the:
 

@@ -49,10 +49,6 @@
 #include "iwl-4965.h"
 #include "iwl-helpers.h"
 
-#ifdef CONFIG_IWL4965_DEBUG
-u32 iwl4965_debug_level;
-#endif
-
 static int iwl4965_tx_queue_update_write_ptr(struct iwl4965_priv *priv,
 				  struct iwl4965_tx_queue *txq);
 
@@ -91,9 +87,7 @@ int iwl4965_param_amsdu_size_8K;   /* def: enable 8K amsdu size */
 #define VS
 #endif
 
-#define IWLWIFI_VERSION "1.2.26k" VD VS
-#define DRV_COPYRIGHT	"Copyright(c) 2003-2007 Intel Corporation"
-#define DRV_VERSION     IWLWIFI_VERSION
+#define DRV_VERSION     IWLWIFI_VERSION VD VS
 
 
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
