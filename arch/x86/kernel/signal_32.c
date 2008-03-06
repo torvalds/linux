@@ -26,8 +26,6 @@
 #include <asm/vdso.h>
 #include "sigframe.h"
 
-#define DEBUG_SIG 0
-
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
 #define __FIX_EFLAGS	(X86_EFLAGS_AC | X86_EFLAGS_OF | \
@@ -412,11 +410,6 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	if (test_thread_flag(TIF_SINGLESTEP))
 		ptrace_notify(SIGTRAP);
 
-#if DEBUG_SIG
-	printk("SIG deliver (%s:%d): sp=%p pc=%lx ra=%p\n",
-		current->comm, current->pid, frame, regs->ip, frame->pretcode);
-#endif
-
 	return 0;
 
 give_sigsegv:
@@ -504,11 +497,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->flags &= ~(TF_MASK | X86_EFLAGS_DF);
 	if (test_thread_flag(TIF_SINGLESTEP))
 		ptrace_notify(SIGTRAP);
-
-#if DEBUG_SIG
-	printk("SIG deliver (%s:%d): sp=%p pc=%p ra=%p\n",
-		current->comm, current->pid, frame, regs->ip, frame->pretcode);
-#endif
 
 	return 0;
 
