@@ -21,7 +21,6 @@
 #include <linux/gfs2_ondisk.h>
 #include <linux/lm_interface.h>
 #include <linux/backing-dev.h>
-#include <linux/pagevec.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -278,7 +277,7 @@ static int gfs2_write_jdata_pagevec(struct address_space *mapping,
 	int i;
 	int ret;
 
-	ret = gfs2_trans_begin(sdp, nrblocks, 0);
+	ret = gfs2_trans_begin(sdp, nrblocks, nrblocks);
 	if (ret < 0)
 		return ret;
 
