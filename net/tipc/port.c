@@ -242,7 +242,8 @@ u32 tipc_createport_raw(void *usr_handle,
 	p_ptr->publ.max_pkt = MAX_PKT_DEFAULT;
 	p_ptr->publ.ref = ref;
 	msg = &p_ptr->publ.phdr;
-	msg_init(msg, DATA_LOW, TIPC_NAMED_MSG, TIPC_OK, LONG_H_SIZE, 0);
+	msg_init(msg, TIPC_LOW_IMPORTANCE, TIPC_NAMED_MSG, TIPC_OK, LONG_H_SIZE,
+		 0);
 	msg_set_orignode(msg, tipc_own_addr);
 	msg_set_prevnode(msg, tipc_own_addr);
 	msg_set_origport(msg, ref);
@@ -625,7 +626,7 @@ void tipc_port_recv_proto_msg(struct sk_buff *buf)
 					     msg_orignode(msg),
 					     msg_destport(msg),
 					     tipc_own_addr,
-					     DATA_HIGH,
+					     TIPC_HIGH_IMPORTANCE,
 					     TIPC_CONN_MSG,
 					     err,
 					     0,

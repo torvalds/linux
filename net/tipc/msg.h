@@ -40,18 +40,16 @@
 #include "core.h"
 
 #define TIPC_VERSION              2
-#define DATA_LOW                  TIPC_LOW_IMPORTANCE
-#define DATA_MEDIUM               TIPC_MEDIUM_IMPORTANCE
-#define DATA_HIGH                 TIPC_HIGH_IMPORTANCE
-#define DATA_CRITICAL             TIPC_CRITICAL_IMPORTANCE
-#define SHORT_H_SIZE              24	/* Connected,in cluster */
+
+#define SHORT_H_SIZE              24	/* Connected, in-cluster messages */
 #define DIR_MSG_H_SIZE            32	/* Directly addressed messages */
-#define CONN_MSG_H_SIZE           36	/* Routed connected msgs*/
-#define LONG_H_SIZE               40	/* Named Messages */
+#define LONG_H_SIZE               40	/* Named messages */
 #define MCAST_H_SIZE              44	/* Multicast messages */
-#define MAX_H_SIZE                60	/* Inclusive full options */
+#define INT_H_SIZE                40	/* Internal messages */
+#define MIN_H_SIZE                24	/* Smallest legal TIPC header size */
+#define MAX_H_SIZE                60	/* Largest possible TIPC header size */
+
 #define MAX_MSG_SIZE (MAX_H_SIZE + TIPC_MAX_USER_MSG_SIZE)
-#define LINK_CONFIG               13
 
 
 /*
@@ -97,7 +95,7 @@ static inline u32 msg_user(struct tipc_msg *m)
 
 static inline u32 msg_isdata(struct tipc_msg *m)
 {
-	return (msg_user(m) <= DATA_CRITICAL);
+	return (msg_user(m) <= TIPC_CRITICAL_IMPORTANCE);
 }
 
 static inline void msg_set_user(struct tipc_msg *m, u32 n)
@@ -365,7 +363,6 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 #define  NAME_DISTRIBUTOR     11
 #define  MSG_FRAGMENTER       12
 #define  LINK_CONFIG          13
-#define  INT_H_SIZE           40
 #define  DSC_H_SIZE           40
 
 /*

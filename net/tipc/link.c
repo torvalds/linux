@@ -2832,15 +2832,15 @@ static void link_set_supervision_props(struct link *l_ptr, u32 tolerance)
 void tipc_link_set_queue_limits(struct link *l_ptr, u32 window)
 {
 	/* Data messages from this node, inclusive FIRST_FRAGM */
-	l_ptr->queue_limit[DATA_LOW] = window;
-	l_ptr->queue_limit[DATA_MEDIUM] = (window / 3) * 4;
-	l_ptr->queue_limit[DATA_HIGH] = (window / 3) * 5;
-	l_ptr->queue_limit[DATA_CRITICAL] = (window / 3) * 6;
+	l_ptr->queue_limit[TIPC_LOW_IMPORTANCE] = window;
+	l_ptr->queue_limit[TIPC_MEDIUM_IMPORTANCE] = (window / 3) * 4;
+	l_ptr->queue_limit[TIPC_HIGH_IMPORTANCE] = (window / 3) * 5;
+	l_ptr->queue_limit[TIPC_CRITICAL_IMPORTANCE] = (window / 3) * 6;
 	/* Transiting data messages,inclusive FIRST_FRAGM */
-	l_ptr->queue_limit[DATA_LOW + 4] = 300;
-	l_ptr->queue_limit[DATA_MEDIUM + 4] = 600;
-	l_ptr->queue_limit[DATA_HIGH + 4] = 900;
-	l_ptr->queue_limit[DATA_CRITICAL + 4] = 1200;
+	l_ptr->queue_limit[TIPC_LOW_IMPORTANCE + 4] = 300;
+	l_ptr->queue_limit[TIPC_MEDIUM_IMPORTANCE + 4] = 600;
+	l_ptr->queue_limit[TIPC_HIGH_IMPORTANCE + 4] = 900;
+	l_ptr->queue_limit[TIPC_CRITICAL_IMPORTANCE + 4] = 1200;
 	l_ptr->queue_limit[CONN_MANAGER] = 1200;
 	l_ptr->queue_limit[ROUTE_DISTRIBUTOR] = 1200;
 	l_ptr->queue_limit[CHANGEOVER_PROTOCOL] = 2500;
