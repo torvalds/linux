@@ -686,6 +686,8 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	/* remote wakeup [4.3.1] */
 	if (status & STS_PCD) {
 		unsigned	i = HCS_N_PORTS (ehci->hcs_params);
+
+		/* kick root hub later */
 		pcd_status = status;
 
 		/* resume root hub? */
@@ -714,8 +716,6 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 
 	/* PCI errors [4.15.2.4] */
 	if (unlikely ((status & STS_FATAL) != 0)) {
-		/* bogus "fatal" IRQs appear on some chips... why?  */
-		status = ehci_readl(ehci, &ehci->regs->status);
 		dbg_cmd (ehci, "fatal", ehci_readl(ehci,
 						   &ehci->regs->command));
 		dbg_status (ehci, "fatal", status);
@@ -734,7 +734,7 @@ dead:
 	if (bh)
 		ehci_work (ehci);
 	spin_unlock (&ehci->lock);
-	if (pcd_status & STS_PCD)
+	if (pcd_status)
 		usb_hcd_poll_rh_status(hcd);
 	return IRQ_HANDLED;
 }
