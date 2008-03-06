@@ -73,16 +73,17 @@ static match_table_t tokens = {
  * v9fs_parse_options - parse mount options into session structure
  * @v9ses: existing v9fs session information
  *
+ * Return 0 upon success, -ERRNO upon failure.
  */
 
-static void v9fs_parse_options(struct v9fs_session_info *v9ses)
+static int v9fs_parse_options(struct v9fs_session_info *v9ses)
 {
 	char *options;
 	substring_t args[MAX_OPT_ARGS];
 	char *p;
 	int option = 0;
 	char *s, *e;
-	int ret;
+	int ret = 0;
 
 	/* setup defaults */
 	v9ses->afid = ~0;
@@ -90,19 +91,26 @@ static void v9fs_parse_options(struct v9fs_session_info *v9ses)
 	v9ses->cache = 0;
 
 	if (!v9ses->options)
-		return;
+		return 0;
 
 	options = kstrdup(v9ses->options, GFP_KERNEL);
+	if (!options) {
+		P9_DPRINTK(P9_DEBUG_ERROR,
+			   "failed to allocate copy of option string\n");
+		return -ENOMEM;
+	}
+
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
 		if (!*p)
 			continue;
 		token = match_token(p, tokens, args);
 		if (token < Opt_uname) {
-			ret = match_int(&args[0], &option);
-			if (ret < 0) {
+			int r = match_int(&args[0], &option);
+			if (r < 0) {
 				P9_DPRINTK(P9_DEBUG_ERROR,
 					"integer field, but no integer?\n");
+				ret = r;
 				continue;
 			}
 		}
@@ -138,6 +146,13 @@ static void v9fs_parse_options(struct v9fs_session_info *v9ses)
 
 		case Opt_access:
 			s = match_strdup(&args[0]);
+			if (!s) {
+				P9_DPRINTK(P9_DEBUG_ERROR,
+					   "failed to allocate copy"
+					   " of option argument\n");
+				ret = -ENOMEM;
+				break;
+			}
 			v9ses->flags &= ~V9FS_ACCESS_MASK;
 			if (strcmp(s, "user") == 0)
 				v9ses->flags |= V9FS_ACCESS_USER;
@@ -157,6 +172,7 @@ static void v9fs_parse_options(struct v9fs_session_info *v9ses)
 		}
 	}
 	kfree(options);
+	return ret;
 }
 
 /**
@@ -172,6 +188,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 {
 	int retval = -EINVAL;
 	struct p9_fid *fid;
+	int rc;
 
 	v9ses->uname = __getname();
 	if (!v9ses->uname)
@@ -190,7 +207,18 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	v9ses->dfltuid = V9FS_DEFUID;
 	v9ses->dfltgid = V9FS_DEFGID;
 	v9ses->options = kstrdup(data, GFP_KERNEL);
-	v9fs_parse_options(v9ses);
+	if (!v9ses->options) {
+		P9_DPRINTK(P9_DEBUG_ERROR,
+			   "failed to allocate copy of option string\n");
+		retval = -ENOMEM;
+		goto error;
+	}
+
+	rc = v9fs_parse_options(v9ses);
+	if (rc < 0) {
+		retval = rc;
+		goto error;
+	}
 
 	v9ses->clnt = p9_client_create(dev_name, v9ses->options);
 
