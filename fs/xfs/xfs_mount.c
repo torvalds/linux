@@ -964,11 +964,6 @@ xfs_mountfs(
 	int		uuid_mounted = 0;
 	int		error = 0;
 
-	if (mp->m_sb_bp == NULL) {
-		error = xfs_readsb(mp, mfsi_flags);
-		if (error)
-			return error;
-	}
 	xfs_mount_common(mp, sbp);
 
 	/*
