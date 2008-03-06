@@ -6258,16 +6258,21 @@ static void alc882_auto_init_analog_input(struct hda_codec *codec)
 
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		hda_nid_t nid = spec->autocfg.input_pins[i];
-		if (alc882_is_input_pin(nid)) {
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_PIN_WIDGET_CONTROL,
-					    i <= AUTO_PIN_FRONT_MIC ?
-					    PIN_VREF80 : PIN_IN);
-			if (nid != ALC882_PIN_CD_NID)
-				snd_hda_codec_write(codec, nid, 0,
-						    AC_VERB_SET_AMP_GAIN_MUTE,
-						    AMP_OUT_MUTE);
+		unsigned int vref;
+		if (!nid)
+			continue;
+		vref = PIN_IN;
+		if (1 /*i <= AUTO_PIN_FRONT_MIC*/) {
+			if (snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP) &
+			    AC_PINCAP_VREF_80)
+				vref = PIN_VREF80;
 		}
+		snd_hda_codec_write(codec, nid, 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL, vref);
+		if (get_wcaps(codec, nid) & AC_WCAP_OUT_AMP)
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_AMP_GAIN_MUTE,
+					    AMP_OUT_MUTE);
 	}
 }
 
@@ -10124,6 +10129,10 @@ static int alc268_auto_create_analog_input_ctls(struct alc_spec *spec,
 			break;
 		case 0x1c:	
 			idx1 = 3;	/* CD */
+			break;
+		case 0x12:
+		case 0x13:
+			idx1 = 6;	/* digital mics */
 			break;
 		default:
 			continue;
