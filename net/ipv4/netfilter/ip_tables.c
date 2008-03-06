@@ -53,7 +53,7 @@ MODULE_DESCRIPTION("IPv4 packet filter");
 do {								\
 	if (!(x))						\
 		printk("IP_NF_ASSERT: %s:%s:%u\n",		\
-		       __FUNCTION__, __FILE__, __LINE__);	\
+		       __func__, __FILE__, __LINE__);	\
 } while(0)
 #else
 #define IP_NF_ASSERT(x)

@@ -1359,7 +1359,7 @@ static int xs_bind4(struct sock_xprt *transport, struct socket *sock)
 			nloop++;
 	} while (err == -EADDRINUSE && nloop != 2);
 	dprintk("RPC:       %s "NIPQUAD_FMT":%u: %s (%d)\n",
-			__FUNCTION__, NIPQUAD(myaddr.sin_addr),
+			__func__, NIPQUAD(myaddr.sin_addr),
 			port, err ? "failed" : "ok", err);
 	return err;
 }

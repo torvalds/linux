@@ -70,7 +70,7 @@ static int irlan_provider_data_indication(void *instance, void *sap,
 	struct irlan_cb *self;
 	__u8 code;
 
-	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(4, "%s()\n", __func__ );
 
 	self = (struct irlan_cb *) instance;
 
@@ -99,15 +99,15 @@ static int irlan_provider_data_indication(void *instance, void *sap,
 		irlan_do_provider_event(self, IRLAN_FILTER_CONFIG_CMD, skb);
 		break;
 	case CMD_RECONNECT_DATA_CHAN:
-		IRDA_DEBUG(2, "%s(), Got RECONNECT_DATA_CHAN command\n", __FUNCTION__ );
-		IRDA_DEBUG(2, "%s(), NOT IMPLEMENTED\n", __FUNCTION__ );
+		IRDA_DEBUG(2, "%s(), Got RECONNECT_DATA_CHAN command\n", __func__ );
+		IRDA_DEBUG(2, "%s(), NOT IMPLEMENTED\n", __func__ );
 		break;
 	case CMD_CLOSE_DATA_CHAN:
 		IRDA_DEBUG(2, "Got CLOSE_DATA_CHAN command!\n");
-		IRDA_DEBUG(2, "%s(), NOT IMPLEMENTED\n", __FUNCTION__ );
+		IRDA_DEBUG(2, "%s(), NOT IMPLEMENTED\n", __func__ );
 		break;
 	default:
-		IRDA_DEBUG(2, "%s(), Unknown command!\n", __FUNCTION__ );
+		IRDA_DEBUG(2, "%s(), Unknown command!\n", __func__ );
 		break;
 	}
 	return 0;
@@ -129,7 +129,7 @@ static void irlan_provider_connect_indication(void *instance, void *sap,
 	struct tsap_cb *tsap;
 	__u32 saddr, daddr;
 
-	IRDA_DEBUG(0, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(0, "%s()\n", __func__ );
 
 	self = (struct irlan_cb *) instance;
 	tsap = (struct tsap_cb *) sap;
@@ -182,7 +182,7 @@ static void irlan_provider_disconnect_indication(void *instance, void *sap,
 	struct irlan_cb *self;
 	struct tsap_cb *tsap;
 
-	IRDA_DEBUG(4, "%s(), reason=%d\n", __FUNCTION__ , reason);
+	IRDA_DEBUG(4, "%s(), reason=%d\n", __func__ , reason);
 
 	self = (struct irlan_cb *) instance;
 	tsap = (struct tsap_cb *) sap;
@@ -236,7 +236,7 @@ int irlan_provider_parse_command(struct irlan_cb *self, int cmd,
 
 	IRDA_ASSERT(skb != NULL, return -RSP_PROTOCOL_ERROR;);
 
-	IRDA_DEBUG(4, "%s(), skb->len=%d\n", __FUNCTION__ , (int)skb->len);
+	IRDA_DEBUG(4, "%s(), skb->len=%d\n", __func__ , (int)skb->len);
 
 	IRDA_ASSERT(self != NULL, return -RSP_PROTOCOL_ERROR;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return -RSP_PROTOCOL_ERROR;);
@@ -266,7 +266,7 @@ int irlan_provider_parse_command(struct irlan_cb *self, int cmd,
 	for (i=0; i<count;i++) {
 		ret = irlan_extract_param(ptr, name, value, &val_len);
 		if (ret < 0) {
-			IRDA_DEBUG(2, "%s(), IrLAN, Error!\n", __FUNCTION__ );
+			IRDA_DEBUG(2, "%s(), IrLAN, Error!\n", __func__ );
 			break;
 		}
 		ptr+=ret;
@@ -291,7 +291,7 @@ void irlan_provider_send_reply(struct irlan_cb *self, int command,
 {
 	struct sk_buff *skb;
 
-	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(4, "%s()\n", __func__ );
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
@@ -323,7 +323,7 @@ void irlan_provider_send_reply(struct irlan_cb *self, int command,
 			irlan_insert_string_param(skb, "MEDIA", "802.5");
 			break;
 		default:
-			IRDA_DEBUG(2, "%s(), unknown media type!\n", __FUNCTION__ );
+			IRDA_DEBUG(2, "%s(), unknown media type!\n", __func__ );
 			break;
 		}
 		irlan_insert_short_param(skb, "IRLAN_VER", 0x0101);
@@ -347,7 +347,7 @@ void irlan_provider_send_reply(struct irlan_cb *self, int command,
 			irlan_insert_string_param(skb, "ACCESS_TYPE", "HOSTED");
 			break;
 		default:
-			IRDA_DEBUG(2, "%s(), Unknown access type\n", __FUNCTION__ );
+			IRDA_DEBUG(2, "%s(), Unknown access type\n", __func__ );
 			break;
 		}
 		irlan_insert_short_param(skb, "MAX_FRAME", 0x05ee);
@@ -367,7 +367,7 @@ void irlan_provider_send_reply(struct irlan_cb *self, int command,
 		irlan_filter_request(self, skb);
 		break;
 	default:
-		IRDA_DEBUG(2, "%s(), Unknown command!\n", __FUNCTION__ );
+		IRDA_DEBUG(2, "%s(), Unknown command!\n", __func__ );
 		break;
 	}
 
@@ -385,7 +385,7 @@ int irlan_provider_open_ctrl_tsap(struct irlan_cb *self)
 	struct tsap_cb *tsap;
 	notify_t notify;
 
-	IRDA_DEBUG(4, "%s()\n", __FUNCTION__ );
+	IRDA_DEBUG(4, "%s()\n", __func__ );
 
 	IRDA_ASSERT(self != NULL, return -1;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return -1;);
@@ -406,7 +406,7 @@ int irlan_provider_open_ctrl_tsap(struct irlan_cb *self)
 
 	tsap = irttp_open_tsap(LSAP_ANY, 1, &notify);
 	if (!tsap) {
-		IRDA_DEBUG(2, "%s(), Got no tsap!\n", __FUNCTION__ );
+		IRDA_DEBUG(2, "%s(), Got no tsap!\n", __func__ );
 		return -1;
 	}
 	self->provider.tsap_ctrl = tsap;

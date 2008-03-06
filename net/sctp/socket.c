@@ -525,7 +525,7 @@ static int sctp_send_asconf_add_ip(struct sock		*sk,
 	ep = sp->ep;
 
 	SCTP_DEBUG_PRINTK("%s: (sk: %p, addrs: %p, addrcnt: %d)\n",
-			  __FUNCTION__, sk, addrs, addrcnt);
+			  __func__, sk, addrs, addrcnt);
 
 	list_for_each(pos, &ep->asocs) {
 		asoc = list_entry(pos, struct sctp_association, asocs);
@@ -711,7 +711,7 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 	ep = sp->ep;
 
 	SCTP_DEBUG_PRINTK("%s: (sk: %p, addrs: %p, addrcnt: %d)\n",
-			  __FUNCTION__, sk, addrs, addrcnt);
+			  __func__, sk, addrs, addrcnt);
 
 	list_for_each(pos, &ep->asocs) {
 		asoc = list_entry(pos, struct sctp_association, asocs);
@@ -1197,7 +1197,7 @@ SCTP_STATIC int sctp_setsockopt_connectx(struct sock* sk,
 	struct sockaddr *kaddrs;
 
 	SCTP_DEBUG_PRINTK("%s - sk %p addrs %p addrs_size %d\n",
-			  __FUNCTION__, sk, addrs, addrs_size);
+			  __func__, sk, addrs, addrs_size);
 
 	if (unlikely(addrs_size <= 0))
 		return -EINVAL;
@@ -3280,7 +3280,7 @@ SCTP_STATIC int sctp_connect(struct sock *sk, struct sockaddr *addr,
 	sctp_lock_sock(sk);
 
 	SCTP_DEBUG_PRINTK("%s - sk: %p, sockaddr: %p, addr_len: %d\n",
-			  __FUNCTION__, sk, addr, addr_len);
+			  __func__, sk, addr, addr_len);
 
 	/* Validate addr_len before calling common connect/connectx routine. */
 	af = sctp_get_af_specific(addr->sa_family);
@@ -3801,7 +3801,7 @@ static int sctp_getsockopt_peeloff(struct sock *sk, int len, char __user *optval
 		goto out;
 	}
 
-	SCTP_DEBUG_PRINTK("%s: sk: %p asoc: %p\n", __FUNCTION__, sk, asoc);
+	SCTP_DEBUG_PRINTK("%s: sk: %p asoc: %p\n", __func__, sk, asoc);
 
 	retval = sctp_do_peeloff(asoc, &newsock);
 	if (retval < 0)
@@ -3815,7 +3815,7 @@ static int sctp_getsockopt_peeloff(struct sock *sk, int len, char __user *optval
 	}
 
 	SCTP_DEBUG_PRINTK("%s: sk: %p asoc: %p newsk: %p sd: %d\n",
-			  __FUNCTION__, sk, asoc, newsock->sk, retval);
+			  __func__, sk, asoc, newsock->sk, retval);
 
 	/* Return the fd mapped to the new socket.  */
 	peeloff.sd = retval;
@@ -6186,7 +6186,7 @@ static int sctp_wait_for_connect(struct sctp_association *asoc, long *timeo_p)
 	long current_timeo = *timeo_p;
 	DEFINE_WAIT(wait);
 
-	SCTP_DEBUG_PRINTK("%s: asoc=%p, timeo=%ld\n", __FUNCTION__, asoc,
+	SCTP_DEBUG_PRINTK("%s: asoc=%p, timeo=%ld\n", __func__, asoc,
 			  (long)(*timeo_p));
 
 	/* Increment the association's refcnt.  */

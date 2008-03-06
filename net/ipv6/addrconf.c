@@ -349,7 +349,7 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 	if (snmp6_alloc_dev(ndev) < 0) {
 		ADBG((KERN_WARNING
 			"%s(): cannot allocate memory for statistics; dev=%s.\n",
-			__FUNCTION__, dev->name));
+			__func__, dev->name));
 		neigh_parms_release(&nd_tbl, ndev->nd_parms);
 		ndev->dead = 1;
 		in6_dev_finish_destroy(ndev);
@@ -359,7 +359,7 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 	if (snmp6_register_dev(ndev) < 0) {
 		ADBG((KERN_WARNING
 			"%s(): cannot create /proc/net/dev_snmp6/%s\n",
-			__FUNCTION__, dev->name));
+			__func__, dev->name));
 		neigh_parms_release(&nd_tbl, ndev->nd_parms);
 		ndev->dead = 1;
 		in6_dev_finish_destroy(ndev);

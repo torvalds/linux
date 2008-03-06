@@ -2176,7 +2176,7 @@ static int __init af_unix_init(void)
 	rc = proto_register(&unix_proto, 1);
 	if (rc != 0) {
 		printk(KERN_CRIT "%s: Cannot create unix_sock SLAB cache!\n",
-		       __FUNCTION__);
+		       __func__);
 		goto out;
 	}
 

@@ -171,7 +171,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	skb->dev = __find_vlan_dev(dev, vid);
 	if (!skb->dev) {
 		pr_debug("%s: ERROR: No net_device for VID: %u on dev: %s\n",
-			 __FUNCTION__, (unsigned int)vid, dev->name);
+			 __func__, (unsigned int)vid, dev->name);
 		goto err_unlock;
 	}
 
@@ -187,7 +187,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 						  ntohs(vhdr->h_vlan_TCI));
 
 	pr_debug("%s: priority: %u for TCI: %hu\n",
-		 __FUNCTION__, skb->priority, ntohs(vhdr->h_vlan_TCI));
+		 __func__, skb->priority, ntohs(vhdr->h_vlan_TCI));
 
 	switch (skb->pkt_type) {
 	case PACKET_BROADCAST: /* Yeah, stats collect these together.. */
@@ -268,7 +268,7 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 	struct net_device *vdev = dev;
 
 	pr_debug("%s: skb: %p type: %hx len: %u vlan_id: %hx, daddr: %p\n",
-		 __FUNCTION__, skb, type, len, vlan_dev_info(dev)->vlan_id,
+		 __func__, skb, type, len, vlan_dev_info(dev)->vlan_id,
 		 daddr);
 
 	/* build vlan header only if re_order_header flag is NOT set.  This
@@ -340,7 +340,7 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 			return -ENOMEM;
 		}
 		vlan_dev_info(vdev)->cnt_inc_headroom_on_tx++;
-		pr_debug("%s: %s: had to grow skb\n", __FUNCTION__, vdev->name);
+		pr_debug("%s: %s: had to grow skb\n", __func__, vdev->name);
 	}
 
 	if (build_vlan_header) {
@@ -382,7 +382,7 @@ static int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		vlan_dev_info(dev)->cnt_encap_on_xmit++;
 
 		pr_debug("%s: proto to encap: 0x%hx\n",
-			 __FUNCTION__, htons(veth->h_vlan_proto));
+			 __func__, htons(veth->h_vlan_proto));
 		/* Construct the second two bytes. This field looks something
 		 * like:
 		 * usr_priority: 3 bits	 (high bits)
@@ -403,7 +403,7 @@ static int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	pr_debug("%s: about to send skb: %p to dev: %s\n",
-		__FUNCTION__, skb, skb->dev->name);
+		__func__, skb, skb->dev->name);
 	pr_debug("  " MAC_FMT " " MAC_FMT " %4hx %4hx %4hx\n",
 		 veth->h_dest[0], veth->h_dest[1], veth->h_dest[2],
 		 veth->h_dest[3], veth->h_dest[4], veth->h_dest[5],

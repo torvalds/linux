@@ -1060,7 +1060,7 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 	if (sysctl_ip_dynaddr > 1) {
 		printk(KERN_INFO "%s(): shifting inet->"
 				 "saddr from %d.%d.%d.%d to %d.%d.%d.%d\n",
-		       __FUNCTION__,
+		       __func__,
 		       NIPQUAD(old_saddr),
 		       NIPQUAD(new_saddr));
 	}

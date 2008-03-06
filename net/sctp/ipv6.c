@@ -223,7 +223,7 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport,
 
 	SCTP_DEBUG_PRINTK("%s: skb:%p, len:%d, "
 			  "src:" NIP6_FMT " dst:" NIP6_FMT "\n",
-			  __FUNCTION__, skb, skb->len,
+			  __func__, skb, skb->len,
 			  NIP6(fl.fl6_src), NIP6(fl.fl6_dst));
 
 	SCTP_INC_STATS(SCTP_MIB_OUTSCTPPACKS);
@@ -248,7 +248,7 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 
 
 	SCTP_DEBUG_PRINTK("%s: DST=" NIP6_FMT " ",
-			  __FUNCTION__, NIP6(fl.fl6_dst));
+			  __func__, NIP6(fl.fl6_dst));
 
 	if (saddr) {
 		ipv6_addr_copy(&fl.fl6_src, &saddr->v6.sin6_addr);
@@ -310,7 +310,7 @@ static void sctp_v6_get_saddr(struct sctp_association *asoc,
 
 	SCTP_DEBUG_PRINTK("%s: asoc:%p dst:%p "
 			  "daddr:" NIP6_FMT " ",
-			  __FUNCTION__, asoc, dst, NIP6(daddr->v6.sin6_addr));
+			  __func__, asoc, dst, NIP6(daddr->v6.sin6_addr));
 
 	if (!asoc) {
 		ipv6_dev_get_saddr(dst ? ip6_dst_idev(dst)->dev : NULL,
@@ -349,7 +349,7 @@ static void sctp_v6_get_saddr(struct sctp_association *asoc,
 	} else {
 		printk(KERN_ERR "%s: asoc:%p Could not find a valid source "
 		       "address for the dest:" NIP6_FMT "\n",
-		       __FUNCTION__, asoc, NIP6(daddr->v6.sin6_addr));
+		       __func__, asoc, NIP6(daddr->v6.sin6_addr));
 	}
 
 	rcu_read_unlock();

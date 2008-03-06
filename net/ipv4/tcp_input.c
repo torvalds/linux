@@ -3561,7 +3561,7 @@ static void tcp_fin(struct sk_buff *skb, struct sock *sk, struct tcphdr *th)
 		 * cases we should never reach this piece of code.
 		 */
 		printk(KERN_ERR "%s: Impossible, sk->sk_state=%d\n",
-		       __FUNCTION__, sk->sk_state);
+		       __func__, sk->sk_state);
 		break;
 	}
 

@@ -177,7 +177,7 @@ reject_tg6(struct sk_buff *skb, const struct net_device *in,
 {
 	const struct ip6t_reject_info *reject = targinfo;
 
-	pr_debug("%s: medium point\n", __FUNCTION__);
+	pr_debug("%s: medium point\n", __func__);
 	/* WARNING: This code causes reentry within ip6tables.
 	   This means that the ip6tables jump stack is now crap.  We
 	   must return an absolute verdict. --RR */

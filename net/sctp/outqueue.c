@@ -469,7 +469,7 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 
 	SCTP_DEBUG_PRINTK("%s: transport: %p, reason: %d, "
 			  "cwnd: %d, ssthresh: %d, flight_size: %d, "
-			  "pba: %d\n", __FUNCTION__,
+			  "pba: %d\n", __func__,
 			  transport, reason,
 			  transport->cwnd, transport->ssthresh,
 			  transport->flight_size,
@@ -1206,10 +1206,10 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	sctp_generate_fwdtsn(q, sack_ctsn);
 
 	SCTP_DEBUG_PRINTK("%s: sack Cumulative TSN Ack is 0x%x.\n",
-			  __FUNCTION__, sack_ctsn);
+			  __func__, sack_ctsn);
 	SCTP_DEBUG_PRINTK("%s: Cumulative TSN Ack of association, "
 			  "%p is 0x%x. Adv peer ack point: 0x%x\n",
-			  __FUNCTION__, asoc, ctsn, asoc->adv_peer_ack_point);
+			  __func__, asoc, ctsn, asoc->adv_peer_ack_point);
 
 	/* See if all chunks are acked.
 	 * Make sure the empty queue handler will get run later.
@@ -1444,7 +1444,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			if (tchunk->tsn_gap_acked) {
 				SCTP_DEBUG_PRINTK("%s: Receiver reneged on "
 						  "data TSN: 0x%x\n",
-						  __FUNCTION__,
+						  __func__,
 						  tsn);
 				tchunk->tsn_gap_acked = 0;
 
@@ -1561,7 +1561,7 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 			    (sack_ctsn+2 == q->asoc->next_tsn)) {
 				SCTP_DEBUG_PRINTK("%s: SACK received for zero "
 						  "window probe: %u\n",
-						  __FUNCTION__, sack_ctsn);
+						  __func__, sack_ctsn);
 				q->asoc->overall_error_count = 0;
 				transport->error_count = 0;
 			}
@@ -1626,7 +1626,7 @@ static void sctp_mark_missing(struct sctp_outq *q,
 
 				SCTP_DEBUG_PRINTK(
 					"%s: TSN 0x%x missing counter: %d\n",
-					__FUNCTION__, tsn,
+					__func__, tsn,
 					chunk->tsn_missing_report);
 			}
 		}
@@ -1649,7 +1649,7 @@ static void sctp_mark_missing(struct sctp_outq *q,
 
 		SCTP_DEBUG_PRINTK("%s: transport: %p, cwnd: %d, "
 				  "ssthresh: %d, flight_size: %d, pba: %d\n",
-				  __FUNCTION__, transport, transport->cwnd,
+				  __func__, transport, transport->cwnd,
 				  transport->ssthresh, transport->flight_size,
 				  transport->partial_bytes_acked);
 	}

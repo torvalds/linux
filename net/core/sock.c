@@ -981,7 +981,7 @@ void sk_free(struct sock *sk)
 
 	if (atomic_read(&sk->sk_omem_alloc))
 		printk(KERN_DEBUG "%s: optmem leakage (%d bytes) detected.\n",
-		       __FUNCTION__, atomic_read(&sk->sk_omem_alloc));
+		       __func__, atomic_read(&sk->sk_omem_alloc));
 
 	put_net(sk->sk_net);
 	sk_prot_free(sk->sk_prot_creator, sk);

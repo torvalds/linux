@@ -106,14 +106,14 @@ void __init udplite4_register(void)
 
 #ifdef CONFIG_PROC_FS
 	if (udp_proc_register(&udplite4_seq_afinfo)) /* udplite4_proc_init() */
-		printk(KERN_ERR "%s: Cannot register /proc!\n", __FUNCTION__);
+		printk(KERN_ERR "%s: Cannot register /proc!\n", __func__);
 #endif
 	return;
 
 out_unregister_proto:
 	proto_unregister(&udplite_prot);
 out_register_err:
-	printk(KERN_CRIT "%s: Cannot add UDP-Lite protocol.\n", __FUNCTION__);
+	printk(KERN_CRIT "%s: Cannot add UDP-Lite protocol.\n", __func__);
 }
 
 EXPORT_SYMBOL(udplite_hash);

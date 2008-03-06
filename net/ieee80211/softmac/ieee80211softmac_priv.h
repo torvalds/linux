@@ -43,7 +43,7 @@
 	do {										\
 		if (unlikely(!(expr))) {						\
 		printkl(KERN_ERR PFX "ASSERTION FAILED (%s) at: %s:%d:%s()\n", #expr,	\
-			__FILE__, __LINE__, __FUNCTION__);				\
+			__FILE__, __LINE__, __func__);				\
 		}									\
 	} while (0)
 #else

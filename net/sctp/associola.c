@@ -1330,7 +1330,7 @@ void sctp_assoc_sync_pmtu(struct sctp_association *asoc)
 	}
 
 	SCTP_DEBUG_PRINTK("%s: asoc:%p, pmtu:%d, frag_point:%d\n",
-			  __FUNCTION__, asoc, asoc->pathmtu, asoc->frag_point);
+			  __func__, asoc, asoc->pathmtu, asoc->frag_point);
 }
 
 /* Should we send a SACK to update our peer? */
@@ -1370,7 +1370,7 @@ void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned len)
 	}
 
 	SCTP_DEBUG_PRINTK("%s: asoc %p rwnd increased by %d to (%u, %u) "
-			  "- %u\n", __FUNCTION__, asoc, len, asoc->rwnd,
+			  "- %u\n", __func__, asoc, len, asoc->rwnd,
 			  asoc->rwnd_over, asoc->a_rwnd);
 
 	/* Send a window update SACK if the rwnd has increased by at least the
@@ -1381,7 +1381,7 @@ void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned len)
 	if (sctp_peer_needs_update(asoc)) {
 		asoc->a_rwnd = asoc->rwnd;
 		SCTP_DEBUG_PRINTK("%s: Sending window update SACK- asoc: %p "
-				  "rwnd: %u a_rwnd: %u\n", __FUNCTION__,
+				  "rwnd: %u a_rwnd: %u\n", __func__,
 				  asoc, asoc->rwnd, asoc->a_rwnd);
 		sack = sctp_make_sack(asoc);
 		if (!sack)
@@ -1410,7 +1410,7 @@ void sctp_assoc_rwnd_decrease(struct sctp_association *asoc, unsigned len)
 		asoc->rwnd = 0;
 	}
 	SCTP_DEBUG_PRINTK("%s: asoc %p rwnd decreased by %d to (%u, %u)\n",
-			  __FUNCTION__, asoc, len, asoc->rwnd,
+			  __func__, asoc, len, asoc->rwnd,
 			  asoc->rwnd_over);
 }
 

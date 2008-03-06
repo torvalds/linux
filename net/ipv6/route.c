@@ -410,7 +410,7 @@ static struct rt6_info *rt6_select(struct fib6_node *fn, int oif, int strict)
 	struct net *net;
 
 	RT6_TRACE("%s(fn->leaf=%p, oif=%d)\n",
-		  __FUNCTION__, fn->leaf, oif);
+		  __func__, fn->leaf, oif);
 
 	rt0 = fn->rr_ptr;
 	if (!rt0)
@@ -431,7 +431,7 @@ static struct rt6_info *rt6_select(struct fib6_node *fn, int oif, int strict)
 	}
 
 	RT6_TRACE("%s() => %p\n",
-		  __FUNCTION__, match);
+		  __func__, match);
 
 	net = rt0->rt6i_dev->nd_net;
 	return (match ? match : net->ipv6.ip6_null_entry);

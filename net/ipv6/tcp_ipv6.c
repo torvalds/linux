@@ -753,7 +753,7 @@ static int tcp_v6_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 
 	hp = tcp_get_md5sig_pool();
 	if (!hp) {
-		printk(KERN_WARNING "%s(): hash pool not found...\n", __FUNCTION__);
+		printk(KERN_WARNING "%s(): hash pool not found...\n", __func__);
 		goto clear_hash_noput;
 	}
 	bp = &hp->md5_blk.ip6;
@@ -793,17 +793,17 @@ static int tcp_v6_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 	/* Now store the hash into the packet */
 	err = crypto_hash_init(desc);
 	if (err) {
-		printk(KERN_WARNING "%s(): hash_init failed\n", __FUNCTION__);
+		printk(KERN_WARNING "%s(): hash_init failed\n", __func__);
 		goto clear_hash;
 	}
 	err = crypto_hash_update(desc, sg, nbytes);
 	if (err) {
-		printk(KERN_WARNING "%s(): hash_update failed\n", __FUNCTION__);
+		printk(KERN_WARNING "%s(): hash_update failed\n", __func__);
 		goto clear_hash;
 	}
 	err = crypto_hash_final(desc, md5_hash);
 	if (err) {
-		printk(KERN_WARNING "%s(): hash_final failed\n", __FUNCTION__);
+		printk(KERN_WARNING "%s(): hash_final failed\n", __func__);
 		goto clear_hash;
 	}
 

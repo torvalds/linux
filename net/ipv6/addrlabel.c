@@ -166,7 +166,7 @@ u32 ipv6_addr_label(const struct in6_addr *addr, int type, int ifindex)
 	rcu_read_unlock();
 
 	ADDRLABEL(KERN_DEBUG "%s(addr=" NIP6_FMT ", type=%d, ifindex=%d) => %08x\n",
-			__FUNCTION__,
+			__func__,
 			NIP6(*addr), type, ifindex,
 			label);
 
@@ -182,7 +182,7 @@ static struct ip6addrlbl_entry *ip6addrlbl_alloc(const struct in6_addr *prefix,
 	int addrtype;
 
 	ADDRLABEL(KERN_DEBUG "%s(prefix=" NIP6_FMT ", prefixlen=%d, ifindex=%d, label=%u)\n",
-			__FUNCTION__,
+			__func__,
 			NIP6(*prefix), prefixlen,
 			ifindex,
 			(unsigned int)label);
@@ -226,7 +226,7 @@ static int __ip6addrlbl_add(struct ip6addrlbl_entry *newp, int replace)
 	int ret = 0;
 
 	ADDRLABEL(KERN_DEBUG "%s(newp=%p, replace=%d)\n",
-			__FUNCTION__,
+			__func__,
 			newp, replace);
 
 	if (hlist_empty(&ip6addrlbl_table.head)) {
@@ -268,7 +268,7 @@ static int ip6addrlbl_add(const struct in6_addr *prefix, int prefixlen,
 	int ret = 0;
 
 	ADDRLABEL(KERN_DEBUG "%s(prefix=" NIP6_FMT ", prefixlen=%d, ifindex=%d, label=%u, replace=%d)\n",
-			__FUNCTION__,
+			__func__,
 			NIP6(*prefix), prefixlen,
 			ifindex,
 			(unsigned int)label,
@@ -294,7 +294,7 @@ static int __ip6addrlbl_del(const struct in6_addr *prefix, int prefixlen,
 	int ret = -ESRCH;
 
 	ADDRLABEL(KERN_DEBUG "%s(prefix=" NIP6_FMT ", prefixlen=%d, ifindex=%d)\n",
-			__FUNCTION__,
+			__func__,
 			NIP6(*prefix), prefixlen,
 			ifindex);
 
@@ -318,7 +318,7 @@ static int ip6addrlbl_del(const struct in6_addr *prefix, int prefixlen,
 	int ret;
 
 	ADDRLABEL(KERN_DEBUG "%s(prefix=" NIP6_FMT ", prefixlen=%d, ifindex=%d)\n",
-			__FUNCTION__,
+			__func__,
 			NIP6(*prefix), prefixlen,
 			ifindex);
 
@@ -335,7 +335,7 @@ static __init int ip6addrlbl_init(void)
 	int err = 0;
 	int i;
 
-	ADDRLABEL(KERN_DEBUG "%s()\n", __FUNCTION__);
+	ADDRLABEL(KERN_DEBUG "%s()\n", __func__);
 
 	for (i = 0; i < ARRAY_SIZE(ip6addrlbl_init_table); i++) {
 		int ret = ip6addrlbl_add(ip6addrlbl_init_table[i].prefix,

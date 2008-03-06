@@ -479,13 +479,13 @@ rpc_lookup_parent(char *path, struct nameidata *nd)
 	mnt = rpc_get_mount();
 	if (IS_ERR(mnt)) {
 		printk(KERN_WARNING "%s: %s failed to mount "
-			       "pseudofilesystem \n", __FILE__, __FUNCTION__);
+			       "pseudofilesystem \n", __FILE__, __func__);
 		return PTR_ERR(mnt);
 	}
 
 	if (vfs_path_lookup(mnt->mnt_root, mnt, path, LOOKUP_PARENT, nd)) {
 		printk(KERN_WARNING "%s: %s failed to find path %s\n",
-				__FILE__, __FUNCTION__, path);
+				__FILE__, __func__, path);
 		rpc_put_mount();
 		return -ENOENT;
 	}
@@ -604,7 +604,7 @@ rpc_populate(struct dentry *parent,
 out_bad:
 	mutex_unlock(&dir->i_mutex);
 	printk(KERN_WARNING "%s: %s failed to populate directory %s\n",
-			__FILE__, __FUNCTION__, parent->d_name.name);
+			__FILE__, __func__, parent->d_name.name);
 	return -ENOMEM;
 }
 
@@ -623,7 +623,7 @@ __rpc_mkdir(struct inode *dir, struct dentry *dentry)
 	return 0;
 out_err:
 	printk(KERN_WARNING "%s: %s failed to allocate inode for dentry %s\n",
-			__FILE__, __FUNCTION__, dentry->d_name.name);
+			__FILE__, __func__, dentry->d_name.name);
 	return -ENOMEM;
 }
 
@@ -715,7 +715,7 @@ err_depopulate:
 err_dput:
 	dput(dentry);
 	printk(KERN_WARNING "%s: %s() failed to create directory %s (errno = %d)\n",
-			__FILE__, __FUNCTION__, path, error);
+			__FILE__, __func__, path, error);
 	dentry = ERR_PTR(error);
 	goto out;
 }
@@ -804,7 +804,7 @@ err_dput:
 	dput(dentry);
 	dentry = ERR_PTR(-ENOMEM);
 	printk(KERN_WARNING "%s: %s() failed to create pipe %s/%s (errno = %d)\n",
-			__FILE__, __FUNCTION__, parent->d_name.name, name,
+			__FILE__, __func__, parent->d_name.name, name,
 			-ENOMEM);
 	goto out;
 }

@@ -90,7 +90,7 @@ static int __init irda_init(void)
 {
 	int ret = 0;
 
-	IRDA_DEBUG(0, "%s()\n", __FUNCTION__);
+	IRDA_DEBUG(0, "%s()\n", __func__);
 
 	/* Lower layer of the stack */
 	irlmp_init();

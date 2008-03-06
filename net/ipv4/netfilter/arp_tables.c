@@ -52,7 +52,7 @@ MODULE_DESCRIPTION("arptables core");
 do {								\
 	if (!(x))						\
 		printk("ARP_NF_ASSERT: %s:%s:%u\n",		\
-		       __FUNCTION__, __FILE__, __LINE__);	\
+		       __func__, __FILE__, __LINE__);	\
 } while(0)
 #else
 #define ARP_NF_ASSERT(x)

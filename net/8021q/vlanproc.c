@@ -168,7 +168,7 @@ int __init vlan_proc_init(void)
 	return 0;
 
 err:
-	pr_err("%s: can't create entry in proc filesystem!\n", __FUNCTION__);
+	pr_err("%s: can't create entry in proc filesystem!\n", __func__);
 	vlan_proc_cleanup();
 	return -ENOBUFS;
 }

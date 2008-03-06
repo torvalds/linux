@@ -165,7 +165,7 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 		break;
 	default:
 		printk(KERN_WARNING "%s: %s: Unknown interface type 0x%x",
-		       dev->name, __FUNCTION__, type);
+		       dev->name, __func__, type);
 	}
 	ieee80211_debugfs_change_if_type(sdata, oldtype);
 }

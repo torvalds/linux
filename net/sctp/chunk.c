@@ -189,7 +189,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 				    msecs_to_jiffies(sinfo->sinfo_timetolive);
 		msg->can_abandon = 1;
 		SCTP_DEBUG_PRINTK("%s: msg:%p expires_at: %ld jiffies:%ld\n",
-				  __FUNCTION__, msg, msg->expires_at, jiffies);
+				  __func__, msg, msg->expires_at, jiffies);
 	}
 
 	max = asoc->frag_point;

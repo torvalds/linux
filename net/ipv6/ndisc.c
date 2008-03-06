@@ -270,7 +270,7 @@ static struct ndisc_options *ndisc_parse_options(u8 *opt, int opt_len,
 			if (ndopts->nd_opt_array[nd_opt->nd_opt_type]) {
 				ND_PRINTK2(KERN_WARNING
 					   "%s(): duplicated ND6 option found: type=%d\n",
-					   __FUNCTION__,
+					   __func__,
 					   nd_opt->nd_opt_type);
 			} else {
 				ndopts->nd_opt_array[nd_opt->nd_opt_type] = nd_opt;
@@ -301,7 +301,7 @@ static struct ndisc_options *ndisc_parse_options(u8 *opt, int opt_len,
 				 */
 				ND_PRINTK2(KERN_NOTICE
 					   "%s(): ignored unsupported option; type=%d, len=%d\n",
-					   __FUNCTION__,
+					   __func__,
 					   nd_opt->nd_opt_type, nd_opt->nd_opt_len);
 			}
 		}
@@ -484,7 +484,7 @@ static void __ndisc_send(struct net_device *dev,
 	if (!skb) {
 		ND_PRINTK0(KERN_ERR
 			   "ICMPv6 ND: %s() failed to allocate an skb.\n",
-			   __FUNCTION__);
+			   __func__);
 		dst_release(dst);
 		return;
 	}
@@ -647,7 +647,7 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 			ND_PRINTK1(KERN_DEBUG
 				   "%s(): trying to ucast probe in NUD_INVALID: "
 				   NIP6_FMT "\n",
-				   __FUNCTION__,
+				   __func__,
 				   NIP6(*target));
 		}
 		ndisc_send_ns(dev, neigh, target, target, saddr);
@@ -1149,7 +1149,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 		if (rt == NULL) {
 			ND_PRINTK0(KERN_ERR
 				   "ICMPv6 RA: %s() failed to add default route.\n",
-				   __FUNCTION__);
+				   __func__);
 			in6_dev_put(in6_dev);
 			return;
 		}
@@ -1158,7 +1158,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 		if (neigh == NULL) {
 			ND_PRINTK0(KERN_ERR
 				   "ICMPv6 RA: %s() got default router without neighbour.\n",
-				   __FUNCTION__);
+				   __func__);
 			dst_release(&rt->u.dst);
 			in6_dev_put(in6_dev);
 			return;
@@ -1471,7 +1471,7 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 	if (buff == NULL) {
 		ND_PRINTK0(KERN_ERR
 			   "ICMPv6 Redirect: %s() failed to allocate an skb.\n",
-			   __FUNCTION__);
+			   __func__);
 		dst_release(dst);
 		return;
 	}
