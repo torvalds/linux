@@ -1613,6 +1613,16 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Power management is _not_ supported.
 
+  Module snd-pcsp
+  -----------------
+
+    Module for internal PC-Speaker.
+
+    nforce_wa	- enable NForce chipset workaround. Expect bad sound.
+
+    This module supports system beeps, some kind of PCM playback and
+    even a few mixer controls.
+
   Module snd-pcxhr
   ----------------
 
