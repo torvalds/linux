@@ -233,7 +233,7 @@ static void __init dsp_init(void)
  * and cache configuration in detect_cpu_and_cache_system().
  */
 
-asmlinkage void __cpuinit sh_cpu_init(void)
+asmlinkage void __init sh_cpu_init(void)
 {
 	current_thread_info()->cpu = hard_smp_processor_id();
 
