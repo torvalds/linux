@@ -85,7 +85,7 @@ static inline u32 msg_version(struct tipc_msg *m)
 
 static inline void msg_set_version(struct tipc_msg *m)
 {
-	msg_set_bits(m, 0, 29, 0xf, TIPC_VERSION);
+	msg_set_bits(m, 0, 29, 7, TIPC_VERSION);
 }
 
 static inline u32 msg_user(struct tipc_msg *m)
