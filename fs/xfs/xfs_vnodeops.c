@@ -633,6 +633,15 @@ xfs_setattr(
 	 * Truncate file.  Must have write permission and not be a directory.
 	 */
 	if (mask & XFS_AT_SIZE) {
+		/*
+		 * Only change the c/mtime if we are changing the size
+		 * or we are explicitly asked to change it. This handles
+		 * the semantic difference between truncate() and ftruncate()
+		 * as implemented in the VFS.
+		 */
+		if (vap->va_size != ip->i_size || (mask & XFS_AT_CTIME))
+			timeflags |= XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG;
+
 		if (vap->va_size > ip->i_size) {
 			xfs_igrow_finish(tp, ip, vap->va_size,
 			    !(flags & ATTR_DMI));
@@ -661,10 +670,6 @@ xfs_setattr(
 			 */
 			xfs_iflags_set(ip, XFS_ITRUNCATED);
 		}
-		/*
-		 * Have to do this even if the file's size doesn't change.
-		 */
-		timeflags |= XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG;
 	}
 
 	/*
