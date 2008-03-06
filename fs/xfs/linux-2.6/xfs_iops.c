@@ -437,29 +437,33 @@ xfs_vn_symlink(
 	struct dentry	*dentry,
 	const char	*symname)
 {
-	struct inode	*ip;
-	bhv_vnode_t	*cvp;	/* used to lookup symlink to put in dentry */
+	struct inode	*inode;
+	struct xfs_inode *cip = NULL;
 	int		error;
 	mode_t		mode;
-
-	cvp = NULL;
 
 	mode = S_IFLNK |
 		(irix_symlink_mode ? 0777 & ~current->fs->umask : S_IRWXUGO);
 
 	error = xfs_symlink(XFS_I(dir), dentry, (char *)symname, mode,
-			    &cvp, NULL);
-	if (likely(!error && cvp)) {
-		error = xfs_init_security(cvp, dir);
-		if (likely(!error)) {
-			ip = vn_to_inode(cvp);
-			d_instantiate(dentry, ip);
-			xfs_validate_fields(dir);
-			xfs_validate_fields(ip);
-		} else {
-			xfs_cleanup_inode(dir, cvp, dentry, 0);
-		}
-	}
+			    &cip, NULL);
+	if (unlikely(error))
+		goto out;
+
+	inode = cip->i_vnode;
+
+	error = xfs_init_security(inode, dir);
+	if (unlikely(error))
+		goto out_cleanup_inode;
+
+	d_instantiate(dentry, inode);
+	xfs_validate_fields(dir);
+	xfs_validate_fields(inode);
+	return 0;
+
+ out_cleanup_inode:
+	xfs_cleanup_inode(dir, inode, dentry, 0);
+ out:
 	return -error;
 }
 
@@ -487,12 +491,9 @@ xfs_vn_rename(
 	struct dentry	*ndentry)
 {
 	struct inode	*new_inode = ndentry->d_inode;
-	bhv_vnode_t	*tvp;	/* target directory */
 	int		error;
 
-	tvp = vn_from_inode(ndir);
-
-	error = xfs_rename(XFS_I(odir), odentry, tvp, ndentry);
+	error = xfs_rename(XFS_I(odir), odentry, XFS_I(ndir), ndentry);
 	if (likely(!error)) {
 		if (new_inode)
 			xfs_validate_fields(new_inode);

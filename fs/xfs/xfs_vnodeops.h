@@ -36,7 +36,7 @@ int xfs_rmdir(struct xfs_inode *dp, bhv_vname_t *dentry);
 int xfs_readdir(struct xfs_inode	*dp, void *dirent, size_t bufsize,
 		       xfs_off_t *offset, filldir_t filldir);
 int xfs_symlink(struct xfs_inode *dp, bhv_vname_t *dentry,
-		char *target_path, mode_t mode, bhv_vnode_t **vpp,
+		char *target_path, mode_t mode, struct xfs_inode **ipp,
 		struct cred *credp);
 int xfs_inode_flush(struct xfs_inode *ip, int flags);
 int xfs_set_dmattrs(struct xfs_inode *ip, u_int evmask, u_int16_t state);
@@ -45,7 +45,7 @@ int xfs_change_file_space(struct xfs_inode *ip, int cmd,
 		xfs_flock64_t *bf, xfs_off_t offset,
 		struct cred *credp, int	attr_flags);
 int xfs_rename(struct xfs_inode *src_dp, bhv_vname_t *src_vname,
-		bhv_vnode_t *target_dir_vp, bhv_vname_t *target_vname);
+		struct xfs_inode *target_dp, bhv_vname_t *target_vname);
 int xfs_attr_get(struct xfs_inode *ip, const char *name, char *value,
 		int *valuelenp, int flags, cred_t *cred);
 int xfs_attr_set(struct xfs_inode *dp, const char *name, char *value,

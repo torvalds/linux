@@ -3059,10 +3059,9 @@ xfs_symlink(
 	bhv_vname_t		*dentry,
 	char			*target_path,
 	mode_t			mode,
-	bhv_vnode_t		**vpp,
+	xfs_inode_t		**ipp,
 	cred_t			*credp)
 {
-	bhv_vnode_t		*dir_vp = XFS_ITOV(dp);
 	xfs_mount_t		*mp = dp->i_mount;
 	xfs_trans_t		*tp;
 	xfs_inode_t		*ip;
@@ -3088,7 +3087,7 @@ xfs_symlink(
 	char			*link_name = VNAME(dentry);
 	int			link_namelen;
 
-	*vpp = NULL;
+	*ipp = NULL;
 	error = 0;
 	ip = NULL;
 	tp = NULL;
@@ -3227,7 +3226,7 @@ xfs_symlink(
 	 * transaction cancel unlocking dp so don't do it explicitly in the
 	 * error path.
 	 */
-	VN_HOLD(dir_vp);
+	IHOLD(dp);
 	xfs_trans_ijoin(tp, dp, XFS_ILOCK_EXCL);
 	unlock_dp_on_error = B_FALSE;
 
@@ -3343,13 +3342,8 @@ std_return:
 					0, error, 0);
 	}
 
-	if (!error) {
-		bhv_vnode_t *vp;
-
-		ASSERT(ip);
-		vp = XFS_ITOV(ip);
-		*vpp = vp;
-	}
+	if (!error)
+		*ipp = ip;
 	return error;
 
  error2:

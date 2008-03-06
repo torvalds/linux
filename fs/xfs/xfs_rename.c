@@ -219,12 +219,11 @@ int
 xfs_rename(
 	xfs_inode_t	*src_dp,
 	bhv_vname_t	*src_vname,
-	bhv_vnode_t	*target_dir_vp,
+	xfs_inode_t	*target_dp,
 	bhv_vname_t	*target_vname)
 {
-	bhv_vnode_t	*src_dir_vp = XFS_ITOV(src_dp);
 	xfs_trans_t	*tp;
-	xfs_inode_t	*target_dp, *src_ip, *target_ip;
+	xfs_inode_t	*src_ip, *target_ip;
 	xfs_mount_t	*mp = src_dp->i_mount;
 	int		new_parent;		/* moving to a new dir */
 	int		src_is_directory;	/* src_name is a directory */
@@ -244,16 +243,7 @@ xfs_rename(
 	int		target_namelen = VNAMELEN(target_vname);
 
 	xfs_itrace_entry(src_dp);
-	xfs_itrace_entry(xfs_vtoi(target_dir_vp));
-
-	/*
-	 * Find the XFS behavior descriptor for the target directory
-	 * vnode since it was not handed to us.
-	 */
-	target_dp = xfs_vtoi(target_dir_vp);
-	if (target_dp == NULL) {
-		return XFS_ERROR(EXDEV);
-	}
+	xfs_itrace_entry(target_dp);
 
 	if (DM_EVENT_ENABLED(src_dp, DM_EVENT_RENAME) ||
 	    DM_EVENT_ENABLED(target_dp, DM_EVENT_RENAME)) {
@@ -360,10 +350,10 @@ xfs_rename(
 	 * them when they unlock the inodes.  Also, we need to be careful
 	 * not to add an inode to the transaction more than once.
 	 */
-	VN_HOLD(src_dir_vp);
+	IHOLD(src_dp);
 	xfs_trans_ijoin(tp, src_dp, XFS_ILOCK_EXCL);
 	if (new_parent) {
-		VN_HOLD(target_dir_vp);
+		IHOLD(target_dp);
 		xfs_trans_ijoin(tp, target_dp, XFS_ILOCK_EXCL);
 	}
 	if ((src_ip != src_dp) && (src_ip != target_dp)) {
