@@ -2813,15 +2813,13 @@ xlog_state_put_ticket(xlog_t	    *log,
  *
  */
 STATIC int
-xlog_state_release_iclog(xlog_t		*log,
-			 xlog_in_core_t	*iclog)
+xlog_state_release_iclog(
+	xlog_t		*log,
+	xlog_in_core_t	*iclog)
 {
 	int		sync = 0;	/* do we sync? */
 
-	xlog_assign_tail_lsn(log->l_mp);
-
 	spin_lock(&log->l_icloglock);
-
 	if (iclog->ic_state & XLOG_STATE_IOERROR) {
 		spin_unlock(&log->l_icloglock);
 		return XFS_ERROR(EIO);
@@ -2833,13 +2831,14 @@ xlog_state_release_iclog(xlog_t		*log,
 
 	if (--iclog->ic_refcnt == 0 &&
 	    iclog->ic_state == XLOG_STATE_WANT_SYNC) {
+		/* update tail before writing to iclog */
+		xlog_assign_tail_lsn(log->l_mp);
 		sync++;
 		iclog->ic_state = XLOG_STATE_SYNCING;
 		iclog->ic_header.h_tail_lsn = cpu_to_be64(log->l_tail_lsn);
 		xlog_verify_tail_lsn(log, iclog, log->l_tail_lsn);
 		/* cycle incremented when incrementing curr_block */
 	}
-
 	spin_unlock(&log->l_icloglock);
 
 	/*
@@ -2849,11 +2848,9 @@ xlog_state_release_iclog(xlog_t		*log,
 	 * this iclog has consistent data, so we ignore IOERROR
 	 * flags after this point.
 	 */
-	if (sync) {
+	if (sync)
 		return xlog_sync(log, iclog);
-	}
 	return 0;
-
 }	/* xlog_state_release_iclog */
 
 
