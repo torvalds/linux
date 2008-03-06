@@ -3437,7 +3437,9 @@ xfs_rwunlock(
 {
  	if (S_ISDIR(ip->i_d.di_mode))
   		return;
-	if (locktype != VRWLOCK_WRITE) {
+	if (locktype == VRWLOCK_WRITE) {
+		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+	} else {
 		ASSERT((locktype == VRWLOCK_READ) ||
 		       (locktype == VRWLOCK_WRITE_DIRECT));
 		xfs_iunlock(ip, XFS_IOLOCK_SHARED);
