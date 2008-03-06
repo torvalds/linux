@@ -72,6 +72,11 @@ rev-$(CONFIG_BF_REV_ANY)  := any
 KBUILD_CFLAGS += -mcpu=$(cpu-y)-$(rev-y)
 KBUILD_AFLAGS += -mcpu=$(cpu-y)-$(rev-y)
 
+# - we utilize the silicon rev from the toolchain, so move it over to the checkflags
+# - the l1_text attribute is Blackfin specific, so fake it out as used to kill warnings
+CHECKFLAGS_SILICON = $(shell echo "" | $(CPP) $(KBUILD_CFLAGS) -dD - 2>/dev/null | awk '$$2 == "__SILICON_REVISION__" { print $$3 }')
+CHECKFLAGS += -D__SILICON_REVISION__=$(CHECKFLAGS_SILICON) -Dl1_text=__used__
+
 head-y   := arch/$(ARCH)/mach-$(MACHINE)/head.o arch/$(ARCH)/kernel/init_task.o
 
 core-y   += arch/$(ARCH)/kernel/ arch/$(ARCH)/mm/ arch/$(ARCH)/mach-common/
