@@ -1564,7 +1564,8 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 	if (mutex_lock_interruptible(&dev->lock))
 		return -ERESTARTSYS;
 
-	if (intf->dev.power.power_state.event != PM_EVENT_ON) {
+	/* FIXME: What if a system sleep starts while a test is running? */
+	if (!intf->is_active) {
 		mutex_unlock(&dev->lock);
 		return -EHOSTUNREACH;
 	}

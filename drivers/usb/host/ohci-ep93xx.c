@@ -177,7 +177,6 @@ static int ohci_hcd_ep93xx_drv_suspend(struct platform_device *pdev, pm_message_
 
 	ep93xx_stop_hc(&pdev->dev);
 	hcd->state = HC_STATE_SUSPENDED;
-	pdev->dev.power.power_state = PMSG_SUSPEND;
 
 	return 0;
 }
@@ -193,7 +192,6 @@ static int ohci_hcd_ep93xx_drv_resume(struct platform_device *pdev)
 	ohci->next_statechange = jiffies;
 
 	ep93xx_start_hc(&pdev->dev);
-	pdev->dev.power.power_state = PMSG_ON;
 	usb_hcd_resume_root_hub(hcd);
 
 	return 0;

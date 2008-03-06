@@ -1534,11 +1534,9 @@ static void u132_power(struct u132 *u132, int is_on)
                 if (u132->power)
                         return;
                 u132->power = 1;
-                hcd->self.controller->power.power_state = PMSG_ON;
         } else {
                 u132->power = 0;
                 hcd->state = HC_STATE_HALT;
-                hcd->self.controller->power.power_state = PMSG_SUSPEND;
         }
 }
 
@@ -3227,8 +3225,6 @@ static int u132_suspend(struct platform_device *pdev, pm_message_t state)
                         }
 			break;
 		}
-                if (retval == 0)
-                        pdev->dev.power.power_state = state;
                 return retval;
         }
 }
@@ -3246,14 +3242,13 @@ static int u132_resume(struct platform_device *pdev)
                 return -ESHUTDOWN;
         } else {
                 int retval = 0;
-                if (pdev->dev.power.power_state.event == PM_EVENT_SUSPEND) {
+		if (!u132->port[0].power) {
                         int ports = MAX_U132_PORTS;
                         while (ports-- > 0) {
                                 port_power(u132, ports, 1);
                         }
                         retval = 0;
                 } else {
-                        pdev->dev.power.power_state = PMSG_ON;
                         retval = u132_bus_resume(hcd);
                 }
                 return retval;

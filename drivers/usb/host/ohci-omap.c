@@ -505,7 +505,6 @@ static int ohci_omap_suspend(struct platform_device *dev, pm_message_t message)
 
 	omap_ohci_clock_power(0);
 	ohci_to_hcd(ohci)->state = HC_STATE_SUSPENDED;
-	dev->dev.power.power_state = PMSG_SUSPEND;
 	return 0;
 }
 
@@ -518,7 +517,6 @@ static int ohci_omap_resume(struct platform_device *dev)
 	ohci->next_statechange = jiffies;
 
 	omap_ohci_clock_power(1);
-	dev->dev.power.power_state = PMSG_ON;
 	usb_hcd_resume_root_hub(platform_get_drvdata(dev));
 	return 0;
 }

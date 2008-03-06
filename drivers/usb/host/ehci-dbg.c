@@ -670,7 +670,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 
 	spin_lock_irqsave (&ehci->lock, flags);
 
-	if (buf->bus->controller->power.power_state.event) {
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
 		size = scnprintf (next, size,
 			"bus %s, device %s (driver " DRIVER_VERSION ")\n"
 			"%s\n"

@@ -900,7 +900,6 @@ static int dummy_udc_suspend (struct platform_device *pdev, pm_message_t state)
 	set_link_state (dum);
 	spin_unlock_irq (&dum->lock);
 
-	pdev->dev.power.power_state = state;
 	usb_hcd_poll_rh_status (dummy_to_hcd (dum));
 	return 0;
 }
@@ -915,7 +914,6 @@ static int dummy_udc_resume (struct platform_device *pdev)
 	set_link_state (dum);
 	spin_unlock_irq (&dum->lock);
 
-	pdev->dev.power.power_state = PMSG_ON;
 	usb_hcd_poll_rh_status (dummy_to_hcd (dum));
 	return 0;
 }

@@ -2107,13 +2107,11 @@ static struct hc_driver r8a66597_hc_driver = {
 #if defined(CONFIG_PM)
 static int r8a66597_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	pdev->dev.power.power_state = state;
 	return 0;
 }
 
 static int r8a66597_resume(struct platform_device *pdev)
 {
-	pdev->dev.power.power_state = PMSG_ON;
 	return 0;
 }
 #else	/* if defined(CONFIG_PM) */

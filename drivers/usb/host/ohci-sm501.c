@@ -224,7 +224,6 @@ static int ohci_sm501_suspend(struct platform_device *pdev, pm_message_t msg)
 
 	sm501_unit_power(dev->parent, SM501_GATE_USB_HOST, 0);
 	ohci_to_hcd(ohci)->state = HC_STATE_SUSPENDED;
-	dev->power.power_state = PMSG_SUSPEND;
 	return 0;
 }
 
@@ -238,7 +237,6 @@ static int ohci_sm501_resume(struct platform_device *pdev)
 	ohci->next_statechange = jiffies;
 
 	sm501_unit_power(dev->parent, SM501_GATE_USB_HOST, 1);
-	dev->power.power_state = PMSG_ON;
 	usb_hcd_resume_root_hub(platform_get_drvdata(pdev));
 	return 0;
 }

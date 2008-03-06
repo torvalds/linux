@@ -73,7 +73,6 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (pci_enable_device(dev) < 0)
 		return -ENODEV;
 	dev->current_state = PCI_D0;
-	dev->dev.power.power_state = PMSG_ON;
 
 	if (!dev->irq) {
 		dev_err(&dev->dev,
@@ -302,8 +301,6 @@ int usb_hcd_pci_suspend(struct pci_dev *dev, pm_message_t message)
 
 done:
 	if (retval == 0) {
-		dev->dev.power.power_state = PMSG_SUSPEND;
-
 #ifdef CONFIG_PPC_PMAC
 		/* Disable ASIC clocks for USB */
 		if (machine_is(powermac)) {
@@ -405,8 +402,6 @@ int usb_hcd_pci_resume(struct pci_dev *dev)
 	}
 	pci_set_master(dev);
 	pci_restore_state(dev);
-
-	dev->dev.power.power_state = PMSG_ON;
 
 	clear_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
 

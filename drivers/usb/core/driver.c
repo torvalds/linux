@@ -794,8 +794,6 @@ static int usb_suspend_device(struct usb_device *udev, pm_message_t msg)
 
  done:
 	dev_vdbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
-	if (status == 0)
-		udev->dev.power.power_state.event = msg.event;
 	return status;
 }
 
@@ -824,10 +822,8 @@ static int usb_resume_device(struct usb_device *udev)
 
  done:
 	dev_vdbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
-	if (status == 0) {
+	if (status == 0)
 		udev->autoresume_disabled = 0;
-		udev->dev.power.power_state.event = PM_EVENT_ON;
-	}
 	return status;
 }
 
@@ -1180,8 +1176,7 @@ static int usb_resume_both(struct usb_device *udev)
 		}
 	} else {
 
-		/* Needed for setting udev->dev.power.power_state.event,
-		 * for possible debugging message, and for reset_resume. */
+		/* Needed for reset-resume */
 		status = usb_resume_device(udev);
 	}
 
@@ -1194,7 +1189,8 @@ static int usb_resume_both(struct usb_device *udev)
 
  done:
 	dev_vdbg(&udev->dev, "%s: status %d\n", __FUNCTION__, status);
-	udev->reset_resume = 0;
+	if (!status)
+		udev->reset_resume = 0;
 	return status;
 }
 
