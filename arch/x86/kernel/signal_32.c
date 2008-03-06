@@ -342,13 +342,6 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 	return (void __user *) sp;
 }
 
-/*
- * These symbols are defined with the addresses in the vsyscall page.
- * See vsyscall-sigreturn.S.
- */
-extern void __user __kernel_sigreturn;
-extern void __user __kernel_rt_sigreturn;
-
 static int
 setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 	    struct pt_regs *regs)

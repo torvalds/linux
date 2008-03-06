@@ -25,4 +25,11 @@ extern const char VDSO32_PRELINK[];
 	(void *) (VDSO32_##name - VDSO32_PRELINK + (unsigned long) (base)); })
 #endif
 
+/*
+ * These symbols are defined with the addresses in the vsyscall page.
+ * See vsyscall-sigreturn.S.
+ */
+extern void __user __kernel_sigreturn;
+extern void __user __kernel_rt_sigreturn;
+
 #endif	/* asm-x86/vdso.h */
