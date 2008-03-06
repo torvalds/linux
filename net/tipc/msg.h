@@ -190,18 +190,6 @@ static inline void msg_set_lookup_scope(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 1, 19, 0x3, n);
 }
 
-static inline void msg_set_options(struct tipc_msg *m, const char *opt, u32 sz)
-{
-	u32 hsz = msg_hdr_sz(m);
-	char *to = (char *)&m->hdr[hsz/4];
-
-	if ((hsz < DIR_MSG_H_SIZE) || ((hsz + sz) > MAX_H_SIZE))
-		return;
-	msg_set_bits(m, 1, 16, 0x7, (hsz - 28)/4);
-	msg_set_hdr_sz(m, hsz + sz);
-	memcpy(to, opt, sz);
-}
-
 static inline u32 msg_bcast_ack(struct tipc_msg *m)
 {
 	return msg_bits(m, 1, 0, 0xffff);
@@ -329,17 +317,6 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 {
 	return (struct tipc_msg *)msg_data(m);
 }
-
-static inline void msg_expand(struct tipc_msg *m, u32 destnode)
-{
-	if (!msg_short(m))
-		return;
-	msg_set_hdr_sz(m, LONG_H_SIZE);
-	msg_set_orignode(m, msg_prevnode(m));
-	msg_set_destnode(m, destnode);
-	memset(&m->hdr[8], 0, 12);
-}
-
 
 
 /*

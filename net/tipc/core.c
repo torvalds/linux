@@ -277,7 +277,6 @@ EXPORT_SYMBOL(tipc_register_media);
 /* TIPC API for external APIs (see tipc_port.h) */
 
 EXPORT_SYMBOL(tipc_createport_raw);
-EXPORT_SYMBOL(tipc_set_msg_option);
 EXPORT_SYMBOL(tipc_reject_msg);
 EXPORT_SYMBOL(tipc_send_buf_fast);
 EXPORT_SYMBOL(tipc_acknowledge);

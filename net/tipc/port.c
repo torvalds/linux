@@ -413,13 +413,6 @@ static struct sk_buff *port_build_proto_msg(u32 destport, u32 destnode,
 	return buf;
 }
 
-int tipc_set_msg_option(struct tipc_port *tp_ptr, const char *opt, const u32 sz)
-{
-	msg_expand(&tp_ptr->phdr, msg_destnode(&tp_ptr->phdr));
-	msg_set_options(&tp_ptr->phdr, opt, sz);
-	return TIPC_OK;
-}
-
 int tipc_reject_msg(struct sk_buff *buf, u32 err)
 {
 	struct tipc_msg *msg = buf_msg(buf);
