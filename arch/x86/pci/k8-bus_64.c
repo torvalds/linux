@@ -191,6 +191,34 @@ static struct pci_hostbridge_probe pci_probes[] __initdata = {
 	{ 0, 0x18, PCI_VENDOR_ID_AMD, 0x1300 },
 };
 
+static u64 __initdata fam10h_mmconf_start;
+static u64 __initdata fam10h_mmconf_end;
+static void __init get_pci_mmcfg_amd_fam10h_range(void)
+{
+	u32 address;
+	u64 base, msr;
+	unsigned segn_busn_bits;
+
+	/* assume all cpus from fam10h have mmconf */
+        if (boot_cpu_data.x86 < 0x10)
+		return;
+
+	address = MSR_FAM10H_MMIO_CONF_BASE;
+	rdmsrl(address, msr);
+
+	/* mmconfig is not enable */
+	if (!(msr & FAM10H_MMIO_CONF_ENABLE))
+		return;
+
+	base = msr & (FAM10H_MMIO_CONF_BASE_MASK<<FAM10H_MMIO_CONF_BASE_SHIFT);
+
+	segn_busn_bits = (msr >> FAM10H_MMIO_CONF_BUSRANGE_SHIFT) &
+			 FAM10H_MMIO_CONF_BUSRANGE_MASK;
+
+	fam10h_mmconf_start = base;
+	fam10h_mmconf_end = base + (1ULL<<(segn_busn_bits + 20)) - 1;
+}
+
 /**
  * early_fill_mp_bus_to_node()
  * called before pcibios_scan_root and pci_scan_bus
@@ -305,6 +333,8 @@ static int __init early_fill_mp_bus_info(void)
 			continue; /* not found */
 
 		info = &pci_root_info[j];
+		printk(KERN_DEBUG "node %d link %d: io port [%llx, %llx]\n",
+		       node, link, (u64)start, (u64)end);
 		update_res(info, start, end, IORESOURCE_IO, 0);
 		update_range(range, start, end);
 	}
@@ -328,8 +358,7 @@ static int __init early_fill_mp_bus_info(void)
 
 	memset(range, 0, sizeof(range));
 	/* 0xfd00000000-0xffffffffff for HT */
-	/* 0xfc00000000-0xfcffffffff for Family 10h mmconfig*/
-	range[0].end = 0xfbffffffffULL;
+	range[0].end = (0xfdULL<<32) - 1;
 
 	/* need to take out [0, TOM) for RAM*/
 	address = MSR_K8_TOP_MEM1;
@@ -338,6 +367,14 @@ static int __init early_fill_mp_bus_info(void)
 	printk(KERN_INFO "TOM: %016lx aka %ldM\n", end, end>>20);
 	if (end < (1ULL<<32))
 		update_range(range, 0, end - 1);
+
+	/* get mmconfig */
+	get_pci_mmcfg_amd_fam10h_range();
+	/* need to take out mmconf range */
+	if (fam10h_mmconf_end) {
+		printk(KERN_DEBUG "Fam 10h mmconf [%llx, %llx]\n", fam10h_mmconf_start, fam10h_mmconf_end);
+		update_range(range, fam10h_mmconf_start, fam10h_mmconf_end);
+	}
 
 	/* mmio resource */
 	for (i = 0; i < 8; i++) {
@@ -364,8 +401,51 @@ static int __init early_fill_mp_bus_info(void)
 			continue; /* not found */
 
 		info = &pci_root_info[j];
+
+		printk(KERN_DEBUG "node %d link %d: mmio [%llx, %llx]",
+		       node, link, (u64)start, (u64)end);
+		/*
+		 * some sick allocation would have range overlap with fam10h
+		 * mmconf range, so need to update start and end.
+		 */
+		if (fam10h_mmconf_end) {
+			int changed = 0;
+			u64 endx = 0;
+			if (start >= fam10h_mmconf_start &&
+			    start <= fam10h_mmconf_end) {
+				start = fam10h_mmconf_end + 1;
+				changed = 1;
+			}
+
+			if (end >= fam10h_mmconf_start &&
+			    end <= fam10h_mmconf_end) {
+				end = fam10h_mmconf_start - 1;
+				changed = 1;
+			}
+
+			if (start < fam10h_mmconf_start &&
+			    end > fam10h_mmconf_end) {
+				/* we got a hole */
+				endx = fam10h_mmconf_start - 1;
+				update_res(info, start, endx, IORESOURCE_MEM, 0);
+				update_range(range, start, endx);
+				printk(KERN_CONT " ==> [%llx, %llx]", (u64)start, endx);
+				start = fam10h_mmconf_end + 1;
+				changed = 1;
+			}
+			if (changed) {
+				if (start <= end) {
+					printk(KERN_CONT " %s [%llx, %llx]", endx?"and":"==>", (u64)start, (u64)end);
+				} else {
+					printk(KERN_CONT "%s\n", endx?"":" ==> none");
+					continue;
+				}
+			}
+		}
+
 		update_res(info, start, end, IORESOURCE_MEM, 0);
 		update_range(range, start, end);
+		printk(KERN_CONT "\n");
 	}
 
 	/* need to take out [4G, TOM2) for RAM*/
