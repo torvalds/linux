@@ -1017,7 +1017,9 @@ static inline void dummy_audit_rule_free(void *lsmrule)
 
 #endif /* CONFIG_AUDIT */
 
-struct security_operations dummy_security_ops;
+struct security_operations dummy_security_ops = {
+	.name = "dummy",
+};
 
 #define set_to_dummy_if_null(ops, function)				\
 	do {								\

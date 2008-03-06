@@ -5295,6 +5295,8 @@ static int selinux_key_permission(key_ref_t key_ref,
 #endif
 
 static struct security_operations selinux_ops = {
+	.name =				"selinux",
+
 	.ptrace =			selinux_ptrace,
 	.capget =			selinux_capget,
 	.capset_check =			selinux_capset_check,
@@ -5491,6 +5493,11 @@ static struct security_operations selinux_ops = {
 static __init int selinux_init(void)
 {
 	struct task_security_struct *tsec;
+
+	if (!security_module_enable(&selinux_ops)) {
+		selinux_enabled = 0;
+		return 0;
+	}
 
 	if (!selinux_enabled) {
 		printk(KERN_INFO "SELinux:  Disabled at boot.\n");
