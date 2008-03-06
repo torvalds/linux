@@ -708,7 +708,7 @@ static void insert_packet(struct ti_ohci *ohci,
                                 /* FIXME: do something about it */
                                 PRINT(KERN_ERR,
                                       "%s: packet data addr: %p size %Zd bytes "
-                                      "cross page boundary", __FUNCTION__,
+				      "cross page boundary", __func__,
                                       packet->data, packet->data_size);
                         }
 #endif

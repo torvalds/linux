@@ -242,7 +242,7 @@ int hpsb_bus_reset(struct hpsb_host *host)
 {
 	if (host->in_bus_reset) {
 		HPSB_NOTICE("%s called while bus reset already in progress",
-			    __FUNCTION__);
+			    __func__);
 		return 1;
 	}
 

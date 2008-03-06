@@ -226,7 +226,7 @@ static int get_phy_reg(struct ti_lynx *lynx, int addr)
         if (addr > 15) {
                 PRINT(KERN_ERR, lynx->id,
                       "%s: PHY register address %d out of range",
-		      __FUNCTION__, addr);
+		      __func__, addr);
                 return -1;
         }
 
@@ -238,7 +238,7 @@ static int get_phy_reg(struct ti_lynx *lynx, int addr)
 
                 if (i > 10000) {
                         PRINT(KERN_ERR, lynx->id, "%s: runaway loop, aborting",
-			      __FUNCTION__);
+			      __func__);
                         retval = -1;
                         break;
                 }
@@ -261,13 +261,13 @@ static int set_phy_reg(struct ti_lynx *lynx, int addr, int val)
 
         if (addr > 15) {
                 PRINT(KERN_ERR, lynx->id,
-                      "%s: PHY register address %d out of range", __FUNCTION__, addr);
+		      "%s: PHY register address %d out of range", __func__, addr);
                 return -1;
         }
 
         if (val > 0xff) {
                 PRINT(KERN_ERR, lynx->id,
-                      "%s: PHY register value %d out of range", __FUNCTION__, val);
+		      "%s: PHY register value %d out of range", __func__, val);
                 return -1;
         }
 
@@ -287,7 +287,7 @@ static int sel_phy_reg_page(struct ti_lynx *lynx, int page)
 
         if (page > 7) {
                 PRINT(KERN_ERR, lynx->id,
-                      "%s: PHY page %d out of range", __FUNCTION__, page);
+		      "%s: PHY page %d out of range", __func__, page);
                 return -1;
         }
 
@@ -309,7 +309,7 @@ static int sel_phy_reg_port(struct ti_lynx *lynx, int port)
 
         if (port > 15) {
                 PRINT(KERN_ERR, lynx->id,
-                      "%s: PHY port %d out of range", __FUNCTION__, port);
+		      "%s: PHY port %d out of range", __func__, port);
                 return -1;
         }
 
