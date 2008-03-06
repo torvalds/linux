@@ -241,18 +241,6 @@ xfs_init_security(
 	return error;
 }
 
-/*
- * Determine whether a process has a valid fs_struct (kernel daemons
- * like knfsd don't have an fs_struct).
- *
- * XXX(hch):  nfsd is broken, better fix it instead.
- */
-STATIC_INLINE int
-xfs_has_fs_struct(struct task_struct *task)
-{
-	return (task->fs != init_task.fs);
-}
-
 STATIC void
 xfs_cleanup_inode(
 	struct inode	*dir,
@@ -284,7 +272,7 @@ xfs_vn_mknod(
 	int		mode,
 	dev_t		rdev)
 {
-	struct inode	*ip;
+	struct inode	*inode;
 	bhv_vnode_t	*vp = NULL, *dvp = vn_from_inode(dir);
 	xfs_acl_t	*default_acl = NULL;
 	attrexists_t	test_default_acl = _ACL_DEFAULT_EXISTS;
@@ -297,7 +285,7 @@ xfs_vn_mknod(
 	if (unlikely(!sysv_valid_dev(rdev) || MAJOR(rdev) & ~0x1ff))
 		return -EINVAL;
 
-	if (unlikely(test_default_acl && test_default_acl(dvp))) {
+	if (test_default_acl && test_default_acl(dvp)) {
 		if (!_ACL_ALLOC(default_acl)) {
 			return -ENOMEM;
 		}
@@ -307,11 +295,14 @@ xfs_vn_mknod(
 		}
 	}
 
-	if (IS_POSIXACL(dir) && !default_acl && xfs_has_fs_struct(current))
+	if (IS_POSIXACL(dir) && !default_acl)
 		mode &= ~current->fs->umask;
 
 	switch (mode & S_IFMT) {
-	case S_IFCHR: case S_IFBLK: case S_IFIFO: case S_IFSOCK:
+	case S_IFCHR:
+	case S_IFBLK:
+	case S_IFIFO:
+	case S_IFSOCK:
 		rdev = sysv_encode_dev(rdev);
 	case S_IFREG:
 		error = xfs_create(XFS_I(dir), dentry, mode, rdev, &vp, NULL);
@@ -324,32 +315,34 @@ xfs_vn_mknod(
 		break;
 	}
 
-	if (unlikely(!error)) {
-		error = xfs_init_security(vp, dir);
-		if (error)
-			xfs_cleanup_inode(dir, vp, dentry, mode);
-	}
+	if (unlikely(error))
+		goto out_free_acl;
 
-	if (unlikely(default_acl)) {
-		if (!error) {
-			error = _ACL_INHERIT(vp, mode, default_acl);
-			if (!error)
-				xfs_iflags_set(XFS_I(vp), XFS_IMODIFIED);
-			else
-				xfs_cleanup_inode(dir, vp, dentry, mode);
-		}
+	error = xfs_init_security(vp, dir);
+	if (unlikely(error))
+		goto out_cleanup_inode;
+
+	if (default_acl) {
+		error = _ACL_INHERIT(vp, mode, default_acl);
+		if (unlikely(error))
+			goto out_cleanup_inode;
+		xfs_iflags_set(XFS_I(vp), XFS_IMODIFIED);
 		_ACL_FREE(default_acl);
 	}
 
-	if (likely(!error)) {
-		ASSERT(vp);
-		ip = vn_to_inode(vp);
+	inode = vn_to_inode(vp);
 
-		if (S_ISDIR(mode))
-			xfs_validate_fields(ip);
-		d_instantiate(dentry, ip);
-		xfs_validate_fields(dir);
-	}
+	if (S_ISDIR(mode))
+		xfs_validate_fields(inode);
+	d_instantiate(dentry, inode);
+	xfs_validate_fields(dir);
+	return -error;
+
+ out_cleanup_inode:
+	xfs_cleanup_inode(dir, vp, dentry, mode);
+ out_free_acl:
+	if (default_acl)
+		_ACL_FREE(default_acl);
 	return -error;
 }
 
