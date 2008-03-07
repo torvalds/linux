@@ -227,13 +227,125 @@ __le32 iwl3945_get_antenna_flags(const struct iwl3945_priv *priv)
 	return 0;		/* "diversity" is default if error */
 }
 
+#ifdef CONFIG_IWL3945_DEBUG
+#define TX_STATUS_ENTRY(x) case TX_STATUS_FAIL_ ## x: return #x
+
+static const char *iwl3945_get_tx_fail_reason(u32 status)
+{
+	switch (status & TX_STATUS_MSK) {
+	case TX_STATUS_SUCCESS:
+		return "SUCCESS";
+		TX_STATUS_ENTRY(SHORT_LIMIT);
+		TX_STATUS_ENTRY(LONG_LIMIT);
+		TX_STATUS_ENTRY(FIFO_UNDERRUN);
+		TX_STATUS_ENTRY(MGMNT_ABORT);
+		TX_STATUS_ENTRY(NEXT_FRAG);
+		TX_STATUS_ENTRY(LIFE_EXPIRE);
+		TX_STATUS_ENTRY(DEST_PS);
+		TX_STATUS_ENTRY(ABORTED);
+		TX_STATUS_ENTRY(BT_RETRY);
+		TX_STATUS_ENTRY(STA_INVALID);
+		TX_STATUS_ENTRY(FRAG_DROPPED);
+		TX_STATUS_ENTRY(TID_DISABLE);
+		TX_STATUS_ENTRY(FRAME_FLUSHED);
+		TX_STATUS_ENTRY(INSUFFICIENT_CF_POLL);
+		TX_STATUS_ENTRY(TX_LOCKED);
+		TX_STATUS_ENTRY(NO_BEACON_ON_RADAR);
+	}
+
+	return "UNKNOWN";
+}
+#else
+static inline const char *iwl3945_get_tx_fail_reason(u32 status)
+{
+	return "";
+}
+#endif
+
+
+/**
+ * iwl3945_tx_queue_reclaim - Reclaim Tx queue entries already Tx'd
+ *
+ * When FW advances 'R' index, all entries between old and new 'R' index
+ * need to be reclaimed. As result, some free space forms. If there is
+ * enough free space (> low mark), wake the stack that feeds us.
+ */
+static void iwl3945_tx_queue_reclaim(struct iwl3945_priv *priv,
+				     int txq_id, int index)
+{
+	struct iwl3945_tx_queue *txq = &priv->txq[txq_id];
+	struct iwl3945_queue *q = &txq->q;
+	struct iwl3945_tx_info *tx_info;
+
+	BUG_ON(txq_id == IWL_CMD_QUEUE_NUM);
+
+	for (index = iwl_queue_inc_wrap(index, q->n_bd); q->read_ptr != index;
+		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
+
+		tx_info = &txq->txb[txq->q.read_ptr];
+		ieee80211_tx_status(priv->hw, tx_info->skb[0],
+				    &tx_info->status);
+		tx_info->skb[0] = NULL;
+		iwl3945_hw_txq_free_tfd(priv, txq);
+	}
+
+	if (iwl3945_queue_space(q) > q->low_mark && (txq_id >= 0) &&
+			(txq_id != IWL_CMD_QUEUE_NUM) &&
+			priv->mac80211_registered)
+		ieee80211_wake_queue(priv->hw, txq_id);
+}
+
+/**
+ * iwl3945_rx_reply_tx - Handle Tx response
+ */
+static void iwl3945_rx_reply_tx(struct iwl3945_priv *priv,
+			    struct iwl3945_rx_mem_buffer *rxb)
+{
+	struct iwl3945_rx_packet *pkt = (void *)rxb->skb->data;
+	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
+	int txq_id = SEQ_TO_QUEUE(sequence);
+	int index = SEQ_TO_INDEX(sequence);
+	struct iwl3945_tx_queue *txq = &priv->txq[txq_id];
+	struct ieee80211_tx_status *tx_status;
+	struct iwl3945_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
+	u32  status = le32_to_cpu(tx_resp->status);
+	int rate_idx;
+
+	if ((index >= txq->q.n_bd) || (iwl3945_x2_queue_used(&txq->q, index) == 0)) {
+		IWL_ERROR("Read index for DMA queue txq_id (%d) index %d "
+			  "is out of range [0-%d] %d %d\n", txq_id,
+			  index, txq->q.n_bd, txq->q.write_ptr,
+			  txq->q.read_ptr);
+		return;
+	}
+
+	tx_status = &(txq->txb[txq->q.read_ptr].status);
+
+	tx_status->retry_count = tx_resp->failure_frame;
+	/* tx_status->rts_retry_count = tx_resp->failure_rts; */
+	tx_status->flags = ((status & TX_STATUS_MSK) == TX_STATUS_SUCCESS) ?
+				IEEE80211_TX_STATUS_ACK : 0;
+
+	IWL_DEBUG_TX("Tx queue %d Status %s (0x%08x) plcp rate %d retries %d\n",
+			txq_id, iwl3945_get_tx_fail_reason(status), status,
+			tx_resp->rate, tx_resp->failure_frame);
+
+	rate_idx = iwl3945_hwrate_to_plcp_idx(tx_resp->rate);
+	tx_status->control.tx_rate = &priv->ieee_rates[rate_idx];
+	IWL_DEBUG_TX_REPLY("Tx queue reclaim %d\n", index);
+	iwl3945_tx_queue_reclaim(priv, txq_id, index);
+
+	if (iwl_check_bits(status, TX_ABORT_REQUIRED_MSK))
+		IWL_ERROR("TODO:  Implement Tx ABORT REQUIRED!!!\n");
+}
+
+
+
 /*****************************************************************************
  *
  * Intel PRO/Wireless 3945ABG/BG Network Connection
  *
  *  RX handler implementations
- *
- *  Used by iwl-base.c
  *
  *****************************************************************************/
 
@@ -2510,6 +2622,7 @@ unsigned int iwl3945_hw_get_beacon_cmd(struct iwl3945_priv *priv,
 
 void iwl3945_hw_rx_handler_setup(struct iwl3945_priv *priv)
 {
+	priv->rx_handlers[REPLY_TX] = iwl3945_rx_reply_tx;
 	priv->rx_handlers[REPLY_3945_RX] = iwl3945_rx_reply_rx;
 }
 
