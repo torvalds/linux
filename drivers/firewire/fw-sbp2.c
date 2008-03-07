@@ -173,7 +173,8 @@ struct sbp2_target {
 #define SBP2_ORB_TIMEOUT		2000U	/* Timeout in ms */
 #define SBP2_ORB_NULL			0x80000000
 #define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
-#define SBP2_RETRY_LIMIT		0xf	/* 15 retries */
+#define SBP2_RETRY_LIMIT		0xf		/* 15 retries */
+#define SBP2_CYCLE_LIMIT		(0xc8 << 12)	/* 200 125us cycles */
 
 /* Unit directory keys */
 #define SBP2_CSR_UNIT_CHARACTERISTICS	0x3a
@@ -813,6 +814,22 @@ complete_set_busy_timeout(struct fw_card *card, int rcode,
 	complete(done);
 }
 
+/*
+ * Write retransmit retry values into the BUSY_TIMEOUT register.
+ * - The single-phase retry protocol is supported by all SBP-2 devices, but the
+ *   default retry_limit value is 0 (i.e. never retry transmission). We write a
+ *   saner value after logging into the device.
+ * - The dual-phase retry protocol is optional to implement, and if not
+ *   supported, writes to the dual-phase portion of the register will be
+ *   ignored. We try to write the original 1394-1995 default here.
+ * - In the case of devices that are also SBP-3-compliant, all writes are
+ *   ignored, as the register is read-only, but contains single-phase retry of
+ *   15, which is what we're trying to set for all SBP-2 device anyway, so this
+ *   write attempt is safe and yields more consistent behavior for all devices.
+ *
+ * See section 8.3.2.3.5 of the 1394-1995 spec, section 6.2 of the SBP-2 spec,
+ * and section 6.4 of the SBP-3 spec for further details.
+ */
 static void sbp2_set_busy_timeout(struct sbp2_logical_unit *lu)
 {
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
@@ -820,8 +837,7 @@ static void sbp2_set_busy_timeout(struct sbp2_logical_unit *lu)
 	struct fw_transaction t;
 	static __be32 busy_timeout;
 
-	/* FIXME: we should try to set dual-phase cycle_limit too */
-	busy_timeout = cpu_to_be32(SBP2_RETRY_LIMIT);
+	busy_timeout = cpu_to_be32(SBP2_CYCLE_LIMIT | SBP2_RETRY_LIMIT);
 
 	fw_send_request(device->card, &t, TCODE_WRITE_QUADLET_REQUEST,
 			lu->tgt->node_id, lu->generation, device->max_speed,
