@@ -600,7 +600,7 @@ static void kgdb_flush_swbreak_addr(unsigned long addr)
 	if (!CACHE_FLUSH_IS_SAFE)
 		return;
 
-	if (current->mm) {
+	if (current->mm && current->mm->mmap_cache) {
 		flush_cache_range(current->mm->mmap_cache,
 				  addr, addr + BREAK_INSTR_SIZE);
 	} else {
@@ -729,14 +729,16 @@ int remove_all_break(void)
 
 	/* Clear memory breakpoints. */
 	for (i = 0; i < KGDB_MAX_BREAKPOINTS; i++) {
-		if (kgdb_break[i].state != BP_SET)
-			continue;
+		if (kgdb_break[i].state != BP_ACTIVE)
+			goto setundefined;
 		addr = kgdb_break[i].bpt_addr;
 		error = kgdb_arch_remove_breakpoint(addr,
 				kgdb_break[i].saved_instr);
 		if (error)
-			return error;
-		kgdb_break[i].state = BP_REMOVED;
+			printk(KERN_ERR "KGDB: breakpoint remove failed: %lx\n",
+			   addr);
+setundefined:
+		kgdb_break[i].state = BP_UNDEFINED;
 	}
 
 	/* Clear hardware breakpoints. */
@@ -1605,7 +1607,7 @@ static void kgdb_initial_breakpoint(void)
 }
 
 /**
- *	kkgdb_register_io_module - register KGDB IO module
+ *	kgdb_register_io_module - register KGDB IO module
  *	@new_kgdb_io_ops: the io ops vector
  *
  *	Register it with the KGDB core.

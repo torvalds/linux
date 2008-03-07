@@ -370,6 +370,8 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 		ptr = &remcomInBuffer[1];
 		if (kgdb_hex2long(&ptr, &addr))
 			linux_regs->ip = addr;
+	case 'D':
+	case 'k':
 		newPC = linux_regs->ip;
 
 		/* clear the trace bit */
@@ -480,6 +482,8 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 	if (kgdb_handle_exception(args->trapnr, args->signr, args->err, regs))
 		return NOTIFY_DONE;
 
+	/* Must touch watchdog before return to normal operation */
+	touch_nmi_watchdog();
 	return NOTIFY_STOP;
 }
 
