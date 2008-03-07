@@ -97,14 +97,20 @@
 #define PCIE_BAR_CTRL(n)	ORION_PCIE_REG(0x1804 + ((n - 1) * 4))
 #define PCIE_BAR_LO(n)		ORION_PCIE_REG(0x0010 + ((n) * 8))
 #define PCIE_BAR_HI(n)		ORION_PCIE_REG(0x0014 + ((n) * 8))
-#define PCIE_WIN_CTRL(n)	ORION_PCIE_REG(0x1820 + ((n) << 4))
-#define PCIE_WIN_BASE(n)	ORION_PCIE_REG(0x1824 + ((n) << 4))
-#define PCIE_WIN_REMAP(n)	ORION_PCIE_REG(0x182c + ((n) << 4))
+#define PCIE_WIN_CTRL(n)	(((n) < 5) ? \
+					ORION_PCIE_REG(0x1820 + ((n) << 4)) : \
+					ORION_PCIE_REG(0x1880))
+#define PCIE_WIN_BASE(n)	(((n) < 5) ? \
+					ORION_PCIE_REG(0x1824 + ((n) << 4)) : \
+					ORION_PCIE_REG(0x1884))
+#define PCIE_WIN_REMAP(n)	(((n) < 5) ? \
+					ORION_PCIE_REG(0x182c + ((n) << 4)) : \
+					ORION_PCIE_REG(0x188c))
 #define PCIE_DEFWIN_CTRL	ORION_PCIE_REG(0x18b0)
 #define PCIE_EXPROM_WIN_CTRL	ORION_PCIE_REG(0x18c0)
 #define PCIE_EXPROM_WIN_REMP	ORION_PCIE_REG(0x18c4)
 #define PCIE_MAX_BARS		3
-#define PCIE_MAX_WINS		5
+#define PCIE_MAX_WINS		6
 
 /*
  * Use PCIE BAR '1' for all DDR banks
