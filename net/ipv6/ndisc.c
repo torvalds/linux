@@ -541,7 +541,7 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 	};
 
 	/* for anycast or proxy, solicited_addr != src_addr */
-	ifp = ipv6_get_ifaddr(&init_net, solicited_addr, dev, 1);
+	ifp = ipv6_get_ifaddr(dev->nd_net, solicited_addr, dev, 1);
 	if (ifp) {
 		src_addr = solicited_addr;
 		if (ifp->flags & IFA_F_OPTIMISTIC)
@@ -601,7 +601,7 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 	 * suppress the inclusion of the sllao.
 	 */
 	if (send_sllao) {
-		struct inet6_ifaddr *ifp = ipv6_get_ifaddr(&init_net, saddr,
+		struct inet6_ifaddr *ifp = ipv6_get_ifaddr(dev->nd_net, saddr,
 							   dev, 1);
 		if (ifp) {
 			if (ifp->flags & IFA_F_OPTIMISTIC)  {
@@ -639,7 +639,7 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 	struct in6_addr *target = (struct in6_addr *)&neigh->primary_key;
 	int probes = atomic_read(&neigh->probes);
 
-	if (skb && ipv6_chk_addr(&init_net, &ipv6_hdr(skb)->saddr, dev, 1))
+	if (skb && ipv6_chk_addr(dev->nd_net, &ipv6_hdr(skb)->saddr, dev, 1))
 		saddr = &ipv6_hdr(skb)->saddr;
 
 	if ((probes -= neigh->parms->ucast_probes) < 0) {
@@ -727,7 +727,8 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 
 	inc = ipv6_addr_is_multicast(daddr);
 
-	if ((ifp = ipv6_get_ifaddr(&init_net, &msg->target, dev, 1)) != NULL) {
+	ifp = ipv6_get_ifaddr(dev->nd_net, &msg->target, dev, 1);
+	if (ifp) {
 
 		if (ifp->flags & (IFA_F_TENTATIVE|IFA_F_OPTIMISTIC)) {
 			if (dad) {
@@ -775,7 +776,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 		if (ipv6_chk_acast_addr(dev, &msg->target) ||
 		    (idev->cnf.forwarding &&
 		     (ipv6_devconf.proxy_ndp || idev->cnf.proxy_ndp) &&
-		     (pneigh = pneigh_lookup(&nd_tbl, &init_net,
+		     (pneigh = pneigh_lookup(&nd_tbl, dev->nd_net,
 					     &msg->target, dev, 0)) != NULL)) {
 			if (!(NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED) &&
 			    skb->pkt_type != PACKET_HOST &&
@@ -885,7 +886,8 @@ static void ndisc_recv_na(struct sk_buff *skb)
 			return;
 		}
 	}
-	if ((ifp = ipv6_get_ifaddr(&init_net, &msg->target, dev, 1))) {
+	ifp = ipv6_get_ifaddr(dev->nd_net, &msg->target, dev, 1);
+	if (ifp) {
 		if (ifp->flags & IFA_F_TENTATIVE) {
 			addrconf_dad_failure(ifp);
 			return;
@@ -916,7 +918,7 @@ static void ndisc_recv_na(struct sk_buff *skb)
 		 */
 		if (lladdr && !memcmp(lladdr, dev->dev_addr, dev->addr_len) &&
 		    ipv6_devconf.forwarding && ipv6_devconf.proxy_ndp &&
-		    pneigh_lookup(&nd_tbl, &init_net, &msg->target, dev, 0)) {
+		    pneigh_lookup(&nd_tbl, dev->nd_net, &msg->target, dev, 0)) {
 			/* XXX: idev->cnf.prixy_ndp */
 			goto out;
 		}
@@ -1006,6 +1008,7 @@ static void ndisc_ra_useropt(struct sk_buff *ra, struct nd_opt_hdr *opt)
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
 	struct nduseroptmsg *ndmsg;
+	struct net *net = ra->dev->nd_net;
 	int err;
 	int base_size = NLMSG_ALIGN(sizeof(struct nduseroptmsg)
 				    + (opt->nd_opt_len << 3));
@@ -1035,7 +1038,7 @@ static void ndisc_ra_useropt(struct sk_buff *ra, struct nd_opt_hdr *opt)
 		&ipv6_hdr(ra)->saddr);
 	nlmsg_end(skb, nlh);
 
-	err = rtnl_notify(skb, &init_net, 0, RTNLGRP_ND_USEROPT, NULL,
+	err = rtnl_notify(skb, net, 0, RTNLGRP_ND_USEROPT, NULL,
 			  GFP_ATOMIC);
 	if (err < 0)
 		goto errout;
@@ -1046,7 +1049,7 @@ nla_put_failure:
 	nlmsg_free(skb);
 	err = -EMSGSIZE;
 errout:
-	rtnl_set_sk_err(&init_net, RTNLGRP_ND_USEROPT, err);
+	rtnl_set_sk_err(net, RTNLGRP_ND_USEROPT, err);
 }
 
 static void ndisc_router_discovery(struct sk_buff *skb)
@@ -1599,9 +1602,6 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 {
 	struct net_device *dev = ptr;
 	struct net *net = dev->nd_net;
-
-	if (dev->nd_net != &init_net)
-		return NOTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_CHANGEADDR:
