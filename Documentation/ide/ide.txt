@@ -3,11 +3,11 @@
 
 ==============================================================================
 
-   
+
    The hdparm utility can be used to control various IDE features on a
    running system. It is packaged separately.  Please Look for it on popular
    linux FTP sites.
-   
+
 
 
 ***  IMPORTANT NOTICES:  BUGGY IDE CHIPSETS CAN CORRUPT DATA!!
@@ -51,7 +51,7 @@ Common pitfalls:
 
 ================================================================================
 
-This is the multiple IDE interface driver, as evolved from hd.c.  
+This is the multiple IDE interface driver, as evolved from hd.c.
 
 It supports up to 9 IDE interfaces per default, on one or more IRQs (usually
 14 & 15).  There can be up to two drives per interface, as per the ATA-6 spec.
@@ -215,17 +215,17 @@ Summary of ide driver parameters for kernel command line
 --------------------------------------------------------
 
  "hdx="  is recognized for all "x" from "a" to "h", such as "hdc".
- 
+
  "idex=" is recognized for all "x" from "0" to "3", such as "ide1".
 
  "hdx=noprobe"		: drive may be present, but do not probe for it
- 
+
  "hdx=none"		: drive is NOT present, ignore cmos and do not probe
- 
+
  "hdx=nowerr"		: ignore the WRERR_STAT bit on this drive
- 
+
  "hdx=cdrom"		: drive is present, and is a cdrom drive
- 
+
  "hdx=cyl,head,sect"	: disk drive is present, with specified geometry
 
  "hdx=remap"		: remap access of sector 0 to sector 1 (for EZDrive)
@@ -261,7 +261,7 @@ Summary of ide driver parameters for kernel command line
  "idex=base"		: probe for an interface at the addr specified,
 			  where "base" is usually 0x1f0 or 0x170
 			  and "ctl" is assumed to be "base"+0x206
-			  
+
  "idex=base,ctl"	: specify both base and ctl
 
  "idex=base,ctl,irq"	: specify base, ctl, and irq number
@@ -272,7 +272,7 @@ Summary of ide driver parameters for kernel command line
 			  to take effect.
 
  "idex=four"		: four drives on idex and ide(x^1) share same ports
-			
+
  "idex=reset"		: reset interface after probe
 
  "idex=ata66"		: informs the interface that it has an 80c cable
