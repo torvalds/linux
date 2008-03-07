@@ -981,14 +981,14 @@ static unsigned int ath5k_hw_rfregs_op(u32 *rf, u32 offset, u32 reg, u32 bits,
 	entry = ((first - 1) / 8) + offset;
 	position = (first - 1) % 8;
 
-	if (set == true)
+	if (set)
 		data = ath5k_hw_bitswap(reg, bits);
 
 	for (i = shift = 0, left = bits; left > 0; position = 0, entry++, i++) {
 		last = (position + left > 8) ? 8 : position + left;
 		mask = (((1 << last) - 1) ^ ((1 << position) - 1)) << (col * 8);
 
-		if (set == true) {
+		if (set) {
 			rf[entry] &= ~mask;
 			rf[entry] |= ((data << position) << (col * 8)) & mask;
 			data >>= (8 - position);
@@ -1001,7 +1001,7 @@ static unsigned int ath5k_hw_rfregs_op(u32 *rf, u32 offset, u32 reg, u32 bits,
 		left -= 8 - position;
 	}
 
-	data = set == true ? 1 : ath5k_hw_bitswap(data, bits);
+	data = set ? 1 : ath5k_hw_bitswap(data, bits);
 
 	return data;
 }
@@ -1986,7 +1986,7 @@ static int ath5k_hw_rf511x_calibrate(struct ath5k_hw *ah,
 	s32 iq_corr, i_coff, i_coffd, q_coff, q_coffd;
 	ATH5K_TRACE(ah->ah_sc);
 
-	if (ah->ah_calibration == false ||
+	if (!ah->ah_calibration ||
 			ath5k_hw_reg_read(ah, AR5K_PHY_IQ) & AR5K_PHY_IQ_RUN)
 		goto done;
 
@@ -2218,7 +2218,7 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		AR5K_TXPOWER_CCK(13, 16) | AR5K_TXPOWER_CCK(12, 8) |
 		AR5K_TXPOWER_CCK(11, 0), AR5K_PHY_TXPOWER_RATE4);
 
-	if (ah->ah_txpower.txp_tpc == true)
+	if (ah->ah_txpower.txp_tpc)
 		ath5k_hw_reg_write(ah, AR5K_PHY_TXPOWER_RATE_MAX_TPC_ENABLE |
 			AR5K_TUNE_MAX_TXPOWER, AR5K_PHY_TXPOWER_RATE_MAX);
 	else

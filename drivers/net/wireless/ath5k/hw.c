@@ -1,4 +1,4 @@
- /*
+/*
  * Copyright (c) 2004-2007 Reyk Floeter <reyk@openbsd.org>
  * Copyright (c) 2006-2007 Nick Kossifidis <mickflemm@gmail.com>
  * Copyright (c) 2007 Matthew W. S. Bell  <mentor@madwifi.org>
@@ -85,12 +85,12 @@ static int ath5k_hw_disable_pspoll(struct ath5k_hw *);
 
 static inline unsigned int ath5k_hw_htoclock(unsigned int usec, bool turbo)
 {
-	return turbo == true ? (usec * 80) : (usec * 40);
+	return turbo ? (usec * 80) : (usec * 40);
 }
 
 static inline unsigned int ath5k_hw_clocktoh(unsigned int clock, bool turbo)
 {
-	return turbo == true ? (clock / 80) : (clock / 40);
+	return turbo ? (clock / 80) : (clock / 40);
 }
 
 /*
@@ -104,7 +104,7 @@ int ath5k_hw_register_timeout(struct ath5k_hw *ah, u32 reg, u32 flag, u32 val,
 
 	for (i = AR5K_TUNE_REGISTER_TIMEOUT; i > 0; i--) {
 		data = ath5k_hw_reg_read(ah, reg);
-		if ((is_set == true) && (data & flag))
+		if (is_set && (data & flag))
 			break;
 		else if ((data & flag) == val)
 			break;
@@ -617,7 +617,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 	 */
 	/*DCU/Antenna selection not available on 5210*/
 	if (ah->ah_version != AR5K_AR5210) {
-		if (change_channel == true) {
+		if (change_channel) {
 			/* Seq number for queue 0 -do this for all queues ? */
 			s_seq = ath5k_hw_reg_read(ah,
 					AR5K_QUEUE_DFS_SEQNUM(0));
@@ -631,7 +631,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 	s_led[1] = ath5k_hw_reg_read(ah, AR5K_GPIOCR);
 	s_led[2] = ath5k_hw_reg_read(ah, AR5K_GPIODO);
 
-	if (change_channel == true && ah->ah_rf_banks != NULL)
+	if (change_channel && ah->ah_rf_banks != NULL)
 		ath5k_hw_get_rf_gain(ah);
 
 
@@ -1122,7 +1122,7 @@ int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
 		staid &= ~AR5K_STA_ID1_DEFAULT_ANTENNA;
 		/* fallthrough */
 	case AR5K_PM_NETWORK_SLEEP:
-		if (set_chip == true)
+		if (set_chip)
 			ath5k_hw_reg_write(ah,
 				AR5K_SLEEP_CTL_SLE | sleep_duration,
 				AR5K_SLEEP_CTL);
@@ -1131,7 +1131,7 @@ int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
 		break;
 
 	case AR5K_PM_FULL_SLEEP:
-		if (set_chip == true)
+		if (set_chip)
 			ath5k_hw_reg_write(ah, AR5K_SLEEP_CTL_SLE_SLP,
 				AR5K_SLEEP_CTL);
 
@@ -1139,7 +1139,7 @@ int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
 		break;
 
 	case AR5K_PM_AWAKE:
-		if (set_chip == false)
+		if (!set_chip)
 			goto commit;
 
 		ath5k_hw_reg_write(ah, AR5K_SLEEP_CTL_SLE_WAKE,
@@ -1446,7 +1446,7 @@ int ath5k_hw_update_tx_triglevel(struct ath5k_hw *ah, bool increase)
 	trigger_level = AR5K_REG_MS(ath5k_hw_reg_read(ah, AR5K_TXCFG),
 			AR5K_TXCFG_TXFULL);
 
-	if (increase == false) {
+	if (!increase) {
 		if (--trigger_level < AR5K_TUNE_MIN_TX_FIFO_THRES)
 			goto done;
 	} else
@@ -3205,19 +3205,19 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 			return 0;
 
 		/* Set Slot time */
-		ath5k_hw_reg_write(ah, ah->ah_turbo == true ?
+		ath5k_hw_reg_write(ah, ah->ah_turbo ?
 			AR5K_INIT_SLOT_TIME_TURBO : AR5K_INIT_SLOT_TIME,
 			AR5K_SLOT_TIME);
 		/* Set ACK_CTS timeout */
-		ath5k_hw_reg_write(ah, ah->ah_turbo == true ?
+		ath5k_hw_reg_write(ah, ah->ah_turbo ?
 			AR5K_INIT_ACK_CTS_TIMEOUT_TURBO :
 			AR5K_INIT_ACK_CTS_TIMEOUT, AR5K_SLOT_TIME);
 		/* Set Transmit Latency */
-		ath5k_hw_reg_write(ah, ah->ah_turbo == true ?
+		ath5k_hw_reg_write(ah, ah->ah_turbo ?
 			AR5K_INIT_TRANSMIT_LATENCY_TURBO :
 			AR5K_INIT_TRANSMIT_LATENCY, AR5K_USEC_5210);
 		/* Set IFS0 */
-		if (ah->ah_turbo == true)
+		if (ah->ah_turbo)
 			 ath5k_hw_reg_write(ah, ((AR5K_INIT_SIFS_TURBO +
 				(ah->ah_aifs + tq->tqi_aifs) *
 				AR5K_INIT_SLOT_TIME_TURBO) <<
@@ -3230,16 +3230,16 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 				AR5K_INIT_SIFS, AR5K_IFS0);
 
 		/* Set IFS1 */
-		ath5k_hw_reg_write(ah, ah->ah_turbo == true ?
+		ath5k_hw_reg_write(ah, ah->ah_turbo ?
 			AR5K_INIT_PROTO_TIME_CNTRL_TURBO :
 			AR5K_INIT_PROTO_TIME_CNTRL, AR5K_IFS1);
 		/* Set PHY register 0x9844 (??) */
-		ath5k_hw_reg_write(ah, ah->ah_turbo == true ?
+		ath5k_hw_reg_write(ah, ah->ah_turbo ?
 			(ath5k_hw_reg_read(ah, AR5K_PHY(17)) & ~0x7F) | 0x38 :
 			(ath5k_hw_reg_read(ah, AR5K_PHY(17)) & ~0x7F) | 0x1C,
 			AR5K_PHY(17));
 		/* Set Frame Control Register */
-		ath5k_hw_reg_write(ah, ah->ah_turbo == true ?
+		ath5k_hw_reg_write(ah, ah->ah_turbo ?
 			(AR5K_PHY_FRAME_CTL_INI | AR5K_PHY_TURBO_MODE |
 			AR5K_PHY_TURBO_SHORT | 0x2020) :
 			(AR5K_PHY_FRAME_CTL_INI | 0x1020),
@@ -3278,7 +3278,7 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 	/*
 	 * Calculate and set retry limits
 	 */
-	if (ah->ah_software_retry == true) {
+	if (ah->ah_software_retry) {
 		/* XXX Need to test this */
 		retry_lg = ah->ah_limit_tx_retries;
 		retry_sh = retry_lg = retry_lg > AR5K_DCU_RETRY_LMT_SH_RETRY ?
