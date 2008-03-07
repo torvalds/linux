@@ -83,7 +83,7 @@ __setup("security=", choose_lsm);
  *
  * Each LSM must pass this method before registering its own operations
  * to avoid security registration races. This method may also be used
- * to check if your LSM is currently loaded.
+ * to check if your LSM is currently loaded during kernel initialization.
  *
  * Return true if:
  *	-The passed LSM is the one chosen by user at boot time,
