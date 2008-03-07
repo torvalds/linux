@@ -281,23 +281,44 @@ static void ehci_iaa_watchdog(unsigned long param)
 {
 	struct ehci_hcd		*ehci = (struct ehci_hcd *) param;
 	unsigned long		flags;
-	u32			status, cmd;
 
 	spin_lock_irqsave (&ehci->lock, flags);
-	WARN_ON(!ehci->reclaim);
 
-	status = ehci_readl(ehci, &ehci->regs->status);
-	cmd = ehci_readl(ehci, &ehci->regs->command);
-	ehci_dbg(ehci, "IAA watchdog: status %x cmd %x\n", status, cmd);
+	/* Lost IAA irqs wedge things badly; seen first with a vt8235.
+	 * So we need this watchdog, but must protect it against both
+	 * (a) SMP races against real IAA firing and retriggering, and
+	 * (b) clean HC shutdown, when IAA watchdog was pending.
+	 */
+	if (ehci->reclaim
+			&& !timer_pending(&ehci->iaa_watchdog)
+			&& HC_IS_RUNNING(ehci_to_hcd(ehci)->state)) {
+		u32 cmd, status;
 
-	/* lost IAA irqs wedge things badly; seen first with a vt8235 */
-	if (ehci->reclaim) {
-		if (status & STS_IAA) {
-			ehci_vdbg (ehci, "lost IAA\n");
+		/* If we get here, IAA is *REALLY* late.  It's barely
+		 * conceivable that the system is so busy that CMD_IAAD
+		 * is still legitimately set, so let's be sure it's
+		 * clear before we read STS_IAA.  (The HC should clear
+		 * CMD_IAAD when it sets STS_IAA.)
+		 */
+		cmd = ehci_readl(ehci, &ehci->regs->command);
+		if (cmd & CMD_IAAD)
+			ehci_writel(ehci, cmd & ~CMD_IAAD,
+					&ehci->regs->command);
+
+		/* If IAA is set here it either legitimately triggered
+		 * before we cleared IAAD above (but _way_ late, so we'll
+		 * still count it as lost) ... or a silicon erratum:
+		 * - VIA seems to set IAA without triggering the IRQ;
+		 * - IAAD potentially cleared without setting IAA.
+		 */
+		status = ehci_readl(ehci, &ehci->regs->status);
+		if ((status & STS_IAA) || !(cmd & CMD_IAAD)) {
 			COUNT (ehci->stats.lost_iaa);
 			ehci_writel(ehci, STS_IAA, &ehci->regs->status);
 		}
-		ehci_writel(ehci, cmd & ~CMD_IAAD, &ehci->regs->command);
+
+		ehci_vdbg(ehci, "IAA watchdog: status %x cmd %x\n",
+				status, cmd);
 		end_unlink_async(ehci);
 	}
 
@@ -631,7 +652,7 @@ static int ehci_run (struct usb_hcd *hcd)
 static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
-	u32			status, pcd_status = 0;
+	u32			status, pcd_status = 0, cmd;
 	int			bh;
 
 	spin_lock (&ehci->lock);
@@ -652,7 +673,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 
 	/* clear (just) interrupts */
 	ehci_writel(ehci, status, &ehci->regs->status);
-	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted write */
+	cmd = ehci_readl(ehci, &ehci->regs->command);
 	bh = 0;
 
 #ifdef	EHCI_VERBOSE_DEBUG
@@ -673,8 +694,17 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 
 	/* complete the unlinking of some qh [4.15.2.3] */
 	if (status & STS_IAA) {
-		COUNT (ehci->stats.reclaim);
-		end_unlink_async(ehci);
+		/* guard against (alleged) silicon errata */
+		if (cmd & CMD_IAAD) {
+			ehci_writel(ehci, cmd & ~CMD_IAAD,
+					&ehci->regs->command);
+			ehci_dbg(ehci, "IAA with IAAD still set?\n");
+		}
+		if (ehci->reclaim) {
+			COUNT(ehci->stats.reclaim);
+			end_unlink_async(ehci);
+		} else
+			ehci_dbg(ehci, "IAA with nothing to reclaim?\n");
 	}
 
 	/* remote wakeup [4.3.1] */
@@ -781,7 +811,7 @@ static int ehci_urb_enqueue (
 static void unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
 	/* failfast */
-	if (!HC_IS_RUNNING(ehci_to_hcd(ehci)->state))
+	if (!HC_IS_RUNNING(ehci_to_hcd(ehci)->state) && ehci->reclaim)
 		end_unlink_async(ehci);
 
 	/* if it's not linked then there's nothing to do */
