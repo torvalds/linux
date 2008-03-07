@@ -713,7 +713,7 @@ static int ide_tune_dma(ide_drive_t *drive)
 	}
 
 	if (hwif->host_flags & IDE_HFLAG_NO_SET_MODE)
-		return 0;
+		return 1;
 
 	if (ide_set_dma_mode(drive, speed))
 		return 0;
