@@ -109,24 +109,26 @@ static inline int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)
 #endif
 
 #ifdef CONFIG_NONPROMISC_DEVMEM
-static inline int range_is_allowed(unsigned long from, unsigned long to)
+static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 {
-	unsigned long cursor;
+	u64 from = ((u64)pfn) << PAGE_SHIFT;
+	u64 to = from + size;
+	u64 cursor = from;
 
-	cursor = from >> PAGE_SHIFT;
-	while ((cursor << PAGE_SHIFT) < to) {
-		if (!devmem_is_allowed(cursor)) {
-			printk(KERN_INFO "Program %s tried to read /dev/mem "
-				"between %lx->%lx.\n",
+	while (cursor < to) {
+		if (!devmem_is_allowed(pfn)) {
+			printk(KERN_INFO
+		"Program %s tried to access /dev/mem between %Lx->%Lx.\n",
 				current->comm, from, to);
 			return 0;
 		}
-		cursor++;
+		cursor += PAGE_SIZE;
+		pfn++;
 	}
 	return 1;
 }
 #else
-static inline int range_is_allowed(unsigned long from, unsigned long to)
+static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 {
 	return 1;
 }
@@ -181,7 +183,7 @@ static ssize_t read_mem(struct file * file, char __user * buf,
 		 */
 		ptr = xlate_dev_mem_ptr(p);
 
-		if (!range_is_allowed(p, p+count))
+		if (!range_is_allowed(p >> PAGE_SHIFT, count))
 			return -EPERM;
 		if (copy_to_user(buf, ptr, sz))
 			return -EFAULT;
@@ -240,7 +242,7 @@ static ssize_t write_mem(struct file * file, const char __user * buf,
 		 */
 		ptr = xlate_dev_mem_ptr(p);
 
-		if (!range_is_allowed(p, p+sz))
+		if (!range_is_allowed(p >> PAGE_SHIFT, sz))
 			return -EPERM;
 		copied = copy_from_user(ptr, buf, sz);
 		if (copied) {
@@ -308,6 +310,9 @@ static int mmap_mem(struct file * file, struct vm_area_struct * vma)
 
 	if (!private_mapping_ok(vma))
 		return -ENOSYS;
+
+	if (!range_is_allowed(vma->vm_pgoff, size))
+		return -EPERM;
 
 	vma->vm_page_prot = phys_mem_access_prot(file, vma->vm_pgoff,
 						 size,
