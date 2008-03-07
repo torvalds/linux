@@ -10,7 +10,6 @@
  *
  */
 
-
 #ifndef __LINUX_USB_SERIAL_H
 #define __LINUX_USB_SERIAL_H
 
@@ -340,5 +339,5 @@ static inline void usb_serial_debug_data(int debug,
 
 
 
-#endif	/* ifdef __LINUX_USB_SERIAL_H */
+#endif /* __LINUX_USB_SERIAL_H */
 

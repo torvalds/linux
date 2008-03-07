@@ -4,6 +4,9 @@
  * belong here.
  */
 
+#ifndef __LINUX_USB_QUIRKS_H
+#define __LINUX_USB_QUIRKS_H
+
 /* string descriptors must not be fetched using a 255-byte read */
 #define USB_QUIRK_STRING_FETCH_255	0x00000001
 
@@ -12,3 +15,5 @@
 
 /* device can't handle Set-Interface requests */
 #define USB_QUIRK_NO_SET_INTF		0x00000004
+
+#endif /* __LINUX_USB_QUIRKS_H */

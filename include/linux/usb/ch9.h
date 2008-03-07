@@ -586,4 +586,4 @@ enum usb_device_state {
 	 */
 };
 
-#endif	/* __LINUX_USB_CH9_H */
+#endif /* __LINUX_USB_CH9_H */
