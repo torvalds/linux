@@ -179,8 +179,8 @@ static struct platform_device orion_ehci1 = {
 
 static struct resource orion_eth_shared_resources[] = {
 	{
-		.start	= ORION_ETH_PHYS_BASE,
-		.end	= ORION_ETH_PHYS_BASE + 0xffff,
+		.start	= ORION_ETH_PHYS_BASE + 0x2000,
+		.end	= ORION_ETH_PHYS_BASE + 0x3fff,
 		.flags	= IORESOURCE_MEM,
 	},
 };
