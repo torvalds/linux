@@ -25,9 +25,7 @@ static __inline__ int udplite_getfrag(void *from, char *to, int  offset,
 /* Designate sk as UDP-Lite socket */
 static inline int udplite_sk_init(struct sock *sk)
 {
-#ifdef CONFIG_IP_UDPLITE
 	udp_sk(sk)->pcflag = UDPLITE_BIT;
-#endif
 	return 0;
 }
 
@@ -71,7 +69,7 @@ static inline int udplite_checksum_init(struct sk_buff *skb, struct udphdr *uh)
 static inline int udplite_sender_cscov(struct udp_sock *up, struct udphdr *uh)
 {
 	int cscov = up->len;
-#ifdef CONFIG_IP_UDPLITE
+
 	/*
 	 * Sender has set `partial coverage' option on UDP-Lite socket
 	 */
@@ -95,15 +93,13 @@ static inline int udplite_sender_cscov(struct udp_sock *up, struct udphdr *uh)
 	 *       illegal, we fall back to the defaults here.
 	 */
 	}
-#endif
 	return cscov;
 }
 
 static inline __wsum udplite_csum_outgoing(struct sock *sk, struct sk_buff *skb)
 {
-	__wsum csum = 0;
-#ifdef CONFIG_IP_UDPLITE
 	int cscov = udplite_sender_cscov(udp_sk(sk), udp_hdr(skb));
+	__wsum csum = 0;
 
 	skb->ip_summed = CHECKSUM_NONE;     /* no HW support for checksumming */
 
@@ -116,7 +112,6 @@ static inline __wsum udplite_csum_outgoing(struct sock *sk, struct sk_buff *skb)
 		if ((cscov -= len) <= 0)
 			break;
 	}
-#endif
 	return csum;
 }
 

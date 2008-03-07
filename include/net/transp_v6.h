@@ -27,13 +27,8 @@ extern int				rawv6_init(void);
 extern void				rawv6_exit(void);
 extern int				udpv6_init(void);
 extern void				udpv6_exit(void);
-#ifdef CONFIG_IP_UDPLITE
 extern int 				udplitev6_init(void);
 extern void 				udplitev6_exit(void);
-#else
-static inline int udplitev6_init(void) { return 0; }
-static inline void udplitev6_exit(void) { }
-#endif
 extern int				tcpv6_init(void);
 extern void				tcpv6_exit(void);
 

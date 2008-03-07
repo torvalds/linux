@@ -59,9 +59,7 @@ static int sockstat_seq_show(struct seq_file *seq, void *v)
 		   atomic_read(&tcp_memory_allocated));
 	seq_printf(seq, "UDP: inuse %d mem %d\n", sock_prot_inuse_get(&udp_prot),
 		   atomic_read(&udp_memory_allocated));
-#ifdef CONFIG_IP_UDPLITE
 	seq_printf(seq, "UDPLITE: inuse %d\n", sock_prot_inuse_get(&udplite_prot));
-#endif
 	seq_printf(seq, "RAW: inuse %d\n", sock_prot_inuse_get(&raw_prot));
 	seq_printf(seq,  "FRAG: inuse %d memory %d\n",
 			ip_frag_nqueues(&init_net), ip_frag_mem(&init_net));
@@ -351,7 +349,6 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 			   snmp_fold_field((void **)udp_statistics,
 					   snmp4_udp_list[i].entry));
 
-#ifdef CONFIG_IP_UDPLITE
 	/* the UDP and UDP-Lite MIBs are the same */
 	seq_puts(seq, "\nUdpLite:");
 	for (i = 0; snmp4_udp_list[i].name != NULL; i++)
@@ -362,7 +359,7 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, " %lu",
 			   snmp_fold_field((void **)udplite_statistics,
 					   snmp4_udp_list[i].entry));
-#endif
+
 	seq_putc(seq, '\n');
 	return 0;
 }

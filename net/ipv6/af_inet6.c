@@ -813,16 +813,12 @@ static int __init init_ipv6_mibs(void)
 		goto err_icmpmsg_mib;
 	if (snmp_mib_init((void **)udp_stats_in6, sizeof (struct udp_mib)) < 0)
 		goto err_udp_mib;
-#ifdef CONFIG_IP_UDPLITE
 	if (snmp_mib_init((void **)udplite_stats_in6,
 			  sizeof (struct udp_mib)) < 0)
 		goto err_udplite_mib;
-#endif
 	return 0;
 
-#ifdef CONFIG_IP_UDPLITE
 err_udplite_mib:
-#endif
 	snmp_mib_free((void **)udp_stats_in6);
 err_udp_mib:
 	snmp_mib_free((void **)icmpv6msg_statistics);
@@ -841,9 +837,7 @@ static void cleanup_ipv6_mibs(void)
 	snmp_mib_free((void **)icmpv6_statistics);
 	snmp_mib_free((void **)icmpv6msg_statistics);
 	snmp_mib_free((void **)udp_stats_in6);
-#ifdef CONFIG_IP_UDPLITE
 	snmp_mib_free((void **)udplite_stats_in6);
-#endif
 }
 
 static int inet6_net_init(struct net *net)
@@ -888,11 +882,9 @@ static int __init inet6_init(void)
 	if (err)
 		goto out_unregister_tcp_proto;
 
-#ifdef CONFIG_IP_UDPLITE
 	err = proto_register(&udplitev6_prot, 1);
 	if (err)
 		goto out_unregister_udp_proto;
-#endif
 
 	err = proto_register(&rawv6_prot, 1);
 	if (err)
@@ -1063,10 +1055,8 @@ out_sock_register_fail:
 out_unregister_raw_proto:
 	proto_unregister(&rawv6_prot);
 out_unregister_udplite_proto:
-#ifdef CONFIG_IP_UDPLITE
 	proto_unregister(&udplitev6_prot);
 out_unregister_udp_proto:
-#endif
 	proto_unregister(&udpv6_prot);
 out_unregister_tcp_proto:
 	proto_unregister(&tcpv6_prot);
@@ -1085,9 +1075,7 @@ static void __exit inet6_exit(void)
 	ipv6_sysctl_unregister();
 #endif
 	udpv6_exit();
-#ifdef CONFIG_IP_UDPLITE
 	udplitev6_exit();
-#endif
 	tcpv6_exit();
 
 	/* Cleanup code parts. */
@@ -1117,9 +1105,7 @@ static void __exit inet6_exit(void)
 	unregister_pernet_subsys(&inet6_net_ops);
 	cleanup_ipv6_mibs();
 	proto_unregister(&rawv6_prot);
-#ifdef CONFIG_IP_UDPLITE
 	proto_unregister(&udplitev6_prot);
-#endif
 	proto_unregister(&udpv6_prot);
 	proto_unregister(&tcpv6_prot);
 }

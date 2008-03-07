@@ -39,10 +39,8 @@ static int sockstat6_seq_show(struct seq_file *seq, void *v)
 		       sock_prot_inuse_get(&tcpv6_prot));
 	seq_printf(seq, "UDP6: inuse %d\n",
 		       sock_prot_inuse_get(&udpv6_prot));
-#ifdef CONFIG_IP_UDPLITE
 	seq_printf(seq, "UDPLITE6: inuse %d\n",
 			sock_prot_inuse_get(&udplitev6_prot));
-#endif
 	seq_printf(seq, "RAW6: inuse %d\n",
 		       sock_prot_inuse_get(&rawv6_prot));
 	seq_printf(seq, "FRAG6: inuse %d memory %d\n",
@@ -113,7 +111,6 @@ static struct snmp_mib snmp6_udp6_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
-#ifdef CONFIG_IP_UDPLITE
 static struct snmp_mib snmp6_udplite6_list[] = {
 	SNMP_MIB_ITEM("UdpLite6InDatagrams", UDP_MIB_INDATAGRAMS),
 	SNMP_MIB_ITEM("UdpLite6NoPorts", UDP_MIB_NOPORTS),
@@ -121,7 +118,6 @@ static struct snmp_mib snmp6_udplite6_list[] = {
 	SNMP_MIB_ITEM("UdpLite6OutDatagrams", UDP_MIB_OUTDATAGRAMS),
 	SNMP_MIB_SENTINEL
 };
-#endif
 
 static void snmp6_seq_show_icmpv6msg(struct seq_file *seq, void **mib)
 {
@@ -180,9 +176,7 @@ static int snmp6_seq_show(struct seq_file *seq, void *v)
 		snmp6_seq_show_item(seq, (void **)icmpv6_statistics, snmp6_icmp6_list);
 		snmp6_seq_show_icmpv6msg(seq, (void **)icmpv6msg_statistics);
 		snmp6_seq_show_item(seq, (void **)udp_stats_in6, snmp6_udp6_list);
-#ifdef CONFIG_IP_UDPLITE
 		snmp6_seq_show_item(seq, (void **)udplite_stats_in6, snmp6_udplite6_list);
-#endif
 	}
 	return 0;
 }
