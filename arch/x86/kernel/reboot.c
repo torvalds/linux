@@ -326,6 +326,10 @@ static inline void kb_wait(void)
 	}
 }
 
+void __attribute__((weak)) mach_reboot_fixups(void)
+{
+}
+
 static void native_machine_emergency_restart(void)
 {
 	int i;
@@ -337,6 +341,8 @@ static void native_machine_emergency_restart(void)
 		/* Could also try the reset bit in the Hammer NB */
 		switch (reboot_type) {
 		case BOOT_KBD:
+			mach_reboot_fixups(); /* for board specific fixups */
+
 			for (i = 0; i < 10; i++) {
 				kb_wait();
 				udelay(50);
