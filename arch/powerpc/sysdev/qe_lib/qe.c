@@ -609,7 +609,10 @@ struct qe_firmware_info *qe_get_firmware_info(void)
 	 * If we haven't checked yet, and a driver hasn't uploaded a firmware
 	 * yet, then check the device tree for information.
 	 */
-	if (initialized || qe_firmware_uploaded)
+	if (qe_firmware_uploaded)
+		return &qe_firmware_info;
+
+	if (initialized)
 		return NULL;
 
 	initialized = 1;
