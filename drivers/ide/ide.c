@@ -667,7 +667,6 @@ int ide_register_hw(hw_regs_t *hw, void (*quirkproc)(ide_drive_t *),
 
 	do {
 		hwif = ide_deprecated_find_port(hw->io_ports[IDE_DATA_OFFSET]);
-		index = hwif->index;
 		if (hwif)
 			goto found;
 		for (index = 0; index < MAX_HWIFS; index++)
@@ -675,6 +674,7 @@ int ide_register_hw(hw_regs_t *hw, void (*quirkproc)(ide_drive_t *),
 	} while (retry--);
 	return -1;
 found:
+	index = hwif->index;
 	if (hwif->present)
 		ide_unregister(index, 0, 1);
 	else if (!hwif->hold)
