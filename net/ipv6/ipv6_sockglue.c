@@ -107,6 +107,7 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, int optlen)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct net *net = sk->sk_net;
 	int val, valbool;
 	int retv = -ENOPROTOOPT;
 
@@ -432,7 +433,7 @@ done:
 			if (sk->sk_bound_dev_if && sk->sk_bound_dev_if != val)
 				goto e_inval;
 
-			if (__dev_get_by_index(&init_net, val) == NULL) {
+			if (__dev_get_by_index(net, val) == NULL) {
 				retv = -ENODEV;
 				break;
 			}
