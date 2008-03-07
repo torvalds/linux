@@ -988,6 +988,8 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 	struct tcphdr *th = tcp_hdr(skb), *t1;
 	struct sk_buff *buff;
 	struct flowi fl;
+	struct net *net = skb->dst->dev->nd_net;
+	struct sock *ctl_sk = net->ipv6.tcp_sk;
 	unsigned int tot_len = sizeof(*th);
 #ifdef CONFIG_TCP_MD5SIG
 	struct tcp_md5sig_key *key;
@@ -1072,11 +1074,10 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 	 * Underlying function will use this to retrieve the network
 	 * namespace
 	 */
-	if (!ip6_dst_lookup(init_net.ipv6.tcp_sk, &buff->dst, &fl)) {
+	if (!ip6_dst_lookup(ctl_sk, &buff->dst, &fl)) {
 
 		if (xfrm_lookup(&buff->dst, &fl, NULL, 0) >= 0) {
-			ip6_xmit(init_net.ipv6.tcp_sk,
-				 buff, &fl, NULL, 0);
+			ip6_xmit(ctl_sk, buff, &fl, NULL, 0);
 			TCP_INC_STATS_BH(TCP_MIB_OUTSEGS);
 			TCP_INC_STATS_BH(TCP_MIB_OUTRSTS);
 			return;
@@ -1092,6 +1093,8 @@ static void tcp_v6_send_ack(struct tcp_timewait_sock *tw,
 	struct tcphdr *th = tcp_hdr(skb), *t1;
 	struct sk_buff *buff;
 	struct flowi fl;
+	struct net *net = skb->dev->nd_net;
+	struct sock *ctl_sk = net->ipv6.tcp_sk;
 	unsigned int tot_len = sizeof(struct tcphdr);
 	__be32 *topt;
 #ifdef CONFIG_TCP_MD5SIG
@@ -1173,10 +1176,9 @@ static void tcp_v6_send_ack(struct tcp_timewait_sock *tw,
 	fl.fl_ip_sport = t1->source;
 	security_skb_classify_flow(skb, &fl);
 
-	if (!ip6_dst_lookup(init_net.ipv6.tcp_sk, &buff->dst, &fl)) {
+	if (!ip6_dst_lookup(ctl_sk, &buff->dst, &fl)) {
 		if (xfrm_lookup(&buff->dst, &fl, NULL, 0) >= 0) {
-			ip6_xmit(init_net.ipv6.tcp_sk,
-				 buff, &fl, NULL, 0);
+			ip6_xmit(ctl_sk, buff, &fl, NULL, 0);
 			TCP_INC_STATS_BH(TCP_MIB_OUTSEGS);
 			return;
 		}
