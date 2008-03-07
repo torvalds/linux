@@ -1,0 +1,11 @@
+config DVB_FIRESAT
+	tristate "FireSAT devices"
+	depends on DVB_CORE && IEEE1394 && INPUT
+	help
+	  Support for external IEEE1394 adapters designed by Digital Everywhere and
+	  produced by El Gato, shipped under the brand name 'FireDTV/FloppyDTV'.
+
+	  These devices don't have a MPEG decoder built in, so you need
+	  an external software decoder to watch TV.
+
+	  Say Y if you own such a device and want to use it.
