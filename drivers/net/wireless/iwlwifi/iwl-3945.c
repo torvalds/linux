@@ -283,8 +283,8 @@ static void iwl3945_tx_queue_reclaim(struct iwl3945_priv *priv,
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		tx_info = &txq->txb[txq->q.read_ptr];
-		ieee80211_tx_status(priv->hw, tx_info->skb[0],
-				    &tx_info->status);
+		ieee80211_tx_status_irqsafe(priv->hw, tx_info->skb[0],
+					    &tx_info->status);
 		tx_info->skb[0] = NULL;
 		iwl3945_hw_txq_free_tfd(priv, txq);
 	}
