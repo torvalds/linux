@@ -25,3 +25,16 @@ config KGDB_SERIAL_CONSOLE
 	help
 	  Share a serial console with kgdb. Sysrq-g must be used
 	  to break in initially.
+
+config KGDB_TESTS
+	bool "KGDB: internal test suite"
+	depends on KGDB
+	default n
+	help
+	  This is a kgdb I/O module specifically designed to test
+	  kgdb's internal functions.  This kgdb I/O module is
+	  intended to for the development of new kgdb stubs
+	  as well as regression testing the kgdb internals.
+	  See the drivers/misc/kgdbts.c for the details about
+	  the tests.  The most basic of this I/O module is to boot
+	  a kernel boot arguments "kgdbwait kgdbts=V1F100"
