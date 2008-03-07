@@ -183,8 +183,6 @@ i386/
 	- directory with info about Linux on Intel 32 bit architecture.
 ia64/
 	- directory with info about Linux on Intel 64 bit architecture.
-ide.txt
-	- important info for users of ATA devices (IDE/EIDE disks and CD-ROMS).
 infiniband/
 	- directory with documents concerning Linux InfiniBand support.
 initrd.txt
