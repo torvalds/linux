@@ -69,9 +69,6 @@
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
 
-/* Socket used for sending RSTs and ACKs */
-static struct socket *tcp6_socket;
-
 static void	tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb);
 static void	tcp_v6_reqsk_send_ack(struct sk_buff *skb, struct request_sock *req);
 static void	tcp_v6_send_check(struct sock *sk, int len,
@@ -1075,10 +1072,11 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 	 * Underlying function will use this to retrieve the network
 	 * namespace
 	 */
-	if (!ip6_dst_lookup(tcp6_socket->sk, &buff->dst, &fl)) {
+	if (!ip6_dst_lookup(init_net.ipv6.tcp_sk, &buff->dst, &fl)) {
 
 		if (xfrm_lookup(&buff->dst, &fl, NULL, 0) >= 0) {
-			ip6_xmit(tcp6_socket->sk, buff, &fl, NULL, 0);
+			ip6_xmit(init_net.ipv6.tcp_sk,
+				 buff, &fl, NULL, 0);
 			TCP_INC_STATS_BH(TCP_MIB_OUTSEGS);
 			TCP_INC_STATS_BH(TCP_MIB_OUTRSTS);
 			return;
@@ -1175,9 +1173,10 @@ static void tcp_v6_send_ack(struct tcp_timewait_sock *tw,
 	fl.fl_ip_sport = t1->source;
 	security_skb_classify_flow(skb, &fl);
 
-	if (!ip6_dst_lookup(tcp6_socket->sk, &buff->dst, &fl)) {
+	if (!ip6_dst_lookup(init_net.ipv6.tcp_sk, &buff->dst, &fl)) {
 		if (xfrm_lookup(&buff->dst, &fl, NULL, 0) >= 0) {
-			ip6_xmit(tcp6_socket->sk, buff, &fl, NULL, 0);
+			ip6_xmit(init_net.ipv6.tcp_sk,
+				 buff, &fl, NULL, 0);
 			TCP_INC_STATS_BH(TCP_MIB_OUTSEGS);
 			return;
 		}
@@ -2198,6 +2197,31 @@ static struct inet_protosw tcpv6_protosw = {
 				INET_PROTOSW_ICSK,
 };
 
+static int tcpv6_net_init(struct net *net)
+{
+	int err;
+	struct socket *sock;
+	struct sock *sk;
+
+	err = inet_csk_ctl_sock_create(&sock, PF_INET6, SOCK_RAW, IPPROTO_TCP);
+	if (err)
+		return err;
+
+	net->ipv6.tcp_sk = sk = sock->sk;
+	sk_change_net(sk, net);
+	return err;
+}
+
+static void tcpv6_net_exit(struct net *net)
+{
+	sk_release_kernel(net->ipv6.tcp_sk);
+}
+
+static struct pernet_operations tcpv6_net_ops = {
+	.init = tcpv6_net_init,
+	.exit = tcpv6_net_exit,
+};
+
 int __init tcpv6_init(void)
 {
 	int ret;
@@ -2211,8 +2235,7 @@ int __init tcpv6_init(void)
 	if (ret)
 		goto out_tcpv6_protocol;
 
-	ret = inet_csk_ctl_sock_create(&tcp6_socket, PF_INET6,
-				       SOCK_RAW, IPPROTO_TCP);
+	ret = register_pernet_subsys(&tcpv6_net_ops);
 	if (ret)
 		goto out_tcpv6_protosw;
 out:
@@ -2227,7 +2250,7 @@ out_tcpv6_protosw:
 
 void tcpv6_exit(void)
 {
-	sock_release(tcp6_socket);
+	unregister_pernet_subsys(&tcpv6_net_ops);
 	inet6_unregister_protosw(&tcpv6_protosw);
 	inet6_del_protocol(&tcpv6_protocol, IPPROTO_TCP);
 }
