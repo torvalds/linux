@@ -1196,35 +1196,46 @@ void p9_conn_cancel(struct p9_conn *m, int err)
 }
 
 /**
- * v9fs_parse_options - parse mount options into session structure
+ * parse_options - parse mount options into session structure
  * @options: options string passed from mount
  * @opts: transport-specific structure to parse options into
  *
+ * Returns 0 upon success, -ERRNO upon failure
  */
 
-static void parse_opts(char *options, struct p9_fd_opts *opts)
+static int parse_opts(char *params, struct p9_fd_opts *opts)
 {
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
 	int option;
+	char *options;
 	int ret;
 
 	opts->port = P9_PORT;
 	opts->rfd = ~0;
 	opts->wfd = ~0;
 
-	if (!options)
-		return;
+	if (!params)
+		return 0;
+
+	options = kstrdup(params, GFP_KERNEL);
+	if (!options) {
+		P9_DPRINTK(P9_DEBUG_ERROR,
+				"failed to allocate copy of option string\n");
+		return -ENOMEM;
+	}
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
+		int r;
 		if (!*p)
 			continue;
 		token = match_token(p, tokens, args);
-		ret = match_int(&args[0], &option);
-		if (ret < 0) {
+		r = match_int(&args[0], &option);
+		if (r < 0) {
 			P9_DPRINTK(P9_DEBUG_ERROR,
 			 "integer field, but no integer?\n");
+			ret = r;
 			continue;
 		}
 		switch (token) {
@@ -1241,6 +1252,8 @@ static void parse_opts(char *options, struct p9_fd_opts *opts)
 			continue;
 		}
 	}
+	kfree(options);
+	return 0;
 }
 
 static int p9_fd_open(struct p9_trans *trans, int rfd, int wfd)
@@ -1430,7 +1443,9 @@ p9_trans_create_tcp(const char *addr, char *args, int msize, unsigned char dotu)
 	struct p9_fd_opts opts;
 	struct p9_trans_fd *p;
 
-	parse_opts(args, &opts);
+	err = parse_opts(args, &opts);
+	if (err < 0)
+		return ERR_PTR(err);
 
 	csocket = NULL;
 	trans = kmalloc(sizeof(struct p9_trans), GFP_KERNEL);
