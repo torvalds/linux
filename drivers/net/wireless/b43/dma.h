@@ -256,7 +256,13 @@ struct b43_dmaring {
 	int max_used_slots;
 	/* Last time we injected a ring overflow. */
 	unsigned long last_injected_overflow;
-#endif				/* CONFIG_B43_DEBUG */
+	/* Statistics: Number of successfully transmitted packets */
+	u64 nr_succeed_tx_packets;
+	/* Statistics: Number of failed TX packets */
+	u64 nr_failed_tx_packets;
+	/* Statistics: Total number of TX plus all retries. */
+	u64 nr_total_packet_tries;
+#endif /* CONFIG_B43_DEBUG */
 };
 
 static inline u32 b43_dma_read(struct b43_dmaring *ring, u16 offset)

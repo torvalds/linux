@@ -38,6 +38,7 @@
 #include <linux/delay.h>
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
+#include <asm/div64.h>
 
 
 /* 32bit DMA ops. */
@@ -878,6 +879,17 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 	goto out;
 }
 
+#define divide(a, b)	({	\
+	typeof(a) __a = a;	\
+	do_div(__a, b);		\
+	__a;			\
+  })
+
+#define modulo(a, b)	({	\
+	typeof(a) __a = a;	\
+	do_div(__a, b);		\
+  })
+
 /* Main cleanup function. */
 static void b43_destroy_dmaring(struct b43_dmaring *ring,
 				const char *ringname)
@@ -885,9 +897,34 @@ static void b43_destroy_dmaring(struct b43_dmaring *ring,
 	if (!ring)
 		return;
 
-	b43dbg(ring->dev->wl, "DMA-%u %s max used slots: %d/%d\n",
-	       (unsigned int)(ring->type), ringname,
-	       ring->max_used_slots, ring->nr_slots);
+#ifdef CONFIG_B43_DEBUG
+	{
+		/* Print some statistics. */
+		u64 failed_packets = ring->nr_failed_tx_packets;
+		u64 succeed_packets = ring->nr_succeed_tx_packets;
+		u64 nr_packets = failed_packets + succeed_packets;
+		u64 permille_failed = 0, average_tries = 0;
+
+		if (nr_packets)
+			permille_failed = divide(failed_packets * 1000, nr_packets);
+		if (nr_packets)
+			average_tries = divide(ring->nr_total_packet_tries * 100, nr_packets);
+
+		b43dbg(ring->dev->wl, "DMA-%u %s: "
+		       "Used slots %d/%d, Failed frames %llu/%llu = %llu.%01llu%%, "
+		       "Average tries %llu.%02llu\n",
+		       (unsigned int)(ring->type), ringname,
+		       ring->max_used_slots,
+		       ring->nr_slots,
+		       (unsigned long long)failed_packets,
+		       (unsigned long long)succeed_packets,
+		       (unsigned long long)divide(permille_failed, 10),
+		       (unsigned long long)modulo(permille_failed, 10),
+		       (unsigned long long)divide(average_tries, 100),
+		       (unsigned long long)modulo(average_tries, 100));
+	}
+#endif /* DEBUG */
+
 	/* Device IRQs are disabled prior entering this function,
 	 * so no need to take care of concurrency with rx handler stuff.
 	 */
@@ -1270,6 +1307,38 @@ out_unlock:
 	return err;
 }
 
+static void b43_fill_txstatus_report(struct b43_dmaring *ring,
+				    struct ieee80211_tx_status *report,
+				    const struct b43_txstatus *status)
+{
+	bool frame_failed = 0;
+
+	if (status->acked) {
+		/* The frame was ACKed. */
+		report->flags |= IEEE80211_TX_STATUS_ACK;
+	} else {
+		/* The frame was not ACKed... */
+		if (!(report->control.flags & IEEE80211_TXCTL_NO_ACK)) {
+			/* ...but we expected an ACK. */
+			frame_failed = 1;
+			report->excessive_retries = 1;
+		}
+	}
+	if (status->frame_count == 0) {
+		/* The frame was not transmitted at all. */
+		report->retry_count = 0;
+	} else {
+		report->retry_count = status->frame_count - 1;
+#ifdef CONFIG_B43_DEBUG
+		if (frame_failed)
+			ring->nr_failed_tx_packets++;
+		else
+			ring->nr_succeed_tx_packets++;
+		ring->nr_total_packet_tries += status->frame_count;
+#endif /* DEBUG */
+	}
+}
+
 void b43_dma_handle_txstatus(struct b43_wldev *dev,
 			     const struct b43_txstatus *status)
 {
@@ -1304,18 +1373,7 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 			 * status of the transmission.
 			 * Some fields of txstat are already filled in dma_tx().
 			 */
-			if (status->acked) {
-				meta->txstat.flags |= IEEE80211_TX_STATUS_ACK;
-			} else {
-				if (!(meta->txstat.control.flags
-				      & IEEE80211_TXCTL_NO_ACK))
-					meta->txstat.excessive_retries = 1;
-			}
-			if (status->frame_count == 0) {
-				/* The frame was not transmitted at all. */
-				meta->txstat.retry_count = 0;
-			} else
-				meta->txstat.retry_count = status->frame_count - 1;
+			b43_fill_txstatus_report(ring, &(meta->txstat), status);
 			ieee80211_tx_status_irqsafe(dev->wl->hw, meta->skb,
 						    &(meta->txstat));
 			/* skb is freed by ieee80211_tx_status_irqsafe() */
