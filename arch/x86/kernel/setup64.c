@@ -142,14 +142,16 @@ void __init setup_per_cpu_areas(void)
 	printk(KERN_INFO "PERCPU: Allocating %lu bytes of per cpu data\n", size);
 	for_each_cpu_mask (i, cpu_possible_map) {
 		char *ptr;
+#ifndef CONFIG_NEED_MULTIPLE_NODES
+		ptr = alloc_bootmem_pages(size);
+#else
+		int node = early_cpu_to_node(i);
 
-		if (!NODE_DATA(early_cpu_to_node(i))) {
-			printk("cpu with no node %d, num_online_nodes %d\n",
-			       i, num_online_nodes());
+		if (!node_online(node) || !NODE_DATA(node))
 			ptr = alloc_bootmem_pages(size);
-		} else { 
-			ptr = alloc_bootmem_pages_node(NODE_DATA(early_cpu_to_node(i)), size);
-		}
+		else
+			ptr = alloc_bootmem_pages_node(NODE_DATA(node), size);
+#endif
 		if (!ptr)
 			panic("Cannot allocate cpu data for CPU %d\n", i);
 		cpu_pda(i)->data_offset = ptr - __per_cpu_start;
