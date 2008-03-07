@@ -456,13 +456,6 @@ config SH_SECUREEDGE5410
 	  This includes both the OEM SecureEdge products as well as the
 	  SME product line.
 
-config SH_7710VOIPGW
-	bool "SH7710-VOIP-GW"
-	depends on CPU_SUBTYPE_SH7710
-	help
-	  Select this option to build a kernel for the SH7710 based
-	  VOIP GW.
-
 config SH_RTS7751R2D
 	bool "RTS7751R2D"
 	depends on CPU_SUBTYPE_SH7751R
