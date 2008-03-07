@@ -194,25 +194,6 @@ int iwl4965_queue_space(const struct iwl4965_queue *q)
 	return s;
 }
 
-/**
- * iwl4965_queue_inc_wrap - increment queue index, wrap back to beginning
- * @index -- current index
- * @n_bd -- total number of entries in queue (must be power of 2)
- */
-static inline int iwl4965_queue_inc_wrap(int index, int n_bd)
-{
-	return ++index & (n_bd - 1);
-}
-
-/**
- * iwl4965_queue_dec_wrap - decrement queue index, wrap back to end
- * @index -- current index
- * @n_bd -- total number of entries in queue (must be power of 2)
- */
-static inline int iwl4965_queue_dec_wrap(int index, int n_bd)
-{
-	return --index & (n_bd - 1);
-}
 
 static inline int x2_queue_used(const struct iwl4965_queue *q, int i)
 {
@@ -241,8 +222,8 @@ static int iwl4965_queue_init(struct iwl4965_priv *priv, struct iwl4965_queue *q
 	q->n_window = slots_num;
 	q->id = id;
 
-	/* count must be power-of-two size, otherwise iwl4965_queue_inc_wrap
-	 * and iwl4965_queue_dec_wrap are broken. */
+	/* count must be power-of-two size, otherwise iwl_queue_inc_wrap
+	 * and iwl_queue_dec_wrap are broken. */
 	BUG_ON(!is_power_of_2(count));
 
 	/* slots_num must be power-of-two size, otherwise
@@ -342,7 +323,7 @@ int iwl4965_tx_queue_init(struct iwl4965_priv *priv,
 	txq->need_update = 0;
 
 	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
-	 * iwl4965_queue_inc_wrap and iwl4965_queue_dec_wrap are broken. */
+	 * iwl_queue_inc_wrap and iwl_queue_dec_wrap are broken. */
 	BUILD_BUG_ON(TFD_QUEUE_SIZE_MAX & (TFD_QUEUE_SIZE_MAX - 1));
 
 	/* Initialize queue's high/low-water marks, and head/tail indexes */
@@ -373,7 +354,7 @@ void iwl4965_tx_queue_free(struct iwl4965_priv *priv, struct iwl4965_tx_queue *t
 
 	/* first, empty all BD's */
 	for (; q->write_ptr != q->read_ptr;
-	     q->read_ptr = iwl4965_queue_inc_wrap(q->read_ptr, q->n_bd))
+	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd))
 		iwl4965_hw_txq_free_tfd(priv, txq);
 
 	len = sizeof(struct iwl4965_cmd) * q->n_window;
@@ -714,7 +695,7 @@ static int iwl4965_enqueue_hcmd(struct iwl4965_priv *priv, struct iwl4965_host_c
 	ret = iwl4965_tx_queue_update_wr_ptr(priv, txq, 0);
 
 	/* Increment and update queue's write index */
-	q->write_ptr = iwl4965_queue_inc_wrap(q->write_ptr, q->n_bd);
+	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	iwl4965_tx_queue_update_write_ptr(priv, txq);
 
 	spin_unlock_irqrestore(&priv->hcmd_lock, flags);
@@ -2897,7 +2878,7 @@ static int iwl4965_tx_skb(struct iwl4965_priv *priv,
 	iwl4965_tx_queue_update_wr_ptr(priv, txq, len);
 
 	/* Tell device the write index *just past* this latest filled TFD */
-	q->write_ptr = iwl4965_queue_inc_wrap(q->write_ptr, q->n_bd);
+	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	rc = iwl4965_tx_queue_update_write_ptr(priv, txq);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -3291,9 +3272,9 @@ int iwl4965_tx_queue_reclaim(struct iwl4965_priv *priv, int txq_id, int index)
 		return 0;
 	}
 
-	for (index = iwl4965_queue_inc_wrap(index, q->n_bd);
+	for (index = iwl_queue_inc_wrap(index, q->n_bd);
 		q->read_ptr != index;
-		q->read_ptr = iwl4965_queue_inc_wrap(q->read_ptr, q->n_bd)) {
+		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 		if (txq_id != IWL_CMD_QUEUE_NUM) {
 			iwl4965_txstatus_to_ieee(priv,
 					&(txq->txb[txq->q.read_ptr]));
@@ -3538,7 +3519,7 @@ static void iwl4965_rx_reply_tx(struct iwl4965_priv *priv,
 
 		if (txq->q.read_ptr != (scd_ssn & 0xff)) {
 			int freed;
-			index = iwl4965_queue_dec_wrap(scd_ssn & 0xff, txq->q.n_bd);
+			index = iwl_queue_dec_wrap(scd_ssn & 0xff, txq->q.n_bd);
 			IWL_DEBUG_TX_REPLY("Retry scheduler reclaim scd_ssn "
 					   "%d index %d\n", scd_ssn , index);
 			freed = iwl4965_tx_queue_reclaim(priv, txq_id, index);

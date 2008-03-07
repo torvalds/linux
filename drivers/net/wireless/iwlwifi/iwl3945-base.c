@@ -183,7 +183,7 @@ static const char *iwl3945_escape_essid(const char *essid, u8 essid_len)
  * (#0-3) for data tx via EDCA.  An additional 2 HCCA queues are unused.
  ***************************************************/
 
-static int iwl3945_queue_space(const struct iwl3945_queue *q)
+int iwl3945_queue_space(const struct iwl3945_queue *q)
 {
 	int s = q->read_ptr - q->write_ptr;
 
@@ -199,32 +199,13 @@ static int iwl3945_queue_space(const struct iwl3945_queue *q)
 	return s;
 }
 
-/**
- * iwl3945_queue_inc_wrap - increment queue index, wrap back to beginning
- * @index -- current index
- * @n_bd -- total number of entries in queue (must be power of 2)
- */
-static inline int iwl3945_queue_inc_wrap(int index, int n_bd)
-{
-	return ++index & (n_bd - 1);
-}
-
-/**
- * iwl3945_queue_dec_wrap - increment queue index, wrap back to end
- * @index -- current index
- * @n_bd -- total number of entries in queue (must be power of 2)
- */
-static inline int iwl3945_queue_dec_wrap(int index, int n_bd)
-{
-	return --index & (n_bd - 1);
-}
-
-static inline int x2_queue_used(const struct iwl3945_queue *q, int i)
+int iwl3945_x2_queue_used(const struct iwl3945_queue *q, int i)
 {
 	return q->write_ptr > q->read_ptr ?
 		(i >= q->read_ptr && i < q->write_ptr) :
 		!(i < q->read_ptr && i >= q->write_ptr);
 }
+
 
 static inline u8 get_cmd_index(struct iwl3945_queue *q, u32 index, int is_huge)
 {
@@ -246,8 +227,8 @@ static int iwl3945_queue_init(struct iwl3945_priv *priv, struct iwl3945_queue *q
 	q->n_window = slots_num;
 	q->id = id;
 
-	/* count must be power-of-two size, otherwise iwl3945_queue_inc_wrap
-	 * and iwl3945_queue_dec_wrap are broken. */
+	/* count must be power-of-two size, otherwise iwl_queue_inc_wrap
+	 * and iwl_queue_dec_wrap are broken. */
 	BUG_ON(!is_power_of_2(count));
 
 	/* slots_num must be power-of-two size, otherwise
@@ -347,7 +328,7 @@ int iwl3945_tx_queue_init(struct iwl3945_priv *priv,
 	txq->need_update = 0;
 
 	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
-	 * iwl3945_queue_inc_wrap and iwl3945_queue_dec_wrap are broken. */
+	 * iwl_queue_inc_wrap and iwl_queue_dec_wrap are broken. */
 	BUILD_BUG_ON(TFD_QUEUE_SIZE_MAX & (TFD_QUEUE_SIZE_MAX - 1));
 
 	/* Initialize queue high/low-water, head/tail indexes */
@@ -378,7 +359,7 @@ void iwl3945_tx_queue_free(struct iwl3945_priv *priv, struct iwl3945_tx_queue *t
 
 	/* first, empty all BD's */
 	for (; q->write_ptr != q->read_ptr;
-	     q->read_ptr = iwl3945_queue_inc_wrap(q->read_ptr, q->n_bd))
+	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd))
 		iwl3945_hw_txq_free_tfd(priv, txq);
 
 	len = sizeof(struct iwl3945_cmd) * q->n_window;
@@ -717,7 +698,7 @@ static int iwl3945_enqueue_hcmd(struct iwl3945_priv *priv, struct iwl3945_host_c
 	txq->need_update = 1;
 
 	/* Increment and update queue's write index */
-	q->write_ptr = iwl3945_queue_inc_wrap(q->write_ptr, q->n_bd);
+	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	ret = iwl3945_tx_queue_update_write_ptr(priv, txq);
 
 	spin_unlock_irqrestore(&priv->hcmd_lock, flags);
@@ -2797,7 +2778,7 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv,
 			   ieee80211_get_hdrlen(fc));
 
 	/* Tell device the write index *just past* this latest filled TFD */
-	q->write_ptr = iwl3945_queue_inc_wrap(q->write_ptr, q->n_bd);
+	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	rc = iwl3945_tx_queue_update_write_ptr(priv, txq);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -3189,16 +3170,16 @@ static int iwl3945_tx_queue_reclaim(struct iwl3945_priv *priv, int txq_id, int i
 	struct iwl3945_queue *q = &txq->q;
 	int nfreed = 0;
 
-	if ((index >= q->n_bd) || (x2_queue_used(q, index) == 0)) {
+	if ((index >= q->n_bd) || (iwl3945_x2_queue_used(q, index) == 0)) {
 		IWL_ERROR("Read index for DMA queue txq id (%d), index %d, "
 			  "is out of range [0-%d] %d %d.\n", txq_id,
 			  index, q->n_bd, q->write_ptr, q->read_ptr);
 		return 0;
 	}
 
-	for (index = iwl3945_queue_inc_wrap(index, q->n_bd);
+	for (index = iwl_queue_inc_wrap(index, q->n_bd);
 		q->read_ptr != index;
-		q->read_ptr = iwl3945_queue_inc_wrap(q->read_ptr, q->n_bd)) {
+		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 		if (txq_id != IWL_CMD_QUEUE_NUM) {
 			iwl3945_txstatus_to_ieee(priv,
 					&(txq->txb[txq->q.read_ptr]));
@@ -3245,7 +3226,7 @@ static void iwl3945_rx_reply_tx(struct iwl3945_priv *priv,
 	struct iwl3945_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
 	u32  status = le32_to_cpu(tx_resp->status);
 
-	if ((index >= txq->q.n_bd) || (x2_queue_used(&txq->q, index) == 0)) {
+	if ((index >= txq->q.n_bd) || (iwl3945_x2_queue_used(&txq->q, index) == 0)) {
 		IWL_ERROR("Read index for DMA queue txq_id (%d) index %d "
 			  "is out of range [0-%d] %d %d\n", txq_id,
 			  index, txq->q.n_bd, txq->q.write_ptr,

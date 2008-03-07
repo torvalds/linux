@@ -116,6 +116,9 @@ struct iwl3945_queue {
 				* space less than this */
 } __attribute__ ((packed));
 
+int iwl3945_queue_space(const struct iwl3945_queue *q);
+int iwl3945_x2_queue_used(const struct iwl3945_queue *q, int i);
+
 #define MAX_NUM_OF_TBS          (20)
 
 /* One for each TFD */
