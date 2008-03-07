@@ -155,7 +155,7 @@ kdump_init_notifier(struct notifier_block *self, unsigned long val, void *data)
 		if (val == DIE_INIT_MONARCH_LEAVE)
 			ia64_mca_printk(KERN_NOTICE
 					"%s: kdump not configured\n",
-					__FUNCTION__);
+					__func__);
 		return NOTIFY_DONE;
 	}
 

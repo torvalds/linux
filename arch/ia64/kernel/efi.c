@@ -379,8 +379,8 @@ efi_get_pal_addr (void)
 		 * a dedicated ITR for the PAL code.
 		 */
 		if ((vaddr & mask) == (KERNEL_START & mask)) {
-			printk(KERN_INFO "%s: no need to install ITR for "
-			       "PAL code\n", __FUNCTION__);
+			printk(KERN_INFO "%s: no need to install ITR for PAL code\n",
+			       __func__);
 			continue;
 		}
 
@@ -399,7 +399,7 @@ efi_get_pal_addr (void)
 		return __va(md->phys_addr);
 	}
 	printk(KERN_WARNING "%s: no PAL-code memory-descriptor found\n",
-	       __FUNCTION__);
+	       __func__);
 	return NULL;
 }
 
@@ -543,12 +543,30 @@ efi_init (void)
 		for (i = 0, p = efi_map_start; p < efi_map_end;
 		     ++i, p += efi_desc_size)
 		{
+			const char *unit;
+			unsigned long size;
+
 			md = p;
-			printk("mem%02u: type=%u, attr=0x%lx, "
-			       "range=[0x%016lx-0x%016lx) (%luMB)\n",
+			size = md->num_pages << EFI_PAGE_SHIFT;
+
+			if ((size >> 40) > 0) {
+				size >>= 40;
+				unit = "TB";
+			} else if ((size >> 30) > 0) {
+				size >>= 30;
+				unit = "GB";
+			} else if ((size >> 20) > 0) {
+				size >>= 20;
+				unit = "MB";
+			} else {
+				size >>= 10;
+				unit = "KB";
+			}
+
+			printk("mem%02d: type=%2u, attr=0x%016lx, "
+			       "range=[0x%016lx-0x%016lx) (%4lu%s)\n",
 			       i, md->type, md->attribute, md->phys_addr,
-			       md->phys_addr + efi_md_size(md),
-			       md->num_pages >> (20 - EFI_PAGE_SHIFT));
+			       md->phys_addr + efi_md_size(md), size, unit);
 		}
 	}
 #endif

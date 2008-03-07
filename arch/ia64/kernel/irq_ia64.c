@@ -507,7 +507,7 @@ ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 			if (unlikely(irq < 0)) {
 				printk(KERN_ERR "%s: Unexpected interrupt "
 				       "vector %d on CPU %d is not mapped "
-				       "to any IRQ!\n", __FUNCTION__, vector,
+				       "to any IRQ!\n", __func__, vector,
 				       smp_processor_id());
 			} else
 				generic_handle_irq(irq);
@@ -572,7 +572,7 @@ void ia64_process_pending_intr(void)
 			if (unlikely(irq < 0)) {
 				printk(KERN_ERR "%s: Unexpected interrupt "
 				       "vector %d on CPU %d not being mapped "
-				       "to any IRQ!!\n", __FUNCTION__, vector,
+				       "to any IRQ!!\n", __func__, vector,
 				       smp_processor_id());
 			} else {
 				vectors_in_migration[irq]=0;
@@ -666,11 +666,7 @@ ia64_send_ipi (int cpu, int vector, int delivery_mode, int redirect)
 	unsigned long ipi_data;
 	unsigned long phys_cpu_id;
 
-#ifdef CONFIG_SMP
 	phys_cpu_id = cpu_physical_id(cpu);
-#else
-	phys_cpu_id = (ia64_getreg(_IA64_REG_CR_LID) >> 16) & 0xffff;
-#endif
 
 	/*
 	 * cpu number is in 8bit ID and 8bit EID

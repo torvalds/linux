@@ -37,7 +37,7 @@ static irqreturn_t hub_eint_handler(int irq, void *arg)
 			(u64) nasid, 0, 0, 0, 0, 0, 0);
 
 		if ((int)ret_stuff.v0)
-			panic("%s: Fatal %s Error", __FUNCTION__,
+			panic("%s: Fatal %s Error", __func__,
 				((nasid & 1) ? "TIO" : "HUBII"));
 
 		if (!(nasid & 1)) /* Not a TIO, handle CRB errors */
@@ -48,7 +48,7 @@ static irqreturn_t hub_eint_handler(int irq, void *arg)
 				(u64) nasid, 0, 0, 0, 0, 0, 0);
 
 			if ((int)ret_stuff.v0)
-				panic("%s: Fatal TIO Error", __FUNCTION__);
+				panic("%s: Fatal TIO Error", __func__);
 		} else
 			bte_error_handler((unsigned long)NODEPDA(nasid_to_cnodeid(nasid)));
 

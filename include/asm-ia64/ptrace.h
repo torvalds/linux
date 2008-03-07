@@ -233,8 +233,6 @@ struct switch_stack {
 #include <asm/current.h>
 #include <asm/page.h>
 
-#define __ARCH_SYS_PTRACE	1
-
 /*
  * We use the ia64_psr(regs)->ri to determine which of the three
  * instructions in bundle (16 bytes) took the sample. Generate
@@ -313,6 +311,13 @@ struct switch_stack {
   extern void ptrace_attach_sync_user_rbs (struct task_struct *);
   #define arch_ptrace_attach(child) \
 	ptrace_attach_sync_user_rbs(child)
+
+  #define arch_has_single_step()  (1)
+  extern void user_enable_single_step(struct task_struct *);
+  extern void user_disable_single_step(struct task_struct *);
+
+  #define arch_has_block_step()   (1)
+  extern void user_enable_block_step(struct task_struct *);
 
 #endif /* !__KERNEL__ */
 
