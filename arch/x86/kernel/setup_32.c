@@ -228,7 +228,7 @@ static inline void copy_edd(void)
 }
 #endif
 
-int __initdata user_defined_memmap = 0;
+int __initdata user_defined_memmap;
 
 /*
  * "mem=nopentium" disables the 4MB page tables.
