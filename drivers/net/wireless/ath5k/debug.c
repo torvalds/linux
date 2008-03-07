@@ -200,7 +200,8 @@ static ssize_t read_file_tsf(struct file *file, char __user *user_buf,
 {
 	struct ath5k_softc *sc = file->private_data;
 	char buf[100];
-	snprintf(buf, sizeof(buf), "0x%016llx\n", ath5k_hw_get_tsf64(sc->ah));
+	snprintf(buf, sizeof(buf), "0x%016llx\n",
+		 (unsigned long long)ath5k_hw_get_tsf64(sc->ah));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, 19);
 }
 
@@ -271,7 +272,8 @@ static ssize_t read_file_beacon(struct file *file, char __user *user_buf,
 
 	tsf = ath5k_hw_get_tsf64(sc->ah);
 	len += snprintf(buf+len, sizeof(buf)-len,
-		"TSF\t\t0x%016llx\tTU: %08x\n", tsf, TSF_TO_TU(tsf));
+		"TSF\t\t0x%016llx\tTU: %08x\n",
+		(unsigned long long)tsf, TSF_TO_TU(tsf));
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }

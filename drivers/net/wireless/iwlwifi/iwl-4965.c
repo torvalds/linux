@@ -4117,7 +4117,7 @@ static int iwl4965_tx_status_reply_compressed_ba(struct iwl4965_priv *priv,
 	iwl4965_hwrate_to_tx_control(priv, agg->rate_n_flags,
 				     &tx_status->control);
 
-	IWL_DEBUG_TX_REPLY("Bitmap %llx\n", bitmap);
+	IWL_DEBUG_TX_REPLY("Bitmap %llx\n", (unsigned long long)bitmap);
 
 	return 0;
 }
@@ -4262,12 +4262,12 @@ static void iwl4965_rx_reply_compressed_ba(struct iwl4965_priv *priv,
 			   "%d, scd_ssn = %d\n",
 			   ba_resp->tid,
 			   ba_resp->seq_ctl,
-			   ba_resp->bitmap,
+			   (unsigned long long)ba_resp->bitmap,
 			   ba_resp->scd_flow,
 			   ba_resp->scd_ssn);
 	IWL_DEBUG_TX_REPLY("DAT start_idx = %d, bitmap = 0x%llx \n",
 			   agg->start_idx,
-			   agg->bitmap);
+			   (unsigned long long)agg->bitmap);
 
 	/* Update driver's record of ACK vs. not for each frame in window */
 	iwl4965_tx_status_reply_compressed_ba(priv, agg, ba_resp);
