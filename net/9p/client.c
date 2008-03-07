@@ -154,7 +154,7 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 	spin_lock_init(&clnt->lock);
 	INIT_LIST_HEAD(&clnt->fidlist);
 	clnt->fidpool = p9_idpool_create();
-	if (!clnt->fidpool) {
+	if (IS_ERR(clnt->fidpool)) {
 		err = PTR_ERR(clnt->fidpool);
 		clnt->fidpool = NULL;
 		goto error;
