@@ -51,5 +51,6 @@ struct netns_ipv6 {
 	struct fib_rules_ops    *fib6_rules_ops;
 #endif
 	struct sock		**icmp_sk;
+	struct sock             *ndisc_sk;
 };
 #endif

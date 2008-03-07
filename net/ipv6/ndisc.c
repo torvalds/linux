@@ -89,8 +89,6 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
 
-static struct socket *ndisc_socket;
-
 static u32 ndisc_hash(const void *pkey, const struct net_device *dev);
 static int ndisc_constructor(struct neighbour *neigh);
 static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb);
@@ -449,7 +447,8 @@ static void __ndisc_send(struct net_device *dev,
 {
 	struct flowi fl;
 	struct dst_entry *dst;
-	struct sock *sk = ndisc_socket->sk;
+	struct net *net = dev->nd_net;
+	struct sock *sk = net->ipv6.ndisc_sk;
 	struct sk_buff *skb;
 	struct icmp6hdr *hdr;
 	struct inet6_dev *idev;
@@ -459,8 +458,7 @@ static void __ndisc_send(struct net_device *dev,
 
 	type = icmp6h->icmp6_type;
 
-	icmpv6_flow_init(ndisc_socket->sk, &fl, type,
-			 saddr, daddr, dev->ifindex);
+	icmpv6_flow_init(sk, &fl, type, saddr, daddr, dev->ifindex);
 
 	dst = icmp6_dst_alloc(dev, neigh, daddr);
 	if (!dst)
@@ -1394,13 +1392,14 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 			 struct in6_addr *target)
 {
-	struct sock *sk = ndisc_socket->sk;
+	struct net_device *dev = skb->dev;
+	struct net *net = dev->nd_net;
+	struct sock *sk = net->ipv6.ndisc_sk;
 	int len = sizeof(struct icmp6hdr) + 2 * sizeof(struct in6_addr);
 	struct sk_buff *buff;
 	struct icmp6hdr *icmph;
 	struct in6_addr saddr_buf;
 	struct in6_addr *addrp;
-	struct net_device *dev;
 	struct rt6_info *rt;
 	struct dst_entry *dst;
 	struct inet6_dev *idev;
@@ -1410,8 +1409,6 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 	int err;
 	int hlen;
 	u8 ha_buf[MAX_ADDR_LEN], *ha = NULL;
-
-	dev = skb->dev;
 
 	if (ipv6_get_lladdr(dev, &saddr_buf, IFA_F_TENTATIVE)) {
 		ND_PRINTK2(KERN_WARNING
@@ -1427,10 +1424,10 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 		return;
 	}
 
-	icmpv6_flow_init(ndisc_socket->sk, &fl, NDISC_REDIRECT,
+	icmpv6_flow_init(sk, &fl, NDISC_REDIRECT,
 			 &saddr_buf, &ipv6_hdr(skb)->saddr, dev->ifindex);
 
-	dst = ip6_route_output(&init_net, NULL, &fl);
+	dst = ip6_route_output(net, NULL, &fl);
 	if (dst == NULL)
 		return;
 
@@ -1719,22 +1716,24 @@ static int ndisc_ifinfo_sysctl_strategy(ctl_table *ctl, int __user *name,
 
 #endif
 
-int __init ndisc_init(void)
+static int ndisc_net_init(struct net *net)
 {
+	struct socket *sock;
 	struct ipv6_pinfo *np;
 	struct sock *sk;
 	int err;
 
-	err = sock_create_kern(PF_INET6, SOCK_RAW, IPPROTO_ICMPV6, &ndisc_socket);
+	err = sock_create_kern(PF_INET6, SOCK_RAW, IPPROTO_ICMPV6, &sock);
 	if (err < 0) {
 		ND_PRINTK0(KERN_ERR
 			   "ICMPv6 NDISC: Failed to initialize the control socket (err %d).\n",
 			   err);
-		ndisc_socket = NULL; /* For safety. */
 		return err;
 	}
 
-	sk = ndisc_socket->sk;
+	net->ipv6.ndisc_sk = sk = sock->sk;
+	sk_change_net(sk, net);
+
 	np = inet6_sk(sk);
 	sk->sk_allocation = GFP_ATOMIC;
 	np->hop_limit = 255;
@@ -1742,21 +1741,52 @@ int __init ndisc_init(void)
 	np->mc_loop = 0;
 	sk->sk_prot->unhash(sk);
 
+	return 0;
+}
+
+static void ndisc_net_exit(struct net *net)
+{
+	sk_release_kernel(net->ipv6.ndisc_sk);
+}
+
+static struct pernet_operations ndisc_net_ops = {
+	.init = ndisc_net_init,
+	.exit = ndisc_net_exit,
+};
+
+int __init ndisc_init(void)
+{
+	int err;
+
+	err = register_pernet_subsys(&ndisc_net_ops);
+	if (err)
+		return err;
 	/*
 	 * Initialize the neighbour table
 	 */
-
 	neigh_table_init(&nd_tbl);
 
 #ifdef CONFIG_SYSCTL
-	neigh_sysctl_register(NULL, &nd_tbl.parms, NET_IPV6, NET_IPV6_NEIGH,
-			      "ipv6",
-			      &ndisc_ifinfo_sysctl_change,
-			      &ndisc_ifinfo_sysctl_strategy);
+	err = neigh_sysctl_register(NULL, &nd_tbl.parms, NET_IPV6,
+				    NET_IPV6_NEIGH, "ipv6",
+				    &ndisc_ifinfo_sysctl_change,
+				    &ndisc_ifinfo_sysctl_strategy);
+	if (err)
+		goto out_unregister_pernet;
 #endif
+	err = register_netdevice_notifier(&ndisc_netdev_notifier);
+	if (err)
+		goto out_unregister_sysctl;
+out:
+	return err;
 
-	register_netdevice_notifier(&ndisc_netdev_notifier);
-	return 0;
+out_unregister_sysctl:
+#ifdef CONFIG_SYSCTL
+	neigh_sysctl_unregister(&nd_tbl.parms);
+out_unregister_pernet:
+#endif
+	unregister_pernet_subsys(&ndisc_net_ops);
+	goto out;
 }
 
 void ndisc_cleanup(void)
@@ -1766,6 +1796,5 @@ void ndisc_cleanup(void)
 	neigh_sysctl_unregister(&nd_tbl.parms);
 #endif
 	neigh_table_clear(&nd_tbl);
-	sock_release(ndisc_socket);
-	ndisc_socket = NULL; /* For safety. */
+	unregister_pernet_subsys(&ndisc_net_ops);
 }
