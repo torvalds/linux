@@ -667,7 +667,6 @@ int ide_register_hw(hw_regs_t *hw, void (*quirkproc)(ide_drive_t *),
 
 	do {
 		hwif = ide_deprecated_find_port(hw->io_ports[IDE_DATA_OFFSET]);
-		index = hwif->index;
 		if (hwif)
 			goto found;
 		for (index = 0; index < MAX_HWIFS; index++)
@@ -675,6 +674,7 @@ int ide_register_hw(hw_regs_t *hw, void (*quirkproc)(ide_drive_t *),
 	} while (retry--);
 	return -1;
 found:
+	index = hwif->index;
 	if (hwif->present)
 		ide_unregister(index, 0, 1);
 	else if (!hwif->hold)
@@ -1180,7 +1180,7 @@ static int __initdata is_chipset_set[MAX_HWIFS];
  * ide_setup() gets called VERY EARLY during initialization,
  * to handle kernel "command line" strings beginning with "hdx=" or "ide".
  *
- * Remember to update Documentation/ide.txt if you change something here.
+ * Remember to update Documentation/ide/ide.txt if you change something here.
  */
 static int __init ide_setup(char *s)
 {
