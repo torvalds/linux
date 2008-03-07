@@ -8,6 +8,8 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/dmar.h>
+#include <linux/bootmem.h>
+#include <asm/proto.h>
 #include <asm/io.h>
 #include <asm/gart.h>
 #include <asm/calgary.h>
@@ -286,8 +288,55 @@ static __init int iommu_setup(char *p)
 }
 early_param("iommu", iommu_setup);
 
+static __initdata void *dma32_bootmem_ptr;
+static unsigned long dma32_bootmem_size __initdata = (128ULL<<20);
+
+static int __init parse_dma32_size_opt(char *p)
+{
+	if (!p)
+		return -EINVAL;
+	dma32_bootmem_size = memparse(p, &p);
+	return 0;
+}
+early_param("dma32_size", parse_dma32_size_opt);
+
+void __init dma32_reserve_bootmem(void)
+{
+	unsigned long size, align;
+	if (end_pfn <= MAX_DMA32_PFN)
+		return;
+
+	align = 64ULL<<20;
+	size = round_up(dma32_bootmem_size, align);
+	dma32_bootmem_ptr = __alloc_bootmem_nopanic(size, align,
+				 __pa(MAX_DMA_ADDRESS));
+	if (dma32_bootmem_ptr)
+		dma32_bootmem_size = size;
+	else
+		dma32_bootmem_size = 0;
+}
+static void __init dma32_free_bootmem(void)
+{
+	int node;
+
+	if (end_pfn <= MAX_DMA32_PFN)
+		return;
+
+	if (!dma32_bootmem_ptr)
+		return;
+
+	for_each_online_node(node)
+		free_bootmem_node(NODE_DATA(node), __pa(dma32_bootmem_ptr),
+				  dma32_bootmem_size);
+
+	dma32_bootmem_ptr = NULL;
+	dma32_bootmem_size = 0;
+}
+
 void __init pci_iommu_alloc(void)
 {
+	/* free the range so iommu could get some range less than 4G */
+	dma32_free_bootmem();
 	/*
 	 * The order of these functions is important for
 	 * fall-back/fail-over reasons
