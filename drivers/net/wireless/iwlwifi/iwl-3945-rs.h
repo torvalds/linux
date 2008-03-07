@@ -159,7 +159,7 @@ enum {
 
 #define IWL_RATES_MASK ((1 << IWL_RATE_COUNT) - 1)
 
-#define IWL_INVALID_VALUE    -1
+#define IWL_INV_TPT    -1
 
 #define IWL_MIN_RSSI_VAL                 -100
 #define IWL_MAX_RSSI_VAL                    0
