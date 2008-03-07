@@ -23,6 +23,8 @@
 #include <linux/kexec.h>
 #include <linux/module.h>
 #include <linux/smp.h>
+#include <linux/err.h>
+#include <linux/debugfs.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/page.h>
@@ -443,3 +445,15 @@ const struct seq_operations cpuinfo_op = {
 	.show	= show_cpuinfo,
 };
 #endif /* CONFIG_PROC_FS */
+
+struct dentry *sh_debugfs_root;
+
+static int __init sh_debugfs_init(void)
+{
+	sh_debugfs_root = debugfs_create_dir("sh", NULL);
+	if (IS_ERR(sh_debugfs_root))
+		return PTR_ERR(sh_debugfs_root);
+
+	return 0;
+}
+arch_initcall(sh_debugfs_init);
