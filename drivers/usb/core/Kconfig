@@ -76,8 +76,8 @@ config USB_DEVICE_CLASS
 	    NAME="bus/usb/$env{BUSNUM}/$env{DEVNUM}", MODE="0644"
 
 config USB_DYNAMIC_MINORS
-	bool "Dynamic USB minor allocation (EXPERIMENTAL)"
-	depends on USB && EXPERIMENTAL
+	bool "Dynamic USB minor allocation"
+	depends on USB
 	help
 	  If you say Y here, the USB subsystem will use dynamic minor
 	  allocation for any device that uses the USB major number.
