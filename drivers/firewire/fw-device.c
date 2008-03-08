@@ -410,7 +410,7 @@ read_rom(struct fw_device *device, int generation, int index, u32 *data)
 
 	init_completion(&callback_data.done);
 
-	offset = 0xfffff0000400ULL + index * 4;
+	offset = (CSR_REGISTER_BASE | CSR_CONFIG_ROM) + index * 4;
 	fw_send_request(device->card, &t, TCODE_READ_QUADLET_REQUEST,
 			device->node_id, generation, device->max_speed,
 			offset, NULL, 4, complete_transaction, &callback_data);

@@ -396,7 +396,8 @@ const struct fw_address_region fw_high_memory_region =
 const struct fw_address_region fw_private_region =
 	{ .start = 0xffffe0000000ULL, .end = 0xfffff0000000ULL,  };
 const struct fw_address_region fw_csr_region =
-	{ .start = 0xfffff0000000ULL, .end = 0xfffff0000800ULL,  };
+	{ .start = CSR_REGISTER_BASE,
+	  .end   = CSR_REGISTER_BASE | CSR_CONFIG_ROM_END,  };
 const struct fw_address_region fw_unit_space_region =
 	{ .start = 0xfffff0000900ULL, .end = 0x1000000000000ULL, };
 EXPORT_SYMBOL(fw_low_memory_region);
@@ -747,7 +748,8 @@ fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 EXPORT_SYMBOL(fw_core_handle_response);
 
 static const struct fw_address_region topology_map_region =
-	{ .start = 0xfffff0001000ull, .end = 0xfffff0001400ull, };
+	{ .start = CSR_REGISTER_BASE | CSR_TOPOLOGY_MAP,
+	  .end   = CSR_REGISTER_BASE | CSR_TOPOLOGY_MAP_END, };
 
 static void
 handle_topology_map(struct fw_card *card, struct fw_request *request,
@@ -785,7 +787,8 @@ static struct fw_address_handler topology_map = {
 };
 
 static const struct fw_address_region registers_region =
-	{ .start = 0xfffff0000000ull, .end = 0xfffff0000400ull, };
+	{ .start = CSR_REGISTER_BASE,
+	  .end   = CSR_REGISTER_BASE | CSR_CONFIG_ROM, };
 
 static void
 handle_registers(struct fw_card *card, struct fw_request *request,
