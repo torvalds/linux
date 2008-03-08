@@ -30,8 +30,8 @@ config USB_EHCI_HCD
 	  module will be called ehci-hcd.
 
 config USB_EHCI_ROOT_HUB_TT
-	bool "Root Hub Transaction Translators (EXPERIMENTAL)"
-	depends on USB_EHCI_HCD && EXPERIMENTAL
+	bool "Root Hub Transaction Translators"
+	depends on USB_EHCI_HCD
 	---help---
 	  Some EHCI chips have vendor-specific extensions to integrate
 	  transaction translators, so that no OHCI or UHCI companion
