@@ -15,7 +15,6 @@
 #include <linux/bitops.h>
 
 #include <asm/page.h>
-#include <asm/semaphore.h>
 #include <asm/processor.h>
 #include <asm/cacheflush.h>
 #include <asm/uaccess.h>

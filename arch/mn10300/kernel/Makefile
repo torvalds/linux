@@ -3,7 +3,7 @@
 #
 extra-y := head.o init_task.o vmlinux.lds
 
-obj-y   := process.o semaphore.o signal.o entry.o fpu.o traps.o irq.o \
+obj-y   := process.o signal.o entry.o fpu.o traps.o irq.o \
 	   ptrace.o setup.o time.o sys_mn10300.o io.o kthread.o \
 	   switch_to.o mn10300_ksyms.o kernel_execve.o
 
