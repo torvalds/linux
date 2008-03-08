@@ -118,7 +118,7 @@ static struct snd_pcm_hardware snd_at73c213_playback_hw = {
 	.rates		= SNDRV_PCM_RATE_CONTINUOUS,
 	.rate_min	= 8000,  /* Replaced by chip->bitrate later. */
 	.rate_max	= 50000, /* Replaced by chip->bitrate later. */
-	.channels_min	= 2,
+	.channels_min	= 1,
 	.channels_max	= 2,
 	.buffer_bytes_max = 64 * 1024 - 1,
 	.period_bytes_min = 512,
@@ -229,6 +229,14 @@ static int snd_at73c213_pcm_close(struct snd_pcm_substream *substream)
 static int snd_at73c213_pcm_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *hw_params)
 {
+	struct snd_at73c213 *chip = snd_pcm_substream_chip(substream);
+	int channels = params_channels(hw_params);
+	int val;
+
+	val = ssc_readl(chip->ssc->regs, TFMR);
+	val = SSC_BFINS(TFMR_DATNB, channels - 1, val);
+	ssc_writel(chip->ssc->regs, TFMR, val);
+
 	return snd_pcm_lib_malloc_pages(substream,
 					params_buffer_bytes(hw_params));
 }
@@ -250,10 +258,12 @@ static int snd_at73c213_pcm_prepare(struct snd_pcm_substream *substream)
 
 	ssc_writel(chip->ssc->regs, PDC_TPR,
 			(long)runtime->dma_addr);
-	ssc_writel(chip->ssc->regs, PDC_TCR, runtime->period_size * 2);
+	ssc_writel(chip->ssc->regs, PDC_TCR,
+			runtime->period_size * runtime->channels);
 	ssc_writel(chip->ssc->regs, PDC_TNPR,
 			(long)runtime->dma_addr + block_size);
-	ssc_writel(chip->ssc->regs, PDC_TNCR, runtime->period_size * 2);
+	ssc_writel(chip->ssc->regs, PDC_TNCR,
+			runtime->period_size * runtime->channels);
 
 	return 0;
 }
@@ -376,7 +386,8 @@ static irqreturn_t snd_at73c213_interrupt(int irq, void *dev_id)
 
 		ssc_writel(chip->ssc->regs, PDC_TNPR,
 				(long)runtime->dma_addr + offset);
-		ssc_writel(chip->ssc->regs, PDC_TNCR, runtime->period_size * 2);
+		ssc_writel(chip->ssc->regs, PDC_TNCR,
+				runtime->period_size * runtime->channels);
 		retval = IRQ_HANDLED;
 	}
 
