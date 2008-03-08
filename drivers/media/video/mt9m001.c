@@ -210,39 +210,63 @@ static int bus_switch_act(struct mt9m001 *mt9m001, int go8bit)
 #endif
 }
 
-static int mt9m001_set_capture_format(struct soc_camera_device *icd,
-		__u32 pixfmt, struct v4l2_rect *rect, unsigned int flags)
+static int bus_switch_possible(struct mt9m001 *mt9m001)
+{
+#ifdef CONFIG_MT9M001_PCA9536_SWITCH
+	return gpio_is_valid(mt9m001->switch_gpio);
+#else
+	return 0;
+#endif
+}
+
+static int mt9m001_set_bus_param(struct soc_camera_device *icd,
+				 unsigned long flags)
 {
 	struct mt9m001 *mt9m001 = container_of(icd, struct mt9m001, icd);
-	unsigned int width_flag = flags & (IS_DATAWIDTH_10 | IS_DATAWIDTH_9 |
-					   IS_DATAWIDTH_8);
+	unsigned int width_flag = flags & SOCAM_DATAWIDTH_MASK;
 	int ret;
-	const u16 hblank = 9, vblank = 25;
 
-	/* MT9M001 has all capture_format parameters fixed */
-	if (!(flags & IS_MASTER) ||
-	    !(flags & IS_PCLK_SAMPLE_RISING) ||
-	    !(flags & IS_HSYNC_ACTIVE_HIGH) ||
-	    !(flags & IS_VSYNC_ACTIVE_HIGH))
-		return -EINVAL;
+	/* Flags validity verified in test_bus_param */
 
-	/* Only one width bit may be set */
-	if (!is_power_of_2(width_flag))
-		return -EINVAL;
-
-	if ((mt9m001->datawidth != 10 && (width_flag == IS_DATAWIDTH_10)) ||
-	    (mt9m001->datawidth != 9  && (width_flag == IS_DATAWIDTH_9)) ||
-	    (mt9m001->datawidth != 8  && (width_flag == IS_DATAWIDTH_8))) {
+	if ((mt9m001->datawidth != 10 && (width_flag == SOCAM_DATAWIDTH_10)) ||
+	    (mt9m001->datawidth != 9  && (width_flag == SOCAM_DATAWIDTH_9)) ||
+	    (mt9m001->datawidth != 8  && (width_flag == SOCAM_DATAWIDTH_8))) {
 		/* Well, we actually only can do 10 or 8 bits... */
-		if (width_flag == IS_DATAWIDTH_9)
+		if (width_flag == SOCAM_DATAWIDTH_9)
 			return -EINVAL;
 		ret = bus_switch_act(mt9m001,
-				     width_flag == IS_DATAWIDTH_8);
+				     width_flag == SOCAM_DATAWIDTH_8);
 		if (ret < 0)
 			return ret;
 
-		mt9m001->datawidth = width_flag == IS_DATAWIDTH_8 ? 8 : 10;
+		mt9m001->datawidth = width_flag == SOCAM_DATAWIDTH_8 ? 8 : 10;
 	}
+
+	return 0;
+}
+
+static unsigned long mt9m001_query_bus_param(struct soc_camera_device *icd)
+{
+	struct mt9m001 *mt9m001 = container_of(icd, struct mt9m001, icd);
+	unsigned int width_flag = SOCAM_DATAWIDTH_10;
+
+	if (bus_switch_possible(mt9m001))
+		width_flag |= SOCAM_DATAWIDTH_8;
+
+	/* MT9M001 has all capture_format parameters fixed */
+	return SOCAM_PCLK_SAMPLE_RISING |
+		SOCAM_HSYNC_ACTIVE_HIGH |
+		SOCAM_VSYNC_ACTIVE_HIGH |
+		SOCAM_MASTER |
+		width_flag;
+}
+
+static int mt9m001_set_fmt_cap(struct soc_camera_device *icd,
+		__u32 pixfmt, struct v4l2_rect *rect)
+{
+	struct mt9m001 *mt9m001 = container_of(icd, struct mt9m001, icd);
+	int ret;
+	const u16 hblank = 9, vblank = 25;
 
 	/* Blanking and start values - default... */
 	ret = reg_write(icd, MT9M001_HORIZONTAL_BLANKING, hblank);
@@ -348,12 +372,6 @@ static int mt9m001_set_register(struct soc_camera_device *icd,
 }
 #endif
 
-static unsigned int mt9m001_get_datawidth(struct soc_camera_device *icd)
-{
-	struct mt9m001 *mt9m001 = container_of(icd, struct mt9m001, icd);
-	return mt9m001->datawidth;
-}
-
 const struct v4l2_queryctrl mt9m001_controls[] = {
 	{
 		.id		= V4L2_CID_VFLIP,
@@ -401,11 +419,12 @@ static struct soc_camera_ops mt9m001_ops = {
 	.release		= mt9m001_release,
 	.start_capture		= mt9m001_start_capture,
 	.stop_capture		= mt9m001_stop_capture,
-	.set_capture_format	= mt9m001_set_capture_format,
+	.set_fmt_cap		= mt9m001_set_fmt_cap,
 	.try_fmt_cap		= mt9m001_try_fmt_cap,
+	.set_bus_param		= mt9m001_set_bus_param,
+	.query_bus_param	= mt9m001_query_bus_param,
 	.formats		= NULL, /* Filled in later depending on the */
 	.num_formats		= 0,	/* camera type and data widths */
-	.get_datawidth		= mt9m001_get_datawidth,
 	.controls		= mt9m001_controls,
 	.num_controls		= ARRAY_SIZE(mt9m001_controls),
 	.get_control		= mt9m001_get_control,

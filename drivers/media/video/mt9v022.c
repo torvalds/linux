@@ -241,18 +241,88 @@ static int bus_switch_act(struct mt9v022 *mt9v022, int go8bit)
 #endif
 }
 
-static int mt9v022_set_capture_format(struct soc_camera_device *icd,
-		__u32 pixfmt, struct v4l2_rect *rect, unsigned int flags)
+static int bus_switch_possible(struct mt9v022 *mt9v022)
+{
+#ifdef CONFIG_MT9V022_PCA9536_SWITCH
+	return gpio_is_valid(mt9v022->switch_gpio);
+#else
+	return 0;
+#endif
+}
+
+static int mt9v022_set_bus_param(struct soc_camera_device *icd,
+				 unsigned long flags)
 {
 	struct mt9v022 *mt9v022 = container_of(icd, struct mt9v022, icd);
-	unsigned int width_flag = flags & (IS_DATAWIDTH_10 | IS_DATAWIDTH_9 |
-					   IS_DATAWIDTH_8);
-	u16 pixclk = 0;
+	unsigned int width_flag = flags & SOCAM_DATAWIDTH_MASK;
 	int ret;
+	u16 pixclk = 0;
 
 	/* Only one width bit may be set */
 	if (!is_power_of_2(width_flag))
 		return -EINVAL;
+
+	if ((mt9v022->datawidth != 10 && (width_flag == SOCAM_DATAWIDTH_10)) ||
+	    (mt9v022->datawidth != 9  && (width_flag == SOCAM_DATAWIDTH_9)) ||
+	    (mt9v022->datawidth != 8  && (width_flag == SOCAM_DATAWIDTH_8))) {
+		/* Well, we actually only can do 10 or 8 bits... */
+		if (width_flag == SOCAM_DATAWIDTH_9)
+			return -EINVAL;
+
+		ret = bus_switch_act(mt9v022,
+				     width_flag == SOCAM_DATAWIDTH_8);
+		if (ret < 0)
+			return ret;
+
+		mt9v022->datawidth = width_flag == SOCAM_DATAWIDTH_8 ? 8 : 10;
+	}
+
+	if (flags & SOCAM_PCLK_SAMPLE_RISING)
+		pixclk |= 0x10;
+
+	if (!(flags & SOCAM_HSYNC_ACTIVE_HIGH))
+		pixclk |= 0x1;
+
+	if (!(flags & SOCAM_VSYNC_ACTIVE_HIGH))
+		pixclk |= 0x2;
+
+	ret = reg_write(icd, MT9V022_PIXCLK_FV_LV, pixclk);
+	if (ret < 0)
+		return ret;
+
+	if (!(flags & SOCAM_MASTER))
+		mt9v022->chip_control &= ~0x8;
+
+	ret = reg_write(icd, MT9V022_CHIP_CONTROL, mt9v022->chip_control);
+	if (ret < 0)
+		return ret;
+
+	dev_dbg(&icd->dev, "Calculated pixclk 0x%x, chip control 0x%x\n",
+		pixclk, mt9v022->chip_control);
+
+	return 0;
+}
+
+static unsigned long mt9v022_query_bus_param(struct soc_camera_device *icd)
+{
+	struct mt9v022 *mt9v022 = container_of(icd, struct mt9v022, icd);
+	unsigned int width_flag = SOCAM_DATAWIDTH_10;
+
+	if (bus_switch_possible(mt9v022))
+		width_flag |= SOCAM_DATAWIDTH_8;
+
+	return SOCAM_PCLK_SAMPLE_RISING | SOCAM_PCLK_SAMPLE_FALLING |
+		SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_LOW |
+		SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |
+		SOCAM_MASTER | SOCAM_SLAVE |
+		width_flag;
+}
+
+static int mt9v022_set_fmt_cap(struct soc_camera_device *icd,
+		__u32 pixfmt, struct v4l2_rect *rect)
+{
+	struct mt9v022 *mt9v022 = container_of(icd, struct mt9v022, icd);
+	int ret;
 
 	/* The caller provides a supported format, as verified per call to
 	 * icd->try_fmt_cap(), datawidth is from our supported format list */
@@ -307,44 +377,6 @@ static int mt9v022_set_capture_format(struct soc_camera_device *icd,
 		return ret;
 
 	dev_dbg(&icd->dev, "Frame %ux%u pixel\n", rect->width, rect->height);
-
-	if ((mt9v022->datawidth != 10 && (width_flag == IS_DATAWIDTH_10)) ||
-	    (mt9v022->datawidth != 9  && (width_flag == IS_DATAWIDTH_9)) ||
-	    (mt9v022->datawidth != 8  && (width_flag == IS_DATAWIDTH_8))) {
-		/* Well, we actually only can do 10 or 8 bits... */
-		if (width_flag == IS_DATAWIDTH_9)
-			return -EINVAL;
-
-		ret = bus_switch_act(mt9v022,
-				     width_flag == IS_DATAWIDTH_8);
-		if (ret < 0)
-			return ret;
-
-		mt9v022->datawidth = width_flag == IS_DATAWIDTH_8 ? 8 : 10;
-	}
-
-	if (flags & IS_PCLK_SAMPLE_RISING)
-		pixclk |= 0x10;
-
-	if (!(flags & IS_HSYNC_ACTIVE_HIGH))
-		pixclk |= 0x1;
-
-	if (!(flags & IS_VSYNC_ACTIVE_HIGH))
-		pixclk |= 0x2;
-
-	ret = reg_write(icd, MT9V022_PIXCLK_FV_LV, pixclk);
-	if (ret < 0)
-		return ret;
-
-	if (!(flags & IS_MASTER))
-		mt9v022->chip_control &= ~0x8;
-
-	ret = reg_write(icd, MT9V022_CHIP_CONTROL, mt9v022->chip_control);
-	if (ret < 0)
-		return ret;
-
-	dev_dbg(&icd->dev, "Calculated pixclk 0x%x, chip control 0x%x\n",
-		pixclk, mt9v022->chip_control);
 
 	return 0;
 }
@@ -420,12 +452,6 @@ static int mt9v022_set_register(struct soc_camera_device *icd,
 }
 #endif
 
-static unsigned int mt9v022_get_datawidth(struct soc_camera_device *icd)
-{
-	struct mt9v022 *mt9v022 = container_of(icd, struct mt9v022, icd);
-	return mt9v022->datawidth;
-}
-
 const struct v4l2_queryctrl mt9v022_controls[] = {
 	{
 		.id		= V4L2_CID_VFLIP,
@@ -491,11 +517,12 @@ static struct soc_camera_ops mt9v022_ops = {
 	.release		= mt9v022_release,
 	.start_capture		= mt9v022_start_capture,
 	.stop_capture		= mt9v022_stop_capture,
-	.set_capture_format	= mt9v022_set_capture_format,
+	.set_fmt_cap		= mt9v022_set_fmt_cap,
 	.try_fmt_cap		= mt9v022_try_fmt_cap,
+	.set_bus_param		= mt9v022_set_bus_param,
+	.query_bus_param	= mt9v022_query_bus_param,
 	.formats		= NULL, /* Filled in later depending on the */
 	.num_formats		= 0,	/* sensor type and data widths */
-	.get_datawidth		= mt9v022_get_datawidth,
 	.controls		= mt9v022_controls,
 	.num_controls		= ARRAY_SIZE(mt9v022_controls),
 	.get_control		= mt9v022_get_control,

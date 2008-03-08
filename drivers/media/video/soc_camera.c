@@ -75,12 +75,13 @@ static int soc_camera_try_fmt_cap(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	/* limit to host capabilities */
-	ret = ici->try_fmt_cap(ici, f);
+	/* test physical bus parameters */
+	ret = ici->try_bus_param(icd, f->fmt.pix.pixelformat);
+	if (ret)
+		return ret;
 
-	/* limit to sensor capabilities */
-	if (!ret)
-		ret = icd->ops->try_fmt_cap(icd, f);
+	/* limit format to hardware capabilities */
+	ret = ici->try_fmt_cap(icd, f);
 
 	/* calculate missing fields */
 	f->fmt.pix.field = field;
@@ -344,8 +345,8 @@ static int soc_camera_s_fmt_cap(struct file *file, void *priv,
 	if (!data_fmt)
 		return -EINVAL;
 
-	/* cached_datawidth may be further adjusted by the ici */
-	icd->cached_datawidth = data_fmt->depth;
+	/* buswidth may be further adjusted by the ici */
+	icd->buswidth = data_fmt->depth;
 
 	ret = soc_camera_try_fmt_cap(file, icf, f);
 	if (ret < 0)
@@ -355,22 +356,23 @@ static int soc_camera_s_fmt_cap(struct file *file, void *priv,
 	rect.top	= icd->y_current;
 	rect.width	= f->fmt.pix.width;
 	rect.height	= f->fmt.pix.height;
-	ret = ici->set_capture_format(icd, f->fmt.pix.pixelformat, &rect);
+	ret = ici->set_fmt_cap(icd, f->fmt.pix.pixelformat, &rect);
+	if (ret < 0)
+		return ret;
 
-	if (!ret) {
-		icd->current_fmt	= data_fmt;
-		icd->width		= rect.width;
-		icd->height		= rect.height;
-		icf->vb_vidq.field	= f->fmt.pix.field;
-		if (V4L2_BUF_TYPE_VIDEO_CAPTURE != f->type)
-			dev_warn(&icd->dev, "Attention! Wrong buf-type %d\n",
-				 f->type);
+	icd->current_fmt	= data_fmt;
+	icd->width		= rect.width;
+	icd->height		= rect.height;
+	icf->vb_vidq.field	= f->fmt.pix.field;
+	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != f->type)
+		dev_warn(&icd->dev, "Attention! Wrong buf-type %d\n",
+			 f->type);
 
-		dev_dbg(&icd->dev, "set width: %d height: %d\n",
-		       icd->width, icd->height);
-	}
+	dev_dbg(&icd->dev, "set width: %d height: %d\n",
+		icd->width, icd->height);
 
-	return ret;
+	/* set physical bus parameters */
+	return ici->set_bus_param(icd, f->fmt.pix.pixelformat);
 }
 
 static int soc_camera_enum_fmt_cap(struct file *file, void  *priv,
@@ -577,7 +579,7 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	ret = ici->set_capture_format(icd, 0, &a->c);
+	ret = ici->set_fmt_cap(icd, 0, &a->c);
 	if (!ret) {
 		icd->width	= a->c.width;
 		icd->height	= a->c.height;
@@ -859,9 +861,6 @@ int soc_camera_device_register(struct soc_camera_device *icd)
 		 "%u-%u", icd->iface, icd->devnum);
 
 	icd->dev.release = dummy_release;
-
-	if (icd->ops->get_datawidth)
-		icd->cached_datawidth = icd->ops->get_datawidth(icd);
 
 	return scan_add_device(icd);
 }

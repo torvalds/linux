@@ -581,64 +581,109 @@ static void pxa_camera_remove_device(struct soc_camera_device *icd)
 	pcdev->icd = NULL;
 }
 
-static int pxa_camera_set_capture_format(struct soc_camera_device *icd,
-					 __u32 pixfmt, struct v4l2_rect *rect)
+static int test_platform_param(struct pxa_camera_dev *pcdev,
+			       unsigned char buswidth, unsigned long *flags)
+{
+	/*
+	 * Platform specified synchronization and pixel clock polarities are
+	 * only a recommendation and are only used during probing. The PXA270
+	 * quick capture interface supports both.
+	 */
+	*flags = (pcdev->platform_flags & PXA_CAMERA_MASTER ?
+		  SOCAM_MASTER : SOCAM_SLAVE) |
+		SOCAM_HSYNC_ACTIVE_HIGH |
+		SOCAM_HSYNC_ACTIVE_LOW |
+		SOCAM_VSYNC_ACTIVE_HIGH |
+		SOCAM_VSYNC_ACTIVE_LOW |
+		SOCAM_PCLK_SAMPLE_RISING |
+		SOCAM_PCLK_SAMPLE_FALLING;
+
+	/* If requested data width is supported by the platform, use it */
+	switch (buswidth) {
+	case 10:
+		if (!(pcdev->platform_flags & PXA_CAMERA_DATAWIDTH_10))
+			return -EINVAL;
+		*flags |= SOCAM_DATAWIDTH_10;
+		break;
+	case 9:
+		if (!(pcdev->platform_flags & PXA_CAMERA_DATAWIDTH_9))
+			return -EINVAL;
+		*flags |= SOCAM_DATAWIDTH_9;
+		break;
+	case 8:
+		if (!(pcdev->platform_flags & PXA_CAMERA_DATAWIDTH_8))
+			return -EINVAL;
+		*flags |= SOCAM_DATAWIDTH_8;
+	}
+
+	return 0;
+}
+
+static int pxa_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 {
 	struct soc_camera_host *ici =
 		to_soc_camera_host(icd->dev.parent);
 	struct pxa_camera_dev *pcdev = ici->priv;
-	unsigned int datawidth = 0, dw, bpp;
+	unsigned long dw, bpp, bus_flags, camera_flags, common_flags;
 	u32 cicr0, cicr4 = 0;
-	int ret;
+	int ret = test_platform_param(pcdev, icd->buswidth, &bus_flags);
 
-	/* If requested data width is supported by the platform, use it */
-	switch (icd->cached_datawidth) {
-	case 10:
-		if (pcdev->platform_flags & PXA_CAMERA_DATAWIDTH_10)
-			datawidth = IS_DATAWIDTH_10;
-		break;
-	case 9:
-		if (pcdev->platform_flags & PXA_CAMERA_DATAWIDTH_9)
-			datawidth = IS_DATAWIDTH_9;
-		break;
-	case 8:
-		if (pcdev->platform_flags & PXA_CAMERA_DATAWIDTH_8)
-			datawidth = IS_DATAWIDTH_8;
-	}
-	if (!datawidth)
+	if (ret < 0)
+		return ret;
+
+	camera_flags = icd->ops->query_bus_param(icd);
+
+	common_flags = soc_camera_bus_param_compatible(camera_flags, bus_flags);
+	if (!common_flags)
 		return -EINVAL;
 
-	ret = icd->ops->set_capture_format(icd, pixfmt, rect,
-			datawidth |
-			(pcdev->platform_flags & PXA_CAMERA_MASTER ?
-			 IS_MASTER : 0) |
-			(pcdev->platform_flags & PXA_CAMERA_HSP ?
-			 0 : IS_HSYNC_ACTIVE_HIGH) |
-			(pcdev->platform_flags & PXA_CAMERA_VSP ?
-			 0 : IS_VSYNC_ACTIVE_HIGH) |
-			(pcdev->platform_flags & PXA_CAMERA_PCP ?
-			 0 : IS_PCLK_SAMPLE_RISING));
+	/* Make choises, based on platform preferences */
+	if ((common_flags & SOCAM_HSYNC_ACTIVE_HIGH) &&
+	    (common_flags & SOCAM_HSYNC_ACTIVE_LOW)) {
+		if (pcdev->platform_flags & PXA_CAMERA_HSP)
+			common_flags &= ~SOCAM_HSYNC_ACTIVE_HIGH;
+		else
+			common_flags &= ~SOCAM_HSYNC_ACTIVE_LOW;
+	}
+
+	if ((common_flags & SOCAM_VSYNC_ACTIVE_HIGH) &&
+	    (common_flags & SOCAM_VSYNC_ACTIVE_LOW)) {
+		if (pcdev->platform_flags & PXA_CAMERA_VSP)
+			common_flags &= ~SOCAM_VSYNC_ACTIVE_HIGH;
+		else
+			common_flags &= ~SOCAM_VSYNC_ACTIVE_LOW;
+	}
+
+	if ((common_flags & SOCAM_PCLK_SAMPLE_RISING) &&
+	    (common_flags & SOCAM_PCLK_SAMPLE_FALLING)) {
+		if (pcdev->platform_flags & PXA_CAMERA_PCP)
+			common_flags &= ~SOCAM_PCLK_SAMPLE_RISING;
+		else
+			common_flags &= ~SOCAM_PCLK_SAMPLE_FALLING;
+	}
+
+	ret = icd->ops->set_bus_param(icd, common_flags);
 	if (ret < 0)
 		return ret;
 
 	/* Datawidth is now guaranteed to be equal to one of the three values.
 	 * We fix bit-per-pixel equal to data-width... */
-	switch (datawidth) {
-	case IS_DATAWIDTH_10:
-		icd->cached_datawidth = 10;
+	switch (common_flags & SOCAM_DATAWIDTH_MASK) {
+	case SOCAM_DATAWIDTH_10:
+		icd->buswidth = 10;
 		dw = 4;
 		bpp = 0x40;
 		break;
-	case IS_DATAWIDTH_9:
-		icd->cached_datawidth = 9;
+	case SOCAM_DATAWIDTH_9:
+		icd->buswidth = 9;
 		dw = 3;
 		bpp = 0x20;
 		break;
 	default:
 		/* Actually it can only be 8 now,
 		 * default is just to silence compiler warnings */
-	case IS_DATAWIDTH_8:
-		icd->cached_datawidth = 8;
+	case SOCAM_DATAWIDTH_8:
+		icd->buswidth = 8;
 		dw = 2;
 		bpp = 0;
 	}
@@ -647,19 +692,19 @@ static int pxa_camera_set_capture_format(struct soc_camera_device *icd,
 		cicr4 |= CICR4_PCLK_EN;
 	if (pcdev->platform_flags & PXA_CAMERA_MCLK_EN)
 		cicr4 |= CICR4_MCLK_EN;
-	if (pcdev->platform_flags & PXA_CAMERA_PCP)
+	if (common_flags & SOCAM_PCLK_SAMPLE_FALLING)
 		cicr4 |= CICR4_PCP;
-	if (pcdev->platform_flags & PXA_CAMERA_HSP)
+	if (common_flags & SOCAM_HSYNC_ACTIVE_LOW)
 		cicr4 |= CICR4_HSP;
-	if (pcdev->platform_flags & PXA_CAMERA_VSP)
+	if (common_flags & SOCAM_VSYNC_ACTIVE_LOW)
 		cicr4 |= CICR4_VSP;
 
 	cicr0 = CICR0;
 	if (cicr0 & CICR0_ENB)
 		CICR0 = cicr0 & ~CICR0_ENB;
-	CICR1 = CICR1_PPL_VAL(rect->width - 1) | bpp | dw;
+	CICR1 = CICR1_PPL_VAL(icd->width - 1) | bpp | dw;
 	CICR2 = 0;
-	CICR3 = CICR3_LPF_VAL(rect->height - 1) |
+	CICR3 = CICR3_LPF_VAL(icd->height - 1) |
 		CICR3_BFW_VAL(min((unsigned short)255, icd->y_skip_top));
 	CICR4 = mclk_get_divisor(pcdev) | cicr4;
 
@@ -671,7 +716,29 @@ static int pxa_camera_set_capture_format(struct soc_camera_device *icd,
 	return 0;
 }
 
-static int pxa_camera_try_fmt_cap(struct soc_camera_host *ici,
+static int pxa_camera_try_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
+{
+	struct soc_camera_host *ici =
+		to_soc_camera_host(icd->dev.parent);
+	struct pxa_camera_dev *pcdev = ici->priv;
+	unsigned long bus_flags, camera_flags;
+	int ret = test_platform_param(pcdev, icd->buswidth, &bus_flags);
+
+	if (ret < 0)
+		return ret;
+
+	camera_flags = icd->ops->query_bus_param(icd);
+
+	return soc_camera_bus_param_compatible(camera_flags, bus_flags) ? 0 : -EINVAL;
+}
+
+static int pxa_camera_set_fmt_cap(struct soc_camera_device *icd,
+				  __u32 pixfmt, struct v4l2_rect *rect)
+{
+	return icd->ops->set_fmt_cap(icd, pixfmt, rect);
+}
+
+static int pxa_camera_try_fmt_cap(struct soc_camera_device *icd,
 				  struct v4l2_format *f)
 {
 	/* limit to pxa hardware capabilities */
@@ -685,7 +752,8 @@ static int pxa_camera_try_fmt_cap(struct soc_camera_host *ici,
 		f->fmt.pix.width = 2048;
 	f->fmt.pix.width &= ~0x01;
 
-	return 0;
+	/* limit to sensor capabilities */
+	return icd->ops->try_fmt_cap(icd, f);
 }
 
 static int pxa_camera_reqbufs(struct soc_camera_file *icf,
@@ -742,11 +810,13 @@ static struct soc_camera_host pxa_soc_camera_host = {
 	.add			= pxa_camera_add_device,
 	.remove			= pxa_camera_remove_device,
 	.msize			= sizeof(struct pxa_buffer),
-	.set_capture_format	= pxa_camera_set_capture_format,
+	.set_fmt_cap		= pxa_camera_set_fmt_cap,
 	.try_fmt_cap		= pxa_camera_try_fmt_cap,
 	.reqbufs		= pxa_camera_reqbufs,
 	.poll			= pxa_camera_poll,
 	.querycap		= pxa_camera_querycap,
+	.try_bus_param		= pxa_camera_try_bus_param,
+	.set_bus_param		= pxa_camera_set_bus_param,
 };
 
 static int pxa_camera_probe(struct platform_device *pdev)
@@ -782,8 +852,8 @@ static int pxa_camera_probe(struct platform_device *pdev)
 
 	pcdev->pdata = pdev->dev.platform_data;
 	pcdev->platform_flags = pcdev->pdata->flags;
-	if (!pcdev->platform_flags & (PXA_CAMERA_DATAWIDTH_8 |
-			PXA_CAMERA_DATAWIDTH_9 | PXA_CAMERA_DATAWIDTH_10)) {
+	if (!(pcdev->platform_flags & (PXA_CAMERA_DATAWIDTH_8 |
+			PXA_CAMERA_DATAWIDTH_9 | PXA_CAMERA_DATAWIDTH_10))) {
 		/* Platform hasn't set available data widths. This is bad.
 		 * Warn and use a default. */
 		dev_warn(&pdev->dev, "WARNING! Platform hasn't set available "

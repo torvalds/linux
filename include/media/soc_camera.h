@@ -34,7 +34,7 @@ struct soc_camera_device {
 	unsigned short exposure;
 	unsigned char iface;		/* Host number */
 	unsigned char devnum;		/* Device number per host */
-	unsigned char cached_datawidth;	/* See comment in .c */
+	unsigned char buswidth;		/* See comment in .c */
 	struct soc_camera_ops *ops;
 	struct video_device *vdev;
 	const struct soc_camera_data_format *current_fmt;
@@ -61,11 +61,13 @@ struct soc_camera_host {
 	char *drv_name;
 	int (*add)(struct soc_camera_device *);
 	void (*remove)(struct soc_camera_device *);
-	int (*set_capture_format)(struct soc_camera_device *, __u32,
-				  struct v4l2_rect *);
-	int (*try_fmt_cap)(struct soc_camera_host *, struct v4l2_format *);
+	int (*set_fmt_cap)(struct soc_camera_device *, __u32,
+			   struct v4l2_rect *);
+	int (*try_fmt_cap)(struct soc_camera_device *, struct v4l2_format *);
 	int (*reqbufs)(struct soc_camera_file *, struct v4l2_requestbuffers *);
 	int (*querycap)(struct soc_camera_host *, struct v4l2_capability *);
+	int (*try_bus_param)(struct soc_camera_device *, __u32);
+	int (*set_bus_param)(struct soc_camera_device *, __u32);
 	unsigned int (*poll)(struct file *, poll_table *);
 };
 
@@ -108,9 +110,11 @@ struct soc_camera_ops {
 	int (*release)(struct soc_camera_device *);
 	int (*start_capture)(struct soc_camera_device *);
 	int (*stop_capture)(struct soc_camera_device *);
-	int (*set_capture_format)(struct soc_camera_device *, __u32,
-				  struct v4l2_rect *, unsigned int);
+	int (*set_fmt_cap)(struct soc_camera_device *, __u32,
+			   struct v4l2_rect *);
 	int (*try_fmt_cap)(struct soc_camera_device *, struct v4l2_format *);
+	unsigned long (*query_bus_param)(struct soc_camera_device *);
+	int (*set_bus_param)(struct soc_camera_device *, unsigned long);
 	int (*get_chip_id)(struct soc_camera_device *,
 			   struct v4l2_chip_ident *);
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -123,7 +127,6 @@ struct soc_camera_ops {
 	int (*set_control)(struct soc_camera_device *, struct v4l2_control *);
 	const struct v4l2_queryctrl *controls;
 	int num_controls;
-	unsigned int(*get_datawidth)(struct soc_camera_device *icd);
 };
 
 static inline struct v4l2_queryctrl const *soc_camera_find_qctrl(
@@ -138,12 +141,33 @@ static inline struct v4l2_queryctrl const *soc_camera_find_qctrl(
 	return NULL;
 }
 
-#define IS_MASTER		(1<<0)
-#define IS_HSYNC_ACTIVE_HIGH	(1<<1)
-#define IS_VSYNC_ACTIVE_HIGH	(1<<2)
-#define IS_DATAWIDTH_8		(1<<3)
-#define IS_DATAWIDTH_9		(1<<4)
-#define IS_DATAWIDTH_10		(1<<5)
-#define IS_PCLK_SAMPLE_RISING	(1<<6)
+#define SOCAM_MASTER			(1 << 0)
+#define SOCAM_SLAVE			(1 << 1)
+#define SOCAM_HSYNC_ACTIVE_HIGH		(1 << 2)
+#define SOCAM_HSYNC_ACTIVE_LOW		(1 << 3)
+#define SOCAM_VSYNC_ACTIVE_HIGH		(1 << 4)
+#define SOCAM_VSYNC_ACTIVE_LOW		(1 << 5)
+#define SOCAM_DATAWIDTH_8		(1 << 6)
+#define SOCAM_DATAWIDTH_9		(1 << 7)
+#define SOCAM_DATAWIDTH_10		(1 << 8)
+#define SOCAM_PCLK_SAMPLE_RISING	(1 << 9)
+#define SOCAM_PCLK_SAMPLE_FALLING	(1 << 10)
+
+#define SOCAM_DATAWIDTH_MASK (SOCAM_DATAWIDTH_8 | SOCAM_DATAWIDTH_9 | \
+			      SOCAM_DATAWIDTH_10)
+
+static inline unsigned long soc_camera_bus_param_compatible(
+			unsigned long camera_flags, unsigned long bus_flags)
+{
+	unsigned long common_flags, hsync, vsync, pclk;
+
+	common_flags = camera_flags & bus_flags;
+
+	hsync = common_flags & (SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_LOW);
+	vsync = common_flags & (SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW);
+	pclk = common_flags & (SOCAM_PCLK_SAMPLE_RISING | SOCAM_PCLK_SAMPLE_FALLING);
+
+	return (!hsync || !vsync || !pclk) ? 0 : common_flags;
+}
 
 #endif
