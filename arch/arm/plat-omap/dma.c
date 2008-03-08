@@ -1020,12 +1020,12 @@ static void create_dma_lch_chain(int lch_head, int lch_queue)
 	}
 
 	w = OMAP_DMA_CLNK_CTRL_REG(lch_head);
-	w &= ~(0x0f);
+	w &= ~(0x1f);
 	w |= lch_queue;
 	OMAP_DMA_CLNK_CTRL_REG(lch_head) = w;
 
 	w = OMAP_DMA_CLNK_CTRL_REG(lch_queue);
-	w &= ~(0x0f);
+	w &= ~(0x1f);
 	w |= (dma_chan[lch_queue].next_linked_ch);
 	OMAP_DMA_CLNK_CTRL_REG(lch_queue) = w;
 }
@@ -1663,6 +1663,7 @@ static int omap2_dma_handle_ch(int ch)
 	if (!status) {
 		if (printk_ratelimit())
 			printk(KERN_WARNING "Spurious DMA IRQ for lch %d\n", ch);
+		omap_writel(1 << ch, OMAP_DMA4_IRQSTATUS_L0);
 		return 0;
 	}
 	if (unlikely(dma_chan[ch].dev_id == -1)) {
