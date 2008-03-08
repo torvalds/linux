@@ -797,7 +797,7 @@ handle_registers(struct fw_card *card, struct fw_request *request,
 		 unsigned long long offset,
 		 void *payload, size_t length, void *callback_data)
 {
-	int reg = offset - CSR_REGISTER_BASE;
+	int reg = offset & ~CSR_REGISTER_BASE;
 	unsigned long long bus_time;
 	__be32 *data = payload;
 
