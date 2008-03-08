@@ -1,5 +1,4 @@
 /*
- *  linux/arch/i386/mm/init.c
  *
  *  Copyright (C) 1995  Linus Torvalds
  *

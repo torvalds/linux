@@ -9,8 +9,6 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * arch/i386/boot/pm.c
- *
  * Prepare the machine for transition to protected mode.
  */
 

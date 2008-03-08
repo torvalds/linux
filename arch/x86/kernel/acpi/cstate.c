@@ -1,6 +1,4 @@
 /*
- * arch/i386/kernel/acpi/cstate.c
- *
  * Copyright (C) 2005 Intel Corporation
  * 	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
  * 	- Added _PDC for SMP C-states on Intel CPUs

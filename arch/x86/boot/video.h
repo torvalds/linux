@@ -9,8 +9,6 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * arch/i386/boot/video.h
- *
  * Header file for the real-mode video probing code
  */
 

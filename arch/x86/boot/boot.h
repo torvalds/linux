@@ -9,8 +9,6 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * arch/i386/boot/boot.h
- *
  * Header file for the real-mode kernel code
  */
 
