@@ -200,6 +200,8 @@ struct usb_device_id pvr2_device_table[] = {
 #endif
 	{ USB_DEVICE(0x2040, 0x7500),
 	  .driver_info = (kernel_ulong_t)&pvr2_device_75xxx},
+	{ USB_DEVICE(0x2040, 0x7501),
+	  .driver_info = (kernel_ulong_t)&pvr2_device_75xxx},
 	{ }
 };
 
