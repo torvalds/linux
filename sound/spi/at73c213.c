@@ -133,7 +133,8 @@ static struct snd_pcm_hardware snd_at73c213_playback_hw = {
 static int snd_at73c213_set_bitrate(struct snd_at73c213 *chip)
 {
 	unsigned long ssc_rate = clk_get_rate(chip->ssc->clk);
-	unsigned long dac_rate_new, ssc_div, status;
+	unsigned long dac_rate_new, ssc_div;
+	int status;
 	unsigned long ssc_div_max, ssc_div_min;
 	int max_tries;
 
