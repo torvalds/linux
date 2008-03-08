@@ -156,15 +156,14 @@ static void nes_nic_tune_timer(struct nes_device *nesdev)
 
 	spin_lock_irqsave(&nesadapter->periodic_timer_lock, flags);
 
-	if (shared_timer->cq_count_old < cq_count) {
-		if (cq_count > shared_timer->threshold_low)
-			shared_timer->cq_direction_downward=0;
-	}
-	if (shared_timer->cq_count_old >= cq_count)
+	if (shared_timer->cq_count_old <= cq_count)
+		shared_timer->cq_direction_downward = 0;
+	else
 		shared_timer->cq_direction_downward++;
 	shared_timer->cq_count_old = cq_count;
 	if (shared_timer->cq_direction_downward > NES_NIC_CQ_DOWNWARD_TREND) {
-		if (cq_count <= shared_timer->threshold_low) {
+		if (cq_count <= shared_timer->threshold_low &&
+		    shared_timer->threshold_low > 4) {
 			shared_timer->threshold_low = shared_timer->threshold_low/2;
 			shared_timer->cq_direction_downward=0;
 			nesdev->currcq_count = 0;
@@ -1728,7 +1727,6 @@ int nes_napi_isr(struct nes_device *nesdev)
 			nesdev->int_req &= ~NES_INT_TIMER;
 			nes_write32(nesdev->regs+NES_INTF_INT_MASK, ~(nesdev->intf_int_req));
 			nes_write32(nesdev->regs+NES_INT_MASK, ~nesdev->int_req);
-			nesadapter->tune_timer.timer_in_use_old = 0;
 		}
 		nesdev->deepcq_count = 0;
 		return 1;
@@ -1867,7 +1865,6 @@ void nes_dpc(unsigned long param)
 					nesdev->int_req &= ~NES_INT_TIMER;
 					nes_write32(nesdev->regs + NES_INTF_INT_MASK, ~(nesdev->intf_int_req));
 					nes_write32(nesdev->regs+NES_INT_MASK, ~nesdev->int_req);
-					nesdev->nesadapter->tune_timer.timer_in_use_old = 0;
 				} else {
 					nes_write32(nesdev->regs+NES_INT_MASK, 0x0000ffff|(~nesdev->int_req));
 				}

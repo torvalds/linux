@@ -710,6 +710,8 @@ int nfs_lookup_verify_inode(struct inode *inode, struct nameidata *nd)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 
+	if (test_bit(NFS_INO_MOUNTPOINT, &NFS_I(inode)->flags))
+		return 0;
 	if (nd != NULL) {
 		/* VFS wants an on-the-wire revalidation */
 		if (nd->flags & LOOKUP_REVAL)

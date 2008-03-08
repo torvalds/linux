@@ -1669,6 +1669,13 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 		i++;
 	} while (len);
 
+	/*
+	 * return EAGAIN if we have the potential of some data in the
+	 * future, otherwise just return 0
+	 */
+	if (!ret && ipipe->waiting_writers && (flags & SPLICE_F_NONBLOCK))
+		ret = -EAGAIN;
+
 	inode_double_unlock(ipipe->inode, opipe->inode);
 
 	/*
@@ -1709,11 +1716,8 @@ static long do_tee(struct file *in, struct file *out, size_t len,
 		ret = link_ipipe_prep(ipipe, flags);
 		if (!ret) {
 			ret = link_opipe_prep(opipe, flags);
-			if (!ret) {
+			if (!ret)
 				ret = link_pipe(ipipe, opipe, len, flags);
-				if (!ret && (flags & SPLICE_F_NONBLOCK))
-					ret = -EAGAIN;
-			}
 		}
 	}
 

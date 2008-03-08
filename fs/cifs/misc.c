@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/misc.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2007
+ *   Copyright (C) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -320,9 +320,9 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 		if (treeCon->ses) {
 			if (treeCon->ses->capabilities & CAP_UNICODE)
 				buffer->Flags2 |= SMBFLG2_UNICODE;
-			if (treeCon->ses->capabilities & CAP_STATUS32) {
+			if (treeCon->ses->capabilities & CAP_STATUS32)
 				buffer->Flags2 |= SMBFLG2_ERR_STATUS;
-			}
+
 			/* Uid is not converted */
 			buffer->Uid = treeCon->ses->Suid;
 			buffer->Mid = GetNextMid(treeCon->ses->server);
@@ -610,7 +610,8 @@ dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
 
 	buffer = (unsigned char *) smb_buf;
 	for (i = 0, j = 0; i < smb_buf_length; i++, j++) {
-		if (i % 8 == 0) {	/* have reached the beginning of line */
+		if (i % 8 == 0) {
+			/* have reached the beginning of line */
 			printk(KERN_DEBUG "| ");
 			j = 0;
 		}
@@ -621,7 +622,8 @@ dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
 		else
 			debug_line[1 + (2 * j)] = '_';
 
-		if (i % 8 == 7) { /* reached end of line, time to print ascii */
+		if (i % 8 == 7) {
+			/* reached end of line, time to print ascii */
 			debug_line[16] = 0;
 			printk(" | %s\n", debug_line);
 		}
@@ -631,7 +633,7 @@ dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
 		debug_line[2 * j] = ' ';
 		debug_line[1 + (2 * j)] = ' ';
 	}
-	printk( " | %s\n", debug_line);
+	printk(" | %s\n", debug_line);
 	return;
 }
 

@@ -153,6 +153,9 @@
 #define   CTRL_RUNLATCH	0x1
 #define SPRN_DABR	0x3F5	/* Data Address Breakpoint Register */
 #define   DABR_TRANSLATION	(1UL << 2)
+#define SPRN_DABRX	0x3F7	/* Data Address Breakpoint Register Extension */
+#define   DABRX_USER	(1UL << 0)
+#define   DABRX_KERNEL	(1UL << 1)
 #define SPRN_DAR	0x013	/* Data Address Register */
 #define SPRN_DSISR	0x012	/* Data Storage Interrupt Status Register */
 #define   DSISR_NOHPTE		0x40000000	/* no translation found */

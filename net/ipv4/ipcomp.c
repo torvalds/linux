@@ -108,8 +108,11 @@ static int ipcomp_compress(struct xfrm_state *x, struct sk_buff *skb)
 	const int cpu = get_cpu();
 	u8 *scratch = *per_cpu_ptr(ipcomp_scratches, cpu);
 	struct crypto_comp *tfm = *per_cpu_ptr(ipcd->tfms, cpu);
-	int err = crypto_comp_compress(tfm, start, plen, scratch, &dlen);
+	int err;
 
+	local_bh_disable();
+	err = crypto_comp_compress(tfm, start, plen, scratch, &dlen);
+	local_bh_enable();
 	if (err)
 		goto out;
 

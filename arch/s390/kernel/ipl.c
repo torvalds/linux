@@ -704,6 +704,7 @@ void reipl_run(struct shutdown_trigger *trigger)
 	default:
 		break;
 	}
+	disabled_wait((unsigned long) __builtin_return_address(0));
 }
 
 static void __init reipl_probe(void)

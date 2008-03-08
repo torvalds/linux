@@ -461,7 +461,7 @@ A partial list of the supported mount options follows:
  cifsacl        Report mode bits (e.g. on stat) based on the Windows ACL for
 	        the file. (EXPERIMENTAL)
  servern        Specify the server 's netbios name (RFC1001 name) to use
-		when attempting to setup a session to the server.  This is
+		when attempting to setup a session to the server. 
 		This is needed for mounting to some older servers (such
 		as OS/2 or Windows 98 and Windows ME) since they do not
 		support a default server name.  A server name can be up

@@ -681,8 +681,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 					     unsigned level,
 					     int metaphysical,
 					     unsigned access,
-					     u64 *parent_pte,
-					     bool *new_page)
+					     u64 *parent_pte)
 {
 	union kvm_mmu_page_role role;
 	unsigned index;
@@ -722,8 +721,6 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	vcpu->arch.mmu.prefetch_page(vcpu, sp);
 	if (!metaphysical)
 		rmap_write_protect(vcpu->kvm, gfn);
-	if (new_page)
-		*new_page = 1;
 	return sp;
 }
 
@@ -876,11 +873,18 @@ static void page_header_update_slot(struct kvm *kvm, void *pte, gfn_t gfn)
 
 struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva)
 {
+	struct page *page;
+
 	gpa_t gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, gva);
 
 	if (gpa == UNMAPPED_GVA)
 		return NULL;
-	return gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
+
+	down_read(&current->mm->mmap_sem);
+	page = gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
+	up_read(&current->mm->mmap_sem);
+
+	return page;
 }
 
 static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
@@ -999,8 +1003,7 @@ static int __nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write,
 				>> PAGE_SHIFT;
 			new_table = kvm_mmu_get_page(vcpu, pseudo_gfn,
 						     v, level - 1,
-						     1, ACC_ALL, &table[index],
-						     NULL);
+						     1, ACC_ALL, &table[index]);
 			if (!new_table) {
 				pgprintk("nonpaging_map: ENOMEM\n");
 				kvm_release_page_clean(page);
@@ -1020,15 +1023,18 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 
 	struct page *page;
 
+	down_read(&vcpu->kvm->slots_lock);
+
 	down_read(&current->mm->mmap_sem);
 	page = gfn_to_page(vcpu->kvm, gfn);
+	up_read(&current->mm->mmap_sem);
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 	kvm_mmu_free_some_pages(vcpu);
 	r = __nonpaging_map(vcpu, v, write, gfn, page);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
-	up_read(&current->mm->mmap_sem);
+	up_read(&vcpu->kvm->slots_lock);
 
 	return r;
 }
@@ -1090,7 +1096,7 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 
 		ASSERT(!VALID_PAGE(root));
 		sp = kvm_mmu_get_page(vcpu, root_gfn, 0,
-				      PT64_ROOT_LEVEL, 0, ACC_ALL, NULL, NULL);
+				      PT64_ROOT_LEVEL, 0, ACC_ALL, NULL);
 		root = __pa(sp->spt);
 		++sp->root_count;
 		vcpu->arch.mmu.root_hpa = root;
@@ -1111,7 +1117,7 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 			root_gfn = 0;
 		sp = kvm_mmu_get_page(vcpu, root_gfn, i << 30,
 				      PT32_ROOT_LEVEL, !is_paging(vcpu),
-				      ACC_ALL, NULL, NULL);
+				      ACC_ALL, NULL);
 		root = __pa(sp->spt);
 		++sp->root_count;
 		vcpu->arch.mmu.pae_root[i] = root | PT_PRESENT_MASK;
@@ -1172,7 +1178,7 @@ void kvm_mmu_flush_tlb(struct kvm_vcpu *vcpu)
 
 static void paging_new_cr3(struct kvm_vcpu *vcpu)
 {
-	pgprintk("%s: cr3 %lx\n", __FUNCTION__, vcpu->cr3);
+	pgprintk("%s: cr3 %lx\n", __FUNCTION__, vcpu->arch.cr3);
 	mmu_free_roots(vcpu);
 }
 
@@ -1362,6 +1368,7 @@ static void mmu_guess_page_from_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	gfn_t gfn;
 	int r;
 	u64 gpte = 0;
+	struct page *page;
 
 	if (bytes != 4 && bytes != 8)
 		return;
@@ -1389,6 +1396,11 @@ static void mmu_guess_page_from_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	if (!is_present_pte(gpte))
 		return;
 	gfn = (gpte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
+
+	down_read(&current->mm->mmap_sem);
+	page = gfn_to_page(vcpu->kvm, gfn);
+	up_read(&current->mm->mmap_sem);
+
 	vcpu->arch.update_pte.gfn = gfn;
 	vcpu->arch.update_pte.page = gfn_to_page(vcpu->kvm, gfn);
 }
@@ -1496,9 +1508,9 @@ int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)
 	gpa_t gpa;
 	int r;
 
-	down_read(&current->mm->mmap_sem);
+	down_read(&vcpu->kvm->slots_lock);
 	gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, gva);
-	up_read(&current->mm->mmap_sem);
+	up_read(&vcpu->kvm->slots_lock);
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 	r = kvm_mmu_unprotect_page(vcpu->kvm, gpa >> PAGE_SHIFT);

@@ -183,6 +183,9 @@ MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device "
  *   Avoids access beyond actual disk limits on devices with an off-by-one bug.
  *   Don't use this with devices which don't have this bug.
  *
+ * - delay inquiry
+ *   Wait extra SBP2_INQUIRY_DELAY seconds after login before SCSI inquiry.
+ *
  * - override internal blacklist
  *   Instead of adding to the built-in blacklist, use only the workarounds
  *   specified in the module load parameter.
@@ -195,6 +198,7 @@ MODULE_PARM_DESC(workarounds, "Work around device bugs (default = 0"
 	", 36 byte inquiry = "    __stringify(SBP2_WORKAROUND_INQUIRY_36)
 	", skip mode page 8 = "   __stringify(SBP2_WORKAROUND_MODE_SENSE_8)
 	", fix capacity = "       __stringify(SBP2_WORKAROUND_FIX_CAPACITY)
+	", delay inquiry = "      __stringify(SBP2_WORKAROUND_DELAY_INQUIRY)
 	", override internal blacklist = " __stringify(SBP2_WORKAROUND_OVERRIDE)
 	", or a combination)");
 
@@ -356,6 +360,11 @@ static const struct {
 		.model_id		= 0x001010,
 		.workarounds		= SBP2_WORKAROUND_INQUIRY_36 |
 					  SBP2_WORKAROUND_MODE_SENSE_8,
+	},
+	/* DViCO Momobay FX-3A with TSB42AA9A bridge */ {
+		.firmware_revision	= 0x002800,
+		.model_id		= 0x000000,
+		.workarounds		= SBP2_WORKAROUND_DELAY_INQUIRY,
 	},
 	/* Initio bridges, actually only needed for some older ones */ {
 		.firmware_revision	= 0x000200,
@@ -913,6 +922,9 @@ static int sbp2_start_device(struct sbp2_lu *lu)
 	sbp2_set_busy_timeout(lu);
 	sbp2_agent_reset(lu, 1);
 	sbp2_max_speed_and_size(lu);
+
+	if (lu->workarounds & SBP2_WORKAROUND_DELAY_INQUIRY)
+		ssleep(SBP2_INQUIRY_DELAY);
 
 	error = scsi_add_device(lu->shost, 0, lu->ud->id, 0);
 	if (error) {
@@ -1961,6 +1973,9 @@ static void sbp2scsi_complete_command(struct sbp2_lu *lu, u32 scsi_status,
 static int sbp2scsi_slave_alloc(struct scsi_device *sdev)
 {
 	struct sbp2_lu *lu = (struct sbp2_lu *)sdev->host->hostdata[0];
+
+	if (sdev->lun != 0 || sdev->id != lu->ud->id || sdev->channel != 0)
+		return -ENODEV;
 
 	lu->sdev = sdev;
 	sdev->allow_restart = 1;

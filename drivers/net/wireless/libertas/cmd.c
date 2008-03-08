@@ -1040,7 +1040,6 @@ int lbs_mesh_access(struct lbs_private *priv, uint16_t cmd_action,
 	lbs_deb_leave(LBS_DEB_CMD);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(lbs_mesh_access);
 
 int lbs_mesh_config(struct lbs_private *priv, uint16_t enable, uint16_t chan)
 {
@@ -1576,7 +1575,6 @@ done:
 	lbs_deb_leave_args(LBS_DEB_HOST, "ret %d", ret);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(lbs_prepare_and_send_command);
 
 /**
  *  @brief This function allocates the command buffer and link

@@ -206,7 +206,7 @@ struct sctp_ulpevent  *sctp_ulpevent_make_assoc_change(
 	 * This field is the total length of the notification data, including
 	 * the notification header.
 	 */
-	sac->sac_length = sizeof(struct sctp_assoc_change);
+	sac->sac_length = skb->len;
 
 	/* Socket Extensions for SCTP
 	 * 5.3.1.1 SCTP_ASSOC_CHANGE

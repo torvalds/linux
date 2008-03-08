@@ -962,9 +962,7 @@ static int __init atm_clip_init(void)
 	{
 		struct proc_dir_entry *p;
 
-		p = create_proc_entry("arp", S_IRUGO, atm_proc_root);
-		if (p)
-			p->proc_fops = &arp_seq_fops;
+		p = proc_create("arp", S_IRUGO, atm_proc_root, &arp_seq_fops);
 	}
 #endif
 

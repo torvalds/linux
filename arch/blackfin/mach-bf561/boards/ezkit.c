@@ -223,7 +223,7 @@ static struct platform_device bfin_uart_device = {
 static struct mtd_partition ezkit_partitions[] = {
 	{
 		.name       = "Bootloader",
-		.size       = 0x20000,
+		.size       = 0x40000,
 		.offset     = 0,
 	}, {
 		.name       = "Kernel",
@@ -389,6 +389,19 @@ static struct platform_device bfin_device_gpiokeys = {
 };
 #endif
 
+static struct resource bfin_gpios_resources = {
+	.start = 0,
+	.end   = MAX_BLACKFIN_GPIOS - 1,
+	.flags = IORESOURCE_IRQ,
+};
+
+static struct platform_device bfin_gpios_device = {
+	.name = "simple-gpio",
+	.id = -1,
+	.num_resources = 1,
+	.resource = &bfin_gpios_resources,
+};
+
 #if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
 #include <linux/i2c-gpio.h>
 
@@ -446,6 +459,7 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&isp1362_hcd_device,
 #endif
 
+	&bfin_gpios_device,
 	&ezkit_flash_device,
 };
 

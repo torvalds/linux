@@ -39,7 +39,7 @@ qla2x00_prep_ms_iocb(scsi_qla_host_t *ha, uint32_t req_size, uint32_t rsp_size)
 	ms_pkt->entry_count = 1;
 	SET_TARGET_ID(ha, ms_pkt->loop_id, SIMPLE_NAME_SERVER);
 	ms_pkt->control_flags = __constant_cpu_to_le16(CF_READ | CF_HEAD_TAG);
-	ms_pkt->timeout = __constant_cpu_to_le16(25);
+	ms_pkt->timeout = cpu_to_le16(ha->r_a_tov / 10 * 2);
 	ms_pkt->cmd_dsd_count = __constant_cpu_to_le16(1);
 	ms_pkt->total_dsd_count = __constant_cpu_to_le16(2);
 	ms_pkt->rsp_bytecount = cpu_to_le32(rsp_size);
@@ -75,7 +75,7 @@ qla24xx_prep_ms_iocb(scsi_qla_host_t *ha, uint32_t req_size, uint32_t rsp_size)
 	ct_pkt->entry_type = CT_IOCB_TYPE;
 	ct_pkt->entry_count = 1;
 	ct_pkt->nport_handle = __constant_cpu_to_le16(NPH_SNS);
-	ct_pkt->timeout = __constant_cpu_to_le16(25);
+	ct_pkt->timeout = cpu_to_le16(ha->r_a_tov / 10 * 2);
 	ct_pkt->cmd_dsd_count = __constant_cpu_to_le16(1);
 	ct_pkt->rsp_dsd_count = __constant_cpu_to_le16(1);
 	ct_pkt->rsp_byte_count = cpu_to_le32(rsp_size);
@@ -1144,7 +1144,7 @@ qla2x00_prep_ms_fdmi_iocb(scsi_qla_host_t *ha, uint32_t req_size,
 	ms_pkt->entry_count = 1;
 	SET_TARGET_ID(ha, ms_pkt->loop_id, ha->mgmt_svr_loop_id);
 	ms_pkt->control_flags = __constant_cpu_to_le16(CF_READ | CF_HEAD_TAG);
-	ms_pkt->timeout = __constant_cpu_to_le16(59);
+	ms_pkt->timeout = cpu_to_le16(ha->r_a_tov / 10 * 2);
 	ms_pkt->cmd_dsd_count = __constant_cpu_to_le16(1);
 	ms_pkt->total_dsd_count = __constant_cpu_to_le16(2);
 	ms_pkt->rsp_bytecount = cpu_to_le32(rsp_size);
@@ -1181,7 +1181,7 @@ qla24xx_prep_ms_fdmi_iocb(scsi_qla_host_t *ha, uint32_t req_size,
 	ct_pkt->entry_type = CT_IOCB_TYPE;
 	ct_pkt->entry_count = 1;
 	ct_pkt->nport_handle = cpu_to_le16(ha->mgmt_svr_loop_id);
-	ct_pkt->timeout = __constant_cpu_to_le16(59);
+	ct_pkt->timeout = cpu_to_le16(ha->r_a_tov / 10 * 2);
 	ct_pkt->cmd_dsd_count = __constant_cpu_to_le16(1);
 	ct_pkt->rsp_dsd_count = __constant_cpu_to_le16(1);
 	ct_pkt->rsp_byte_count = cpu_to_le32(rsp_size);
@@ -1761,7 +1761,7 @@ qla24xx_prep_ms_fm_iocb(scsi_qla_host_t *ha, uint32_t req_size,
 	ct_pkt->entry_type = CT_IOCB_TYPE;
 	ct_pkt->entry_count = 1;
 	ct_pkt->nport_handle = cpu_to_le16(ha->mgmt_svr_loop_id);
-	ct_pkt->timeout = __constant_cpu_to_le16(59);
+	ct_pkt->timeout = cpu_to_le16(ha->r_a_tov / 10 * 2);
 	ct_pkt->cmd_dsd_count = __constant_cpu_to_le16(1);
 	ct_pkt->rsp_dsd_count = __constant_cpu_to_le16(1);
 	ct_pkt->rsp_byte_count = cpu_to_le32(rsp_size);

@@ -227,5 +227,6 @@ extern int ext4_ext_search_left(struct inode *, struct ext4_ext_path *,
 						ext4_lblk_t *, ext4_fsblk_t *);
 extern int ext4_ext_search_right(struct inode *, struct ext4_ext_path *,
 						ext4_lblk_t *, ext4_fsblk_t *);
+extern void ext4_ext_drop_refs(struct ext4_ext_path *);
 #endif /* _LINUX_EXT4_EXTENTS */
 

@@ -140,7 +140,7 @@ struct asd_ascb {
 
 	/* internally generated command */
 	struct timer_list timer;
-	struct completion completion;
+	struct completion *completion;
 	u8        tag_valid:1;
 	__be16    tag;		  /* error recovery only */
 
@@ -294,7 +294,6 @@ static inline void asd_init_ascb(struct asd_ha_struct *asd_ha,
 	ascb->timer.function = NULL;
 	init_timer(&ascb->timer);
 	ascb->tc_index = -1;
-	init_completion(&ascb->completion);
 }
 
 /* Must be called with the tc_index_lock held!

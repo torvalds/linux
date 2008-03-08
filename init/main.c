@@ -254,7 +254,7 @@ early_param("quiet", quiet_kernel);
 static int __init loglevel(char *str)
 {
 	get_option(&str, &console_loglevel);
-	return 1;
+	return 0;
 }
 
 early_param("loglevel", loglevel);

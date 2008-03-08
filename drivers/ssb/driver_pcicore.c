@@ -111,7 +111,10 @@ static void __init ssb_fixup_pcibridge(struct pci_dev *dev)
 
 	/* Enable PCI bridge bus mastering and memory space */
 	pci_set_master(dev);
-	pcibios_enable_device(dev, ~0);
+	if (pcibios_enable_device(dev, ~0) < 0) {
+		ssb_printk(KERN_ERR "PCI: SSB bridge enable failed\n");
+		return;
+	}
 
 	/* Enable PCI bridge BAR1 prefetch and burst */
 	pci_write_config_dword(dev, SSB_BAR1_CONTROL, 3);
@@ -393,7 +396,7 @@ static int pcicore_is_in_hostmode(struct ssb_pcicore *pc)
 	    chipid_top != 0x5300)
 		return 0;
 
-	if (bus->sprom.r1.boardflags_lo & SSB_PCICORE_BFL_NOPCI)
+	if (bus->sprom.boardflags_lo & SSB_PCICORE_BFL_NOPCI)
 		return 0;
 
 	/* The 200-pin BCM4712 package does not bond out PCI. Even when

@@ -839,7 +839,7 @@ static void neigh_timer_handler(unsigned long arg)
 		struct sk_buff *skb = skb_peek(&neigh->arp_queue);
 		/* keep skb alive even if arp_queue overflows */
 		if (skb)
-			skb_get(skb);
+			skb = skb_copy(skb, GFP_ATOMIC);
 		write_unlock(&neigh->lock);
 		neigh->ops->solicit(neigh, skb);
 		atomic_inc(&neigh->probes);
@@ -1389,10 +1389,10 @@ void neigh_table_init_no_netlink(struct neigh_table *tbl)
 		panic("cannot create neighbour cache statistics");
 
 #ifdef CONFIG_PROC_FS
-	tbl->pde = create_proc_entry(tbl->id, 0, init_net.proc_net_stat);
+	tbl->pde = proc_create(tbl->id, 0, init_net.proc_net_stat,
+			       &neigh_stat_seq_fops);
 	if (!tbl->pde)
 		panic("cannot create neighbour proc dir entry");
-	tbl->pde->proc_fops = &neigh_stat_seq_fops;
 	tbl->pde->data = tbl;
 #endif
 

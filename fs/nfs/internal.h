@@ -3,6 +3,7 @@
  */
 
 #include <linux/mount.h>
+#include <linux/security.h>
 
 struct nfs_string;
 
@@ -57,6 +58,8 @@ struct nfs_parsed_mount_data {
 		char			*export_path;
 		int			protocol;
 	} nfs_server;
+
+	struct security_mnt_opts lsm_opts;
 };
 
 /* client.c */

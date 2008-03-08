@@ -32,6 +32,7 @@
 #include <linux/interrupt.h>
 #include <linux/swap.h>
 #include <linux/slab.h>
+#include <linux/genhd.h>
 #include <linux/smp.h>
 #include <linux/signal.h>
 #include <linux/module.h>
@@ -377,7 +378,6 @@ static int stram_read_proc(char *page, char **start, off_t off,
 #endif
 
 #ifdef CONFIG_BLOCK
-extern const struct seq_operations partitions_op;
 static int partitions_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &partitions_op);
@@ -389,7 +389,6 @@ static const struct file_operations proc_partitions_operations = {
 	.release	= seq_release,
 };
 
-extern const struct seq_operations diskstats_op;
 static int diskstats_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &diskstats_op);

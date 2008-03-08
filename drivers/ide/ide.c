@@ -590,11 +590,6 @@ void ide_unregister(unsigned int index, int init_default, int restore)
 		hwif->extra_ports = 0;
 	}
 
-	/*
-	 * Note that we only release the standard ports,
-	 * and do not even try to handle any extra ports
-	 * allocated for weird IDE interface chipsets.
-	 */
 	ide_hwif_release_regions(hwif);
 
 	/* copy original settings */
@@ -672,7 +667,6 @@ int ide_register_hw(hw_regs_t *hw, void (*quirkproc)(ide_drive_t *),
 
 	do {
 		hwif = ide_deprecated_find_port(hw->io_ports[IDE_DATA_OFFSET]);
-		index = hwif->index;
 		if (hwif)
 			goto found;
 		for (index = 0; index < MAX_HWIFS; index++)
@@ -680,6 +674,7 @@ int ide_register_hw(hw_regs_t *hw, void (*quirkproc)(ide_drive_t *),
 	} while (retry--);
 	return -1;
 found:
+	index = hwif->index;
 	if (hwif->present)
 		ide_unregister(index, 0, 1);
 	else if (!hwif->hold)
@@ -1036,10 +1031,9 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 			drive->nice1 = (arg >> IDE_NICE_1) & 1;
 			return 0;
 		case HDIO_DRIVE_RESET:
-		{
-			unsigned long flags;
-			if (!capable(CAP_SYS_ADMIN)) return -EACCES;
-			
+			if (!capable(CAP_SYS_ADMIN))
+				return -EACCES;
+
 			/*
 			 *	Abort the current command on the
 			 *	group if there is one, taking
@@ -1058,17 +1052,15 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 			ide_abort(drive, "drive reset");
 
 			BUG_ON(HWGROUP(drive)->handler);
-				
+
 			/* Ensure nothing gets queued after we
 			   drop the lock. Reset will clear the busy */
-		   
+
 			HWGROUP(drive)->busy = 1;
 			spin_unlock_irqrestore(&ide_lock, flags);
 			(void) ide_do_reset(drive);
 
 			return 0;
-		}
-
 		case HDIO_GET_BUSSTATE:
 			if (!capable(CAP_SYS_ADMIN))
 				return -EACCES;
@@ -1188,7 +1180,7 @@ static int __initdata is_chipset_set[MAX_HWIFS];
  * ide_setup() gets called VERY EARLY during initialization,
  * to handle kernel "command line" strings beginning with "hdx=" or "ide".
  *
- * Remember to update Documentation/ide.txt if you change something here.
+ * Remember to update Documentation/ide/ide.txt if you change something here.
  */
 static int __init ide_setup(char *s)
 {
@@ -1449,7 +1441,7 @@ static int __init ide_setup(char *s)
 
 			case -1: /* "noprobe" */
 				hwif->noprobe = 1;
-				goto done;
+				goto obsolete_option;
 
 			case 1:	/* base */
 				vals[1] = vals[0] + 0x206; /* default ctl */

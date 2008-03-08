@@ -153,11 +153,6 @@ static void remove_migration_pte(struct vm_area_struct *vma,
  		return;
  	}
 
-	if (mem_cgroup_charge(new, mm, GFP_KERNEL)) {
-		pte_unmap(ptep);
-		return;
-	}
-
  	ptl = pte_lockptr(mm, pmd);
  	spin_lock(ptl);
 	pte = *ptep;
@@ -168,6 +163,20 @@ static void remove_migration_pte(struct vm_area_struct *vma,
 
 	if (!is_migration_entry(entry) || migration_entry_to_page(entry) != old)
 		goto out;
+
+	/*
+	 * Yes, ignore the return value from a GFP_ATOMIC mem_cgroup_charge.
+	 * Failure is not an option here: we're now expected to remove every
+	 * migration pte, and will cause crashes otherwise.  Normally this
+	 * is not an issue: mem_cgroup_prepare_migration bumped up the old
+	 * page_cgroup count for safety, that's now attached to the new page,
+	 * so this charge should just be another incrementation of the count,
+	 * to keep in balance with rmap.c's mem_cgroup_uncharging.  But if
+	 * there's been a force_empty, those reference counts may no longer
+	 * be reliable, and this charge can actually fail: oh well, we don't
+	 * make the situation any worse by proceeding as if it had succeeded.
+	 */
+	mem_cgroup_charge(new, mm, GFP_ATOMIC);
 
 	get_page(new);
 	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));

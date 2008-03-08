@@ -767,14 +767,14 @@ S:	Maintained
 
 BLACKFIN ARCHITECTURE
 P:	Bryan Wu
-M:	bryan.wu@analog.com
+M:	cooloney@kernel.org
 L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
 W:	http://blackfin.uclinux.org
 S:	Supported
 
 BLACKFIN EMAC DRIVER
 P:	Bryan Wu
-M:	bryan.wu@analog.com
+M:	cooloney@kernel.org
 L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
 W:	http://blackfin.uclinux.org
 S:	Supported
@@ -982,6 +982,12 @@ M:	mchan@broadcom.com
 L:	netdev@vger.kernel.org
 S:	Supported
 
+BROADCOM BNX2X 10 GIGABIT ETHERNET DRIVER
+P:	Eliezer Tamir
+M:	eliezert@broadcom.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
 BROADCOM TG3 GIGABIT ETHERNET DRIVER
 P:	Michael Chan
 M:	mchan@broadcom.com
@@ -1130,6 +1136,12 @@ P:	Simon Arlott
 M:	cxacru@fire.lp0.eu
 L:	accessrunner-general@lists.sourceforge.net
 W:	http://accessrunner.sourceforge.net/
+S:	Maintained
+
+CONTROL GROUPS (CGROUPS)
+P:	Paul Menage
+M:	menage@google.com
+L:	containers@lists.linux-foundation.org
 S:	Maintained
 
 CORETEMP HARDWARE MONITORING DRIVER
@@ -1581,6 +1593,13 @@ P:	Antonino Daplas
 M:	adaplas@gmail.com
 L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://linux-fbdev.sourceforge.net/
+S:	Maintained
+
+FREESCALE DMA DRIVER
+P;	Zhang Wei
+M:	wei.zhang@freescale.com
+L:	linuxppc-embedded@ozlabs.org
+L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 FREESCALE SOC FS_ENET DRIVER
@@ -2620,6 +2639,17 @@ L:	linux-kernel@vger.kernel.org
 W:	http://www.linux-mm.org
 S:	Maintained
 
+MEMORY RESOURCE CONTROLLER
+P:	Balbir Singh
+M:	balbir@linux.vnet.ibm.com
+P:	Pavel Emelyanov
+M:	xemul@openvz.org
+P:	KAMEZAWA Hiroyuki
+M:	kamezawa.hiroyu@jp.fujitsu.com
+L:	linux-mm@kvack.org
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 MEI MN10300/AM33 PORT
 P:	David Howells
 M:	dhowells@redhat.com
@@ -2744,6 +2774,8 @@ S:	Maintained
 NETEFFECT IWARP RNIC DRIVER (IW_NES)
 P:	Faisal Latif
 M:	flatif@neteffect.com
+P:	Nishi Gupta
+M:	ngupta@neteffect.com
 P:	Glenn Streiff
 M:	gstreiff@neteffect.com
 L:	general@lists.openfabrics.org
@@ -3884,10 +3916,13 @@ M:	trivial@kernel.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
-TULIP NETWORK DRIVER
-L:	tulip-users@lists.sourceforge.net
-W:	http://sourceforge.net/projects/tulip/
-S:	Orphan
+TULIP NETWORK DRIVERS
+P:	Grant Grundler
+M:	grundler@parisc-linux.org
+P:	Kyle McMartin
+M:	kyle@parisc-linux.org
+L:	netdev@vger.kernel.org
+S:	Maintained
 
 TUN/TAP driver
 P:	Maxim Krasnyansky

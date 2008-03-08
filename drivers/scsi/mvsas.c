@@ -40,7 +40,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"mvsas"
-#define DRV_VERSION	"0.5"
+#define DRV_VERSION	"0.5.1"
 #define _MV_DUMP 0
 #define MVS_DISABLE_NVRAM
 #define MVS_DISABLE_MSI
@@ -1005,7 +1005,7 @@ err_out:
 	return rc;
 #else
 	/* FIXME , For SAS target mode */
-	memcpy(buf, "\x00\x00\xab\x11\x30\x04\x05\x50", 8);
+	memcpy(buf, "\x50\x05\x04\x30\x11\xab\x00\x00", 8);
 	return 0;
 #endif
 }
@@ -1330,7 +1330,7 @@ static int mvs_int_rx(struct mvs_info *mvi, bool self_clear)
 
 		mvs_hba_cq_dump(mvi);
 
-		if (unlikely(rx_desc & RXQ_DONE))
+		if (likely(rx_desc & RXQ_DONE))
 			mvs_slot_complete(mvi, rx_desc);
 		if (rx_desc & RXQ_ATTN) {
 			attn = true;
@@ -2720,9 +2720,8 @@ static int __devinit mvs_hw_init(struct mvs_info *mvi)
 	msleep(100);
 	/* init and reset phys */
 	for (i = 0; i < mvi->chip->n_phy; i++) {
-		/* FIXME: is this the correct dword order? */
-		u32 lo = *((u32 *)&mvi->sas_addr[0]);
-		u32 hi = *((u32 *)&mvi->sas_addr[4]);
+		u32 lo = be32_to_cpu(*(u32 *)&mvi->sas_addr[4]);
+		u32 hi = be32_to_cpu(*(u32 *)&mvi->sas_addr[0]);
 
 		mvs_detect_porttype(mvi, i);
 

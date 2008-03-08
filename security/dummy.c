@@ -181,8 +181,7 @@ static void dummy_sb_free_security (struct super_block *sb)
 	return;
 }
 
-static int dummy_sb_copy_data (struct file_system_type *type,
-			       void *orig, void *copy)
+static int dummy_sb_copy_data (char *orig, char *copy)
 {
 	return 0;
 }
@@ -245,19 +244,17 @@ static void dummy_sb_post_pivotroot (struct nameidata *old_nd, struct nameidata 
 	return;
 }
 
-static int dummy_sb_get_mnt_opts(const struct super_block *sb, char ***mount_options,
-				 int **flags, int *num_opts)
+static int dummy_sb_get_mnt_opts(const struct super_block *sb,
+				 struct security_mnt_opts *opts)
 {
-	*mount_options = NULL;
-	*flags = NULL;
-	*num_opts = 0;
+	security_init_mnt_opts(opts);
 	return 0;
 }
 
-static int dummy_sb_set_mnt_opts(struct super_block *sb, char **mount_options,
-				 int *flags, int num_opts)
+static int dummy_sb_set_mnt_opts(struct super_block *sb,
+				 struct security_mnt_opts *opts)
 {
-	if (unlikely(num_opts))
+	if (unlikely(opts->num_mnt_opts))
 		return -EOPNOTSUPP;
 	return 0;
 }
@@ -266,6 +263,11 @@ static void dummy_sb_clone_mnt_opts(const struct super_block *oldsb,
 				    struct super_block *newsb)
 {
 	return;
+}
+
+static int dummy_sb_parse_opts_str(char *options, struct security_mnt_opts *opts)
+{
+	return 0;
 }
 
 static int dummy_inode_alloc_security (struct inode *inode)
@@ -1028,6 +1030,7 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, sb_get_mnt_opts);
 	set_to_dummy_if_null(ops, sb_set_mnt_opts);
 	set_to_dummy_if_null(ops, sb_clone_mnt_opts);
+	set_to_dummy_if_null(ops, sb_parse_opts_str);
 	set_to_dummy_if_null(ops, inode_alloc_security);
 	set_to_dummy_if_null(ops, inode_free_security);
 	set_to_dummy_if_null(ops, inode_init_security);

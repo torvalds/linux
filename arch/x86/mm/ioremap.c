@@ -162,7 +162,7 @@ static void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	area->phys_addr = phys_addr;
 	vaddr = (unsigned long) area->addr;
 	if (ioremap_page_range(vaddr, vaddr + size, phys_addr, prot)) {
-		remove_vm_area((void *)(vaddr & PAGE_MASK));
+		free_vm_area(area);
 		return NULL;
 	}
 

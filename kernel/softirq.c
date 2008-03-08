@@ -313,6 +313,7 @@ void irq_exit(void)
 	/* Make sure that timer wheel updates are propagated */
 	if (!in_interrupt() && idle_cpu(smp_processor_id()) && !need_resched())
 		tick_nohz_stop_sched_tick();
+	rcu_irq_exit();
 #endif
 	preempt_enable_no_resched();
 }

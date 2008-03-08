@@ -1000,8 +1000,8 @@ static int __init ubi_init(void)
 		mutex_unlock(&ubi_devices_mutex);
 		if (err < 0) {
 			put_mtd_device(mtd);
-			printk(KERN_ERR "UBI error: cannot attach %s\n",
-			       p->name);
+			printk(KERN_ERR "UBI error: cannot attach mtd%d\n",
+			       mtd->index);
 			goto out_detach;
 		}
 	}

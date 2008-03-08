@@ -77,7 +77,7 @@ static unsigned long cmt_timer_get_offset(void)
 				count -= LATCH;
 			} else {
 				printk("%s (): hardware timer problem?\n",
-				       __FUNCTION__);
+				       __func__);
 			}
 		}
 	} else

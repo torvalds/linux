@@ -228,9 +228,9 @@ struct NDIS_WLAN_BSSID_EX {
 	struct NDIS_802_11_SSID Ssid;
 	__le32 Privacy;
 	__le32 Rssi;
-	enum NDIS_802_11_NETWORK_TYPE NetworkTypeInUse;
+	__le32 NetworkTypeInUse;
 	struct NDIS_802_11_CONFIGURATION Configuration;
-	enum NDIS_802_11_NETWORK_INFRASTRUCTURE InfrastructureMode;
+	__le32 InfrastructureMode;
 	u8 SupportedRates[NDIS_802_11_LENGTH_RATES_EX];
 	__le32 IELength;
 	u8 IEs[0];
@@ -260,7 +260,7 @@ struct NDIS_802_11_KEY {
 	__le32 KeyLength;
 	u8 Bssid[6];
 	u8 Padding[6];
-	__le64 KeyRSC;
+	u8 KeyRSC[8];
 	u8 KeyMaterial[32];
 } __attribute__((packed));
 
@@ -279,11 +279,11 @@ struct RNDIS_CONFIG_PARAMETER_INFOBUFFER {
 } __attribute__((packed));
 
 /* these have to match what is in wpa_supplicant */
-enum { WPA_ALG_NONE, WPA_ALG_WEP, WPA_ALG_TKIP, WPA_ALG_CCMP } wpa_alg;
-enum { CIPHER_NONE, CIPHER_WEP40, CIPHER_TKIP, CIPHER_CCMP, CIPHER_WEP104 }
-	wpa_cipher;
-enum { KEY_MGMT_802_1X, KEY_MGMT_PSK, KEY_MGMT_NONE, KEY_MGMT_802_1X_NO_WPA,
-	KEY_MGMT_WPA_NONE } wpa_key_mgmt;
+enum wpa_alg { WPA_ALG_NONE, WPA_ALG_WEP, WPA_ALG_TKIP, WPA_ALG_CCMP };
+enum wpa_cipher { CIPHER_NONE, CIPHER_WEP40, CIPHER_TKIP, CIPHER_CCMP,
+		  CIPHER_WEP104 };
+enum wpa_key_mgmt { KEY_MGMT_802_1X, KEY_MGMT_PSK, KEY_MGMT_NONE,
+		    KEY_MGMT_802_1X_NO_WPA, KEY_MGMT_WPA_NONE };
 
 /*
  *  private data
@@ -1508,7 +1508,7 @@ static int rndis_iw_set_encode_ext(struct net_device *dev,
 	struct usbnet *usbdev = dev->priv;
 	struct rndis_wext_private *priv = get_rndis_wext_priv(usbdev);
 	struct NDIS_802_11_KEY ndis_key;
-	int i, keyidx, ret;
+	int keyidx, ret;
 	u8 *addr;
 
 	keyidx = wrqu->encoding.flags & IW_ENCODE_INDEX;
@@ -1543,9 +1543,7 @@ static int rndis_iw_set_encode_ext(struct net_device *dev,
 	ndis_key.KeyIndex = cpu_to_le32(keyidx);
 
 	if (ext->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID) {
-		for (i = 0; i < 6; i++)
-			ndis_key.KeyRSC |=
-				cpu_to_le64(ext->rx_seq[i] << (i * 8));
+		memcpy(ndis_key.KeyRSC, ext->rx_seq, 6);
 		ndis_key.KeyIndex |= cpu_to_le32(1 << 29);
 	}
 

@@ -18,6 +18,7 @@ config IA64
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
+	select HAVE_KRETPROBES
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
@@ -155,6 +156,8 @@ config IA64_HP_ZX1_SWIOTLB
 
 config IA64_SGI_SN2
 	bool "SGI-SN2"
+	select NUMA
+	select ACPI_NUMA
 	help
 	  Selecting this option will optimize the kernel for use on sn2 based
 	  systems, but the resulting kernel binary will not run on other

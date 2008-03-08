@@ -367,7 +367,7 @@ sclp_vt220_timeout(unsigned long data)
 	sclp_vt220_emit_current();
 }
 
-#define BUFFER_MAX_DELAY	HZ/2
+#define BUFFER_MAX_DELAY	HZ/20
 
 /* 
  * Internal implementation of the write function. Write COUNT bytes of data

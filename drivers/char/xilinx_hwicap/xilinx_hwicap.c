@@ -84,7 +84,7 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 #include <linux/sysctl.h>
 #include <linux/version.h>
 #include <linux/fs.h>
@@ -119,6 +119,7 @@ module_param(xhwicap_minor, int, S_IRUGO);
 
 /* An array, which is set to true when the device is registered. */
 static bool probed_devices[HWICAP_DEVICES];
+static struct mutex icap_sem;
 
 static struct class *icap_class;
 
@@ -199,14 +200,14 @@ static const struct config_registers v5_config_registers = {
 };
 
 /**
- * hwicap_command_desync: Send a DESYNC command to the ICAP port.
- * @parameter drvdata: a pointer to the drvdata.
+ * hwicap_command_desync - Send a DESYNC command to the ICAP port.
+ * @drvdata: a pointer to the drvdata.
  *
  * This command desynchronizes the ICAP After this command, a
  * bitstream containing a NULL packet, followed by a SYNCH packet is
  * required before the ICAP will recognize commands.
  */
-int hwicap_command_desync(struct hwicap_drvdata *drvdata)
+static int hwicap_command_desync(struct hwicap_drvdata *drvdata)
 {
 	u32 buffer[4];
 	u32 index = 0;
@@ -228,51 +229,18 @@ int hwicap_command_desync(struct hwicap_drvdata *drvdata)
 }
 
 /**
- * hwicap_command_capture: Send a CAPTURE command to the ICAP port.
- * @parameter drvdata: a pointer to the drvdata.
- *
- * This command captures all of the flip flop states so they will be
- * available during readback.  One can use this command instead of
- * enabling the CAPTURE block in the design.
- */
-int hwicap_command_capture(struct hwicap_drvdata *drvdata)
-{
-	u32 buffer[7];
-	u32 index = 0;
-
-	/*
-	 * Create the data to be written to the ICAP.
-	 */
-	buffer[index++] = XHI_DUMMY_PACKET;
-	buffer[index++] = XHI_SYNC_PACKET;
-	buffer[index++] = XHI_NOOP_PACKET;
-	buffer[index++] = hwicap_type_1_write(drvdata->config_regs->CMD) | 1;
-	buffer[index++] = XHI_CMD_GCAPTURE;
-	buffer[index++] = XHI_DUMMY_PACKET;
-	buffer[index++] = XHI_DUMMY_PACKET;
-
-	/*
-	 * Write the data to the FIFO and intiate the transfer of data
-	 * present in the FIFO to the ICAP device.
-	 */
-	return drvdata->config->set_configuration(drvdata,
-			&buffer[0], index);
-
-}
-
-/**
- * hwicap_get_configuration_register: Query a configuration register.
- * @parameter drvdata: a pointer to the drvdata.
- * @parameter reg: a constant which represents the configuration
+ * hwicap_get_configuration_register - Query a configuration register.
+ * @drvdata: a pointer to the drvdata.
+ * @reg: a constant which represents the configuration
  *		register value to be returned.
  * 		Examples:  XHI_IDCODE, XHI_FLR.
- * @parameter RegData: returns the value of the register.
+ * @reg_data: returns the value of the register.
  *
  * Sends a query packet to the ICAP and then receives the response.
  * The icap is left in Synched state.
  */
-int hwicap_get_configuration_register(struct hwicap_drvdata *drvdata,
-		u32 reg, u32 *RegData)
+static int hwicap_get_configuration_register(struct hwicap_drvdata *drvdata,
+		u32 reg, u32 *reg_data)
 {
 	int status;
 	u32 buffer[6];
@@ -300,14 +268,14 @@ int hwicap_get_configuration_register(struct hwicap_drvdata *drvdata,
 	/*
 	 * Read the configuration register
 	 */
-	status = drvdata->config->get_configuration(drvdata, RegData, 1);
+	status = drvdata->config->get_configuration(drvdata, reg_data, 1);
 	if (status)
 		return status;
 
 	return 0;
 }
 
-int hwicap_initialize_hwicap(struct hwicap_drvdata *drvdata)
+static int hwicap_initialize_hwicap(struct hwicap_drvdata *drvdata)
 {
 	int status;
 	u32 idcode;
@@ -344,7 +312,7 @@ int hwicap_initialize_hwicap(struct hwicap_drvdata *drvdata)
 }
 
 static ssize_t
-hwicap_read(struct file *file, char *buf, size_t count, loff_t *ppos)
+hwicap_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
 	struct hwicap_drvdata *drvdata = file->private_data;
 	ssize_t bytes_to_read = 0;
@@ -353,8 +321,9 @@ hwicap_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 	u32 bytes_remaining;
 	int status;
 
-	if (down_interruptible(&drvdata->sem))
-		return -ERESTARTSYS;
+	status = mutex_lock_interruptible(&drvdata->sem);
+	if (status)
+		return status;
 
 	if (drvdata->read_buffer_in_use) {
 		/* If there are leftover bytes in the buffer, just */
@@ -370,8 +339,9 @@ hwicap_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 			goto error;
 		}
 		drvdata->read_buffer_in_use -= bytes_to_read;
-		memcpy(drvdata->read_buffer + bytes_to_read,
-				drvdata->read_buffer, 4 - bytes_to_read);
+		memmove(drvdata->read_buffer,
+		       drvdata->read_buffer + bytes_to_read,
+		       4 - bytes_to_read);
 	} else {
 		/* Get new data from the ICAP, and return was was requested. */
 		kbuf = (u32 *) get_zeroed_page(GFP_KERNEL);
@@ -414,18 +384,20 @@ hwicap_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 			status = -EFAULT;
 			goto error;
 		}
-		memcpy(kbuf, drvdata->read_buffer, bytes_remaining);
+		memcpy(drvdata->read_buffer,
+		       kbuf,
+		       bytes_remaining);
 		drvdata->read_buffer_in_use = bytes_remaining;
 		free_page((unsigned long)kbuf);
 	}
 	status = bytes_to_read;
  error:
-	up(&drvdata->sem);
+	mutex_unlock(&drvdata->sem);
 	return status;
 }
 
 static ssize_t
-hwicap_write(struct file *file, const char *buf,
+hwicap_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *ppos)
 {
 	struct hwicap_drvdata *drvdata = file->private_data;
@@ -435,8 +407,9 @@ hwicap_write(struct file *file, const char *buf,
 	ssize_t len;
 	ssize_t status;
 
-	if (down_interruptible(&drvdata->sem))
-		return -ERESTARTSYS;
+	status = mutex_lock_interruptible(&drvdata->sem);
+	if (status)
+		return status;
 
 	left += drvdata->write_buffer_in_use;
 
@@ -465,7 +438,7 @@ hwicap_write(struct file *file, const char *buf,
 			memcpy(kbuf, drvdata->write_buffer,
 					drvdata->write_buffer_in_use);
 			if (copy_from_user(
-			    (((char *)kbuf) + (drvdata->write_buffer_in_use)),
+			    (((char *)kbuf) + drvdata->write_buffer_in_use),
 			    buf + written,
 			    len - (drvdata->write_buffer_in_use))) {
 				free_page((unsigned long)kbuf);
@@ -508,7 +481,7 @@ hwicap_write(struct file *file, const char *buf,
 	free_page((unsigned long)kbuf);
 	status = written;
  error:
-	up(&drvdata->sem);
+	mutex_unlock(&drvdata->sem);
 	return status;
 }
 
@@ -519,8 +492,9 @@ static int hwicap_open(struct inode *inode, struct file *file)
 
 	drvdata = container_of(inode->i_cdev, struct hwicap_drvdata, cdev);
 
-	if (down_interruptible(&drvdata->sem))
-		return -ERESTARTSYS;
+	status = mutex_lock_interruptible(&drvdata->sem);
+	if (status)
+		return status;
 
 	if (drvdata->is_open) {
 		status = -EBUSY;
@@ -539,7 +513,7 @@ static int hwicap_open(struct inode *inode, struct file *file)
 	drvdata->is_open = 1;
 
  error:
-	up(&drvdata->sem);
+	mutex_unlock(&drvdata->sem);
 	return status;
 }
 
@@ -549,8 +523,7 @@ static int hwicap_release(struct inode *inode, struct file *file)
 	int i;
 	int status = 0;
 
-	if (down_interruptible(&drvdata->sem))
-		return -ERESTARTSYS;
+	mutex_lock(&drvdata->sem);
 
 	if (drvdata->write_buffer_in_use) {
 		/* Flush write buffer. */
@@ -569,7 +542,7 @@ static int hwicap_release(struct inode *inode, struct file *file)
 
  error:
 	drvdata->is_open = 0;
-	up(&drvdata->sem);
+	mutex_unlock(&drvdata->sem);
 	return status;
 }
 
@@ -592,31 +565,36 @@ static int __devinit hwicap_setup(struct device *dev, int id,
 
 	dev_info(dev, "Xilinx icap port driver\n");
 
+	mutex_lock(&icap_sem);
+
 	if (id < 0) {
 		for (id = 0; id < HWICAP_DEVICES; id++)
 			if (!probed_devices[id])
 				break;
 	}
 	if (id < 0 || id >= HWICAP_DEVICES) {
+		mutex_unlock(&icap_sem);
 		dev_err(dev, "%s%i too large\n", DRIVER_NAME, id);
 		return -EINVAL;
 	}
 	if (probed_devices[id]) {
+		mutex_unlock(&icap_sem);
 		dev_err(dev, "cannot assign to %s%i; it is already in use\n",
 			DRIVER_NAME, id);
 		return -EBUSY;
 	}
 
 	probed_devices[id] = 1;
+	mutex_unlock(&icap_sem);
 
 	devt = MKDEV(xhwicap_major, xhwicap_minor + id);
 
-	drvdata = kmalloc(sizeof(struct hwicap_drvdata), GFP_KERNEL);
+	drvdata = kzalloc(sizeof(struct hwicap_drvdata), GFP_KERNEL);
 	if (!drvdata) {
 		dev_err(dev, "Couldn't allocate device private record\n");
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto failed0;
 	}
-	memset((void *)drvdata, 0, sizeof(struct hwicap_drvdata));
 	dev_set_drvdata(dev, (void *)drvdata);
 
 	if (!regs_res) {
@@ -648,7 +626,7 @@ static int __devinit hwicap_setup(struct device *dev, int id,
 	drvdata->config = config;
 	drvdata->config_regs = config_regs;
 
-	init_MUTEX(&drvdata->sem);
+	mutex_init(&drvdata->sem);
 	drvdata->is_open = 0;
 
 	dev_info(dev, "ioremap %lx to %p with size %x\n",
@@ -663,7 +641,7 @@ static int __devinit hwicap_setup(struct device *dev, int id,
 		goto failed3;
 	}
 	/*  devfs_mk_cdev(devt, S_IFCHR|S_IRUGO|S_IWUGO, DRIVER_NAME); */
-	class_device_create(icap_class, NULL, devt, NULL, DRIVER_NAME);
+	device_create(icap_class, dev, devt, "%s%d", DRIVER_NAME, id);
 	return 0;		/* success */
 
  failed3:
@@ -674,6 +652,11 @@ static int __devinit hwicap_setup(struct device *dev, int id,
 
  failed1:
 	kfree(drvdata);
+
+ failed0:
+	mutex_lock(&icap_sem);
+	probed_devices[id] = 0;
+	mutex_unlock(&icap_sem);
 
 	return retval;
 }
@@ -699,14 +682,16 @@ static int __devexit hwicap_remove(struct device *dev)
 	if (!drvdata)
 		return 0;
 
-	class_device_destroy(icap_class, drvdata->devt);
+	device_destroy(icap_class, drvdata->devt);
 	cdev_del(&drvdata->cdev);
 	iounmap(drvdata->base_address);
 	release_mem_region(drvdata->mem_start, drvdata->mem_size);
 	kfree(drvdata);
 	dev_set_drvdata(dev, NULL);
-	probed_devices[MINOR(dev->devt)-xhwicap_minor] = 0;
 
+	mutex_lock(&icap_sem);
+	probed_devices[MINOR(dev->devt)-xhwicap_minor] = 0;
+	mutex_unlock(&icap_sem);
 	return 0;		/* success */
 }
 
@@ -821,28 +806,29 @@ static struct of_platform_driver hwicap_of_driver = {
 };
 
 /* Registration helpers to keep the number of #ifdefs to a minimum */
-static inline int __devinit hwicap_of_register(void)
+static inline int __init hwicap_of_register(void)
 {
 	pr_debug("hwicap: calling of_register_platform_driver()\n");
 	return of_register_platform_driver(&hwicap_of_driver);
 }
 
-static inline void __devexit hwicap_of_unregister(void)
+static inline void __exit hwicap_of_unregister(void)
 {
 	of_unregister_platform_driver(&hwicap_of_driver);
 }
 #else /* CONFIG_OF */
 /* CONFIG_OF not enabled; do nothing helpers */
-static inline int __devinit hwicap_of_register(void) { return 0; }
-static inline void __devexit hwicap_of_unregister(void) { }
+static inline int __init hwicap_of_register(void) { return 0; }
+static inline void __exit hwicap_of_unregister(void) { }
 #endif /* CONFIG_OF */
 
-static int __devinit hwicap_module_init(void)
+static int __init hwicap_module_init(void)
 {
 	dev_t devt;
 	int retval;
 
 	icap_class = class_create(THIS_MODULE, "xilinx_config");
+	mutex_init(&icap_sem);
 
 	if (xhwicap_major) {
 		devt = MKDEV(xhwicap_major, xhwicap_minor);
@@ -883,7 +869,7 @@ static int __devinit hwicap_module_init(void)
 	return retval;
 }
 
-static void __devexit hwicap_module_cleanup(void)
+static void __exit hwicap_module_cleanup(void)
 {
 	dev_t devt = MKDEV(xhwicap_major, xhwicap_minor);
 

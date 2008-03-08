@@ -37,8 +37,6 @@ static int vesa_probe(void)
 
 	video_vesa.modes = GET_HEAP(struct mode_info, 0);
 
-	vginfo.signature = VBE2_MAGIC;
-
 	ax = 0x4f00;
 	di = (size_t)&vginfo;
 	asm(INT10

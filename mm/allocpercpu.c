@@ -6,6 +6,10 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 
+#ifndef cache_line_size
+#define cache_line_size()	L1_CACHE_BYTES
+#endif
+
 /**
  * percpu_depopulate - depopulate per-cpu data for given cpu
  * @__pdata: per-cpu data to depopulate
@@ -51,6 +55,11 @@ void *percpu_populate(void *__pdata, size_t size, gfp_t gfp, int cpu)
 {
 	struct percpu_data *pdata = __percpu_disguise(__pdata);
 	int node = cpu_to_node(cpu);
+
+	/*
+	 * We should make sure each CPU gets private memory.
+	 */
+	size = roundup(size, cache_line_size());
 
 	BUG_ON(pdata->ptrs[cpu]);
 	if (node_online(node))
@@ -98,7 +107,11 @@ EXPORT_SYMBOL_GPL(__percpu_populate_mask);
  */
 void *__percpu_alloc_mask(size_t size, gfp_t gfp, cpumask_t *mask)
 {
-	void *pdata = kzalloc(nr_cpu_ids * sizeof(void *), gfp);
+	/*
+	 * We allocate whole cache lines to avoid false sharing
+	 */
+	size_t sz = roundup(nr_cpu_ids * sizeof(void *), cache_line_size());
+	void *pdata = kzalloc(sz, gfp);
 	void *__pdata = __percpu_disguise(pdata);
 
 	if (unlikely(!pdata))

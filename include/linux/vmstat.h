@@ -246,8 +246,7 @@ static inline void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
 static inline void __dec_zone_page_state(struct page *page,
 			enum zone_stat_item item)
 {
-	atomic_long_dec(&page_zone(page)->vm_stat[item]);
-	atomic_long_dec(&vm_stat[item]);
+	__dec_zone_state(page_zone(page), item);
 }
 
 /*

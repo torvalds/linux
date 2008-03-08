@@ -698,14 +698,12 @@ int marker_probe_unregister(const char *name,
 {
 	struct marker_entry *entry;
 	struct marker_probe_closure *old;
-	int ret = 0;
+	int ret = -ENOENT;
 
 	mutex_lock(&markers_mutex);
 	entry = get_marker(name);
-	if (!entry) {
-		ret = -ENOENT;
+	if (!entry)
 		goto end;
-	}
 	if (entry->rcu_pending)
 		rcu_barrier();
 	old = marker_entry_remove_probe(entry, probe, probe_private);
@@ -713,12 +711,15 @@ int marker_probe_unregister(const char *name,
 	marker_update_probes();		/* may update entry */
 	mutex_lock(&markers_mutex);
 	entry = get_marker(name);
+	if (!entry)
+		goto end;
 	entry->oldptr = old;
 	entry->rcu_pending = 1;
 	/* write rcu_pending before calling the RCU callback */
 	smp_wmb();
 	call_rcu(&entry->rcu, free_old_closure);
 	remove_marker(name);	/* Ignore busy error message */
+	ret = 0;
 end:
 	mutex_unlock(&markers_mutex);
 	return ret;
