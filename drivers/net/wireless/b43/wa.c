@@ -204,42 +204,43 @@ static void b43_wa_rt(struct b43_wldev *dev) /* Rotor table */
 		b43_ofdmtab_write32(dev, B43_OFDMTAB_ROTOR, i, b43_tab_rotor[i]);
 }
 
+static void b43_write_null_nst(struct b43_wldev *dev)
+{
+	int i;
+
+	for (i = 0; i < B43_TAB_NOISESCALE_SIZE; i++)
+		b43_ofdmtab_write16(dev, B43_OFDMTAB_NOISESCALE, i, 0);
+}
+
+static void b43_write_nst(struct b43_wldev *dev, const u16 *nst)
+{
+	int i;
+
+	for (i = 0; i < B43_TAB_NOISESCALE_SIZE; i++)
+		b43_ofdmtab_write16(dev, B43_OFDMTAB_NOISESCALE, i, nst[i]);
+}
+
 static void b43_wa_nst(struct b43_wldev *dev) /* Noise scale table */
 {
 	struct b43_phy *phy = &dev->phy;
-	int i;
 
 	if (phy->type == B43_PHYTYPE_A) {
 		if (phy->rev <= 1)
-			for (i = 0; i < B43_TAB_NOISESCALE_SIZE; i++)
-				b43_ofdmtab_write16(dev, B43_OFDMTAB_NOISESCALE,
-							i, 0);
+			b43_write_null_nst(dev);
 		else if (phy->rev == 2)
-			for (i = 0; i < B43_TAB_NOISESCALE_SIZE; i++)
-				b43_ofdmtab_write16(dev, B43_OFDMTAB_NOISESCALE,
-							i, b43_tab_noisescalea2[i]);
+			b43_write_nst(dev, b43_tab_noisescalea2);
 		else if (phy->rev == 3)
-			for (i = 0; i < B43_TAB_NOISESCALE_SIZE; i++)
-				b43_ofdmtab_write16(dev, B43_OFDMTAB_NOISESCALE,
-							i, b43_tab_noisescalea3[i]);
+			b43_write_nst(dev, b43_tab_noisescalea3);
 		else
-			for (i = 0; i < B43_TAB_NOISESCALE_SIZE; i++)
-				b43_ofdmtab_write16(dev, B43_OFDMTAB_NOISESCALE,
-							i, b43_tab_noisescaleg3[i]);
+			b43_write_nst(dev, b43_tab_noisescaleg3);
 	} else {
 		if (phy->rev >= 6) {
 			if (b43_phy_read(dev, B43_PHY_ENCORE) & B43_PHY_ENCORE_EN)
-				for (i = 0; i < B43_TAB_NOISESCALE_SIZE; i++)
-					b43_ofdmtab_write16(dev, B43_OFDMTAB_NOISESCALE,
-						i, b43_tab_noisescaleg3[i]);
+				b43_write_nst(dev, b43_tab_noisescaleg3);
 			else
-				for (i = 0; i < B43_TAB_NOISESCALE_SIZE; i++)
-					b43_ofdmtab_write16(dev, B43_OFDMTAB_NOISESCALE,
-						i, b43_tab_noisescaleg2[i]);
+				b43_write_nst(dev, b43_tab_noisescaleg2);
 		} else {
-			for (i = 0; i < B43_TAB_NOISESCALE_SIZE; i++)
-				b43_ofdmtab_write16(dev, B43_OFDMTAB_NOISESCALE,
-							i, b43_tab_noisescaleg1[i]);
+			b43_write_nst(dev, b43_tab_noisescaleg1);
 		}
 	}
 }
