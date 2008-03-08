@@ -44,10 +44,10 @@ static struct addr_marker address_markers[] = {
 	{ 0x8000000000000000UL, "Kernel Space" },
 	{ 0xffff810000000000UL, "Low Kernel Mapping" },
 	{ VMALLOC_START,        "vmalloc() Area" },
-	{ MODULES_VADDR,        "Modules" },
-	{ MODULES_END,          "End Modules" },
 	{ VMEMMAP_START,        "Vmemmap" },
 	{ __START_KERNEL_map,   "High Kernel Mapping" },
+	{ MODULES_VADDR,        "Modules" },
+	{ MODULES_END,          "End Modules" },
 #else
 	{ PAGE_OFFSET,          "Kernel Mapping" },
 	{ 0/* VMALLOC_START */, "vmalloc() Area" },
