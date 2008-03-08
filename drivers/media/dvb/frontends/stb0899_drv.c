@@ -1374,7 +1374,6 @@ static int stb0899_get_info(struct dvb_frontend *fe, struct dvbfe_info *fe_info)
 
 	dprintk(verbose, FE_DEBUG, 1, "Get Info");
 
-	state->delsys = fe_info->delivery;
 	switch (state->delsys) {
 	case DVBFE_DELSYS_DVBS:
 		dprintk(verbose, FE_ERROR, 1, "Querying DVB-S info");
@@ -1404,7 +1403,7 @@ static int stb0899_get_delsys(struct dvb_frontend *fe, enum dvbfe_delsys *fe_del
 	return 0;
 }
 
-void stb0899_set_delsys(struct stb0899_state *state)
+static void stb0899_set_delivery(struct stb0899_state *state)
 {
 	u8 reg;
 	u8 stop_clk[2];
@@ -1563,7 +1562,7 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe, struct dvbfe_pa
 	/* checking Search Range is meaningless for a fixed 3 Mhz			*/
 	if (INRANGE(i_params->srate, 1000000, 45000000)) {
 		dprintk(verbose, FE_DEBUG, 1, "Parameters IN RANGE");
-		stb0899_set_delsys(state);
+		stb0899_set_delivery(state);
 
 		if (state->config->tuner_set_rfsiggain) {
 			if (internal->srate > 15000000)
@@ -1934,6 +1933,14 @@ static enum dvbfe_algo stb0899_frontend_algo(struct dvb_frontend *fe)
 	return DVBFE_ALGO_CUSTOM;
 }
 
+static int stb0899_set_delsys(struct dvb_frontend *fe, enum dvbfe_delsys delsys)
+{
+	struct stb0899_state *state	= fe->demodulator_priv;
+
+	state->delsys = delsys;
+	return 0;
+}
+
 static struct dvb_frontend_ops stb0899_ops = {
 
 	.info = {
@@ -1948,6 +1955,7 @@ static struct dvb_frontend_ops stb0899_ops = {
 	.i2c_gate_ctrl			= stb0899_i2c_gate_ctrl,
 	.get_info			= stb0899_get_info,
 	.get_delsys			= stb0899_get_delsys,
+	.set_delsys			= stb0899_set_delsys,
 
 	.get_frontend_algo		= stb0899_frontend_algo,
 	.search				= stb0899_search,
