@@ -128,7 +128,7 @@ struct bcache_ops rm7k_sc_ops = {
 	.bc_inv = rm7k_sc_inv
 };
 
-void __init rm7k_sc_init(void)
+void __cpuinit rm7k_sc_init(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int config = read_c0_config();

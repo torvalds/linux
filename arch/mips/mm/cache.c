@@ -127,9 +127,10 @@ void __update_cache(struct vm_area_struct *vma, unsigned long address,
 	}
 }
 
-static char cache_panic[] __initdata = "Yeee, unsupported cache architecture.";
+static char cache_panic[] __cpuinitdata =
+	"Yeee, unsupported cache architecture.";
 
-void __init cpu_cache_init(void)
+void __devinit cpu_cache_init(void)
 {
 	if (cpu_has_3k_cache) {
 		extern void __weak r3k_cache_init(void);

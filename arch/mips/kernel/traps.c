@@ -1306,7 +1306,7 @@ int cp0_compare_irq;
 int cp0_perfcount_irq;
 EXPORT_SYMBOL_GPL(cp0_perfcount_irq);
 
-void __init per_cpu_trap_init(void)
+void __cpuinit per_cpu_trap_init(void)
 {
 	unsigned int cpu = smp_processor_id();
 	unsigned int status_set = ST0_CU0;
@@ -1423,11 +1423,12 @@ void __init set_handler(unsigned long offset, void *addr, unsigned long size)
 	flush_icache_range(ebase + offset, ebase + offset + size);
 }
 
-static char panic_null_cerr[] __initdata =
+static char panic_null_cerr[] __cpuinitdata =
 	"Trying to set NULL cache error exception handler";
 
 /* Install uncached CPU exception handler */
-void __init set_uncached_handler(unsigned long offset, void *addr, unsigned long size)
+void __cpuinit set_uncached_handler(unsigned long offset, void *addr,
+	unsigned long size)
 {
 #ifdef CONFIG_32BIT
 	unsigned long uncached_ebase = KSEG1ADDR(ebase);
