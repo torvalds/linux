@@ -175,4 +175,18 @@ static inline struct scsi_data_buffer *scsi_out(struct scsi_cmnd *cmd)
 	return &cmd->sdb;
 }
 
+static inline int scsi_sg_copy_from_buffer(struct scsi_cmnd *cmd,
+					   void *buf, int buflen)
+{
+	return sg_copy_from_buffer(scsi_sglist(cmd), scsi_sg_count(cmd),
+				   buf, buflen);
+}
+
+static inline int scsi_sg_copy_to_buffer(struct scsi_cmnd *cmd,
+					 void *buf, int buflen)
+{
+	return sg_copy_to_buffer(scsi_sglist(cmd), scsi_sg_count(cmd),
+				 buf, buflen);
+}
+
 #endif /* _SCSI_SCSI_CMND_H */
