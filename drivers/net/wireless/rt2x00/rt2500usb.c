@@ -324,8 +324,6 @@ static void rt2500usb_config_intf(struct rt2x00_dev *rt2x00dev,
 	u16 reg;
 
 	if (flags & CONFIG_UPDATE_TYPE) {
-		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, 0);
-
 		/*
 		 * Enable beacon config
 		 */
@@ -344,10 +342,6 @@ static void rt2500usb_config_intf(struct rt2x00_dev *rt2x00dev,
 		rt2500usb_register_write(rt2x00dev, TXRX_CSR18, reg);
 
 		rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
-		rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 1);
-		rt2x00_set_field16(&reg, TXRX_CSR19_TBCN,
-				   (conf->sync == TSF_SYNC_BEACON));
-		rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 0);
 		rt2x00_set_field16(&reg, TXRX_CSR19_TSF_SYNC, conf->sync);
 		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
 	}
@@ -1092,6 +1086,8 @@ static void rt2500usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
 	if (!rt2x00_get_field16(reg, TXRX_CSR19_BEACON_GEN)) {
+		rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 1);
+		rt2x00_set_field16(&reg, TXRX_CSR19_TBCN, 1);
 		rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 1);
 		/*
 		 * Beacon generation will fail initially.
@@ -1740,6 +1736,7 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 	struct skb_frame_desc *skbdesc;
 	int pipe = usb_sndbulkpipe(usb_dev, 1);
 	int length;
+	u16 reg;
 
 	if (unlikely(!intf->beacon))
 		return -ENOBUFS;
@@ -1763,6 +1760,16 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 	skbdesc->desc = skb->data;
 	skbdesc->desc_len = intf->beacon->queue->desc_size;
 	skbdesc->entry = intf->beacon;
+
+	/*
+	 * Disable beaconing while we are reloading the beacon data,
+	 * otherwise we might be sending out invalid data.
+	 */
+	rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
+	rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 0);
+	rt2x00_set_field16(&reg, TXRX_CSR19_TBCN, 0);
+	rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 0);
+	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
 
 	/*
 	 * mac80211 doesn't provide the control->queue variable

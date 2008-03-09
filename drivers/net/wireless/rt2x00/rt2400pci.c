@@ -279,8 +279,6 @@ static void rt2400pci_config_intf(struct rt2x00_dev *rt2x00dev,
 	u32 reg;
 
 	if (flags & CONFIG_UPDATE_TYPE) {
-		rt2x00pci_register_write(rt2x00dev, CSR14, 0);
-
 		/*
 		 * Enable beacon config
 		 */
@@ -293,10 +291,6 @@ static void rt2400pci_config_intf(struct rt2x00_dev *rt2x00dev,
 		 * Enable synchronisation.
 		 */
 		rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
-		rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 1);
-		rt2x00_set_field32(&reg, CSR14_TBCN,
-				   (conf->sync == TSF_SYNC_BEACON));
-		rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
 		rt2x00_set_field32(&reg, CSR14_TSF_SYNC, conf->sync);
 		rt2x00pci_register_write(rt2x00dev, CSR14, reg);
 	}
@@ -1040,6 +1034,8 @@ static void rt2400pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 	if (queue == RT2X00_BCN_QUEUE_BEACON) {
 		rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
 		if (!rt2x00_get_field32(reg, CSR14_BEACON_GEN)) {
+			rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 1);
+			rt2x00_set_field32(&reg, CSR14_TBCN, 1);
 			rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 1);
 			rt2x00pci_register_write(rt2x00dev, CSR14, reg);
 		}
@@ -1517,10 +1513,10 @@ static int rt2400pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct rt2x00_intf *intf = vif_to_intf(control->vif);
 	struct queue_entry_priv_pci_tx *priv_tx;
 	struct skb_frame_desc *skbdesc;
+	u32 reg;
 
 	if (unlikely(!intf->beacon))
 		return -ENOBUFS;
-
 	priv_tx = intf->beacon->priv_data;
 
 	/*
@@ -1534,6 +1530,16 @@ static int rt2400pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	skbdesc->desc = priv_tx->desc;
 	skbdesc->desc_len = intf->beacon->queue->desc_size;
 	skbdesc->entry = intf->beacon;
+
+	/*
+	 * Disable beaconing while we are reloading the beacon data,
+	 * otherwise we might be sending out invalid data.
+	 */
+	rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
+	rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 0);
+	rt2x00_set_field32(&reg, CSR14_TBCN, 0);
+	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
+	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
 
 	/*
 	 * mac80211 doesn't provide the control->queue variable

@@ -336,17 +336,12 @@ static void rt61pci_config_intf(struct rt2x00_dev *rt2x00dev,
 		 * bits which (when set to 0) will invalidate the entire beacon.
 		 */
 		beacon_base = HW_BEACON_OFFSET(intf->beacon->entry_idx);
-		rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, 0);
 		rt2x00pci_register_write(rt2x00dev, beacon_base, 0);
 
 		/*
 		 * Enable synchronisation.
 		 */
 		rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
-		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
-		rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE,
-				  (conf->sync == TSF_SYNC_BEACON));
-		rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
 		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, conf->sync);
 		rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
 	}
@@ -1562,6 +1557,8 @@ static void rt61pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 
 		rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
 		if (!rt2x00_get_field32(reg, TXRX_CSR9_BEACON_GEN)) {
+			rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
+			rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 1);
 			rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 1);
 			rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
 		}
@@ -2373,6 +2370,7 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct rt2x00_intf *intf = vif_to_intf(control->vif);
 	struct skb_frame_desc *skbdesc;
 	unsigned int beacon_base;
+	u32 reg;
 
 	if (unlikely(!intf->beacon))
 		return -ENOBUFS;
@@ -2406,6 +2404,16 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	skbdesc->desc = skb->data;
 	skbdesc->desc_len = intf->beacon->queue->desc_size;
 	skbdesc->entry = intf->beacon;
+
+	/*
+	 * Disable beaconing while we are reloading the beacon data,
+	 * otherwise we might be sending out invalid data.
+	 */
+	rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
+	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
 
 	/*
 	 * mac80211 doesn't provide the control->queue variable
