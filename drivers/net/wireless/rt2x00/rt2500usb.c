@@ -1123,13 +1123,10 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 
 	/*
 	 * Copy descriptor to the available headroom inside the skbuffer.
-	 * Remove the original copy by trimming the skbuffer.
 	 */
 	skb_push(entry->skb, offset);
 	memcpy(entry->skb->data, rxd, entry->queue->desc_size);
 	rxd = (__le32 *)entry->skb->data;
-	skb_pull(entry->skb, offset);
-	skb_trim(entry->skb, rxdesc->size);
 
 	/*
 	 * The descriptor is now aligned to 4 bytes and thus it is
@@ -1155,11 +1152,17 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 	rxdesc->my_bss = !!rt2x00_get_field32(word0, RXD_W0_MY_BSS);
 
 	/*
+	 * Adjust the skb memory window to the frame boundaries.
+	 */
+	skb_pull(entry->skb, offset);
+	skb_trim(entry->skb, rxdesc->size);
+
+	/*
 	 * Set descriptor and data pointer.
 	 */
 	skbdesc->data = entry->skb->data;
 	skbdesc->data_len = rxdesc->size;
-	skbdesc->desc = entry->skb->data - offset;
+	skbdesc->desc = rxd;
 	skbdesc->desc_len = entry->queue->desc_size;
 }
 
