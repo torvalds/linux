@@ -1058,9 +1058,11 @@ static void rt2400pci_fill_rxdone(struct queue_entry *entry,
 	struct queue_entry_priv_pci_rx *priv_rx = entry->priv_data;
 	u32 word0;
 	u32 word2;
+	u32 word3;
 
 	rt2x00_desc_read(priv_rx->desc, 0, &word0);
 	rt2x00_desc_read(priv_rx->desc, 2, &word2);
+	rt2x00_desc_read(priv_rx->desc, 3, &word3);
 
 	rxdesc->flags = 0;
 	if (rt2x00_get_field32(word0, RXD_W0_CRC_ERROR))
@@ -1070,9 +1072,11 @@ static void rt2400pci_fill_rxdone(struct queue_entry *entry,
 
 	/*
 	 * Obtain the status about this packet.
+	 * The signal is the PLCP value.
 	 */
 	rxdesc->signal = rt2x00_get_field32(word2, RXD_W2_SIGNAL);
-	rxdesc->rssi = rt2x00_get_field32(word2, RXD_W2_RSSI) -
+	rxdesc->signal_plcp = 1;
+	rxdesc->rssi = rt2x00_get_field32(word2, RXD_W3_RSSI) -
 	    entry->queue->rt2x00dev->rssi_offset;
 	rxdesc->ofdm = 0;
 	rxdesc->size = rt2x00_get_field32(word0, RXD_W0_DATABYTE_COUNT);

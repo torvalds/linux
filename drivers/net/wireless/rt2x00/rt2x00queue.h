@@ -134,6 +134,8 @@ static inline struct skb_frame_desc* get_skb_frame_desc(struct sk_buff *skb)
  * Summary of information that has been read from the RX frame descriptor.
  *
  * @signal: Signal of the received frame.
+ * @signal_plcp: Does the signal field contain the plcp value,
+ *	or does it contain the bitrate itself.
  * @rssi: RSSI of the received frame.
  * @ofdm: Was frame send with an OFDM rate.
  * @size: Data size of the received frame.
@@ -142,6 +144,7 @@ static inline struct skb_frame_desc* get_skb_frame_desc(struct sk_buff *skb)
  */
 struct rxdone_entry_desc {
 	int signal;
+	int signal_plcp;
 	int rssi;
 	int ofdm;
 	int size;
