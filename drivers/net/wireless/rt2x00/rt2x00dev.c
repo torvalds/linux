@@ -521,7 +521,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	tx_status.ack_signal = 0;
 	tx_status.excessive_retries = (txdesc->status == TX_FAIL_RETRY);
 	tx_status.retry_count = txdesc->retry;
-	memcpy(&tx_status.control, txdesc->control, sizeof(txdesc->control));
+	memcpy(&tx_status.control, txdesc->control, sizeof(*txdesc->control));
 
 	if (!(tx_status.control.flags & IEEE80211_TXCTL_NO_ACK)) {
 		if (success)
