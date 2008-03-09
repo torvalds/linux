@@ -40,14 +40,6 @@ static inline int find_first_zero_bit(const unsigned long *addr, unsigned size)
 }
 
 /**
- * find_next_zero_bit - find the first zero bit in a memory region
- * @addr: The address to base the search on
- * @offset: The bit number to start searching at
- * @size: The maximum size to search
- */
-int find_next_zero_bit(const unsigned long *addr, int size, int offset);
-
-/**
  * __ffs - find first bit in word.
  * @word: The word to search
  *
@@ -81,14 +73,6 @@ static inline unsigned find_first_bit(const unsigned long *addr, unsigned size)
 	}
 	return x;
 }
-
-/**
- * find_next_bit - find the first set bit in a memory region
- * @addr: The address to base the search on
- * @offset: The bit number to start searching at
- * @size: The maximum size to search
- */
-int find_next_bit(const unsigned long *addr, int size, int offset);
 
 /**
  * ffz - find first zero in word.

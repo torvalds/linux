@@ -15,6 +15,8 @@
 #include <asm/byteorder.h>
 
 #define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
+#undef find_next_bit
+#undef find_next_zero_bit
 
 /**
  * find_next_bit - find the next set bit in a memory region

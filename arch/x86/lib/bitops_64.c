@@ -1,9 +1,7 @@
 #include <linux/bitops.h>
 
 #undef find_first_zero_bit
-#undef find_next_zero_bit
 #undef find_first_bit
-#undef find_next_bit
 
 static inline long
 __find_first_zero_bit(const unsigned long * addr, unsigned long size)
@@ -57,39 +55,6 @@ long find_first_zero_bit(const unsigned long * addr, unsigned long size)
 	return __find_first_zero_bit (addr, size);
 }
 
-/**
- * find_next_zero_bit - find the next zero bit in a memory region
- * @addr: The address to base the search on
- * @offset: The bitnumber to start searching at
- * @size: The maximum size to search
- */
-long find_next_zero_bit (const unsigned long * addr, long size, long offset)
-{
-	const unsigned long * p = addr + (offset >> 6);
-	unsigned long set = 0;
-	unsigned long res, bit = offset&63;
-
-	if (bit) {
-		/*
-		 * Look for zero in first word
-		 */
-		asm("bsfq %1,%0\n\t"
-		    "cmoveq %2,%0"
-		    : "=r" (set)
-		    : "r" (~(*p >> bit)), "r"(64L));
-		if (set < (64 - bit))
-			return set + offset;
-		set = 64 - bit;
-		p++;
-	}
-	/*
-	 * No zero yet, search remaining full words for a zero
-	 */
-	res = __find_first_zero_bit (p, size - 64 * (p - addr));
-
-	return (offset + set + res);
-}
-
 static inline long
 __find_first_bit(const unsigned long * addr, unsigned long size)
 {
@@ -136,40 +101,7 @@ long find_first_bit(const unsigned long * addr, unsigned long size)
 	return __find_first_bit(addr,size);
 }
 
-/**
- * find_next_bit - find the first set bit in a memory region
- * @addr: The address to base the search on
- * @offset: The bitnumber to start searching at
- * @size: The maximum size to search
- */
-long find_next_bit(const unsigned long * addr, long size, long offset)
-{
-	const unsigned long * p = addr + (offset >> 6);
-	unsigned long set = 0, bit = offset & 63, res;
-
-	if (bit) {
-		/*
-		 * Look for nonzero in the first 64 bits:
-		 */
-		asm("bsfq %1,%0\n\t"
-		    "cmoveq %2,%0\n\t"
-		    : "=r" (set)
-		    : "r" (*p >> bit), "r" (64L));
-		if (set < (64 - bit))
-			return set + offset;
-		set = 64 - bit;
-		p++;
-	}
-	/*
-	 * No set bit yet, search remaining full words for a bit
-	 */
-	res = __find_first_bit (p, size - 64 * (p - addr));
-	return (offset + set + res);
-}
-
 #include <linux/module.h>
 
-EXPORT_SYMBOL(find_next_bit);
 EXPORT_SYMBOL(find_first_bit);
 EXPORT_SYMBOL(find_first_zero_bit);
-EXPORT_SYMBOL(find_next_zero_bit);

@@ -6,9 +6,7 @@
  */
 
 extern long find_first_zero_bit(const unsigned long *addr, unsigned long size);
-extern long find_next_zero_bit(const unsigned long *addr, long size, long offset);
 extern long find_first_bit(const unsigned long *addr, unsigned long size);
-extern long find_next_bit(const unsigned long *addr, long size, long offset);
 
 /* return index of first bet set in val or max when no bit is set */
 static inline long __scanbit(unsigned long val, unsigned long max)
