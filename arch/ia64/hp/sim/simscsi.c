@@ -201,22 +201,6 @@ simscsi_readwrite10 (struct scsi_cmnd *sc, int mode)
 	simscsi_sg_readwrite(sc, mode, offset);
 }
 
-static void simscsi_fillresult(struct scsi_cmnd *sc, char *buf, unsigned len)
-{
-
-	int i;
-	unsigned thislen;
-	struct scatterlist *slp;
-
-	scsi_for_each_sg(sc, slp, scsi_sg_count(sc), i) {
-		if (!len)
-			break;
-		thislen = min(len, slp->length);
-		memcpy(sg_virt(slp), buf, thislen);
-		len -= thislen;
-	}
-}
-
 static int
 simscsi_queuecommand (struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 {
@@ -258,7 +242,7 @@ simscsi_queuecommand (struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 			buf[6] = 0;	/* reserved */
 			buf[7] = 0;	/* various flags */
 			memcpy(buf + 8, "HP      SIMULATED DISK  0.00",  28);
-			simscsi_fillresult(sc, buf, 36);
+			scsi_sg_copy_from_buffer(sc, buf, 36);
 			sc->result = GOOD;
 			break;
 
@@ -306,14 +290,15 @@ simscsi_queuecommand (struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 			buf[5] = 0;
 			buf[6] = 2;
 			buf[7] = 0;
-			simscsi_fillresult(sc, buf, 8);
+			scsi_sg_copy_from_buffer(sc, buf, 8);
 			sc->result = GOOD;
 			break;
 
 		      case MODE_SENSE:
 		      case MODE_SENSE_10:
 			/* sd.c uses this to determine whether disk does write-caching. */
-			simscsi_fillresult(sc, (char *)empty_zero_page, scsi_bufflen(sc));
+			scsi_sg_copy_from_buffer(sc, (char *)empty_zero_page,
+						 PAGE_SIZE);
 			sc->result = GOOD;
 			break;
 
