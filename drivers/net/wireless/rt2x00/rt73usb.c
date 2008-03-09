@@ -1381,7 +1381,7 @@ static void rt73usb_fill_rxdone(struct queue_entry *entry,
 	skb_push(entry->skb, offset);
 	memcpy(entry->skb->data, rxd, entry->queue->desc_size);
 	rxd = (__le32 *)entry->skb->data;
-	skb_pull(entry->skb, offset + skbdesc->desc_len);
+	skb_pull(entry->skb, offset + entry->queue->desc_size);
 	skb_trim(entry->skb, rxdesc->size);
 
 	/*
