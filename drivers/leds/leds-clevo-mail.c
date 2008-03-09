@@ -69,6 +69,16 @@ static struct dmi_system_id __initdata mail_led_whitelist[] = {
 	},
 	{
 		.callback = clevo_mail_led_dmi_callback,
+		.ident = "Clevo D400P",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Clevo"),
+			DMI_MATCH(DMI_BOARD_NAME, "D400P"),
+			DMI_MATCH(DMI_BOARD_VERSION, "Rev.A"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "0106")
+		}
+	},
+	{
+		.callback = clevo_mail_led_dmi_callback,
 		.ident = "Clevo D410V",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Clevo, Co."),

@@ -127,12 +127,16 @@ config LEDS_CLEVO_MAIL
 
 	  This module can drive the mail LED for the following notebooks:
 
+	  	Clevo D400P
 	  	Clevo D410J
 	  	Clevo D410V
 	  	Clevo D400V/D470V (not tested, but might work)
 	  	Clevo M540N
 	  	Clevo M5x0N (not tested, but might work)
 	  	Positivo Mobile (Clevo M5x0V)
+
+	  If your model is not listed here you can try the "nodetect"
+	  module paramter.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called leds-clevo-mail.
