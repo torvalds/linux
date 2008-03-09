@@ -343,7 +343,9 @@ static void rt61pci_config_intf(struct rt2x00_dev *rt2x00dev,
 		 * Enable synchronisation.
 		 */
 		rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
+		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
 		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, conf->sync);
+		rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 1);
 		rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
 	}
 
