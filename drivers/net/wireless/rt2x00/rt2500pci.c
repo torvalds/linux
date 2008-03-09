@@ -307,10 +307,8 @@ static void rt2500pci_config_intf(struct rt2x00_dev *rt2x00dev,
 					      conf->bssid, sizeof(conf->bssid));
 }
 
-static int rt2500pci_config_preamble(struct rt2x00_dev *rt2x00dev,
-				     const int short_preamble,
-				     const int ack_timeout,
-				     const int ack_consume_time)
+static int rt2500pci_config_erp(struct rt2x00_dev *rt2x00dev,
+				struct rt2x00lib_erp *erp)
 {
 	int preamble_mask;
 	u32 reg;
@@ -318,11 +316,13 @@ static int rt2500pci_config_preamble(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * When short preamble is enabled, we should set bit 0x08
 	 */
-	preamble_mask = short_preamble << 3;
+	preamble_mask = erp->short_preamble << 3;
 
 	rt2x00pci_register_read(rt2x00dev, TXCSR1, &reg);
-	rt2x00_set_field32(&reg, TXCSR1_ACK_TIMEOUT, ack_timeout);
-	rt2x00_set_field32(&reg, TXCSR1_ACK_CONSUME_TIME, ack_consume_time);
+	rt2x00_set_field32(&reg, TXCSR1_ACK_TIMEOUT,
+			   erp->ack_timeout);
+	rt2x00_set_field32(&reg, TXCSR1_ACK_CONSUME_TIME,
+			   erp->ack_consume_time);
 	rt2x00pci_register_write(rt2x00dev, TXCSR1, reg);
 
 	rt2x00pci_register_read(rt2x00dev, ARCSR2, &reg);
@@ -1911,7 +1911,7 @@ static const struct rt2x00lib_ops rt2500pci_rt2x00_ops = {
 	.kick_tx_queue		= rt2500pci_kick_tx_queue,
 	.fill_rxdone		= rt2500pci_fill_rxdone,
 	.config_intf		= rt2500pci_config_intf,
-	.config_preamble	= rt2500pci_config_preamble,
+	.config_erp		= rt2500pci_config_erp,
 	.config			= rt2500pci_config,
 };
 

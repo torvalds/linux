@@ -447,9 +447,8 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 		}
 	}
 
-	if (delayed_flags & DELAYED_CONFIG_PREAMBLE)
-		rt2x00lib_config_preamble(rt2x00dev, intf,
-					  intf->conf.use_short_preamble);
+	if (delayed_flags & DELAYED_CONFIG_ERP)
+		rt2x00lib_config_erp(rt2x00dev, intf, &intf->conf);
 }
 
 static void rt2x00lib_intf_scheduled(struct work_struct *work)

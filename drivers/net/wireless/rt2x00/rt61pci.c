@@ -366,20 +366,18 @@ static void rt61pci_config_intf(struct rt2x00_dev *rt2x00dev,
 	}
 }
 
-static int rt61pci_config_preamble(struct rt2x00_dev *rt2x00dev,
-				   const int short_preamble,
-				   const int ack_timeout,
-				   const int ack_consume_time)
+static int rt61pci_config_erp(struct rt2x00_dev *rt2x00dev,
+			      struct rt2x00lib_erp *erp)
 {
 	u32 reg;
 
 	rt2x00pci_register_read(rt2x00dev, TXRX_CSR0, &reg);
-	rt2x00_set_field32(&reg, TXRX_CSR0_RX_ACK_TIMEOUT, ack_timeout);
+	rt2x00_set_field32(&reg, TXRX_CSR0_RX_ACK_TIMEOUT, erp->ack_timeout);
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR0, reg);
 
 	rt2x00pci_register_read(rt2x00dev, TXRX_CSR4, &reg);
 	rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_PREAMBLE,
-			   !!short_preamble);
+			   !!erp->short_preamble);
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR4, reg);
 
 	return 0;
@@ -2481,7 +2479,7 @@ static const struct rt2x00lib_ops rt61pci_rt2x00_ops = {
 	.kick_tx_queue		= rt61pci_kick_tx_queue,
 	.fill_rxdone		= rt61pci_fill_rxdone,
 	.config_intf		= rt61pci_config_intf,
-	.config_preamble	= rt61pci_config_preamble,
+	.config_erp		= rt61pci_config_erp,
 	.config			= rt61pci_config,
 };
 

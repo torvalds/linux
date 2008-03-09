@@ -384,7 +384,7 @@ struct rt2x00_intf {
 	 */
 	unsigned int delayed_flags;
 #define DELAYED_UPDATE_BEACON		0x00000001
-#define DELAYED_CONFIG_PREAMBLE		0x00000002
+#define DELAYED_CONFIG_ERP		0x00000002
 };
 
 static inline struct rt2x00_intf* vif_to_intf(struct ieee80211_vif *vif)
@@ -448,6 +448,16 @@ struct rt2x00lib_conf {
 	short pifs;
 	short difs;
 	short eifs;
+};
+
+/*
+ * Configuration structure for erp settings.
+ */
+struct rt2x00lib_erp {
+	int short_preamble;
+
+	int ack_timeout;
+	int ack_consume_time;
 };
 
 /*
@@ -558,10 +568,8 @@ struct rt2x00lib_ops {
 #define CONFIG_UPDATE_MAC		( 1 << 2 )
 #define CONFIG_UPDATE_BSSID		( 1 << 3 )
 
-	int (*config_preamble) (struct rt2x00_dev *rt2x00dev,
-				const int short_preamble,
-				const int ack_timeout,
-				const int ack_consume_time);
+	int (*config_erp) (struct rt2x00_dev *rt2x00dev,
+			   struct rt2x00lib_erp *erp);
 	void (*config) (struct rt2x00_dev *rt2x00dev,
 			struct rt2x00lib_conf *libconf,
 			const unsigned int flags);
