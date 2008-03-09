@@ -630,7 +630,7 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 {
 	struct txentry_desc txdesc;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skbdesc->data;
 	const struct rt2x00_rate *rate;
 	int tx_rate;
 	int length;
@@ -710,7 +710,7 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	txdesc.signal = rate->plcp;
 	txdesc.service = 0x04;
 
-	length = skb->len + FCS_LEN;
+	length = skbdesc->data_len + FCS_LEN;
 	if (rate->flags & DEV_RATE_OFDM) {
 		__set_bit(ENTRY_TXD_OFDM_RATE, &txdesc.flags);
 
