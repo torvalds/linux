@@ -574,13 +574,6 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 	u16 fc;
 
 	/*
-	 * If the signal is the plcp value,
-	 * we need to strip the preamble bit (0x08).
-	 */
-	if (rxdesc->signal_plcp)
-		rxdesc->signal &= ~0x08;
-
-	/*
 	 * Update RX statistics.
 	 */
 	sband = &rt2x00dev->bands[rt2x00dev->curr_band];
