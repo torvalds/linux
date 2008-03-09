@@ -278,6 +278,7 @@ static ssize_t rt2x00debug_read_queue_stats(struct file *file,
 {
 	struct rt2x00debug_intf *intf = file->private_data;
 	struct data_queue *queue;
+	unsigned long irqflags;
 	unsigned int lines = 1 + intf->rt2x00dev->data_queues;
 	size_t size;
 	char *data;
@@ -294,7 +295,7 @@ static ssize_t rt2x00debug_read_queue_stats(struct file *file,
 	    sprintf(data, "qid\tcount\tlimit\tlength\tindex\tdone\tcrypto\n");
 
 	queue_for_each(intf->rt2x00dev, queue) {
-		spin_lock(&queue->lock);
+		spin_lock_irqsave(&queue->lock, irqflags);
 
 		temp += sprintf(temp, "%d\t%d\t%d\t%d\t%d\t%d\t%d\n", queue->qid,
 				queue->count, queue->limit, queue->length,
@@ -302,7 +303,7 @@ static ssize_t rt2x00debug_read_queue_stats(struct file *file,
 				queue->index[Q_INDEX_DONE],
 				queue->index[Q_INDEX_CRYPTO]);
 
-		spin_unlock(&queue->lock);
+		spin_unlock_irqrestore(&queue->lock, irqflags);
 	}
 
 	size = strlen(data);
