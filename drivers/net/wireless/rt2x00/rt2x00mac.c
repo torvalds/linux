@@ -99,7 +99,11 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	/*
 	 * Determine which queue to put packet on.
 	 */
-	queue = rt2x00queue_get_queue(rt2x00dev, control->queue);
+	if (control->flags & IEEE80211_TXCTL_SEND_AFTER_DTIM &&
+	    test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags))
+		queue = rt2x00queue_get_queue(rt2x00dev, RT2X00_BCN_QUEUE_ATIM);
+	else
+		queue = rt2x00queue_get_queue(rt2x00dev, control->queue);
 	if (unlikely(!queue)) {
 		ERROR(rt2x00dev,
 		      "Attempt to send packet over invalid queue %d.\n"
