@@ -1117,11 +1117,24 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 	__le32 *rxd =
 	    (__le32 *)(entry->skb->data +
 		       (priv_rx->urb->actual_length - entry->queue->desc_size));
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)entry->skb->data;
-	int header_size = ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_control));
+	unsigned int offset = entry->queue->desc_size + 2;
 	u32 word0;
 	u32 word1;
 
+	/*
+	 * Copy descriptor to the available headroom inside the skbuffer.
+	 * Remove the original copy by trimming the skbuffer.
+	 */
+	skb_push(entry->skb, offset);
+	memcpy(entry->skb->data, rxd, entry->queue->desc_size);
+	rxd = (__le32 *)entry->skb->data;
+	skb_pull(entry->skb, offset);
+	skb_trim(entry->skb, rxdesc->size);
+
+	/*
+	 * The descriptor is now aligned to 4 bytes and thus it is
+	 * now safe to read it on all architectures.
+	 */
 	rt2x00_desc_read(rxd, 0, &word0);
 	rt2x00_desc_read(rxd, 1, &word1);
 
@@ -1142,28 +1155,12 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 	rxdesc->my_bss = !!rt2x00_get_field32(word0, RXD_W0_MY_BSS);
 
 	/*
-	 * The data behind the ieee80211 header must be
-	 * aligned on a 4 byte boundary.
-	 */
-	if (header_size % 4 == 0) {
-		skb_push(entry->skb, 2);
-		memmove(entry->skb->data, entry->skb->data + 2,
-			entry->skb->len - 2);
-	}
-
-	/*
-	 * Set descriptor pointer.
+	 * Set descriptor and data pointer.
 	 */
 	skbdesc->data = entry->skb->data;
 	skbdesc->data_len = rxdesc->size;
-	skbdesc->desc = entry->skb->data + rxdesc->size;
+	skbdesc->desc = entry->skb->data - offset;
 	skbdesc->desc_len = entry->queue->desc_size;
-
-	/*
-	 * Remove descriptor from skb buffer and trim the whole thing
-	 * down to only contain data.
-	 */
-	skb_trim(entry->skb, rxdesc->size);
 }
 
 /*

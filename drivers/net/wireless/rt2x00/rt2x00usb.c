@@ -247,11 +247,11 @@ static struct sk_buff* rt2x00usb_alloc_rxskb(struct data_queue *queue)
 	 * advance.
 	 */
 	frame_size = queue->data_size + queue->desc_size;
-	skb = dev_alloc_skb(frame_size + 2);
+	skb = dev_alloc_skb(queue->desc_size + frame_size + 2);
 	if (!skb)
 		return NULL;
 
-	skb_reserve(skb, 2);
+	skb_reserve(skb, queue->desc_size + 2);
 	skb_put(skb, frame_size);
 
 	return skb;
@@ -264,6 +264,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	struct sk_buff *skb;
 	struct skb_frame_desc *skbdesc;
 	struct rxdone_entry_desc rxdesc;
+	int header_size;
 
 	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
 	    !test_and_clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
@@ -286,6 +287,18 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 
 	memset(&rxdesc, 0, sizeof(rxdesc));
 	rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
+
+	/*
+	 * The data behind the ieee80211 header must be
+	 * aligned on a 4 byte boundary.
+	 */
+	header_size = ieee80211_get_hdrlen_from_skb(entry->skb);
+	if (header_size % 4 == 0) {
+		skb_push(entry->skb, 2);
+		memmove(entry->skb->data, entry->skb->data + 2,
+			entry->skb->len - 2);
+		skbdesc->data = entry->skb->data;
+	}
 
 	/*
 	 * Allocate a new sk buffer to replace the current one.
