@@ -25,6 +25,9 @@
 #include "leds.h"
 
 struct timer_trig_data {
+	int brightness_on;		/* LED brightness during "on" period.
+					 * (LED_OFF < brightness_on <= LED_FULL)
+					 */
 	unsigned long delay_on;		/* milliseconds on */
 	unsigned long delay_off;	/* milliseconds off */
 	struct timer_list timer;
@@ -34,17 +37,26 @@ static void led_timer_function(unsigned long data)
 {
 	struct led_classdev *led_cdev = (struct led_classdev *) data;
 	struct timer_trig_data *timer_data = led_cdev->trigger_data;
-	unsigned long brightness = LED_OFF;
-	unsigned long delay = timer_data->delay_off;
+	unsigned long brightness;
+	unsigned long delay;
 
 	if (!timer_data->delay_on || !timer_data->delay_off) {
 		led_set_brightness(led_cdev, LED_OFF);
 		return;
 	}
 
-	if (!led_cdev->brightness) {
-		brightness = LED_FULL;
+	brightness = led_get_brightness(led_cdev);
+	if (!brightness) {
+		/* Time to switch the LED on. */
+		brightness = timer_data->brightness_on;
 		delay = timer_data->delay_on;
+	} else {
+		/* Store the current brightness value to be able
+		 * to restore it when the delay_off period is over.
+		 */
+		timer_data->brightness_on = brightness;
+		brightness = LED_OFF;
+		delay = timer_data->delay_off;
 	}
 
 	led_set_brightness(led_cdev, brightness);
@@ -156,6 +168,9 @@ static void timer_trig_activate(struct led_classdev *led_cdev)
 	if (!timer_data)
 		return;
 
+	timer_data->brightness_on = led_get_brightness(led_cdev);
+	if (timer_data->brightness_on == LED_OFF)
+		timer_data->brightness_on = LED_FULL;
 	led_cdev->trigger_data = timer_data;
 
 	init_timer(&timer_data->timer);

@@ -45,9 +45,7 @@ ssize_t led_trigger_store(struct device *dev, struct device_attribute *attr,
 		trigger_name[len - 1] = '\0';
 
 	if (!strcmp(trigger_name, "none")) {
-		down_write(&led_cdev->trigger_lock);
-		led_trigger_set(led_cdev, NULL);
-		up_write(&led_cdev->trigger_lock);
+		led_trigger_remove(led_cdev);
 		return count;
 	}
 
@@ -137,6 +135,13 @@ void led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trigger)
 			trigger->activate(led_cdev);
 	}
 	led_cdev->trigger = trigger;
+}
+
+void led_trigger_remove(struct led_classdev *led_cdev)
+{
+	down_write(&led_cdev->trigger_lock);
+	led_trigger_set(led_cdev, NULL);
+	up_write(&led_cdev->trigger_lock);
 }
 
 void led_trigger_set_default(struct led_classdev *led_cdev)
@@ -231,6 +236,7 @@ void led_trigger_unregister_simple(struct led_trigger *trigger)
 
 /* Used by LED Class */
 EXPORT_SYMBOL_GPL(led_trigger_set);
+EXPORT_SYMBOL_GPL(led_trigger_remove);
 EXPORT_SYMBOL_GPL(led_trigger_set_default);
 EXPORT_SYMBOL_GPL(led_trigger_show);
 EXPORT_SYMBOL_GPL(led_trigger_store);
