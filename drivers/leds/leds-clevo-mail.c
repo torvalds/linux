@@ -14,7 +14,7 @@
 #define CLEVO_MAIL_LED_BLINK_1HZ	0x008A
 #define CLEVO_MAIL_LED_BLINK_0_5HZ	0x0083
 
-MODULE_AUTHOR("Márton Németh <nm127@freemail.hu>");
+MODULE_AUTHOR("MÃ¡rton NÃ©meth <nm127@freemail.hu>");
 MODULE_DESCRIPTION("Clevo mail LED driver");
 MODULE_LICENSE("GPL");
 
@@ -103,8 +103,8 @@ static void clevo_mail_led_set(struct led_classdev *led_cdev,
 }
 
 static int clevo_mail_led_blink(struct led_classdev *led_cdev,
-				unsigned long* delay_on,
-				unsigned long* delay_off)
+				unsigned long *delay_on,
+				unsigned long *delay_off)
 {
 	int status = -EINVAL;
 

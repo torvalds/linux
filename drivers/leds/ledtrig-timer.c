@@ -64,7 +64,7 @@ static void led_timer_function(unsigned long data)
 	mod_timer(&timer_data->timer, jiffies + msecs_to_jiffies(delay));
 }
 
-static ssize_t led_delay_on_show(struct device *dev, 
+static ssize_t led_delay_on_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
@@ -75,7 +75,7 @@ static ssize_t led_delay_on_show(struct device *dev,
 	return strlen(buf) + 1;
 }
 
-static ssize_t led_delay_on_store(struct device *dev, 
+static ssize_t led_delay_on_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
@@ -99,7 +99,7 @@ static ssize_t led_delay_on_store(struct device *dev,
 			/* try to activate hardware acceleration, if any */
 			if (!led_cdev->blink_set ||
 			    led_cdev->blink_set(led_cdev,
-				&timer_data->delay_on, &timer_data->delay_off)) {
+			      &timer_data->delay_on, &timer_data->delay_off)) {
 				/* no hardware acceleration, blink via timer */
 				mod_timer(&timer_data->timer, jiffies + 1);
 			}
@@ -110,7 +110,7 @@ static ssize_t led_delay_on_store(struct device *dev,
 	return ret;
 }
 
-static ssize_t led_delay_off_show(struct device *dev, 
+static ssize_t led_delay_off_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
@@ -121,7 +121,7 @@ static ssize_t led_delay_off_show(struct device *dev,
 	return strlen(buf) + 1;
 }
 
-static ssize_t led_delay_off_store(struct device *dev, 
+static ssize_t led_delay_off_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
@@ -145,7 +145,7 @@ static ssize_t led_delay_off_store(struct device *dev,
 			/* try to activate hardware acceleration, if any */
 			if (!led_cdev->blink_set ||
 			    led_cdev->blink_set(led_cdev,
-				&timer_data->delay_on, &timer_data->delay_off)) {
+			      &timer_data->delay_on, &timer_data->delay_off)) {
 				/* no hardware acceleration, blink via timer */
 				mod_timer(&timer_data->timer, jiffies + 1);
 			}

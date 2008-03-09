@@ -41,9 +41,9 @@ void led_trigger_set(struct led_classdev *led_cdev,
 			struct led_trigger *trigger);
 void led_trigger_remove(struct led_classdev *led_cdev);
 #else
-#define led_trigger_set_default(x) do {} while(0)
-#define led_trigger_set(x, y) do {} while(0)
-#define led_trigger_remove(x) do {} while(0)
+#define led_trigger_set_default(x) do {} while (0)
+#define led_trigger_set(x, y) do {} while (0)
+#define led_trigger_remove(x) do {} while (0)
 #endif
 
 ssize_t led_trigger_store(struct device *dev, struct device_attribute *attr,
