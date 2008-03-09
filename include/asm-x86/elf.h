@@ -82,8 +82,9 @@ extern unsigned int vdso_enabled;
 #define elf_check_arch_ia32(x) \
 	(((x)->e_machine == EM_386) || ((x)->e_machine == EM_486))
 
-#ifdef CONFIG_X86_32
 #include <asm/processor.h>
+
+#ifdef CONFIG_X86_32
 #include <asm/system.h>		/* for savesegment */
 #include <asm/desc.h>
 
@@ -134,8 +135,6 @@ extern unsigned int vdso_enabled;
 #define set_personality_64bit()	do { } while (0)
 
 #else /* CONFIG_X86_32 */
-
-#include <asm/processor.h>
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.

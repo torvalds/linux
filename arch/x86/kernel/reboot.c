@@ -1,5 +1,4 @@
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/pm.h>
