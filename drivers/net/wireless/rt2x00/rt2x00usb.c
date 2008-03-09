@@ -299,6 +299,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 		memmove(entry->skb->data, entry->skb->data + 2,
 			entry->skb->len - 2);
 		skbdesc->data = entry->skb->data;
+		skb_trim(entry->skb,entry->skb->len - 2);
 	}
 
 	/*
