@@ -318,10 +318,8 @@ int __init chainiv_module_init(void)
 {
 	return crypto_register_template(&chainiv_tmpl);
 }
-EXPORT_SYMBOL_GPL(chainiv_module_init);
 
-void __exit chainiv_module_exit(void)
+void chainiv_module_exit(void)
 {
 	crypto_unregister_template(&chainiv_tmpl);
 }
-EXPORT_SYMBOL_GPL(chainiv_module_exit);
