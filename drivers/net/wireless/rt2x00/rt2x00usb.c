@@ -206,6 +206,7 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	skbdesc->desc_len = queue->desc_size;
 	skbdesc->entry = entry;
 
+	memcpy(&priv_tx->control, control, sizeof(priv_tx->control));
 	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 
 	/*
