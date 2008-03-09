@@ -441,8 +441,8 @@ struct rt2x00lib_conf {
 
 	enum ieee80211_band band;
 
-	int basic_rates;
-	int slot_time;
+	u32 basic_rates;
+	u32 slot_time;
 
 	short sifs;
 	short pifs;

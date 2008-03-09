@@ -145,12 +145,26 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON_LINK);
 }
 
+static u32 rt2x00lib_get_basic_rates(struct ieee80211_supported_band *band)
+{
+	const struct rt2x00_rate *rate;
+	unsigned int i;
+	u32 mask = 0;
+
+	for (i = 0; i < band->n_bitrates; i++) {
+		rate = rt2x00_get_rate(band->bitrates[i].hw_value);
+		if (rate->flags & DEV_RATE_BASIC)
+			mask |= rate->ratemask;
+	}
+
+	return mask;
+}
+
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		      struct ieee80211_conf *conf, const int force_config)
 {
 	struct rt2x00lib_conf libconf;
 	struct ieee80211_supported_band *band;
-	struct ieee80211_rate *rate;
 	struct antenna_setup *default_ant = &rt2x00dev->default_ant;
 	struct antenna_setup *active_ant = &rt2x00dev->link.ant.active;
 	int flags = 0;
@@ -227,10 +241,9 @@ config:
 
 	if (flags & CONFIG_UPDATE_PHYMODE) {
 		band = &rt2x00dev->bands[conf->channel->band];
-		rate = &band->bitrates[band->n_bitrates - 1];
 
 		libconf.band = conf->channel->band;
-		libconf.basic_rates = rt2x00_get_rate(rate->hw_value)->ratemask;
+		libconf.basic_rates = rt2x00lib_get_basic_rates(band);
 	}
 
 	if (flags & CONFIG_UPDATE_CHANNEL) {
