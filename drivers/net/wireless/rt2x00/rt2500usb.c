@@ -294,7 +294,8 @@ static void rt2500usb_led_brightness(struct led_classdev *led_cdev,
 
 	if (in_atomic()) {
 		NOTICE(led->rt2x00dev,
-		       "Ignoring LED brightness command for led %d", led->type);
+		       "Ignoring LED brightness command for led %d\n",
+		       led->type);
 		return;
 	}
 
