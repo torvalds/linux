@@ -126,6 +126,9 @@ struct gpio_led {
 struct gpio_led_platform_data {
 	int 		num_leds;
 	struct gpio_led *leds;
+	int		(*gpio_blink_set)(unsigned gpio,
+					unsigned long *delay_on,
+					unsigned long *delay_off);
 };
 
 
