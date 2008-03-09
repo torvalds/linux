@@ -481,14 +481,8 @@ static void rt61pci_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 		else
 			rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 3);
 		break;
-	case ANTENNA_SW_DIVERSITY:
-		/*
-		 * NOTE: We should never come here because rt2x00lib is
-		 * supposed to catch this and send us the correct antenna
-		 * explicitely. However we are nog going to bug about this.
-		 * Instead, just default to antenna B.
-		 */
 	case ANTENNA_B:
+	default:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END, 0);
 		if (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ)
@@ -530,14 +524,8 @@ static void rt61pci_config_antenna_2x(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
 		rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 3);
 		break;
-	case ANTENNA_SW_DIVERSITY:
-		/*
-		 * NOTE: We should never come here because rt2x00lib is
-		 * supposed to catch this and send us the correct antenna
-		 * explicitely. However we are nog going to bug about this.
-		 * Instead, just default to antenna B.
-		 */
 	case ANTENNA_B:
+	default:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
 		rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 0);
 		break;
@@ -575,10 +563,6 @@ static void rt61pci_config_antenna_2529(struct rt2x00_dev *rt2x00dev,
 	rt61pci_bbp_read(rt2x00dev, 4, &r4);
 	rt61pci_bbp_read(rt2x00dev, 77, &r77);
 
-	/* FIXME: Antenna selection for the rf 2529 is very confusing in the
-	 * legacy driver. The code below should be ok for non-diversity setups.
-	 */
-
 	/*
 	 * Configure the RX antenna.
 	 */
@@ -588,15 +572,14 @@ static void rt61pci_config_antenna_2529(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 0);
 		rt61pci_config_antenna_2529_rx(rt2x00dev, 0, 0);
 		break;
-	case ANTENNA_SW_DIVERSITY:
 	case ANTENNA_HW_DIVERSITY:
 		/*
-		 * NOTE: We should never come here because rt2x00lib is
-		 * supposed to catch this and send us the correct antenna
-		 * explicitely. However we are nog going to bug about this.
-		 * Instead, just default to antenna B.
+		 * FIXME: Antenna selection for the rf 2529 is very confusing
+		 * in the legacy driver. Just default to antenna B until the
+		 * legacy code can be properly translated into rt2x00 code.
 		 */
 	case ANTENNA_B:
+	default:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
 		rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 3);
 		rt61pci_config_antenna_2529_rx(rt2x00dev, 1, 1);
@@ -646,6 +629,13 @@ static void rt61pci_config_antenna(struct rt2x00_dev *rt2x00dev,
 	unsigned int lna;
 	unsigned int i;
 	u32 reg;
+
+	/*
+	 * We should never come here because rt2x00lib is supposed
+	 * to catch this and send us the correct antenna explicitely.
+	 */
+	BUG_ON(ant->rx == ANTENNA_SW_DIVERSITY ||
+	       ant->tx == ANTENNA_SW_DIVERSITY);
 
 	if (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ) {
 		sel = antenna_sel_a;

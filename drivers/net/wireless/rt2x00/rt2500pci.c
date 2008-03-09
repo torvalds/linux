@@ -444,6 +444,13 @@ static void rt2500pci_config_antenna(struct rt2x00_dev *rt2x00dev,
 	u8 r14;
 	u8 r2;
 
+	/*
+	 * We should never come here because rt2x00lib is supposed
+	 * to catch this and send us the correct antenna explicitely.
+	 */
+	BUG_ON(ant->rx == ANTENNA_SW_DIVERSITY ||
+	       ant->tx == ANTENNA_SW_DIVERSITY);
+
 	rt2x00pci_register_read(rt2x00dev, BBPCSR1, &reg);
 	rt2500pci_bbp_read(rt2x00dev, 14, &r14);
 	rt2500pci_bbp_read(rt2x00dev, 2, &r2);
@@ -457,15 +464,8 @@ static void rt2500pci_config_antenna(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field32(&reg, BBPCSR1_CCK, 0);
 		rt2x00_set_field32(&reg, BBPCSR1_OFDM, 0);
 		break;
-	case ANTENNA_HW_DIVERSITY:
-	case ANTENNA_SW_DIVERSITY:
-		/*
-		 * NOTE: We should never come here because rt2x00lib is
-		 * supposed to catch this and send us the correct antenna
-		 * explicitely. However we are nog going to bug about this.
-		 * Instead, just default to antenna B.
-		 */
 	case ANTENNA_B:
+	default:
 		rt2x00_set_field8(&r2, BBP_R2_TX_ANTENNA, 2);
 		rt2x00_set_field32(&reg, BBPCSR1_CCK, 2);
 		rt2x00_set_field32(&reg, BBPCSR1_OFDM, 2);
@@ -479,15 +479,8 @@ static void rt2500pci_config_antenna(struct rt2x00_dev *rt2x00dev,
 	case ANTENNA_A:
 		rt2x00_set_field8(&r14, BBP_R14_RX_ANTENNA, 0);
 		break;
-	case ANTENNA_HW_DIVERSITY:
-	case ANTENNA_SW_DIVERSITY:
-		/*
-		 * NOTE: We should never come here because rt2x00lib is
-		 * supposed to catch this and send us the correct antenna
-		 * explicitely. However we are nog going to bug about this.
-		 * Instead, just default to antenna B.
-		 */
 	case ANTENNA_B:
+	default:
 		rt2x00_set_field8(&r14, BBP_R14_RX_ANTENNA, 2);
 		break;
 	}
