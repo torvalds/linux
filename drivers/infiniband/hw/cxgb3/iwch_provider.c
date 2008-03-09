@@ -189,7 +189,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev, int entries, int ve
 		return ERR_PTR(-ENOMEM);
 	}
 	chp->rhp = rhp;
-	chp->ibcq.cqe = (1 << chp->cq.size_log2) - 1;
+	chp->ibcq.cqe = 1 << chp->cq.size_log2;
 	spin_lock_init(&chp->lock);
 	atomic_set(&chp->refcnt, 1);
 	init_waitqueue_head(&chp->wait);
