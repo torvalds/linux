@@ -24,6 +24,7 @@
 	Supported chipsets: RT2561, RT2561s, RT2661.
  */
 
+#include <linux/crc-itu-t.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/init.h>
@@ -856,7 +857,7 @@ dynamic_cca_tune:
 }
 
 /*
- * Firmware name function.
+ * Firmware functions
  */
 static char *rt61pci_get_firmware_name(struct rt2x00_dev *rt2x00dev)
 {
@@ -880,9 +881,23 @@ static char *rt61pci_get_firmware_name(struct rt2x00_dev *rt2x00dev)
 	return fw_name;
 }
 
-/*
- * Initialization functions.
- */
+static u16 rt61pci_get_firmware_crc(void *data, const size_t len)
+{
+	u16 crc;
+
+	/*
+	 * Use the crc itu-t algorithm.
+	 * The last 2 bytes in the firmware array are the crc checksum itself,
+	 * this means that we should never pass those 2 bytes to the crc
+	 * algorithm.
+	 */
+	crc = crc_itu_t(0, data, len - 2);
+	crc = crc_itu_t_byte(crc, 0);
+	crc = crc_itu_t_byte(crc, 0);
+
+	return crc;
+}
+
 static int rt61pci_load_firmware(struct rt2x00_dev *rt2x00dev, void *data,
 				 const size_t len)
 {
@@ -963,6 +978,9 @@ static int rt61pci_load_firmware(struct rt2x00_dev *rt2x00dev, void *data,
 	return 0;
 }
 
+/*
+ * Initialization functions.
+ */
 static void rt61pci_init_rxentry(struct rt2x00_dev *rt2x00dev,
 				 struct queue_entry *entry)
 {
@@ -2257,7 +2275,6 @@ static int rt61pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 * This device requires firmware.
 	 */
 	__set_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags);
-	__set_bit(DRIVER_REQUIRE_FIRMWARE_CRC_ITU_T, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.
@@ -2457,6 +2474,7 @@ static const struct rt2x00lib_ops rt61pci_rt2x00_ops = {
 	.irq_handler		= rt61pci_interrupt,
 	.probe_hw		= rt61pci_probe_hw,
 	.get_firmware_name	= rt61pci_get_firmware_name,
+	.get_firmware_crc	= rt61pci_get_firmware_crc,
 	.load_firmware		= rt61pci_load_firmware,
 	.initialize		= rt2x00pci_initialize,
 	.uninitialize		= rt2x00pci_uninitialize,

@@ -495,6 +495,7 @@ struct rt2x00lib_ops {
 	 */
 	int (*probe_hw) (struct rt2x00_dev *rt2x00dev);
 	char *(*get_firmware_name) (struct rt2x00_dev *rt2x00dev);
+	u16 (*get_firmware_crc) (void *data, const size_t len);
 	int (*load_firmware) (struct rt2x00_dev *rt2x00dev, void *data,
 			      const size_t len);
 
@@ -613,8 +614,6 @@ enum rt2x00_flags {
 	 */
 	DRIVER_SUPPORT_MIXED_INTERFACES,
 	DRIVER_REQUIRE_FIRMWARE,
-	DRIVER_REQUIRE_FIRMWARE_CRC_ITU_T,
-	DRIVER_REQUIRE_FIRMWARE_CCITT,
 	DRIVER_REQUIRE_BEACON_GUARD,
 	DRIVER_REQUIRE_ATIM_QUEUE,
 

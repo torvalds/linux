@@ -23,8 +23,6 @@
 	Abstract: rt2x00 firmware loading routines.
  */
 
-#include <linux/crc-ccitt.h>
-#include <linux/crc-itu-t.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 
@@ -63,36 +61,7 @@ static int rt2x00lib_request_firmware(struct rt2x00_dev *rt2x00dev)
 		return -ENOENT;
 	}
 
-	/*
-	 * Perform crc validation on the firmware.
-	 * The last 2 bytes in the firmware array are the crc checksum itself,
-	 * this means that we should never pass those 2 bytes to the crc
-	 * algorithm.
-	 */
-	if (test_bit(DRIVER_REQUIRE_FIRMWARE_CRC_ITU_T, &rt2x00dev->flags)) {
-		/*
-		 * Use the crc itu-t algorithm.
-		 * Use 0 for the last 2 bytes to complete the checksum.
-		 */
-		crc = crc_itu_t(0, fw->data, fw->size - 2);
-		crc = crc_itu_t_byte(crc, 0);
-		crc = crc_itu_t_byte(crc, 0);
-	} else if (test_bit(DRIVER_REQUIRE_FIRMWARE_CCITT, &rt2x00dev->flags)) {
-		/*
-		 * Use the crc ccitt algorithm.
-		 * This will return the same value as the legacy driver which
-		 * used bit ordering reversion on the both the firmware bytes
-		 * before input input as well as on the final output.
-		 * Obviously using crc ccitt directly is much more efficient.
-		 */
-		crc = crc_ccitt(~0, fw->data, fw->size - 2);
-	} else {
-		ERROR(rt2x00dev, "No checksum algorithm selected "
-		      "for firmware validation.\n");
-		retval = -ENOENT;
-		goto exit;
-	}
-
+	crc = rt2x00dev->ops->lib->get_firmware_crc(fw->data, fw->size);
 	if (crc != (fw->data[fw->size - 2] << 8 | fw->data[fw->size - 1])) {
 		ERROR(rt2x00dev, "Firmware checksum error.\n");
 		retval = -ENOENT;
@@ -139,4 +108,3 @@ void rt2x00lib_free_firmware(struct rt2x00_dev *rt2x00dev)
 	release_firmware(rt2x00dev->fw);
 	rt2x00dev->fw = NULL;
 }
-

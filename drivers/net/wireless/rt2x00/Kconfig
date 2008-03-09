@@ -27,8 +27,6 @@ config RT2X00_LIB_USB
 config RT2X00_LIB_FIRMWARE
 	boolean
 	depends on RT2X00_LIB
-	select CRC_CCITT
-	select CRC_ITU_T
 	select FW_LOADER
 
 config RT2X00_LIB_RFKILL
@@ -102,6 +100,7 @@ config RT61PCI
 	depends on PCI
 	select RT2X00_LIB_PCI
 	select RT2X00_LIB_FIRMWARE
+	select CRC_ITU_T
 	select EEPROM_93CX6
 	---help---
 	  This is an experimental driver for the Ralink rt61 wireless chip.
@@ -145,6 +144,7 @@ config RT73USB
 	depends on USB
 	select RT2X00_LIB_USB
 	select RT2X00_LIB_FIRMWARE
+	select CRC_ITU_T
 	---help---
 	  This is an experimental driver for the Ralink rt73 wireless chip.
 
