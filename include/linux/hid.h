@@ -569,7 +569,11 @@ static inline int hid_ff_init(struct hid_device *hid) { return -1; }
 #define dbg_hid_line(format, arg...) if (hid_debug) \
 				printk(format, ## arg)
 #else
-#define dbg_hid(format, arg...) do {} while (0)
+static inline int __attribute__((format(printf, 1, 2)))
+dbg_hid(const char *fmt, ...)
+{
+	return 0;
+}
 #define dbg_hid_line dbg_hid
 #endif
 
