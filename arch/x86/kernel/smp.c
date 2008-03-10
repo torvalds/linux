@@ -118,7 +118,10 @@
  */
 static void native_smp_send_reschedule(int cpu)
 {
-	WARN_ON(cpu_is_offline(cpu));
+	if (unlikely(cpu_is_offline(cpu))) {
+		WARN_ON(1);
+		return;
+	}
 	send_IPI_mask(cpumask_of_cpu(cpu), RESCHEDULE_VECTOR);
 }
 
