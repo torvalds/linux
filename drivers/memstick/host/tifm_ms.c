@@ -627,17 +627,17 @@ static void tifm_ms_remove(struct tifm_dev *sock)
 
 static int tifm_ms_suspend(struct tifm_dev *sock, pm_message_t state)
 {
+	struct memstick_host *msh = tifm_get_drvdata(sock);
+
+	memstick_suspend_host(msh);
 	return 0;
 }
 
 static int tifm_ms_resume(struct tifm_dev *sock)
 {
 	struct memstick_host *msh = tifm_get_drvdata(sock);
-	struct tifm_ms *host = memstick_priv(msh);
 
-	tifm_ms_initialize_host(host);
-	memstick_detect_change(msh);
-
+	memstick_resume_host(msh);
 	return 0;
 }
 

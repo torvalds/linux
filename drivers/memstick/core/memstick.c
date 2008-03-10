@@ -561,6 +561,31 @@ void memstick_free_host(struct memstick_host *host)
 }
 EXPORT_SYMBOL(memstick_free_host);
 
+/**
+ * memstick_suspend_host - notify bus driver of host suspension
+ * @host - host to use
+ */
+void memstick_suspend_host(struct memstick_host *host)
+{
+	mutex_lock(&host->lock);
+	host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_OFF);
+	mutex_unlock(&host->lock);
+}
+EXPORT_SYMBOL(memstick_suspend_host);
+
+/**
+ * memstick_resume_host - notify bus driver of host resumption
+ * @host - host to use
+ */
+void memstick_resume_host(struct memstick_host *host)
+{
+	mutex_lock(&host->lock);
+	host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_ON);
+	mutex_unlock(&host->lock);
+	memstick_detect_change(host);
+}
+EXPORT_SYMBOL(memstick_resume_host);
+
 int memstick_register_driver(struct memstick_driver *drv)
 {
 	drv->driver.bus = &memstick_bus_type;

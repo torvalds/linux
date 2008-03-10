@@ -312,6 +312,8 @@ int memstick_add_host(struct memstick_host *host);
 void memstick_remove_host(struct memstick_host *host);
 void memstick_free_host(struct memstick_host *host);
 void memstick_detect_change(struct memstick_host *host);
+void memstick_suspend_host(struct memstick_host *host);
+void memstick_resume_host(struct memstick_host *host);
 
 void memstick_init_req_sg(struct memstick_request *mrq, unsigned char tpc,
 			  struct scatterlist *sg);
