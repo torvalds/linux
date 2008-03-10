@@ -410,13 +410,13 @@ static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 static void __kprobes clear_btf(void)
 {
 	if (test_thread_flag(TIF_DEBUGCTLMSR))
-		wrmsrl(MSR_IA32_DEBUGCTLMSR, 0);
+		update_debugctlmsr(0);
 }
 
 static void __kprobes restore_btf(void)
 {
 	if (test_thread_flag(TIF_DEBUGCTLMSR))
-		wrmsrl(MSR_IA32_DEBUGCTLMSR, current->thread.debugctlmsr);
+		update_debugctlmsr(current->thread.debugctlmsr);
 }
 
 static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)

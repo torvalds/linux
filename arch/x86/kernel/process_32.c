@@ -564,12 +564,12 @@ __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 		/* we clear debugctl to make sure DS
 		 * is not in use when we change it */
 		debugctl = 0;
-		wrmsrl(MSR_IA32_DEBUGCTLMSR, 0);
+		update_debugctlmsr(0);
 		wrmsr(MSR_IA32_DS_AREA, next->ds_area_msr, 0);
 	}
 
 	if (next->debugctlmsr != debugctl)
-		wrmsr(MSR_IA32_DEBUGCTLMSR, next->debugctlmsr, 0);
+		update_debugctlmsr(next->debugctlmsr);
 
 	if (test_tsk_thread_flag(next_p, TIF_DEBUG)) {
 		set_debugreg(next->debugreg0, 0);

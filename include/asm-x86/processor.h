@@ -741,6 +741,15 @@ extern void switch_to_new_gdt(void);
 extern void cpu_init(void);
 extern void init_gdt(int cpu);
 
+static inline void update_debugctlmsr(unsigned long debugctlmsr)
+{
+#ifndef CONFIG_X86_DEBUGCTLMSR
+	if (boot_cpu_data.x86 < 6)
+		return;
+#endif
+	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
+}
+
 /*
  * from system description table in BIOS. Mostly for MCA use, but
  * others may find it useful:
