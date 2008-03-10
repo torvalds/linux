@@ -20,6 +20,10 @@ config SSB
 
 	  If unsure, say N.
 
+# Common SPROM support routines
+config SSB_SPROM
+	bool
+
 config SSB_PCIHOST_POSSIBLE
 	bool
 	depends on SSB && (PCI = y || PCI = SSB)
@@ -28,6 +32,7 @@ config SSB_PCIHOST_POSSIBLE
 config SSB_PCIHOST
 	bool "Support for SSB on PCI-bus host"
 	depends on SSB_PCIHOST_POSSIBLE
+	select SSB_SPROM
 	default y
 	help
 	  Support for a Sonics Silicon Backplane on top
@@ -48,6 +53,7 @@ config SSB_PCMCIAHOST_POSSIBLE
 config SSB_PCMCIAHOST
 	bool "Support for SSB on PCMCIA-bus host (EXPERIMENTAL)"
 	depends on SSB_PCMCIAHOST_POSSIBLE
+	select SSB_SPROM
 	help
 	  Support for a Sonics Silicon Backplane on top
 	  of a PCMCIA device.

@@ -245,9 +245,9 @@ struct ssb_bus {
 	/* Pointer to the PCMCIA device (only if bustype == SSB_BUSTYPE_PCMCIA). */
 	struct pcmcia_device *host_pcmcia;
 
-#ifdef CONFIG_SSB_PCIHOST
+#ifdef CONFIG_SSB_SPROM
 	/* Mutex to protect the SPROM writing. */
-	struct mutex pci_sprom_mutex;
+	struct mutex sprom_mutex;
 #endif
 
 	/* ID information about the Chip. */

@@ -69,6 +69,25 @@ found:
 }
 #endif /* CONFIG_SSB_PCIHOST */
 
+#ifdef CONFIG_SSB_PCMCIAHOST
+struct ssb_bus *ssb_pcmcia_dev_to_bus(struct pcmcia_device *pdev)
+{
+	struct ssb_bus *bus;
+
+	ssb_buses_lock();
+	list_for_each_entry(bus, &buses, list) {
+		if (bus->bustype == SSB_BUSTYPE_PCMCIA &&
+		    bus->host_pcmcia == pdev)
+			goto found;
+	}
+	bus = NULL;
+found:
+	ssb_buses_unlock();
+
+	return bus;
+}
+#endif /* CONFIG_SSB_PCMCIAHOST */
+
 int ssb_for_each_bus_call(unsigned long data,
 			  int (*func)(struct ssb_bus *bus, unsigned long data))
 {
@@ -398,7 +417,7 @@ void ssb_bus_unregister(struct ssb_bus *bus)
 	list_del(&bus->list);
 	ssb_buses_unlock();
 
-	/* ssb_pcmcia_exit(bus); */
+	ssb_pcmcia_exit(bus);
 	ssb_pci_exit(bus);
 	ssb_iounmap(bus);
 }
@@ -663,7 +682,7 @@ out:
 err_dequeue:
 	list_del(&bus->list);
 err_pcmcia_exit:
-/*	ssb_pcmcia_exit(bus); */
+	ssb_pcmcia_exit(bus);
 err_pci_exit:
 	ssb_pci_exit(bus);
 err_unmap:
