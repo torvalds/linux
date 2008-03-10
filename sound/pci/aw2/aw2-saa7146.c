@@ -35,9 +35,10 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 
-#include "aw2-tsl.h"
 #include "saa7146.h"
 #include "aw2-saa7146.h"
+
+#include "aw2-tsl.c"
 
 #define WRITEREG(value, addr) writel((value), chip->base_addr + (addr))
 #define READREG(addr) readl(chip->base_addr + (addr))
