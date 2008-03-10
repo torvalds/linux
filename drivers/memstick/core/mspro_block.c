@@ -303,6 +303,20 @@ static ssize_t mspro_block_attr_show_sysinfo(struct device *dev,
 						     dev_attr);
 	struct mspro_sys_info *x_sys = x_attr->data;
 	ssize_t rc = 0;
+	int date_tz = 0, date_tz_f = 0;
+
+	if (x_sys->assembly_date[0] > 0x80U) {
+		date_tz = (~x_sys->assembly_date[0]) + 1;
+		date_tz_f = date_tz & 3;
+		date_tz >>= 2;
+		date_tz = -date_tz;
+		date_tz_f *= 15;
+	} else if (x_sys->assembly_date[0] < 0x80U) {
+		date_tz = x_sys->assembly_date[0];
+		date_tz_f = date_tz & 3;
+		date_tz >>= 2;
+		date_tz_f *= 15;
+	}
 
 	rc += scnprintf(buffer + rc, PAGE_SIZE - rc, "class: %x\n",
 			x_sys->class);
@@ -315,8 +329,8 @@ static ssize_t mspro_block_attr_show_sysinfo(struct device *dev,
 	rc += scnprintf(buffer + rc, PAGE_SIZE - rc, "page size: %x\n",
 			be16_to_cpu(x_sys->page_size));
 	rc += scnprintf(buffer + rc, PAGE_SIZE - rc, "assembly date: "
-			"%d %04u-%02u-%02u %02u:%02u:%02u\n",
-			x_sys->assembly_date[0],
+			"GMT%+d:%d %04u-%02u-%02u %02u:%02u:%02u\n",
+			date_tz, date_tz_f,
 			be16_to_cpu(*(unsigned short *)
 				    &x_sys->assembly_date[1]),
 			x_sys->assembly_date[3], x_sys->assembly_date[4],
