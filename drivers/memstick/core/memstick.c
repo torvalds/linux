@@ -236,7 +236,7 @@ int memstick_next_req(struct memstick_host *host, struct memstick_request **mrq)
 		rc = host->card->next_request(host->card, mrq);
 
 	if (!rc)
-		host->retries = cmd_retries;
+		host->retries = cmd_retries > 1 ? cmd_retries - 1 : 1;
 	else
 		*mrq = NULL;
 
