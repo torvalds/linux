@@ -1128,7 +1128,7 @@ asmlinkage void math_state_restore(void)
 
 	if (!used_math())
 		init_fpu(me);
-	restore_fpu_checking(&me->thread.i387.fxsave);
+	restore_fpu_checking(&me->thread.xstate->fxsave);
 	task_thread_info(me)->status |= TS_USEDFPU;
 	me->fpu_counter++;
 }
@@ -1163,6 +1163,10 @@ void __init trap_init(void)
 	set_system_gate(IA32_SYSCALL_VECTOR, ia32_syscall);
 #endif
        
+	/*
+	 * initialize the per thread extended state:
+	 */
+        init_thread_xstate();
 	/*
 	 * Should be a barrier for any external CPU state.
 	 */

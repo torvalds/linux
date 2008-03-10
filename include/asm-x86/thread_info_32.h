@@ -102,8 +102,6 @@ static inline struct thread_info *current_thread_info(void)
 	__get_free_pages(GFP_KERNEL, get_order(THREAD_SIZE)))
 #endif
 
-#define free_thread_info(info)	free_pages((unsigned long)(info), get_order(THREAD_SIZE))
-
 #else /* !__ASSEMBLY__ */
 
 /* how to get the thread information struct from ASM */

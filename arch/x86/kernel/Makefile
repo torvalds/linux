@@ -29,6 +29,7 @@ obj-$(CONFIG_X86_64)	+= pci-nommu_64.o bugs_64.o
 obj-y			+= tsc_$(BITS).o io_delay.o rtc.o
 
 obj-$(CONFIG_X86_TRAMPOLINE)	+= trampoline.o
+obj-y				+= process.o
 obj-y				+= i387.o
 obj-y				+= ptrace.o
 obj-y				+= ds.o

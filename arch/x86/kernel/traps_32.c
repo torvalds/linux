@@ -1208,11 +1208,6 @@ void __init trap_init(void)
 #endif
 	set_trap_gate(19, &simd_coprocessor_error);
 
-	/*
-	 * Verify that the FXSAVE/FXRSTOR data will be 16-byte aligned.
-	 * Generate a build-time error if the alignment is wrong.
-	 */
-	BUILD_BUG_ON(offsetof(struct task_struct, thread.i387.fxsave) & 15);
 	if (cpu_has_fxsr) {
 		printk(KERN_INFO "Enabling fast FPU save and restore... ");
 		set_in_cr4(X86_CR4_OSFXSR);
@@ -1233,6 +1228,7 @@ void __init trap_init(void)
 
 	set_bit(SYSCALL_VECTOR, used_vectors);
 
+	init_thread_xstate();
 	/*
 	 * Should be a barrier for any external CPU state:
 	 */

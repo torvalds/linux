@@ -85,8 +85,6 @@ static inline struct thread_info *stack_thread_info(void)
 #define alloc_thread_info(tsk)						\
 	((struct thread_info *)__get_free_pages(THREAD_FLAGS, THREAD_ORDER))
 
-#define free_thread_info(ti) free_pages((unsigned long) (ti), THREAD_ORDER)
-
 #else /* !__ASSEMBLY__ */
 
 /* how to get the thread information struct from ASM */

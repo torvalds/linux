@@ -703,7 +703,7 @@ struct task_struct * __switch_to(struct task_struct *prev_p, struct task_struct 
 
 	/* we're going to use this soon, after a few expensive things */
 	if (next_p->fpu_counter > 5)
-		prefetch(&next->i387.fxsave);
+		prefetch(next->xstate);
 
 	/*
 	 * Reload esp0.
