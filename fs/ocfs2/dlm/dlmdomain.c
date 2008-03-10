@@ -1818,21 +1818,41 @@ static int __init dlm_init(void)
 	status = dlm_init_mle_cache();
 	if (status) {
 		mlog(ML_ERROR, "Could not create o2dlm_mle slabcache\n");
-		return -1;
+		goto error;
+	}
+
+	status = dlm_init_master_caches();
+	if (status) {
+		mlog(ML_ERROR, "Could not create o2dlm_lockres and "
+		     "o2dlm_lockname slabcaches\n");
+		goto error;
+	}
+
+	status = dlm_init_lock_cache();
+	if (status) {
+		mlog(ML_ERROR, "Count not create o2dlm_lock slabcache\n");
+		goto error;
 	}
 
 	status = dlm_register_net_handlers();
 	if (status) {
-		dlm_destroy_mle_cache();
-		return -1;
+		mlog(ML_ERROR, "Unable to register network handlers\n");
+		goto error;
 	}
 
 	return 0;
+error:
+	dlm_destroy_lock_cache();
+	dlm_destroy_master_caches();
+	dlm_destroy_mle_cache();
+	return -1;
 }
 
 static void __exit dlm_exit (void)
 {
 	dlm_unregister_net_handlers();
+	dlm_destroy_lock_cache();
+	dlm_destroy_master_caches();
 	dlm_destroy_mle_cache();
 }
 

@@ -963,9 +963,16 @@ static inline void __dlm_wait_on_lockres(struct dlm_lock_resource *res)
 					  DLM_LOCK_RES_MIGRATING));
 }
 
+/* create/destroy slab caches */
+int dlm_init_master_caches(void);
+void dlm_destroy_master_caches(void);
+
+int dlm_init_lock_cache(void);
+void dlm_destroy_lock_cache(void);
 
 int dlm_init_mle_cache(void);
 void dlm_destroy_mle_cache(void);
+
 void dlm_hb_event_notify_attached(struct dlm_ctxt *dlm, int idx, int node_up);
 int dlm_drop_lockres_ref(struct dlm_ctxt *dlm,
 			 struct dlm_lock_resource *res);

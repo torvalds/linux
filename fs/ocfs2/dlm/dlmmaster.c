@@ -216,9 +216,9 @@ EXPORT_SYMBOL_GPL(dlm_dump_all_mles);
 
 #endif  /*  0  */
 
-
+static struct kmem_cache *dlm_lockres_cache = NULL;
+static struct kmem_cache *dlm_lockname_cache = NULL;
 static struct kmem_cache *dlm_mle_cache = NULL;
-
 
 static void dlm_mle_release(struct kref *kref);
 static void dlm_init_mle(struct dlm_master_list_entry *mle,
@@ -560,6 +560,35 @@ static void dlm_mle_release(struct kref *kref)
  * LOCK RESOURCE FUNCTIONS
  */
 
+int dlm_init_master_caches(void)
+{
+	dlm_lockres_cache = kmem_cache_create("o2dlm_lockres",
+					      sizeof(struct dlm_lock_resource),
+					      0, SLAB_HWCACHE_ALIGN, NULL);
+	if (!dlm_lockres_cache)
+		goto bail;
+
+	dlm_lockname_cache = kmem_cache_create("o2dlm_lockname",
+					       DLM_LOCKID_NAME_MAX, 0,
+					       SLAB_HWCACHE_ALIGN, NULL);
+	if (!dlm_lockname_cache)
+		goto bail;
+
+	return 0;
+bail:
+	dlm_destroy_master_caches();
+	return -ENOMEM;
+}
+
+void dlm_destroy_master_caches(void)
+{
+	if (dlm_lockname_cache)
+		kmem_cache_destroy(dlm_lockname_cache);
+
+	if (dlm_lockres_cache)
+		kmem_cache_destroy(dlm_lockres_cache);
+}
+
 static void dlm_set_lockres_owner(struct dlm_ctxt *dlm,
 				  struct dlm_lock_resource *res,
 				  u8 owner)
@@ -642,9 +671,9 @@ static void dlm_lockres_release(struct kref *kref)
 	BUG_ON(!list_empty(&res->recovering));
 	BUG_ON(!list_empty(&res->purge));
 
-	kfree(res->lockname.name);
+	kmem_cache_free(dlm_lockname_cache, (void *)res->lockname.name);
 
-	kfree(res);
+	kmem_cache_free(dlm_lockres_cache, res);
 }
 
 void dlm_lockres_put(struct dlm_lock_resource *res)
@@ -700,20 +729,28 @@ struct dlm_lock_resource *dlm_new_lockres(struct dlm_ctxt *dlm,
 				   const char *name,
 				   unsigned int namelen)
 {
-	struct dlm_lock_resource *res;
+	struct dlm_lock_resource *res = NULL;
 
-	res = kmalloc(sizeof(struct dlm_lock_resource), GFP_NOFS);
+	res = (struct dlm_lock_resource *)
+				kmem_cache_zalloc(dlm_lockres_cache, GFP_NOFS);
 	if (!res)
-		return NULL;
+		goto error;
 
-	res->lockname.name = kmalloc(namelen, GFP_NOFS);
-	if (!res->lockname.name) {
-		kfree(res);
-		return NULL;
-	}
+	res->lockname.name = (char *)
+				kmem_cache_zalloc(dlm_lockname_cache, GFP_NOFS);
+	if (!res->lockname.name)
+		goto error;
 
 	dlm_init_lockres(dlm, res, name, namelen);
 	return res;
+
+error:
+	if (res && res->lockname.name)
+		kmem_cache_free(dlm_lockname_cache, (void *)res->lockname.name);
+
+	if (res)
+		kmem_cache_free(dlm_lockres_cache, res);
+	return NULL;
 }
 
 void __dlm_lockres_grab_inflight_ref(struct dlm_ctxt *dlm,
