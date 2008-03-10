@@ -44,8 +44,8 @@ menuconfig USB_GADGET
 if USB_GADGET
 
 config USB_GADGET_DEBUG
-	boolean "Debugging messages"
-	depends on USB_GADGET && DEBUG_KERNEL && EXPERIMENTAL
+	boolean "Debugging messages (DEVELOPMENT)"
+	depends on USB_GADGET && DEBUG_KERNEL
 	help
 	   Many controller and gadget drivers will print some debugging
 	   messages if you use this option to ask for those messages.
@@ -58,7 +58,7 @@ config USB_GADGET_DEBUG
 	   production build.
 
 config USB_GADGET_DEBUG_FILES
-	boolean "Debugging information files"
+	boolean "Debugging information files (DEVELOPMENT)"
 	depends on USB_GADGET && PROC_FS
 	help
 	   Some of the drivers in the "gadget" framework can expose
@@ -69,7 +69,7 @@ config USB_GADGET_DEBUG_FILES
 	   here.  If in doubt, or to conserve kernel memory, say "N".
 
 config USB_GADGET_DEBUG_FS
-	boolean "Debugging information files in debugfs"
+	boolean "Debugging information files in debugfs (DEVELOPMENT)"
 	depends on USB_GADGET && DEBUG_FS
 	help
 	   Some of the drivers in the "gadget" framework can expose
@@ -337,7 +337,7 @@ config USB_AT91
 
 config USB_GADGET_DUMMY_HCD
 	boolean "Dummy HCD (DEVELOPMENT)"
-	depends on (USB=y || (USB=m && USB_GADGET=m)) && EXPERIMENTAL
+	depends on USB=y || (USB=m && USB_GADGET=m)
 	select USB_GADGET_DUALSPEED
 	help
 	  This host controller driver emulates USB, looping all data transfer
@@ -404,7 +404,6 @@ choice
 
 config USB_ZERO
 	tristate "Gadget Zero (DEVELOPMENT)"
-	depends on EXPERIMENTAL
 	help
 	  Gadget Zero is a two-configuration device.  It either sinks and
 	  sources bulk data; or it loops back a configurable number of
@@ -468,8 +467,8 @@ config USB_ETH
 	  dynamically linked module called "g_ether".
 
 config USB_ETH_RNDIS
-	bool "RNDIS support (EXPERIMENTAL)"
-	depends on USB_ETH && EXPERIMENTAL
+	bool "RNDIS support"
+	depends on USB_ETH
 	default y
 	help
 	   Microsoft Windows XP bundles the "Remote NDIS" (RNDIS) protocol,
@@ -494,6 +493,9 @@ config USB_GADGETFS
 	  endpoint I/O and control requests that don't relate to enumeration.
 	  All endpoints, transfer speeds, and transfer types supported by
 	  the hardware are available, through read() and write() calls.
+
+	  Currently, this option is still labelled as EXPERIMENTAL because
+	  of existing race conditions in the underlying in-kernel AIO core.
 
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "gadgetfs".
