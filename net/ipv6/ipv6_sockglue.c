@@ -904,9 +904,7 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		dst = sk_dst_get(sk);
 		if (dst) {
 			if (val < 0)
-				val = dst_metric(dst, RTAX_HOPLIMIT);
-			if (val < 0)
-				val = ipv6_get_hoplimit(dst->dev);
+				val = ip6_dst_hoplimit(dst);
 			dst_release(dst);
 		}
 		if (val < 0)
