@@ -25,6 +25,8 @@
 #ifndef DLMDEBUG_H
 #define DLMDEBUG_H
 
+void dlm_print_one_mle(struct dlm_master_list_entry *mle);
+
 #ifdef CONFIG_DEBUG_FS
 
 struct dlm_debug_ctxt {

@@ -268,11 +268,6 @@ const char *dlm_errname(enum dlm_status err)
 }
 EXPORT_SYMBOL_GPL(dlm_errname);
 
-
-#ifdef CONFIG_DEBUG_FS
-
-static struct dentry *dlm_debugfs_root = NULL;
-
 /* NOTE: This function converts a lockname into a string. It uses knowledge
  * of the format of the lockname that should be outside the purview of the dlm.
  * We are adding only to make dlm debugging slightly easier.
@@ -299,6 +294,88 @@ static int stringify_lockname(const char *lockname, int locklen,
 	return out;
 }
 
+static int stringify_nodemap(unsigned long *nodemap, int maxnodes,
+			     char *buf, int len)
+{
+	int out = 0;
+	int i = -1;
+
+	while ((i = find_next_bit(nodemap, maxnodes, i + 1)) < maxnodes)
+		out += snprintf(buf + out, len - out, "%d ", i);
+
+	return out;
+}
+
+static int dump_mle(struct dlm_master_list_entry *mle, char *buf, int len)
+{
+	int out = 0;
+	unsigned int namelen;
+	const char *name;
+	char *mle_type;
+
+	if (mle->type != DLM_MLE_MASTER) {
+		namelen = mle->u.name.len;
+		name = mle->u.name.name;
+	} else {
+		namelen = mle->u.res->lockname.len;
+		name = mle->u.res->lockname.name;
+	}
+
+	if (mle->type == DLM_MLE_BLOCK)
+		mle_type = "BLK";
+	else if (mle->type == DLM_MLE_MASTER)
+		mle_type = "MAS";
+	else
+		mle_type = "MIG";
+
+	out += stringify_lockname(name, namelen, buf + out, len - out);
+	out += snprintf(buf + out, len - out,
+			"\t%3s\tmas=%3u\tnew=%3u\tevt=%1d\tuse=%1d\tref=%3d\n",
+			mle_type, mle->master, mle->new_master,
+			!list_empty(&mle->hb_events),
+			!!mle->inuse,
+			atomic_read(&mle->mle_refs.refcount));
+
+	out += snprintf(buf + out, len - out, "Maybe=");
+	out += stringify_nodemap(mle->maybe_map, O2NM_MAX_NODES,
+				 buf + out, len - out);
+	out += snprintf(buf + out, len - out, "\n");
+
+	out += snprintf(buf + out, len - out, "Vote=");
+	out += stringify_nodemap(mle->vote_map, O2NM_MAX_NODES,
+				 buf + out, len - out);
+	out += snprintf(buf + out, len - out, "\n");
+
+	out += snprintf(buf + out, len - out, "Response=");
+	out += stringify_nodemap(mle->response_map, O2NM_MAX_NODES,
+				 buf + out, len - out);
+	out += snprintf(buf + out, len - out, "\n");
+
+	out += snprintf(buf + out, len - out, "Node=");
+	out += stringify_nodemap(mle->node_map, O2NM_MAX_NODES,
+				 buf + out, len - out);
+	out += snprintf(buf + out, len - out, "\n");
+
+	out += snprintf(buf + out, len - out, "\n");
+
+	return out;
+}
+
+void dlm_print_one_mle(struct dlm_master_list_entry *mle)
+{
+	char *buf;
+
+	buf = (char *) get_zeroed_page(GFP_NOFS);
+	if (buf) {
+		dump_mle(mle, buf, PAGE_SIZE - 1);
+		free_page((unsigned long)buf);
+	}
+}
+
+#ifdef CONFIG_DEBUG_FS
+
+static struct dentry *dlm_debugfs_root = NULL;
+
 #define DLM_DEBUGFS_DIR				"o2dlm"
 #define DLM_DEBUGFS_DLM_STATE			"dlm_state"
 #define DLM_DEBUGFS_LOCKING_STATE		"locking_state"
@@ -324,18 +401,6 @@ void dlm_debug_put(struct dlm_debug_ctxt *dc)
 static void dlm_debug_get(struct dlm_debug_ctxt *dc)
 {
 	kref_get(&dc->debug_refcnt);
-}
-
-static int stringify_nodemap(unsigned long *nodemap, int maxnodes,
-			     char *buf, int len)
-{
-	int out = 0;
-	int i = -1;
-
-	while ((i = find_next_bit(nodemap, maxnodes, i + 1)) < maxnodes)
-		out += snprintf(buf + out, len - out, "%d ", i);
-
-	return out;
 }
 
 static struct debug_buffer *debug_buffer_allocate(void)
@@ -455,61 +520,6 @@ static struct file_operations debug_purgelist_fops = {
 /* end - purge list funcs */
 
 /* begin - debug mle funcs */
-static int dump_mle(struct dlm_master_list_entry *mle, char *buf, int len)
-{
-	int out = 0;
-	unsigned int namelen;
-	const char *name;
-	char *mle_type;
-
-	if (mle->type != DLM_MLE_MASTER) {
-		namelen = mle->u.name.len;
-		name = mle->u.name.name;
-	} else {
-		namelen = mle->u.res->lockname.len;
-		name = mle->u.res->lockname.name;
-	}
-
-	if (mle->type == DLM_MLE_BLOCK)
-		mle_type = "BLK";
-	else if (mle->type == DLM_MLE_MASTER)
-		mle_type = "MAS";
-	else
-		mle_type = "MIG";
-
-	out += stringify_lockname(name, namelen, buf + out, len - out);
-	out += snprintf(buf + out, len - out,
-			"\t%3s\tmas=%3u\tnew=%3u\tevt=%1d\tuse=%1d\tref=%3d\n",
-			mle_type, mle->master, mle->new_master,
-			!list_empty(&mle->hb_events),
-			!!mle->inuse,
-			atomic_read(&mle->mle_refs.refcount));
-
-	out += snprintf(buf + out, len - out, "Maybe=");
-	out += stringify_nodemap(mle->maybe_map, O2NM_MAX_NODES,
-				 buf + out, len - out);
-	out += snprintf(buf + out, len - out, "\n");
-
-	out += snprintf(buf + out, len - out, "Vote=");
-	out += stringify_nodemap(mle->vote_map, O2NM_MAX_NODES,
-				 buf + out, len - out);
-	out += snprintf(buf + out, len - out, "\n");
-
-	out += snprintf(buf + out, len - out, "Response=");
-	out += stringify_nodemap(mle->response_map, O2NM_MAX_NODES,
-				 buf + out, len - out);
-	out += snprintf(buf + out, len - out, "\n");
-
-	out += snprintf(buf + out, len - out, "Node=");
-	out += stringify_nodemap(mle->node_map, O2NM_MAX_NODES,
-				 buf + out, len - out);
-	out += snprintf(buf + out, len - out, "\n");
-
-	out += snprintf(buf + out, len - out, "\n");
-
-	return out;
-}
-
 static int debug_mle_print(struct dlm_ctxt *dlm, struct debug_buffer *db)
 {
 	struct dlm_master_list_entry *mle;
