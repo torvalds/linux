@@ -271,7 +271,7 @@ void memstick_init_req_sg(struct memstick_request *mrq, unsigned char tpc,
 		mrq->data_dir = READ;
 
 	mrq->sg = *sg;
-	mrq->io_type = MEMSTICK_IO_SG;
+	mrq->long_data = 1;
 
 	if (tpc == MS_TPC_SET_CMD || tpc == MS_TPC_EX_SET_CMD)
 		mrq->need_card_int = 1;
@@ -306,7 +306,7 @@ void memstick_init_req(struct memstick_request *mrq, unsigned char tpc,
 	if (mrq->data_dir == WRITE)
 		memcpy(mrq->data, buf, mrq->data_len);
 
-	mrq->io_type = MEMSTICK_IO_VAL;
+	mrq->long_data = 0;
 
 	if (tpc == MS_TPC_SET_CMD || tpc == MS_TPC_EX_SET_CMD)
 		mrq->need_card_int = 1;

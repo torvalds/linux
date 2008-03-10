@@ -209,7 +209,7 @@ static int tifm_ms_issue_cmd(struct tifm_ms *host)
 
 	host->cmd_flags = 0;
 
-	if (host->req->io_type == MEMSTICK_IO_SG) {
+	if (host->req->long_data) {
 		if (!host->no_dma) {
 			if (1 != tifm_map_sg(sock, &host->req->sg, 1,
 					     host->req->data_dir == READ
@@ -248,7 +248,7 @@ static int tifm_ms_issue_cmd(struct tifm_ms *host)
 		cmd_mask = readl(sock->addr + SOCK_MS_SYSTEM);
 		cmd_mask |= TIFM_MS_SYS_DATA | TIFM_MS_SYS_NOT_RDY;
 		writel(cmd_mask, sock->addr + SOCK_MS_SYSTEM);
-	} else if (host->req->io_type == MEMSTICK_IO_VAL) {
+	} else {
 		data = host->req->data;
 		data_len = host->req->data_len;
 
@@ -294,8 +294,7 @@ static int tifm_ms_issue_cmd(struct tifm_ms *host)
 		cmd_mask |= TIFM_MS_SYS_NOT_RDY;
 		dev_dbg(&sock->dev, "mask %x\n", cmd_mask);
 		writel(cmd_mask, sock->addr + SOCK_MS_SYSTEM);
-	} else
-		BUG();
+	}
 
 	mod_timer(&host->timer, jiffies + host->timeout_jiffies);
 	writel(TIFM_CTRL_LED | readl(sock->addr + SOCK_CONTROL),
@@ -319,13 +318,13 @@ static void tifm_ms_complete_cmd(struct tifm_ms *host)
 	int rc;
 
 	del_timer(&host->timer);
-	if (host->req->io_type == MEMSTICK_IO_SG) {
+	if (host->req->long_data) {
 		if (!host->no_dma)
 			tifm_unmap_sg(sock, &host->req->sg, 1,
 				      host->req->data_dir == READ
 				      ? PCI_DMA_FROMDEVICE
 				      : PCI_DMA_TODEVICE);
-	} else if (host->req->io_type == MEMSTICK_IO_VAL) {
+	} else {
 		writel(~TIFM_MS_SYS_DATA & readl(sock->addr + SOCK_MS_SYSTEM),
 		       sock->addr + SOCK_MS_SYSTEM);
 
@@ -365,7 +364,7 @@ static int tifm_ms_check_status(struct tifm_ms *host)
 	if (!host->req->error) {
 		if (!(host->cmd_flags & CMD_READY))
 			return 1;
-		if ((host->req->io_type == MEMSTICK_IO_SG)
+		if (host->req->long_data
 		    && !(host->cmd_flags & FIFO_READY))
 			return 1;
 		if (host->req->need_card_int
@@ -505,7 +504,7 @@ static void tifm_ms_set_param(struct memstick_host *msh,
 			writel((~TIFM_CTRL_FAST_CLK)
 			       & readl(sock->addr + SOCK_CONTROL),
 			       sock->addr + SOCK_CONTROL);
-		} else if (value == MEMSTICK_PARALLEL) {
+		} else if (value == MEMSTICK_PAR4) {
 			host->mode_mask = 0;
 			writel(TIFM_CTRL_FAST_CLK
 			       | readl(sock->addr + SOCK_CONTROL),
@@ -542,7 +541,7 @@ static int tifm_ms_initialize_host(struct tifm_ms *host)
 	writel(0x0200 | TIFM_MS_SYS_NOT_RDY, sock->addr + SOCK_MS_SYSTEM);
 	writel(0xffffffff, sock->addr + SOCK_MS_STATUS);
 	if (tifm_has_ms_pif(sock))
-		msh->caps |= MEMSTICK_CAP_PARALLEL;
+		msh->caps |= MEMSTICK_CAP_PAR4;
 
 	return 0;
 }
@@ -601,7 +600,7 @@ static void tifm_ms_remove(struct tifm_dev *sock)
 		writel(TIFM_FIFO_INT_SETALL,
 		       sock->addr + SOCK_DMA_FIFO_INT_ENABLE_CLEAR);
 		writel(TIFM_DMA_RESET, sock->addr + SOCK_DMA_CONTROL);
-		if ((host->req->io_type == MEMSTICK_IO_SG) && !host->no_dma)
+		if (host->req->long_data && !host->no_dma)
 			tifm_unmap_sg(sock, &host->req->sg, 1,
 				      host->req->data_dir == READ
 				      ? PCI_DMA_TODEVICE

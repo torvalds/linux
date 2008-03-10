@@ -629,7 +629,7 @@ static void mspro_block_process_request(struct memstick_dev *card,
 			param.system = msb->system;
 			param.data_count = cpu_to_be16(page_count);
 			param.data_address = cpu_to_be32((uint32_t)t_sec);
-			param.cmd_param = 0;
+			param.tpc_param = 0;
 
 			msb->data_dir = rq_data_dir(req);
 			msb->transfer_cmd = msb->data_dir == READ
@@ -761,7 +761,7 @@ static int mspro_block_switch_to_parallel(struct memstick_dev *card)
 		.system = 0,
 		.data_count = 0,
 		.data_address = 0,
-		.cmd_param = 0
+		.tpc_param = 0
 	};
 
 	card->next_request = h_mspro_block_req_init;
@@ -773,8 +773,8 @@ static int mspro_block_switch_to_parallel(struct memstick_dev *card)
 	if (card->current_mrq.error)
 		return card->current_mrq.error;
 
-	msb->system = 0;
-	host->set_param(host, MEMSTICK_INTERFACE, MEMSTICK_PARALLEL);
+	msb->system = MEMSTICK_SYS_PAR4;
+	host->set_param(host, MEMSTICK_INTERFACE, MEMSTICK_PAR4);
 
 	card->next_request = h_mspro_block_req_init;
 	msb->mrq_handler = h_mspro_block_default;
@@ -802,7 +802,7 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 		.system = msb->system,
 		.data_count = cpu_to_be16(1),
 		.data_address = 0,
-		.cmd_param = 0
+		.tpc_param = 0
 	};
 	struct mspro_attribute *attr = NULL;
 	struct mspro_sys_attr *s_attr = NULL;
@@ -922,7 +922,7 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 		param.system = msb->system;
 		param.data_count = cpu_to_be16((rc / msb->page_size) + 1);
 		param.data_address = cpu_to_be32(addr / msb->page_size);
-		param.cmd_param = 0;
+		param.tpc_param = 0;
 
 		sg_init_one(&msb->req_sg[0], buffer,
 			    be16_to_cpu(param.data_count) * msb->page_size);
@@ -964,7 +964,7 @@ static int mspro_block_init_card(struct memstick_dev *card)
 	struct memstick_host *host = card->host;
 	int rc = 0;
 
-	msb->system = 0x80;
+	msb->system = MEMSTICK_SYS_SERIAL;
 	card->reg_addr.r_offset = offsetof(struct mspro_register, status);
 	card->reg_addr.r_length = sizeof(struct ms_status_register);
 	card->reg_addr.w_offset = offsetof(struct mspro_register, param);
@@ -973,7 +973,7 @@ static int mspro_block_init_card(struct memstick_dev *card)
 	if (memstick_set_rw_addr(card))
 		return -EIO;
 
-	if (host->caps & MEMSTICK_CAP_PARALLEL) {
+	if (host->caps & MEMSTICK_CAP_PAR4) {
 		if (mspro_block_switch_to_parallel(card))
 			printk(KERN_WARNING "%s: could not switch to "
 			       "parallel interface\n", card->dev.bus_id);
