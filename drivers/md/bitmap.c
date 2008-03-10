@@ -1045,7 +1045,8 @@ void bitmap_daemon_work(struct bitmap *bitmap)
 	if (bitmap == NULL)
 		return;
 	if (time_before(jiffies, bitmap->daemon_lastrun + bitmap->daemon_sleep*HZ))
-		return;
+		goto done;
+
 	bitmap->daemon_lastrun = jiffies;
 	if (bitmap->allclean) {
 		bitmap->mddev->thread->timeout = MAX_SCHEDULE_TIMEOUT;
@@ -1142,6 +1143,7 @@ void bitmap_daemon_work(struct bitmap *bitmap)
 		}
 	}
 
+ done:
 	if (bitmap->allclean == 0)
 		bitmap->mddev->thread->timeout = bitmap->daemon_sleep * HZ;
 }
