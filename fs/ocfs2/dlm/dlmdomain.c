@@ -644,6 +644,7 @@ int dlm_shutting_down(struct dlm_ctxt *dlm)
 void dlm_unregister_domain(struct dlm_ctxt *dlm)
 {
 	int leave = 0;
+	struct dlm_lock_resource *res;
 
 	spin_lock(&dlm_domain_lock);
 	BUG_ON(dlm->dlm_state != DLM_CTXT_JOINED);
@@ -673,6 +674,15 @@ void dlm_unregister_domain(struct dlm_ctxt *dlm)
 			msleep(500);
 			mlog(0, "%s: more migration to do\n", dlm->name);
 		}
+
+		/* This list should be empty. If not, print remaining lockres */
+		if (!list_empty(&dlm->tracking_list)) {
+			mlog(ML_ERROR, "Following lockres' are still on the "
+			     "tracking list:\n");
+			list_for_each_entry(res, &dlm->tracking_list, tracking)
+				dlm_print_one_lock_resource(res);
+		}
+
 		dlm_mark_domain_leaving(dlm);
 		dlm_leave_domain(dlm);
 		dlm_complete_dlm_shutdown(dlm);
@@ -1526,6 +1536,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	INIT_LIST_HEAD(&dlm->reco.node_data);
 	INIT_LIST_HEAD(&dlm->purge_list);
 	INIT_LIST_HEAD(&dlm->dlm_domain_handlers);
+	INIT_LIST_HEAD(&dlm->tracking_list);
 	dlm->reco.state = 0;
 
 	INIT_LIST_HEAD(&dlm->pending_asts);

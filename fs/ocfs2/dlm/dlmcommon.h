@@ -101,6 +101,7 @@ struct dlm_ctxt
 	struct list_head purge_list;
 	struct list_head pending_asts;
 	struct list_head pending_basts;
+	struct list_head tracking_list;
 	unsigned int purge_count;
 	spinlock_t spinlock;
 	spinlock_t ast_lock;
@@ -269,6 +270,9 @@ struct dlm_lock_resource
 	 */
 	struct list_head dirty;
 	struct list_head recovering; // dlm_recovery_ctxt.resources list
+
+	/* Added during init and removed during release */
+	struct list_head tracking;	/* dlm->tracking_list */
 
 	/* unused lock resources have their last_used stamped and are
 	 * put on a list for the dlm thread to run. */
