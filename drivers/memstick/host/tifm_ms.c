@@ -20,7 +20,6 @@
 #include <asm/io.h>
 
 #define DRIVER_NAME "tifm_ms"
-#define DRIVER_VERSION "0.1"
 
 static int no_dma;
 module_param(no_dma, bool, 0644);
@@ -678,7 +677,6 @@ MODULE_AUTHOR("Alex Dubov");
 MODULE_DESCRIPTION("TI FlashMedia MemoryStick driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(tifm, tifm_ms_id_tbl);
-MODULE_VERSION(DRIVER_VERSION);
 
 module_init(tifm_ms_init);
 module_exit(tifm_ms_exit);

@@ -18,7 +18,6 @@
 #include <linux/delay.h>
 
 #define DRIVER_NAME "memstick"
-#define DRIVER_VERSION "0.2"
 
 static unsigned int cmd_retries = 3;
 module_param(cmd_retries, uint, 0644);
@@ -636,4 +635,3 @@ module_exit(memstick_exit);
 MODULE_AUTHOR("Alex Dubov");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Sony MemoryStick core driver");
-MODULE_VERSION(DRIVER_VERSION);
