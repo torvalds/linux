@@ -998,7 +998,6 @@ static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
 		error = PTR_ERR(new);
 		goto error;
 	}
-	module_put(fs_type->owner);
 	new->s_flags = flags;
 	strlcpy(new->s_id, sb->s_id, sizeof(new->s_id));
 	sb_set_blocksize(new, sb->s_blocksize);
