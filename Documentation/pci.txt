@@ -123,7 +123,7 @@ initialization with a pointer to a structure describing the driver
 
 
 The ID table is an array of struct pci_device_id entries ending with an
-all-zero entry; use of the macro DECLARE_PCI_DEVICE_TABLE is the preferred
+all-zero entry; use of the macro DEFINE_PCI_DEVICE_TABLE is the preferred
 method of declaring the table.  Each entry consists of:
 
 	vendor,device	Vendor and device ID to match (or PCI_ANY_ID)
@@ -193,7 +193,7 @@ Tips on when/where to use the above attributes:
 	o Do not mark the struct pci_driver.
 
 	o The ID table array should be marked __devinitconst; this is done
-	  automatically if the table is declared with DECLARE_PCI_DEVICE_TABLE().
+	  automatically if the table is declared with DEFINE_PCI_DEVICE_TABLE().
 
 	o The probe() and remove() functions should be marked __devinit
 	  and __devexit respectively.  All initialization functions
