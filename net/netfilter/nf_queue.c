@@ -51,7 +51,7 @@ int nf_unregister_queue_handler(int pf, const struct nf_queue_handler *qh)
 		return -EINVAL;
 
 	mutex_lock(&queue_handler_mutex);
-	if (queue_handler[pf] != qh) {
+	if (queue_handler[pf] && queue_handler[pf] != qh) {
 		mutex_unlock(&queue_handler_mutex);
 		return -EINVAL;
 	}
