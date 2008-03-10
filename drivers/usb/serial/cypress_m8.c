@@ -147,7 +147,6 @@ struct cypress_private {
 	enum packet_format pkt_fmt;	   /* format to use for packet send / receive */
 	int get_cfg_unsafe;		   /* If true, the CYPRESS_GET_CONFIG is unsafe */
 	int baud_rate;			   /* stores current baud rate in integer form */
-	int cbr_mask;			   /* stores current baud rate in masked form */
 	int isthrottled;		   /* if throttled, discard reads */
 	wait_queue_head_t delta_msr_wait;  /* used for TIOCMIWAIT */
 	char prev_status, diff_status;	   /* used for TIOCMIWAIT */
@@ -183,9 +182,6 @@ static void cypress_unthrottle		(struct usb_serial_port *port);
 static void cypress_set_dead		(struct usb_serial_port *port);
 static void cypress_read_int_callback	(struct urb *urb);
 static void cypress_write_int_callback	(struct urb *urb);
-/* baud helper functions */
-static int	 mask_to_rate		(unsigned mask);
-static unsigned  rate_to_mask		(int rate);
 /* write buffer functions */
 static struct cypress_buf *cypress_buf_alloc(unsigned int size);
 static void 		  cypress_buf_free(struct cypress_buf *cb);
@@ -291,9 +287,8 @@ static struct usb_serial_driver cypress_ca42v2_device = {
  *****************************************************************************/
 
 
-static int analyze_baud_rate(struct usb_serial_port *port, unsigned baud_mask)
+static int analyze_baud_rate(struct usb_serial_port *port, speed_t new_rate)
 {
-	int new_rate;
 	struct cypress_private *priv;
 	priv = usb_get_serial_port_data(port);
 
@@ -306,12 +301,6 @@ static int analyze_baud_rate(struct usb_serial_port *port, unsigned baud_mask)
 	 * The Cypress HID->COM device will work successfully up to
 	 * 115200bps (but the actual throughput is around 3kBps).
 	 */
-	new_rate = mask_to_rate(baud_mask);
-	if (new_rate < 0) {
-		dbg("%s - failed setting baud rate, untranslatable speed",
-		    __func__);
-		return -1;
-	}
 	if (port->serial->dev->speed == USB_SPEED_LOW) {
 		/*
 		 * Mike Isely <isely@pobox.com> 2-Feb-2008: The
@@ -345,7 +334,7 @@ static int analyze_baud_rate(struct usb_serial_port *port, unsigned baud_mask)
 
 
 /* This function can either set or retrieve the current serial line settings */
-static int cypress_serial_control (struct usb_serial_port *port, unsigned baud_mask, int data_bits, int stop_bits,
+static int cypress_serial_control (struct usb_serial_port *port, speed_t baud_rate, int data_bits, int stop_bits,
 				   int parity_enable, int parity_type, int reset, int cypress_request_type)
 {
 	int new_baudrate = 0, retval = 0, tries = 0;
@@ -363,9 +352,13 @@ static int cypress_serial_control (struct usb_serial_port *port, unsigned baud_m
 	switch(cypress_request_type) {
 		case CYPRESS_SET_CONFIG:
 			new_baudrate = priv->baud_rate;
-			if (baud_mask != priv->cbr_mask) {
+			/* 0 means 'Hang up' so doesn't change the true bit rate */
+			if (baud_rate == 0)
+				new_baudrate = priv->baud_rate;
+			/* Change of speed ? */
+			else if (baud_rate != priv->baud_rate) {
 				dbg("%s - baud rate is changing", __FUNCTION__);
-				retval = analyze_baud_rate(port, baud_mask);
+				retval = analyze_baud_rate(port, baud_rate);
 				if (retval >=  0) {
 					new_baudrate = retval;
 					dbg("%s - New baud rate set to %d",
@@ -410,9 +403,12 @@ static int cypress_serial_control (struct usb_serial_port *port, unsigned baud_m
 			} else {
 				spin_lock_irqsave(&priv->lock, flags);
 				priv->baud_rate = new_baudrate;
-				priv->cbr_mask = baud_mask;
 				priv->current_config = feature_buffer[4];
 				spin_unlock_irqrestore(&priv->lock, flags);
+				/* If we asked for a speed change encode it */
+				if (baud_rate)
+					tty_encode_baud_rate(port->tty,
+							new_baudrate, new_baudrate);
 			}
 		break;
 		case CYPRESS_GET_CONFIG:
@@ -450,9 +446,6 @@ static int cypress_serial_control (struct usb_serial_port *port, unsigned baud_m
 				/* store the config in one byte, and later use bit masks to check values */
 				priv->current_config = feature_buffer[4];
 				priv->baud_rate = *((u_int32_t *)feature_buffer);
-				
-				if ( (priv->cbr_mask = rate_to_mask(priv->baud_rate)) == 0x40)
-					dbg("%s - failed setting the baud mask (not defined)", __FUNCTION__);
 				spin_unlock_irqrestore(&priv->lock, flags);
 			}
 	}
@@ -482,51 +475,6 @@ static void cypress_set_dead(struct usb_serial_port *port)
 }
 
 
-/* given a baud mask, it will return integer baud on success */
-static int mask_to_rate (unsigned mask)
-{
-	int rate;
-
-	switch (mask) {
-		case B0: rate = 0; break;
-		case B300: rate = 300; break;
-		case B600: rate = 600; break;
-		case B1200: rate = 1200; break;
-		case B2400: rate = 2400; break;
-		case B4800: rate = 4800; break;
-		case B9600: rate = 9600; break;
-		case B19200: rate = 19200; break;
-		case B38400: rate = 38400; break;
-		case B57600: rate = 57600; break;
-		case B115200: rate = 115200; break;
-		default: rate = -1;
-	}
-
-	return rate;
-}
-
-
-static unsigned rate_to_mask (int rate)
-{
-	unsigned mask;
-
-	switch (rate) {
-		case 0: mask = B0; break;
-		case 300: mask = B300; break;
-		case 600: mask = B600; break;
-		case 1200: mask = B1200; break;
-		case 2400: mask = B2400; break;
-		case 4800: mask = B4800; break;
-		case 9600: mask = B9600; break;
-		case 19200: mask = B19200; break;
-		case 38400: mask = B38400; break;
-		case 57600: mask = B57600; break;
-		case 115200: mask = B115200; break;
-		default: mask = 0x40;
-	}
-
-	return mask;
-}
 /*****************************************************************************
  * Cypress serial driver functions
  *****************************************************************************/
@@ -558,7 +506,6 @@ static int generic_startup (struct usb_serial *serial)
 	priv->line_control = 0;
 	priv->termios_initialized = 0;
 	priv->rx_flags = 0;
-	priv->cbr_mask = B300;
 	/* Default packet format setting is determined by packet size.
 	   Anything with a size larger then 9 must have a separate
 	   count field since the 3 bit count field is otherwise too
@@ -1004,9 +951,9 @@ static int cypress_tiocmset (struct usb_serial_port *port, struct file *file,
 		priv->line_control &= ~CONTROL_RTS;
 	if (clear & TIOCM_DTR)
 		priv->line_control &= ~CONTROL_DTR;
+	priv->cmd_ctrl = 1;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	priv->cmd_ctrl = 1;
 	return cypress_write(port, NULL, 0);
 }
 
@@ -1018,20 +965,6 @@ static int cypress_ioctl (struct usb_serial_port *port, struct file * file, unsi
 	dbg("%s - port %d, cmd 0x%.4x", __FUNCTION__, port->number, cmd);
 
 	switch (cmd) {
-		case TIOCGSERIAL:
-			if (copy_to_user((void __user *)arg, port->tty->termios, sizeof(struct ktermios))) {
-				return -EFAULT;
-			}
-			return (0);
-			break;
-		case TIOCSSERIAL:
-			if (copy_from_user(port->tty->termios, (void __user *)arg, sizeof(struct ktermios))) {
-				return -EFAULT;
-			}
-			/* here we need to call cypress_set_termios to invoke the new settings */
-			cypress_set_termios(port, &priv->tmp_termios);
-			return (0);
-			break;
 		/* This code comes from drivers/char/serial.c and ftdi_sio.c */
 		case TIOCMIWAIT:
 			while (priv != NULL) {
@@ -1079,7 +1012,7 @@ static void cypress_set_termios (struct usb_serial_port *port,
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 	struct tty_struct *tty;
 	int data_bits, stop_bits, parity_type, parity_enable;
-	unsigned cflag, iflag, baud_mask;
+	unsigned cflag, iflag;
 	unsigned long flags;
 	__u8 oldlines;
 	int linechange = 0;
@@ -1087,10 +1020,6 @@ static void cypress_set_termios (struct usb_serial_port *port,
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	tty = port->tty;
-	if ((!tty) || (!tty->termios)) {
-		dbg("%s - no tty structures", __FUNCTION__);
-		return;
-	}
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (!priv->termios_initialized) {
@@ -1098,40 +1027,37 @@ static void cypress_set_termios (struct usb_serial_port *port,
 			*(tty->termios) = tty_std_termios;
 			tty->termios->c_cflag = B4800 | CS8 | CREAD | HUPCL |
 				CLOCAL;
+			tty->termios->c_ispeed = 4800;
+			tty->termios->c_ospeed = 4800;
 		} else if (priv->chiptype == CT_CYPHIDCOM) {
 			*(tty->termios) = tty_std_termios;
 			tty->termios->c_cflag = B9600 | CS8 | CREAD | HUPCL |
 				CLOCAL;
+			tty->termios->c_ispeed = 9600;
+			tty->termios->c_ospeed = 9600;
 		} else if (priv->chiptype == CT_CA42V2) {
 			*(tty->termios) = tty_std_termios;
 			tty->termios->c_cflag = B9600 | CS8 | CREAD | HUPCL |
 				CLOCAL;
+			tty->termios->c_ispeed = 9600;
+			tty->termios->c_ospeed = 9600;
 		}
 		priv->termios_initialized = 1;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	/* Unsupported features need clearing */
+	tty->termios->c_cflag &= ~(CMSPAR|CRTSCTS);
 
 	cflag = tty->termios->c_cflag;
 	iflag = tty->termios->c_iflag;
 
 	/* check if there are new settings */
 	if (old_termios) {
-		if ((cflag != old_termios->c_cflag) ||
-			(RELEVANT_IFLAG(iflag) !=
-			 RELEVANT_IFLAG(old_termios->c_iflag))) {
-			dbg("%s - attempting to set new termios settings",
-					__FUNCTION__);
-			/* should make a copy of this in case something goes
-			 * wrong in the function, we can restore it */
-			spin_lock_irqsave(&priv->lock, flags);
-			priv->tmp_termios = *(tty->termios);
-			spin_unlock_irqrestore(&priv->lock, flags);
-		} else {
-			dbg("%s - nothing to do, exiting", __FUNCTION__);
-			return;
-		}
-	} else
-		return;
+		spin_lock_irqsave(&priv->lock, flags);
+		priv->tmp_termios = *(tty->termios);
+		spin_unlock_irqrestore(&priv->lock, flags);
+	}
 
 	/* set number of data bits, parity, stop bits */
 	/* when parity is disabled the parity type bit is ignored */
@@ -1173,53 +1099,16 @@ static void cypress_set_termios (struct usb_serial_port *port,
 	if ((cflag & CBAUD) == B0) {
 		/* drop dtr and rts */
 		dbg("%s - dropping the lines, baud rate 0bps", __FUNCTION__);
-		baud_mask = B0;
 		priv->line_control &= ~(CONTROL_DTR | CONTROL_RTS);
-	} else {
-		baud_mask = (cflag & CBAUD);
-		switch(baud_mask) {
-			case B300:
-				dbg("%s - setting baud 300bps", __FUNCTION__);
-				break;
-			case B600:
-				dbg("%s - setting baud 600bps", __FUNCTION__);
-				break;
-			case B1200:
-				dbg("%s - setting baud 1200bps", __FUNCTION__);
-				break;
-			case B2400:
-				dbg("%s - setting baud 2400bps", __FUNCTION__);
-				break;
-			case B4800:
-				dbg("%s - setting baud 4800bps", __FUNCTION__);
-				break;
-			case B9600:
-				dbg("%s - setting baud 9600bps", __FUNCTION__);
-				break;
-			case B19200:
-				dbg("%s - setting baud 19200bps", __FUNCTION__);
-				break;
-			case B38400:
-				dbg("%s - setting baud 38400bps", __FUNCTION__);
-				break;
-			case B57600:
-				dbg("%s - setting baud 57600bps", __FUNCTION__);
-				break;
-			case B115200:
-				dbg("%s - setting baud 115200bps", __FUNCTION__);
-				break;
-			default:
-				dbg("%s - unknown masked baud rate", __FUNCTION__);
-		}
+	} else
 		priv->line_control = (CONTROL_DTR | CONTROL_RTS);
-	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	dbg("%s - sending %d stop_bits, %d parity_enable, %d parity_type, "
 			"%d data_bits (+5)", __FUNCTION__, stop_bits,
 			parity_enable, parity_type, data_bits);
 
-	cypress_serial_control(port, baud_mask, data_bits, stop_bits,
+	cypress_serial_control(port, tty_get_baud_rate(tty), data_bits, stop_bits,
 			parity_enable, parity_type, 0, CYPRESS_SET_CONFIG);
 
 	/* we perform a CYPRESS_GET_CONFIG so that the current settings are
