@@ -745,7 +745,7 @@ static unsigned int __devinit get_memsize(void)
 			switch (tmp) {
 
 			case 0x01:
-				k = 512;
+				k = 512 * Kb;
 				break;
 			case 0x02:
 				k = 6 * Mb;	/* XP */
