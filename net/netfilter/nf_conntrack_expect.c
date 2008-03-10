@@ -381,7 +381,7 @@ int nf_ct_expect_related(struct nf_conntrack_expect *expect)
 	if (nf_ct_expect_count >= nf_ct_expect_max) {
 		if (net_ratelimit())
 			printk(KERN_WARNING
-			       "nf_conntrack: expectation table full");
+			       "nf_conntrack: expectation table full\n");
 		ret = -EMFILE;
 		goto out;
 	}
