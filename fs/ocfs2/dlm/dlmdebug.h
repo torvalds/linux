@@ -30,11 +30,19 @@
 struct dlm_debug_ctxt {
 	struct kref debug_refcnt;
 	struct dentry *debug_state_dentry;
+	struct dentry *debug_lockres_dentry;
 };
 
 struct debug_buffer {
 	int len;
 	char *buf;
+};
+
+struct debug_lockres {
+	int dl_len;
+	char *dl_buf;
+	struct dlm_ctxt *dl_ctxt;
+	struct dlm_lock_resource *dl_res;
 };
 
 int dlm_debug_init(struct dlm_ctxt *dlm);
