@@ -496,7 +496,18 @@ static void tifm_ms_set_param(struct memstick_host *msh,
 
 	switch (param) {
 	case MEMSTICK_POWER:
-		/* this is set by card detection mechanism */
+		/* also affected by media detection mechanism */
+		if (value == MEMSTICK_POWER_ON) {
+			host->mode_mask = TIFM_MS_SYS_SRAC | TIFM_MS_SYS_REI;
+			writel(TIFM_MS_SYS_RESET, sock->addr + SOCK_MS_SYSTEM);
+			writel(TIFM_MS_SYS_FCLR | TIFM_MS_SYS_INTCLR,
+			       sock->addr + SOCK_MS_SYSTEM);
+			writel(0xffffffff, sock->addr + SOCK_MS_STATUS);
+		} else if (value == MEMSTICK_POWER_OFF) {
+			writel(TIFM_MS_SYS_FCLR | TIFM_MS_SYS_INTCLR,
+			       sock->addr + SOCK_MS_SYSTEM);
+			writel(0xffffffff, sock->addr + SOCK_MS_STATUS);
+		}
 		break;
 	case MEMSTICK_INTERFACE:
 		if (value == MEMSTICK_SERIAL) {
@@ -531,22 +542,6 @@ static void tifm_ms_abort(unsigned long data)
 	tifm_eject(host->dev);
 }
 
-static int tifm_ms_initialize_host(struct tifm_ms *host)
-{
-	struct tifm_dev *sock = host->dev;
-	struct memstick_host *msh = tifm_get_drvdata(sock);
-
-	host->mode_mask = TIFM_MS_SYS_SRAC | TIFM_MS_SYS_REI;
-	writel(TIFM_MS_SYS_RESET, sock->addr + SOCK_MS_SYSTEM);
-	writel(TIFM_MS_SYS_FCLR | TIFM_MS_SYS_INTCLR,
-	       sock->addr + SOCK_MS_SYSTEM);
-	writel(0xffffffff, sock->addr + SOCK_MS_STATUS);
-	if (tifm_has_ms_pif(sock))
-		msh->caps |= MEMSTICK_CAP_PAR4;
-
-	return 0;
-}
-
 static int tifm_ms_probe(struct tifm_dev *sock)
 {
 	struct memstick_host *msh;
@@ -575,10 +570,10 @@ static int tifm_ms_probe(struct tifm_dev *sock)
 	msh->set_param = tifm_ms_set_param;
 	sock->card_event = tifm_ms_card_event;
 	sock->data_event = tifm_ms_data_event;
-	rc = tifm_ms_initialize_host(host);
+	if (tifm_has_ms_pif(sock))
+		msh->caps |= MEMSTICK_CAP_PAR4;
 
-	if (!rc)
-		rc = memstick_add_host(msh);
+	rc = memstick_add_host(msh);
 	if (!rc)
 		return 0;
 
@@ -616,11 +611,6 @@ static void tifm_ms_remove(struct tifm_dev *sock)
 	spin_unlock_irqrestore(&sock->lock, flags);
 
 	memstick_remove_host(msh);
-
-	writel(TIFM_MS_SYS_FCLR | TIFM_MS_SYS_INTCLR,
-	       sock->addr + SOCK_MS_SYSTEM);
-	writel(0xffffffff, sock->addr + SOCK_MS_STATUS);
-
 	memstick_free_host(msh);
 }
 
