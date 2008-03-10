@@ -205,13 +205,9 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 			goto out_gunlock;
 		}
 
-		error = gfs2_quota_lock(dip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
+		error = gfs2_quota_lock_check(dip);
 		if (error)
 			goto out_alloc;
-
-		error = gfs2_quota_check(dip, dip->i_inode.i_uid, dip->i_inode.i_gid);
-		if (error)
-			goto out_gunlock_q;
 
 		al->al_requested = sdp->sd_max_dirres;
 
@@ -725,13 +721,9 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			goto out_gunlock;
 		}
 
-		error = gfs2_quota_lock(ndip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
+		error = gfs2_quota_lock_check(ndip);
 		if (error)
 			goto out_alloc;
-
-		error = gfs2_quota_check(ndip, ndip->i_inode.i_uid, ndip->i_inode.i_gid);
-		if (error)
-			goto out_gunlock_q;
 
 		al->al_requested = sdp->sd_max_dirres;
 

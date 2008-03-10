@@ -653,13 +653,9 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 			goto out_unlock;
 		}
 
-		error = gfs2_quota_lock(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
+		error = gfs2_quota_lock_check(ip);
 		if (error)
 			goto out_alloc_put;
-
-		error = gfs2_quota_check(ip, ip->i_inode.i_uid, ip->i_inode.i_gid);
-		if (error)
-			goto out_qunlock;
 
 		al->al_requested = data_blocks + ind_blocks;
 		error = gfs2_inplace_reserve(ip);

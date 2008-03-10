@@ -369,12 +369,9 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	if (al == NULL)
 		goto out_unlock;
 
-	ret = gfs2_quota_lock(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
+	ret = gfs2_quota_lock_check(ip);
 	if (ret)
 		goto out_alloc_put;
-	ret = gfs2_quota_check(ip, ip->i_inode.i_uid, ip->i_inode.i_gid);
-	if (ret)
-		goto out_quota_unlock;
 	al->al_requested = data_blocks + ind_blocks;
 	ret = gfs2_inplace_reserve(ip);
 	if (ret)

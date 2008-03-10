@@ -903,13 +903,9 @@ static int do_grow(struct gfs2_inode *ip, u64 size)
 	if (!al)
 		return -ENOMEM;
 
-	error = gfs2_quota_lock(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
+	error = gfs2_quota_lock_check(ip);
 	if (error)
 		goto out;
-
-	error = gfs2_quota_check(ip, ip->i_inode.i_uid, ip->i_inode.i_gid);
-	if (error)
-		goto out_gunlock_q;
 
 	al->al_requested = sdp->sd_max_height + RES_DATA;
 
