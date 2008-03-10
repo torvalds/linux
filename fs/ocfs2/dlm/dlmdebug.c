@@ -303,6 +303,7 @@ static int stringify_lockname(const char *lockname, int locklen,
 #define DLM_DEBUGFS_DLM_STATE			"dlm_state"
 #define DLM_DEBUGFS_LOCKING_STATE		"locking_state"
 #define DLM_DEBUGFS_MLE_STATE			"mle_state"
+#define DLM_DEBUGFS_PURGE_LIST			"purge_list"
 
 /* begin - utils funcs */
 static void dlm_debug_free(struct kref *kref)
@@ -395,6 +396,63 @@ static int debug_buffer_release(struct inode *inode, struct file *file)
 	return 0;
 }
 /* end - util funcs */
+
+/* begin - purge list funcs */
+static int debug_purgelist_print(struct dlm_ctxt *dlm, struct debug_buffer *db)
+{
+	struct dlm_lock_resource *res;
+	int out = 0;
+	unsigned long total = 0;
+
+	out += snprintf(db->buf + out, db->len - out,
+			"Dumping Purgelist for Domain: %s\n", dlm->name);
+
+	spin_lock(&dlm->spinlock);
+	list_for_each_entry(res, &dlm->purge_list, purge) {
+		++total;
+		if (db->len - out < 100)
+			continue;
+		spin_lock(&res->spinlock);
+		out += stringify_lockname(res->lockname.name,
+					  res->lockname.len,
+					  db->buf + out, db->len - out);
+		out += snprintf(db->buf + out, db->len - out, "\t%ld\n",
+				(jiffies - res->last_used)/HZ);
+		spin_unlock(&res->spinlock);
+	}
+	spin_unlock(&dlm->spinlock);
+
+	out += snprintf(db->buf + out, db->len - out,
+			"Total on list: %ld\n", total);
+
+	return out;
+}
+
+static int debug_purgelist_open(struct inode *inode, struct file *file)
+{
+	struct dlm_ctxt *dlm = inode->i_private;
+	struct debug_buffer *db;
+
+	db = debug_buffer_allocate();
+	if (!db)
+		goto bail;
+
+	db->len = debug_purgelist_print(dlm, db);
+
+	file->private_data = db;
+
+	return 0;
+bail:
+	return -ENOMEM;
+}
+
+static struct file_operations debug_purgelist_fops = {
+	.open =		debug_purgelist_open,
+	.release =	debug_buffer_release,
+	.read =		debug_buffer_read,
+	.llseek =	debug_buffer_llseek,
+};
+/* end - purge list funcs */
 
 /* begin - debug mle funcs */
 static int dump_mle(struct dlm_master_list_entry *mle, char *buf, int len)
@@ -906,6 +964,17 @@ int dlm_debug_init(struct dlm_ctxt *dlm)
 		goto bail;
 	}
 
+	/* for dumping lockres on the purge list */
+	dc->debug_purgelist_dentry =
+			debugfs_create_file(DLM_DEBUGFS_PURGE_LIST,
+					    S_IFREG|S_IRUSR,
+					    dlm->dlm_debugfs_subroot,
+					    dlm, &debug_purgelist_fops);
+	if (!dc->debug_purgelist_dentry) {
+		mlog_errno(-ENOMEM);
+		goto bail;
+	}
+
 	dlm_debug_get(dc);
 	return 0;
 
@@ -919,6 +988,8 @@ void dlm_debug_shutdown(struct dlm_ctxt *dlm)
 	struct dlm_debug_ctxt *dc = dlm->dlm_debug_ctxt;
 
 	if (dc) {
+		if (dc->debug_purgelist_dentry)
+			debugfs_remove(dc->debug_purgelist_dentry);
 		if (dc->debug_mle_dentry)
 			debugfs_remove(dc->debug_mle_dentry);
 		if (dc->debug_lockres_dentry)

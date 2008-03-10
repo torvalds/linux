@@ -32,6 +32,7 @@ struct dlm_debug_ctxt {
 	struct dentry *debug_state_dentry;
 	struct dentry *debug_lockres_dentry;
 	struct dentry *debug_mle_dentry;
+	struct dentry *debug_purgelist_dentry;
 };
 
 struct debug_buffer {
