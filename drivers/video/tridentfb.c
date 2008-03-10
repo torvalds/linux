@@ -566,44 +566,32 @@ static inline void write3CE(int reg, unsigned char val)
 
 static void enable_mmio(void)
 {
-	unsigned char tmp;
-
 	/* Goto New Mode */
 	outb(0x0B, 0x3C4);
 	inb(0x3C5);
 
 	/* Unprotect registers */
 	outb(NewMode1, 0x3C4);
-	tmp = inb(0x3C5);
 	outb(0x80, 0x3C5);
 
 	/* Enable MMIO */
 	outb(PCIReg, 0x3D4);
 	outb(inb(0x3D5) | 0x01, 0x3D5);
-
-	t_outb(NewMode1, 0x3C4);
-	t_outb(tmp, 0x3C5);
 }
 
 static void disable_mmio(void)
 {
-	unsigned char tmp;
-
 	/* Goto New Mode */
 	t_outb(0x0B, 0x3C4);
 	t_inb(0x3C5);
 
 	/* Unprotect registers */
 	t_outb(NewMode1, 0x3C4);
-	tmp = t_inb(0x3C5);
 	t_outb(0x80, 0x3C5);
 
 	/* Disable MMIO */
 	t_outb(PCIReg, 0x3D4);
 	t_outb(t_inb(0x3D5) & ~0x01, 0x3D5);
-
-	outb(NewMode1, 0x3C4);
-	outb(tmp, 0x3C5);
 }
 
 #define crtc_unlock()	write3X4(CRTVSyncEnd, read3X4(CRTVSyncEnd) & 0x7F)
