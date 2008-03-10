@@ -33,6 +33,7 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/debugfs.h>
 
 #include "cluster/heartbeat.h"
 #include "cluster/nodemanager.h"
@@ -40,8 +41,8 @@
 
 #include "dlmapi.h"
 #include "dlmcommon.h"
-
 #include "dlmdomain.h"
+#include "dlmdebug.h"
 
 #include "dlmver.h"
 
@@ -298,6 +299,8 @@ static int dlm_wait_on_domain_helper(const char *domain)
 
 static void dlm_free_ctxt_mem(struct dlm_ctxt *dlm)
 {
+	dlm_destroy_debugfs_subroot(dlm);
+
 	if (dlm->lockres_hash)
 		dlm_free_pagevec((void **)dlm->lockres_hash, DLM_HASH_PAGES);
 
@@ -1494,6 +1497,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 				u32 key)
 {
 	int i;
+	int ret;
 	struct dlm_ctxt *dlm = NULL;
 
 	dlm = kzalloc(sizeof(*dlm), GFP_KERNEL);
@@ -1525,6 +1529,15 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	strcpy(dlm->name, domain);
 	dlm->key = key;
 	dlm->node_num = o2nm_this_node();
+
+	ret = dlm_create_debugfs_subroot(dlm);
+	if (ret < 0) {
+		dlm_free_pagevec((void **)dlm->lockres_hash, DLM_HASH_PAGES);
+		kfree(dlm->name);
+		kfree(dlm);
+		dlm = NULL;
+		goto leave;
+	}
 
 	spin_lock_init(&dlm->spinlock);
 	spin_lock_init(&dlm->master_lock);
@@ -1851,8 +1864,13 @@ static int __init dlm_init(void)
 		goto error;
 	}
 
+	status = dlm_create_debugfs_root();
+	if (status)
+		goto error;
+
 	return 0;
 error:
+	dlm_unregister_net_handlers();
 	dlm_destroy_lock_cache();
 	dlm_destroy_master_caches();
 	dlm_destroy_mle_cache();
@@ -1861,6 +1879,7 @@ error:
 
 static void __exit dlm_exit (void)
 {
+	dlm_destroy_debugfs_root();
 	dlm_unregister_net_handlers();
 	dlm_destroy_lock_cache();
 	dlm_destroy_master_caches();

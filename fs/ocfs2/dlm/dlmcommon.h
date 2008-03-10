@@ -123,6 +123,8 @@ struct dlm_ctxt
 	atomic_t remote_resources;
 	atomic_t unknown_resources;
 
+	struct dentry *dlm_debugfs_subroot;
+
 	/* NOTE: Next three are protected by dlm_domain_lock */
 	struct kref dlm_refs;
 	enum dlm_ctxt_state dlm_state;

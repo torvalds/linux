@@ -30,6 +30,7 @@
 #include <linux/utsname.h>
 #include <linux/sysctl.h>
 #include <linux/spinlock.h>
+#include <linux/debugfs.h>
 
 #include "cluster/heartbeat.h"
 #include "cluster/nodemanager.h"
@@ -37,8 +38,8 @@
 
 #include "dlmapi.h"
 #include "dlmcommon.h"
-
 #include "dlmdomain.h"
+#include "dlmdebug.h"
 
 #define MLOG_MASK_PREFIX ML_DLM
 #include "cluster/masklog.h"
@@ -266,3 +267,50 @@ const char *dlm_errname(enum dlm_status err)
 	return dlm_errnames[err];
 }
 EXPORT_SYMBOL_GPL(dlm_errname);
+
+
+#ifdef CONFIG_DEBUG_FS
+
+static struct dentry *dlm_debugfs_root = NULL;
+
+#define DLM_DEBUGFS_DIR				"o2dlm"
+
+/* subroot - domain dir */
+int dlm_create_debugfs_subroot(struct dlm_ctxt *dlm)
+{
+	dlm->dlm_debugfs_subroot = debugfs_create_dir(dlm->name,
+						      dlm_debugfs_root);
+	if (!dlm->dlm_debugfs_subroot) {
+		mlog_errno(-ENOMEM);
+		goto bail;
+	}
+
+	return 0;
+bail:
+	dlm_destroy_debugfs_subroot(dlm);
+	return -ENOMEM;
+}
+
+void dlm_destroy_debugfs_subroot(struct dlm_ctxt *dlm)
+{
+	if (dlm->dlm_debugfs_subroot)
+		debugfs_remove(dlm->dlm_debugfs_subroot);
+}
+
+/* debugfs root */
+int dlm_create_debugfs_root(void)
+{
+	dlm_debugfs_root = debugfs_create_dir(DLM_DEBUGFS_DIR, NULL);
+	if (!dlm_debugfs_root) {
+		mlog_errno(-ENOMEM);
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+void dlm_destroy_debugfs_root(void)
+{
+	if (dlm_debugfs_root)
+		debugfs_remove(dlm_debugfs_root);
+}
+#endif	/* CONFIG_DEBUG_FS */
