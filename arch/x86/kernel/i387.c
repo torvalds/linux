@@ -8,7 +8,6 @@
 #include <linux/module.h>
 #include <linux/regset.h>
 #include <linux/sched.h>
-#include <linux/bootmem.h>
 
 #include <asm/sigcontext.h>
 #include <asm/processor.h>
@@ -63,7 +62,6 @@ void __init init_thread_xstate(void)
 	else
 		xstate_size = sizeof(struct i387_fsave_struct);
 #endif
-	init_task.thread.xstate = alloc_bootmem(xstate_size);
 }
 
 #ifdef CONFIG_X86_64
@@ -93,12 +91,22 @@ void __cpuinit fpu_init(void)
  * value at reset if we support XMM instructions and then
  * remeber the current task has used the FPU.
  */
-void init_fpu(struct task_struct *tsk)
+int init_fpu(struct task_struct *tsk)
 {
 	if (tsk_used_math(tsk)) {
 		if (tsk == current)
 			unlazy_fpu(tsk);
-		return;
+		return 0;
+	}
+
+	/*
+	 * Memory allocation at the first usage of the FPU and other state.
+	 */
+	if (!tsk->thread.xstate) {
+		tsk->thread.xstate = kmem_cache_alloc(task_xstate_cachep,
+						      GFP_KERNEL);
+		if (!tsk->thread.xstate)
+			return -ENOMEM;
 	}
 
 	if (cpu_has_fxsr) {
@@ -120,6 +128,7 @@ void init_fpu(struct task_struct *tsk)
 	 * Only the device not available exception or ptrace can call init_fpu.
 	 */
 	set_stopped_child_used_math(tsk);
+	return 0;
 }
 
 int fpregs_active(struct task_struct *target, const struct user_regset *regset)
@@ -136,10 +145,14 @@ int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 		unsigned int pos, unsigned int count,
 		void *kbuf, void __user *ubuf)
 {
+	int ret;
+
 	if (!cpu_has_fxsr)
 		return -ENODEV;
 
-	init_fpu(target);
+	ret = init_fpu(target);
+	if (ret)
+		return ret;
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 				   &target->thread.xstate->fxsave, 0, -1);
@@ -154,7 +167,10 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_has_fxsr)
 		return -ENODEV;
 
-	init_fpu(target);
+	ret = init_fpu(target);
+	if (ret)
+		return ret;
+
 	set_stopped_child_used_math(target);
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
@@ -312,11 +328,14 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 	       void *kbuf, void __user *ubuf)
 {
 	struct user_i387_ia32_struct env;
+	int ret;
 
 	if (!HAVE_HWFP)
 		return fpregs_soft_get(target, regset, pos, count, kbuf, ubuf);
 
-	init_fpu(target);
+	ret = init_fpu(target);
+	if (ret)
+		return ret;
 
 	if (!cpu_has_fxsr) {
 		return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
@@ -344,7 +363,10 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (!HAVE_HWFP)
 		return fpregs_soft_set(target, regset, pos, count, kbuf, ubuf);
 
-	init_fpu(target);
+	ret = init_fpu(target);
+	if (ret)
+		return ret;
+
 	set_stopped_child_used_math(target);
 
 	if (!cpu_has_fxsr) {
