@@ -538,8 +538,8 @@ static struct hda_verb dell_m6_core_init[] = {
 	/* set master volume and direct control */
 	{ 0x1f, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
 	/* setup audio connections */
-	{ 0x0a, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{ 0x0d, AC_VERB_SET_CONNECT_SEL, 0x01},
+	{ 0x0d, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{ 0x0a, AC_VERB_SET_CONNECT_SEL, 0x01},
 	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x02},
 	/* setup adcs to point to mixer */
 	{ 0x20, AC_VERB_SET_CONNECT_SEL, 0x0b},
