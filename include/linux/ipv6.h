@@ -274,8 +274,29 @@ struct ipv6_pinfo {
 
 	__be32			flow_label;
 	__u32			frag_size;
-	__s16			hop_limit;
-	__s16			mcast_hops;
+
+	/*
+	 * Packed in 16bits.
+	 * Omit one shift by by putting the signed field at MSB.
+	 */
+#if defined(__BIG_ENDIAN_BITFIELD)
+	__s16			hop_limit:9;
+	__u16			__unused_1:7;
+#else
+	__u16			__unused_1:7;
+	__s16			hop_limit:9;
+#endif
+
+#if defined(__BIG_ENDIAN_BITFIELD)
+	/* Packed in 16bits. */
+	__s16			mcast_hops:9;
+	__u16			__unused_2:6,
+				mc_loop:1;
+#else
+	__u16			mc_loop:1,
+				__unused_2:6;
+	__s16			mcast_hops:9;
+#endif
 	int			mcast_oif;
 
 	/* pktoption flags */
@@ -298,8 +319,7 @@ struct ipv6_pinfo {
 	} rxopt;
 
 	/* sockopt flags */
-	__u8			mc_loop:1,
-	                        recverr:1,
+	__u8			recverr:1,
 	                        sndflow:1,
 				pmtudisc:2,
 				ipv6only:1;
