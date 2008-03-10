@@ -314,8 +314,8 @@ sba_dump_sg( struct ioc *ioc, struct scatterlist *startsg, int nents)
 #define RESMAP_MASK(n)    (~0UL << (BITS_PER_LONG - (n)))
 #define RESMAP_IDX_MASK   (sizeof(unsigned long) - 1)
 
-unsigned long ptr_to_pide(struct ioc *ioc, unsigned long *res_ptr,
-			  unsigned int bitshiftcnt)
+static unsigned long ptr_to_pide(struct ioc *ioc, unsigned long *res_ptr,
+				 unsigned int bitshiftcnt)
 {
 	return (((unsigned long)res_ptr - (unsigned long)ioc->res_map) << 3)
 		+ bitshiftcnt;
