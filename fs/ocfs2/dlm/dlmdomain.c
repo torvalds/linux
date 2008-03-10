@@ -1816,8 +1816,10 @@ static int __init dlm_init(void)
 	dlm_print_version();
 
 	status = dlm_init_mle_cache();
-	if (status)
+	if (status) {
+		mlog(ML_ERROR, "Could not create o2dlm_mle slabcache\n");
 		return -1;
+	}
 
 	status = dlm_register_net_handlers();
 	if (status) {
