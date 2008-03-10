@@ -315,7 +315,6 @@ struct ipv6_pinfo {
 	struct sk_buff		*pktoptions;
 	struct {
 		struct ipv6_txoptions *opt;
-		struct rt6_info	*rt;
 		int hop_limit;
 		int tclass;
 	} cork;

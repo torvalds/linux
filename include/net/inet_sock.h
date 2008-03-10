@@ -136,7 +136,7 @@ struct inet_sock {
 		unsigned int		flags;
 		unsigned int		fragsize;
 		struct ip_options	*opt;
-		struct rtable		*rt;
+		struct dst_entry	*dst;
 		int			length; /* Total length of all frames */
 		__be32			addr;
 		struct flowi		fl;

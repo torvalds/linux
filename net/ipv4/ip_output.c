@@ -825,7 +825,7 @@ int ip_append_data(struct sock *sk,
 		inet->cork.fragsize = mtu = inet->pmtudisc == IP_PMTUDISC_PROBE ?
 					    rt->u.dst.dev->mtu :
 					    dst_mtu(rt->u.dst.path);
-		inet->cork.rt = rt;
+		inet->cork.dst = &rt->u.dst;
 		inet->cork.length = 0;
 		sk->sk_sndmsg_page = NULL;
 		sk->sk_sndmsg_off = 0;
@@ -834,7 +834,7 @@ int ip_append_data(struct sock *sk,
 			transhdrlen += exthdrlen;
 		}
 	} else {
-		rt = inet->cork.rt;
+		rt = (struct rtable *)inet->cork.dst;
 		if (inet->cork.flags & IPCORK_OPT)
 			opt = inet->cork.opt;
 
@@ -1083,7 +1083,7 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 	if (skb_queue_empty(&sk->sk_write_queue))
 		return -EINVAL;
 
-	rt = inet->cork.rt;
+	rt = (struct rtable *)inet->cork.dst;
 	if (inet->cork.flags & IPCORK_OPT)
 		opt = inet->cork.opt;
 
@@ -1208,10 +1208,8 @@ static void ip_cork_release(struct inet_sock *inet)
 	inet->cork.flags &= ~IPCORK_OPT;
 	kfree(inet->cork.opt);
 	inet->cork.opt = NULL;
-	if (inet->cork.rt) {
-		ip_rt_put(inet->cork.rt);
-		inet->cork.rt = NULL;
-	}
+	dst_release(inet->cork.dst);
+	inet->cork.dst = NULL;
 }
 
 /*
@@ -1224,7 +1222,7 @@ int ip_push_pending_frames(struct sock *sk)
 	struct sk_buff **tail_skb;
 	struct inet_sock *inet = inet_sk(sk);
 	struct ip_options *opt = NULL;
-	struct rtable *rt = inet->cork.rt;
+	struct rtable *rt = (struct rtable *)inet->cork.dst;
 	struct iphdr *iph;
 	__be16 df = 0;
 	__u8 ttl;

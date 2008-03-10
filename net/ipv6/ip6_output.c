@@ -1115,7 +1115,7 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 			/* need source address above miyazawa*/
 		}
 		dst_hold(&rt->u.dst);
-		np->cork.rt = rt;
+		inet->cork.dst = &rt->u.dst;
 		inet->cork.fl = *fl;
 		np->cork.hop_limit = hlimit;
 		np->cork.tclass = tclass;
@@ -1136,7 +1136,7 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 		length += exthdrlen;
 		transhdrlen += exthdrlen;
 	} else {
-		rt = np->cork.rt;
+		rt = (struct rt6_info *)inet->cork.dst;
 		fl = &inet->cork.fl;
 		if (inet->cork.flags & IPCORK_OPT)
 			opt = np->cork.opt;
@@ -1381,9 +1381,9 @@ static void ip6_cork_release(struct inet_sock *inet, struct ipv6_pinfo *np)
 	inet->cork.flags &= ~IPCORK_OPT;
 	kfree(np->cork.opt);
 	np->cork.opt = NULL;
-	if (np->cork.rt) {
-		dst_release(&np->cork.rt->u.dst);
-		np->cork.rt = NULL;
+	if (inet->cork.dst) {
+		dst_release(inet->cork.dst);
+		inet->cork.dst = NULL;
 		inet->cork.flags &= ~IPCORK_ALLFRAG;
 	}
 	memset(&inet->cork.fl, 0, sizeof(inet->cork.fl));
@@ -1398,7 +1398,7 @@ int ip6_push_pending_frames(struct sock *sk)
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6hdr *hdr;
 	struct ipv6_txoptions *opt = np->cork.opt;
-	struct rt6_info *rt = np->cork.rt;
+	struct rt6_info *rt = (struct rt6_info *)inet->cork.dst;
 	struct flowi *fl = &inet->cork.fl;
 	unsigned char proto = fl->proto;
 	int err = 0;
