@@ -16,6 +16,7 @@
 #include <linux/idr.h>
 #include <linux/hdreg.h>
 #include <linux/kthread.h>
+#include <linux/delay.h>
 #include <linux/memstick.h>
 
 #define DRIVER_NAME "mspro_block"
@@ -820,7 +821,7 @@ static int mspro_block_switch_to_parallel(struct memstick_dev *card)
 	struct memstick_host *host = card->host;
 	struct mspro_block_data *msb = memstick_get_drvdata(card);
 	struct mspro_param_register param = {
-		.system = 0,
+		.system = MEMSTICK_SYS_PAR4,
 		.data_count = 0,
 		.data_address = 0,
 		.tpc_param = 0
@@ -845,8 +846,24 @@ static int mspro_block_switch_to_parallel(struct memstick_dev *card)
 	wait_for_completion(&card->mrq_complete);
 
 	if (card->current_mrq.error) {
-		msb->system = 0x80;
+		msb->system = MEMSTICK_SYS_SERIAL;
+		host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_OFF);
+		msleep(1000);
+		host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_ON);
 		host->set_param(host, MEMSTICK_INTERFACE, MEMSTICK_SERIAL);
+
+		if (memstick_set_rw_addr(card))
+			return card->current_mrq.error;
+
+		param.system = msb->system;
+
+		card->next_request = h_mspro_block_req_init;
+		msb->mrq_handler = h_mspro_block_default;
+		memstick_init_req(&card->current_mrq, MS_TPC_WRITE_REG, &param,
+				  sizeof(param));
+		memstick_new_req(host);
+		wait_for_completion(&card->mrq_complete);
+
 		return -EFAULT;
 	}
 
