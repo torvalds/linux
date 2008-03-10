@@ -8,7 +8,7 @@ menuconfig MEMSTICK
 	  Sony MemoryStick is a proprietary storage/extension card protocol.
 
 	  If you want MemoryStick support, you should say Y here and also
-	  to the specific driver for your MMC interface.
+	  to the specific driver for your MemoryStick interface.
 
 if MEMSTICK
 
