@@ -1927,6 +1927,7 @@ static void alc880_uniwill_p53_unsol_event(struct hda_codec *codec,
  * HP = 0x14, speaker-out = 0x15, mic = 0x18
  */
 static struct hda_verb alc880_pin_f1734_init_verbs[] = {
+	{0x07, AC_VERB_SET_CONNECT_SEL, 0x01},
 	{0x10, AC_VERB_SET_CONNECT_SEL, 0x02},
 	{0x11, AC_VERB_SET_CONNECT_SEL, 0x00},
 	{0x12, AC_VERB_SET_CONNECT_SEL, 0x01},
@@ -1939,7 +1940,7 @@ static struct hda_verb alc880_pin_f1734_init_verbs[] = {
 
 	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
 	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50},
 	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
 	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
