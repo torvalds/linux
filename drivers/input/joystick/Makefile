@@ -27,5 +27,6 @@ obj-$(CONFIG_JOYSTICK_TURBOGRAFX)	+= turbografx.o
 obj-$(CONFIG_JOYSTICK_TWIDJOY)		+= twidjoy.o
 obj-$(CONFIG_JOYSTICK_WARRIOR)		+= warrior.o
 obj-$(CONFIG_JOYSTICK_XPAD)		+= xpad.o
+obj-$(CONFIG_JOYSTICK_ZHENHUA)		+= zhenhua.o
 
 obj-$(CONFIG_JOYSTICK_IFORCE)		+= iforce/
