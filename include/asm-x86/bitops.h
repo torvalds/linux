@@ -306,12 +306,6 @@ static int test_bit(int nr, const volatile unsigned long *addr);
 #undef BIT_ADDR
 #undef ADDR
 
-unsigned long find_next_bit(const unsigned long *addr,
-		unsigned long size, unsigned long offset);
-unsigned long find_next_zero_bit(const unsigned long *addr,
-		unsigned long size, unsigned long offset);
-
-
 #ifdef CONFIG_X86_32
 # include "bitops_32.h"
 #else

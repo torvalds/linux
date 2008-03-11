@@ -15,16 +15,6 @@ static inline long __scanbit(unsigned long val, unsigned long max)
 	return val;
 }
 
-#define find_next_bit(addr,size,off) \
-((__builtin_constant_p(size) && (size) <= BITS_PER_LONG ? 	  \
-  ((off) + (__scanbit((*(unsigned long *)addr) >> (off),(size)-(off)))) : \
-	find_next_bit(addr,size,off)))
-
-#define find_next_zero_bit(addr,size,off) \
-((__builtin_constant_p(size) && (size) <= BITS_PER_LONG ? 	  \
-  ((off)+(__scanbit(~(((*(unsigned long *)addr)) >> (off)),(size)-(off)))) : \
-	find_next_zero_bit(addr,size,off)))
-
 #define find_first_bit(addr, size)					\
 	((__builtin_constant_p((size)) && (size) <= BITS_PER_LONG	\
 	  ? (__scanbit(*(unsigned long *)(addr), (size)))		\

@@ -112,4 +112,81 @@ static inline unsigned fls_long(unsigned long l)
 	return fls64(l);
 }
 
+#ifdef __KERNEL__
+#ifdef CONFIG_GENERIC_FIND_NEXT_BIT
+extern unsigned long __find_next_bit(const unsigned long *addr,
+		unsigned long size, unsigned long offset);
+
+/**
+ * find_next_bit - find the next set bit in a memory region
+ * @addr: The address to base the search on
+ * @offset: The bitnumber to start searching at
+ * @size: The bitmap size in bits
+ */
+static __always_inline unsigned long
+find_next_bit(const unsigned long *addr, unsigned long size,
+		unsigned long offset)
+{
+	unsigned long value;
+
+	/* Avoid a function call if the bitmap size is a constant */
+	/* and not bigger than BITS_PER_LONG. */
+
+	/* insert a sentinel so that __ffs returns size if there */
+	/* are no set bits in the bitmap */
+	if (__builtin_constant_p(size) && (size < BITS_PER_LONG)) {
+		value = (*addr) & ((~0ul) << offset);
+		value |= (1ul << size);
+		return __ffs(value);
+	}
+
+	/* the result of __ffs(0) is undefined, so it needs to be */
+	/* handled separately */
+	if (__builtin_constant_p(size) && (size == BITS_PER_LONG)) {
+		value = (*addr) & ((~0ul) << offset);
+		return (value == 0) ? BITS_PER_LONG : __ffs(value);
+	}
+
+	/* size is not constant or too big */
+	return __find_next_bit(addr, size, offset);
+}
+
+extern unsigned long __find_next_zero_bit(const unsigned long *addr,
+		unsigned long size, unsigned long offset);
+
+/**
+ * find_next_zero_bit - find the next cleared bit in a memory region
+ * @addr: The address to base the search on
+ * @offset: The bitnumber to start searching at
+ * @size: The bitmap size in bits
+ */
+static __always_inline unsigned long
+find_next_zero_bit(const unsigned long *addr, unsigned long size,
+		unsigned long offset)
+{
+	unsigned long value;
+
+	/* Avoid a function call if the bitmap size is a constant */
+	/* and not bigger than BITS_PER_LONG. */
+
+	/* insert a sentinel so that __ffs returns size if there */
+	/* are no set bits in the bitmap */
+	if (__builtin_constant_p(size) && (size < BITS_PER_LONG)) {
+		value = (~(*addr)) & ((~0ul) << offset);
+		value |= (1ul << size);
+		return __ffs(value);
+	}
+
+	/* the result of __ffs(0) is undefined, so it needs to be */
+	/* handled separately */
+	if (__builtin_constant_p(size) && (size == BITS_PER_LONG)) {
+		value = (~(*addr)) & ((~0ul) << offset);
+		return (value == 0) ? BITS_PER_LONG : __ffs(value);
+	}
+
+	/* size is not constant or too big */
+	return __find_next_zero_bit(addr, size, offset);
+}
+#endif /* CONFIG_GENERIC_FIND_NEXT_BIT */
+#endif /* __KERNEL__ */
 #endif

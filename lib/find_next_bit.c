@@ -15,17 +15,12 @@
 #include <asm/byteorder.h>
 
 #define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
-#undef find_next_bit
-#undef find_next_zero_bit
 
-/**
- * find_next_bit - find the next set bit in a memory region
- * @addr: The address to base the search on
- * @offset: The bitnumber to start searching at
- * @size: The maximum size to search
+/*
+ * Find the next set bit in a memory region.
  */
-unsigned long find_next_bit(const unsigned long *addr, unsigned long size,
-		unsigned long offset)
+unsigned long __find_next_bit(const unsigned long *addr,
+		unsigned long size, unsigned long offset)
 {
 	const unsigned long *p = addr + BITOP_WORD(offset);
 	unsigned long result = offset & ~(BITS_PER_LONG-1);
@@ -62,15 +57,14 @@ found_first:
 found_middle:
 	return result + __ffs(tmp);
 }
-
-EXPORT_SYMBOL(find_next_bit);
+EXPORT_SYMBOL(__find_next_bit);
 
 /*
  * This implementation of find_{first,next}_zero_bit was stolen from
  * Linus' asm-alpha/bitops.h.
  */
-unsigned long find_next_zero_bit(const unsigned long *addr, unsigned long size,
-		unsigned long offset)
+unsigned long __find_next_zero_bit(const unsigned long *addr,
+		unsigned long size, unsigned long offset)
 {
 	const unsigned long *p = addr + BITOP_WORD(offset);
 	unsigned long result = offset & ~(BITS_PER_LONG-1);
@@ -107,8 +101,7 @@ found_first:
 found_middle:
 	return result + ffz(tmp);
 }
-
-EXPORT_SYMBOL(find_next_zero_bit);
+EXPORT_SYMBOL(__find_next_zero_bit);
 
 #ifdef __BIG_ENDIAN
 
