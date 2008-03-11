@@ -640,7 +640,6 @@ struct drm_head {
 	struct drm_device *dev;
 	struct proc_dir_entry *dev_root;  /**< proc directory entry */
 	dev_t device;			/**< Device number for mknod */
-	struct class_device *dev_class;
 };
 
 /**
