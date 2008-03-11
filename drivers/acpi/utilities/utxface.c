@@ -192,24 +192,6 @@ acpi_status acpi_enable_subsystem(u32 flags)
 		}
 	}
 
-	/*
-	 * Complete the GPE initialization for the GPE blocks defined in the FADT
-	 * (GPE block 0 and 1).
-	 *
-	 * Note1: This is where the _PRW methods are executed for the GPEs. These
-	 * methods can only be executed after the SCI and Global Lock handlers are
-	 * installed and initialized.
-	 *
-	 * Note2: Currently, there seems to be no need to run the _REG methods
-	 * before execution of the _PRW methods and enabling of the GPEs.
-	 */
-	if (!(flags & ACPI_NO_EVENT_INIT)) {
-		status = acpi_ev_install_fadt_gpes();
-		if (ACPI_FAILURE(status)) {
-			return (status);
-		}
-	}
-
 	return_ACPI_STATUS(status);
 }
 
@@ -277,6 +259,23 @@ acpi_status acpi_initialize_objects(u32 flags)
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
+	}
+
+	/*
+	 * Complete the GPE initialization for the GPE blocks defined in the FADT
+	 * (GPE block 0 and 1).
+	 *
+	 * Note1: This is where the _PRW methods are executed for the GPEs. These
+	 * methods can only be executed after the SCI and Global Lock handlers are
+	 * installed and initialized.
+	 *
+	 * Note2: Currently, there seems to be no need to run the _REG methods
+	 * before execution of the _PRW methods and enabling of the GPEs.
+	 */
+	if (!(flags & ACPI_NO_EVENT_INIT)) {
+		status = acpi_ev_install_fadt_gpes();
+		if (ACPI_FAILURE(status))
+			return (status);
 	}
 
 	/*
