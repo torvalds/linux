@@ -147,8 +147,15 @@ extern void pmu_wait_complete(struct adb_request *req);
 /* For use before switching interrupts off for a long time;
  * warning: not stackable
  */
+#if defined(CONFIG_ADB_PMU)
 extern void pmu_suspend(void);
 extern void pmu_resume(void);
+#else
+static inline void pmu_suspend(void)
+{}
+static inline void pmu_resume(void)
+{}
+#endif
 
 extern void pmu_enable_irled(int on);
 
