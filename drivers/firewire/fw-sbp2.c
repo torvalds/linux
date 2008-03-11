@@ -331,6 +331,11 @@ static const struct {
 		.model			= ~0,
 		.workarounds		= SBP2_WORKAROUND_128K_MAX_TRANS,
 	},
+	/* Datafab MD2-FW2 with Symbios/LSILogic SYM13FW500 bridge */ {
+		.firmware_revision	= 0x002600,
+		.model			= ~0,
+		.workarounds		= SBP2_WORKAROUND_128K_MAX_TRANS,
+	},
 
 	/*
 	 * There are iPods (2nd gen, 3rd gen) with model_id == 0, but
