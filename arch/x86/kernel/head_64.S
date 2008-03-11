@@ -267,6 +267,7 @@ ENTRY(secondary_startup_64)
 bad_address:
 	jmp bad_address
 
+	.section ".init.text","ax"
 #ifdef CONFIG_EARLY_PRINTK
 	.globl early_idt_handlers
 early_idt_handlers:
@@ -321,6 +322,7 @@ early_idt_msg:
 early_idt_ripmsg:
 	.asciz "RIP %s\n"
 #endif /* CONFIG_EARLY_PRINTK */
+	.previous
 
 .balign PAGE_SIZE
 
