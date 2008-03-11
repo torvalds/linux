@@ -7,7 +7,6 @@
 #include <mach_mpspec.h>
 
 extern int mp_bus_id_to_node[MAX_MP_BUSSES];
-extern int mp_bus_id_to_local[MAX_MP_BUSSES];
 
 extern unsigned int def_to_bigsmp;
 extern int apic_version[MAX_APICS];
