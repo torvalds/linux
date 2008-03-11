@@ -11,6 +11,7 @@
 #define XQUAD_PORTIO_BASE 0xfe400000
 #define XQUAD_PORTIO_QUAD 0x40000  /* 256k per quad. */
 
+int mp_bus_id_to_node[MAX_MP_BUSSES];
 #define BUS2QUAD(global) (mp_bus_id_to_node[global])
 
 int mp_bus_id_to_local[MAX_MP_BUSSES];

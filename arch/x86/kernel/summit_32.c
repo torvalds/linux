@@ -35,6 +35,8 @@ static struct rio_table_hdr *rio_table_hdr __initdata;
 static struct scal_detail   *scal_devs[MAX_NUMNODES] __initdata;
 static struct rio_detail    *rio_devs[MAX_NUMNODES*4] __initdata;
 
+static int mp_bus_id_to_node[MAX_MP_BUSSES] __initdata;
+
 static int __init setup_pci_node_map_for_wpeg(int wpeg_num, int last_bus)
 {
 	int twister = 0, node = 0;

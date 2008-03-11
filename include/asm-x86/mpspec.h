@@ -6,8 +6,6 @@
 #ifdef CONFIG_X86_32
 #include <mach_mpspec.h>
 
-extern int mp_bus_id_to_node[MAX_MP_BUSSES];
-
 extern unsigned int def_to_bigsmp;
 extern int apic_version[MAX_APICS];
 extern u8 apicid_2_node[];

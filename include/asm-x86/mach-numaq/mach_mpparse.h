@@ -2,6 +2,7 @@
 #define __ASM_MACH_MPPARSE_H
 
 extern int mp_bus_id_to_local[MAX_MP_BUSSES];
+extern int mp_bus_id_to_node[MAX_MP_BUSSES];
 
 static inline void mpc_oem_bus_info(struct mpc_config_bus *m, char *name, 
 				struct mpc_config_translation *translation)
