@@ -4263,7 +4263,7 @@ static void iwl4965_rx_reply_compressed_ba(struct iwl4965_priv *priv,
 			   "%d, scd_ssn = %d\n",
 			   ba_resp->tid,
 			   ba_resp->seq_ctl,
-			   (unsigned long long)ba_resp->bitmap,
+			   (unsigned long long)le64_to_cpu(ba_resp->bitmap),
 			   ba_resp->scd_flow,
 			   ba_resp->scd_ssn);
 	IWL_DEBUG_TX_REPLY("DAT start_idx = %d, bitmap = 0x%llx \n",
