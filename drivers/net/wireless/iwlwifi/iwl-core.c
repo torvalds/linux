@@ -31,6 +31,7 @@
 #include <linux/version.h>
 
 #include "iwl-4965-debug.h"
+#include "iwl-eeprom.h"
 #include "iwl-core.h"
 
 MODULE_DESCRIPTION("iwl core");

@@ -40,6 +40,7 @@
 extern struct pci_device_id iwl4965_hw_card_ids[];
 
 #define DRV_NAME        "iwl4965"
+#include "iwl-eeprom.h"
 #include "iwl-4965-hw.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
@@ -640,7 +641,6 @@ extern u8 iwl4965_add_station_flags(struct iwl4965_priv *priv, const u8 *addr,
 extern int iwl4965_is_network_packet(struct iwl4965_priv *priv,
 				 struct ieee80211_hdr *header);
 extern int iwl4965_power_init_handle(struct iwl4965_priv *priv);
-extern int iwl4965_eeprom_init(struct iwl4965_priv *priv);
 extern void iwl4965_handle_data_packet_monitor(struct iwl4965_priv *priv,
 					   struct iwl4965_rx_mem_buffer *rxb,
 					   void *data, short len,
@@ -746,8 +746,6 @@ struct iwl4965_priv;
 /*
  * Forward declare iwl-4965.c functions for iwl-base.c
  */
-extern int iwl4965_eeprom_acquire_semaphore(struct iwl4965_priv *priv);
-
 extern int iwl4965_tx_queue_update_wr_ptr(struct iwl4965_priv *priv,
 					  struct iwl4965_tx_queue *txq,
 					  u16 byte_cnt);

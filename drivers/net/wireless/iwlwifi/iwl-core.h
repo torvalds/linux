@@ -75,10 +75,20 @@
 #define IWL_SKU_A       0x2
 #define IWL_SKU_N       0x8
 
+struct iwl_lib_ops {
+	/* eeprom operations (as defined in iwl-eeprom.h) */
+	struct iwl_eeprom_ops eeprom_ops;
+};
+
+struct iwl_ops {
+	const struct iwl_lib_ops *lib;
+};
+
 struct iwl_cfg {
 	const char *name;
 	const char *fw_name;
 	unsigned int sku;
+	const struct iwl_ops *ops;
 };
 
 #endif /* __iwl_core_h__ */

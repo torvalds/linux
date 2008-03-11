@@ -45,6 +45,7 @@
 
 #include <asm/div64.h>
 
+#include "iwl-eeprom.h"
 #include "iwl-core.h"
 #include "iwl-4965.h"
 #include "iwl-helpers.h"
@@ -1557,85 +1558,6 @@ static int iwl4965_send_beacon_cmd(struct iwl4965_priv *priv)
 
 	iwl4965_free_frame(priv, frame);
 
-	return rc;
-}
-
-/******************************************************************************
- *
- * EEPROM related functions
- *
- ******************************************************************************/
-
-static void get_eeprom_mac(struct iwl4965_priv *priv, u8 *mac)
-{
-	memcpy(mac, priv->eeprom.mac_address, 6);
-}
-
-static inline void iwl4965_eeprom_release_semaphore(struct iwl4965_priv *priv)
-{
-	iwl4965_clear_bit(priv, CSR_HW_IF_CONFIG_REG,
-		CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
-}
-
-/**
- * iwl4965_eeprom_init - read EEPROM contents
- *
- * Load the EEPROM contents from adapter into priv->eeprom
- *
- * NOTE:  This routine uses the non-debug IO access functions.
- */
-int iwl4965_eeprom_init(struct iwl4965_priv *priv)
-{
-	u16 *e = (u16 *)&priv->eeprom;
-	u32 gp = iwl4965_read32(priv, CSR_EEPROM_GP);
-	u32 r;
-	int sz = sizeof(priv->eeprom);
-	int rc;
-	int i;
-	u16 addr;
-
-	/* The EEPROM structure has several padding buffers within it
-	 * and when adding new EEPROM maps is subject to programmer errors
-	 * which may be very difficult to identify without explicitly
-	 * checking the resulting size of the eeprom map. */
-	BUILD_BUG_ON(sizeof(priv->eeprom) != IWL_EEPROM_IMAGE_SIZE);
-
-	if ((gp & CSR_EEPROM_GP_VALID_MSK) == CSR_EEPROM_GP_BAD_SIGNATURE) {
-		IWL_ERROR("EEPROM not found, EEPROM_GP=0x%08x", gp);
-		return -ENOENT;
-	}
-
-	/* Make sure driver (instead of uCode) is allowed to read EEPROM */
-	rc = iwl4965_eeprom_acquire_semaphore(priv);
-	if (rc < 0) {
-		IWL_ERROR("Failed to acquire EEPROM semaphore.\n");
-		return -ENOENT;
-	}
-
-	/* eeprom is an array of 16bit values */
-	for (addr = 0; addr < sz; addr += sizeof(u16)) {
-		_iwl4965_write32(priv, CSR_EEPROM_REG, addr << 1);
-		_iwl4965_clear_bit(priv, CSR_EEPROM_REG, CSR_EEPROM_REG_BIT_CMD);
-
-		for (i = 0; i < IWL_EEPROM_ACCESS_TIMEOUT;
-					i += IWL_EEPROM_ACCESS_DELAY) {
-			r = _iwl4965_read_direct32(priv, CSR_EEPROM_REG);
-			if (r & CSR_EEPROM_REG_READ_VALID_MSK)
-				break;
-			udelay(IWL_EEPROM_ACCESS_DELAY);
-		}
-
-		if (!(r & CSR_EEPROM_REG_READ_VALID_MSK)) {
-			IWL_ERROR("Time out reading EEPROM[%d]", addr);
-			rc = -ETIMEDOUT;
-			goto done;
-		}
-		e[addr / 2] = le16_to_cpu((__force __le16)(r >> 16));
-	}
-	rc = 0;
-
-done:
-	iwl4965_eeprom_release_semaphore(priv);
 	return rc;
 }
 
@@ -8765,13 +8687,13 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		goto out_remove_sysfs;
         }
 	/* Read the EEPROM */
-	err = iwl4965_eeprom_init(priv);
+	err = iwl_eeprom_init(priv);
 	if (err) {
 		IWL_ERROR("Unable to init EEPROM\n");
 		goto out_remove_sysfs;
 	}
 	/* MAC Address location in EEPROM same for 3945/4965 */
-	get_eeprom_mac(priv, priv->mac_addr);
+	iwl_eeprom_get_mac(priv, priv->mac_addr);
 	IWL_DEBUG_INFO("MAC address: %s\n", print_mac(mac, priv->mac_addr));
 	SET_IEEE80211_PERM_ADDR(priv->hw, priv->mac_addr);
 

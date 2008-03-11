@@ -38,6 +38,7 @@
 #include <linux/etherdevice.h>
 #include <asm/unaligned.h>
 
+#include "iwl-eeprom.h"
 #include "iwl-core.h"
 #include "iwl-4965.h"
 #include "iwl-helpers.h"
@@ -4824,10 +4825,23 @@ void iwl4965_hw_cancel_deferred_work(struct iwl4965_priv *priv)
 	cancel_delayed_work(&priv->init_alive_start);
 }
 
+static struct iwl_lib_ops iwl4965_lib = {
+	.eeprom_ops = {
+		.verify_signature  = iwlcore_eeprom_verify_signature,
+		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
+		.release_semaphore = iwlcore_eeprom_release_semaphore,
+	},
+};
+
+static struct iwl_ops iwl4965_ops = {
+	.lib = &iwl4965_lib,
+};
+
 static struct iwl_cfg iwl4965_agn_cfg = {
 	.name = "4965AGN",
 	.fw_name = "iwlwifi-4965" IWL4965_UCODE_API ".ucode",
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
+	.ops = &iwl4965_ops,
 };
 
 struct pci_device_id iwl4965_hw_card_ids[] = {
@@ -4835,36 +4849,5 @@ struct pci_device_id iwl4965_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x4230, PCI_ANY_ID, iwl4965_agn_cfg)},
 	{0}
 };
-
-/*
- * The device's EEPROM semaphore prevents conflicts between driver and uCode
- * when accessing the EEPROM; each access is a series of pulses to/from the
- * EEPROM chip, not a single event, so even reads could conflict if they
- * weren't arbitrated by the semaphore.
- */
-int iwl4965_eeprom_acquire_semaphore(struct iwl4965_priv *priv)
-{
-	u16 count;
-	int rc;
-
-	for (count = 0; count < EEPROM_SEM_RETRY_LIMIT; count++) {
-		/* Request semaphore */
-		iwl4965_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-			CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
-
-		/* See if we got it */
-		rc = iwl4965_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
-					CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
-					CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
-					EEPROM_SEM_TIMEOUT);
-		if (rc >= 0) {
-			IWL_DEBUG_IO("Acquired semaphore after %d tries.\n",
-				count+1);
-			return rc;
-		}
-	}
-
-	return rc;
-}
 
 MODULE_DEVICE_TABLE(pci, iwl4965_hw_card_ids);
