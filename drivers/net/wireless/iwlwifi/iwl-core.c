@@ -1,8 +1,5 @@
 /******************************************************************************
  *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2008 Intel Corporation. All rights reserved.

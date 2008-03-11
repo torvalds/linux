@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2007 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2008 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -93,7 +93,7 @@ int iwl3945_param_queues_num = IWL_MAX_NUM_QUEUES; /* def: 8 Tx queues */
 #endif
 
 #define IWLWIFI_VERSION "1.2.26k" VD VS
-#define DRV_COPYRIGHT	"Copyright(c) 2003-2007 Intel Corporation"
+#define DRV_COPYRIGHT	"Copyright(c) 2003-2008 Intel Corporation"
 #define DRV_VERSION     IWLWIFI_VERSION
 
 
