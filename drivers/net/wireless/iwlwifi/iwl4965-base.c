@@ -5450,8 +5450,9 @@ static void iwl4965_init_hw_rates(struct iwl4965_priv *priv,
 			/*
 			 * If CCK != 1M then set short preamble rate flag.
 			 */
-			rates[i].flags |= (iwl4965_rates[i].plcp == 10) ?
-				0 : IEEE80211_RATE_SHORT_PREAMBLE;
+			rates[i].flags |=
+				(iwl4965_rates[i].plcp == IWL_RATE_1M_PLCP) ?
+					0 : IEEE80211_RATE_SHORT_PREAMBLE;
 		}
 	}
 }
