@@ -963,6 +963,7 @@ static int __init ebda_rsrc_controller (void)
 
 			bus_info_ptr1 = ibmphp_find_same_bus_num (hpc_ptr->slots[index].slot_bus_num);
 			if (!bus_info_ptr1) {
+				kfree(tmp_slot);
 				rc = -ENODEV;
 				goto error;
 			}
