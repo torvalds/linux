@@ -468,7 +468,7 @@ struct qe_immap {
 	u8			res18[0xC0000];	/* 0x140000 - 0x200000 */
 } __attribute__ ((packed));
 
-extern struct qe_immap *qe_immr;
+extern struct qe_immap __iomem *qe_immr;
 extern phys_addr_t get_qe_base(void);
 
 static inline unsigned long immrbar_virt_to_phys(void *address)

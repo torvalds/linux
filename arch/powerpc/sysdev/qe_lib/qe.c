@@ -55,7 +55,7 @@ struct qe_snum {
 /* We allocate this here because it is used almost exclusively for
  * the communication processor devices.
  */
-struct qe_immap *qe_immr = NULL;
+struct qe_immap __iomem *qe_immr;
 EXPORT_SYMBOL(qe_immr);
 
 static struct qe_snum snums[QE_NUM_OF_SNUM];	/* Dynamically allocated SNUMs */
@@ -414,12 +414,6 @@ void qe_muram_dump(void)
 	rh_dump(&qe_muram_info);
 }
 EXPORT_SYMBOL(qe_muram_dump);
-
-void *qe_muram_addr(unsigned long offset)
-{
-	return (void *)&qe_immr->muram[offset];
-}
-EXPORT_SYMBOL(qe_muram_addr);
 
 /* The maximum number of RISCs we support */
 #define MAX_QE_RISC     2

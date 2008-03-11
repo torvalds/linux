@@ -92,7 +92,16 @@ unsigned long qe_muram_alloc(int size, int align);
 int qe_muram_free(unsigned long offset);
 unsigned long qe_muram_alloc_fixed(unsigned long offset, int size);
 void qe_muram_dump(void);
-void *qe_muram_addr(unsigned long offset);
+
+static inline void __iomem *qe_muram_addr(unsigned long offset)
+{
+	return (void __iomem *)&qe_immr->muram[offset];
+}
+
+static inline unsigned long qe_muram_offset(void __iomem *addr)
+{
+	return addr - (void __iomem *)qe_immr->muram;
+}
 
 /* Structure that defines QE firmware binary files.
  *
