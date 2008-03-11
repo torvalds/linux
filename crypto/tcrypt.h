@@ -72,11 +72,6 @@ struct aead_testvec {
 	unsigned short rlen;
 };
 
-struct cipher_speed {
-	unsigned char klen;
-	unsigned int blen;
-};
-
 struct hash_speed {
 	unsigned int blen;	/* buffer length */
 	unsigned int plen;	/* per-update length */
@@ -8032,123 +8027,13 @@ static struct hash_testvec crc32c_tv_template[] = {
 /*
  * Cipher speed tests
  */
-static struct cipher_speed speed_template_8[] = {
-	{ .klen = 8, .blen = 16, },
-	{ .klen = 8, .blen = 64, },
-	{ .klen = 8, .blen = 256, },
-	{ .klen = 8, .blen = 1024, },
-	{ .klen = 8, .blen = 8192, },
-
-	/* End marker */
-	{  .klen = 0, .blen = 0, }
-};
-
-static struct cipher_speed speed_template_24[] = {
-	{ .klen = 24, .blen = 16, },
-	{ .klen = 24, .blen = 64, },
-	{ .klen = 24, .blen = 256, },
-	{ .klen = 24, .blen = 1024, },
-	{ .klen = 24, .blen = 8192, },
-
-	/* End marker */
-	{  .klen = 0, .blen = 0, }
-};
-
-static struct cipher_speed speed_template_8_32[] = {
-	/* Don't support blowfish keys > 256 bit in this test */
-	{ .klen = 8, .blen = 16, },
-	{ .klen = 8, .blen = 64, },
-	{ .klen = 8, .blen = 256, },
-	{ .klen = 8, .blen = 1024, },
-	{ .klen = 8, .blen = 8192, },
-	{ .klen = 32, .blen = 16, },
-	{ .klen = 32, .blen = 64, },
-	{ .klen = 32, .blen = 256, },
-	{ .klen = 32, .blen = 1024, },
-	{ .klen = 32, .blen = 8192, },
-
-	/* End marker */
-	{  .klen = 0, .blen = 0, }
-};
-
-static struct cipher_speed speed_template_16_32[] = {
-      { .klen = 16, .blen = 16, },
-      { .klen = 16, .blen = 64, },
-      { .klen = 16, .blen = 256, },
-      { .klen = 16, .blen = 1024, },
-      { .klen = 16, .blen = 8192, },
-      { .klen = 32, .blen = 16, },
-      { .klen = 32, .blen = 64, },
-      { .klen = 32, .blen = 256, },
-      { .klen = 32, .blen = 1024, },
-      { .klen = 32, .blen = 8192, },
-
-      /* End marker */
-      {  .klen = 0, .blen = 0, }
-};
-
-static struct cipher_speed speed_template_16_24_32[] = {
-	{ .klen = 16, .blen = 16, },
-	{ .klen = 16, .blen = 64, },
-	{ .klen = 16, .blen = 256, },
-	{ .klen = 16, .blen = 1024, },
-	{ .klen = 16, .blen = 8192, },
-	{ .klen = 24, .blen = 16, },
-	{ .klen = 24, .blen = 64, },
-	{ .klen = 24, .blen = 256, },
-	{ .klen = 24, .blen = 1024, },
-	{ .klen = 24, .blen = 8192, },
-	{ .klen = 32, .blen = 16, },
-	{ .klen = 32, .blen = 64, },
-	{ .klen = 32, .blen = 256, },
-	{ .klen = 32, .blen = 1024, },
-	{ .klen = 32, .blen = 8192, },
-
-	/* End marker */
-	{  .klen = 0, .blen = 0, }
-};
-
-static struct cipher_speed speed_template_32_40_48[] = {
-	{ .klen = 32, .blen = 16, },
-	{ .klen = 32, .blen = 64, },
-	{ .klen = 32, .blen = 256, },
-	{ .klen = 32, .blen = 1024, },
-	{ .klen = 32, .blen = 8192, },
-	{ .klen = 40, .blen = 16, },
-	{ .klen = 40, .blen = 64, },
-	{ .klen = 40, .blen = 256, },
-	{ .klen = 40, .blen = 1024, },
-	{ .klen = 40, .blen = 8192, },
-	{ .klen = 48, .blen = 16, },
-	{ .klen = 48, .blen = 64, },
-	{ .klen = 48, .blen = 256, },
-	{ .klen = 48, .blen = 1024, },
-	{ .klen = 48, .blen = 8192, },
-
-	/* End marker */
-	{  .klen = 0, .blen = 0, }
-};
-
-static struct cipher_speed speed_template_32_48_64[] = {
-	{ .klen = 32, .blen = 16, },
-	{ .klen = 32, .blen = 64, },
-	{ .klen = 32, .blen = 256, },
-	{ .klen = 32, .blen = 1024, },
-	{ .klen = 32, .blen = 8192, },
-	{ .klen = 48, .blen = 16, },
-	{ .klen = 48, .blen = 64, },
-	{ .klen = 48, .blen = 256, },
-	{ .klen = 48, .blen = 1024, },
-	{ .klen = 48, .blen = 8192, },
-	{ .klen = 64, .blen = 16, },
-	{ .klen = 64, .blen = 64, },
-	{ .klen = 64, .blen = 256, },
-	{ .klen = 64, .blen = 1024, },
-	{ .klen = 64, .blen = 8192, },
-
-	/* End marker */
-	{  .klen = 0, .blen = 0, }
-};
+static u8 speed_template_8[] = {8, 0};
+static u8 speed_template_24[] = {24, 0};
+static u8 speed_template_8_32[] = {8, 32, 0};
+static u8 speed_template_16_32[] = {16, 32, 0};
+static u8 speed_template_16_24_32[] = {16, 24, 32, 0};
+static u8 speed_template_32_40_48[] = {32, 40, 48, 0};
+static u8 speed_template_32_48_64[] = {32, 48, 64, 0};
 
 /*
  * Digest speed tests

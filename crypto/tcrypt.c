@@ -721,15 +721,18 @@ out:
 	return ret;
 }
 
+static u32 block_sizes[] = { 16, 64, 256, 1024, 8192, 0 };
+
 static void test_cipher_speed(char *algo, int enc, unsigned int sec,
 			      struct cipher_testvec *template,
-			      unsigned int tcount, struct cipher_speed *speed)
+			      unsigned int tcount, u8 *keysize)
 {
 	unsigned int ret, i, j, iv_len;
 	unsigned char *key, *p, iv[128];
 	struct crypto_blkcipher *tfm;
 	struct blkcipher_desc desc;
 	const char *e;
+	u32 *b_size;
 
 	if (enc == ENCRYPT)
 	        e = "encryption";
@@ -748,52 +751,60 @@ static void test_cipher_speed(char *algo, int enc, unsigned int sec,
 	desc.tfm = tfm;
 	desc.flags = 0;
 
-	for (i = 0; speed[i].klen != 0; i++) {
-		if ((speed[i].blen + speed[i].klen) > TVMEMSIZE) {
-			printk("template (%u) too big for tvmem (%u)\n",
-			       speed[i].blen + speed[i].klen, TVMEMSIZE);
-			goto out;
-		}
+	i = 0;
+	do {
 
-		printk("test %u (%d bit key, %d byte blocks): ", i,
-		       speed[i].klen * 8, speed[i].blen);
+		b_size = block_sizes;
+		do {
 
-		memset(tvmem, 0xff, speed[i].klen + speed[i].blen);
+			if ((*keysize + *b_size) > TVMEMSIZE) {
+				printk("template (%u) too big for tvmem (%u)\n",
+						*keysize + *b_size, TVMEMSIZE);
+				goto out;
+			}
 
-		/* set key, plain text and IV */
-		key = (unsigned char *)tvmem;
-		for (j = 0; j < tcount; j++) {
-			if (template[j].klen == speed[i].klen) {
-				key = template[j].key;
+			printk("test %u (%d bit key, %d byte blocks): ", i,
+					*keysize * 8, *b_size);
+
+			memset(tvmem, 0xff, *keysize + *b_size);
+
+			/* set key, plain text and IV */
+			key = (unsigned char *)tvmem;
+			for (j = 0; j < tcount; j++) {
+				if (template[j].klen == *keysize) {
+					key = template[j].key;
+					break;
+				}
+			}
+			p = (unsigned char *)tvmem + *keysize;
+
+			ret = crypto_blkcipher_setkey(tfm, key, *keysize);
+			if (ret) {
+				printk("setkey() failed flags=%x\n",
+						crypto_blkcipher_get_flags(tfm));
+				goto out;
+			}
+
+			iv_len = crypto_blkcipher_ivsize(tfm);
+			if (iv_len) {
+				memset(&iv, 0xff, iv_len);
+				crypto_blkcipher_set_iv(tfm, iv, iv_len);
+			}
+
+			if (sec)
+				ret = test_cipher_jiffies(&desc, enc, p, *b_size, sec);
+			else
+				ret = test_cipher_cycles(&desc, enc, p, *b_size);
+
+			if (ret) {
+				printk("%s() failed flags=%x\n", e, desc.flags);
 				break;
 			}
-		}
-		p = (unsigned char *)tvmem + speed[i].klen;
-
-		ret = crypto_blkcipher_setkey(tfm, key, speed[i].klen);
-		if (ret) {
-			printk("setkey() failed flags=%x\n",
-			       crypto_blkcipher_get_flags(tfm));
-			goto out;
-		}
-
-		iv_len = crypto_blkcipher_ivsize(tfm);
-		if (iv_len) {
-			memset(&iv, 0xff, iv_len);
-			crypto_blkcipher_set_iv(tfm, iv, iv_len);
-		}
-
-		if (sec)
-			ret = test_cipher_jiffies(&desc, enc, p, speed[i].blen,
-						  sec);
-		else
-			ret = test_cipher_cycles(&desc, enc, p, speed[i].blen);
-
-		if (ret) {
-			printk("%s() failed flags=%x\n", e, desc.flags);
-			break;
-		}
-	}
+			b_size++;
+			i++;
+		} while (*b_size);
+		keysize++;
+	} while (*keysize);
 
 out:
 	crypto_free_blkcipher(tfm);
