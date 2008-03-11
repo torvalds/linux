@@ -980,7 +980,7 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl3945_priv *priv,
 	priv->stations[sta_id].current_rate.rate_n_flags = rate;
 
 	if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) &&
-	    (sta_id != IWL3945_BROADCAST_ID) &&
+	    (sta_id != priv->hw_setting.bcast_sta_id) &&
 		(sta_id != IWL_MULTICAST_ID))
 		priv->stations[IWL_STA_ID].current_rate.rate_n_flags = rate;
 
@@ -2595,7 +2595,7 @@ unsigned int iwl3945_hw_get_beacon_cmd(struct iwl3945_priv *priv,
 	tx_beacon_cmd = (struct iwl3945_tx_beacon_cmd *)&frame->u;
 	memset(tx_beacon_cmd, 0, sizeof(*tx_beacon_cmd));
 
-	tx_beacon_cmd->tx.sta_id = IWL3945_BROADCAST_ID;
+	tx_beacon_cmd->tx.sta_id = priv->hw_setting.bcast_sta_id;
 	tx_beacon_cmd->tx.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
 	frame_size = iwl3945_fill_beacon_frame(priv,
