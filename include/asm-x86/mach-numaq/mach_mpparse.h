@@ -12,6 +12,8 @@ static inline void mpc_oem_bus_info(struct mpc_config_bus *m, char *name,
 	printk("Bus #%d is %s (node %d)\n", m->mpc_busid, name, quad);
 }
 
+extern int quad_local_to_mp_bus_id[NR_CPUS/4][4];
+
 static inline void mpc_oem_pci_bus(struct mpc_config_bus *m, 
 				struct mpc_config_translation *translation)
 {
