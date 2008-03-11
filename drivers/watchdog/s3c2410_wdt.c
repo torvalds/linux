@@ -144,7 +144,7 @@ static int s3c2410wdt_start(void)
 	}
 
 	DBG("%s: wdt_count=0x%08x, wtcon=%08lx\n",
-	    __FUNCTION__, wdt_count, wtcon);
+	    __func__, wdt_count, wtcon);
 
 	writel(wdt_count, wdt_base + S3C2410_WTDAT);
 	writel(wdt_count, wdt_base + S3C2410_WTCNT);
@@ -167,7 +167,7 @@ static int s3c2410wdt_set_heartbeat(int timeout)
 	count = timeout * freq;
 
 	DBG("%s: count=%d, timeout=%d, freq=%d\n",
-	    __FUNCTION__, count, timeout, freq);
+	    __func__, count, timeout, freq);
 
 	/* if the count is bigger than the watchdog register,
 	   then work out what we need to do (and if) we can
@@ -189,7 +189,7 @@ static int s3c2410wdt_set_heartbeat(int timeout)
 	tmr_margin = timeout;
 
 	DBG("%s: timeout=%d, divisor=%d, count=%d (%08x)\n",
-	    __FUNCTION__, timeout, divisor, count, count/divisor);
+	    __func__, timeout, divisor, count, count/divisor);
 
 	count /= divisor;
 	wdt_count = count;
@@ -355,7 +355,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	int ret;
 	int size;
 
-	DBG("%s: probe=%p\n", __FUNCTION__, pdev);
+	DBG("%s: probe=%p\n", __func__, pdev);
 
 	dev = &pdev->dev;
 	wdt_dev = &pdev->dev;
