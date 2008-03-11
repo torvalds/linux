@@ -494,6 +494,7 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 	struct fw_ohci *ohci = ctx->ohci;
 	struct fw_packet p;
 	u32 status, length, tcode;
+	int evt;
 
 	p.header[0] = cond_le32_to_cpu(buffer[0]);
 	p.header[1] = cond_le32_to_cpu(buffer[1]);
@@ -536,13 +537,14 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 	/* FIXME: What to do about evt_* errors? */
 	length = (p.header_length + p.payload_length + 3) / 4;
 	status = cond_le32_to_cpu(buffer[length]);
+	evt    = (status >> 16) & 0x1f;
 
-	p.ack        = ((status >> 16) & 0x1f) - 16;
+	p.ack        = evt - 16;
 	p.speed      = (status >> 21) & 0x7;
 	p.timestamp  = status & 0xffff;
 	p.generation = ohci->request_generation;
 
-	log_ar_at_event('R', p.speed, p.header, status >> 16 & 0x1f);
+	log_ar_at_event('R', p.speed, p.header, evt);
 
 	/*
 	 * The OHCI bus reset handler synthesizes a phy packet with
@@ -554,7 +556,7 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 	 * request.
 	 */
 
-	if (p.ack + 16 == 0x09)
+	if (evt == OHCI1394_evt_bus_reset)
 		ohci->request_generation = (p.header[2] >> 16) & 0xff;
 	else if (ctx == &ohci->ar_request_ctx)
 		fw_core_handle_request(&ohci->card, &p);
