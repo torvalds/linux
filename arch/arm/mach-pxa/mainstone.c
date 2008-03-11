@@ -24,6 +24,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/backlight.h>
+#include <linux/input.h>
+#include <linux/gpio_keys.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -500,11 +502,35 @@ static struct pxaficp_platform_data mainstone_ficp_platform_data = {
 	.transceiver_mode = mainstone_irda_transceiver_mode,
 };
 
+static struct gpio_keys_button gpio_keys_button[] = {
+	[0] = {
+		.desc	= "wakeup",
+		.code	= KEY_SUSPEND,
+		.type	= EV_KEY,
+		.gpio	= 1,
+		.wakeup	= 1,
+	},
+};
+
+static struct gpio_keys_platform_data mainstone_gpio_keys = {
+	.buttons	= gpio_keys_button,
+	.nbuttons	= 1,
+};
+
+static struct platform_device mst_gpio_keys_device = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &mainstone_gpio_keys,
+	},
+};
+
 static struct platform_device *platform_devices[] __initdata = {
 	&smc91x_device,
 	&mst_audio_device,
 	&mst_flash_device[0],
 	&mst_flash_device[1],
+	&mst_gpio_keys_device,
 };
 
 static int mainstone_ohci_init(struct device *dev)
