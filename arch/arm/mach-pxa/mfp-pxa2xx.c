@@ -28,15 +28,17 @@
 
 #define PWER_WE35	(1 << 24)
 
-static struct {
+struct gpio_desc {
 	unsigned	valid		: 1;
 	unsigned	can_wakeup	: 1;
 	unsigned	keypad_gpio	: 1;
 	unsigned int	mask; /* bit mask in PWER or PKWR */
 	unsigned long	config;
-} gpio_desc[MFP_PIN_GPIO127 + 1];
+};
 
-static inline int __mfp_config_gpio(unsigned gpio, unsigned long c)
+static struct gpio_desc gpio_desc[MFP_PIN_GPIO127 + 1];
+
+static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 {
 	unsigned long gafr, mask = GPIO_bit(gpio);
 	int fn;
@@ -70,26 +72,19 @@ static inline int __mfp_config_gpio(unsigned gpio, unsigned long c)
 		return -EINVAL;
 	}
 
-	/* wakeup enabling */
-	if ((c & MFP_LPM_WAKEUP_ENABLE) == 0)
-		return 0;
-
-	if (!gpio_desc[gpio].can_wakeup || c & MFP_DIR_OUT) {
+	/* give early warning if MFP_LPM_CAN_WAKEUP is set on the
+	 * configurations of those pins not able to wakeup
+	 */
+	if ((c & MFP_LPM_CAN_WAKEUP) && !gpio_desc[gpio].can_wakeup) {
 		pr_warning("%s: GPIO%d unable to wakeup\n",
 				__func__, gpio);
 		return -EINVAL;
 	}
 
-	if (gpio_desc[gpio].keypad_gpio)
-		PKWR |= gpio_desc[gpio].mask;
-	else {
-		PWER |= gpio_desc[gpio].mask;
-
-		if (c & MFP_LPM_EDGE_RISE)
-			PRER |= gpio_desc[gpio].mask;
-
-		if (c & MFP_LPM_EDGE_FALL)
-			PFER |= gpio_desc[gpio].mask;
+	if ((c & MFP_LPM_CAN_WAKEUP) && (c & MFP_DIR_OUT)) {
+		pr_warning("%s: output GPIO%d unable to wakeup\n",
+				__func__, gpio);
+		return -EINVAL;
 	}
 
 	return 0;
@@ -120,6 +115,45 @@ void pxa2xx_mfp_config(unsigned long *mfp_cfgs, int num)
 	}
 }
 
+int gpio_set_wake(unsigned int gpio, unsigned int on)
+{
+	struct gpio_desc *d;
+	unsigned long c;
+
+	if (gpio > mfp_to_gpio(MFP_PIN_GPIO127))
+		return -EINVAL;
+
+	d = &gpio_desc[gpio];
+	c = d->config;
+
+	if (!d->valid)
+		return -EINVAL;
+
+	if (d->keypad_gpio)
+		return -EINVAL;
+
+	if (d->can_wakeup && (c & MFP_LPM_CAN_WAKEUP)) {
+		if (on) {
+			PWER |= d->mask;
+
+			if (c & MFP_LPM_EDGE_RISE)
+				PRER |= d->mask;
+			else
+				PRER &= ~d->mask;
+
+			if (c & MFP_LPM_EDGE_FALL)
+				PFER |= d->mask;
+			else
+				PFER &= ~d->mask;
+		} else {
+			PWER &= ~d->mask;
+			PRER &= ~d->mask;
+			PFER &= ~d->mask;
+		}
+	}
+	return 0;
+}
+
 #ifdef CONFIG_PXA25x
 static int __init pxa25x_mfp_init(void)
 {
@@ -141,10 +175,31 @@ postcore_initcall(pxa25x_mfp_init);
 #endif /* CONFIG_PXA25x */
 
 #ifdef CONFIG_PXA27x
-static int pxa27x_pkwr_gpio[] __initdata = {
+static int pxa27x_pkwr_gpio[] = {
 	13, 16, 17, 34, 36, 37, 38, 39, 90, 91, 93, 94,
 	95, 96, 97, 98, 99, 100, 101, 102
 };
+
+int keypad_set_wake(unsigned int on)
+{
+	unsigned int i, gpio, mask = 0;
+
+	if (!on) {
+		PKWR = 0;
+		return 0;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(pxa27x_pkwr_gpio); i++) {
+
+		gpio = pxa27x_pkwr_gpio[i];
+
+		if (gpio_desc[gpio].config & MFP_LPM_CAN_WAKEUP)
+			mask |= gpio_desc[gpio].mask;
+	}
+
+	PKWR = mask;
+	return 0;
+}
 
 static int __init pxa27x_mfp_init(void)
 {

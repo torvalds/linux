@@ -26,6 +26,7 @@
 #include <asm/hardware.h>
 #include <asm/arch/irqs.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/mfp-pxa25x.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/dma.h>
 
@@ -230,24 +231,10 @@ static inline void pxa25x_init_pm(void) {}
 static int pxa25x_set_wake(unsigned int irq, unsigned int on)
 {
 	int gpio = IRQ_TO_GPIO(irq);
-	uint32_t gpio_bit, mask = 0;
+	uint32_t mask = 0;
 
-	if (gpio >= 0 && gpio <= 15) {
-		gpio_bit = GPIO_bit(gpio);
-		mask = gpio_bit;
-		if (on) {
-			if (GRER(gpio) | gpio_bit)
-				PRER |= gpio_bit;
-			else
-				PRER &= ~gpio_bit;
-
-			if (GFER(gpio) | gpio_bit)
-				PFER |= gpio_bit;
-			else
-				PFER &= ~gpio_bit;
-		}
-		goto set_pwer;
-	}
+	if (gpio >= 0 && gpio < 85)
+		return gpio_set_wake(gpio, on);
 
 	if (irq == IRQ_RTCAlrm) {
 		mask = PWER_RTC;

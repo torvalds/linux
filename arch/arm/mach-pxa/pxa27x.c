@@ -23,6 +23,7 @@
 #include <asm/arch/irqs.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-regs.h>
+#include <asm/arch/mfp-pxa27x.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/dma.h>
@@ -286,37 +287,16 @@ static inline void pxa27x_init_pm(void) {}
 /* PXA27x:  Various gpios can issue wakeup events.  This logic only
  * handles the simple cases, not the WEMUX2 and WEMUX3 options
  */
-#define PXA27x_GPIO_NOWAKE_MASK \
-        ((1 << 8) | (1 << 7) | (1 << 6) | (1 << 5) | (1 << 2))
-#define WAKEMASK(gpio) \
-        (((gpio) <= 15) \
-                 ? ((1 << (gpio)) & ~PXA27x_GPIO_NOWAKE_MASK) \
-                 : ((gpio == 35) ? (1 << 24) : 0))
-
 static int pxa27x_set_wake(unsigned int irq, unsigned int on)
 {
 	int gpio = IRQ_TO_GPIO(irq);
 	uint32_t mask;
 
-	if ((gpio >= 0 && gpio <= 15) || (gpio == 35)) {
-		if (WAKEMASK(gpio) == 0)
-			return -EINVAL;
+	if (gpio >= 0 && gpio < 128)
+		return gpio_set_wake(gpio, on);
 
-		mask = WAKEMASK(gpio);
-
-		if (on) {
-			if (GRER(gpio) | GPIO_bit(gpio))
-				PRER |= mask;
-			else
-				PRER &= ~mask;
-
-			if (GFER(gpio) | GPIO_bit(gpio))
-				PFER |= mask;
-			else
-				PFER &= ~mask;
-		}
-		goto set_pwer;
-	}
+	if (irq == IRQ_KEYPAD)
+		return keypad_set_wake(on);
 
 	switch (irq) {
 	case IRQ_RTCAlrm:
@@ -329,7 +309,6 @@ static int pxa27x_set_wake(unsigned int irq, unsigned int on)
 		return -EINVAL;
 	}
 
-set_pwer:
 	if (on)
 		PWER |= mask;
 	else

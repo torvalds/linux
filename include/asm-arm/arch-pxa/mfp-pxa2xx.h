@@ -24,13 +24,13 @@
 #define MFP_DIR_MASK		(0x1 << 23)
 #define MFP_DIR(x)		(((x) >> 23) & 0x1)
 
-#define MFP_LPM_WAKEUP_ENABLE	(0x1 << 24)
-#define WAKEUP_ON_EDGE_RISE	(MFP_LPM_WAKEUP_ENABLE | MFP_LPM_EDGE_RISE)
-#define WAKEUP_ON_EDGE_FALL	(MFP_LPM_WAKEUP_ENABLE | MFP_LPM_EDGE_FALL)
-#define WAKEUP_ON_EDGE_BOTH	(MFP_LPM_WAKEUP_ENABLE | MFP_LPM_EDGE_BOTH)
+#define MFP_LPM_CAN_WAKEUP	(0x1 << 24)
+#define WAKEUP_ON_EDGE_RISE	(MFP_LPM_CAN_WAKEUP | MFP_LPM_EDGE_RISE)
+#define WAKEUP_ON_EDGE_FALL	(MFP_LPM_CAN_WAKEUP | MFP_LPM_EDGE_FALL)
+#define WAKEUP_ON_EDGE_BOTH	(MFP_LPM_CAN_WAKEUP | MFP_LPM_EDGE_BOTH)
 
 /* specifically for enabling wakeup on keypad GPIOs */
-#define WAKEUP_ON_LEVEL_HIGH	(MFP_LPM_WAKEUP_ENABLE)
+#define WAKEUP_ON_LEVEL_HIGH	(MFP_LPM_CAN_WAKEUP)
 
 #define MFP_CFG_IN(pin, af)		\
 	((MFP_CFG_DEFAULT & ~(MFP_AF_MASK | MFP_DIR_MASK)) |\
@@ -128,4 +128,5 @@
 #define GPIO84_GPIO	MFP_CFG_IN(GPIO84, AF0)
 
 extern void pxa2xx_mfp_config(unsigned long *mfp_cfgs, int num);
+extern int gpio_set_wake(unsigned int gpio, unsigned int on);
 #endif /* __ASM_ARCH_MFP_PXA2XX_H */
