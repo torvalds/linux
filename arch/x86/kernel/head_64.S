@@ -278,10 +278,8 @@ bad_address:
 
 	.globl early_idt_handlers
 early_idt_handlers:
-	early_idt_tramp 0, 63
-	early_idt_tramp 64, 127
-	early_idt_tramp 128, 191
-	early_idt_tramp 192, 255
+	.set maxe, NUM_EXCEPTION_VECTORS-1
+	early_idt_tramp 0, maxe
 #endif
 
 ENTRY(early_idt_handler)

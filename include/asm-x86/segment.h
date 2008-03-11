@@ -191,13 +191,14 @@
 #define SEGMENT_TI_MASK		0x4
 
 #define IDT_ENTRIES 256
+#define NUM_EXCEPTION_VECTORS 32
 #define GDT_SIZE (GDT_ENTRIES * 8)
 #define GDT_ENTRY_TLS_ENTRIES 3
 #define TLS_SIZE (GDT_ENTRY_TLS_ENTRIES * 8)
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
-extern const char early_idt_handlers[IDT_ENTRIES][10];
+extern const char early_idt_handlers[NUM_EXCEPTION_VECTORS][10];
 #endif
 #endif
 
