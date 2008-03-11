@@ -119,7 +119,7 @@ initialization with a pointer to a structure describing the driver
 			the power state of a device before reboot.
 			e.g. drivers/net/e100.c.
 
-	err_handler	See Documentation/pci-error-recovery.txt
+	err_handler	See Documentation/PCI/pci-error-recovery.txt
 
 
 The ID table is an array of struct pci_device_id entries ending with an

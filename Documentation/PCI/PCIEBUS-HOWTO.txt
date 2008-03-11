@@ -56,9 +56,9 @@ advantages of using the PCI Express Port Bus driver are listed below:
 
 	- Allow service drivers implemented in an independent
 	  staged approach.
-	
+
 	- Allow one service driver to run on multiple PCI-PCI Bridge
-	  Port devices. 
+	  Port devices.
 
 	- Manage and distribute resources of a PCI-PCI Bridge Port
 	  device to requested service drivers.
@@ -82,7 +82,7 @@ Model requires some minimal changes on existing service drivers that
 imposes no impact on the functionality of existing service drivers.
 
 A service driver is required to use the two APIs shown below to
-register its service with the PCI Express Port Bus driver (see 
+register its service with the PCI Express Port Bus driver (see
 section 5.2.1 & 5.2.2). It is important that a service driver
 initializes the pcie_port_service_driver data structure, included in
 header file /include/linux/pcieport_if.h, before calling these APIs.
@@ -137,7 +137,7 @@ driver.
 static int __init aerdrv_service_init(void)
 {
 	int retval = 0;
-	
+
 	retval = pcie_port_service_register(&root_aerdrv);
 	if (!retval) {
 		/*
@@ -147,7 +147,7 @@ static int __init aerdrv_service_init(void)
 	return retval;
 }
 
-static void __exit aerdrv_service_exit(void) 
+static void __exit aerdrv_service_exit(void)
 {
 	pcie_port_service_unregister(&root_aerdrv);
 }
@@ -175,7 +175,7 @@ same physical Root Port. Both service drivers call pci_enable_msi to
 request MSI based interrupts. A service driver may not know whether
 any other service drivers have run on this Root Port. If either one
 of them calls pci_disable_msi, it puts the other service driver
-in a wrong interrupt mode. 
+in a wrong interrupt mode.
 
 To avoid this situation all service drivers are not permitted to
 switch interrupt mode on its device. The PCI Express Port Bus driver
