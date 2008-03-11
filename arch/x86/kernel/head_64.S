@@ -268,18 +268,14 @@ bad_address:
 	jmp bad_address
 
 #ifdef CONFIG_EARLY_PRINTK
-.macro early_idt_tramp first, last
-	.ifgt \last-\first
-	early_idt_tramp \first, \last-1
-	.endif
-	movl $\last,%esi
-	jmp early_idt_handler
-.endm
-
 	.globl early_idt_handlers
 early_idt_handlers:
-	.set maxe, NUM_EXCEPTION_VECTORS-1
-	early_idt_tramp 0, maxe
+	i = 0
+	.rept NUM_EXCEPTION_VECTORS
+	movl $i, %esi
+	jmp early_idt_handler
+	i = i + 1
+	.endr
 #endif
 
 ENTRY(early_idt_handler)
