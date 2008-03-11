@@ -24,6 +24,13 @@ struct ip_tunnel
 	int			mlink;
 
 	struct ip_tunnel_parm	parms;
+	struct ip_tunnel_prl_entry	*prl;		/* potential router list */
+};
+
+struct ip_tunnel_prl_entry
+{
+	struct ip_tunnel_prl_entry	*next;
+	struct ip_tunnel_prl		entry;
 };
 
 #define IPTUNNEL_XMIT() do {						\
