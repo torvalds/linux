@@ -1055,9 +1055,16 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 	R32(esi, si);
 	R32(ebp, bp);
 	R32(eax, ax);
-	R32(orig_eax, orig_ax);
 	R32(eip, ip);
 	R32(esp, sp);
+
+	case offsetof(struct user32, regs.orig_eax):
+		/*
+		 * Sign-extend the value so that orig_eax = -1
+		 * causes (long)orig_ax < 0 tests to fire correctly.
+		 */
+		regs->orig_ax = (long) (s32) value;
+		break;
 
 	case offsetof(struct user32, regs.eflags):
 		return set_flags(child, value);

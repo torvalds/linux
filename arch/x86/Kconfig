@@ -66,9 +66,6 @@ config MMU
 config ZONE_DMA
 	def_bool y
 
-config QUICKLIST
-	def_bool X86_32
-
 config SBUS
 	bool
 

@@ -486,9 +486,12 @@ static void concat(char *dst, char *args[])
 	unsigned int i, len = 0;
 
 	for (i = 0; args[i]; i++) {
+		if (i) {
+			strcat(dst+len, " ");
+			len++;
+		}
 		strcpy(dst+len, args[i]);
-		strcat(dst+len, " ");
-		len += strlen(args[i]) + 1;
+		len += strlen(args[i]);
 	}
 	/* In case it's empty. */
 	dst[len] = '\0';

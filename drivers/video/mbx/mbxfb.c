@@ -889,7 +889,7 @@ static int __devinit mbxfb_probe(struct platform_device *dev)
 	struct mbxfb_info *mfbi;
 	struct mbxfb_platform_data *pdata;
 
-	dev_dbg(dev, "mbxfb_probe\n");
+	dev_dbg(&dev->dev, "mbxfb_probe\n");
 
 	pdata = dev->dev.platform_data;
 	if (!pdata) {

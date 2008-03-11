@@ -2409,7 +2409,7 @@ static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations ocfs2_dlm_seq_ops = {
+static const struct seq_operations ocfs2_dlm_seq_ops = {
 	.start =	ocfs2_dlm_seq_start,
 	.stop =		ocfs2_dlm_seq_stop,
 	.next =		ocfs2_dlm_seq_next,

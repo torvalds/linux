@@ -56,7 +56,8 @@ u8 ata_irq_on(struct ata_port *ap)
 	ap->ctl &= ~ATA_NIEN;
 	ap->last_ctl = ap->ctl;
 
-	iowrite8(ap->ctl, ioaddr->ctl_addr);
+	if (ioaddr->ctl_addr)
+		iowrite8(ap->ctl, ioaddr->ctl_addr);
 	tmp = ata_wait_idle(ap);
 
 	ap->ops->irq_clear(ap);
@@ -81,12 +82,14 @@ void ata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 	unsigned int is_addr = tf->flags & ATA_TFLAG_ISADDR;
 
 	if (tf->ctl != ap->last_ctl) {
-		iowrite8(tf->ctl, ioaddr->ctl_addr);
+		if (ioaddr->ctl_addr)
+			iowrite8(tf->ctl, ioaddr->ctl_addr);
 		ap->last_ctl = tf->ctl;
 		ata_wait_idle(ap);
 	}
 
 	if (is_addr && (tf->flags & ATA_TFLAG_LBA48)) {
+		WARN_ON(!ioaddr->ctl_addr);
 		iowrite8(tf->hob_feature, ioaddr->feature_addr);
 		iowrite8(tf->hob_nsect, ioaddr->nsect_addr);
 		iowrite8(tf->hob_lbal, ioaddr->lbal_addr);
@@ -167,14 +170,17 @@ void ata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 	tf->device = ioread8(ioaddr->device_addr);
 
 	if (tf->flags & ATA_TFLAG_LBA48) {
-		iowrite8(tf->ctl | ATA_HOB, ioaddr->ctl_addr);
-		tf->hob_feature = ioread8(ioaddr->error_addr);
-		tf->hob_nsect = ioread8(ioaddr->nsect_addr);
-		tf->hob_lbal = ioread8(ioaddr->lbal_addr);
-		tf->hob_lbam = ioread8(ioaddr->lbam_addr);
-		tf->hob_lbah = ioread8(ioaddr->lbah_addr);
-		iowrite8(tf->ctl, ioaddr->ctl_addr);
-		ap->last_ctl = tf->ctl;
+		if (likely(ioaddr->ctl_addr)) {
+			iowrite8(tf->ctl | ATA_HOB, ioaddr->ctl_addr);
+			tf->hob_feature = ioread8(ioaddr->error_addr);
+			tf->hob_nsect = ioread8(ioaddr->nsect_addr);
+			tf->hob_lbal = ioread8(ioaddr->lbal_addr);
+			tf->hob_lbam = ioread8(ioaddr->lbam_addr);
+			tf->hob_lbah = ioread8(ioaddr->lbah_addr);
+			iowrite8(tf->ctl, ioaddr->ctl_addr);
+			ap->last_ctl = tf->ctl;
+		} else
+			WARN_ON(1);
 	}
 }
 
@@ -352,7 +358,8 @@ void ata_bmdma_freeze(struct ata_port *ap)
 	ap->ctl |= ATA_NIEN;
 	ap->last_ctl = ap->ctl;
 
-	iowrite8(ap->ctl, ioaddr->ctl_addr);
+	if (ioaddr->ctl_addr)
+		iowrite8(ap->ctl, ioaddr->ctl_addr);
 
 	/* Under certain circumstances, some controllers raise IRQ on
 	 * ATA_NIEN manipulation.  Also, many controllers fail to mask
@@ -459,13 +466,14 @@ void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
  */
 void ata_bmdma_error_handler(struct ata_port *ap)
 {
-	ata_reset_fn_t hardreset;
+	ata_reset_fn_t softreset = NULL, hardreset = NULL;
 
-	hardreset = NULL;
+	if (ap->ioaddr.ctl_addr)
+		softreset = ata_std_softreset;
 	if (sata_scr_valid(&ap->link))
 		hardreset = sata_std_hardreset;
 
-	ata_bmdma_drive_eh(ap, ata_std_prereset, ata_std_softreset, hardreset,
+	ata_bmdma_drive_eh(ap, ata_std_prereset, softreset, hardreset,
 			   ata_std_postreset);
 }
 
