@@ -289,7 +289,6 @@ aes_enc_blk:
 	pop     %ebx
 	mov     %r0,(%ebp)
 	pop     %ebp
-	mov     $1,%eax
 	ret
 
 // AES (Rijndael) Decryption Subroutine
@@ -365,6 +364,4 @@ aes_dec_blk:
 	pop     %ebx
 	mov     %r0,(%ebp)
 	pop     %ebp
-	mov     $1,%eax
 	ret
-
