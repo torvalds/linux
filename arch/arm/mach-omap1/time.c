@@ -171,7 +171,7 @@ static void omap_mpu_set_mode(enum clock_event_mode mode,
 
 static struct clock_event_device clockevent_mpu_timer1 = {
 	.name		= "mpu_timer1",
-	.features       = CLOCK_EVT_FEAT_PERIODIC, CLOCK_EVT_FEAT_ONESHOT,
+	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.shift		= 32,
 	.set_next_event	= omap_mpu_set_next_event,
 	.set_mode	= omap_mpu_set_mode,
