@@ -156,7 +156,7 @@ EXPORT_SYMBOL(qe_issue_cmd);
  */
 static unsigned int brg_clk = 0;
 
-unsigned int get_brg_clk(void)
+unsigned int qe_get_brg_clk(void)
 {
 	struct device_node *qe;
 	unsigned int size;
@@ -180,6 +180,7 @@ unsigned int get_brg_clk(void)
 
 	return brg_clk;
 }
+EXPORT_SYMBOL(qe_get_brg_clk);
 
 /* Program the BRG to the given sampling rate and multiplier
  *
@@ -197,7 +198,7 @@ int qe_setbrg(enum qe_clock brg, unsigned int rate, unsigned int multiplier)
 	if ((brg < QE_BRG1) || (brg > QE_BRG16))
 		return -EINVAL;
 
-	divisor = get_brg_clk() / (rate * multiplier);
+	divisor = qe_get_brg_clk() / (rate * multiplier);
 
 	if (divisor > QE_BRGC_DIVISOR_MAX + 1) {
 		div16 = QE_BRGC_DIV16;
