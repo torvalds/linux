@@ -325,15 +325,6 @@ static struct snd_pcm_ops at73c213_playback_ops = {
 	.pointer	= snd_at73c213_pcm_pointer,
 };
 
-static void snd_at73c213_pcm_free(struct snd_pcm *pcm)
-{
-	struct snd_at73c213 *chip = snd_pcm_chip(pcm);
-	if (chip->pcm) {
-		snd_pcm_lib_preallocate_free_for_all(chip->pcm);
-		chip->pcm = NULL;
-	}
-}
-
 static int __devinit snd_at73c213_pcm_new(struct snd_at73c213 *chip, int device)
 {
 	struct snd_pcm *pcm;
@@ -345,7 +336,6 @@ static int __devinit snd_at73c213_pcm_new(struct snd_at73c213 *chip, int device)
 		goto out;
 
 	pcm->private_data = chip;
-	pcm->private_free = snd_at73c213_pcm_free;
 	pcm->info_flags = SNDRV_PCM_INFO_BLOCK_TRANSFER;
 	strcpy(pcm->name, "at73c213");
 	chip->pcm = pcm;
