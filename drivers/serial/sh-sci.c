@@ -414,12 +414,12 @@ static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
     defined(CONFIG_CPU_SUBTYPE_SH7785)
 static inline int scif_txroom(struct uart_port *port)
 {
-	return SCIF_TXROOM_MAX - (sci_in(port, SCTFDR) & 0x7f);
+	return SCIF_TXROOM_MAX - (sci_in(port, SCTFDR) & 0xff);
 }
 
 static inline int scif_rxroom(struct uart_port *port)
 {
-	return sci_in(port, SCRFDR) & 0x7f;
+	return sci_in(port, SCRFDR) & 0xff;
 }
 #else
 static inline int scif_txroom(struct uart_port *port)
