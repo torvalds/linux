@@ -337,4 +337,12 @@ config MTD_NAND_FSL_ELBC
 	  Enabling this option will enable you to use this to control
 	  external NAND devices.
 
+config MTD_NAND_FSL_UPM
+	tristate "Support for NAND on Freescale UPM"
+	depends on MTD_NAND && OF_GPIO && (PPC_83xx || PPC_85xx)
+	select FSL_LBC
+	help
+	  Enables support for NAND Flash chips wired onto Freescale PowerPC
+	  processor localbus with User-Programmable Machine support.
+
 endif # MTD_NAND
