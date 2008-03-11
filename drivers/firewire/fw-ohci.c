@@ -178,7 +178,7 @@ struct fw_ohci {
 	struct tasklet_struct bus_reset_tasklet;
 	int node_id;
 	int generation;
-	int request_generation;
+	int request_generation;	/* for timestamping incoming requests */
 	u32 bus_seconds;
 	bool old_uninorth;
 	bool bus_reset_packet_quirk;

@@ -224,8 +224,6 @@ struct fw_card {
 
 	int node_id;
 	int generation;
-	/* This is the generation used for timestamping incoming requests. */
-	int request_generation;
 	int current_tlabel, tlabel_mask;
 	struct list_head transaction_list;
 	struct timer_list flush_timer;
