@@ -1621,89 +1621,85 @@ static void do_test(void)
 
 	case 200:
 		test_cipher_speed("ecb(aes)", ENCRYPT, sec, NULL, 0,
-				  aes_speed_template);
+				speed_template_16_24_32);
 		test_cipher_speed("ecb(aes)", DECRYPT, sec, NULL, 0,
-				  aes_speed_template);
+				speed_template_16_24_32);
 		test_cipher_speed("cbc(aes)", ENCRYPT, sec, NULL, 0,
-				  aes_speed_template);
+				speed_template_16_24_32);
 		test_cipher_speed("cbc(aes)", DECRYPT, sec, NULL, 0,
-				  aes_speed_template);
+				speed_template_16_24_32);
 		test_cipher_speed("lrw(aes)", ENCRYPT, sec, NULL, 0,
-				  aes_lrw_speed_template);
+				speed_template_32_40_48);
 		test_cipher_speed("lrw(aes)", DECRYPT, sec, NULL, 0,
-				  aes_lrw_speed_template);
+				speed_template_32_40_48);
 		test_cipher_speed("xts(aes)", ENCRYPT, sec, NULL, 0,
-				  aes_xts_speed_template);
+				speed_template_32_48_64);
 		test_cipher_speed("xts(aes)", DECRYPT, sec, NULL, 0,
-				  aes_xts_speed_template);
+				speed_template_32_48_64);
 		break;
 
 	case 201:
 		test_cipher_speed("ecb(des3_ede)", ENCRYPT, sec,
-				  des3_ede_enc_tv_template,
-				  DES3_EDE_ENC_TEST_VECTORS,
-				  des3_ede_speed_template);
+				des3_ede_enc_tv_template, DES3_EDE_ENC_TEST_VECTORS,
+				speed_template_24);
 		test_cipher_speed("ecb(des3_ede)", DECRYPT, sec,
-				  des3_ede_dec_tv_template,
-				  DES3_EDE_DEC_TEST_VECTORS,
-				  des3_ede_speed_template);
+				des3_ede_enc_tv_template, DES3_EDE_ENC_TEST_VECTORS,
+				speed_template_24);
 		test_cipher_speed("cbc(des3_ede)", ENCRYPT, sec,
-				  des3_ede_enc_tv_template,
-				  DES3_EDE_ENC_TEST_VECTORS,
-				  des3_ede_speed_template);
+				des3_ede_enc_tv_template, DES3_EDE_ENC_TEST_VECTORS,
+				speed_template_24);
 		test_cipher_speed("cbc(des3_ede)", DECRYPT, sec,
-				  des3_ede_dec_tv_template,
-				  DES3_EDE_DEC_TEST_VECTORS,
-				  des3_ede_speed_template);
+				des3_ede_enc_tv_template, DES3_EDE_ENC_TEST_VECTORS,
+				speed_template_24);
 		break;
 
 	case 202:
 		test_cipher_speed("ecb(twofish)", ENCRYPT, sec, NULL, 0,
-				  twofish_speed_template);
+				speed_template_16_24_32);
 		test_cipher_speed("ecb(twofish)", DECRYPT, sec, NULL, 0,
-				  twofish_speed_template);
+				speed_template_16_24_32);
 		test_cipher_speed("cbc(twofish)", ENCRYPT, sec, NULL, 0,
-				  twofish_speed_template);
+				speed_template_16_24_32);
 		test_cipher_speed("cbc(twofish)", DECRYPT, sec, NULL, 0,
-				  twofish_speed_template);
+				speed_template_16_24_32);
 		break;
 
 	case 203:
 		test_cipher_speed("ecb(blowfish)", ENCRYPT, sec, NULL, 0,
-				  blowfish_speed_template);
+				  speed_template_8_32);
 		test_cipher_speed("ecb(blowfish)", DECRYPT, sec, NULL, 0,
-				  blowfish_speed_template);
+				  speed_template_8_32);
 		test_cipher_speed("cbc(blowfish)", ENCRYPT, sec, NULL, 0,
-				  blowfish_speed_template);
+				  speed_template_8_32);
 		test_cipher_speed("cbc(blowfish)", DECRYPT, sec, NULL, 0,
-				  blowfish_speed_template);
+				  speed_template_8_32);
 		break;
 
 	case 204:
 		test_cipher_speed("ecb(des)", ENCRYPT, sec, NULL, 0,
-				  des_speed_template);
+				  speed_template_8);
 		test_cipher_speed("ecb(des)", DECRYPT, sec, NULL, 0,
-				  des_speed_template);
+				  speed_template_8);
 		test_cipher_speed("cbc(des)", ENCRYPT, sec, NULL, 0,
-				  des_speed_template);
+				  speed_template_8);
 		test_cipher_speed("cbc(des)", DECRYPT, sec, NULL, 0,
-				  des_speed_template);
+				  speed_template_8);
 		break;
 
 	case 205:
 		test_cipher_speed("ecb(camellia)", ENCRYPT, sec, NULL, 0,
-				camellia_speed_template);
+				speed_template_16_24_32);
 		test_cipher_speed("ecb(camellia)", DECRYPT, sec, NULL, 0,
-				camellia_speed_template);
+				speed_template_16_24_32);
 		test_cipher_speed("cbc(camellia)", ENCRYPT, sec, NULL, 0,
-				camellia_speed_template);
+				speed_template_16_24_32);
 		test_cipher_speed("cbc(camellia)", DECRYPT, sec, NULL, 0,
-				camellia_speed_template);
+				speed_template_16_24_32);
 		break;
 
 	case 206:
 		test_cipher_speed("salsa20", ENCRYPT, sec, NULL, 0,
-				  salsa20_speed_template);
+				  speed_template_16_32);
 		break;
 
 	case 300:
