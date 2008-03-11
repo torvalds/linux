@@ -108,6 +108,77 @@ static void quirk_sb16audio_resources(struct pnp_dev *dev)
 		       "pnp: SB audio device quirk - increasing port range\n");
 }
 
+
+#include <linux/pci.h>
+
+static void quirk_system_pci_resources(struct pnp_dev *dev)
+{
+	struct pci_dev *pdev = NULL;
+	resource_size_t pnp_start, pnp_end, pci_start, pci_end;
+	int i, j;
+
+	/*
+	 * Some BIOSes have PNP motherboard devices with resources that
+	 * partially overlap PCI BARs.  The PNP system driver claims these
+	 * motherboard resources, which prevents the normal PCI driver from
+	 * requesting them later.
+	 *
+	 * This patch disables the PNP resources that conflict with PCI BARs
+	 * so they won't be claimed by the PNP system driver.
+	 */
+	for_each_pci_dev(pdev) {
+		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
+			if (!(pci_resource_flags(pdev, i) & IORESOURCE_MEM) ||
+			    pci_resource_len(pdev, i) == 0)
+				continue;
+
+			pci_start = pci_resource_start(pdev, i);
+			pci_end = pci_resource_end(pdev, i);
+			for (j = 0; j < PNP_MAX_MEM; j++) {
+				if (!pnp_mem_valid(dev, j) ||
+				    pnp_mem_len(dev, j) == 0)
+					continue;
+
+				pnp_start = pnp_mem_start(dev, j);
+				pnp_end = pnp_mem_end(dev, j);
+
+				/*
+				 * If the PNP region doesn't overlap the PCI
+				 * region at all, there's no problem.
+				 */
+				if (pnp_end < pci_start || pnp_start > pci_end)
+					continue;
+
+				/*
+				 * If the PNP region completely encloses (or is
+				 * at least as large as) the PCI region, that's
+				 * also OK.  For example, this happens when the
+				 * PNP device describes a bridge with PCI
+				 * behind it.
+				 */
+				if (pnp_start <= pci_start &&
+				    pnp_end >= pci_end)
+					continue;
+
+				/*
+				 * Otherwise, the PNP region overlaps *part* of
+				 * the PCI region, and that might prevent a PCI
+				 * driver from requesting its resources.
+				 */
+				dev_warn(&dev->dev, "mem resource "
+					"(0x%llx-0x%llx) overlaps %s BAR %d "
+					"(0x%llx-0x%llx), disabling\n",
+					(unsigned long long) pnp_start,
+					(unsigned long long) pnp_end,
+					pci_name(pdev), i,
+					(unsigned long long) pci_start,
+					(unsigned long long) pci_end);
+				pnp_mem_flags(dev, j) = 0;
+			}
+		}
+	}
+}
+
 /*
  *  PnP Quirks
  *  Cards or devices that need some tweaking due to incomplete resource info
@@ -128,6 +199,8 @@ static struct pnp_fixup pnp_fixups[] = {
 	{"CTL0043", quirk_sb16audio_resources},
 	{"CTL0044", quirk_sb16audio_resources},
 	{"CTL0045", quirk_sb16audio_resources},
+	{"PNP0c01", quirk_system_pci_resources},
+	{"PNP0c02", quirk_system_pci_resources},
 	{""}
 };
 
