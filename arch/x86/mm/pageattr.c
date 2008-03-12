@@ -31,6 +31,7 @@ struct cpa_data {
 	int		numpages;
 	int		flushtlb;
 	unsigned long	pfn;
+	unsigned	force_split : 1;
 };
 
 #ifdef CONFIG_X86_64
@@ -261,6 +262,9 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	pgprot_t old_prot, new_prot;
 	int i, do_split = 1;
 	unsigned int level;
+
+	if (cpa->force_split)
+		return 1;
 
 	spin_lock_irqsave(&pgd_lock, flags);
 	/*
@@ -696,7 +700,8 @@ static inline int cache_attr(pgprot_t attr)
 }
 
 static int change_page_attr_set_clr(unsigned long addr, int numpages,
-				    pgprot_t mask_set, pgprot_t mask_clr)
+				    pgprot_t mask_set, pgprot_t mask_clr,
+				    int force_split)
 {
 	struct cpa_data cpa;
 	int ret, cache, checkalias;
@@ -707,7 +712,7 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	 */
 	mask_set = canon_pgprot(mask_set);
 	mask_clr = canon_pgprot(mask_clr);
-	if (!pgprot_val(mask_set) && !pgprot_val(mask_clr))
+	if (!pgprot_val(mask_set) && !pgprot_val(mask_clr) && !force_split)
 		return 0;
 
 	/* Ensure we are PAGE_SIZE aligned */
@@ -724,6 +729,7 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	cpa.mask_set = mask_set;
 	cpa.mask_clr = mask_clr;
 	cpa.flushtlb = 0;
+	cpa.force_split = force_split;
 
 	/* No alias checking for _NX bit modifications */
 	checkalias = (pgprot_val(mask_set) | pgprot_val(mask_clr)) != _PAGE_NX;
@@ -762,13 +768,13 @@ out:
 static inline int change_page_attr_set(unsigned long addr, int numpages,
 				       pgprot_t mask)
 {
-	return change_page_attr_set_clr(addr, numpages, mask, __pgprot(0));
+	return change_page_attr_set_clr(addr, numpages, mask, __pgprot(0), 0);
 }
 
 static inline int change_page_attr_clear(unsigned long addr, int numpages,
 					 pgprot_t mask)
 {
-	return change_page_attr_set_clr(addr, numpages, __pgprot(0), mask);
+	return change_page_attr_set_clr(addr, numpages, __pgprot(0), mask, 0);
 }
 
 int _set_memory_uc(unsigned long addr, int numpages)
@@ -845,6 +851,12 @@ int set_memory_rw(unsigned long addr, int numpages)
 int set_memory_np(unsigned long addr, int numpages)
 {
 	return change_page_attr_clear(addr, numpages, __pgprot(_PAGE_PRESENT));
+}
+
+int set_memory_4k(unsigned long addr, int numpages)
+{
+	return change_page_attr_set_clr(addr, numpages, __pgprot(0),
+					__pgprot(0), 1);
 }
 
 int set_pages_uc(struct page *page, int numpages)
