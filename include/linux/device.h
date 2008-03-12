@@ -35,7 +35,6 @@ struct device;
 struct device_driver;
 struct driver_private;
 struct class;
-struct class_device;
 struct bus_type;
 struct bus_type_private;
 
@@ -190,13 +189,10 @@ struct class {
 	struct kset		class_dirs;
 	struct semaphore	sem; /* locks children, devices, interfaces */
 	struct class_attribute		*class_attrs;
-	struct class_device_attribute	*class_dev_attrs;
 	struct device_attribute		*dev_attrs;
 
-	int (*uevent)(struct class_device *dev, struct kobj_uevent_env *env);
 	int (*dev_uevent)(struct device *dev, struct kobj_uevent_env *env);
 
-	void (*release)(struct class_device *dev);
 	void (*class_release)(struct class *class);
 	void (*dev_release)(struct device *dev);
 
@@ -210,9 +206,6 @@ extern int class_for_each_device(struct class *class, void *data,
 				 int (*fn)(struct device *dev, void *data));
 extern struct device *class_find_device(struct class *class, void *data,
 					int (*match)(struct device *, void *));
-extern struct class_device *class_find_child(struct class *class, void *data,
-				   int (*match)(struct class_device *, void *));
-
 
 struct class_attribute {
 	struct attribute attr;
@@ -228,92 +221,10 @@ extern int __must_check class_create_file(struct class *class,
 extern void class_remove_file(struct class *class,
 			      const struct class_attribute *attr);
 
-struct class_device_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct class_device *, char *buf);
-	ssize_t (*store)(struct class_device *, const char *buf, size_t count);
-};
-
-#define CLASS_DEVICE_ATTR(_name, _mode, _show, _store)		\
-struct class_device_attribute class_device_attr_##_name = 	\
-	__ATTR(_name, _mode, _show, _store)
-
-extern int __must_check class_device_create_file(struct class_device *,
-				    const struct class_device_attribute *);
-
-/**
- * struct class_device - class devices
- * @class: pointer to the parent class for this class device.  This is required.
- * @devt: for internal use by the driver core only.
- * @node: for internal use by the driver core only.
- * @kobj: for internal use by the driver core only.
- * @groups: optional additional groups to be created
- * @dev: if set, a symlink to the struct device is created in the sysfs
- * directory for this struct class device.
- * @class_data: pointer to whatever you want to store here for this struct
- * class_device.  Use class_get_devdata() and class_set_devdata() to get and
- * set this pointer.
- * @parent: pointer to a struct class_device that is the parent of this struct
- * class_device.  If NULL, this class_device will show up at the root of the
- * struct class in sysfs (which is probably what you want to have happen.)
- * @release: pointer to a release function for this struct class_device.  If
- * set, this will be called instead of the class specific release function.
- * Only use this if you want to override the default release function, like
- * when you are nesting class_device structures.
- * @uevent: pointer to a uevent function for this struct class_device.  If
- * set, this will be called instead of the class specific uevent function.
- * Only use this if you want to override the default uevent function, like
- * when you are nesting class_device structures.
- */
-struct class_device {
-	struct list_head	node;
-
-	struct kobject		kobj;
-	struct class		*class;
-	dev_t			devt;
-	struct device		*dev;
-	void			*class_data;
-	struct class_device	*parent;
-	struct attribute_group  **groups;
-
-	void (*release)(struct class_device *dev);
-	int (*uevent)(struct class_device *dev, struct kobj_uevent_env *env);
-	char class_id[BUS_ID_SIZE];
-};
-
-static inline void *class_get_devdata(struct class_device *dev)
-{
-	return dev->class_data;
-}
-
-static inline void class_set_devdata(struct class_device *dev, void *data)
-{
-	dev->class_data = data;
-}
-
-
-extern int __must_check class_device_register(struct class_device *);
-extern void class_device_unregister(struct class_device *);
-extern void class_device_initialize(struct class_device *);
-extern int __must_check class_device_add(struct class_device *);
-extern void class_device_del(struct class_device *);
-
-extern struct class_device *class_device_get(struct class_device *);
-extern void class_device_put(struct class_device *);
-
-extern void class_device_remove_file(struct class_device *,
-				     const struct class_device_attribute *);
-extern int __must_check class_device_create_bin_file(struct class_device *,
-					struct bin_attribute *);
-extern void class_device_remove_bin_file(struct class_device *,
-					 struct bin_attribute *);
-
 struct class_interface {
 	struct list_head	node;
 	struct class		*class;
 
-	int (*add)	(struct class_device *, struct class_interface *);
-	void (*remove)	(struct class_device *, struct class_interface *);
 	int (*add_dev)		(struct device *, struct class_interface *);
 	void (*remove_dev)	(struct device *, struct class_interface *);
 };
@@ -323,13 +234,6 @@ extern void class_interface_unregister(struct class_interface *);
 
 extern struct class *class_create(struct module *owner, const char *name);
 extern void class_destroy(struct class *cls);
-extern struct class_device *class_device_create(struct class *cls,
-						struct class_device *parent,
-						dev_t devt,
-						struct device *device,
-						const char *fmt, ...)
-					__attribute__((format(printf, 5, 6)));
-extern void class_device_destroy(struct class *cls, dev_t devt);
 
 /*
  * The type of device, "struct device" is embedded in. A class
@@ -465,7 +369,6 @@ struct device {
 	spinlock_t		devres_lock;
 	struct list_head	devres_head;
 
-	/* class_device migration path */
 	struct list_head	node;
 	struct class		*class;
 	dev_t			devt;	/* dev_t, creates the sysfs "dev" */
