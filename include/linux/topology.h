@@ -50,6 +50,8 @@
 	for_each_online_node(node)						\
 		if (nr_cpus_node(node))
 
+void arch_update_cpu_topology(void);
+
 /* Conform to ACPI 2.0 SLIT distance definitions */
 #define LOCAL_DISTANCE		10
 #define REMOTE_DISTANCE		20
