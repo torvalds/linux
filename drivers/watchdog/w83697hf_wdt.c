@@ -140,7 +140,7 @@ w83697hf_init(void)
 	w83697hf_deselect_wdt();
 }
 
-static int
+static void
 wdt_ping(void)
 {
 	spin_lock(&io_lock);
@@ -150,10 +150,9 @@ wdt_ping(void)
 
 	w83697hf_deselect_wdt();
 	spin_unlock(&io_lock);
-	return 0;
 }
 
-static int
+static void
 wdt_enable(void)
 {
 	spin_lock(&io_lock);
@@ -164,10 +163,9 @@ wdt_enable(void)
 
 	w83697hf_deselect_wdt();
 	spin_unlock(&io_lock);
-	return 0;
 }
 
-static int
+static void
 wdt_disable(void)
 {
 	spin_lock(&io_lock);
@@ -178,7 +176,6 @@ wdt_disable(void)
 
 	w83697hf_deselect_wdt();
 	spin_unlock(&io_lock);
-	return 0;
 }
 
 static int
