@@ -2427,6 +2427,8 @@ static void iwl4965_build_tx_cmd_hwcrypto(struct iwl4965_priv *priv,
 	case ALG_CCMP:
 		cmd->cmd.tx.sec_ctl = TX_CMD_SEC_CCM;
 		memcpy(cmd->cmd.tx.key, keyinfo->key, keyinfo->keylen);
+		if (ctl->flags & IEEE80211_TXCTL_AMPDU)
+			cmd->cmd.tx.tx_flags |= TX_CMD_FLG_AGG_CCMP_MSK;
 		IWL_DEBUG_TX("tx_cmd with aes hwcrypto\n");
 		break;
 

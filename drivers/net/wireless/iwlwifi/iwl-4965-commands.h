@@ -1045,6 +1045,10 @@ struct iwl4965_rx_mpdu_res_start {
  * MAC header) to DWORD boundary. */
 #define TX_CMD_FLG_MH_PAD_MSK __constant_cpu_to_le32(1 << 20)
 
+/* accelerate aggregation support
+ * 0 - no CCMP encryption; 1 - CCMP encryption */
+#define TX_CMD_FLG_AGG_CCMP_MSK __constant_cpu_to_le32(1 << 22)
+
 /* HCCA-AP - disable duration overwriting. */
 #define TX_CMD_FLG_DUR_MSK __constant_cpu_to_le32(1 << 25)
 
