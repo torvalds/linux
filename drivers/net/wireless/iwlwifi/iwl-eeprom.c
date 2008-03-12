@@ -81,7 +81,7 @@
  *
 ******************************************************************************/
 
-int iwlcore_eeprom_verify_signature(struct iwl4965_priv *priv)
+int iwlcore_eeprom_verify_signature(struct iwl_priv *priv)
 {
 	u32 gp = iwl4965_read32(priv, CSR_EEPROM_GP);
 	if ((gp & CSR_EEPROM_GP_VALID_MSK) == CSR_EEPROM_GP_BAD_SIGNATURE) {
@@ -98,7 +98,7 @@ EXPORT_SYMBOL(iwlcore_eeprom_verify_signature);
  * EEPROM chip, not a single event, so even reads could conflict if they
  * weren't arbitrated by the semaphore.
  */
-int iwlcore_eeprom_acquire_semaphore(struct iwl4965_priv *priv)
+int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv)
 {
 	u16 count;
 	int ret;
@@ -124,7 +124,7 @@ int iwlcore_eeprom_acquire_semaphore(struct iwl4965_priv *priv)
 }
 EXPORT_SYMBOL(iwlcore_eeprom_acquire_semaphore);
 
-void iwlcore_eeprom_release_semaphore(struct iwl4965_priv *priv)
+void iwlcore_eeprom_release_semaphore(struct iwl_priv *priv)
 {
 	iwl4965_clear_bit(priv, CSR_HW_IF_CONFIG_REG,
 		CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
@@ -140,7 +140,7 @@ EXPORT_SYMBOL(iwlcore_eeprom_release_semaphore);
  *
  * NOTE:  This routine uses the non-debug IO access functions.
  */
-int iwl_eeprom_init(struct iwl4965_priv *priv)
+int iwl_eeprom_init(struct iwl_priv *priv)
 {
 	u16 *e = (u16 *)&priv->eeprom;
 	u32 gp = iwl4965_read32(priv, CSR_EEPROM_GP);
@@ -197,7 +197,7 @@ done:
 EXPORT_SYMBOL(iwl_eeprom_init);
 
 
-void iwl_eeprom_get_mac(const struct iwl4965_priv *priv, u8 *mac)
+void iwl_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac)
 {
 	memcpy(mac, priv->eeprom.mac_address, 6);
 }

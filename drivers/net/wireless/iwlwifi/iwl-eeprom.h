@@ -63,7 +63,7 @@
 #ifndef __iwl_eeprom_h__
 #define __iwl_eeprom_h__
 
-struct iwl4965_priv;
+struct iwl_priv;
 
 /*
  * EEPROM access time values:
@@ -383,17 +383,17 @@ struct iwl4965_eeprom {
 /* End of EEPROM */
 
 struct iwl_eeprom_ops {
-	int (*verify_signature) (struct iwl4965_priv *priv);
-	int (*acquire_semaphore) (struct iwl4965_priv *priv);
-	void (*release_semaphore) (struct iwl4965_priv *priv);
+	int (*verify_signature) (struct iwl_priv *priv);
+	int (*acquire_semaphore) (struct iwl_priv *priv);
+	void (*release_semaphore) (struct iwl_priv *priv);
 };
 
 
-void iwl_eeprom_get_mac(const struct iwl4965_priv *priv, u8 *mac);
-int iwl_eeprom_init(struct iwl4965_priv *priv);
+void iwl_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac);
+int iwl_eeprom_init(struct iwl_priv *priv);
 
-int iwlcore_eeprom_verify_signature(struct iwl4965_priv *priv);
-int iwlcore_eeprom_acquire_semaphore(struct iwl4965_priv *priv);
-void iwlcore_eeprom_release_semaphore(struct iwl4965_priv *priv);
+int iwlcore_eeprom_verify_signature(struct iwl_priv *priv);
+int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv);
+void iwlcore_eeprom_release_semaphore(struct iwl_priv *priv);
 
 #endif  /* __iwl_eeprom_h__ */

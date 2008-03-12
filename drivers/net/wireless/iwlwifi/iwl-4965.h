@@ -315,13 +315,13 @@ enum {
 };
 
 struct iwl4965_cmd;
-struct iwl4965_priv;
+struct iwl_priv;
 
 struct iwl4965_cmd_meta {
 	struct iwl4965_cmd_meta *source;
 	union {
 		struct sk_buff *skb;
-		int (*callback)(struct iwl4965_priv *priv,
+		int (*callback)(struct iwl_priv *priv,
 				struct iwl4965_cmd *cmd, struct sk_buff *skb);
 	} __attribute__ ((packed)) u;
 
@@ -634,40 +634,40 @@ struct iwl4965_driver_hw_info {
  *
  *****************************************************************************/
 struct iwl4965_addsta_cmd;
-extern int iwl4965_send_add_station(struct iwl4965_priv *priv,
+extern int iwl4965_send_add_station(struct iwl_priv *priv,
 				struct iwl4965_addsta_cmd *sta, u8 flags);
-extern u8 iwl4965_add_station_flags(struct iwl4965_priv *priv, const u8 *addr,
+extern u8 iwl4965_add_station_flags(struct iwl_priv *priv, const u8 *addr,
 			  int is_ap, u8 flags, void *ht_data);
-extern int iwl4965_is_network_packet(struct iwl4965_priv *priv,
+extern int iwl4965_is_network_packet(struct iwl_priv *priv,
 				 struct ieee80211_hdr *header);
-extern int iwl4965_power_init_handle(struct iwl4965_priv *priv);
-extern void iwl4965_handle_data_packet_monitor(struct iwl4965_priv *priv,
+extern int iwl4965_power_init_handle(struct iwl_priv *priv);
+extern void iwl4965_handle_data_packet_monitor(struct iwl_priv *priv,
 					   struct iwl4965_rx_mem_buffer *rxb,
 					   void *data, short len,
 					   struct ieee80211_rx_status *stats,
 					   u16 phy_flags);
-extern int iwl4965_is_duplicate_packet(struct iwl4965_priv *priv,
+extern int iwl4965_is_duplicate_packet(struct iwl_priv *priv,
 				       struct ieee80211_hdr *header);
-extern int iwl4965_rx_queue_alloc(struct iwl4965_priv *priv);
-extern void iwl4965_rx_queue_reset(struct iwl4965_priv *priv,
+extern int iwl4965_rx_queue_alloc(struct iwl_priv *priv);
+extern void iwl4965_rx_queue_reset(struct iwl_priv *priv,
 			       struct iwl4965_rx_queue *rxq);
 extern int iwl4965_calc_db_from_ratio(int sig_ratio);
 extern int iwl4965_calc_sig_qual(int rssi_dbm, int noise_dbm);
-extern int iwl4965_tx_queue_init(struct iwl4965_priv *priv,
+extern int iwl4965_tx_queue_init(struct iwl_priv *priv,
 			     struct iwl4965_tx_queue *txq, int count, u32 id);
 extern void iwl4965_rx_replenish(void *data);
-extern void iwl4965_tx_queue_free(struct iwl4965_priv *priv, struct iwl4965_tx_queue *txq);
-extern int iwl4965_send_cmd_pdu(struct iwl4965_priv *priv, u8 id, u16 len,
+extern void iwl4965_tx_queue_free(struct iwl_priv *priv, struct iwl4965_tx_queue *txq);
+extern int iwl4965_send_cmd_pdu(struct iwl_priv *priv, u8 id, u16 len,
 			    const void *data);
-extern int __must_check iwl4965_send_cmd(struct iwl4965_priv *priv,
+extern int __must_check iwl4965_send_cmd(struct iwl_priv *priv,
 		struct iwl4965_host_cmd *cmd);
-extern unsigned int iwl4965_fill_beacon_frame(struct iwl4965_priv *priv,
+extern unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
 					struct ieee80211_hdr *hdr,
 					const u8 *dest, int left);
-extern int iwl4965_rx_queue_update_write_ptr(struct iwl4965_priv *priv,
+extern int iwl4965_rx_queue_update_write_ptr(struct iwl_priv *priv,
 					 struct iwl4965_rx_queue *q);
-extern int iwl4965_send_statistics_request(struct iwl4965_priv *priv);
-extern void iwl4965_set_decrypted_flag(struct iwl4965_priv *priv, struct sk_buff *skb,
+extern int iwl4965_send_statistics_request(struct iwl_priv *priv);
+extern void iwl4965_set_decrypted_flag(struct iwl_priv *priv, struct sk_buff *skb,
 				   u32 decrypt_res,
 				   struct ieee80211_rx_status *stats);
 extern __le16 *ieee80211_get_qos_ctrl(struct ieee80211_hdr *hdr);
@@ -678,7 +678,7 @@ extern const u8 iwl4965_broadcast_addr[ETH_ALEN];
  * Currently used by iwl-3945-rs... look at restructuring so that it doesn't
  * call this... todo... fix that.
 */
-extern u8 iwl4965_sync_station(struct iwl4965_priv *priv, int sta_id,
+extern u8 iwl4965_sync_station(struct iwl_priv *priv, int sta_id,
 			   u16 tx_rate, u8 flags);
 
 /******************************************************************************
@@ -697,36 +697,36 @@ extern u8 iwl4965_sync_station(struct iwl4965_priv *priv, int sta_id,
  * iwl4965_mac_     <-- mac80211 callback
  *
  ****************************************************************************/
-extern void iwl4965_hw_rx_handler_setup(struct iwl4965_priv *priv);
-extern void iwl4965_hw_setup_deferred_work(struct iwl4965_priv *priv);
-extern void iwl4965_hw_cancel_deferred_work(struct iwl4965_priv *priv);
-extern int iwl4965_hw_rxq_stop(struct iwl4965_priv *priv);
-extern int iwl4965_hw_set_hw_setting(struct iwl4965_priv *priv);
-extern int iwl4965_hw_nic_init(struct iwl4965_priv *priv);
-extern int iwl4965_hw_nic_stop_master(struct iwl4965_priv *priv);
-extern void iwl4965_hw_txq_ctx_free(struct iwl4965_priv *priv);
-extern void iwl4965_hw_txq_ctx_stop(struct iwl4965_priv *priv);
-extern int iwl4965_hw_nic_reset(struct iwl4965_priv *priv);
-extern int iwl4965_hw_txq_attach_buf_to_tfd(struct iwl4965_priv *priv, void *tfd,
+extern void iwl4965_hw_rx_handler_setup(struct iwl_priv *priv);
+extern void iwl4965_hw_setup_deferred_work(struct iwl_priv *priv);
+extern void iwl4965_hw_cancel_deferred_work(struct iwl_priv *priv);
+extern int iwl4965_hw_rxq_stop(struct iwl_priv *priv);
+extern int iwl4965_hw_set_hw_setting(struct iwl_priv *priv);
+extern int iwl4965_hw_nic_init(struct iwl_priv *priv);
+extern int iwl4965_hw_nic_stop_master(struct iwl_priv *priv);
+extern void iwl4965_hw_txq_ctx_free(struct iwl_priv *priv);
+extern void iwl4965_hw_txq_ctx_stop(struct iwl_priv *priv);
+extern int iwl4965_hw_nic_reset(struct iwl_priv *priv);
+extern int iwl4965_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *tfd,
 					dma_addr_t addr, u16 len);
-extern int iwl4965_hw_txq_free_tfd(struct iwl4965_priv *priv, struct iwl4965_tx_queue *txq);
-extern int iwl4965_hw_get_temperature(struct iwl4965_priv *priv);
-extern int iwl4965_hw_tx_queue_init(struct iwl4965_priv *priv,
+extern int iwl4965_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl4965_tx_queue *txq);
+extern int iwl4965_hw_get_temperature(struct iwl_priv *priv);
+extern int iwl4965_hw_tx_queue_init(struct iwl_priv *priv,
 				struct iwl4965_tx_queue *txq);
-extern unsigned int iwl4965_hw_get_beacon_cmd(struct iwl4965_priv *priv,
+extern unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
 				 struct iwl4965_frame *frame, u8 rate);
-extern int iwl4965_hw_get_rx_read(struct iwl4965_priv *priv);
-extern void iwl4965_hw_build_tx_cmd_rate(struct iwl4965_priv *priv,
+extern int iwl4965_hw_get_rx_read(struct iwl_priv *priv);
+extern void iwl4965_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 				     struct iwl4965_cmd *cmd,
 				     struct ieee80211_tx_control *ctrl,
 				     struct ieee80211_hdr *hdr,
 				     int sta_id, int tx_id);
-extern int iwl4965_hw_reg_send_txpower(struct iwl4965_priv *priv);
-extern int iwl4965_hw_reg_set_txpower(struct iwl4965_priv *priv, s8 power);
-extern void iwl4965_hw_rx_statistics(struct iwl4965_priv *priv,
+extern int iwl4965_hw_reg_send_txpower(struct iwl_priv *priv);
+extern int iwl4965_hw_reg_set_txpower(struct iwl_priv *priv, s8 power);
+extern void iwl4965_hw_rx_statistics(struct iwl_priv *priv,
 				 struct iwl4965_rx_mem_buffer *rxb);
-extern void iwl4965_disable_events(struct iwl4965_priv *priv);
-extern int iwl4965_get_temperature(const struct iwl4965_priv *priv);
+extern void iwl4965_disable_events(struct iwl_priv *priv);
+extern int iwl4965_get_temperature(const struct iwl_priv *priv);
 
 /**
  * iwl4965_hw_find_station - Find station id for a given BSSID
@@ -736,48 +736,48 @@ extern int iwl4965_get_temperature(const struct iwl4965_priv *priv);
  * not yet been merged into a single common layer for managing the
  * station tables.
  */
-extern u8 iwl4965_hw_find_station(struct iwl4965_priv *priv, const u8 *bssid);
+extern u8 iwl4965_hw_find_station(struct iwl_priv *priv, const u8 *bssid);
 
-extern int iwl4965_hw_channel_switch(struct iwl4965_priv *priv, u16 channel);
-extern int iwl4965_tx_queue_reclaim(struct iwl4965_priv *priv, int txq_id, int index);
+extern int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel);
+extern int iwl4965_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index);
 extern int iwl4965_queue_space(const struct iwl4965_queue *q);
-struct iwl4965_priv;
+struct iwl_priv;
 
 /*
  * Forward declare iwl-4965.c functions for iwl-base.c
  */
-extern int iwl4965_tx_queue_update_wr_ptr(struct iwl4965_priv *priv,
+extern int iwl4965_tx_queue_update_wr_ptr(struct iwl_priv *priv,
 					  struct iwl4965_tx_queue *txq,
 					  u16 byte_cnt);
-extern void iwl4965_add_station(struct iwl4965_priv *priv, const u8 *addr,
+extern void iwl4965_add_station(struct iwl_priv *priv, const u8 *addr,
 				int is_ap);
-extern void iwl4965_set_rxon_chain(struct iwl4965_priv *priv);
-extern int iwl4965_alive_notify(struct iwl4965_priv *priv);
-extern void iwl4965_update_rate_scaling(struct iwl4965_priv *priv, u8 mode);
-extern void iwl4965_chain_noise_reset(struct iwl4965_priv *priv);
-extern void iwl4965_init_sensitivity(struct iwl4965_priv *priv, u8 flags,
+extern void iwl4965_set_rxon_chain(struct iwl_priv *priv);
+extern int iwl4965_alive_notify(struct iwl_priv *priv);
+extern void iwl4965_update_rate_scaling(struct iwl_priv *priv, u8 mode);
+extern void iwl4965_chain_noise_reset(struct iwl_priv *priv);
+extern void iwl4965_init_sensitivity(struct iwl_priv *priv, u8 flags,
 				     u8 force);
-extern int iwl4965_set_fat_chan_info(struct iwl4965_priv *priv,
+extern int iwl4965_set_fat_chan_info(struct iwl_priv *priv,
 				enum ieee80211_band band,
 				u16 channel,
 				const struct iwl4965_eeprom_channel *eeprom_ch,
 				u8 fat_extension_channel);
-extern void iwl4965_rf_kill_ct_config(struct iwl4965_priv *priv);
-extern void iwl4965_hwrate_to_tx_control(struct iwl4965_priv *priv,
+extern void iwl4965_rf_kill_ct_config(struct iwl_priv *priv);
+extern void iwl4965_hwrate_to_tx_control(struct iwl_priv *priv,
 					 u32 rate_n_flags,
 					 struct ieee80211_tx_control *control);
 
 #ifdef CONFIG_IWL4965_HT
 void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info,
 			      enum ieee80211_band band);
-void iwl4965_set_rxon_ht(struct iwl4965_priv *priv,
+void iwl4965_set_rxon_ht(struct iwl_priv *priv,
 			 struct iwl_ht_info *ht_info);
-void iwl4965_set_ht_add_station(struct iwl4965_priv *priv, u8 index,
+void iwl4965_set_ht_add_station(struct iwl_priv *priv, u8 index,
 				struct ieee80211_ht_info *sta_ht_inf);
 int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 				    enum ieee80211_ampdu_mlme_action action,
 				    const u8 *addr, u16 tid, u16 *ssn);
-int iwl4965_check_empty_hw_queue(struct iwl4965_priv *priv, int sta_id,
+int iwl4965_check_empty_hw_queue(struct iwl_priv *priv, int sta_id,
 					u8 tid, int txq_id);
 #else
 static inline void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info,
@@ -966,7 +966,7 @@ enum {
 
 #endif
 
-struct iwl4965_priv {
+struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
 	struct ieee80211_hw *hw;
@@ -982,7 +982,7 @@ struct iwl4965_priv {
 	int alloc_rxb_skb;
 	bool add_radiotap;
 
-	void (*rx_handlers[REPLY_MAX])(struct iwl4965_priv *priv,
+	void (*rx_handlers[REPLY_MAX])(struct iwl_priv *priv,
 				       struct iwl4965_rx_mem_buffer *rxb);
 
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
@@ -1214,9 +1214,9 @@ struct iwl4965_priv {
 #endif
 	struct work_struct statistics_work;
 	struct timer_list statistics_periodic;
-}; /*iwl4965_priv */
+}; /*iwl_priv */
 
-static inline int iwl4965_is_associated(struct iwl4965_priv *priv)
+static inline int iwl4965_is_associated(struct iwl_priv *priv)
 {
 	return (priv->active_rxon.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
 }
@@ -1259,9 +1259,9 @@ static inline int is_channel_ibss(const struct iwl4965_channel_info *ch)
 }
 
 extern const struct iwl4965_channel_info *iwl4965_get_channel_info(
-	const struct iwl4965_priv *priv, enum ieee80211_band band, u16 channel);
+	const struct iwl_priv *priv, enum ieee80211_band band, u16 channel);
 
-/* Requires full declaration of iwl4965_priv before including */
+/* Requires full declaration of iwl_priv before including */
 #include "iwl-4965-io.h"
 
 #endif				/* __iwl4965_4965_h__ */
