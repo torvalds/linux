@@ -647,6 +647,7 @@ static int proc_control(struct dev_state *ps, void __user *arg)
 	struct usbdevfs_ctrltransfer ctrl;
 	unsigned int tmo;
 	unsigned char *tbuf;
+	unsigned wLength;
 	int i, j, ret;
 
 	if (copy_from_user(&ctrl, arg, sizeof(ctrl)))
@@ -654,7 +655,8 @@ static int proc_control(struct dev_state *ps, void __user *arg)
 	ret = check_ctrlrecip(ps, ctrl.bRequestType, ctrl.wIndex);
 	if (ret)
 		return ret;
-	if (ctrl.wLength > PAGE_SIZE)
+	wLength = ctrl.wLength;		/* To suppress 64k PAGE_SIZE warning */
+	if (wLength > PAGE_SIZE)
 		return -EINVAL;
 	tbuf = (unsigned char *)__get_free_page(GFP_KERNEL);
 	if (!tbuf)
