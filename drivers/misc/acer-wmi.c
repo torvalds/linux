@@ -1052,11 +1052,12 @@ static int __init acer_wmi_init(void)
 
 	if (wmi_has_guid(WMID_GUID2) && interface) {
 		if (ACPI_FAILURE(WMID_set_capabilities())) {
-			printk(ACER_ERR "Unable to detect available devices\n");
+			printk(ACER_ERR "Unable to detect available WMID "
+					"devices\n");
 			return -ENODEV;
 		}
 	} else if (!wmi_has_guid(WMID_GUID2) && interface) {
-		printk(ACER_ERR "Unable to detect available devices\n");
+		printk(ACER_ERR "No WMID device detection method found\n");
 		return -ENODEV;
 	}
 
@@ -1064,7 +1065,8 @@ static int __init acer_wmi_init(void)
 		interface = &AMW0_interface;
 
 		if (ACPI_FAILURE(AMW0_set_capabilities())) {
-			printk(ACER_ERR "Unable to detect available devices\n");
+			printk(ACER_ERR "Unable to detect available AMW0 "
+					"devices\n");
 			return -ENODEV;
 		}
 	}
@@ -1075,8 +1077,8 @@ static int __init acer_wmi_init(void)
 	find_quirks();
 
 	if (!interface) {
-		printk(ACER_ERR "No or unsupported WMI interface, unable to ");
-		printk(KERN_CONT "load.\n");
+		printk(ACER_ERR "No or unsupported WMI interface, unable to "
+				"load\n");
 		return -ENODEV;
 	}
 
