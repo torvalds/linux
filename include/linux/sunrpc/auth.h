@@ -59,8 +59,8 @@ struct rpc_cred {
 /*
  * Client authentication handle
  */
-#define RPC_CREDCACHE_NR	8
-#define RPC_CREDCACHE_MASK	(RPC_CREDCACHE_NR - 1)
+#define RPC_CREDCACHE_HASHBITS	4
+#define RPC_CREDCACHE_NR	(1 << RPC_CREDCACHE_HASHBITS)
 struct rpc_cred_cache {
 	struct hlist_head	hashtable[RPC_CREDCACHE_NR];
 	spinlock_t		lock;

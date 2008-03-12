@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
+#include <linux/hash.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/spinlock.h>
 
@@ -280,7 +281,9 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 	struct hlist_node *pos;
 	struct rpc_cred	*cred = NULL,
 			*entry, *new;
-	int		nr = 0;
+	unsigned int nr;
+
+	nr = hash_long(acred->uid, RPC_CREDCACHE_HASHBITS);
 
 	if (!(flags & RPCAUTH_LOOKUP_ROOTCREDS))
 		nr = acred->uid & RPC_CREDCACHE_MASK;
