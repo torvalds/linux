@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/version.h>
 
+struct iwl_priv; /* FIXME: remove */
 #include "iwl-debug.h"
 #include "iwl-eeprom.h"
 #include "iwl-core.h"
@@ -37,7 +38,7 @@
 MODULE_DESCRIPTION("iwl core");
 MODULE_VERSION(IWLWIFI_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
-MODULE_LICENSE("GPL/BSD");
+MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 u32 iwl_debug_level;

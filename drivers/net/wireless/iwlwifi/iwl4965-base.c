@@ -8690,6 +8690,11 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		goto out_release_irq;
 	}
 
+	err = iwl_dbgfs_register(priv, DRV_NAME);
+	if (err) {
+		IWL_ERROR("failed to create debugfs files\n");
+		goto out_remove_sysfs;
+	}
 	/* nic init */
 	iwl4965_set_bit(priv, CSR_GIO_CHICKEN_BITS,
                     CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER);
@@ -8700,13 +8705,13 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
                           CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
         if (err < 0) {
                 IWL_DEBUG_INFO("Failed to init the card\n");
-		goto out_remove_sysfs;
+		goto out_remove_dbgfs;
         }
 	/* Read the EEPROM */
 	err = iwl_eeprom_init(priv);
 	if (err) {
 		IWL_ERROR("Unable to init EEPROM\n");
-		goto out_remove_sysfs;
+		goto out_remove_dbgfs;
 	}
 	/* MAC Address location in EEPROM same for 3945/4965 */
 	iwl_eeprom_get_mac(priv, priv->mac_addr);
@@ -8716,7 +8721,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	err = iwl4965_init_channel_map(priv);
 	if (err) {
 		IWL_ERROR("initializing regulatory failed: %d\n", err);
-		goto out_remove_sysfs;
+		goto out_remove_dbgfs;
 	}
 
 	err = iwl4965_init_geos(priv);
@@ -8743,6 +8748,8 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	iwl4965_free_geos(priv);
  out_free_channel_map:
 	iwl4965_free_channel_map(priv);
+ out_remove_dbgfs:
+	iwl_dbgfs_unregister(priv);
  out_remove_sysfs:
 	sysfs_remove_group(&pdev->dev.kobj, &iwl4965_attribute_group);
 
@@ -8787,6 +8794,7 @@ static void iwl4965_pci_remove(struct pci_dev *pdev)
 		}
 	}
 
+	iwl_dbgfs_unregister(priv);
 	sysfs_remove_group(&pdev->dev.kobj, &iwl4965_attribute_group);
 
 	iwl4965_dealloc_ucode_pci(priv);

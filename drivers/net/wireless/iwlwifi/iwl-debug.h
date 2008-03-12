@@ -49,8 +49,27 @@ static inline void iwl_print_hex_dump(int level, void *p, u32 len)
 	print_hex_dump(KERN_DEBUG, "iwl data: ", DUMP_PREFIX_OFFSET, 16, 1,
 			p, len, 1);
 }
-#else
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+struct iwl_debugfs {
+	const char *name;
+	struct dentry *dir_drv;
+	struct dentry *dir_data;
+	struct dir_data_files{
+		struct dentry *file_sram;
+		struct dentry *file_stations;
+		struct dentry *file_rx_statistics;
+		struct dentry *file_tx_statistics;
+	} dbgfs_data_files;
+	u32 sram_offset;
+	u32 sram_len;
+};
+
+int iwl_dbgfs_register(struct iwl_priv *priv, const char *name);
+void iwl_dbgfs_unregister(struct iwl_priv *priv);
+#endif
+
+#else
 static inline void IWL_DEBUG(int level, const char *fmt, ...)
 {
 }
@@ -63,6 +82,16 @@ static inline void iwl_print_hex_dump(int level, void *p, u32 len)
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 
 
+
+#ifndef CONFIG_IWLWIFI_DEBUGFS
+static inline int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
+{
+	return 0;
+}
+static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
+{
+}
+#endif				/* CONFIG_IWLWIFI_DEBUGFS */
 
 /*
  * To use the debug system;
