@@ -375,13 +375,14 @@ rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
 }
 EXPORT_SYMBOL_GPL(rpcauth_init_cred);
 
-static void
+void
 rpcauth_generic_bind_cred(struct rpc_task *task, struct rpc_cred *cred)
 {
 	task->tk_msg.rpc_cred = get_rpccred(cred);
 	dprintk("RPC: %5u holding %s cred %p\n", task->tk_pid,
 			cred->cr_auth->au_ops->au_name, cred);
 }
+EXPORT_SYMBOL_GPL(rpcauth_generic_bind_cred);
 
 static void
 rpcauth_bind_root_cred(struct rpc_task *task)
@@ -421,7 +422,7 @@ void
 rpcauth_bindcred(struct rpc_task *task, struct rpc_cred *cred, int flags)
 {
 	if (cred != NULL)
-		rpcauth_generic_bind_cred(task, cred);
+		cred->cr_ops->crbind(task, cred);
 	else if (flags & RPC_TASK_ROOTCREDS)
 		rpcauth_bind_root_cred(task);
 	else

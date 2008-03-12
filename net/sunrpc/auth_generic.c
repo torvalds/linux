@@ -35,6 +35,20 @@ struct rpc_cred *rpc_lookup_cred(void)
 }
 EXPORT_SYMBOL_GPL(rpc_lookup_cred);
 
+static void
+generic_bind_cred(struct rpc_task *task, struct rpc_cred *cred)
+{
+	struct rpc_auth *auth = task->tk_client->cl_auth;
+	struct auth_cred *acred = &container_of(cred, struct generic_cred, gc_base)->acred;
+	struct rpc_cred *ret;
+
+	ret = auth->au_ops->lookup_cred(auth, acred, 0);
+	if (!IS_ERR(ret))
+		task->tk_msg.rpc_cred = ret;
+	else
+		task->tk_status = PTR_ERR(ret);
+}
+
 /*
  * Lookup generic creds for current process
  */
@@ -138,5 +152,6 @@ static struct rpc_auth generic_auth = {
 static const struct rpc_credops generic_credops = {
 	.cr_name = "Generic cred",
 	.crdestroy = generic_destroy_cred,
+	.crbind = generic_bind_cred,
 	.crmatch = generic_match,
 };
