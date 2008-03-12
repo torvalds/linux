@@ -149,7 +149,7 @@ static int get_log_header(struct gfs2_jdesc *jd, unsigned int blk,
 			  struct gfs2_log_header_host *head)
 {
 	struct buffer_head *bh;
-	struct gfs2_log_header_host lh;
+	struct gfs2_log_header_host uninitialized_var(lh);
 	const u32 nothing = 0;
 	u32 hash;
 	int error;
