@@ -7,8 +7,6 @@
 
 extern void early_idt_handler(void);
 
-extern void init_memory_mapping(unsigned long start, unsigned long end);
-
 extern void system_call(void);
 extern void syscall_init(void);
 

@@ -313,7 +313,7 @@ __meminit void early_iounmap(void *addr, unsigned long size)
 	__flush_tlb_all();
 }
 
-static void __meminit
+static unsigned long __meminit
 phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end)
 {
 	int i = pmd_index(address);
@@ -335,21 +335,26 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end)
 		set_pte((pte_t *)pmd,
 			pfn_pte(address >> PAGE_SHIFT, PAGE_KERNEL_LARGE));
 	}
+	return address;
 }
 
-static void __meminit
+static unsigned long __meminit
 phys_pmd_update(pud_t *pud, unsigned long address, unsigned long end)
 {
 	pmd_t *pmd = pmd_offset(pud, 0);
+	unsigned long last_map_addr;
+
 	spin_lock(&init_mm.page_table_lock);
-	phys_pmd_init(pmd, address, end);
+	last_map_addr = phys_pmd_init(pmd, address, end);
 	spin_unlock(&init_mm.page_table_lock);
 	__flush_tlb_all();
+	return last_map_addr;
 }
 
-static void __meminit
+static unsigned long __meminit
 phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end)
 {
+	unsigned long last_map_addr = end;
 	int i = pud_index(addr);
 
 	for (; i < PTRS_PER_PUD; i++, addr = (addr & PUD_MASK) + PUD_SIZE) {
@@ -368,13 +373,14 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end)
 
 		if (pud_val(*pud)) {
 			if (!pud_large(*pud))
-				phys_pmd_update(pud, addr, end);
+				last_map_addr = phys_pmd_update(pud, addr, end);
 			continue;
 		}
 
 		if (direct_gbpages) {
 			set_pte((pte_t *)pud,
 				pfn_pte(addr >> PAGE_SHIFT, PAGE_KERNEL_LARGE));
+			last_map_addr = (addr & PUD_MASK) + PUD_SIZE;
 			continue;
 		}
 
@@ -382,12 +388,14 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end)
 
 		spin_lock(&init_mm.page_table_lock);
 		set_pud(pud, __pud(pmd_phys | _KERNPG_TABLE));
-		phys_pmd_init(pmd, addr, end);
+		last_map_addr = phys_pmd_init(pmd, addr, end);
 		spin_unlock(&init_mm.page_table_lock);
 
 		unmap_low_page(pmd);
 	}
 	__flush_tlb_all();
+
+	return last_map_addr >> PAGE_SHIFT;
 }
 
 static void __init find_early_table_space(unsigned long end)
@@ -542,9 +550,9 @@ static void __init early_memtest(unsigned long start, unsigned long end)
  * This runs before bootmem is initialized and gets pages directly from
  * the physical memory. To access them they are temporarily mapped.
  */
-void __init_refok init_memory_mapping(unsigned long start, unsigned long end)
+unsigned long __init_refok init_memory_mapping(unsigned long start, unsigned long end)
 {
-	unsigned long next;
+	unsigned long next, last_map_addr = end;
 	unsigned long start_phys = start, end_phys = end;
 
 	printk(KERN_INFO "init_memory_mapping\n");
@@ -577,7 +585,7 @@ void __init_refok init_memory_mapping(unsigned long start, unsigned long end)
 		next = start + PGDIR_SIZE;
 		if (next > end)
 			next = end;
-		phys_pud_init(pud, __pa(start), __pa(next));
+		last_map_addr = phys_pud_init(pud, __pa(start), __pa(next));
 		if (!after_bootmem)
 			set_pgd(pgd_offset_k(start), mk_kernel_pgd(pud_phys));
 		unmap_low_page(pud);
@@ -593,6 +601,8 @@ void __init_refok init_memory_mapping(unsigned long start, unsigned long end)
 
 	if (!after_bootmem)
 		early_memtest(start_phys, end_phys);
+
+	return last_map_addr;
 }
 
 #ifndef CONFIG_NUMA
@@ -632,11 +642,13 @@ int arch_add_memory(int nid, u64 start, u64 size)
 {
 	struct pglist_data *pgdat = NODE_DATA(nid);
 	struct zone *zone = pgdat->node_zones + ZONE_NORMAL;
-	unsigned long start_pfn = start >> PAGE_SHIFT;
+	unsigned long last_mapped_pfn, start_pfn = start >> PAGE_SHIFT;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	int ret;
 
-	init_memory_mapping(start, start + size-1);
+	last_mapped_pfn = init_memory_mapping(start, start + size-1);
+	if (last_mapped_pfn > max_pfn_mapped)
+		max_pfn_mapped = last_mapped_pfn;
 
 	ret = __add_pages(zone, start_pfn, nr_pages);
 	WARN_ON(1);

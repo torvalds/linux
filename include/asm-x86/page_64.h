@@ -80,6 +80,9 @@ typedef struct { pteval_t pte; } pte_t;
 
 #define vmemmap ((struct page *)VMEMMAP_START)
 
+extern unsigned long init_memory_mapping(unsigned long start,
+					 unsigned long end);
+
 #endif	/* !__ASSEMBLY__ */
 
 #ifdef CONFIG_FLATMEM
