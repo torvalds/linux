@@ -284,15 +284,9 @@ static int ar_context_add_page(struct ar_context *ctx)
 	dma_addr_t ab_bus;
 	size_t offset;
 
-	ab = (struct ar_buffer *) __get_free_page(GFP_ATOMIC);
+	ab = dma_alloc_coherent(dev, PAGE_SIZE, &ab_bus, GFP_ATOMIC);
 	if (ab == NULL)
 		return -ENOMEM;
-
-	ab_bus = dma_map_single(dev, ab, PAGE_SIZE, DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(ab_bus)) {
-		free_page((unsigned long) ab);
-		return -ENOMEM;
-	}
 
 	memset(&ab->descriptor, 0, sizeof(ab->descriptor));
 	ab->descriptor.control        = cpu_to_le16(DESCRIPTOR_INPUT_MORE |
@@ -303,8 +297,6 @@ static int ar_context_add_page(struct ar_context *ctx)
 	ab->descriptor.data_address   = cpu_to_le32(ab_bus + offset);
 	ab->descriptor.res_count      = cpu_to_le16(PAGE_SIZE - offset);
 	ab->descriptor.branch_address = 0;
-
-	dma_sync_single_for_device(dev, ab_bus, PAGE_SIZE, DMA_BIDIRECTIONAL);
 
 	ctx->last_buffer->descriptor.branch_address = cpu_to_le32(ab_bus | 1);
 	ctx->last_buffer->next = ab;
@@ -409,6 +401,7 @@ static void ar_context_tasklet(unsigned long data)
 
 	if (d->res_count == 0) {
 		size_t size, rest, offset;
+		dma_addr_t buffer_bus;
 
 		/*
 		 * This descriptor is finished and we may have a
@@ -417,9 +410,7 @@ static void ar_context_tasklet(unsigned long data)
 		 */
 
 		offset = offsetof(struct ar_buffer, data);
-		dma_unmap_single(ohci->card.device,
-			le32_to_cpu(ab->descriptor.data_address) - offset,
-			PAGE_SIZE, DMA_BIDIRECTIONAL);
+		buffer_bus = le32_to_cpu(ab->descriptor.data_address) - offset;
 
 		buffer = ab;
 		ab = ab->next;
@@ -435,7 +426,8 @@ static void ar_context_tasklet(unsigned long data)
 		while (buffer < end)
 			buffer = handle_ar_packet(ctx, buffer);
 
-		free_page((unsigned long)buffer);
+		dma_free_coherent(ohci->card.device, PAGE_SIZE,
+				  buffer, buffer_bus);
 		ar_context_add_page(ctx);
 	} else {
 		buffer = ctx->pointer;
