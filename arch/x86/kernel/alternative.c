@@ -515,7 +515,7 @@ void *__kprobes text_poke(void *addr, const void *opcode, size_t len)
 	BUG_ON(len > sizeof(long));
 	BUG_ON((((long)addr + len - 1) & ~(sizeof(long) - 1))
 		- ((long)addr & ~(sizeof(long) - 1)));
-	{
+	if (kernel_text_address((unsigned long)addr)) {
 		struct page *pages[2] = { virt_to_page(addr),
 			virt_to_page(addr + PAGE_SIZE) };
 		if (!pages[1])
@@ -526,6 +526,13 @@ void *__kprobes text_poke(void *addr, const void *opcode, size_t len)
 		memcpy(&vaddr[(unsigned long)addr & ~PAGE_MASK], opcode, len);
 		local_irq_restore(flags);
 		vunmap(vaddr);
+	} else {
+		/*
+		 * modules are in vmalloc'ed memory, always writable.
+		 */
+		local_irq_save(flags);
+		memcpy(addr, opcode, len);
+		local_irq_restore(flags);
 	}
 	sync_core();
 	/* Could also do a CLFLUSH here to speed up CPU recovery; but
