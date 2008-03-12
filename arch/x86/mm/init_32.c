@@ -181,8 +181,13 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 			/*
 			 * Map with big pages if possible, otherwise
 			 * create normal page tables:
+			 *
+			 * Don't use a large page for the first 2/4MB of memory
+			 * because there are often fixed size MTRRs in there
+			 * and overlapping MTRRs into large pages can cause
+			 * slowdowns.
 			 */
-			if (cpu_has_pse) {
+			if (cpu_has_pse && !(pgd_idx == 0 && pmd_idx == 0)) {
 				unsigned int addr2;
 				pgprot_t prot = PAGE_KERNEL_LARGE;
 
