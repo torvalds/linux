@@ -48,14 +48,18 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *, struct ath5k_desc *,
 static int ath5k_hw_setup_xr_tx_desc(struct ath5k_hw *, struct ath5k_desc *,
 	unsigned int, unsigned int, unsigned int, unsigned int, unsigned int,
 	unsigned int);
-static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *, struct ath5k_desc *);
+static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *, struct ath5k_desc *,
+					 struct ath5k_tx_status *);
 static int ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *, struct ath5k_desc *,
 	unsigned int, unsigned int, enum ath5k_pkt_type, unsigned int,
 	unsigned int, unsigned int, unsigned int, unsigned int, unsigned int,
 	unsigned int, unsigned int);
-static int ath5k_hw_proc_2word_tx_status(struct ath5k_hw *, struct ath5k_desc *);
-static int ath5k_hw_proc_new_rx_status(struct ath5k_hw *, struct ath5k_desc *);
-static int ath5k_hw_proc_old_rx_status(struct ath5k_hw *, struct ath5k_desc *);
+static int ath5k_hw_proc_2word_tx_status(struct ath5k_hw *, struct ath5k_desc *,
+					 struct ath5k_tx_status *);
+static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *, struct ath5k_desc *,
+					struct ath5k_rx_status *);
+static int ath5k_hw_proc_5210_rx_status(struct ath5k_hw *, struct ath5k_desc *,
+					struct ath5k_rx_status *);
 static int ath5k_hw_get_capabilities(struct ath5k_hw *);
 
 static int ath5k_eeprom_init(struct ath5k_hw *);
@@ -174,9 +178,9 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	}
 
 	if (ah->ah_version == AR5K_AR5212)
-		ah->ah_proc_rx_desc = ath5k_hw_proc_new_rx_status;
+		ah->ah_proc_rx_desc = ath5k_hw_proc_5212_rx_status;
 	else if (ah->ah_version <= AR5K_AR5211)
-		ah->ah_proc_rx_desc = ath5k_hw_proc_old_rx_status;
+		ah->ah_proc_rx_desc = ath5k_hw_proc_5210_rx_status;
 
 	/* Bring device out of sleep and reset it's units */
 	ret = ath5k_hw_nic_wakeup(ah, AR5K_INIT_MODE, true);
@@ -208,7 +212,7 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 
 	/* Identify single chip solutions */
 	if((srev <= AR5K_SREV_VER_AR5414) &&
-	(srev >= AR5K_SREV_VER_AR2424)) {
+	(srev >= AR5K_SREV_VER_AR2413)) {
 		ah->ah_single_chip = true;
 	} else {
 		ah->ah_single_chip = false;
@@ -223,10 +227,33 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 		ah->ah_radio = AR5K_RF5110;
 	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5112) {
 		ah->ah_radio = AR5K_RF5111;
-	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC1) {
+		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5111;
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC0) {
+
 		ah->ah_radio = AR5K_RF5112;
+
+		if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5112A) {
+			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112;
+		} else {
+			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
+		}
+
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC1) {
+		ah->ah_radio = AR5K_RF2413;
+		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
 	} else {
+
 		ah->ah_radio = AR5K_RF5413;
+
+		if (ah->ah_mac_srev <= AR5K_SREV_VER_AR5424 &&
+			ah->ah_mac_srev >= AR5K_SREV_VER_AR2424)
+			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5424;
+		else if (ah->ah_mac_srev >= AR5K_SREV_VER_AR2425)
+			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112;
+		else
+			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
+
+
 	}
 
 	ah->ah_phy = AR5K_PHY(0);
@@ -277,7 +304,8 @@ err:
  */
 static int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 {
-	u32 turbo, mode, clock;
+	struct pci_dev *pdev = ah->ah_sc->pdev;
+	u32 turbo, mode, clock, bus_flags;
 	int ret;
 
 	turbo = 0;
@@ -354,9 +382,15 @@ static int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 					AR5K_PHY_TURBO);
 	}
 
-	/* ...reset chipset and PCI device */
-	if (ah->ah_single_chip == false && ath5k_hw_nic_reset(ah,
-				AR5K_RESET_CTL_CHIP | AR5K_RESET_CTL_PCI)) {
+	/* reseting PCI on PCI-E cards results card to hang
+	 * and always return 0xffff... so we ingore that flag
+	 * for PCI-E cards */
+	bus_flags = (pdev->is_pcie) ? 0 : AR5K_RESET_CTL_PCI;
+
+	/* Reset chipset */
+	ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
+		AR5K_RESET_CTL_BASEBAND | bus_flags);
+	if (ret) {
 		ATH5K_ERR(ah->ah_sc, "failed to reset the MAC Chip + PCI\n");
 		return -EIO;
 	}
@@ -565,7 +599,8 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 	struct ieee80211_channel *channel, bool change_channel)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
-	u32 data, s_seq, s_ant, s_led[3];
+	struct pci_dev *pdev = ah->ah_sc->pdev;
+	u32 data, s_seq, s_ant, s_led[3], dma_size;
 	unsigned int i, mode, freq, ee_mode, ant[2];
 	int ret;
 
@@ -617,7 +652,8 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 	if (ah->ah_version != AR5K_AR5210) {
 		if (ah->ah_radio != AR5K_RF5111 &&
 			ah->ah_radio != AR5K_RF5112 &&
-			ah->ah_radio != AR5K_RF5413) {
+			ah->ah_radio != AR5K_RF5413 &&
+			ah->ah_radio != AR5K_RF2413) {
 			ATH5K_ERR(ah->ah_sc,
 				"invalid phy radio: %u\n", ah->ah_radio);
 			return -EINVAL;
@@ -692,15 +728,26 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 		/*
 		 * Write some more initial register settings
 		 */
-		if (ah->ah_version > AR5K_AR5211){ /* found on 5213+ */
+		if (ah->ah_version == AR5K_AR5212) {
 			ath5k_hw_reg_write(ah, 0x0002a002, AR5K_PHY(11));
 
 			if (channel->hw_value == CHANNEL_G)
-				ath5k_hw_reg_write(ah, 0x00f80d80, AR5K_PHY(83)); /* 0x00fc0ec0 */
+				if (ah->ah_mac_srev < AR5K_SREV_VER_AR2413)
+					ath5k_hw_reg_write(ah, 0x00f80d80,
+						AR5K_PHY(83));
+				else if (ah->ah_mac_srev < AR5K_SREV_VER_AR2424)
+					ath5k_hw_reg_write(ah, 0x00380140,
+						AR5K_PHY(83));
+				else if (ah->ah_mac_srev < AR5K_SREV_VER_AR2425)
+					ath5k_hw_reg_write(ah, 0x00fc0ec0,
+						AR5K_PHY(83));
+				else /* 2425 */
+					ath5k_hw_reg_write(ah, 0x00fc0fc0,
+						AR5K_PHY(83));
 			else
-				ath5k_hw_reg_write(ah, 0x00000000, AR5K_PHY(83));
+				ath5k_hw_reg_write(ah, 0x00000000,
+					AR5K_PHY(83));
 
-			ath5k_hw_reg_write(ah, 0x000001b5, 0xa228); /* 0x000009b5 */
 			ath5k_hw_reg_write(ah, 0x000009b5, 0xa228);
 			ath5k_hw_reg_write(ah, 0x0000000f, 0x8060);
 			ath5k_hw_reg_write(ah, 0x00000000, 0xa254);
@@ -876,13 +923,24 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 
 	/*
 	 * Set Rx/Tx DMA Configuration
-	 *(passing dma size not available on 5210)
+	 *
+	 * Set maximum DMA size (512) except for PCI-E cards since
+	 * it causes rx overruns and tx errors (tested on 5424 but since
+	 * rx overruns also occur on 5416/5418 with madwifi we set 128
+	 * for all PCI-E cards to be safe).
+	 *
+	 * In dumps this is 128 for allchips.
+	 *
+	 * XXX: need to check 5210 for this
+	 * TODO: Check out tx triger level, it's always 64 on dumps but I
+	 * guess we can tweak it and see how it goes ;-)
 	 */
+	dma_size = (pdev->is_pcie) ? AR5K_DMASIZE_128B : AR5K_DMASIZE_512B;
 	if (ah->ah_version != AR5K_AR5210) {
-		AR5K_REG_WRITE_BITS(ah, AR5K_TXCFG, AR5K_TXCFG_SDMAMR,
-				AR5K_DMASIZE_512B | AR5K_TXCFG_DMASIZE);
-		AR5K_REG_WRITE_BITS(ah, AR5K_RXCFG, AR5K_RXCFG_SDMAMW,
-				AR5K_DMASIZE_512B);
+		AR5K_REG_WRITE_BITS(ah, AR5K_TXCFG,
+			AR5K_TXCFG_SDMAMR, dma_size);
+		AR5K_REG_WRITE_BITS(ah, AR5K_RXCFG,
+			AR5K_RXCFG_SDMAMW, dma_size);
 	}
 
 	/*
@@ -972,6 +1030,8 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 
 	/*
 	 * Set the 32MHz reference clock on 5212 phy clock sleep register
+	 *
+	 * TODO: Find out how to switch to external 32Khz clock to save power
 	 */
 	if (ah->ah_version == AR5K_AR5212) {
 		ath5k_hw_reg_write(ah, AR5K_PHY_SCR_32MHZ, AR5K_PHY_SCR);
@@ -979,9 +1039,15 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 		ath5k_hw_reg_write(ah, AR5K_PHY_SCAL_32MHZ, AR5K_PHY_SCAL);
 		ath5k_hw_reg_write(ah, AR5K_PHY_SCLOCK_32MHZ, AR5K_PHY_SCLOCK);
 		ath5k_hw_reg_write(ah, AR5K_PHY_SDELAY_32MHZ, AR5K_PHY_SDELAY);
-		ath5k_hw_reg_write(ah, ah->ah_radio == AR5K_RF5111 ?
-			AR5K_PHY_SPENDING_RF5111 : AR5K_PHY_SPENDING_RF5112,
-			AR5K_PHY_SPENDING);
+		ath5k_hw_reg_write(ah, ah->ah_phy_spending, AR5K_PHY_SPENDING);
+	}
+
+	if (ah->ah_version == AR5K_AR5212) {
+		ath5k_hw_reg_write(ah, 0x000100aa, 0x8118);
+		ath5k_hw_reg_write(ah, 0x00003210, 0x811c);
+		ath5k_hw_reg_write(ah, 0x00000052, 0x8108);
+		if (ah->ah_mac_srev >= AR5K_SREV_VER_AR2413)
+			ath5k_hw_reg_write(ah, 0x00000004, 0x8120);
 	}
 
 	/*
@@ -2228,8 +2294,8 @@ void ath5k_hw_set_associd(struct ath5k_hw *ah, const u8 *bssid, u16 assoc_id)
 	 * Set simple BSSID mask on 5212
 	 */
 	if (ah->ah_version == AR5K_AR5212) {
-		ath5k_hw_reg_write(ah, 0xfffffff, AR5K_BSS_IDM0);
-		ath5k_hw_reg_write(ah, 0xfffffff, AR5K_BSS_IDM1);
+		ath5k_hw_reg_write(ah, 0xffffffff, AR5K_BSS_IDM0);
+		ath5k_hw_reg_write(ah, 0xffffffff, AR5K_BSS_IDM1);
 	}
 
 	/*
@@ -2374,6 +2440,8 @@ void ath5k_hw_start_rx_pcu(struct ath5k_hw *ah)
 {
 	ATH5K_TRACE(ah->ah_sc);
 	AR5K_REG_DISABLE_BITS(ah, AR5K_DIAG_SW, AR5K_DIAG_SW_DIS_RX);
+
+	/* TODO: ANI Support */
 }
 
 /*
@@ -2383,6 +2451,8 @@ void ath5k_hw_stop_pcu_recv(struct ath5k_hw *ah)
 {
 	ATH5K_TRACE(ah->ah_sc);
 	AR5K_REG_ENABLE_BITS(ah, AR5K_DIAG_SW, AR5K_DIAG_SW_DIS_RX);
+
+	/* TODO: ANI Support */
 }
 
 /*
@@ -3456,10 +3526,10 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	unsigned int rtscts_rate, unsigned int rtscts_duration)
 {
 	u32 frame_type;
-	struct ath5k_hw_2w_tx_desc *tx_desc;
+	struct ath5k_hw_2w_tx_ctl *tx_ctl;
 	unsigned int frame_len;
 
-	tx_desc = (struct ath5k_hw_2w_tx_desc *)&desc->ds_ctl0;
+	tx_ctl = &desc->ud.ds_tx5210.tx_ctl;
 
 	/*
 	 * Validate input
@@ -3478,12 +3548,8 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 		return -EINVAL;
 	}
 
-	/* Clear status descriptor */
-	memset(desc->ds_hw, 0, sizeof(struct ath5k_hw_tx_status));
-
-	/* Initialize control descriptor */
-	tx_desc->tx_control_0 = 0;
-	tx_desc->tx_control_1 = 0;
+	/* Clear descriptor */
+	memset(&desc->ud.ds_tx5210, 0, sizeof(struct ath5k_hw_5210_tx_desc));
 
 	/* Setup control descriptor */
 
@@ -3495,7 +3561,7 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	if (frame_len & ~AR5K_2W_TX_DESC_CTL0_FRAME_LEN)
 		return -EINVAL;
 
-	tx_desc->tx_control_0 = frame_len & AR5K_2W_TX_DESC_CTL0_FRAME_LEN;
+	tx_ctl->tx_control_0 = frame_len & AR5K_2W_TX_DESC_CTL0_FRAME_LEN;
 
 	/* Verify and set buffer length */
 
@@ -3506,7 +3572,7 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	if (pkt_len & ~AR5K_2W_TX_DESC_CTL1_BUF_LEN)
 		return -EINVAL;
 
-	tx_desc->tx_control_1 = pkt_len & AR5K_2W_TX_DESC_CTL1_BUF_LEN;
+	tx_ctl->tx_control_1 = pkt_len & AR5K_2W_TX_DESC_CTL1_BUF_LEN;
 
 	/*
 	 * Verify and set header length
@@ -3515,7 +3581,7 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	if (ah->ah_version == AR5K_AR5210) {
 		if (hdr_len & ~AR5K_2W_TX_DESC_CTL0_HEADER_LEN)
 			return -EINVAL;
-		tx_desc->tx_control_0 |=
+		tx_ctl->tx_control_0 |=
 			AR5K_REG_SM(hdr_len, AR5K_2W_TX_DESC_CTL0_HEADER_LEN);
 	}
 
@@ -3531,19 +3597,19 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 			frame_type = type /*<< 2 ?*/;
 		}
 
-		tx_desc->tx_control_0 |=
+		tx_ctl->tx_control_0 |=
 			AR5K_REG_SM(frame_type, AR5K_2W_TX_DESC_CTL0_FRAME_TYPE) |
 			AR5K_REG_SM(tx_rate0, AR5K_2W_TX_DESC_CTL0_XMIT_RATE);
 	} else {
-		tx_desc->tx_control_0 |=
+		tx_ctl->tx_control_0 |=
 			AR5K_REG_SM(tx_rate0, AR5K_2W_TX_DESC_CTL0_XMIT_RATE) |
 			AR5K_REG_SM(antenna_mode, AR5K_2W_TX_DESC_CTL0_ANT_MODE_XMIT);
-		tx_desc->tx_control_1 |=
+		tx_ctl->tx_control_1 |=
 			AR5K_REG_SM(type, AR5K_2W_TX_DESC_CTL1_FRAME_TYPE);
 	}
 #define _TX_FLAGS(_c, _flag)						\
 	if (flags & AR5K_TXDESC_##_flag)				\
-		tx_desc->tx_control_##_c |=				\
+		tx_ctl->tx_control_##_c |=				\
 			AR5K_2W_TX_DESC_CTL##_c##_##_flag
 
 	_TX_FLAGS(0, CLRDMASK);
@@ -3558,9 +3624,9 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	 * WEP crap
 	 */
 	if (key_index != AR5K_TXKEYIX_INVALID) {
-		tx_desc->tx_control_0 |=
+		tx_ctl->tx_control_0 |=
 			AR5K_2W_TX_DESC_CTL0_ENCRYPT_KEY_VALID;
-		tx_desc->tx_control_1 |=
+		tx_ctl->tx_control_1 |=
 			AR5K_REG_SM(key_index,
 			AR5K_2W_TX_DESC_CTL1_ENCRYPT_KEY_INDEX);
 	}
@@ -3570,7 +3636,7 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	 */
 	if ((ah->ah_version == AR5K_AR5210) &&
 			(flags & (AR5K_TXDESC_RTSENA | AR5K_TXDESC_CTSENA)))
-		tx_desc->tx_control_1 |= rtscts_duration &
+		tx_ctl->tx_control_1 |= rtscts_duration &
 				AR5K_2W_TX_DESC_CTL1_RTS_DURATION;
 
 	return 0;
@@ -3586,13 +3652,11 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	unsigned int antenna_mode, unsigned int flags, unsigned int rtscts_rate,
 	unsigned int rtscts_duration)
 {
-	struct ath5k_hw_4w_tx_desc *tx_desc;
-	struct ath5k_hw_tx_status *tx_status;
+	struct ath5k_hw_4w_tx_ctl *tx_ctl;
 	unsigned int frame_len;
 
 	ATH5K_TRACE(ah->ah_sc);
-	tx_desc = (struct ath5k_hw_4w_tx_desc *)&desc->ds_ctl0;
-	tx_status = (struct ath5k_hw_tx_status *)&desc->ds_hw[2];
+	tx_ctl = &desc->ud.ds_tx5212.tx_ctl;
 
 	/*
 	 * Validate input
@@ -3611,14 +3675,8 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 		return -EINVAL;
 	}
 
-	/* Clear status descriptor */
-	memset(tx_status, 0, sizeof(struct ath5k_hw_tx_status));
-
-	/* Initialize control descriptor */
-	tx_desc->tx_control_0 = 0;
-	tx_desc->tx_control_1 = 0;
-	tx_desc->tx_control_2 = 0;
-	tx_desc->tx_control_3 = 0;
+	/* Clear descriptor */
+	memset(&desc->ud.ds_tx5212, 0, sizeof(struct ath5k_hw_5212_tx_desc));
 
 	/* Setup control descriptor */
 
@@ -3630,7 +3688,7 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	if (frame_len & ~AR5K_4W_TX_DESC_CTL0_FRAME_LEN)
 		return -EINVAL;
 
-	tx_desc->tx_control_0 = frame_len & AR5K_4W_TX_DESC_CTL0_FRAME_LEN;
+	tx_ctl->tx_control_0 = frame_len & AR5K_4W_TX_DESC_CTL0_FRAME_LEN;
 
 	/* Verify and set buffer length */
 
@@ -3641,20 +3699,20 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	if (pkt_len & ~AR5K_4W_TX_DESC_CTL1_BUF_LEN)
 		return -EINVAL;
 
-	tx_desc->tx_control_1 = pkt_len & AR5K_4W_TX_DESC_CTL1_BUF_LEN;
+	tx_ctl->tx_control_1 = pkt_len & AR5K_4W_TX_DESC_CTL1_BUF_LEN;
 
-	tx_desc->tx_control_0 |=
+	tx_ctl->tx_control_0 |=
 		AR5K_REG_SM(tx_power, AR5K_4W_TX_DESC_CTL0_XMIT_POWER) |
 		AR5K_REG_SM(antenna_mode, AR5K_4W_TX_DESC_CTL0_ANT_MODE_XMIT);
-	tx_desc->tx_control_1 |= AR5K_REG_SM(type,
+	tx_ctl->tx_control_1 |= AR5K_REG_SM(type,
 					AR5K_4W_TX_DESC_CTL1_FRAME_TYPE);
-	tx_desc->tx_control_2 = AR5K_REG_SM(tx_tries0 + AR5K_TUNE_HWTXTRIES,
+	tx_ctl->tx_control_2 = AR5K_REG_SM(tx_tries0 + AR5K_TUNE_HWTXTRIES,
 					AR5K_4W_TX_DESC_CTL2_XMIT_TRIES0);
-	tx_desc->tx_control_3 = tx_rate0 & AR5K_4W_TX_DESC_CTL3_XMIT_RATE0;
+	tx_ctl->tx_control_3 = tx_rate0 & AR5K_4W_TX_DESC_CTL3_XMIT_RATE0;
 
 #define _TX_FLAGS(_c, _flag)			\
 	if (flags & AR5K_TXDESC_##_flag)	\
-		tx_desc->tx_control_##_c |=	\
+		tx_ctl->tx_control_##_c |=	\
 			AR5K_4W_TX_DESC_CTL##_c##_##_flag
 
 	_TX_FLAGS(0, CLRDMASK);
@@ -3670,8 +3728,8 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	 * WEP crap
 	 */
 	if (key_index != AR5K_TXKEYIX_INVALID) {
-		tx_desc->tx_control_0 |= AR5K_4W_TX_DESC_CTL0_ENCRYPT_KEY_VALID;
-		tx_desc->tx_control_1 |= AR5K_REG_SM(key_index,
+		tx_ctl->tx_control_0 |= AR5K_4W_TX_DESC_CTL0_ENCRYPT_KEY_VALID;
+		tx_ctl->tx_control_1 |= AR5K_REG_SM(key_index,
 				AR5K_4W_TX_DESC_CTL1_ENCRYPT_KEY_INDEX);
 	}
 
@@ -3682,9 +3740,9 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 		if ((flags & AR5K_TXDESC_RTSENA) &&
 				(flags & AR5K_TXDESC_CTSENA))
 			return -EINVAL;
-		tx_desc->tx_control_2 |= rtscts_duration &
+		tx_ctl->tx_control_2 |= rtscts_duration &
 				AR5K_4W_TX_DESC_CTL2_RTS_DURATION;
-		tx_desc->tx_control_3 |= AR5K_REG_SM(rtscts_rate,
+		tx_ctl->tx_control_3 |= AR5K_REG_SM(rtscts_rate,
 				AR5K_4W_TX_DESC_CTL3_RTS_CTS_RATE);
 	}
 
@@ -3699,7 +3757,7 @@ ath5k_hw_setup_xr_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	unsigned int tx_rate1, u_int tx_tries1, u_int tx_rate2, u_int tx_tries2,
 	unsigned int tx_rate3, u_int tx_tries3)
 {
-	struct ath5k_hw_4w_tx_desc *tx_desc;
+	struct ath5k_hw_4w_tx_ctl *tx_ctl;
 
 	/*
 	 * Rates can be 0 as long as the retry count is 0 too.
@@ -3716,14 +3774,14 @@ ath5k_hw_setup_xr_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	}
 
 	if (ah->ah_version == AR5K_AR5212) {
-		tx_desc = (struct ath5k_hw_4w_tx_desc *)&desc->ds_ctl0;
+		tx_ctl = &desc->ud.ds_tx5212.tx_ctl;
 
 #define _XTX_TRIES(_n)							\
 	if (tx_tries##_n) {						\
-		tx_desc->tx_control_2 |=				\
+		tx_ctl->tx_control_2 |=				\
 		    AR5K_REG_SM(tx_tries##_n,				\
 		    AR5K_4W_TX_DESC_CTL2_XMIT_TRIES##_n);		\
-		tx_desc->tx_control_3 |=				\
+		tx_ctl->tx_control_3 |=				\
 		    AR5K_REG_SM(tx_rate##_n,				\
 		    AR5K_4W_TX_DESC_CTL3_XMIT_RATE##_n);		\
 	}
@@ -3744,13 +3802,15 @@ ath5k_hw_setup_xr_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
  * Proccess the tx status descriptor on 5210/5211
  */
 static int ath5k_hw_proc_2word_tx_status(struct ath5k_hw *ah,
-		struct ath5k_desc *desc)
+		struct ath5k_desc *desc, struct ath5k_tx_status *ts)
 {
+	struct ath5k_hw_2w_tx_ctl *tx_ctl;
 	struct ath5k_hw_tx_status *tx_status;
-	struct ath5k_hw_2w_tx_desc *tx_desc;
 
-	tx_desc = (struct ath5k_hw_2w_tx_desc *)&desc->ds_ctl0;
-	tx_status = (struct ath5k_hw_tx_status *)&desc->ds_hw[0];
+	ATH5K_TRACE(ah->ah_sc);
+
+	tx_ctl = &desc->ud.ds_tx5210.tx_ctl;
+	tx_status = &desc->ud.ds_tx5210.tx_stat;
 
 	/* No frame has been send or error */
 	if (unlikely((tx_status->tx_status_1 & AR5K_DESC_TX_STATUS1_DONE) == 0))
@@ -3759,32 +3819,32 @@ static int ath5k_hw_proc_2word_tx_status(struct ath5k_hw *ah,
 	/*
 	 * Get descriptor status
 	 */
-	desc->ds_us.tx.ts_tstamp = AR5K_REG_MS(tx_status->tx_status_0,
+	ts->ts_tstamp = AR5K_REG_MS(tx_status->tx_status_0,
 		AR5K_DESC_TX_STATUS0_SEND_TIMESTAMP);
-	desc->ds_us.tx.ts_shortretry = AR5K_REG_MS(tx_status->tx_status_0,
+	ts->ts_shortretry = AR5K_REG_MS(tx_status->tx_status_0,
 		AR5K_DESC_TX_STATUS0_SHORT_RETRY_COUNT);
-	desc->ds_us.tx.ts_longretry = AR5K_REG_MS(tx_status->tx_status_0,
+	ts->ts_longretry = AR5K_REG_MS(tx_status->tx_status_0,
 		AR5K_DESC_TX_STATUS0_LONG_RETRY_COUNT);
-	/*TODO: desc->ds_us.tx.ts_virtcol + test*/
-	desc->ds_us.tx.ts_seqnum = AR5K_REG_MS(tx_status->tx_status_1,
+	/*TODO: ts->ts_virtcol + test*/
+	ts->ts_seqnum = AR5K_REG_MS(tx_status->tx_status_1,
 		AR5K_DESC_TX_STATUS1_SEQ_NUM);
-	desc->ds_us.tx.ts_rssi = AR5K_REG_MS(tx_status->tx_status_1,
+	ts->ts_rssi = AR5K_REG_MS(tx_status->tx_status_1,
 		AR5K_DESC_TX_STATUS1_ACK_SIG_STRENGTH);
-	desc->ds_us.tx.ts_antenna = 1;
-	desc->ds_us.tx.ts_status = 0;
-	desc->ds_us.tx.ts_rate = AR5K_REG_MS(tx_desc->tx_control_0,
+	ts->ts_antenna = 1;
+	ts->ts_status = 0;
+	ts->ts_rate = AR5K_REG_MS(tx_ctl->tx_control_0,
 		AR5K_2W_TX_DESC_CTL0_XMIT_RATE);
 
 	if ((tx_status->tx_status_0 & AR5K_DESC_TX_STATUS0_FRAME_XMIT_OK) == 0){
 		if (tx_status->tx_status_0 &
 				AR5K_DESC_TX_STATUS0_EXCESSIVE_RETRIES)
-			desc->ds_us.tx.ts_status |= AR5K_TXERR_XRETRY;
+			ts->ts_status |= AR5K_TXERR_XRETRY;
 
 		if (tx_status->tx_status_0 & AR5K_DESC_TX_STATUS0_FIFO_UNDERRUN)
-			desc->ds_us.tx.ts_status |= AR5K_TXERR_FIFO;
+			ts->ts_status |= AR5K_TXERR_FIFO;
 
 		if (tx_status->tx_status_0 & AR5K_DESC_TX_STATUS0_FILTERED)
-			desc->ds_us.tx.ts_status |= AR5K_TXERR_FILT;
+			ts->ts_status |= AR5K_TXERR_FILT;
 	}
 
 	return 0;
@@ -3794,14 +3854,15 @@ static int ath5k_hw_proc_2word_tx_status(struct ath5k_hw *ah,
  * Proccess a tx descriptor on 5212
  */
 static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
-		struct ath5k_desc *desc)
+		struct ath5k_desc *desc, struct ath5k_tx_status *ts)
 {
+	struct ath5k_hw_4w_tx_ctl *tx_ctl;
 	struct ath5k_hw_tx_status *tx_status;
-	struct ath5k_hw_4w_tx_desc *tx_desc;
 
 	ATH5K_TRACE(ah->ah_sc);
-	tx_desc = (struct ath5k_hw_4w_tx_desc *)&desc->ds_ctl0;
-	tx_status = (struct ath5k_hw_tx_status *)&desc->ds_hw[2];
+
+	tx_ctl = &desc->ud.ds_tx5212.tx_ctl;
+	tx_status = &desc->ud.ds_tx5212.tx_stat;
 
 	/* No frame has been send or error */
 	if (unlikely((tx_status->tx_status_1 & AR5K_DESC_TX_STATUS1_DONE) == 0))
@@ -3810,42 +3871,42 @@ static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
 	/*
 	 * Get descriptor status
 	 */
-	desc->ds_us.tx.ts_tstamp = AR5K_REG_MS(tx_status->tx_status_0,
+	ts->ts_tstamp = AR5K_REG_MS(tx_status->tx_status_0,
 		AR5K_DESC_TX_STATUS0_SEND_TIMESTAMP);
-	desc->ds_us.tx.ts_shortretry = AR5K_REG_MS(tx_status->tx_status_0,
+	ts->ts_shortretry = AR5K_REG_MS(tx_status->tx_status_0,
 		AR5K_DESC_TX_STATUS0_SHORT_RETRY_COUNT);
-	desc->ds_us.tx.ts_longretry = AR5K_REG_MS(tx_status->tx_status_0,
+	ts->ts_longretry = AR5K_REG_MS(tx_status->tx_status_0,
 		AR5K_DESC_TX_STATUS0_LONG_RETRY_COUNT);
-	desc->ds_us.tx.ts_seqnum = AR5K_REG_MS(tx_status->tx_status_1,
+	ts->ts_seqnum = AR5K_REG_MS(tx_status->tx_status_1,
 		AR5K_DESC_TX_STATUS1_SEQ_NUM);
-	desc->ds_us.tx.ts_rssi = AR5K_REG_MS(tx_status->tx_status_1,
+	ts->ts_rssi = AR5K_REG_MS(tx_status->tx_status_1,
 		AR5K_DESC_TX_STATUS1_ACK_SIG_STRENGTH);
-	desc->ds_us.tx.ts_antenna = (tx_status->tx_status_1 &
+	ts->ts_antenna = (tx_status->tx_status_1 &
 		AR5K_DESC_TX_STATUS1_XMIT_ANTENNA) ? 2 : 1;
-	desc->ds_us.tx.ts_status = 0;
+	ts->ts_status = 0;
 
 	switch (AR5K_REG_MS(tx_status->tx_status_1,
 			AR5K_DESC_TX_STATUS1_FINAL_TS_INDEX)) {
 	case 0:
-		desc->ds_us.tx.ts_rate = tx_desc->tx_control_3 &
+		ts->ts_rate = tx_ctl->tx_control_3 &
 			AR5K_4W_TX_DESC_CTL3_XMIT_RATE0;
 		break;
 	case 1:
-		desc->ds_us.tx.ts_rate = AR5K_REG_MS(tx_desc->tx_control_3,
+		ts->ts_rate = AR5K_REG_MS(tx_ctl->tx_control_3,
 			AR5K_4W_TX_DESC_CTL3_XMIT_RATE1);
-		desc->ds_us.tx.ts_longretry +=AR5K_REG_MS(tx_desc->tx_control_2,
+		ts->ts_longretry += AR5K_REG_MS(tx_ctl->tx_control_2,
 			AR5K_4W_TX_DESC_CTL2_XMIT_TRIES1);
 		break;
 	case 2:
-		desc->ds_us.tx.ts_rate = AR5K_REG_MS(tx_desc->tx_control_3,
+		ts->ts_rate = AR5K_REG_MS(tx_ctl->tx_control_3,
 			AR5K_4W_TX_DESC_CTL3_XMIT_RATE2);
-		desc->ds_us.tx.ts_longretry +=AR5K_REG_MS(tx_desc->tx_control_2,
+		ts->ts_longretry += AR5K_REG_MS(tx_ctl->tx_control_2,
 			AR5K_4W_TX_DESC_CTL2_XMIT_TRIES2);
 		break;
 	case 3:
-		desc->ds_us.tx.ts_rate = AR5K_REG_MS(tx_desc->tx_control_3,
+		ts->ts_rate = AR5K_REG_MS(tx_ctl->tx_control_3,
 			AR5K_4W_TX_DESC_CTL3_XMIT_RATE3);
-		desc->ds_us.tx.ts_longretry +=AR5K_REG_MS(tx_desc->tx_control_2,
+		ts->ts_longretry += AR5K_REG_MS(tx_ctl->tx_control_2,
 			AR5K_4W_TX_DESC_CTL2_XMIT_TRIES3);
 		break;
 	}
@@ -3853,13 +3914,13 @@ static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
 	if ((tx_status->tx_status_0 & AR5K_DESC_TX_STATUS0_FRAME_XMIT_OK) == 0){
 		if (tx_status->tx_status_0 &
 				AR5K_DESC_TX_STATUS0_EXCESSIVE_RETRIES)
-			desc->ds_us.tx.ts_status |= AR5K_TXERR_XRETRY;
+			ts->ts_status |= AR5K_TXERR_XRETRY;
 
 		if (tx_status->tx_status_0 & AR5K_DESC_TX_STATUS0_FIFO_UNDERRUN)
-			desc->ds_us.tx.ts_status |= AR5K_TXERR_FIFO;
+			ts->ts_status |= AR5K_TXERR_FIFO;
 
 		if (tx_status->tx_status_0 & AR5K_DESC_TX_STATUS0_FILTERED)
-			desc->ds_us.tx.ts_status |= AR5K_TXERR_FILT;
+			ts->ts_status |= AR5K_TXERR_FILT;
 	}
 
 	return 0;
@@ -3875,31 +3936,27 @@ static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
 int ath5k_hw_setup_rx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 			u32 size, unsigned int flags)
 {
-	struct ath5k_rx_desc *rx_desc;
+	struct ath5k_hw_rx_ctl *rx_ctl;
 
 	ATH5K_TRACE(ah->ah_sc);
-	rx_desc = (struct ath5k_rx_desc *)&desc->ds_ctl0;
+	rx_ctl = &desc->ud.ds_rx.rx_ctl;
 
 	/*
-	 *Clear ds_hw
+	 * Clear the descriptor
 	 * If we don't clean the status descriptor,
 	 * while scanning we get too many results,
 	 * most of them virtual, after some secs
 	 * of scanning system hangs. M.F.
 	*/
-	memset(desc->ds_hw, 0, sizeof(desc->ds_hw));
-
-	/*Initialize rx descriptor*/
-	rx_desc->rx_control_0 = 0;
-	rx_desc->rx_control_1 = 0;
+	memset(&desc->ud.ds_rx, 0, sizeof(struct ath5k_hw_all_rx_desc));
 
 	/* Setup descriptor */
-	rx_desc->rx_control_1 = size & AR5K_DESC_RX_CTL1_BUF_LEN;
-	if (unlikely(rx_desc->rx_control_1 != size))
+	rx_ctl->rx_control_1 = size & AR5K_DESC_RX_CTL1_BUF_LEN;
+	if (unlikely(rx_ctl->rx_control_1 != size))
 		return -EINVAL;
 
 	if (flags & AR5K_RXDESC_INTREQ)
-		rx_desc->rx_control_1 |= AR5K_DESC_RX_CTL1_INTREQ;
+		rx_ctl->rx_control_1 |= AR5K_DESC_RX_CTL1_INTREQ;
 
 	return 0;
 }
@@ -3907,67 +3964,68 @@ int ath5k_hw_setup_rx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 /*
  * Proccess the rx status descriptor on 5210/5211
  */
-static int ath5k_hw_proc_old_rx_status(struct ath5k_hw *ah,
-		struct ath5k_desc *desc)
+static int ath5k_hw_proc_5210_rx_status(struct ath5k_hw *ah,
+		struct ath5k_desc *desc, struct ath5k_rx_status *rs)
 {
-	struct ath5k_hw_old_rx_status *rx_status;
+	struct ath5k_hw_rx_status *rx_status;
 
-	rx_status = (struct ath5k_hw_old_rx_status *)&desc->ds_hw[0];
+	rx_status = &desc->ud.ds_rx.u.rx_stat;
 
 	/* No frame received / not ready */
-	if (unlikely((rx_status->rx_status_1 & AR5K_OLD_RX_DESC_STATUS1_DONE)
+	if (unlikely((rx_status->rx_status_1 & AR5K_5210_RX_DESC_STATUS1_DONE)
 				== 0))
 		return -EINPROGRESS;
 
 	/*
 	 * Frame receive status
 	 */
-	desc->ds_us.rx.rs_datalen = rx_status->rx_status_0 &
-		AR5K_OLD_RX_DESC_STATUS0_DATA_LEN;
-	desc->ds_us.rx.rs_rssi = AR5K_REG_MS(rx_status->rx_status_0,
-		AR5K_OLD_RX_DESC_STATUS0_RECEIVE_SIGNAL);
-	desc->ds_us.rx.rs_rate = AR5K_REG_MS(rx_status->rx_status_0,
-		AR5K_OLD_RX_DESC_STATUS0_RECEIVE_RATE);
-	desc->ds_us.rx.rs_antenna = rx_status->rx_status_0 &
-		AR5K_OLD_RX_DESC_STATUS0_RECEIVE_ANTENNA;
-	desc->ds_us.rx.rs_more = rx_status->rx_status_0 &
-		AR5K_OLD_RX_DESC_STATUS0_MORE;
-	desc->ds_us.rx.rs_tstamp = AR5K_REG_MS(rx_status->rx_status_1,
-		AR5K_OLD_RX_DESC_STATUS1_RECEIVE_TIMESTAMP);
-	desc->ds_us.rx.rs_status = 0;
+	rs->rs_datalen = rx_status->rx_status_0 &
+		AR5K_5210_RX_DESC_STATUS0_DATA_LEN;
+	rs->rs_rssi = AR5K_REG_MS(rx_status->rx_status_0,
+		AR5K_5210_RX_DESC_STATUS0_RECEIVE_SIGNAL);
+	rs->rs_rate = AR5K_REG_MS(rx_status->rx_status_0,
+		AR5K_5210_RX_DESC_STATUS0_RECEIVE_RATE);
+	rs->rs_antenna = rx_status->rx_status_0 &
+		AR5K_5210_RX_DESC_STATUS0_RECEIVE_ANTENNA;
+	rs->rs_more = rx_status->rx_status_0 &
+		AR5K_5210_RX_DESC_STATUS0_MORE;
+	/* TODO: this timestamp is 13 bit, later on we assume 15 bit */
+	rs->rs_tstamp = AR5K_REG_MS(rx_status->rx_status_1,
+		AR5K_5210_RX_DESC_STATUS1_RECEIVE_TIMESTAMP);
+	rs->rs_status = 0;
 
 	/*
 	 * Key table status
 	 */
-	if (rx_status->rx_status_1 & AR5K_OLD_RX_DESC_STATUS1_KEY_INDEX_VALID)
-		desc->ds_us.rx.rs_keyix = AR5K_REG_MS(rx_status->rx_status_1,
-			AR5K_OLD_RX_DESC_STATUS1_KEY_INDEX);
+	if (rx_status->rx_status_1 & AR5K_5210_RX_DESC_STATUS1_KEY_INDEX_VALID)
+		rs->rs_keyix = AR5K_REG_MS(rx_status->rx_status_1,
+			AR5K_5210_RX_DESC_STATUS1_KEY_INDEX);
 	else
-		desc->ds_us.rx.rs_keyix = AR5K_RXKEYIX_INVALID;
+		rs->rs_keyix = AR5K_RXKEYIX_INVALID;
 
 	/*
 	 * Receive/descriptor errors
 	 */
-	if ((rx_status->rx_status_1 & AR5K_OLD_RX_DESC_STATUS1_FRAME_RECEIVE_OK)
-			== 0) {
-		if (rx_status->rx_status_1 & AR5K_OLD_RX_DESC_STATUS1_CRC_ERROR)
-			desc->ds_us.rx.rs_status |= AR5K_RXERR_CRC;
+	if ((rx_status->rx_status_1 &
+			AR5K_5210_RX_DESC_STATUS1_FRAME_RECEIVE_OK) == 0) {
+		if (rx_status->rx_status_1 &
+				AR5K_5210_RX_DESC_STATUS1_CRC_ERROR)
+			rs->rs_status |= AR5K_RXERR_CRC;
 
 		if (rx_status->rx_status_1 &
-				AR5K_OLD_RX_DESC_STATUS1_FIFO_OVERRUN)
-			desc->ds_us.rx.rs_status |= AR5K_RXERR_FIFO;
+				AR5K_5210_RX_DESC_STATUS1_FIFO_OVERRUN)
+			rs->rs_status |= AR5K_RXERR_FIFO;
 
 		if (rx_status->rx_status_1 &
-				AR5K_OLD_RX_DESC_STATUS1_PHY_ERROR) {
-			desc->ds_us.rx.rs_status |= AR5K_RXERR_PHY;
-			desc->ds_us.rx.rs_phyerr =
-				AR5K_REG_MS(rx_status->rx_status_1,
-					AR5K_OLD_RX_DESC_STATUS1_PHY_ERROR);
+				AR5K_5210_RX_DESC_STATUS1_PHY_ERROR) {
+			rs->rs_status |= AR5K_RXERR_PHY;
+			rs->rs_phyerr = AR5K_REG_MS(rx_status->rx_status_1,
+					   AR5K_5210_RX_DESC_STATUS1_PHY_ERROR);
 		}
 
 		if (rx_status->rx_status_1 &
-				AR5K_OLD_RX_DESC_STATUS1_DECRYPT_CRC_ERROR)
-			desc->ds_us.rx.rs_status |= AR5K_RXERR_DECRYPT;
+				AR5K_5210_RX_DESC_STATUS1_DECRYPT_CRC_ERROR)
+			rs->rs_status |= AR5K_RXERR_DECRYPT;
 	}
 
 	return 0;
@@ -3976,71 +4034,72 @@ static int ath5k_hw_proc_old_rx_status(struct ath5k_hw *ah,
 /*
  * Proccess the rx status descriptor on 5212
  */
-static int ath5k_hw_proc_new_rx_status(struct ath5k_hw *ah,
-		struct ath5k_desc *desc)
+static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
+		struct ath5k_desc *desc, struct ath5k_rx_status *rs)
 {
-	struct ath5k_hw_new_rx_status *rx_status;
+	struct ath5k_hw_rx_status *rx_status;
 	struct ath5k_hw_rx_error *rx_err;
 
 	ATH5K_TRACE(ah->ah_sc);
-	rx_status = (struct ath5k_hw_new_rx_status *)&desc->ds_hw[0];
+	rx_status = &desc->ud.ds_rx.u.rx_stat;
 
 	/* Overlay on error */
-	rx_err = (struct ath5k_hw_rx_error *)&desc->ds_hw[0];
+	rx_err = &desc->ud.ds_rx.u.rx_err;
 
 	/* No frame received / not ready */
-	if (unlikely((rx_status->rx_status_1 & AR5K_NEW_RX_DESC_STATUS1_DONE)
+	if (unlikely((rx_status->rx_status_1 & AR5K_5212_RX_DESC_STATUS1_DONE)
 				== 0))
 		return -EINPROGRESS;
 
 	/*
 	 * Frame receive status
 	 */
-	desc->ds_us.rx.rs_datalen = rx_status->rx_status_0 &
-		AR5K_NEW_RX_DESC_STATUS0_DATA_LEN;
-	desc->ds_us.rx.rs_rssi = AR5K_REG_MS(rx_status->rx_status_0,
-		AR5K_NEW_RX_DESC_STATUS0_RECEIVE_SIGNAL);
-	desc->ds_us.rx.rs_rate = AR5K_REG_MS(rx_status->rx_status_0,
-		AR5K_NEW_RX_DESC_STATUS0_RECEIVE_RATE);
-	desc->ds_us.rx.rs_antenna = rx_status->rx_status_0 &
-		AR5K_NEW_RX_DESC_STATUS0_RECEIVE_ANTENNA;
-	desc->ds_us.rx.rs_more = rx_status->rx_status_0 &
-		AR5K_NEW_RX_DESC_STATUS0_MORE;
-	desc->ds_us.rx.rs_tstamp = AR5K_REG_MS(rx_status->rx_status_1,
-		AR5K_NEW_RX_DESC_STATUS1_RECEIVE_TIMESTAMP);
-	desc->ds_us.rx.rs_status = 0;
+	rs->rs_datalen = rx_status->rx_status_0 &
+		AR5K_5212_RX_DESC_STATUS0_DATA_LEN;
+	rs->rs_rssi = AR5K_REG_MS(rx_status->rx_status_0,
+		AR5K_5212_RX_DESC_STATUS0_RECEIVE_SIGNAL);
+	rs->rs_rate = AR5K_REG_MS(rx_status->rx_status_0,
+		AR5K_5212_RX_DESC_STATUS0_RECEIVE_RATE);
+	rs->rs_antenna = rx_status->rx_status_0 &
+		AR5K_5212_RX_DESC_STATUS0_RECEIVE_ANTENNA;
+	rs->rs_more = rx_status->rx_status_0 &
+		AR5K_5212_RX_DESC_STATUS0_MORE;
+	rs->rs_tstamp = AR5K_REG_MS(rx_status->rx_status_1,
+		AR5K_5212_RX_DESC_STATUS1_RECEIVE_TIMESTAMP);
+	rs->rs_status = 0;
 
 	/*
 	 * Key table status
 	 */
-	if (rx_status->rx_status_1 & AR5K_NEW_RX_DESC_STATUS1_KEY_INDEX_VALID)
-		desc->ds_us.rx.rs_keyix = AR5K_REG_MS(rx_status->rx_status_1,
-				AR5K_NEW_RX_DESC_STATUS1_KEY_INDEX);
+	if (rx_status->rx_status_1 & AR5K_5212_RX_DESC_STATUS1_KEY_INDEX_VALID)
+		rs->rs_keyix = AR5K_REG_MS(rx_status->rx_status_1,
+				AR5K_5212_RX_DESC_STATUS1_KEY_INDEX);
 	else
-		desc->ds_us.rx.rs_keyix = AR5K_RXKEYIX_INVALID;
+		rs->rs_keyix = AR5K_RXKEYIX_INVALID;
 
 	/*
 	 * Receive/descriptor errors
 	 */
 	if ((rx_status->rx_status_1 &
-			AR5K_NEW_RX_DESC_STATUS1_FRAME_RECEIVE_OK) == 0) {
-		if (rx_status->rx_status_1 & AR5K_NEW_RX_DESC_STATUS1_CRC_ERROR)
-			desc->ds_us.rx.rs_status |= AR5K_RXERR_CRC;
+			AR5K_5212_RX_DESC_STATUS1_FRAME_RECEIVE_OK) == 0) {
+		if (rx_status->rx_status_1 &
+				AR5K_5212_RX_DESC_STATUS1_CRC_ERROR)
+			rs->rs_status |= AR5K_RXERR_CRC;
 
 		if (rx_status->rx_status_1 &
-				AR5K_NEW_RX_DESC_STATUS1_PHY_ERROR) {
-			desc->ds_us.rx.rs_status |= AR5K_RXERR_PHY;
-			desc->ds_us.rx.rs_phyerr =
-				AR5K_REG_MS(rx_err->rx_error_1,
-					AR5K_RX_DESC_ERROR1_PHY_ERROR_CODE);
+				AR5K_5212_RX_DESC_STATUS1_PHY_ERROR) {
+			rs->rs_status |= AR5K_RXERR_PHY;
+			rs->rs_phyerr = AR5K_REG_MS(rx_err->rx_error_1,
+					   AR5K_RX_DESC_ERROR1_PHY_ERROR_CODE);
 		}
 
 		if (rx_status->rx_status_1 &
-				AR5K_NEW_RX_DESC_STATUS1_DECRYPT_CRC_ERROR)
-			desc->ds_us.rx.rs_status |= AR5K_RXERR_DECRYPT;
+				AR5K_5212_RX_DESC_STATUS1_DECRYPT_CRC_ERROR)
+			rs->rs_status |= AR5K_RXERR_DECRYPT;
 
-		if (rx_status->rx_status_1 & AR5K_NEW_RX_DESC_STATUS1_MIC_ERROR)
-			desc->ds_us.rx.rs_status |= AR5K_RXERR_MIC;
+		if (rx_status->rx_status_1 &
+				AR5K_5212_RX_DESC_STATUS1_MIC_ERROR)
+			rs->rs_status |= AR5K_RXERR_MIC;
 	}
 
 	return 0;

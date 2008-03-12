@@ -338,75 +338,103 @@ int lbs_cmd_802_11_enable_rsn(struct lbs_private *priv, uint16_t cmd_action,
 	return ret;
 }
 
-static void set_one_wpa_key(struct MrvlIEtype_keyParamSet * pkeyparamset,
-                            struct enc_key * pkey)
+static void set_one_wpa_key(struct MrvlIEtype_keyParamSet *keyparam,
+                            struct enc_key *key)
 {
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	if (pkey->flags & KEY_INFO_WPA_ENABLED) {
-		pkeyparamset->keyinfo |= cpu_to_le16(KEY_INFO_WPA_ENABLED);
-	}
-	if (pkey->flags & KEY_INFO_WPA_UNICAST) {
-		pkeyparamset->keyinfo |= cpu_to_le16(KEY_INFO_WPA_UNICAST);
-	}
-	if (pkey->flags & KEY_INFO_WPA_MCAST) {
-		pkeyparamset->keyinfo |= cpu_to_le16(KEY_INFO_WPA_MCAST);
-	}
+	if (key->flags & KEY_INFO_WPA_ENABLED)
+		keyparam->keyinfo |= cpu_to_le16(KEY_INFO_WPA_ENABLED);
+	if (key->flags & KEY_INFO_WPA_UNICAST)
+		keyparam->keyinfo |= cpu_to_le16(KEY_INFO_WPA_UNICAST);
+	if (key->flags & KEY_INFO_WPA_MCAST)
+		keyparam->keyinfo |= cpu_to_le16(KEY_INFO_WPA_MCAST);
 
-	pkeyparamset->type = cpu_to_le16(TLV_TYPE_KEY_MATERIAL);
-	pkeyparamset->keytypeid = cpu_to_le16(pkey->type);
-	pkeyparamset->keylen = cpu_to_le16(pkey->len);
-	memcpy(pkeyparamset->key, pkey->key, pkey->len);
-	pkeyparamset->length = cpu_to_le16(  sizeof(pkeyparamset->keytypeid)
-	                                        + sizeof(pkeyparamset->keyinfo)
-	                                        + sizeof(pkeyparamset->keylen)
-	                                        + sizeof(pkeyparamset->key));
+	keyparam->type = cpu_to_le16(TLV_TYPE_KEY_MATERIAL);
+	keyparam->keytypeid = cpu_to_le16(key->type);
+	keyparam->keylen = cpu_to_le16(key->len);
+	memcpy(keyparam->key, key->key, key->len);
+
+	/* Length field doesn't include the {type,length} header */
+	keyparam->length = cpu_to_le16(sizeof(*keyparam) - 4);
 	lbs_deb_leave(LBS_DEB_CMD);
 }
 
-static int lbs_cmd_802_11_key_material(struct lbs_private *priv,
-					struct cmd_ds_command *cmd,
-					u16 cmd_action,
-					u32 cmd_oid, void *pdata_buf)
+int lbs_cmd_802_11_key_material(struct lbs_private *priv, uint16_t cmd_action,
+				struct assoc_request *assoc)
 {
-	struct cmd_ds_802_11_key_material *pkeymaterial =
-	    &cmd->params.keymaterial;
-	struct assoc_request * assoc_req = pdata_buf;
+	struct cmd_ds_802_11_key_material cmd;
 	int ret = 0;
 	int index = 0;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	cmd->command = cpu_to_le16(CMD_802_11_KEY_MATERIAL);
-	pkeymaterial->action = cpu_to_le16(cmd_action);
+	cmd.action = cpu_to_le16(cmd_action);
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 
 	if (cmd_action == CMD_ACT_GET) {
-		cmd->size = cpu_to_le16(S_DS_GEN + sizeof (pkeymaterial->action));
-		ret = 0;
-		goto done;
+		cmd.hdr.size = cpu_to_le16(S_DS_GEN + 2);
+	} else {
+		memset(cmd.keyParamSet, 0, sizeof(cmd.keyParamSet));
+
+		if (test_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc->flags)) {
+			set_one_wpa_key(&cmd.keyParamSet[index],
+					&assoc->wpa_unicast_key);
+			index++;
+		}
+
+		if (test_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc->flags)) {
+			set_one_wpa_key(&cmd.keyParamSet[index],
+					&assoc->wpa_mcast_key);
+			index++;
+		}
+
+		/* The common header and as many keys as we included */
+		cmd.hdr.size = cpu_to_le16(offsetof(typeof(cmd),
+						    keyParamSet[index]));
+	}
+	ret = lbs_cmd_with_response(priv, CMD_802_11_KEY_MATERIAL, &cmd);
+	/* Copy the returned key to driver private data */
+	if (!ret && cmd_action == CMD_ACT_GET) {
+		void *buf_ptr = cmd.keyParamSet;
+		void *resp_end = &(&cmd)[1];
+
+		while (buf_ptr < resp_end) {
+			struct MrvlIEtype_keyParamSet *keyparam = buf_ptr;
+			struct enc_key *key;
+			uint16_t param_set_len = le16_to_cpu(keyparam->length);
+			uint16_t key_len = le16_to_cpu(keyparam->keylen);
+			uint16_t key_flags = le16_to_cpu(keyparam->keyinfo);
+			uint16_t key_type = le16_to_cpu(keyparam->keytypeid);
+			void *end;
+
+			end = (void *)keyparam + sizeof(keyparam->type)
+				+ sizeof(keyparam->length) + param_set_len;
+
+			/* Make sure we don't access past the end of the IEs */
+			if (end > resp_end)
+				break;
+
+			if (key_flags & KEY_INFO_WPA_UNICAST)
+				key = &priv->wpa_unicast_key;
+			else if (key_flags & KEY_INFO_WPA_MCAST)
+				key = &priv->wpa_mcast_key;
+			else
+				break;
+
+			/* Copy returned key into driver */
+			memset(key, 0, sizeof(struct enc_key));
+			if (key_len > sizeof(key->key))
+				break;
+			key->type = key_type;
+			key->flags = key_flags;
+			key->len = key_len;
+			memcpy(key->key, keyparam->key, key->len);
+
+			buf_ptr = end + 1;
+		}
 	}
 
-	memset(&pkeymaterial->keyParamSet, 0, sizeof(pkeymaterial->keyParamSet));
-
-	if (test_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags)) {
-		set_one_wpa_key(&pkeymaterial->keyParamSet[index],
-		                &assoc_req->wpa_unicast_key);
-		index++;
-	}
-
-	if (test_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags)) {
-		set_one_wpa_key(&pkeymaterial->keyParamSet[index],
-		                &assoc_req->wpa_mcast_key);
-		index++;
-	}
-
-	cmd->size = cpu_to_le16(  S_DS_GEN
-	                        + sizeof (pkeymaterial->action)
-	                        + (index * sizeof(struct MrvlIEtype_keyParamSet)));
-
-	ret = 0;
-
-done:
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
 }
@@ -1354,10 +1382,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		ret = lbs_cmd_802_11_ps_mode(priv, cmdptr, cmd_action);
 		break;
 
-	case CMD_802_11_SCAN:
-		ret = lbs_cmd_80211_scan(priv, cmdptr, pdata_buf);
-		break;
-
 	case CMD_MAC_CONTROL:
 		ret = lbs_cmd_mac_control(priv, cmdptr);
 		break;
@@ -1433,11 +1457,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 	case CMD_802_11_AD_HOC_STOP:
 		ret = lbs_cmd_80211_ad_hoc_stop(priv, cmdptr);
-		break;
-
-	case CMD_802_11_KEY_MATERIAL:
-		ret = lbs_cmd_802_11_key_material(priv, cmdptr, cmd_action,
-				cmd_oid, pdata_buf);
 		break;
 
 	case CMD_802_11_PAIRWISE_TSC:

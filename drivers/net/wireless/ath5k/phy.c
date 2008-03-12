@@ -666,6 +666,75 @@ static const struct ath5k_ini_rf rfregs_5413[] = {
 	    { 0x0000000e, 0x0000000e, 0x0000000e, 0x0000000e, 0x0000000e } },
 };
 
+/* RF2413/2414 mode-specific init registers */
+static const struct ath5k_ini_rf rfregs_2413[] = {
+	{ 1, AR5K_RF_BUFFER_CONTROL_4,
+		{ 0x00000020, 0x00000020, 0x00000020 } },
+	{ 2, AR5K_RF_BUFFER_CONTROL_3,
+		{ 0x02001408, 0x02001408, 0x02001408 } },
+	{ 3, AR5K_RF_BUFFER_CONTROL_6,
+		{ 0x00e020c0, 0x00e020c0, 0x00e020c0 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0xf0000000, 0xf0000000, 0xf0000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x03000000, 0x03000000, 0x03000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x40400000, 0x40400000, 0x40400000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x65050000, 0x65050000, 0x65050000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00420000, 0x00420000, 0x00420000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00b50000, 0x00b50000, 0x00b50000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00030000, 0x00030000, 0x00030000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00f70000, 0x00f70000, 0x00f70000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x009d0000, 0x009d0000, 0x009d0000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00220000, 0x00220000, 0x00220000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x04220000, 0x04220000, 0x04220000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00230018, 0x00230018, 0x00230018 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00280050, 0x00280050, 0x00280050 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x005000c3, 0x005000c3, 0x005000c3 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x0004007f, 0x0004007f, 0x0004007f } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000458, 0x00000458, 0x00000458 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x00000000, 0x00000000, 0x00000000 } },
+	{ 6, AR5K_RF_BUFFER,
+		{ 0x0000c000, 0x0000c000, 0x0000c000 } },
+	{ 6, AR5K_RF_BUFFER_CONTROL_5,
+		{ 0x00400230, 0x00400230, 0x00400230 } },
+	{ 7, AR5K_RF_BUFFER,
+		{ 0x00006400, 0x00006400, 0x00006400 } },
+	{ 7, AR5K_RF_BUFFER,
+		{ 0x00000800, 0x00000800, 0x00000800 } },
+	{ 7, AR5K_RF_BUFFER_CONTROL_2,
+		{ 0x0000000e, 0x0000000e, 0x0000000e } },
+};
 
 /* Initial RF Gain settings for RF5112 */
 static const struct ath5k_ini_rfgain rfgain_5112[] = {
@@ -803,6 +872,74 @@ static const struct ath5k_ini_rfgain rfgain_5413[] = {
 	{ AR5K_RF_GAIN(61),	{ 0x000000f9, 0x000000f9 } },
 	{ AR5K_RF_GAIN(62),	{ 0x000000f9, 0x000000f9 } },
 	{ AR5K_RF_GAIN(63),	{ 0x000000f9, 0x000000f9 } },
+};
+
+/* Initial RF Gain settings for RF2413 */
+static const struct ath5k_ini_rfgain rfgain_2413[] = {
+	{ AR5K_RF_GAIN(0), { 0x00000000 } },
+	{ AR5K_RF_GAIN(1), { 0x00000040 } },
+	{ AR5K_RF_GAIN(2), { 0x00000080 } },
+	{ AR5K_RF_GAIN(3), { 0x00000181 } },
+	{ AR5K_RF_GAIN(4), { 0x000001c1 } },
+	{ AR5K_RF_GAIN(5), { 0x00000001 } },
+	{ AR5K_RF_GAIN(6), { 0x00000041 } },
+	{ AR5K_RF_GAIN(7), { 0x00000081 } },
+	{ AR5K_RF_GAIN(8), { 0x00000168 } },
+	{ AR5K_RF_GAIN(9), { 0x000001a8 } },
+	{ AR5K_RF_GAIN(10), { 0x000001e8 } },
+	{ AR5K_RF_GAIN(11), { 0x00000028 } },
+	{ AR5K_RF_GAIN(12), { 0x00000068 } },
+	{ AR5K_RF_GAIN(13), { 0x00000189 } },
+	{ AR5K_RF_GAIN(14), { 0x000001c9 } },
+	{ AR5K_RF_GAIN(15), { 0x00000009 } },
+	{ AR5K_RF_GAIN(16), { 0x00000049 } },
+	{ AR5K_RF_GAIN(17), { 0x00000089 } },
+	{ AR5K_RF_GAIN(18), { 0x00000190 } },
+	{ AR5K_RF_GAIN(19), { 0x000001d0 } },
+	{ AR5K_RF_GAIN(20), { 0x00000010 } },
+	{ AR5K_RF_GAIN(21), { 0x00000050 } },
+	{ AR5K_RF_GAIN(22), { 0x00000090 } },
+	{ AR5K_RF_GAIN(23), { 0x00000191 } },
+	{ AR5K_RF_GAIN(24), { 0x000001d1 } },
+	{ AR5K_RF_GAIN(25), { 0x00000011 } },
+	{ AR5K_RF_GAIN(26), { 0x00000051 } },
+	{ AR5K_RF_GAIN(27), { 0x00000091 } },
+	{ AR5K_RF_GAIN(28), { 0x00000178 } },
+	{ AR5K_RF_GAIN(29), { 0x000001b8 } },
+	{ AR5K_RF_GAIN(30), { 0x000001f8 } },
+	{ AR5K_RF_GAIN(31), { 0x00000038 } },
+	{ AR5K_RF_GAIN(32), { 0x00000078 } },
+	{ AR5K_RF_GAIN(33), { 0x00000199 } },
+	{ AR5K_RF_GAIN(34), { 0x000001d9 } },
+	{ AR5K_RF_GAIN(35), { 0x00000019 } },
+	{ AR5K_RF_GAIN(36), { 0x00000059 } },
+	{ AR5K_RF_GAIN(37), { 0x00000099 } },
+	{ AR5K_RF_GAIN(38), { 0x000000d9 } },
+	{ AR5K_RF_GAIN(39), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(40), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(41), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(42), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(43), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(44), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(45), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(46), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(47), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(48), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(49), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(50), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(51), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(52), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(53), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(54), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(55), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(56), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(57), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(58), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(59), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(60), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(61), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(62), { 0x000000f9 } },
+	{ AR5K_RF_GAIN(63), { 0x000000f9 } },
 };
 
 static const struct ath5k_gain_opt rfgain_opt_5112 = {
@@ -955,7 +1092,6 @@ static s32 ath5k_hw_rfregs_gain_adjust(struct ath5k_hw *ah)
 		go = &rfgain_opt_5111;
 		break;
 	case AR5K_RF5112:
-	case AR5K_RF5413: /* ??? */
 		go = &rfgain_opt_5112;
 		break;
 	default:
@@ -1226,8 +1362,21 @@ static int ath5k_hw_rf5413_rfregs(struct ath5k_hw *ah,
 
 	rf = ah->ah_rf_banks;
 
-	rf_ini = rfregs_5413;
-	rf_size = ARRAY_SIZE(rfregs_5413);
+	if (ah->ah_radio == AR5K_RF5413) {
+		rf_ini = rfregs_5413;
+		rf_size = ARRAY_SIZE(rfregs_5413);
+	} else if (ah->ah_radio == AR5K_RF2413) {
+		rf_ini = rfregs_2413;
+		rf_size = ARRAY_SIZE(rfregs_2413);
+		if (mode < 2) {
+			ATH5K_ERR(ah->ah_sc,
+				"invalid channel mode: %i\n", mode);
+			return -EINVAL;
+		}
+		mode = mode - 2;
+	} else {
+		return -EINVAL;
+	}
 
 	/* Copy values to modify them */
 	for (i = 0; i < rf_size; i++) {
@@ -1286,6 +1435,10 @@ int ath5k_hw_rfregs(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		ah->ah_rf_banks_size = sizeof(rfregs_5413);
 		func = ath5k_hw_rf5413_rfregs;
 		break;
+	case AR5K_RF2413:
+		ah->ah_rf_banks_size = sizeof(rfregs_2413);
+		func = ath5k_hw_rf5413_rfregs;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1323,6 +1476,11 @@ int ath5k_hw_rfgain(struct ath5k_hw *ah, unsigned int freq)
 	case AR5K_RF5413:
 		ath5k_rfg = rfgain_5413;
 		size = ARRAY_SIZE(rfgain_5413);
+		break;
+	case AR5K_RF2413:
+		ath5k_rfg = rfgain_2413;
+		size = ARRAY_SIZE(rfgain_2413);
+		freq = 0; /* only 2Ghz */
 		break;
 	default:
 		return -EINVAL;
@@ -1398,7 +1556,6 @@ int ath5k_hw_set_rfgain_opt(struct ath5k_hw *ah)
 		ah->ah_gain.g_active = 1;
 		break;
 	case AR5K_RF5112:
-	case AR5K_RF5413: /* ??? */
 		ah->ah_gain.g_step_idx = rfgain_opt_5112.go_default;
 		ah->ah_gain.g_step =
 		    &rfgain_opt_5112.go_step[ah->ah_gain.g_step_idx];
@@ -2018,6 +2175,15 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		ATH5K_ERR(ah->ah_sc, "invalid tx power: %u\n", txpower);
 		return -EINVAL;
 	}
+
+	/*
+	 * RF2413 for some reason can't
+	 * transmit anything if we call
+	 * this funtion, so we skip it
+	 * until we fix txpower.
+	 */
+	if (ah->ah_radio == AR5K_RF2413)
+		return 0;
 
 	/* Reset TX power values */
 	memset(&ah->ah_txpower, 0, sizeof(ah->ah_txpower));

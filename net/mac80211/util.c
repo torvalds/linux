@@ -26,6 +26,7 @@
 
 #include "ieee80211_i.h"
 #include "ieee80211_rate.h"
+#include "mesh.h"
 #include "wme.h"
 
 /* privid for wiphys to determine whether they belong to us or not */
@@ -146,17 +147,35 @@ int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb)
 }
 EXPORT_SYMBOL(ieee80211_get_hdrlen_from_skb);
 
-void ieee80211_tx_set_iswep(struct ieee80211_txrx_data *tx)
+int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr)
+{
+	int ae = meshhdr->flags & IEEE80211S_FLAGS_AE;
+	/* 7.1.3.5a.2 */
+	switch (ae) {
+	case 0:
+		return 5;
+	case 1:
+		return 11;
+	case 2:
+		return 17;
+	case 3:
+		return 23;
+	default:
+		return 5;
+	}
+}
+
+void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx->skb->data;
 
 	hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
-	if (tx->u.tx.extra_frag) {
+	if (tx->extra_frag) {
 		struct ieee80211_hdr *fhdr;
 		int i;
-		for (i = 0; i < tx->u.tx.num_extra_frag; i++) {
+		for (i = 0; i < tx->num_extra_frag; i++) {
 			fhdr = (struct ieee80211_hdr *)
-				tx->u.tx.extra_frag[i]->data;
+				tx->extra_frag[i]->data;
 			fhdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 		}
 	}
@@ -382,6 +401,7 @@ void ieee80211_iterate_active_interfaces(
 		case IEEE80211_IF_TYPE_STA:
 		case IEEE80211_IF_TYPE_IBSS:
 		case IEEE80211_IF_TYPE_WDS:
+		case IEEE80211_IF_TYPE_MESH_POINT:
 			break;
 		}
 		if (sdata->dev == local->mdev)

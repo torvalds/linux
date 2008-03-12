@@ -140,7 +140,8 @@ enum ath5k_radio {
 	AR5K_RF5110	= 0,
 	AR5K_RF5111	= 1,
 	AR5K_RF5112	= 2,
-	AR5K_RF5413	= 3,
+	AR5K_RF2413	= 3,
+	AR5K_RF5413	= 4,
 };
 
 /*
@@ -168,12 +169,15 @@ struct ath5k_srev_name {
 #define AR5K_SREV_VER_AR5212	0x50
 #define AR5K_SREV_VER_AR5213	0x55
 #define AR5K_SREV_VER_AR5213A	0x59
-#define AR5K_SREV_VER_AR2424	0xa0
-#define AR5K_SREV_VER_AR5424	0xa3
+#define AR5K_SREV_VER_AR2413	0x78
+#define AR5K_SREV_VER_AR2414	0x79
+#define AR5K_SREV_VER_AR2424	0xa0 /* PCI-E */
+#define AR5K_SREV_VER_AR5424	0xa3 /* PCI-E */
 #define AR5K_SREV_VER_AR5413	0xa4
 #define AR5K_SREV_VER_AR5414	0xa5
-#define AR5K_SREV_VER_AR5416	0xc0	/* ? */
-#define AR5K_SREV_VER_AR5418	0xca
+#define AR5K_SREV_VER_AR5416	0xc0 /* PCI-E */
+#define AR5K_SREV_VER_AR5418	0xca /* PCI-E */
+#define AR5K_SREV_VER_AR2425	0xe2 /* PCI-E */
 
 #define AR5K_SREV_RAD_5110	0x00
 #define AR5K_SREV_RAD_5111	0x10
@@ -183,8 +187,9 @@ struct ath5k_srev_name {
 #define AR5K_SREV_RAD_5112A	0x35
 #define AR5K_SREV_RAD_2112	0x40
 #define AR5K_SREV_RAD_2112A	0x45
+#define AR5K_SREV_RAD_SC0	0x56	/* Found on 2413/2414 */
 #define AR5K_SREV_RAD_SC1	0x63	/* Found on 5413/5414 */
-#define AR5K_SREV_RAD_SC2	0xa2	/* Found on 2424/5424 */
+#define AR5K_SREV_RAD_SC2	0xa2	/* Found on 2424-5/5424 */
 #define AR5K_SREV_RAD_5133	0xc0	/* MIMO found on 5418 */
 
 /* IEEE defs */
@@ -268,12 +273,13 @@ enum ath5k_driver_mode {
 #define SHPREAMBLE_FLAG(_ix) \
 	(HAS_SHPREAMBLE(_ix) ? AR5K_SET_SHORT_PREAMBLE : 0)
 
+
 /****************\
   TX DEFINITIONS
 \****************/
 
 /*
- * Tx Descriptor
+ * TX Status
  */
 struct ath5k_tx_status {
 	u16	ts_seqnum;
@@ -421,7 +427,7 @@ enum ath5k_dmasize {
 \****************/
 
 /*
- * Rx Descriptor
+ * RX Status
  */
 struct ath5k_rx_status {
 	u16	rs_datalen;
@@ -450,8 +456,6 @@ struct ath5k_mib_stats {
 	u32	fcs_bad;
 	u32	beacons;
 };
-
-
 
 
 /**************************\
@@ -495,29 +499,23 @@ struct ath5k_beacon_state {
 #define TSF_TO_TU(_tsf) (u32)((_tsf) >> 10)
 
 
-
 /********************\
   COMMON DEFINITIONS
 \********************/
 
 /*
- * Atheros descriptor
+ * Atheros hardware descriptor
+ * This is read and written to by the hardware
  */
 struct ath5k_desc {
-	u32	ds_link;
-	u32	ds_data;
-	u32	ds_ctl0;
-	u32	ds_ctl1;
-	u32	ds_hw[4];
+	u32	ds_link;	/* physical address of the next descriptor */
+	u32	ds_data;	/* physical address of data buffer (skb) */
 
 	union {
-		struct ath5k_rx_status rx;
-		struct ath5k_tx_status tx;
-	} ds_us;
-
-#define ds_rxstat ds_us.rx
-#define ds_txstat ds_us.tx
-
+		struct ath5k_hw_5210_tx_desc	ds_tx5210;
+		struct ath5k_hw_5212_tx_desc	ds_tx5212;
+		struct ath5k_hw_all_rx_desc	ds_rx;
+	} ud;
 } __packed;
 
 #define AR5K_RXDESC_INTREQ	0x0020
@@ -961,6 +959,7 @@ struct ath5k_hw {
 	u16			ah_phy_revision;
 	u16			ah_radio_5ghz_revision;
 	u16			ah_radio_2ghz_revision;
+	u32			ah_phy_spending;
 
 	enum ath5k_version	ah_version;
 	enum ath5k_radio	ah_radio;
@@ -1036,8 +1035,10 @@ struct ath5k_hw {
 	int (*ah_setup_xtx_desc)(struct ath5k_hw *, struct ath5k_desc *,
 		unsigned int, unsigned int, unsigned int, unsigned int,
 		unsigned int, unsigned int);
-	int (*ah_proc_tx_desc)(struct ath5k_hw *, struct ath5k_desc *);
-	int (*ah_proc_rx_desc)(struct ath5k_hw *, struct ath5k_desc *);
+	int (*ah_proc_tx_desc)(struct ath5k_hw *, struct ath5k_desc *,
+		struct ath5k_tx_status *);
+	int (*ah_proc_rx_desc)(struct ath5k_hw *, struct ath5k_desc *,
+		struct ath5k_rx_status *);
 };
 
 /*

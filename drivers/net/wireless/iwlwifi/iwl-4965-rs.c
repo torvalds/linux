@@ -570,7 +570,7 @@ static int rs_get_tbl_info_from_mcs(const struct iwl4965_rate *mcs_rate,
 	int index;
 	u32 ant_msk;
 
-	index = iwl4965_rate_index_from_plcp(mcs_rate->rate_n_flags);
+	index = iwl4965_hwrate_to_plcp_idx(mcs_rate->rate_n_flags);
 
 	if (index  == IWL_RATE_INVALID) {
 		*rate_idx = -1;
@@ -823,6 +823,7 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct iwl4965_priv *priv = (struct iwl4965_priv *)priv_rate;
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_hw *hw = local_to_hw(local);
 	struct iwl4965_rate_scale_data *window = NULL;
 	struct iwl4965_rate_scale_data *search_win = NULL;
 	struct iwl4965_rate tx_mcs;
@@ -847,23 +848,22 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	if (retries > 15)
 		retries = 15;
 
+	rcu_read_lock();
 
 	sta = sta_info_get(local, hdr->addr1);
 
-	if (!sta || !sta->rate_ctrl_priv) {
-		if (sta)
-			sta_info_put(sta);
-		return;
-	}
+	if (!sta || !sta->rate_ctrl_priv)
+		goto out;
+
 
 	lq_sta = (struct iwl4965_lq_sta *)sta->rate_ctrl_priv;
 
 	if (!priv->lq_mngr.lq_ready)
-		return;
+		goto out;
 
 	if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) &&
 	    !lq_sta->ibss_sta_added)
-		return;
+		goto out;
 
 	table = &lq_sta->lq;
 	active_index = lq_sta->active_tbl;
@@ -884,17 +884,6 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	search_win = (struct iwl4965_rate_scale_data *)
 	    &(search_tbl->win[0]);
 
-	tx_mcs.rate_n_flags = tx_resp->control.tx_rate->hw_value;
-
-	rs_get_tbl_info_from_mcs(&tx_mcs, priv->band,
-				  &tbl_type, &rs_index);
-	if ((rs_index < 0) || (rs_index >= IWL_RATE_COUNT)) {
-		IWL_DEBUG_RATE("bad rate index at: %d rate 0x%X\n",
-			     rs_index, tx_mcs.rate_n_flags);
-		sta_info_put(sta);
-		return;
-	}
-
 	/*
 	 * Ignore this Tx frame response if its initial rate doesn't match
 	 * that of latest Link Quality command.  There may be stragglers
@@ -903,14 +892,29 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	 * to check "search" mode, or a prior "search" mode after we've moved
 	 * to a new "search" mode (which might become the new "active" mode).
 	 */
-	if (retries &&
-	    (tx_mcs.rate_n_flags !=
-				le32_to_cpu(table->rs_table[0].rate_n_flags))) {
-		IWL_DEBUG_RATE("initial rate does not match 0x%x 0x%x\n",
-				tx_mcs.rate_n_flags,
-				le32_to_cpu(table->rs_table[0].rate_n_flags));
-		sta_info_put(sta);
-		return;
+	tx_mcs.rate_n_flags = le32_to_cpu(table->rs_table[0].rate_n_flags);
+	rs_get_tbl_info_from_mcs(&tx_mcs, priv->band, &tbl_type, &rs_index);
+	if (priv->band == IEEE80211_BAND_5GHZ)
+		rs_index -= IWL_FIRST_OFDM_RATE;
+
+	if ((tx_resp->control.tx_rate == NULL) ||
+	    (tbl_type.is_SGI ^
+		!!(tx_resp->control.flags & IEEE80211_TXCTL_SHORT_GI)) ||
+	    (tbl_type.is_fat ^
+		!!(tx_resp->control.flags & IEEE80211_TXCTL_40_MHZ_WIDTH)) ||
+	    (tbl_type.is_dup ^
+		!!(tx_resp->control.flags & IEEE80211_TXCTL_DUP_DATA)) ||
+	    (tbl_type.antenna_type ^
+		tx_resp->control.antenna_sel_tx) ||
+	    (!!(tx_mcs.rate_n_flags & RATE_MCS_HT_MSK) ^
+		!!(tx_resp->control.flags & IEEE80211_TXCTL_OFDM_HT)) ||
+	    (!!(tx_mcs.rate_n_flags & RATE_MCS_GF_MSK) ^
+		!!(tx_resp->control.flags & IEEE80211_TXCTL_GREEN_FIELD)) ||
+	    (hw->wiphy->bands[priv->band]->bitrates[rs_index].bitrate !=
+		tx_resp->control.tx_rate->bitrate)) {
+		IWL_DEBUG_RATE("initial rate does not match 0x%x\n",
+				tx_mcs.rate_n_flags);
+		goto out;
 	}
 
 	/* Update frame history window with "failure" for each Tx retry. */
@@ -959,14 +963,8 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	 * if Tx was successful first try, use original rate,
 	 * else look up the rate that was, finally, successful.
 	 */
-	if (!tx_resp->retry_count)
-		tx_mcs.rate_n_flags = tx_resp->control.tx_rate->hw_value;
-	else
-		tx_mcs.rate_n_flags =
-			le32_to_cpu(table->rs_table[index].rate_n_flags);
-
-	rs_get_tbl_info_from_mcs(&tx_mcs, priv->band,
-				  &tbl_type, &rs_index);
+	tx_mcs.rate_n_flags = le32_to_cpu(table->rs_table[index].rate_n_flags);
+	rs_get_tbl_info_from_mcs(&tx_mcs, priv->band, &tbl_type, &rs_index);
 
 	/* Update frame history window with "success" if Tx got ACKed ... */
 	if (tx_resp->flags & IEEE80211_TX_STATUS_ACK)
@@ -1025,7 +1023,8 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 
 	/* See if there's a better rate or modulation mode to try. */
 	rs_rate_scale_perform(priv, dev, hdr, sta);
-	sta_info_put(sta);
+out:
+	rcu_read_unlock();
 	return;
 }
 
@@ -1921,7 +1920,7 @@ static void rs_rate_scale_perform(struct iwl4965_priv *priv,
 			tbl = &(lq_sta->lq_info[active_tbl]);
 
 			/* Revert to "active" rate and throughput info */
-			index = iwl4965_rate_index_from_plcp(
+			index = iwl4965_hwrate_to_plcp_idx(
 				tbl->current_rate.rate_n_flags);
 			current_tpt = lq_sta->last_tpt;
 
@@ -2077,7 +2076,7 @@ static void rs_rate_scale_perform(struct iwl4965_priv *priv,
 				rs_rate_scale_clear_window(&(tbl->win[i]));
 
 			/* Use new "search" start rate */
-			index = iwl4965_rate_index_from_plcp(
+			index = iwl4965_hwrate_to_plcp_idx(
 					tbl->current_rate.rate_n_flags);
 
 			IWL_DEBUG_HT("Switch current  mcs: %X index: %d\n",
@@ -2219,6 +2218,8 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 
 	IWL_DEBUG_RATE_LIMIT("rate scale calculate new rate for skb\n");
 
+	rcu_read_lock();
+
 	sta = sta_info_get(local, hdr->addr1);
 
 	/* Send management frames and broadcast/multicast data using lowest
@@ -2227,9 +2228,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 	if (!ieee80211_is_data(fc) || is_multicast_ether_addr(hdr->addr1) ||
 	    !sta || !sta->rate_ctrl_priv) {
 		sel->rate = rate_lowest(local, sband, sta);
-		if (sta)
-			sta_info_put(sta);
-		return;
+		goto out;
 	}
 
 	lq_sta = (struct iwl4965_lq_sta *)sta->rate_ctrl_priv;
@@ -2256,14 +2255,15 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 			goto done;
 	}
 
- done:
+done:
 	if ((i < 0) || (i > IWL_RATE_COUNT)) {
 		sel->rate = rate_lowest(local, sband, sta);
-		return;
+		goto out;
 	}
-	sta_info_put(sta);
 
 	sel->rate = &priv->ieee_rates[i];
+out:
+	rcu_read_unlock();
 }
 
 static void *rs_alloc_sta(void *priv, gfp_t gfp)
@@ -2735,13 +2735,15 @@ int iwl4965_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 	u32 max_time = 0;
 	u8 lq_type, antenna;
 
+	rcu_read_lock();
+
 	sta = sta_info_get(local, priv->stations[sta_id].sta.sta.addr);
 	if (!sta || !sta->rate_ctrl_priv) {
-		if (sta) {
-			sta_info_put(sta);
+		if (sta)
 			IWL_DEBUG_RATE("leave - no private rate data!\n");
-		} else
+		else
 			IWL_DEBUG_RATE("leave - no station!\n");
+		rcu_read_unlock();
 		return sprintf(buf, "station %d not found\n", sta_id);
 	}
 
@@ -2808,7 +2810,7 @@ int iwl4965_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 			 "active_search %d rate index %d\n", lq_type, antenna,
 			 lq_sta->search_better_tbl, sta->last_txrate_idx);
 
-	sta_info_put(sta);
+	rcu_read_unlock();
 	return cnt;
 }
 

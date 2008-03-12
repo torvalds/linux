@@ -15,6 +15,7 @@
 #include "ieee80211_i.h"
 #include "sta_info.h"
 #include "debugfs_netdev.h"
+#include "mesh.h"
 
 void ieee80211_if_sdata_init(struct ieee80211_sub_if_data *sdata)
 {
@@ -39,7 +40,8 @@ static void ieee80211_if_sdata_deinit(struct ieee80211_sub_if_data *sdata)
 
 /* Must be called with rtnl lock held. */
 int ieee80211_if_add(struct net_device *dev, const char *name,
-		     struct net_device **new_dev, int type)
+		     struct net_device **new_dev, int type,
+		     struct vif_params *params)
 {
 	struct net_device *ndev;
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
@@ -77,6 +79,12 @@ int ieee80211_if_add(struct net_device *dev, const char *name,
 
 	ieee80211_debugfs_add_netdev(sdata);
 	ieee80211_if_set_type(ndev, type);
+
+	if (ieee80211_vif_is_mesh(&sdata->vif) &&
+	    params && params->mesh_id_len)
+		ieee80211_if_sta_set_mesh_id(&sdata->u.sta,
+					     params->mesh_id_len,
+					     params->mesh_id);
 
 	/* we're under RTNL so all this is fine */
 	if (unlikely(local->reg_state == IEEE80211_DEV_UNREGISTERED)) {
@@ -134,6 +142,7 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 		sdata->bss = &sdata->u.ap;
 		INIT_LIST_HEAD(&sdata->u.ap.vlans);
 		break;
+	case IEEE80211_IF_TYPE_MESH_POINT:
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS: {
 		struct ieee80211_sub_if_data *msdata;
@@ -155,6 +164,9 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 
 		msdata = IEEE80211_DEV_TO_SUB_IF(sdata->local->mdev);
 		sdata->bss = &msdata->u.ap;
+
+		if (ieee80211_vif_is_mesh(&sdata->vif))
+			ieee80211_mesh_init_sdata(sdata);
 		break;
 	}
 	case IEEE80211_IF_TYPE_MNTR:
@@ -175,14 +187,18 @@ void ieee80211_if_reinit(struct net_device *dev)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct sta_info *sta;
 	struct sk_buff *skb;
+	int flushed;
 
 	ASSERT_RTNL();
 
 	ieee80211_free_keys(sdata);
 
 	ieee80211_if_sdata_deinit(sdata);
+
+	/* Need to handle mesh specially to allow eliding the function call */
+	if (ieee80211_vif_is_mesh(&sdata->vif))
+		mesh_rmc_free(dev);
 
 	switch (sdata->vif.type) {
 	case IEEE80211_IF_TYPE_INVALID:
@@ -224,17 +240,9 @@ void ieee80211_if_reinit(struct net_device *dev)
 		break;
 	}
 	case IEEE80211_IF_TYPE_WDS:
-		sta = sta_info_get(local, sdata->u.wds.remote_addr);
-		if (sta) {
-			sta_info_free(sta);
-			sta_info_put(sta);
-		} else {
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-			printk(KERN_DEBUG "%s: Someone had deleted my STA "
-			       "entry for the WDS link\n", dev->name);
-#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
-		}
+		/* nothing to do */
 		break;
+	case IEEE80211_IF_TYPE_MESH_POINT:
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		kfree(sdata->u.sta.extra_ie);
@@ -257,8 +265,8 @@ void ieee80211_if_reinit(struct net_device *dev)
 		break;
 	}
 
-	/* remove all STAs that are bound to this virtual interface */
-	sta_info_flush(local, dev);
+	flushed = sta_info_flush(local, sdata);
+	WARN_ON(flushed);
 
 	memset(&sdata->u, 0, sizeof(sdata->u));
 	ieee80211_if_sdata_init(sdata);

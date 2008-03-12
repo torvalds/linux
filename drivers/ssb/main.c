@@ -14,6 +14,7 @@
 #include <linux/io.h>
 #include <linux/ssb/ssb.h>
 #include <linux/ssb/ssb_regs.h>
+#include <linux/ssb/ssb_driver_gige.h>
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
 
@@ -67,6 +68,25 @@ found:
 	return bus;
 }
 #endif /* CONFIG_SSB_PCIHOST */
+
+int ssb_for_each_bus_call(unsigned long data,
+			  int (*func)(struct ssb_bus *bus, unsigned long data))
+{
+	struct ssb_bus *bus;
+	int res;
+
+	ssb_buses_lock();
+	list_for_each_entry(bus, &buses, list) {
+		res = func(bus, data);
+		if (res >= 0) {
+			ssb_buses_unlock();
+			return res;
+		}
+	}
+	ssb_buses_unlock();
+
+	return -ENODEV;
+}
 
 static struct ssb_device *ssb_device_get(struct ssb_device *dev)
 {
@@ -1171,7 +1191,14 @@ static int __init ssb_modinit(void)
 	err = b43_pci_ssb_bridge_init();
 	if (err) {
 		ssb_printk(KERN_ERR "Broadcom 43xx PCI-SSB-bridge "
-			   "initialization failed");
+			   "initialization failed\n");
+		/* don't fail SSB init because of this */
+		err = 0;
+	}
+	err = ssb_gige_init();
+	if (err) {
+		ssb_printk(KERN_ERR "SSB Broadcom Gigabit Ethernet "
+			   "driver initialization failed\n");
 		/* don't fail SSB init because of this */
 		err = 0;
 	}
@@ -1185,6 +1212,7 @@ fs_initcall(ssb_modinit);
 
 static void __exit ssb_modexit(void)
 {
+	ssb_gige_exit();
 	b43_pci_ssb_bridge_exit();
 	bus_unregister(&ssb_bustype);
 }

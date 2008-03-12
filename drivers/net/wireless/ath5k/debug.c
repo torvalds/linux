@@ -200,7 +200,8 @@ static ssize_t read_file_tsf(struct file *file, char __user *user_buf,
 {
 	struct ath5k_softc *sc = file->private_data;
 	char buf[100];
-	snprintf(buf, sizeof(buf), "0x%016llx\n", ath5k_hw_get_tsf64(sc->ah));
+	snprintf(buf, sizeof(buf), "0x%016llx\n",
+		 (unsigned long long)ath5k_hw_get_tsf64(sc->ah));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, 19);
 }
 
@@ -271,7 +272,8 @@ static ssize_t read_file_beacon(struct file *file, char __user *user_buf,
 
 	tsf = ath5k_hw_get_tsf64(sc->ah);
 	len += snprintf(buf+len, sizeof(buf)-len,
-		"TSF\t\t0x%016llx\tTU: %08x\n", tsf, TSF_TO_TU(tsf));
+		"TSF\t\t0x%016llx\tTU: %08x\n",
+		(unsigned long long)tsf, TSF_TO_TU(tsf));
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
@@ -497,15 +499,18 @@ ath5k_debug_dump_bands(struct ath5k_softc *sc)
 }
 
 static inline void
-ath5k_debug_printrxbuf(struct ath5k_buf *bf, int done)
+ath5k_debug_printrxbuf(struct ath5k_buf *bf, int done,
+		       struct ath5k_rx_status *rs)
 {
 	struct ath5k_desc *ds = bf->desc;
+	struct ath5k_hw_all_rx_desc *rd = &ds->ud.ds_rx;
 
 	printk(KERN_DEBUG "R (%p %llx) %08x %08x %08x %08x %08x %08x %c\n",
 		ds, (unsigned long long)bf->daddr,
-		ds->ds_link, ds->ds_data, ds->ds_ctl0, ds->ds_ctl1,
-		ds->ds_hw[0], ds->ds_hw[1],
-		!done ? ' ' : (ds->ds_rxstat.rs_status == 0) ? '*' : '!');
+		ds->ds_link, ds->ds_data,
+		rd->rx_ctl.rx_control_0, rd->rx_ctl.rx_control_1,
+		rd->u.rx_stat.rx_status_0, rd->u.rx_stat.rx_status_0,
+		!done ? ' ' : (rs->rs_status == 0) ? '*' : '!');
 }
 
 void
@@ -513,6 +518,7 @@ ath5k_debug_printrxbuffs(struct ath5k_softc *sc, struct ath5k_hw *ah)
 {
 	struct ath5k_desc *ds;
 	struct ath5k_buf *bf;
+	struct ath5k_rx_status rs = {};
 	int status;
 
 	if (likely(!(sc->debug.level & ATH5K_DEBUG_RESET)))
@@ -524,9 +530,9 @@ ath5k_debug_printrxbuffs(struct ath5k_softc *sc, struct ath5k_hw *ah)
 	spin_lock_bh(&sc->rxbuflock);
 	list_for_each_entry(bf, &sc->rxbuf, list) {
 		ds = bf->desc;
-		status = ah->ah_proc_rx_desc(ah, ds);
+		status = ah->ah_proc_rx_desc(ah, ds, &rs);
 		if (!status)
-			ath5k_debug_printrxbuf(bf, status == 0);
+			ath5k_debug_printrxbuf(bf, status == 0, &rs);
 	}
 	spin_unlock_bh(&sc->rxbuflock);
 }
@@ -550,19 +556,24 @@ ath5k_debug_dump_skb(struct ath5k_softc *sc,
 }
 
 void
-ath5k_debug_printtxbuf(struct ath5k_softc *sc,
-			struct ath5k_buf *bf, int done)
+ath5k_debug_printtxbuf(struct ath5k_softc *sc, struct ath5k_buf *bf)
 {
 	struct ath5k_desc *ds = bf->desc;
+	struct ath5k_hw_5212_tx_desc *td = &ds->ud.ds_tx5212;
+	struct ath5k_tx_status ts = {};
+	int done;
 
 	if (likely(!(sc->debug.level & ATH5K_DEBUG_RESET)))
 		return;
 
+	done = sc->ah->ah_proc_tx_desc(sc->ah, bf->desc, &ts);
+
 	printk(KERN_DEBUG "T (%p %llx) %08x %08x %08x %08x %08x %08x %08x "
 		"%08x %c\n", ds, (unsigned long long)bf->daddr, ds->ds_link,
-		ds->ds_data, ds->ds_ctl0, ds->ds_ctl1,
-		ds->ds_hw[0], ds->ds_hw[1], ds->ds_hw[2], ds->ds_hw[3],
-		!done ? ' ' : (ds->ds_txstat.ts_status == 0) ? '*' : '!');
+		ds->ds_data, td->tx_ctl.tx_control_0, td->tx_ctl.tx_control_1,
+		td->tx_ctl.tx_control_2, td->tx_ctl.tx_control_3,
+		td->tx_stat.tx_status_0, td->tx_stat.tx_status_1,
+		done ? ' ' : (ts.ts_status == 0) ? '*' : '!');
 }
 
 #endif /* ifdef CONFIG_ATH5K_DEBUG */

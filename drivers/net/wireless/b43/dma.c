@@ -38,6 +38,7 @@
 #include <linux/delay.h>
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
+#include <asm/div64.h>
 
 
 /* 32bit DMA ops. */
@@ -289,52 +290,6 @@ static inline int request_slot(struct b43_dmaring *ring)
 	update_max_used_slots(ring, ring->used_slots);
 
 	return slot;
-}
-
-/* Mac80211-queue to b43-ring mapping */
-static struct b43_dmaring *priority_to_txring(struct b43_wldev *dev,
-					      int queue_priority)
-{
-	struct b43_dmaring *ring;
-
-/*FIXME: For now we always run on TX-ring-1 */
-	return dev->dma.tx_ring1;
-
-	/* 0 = highest priority */
-	switch (queue_priority) {
-	default:
-		B43_WARN_ON(1);
-		/* fallthrough */
-	case 0:
-		ring = dev->dma.tx_ring3;
-		break;
-	case 1:
-		ring = dev->dma.tx_ring2;
-		break;
-	case 2:
-		ring = dev->dma.tx_ring1;
-		break;
-	case 3:
-		ring = dev->dma.tx_ring0;
-		break;
-	}
-
-	return ring;
-}
-
-/* b43-ring to mac80211-queue mapping */
-static inline int txring_to_priority(struct b43_dmaring *ring)
-{
-	static const u8 idx_to_prio[] = { 3, 2, 1, 0, };
-	unsigned int index;
-
-/*FIXME: have only one queue, for now */
-	return 0;
-
-	index = ring->index;
-	if (B43_WARN_ON(index >= ARRAY_SIZE(idx_to_prio)))
-		index = 0;
-	return idx_to_prio[index];
 }
 
 static u16 b43_dmacontroller_base(enum b43_dmatype type, int controller_idx)
@@ -924,16 +879,52 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 	goto out;
 }
 
+#define divide(a, b)	({	\
+	typeof(a) __a = a;	\
+	do_div(__a, b);		\
+	__a;			\
+  })
+
+#define modulo(a, b)	({	\
+	typeof(a) __a = a;	\
+	do_div(__a, b);		\
+  })
+
 /* Main cleanup function. */
-static void b43_destroy_dmaring(struct b43_dmaring *ring)
+static void b43_destroy_dmaring(struct b43_dmaring *ring,
+				const char *ringname)
 {
 	if (!ring)
 		return;
 
-	b43dbg(ring->dev->wl, "DMA-%u 0x%04X (%s) max used slots: %d/%d\n",
-	       (unsigned int)(ring->type),
-	       ring->mmio_base,
-	       (ring->tx) ? "TX" : "RX", ring->max_used_slots, ring->nr_slots);
+#ifdef CONFIG_B43_DEBUG
+	{
+		/* Print some statistics. */
+		u64 failed_packets = ring->nr_failed_tx_packets;
+		u64 succeed_packets = ring->nr_succeed_tx_packets;
+		u64 nr_packets = failed_packets + succeed_packets;
+		u64 permille_failed = 0, average_tries = 0;
+
+		if (nr_packets)
+			permille_failed = divide(failed_packets * 1000, nr_packets);
+		if (nr_packets)
+			average_tries = divide(ring->nr_total_packet_tries * 100, nr_packets);
+
+		b43dbg(ring->dev->wl, "DMA-%u %s: "
+		       "Used slots %d/%d, Failed frames %llu/%llu = %llu.%01llu%%, "
+		       "Average tries %llu.%02llu\n",
+		       (unsigned int)(ring->type), ringname,
+		       ring->max_used_slots,
+		       ring->nr_slots,
+		       (unsigned long long)failed_packets,
+		       (unsigned long long)nr_packets,
+		       (unsigned long long)divide(permille_failed, 10),
+		       (unsigned long long)modulo(permille_failed, 10),
+		       (unsigned long long)divide(average_tries, 100),
+		       (unsigned long long)modulo(average_tries, 100));
+	}
+#endif /* DEBUG */
+
 	/* Device IRQs are disabled prior entering this function,
 	 * so no need to take care of concurrency with rx handler stuff.
 	 */
@@ -946,33 +937,26 @@ static void b43_destroy_dmaring(struct b43_dmaring *ring)
 	kfree(ring);
 }
 
+#define destroy_ring(dma, ring) do {				\
+	b43_destroy_dmaring((dma)->ring, __stringify(ring));	\
+	(dma)->ring = NULL;					\
+    } while (0)
+
 void b43_dma_free(struct b43_wldev *dev)
 {
 	struct b43_dma *dma = &dev->dma;
 
-	b43_destroy_dmaring(dma->rx_ring3);
-	dma->rx_ring3 = NULL;
-	b43_destroy_dmaring(dma->rx_ring0);
-	dma->rx_ring0 = NULL;
-
-	b43_destroy_dmaring(dma->tx_ring5);
-	dma->tx_ring5 = NULL;
-	b43_destroy_dmaring(dma->tx_ring4);
-	dma->tx_ring4 = NULL;
-	b43_destroy_dmaring(dma->tx_ring3);
-	dma->tx_ring3 = NULL;
-	b43_destroy_dmaring(dma->tx_ring2);
-	dma->tx_ring2 = NULL;
-	b43_destroy_dmaring(dma->tx_ring1);
-	dma->tx_ring1 = NULL;
-	b43_destroy_dmaring(dma->tx_ring0);
-	dma->tx_ring0 = NULL;
+	destroy_ring(dma, rx_ring);
+	destroy_ring(dma, tx_ring_AC_BK);
+	destroy_ring(dma, tx_ring_AC_BE);
+	destroy_ring(dma, tx_ring_AC_VI);
+	destroy_ring(dma, tx_ring_AC_VO);
+	destroy_ring(dma, tx_ring_mcast);
 }
 
 int b43_dma_init(struct b43_wldev *dev)
 {
 	struct b43_dma *dma = &dev->dma;
-	struct b43_dmaring *ring;
 	int err;
 	u64 dmamask;
 	enum b43_dmatype type;
@@ -1002,83 +986,57 @@ int b43_dma_init(struct b43_wldev *dev)
 
 	err = -ENOMEM;
 	/* setup TX DMA channels. */
-	ring = b43_setup_dmaring(dev, 0, 1, type);
-	if (!ring)
+	dma->tx_ring_AC_BK = b43_setup_dmaring(dev, 0, 1, type);
+	if (!dma->tx_ring_AC_BK)
 		goto out;
-	dma->tx_ring0 = ring;
 
-	ring = b43_setup_dmaring(dev, 1, 1, type);
-	if (!ring)
-		goto err_destroy_tx0;
-	dma->tx_ring1 = ring;
+	dma->tx_ring_AC_BE = b43_setup_dmaring(dev, 1, 1, type);
+	if (!dma->tx_ring_AC_BE)
+		goto err_destroy_bk;
 
-	ring = b43_setup_dmaring(dev, 2, 1, type);
-	if (!ring)
-		goto err_destroy_tx1;
-	dma->tx_ring2 = ring;
+	dma->tx_ring_AC_VI = b43_setup_dmaring(dev, 2, 1, type);
+	if (!dma->tx_ring_AC_VI)
+		goto err_destroy_be;
 
-	ring = b43_setup_dmaring(dev, 3, 1, type);
-	if (!ring)
-		goto err_destroy_tx2;
-	dma->tx_ring3 = ring;
+	dma->tx_ring_AC_VO = b43_setup_dmaring(dev, 3, 1, type);
+	if (!dma->tx_ring_AC_VO)
+		goto err_destroy_vi;
 
-	ring = b43_setup_dmaring(dev, 4, 1, type);
-	if (!ring)
-		goto err_destroy_tx3;
-	dma->tx_ring4 = ring;
+	dma->tx_ring_mcast = b43_setup_dmaring(dev, 4, 1, type);
+	if (!dma->tx_ring_mcast)
+		goto err_destroy_vo;
 
-	ring = b43_setup_dmaring(dev, 5, 1, type);
-	if (!ring)
-		goto err_destroy_tx4;
-	dma->tx_ring5 = ring;
+	/* setup RX DMA channel. */
+	dma->rx_ring = b43_setup_dmaring(dev, 0, 0, type);
+	if (!dma->rx_ring)
+		goto err_destroy_mcast;
 
-	/* setup RX DMA channels. */
-	ring = b43_setup_dmaring(dev, 0, 0, type);
-	if (!ring)
-		goto err_destroy_tx5;
-	dma->rx_ring0 = ring;
-
-	if (dev->dev->id.revision < 5) {
-		ring = b43_setup_dmaring(dev, 3, 0, type);
-		if (!ring)
-			goto err_destroy_rx0;
-		dma->rx_ring3 = ring;
-	}
+	/* No support for the TX status DMA ring. */
+	B43_WARN_ON(dev->dev->id.revision < 5);
 
 	b43dbg(dev->wl, "%u-bit DMA initialized\n",
 	       (unsigned int)type);
 	err = 0;
-      out:
+out:
 	return err;
 
-      err_destroy_rx0:
-	b43_destroy_dmaring(dma->rx_ring0);
-	dma->rx_ring0 = NULL;
-      err_destroy_tx5:
-	b43_destroy_dmaring(dma->tx_ring5);
-	dma->tx_ring5 = NULL;
-      err_destroy_tx4:
-	b43_destroy_dmaring(dma->tx_ring4);
-	dma->tx_ring4 = NULL;
-      err_destroy_tx3:
-	b43_destroy_dmaring(dma->tx_ring3);
-	dma->tx_ring3 = NULL;
-      err_destroy_tx2:
-	b43_destroy_dmaring(dma->tx_ring2);
-	dma->tx_ring2 = NULL;
-      err_destroy_tx1:
-	b43_destroy_dmaring(dma->tx_ring1);
-	dma->tx_ring1 = NULL;
-      err_destroy_tx0:
-	b43_destroy_dmaring(dma->tx_ring0);
-	dma->tx_ring0 = NULL;
-	goto out;
+err_destroy_mcast:
+	destroy_ring(dma, tx_ring_mcast);
+err_destroy_vo:
+	destroy_ring(dma, tx_ring_AC_VO);
+err_destroy_vi:
+	destroy_ring(dma, tx_ring_AC_VI);
+err_destroy_be:
+	destroy_ring(dma, tx_ring_AC_BE);
+err_destroy_bk:
+	destroy_ring(dma, tx_ring_AC_BK);
+	return err;
 }
 
 /* Generate a cookie for the TX header. */
 static u16 generate_cookie(struct b43_dmaring *ring, int slot)
 {
-	u16 cookie = 0x1000;
+	u16 cookie;
 
 	/* Use the upper 4 bits of the cookie as
 	 * DMA controller ID and store the slot number
@@ -1088,30 +1046,9 @@ static u16 generate_cookie(struct b43_dmaring *ring, int slot)
 	 * It can also not be 0xFFFF because that is special
 	 * for multicast frames.
 	 */
-	switch (ring->index) {
-	case 0:
-		cookie = 0x1000;
-		break;
-	case 1:
-		cookie = 0x2000;
-		break;
-	case 2:
-		cookie = 0x3000;
-		break;
-	case 3:
-		cookie = 0x4000;
-		break;
-	case 4:
-		cookie = 0x5000;
-		break;
-	case 5:
-		cookie = 0x6000;
-		break;
-	default:
-		B43_WARN_ON(1);
-	}
+	cookie = (((u16)ring->index + 1) << 12);
 	B43_WARN_ON(slot & ~0x0FFF);
-	cookie |= (u16) slot;
+	cookie |= (u16)slot;
 
 	return cookie;
 }
@@ -1125,22 +1062,19 @@ struct b43_dmaring *parse_cookie(struct b43_wldev *dev, u16 cookie, int *slot)
 
 	switch (cookie & 0xF000) {
 	case 0x1000:
-		ring = dma->tx_ring0;
+		ring = dma->tx_ring_AC_BK;
 		break;
 	case 0x2000:
-		ring = dma->tx_ring1;
+		ring = dma->tx_ring_AC_BE;
 		break;
 	case 0x3000:
-		ring = dma->tx_ring2;
+		ring = dma->tx_ring_AC_VI;
 		break;
 	case 0x4000:
-		ring = dma->tx_ring3;
+		ring = dma->tx_ring_AC_VO;
 		break;
 	case 0x5000:
-		ring = dma->tx_ring4;
-		break;
-	case 0x6000:
-		ring = dma->tx_ring5;
+		ring = dma->tx_ring_mcast;
 		break;
 	default:
 		B43_WARN_ON(1);
@@ -1272,6 +1206,37 @@ static inline int should_inject_overflow(struct b43_dmaring *ring)
 	return 0;
 }
 
+/* Static mapping of mac80211's queues (priorities) to b43 DMA rings. */
+static struct b43_dmaring * select_ring_by_priority(struct b43_wldev *dev,
+						    u8 queue_prio)
+{
+	struct b43_dmaring *ring;
+
+	if (b43_modparam_qos) {
+		/* 0 = highest priority */
+		switch (queue_prio) {
+		default:
+			B43_WARN_ON(1);
+			/* fallthrough */
+		case 0:
+			ring = dev->dma.tx_ring_AC_VO;
+			break;
+		case 1:
+			ring = dev->dma.tx_ring_AC_VI;
+			break;
+		case 2:
+			ring = dev->dma.tx_ring_AC_BE;
+			break;
+		case 3:
+			ring = dev->dma.tx_ring_AC_BK;
+			break;
+		}
+	} else
+		ring = dev->dma.tx_ring_AC_BE;
+
+	return ring;
+}
+
 int b43_dma_tx(struct b43_wldev *dev,
 	       struct sk_buff *skb, struct ieee80211_tx_control *ctl)
 {
@@ -1288,13 +1253,13 @@ int b43_dma_tx(struct b43_wldev *dev,
 	hdr = (struct ieee80211_hdr *)skb->data;
 	if (ctl->flags & IEEE80211_TXCTL_SEND_AFTER_DTIM) {
 		/* The multicast ring will be sent after the DTIM */
-		ring = dev->dma.tx_ring4;
+		ring = dev->dma.tx_ring_mcast;
 		/* Set the more-data bit. Ucode will clear it on
 		 * the last frame for us. */
 		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 	} else {
 		/* Decide by priority where to put this frame. */
-		ring = priority_to_txring(dev, ctl->queue);
+		ring = select_ring_by_priority(dev, ctl->queue);
 	}
 
 	spin_lock_irqsave(&ring->lock, flags);
@@ -1308,6 +1273,11 @@ int b43_dma_tx(struct b43_wldev *dev,
 	 * but we got called nevertheless.
 	 * That would be a mac80211 bug. */
 	B43_WARN_ON(ring->stopped);
+
+	/* Assign the queue number to the ring (if not already done before)
+	 * so TX status handling can use it. The queue to ring mapping is
+	 * static, so we don't need to store it per frame. */
+	ring->queue_prio = ctl->queue;
 
 	err = dma_tx_fragment(ring, skb, ctl);
 	if (unlikely(err == -ENOKEY)) {
@@ -1325,7 +1295,7 @@ int b43_dma_tx(struct b43_wldev *dev,
 	if ((free_slots(ring) < SLOTS_PER_PACKET) ||
 	    should_inject_overflow(ring)) {
 		/* This TX ring is full. */
-		ieee80211_stop_queue(dev->wl->hw, txring_to_priority(ring));
+		ieee80211_stop_queue(dev->wl->hw, ctl->queue);
 		ring->stopped = 1;
 		if (b43_debug(dev, B43_DBG_DMAVERBOSE)) {
 			b43dbg(dev->wl, "Stopped TX ring %d\n", ring->index);
@@ -1335,6 +1305,38 @@ out_unlock:
 	spin_unlock_irqrestore(&ring->lock, flags);
 
 	return err;
+}
+
+static void b43_fill_txstatus_report(struct b43_dmaring *ring,
+				    struct ieee80211_tx_status *report,
+				    const struct b43_txstatus *status)
+{
+	bool frame_failed = 0;
+
+	if (status->acked) {
+		/* The frame was ACKed. */
+		report->flags |= IEEE80211_TX_STATUS_ACK;
+	} else {
+		/* The frame was not ACKed... */
+		if (!(report->control.flags & IEEE80211_TXCTL_NO_ACK)) {
+			/* ...but we expected an ACK. */
+			frame_failed = 1;
+			report->excessive_retries = 1;
+		}
+	}
+	if (status->frame_count == 0) {
+		/* The frame was not transmitted at all. */
+		report->retry_count = 0;
+	} else {
+		report->retry_count = status->frame_count - 1;
+#ifdef CONFIG_B43_DEBUG
+		if (frame_failed)
+			ring->nr_failed_tx_packets++;
+		else
+			ring->nr_succeed_tx_packets++;
+		ring->nr_total_packet_tries += status->frame_count;
+#endif /* DEBUG */
+	}
 }
 
 void b43_dma_handle_txstatus(struct b43_wldev *dev,
@@ -1371,18 +1373,7 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 			 * status of the transmission.
 			 * Some fields of txstat are already filled in dma_tx().
 			 */
-			if (status->acked) {
-				meta->txstat.flags |= IEEE80211_TX_STATUS_ACK;
-			} else {
-				if (!(meta->txstat.control.flags
-				      & IEEE80211_TXCTL_NO_ACK))
-					meta->txstat.excessive_retries = 1;
-			}
-			if (status->frame_count == 0) {
-				/* The frame was not transmitted at all. */
-				meta->txstat.retry_count = 0;
-			} else
-				meta->txstat.retry_count = status->frame_count - 1;
+			b43_fill_txstatus_report(ring, &(meta->txstat), status);
 			ieee80211_tx_status_irqsafe(dev->wl->hw, meta->skb,
 						    &(meta->txstat));
 			/* skb is freed by ieee80211_tx_status_irqsafe() */
@@ -1404,7 +1395,7 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 	dev->stats.last_tx = jiffies;
 	if (ring->stopped) {
 		B43_WARN_ON(free_slots(ring) < SLOTS_PER_PACKET);
-		ieee80211_wake_queue(dev->wl->hw, txring_to_priority(ring));
+		ieee80211_wake_queue(dev->wl->hw, ring->queue_prio);
 		ring->stopped = 0;
 		if (b43_debug(dev, B43_DBG_DMAVERBOSE)) {
 			b43dbg(dev->wl, "Woke up TX ring %d\n", ring->index);
@@ -1425,7 +1416,7 @@ void b43_dma_get_tx_stats(struct b43_wldev *dev,
 
 	for (i = 0; i < nr_queues; i++) {
 		data = &(stats->data[i]);
-		ring = priority_to_txring(dev, i);
+		ring = select_ring_by_priority(dev, i);
 
 		spin_lock_irqsave(&ring->lock, flags);
 		data->len = ring->used_slots / SLOTS_PER_PACKET;
@@ -1451,25 +1442,6 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
 	sync_descbuffer_for_cpu(ring, meta->dmaaddr, ring->rx_buffersize);
 	skb = meta->skb;
 
-	if (ring->index == 3) {
-		/* We received an xmit status. */
-		struct b43_hwtxstatus *hw = (struct b43_hwtxstatus *)skb->data;
-		int i = 0;
-
-		while (hw->cookie == 0) {
-			if (i > 100)
-				break;
-			i++;
-			udelay(2);
-			barrier();
-		}
-		b43_handle_hwtxstatus(ring->dev, hw);
-		/* recycle the descriptor buffer. */
-		sync_descbuffer_for_device(ring, meta->dmaaddr,
-					   ring->rx_buffersize);
-
-		return;
-	}
 	rxhdr = (struct b43_rxhdr_fw4 *)skb->data;
 	len = le16_to_cpu(rxhdr->frame_len);
 	if (len == 0) {
@@ -1526,7 +1498,7 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
 	skb_pull(skb, ring->frameoffset);
 
 	b43_rx(ring->dev, skb, rxhdr);
-      drop:
+drop:
 	return;
 }
 
@@ -1572,21 +1544,19 @@ static void b43_dma_tx_resume_ring(struct b43_dmaring *ring)
 void b43_dma_tx_suspend(struct b43_wldev *dev)
 {
 	b43_power_saving_ctl_bits(dev, B43_PS_AWAKE);
-	b43_dma_tx_suspend_ring(dev->dma.tx_ring0);
-	b43_dma_tx_suspend_ring(dev->dma.tx_ring1);
-	b43_dma_tx_suspend_ring(dev->dma.tx_ring2);
-	b43_dma_tx_suspend_ring(dev->dma.tx_ring3);
-	b43_dma_tx_suspend_ring(dev->dma.tx_ring4);
-	b43_dma_tx_suspend_ring(dev->dma.tx_ring5);
+	b43_dma_tx_suspend_ring(dev->dma.tx_ring_AC_BK);
+	b43_dma_tx_suspend_ring(dev->dma.tx_ring_AC_BE);
+	b43_dma_tx_suspend_ring(dev->dma.tx_ring_AC_VI);
+	b43_dma_tx_suspend_ring(dev->dma.tx_ring_AC_VO);
+	b43_dma_tx_suspend_ring(dev->dma.tx_ring_mcast);
 }
 
 void b43_dma_tx_resume(struct b43_wldev *dev)
 {
-	b43_dma_tx_resume_ring(dev->dma.tx_ring5);
-	b43_dma_tx_resume_ring(dev->dma.tx_ring4);
-	b43_dma_tx_resume_ring(dev->dma.tx_ring3);
-	b43_dma_tx_resume_ring(dev->dma.tx_ring2);
-	b43_dma_tx_resume_ring(dev->dma.tx_ring1);
-	b43_dma_tx_resume_ring(dev->dma.tx_ring0);
+	b43_dma_tx_resume_ring(dev->dma.tx_ring_mcast);
+	b43_dma_tx_resume_ring(dev->dma.tx_ring_AC_VO);
+	b43_dma_tx_resume_ring(dev->dma.tx_ring_AC_VI);
+	b43_dma_tx_resume_ring(dev->dma.tx_ring_AC_BE);
+	b43_dma_tx_resume_ring(dev->dma.tx_ring_AC_BK);
 	b43_power_saving_ctl_bits(dev, 0);
 }

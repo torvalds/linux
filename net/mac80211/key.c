@@ -20,8 +20,8 @@
 #include "aes_ccm.h"
 
 
-/*
- * Key handling basics
+/**
+ * DOC: Key handling basics
  *
  * Key handling in mac80211 is done based on per-interface (sub_if_data)
  * keys and per-station keys. Since each station belongs to an interface,
@@ -174,6 +174,9 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 {
 	int idx, defkey;
 
+	if (new)
+		list_add(&new->list, &sdata->key_list);
+
 	if (sta) {
 		rcu_assign_pointer(sta->key, new);
 	} else {
@@ -190,9 +193,6 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 			ieee80211_set_default_key(sdata, -1);
 
 		rcu_assign_pointer(sdata->keys[idx], new);
-		if (new)
-			list_add(&new->list, &sdata->key_list);
-
 		if (defkey && new)
 			ieee80211_set_default_key(sdata, new->conf.keyidx);
 	}
@@ -240,14 +240,17 @@ void ieee80211_key_link(struct ieee80211_key *key,
 		if (sdata->vif.type == IEEE80211_IF_TYPE_STA) {
 			struct sta_info *ap;
 
+			rcu_read_lock();
+
 			/* same here, the AP could be using QoS */
 			ap = sta_info_get(key->local, key->sdata->u.sta.bssid);
 			if (ap) {
 				if (ap->flags & WLAN_STA_WME)
 					key->conf.flags |=
 						IEEE80211_KEY_FLAG_WMM_STA;
-				sta_info_put(ap);
 			}
+
+			rcu_read_unlock();
 		}
 	}
 
@@ -290,6 +293,9 @@ void ieee80211_key_free(struct ieee80211_key *key)
 			__ieee80211_key_replace(key->sdata, key->sta,
 						key, NULL);
 
+		/*
+		 * Do NOT remove this without looking at sta_info_destroy()
+		 */
 		synchronize_rcu();
 
 		/*

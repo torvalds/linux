@@ -26,6 +26,7 @@
 
 #include "ieee80211_i.h"
 #include "ieee80211_rate.h"
+#include "mesh.h"
 #include "wep.h"
 #include "wme.h"
 #include "aes_ccm.h"
@@ -138,9 +139,15 @@ static void ieee80211_master_set_multicast_list(struct net_device *dev)
 
 static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
 {
+	int meshhdrlen;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	meshhdrlen = (sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT) ? 5 : 0;
+
 	/* FIX: what would be proper limits for MTU?
 	 * This interface uses 802.3 frames. */
-	if (new_mtu < 256 || new_mtu > IEEE80211_MAX_DATA_LEN - 24 - 6) {
+	if (new_mtu < 256 ||
+		new_mtu > IEEE80211_MAX_DATA_LEN - 24 - 6 - meshhdrlen) {
 		printk(KERN_WARNING "%s: invalid MTU %d\n",
 		       dev->name, new_mtu);
 		return -EINVAL;
@@ -176,6 +183,7 @@ static int ieee80211_open(struct net_device *dev)
 	struct ieee80211_if_init_conf conf;
 	int res;
 	bool need_hw_reconfig = 0;
+	struct sta_info *sta;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
@@ -249,6 +257,20 @@ static int ieee80211_open(struct net_device *dev)
 	case IEEE80211_IF_TYPE_WDS:
 		if (is_zero_ether_addr(sdata->u.wds.remote_addr))
 			return -ENOLINK;
+
+		/* Create STA entry for the WDS peer */
+		sta = sta_info_alloc(sdata, sdata->u.wds.remote_addr,
+				     GFP_KERNEL);
+		if (!sta)
+			return -ENOMEM;
+
+		sta->flags |= WLAN_STA_AUTHORIZED;
+
+		res = sta_info_insert(sta);
+		if (res) {
+			sta_info_destroy(sta);
+			return res;
+		}
 		break;
 	case IEEE80211_IF_TYPE_VLAN:
 		if (!sdata->u.vlan.ap)
@@ -258,6 +280,7 @@ static int ieee80211_open(struct net_device *dev)
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_MNTR:
 	case IEEE80211_IF_TYPE_IBSS:
+	case IEEE80211_IF_TYPE_MESH_POINT:
 		/* no special treatment */
 		break;
 	case IEEE80211_IF_TYPE_INVALID:
@@ -359,24 +382,51 @@ static int ieee80211_open(struct net_device *dev)
 
 static int ieee80211_stop(struct net_device *dev)
 {
-	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_init_conf conf;
 	struct sta_info *sta;
 	int i;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	/*
+	 * Stop TX on this interface first.
+	 */
+	netif_stop_queue(dev);
 
-	list_for_each_entry(sta, &local->sta_list, list) {
-		if (sta->dev == dev)
+	/*
+	 * Now delete all active aggregation sessions.
+	 */
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		if (sta->sdata == sdata)
 			for (i = 0; i <  STA_TID_NUM; i++)
-				ieee80211_sta_stop_rx_ba_session(sta->dev,
+				ieee80211_sta_stop_rx_ba_session(sdata->dev,
 						sta->addr, i,
 						WLAN_BACK_RECIPIENT,
 						WLAN_REASON_QSTA_LEAVE_QBSS);
 	}
 
-	netif_stop_queue(dev);
+	rcu_read_unlock();
+
+	/*
+	 * Remove all stations associated with this interface.
+	 *
+	 * This must be done before calling ops->remove_interface()
+	 * because otherwise we can later invoke ops->sta_notify()
+	 * whenever the STAs are removed, and that invalidates driver
+	 * assumptions about always getting a vif pointer that is valid
+	 * (because if we remove a STA after ops->remove_interface()
+	 * the driver will have removed the vif info already!)
+	 *
+	 * We could relax this and only unlink the stations from the
+	 * hash table and list but keep them on a per-sdata list that
+	 * will be inserted back again when the interface is brought
+	 * up again, but I don't currently see a use case for that,
+	 * except with WDS which gets a STA entry created when it is
+	 * brought up.
+	 */
+	sta_info_flush(local, sdata);
 
 	/*
 	 * Don't count this interface for promisc/allmulti while it
@@ -440,6 +490,7 @@ static int ieee80211_stop(struct net_device *dev)
 		ieee80211_configure_filter(local);
 		netif_tx_unlock_bh(local->mdev);
 		break;
+	case IEEE80211_IF_TYPE_MESH_POINT:
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		sdata->u.sta.state = IEEE80211_DISABLED;
@@ -511,9 +562,12 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 				print_mac(mac, ra), tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
+	rcu_read_lock();
+
 	sta = sta_info_get(local, ra);
 	if (!sta) {
 		printk(KERN_DEBUG "Could not find the station\n");
+		rcu_read_unlock();
 		return -ENOENT;
 	}
 
@@ -553,7 +607,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 		spin_unlock_bh(&local->mdev->queue_lock);
 		goto start_ba_exit;
 	}
-	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+	sdata = sta->sdata;
 
 	/* Ok, the Addba frame hasn't been sent yet, but if the driver calls the
 	 * call back right away, it must see that the flow has begun */
@@ -590,7 +644,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 			sta->ampdu_mlme.dialog_token_allocator;
 	sta->ampdu_mlme.tid_tx[tid].ssn = start_seq_num;
 
-	ieee80211_send_addba_request(sta->dev, ra, tid,
+	ieee80211_send_addba_request(sta->sdata->dev, ra, tid,
 			 sta->ampdu_mlme.tid_tx[tid].dialog_token,
 			 sta->ampdu_mlme.tid_tx[tid].ssn,
 			 0x40, 5000);
@@ -603,7 +657,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 
 start_ba_exit:
 	spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
-	sta_info_put(sta);
+	rcu_read_unlock();
 	return ret;
 }
 EXPORT_SYMBOL(ieee80211_start_tx_ba_session);
@@ -626,9 +680,12 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
 				print_mac(mac, ra), tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
+	rcu_read_lock();
 	sta = sta_info_get(local, ra);
-	if (!sta)
+	if (!sta) {
+		rcu_read_unlock();
 		return -ENOENT;
+	}
 
 	/* check if the TID is in aggregation */
 	state = &sta->ampdu_mlme.tid_tx[tid].state;
@@ -662,7 +719,7 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
 
 stop_BA_exit:
 	spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
-	sta_info_put(sta);
+	rcu_read_unlock();
 	return ret;
 }
 EXPORT_SYMBOL(ieee80211_stop_tx_ba_session);
@@ -680,8 +737,10 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 		return;
 	}
 
+	rcu_read_lock();
 	sta = sta_info_get(local, ra);
 	if (!sta) {
+		rcu_read_unlock();
 		printk(KERN_DEBUG "Could not find station: %s\n",
 				print_mac(mac, ra));
 		return;
@@ -694,7 +753,7 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 		printk(KERN_DEBUG "addBA was not requested yet, state is %d\n",
 				*state);
 		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
-		sta_info_put(sta);
+		rcu_read_unlock();
 		return;
 	}
 
@@ -707,7 +766,7 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 		ieee80211_wake_queue(hw, sta->tid_to_tx_q[tid]);
 	}
 	spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
-	sta_info_put(sta);
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL(ieee80211_start_tx_ba_cb);
 
@@ -728,10 +787,12 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 	printk(KERN_DEBUG "Stop a BA session requested on DA %s tid %d\n",
 				print_mac(mac, ra), tid);
 
+	rcu_read_lock();
 	sta = sta_info_get(local, ra);
 	if (!sta) {
 		printk(KERN_DEBUG "Could not find station: %s\n",
 				print_mac(mac, ra));
+		rcu_read_unlock();
 		return;
 	}
 	state = &sta->ampdu_mlme.tid_tx[tid].state;
@@ -739,13 +800,13 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
 	if ((*state & HT_AGG_STATE_REQ_STOP_BA_MSK) == 0) {
 		printk(KERN_DEBUG "unexpected callback to A-MPDU stop\n");
-		sta_info_put(sta);
 		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+		rcu_read_unlock();
 		return;
 	}
 
 	if (*state & HT_AGG_STATE_INITIATOR_MSK)
-		ieee80211_send_delba(sta->dev, ra, tid,
+		ieee80211_send_delba(sta->sdata->dev, ra, tid,
 			WLAN_BACK_INITIATOR, WLAN_REASON_QSTA_NOT_USE);
 
 	agg_queue = sta->tid_to_tx_q[tid];
@@ -766,7 +827,7 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 	sta->ampdu_mlme.tid_tx[tid].addba_req_num = 0;
 	spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
 
-	sta_info_put(sta);
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL(ieee80211_stop_tx_ba_cb);
 
@@ -867,44 +928,6 @@ void ieee80211_if_setup(struct net_device *dev)
 	dev->destructor = ieee80211_if_free;
 }
 
-/* WDS specialties */
-
-int ieee80211_if_update_wds(struct net_device *dev, u8 *remote_addr)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct sta_info *sta;
-	DECLARE_MAC_BUF(mac);
-
-	if (compare_ether_addr(remote_addr, sdata->u.wds.remote_addr) == 0)
-		return 0;
-
-	/* Create STA entry for the new peer */
-	sta = sta_info_add(local, dev, remote_addr, GFP_KERNEL);
-	if (IS_ERR(sta))
-		return PTR_ERR(sta);
-
-	sta->flags |= WLAN_STA_AUTHORIZED;
-
-	sta_info_put(sta);
-
-	/* Remove STA entry for the old peer */
-	sta = sta_info_get(local, sdata->u.wds.remote_addr);
-	if (sta) {
-		sta_info_free(sta);
-		sta_info_put(sta);
-	} else {
-		printk(KERN_DEBUG "%s: could not find STA entry for WDS link "
-		       "peer %s\n",
-		       dev->name, print_mac(mac, sdata->u.wds.remote_addr));
-	}
-
-	/* Update WDS link data */
-	memcpy(&sdata->u.wds.remote_addr, remote_addr, ETH_ALEN);
-
-	return 0;
-}
-
 /* everything else */
 
 static int __ieee80211_if_config(struct net_device *dev,
@@ -925,6 +948,9 @@ static int __ieee80211_if_config(struct net_device *dev,
 		conf.bssid = sdata->u.sta.bssid;
 		conf.ssid = sdata->u.sta.ssid;
 		conf.ssid_len = sdata->u.sta.ssid_len;
+	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
+		conf.beacon = beacon;
+		ieee80211_start_mesh(dev);
 	} else if (sdata->vif.type == IEEE80211_IF_TYPE_AP) {
 		conf.ssid = sdata->u.ap.ssid;
 		conf.ssid_len = sdata->u.ap.ssid_len;
@@ -937,6 +963,11 @@ static int __ieee80211_if_config(struct net_device *dev,
 
 int ieee80211_if_config(struct net_device *dev)
 {
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	if (sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT &&
+	    (local->hw.flags & IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE))
+		return ieee80211_if_config_beacon(dev);
 	return __ieee80211_if_config(dev, NULL, NULL);
 }
 
@@ -1311,6 +1342,8 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 		return;
 	}
 
+	rcu_read_lock();
+
 	if (status->excessive_retries) {
 		struct sta_info *sta;
 		sta = sta_info_get(local, hdr->addr1);
@@ -1324,10 +1357,9 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 				status->flags |= IEEE80211_TX_STATUS_TX_FILTERED;
 				ieee80211_handle_filtered_frame(local, sta,
 								skb, status);
-				sta_info_put(sta);
+				rcu_read_unlock();
 				return;
 			}
-			sta_info_put(sta);
 		}
 	}
 
@@ -1337,11 +1369,13 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 		if (sta) {
 			ieee80211_handle_filtered_frame(local, sta, skb,
 							status);
-			sta_info_put(sta);
+			rcu_read_unlock();
 			return;
 		}
 	} else
 		rate_control_tx_status(local->mdev, skb, status);
+
+	rcu_read_unlock();
 
 	ieee80211_led_tx(local, 0);
 
@@ -1662,7 +1696,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	/* add one default STA interface */
 	result = ieee80211_if_add(local->mdev, "wlan%d", NULL,
-				  IEEE80211_IF_TYPE_STA);
+				  IEEE80211_IF_TYPE_STA, NULL);
 	if (result)
 		printk(KERN_WARNING "%s: Failed to add default virtual iface\n",
 		       wiphy_name(local->hw.wiphy));
@@ -1800,6 +1834,9 @@ static void __exit ieee80211_exit(void)
 {
 	rc80211_simple_exit();
 	rc80211_pid_exit();
+
+	if (mesh_allocated)
+		ieee80211s_stop();
 
 	ieee80211_wme_unregister();
 	ieee80211_debugfs_netdev_exit();

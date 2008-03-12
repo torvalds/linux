@@ -118,6 +118,8 @@ static struct ath5k_srev_name srev_names[] = {
 	{ "5212",	AR5K_VERSION_VER,	AR5K_SREV_VER_AR5212 },
 	{ "5213",	AR5K_VERSION_VER,	AR5K_SREV_VER_AR5213 },
 	{ "5213A",	AR5K_VERSION_VER,	AR5K_SREV_VER_AR5213A },
+	{ "2413",	AR5K_VERSION_VER,	AR5K_SREV_VER_AR2413 },
+	{ "2414",	AR5K_VERSION_VER,	AR5K_SREV_VER_AR2414 },
 	{ "2424",	AR5K_VERSION_VER,	AR5K_SREV_VER_AR2424 },
 	{ "5424",	AR5K_VERSION_VER,	AR5K_SREV_VER_AR5424 },
 	{ "5413",	AR5K_VERSION_VER,	AR5K_SREV_VER_AR5413 },
@@ -132,6 +134,7 @@ static struct ath5k_srev_name srev_names[] = {
 	{ "5112A",	AR5K_VERSION_RAD,	AR5K_SREV_RAD_5112A },
 	{ "2112",	AR5K_VERSION_RAD,	AR5K_SREV_RAD_2112 },
 	{ "2112A",	AR5K_VERSION_RAD,	AR5K_SREV_RAD_2112A },
+	{ "SChip",	AR5K_VERSION_RAD,	AR5K_SREV_RAD_SC0 },
 	{ "SChip",	AR5K_VERSION_RAD,	AR5K_SREV_RAD_SC1 },
 	{ "SChip",	AR5K_VERSION_RAD,	AR5K_SREV_RAD_SC2 },
 	{ "5133",	AR5K_VERSION_RAD,	AR5K_SREV_RAD_5133 },
@@ -280,7 +283,8 @@ static int 	ath5k_rx_start(struct ath5k_softc *sc);
 static void 	ath5k_rx_stop(struct ath5k_softc *sc);
 static unsigned int ath5k_rx_decrypted(struct ath5k_softc *sc,
 					struct ath5k_desc *ds,
-					struct sk_buff *skb);
+					struct sk_buff *skb,
+					struct ath5k_rx_status *rs);
 static void 	ath5k_tasklet_rx(unsigned long data);
 /* Tx handling */
 static void 	ath5k_tx_processq(struct ath5k_softc *sc,
@@ -1560,8 +1564,7 @@ ath5k_txq_drainq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 	 */
 	spin_lock_bh(&txq->lock);
 	list_for_each_entry_safe(bf, bf0, &txq->q, list) {
-		ath5k_debug_printtxbuf(sc, bf, !sc->ah->ah_proc_tx_desc(sc->ah,
-					bf->desc));
+		ath5k_debug_printtxbuf(sc, bf);
 
 		ath5k_txbuf_free(sc, bf);
 
@@ -1686,20 +1689,20 @@ ath5k_rx_stop(struct ath5k_softc *sc)
 
 static unsigned int
 ath5k_rx_decrypted(struct ath5k_softc *sc, struct ath5k_desc *ds,
-		struct sk_buff *skb)
+		struct sk_buff *skb, struct ath5k_rx_status *rs)
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	unsigned int keyix, hlen = ieee80211_get_hdrlen_from_skb(skb);
 
-	if (!(ds->ds_rxstat.rs_status & AR5K_RXERR_DECRYPT) &&
-			ds->ds_rxstat.rs_keyix != AR5K_RXKEYIX_INVALID)
+	if (!(rs->rs_status & AR5K_RXERR_DECRYPT) &&
+			rs->rs_keyix != AR5K_RXKEYIX_INVALID)
 		return RX_FLAG_DECRYPTED;
 
 	/* Apparently when a default key is used to decrypt the packet
 	   the hw does not set the index used to decrypt.  In such cases
 	   get the index from the packet. */
 	if ((le16_to_cpu(hdr->frame_control) & IEEE80211_FCTL_PROTECTED) &&
-			!(ds->ds_rxstat.rs_status & AR5K_RXERR_DECRYPT) &&
+			!(rs->rs_status & AR5K_RXERR_DECRYPT) &&
 			skb->len >= hlen + 4) {
 		keyix = skb->data[hlen + 3] >> 6;
 
@@ -1712,8 +1715,10 @@ ath5k_rx_decrypted(struct ath5k_softc *sc, struct ath5k_desc *ds,
 
 
 static void
-ath5k_check_ibss_hw_merge(struct ath5k_softc *sc, struct sk_buff *skb)
+ath5k_check_ibss_tsf(struct ath5k_softc *sc, struct sk_buff *skb,
+		     struct ieee80211_rx_status *rxs)
 {
+	u64 tsf, bc_tstamp;
 	u32 hw_tu;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 
@@ -1724,16 +1729,45 @@ ath5k_check_ibss_hw_merge(struct ath5k_softc *sc, struct sk_buff *skb)
 	    le16_to_cpu(mgmt->u.beacon.capab_info) & WLAN_CAPABILITY_IBSS &&
 	    memcmp(mgmt->bssid, sc->ah->ah_bssid, ETH_ALEN) == 0) {
 		/*
-		 * Received an IBSS beacon with the same BSSID. Hardware might
-		 * have updated the TSF, check if we need to update timers.
+		 * Received an IBSS beacon with the same BSSID. Hardware *must*
+		 * have updated the local TSF. We have to work around various
+		 * hardware bugs, though...
 		 */
-		hw_tu = TSF_TO_TU(ath5k_hw_get_tsf64(sc->ah));
-		if (hw_tu >= sc->nexttbtt) {
-			ath5k_beacon_update_timers(sc,
-				le64_to_cpu(mgmt->u.beacon.timestamp));
+		tsf = ath5k_hw_get_tsf64(sc->ah);
+		bc_tstamp = le64_to_cpu(mgmt->u.beacon.timestamp);
+		hw_tu = TSF_TO_TU(tsf);
+
+		ATH5K_DBG_UNLIMIT(sc, ATH5K_DEBUG_BEACON,
+			"beacon %llx mactime %llx (diff %lld) tsf now %llx\n",
+			bc_tstamp, rxs->mactime,
+			(rxs->mactime - bc_tstamp), tsf);
+
+		/*
+		 * Sometimes the HW will give us a wrong tstamp in the rx
+		 * status, causing the timestamp extension to go wrong.
+		 * (This seems to happen especially with beacon frames bigger
+		 * than 78 byte (incl. FCS))
+		 * But we know that the receive timestamp must be later than the
+		 * timestamp of the beacon since HW must have synced to that.
+		 *
+		 * NOTE: here we assume mactime to be after the frame was
+		 * received, not like mac80211 which defines it at the start.
+		 */
+		if (bc_tstamp > rxs->mactime) {
 			ATH5K_DBG_UNLIMIT(sc, ATH5K_DEBUG_BEACON,
-				"detected HW merge from received beacon\n");
+				"fixing mactime from %llx to %llx\n",
+				rxs->mactime, tsf);
+			rxs->mactime = tsf;
 		}
+
+		/*
+		 * Local TSF might have moved higher than our beacon timers,
+		 * in that case we have to update them to continue sending
+		 * beacons. This also takes care of synchronizing beacon sending
+		 * times with other stations.
+		 */
+		if (hw_tu >= sc->nexttbtt)
+			ath5k_beacon_update_timers(sc, bc_tstamp);
 	}
 }
 
@@ -1742,12 +1776,11 @@ static void
 ath5k_tasklet_rx(unsigned long data)
 {
 	struct ieee80211_rx_status rxs = {};
+	struct ath5k_rx_status rs = {};
 	struct sk_buff *skb;
 	struct ath5k_softc *sc = (void *)data;
 	struct ath5k_buf *bf;
 	struct ath5k_desc *ds;
-	u16 len;
-	u8 stat;
 	int ret;
 	int hdrlen;
 	int pad;
@@ -1770,7 +1803,7 @@ ath5k_tasklet_rx(unsigned long data)
 		if (unlikely(ds->ds_link == bf->daddr)) /* this is the end */
 			break;
 
-		ret = sc->ah->ah_proc_rx_desc(sc->ah, ds);
+		ret = sc->ah->ah_proc_rx_desc(sc->ah, ds, &rs);
 		if (unlikely(ret == -EINPROGRESS))
 			break;
 		else if (unlikely(ret)) {
@@ -1779,16 +1812,15 @@ ath5k_tasklet_rx(unsigned long data)
 			return;
 		}
 
-		if (unlikely(ds->ds_rxstat.rs_more)) {
+		if (unlikely(rs.rs_more)) {
 			ATH5K_WARN(sc, "unsupported jumbo\n");
 			goto next;
 		}
 
-		stat = ds->ds_rxstat.rs_status;
-		if (unlikely(stat)) {
-			if (stat & AR5K_RXERR_PHY)
+		if (unlikely(rs.rs_status)) {
+			if (rs.rs_status & AR5K_RXERR_PHY)
 				goto next;
-			if (stat & AR5K_RXERR_DECRYPT) {
+			if (rs.rs_status & AR5K_RXERR_DECRYPT) {
 				/*
 				 * Decrypt error.  If the error occurred
 				 * because there was no hardware key, then
@@ -1799,30 +1831,29 @@ ath5k_tasklet_rx(unsigned long data)
 				 *
 				 * XXX do key cache faulting
 				 */
-				if (ds->ds_rxstat.rs_keyix ==
-						AR5K_RXKEYIX_INVALID &&
-						!(stat & AR5K_RXERR_CRC))
+				if (rs.rs_keyix == AR5K_RXKEYIX_INVALID &&
+				    !(rs.rs_status & AR5K_RXERR_CRC))
 					goto accept;
 			}
-			if (stat & AR5K_RXERR_MIC) {
+			if (rs.rs_status & AR5K_RXERR_MIC) {
 				rxs.flag |= RX_FLAG_MMIC_ERROR;
 				goto accept;
 			}
 
 			/* let crypto-error packets fall through in MNTR */
-			if ((stat & ~(AR5K_RXERR_DECRYPT|AR5K_RXERR_MIC)) ||
+			if ((rs.rs_status &
+				~(AR5K_RXERR_DECRYPT|AR5K_RXERR_MIC)) ||
 					sc->opmode != IEEE80211_IF_TYPE_MNTR)
 				goto next;
 		}
 accept:
-		len = ds->ds_rxstat.rs_datalen;
-		pci_dma_sync_single_for_cpu(sc->pdev, bf->skbaddr, len,
-				PCI_DMA_FROMDEVICE);
+		pci_dma_sync_single_for_cpu(sc->pdev, bf->skbaddr,
+				rs.rs_datalen, PCI_DMA_FROMDEVICE);
 		pci_unmap_single(sc->pdev, bf->skbaddr, sc->rxbufsize,
 				PCI_DMA_FROMDEVICE);
 		bf->skb = NULL;
 
-		skb_put(skb, len);
+		skb_put(skb, rs.rs_datalen);
 
 		/*
 		 * the hardware adds a padding to 4 byte boundaries between
@@ -1844,8 +1875,19 @@ accept:
 		 * 15bit only. that means TSF extension has to be done within
 		 * 32768usec (about 32ms). it might be necessary to move this to
 		 * the interrupt handler, like it is done in madwifi.
+		 *
+		 * Unfortunately we don't know when the hardware takes the rx
+		 * timestamp (beginning of phy frame, data frame, end of rx?).
+		 * The only thing we know is that it is hardware specific...
+		 * On AR5213 it seems the rx timestamp is at the end of the
+		 * frame, but i'm not sure.
+		 *
+		 * NOTE: mac80211 defines mactime at the beginning of the first
+		 * data symbol. Since we don't have any time references it's
+		 * impossible to comply to that. This affects IBSS merge only
+		 * right now, so it's not too bad...
 		 */
-		rxs.mactime = ath5k_extend_tsf(sc->ah, ds->ds_rxstat.rs_tstamp);
+		rxs.mactime = ath5k_extend_tsf(sc->ah, rs.rs_tstamp);
 		rxs.flag |= RX_FLAG_TSFT;
 
 		rxs.freq = sc->curchan->center_freq;
@@ -1859,26 +1901,25 @@ accept:
 		/* noise floor in dBm, from the last noise calibration */
 		rxs.noise = sc->ah->ah_noise_floor;
 		/* signal level in dBm */
-		rxs.ssi = rxs.noise + ds->ds_rxstat.rs_rssi;
+		rxs.ssi = rxs.noise + rs.rs_rssi;
 		/*
 		 * "signal" is actually displayed as Link Quality by iwconfig
 		 * we provide a percentage based on rssi (assuming max rssi 64)
 		 */
-		rxs.signal = ds->ds_rxstat.rs_rssi * 100 / 64;
+		rxs.signal = rs.rs_rssi * 100 / 64;
 
-		rxs.antenna = ds->ds_rxstat.rs_antenna;
-		rxs.rate_idx = ath5k_hw_to_driver_rix(sc,
-			ds->ds_rxstat.rs_rate);
-		rxs.flag |= ath5k_rx_decrypted(sc, ds, skb);
+		rxs.antenna = rs.rs_antenna;
+		rxs.rate_idx = ath5k_hw_to_driver_rix(sc, rs.rs_rate);
+		rxs.flag |= ath5k_rx_decrypted(sc, ds, skb, &rs);
 
 		ath5k_debug_dump_skb(sc, skb, "RX  ", 0);
 
 		/* check beacons in IBSS mode */
 		if (sc->opmode == IEEE80211_IF_TYPE_IBSS)
-			ath5k_check_ibss_hw_merge(sc, skb);
+			ath5k_check_ibss_tsf(sc, skb, &rxs);
 
 		__ieee80211_rx(sc->hw, skb, &rxs);
-		sc->led_rxrate = ds->ds_rxstat.rs_rate;
+		sc->led_rxrate = rs.rs_rate;
 		ath5k_led_event(sc, ATH_LED_RX);
 next:
 		list_move_tail(&bf->list, &sc->rxbuf);
@@ -1897,6 +1938,7 @@ static void
 ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 {
 	struct ieee80211_tx_status txs = {};
+	struct ath5k_tx_status ts = {};
 	struct ath5k_buf *bf, *bf0;
 	struct ath5k_desc *ds;
 	struct sk_buff *skb;
@@ -1909,7 +1951,7 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 		/* TODO only one segment */
 		pci_dma_sync_single_for_cpu(sc->pdev, sc->desc_daddr,
 				sc->desc_len, PCI_DMA_FROMDEVICE);
-		ret = sc->ah->ah_proc_tx_desc(sc->ah, ds);
+		ret = sc->ah->ah_proc_tx_desc(sc->ah, ds, &ts);
 		if (unlikely(ret == -EINPROGRESS))
 			break;
 		else if (unlikely(ret)) {
@@ -1924,17 +1966,16 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 				PCI_DMA_TODEVICE);
 
 		txs.control = bf->ctl;
-		txs.retry_count = ds->ds_txstat.ts_shortretry +
-			ds->ds_txstat.ts_longretry / 6;
-		if (unlikely(ds->ds_txstat.ts_status)) {
+		txs.retry_count = ts.ts_shortretry + ts.ts_longretry / 6;
+		if (unlikely(ts.ts_status)) {
 			sc->ll_stats.dot11ACKFailureCount++;
-			if (ds->ds_txstat.ts_status & AR5K_TXERR_XRETRY)
+			if (ts.ts_status & AR5K_TXERR_XRETRY)
 				txs.excessive_retries = 1;
-			else if (ds->ds_txstat.ts_status & AR5K_TXERR_FILT)
+			else if (ts.ts_status & AR5K_TXERR_FILT)
 				txs.flags |= IEEE80211_TX_STATUS_TX_FILTERED;
 		} else {
 			txs.flags |= IEEE80211_TX_STATUS_ACK;
-			txs.ack_signal = ds->ds_txstat.ts_rssi;
+			txs.ack_signal = ts.ts_rssi;
 		}
 
 		ieee80211_tx_status(sc->hw, skb, &txs);
@@ -2108,7 +2149,7 @@ ath5k_beacon_send(struct ath5k_softc *sc)
  * beacon timer registers.
  *
  * This is called in a variety of situations, e.g. when a beacon is received,
- * when a HW merge has been detected, but also when an new IBSS is created or
+ * when a TSF update has been detected, but also when an new IBSS is created or
  * when we otherwise know we have to update the timers, but we keep it in this
  * function to have it all together in one place.
  */
@@ -2208,7 +2249,7 @@ ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf)
  * another AP to associate with.
  *
  * In IBSS mode we use a self-linked tx descriptor if possible. We enable SWBA
- * interrupts to detect HW merges only.
+ * interrupts to detect TSF updates only.
  *
  * AP mode is missing.
  */
@@ -2228,7 +2269,7 @@ ath5k_beacon_config(struct ath5k_softc *sc)
 		 * hardware send the beacons automatically. We have to load it
 		 * only once here.
 		 * We use the SWBA interrupt only to keep track of the beacon
-		 * timers in order to detect HW merges (automatic TSF updates).
+		 * timers in order to detect automatic TSF updates.
 		 */
 		ath5k_beaconq_config(sc);
 
@@ -2441,8 +2482,8 @@ ath5k_intr(int irq, void *dev_id)
 				*
 				* In IBSS mode we use this interrupt just to
 				* keep track of the next TBTT (target beacon
-				* transmission time) in order to detect hardware
-				* merges (TSF updates).
+				* transmission time) in order to detect wether
+				* automatic TSF updates happened.
 				*/
 				if (sc->opmode == IEEE80211_IF_TYPE_IBSS) {
 					 /* XXX: only if VEOL suppported */

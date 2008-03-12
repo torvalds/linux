@@ -15,21 +15,52 @@
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
 #include <linux/timer.h>
+#include <linux/rtnetlink.h>
 
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 #include "ieee80211_rate.h"
 #include "sta_info.h"
 #include "debugfs_sta.h"
+#include "mesh.h"
 
-/* Caller must hold local->sta_lock */
-static void sta_info_hash_add(struct ieee80211_local *local,
-			      struct sta_info *sta)
-{
-	sta->hnext = local->sta_hash[STA_HASH(sta->addr)];
-	local->sta_hash[STA_HASH(sta->addr)] = sta;
-}
-
+/**
+ * DOC: STA information lifetime rules
+ *
+ * STA info structures (&struct sta_info) are managed in a hash table
+ * for faster lookup and a list for iteration. They are managed using
+ * RCU, i.e. access to the list and hash table is protected by RCU.
+ *
+ * Upon allocating a STA info structure with sta_info_alloc(), the caller owns
+ * that structure. It must then either destroy it using sta_info_destroy()
+ * (which is pretty useless) or insert it into the hash table using
+ * sta_info_insert() which demotes the reference from ownership to a regular
+ * RCU-protected reference; if the function is called without protection by an
+ * RCU critical section the reference is instantly invalidated.
+ *
+ * Because there are debugfs entries for each station, and adding those
+ * must be able to sleep, it is also possible to "pin" a station entry,
+ * that means it can be removed from the hash table but not be freed.
+ * See the comment in __sta_info_unlink() for more information.
+ *
+ * In order to remove a STA info structure, the caller needs to first
+ * unlink it (sta_info_unlink()) from the list and hash tables and
+ * then wait for an RCU synchronisation before it can be freed. Due to
+ * the pinning and the possibility of multiple callers trying to remove
+ * the same STA info at the same time, sta_info_unlink() can clear the
+ * STA info pointer it is passed to indicate that the STA info is owned
+ * by somebody else now.
+ *
+ * If sta_info_unlink() did not clear the pointer then the caller owns
+ * the STA info structure now and is responsible of destroying it with
+ * a call to sta_info_destroy(), not before RCU synchronisation, of
+ * course. Note that sta_info_destroy() must be protected by the RTNL.
+ *
+ * In all other cases, there is no concept of ownership on a STA entry,
+ * each structure is owned by the global hash table/list until it is
+ * removed. All users of the structure need to be RCU protected so that
+ * the structure won't be freed before they are done using it.
+ */
 
 /* Caller must hold local->sta_lock */
 static int sta_info_hash_del(struct ieee80211_local *local,
@@ -41,109 +72,152 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 	if (!s)
 		return -ENOENT;
 	if (s == sta) {
-		local->sta_hash[STA_HASH(sta->addr)] = s->hnext;
+		rcu_assign_pointer(local->sta_hash[STA_HASH(sta->addr)],
+				   s->hnext);
 		return 0;
 	}
 
 	while (s->hnext && s->hnext != sta)
 		s = s->hnext;
 	if (s->hnext) {
-		s->hnext = sta->hnext;
+		rcu_assign_pointer(s->hnext, sta->hnext);
 		return 0;
 	}
 
 	return -ENOENT;
 }
 
-/* must hold local->sta_lock */
+/* protected by RCU */
 static struct sta_info *__sta_info_find(struct ieee80211_local *local,
 					u8 *addr)
 {
 	struct sta_info *sta;
 
-	sta = local->sta_hash[STA_HASH(addr)];
+	sta = rcu_dereference(local->sta_hash[STA_HASH(addr)]);
 	while (sta) {
 		if (compare_ether_addr(sta->addr, addr) == 0)
 			break;
-		sta = sta->hnext;
+		sta = rcu_dereference(sta->hnext);
 	}
 	return sta;
 }
 
 struct sta_info *sta_info_get(struct ieee80211_local *local, u8 *addr)
 {
-	struct sta_info *sta;
-
-	read_lock_bh(&local->sta_lock);
-	sta = __sta_info_find(local, addr);
-	if (sta)
-		__sta_info_get(sta);
-	read_unlock_bh(&local->sta_lock);
-
-	return sta;
+	return __sta_info_find(local, addr);
 }
 EXPORT_SYMBOL(sta_info_get);
 
-
-static void sta_info_release(struct kref *kref)
+struct sta_info *sta_info_get_by_idx(struct ieee80211_local *local, int idx,
+				     struct net_device *dev)
 {
-	struct sta_info *sta = container_of(kref, struct sta_info, kref);
+	struct sta_info *sta;
+	int i = 0;
+
+	list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		if (dev && dev != sta->sdata->dev)
+			continue;
+		if (i < idx) {
+			++i;
+			continue;
+		}
+		return sta;
+	}
+
+	return NULL;
+}
+
+void sta_info_destroy(struct sta_info *sta)
+{
 	struct ieee80211_local *local = sta->local;
 	struct sk_buff *skb;
 	int i;
+	DECLARE_MAC_BUF(mbuf);
 
-	/* free sta structure; it has already been removed from
-	 * hash table etc. external structures. Make sure that all
-	 * buffered frames are release (one might have been added
-	 * after sta_info_free() was called). */
+	if (!sta)
+		return;
+
+	ASSERT_RTNL();
+	might_sleep();
+
+	rate_control_remove_sta_debugfs(sta);
+	ieee80211_sta_debugfs_remove(sta);
+
+#ifdef CONFIG_MAC80211_MESH
+	if (ieee80211_vif_is_mesh(&sta->sdata->vif))
+		mesh_plink_deactivate(sta);
+#endif
+
+	/*
+	 * NOTE: This will call synchronize_rcu() internally to
+	 * make sure no key references can be in use. We rely on
+	 * that here for the mesh code!
+	 */
+	ieee80211_key_free(sta->key);
+	WARN_ON(sta->key);
+
+#ifdef CONFIG_MAC80211_MESH
+	if (ieee80211_vif_is_mesh(&sta->sdata->vif))
+		del_timer_sync(&sta->plink_timer);
+#endif
+
 	while ((skb = skb_dequeue(&sta->ps_tx_buf)) != NULL) {
 		local->total_ps_buffered--;
 		dev_kfree_skb_any(skb);
 	}
-	while ((skb = skb_dequeue(&sta->tx_filtered)) != NULL) {
+
+	while ((skb = skb_dequeue(&sta->tx_filtered)) != NULL)
 		dev_kfree_skb_any(skb);
-	}
+
 	for (i = 0; i <  STA_TID_NUM; i++) {
 		del_timer_sync(&sta->ampdu_mlme.tid_rx[i].session_timer);
 		del_timer_sync(&sta->ampdu_mlme.tid_tx[i].addba_resp_timer);
 	}
 	rate_control_free_sta(sta->rate_ctrl, sta->rate_ctrl_priv);
 	rate_control_put(sta->rate_ctrl);
+
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+	printk(KERN_DEBUG "%s: Destroyed STA %s\n",
+	       wiphy_name(local->hw.wiphy), print_mac(mbuf, sta->addr));
+#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
+
 	kfree(sta);
 }
 
 
-void sta_info_put(struct sta_info *sta)
+/* Caller must hold local->sta_lock */
+static void sta_info_hash_add(struct ieee80211_local *local,
+			      struct sta_info *sta)
 {
-	kref_put(&sta->kref, sta_info_release);
+	sta->hnext = local->sta_hash[STA_HASH(sta->addr)];
+	rcu_assign_pointer(local->sta_hash[STA_HASH(sta->addr)], sta);
 }
-EXPORT_SYMBOL(sta_info_put);
 
-
-struct sta_info *sta_info_add(struct ieee80211_local *local,
-			      struct net_device *dev, u8 *addr, gfp_t gfp)
+struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
+				u8 *addr, gfp_t gfp)
 {
+	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	int i;
-	DECLARE_MAC_BUF(mac);
+	DECLARE_MAC_BUF(mbuf);
 
 	sta = kzalloc(sizeof(*sta), gfp);
 	if (!sta)
-		return ERR_PTR(-ENOMEM);
-
-	kref_init(&sta->kref);
-
-	sta->rate_ctrl = rate_control_get(local->rate_ctrl);
-	sta->rate_ctrl_priv = rate_control_alloc_sta(sta->rate_ctrl, gfp);
-	if (!sta->rate_ctrl_priv) {
-		rate_control_put(sta->rate_ctrl);
-		kfree(sta);
-		return ERR_PTR(-ENOMEM);
-	}
+		return NULL;
 
 	memcpy(sta->addr, addr, ETH_ALEN);
 	sta->local = local;
-	sta->dev = dev;
+	sta->sdata = sdata;
+
+	sta->rate_ctrl = rate_control_get(local->rate_ctrl);
+	sta->rate_ctrl_priv = rate_control_alloc_sta(sta->rate_ctrl,
+						     gfp);
+	if (!sta->rate_ctrl_priv) {
+		rate_control_put(sta->rate_ctrl);
+		kfree(sta);
+		return NULL;
+	}
+
 	spin_lock_init(&sta->ampdu_mlme.ampdu_rx);
 	spin_lock_init(&sta->ampdu_mlme.ampdu_tx);
 	for (i = 0; i < STA_TID_NUM; i++) {
@@ -168,34 +242,67 @@ struct sta_info *sta_info_add(struct ieee80211_local *local,
 	}
 	skb_queue_head_init(&sta->ps_tx_buf);
 	skb_queue_head_init(&sta->tx_filtered);
-	write_lock_bh(&local->sta_lock);
-	/* mark sta as used (by caller) */
-	__sta_info_get(sta);
+
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+	printk(KERN_DEBUG "%s: Allocated STA %s\n",
+	       wiphy_name(local->hw.wiphy), print_mac(mbuf, sta->addr));
+#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
+
+#ifdef CONFIG_MAC80211_MESH
+	sta->plink_state = PLINK_LISTEN;
+	spin_lock_init(&sta->plink_lock);
+	init_timer(&sta->plink_timer);
+#endif
+
+	return sta;
+}
+
+int sta_info_insert(struct sta_info *sta)
+{
+	struct ieee80211_local *local = sta->local;
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	unsigned long flags;
+	DECLARE_MAC_BUF(mac);
+
+	/*
+	 * Can't be a WARN_ON because it can be triggered through a race:
+	 * something inserts a STA (on one CPU) without holding the RTNL
+	 * and another CPU turns off the net device.
+	 */
+	if (unlikely(!netif_running(sdata->dev)))
+		return -ENETDOWN;
+
+	if (WARN_ON(compare_ether_addr(sta->addr, sdata->dev->dev_addr) == 0))
+		return -EINVAL;
+
+	if (WARN_ON(is_multicast_ether_addr(sta->addr)))
+		return -EINVAL;
+
+	spin_lock_irqsave(&local->sta_lock, flags);
 	/* check if STA exists already */
-	if (__sta_info_find(local, addr)) {
-		write_unlock_bh(&local->sta_lock);
-		sta_info_put(sta);
-		return ERR_PTR(-EEXIST);
+	if (__sta_info_find(local, sta->addr)) {
+		spin_unlock_irqrestore(&local->sta_lock, flags);
+		return -EEXIST;
 	}
 	list_add(&sta->list, &local->sta_list);
 	local->num_sta++;
 	sta_info_hash_add(local, sta);
-	if (local->ops->sta_notify) {
-		struct ieee80211_sub_if_data *sdata;
 
-		sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	/* notify driver */
+	if (local->ops->sta_notify) {
 		if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
 			sdata = sdata->u.vlan.ap;
 
 		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
-				       STA_NOTIFY_ADD, addr);
+				       STA_NOTIFY_ADD, sta->addr);
 	}
-	write_unlock_bh(&local->sta_lock);
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: Added STA %s\n",
-	       wiphy_name(local->hw.wiphy), print_mac(mac, addr));
+	printk(KERN_DEBUG "%s: Inserted STA %s\n",
+	       wiphy_name(local->hw.wiphy), print_mac(mac, sta->addr));
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
+
+	spin_unlock_irqrestore(&local->sta_lock, flags);
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	/* debugfs entry adding might sleep, so schedule process
@@ -204,7 +311,10 @@ struct sta_info *sta_info_add(struct ieee80211_local *local,
 	queue_work(local->hw.workqueue, &local->sta_debugfs_add);
 #endif
 
-	return sta;
+	if (ieee80211_vif_is_mesh(&sdata->vif))
+		mesh_accept_plinks_update(sdata);
+
+	return 0;
 }
 
 static inline void __bss_tim_set(struct ieee80211_if_ap *bss, u16 aid)
@@ -230,19 +340,20 @@ static void __sta_info_set_tim_bit(struct ieee80211_if_ap *bss,
 {
 	if (bss)
 		__bss_tim_set(bss, sta->aid);
-	if (sta->local->ops->set_tim)
+	if (sta->local->ops->set_tim) {
+		sta->local->tim_in_locked_section = true;
 		sta->local->ops->set_tim(local_to_hw(sta->local), sta->aid, 1);
+		sta->local->tim_in_locked_section = false;
+	}
 }
 
 void sta_info_set_tim_bit(struct sta_info *sta)
 {
-	struct ieee80211_sub_if_data *sdata;
+	unsigned long flags;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
-
-	read_lock_bh(&sta->local->sta_lock);
-	__sta_info_set_tim_bit(sdata->bss, sta);
-	read_unlock_bh(&sta->local->sta_lock);
+	spin_lock_irqsave(&sta->local->sta_lock, flags);
+	__sta_info_set_tim_bit(sta->sdata->bss, sta);
+	spin_unlock_irqrestore(&sta->local->sta_lock, flags);
 }
 
 static void __sta_info_clear_tim_bit(struct ieee80211_if_ap *bss,
@@ -250,88 +361,135 @@ static void __sta_info_clear_tim_bit(struct ieee80211_if_ap *bss,
 {
 	if (bss)
 		__bss_tim_clear(bss, sta->aid);
-	if (sta->local->ops->set_tim)
+	if (sta->local->ops->set_tim) {
+		sta->local->tim_in_locked_section = true;
 		sta->local->ops->set_tim(local_to_hw(sta->local), sta->aid, 0);
+		sta->local->tim_in_locked_section = false;
+	}
 }
 
 void sta_info_clear_tim_bit(struct sta_info *sta)
 {
-	struct ieee80211_sub_if_data *sdata;
+	unsigned long flags;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
-
-	read_lock_bh(&sta->local->sta_lock);
-	__sta_info_clear_tim_bit(sdata->bss, sta);
-	read_unlock_bh(&sta->local->sta_lock);
+	spin_lock_irqsave(&sta->local->sta_lock, flags);
+	__sta_info_clear_tim_bit(sta->sdata->bss, sta);
+	spin_unlock_irqrestore(&sta->local->sta_lock, flags);
 }
 
-/* Caller must hold local->sta_lock */
-void sta_info_remove(struct sta_info *sta)
+/*
+ * See comment in __sta_info_unlink,
+ * caller must hold local->sta_lock.
+ */
+static void __sta_info_pin(struct sta_info *sta)
 {
-	struct ieee80211_local *local = sta->local;
-	struct ieee80211_sub_if_data *sdata;
+	WARN_ON(sta->pin_status != STA_INFO_PIN_STAT_NORMAL);
+	sta->pin_status = STA_INFO_PIN_STAT_PINNED;
+}
 
-	/* don't do anything if we've been removed already */
-	if (sta_info_hash_del(local, sta))
+/*
+ * See comment in __sta_info_unlink, returns sta if it
+ * needs to be destroyed.
+ */
+static struct sta_info *__sta_info_unpin(struct sta_info *sta)
+{
+	struct sta_info *ret = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sta->local->sta_lock, flags);
+	WARN_ON(sta->pin_status != STA_INFO_PIN_STAT_DESTROY &&
+		sta->pin_status != STA_INFO_PIN_STAT_PINNED);
+	if (sta->pin_status == STA_INFO_PIN_STAT_DESTROY)
+		ret = sta;
+	sta->pin_status = STA_INFO_PIN_STAT_NORMAL;
+	spin_unlock_irqrestore(&sta->local->sta_lock, flags);
+
+	return ret;
+}
+
+static void __sta_info_unlink(struct sta_info **sta)
+{
+	struct ieee80211_local *local = (*sta)->local;
+	struct ieee80211_sub_if_data *sdata = (*sta)->sdata;
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+	DECLARE_MAC_BUF(mbuf);
+#endif
+	/*
+	 * pull caller's reference if we're already gone.
+	 */
+	if (sta_info_hash_del(local, *sta)) {
+		*sta = NULL;
 		return;
+	}
 
-	list_del(&sta->list);
-	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
-	if (sta->flags & WLAN_STA_PS) {
-		sta->flags &= ~WLAN_STA_PS;
+	/*
+	 * Also pull caller's reference if the STA is pinned by the
+	 * task that is adding the debugfs entries. In that case, we
+	 * leave the STA "to be freed".
+	 *
+	 * The rules are not trivial, but not too complex either:
+	 *  (1) pin_status is only modified under the sta_lock
+	 *  (2) sta_info_debugfs_add_work() will set the status
+	 *	to PINNED when it found an item that needs a new
+	 *	debugfs directory created. In that case, that item
+	 *	must not be freed although all *RCU* users are done
+	 *	with it. Hence, we tell the caller of _unlink()
+	 *	that the item is already gone (as can happen when
+	 *	two tasks try to unlink/destroy at the same time)
+	 *  (3) We set the pin_status to DESTROY here when we
+	 *	find such an item.
+	 *  (4) sta_info_debugfs_add_work() will reset the pin_status
+	 *	from PINNED to NORMAL when it is done with the item,
+	 *	but will check for DESTROY before resetting it in
+	 *	which case it will free the item.
+	 */
+	if ((*sta)->pin_status == STA_INFO_PIN_STAT_PINNED) {
+		(*sta)->pin_status = STA_INFO_PIN_STAT_DESTROY;
+		*sta = NULL;
+		return;
+	}
+
+	list_del(&(*sta)->list);
+
+	if ((*sta)->flags & WLAN_STA_PS) {
+		(*sta)->flags &= ~WLAN_STA_PS;
 		if (sdata->bss)
 			atomic_dec(&sdata->bss->num_sta_ps);
-		__sta_info_clear_tim_bit(sdata->bss, sta);
+		__sta_info_clear_tim_bit(sdata->bss, *sta);
 	}
+
 	local->num_sta--;
-}
-
-void sta_info_free(struct sta_info *sta)
-{
-	struct sk_buff *skb;
-	struct ieee80211_local *local = sta->local;
-	DECLARE_MAC_BUF(mac);
-
-	might_sleep();
-
-	write_lock_bh(&local->sta_lock);
-	sta_info_remove(sta);
-	write_unlock_bh(&local->sta_lock);
-
-	while ((skb = skb_dequeue(&sta->ps_tx_buf)) != NULL) {
-		local->total_ps_buffered--;
-		dev_kfree_skb(skb);
-	}
-	while ((skb = skb_dequeue(&sta->tx_filtered)) != NULL) {
-		dev_kfree_skb(skb);
-	}
-
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: Removed STA %s\n",
-	       wiphy_name(local->hw.wiphy), print_mac(mac, sta->addr));
-#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
-
-	ieee80211_key_free(sta->key);
-	WARN_ON(sta->key);
 
 	if (local->ops->sta_notify) {
-		struct ieee80211_sub_if_data *sdata;
-
-		sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
-
 		if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
 			sdata = sdata->u.vlan.ap;
 
 		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
-				       STA_NOTIFY_REMOVE, sta->addr);
+				       STA_NOTIFY_REMOVE, (*sta)->addr);
 	}
 
-	rate_control_remove_sta_debugfs(sta);
-	ieee80211_sta_debugfs_remove(sta);
+	if (ieee80211_vif_is_mesh(&sdata->vif)) {
+		mesh_accept_plinks_update(sdata);
+#ifdef CONFIG_MAC80211_MESH
+		del_timer(&(*sta)->plink_timer);
+#endif
+	}
 
-	sta_info_put(sta);
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+	printk(KERN_DEBUG "%s: Removed STA %s\n",
+	       wiphy_name(local->hw.wiphy), print_mac(mbuf, (*sta)->addr));
+#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 }
 
+void sta_info_unlink(struct sta_info **sta)
+{
+	struct ieee80211_local *local = (*sta)->local;
+	unsigned long flags;
+
+	spin_lock_irqsave(&local->sta_lock, flags);
+	__sta_info_unlink(sta);
+	spin_unlock_irqrestore(&local->sta_lock, flags);
+}
 
 static inline int sta_info_buffer_expired(struct ieee80211_local *local,
 					  struct sta_info *sta,
@@ -377,7 +535,7 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 		if (!skb)
 			break;
 
-		sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+		sdata = sta->sdata;
 		local->total_ps_buffered--;
 		printk(KERN_DEBUG "Buffered frame expired (STA "
 		       "%s)\n", print_mac(mac, sta->addr));
@@ -394,13 +552,10 @@ static void sta_info_cleanup(unsigned long data)
 	struct ieee80211_local *local = (struct ieee80211_local *) data;
 	struct sta_info *sta;
 
-	read_lock_bh(&local->sta_lock);
-	list_for_each_entry(sta, &local->sta_list, list) {
-		__sta_info_get(sta);
+	rcu_read_lock();
+	list_for_each_entry_rcu(sta, &local->sta_list, list)
 		sta_info_cleanup_expire_buffered(local, sta);
-		sta_info_put(sta);
-	}
-	read_unlock_bh(&local->sta_lock);
+	rcu_read_unlock();
 
 	local->sta_cleanup.expires =
 		round_jiffies(jiffies + STA_INFO_CLEANUP_INTERVAL);
@@ -408,37 +563,45 @@ static void sta_info_cleanup(unsigned long data)
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-static void sta_info_debugfs_add_task(struct work_struct *work)
+static void sta_info_debugfs_add_work(struct work_struct *work)
 {
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, sta_debugfs_add);
 	struct sta_info *sta, *tmp;
+	unsigned long flags;
 
 	while (1) {
 		sta = NULL;
-		read_lock_bh(&local->sta_lock);
+
+		spin_lock_irqsave(&local->sta_lock, flags);
 		list_for_each_entry(tmp, &local->sta_list, list) {
 			if (!tmp->debugfs.dir) {
 				sta = tmp;
-				__sta_info_get(sta);
+				__sta_info_pin(sta);
 				break;
 			}
 		}
-		read_unlock_bh(&local->sta_lock);
+		spin_unlock_irqrestore(&local->sta_lock, flags);
 
 		if (!sta)
 			break;
 
 		ieee80211_sta_debugfs_add(sta);
 		rate_control_add_sta_debugfs(sta);
-		sta_info_put(sta);
+
+		sta = __sta_info_unpin(sta);
+
+		if (sta) {
+			synchronize_rcu();
+			sta_info_destroy(sta);
+		}
 	}
 }
 #endif
 
 void sta_info_init(struct ieee80211_local *local)
 {
-	rwlock_init(&local->sta_lock);
+	spin_lock_init(&local->sta_lock);
 	INIT_LIST_HEAD(&local->sta_list);
 
 	setup_timer(&local->sta_cleanup, sta_info_cleanup,
@@ -447,7 +610,7 @@ void sta_info_init(struct ieee80211_local *local)
 		round_jiffies(jiffies + STA_INFO_CLEANUP_INTERVAL);
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-	INIT_WORK(&local->sta_debugfs_add, sta_info_debugfs_add_task);
+	INIT_WORK(&local->sta_debugfs_add, sta_info_debugfs_add_work);
 #endif
 }
 
@@ -465,25 +628,38 @@ void sta_info_stop(struct ieee80211_local *local)
 
 /**
  * sta_info_flush - flush matching STA entries from the STA table
+ *
+ * Returns the number of removed STA entries.
+ *
  * @local: local interface data
- * @dev: matching rule for the net device (sta->dev) or %NULL to match all STAs
+ * @sdata: matching rule for the net device (sta->dev) or %NULL to match all STAs
  */
-void sta_info_flush(struct ieee80211_local *local, struct net_device *dev)
+int sta_info_flush(struct ieee80211_local *local,
+		    struct ieee80211_sub_if_data *sdata)
 {
 	struct sta_info *sta, *tmp;
 	LIST_HEAD(tmp_list);
+	int ret = 0;
+	unsigned long flags;
 
-	write_lock_bh(&local->sta_lock);
-	list_for_each_entry_safe(sta, tmp, &local->sta_list, list)
-		if (!dev || dev == sta->dev) {
-			__sta_info_get(sta);
-			sta_info_remove(sta);
-			list_add_tail(&sta->list, &tmp_list);
+	might_sleep();
+
+	spin_lock_irqsave(&local->sta_lock, flags);
+	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
+		if (!sdata || sdata == sta->sdata) {
+			__sta_info_unlink(&sta);
+			if (sta) {
+				list_add_tail(&sta->list, &tmp_list);
+				ret++;
+			}
 		}
-	write_unlock_bh(&local->sta_lock);
-
-	list_for_each_entry_safe(sta, tmp, &tmp_list, list) {
-		sta_info_free(sta);
-		sta_info_put(sta);
 	}
+	spin_unlock_irqrestore(&local->sta_lock, flags);
+
+	synchronize_rcu();
+
+	list_for_each_entry_safe(sta, tmp, &tmp_list, list)
+		sta_info_destroy(sta);
+
+	return ret;
 }

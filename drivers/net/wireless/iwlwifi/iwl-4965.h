@@ -41,8 +41,16 @@ extern struct pci_device_id iwl4965_hw_card_ids[];
 
 #define DRV_NAME        "iwl4965"
 #include "iwl-4965-hw.h"
+#include "iwl-csr.h"
 #include "iwl-prph.h"
 #include "iwl-4965-debug.h"
+
+/* Change firmware file name, using "-" and incrementing number,
+ *   *only* when uCode interface or architecture changes so that it
+ *   is not compatible with earlier drivers.
+ * This number will also appear in << 8 position of 1st dword of uCode file */
+#define IWL4965_UCODE_API "-1"
+
 
 /* Default noise level to report when noise measurement is not available.
  *   This may be because we're:
@@ -633,16 +641,6 @@ extern int iwl4965_is_network_packet(struct iwl4965_priv *priv,
 				 struct ieee80211_hdr *header);
 extern int iwl4965_power_init_handle(struct iwl4965_priv *priv);
 extern int iwl4965_eeprom_init(struct iwl4965_priv *priv);
-#ifdef CONFIG_IWL4965_DEBUG
-extern void iwl4965_report_frame(struct iwl4965_priv *priv,
-			     struct iwl4965_rx_packet *pkt,
-			     struct ieee80211_hdr *header, int group100);
-#else
-static inline void iwl4965_report_frame(struct iwl4965_priv *priv,
-				    struct iwl4965_rx_packet *pkt,
-				    struct ieee80211_hdr *header,
-				    int group100) {}
-#endif
 extern void iwl4965_handle_data_packet_monitor(struct iwl4965_priv *priv,
 					   struct iwl4965_rx_mem_buffer *rxb,
 					   void *data, short len,
@@ -767,6 +765,9 @@ extern int iwl4965_set_fat_chan_info(struct iwl4965_priv *priv,
 				const struct iwl4965_eeprom_channel *eeprom_ch,
 				u8 fat_extension_channel);
 extern void iwl4965_rf_kill_ct_config(struct iwl4965_priv *priv);
+extern void iwl4965_hwrate_to_tx_control(struct iwl4965_priv *priv,
+					 u32 rate_n_flags,
+					 struct ieee80211_tx_control *control);
 
 #ifdef CONFIG_IWL4965_HT
 void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info,
@@ -808,11 +809,10 @@ struct iwl4965_kw {
 #define IWL_OPERATION_MODE_MIXED    2
 #define IWL_OPERATION_MODE_20MHZ    3
 
-#define IWL_EXT_CHANNEL_OFFSET_AUTO   0
-#define IWL_EXT_CHANNEL_OFFSET_ABOVE  1
-#define IWL_EXT_CHANNEL_OFFSET_       2
-#define IWL_EXT_CHANNEL_OFFSET_BELOW  3
-#define IWL_EXT_CHANNEL_OFFSET_MAX    4
+#define IWL_EXT_CHANNEL_OFFSET_NONE      0
+#define IWL_EXT_CHANNEL_OFFSET_ABOVE     1
+#define IWL_EXT_CHANNEL_OFFSET_RESERVE1  2
+#define IWL_EXT_CHANNEL_OFFSET_BELOW     3
 
 #define NRG_NUM_PREV_STAT_L     20
 #define NUM_RX_CHAINS           (3)
@@ -974,6 +974,7 @@ struct iwl4965_priv {
 	struct ieee80211_hw *hw;
 	struct ieee80211_channel *ieee_channels;
 	struct ieee80211_rate *ieee_rates;
+	struct iwl_cfg *cfg;
 
 	/* temporary frame storage list */
 	struct list_head free_frames;
@@ -1104,7 +1105,6 @@ struct iwl4965_priv {
 	u32 scd_base_addr;	/* scheduler sram base address */
 
 	unsigned long status;
-	u32 config;
 
 	int last_rx_rssi;	/* From Rx packet statisitics */
 	int last_rx_noise;	/* From beacon statistics */
@@ -1134,7 +1134,6 @@ struct iwl4965_priv {
 	int is_open;
 
 	u8 mac80211_registered;
-	int is_abg;
 
 	u32 notif_missed_beacons;
 

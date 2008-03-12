@@ -172,12 +172,15 @@ struct zd_tx_skb_control_block {
 struct zd_mac {
 	struct zd_chip chip;
 	spinlock_t lock;
+	spinlock_t intr_lock;
 	struct ieee80211_hw *hw;
 	struct housekeeping housekeeping;
 	struct work_struct set_multicast_hash_work;
 	struct work_struct set_rts_cts_work;
 	struct work_struct set_rx_filter_work;
+	struct work_struct process_intr;
 	struct zd_mc_hash multicast_hash;
+	u8 intr_buffer[USB_MAX_EP_INT_BUFFER];
 	u8 regdomain;
 	u8 default_regdomain;
 	int type;

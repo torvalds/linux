@@ -29,8 +29,8 @@ int ieee80211_wep_decrypt(struct ieee80211_local *local, struct sk_buff *skb,
 u8 * ieee80211_wep_is_weak_iv(struct sk_buff *skb, struct ieee80211_key *key);
 
 ieee80211_rx_result
-ieee80211_crypto_wep_decrypt(struct ieee80211_txrx_data *rx);
+ieee80211_crypto_wep_decrypt(struct ieee80211_rx_data *rx);
 ieee80211_tx_result
-ieee80211_crypto_wep_encrypt(struct ieee80211_txrx_data *tx);
+ieee80211_crypto_wep_encrypt(struct ieee80211_tx_data *tx);
 
 #endif /* WEP_H */

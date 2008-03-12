@@ -38,6 +38,10 @@
 /* Magic helper macro to pad structures. Ignore those above. It's magic. */
 #define PAD_BYTES(nr_bytes)		P4D_BYTES( __LINE__ , (nr_bytes))
 
+
+extern int b43_modparam_qos;
+
+
 /* Lightweight function to convert a frequency (in Mhz) to a channel number. */
 static inline u8 b43_freq_to_channel_5ghz(int freq)
 {

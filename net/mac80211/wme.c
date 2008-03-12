@@ -153,6 +153,7 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 
 	if (pkt_data->flags & IEEE80211_TXPD_REQUEUE) {
 		queue = pkt_data->queue;
+		rcu_read_lock();
 		sta = sta_info_get(local, hdr->addr1);
 		tid = skb->priority & QOS_CONTROL_TAG1D_MASK;
 		if (sta) {
@@ -164,8 +165,8 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 			} else {
 				pkt_data->flags &= ~IEEE80211_TXPD_AMPDU;
 			}
-			sta_info_put(sta);
 		}
+		rcu_read_unlock();
 		skb_queue_tail(&q->requeued[queue], skb);
 		qd->q.qlen++;
 		return 0;
@@ -187,6 +188,8 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 		p++;
 		*p = 0;
 
+		rcu_read_lock();
+
 		sta = sta_info_get(local, hdr->addr1);
 		if (sta) {
 			int ampdu_queue = sta->tid_to_tx_q[tid];
@@ -197,8 +200,9 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 			} else {
 				pkt_data->flags &= ~IEEE80211_TXPD_AMPDU;
 			}
-			sta_info_put(sta);
 		}
+
+		rcu_read_unlock();
 	}
 
 	if (unlikely(queue >= local->hw.queues)) {

@@ -40,14 +40,29 @@ do { if (iwl4965_debug_level & (level)) \
 do { if ((iwl4965_debug_level & (level)) && net_ratelimit()) \
   printk(KERN_ERR DRV_NAME": %c %s " fmt, \
 	 in_interrupt() ? 'I' : 'U', __FUNCTION__ , ## args); } while (0)
+
+static inline void iwl4965_print_hex_dump(int level, void *p, u32 len)
+{
+	if (!(iwl4965_debug_level & level))
+		return;
+
+	print_hex_dump(KERN_DEBUG, "iwl data: ", DUMP_PREFIX_OFFSET, 16, 1,
+			p, len, 1);
+}
 #else
+
 static inline void IWL_DEBUG(int level, const char *fmt, ...)
 {
 }
 static inline void IWL_DEBUG_LIMIT(int level, const char *fmt, ...)
 {
 }
+static inline void iwl4965_print_hex_dump(int level, void *p, u32 len)
+{
+}
 #endif				/* CONFIG_IWL4965_DEBUG */
+
+
 
 /*
  * To use the debug system;
@@ -143,6 +158,7 @@ static inline void IWL_DEBUG_LIMIT(int level, const char *fmt, ...)
 	IWL_DEBUG_LIMIT(IWL_DL_ASSOC | IWL_DL_INFO, f, ## a)
 #define IWL_DEBUG_HT(f, a...) IWL_DEBUG(IWL_DL_HT, f, ## a)
 #define IWL_DEBUG_STATS(f, a...) IWL_DEBUG(IWL_DL_STATS, f, ## a)
+#define IWL_DEBUG_STATS_LIMIT(f, a...) IWL_DEBUG_LIMIT(IWL_DL_STATS, f, ## a)
 #define IWL_DEBUG_TX_REPLY(f, a...) IWL_DEBUG(IWL_DL_TX_REPLY, f, ## a)
 #define IWL_DEBUG_QOS(f, a...)   IWL_DEBUG(IWL_DL_QOS, f, ## a)
 #define IWL_DEBUG_RADIO(f, a...)  IWL_DEBUG(IWL_DL_RADIO, f, ## a)

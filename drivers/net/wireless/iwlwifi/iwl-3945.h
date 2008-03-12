@@ -40,9 +40,16 @@
 extern struct pci_device_id iwl3945_hw_card_ids[];
 
 #define DRV_NAME	"iwl3945"
-#include "iwl-3945-hw.h"
+#include "iwl-csr.h"
 #include "iwl-prph.h"
+#include "iwl-3945-hw.h"
 #include "iwl-3945-debug.h"
+
+/* Change firmware file name, using "-" and incrementing number,
+ *   *only* when uCode interface or architecture changes so that it
+ *   is not compatible with earlier drivers.
+ * This number will also appear in << 8 position of 1st dword of uCode file */
+#define IWL3945_UCODE_API "-1"
 
 /* Default noise level to report when noise measurement is not available.
  *   This may be because we're:
@@ -108,6 +115,9 @@ struct iwl3945_queue {
 	int high_mark;         /* high watermark, stop queue if free
 				* space less than this */
 } __attribute__ ((packed));
+
+int iwl3945_queue_space(const struct iwl3945_queue *q);
+int iwl3945_x2_queue_used(const struct iwl3945_queue *q, int i);
 
 #define MAX_NUM_OF_TBS          (20)
 
@@ -558,16 +568,6 @@ extern int iwl3945_is_network_packet(struct iwl3945_priv *priv,
 				 struct ieee80211_hdr *header);
 extern int iwl3945_power_init_handle(struct iwl3945_priv *priv);
 extern int iwl3945_eeprom_init(struct iwl3945_priv *priv);
-#ifdef CONFIG_IWL3945_DEBUG
-extern void iwl3945_report_frame(struct iwl3945_priv *priv,
-			     struct iwl3945_rx_packet *pkt,
-			     struct ieee80211_hdr *header, int group100);
-#else
-static inline void iwl3945_report_frame(struct iwl3945_priv *priv,
-				    struct iwl3945_rx_packet *pkt,
-				    struct ieee80211_hdr *header,
-				    int group100) {}
-#endif
 extern void iwl3945_handle_data_packet_monitor(struct iwl3945_priv *priv,
 					   struct iwl3945_rx_mem_buffer *rxb,
 					   void *data, short len,
@@ -691,6 +691,7 @@ struct iwl3945_priv {
 	struct ieee80211_hw *hw;
 	struct ieee80211_channel *ieee_channels;
 	struct ieee80211_rate *ieee_rates;
+	struct iwl_3945_cfg *cfg; /* device configuration */
 
 	/* temporary frame storage list */
 	struct list_head free_frames;
@@ -800,7 +801,6 @@ struct iwl3945_priv {
 	struct iwl3945_tx_queue txq[IWL_MAX_NUM_QUEUES];
 
 	unsigned long status;
-	u32 config;
 
 	int last_rx_rssi;	/* From Rx packet statisitics */
 	int last_rx_noise;	/* From beacon statistics */
@@ -830,7 +830,6 @@ struct iwl3945_priv {
 	int is_open;
 
 	u8 mac80211_registered;
-	int is_abg;
 
 	u32 notif_missed_beacons;
 
@@ -948,16 +947,6 @@ static inline int is_channel_passive(const struct iwl3945_channel_info *ch)
 static inline int is_channel_ibss(const struct iwl3945_channel_info *ch)
 {
 	return ((ch->flags & EEPROM_CHANNEL_IBSS)) ? 1 : 0;
-}
-
-static inline int iwl3945_rate_index_from_plcp(int plcp)
-{
-	int i;
-
-	for (i = 0; i < IWL_RATE_COUNT; i++)
-		if (iwl3945_rates[i].plcp == plcp)
-			return i;
-	return -1;
 }
 
 extern const struct iwl3945_channel_info *iwl3945_get_channel_info(

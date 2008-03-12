@@ -422,5 +422,12 @@ extern int ssb_bus_powerup(struct ssb_bus *bus, bool dynamic_pctl);
 extern u32 ssb_admatch_base(u32 adm);
 extern u32 ssb_admatch_size(u32 adm);
 
+/* PCI device mapping and fixup routines.
+ * Called from the architecture pcibios init code.
+ * These are only available on SSB_EMBEDDED configurations. */
+#ifdef CONFIG_SSB_EMBEDDED
+int ssb_pcibios_plat_dev_init(struct pci_dev *dev);
+int ssb_pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin);
+#endif /* CONFIG_SSB_EMBEDDED */
 
 #endif /* LINUX_SSB_H_ */

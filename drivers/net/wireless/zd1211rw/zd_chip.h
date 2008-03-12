@@ -489,6 +489,7 @@ enum {
 
 #define CR_RX_OFFSET			CTL_REG(0x065c)
 
+#define CR_BCN_LENGTH			CTL_REG(0x0664)
 #define CR_PHY_DELAY			CTL_REG(0x066C)
 #define CR_BCN_FIFO			CTL_REG(0x0670)
 #define CR_SNIFFER_ON			CTL_REG(0x0674)
@@ -545,6 +546,8 @@ enum {
 #define RX_FILTER_CTRL (RX_FILTER_RTS | RX_FILTER_CTS | \
 	RX_FILTER_CFEND | RX_FILTER_CFACK)
 
+#define BCN_MODE_IBSS			0x2000000
+
 /* Monitor mode sets filter to 0xfffff */
 
 #define CR_ACK_TIMEOUT_EXT		CTL_REG(0x0690)
@@ -578,6 +581,11 @@ enum {
 
 /* CAM: Continuous Access Mode (power management) */
 #define CR_CAM_MODE			CTL_REG(0x0700)
+#define MODE_IBSS			0x0
+#define MODE_AP				0x1
+#define MODE_STA			0x2
+#define MODE_AP_WDS			0x3
+
 #define CR_CAM_ROLL_TB_LOW		CTL_REG(0x0704)
 #define CR_CAM_ROLL_TB_HIGH		CTL_REG(0x0708)
 #define CR_CAM_ADDRESS			CTL_REG(0x070C)

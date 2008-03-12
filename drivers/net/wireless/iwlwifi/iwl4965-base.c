@@ -45,12 +45,9 @@
 
 #include <asm/div64.h>
 
+#include "iwl-core.h"
 #include "iwl-4965.h"
 #include "iwl-helpers.h"
-
-#ifdef CONFIG_IWL4965_DEBUG
-u32 iwl4965_debug_level;
-#endif
 
 static int iwl4965_tx_queue_update_write_ptr(struct iwl4965_priv *priv,
 				  struct iwl4965_tx_queue *txq);
@@ -90,15 +87,8 @@ int iwl4965_param_amsdu_size_8K;   /* def: enable 8K amsdu size */
 #define VS
 #endif
 
-#define IWLWIFI_VERSION "1.2.26k" VD VS
-#define DRV_COPYRIGHT	"Copyright(c) 2003-2007 Intel Corporation"
-#define DRV_VERSION     IWLWIFI_VERSION
+#define DRV_VERSION     IWLWIFI_VERSION VD VS
 
-/* Change firmware file name, using "-" and incrementing number,
- *   *only* when uCode interface or architecture changes so that it
- *   is not compatible with earlier drivers.
- * This number will also appear in << 8 position of 1st dword of uCode file */
-#define IWL4965_UCODE_API "-1"
 
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_VERSION(DRV_VERSION);
@@ -161,17 +151,6 @@ static const char *iwl4965_escape_essid(const char *essid, u8 essid_len)
 	return escaped;
 }
 
-static void iwl4965_print_hex_dump(int level, void *p, u32 len)
-{
-#ifdef CONFIG_IWL4965_DEBUG
-	if (!(iwl4965_debug_level & level))
-		return;
-
-	print_hex_dump(KERN_DEBUG, "iwl data: ", DUMP_PREFIX_OFFSET, 16, 1,
-			p, len, 1);
-#endif
-}
-
 /*************** DMA-QUEUE-GENERAL-FUNCTIONS  *****
  * DMA services
  *
@@ -215,25 +194,6 @@ int iwl4965_queue_space(const struct iwl4965_queue *q)
 	return s;
 }
 
-/**
- * iwl4965_queue_inc_wrap - increment queue index, wrap back to beginning
- * @index -- current index
- * @n_bd -- total number of entries in queue (must be power of 2)
- */
-static inline int iwl4965_queue_inc_wrap(int index, int n_bd)
-{
-	return ++index & (n_bd - 1);
-}
-
-/**
- * iwl4965_queue_dec_wrap - decrement queue index, wrap back to end
- * @index -- current index
- * @n_bd -- total number of entries in queue (must be power of 2)
- */
-static inline int iwl4965_queue_dec_wrap(int index, int n_bd)
-{
-	return --index & (n_bd - 1);
-}
 
 static inline int x2_queue_used(const struct iwl4965_queue *q, int i)
 {
@@ -262,8 +222,8 @@ static int iwl4965_queue_init(struct iwl4965_priv *priv, struct iwl4965_queue *q
 	q->n_window = slots_num;
 	q->id = id;
 
-	/* count must be power-of-two size, otherwise iwl4965_queue_inc_wrap
-	 * and iwl4965_queue_dec_wrap are broken. */
+	/* count must be power-of-two size, otherwise iwl_queue_inc_wrap
+	 * and iwl_queue_dec_wrap are broken. */
 	BUG_ON(!is_power_of_2(count));
 
 	/* slots_num must be power-of-two size, otherwise
@@ -363,7 +323,7 @@ int iwl4965_tx_queue_init(struct iwl4965_priv *priv,
 	txq->need_update = 0;
 
 	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
-	 * iwl4965_queue_inc_wrap and iwl4965_queue_dec_wrap are broken. */
+	 * iwl_queue_inc_wrap and iwl_queue_dec_wrap are broken. */
 	BUILD_BUG_ON(TFD_QUEUE_SIZE_MAX & (TFD_QUEUE_SIZE_MAX - 1));
 
 	/* Initialize queue's high/low-water marks, and head/tail indexes */
@@ -394,7 +354,7 @@ void iwl4965_tx_queue_free(struct iwl4965_priv *priv, struct iwl4965_tx_queue *t
 
 	/* first, empty all BD's */
 	for (; q->write_ptr != q->read_ptr;
-	     q->read_ptr = iwl4965_queue_inc_wrap(q->read_ptr, q->n_bd))
+	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd))
 		iwl4965_hw_txq_free_tfd(priv, txq);
 
 	len = sizeof(struct iwl4965_cmd) * q->n_window;
@@ -735,7 +695,7 @@ static int iwl4965_enqueue_hcmd(struct iwl4965_priv *priv, struct iwl4965_host_c
 	ret = iwl4965_tx_queue_update_wr_ptr(priv, txq, 0);
 
 	/* Increment and update queue's write index */
-	q->write_ptr = iwl4965_queue_inc_wrap(q->write_ptr, q->n_bd);
+	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	iwl4965_tx_queue_update_write_ptr(priv, txq);
 
 	spin_unlock_irqrestore(&priv->hcmd_lock, flags);
@@ -1551,34 +1511,6 @@ unsigned int iwl4965_fill_beacon_frame(struct iwl4965_priv *priv,
 	return priv->ibss_beacon->len;
 }
 
-int iwl4965_rate_index_from_plcp(int plcp)
-{
-	int i = 0;
-
-	/* 4965 HT rate format */
-	if (plcp & RATE_MCS_HT_MSK) {
-		i = (plcp & 0xff);
-
-		if (i >= IWL_RATE_MIMO_6M_PLCP)
-			i = i - IWL_RATE_MIMO_6M_PLCP;
-
-		i += IWL_FIRST_OFDM_RATE;
-		/* skip 9M not supported in ht*/
-		if (i >= IWL_RATE_9M_INDEX)
-			i += 1;
-		if ((i >= IWL_FIRST_OFDM_RATE) &&
-		    (i <= IWL_LAST_OFDM_RATE))
-			return i;
-
-	/* 4965 legacy rate format, search for match in table */
-	} else {
-		for (i = 0; i < ARRAY_SIZE(iwl4965_rates); i++)
-			if (iwl4965_rates[i].plcp == (plcp &0xFF))
-				return i;
-	}
-	return -1;
-}
-
 static u8 iwl4965_rate_get_lowest_plcp(int rate_mask)
 {
 	u8 i;
@@ -1712,148 +1644,6 @@ done:
  * Misc. internal state and helper functions
  *
  ******************************************************************************/
-#ifdef CONFIG_IWL4965_DEBUG
-
-/**
- * iwl4965_report_frame - dump frame to syslog during debug sessions
- *
- * You may hack this function to show different aspects of received frames,
- * including selective frame dumps.
- * group100 parameter selects whether to show 1 out of 100 good frames.
- *
- * TODO:  This was originally written for 3945, need to audit for
- *        proper operation with 4965.
- */
-void iwl4965_report_frame(struct iwl4965_priv *priv,
-		      struct iwl4965_rx_packet *pkt,
-		      struct ieee80211_hdr *header, int group100)
-{
-	u32 to_us;
-	u32 print_summary = 0;
-	u32 print_dump = 0;	/* set to 1 to dump all frames' contents */
-	u32 hundred = 0;
-	u32 dataframe = 0;
-	u16 fc;
-	u16 seq_ctl;
-	u16 channel;
-	u16 phy_flags;
-	int rate_sym;
-	u16 length;
-	u16 status;
-	u16 bcn_tmr;
-	u32 tsf_low;
-	u64 tsf;
-	u8 rssi;
-	u8 agc;
-	u16 sig_avg;
-	u16 noise_diff;
-	struct iwl4965_rx_frame_stats *rx_stats = IWL_RX_STATS(pkt);
-	struct iwl4965_rx_frame_hdr *rx_hdr = IWL_RX_HDR(pkt);
-	struct iwl4965_rx_frame_end *rx_end = IWL_RX_END(pkt);
-	u8 *data = IWL_RX_DATA(pkt);
-
-	/* MAC header */
-	fc = le16_to_cpu(header->frame_control);
-	seq_ctl = le16_to_cpu(header->seq_ctrl);
-
-	/* metadata */
-	channel = le16_to_cpu(rx_hdr->channel);
-	phy_flags = le16_to_cpu(rx_hdr->phy_flags);
-	rate_sym = rx_hdr->rate;
-	length = le16_to_cpu(rx_hdr->len);
-
-	/* end-of-frame status and timestamp */
-	status = le32_to_cpu(rx_end->status);
-	bcn_tmr = le32_to_cpu(rx_end->beacon_timestamp);
-	tsf_low = le64_to_cpu(rx_end->timestamp) & 0x0ffffffff;
-	tsf = le64_to_cpu(rx_end->timestamp);
-
-	/* signal statistics */
-	rssi = rx_stats->rssi;
-	agc = rx_stats->agc;
-	sig_avg = le16_to_cpu(rx_stats->sig_avg);
-	noise_diff = le16_to_cpu(rx_stats->noise_diff);
-
-	to_us = !compare_ether_addr(header->addr1, priv->mac_addr);
-
-	/* if data frame is to us and all is good,
-	 *   (optionally) print summary for only 1 out of every 100 */
-	if (to_us && (fc & ~IEEE80211_FCTL_PROTECTED) ==
-	    (IEEE80211_FCTL_FROMDS | IEEE80211_FTYPE_DATA)) {
-		dataframe = 1;
-		if (!group100)
-			print_summary = 1;	/* print each frame */
-		else if (priv->framecnt_to_us < 100) {
-			priv->framecnt_to_us++;
-			print_summary = 0;
-		} else {
-			priv->framecnt_to_us = 0;
-			print_summary = 1;
-			hundred = 1;
-		}
-	} else {
-		/* print summary for all other frames */
-		print_summary = 1;
-	}
-
-	if (print_summary) {
-		char *title;
-		u32 rate;
-
-		if (hundred)
-			title = "100Frames";
-		else if (fc & IEEE80211_FCTL_RETRY)
-			title = "Retry";
-		else if (ieee80211_is_assoc_response(fc))
-			title = "AscRsp";
-		else if (ieee80211_is_reassoc_response(fc))
-			title = "RasRsp";
-		else if (ieee80211_is_probe_response(fc)) {
-			title = "PrbRsp";
-			print_dump = 1;	/* dump frame contents */
-		} else if (ieee80211_is_beacon(fc)) {
-			title = "Beacon";
-			print_dump = 1;	/* dump frame contents */
-		} else if (ieee80211_is_atim(fc))
-			title = "ATIM";
-		else if (ieee80211_is_auth(fc))
-			title = "Auth";
-		else if (ieee80211_is_deauth(fc))
-			title = "DeAuth";
-		else if (ieee80211_is_disassoc(fc))
-			title = "DisAssoc";
-		else
-			title = "Frame";
-
-		rate = iwl4965_rate_index_from_plcp(rate_sym);
-		if (rate == -1)
-			rate = 0;
-		else
-			rate = iwl4965_rates[rate].ieee / 2;
-
-		/* print frame summary.
-		 * MAC addresses show just the last byte (for brevity),
-		 *    but you can hack it to show more, if you'd like to. */
-		if (dataframe)
-			IWL_DEBUG_RX("%s: mhd=0x%04x, dst=0x%02x, "
-				     "len=%u, rssi=%d, chnl=%d, rate=%u, \n",
-				     title, fc, header->addr1[5],
-				     length, rssi, channel, rate);
-		else {
-			/* src/dst addresses assume managed mode */
-			IWL_DEBUG_RX("%s: 0x%04x, dst=0x%02x, "
-				     "src=0x%02x, rssi=%u, tim=%lu usec, "
-				     "phy=0x%02x, chnl=%d\n",
-				     title, fc, header->addr1[5],
-				     header->addr3[5], rssi,
-				     tsf_low - priv->scan_start_tsf,
-				     phy_flags, channel);
-		}
-	}
-	if (print_dump)
-		iwl4965_print_hex_dump(IWL_DL_RX, data, length);
-}
-#endif
 
 static void iwl4965_unset_hw_setting(struct iwl4965_priv *priv)
 {
@@ -3088,7 +2878,7 @@ static int iwl4965_tx_skb(struct iwl4965_priv *priv,
 	iwl4965_tx_queue_update_wr_ptr(priv, txq, len);
 
 	/* Tell device the write index *just past* this latest filled TFD */
-	q->write_ptr = iwl4965_queue_inc_wrap(q->write_ptr, q->n_bd);
+	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	rc = iwl4965_tx_queue_update_write_ptr(priv, txq);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -3482,9 +3272,9 @@ int iwl4965_tx_queue_reclaim(struct iwl4965_priv *priv, int txq_id, int index)
 		return 0;
 	}
 
-	for (index = iwl4965_queue_inc_wrap(index, q->n_bd);
+	for (index = iwl_queue_inc_wrap(index, q->n_bd);
 		q->read_ptr != index;
-		q->read_ptr = iwl4965_queue_inc_wrap(q->read_ptr, q->n_bd)) {
+		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 		if (txq_id != IWL_CMD_QUEUE_NUM) {
 			iwl4965_txstatus_to_ieee(priv,
 					&(txq->txb[txq->q.read_ptr]));
@@ -3591,9 +3381,9 @@ static int iwl4965_tx_status_reply_tx(struct iwl4965_priv *priv,
 		tx_status->control.flags &= ~IEEE80211_TXCTL_AMPDU;
 		tx_status->flags = iwl4965_is_tx_success(status)?
 			IEEE80211_TX_STATUS_ACK : 0;
-		/* FIXME Wrong Rate
-		tx_status->control.tx_rate =
-				iwl4965_hw_get_rate_n_flags(tx_resp->rate_n_flags); */
+		iwl4965_hwrate_to_tx_control(priv,
+					     le32_to_cpu(tx_resp->rate_n_flags),
+					     &tx_status->control);
 		/* FIXME: code repetition end */
 
 		IWL_DEBUG_TX_REPLY("1 Frame 0x%x failure :%d\n",
@@ -3729,7 +3519,7 @@ static void iwl4965_rx_reply_tx(struct iwl4965_priv *priv,
 
 		if (txq->q.read_ptr != (scd_ssn & 0xff)) {
 			int freed;
-			index = iwl4965_queue_dec_wrap(scd_ssn & 0xff, txq->q.n_bd);
+			index = iwl_queue_dec_wrap(scd_ssn & 0xff, txq->q.n_bd);
 			IWL_DEBUG_TX_REPLY("Retry scheduler reclaim scd_ssn "
 					   "%d index %d\n", scd_ssn , index);
 			freed = iwl4965_tx_queue_reclaim(priv, txq_id, index);
@@ -3750,9 +3540,10 @@ static void iwl4965_rx_reply_tx(struct iwl4965_priv *priv,
 	tx_status->queue_number = status;
 	tx_status->queue_length = tx_resp->bt_kill_count;
 	tx_status->queue_length |= tx_resp->failure_rts;
-
 	tx_status->flags =
 	    iwl4965_is_tx_success(status) ? IEEE80211_TX_STATUS_ACK : 0;
+	iwl4965_hwrate_to_tx_control(priv, le32_to_cpu(tx_resp->rate_n_flags),
+				     &tx_status->control);
 
 	IWL_DEBUG_TX("Tx queue %d Status %s (0x%08x) rate_n_flags 0x%x "
 		     "retries %d\n", txq_id, iwl4965_get_tx_fail_reason(status),
@@ -4886,8 +4677,7 @@ static void iwl4965_dump_nic_error_log(struct iwl4965_priv *priv)
 
 	if (ERROR_START_OFFSET <= count * ERROR_ELEM_SIZE) {
 		IWL_ERROR("Start IWL Error Log Dump:\n");
-		IWL_ERROR("Status: 0x%08lX, Config: %08X count: %d\n",
-			  priv->status, priv->config, count);
+		IWL_ERROR("Status: 0x%08lX, count: %d\n", priv->status, count);
 	}
 
 	desc = iwl4965_read_targ_mem(priv, base + 1 * sizeof(u32));
@@ -5099,9 +4889,9 @@ static void iwl4965_irq_tasklet(struct iwl4965_priv *priv)
 	 * atomic, make sure that inta covers all the interrupts that
 	 * we've discovered, even if FH interrupt came in just after
 	 * reading CSR_INT. */
-	if (inta_fh & CSR_FH_INT_RX_MASK)
+	if (inta_fh & CSR49_FH_INT_RX_MASK)
 		inta |= CSR_INT_BIT_FH_RX;
-	if (inta_fh & CSR_FH_INT_TX_MASK)
+	if (inta_fh & CSR49_FH_INT_TX_MASK)
 		inta |= CSR_INT_BIT_FH_TX;
 
 	/* Now service all interrupt bits discovered above. */
@@ -5502,11 +5292,12 @@ static int iwl4965_init_channel_map(struct iwl4965_priv *priv)
 			ch_info->scan_power = eeprom_ch_info[ch].max_power_avg;
 			ch_info->min_power = 0;
 
-			IWL_DEBUG_INFO("Ch. %d [%sGHz] %s%s%s%s%s%s(0x%02x"
+			IWL_DEBUG_INFO("Ch. %d [%sGHz] %s%s%s%s%s%s%s(0x%02x"
 				       " %ddBm): Ad-Hoc %ssupported\n",
 				       ch_info->channel,
 				       is_channel_a_band(ch_info) ?
 				       "5.2" : "2.4",
+				       CHECK_AND_PRINT(VALID),
 				       CHECK_AND_PRINT(IBSS),
 				       CHECK_AND_PRINT(ACTIVE),
 				       CHECK_AND_PRINT(RADAR),
@@ -5749,7 +5540,7 @@ static void iwl4965_init_hw_rates(struct iwl4965_priv *priv,
 static int iwl4965_init_geos(struct iwl4965_priv *priv)
 {
 	struct iwl4965_channel_info *ch;
-	struct ieee80211_supported_band *band;
+	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *channels;
 	struct ieee80211_channel *geo_ch;
 	struct ieee80211_rate *rates;
@@ -5767,7 +5558,7 @@ static int iwl4965_init_geos(struct iwl4965_priv *priv)
 	if (!channels)
 		return -ENOMEM;
 
-	rates = kzalloc((sizeof(struct ieee80211_rate) * (IWL_MAX_RATES + 1)),
+	rates = kzalloc((sizeof(struct ieee80211_rate) * (IWL_RATE_COUNT + 1)),
 			GFP_KERNEL);
 	if (!rates) {
 		kfree(channels);
@@ -5775,42 +5566,42 @@ static int iwl4965_init_geos(struct iwl4965_priv *priv)
 	}
 
 	/* 5.2GHz channels start after the 2.4GHz channels */
-	band = &priv->bands[IEEE80211_BAND_5GHZ];
-	band->channels = &channels[ARRAY_SIZE(iwl4965_eeprom_band_1)];
-	band->bitrates = &rates[4];
-	band->n_bitrates = 8;	/* just OFDM */
+	sband = &priv->bands[IEEE80211_BAND_5GHZ];
+	sband->channels = &channels[ARRAY_SIZE(iwl4965_eeprom_band_1)];
+	/* just OFDM */
+	sband->bitrates = &rates[IWL_FIRST_OFDM_RATE];
+	sband->n_bitrates = IWL_RATE_COUNT - IWL_FIRST_OFDM_RATE;
 
-	iwl4965_init_ht_hw_capab(&band->ht_info, IEEE80211_BAND_5GHZ);
+	iwl4965_init_ht_hw_capab(&sband->ht_info, IEEE80211_BAND_5GHZ);
 
-	band = &priv->bands[IEEE80211_BAND_2GHZ];
-	band->channels = channels;
-	band->bitrates = rates;
-	band->n_bitrates = 12;	/* OFDM & CCK */
+	sband = &priv->bands[IEEE80211_BAND_2GHZ];
+	sband->channels = channels;
+	/* OFDM & CCK */
+	sband->bitrates = rates;
+	sband->n_bitrates = IWL_RATE_COUNT;
 
-	iwl4965_init_ht_hw_capab(&band->ht_info, IEEE80211_BAND_2GHZ);
+	iwl4965_init_ht_hw_capab(&sband->ht_info, IEEE80211_BAND_2GHZ);
 
 	priv->ieee_channels = channels;
 	priv->ieee_rates = rates;
 
 	iwl4965_init_hw_rates(priv, rates);
 
-	for (i = 0, geo_ch = channels; i < priv->channel_count; i++) {
+	for (i = 0;  i < priv->channel_count; i++) {
 		ch = &priv->channel_info[i];
 
-		if (!is_channel_valid(ch)) {
-			IWL_DEBUG_INFO("Channel %d [%sGHz] is restricted -- "
-				    "skipping.\n",
-				    ch->channel, is_channel_a_band(ch) ?
-				    "5.2" : "2.4");
+		/* FIXME: might be removed if scan is OK */
+		if (!is_channel_valid(ch))
 			continue;
-		}
 
-		if (is_channel_a_band(ch)) {
-			geo_ch = &priv->bands[IEEE80211_BAND_5GHZ].channels[priv->bands[IEEE80211_BAND_5GHZ].n_channels++];
-		} else
-			geo_ch = &priv->bands[IEEE80211_BAND_2GHZ].channels[priv->bands[IEEE80211_BAND_2GHZ].n_channels++];
+		if (is_channel_a_band(ch))
+			sband =  &priv->bands[IEEE80211_BAND_5GHZ];
+		else
+			sband =  &priv->bands[IEEE80211_BAND_2GHZ];
 
-		geo_ch->center_freq = ieee80211chan2mhz(ch->channel);
+		geo_ch = &sband->channels[sband->n_channels++];
+
+		geo_ch->center_freq = ieee80211_channel_to_frequency(ch->channel);
 		geo_ch->max_power = ch->max_power_avg;
 		geo_ch->max_antenna_gain = 0xff;
 		geo_ch->hw_value = ch->channel;
@@ -5828,16 +5619,28 @@ static int iwl4965_init_geos(struct iwl4965_priv *priv)
 			if (ch->max_power_avg > priv->max_channel_txpower_limit)
 				priv->max_channel_txpower_limit =
 				    ch->max_power_avg;
-		} else
+		} else {
 			geo_ch->flags |= IEEE80211_CHAN_DISABLED;
+		}
+
+		/* Save flags for reg domain usage */
+		geo_ch->orig_flags = geo_ch->flags;
+
+		IWL_DEBUG_INFO("Channel %d Freq=%d[%sGHz] %s flag=0%X\n",
+				ch->channel, geo_ch->center_freq,
+				is_channel_a_band(ch) ?  "5.2" : "2.4",
+				geo_ch->flags & IEEE80211_CHAN_DISABLED ?
+				"restricted" : "valid",
+				 geo_ch->flags);
 	}
 
-	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) && priv->is_abg) {
+	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
+	     priv->cfg->sku & IWL_SKU_A) {
 		printk(KERN_INFO DRV_NAME
 		       ": Incorrectly detected BG card as ABG.  Please send "
 		       "your PCI ID 0x%04X:0x%04X to maintainer.\n",
 		       priv->pci_dev->device, priv->pci_dev->subsystem_device);
-		priv->is_abg = 0;
+		priv->cfg->sku &= ~IWL_SKU_A;
 	}
 
 	printk(KERN_INFO DRV_NAME
@@ -6186,7 +5989,7 @@ static int iwl4965_read_ucode(struct iwl4965_priv *priv)
 	struct iwl4965_ucode *ucode;
 	int ret;
 	const struct firmware *ucode_raw;
-	const char *name = "iwlwifi-4965" IWL4965_UCODE_API ".ucode";
+	const char *name = priv->cfg->fw_name;
 	u8 *src;
 	size_t len;
 	u32 ver, inst_size, data_size, init_size, init_data_size, boot_size;
@@ -7596,6 +7399,12 @@ static int iwl4965_mac_config_interface(struct ieee80211_hw *hw,
 	if (conf == NULL)
 		return -EIO;
 
+	if (priv->vif != vif) {
+		IWL_DEBUG_MAC80211("leave - priv->vif != vif\n");
+		mutex_unlock(&priv->mutex);
+		return 0;
+	}
+
 	if ((priv->iw_mode == IEEE80211_IF_TYPE_AP) &&
 	    (!conf->beacon || !conf->ssid_len)) {
 		IWL_DEBUG_MAC80211
@@ -7618,17 +7427,6 @@ static int iwl4965_mac_config_interface(struct ieee80211_hw *hw,
 	if (unlikely(test_bit(STATUS_SCANNING, &priv->status)) &&
 	    !(priv->hw->flags & IEEE80211_HW_NO_PROBE_FILTERING)) {
  */
-	if (unlikely(test_bit(STATUS_SCANNING, &priv->status))) {
-		IWL_DEBUG_MAC80211("leave - scanning\n");
-		mutex_unlock(&priv->mutex);
-		return 0;
-	}
-
-	if (priv->vif != vif) {
-		IWL_DEBUG_MAC80211("leave - priv->vif != vif\n");
-		mutex_unlock(&priv->mutex);
-		return 0;
-	}
 
 	if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {
 		if (!conf->bssid) {
@@ -8127,15 +7925,21 @@ static void iwl4965_ht_info_fill(struct ieee80211_conf *conf,
 	iwl_conf->is_green_field = !!(ht_conf->cap & IEEE80211_HT_CAP_GRN_FLD);
 	iwl_conf->max_amsdu_size =
 		!!(ht_conf->cap & IEEE80211_HT_CAP_MAX_AMSDU);
+
 	iwl_conf->supported_chan_width =
 		!!(ht_conf->cap & IEEE80211_HT_CAP_SUP_WIDTH);
+	iwl_conf->extension_chan_offset =
+		ht_bss_conf->bss_cap & IEEE80211_HT_IE_CHA_SEC_OFFSET;
+	/* If no above or below channel supplied disable FAT channel */
+	if (iwl_conf->extension_chan_offset != IWL_EXT_CHANNEL_OFFSET_ABOVE &&
+	    iwl_conf->extension_chan_offset != IWL_EXT_CHANNEL_OFFSET_BELOW)
+		iwl_conf->supported_chan_width = 0;
+
 	iwl_conf->tx_mimo_ps_mode =
 		(u8)((ht_conf->cap & IEEE80211_HT_CAP_MIMO_PS) >> 2);
 	memcpy(iwl_conf->supp_mcs_set, ht_conf->supp_mcs_set, 16);
 
 	iwl_conf->control_channel = ht_bss_conf->primary_channel;
-	iwl_conf->extension_chan_offset =
-		ht_bss_conf->bss_cap & IEEE80211_HT_IE_CHA_SEC_OFFSET;
 	iwl_conf->tx_chan_width =
 		!!(ht_bss_conf->bss_cap & IEEE80211_HT_IE_CHA_WIDTH);
 	iwl_conf->ht_protection =
@@ -8776,6 +8580,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	int err = 0;
 	struct iwl4965_priv *priv;
 	struct ieee80211_hw *hw;
+	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
 	int i;
 	DECLARE_MAC_BUF(mac);
 
@@ -8809,6 +8614,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	IWL_DEBUG_INFO("*** LOAD DRIVER ***\n");
 	priv = hw->priv;
 	priv->hw = hw;
+	priv->cfg = cfg;
 
 	priv->pci_dev = pdev;
 	priv->antenna = (enum iwl4965_antenna)iwl4965_param_antenna;
@@ -8911,8 +8717,9 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	/* Choose which receivers/antennas to use */
 	iwl4965_set_rxon_chain(priv);
 
+
 	printk(KERN_INFO DRV_NAME
-	       ": Detected Intel Wireless WiFi Link 4965AGN\n");
+		": Detected Intel Wireless WiFi Link %s\n", priv->cfg->name);
 
 	/* Device-specific setup */
 	if (iwl4965_hw_set_hw_setting(priv)) {

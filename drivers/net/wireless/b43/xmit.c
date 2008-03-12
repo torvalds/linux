@@ -705,30 +705,3 @@ void b43_tx_resume(struct b43_wldev *dev)
 {
 	b43_dma_tx_resume(dev);
 }
-
-#if 0
-static void upload_qos_parms(struct b43_wldev *dev,
-			     const u16 * parms, u16 offset)
-{
-	int i;
-
-	for (i = 0; i < B43_NR_QOSPARMS; i++) {
-		b43_shm_write16(dev, B43_SHM_SHARED,
-				offset + (i * 2), parms[i]);
-	}
-}
-#endif
-
-/* Initialize the QoS parameters */
-void b43_qos_init(struct b43_wldev *dev)
-{
-	/* FIXME: This function must probably be called from the mac80211
-	 * config callback. */
-	return;
-
-	b43_hf_write(dev, b43_hf_read(dev) | B43_HF_EDCF);
-	//FIXME kill magic
-	b43_write16(dev, 0x688, b43_read16(dev, 0x688) | 0x4);
-
-	/*TODO: We might need some stack support here to get the values. */
-}

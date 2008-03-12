@@ -302,18 +302,6 @@ void b43_handle_hwtxstatus(struct b43_wldev *dev,
 void b43_tx_suspend(struct b43_wldev *dev);
 void b43_tx_resume(struct b43_wldev *dev);
 
-#define B43_NR_QOSPARMS		22
-enum {
-	B43_QOSPARM_TXOP = 0,
-	B43_QOSPARM_CWMIN,
-	B43_QOSPARM_CWMAX,
-	B43_QOSPARM_CWCUR,
-	B43_QOSPARM_AIFS,
-	B43_QOSPARM_BSLOTS,
-	B43_QOSPARM_REGGAP,
-	B43_QOSPARM_STATUS,
-};
-void b43_qos_init(struct b43_wldev *dev);
 
 /* Helper functions for converting the key-table index from "firmware-format"
  * to "raw-format" and back. The firmware API changed for this at some revision.
