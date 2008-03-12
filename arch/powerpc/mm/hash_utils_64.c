@@ -506,10 +506,10 @@ void __init htab_initialize(void)
 	} else {
 		/* Find storage for the HPT.  Must be contiguous in
 		 * the absolute address space. On cell we want it to be
-		 * in the first 1 Gig.
+		 * in the first 2 Gig so we can use it for IOMMU hacks.
 		 */
 		if (machine_is(cell))
-			limit = 0x40000000;
+			limit = 0x80000000;
 		else
 			limit = 0;
 
