@@ -191,11 +191,10 @@ static int __devexit pcsp_remove(struct platform_device *dev)
 
 static void pcsp_stop_beep(struct snd_pcsp *chip)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&chip->substream_lock, flags);
+	spin_lock_irq(&chip->substream_lock);
 	if (!chip->playback_substream)
 		pcspkr_stop_sound();
-	spin_unlock_irqrestore(&chip->substream_lock, flags);
+	spin_unlock_irq(&chip->substream_lock);
 }
 
 static int pcsp_suspend(struct platform_device *dev, pm_message_t state)

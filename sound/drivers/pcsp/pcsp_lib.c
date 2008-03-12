@@ -305,7 +305,9 @@ static int snd_pcsp_playback_open(struct snd_pcm_substream *substream)
 		return -EBUSY;
 	}
 	runtime->hw = snd_pcsp_playback;
+	spin_lock_irq(&chip->substream_lock);
 	chip->playback_substream = substream;
+	spin_unlock_irq(&chip->substream_lock);
 	return 0;
 }
 
