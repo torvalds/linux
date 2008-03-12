@@ -2529,7 +2529,13 @@ static void iwl4965_build_tx_cmd_basic(struct iwl_priv *priv,
 	cmd->cmd.tx.tx_flags = tx_flags;
 	cmd->cmd.tx.next_frame_len = 0;
 }
-
+static void iwl_update_tx_stats(struct iwl_priv *priv, u16 fc, u16 len)
+{
+	/* 0 - mgmt, 1 - cnt, 2 - data */
+	int idx = (fc & IEEE80211_FCTL_FTYPE) >> 2;
+	priv->tx_stats[idx].cnt++;
+	priv->tx_stats[idx].bytes += len;
+}
 /**
  * iwl4965_get_sta_id - Find station's index within station table
  *
@@ -2775,6 +2781,8 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 
 	/* set is_hcca to 0; it probably will never be implemented */
 	iwl4965_hw_build_tx_cmd_rate(priv, out_cmd, ctl, hdr, sta_id, 0);
+
+	iwl_update_tx_stats(priv, fc, len);
 
 	scratch_phys = txcmd_phys + sizeof(struct iwl4965_cmd_header) +
 		offsetof(struct iwl4965_tx_cmd, scratch);

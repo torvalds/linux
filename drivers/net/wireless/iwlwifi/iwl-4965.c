@@ -3337,6 +3337,14 @@ static void iwl4965_add_radiotap(struct iwl_priv *priv,
 	stats->flag |= RX_FLAG_RADIOTAP;
 }
 
+static void iwl_update_rx_stats(struct iwl_priv *priv, u16 fc, u16 len)
+{
+	/* 0 - mgmt, 1 - cnt, 2 - data */
+	int idx = (fc & IEEE80211_FCTL_FTYPE) >> 2;
+	priv->rx_stats[idx].cnt++;
+	priv->rx_stats[idx].bytes += len;
+}
+
 static void iwl4965_handle_data_packet(struct iwl_priv *priv, int is_data,
 				       int include_phy,
 				       struct iwl4965_rx_mem_buffer *rxb,
@@ -3406,6 +3414,7 @@ static void iwl4965_handle_data_packet(struct iwl_priv *priv, int is_data,
 	if (priv->add_radiotap)
 		iwl4965_add_radiotap(priv, rxb->skb, rx_start, stats, ampdu_status);
 
+	iwl_update_rx_stats(priv, le16_to_cpu(hdr->frame_control), len);
 	ieee80211_rx_irqsafe(priv->hw, rxb->skb, stats);
 	priv->alloc_rxb_skb--;
 	rxb->skb = NULL;

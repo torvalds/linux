@@ -1107,6 +1107,12 @@ struct iwl_priv {
 	int last_rx_rssi;	/* From Rx packet statisitics */
 	int last_rx_noise;	/* From beacon statistics */
 
+	/* counts mgmt, ctl, and data packets */
+	struct traffic_stats {
+		u32 cnt;
+		u64 bytes;
+	} tx_stats[3], rx_stats[3];
+
 	struct iwl4965_power_mgr power_data;
 
 	struct iwl4965_notif_statistics statistics;
