@@ -1379,8 +1379,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	case CMD_802_11_AD_HOC_START:
 		ret = lbs_cmd_80211_ad_hoc_start(priv, cmdptr, pdata_buf);
 		break;
-	case CMD_CODE_DNLD:
-		break;
 
 	case CMD_802_11_RESET:
 		ret = lbs_cmd_802_11_reset(priv, cmdptr, cmd_action);
@@ -1438,11 +1436,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 	case CMD_802_11_AD_HOC_STOP:
 		ret = lbs_cmd_80211_ad_hoc_stop(priv, cmdptr);
-		break;
-
-	case CMD_802_11_PAIRWISE_TSC:
-		break;
-	case CMD_802_11_GROUP_TSC:
 		break;
 
 	case CMD_802_11_MAC_ADDRESS:
