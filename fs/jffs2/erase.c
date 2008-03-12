@@ -350,9 +350,11 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 			   break;
 		} while(--retlen);
 		c->mtd->unpoint(c->mtd, ebuf, jeb->offset, c->sector_size);
-		if (retlen)
+		if (retlen) {
 			printk(KERN_WARNING "Newly-erased block contained word 0x%lx at offset 0x%08tx\n",
 			       *wordebuf, jeb->offset + c->sector_size-retlen*sizeof(*wordebuf));
+			return -EIO;
+		}
 		return 0;
 	}
  do_flash_read:
@@ -373,10 +375,12 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 		ret = c->mtd->read(c->mtd, ofs, readlen, &retlen, ebuf);
 		if (ret) {
 			printk(KERN_WARNING "Read of newly-erased block at 0x%08x failed: %d. Putting on bad_list\n", ofs, ret);
+			ret = -EIO;
 			goto fail;
 		}
 		if (retlen != readlen) {
 			printk(KERN_WARNING "Short read from newly-erased block at 0x%08x. Wanted %d, got %zd\n", ofs, readlen, retlen);
+			ret = -EIO;
 			goto fail;
 		}
 		for (i=0; i<readlen; i += sizeof(unsigned long)) {
@@ -385,6 +389,7 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 			if (*datum + 1) {
 				*bad_offset += i;
 				printk(KERN_WARNING "Newly-erased block contained word 0x%lx at offset 0x%08x\n", *datum, *bad_offset);
+				ret = -EIO;
 				goto fail;
 			}
 		}
