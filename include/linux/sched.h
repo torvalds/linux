@@ -790,6 +790,7 @@ struct sched_domain {
 };
 
 extern void partition_sched_domains(int ndoms_new, cpumask_t *doms_new);
+extern int arch_reinit_sched_domains(void);
 
 #endif	/* CONFIG_SMP */
 
