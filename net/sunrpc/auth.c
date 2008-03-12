@@ -375,7 +375,15 @@ rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
 }
 EXPORT_SYMBOL_GPL(rpcauth_init_cred);
 
-void
+static void
+rpcauth_generic_bind_cred(struct rpc_task *task, struct rpc_cred *cred)
+{
+	task->tk_msg.rpc_cred = get_rpccred(cred);
+	dprintk("RPC: %5u holding %s cred %p\n", task->tk_pid,
+			cred->cr_auth->au_ops->au_name, cred);
+}
+
+static void
 rpcauth_bind_root_cred(struct rpc_task *task)
 {
 	struct rpc_auth *auth = task->tk_client->cl_auth;
@@ -394,8 +402,8 @@ rpcauth_bind_root_cred(struct rpc_task *task)
 		task->tk_status = PTR_ERR(ret);
 }
 
-void
-rpcauth_bindcred(struct rpc_task *task)
+static void
+rpcauth_bind_new_cred(struct rpc_task *task)
 {
 	struct rpc_auth *auth = task->tk_client->cl_auth;
 	struct rpc_cred *ret;
@@ -410,14 +418,14 @@ rpcauth_bindcred(struct rpc_task *task)
 }
 
 void
-rpcauth_holdcred(struct rpc_task *task)
+rpcauth_bindcred(struct rpc_task *task, struct rpc_cred *cred, int flags)
 {
-	struct rpc_cred *cred = task->tk_msg.rpc_cred;
-	if (cred != NULL) {
-		get_rpccred(cred);
-		dprintk("RPC: %5u holding %s cred %p\n", task->tk_pid,
-				cred->cr_auth->au_ops->au_name, cred);
-	}
+	if (cred != NULL)
+		rpcauth_generic_bind_cred(task, cred);
+	else if (flags & RPC_TASK_ROOTCREDS)
+		rpcauth_bind_root_cred(task);
+	else
+		rpcauth_bind_new_cred(task);
 }
 
 void

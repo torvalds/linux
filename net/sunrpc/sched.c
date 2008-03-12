@@ -817,14 +817,11 @@ static void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *ta
 		task->tk_action = rpc_prepare_task;
 
 	if (task_setup_data->rpc_message != NULL) {
-		memcpy(&task->tk_msg, task_setup_data->rpc_message, sizeof(task->tk_msg));
+		task->tk_msg.rpc_proc = task_setup_data->rpc_message->rpc_proc;
+		task->tk_msg.rpc_argp = task_setup_data->rpc_message->rpc_argp;
+		task->tk_msg.rpc_resp = task_setup_data->rpc_message->rpc_resp;
 		/* Bind the user cred */
-		if (task->tk_msg.rpc_cred != NULL)
-			rpcauth_holdcred(task);
-		else if (!(task_setup_data->flags & RPC_TASK_ROOTCREDS))
-			rpcauth_bindcred(task);
-		else
-			rpcauth_bind_root_cred(task);
+		rpcauth_bindcred(task, task_setup_data->rpc_message->rpc_cred, task_setup_data->flags);
 		if (task->tk_action == NULL)
 			rpc_call_start(task);
 	}
