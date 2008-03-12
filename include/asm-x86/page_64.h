@@ -59,7 +59,6 @@ void clear_page(void *page);
 void copy_page(void *to, void *from);
 
 extern unsigned long end_pfn;
-extern unsigned long end_pfn_map;
 extern unsigned long phys_base;
 
 extern unsigned long __phys_addr(unsigned long);

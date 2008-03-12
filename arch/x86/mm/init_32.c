@@ -51,6 +51,8 @@
 
 unsigned int __VMALLOC_RESERVE = 128 << 20;
 
+unsigned long end_pfn_map;
+
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 unsigned long highstart_pfn, highend_pfn;
 
@@ -194,6 +196,7 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 				set_pmd(pmd, pfn_pmd(pfn, prot));
 
 				pfn += PTRS_PER_PTE;
+				end_pfn_map = pfn;
 				continue;
 			}
 			pte = one_page_table_init(pmd);
@@ -208,6 +211,7 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 
 				set_pte(pte, pfn_pte(pfn, prot));
 			}
+			end_pfn_map = pfn;
 		}
 	}
 }
