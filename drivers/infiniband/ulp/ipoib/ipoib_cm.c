@@ -637,6 +637,7 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 	priv->tx_sge[0].addr          = addr;
 	priv->tx_sge[0].length        = len;
 
+	priv->tx_wr.num_sge	= 1;
 	priv->tx_wr.wr_id	= wr_id | IPOIB_OP_CM;
 
 	return ib_post_send(tx->qp, &priv->tx_wr, &bad_wr);
