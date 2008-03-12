@@ -249,8 +249,9 @@ static int __init bcm1480_pcibios_init(void)
 	 * XXX ehs: Should this happen in PCI Device mode?
 	 */
 
-	set_io_port_base((unsigned long)
-		ioremap(A_BCM1480_PHYS_PCI_IO_MATCH_BYTES, 65536));
+	bcm1480_controller.io_map_base = (unsigned long)
+		ioremap(A_BCM1480_PHYS_PCI_IO_MATCH_BYTES, 65536);
+	set_io_port_base(bcm1480_controller.io_map_base);
 	isa_slot_offset = (unsigned long)
 		ioremap(A_BCM1480_PHYS_PCI_MEM_MATCH_BYTES, 1024*1024);
 

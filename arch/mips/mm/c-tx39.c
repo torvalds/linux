@@ -329,7 +329,7 @@ static __init void tx39_probe_cache(void)
 	}
 }
 
-void __init tx39_cache_init(void)
+void __cpuinit tx39_cache_init(void)
 {
 	extern void build_clear_page(void);
 	extern void build_copy_page(void);

@@ -66,21 +66,21 @@ EXPORT_SYMBOL(copy_page);
  * with 64-bit kernels.  The prefetch offsets have been experimentally tuned
  * an Origin 200.
  */
-static int pref_offset_clear __initdata = 512;
-static int pref_offset_copy  __initdata = 256;
+static int pref_offset_clear __cpuinitdata = 512;
+static int pref_offset_copy  __cpuinitdata = 256;
 
-static unsigned int pref_src_mode __initdata;
-static unsigned int pref_dst_mode __initdata;
+static unsigned int pref_src_mode __cpuinitdata;
+static unsigned int pref_dst_mode __cpuinitdata;
 
-static int load_offset __initdata;
-static int store_offset __initdata;
+static int load_offset __cpuinitdata;
+static int store_offset __cpuinitdata;
 
-static unsigned int __initdata *dest, *epc;
+static unsigned int __cpuinitdata *dest, *epc;
 
 static unsigned int instruction_pending;
 static union mips_instruction delayed_mi;
 
-static void __init emit_instruction(union mips_instruction mi)
+static void __cpuinit emit_instruction(union mips_instruction mi)
 {
 	if (instruction_pending)
 		*epc++ = delayed_mi.word;
@@ -222,7 +222,7 @@ static inline void build_cdex_p(void)
 	emit_instruction(mi);
 }
 
-static void __init __build_store_reg(int reg)
+static void __cpuinit __build_store_reg(int reg)
 {
 	union mips_instruction mi;
 	unsigned int width;
@@ -339,7 +339,7 @@ static inline void build_jr_ra(void)
 	flush_delay_slot_or_nop();
 }
 
-void __init build_clear_page(void)
+void __cpuinit build_clear_page(void)
 {
 	unsigned int loop_start;
 	unsigned long off;
@@ -442,7 +442,7 @@ dest = label();
 	pr_debug("\t.set pop\n");
 }
 
-void __init build_copy_page(void)
+void __cpuinit build_copy_page(void)
 {
 	unsigned int loop_start;
 	unsigned long off;

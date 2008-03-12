@@ -168,7 +168,7 @@ struct bcache_ops indy_sc_ops = {
 	.bc_inv = indy_sc_wback_invalidate
 };
 
-void __init indy_sc_init(void)
+void __cpuinit indy_sc_init(void)
 {
 	if (indy_sc_probe()) {
 		indy_sc_enable();
