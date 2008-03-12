@@ -26,24 +26,24 @@
  *
  *****************************************************************************/
 
-#ifndef __iwl4965_debug_h__
-#define __iwl4965_debug_h__
+#ifndef __iwl_debug_h__
+#define __iwl_debug_h__
 
-#ifdef CONFIG_IWL4965_DEBUG
-extern u32 iwl4965_debug_level;
+#ifdef CONFIG_IWLWIFI_DEBUG
+extern u32 iwl_debug_level;
 #define IWL_DEBUG(level, fmt, args...) \
-do { if (iwl4965_debug_level & (level)) \
+do { if (iwl_debug_level & (level)) \
   printk(KERN_ERR DRV_NAME": %c %s " fmt, \
 	 in_interrupt() ? 'I' : 'U', __FUNCTION__ , ## args); } while (0)
 
 #define IWL_DEBUG_LIMIT(level, fmt, args...) \
-do { if ((iwl4965_debug_level & (level)) && net_ratelimit()) \
+do { if ((iwl_debug_level & (level)) && net_ratelimit()) \
   printk(KERN_ERR DRV_NAME": %c %s " fmt, \
 	 in_interrupt() ? 'I' : 'U', __FUNCTION__ , ## args); } while (0)
 
-static inline void iwl4965_print_hex_dump(int level, void *p, u32 len)
+static inline void iwl_print_hex_dump(int level, void *p, u32 len)
 {
-	if (!(iwl4965_debug_level & level))
+	if (!(iwl_debug_level & level))
 		return;
 
 	print_hex_dump(KERN_DEBUG, "iwl data: ", DUMP_PREFIX_OFFSET, 16, 1,
@@ -57,10 +57,10 @@ static inline void IWL_DEBUG(int level, const char *fmt, ...)
 static inline void IWL_DEBUG_LIMIT(int level, const char *fmt, ...)
 {
 }
-static inline void iwl4965_print_hex_dump(int level, void *p, u32 len)
+static inline void iwl_print_hex_dump(int level, void *p, u32 len)
 {
 }
-#endif				/* CONFIG_IWL4965_DEBUG */
+#endif				/* CONFIG_IWLWIFI_DEBUG */
 
 
 
@@ -83,10 +83,10 @@ static inline void iwl4965_print_hex_dump(int level, void *p, u32 len)
  *
  * % cat /proc/net/iwl/debug_level
  *
- * you simply need to add your entry to the iwl4965_debug_levels array.
+ * you simply need to add your entry to the iwl_debug_levels array.
  *
  * If you do not see debug_level in /proc/net/iwl then you do not have
- * CONFIG_IWL4965_DEBUG defined in your kernel configuration
+ * CONFIG_IWLWIFI_DEBUG defined in your kernel configuration
  *
  */
 

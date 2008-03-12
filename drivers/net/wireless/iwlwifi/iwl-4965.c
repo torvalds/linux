@@ -3583,7 +3583,7 @@ static void iwl4965_update_ps_mode(struct iwl4965_priv *priv, u16 ps_bit, u8 *ad
 		}
 	}
 }
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 
 /**
  * iwl4965_dbg_report_frame - dump frame to syslog during debug sessions
@@ -3623,7 +3623,7 @@ static void iwl4965_dbg_report_frame(struct iwl4965_priv *priv,
 	struct iwl4965_rx_frame_end *rx_end = IWL_RX_END(pkt);
 	u8 *data = IWL_RX_DATA(pkt);
 
-	if (likely(!(iwl4965_debug_level & IWL_DL_RX)))
+	if (likely(!(iwl_debug_level & IWL_DL_RX)))
 		return;
 
 	/* MAC header */
@@ -3726,7 +3726,7 @@ static void iwl4965_dbg_report_frame(struct iwl4965_priv *priv,
 		}
 	}
 	if (print_dump)
-		iwl4965_print_hex_dump(IWL_DL_RX, data, length);
+		iwl_print_hex_dump(IWL_DL_RX, data, length);
 }
 #else
 static inline void iwl4965_dbg_report_frame(struct iwl4965_priv *priv,

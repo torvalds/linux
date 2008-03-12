@@ -50,7 +50,7 @@ config IWL4965_SENSITIVITY
 	  This option will enable sensitivity calibration for the iwl4965
 	  driver.
 
-config IWL4965_DEBUG
+config IWLWIFI_DEBUG
 	bool "Enable full debugging output in iwl4965 driver"
 	depends on IWL4965
 	---help---

@@ -30,7 +30,7 @@
 #include <linux/module.h>
 #include <linux/version.h>
 
-#include "iwl-4965-debug.h"
+#include "iwl-debug.h"
 #include "iwl-eeprom.h"
 #include "iwl-core.h"
 
@@ -39,7 +39,7 @@ MODULE_VERSION(IWLWIFI_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL/BSD");
 
-#ifdef CONFIG_IWL4965_DEBUG
-u32 iwl4965_debug_level;
-EXPORT_SYMBOL(iwl4965_debug_level);
+#ifdef CONFIG_IWLWIFI_DEBUG
+u32 iwl_debug_level;
+EXPORT_SYMBOL(iwl_debug_level);
 #endif

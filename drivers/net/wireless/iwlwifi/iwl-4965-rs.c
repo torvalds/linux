@@ -244,7 +244,7 @@ static inline u8 iwl4965_rate_get_rate(u32 rate_n_flags)
 static int rs_send_lq_cmd(struct iwl4965_priv *priv,
 			  struct iwl4965_link_quality_cmd *lq, u8 flags)
 {
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	int i;
 #endif
 	struct iwl4965_host_cmd cmd = {
@@ -265,7 +265,7 @@ static int rs_send_lq_cmd(struct iwl4965_priv *priv,
 	IWL_DEBUG_RATE("lq dta 0x%X 0x%X\n",
 		       lq->general_params.single_stream_ant_msk,
 		       lq->general_params.dual_stream_ant_msk);
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++)
 		IWL_DEBUG_RATE("lq index %d 0x%X\n",
 				i, lq->rs_table[i].rate_n_flags);

@@ -44,7 +44,7 @@ extern struct pci_device_id iwl4965_hw_card_ids[];
 #include "iwl-4965-hw.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
-#include "iwl-4965-debug.h"
+#include "iwl-debug.h"
 
 /* Change firmware file name, using "-" and incrementing number,
  *   *only* when uCode interface or architecture changes so that it
@@ -1202,7 +1202,7 @@ struct iwl4965_priv {
 	u32 pm_state[16];
 #endif
 
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	/* debugging info */
 	u32 framecnt_to_us;
 	atomic_t restrict_refcnt;

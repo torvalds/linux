@@ -71,7 +71,7 @@
 #include "iwl-4965-commands.h"
 #include "iwl-4965.h"
 #include "iwl-core.h"
-#include "iwl-4965-debug.h"
+#include "iwl-debug.h"
 #include "iwl-eeprom.h"
 #include "iwl-4965-io.h"
 

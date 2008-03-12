@@ -76,7 +76,7 @@ int iwl4965_param_amsdu_size_8K;   /* def: enable 8K amsdu size */
 
 #define DRV_DESCRIPTION	"Intel(R) Wireless WiFi Link 4965AGN driver for Linux"
 
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 #define VD "d"
 #else
 #define VD
@@ -2578,7 +2578,7 @@ static int iwl4965_get_sta_id(struct iwl4965_priv *priv,
 		IWL_DEBUG_DROP("Station %s not in station map. "
 			       "Defaulting to broadcast...\n",
 			       print_mac(mac, hdr->addr1));
-		iwl4965_print_hex_dump(IWL_DL_DROP, (u8 *) hdr, sizeof(*hdr));
+		iwl_print_hex_dump(IWL_DL_DROP, (u8 *) hdr, sizeof(*hdr));
 		return priv->hw_setting.bcast_sta_id;
 
 	default:
@@ -2634,7 +2634,7 @@ static int iwl4965_tx_skb(struct iwl4965_priv *priv,
 
 	fc = le16_to_cpu(hdr->frame_control);
 
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	if (ieee80211_is_auth(fc))
 		IWL_DEBUG_TX("Sending AUTH frame\n");
 	else if (ieee80211_is_assoc_request(fc))
@@ -2792,10 +2792,10 @@ static int iwl4965_tx_skb(struct iwl4965_priv *priv,
 		txq->need_update = 0;
 	}
 
-	iwl4965_print_hex_dump(IWL_DL_TX, out_cmd->cmd.payload,
+	iwl_print_hex_dump(IWL_DL_TX, out_cmd->cmd.payload,
 			   sizeof(out_cmd->cmd.tx));
 
-	iwl4965_print_hex_dump(IWL_DL_TX, (u8 *)out_cmd->cmd.tx.hdr,
+	iwl_print_hex_dump(IWL_DL_TX, (u8 *)out_cmd->cmd.tx.hdr,
 			   ieee80211_get_hdrlen(fc));
 
 	/* Set up entry for this TFD in Tx byte-count array */
@@ -3590,7 +3590,7 @@ static void iwl4965_rx_spectrum_measure_notif(struct iwl4965_priv *priv,
 static void iwl4965_rx_pm_sleep_notif(struct iwl4965_priv *priv,
 				  struct iwl4965_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl4965_sleep_notification *sleep = &(pkt->u.sleep_notif);
 	IWL_DEBUG_RX("sleep mode: %d, src: %d\n",
@@ -3605,7 +3605,7 @@ static void iwl4965_rx_pm_debug_statistics_notif(struct iwl4965_priv *priv,
 	IWL_DEBUG_RADIO("Dumping %d bytes of unhandled "
 			"notification for %s:\n",
 			le32_to_cpu(pkt->len), get_cmd_string(pkt->hdr.cmd));
-	iwl4965_print_hex_dump(IWL_DL_RADIO, pkt->u.raw, le32_to_cpu(pkt->len));
+	iwl_print_hex_dump(IWL_DL_RADIO, pkt->u.raw, le32_to_cpu(pkt->len));
 }
 
 static void iwl4965_bg_beacon_update(struct work_struct *work)
@@ -3636,7 +3636,7 @@ static void iwl4965_bg_beacon_update(struct work_struct *work)
 static void iwl4965_rx_beacon_notif(struct iwl4965_priv *priv,
 				struct iwl4965_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl4965_beacon_notif *beacon = &(pkt->u.beacon_status);
 	u8 rate = iwl4965_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
@@ -3659,7 +3659,7 @@ static void iwl4965_rx_beacon_notif(struct iwl4965_priv *priv,
 static void iwl4965_rx_reply_scan(struct iwl4965_priv *priv,
 			      struct iwl4965_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl4965_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl4965_scanreq_notification *notif =
 	    (struct iwl4965_scanreq_notification *)pkt->u.raw;
@@ -4510,13 +4510,13 @@ static int iwl4965_tx_queue_update_write_ptr(struct iwl4965_priv *priv,
 	return rc;
 }
 
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 static void iwl4965_print_rx_config_cmd(struct iwl4965_rxon_cmd *rxon)
 {
 	DECLARE_MAC_BUF(mac);
 
 	IWL_DEBUG_RADIO("RX CONFIG:\n");
-	iwl4965_print_hex_dump(IWL_DL_RADIO, (u8 *) rxon, sizeof(*rxon));
+	iwl_print_hex_dump(IWL_DL_RADIO, (u8 *) rxon, sizeof(*rxon));
 	IWL_DEBUG_RADIO("u16 channel: 0x%x\n", le16_to_cpu(rxon->channel));
 	IWL_DEBUG_RADIO("u32 flags: 0x%08X\n", le32_to_cpu(rxon->flags));
 	IWL_DEBUG_RADIO("u32 filter_flags: 0x%08x\n",
@@ -4733,8 +4733,8 @@ static void iwl4965_irq_handle_error(struct iwl4965_priv *priv)
 	/* Cancel currently queued command. */
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 
-#ifdef CONFIG_IWL4965_DEBUG
-	if (iwl4965_debug_level & IWL_DL_FW_ERRORS) {
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (iwl_debug_level & IWL_DL_FW_ERRORS) {
 		iwl4965_dump_nic_error_log(priv);
 		iwl4965_dump_nic_event_log(priv);
 		iwl4965_print_rx_config_cmd(&priv->staging_rxon);
@@ -4782,7 +4782,7 @@ static void iwl4965_irq_tasklet(struct iwl4965_priv *priv)
 	u32 inta, handled = 0;
 	u32 inta_fh;
 	unsigned long flags;
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	u32 inta_mask;
 #endif
 
@@ -4800,8 +4800,8 @@ static void iwl4965_irq_tasklet(struct iwl4965_priv *priv)
 	inta_fh = iwl4965_read32(priv, CSR_FH_INT_STATUS);
 	iwl4965_write32(priv, CSR_FH_INT_STATUS, inta_fh);
 
-#ifdef CONFIG_IWL4965_DEBUG
-	if (iwl4965_debug_level & IWL_DL_ISR) {
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (iwl_debug_level & IWL_DL_ISR) {
 		/* just for debug */
 		inta_mask = iwl4965_read32(priv, CSR_INT_MASK);
 		IWL_DEBUG_ISR("inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
@@ -4834,8 +4834,8 @@ static void iwl4965_irq_tasklet(struct iwl4965_priv *priv)
 		return;
 	}
 
-#ifdef CONFIG_IWL4965_DEBUG
-	if (iwl4965_debug_level & (IWL_DL_ISR)) {
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (iwl_debug_level & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD)
 			IWL_DEBUG_ISR("Scheduler finished to transmit "
@@ -4925,8 +4925,8 @@ static void iwl4965_irq_tasklet(struct iwl4965_priv *priv)
 	/* Re-enable all interrupts */
 	iwl4965_enable_interrupts(priv);
 
-#ifdef CONFIG_IWL4965_DEBUG
-	if (iwl4965_debug_level & (IWL_DL_ISR)) {
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (iwl_debug_level & (IWL_DL_ISR)) {
 		inta = iwl4965_read32(priv, CSR_INT);
 		inta_mask = iwl4965_read32(priv, CSR_INT_MASK);
 		inta_fh = iwl4965_read32(priv, CSR_FH_INT_STATUS);
@@ -7916,7 +7916,7 @@ static int iwl4965_mac_conf_ht(struct ieee80211_hw *hw,
  *
  *****************************************************************************/
 
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 
 /*
  * The following adds a new attribute to the sysfs representation
@@ -7928,7 +7928,7 @@ static int iwl4965_mac_conf_ht(struct ieee80211_hw *hw,
 
 static ssize_t show_debug_level(struct device_driver *d, char *buf)
 {
-	return sprintf(buf, "0x%08X\n", iwl4965_debug_level);
+	return sprintf(buf, "0x%08X\n", iwl_debug_level);
 }
 static ssize_t store_debug_level(struct device_driver *d,
 				 const char *buf, size_t count)
@@ -7941,7 +7941,7 @@ static ssize_t store_debug_level(struct device_driver *d,
 		printk(KERN_INFO DRV_NAME
 		       ": %s is not in hex or decimal form.\n", buf);
 	else
-		iwl4965_debug_level = val;
+		iwl_debug_level = val;
 
 	return strnlen(buf, count);
 }
@@ -7949,7 +7949,7 @@ static ssize_t store_debug_level(struct device_driver *d,
 static DRIVER_ATTR(debug_level, S_IWUSR | S_IRUGO,
 		   show_debug_level, store_debug_level);
 
-#endif /* CONFIG_IWL4965_DEBUG */
+#endif /* CONFIG_IWLWIFI_DEBUG */
 
 static ssize_t show_rf_kill(struct device *d,
 			    struct device_attribute *attr, char *buf)
@@ -8548,8 +8548,8 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	priv->pci_dev = pdev;
 	priv->antenna = (enum iwl4965_antenna)iwl4965_param_antenna;
-#ifdef CONFIG_IWL4965_DEBUG
-	iwl4965_debug_level = iwl4965_param_debug;
+#ifdef CONFIG_IWLWIFI_DEBUG
+	iwl_debug_level = iwl4965_param_debug;
 	atomic_set(&priv->restrict_refcnt, 0);
 #endif
 	priv->retry_rate = 1;
@@ -8878,7 +8878,7 @@ static int __init iwl4965_init(void)
 		IWL_ERROR("Unable to initialize PCI module\n");
 		return ret;
 	}
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	ret = driver_create_file(&iwl4965_driver.driver, &driver_attr_debug_level);
 	if (ret) {
 		IWL_ERROR("Unable to create driver sysfs file\n");
@@ -8892,7 +8892,7 @@ static int __init iwl4965_init(void)
 
 static void __exit iwl4965_exit(void)
 {
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	driver_remove_file(&iwl4965_driver.driver, &driver_attr_debug_level);
 #endif
 	pci_unregister_driver(&iwl4965_driver);
