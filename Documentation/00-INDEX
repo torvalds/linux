@@ -299,12 +299,8 @@ pcmcia/
 	- info on the Linux PCMCIA driver.
 pi-futex.txt
 	- documentation on lightweight PI-futexes.
-pm.txt
-	- info on Linux power management support.
 pnp.txt
 	- Linux Plug and Play documentation.
-power_supply_class.txt
-	- Tells userspace about battery, UPS, AC or DC power supply properties
 power/
 	- directory with info on Linux PCI power management.
 powerpc/
