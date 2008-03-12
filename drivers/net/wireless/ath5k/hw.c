@@ -427,6 +427,8 @@ void ath5k_hw_detach(struct ath5k_hw *ah)
 {
 	ATH5K_TRACE(ah->ah_sc);
 
+	__set_bit(ATH_STAT_INVALID, ah->ah_sc->status);
+
 	if (ah->ah_rf_banks != NULL)
 		kfree(ah->ah_rf_banks);
 
