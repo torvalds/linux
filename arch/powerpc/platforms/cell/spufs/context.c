@@ -170,7 +170,8 @@ void spu_release_saved(struct spu_context *ctx)
 {
 	BUG_ON(ctx->state != SPU_STATE_SAVED);
 
-	if (test_and_clear_bit(SPU_SCHED_WAS_ACTIVE, &ctx->sched_flags))
+	if (test_and_clear_bit(SPU_SCHED_WAS_ACTIVE, &ctx->sched_flags) &&
+			test_bit(SPU_SCHED_SPU_RUN, &ctx->sched_flags))
 		spu_activate(ctx, 0);
 
 	spu_release(ctx);

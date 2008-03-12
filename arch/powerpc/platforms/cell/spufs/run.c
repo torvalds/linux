@@ -220,6 +220,7 @@ static int spu_run_init(struct spu_context *ctx, u32 *npc)
 		}
 	}
 
+	set_bit(SPU_SCHED_SPU_RUN, &ctx->sched_flags);
 	return 0;
 }
 
@@ -234,7 +235,7 @@ static int spu_run_fini(struct spu_context *ctx, u32 *npc,
 	*npc = ctx->ops->npc_read(ctx);
 
 	spuctx_switch_state(ctx, SPU_UTIL_IDLE_LOADED);
-	ctx->policy = SCHED_IDLE;
+	clear_bit(SPU_SCHED_SPU_RUN, &ctx->sched_flags);
 	spu_release(ctx);
 
 	if (signal_pending(current))
