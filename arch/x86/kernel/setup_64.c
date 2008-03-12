@@ -729,6 +729,19 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	if (amd_apic_timer_broken())
 		disable_apic_timer = 1;
+
+	if (c == &boot_cpu_data && c->x86 >= 0xf && c->x86 <= 0x11) {
+		unsigned long long tseg;
+
+		/*
+		 * Split up direct mapping around the TSEG SMM area.
+		 * Don't do it for gbpages because there seems very little
+		 * benefit in doing so.
+		 */
+		if (!rdmsrl_safe(MSR_K8_TSEG_ADDR, &tseg) &&
+		(tseg >> PMD_SHIFT) < (max_pfn_mapped >> (PMD_SHIFT-PAGE_SHIFT)))
+			set_memory_4k((unsigned long)__va(tseg), 1);
+	}
 }
 
 void __cpuinit detect_ht(struct cpuinfo_x86 *c)
