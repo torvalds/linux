@@ -8,6 +8,7 @@
  */
 
 #include <asm/types.h>
+#include <linux/compiler.h>
 #include <linux/ioctl.h>
 #include <asm/kvm.h>
 
