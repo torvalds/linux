@@ -285,9 +285,6 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 
 	nr = hash_long(acred->uid, RPC_CREDCACHE_HASHBITS);
 
-	if (!(flags & RPCAUTH_LOOKUP_ROOTCREDS))
-		nr = acred->uid & RPC_CREDCACHE_MASK;
-
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(entry, pos, &cache->hashtable[nr], cr_hash) {
 		if (!entry->cr_ops->crmatch(acred, entry, flags))
@@ -378,30 +375,38 @@ rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
 }
 EXPORT_SYMBOL_GPL(rpcauth_init_cred);
 
-struct rpc_cred *
-rpcauth_bindcred(struct rpc_task *task)
+void
+rpcauth_bind_root_cred(struct rpc_task *task)
 {
 	struct rpc_auth *auth = task->tk_client->cl_auth;
 	struct auth_cred acred = {
-		.uid = current->fsuid,
-		.gid = current->fsgid,
-		.group_info = current->group_info,
+		.uid = 0,
+		.gid = 0,
 	};
 	struct rpc_cred *ret;
-	int flags = 0;
 
 	dprintk("RPC: %5u looking up %s cred\n",
 		task->tk_pid, task->tk_client->cl_auth->au_ops->au_name);
-	get_group_info(acred.group_info);
-	if (task->tk_flags & RPC_TASK_ROOTCREDS)
-		flags |= RPCAUTH_LOOKUP_ROOTCREDS;
-	ret = auth->au_ops->lookup_cred(auth, &acred, flags);
+	ret = auth->au_ops->lookup_cred(auth, &acred, 0);
 	if (!IS_ERR(ret))
 		task->tk_msg.rpc_cred = ret;
 	else
 		task->tk_status = PTR_ERR(ret);
-	put_group_info(acred.group_info);
-	return ret;
+}
+
+void
+rpcauth_bindcred(struct rpc_task *task)
+{
+	struct rpc_auth *auth = task->tk_client->cl_auth;
+	struct rpc_cred *ret;
+
+	dprintk("RPC: %5u looking up %s cred\n",
+		task->tk_pid, auth->au_ops->au_name);
+	ret = rpcauth_lookupcred(auth, 0);
+	if (!IS_ERR(ret))
+		task->tk_msg.rpc_cred = ret;
+	else
+		task->tk_status = PTR_ERR(ret);
 }
 
 void

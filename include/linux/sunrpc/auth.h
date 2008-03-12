@@ -89,7 +89,6 @@ struct rpc_auth {
 
 /* Flags for rpcauth_lookupcred() */
 #define RPCAUTH_LOOKUP_NEW		0x01	/* Accept an uninitialised cred */
-#define RPCAUTH_LOOKUP_ROOTCREDS	0x02	/* This really ought to go! */
 
 /*
  * Client authentication ops
@@ -136,7 +135,8 @@ void			rpcauth_release(struct rpc_auth *);
 struct rpc_cred *	rpcauth_lookup_credcache(struct rpc_auth *, struct auth_cred *, int);
 void			rpcauth_init_cred(struct rpc_cred *, const struct auth_cred *, struct rpc_auth *, const struct rpc_credops *);
 struct rpc_cred *	rpcauth_lookupcred(struct rpc_auth *, int);
-struct rpc_cred *	rpcauth_bindcred(struct rpc_task *);
+void			rpcauth_bindcred(struct rpc_task *);
+void			rpcauth_bind_root_cred(struct rpc_task *);
 void			rpcauth_holdcred(struct rpc_task *);
 void			put_rpccred(struct rpc_cred *);
 void			rpcauth_unbindcred(struct rpc_task *);

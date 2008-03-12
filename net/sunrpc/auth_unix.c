@@ -60,7 +60,8 @@ static struct rpc_cred *
 unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 {
 	struct unx_cred	*cred;
-	int		i;
+	unsigned int groups = 0;
+	unsigned int i;
 
 	dprintk("RPC:       allocating UNIX cred for uid %d gid %d\n",
 			acred->uid, acred->gid);
@@ -70,21 +71,17 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 
 	rpcauth_init_cred(&cred->uc_base, acred, auth, &unix_credops);
 	cred->uc_base.cr_flags = 1UL << RPCAUTH_CRED_UPTODATE;
-	if (flags & RPCAUTH_LOOKUP_ROOTCREDS) {
-		cred->uc_uid = 0;
-		cred->uc_gid = 0;
-		cred->uc_gids[0] = NOGROUP;
-	} else {
-		int groups = acred->group_info->ngroups;
-		if (groups > NFS_NGROUPS)
-			groups = NFS_NGROUPS;
 
-		cred->uc_gid = acred->gid;
-		for (i = 0; i < groups; i++)
-			cred->uc_gids[i] = GROUP_AT(acred->group_info, i);
-		if (i < NFS_NGROUPS)
-		  cred->uc_gids[i] = NOGROUP;
-	}
+	if (acred->group_info != NULL)
+		groups = acred->group_info->ngroups;
+	if (groups > NFS_NGROUPS)
+		groups = NFS_NGROUPS;
+
+	cred->uc_gid = acred->gid;
+	for (i = 0; i < groups; i++)
+		cred->uc_gids[i] = GROUP_AT(acred->group_info, i);
+	if (i < NFS_NGROUPS)
+		cred->uc_gids[i] = NOGROUP;
 
 	return &cred->uc_base;
 }
@@ -118,26 +115,21 @@ static int
 unx_match(struct auth_cred *acred, struct rpc_cred *rcred, int flags)
 {
 	struct unx_cred	*cred = container_of(rcred, struct unx_cred, uc_base);
-	int		i;
+	unsigned int groups = 0;
+	unsigned int i;
 
-	if (!(flags & RPCAUTH_LOOKUP_ROOTCREDS)) {
-		int groups;
 
-		if (cred->uc_uid != acred->uid
-		 || cred->uc_gid != acred->gid)
-			return 0;
+	if (cred->uc_uid != acred->uid || cred->uc_gid != acred->gid)
+		return 0;
 
+	if (acred->group_info != NULL)
 		groups = acred->group_info->ngroups;
-		if (groups > NFS_NGROUPS)
-			groups = NFS_NGROUPS;
-		for (i = 0; i < groups ; i++)
-			if (cred->uc_gids[i] != GROUP_AT(acred->group_info, i))
-				return 0;
-		return 1;
-	}
-	return (cred->uc_uid == 0
-	     && cred->uc_gid == 0
-	     && cred->uc_gids[0] == (gid_t) NOGROUP);
+	if (groups > NFS_NGROUPS)
+		groups = NFS_NGROUPS;
+	for (i = 0; i < groups ; i++)
+		if (cred->uc_gids[i] != GROUP_AT(acred->group_info, i))
+			return 0;
+	return 1;
 }
 
 /*

@@ -821,8 +821,10 @@ static void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *ta
 		/* Bind the user cred */
 		if (task->tk_msg.rpc_cred != NULL)
 			rpcauth_holdcred(task);
-		else
+		else if (!(task_setup_data->flags & RPC_TASK_ROOTCREDS))
 			rpcauth_bindcred(task);
+		else
+			rpcauth_bind_root_cred(task);
 		if (task->tk_action == NULL)
 			rpc_call_start(task);
 	}
