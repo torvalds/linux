@@ -2302,9 +2302,9 @@ static void rt61pci_configure_filter(struct ieee80211_hw *hw,
 	 * Apply some rules to the filters:
 	 * - Some filters imply different filters to be set.
 	 * - Some things we can't filter out at all.
+	 * - Multicast filter seems to kill broadcast traffic so never use it.
 	 */
-	if (mc_count)
-		*total_flags |= FIF_ALLMULTI;
+	*total_flags |= FIF_ALLMULTI;
 	if (*total_flags & FIF_OTHER_BSS ||
 	    *total_flags & FIF_PROMISC_IN_BSS)
 		*total_flags |= FIF_PROMISC_IN_BSS | FIF_OTHER_BSS;

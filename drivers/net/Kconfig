@@ -2366,15 +2366,15 @@ config GELIC_NET
 	  module will be called ps3_gelic.
 
 config GELIC_WIRELESS
-       bool "PS3 Wireless support"
-       depends on GELIC_NET
-       select WIRELESS_EXT
-       help
-        This option adds the support for the wireless feature of PS3.
-        If you have the wireless-less model of PS3 or have no plan to
-        use wireless feature, disabling this option saves memory.  As
-        the driver automatically distinguishes the models, you can
-        safely enable this option even if you have a wireless-less model.
+	bool "PS3 Wireless support"
+	depends on GELIC_NET
+	select WIRELESS_EXT
+	help
+	  This option adds the support for the wireless feature of PS3.
+	  If you have the wireless-less model of PS3 or have no plan to
+	  use wireless feature, disabling this option saves memory.  As
+	  the driver automatically distinguishes the models, you can
+	  safely enable this option even if you have a wireless-less model.
 
 config GIANFAR
 	tristate "Gianfar Ethernet"
@@ -2519,7 +2519,7 @@ config CHELSIO_T3
 
 config EHEA
 	tristate "eHEA Ethernet support"
-	depends on IBMEBUS && INET
+	depends on IBMEBUS && INET && SPARSEMEM
 	select INET_LRO
 	---help---
 	  This driver supports the IBM pSeries eHEA ethernet adapter.

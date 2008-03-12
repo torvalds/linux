@@ -1268,7 +1268,7 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 		}
 	}
     
-	if (interrupts && ei_debug) 
+	if (interrupts && ei_debug > 3) 
 	{
 		handled = 1;
 		if (nr_serviced >= MAX_SERVICE) 

@@ -95,8 +95,8 @@
 #if 1
 #define ASSERT(expr)     if (!(expr)) { \
 			     printk(FORE200E "assertion failed! %s[%d]: %s\n", \
-				    __FUNCTION__, __LINE__, #expr); \
-			     panic(FORE200E "%s", __FUNCTION__); \
+				    __func__, __LINE__, #expr); \
+			     panic(FORE200E "%s", __func__); \
 			 }
 #else
 #define ASSERT(expr)     do {} while (0)
