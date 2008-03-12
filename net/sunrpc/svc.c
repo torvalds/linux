@@ -590,7 +590,7 @@ __svc_create_thread(svc_thread_fn func, struct svc_serv *serv,
 	struct svc_rqst	*rqstp;
 	int		error = -ENOMEM;
 	int		have_oldmask = 0;
-	cpumask_t	oldmask;
+	cpumask_t	uninitialized_var(oldmask);
 
 	rqstp = svc_prepare_thread(serv, pool);
 	if (IS_ERR(rqstp)) {
