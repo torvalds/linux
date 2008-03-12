@@ -149,6 +149,8 @@ long long __lshrdi3(long long, int);
 EXPORT_SYMBOL(__ashrdi3);
 EXPORT_SYMBOL(__ashldi3);
 EXPORT_SYMBOL(__lshrdi3);
+int __ucmpdi2(unsigned long long, unsigned long long);
+EXPORT_SYMBOL(__ucmpdi2);
 #endif
 
 EXPORT_SYMBOL(memcpy);
