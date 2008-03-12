@@ -143,7 +143,6 @@
 			mode = "cpu";
 		};
 
-		/* phy type (ULPI, UTMI, UTMI_WIDE, SERIAL) */
 		usb@23000 {
 			compatible = "fsl-usb2-dr";
 			reg = <0x23000 0x1000>;
@@ -151,7 +150,7 @@
 			#size-cells = <0>;
 			interrupt-parent = <&ipic>;
 			interrupts = <38 0x8>;
-			phy_type = "utmi";
+			phy_type = "ulpi";
 		};
 
 		mdio@24520 {
