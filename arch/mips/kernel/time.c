@@ -157,6 +157,6 @@ void __init time_init(void)
 {
 	plat_time_init();
 
-	if (mips_clockevent_init() || !cpu_has_mfc0_count_bug())
+	if (!mips_clockevent_init() || !cpu_has_mfc0_count_bug())
 		init_mips_clocksource();
 }
