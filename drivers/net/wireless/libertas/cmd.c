@@ -1200,24 +1200,6 @@ static void lbs_submit_command(struct lbs_private *priv,
 	lbs_deb_leave(LBS_DEB_HOST);
 }
 
-static int lbs_cmd_mac_control(struct lbs_private *priv,
-				struct cmd_ds_command *cmd)
-{
-	struct cmd_ds_mac_control *mac = &cmd->params.macctrl;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	cmd->command = cpu_to_le16(CMD_MAC_CONTROL);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_mac_control) + S_DS_GEN);
-	mac->action = cpu_to_le16(priv->currentpacketfilter);
-
-	lbs_deb_cmd("MAC_CONTROL: action 0x%04x, size %d\n",
-		    le16_to_cpu(mac->action), le16_to_cpu(cmd->size));
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
 /**
  *  This function inserts command node to cmdfreeq
  *  after cleans it. Requires priv->driver_lock held.
@@ -1307,12 +1289,15 @@ int lbs_set_radio_control(struct lbs_private *priv)
 int lbs_set_mac_packet_filter(struct lbs_private *priv)
 {
 	int ret = 0;
+	struct cmd_ds_mac_control cmd;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	/* Send MAC control command to station */
-	ret = lbs_prepare_and_send_command(priv,
-				    CMD_MAC_CONTROL, 0, 0, 0, NULL);
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(priv->currentpacketfilter);
+	cmd.reserved = 0;
+
+	ret = lbs_cmd_with_response(priv, CMD_MAC_CONTROL, &cmd);
 
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
@@ -1380,10 +1365,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	switch (cmd_no) {
 	case CMD_802_11_PS_MODE:
 		ret = lbs_cmd_802_11_ps_mode(priv, cmdptr, cmd_action);
-		break;
-
-	case CMD_MAC_CONTROL:
-		ret = lbs_cmd_mac_control(priv, cmdptr);
 		break;
 
 	case CMD_802_11_ASSOCIATE:

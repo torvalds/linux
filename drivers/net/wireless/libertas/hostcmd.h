@@ -211,8 +211,9 @@ struct cmd_ds_802_11_get_log {
 };
 
 struct cmd_ds_mac_control {
+	struct cmd_header hdr;
 	__le16 action;
-	__le16 reserved;
+	u16 reserved;
 };
 
 struct cmd_ds_mac_multicast_adr {
@@ -695,7 +696,6 @@ struct cmd_ds_command {
 	/* command Body */
 	union {
 		struct cmd_ds_802_11_ps_mode psmode;
-		struct cmd_ds_mac_control macctrl;
 		struct cmd_ds_802_11_associate associate;
 		struct cmd_ds_802_11_deauthenticate deauth;
 		struct cmd_ds_802_11_ad_hoc_start ads;
