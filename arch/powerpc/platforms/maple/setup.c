@@ -319,7 +319,7 @@ static int __init maple_probe(void)
 	return 1;
 }
 
-define_machine(maple_md) {
+define_machine(maple) {
 	.name			= "Maple",
 	.probe			= maple_probe,
 	.setup_arch		= maple_setup_arch,
