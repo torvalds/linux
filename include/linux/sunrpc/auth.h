@@ -125,9 +125,12 @@ extern const struct rpc_authops	authunix_ops;
 extern const struct rpc_authops	authnull_ops;
 
 void __init		rpc_init_authunix(void);
+void __init		rpc_init_generic_auth(void);
 void __init		rpcauth_init_module(void);
 void __exit		rpcauth_remove_module(void);
+void __exit		rpc_destroy_generic_auth(void);
 
+struct rpc_cred *	rpc_lookup_cred(void);
 int			rpcauth_register(const struct rpc_authops *);
 int			rpcauth_unregister(const struct rpc_authops *);
 struct rpc_auth *	rpcauth_create(rpc_authflavor_t, struct rpc_clnt *);

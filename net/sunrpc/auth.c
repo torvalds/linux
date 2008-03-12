@@ -566,6 +566,7 @@ static struct shrinker rpc_cred_shrinker = {
 void __init rpcauth_init_module(void)
 {
 	rpc_init_authunix();
+	rpc_init_generic_auth();
 	register_shrinker(&rpc_cred_shrinker);
 }
 
