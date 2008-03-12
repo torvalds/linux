@@ -268,11 +268,11 @@ static int assoc_helper_wep_keys(struct lbs_private *priv,
 
 	/* enable/disable the MAC's WEP packet filter */
 	if (assoc_req->secinfo.wep_enabled)
-		priv->currentpacketfilter |= CMD_ACT_MAC_WEP_ENABLE;
+		priv->mac_control |= CMD_ACT_MAC_WEP_ENABLE;
 	else
-		priv->currentpacketfilter &= ~CMD_ACT_MAC_WEP_ENABLE;
+		priv->mac_control &= ~CMD_ACT_MAC_WEP_ENABLE;
 
-	ret = lbs_set_mac_packet_filter(priv);
+	ret = lbs_set_mac_control(priv);
 	if (ret)
 		goto out;
 
@@ -304,7 +304,7 @@ static int assoc_helper_secinfo(struct lbs_private *priv,
 	memcpy(&priv->secinfo, &assoc_req->secinfo,
 		sizeof(struct lbs_802_11_security));
 
-	ret = lbs_set_mac_packet_filter(priv);
+	ret = lbs_set_mac_control(priv);
 	if (ret)
 		goto out;
 

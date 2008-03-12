@@ -252,7 +252,7 @@ struct lbs_private {
 	struct sk_buff *currenttxskb;
 
 	/** NIC Operation characteristics */
-	u16 currentpacketfilter;
+	u16 mac_control;
 	u32 connect_status;
 	u32 mesh_connect_status;
 	u16 regioncode;
