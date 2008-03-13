@@ -640,17 +640,17 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 
 	ret = -EACCES;
 	if (!ptrace_may_attach(task))
-		goto out;
+		goto out_task;
 
 	ret = -EINVAL;
 	/* file position must be aligned */
 	if (*ppos % PM_ENTRY_BYTES)
-		goto out;
+		goto out_task;
 
 	ret = 0;
 	mm = get_task_mm(task);
 	if (!mm)
-		goto out;
+		goto out_task;
 
 	ret = -ENOMEM;
 	uaddr = (unsigned long)buf & PAGE_MASK;
@@ -658,7 +658,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 	pagecount = (PAGE_ALIGN(uend) - uaddr) / PAGE_SIZE;
 	pages = kmalloc(pagecount * sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
-		goto out_task;
+		goto out_mm;
 
 	down_read(&current->mm->mmap_sem);
 	ret = get_user_pages(current, current->mm, uaddr, pagecount,
@@ -667,6 +667,12 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 
 	if (ret < 0)
 		goto out_free;
+
+	if (ret != pagecount) {
+		pagecount = ret;
+		ret = -EFAULT;
+		goto out_pages;
+	}
 
 	pm.out = buf;
 	pm.end = buf + count;
@@ -699,15 +705,17 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 			ret = pm.out - buf;
 	}
 
+out_pages:
 	for (; pagecount; pagecount--) {
 		page = pages[pagecount-1];
 		if (!PageReserved(page))
 			SetPageDirty(page);
 		page_cache_release(page);
 	}
-	mmput(mm);
 out_free:
 	kfree(pages);
+out_mm:
+	mmput(mm);
 out_task:
 	put_task_struct(task);
 out:
