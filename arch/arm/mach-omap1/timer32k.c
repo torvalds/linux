@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/plat-omap/timer32k.c
+ * linux/arch/arm/mach-omap1/timer32k.c
  *
  * OMAP 32K Timer
  *
@@ -40,7 +40,6 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
-
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/clocksource.h>
@@ -71,8 +70,6 @@ struct sys_timer omap_timer;
 
 #if defined(CONFIG_ARCH_OMAP16XX)
 #define TIMER_32K_SYNCHRONIZED		0xfffbc410
-#elif defined(CONFIG_ARCH_OMAP24XX)
-#define TIMER_32K_SYNCHRONIZED		(OMAP24XX_32KSYNCT_BASE + 0x10)
 #else
 #error OMAP 32KHz timer does not currently work on 15XX!
 #endif
@@ -119,6 +116,14 @@ static inline void omap_32k_timer_stop(void)
 
 #define omap_32k_timer_ack_irq()
 
+static int omap_32k_timer_set_next_event(unsigned long delta,
+					 struct clock_event_device *dev)
+{
+	omap_32k_timer_start(delta);
+
+	return 0;
+}
+
 static void omap_32k_timer_set_mode(enum clock_event_mode mode,
 				    struct clock_event_device *evt)
 {
@@ -139,8 +144,9 @@ static void omap_32k_timer_set_mode(enum clock_event_mode mode,
 
 static struct clock_event_device clockevent_32k_timer = {
 	.name		= "32k-timer",
-	.features       = CLOCK_EVT_FEAT_PERIODIC,
+	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.shift		= 32,
+	.set_next_event	= omap_32k_timer_set_next_event,
 	.set_mode	= omap_32k_timer_set_mode,
 };
 
@@ -171,6 +177,8 @@ static struct irqaction omap_32k_timer_irq = {
 
 static __init void omap_init_32k_timer(void)
 {
+	setup_irq(INT_OS_TIMER, &omap_32k_timer_irq);
+
 	clockevent_32k_timer.mult = div_sc(OMAP_32K_TICKS_PER_SEC,
 					   NSEC_PER_SEC,
 					   clockevent_32k_timer.shift);
