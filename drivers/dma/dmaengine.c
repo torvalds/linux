@@ -357,7 +357,7 @@ int dma_async_device_register(struct dma_device *device)
 		!device->device_prep_dma_zero_sum);
 	BUG_ON(dma_has_cap(DMA_MEMSET, device->cap_mask) &&
 		!device->device_prep_dma_memset);
-	BUG_ON(dma_has_cap(DMA_ZERO_SUM, device->cap_mask) &&
+	BUG_ON(dma_has_cap(DMA_INTERRUPT, device->cap_mask) &&
 		!device->device_prep_dma_interrupt);
 
 	BUG_ON(!device->device_alloc_chan_resources);
