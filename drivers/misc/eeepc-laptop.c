@@ -21,6 +21,8 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/platform_device.h>
+#include <linux/backlight.h>
+#include <linux/fb.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
 #include <linux/uaccess.h>
@@ -43,6 +45,8 @@
  * Definitions for Asus EeePC
  */
 #define	NOTIFY_WLAN_ON	0x10
+#define NOTIFY_BRN_MIN	0x20
+#define NOTIFY_BRN_MAX	0x2f
 
 enum {
 	DISABLE_ASL_WLAN = 0x0001,
@@ -147,6 +151,19 @@ static struct acpi_driver eeepc_hotk_driver = {
 	},
 };
 
+/* The backlight device /sys/class/backlight */
+static struct backlight_device *eeepc_backlight_device;
+
+/*
+ * The backlight class declaration
+ */
+static int read_brightness(struct backlight_device *bd);
+static int update_bl_status(struct backlight_device *bd);
+static struct backlight_ops eeepcbl_ops = {
+	.get_brightness = read_brightness,
+	.update_status = update_bl_status,
+};
+
 MODULE_AUTHOR("Corentin Chary, Eric Cooper");
 MODULE_DESCRIPTION(EEEPC_HOTK_NAME);
 MODULE_LICENSE("GPL");
@@ -208,6 +225,25 @@ static int get_acpi(int cm)
 			printk(EEEPC_WARNING "Error reading %s\n", method);
 	}
 	return value;
+}
+
+/*
+ * Backlight
+ */
+static int read_brightness(struct backlight_device *bd)
+{
+	return get_acpi(CM_ASL_PANELBRIGHT);
+}
+
+static int set_brightness(struct backlight_device *bd, int value)
+{
+	value = max(0, min(15, value));
+	return set_acpi(CM_ASL_PANELBRIGHT, value);
+}
+
+static int update_bl_status(struct backlight_device *bd)
+{
+	return set_brightness(bd, bd->props.brightness);
 }
 
 /*
@@ -328,12 +364,20 @@ static void notify_wlan(u32 *event)
 	}
 }
 
+static void notify_brn(void)
+{
+	struct backlight_device *bd = eeepc_backlight_device;
+	bd->props.brightness = read_brightness(bd);
+}
+
 static void eeepc_hotk_notify(acpi_handle handle, u32 event, void *data)
 {
 	if (!ehotk)
 		return;
 	if (event == NOTIFY_WLAN_ON && (DISABLE_ASL_WLAN & ehotk->init_flag))
 		notify_wlan(&event);
+	if (event >= NOTIFY_BRN_MIN && event <= NOTIFY_BRN_MAX)
+		notify_brn();
 	acpi_bus_generate_proc_event(ehotk->device, event,
 				     ehotk->event_count[event % 128]++);
 }
@@ -387,13 +431,41 @@ static int eeepc_hotk_remove(struct acpi_device *device, int type)
 /*
  * exit/init
  */
+static void eeepc_backlight_exit(void)
+{
+	if (eeepc_backlight_device)
+		backlight_device_unregister(eeepc_backlight_device);
+	eeepc_backlight_device = NULL;
+}
+
 static void __exit eeepc_laptop_exit(void)
 {
+	eeepc_backlight_exit();
 	acpi_bus_unregister_driver(&eeepc_hotk_driver);
 	sysfs_remove_group(&platform_device->dev.kobj,
 			   &platform_attribute_group);
 	platform_device_unregister(platform_device);
 	platform_driver_unregister(&platform_driver);
+}
+
+static int eeepc_backlight_init(struct device *dev)
+{
+	struct backlight_device *bd;
+
+	bd = backlight_device_register(EEEPC_HOTK_FILE, dev,
+				       NULL, &eeepcbl_ops);
+	if (IS_ERR(bd)) {
+		printk(EEEPC_ERR
+		       "Could not register eeepc backlight device\n");
+		eeepc_backlight_device = NULL;
+		return PTR_ERR(bd);
+	}
+	eeepc_backlight_device = bd;
+	bd->props.max_brightness = 15;
+	bd->props.brightness = read_brightness(NULL);
+	bd->props.power = FB_BLANK_UNBLANK;
+	backlight_update_status(bd);
+	return 0;
 }
 
 static int __init eeepc_laptop_init(void)
@@ -411,6 +483,9 @@ static int __init eeepc_laptop_init(void)
 		return -ENODEV;
 	}
 	dev = acpi_get_physical_device(ehotk->device->handle);
+	result = eeepc_backlight_init(dev);
+	if (result)
+		goto fail_backlight;
 	/* Register platform stuff */
 	result = platform_driver_register(&platform_driver);
 	if (result)
@@ -435,6 +510,8 @@ fail_platform_device2:
 fail_platform_device1:
 	platform_driver_unregister(&platform_driver);
 fail_platform_driver:
+	eeepc_backlight_exit();
+fail_backlight:
 	return result;
 }
 
