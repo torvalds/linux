@@ -78,7 +78,7 @@ static int c_show(struct seq_file *m, void *p)
 	return 0;
 }
 
-static struct seq_operations crypto_seq_ops = {
+static const struct seq_operations crypto_seq_ops = {
 	.start		= c_start,
 	.next		= c_next,
 	.stop		= c_stop,
