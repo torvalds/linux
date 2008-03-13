@@ -180,10 +180,8 @@ static struct irqaction tc_irqaction = {
 	.handler	= ch2_irq,
 };
 
-static void __init setup_clkevents(struct atmel_tc *tc,
-		struct clk *t0_clk, int clk32k_divisor_idx)
+static void __init setup_clkevents(struct atmel_tc *tc, int clk32k_divisor_idx)
 {
-	struct platform_device *pdev = tc->pdev;
 	struct clk *t2_clk = tc->clk[2];
 	int irq = tc->irq[2];
 
@@ -205,8 +203,7 @@ static void __init setup_clkevents(struct atmel_tc *tc,
 
 #else /* !CONFIG_GENERIC_CLOCKEVENTS */
 
-static void __init setup_clkevents(struct atmel_tc *tc,
-		struct clk *t0_clk, int clk32k_divisor_idx)
+static void __init setup_clkevents(struct atmel_tc *tc, int clk32k_divisor_idx)
 {
 	/* NOTHING */
 }
@@ -220,7 +217,7 @@ static int __init tcb_clksrc_init(void)
 
 	struct platform_device *pdev;
 	struct atmel_tc *tc;
-	struct clk *t0_clk, *t1_clk;
+	struct clk *t0_clk;
 	u32 rate, divided_rate = 0;
 	int best_divisor_idx = -1;
 	int clk32k_divisor_idx = -1;
@@ -298,7 +295,7 @@ static int __init tcb_clksrc_init(void)
 	clocksource_register(&clksrc);
 
 	/* channel 2:  periodic and oneshot timer support */
-	setup_clkevents(tc, t0_clk, clk32k_divisor_idx);
+	setup_clkevents(tc, clk32k_divisor_idx);
 
 	return 0;
 }
