@@ -90,6 +90,11 @@ config MACVLAN
 	  This allows one to create virtual interfaces that map packets to
 	  or from specific MAC addresses to a particular interface.
 
+	  Macvlan devices can be added using the "ip" command from the
+	  iproute2 package starting with the iproute2-2.6.23 release:
+
+	  "ip link add link <real dev> [ address MAC ] [ NAME ] type macvlan"
+
 	  To compile this driver as a module, choose M here: the module
 	  will be called macvlan.
 
@@ -2361,14 +2366,15 @@ config GELIC_NET
 	  module will be called ps3_gelic.
 
 config GELIC_WIRELESS
-       bool "PS3 Wireless support"
-       depends on GELIC_NET
-       help
-        This option adds the support for the wireless feature of PS3.
-        If you have the wireless-less model of PS3 or have no plan to
-        use wireless feature, disabling this option saves memory.  As
-        the driver automatically distinguishes the models, you can
-        safely enable this option even if you have a wireless-less model.
+	bool "PS3 Wireless support"
+	depends on GELIC_NET
+	select WIRELESS_EXT
+	help
+	  This option adds the support for the wireless feature of PS3.
+	  If you have the wireless-less model of PS3 or have no plan to
+	  use wireless feature, disabling this option saves memory.  As
+	  the driver automatically distinguishes the models, you can
+	  safely enable this option even if you have a wireless-less model.
 
 config GIANFAR
 	tristate "Gianfar Ethernet"
@@ -2513,7 +2519,7 @@ config CHELSIO_T3
 
 config EHEA
 	tristate "eHEA Ethernet support"
-	depends on IBMEBUS && INET
+	depends on IBMEBUS && INET && SPARSEMEM
 	select INET_LRO
 	---help---
 	  This driver supports the IBM pSeries eHEA ethernet adapter.

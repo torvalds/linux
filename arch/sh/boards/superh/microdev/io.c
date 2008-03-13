@@ -127,7 +127,7 @@ static unsigned long microdev_isa_port2addr(unsigned long offset)
 			 *	safe default.
 			 */
 		printk("Warning: unexpected port in %s( offset = 0x%lx )\n",
-		       __FUNCTION__, offset);
+		       __func__, offset);
 		result = PVR;
 	}
 

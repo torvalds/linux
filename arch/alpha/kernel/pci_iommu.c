@@ -31,7 +31,6 @@
 #endif
 
 #define DEBUG_NODIRECT 0
-#define DEBUG_FORCEDAC 0
 
 #define ISA_DMA_MASK		0x00ffffff
 
@@ -126,39 +125,66 @@ iommu_arena_new(struct pci_controller *hose, dma_addr_t base,
 	return iommu_arena_new_node(0, hose, base, window_size, align);
 }
 
+static inline int is_span_boundary(unsigned int index, unsigned int nr,
+				   unsigned long shift,
+				   unsigned long boundary_size)
+{
+	shift = (shift + index) & (boundary_size - 1);
+	return shift + nr > boundary_size;
+}
+
 /* Must be called with the arena lock held */
 static long
-iommu_arena_find_pages(struct pci_iommu_arena *arena, long n, long mask)
+iommu_arena_find_pages(struct device *dev, struct pci_iommu_arena *arena,
+		       long n, long mask)
 {
 	unsigned long *ptes;
 	long i, p, nent;
+	int pass = 0;
+	unsigned long base;
+	unsigned long boundary_size;
+
+	base = arena->dma_base >> PAGE_SHIFT;
+	if (dev) {
+		boundary_size = dma_get_seg_boundary(dev) + 1;
+		BUG_ON(!is_power_of_2(boundary_size));
+		boundary_size >>= PAGE_SHIFT;
+	} else {
+		boundary_size = 1UL << (32 - PAGE_SHIFT);
+	}
 
 	/* Search forward for the first mask-aligned sequence of N free ptes */
 	ptes = arena->ptes;
 	nent = arena->size >> PAGE_SHIFT;
-	p = (arena->next_entry + mask) & ~mask;
+	p = ALIGN(arena->next_entry, mask + 1);
 	i = 0;
+
+again:
 	while (i < n && p+i < nent) {
+		if (!i && is_span_boundary(p, n, base, boundary_size)) {
+			p = ALIGN(p + 1, mask + 1);
+			goto again;
+		}
+
 		if (ptes[p+i])
-			p = (p + i + 1 + mask) & ~mask, i = 0;
+			p = ALIGN(p + i + 1, mask + 1), i = 0;
 		else
 			i = i + 1;
 	}
 
 	if (i < n) {
-                /* Reached the end.  Flush the TLB and restart the
-                   search from the beginning.  */
-		alpha_mv.mv_pci_tbi(arena->hose, 0, -1);
+		if (pass < 1) {
+			/*
+			 * Reached the end.  Flush the TLB and restart
+			 * the search from the beginning.
+			*/
+			alpha_mv.mv_pci_tbi(arena->hose, 0, -1);
 
-		p = 0, i = 0;
-		while (i < n && p+i < nent) {
-			if (ptes[p+i])
-				p = (p + i + 1 + mask) & ~mask, i = 0;
-			else
-				i = i + 1;
-		}
-
-		if (i < n)
+			pass++;
+			p = 0;
+			i = 0;
+			goto again;
+		} else
 			return -1;
 	}
 
@@ -168,7 +194,8 @@ iommu_arena_find_pages(struct pci_iommu_arena *arena, long n, long mask)
 }
 
 static long
-iommu_arena_alloc(struct pci_iommu_arena *arena, long n, unsigned int align)
+iommu_arena_alloc(struct device *dev, struct pci_iommu_arena *arena, long n,
+		  unsigned int align)
 {
 	unsigned long flags;
 	unsigned long *ptes;
@@ -179,7 +206,7 @@ iommu_arena_alloc(struct pci_iommu_arena *arena, long n, unsigned int align)
 	/* Search for N empty ptes */
 	ptes = arena->ptes;
 	mask = max(align, arena->align_entry) - 1;
-	p = iommu_arena_find_pages(arena, n, mask);
+	p = iommu_arena_find_pages(dev, arena, n, mask);
 	if (p < 0) {
 		spin_unlock_irqrestore(&arena->lock, flags);
 		return -1;
@@ -229,6 +256,7 @@ pci_map_single_1(struct pci_dev *pdev, void *cpu_addr, size_t size,
 	unsigned long paddr;
 	dma_addr_t ret;
 	unsigned int align = 0;
+	struct device *dev = pdev ? &pdev->dev : NULL;
 
 	paddr = __pa(cpu_addr);
 
@@ -276,7 +304,7 @@ pci_map_single_1(struct pci_dev *pdev, void *cpu_addr, size_t size,
 	/* Force allocation to 64KB boundary for ISA bridges. */
 	if (pdev && pdev == isa_bridge)
 		align = 8;
-	dma_ofs = iommu_arena_alloc(arena, npages, align);
+	dma_ofs = iommu_arena_alloc(dev, arena, npages, align);
 	if (dma_ofs < 0) {
 		printk(KERN_WARNING "pci_map_single failed: "
 		       "could not allocate dma page tables\n");
@@ -563,7 +591,7 @@ sg_fill(struct device *dev, struct scatterlist *leader, struct scatterlist *end,
 
 	paddr &= ~PAGE_MASK;
 	npages = calc_npages(paddr + size);
-	dma_ofs = iommu_arena_alloc(arena, npages, 0);
+	dma_ofs = iommu_arena_alloc(dev, arena, npages, 0);
 	if (dma_ofs < 0) {
 		/* If we attempted a direct map above but failed, die.  */
 		if (leader->dma_address == 0)
@@ -830,7 +858,7 @@ iommu_reserve(struct pci_iommu_arena *arena, long pg_count, long align_mask)
 
 	/* Search for N empty ptes.  */
 	ptes = arena->ptes;
-	p = iommu_arena_find_pages(arena, pg_count, align_mask);
+	p = iommu_arena_find_pages(NULL, arena, pg_count, align_mask);
 	if (p < 0) {
 		spin_unlock_irqrestore(&arena->lock, flags);
 		return -1;

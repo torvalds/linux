@@ -76,9 +76,11 @@ static int __init ircomm_init(void)
 
 #ifdef CONFIG_PROC_FS
 	{ struct proc_dir_entry *ent;
-	ent = create_proc_entry("ircomm", 0, proc_irda);
-	if (ent)
-		ent->proc_fops = &ircomm_proc_fops;
+	ent = proc_create("ircomm", 0, proc_irda, &ircomm_proc_fops);
+	if (!ent) {
+		printk(KERN_ERR "ircomm_init: can't create /proc entry!\n");
+		return -ENODEV;
+	}
 	}
 #endif /* CONFIG_PROC_FS */
 

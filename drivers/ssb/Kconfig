@@ -35,6 +35,11 @@ config SSB_PCIHOST
 
 	  If unsure, say Y
 
+config SSB_B43_PCI_BRIDGE
+	bool
+	depends on SSB_PCIHOST
+	default n
+
 config SSB_PCMCIAHOST_POSSIBLE
 	bool
 	depends on SSB && (PCMCIA = y || PCMCIA = SSB) && EXPERIMENTAL

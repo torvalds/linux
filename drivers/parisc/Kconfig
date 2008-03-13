@@ -103,6 +103,11 @@ config IOMMU_SBA
 	depends on PCI_LBA
 	default PCI_LBA
 
+config IOMMU_HELPER
+	bool
+	depends on IOMMU_SBA || IOMMU_CCIO
+	default y
+
 #config PCI_EPIC
 #	bool "EPIC/SAGA PCI support"
 #	depends on PCI

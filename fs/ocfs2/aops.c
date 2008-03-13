@@ -257,7 +257,7 @@ static int ocfs2_readpage_inline(struct inode *inode, struct page *page)
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	BUG_ON(!PageLocked(page));
-	BUG_ON(!OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL);
+	BUG_ON(!(OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL));
 
 	ret = ocfs2_read_block(osb, OCFS2_I(inode)->ip_blkno, &di_bh,
 			       OCFS2_BH_CACHED, inode);

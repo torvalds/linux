@@ -56,7 +56,7 @@ lshift(__u32 x, int s)
 
 /* this applies md4 to 64 byte chunks */
 static void
-mdfour64(__u32 * M, __u32 * A, __u32 *B, __u32 * C, __u32 *D)
+mdfour64(__u32 *M, __u32 *A, __u32 *B, __u32 *C, __u32 *D)
 {
 	int j;
 	__u32 AA, BB, CC, DD;
@@ -137,7 +137,7 @@ mdfour64(__u32 * M, __u32 * A, __u32 *B, __u32 * C, __u32 *D)
 }
 
 static void
-copy64(__u32 * M, unsigned char *in)
+copy64(__u32 *M, unsigned char *in)
 {
 	int i;
 

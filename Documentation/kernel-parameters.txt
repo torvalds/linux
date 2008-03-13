@@ -712,7 +712,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: <cyl>,<head>,<sect>
 
 	hd?=		[HW] (E)IDE subsystem
-	hd?lun=		See Documentation/ide.txt.
+	hd?lun=		See Documentation/ide/ide.txt.
 
 	highmem=nn[KMG]	[KNL,BOOT] forces the highmem zone to have an exact
 			size of <nn>. This works even on boxes that have no
@@ -766,14 +766,14 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	ide=		[HW] (E)IDE subsystem
 			Format: ide=nodma or ide=doubler or ide=reverse
-			See Documentation/ide.txt.
+			See Documentation/ide/ide.txt.
 
 	ide?=		[HW] (E)IDE subsystem
 			Format: ide?=noprobe or chipset specific parameters.
-			See Documentation/ide.txt.
+			See Documentation/ide/ide.txt.
 
 	idebus=		[HW] (E)IDE subsystem - VLB/PCI bus speed
-			See Documentation/ide.txt.
+			See Documentation/ide/ide.txt.
 
 	idle=		[X86]
 			Format: idle=poll or idle=mwait

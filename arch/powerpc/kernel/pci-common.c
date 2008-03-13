@@ -748,7 +748,13 @@ static void __devinit pcibios_fixup_resources(struct pci_dev *dev)
 		struct resource *res = dev->resource + i;
 		if (!res->flags)
 			continue;
-		if (res->end == 0xffffffff) {
+		/* On platforms that have PPC_PCI_PROBE_ONLY set, we don't
+		 * consider 0 as an unassigned BAR value. It's technically
+		 * a valid value, but linux doesn't like it... so when we can
+		 * re-assign things, we do so, but if we can't, we keep it
+		 * around and hope for the best...
+		 */
+		if (res->start == 0 && !(ppc_pci_flags & PPC_PCI_PROBE_ONLY)) {
 			pr_debug("PCI:%s Resource %d %016llx-%016llx [%x] is unassigned\n",
 				 pci_name(dev), i,
 				 (unsigned long long)res->start,

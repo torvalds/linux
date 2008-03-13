@@ -146,7 +146,9 @@ static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	scratch = *per_cpu_ptr(ipcomp6_scratches, cpu);
 	tfm = *per_cpu_ptr(ipcd->tfms, cpu);
 
+	local_bh_disable();
 	err = crypto_comp_compress(tfm, start, plen, scratch, &dlen);
+	local_bh_enable();
 	if (err || (dlen + sizeof(*ipch)) >= plen) {
 		put_cpu();
 		goto out_ok;

@@ -53,11 +53,11 @@ extern int SendReceiveNoRsp(const unsigned int xid, struct cifsSesInfo *ses,
 extern int SendReceive2(const unsigned int /* xid */ , struct cifsSesInfo *,
 			struct kvec *, int /* nvec to send */,
 			int * /* type of buf returned */ , const int flags);
-extern int SendReceiveBlockingLock(const unsigned int /* xid */ ,
-					struct cifsTconInfo *,
-				struct smb_hdr * /* input */ ,
-				struct smb_hdr * /* out */ ,
-				int * /* bytes returned */);
+extern int SendReceiveBlockingLock(const unsigned int xid,
+			struct cifsTconInfo *ptcon,
+			struct smb_hdr *in_buf ,
+			struct smb_hdr *out_buf,
+			int *bytes_returned);
 extern int checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length);
 extern int is_valid_oplock_break(struct smb_hdr *smb, struct TCP_Server_Info *);
 extern int is_size_safe_to_change(struct cifsInodeInfo *, __u64 eof);
@@ -84,7 +84,7 @@ extern __u16 GetNextMid(struct TCP_Server_Info *server);
 extern struct oplock_q_entry *AllocOplockQEntry(struct inode *, u16,
 						 struct cifsTconInfo *);
 extern void DeleteOplockQEntry(struct oplock_q_entry *);
-extern struct timespec cifs_NTtimeToUnix(u64 /* utc nanoseconds since 1601 */ );
+extern struct timespec cifs_NTtimeToUnix(u64 utc_nanoseconds_since_1601);
 extern u64 cifs_UnixTimeToNT(struct timespec);
 extern __le64 cnvrtDosCifsTm(__u16 date, __u16 time);
 extern struct timespec cnvrtDosUnixTm(__u16 date, __u16 time);
@@ -104,7 +104,11 @@ extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,
 extern int cifs_umount(struct super_block *, struct cifs_sb_info *);
 #ifdef CONFIG_CIFS_DFS_UPCALL
 extern void dfs_shrink_umount_helper(struct vfsmount *vfsmnt);
-#endif
+#else
+static inline void dfs_shrink_umount_helper(struct vfsmount *vfsmnt)
+{
+}
+#endif /* DFS_UPCALL */
 void cifs_proc_init(void);
 void cifs_proc_clean(void);
 
@@ -175,11 +179,11 @@ extern int CIFSSMBQFSPosixInfo(const int xid, struct cifsTconInfo *tcon,
 			struct kstatfs *FSData);
 
 extern int CIFSSMBSetTimes(const int xid, struct cifsTconInfo *tcon,
-			const char *fileName, const FILE_BASIC_INFO * data,
+			const char *fileName, const FILE_BASIC_INFO *data,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
 extern int CIFSSMBSetFileTimes(const int xid, struct cifsTconInfo *tcon,
-			const FILE_BASIC_INFO * data, __u16 fid);
+			const FILE_BASIC_INFO *data, __u16 fid);
 #if 0
 extern int CIFSSMBSetAttrLegacy(int xid, struct cifsTconInfo *tcon,
 			char *fileName, __u16 dos_attributes,

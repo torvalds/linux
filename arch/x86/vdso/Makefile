@@ -50,7 +50,9 @@ obj-$(VDSO64-y)			+= vdso-syms.lds
 sed-vdsosym := -e 's/^00*/0/' \
 	-e 's/^\([0-9a-fA-F]*\) . \(VDSO[a-zA-Z0-9_]*\)$$/\2 = 0x\1;/p'
 quiet_cmd_vdsosym = VDSOSYM $@
-      cmd_vdsosym = $(NM) $< | sed -n $(sed-vdsosym) | LC_ALL=C sort > $@
+define cmd_vdsosym
+	$(NM) $< | LC_ALL=C sed -n $(sed-vdsosym) | LC_ALL=C sort > $@
+endef
 
 $(obj)/%-syms.lds: $(obj)/%.so.dbg FORCE
 	$(call if_changed,vdsosym)

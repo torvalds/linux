@@ -132,12 +132,11 @@ void sctp_dbg_objcnt_init(void)
 {
 	struct proc_dir_entry *ent;
 
-	ent = create_proc_entry("sctp_dbg_objcnt", 0, proc_net_sctp);
+	ent = proc_create("sctp_dbg_objcnt", 0,
+			  proc_net_sctp, &sctp_objcnt_ops);
 	if (!ent)
 		printk(KERN_WARNING
 			"sctp_dbg_objcnt: Unable to create /proc entry.\n");
-	else
-		ent->proc_fops = &sctp_objcnt_ops;
 }
 
 /* Cleanup the objcount entry in the proc filesystem.  */

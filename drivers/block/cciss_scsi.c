@@ -1404,20 +1404,17 @@ cciss_engage_scsi(int ctlr)
 }
 
 static void
-cciss_proc_tape_report(int ctlr, unsigned char *buffer, off_t *pos, off_t *len)
+cciss_seq_tape_report(struct seq_file *seq, int ctlr)
 {
 	unsigned long flags;
-	int size;
-
-	*pos = *pos -1; *len = *len - 1; // cut off the last trailing newline
 
 	CPQ_TAPE_LOCK(ctlr, flags);
-	size = sprintf(buffer + *len, 
+	seq_printf(seq,
 		"Sequential access devices: %d\n\n",
 			ccissscsi[ctlr].ndevices);
 	CPQ_TAPE_UNLOCK(ctlr, flags);
-	*pos += size; *len += size;
 }
+
 
 /* Need at least one of these error handlers to keep ../scsi/hosts.c from 
  * complaining.  Doing a host- or bus-reset can't do anything good here. 
@@ -1498,6 +1495,5 @@ static int  cciss_eh_abort_handler(struct scsi_cmnd *scsicmd)
 #define cciss_scsi_setup(cntl_num)
 #define cciss_unregister_scsi(ctlr)
 #define cciss_register_scsi(ctlr)
-#define cciss_proc_tape_report(ctlr, buffer, pos, len)
 
 #endif /* CONFIG_CISS_SCSI_TAPE */

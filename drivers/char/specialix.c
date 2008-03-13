@@ -2109,7 +2109,6 @@ static void sx_throttle(struct tty_struct * tty)
 	sx_out(bp, CD186x_CAR, port_No(port));
 	spin_unlock_irqrestore(&bp->lock, flags);
 	if (I_IXOFF(tty)) {
-		spin_unlock_irqrestore(&bp->lock, flags);
 		sx_wait_CCR(bp);
 		spin_lock_irqsave(&bp->lock, flags);
 		sx_out(bp, CD186x_CCR, CCR_SSCH2);

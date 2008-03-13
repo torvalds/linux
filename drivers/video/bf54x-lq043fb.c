@@ -8,7 +8,7 @@
  *
  *
  * Modified:
- *               Copyright 2004-2007 Analog Devices Inc.
+ *               Copyright 2007-2008 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
@@ -241,7 +241,7 @@ static int request_ports(struct bfin_bf54xfb_info *fbi)
 	u16 eppi_req_18[] = EPPI0_18;
 	u16 disp = fbi->mach_info->disp;
 
-	if (gpio_request(disp, NULL)) {
+	if (gpio_request(disp, DRIVER_NAME)) {
 		printk(KERN_ERR "Requesting GPIO %d faild\n", disp);
 		return -EFAULT;
 	}
@@ -672,7 +672,7 @@ static int __init bfin_bf54x_probe(struct platform_device *pdev)
 				      &bfin_lq043fb_bl_ops);
 	bl_dev->props.max_brightness = 255;
 
-	lcd_dev = lcd_device_register(DRIVER_NAME, NULL, &bfin_lcd_ops);
+	lcd_dev = lcd_device_register(DRIVER_NAME, &pdev->dev, NULL, &bfin_lcd_ops);
 	lcd_dev->props.max_contrast = 255, printk(KERN_INFO "Done.\n");
 #endif
 

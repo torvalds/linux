@@ -325,16 +325,12 @@ confused:
 }
 
 /**
- * mpage_readpages - populate an address space with some pages, and
- *                       start reads against them.
- *
+ * mpage_readpages - populate an address space with some pages & start reads against them
  * @mapping: the address_space
  * @pages: The address of a list_head which contains the target pages.  These
  *   pages have their ->index populated and are otherwise uninitialised.
- *
  *   The page at @pages->prev has the lowest file offset, and reads should be
  *   issued in @pages->prev to @pages->next order.
- *
  * @nr_pages: The number of pages at *@pages
  * @get_block: The filesystem's block mapper function.
  *
@@ -360,6 +356,7 @@ confused:
  * So an mpage read of the first 16 blocks of an ext2 file will cause I/O to be
  * submitted in the following order:
  * 	12 0 1 2 3 4 5 6 7 8 9 10 11 13 14 15 16
+ *
  * because the indirect block has to be read to get the mappings of blocks
  * 13,14,15,16.  Obviously, this impacts performance.
  *
@@ -656,9 +653,7 @@ out:
 }
 
 /**
- * mpage_writepages - walk the list of dirty pages of the given
- * address space and writepage() all of them.
- * 
+ * mpage_writepages - walk the list of dirty pages of the given address space & writepage() all of them
  * @mapping: address space structure to write
  * @wbc: subtract the number of written pages from *@wbc->nr_to_write
  * @get_block: the filesystem's block mapper function.

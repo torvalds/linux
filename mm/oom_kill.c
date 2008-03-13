@@ -412,7 +412,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 	return oom_kill_task(p);
 }
 
-#ifdef CONFIG_CGROUP_MEM_CONT
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
 void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
 {
 	unsigned long points = 0;

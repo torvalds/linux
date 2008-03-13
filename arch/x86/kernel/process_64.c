@@ -604,11 +604,13 @@ static inline void __switch_to_xtra(struct task_struct *prev_p,
 		memset(tss->io_bitmap, 0xff, prev->io_bitmap_max);
 	}
 
+#ifdef X86_BTS
 	if (test_tsk_thread_flag(prev_p, TIF_BTS_TRACE_TS))
 		ptrace_bts_take_timestamp(prev_p, BTS_TASK_DEPARTS);
 
 	if (test_tsk_thread_flag(next_p, TIF_BTS_TRACE_TS))
 		ptrace_bts_take_timestamp(next_p, BTS_TASK_ARRIVES);
+#endif
 }
 
 /*
@@ -730,16 +732,16 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
  */
 asmlinkage
 long sys_execve(char __user *name, char __user * __user *argv,
-		char __user * __user *envp, struct pt_regs regs)
+		char __user * __user *envp, struct pt_regs *regs)
 {
 	long error;
 	char * filename;
 
 	filename = getname(name);
 	error = PTR_ERR(filename);
-	if (IS_ERR(filename)) 
+	if (IS_ERR(filename))
 		return error;
-	error = do_execve(filename, argv, envp, &regs); 
+	error = do_execve(filename, argv, envp, regs);
 	putname(filename);
 	return error;
 }

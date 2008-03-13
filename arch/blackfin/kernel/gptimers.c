@@ -1,9 +1,9 @@
 /*
- * bfin_gptimers.c - derived from bf53x_timers.c
- *  Driver for General Purpose Timer functions on the Blackfin processor
+ * gptimers.c - Blackfin General Purpose Timer core API
  *
- *  Copyright (C) 2005 John DeHority
- *  Copyright (C) 2006 Hella Aglaia GmbH (awe@aglaia-gmbh.de)
+ * Copyright (c) 2005-2008 Analog Devices Inc.
+ * Copyright (C) 2005 John DeHority
+ * Copyright (C) 2006 Hella Aglaia GmbH (awe@aglaia-gmbh.de)
  *
  * Licensed under the GPLv2.
  */

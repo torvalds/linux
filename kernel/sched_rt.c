@@ -393,8 +393,6 @@ static void enqueue_task_rt(struct rq *rq, struct task_struct *p, int wakeup)
 	 */
 	for_each_sched_rt_entity(rt_se)
 		enqueue_rt_entity(rt_se);
-
-	inc_cpu_load(rq, p->se.load.weight);
 }
 
 static void dequeue_task_rt(struct rq *rq, struct task_struct *p, int sleep)
@@ -414,8 +412,6 @@ static void dequeue_task_rt(struct rq *rq, struct task_struct *p, int sleep)
 		if (rt_rq && rt_rq->rt_nr_running)
 			enqueue_rt_entity(rt_se);
 	}
-
-	dec_cpu_load(rq, p->se.load.weight);
 }
 
 /*
@@ -1111,9 +1107,11 @@ static void prio_changed_rt(struct rq *rq, struct task_struct *p,
 			pull_rt_task(rq);
 		/*
 		 * If there's a higher priority task waiting to run
-		 * then reschedule.
+		 * then reschedule. Note, the above pull_rt_task
+		 * can release the rq lock and p could migrate.
+		 * Only reschedule if p is still on the same runqueue.
 		 */
-		if (p->prio > rq->rt.highest_prio)
+		if (p->prio > rq->rt.highest_prio && rq->curr == p)
 			resched_task(p);
 #else
 		/* For UP simply resched on drop of prio */

@@ -71,7 +71,25 @@ static void enqueue_huge_page(struct page *page)
 	free_huge_pages_node[nid]++;
 }
 
-static struct page *dequeue_huge_page(struct vm_area_struct *vma,
+static struct page *dequeue_huge_page(void)
+{
+	int nid;
+	struct page *page = NULL;
+
+	for (nid = 0; nid < MAX_NUMNODES; ++nid) {
+		if (!list_empty(&hugepage_freelists[nid])) {
+			page = list_entry(hugepage_freelists[nid].next,
+					  struct page, lru);
+			list_del(&page->lru);
+			free_huge_pages--;
+			free_huge_pages_node[nid]--;
+			break;
+		}
+	}
+	return page;
+}
+
+static struct page *dequeue_huge_page_vma(struct vm_area_struct *vma,
 				unsigned long address)
 {
 	int nid;
@@ -268,6 +286,12 @@ static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
 
 	spin_lock(&hugetlb_lock);
 	if (page) {
+		/*
+		 * This page is now managed by the hugetlb allocator and has
+		 * no users -- drop the buddy allocator's reference.
+		 */
+		put_page_testzero(page);
+		VM_BUG_ON(page_count(page));
 		nid = page_to_nid(page);
 		set_compound_page_dtor(page, free_huge_page);
 		/*
@@ -296,8 +320,10 @@ static int gather_surplus_pages(int delta)
 	int needed, allocated;
 
 	needed = (resv_huge_pages + delta) - free_huge_pages;
-	if (needed <= 0)
+	if (needed <= 0) {
+		resv_huge_pages += delta;
 		return 0;
+	}
 
 	allocated = 0;
 	INIT_LIST_HEAD(&surplus_list);
@@ -335,9 +361,12 @@ retry:
 	 * The surplus_list now contains _at_least_ the number of extra pages
 	 * needed to accomodate the reservation.  Add the appropriate number
 	 * of pages to the hugetlb pool and free the extras back to the buddy
-	 * allocator.
+	 * allocator.  Commit the entire reservation here to prevent another
+	 * process from stealing the pages as they are added to the pool but
+	 * before they are reserved.
 	 */
 	needed += allocated;
+	resv_huge_pages += delta;
 	ret = 0;
 free:
 	list_for_each_entry_safe(page, tmp, &surplus_list, lru) {
@@ -346,13 +375,14 @@ free:
 			enqueue_huge_page(page);
 		else {
 			/*
-			 * Decrement the refcount and free the page using its
-			 * destructor.  This must be done with hugetlb_lock
+			 * The page has a reference count of zero already, so
+			 * call free_huge_page directly instead of using
+			 * put_page.  This must be done with hugetlb_lock
 			 * unlocked which is safe because free_huge_page takes
 			 * hugetlb_lock before deciding how to free the page.
 			 */
 			spin_unlock(&hugetlb_lock);
-			put_page(page);
+			free_huge_page(page);
 			spin_lock(&hugetlb_lock);
 		}
 	}
@@ -370,6 +400,9 @@ static void return_unused_surplus_pages(unsigned long unused_resv_pages)
 	static int nid = -1;
 	struct page *page;
 	unsigned long nr_pages;
+
+	/* Uncommit the reservation */
+	resv_huge_pages -= unused_resv_pages;
 
 	nr_pages = min(unused_resv_pages, surplus_huge_pages);
 
@@ -402,7 +435,7 @@ static struct page *alloc_huge_page_shared(struct vm_area_struct *vma,
 	struct page *page;
 
 	spin_lock(&hugetlb_lock);
-	page = dequeue_huge_page(vma, addr);
+	page = dequeue_huge_page_vma(vma, addr);
 	spin_unlock(&hugetlb_lock);
 	return page ? page : ERR_PTR(-VM_FAULT_OOM);
 }
@@ -417,7 +450,7 @@ static struct page *alloc_huge_page_private(struct vm_area_struct *vma,
 
 	spin_lock(&hugetlb_lock);
 	if (free_huge_pages > resv_huge_pages)
-		page = dequeue_huge_page(vma, addr);
+		page = dequeue_huge_page_vma(vma, addr);
 	spin_unlock(&hugetlb_lock);
 	if (!page) {
 		page = alloc_buddy_huge_page(vma, addr);
@@ -570,7 +603,7 @@ static unsigned long set_max_huge_pages(unsigned long count)
 	min_count = max(count, min_count);
 	try_to_free_low(min_count);
 	while (min_count < persistent_huge_pages) {
-		struct page *page = dequeue_huge_page(NULL, 0);
+		struct page *page = dequeue_huge_page();
 		if (!page)
 			break;
 		update_and_free_page(page);
@@ -1205,12 +1238,13 @@ static int hugetlb_acct_memory(long delta)
 		if (gather_surplus_pages(delta) < 0)
 			goto out;
 
-		if (delta > cpuset_mems_nr(free_huge_pages_node))
+		if (delta > cpuset_mems_nr(free_huge_pages_node)) {
+			return_unused_surplus_pages(delta);
 			goto out;
+		}
 	}
 
 	ret = 0;
-	resv_huge_pages += delta;
 	if (delta < 0)
 		return_unused_surplus_pages((unsigned long) -delta);
 

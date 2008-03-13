@@ -686,7 +686,7 @@ config UART0_RTS_PIN
 
 config SERIAL_BFIN_UART1
 	bool "Enable UART1"
-	depends on SERIAL_BFIN && (BF534 || BF536 || BF537 || BF54x)
+	depends on SERIAL_BFIN && (!BF531 && !BF532 && !BF533 && !BF561)
 	help
 	  Enable UART1
 
@@ -699,14 +699,14 @@ config BFIN_UART1_CTSRTS
 
 config UART1_CTS_PIN
 	int "UART1 CTS pin"
-	depends on BFIN_UART1_CTSRTS && (BF53x || BF561)
+	depends on BFIN_UART1_CTSRTS && !BF54x
 	default -1
 	help
 	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.
 
 config UART1_RTS_PIN
 	int "UART1 RTS pin"
-	depends on BFIN_UART1_CTSRTS && (BF53x || BF561)
+	depends on BFIN_UART1_CTSRTS && !BF54x
 	default -1
 	help
 	  Refer to ./include/asm-blackfin/gpio.h to see the GPIO map.

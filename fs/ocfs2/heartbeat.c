@@ -49,10 +49,15 @@ static inline void __ocfs2_node_map_set_bit(struct ocfs2_node_map *map,
 static inline void __ocfs2_node_map_clear_bit(struct ocfs2_node_map *map,
 					      int bit);
 static inline int __ocfs2_node_map_is_empty(struct ocfs2_node_map *map);
-static void __ocfs2_node_map_dup(struct ocfs2_node_map *target,
-				 struct ocfs2_node_map *from);
-static void __ocfs2_node_map_set(struct ocfs2_node_map *target,
-				 struct ocfs2_node_map *from);
+
+/* special case -1 for now
+ * TODO: should *really* make sure the calling func never passes -1!!  */
+static void ocfs2_node_map_init(struct ocfs2_node_map *map)
+{
+	map->num_nodes = OCFS2_NODE_MAP_MAX_NODES;
+	memset(map->map, 0, BITS_TO_LONGS(OCFS2_NODE_MAP_MAX_NODES) *
+	       sizeof(unsigned long));
+}
 
 void ocfs2_init_node_maps(struct ocfs2_super *osb)
 {
@@ -136,15 +141,6 @@ void ocfs2_stop_heartbeat(struct ocfs2_super *osb)
 		mlog_errno(ret);
 }
 
-/* special case -1 for now
- * TODO: should *really* make sure the calling func never passes -1!!  */
-void ocfs2_node_map_init(struct ocfs2_node_map *map)
-{
-	map->num_nodes = OCFS2_NODE_MAP_MAX_NODES;
-	memset(map->map, 0, BITS_TO_LONGS(OCFS2_NODE_MAP_MAX_NODES) *
-	       sizeof(unsigned long));
-}
-
 static inline void __ocfs2_node_map_set_bit(struct ocfs2_node_map *map,
 					    int bit)
 {
@@ -216,6 +212,8 @@ int ocfs2_node_map_is_empty(struct ocfs2_super *osb,
 	return ret;
 }
 
+#if 0
+
 static void __ocfs2_node_map_dup(struct ocfs2_node_map *target,
 				 struct ocfs2_node_map *from)
 {
@@ -253,6 +251,8 @@ static void __ocfs2_node_map_set(struct ocfs2_node_map *target,
 	for (i = 0; i < num_longs; i++)
 		target->map[i] = from->map[i];
 }
+
+#endif  /*  0  */
 
 /* Returns whether the recovery bit was actually set - it may not be
  * if a node is still marked as needing recovery */

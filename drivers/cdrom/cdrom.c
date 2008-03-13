@@ -1152,8 +1152,8 @@ clean_up_and_return:
 /* This code is similar to that in open_for_data. The routine is called
    whenever an audio play operation is requested.
 */
-int check_for_audio_disc(struct cdrom_device_info * cdi,
-			 struct cdrom_device_ops * cdo)
+static int check_for_audio_disc(struct cdrom_device_info * cdi,
+				struct cdrom_device_ops * cdo)
 {
         int ret;
 	tracktype tracks;

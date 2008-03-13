@@ -153,6 +153,7 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 	if (*ax == 1)
 		maskedx = ~((1 << X86_FEATURE_APIC) |  /* disable APIC */
 			    (1 << X86_FEATURE_ACPI) |  /* disable ACPI */
+			    (1 << X86_FEATURE_SEP)  |  /* disable SEP */
 			    (1 << X86_FEATURE_ACC));   /* thermal monitoring */
 
 	asm(XEN_EMULATE_PREFIX "cpuid"

@@ -89,6 +89,7 @@ static int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
 	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)ptr;
 	struct sctp_sockaddr_entry *addr = NULL;
 	struct sctp_sockaddr_entry *temp;
+	int found = 0;
 
 	switch (ev) {
 	case NETDEV_UP:
@@ -111,13 +112,14 @@ static int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
 					&sctp_local_addr_list, list) {
 			if (ipv6_addr_equal(&addr->a.v6.sin6_addr,
 					     &ifa->addr)) {
+				found = 1;
 				addr->valid = 0;
 				list_del_rcu(&addr->list);
 				break;
 			}
 		}
 		spin_unlock_bh(&sctp_local_addr_lock);
-		if (addr && !addr->valid)
+		if (found)
 			call_rcu(&addr->rcu, sctp_local_addr_free);
 		break;
 	}
@@ -966,7 +968,7 @@ static struct inet6_protocol sctpv6_protocol = {
 	.flags        = INET6_PROTO_NOPOLICY | INET6_PROTO_FINAL,
 };
 
-static struct sctp_af sctp_ipv6_specific = {
+static struct sctp_af sctp_af_inet6 = {
 	.sa_family	   = AF_INET6,
 	.sctp_xmit	   = sctp_v6_xmit,
 	.setsockopt	   = ipv6_setsockopt,
@@ -998,7 +1000,7 @@ static struct sctp_af sctp_ipv6_specific = {
 #endif
 };
 
-static struct sctp_pf sctp_pf_inet6_specific = {
+static struct sctp_pf sctp_pf_inet6 = {
 	.event_msgname = sctp_inet6_event_msgname,
 	.skb_msgname   = sctp_inet6_skb_msgname,
 	.af_supported  = sctp_inet6_af_supported,
@@ -1008,7 +1010,7 @@ static struct sctp_pf sctp_pf_inet6_specific = {
 	.supported_addrs = sctp_inet6_supported_addrs,
 	.create_accept_sk = sctp_v6_create_accept_sk,
 	.addr_v4map    = sctp_v6_addr_v4map,
-	.af            = &sctp_ipv6_specific,
+	.af            = &sctp_af_inet6,
 };
 
 /* Initialize IPv6 support and register with socket layer.  */
@@ -1017,10 +1019,10 @@ int sctp_v6_init(void)
 	int rc;
 
 	/* Register the SCTP specific PF_INET6 functions. */
-	sctp_register_pf(&sctp_pf_inet6_specific, PF_INET6);
+	sctp_register_pf(&sctp_pf_inet6, PF_INET6);
 
 	/* Register the SCTP specific AF_INET6 functions. */
-	sctp_register_af(&sctp_ipv6_specific);
+	sctp_register_af(&sctp_af_inet6);
 
 	rc = proto_register(&sctpv6_prot, 1);
 	if (rc)
@@ -1051,7 +1053,7 @@ void sctp_v6_exit(void)
 	inet6_unregister_protosw(&sctpv6_seqpacket_protosw);
 	inet6_unregister_protosw(&sctpv6_stream_protosw);
 	proto_unregister(&sctpv6_prot);
-	list_del(&sctp_ipv6_specific.list);
+	list_del(&sctp_af_inet6.list);
 }
 
 /* Unregister with inet6 layer. */

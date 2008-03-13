@@ -215,7 +215,8 @@ static int corgi_set_spk(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static int corgi_amp_event(struct snd_soc_dapm_widget *w, int event)
+static int corgi_amp_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *k, int event)
 {
 	if (SND_SOC_DAPM_EVENT_ON(event))
 		set_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_APM_ON);
@@ -225,7 +226,8 @@ static int corgi_amp_event(struct snd_soc_dapm_widget *w, int event)
 	return 0;
 }
 
-static int corgi_mic_event(struct snd_soc_dapm_widget *w, int event)
+static int corgi_mic_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *k, int event)
 {
 	if (SND_SOC_DAPM_EVENT_ON(event))
 		set_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_MIC_BIAS);

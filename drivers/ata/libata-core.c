@@ -106,14 +106,15 @@ static struct ata_force_ent *ata_force_tbl;
 static int ata_force_tbl_size;
 
 static char ata_force_param_buf[PAGE_SIZE] __initdata;
-module_param_string(force, ata_force_param_buf, sizeof(ata_force_param_buf), 0444);
+/* param_buf is thrown away after initialization, disallow read */
+module_param_string(force, ata_force_param_buf, sizeof(ata_force_param_buf), 0);
 MODULE_PARM_DESC(force, "Force ATA configurations including cable type, link speed and transfer mode (see Documentation/kernel-parameters.txt for details)");
 
 int atapi_enabled = 1;
 module_param(atapi_enabled, int, 0444);
 MODULE_PARM_DESC(atapi_enabled, "Enable discovery of ATAPI devices (0=off, 1=on)");
 
-int atapi_dmadir = 0;
+static int atapi_dmadir = 0;
 module_param(atapi_dmadir, int, 0444);
 MODULE_PARM_DESC(atapi_dmadir, "Enable ATAPI DMADIR bridge support (0=off, 1=on)");
 
@@ -1719,7 +1720,7 @@ void ata_port_flush_task(struct ata_port *ap)
 	cancel_rearming_delayed_work(&ap->port_task);
 
 	if (ata_msg_ctl(ap))
-		ata_port_printk(ap, KERN_DEBUG, "%s: EXIT\n", __FUNCTION__);
+		ata_port_printk(ap, KERN_DEBUG, "%s: EXIT\n", __func__);
 }
 
 static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
@@ -2056,7 +2057,7 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	int rc;
 
 	if (ata_msg_ctl(ap))
-		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER\n", __FUNCTION__);
+		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER\n", __func__);
 
 	ata_dev_select(ap, dev->devno, 1, 1); /* select device 0/1 */
  retry:
@@ -2253,12 +2254,12 @@ int ata_dev_configure(struct ata_device *dev)
 
 	if (!ata_dev_enabled(dev) && ata_msg_info(ap)) {
 		ata_dev_printk(dev, KERN_INFO, "%s: ENTER/EXIT -- nodev\n",
-			       __FUNCTION__);
+			       __func__);
 		return 0;
 	}
 
 	if (ata_msg_probe(ap))
-		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER\n", __FUNCTION__);
+		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER\n", __func__);
 
 	/* set horkage */
 	dev->horkage |= ata_dev_blacklisted(dev);
@@ -2279,7 +2280,7 @@ int ata_dev_configure(struct ata_device *dev)
 		ata_dev_printk(dev, KERN_DEBUG,
 			       "%s: cfg 49:%04x 82:%04x 83:%04x 84:%04x "
 			       "85:%04x 86:%04x 87:%04x 88:%04x\n",
-			       __FUNCTION__,
+			       __func__,
 			       id[49], id[82], id[83], id[84],
 			       id[85], id[86], id[87], id[88]);
 
@@ -2511,13 +2512,13 @@ int ata_dev_configure(struct ata_device *dev)
 
 	if (ata_msg_probe(ap))
 		ata_dev_printk(dev, KERN_DEBUG, "%s: EXIT, drv_stat = 0x%x\n",
-			__FUNCTION__, ata_chk_status(ap));
+			__func__, ata_chk_status(ap));
 	return 0;
 
 err_out_nosup:
 	if (ata_msg_probe(ap))
 		ata_dev_printk(dev, KERN_DEBUG,
-			       "%s: EXIT, err\n", __FUNCTION__);
+			       "%s: EXIT, err\n", __func__);
 	return rc;
 }
 
@@ -6567,6 +6568,8 @@ int ata_host_suspend(struct ata_host *host, pm_message_t mesg)
 	ata_lpm_enable(host);
 
 	rc = ata_host_request_pm(host, mesg, 0, ATA_EHI_QUIET, 1);
+	if (rc == 0)
+		host->dev->power.power_state = mesg;
 	return rc;
 }
 
@@ -6585,6 +6588,7 @@ void ata_host_resume(struct ata_host *host)
 {
 	ata_host_request_pm(host, PMSG_ON, ATA_EH_SOFTRESET,
 			    ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET, 0);
+	host->dev->power.power_state = PMSG_ON;
 
 	/* reenable link pm */
 	ata_lpm_disable(host);

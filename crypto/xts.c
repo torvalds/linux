@@ -77,16 +77,16 @@ static int setkey(struct crypto_tfm *parent, const u8 *key,
 }
 
 struct sinfo {
-	be128 t;
+	be128 *t;
 	struct crypto_tfm *tfm;
 	void (*fn)(struct crypto_tfm *, u8 *, const u8 *);
 };
 
 static inline void xts_round(struct sinfo *s, void *dst, const void *src)
 {
-	be128_xor(dst, &s->t, src);		/* PP <- T xor P */
+	be128_xor(dst, s->t, src);		/* PP <- T xor P */
 	s->fn(s->tfm, dst, dst);		/* CC <- E(Key1,PP) */
-	be128_xor(dst, dst, &s->t);		/* C <- T xor CC */
+	be128_xor(dst, dst, s->t);		/* C <- T xor CC */
 }
 
 static int crypt(struct blkcipher_desc *d,
@@ -101,7 +101,6 @@ static int crypt(struct blkcipher_desc *d,
 		.tfm = crypto_cipher_tfm(ctx->child),
 		.fn = fn
 	};
-	be128 *iv;
 	u8 *wsrc;
 	u8 *wdst;
 
@@ -109,20 +108,20 @@ static int crypt(struct blkcipher_desc *d,
 	if (!w->nbytes)
 		return err;
 
+	s.t = (be128 *)w->iv;
 	avail = w->nbytes;
 
 	wsrc = w->src.virt.addr;
 	wdst = w->dst.virt.addr;
 
 	/* calculate first value of T */
-	iv = (be128 *)w->iv;
-	tw(crypto_cipher_tfm(ctx->tweak), (void *)&s.t, w->iv);
+	tw(crypto_cipher_tfm(ctx->tweak), w->iv, w->iv);
 
 	goto first;
 
 	for (;;) {
 		do {
-			gf128mul_x_ble(&s.t, &s.t);
+			gf128mul_x_ble(s.t, s.t);
 
 first:
 			xts_round(&s, wdst, wsrc);

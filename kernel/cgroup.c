@@ -2232,7 +2232,6 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 
 	mutex_lock(&cgroup_mutex);
 
-	cgrp->flags = 0;
 	INIT_LIST_HEAD(&cgrp->sibling);
 	INIT_LIST_HEAD(&cgrp->children);
 	INIT_LIST_HEAD(&cgrp->css_sets);
@@ -2241,6 +2240,9 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	cgrp->parent = parent;
 	cgrp->root = parent->root;
 	cgrp->top_cgroup = parent->top_cgroup;
+
+	if (notify_on_release(parent))
+		set_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
 
 	for_each_subsys(root, ss) {
 		struct cgroup_subsys_state *css = ss->create(ss, cgrp);

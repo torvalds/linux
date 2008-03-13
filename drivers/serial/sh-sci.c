@@ -41,6 +41,7 @@
 #include <linux/delay.h>
 #include <linux/console.h>
 #include <linux/platform_device.h>
+#include <linux/serial_sci.h>
 
 #ifdef CONFIG_CPU_FREQ
 #include <linux/notifier.h>
@@ -54,7 +55,6 @@
 #include <asm/kgdb.h>
 #endif
 
-#include <asm/sci.h>
 #include "sh-sci.h"
 
 struct sci_port {

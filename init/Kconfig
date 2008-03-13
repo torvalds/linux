@@ -366,10 +366,29 @@ config RESOURCE_COUNTERS
           infrastructure that works with cgroups
 	depends on CGROUPS
 
+config CGROUP_MEM_RES_CTLR
+	bool "Memory Resource Controller for Control Groups"
+	depends on CGROUPS && RESOURCE_COUNTERS
+	help
+	  Provides a memory resource controller that manages both page cache and
+	  RSS memory.
+
+	  Note that setting this option increases fixed memory overhead
+	  associated with each page of memory in the system by 4/8 bytes
+	  and also increases cache misses because struct page on many 64bit
+	  systems will not fit into a single cache line anymore.
+
+	  Only enable when you're ok with these trade offs and really
+	  sure you need the memory resource controller.
+
 config SYSFS_DEPRECATED
+	bool
+
+config SYSFS_DEPRECATED_V2
 	bool "Create deprecated sysfs files"
 	depends on SYSFS
 	default y
+	select SYSFS_DEPRECATED
 	help
 	  This option creates deprecated symlinks such as the
 	  "device"-link, the <subsystem>:<name>-link, and the
@@ -382,25 +401,11 @@ config SYSFS_DEPRECATED
 
 	  If enabled, this option will also move any device structures
 	  that belong to a class, back into the /sys/class hierarchy, in
-	  order to support older versions of udev.
+	  order to support older versions of udev and some userspace
+	  programs.
 
-	  If you are using a distro that was released in 2006 or later,
-	  it should be safe to say N here.
-
-config CGROUP_MEM_CONT
-	bool "Memory controller for cgroups"
-	depends on CGROUPS && RESOURCE_COUNTERS
-	help
-	  Provides a memory controller that manages both page cache and
-	  RSS memory.
-
-	  Note that setting this option increases fixed memory overhead
-	  associated with each page of memory in the system by 4/8 bytes
-	  and also increases cache misses because struct page on many 64bit
-	  systems will not fit into a single cache line anymore.
-
-	  Only enable when you're ok with these trade offs and really
-	  sure you need the memory controller.
+	  If you are using a distro with the most recent userspace
+	  packages, it should be safe to say N here.
 
 config PROC_PID_CPUSET
 	bool "Include legacy /proc/<pid>/cpuset file"
@@ -860,38 +865,10 @@ source "block/Kconfig"
 config PREEMPT_NOTIFIERS
 	bool
 
-choice
-	prompt "RCU implementation type:"
-	default CLASSIC_RCU
-	help
-	  This allows you to choose either the classic RCU implementation
-	  that is designed for best read-side performance on non-realtime
-	  systems, or the preemptible RCU implementation for best latency
-	  on realtime systems.  Note that some kernel preemption modes
-	  will restrict your choice.
-
-	  Select the default if you are unsure.
-
 config CLASSIC_RCU
-	bool "Classic RCU"
+	def_bool !PREEMPT_RCU
 	help
 	  This option selects the classic RCU implementation that is
 	  designed for best read-side performance on non-realtime
-	  systems.
-
-	  Say Y if you are unsure.
-
-config PREEMPT_RCU
-	bool "Preemptible RCU"
-	depends on PREEMPT
-	help
-	  This option reduces the latency of the kernel by making certain
-	  RCU sections preemptible. Normally RCU code is non-preemptible, if
-	  this option is selected then read-only RCU sections become
-	  preemptible. This helps latency, but may expose bugs due to
-	  now-naive assumptions about each RCU read-side critical section
-	  remaining on a given CPU through its execution.
-
-	  Say N if you are unsure.
-
-endchoice
+	  systems.  Classic RCU is the default.  Note that the
+	  PREEMPT_RCU symbol is used to select/deselect this option.

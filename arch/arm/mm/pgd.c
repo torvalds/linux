@@ -75,7 +75,7 @@ no_pgd:
 void free_pgd_slow(struct mm_struct *mm, pgd_t *pgd)
 {
 	pmd_t *pmd;
-	struct page *pte;
+	pgtable_t pte;
 
 	if (!pgd)
 		return;
@@ -90,10 +90,8 @@ void free_pgd_slow(struct mm_struct *mm, pgd_t *pgd)
 		goto free;
 	}
 
-	pte = pmd_page(*pmd);
+	pte = pmd_pgtable(*pmd);
 	pmd_clear(pmd);
-	dec_zone_page_state(virt_to_page((unsigned long *)pgd), NR_PAGETABLE);
-	pte_lock_deinit(pte);
 	pte_free(mm, pte);
 	pmd_free(mm, pmd);
 free:

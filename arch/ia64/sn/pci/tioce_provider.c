@@ -494,7 +494,7 @@ tioce_dma_unmap(struct pci_dev *pdev, dma_addr_t bus_addr, int dir)
 		if (&map->ce_dmamap_list == &ce_kern->ce_dmamap_list) {
 			printk(KERN_WARNING
 			       "%s:  %s - no map found for bus_addr 0x%lx\n",
-			       __FUNCTION__, pci_name(pdev), bus_addr);
+			       __func__, pci_name(pdev), bus_addr);
 		} else if (--map->refcnt == 0) {
 			for (i = 0; i < map->ate_count; i++) {
 				map->ate_shadow[i] = 0;
@@ -1030,7 +1030,7 @@ tioce_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 		       "%s:  Unable to get irq %d.  "
 		       "Error interrupts won't be routed for "
 		       "TIOCE bus %04x:%02x\n",
-		       __FUNCTION__, SGI_PCIASIC_ERROR,
+		       __func__, SGI_PCIASIC_ERROR,
 		       tioce_common->ce_pcibus.bs_persist_segment,
 		       tioce_common->ce_pcibus.bs_persist_busnum);
 

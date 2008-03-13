@@ -236,12 +236,12 @@ static void sas_ata_phy_reset(struct ata_port *ap)
 	struct domain_device *dev = ap->private_data;
 	struct sas_internal *i =
 		to_sas_internal(dev->port->ha->core.shost->transportt);
-	int res = 0;
+	int res = TMF_RESP_FUNC_FAILED;
 
 	if (i->dft->lldd_I_T_nexus_reset)
 		res = i->dft->lldd_I_T_nexus_reset(dev);
 
-	if (res)
+	if (res != TMF_RESP_FUNC_COMPLETE)
 		SAS_DPRINTK("%s: Unable to reset I T nexus?\n", __FUNCTION__);
 
 	switch (dev->sata_dev.command_set) {
@@ -656,21 +656,6 @@ out:
 	return res;
 }
 
-static void sas_sata_propagate_sas_addr(struct domain_device *dev)
-{
-	unsigned long flags;
-	struct asd_sas_port *port = dev->port;
-	struct asd_sas_phy  *phy;
-
-	BUG_ON(dev->parent);
-
-	memcpy(port->attached_sas_addr, dev->sas_addr, SAS_ADDR_SIZE);
-	spin_lock_irqsave(&port->phy_list_lock, flags);
-	list_for_each_entry(phy, &port->phy_list, port_phy_el)
-		memcpy(phy->attached_sas_addr, dev->sas_addr, SAS_ADDR_SIZE);
-	spin_unlock_irqrestore(&port->phy_list_lock, flags);
-}
-
 #define ATA_IDENTIFY_DEV         0xEC
 #define ATA_IDENTIFY_PACKET_DEV  0xA1
 #define ATA_SET_FEATURES         0xEF
@@ -728,26 +713,6 @@ static int sas_discover_sata_dev(struct domain_device *dev)
 			goto out_err;
 	}
 cont1:
-	/* Get WWN */
-	if (dev->port->oob_mode != SATA_OOB_MODE) {
-		memcpy(dev->sas_addr, dev->sata_dev.rps_resp.rps.stp_sas_addr,
-		       SAS_ADDR_SIZE);
-	} else if (dev->sata_dev.command_set == ATA_COMMAND_SET &&
-		   (le16_to_cpu(dev->sata_dev.identify_device[108]) & 0xF000)
-		   == 0x5000) {
-		int i;
-
-		for (i = 0; i < 4; i++) {
-			dev->sas_addr[2*i] =
-	     (le16_to_cpu(dev->sata_dev.identify_device[108+i]) & 0xFF00) >> 8;
-			dev->sas_addr[2*i+1] =
-	      le16_to_cpu(dev->sata_dev.identify_device[108+i]) & 0x00FF;
-		}
-	}
-	sas_hash_addr(dev->hashed_sas_addr, dev->sas_addr);
-	if (!dev->parent)
-		sas_sata_propagate_sas_addr(dev);
-
 	/* XXX Hint: register this SATA device with SATL.
 	   When this returns, dev->sata_dev->lu is alive and
 	   present.

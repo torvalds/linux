@@ -10,9 +10,9 @@
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/serial.h>
+#include <linux/serial_sci.h>
 #include <linux/mm.h>
 #include <asm/mmzone.h>
-#include <asm/sci.h>
 
 static struct resource usbf_resources[] = {
 	[0] = {

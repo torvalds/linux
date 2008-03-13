@@ -542,11 +542,10 @@ static __init int ip_rt_proc_init(struct net *net)
 	if (!pde)
 		goto err1;
 
-	pde = create_proc_entry("rt_cache", S_IRUGO, net->proc_net_stat);
+	pde = proc_create("rt_cache", S_IRUGO,
+			  net->proc_net_stat, &rt_cpu_seq_fops);
 	if (!pde)
 		goto err2;
-
-	pde->proc_fops = &rt_cpu_seq_fops;
 
 #ifdef CONFIG_NET_CLS_ROUTE
 	pde = create_proc_read_entry("rt_acct", 0, net->proc_net,

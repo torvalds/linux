@@ -17,6 +17,7 @@
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/ds1wm.h>
 
@@ -102,12 +103,12 @@ struct ds1wm_data {
 static inline void ds1wm_write_register(struct ds1wm_data *ds1wm_data, u32 reg,
 					u8 val)
 {
-        __raw_writeb(val, ds1wm_data->map + (reg << ds1wm_data->bus_shift));
+	__raw_writeb(val, ds1wm_data->map + (reg << ds1wm_data->bus_shift));
 }
 
 static inline u8 ds1wm_read_register(struct ds1wm_data *ds1wm_data, u32 reg)
 {
-        return __raw_readb(ds1wm_data->map + (reg << ds1wm_data->bus_shift));
+	return __raw_readb(ds1wm_data->map + (reg << ds1wm_data->bus_shift));
 }
 
 
@@ -149,8 +150,8 @@ static int ds1wm_reset(struct ds1wm_data *ds1wm_data)
 	timeleft = wait_for_completion_timeout(&reset_done, DS1WM_TIMEOUT);
 	ds1wm_data->reset_complete = NULL;
 	if (!timeleft) {
-                dev_dbg(&ds1wm_data->pdev->dev, "reset failed\n");
-                return 1;
+		dev_err(&ds1wm_data->pdev->dev, "reset failed\n");
+		return 1;
 	}
 
 	/* Wait for the end of the reset. According to the specs, the time
@@ -167,11 +168,11 @@ static int ds1wm_reset(struct ds1wm_data *ds1wm_data)
 		(ds1wm_data->active_high ? DS1WM_INTEN_IAS : 0));
 
 	if (!ds1wm_data->slave_present) {
-                dev_dbg(&ds1wm_data->pdev->dev, "reset: no devices found\n");
-                return 1;
-        }
+		dev_dbg(&ds1wm_data->pdev->dev, "reset: no devices found\n");
+		return 1;
+	}
 
-        return 0;
+	return 0;
 }
 
 static int ds1wm_write(struct ds1wm_data *ds1wm_data, u8 data)
@@ -334,7 +335,7 @@ static int ds1wm_probe(struct platform_device *pdev)
 	if (!pdev)
 		return -ENODEV;
 
-	ds1wm_data = kzalloc(sizeof (*ds1wm_data), GFP_KERNEL);
+	ds1wm_data = kzalloc(sizeof(*ds1wm_data), GFP_KERNEL);
 	if (!ds1wm_data)
 		return -ENOMEM;
 
@@ -374,8 +375,8 @@ static int ds1wm_probe(struct platform_device *pdev)
 		goto err1;
 
 	ds1wm_data->clk = clk_get(&pdev->dev, "ds1wm");
-	if (!ds1wm_data->clk) {
-		ret = -ENOENT;
+	if (IS_ERR(ds1wm_data->clk)) {
+		ret = PTR_ERR(ds1wm_data->clk);
 		goto err2;
 	}
 

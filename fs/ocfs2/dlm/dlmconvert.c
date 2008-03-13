@@ -487,7 +487,7 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 			       "cookie=%u:%llu\n",
 		     dlm_get_lock_cookie_node(be64_to_cpu(cnv->cookie)),
 		     dlm_get_lock_cookie_seq(be64_to_cpu(cnv->cookie)));
-		__dlm_print_one_lock_resource(res);
+		dlm_print_one_lock_resource(res);
 		goto leave;
 	}
 

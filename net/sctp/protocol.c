@@ -628,6 +628,7 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
 	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
 	struct sctp_sockaddr_entry *addr = NULL;
 	struct sctp_sockaddr_entry *temp;
+	int found = 0;
 
 	switch (ev) {
 	case NETDEV_UP:
@@ -647,13 +648,14 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
 		list_for_each_entry_safe(addr, temp,
 					&sctp_local_addr_list, list) {
 			if (addr->a.v4.sin_addr.s_addr == ifa->ifa_local) {
+				found = 1;
 				addr->valid = 0;
 				list_del_rcu(&addr->list);
 				break;
 			}
 		}
 		spin_unlock_bh(&sctp_local_addr_lock);
-		if (addr && !addr->valid)
+		if (found)
 			call_rcu(&addr->rcu, sctp_local_addr_free);
 		break;
 	}
@@ -832,7 +834,7 @@ static inline int sctp_v4_xmit(struct sk_buff *skb,
 	return ip_queue_xmit(skb, ipfragok);
 }
 
-static struct sctp_af sctp_ipv4_specific;
+static struct sctp_af sctp_af_inet;
 
 static struct sctp_pf sctp_pf_inet = {
 	.event_msgname = sctp_inet_event_msgname,
@@ -844,7 +846,7 @@ static struct sctp_pf sctp_pf_inet = {
 	.supported_addrs = sctp_inet_supported_addrs,
 	.create_accept_sk = sctp_v4_create_accept_sk,
 	.addr_v4map	= sctp_v4_addr_v4map,
-	.af            = &sctp_ipv4_specific,
+	.af            = &sctp_af_inet
 };
 
 /* Notifier for inetaddr addition/deletion events.  */
@@ -906,7 +908,7 @@ static struct net_protocol sctp_protocol = {
 };
 
 /* IPv4 address related functions.  */
-static struct sctp_af sctp_ipv4_specific = {
+static struct sctp_af sctp_af_inet = {
 	.sa_family	   = AF_INET,
 	.sctp_xmit	   = sctp_v4_xmit,
 	.setsockopt	   = ip_setsockopt,
@@ -1192,7 +1194,7 @@ SCTP_STATIC __init int sctp_init(void)
 	sctp_sysctl_register();
 
 	INIT_LIST_HEAD(&sctp_address_families);
-	sctp_register_af(&sctp_ipv4_specific);
+	sctp_register_af(&sctp_af_inet);
 
 	status = proto_register(&sctp_prot, 1);
 	if (status)
@@ -1249,7 +1251,7 @@ err_v6_init:
 	proto_unregister(&sctp_prot);
 err_proto_register:
 	sctp_sysctl_unregister();
-	list_del(&sctp_ipv4_specific.list);
+	list_del(&sctp_af_inet.list);
 	free_pages((unsigned long)sctp_port_hashtable,
 		   get_order(sctp_port_hashsize *
 			     sizeof(struct sctp_bind_hashbucket)));
@@ -1299,7 +1301,7 @@ SCTP_STATIC __exit void sctp_exit(void)
 	inet_unregister_protosw(&sctp_seqpacket_protosw);
 
 	sctp_sysctl_unregister();
-	list_del(&sctp_ipv4_specific.list);
+	list_del(&sctp_af_inet.list);
 
 	free_pages((unsigned long)sctp_assoc_hashtable,
 		   get_order(sctp_assoc_hashsize *

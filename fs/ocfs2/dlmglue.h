@@ -109,8 +109,6 @@ void ocfs2_simple_drop_lockres(struct ocfs2_super *osb,
 			       struct ocfs2_lock_res *lockres);
 
 /* for the downconvert thread */
-void ocfs2_process_blocked_lock(struct ocfs2_super *osb,
-				struct ocfs2_lock_res *lockres);
 void ocfs2_wake_downconvert_thread(struct ocfs2_super *osb);
 
 struct ocfs2_dlm_debug *ocfs2_new_dlm_debug(void);

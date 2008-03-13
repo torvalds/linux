@@ -1577,8 +1577,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 }
 
 /**
- * scsi_scan_target - scan a target id, possibly including all LUNs on the
- *     target.
+ * scsi_scan_target - scan a target id, possibly including all LUNs on the target.
  * @parent:	host to scan
  * @channel:	channel to scan
  * @id:		target id to scan

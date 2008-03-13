@@ -1620,14 +1620,8 @@ static int __init rc_init_drivers(void)
 
 static void rc_release_drivers(void)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&riscom_lock, flags);
-
 	tty_unregister_driver(riscom_driver);
 	put_tty_driver(riscom_driver);
-
-	spin_unlock_irqrestore(&riscom_lock, flags);
 }
 
 #ifndef MODULE

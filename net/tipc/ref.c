@@ -148,7 +148,7 @@ u32 tipc_ref_acquire(void *object, spinlock_t **lock)
 		reference = (next_plus_upper & ~index_mask) + index;
 		entry->data.reference = reference;
 		entry->object = object;
-		if (lock != 0)
+		if (lock != NULL)
 			*lock = &entry->lock;
 		spin_unlock_bh(&entry->lock);
 	}

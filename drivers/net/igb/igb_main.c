@@ -439,7 +439,7 @@ static int igb_request_irq(struct igb_adapter *adapter)
 		err = igb_request_msix(adapter);
 		if (!err) {
 			/* enable IAM, auto-mask,
-			 * DO NOT USE EIAME or IAME in legacy mode */
+			 * DO NOT USE EIAM or IAM in legacy mode */
 			wr32(E1000_IAM, IMS_ENABLE_MASK);
 			goto request_done;
 		}
@@ -465,14 +465,9 @@ static int igb_request_irq(struct igb_adapter *adapter)
 	err = request_irq(adapter->pdev->irq, &igb_intr, IRQF_SHARED,
 			  netdev->name, netdev);
 
-	if (err) {
+	if (err)
 		dev_err(&adapter->pdev->dev, "Error %d getting interrupt\n",
 			err);
-		goto request_done;
-	}
-
-	/* enable IAM, auto-mask */
-	wr32(E1000_IAM, IMS_ENABLE_MASK);
 
 request_done:
 	return err;
@@ -821,7 +816,8 @@ void igb_reset(struct igb_adapter *adapter)
 	wr32(E1000_VET, ETHERNET_IEEE_VLAN_TYPE);
 
 	igb_reset_adaptive(&adapter->hw);
-	adapter->hw.phy.ops.get_phy_info(&adapter->hw);
+	if (adapter->hw.phy.ops.get_phy_info)
+		adapter->hw.phy.ops.get_phy_info(&adapter->hw);
 }
 
 /**
@@ -2057,7 +2053,8 @@ static void igb_set_multi(struct net_device *netdev)
 static void igb_update_phy_info(unsigned long data)
 {
 	struct igb_adapter *adapter = (struct igb_adapter *) data;
-	adapter->hw.phy.ops.get_phy_info(&adapter->hw);
+	if (adapter->hw.phy.ops.get_phy_info)
+		adapter->hw.phy.ops.get_phy_info(&adapter->hw);
 }
 
 /**

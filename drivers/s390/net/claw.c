@@ -1851,8 +1851,7 @@ claw_hw_tx(struct sk_buff *skb, struct net_device *dev, long linkid)
                 }
         }
         /*      See how many write buffers are required to hold this data */
-        numBuffers= ( skb->len + privptr->p_env->write_size - 1) /
-			( privptr->p_env->write_size);
+	numBuffers = DIV_ROUND_UP(skb->len, privptr->p_env->write_size);
 
         /*      If that number of buffers isn't available, give up for now */
         if (privptr->write_free_count < numBuffers ||
@@ -2114,8 +2113,7 @@ init_ccw_bk(struct net_device *dev)
         */
         ccw_blocks_perpage= PAGE_SIZE /  CCWBK_SIZE;
         ccw_pages_required=
-		(ccw_blocks_required+ccw_blocks_perpage -1) /
-			 ccw_blocks_perpage;
+		DIV_ROUND_UP(ccw_blocks_required, ccw_blocks_perpage);
 
 #ifdef DEBUGMSG
         printk(KERN_INFO "%s: %s() > ccw_blocks_perpage=%d\n",
@@ -2131,30 +2129,29 @@ init_ccw_bk(struct net_device *dev)
 	 * provide good performance. With packing buffers support 32k
 	 * buffers are used.
          */
-        if (privptr->p_env->read_size < PAGE_SIZE) {
-            claw_reads_perpage= PAGE_SIZE / privptr->p_env->read_size;
-            claw_read_pages= (privptr->p_env->read_buffers +
-	    	claw_reads_perpage -1) / claw_reads_perpage;
+	if (privptr->p_env->read_size < PAGE_SIZE) {
+		claw_reads_perpage = PAGE_SIZE / privptr->p_env->read_size;
+		claw_read_pages = DIV_ROUND_UP(privptr->p_env->read_buffers,
+						claw_reads_perpage);
          }
          else {       /* > or equal  */
-            privptr->p_buff_pages_perread=
-	    	(privptr->p_env->read_size + PAGE_SIZE - 1) / PAGE_SIZE;
-            claw_read_pages=
-	    	privptr->p_env->read_buffers * privptr->p_buff_pages_perread;
+		privptr->p_buff_pages_perread =
+			DIV_ROUND_UP(privptr->p_env->read_size, PAGE_SIZE);
+		claw_read_pages = privptr->p_env->read_buffers *
+					privptr->p_buff_pages_perread;
          }
         if (privptr->p_env->write_size < PAGE_SIZE) {
-            claw_writes_perpage=
-	    	PAGE_SIZE / privptr->p_env->write_size;
-            claw_write_pages=
-	    	(privptr->p_env->write_buffers + claw_writes_perpage -1) /
-			claw_writes_perpage;
+		claw_writes_perpage =
+			PAGE_SIZE / privptr->p_env->write_size;
+		claw_write_pages = DIV_ROUND_UP(privptr->p_env->write_buffers,
+						claw_writes_perpage);
 
         }
         else {      /* >  or equal  */
-            privptr->p_buff_pages_perwrite=
-	    	 (privptr->p_env->read_size + PAGE_SIZE - 1) / PAGE_SIZE;
-            claw_write_pages=
-	     	privptr->p_env->write_buffers * privptr->p_buff_pages_perwrite;
+		privptr->p_buff_pages_perwrite =
+			DIV_ROUND_UP(privptr->p_env->read_size, PAGE_SIZE);
+		claw_write_pages = privptr->p_env->write_buffers *
+					privptr->p_buff_pages_perwrite;
         }
 #ifdef DEBUGMSG
         if (privptr->p_env->read_size < PAGE_SIZE) {

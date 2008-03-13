@@ -454,7 +454,7 @@ struct dir_notify_req {
 
 struct dfs_info3_param {
 	int flags; /* DFSREF_REFERRAL_SERVER, DFSREF_STORAGE_SERVER*/
-	int PathConsumed;
+	int path_consumed;
 	int server_type;
 	int ref_flag;
 	char *path_name;

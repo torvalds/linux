@@ -250,6 +250,15 @@ config RTC_DRV_TWL92330
 	  platforms.  The support is integrated with the rest of
 	  the Menelaus driver; it's not separate module.
 
+config RTC_DRV_S35390A
+	tristate "Seiko Instruments S-35390A"
+	help
+	  If you say yes here you will get support for the Seiko
+	  Instruments S-35390A.
+
+	  This driver can also be built as a module. If so the module
+	  will be called rtc-s35390a.
+
 endif # I2C
 
 comment "SPI RTC drivers"

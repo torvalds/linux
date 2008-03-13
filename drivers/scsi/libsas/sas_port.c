@@ -92,9 +92,6 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	if (!port->phy)
 		port->phy = phy->phy;
 
-	SAS_DPRINTK("phy%d added to port%d, phy_mask:0x%x\n", phy->id,
-		    port->id, port->phy_mask);
-
 	if (*(u64 *)port->attached_sas_addr == 0) {
 		port->class = phy->class;
 		memcpy(port->attached_sas_addr, phy->attached_sas_addr,
@@ -114,6 +111,11 @@ static void sas_form_port(struct asd_sas_phy *phy)
 		sas_port_add(port->port);
 	}
 	sas_port_add_phy(port->port, phy->phy);
+
+	SAS_DPRINTK("%s added to %s, phy_mask:0x%x (%16llx)\n",
+		    phy->phy->dev.bus_id,port->port->dev.bus_id,
+		    port->phy_mask,
+		    SAS_ADDR(port->attached_sas_addr));
 
 	if (port->port_dev)
 		port->port_dev->pathways = port->num_phys;
@@ -255,12 +257,11 @@ void sas_porte_hard_reset(struct work_struct *work)
 static void sas_init_port(struct asd_sas_port *port,
 			  struct sas_ha_struct *sas_ha, int i)
 {
+	memset(port, 0, sizeof(*port));
 	port->id = i;
 	INIT_LIST_HEAD(&port->dev_list);
 	spin_lock_init(&port->phy_list_lock);
 	INIT_LIST_HEAD(&port->phy_list);
-	port->num_phys = 0;
-	port->phy_mask = 0;
 	port->ha = sas_ha;
 
 	spin_lock_init(&port->dev_list_lock);

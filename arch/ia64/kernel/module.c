@@ -493,7 +493,7 @@ module_frob_arch_sections (Elf_Ehdr *ehdr, Elf_Shdr *sechdrs, char *secstrings,
 	mod->arch.opd->sh_addralign = 8;
 	mod->arch.opd->sh_size = fdescs * sizeof(struct fdesc);
 	DEBUGP("%s: core.plt=%lx, init.plt=%lx, got=%lx, fdesc=%lx\n",
-	       __FUNCTION__, mod->arch.core_plt->sh_size, mod->arch.init_plt->sh_size,
+	       __func__, mod->arch.core_plt->sh_size, mod->arch.init_plt->sh_size,
 	       mod->arch.got->sh_size, mod->arch.opd->sh_size);
 	return 0;
 }
@@ -585,7 +585,7 @@ get_plt (struct module *mod, const struct insn *insn, uint64_t value, int *okp)
 #if ARCH_MODULE_DEBUG
 	if (plt_target(plt) != target_ip) {
 		printk("%s: mistargeted PLT: wanted %lx, got %lx\n",
-		       __FUNCTION__, target_ip, plt_target(plt));
+		       __func__, target_ip, plt_target(plt));
 		*okp = 0;
 		return 0;
 	}
@@ -703,7 +703,7 @@ do_reloc (struct module *mod, uint8_t r_type, Elf64_Sym *sym, uint64_t addend,
 		if (r_type == R_IA64_PCREL21BI) {
 			if (!is_internal(mod, val)) {
 				printk(KERN_ERR "%s: %s reloc against non-local symbol (%lx)\n",
-				       __FUNCTION__, reloc_name[r_type], val);
+				       __func__, reloc_name[r_type], val);
 				return -ENOEXEC;
 			}
 			format = RF_INSN21B;
@@ -737,7 +737,7 @@ do_reloc (struct module *mod, uint8_t r_type, Elf64_Sym *sym, uint64_t addend,
 		      case R_IA64_LDXMOV:
 			if (gp_addressable(mod, val)) {
 				/* turn "ld8" into "mov": */
-				DEBUGP("%s: patching ld8 at %p to mov\n", __FUNCTION__, location);
+				DEBUGP("%s: patching ld8 at %p to mov\n", __func__, location);
 				ia64_patch((u64) location, 0x1fff80fe000UL, 0x10000000000UL);
 			}
 			return 0;
@@ -771,7 +771,7 @@ do_reloc (struct module *mod, uint8_t r_type, Elf64_Sym *sym, uint64_t addend,
 	if (!ok)
 		return -ENOEXEC;
 
-	DEBUGP("%s: [%p]<-%016lx = %s(%lx)\n", __FUNCTION__, location, val,
+	DEBUGP("%s: [%p]<-%016lx = %s(%lx)\n", __func__, location, val,
 	       reloc_name[r_type] ? reloc_name[r_type] : "?", sym->st_value + addend);
 
 	switch (format) {
@@ -807,7 +807,7 @@ apply_relocate_add (Elf64_Shdr *sechdrs, const char *strtab, unsigned int symind
 	Elf64_Shdr *target_sec;
 	int ret;
 
-	DEBUGP("%s: applying section %u (%u relocs) to %u\n", __FUNCTION__,
+	DEBUGP("%s: applying section %u (%u relocs) to %u\n", __func__,
 	       relsec, n, sechdrs[relsec].sh_info);
 
 	target_sec = sechdrs + sechdrs[relsec].sh_info;
@@ -835,7 +835,7 @@ apply_relocate_add (Elf64_Shdr *sechdrs, const char *strtab, unsigned int symind
 			gp = mod->core_size / 2;
 		gp = (uint64_t) mod->module_core + ((gp + 7) & -8);
 		mod->arch.gp = gp;
-		DEBUGP("%s: placing gp at 0x%lx\n", __FUNCTION__, gp);
+		DEBUGP("%s: placing gp at 0x%lx\n", __func__, gp);
 	}
 
 	for (i = 0; i < n; i++) {
@@ -903,7 +903,7 @@ register_unwind_table (struct module *mod)
 		init = start + num_core;
 	}
 
-	DEBUGP("%s: name=%s, gp=%lx, num_init=%lu, num_core=%lu\n", __FUNCTION__,
+	DEBUGP("%s: name=%s, gp=%lx, num_init=%lu, num_core=%lu\n", __func__,
 	       mod->name, mod->arch.gp, num_init, num_core);
 
 	/*
@@ -912,13 +912,13 @@ register_unwind_table (struct module *mod)
 	if (num_core > 0) {
 		mod->arch.core_unw_table = unw_add_unwind_table(mod->name, 0, mod->arch.gp,
 								core, core + num_core);
-		DEBUGP("%s:  core: handle=%p [%p-%p)\n", __FUNCTION__,
+		DEBUGP("%s:  core: handle=%p [%p-%p)\n", __func__,
 		       mod->arch.core_unw_table, core, core + num_core);
 	}
 	if (num_init > 0) {
 		mod->arch.init_unw_table = unw_add_unwind_table(mod->name, 0, mod->arch.gp,
 								init, init + num_init);
-		DEBUGP("%s:  init: handle=%p [%p-%p)\n", __FUNCTION__,
+		DEBUGP("%s:  init: handle=%p [%p-%p)\n", __func__,
 		       mod->arch.init_unw_table, init, init + num_init);
 	}
 }
@@ -926,7 +926,7 @@ register_unwind_table (struct module *mod)
 int
 module_finalize (const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs, struct module *mod)
 {
-	DEBUGP("%s: init: entry=%p\n", __FUNCTION__, mod->init);
+	DEBUGP("%s: init: entry=%p\n", __func__, mod->init);
 	if (mod->arch.unwind)
 		register_unwind_table(mod);
 	return 0;

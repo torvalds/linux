@@ -50,14 +50,14 @@ F.e. in order to boot just with sanity checks and red zoning one would specify:
 
 Trying to find an issue in the dentry cache? Try
 
-	slub_debug=,dentry_cache
+	slub_debug=,dentry
 
 to only enable debugging on the dentry cache.
 
 Red zoning and tracking may realign the slab.  We can just apply sanity checks
 to the dentry cache with
 
-	slub_debug=F,dentry_cache
+	slub_debug=F,dentry
 
 In case you forgot to enable debugging on the kernel command line: It is
 possible to enable debugging manually when the kernel is up. Look at the

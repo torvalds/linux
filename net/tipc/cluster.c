@@ -142,7 +142,7 @@ void tipc_cltr_attach_node(struct cluster *c_ptr, struct node *n_ptr)
 		max_n_num = tipc_highest_allowed_slave;
 	assert(n_num > 0);
 	assert(n_num <= max_n_num);
-	assert(c_ptr->nodes[n_num] == 0);
+	assert(c_ptr->nodes[n_num] == NULL);
 	c_ptr->nodes[n_num] = n_ptr;
 	if (n_num > c_ptr->highest_node)
 		c_ptr->highest_node = n_num;

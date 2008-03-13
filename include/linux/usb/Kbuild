@@ -3,5 +3,5 @@ header-y += cdc.h
 header-y += ch9.h
 header-y += gadgetfs.h
 header-y += midi.h
-unifdef-y += g_printer.h
+header-y += g_printer.h
 

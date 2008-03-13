@@ -173,8 +173,15 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 		return NULL;
 
 	if (write) {
-		struct rlimit *rlim = current->signal->rlim;
 		unsigned long size = bprm->vma->vm_end - bprm->vma->vm_start;
+		struct rlimit *rlim;
+
+		/*
+		 * We've historically supported up to 32 pages (ARG_MAX)
+		 * of argument strings even with small stacks
+		 */
+		if (size <= ARG_MAX)
+			return page;
 
 		/*
 		 * Limit to 1/4-th the stack size for the argv+env strings.
@@ -183,6 +190,7 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 		 *  - the program will have a reasonable amount of stack left
 		 *    to work from.
 		 */
+		rlim = current->signal->rlim;
 		if (size > rlim[RLIMIT_STACK].rlim_cur / 4) {
 			put_page(page);
 			return NULL;

@@ -529,7 +529,7 @@ sba_search_bitmap(struct ioc *ioc, unsigned long bits_wanted, int use_hint)
 		base_mask = RESMAP_MASK(bits_wanted);
 		mask = base_mask << bitshiftcnt;
 
-		DBG_RES("%s() o %ld %p", __FUNCTION__, o, res_ptr);
+		DBG_RES("%s() o %ld %p", __func__, o, res_ptr);
 		for(; res_ptr < res_end ; res_ptr++)
 		{ 
 			DBG_RES("    %p %lx %lx\n", res_ptr, mask, *res_ptr);
@@ -679,7 +679,7 @@ sba_alloc_range(struct ioc *ioc, size_t size)
 #endif
 
 	DBG_RES("%s(%x) %d -> %lx hint %x/%x\n",
-		__FUNCTION__, size, pages_needed, pide,
+		__func__, size, pages_needed, pide,
 		(uint) ((unsigned long) ioc->res_hint - (unsigned long) ioc->res_map),
 		ioc->res_bitshift );
 
@@ -722,8 +722,8 @@ sba_free_range(struct ioc *ioc, dma_addr_t iova, size_t size)
 			m = RESMAP_MASK(bits_not_wanted) << (pide & (BITS_PER_LONG - 1));
 			bits_not_wanted = 0;
 
-			DBG_RES("%s( ,%x,%x) %x/%lx %x %p %lx\n", __FUNCTION__, (uint) iova, size,
-		        	bits_not_wanted, m, pide, res_ptr, *res_ptr);
+			DBG_RES("%s( ,%x,%x) %x/%lx %x %p %lx\n", __func__, (uint) iova, size,
+			        bits_not_wanted, m, pide, res_ptr, *res_ptr);
 
 			ASSERT(m != 0);
 			ASSERT(bits_not_wanted);
@@ -940,8 +940,7 @@ sba_map_single(struct device *dev, void *addr, size_t size, int dir)
 
 	iovp = (dma_addr_t) pide << iovp_shift;
 
-	DBG_RUN("%s() 0x%p -> 0x%lx\n",
-		__FUNCTION__, addr, (long) iovp | offset);
+	DBG_RUN("%s() 0x%p -> 0x%lx\n", __func__, addr, (long) iovp | offset);
 
 	pdir_start = &(ioc->pdir_base[pide]);
 
@@ -1029,8 +1028,7 @@ void sba_unmap_single(struct device *dev, dma_addr_t iova, size_t size, int dir)
 #endif
 	offset = iova & ~iovp_mask;
 
-	DBG_RUN("%s() iovp 0x%lx/%x\n",
-		__FUNCTION__, (long) iova, size);
+	DBG_RUN("%s() iovp 0x%lx/%x\n", __func__, (long) iova, size);
 
 	iova ^= offset;        /* clear offset bits */
 	size += offset;
@@ -1404,7 +1402,7 @@ int sba_map_sg(struct device *dev, struct scatterlist *sglist, int nents, int di
 	struct scatterlist *sg;
 #endif
 
-	DBG_RUN_SG("%s() START %d entries\n", __FUNCTION__, nents);
+	DBG_RUN_SG("%s() START %d entries\n", __func__, nents);
 	ioc = GET_IOC(dev);
 	ASSERT(ioc);
 
@@ -1468,7 +1466,7 @@ int sba_map_sg(struct device *dev, struct scatterlist *sglist, int nents, int di
 #endif
 
 	ASSERT(coalesced == filled);
-	DBG_RUN_SG("%s() DONE %d mappings\n", __FUNCTION__, filled);
+	DBG_RUN_SG("%s() DONE %d mappings\n", __func__, filled);
 
 	return filled;
 }
@@ -1491,7 +1489,7 @@ void sba_unmap_sg (struct device *dev, struct scatterlist *sglist, int nents, in
 #endif
 
 	DBG_RUN_SG("%s() START %d entries,  %p,%x\n",
-		__FUNCTION__, nents, sba_sg_address(sglist), sglist->length);
+		   __func__, nents, sba_sg_address(sglist), sglist->length);
 
 #ifdef ASSERT_PDIR_SANITY
 	ioc = GET_IOC(dev);
@@ -1509,7 +1507,7 @@ void sba_unmap_sg (struct device *dev, struct scatterlist *sglist, int nents, in
 		nents--;
 	}
 
-	DBG_RUN_SG("%s() DONE (nents %d)\n", __FUNCTION__,  nents);
+	DBG_RUN_SG("%s() DONE (nents %d)\n", __func__,  nents);
 
 #ifdef ASSERT_PDIR_SANITY
 	spin_lock_irqsave(&ioc->res_lock, flags);
@@ -1546,7 +1544,7 @@ ioc_iova_init(struct ioc *ioc)
 	ioc->iov_size = ~ioc->imask + 1;
 
 	DBG_INIT("%s() hpa %p IOV base 0x%lx mask 0x%lx (%dMB)\n",
-		__FUNCTION__, ioc->ioc_hpa, ioc->ibase, ioc->imask,
+		__func__, ioc->ioc_hpa, ioc->ibase, ioc->imask,
 		ioc->iov_size >> 20);
 
 	switch (iovp_size) {
@@ -1569,7 +1567,7 @@ ioc_iova_init(struct ioc *ioc)
 
 	memset(ioc->pdir_base, 0, ioc->pdir_size);
 
-	DBG_INIT("%s() IOV page size %ldK pdir %p size %x\n", __FUNCTION__,
+	DBG_INIT("%s() IOV page size %ldK pdir %p size %x\n", __func__,
 		iovp_size >> 10, ioc->pdir_base, ioc->pdir_size);
 
 	ASSERT(ALIGN((unsigned long) ioc->pdir_base, 4*1024) == (unsigned long) ioc->pdir_base);
@@ -1612,7 +1610,7 @@ ioc_iova_init(struct ioc *ioc)
 
 		prefetch_spill_page = virt_to_phys(addr);
 
-		DBG_INIT("%s() prefetch spill addr: 0x%lx\n", __FUNCTION__, prefetch_spill_page);
+		DBG_INIT("%s() prefetch spill addr: 0x%lx\n", __func__, prefetch_spill_page);
 	}
 	/*
   	** Set all the PDIR entries valid w/ the spill page as the target
@@ -1641,7 +1639,7 @@ ioc_resource_init(struct ioc *ioc)
 	/* resource map size dictated by pdir_size */
 	ioc->res_size = ioc->pdir_size / PDIR_ENTRY_SIZE; /* entries */
 	ioc->res_size >>= 3;  /* convert bit count to byte count */
-	DBG_INIT("%s() res_size 0x%x\n", __FUNCTION__, ioc->res_size);
+	DBG_INIT("%s() res_size 0x%x\n", __func__, ioc->res_size);
 
 	ioc->res_map = (char *) __get_free_pages(GFP_KERNEL,
 						 get_order(ioc->res_size));
@@ -1664,7 +1662,7 @@ ioc_resource_init(struct ioc *ioc)
 							      | prefetch_spill_page);
 #endif
 
-	DBG_INIT("%s() res_map %x %p\n", __FUNCTION__,
+	DBG_INIT("%s() res_map %x %p\n", __func__,
 		 ioc->res_size, (void *) ioc->res_map);
 }
 
@@ -1767,7 +1765,7 @@ ioc_init(u64 hpa, void *handle)
 	iovp_size = (1 << iovp_shift);
 	iovp_mask = ~(iovp_size - 1);
 
-	DBG_INIT("%s: PAGE_SIZE %ldK, iovp_size %ldK\n", __FUNCTION__,
+	DBG_INIT("%s: PAGE_SIZE %ldK, iovp_size %ldK\n", __func__,
 		PAGE_SIZE >> 10, iovp_size >> 10);
 
 	if (!ioc->name) {
@@ -2137,7 +2135,7 @@ sba_page_override(char *str)
 			break;
 		default:
 			printk("%s: unknown/unsupported iommu page size %ld\n",
-			       __FUNCTION__, page_size);
+			       __func__, page_size);
 	}
 
 	return 1;

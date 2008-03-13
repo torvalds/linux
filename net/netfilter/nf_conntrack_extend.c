@@ -19,14 +19,6 @@
 static struct nf_ct_ext_type *nf_ct_ext_types[NF_CT_EXT_NUM];
 static DEFINE_MUTEX(nf_ct_ext_type_mutex);
 
-/* Horrible trick to figure out smallest amount worth kmallocing. */
-#define CACHE(x) (x) + 0 *
-enum {
-	NF_CT_EXT_MIN_SIZE =
-#include <linux/kmalloc_sizes.h>
-	1 };
-#undef CACHE
-
 void __nf_ct_ext_destroy(struct nf_conn *ct)
 {
 	unsigned int i;
@@ -53,7 +45,7 @@ EXPORT_SYMBOL(__nf_ct_ext_destroy);
 static void *
 nf_ct_ext_create(struct nf_ct_ext **ext, enum nf_ct_ext_id id, gfp_t gfp)
 {
-	unsigned int off, len, real_len;
+	unsigned int off, len;
 	struct nf_ct_ext_type *t;
 
 	rcu_read_lock();
@@ -61,16 +53,14 @@ nf_ct_ext_create(struct nf_ct_ext **ext, enum nf_ct_ext_id id, gfp_t gfp)
 	BUG_ON(t == NULL);
 	off = ALIGN(sizeof(struct nf_ct_ext), t->align);
 	len = off + t->len;
-	real_len = t->alloc_size;
 	rcu_read_unlock();
 
-	*ext = kzalloc(real_len, gfp);
+	*ext = kzalloc(t->alloc_size, gfp);
 	if (!*ext)
 		return NULL;
 
 	(*ext)->offset[id] = off;
 	(*ext)->len = len;
-	(*ext)->real_len = real_len;
 
 	return (void *)(*ext) + off;
 }
@@ -95,7 +85,7 @@ void *__nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 	newlen = newoff + t->len;
 	rcu_read_unlock();
 
-	if (newlen >= ct->ext->real_len) {
+	if (newlen >= ksize(ct->ext)) {
 		new = kmalloc(newlen, gfp);
 		if (!new)
 			return NULL;
@@ -114,7 +104,6 @@ void *__nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 			rcu_read_unlock();
 		}
 		kfree(ct->ext);
-		new->real_len = newlen;
 		ct->ext = new;
 	}
 
@@ -156,8 +145,6 @@ static void update_alloc_size(struct nf_ct_ext_type *type)
 			t1->alloc_size = ALIGN(t1->alloc_size, t2->align)
 					 + t2->len;
 		}
-		if (t1->alloc_size < NF_CT_EXT_MIN_SIZE)
-			t1->alloc_size = NF_CT_EXT_MIN_SIZE;
 	}
 }
 

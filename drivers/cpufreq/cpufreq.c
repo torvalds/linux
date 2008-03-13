@@ -671,13 +671,13 @@ static ssize_t show(struct kobject * kobj, struct attribute * attr ,char * buf)
 {
 	struct cpufreq_policy * policy = to_policy(kobj);
 	struct freq_attr * fattr = to_attr(attr);
-	ssize_t ret;
+	ssize_t ret = -EINVAL;
 	policy = cpufreq_cpu_get(policy->cpu);
 	if (!policy)
-		return -EINVAL;
+		goto no_policy;
 
 	if (lock_policy_rwsem_read(policy->cpu) < 0)
-		return -EINVAL;
+		goto fail;
 
 	if (fattr->show)
 		ret = fattr->show(policy, buf);
@@ -685,8 +685,9 @@ static ssize_t show(struct kobject * kobj, struct attribute * attr ,char * buf)
 		ret = -EIO;
 
 	unlock_policy_rwsem_read(policy->cpu);
-
+fail:
 	cpufreq_cpu_put(policy);
+no_policy:
 	return ret;
 }
 
@@ -695,13 +696,13 @@ static ssize_t store(struct kobject * kobj, struct attribute * attr,
 {
 	struct cpufreq_policy * policy = to_policy(kobj);
 	struct freq_attr * fattr = to_attr(attr);
-	ssize_t ret;
+	ssize_t ret = -EINVAL;
 	policy = cpufreq_cpu_get(policy->cpu);
 	if (!policy)
-		return -EINVAL;
+		goto no_policy;
 
 	if (lock_policy_rwsem_write(policy->cpu) < 0)
-		return -EINVAL;
+		goto fail;
 
 	if (fattr->store)
 		ret = fattr->store(policy, buf, count);
@@ -709,8 +710,9 @@ static ssize_t store(struct kobject * kobj, struct attribute * attr,
 		ret = -EIO;
 
 	unlock_policy_rwsem_write(policy->cpu);
-
+fail:
 	cpufreq_cpu_put(policy);
+no_policy:
 	return ret;
 }
 
@@ -1775,7 +1777,7 @@ static int __cpuinit cpufreq_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata cpufreq_cpu_notifier =
+static struct notifier_block __refdata cpufreq_cpu_notifier =
 {
     .notifier_call = cpufreq_cpu_callback,
 };

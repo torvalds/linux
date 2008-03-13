@@ -90,6 +90,7 @@ config PPC
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
+	select HAVE_KRETPROBES
 	select HAVE_LMB
 
 config EARLY_PRINTK

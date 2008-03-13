@@ -75,6 +75,7 @@ static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd);
 static int qla4xxx_slave_alloc(struct scsi_device *device);
 static int qla4xxx_slave_configure(struct scsi_device *device);
 static void qla4xxx_slave_destroy(struct scsi_device *sdev);
+static void qla4xxx_scan_start(struct Scsi_Host *shost);
 
 static struct scsi_host_template qla4xxx_driver_template = {
 	.module			= THIS_MODULE,
@@ -90,6 +91,7 @@ static struct scsi_host_template qla4xxx_driver_template = {
 	.slave_destroy		= qla4xxx_slave_destroy,
 
 	.scan_finished		= iscsi_scan_finished,
+	.scan_start		= qla4xxx_scan_start,
 
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
@@ -297,6 +299,18 @@ struct ddb_entry *qla4xxx_alloc_sess(struct scsi_qla_host *ha)
 	ddb_entry->ha = ha;
 	ddb_entry->sess = sess;
 	return ddb_entry;
+}
+
+static void qla4xxx_scan_start(struct Scsi_Host *shost)
+{
+	struct scsi_qla_host *ha = shost_priv(shost);
+	struct ddb_entry *ddb_entry, *ddbtemp;
+
+	/* finish setup of sessions that were already setup in firmware */
+	list_for_each_entry_safe(ddb_entry, ddbtemp, &ha->ddb_list, list) {
+		if (ddb_entry->fw_ddb_device_state == DDB_DS_SESSION_ACTIVE)
+			qla4xxx_add_sess(ddb_entry);
+	}
 }
 
 /*
@@ -864,8 +878,9 @@ static void qla4xxx_flush_active_srbs(struct scsi_qla_host *ha)
  * qla4xxx_recover_adapter - recovers adapter after a fatal error
  * @ha: Pointer to host adapter structure.
  * @renew_ddb_list: Indicates what to do with the adapter's ddb list
- *	after adapter recovery has completed.
- *	0=preserve ddb list, 1=destroy and rebuild ddb list
+ *
+ * renew_ddb_list value can be 0=preserve ddb list, 1=destroy and rebuild
+ * ddb list.
  **/
 static int qla4xxx_recover_adapter(struct scsi_qla_host *ha,
 				uint8_t renew_ddb_list)
@@ -874,6 +889,7 @@ static int qla4xxx_recover_adapter(struct scsi_qla_host *ha,
 
 	/* Stall incoming I/O until we are done */
 	clear_bit(AF_ONLINE, &ha->flags);
+
 	DEBUG2(printk("scsi%ld: %s calling qla4xxx_cmd_wait\n", ha->host_no,
 		      __func__));
 
@@ -1176,7 +1192,6 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	int ret = -ENODEV, status;
 	struct Scsi_Host *host;
 	struct scsi_qla_host *ha;
-	struct ddb_entry *ddb_entry, *ddbtemp;
 	uint8_t init_retry_count = 0;
 	char buf[34];
 
@@ -1295,13 +1310,6 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	if (ret)
 		goto probe_failed;
 
-	/* Update transport device information for all devices. */
-	list_for_each_entry_safe(ddb_entry, ddbtemp, &ha->ddb_list, list) {
-		if (ddb_entry->fw_ddb_device_state == DDB_DS_SESSION_ACTIVE)
-			if (qla4xxx_add_sess(ddb_entry))
-				goto remove_host;
-	}
-
 	printk(KERN_INFO
 	       " QLogic iSCSI HBA Driver version: %s\n"
 	       "  QLogic ISP%04x @ %s, host#=%ld, fw=%02d.%02d.%02d.%02d\n",
@@ -1310,10 +1318,6 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	       ha->patch_number, ha->build_number);
 	scsi_scan_host(host);
 	return 0;
-
-remove_host:
-	qla4xxx_free_ddb_list(ha);
-	scsi_remove_host(host);
 
 probe_failed:
 	qla4xxx_free_adapter(ha);
@@ -1600,9 +1604,12 @@ static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd)
 		return FAILED;
 	}
 
-	if (qla4xxx_recover_adapter(ha, PRESERVE_DDB_LIST) == QLA_SUCCESS) {
+	/* make sure the dpc thread is stopped while we reset the hba */
+	clear_bit(AF_ONLINE, &ha->flags);
+	flush_workqueue(ha->dpc_thread);
+
+	if (qla4xxx_recover_adapter(ha, PRESERVE_DDB_LIST) == QLA_SUCCESS)
 		return_status = SUCCESS;
-	}
 
 	dev_info(&ha->pdev->dev, "HOST RESET %s.\n",
 		   return_status == FAILED ? "FAILED" : "SUCCEDED");

@@ -361,6 +361,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 	netif_napi_add(dev, &vi->napi, virtnet_poll, napi_weight);
 	vi->dev = dev;
 	vi->vdev = vdev;
+	vdev->priv = vi;
 
 	/* We expect two virtqueues, receive then send. */
 	vi->rvq = vdev->config->find_vq(vdev, 0, skb_recv_done);
@@ -395,7 +396,6 @@ static int virtnet_probe(struct virtio_device *vdev)
 	}
 
 	pr_debug("virtnet: registered device %s\n", dev->name);
-	vdev->priv = vi;
 	return 0;
 
 unregister:
