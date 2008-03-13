@@ -505,14 +505,11 @@ void bus_attach_device(struct device *dev)
 	int ret = 0;
 
 	if (bus) {
-		dev->is_registered = 1;
 		if (bus->p->drivers_autoprobe)
 			ret = device_attach(dev);
 		WARN_ON(ret < 0);
 		if (ret >= 0)
 			klist_add_tail(&dev->knode_bus, &bus->p->klist_devices);
-		else
-			dev->is_registered = 0;
 	}
 }
 
@@ -533,10 +530,8 @@ void bus_remove_device(struct device *dev)
 		sysfs_remove_link(&dev->bus->p->devices_kset->kobj,
 				  dev->bus_id);
 		device_remove_attrs(dev->bus, dev);
-		if (dev->is_registered) {
-			dev->is_registered = 0;
-			klist_del(&dev->knode_bus);
-		}
+		klist_del(&dev->knode_bus);
+
 		pr_debug("bus: '%s': remove device %s\n",
 			 dev->bus->name, dev->bus_id);
 		device_release_driver(dev);

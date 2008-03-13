@@ -429,7 +429,6 @@ struct device {
 	struct kobject kobj;
 	char	bus_id[BUS_ID_SIZE];	/* position on parent bus */
 	struct device_type	*type;
-	unsigned		is_registered:1;
 	unsigned		uevent_suppress:1;
 
 	struct semaphore	sem;	/* semaphore to synchronize calls to
@@ -509,7 +508,7 @@ static inline void dev_set_drvdata(struct device *dev, void *data)
 
 static inline int device_is_registered(struct device *dev)
 {
-	return dev->is_registered;
+	return dev->kobj.state_in_sysfs;
 }
 
 void driver_init(void);
