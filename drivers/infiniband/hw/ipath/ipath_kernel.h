@@ -767,6 +767,7 @@ void ipath_kreceive(struct ipath_portdata *);
 int ipath_setrcvhdrsize(struct ipath_devdata *, unsigned);
 int ipath_reset_device(int);
 void ipath_get_faststats(unsigned long);
+int ipath_wait_linkstate(struct ipath_devdata *, u32, int);
 int ipath_set_linkstate(struct ipath_devdata *, u8);
 int ipath_set_mtu(struct ipath_devdata *, u16);
 int ipath_set_lid(struct ipath_devdata *, u32, u8);

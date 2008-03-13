@@ -851,8 +851,7 @@ void ipath_disarm_piobufs(struct ipath_devdata *dd, unsigned first,
  * -ETIMEDOUT state can have multiple states set, for any of several
  * transitions.
  */
-static int ipath_wait_linkstate(struct ipath_devdata *dd, u32 state,
-				int msecs)
+int ipath_wait_linkstate(struct ipath_devdata *dd, u32 state, int msecs)
 {
 	dd->ipath_state_wanted = state;
 	wait_event_interruptible_timeout(ipath_state_wait,
@@ -1656,8 +1655,8 @@ void ipath_cancel_sends(struct ipath_devdata *dd, int restore_sendctrl)
 static void ipath_set_ib_lstate(struct ipath_devdata *dd, int which)
 {
 	static const char *what[4] = {
-		[0] = "DOWN",
-		[INFINIPATH_IBCC_LINKCMD_INIT] = "INIT",
+		[0] = "NOP",
+		[INFINIPATH_IBCC_LINKCMD_DOWN] = "DOWN",
 		[INFINIPATH_IBCC_LINKCMD_ARMED] = "ARMED",
 		[INFINIPATH_IBCC_LINKCMD_ACTIVE] = "ACTIVE"
 	};
@@ -1672,9 +1671,9 @@ static void ipath_set_ib_lstate(struct ipath_devdata *dd, int which)
 			    (dd, dd->ipath_kregs->kr_ibcstatus) >>
 			    INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT) &
 			   INFINIPATH_IBCS_LINKTRAININGSTATE_MASK]);
-	/* flush all queued sends when going to DOWN or INIT, to be sure that
+	/* flush all queued sends when going to DOWN to be sure that
 	 * they don't block MAD packets */
-	if (!linkcmd || linkcmd == INFINIPATH_IBCC_LINKCMD_INIT)
+	if (linkcmd == INFINIPATH_IBCC_LINKCMD_DOWN)
 		ipath_cancel_sends(dd, 1);
 
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_ibcctrl,
@@ -1687,6 +1686,13 @@ int ipath_set_linkstate(struct ipath_devdata *dd, u8 newstate)
 	int ret;
 
 	switch (newstate) {
+	case IPATH_IB_LINKDOWN_ONLY:
+		ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKCMD_DOWN <<
+				    INFINIPATH_IBCC_LINKCMD_SHIFT);
+		/* don't wait */
+		ret = 0;
+		goto bail;
+
 	case IPATH_IB_LINKDOWN:
 		ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKINITCMD_POLL <<
 				    INFINIPATH_IBCC_LINKINITCMD_SHIFT);
@@ -1708,16 +1714,6 @@ int ipath_set_linkstate(struct ipath_devdata *dd, u8 newstate)
 		/* don't wait */
 		ret = 0;
 		goto bail;
-
-	case IPATH_IB_LINKINIT:
-		if (dd->ipath_flags & IPATH_LINKINIT) {
-			ret = 0;
-			goto bail;
-		}
-		ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKCMD_INIT <<
-				    INFINIPATH_IBCC_LINKCMD_SHIFT);
-		lstate = IPATH_LINKINIT;
-		break;
 
 	case IPATH_IB_LINKARM:
 		if (dd->ipath_flags & IPATH_LINKARMED) {
