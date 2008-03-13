@@ -991,6 +991,20 @@ static unsigned long resolve_symbol(Elf_Shdr *sechdrs,
  * J. Corbet <corbet@lwn.net>
  */
 #if defined(CONFIG_KALLSYMS) && defined(CONFIG_SYSFS)
+struct module_sect_attr
+{
+	struct module_attribute mattr;
+	char *name;
+	unsigned long address;
+};
+
+struct module_sect_attrs
+{
+	struct attribute_group grp;
+	unsigned int nsections;
+	struct module_sect_attr attrs[0];
+};
+
 static ssize_t module_sect_show(struct module_attribute *mattr,
 				struct module *mod, char *buf)
 {
@@ -1001,7 +1015,7 @@ static ssize_t module_sect_show(struct module_attribute *mattr,
 
 static void free_sect_attrs(struct module_sect_attrs *sect_attrs)
 {
-	int section;
+	unsigned int section;
 
 	for (section = 0; section < sect_attrs->nsections; section++)
 		kfree(sect_attrs->attrs[section].name);
