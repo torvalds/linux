@@ -478,12 +478,28 @@ static int speaker_in_range(struct kvm_io_device *this, gpa_t addr)
 	return (addr == KVM_SPEAKER_BASE_ADDRESS);
 }
 
-struct kvm_pit *kvm_create_pit(struct kvm *kvm)
+void kvm_pit_reset(struct kvm_pit *pit)
 {
 	int i;
+	struct kvm_kpit_channel_state *c;
+
+	mutex_lock(&pit->pit_state.lock);
+	for (i = 0; i < 3; i++) {
+		c = &pit->pit_state.channels[i];
+		c->mode = 0xff;
+		c->gate = (i != 2);
+		pit_load_count(pit->kvm, i, 0);
+	}
+	mutex_unlock(&pit->pit_state.lock);
+
+	atomic_set(&pit->pit_state.pit_timer.pending, 0);
+	pit->pit_state.inject_pending = 1;
+}
+
+struct kvm_pit *kvm_create_pit(struct kvm *kvm)
+{
 	struct kvm_pit *pit;
 	struct kvm_kpit_state *pit_state;
-	struct kvm_kpit_channel_state *c;
 
 	pit = kzalloc(sizeof(struct kvm_pit), GFP_KERNEL);
 	if (!pit)
@@ -512,17 +528,9 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm)
 	pit_state->pit = pit;
 	hrtimer_init(&pit_state->pit_timer.timer,
 		     CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	atomic_set(&pit_state->pit_timer.pending, 0);
-	for (i = 0; i < 3; i++) {
-		c = &pit_state->channels[i];
-		c->mode = 0xff;
-		c->gate = (i != 2);
-		pit_load_count(kvm, i, 0);
-	}
-
 	mutex_unlock(&pit->pit_state.lock);
 
-	pit->pit_state.inject_pending = 1;
+	kvm_pit_reset(pit);
 
 	return pit;
 }

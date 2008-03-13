@@ -58,5 +58,6 @@ void kvm_pit_timer_intr_post(struct kvm_vcpu *vcpu, int vec);
 void kvm_pit_load_count(struct kvm *kvm, int channel, u32 val);
 struct kvm_pit *kvm_create_pit(struct kvm *kvm);
 void kvm_free_pit(struct kvm *kvm);
+void kvm_pit_reset(struct kvm_pit *pit);
 
 #endif
