@@ -356,6 +356,7 @@ config EEEPC_LAPTOP
 	depends on X86
 	depends on ACPI
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on HWMON
 	depends on EXPERIMENTAL
 	---help---
 	  This driver supports the Fn-Fx keys on Eee PC laptops.
