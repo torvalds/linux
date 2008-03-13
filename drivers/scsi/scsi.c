@@ -166,6 +166,51 @@ static struct scsi_host_cmd_pool scsi_cmd_dma_pool = {
 static DEFINE_MUTEX(host_cmd_pool_mutex);
 
 /**
+ * scsi_pool_alloc_command - internal function to get a fully allocated command
+ * @pool:	slab pool to allocate the command from
+ * @gfp_mask:	mask for the allocation
+ *
+ * Returns a fully allocated command (with the allied sense buffer) or
+ * NULL on failure
+ */
+static struct scsi_cmnd *
+scsi_pool_alloc_command(struct scsi_host_cmd_pool *pool, gfp_t gfp_mask)
+{
+	struct scsi_cmnd *cmd;
+
+	cmd = kmem_cache_alloc(pool->cmd_slab, gfp_mask | pool->gfp_mask);
+	if (!cmd)
+		return NULL;
+
+	memset(cmd, 0, sizeof(*cmd));
+
+	cmd->sense_buffer = kmem_cache_alloc(pool->sense_slab,
+					     gfp_mask | pool->gfp_mask);
+	if (!cmd->sense_buffer) {
+		kmem_cache_free(pool->cmd_slab, cmd);
+		return NULL;
+	}
+
+	return cmd;
+}
+
+/**
+ * scsi_pool_free_command - internal function to release a command
+ * @pool:	slab pool to allocate the command from
+ * @cmd:	command to release
+ *
+ * the command must previously have been allocated by
+ * scsi_pool_alloc_command.
+ */
+static void
+scsi_pool_free_command(struct scsi_host_cmd_pool *pool,
+			 struct scsi_cmnd *cmd)
+{
+	kmem_cache_free(pool->sense_slab, cmd->sense_buffer);
+	kmem_cache_free(pool->cmd_slab, cmd);
+}
+
+/**
  * __scsi_get_command - Allocate a struct scsi_cmnd
  * @shost: host to transmit command
  * @gfp_mask: allocation mask
@@ -178,20 +223,7 @@ struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost, gfp_t gfp_mask)
 	struct scsi_cmnd *cmd;
 	unsigned char *buf;
 
-	cmd = kmem_cache_alloc(shost->cmd_pool->cmd_slab,
-			       gfp_mask | shost->cmd_pool->gfp_mask);
-
-	if (likely(cmd)) {
-		buf = kmem_cache_alloc(shost->cmd_pool->sense_slab,
-				       gfp_mask | shost->cmd_pool->gfp_mask);
-		if (likely(buf)) {
-			memset(cmd, 0, sizeof(*cmd));
-			cmd->sense_buffer = buf;
-		} else {
-			kmem_cache_free(shost->cmd_pool->cmd_slab, cmd);
-			cmd = NULL;
-		}
-	}
+	cmd = scsi_pool_alloc_command(shost->cmd_pool, gfp_mask);
 
 	if (unlikely(!cmd)) {
 		unsigned long flags;
@@ -268,11 +300,8 @@ void __scsi_put_command(struct Scsi_Host *shost, struct scsi_cmnd *cmd,
 	}
 	spin_unlock_irqrestore(&shost->free_list_lock, flags);
 
-	if (likely(cmd != NULL)) {
-		kmem_cache_free(shost->cmd_pool->sense_slab,
-				cmd->sense_buffer);
-		kmem_cache_free(shost->cmd_pool->cmd_slab, cmd);
-	}
+	if (likely(cmd != NULL))
+		scsi_pool_free_command(shost->cmd_pool, cmd);
 
 	put_device(dev);
 }
@@ -348,23 +377,14 @@ int scsi_setup_command_freelist(struct Scsi_Host *shost)
 	/*
 	 * Get one backup command for this host.
 	 */
-	cmd = kmem_cache_alloc(shost->cmd_pool->cmd_slab,
-			       GFP_KERNEL | shost->cmd_pool->gfp_mask);
+	cmd = scsi_pool_alloc_command(shost->cmd_pool, GFP_KERNEL);
 	if (!cmd)
-		goto fail2;
-
-	cmd->sense_buffer = kmem_cache_alloc(shost->cmd_pool->sense_slab,
-					     GFP_KERNEL |
-					     shost->cmd_pool->gfp_mask);
-	if (!cmd->sense_buffer)
 		goto fail2;
 
 	list_add(&cmd->list, &shost->free_list);
 	return 0;
 
  fail2:
-	if (cmd)
-		kmem_cache_free(shost->cmd_pool->cmd_slab, cmd);
 	mutex_lock(&host_cmd_pool_mutex);
 	if (!--pool->users) {
 		kmem_cache_destroy(pool->cmd_slab);
@@ -386,9 +406,7 @@ void scsi_destroy_command_freelist(struct Scsi_Host *shost)
 
 		cmd = list_entry(shost->free_list.next, struct scsi_cmnd, list);
 		list_del_init(&cmd->list);
-		kmem_cache_free(shost->cmd_pool->sense_slab,
-				cmd->sense_buffer);
-		kmem_cache_free(shost->cmd_pool->cmd_slab, cmd);
+		scsi_pool_free_command(shost->cmd_pool, cmd);
 	}
 
 	mutex_lock(&host_cmd_pool_mutex);
