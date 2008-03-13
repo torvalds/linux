@@ -31,7 +31,7 @@
 static spinlock_t gpio_lock = __SPIN_LOCK_UNLOCKED(gpio_lock);
 
 /* only access gpiores with atomic ops */
-static DECLARE_BITMAP(gpiores, GPIO_MAX);
+static DECLARE_BITMAP(gpiores, GPIO_MAX + 1);
 
 static inline int ns9xxx_valid_gpio(unsigned gpio)
 {

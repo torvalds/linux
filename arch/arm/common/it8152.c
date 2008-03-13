@@ -274,7 +274,7 @@ static int it8152_pci_platform_notify_remove(struct device *dev)
 int dma_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t size)
 {
 	dev_dbg(dev, "%s: dma_addr %08x, size %08x\n",
-		__FUNCTION__, dma_addr, size);
+		__func__, dma_addr, size);
 	return (dev->bus == &pci_bus_type) &&
 		((dma_addr + size - PHYS_OFFSET) >= SZ_64M);
 }
@@ -289,7 +289,7 @@ int dma_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t size)
  */
 int pci_set_dma_mask(struct pci_dev *dev, u64 mask)
 {
-	dev_dbg(&dev->dev, "%s: %llx\n", __FUNCTION__, mask);
+	dev_dbg(&dev->dev, "%s: %llx\n", __func__, mask);
 	if (mask >= PHYS_OFFSET + SZ_64M - 1)
 		return 0;
 
@@ -299,7 +299,7 @@ int pci_set_dma_mask(struct pci_dev *dev, u64 mask)
 int
 pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
 {
-	dev_dbg(&dev->dev, "%s: %llx\n", __FUNCTION__, mask);
+	dev_dbg(&dev->dev, "%s: %llx\n", __func__, mask);
 	if (mask >= PHYS_OFFSET + SZ_64M - 1)
 		return 0;
 

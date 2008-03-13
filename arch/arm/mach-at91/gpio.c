@@ -490,6 +490,11 @@ postcore_initcall(at91_gpio_debugfs_init);
 
 /*--------------------------------------------------------------------------*/
 
+/* This lock class tells lockdep that GPIO irqs are in a different
+ * category than their parents, so it won't report false recursion.
+ */
+static struct lock_class_key gpio_lock_class;
+
 /*
  * Called from the processor-specific init to enable GPIO interrupt support.
  */
@@ -510,6 +515,8 @@ void __init at91_gpio_irq_setup(void)
 		__raw_writel(~0, this->regbase + PIO_IDR);
 
 		for (i = 0, pin = this->chipbase; i < 32; i++, pin++) {
+			lockdep_set_class(&irq_desc[pin].lock, &gpio_lock_class);
+
 			/*
 			 * Can use the "simple" and not "edge" handler since it's
 			 * shorter, and the AIC handles interrupts sanely.
