@@ -33,8 +33,6 @@ struct dpll_data {
 	void __iomem		*mult_div1_reg;
 	u32			mult_mask;
 	u32			div1_mask;
-	void __iomem		*div2_reg;
-	u32			div2_mask;
 #  if defined(CONFIG_ARCH_OMAP3)
 	void __iomem		*control_reg;
 	u32			enable_mask;
