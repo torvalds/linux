@@ -232,6 +232,15 @@
 				reg = <40000790 8>;
 			};
 
+			TAH0: emac-tah@40000b50 {
+				compatible = "ibm,tah-440gx", "ibm,tah";
+				reg = <40000b50 30>;
+			};
+
+			TAH1: emac-tah@40000d50 {
+				compatible = "ibm,tah-440gx", "ibm,tah";
+				reg = <40000d50 30>;
+			};
 
 			EMAC0: ethernet@40000800 {
 				unused = <1>;
@@ -294,6 +303,8 @@
 				rgmii-channel = <0>;
  				zmii-device = <&ZMII0>;
 				zmii-channel = <2>;
+				tah-device = <&TAH0>;
+				tah-channel = <0>;
 			};
 
 		 	EMAC3: ethernet@40000e00 {
@@ -316,6 +327,8 @@
 				rgmii-channel = <1>;
  				zmii-device = <&ZMII0>;
 				zmii-channel = <3>;
+				tah-device = <&TAH1>;
+				tah-channel = <0>;
 			};
 
 
