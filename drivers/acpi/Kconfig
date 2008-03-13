@@ -283,23 +283,22 @@ config ACPI_TOSHIBA
 	  If you have a legacy free Toshiba laptop (such as the Libretto L1
 	  series), say Y.
 
-config ACPI_CUSTOM_DSDT
-	bool "Include Custom DSDT"
+config ACPI_CUSTOM_DSDT_FILE
+	string "Custom DSDT Table file to include"
+	default ""
 	depends on !STANDALONE
-	default n 
 	help
 	  This option supports a custom DSDT by linking it into the kernel.
 	  See Documentation/acpi/dsdt-override.txt
 
-	  If unsure, say N.
-
-config ACPI_CUSTOM_DSDT_FILE
-	string "Custom DSDT Table file to include"
-	depends on ACPI_CUSTOM_DSDT
-	default ""
-	help
 	  Enter the full path name to the file which includes the AmlCode
 	  declaration.
+
+	  If unsure, don't enter a file name.
+
+config ACPI_CUSTOM_DSDT
+	bool
+	default ACPI_CUSTOM_DSDT_FILE != ""
 
 config ACPI_CUSTOM_DSDT_INITRD
 	bool "Read Custom DSDT from initramfs"
