@@ -1201,7 +1201,7 @@ static int acpi_video_bus_ROM_seq_show(struct seq_file *seq, void *offset)
 	if (!video)
 		goto end;
 
-	printk(KERN_INFO PREFIX "Please implement %s\n", __FUNCTION__);
+	printk(KERN_INFO PREFIX "Please implement %s\n", __func__);
 	seq_printf(seq, "<TODO>\n");
 
       end:
