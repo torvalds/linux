@@ -130,6 +130,9 @@ extern void scsi_release_buffers(struct scsi_cmnd *cmd);
 extern int scsi_dma_map(struct scsi_cmnd *cmd);
 extern void scsi_dma_unmap(struct scsi_cmnd *cmd);
 
+struct scsi_cmnd *scsi_allocate_command(gfp_t gfp_mask);
+void scsi_free_command(gfp_t gfp_mask, struct scsi_cmnd *cmd);
+
 static inline unsigned scsi_sg_count(struct scsi_cmnd *cmd)
 {
 	return cmd->sdb.table.nents;
