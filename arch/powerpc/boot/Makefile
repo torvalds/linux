@@ -186,7 +186,7 @@ quiet_cmd_wrap	= WRAP    $@
 image-$(CONFIG_PPC_PSERIES)		+= zImage.pseries
 image-$(CONFIG_PPC_MAPLE)		+= zImage.pseries
 image-$(CONFIG_PPC_IBM_CELL_BLADE)	+= zImage.pseries
-image-$(CONFIG_PPC_PS3)			+= zImage-dtb.ps3
+image-$(CONFIG_PPC_PS3)			+= dtbImage.ps3
 image-$(CONFIG_PPC_CELLEB)		+= zImage.pseries
 image-$(CONFIG_PPC_CHRP)		+= zImage.chrp
 image-$(CONFIG_PPC_EFIKA)		+= zImage.chrp
@@ -205,7 +205,7 @@ image-$(CONFIG_DEFAULT_UIMAGE)		+= uImage
 #
 
 # Board ports in arch/powerpc/platform/40x/Kconfig
-image-$(CONFIG_EP405)			+= zImage-dtb.ep405
+image-$(CONFIG_EP405)			+= dtbImage.ep405
 image-$(CONFIG_WALNUT)			+= treeImage.walnut
 
 # Board ports in arch/powerpc/platform/44x/Kconfig
@@ -220,9 +220,9 @@ image-$(CONFIG_WARP)			+= cuImage.warp
 # Board ports in arch/powerpc/platform/8xx/Kconfig
 image-$(CONFIG_PPC_MPC86XADS)		+= cuImage.mpc866ads
 image-$(CONFIG_PPC_MPC885ADS)		+= cuImage.mpc885ads
-image-$(CONFIG_PPC_EP88XC)		+= zImage-dtb.ep88xc
+image-$(CONFIG_PPC_EP88XC)		+= dtbImage.ep88xc
 image-$(CONFIG_PPC_ADDER875)		+= cuImage.adder875-uboot \
-					   zImage-dtb.adder875-redboot
+					   dtbImage.adder875-redboot
 
 # Board ports in arch/powerpc/platform/52xx/Kconfig
 image-$(CONFIG_PPC_LITE5200)		+= cuImage.lite5200 cuImage.lite5200b
@@ -230,7 +230,7 @@ image-$(CONFIG_PPC_LITE5200)		+= cuImage.lite5200 cuImage.lite5200b
 # Board ports in arch/powerpc/platform/82xx/Kconfig
 image-$(CONFIG_MPC8272_ADS)		+= cuImage.mpc8272ads
 image-$(CONFIG_PQ2FADS)			+= cuImage.pq2fads
-image-$(CONFIG_EP8248E)			+= zImage-dtb.ep8248e
+image-$(CONFIG_EP8248E)			+= dtbImage.ep8248e
 
 # Board ports in arch/powerpc/platform/83xx/Kconfig
 image-$(CONFIG_MPC832x_MDS)		+= cuImage.mpc832x_mds
@@ -268,7 +268,8 @@ endif
 
 initrd-  := $(patsubst zImage%, zImage.initrd%, $(image-n) $(image-))
 initrd-y := $(patsubst zImage%, zImage.initrd%, \
-		$(patsubst treeImage%, treeImage.initrd%, $(image-y)))
+		$(patsubst dtbImage%, dtbImage.initrd%, \
+		$(patsubst treeImage%, treeImage.initrd%, $(image-y))))
 initrd-y := $(filter-out $(image-y), $(initrd-y))
 targets	+= $(image-y) $(initrd-y)
 
@@ -283,10 +284,11 @@ $(obj)/zImage.initrd.%: vmlinux $(wrapperbits)
 $(obj)/zImage.%: vmlinux $(wrapperbits)
 	$(call if_changed,wrap,$*)
 
-$(obj)/zImage-dtb.initrd.%: vmlinux $(wrapperbits) $(dtstree)/%.dts
+# dtbImage% - a dtbImage is a zImage with an embedded device tree blob
+$(obj)/dtbImage.initrd.%: vmlinux $(wrapperbits) $(dtstree)/%.dts
 	$(call if_changed,wrap,$*,$(dtstree)/$*.dts,,$(obj)/ramdisk.image.gz)
 
-$(obj)/zImage-dtb.%: vmlinux $(wrapperbits) $(dtstree)/%.dts
+$(obj)/dtbImage.%: vmlinux $(wrapperbits) $(dtstree)/%.dts
 	$(call if_changed,wrap,$*,$(dtstree)/$*.dts)
 
 # This cannot be in the root of $(src) as the zImage rule always adds a $(obj)

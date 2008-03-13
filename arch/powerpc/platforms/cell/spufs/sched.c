@@ -867,7 +867,7 @@ static noinline void spusched_tick(struct spu_context *ctx)
 	if (ctx->policy == SCHED_FIFO)
 		goto out;
 
-	if (--ctx->time_slice && ctx->policy != SCHED_IDLE)
+	if (--ctx->time_slice && test_bit(SPU_SCHED_SPU_RUN, &ctx->sched_flags))
 		goto out;
 
 	spu = ctx->spu;
@@ -877,7 +877,7 @@ static noinline void spusched_tick(struct spu_context *ctx)
 	new = grab_runnable_context(ctx->prio + 1, spu->node);
 	if (new) {
 		spu_unschedule(spu, ctx);
-		if (ctx->policy != SCHED_IDLE)
+		if (test_bit(SPU_SCHED_SPU_RUN, &ctx->sched_flags))
 			spu_add_to_rq(ctx);
 	} else {
 		spu_context_nospu_trace(spusched_tick__newslice, ctx);
