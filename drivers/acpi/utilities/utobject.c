@@ -432,7 +432,7 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 	 * element -- which is legal)
 	 */
 	if (!internal_object) {
-		*obj_length = 0;
+		*obj_length = sizeof(union acpi_object);
 		return_ACPI_STATUS(AE_OK);
 	}
 
