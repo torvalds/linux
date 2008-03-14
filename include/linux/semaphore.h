@@ -62,6 +62,12 @@ extern void down(struct semaphore *sem);
 extern int __must_check down_interruptible(struct semaphore *sem);
 
 /*
+ * As down_interruptible(), except the sleep may only be interrupted by
+ * signals which are fatal to this process.
+ */
+extern int __must_check down_killable(struct semaphore *sem);
+
+/*
  * As down(), except this function will not sleep.  It will return 0 if it
  * acquired the semaphore and 1 if the semaphore was contended.  This
  * function may be called from any context, including interrupt and softirq.

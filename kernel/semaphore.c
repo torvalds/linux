@@ -34,6 +34,7 @@
 
 static noinline void __down(struct semaphore *sem);
 static noinline int __down_interruptible(struct semaphore *sem);
+static noinline int __down_killable(struct semaphore *sem);
 static noinline void __up(struct semaphore *sem);
 
 void down(struct semaphore *sem)
@@ -60,6 +61,20 @@ int down_interruptible(struct semaphore *sem)
 	return result;
 }
 EXPORT_SYMBOL(down_interruptible);
+
+int down_killable(struct semaphore *sem)
+{
+	unsigned long flags;
+	int result = 0;
+
+	spin_lock_irqsave(&sem->lock, flags);
+	if (unlikely(sem->count-- <= 0))
+		result = __down_killable(sem);
+	spin_unlock_irqrestore(&sem->lock, flags);
+
+	return result;
+}
+EXPORT_SYMBOL(down_killable);
 
 /**
  * down_trylock - try to acquire the semaphore, without waiting
@@ -143,6 +158,8 @@ static inline int __sched __down_common(struct semaphore *sem, long state)
 	for (;;) {
 		if (state == TASK_INTERRUPTIBLE && signal_pending(task))
 			goto interrupted;
+		if (state == TASK_KILLABLE && fatal_signal_pending(task))
+			goto interrupted;
 		__set_task_state(task, state);
 		spin_unlock_irq(&sem->lock);
 		schedule();
@@ -176,6 +193,11 @@ static noinline void __sched __down(struct semaphore *sem)
 static noinline int __sched __down_interruptible(struct semaphore *sem)
 {
 	return __down_common(sem, TASK_INTERRUPTIBLE);
+}
+
+static noinline int __sched __down_killable(struct semaphore *sem)
+{
+	return __down_common(sem, TASK_KILLABLE);
 }
 
 static noinline void __sched __up(struct semaphore *sem)
