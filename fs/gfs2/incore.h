@@ -167,6 +167,7 @@ enum {
 	GLF_DEMOTE_IN_PROGRESS	= 6,
 	GLF_LFLUSH		= 7,
 	GLF_WAITERS2		= 8,
+	GLF_CONV_DEADLK		= 9,
 };
 
 struct gfs2_glock {

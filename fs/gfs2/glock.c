@@ -764,7 +764,7 @@ static void state_change(struct gfs2_glock *gl, unsigned int new_state)
 static void drop_bh(struct gfs2_glock *gl, unsigned int ret)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
-	const struct gfs2_glock_operations *glops = gl->gl_ops;
+	struct gfs2_holder *gh = gl->gl_req_gh;
 
 	gfs2_assert_warn(sdp, test_bit(GLF_LOCK, &gl->gl_flags));
 	gfs2_assert_warn(sdp, list_empty(&gl->gl_holders));
@@ -772,8 +772,14 @@ static void drop_bh(struct gfs2_glock *gl, unsigned int ret)
 
 	state_change(gl, LM_ST_UNLOCKED);
 
-	if (glops->go_inval)
-		glops->go_inval(gl, DIO_METADATA);
+	if (test_and_clear_bit(GLF_CONV_DEADLK, &gl->gl_flags)) {
+		spin_lock(&gl->gl_spin);
+		gh->gh_error = 0;
+		spin_unlock(&gl->gl_spin);
+		gfs2_glock_xmote_th(gl, gl->gl_req_gh);
+		gfs2_glock_put(gl);
+		return;
+	}
 
 	spin_lock(&gl->gl_spin);
 	gfs2_demote_wake(gl);
@@ -794,7 +800,6 @@ static void xmote_bh(struct gfs2_glock *gl, unsigned int ret)
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	struct gfs2_holder *gh = gl->gl_req_gh;
-	int prev_state = gl->gl_state;
 	int op_done = 1;
 
 	if (!gh && (ret & LM_OUT_ST_MASK) == LM_ST_UNLOCKED) {
@@ -807,16 +812,6 @@ static void xmote_bh(struct gfs2_glock *gl, unsigned int ret)
 	gfs2_assert_warn(sdp, !(ret & LM_OUT_ASYNC));
 
 	state_change(gl, ret & LM_OUT_ST_MASK);
-
-	if (prev_state != LM_ST_UNLOCKED && !(ret & LM_OUT_CACHEABLE)) {
-		if (glops->go_inval)
-			glops->go_inval(gl, DIO_METADATA);
-	} else if (gl->gl_state == LM_ST_DEFERRED) {
-		/* We might not want to do this here.
-		   Look at moving to the inode glops. */
-		if (glops->go_inval)
-			glops->go_inval(gl, 0);
-	}
 
 	/*  Deal with each possible exit condition  */
 
@@ -837,6 +832,14 @@ static void xmote_bh(struct gfs2_glock *gl, unsigned int ret)
 		}
 	} else {
 		spin_lock(&gl->gl_spin);
+		if (ret & LM_OUT_CONV_DEADLK) {
+			gh->gh_error = 0;
+			set_bit(GLF_CONV_DEADLK, &gl->gl_flags);
+			spin_unlock(&gl->gl_spin);
+			gfs2_glock_drop_th(gl);
+			gfs2_glock_put(gl);
+			return;
+		}
 		list_del_init(&gh->gh_list);
 		gh->gh_error = -EIO;
 		if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags))) 
@@ -910,6 +913,8 @@ static void gfs2_glock_xmote_th(struct gfs2_glock *gl, struct gfs2_holder *gh)
 
 	if (glops->go_xmote_th)
 		glops->go_xmote_th(gl);
+	if (state == LM_ST_DEFERRED && glops->go_inval)
+		glops->go_inval(gl, DIO_METADATA);
 
 	gfs2_assert_warn(sdp, test_bit(GLF_LOCK, &gl->gl_flags));
 	gfs2_assert_warn(sdp, list_empty(&gl->gl_holders));
@@ -952,6 +957,8 @@ static void gfs2_glock_drop_th(struct gfs2_glock *gl)
 
 	if (glops->go_xmote_th)
 		glops->go_xmote_th(gl);
+	if (glops->go_inval)
+		glops->go_inval(gl, DIO_METADATA);
 
 	gfs2_assert_warn(sdp, test_bit(GLF_LOCK, &gl->gl_flags));
 	gfs2_assert_warn(sdp, list_empty(&gl->gl_holders));

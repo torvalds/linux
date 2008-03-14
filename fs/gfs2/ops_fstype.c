@@ -723,7 +723,7 @@ static int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
 {
 	char *proto = sdp->sd_proto_name;
 	char *table = sdp->sd_table_name;
-	int flags = 0;
+	int flags = LM_MFLAG_CONV_NODROP;
 	int error;
 
 	if (sdp->sd_args.ar_spectator)
