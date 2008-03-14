@@ -123,26 +123,7 @@ static inline int sync_test_and_change_bit(int nr, volatile unsigned long* addr)
 	return oldbit;
 }
 
-static __always_inline int sync_constant_test_bit(int nr, const volatile unsigned long *addr)
-{
-	return ((1UL << (nr & 31)) &
-		(((const volatile unsigned int *)addr)[nr >> 5])) != 0;
-}
-
-static inline int sync_var_test_bit(int nr, const volatile unsigned long * addr)
-{
-	int oldbit;
-
-	__asm__ __volatile__("btl %2,%1\n\tsbbl %0,%0"
-			     :"=r" (oldbit)
-			     :"m" (ADDR),"Ir" (nr));
-	return oldbit;
-}
-
-#define sync_test_bit(nr,addr)			\
-	(__builtin_constant_p(nr) ?		\
-	 sync_constant_test_bit((nr),(addr)) :	\
-	 sync_var_test_bit((nr),(addr)))
+#define sync_test_bit test_bit
 
 #undef ADDR
 
