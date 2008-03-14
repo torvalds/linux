@@ -46,9 +46,9 @@ struct nfs_parsed_mount_data {
 		struct sockaddr_storage	address;
 		size_t			addrlen;
 		char			*hostname;
-		unsigned int		version;
+		u32			version;
 		unsigned short		port;
-		int			protocol;
+		unsigned short		protocol;
 	} mount_server;
 
 	struct {
@@ -56,7 +56,7 @@ struct nfs_parsed_mount_data {
 		size_t			addrlen;
 		char			*hostname;
 		char			*export_path;
-		int			protocol;
+		unsigned short		protocol;
 	} nfs_server;
 
 	struct security_mnt_opts lsm_opts;
