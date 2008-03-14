@@ -381,6 +381,9 @@
 #define USB_VENDOR_ID_SUN		0x0430
 #define USB_DEVICE_ID_RARITAN_KVM_DONGLE	0xcdab
 
+#define USB_VENDOR_ID_SUNPLUS		0x04fc
+#define USB_DEVICE_ID_SUNPLUS_WDESKTOP	0x05d8
+
 #define USB_VENDOR_ID_TOPMAX		0x0663
 #define USB_DEVICE_ID_TOPMAX_COBRAPAD	0x0103
 
@@ -735,6 +738,8 @@ static const struct hid_rdesc_blacklist {
 
 	{ USB_VENDOR_ID_SAMSUNG, USB_DEVICE_ID_SAMSUNG_IR_REMOTE, HID_QUIRK_RDESC_SAMSUNG_REMOTE },
 
+	{ USB_VENDOR_ID_SUNPLUS, USB_DEVICE_ID_SUNPLUS_WDESKTOP, HID_QUIRK_RDESC_SUNPLUS_WDESKTOP },
+
 	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_BARCODE_1, HID_QUIRK_RDESC_SWAPPED_MIN_MAX },
 	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_BARCODE_2, HID_QUIRK_RDESC_SWAPPED_MIN_MAX },
 
@@ -1009,6 +1014,17 @@ static void usbhid_fixup_logitech_descriptor(unsigned char *rdesc, int rsize)
 	}
 }
 
+static void usbhid_fixup_sunplus_wdesktop(unsigned char *rdesc, int rsize)
+{
+	if (rsize >= 107 && rdesc[104] == 0x26
+			 && rdesc[105] == 0x80
+			 && rdesc[106] == 0x03) {
+		printk(KERN_INFO "Fixing up Sunplus Wireless Desktop report descriptor\n");
+		rdesc[105] = rdesc[110] = 0x03;
+		rdesc[106] = rdesc[111] = 0x21;
+	}
+}
+
 /*
  * Samsung IrDA remote controller (reports as Cypress USB Mouse).
  *
@@ -1181,5 +1197,8 @@ void usbhid_fixup_report_descriptor(const u16 idVendor, const u16 idProduct,
 		else if (paramVendor == idVendor && paramProduct == idProduct)
 			__usbhid_fixup_report_descriptor(quirks, rdesc, rsize);
 	}
+
+	if (quirks & HID_QUIRK_RDESC_SUNPLUS_WDESKTOP)
+		usbhid_fixup_sunplus_wdesktop(rdesc, rsize);
 
 }

@@ -298,6 +298,7 @@ struct hid_item {
 #define HID_QUIRK_RDESC_BUTTON_CONSUMER		0x00000020
 #define HID_QUIRK_RDESC_SAMSUNG_REMOTE		0x00000040
 #define HID_QUIRK_RDESC_MICROSOFT_RECV_1028	0x00000080
+#define HID_QUIRK_RDESC_SUNPLUS_WDESKTOP	0x00000100
 
 /*
  * This is the global environment of the parser. This information is
@@ -322,7 +323,7 @@ struct hid_global {
  * This is the local environment. It is persistent up the next main-item.
  */
 
-#define HID_MAX_USAGES			8192
+#define HID_MAX_USAGES			12288
 #define HID_DEFAULT_NUM_COLLECTIONS	16
 
 struct hid_local {
