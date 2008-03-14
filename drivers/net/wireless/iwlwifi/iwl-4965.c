@@ -105,6 +105,90 @@ static const u16 default_tid_to_tx_fifo[] = {
 
 #endif	/*CONFIG_IWL4965_HT */
 
+static int iwl4965_init_drv(struct iwl_priv *priv)
+{
+	int ret;
+	int i;
+
+	priv->antenna = (enum iwl4965_antenna)iwl4965_mod_params.antenna;
+	priv->retry_rate = 1;
+	priv->ibss_beacon = NULL;
+
+	spin_lock_init(&priv->lock);
+	spin_lock_init(&priv->power_data.lock);
+	spin_lock_init(&priv->sta_lock);
+	spin_lock_init(&priv->hcmd_lock);
+	spin_lock_init(&priv->lq_mngr.lock);
+
+	for (i = 0; i < IWL_IBSS_MAC_HASH_SIZE; i++)
+		INIT_LIST_HEAD(&priv->ibss_mac_hash[i]);
+
+	INIT_LIST_HEAD(&priv->free_frames);
+
+	mutex_init(&priv->mutex);
+
+	/* Clear the driver's (not device's) station table */
+	iwlcore_clear_stations_table(priv);
+
+	priv->data_retry_limit = -1;
+	priv->ieee_channels = NULL;
+	priv->ieee_rates = NULL;
+	priv->band = IEEE80211_BAND_2GHZ;
+
+	priv->iw_mode = IEEE80211_IF_TYPE_STA;
+
+	priv->use_ant_b_for_management_frame = 1; /* start with ant B */
+	priv->valid_antenna = 0x7;	/* assume all 3 connected */
+	priv->ps_mode = IWL_MIMO_PS_NONE;
+
+	/* Choose which receivers/antennas to use */
+	iwl4965_set_rxon_chain(priv);
+
+	iwlcore_reset_qos(priv);
+
+	priv->qos_data.qos_active = 0;
+	priv->qos_data.qos_cap.val = 0;
+
+	iwlcore_set_rxon_channel(priv, IEEE80211_BAND_2GHZ, 6);
+
+	priv->rates_mask = IWL_RATES_MASK;
+	/* If power management is turned on, default to AC mode */
+	priv->power_mode = IWL_POWER_AC;
+	priv->user_txpower_limit = IWL_DEFAULT_TX_POWER;
+
+	ret = iwl_init_channel_map(priv);
+	if (ret) {
+		IWL_ERROR("initializing regulatory failed: %d\n", ret);
+		goto err;
+	}
+
+	ret = iwl4965_init_geos(priv);
+	if (ret) {
+		IWL_ERROR("initializing geos failed: %d\n", ret);
+		goto err_free_channel_map;
+	}
+
+	iwl4965_rate_control_register(priv->hw);
+	ret = ieee80211_register_hw(priv->hw);
+	if (ret) {
+		IWL_ERROR("Failed to register network device (error %d)\n",
+				ret);
+		goto err_free_geos;
+	}
+
+	priv->hw->conf.beacon_int = 100;
+	priv->mac80211_registered = 1;
+
+	return 0;
+
+err_free_geos:
+	iwl4965_free_geos(priv);
+err_free_channel_map:
+	iwl_free_channel_map(priv);
+err:
+	return ret;
+}
+
 static int is_fat_channel(__le32 rxon_flags)
 {
 	return (rxon_flags & RXON_FLG_CHANNEL_MODE_PURE_40_MSK) ||
@@ -387,55 +471,6 @@ static int iwl4965_kw_alloc(struct iwl_priv *priv)
 	kw->v_addr = pci_alloc_consistent(dev, kw->size, &kw->dma_addr);
 	if (!kw->v_addr)
 		return -ENOMEM;
-
-	return 0;
-}
-
-#define CHECK_AND_PRINT(x) ((eeprom_ch->flags & EEPROM_CHANNEL_##x) \
-			    ? # x " " : "")
-
-/**
- * iwl4965_set_fat_chan_info - Copy fat channel info into driver's priv.
- *
- * Does not set up a command, or touch hardware.
- */
-int iwl4965_set_fat_chan_info(struct iwl_priv *priv,
-			      enum ieee80211_band band, u16 channel,
-			      const struct iwl4965_eeprom_channel *eeprom_ch,
-			      u8 fat_extension_channel)
-{
-	struct iwl4965_channel_info *ch_info;
-
-	ch_info = (struct iwl4965_channel_info *)
-			iwl4965_get_channel_info(priv, band, channel);
-
-	if (!is_channel_valid(ch_info))
-		return -1;
-
-	IWL_DEBUG_INFO("FAT Ch. %d [%sGHz] %s%s%s%s%s%s(0x%02x"
-			" %ddBm): Ad-Hoc %ssupported\n",
-			ch_info->channel,
-			is_channel_a_band(ch_info) ?
-			"5.2" : "2.4",
-			CHECK_AND_PRINT(IBSS),
-			CHECK_AND_PRINT(ACTIVE),
-			CHECK_AND_PRINT(RADAR),
-			CHECK_AND_PRINT(WIDE),
-			CHECK_AND_PRINT(NARROW),
-			CHECK_AND_PRINT(DFS),
-			eeprom_ch->flags,
-			eeprom_ch->max_power_avg,
-			((eeprom_ch->flags & EEPROM_CHANNEL_IBSS)
-			 && !(eeprom_ch->flags & EEPROM_CHANNEL_RADAR)) ?
-			"" : "not ");
-
-	ch_info->fat_eeprom = *eeprom_ch;
-	ch_info->fat_max_power_avg = eeprom_ch->max_power_avg;
-	ch_info->fat_curr_txpow = eeprom_ch->max_power_avg;
-	ch_info->fat_min_power = 0;
-	ch_info->fat_scan_power = eeprom_ch->max_power_avg;
-	ch_info->fat_flags = eeprom_ch->flags;
-	ch_info->fat_extension_channel = fat_extension_channel;
 
 	return 0;
 }
@@ -2015,11 +2050,11 @@ static s32 iwl4965_get_voltage_compensation(s32 eeprom_voltage,
 	return comp;
 }
 
-static const struct iwl4965_channel_info *
+static const struct iwl_channel_info *
 iwl4965_get_channel_txpower_info(struct iwl_priv *priv,
 				 enum ieee80211_band band, u16 channel)
 {
-	const struct iwl4965_channel_info *ch_info;
+	const struct iwl_channel_info *ch_info;
 
 	ch_info = iwl4965_get_channel_info(priv, band, channel);
 
@@ -2438,7 +2473,7 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 	s32 txatten_grp = CALIB_CH_GROUP_MAX;
 	int i;
 	int c;
-	const struct iwl4965_channel_info *ch_info = NULL;
+	const struct iwl_channel_info *ch_info = NULL;
 	struct iwl4965_eeprom_calib_ch_info ch_eeprom_info;
 	const struct iwl4965_eeprom_calib_measure *measurement;
 	s16 voltage;
@@ -2725,7 +2760,7 @@ int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 	u8 is_fat = 0;
 	u8 ctrl_chan_high = 0;
 	struct iwl4965_channel_switch_cmd cmd = { 0 };
-	const struct iwl4965_channel_info *ch_info;
+	const struct iwl_channel_info *ch_info;
 
 	band = priv->band == IEEE80211_BAND_2GHZ;
 
@@ -4471,7 +4506,7 @@ static u8 iwl4965_is_channel_extension(struct iwl_priv *priv,
 				       enum ieee80211_band band,
 				       u16 channel, u8 extension_chan_offset)
 {
-	const struct iwl4965_channel_info *ch_info;
+	const struct iwl_channel_info *ch_info;
 
 	ch_info = iwl4965_get_channel_info(priv, band, channel);
 	if (!is_channel_valid(ch_info))
@@ -4848,6 +4883,7 @@ void iwl4965_hw_cancel_deferred_work(struct iwl_priv *priv)
 }
 
 static struct iwl_lib_ops iwl4965_lib = {
+	.init_drv = iwl4965_init_drv,
 	.eeprom_ops = {
 		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,

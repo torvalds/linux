@@ -76,6 +76,8 @@
 #define IWL_SKU_N       0x8
 
 struct iwl_lib_ops {
+	/* iwlwifi driver (priv) init */
+	int (*init_drv)(struct iwl_priv *priv);
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
 };
@@ -109,5 +111,13 @@ struct iwl_cfg {
 
 struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
 		struct ieee80211_ops *hw_ops);
+
+void iwlcore_clear_stations_table(struct iwl_priv *priv);
+void iwlcore_reset_qos(struct iwl_priv *priv);
+int iwlcore_set_rxon_channel(struct iwl_priv *priv,
+				enum ieee80211_band band,
+				u16 channel);
+
+int iwl_setup(struct iwl_priv *priv);
 
 #endif /* __iwl_core_h__ */

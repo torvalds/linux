@@ -197,7 +197,7 @@ enum {
  */
 #define IWL4965_MAX_RATE (33)
 
-struct iwl4965_channel_info {
+struct iwl_channel_info {
 	struct iwl4965_channel_tgd_info tgd;
 	struct iwl4965_channel_tgh_info tgh;
 	struct iwl4965_eeprom_channel eeprom;	  /* EEPROM regulatory limit */
@@ -669,6 +669,8 @@ extern void iwl4965_set_decrypted_flag(struct iwl_priv *priv, struct sk_buff *sk
 				   u32 decrypt_res,
 				   struct ieee80211_rx_status *stats);
 extern __le16 *ieee80211_get_qos_ctrl(struct ieee80211_hdr *hdr);
+int iwl4965_init_geos(struct iwl_priv *priv);
+void iwl4965_free_geos(struct iwl_priv *priv);
 
 extern const u8 iwl4965_broadcast_addr[ETH_ALEN];
 
@@ -755,11 +757,6 @@ extern void iwl4965_update_rate_scaling(struct iwl_priv *priv, u8 mode);
 extern void iwl4965_chain_noise_reset(struct iwl_priv *priv);
 extern void iwl4965_init_sensitivity(struct iwl_priv *priv, u8 flags,
 				     u8 force);
-extern int iwl4965_set_fat_chan_info(struct iwl_priv *priv,
-				enum ieee80211_band band,
-				u16 channel,
-				const struct iwl4965_eeprom_channel *eeprom_ch,
-				u8 fat_extension_channel);
 extern void iwl4965_rf_kill_ct_config(struct iwl_priv *priv);
 extern void iwl4965_hwrate_to_tx_control(struct iwl_priv *priv,
 					 u32 rate_n_flags,
@@ -995,7 +992,7 @@ struct iwl_priv {
 
 	/* we allocate array of iwl4965_channel_info for NIC's valid channels.
 	 *    Access via channel # using indirect index array */
-	struct iwl4965_channel_info *channel_info;	/* channel info array */
+	struct iwl_channel_info *channel_info;	/* channel info array */
 	u8 channel_count;	/* # of channels */
 
 	/* each calibration channel group in the EEPROM has a derived
@@ -1229,44 +1226,44 @@ static inline int iwl4965_is_associated(struct iwl_priv *priv)
 	return (priv->active_rxon.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
 }
 
-static inline int is_channel_valid(const struct iwl4965_channel_info *ch_info)
+static inline int is_channel_valid(const struct iwl_channel_info *ch_info)
 {
 	if (ch_info == NULL)
 		return 0;
 	return (ch_info->flags & EEPROM_CHANNEL_VALID) ? 1 : 0;
 }
 
-static inline int is_channel_narrow(const struct iwl4965_channel_info *ch_info)
+static inline int is_channel_narrow(const struct iwl_channel_info *ch_info)
 {
 	return (ch_info->flags & EEPROM_CHANNEL_NARROW) ? 1 : 0;
 }
 
-static inline int is_channel_radar(const struct iwl4965_channel_info *ch_info)
+static inline int is_channel_radar(const struct iwl_channel_info *ch_info)
 {
 	return (ch_info->flags & EEPROM_CHANNEL_RADAR) ? 1 : 0;
 }
 
-static inline u8 is_channel_a_band(const struct iwl4965_channel_info *ch_info)
+static inline u8 is_channel_a_band(const struct iwl_channel_info *ch_info)
 {
 	return ch_info->band == IEEE80211_BAND_5GHZ;
 }
 
-static inline u8 is_channel_bg_band(const struct iwl4965_channel_info *ch_info)
+static inline u8 is_channel_bg_band(const struct iwl_channel_info *ch_info)
 {
 	return ch_info->band == IEEE80211_BAND_2GHZ;
 }
 
-static inline int is_channel_passive(const struct iwl4965_channel_info *ch)
+static inline int is_channel_passive(const struct iwl_channel_info *ch)
 {
 	return (!(ch->flags & EEPROM_CHANNEL_ACTIVE)) ? 1 : 0;
 }
 
-static inline int is_channel_ibss(const struct iwl4965_channel_info *ch)
+static inline int is_channel_ibss(const struct iwl_channel_info *ch)
 {
 	return ((ch->flags & EEPROM_CHANNEL_IBSS)) ? 1 : 0;
 }
 
-extern const struct iwl4965_channel_info *iwl4965_get_channel_info(
+extern const struct iwl_channel_info *iwl4965_get_channel_info(
 	const struct iwl_priv *priv, enum ieee80211_band band, u16 channel);
 
 /* Requires full declaration of iwl_priv before including */

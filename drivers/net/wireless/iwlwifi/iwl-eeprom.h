@@ -137,6 +137,8 @@ struct iwl4965_eeprom_channel {
  * Look for this in calib_version member of struct iwl4965_eeprom. */
 #define EEPROM_TX_POWER_VERSION_NEW    (5)
 
+/* 2.4 GHz */
+extern const u8 iwl_eeprom_band_1[14];
 
 /*
  * 4965 factory calibration data for one txpower level, on one channel,
@@ -363,5 +365,11 @@ int iwl_eeprom_init(struct iwl_priv *priv);
 int iwlcore_eeprom_verify_signature(struct iwl_priv *priv);
 int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv);
 void iwlcore_eeprom_release_semaphore(struct iwl_priv *priv);
+
+int iwl_init_channel_map(struct iwl_priv *priv);
+void iwl_free_channel_map(struct iwl_priv *priv);
+const struct iwl_channel_info *iwl4965_get_channel_info(
+		const struct iwl_priv *priv,
+		enum ieee80211_band band, u16 channel);
 
 #endif  /* __iwl_eeprom_h__ */
