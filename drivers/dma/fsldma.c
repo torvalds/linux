@@ -539,7 +539,6 @@ static void fsl_chan_ld_cleanup(struct fsl_dma_chan *fsl_chan)
 
 	spin_lock_irqsave(&fsl_chan->desc_lock, flags);
 
-	fsl_dma_update_completed_cookie(fsl_chan);
 	dev_dbg(fsl_chan->dev, "chan completed_cookie = %d\n",
 			fsl_chan->completed_cookie);
 	list_for_each_entry_safe(desc, _desc, &fsl_chan->ld_queue, node) {
@@ -710,6 +709,7 @@ static irqreturn_t fsl_dma_chan_do_interrupt(int irq, void *data)
 		dev_dbg(fsl_chan->dev, "event: clndar %p, nlndar %p\n",
 			(void *)get_cdar(fsl_chan), (void *)get_ndar(fsl_chan));
 		stat &= ~FSL_DMA_SR_EOSI;
+		fsl_dma_update_completed_cookie(fsl_chan);
 	}
 
 	/* If it current transfer is the end-of-transfer,
