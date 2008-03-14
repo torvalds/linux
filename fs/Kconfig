@@ -1770,6 +1770,7 @@ config SUNRPC_XPRT_RDMA
 config SUNRPC_BIND34
 	bool "Support for rpcbind versions 3 & 4 (EXPERIMENTAL)"
 	depends on SUNRPC && EXPERIMENTAL
+	default n
 	help
 	  RPC requests over IPv6 networks require support for larger
 	  addresses when performing an RPC bind.  Sun added support for
