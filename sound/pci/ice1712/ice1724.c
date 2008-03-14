@@ -970,6 +970,8 @@ static int snd_vt1724_playback_spdif_open(struct snd_pcm_substream *substream)
 				   VT1724_BUFFER_ALIGN);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 				   VT1724_BUFFER_ALIGN);
+	if (ice->spdif.ops.open)
+		ice->spdif.ops.open(ice, substream);
 	return 0;
 }
 
@@ -980,6 +982,8 @@ static int snd_vt1724_playback_spdif_close(struct snd_pcm_substream *substream)
 	if (PRO_RATE_RESET)
 		snd_vt1724_set_pro_rate(ice, PRO_RATE_DEFAULT, 0);
 	ice->playback_con_substream = NULL;
+	if (ice->spdif.ops.close)
+		ice->spdif.ops.close(ice, substream);
 
 	return 0;
 }
@@ -1002,6 +1006,8 @@ static int snd_vt1724_capture_spdif_open(struct snd_pcm_substream *substream)
 				   VT1724_BUFFER_ALIGN);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 				   VT1724_BUFFER_ALIGN);
+	if (ice->spdif.ops.open)
+		ice->spdif.ops.open(ice, substream);
 	return 0;
 }
 
@@ -1012,6 +1018,8 @@ static int snd_vt1724_capture_spdif_close(struct snd_pcm_substream *substream)
 	if (PRO_RATE_RESET)
 		snd_vt1724_set_pro_rate(ice, PRO_RATE_DEFAULT, 0);
 	ice->capture_con_substream = NULL;
+	if (ice->spdif.ops.close)
+		ice->spdif.ops.close(ice, substream);
 
 	return 0;
 }

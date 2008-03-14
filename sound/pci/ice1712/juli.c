@@ -77,6 +77,22 @@ static unsigned char juli_ak4114_read(void *private_data, unsigned char reg)
 	return snd_vt1724_read_i2c((struct snd_ice1712 *)private_data, AK4114_ADDR, reg);
 }
 
+static void juli_spdif_in_open(struct snd_ice1712 *ice,
+			       struct snd_pcm_substream *substream)
+{
+	struct juli_spec *spec = ice->spec;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	int rate;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return;
+	rate = snd_ak4114_external_rate(spec->ak4114);
+	if (rate >= runtime->hw.rate_min && rate <= runtime->hw.rate_max) {
+		runtime->hw.rate_min = rate;
+		runtime->hw.rate_max = rate;
+	}
+}
+
 /*
  * AK4358 section
  */
@@ -210,6 +226,7 @@ static int __devinit juli_init(struct snd_ice1712 *ice)
 			return err;
 	}
 	
+	ice->spdif.ops.open = juli_spdif_in_open;
 	return 0;
 }
 
