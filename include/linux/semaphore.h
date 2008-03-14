@@ -15,15 +15,12 @@
 
 /*
  * The spinlock controls access to the other members of the semaphore.
- * 'count' is decremented by every task which calls down*() and incremented
- * by every call to up().  Thus, if it is positive, it indicates how many
- * more tasks may acquire the lock.  If it is negative, it indicates how
- * many tasks are waiting for the lock.  Tasks waiting for the lock are
- * kept on the wait_list.
+ * 'count' represents how many more tasks can acquire this semaphore.
+ * Tasks waiting for the lock are kept on the wait_list.
  */
 struct semaphore {
 	spinlock_t		lock;
-	int			count;
+	unsigned int		count;
 	struct list_head	wait_list;
 };
 
