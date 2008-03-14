@@ -28,7 +28,7 @@
 
 /* sio irq0=0xb00010022 irq0=0xb00010023 irq2=0xb00010024
     mmio=0xfff000-0x1000,0xff2000-0x1000 */
-static int txx9_serial_bitmap __initdata = 0;
+static int txx9_serial_bitmap __initdata;
 
 static struct {
 	uint32_t offset;
@@ -84,7 +84,7 @@ static int __init txx9_serial_config(char *ptr)
 	int	i;
 
 	for (;;) {
-		switch(get_option(&ptr, &i)) {
+		switch (get_option(&ptr, &i)) {
 		default:
 			return 0;
 		case 2:

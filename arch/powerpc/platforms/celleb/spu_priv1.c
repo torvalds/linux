@@ -183,8 +183,7 @@ static u64 resource_allocation_enable_get(struct spu *spu)
 	return enable;
 }
 
-const struct spu_priv1_ops spu_priv1_beat_ops =
-{
+const struct spu_priv1_ops spu_priv1_beat_ops = {
 	.int_mask_and = int_mask_and,
 	.int_mask_or = int_mask_or,
 	.int_mask_set = int_mask_set,
