@@ -8531,21 +8531,18 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		iwl4965_hw_ops.hw_scan = NULL;
 	}
 
-	/* mac80211 allocates memory for this device instance, including
-	 *   space for this driver's private structure */
-	hw = ieee80211_alloc_hw(sizeof(struct iwl_priv), &iwl4965_hw_ops);
-	if (hw == NULL) {
-		IWL_ERROR("Can not allocate network device\n");
+	hw = iwl_alloc_all(cfg, &iwl4965_hw_ops);
+	if (!hw) {
 		err = -ENOMEM;
 		goto out;
 	}
+	priv = hw->priv;
+	/* At this point both hw and priv are allocated. */
+
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 
 	IWL_DEBUG_INFO("*** LOAD DRIVER ***\n");
-	priv = hw->priv;
-	priv->hw = hw;
 	priv->cfg = cfg;
-
 	priv->pci_dev = pdev;
 
 #ifdef CONFIG_IWLWIFI_DEBUG

@@ -29,11 +29,14 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
+#include <net/mac80211.h>
 
 struct iwl_priv; /* FIXME: remove */
 #include "iwl-debug.h"
 #include "iwl-eeprom.h"
 #include "iwl-core.h"
+
+#include "iwl-4965.h" /* FIXME: remove */
 
 MODULE_DESCRIPTION("iwl core");
 MODULE_VERSION(IWLWIFI_VERSION);
@@ -44,3 +47,27 @@ MODULE_LICENSE("GPL");
 u32 iwl_debug_level;
 EXPORT_SYMBOL(iwl_debug_level);
 #endif
+
+/* This function both allocates and initializes hw and priv. */
+struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
+		struct ieee80211_ops *hw_ops)
+{
+	struct iwl_priv *priv;
+
+	/* mac80211 allocates memory for this device instance, including
+	 *   space for this driver's private structure */
+	struct ieee80211_hw *hw =
+		ieee80211_alloc_hw(sizeof(struct iwl_priv), hw_ops);
+	if (hw == NULL) {
+		IWL_ERROR("Can not allocate network device\n");
+		goto out;
+	}
+
+	priv = hw->priv;
+	priv->hw = hw;
+
+out:
+	return hw;
+}
+EXPORT_SYMBOL(iwl_alloc_all);
+

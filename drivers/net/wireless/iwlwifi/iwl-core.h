@@ -103,4 +103,11 @@ struct iwl_cfg {
 	const struct iwl_mod_params *mod_params;
 };
 
+/***************************
+ *   L i b                 *
+ ***************************/
+
+struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
+		struct ieee80211_ops *hw_ops);
+
 #endif /* __iwl_core_h__ */
