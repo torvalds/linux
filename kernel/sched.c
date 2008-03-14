@@ -5396,7 +5396,6 @@ static inline void sched_init_granularity(void)
 		sysctl_sched_latency = limit;
 
 	sysctl_sched_wakeup_granularity *= factor;
-	sysctl_sched_batch_wakeup_granularity *= factor;
 }
 
 #ifdef CONFIG_SMP
