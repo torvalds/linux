@@ -145,7 +145,7 @@ client_can_cache:
 			full_path, inode->i_sb, xid);
 	else
 		rc = cifs_get_inode_info(&file->f_path.dentry->d_inode,
-			full_path, buf, inode->i_sb, xid);
+			full_path, buf, inode->i_sb, xid, NULL);
 
 	if ((*oplock & 0xF) == OPLOCK_EXCLUSIVE) {
 		pCifsInode->clientCanCacheAll = TRUE;
@@ -440,7 +440,7 @@ reopen_error_exit:
 				else
 					rc = cifs_get_inode_info(&inode,
 						full_path, NULL, inode->i_sb,
-						xid);
+						xid, NULL);
 			} /* else we are writing out data to server already
 			     and could deadlock if we tried to flush data, and
 			     since we do not know if we have data that would

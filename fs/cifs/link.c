@@ -205,7 +205,7 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 						      inode->i_sb, xid);
 		else
 			rc = cifs_get_inode_info(&newinode, full_path, NULL,
-						 inode->i_sb, xid);
+						 inode->i_sb, xid, NULL);
 
 		if (rc != 0) {
 			cFYI(1, ("Create symlink ok, getinodeinfo fail rc = %d",

@@ -92,11 +92,12 @@ extern struct timespec cnvrtDosUnixTm(__u16 date, __u16 time);
 extern int cifs_get_inode_info(struct inode **pinode,
 			const unsigned char *search_path,
 			FILE_ALL_INFO * pfile_info,
-			struct super_block *sb, int xid);
+			struct super_block *sb, int xid, const __u16 *pfid);
 extern int cifs_get_inode_info_unix(struct inode **pinode,
 			const unsigned char *search_path,
 			struct super_block *sb, int xid);
-extern void acl_to_uid_mode(struct inode *inode, const char *search_path);
+extern void acl_to_uid_mode(struct inode *inode, const char *path,
+			    const __u16 *pfid);
 extern int mode_to_acl(struct inode *inode, const char *path, __u64);
 
 extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,

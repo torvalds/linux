@@ -371,7 +371,7 @@ static int get_sfu_mode(struct inode *inode,
 
 int cifs_get_inode_info(struct inode **pinode,
 	const unsigned char *search_path, FILE_ALL_INFO *pfindData,
-	struct super_block *sb, int xid)
+	struct super_block *sb, int xid, const __u16 *pfid)
 {
 	int rc = 0;
 	struct cifsTconInfo *pTcon;
@@ -569,7 +569,7 @@ try_again_CIFSSMBQPathInfo:
 		/* fill in 0777 bits from ACL */
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
 			cFYI(1, ("Getting mode bits from ACL"));
-			acl_to_uid_mode(inode, search_path);
+			acl_to_uid_mode(inode, search_path, pfid);
 		}
 #endif
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
@@ -616,7 +616,8 @@ struct inode *cifs_iget(struct super_block *sb, unsigned long ino)
 	if (cifs_sb->tcon->unix_ext)
 		rc = cifs_get_inode_info_unix(&inode, "", inode->i_sb, xid);
 	else
-		rc = cifs_get_inode_info(&inode, "", NULL, inode->i_sb, xid);
+		rc = cifs_get_inode_info(&inode, "", NULL, inode->i_sb, xid,
+					 NULL);
 	if (rc && cifs_sb->tcon->ipc) {
 		cFYI(1, ("ipc connection - fake read inode"));
 		inode->i_mode |= S_IFDIR;
@@ -949,7 +950,7 @@ mkdir_get_info:
 						      inode->i_sb, xid);
 		else
 			rc = cifs_get_inode_info(&newinode, full_path, NULL,
-						 inode->i_sb, xid);
+						 inode->i_sb, xid, NULL);
 
 		if (pTcon->nocase)
 			direntry->d_op = &cifs_ci_dentry_ops;
@@ -1231,7 +1232,7 @@ int cifs_revalidate(struct dentry *direntry)
 		}
 	} else {
 		rc = cifs_get_inode_info(&direntry->d_inode, full_path, NULL,
-					 direntry->d_sb, xid);
+					 direntry->d_sb, xid, NULL);
 		if (rc) {
 			cFYI(1, ("error on getting revalidate info %d", rc));
 /*			if (rc != -ENOENT)
