@@ -149,6 +149,15 @@ nsm_create(void)
  * XDR functions for NSM.
  */
 
+static __be32 *xdr_encode_nsm_string(__be32 *p, char *string)
+{
+	size_t len = strlen(string);
+
+	if (len > SM_MAXSTRLEN)
+		len = SM_MAXSTRLEN;
+	return xdr_encode_opaque(p, string, len);
+}
+
 static __be32 *
 xdr_encode_common(struct rpc_rqst *rqstp, __be32 *p, struct nsm_args *argp)
 {
