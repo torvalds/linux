@@ -116,6 +116,47 @@
 			};
 		};
 
+		dma@21300 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8544-dma", "fsl,eloplus-dma";
+			reg = <21300 4>;
+			ranges = <0 21100 200>;
+			cell-index = <0>;
+			dma-channel@0 {
+				compatible = "fsl,mpc8544-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0 80>;
+				cell-index = <0>;
+				interrupt-parent = <&mpic>;
+				interrupts = <14 2>;
+			};
+			dma-channel@80 {
+				compatible = "fsl,mpc8544-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <80 80>;
+				cell-index = <1>;
+				interrupt-parent = <&mpic>;
+				interrupts = <15 2>;
+			};
+			dma-channel@100 {
+				compatible = "fsl,mpc8544-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <100 80>;
+				cell-index = <2>;
+				interrupt-parent = <&mpic>;
+				interrupts = <16 2>;
+			};
+			dma-channel@180 {
+				compatible = "fsl,mpc8544-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <180 80>;
+				cell-index = <3>;
+				interrupt-parent = <&mpic>;
+				interrupts = <17 2>;
+			};
+		};
+
 		enet0: ethernet@24000 {
 			cell-index = <0>;
 			device_type = "network";
