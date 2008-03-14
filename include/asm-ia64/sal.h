@@ -896,6 +896,10 @@ struct palo_table {
 	u8  reserved2[6];
 };
 
+#define NPTCG_FROM_PAL			0
+#define NPTCG_FROM_PALO			1
+#define NPTCG_FROM_KERNEL_PARAMETER	2
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_IA64_SAL_H */

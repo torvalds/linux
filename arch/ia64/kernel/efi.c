@@ -436,7 +436,7 @@ static void __init handle_palo(unsigned long palo_phys)
 		return;
 	}
 
-	setup_ptcg_sem(palo->max_tlb_purges, 1);
+	setup_ptcg_sem(palo->max_tlb_purges, NPTCG_FROM_PALO);
 }
 
 void

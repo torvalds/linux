@@ -120,19 +120,45 @@ static int need_ptcg_sem = 1;
 static int toolatetochangeptcgsem = 0;
 
 /*
+ * Kernel parameter "nptcg=" overrides max number of concurrent global TLB
+ * purges which is reported from either PAL or SAL PALO.
+ *
+ * We don't have sanity checking for nptcg value. It's the user's responsibility
+ * for valid nptcg value on the platform. Otherwise, kernel may hang in some
+ * cases.
+ */
+static int __init
+set_nptcg(char *str)
+{
+	int value = 0;
+
+	get_option(&str, &value);
+	setup_ptcg_sem(value, NPTCG_FROM_KERNEL_PARAMETER);
+
+	return 1;
+}
+
+__setup("nptcg=", set_nptcg);
+
+/*
  * Maximum number of simultaneous ptc.g purges in the system can
  * be defined by PAL_VM_SUMMARY (in which case we should take
  * the smallest value for any cpu in the system) or by the PAL
  * override table (in which case we should ignore the value from
  * PAL_VM_SUMMARY).
  *
+ * Kernel parameter "nptcg=" overrides maximum number of simultanesous ptc.g
+ * purges defined in either PAL_VM_SUMMARY or PAL override table. In this case,
+ * we should ignore the value from either PAL_VM_SUMMARY or PAL override table.
+ *
  * Complicating the logic here is the fact that num_possible_cpus()
  * isn't fully setup until we start bringing cpus online.
  */
 void
-setup_ptcg_sem(int max_purges, int from_palo)
+setup_ptcg_sem(int max_purges, int nptcg_from)
 {
-	static int have_palo;
+	static int kp_override;
+	static int palo_override;
 	static int firstcpu = 1;
 
 	if (toolatetochangeptcgsem) {
@@ -140,8 +166,18 @@ setup_ptcg_sem(int max_purges, int from_palo)
 		return;
 	}
 
-	if (from_palo) {
-		have_palo = 1;
+	if (nptcg_from == NPTCG_FROM_KERNEL_PARAMETER) {
+		kp_override = 1;
+		nptcg = max_purges;
+		goto resetsema;
+	}
+	if (kp_override) {
+		need_ptcg_sem = num_possible_cpus() > nptcg;
+		return;
+	}
+
+	if (nptcg_from == NPTCG_FROM_PALO) {
+		palo_override = 1;
 
 		/* In PALO max_purges == 0 really means it! */
 		if (max_purges == 0)
@@ -153,7 +189,7 @@ setup_ptcg_sem(int max_purges, int from_palo)
 		}
 		goto resetsema;
 	}
-	if (have_palo) {
+	if (palo_override) {
 		if (nptcg != PALO_MAX_TLB_PURGES)
 			need_ptcg_sem = (num_possible_cpus() > nptcg);
 		return;

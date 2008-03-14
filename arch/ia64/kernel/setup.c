@@ -949,7 +949,7 @@ cpu_init (void)
 	/* set ia64_ctx.max_rid to the maximum RID that is supported by all CPUs: */
 	if (ia64_pal_vm_summary(NULL, &vmi) == 0) {
 		max_ctx = (1U << (vmi.pal_vm_info_2_s.rid_size - 3)) - 1;
-		setup_ptcg_sem(vmi.pal_vm_info_2_s.max_purges, 0);
+		setup_ptcg_sem(vmi.pal_vm_info_2_s.max_purges, NPTCG_FROM_PAL);
 	} else {
 		printk(KERN_WARNING "cpu_init: PAL VM summary failed, assuming 18 RID bits\n");
 		max_ctx = (1U << 15) - 1;	/* use architected minimum */
