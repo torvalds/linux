@@ -218,6 +218,24 @@ static __be32 *xdr_encode_mon_id(__be32 *p, struct nsm_args *argp)
 	return xdr_encode_my_id(p, argp);
 }
 
+/*
+ * The "priv" argument may contain private information required
+ * by the SM_MON call. This information will be supplied in the
+ * SM_NOTIFY call.
+ *
+ * Linux provides the raw IP address of the monitored host,
+ * left in network byte order.
+ */
+static __be32 *xdr_encode_priv(__be32 *p, struct nsm_args *argp)
+{
+	*p++ = argp->addr;
+	*p++ = 0;
+	*p++ = 0;
+	*p++ = 0;
+
+	return p;
+}
+
 static int
 xdr_encode_mon(struct rpc_rqst *rqstp, __be32 *p, struct nsm_args *argp)
 {
@@ -225,11 +243,10 @@ xdr_encode_mon(struct rpc_rqst *rqstp, __be32 *p, struct nsm_args *argp)
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 
-	/* Surprise - there may even be room for an IPv6 address now */
-	*p++ = argp->addr;
-	*p++ = 0;
-	*p++ = 0;
-	*p++ = 0;
+	p = xdr_encode_priv(p, argp);
+	if (IS_ERR(p))
+		return PTR_ERR(p);
+
 	rqstp->rq_slen = xdr_adjust_iovec(rqstp->rq_svec, p);
 	return 0;
 }
@@ -265,7 +282,8 @@ xdr_decode_stat(struct rpc_rqst *rqstp, __be32 *p, struct nsm_res *resp)
 #define SM_my_id_sz	(SM_my_name_sz+3)
 #define SM_mon_name_sz	(1+XDR_QUADLEN(SM_MAXSTRLEN))
 #define SM_mon_id_sz	(SM_mon_name_sz+SM_my_id_sz)
-#define SM_mon_sz	(SM_mon_id_sz+4)
+#define SM_priv_sz	(XDR_QUADLEN(SM_PRIV_SIZE))
+#define SM_mon_sz	(SM_mon_id_sz+SM_priv_sz)
 #define SM_monres_sz	2
 #define SM_unmonres_sz	1
 
