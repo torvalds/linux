@@ -36,7 +36,7 @@
  * values, so we can avoid sharing the same stack area between a cached
  * and the uncached mode.
  */
-unsigned long __init run_uncached(void *func)
+unsigned long __cpuinit run_uncached(void *func)
 {
 	register long sp __asm__("$sp");
 	register long ret __asm__("$2");

@@ -902,8 +902,6 @@ int hci_unregister_dev(struct hci_dev *hdev)
 
 	BT_DBG("%p name %s type %d", hdev, hdev->name, hdev->type);
 
-	hci_unregister_sysfs(hdev);
-
 	write_lock_bh(&hci_dev_list_lock);
 	list_del(&hdev->list);
 	write_unlock_bh(&hci_dev_list_lock);
@@ -914,6 +912,8 @@ int hci_unregister_dev(struct hci_dev *hdev)
 		kfree_skb(hdev->reassembly[i]);
 
 	hci_notify(hdev, HCI_DEV_UNREG);
+
+	hci_unregister_sysfs(hdev);
 
 	__hci_dev_put(hdev);
 

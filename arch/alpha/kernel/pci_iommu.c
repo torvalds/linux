@@ -10,6 +10,7 @@
 #include <linux/scatterlist.h>
 #include <linux/log2.h>
 #include <linux/dma-mapping.h>
+#include <linux/iommu-helper.h>
 
 #include <asm/io.h>
 #include <asm/hwrpb.h>
@@ -125,14 +126,6 @@ iommu_arena_new(struct pci_controller *hose, dma_addr_t base,
 	return iommu_arena_new_node(0, hose, base, window_size, align);
 }
 
-static inline int is_span_boundary(unsigned int index, unsigned int nr,
-				   unsigned long shift,
-				   unsigned long boundary_size)
-{
-	shift = (shift + index) & (boundary_size - 1);
-	return shift + nr > boundary_size;
-}
-
 /* Must be called with the arena lock held */
 static long
 iommu_arena_find_pages(struct device *dev, struct pci_iommu_arena *arena,
@@ -147,7 +140,6 @@ iommu_arena_find_pages(struct device *dev, struct pci_iommu_arena *arena,
 	base = arena->dma_base >> PAGE_SHIFT;
 	if (dev) {
 		boundary_size = dma_get_seg_boundary(dev) + 1;
-		BUG_ON(!is_power_of_2(boundary_size));
 		boundary_size >>= PAGE_SHIFT;
 	} else {
 		boundary_size = 1UL << (32 - PAGE_SHIFT);
@@ -161,7 +153,7 @@ iommu_arena_find_pages(struct device *dev, struct pci_iommu_arena *arena,
 
 again:
 	while (i < n && p+i < nent) {
-		if (!i && is_span_boundary(p, n, base, boundary_size)) {
+		if (!i && iommu_is_span_boundary(p, n, base, boundary_size)) {
 			p = ALIGN(p + 1, mask + 1);
 			goto again;
 		}

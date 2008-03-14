@@ -2133,7 +2133,7 @@ static void ixgbe_watchdog(unsigned long data)
 				(link_speed == IXGBE_LINK_SPEED_10GB_FULL ?
 				 "10 Gbps" :
 				 (link_speed == IXGBE_LINK_SPEED_1GB_FULL ?
-				  "1 Gpbs" : "unknown speed")),
+				  "1 Gbps" : "unknown speed")),
 				((FLOW_RX && FLOW_TX) ? "RX/TX" :
 				 (FLOW_RX ? "RX" :
 				 (FLOW_TX ? "TX" : "None"))));

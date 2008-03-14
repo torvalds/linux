@@ -138,7 +138,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			strict -- Be less tolerant of platforms that are not
 				strictly ACPI specification compliant.
 
-			See also Documentation/pm.txt, pci=noacpi
+			See also Documentation/power/pm.txt, pci=noacpi
 
 	acpi_apic_instance=	[ACPI, IOAPIC]
 			Format: <int>

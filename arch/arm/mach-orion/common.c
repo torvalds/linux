@@ -17,7 +17,9 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/mv643xx_i2c.h>
 #include <asm/page.h>
+#include <asm/setup.h>
 #include <asm/timex.h>
+#include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/arch/hardware.h>
 #include "common.h"
@@ -177,8 +179,8 @@ static struct platform_device orion_ehci1 = {
 
 static struct resource orion_eth_shared_resources[] = {
 	{
-		.start	= ORION_ETH_PHYS_BASE,
-		.end	= ORION_ETH_PHYS_BASE + 0xffff,
+		.start	= ORION_ETH_PHYS_BASE + 0x2000,
+		.end	= ORION_ETH_PHYS_BASE + 0x3fff,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -346,4 +348,22 @@ void __init orion_init(void)
 	if (dev == MV88F5182_DEV_ID)
 		platform_device_register(&orion_ehci1);
 	platform_device_register(&orion_i2c);
+}
+
+/*
+ * Many orion-based systems have buggy bootloader implementations.
+ * This is a common fixup for bogus memory tags.
+ */
+void __init tag_fixup_mem32(struct machine_desc *mdesc, struct tag *t,
+			    char **from, struct meminfo *meminfo)
+{
+	for (; t->hdr.size; t = tag_next(t))
+		if (t->hdr.tag == ATAG_MEM &&
+		    (!t->u.mem.size || t->u.mem.size & ~PAGE_MASK ||
+		     t->u.mem.start & ~PAGE_MASK)) {
+			printk(KERN_WARNING
+			       "Clearing invalid memory bank %dKB@0x%08x\n",
+			       t->u.mem.size / 1024, t->u.mem.start);
+			t->hdr.tag = 0;
+		}
 }

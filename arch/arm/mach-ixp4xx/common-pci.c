@@ -87,7 +87,7 @@ static inline int check_master_abort(void)
 	if (isr & PCI_ISR_PFE) {
 		/* make sure the Master Abort bit is reset */    
 		*PCI_ISR = PCI_ISR_PFE;
-		pr_debug("%s failed\n", __FUNCTION__);
+		pr_debug("%s failed\n", __func__);
 		return 1;
 	}
 

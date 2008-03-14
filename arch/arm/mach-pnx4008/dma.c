@@ -192,7 +192,7 @@ void pnx4008_free_channel(int ch)
 	if (!dma_channels[ch].name) {
 		printk(KERN_CRIT
 		       "%s: trying to free channel %d which is already freed\n",
-		       __FUNCTION__, ch);
+		       __func__, ch);
 		return;
 	}
 

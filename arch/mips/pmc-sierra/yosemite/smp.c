@@ -7,10 +7,10 @@
 
 #define LAUNCHSTACK_SIZE 256
 
-static __initdata DEFINE_SPINLOCK(launch_lock);
+static __cpuinitdata DEFINE_SPINLOCK(launch_lock);
 
-static unsigned long secondary_sp __initdata;
-static unsigned long secondary_gp __initdata;
+static unsigned long secondary_sp __cpuinitdata;
+static unsigned long secondary_gp __cpuinitdata;
 
 static unsigned char launchstack[LAUNCHSTACK_SIZE] __initdata
 	__attribute__((aligned(2 * sizeof(long))));

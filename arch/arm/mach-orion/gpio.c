@@ -36,7 +36,7 @@ int gpio_direction_input(unsigned pin)
 	unsigned long flags;
 
 	if (pin >= GPIO_MAX || !test_bit(pin, gpio_valid)) {
-		pr_debug("%s: invalid GPIO %d\n", __FUNCTION__, pin);
+		pr_debug("%s: invalid GPIO %d\n", __func__, pin);
 		return -EINVAL;
 	}
 
@@ -62,7 +62,7 @@ int gpio_direction_output(unsigned pin, int value)
 	int mask;
 
 	if (pin >= GPIO_MAX || !test_bit(pin, gpio_valid)) {
-		pr_debug("%s: invalid GPIO %d\n", __FUNCTION__, pin);
+		pr_debug("%s: invalid GPIO %d\n", __func__, pin);
 		return -EINVAL;
 	}
 
@@ -141,7 +141,7 @@ int gpio_request(unsigned pin, const char *label)
 	unsigned long flags;
 
 	if (pin >= GPIO_MAX || !test_bit(pin, gpio_valid)) {
-		pr_debug("%s: invalid GPIO %d\n", __FUNCTION__, pin);
+		pr_debug("%s: invalid GPIO %d\n", __func__, pin);
 		return -EINVAL;
 	}
 
@@ -149,7 +149,7 @@ int gpio_request(unsigned pin, const char *label)
 
 	if (gpio_label[pin]) {
 		pr_debug("%s: GPIO %d already used as %s\n",
-			 __FUNCTION__, pin, gpio_label[pin]);
+			 __func__, pin, gpio_label[pin]);
 		ret = -EBUSY;
 	} else
 		gpio_label[pin] = label ? label : "?";
@@ -162,12 +162,12 @@ EXPORT_SYMBOL(gpio_request);
 void gpio_free(unsigned pin)
 {
 	if (pin >= GPIO_MAX || !test_bit(pin, gpio_valid)) {
-		pr_debug("%s: invalid GPIO %d\n", __FUNCTION__, pin);
+		pr_debug("%s: invalid GPIO %d\n", __func__, pin);
 		return;
 	}
 
 	if (!gpio_label[pin])
-		pr_warning("%s: GPIO %d already freed\n", __FUNCTION__, pin);
+		pr_warning("%s: GPIO %d already freed\n", __func__, pin);
 	else
 		gpio_label[pin] = NULL;
 }

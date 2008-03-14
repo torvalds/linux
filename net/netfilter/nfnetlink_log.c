@@ -556,7 +556,7 @@ nfulnl_log_packet(unsigned int pf,
 	/* FIXME: do we want to make the size calculation conditional based on
 	 * what is actually present?  way more branches and checks, but more
 	 * memory efficient... */
-	size =    NLMSG_ALIGN(sizeof(struct nfgenmsg))
+	size =    NLMSG_SPACE(sizeof(struct nfgenmsg))
 		+ nla_total_size(sizeof(struct nfulnl_msg_packet_hdr))
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
@@ -702,7 +702,22 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	struct nfgenmsg *nfmsg = NLMSG_DATA(nlh);
 	u_int16_t group_num = ntohs(nfmsg->res_id);
 	struct nfulnl_instance *inst;
+	struct nfulnl_msg_config_cmd *cmd = NULL;
 	int ret = 0;
+
+	if (nfula[NFULA_CFG_CMD]) {
+		u_int8_t pf = nfmsg->nfgen_family;
+		cmd = nla_data(nfula[NFULA_CFG_CMD]);
+
+		/* Commands without queue context */
+		switch (cmd->command) {
+		case NFULNL_CFG_CMD_PF_BIND:
+			return nf_log_register(pf, &nfulnl_logger);
+		case NFULNL_CFG_CMD_PF_UNBIND:
+			nf_log_unregister_pf(pf);
+			return 0;
+		}
+	}
 
 	inst = instance_lookup_get(group_num);
 	if (inst && inst->peer_pid != NETLINK_CB(skb).pid) {
@@ -710,12 +725,7 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		goto out_put;
 	}
 
-	if (nfula[NFULA_CFG_CMD]) {
-		u_int8_t pf = nfmsg->nfgen_family;
-		struct nfulnl_msg_config_cmd *cmd;
-
-		cmd = nla_data(nfula[NFULA_CFG_CMD]);
-
+	if (cmd != NULL) {
 		switch (cmd->command) {
 		case NFULNL_CFG_CMD_BIND:
 			if (inst) {
@@ -738,14 +748,6 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 
 			instance_destroy(inst);
 			goto out;
-		case NFULNL_CFG_CMD_PF_BIND:
-			ret = nf_log_register(pf, &nfulnl_logger);
-			break;
-		case NFULNL_CFG_CMD_PF_UNBIND:
-			/* This is a bug and a feature.  We cannot unregister
-			 * other handlers, like nfnetlink_inst can */
-			nf_log_unregister_pf(pf);
-			break;
 		default:
 			ret = -ENOTSUPP;
 			break;

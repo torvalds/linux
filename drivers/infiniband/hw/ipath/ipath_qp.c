@@ -329,8 +329,9 @@ struct ipath_qp *ipath_lookup_qpn(struct ipath_qp_table *qpt, u32 qpn)
 /**
  * ipath_reset_qp - initialize the QP state to the reset state
  * @qp: the QP to reset
+ * @type: the QP type
  */
-static void ipath_reset_qp(struct ipath_qp *qp)
+static void ipath_reset_qp(struct ipath_qp *qp, enum ib_qp_type type)
 {
 	qp->remote_qpn = 0;
 	qp->qkey = 0;
@@ -342,7 +343,7 @@ static void ipath_reset_qp(struct ipath_qp *qp)
 	qp->s_psn = 0;
 	qp->r_psn = 0;
 	qp->r_msn = 0;
-	if (qp->ibqp.qp_type == IB_QPT_RC) {
+	if (type == IB_QPT_RC) {
 		qp->s_state = IB_OPCODE_RC_SEND_LAST;
 		qp->r_state = IB_OPCODE_RC_SEND_LAST;
 	} else {
@@ -414,7 +415,7 @@ int ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err)
 		wc.wr_id = qp->r_wr_id;
 		wc.opcode = IB_WC_RECV;
 		wc.status = err;
-		ipath_cq_enter(to_icq(qp->ibqp.send_cq), &wc, 1);
+		ipath_cq_enter(to_icq(qp->ibqp.recv_cq), &wc, 1);
 	}
 	wc.status = IB_WC_WR_FLUSH_ERR;
 
@@ -534,7 +535,7 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	switch (new_state) {
 	case IB_QPS_RESET:
-		ipath_reset_qp(qp);
+		ipath_reset_qp(qp, ibqp->qp_type);
 		break;
 
 	case IB_QPS_ERR:
@@ -647,7 +648,7 @@ int ipath_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	attr->port_num = 1;
 	attr->timeout = qp->timeout;
 	attr->retry_cnt = qp->s_retry_cnt;
-	attr->rnr_retry = qp->s_rnr_retry;
+	attr->rnr_retry = qp->s_rnr_retry_cnt;
 	attr->alt_port_num = 0;
 	attr->alt_timeout = 0;
 
@@ -839,7 +840,7 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 			goto bail_qp;
 		}
 		qp->ip = NULL;
-		ipath_reset_qp(qp);
+		ipath_reset_qp(qp, init_attr->qp_type);
 		break;
 
 	default:
