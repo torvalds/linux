@@ -183,6 +183,25 @@ static __be32 *xdr_encode_mon_name(__be32 *p, struct nsm_args *argp)
 	return xdr_encode_nsm_string(p, name);
 }
 
+/*
+ * The "my_id" argument specifies the hostname and RPC procedure
+ * to be called when the status manager receives notification
+ * (via the SM_NOTIFY call) that the state of host "mon_name"
+ * has changed.
+ */
+static __be32 *xdr_encode_my_id(__be32 *p, struct nsm_args *argp)
+{
+	p = xdr_encode_nsm_string(p, utsname()->nodename);
+	if (!p)
+		return ERR_PTR(-EIO);
+
+	*p++ = htonl(argp->prog);
+	*p++ = htonl(argp->vers);
+	*p++ = htonl(argp->proc);
+
+	return p;
+}
+
 static __be32 *
 xdr_encode_common(struct rpc_rqst *rqstp, __be32 *p, struct nsm_args *argp)
 {
