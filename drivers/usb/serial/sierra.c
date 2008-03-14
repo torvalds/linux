@@ -14,7 +14,7 @@
   Whom based his on the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 */
 
-#define DRIVER_VERSION "v.1.2.7"
+#define DRIVER_VERSION "v.1.2.8"
 #define DRIVER_AUTHOR "Kevin Lloyd <linux@sierrawireless.com>"
 #define DRIVER_DESC "USB Driver for Sierra Wireless USB modems"
 
@@ -196,9 +196,9 @@ struct sierra_port_private {
 	spinlock_t lock;	/* lock the structure */
 	int outstanding_urbs;	/* number of out urbs in flight */
 
-	/* Input endpoints and buffer for this port */
+	/* Input endpoints and buffers for this port */
 	struct urb *in_urbs[N_IN_URB];
-	char in_buffer[N_IN_URB][IN_BUFLEN];
+	char *in_buffer[N_IN_URB];
 
 	/* Settings for the port */
 	int rts_state;	/* Handshaking pins (outputs) */
@@ -638,6 +638,15 @@ static int sierra_startup(struct usb_serial *serial)
 			return -ENOMEM;
 		}
 		spin_lock_init(&portdata->lock);
+		for (j = 0; j < N_IN_URB; j++) {
+			portdata->in_buffer[j] = kmalloc(IN_BUFLEN, GFP_KERNEL);
+			if (!portdata->in_buffer[j]) {
+				for (--j; j >= 0; j--)
+					kfree(portdata->in_buffer[j]);
+				kfree(portdata);
+				return -ENOMEM;
+			}
+		}
 
 		usb_set_serial_port_data(port, portdata);
 
@@ -681,7 +690,7 @@ static void sierra_shutdown(struct usb_serial *serial)
 		for (j = 0; j < N_IN_URB; j++) {
 			usb_kill_urb(portdata->in_urbs[j]);
 			usb_free_urb(portdata->in_urbs[j]);
-			portdata->in_urbs[j] = NULL;
+			kfree(portdata->in_buffer[j]);
 		}
 		kfree(portdata);
 		usb_set_serial_port_data(port, NULL);
