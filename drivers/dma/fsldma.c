@@ -406,6 +406,32 @@ static void fsl_dma_free_chan_resources(struct dma_chan *chan)
 	dma_pool_destroy(fsl_chan->desc_pool);
 }
 
+static struct dma_async_tx_descriptor *
+fsl_dma_prep_interrupt(struct dma_chan *chan)
+{
+	struct fsl_dma_chan *fsl_chan;
+	struct fsl_desc_sw *new;
+
+	if (!chan)
+		return NULL;
+
+	fsl_chan = to_fsl_chan(chan);
+
+	new = fsl_dma_alloc_descriptor(fsl_chan);
+	if (!new) {
+		dev_err(fsl_chan->dev, "No free memory for link descriptor\n");
+		return NULL;
+	}
+
+	new->async_tx.cookie = -EBUSY;
+	new->async_tx.ack = 0;
+
+	/* Set End-of-link to the last link descriptor of new list*/
+	set_ld_eol(fsl_chan, new);
+
+	return &new->async_tx;
+}
+
 static struct dma_async_tx_descriptor *fsl_dma_prep_memcpy(
 	struct dma_chan *chan, dma_addr_t dma_dest, dma_addr_t dma_src,
 	size_t len, unsigned long flags)
@@ -1020,6 +1046,7 @@ static int __devinit of_fsl_dma_probe(struct of_device *dev,
 	dma_cap_set(DMA_INTERRUPT, fdev->common.cap_mask);
 	fdev->common.device_alloc_chan_resources = fsl_dma_alloc_chan_resources;
 	fdev->common.device_free_chan_resources = fsl_dma_free_chan_resources;
+	fdev->common.device_prep_dma_interrupt = fsl_dma_prep_interrupt;
 	fdev->common.device_prep_dma_memcpy = fsl_dma_prep_memcpy;
 	fdev->common.device_is_tx_complete = fsl_dma_is_complete;
 	fdev->common.device_issue_pending = fsl_dma_memcpy_issue_pending;
