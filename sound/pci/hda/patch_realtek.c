@@ -8725,7 +8725,8 @@ static void alc262_hippo1_unsol_event(struct hda_codec *codec,
 
 /*
  * fujitsu model
- *  0x14 = headphone/spdif-out, 0x15 = internal speaker
+ *  0x14 = headphone/spdif-out, 0x15 = internal speaker,
+ *  0x1b = port replicator headphone out
  */
 
 #define ALC_HP_EVENT	0x37
@@ -8733,6 +8734,8 @@ static void alc262_hippo1_unsol_event(struct hda_codec *codec,
 static struct hda_verb alc262_fujitsu_unsol_verbs[] = {
 	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
 	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 	{}
 };
 
@@ -8773,12 +8776,16 @@ static void alc262_fujitsu_automute(struct hda_codec *codec, int force)
 	unsigned int mute;
 
 	if (force || !spec->sense_updated) {
-		unsigned int present;
+		unsigned int present_int_hp, present_dock_hp;
 		/* need to execute and sync at first */
 		snd_hda_codec_read(codec, 0x14, 0, AC_VERB_SET_PIN_SENSE, 0);
-		present = snd_hda_codec_read(codec, 0x14, 0,
-				    	 AC_VERB_GET_PIN_SENSE, 0);
-		spec->jack_present = (present & 0x80000000) != 0;
+		present_int_hp = snd_hda_codec_read(codec, 0x14, 0,
+					AC_VERB_GET_PIN_SENSE, 0);
+		snd_hda_codec_read(codec, 0x1B, 0, AC_VERB_SET_PIN_SENSE, 0);
+		present_dock_hp = snd_hda_codec_read(codec, 0x1b, 0,
+					AC_VERB_GET_PIN_SENSE, 0);
+		spec->jack_present = (present_int_hp & 0x80000000) != 0;
+		spec->jack_present |= (present_dock_hp & 0x80000000) != 0;
 		spec->sense_updated = 1;
 	}
 	if (spec->jack_present) {
@@ -8820,12 +8827,13 @@ static int alc262_fujitsu_master_sw_put(struct snd_kcontrol *kcontrol,
 	long *valp = ucontrol->value.integer.value;
 	int change;
 
-	change = snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
-					  HDA_AMP_MUTE,
-					  valp[0] ? 0 : HDA_AMP_MUTE);
-	change |= snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
-					   HDA_AMP_MUTE,
-					   valp[1] ? 0 : HDA_AMP_MUTE);
+	change = snd_hda_codec_amp_stereo(codec, 0x14, HDA_OUTPUT, 0,
+						 HDA_AMP_MUTE,
+						 valp ? 0 : HDA_AMP_MUTE);
+	change |= snd_hda_codec_amp_stereo(codec, 0x1b, HDA_OUTPUT, 0,
+						 HDA_AMP_MUTE,
+						 valp ? 0 : HDA_AMP_MUTE);
+
 	if (change)
 		alc262_fujitsu_automute(codec, 0);
 	return change;
