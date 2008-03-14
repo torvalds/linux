@@ -18,6 +18,8 @@
 
 #define NLMDBG_FACILITY		NLMDBG_MONITOR
 
+#define XDR_ADDRBUF_LEN		(20)
+
 static struct rpc_clnt *	nsm_create(void);
 
 static struct rpc_program	nsm_program;
@@ -156,6 +158,29 @@ static __be32 *xdr_encode_nsm_string(__be32 *p, char *string)
 	if (len > SM_MAXSTRLEN)
 		len = SM_MAXSTRLEN;
 	return xdr_encode_opaque(p, string, len);
+}
+
+/*
+ * "mon_name" specifies the host to be monitored.
+ *
+ * Linux uses a text version of the IP address of the remote
+ * host as the host identifier (the "mon_name" argument).
+ *
+ * Linux statd always looks up the canonical hostname first for
+ * whatever remote hostname it receives, so this works alright.
+ */
+static __be32 *xdr_encode_mon_name(__be32 *p, struct nsm_args *argp)
+{
+	char	buffer[XDR_ADDRBUF_LEN + 1];
+	char	*name = argp->mon_name;
+
+	if (!nsm_use_hostnames) {
+		snprintf(buffer, XDR_ADDRBUF_LEN,
+			 NIPQUAD_FMT, NIPQUAD(argp->addr));
+		name = buffer;
+	}
+
+	return xdr_encode_nsm_string(p, name);
 }
 
 static __be32 *
