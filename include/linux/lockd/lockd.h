@@ -173,8 +173,10 @@ void		  nlmclnt_next_cookie(struct nlm_cookie *);
 /*
  * Host cache
  */
-struct nlm_host  *nlmclnt_lookup_host(const struct sockaddr_in *, int, int,
-					const char *, unsigned int);
+struct nlm_host  *nlmclnt_lookup_host(const struct sockaddr_in *sin,
+					int proto, u32 version,
+					const char *hostname,
+					unsigned int hostname_len);
 struct nlm_host  *nlmsvc_lookup_host(struct svc_rqst *, const char *,
 					unsigned int);
 struct rpc_clnt * nlm_bind_host(struct nlm_host *);
