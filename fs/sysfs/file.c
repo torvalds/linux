@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/kobject.h>
 #include <linux/kallsyms.h>
+#include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/poll.h>
 #include <linux/list.h>
