@@ -1454,6 +1454,12 @@ static int atmel_serial_suspend(struct platform_device *pdev,
 	struct uart_port *port = platform_get_drvdata(pdev);
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 
+	if (atmel_is_console_port(port) && console_suspend_enabled) {
+		/* Drain the TX shifter */
+		while (!(UART_GET_CSR(port) & ATMEL_US_TXEMPTY))
+			cpu_relax();
+	}
+
 	if (device_may_wakeup(&pdev->dev)
 	    && !atmel_serial_clk_will_stop())
 		enable_irq_wake(port->irq);
