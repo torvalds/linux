@@ -297,6 +297,7 @@ struct hid_item {
 #define HID_QUIRK_RDESC_MACBOOK_JIS		0x00000010
 #define HID_QUIRK_RDESC_BUTTON_CONSUMER		0x00000020
 #define HID_QUIRK_RDESC_SAMSUNG_REMOTE		0x00000040
+#define HID_QUIRK_RDESC_MICROSOFT_RECV_1028	0x00000080
 
 /*
  * This is the global environment of the parser. This information is
