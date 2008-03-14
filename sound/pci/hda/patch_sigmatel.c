@@ -2509,12 +2509,8 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec,
 			return err;
 	}
 	if (spec->multiout.hp_nid) {
-		const char *pfx;
-		if (old_num_dacs == spec->multiout.num_dacs)
-			pfx = "Master";
-		else
-			pfx = "Headphone";
-		err = create_controls(spec, pfx, spec->multiout.hp_nid, 3);
+		err = create_controls(spec, "Headphone",
+				      spec->multiout.hp_nid, 3);
 		if (err < 0)
 			return err;
 	}
