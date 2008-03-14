@@ -1059,9 +1059,12 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 	azx_sd_writel(azx_dev, SD_BDLPU, upper_32bit(azx_dev->bdl.addr));
 
 	/* enable the position buffer */
-	if (!(azx_readl(chip, DPLBASE) & ICH6_DPLBASE_ENABLE))
-		azx_writel(chip, DPLBASE,
-			   (u32)chip->posbuf.addr |ICH6_DPLBASE_ENABLE);
+	if (chip->position_fix == POS_FIX_POSBUF ||
+	    chip->position_fix == POS_FIX_AUTO) {
+		if (!(azx_readl(chip, DPLBASE) & ICH6_DPLBASE_ENABLE))
+			azx_writel(chip, DPLBASE,
+				(u32)chip->posbuf.addr | ICH6_DPLBASE_ENABLE);
+	}
 
 	/* set the interrupt enable bits in the descriptor control register */
 	azx_sd_writel(azx_dev, SD_CTL,
@@ -1707,6 +1710,7 @@ static int azx_dev_free(struct snd_device *device)
 static struct snd_pci_quirk position_fix_list[] __devinitdata = {
 	SND_PCI_QUIRK(0x1028, 0x01cc, "Dell D820", POS_FIX_NONE),
 	SND_PCI_QUIRK(0x1028, 0x01de, "Dell Precision 390", POS_FIX_NONE),
+	SND_PCI_QUIRK(0x1043, 0x813d, "ASUS P5AD2", POS_FIX_NONE),
 	{}
 };
 
