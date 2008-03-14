@@ -1420,11 +1420,10 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	}
 	cifsInode = CIFS_I(direntry->d_inode);
 
-	/* BB check if we need to refresh inode from server now ? BB */
-
-	if (attrs->ia_valid & ATTR_SIZE) {
+	if ((attrs->ia_valid & ATTR_MTIME) || (attrs->ia_valid & ATTR_SIZE)) {
 		/*
-		   Flush data before changing file size on server. If the
+		   Flush data before changing file size or changing the last
+		   write time of the file on the server. If the
 		   flush returns error, store it to report later and continue.
 		   BB: This should be smarter. Why bother flushing pages that
 		   will be truncated anyway? Also, should we error out here if
@@ -1435,7 +1434,9 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			CIFS_I(direntry->d_inode)->write_behind_rc = rc;
 			rc = 0;
 		}
+	}
 
+	if (attrs->ia_valid & ATTR_SIZE) {
 		/* To avoid spurious oplock breaks from server, in the case of
 		   inodes that we already have open, avoid doing path based
 		   setting of file size if we can do it by handle.
