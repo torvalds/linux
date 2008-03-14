@@ -534,6 +534,25 @@ static struct hda_verb stac92hd73xx_6ch_core_init[] = {
 	{}
 };
 
+static struct hda_verb dell_eq_core_init[] = {
+	/* set master volume to max value without distortion
+	 * and direct control */
+	{ 0x1f, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xec},
+	/* setup audio connections */
+	{ 0x0d, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{ 0x0a, AC_VERB_SET_CONNECT_SEL, 0x01},
+	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x02},
+	/* setup adcs to point to mixer */
+	{ 0x20, AC_VERB_SET_CONNECT_SEL, 0x0b},
+	{ 0x21, AC_VERB_SET_CONNECT_SEL, 0x0b},
+	/* setup import muxs */
+	{ 0x28, AC_VERB_SET_CONNECT_SEL, 0x01},
+	{ 0x29, AC_VERB_SET_CONNECT_SEL, 0x01},
+	{ 0x2a, AC_VERB_SET_CONNECT_SEL, 0x01},
+	{ 0x2b, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{}
+};
+
 static struct hda_verb dell_m6_core_init[] = {
 	/* set master volume and direct control */
 	{ 0x1f, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
@@ -3460,17 +3479,19 @@ again:
 
 	switch (spec->board_config) {
 	case STAC_DELL_M6:
-		spec->init = dell_m6_core_init;
+		spec->init = dell_eq_core_init;
 		switch (codec->subsystem_id) {
 		case 0x1028025e: /* Analog Mics */
 		case 0x1028025f:
 			stac92xx_set_config_reg(codec, 0x0b, 0x90A70170);
 			spec->num_dmics = 0;
 			break;
-		case 0x10280254: /* Digital Mics */
-		case 0x10280255:
-		case 0x10280271:
+		case 0x10280271: /* Digital Mics */
 		case 0x10280272:
+			spec->init = dell_m6_core_init;
+			/* fall-through */
+		case 0x10280254:
+		case 0x10280255:
 			stac92xx_set_config_reg(codec, 0x13, 0x90A60160);
 			spec->num_dmics = 1;
 			break;
