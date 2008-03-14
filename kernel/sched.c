@@ -1084,7 +1084,7 @@ calc_delta_mine(unsigned long delta_exec, unsigned long weight,
 	u64 tmp;
 
 	if (unlikely(!lw->inv_weight))
-		lw->inv_weight = (WMULT_CONST - lw->weight/2) / lw->weight + 1;
+		lw->inv_weight = (WMULT_CONST-lw->weight/2) / (lw->weight+1);
 
 	tmp = (u64)delta_exec * weight;
 	/*
