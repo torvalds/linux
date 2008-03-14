@@ -1,17 +1,19 @@
 /*
- * Copyright (C) 2005 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2005-2008 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
  * of the GNU General Public License version 2.
  */
 
+#include <linux/fs.h>
 #include <linux/miscdevice.h>
-#include <linux/lock_dlm_plock.h>
 #include <linux/poll.h>
+#include <linux/dlm.h>
+#include <linux/dlm_plock.h>
 
-#include "lock_dlm.h"
-
+#include "dlm_internal.h"
+#include "lockspace.h"
 
 static spinlock_t ops_lock;
 static struct list_head send_list;
@@ -22,7 +24,7 @@ static wait_queue_head_t recv_wq;
 struct plock_op {
 	struct list_head list;
 	int done;
-	struct gdlm_plock_info info;
+	struct dlm_plock_info info;
 };
 
 struct plock_xop {
@@ -34,22 +36,22 @@ struct plock_xop {
 };
 
 
-static inline void set_version(struct gdlm_plock_info *info)
+static inline void set_version(struct dlm_plock_info *info)
 {
-	info->version[0] = GDLM_PLOCK_VERSION_MAJOR;
-	info->version[1] = GDLM_PLOCK_VERSION_MINOR;
-	info->version[2] = GDLM_PLOCK_VERSION_PATCH;
+	info->version[0] = DLM_PLOCK_VERSION_MAJOR;
+	info->version[1] = DLM_PLOCK_VERSION_MINOR;
+	info->version[2] = DLM_PLOCK_VERSION_PATCH;
 }
 
-static int check_version(struct gdlm_plock_info *info)
+static int check_version(struct dlm_plock_info *info)
 {
-	if ((GDLM_PLOCK_VERSION_MAJOR != info->version[0]) ||
-	    (GDLM_PLOCK_VERSION_MINOR < info->version[1])) {
-		log_error("plock device version mismatch: "
+	if ((DLM_PLOCK_VERSION_MAJOR != info->version[0]) ||
+	    (DLM_PLOCK_VERSION_MINOR < info->version[1])) {
+		log_print("plock device version mismatch: "
 			  "kernel (%u.%u.%u), user (%u.%u.%u)",
-			  GDLM_PLOCK_VERSION_MAJOR,
-			  GDLM_PLOCK_VERSION_MINOR,
-			  GDLM_PLOCK_VERSION_PATCH,
+			  DLM_PLOCK_VERSION_MAJOR,
+			  DLM_PLOCK_VERSION_MINOR,
+			  DLM_PLOCK_VERSION_PATCH,
 			  info->version[0],
 			  info->version[1],
 			  info->version[2]);
@@ -68,25 +70,31 @@ static void send_op(struct plock_op *op)
 	wake_up(&send_wq);
 }
 
-int gdlm_plock(void *lockspace, struct lm_lockname *name,
-	       struct file *file, int cmd, struct file_lock *fl)
+int dlm_posix_lock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
+		   int cmd, struct file_lock *fl)
 {
-	struct gdlm_ls *ls = lockspace;
+	struct dlm_ls *ls;
 	struct plock_op *op;
 	struct plock_xop *xop;
 	int rv;
 
+	ls = dlm_find_lockspace_local(lockspace);
+	if (!ls)
+		return -EINVAL;
+
 	xop = kzalloc(sizeof(*xop), GFP_KERNEL);
-	if (!xop)
-		return -ENOMEM;
+	if (!xop) {
+		rv = -ENOMEM;
+		goto out;
+	}
 
 	op = &xop->xop;
-	op->info.optype		= GDLM_PLOCK_OP_LOCK;
+	op->info.optype		= DLM_PLOCK_OP_LOCK;
 	op->info.pid		= fl->fl_pid;
 	op->info.ex		= (fl->fl_type == F_WRLCK);
 	op->info.wait		= IS_SETLKW(cmd);
-	op->info.fsid		= ls->id;
-	op->info.number		= name->ln_number;
+	op->info.fsid		= ls->ls_global_id;
+	op->info.number		= number;
 	op->info.start		= fl->fl_start;
 	op->info.end		= fl->fl_end;
 	if (fl->fl_lmops && fl->fl_lmops->fl_grant) {
@@ -107,12 +115,15 @@ int gdlm_plock(void *lockspace, struct lm_lockname *name,
 
 	if (xop->callback == NULL)
 		wait_event(recv_wq, (op->done != 0));
-	else
-		return -EINPROGRESS;
+	else {
+		rv = -EINPROGRESS;
+		goto out;
+	}
 
 	spin_lock(&ops_lock);
 	if (!list_empty(&op->list)) {
-		printk(KERN_INFO "plock op on list\n");
+		log_error(ls, "dlm_posix_lock: op on list %llx",
+			  (unsigned long long)number);
 		list_del(&op->list);
 	}
 	spin_unlock(&ops_lock);
@@ -121,17 +132,19 @@ int gdlm_plock(void *lockspace, struct lm_lockname *name,
 
 	if (!rv) {
 		if (posix_lock_file_wait(file, fl) < 0)
-			log_error("gdlm_plock: vfs lock error %x,%llx",
-				  name->ln_type,
-				  (unsigned long long)name->ln_number);
+			log_error(ls, "dlm_posix_lock: vfs lock error %llx",
+				  (unsigned long long)number);
 	}
 
 	kfree(xop);
+out:
+	dlm_put_lockspace(ls);
 	return rv;
 }
+EXPORT_SYMBOL_GPL(dlm_posix_lock);
 
 /* Returns failure iff a succesful lock operation should be canceled */
-static int gdlm_plock_callback(struct plock_op *op)
+static int dlm_plock_callback(struct plock_op *op)
 {
 	struct file *file;
 	struct file_lock *fl;
@@ -142,7 +155,8 @@ static int gdlm_plock_callback(struct plock_op *op)
 
 	spin_lock(&ops_lock);
 	if (!list_empty(&op->list)) {
-		printk(KERN_INFO "plock op on list\n");
+		log_print("dlm_plock_callback: op on list %llx",
+			  (unsigned long long)op->info.number);
 		list_del(&op->list);
 	}
 	spin_unlock(&ops_lock);
@@ -165,19 +179,19 @@ static int gdlm_plock_callback(struct plock_op *op)
 		 * This can only happen in the case of kmalloc() failure.
 		 * The filesystem's own lock is the authoritative lock,
 		 * so a failure to get the lock locally is not a disaster.
-		 * As long as GFS cannot reliably cancel locks (especially
+		 * As long as the fs cannot reliably cancel locks (especially
 		 * in a low-memory situation), we're better off ignoring
 		 * this failure than trying to recover.
 		 */
-		log_error("gdlm_plock: vfs lock error file %p fl %p",
-				file, fl);
+		log_print("dlm_plock_callback: vfs lock error %llx file %p fl %p",
+			  (unsigned long long)op->info.number, file, fl);
 	}
 
 	rv = notify(flc, NULL, 0);
 	if (rv) {
 		/* XXX: We need to cancel the fs lock here: */
-		printk("gfs2 lock granted after lock request failed;"
-						" dangling lock!\n");
+		log_print("dlm_plock_callback: lock granted after lock request "
+			  "failed; dangling lock!\n");
 		goto out;
 	}
 
@@ -186,25 +200,31 @@ out:
 	return rv;
 }
 
-int gdlm_punlock(void *lockspace, struct lm_lockname *name,
-		 struct file *file, struct file_lock *fl)
+int dlm_posix_unlock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
+		     struct file_lock *fl)
 {
-	struct gdlm_ls *ls = lockspace;
+	struct dlm_ls *ls;
 	struct plock_op *op;
 	int rv;
 
+	ls = dlm_find_lockspace_local(lockspace);
+	if (!ls)
+		return -EINVAL;
+
 	op = kzalloc(sizeof(*op), GFP_KERNEL);
-	if (!op)
-		return -ENOMEM;
+	if (!op) {
+		rv = -ENOMEM;
+		goto out;
+	}
 
 	if (posix_lock_file_wait(file, fl) < 0)
-		log_error("gdlm_punlock: vfs unlock error %x,%llx",
-			  name->ln_type, (unsigned long long)name->ln_number);
+		log_error(ls, "dlm_posix_unlock: vfs unlock error %llx",
+			  (unsigned long long)number);
 
-	op->info.optype		= GDLM_PLOCK_OP_UNLOCK;
+	op->info.optype		= DLM_PLOCK_OP_UNLOCK;
 	op->info.pid		= fl->fl_pid;
-	op->info.fsid		= ls->id;
-	op->info.number		= name->ln_number;
+	op->info.fsid		= ls->ls_global_id;
+	op->info.number		= number;
 	op->info.start		= fl->fl_start;
 	op->info.end		= fl->fl_end;
 	if (fl->fl_lmops && fl->fl_lmops->fl_grant)
@@ -217,7 +237,8 @@ int gdlm_punlock(void *lockspace, struct lm_lockname *name,
 
 	spin_lock(&ops_lock);
 	if (!list_empty(&op->list)) {
-		printk(KERN_INFO "punlock op on list\n");
+		log_error(ls, "dlm_posix_unlock: op on list %llx",
+			  (unsigned long long)number);
 		list_del(&op->list);
 	}
 	spin_unlock(&ops_lock);
@@ -228,25 +249,34 @@ int gdlm_punlock(void *lockspace, struct lm_lockname *name,
 		rv = 0;
 
 	kfree(op);
+out:
+	dlm_put_lockspace(ls);
 	return rv;
 }
+EXPORT_SYMBOL_GPL(dlm_posix_unlock);
 
-int gdlm_plock_get(void *lockspace, struct lm_lockname *name,
-		   struct file *file, struct file_lock *fl)
+int dlm_posix_get(dlm_lockspace_t *lockspace, u64 number, struct file *file,
+		  struct file_lock *fl)
 {
-	struct gdlm_ls *ls = lockspace;
+	struct dlm_ls *ls;
 	struct plock_op *op;
 	int rv;
 
-	op = kzalloc(sizeof(*op), GFP_KERNEL);
-	if (!op)
-		return -ENOMEM;
+	ls = dlm_find_lockspace_local(lockspace);
+	if (!ls)
+		return -EINVAL;
 
-	op->info.optype		= GDLM_PLOCK_OP_GET;
+	op = kzalloc(sizeof(*op), GFP_KERNEL);
+	if (!op) {
+		rv = -ENOMEM;
+		goto out;
+	}
+
+	op->info.optype		= DLM_PLOCK_OP_GET;
 	op->info.pid		= fl->fl_pid;
 	op->info.ex		= (fl->fl_type == F_WRLCK);
-	op->info.fsid		= ls->id;
-	op->info.number		= name->ln_number;
+	op->info.fsid		= ls->ls_global_id;
+	op->info.number		= number;
 	op->info.start		= fl->fl_start;
 	op->info.end		= fl->fl_end;
 	if (fl->fl_lmops && fl->fl_lmops->fl_grant)
@@ -259,7 +289,8 @@ int gdlm_plock_get(void *lockspace, struct lm_lockname *name,
 
 	spin_lock(&ops_lock);
 	if (!list_empty(&op->list)) {
-		printk(KERN_INFO "plock_get op on list\n");
+		log_error(ls, "dlm_posix_get: op on list %llx",
+			  (unsigned long long)number);
 		list_del(&op->list);
 	}
 	spin_unlock(&ops_lock);
@@ -281,14 +312,17 @@ int gdlm_plock_get(void *lockspace, struct lm_lockname *name,
 	}
 
 	kfree(op);
+out:
+	dlm_put_lockspace(ls);
 	return rv;
 }
+EXPORT_SYMBOL_GPL(dlm_posix_get);
 
 /* a read copies out one plock request from the send list */
 static ssize_t dev_read(struct file *file, char __user *u, size_t count,
 			loff_t *ppos)
 {
-	struct gdlm_plock_info info;
+	struct dlm_plock_info info;
 	struct plock_op *op = NULL;
 
 	if (count < sizeof(info))
@@ -315,7 +349,7 @@ static ssize_t dev_read(struct file *file, char __user *u, size_t count,
 static ssize_t dev_write(struct file *file, const char __user *u, size_t count,
 			 loff_t *ppos)
 {
-	struct gdlm_plock_info info;
+	struct dlm_plock_info info;
 	struct plock_op *op;
 	int found = 0;
 
@@ -345,12 +379,12 @@ static ssize_t dev_write(struct file *file, const char __user *u, size_t count,
 		struct plock_xop *xop;
 		xop = (struct plock_xop *)op;
 		if (xop->callback)
-			count = gdlm_plock_callback(op);
+			count = dlm_plock_callback(op);
 		else
 			wake_up(&recv_wq);
 	} else
-		printk(KERN_INFO "gdlm dev_write no op %x %llx\n", info.fsid,
-			(unsigned long long)info.number);
+		log_print("dev_write no op %x %llx", info.fsid,
+			  (unsigned long long)info.number);
 	return count;
 }
 
@@ -377,11 +411,11 @@ static const struct file_operations dev_fops = {
 
 static struct miscdevice plock_dev_misc = {
 	.minor = MISC_DYNAMIC_MINOR,
-	.name = GDLM_PLOCK_MISC_NAME,
+	.name = DLM_PLOCK_MISC_NAME,
 	.fops = &dev_fops
 };
 
-int gdlm_plock_init(void)
+int dlm_plock_init(void)
 {
 	int rv;
 
@@ -393,14 +427,13 @@ int gdlm_plock_init(void)
 
 	rv = misc_register(&plock_dev_misc);
 	if (rv)
-		printk(KERN_INFO "gdlm_plock_init: misc_register failed %d",
-		       rv);
+		log_print("dlm_plock_init: misc_register failed %d", rv);
 	return rv;
 }
 
-void gdlm_plock_exit(void)
+void dlm_plock_exit(void)
 {
 	if (misc_deregister(&plock_dev_misc) < 0)
-		printk(KERN_INFO "gdlm_plock_exit: misc_deregister failed");
+		log_print("dlm_plock_exit: misc_deregister failed");
 }
 

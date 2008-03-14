@@ -582,6 +582,8 @@ static inline int dlm_no_directory(struct dlm_ls *ls)
 int dlm_netlink_init(void);
 void dlm_netlink_exit(void);
 void dlm_timeout_warn(struct dlm_lkb *lkb);
+int dlm_plock_init(void);
+void dlm_plock_exit(void);
 
 #ifdef CONFIG_DLM_DEBUG
 int dlm_register_debugfs(void);
