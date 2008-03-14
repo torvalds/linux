@@ -22,6 +22,7 @@
 #include <linux/cpumask.h>
 #include <linux/kernel_stat.h>
 #include <linux/kdebug.h>
+#include <linux/slab.h>
 
 #include <asm/smp.h>
 #include <asm/nmi.h>
