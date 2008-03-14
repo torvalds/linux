@@ -207,6 +207,9 @@ static void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		}
 	}
 
+	if (cfs_rq->next == se)
+		cfs_rq->next = NULL;
+
 	rb_erase(&se->run_node, &cfs_rq->tasks_timeline);
 }
 
@@ -626,12 +629,32 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	se->prev_sum_exec_runtime = se->sum_exec_runtime;
 }
 
+static struct sched_entity *
+pick_next(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	s64 diff, gran;
+
+	if (!cfs_rq->next)
+		return se;
+
+	diff = cfs_rq->next->vruntime - se->vruntime;
+	if (diff < 0)
+		return se;
+
+	gran = calc_delta_fair(sysctl_sched_wakeup_granularity, &cfs_rq->load);
+	if (diff > gran)
+		return se;
+
+	return cfs_rq->next;
+}
+
 static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *se = NULL;
 
 	if (first_fair(cfs_rq)) {
 		se = __pick_next_entity(cfs_rq);
+		se = pick_next(cfs_rq, se);
 		set_next_entity(cfs_rq, se);
 	}
 
@@ -1070,6 +1093,9 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 		resched_task(curr);
 		return;
 	}
+
+	cfs_rq_of(pse)->next = pse;
+
 	/*
 	 * Batch tasks do not preempt (their preemption is driven by
 	 * the tick):

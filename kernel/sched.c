@@ -301,7 +301,7 @@ struct cfs_rq {
 	/* 'curr' points to currently running entity on this cfs_rq.
 	 * It is set to NULL otherwise (i.e when none are currently running).
 	 */
-	struct sched_entity *curr;
+	struct sched_entity *curr, *next;
 
 	unsigned long nr_spread_over;
 
