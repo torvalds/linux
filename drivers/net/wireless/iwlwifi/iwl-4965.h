@@ -67,9 +67,7 @@ extern struct pci_device_id iwl4965_hw_card_ids[];
 #define IWL_NOISE_MEAS_NOT_AVAILABLE (-127)
 
 /* Module parameters accessible from iwl-*.c */
-extern int iwl4965_param_hwcrypto;
-extern int iwl4965_param_queues_num;
-extern int iwl4965_param_amsdu_size_8K;
+extern struct iwl_mod_params iwl4965_mod_params;
 
 enum iwl4965_antenna {
 	IWL_ANTENNA_DIVERSITY,

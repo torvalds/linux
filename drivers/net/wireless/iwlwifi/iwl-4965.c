@@ -320,7 +320,7 @@ static int iwl4965_rx_init(struct iwl_priv *priv, struct iwl4965_rx_queue *rxq)
 		return rc;
 	}
 
-	if (iwl4965_param_amsdu_size_8K)
+	if (iwl4965_mod_params.amsdu_size_8K)
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
 	else
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K;
@@ -1845,8 +1845,8 @@ int iwl4965_hw_set_hw_setting(struct iwl_priv *priv)
 {
 	int ret = 0;
 
-	if ((iwl4965_param_queues_num > IWL_MAX_NUM_QUEUES) ||
-	    (iwl4965_param_queues_num < IWL_MIN_NUM_QUEUES)) {
+	if ((iwl4965_mod_params.num_of_queues > IWL_MAX_NUM_QUEUES) ||
+	    (iwl4965_mod_params.num_of_queues < IWL_MIN_NUM_QUEUES)) {
 		IWL_ERROR("invalid queues_num, should be between %d and %d\n",
 			  IWL_MIN_NUM_QUEUES, IWL_MAX_NUM_QUEUES);
 		ret = -EINVAL;
@@ -1866,11 +1866,11 @@ int iwl4965_hw_set_hw_setting(struct iwl_priv *priv)
 
 	memset(priv->hw_setting.shared_virt, 0, sizeof(struct iwl4965_shared));
 
-	priv->hw_setting.max_txq_num = iwl4965_param_queues_num;
+	priv->hw_setting.max_txq_num = iwl4965_mod_params.num_of_queues;
 	priv->hw_setting.tx_cmd_len = sizeof(struct iwl4965_tx_cmd);
 	priv->hw_setting.max_rxq_size = RX_QUEUE_SIZE;
 	priv->hw_setting.max_rxq_log = RX_QUEUE_SIZE_LOG;
-	if (iwl4965_param_amsdu_size_8K)
+	if (iwl4965_mod_params.amsdu_size_8K)
 		priv->hw_setting.rx_buf_size = IWL_RX_BUF_SIZE_8K;
 	else
 		priv->hw_setting.rx_buf_size = IWL_RX_BUF_SIZE_4K;
@@ -3421,7 +3421,7 @@ static void iwl4965_handle_data_packet(struct iwl_priv *priv, int is_data,
 	stats->flag = 0;
 	hdr = (struct ieee80211_hdr *)rxb->skb->data;
 
-	if (iwl4965_param_hwcrypto)
+	if (iwl4965_mod_params.hw_crypto)
 		iwl4965_set_decrypted_flag(priv, rxb->skb, ampdu_status, stats);
 
 	if (priv->add_radiotap)
@@ -3561,7 +3561,7 @@ void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info,
 	ht_info->cap |= (u16)IEEE80211_HT_CAP_SGI_20;
 	ht_info->cap |= (u16)(IEEE80211_HT_CAP_MIMO_PS &
 			     (IWL_MIMO_PS_NONE << 2));
-	if (iwl4965_param_amsdu_size_8K) {
+	if (iwl4965_mod_params.amsdu_size_8K) {
 		printk(KERN_DEBUG "iwl4965 in A-MSDU 8K support mode\n");
 		ht_info->cap |= (u16)IEEE80211_HT_CAP_MAX_AMSDU;
 	}

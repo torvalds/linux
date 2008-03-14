@@ -84,11 +84,23 @@ struct iwl_ops {
 	const struct iwl_lib_ops *lib;
 };
 
+struct iwl_mod_params {
+	int disable;		/* def: 0 = enable radio */
+	int hw_crypto;		/* def: 0 = using software encryption */
+	int debug;		/* def: 0 = minimal debug log messages */
+	int disable_hw_scan;	/* def: 0 = use h/w scan */
+	int num_of_queues;	/* def: HW dependent */
+	int enable_qos;		/* def: 1 = use quality of service */
+	int amsdu_size_8K;	/* def: 1 = enable 8K amsdu size */
+	int antenna;  		/* def: 0 = both antennas (use diversity) */
+};
+
 struct iwl_cfg {
 	const char *name;
 	const char *fw_name;
 	unsigned int sku;
 	const struct iwl_ops *ops;
+	const struct iwl_mod_params *mod_params;
 };
 
 #endif /* __iwl_core_h__ */

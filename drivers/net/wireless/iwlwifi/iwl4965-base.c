@@ -60,14 +60,12 @@ static int iwl4965_tx_queue_update_write_ptr(struct iwl_priv *priv,
  ******************************************************************************/
 
 /* module parameters */
-static int iwl4965_param_disable_hw_scan; /* def: 0 = use 4965's h/w scan */
-static int iwl4965_param_debug;    /* def: 0 = minimal debug log messages */
-static int iwl4965_param_disable;  /* def: enable radio */
-static int iwl4965_param_antenna;  /* def: 0 = both antennas (use diversity) */
-int iwl4965_param_hwcrypto;        /* def: using software encryption */
-static int iwl4965_param_qos_enable = 1; /* def: 1 = use quality of service */
-int iwl4965_param_queues_num = IWL_MAX_NUM_QUEUES; /* def: 16 Tx queues */
-int iwl4965_param_amsdu_size_8K;   /* def: enable 8K amsdu size */
+struct iwl_mod_params iwl4965_mod_params = {
+	.num_of_queues = IWL_MAX_NUM_QUEUES,
+	.enable_qos = 1,
+	.amsdu_size_8K = 1,
+	/* the rest are 0 by default */
+};
 
 /*
  * module name, copyright, version, etc.
@@ -7186,7 +7184,7 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 		goto out;
 	}
 
-	if (unlikely(!iwl4965_param_disable_hw_scan &&
+	if (unlikely(!iwl4965_mod_params.disable_hw_scan &&
 		     test_bit(STATUS_SCANNING, &priv->status))) {
 		IWL_DEBUG_MAC80211("leave - scanning\n");
 		set_bit(STATUS_CONF_PENDING, &priv->status);
@@ -7571,7 +7569,7 @@ static int iwl4965_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	IWL_DEBUG_MAC80211("enter\n");
 
-	if (!iwl4965_param_hwcrypto) {
+	if (!iwl4965_mod_params.hw_crypto) {
 		IWL_DEBUG_MAC80211("leave - hwcrypto disabled\n");
 		return -EOPNOTSUPP;
 	}
@@ -8528,7 +8526,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	/* Disabling hardware scan means that mac80211 will perform scans
 	 * "the hard way", rather than using device's scan. */
-	if (iwl4965_param_disable_hw_scan) {
+	if (iwl4965_mod_params.disable_hw_scan) {
 		IWL_DEBUG_INFO("Disabling hw_scan\n");
 		iwl4965_hw_ops.hw_scan = NULL;
 	}
@@ -8551,7 +8549,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	priv->pci_dev = pdev;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	iwl_debug_level = iwl4965_param_debug;
+	iwl_debug_level = iwl4965_mod_params.debug;
 	atomic_set(&priv->restrict_refcnt, 0);
 #endif
 
@@ -8659,7 +8657,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 #endif /* CONFIG_IWL4965_HT */
 
 	hw->rate_control_algorithm = "iwl-4965-rs";
-	priv->antenna = (enum iwl4965_antenna)iwl4965_param_antenna;
+	priv->antenna = (enum iwl4965_antenna)iwl4965_mod_params.antenna;
 	priv->retry_rate = 1;
 	priv->ibss_beacon = NULL;
 
@@ -8732,12 +8730,12 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	 **********************************/
 
 	/* Disable radio (SW RF KILL) via parameter when loading driver */
-	if (iwl4965_param_disable) {
+	if (iwl4965_mod_params.disable) {
 		set_bit(STATUS_RF_KILL_SW, &priv->status);
 		IWL_DEBUG_INFO("Radio disabled.\n");
 	}
 
-	if (iwl4965_param_qos_enable)
+	if (iwl4965_mod_params.enable_qos)
 		priv->qos_data.qos_enable = 1;
 
 	/********************
@@ -8932,25 +8930,26 @@ static void __exit iwl4965_exit(void)
 	pci_unregister_driver(&iwl4965_driver);
 }
 
-module_param_named(antenna, iwl4965_param_antenna, int, 0444);
+module_param_named(antenna, iwl4965_mod_params.antenna, int, 0444);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
-module_param_named(disable, iwl4965_param_disable, int, 0444);
+module_param_named(disable, iwl4965_mod_params.disable, int, 0444);
 MODULE_PARM_DESC(disable, "manually disable the radio (default 0 [radio on])");
-module_param_named(hwcrypto, iwl4965_param_hwcrypto, int, 0444);
+module_param_named(hwcrypto, iwl4965_mod_params.hw_crypto, int, 0444);
 MODULE_PARM_DESC(hwcrypto,
 		 "using hardware crypto engine (default 0 [software])\n");
-module_param_named(debug, iwl4965_param_debug, int, 0444);
+module_param_named(debug, iwl4965_mod_params.debug, int, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
-module_param_named(disable_hw_scan, iwl4965_param_disable_hw_scan, int, 0444);
+module_param_named(
+	disable_hw_scan, iwl4965_mod_params.disable_hw_scan, int, 0444);
 MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
 
-module_param_named(queues_num, iwl4965_param_queues_num, int, 0444);
+module_param_named(queues_num, iwl4965_mod_params.num_of_queues, int, 0444);
 MODULE_PARM_DESC(queues_num, "number of hw queues.");
 
 /* QoS */
-module_param_named(qos_enable, iwl4965_param_qos_enable, int, 0444);
+module_param_named(qos_enable, iwl4965_mod_params.enable_qos, int, 0444);
 MODULE_PARM_DESC(qos_enable, "enable all QoS functionality");
-module_param_named(amsdu_size_8K, iwl4965_param_amsdu_size_8K, int, 0444);
+module_param_named(amsdu_size_8K, iwl4965_mod_params.amsdu_size_8K, int, 0444);
 MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
 
 module_exit(iwl4965_exit);
