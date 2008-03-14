@@ -202,6 +202,19 @@ static __be32 *xdr_encode_my_id(__be32 *p, struct nsm_args *argp)
 	return p;
 }
 
+/*
+ * The "mon_id" argument specifies the non-private arguments
+ * of an SM_MON or SM_UNMON call.
+ */
+static __be32 *xdr_encode_mon_id(__be32 *p, struct nsm_args *argp)
+{
+	p = xdr_encode_mon_name(p, argp);
+	if (!p)
+		return ERR_PTR(-EIO);
+
+	return xdr_encode_my_id(p, argp);
+}
+
 static __be32 *
 xdr_encode_common(struct rpc_rqst *rqstp, __be32 *p, struct nsm_args *argp)
 {
