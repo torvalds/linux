@@ -116,13 +116,8 @@ extern void nfs_destroy_readpagecache(void);
 extern int __init nfs_init_writepagecache(void);
 extern void nfs_destroy_writepagecache(void);
 
-#ifdef CONFIG_NFS_DIRECTIO
 extern int __init nfs_init_directcache(void);
 extern void nfs_destroy_directcache(void);
-#else
-#define nfs_init_directcache() (0)
-#define nfs_destroy_directcache() do {} while(0)
-#endif
 
 /* nfs2xdr.c */
 extern int nfs_stat_to_errno(int);
