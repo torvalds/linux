@@ -86,12 +86,12 @@
 static inline void
 fw_memcpy_from_be32(void *_dst, void *_src, size_t size)
 {
-	u32 *dst = _dst;
-	u32 *src = _src;
+	u32    *dst = _dst;
+	__be32 *src = _src;
 	int i;
 
 	for (i = 0; i < size / 4; i++)
-		dst[i] = cpu_to_be32(src[i]);
+		dst[i] = be32_to_cpu(src[i]);
 }
 
 static inline void
