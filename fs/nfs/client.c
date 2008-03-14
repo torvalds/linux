@@ -688,6 +688,16 @@ static int nfs_init_server(struct nfs_server *server,
 	if (error < 0)
 		goto error;
 
+	/* Preserve the values of mount_server-related mount options */
+	if (data->mount_server.addrlen) {
+		memcpy(&server->mountd_address, &data->mount_server.address,
+			data->mount_server.addrlen);
+		server->mountd_addrlen = data->mount_server.addrlen;
+	}
+	server->mountd_version = data->mount_server.version;
+	server->mountd_port = data->mount_server.port;
+	server->mountd_protocol = data->mount_server.protocol;
+
 	server->namelen  = data->namlen;
 	/* Create a client RPC handle for the NFSv3 ACL management interface */
 	nfs_init_server_aclclient(server);
