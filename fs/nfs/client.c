@@ -682,6 +682,8 @@ static int nfs_init_server(struct nfs_server *server,
 	if (error < 0)
 		goto error;
 
+	server->port = data->nfs_server.port;
+
 	error = nfs_init_server_rpcclient(server, &timeparms, data->auth_flavors[0]);
 	if (error < 0)
 		goto error;
@@ -1063,6 +1065,8 @@ static int nfs4_init_server(struct nfs_server *server,
 	server->acregmax = data->acregmax * HZ;
 	server->acdirmin = data->acdirmin * HZ;
 	server->acdirmax = data->acdirmax * HZ;
+
+	server->port = data->nfs_server.port;
 
 	error = nfs_init_server_rpcclient(server, &timeparms, data->auth_flavors[0]);
 

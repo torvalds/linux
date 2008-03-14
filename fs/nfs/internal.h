@@ -56,6 +56,7 @@ struct nfs_parsed_mount_data {
 		size_t			addrlen;
 		char			*hostname;
 		char			*export_path;
+		unsigned short		port;
 		unsigned short		protocol;
 	} nfs_server;
 

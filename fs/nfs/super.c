@@ -685,7 +685,6 @@ static int nfs_parse_mount_options(char *raw,
 				   struct nfs_parsed_mount_data *mnt)
 {
 	char *p, *string, *secdata;
-	unsigned short port = 0;
 	int rc;
 
 	if (!raw) {
@@ -800,7 +799,7 @@ static int nfs_parse_mount_options(char *raw,
 				return 0;
 			if (option < 0 || option > 65535)
 				return 0;
-			port = option;
+			mnt->nfs_server.port = option;
 			break;
 		case Opt_rsize:
 			if (match_int(args, &mnt->rsize))
@@ -1050,7 +1049,8 @@ static int nfs_parse_mount_options(char *raw,
 		}
 	}
 
-	nfs_set_port((struct sockaddr *)&mnt->nfs_server.address, port);
+	nfs_set_port((struct sockaddr *)&mnt->nfs_server.address,
+				mnt->nfs_server.port);
 
 	return 1;
 
@@ -1171,7 +1171,9 @@ static int nfs_validate_mount_data(void *options,
 	args->acregmax		= 60;
 	args->acdirmin		= 30;
 	args->acdirmax		= 60;
+	args->mount_server.port	= 0;	/* autobind unless user sets port */
 	args->mount_server.protocol = XPRT_TRANSPORT_UDP;
+	args->nfs_server.port	= 0;	/* autobind unless user sets port */
 	args->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 
 	switch (data->version) {
@@ -1708,28 +1710,6 @@ static void nfs4_fill_super(struct super_block *sb)
 }
 
 /*
- * If the user didn't specify a port, set the port number to
- * the NFS version 4 default port.
- */
-static void nfs4_default_port(struct sockaddr *sap)
-{
-	switch (sap->sa_family) {
-	case AF_INET: {
-		struct sockaddr_in *ap = (struct sockaddr_in *)sap;
-		if (ap->sin_port == 0)
-			ap->sin_port = htons(NFS_PORT);
-		break;
-	}
-	case AF_INET6: {
-		struct sockaddr_in6 *ap = (struct sockaddr_in6 *)sap;
-		if (ap->sin6_port == 0)
-			ap->sin6_port = htons(NFS_PORT);
-		break;
-	}
-	}
-}
-
-/*
  * Validate NFSv4 mount options
  */
 static int nfs4_validate_mount_data(void *options,
@@ -1753,6 +1733,7 @@ static int nfs4_validate_mount_data(void *options,
 	args->acregmax		= 60;
 	args->acdirmin		= 30;
 	args->acdirmax		= 60;
+	args->nfs_server.port	= NFS_PORT; /* 2049 unless user set port= */
 	args->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 
 	switch (data->version) {
@@ -1768,9 +1749,6 @@ static int nfs4_validate_mount_data(void *options,
 		if (!nfs_verify_server_address((struct sockaddr *)
 						&args->nfs_server.address))
 			goto out_no_address;
-
-		nfs4_default_port((struct sockaddr *)
-				  &args->nfs_server.address);
 
 		switch (data->auth_flavourlen) {
 		case 0:
@@ -1828,9 +1806,6 @@ static int nfs4_validate_mount_data(void *options,
 		if (!nfs_verify_server_address((struct sockaddr *)
 						&args->nfs_server.address))
 			return -EINVAL;
-
-		nfs4_default_port((struct sockaddr *)
-				  &args->nfs_server.address);
 
 		switch (args->auth_flavor_len) {
 		case 0:
