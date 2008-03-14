@@ -1108,11 +1108,13 @@ calc_delta_fair(unsigned long delta_exec, struct load_weight *lw)
 static inline void update_load_add(struct load_weight *lw, unsigned long inc)
 {
 	lw->weight += inc;
+	lw->inv_weight = 0;
 }
 
 static inline void update_load_sub(struct load_weight *lw, unsigned long dec)
 {
 	lw->weight -= dec;
+	lw->inv_weight = 0;
 }
 
 /*
