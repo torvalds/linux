@@ -203,8 +203,11 @@ again:
 	if (received < budget) {
 		netif_rx_complete(vi->dev, napi);
 		if (unlikely(!vi->rvq->vq_ops->enable_cb(vi->rvq))
-		    && netif_rx_reschedule(vi->dev, napi))
+		    && napi_schedule_prep(napi)) {
+			vi->rvq->vq_ops->disable_cb(vi->rvq);
+			__netif_rx_schedule(vi->dev, napi);
 			goto again;
+		}
 	}
 
 	return received;
@@ -278,10 +281,11 @@ again:
 		pr_debug("%s: virtio not prepared to send\n", dev->name);
 		netif_stop_queue(dev);
 
-		/* Activate callback for using skbs: if this fails it
+		/* Activate callback for using skbs: if this returns false it
 		 * means some were used in the meantime. */
 		if (unlikely(!vi->svq->vq_ops->enable_cb(vi->svq))) {
-			printk("Unlikely: restart svq failed\n");
+			printk("Unlikely: restart svq race\n");
+			vi->svq->vq_ops->disable_cb(vi->svq);
 			netif_start_queue(dev);
 			goto again;
 		}
