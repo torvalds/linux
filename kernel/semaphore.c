@@ -35,6 +35,7 @@
 static noinline void __down(struct semaphore *sem);
 static noinline int __down_interruptible(struct semaphore *sem);
 static noinline int __down_killable(struct semaphore *sem);
+static noinline int __down_timeout(struct semaphore *sem, long jiffies);
 static noinline void __up(struct semaphore *sem);
 
 void down(struct semaphore *sem)
@@ -104,6 +105,20 @@ int down_trylock(struct semaphore *sem)
 }
 EXPORT_SYMBOL(down_trylock);
 
+int down_timeout(struct semaphore *sem, long jiffies)
+{
+	unsigned long flags;
+	int result = 0;
+
+	spin_lock_irqsave(&sem->lock, flags);
+	if (unlikely(sem->count-- <= 0))
+		result = __down_timeout(sem, jiffies);
+	spin_unlock_irqrestore(&sem->lock, flags);
+
+	return result;
+}
+EXPORT_SYMBOL(down_timeout);
+
 void up(struct semaphore *sem)
 {
 	unsigned long flags;
@@ -142,10 +157,12 @@ static noinline void __sched __up_down_common(struct semaphore *sem)
 }
 
 /*
- * Because this function is inlined, the 'state' parameter will be constant,
- * and thus optimised away by the compiler.
+ * Because this function is inlined, the 'state' parameter will be
+ * constant, and thus optimised away by the compiler.  Likewise the
+ * 'timeout' parameter for the cases without timeouts.
  */
-static inline int __sched __down_common(struct semaphore *sem, long state)
+static inline int __sched __down_common(struct semaphore *sem, long state,
+								long timeout)
 {
 	int result = 0;
 	struct task_struct *task = current;
@@ -160,14 +177,20 @@ static inline int __sched __down_common(struct semaphore *sem, long state)
 			goto interrupted;
 		if (state == TASK_KILLABLE && fatal_signal_pending(task))
 			goto interrupted;
+		if (timeout <= 0)
+			goto timed_out;
 		__set_task_state(task, state);
 		spin_unlock_irq(&sem->lock);
-		schedule();
+		timeout = schedule_timeout(timeout);
 		spin_lock_irq(&sem->lock);
 		if (waiter.up)
 			goto woken;
 	}
 
+ timed_out:
+	list_del(&waiter.list);
+	result = -ETIME;
+	goto woken;
  interrupted:
 	list_del(&waiter.list);
 	result = -EINTR;
@@ -187,17 +210,22 @@ static inline int __sched __down_common(struct semaphore *sem, long state)
 
 static noinline void __sched __down(struct semaphore *sem)
 {
-	__down_common(sem, TASK_UNINTERRUPTIBLE);
+	__down_common(sem, TASK_UNINTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT);
 }
 
 static noinline int __sched __down_interruptible(struct semaphore *sem)
 {
-	return __down_common(sem, TASK_INTERRUPTIBLE);
+	return __down_common(sem, TASK_INTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT);
 }
 
 static noinline int __sched __down_killable(struct semaphore *sem)
 {
-	return __down_common(sem, TASK_KILLABLE);
+	return __down_common(sem, TASK_KILLABLE, MAX_SCHEDULE_TIMEOUT);
+}
+
+static noinline int __sched __down_timeout(struct semaphore *sem, long jiffies)
+{
+	return __down_common(sem, TASK_UNINTERRUPTIBLE, jiffies);
 }
 
 static noinline void __sched __up(struct semaphore *sem)

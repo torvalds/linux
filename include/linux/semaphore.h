@@ -75,6 +75,12 @@ extern int __must_check down_killable(struct semaphore *sem);
 extern int __must_check down_trylock(struct semaphore *sem);
 
 /*
+ * As down(), except this function will return -ETIME if it fails to
+ * acquire the semaphore within the specified number of jiffies.
+ */
+extern int __must_check down_timeout(struct semaphore *sem, long jiffies);
+
+/*
  * Release the semaphore.  Unlike mutexes, up() may be called from any
  * context and even by tasks which have never called down().
  */
