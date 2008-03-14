@@ -1843,14 +1843,26 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
  */
 int iwl4965_hw_set_hw_setting(struct iwl_priv *priv)
 {
+	int ret = 0;
+
+	if ((iwl4965_param_queues_num > IWL_MAX_NUM_QUEUES) ||
+	    (iwl4965_param_queues_num < IWL_MIN_NUM_QUEUES)) {
+		IWL_ERROR("invalid queues_num, should be between %d and %d\n",
+			  IWL_MIN_NUM_QUEUES, IWL_MAX_NUM_QUEUES);
+		ret = -EINVAL;
+		goto out;
+	}
+
 	/* Allocate area for Tx byte count tables and Rx queue status */
 	priv->hw_setting.shared_virt =
 	    pci_alloc_consistent(priv->pci_dev,
 				 sizeof(struct iwl4965_shared),
 				 &priv->hw_setting.shared_phys);
 
-	if (!priv->hw_setting.shared_virt)
-		return -1;
+	if (!priv->hw_setting.shared_virt) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	memset(priv->hw_setting.shared_virt, 0, sizeof(struct iwl4965_shared));
 
@@ -1868,7 +1880,8 @@ int iwl4965_hw_set_hw_setting(struct iwl_priv *priv)
 
 	priv->hw_setting.tx_ant_num = 2;
 
-	return 0;
+out:
+	return ret;
 }
 
 /**
