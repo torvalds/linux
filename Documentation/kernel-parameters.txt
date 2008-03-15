@@ -177,9 +177,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	acpi_no_auto_ssdt	[HW,ACPI] Disable automatic loading of SSDT
 
-	acpi_no_initrd_override	[KNL,ACPI]
-			Disable loading custom ACPI tables from the initramfs
-
 	acpi_os_name=	[HW,ACPI] Tell ACPI BIOS the name of the OS
 			Format: To spoof as Windows 98: ="Microsoft Windows"
 
