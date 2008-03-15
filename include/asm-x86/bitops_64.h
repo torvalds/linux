@@ -39,24 +39,13 @@ static inline void set_bit_string(unsigned long *bitmap, unsigned long i,
 
 #include <asm-generic/bitops/sched.h>
 
-/**
- * fls64 - find last bit set in 64 bit word
- * @x: the word to search
- *
- * This is defined the same way as fls.
- */
-static inline int fls64(__u64 x)
-{
-	if (x == 0)
-		return 0;
-	return __fls(x) + 1;
-}
-
 #define ARCH_HAS_FAST_MULTIPLIER 1
 
 #include <asm-generic/bitops/hweight.h>
 
 #endif /* __KERNEL__ */
+
+#include <asm-generic/bitops/fls64.h>
 
 #ifdef __KERNEL__
 
