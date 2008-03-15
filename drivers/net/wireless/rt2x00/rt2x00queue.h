@@ -129,27 +129,35 @@ static inline struct skb_frame_desc* get_skb_frame_desc(struct sk_buff *skb)
 }
 
 /**
+ * enum rxdone_entry_desc_flags: Flags for &struct rxdone_entry_desc
+ *
+ * @RXDONE_SIGNAL_PLCP: Does the signal field contain the plcp value,
+ *	or does it contain the bitrate itself.
+ * @RXDONE_MY_BSS: Does this frame originate from device's BSS.
+ */
+enum rxdone_entry_desc_flags {
+	RXDONE_SIGNAL_PLCP = 1 << 0,
+	RXDONE_MY_BSS = 1 << 1,
+};
+
+/**
  * struct rxdone_entry_desc: RX Entry descriptor
  *
  * Summary of information that has been read from the RX frame descriptor.
  *
  * @signal: Signal of the received frame.
- * @signal_plcp: Does the signal field contain the plcp value,
- *	or does it contain the bitrate itself.
  * @rssi: RSSI of the received frame.
- * @ofdm: Was frame send with an OFDM rate.
  * @size: Data size of the received frame.
  * @flags: MAC80211 receive flags (See &enum mac80211_rx_flags).
- * @my_bss: Does this frame originate from device's BSS.
+ * @dev_flags: Ralink receive flags (See &enum rxdone_entry_desc_flags).
+
  */
 struct rxdone_entry_desc {
 	int signal;
-	int signal_plcp;
 	int rssi;
-	int ofdm;
 	int size;
 	int flags;
-	int my_bss;
+	int dev_flags;
 };
 
 /**

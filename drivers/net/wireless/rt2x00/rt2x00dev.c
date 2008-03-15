@@ -580,8 +580,10 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 	for (i = 0; i < sband->n_bitrates; i++) {
 		rate = rt2x00_get_rate(sband->bitrates[i].hw_value);
 
-		if ((rxdesc->signal_plcp && rate->plcp == rxdesc->signal) ||
-		    (!rxdesc->signal_plcp && rate->bitrate == rxdesc->signal)) {
+		if (((rxdesc->dev_flags & RXDONE_SIGNAL_PLCP) &&
+		     (rate->plcp == rxdesc->signal)) ||
+		    (!(rxdesc->dev_flags & RXDONE_SIGNAL_PLCP) &&
+		      (rate->bitrate == rxdesc->signal))) {
 			idx = i;
 			break;
 		}
@@ -592,7 +594,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 	 */
 	hdr = (struct ieee80211_hdr *)entry->skb->data;
 	fc = le16_to_cpu(hdr->frame_control);
-	if (is_beacon(fc) && rxdesc->my_bss)
+	if (is_beacon(fc) && (rxdesc->dev_flags & RXDONE_MY_BSS))
 		rt2x00lib_update_link_stats(&rt2x00dev->link, rxdesc->rssi);
 
 	rt2x00dev->link.qual.rx_success++;

@@ -1139,13 +1139,16 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 	 * the signal is the PLCP value. If it was received with
 	 * a CCK bitrate the signal is the rate in 100kbit/s.
 	 */
-	rxdesc->ofdm = rt2x00_get_field32(word0, RXD_W0_OFDM);
 	rxdesc->signal = rt2x00_get_field32(word1, RXD_W1_SIGNAL);
-	rxdesc->signal_plcp = rxdesc->ofdm;
 	rxdesc->rssi = rt2x00_get_field32(word1, RXD_W1_RSSI) -
 	    entry->queue->rt2x00dev->rssi_offset;
 	rxdesc->size = rt2x00_get_field32(word0, RXD_W0_DATABYTE_COUNT);
-	rxdesc->my_bss = !!rt2x00_get_field32(word0, RXD_W0_MY_BSS);
+
+	rxdesc->dev_flags = 0;
+	if (rt2x00_get_field32(word0, RXD_W0_OFDM))
+		rxdesc->dev_flags |= RXDONE_SIGNAL_PLCP;
+	if (rt2x00_get_field32(word0, RXD_W0_MY_BSS))
+		rxdesc->dev_flags |= RXDONE_MY_BSS;
 
 	/*
 	 * Adjust the skb memory window to the frame boundaries.
