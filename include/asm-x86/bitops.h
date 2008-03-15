@@ -67,7 +67,6 @@ static inline void __set_bit(int nr, volatile void *addr)
 		     : "Ir" (nr) : "memory");
 }
 
-
 /**
  * clear_bit - Clears a bit in memory
  * @nr: Bit to clear
@@ -304,6 +303,104 @@ static int test_bit(int nr, const volatile unsigned long *addr);
 
 #undef BASE_ADDR
 #undef BIT_ADDR
+/**
+ * __ffs - find first set bit in word
+ * @word: The word to search
+ *
+ * Undefined if no bit exists, so code should check against 0 first.
+ */
+static inline unsigned long __ffs(unsigned long word)
+{
+	__asm__("bsf %1,%0"
+		:"=r" (word)
+		:"rm" (word));
+	return word;
+}
+
+/**
+ * ffz - find first zero bit in word
+ * @word: The word to search
+ *
+ * Undefined if no zero exists, so code should check against ~0UL first.
+ */
+static inline unsigned long ffz(unsigned long word)
+{
+	__asm__("bsf %1,%0"
+		:"=r" (word)
+		:"r" (~word));
+	return word;
+}
+
+/*
+ * __fls: find last set bit in word
+ * @word: The word to search
+ *
+ * Undefined if no zero exists, so code should check against ~0UL first.
+ */
+static inline unsigned long __fls(unsigned long word)
+{
+	__asm__("bsr %1,%0"
+		:"=r" (word)
+		:"rm" (word));
+	return word;
+}
+
+#ifdef __KERNEL__
+/**
+ * ffs - find first set bit in word
+ * @x: the word to search
+ *
+ * This is defined the same way as the libc and compiler builtin ffs
+ * routines, therefore differs in spirit from the other bitops.
+ *
+ * ffs(value) returns 0 if value is 0 or the position of the first
+ * set bit if value is nonzero. The first (least significant) bit
+ * is at position 1.
+ */
+static inline int ffs(int x)
+{
+	int r;
+#ifdef CONFIG_X86_CMOV
+	__asm__("bsfl %1,%0\n\t"
+		"cmovzl %2,%0"
+		: "=r" (r) : "rm" (x), "r" (-1));
+#else
+	__asm__("bsfl %1,%0\n\t"
+		"jnz 1f\n\t"
+		"movl $-1,%0\n"
+		"1:" : "=r" (r) : "rm" (x));
+#endif
+	return r + 1;
+}
+
+/**
+ * fls - find last set bit in word
+ * @x: the word to search
+ *
+ * This is defined in a similar way as the libc and compiler builtin
+ * ffs, but returns the position of the most significant set bit.
+ *
+ * fls(value) returns 0 if value is 0 or the position of the last
+ * set bit if value is nonzero. The last (most significant) bit is
+ * at position 32.
+ */
+static inline int fls(int x)
+{
+	int r;
+#ifdef CONFIG_X86_CMOV
+	__asm__("bsrl %1,%0\n\t"
+		"cmovzl %2,%0"
+		: "=&r" (r) : "rm" (x), "rm" (-1));
+#else
+	__asm__("bsrl %1,%0\n\t"
+		"jnz 1f\n\t"
+		"movl $-1,%0\n"
+		"1:" : "=r" (r) : "rm" (x));
+#endif
+	return r + 1;
+}
+#endif /* __KERNEL__ */
+
 #undef ADDR
 
 #ifdef CONFIG_X86_32
