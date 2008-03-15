@@ -1396,6 +1396,12 @@ task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
 {
 	s64 delta;
 
+	/*
+	 * Buddy candidates are cache hot:
+	 */
+	if (&p->se == cfs_rq_of(&p->se)->next)
+		return 1;
+
 	if (p->sched_class != &fair_sched_class)
 		return 0;
 
