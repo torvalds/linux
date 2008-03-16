@@ -4267,11 +4267,12 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		txdp->Control_1 |= TXD_UFO_MSS(ufo_size);
 		txdp->Control_1 |= TXD_BUFFER0_SIZE(8);
 #ifdef __BIG_ENDIAN
+		/* both variants do cpu_to_be64(be32_to_cpu(...)) */
 		fifo->ufo_in_band_v[put_off] =
-				(u64)skb_shinfo(skb)->ip6_frag_id;
+				(__force u64)skb_shinfo(skb)->ip6_frag_id;
 #else
 		fifo->ufo_in_band_v[put_off] =
-				(u64)skb_shinfo(skb)->ip6_frag_id << 32;
+				(__force u64)skb_shinfo(skb)->ip6_frag_id << 32;
 #endif
 		txdp->Host_Control = (unsigned long)fifo->ufo_in_band_v;
 		txdp->Buffer_Pointer = pci_map_single(sp->pdev,
@@ -7089,11 +7090,11 @@ static int s2io_add_isr(struct s2io_nic * sp)
 				if(!(sp->msix_info[i].addr &&
 					sp->msix_info[i].data)) {
 					DBG_PRINT(ERR_DBG, "%s @ Addr:0x%llx "
-						"Data:0x%lx\n",sp->desc[i],
+						"Data:0x%llx\n",sp->desc[i],
 						(unsigned long long)
 						sp->msix_info[i].addr,
-						(unsigned long)
-						ntohl(sp->msix_info[i].data));
+						(unsigned long long)
+						sp->msix_info[i].data);
 				} else {
 					msix_tx_cnt++;
 				}
@@ -7107,11 +7108,11 @@ static int s2io_add_isr(struct s2io_nic * sp)
 				if(!(sp->msix_info[i].addr &&
 					sp->msix_info[i].data)) {
 					DBG_PRINT(ERR_DBG, "%s @ Addr:0x%llx "
-						"Data:0x%lx\n",sp->desc[i],
+						"Data:0x%llx\n",sp->desc[i],
 						(unsigned long long)
 						sp->msix_info[i].addr,
-						(unsigned long)
-						ntohl(sp->msix_info[i].data));
+						(unsigned long long)
+						sp->msix_info[i].data);
 				} else {
 					msix_rx_cnt++;
 				}
