@@ -1092,11 +1092,13 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 		return;
 	}
 
+#ifdef CONFIG_IPV6_NDISC_NODETYPE
 	if (skb->ndisc_nodetype == NDISC_NODETYPE_HOST) {
 		ND_PRINTK2(KERN_WARNING
 			   "ICMPv6 RA: from host or unauthorized router\n");
 		return;
 	}
+#endif
 
 	/*
 	 *	set the RA_RECV flag in the interface
@@ -1121,9 +1123,11 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 		return;
 	}
 
+#ifdef CONFIG_IPV6_NDISC_NODETYPE
 	/* skip link-specific parameters from interior routers */
 	if (skb->ndisc_nodetype == NDISC_NODETYPE_NODEFAULT)
 		goto skip_linkparms;
+#endif
 
 	if (in6_dev->if_flags & IF_RS_SENT) {
 		/*
@@ -1239,7 +1243,9 @@ skip_defrtr:
 		}
 	}
 
+#ifdef CONFIG_IPV6_NDISC_NODETYPE
 skip_linkparms:
+#endif
 
 	/*
 	 *	Process options.
@@ -1286,9 +1292,11 @@ skip_linkparms:
 	}
 #endif
 
+#ifdef CONFIG_IPV6_NDISC_NODETYPE
 	/* skip link-specific ndopts from interior routers */
 	if (skb->ndisc_nodetype == NDISC_NODETYPE_NODEFAULT)
 		goto out;
+#endif
 
 	if (in6_dev->cnf.accept_ra_pinfo && ndopts.nd_opts_pi) {
 		struct nd_opt_hdr *p;
@@ -1353,6 +1361,7 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 	int optlen;
 	u8 *lladdr = NULL;
 
+#ifdef CONFIG_IPV6_NDISC_NODETYPE
 	switch (skb->ndisc_nodetype) {
 	case NDISC_NODETYPE_HOST:
 	case NDISC_NODETYPE_NODEFAULT:
@@ -1360,6 +1369,7 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 			   "ICMPv6 Redirect: from host or unauthorized router\n");
 		return;
 	}
+#endif
 
 	if (!(ipv6_addr_type(&ipv6_hdr(skb)->saddr) & IPV6_ADDR_LINKLOCAL)) {
 		ND_PRINTK2(KERN_WARNING
