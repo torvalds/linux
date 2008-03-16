@@ -1900,8 +1900,13 @@ static int ipg_nic_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Specify the TFC field within the TFD. */
 	txfd->tfc |= cpu_to_le64(IPG_TFC_WORDALIGNDISABLED |
-		(IPG_TFC_FRAMEID & cpu_to_le64(sp->tx_current)) |
+		(IPG_TFC_FRAMEID & sp->tx_current) |
 		(IPG_TFC_FRAGCOUNT & (1 << 24)));
+	/*
+	 * 16--17 (WordAlign) <- 3 (disable),
+	 * 0--15 (FrameId) <- sp->tx_current,
+	 * 24--27 (FragCount) <- 1
+	 */
 
 	/* Request TxComplete interrupts at an interval defined
 	 * by the constant IPG_FRAMESBETWEENTXCOMPLETES.
