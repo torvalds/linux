@@ -983,7 +983,7 @@ static inline int wake_idle(int cpu, struct task_struct *p)
 
 static int
 wake_affine(struct rq *rq, struct sched_domain *this_sd, struct task_struct *p,
-	    int cpu, int this_cpu, int sync, int idx,
+	    int prev_cpu, int this_cpu, int sync, int idx,
 	    unsigned long load, unsigned long this_load,
 	    unsigned int imbalance)
 {
@@ -1010,7 +1010,7 @@ wake_affine(struct rq *rq, struct sched_domain *this_sd, struct task_struct *p,
 	if (sync)
 		tl -= current->se.load.weight;
 
-	if ((tl <= load && tl + target_load(cpu, idx) <= tl_per_task) ||
+	if ((tl <= load && tl + target_load(prev_cpu, idx) <= tl_per_task) ||
 			100*(tl + p->se.load.weight) <= imbalance*load) {
 		/*
 		 * This domain has SD_WAKE_AFFINE and
@@ -1028,22 +1028,26 @@ wake_affine(struct rq *rq, struct sched_domain *this_sd, struct task_struct *p,
 static int select_task_rq_fair(struct task_struct *p, int sync)
 {
 	struct sched_domain *sd, *this_sd = NULL;
+	int prev_cpu, this_cpu, new_cpu;
 	unsigned long load, this_load;
-	int cpu, this_cpu, new_cpu;
 	unsigned int imbalance;
 	struct rq *rq;
 	int idx;
 
-	cpu      = task_cpu(p);
-	rq       = task_rq(p);
-	this_cpu = smp_processor_id();
-	new_cpu  = cpu;
+	prev_cpu	= task_cpu(p);
+	rq		= task_rq(p);
+	this_cpu	= smp_processor_id();
+	new_cpu		= prev_cpu;
 
-	if (cpu == this_cpu)
+	if (prev_cpu == this_cpu)
 		goto out_set_cpu;
 
+	/*
+	 * 'this_sd' is the first domain that both
+	 * this_cpu and prev_cpu are present in:
+	 */
 	for_each_domain(this_cpu, sd) {
-		if (cpu_isset(cpu, sd->span)) {
+		if (cpu_isset(prev_cpu, sd->span)) {
 			this_sd = sd;
 			break;
 		}
@@ -1062,12 +1066,12 @@ static int select_task_rq_fair(struct task_struct *p, int sync)
 
 	imbalance = 100 + (this_sd->imbalance_pct - 100) / 2;
 
-	load = source_load(cpu, idx);
+	load = source_load(prev_cpu, idx);
 	this_load = target_load(this_cpu, idx);
 
 	new_cpu = this_cpu; /* Wake to this CPU if we can */
 
-	if (wake_affine(rq, this_sd, p, cpu, this_cpu, sync, idx,
+	if (wake_affine(rq, this_sd, p, prev_cpu, this_cpu, sync, idx,
 				     load, this_load, imbalance))
 		goto out_set_cpu;
 
@@ -1084,7 +1088,11 @@ static int select_task_rq_fair(struct task_struct *p, int sync)
 	}
 
 out_keep_cpu:
-	new_cpu = cpu; /* Could not wake to this_cpu. Wake to cpu instead */
+	/*
+	 * Could not wake to this_cpu.
+	 * Wake to the previous cpu instead:
+	 */
+	new_cpu = prev_cpu;
 out_set_cpu:
 	return wake_idle(new_cpu, p);
 }
