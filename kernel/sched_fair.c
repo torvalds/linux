@@ -1040,7 +1040,7 @@ static int select_task_rq_fair(struct task_struct *p, int sync)
 	new_cpu		= prev_cpu;
 
 	if (prev_cpu == this_cpu)
-		goto out_set_cpu;
+		goto out;
 
 	/*
 	 * 'this_sd' is the first domain that both
@@ -1054,13 +1054,13 @@ static int select_task_rq_fair(struct task_struct *p, int sync)
 	}
 
 	if (unlikely(!cpu_isset(this_cpu, p->cpus_allowed)))
-		goto out_set_cpu;
+		goto out;
 
 	/*
 	 * Check for affine wakeup and passive balancing possibilities.
 	 */
 	if (!this_sd)
-		goto out_keep_cpu;
+		goto out;
 
 	idx = this_sd->wake_idx;
 
@@ -1069,11 +1069,11 @@ static int select_task_rq_fair(struct task_struct *p, int sync)
 	load = source_load(prev_cpu, idx);
 	this_load = target_load(this_cpu, idx);
 
-	new_cpu = this_cpu; /* Wake to this CPU if we can */
-
 	if (wake_affine(rq, this_sd, p, prev_cpu, this_cpu, sync, idx,
-				     load, this_load, imbalance))
-		goto out_set_cpu;
+				     load, this_load, imbalance)) {
+		new_cpu = this_cpu;
+		goto out;
+	}
 
 	/*
 	 * Start passive balancing when half the imbalance_pct
@@ -1083,17 +1083,12 @@ static int select_task_rq_fair(struct task_struct *p, int sync)
 		if (imbalance*this_load <= 100*load) {
 			schedstat_inc(this_sd, ttwu_move_balance);
 			schedstat_inc(p, se.nr_wakeups_passive);
-			goto out_set_cpu;
+			new_cpu = this_cpu;
+			goto out;
 		}
 	}
 
-out_keep_cpu:
-	/*
-	 * Could not wake to this_cpu.
-	 * Wake to the previous cpu instead:
-	 */
-	new_cpu = prev_cpu;
-out_set_cpu:
+out:
 	return wake_idle(new_cpu, p);
 }
 #endif /* CONFIG_SMP */
