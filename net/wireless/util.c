@@ -33,6 +33,29 @@ int ieee80211_frequency_to_channel(int freq)
 }
 EXPORT_SYMBOL(ieee80211_frequency_to_channel);
 
+struct ieee80211_channel *ieee80211_get_channel(struct wiphy *wiphy,
+						int freq)
+{
+	enum ieee80211_band band;
+	struct ieee80211_supported_band *sband;
+	int i;
+
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+		sband = wiphy->bands[band];
+
+		if (!sband)
+			continue;
+
+		for (i = 0; i < sband->n_channels; i++) {
+			if (sband->channels[i].center_freq == freq)
+				return &sband->channels[i];
+		}
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(ieee80211_get_channel);
+
 static void set_mandatory_flags_band(struct ieee80211_supported_band *sband,
 				     enum ieee80211_band band)
 {
