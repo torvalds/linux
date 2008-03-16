@@ -2356,6 +2356,7 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	u64 beacon_timestamp, rx_timestamp;
+	struct ieee80211_channel *channel;
 	DECLARE_MAC_BUF(mac);
 	DECLARE_MAC_BUF(mac2);
 
@@ -2419,6 +2420,11 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 		freq = ieee80211_channel_to_frequency(elems.ds_params[0]);
 	else
 		freq = rx_status->freq;
+
+	channel = ieee80211_get_channel(local->hw.wiphy, freq);
+
+	if (!channel || channel->flags & IEEE80211_CHAN_DISABLED)
+		return;
 
 #ifdef CONFIG_MAC80211_MESH
 	if (elems.mesh_config)
