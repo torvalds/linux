@@ -688,9 +688,9 @@ static int rtl8180_add_interface(struct ieee80211_hw *dev,
 
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
 	rtl818x_iowrite32(priv, (__le32 __iomem *)&priv->map->MAC[0],
-			  cpu_to_le32(*(u32 *)conf->mac_addr));
+			  le32_to_cpu(*(__le32 *)conf->mac_addr));
 	rtl818x_iowrite16(priv, (__le16 __iomem *)&priv->map->MAC[4],
-			  cpu_to_le16(*(u16 *)(conf->mac_addr + 4)));
+			  le16_to_cpu(*(__le16 *)(conf->mac_addr + 4)));
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
 
 	return 0;
