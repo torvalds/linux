@@ -48,29 +48,6 @@ static int ipv6_dev_ac_dec(struct net_device *dev, struct in6_addr *addr);
 /* Big ac list lock for all the sockets */
 static DEFINE_RWLOCK(ipv6_sk_ac_lock);
 
-static int
-ip6_onlink(struct in6_addr *addr, struct net_device *dev)
-{
-	struct inet6_dev	*idev;
-	struct inet6_ifaddr	*ifa;
-	int	onlink;
-
-	onlink = 0;
-	rcu_read_lock();
-	idev = __in6_dev_get(dev);
-	if (idev) {
-		read_lock_bh(&idev->lock);
-		for (ifa=idev->addr_list; ifa; ifa=ifa->if_next) {
-			onlink = ipv6_prefix_equal(addr, &ifa->addr,
-						   ifa->prefix_len);
-			if (onlink)
-				break;
-		}
-		read_unlock_bh(&idev->lock);
-	}
-	rcu_read_unlock();
-	return onlink;
-}
 
 /*
  *	socket join an anycast group
@@ -142,7 +119,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, struct in6_addr *addr)
 	 * This obviates the need for propagating anycast routes while
 	 * still allowing some non-router anycast participation.
 	 */
-	if (!ip6_onlink(addr, dev)) {
+	if (!ipv6_chk_prefix(addr, dev)) {
 		if (ishost)
 			err = -EADDRNOTAVAIL;
 		if (err)
