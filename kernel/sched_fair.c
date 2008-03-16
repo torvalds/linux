@@ -980,12 +980,59 @@ static inline int wake_idle(int cpu, struct task_struct *p)
 #endif
 
 #ifdef CONFIG_SMP
+
+static int
+wake_affine(struct rq *rq, struct sched_domain *this_sd, struct task_struct *p,
+	    int cpu, int this_cpu, int sync, int idx,
+	    unsigned long load, unsigned long this_load,
+	    unsigned int imbalance)
+{
+	unsigned long tl = this_load;
+	unsigned long tl_per_task;
+
+	if (!(this_sd->flags & SD_WAKE_AFFINE))
+		return 0;
+
+	/*
+	 * Attract cache-cold tasks on sync wakeups:
+	 */
+	if (sync && !task_hot(p, rq->clock, this_sd))
+		return 1;
+
+	schedstat_inc(p, se.nr_wakeups_affine_attempts);
+	tl_per_task = cpu_avg_load_per_task(this_cpu);
+
+	/*
+	 * If sync wakeup then subtract the (maximum possible)
+	 * effect of the currently running task from the load
+	 * of the current CPU:
+	 */
+	if (sync)
+		tl -= current->se.load.weight;
+
+	if ((tl <= load && tl + target_load(cpu, idx) <= tl_per_task) ||
+			100*(tl + p->se.load.weight) <= imbalance*load) {
+		/*
+		 * This domain has SD_WAKE_AFFINE and
+		 * p is cache cold in this domain, and
+		 * there is no bad imbalance.
+		 */
+		schedstat_inc(this_sd, ttwu_move_affine);
+		schedstat_inc(p, se.nr_wakeups_affine);
+
+		return 1;
+	}
+	return 0;
+}
+
 static int select_task_rq_fair(struct task_struct *p, int sync)
 {
-	int cpu, this_cpu;
-	struct rq *rq;
 	struct sched_domain *sd, *this_sd = NULL;
-	int new_cpu;
+	unsigned long load, this_load;
+	int cpu, this_cpu, new_cpu;
+	unsigned int imbalance;
+	struct rq *rq;
+	int idx;
 
 	cpu      = task_cpu(p);
 	rq       = task_rq(p);
@@ -1008,66 +1055,35 @@ static int select_task_rq_fair(struct task_struct *p, int sync)
 	/*
 	 * Check for affine wakeup and passive balancing possibilities.
 	 */
-	if (this_sd) {
-		int idx = this_sd->wake_idx;
-		unsigned int imbalance;
-		unsigned long load, this_load;
+	if (!this_sd)
+		goto out_keep_cpu;
 
-		imbalance = 100 + (this_sd->imbalance_pct - 100) / 2;
+	idx = this_sd->wake_idx;
 
-		load = source_load(cpu, idx);
-		this_load = target_load(this_cpu, idx);
+	imbalance = 100 + (this_sd->imbalance_pct - 100) / 2;
 
-		new_cpu = this_cpu; /* Wake to this CPU if we can */
+	load = source_load(cpu, idx);
+	this_load = target_load(this_cpu, idx);
 
-		if (this_sd->flags & SD_WAKE_AFFINE) {
-			unsigned long tl = this_load;
-			unsigned long tl_per_task;
+	new_cpu = this_cpu; /* Wake to this CPU if we can */
 
-			/*
-			 * Attract cache-cold tasks on sync wakeups:
-			 */
-			if (sync && !task_hot(p, rq->clock, this_sd))
-				goto out_set_cpu;
+	if (wake_affine(rq, this_sd, p, cpu, this_cpu, sync, idx,
+				     load, this_load, imbalance))
+		goto out_set_cpu;
 
-			schedstat_inc(p, se.nr_wakeups_affine_attempts);
-			tl_per_task = cpu_avg_load_per_task(this_cpu);
-
-			/*
-			 * If sync wakeup then subtract the (maximum possible)
-			 * effect of the currently running task from the load
-			 * of the current CPU:
-			 */
-			if (sync)
-				tl -= current->se.load.weight;
-
-			if ((tl <= load &&
-				tl + target_load(cpu, idx) <= tl_per_task) ||
-			       100*(tl + p->se.load.weight) <= imbalance*load) {
-				/*
-				 * This domain has SD_WAKE_AFFINE and
-				 * p is cache cold in this domain, and
-				 * there is no bad imbalance.
-				 */
-				schedstat_inc(this_sd, ttwu_move_affine);
-				schedstat_inc(p, se.nr_wakeups_affine);
-				goto out_set_cpu;
-			}
-		}
-
-		/*
-		 * Start passive balancing when half the imbalance_pct
-		 * limit is reached.
-		 */
-		if (this_sd->flags & SD_WAKE_BALANCE) {
-			if (imbalance*this_load <= 100*load) {
-				schedstat_inc(this_sd, ttwu_move_balance);
-				schedstat_inc(p, se.nr_wakeups_passive);
-				goto out_set_cpu;
-			}
+	/*
+	 * Start passive balancing when half the imbalance_pct
+	 * limit is reached.
+	 */
+	if (this_sd->flags & SD_WAKE_BALANCE) {
+		if (imbalance*this_load <= 100*load) {
+			schedstat_inc(this_sd, ttwu_move_balance);
+			schedstat_inc(p, se.nr_wakeups_passive);
+			goto out_set_cpu;
 		}
 	}
 
+out_keep_cpu:
 	new_cpu = cpu; /* Could not wake to this_cpu. Wake to cpu instead */
 out_set_cpu:
 	return wake_idle(new_cpu, p);
