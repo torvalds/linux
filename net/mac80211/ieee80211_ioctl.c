@@ -279,35 +279,14 @@ static int ieee80211_ioctl_giwmode(struct net_device *dev,
 
 int ieee80211_set_freq(struct ieee80211_local *local, int freqMHz)
 {
-	int set = 0;
 	int ret = -EINVAL;
-	enum ieee80211_band band;
-	struct ieee80211_supported_band *sband;
-	int i;
+	struct ieee80211_channel *chan;
 
-	for (band = 0; band < IEEE80211_NUM_BANDS; band ++) {
-		sband = local->hw.wiphy->bands[band];
+	chan = ieee80211_get_channel(local->hw.wiphy, freqMHz);
 
-		if (!sband)
-			continue;
+	if (chan && !(chan->flags & IEEE80211_CHAN_DISABLED)) {
+		local->oper_channel = chan;
 
-		for (i = 0; i < sband->n_channels; i++) {
-			struct ieee80211_channel *chan = &sband->channels[i];
-
-			if (chan->flags & IEEE80211_CHAN_DISABLED)
-				continue;
-
-			if (chan->center_freq == freqMHz) {
-				set = 1;
-				local->oper_channel = chan;
-				break;
-			}
-		}
-		if (set)
-			break;
-	}
-
-	if (set) {
 		if (local->sta_sw_scanning)
 			ret = 0;
 		else
