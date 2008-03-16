@@ -1988,19 +1988,19 @@ fore200e_fetch_stats(struct fore200e* fore200e, struct sonet_stats __user *arg)
     if (fore200e_getstats(fore200e) < 0)
 	return -EIO;
 
-    tmp.section_bip = cpu_to_be32(fore200e->stats->oc3.section_bip8_errors);
-    tmp.line_bip    = cpu_to_be32(fore200e->stats->oc3.line_bip24_errors);
-    tmp.path_bip    = cpu_to_be32(fore200e->stats->oc3.path_bip8_errors);
-    tmp.line_febe   = cpu_to_be32(fore200e->stats->oc3.line_febe_errors);
-    tmp.path_febe   = cpu_to_be32(fore200e->stats->oc3.path_febe_errors);
-    tmp.corr_hcs    = cpu_to_be32(fore200e->stats->oc3.corr_hcs_errors);
-    tmp.uncorr_hcs  = cpu_to_be32(fore200e->stats->oc3.ucorr_hcs_errors);
-    tmp.tx_cells    = cpu_to_be32(fore200e->stats->aal0.cells_transmitted)  +
-	              cpu_to_be32(fore200e->stats->aal34.cells_transmitted) +
-	              cpu_to_be32(fore200e->stats->aal5.cells_transmitted);
-    tmp.rx_cells    = cpu_to_be32(fore200e->stats->aal0.cells_received)     +
-	              cpu_to_be32(fore200e->stats->aal34.cells_received)    +
-	              cpu_to_be32(fore200e->stats->aal5.cells_received);
+    tmp.section_bip = be32_to_cpu(fore200e->stats->oc3.section_bip8_errors);
+    tmp.line_bip    = be32_to_cpu(fore200e->stats->oc3.line_bip24_errors);
+    tmp.path_bip    = be32_to_cpu(fore200e->stats->oc3.path_bip8_errors);
+    tmp.line_febe   = be32_to_cpu(fore200e->stats->oc3.line_febe_errors);
+    tmp.path_febe   = be32_to_cpu(fore200e->stats->oc3.path_febe_errors);
+    tmp.corr_hcs    = be32_to_cpu(fore200e->stats->oc3.corr_hcs_errors);
+    tmp.uncorr_hcs  = be32_to_cpu(fore200e->stats->oc3.ucorr_hcs_errors);
+    tmp.tx_cells    = be32_to_cpu(fore200e->stats->aal0.cells_transmitted)  +
+	              be32_to_cpu(fore200e->stats->aal34.cells_transmitted) +
+	              be32_to_cpu(fore200e->stats->aal5.cells_transmitted);
+    tmp.rx_cells    = be32_to_cpu(fore200e->stats->aal0.cells_received)     +
+	              be32_to_cpu(fore200e->stats->aal34.cells_received)    +
+	              be32_to_cpu(fore200e->stats->aal5.cells_received);
 
     if (arg)
 	return copy_to_user(arg, &tmp, sizeof(struct sonet_stats)) ? -EFAULT : 0;	
@@ -2587,7 +2587,7 @@ fore200e_start_fw(struct fore200e* fore200e)
 static int __devinit
 fore200e_load_fw(struct fore200e* fore200e)
 {
-    u32* fw_data = (u32*) fore200e->bus->fw_data;
+    __le32* fw_data = (__le32*) fore200e->bus->fw_data;
     u32  fw_size = (u32) *fore200e->bus->fw_size / sizeof(u32);
 
     struct fw_header* fw_header = (struct fw_header*) fw_data;
@@ -2965,8 +2965,8 @@ fore200e_proc_read(struct atm_dev *dev, loff_t* pos, char* page)
 		       "  4b5b:\n"
 		       "     crc_header_errors:\t\t%10u\n"
 		       "     framing_errors:\t\t%10u\n",
-		       cpu_to_be32(fore200e->stats->phy.crc_header_errors),
-		       cpu_to_be32(fore200e->stats->phy.framing_errors));
+		       be32_to_cpu(fore200e->stats->phy.crc_header_errors),
+		       be32_to_cpu(fore200e->stats->phy.framing_errors));
     
     if (!left--)
 	return sprintf(page, "\n"
@@ -2978,13 +2978,13 @@ fore200e_proc_read(struct atm_dev *dev, loff_t* pos, char* page)
 		       "     path_febe_errors:\t\t%10u\n"
 		       "     corr_hcs_errors:\t\t%10u\n"
 		       "     ucorr_hcs_errors:\t\t%10u\n",
-		       cpu_to_be32(fore200e->stats->oc3.section_bip8_errors),
-		       cpu_to_be32(fore200e->stats->oc3.path_bip8_errors),
-		       cpu_to_be32(fore200e->stats->oc3.line_bip24_errors),
-		       cpu_to_be32(fore200e->stats->oc3.line_febe_errors),
-		       cpu_to_be32(fore200e->stats->oc3.path_febe_errors),
-		       cpu_to_be32(fore200e->stats->oc3.corr_hcs_errors),
-		       cpu_to_be32(fore200e->stats->oc3.ucorr_hcs_errors));
+		       be32_to_cpu(fore200e->stats->oc3.section_bip8_errors),
+		       be32_to_cpu(fore200e->stats->oc3.path_bip8_errors),
+		       be32_to_cpu(fore200e->stats->oc3.line_bip24_errors),
+		       be32_to_cpu(fore200e->stats->oc3.line_febe_errors),
+		       be32_to_cpu(fore200e->stats->oc3.path_febe_errors),
+		       be32_to_cpu(fore200e->stats->oc3.corr_hcs_errors),
+		       be32_to_cpu(fore200e->stats->oc3.ucorr_hcs_errors));
 
     if (!left--)
 	return sprintf(page,"\n"
@@ -2995,12 +2995,12 @@ fore200e_proc_read(struct atm_dev *dev, loff_t* pos, char* page)
 		       "     vpi no conn:\t\t%10u\n"
 		       "     vci out of range:\t\t%10u\n"
 		       "     vci no conn:\t\t%10u\n",
-		       cpu_to_be32(fore200e->stats->atm.cells_transmitted),
-		       cpu_to_be32(fore200e->stats->atm.cells_received),
-		       cpu_to_be32(fore200e->stats->atm.vpi_bad_range),
-		       cpu_to_be32(fore200e->stats->atm.vpi_no_conn),
-		       cpu_to_be32(fore200e->stats->atm.vci_bad_range),
-		       cpu_to_be32(fore200e->stats->atm.vci_no_conn));
+		       be32_to_cpu(fore200e->stats->atm.cells_transmitted),
+		       be32_to_cpu(fore200e->stats->atm.cells_received),
+		       be32_to_cpu(fore200e->stats->atm.vpi_bad_range),
+		       be32_to_cpu(fore200e->stats->atm.vpi_no_conn),
+		       be32_to_cpu(fore200e->stats->atm.vci_bad_range),
+		       be32_to_cpu(fore200e->stats->atm.vci_no_conn));
     
     if (!left--)
 	return sprintf(page,"\n"
@@ -3008,9 +3008,9 @@ fore200e_proc_read(struct atm_dev *dev, loff_t* pos, char* page)
 		       "     TX:\t\t\t%10u\n"
 		       "     RX:\t\t\t%10u\n"
 		       "     dropped:\t\t\t%10u\n",
-		       cpu_to_be32(fore200e->stats->aal0.cells_transmitted),
-		       cpu_to_be32(fore200e->stats->aal0.cells_received),
-		       cpu_to_be32(fore200e->stats->aal0.cells_dropped));
+		       be32_to_cpu(fore200e->stats->aal0.cells_transmitted),
+		       be32_to_cpu(fore200e->stats->aal0.cells_received),
+		       be32_to_cpu(fore200e->stats->aal0.cells_dropped));
     
     if (!left--)
 	return sprintf(page,"\n"
@@ -3026,15 +3026,15 @@ fore200e_proc_read(struct atm_dev *dev, loff_t* pos, char* page)
 		       "       RX:\t\t\t%10u\n"
 		       "       dropped:\t\t\t%10u\n"
 		       "       protocol errors:\t\t%10u\n",
-		       cpu_to_be32(fore200e->stats->aal34.cells_transmitted),
-		       cpu_to_be32(fore200e->stats->aal34.cells_received),
-		       cpu_to_be32(fore200e->stats->aal34.cells_dropped),
-		       cpu_to_be32(fore200e->stats->aal34.cells_crc_errors),
-		       cpu_to_be32(fore200e->stats->aal34.cells_protocol_errors),
-		       cpu_to_be32(fore200e->stats->aal34.cspdus_transmitted),
-		       cpu_to_be32(fore200e->stats->aal34.cspdus_received),
-		       cpu_to_be32(fore200e->stats->aal34.cspdus_dropped),
-		       cpu_to_be32(fore200e->stats->aal34.cspdus_protocol_errors));
+		       be32_to_cpu(fore200e->stats->aal34.cells_transmitted),
+		       be32_to_cpu(fore200e->stats->aal34.cells_received),
+		       be32_to_cpu(fore200e->stats->aal34.cells_dropped),
+		       be32_to_cpu(fore200e->stats->aal34.cells_crc_errors),
+		       be32_to_cpu(fore200e->stats->aal34.cells_protocol_errors),
+		       be32_to_cpu(fore200e->stats->aal34.cspdus_transmitted),
+		       be32_to_cpu(fore200e->stats->aal34.cspdus_received),
+		       be32_to_cpu(fore200e->stats->aal34.cspdus_dropped),
+		       be32_to_cpu(fore200e->stats->aal34.cspdus_protocol_errors));
     
     if (!left--)
 	return sprintf(page,"\n"
@@ -3050,15 +3050,15 @@ fore200e_proc_read(struct atm_dev *dev, loff_t* pos, char* page)
 		       "       dropped:\t\t\t%10u\n"
 		       "       CRC errors:\t\t%10u\n"
 		       "       protocol errors:\t\t%10u\n",
-		       cpu_to_be32(fore200e->stats->aal5.cells_transmitted),
-		       cpu_to_be32(fore200e->stats->aal5.cells_received),
-		       cpu_to_be32(fore200e->stats->aal5.cells_dropped),
-		       cpu_to_be32(fore200e->stats->aal5.congestion_experienced),
-		       cpu_to_be32(fore200e->stats->aal5.cspdus_transmitted),
-		       cpu_to_be32(fore200e->stats->aal5.cspdus_received),
-		       cpu_to_be32(fore200e->stats->aal5.cspdus_dropped),
-		       cpu_to_be32(fore200e->stats->aal5.cspdus_crc_errors),
-		       cpu_to_be32(fore200e->stats->aal5.cspdus_protocol_errors));
+		       be32_to_cpu(fore200e->stats->aal5.cells_transmitted),
+		       be32_to_cpu(fore200e->stats->aal5.cells_received),
+		       be32_to_cpu(fore200e->stats->aal5.cells_dropped),
+		       be32_to_cpu(fore200e->stats->aal5.congestion_experienced),
+		       be32_to_cpu(fore200e->stats->aal5.cspdus_transmitted),
+		       be32_to_cpu(fore200e->stats->aal5.cspdus_received),
+		       be32_to_cpu(fore200e->stats->aal5.cspdus_dropped),
+		       be32_to_cpu(fore200e->stats->aal5.cspdus_crc_errors),
+		       be32_to_cpu(fore200e->stats->aal5.cspdus_protocol_errors));
     
     if (!left--)
 	return sprintf(page,"\n"
@@ -3069,11 +3069,11 @@ fore200e_proc_read(struct atm_dev *dev, loff_t* pos, char* page)
 		       "     large b2:\t\t\t%10u\n"
 		       "     RX PDUs:\t\t\t%10u\n"
 		       "     TX PDUs:\t\t\t%10lu\n",
-		       cpu_to_be32(fore200e->stats->aux.small_b1_failed),
-		       cpu_to_be32(fore200e->stats->aux.large_b1_failed),
-		       cpu_to_be32(fore200e->stats->aux.small_b2_failed),
-		       cpu_to_be32(fore200e->stats->aux.large_b2_failed),
-		       cpu_to_be32(fore200e->stats->aux.rpd_alloc_failed),
+		       be32_to_cpu(fore200e->stats->aux.small_b1_failed),
+		       be32_to_cpu(fore200e->stats->aux.large_b1_failed),
+		       be32_to_cpu(fore200e->stats->aux.small_b2_failed),
+		       be32_to_cpu(fore200e->stats->aux.large_b2_failed),
+		       be32_to_cpu(fore200e->stats->aux.rpd_alloc_failed),
 		       fore200e->tx_sat);
     
     if (!left--)
