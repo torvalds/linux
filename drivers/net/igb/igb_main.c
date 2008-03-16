@@ -3452,8 +3452,8 @@ static bool igb_clean_rx_irq_adv(struct igb_adapter *adapter,
 		 * that case, it fills the header buffer and spills the rest
 		 * into the page.
 		 */
-		hlen = le16_to_cpu((rx_desc->wb.lower.lo_dword.hdr_info &
-		  E1000_RXDADV_HDRBUFLEN_MASK) >> E1000_RXDADV_HDRBUFLEN_SHIFT);
+		hlen = (le16_to_cpu(rx_desc->wb.lower.lo_dword.hdr_info) &
+		  E1000_RXDADV_HDRBUFLEN_MASK) >> E1000_RXDADV_HDRBUFLEN_SHIFT;
 		if (hlen > adapter->rx_ps_hdr_size)
 			hlen = adapter->rx_ps_hdr_size;
 
