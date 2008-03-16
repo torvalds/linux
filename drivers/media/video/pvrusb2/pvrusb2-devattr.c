@@ -49,7 +49,7 @@ static const char *pvr2_fw1_names_29xxx[] = {
 };
 
 static const struct pvr2_device_desc pvr2_device_29xxx = {
-		.description = "WinTV PVR USB2 Model Category 29xxxx",
+		.description = "WinTV PVR USB2 Model Category 29xxx",
 		.shortname = "29xxx",
 		.client_modules.lst = pvr2_client_29xxx,
 		.client_modules.cnt = ARRAY_SIZE(pvr2_client_29xxx),
@@ -80,7 +80,7 @@ static const char *pvr2_fw1_names_24xxx[] = {
 };
 
 static const struct pvr2_device_desc pvr2_device_24xxx = {
-		.description = "WinTV PVR USB2 Model Category 24xxxx",
+		.description = "WinTV PVR USB2 Model Category 24xxx",
 		.shortname = "24xxx",
 		.client_modules.lst = pvr2_client_24xxx,
 		.client_modules.cnt = ARRAY_SIZE(pvr2_client_24xxx),
@@ -210,7 +210,7 @@ static const char *pvr2_fw1_names_73xxx[] = {
 };
 
 static const struct pvr2_device_desc pvr2_device_73xxx = {
-		.description = "WinTV PVR USB2 Model Category 73xxxx",
+		.description = "WinTV PVR USB2 Model Category 73xxx",
 		.shortname = "73xxx",
 		.client_modules.lst = pvr2_client_73xxx,
 		.client_modules.cnt = ARRAY_SIZE(pvr2_client_73xxx),
@@ -241,7 +241,7 @@ static const char *pvr2_fw1_names_75xxx[] = {
 };
 
 static const struct pvr2_device_desc pvr2_device_75xxx = {
-		.description = "WinTV PVR USB2 Model Category 75xxxx",
+		.description = "WinTV PVR USB2 Model Category 75xxx",
 		.shortname = "75xxx",
 		.client_modules.lst = pvr2_client_75xxx,
 		.client_modules.cnt = ARRAY_SIZE(pvr2_client_75xxx),
