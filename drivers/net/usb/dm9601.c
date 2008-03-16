@@ -155,7 +155,7 @@ static void dm_write_reg_async(struct usbnet *dev, u8 reg, u8 value)
 	dm_write_async_helper(dev, reg, value, 0, NULL);
 }
 
-static int dm_read_shared_word(struct usbnet *dev, int phy, u8 reg, u16 *value)
+static int dm_read_shared_word(struct usbnet *dev, int phy, u8 reg, __le16 *value)
 {
 	int ret, i;
 
@@ -194,7 +194,7 @@ static int dm_read_shared_word(struct usbnet *dev, int phy, u8 reg, u16 *value)
 	return ret;
 }
 
-static int dm_write_shared_word(struct usbnet *dev, int phy, u8 reg, u16 value)
+static int dm_write_shared_word(struct usbnet *dev, int phy, u8 reg, __le16 value)
 {
 	int ret, i;
 
@@ -249,7 +249,7 @@ static int dm9601_get_eeprom(struct net_device *net,
 			     struct ethtool_eeprom *eeprom, u8 * data)
 {
 	struct usbnet *dev = netdev_priv(net);
-	u16 *ebuf = (u16 *) data;
+	__le16 *ebuf = (__le16 *) data;
 	int i;
 
 	/* access is 16bit */
@@ -268,7 +268,7 @@ static int dm9601_mdio_read(struct net_device *netdev, int phy_id, int loc)
 {
 	struct usbnet *dev = netdev_priv(netdev);
 
-	u16 res;
+	__le16 res;
 
 	if (phy_id) {
 		devdbg(dev, "Only internal phy supported");
@@ -288,7 +288,7 @@ static void dm9601_mdio_write(struct net_device *netdev, int phy_id, int loc,
 			      int val)
 {
 	struct usbnet *dev = netdev_priv(netdev);
-	u16 res = cpu_to_le16(val);
+	__le16 res = cpu_to_le16(val);
 
 	if (phy_id) {
 		devdbg(dev, "Only internal phy supported");

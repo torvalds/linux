@@ -218,7 +218,7 @@ EXPORT_SYMBOL_GPL(rndis_command);
  * ActiveSync 4.1 Windows driver.
  */
 static int rndis_query(struct usbnet *dev, struct usb_interface *intf,
-		void *buf, u32 oid, u32 in_len,
+		void *buf, __le32 oid, u32 in_len,
 		void **reply, int *reply_len)
 {
 	int retval;
