@@ -1248,11 +1248,13 @@
 #define GPIO10_RTCCLK		10	/* real time clock (1 Hz) */
 #define GPIO11_3_6MHz		11	/* 3.6 MHz oscillator out */
 #define GPIO12_32KHz		12	/* 32 kHz out */
+#define GPIO12_CIF_DD_7		12	/* Camera data pin 7 */
 #define GPIO13_MBGNT		13	/* memory controller grant */
 #define GPIO14_MBREQ		14	/* alternate bus master request */
 #define GPIO15_nCS_1		15	/* chip select 1 */
 #define GPIO16_PWM0		16	/* PWM0 output */
 #define GPIO17_PWM1		17	/* PWM1 output */
+#define GPIO17_CIF_DD_6		17	/* Camera data pin 6 */
 #define GPIO18_RDY		18	/* Ext. Bus Ready */
 #define GPIO19_DREQ1		19	/* External DMA Request */
 #define GPIO20_DREQ0		20	/* External DMA Request */
@@ -1295,14 +1297,20 @@
 #define GPIO48_nPOE		48	/* Output Enable for Card Space */
 #define GPIO49_nPWE		49	/* Write Enable for Card Space */
 #define GPIO50_nPIOR		50	/* I/O Read for Card Space */
+#define GPIO50_CIF_DD_3		50	/* Camera data pin 3 */
 #define GPIO51_nPIOW		51	/* I/O Write for Card Space */
+#define GPIO51_CIF_DD_2		51	/* Camera data pin 2 */
 #define GPIO52_nPCE_1		52	/* Card Enable for Card Space */
+#define GPIO52_CIF_DD_4		52	/* Camera data pin 4 */
 #define GPIO53_nPCE_2		53	/* Card Enable for Card Space */
 #define GPIO53_MMCCLK		53	/* MMC Clock */
+#define GPIO53_CIF_MCLK		53	/* Camera Master Clock */
 #define GPIO54_MMCCLK		54	/* MMC Clock */
 #define GPIO54_pSKTSEL		54	/* Socket Select for Card Space */
 #define GPIO54_nPCE_2		54	/* Card Enable for Card Space (PXA27x) */
+#define GPIO54_CIF_PCLK		54	/* Camera Pixel Clock */
 #define GPIO55_nPREG		55	/* Card Address bit 26 */
+#define GPIO55_CIF_DD_1		55	/* Camera data pin 1 */
 #define GPIO56_nPWAIT		56	/* Wait signal for Card Space */
 #define GPIO57_nIOIS16		57	/* Bus Width select for I/O Card Space */
 #define GPIO58_LDD_0		58	/* LCD data pin 0 */
@@ -1337,10 +1345,14 @@
 #define GPIO79_nCS_3		79	/* chip select 3 */
 #define GPIO80_nCS_4		80	/* chip select 4 */
 #define GPIO81_NSCLK		81	/* NSSP clock */
+#define GPIO81_CIF_DD_0		81	/* Camera data pin 0 */
 #define GPIO82_NSFRM		82	/* NSSP Frame */
+#define GPIO82_CIF_DD_5		82	/* Camera data pin 5 */
 #define GPIO83_NSTXD		83	/* NSSP transmit */
 #define GPIO84_NSRXD		84	/* NSSP receive */
+#define GPIO84_CIF_FV		84	/* Camera frame start signal */
 #define GPIO85_nPCE_1		85	/* Card Enable for Card Space (PXA27x) */
+#define GPIO85_CIF_LV		85	/* Camera line start signal */
 #define GPIO92_MMCDAT0		92	/* MMC DAT0 (PXA27x) */
 #define GPIO102_nPCE_1		102	/* PCMCIA (PXA27x) */
 #define GPIO109_MMCDAT1		109	/* MMC DAT1 (PXA27x) */
@@ -1376,11 +1388,13 @@
 #define GPIO10_RTCCLK_MD	(10 | GPIO_ALT_FN_1_OUT)
 #define GPIO11_3_6MHz_MD	(11 | GPIO_ALT_FN_1_OUT)
 #define GPIO12_32KHz_MD		(12 | GPIO_ALT_FN_1_OUT)
+#define GPIO12_CIF_DD_7_MD	(12 | GPIO_ALT_FN_2_IN)
 #define GPIO13_MBGNT_MD		(13 | GPIO_ALT_FN_2_OUT)
 #define GPIO14_MBREQ_MD		(14 | GPIO_ALT_FN_1_IN)
 #define GPIO15_nCS_1_MD		(15 | GPIO_ALT_FN_2_OUT)
 #define GPIO16_PWM0_MD		(16 | GPIO_ALT_FN_2_OUT)
 #define GPIO17_PWM1_MD		(17 | GPIO_ALT_FN_2_OUT)
+#define GPIO17_CIF_DD_6_MD	(17 | GPIO_ALT_FN_2_IN)
 #define GPIO18_RDY_MD		(18 | GPIO_ALT_FN_1_IN)
 #define GPIO19_DREQ1_MD		(19 | GPIO_ALT_FN_1_IN)
 #define GPIO20_DREQ0_MD		(20 | GPIO_ALT_FN_1_IN)
@@ -1400,11 +1414,12 @@
 #define GPIO31_SYNC_AC97_MD	(31 | GPIO_ALT_FN_2_OUT)
 #define GPIO32_SDATA_IN1_AC97_MD	(32 | GPIO_ALT_FN_1_IN)
 #define GPIO32_SYSCLK_I2S_MD	(32 | GPIO_ALT_FN_1_OUT)
-#define GPIO32_MMCCLK_MD		( 32 | GPIO_ALT_FN_2_OUT)
+#define GPIO32_MMCCLK_MD	(32 | GPIO_ALT_FN_2_OUT)
 #define GPIO33_nCS_5_MD		(33 | GPIO_ALT_FN_2_OUT)
 #define GPIO34_FFRXD_MD		(34 | GPIO_ALT_FN_1_IN)
 #define GPIO34_MMCCS0_MD	(34 | GPIO_ALT_FN_2_OUT)
 #define GPIO35_FFCTS_MD		(35 | GPIO_ALT_FN_1_IN)
+#define GPIO35_KP_MKOUT6_MD	(35 | GPIO_ALT_FN_2_OUT)
 #define GPIO36_FFDCD_MD		(36 | GPIO_ALT_FN_1_IN)
 #define GPIO37_FFDSR_MD		(37 | GPIO_ALT_FN_1_IN)
 #define GPIO38_FFRI_MD		(38 | GPIO_ALT_FN_1_IN)
@@ -1412,6 +1427,7 @@
 #define GPIO39_FFTXD_MD		(39 | GPIO_ALT_FN_2_OUT)
 #define GPIO40_FFDTR_MD		(40 | GPIO_ALT_FN_2_OUT)
 #define GPIO41_FFRTS_MD		(41 | GPIO_ALT_FN_2_OUT)
+#define GPIO41_KP_MKOUT7_MD	(41 | GPIO_ALT_FN_1_OUT)
 #define GPIO42_BTRXD_MD		(42 | GPIO_ALT_FN_1_IN)
 #define GPIO42_HWRXD_MD		(42 | GPIO_ALT_FN_3_IN)
 #define GPIO43_BTTXD_MD		(43 | GPIO_ALT_FN_2_OUT)
@@ -1420,27 +1436,33 @@
 #define GPIO44_HWCTS_MD		(44 | GPIO_ALT_FN_3_IN)
 #define GPIO45_BTRTS_MD		(45 | GPIO_ALT_FN_2_OUT)
 #define GPIO45_HWRTS_MD		(45 | GPIO_ALT_FN_3_OUT)
-#define GPIO45_SYSCLK_AC97_MD		(45 | GPIO_ALT_FN_1_OUT)
+#define GPIO45_SYSCLK_AC97_MD	(45 | GPIO_ALT_FN_1_OUT)
 #define GPIO46_ICPRXD_MD	(46 | GPIO_ALT_FN_1_IN)
 #define GPIO46_STRXD_MD		(46 | GPIO_ALT_FN_2_IN)
 #define GPIO47_ICPTXD_MD	(47 | GPIO_ALT_FN_2_OUT)
 #define GPIO47_STTXD_MD		(47 | GPIO_ALT_FN_1_OUT)
 #define GPIO48_nPOE_MD		(48 | GPIO_ALT_FN_2_OUT)
-#define GPIO48_HWTXD_MD         (48 | GPIO_ALT_FN_1_OUT)
-#define GPIO48_nPOE_MD          (48 | GPIO_ALT_FN_2_OUT)
+#define GPIO48_HWTXD_MD		(48 | GPIO_ALT_FN_1_OUT)
+#define GPIO48_nPOE_MD		(48 | GPIO_ALT_FN_2_OUT)
 #define GPIO49_HWRXD_MD		(49 | GPIO_ALT_FN_1_IN)
 #define GPIO49_nPWE_MD		(49 | GPIO_ALT_FN_2_OUT)
 #define GPIO50_nPIOR_MD		(50 | GPIO_ALT_FN_2_OUT)
-#define GPIO50_HWCTS_MD         (50 | GPIO_ALT_FN_1_IN)
-#define GPIO51_HWRTS_MD         (51 | GPIO_ALT_FN_1_OUT)
+#define GPIO50_HWCTS_MD		(50 | GPIO_ALT_FN_1_IN)
+#define GPIO50_CIF_DD_3_MD	(50 | GPIO_ALT_FN_1_IN)
 #define GPIO51_nPIOW_MD		(51 | GPIO_ALT_FN_2_OUT)
+#define GPIO51_HWRTS_MD		(51 | GPIO_ALT_FN_1_OUT)
+#define GPIO51_CIF_DD_2_MD	(51 | GPIO_ALT_FN_1_IN)
 #define GPIO52_nPCE_1_MD	(52 | GPIO_ALT_FN_2_OUT)
+#define GPIO52_CIF_DD_4_MD	(52 | GPIO_ALT_FN_1_IN)
 #define GPIO53_nPCE_2_MD	(53 | GPIO_ALT_FN_2_OUT)
 #define GPIO53_MMCCLK_MD	(53 | GPIO_ALT_FN_1_OUT)
+#define GPIO53_CIF_MCLK_MD	(53 | GPIO_ALT_FN_2_OUT)
 #define GPIO54_MMCCLK_MD	(54 | GPIO_ALT_FN_1_OUT)
 #define GPIO54_nPCE_2_MD	(54 | GPIO_ALT_FN_2_OUT)
 #define GPIO54_pSKTSEL_MD	(54 | GPIO_ALT_FN_2_OUT)
+#define GPIO54_CIF_PCLK_MD	(54 | GPIO_ALT_FN_3_IN)
 #define GPIO55_nPREG_MD		(55 | GPIO_ALT_FN_2_OUT)
+#define GPIO55_CIF_DD_1_MD	(55 | GPIO_ALT_FN_1_IN)
 #define GPIO56_nPWAIT_MD	(56 | GPIO_ALT_FN_1_IN)
 #define GPIO57_nIOIS16_MD	(57 | GPIO_ALT_FN_1_IN)
 #define GPIO58_LDD_0_MD		(58 | GPIO_ALT_FN_2_OUT)
@@ -1472,21 +1494,39 @@
 #define GPIO76_LCD_PCLK_MD	(76 | GPIO_ALT_FN_2_OUT)
 #define GPIO77_LCD_ACBIAS_MD	(77 | GPIO_ALT_FN_2_OUT)
 #define GPIO78_nCS_2_MD		(78 | GPIO_ALT_FN_2_OUT)
+#define GPIO78_nPCE_2_MD	(78 | GPIO_ALT_FN_1_OUT)
 #define GPIO79_nCS_3_MD		(79 | GPIO_ALT_FN_2_OUT)
 #define GPIO79_pSKTSEL_MD	(79 | GPIO_ALT_FN_1_OUT)
 #define GPIO80_nCS_4_MD		(80 | GPIO_ALT_FN_2_OUT)
-#define GPIO81_NSSP_CLK_OUT 	(81 | GPIO_ALT_FN_1_OUT)
-#define GPIO81_NSSP_CLK_IN  	(81 | GPIO_ALT_FN_1_IN)
-#define GPIO82_NSSP_FRM_OUT 	(82 | GPIO_ALT_FN_1_OUT)
-#define GPIO82_NSSP_FRM_IN  	(82 | GPIO_ALT_FN_1_IN)
-#define GPIO83_NSSP_TX      	(83 | GPIO_ALT_FN_1_OUT)
-#define GPIO83_NSSP_RX      	(83 | GPIO_ALT_FN_2_IN)
-#define GPIO84_NSSP_TX      	(84 | GPIO_ALT_FN_1_OUT)
-#define GPIO84_NSSP_RX      	(84 | GPIO_ALT_FN_2_IN)
+#define GPIO81_NSSP_CLK_OUT	(81 | GPIO_ALT_FN_1_OUT)
+#define GPIO81_NSSP_CLK_IN	(81 | GPIO_ALT_FN_1_IN)
+#define GPIO81_CIF_DD_0_MD	(81 | GPIO_ALT_FN_2_IN)
+#define GPIO82_NSSP_FRM_OUT	(82 | GPIO_ALT_FN_1_OUT)
+#define GPIO82_NSSP_FRM_IN	(82 | GPIO_ALT_FN_1_IN)
+#define GPIO82_CIF_DD_5_MD	(82 | GPIO_ALT_FN_3_IN)
+#define GPIO83_NSSP_TX		(83 | GPIO_ALT_FN_1_OUT)
+#define GPIO83_NSSP_RX		(83 | GPIO_ALT_FN_2_IN)
+#define GPIO84_NSSP_TX		(84 | GPIO_ALT_FN_1_OUT)
+#define GPIO84_NSSP_RX		(84 | GPIO_ALT_FN_2_IN)
+#define GPIO84_CIF_FV_MD	(84 | GPIO_ALT_FN_3_IN)
 #define GPIO85_nPCE_1_MD	(85 | GPIO_ALT_FN_1_OUT)
+#define GPIO85_CIF_LV_MD	(85 | GPIO_ALT_FN_3_IN)
+#define GPIO86_nPCE_1_MD	(86 | GPIO_ALT_FN_1_OUT)
 #define GPIO92_MMCDAT0_MD	(92 | GPIO_ALT_FN_1_OUT)
+#define GPIO95_KP_MKIN6_MD	(95 | GPIO_ALT_FN_3_IN)
+#define GPIO96_KP_DKIN3_MD	(96 | GPIO_ALT_FN_1_IN)
+#define GPIO97_KP_MKIN3_MD	(97 | GPIO_ALT_FN_3_IN)
+#define GPIO100_KP_MKIN0_MD	(100 | GPIO_ALT_FN_1_IN)
+#define GPIO101_KP_MKIN1_MD	(101 | GPIO_ALT_FN_1_IN)
 #define GPIO102_nPCE_1_MD	(102 | GPIO_ALT_FN_1_OUT)
+#define GPIO102_KP_MKIN2_MD	(102 | GPIO_ALT_FN_1_IN)
+#define GPIO103_KP_MKOUT0_MD	(103 | GPIO_ALT_FN_2_OUT)
 #define GPIO104_pSKTSEL_MD	(104 | GPIO_ALT_FN_1_OUT)
+#define GPIO104_KP_MKOUT1_MD	(104 | GPIO_ALT_FN_2_OUT)
+#define GPIO105_KP_MKOUT2_MD	(105 | GPIO_ALT_FN_2_OUT)
+#define GPIO106_KP_MKOUT3_MD	(106 | GPIO_ALT_FN_2_OUT)
+#define GPIO107_KP_MKOUT4_MD	(107 | GPIO_ALT_FN_2_OUT)
+#define GPIO108_KP_MKOUT5_MD	(108 | GPIO_ALT_FN_2_OUT)
 #define GPIO109_MMCDAT1_MD	(109 | GPIO_ALT_FN_1_OUT)
 #define GPIO110_MMCDAT2_MD	(110 | GPIO_ALT_FN_1_OUT)
 #define GPIO110_MMCCS0_MD	(110 | GPIO_ALT_FN_1_OUT)
