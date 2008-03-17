@@ -71,12 +71,36 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 }
 
 extern void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd);
-#endif	/* PAGETABLE_LEVELS > 2 */
 
-#ifdef CONFIG_X86_32
-# include "pgalloc_32.h"
-#else
-# include "pgalloc_64.h"
-#endif
+#ifdef CONFIG_X86_PAE
+extern void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd);
+#else	/* !CONFIG_X86_PAE */
+static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
+{
+	paravirt_alloc_pd(mm, __pa(pmd) >> PAGE_SHIFT);
+	set_pud(pud, __pud(_PAGE_TABLE | __pa(pmd)));
+}
+#endif	/* CONFIG_X86_PAE */
+
+#if PAGETABLE_LEVELS > 3
+static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
+{
+	set_pgd(pgd, __pgd(_PAGE_TABLE | __pa(pud)));
+}
+
+static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
+{
+	return (pud_t *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT);
+}
+
+static inline void pud_free(struct mm_struct *mm, pud_t *pud)
+{
+	BUG_ON((unsigned long)pud & (PAGE_SIZE-1));
+	free_page((unsigned long)pud);
+}
+
+extern void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud);
+#endif	/* PAGETABLE_LEVELS > 3 */
+#endif	/* PAGETABLE_LEVELS > 2 */
 
 #endif	/* _ASM_X86_PGALLOC_H */
