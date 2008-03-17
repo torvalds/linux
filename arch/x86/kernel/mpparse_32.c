@@ -27,11 +27,11 @@
 #include <asm/mtrr.h>
 #include <asm/mpspec.h>
 #include <asm/io_apic.h>
+#include <asm/bios_ebda.h>
 
 #include <mach_apic.h>
 #include <mach_apicdef.h>
 #include <mach_mpparse.h>
-#include <bios_ebda.h>
 
 /* Have we found an MP table */
 int smp_found_config;

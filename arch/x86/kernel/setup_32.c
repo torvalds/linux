@@ -62,7 +62,7 @@
 #include <asm/io.h>
 #include <asm/vmi.h>
 #include <setup_arch.h>
-#include <bios_ebda.h>
+#include <asm/bios_ebda.h>
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
 

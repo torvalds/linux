@@ -29,6 +29,7 @@
 #include <asm/io_apic.h>
 #include <asm/proto.h>
 #include <asm/acpi.h>
+#include <asm/bios_ebda.h>
 
 #include <mach_apic.h>
 
@@ -641,13 +642,9 @@ static void __init __find_smp_config(unsigned reserve)
 	 * should be fixed.
 	 */
 
-	address = *(unsigned short *)phys_to_virt(0x40E);
-	address <<= 4;
-	if (smp_scan_config(address, 0x1000, reserve))
-		return;
-
-	/* If we have come this far, we did not find an MP table  */
-	printk(KERN_INFO "No mptable found.\n");
+	address = get_bios_ebda();
+	if (address)
+		smp_scan_config(address, 0x1000, reserve);
 }
 
 void __init early_find_smp_config(void)
