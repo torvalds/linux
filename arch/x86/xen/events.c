@@ -455,6 +455,53 @@ void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector)
 	notify_remote_via_irq(irq);
 }
 
+irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
+{
+	struct shared_info *sh = HYPERVISOR_shared_info;
+	int cpu = smp_processor_id();
+	int i;
+	unsigned long flags;
+	static DEFINE_SPINLOCK(debug_lock);
+
+	spin_lock_irqsave(&debug_lock, flags);
+
+	printk("vcpu %d\n  ", cpu);
+
+	for_each_online_cpu(i) {
+		struct vcpu_info *v = per_cpu(xen_vcpu, i);
+		printk("%d: masked=%d pending=%d event_sel %08lx\n  ", i,
+			(get_irq_regs() && i == cpu) ? !(get_irq_regs()->flags & X86_EFLAGS_IF) : v->evtchn_upcall_mask,
+			v->evtchn_upcall_pending,
+			v->evtchn_pending_sel);
+	}
+	printk("pending:\n   ");
+	for(i = ARRAY_SIZE(sh->evtchn_pending)-1; i >= 0; i--)
+		printk("%08lx%s", sh->evtchn_pending[i],
+			i % 8 == 0 ? "\n   " : " ");
+	printk("\nmasks:\n   ");
+	for(i = ARRAY_SIZE(sh->evtchn_mask)-1; i >= 0; i--)
+		printk("%08lx%s", sh->evtchn_mask[i],
+			i % 8 == 0 ? "\n   " : " ");
+
+	printk("\nunmasked:\n   ");
+	for(i = ARRAY_SIZE(sh->evtchn_mask)-1; i >= 0; i--)
+		printk("%08lx%s", sh->evtchn_pending[i] & ~sh->evtchn_mask[i],
+			i % 8 == 0 ? "\n   " : " ");
+
+	printk("\npending list:\n");
+	for(i = 0; i < NR_EVENT_CHANNELS; i++) {
+		if (sync_test_bit(i, sh->evtchn_pending)) {
+			printk("  %d: event %d -> irq %d\n",
+				cpu_evtchn[i], i,
+				evtchn_to_irq[i]);
+		}
+	}
+
+	spin_unlock_irqrestore(&debug_lock, flags);
+
+	return IRQ_HANDLED;
+}
+
 
 /*
  * Search the CPUs pending events bitmasks.  For each one found, map
