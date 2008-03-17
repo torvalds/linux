@@ -325,7 +325,7 @@ ENTRY(ia32_syscall)
 	jnz ia32_tracesys
 ia32_do_syscall:	
 	cmpl $(IA32_NR_syscalls-1),%eax
-	ja  ia32_badsys
+	ja  int_ret_from_sys_call	/* ia32_tracesys has set RAX(%rsp) */
 	IA32_ARG_FIXUP
 	call *ia32_sys_call_table(,%rax,8) # xxx: rip relative
 ia32_sysret:
@@ -335,7 +335,7 @@ ia32_sysret:
 ia32_tracesys:			 
 	SAVE_REST
 	CLEAR_RREGS
-	movq $-ENOSYS,RAX(%rsp)	/* really needed? */
+	movq $-ENOSYS,RAX(%rsp)	/* ptrace can change this for a bad syscall */
 	movq %rsp,%rdi        /* &pt_regs -> arg1 */
 	call syscall_trace_enter
 	LOAD_ARGS32 ARGOFFSET  /* reload args from stack in case ptrace changed it */
