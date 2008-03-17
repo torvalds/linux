@@ -8,6 +8,12 @@
 
 #define GPIO_PIN_NONE	(-1)
 
+/*
+ * Clock rates for various on-board oscillators. The number of entries
+ * in this array is chip-dependent.
+ */
+extern unsigned long at32_board_osc_rates[];
+  
 /* Add basic devices: system manager, interrupt controller, portmuxes, etc. */
 void at32_add_system_devices(void);
 

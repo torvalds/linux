@@ -93,19 +93,12 @@ static struct clk devname##_##_name = {				\
 
 static DEFINE_SPINLOCK(pm_lock);
 
-unsigned long at32ap7000_osc_rates[3] = {
-	[0] = 32768,
-	/* FIXME: these are ATSTK1002-specific */
-	[1] = 20000000,
-	[2] = 12000000,
-};
-
 static struct clk osc0;
 static struct clk osc1;
 
 static unsigned long osc_get_rate(struct clk *clk)
 {
-	return at32ap7000_osc_rates[clk->index];
+	return at32_board_osc_rates[clk->index];
 }
 
 static unsigned long pll_get_rate(struct clk *clk, unsigned long control)

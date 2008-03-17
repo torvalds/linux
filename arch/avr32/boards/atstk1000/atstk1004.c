@@ -29,6 +29,13 @@
 
 #include "atstk1000.h"
 
+/* Oscillator frequencies. These are board specific */
+unsigned long at32_board_osc_rates[3] = {
+	[0] = 32768,	/* 32.768 kHz on RTC osc */
+	[1] = 20000000,	/* 20 MHz on osc0 */
+	[2] = 12000000,	/* 12 MHz on osc1 */
+};
+
 #ifdef CONFIG_BOARD_ATSTK1000_EXTDAC
 static struct at73c213_board_info at73c213_data = {
 	.ssc_id		= 0,
