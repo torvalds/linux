@@ -287,6 +287,21 @@ static void __init MP_bus_info (struct mpc_config_bus *m)
 	}
 }
 
+static int bad_ioapic(unsigned long address)
+{
+	if (nr_ioapics >= MAX_IO_APICS) {
+		printk(KERN_ERR "ERROR: Max # of I/O APICs (%d) exceeded "
+		       "(found %d)\n", MAX_IO_APICS, nr_ioapics);
+		panic("Recompile kernel with bigger MAX_IO_APICS!\n");
+	}
+	if (!address) {
+		printk(KERN_ERR "WARNING: Bogus (zero) I/O APIC address"
+		       " found in table, skipping!\n");
+		return 1;
+	}
+	return 0;
+}
+
 static void __init MP_ioapic_info (struct mpc_config_ioapic *m)
 {
 	if (!(m->mpc_flags & MPC_APIC_USABLE))
@@ -294,16 +309,10 @@ static void __init MP_ioapic_info (struct mpc_config_ioapic *m)
 
 	printk(KERN_INFO "I/O APIC #%d Version %d at 0x%X.\n",
 		m->mpc_apicid, m->mpc_apicver, m->mpc_apicaddr);
-	if (nr_ioapics >= MAX_IO_APICS) {
-		printk(KERN_CRIT "Max # of I/O APICs (%d) exceeded (found %d).\n",
-			MAX_IO_APICS, nr_ioapics);
-		panic("Recompile kernel with bigger MAX_IO_APICS!.\n");
-	}
-	if (!m->mpc_apicaddr) {
-		printk(KERN_ERR "WARNING: bogus zero I/O APIC address"
-			" found in MP table, skipping!\n");
+
+	if (bad_ioapic(m->mpc_apicaddr))
 		return;
-	}
+
 	mp_ioapics[nr_ioapics] = *m;
 	nr_ioapics++;
 }
@@ -918,16 +927,8 @@ void __init mp_register_ioapic(u8 id, u32 address, u32 gsi_base)
 	int idx = 0;
 	int tmpid;
 
-	if (nr_ioapics >= MAX_IO_APICS) {
-		printk(KERN_ERR "ERROR: Max # of I/O APICs (%d) exceeded "
-			"(found %d)\n", MAX_IO_APICS, nr_ioapics);
-		panic("Recompile kernel with bigger MAX_IO_APICS!\n");
-	}
-	if (!address) {
-		printk(KERN_ERR "WARNING: Bogus (zero) I/O APIC address"
-			" found in MADT table, skipping!\n");
+	if (bad_ioapic(address))
 		return;
-	}
 
 	idx = nr_ioapics++;
 
