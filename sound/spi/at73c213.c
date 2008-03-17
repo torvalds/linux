@@ -210,7 +210,13 @@ static int snd_at73c213_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_at73c213 *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	int err;
 
+	/* ensure buffer_size is a multiple of period_size */
+	err = snd_pcm_hw_constraint_integer(runtime,
+					SNDRV_PCM_HW_PARAM_PERIODS);
+	if (err < 0)
+		return err;
 	snd_at73c213_playback_hw.rate_min = chip->bitrate;
 	snd_at73c213_playback_hw.rate_max = chip->bitrate;
 	runtime->hw = snd_at73c213_playback_hw;
