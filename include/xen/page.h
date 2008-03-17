@@ -125,37 +125,37 @@ static inline void set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 #define virt_to_mfn(v)		(pfn_to_mfn(PFN_DOWN(__pa(v))))
 #define mfn_to_virt(m)		(__va(mfn_to_pfn(m) << PAGE_SHIFT))
 
-#ifdef CONFIG_X86_PAE
-#define pte_mfn(_pte) (((_pte).pte_low >> PAGE_SHIFT) |			\
-		       (((_pte).pte_high & 0xfff) << (32-PAGE_SHIFT)))
+static inline unsigned long pte_mfn(pte_t pte)
+{
+	return (pte.pte & ~_PAGE_NX) >> PAGE_SHIFT;
+}
 
 static inline pte_t mfn_pte(unsigned long page_nr, pgprot_t pgprot)
 {
 	pte_t pte;
 
-	pte.pte_high = (page_nr >> (32 - PAGE_SHIFT)) |
-		(pgprot_val(pgprot) >> 32);
-	pte.pte_high &= (__supported_pte_mask >> 32);
-	pte.pte_low = ((page_nr << PAGE_SHIFT) | pgprot_val(pgprot));
-	pte.pte_low &= __supported_pte_mask;
+	pte.pte = ((phys_addr_t)page_nr << PAGE_SHIFT) |
+		(pgprot_val(pgprot) & __supported_pte_mask);
 
 	return pte;
 }
 
-static inline unsigned long long pte_val_ma(pte_t x)
+static inline pteval_t pte_val_ma(pte_t pte)
 {
-	return x.pte;
+	return pte.pte;
 }
+
+static inline pte_t __pte_ma(pteval_t x)
+{
+	return (pte_t) { .pte = x };
+}
+
+#ifdef CONFIG_X86_PAE
 #define pmd_val_ma(v) ((v).pmd)
 #define pud_val_ma(v) ((v).pgd.pgd)
-#define __pte_ma(x)	((pte_t) { .pte = (x) })
 #define __pmd_ma(x)	((pmd_t) { (x) } )
 #else  /* !X86_PAE */
-#define pte_mfn(_pte) ((_pte).pte_low >> PAGE_SHIFT)
-#define mfn_pte(pfn, prot)	__pte_ma(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
-#define pte_val_ma(x)	((x).pte)
 #define pmd_val_ma(v)	((v).pud.pgd.pgd)
-#define __pte_ma(x)	((pte_t) { (x) } )
 #endif	/* CONFIG_X86_PAE */
 
 #define pgd_val_ma(x)	((x).pgd)
