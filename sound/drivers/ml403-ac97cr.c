@@ -1191,8 +1191,6 @@ snd_ml403_ac97cr_create(struct snd_card *card, struct platform_device *pfdev,
 		return err;
 	}
 
-	snd_card_set_dev(card, &pfdev->dev);
-
 	*rml403_ac97cr = ml403_ac97cr;
 	return 0;
 }
