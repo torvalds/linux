@@ -1,7 +1,6 @@
 #ifndef _ASM_X86_PGTABLE_H
 #define _ASM_X86_PGTABLE_H
 
-#define USER_PTRS_PER_PGD	((TASK_SIZE-1)/PGDIR_SIZE+1)
 #define FIRST_USER_ADDRESS	0
 
 #define _PAGE_BIT_PRESENT	0	/* is present */
@@ -329,6 +328,9 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #else
 # include "pgtable_64.h"
 #endif
+
+#define KERNEL_PGD_BOUNDARY	pgd_index(PAGE_OFFSET)
+#define KERNEL_PGD_PTRS		(PTRS_PER_PGD - KERNEL_PGD_BOUNDARY)
 
 #ifndef __ASSEMBLY__
 

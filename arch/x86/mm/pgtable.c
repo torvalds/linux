@@ -104,7 +104,7 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
  * -- wli
  */
 #define UNSHARED_PTRS_PER_PGD				\
-	(SHARED_KERNEL_PMD ? USER_PTRS_PER_PGD : PTRS_PER_PGD)
+	(SHARED_KERNEL_PMD ? KERNEL_PGD_BOUNDARY : PTRS_PER_PGD)
 
 static void pgd_ctor(void *p)
 {
@@ -112,7 +112,7 @@ static void pgd_ctor(void *p)
 	unsigned long flags;
 
 	/* Clear usermode parts of PGD */
-	memset(pgd, 0, USER_PTRS_PER_PGD*sizeof(pgd_t));
+	memset(pgd, 0, KERNEL_PGD_BOUNDARY*sizeof(pgd_t));
 
 	spin_lock_irqsave(&pgd_lock, flags);
 
@@ -121,12 +121,12 @@ static void pgd_ctor(void *p)
 	   references from swapper_pg_dir. */
 	if (PAGETABLE_LEVELS == 2 ||
 	    (PAGETABLE_LEVELS == 3 && SHARED_KERNEL_PMD)) {
-		clone_pgd_range(pgd + USER_PTRS_PER_PGD,
-				swapper_pg_dir + USER_PTRS_PER_PGD,
+		clone_pgd_range(pgd + KERNEL_PGD_BOUNDARY,
+				swapper_pg_dir + KERNEL_PGD_BOUNDARY,
 				KERNEL_PGD_PTRS);
 		paravirt_alloc_pmd_clone(__pa(pgd) >> PAGE_SHIFT,
 					 __pa(swapper_pg_dir) >> PAGE_SHIFT,
-					 USER_PTRS_PER_PGD,
+					 KERNEL_PGD_BOUNDARY,
 					 KERNEL_PGD_PTRS);
 	}
 
@@ -201,7 +201,7 @@ static int pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd)
 			return 0;
 		}
 
-		if (i >= USER_PTRS_PER_PGD)
+		if (i >= KERNEL_PGD_BOUNDARY)
 			memcpy(pmd, (pmd_t *)pgd_page_vaddr(swapper_pg_dir[i]),
 			       sizeof(pmd_t) * PTRS_PER_PMD);
 

@@ -320,7 +320,7 @@ static void check_zeroed_page(u32 pfn, int type, struct page *page)
 	 * pdes need to be zeroed.
 	 */
 	if (type & VMI_PAGE_CLONE)
-		limit = USER_PTRS_PER_PGD;
+		limit = KERNEL_PGD_BOUNDARY;
 	for (i = 0; i < limit; i++)
 		BUG_ON(ptr[i]);
 }
