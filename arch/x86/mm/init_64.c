@@ -662,6 +662,22 @@ int memory_add_physaddr_to_nid(u64 start)
 EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
 
+void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
+{
+	pgtable_page_dtor(pte);
+	tlb_remove_page(tlb, pte);
+}
+
+void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
+{
+	tlb_remove_page(tlb, virt_to_page(pmd));
+}
+
+void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
+{
+	tlb_remove_page(tlb, virt_to_page(pud));
+}
+
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
 static struct kcore_list kcore_mem, kcore_vmalloc, kcore_kernel,
