@@ -699,7 +699,7 @@ void __cpuinit mp_register_lapic(u8 id, u8 enabled)
 
 static struct mp_ioapic_routing {
 	int apic_id;
-	int gsi_start;
+	int gsi_base;
 	int gsi_end;
 	u32 pin_programmed[4];
 } mp_ioapic_routing[MAX_IO_APICS];
@@ -710,7 +710,7 @@ static int mp_find_ioapic(int gsi)
 
 	/* Find the IOAPIC that manages this GSI. */
 	for (i = 0; i < nr_ioapics; i++) {
-		if ((gsi >= mp_ioapic_routing[i].gsi_start)
+		if ((gsi >= mp_ioapic_routing[i].gsi_base)
 		    && (gsi <= mp_ioapic_routing[i].gsi_end))
 			return i;
 	}
@@ -755,14 +755,14 @@ void __init mp_register_ioapic(u8 id, u32 address, u32 gsi_base)
 	 * and to prevent reprogramming of IOAPIC pins (PCI IRQs).
 	 */
 	mp_ioapic_routing[idx].apic_id = mp_ioapics[idx].mpc_apicid;
-	mp_ioapic_routing[idx].gsi_start = gsi_base;
+	mp_ioapic_routing[idx].gsi_base = gsi_base;
 	mp_ioapic_routing[idx].gsi_end = gsi_base +
 	    io_apic_get_redir_entries(idx);
 
 	printk(KERN_INFO "IOAPIC[%d]: apic_id %d, address 0x%x, "
 	       "GSI %d-%d\n", idx, mp_ioapics[idx].mpc_apicid,
 	       mp_ioapics[idx].mpc_apicaddr,
-	       mp_ioapic_routing[idx].gsi_start,
+	       mp_ioapic_routing[idx].gsi_base,
 	       mp_ioapic_routing[idx].gsi_end);
 
 	nr_ioapics++;
@@ -780,7 +780,7 @@ void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 	ioapic = mp_find_ioapic(gsi);
 	if (ioapic < 0)
 		return;
-	pin = gsi - mp_ioapic_routing[ioapic].gsi_start;
+	pin = gsi - mp_ioapic_routing[ioapic].gsi_base;
 
 	/*
 	 * TBD: This check is for faulty timer entries, where the override
@@ -892,7 +892,7 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 		return gsi;
 	}
 
-	ioapic_pin = gsi - mp_ioapic_routing[ioapic].gsi_start;
+	ioapic_pin = gsi - mp_ioapic_routing[ioapic].gsi_base;
 
 	/* 
 	 * Avoid pin reprogramming.  PRTs typically include entries  
