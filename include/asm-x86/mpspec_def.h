@@ -166,17 +166,6 @@ struct mp_config_oemtable
 	char  mpc_oem[8];
 };
 
-struct mpc_config_translation
-{
-	unsigned char mpc_type;
-	unsigned char trans_len;
-	unsigned char trans_type;
-	unsigned char trans_quad;
-	unsigned char trans_global;
-	unsigned char trans_local;
-	unsigned short trans_reserved;
-};
-
 /*
  *	Default configurations
  *

@@ -98,6 +98,7 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 	return sum & 0xFF;
 }
 
+#ifdef CONFIG_X86_NUMAQ
 /*
  * Have to match translation table entries to main table entries by counter
  * hence the mpc_record variable .... can't see a less disgusting way of
@@ -106,6 +107,7 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 
 static int mpc_record; 
 static struct mpc_config_translation *translation_table[MAX_MPC_ENTRY] __cpuinitdata;
+#endif
 
 static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 {
@@ -475,7 +477,9 @@ static int __init smp_read_mpc(struct mp_config_table *mpc)
 	/*
 	 *	Now process the configuration blocks.
 	 */
+#ifdef CONFIG_X86_NUMAQ
 	mpc_record = 0;
+#endif
 	while (count < mpc->mpc_length) {
 		switch(*mpt) {
 			case MP_PROCESSOR:
@@ -532,7 +536,9 @@ static int __init smp_read_mpc(struct mp_config_table *mpc)
 				break;
 			}
 		}
+#ifdef CONFIG_X86_NUMAQ
 		++mpc_record;
+#endif
 	}
 	setup_apic_routing();
 	if (!num_processors)

@@ -14,7 +14,6 @@
  * Copyright 2003 Andi Kleen, SuSE Labs.
  */
 
-struct mpc_config_translation;
 struct mpc_config_bus;
 struct mp_config_table;
 struct mpc_config_processor;
