@@ -922,31 +922,30 @@ static int mp_find_ioapic (int gsi)
 	return -1;
 }
 
+static u8 uniq_ioapic_id(u8 id)
+{
+	if ((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) &&
+	    !APIC_XAPIC(apic_version[boot_cpu_physical_apicid]))
+		return io_apic_get_unique_id(nr_ioapics, id);
+	else
+		return id;
+}
+
 void __init mp_register_ioapic(u8 id, u32 address, u32 gsi_base)
 {
 	int idx = 0;
-	int tmpid;
 
 	if (bad_ioapic(address))
 		return;
 
-	idx = nr_ioapics++;
+	idx = nr_ioapics;
 
 	mp_ioapics[idx].mpc_type = MP_IOAPIC;
 	mp_ioapics[idx].mpc_flags = MPC_APIC_USABLE;
 	mp_ioapics[idx].mpc_apicaddr = address;
 
 	set_fixmap_nocache(FIX_IO_APIC_BASE_0 + idx, address);
-	if ((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
-		&& !APIC_XAPIC(apic_version[boot_cpu_physical_apicid]))
-		tmpid = io_apic_get_unique_id(idx, id);
-	else
-		tmpid = id;
-	if (tmpid == -1) {
-		nr_ioapics--;
-		return;
-	}
-	mp_ioapics[idx].mpc_apicid = tmpid;
+	mp_ioapics[idx].mpc_apicid = uniq_ioapic_id(id);
 	mp_ioapics[idx].mpc_apicver = io_apic_get_version(idx);
 	
 	/* 
@@ -960,9 +959,12 @@ void __init mp_register_ioapic(u8 id, u32 address, u32 gsi_base)
 
 	printk("IOAPIC[%d]: apic_id %d, version %d, address 0x%x, "
 	       "GSI %d-%d\n", idx, mp_ioapics[idx].mpc_apicid,
-	       mp_ioapics[idx].mpc_apicver, mp_ioapics[idx].mpc_apicaddr,
+	       mp_ioapics[idx].mpc_apicver,
+	       mp_ioapics[idx].mpc_apicaddr,
 	       mp_ioapic_routing[idx].gsi_base,
 	       mp_ioapic_routing[idx].gsi_end);
+
+	nr_ioapics++;
 }
 
 void __init
