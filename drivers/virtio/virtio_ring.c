@@ -232,7 +232,6 @@ static bool vring_enable_cb(struct virtqueue *_vq)
 	vq->vring.avail->flags &= ~VRING_AVAIL_F_NO_INTERRUPT;
 	mb();
 	if (unlikely(more_used(vq))) {
-		vq->vring.avail->flags |= VRING_AVAIL_F_NO_INTERRUPT;
 		END_USE(vq);
 		return false;
 	}
