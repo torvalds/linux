@@ -164,12 +164,6 @@
 				reg = <0x2>;
 				device_type = "ethernet-phy";
 			};
-			phy3: ethernet-phy@3 {
-				interrupt-parent = <&ipic>;
-				interrupts = <18 0x8>;
-				reg = <0x3>;
-				device_type = "ethernet-phy";
-			};
 		};
 
 		enet0: ethernet@24000 {
@@ -195,7 +189,7 @@
 			interrupts = <35 0x8 36 0x8 37 0x8>;
 			phy-connection-type = "mii";
 			interrupt-parent = <&ipic>;
-			phy-handle = <&phy3>;
+			fixed-link = <1 1 1000 0 0>;
 		};
 
 		serial0: serial@4500 {

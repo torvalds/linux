@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.26-rc5
-# Mon Jun  9 08:52:29 2008
+# Tue Jun 10 09:17:12 2008
 #
 # CONFIG_PPC64 is not set
 
@@ -454,7 +454,7 @@ CONFIG_MARVELL_PHY=y
 # CONFIG_BROADCOM_PHY is not set
 # CONFIG_ICPLUS_PHY is not set
 # CONFIG_REALTEK_PHY is not set
-# CONFIG_FIXED_PHY is not set
+CONFIG_FIXED_PHY=y
 # CONFIG_MDIO_BITBANG is not set
 CONFIG_NET_ETHERNET=y
 CONFIG_MII=y
