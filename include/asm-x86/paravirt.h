@@ -223,8 +223,10 @@ struct pv_mmu_ops {
 	void (*alloc_pte)(struct mm_struct *mm, u32 pfn);
 	void (*alloc_pmd)(struct mm_struct *mm, u32 pfn);
 	void (*alloc_pmd_clone)(u32 pfn, u32 clonepfn, u32 start, u32 count);
+	void (*alloc_pud)(struct mm_struct *mm, u32 pfn);
 	void (*release_pte)(u32 pfn);
 	void (*release_pmd)(u32 pfn);
+	void (*release_pud)(u32 pfn);
 
 	/* Pagetable manipulation functions */
 	void (*set_pte)(pte_t *ptep, pte_t pteval);
@@ -932,6 +934,15 @@ static inline void paravirt_alloc_pmd_clone(unsigned pfn, unsigned clonepfn,
 static inline void paravirt_release_pmd(unsigned pfn)
 {
 	PVOP_VCALL1(pv_mmu_ops.release_pmd, pfn);
+}
+
+static inline void paravirt_alloc_pud(struct mm_struct *mm, unsigned pfn)
+{
+	PVOP_VCALL2(pv_mmu_ops.alloc_pud, mm, pfn);
+}
+static inline void paravirt_release_pud(unsigned pfn)
+{
+	PVOP_VCALL1(pv_mmu_ops.release_pud, pfn);
 }
 
 #ifdef CONFIG_HIGHPTE

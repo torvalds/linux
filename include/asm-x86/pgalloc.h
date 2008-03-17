@@ -11,8 +11,10 @@
 #define paravirt_alloc_pte(mm, pfn) do { } while (0)
 #define paravirt_alloc_pmd(mm, pfn) do { } while (0)
 #define paravirt_alloc_pmd_clone(pfn, clonepfn, start, count) do { } while (0)
+#define paravirt_alloc_pud(mm, pfn) do { } while (0)
 #define paravirt_release_pte(pfn) do { } while (0)
 #define paravirt_release_pmd(pfn) do { } while (0)
+#define paravirt_release_pud(pfn) do { } while (0)
 #endif
 
 /*
@@ -85,6 +87,7 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 #if PAGETABLE_LEVELS > 3
 static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
 {
+	paravirt_alloc_pud(mm, __pa(pud) >> PAGE_SHIFT);
 	set_pgd(pgd, __pgd(_PAGE_TABLE | __pa(pud)));
 }
 
