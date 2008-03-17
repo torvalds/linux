@@ -517,29 +517,43 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 	int cpu = get_cpu();
 	struct shared_info *s = HYPERVISOR_shared_info;
 	struct vcpu_info *vcpu_info = __get_cpu_var(xen_vcpu);
-	unsigned long pending_words;
+	static DEFINE_PER_CPU(unsigned, nesting_count);
+ 	unsigned count;
 
-	vcpu_info->evtchn_upcall_pending = 0;
+	do {
+		unsigned long pending_words;
 
-	/* NB. No need for a barrier here -- XCHG is a barrier on x86. */
-	pending_words = xchg(&vcpu_info->evtchn_pending_sel, 0);
-	while (pending_words != 0) {
-		unsigned long pending_bits;
-		int word_idx = __ffs(pending_words);
-		pending_words &= ~(1UL << word_idx);
+		vcpu_info->evtchn_upcall_pending = 0;
 
-		while ((pending_bits = active_evtchns(cpu, s, word_idx)) != 0) {
-			int bit_idx = __ffs(pending_bits);
-			int port = (word_idx * BITS_PER_LONG) + bit_idx;
-			int irq = evtchn_to_irq[port];
+		if (__get_cpu_var(nesting_count)++)
+			goto out;
 
-			if (irq != -1) {
-				regs->orig_ax = ~irq;
-				do_IRQ(regs);
+		/* NB. No need for a barrier here -- XCHG is a barrier on x86. */
+		pending_words = xchg(&vcpu_info->evtchn_pending_sel, 0);
+		while (pending_words != 0) {
+			unsigned long pending_bits;
+			int word_idx = __ffs(pending_words);
+			pending_words &= ~(1UL << word_idx);
+
+			while ((pending_bits = active_evtchns(cpu, s, word_idx)) != 0) {
+				int bit_idx = __ffs(pending_bits);
+				int port = (word_idx * BITS_PER_LONG) + bit_idx;
+				int irq = evtchn_to_irq[port];
+
+				if (irq != -1) {
+					regs->orig_ax = ~irq;
+					do_IRQ(regs);
+				}
 			}
 		}
-	}
 
+		BUG_ON(!irqs_disabled());
+
+		count = __get_cpu_var(nesting_count);
+		__get_cpu_var(nesting_count) = 0;
+	} while(count != 1);
+
+out:
 	put_cpu();
 }
 
