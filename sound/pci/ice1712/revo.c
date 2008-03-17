@@ -488,6 +488,10 @@ static int __devinit ap192_ak4114_init(struct snd_ice1712 *ice)
 				 ap192_ak4114_write,
 				 ak4114_init_vals, ak4114_init_txcsb,
 				 ice, &ak);
+	/* AK4114 in Revo cannot detect external rate correctly.
+	 * No reason to stop capture stream due to incorrect checks */
+	ak->check_flags = AK4114_CHECK_NO_RATE;
+
 	return 0; /* error ignored; it's no fatal error */
 }
 

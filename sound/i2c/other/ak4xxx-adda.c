@@ -70,7 +70,8 @@ static void ak4524_reset(struct snd_akm4xxx *ak, int state)
 }
 
 /* reset procedure for AK4355 and AK4358 */
-static void ak4355_reset(struct snd_akm4xxx *ak, int state)
+static void ak435X_reset(struct snd_akm4xxx *ak, int state,
+		unsigned char total_regs)
 {
 	unsigned char reg;
 
@@ -78,7 +79,7 @@ static void ak4355_reset(struct snd_akm4xxx *ak, int state)
 		snd_akm4xxx_write(ak, 0, 0x01, 0x02); /* reset and soft-mute */
 		return;
 	}
-	for (reg = 0x00; reg < 0x0b; reg++)
+	for (reg = 0x00; reg < total_regs; reg++)
 		if (reg != 0x01)
 			snd_akm4xxx_write(ak, 0, reg,
 					  snd_akm4xxx_get(ak, 0, reg));
@@ -118,8 +119,10 @@ void snd_akm4xxx_reset(struct snd_akm4xxx *ak, int state)
 		/* FIXME: needed for ak4529? */
 		break;
 	case SND_AK4355:
+		ak435X_reset(ak, state, 0x0b);
+		break;
 	case SND_AK4358:
-		ak4355_reset(ak, state);
+		ak435X_reset(ak, state, 0x10);
 		break;
 	case SND_AK4381:
 		ak4381_reset(ak, state);
@@ -292,11 +295,6 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 	case SND_AK5365:
 		/* FIXME: any init sequence? */
 		return;
-	case NON_AKM:
-		/* fake value for non-akm codecs using akm infrastructure
-		 * (e.g. of ice1724) - certainly FIXME
-		 */
-		return;
 	default:
 		snd_BUG();
 		return;
@@ -374,6 +372,8 @@ static int put_ak_reg(struct snd_kcontrol *kcontrol, int addr,
 		nval = mask - nval;
 	if (AK_GET_NEEDSMSB(kcontrol->private_value))
 		nval |= 0x80;
+	/* printk(KERN_DEBUG "DEBUG - AK writing reg: chip %x addr %x,
+	   nval %x\n", chip, addr, nval); */
 	snd_akm4xxx_write(ak, chip, addr, nval);
 	return 1;
 }

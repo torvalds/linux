@@ -612,7 +612,7 @@ static void ak4114_stats(struct work_struct *work)
 	struct ak4114 *chip = container_of(work, struct ak4114, work.work);
 
 	if (!chip->init)
-		snd_ak4114_check_rate_and_errors(chip, 0);
+		snd_ak4114_check_rate_and_errors(chip, chip->check_flags);
 
 	schedule_delayed_work(&chip->work, HZ / 10);
 }
