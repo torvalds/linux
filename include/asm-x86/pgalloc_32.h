@@ -1,12 +1,6 @@
 #ifndef _I386_PGALLOC_H
 #define _I386_PGALLOC_H
 
-#include <linux/threads.h>
-#include <linux/mm.h>		/* for struct page */
-#include <linux/pagemap.h>
-#include <asm/tlb.h>
-#include <asm-generic/tlb.h>
-
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
@@ -36,11 +30,6 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *p
 /*
  * Allocate and free page tables.
  */
-extern pgd_t *pgd_alloc(struct mm_struct *);
-extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);
-
-extern pte_t *pte_alloc_one_kernel(struct mm_struct *, unsigned long);
-extern pgtable_t pte_alloc_one(struct mm_struct *, unsigned long);
 
 static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
