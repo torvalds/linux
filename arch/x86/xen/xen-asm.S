@@ -184,8 +184,12 @@ iret_restore_end:
 	   region is OK. */
 	je xen_hypervisor_callback
 
-	iret
+1:	iret
 xen_iret_end_crit:
+.section __ex_table,"a"
+	.align 4
+	.long 1b,iret_exc
+.previous
 
 hyper_iret:
 	/* put this out of line since its very rarely used */

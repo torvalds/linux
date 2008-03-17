@@ -409,7 +409,7 @@ restore_nocheck_notrace:
 irq_return:
 	INTERRUPT_RETURN
 .section .fixup,"ax"
-iret_exc:
+ENTRY(iret_exc)
 	pushl $0			# no error code
 	pushl $do_iret_error
 	jmp error_code
