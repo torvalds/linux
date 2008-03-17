@@ -118,7 +118,16 @@ static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 		return;
 	}
 
+#ifdef CONFIG_X86_NUMAQ
 	apicid = mpc_apic_id(m, translation_table[mpc_record]);
+#else
+	Dprintk("Processor #%d %u:%u APIC version %d\n",
+		m->mpc_apicid,
+		(m->mpc_cpufeature & CPU_FAMILY_MASK) >> 8,
+		(m->mpc_cpufeature & CPU_MODEL_MASK) >> 4,
+		m->mpc_apicver);
+	apicid = m->mpc_apicid;
+#endif
 
 	if (m->mpc_featureflag&(1<<0))
 		Dprintk("    Floating point unit present.\n");

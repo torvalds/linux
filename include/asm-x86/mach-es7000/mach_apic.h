@@ -127,16 +127,6 @@ static inline int cpu_to_logical_apicid(int cpu)
 #endif
 }
 
-static inline int mpc_apic_id(struct mpc_config_processor *m, struct mpc_config_translation *unused)
-{
-	printk("Processor #%d %u:%u APIC version %d\n",
-	       m->mpc_apicid,
-	       (m->mpc_cpufeature & CPU_FAMILY_MASK) >> 8,
-	       (m->mpc_cpufeature & CPU_MODEL_MASK) >> 4,
-	       m->mpc_apicver);
-	return (m->mpc_apicid);
-}
-
 static inline physid_mask_t ioapic_phys_id_map(physid_mask_t phys_map)
 {
 	/* For clustered we don't have a good way to do this yet - hack */

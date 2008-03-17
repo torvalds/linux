@@ -42,8 +42,6 @@ struct genapic {
 	int (*cpu_to_logical_apicid)(int cpu);
 	int (*cpu_present_to_apicid)(int mps_cpu);
 	physid_mask_t (*apicid_to_cpu_present)(int phys_apicid);
-	int (*mpc_apic_id)(struct mpc_config_processor *m, 
-			   struct mpc_config_translation *t); 
 	void (*setup_portio_remap)(void); 
 	int (*check_phys_apicid_present)(int boot_cpu_physical_apicid);
 	void (*enable_apic_mode)(void);
@@ -105,7 +103,6 @@ struct genapic {
 	APICFUNC(cpu_to_logical_apicid) \
 	APICFUNC(cpu_present_to_apicid) \
 	APICFUNC(apicid_to_cpu_present) \
-	APICFUNC(mpc_apic_id) \
 	APICFUNC(setup_portio_remap) \
 	APICFUNC(check_phys_apicid_present) \
 	APICFUNC(mpc_oem_bus_info) \
