@@ -36,7 +36,7 @@
  *****************************************************************************/
 
 /*
- * This is the code behind /dev/xilinx_icap -- it allows a user-space
+ * This is the code behind /dev/icap* -- it allows a user-space
  * application to use the Xilinx ICAP subsystem.
  *
  * The following operations are possible:
@@ -67,7 +67,7 @@
  * user-space application code that uses this device.  The simplest
  * way to use this interface is simply:
  *
- * cp foo.bit /dev/xilinx_icap
+ * cp foo.bit /dev/icap0
  *
  * Note that unless foo.bit is an appropriately constructed partial
  * bitstream, this has a high likelyhood of overwriting the design
@@ -105,17 +105,13 @@
 #include "buffer_icap.h"
 #include "fifo_icap.h"
 
-#define DRIVER_NAME "xilinx_icap"
+#define DRIVER_NAME "icap"
 
 #define HWICAP_REGS   (0x10000)
 
-/* dynamically allocate device number */
-static int xhwicap_major;
-static int xhwicap_minor;
+#define XHWICAP_MAJOR 259
+#define XHWICAP_MINOR 0
 #define HWICAP_DEVICES 1
-
-module_param(xhwicap_major, int, S_IRUGO);
-module_param(xhwicap_minor, int, S_IRUGO);
 
 /* An array, which is set to true when the device is registered. */
 static bool probed_devices[HWICAP_DEVICES];
@@ -605,7 +601,7 @@ static int __devinit hwicap_setup(struct device *dev, int id,
 	probed_devices[id] = 1;
 	mutex_unlock(&icap_sem);
 
-	devt = MKDEV(xhwicap_major, xhwicap_minor + id);
+	devt = MKDEV(XHWICAP_MAJOR, XHWICAP_MINOR + id);
 
 	drvdata = kzalloc(sizeof(struct hwicap_drvdata), GFP_KERNEL);
 	if (!drvdata) {
@@ -710,7 +706,7 @@ static int __devexit hwicap_remove(struct device *dev)
 	dev_set_drvdata(dev, NULL);
 
 	mutex_lock(&icap_sem);
-	probed_devices[MINOR(dev->devt)-xhwicap_minor] = 0;
+	probed_devices[MINOR(dev->devt)-XHWICAP_MINOR] = 0;
 	mutex_unlock(&icap_sem);
 	return 0;		/* success */
 }
@@ -850,23 +846,12 @@ static int __init hwicap_module_init(void)
 	icap_class = class_create(THIS_MODULE, "xilinx_config");
 	mutex_init(&icap_sem);
 
-	if (xhwicap_major) {
-		devt = MKDEV(xhwicap_major, xhwicap_minor);
-		retval = register_chrdev_region(
-				devt,
-				HWICAP_DEVICES,
-				DRIVER_NAME);
-		if (retval < 0)
-			return retval;
-	} else {
-		retval = alloc_chrdev_region(&devt,
-				xhwicap_minor,
-				HWICAP_DEVICES,
-				DRIVER_NAME);
-		if (retval < 0)
-			return retval;
-		xhwicap_major = MAJOR(devt);
-	}
+	devt = MKDEV(XHWICAP_MAJOR, XHWICAP_MINOR);
+	retval = register_chrdev_region(devt,
+					HWICAP_DEVICES,
+					DRIVER_NAME);
+	if (retval < 0)
+		return retval;
 
 	retval = platform_driver_register(&hwicap_platform_driver);
 
@@ -891,7 +876,7 @@ static int __init hwicap_module_init(void)
 
 static void __exit hwicap_module_cleanup(void)
 {
-	dev_t devt = MKDEV(xhwicap_major, xhwicap_minor);
+	dev_t devt = MKDEV(XHWICAP_MAJOR, XHWICAP_MINOR);
 
 	class_destroy(icap_class);
 
