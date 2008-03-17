@@ -214,35 +214,35 @@ void xen_pmd_clear(pmd_t *pmdp)
 	xen_set_pmd(pmdp, __pmd(0));
 }
 
-unsigned long long xen_pte_val(pte_t pte)
+pteval_t xen_pte_val(pte_t pte)
 {
-	unsigned long long ret = 0;
+	pteval_t ret = 0;
 
 	if (pte.pte_low) {
-		ret = ((unsigned long long)pte.pte_high << 32) | pte.pte_low;
+		ret = ((pteval_t)pte.pte_high << 32) | pte.pte_low;
 		ret = machine_to_phys(XMADDR(ret)).paddr | 1;
 	}
 
 	return ret;
 }
 
-unsigned long long xen_pmd_val(pmd_t pmd)
+pmdval_t xen_pmd_val(pmd_t pmd)
 {
-	unsigned long long ret = pmd.pmd;
+	pmdval_t ret = pmd.pmd;
 	if (ret)
 		ret = machine_to_phys(XMADDR(ret)).paddr | 1;
 	return ret;
 }
 
-unsigned long long xen_pgd_val(pgd_t pgd)
+pgdval_t xen_pgd_val(pgd_t pgd)
 {
-	unsigned long long ret = pgd.pgd;
+	pgdval_t ret = pgd.pgd;
 	if (ret)
 		ret = machine_to_phys(XMADDR(ret)).paddr | 1;
 	return ret;
 }
 
-pte_t xen_make_pte(unsigned long long pte)
+pte_t xen_make_pte(pteval_t pte)
 {
 	if (pte & _PAGE_PRESENT) {
 		pte = phys_to_machine(XPADDR(pte)).maddr;
@@ -252,7 +252,7 @@ pte_t xen_make_pte(unsigned long long pte)
 	return (pte_t){ .pte = pte };
 }
 
-pmd_t xen_make_pmd(unsigned long long pmd)
+pmd_t xen_make_pmd(pmdval_t pmd)
 {
 	if (pmd & 1)
 		pmd = phys_to_machine(XPADDR(pmd)).maddr;
@@ -260,7 +260,7 @@ pmd_t xen_make_pmd(unsigned long long pmd)
 	return (pmd_t){ pmd };
 }
 
-pgd_t xen_make_pgd(unsigned long long pgd)
+pgd_t xen_make_pgd(pgdval_t pgd)
 {
 	if (pgd & _PAGE_PRESENT)
 		pgd = phys_to_machine(XPADDR(pgd)).maddr;
@@ -273,9 +273,9 @@ void xen_set_pte(pte_t *ptep, pte_t pte)
 	*ptep = pte;
 }
 
-unsigned long xen_pte_val(pte_t pte)
+pteval_t xen_pte_val(pte_t pte)
 {
-	unsigned long ret = pte.pte_low;
+	pteval_t ret = pte.pte_low;
 
 	if (ret & _PAGE_PRESENT)
 		ret = machine_to_phys(XMADDR(ret)).paddr;
@@ -283,15 +283,15 @@ unsigned long xen_pte_val(pte_t pte)
 	return ret;
 }
 
-unsigned long xen_pgd_val(pgd_t pgd)
+pgdval_t xen_pgd_val(pgd_t pgd)
 {
-	unsigned long ret = pgd.pgd;
+	pteval_t ret = pgd.pgd;
 	if (ret)
 		ret = machine_to_phys(XMADDR(ret)).paddr | 1;
 	return ret;
 }
 
-pte_t xen_make_pte(unsigned long pte)
+pte_t xen_make_pte(pteval_t pte)
 {
 	if (pte & _PAGE_PRESENT) {
 		pte = phys_to_machine(XPADDR(pte)).maddr;
@@ -301,7 +301,7 @@ pte_t xen_make_pte(unsigned long pte)
 	return (pte_t){ pte };
 }
 
-pgd_t xen_make_pgd(unsigned long pgd)
+pgd_t xen_make_pgd(pgdval_t pgd)
 {
 	if (pgd & _PAGE_PRESENT)
 		pgd = phys_to_machine(XPADDR(pgd)).maddr;
