@@ -216,12 +216,10 @@ void xen_pmd_clear(pmd_t *pmdp)
 
 pteval_t xen_pte_val(pte_t pte)
 {
-	pteval_t ret = 0;
+	pteval_t ret = pte.pte;
 
-	if (pte.pte_low) {
-		ret = ((pteval_t)pte.pte_high << 32) | pte.pte_low;
-		ret = machine_to_phys(XMADDR(ret)).paddr | 1;
-	}
+	if (ret & _PAGE_PRESENT)
+		ret = machine_to_phys(XMADDR(ret)).paddr | _PAGE_PRESENT;
 
 	return ret;
 }
@@ -229,16 +227,16 @@ pteval_t xen_pte_val(pte_t pte)
 pmdval_t xen_pmd_val(pmd_t pmd)
 {
 	pmdval_t ret = pmd.pmd;
-	if (ret)
-		ret = machine_to_phys(XMADDR(ret)).paddr | 1;
+	if (ret & _PAGE_PRESENT)
+		ret = machine_to_phys(XMADDR(ret)).paddr | _PAGE_PRESENT;
 	return ret;
 }
 
 pgdval_t xen_pgd_val(pgd_t pgd)
 {
 	pgdval_t ret = pgd.pgd;
-	if (ret)
-		ret = machine_to_phys(XMADDR(ret)).paddr | 1;
+	if (ret & _PAGE_PRESENT)
+		ret = machine_to_phys(XMADDR(ret)).paddr | _PAGE_PRESENT;
 	return ret;
 }
 
@@ -254,7 +252,7 @@ pte_t xen_make_pte(pteval_t pte)
 
 pmd_t xen_make_pmd(pmdval_t pmd)
 {
-	if (pmd & 1)
+	if (pmd & _PAGE_PRESENT)
 		pmd = phys_to_machine(XPADDR(pmd)).maddr;
 
 	return (pmd_t){ pmd };
@@ -275,7 +273,7 @@ void xen_set_pte(pte_t *ptep, pte_t pte)
 
 pteval_t xen_pte_val(pte_t pte)
 {
-	pteval_t ret = pte.pte_low;
+	pteval_t ret = pte.pte;
 
 	if (ret & _PAGE_PRESENT)
 		ret = machine_to_phys(XMADDR(ret)).paddr;
@@ -286,8 +284,8 @@ pteval_t xen_pte_val(pte_t pte)
 pgdval_t xen_pgd_val(pgd_t pgd)
 {
 	pteval_t ret = pgd.pgd;
-	if (ret)
-		ret = machine_to_phys(XMADDR(ret)).paddr | 1;
+	if (ret & _PAGE_PRESENT)
+		ret = machine_to_phys(XMADDR(ret)).paddr | _PAGE_PRESENT;
 	return ret;
 }
 
