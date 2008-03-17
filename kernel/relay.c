@@ -1066,7 +1066,7 @@ static int subbuf_splice_actor(struct file *in,
 			       unsigned int flags,
 			       int *nonpad_ret)
 {
-	unsigned int pidx, poff, total_len, subbuf_pages, ret;
+	unsigned int pidx, poff, total_len, subbuf_pages, nr_pages, ret;
 	struct rchan_buf *rbuf = in->private_data;
 	unsigned int subbuf_size = rbuf->chan->subbuf_size;
 	uint64_t pos = (uint64_t) *ppos;
@@ -1097,8 +1097,9 @@ static int subbuf_splice_actor(struct file *in,
 	subbuf_pages = rbuf->chan->alloc_size >> PAGE_SHIFT;
 	pidx = (read_start / PAGE_SIZE) % subbuf_pages;
 	poff = read_start & ~PAGE_MASK;
+	nr_pages = min_t(unsigned int, subbuf_pages, PIPE_BUFFERS);
 
-	for (total_len = 0; spd.nr_pages < subbuf_pages; spd.nr_pages++) {
+	for (total_len = 0; spd.nr_pages < nr_pages; spd.nr_pages++) {
 		unsigned int this_len, this_end, private;
 		unsigned int cur_pos = read_start + total_len;
 
