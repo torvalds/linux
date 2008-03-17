@@ -280,6 +280,62 @@ ENTRY(xen_iret_crit_fixup)
 2:	ret
 
 
+ENTRY(xen_sysexit)
+	/* Store vcpu_info pointer for easy access.  Do it this
+	   way to avoid having to reload %fs */
+#ifdef CONFIG_SMP
+	GET_THREAD_INFO(%eax)
+	movl TI_cpu(%eax),%eax
+	movl __per_cpu_offset(,%eax,4),%eax
+	mov per_cpu__xen_vcpu(%eax),%eax
+#else
+	movl per_cpu__xen_vcpu, %eax
+#endif
+
+	/* We can't actually use sysexit in a pv guest,
+	   so fake it up with iret */
+	pushl $__USER_DS		/* user stack segment */
+	pushl %ecx			/* user esp */
+	pushl PT_EFLAGS+2*4(%esp)	/* user eflags */
+	pushl $__USER_CS		/* user code segment */
+	pushl %edx			/* user eip */
+
+xen_sysexit_start_crit:
+	/* Unmask events... */
+	movb $0, XEN_vcpu_info_mask(%eax)
+	/* ...and test for pending.
+	   There's a preempt window here, but it doesn't
+	   matter because we're within the critical section. */
+	testb $0xff, XEN_vcpu_info_pending(%eax)
+
+	/* If there's something pending, mask events again so we
+	   can directly inject it back into the kernel. */
+	jnz   1f
+
+	movl PT_EAX+5*4(%esp),%eax
+2:	iret
+1:	movb $1, XEN_vcpu_info_mask(%eax)
+xen_sysexit_end_crit:
+	addl $5*4, %esp		/* remove iret frame */
+	/* no need to re-save regs, but need to restore kernel %fs */
+	mov $__KERNEL_PERCPU, %eax
+	mov %eax, %fs
+	jmp xen_do_upcall
+.section __ex_table,"a"
+	.align 4
+	.long 2b,iret_exc
+.previous
+
+	.globl xen_sysexit_start_crit, xen_sysexit_end_crit
+/*
+	sysexit fixup is easy, since the old frame is still sitting there
+	on the stack.  We just need to remove the new recursive
+	interrupt and return.
+ */
+ENTRY(xen_sysexit_crit_fixup)
+	addl $PT_OLDESP+5*4, %esp		/* remove frame+iret */
+	jmp xen_do_upcall
+
 /*
 	Force an event check by making a hypercall,
 	but preserve regs before making the call.

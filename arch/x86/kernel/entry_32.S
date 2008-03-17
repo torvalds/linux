@@ -1017,6 +1017,13 @@ ENTRY(kernel_thread_helper)
 ENDPROC(kernel_thread_helper)
 
 #ifdef CONFIG_XEN
+/* Xen doesn't set %esp to be precisely what the normal sysenter
+   entrypoint expects, so fix it up before using the normal path. */
+ENTRY(xen_sysenter_target)
+	RING0_INT_FRAME
+	addl $5*4, %esp		/* remove xen-provided frame */
+	jmp sysenter_past_esp
+
 ENTRY(xen_hypervisor_callback)
 	CFI_STARTPROC
 	pushl $0
@@ -1036,8 +1043,17 @@ ENTRY(xen_hypervisor_callback)
 	jae  1f
 
 	call xen_iret_crit_fixup
+	jmp  2f
 
-1:	mov %esp, %eax
+1:	cmpl $xen_sysexit_start_crit,%eax
+	jb   2f
+	cmpl $xen_sysexit_end_crit,%eax
+	jae  2f
+
+	jmp xen_sysexit_crit_fixup
+
+ENTRY(xen_do_upcall)
+2:	mov %esp, %eax
 	call xen_evtchn_do_upcall
 	jmp  ret_from_intr
 	CFI_ENDPROC

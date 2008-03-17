@@ -155,7 +155,6 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 	if (*ax == 1)
 		maskedx = ~((1 << X86_FEATURE_APIC) |  /* disable APIC */
 			    (1 << X86_FEATURE_ACPI) |  /* disable ACPI */
-			    (1 << X86_FEATURE_SEP)  |  /* disable SEP */
 			    (1 << X86_FEATURE_ACC));   /* thermal monitoring */
 
 	asm(XEN_EMULATE_PREFIX "cpuid"
@@ -994,7 +993,7 @@ static const struct pv_cpu_ops xen_cpu_ops __initdata = {
 	.read_pmc = native_read_pmc,
 
 	.iret = xen_iret,
-	.irq_enable_syscall_ret = NULL,  /* never called */
+	.irq_enable_syscall_ret = xen_sysexit,
 
 	.load_tr_desc = paravirt_nop,
 	.set_ldt = xen_set_ldt,

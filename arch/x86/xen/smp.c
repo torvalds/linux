@@ -72,6 +72,7 @@ static __cpuinit void cpu_bringup_and_idle(void)
 	int cpu = smp_processor_id();
 
 	cpu_init();
+	xen_enable_sysenter();
 
 	preempt_disable();
 	per_cpu(cpu_state, cpu) = CPU_ONLINE;

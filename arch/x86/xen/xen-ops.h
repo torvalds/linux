@@ -19,6 +19,7 @@ extern struct shared_info *HYPERVISOR_shared_info;
 char * __init xen_memory_setup(void);
 void __init xen_arch_setup(void);
 void __init xen_init_IRQ(void);
+void xen_enable_sysenter(void);
 
 void xen_setup_timer(int cpu);
 void xen_setup_cpu_clockevents(void);
@@ -64,4 +65,6 @@ DECL_ASM(unsigned long, xen_save_fl_direct, void);
 DECL_ASM(void, xen_restore_fl_direct, unsigned long);
 
 void xen_iret(void);
+void xen_sysexit(void);
+
 #endif /* XEN_OPS_H */
