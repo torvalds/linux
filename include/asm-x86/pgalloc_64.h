@@ -47,22 +47,6 @@ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 	free_page((unsigned long)pud);
 }
 
-/* Should really implement gc for free page table pages. This could be
-   done with a reference count in struct page. */
-
-static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
-{
-	BUG_ON((unsigned long)pte & (PAGE_SIZE-1));
-	free_page((unsigned long)pte); 
-}
-
-static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
-{
-	pgtable_page_dtor(pte);
-	__free_page(pte);
-} 
-
-extern void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte);
 extern void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd);
 extern void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud);
 

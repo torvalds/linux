@@ -21,6 +21,13 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 	return pte;
 }
 
+void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
+{
+	pgtable_page_dtor(pte);
+	paravirt_release_pt(page_to_pfn(pte));
+	tlb_remove_page(tlb, pte);
+}
+
 #ifdef CONFIG_X86_64
 static inline void pgd_list_add(pgd_t *pgd)
 {

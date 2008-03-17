@@ -24,6 +24,22 @@ extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);
 extern pte_t *pte_alloc_one_kernel(struct mm_struct *, unsigned long);
 extern pgtable_t pte_alloc_one(struct mm_struct *, unsigned long);
 
+/* Should really implement gc for free page table pages. This could be
+   done with a reference count in struct page. */
+
+static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+{
+	BUG_ON((unsigned long)pte & (PAGE_SIZE-1));
+	free_page((unsigned long)pte);
+}
+
+static inline void pte_free(struct mm_struct *mm, struct page *pte)
+{
+	__free_page(pte);
+}
+
+extern void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte);
+
 #ifdef CONFIG_X86_32
 # include "pgalloc_32.h"
 #else

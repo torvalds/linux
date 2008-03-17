@@ -17,24 +17,6 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *p
 }
 #define pmd_pgtable(pmd) pmd_page(pmd)
 
-/*
- * Allocate and free page tables.
- */
-
-static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
-{
-	free_page((unsigned long)pte);
-}
-
-static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
-{
-	pgtable_page_dtor(pte);
-	__free_page(pte);
-}
-
-
-extern void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte);
-
 #ifdef CONFIG_X86_PAE
 /*
  * In the PAE case we free the pmds as part of the pgd.

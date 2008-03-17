@@ -173,13 +173,6 @@ void reserve_top_address(unsigned long reserve)
 	__VMALLOC_RESERVE += reserve;
 }
 
-void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
-{
-	pgtable_page_dtor(pte);
-	paravirt_release_pt(page_to_pfn(pte));
-	tlb_remove_page(tlb, pte);
-}
-
 #ifdef CONFIG_X86_PAE
 
 void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
