@@ -542,6 +542,10 @@ struct megasas_ctrl_info {
 
 #define MEGASAS_FW_BUSY				1
 
+/* Frame Type */
+#define IO_FRAME				0
+#define PTHRU_FRAME				1
+
 /*
  * When SCSI mid-layer calls driver's reset routine, driver waits for
  * MEGASAS_RESET_WAIT_TIME seconds for all outstanding IO to complete. Note

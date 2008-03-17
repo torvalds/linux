@@ -488,12 +488,13 @@ megasas_make_sgl64(struct megasas_instance *instance, struct scsi_cmnd *scp,
 
  /**
  * megasas_get_frame_count - Computes the number of frames
+ * @frame_type		: type of frame- io or pthru frame
  * @sge_count		: number of sg elements
  *
  * Returns the number of frames required for numnber of sge's (sge_count)
  */
 
-static u32 megasas_get_frame_count(u8 sge_count)
+static u32 megasas_get_frame_count(u8 sge_count, u8 frame_type)
 {
 	int num_cnt;
 	int sge_bytes;
@@ -504,13 +505,22 @@ static u32 megasas_get_frame_count(u8 sge_count)
 	    sizeof(struct megasas_sge32);
 
 	/*
-	* Main frame can contain 2 SGEs for 64-bit SGLs and
-	* 3 SGEs for 32-bit SGLs
-	*/
-	if (IS_DMA64)
-		num_cnt = sge_count - 2;
-	else
-		num_cnt = sge_count - 3;
+	 * Main frame can contain 2 SGEs for 64-bit SGLs and
+	 * 3 SGEs for 32-bit SGLs for ldio &
+	 * 1 SGEs for 64-bit SGLs and
+	 * 2 SGEs for 32-bit SGLs for pthru frame
+	 */
+	if (unlikely(frame_type == PTHRU_FRAME)) {
+		if (IS_DMA64)
+			num_cnt = sge_count - 1;
+		else
+			num_cnt = sge_count - 2;
+	} else {
+		if (IS_DMA64)
+			num_cnt = sge_count - 2;
+		else
+			num_cnt = sge_count - 3;
+	}
 
 	if(num_cnt>0){
 		sge_bytes = sge_sz * num_cnt;
@@ -592,7 +602,8 @@ megasas_build_dcdb(struct megasas_instance *instance, struct scsi_cmnd *scp,
 	 * Compute the total number of frames this command consumes. FW uses
 	 * this number to pull sufficient number of frames from host memory.
 	 */
-	cmd->frame_count = megasas_get_frame_count(pthru->sge_count);
+	cmd->frame_count = megasas_get_frame_count(pthru->sge_count,
+							PTHRU_FRAME);
 
 	return cmd->frame_count;
 }
@@ -709,7 +720,7 @@ megasas_build_ldio(struct megasas_instance *instance, struct scsi_cmnd *scp,
 	 * Compute the total number of frames this command consumes. FW uses
 	 * this number to pull sufficient number of frames from host memory.
 	 */
-	cmd->frame_count = megasas_get_frame_count(ldio->sge_count);
+	cmd->frame_count = megasas_get_frame_count(ldio->sge_count, IO_FRAME);
 
 	return cmd->frame_count;
 }
