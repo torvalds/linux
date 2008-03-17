@@ -19,6 +19,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 
+#include <linux/leds.h>
+
 #include <linux/mmc/host.h>
 
 #include "sdhci.h"
@@ -251,6 +253,24 @@ static void sdhci_deactivate_led(struct sdhci_host *host)
 	ctrl &= ~SDHCI_CTRL_LED;
 	writeb(ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
 }
+
+#ifdef CONFIG_LEDS_CLASS
+static void sdhci_led_control(struct led_classdev *led,
+	enum led_brightness brightness)
+{
+	struct sdhci_host *host = container_of(led, struct sdhci_host, led);
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+
+	if (brightness == LED_OFF)
+		sdhci_deactivate_led(host);
+	else
+		sdhci_activate_led(host);
+
+	spin_unlock_irqrestore(&host->lock, flags);
+}
+#endif
 
 /*****************************************************************************\
  *                                                                           *
@@ -769,7 +789,9 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	WARN_ON(host->mrq != NULL);
 
+#ifndef CONFIG_LEDS_CLASS
 	sdhci_activate_led(host);
+#endif
 
 	host->mrq = mrq;
 
@@ -961,7 +983,9 @@ static void sdhci_tasklet_finish(unsigned long param)
 	host->cmd = NULL;
 	host->data = NULL;
 
+#ifndef CONFIG_LEDS_CLASS
 	sdhci_deactivate_led(host);
+#endif
 
 	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
@@ -1485,6 +1509,17 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	sdhci_dumpregs(host);
 #endif
 
+#ifdef CONFIG_LEDS_CLASS
+	host->led.name = mmc_hostname(mmc);
+	host->led.brightness = LED_OFF;
+	host->led.default_trigger = mmc_hostname(mmc);
+	host->led.brightness_set = sdhci_led_control;
+
+	ret = led_classdev_register(&pdev->dev, &host->led);
+	if (ret)
+		goto reset;
+#endif
+
 	mmiowb();
 
 	mmc_add_host(mmc);
@@ -1495,6 +1530,11 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	return 0;
 
+#ifdef CONFIG_LEDS_CLASS
+reset:
+	sdhci_reset(host, SDHCI_RESET_ALL);
+	free_irq(host->irq, host);
+#endif
 untasklet:
 	tasklet_kill(&host->card_tasklet);
 	tasklet_kill(&host->finish_tasklet);
@@ -1521,6 +1561,10 @@ static void sdhci_remove_slot(struct pci_dev *pdev, int slot)
 	chip->hosts[slot] = NULL;
 
 	mmc_remove_host(mmc);
+
+#ifdef CONFIG_LEDS_CLASS
+	led_classdev_unregister(&host->led);
+#endif
 
 	sdhci_reset(host, SDHCI_RESET_ALL);
 

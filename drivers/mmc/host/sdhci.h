@@ -168,6 +168,10 @@ struct sdhci_host {
 	struct sdhci_chip	*chip;
 	struct mmc_host		*mmc;		/* MMC structure */
 
+#ifdef CONFIG_LEDS_CLASS
+	struct led_classdev	led;		/* LED control */
+#endif
+
 	spinlock_t		lock;		/* Mutex */
 
 	int			flags;		/* Host attributes */
