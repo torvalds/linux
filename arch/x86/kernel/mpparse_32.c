@@ -1176,8 +1176,7 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 			 * So test for this condition, and if necessary, avoid
 			 * the pin collision.
 			 */
-			if (gsi > 15 || (gsi == 0 && !timer_uses_ioapic_pin_0))
-				gsi = pci_irq++;
+			gsi = pci_irq++;
 			/*
 			 * Don't assign IRQ used by ACPI SCI
 			 */
