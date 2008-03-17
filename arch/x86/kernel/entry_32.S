@@ -1042,8 +1042,7 @@ ENTRY(xen_hypervisor_callback)
 	cmpl $xen_iret_end_crit,%eax
 	jae  1f
 
-	call xen_iret_crit_fixup
-	jmp  2f
+	jmp  xen_iret_crit_fixup
 
 1:	cmpl $xen_sysexit_start_crit,%eax
 	jb   2f
