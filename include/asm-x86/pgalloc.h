@@ -5,6 +5,16 @@
 #include <linux/mm.h>		/* for struct page */
 #include <linux/pagemap.h>
 
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else
+#define paravirt_alloc_pt(mm, pfn) do { } while (0)
+#define paravirt_alloc_pd(mm, pfn) do { } while (0)
+#define paravirt_alloc_pd_clone(pfn, clonepfn, start, count) do { } while (0)
+#define paravirt_release_pt(pfn) do { } while (0)
+#define paravirt_release_pd(pfn) do { } while (0)
+#endif
+
 /*
  * Allocate and free page tables.
  */
