@@ -9,11 +9,6 @@ static inline void mpc_oem_bus_info(struct mpc_config_bus *m, char *name,
 	Dprintk("Bus #%d is %s\n", m->mpc_busid, name);
 }
 
-static inline void mpc_oem_pci_bus(struct mpc_config_bus *m,
-				struct mpc_config_translation *translation)
-{
-}
-
 extern int parse_unisys_oem (char *oemptr);
 extern int find_unisys_acpi_oem_table(unsigned long *oem_addr);
 extern void setup_unisys(void);

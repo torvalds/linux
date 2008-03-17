@@ -278,7 +278,9 @@ static void __init MP_bus_info (struct mpc_config_bus *m)
 
 	set_bit(m->mpc_busid, mp_bus_not_pci);
 	if (strncmp(str, BUSTYPE_PCI, sizeof(BUSTYPE_PCI)-1) == 0) {
+#ifdef CONFIG_X86_NUMAQ
 		mpc_oem_pci_bus(m, translation_table[mpc_record]);
+#endif
 		clear_bit(m->mpc_busid, mp_bus_not_pci);
 		mp_bus_id_to_pci_bus[m->mpc_busid] = mp_current_pci_id;
 		mp_current_pci_id++;

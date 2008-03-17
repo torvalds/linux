@@ -19,6 +19,14 @@ int mp_bus_id_to_local[MAX_MP_BUSSES];
 
 int quad_local_to_mp_bus_id [NR_CPUS/4][4];
 #define QUADLOCAL2BUS(quad,local) (quad_local_to_mp_bus_id[quad][local])
+void mpc_oem_pci_bus(struct mpc_config_bus *m,
+	struct mpc_config_translation *translation)
+{
+	int quad = translation->trans_quad;
+	int local = translation->trans_local;
+
+	quad_local_to_mp_bus_id[quad][local] = m->mpc_busid;
+}
 
 /* Where the IO area was mapped on multiquad, always 0 otherwise */
 void *xquad_portio;
