@@ -173,16 +173,6 @@ void reserve_top_address(unsigned long reserve)
 	__VMALLOC_RESERVE += reserve;
 }
 
-#ifdef CONFIG_X86_PAE
-
-void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
-{
-	paravirt_release_pd(__pa(pmd) >> PAGE_SHIFT);
-	tlb_remove_page(tlb, virt_to_page(pmd));
-}
-
-#endif
-
 int pmd_bad(pmd_t pmd)
 {
 	WARN_ON_ONCE(pmd_bad_v1(pmd) != pmd_bad_v2(pmd));

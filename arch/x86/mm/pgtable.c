@@ -28,6 +28,14 @@ void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
 	tlb_remove_page(tlb, pte);
 }
 
+#if PAGETABLE_LEVELS > 2
+void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
+{
+	paravirt_release_pd(__pa(pmd) >> PAGE_SHIFT);
+	tlb_remove_page(tlb, virt_to_page(pmd));
+}
+#endif	/* PAGETABLE_LEVELS > 2 */
+
 #ifdef CONFIG_X86_64
 static inline void pgd_list_add(pgd_t *pgd)
 {
