@@ -250,8 +250,26 @@ static int hwicap_get_configuration_register(struct hwicap_drvdata *drvdata,
 	 * Create the data to be written to the ICAP.
 	 */
 	buffer[index++] = XHI_DUMMY_PACKET;
+	buffer[index++] = XHI_NOOP_PACKET;
 	buffer[index++] = XHI_SYNC_PACKET;
 	buffer[index++] = XHI_NOOP_PACKET;
+	buffer[index++] = XHI_NOOP_PACKET;
+
+	/*
+	 * Write the data to the FIFO and initiate the transfer of data present
+	 * in the FIFO to the ICAP device.
+	 */
+	status = drvdata->config->set_configuration(drvdata,
+						    &buffer[0], index);
+	if (status)
+		return status;
+
+	/* If the syncword was not found, then we need to start over. */
+	status = drvdata->config->get_status(drvdata);
+	if ((status & XHI_SR_DALIGN_MASK) != XHI_SR_DALIGN_MASK)
+		return -EIO;
+
+	index = 0;
 	buffer[index++] = hwicap_type_1_read(reg) | 1;
 	buffer[index++] = XHI_NOOP_PACKET;
 	buffer[index++] = XHI_NOOP_PACKET;
