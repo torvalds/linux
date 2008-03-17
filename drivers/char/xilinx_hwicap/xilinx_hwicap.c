@@ -664,12 +664,14 @@ static int __devinit hwicap_setup(struct device *dev, int id,
 static struct hwicap_driver_config buffer_icap_config = {
 	.get_configuration = buffer_icap_get_configuration,
 	.set_configuration = buffer_icap_set_configuration,
+	.get_status = buffer_icap_get_status,
 	.reset = buffer_icap_reset,
 };
 
 static struct hwicap_driver_config fifo_icap_config = {
 	.get_configuration = fifo_icap_get_configuration,
 	.set_configuration = fifo_icap_set_configuration,
+	.get_status = fifo_icap_get_status,
 	.reset = fifo_icap_reset,
 };
 
