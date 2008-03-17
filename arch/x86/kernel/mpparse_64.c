@@ -640,11 +640,13 @@ static void __init __find_smp_config(unsigned reserve)
 	 * trustworthy, simply because the SMP table may have been
 	 * stomped on during early boot. These loaders are buggy and
 	 * should be fixed.
+	 *
+	 * MP1.4 SPEC states to only scan first 1K of 4K EBDA.
 	 */
 
 	address = get_bios_ebda();
 	if (address)
-		smp_scan_config(address, 0x1000, reserve);
+		smp_scan_config(address, 0x400, reserve);
 }
 
 void __init early_find_smp_config(void)
