@@ -22,6 +22,7 @@
 #include <asm/msr.h>
 #include <asm/apic.h>
 #include <linux/percpu.h>
+#include <asm/reboot.h>
 
 #define KVM_SCALE 22
 
@@ -143,6 +144,28 @@ static void kvm_setup_secondary_clock(void)
 	setup_secondary_APIC_clock();
 }
 
+/*
+ * After the clock is registered, the host will keep writing to the
+ * registered memory location. If the guest happens to shutdown, this memory
+ * won't be valid. In cases like kexec, in which you install a new kernel, this
+ * means a random memory location will be kept being written. So before any
+ * kind of shutdown from our side, we unregister the clock by writting anything
+ * that does not have the 'enable' bit set in the msr
+ */
+#ifdef CONFIG_KEXEC
+static void kvm_crash_shutdown(struct pt_regs *regs)
+{
+	native_write_msr_safe(MSR_KVM_SYSTEM_TIME, 0, 0);
+	native_machine_crash_shutdown(regs);
+}
+#endif
+
+static void kvm_shutdown(void)
+{
+	native_write_msr_safe(MSR_KVM_SYSTEM_TIME, 0, 0);
+	native_machine_shutdown();
+}
+
 void __init kvmclock_init(void)
 {
 	if (!kvm_para_available())
@@ -155,6 +178,10 @@ void __init kvmclock_init(void)
 		pv_time_ops.set_wallclock = kvm_set_wallclock;
 		pv_time_ops.sched_clock = kvm_clock_read;
 		pv_apic_ops.setup_secondary_clock = kvm_setup_secondary_clock;
+		machine_ops.shutdown  = kvm_shutdown;
+#ifdef CONFIG_KEXEC
+		machine_ops.crash_shutdown  = kvm_crash_shutdown;
+#endif
 		clocksource_register(&kvm_clock);
 	}
 }
