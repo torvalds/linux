@@ -8,13 +8,14 @@
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
-#define paravirt_alloc_pte(mm, pfn) do { } while (0)
-#define paravirt_alloc_pmd(mm, pfn) do { } while (0)
-#define paravirt_alloc_pmd_clone(pfn, clonepfn, start, count) do { } while (0)
-#define paravirt_alloc_pud(mm, pfn) do { } while (0)
-#define paravirt_release_pte(pfn) do { } while (0)
-#define paravirt_release_pmd(pfn) do { } while (0)
-#define paravirt_release_pud(pfn) do { } while (0)
+static inline void paravirt_alloc_pte(struct mm_struct *mm, unsigned long pfn)	{}
+static inline void paravirt_alloc_pmd(struct mm_struct *mm, unsigned long pfn)	{}
+static inline void paravirt_alloc_pmd_clone(unsigned long pfn, unsigned long clonepfn,
+					    unsigned long start, unsigned long count) {}
+static inline void paravirt_alloc_pud(struct mm_struct *mm, unsigned long pfn)	{}
+static inline void paravirt_release_pte(unsigned long pfn) {}
+static inline void paravirt_release_pmd(unsigned long pfn) {}
+static inline void paravirt_release_pud(unsigned long pfn) {}
 #endif
 
 /*
