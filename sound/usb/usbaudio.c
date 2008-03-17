@@ -1762,8 +1762,10 @@ static int check_hw_params_convention(struct snd_usb_substream *subs)
 
 	channels = kcalloc(MAX_MASK, sizeof(u32), GFP_KERNEL);
 	rates = kcalloc(MAX_MASK, sizeof(u32), GFP_KERNEL);
-	if (!channels || !rates)
+	if (!channels || !rates) {
+		err = -ENOMEM;
 		goto __out;
+	}
 
 	list_for_each(p, &subs->fmt_list) {
 		struct audioformat *f;
@@ -1916,7 +1918,10 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 				     1000 * MIN_PACKS_URB,
 				     /*(nrpacks * MAX_URBS) * 1000*/ UINT_MAX);
 
-	if (check_hw_params_convention(subs)) {
+	err = check_hw_params_convention(subs);
+	if (err < 0)
+		return err;
+	else if (err) {
 		hwc_debug("setting extra hw constraints...\n");
 		if ((err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 					       hw_rule_rate, subs,
