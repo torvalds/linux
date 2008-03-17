@@ -41,7 +41,7 @@ unsigned int __cpuinitdata maxcpus = NR_CPUS;
  * MP-table.
  */
 DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
-int mp_bus_id_to_pci_bus [MAX_MP_BUSSES] = { [0 ... MAX_MP_BUSSES-1] = -1 };
+int mp_bus_id_to_pci_bus[MAX_MP_BUSSES] = {[0 ... MAX_MP_BUSSES - 1] = -1 };
 
 static int mp_current_pci_id = 0;
 /* I/O APIC entries */
@@ -56,8 +56,6 @@ int mp_irq_entries;
 int nr_ioapics;
 unsigned long mp_lapic_addr = 0;
 
-
-
 /* Processor that is doing the boot up */
 unsigned int boot_cpu_physical_apicid = -1U;
 EXPORT_SYMBOL(boot_cpu_physical_apicid);
@@ -71,11 +69,10 @@ unsigned disabled_cpus __cpuinitdata;
 physid_mask_t phys_cpu_present_map = PHYSID_MASK_NONE;
 
 u16 x86_bios_cpu_apicid_init[NR_CPUS] __initdata
-				= { [0 ... NR_CPUS-1] = BAD_APICID };
+    = {[0 ... NR_CPUS - 1] = BAD_APICID };
 void *x86_bios_cpu_apicid_early_ptr;
 DEFINE_PER_CPU(u16, x86_bios_cpu_apicid) = BAD_APICID;
 EXPORT_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
-
 
 /*
  * Intel MP BIOS table parsing routines:
@@ -114,13 +111,13 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 
 	if (num_processors >= NR_CPUS) {
 		printk(KERN_WARNING "WARNING: NR_CPUS limit of %i reached."
-			" Processor ignored.\n", NR_CPUS);
+		       " Processor ignored.\n", NR_CPUS);
 		return;
 	}
 
 	if (num_processors >= maxcpus) {
 		printk(KERN_WARNING "WARNING: maxcpus limit of %i reached."
-			" Processor ignored.\n", maxcpus);
+		       " Processor ignored.\n", maxcpus);
 		return;
 	}
 
@@ -129,14 +126,14 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 	cpu = first_cpu(tmp_map);
 
 	physid_set(m->mpc_apicid, phys_cpu_present_map);
- 	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
- 		/*
+	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
+		/*
 		 * x86_bios_cpu_apicid is required to have processors listed
- 		 * in same order as logical cpu numbers. Hence the first
- 		 * entry is BSP, and so on.
- 		 */
+		 * in same order as logical cpu numbers. Hence the first
+		 * entry is BSP, and so on.
+		 */
 		cpu = 0;
- 	}
+	}
 	/* are we being called early in kernel startup? */
 	if (x86_cpu_to_apicid_early_ptr) {
 		u16 *cpu_to_apicid = x86_cpu_to_apicid_early_ptr;
@@ -153,7 +150,7 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 	cpu_set(cpu, cpu_present_map);
 }
 
-static void __init MP_bus_info (struct mpc_config_bus *m)
+static void __init MP_bus_info(struct mpc_config_bus *m)
 {
 	char str[7];
 
@@ -176,24 +173,24 @@ static int bad_ioapic(unsigned long address)
 {
 	if (nr_ioapics >= MAX_IO_APICS) {
 		printk(KERN_ERR "ERROR: Max # of I/O APICs (%d) exceeded "
-			"(found %d)\n", MAX_IO_APICS, nr_ioapics);
+		       "(found %d)\n", MAX_IO_APICS, nr_ioapics);
 		panic("Recompile kernel with bigger MAX_IO_APICS!\n");
 	}
 	if (!address) {
 		printk(KERN_ERR "WARNING: Bogus (zero) I/O APIC address"
-			" found in table, skipping!\n");
+		       " found in table, skipping!\n");
 		return 1;
 	}
 	return 0;
 }
 
-static void __init MP_ioapic_info (struct mpc_config_ioapic *m)
+static void __init MP_ioapic_info(struct mpc_config_ioapic *m)
 {
 	if (!(m->mpc_flags & MPC_APIC_USABLE))
 		return;
 
-	printk("I/O APIC #%d at 0x%X.\n",
-		m->mpc_apicid, m->mpc_apicaddr);
+	printk(KERN_INFO "I/O APIC #%d at 0x%X.\n", m->mpc_apicid,
+	       m->mpc_apicaddr);
 
 	if (bad_ioapic(m->mpc_apicaddr))
 		return;
@@ -202,25 +199,25 @@ static void __init MP_ioapic_info (struct mpc_config_ioapic *m)
 	nr_ioapics++;
 }
 
-static void __init MP_intsrc_info (struct mpc_config_intsrc *m)
+static void __init MP_intsrc_info(struct mpc_config_intsrc *m)
 {
-	mp_irqs [mp_irq_entries] = *m;
+	mp_irqs[mp_irq_entries] = *m;
 	Dprintk("Int: type %d, pol %d, trig %d, bus %d,"
 		" IRQ %02x, APIC ID %x, APIC INT %02x\n",
-			m->mpc_irqtype, m->mpc_irqflag & 3,
-			(m->mpc_irqflag >> 2) & 3, m->mpc_srcbus,
-			m->mpc_srcbusirq, m->mpc_dstapic, m->mpc_dstirq);
+		m->mpc_irqtype, m->mpc_irqflag & 3,
+		(m->mpc_irqflag >> 2) & 3, m->mpc_srcbus,
+		m->mpc_srcbusirq, m->mpc_dstapic, m->mpc_dstirq);
 	if (++mp_irq_entries >= MAX_IRQ_SOURCES)
 		panic("Max # of irq sources exceeded!!\n");
 }
 
-static void __init MP_lintsrc_info (struct mpc_config_lintsrc *m)
+static void __init MP_lintsrc_info(struct mpc_config_lintsrc *m)
 {
 	Dprintk("Lint: type %d, pol %d, trig %d, bus %d,"
 		" IRQ %02x, APIC ID %x, APIC LINT %02x\n",
-			m->mpc_irqtype, m->mpc_irqflag & 3,
-			(m->mpc_irqflag >> 2) &3, m->mpc_srcbusid,
-			m->mpc_srcbusirq, m->mpc_destapic, m->mpc_destapiclint);
+		m->mpc_irqtype, m->mpc_irqflag & 3,
+		(m->mpc_irqflag >> 2) & 3, m->mpc_srcbusid,
+		m->mpc_srcbusirq, m->mpc_destapic, m->mpc_destapiclint);
 }
 
 /*
@@ -229,39 +226,38 @@ static void __init MP_lintsrc_info (struct mpc_config_lintsrc *m)
 static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 {
 	char str[16];
-	int count=sizeof(*mpc);
-	unsigned char *mpt=((unsigned char *)mpc)+count;
+	int count = sizeof(*mpc);
+	unsigned char *mpt = ((unsigned char *)mpc) + count;
 
-	if (memcmp(mpc->mpc_signature,MPC_SIGNATURE,4)) {
-		printk("MPTABLE: bad signature [%c%c%c%c]!\n",
-			mpc->mpc_signature[0],
-			mpc->mpc_signature[1],
-			mpc->mpc_signature[2],
-			mpc->mpc_signature[3]);
+	if (memcmp(mpc->mpc_signature, MPC_SIGNATURE, 4)) {
+		printk(KERN_ERR "MPTABLE: bad signature [%c%c%c%c]!\n",
+		       mpc->mpc_signature[0],
+		       mpc->mpc_signature[1],
+		       mpc->mpc_signature[2], mpc->mpc_signature[3]);
 		return 0;
 	}
-	if (mpf_checksum((unsigned char *)mpc,mpc->mpc_length)) {
-		printk("MPTABLE: checksum error!\n");
+	if (mpf_checksum((unsigned char *)mpc, mpc->mpc_length)) {
+		printk(KERN_ERR "MPTABLE: checksum error!\n");
 		return 0;
 	}
-	if (mpc->mpc_spec!=0x01 && mpc->mpc_spec!=0x04) {
+	if (mpc->mpc_spec != 0x01 && mpc->mpc_spec != 0x04) {
 		printk(KERN_ERR "MPTABLE: bad table version (%d)!!\n",
-			mpc->mpc_spec);
+		       mpc->mpc_spec);
 		return 0;
 	}
 	if (!mpc->mpc_lapic) {
 		printk(KERN_ERR "MPTABLE: null local APIC address!\n");
 		return 0;
 	}
-	memcpy(str,mpc->mpc_oem,8);
+	memcpy(str, mpc->mpc_oem, 8);
 	str[8] = 0;
-	printk(KERN_INFO "MPTABLE: OEM ID: %s ",str);
+	printk(KERN_INFO "MPTABLE: OEM ID: %s ", str);
 
-	memcpy(str,mpc->mpc_productid,12);
+	memcpy(str, mpc->mpc_productid, 12);
 	str[12] = 0;
-	printk("MPTABLE: Product ID: %s ",str);
+	printk(KERN_INFO "MPTABLE: Product ID: %s ", str);
 
-	printk("MPTABLE: APIC at: 0x%X\n",mpc->mpc_lapic);
+	printk(KERN_INFO "MPTABLE: APIC at: 0x%X\n", mpc->mpc_lapic);
 
 	/* save the local APIC address, it might be non-default */
 	if (!acpi_lapic)
@@ -271,52 +267,52 @@ static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 		return 1;
 
 	/*
-	 *	Now process the configuration blocks.
+	 *      Now process the configuration blocks.
 	 */
 	while (count < mpc->mpc_length) {
-		switch(*mpt) {
-			case MP_PROCESSOR:
+		switch (*mpt) {
+		case MP_PROCESSOR:
 			{
-				struct mpc_config_processor *m=
-					(struct mpc_config_processor *)mpt;
+				struct mpc_config_processor *m =
+				    (struct mpc_config_processor *)mpt;
 				if (!acpi_lapic)
 					MP_processor_info(m);
 				mpt += sizeof(*m);
 				count += sizeof(*m);
 				break;
 			}
-			case MP_BUS:
+		case MP_BUS:
 			{
-				struct mpc_config_bus *m=
-					(struct mpc_config_bus *)mpt;
+				struct mpc_config_bus *m =
+				    (struct mpc_config_bus *)mpt;
 				MP_bus_info(m);
 				mpt += sizeof(*m);
 				count += sizeof(*m);
 				break;
 			}
-			case MP_IOAPIC:
+		case MP_IOAPIC:
 			{
-				struct mpc_config_ioapic *m=
-					(struct mpc_config_ioapic *)mpt;
+				struct mpc_config_ioapic *m =
+				    (struct mpc_config_ioapic *)mpt;
 				MP_ioapic_info(m);
 				mpt += sizeof(*m);
 				count += sizeof(*m);
 				break;
 			}
-			case MP_INTSRC:
+		case MP_INTSRC:
 			{
-				struct mpc_config_intsrc *m=
-					(struct mpc_config_intsrc *)mpt;
+				struct mpc_config_intsrc *m =
+				    (struct mpc_config_intsrc *)mpt;
 
 				MP_intsrc_info(m);
 				mpt += sizeof(*m);
 				count += sizeof(*m);
 				break;
 			}
-			case MP_LINTSRC:
+		case MP_LINTSRC:
 			{
-				struct mpc_config_lintsrc *m=
-					(struct mpc_config_lintsrc *)mpt;
+				struct mpc_config_lintsrc *m =
+				    (struct mpc_config_lintsrc *)mpt;
 				MP_lintsrc_info(m);
 				mpt += sizeof(*m);
 				count += sizeof(*m);
@@ -345,7 +341,7 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 	int ELCR_fallback = 0;
 
 	intsrc.mpc_type = MP_INTSRC;
-	intsrc.mpc_irqflag = 0;			/* conforming */
+	intsrc.mpc_irqflag = 0;	/* conforming */
 	intsrc.mpc_srcbus = 0;
 	intsrc.mpc_dstapic = mp_ioapics[0].mpc_apicid;
 
@@ -360,12 +356,16 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 	 *  If it does, we assume it's valid.
 	 */
 	if (mpc_default_type == 5) {
-		printk(KERN_INFO "ISA/PCI bus type with no IRQ information... falling back to ELCR\n");
+		printk(KERN_INFO "ISA/PCI bus type with no IRQ information... "
+		       "falling back to ELCR\n");
 
-		if (ELCR_trigger(0) || ELCR_trigger(1) || ELCR_trigger(2) || ELCR_trigger(13))
-			printk(KERN_ERR "ELCR contains invalid data... not using ELCR\n");
+		if (ELCR_trigger(0) || ELCR_trigger(1) || ELCR_trigger(2) ||
+		    ELCR_trigger(13))
+			printk(KERN_ERR "ELCR contains invalid data... "
+			       "not using ELCR\n");
 		else {
-			printk(KERN_INFO "Using ELCR to identify PCI interrupts\n");
+			printk(KERN_INFO
+			       "Using ELCR to identify PCI interrupts\n");
 			ELCR_fallback = 1;
 		}
 	}
@@ -394,13 +394,13 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 		}
 
 		intsrc.mpc_srcbusirq = i;
-		intsrc.mpc_dstirq = i ? i : 2;		/* IRQ0 to INTIN2 */
+		intsrc.mpc_dstirq = i ? i : 2;	/* IRQ0 to INTIN2 */
 		MP_intsrc_info(&intsrc);
 	}
 
 	intsrc.mpc_irqtype = mp_ExtINT;
 	intsrc.mpc_srcbusirq = 0;
-	intsrc.mpc_dstirq = 0;				/* 8259A to INTIN0 */
+	intsrc.mpc_dstirq = 0;	/* 8259A to INTIN0 */
 	MP_intsrc_info(&intsrc);
 }
 
@@ -436,14 +436,14 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 	bus.mpc_type = MP_BUS;
 	bus.mpc_busid = 0;
 	switch (mpc_default_type) {
-		default:
-			printk(KERN_ERR "???\nUnknown standard configuration %d\n",
-				mpc_default_type);
-			/* fall through */
-		case 1:
-		case 5:
-			memcpy(bus.mpc_bustype, "ISA   ", 6);
-			break;
+	default:
+		printk(KERN_ERR "???\nUnknown standard configuration %d\n",
+		       mpc_default_type);
+		/* fall through */
+	case 1:
+	case 5:
+		memcpy(bus.mpc_bustype, "ISA   ", 6);
+		break;
 	}
 	MP_bus_info(&bus);
 	if (mpc_default_type > 4) {
@@ -465,7 +465,7 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 	construct_default_ioirq_mptable(mpc_default_type);
 
 	lintsrc.mpc_type = MP_LINTSRC;
-	lintsrc.mpc_irqflag = 0;		/* conforming */
+	lintsrc.mpc_irqflag = 0;	/* conforming */
 	lintsrc.mpc_srcbusid = 0;
 	lintsrc.mpc_srcbusirq = 0;
 	lintsrc.mpc_destapic = MP_APIC_ALL;
@@ -493,14 +493,14 @@ static void __init __get_smp_config(unsigned early)
 	 */
 	if (acpi_lapic && acpi_ioapic) {
 		printk(KERN_INFO "Using ACPI (MADT) for SMP configuration "
-			"information\n");
+		       "information\n");
 		return;
 	} else if (acpi_lapic)
 		printk(KERN_INFO "Using ACPI for processor (LAPIC) "
-			"configuration information\n");
+		       "configuration information\n");
 
 	printk(KERN_INFO "Intel MultiProcessor Specification v1.%d\n",
-		mpf->mpf_specification);
+	       mpf->mpf_specification);
 
 	/*
 	 * Now see if we need to read further.
@@ -514,7 +514,8 @@ static void __init __get_smp_config(unsigned early)
 			return;
 		}
 
-		printk(KERN_INFO "Default MP configuration #%d\n", mpf->mpf_feature1);
+		printk(KERN_INFO "Default MP configuration #%d\n",
+		       mpf->mpf_feature1);
 		construct_default_ISA_mptable(mpf->mpf_feature1);
 
 	} else if (mpf->mpf_physptr) {
@@ -525,8 +526,10 @@ static void __init __get_smp_config(unsigned early)
 		 */
 		if (!smp_read_mpc(phys_to_virt(mpf->mpf_physptr), early)) {
 			smp_found_config = 0;
-			printk(KERN_ERR "BIOS bug, MP table errors detected!...\n");
-			printk(KERN_ERR "... disabling SMP support. (tell your hw vendor)\n");
+			printk(KERN_ERR
+			       "BIOS bug, MP table errors detected!...\n");
+			printk(KERN_ERR "... disabling SMP support. "
+			       "(tell your hw vendor)\n");
 			return;
 		}
 
@@ -540,7 +543,9 @@ static void __init __get_smp_config(unsigned early)
 		if (!mp_irq_entries) {
 			struct mpc_config_bus bus;
 
-			printk(KERN_ERR "BIOS bug, no explicit IRQ entries, using default mptable. (tell your hw vendor)\n");
+			printk(KERN_ERR "BIOS bug, no explicit IRQ entries, "
+			       "using default mptable. "
+			       "(tell your hw vendor)\n");
 
 			bus.mpc_type = MP_BUS;
 			bus.mpc_busid = 0;
@@ -573,21 +578,21 @@ void __init get_smp_config(void)
 static int __init smp_scan_config(unsigned long base, unsigned long length,
 				  unsigned reserve)
 {
-	extern void __bad_mpf_size(void); 
+	extern void __bad_mpf_size(void);
 	unsigned int *bp = phys_to_virt(base);
 	struct intel_mp_floating *mpf;
 
-	Dprintk("Scan SMP from %p for %ld bytes.\n", bp,length);
+	Dprintk("Scan SMP from %p for %ld bytes.\n", bp, length);
 	if (sizeof(*mpf) != 16)
 		__bad_mpf_size();
 
 	while (length > 0) {
 		mpf = (struct intel_mp_floating *)bp;
 		if ((*bp == SMP_MAGIC_IDENT) &&
-			(mpf->mpf_length == 1) &&
-			!mpf_checksum((unsigned char *)bp, 16) &&
-			((mpf->mpf_specification == 1)
-				|| (mpf->mpf_specification == 4)) ) {
+		    (mpf->mpf_length == 1) &&
+		    !mpf_checksum((unsigned char *)bp, 16) &&
+		    ((mpf->mpf_specification == 1)
+		     || (mpf->mpf_specification == 4))) {
 
 			smp_found_config = 1;
 			mpf_found = mpf;
@@ -620,8 +625,8 @@ static void __init __find_smp_config(unsigned reserve)
 	 * 3) Scan the 64K of bios
 	 */
 	if (smp_scan_config(0x0, 0x400, reserve) ||
-		smp_scan_config(639*0x400, 0x400, reserve) ||
-			smp_scan_config(0xF0000, 0x10000, reserve))
+	    smp_scan_config(639 * 0x400, 0x400, reserve) ||
+	    smp_scan_config(0xF0000, 0x10000, reserve))
 		return;
 	/*
 	 * If it is an SMP machine we should know now.
@@ -642,7 +647,7 @@ static void __init __find_smp_config(unsigned reserve)
 		return;
 
 	/* If we have come this far, we did not find an MP table  */
-	 printk(KERN_INFO "No mptable found.\n");
+	printk(KERN_INFO "No mptable found.\n");
 }
 
 void __init early_find_smp_config(void)
@@ -663,17 +668,17 @@ void __init find_smp_config(void)
 
 void __init mp_register_lapic_address(u64 address)
 {
-	mp_lapic_addr = (unsigned long) address;
+	mp_lapic_addr = (unsigned long)address;
 	set_fixmap_nocache(FIX_APIC_BASE, mp_lapic_addr);
 	if (boot_cpu_physical_apicid == -1U)
 		boot_cpu_physical_apicid  = GET_APIC_ID(apic_read(APIC_ID));
 }
 
-void __cpuinit mp_register_lapic (u8 id, u8 enabled)
+void __cpuinit mp_register_lapic(u8 id, u8 enabled)
 {
 	struct mpc_config_processor processor;
-	int			boot_cpu = 0;
-	
+	int boot_cpu = 0;
+
 	if (id == boot_cpu_physical_apicid)
 		boot_cpu = 1;
 
@@ -694,10 +699,10 @@ void __cpuinit mp_register_lapic (u8 id, u8 enabled)
 #define MP_MAX_IOAPIC_PIN	127
 
 static struct mp_ioapic_routing {
-	int			apic_id;
-	int			gsi_start;
-	int			gsi_end;
-	u32			pin_programmed[4];
+	int apic_id;
+	int gsi_start;
+	int gsi_end;
+	u32 pin_programmed[4];
 } mp_ioapic_routing[MAX_IO_APICS];
 
 static int mp_find_ioapic(int gsi)
@@ -707,7 +712,7 @@ static int mp_find_ioapic(int gsi)
 	/* Find the IOAPIC that manages this GSI. */
 	for (i = 0; i < nr_ioapics; i++) {
 		if ((gsi >= mp_ioapic_routing[i].gsi_start)
-			&& (gsi <= mp_ioapic_routing[i].gsi_end))
+		    && (gsi <= mp_ioapic_routing[i].gsi_end))
 			return i;
 	}
 
@@ -745,31 +750,30 @@ void __init mp_register_ioapic(u8 id, u32 address, u32 gsi_base)
 	set_fixmap_nocache(FIX_IO_APIC_BASE_0 + idx, address);
 	mp_ioapics[idx].mpc_apicid = uniq_ioapic_id(id);
 	mp_ioapics[idx].mpc_apicver = 0;
-	
+
 	/* 
 	 * Build basic IRQ lookup table to facilitate gsi->io_apic lookups
 	 * and to prevent reprogramming of IOAPIC pins (PCI IRQs).
 	 */
 	mp_ioapic_routing[idx].apic_id = mp_ioapics[idx].mpc_apicid;
 	mp_ioapic_routing[idx].gsi_start = gsi_base;
-	mp_ioapic_routing[idx].gsi_end = gsi_base + 
-		io_apic_get_redir_entries(idx);
+	mp_ioapic_routing[idx].gsi_end = gsi_base +
+	    io_apic_get_redir_entries(idx);
 
 	printk(KERN_INFO "IOAPIC[%d]: apic_id %d, address 0x%x, "
-		"GSI %d-%d\n", idx, mp_ioapics[idx].mpc_apicid, 
-		mp_ioapics[idx].mpc_apicaddr,
-		mp_ioapic_routing[idx].gsi_start,
-		mp_ioapic_routing[idx].gsi_end);
+	       "GSI %d-%d\n", idx, mp_ioapics[idx].mpc_apicid,
+	       mp_ioapics[idx].mpc_apicaddr,
+	       mp_ioapic_routing[idx].gsi_start,
+	       mp_ioapic_routing[idx].gsi_end);
 
 	nr_ioapics++;
 }
 
-void __init
-mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32	gsi)
+void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 {
 	struct mpc_config_intsrc intsrc;
-	int			ioapic = -1;
-	int			pin = -1;
+	int ioapic = -1;
+	int pin = -1;
 
 	/* 
 	 * Convert 'gsi' to 'ioapic.pin'.
@@ -791,13 +795,13 @@ mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32	gsi)
 	intsrc.mpc_irqtype = mp_INT;
 	intsrc.mpc_irqflag = (trigger << 2) | polarity;
 	intsrc.mpc_srcbus = MP_ISA_BUS;
-	intsrc.mpc_srcbusirq = bus_irq;				       /* IRQ */
-	intsrc.mpc_dstapic = mp_ioapics[ioapic].mpc_apicid;	   /* APIC ID */
-	intsrc.mpc_dstirq = pin;				    /* INTIN# */
+	intsrc.mpc_srcbusirq = bus_irq;	/* IRQ */
+	intsrc.mpc_dstapic = mp_ioapics[ioapic].mpc_apicid;	/* APIC ID */
+	intsrc.mpc_dstirq = pin;	/* INTIN# */
 
-	Dprintk("Int: type %d, pol %d, trig %d, bus %d, irq %d, %d-%d\n", 
-		intsrc.mpc_irqtype, intsrc.mpc_irqflag & 3, 
-		(intsrc.mpc_irqflag >> 2) & 3, intsrc.mpc_srcbus, 
+	Dprintk("Int: type %d, pol %d, trig %d, bus %d, irq %d, %d-%d\n",
+		intsrc.mpc_irqtype, intsrc.mpc_irqflag & 3,
+		(intsrc.mpc_irqflag >> 2) & 3, intsrc.mpc_srcbus,
 		intsrc.mpc_srcbusirq, intsrc.mpc_dstapic, intsrc.mpc_dstirq);
 
 	mp_irqs[mp_irq_entries] = intsrc;
@@ -824,7 +828,7 @@ void __init mp_config_acpi_legacy_irqs(void)
 		return;
 
 	intsrc.mpc_type = MP_INTSRC;
-	intsrc.mpc_irqflag = 0;					/* Conforming */
+	intsrc.mpc_irqflag = 0;	/* Conforming */
 	intsrc.mpc_srcbus = MP_ISA_BUS;
 	intsrc.mpc_dstapic = mp_ioapics[ioapic].mpc_apicid;
 
@@ -839,28 +843,29 @@ void __init mp_config_acpi_legacy_irqs(void)
 			struct mpc_config_intsrc *irq = mp_irqs + idx;
 
 			/* Do we already have a mapping for this ISA IRQ? */
-			if (irq->mpc_srcbus == MP_ISA_BUS && irq->mpc_srcbusirq == i)
+			if (irq->mpc_srcbus == MP_ISA_BUS
+			    && irq->mpc_srcbusirq == i)
 				break;
 
 			/* Do we already have a mapping for this IOAPIC pin */
 			if ((irq->mpc_dstapic == intsrc.mpc_dstapic) &&
-				(irq->mpc_dstirq == i))
+			    (irq->mpc_dstirq == i))
 				break;
 		}
 
 		if (idx != mp_irq_entries) {
 			printk(KERN_DEBUG "ACPI: IRQ%d used by override.\n", i);
-			continue;			/* IRQ already used */
+			continue;	/* IRQ already used */
 		}
 
 		intsrc.mpc_irqtype = mp_INT;
-		intsrc.mpc_srcbusirq = i;		   /* Identity mapped */
+		intsrc.mpc_srcbusirq = i;	/* Identity mapped */
 		intsrc.mpc_dstirq = i;
 
 		Dprintk("Int: type %d, pol %d, trig %d, bus %d, irq %d, "
-			"%d-%d\n", intsrc.mpc_irqtype, intsrc.mpc_irqflag & 3, 
-			(intsrc.mpc_irqflag >> 2) & 3, intsrc.mpc_srcbus, 
-			intsrc.mpc_srcbusirq, intsrc.mpc_dstapic, 
+			"%d-%d\n", intsrc.mpc_irqtype, intsrc.mpc_irqflag & 3,
+			(intsrc.mpc_irqflag >> 2) & 3, intsrc.mpc_srcbus,
+			intsrc.mpc_srcbusirq, intsrc.mpc_dstapic,
 			intsrc.mpc_dstirq);
 
 		mp_irqs[mp_irq_entries] = intsrc;
@@ -899,21 +904,21 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 	idx = (ioapic_pin < 32) ? 0 : (ioapic_pin / 32);
 	if (idx > 3) {
 		printk(KERN_ERR "Invalid reference to IOAPIC pin "
-			"%d-%d\n", mp_ioapic_routing[ioapic].apic_id, 
-			ioapic_pin);
+		       "%d-%d\n", mp_ioapic_routing[ioapic].apic_id,
+		       ioapic_pin);
 		return gsi;
 	}
-	if ((1<<bit) & mp_ioapic_routing[ioapic].pin_programmed[idx]) {
+	if ((1 << bit) & mp_ioapic_routing[ioapic].pin_programmed[idx]) {
 		Dprintk(KERN_DEBUG "Pin %d-%d already programmed\n",
 			mp_ioapic_routing[ioapic].apic_id, ioapic_pin);
 		return gsi;
 	}
 
-	mp_ioapic_routing[ioapic].pin_programmed[idx] |= (1<<bit);
+	mp_ioapic_routing[ioapic].pin_programmed[idx] |= (1 << bit);
 
 	io_apic_set_pci_routing(ioapic, ioapic_pin, gsi,
-		triggering == ACPI_EDGE_SENSITIVE ? 0 : 1,
-		polarity == ACPI_ACTIVE_HIGH ? 0 : 1);
+				triggering == ACPI_EDGE_SENSITIVE ? 0 : 1,
+				polarity == ACPI_ACTIVE_HIGH ? 0 : 1);
 	return gsi;
 }
-#endif /*CONFIG_ACPI*/
+#endif /* CONFIG_ACPI */
