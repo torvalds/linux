@@ -323,8 +323,6 @@ struct lbs_private {
 	u8 *prdeeprom;
 	struct lbs_offset_value offsetvalue;
 
-	struct cmd_ds_802_11_get_log logmsg;
-
 	u32 monitormode;
 	u8 fw_ready;
 };

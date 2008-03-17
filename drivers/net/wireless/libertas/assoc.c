@@ -624,10 +624,6 @@ void lbs_association_worker(struct work_struct *work)
 			lbs_prepare_and_send_command(priv,
 				CMD_802_11_RSSI,
 				0, CMD_OPTION_WAITFORRSP, 0, NULL);
-
-			lbs_prepare_and_send_command(priv,
-				CMD_802_11_GET_LOG,
-				0, CMD_OPTION_WAITFORRSP, 0, NULL);
 		} else {
 			ret = -1;
 		}

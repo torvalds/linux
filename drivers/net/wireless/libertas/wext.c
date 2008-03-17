@@ -820,6 +820,7 @@ static struct iw_statistics *lbs_get_wireless_stats(struct net_device *dev)
 	int stats_valid = 0;
 	u8 rssi;
 	u32 tx_retries;
+	struct cmd_ds_802_11_get_log log;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -863,7 +864,11 @@ static struct iw_statistics *lbs_get_wireless_stats(struct net_device *dev)
 	/* Quality by TX errors */
 	priv->wstats.discard.retries = priv->stats.tx_errors;
 
-	tx_retries = le32_to_cpu(priv->logmsg.retry);
+	memset(&log, 0, sizeof(log));
+	log.hdr.size = cpu_to_le16(sizeof(log));
+	lbs_cmd_with_response(priv, CMD_802_11_GET_LOG, &log);
+
+	tx_retries = le32_to_cpu(log.retry);
 
 	if (tx_retries > 75)
 		tx_qual = (90 - tx_retries) * POOR / 15;
@@ -879,10 +884,9 @@ static struct iw_statistics *lbs_get_wireless_stats(struct net_device *dev)
 		    (PERFECT - VERY_GOOD) / 50 + VERY_GOOD;
 	quality = min(quality, tx_qual);
 
-	priv->wstats.discard.code = le32_to_cpu(priv->logmsg.wepundecryptable);
-	priv->wstats.discard.fragment = le32_to_cpu(priv->logmsg.rxfrag);
+	priv->wstats.discard.code = le32_to_cpu(log.wepundecryptable);
 	priv->wstats.discard.retries = tx_retries;
-	priv->wstats.discard.misc = le32_to_cpu(priv->logmsg.ackfailure);
+	priv->wstats.discard.misc = le32_to_cpu(log.ackfailure);
 
 	/* Calculate quality */
 	priv->wstats.qual.qual = min_t(u8, quality, 100);
@@ -891,8 +895,6 @@ static struct iw_statistics *lbs_get_wireless_stats(struct net_device *dev)
 
 	/* update stats asynchronously for future calls */
 	lbs_prepare_and_send_command(priv, CMD_802_11_RSSI, 0,
-					0, 0, NULL);
-	lbs_prepare_and_send_command(priv, CMD_802_11_GET_LOG, 0,
 					0, 0, NULL);
 out:
 	if (!stats_valid) {

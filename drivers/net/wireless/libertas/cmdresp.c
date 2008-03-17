@@ -303,20 +303,6 @@ static int lbs_ret_802_11_eeprom_access(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_ret_get_log(struct lbs_private *priv,
-			    struct cmd_ds_command *resp)
-{
-	struct cmd_ds_802_11_get_log *logmessage = &resp->params.glog;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	/* Stored little-endian */
-	memcpy(&priv->logmsg, logmessage, sizeof(struct cmd_ds_802_11_get_log));
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
 static int lbs_ret_802_11_bcn_ctrl(struct lbs_private * priv,
 					struct cmd_ds_command *resp)
 {
@@ -350,10 +336,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 	case CMD_RET(CMD_BBP_REG_ACCESS):
 	case CMD_RET(CMD_RF_REG_ACCESS):
 		ret = lbs_ret_reg_access(priv, respcmd, resp);
-		break;
-
-	case CMD_RET(CMD_802_11_GET_LOG):
-		ret = lbs_ret_get_log(priv, resp);
 		break;
 
 	case CMD_RET_802_11_ASSOCIATE:
