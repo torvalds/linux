@@ -601,10 +601,16 @@ static void ack_dynirq(unsigned int irq)
 static int retrigger_dynirq(unsigned int irq)
 {
 	int evtchn = evtchn_from_irq(irq);
+	struct shared_info *sh = HYPERVISOR_shared_info;
 	int ret = 0;
 
 	if (VALID_EVTCHN(evtchn)) {
-		set_evtchn(evtchn);
+		int masked;
+
+		masked = sync_test_and_set_bit(evtchn, sh->evtchn_mask);
+		sync_set_bit(evtchn, sh->evtchn_pending);
+		if (!masked)
+			unmask_evtchn(evtchn);
 		ret = 1;
 	}
 
