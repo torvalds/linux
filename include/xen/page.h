@@ -8,27 +8,15 @@
 
 #include <xen/features.h>
 
-#ifdef CONFIG_X86_PAE
 /* Xen machine address */
 typedef struct xmaddr {
-	unsigned long long maddr;
+	phys_addr_t maddr;
 } xmaddr_t;
 
 /* Xen pseudo-physical address */
 typedef struct xpaddr {
-	unsigned long long paddr;
+	phys_addr_t paddr;
 } xpaddr_t;
-#else
-/* Xen machine address */
-typedef struct xmaddr {
-	unsigned long maddr;
-} xmaddr_t;
-
-/* Xen pseudo-physical address */
-typedef struct xpaddr {
-	unsigned long paddr;
-} xpaddr_t;
-#endif
 
 #define XMADDR(x)	((xmaddr_t) { .maddr = (x) })
 #define XPADDR(x)	((xpaddr_t) { .paddr = (x) })
