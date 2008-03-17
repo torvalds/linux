@@ -1,20 +1,8 @@
 #ifndef __ASM_MACH_MPPARSE_H
 #define __ASM_MACH_MPPARSE_H
 
-extern int mp_bus_id_to_local[MAX_MP_BUSSES];
-extern int mp_bus_id_to_node[MAX_MP_BUSSES];
-
-static inline void mpc_oem_bus_info(struct mpc_config_bus *m, char *name, 
-				struct mpc_config_translation *translation)
-{
-	int quad = translation->trans_quad;
-	int local = translation->trans_local;
-
-	mp_bus_id_to_node[m->mpc_busid] = quad;
-	mp_bus_id_to_local[m->mpc_busid] = local;
-	printk("Bus #%d is %s (node %d)\n", m->mpc_busid, name, quad);
-}
-
+extern void mpc_oem_bus_info(struct mpc_config_bus *m, char *name,
+			     struct mpc_config_translation *translation);
 extern void mpc_oem_pci_bus(struct mpc_config_bus *m,
 	struct mpc_config_translation *translation);
 

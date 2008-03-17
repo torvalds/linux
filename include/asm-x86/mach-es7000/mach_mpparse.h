@@ -3,12 +3,6 @@
 
 #include <linux/acpi.h>
 
-static inline void mpc_oem_bus_info(struct mpc_config_bus *m, char *name,
-				struct mpc_config_translation *translation)
-{
-	Dprintk("Bus #%d is %s\n", m->mpc_busid, name);
-}
-
 extern int parse_unisys_oem (char *oemptr);
 extern int find_unisys_acpi_oem_table(unsigned long *oem_addr);
 extern void setup_unisys(void);

@@ -48,9 +48,6 @@ struct genapic {
 	u32 (*phys_pkg_id)(u32 cpuid_apic, int index_msb);
 
 	/* mpparse */
-	void (*mpc_oem_bus_info)(struct mpc_config_bus *, char *, 
-				 struct mpc_config_translation *);
-
 	/* When one of the next two hooks returns 1 the genapic
 	   is switched to this. Essentially they are additional probe 
 	   functions. */
@@ -103,7 +100,6 @@ struct genapic {
 	APICFUNC(apicid_to_cpu_present) \
 	APICFUNC(setup_portio_remap) \
 	APICFUNC(check_phys_apicid_present) \
-	APICFUNC(mpc_oem_bus_info) \
 	APICFUNC(mps_oem_check) \
 	APICFUNC(get_apic_id) \
 	.apic_id_mask = APIC_ID_MASK, \

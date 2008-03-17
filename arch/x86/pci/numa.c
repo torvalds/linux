@@ -17,6 +17,18 @@ int mp_bus_id_to_node[MAX_MP_BUSSES];
 int mp_bus_id_to_local[MAX_MP_BUSSES];
 #define BUS2LOCAL(global) (mp_bus_id_to_local[global])
 
+void mpc_oem_bus_info(struct mpc_config_bus *m, char *name,
+	struct mpc_config_translation *translation)
+{
+	int quad = translation->trans_quad;
+	int local = translation->trans_local;
+
+	mp_bus_id_to_node[m->mpc_busid] = quad;
+	mp_bus_id_to_local[m->mpc_busid] = local;
+	printk(KERN_INFO "Bus #%d is %s (node %d)\n",
+	       m->mpc_busid, name, quad);
+}
+
 int quad_local_to_mp_bus_id [NR_CPUS/4][4];
 #define QUADLOCAL2BUS(quad,local) (quad_local_to_mp_bus_id[quad][local])
 void mpc_oem_pci_bus(struct mpc_config_bus *m,

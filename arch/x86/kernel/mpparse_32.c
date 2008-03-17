@@ -265,7 +265,11 @@ static void __init MP_bus_info (struct mpc_config_bus *m)
 	memcpy(str, m->mpc_bustype, 6);
 	str[6] = 0;
 
+#ifdef CONFIG_X86_NUMAQ
 	mpc_oem_bus_info(m, str, translation_table[mpc_record]);
+#else
+	Dprintk("Bus #%d is %s\n", m->mpc_busid, str);
+#endif
 
 #if MAX_MP_BUSSES < 256
 	if (m->mpc_busid >= MAX_MP_BUSSES) {
