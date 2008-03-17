@@ -862,11 +862,6 @@ int sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
 	flush_spe_to_thread(current);
 	error = do_execve(filename, (char __user * __user *) a1,
 			  (char __user * __user *) a2, regs);
-	if (error == 0) {
-		task_lock(current);
-		current->ptrace &= ~PT_DTRACE;
-		task_unlock(current);
-	}
 	putname(filename);
 out:
 	return error;
