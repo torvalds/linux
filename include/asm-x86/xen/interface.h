@@ -171,6 +171,10 @@ struct arch_vcpu_info {
     unsigned long pad[5]; /* sizeof(struct vcpu_info) == 64 */
 };
 
+struct xen_callback {
+	unsigned long cs;
+	unsigned long eip;
+};
 #endif /* !__ASSEMBLY__ */
 
 /*
