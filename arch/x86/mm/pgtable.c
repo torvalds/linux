@@ -43,34 +43,31 @@ void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
 #endif	/* PAGETABLE_LEVELS > 3 */
 #endif	/* PAGETABLE_LEVELS > 2 */
 
-#ifdef CONFIG_X86_64
 static inline void pgd_list_add(pgd_t *pgd)
 {
 	struct page *page = virt_to_page(pgd);
-	unsigned long flags;
 
-	spin_lock_irqsave(&pgd_lock, flags);
 	list_add(&page->lru, &pgd_list);
-	spin_unlock_irqrestore(&pgd_lock, flags);
 }
 
 static inline void pgd_list_del(pgd_t *pgd)
 {
 	struct page *page = virt_to_page(pgd);
-	unsigned long flags;
 
-	spin_lock_irqsave(&pgd_lock, flags);
 	list_del(&page->lru);
-	spin_unlock_irqrestore(&pgd_lock, flags);
 }
 
+#ifdef CONFIG_X86_64
 pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	unsigned boundary;
 	pgd_t *pgd = (pgd_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
+	unsigned long flags;
 	if (!pgd)
 		return NULL;
+	spin_lock_irqsave(&pgd_lock, flags);
 	pgd_list_add(pgd);
+	spin_unlock_irqrestore(&pgd_lock, flags);
 	/*
 	 * Copy kernel pointers in from init.
 	 * Could keep a freelist or slab cache of those because the kernel
@@ -86,8 +83,11 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 
 void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
+	unsigned long flags;
 	BUG_ON((unsigned long)pgd & (PAGE_SIZE-1));
+	spin_lock_irqsave(&pgd_lock, flags);
 	pgd_list_del(pgd);
+	spin_unlock_irqrestore(&pgd_lock, flags);
 	free_page((unsigned long)pgd);
 }
 #else
@@ -101,20 +101,6 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
  * vmalloc faults work because attached pagetables are never freed.
  * -- wli
  */
-static inline void pgd_list_add(pgd_t *pgd)
-{
-	struct page *page = virt_to_page(pgd);
-
-	list_add(&page->lru, &pgd_list);
-}
-
-static inline void pgd_list_del(pgd_t *pgd)
-{
-	struct page *page = virt_to_page(pgd);
-
-	list_del(&page->lru);
-}
-
 #define UNSHARED_PTRS_PER_PGD				\
 	(SHARED_KERNEL_PMD ? USER_PTRS_PER_PGD : PTRS_PER_PGD)
 
