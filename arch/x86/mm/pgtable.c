@@ -24,14 +24,14 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
 {
 	pgtable_page_dtor(pte);
-	paravirt_release_pt(page_to_pfn(pte));
+	paravirt_release_pte(page_to_pfn(pte));
 	tlb_remove_page(tlb, pte);
 }
 
 #if PAGETABLE_LEVELS > 2
 void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 {
-	paravirt_release_pd(__pa(pmd) >> PAGE_SHIFT);
+	paravirt_release_pmd(__pa(pmd) >> PAGE_SHIFT);
 	tlb_remove_page(tlb, virt_to_page(pmd));
 }
 
@@ -122,10 +122,10 @@ static void pgd_ctor(void *p)
 		clone_pgd_range(pgd + USER_PTRS_PER_PGD,
 				swapper_pg_dir + USER_PTRS_PER_PGD,
 				KERNEL_PGD_PTRS);
-		paravirt_alloc_pd_clone(__pa(pgd) >> PAGE_SHIFT,
-					__pa(swapper_pg_dir) >> PAGE_SHIFT,
-					USER_PTRS_PER_PGD,
-					KERNEL_PGD_PTRS);
+		paravirt_alloc_pmd_clone(__pa(pgd) >> PAGE_SHIFT,
+					 __pa(swapper_pg_dir) >> PAGE_SHIFT,
+					 USER_PTRS_PER_PGD,
+					 KERNEL_PGD_PTRS);
 	}
 
 	/* list required to sync kernel mapping updates */
@@ -166,7 +166,7 @@ static void pgd_mop_up_pmds(struct mm_struct *mm, pgd_t *pgdp)
 
 			pgdp[i] = native_make_pgd(0);
 
-			paravirt_release_pd(pgd_val(pgd) >> PAGE_SHIFT);
+			paravirt_release_pmd(pgd_val(pgd) >> PAGE_SHIFT);
 			pmd_free(mm, pmd);
 		}
 	}
@@ -211,7 +211,7 @@ static int pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd)
 
 void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd)
 {
-	paravirt_alloc_pd(mm, __pa(pmd) >> PAGE_SHIFT);
+	paravirt_alloc_pmd(mm, __pa(pmd) >> PAGE_SHIFT);
 
 	/* Note: almost everything apart from _PAGE_PRESENT is
 	   reserved at the pmd (PDPT) level. */
@@ -242,7 +242,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	pgd_t *pgd = (pgd_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 
-	/* so that alloc_pd can use it */
+	/* so that alloc_pmd can use it */
 	mm->pgd = pgd;
 	if (pgd)
 		pgd_ctor(pgd);

@@ -483,7 +483,7 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 		goto out_unlock;
 
 	pbase = (pte_t *)page_address(base);
-	paravirt_alloc_pt(&init_mm, page_to_pfn(base));
+	paravirt_alloc_pte(&init_mm, page_to_pfn(base));
 	ref_prot = pte_pgprot(pte_clrhuge(*kpte));
 
 #ifdef CONFIG_X86_64

@@ -8,11 +8,11 @@
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
-#define paravirt_alloc_pt(mm, pfn) do { } while (0)
-#define paravirt_alloc_pd(mm, pfn) do { } while (0)
-#define paravirt_alloc_pd_clone(pfn, clonepfn, start, count) do { } while (0)
-#define paravirt_release_pt(pfn) do { } while (0)
-#define paravirt_release_pd(pfn) do { } while (0)
+#define paravirt_alloc_pte(mm, pfn) do { } while (0)
+#define paravirt_alloc_pmd(mm, pfn) do { } while (0)
+#define paravirt_alloc_pmd_clone(pfn, clonepfn, start, count) do { } while (0)
+#define paravirt_release_pte(pfn) do { } while (0)
+#define paravirt_release_pmd(pfn) do { } while (0)
 #endif
 
 /*
@@ -43,7 +43,7 @@ extern void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte);
 static inline void pmd_populate_kernel(struct mm_struct *mm,
 				       pmd_t *pmd, pte_t *pte)
 {
-	paravirt_alloc_pt(mm, __pa(pte) >> PAGE_SHIFT);
+	paravirt_alloc_pte(mm, __pa(pte) >> PAGE_SHIFT);
 	set_pmd(pmd, __pmd(__pa(pte) | _PAGE_TABLE));
 }
 
@@ -52,7 +52,7 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
 {
 	unsigned long pfn = page_to_pfn(pte);
 
-	paravirt_alloc_pt(mm, pfn);
+	paravirt_alloc_pte(mm, pfn);
 	set_pmd(pmd, __pmd(((pteval_t)pfn << PAGE_SHIFT) | _PAGE_TABLE));
 }
 
@@ -77,7 +77,7 @@ extern void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd);
 #else	/* !CONFIG_X86_PAE */
 static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 {
-	paravirt_alloc_pd(mm, __pa(pmd) >> PAGE_SHIFT);
+	paravirt_alloc_pmd(mm, __pa(pmd) >> PAGE_SHIFT);
 	set_pud(pud, __pud(_PAGE_TABLE | __pa(pmd)));
 }
 #endif	/* CONFIG_X86_PAE */
