@@ -59,50 +59,6 @@ static inline void pgd_list_del(pgd_t *pgd)
 	list_del(&page->lru);
 }
 
-#ifdef CONFIG_X86_64
-pgd_t *pgd_alloc(struct mm_struct *mm)
-{
-	unsigned boundary;
-	pgd_t *pgd = (pgd_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
-	unsigned long flags;
-	if (!pgd)
-		return NULL;
-	spin_lock_irqsave(&pgd_lock, flags);
-	pgd_list_add(pgd);
-	spin_unlock_irqrestore(&pgd_lock, flags);
-	/*
-	 * Copy kernel pointers in from init.
-	 * Could keep a freelist or slab cache of those because the kernel
-	 * part never changes.
-	 */
-	boundary = pgd_index(__PAGE_OFFSET);
-	memset(pgd, 0, boundary * sizeof(pgd_t));
-	memcpy(pgd + boundary,
-	       init_level4_pgt + boundary,
-	       (PTRS_PER_PGD - boundary) * sizeof(pgd_t));
-	return pgd;
-}
-
-void pgd_free(struct mm_struct *mm, pgd_t *pgd)
-{
-	unsigned long flags;
-	BUG_ON((unsigned long)pgd & (PAGE_SIZE-1));
-	spin_lock_irqsave(&pgd_lock, flags);
-	pgd_list_del(pgd);
-	spin_unlock_irqrestore(&pgd_lock, flags);
-	free_page((unsigned long)pgd);
-}
-#else
-/*
- * List of all pgd's needed for non-PAE so it can invalidate entries
- * in both cached and uncached pgd's; not needed for PAE since the
- * kernel pmd is shared. If PAE were not to share the pmd a similar
- * tactic would be needed. This is essentially codepath-based locking
- * against pageattr.c; it is the unique case in which a valid change
- * of kernel pagetables can't be lazily synchronized by vmalloc faults.
- * vmalloc faults work because attached pagetables are never freed.
- * -- wli
- */
 #define UNSHARED_PTRS_PER_PGD				\
 	(SHARED_KERNEL_PMD ? KERNEL_PGD_BOUNDARY : PTRS_PER_PGD)
 
@@ -120,7 +76,8 @@ static void pgd_ctor(void *p)
 	   ptes in non-PAE, or shared PMD in PAE), then just copy the
 	   references from swapper_pg_dir. */
 	if (PAGETABLE_LEVELS == 2 ||
-	    (PAGETABLE_LEVELS == 3 && SHARED_KERNEL_PMD)) {
+	    (PAGETABLE_LEVELS == 3 && SHARED_KERNEL_PMD) ||
+	    PAGETABLE_LEVELS == 4) {
 		clone_pgd_range(pgd + KERNEL_PGD_BOUNDARY,
 				swapper_pg_dir + KERNEL_PGD_BOUNDARY,
 				KERNEL_PGD_PTRS);
@@ -148,6 +105,17 @@ static void pgd_dtor(void *pgd)
 	pgd_list_del(pgd);
 	spin_unlock_irqrestore(&pgd_lock, flags);
 }
+
+/*
+ * List of all pgd's needed for non-PAE so it can invalidate entries
+ * in both cached and uncached pgd's; not needed for PAE since the
+ * kernel pmd is shared. If PAE were not to share the pmd a similar
+ * tactic would be needed. This is essentially codepath-based locking
+ * against pageattr.c; it is the unique case in which a valid change
+ * of kernel pagetables can't be lazily synchronized by vmalloc faults.
+ * vmalloc faults work because attached pagetables are never freed.
+ * -- wli
+ */
 
 #ifdef CONFIG_X86_PAE
 /*
@@ -264,7 +232,6 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 	pgd_dtor(pgd);
 	free_page((unsigned long)pgd);
 }
-#endif
 
 int ptep_set_access_flags(struct vm_area_struct *vma,
 			  unsigned long address, pte_t *ptep,
