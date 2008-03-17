@@ -1,5 +1,6 @@
 #include <linux/mm.h>
 #include <asm/pgalloc.h>
+#include <asm/pgtable.h>
 #include <asm/tlb.h>
 
 pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
@@ -264,3 +265,18 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 	free_page((unsigned long)pgd);
 }
 #endif
+
+int ptep_set_access_flags(struct vm_area_struct *vma,
+			  unsigned long address, pte_t *ptep,
+			  pte_t entry, int dirty)
+{
+	int changed = !pte_same(*ptep, entry);
+
+	if (changed && dirty) {
+		*ptep = entry;
+		pte_update_defer(vma->vm_mm, address, ptep);
+		flush_tlb_page(vma, address);
+	}
+
+	return changed;
+}
