@@ -846,7 +846,6 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 	struct pcxhr_mgr       *mgr = chip->mgr;
 	struct snd_pcm_runtime *runtime = subs->runtime;
 	struct pcxhr_stream    *stream;
-	int                 is_capture;
 
 	mutex_lock(&mgr->setup_mutex);
 
@@ -856,12 +855,10 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 	if( subs->stream == SNDRV_PCM_STREAM_PLAYBACK ) {
 		snd_printdd("pcxhr_open playback chip%d subs%d\n",
 			    chip->chip_idx, subs->number);
-		is_capture = 0;
 		stream = &chip->playback_stream[subs->number];
 	} else {
 		snd_printdd("pcxhr_open capture chip%d subs%d\n",
 			    chip->chip_idx, subs->number);
-		is_capture = 1;
 		if (mgr->mono_capture)
 			runtime->hw.channels_max = 1;
 		else
