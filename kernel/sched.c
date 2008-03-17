@@ -625,20 +625,22 @@ enum {
 	SCHED_FEAT_NEW_FAIR_SLEEPERS	= 1,
 	SCHED_FEAT_WAKEUP_PREEMPT	= 2,
 	SCHED_FEAT_START_DEBIT		= 4,
-	SCHED_FEAT_HRTICK		= 8,
-	SCHED_FEAT_DOUBLE_TICK		= 16,
-	SCHED_FEAT_SYNC_WAKEUPS		= 32,
-	SCHED_FEAT_AFFINE_WAKEUPS	= 64,
+	SCHED_FEAT_AFFINE_WAKEUPS	= 8,
+	SCHED_FEAT_CACHE_HOT_BUDDY	= 16,
+	SCHED_FEAT_HRTICK		= 32,
+	SCHED_FEAT_DOUBLE_TICK		= 64,
+	SCHED_FEAT_SYNC_WAKEUPS		= 128,
 };
 
 const_debug unsigned int sysctl_sched_features =
 		SCHED_FEAT_NEW_FAIR_SLEEPERS	* 1 |
 		SCHED_FEAT_WAKEUP_PREEMPT	* 1 |
 		SCHED_FEAT_START_DEBIT		* 1 |
+		SCHED_FEAT_AFFINE_WAKEUPS	* 1 |
+		SCHED_FEAT_CACHE_HOT_BUDDY	* 1 |
 		SCHED_FEAT_HRTICK		* 1 |
 		SCHED_FEAT_DOUBLE_TICK		* 0 |
-		SCHED_FEAT_SYNC_WAKEUPS		* 0 |
-		SCHED_FEAT_AFFINE_WAKEUPS	* 1;
+		SCHED_FEAT_SYNC_WAKEUPS		* 0;
 
 #define sched_feat(x) (sysctl_sched_features & SCHED_FEAT_##x)
 
@@ -1519,7 +1521,7 @@ task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
 	/*
 	 * Buddy candidates are cache hot:
 	 */
-	if (&p->se == cfs_rq_of(&p->se)->next)
+	if (sched_feat(CACHE_HOT_BUDDY) && (&p->se == cfs_rq_of(&p->se)->next))
 		return 1;
 
 	if (p->sched_class != &fair_sched_class)
