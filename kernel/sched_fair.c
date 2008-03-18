@@ -175,8 +175,15 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	 * Maintain a cache of leftmost tree entries (it is frequently
 	 * used):
 	 */
-	if (leftmost)
+	if (leftmost) {
 		cfs_rq->rb_leftmost = &se->run_node;
+		/*
+		 * maintain cfs_rq->min_vruntime to be a monotonic increasing
+		 * value tracking the leftmost vruntime in the tree.
+		 */
+		cfs_rq->min_vruntime =
+			max_vruntime(cfs_rq->min_vruntime, se->vruntime);
+	}
 
 	rb_link_node(&se->run_node, parent, link);
 	rb_insert_color(&se->run_node, &cfs_rq->tasks_timeline);
@@ -184,8 +191,24 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 static void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	if (cfs_rq->rb_leftmost == &se->run_node)
-		cfs_rq->rb_leftmost = rb_next(&se->run_node);
+	if (cfs_rq->rb_leftmost == &se->run_node) {
+		struct rb_node *next_node;
+		struct sched_entity *next;
+
+		next_node = rb_next(&se->run_node);
+		cfs_rq->rb_leftmost = next_node;
+
+		if (next_node) {
+			next = rb_entry(next_node,
+					struct sched_entity, run_node);
+			cfs_rq->min_vruntime =
+				max_vruntime(cfs_rq->min_vruntime,
+					     next->vruntime);
+		}
+	}
+
+	if (cfs_rq->next == se)
+		cfs_rq->next = NULL;
 
 	rb_erase(&se->run_node, &cfs_rq->tasks_timeline);
 }
@@ -260,12 +283,8 @@ static u64 __sched_period(unsigned long nr_running)
  */
 static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	u64 slice = __sched_period(cfs_rq->nr_running);
-
-	slice *= se->load.weight;
-	do_div(slice, cfs_rq->load.weight);
-
-	return slice;
+	return calc_delta_mine(__sched_period(cfs_rq->nr_running),
+			       se->load.weight, &cfs_rq->load);
 }
 
 /*
@@ -303,7 +322,6 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 	      unsigned long delta_exec)
 {
 	unsigned long delta_exec_weighted;
-	u64 vruntime;
 
 	schedstat_set(curr->exec_max, max((u64)delta_exec, curr->exec_max));
 
@@ -315,19 +333,6 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 							&curr->load);
 	}
 	curr->vruntime += delta_exec_weighted;
-
-	/*
-	 * maintain cfs_rq->min_vruntime to be a monotonic increasing
-	 * value tracking the leftmost vruntime in the tree.
-	 */
-	if (first_fair(cfs_rq)) {
-		vruntime = min_vruntime(curr->vruntime,
-				__pick_next_entity(cfs_rq)->vruntime);
-	} else
-		vruntime = curr->vruntime;
-
-	cfs_rq->min_vruntime =
-		max_vruntime(cfs_rq->min_vruntime, vruntime);
 }
 
 static void update_curr(struct cfs_rq *cfs_rq)
@@ -493,7 +498,11 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 {
 	u64 vruntime;
 
-	vruntime = cfs_rq->min_vruntime;
+	if (first_fair(cfs_rq)) {
+		vruntime = min_vruntime(cfs_rq->min_vruntime,
+				__pick_next_entity(cfs_rq)->vruntime);
+	} else
+		vruntime = cfs_rq->min_vruntime;
 
 	if (sched_feat(TREE_AVG)) {
 		struct sched_entity *last = __pick_last_entity(cfs_rq);
@@ -515,8 +524,10 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 
 	if (!initial) {
 		/* sleeps upto a single latency don't count. */
-		if (sched_feat(NEW_FAIR_SLEEPERS))
-			vruntime -= sysctl_sched_latency;
+		if (sched_feat(NEW_FAIR_SLEEPERS)) {
+			vruntime -= calc_delta_fair(sysctl_sched_latency,
+						    &cfs_rq->load);
+		}
 
 		/* ensure we never gain time by being placed backwards. */
 		vruntime = max_vruntime(se->vruntime, vruntime);
@@ -616,12 +627,32 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	se->prev_sum_exec_runtime = se->sum_exec_runtime;
 }
 
+static struct sched_entity *
+pick_next(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	s64 diff, gran;
+
+	if (!cfs_rq->next)
+		return se;
+
+	diff = cfs_rq->next->vruntime - se->vruntime;
+	if (diff < 0)
+		return se;
+
+	gran = calc_delta_fair(sysctl_sched_wakeup_granularity, &cfs_rq->load);
+	if (diff > gran)
+		return se;
+
+	return cfs_rq->next;
+}
+
 static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *se = NULL;
 
 	if (first_fair(cfs_rq)) {
 		se = __pick_next_entity(cfs_rq);
+		se = pick_next(cfs_rq, se);
 		set_next_entity(cfs_rq, se);
 	}
 
@@ -1060,6 +1091,9 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 		resched_task(curr);
 		return;
 	}
+
+	cfs_rq_of(pse)->next = pse;
+
 	/*
 	 * Batch tasks do not preempt (their preemption is driven by
 	 * the tick):

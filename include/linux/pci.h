@@ -278,6 +278,7 @@ struct pci_bus {
 	struct device		dev;
 	struct bin_attribute	*legacy_io; /* legacy I/O for this bus */
 	struct bin_attribute	*legacy_mem; /* legacy mem */
+	unsigned int		is_added:1;
 };
 
 #define pci_bus_b(n)	list_entry(n, struct pci_bus, node)
@@ -1044,6 +1045,8 @@ void __iomem *pcim_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen);
 void pcim_iounmap(struct pci_dev *pdev, void __iomem *addr);
 void __iomem * const *pcim_iomap_table(struct pci_dev *pdev);
 int pcim_iomap_regions(struct pci_dev *pdev, u16 mask, const char *name);
+int pcim_iomap_regions_request_all(struct pci_dev *pdev, u16 mask,
+				   const char *name);
 void pcim_iounmap_regions(struct pci_dev *pdev, u16 mask);
 
 extern int pci_pci_problems;

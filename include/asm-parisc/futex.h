@@ -56,6 +56,12 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 	int err = 0;
 	int uval;
 
+	/* futex.c wants to do a cmpxchg_inatomic on kernel NULL, which is
+	 * our gateway page, and causes no end of trouble...
+	 */
+	if (segment_eq(KERNEL_DS, get_fs()) && !uaddr)
+		return -EFAULT;
+
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
@@ -67,5 +73,5 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 	return uval;
 }
 
-#endif
-#endif
+#endif /*__KERNEL__*/
+#endif /*_ASM_PARISC_FUTEX_H*/

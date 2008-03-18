@@ -51,6 +51,9 @@
 DEFINE_SPINLOCK(pa_dbit_lock);
 #endif
 
+void parisc_show_stack(struct task_struct *t, unsigned long *sp,
+	struct pt_regs *regs);
+
 static int printbinary(char *buf, unsigned long x, int nbits)
 {
 	unsigned long mask = 1UL << (nbits - 1);
@@ -148,6 +151,8 @@ void show_regs(struct pt_regs *regs)
 	print_symbol(" IAOQ[1]: %s\n", regs->iaoq[1]);
 	printk(level);
 	print_symbol(" RP(r2): %s\n", regs->gr[2]);
+
+	parisc_show_stack(current, NULL, regs);
 }
 
 
@@ -181,11 +186,19 @@ static void do_show_stack(struct unwind_frame_info *info)
 	printk("\n");
 }
 
-void show_stack(struct task_struct *task, unsigned long *s)
+void parisc_show_stack(struct task_struct *task, unsigned long *sp,
+	struct pt_regs *regs)
 {
 	struct unwind_frame_info info;
+	struct task_struct *t;
 
-	if (!task) {
+	t = task ? task : current;
+	if (regs) {
+		unwind_frame_init(&info, t, regs);
+		goto show_stack;
+	}
+
+	if (t == current) {
 		unsigned long sp;
 
 HERE:
@@ -201,10 +214,16 @@ HERE:
 			unwind_frame_init(&info, current, &r);
 		}
 	} else {
-		unwind_frame_init_from_blocked_task(&info, task);
+		unwind_frame_init_from_blocked_task(&info, t);
 	}
 
+show_stack:
 	do_show_stack(&info);
+}
+
+void show_stack(struct task_struct *t, unsigned long *sp)
+{
+	return parisc_show_stack(t, sp, NULL);
 }
 
 int is_valid_bugaddr(unsigned long iaoq)

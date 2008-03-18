@@ -108,7 +108,7 @@ void pm_unregister_all(pm_callback cback);
  *          EINVAL if the request is not supported
  *          EBUSY if the device is now busy and cannot handle the request
  *          ENOMEM if the device was unable to handle the request due to memory
- *          
+ *
  * Details: The device request callback will be called before the
  *          device/system enters a suspend state (ACPI D1-D3) or
  *          or after the device/system resumes from suspend (ACPI D0).

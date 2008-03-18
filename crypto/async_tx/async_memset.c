@@ -63,11 +63,11 @@ async_memset(struct page *dest, int val, unsigned int offset,
 	}
 
 	if (tx) {
-		pr_debug("%s: (async) len: %zu\n", __FUNCTION__, len);
+		pr_debug("%s: (async) len: %zu\n", __func__, len);
 		async_tx_submit(chan, tx, flags, depend_tx, cb_fn, cb_param);
 	} else { /* run the memset synchronously */
 		void *dest_buf;
-		pr_debug("%s: (sync) len: %zu\n", __FUNCTION__, len);
+		pr_debug("%s: (sync) len: %zu\n", __func__, len);
 
 		dest_buf = (void *) (((char *) page_address(dest)) + offset);
 
@@ -79,7 +79,7 @@ async_memset(struct page *dest, int val, unsigned int offset,
 			BUG_ON(depend_tx->ack);
 			if (dma_wait_for_async_tx(depend_tx) == DMA_ERROR)
 				panic("%s: DMA_ERROR waiting for depend_tx\n",
-					__FUNCTION__);
+					__func__);
 		}
 
 		memset(dest_buf, val, len);

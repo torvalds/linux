@@ -81,10 +81,23 @@ static struct semaphore smack_write_sem;
 /*
  * Values for parsing cipso rules
  * SMK_DIGITLEN: Length of a digit field in a rule.
- * SMK_CIPSOMEN: Minimum possible cipso rule length.
+ * SMK_CIPSOMIN: Minimum possible cipso rule length.
+ * SMK_CIPSOMAX: Maximum possible cipso rule length.
  */
 #define SMK_DIGITLEN 4
-#define SMK_CIPSOMIN (SMK_MAXLEN + 2 * SMK_DIGITLEN)
+#define SMK_CIPSOMIN (SMK_LABELLEN + 2 * SMK_DIGITLEN)
+#define SMK_CIPSOMAX (SMK_CIPSOMIN + SMACK_CIPSO_MAXCATNUM * SMK_DIGITLEN)
+
+/*
+ * Values for parsing MAC rules
+ * SMK_ACCESS: Maximum possible combination of access permissions
+ * SMK_ACCESSLEN: Maximum length for a rule access field
+ * SMK_LOADLEN: Smack rule length
+ */
+#define SMK_ACCESS    "rwxa"
+#define SMK_ACCESSLEN (sizeof(SMK_ACCESS) - 1)
+#define SMK_LOADLEN   (SMK_LABELLEN + SMK_LABELLEN + SMK_ACCESSLEN)
+
 
 /*
  * Seq_file read operations for /smack/load
@@ -229,14 +242,10 @@ static void smk_set_access(struct smack_rule *srp)
  * The format is exactly:
  *     char subject[SMK_LABELLEN]
  *     char object[SMK_LABELLEN]
- *     char access[SMK_ACCESSKINDS]
+ *     char access[SMK_ACCESSLEN]
  *
- *     Anything following is commentary and ignored.
- *
- * writes must be SMK_LABELLEN+SMK_LABELLEN+4 bytes.
+ * writes must be SMK_LABELLEN+SMK_LABELLEN+SMK_ACCESSLEN bytes.
  */
-#define MINIMUM_LOAD (SMK_LABELLEN + SMK_LABELLEN + SMK_ACCESSKINDS)
-
 static ssize_t smk_write_load(struct file *file, const char __user *buf,
 			      size_t count, loff_t *ppos)
 {
@@ -253,7 +262,7 @@ static ssize_t smk_write_load(struct file *file, const char __user *buf,
 		return -EPERM;
 	if (*ppos != 0)
 		return -EINVAL;
-	if (count < MINIMUM_LOAD)
+	if (count != SMK_LOADLEN)
 		return -EINVAL;
 
 	data = kzalloc(count, GFP_KERNEL);
@@ -513,7 +522,7 @@ static ssize_t smk_write_cipso(struct file *file, const char __user *buf,
 		return -EPERM;
 	if (*ppos != 0)
 		return -EINVAL;
-	if (count <= SMK_CIPSOMIN)
+	if (count < SMK_CIPSOMIN || count > SMK_CIPSOMAX)
 		return -EINVAL;
 
 	data = kzalloc(count + 1, GFP_KERNEL);
@@ -547,7 +556,7 @@ static ssize_t smk_write_cipso(struct file *file, const char __user *buf,
 	if (ret != 1 || catlen > SMACK_CIPSO_MAXCATNUM)
 		goto out;
 
-	if (count <= (SMK_CIPSOMIN + catlen * SMK_DIGITLEN))
+	if (count != (SMK_CIPSOMIN + catlen * SMK_DIGITLEN))
 		goto out;
 
 	memset(mapcatset, 0, sizeof(mapcatset));

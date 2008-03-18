@@ -20,10 +20,11 @@
 #include <asm/pgtable.h>
 
 #include <linux/linkage.h>
+#include <linux/init.h>
 
 	.level	LEVEL
 
-	.data
+	__INITDATA
 ENTRY(boot_args)
 	.word 0 /* arg0 */
 	.word 0 /* arg1 */
@@ -31,7 +32,7 @@ ENTRY(boot_args)
 	.word 0 /* arg3 */
 END(boot_args)
 
-	.text
+	.section .text.head
 	.align	4
 	.import init_thread_union,data
 	.import fault_vector_20,code    /* IVA parisc 2.0 32 bit */
@@ -343,7 +344,7 @@ smp_slave_stext:
 ENDPROC(stext)
 
 #ifndef CONFIG_64BIT
-	.data
+	.section .data.read_mostly
 
 	.align	4
 	.export	$global$,data

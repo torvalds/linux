@@ -33,6 +33,10 @@
 #include <asm/page.h>
 #include <asm/system.h>
 
+#ifdef CONFIG_PPC_PMAC
+#include <asm/pmac_feature.h>
+#endif
+
 #include "fw-ohci.h"
 #include "fw-transaction.h"
 
@@ -175,6 +179,7 @@ struct fw_ohci {
 	int generation;
 	int request_generation;
 	u32 bus_seconds;
+	bool old_uninorth;
 
 	/*
 	 * Spinlock for accessing fw_ohci data.  Never call out of
@@ -276,18 +281,12 @@ static int ar_context_add_page(struct ar_context *ctx)
 {
 	struct device *dev = ctx->ohci->card.device;
 	struct ar_buffer *ab;
-	dma_addr_t ab_bus;
+	dma_addr_t uninitialized_var(ab_bus);
 	size_t offset;
 
-	ab = (struct ar_buffer *) __get_free_page(GFP_ATOMIC);
+	ab = dma_alloc_coherent(dev, PAGE_SIZE, &ab_bus, GFP_ATOMIC);
 	if (ab == NULL)
 		return -ENOMEM;
-
-	ab_bus = dma_map_single(dev, ab, PAGE_SIZE, DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(ab_bus)) {
-		free_page((unsigned long) ab);
-		return -ENOMEM;
-	}
 
 	memset(&ab->descriptor, 0, sizeof(ab->descriptor));
 	ab->descriptor.control        = cpu_to_le16(DESCRIPTOR_INPUT_MORE |
@@ -299,8 +298,6 @@ static int ar_context_add_page(struct ar_context *ctx)
 	ab->descriptor.res_count      = cpu_to_le16(PAGE_SIZE - offset);
 	ab->descriptor.branch_address = 0;
 
-	dma_sync_single_for_device(dev, ab_bus, PAGE_SIZE, DMA_BIDIRECTIONAL);
-
 	ctx->last_buffer->descriptor.branch_address = cpu_to_le32(ab_bus | 1);
 	ctx->last_buffer->next = ab;
 	ctx->last_buffer = ab;
@@ -311,15 +308,22 @@ static int ar_context_add_page(struct ar_context *ctx)
 	return 0;
 }
 
+#if defined(CONFIG_PPC_PMAC) && defined(CONFIG_PPC32)
+#define cond_le32_to_cpu(v) \
+	(ohci->old_uninorth ? (__force __u32)(v) : le32_to_cpu(v))
+#else
+#define cond_le32_to_cpu(v) le32_to_cpu(v)
+#endif
+
 static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 {
 	struct fw_ohci *ohci = ctx->ohci;
 	struct fw_packet p;
 	u32 status, length, tcode;
 
-	p.header[0] = le32_to_cpu(buffer[0]);
-	p.header[1] = le32_to_cpu(buffer[1]);
-	p.header[2] = le32_to_cpu(buffer[2]);
+	p.header[0] = cond_le32_to_cpu(buffer[0]);
+	p.header[1] = cond_le32_to_cpu(buffer[1]);
+	p.header[2] = cond_le32_to_cpu(buffer[2]);
 
 	tcode = (p.header[0] >> 4) & 0x0f;
 	switch (tcode) {
@@ -331,7 +335,7 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 		break;
 
 	case TCODE_READ_BLOCK_REQUEST :
-		p.header[3] = le32_to_cpu(buffer[3]);
+		p.header[3] = cond_le32_to_cpu(buffer[3]);
 		p.header_length = 16;
 		p.payload_length = 0;
 		break;
@@ -340,7 +344,7 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 	case TCODE_READ_BLOCK_RESPONSE:
 	case TCODE_LOCK_REQUEST:
 	case TCODE_LOCK_RESPONSE:
-		p.header[3] = le32_to_cpu(buffer[3]);
+		p.header[3] = cond_le32_to_cpu(buffer[3]);
 		p.header_length = 16;
 		p.payload_length = p.header[3] >> 16;
 		break;
@@ -357,7 +361,7 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 
 	/* FIXME: What to do about evt_* errors? */
 	length = (p.header_length + p.payload_length + 3) / 4;
-	status = le32_to_cpu(buffer[length]);
+	status = cond_le32_to_cpu(buffer[length]);
 
 	p.ack        = ((status >> 16) & 0x1f) - 16;
 	p.speed      = (status >> 21) & 0x7;
@@ -375,7 +379,7 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 	 */
 
 	if (p.ack + 16 == 0x09)
-		ohci->request_generation = (buffer[2] >> 16) & 0xff;
+		ohci->request_generation = (p.header[2] >> 16) & 0xff;
 	else if (ctx == &ohci->ar_request_ctx)
 		fw_core_handle_request(&ohci->card, &p);
 	else
@@ -397,6 +401,7 @@ static void ar_context_tasklet(unsigned long data)
 
 	if (d->res_count == 0) {
 		size_t size, rest, offset;
+		dma_addr_t buffer_bus;
 
 		/*
 		 * This descriptor is finished and we may have a
@@ -405,9 +410,7 @@ static void ar_context_tasklet(unsigned long data)
 		 */
 
 		offset = offsetof(struct ar_buffer, data);
-		dma_unmap_single(ohci->card.device,
-			le32_to_cpu(ab->descriptor.data_address) - offset,
-			PAGE_SIZE, DMA_BIDIRECTIONAL);
+		buffer_bus = le32_to_cpu(ab->descriptor.data_address) - offset;
 
 		buffer = ab;
 		ab = ab->next;
@@ -423,7 +426,8 @@ static void ar_context_tasklet(unsigned long data)
 		while (buffer < end)
 			buffer = handle_ar_packet(ctx, buffer);
 
-		free_page((unsigned long)buffer);
+		dma_free_coherent(ohci->card.device, PAGE_SIZE,
+				  buffer, buffer_bus);
 		ar_context_add_page(ctx);
 	} else {
 		buffer = ctx->pointer;
@@ -532,7 +536,7 @@ static int
 context_add_buffer(struct context *ctx)
 {
 	struct descriptor_buffer *desc;
-	dma_addr_t bus_addr;
+	dma_addr_t uninitialized_var(bus_addr);
 	int offset;
 
 	/*
@@ -1022,13 +1026,14 @@ static void bus_reset_tasklet(unsigned long data)
 	 */
 
 	self_id_count = (reg_read(ohci, OHCI1394_SelfIDCount) >> 3) & 0x3ff;
-	generation = (le32_to_cpu(ohci->self_id_cpu[0]) >> 16) & 0xff;
+	generation = (cond_le32_to_cpu(ohci->self_id_cpu[0]) >> 16) & 0xff;
 	rmb();
 
 	for (i = 1, j = 0; j < self_id_count; i += 2, j++) {
 		if (ohci->self_id_cpu[i] != ~ohci->self_id_cpu[i + 1])
 			fw_error("inconsistent self IDs\n");
-		ohci->self_id_buffer[j] = le32_to_cpu(ohci->self_id_cpu[i]);
+		ohci->self_id_buffer[j] =
+				cond_le32_to_cpu(ohci->self_id_cpu[i]);
 	}
 	rmb();
 
@@ -1316,7 +1321,7 @@ ohci_set_config_rom(struct fw_card *card, u32 *config_rom, size_t length)
 	unsigned long flags;
 	int retval = -EBUSY;
 	__be32 *next_config_rom;
-	dma_addr_t next_config_rom_bus;
+	dma_addr_t uninitialized_var(next_config_rom_bus);
 
 	ohci = fw_ohci(card);
 
@@ -1487,7 +1492,7 @@ static int handle_ir_dualbuffer_packet(struct context *context,
 	void *p, *end;
 	int i;
 
-	if (db->first_res_count > 0 && db->second_res_count > 0) {
+	if (db->first_res_count != 0 && db->second_res_count != 0) {
 		if (ctx->excess_bytes <= le16_to_cpu(db->second_req_count)) {
 			/* This descriptor isn't done yet, stop iteration. */
 			return 0;
@@ -1513,7 +1518,7 @@ static int handle_ir_dualbuffer_packet(struct context *context,
 		memcpy(ctx->header + i + 4, p + 8, ctx->base.header_size - 4);
 		i += ctx->base.header_size;
 		ctx->excess_bytes +=
-			(le32_to_cpu(*(u32 *)(p + 4)) >> 16) & 0xffff;
+			(le32_to_cpu(*(__le32 *)(p + 4)) >> 16) & 0xffff;
 		p += ctx->base.header_size + 4;
 	}
 	ctx->header_length = i;
@@ -2048,6 +2053,18 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	int err;
 	size_t size;
 
+#ifdef CONFIG_PPC_PMAC
+	/* Necessary on some machines if fw-ohci was loaded/ unloaded before */
+	if (machine_is(powermac)) {
+		struct device_node *ofn = pci_device_to_OF_node(dev);
+
+		if (ofn) {
+			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, ofn, 0, 1);
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 1);
+		}
+	}
+#endif /* CONFIG_PPC_PMAC */
+
 	ohci = kzalloc(sizeof(*ohci), GFP_KERNEL);
 	if (ohci == NULL) {
 		fw_error("Could not malloc fw_ohci data.\n");
@@ -2066,6 +2083,10 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	pci_write_config_dword(dev, OHCI1394_PCI_HCI_Control, 0);
 	pci_set_drvdata(dev, ohci);
 
+#if defined(CONFIG_PPC_PMAC) && defined(CONFIG_PPC32)
+	ohci->old_uninorth = dev->vendor == PCI_VENDOR_ID_APPLE &&
+			     dev->device == PCI_DEVICE_ID_APPLE_UNI_N_FW;
+#endif
 	spin_lock_init(&ohci->lock);
 
 	tasklet_init(&ohci->bus_reset_tasklet,
@@ -2182,6 +2203,19 @@ static void pci_remove(struct pci_dev *dev)
 	pci_disable_device(dev);
 	fw_card_put(&ohci->card);
 
+#ifdef CONFIG_PPC_PMAC
+	/* On UniNorth, power down the cable and turn off the chip clock
+	 * to save power on laptops */
+	if (machine_is(powermac)) {
+		struct device_node *ofn = pci_device_to_OF_node(dev);
+
+		if (ofn) {
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 0);
+			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, ofn, 0, 0);
+		}
+	}
+#endif /* CONFIG_PPC_PMAC */
+
 	fw_notify("Removed fw-ohci device.\n");
 }
 
@@ -2202,6 +2236,16 @@ static int pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (err)
 		fw_error("pci_set_power_state failed with %d\n", err);
 
+/* PowerMac suspend code comes last */
+#ifdef CONFIG_PPC_PMAC
+	if (machine_is(powermac)) {
+		struct device_node *ofn = pci_device_to_OF_node(pdev);
+
+		if (ofn)
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 0);
+	}
+#endif /* CONFIG_PPC_PMAC */
+
 	return 0;
 }
 
@@ -2209,6 +2253,16 @@ static int pci_resume(struct pci_dev *pdev)
 {
 	struct fw_ohci *ohci = pci_get_drvdata(pdev);
 	int err;
+
+/* PowerMac resume code comes first */
+#ifdef CONFIG_PPC_PMAC
+	if (machine_is(powermac)) {
+		struct device_node *ofn = pci_device_to_OF_node(pdev);
+
+		if (ofn)
+			pmac_call_feature(PMAC_FTR_1394_ENABLE, ofn, 0, 1);
+	}
+#endif /* CONFIG_PPC_PMAC */
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
