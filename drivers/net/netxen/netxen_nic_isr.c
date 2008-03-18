@@ -59,7 +59,7 @@ struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 	/* packet transmit problems */
 	stats->tx_errors = adapter->stats.nocmddescriptor;
 	/* no space in linux buffers    */
-	stats->rx_dropped = adapter->stats.updropped;
+	stats->rx_dropped = adapter->stats.rxdropped;
 	/* no space available in linux  */
 	stats->tx_dropped = adapter->stats.txdropped;
 

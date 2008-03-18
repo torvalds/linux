@@ -1089,7 +1089,7 @@ static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 	skb = (struct sk_buff *)buffer->skb;
 
 	if (likely(adapter->rx_csum &&
-				netxen_get_sts_status(sts_data) == STATUS_CKSUM_OK)) {
+			netxen_get_sts_status(sts_data) == STATUS_CKSUM_OK)) {
 		adapter->stats.csummed++;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else
@@ -1106,37 +1106,6 @@ static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 	skb->protocol = eth_type_trans(skb, netdev);
 
 	ret = netif_receive_skb(skb);
-
-	/*
-	 * RH: Do we need these stats on a regular basis. Can we get it from
-	 * Linux stats.
-	 */
-	switch (ret) {
-	case NET_RX_SUCCESS:
-		adapter->stats.uphappy++;
-		break;
-
-	case NET_RX_CN_LOW:
-		adapter->stats.uplcong++;
-		break;
-
-	case NET_RX_CN_MOD:
-		adapter->stats.upmcong++;
-		break;
-
-	case NET_RX_CN_HIGH:
-		adapter->stats.uphcong++;
-		break;
-
-	case NET_RX_DROP:
-		adapter->stats.updropped++;
-		break;
-
-	default:
-		adapter->stats.updunno++;
-		break;
-	}
-
 	netdev->last_rx = jiffies;
 
 	rcv_desc->rcv_pending--;

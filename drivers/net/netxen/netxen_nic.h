@@ -818,12 +818,7 @@ struct netxen_adapter_stats {
 	u64  badskblen;
 	u64  nocmddescriptor;
 	u64  polled;
-	u64  uphappy;
-	u64  updropped;
-	u64  uplcong;
-	u64  uphcong;
-	u64  upmcong;
-	u64  updunno;
+	u64  rxdropped;
 	u64  txdropped;
 	u64  csummed;
 	u64  no_rcv;
