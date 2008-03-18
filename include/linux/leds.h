@@ -37,6 +37,8 @@ struct led_classdev {
 	/* Set LED brightness level */
 	void		(*brightness_set)(struct led_classdev *led_cdev,
 					  enum led_brightness brightness);
+	/* Get LED brightness level */
+	enum led_brightness (*brightness_get)(struct led_classdev *led_cdev);
 
 	/* Activate hardware accelerated blink */
 	int		(*blink_set)(struct led_classdev *led_cdev,
