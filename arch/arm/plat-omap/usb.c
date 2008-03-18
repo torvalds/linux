@@ -33,6 +33,7 @@
 #include <asm/system.h>
 #include <asm/hardware.h>
 
+#include <asm/arch/control.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/usb.h>
 #include <asm/arch/board.h>
@@ -76,7 +77,7 @@
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef	CONFIG_ARCH_OMAP_OTG
+#if	defined(CONFIG_ARCH_OMAP_OTG) || defined(CONFIG_USB_MUSB_OTG)
 
 static struct otg_transceiver *xceiv;
 
@@ -110,12 +111,48 @@ EXPORT_SYMBOL(otg_set_transceiver);
 
 #if defined(CONFIG_ARCH_OMAP_OTG) || defined(CONFIG_ARCH_OMAP15XX)
 
+static void omap2_usb_devconf_clear(u8 port, u32 mask)
+{
+	u32 r;
+
+	r = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
+	r &= ~USBTXWRMODEI(port, mask);
+	omap_ctrl_writel(r, OMAP2_CONTROL_DEVCONF0);
+}
+
+static void omap2_usb_devconf_set(u8 port, u32 mask)
+{
+	u32 r;
+
+	r = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
+	r |= USBTXWRMODEI(port, mask);
+	omap_ctrl_writel(r, OMAP2_CONTROL_DEVCONF0);
+}
+
+static void omap2_usb2_disable_5pinbitll(void)
+{
+	u32 r;
+
+	r = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
+	r &= ~(USBTXWRMODEI(2, USB_BIDIR_TLL) | USBT2TLL5PI);
+	omap_ctrl_writel(r, OMAP2_CONTROL_DEVCONF0);
+}
+
+static void omap2_usb2_enable_5pinunitll(void)
+{
+	u32 r;
+
+	r = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
+	r |= USBTXWRMODEI(2, USB_UNIDIR_TLL) | USBT2TLL5PI;
+	omap_ctrl_writel(r, OMAP2_CONTROL_DEVCONF0);
+}
+
 static u32 __init omap_usb0_init(unsigned nwires, unsigned is_device)
 {
 	u32	syscon1 = 0;
 
 	if (cpu_is_omap24xx())
-		CONTROL_DEVCONF_REG &= ~USBT0WRMODEI(USB_BIDIR_TLL);
+		omap2_usb_devconf_clear(0, USB_BIDIR_TLL);
 
 	if (nwires == 0) {
 		if (cpu_class_is_omap1() && !cpu_is_omap15xx()) {
@@ -187,19 +224,19 @@ static u32 __init omap_usb0_init(unsigned nwires, unsigned is_device)
 	case 3:
 		syscon1 = 2;
 		if (cpu_is_omap24xx())
-			CONTROL_DEVCONF_REG |= USBT0WRMODEI(USB_BIDIR);
+			omap2_usb_devconf_set(0, USB_BIDIR);
 		break;
 	case 4:
 		syscon1 = 1;
 		if (cpu_is_omap24xx())
-			CONTROL_DEVCONF_REG |= USBT0WRMODEI(USB_BIDIR);
+			omap2_usb_devconf_set(0, USB_BIDIR);
 		break;
 	case 6:
 		syscon1 = 3;
 		if (cpu_is_omap24xx()) {
 			omap_cfg_reg(J19_24XX_USB0_VP);
 			omap_cfg_reg(K20_24XX_USB0_VM);
-			CONTROL_DEVCONF_REG |= USBT0WRMODEI(USB_UNIDIR);
+			omap2_usb_devconf_set(0, USB_UNIDIR);
 		} else {
 			omap_cfg_reg(AA9_USB0_VP);
 			omap_cfg_reg(R9_USB0_VM);
@@ -220,7 +257,7 @@ static u32 __init omap_usb1_init(unsigned nwires)
 	if (cpu_class_is_omap1() && !cpu_is_omap15xx() && nwires != 6)
 		USB_TRANSCEIVER_CTRL_REG &= ~CONF_USB1_UNI_R;
 	if (cpu_is_omap24xx())
-		CONTROL_DEVCONF_REG &= ~USBT1WRMODEI(USB_BIDIR_TLL);
+		omap2_usb_devconf_clear(1, USB_BIDIR_TLL);
 
 	if (nwires == 0)
 		return 0;
@@ -261,17 +298,17 @@ static u32 __init omap_usb1_init(unsigned nwires)
 		 * this TLL link is not using DP/DM
 		 */
 		syscon1 = 1;
-		CONTROL_DEVCONF_REG |= USBT1WRMODEI(USB_BIDIR_TLL);
+		omap2_usb_devconf_set(1, USB_BIDIR_TLL);
 		break;
 	case 3:
 		syscon1 = 2;
 		if (cpu_is_omap24xx())
-			CONTROL_DEVCONF_REG |= USBT1WRMODEI(USB_BIDIR);
+			omap2_usb_devconf_set(1, USB_BIDIR);
 		break;
 	case 4:
 		syscon1 = 1;
 		if (cpu_is_omap24xx())
-			CONTROL_DEVCONF_REG |= USBT1WRMODEI(USB_BIDIR);
+			omap2_usb_devconf_set(1, USB_BIDIR);
 		break;
 	case 6:
 		if (cpu_is_omap24xx())
@@ -295,8 +332,7 @@ static u32 __init omap_usb2_init(unsigned nwires, unsigned alt_pingroup)
 	u32	syscon1 = 0;
 
 	if (cpu_is_omap24xx()) {
-		CONTROL_DEVCONF_REG &= ~(USBT2WRMODEI(USB_BIDIR_TLL)
-					| USBT2TLL5PI);
+		omap2_usb2_disable_5pinbitll();
 		alt_pingroup = 0;
 	}
 
@@ -343,17 +379,17 @@ static u32 __init omap_usb2_init(unsigned nwires, unsigned alt_pingroup)
 		 * this TLL link is not using DP/DM
 		 */
 		syscon1 = 1;
-		CONTROL_DEVCONF_REG |= USBT2WRMODEI(USB_BIDIR_TLL);
+		omap2_usb_devconf_set(2, USB_BIDIR_TLL);
 		break;
 	case 3:
 		syscon1 = 2;
 		if (cpu_is_omap24xx())
-			CONTROL_DEVCONF_REG |= USBT2WRMODEI(USB_BIDIR);
+			omap2_usb_devconf_set(2, USB_BIDIR);
 		break;
 	case 4:
 		syscon1 = 1;
 		if (cpu_is_omap24xx())
-			CONTROL_DEVCONF_REG |= USBT2WRMODEI(USB_BIDIR);
+			omap2_usb_devconf_set(2, USB_BIDIR);
 		break;
 	case 5:
 		if (!cpu_is_omap24xx())
@@ -364,8 +400,7 @@ static u32 __init omap_usb2_init(unsigned nwires, unsigned alt_pingroup)
 		 * set up OTG_SYSCON2.HMC_TLL{ATTACH,SPEED}
 		 */
 		syscon1 = 3;
-		CONTROL_DEVCONF_REG |= USBT2WRMODEI(USB_UNIDIR_TLL)
-					| USBT2TLL5PI;
+		omap2_usb2_enable_5pinunitll();
 		break;
 	case 6:
 		if (cpu_is_omap24xx())
