@@ -1,13 +1,12 @@
 /*
- *  linux/arch/arm/mach-omap24xx/clock.h
+ *  linux/arch/arm/mach-omap2/clock24xx.h
  *
- *  Copyright (C) 2005 Texas Instruments Inc.
+ *  Copyright (C) 2005-2008 Texas Instruments, Inc.
+ *  Copyright (C) 2004-2008 Nokia Corporation
+ *
+ *  Contacts:
  *  Richard Woodruff <r-woodruff2@ti.com>
- *  Created for OMAP2.
- *
- *  Copyright (C) 2004 Nokia corporation
- *  Written by Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
- *  Based on clocks.h by Tony Lindgren, Gordon McNutt and RidgeRun, Inc
+ *  Paul Walmsley
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -25,18 +24,18 @@
 #include "cm-regbits-24xx.h"
 #include "sdrc.h"
 
-static void omap2_table_mpu_recalc(struct clk * clk);
-static int omap2_select_table_rate(struct clk * clk, unsigned long rate);
-static long omap2_round_to_table_rate(struct clk * clk, unsigned long rate);
-static void omap2_sys_clk_recalc(struct clk * clk);
-static void omap2_osc_clk_recalc(struct clk * clk);
-static void omap2_sys_clk_recalc(struct clk * clk);
-static void omap2_dpll_recalc(struct clk * clk);
-static int omap2_clk_fixed_enable(struct clk * clk);
-static void omap2_clk_fixed_disable(struct clk * clk);
-static int omap2_enable_osc_ck(struct clk * clk);
-static void omap2_disable_osc_ck(struct clk * clk);
-static int omap2_reprogram_dpll(struct clk * clk, unsigned long rate);
+static void omap2_table_mpu_recalc(struct clk *clk);
+static int omap2_select_table_rate(struct clk *clk, unsigned long rate);
+static long omap2_round_to_table_rate(struct clk *clk, unsigned long rate);
+static void omap2_sys_clk_recalc(struct clk *clk);
+static void omap2_osc_clk_recalc(struct clk *clk);
+static void omap2_sys_clk_recalc(struct clk *clk);
+static void omap2_dpll_recalc(struct clk *clk);
+static int omap2_clk_fixed_enable(struct clk *clk);
+static void omap2_clk_fixed_disable(struct clk *clk);
+static int omap2_enable_osc_ck(struct clk *clk);
+static void omap2_disable_osc_ck(struct clk *clk);
+static int omap2_reprogram_dpll(struct clk *clk, unsigned long rate);
 
 /* Key dividers which make up a PRCM set. Ratio's for a PRCM are mandated.
  * xtal_speed, dpll_speed, mpu_speed, CM_CLKSEL_MPU,CM_CLKSEL_DSP

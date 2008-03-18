@@ -1,15 +1,15 @@
 /*
  *  linux/arch/arm/mach-omap2/clock.c
  *
- *  Copyright (C) 2005 Texas Instruments Inc.
+ *  Copyright (C) 2005-2008 Texas Instruments, Inc.
+ *  Copyright (C) 2004-2008 Nokia Corporation
+ *
+ *  Contacts:
  *  Richard Woodruff <r-woodruff2@ti.com>
- *  Created for OMAP2.
+ *  Paul Walmsley
  *
- *  Cleaned up and modified to use omap shared clock framework by
- *  Tony Lindgren <tony@atomide.com>
- *
- *  Based on omap1 clock.c, Copyright (C) 2004 - 2005 Nokia corporation
- *  Written by Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
+ *  Based on earlier work by Tuukka Tikkanen, Tony Lindgren,
+ *  Gordon McNutt and RidgeRun, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -60,6 +60,21 @@ static struct clk *sclk;
  * Omap24xx specific clock functions
  *-------------------------------------------------------------------------*/
 
+/* This actually returns the rate of core_ck, not dpll_ck. */
+static u32 omap2_get_dpll_rate_24xx(struct clk *tclk)
+{
+	long long dpll_clk;
+	u8 amult;
+
+	dpll_clk = omap2_get_dpll_rate(tclk);
+
+	amult = cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
+	amult &= OMAP24XX_CORE_CLK_SRC_MASK;
+	dpll_clk *= amult;
+
+	return dpll_clk;
+}
+
 static int omap2_enable_osc_ck(struct clk *clk)
 {
 	u32 pcc;
@@ -93,21 +108,6 @@ static void omap2_sys_clk_recalc(struct clk * clk)
 	propagate_rate(clk);
 }
 #endif	/* OLD_CK */
-
-/* This actually returns the rate of core_ck, not dpll_ck. */
-static u32 omap2_get_dpll_rate_24xx(struct clk *tclk)
-{
-	long long dpll_clk;
-	u8 amult;
-
-	dpll_clk = omap2_get_dpll_rate(tclk);
-
-	amult = cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
-	amult &= OMAP24XX_CORE_CLK_SRC_MASK;
-	dpll_clk *= amult;
-
-	return dpll_clk;
-}
 
 /* Enable an APLL if off */
 static int omap2_clk_fixed_enable(struct clk *clk)
@@ -333,7 +333,7 @@ static int omap2_select_table_rate(struct clk *clk, unsigned long rate)
 
 	if (!found_speed) {
 		printk(KERN_INFO "Could not set MPU rate to %luMHz\n",
-	 rate / 1000000);
+		       rate / 1000000);
 		return -EINVAL;
 	}
 
