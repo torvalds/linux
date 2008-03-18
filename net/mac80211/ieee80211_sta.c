@@ -220,6 +220,61 @@ static int ecw2cw(int ecw)
 	return (1 << ecw) - 1;
 }
 
+
+static void ieee80211_sta_def_wmm_params(struct net_device *dev,
+					 struct ieee80211_sta_bss *bss,
+					 int ibss)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+	int i, have_higher_than_11mbit = 0;
+
+
+	/* cf. IEEE 802.11 9.2.12 */
+	for (i = 0; i < bss->supp_rates_len; i++)
+		if ((bss->supp_rates[i] & 0x7f) * 5 > 110)
+			have_higher_than_11mbit = 1;
+
+	if (local->hw.conf.channel->band == IEEE80211_BAND_2GHZ &&
+	    have_higher_than_11mbit)
+		sdata->flags |= IEEE80211_SDATA_OPERATING_GMODE;
+	else
+		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
+
+
+	if (local->ops->conf_tx) {
+		struct ieee80211_tx_queue_params qparam;
+		int i;
+
+		memset(&qparam, 0, sizeof(qparam));
+
+		qparam.aifs = 2;
+
+		if (local->hw.conf.channel->band == IEEE80211_BAND_2GHZ &&
+		    !(sdata->flags & IEEE80211_SDATA_OPERATING_GMODE))
+			qparam.cw_min = 31;
+		else
+			qparam.cw_min = 15;
+
+		qparam.cw_max = 1023;
+		qparam.txop = 0;
+
+		for (i = IEEE80211_TX_QUEUE_DATA0; i < NUM_TX_DATA_QUEUES; i++)
+			local->ops->conf_tx(local_to_hw(local),
+					   i + IEEE80211_TX_QUEUE_DATA0,
+					   &qparam);
+
+		if (ibss) {
+			/* IBSS uses different parameters for Beacon sending */
+			qparam.cw_min++;
+			qparam.cw_min *= 2;
+			qparam.cw_min--;
+			local->ops->conf_tx(local_to_hw(local),
+					   IEEE80211_TX_QUEUE_BEACON, &qparam);
+		}
+	}
+}
+
 static void ieee80211_sta_wmm_params(struct net_device *dev,
 				     struct ieee80211_if_sta *ifsta,
 				     u8 *wmm_param, size_t wmm_param_len)
@@ -2302,6 +2357,8 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 					rates |= BIT(j);
 		}
 		ifsta->supp_rates_bits[local->hw.conf.channel->band] = rates;
+
+		ieee80211_sta_def_wmm_params(dev, bss, 1);
 	} while (0);
 
 	if (skb) {
@@ -3293,6 +3350,7 @@ static int ieee80211_sta_config_auth(struct net_device *dev,
 			ieee80211_sta_set_ssid(dev, selected->ssid,
 					       selected->ssid_len);
 		ieee80211_sta_set_bssid(dev, selected->bssid);
+		ieee80211_sta_def_wmm_params(dev, selected, 0);
 		ieee80211_rx_bss_put(dev, selected);
 		ifsta->state = IEEE80211_AUTHENTICATE;
 		ieee80211_sta_reset_auth(dev, ifsta);
@@ -3467,42 +3525,9 @@ int ieee80211_sta_set_ssid(struct net_device *dev, char *ssid, size_t len)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_if_sta *ifsta;
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 
 	if (len > IEEE80211_MAX_SSID_LEN)
 		return -EINVAL;
-
-	/* TODO: This should always be done for IBSS, even if IEEE80211_QOS is
-	 * not defined. */
-	if (local->ops->conf_tx) {
-		struct ieee80211_tx_queue_params qparam;
-		int i;
-
-		memset(&qparam, 0, sizeof(qparam));
-
-		qparam.aifs = 2;
-
-		if (local->hw.conf.channel->band == IEEE80211_BAND_2GHZ &&
-		    !(sdata->flags & IEEE80211_SDATA_OPERATING_GMODE))
-			qparam.cw_min = 31;
-		else
-			qparam.cw_min = 15;
-
-		qparam.cw_max = 1023;
-		qparam.txop = 0;
-
-		for (i = IEEE80211_TX_QUEUE_DATA0; i < NUM_TX_DATA_QUEUES; i++)
-			local->ops->conf_tx(local_to_hw(local),
-					   i + IEEE80211_TX_QUEUE_DATA0,
-					   &qparam);
-
-		/* IBSS uses different parameters for Beacon sending */
-		qparam.cw_min++;
-		qparam.cw_min *= 2;
-		qparam.cw_min--;
-		local->ops->conf_tx(local_to_hw(local),
-				   IEEE80211_TX_QUEUE_BEACON, &qparam);
-	}
 
 	ifsta = &sdata->u.sta;
 
