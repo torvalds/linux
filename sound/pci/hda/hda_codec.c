@@ -720,6 +720,19 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_STREAM_FORMAT, format);
 }
 
+void snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid)
+{
+	if (!nid)
+		return;
+
+	snd_printdd("hda_codec_cleanup_stream: NID=0x%x\n", nid);
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CHANNEL_STREAMID, 0);
+#if 0 /* keep the format */
+	msleep(1);
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_STREAM_FORMAT, 0);
+#endif
+}
+
 /*
  * amp access functions
  */
@@ -2204,7 +2217,7 @@ static int hda_pcm_default_cleanup(struct hda_pcm_stream *hinfo,
 				   struct hda_codec *codec,
 				   struct snd_pcm_substream *substream)
 {
-	snd_hda_codec_setup_stream(codec, hinfo->nid, 0, 0, 0);
+	snd_hda_codec_cleanup_stream(codec, hinfo->nid);
 	return 0;
 }
 
@@ -2589,7 +2602,7 @@ int snd_hda_multi_out_dig_open(struct hda_codec *codec,
 	mutex_lock(&codec->spdif_mutex);
 	if (mout->dig_out_used == HDA_DIG_ANALOG_DUP)
 		/* already opened as analog dup; reset it once */
-		snd_hda_codec_setup_stream(codec, mout->dig_out_nid, 0, 0, 0);
+		snd_hda_codec_cleanup_stream(codec, mout->dig_out_nid);
 	mout->dig_out_used = HDA_DIG_EXCLUSIVE;
 	mutex_unlock(&codec->spdif_mutex);
 	return 0;
@@ -2684,8 +2697,7 @@ int snd_hda_multi_out_analog_prepare(struct hda_codec *codec,
 					     stream_tag, format);
 		} else {
 			mout->dig_out_used = 0;
-			snd_hda_codec_setup_stream(codec, mout->dig_out_nid,
-						   0, 0, 0);
+			snd_hda_codec_cleanup_stream(codec, mout->dig_out_nid);
 		}
 	}
 	mutex_unlock(&codec->spdif_mutex);
@@ -2727,17 +2739,16 @@ int snd_hda_multi_out_analog_cleanup(struct hda_codec *codec,
 	int i;
 
 	for (i = 0; i < mout->num_dacs; i++)
-		snd_hda_codec_setup_stream(codec, nids[i], 0, 0, 0);
+		snd_hda_codec_cleanup_stream(codec, nids[i]);
 	if (mout->hp_nid)
-		snd_hda_codec_setup_stream(codec, mout->hp_nid, 0, 0, 0);
+		snd_hda_codec_cleanup_stream(codec, mout->hp_nid);
 	for (i = 0; i < ARRAY_SIZE(mout->extra_out_nid); i++)
 		if (mout->extra_out_nid[i])
-			snd_hda_codec_setup_stream(codec,
-						   mout->extra_out_nid[i],
-						   0, 0, 0);
+			snd_hda_codec_cleanup_stream(codec,
+						     mout->extra_out_nid[i]);
 	mutex_lock(&codec->spdif_mutex);
 	if (mout->dig_out_nid && mout->dig_out_used == HDA_DIG_ANALOG_DUP) {
-		snd_hda_codec_setup_stream(codec, mout->dig_out_nid, 0, 0, 0);
+		snd_hda_codec_cleanup_stream(codec, mout->dig_out_nid);
 		mout->dig_out_used = 0;
 	}
 	mutex_unlock(&codec->spdif_mutex);

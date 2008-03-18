@@ -296,8 +296,7 @@ static int ad198x_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 				      struct snd_pcm_substream *substream)
 {
 	struct ad198x_spec *spec = codec->spec;
-	snd_hda_codec_setup_stream(codec, spec->adc_nids[substream->number],
-				   0, 0, 0);
+	snd_hda_codec_cleanup_stream(codec, spec->adc_nids[substream->number]);
 	return 0;
 }
 
@@ -3325,8 +3324,7 @@ static int ad1984_pcm_dmic_cleanup(struct hda_pcm_stream *hinfo,
 				   struct hda_codec *codec,
 				   struct snd_pcm_substream *substream)
 {
-	snd_hda_codec_setup_stream(codec, 0x05 + substream->number,
-				   0, 0, 0);
+	snd_hda_codec_cleanup_stream(codec, 0x05 + substream->number);
 	return 0;
 }
 

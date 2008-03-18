@@ -2409,8 +2409,8 @@ static int alc880_alt_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 {
 	struct alc_spec *spec = codec->spec;
 
-	snd_hda_codec_setup_stream(codec, spec->adc_nids[substream->number + 1],
-				   0, 0, 0);
+	snd_hda_codec_cleanup_stream(codec,
+				     spec->adc_nids[substream->number + 1]);
 	return 0;
 }
 

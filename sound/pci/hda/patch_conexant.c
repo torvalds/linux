@@ -174,8 +174,7 @@ static int conexant_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 				      struct snd_pcm_substream *substream)
 {
 	struct conexant_spec *spec = codec->spec;
-	snd_hda_codec_setup_stream(codec, spec->adc_nids[substream->number],
-				   0, 0, 0);
+	snd_hda_codec_cleanup_stream(codec, spec->adc_nids[substream->number]);
 	return 0;
 }
 
@@ -243,7 +242,7 @@ static int cx5051_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 				      struct snd_pcm_substream *substream)
 {
 	struct conexant_spec *spec = codec->spec;
-	snd_hda_codec_setup_stream(codec, spec->cur_adc, 0, 0, 0);
+	snd_hda_codec_cleanup_stream(codec, spec->cur_adc);
 	spec->cur_adc = 0;
 	return 0;
 }
@@ -1594,7 +1593,7 @@ static void cxt5051_portc_automic(struct hda_codec *codec)
 	new_adc = spec->adc_nids[spec->cur_adc_idx];
 	if (spec->cur_adc && spec->cur_adc != new_adc) {
 		/* stream is running, let's swap the current ADC */
-		snd_hda_codec_setup_stream(codec, spec->cur_adc, 0, 0, 0);
+		snd_hda_codec_cleanup_stream(codec, spec->cur_adc);
 		spec->cur_adc = new_adc;
 		snd_hda_codec_setup_stream(codec, new_adc,
 					   spec->cur_adc_stream_tag, 0,
