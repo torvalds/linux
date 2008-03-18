@@ -3702,12 +3702,95 @@ static struct hda_verb ad1884a_laptop_verbs[] = {
 };
 
 /*
+ * Thinkpad X300
+ * 0x11 - HP
+ * 0x12 - speaker
+ * 0x14 - mic-in
+ * 0x17 - built-in mic
+ */
+
+static struct hda_verb ad1984a_thinkpad_verbs[] = {
+	/* HP unmute */
+	{0x11, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	/* analog mix */
+	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
+	/* turn on EAPD */
+	{0x12, AC_VERB_SET_EAPD_BTLENABLE, 0x02},
+	/* unsolicited event for pin-sense */
+	{0x11, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | AD1884A_HP_EVENT},
+	/* internal mic - dmic */
+	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+	{ } /* end */
+};
+
+static struct snd_kcontrol_new ad1984a_thinkpad_mixers[] = {
+	HDA_CODEC_VOLUME("Master Playback Volume", 0x21, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Master Playback Switch", 0x21, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("PCM Playback Volume", 0x20, 0x5, HDA_INPUT),
+	HDA_CODEC_MUTE("PCM Playback Switch", 0x20, 0x5, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x20, 0x00, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x20, 0x00, HDA_INPUT),
+	HDA_CODEC_VOLUME("Beep Playback Volume", 0x20, 0x03, HDA_INPUT),
+	HDA_CODEC_MUTE("Beep Playback Switch", 0x20, 0x03, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x14, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Internal Mic Boost", 0x17, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x0c, 0x0, HDA_OUTPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Capture Source",
+		.info = ad198x_mux_enum_info,
+		.get = ad198x_mux_enum_get,
+		.put = ad198x_mux_enum_put,
+	},
+	{ } /* end */
+};
+
+static struct hda_input_mux ad1984a_thinkpad_capture_source = {
+	.num_items = 3,
+	.items = {
+		{ "Mic", 0x0 },
+		{ "Internal Mic", 0x5 },
+		{ "Mix", 0x3 },
+	},
+};
+
+/* mute internal speaker if HP is plugged */
+static void ad1984a_thinkpad_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+
+	present = snd_hda_codec_read(codec, 0x11, 0, AC_VERB_GET_PIN_SENSE, 0)
+		& AC_PINSENSE_PRESENCE;
+	snd_hda_codec_amp_stereo(codec, 0x12, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
+}
+
+/* unsolicited event for HP jack sensing */
+static void ad1984a_thinkpad_unsol_event(struct hda_codec *codec,
+					 unsigned int res)
+{
+	if ((res >> 26) != AD1884A_HP_EVENT)
+		return;
+	ad1984a_thinkpad_automute(codec);
+}
+
+/* initialize jack-sensing, too */
+static int ad1984a_thinkpad_init(struct hda_codec *codec)
+{
+	ad198x_init(codec);
+	ad1984a_thinkpad_automute(codec);
+	return 0;
+}
+
+/*
  */
 
 enum {
 	AD1884A_DESKTOP,
 	AD1884A_LAPTOP,
 	AD1884A_MOBILE,
+	AD1884A_THINKPAD,
 	AD1884A_MODELS
 };
 
@@ -3715,10 +3798,12 @@ static const char *ad1884a_models[AD1884A_MODELS] = {
 	[AD1884A_DESKTOP]	= "desktop",
 	[AD1884A_LAPTOP]	= "laptop",
 	[AD1884A_MOBILE]	= "mobile",
+	[AD1884A_THINKPAD]	= "thinkpad",
 };
 
 static struct snd_pci_quirk ad1884a_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x3030, "HP", AD1884A_MOBILE),
+	SND_PCI_QUIRK(0x17aa, 0x20ac, "Thinkpad X300", AD1884A_THINKPAD),
 	{}
 };
 
@@ -3772,6 +3857,15 @@ static int patch_ad1884a(struct hda_codec *codec)
 		spec->input_mux = &ad1884a_mobile_capture_source;
 		codec->patch_ops.unsol_event = ad1884a_hp_unsol_event;
 		codec->patch_ops.init = ad1884a_hp_init;
+		break;
+	case AD1884A_THINKPAD:
+		spec->mixers[0] = ad1984a_thinkpad_mixers;
+		spec->init_verbs[spec->num_init_verbs++] =
+			ad1984a_thinkpad_verbs;
+		spec->multiout.dig_out_nid = 0;
+		spec->input_mux = &ad1984a_thinkpad_capture_source;
+		codec->patch_ops.unsol_event = ad1984a_thinkpad_unsol_event;
+		codec->patch_ops.init = ad1984a_thinkpad_init;
 		break;
 	}
 

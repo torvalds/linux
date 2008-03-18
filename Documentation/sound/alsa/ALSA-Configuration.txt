@@ -923,6 +923,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  desktop	3-stack desktop (default)
 	  laptop	laptop with HP jack sensing
 	  mobile	mobile devices with HP jack sensing
+	  thinkpad	Lenovo Thinkpad X300
 
 	AD1884
 	  N/A
