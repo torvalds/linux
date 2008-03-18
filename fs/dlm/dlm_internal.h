@@ -133,8 +133,10 @@ struct dlm_member {
 
 struct dlm_recover {
 	struct list_head	list;
-	int			*nodeids;
+	int			*nodeids;   /* nodeids of all members */
 	int			node_count;
+	int			*new;       /* nodeids of new members */
+	int			new_count;
 	uint64_t		seq;
 };
 
