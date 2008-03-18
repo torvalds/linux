@@ -28,6 +28,8 @@ extern void find_max_pfn(void);
 extern void register_bootmem_low_pages(unsigned long max_low_pfn);
 extern void add_memory_region(unsigned long long start,
 			      unsigned long long size, int type);
+extern void update_memory_range(u64 start, u64 size, unsigned old_type,
+				unsigned new_type);
 extern void e820_register_memory(void);
 extern void limit_regions(unsigned long long size);
 extern void print_memory_map(char *who);
