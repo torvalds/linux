@@ -6628,11 +6628,11 @@ static void iwl4965_alive_start(struct iwl4965_priv *priv)
 
 	/* At this point, the NIC is initialized and operational */
 	priv->notif_missed_beacons = 0;
-	set_bit(STATUS_READY, &priv->status);
 
 	iwl4965_rf_kill_ct_config(priv);
 
 	IWL_DEBUG_INFO("ALIVE processing complete.\n");
+	set_bit(STATUS_READY, &priv->status);
 	wake_up_interruptible(&priv->wait_command_queue);
 
 	if (priv->error_recovering)
