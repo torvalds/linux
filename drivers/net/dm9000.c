@@ -798,8 +798,6 @@ dm9000_init_dm9000(struct net_device *dev)
 	/* Set address filter table */
 	dm9000_hash_table(dev);
 
-	/* Activate DM9000 */
-	iow(db, DM9000_RCR, RCR_DIS_LONG | RCR_DIS_CRC | RCR_RXEN);
 	/* Enable TX/RX interrupt mask */
 	iow(db, DM9000_IMR, IMR_PAR | IMR_PTM | IMR_PRM);
 
@@ -1197,6 +1195,7 @@ dm9000_hash_table(struct net_device *dev)
 	int i, oft;
 	u32 hash_val;
 	u16 hash_table[4];
+	u8 rcr = RCR_DIS_LONG | RCR_DIS_CRC | RCR_RXEN;
 	unsigned long flags;
 
 	dm9000_dbg(db, 1, "entering %s\n", __func__);
@@ -1213,6 +1212,12 @@ dm9000_hash_table(struct net_device *dev)
 	/* broadcast address */
 	hash_table[3] = 0x8000;
 
+	if (dev->flags & IFF_PROMISC)
+		rcr |= RCR_PRMSC;
+
+	if (dev->flags & IFF_ALLMULTI)
+		rcr |= RCR_ALL;
+
 	/* the multicast address in Hash Table : 64 bits */
 	for (i = 0; i < mc_cnt; i++, mcptr = mcptr->next) {
 		hash_val = ether_crc_le(6, mcptr->dmi_addr) & 0x3f;
@@ -1225,6 +1230,7 @@ dm9000_hash_table(struct net_device *dev)
 		iow(db, oft++, hash_table[i] >> 8);
 	}
 
+	iow(db, DM9000_RCR, rcr);
 	spin_unlock_irqrestore(&db->lock, flags);
 }
 
