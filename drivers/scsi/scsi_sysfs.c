@@ -251,18 +251,27 @@ shost_rd_attr(sg_tablesize, "%hu\n");
 shost_rd_attr(unchecked_isa_dma, "%d\n");
 shost_rd_attr2(proc_name, hostt->proc_name, "%s\n");
 
-static struct device_attribute *scsi_sysfs_shost_attrs[] = {
-	&dev_attr_unique_id,
-	&dev_attr_host_busy,
-	&dev_attr_cmd_per_lun,
-	&dev_attr_can_queue,
-	&dev_attr_sg_tablesize,
-	&dev_attr_unchecked_isa_dma,
-	&dev_attr_proc_name,
-	&dev_attr_scan,
-	&dev_attr_hstate,
-	&dev_attr_supported_mode,
-	&dev_attr_active_mode,
+static struct attribute *scsi_sysfs_shost_attrs[] = {
+	&dev_attr_unique_id.attr,
+	&dev_attr_host_busy.attr,
+	&dev_attr_cmd_per_lun.attr,
+	&dev_attr_can_queue.attr,
+	&dev_attr_sg_tablesize.attr,
+	&dev_attr_unchecked_isa_dma.attr,
+	&dev_attr_proc_name.attr,
+	&dev_attr_scan.attr,
+	&dev_attr_hstate.attr,
+	&dev_attr_supported_mode.attr,
+	&dev_attr_active_mode.attr,
+	NULL
+};
+
+struct attribute_group scsi_shost_attr_group = {
+	.attrs =	scsi_sysfs_shost_attrs,
+};
+
+struct attribute_group *scsi_sysfs_shost_attr_groups[] = {
+	&scsi_shost_attr_group,
 	NULL
 };
 
@@ -990,44 +999,6 @@ int scsi_register_interface(struct class_interface *intf)
 }
 EXPORT_SYMBOL(scsi_register_interface);
 
-
-static struct device_attribute *class_attr_overridden(
-		struct device_attribute **attrs,
-		struct device_attribute *attr)
-{
-	int i;
-
-	if (!attrs)
-		return NULL;
-	for (i = 0; attrs[i]; i++)
-		if (!strcmp(attrs[i]->attr.name, attr->attr.name))
-			return attrs[i];
-	return NULL;
-}
-
-static int class_attr_add(struct device *classdev,
-		struct device_attribute *attr)
-{
-	struct device_attribute *base_attr;
-
-	/*
-	 * Spare the caller from having to copy things it's not interested in.
-	 */
-	base_attr = class_attr_overridden(scsi_sysfs_shost_attrs, attr);
-	if (base_attr) {
-		/* extend permissions */
-		attr->attr.mode |= base_attr->attr.mode;
-
-		/* override null show/store with default */
-		if (!attr->show)
-			attr->show = base_attr->show;
-		if (!attr->store)
-			attr->store = base_attr->store;
-	}
-
-	return device_create_file(classdev, attr);
-}
-
 /**
  * scsi_sysfs_add_host - add scsi host to subsystem
  * @shost:     scsi host struct to add to subsystem
@@ -1037,20 +1008,11 @@ int scsi_sysfs_add_host(struct Scsi_Host *shost)
 {
 	int error, i;
 
+	/* add host specific attributes */
 	if (shost->hostt->shost_attrs) {
 		for (i = 0; shost->hostt->shost_attrs[i]; i++) {
-			error = class_attr_add(&shost->shost_dev,
-					shost->hostt->shost_attrs[i]);
-			if (error)
-				return error;
-		}
-	}
-
-	for (i = 0; scsi_sysfs_shost_attrs[i]; i++) {
-		if (!class_attr_overridden(shost->hostt->shost_attrs,
-					scsi_sysfs_shost_attrs[i])) {
 			error = device_create_file(&shost->shost_dev,
-					scsi_sysfs_shost_attrs[i]);
+					shost->hostt->shost_attrs[i]);
 			if (error)
 				return error;
 		}

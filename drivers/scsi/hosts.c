@@ -398,6 +398,7 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	shost->shost_dev.class = &shost_class;
 	snprintf(shost->shost_dev.bus_id, BUS_ID_SIZE, "host%d",
 		 shost->host_no);
+	shost->shost_dev.groups = scsi_sysfs_shost_attr_groups;
 
 	shost->ehandler = kthread_run(scsi_error_handler, shost,
 			"scsi_eh_%d", shost->host_no);
