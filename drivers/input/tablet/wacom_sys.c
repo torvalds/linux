@@ -171,6 +171,7 @@ void input_dev_i3s(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 	input_dev->keybit[BIT_WORD(BTN_LEFT)] |= BIT_MASK(BTN_0) |
 		BIT_MASK(BTN_1) | BIT_MASK(BTN_2) | BIT_MASK(BTN_3);
 	input_set_abs_params(input_dev, ABS_RX, 0, 4096, 0, 0);
+	input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 }
 
 void input_dev_i3(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
@@ -178,6 +179,11 @@ void input_dev_i3(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 	input_dev->keybit[BIT_WORD(BTN_LEFT)] |= BIT_MASK(BTN_4) |
 		BIT_MASK(BTN_5) | BIT_MASK(BTN_6) | BIT_MASK(BTN_7);
 	input_set_abs_params(input_dev, ABS_RY, 0, 4096, 0, 0);
+}
+
+void input_dev_bee(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
+{
+	input_dev->keybit[BIT_WORD(BTN_LEFT)] |= BIT_MASK(BTN_8) | BIT_MASK(BTN_9);
 }
 
 void input_dev_i(struct input_dev *input_dev, struct wacom_wac *wacom_wac)

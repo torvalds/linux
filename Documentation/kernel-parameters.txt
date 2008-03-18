@@ -732,6 +732,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			     (Don't attempt to blink the leds)
 	i8042.noaux	[HW] Don't check for auxiliary (== mouse) port
 	i8042.nokbd	[HW] Don't check/create keyboard port
+	i8042.noloop	[HW] Disable the AUX Loopback command while probing
+			     for the AUX port
 	i8042.nomux	[HW] Don't check presence of an active multiplexing
 			     controller
 	i8042.nopnp	[HW] Don't use ACPIPnP / PnPBIOS to discover KBD/AUX
