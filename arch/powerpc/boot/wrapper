@@ -174,10 +174,10 @@ cuboot*)
     *-mpc83*)
         platformo=$object/cuboot-83xx.o
         ;;
-    *-tqm8541|*-mpc8560*|*-tqm8560|*-tqm8555*)
+    *-tqm8541|*-mpc8560*|*-tqm8560|*-tqm8555)
         platformo=$object/cuboot-85xx-cpm2.o
         ;;
-    *-mpc85*)
+    *-mpc85*|*-tqm8540|*-sbc85*)
         platformo=$object/cuboot-85xx.o
         ;;
     esac
