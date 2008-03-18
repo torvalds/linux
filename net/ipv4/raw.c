@@ -81,7 +81,7 @@
 #include <linux/netfilter_ipv4.h>
 
 static struct raw_hashinfo raw_v4_hashinfo = {
-	.lock = __RW_LOCK_UNLOCKED(),
+	.lock = __RW_LOCK_UNLOCKED(raw_v4_hashinfo.lock),
 };
 
 void raw_hash_sk(struct sock *sk, struct raw_hashinfo *h)

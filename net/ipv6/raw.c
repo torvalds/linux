@@ -62,7 +62,7 @@
 #include <linux/seq_file.h>
 
 static struct raw_hashinfo raw_v6_hashinfo = {
-	.lock = __RW_LOCK_UNLOCKED(),
+	.lock = __RW_LOCK_UNLOCKED(raw_v6_hashinfo.lock),
 };
 
 static void raw_v6_hash(struct sock *sk)
