@@ -337,14 +337,14 @@ static int sctp_v4_cmp_addr(const union sctp_addr *addr1,
 static void sctp_v4_inaddr_any(union sctp_addr *addr, __be16 port)
 {
 	addr->v4.sin_family = AF_INET;
-	addr->v4.sin_addr.s_addr = INADDR_ANY;
+	addr->v4.sin_addr.s_addr = htonl(INADDR_ANY);
 	addr->v4.sin_port = port;
 }
 
 /* Is this a wildcard address? */
 static int sctp_v4_is_any(const union sctp_addr *addr)
 {
-	return INADDR_ANY == addr->v4.sin_addr.s_addr;
+	return htonl(INADDR_ANY) == addr->v4.sin_addr.s_addr;
 }
 
 /* This function checks if the address is a valid address to be used for
@@ -375,7 +375,7 @@ static int sctp_v4_available(union sctp_addr *addr, struct sctp_sock *sp)
 	int ret = inet_addr_type(&init_net, addr->v4.sin_addr.s_addr);
 
 
-	if (addr->v4.sin_addr.s_addr != INADDR_ANY &&
+	if (addr->v4.sin_addr.s_addr != htonl(INADDR_ANY) &&
 	   ret != RTN_LOCAL &&
 	   !sp->inet.freebind &&
 	   !sysctl_ip_nonlocal_bind)
@@ -785,8 +785,8 @@ static int sctp_inet_cmp_addr(const union sctp_addr *addr1,
 	/* PF_INET only supports AF_INET addresses. */
 	if (addr1->sa.sa_family != addr2->sa.sa_family)
 		return 0;
-	if (INADDR_ANY == addr1->v4.sin_addr.s_addr ||
-	    INADDR_ANY == addr2->v4.sin_addr.s_addr)
+	if (htonl(INADDR_ANY) == addr1->v4.sin_addr.s_addr ||
+	    htonl(INADDR_ANY) == addr2->v4.sin_addr.s_addr)
 		return 1;
 	if (addr1->v4.sin_addr.s_addr == addr2->v4.sin_addr.s_addr)
 		return 1;
