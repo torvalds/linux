@@ -14,24 +14,29 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __ARCH_ARM_MACH_OMAP2_CLOCK_H
-#define __ARCH_ARM_MACH_OMAP2_CLOCK_H
+#ifndef __ARCH_ARM_MACH_OMAP2_CLOCK24XX_H
+#define __ARCH_ARM_MACH_OMAP2_CLOCK24XX_H
 
-static void omap2_sys_clk_recalc(struct clk * clk);
-static void omap2_clksel_recalc(struct clk * clk);
-static void omap2_followparent_recalc(struct clk * clk);
-static void omap2_propagate_rate(struct clk * clk);
-static void omap2_mpu_recalc(struct clk * clk);
+#include "clock.h"
+
+#include "prm.h"
+#include "cm.h"
+#include "prm-regbits-24xx.h"
+#include "cm-regbits-24xx.h"
+#include "sdrc.h"
+
+static void omap2_table_mpu_recalc(struct clk * clk);
 static int omap2_select_table_rate(struct clk * clk, unsigned long rate);
 static long omap2_round_to_table_rate(struct clk * clk, unsigned long rate);
-static void omap2_clk_disable(struct clk *clk);
 static void omap2_sys_clk_recalc(struct clk * clk);
-static u32 omap2_clksel_to_divisor(u32 div_sel, u32 field_val);
-static u32 omap2_clksel_get_divisor(struct clk *clk);
-
-
-#define RATE_IN_242X	(1 << 0)
-#define RATE_IN_243X	(1 << 1)
+static void omap2_osc_clk_recalc(struct clk * clk);
+static void omap2_sys_clk_recalc(struct clk * clk);
+static void omap2_dpll_recalc(struct clk * clk);
+static int omap2_clk_fixed_enable(struct clk * clk);
+static void omap2_clk_fixed_disable(struct clk * clk);
+static int omap2_enable_osc_ck(struct clk * clk);
+static void omap2_disable_osc_ck(struct clk * clk);
+static int omap2_reprogram_dpll(struct clk * clk, unsigned long rate);
 
 /* Key dividers which make up a PRCM set. Ratio's for a PRCM are mandated.
  * xtal_speed, dpll_speed, mpu_speed, CM_CLKSEL_MPU,CM_CLKSEL_DSP
@@ -51,16 +56,6 @@ struct prcm_config {
 	unsigned long base_sdrc_rfr;	/* base refresh timing for a set */
 	unsigned char flags;
 };
-
-/* Mask for clksel which support parent settign in set_rate */
-#define SRC_SEL_MASK (CM_CORE_SEL1 | CM_CORE_SEL2 | CM_WKUP_SEL1 | \
-			CM_PLL_SEL1 | CM_PLL_SEL2 | CM_SYSCLKOUT_SEL1)
-
-/* Mask for clksel regs which support rate operations */
-#define SRC_RATE_SEL_MASK (CM_MPU_SEL1 | CM_DSP_SEL1 | CM_GFX_SEL1 | \
-			CM_MODEM_SEL1 | CM_CORE_SEL1 | CM_CORE_SEL2 | \
-			CM_WKUP_SEL1 | CM_PLL_SEL1 | CM_PLL_SEL2 | \
-			CM_SYSCLKOUT_SEL1)
 
 /*
  * The OMAP2 processor can be run at several discrete 'PRCM configurations'.
@@ -174,13 +169,34 @@ struct prcm_config {
 #define RII_CLKSEL_DSP			(3 << 0)	/* c5x - 200MHz */
 #define RII_CLKSEL_DSP_IF		(2 << 5)	/* c5x - 100MHz */
 #define RII_SYNC_DSP			(0 << 7)	/* Bypass sync */
-#define RII_CLKSEL_IVA			(6 << 8)	/* iva1 - 200MHz */
+#define RII_CLKSEL_IVA			(3 << 8)	/* iva1 - 200MHz */
 #define RII_SYNC_IVA			(0 << 13)	/* Bypass sync */
 #define RII_CM_CLKSEL_DSP_VAL		RII_SYNC_IVA | RII_CLKSEL_IVA | \
 					RII_SYNC_DSP | RII_CLKSEL_DSP_IF | \
 					RII_CLKSEL_DSP
 #define RII_CLKSEL_GFX			(2 << 0)	/* 50MHz */
 #define RII_CM_CLKSEL_GFX_VAL		RII_CLKSEL_GFX
+
+/* 2420-PRCM I 660MHz core */
+#define RI_CLKSEL_L3			(4 << 0)	/* 165MHz */
+#define RI_CLKSEL_L4			(2 << 5)	/* 82.5MHz */
+#define RI_CLKSEL_USB			(4 << 25)	/* 41.25MHz */
+#define RI_CM_CLKSEL1_CORE_VAL		RI_CLKSEL_USB | \
+					RXX_CLKSEL_SSI | RXX_CLKSEL_VLYNQ | \
+					RX_CLKSEL_DSS2 | RX_CLKSEL_DSS1 | \
+					RI_CLKSEL_L4 | RI_CLKSEL_L3
+#define RI_CLKSEL_MPU			(2 << 0)	/* 330MHz */
+#define RI_CM_CLKSEL_MPU_VAL		RI_CLKSEL_MPU
+#define RI_CLKSEL_DSP			(3 << 0)	/* c5x - 220MHz */
+#define RI_CLKSEL_DSP_IF		(2 << 5)	/* c5x - 110MHz */
+#define RI_SYNC_DSP			(1 << 7)	/* Activate sync */
+#define RI_CLKSEL_IVA			(4 << 8)	/* iva1 - 165MHz */
+#define RI_SYNC_IVA			(0 << 13)	/* Bypass sync */
+#define RI_CM_CLKSEL_DSP_VAL		RI_SYNC_IVA | RI_CLKSEL_IVA | \
+					RI_SYNC_DSP | RI_CLKSEL_DSP_IF | \
+					RI_CLKSEL_DSP
+#define RI_CLKSEL_GFX			(1 << 0)	/* 165MHz */
+#define RI_CM_CLKSEL_GFX_VAL		RI_CLKSEL_GFX
 
 /* 2420-PRCM VII (boot) */
 #define RVII_CLKSEL_L3			(1 << 0)
@@ -224,7 +240,6 @@ struct prcm_config {
 
 /*
  * 2430 - standalone, 2*ref*M/(n+1), M/N is for exactness not relock speed
- * #2	(ratio1) baseport-target
  * #5a	(ratio1) baseport-target, target DPLL = 266*2 = 532MHz
  */
 #define M5A_DPLL_MULT_12		(133 << 12)
@@ -232,13 +247,13 @@ struct prcm_config {
 #define M5A_CM_CLKSEL1_PLL_12_VAL	MX_48M_SRC | MX_54M_SRC | \
 					M5A_DPLL_DIV_12 | M5A_DPLL_MULT_12 | \
 					MX_APLLS_CLIKIN_12
-#define M5A_DPLL_MULT_13		(266 << 12)
-#define M5A_DPLL_DIV_13			(12 << 8)
+#define M5A_DPLL_MULT_13		(61 << 12)
+#define M5A_DPLL_DIV_13			(2 << 8)
 #define M5A_CM_CLKSEL1_PLL_13_VAL	MX_48M_SRC | MX_54M_SRC | \
 					M5A_DPLL_DIV_13 | M5A_DPLL_MULT_13 | \
 					MX_APLLS_CLIKIN_13
-#define M5A_DPLL_MULT_19		(180 << 12)
-#define M5A_DPLL_DIV_19			(12 << 8)
+#define M5A_DPLL_MULT_19		(55 << 12)
+#define M5A_DPLL_DIV_19			(3 << 8)
 #define M5A_CM_CLKSEL1_PLL_19_VAL	MX_48M_SRC | MX_54M_SRC | \
 					M5A_DPLL_DIV_19 | M5A_DPLL_MULT_19 | \
 					MX_APLLS_CLIKIN_19_2
@@ -260,7 +275,27 @@ struct prcm_config {
 					M5B_DPLL_DIV_19 | M5B_DPLL_MULT_19 | \
 					MX_APLLS_CLIKIN_19_2
 /*
- * #4	(ratio2)
+ * #4	(ratio2), DPLL = 399*2 = 798MHz, L3=133MHz
+ */
+#define M4_DPLL_MULT_12			(133 << 12)
+#define M4_DPLL_DIV_12			(3 << 8)
+#define M4_CM_CLKSEL1_PLL_12_VAL	MX_48M_SRC | MX_54M_SRC | \
+					M4_DPLL_DIV_12 | M4_DPLL_MULT_12 | \
+					MX_APLLS_CLIKIN_12
+
+#define M4_DPLL_MULT_13			(399 << 12)
+#define M4_DPLL_DIV_13			(12 << 8)
+#define M4_CM_CLKSEL1_PLL_13_VAL	MX_48M_SRC | MX_54M_SRC | \
+					M4_DPLL_DIV_13 | M4_DPLL_MULT_13 | \
+					MX_APLLS_CLIKIN_13
+
+#define M4_DPLL_MULT_19			(145 << 12)
+#define M4_DPLL_DIV_19			(6 << 8)
+#define M4_CM_CLKSEL1_PLL_19_VAL	MX_48M_SRC | MX_54M_SRC | \
+					M4_DPLL_DIV_19 | M4_DPLL_MULT_19 | \
+					MX_APLLS_CLIKIN_19_2
+
+/*
  * #3	(ratio2) baseport-target, target DPLL = 330*2 = 660MHz
  */
 #define M3_DPLL_MULT_12			(55 << 12)
@@ -268,16 +303,41 @@ struct prcm_config {
 #define M3_CM_CLKSEL1_PLL_12_VAL	MX_48M_SRC | MX_54M_SRC | \
 					M3_DPLL_DIV_12 | M3_DPLL_MULT_12 | \
 					MX_APLLS_CLIKIN_12
-#define M3_DPLL_MULT_13			(330 << 12)
-#define M3_DPLL_DIV_13			(12 << 8)
+#define M3_DPLL_MULT_13			(76 << 12)
+#define M3_DPLL_DIV_13			(2 << 8)
 #define M3_CM_CLKSEL1_PLL_13_VAL	MX_48M_SRC | MX_54M_SRC | \
 					M3_DPLL_DIV_13 | M3_DPLL_MULT_13 | \
 					MX_APLLS_CLIKIN_13
-#define M3_DPLL_MULT_19			(275 << 12)
-#define M3_DPLL_DIV_19			(15 << 8)
+#define M3_DPLL_MULT_19			(17 << 12)
+#define M3_DPLL_DIV_19			(0 << 8)
 #define M3_CM_CLKSEL1_PLL_19_VAL	MX_48M_SRC | MX_54M_SRC | \
 					M3_DPLL_DIV_19 | M3_DPLL_MULT_19 | \
 					MX_APLLS_CLIKIN_19_2
+
+/*
+ * #2   (ratio1) DPLL = 330*2 = 660MHz, L3=165MHz
+ */
+#define M2_DPLL_MULT_12		        (55 << 12)
+#define M2_DPLL_DIV_12		        (1 << 8)
+#define M2_CM_CLKSEL1_PLL_12_VAL	MX_48M_SRC | MX_54M_SRC | \
+					M2_DPLL_DIV_12 | M2_DPLL_MULT_12 | \
+					MX_APLLS_CLIKIN_12
+
+/* Speed changes - Used 658.7MHz instead of 660MHz for LP-Refresh M=76 N=2,
+ * relock time issue */
+/* Core frequency changed from 330/165 to 329/164 MHz*/
+#define M2_DPLL_MULT_13		        (76 << 12)
+#define M2_DPLL_DIV_13		        (2 << 8)
+#define M2_CM_CLKSEL1_PLL_13_VAL	MX_48M_SRC | MX_54M_SRC | \
+					M2_DPLL_DIV_13 | M2_DPLL_MULT_13 | \
+					MX_APLLS_CLIKIN_13
+
+#define M2_DPLL_MULT_19		        (17 << 12)
+#define M2_DPLL_DIV_19		        (0 << 8)
+#define M2_CM_CLKSEL1_PLL_19_VAL	MX_48M_SRC | MX_54M_SRC | \
+					M2_DPLL_DIV_19 | M2_DPLL_MULT_19 | \
+					MX_APLLS_CLIKIN_19_2
+
 /* boot (boot) */
 #define MB_DPLL_MULT			(1 << 12)
 #define MB_DPLL_DIV			(0 << 8)
@@ -299,6 +359,13 @@ struct prcm_config {
  * 104 (ratio2)
  * boot (boot)
  */
+
+/* PRCM I target DPLL = 2*330MHz = 660MHz */
+#define MI_DPLL_MULT_12			(55 << 12)
+#define MI_DPLL_DIV_12			(1 << 8)
+#define MI_CM_CLKSEL1_PLL_12_VAL	MX_48M_SRC | MX_54M_SRC | \
+					MI_DPLL_DIV_12 | MI_DPLL_MULT_12 | \
+					MX_APLLS_CLIKIN_12
 
 /*
  * 2420 Equivalent - mode registers
@@ -335,28 +402,6 @@ struct prcm_config {
 #define MX_CLKSEL2_PLL_2x_VAL		(2 << 0)
 #define MX_CLKSEL2_PLL_1x_VAL		(1 << 0)
 
-/*
- * These represent optimal values for common parts, it won't work for all.
- * As long as you scale down, most parameters are still work, they just
- * become sub-optimal. The RFR value goes in the opposite direction. If you
- * don't adjust it down as your clock period increases the refresh interval
- * will not be met. Setting all parameters for complete worst case may work,
- * but may cut memory performance by 2x. Due to errata the DLLs need to be
- * unlocked and their value needs run time calibration.	A dynamic call is
- * need for that as no single right value exists acorss production samples.
- *
- * Only the FULL speed values are given. Current code is such that rate
- * changes must be made at DPLLoutx2. The actual value adjustment for low
- * frequency operation will be handled by omap_set_performance()
- *
- * By having the boot loader boot up in the fastest L4 speed available likely
- * will result in something which you can switch between.
- */
-#define V24XX_SDRC_RFR_CTRL_133MHz	(0x0003de00 | 1)
-#define V24XX_SDRC_RFR_CTRL_100MHz	(0x0002da01 | 1)
-#define V24XX_SDRC_RFR_CTRL_110MHz	(0x0002da01 | 1) /* Need to calc */
-#define V24XX_SDRC_RFR_CTRL_BYPASS	(0x00005000 | 1) /* Need to calc */
-
 /* MPU speed defines */
 #define S12M	12000000
 #define S13M	13000000
@@ -365,15 +410,21 @@ struct prcm_config {
 #define S100M	100000000
 #define S133M	133000000
 #define S150M	150000000
+#define S164M	164000000
 #define S165M	165000000
+#define S199M	199000000
 #define S200M	200000000
 #define S266M	266000000
 #define S300M	300000000
+#define S329M	329000000
 #define S330M	330000000
+#define S399M	399000000
 #define S400M	400000000
 #define S532M	532000000
 #define S600M	600000000
+#define S658M	658000000
 #define S660M	660000000
+#define S798M	798000000
 
 /*-------------------------------------------------------------------------
  * Key dividers which make up a PRCM set. Ratio's for a PRCM are mandated.
@@ -394,78 +445,93 @@ struct prcm_config {
  * Note: This table needs to be sorted, fastest to slowest.
  *-------------------------------------------------------------------------*/
 static struct prcm_config rate_table[] = {
+	/* PRCM I - FAST */
+	{S12M, S660M, S330M, RI_CM_CLKSEL_MPU_VAL,		/* 330MHz ARM */
+		RI_CM_CLKSEL_DSP_VAL, RI_CM_CLKSEL_GFX_VAL,
+		RI_CM_CLKSEL1_CORE_VAL, MI_CM_CLKSEL1_PLL_12_VAL,
+		MX_CLKSEL2_PLL_2x_VAL, 0, SDRC_RFR_CTRL_165MHz,
+		RATE_IN_242X},
+
 	/* PRCM II - FAST */
 	{S12M, S600M, S300M, RII_CM_CLKSEL_MPU_VAL,		/* 300MHz ARM */
 		RII_CM_CLKSEL_DSP_VAL, RII_CM_CLKSEL_GFX_VAL,
 		RII_CM_CLKSEL1_CORE_VAL, MII_CM_CLKSEL1_PLL_12_VAL,
-		MX_CLKSEL2_PLL_2x_VAL, 0, V24XX_SDRC_RFR_CTRL_100MHz,
+		MX_CLKSEL2_PLL_2x_VAL, 0, SDRC_RFR_CTRL_100MHz,
 		RATE_IN_242X},
 
 	{S13M, S600M, S300M, RII_CM_CLKSEL_MPU_VAL,		/* 300MHz ARM */
 		RII_CM_CLKSEL_DSP_VAL, RII_CM_CLKSEL_GFX_VAL,
 		RII_CM_CLKSEL1_CORE_VAL, MII_CM_CLKSEL1_PLL_13_VAL,
-		MX_CLKSEL2_PLL_2x_VAL, 0, V24XX_SDRC_RFR_CTRL_100MHz,
+		MX_CLKSEL2_PLL_2x_VAL, 0, SDRC_RFR_CTRL_100MHz,
 		RATE_IN_242X},
 
 	/* PRCM III - FAST */
 	{S12M, S532M, S266M, RIII_CM_CLKSEL_MPU_VAL,		/* 266MHz ARM */
 		RIII_CM_CLKSEL_DSP_VAL, RIII_CM_CLKSEL_GFX_VAL,
 		RIII_CM_CLKSEL1_CORE_VAL, MIII_CM_CLKSEL1_PLL_12_VAL,
-		MX_CLKSEL2_PLL_2x_VAL, 0, V24XX_SDRC_RFR_CTRL_133MHz,
+		MX_CLKSEL2_PLL_2x_VAL, 0, SDRC_RFR_CTRL_133MHz,
 		RATE_IN_242X},
 
 	{S13M, S532M, S266M, RIII_CM_CLKSEL_MPU_VAL,		/* 266MHz ARM */
 		RIII_CM_CLKSEL_DSP_VAL, RIII_CM_CLKSEL_GFX_VAL,
 		RIII_CM_CLKSEL1_CORE_VAL, MIII_CM_CLKSEL1_PLL_13_VAL,
-		MX_CLKSEL2_PLL_2x_VAL, 0, V24XX_SDRC_RFR_CTRL_133MHz,
+		MX_CLKSEL2_PLL_2x_VAL, 0, SDRC_RFR_CTRL_133MHz,
 		RATE_IN_242X},
 
 	/* PRCM II - SLOW */
 	{S12M, S300M, S150M, RII_CM_CLKSEL_MPU_VAL,		/* 150MHz ARM */
 		RII_CM_CLKSEL_DSP_VAL, RII_CM_CLKSEL_GFX_VAL,
 		RII_CM_CLKSEL1_CORE_VAL, MII_CM_CLKSEL1_PLL_12_VAL,
-		MX_CLKSEL2_PLL_2x_VAL, 0, V24XX_SDRC_RFR_CTRL_100MHz,
+		MX_CLKSEL2_PLL_2x_VAL, 0, SDRC_RFR_CTRL_100MHz,
 		RATE_IN_242X},
 
 	{S13M, S300M, S150M, RII_CM_CLKSEL_MPU_VAL,		/* 150MHz ARM */
 		RII_CM_CLKSEL_DSP_VAL, RII_CM_CLKSEL_GFX_VAL,
 		RII_CM_CLKSEL1_CORE_VAL, MII_CM_CLKSEL1_PLL_13_VAL,
-		MX_CLKSEL2_PLL_2x_VAL, 0, V24XX_SDRC_RFR_CTRL_100MHz,
+		MX_CLKSEL2_PLL_2x_VAL, 0, SDRC_RFR_CTRL_100MHz,
 		RATE_IN_242X},
 
 	/* PRCM III - SLOW */
 	{S12M, S266M, S133M, RIII_CM_CLKSEL_MPU_VAL,		/* 133MHz ARM */
 		RIII_CM_CLKSEL_DSP_VAL, RIII_CM_CLKSEL_GFX_VAL,
 		RIII_CM_CLKSEL1_CORE_VAL, MIII_CM_CLKSEL1_PLL_12_VAL,
-		MX_CLKSEL2_PLL_2x_VAL, 0, V24XX_SDRC_RFR_CTRL_133MHz,
+		MX_CLKSEL2_PLL_2x_VAL, 0, SDRC_RFR_CTRL_133MHz,
 		RATE_IN_242X},
 
 	{S13M, S266M, S133M, RIII_CM_CLKSEL_MPU_VAL,		/* 133MHz ARM */
 		RIII_CM_CLKSEL_DSP_VAL, RIII_CM_CLKSEL_GFX_VAL,
 		RIII_CM_CLKSEL1_CORE_VAL, MIII_CM_CLKSEL1_PLL_13_VAL,
-		MX_CLKSEL2_PLL_2x_VAL, 0, V24XX_SDRC_RFR_CTRL_133MHz,
+		MX_CLKSEL2_PLL_2x_VAL, 0, SDRC_RFR_CTRL_133MHz,
 		RATE_IN_242X},
 
 	/* PRCM-VII (boot-bypass) */
 	{S12M, S12M, S12M, RVII_CM_CLKSEL_MPU_VAL,		/* 12MHz ARM*/
 		RVII_CM_CLKSEL_DSP_VAL, RVII_CM_CLKSEL_GFX_VAL,
 		RVII_CM_CLKSEL1_CORE_VAL, MVII_CM_CLKSEL1_PLL_12_VAL,
-		MX_CLKSEL2_PLL_2x_VAL, 0, V24XX_SDRC_RFR_CTRL_BYPASS,
+		MX_CLKSEL2_PLL_2x_VAL, 0, SDRC_RFR_CTRL_BYPASS,
 		RATE_IN_242X},
 
 	/* PRCM-VII (boot-bypass) */
 	{S13M, S13M, S13M, RVII_CM_CLKSEL_MPU_VAL,		/* 13MHz ARM */
 		RVII_CM_CLKSEL_DSP_VAL, RVII_CM_CLKSEL_GFX_VAL,
 		RVII_CM_CLKSEL1_CORE_VAL, MVII_CM_CLKSEL1_PLL_13_VAL,
-		MX_CLKSEL2_PLL_2x_VAL, 0, V24XX_SDRC_RFR_CTRL_BYPASS,
+		MX_CLKSEL2_PLL_2x_VAL, 0, SDRC_RFR_CTRL_BYPASS,
 		RATE_IN_242X},
 
-	/* PRCM #3 - ratio2 (ES2) - FAST */
-	{S13M, S660M, S330M, R2_CM_CLKSEL_MPU_VAL,		/* 330MHz ARM */
+	/* PRCM #4 - ratio2 (ES2.1) - FAST */
+	{S13M, S798M, S399M, R2_CM_CLKSEL_MPU_VAL,		/* 399MHz ARM */
 		R2_CM_CLKSEL_DSP_VAL, R2_CM_CLKSEL_GFX_VAL,
-		R2_CM_CLKSEL1_CORE_VAL, M3_CM_CLKSEL1_PLL_13_VAL,
+		R2_CM_CLKSEL1_CORE_VAL, M4_CM_CLKSEL1_PLL_13_VAL,
 		MX_CLKSEL2_PLL_2x_VAL, R2_CM_CLKSEL_MDM_VAL,
-		V24XX_SDRC_RFR_CTRL_110MHz,
+		SDRC_RFR_CTRL_133MHz,
+		RATE_IN_243X},
+
+	/* PRCM #2 - ratio1 (ES2) - FAST */
+	{S13M, S658M, S329M, R1_CM_CLKSEL_MPU_VAL,		/* 330MHz ARM */
+		R1_CM_CLKSEL_DSP_VAL, R1_CM_CLKSEL_GFX_VAL,
+		R1_CM_CLKSEL1_CORE_VAL, M2_CM_CLKSEL1_PLL_13_VAL,
+		MX_CLKSEL2_PLL_2x_VAL, R1_CM_CLKSEL_MDM_VAL,
+		SDRC_RFR_CTRL_165MHz,
 		RATE_IN_243X},
 
 	/* PRCM #5a - ratio1 - FAST */
@@ -473,7 +539,7 @@ static struct prcm_config rate_table[] = {
 		R1_CM_CLKSEL_DSP_VAL, R1_CM_CLKSEL_GFX_VAL,
 		R1_CM_CLKSEL1_CORE_VAL, M5A_CM_CLKSEL1_PLL_13_VAL,
 		MX_CLKSEL2_PLL_2x_VAL, R1_CM_CLKSEL_MDM_VAL,
-		V24XX_SDRC_RFR_CTRL_133MHz,
+		SDRC_RFR_CTRL_133MHz,
 		RATE_IN_243X},
 
 	/* PRCM #5b - ratio1 - FAST */
@@ -481,15 +547,23 @@ static struct prcm_config rate_table[] = {
 		R1_CM_CLKSEL_DSP_VAL, R1_CM_CLKSEL_GFX_VAL,
 		R1_CM_CLKSEL1_CORE_VAL, M5B_CM_CLKSEL1_PLL_13_VAL,
 		MX_CLKSEL2_PLL_2x_VAL, R1_CM_CLKSEL_MDM_VAL,
-		V24XX_SDRC_RFR_CTRL_100MHz,
+		SDRC_RFR_CTRL_100MHz,
 		RATE_IN_243X},
 
-	/* PRCM #3 - ratio2 (ES2) - SLOW */
-	{S13M, S330M, S165M, R2_CM_CLKSEL_MPU_VAL,		/* 165MHz ARM */
+	/* PRCM #4 - ratio1 (ES2.1) - SLOW */
+	{S13M, S399M, S199M, R2_CM_CLKSEL_MPU_VAL,		/* 200MHz ARM */
 		R2_CM_CLKSEL_DSP_VAL, R2_CM_CLKSEL_GFX_VAL,
-		R2_CM_CLKSEL1_CORE_VAL, M3_CM_CLKSEL1_PLL_13_VAL,
+		R2_CM_CLKSEL1_CORE_VAL, M4_CM_CLKSEL1_PLL_13_VAL,
 		MX_CLKSEL2_PLL_1x_VAL, R2_CM_CLKSEL_MDM_VAL,
-		V24XX_SDRC_RFR_CTRL_110MHz,
+		SDRC_RFR_CTRL_133MHz,
+		RATE_IN_243X},
+
+	/* PRCM #2 - ratio1 (ES2) - SLOW */
+	{S13M, S329M, S164M, R1_CM_CLKSEL_MPU_VAL,		/* 165MHz ARM */
+		R1_CM_CLKSEL_DSP_VAL, R1_CM_CLKSEL_GFX_VAL,
+		R1_CM_CLKSEL1_CORE_VAL, M2_CM_CLKSEL1_PLL_13_VAL,
+		MX_CLKSEL2_PLL_1x_VAL, R1_CM_CLKSEL_MDM_VAL,
+		SDRC_RFR_CTRL_165MHz,
 		RATE_IN_243X},
 
 	/* PRCM #5a - ratio1 - SLOW */
@@ -497,7 +571,7 @@ static struct prcm_config rate_table[] = {
 		R1_CM_CLKSEL_DSP_VAL, R1_CM_CLKSEL_GFX_VAL,
 		R1_CM_CLKSEL1_CORE_VAL, M5A_CM_CLKSEL1_PLL_13_VAL,
 		MX_CLKSEL2_PLL_1x_VAL, R1_CM_CLKSEL_MDM_VAL,
-		V24XX_SDRC_RFR_CTRL_133MHz,
+		SDRC_RFR_CTRL_133MHz,
 		RATE_IN_243X},
 
 	/* PRCM #5b - ratio1 - SLOW*/
@@ -505,7 +579,7 @@ static struct prcm_config rate_table[] = {
 		R1_CM_CLKSEL_DSP_VAL, R1_CM_CLKSEL_GFX_VAL,
 		R1_CM_CLKSEL1_CORE_VAL, M5B_CM_CLKSEL1_PLL_13_VAL,
 		MX_CLKSEL2_PLL_1x_VAL, R1_CM_CLKSEL_MDM_VAL,
-		V24XX_SDRC_RFR_CTRL_100MHz,
+		SDRC_RFR_CTRL_100MHz,
 		RATE_IN_243X},
 
 	/* PRCM-boot/bypass */
@@ -513,7 +587,7 @@ static struct prcm_config rate_table[] = {
 		RB_CM_CLKSEL_DSP_VAL, RB_CM_CLKSEL_GFX_VAL,
 		RB_CM_CLKSEL1_CORE_VAL, MB_CM_CLKSEL1_PLL_13_VAL,
 		MX_CLKSEL2_PLL_2x_VAL, RB_CM_CLKSEL_MDM_VAL,
-		V24XX_SDRC_RFR_CTRL_BYPASS,
+		SDRC_RFR_CTRL_BYPASS,
 		RATE_IN_243X},
 
 	/* PRCM-boot/bypass */
@@ -521,7 +595,7 @@ static struct prcm_config rate_table[] = {
 		RB_CM_CLKSEL_DSP_VAL, RB_CM_CLKSEL_GFX_VAL,
 		RB_CM_CLKSEL1_CORE_VAL, MB_CM_CLKSEL1_PLL_12_VAL,
 		MX_CLKSEL2_PLL_2x_VAL, RB_CM_CLKSEL_MDM_VAL,
-		V24XX_SDRC_RFR_CTRL_BYPASS,
+		SDRC_RFR_CTRL_BYPASS,
 		RATE_IN_243X},
 
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -547,6 +621,7 @@ static struct prcm_config rate_table[] = {
  *	clocks.
  *-------------------------------------------------------------------------*/
 
+#ifdef OLD_CK
 /* Base external input clocks */
 static struct clk func_32k_ck = {
 	.name		= "func_32k_ck",
@@ -554,7 +629,7 @@ static struct clk func_32k_ck = {
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
 				RATE_FIXED | ALWAYS_ENABLED,
 };
-
+#endif	/* OLD_CK */
 /* Typical 12/13MHz in standalone mode, will be 26Mhz in chassis mode */
 static struct clk osc_ck = {		/* (*12, *13, 19.2, *26, 38.4)MHz */
 	.name		= "osc_ck",
@@ -570,10 +645,9 @@ static struct clk sys_ck = {		/* (*12, *13, 19.2, 26, 38.4)MHz */
 	.rate		= 13000000,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
 				RATE_FIXED | ALWAYS_ENABLED | RATE_PROPAGATES,
-	.rate_offset	= 6, /* sysclkdiv 1 or 2, already handled or no boot */
 	.recalc		= &omap2_sys_clk_recalc,
 };
-
+#ifdef OLD_CK
 static struct clk alt_ck = {		/* Typical 54M or 48M, may not exist */
 	.name		= "alt_ck",
 	.rate		= 54000000,
@@ -581,29 +655,43 @@ static struct clk alt_ck = {		/* Typical 54M or 48M, may not exist */
 				RATE_FIXED | ALWAYS_ENABLED | RATE_PROPAGATES,
 	.recalc		= &omap2_propagate_rate,
 };
-
+#endif	/* OLD_CK */
 /*
  * Analog domain root source clocks
  */
 
 /* dpll_ck, is broken out in to special cases through clksel */
+/* REVISIT: Rate changes on dpll_ck trigger a full set change.	...
+ * deal with this
+ */
+
+static const struct dpll_data dpll_dd = {
+	.mult_div1_reg		= OMAP_CM_REGADDR(PLL_MOD, CM_CLKSEL1),
+	.mult_mask		= OMAP24XX_DPLL_MULT_MASK,
+	.div1_mask		= OMAP24XX_DPLL_DIV_MASK,
+};
+
 static struct clk dpll_ck = {
 	.name		= "dpll_ck",
 	.parent		= &sys_ck,		/* Can be func_32k also */
+	.dpll_data	= &dpll_dd,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				RATE_PROPAGATES | RATE_CKCTL | CM_PLL_SEL1,
-	.recalc		= &omap2_clksel_recalc,
+				RATE_PROPAGATES | ALWAYS_ENABLED,
+	.recalc		= &omap2_dpll_recalc,
+	.set_rate	= &omap2_reprogram_dpll,
 };
 
 static struct clk apll96_ck = {
 	.name		= "apll96_ck",
 	.parent		= &sys_ck,
 	.rate		= 96000000,
-	.flags		= CLOCK_IN_OMAP242X |CLOCK_IN_OMAP243X |
-				RATE_FIXED | RATE_PROPAGATES,
-	.enable_reg	= (void __iomem *)&CM_CLKEN_PLL,
-	.enable_bit	= 0x2,
-	.recalc		= &omap2_propagate_rate,
+	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
+				RATE_FIXED | RATE_PROPAGATES | ENABLE_ON_INIT,
+	.enable_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKEN),
+	.enable_bit	= OMAP24XX_EN_96M_PLL_SHIFT,
+	.enable		= &omap2_clk_fixed_enable,
+	.disable	= &omap2_clk_fixed_disable,
+	.recalc		= &propagate_rate,
 };
 
 static struct clk apll54_ck = {
@@ -611,15 +699,18 @@ static struct clk apll54_ck = {
 	.parent		= &sys_ck,
 	.rate		= 54000000,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				RATE_FIXED | RATE_PROPAGATES,
-	.enable_reg	= (void __iomem *)&CM_CLKEN_PLL,
-	.enable_bit	= 0x6,
-	.recalc		= &omap2_propagate_rate,
+				RATE_FIXED | RATE_PROPAGATES | ENABLE_ON_INIT,
+	.enable_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKEN),
+	.enable_bit	= OMAP24XX_EN_54M_PLL_SHIFT,
+	.enable		= &omap2_clk_fixed_enable,
+	.disable	= &omap2_clk_fixed_disable,
+	.recalc		= &propagate_rate,
 };
 
 /*
  * PRCM digital base sources
  */
+#ifdef OLD_CK
 static struct clk func_54m_ck = {
 	.name		= "func_54m_ck",
 	.parent		= &apll54_ck,	/* can also be alt_clk */
@@ -631,15 +722,15 @@ static struct clk func_54m_ck = {
 	.enable_bit	= 0xff,
 	.recalc		= &omap2_propagate_rate,
 };
-
+#endif	/* OLD_CK */
 static struct clk core_ck = {
 	.name		= "core_ck",
 	.parent		= &dpll_ck,		/* can also be 32k */
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
 				ALWAYS_ENABLED | RATE_PROPAGATES,
-	.recalc		= &omap2_propagate_rate,
+	.recalc		= &followparent_recalc,
 };
-
+#ifdef OLD_CK
 static struct clk sleep_ck = {		/* sys_clk or 32k */
 	.name		= "sleep_ck",
 	.parent		= &func_32k_ck,
@@ -726,7 +817,7 @@ static struct clk emul_ck = {
 	.recalc		= &omap2_propagate_rate,
 
 };
-
+#endif	/* OLD_CK */
 /*
  * MPU clock domain
  *	Clocks:
@@ -740,13 +831,17 @@ static struct clk emul_ck = {
 static struct clk mpu_ck = {	/* Control cpu */
 	.name		= "mpu_ck",
 	.parent		= &core_ck,
-	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X | RATE_CKCTL |
-				ALWAYS_ENABLED | CM_MPU_SEL1 | DELAYED_APP |
+	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
+				ALWAYS_ENABLED | DELAYED_APP |
 				CONFIG_PARTICIPANT | RATE_PROPAGATES,
-	.rate_offset	= 0,	/* bits 0-4 */
+	.init		= &omap2_init_clksel_parent,
+	.clksel_reg	= OMAP_CM_REGADDR(MPU_MOD, CM_CLKSEL),
+	.clksel_mask	= OMAP24XX_CLKSEL_MPU_MASK,
 	.recalc		= &omap2_clksel_recalc,
+	.round_rate     = &omap2_clksel_round_rate,
+	.set_rate	= &omap2_clksel_set_rate
 };
-
+#ifdef OLD_CK
 /*
  * DSP (2430-IVA2.1) (2420-UMA+IVA1) clock domain
  * Clocks:
@@ -1933,7 +2028,7 @@ static struct clk mmchsdb2_fck = {
 	.enable_bit	= 17,
 	.recalc		= &omap2_followparent_recalc,
 };
-
+#endif	/* OLD_CK */
 /*
  * This clock is a composite clock which does entire set changes then
  * forces a rebalance. It keys on the MPU speed, but it really could
@@ -1953,11 +2048,10 @@ static struct clk virt_prcm_set = {
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
 				VIRTUAL_CLOCK | ALWAYS_ENABLED | DELAYED_APP,
 	.parent		= &mpu_ck,	/* Indexed by mpu speed, no parent */
-	.recalc		= &omap2_mpu_recalc,	/* sets are keyed on mpu rate */
 	.set_rate	= &omap2_select_table_rate,
 	.round_rate	= &omap2_round_to_table_rate,
 };
-
+#ifdef OLD_CK
 static struct clk *onchip_clks[] = {
 	/* external root sources */
 	&func_32k_ck,
@@ -2107,5 +2201,17 @@ static struct clk *onchip_clks[] = {
 	&mmchsdb1_fck,
 	&mmchsdb2_fck,
 };
+#endif	/* OLD_CK */
+
+static struct clk *onchip_24xx_clks[] __initdata = {
+	/* external root sources */
+	&osc_ck,
+	&sys_ck,
+	/* internal analog sources */
+	&dpll_ck,
+	&apll96_ck,
+	&apll54_ck,
+};
 
 #endif
+
