@@ -1145,7 +1145,7 @@ static void ieee80211_sta_process_addba_request(struct net_device *dev,
 		status = WLAN_STATUS_INVALID_QOS_PARAM;
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		if (net_ratelimit())
-			printk(KERN_DEBUG "Block Ack Req with bad params from "
+			printk(KERN_DEBUG "AddBA Req with bad params from "
 				"%s on tid %u. policy %d, buffer size %d\n",
 				print_mac(mac, mgmt->sa), tid, ba_policy,
 				buf_size);
@@ -1169,7 +1169,7 @@ static void ieee80211_sta_process_addba_request(struct net_device *dev,
 	if (tid_agg_rx->state != HT_AGG_STATE_IDLE) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		if (net_ratelimit())
-			printk(KERN_DEBUG "unexpected Block Ack Req from "
+			printk(KERN_DEBUG "unexpected AddBA Req from "
 				"%s on tid %u\n",
 				print_mac(mac, mgmt->sa), tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
@@ -1497,8 +1497,8 @@ timer_expired_exit:
 }
 
 /*
- * After receiving Block Ack Request (BAR) we activated a
- * timer after each frame arrives from the originator.
+ * After accepting the AddBA Request we activated a timer,
+ * resetting it after each frame that arrives from the originator.
  * if this timer expires ieee80211_sta_stop_rx_ba_session will be executed.
  */
 void sta_rx_agg_session_timer_expired(unsigned long data)
