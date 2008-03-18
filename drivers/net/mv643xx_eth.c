@@ -3,7 +3,8 @@
  * Copyright (C) 2002 Matthew Dharm <mdharm@momenco.com>
  *
  * Based on the 64360 driver from:
- * Copyright (C) 2002 rabeeh@galileo.co.il
+ * Copyright (C) 2002 Rabeeh Khoury <rabeeh@galileo.co.il>
+ *		      Rabeeh Khoury <rabeeh@marvell.com>
  *
  * Copyright (C) 2003 PMC-Sierra, Inc.,
  *	written by Manish Lachwani
@@ -15,6 +16,9 @@
  *
  * Copyright (C) 2004 Steven J. Hill <sjhill1@rockwellcollins.com>
  *				     <sjhill@realitydiluted.com>
+ *
+ * Copyright (C) 2007-2008 Marvell Semiconductor
+ *			   Lennert Buytenhek <buytenh@marvell.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
