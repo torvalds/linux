@@ -467,8 +467,8 @@ static void ieee80211_set_associated(struct net_device *dev,
 		memcpy(wrqu.ap_addr.sa_data, sdata->u.sta.bssid, ETH_ALEN);
 		ieee80211_sta_send_associnfo(dev, ifsta);
 	} else {
+		ieee80211_sta_tear_down_BA_sessions(dev, ifsta->bssid);
 		ifsta->flags &= ~IEEE80211_STA_ASSOCIATED;
-
 		netif_carrier_off(dev);
 		ieee80211_reset_erp_info(dev);
 		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
@@ -1518,6 +1518,19 @@ void sta_rx_agg_session_timer_expired(unsigned long data)
 					 WLAN_REASON_QSTA_TIMEOUT);
 }
 
+void ieee80211_sta_tear_down_BA_sessions(struct net_device *dev, u8 *addr)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	int i;
+
+	for (i = 0; i <  STA_TID_NUM; i++) {
+		ieee80211_stop_tx_ba_session(&local->hw, addr, i,
+					     WLAN_BACK_INITIATOR);
+		ieee80211_sta_stop_rx_ba_session(dev, addr, i,
+						 WLAN_BACK_RECIPIENT,
+						 WLAN_REASON_QSTA_LEAVE_QBSS);
+	}
+}
 
 static void ieee80211_rx_mgmt_auth(struct net_device *dev,
 				   struct ieee80211_if_sta *ifsta,
