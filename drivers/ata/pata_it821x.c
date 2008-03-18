@@ -564,7 +564,7 @@ static int it821x_check_atapi_dma(struct ata_queued_cmd *qc)
 	struct it821x_dev *itdev = ap->private_data;
 
 	/* Only use dma for transfers to/from the media. */
-	if (qc->nbytes < 2048)
+	if (ata_qc_raw_nbytes(qc) < 2048)
 		return -EOPNOTSUPP;
 
 	/* No ATAPI DMA in smart mode */
