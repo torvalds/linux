@@ -63,12 +63,12 @@ static int netxen_nic_xmit_frame(struct sk_buff *, struct net_device *);
 static void netxen_tx_timeout(struct net_device *netdev);
 static void netxen_tx_timeout_task(struct work_struct *work);
 static void netxen_watchdog(unsigned long);
-static int netxen_handle_int(struct netxen_adapter *, struct net_device *);
 static int netxen_nic_poll(struct napi_struct *napi, int budget);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void netxen_nic_poll_controller(struct net_device *netdev);
 #endif
 static irqreturn_t netxen_intr(int irq, void *data);
+static irqreturn_t netxen_msi_intr(int irq, void *data);
 
 int physical_port[] = {0, 1, 2, 3};
 
@@ -405,7 +405,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->set_mac_address    = netxen_nic_set_mac;
 	netdev->change_mtu	   = netxen_nic_change_mtu;
 	netdev->tx_timeout	   = netxen_tx_timeout;
-	netdev->watchdog_timeo     = HZ;
+	netdev->watchdog_timeo     = 2*HZ;
 
 	netxen_nic_change_mtu(netdev, netdev->mtu);
 
@@ -823,6 +823,8 @@ static int netxen_nic_open(struct net_device *netdev)
 	struct netxen_adapter *adapter = (struct netxen_adapter *)netdev->priv;
 	int err = 0;
 	int ctx, ring;
+	irq_handler_t handler;
+	unsigned long flags = IRQF_SAMPLE_RANDOM;
 
 	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC) {
 		err = netxen_init_firmware(adapter);
@@ -846,9 +848,14 @@ static int netxen_nic_open(struct net_device *netdev)
 				netxen_post_rx_buffers(adapter, ctx, ring);
 		}
 		adapter->irq = adapter->ahw.pdev->irq;
-		err = request_irq(adapter->ahw.pdev->irq, netxen_intr,
-				  IRQF_SHARED|IRQF_SAMPLE_RANDOM, netdev->name,
-				  adapter);
+		if (adapter->flags & NETXEN_NIC_MSI_ENABLED)
+			handler = netxen_msi_intr;
+		else {
+			flags |= IRQF_SHARED;
+			handler = netxen_intr;
+		}
+		err = request_irq(adapter->irq, handler,
+				  flags, netdev->name, adapter);
 		if (err) {
 			printk(KERN_ERR "request_irq failed with: %d\n", err);
 			netxen_free_hw_resources(adapter);
@@ -857,21 +864,12 @@ static int netxen_nic_open(struct net_device *netdev)
 
 		adapter->is_up = NETXEN_ADAPTER_UP_MAGIC;
 	}
-	if (!adapter->driver_mismatch)
-		mod_timer(&adapter->watchdog_timer, jiffies);
-
-	napi_enable(&adapter->napi);
-
-	netxen_nic_enable_int(adapter);
-
 	/* Done here again so that even if phantom sw overwrote it,
 	 * we set it */
 	if (adapter->init_port
 	    && adapter->init_port(adapter, adapter->portnum) != 0) {
-	    del_timer_sync(&adapter->watchdog_timer);
 		printk(KERN_ERR "%s: Failed to initialize port %d\n",
 				netxen_nic_driver_name, adapter->portnum);
-		napi_disable(&adapter->napi);
 		return -EIO;
 	}
 	if (adapter->macaddr_set)
@@ -882,6 +880,12 @@ static int netxen_nic_open(struct net_device *netdev)
 	netxen_nic_set_multi(netdev);
 	if (adapter->set_mtu)
 		adapter->set_mtu(adapter, netdev->mtu);
+
+	if (!adapter->driver_mismatch)
+		mod_timer(&adapter->watchdog_timer, jiffies);
+
+	napi_enable(&adapter->napi);
+	netxen_nic_enable_int(adapter);
 
 	if (!adapter->driver_mismatch)
 		netif_start_queue(netdev);
@@ -1196,81 +1200,50 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 	netif_wake_queue(adapter->netdev);
 }
 
-static int
-netxen_handle_int(struct netxen_adapter *adapter, struct net_device *netdev)
+static inline void
+netxen_handle_int(struct netxen_adapter *adapter)
 {
-	u32 ret = 0;
-
-	DPRINTK(INFO, "Entered handle ISR\n");
-	adapter->stats.ints++;
-
 	netxen_nic_disable_int(adapter);
-
-	if (netxen_nic_rx_has_work(adapter) || netxen_nic_tx_has_work(adapter)) {
-		if (netif_rx_schedule_prep(netdev, &adapter->napi)) {
-			/*
-			 * Interrupts are already disabled.
-			 */
-			__netif_rx_schedule(netdev, &adapter->napi);
-		} else {
-			static unsigned int intcount = 0;
-			if ((++intcount & 0xfff) == 0xfff)
-				DPRINTK(KERN_ERR
-				       "%s: %s interrupt %d while in poll\n",
-				       netxen_nic_driver_name, netdev->name,
-				       intcount);
-		}
-		ret = 1;
-	}
-
-	if (ret == 0) {
-		netxen_nic_enable_int(adapter);
-	}
-
-	return ret;
+	napi_schedule(&adapter->napi);
 }
 
-/*
- * netxen_intr - Interrupt Handler
- * @irq: interrupt number
- * data points to adapter stucture (which may be handling more than 1 port
- */
 irqreturn_t netxen_intr(int irq, void *data)
 {
 	struct netxen_adapter *adapter = data;
-	struct net_device *netdev = adapter->netdev;
 	u32 our_int = 0;
 
-	if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
-		our_int = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
-		/* not our interrupt */
-		if ((our_int & (0x80 << adapter->portnum)) == 0)
-			return IRQ_NONE;
-	}
+	our_int = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
+	/* not our interrupt */
+	if ((our_int & (0x80 << adapter->portnum)) == 0)
+		return IRQ_NONE;
 
 	if (adapter->intr_scheme == INTR_SCHEME_PERPORT) {
 		/* claim interrupt */
-		if (!(adapter->flags & NETXEN_NIC_MSI_ENABLED)) {
-			writel(our_int & ~((u32)(0x80 << adapter->portnum)),
+		writel(our_int & ~((u32)(0x80 << adapter->portnum)),
 			NETXEN_CRB_NORMALIZE(adapter, CRB_INT_VECTOR));
-		}
 	}
 
-	if (netif_running(netdev))
-		netxen_handle_int(adapter, netdev);
+	netxen_handle_int(adapter);
 
+	return IRQ_HANDLED;
+}
+
+irqreturn_t netxen_msi_intr(int irq, void *data)
+{
+	struct netxen_adapter *adapter = data;
+
+	netxen_handle_int(adapter);
 	return IRQ_HANDLED;
 }
 
 static int netxen_nic_poll(struct napi_struct *napi, int budget)
 {
 	struct netxen_adapter *adapter = container_of(napi, struct netxen_adapter, napi);
-	struct net_device *netdev = adapter->netdev;
-	int done = 1;
+	int tx_complete;
 	int ctx;
 	int work_done;
 
-	DPRINTK(INFO, "polling for %d descriptors\n", *budget);
+	tx_complete = netxen_process_cmd_ring(adapter);
 
 	work_done = 0;
 	for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
@@ -1290,16 +1263,8 @@ static int netxen_nic_poll(struct napi_struct *napi, int budget)
 						     budget / MAX_RCV_CTX);
 	}
 
-	if (work_done >= budget)
-		done = 0;
-
-	if (netxen_process_cmd_ring((unsigned long)adapter) == 0)
-		done = 0;
-
-	DPRINTK(INFO, "new work_done: %d work_to_do: %d\n",
-		work_done, work_to_do);
-	if (done) {
-		netif_rx_complete(netdev, napi);
+	if ((work_done < budget) && tx_complete) {
+		netif_rx_complete(adapter->netdev, &adapter->napi);
 		netxen_nic_enable_int(adapter);
 	}
 

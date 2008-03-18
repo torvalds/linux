@@ -842,7 +842,6 @@ struct netxen_rcv_desc_ctx {
 	u32 flags;
 	u32 producer;
 	u32 rcv_pending;	/* Num of bufs posted in phantom */
-	u32 rcv_free;		/* Num of bufs in free list */
 	dma_addr_t phys_addr;
 	struct pci_dev *phys_pdev;
 	struct rcv_desc *desc_head;	/* address of rx ring in Phantom */
@@ -1076,12 +1075,10 @@ void netxen_tso_check(struct netxen_adapter *adapter,
 		      struct cmd_desc_type0 *desc, struct sk_buff *skb);
 int netxen_nic_hw_resources(struct netxen_adapter *adapter);
 void netxen_nic_clear_stats(struct netxen_adapter *adapter);
-int netxen_nic_rx_has_work(struct netxen_adapter *adapter);
-int netxen_nic_tx_has_work(struct netxen_adapter *adapter);
 void netxen_watchdog_task(struct work_struct *work);
 void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx,
 			    u32 ringid);
-int netxen_process_cmd_ring(unsigned long data);
+int netxen_process_cmd_ring(struct netxen_adapter *adapter);
 u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctx, int max);
 void netxen_nic_set_multi(struct net_device *netdev);
 int netxen_nic_change_mtu(struct net_device *netdev, int new_mtu);
