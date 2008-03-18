@@ -221,6 +221,9 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 /* SD_CTL bits */
 #define SD_CTL_STREAM_RESET	0x01	/* stream reset bit */
 #define SD_CTL_DMA_START	0x02	/* stream DMA start bit */
+#define SD_CTL_STRIPE		(3 << 16)	/* stripe control */
+#define SD_CTL_TRAFFIC_PRIO	(1 << 18)	/* traffic priority */
+#define SD_CTL_DIR		(1 << 19)	/* bi-directional stream */
 #define SD_CTL_STREAM_TAG_MASK	(0xf << 20)
 #define SD_CTL_STREAM_TAG_SHIFT	20
 
@@ -1180,7 +1183,8 @@ static struct snd_pcm_hardware azx_pcm_hw = {
 				 SNDRV_PCM_INFO_MMAP_VALID |
 				 /* No full-resume yet implemented */
 				 /* SNDRV_PCM_INFO_RESUME |*/
-				 SNDRV_PCM_INFO_PAUSE),
+				 SNDRV_PCM_INFO_PAUSE |
+				 SNDRV_PCM_INFO_SYNC_START),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_48000,
 	.rate_min =		48000,
@@ -1242,6 +1246,7 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
 	runtime->private_data = azx_dev;
+	snd_pcm_set_sync(substream);
 	mutex_unlock(&chip->open_mutex);
 	return 0;
 }
@@ -1326,37 +1331,94 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
-	struct azx_dev *azx_dev = get_azx_dev(substream);
 	struct azx *chip = apcm->chip;
-	int err = 0;
+	struct azx_dev *azx_dev;
+	struct snd_pcm_substream *s;
+	int start, nsync = 0, sbits = 0;
+	int nwait, timeout;
 
-	spin_lock(&chip->reg_lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_START:
-		azx_stream_start(chip, azx_dev);
-		azx_dev->running = 1;
+		start = 1;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
-		azx_stream_stop(chip, azx_dev);
-		azx_dev->running = 0;
+		start = 0;
 		break;
 	default:
-		err = -EINVAL;
+		return -EINVAL;
+	}
+
+	snd_pcm_group_for_each_entry(s, substream) {
+		if (s->pcm->card != substream->pcm->card)
+			continue;
+		azx_dev = get_azx_dev(s);
+		sbits |= 1 << azx_dev->index;
+		nsync++;
+		snd_pcm_trigger_done(s, substream);
+	}
+
+	spin_lock(&chip->reg_lock);
+	if (nsync > 1) {
+		/* first, set SYNC bits of corresponding streams */
+		azx_writel(chip, SYNC, azx_readl(chip, SYNC) | sbits);
+	}
+	snd_pcm_group_for_each_entry(s, substream) {
+		if (s->pcm->card != substream->pcm->card)
+			continue;
+		azx_dev = get_azx_dev(s);
+		if (start)
+			azx_stream_start(chip, azx_dev);
+		else
+			azx_stream_stop(chip, azx_dev);
+		azx_dev->running = start;
 	}
 	spin_unlock(&chip->reg_lock);
-	if (cmd == SNDRV_PCM_TRIGGER_PAUSE_PUSH ||
-	    cmd == SNDRV_PCM_TRIGGER_SUSPEND ||
-	    cmd == SNDRV_PCM_TRIGGER_STOP) {
-		int timeout = 5000;
-		while ((azx_sd_readb(azx_dev, SD_CTL) & SD_CTL_DMA_START) &&
-		       --timeout)
-			;
+	if (start) {
+		if (nsync == 1)
+			return 0;
+		/* wait until all FIFOs get ready */
+		for (timeout = 5000; timeout; timeout--) {
+			nwait = 0;
+			snd_pcm_group_for_each_entry(s, substream) {
+				if (s->pcm->card != substream->pcm->card)
+					continue;
+				azx_dev = get_azx_dev(s);
+				if (!(azx_sd_readb(azx_dev, SD_STS) &
+				      SD_STS_FIFO_READY))
+					nwait++;
+			}
+			if (!nwait)
+				break;
+			cpu_relax();
+		}
+	} else {
+		/* wait until all RUN bits are cleared */
+		for (timeout = 5000; timeout; timeout--) {
+			nwait = 0;
+			snd_pcm_group_for_each_entry(s, substream) {
+				if (s->pcm->card != substream->pcm->card)
+					continue;
+				azx_dev = get_azx_dev(s);
+				if (azx_sd_readb(azx_dev, SD_CTL) &
+				    SD_CTL_DMA_START)
+					nwait++;
+			}
+			if (!nwait)
+				break;
+			cpu_relax();
+		}
 	}
-	return err;
+	if (nsync > 1) {
+		spin_lock(&chip->reg_lock);
+		/* reset SYNC bits */
+		azx_writel(chip, SYNC, azx_readl(chip, SYNC) & ~sbits);
+		spin_unlock(&chip->reg_lock);
+	}
+	return 0;
 }
 
 static snd_pcm_uframes_t azx_pcm_pointer(struct snd_pcm_substream *substream)
