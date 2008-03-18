@@ -31,7 +31,7 @@
 
 #include "prcm-regs.h"
 #include "memory.h"
-#include "clock.h"
+#include "clock24xx.h"
 
 #undef DEBUG
 
