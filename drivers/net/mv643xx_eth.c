@@ -1315,8 +1315,7 @@ static int mv643xx_eth_open(struct net_device *dev)
 	err = request_irq(dev->irq, mv643xx_eth_int_handler,
 			IRQF_SHARED | IRQF_SAMPLE_RANDOM, dev->name, dev);
 	if (err) {
-		printk(KERN_ERR "Can not assign IRQ number to MV643XX_eth%d\n",
-								port_num);
+		printk(KERN_ERR "%s: Can not assign IRQ\n", dev->name);
 		return -EAGAIN;
 	}
 
@@ -1916,9 +1915,8 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	err = ethernet_phy_detect(mp);
 	if (err) {
-		pr_debug("MV643xx ethernet port %d: "
-					"No PHY detected at addr %d\n",
-					port_num, ethernet_phy_get(mp));
+		pr_debug("%s: No PHY detected at addr %d\n",
+				dev->name, ethernet_phy_get(mp));
 		goto out;
 	}
 
@@ -2909,8 +2907,7 @@ static void eth_port_read_smi_reg(struct mv643xx_private *mp,
 	/* wait for the SMI register to become available */
 	for (i = 0; mv_read(SMI_REG) & ETH_SMI_BUSY; i++) {
 		if (i == PHY_WAIT_ITERATIONS) {
-			printk("mv643xx PHY busy timeout, port %d\n",
-				mp->port_num);
+			printk("%s: PHY busy timeout\n", mp->dev->name);
 			goto out;
 		}
 		udelay(PHY_WAIT_MICRO_SECONDS);
@@ -2922,8 +2919,7 @@ static void eth_port_read_smi_reg(struct mv643xx_private *mp,
 	/* now wait for the data to be valid */
 	for (i = 0; !(mv_read(SMI_REG) & ETH_SMI_READ_VALID); i++) {
 		if (i == PHY_WAIT_ITERATIONS) {
-			printk("mv643xx PHY read timeout, port %d\n",
-				mp->port_num);
+			printk("%s: PHY read timeout\n", mp->dev->name);
 			goto out;
 		}
 		udelay(PHY_WAIT_MICRO_SECONDS);
@@ -2969,8 +2965,7 @@ static void eth_port_write_smi_reg(struct mv643xx_private *mp,
 	/* wait for the SMI register to become available */
 	for (i = 0; mv_read(SMI_REG) & ETH_SMI_BUSY; i++) {
 		if (i == PHY_WAIT_ITERATIONS) {
-			printk("mv643xx PHY busy timeout, port %d\n",
-				mp->port_num);
+			printk("%s: PHY busy timeout\n", mp->dev->name);
 			goto out;
 		}
 		udelay(PHY_WAIT_MICRO_SECONDS);
