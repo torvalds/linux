@@ -30,6 +30,7 @@ config ATA_NONSTANDARD
 config ATA_ACPI
 	bool
 	depends on ACPI && PCI
+	select ACPI_DOCK
 	default y
 	help
 	  This option adds support for ATA-related ACPI objects.

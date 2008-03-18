@@ -4,8 +4,6 @@
 
 menuconfig THERMAL
 	bool "Generic Thermal sysfs driver"
-	select HWMON
-	default y
 	help
 	  Generic Thermal Sysfs driver offers a generic mechanism for
 	  thermal management. Usually it's made up of one or more thermal
