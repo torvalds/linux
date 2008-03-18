@@ -1427,7 +1427,7 @@ static void ieee80211_sta_process_delba(struct net_device *dev,
 	if (net_ratelimit())
 		printk(KERN_DEBUG "delba from %s (%s) tid %d reason code %d\n",
 			print_mac(mac, mgmt->sa),
-			initiator ? "recipient" : "initiator", tid,
+			initiator ? "initiator" : "recipient", tid,
 			mgmt->u.action.u.delba.reason_code);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
