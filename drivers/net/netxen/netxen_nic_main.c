@@ -317,7 +317,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapter->ahw.pdev = pdev;
 	adapter->ahw.pci_func  = pci_func_id;
-	spin_lock_init(&adapter->tx_lock);
 
 	/* remap phys address */
 	mem_base = pci_resource_start(pdev, 0);	/* 0 is for BAR 0 */
@@ -533,7 +532,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 	INIT_WORK(&adapter->watchdog_task, netxen_watchdog_task);
 	adapter->ahw.pdev = pdev;
-	adapter->proc_cmd_buf_counter = 0;
 	adapter->ahw.revision_id = pdev->revision;
 
 	/* make sure Window == 1 */
@@ -952,40 +950,16 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	struct netxen_skb_frag *buffrag;
 	unsigned int i;
 
-	u32 producer = 0;
+	u32 producer, consumer;
 	u32 saved_producer = 0;
 	struct cmd_desc_type0 *hwdesc;
 	int k;
 	struct netxen_cmd_buffer *pbuf = NULL;
-	static int dropped_packet = 0;
 	int frag_count;
-	u32 local_producer = 0;
-	u32 max_tx_desc_count = 0;
-	u32 last_cmd_consumer = 0;
 	int no_of_desc;
+	u32 num_txd = adapter->max_tx_desc_count;
 
-	adapter->stats.xmitcalled++;
 	frag_count = skb_shinfo(skb)->nr_frags + 1;
-
-	if (unlikely(skb->len <= 0)) {
-		dev_kfree_skb_any(skb);
-		adapter->stats.badskblen++;
-		return NETDEV_TX_OK;
-	}
-
-	if (frag_count > MAX_BUFFERS_PER_CMD) {
-		printk("%s: %s netxen_nic_xmit_frame: frag_count (%d) "
-		       "too large, can handle only %d frags\n",
-		       netxen_nic_driver_name, netdev->name,
-		       frag_count, MAX_BUFFERS_PER_CMD);
-		adapter->stats.txdropped++;
-		if ((++dropped_packet & 0xff) == 0xff)
-			printk("%s: %s droppped packets = %d\n",
-			       netxen_nic_driver_name, netdev->name,
-			       dropped_packet);
-
-		return NETDEV_TX_OK;
-	}
 
 	/* There 4 fragments per descriptor */
 	no_of_desc = (frag_count + 3) >> 2;
@@ -1001,27 +975,16 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		}
 	}
 
-	spin_lock_bh(&adapter->tx_lock);
-	if (adapter->total_threads >= MAX_XMIT_PRODUCERS) {
-		goto out_requeue;
+	producer = adapter->cmd_producer;
+	smp_mb();
+	consumer = adapter->last_cmd_consumer;
+	if ((no_of_desc+2) > find_diff_among(producer, consumer, num_txd)) {
+		netif_stop_queue(netdev);
+		smp_mb();
+		return NETDEV_TX_BUSY;
 	}
-	local_producer = adapter->cmd_producer;
-	k = adapter->cmd_producer;
-	max_tx_desc_count = adapter->max_tx_desc_count;
-	last_cmd_consumer = adapter->last_cmd_consumer;
-	if ((k + no_of_desc) >=
-	    ((last_cmd_consumer <= k) ? last_cmd_consumer + max_tx_desc_count :
-	     last_cmd_consumer)) {
-		goto out_requeue;
-	}
-	k = get_index_range(k, max_tx_desc_count, no_of_desc);
-	adapter->cmd_producer = k;
-	adapter->total_threads++;
-	adapter->num_threads++;
 
-	spin_unlock_bh(&adapter->tx_lock);
 	/* Copy the descriptors into the hardware    */
-	producer = local_producer;
 	saved_producer = producer;
 	hwdesc = &hw->cmd_desc_head[producer];
 	memset(hwdesc, 0, sizeof(struct cmd_desc_type0));
@@ -1061,8 +1024,7 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		/* move to next desc. if there is a need */
 		if ((i & 0x3) == 0) {
 			k = 0;
-			producer = get_next_index(producer,
-						  adapter->max_tx_desc_count);
+			producer = get_next_index(producer, num_txd);
 			hwdesc = &hw->cmd_desc_head[producer];
 			memset(hwdesc, 0, sizeof(struct cmd_desc_type0));
 			pbuf = &adapter->cmd_buf_arr[producer];
@@ -1080,7 +1042,6 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		buffrag->dma = temp_dma;
 		buffrag->length = temp_len;
 
-		DPRINTK(INFO, "for loop. i=%d k=%d\n", i, k);
 		switch (k) {
 		case 0:
 			hwdesc->buffer1_length = cpu_to_le16(temp_len);
@@ -1101,7 +1062,7 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		}
 		frag++;
 	}
-	producer = get_next_index(producer, adapter->max_tx_desc_count);
+	producer = get_next_index(producer, num_txd);
 
 	/* might change opcode to TX_TCP_LSO */
 	netxen_tso_check(adapter, &hw->cmd_desc_head[saved_producer], skb);
@@ -1128,7 +1089,7 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		/* copy the first 64 bytes */
 		memcpy(((void *)hwdesc) + 2,
 		       (void *)(skb->data), first_hdr_len);
-		producer = get_next_index(producer, max_tx_desc_count);
+		producer = get_next_index(producer, num_txd);
 
 		if (more_hdr) {
 			hwdesc = &hw->cmd_desc_head[producer];
@@ -1141,35 +1102,19 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 							 hwdesc,
 							 (hdr_len -
 							  first_hdr_len));
-			producer = get_next_index(producer, max_tx_desc_count);
+			producer = get_next_index(producer, num_txd);
 		}
 	}
 
-	spin_lock_bh(&adapter->tx_lock);
+	adapter->cmd_producer = producer;
 	adapter->stats.txbytes += skb->len;
 
-	/* Code to update the adapter considering how many producer threads
-	   are currently working */
-	if ((--adapter->num_threads) == 0) {
-		/* This is the last thread */
-		u32 crb_producer = adapter->cmd_producer;
-		netxen_nic_update_cmd_producer(adapter, crb_producer);
-		wmb();
-		adapter->total_threads = 0;
-	}
+	netxen_nic_update_cmd_producer(adapter, adapter->cmd_producer);
 
-	adapter->stats.xmitfinished++;
+	adapter->stats.xmitcalled++;
 	netdev->trans_start = jiffies;
 
-	spin_unlock_bh(&adapter->tx_lock);
 	return NETDEV_TX_OK;
-
-out_requeue:
-	netif_stop_queue(netdev);
-	adapter->flags |= NETXEN_NETDEV_STATUS;
-
-	spin_unlock_bh(&adapter->tx_lock);
-	return NETDEV_TX_BUSY;
 }
 
 static void netxen_watchdog(unsigned long v)
@@ -1194,9 +1139,13 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 	printk(KERN_ERR "%s %s: transmit timeout, resetting.\n",
 	       netxen_nic_driver_name, adapter->netdev->name);
 
-	netxen_nic_close(adapter->netdev);
-	netxen_nic_open(adapter->netdev);
+	netxen_nic_disable_int(adapter);
+	napi_disable(&adapter->napi);
+
 	adapter->netdev->trans_start = jiffies;
+
+	napi_enable(&adapter->napi);
+	netxen_nic_enable_int(adapter);
 	netif_wake_queue(adapter->netdev);
 }
 

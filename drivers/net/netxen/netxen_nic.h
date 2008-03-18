@@ -85,7 +85,7 @@
 	(sizeof(struct netxen_cmd_buffer) * adapter->max_tx_desc_count)
 #define RCV_BUFFSIZE	\
 	(sizeof(struct netxen_rx_buffer) * rcv_desc->max_rx_desc_count)
-#define find_diff_among(a,b,range) ((a)<=(b)?((b)-(a)):((b)+(range)-(a)))
+#define find_diff_among(a,b,range) ((a)<(b)?((b)-(a)):((b)+(range)-(a)))
 
 #define NETXEN_NETDEV_STATUS		0x1
 #define NETXEN_RCV_PRODUCER_OFFSET	0
@@ -204,7 +204,7 @@ enum {
 			? RCV_DESC_LRO :	\
 			(RCV_DESC_NORMAL)))
 
-#define MAX_CMD_DESCRIPTORS		1024
+#define MAX_CMD_DESCRIPTORS		4096
 #define MAX_RCV_DESCRIPTORS		16384
 #define MAX_CMD_DESCRIPTORS_HOST	(MAX_CMD_DESCRIPTORS / 4)
 #define MAX_RCV_DESCRIPTORS_1G		(MAX_RCV_DESCRIPTORS / 4)
@@ -824,9 +824,7 @@ struct netxen_adapter_stats {
 	u64  uphcong;
 	u64  upmcong;
 	u64  updunno;
-	u64  skbfreed;
 	u64  txdropped;
-	u64  txnullskb;
 	u64  csummed;
 	u64  no_rcv;
 	u64  rxbytes;
@@ -888,8 +886,6 @@ struct netxen_adapter {
 	int mtu;
 	int portnum;
 
-	spinlock_t tx_lock;
-	spinlock_t lock;
 	struct work_struct watchdog_task;
 	struct timer_list watchdog_timer;
 	struct work_struct  tx_timeout_task;
@@ -898,16 +894,12 @@ struct netxen_adapter {
 
 	u32 cmd_producer;
 	__le32 *cmd_consumer;
-
 	u32 last_cmd_consumer;
+
 	u32 max_tx_desc_count;
 	u32 max_rx_desc_count;
 	u32 max_jumbo_rx_desc_count;
 	u32 max_lro_rx_desc_count;
-	/* Num of instances active on cmd buffer ring */
-	u32 proc_cmd_buf_counter;
-
-	u32 num_threads, total_threads;	/*Use to keep track of xmit threads */
 
 	u32 flags;
 	u32 irq;

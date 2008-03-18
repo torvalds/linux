@@ -1197,96 +1197,50 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 /* Process Command status ring */
 int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 {
-	u32 last_consumer;
-	u32 consumer;
-	int count1 = 0;
-	int count2 = 0;
+	u32 last_consumer, consumer;
+	int count = 0, i;
 	struct netxen_cmd_buffer *buffer;
-	struct pci_dev *pdev;
+	struct pci_dev *pdev = adapter->pdev;
+	struct net_device *netdev = adapter->netdev;
 	struct netxen_skb_frag *frag;
-	u32 i;
-	int done;
+	int done = 0;
 
-	spin_lock(&adapter->tx_lock);
 	last_consumer = adapter->last_cmd_consumer;
-	DPRINTK(INFO, "procesing xmit complete\n");
-	/* we assume in this case that there is only one port and that is
-	 * port #1...changes need to be done in firmware to indicate port
-	 * number as part of the descriptor. This way we will be able to get
-	 * the netdev which is associated with that device.
-	 */
-
 	consumer = le32_to_cpu(*(adapter->cmd_consumer));
-	if (last_consumer == consumer) {	/* Ring is empty    */
-		DPRINTK(INFO, "last_consumer %d == consumer %d\n",
-			last_consumer, consumer);
-		spin_unlock(&adapter->tx_lock);
-		return 1;
-	}
 
-	adapter->proc_cmd_buf_counter++;
-	/*
-	 * Not needed - does not seem to be used anywhere.
-	 * adapter->cmd_consumer = consumer;
-	 */
-	spin_unlock(&adapter->tx_lock);
-
-	while ((last_consumer != consumer) && (count1 < MAX_STATUS_HANDLE)) {
+	while (last_consumer != consumer) {
 		buffer = &adapter->cmd_buf_arr[last_consumer];
-		pdev = adapter->pdev;
 		if (buffer->skb) {
 			frag = &buffer->frag_array[0];
 			pci_unmap_single(pdev, frag->dma, frag->length,
 					 PCI_DMA_TODEVICE);
 			frag->dma = 0ULL;
 			for (i = 1; i < buffer->frag_count; i++) {
-				DPRINTK(INFO, "getting fragment no %d\n", i);
 				frag++;	/* Get the next frag */
 				pci_unmap_page(pdev, frag->dma, frag->length,
 					       PCI_DMA_TODEVICE);
 				frag->dma = 0ULL;
 			}
 
-			adapter->stats.skbfreed++;
+			adapter->stats.xmitfinished++;
 			dev_kfree_skb_any(buffer->skb);
 			buffer->skb = NULL;
-		} else if (adapter->proc_cmd_buf_counter == 1) {
-			adapter->stats.txnullskb++;
-		}
-		if (unlikely(netif_queue_stopped(adapter->netdev)
-			     && netif_carrier_ok(adapter->netdev))
-		    && ((jiffies - adapter->netdev->trans_start) >
-			adapter->netdev->watchdog_timeo)) {
-			SCHEDULE_WORK(&adapter->tx_timeout_task);
 		}
 
 		last_consumer = get_next_index(last_consumer,
 					       adapter->max_tx_desc_count);
-		count1++;
+		if (++count >= MAX_STATUS_HANDLE)
+			break;
 	}
 
-	count2 = 0;
-	spin_lock(&adapter->tx_lock);
-	if ((--adapter->proc_cmd_buf_counter) == 0) {
+	if (count) {
 		adapter->last_cmd_consumer = last_consumer;
-		while ((adapter->last_cmd_consumer != consumer)
-		       && (count2 < MAX_STATUS_HANDLE)) {
-			buffer =
-			    &adapter->cmd_buf_arr[adapter->last_cmd_consumer];
-			count2++;
-			if (buffer->skb)
-				break;
-			else
-				adapter->last_cmd_consumer =
-				    get_next_index(adapter->last_cmd_consumer,
-						   adapter->max_tx_desc_count);
-		}
-	}
-	if (count1 || count2) {
-		if (netif_queue_stopped(adapter->netdev)
-		    && (adapter->flags & NETXEN_NETDEV_STATUS)) {
-			netif_wake_queue(adapter->netdev);
-			adapter->flags &= ~NETXEN_NETDEV_STATUS;
+		smp_mb();
+		if (netif_queue_stopped(netdev) && netif_running(netdev)) {
+			netif_tx_lock(netdev);
+			netif_wake_queue(netdev);
+			smp_mb();
+			netif_tx_unlock(netdev);
 		}
 	}
 	/*
@@ -1302,16 +1256,9 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 	 * There is still a possible race condition and the host could miss an
 	 * interrupt. The card has to take care of this.
 	 */
-	if (adapter->last_cmd_consumer == consumer &&
-	    (((adapter->cmd_producer + 1) %
-	      adapter->max_tx_desc_count) == adapter->last_cmd_consumer)) {
-		consumer = le32_to_cpu(*(adapter->cmd_consumer));
-	}
-	done = (adapter->last_cmd_consumer == consumer);
+	consumer = le32_to_cpu(*(adapter->cmd_consumer));
+	done = (last_consumer == consumer);
 
-	spin_unlock(&adapter->tx_lock);
-	DPRINTK(INFO, "last consumer is %d in %s\n", last_consumer,
-		__FUNCTION__);
 	return (done);
 }
 
