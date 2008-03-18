@@ -97,15 +97,20 @@ unsigned long get_nfs_grace_period(void)
 }
 EXPORT_SYMBOL(get_nfs_grace_period);
 
-static unsigned long set_grace_period(void)
-{
-	nlmsvc_grace_period = 1;
-	return get_nfs_grace_period() + jiffies;
-}
-
-static inline void clear_grace_period(void)
+static void grace_ender(struct work_struct *not_used)
 {
 	nlmsvc_grace_period = 0;
+}
+
+static DECLARE_DELAYED_WORK(grace_period_end, grace_ender);
+
+static void set_grace_period(void)
+{
+	unsigned long grace_period = get_nfs_grace_period() + jiffies;
+
+	nlmsvc_grace_period = 1;
+	cancel_delayed_work_sync(&grace_period_end);
+	schedule_delayed_work(&grace_period_end, grace_period);
 }
 
 /*
@@ -116,7 +121,6 @@ lockd(void *vrqstp)
 {
 	int		err = 0, preverr = 0;
 	struct svc_rqst *rqstp = vrqstp;
-	unsigned long grace_period_expire;
 
 	/* try_to_freeze() is called from svc_recv() */
 	set_freezable();
@@ -139,7 +143,7 @@ lockd(void *vrqstp)
 		nlm_timeout = LOCKD_DFLT_TIMEO;
 	nlmsvc_timeout = nlm_timeout * HZ;
 
-	grace_period_expire = set_grace_period();
+	set_grace_period();
 
 	/*
 	 * The main request loop. We don't terminate until the last
@@ -153,15 +157,12 @@ lockd(void *vrqstp)
 			flush_signals(current);
 			if (nlmsvc_ops) {
 				nlmsvc_invalidate_all();
-				grace_period_expire = set_grace_period();
+				set_grace_period();
 			}
 			continue;
 		}
 
 		timeout = nlmsvc_retry_blocked();
-
-		if (time_before(grace_period_expire, jiffies))
-			clear_grace_period();
 
 		/*
 		 * Find a socket with data available and call its
@@ -189,6 +190,7 @@ lockd(void *vrqstp)
 		svc_process(rqstp);
 	}
 	flush_signals(current);
+	cancel_delayed_work_sync(&grace_period_end);
 	if (nlmsvc_ops)
 		nlmsvc_invalidate_all();
 	nlm_shutdown_hosts();
