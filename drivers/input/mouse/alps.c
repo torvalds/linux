@@ -116,8 +116,8 @@ static void alps_process_packet(struct psmouse *psmouse)
 	}
 
 	if (priv->i->flags & ALPS_FW_BK_1) {
-		back = packet[2] & 4;
-		forward = packet[0] & 0x10;
+		back = packet[0] & 0x10;
+		forward = packet[2] & 4;
 	}
 
 	if (priv->i->flags & ALPS_FW_BK_2) {
