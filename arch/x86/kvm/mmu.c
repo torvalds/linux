@@ -1020,7 +1020,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 			 unsigned pt_access, unsigned pte_access,
 			 int user_fault, int write_fault, int dirty,
 			 int *ptwrite, int largepage, gfn_t gfn,
-			 struct page *page)
+			 struct page *page, bool speculative)
 {
 	u64 spte;
 	int was_rmapped = 0;
@@ -1061,6 +1061,8 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 	 * demand paging).
 	 */
 	spte = PT_PRESENT_MASK | PT_DIRTY_MASK;
+	if (!speculative)
+		pte_access |= PT_ACCESSED_MASK;
 	if (!dirty)
 		pte_access &= ~ACC_WRITE_MASK;
 	if (!(pte_access & ACC_EXEC_MASK))
@@ -1148,13 +1150,13 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 
 		if (level == 1) {
 			mmu_set_spte(vcpu, &table[index], ACC_ALL, ACC_ALL,
-				     0, write, 1, &pt_write, 0, gfn, page);
+				     0, write, 1, &pt_write, 0, gfn, page, false);
 			return pt_write;
 		}
 
 		if (largepage && level == 2) {
 			mmu_set_spte(vcpu, &table[index], ACC_ALL, ACC_ALL,
-				    0, write, 1, &pt_write, 1, gfn, page);
+				     0, write, 1, &pt_write, 1, gfn, page, false);
 			return pt_write;
 		}
 

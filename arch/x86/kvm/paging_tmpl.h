@@ -266,7 +266,7 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 	get_page(npage);
 	mmu_set_spte(vcpu, spte, page->role.access, pte_access, 0, 0,
 		     gpte & PT_DIRTY_MASK, NULL, largepage, gpte_to_gfn(gpte),
-		     npage);
+		     npage, true);
 }
 
 /*
@@ -349,7 +349,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	mmu_set_spte(vcpu, shadow_ent, access, walker->pte_access & access,
 		     user_fault, write_fault,
 		     walker->ptes[walker->level-1] & PT_DIRTY_MASK,
-		     ptwrite, largepage, walker->gfn, page);
+		     ptwrite, largepage, walker->gfn, page, false);
 
 	return shadow_ent;
 }
