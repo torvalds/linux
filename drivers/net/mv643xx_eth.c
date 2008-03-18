@@ -1741,22 +1741,21 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	BUG_ON(netif_queue_stopped(dev));
 	BUG_ON(skb == NULL);
 
-	if (mp->tx_ring_size - mp->tx_desc_count < MAX_DESCS_PER_SKB) {
-		printk(KERN_ERR "%s: transmit with queue full\n", dev->name);
-		netif_stop_queue(dev);
+	if (has_tiny_unaligned_frags(skb) && __skb_linearize(skb)) {
+		stats->tx_dropped++;
+		printk(KERN_DEBUG "%s: failed to linearize tiny "
+				"unaligned fragment\n", dev->name);
 		return 1;
 	}
 
-	if (has_tiny_unaligned_frags(skb)) {
-		if (__skb_linearize(skb)) {
-			stats->tx_dropped++;
-			printk(KERN_DEBUG "%s: failed to linearize tiny "
-					"unaligned fragment\n", dev->name);
-			return 1;
-		}
-	}
-
 	spin_lock_irqsave(&mp->lock, flags);
+
+	if (mp->tx_ring_size - mp->tx_desc_count < MAX_DESCS_PER_SKB) {
+		printk(KERN_ERR "%s: transmit with queue full\n", dev->name);
+		netif_stop_queue(dev);
+		spin_unlock_irqrestore(&mp->lock, flags);
+		return 1;
+	}
 
 	eth_tx_submit_descs_for_skb(mp, skb);
 	stats->tx_bytes += skb->len;
