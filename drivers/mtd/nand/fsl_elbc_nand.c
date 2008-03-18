@@ -780,6 +780,8 @@ static int fsl_elbc_chip_remove(struct fsl_elbc_mtd *priv)
 
 	nand_release(&priv->mtd);
 
+	kfree(priv->mtd.name);
+
 	if (priv->vbase)
 		iounmap(priv->vbase);
 
@@ -836,6 +838,12 @@ static int fsl_elbc_chip_probe(struct fsl_elbc_ctrl *ctrl,
 	priv->vbase = ioremap(res.start, res.end - res.start + 1);
 	if (!priv->vbase) {
 		dev_err(ctrl->dev, "failed to map chip region\n");
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	priv->mtd.name = kasprintf(GFP_KERNEL, "%x.flash", res.start);
+	if (!priv->mtd.name) {
 		ret = -ENOMEM;
 		goto err;
 	}
