@@ -214,20 +214,19 @@ struct pid *session_of_pgrp(struct pid *pgrp)
 static int will_become_orphaned_pgrp(struct pid *pgrp, struct task_struct *ignored_task)
 {
 	struct task_struct *p;
-	int ret = 1;
 
 	do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
-		if (p == ignored_task
-				|| p->exit_state
-				|| is_global_init(p->real_parent))
+		if ((p == ignored_task) ||
+		    (p->exit_state && thread_group_empty(p)) ||
+		    is_global_init(p->real_parent))
 			continue;
+
 		if (task_pgrp(p->real_parent) != pgrp &&
-		    task_session(p->real_parent) == task_session(p)) {
-			ret = 0;
-			break;
-		}
+		    task_session(p->real_parent) == task_session(p))
+			return 0;
 	} while_each_pid_task(pgrp, PIDTYPE_PGID, p);
-	return ret;	/* (sighing) "Often!" */
+
+	return 1;
 }
 
 int is_current_pgrp_orphaned(void)
@@ -253,6 +252,37 @@ static int has_stopped_jobs(struct pid *pgrp)
 		break;
 	} while_each_pid_task(pgrp, PIDTYPE_PGID, p);
 	return retval;
+}
+
+/*
+ * Check to see if any process groups have become orphaned as
+ * a result of our exiting, and if they have any stopped jobs,
+ * send them a SIGHUP and then a SIGCONT. (POSIX 3.2.2.2)
+ */
+static void
+kill_orphaned_pgrp(struct task_struct *tsk, struct task_struct *parent)
+{
+	struct pid *pgrp = task_pgrp(tsk);
+	struct task_struct *ignored_task = tsk;
+
+	if (!parent)
+		 /* exit: our father is in a different pgrp than
+		  * we are and we were the only connection outside.
+		  */
+		parent = tsk->real_parent;
+	else
+		/* reparent: our child is in a different pgrp than
+		 * we are, and it was the only connection outside.
+		 */
+		ignored_task = NULL;
+
+	if (task_pgrp(parent) != pgrp &&
+	    task_session(parent) == task_session(tsk) &&
+	    will_become_orphaned_pgrp(pgrp, ignored_task) &&
+	    has_stopped_jobs(pgrp)) {
+		__kill_pgrp_info(SIGHUP, SEND_SIG_PRIV, pgrp);
+		__kill_pgrp_info(SIGCONT, SEND_SIG_PRIV, pgrp);
+	}
 }
 
 /**
@@ -635,22 +665,7 @@ reparent_thread(struct task_struct *p, struct task_struct *father, int traced)
 	    p->exit_signal != -1 && thread_group_empty(p))
 		do_notify_parent(p, p->exit_signal);
 
-	/*
-	 * process group orphan check
-	 * Case ii: Our child is in a different pgrp
-	 * than we are, and it was the only connection
-	 * outside, so the child pgrp is now orphaned.
-	 */
-	if ((task_pgrp(p) != task_pgrp(father)) &&
-	    (task_session(p) == task_session(father))) {
-		struct pid *pgrp = task_pgrp(p);
-
-		if (will_become_orphaned_pgrp(pgrp, NULL) &&
-		    has_stopped_jobs(pgrp)) {
-			__kill_pgrp_info(SIGHUP, SEND_SIG_PRIV, pgrp);
-			__kill_pgrp_info(SIGCONT, SEND_SIG_PRIV, pgrp);
-		}
-	}
+	kill_orphaned_pgrp(p, father);
 }
 
 /*
@@ -735,11 +750,9 @@ static void forget_original_parent(struct task_struct *father)
  * Send signals to all our closest relatives so that they know
  * to properly mourn us..
  */
-static void exit_notify(struct task_struct *tsk)
+static void exit_notify(struct task_struct *tsk, int group_dead)
 {
 	int state;
-	struct task_struct *t;
-	struct pid *pgrp;
 
 	/*
 	 * This does two things:
@@ -753,25 +766,8 @@ static void exit_notify(struct task_struct *tsk)
 	exit_task_namespaces(tsk);
 
 	write_lock_irq(&tasklist_lock);
-	/*
-	 * Check to see if any process groups have become orphaned
-	 * as a result of our exiting, and if they have any stopped
-	 * jobs, send them a SIGHUP and then a SIGCONT.  (POSIX 3.2.2.2)
-	 *
-	 * Case i: Our father is in a different pgrp than we are
-	 * and we were the only connection outside, so our pgrp
-	 * is about to become orphaned.
-	 */
-	t = tsk->real_parent;
-
-	pgrp = task_pgrp(tsk);
-	if ((task_pgrp(t) != pgrp) &&
-	    (task_session(t) == task_session(tsk)) &&
-	    will_become_orphaned_pgrp(pgrp, tsk) &&
-	    has_stopped_jobs(pgrp)) {
-		__kill_pgrp_info(SIGHUP, SEND_SIG_PRIV, pgrp);
-		__kill_pgrp_info(SIGCONT, SEND_SIG_PRIV, pgrp);
-	}
+	if (group_dead)
+		kill_orphaned_pgrp(tsk->group_leader, NULL);
 
 	/* Let father know we died
 	 *
@@ -788,8 +784,8 @@ static void exit_notify(struct task_struct *tsk)
 	 * the same after a fork.
 	 */
 	if (tsk->exit_signal != SIGCHLD && tsk->exit_signal != -1 &&
-	    ( tsk->parent_exec_id != t->self_exec_id  ||
-	      tsk->self_exec_id != tsk->parent_exec_id)
+	    (tsk->parent_exec_id != tsk->real_parent->self_exec_id ||
+	     tsk->self_exec_id != tsk->parent_exec_id)
 	    && !capable(CAP_KILL))
 		tsk->exit_signal = SIGCHLD;
 
@@ -986,7 +982,7 @@ NORET_TYPE void do_exit(long code)
 		module_put(tsk->binfmt->module);
 
 	proc_exit_connector(tsk);
-	exit_notify(tsk);
+	exit_notify(tsk, group_dead);
 #ifdef CONFIG_NUMA
 	mpol_free(tsk->mempolicy);
 	tsk->mempolicy = NULL;
@@ -1382,7 +1378,7 @@ unlock_sig:
 	if (!retval && infop)
 		retval = put_user(0, &infop->si_errno);
 	if (!retval && infop)
-		retval = put_user(why, &infop->si_code);
+		retval = put_user((short)why, &infop->si_code);
 	if (!retval && infop)
 		retval = put_user(exit_code, &infop->si_status);
 	if (!retval && infop)

@@ -133,6 +133,7 @@ int sysdev_class_register(struct sysdev_class * cls)
 	pr_debug("Registering sysdev class '%s'\n",
 		 kobject_name(&cls->kset.kobj));
 	INIT_LIST_HEAD(&cls->drivers);
+	memset(&cls->kset.kobj, 0x00, sizeof(struct kobject));
 	cls->kset.kobj.parent = &system_kset->kobj;
 	cls->kset.kobj.ktype = &ktype_sysdev_class;
 	cls->kset.kobj.kset = system_kset;
@@ -226,6 +227,9 @@ int sysdev_register(struct sys_device * sysdev)
 		return -EINVAL;
 
 	pr_debug("Registering sys device '%s'\n", kobject_name(&sysdev->kobj));
+
+	/* initialize the kobject to 0, in case it had previously been used */
+	memset(&sysdev->kobj, 0x00, sizeof(struct kobject));
 
 	/* Make sure the kset is set */
 	sysdev->kobj.kset = &cls->kset;

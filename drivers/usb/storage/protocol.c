@@ -170,7 +170,6 @@ unsigned int usb_stor_access_xfer_buf(unsigned char *buffer,
 
 	if (!sg)
 		sg = scsi_sglist(srb);
-	buflen = min(buflen, scsi_bufflen(srb));
 
 	/* This loop handles a single s-g list entry, which may
 	 * include multiple pages.  Find the initial page structure
@@ -232,6 +231,7 @@ void usb_stor_set_xfer_buf(unsigned char *buffer,
 	unsigned int offset = 0;
 	struct scatterlist *sg = NULL;
 
+	buflen = min(buflen, scsi_bufflen(srb));
 	buflen = usb_stor_access_xfer_buf(buffer, buflen, srb, &sg, &offset,
 			TO_XFER_BUF);
 	if (buflen < scsi_bufflen(srb))

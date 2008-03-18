@@ -180,8 +180,8 @@ static struct mtd_partition partition_info[] = {
 	},
 	{
 		.name = "File System",
-		.offset = 4 * SIZE_1M,
-		.size = (256 - 4) * SIZE_1M,
+		.offset = MTDPART_OFS_APPEND,
+		.size = MTDPART_SIZ_FULL,
 	},
 };
 
@@ -422,11 +422,11 @@ static struct mtd_partition bfin_spi_flash_partitions[] = {
 	}, {
 		.name = "kernel",
 		.size = 0xe0000,
-		.offset = 0x20000
+		.offset = MTDPART_OFS_APPEND,
 	}, {
 		.name = "file system",
-		.size = 0x700000,
-		.offset = 0x00100000,
+		.size = MTDPART_SIZ_FULL,
+		.offset = MTDPART_OFS_APPEND,
 	}
 };
 
@@ -481,13 +481,6 @@ static struct bfin5xx_spi_chip spi_si3xxx_chip_info = {
 	.enable_dma	= 0,
 	.bits_per_word	= 8,
 	.cs_change_per_word = 1,
-};
-#endif
-
-#if defined(CONFIG_AD5304) || defined(CONFIG_AD5304_MODULE)
-static struct bfin5xx_spi_chip ad5304_chip_info = {
-	.enable_dma = 0,
-	.bits_per_word = 16,
 };
 #endif
 
@@ -609,17 +602,6 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.chip_select = 8 - CONFIG_J19_JUMPER,
 		.controller_data = &spi_si3xxx_chip_info,
 		.mode = SPI_MODE_3,
-	},
-#endif
-#if defined(CONFIG_AD5304) || defined(CONFIG_AD5304_MODULE)
-	{
-		.modalias = "ad5304_spi",
-		.max_speed_hz = 1250000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num = 0,
-		.chip_select = 2,
-		.platform_data = NULL,
-		.controller_data = &ad5304_chip_info,
-		.mode = SPI_MODE_2,
 	},
 #endif
 #if defined(CONFIG_TOUCHSCREEN_AD7877) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE)
@@ -818,6 +800,19 @@ static struct platform_device bfin_device_gpiokeys = {
 };
 #endif
 
+static struct resource bfin_gpios_resources = {
+	.start = 0,
+	.end   = MAX_BLACKFIN_GPIOS - 1,
+	.flags = IORESOURCE_IRQ,
+};
+
+static struct platform_device bfin_gpios_device = {
+	.name = "simple-gpio",
+	.id = -1,
+	.num_resources = 1,
+	.resource = &bfin_gpios_resources,
+};
+
 static struct platform_device *stamp_devices[] __initdata = {
 #if defined(CONFIG_MTD_NAND_BF5XX) || defined(CONFIG_MTD_NAND_BF5XX_MODULE)
 	&bf5xx_nand_device,
@@ -895,6 +890,8 @@ static struct platform_device *stamp_devices[] __initdata = {
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
 	&bfin_device_gpiokeys,
 #endif
+
+	&bfin_gpios_device,
 };
 
 static int __init stamp_init(void)
@@ -921,13 +918,18 @@ void native_machine_restart(char *cmd)
 		bfin_gpio_reset_spi0_ssel1();
 }
 
-/*
- * Currently the MAC address is saved in Flash by U-Boot
- */
-#define FLASH_MAC	0x203f0000
 void bfin_get_ether_addr(char *addr)
 {
-	*(u32 *)(&(addr[0])) = bfin_read32(FLASH_MAC);
-	*(u16 *)(&(addr[4])) = bfin_read16(FLASH_MAC + 4);
+	/* the MAC is stored in OTP memory page 0xDF */
+	u32 ret;
+	u64 otp_mac;
+	u32 (*otp_read)(u32 page, u32 flags, u64 *page_content) = (void *)0xEF00001A;
+
+	ret = otp_read(0xDF, 0x00, &otp_mac);
+	if (!(ret & 0x1)) {
+		char *otp_mac_p = (char *)&otp_mac;
+		for (ret = 0; ret < 6; ++ret)
+			addr[ret] = otp_mac_p[5 - ret];
+	}
 }
 EXPORT_SYMBOL(bfin_get_ether_addr);

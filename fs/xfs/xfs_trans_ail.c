@@ -261,16 +261,19 @@ xfsaild_push(
 		xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE);
 	}
 
-	/*
-	 * We reached the target so wait a bit longer for I/O to complete and
-	 * remove pushed items from the AIL before we start the next scan from
-	 * the start of the AIL.
-	 */
-	if ((XFS_LSN_CMP(lsn, target) >= 0)) {
+	if (!count) {
+		/* We're past our target or empty, so idle */
+		tout = 1000;
+	} else if (XFS_LSN_CMP(lsn, target) >= 0) {
+		/*
+		 * We reached the target so wait a bit longer for I/O to
+		 * complete and remove pushed items from the AIL before we
+		 * start the next scan from the start of the AIL.
+		 */
 		tout += 20;
 		last_pushed_lsn = 0;
 	} else if ((restarts > XFS_TRANS_PUSH_AIL_RESTARTS) ||
-		   (count && ((stuck * 100) / count > 90))) {
+		   ((stuck * 100) / count > 90)) {
 		/*
 		 * Either there is a lot of contention on the AIL or we
 		 * are stuck due to operations in progress. "Stuck" in this

@@ -290,7 +290,7 @@ static int ibmvstgt_cmd_done(struct scsi_cmnd *sc,
 	int err = 0;
 
 	dprintk("%p %p %x %u\n", iue, target, vio_iu(iue)->srp.cmd.cdb[0],
-		cmd->usg_sg);
+		scsi_sg_count(sc));
 
 	if (scsi_sg_count(sc))
 		err = srp_transfer_data(sc, &vio_iu(iue)->srp.cmd, ibmvstgt_rdma, 1, 1);
@@ -838,9 +838,6 @@ static int ibmvstgt_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	if (!shost)
 		goto free_vport;
 	shost->transportt = ibmvstgt_transport_template;
-	err = scsi_tgt_alloc_queue(shost);
-	if (err)
-		goto put_host;
 
 	target = host_to_srp_target(shost);
 	target->shost = shost;
@@ -869,6 +866,10 @@ static int ibmvstgt_probe(struct vio_dev *dev, const struct vio_device_id *id)
 		goto free_srp_target;
 
 	err = scsi_add_host(shost, target->dev);
+	if (err)
+		goto destroy_queue;
+
+	err = scsi_tgt_alloc_queue(shost);
 	if (err)
 		goto destroy_queue;
 

@@ -172,8 +172,9 @@ set_pte_phys(unsigned long vaddr, unsigned long phys, pgprot_t prot)
 }
 
 /*
- * The head.S code sets up the kernel high mapping from:
- * __START_KERNEL_map to __START_KERNEL_map + KERNEL_TEXT_SIZE
+ * The head.S code sets up the kernel high mapping:
+ *
+ *   from __START_KERNEL_map to __START_KERNEL_map + size (== _end-_text)
  *
  * phys_addr holds the negative offset to the kernel, which is added
  * to the compile time generated pmds. This results in invalid pmds up
@@ -514,14 +515,6 @@ void __init mem_init(void)
 	pci_iommu_alloc();
 
 	/* clear_bss() already clear the empty_zero_page */
-
-	/* temporary debugging - double check it's true: */
-	{
-		int i;
-
-		for (i = 0; i < 1024; i++)
-			WARN_ON_ONCE(empty_zero_page[i]);
-	}
 
 	reservedpages = 0;
 

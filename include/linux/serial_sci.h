@@ -1,12 +1,10 @@
-#ifndef __ASM_SH_SCI_H
-#define __ASM_SH_SCI_H
+#ifndef __LINUX_SERIAL_SCI_H
+#define __LINUX_SERIAL_SCI_H
 
 #include <linux/serial_core.h>
 
 /*
- * Generic header for SuperH SCI(F)
- *
- * Do not place SH-specific parts in here, sh64 and h8300 depend on this too.
+ * Generic header for SuperH SCI(F) (used by sh/sh64/h8300 and related parts)
  */
 
 /* Offsets into the sci_port->irqs array */
@@ -31,4 +29,4 @@ struct plat_sci_port {
 
 int early_sci_setup(struct uart_port *port);
 
-#endif /* __ASM_SH_SCI_H */
+#endif /* __LINUX_SERIAL_SCI_H */

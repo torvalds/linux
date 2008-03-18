@@ -10,9 +10,9 @@
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/serial.h>
+#include <linux/serial_sci.h>
 #include <linux/io.h>
 #include <asm/mmzone.h>
-#include <asm/sci.h>
 
 static struct plat_sci_port sci_platform_data[] = {
 	{

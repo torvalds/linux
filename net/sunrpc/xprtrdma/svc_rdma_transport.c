@@ -54,7 +54,6 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 					int flags);
 static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt);
 static void svc_rdma_release_rqst(struct svc_rqst *);
-static void rdma_destroy_xprt(struct svcxprt_rdma *xprt);
 static void dto_tasklet_func(unsigned long data);
 static void svc_rdma_detach(struct svc_xprt *xprt);
 static void svc_rdma_free(struct svc_xprt *xprt);
@@ -247,6 +246,7 @@ static void dto_tasklet_func(unsigned long data)
 			sq_cq_reap(xprt);
 		}
 
+		svc_xprt_put(&xprt->sc_xprt);
 		spin_lock_irqsave(&dto_lock, flags);
 	}
 	spin_unlock_irqrestore(&dto_lock, flags);
@@ -275,8 +275,10 @@ static void rq_comp_handler(struct ib_cq *cq, void *cq_context)
 	 * add it
 	 */
 	spin_lock_irqsave(&dto_lock, flags);
-	if (list_empty(&xprt->sc_dto_q))
+	if (list_empty(&xprt->sc_dto_q)) {
+		svc_xprt_get(&xprt->sc_xprt);
 		list_add_tail(&xprt->sc_dto_q, &dto_xprt_q);
+	}
 	spin_unlock_irqrestore(&dto_lock, flags);
 
 	/* Tasklet does all the work to avoid irqsave locks. */
@@ -386,8 +388,10 @@ static void sq_comp_handler(struct ib_cq *cq, void *cq_context)
 	 * add it
 	 */
 	spin_lock_irqsave(&dto_lock, flags);
-	if (list_empty(&xprt->sc_dto_q))
+	if (list_empty(&xprt->sc_dto_q)) {
+		svc_xprt_get(&xprt->sc_xprt);
 		list_add_tail(&xprt->sc_dto_q, &dto_xprt_q);
+	}
 	spin_unlock_irqrestore(&dto_lock, flags);
 
 	/* Tasklet does all the work to avoid irqsave locks. */
@@ -611,6 +615,7 @@ static int rdma_cma_handler(struct rdma_cm_id *cma_id,
 	switch (event->event) {
 	case RDMA_CM_EVENT_ESTABLISHED:
 		/* Accept complete */
+		svc_xprt_get(xprt);
 		dprintk("svcrdma: Connection completed on DTO xprt=%p, "
 			"cm_id=%p\n", xprt, cma_id);
 		clear_bit(RDMAXPRT_CONN_PENDING, &rdma->sc_flags);
@@ -661,15 +666,15 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 
 	listen_id = rdma_create_id(rdma_listen_handler, cma_xprt, RDMA_PS_TCP);
 	if (IS_ERR(listen_id)) {
-		rdma_destroy_xprt(cma_xprt);
+		svc_xprt_put(&cma_xprt->sc_xprt);
 		dprintk("svcrdma: rdma_create_id failed = %ld\n",
 			PTR_ERR(listen_id));
 		return (void *)listen_id;
 	}
 	ret = rdma_bind_addr(listen_id, sa);
 	if (ret) {
-		rdma_destroy_xprt(cma_xprt);
 		rdma_destroy_id(listen_id);
+		svc_xprt_put(&cma_xprt->sc_xprt);
 		dprintk("svcrdma: rdma_bind_addr failed = %d\n", ret);
 		return ERR_PTR(ret);
 	}
@@ -678,8 +683,9 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 	ret = rdma_listen(listen_id, RPCRDMA_LISTEN_BACKLOG);
 	if (ret) {
 		rdma_destroy_id(listen_id);
-		rdma_destroy_xprt(cma_xprt);
+		svc_xprt_put(&cma_xprt->sc_xprt);
 		dprintk("svcrdma: rdma_listen failed = %d\n", ret);
+		return ERR_PTR(ret);
 	}
 
 	/*
@@ -820,6 +826,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 		newxprt->sc_sq_depth = qp_attr.cap.max_send_wr;
 		newxprt->sc_max_requests = qp_attr.cap.max_recv_wr;
 	}
+	svc_xprt_get(&newxprt->sc_xprt);
 	newxprt->sc_qp = newxprt->sc_cm_id->qp;
 
 	/* Register all of physical memory */
@@ -891,8 +898,15 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 
  errout:
 	dprintk("svcrdma: failure accepting new connection rc=%d.\n", ret);
+	/* Take a reference in case the DTO handler runs */
+	svc_xprt_get(&newxprt->sc_xprt);
+	if (newxprt->sc_qp && !IS_ERR(newxprt->sc_qp)) {
+		ib_destroy_qp(newxprt->sc_qp);
+		svc_xprt_put(&newxprt->sc_xprt);
+	}
 	rdma_destroy_id(newxprt->sc_cm_id);
-	rdma_destroy_xprt(newxprt);
+	/* This call to put will destroy the transport */
+	svc_xprt_put(&newxprt->sc_xprt);
 	return NULL;
 }
 
@@ -919,54 +933,60 @@ static void svc_rdma_release_rqst(struct svc_rqst *rqstp)
 	rqstp->rq_xprt_ctxt = NULL;
 }
 
-/* Disable data ready events for this connection */
+/*
+ * When connected, an svc_xprt has at least three references:
+ *
+ * - A reference held by the QP. We still hold that here because this
+ *   code deletes the QP and puts the reference.
+ *
+ * - A reference held by the cm_id between the ESTABLISHED and
+ *   DISCONNECTED events. If the remote peer disconnected first, this
+ *   reference could be gone.
+ *
+ * - A reference held by the svc_recv code that called this function
+ *   as part of close processing.
+ *
+ * At a minimum two references should still be held.
+ */
 static void svc_rdma_detach(struct svc_xprt *xprt)
 {
 	struct svcxprt_rdma *rdma =
 		container_of(xprt, struct svcxprt_rdma, sc_xprt);
-	unsigned long flags;
-
 	dprintk("svc: svc_rdma_detach(%p)\n", xprt);
-	/*
-	 * Shutdown the connection. This will ensure we don't get any
-	 * more events from the provider.
-	 */
-	rdma_disconnect(rdma->sc_cm_id);
-	rdma_destroy_id(rdma->sc_cm_id);
 
-	/* We may already be on the DTO list */
-	spin_lock_irqsave(&dto_lock, flags);
-	if (!list_empty(&rdma->sc_dto_q))
-		list_del_init(&rdma->sc_dto_q);
-	spin_unlock_irqrestore(&dto_lock, flags);
+	/* Disconnect and flush posted WQE */
+	rdma_disconnect(rdma->sc_cm_id);
+
+	/* Destroy the QP if present (not a listener) */
+	if (rdma->sc_qp && !IS_ERR(rdma->sc_qp)) {
+		ib_destroy_qp(rdma->sc_qp);
+		svc_xprt_put(xprt);
+	}
+
+	/* Destroy the CM ID */
+	rdma_destroy_id(rdma->sc_cm_id);
 }
 
 static void svc_rdma_free(struct svc_xprt *xprt)
 {
 	struct svcxprt_rdma *rdma = (struct svcxprt_rdma *)xprt;
 	dprintk("svcrdma: svc_rdma_free(%p)\n", rdma);
-	rdma_destroy_xprt(rdma);
+	/* We should only be called from kref_put */
+	BUG_ON(atomic_read(&xprt->xpt_ref.refcount) != 0);
+	if (rdma->sc_sq_cq && !IS_ERR(rdma->sc_sq_cq))
+		ib_destroy_cq(rdma->sc_sq_cq);
+
+	if (rdma->sc_rq_cq && !IS_ERR(rdma->sc_rq_cq))
+		ib_destroy_cq(rdma->sc_rq_cq);
+
+	if (rdma->sc_phys_mr && !IS_ERR(rdma->sc_phys_mr))
+		ib_dereg_mr(rdma->sc_phys_mr);
+
+	if (rdma->sc_pd && !IS_ERR(rdma->sc_pd))
+		ib_dealloc_pd(rdma->sc_pd);
+
+	destroy_context_cache(rdma->sc_ctxt_head);
 	kfree(rdma);
-}
-
-static void rdma_destroy_xprt(struct svcxprt_rdma *xprt)
-{
-	if (xprt->sc_qp && !IS_ERR(xprt->sc_qp))
-		ib_destroy_qp(xprt->sc_qp);
-
-	if (xprt->sc_sq_cq && !IS_ERR(xprt->sc_sq_cq))
-		ib_destroy_cq(xprt->sc_sq_cq);
-
-	if (xprt->sc_rq_cq && !IS_ERR(xprt->sc_rq_cq))
-		ib_destroy_cq(xprt->sc_rq_cq);
-
-	if (xprt->sc_phys_mr && !IS_ERR(xprt->sc_phys_mr))
-		ib_dereg_mr(xprt->sc_phys_mr);
-
-	if (xprt->sc_pd && !IS_ERR(xprt->sc_pd))
-		ib_dealloc_pd(xprt->sc_pd);
-
-	destroy_context_cache(xprt->sc_ctxt_head);
 }
 
 static int svc_rdma_has_wspace(struct svc_xprt *xprt)

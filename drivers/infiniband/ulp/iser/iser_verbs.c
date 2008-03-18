@@ -237,36 +237,32 @@ static int iser_free_ib_conn_res(struct iser_conn *ib_conn)
 static
 struct iser_device *iser_device_find_by_ib_device(struct rdma_cm_id *cma_id)
 {
-	struct list_head    *p_list;
-	struct iser_device  *device = NULL;
+	struct iser_device *device;
 
 	mutex_lock(&ig.device_list_mutex);
 
-	p_list = ig.device_list.next;
-	while (p_list != &ig.device_list) {
-		device = list_entry(p_list, struct iser_device, ig_list);
+	list_for_each_entry(device, &ig.device_list, ig_list)
 		/* find if there's a match using the node GUID */
 		if (device->ib_device->node_guid == cma_id->device->node_guid)
-			break;
-	}
+			goto inc_refcnt;
 
-	if (device == NULL) {
-		device = kzalloc(sizeof *device, GFP_KERNEL);
-		if (device == NULL)
-			goto out;
-		/* assign this device to the device */
-		device->ib_device = cma_id->device;
-		/* init the device and link it into ig device list */
-		if (iser_create_device_ib_res(device)) {
-			kfree(device);
-			device = NULL;
-			goto out;
-		}
-		list_add(&device->ig_list, &ig.device_list);
+	device = kzalloc(sizeof *device, GFP_KERNEL);
+	if (device == NULL)
+		goto out;
+
+	/* assign this device to the device */
+	device->ib_device = cma_id->device;
+	/* init the device and link it into ig device list */
+	if (iser_create_device_ib_res(device)) {
+		kfree(device);
+		device = NULL;
+		goto out;
 	}
-out:
-	BUG_ON(device == NULL);
+	list_add(&device->ig_list, &ig.device_list);
+
+inc_refcnt:
 	device->refcount++;
+out:
 	mutex_unlock(&ig.device_list_mutex);
 	return device;
 }
@@ -372,6 +368,12 @@ static void iser_addr_handler(struct rdma_cm_id *cma_id)
 	int    ret;
 
 	device = iser_device_find_by_ib_device(cma_id);
+	if (!device) {
+		iser_err("device lookup/creation failed\n");
+		iser_connect_error(cma_id);
+		return;
+	}
+
 	ib_conn = (struct iser_conn *)cma_id->context;
 	ib_conn->device = device;
 
@@ -380,7 +382,6 @@ static void iser_addr_handler(struct rdma_cm_id *cma_id)
 		iser_err("resolve route failed: %d\n", ret);
 		iser_connect_error(cma_id);
 	}
-	return;
 }
 
 static void iser_route_handler(struct rdma_cm_id *cma_id)

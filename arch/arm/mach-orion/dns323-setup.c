@@ -319,4 +319,5 @@ MACHINE_START(DNS323, "D-Link DNS-323")
 	.map_io		= orion_map_io,
 	.init_irq	= orion_init_irq,
 	.timer		= &orion_timer,
+	.fixup		= tag_fixup_mem32,
 MACHINE_END

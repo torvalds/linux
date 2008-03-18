@@ -915,6 +915,7 @@ typedef struct {
     struct gdth_cmndinfo {                      /* per-command private info */
         int index;
         int internal_command;                   /* don't call scsi_done */
+        gdth_cmd_str *internal_cmd_str;         /* crier for internal messages*/
         dma_addr_t sense_paddr;                 /* sense dma-addr */
         unchar priority;
         int timeout;

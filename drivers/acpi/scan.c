@@ -609,7 +609,8 @@ acpi_bus_get_ejd(acpi_handle handle, acpi_handle *ejd)
 	status = acpi_evaluate_object(handle, "_EJD", NULL, &buffer);
 	if (ACPI_SUCCESS(status)) {
 		obj = buffer.pointer;
-		status = acpi_get_handle(NULL, obj->string.pointer, ejd);
+		status = acpi_get_handle(ACPI_ROOT_OBJECT, obj->string.pointer,
+					 ejd);
 		kfree(buffer.pointer);
 	}
 	return status;
@@ -966,7 +967,7 @@ static void acpi_device_set_id(struct acpi_device *device,
 	case ACPI_BUS_TYPE_DEVICE:
 		status = acpi_get_object_info(handle, &buffer);
 		if (ACPI_FAILURE(status)) {
-			printk(KERN_ERR PREFIX "%s: Error reading device info\n", __FUNCTION__);
+			printk(KERN_ERR PREFIX "%s: Error reading device info\n", __func__);
 			return;
 		}
 

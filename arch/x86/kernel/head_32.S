@@ -606,7 +606,7 @@ ENTRY(_stext)
 .section ".bss.page_aligned","wa"
 	.align PAGE_SIZE_asm
 #ifdef CONFIG_X86_PAE
-ENTRY(swapper_pg_pmd)
+swapper_pg_pmd:
 	.fill 1024*KPMDS,4,0
 #else
 ENTRY(swapper_pg_dir)

@@ -43,7 +43,7 @@
 
 #ifdef DEBUG
 static unsigned int freq_debug;
-MODULE_PARM(freq_debug, "i");
+module_param(freq_debug, uint, 0);
 MODULE_PARM_DESC(freq_debug, "Set the debug messages to on=1/off=0");
 #else
 #define freq_debug  0

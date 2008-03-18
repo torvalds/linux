@@ -638,6 +638,7 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 {
 	int save_nmsrs;
 
+	vmx_load_host_state(vmx);
 	save_nmsrs = 0;
 #ifdef CONFIG_X86_64
 	if (is_long_mode(&vmx->vcpu)) {
@@ -1477,7 +1478,7 @@ static int alloc_apic_access_page(struct kvm *kvm)
 	struct kvm_userspace_memory_region kvm_userspace_mem;
 	int r = 0;
 
-	down_write(&current->mm->mmap_sem);
+	down_write(&kvm->slots_lock);
 	if (kvm->arch.apic_access_page)
 		goto out;
 	kvm_userspace_mem.slot = APIC_ACCESS_PAGE_PRIVATE_MEMSLOT;
@@ -1487,9 +1488,12 @@ static int alloc_apic_access_page(struct kvm *kvm)
 	r = __kvm_set_memory_region(kvm, &kvm_userspace_mem, 0);
 	if (r)
 		goto out;
+
+	down_read(&current->mm->mmap_sem);
 	kvm->arch.apic_access_page = gfn_to_page(kvm, 0xfee00);
+	up_read(&current->mm->mmap_sem);
 out:
-	up_write(&current->mm->mmap_sem);
+	up_write(&kvm->slots_lock);
 	return r;
 }
 
@@ -1602,9 +1606,6 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_writel(CR0_GUEST_HOST_MASK, ~0UL);
 	vmcs_writel(CR4_GUEST_HOST_MASK, KVM_GUEST_CR4_MASK);
 
-	if (vm_need_virtualize_apic_accesses(vmx->vcpu.kvm))
-		if (alloc_apic_access_page(vmx->vcpu.kvm) != 0)
-			return -ENOMEM;
 
 	return 0;
 }
@@ -2534,6 +2535,9 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	put_cpu();
 	if (err)
 		goto free_vmcs;
+	if (vm_need_virtualize_apic_accesses(kvm))
+		if (alloc_apic_access_page(kvm) != 0)
+			goto free_vmcs;
 
 	return &vmx->vcpu;
 

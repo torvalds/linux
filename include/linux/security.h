@@ -34,12 +34,6 @@
 #include <linux/xfrm.h>
 #include <net/flow.h>
 
-/* only a char in selinux superblock security struct flags */
-#define FSCONTEXT_MNT		0x01
-#define CONTEXT_MNT		0x02
-#define ROOTCONTEXT_MNT		0x04
-#define DEFCONTEXT_MNT		0x08
-
 extern unsigned securebits;
 
 struct ctl_table;
@@ -113,6 +107,32 @@ struct request_sock;
 #define LSM_UNSAFE_PTRACE_CAP	4
 
 #ifdef CONFIG_SECURITY
+
+struct security_mnt_opts {
+	char **mnt_opts;
+	int *mnt_opts_flags;
+	int num_mnt_opts;
+};
+
+static inline void security_init_mnt_opts(struct security_mnt_opts *opts)
+{
+	opts->mnt_opts = NULL;
+	opts->mnt_opts_flags = NULL;
+	opts->num_mnt_opts = 0;
+}
+
+static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
+{
+	int i;
+	if (opts->mnt_opts)
+		for(i = 0; i < opts->num_mnt_opts; i++)
+			kfree(opts->mnt_opts[i]);
+	kfree(opts->mnt_opts);
+	opts->mnt_opts = NULL;
+	kfree(opts->mnt_opts_flags);
+	opts->mnt_opts_flags = NULL;
+	opts->num_mnt_opts = 0;
+}
 
 /**
  * struct security_operations - main security structure
@@ -262,19 +282,19 @@ struct request_sock;
  * @sb_get_mnt_opts:
  *	Get the security relevant mount options used for a superblock
  *	@sb the superblock to get security mount options from
- *	@mount_options array for pointers to mount options
- *	@mount_flags array of ints specifying what each mount options is
- *	@num_opts number of options in the arrays
+ *	@opts binary data structure containing all lsm mount data
  * @sb_set_mnt_opts:
  *	Set the security relevant mount options used for a superblock
  *	@sb the superblock to set security mount options for
- *	@mount_options array for pointers to mount options
- *	@mount_flags array of ints specifying what each mount options is
- *	@num_opts number of options in the arrays
+ *	@opts binary data structure containing all lsm mount data
  * @sb_clone_mnt_opts:
  *	Copy all security options from a given superblock to another
  *	@oldsb old superblock which contain information to clone
  *	@newsb new superblock which needs filled in
+ * @sb_parse_opts_str:
+ *	Parse a string of security data filling in the opts structure
+ *	@options string containing all mount options known by the LSM
+ *	@opts binary data structure usable by the LSM
  *
  * Security hooks for inode operations.
  *
@@ -1238,8 +1258,7 @@ struct security_operations {
 
 	int (*sb_alloc_security) (struct super_block * sb);
 	void (*sb_free_security) (struct super_block * sb);
-	int (*sb_copy_data)(struct file_system_type *type,
-			    void *orig, void *copy);
+	int (*sb_copy_data)(char *orig, char *copy);
 	int (*sb_kern_mount) (struct super_block *sb, void *data);
 	int (*sb_statfs) (struct dentry *dentry);
 	int (*sb_mount) (char *dev_name, struct nameidata * nd,
@@ -1257,12 +1276,12 @@ struct security_operations {
 	void (*sb_post_pivotroot) (struct nameidata * old_nd,
 				   struct nameidata * new_nd);
 	int (*sb_get_mnt_opts) (const struct super_block *sb,
-				char ***mount_options, int **flags,
-				int *num_opts);
-	int (*sb_set_mnt_opts) (struct super_block *sb, char **mount_options,
-				int *flags, int num_opts);
+				struct security_mnt_opts *opts);
+	int (*sb_set_mnt_opts) (struct super_block *sb,
+				struct security_mnt_opts *opts);
 	void (*sb_clone_mnt_opts) (const struct super_block *oldsb,
 				   struct super_block *newsb);
+	int (*sb_parse_opts_str) (char *options, struct security_mnt_opts *opts);
 
 	int (*inode_alloc_security) (struct inode *inode);	
 	void (*inode_free_security) (struct inode *inode);
@@ -1507,7 +1526,7 @@ int security_bprm_check(struct linux_binprm *bprm);
 int security_bprm_secureexec(struct linux_binprm *bprm);
 int security_sb_alloc(struct super_block *sb);
 void security_sb_free(struct super_block *sb);
-int security_sb_copy_data(struct file_system_type *type, void *orig, void *copy);
+int security_sb_copy_data(char *orig, char *copy);
 int security_sb_kern_mount(struct super_block *sb, void *data);
 int security_sb_statfs(struct dentry *dentry);
 int security_sb_mount(char *dev_name, struct nameidata *nd,
@@ -1520,12 +1539,12 @@ void security_sb_post_remount(struct vfsmount *mnt, unsigned long flags, void *d
 void security_sb_post_addmount(struct vfsmount *mnt, struct nameidata *mountpoint_nd);
 int security_sb_pivotroot(struct nameidata *old_nd, struct nameidata *new_nd);
 void security_sb_post_pivotroot(struct nameidata *old_nd, struct nameidata *new_nd);
-int security_sb_get_mnt_opts(const struct super_block *sb, char ***mount_options,
-			     int **flags, int *num_opts);
-int security_sb_set_mnt_opts(struct super_block *sb, char **mount_options,
-			     int *flags, int num_opts);
+int security_sb_get_mnt_opts(const struct super_block *sb,
+				struct security_mnt_opts *opts);
+int security_sb_set_mnt_opts(struct super_block *sb, struct security_mnt_opts *opts);
 void security_sb_clone_mnt_opts(const struct super_block *oldsb,
 				struct super_block *newsb);
+int security_sb_parse_opts_str(char *options, struct security_mnt_opts *opts);
 
 int security_inode_alloc(struct inode *inode);
 void security_inode_free(struct inode *inode);
@@ -1635,6 +1654,16 @@ int security_secctx_to_secid(char *secdata, u32 seclen, u32 *secid);
 void security_release_secctx(char *secdata, u32 seclen);
 
 #else /* CONFIG_SECURITY */
+struct security_mnt_opts {
+};
+
+static inline void security_init_mnt_opts(struct security_mnt_opts *opts)
+{
+}
+
+static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
+{
+}
 
 /*
  * This is the default capabilities functionality.  Most of these functions
@@ -1762,8 +1791,7 @@ static inline int security_sb_alloc (struct super_block *sb)
 static inline void security_sb_free (struct super_block *sb)
 { }
 
-static inline int security_sb_copy_data (struct file_system_type *type,
-					 void *orig, void *copy)
+static inline int security_sb_copy_data (char *orig, char *copy)
 {
 	return 0;
 }
@@ -1819,6 +1847,27 @@ static inline int security_sb_pivotroot (struct nameidata *old_nd,
 static inline void security_sb_post_pivotroot (struct nameidata *old_nd,
 					       struct nameidata *new_nd)
 { }
+static inline int security_sb_get_mnt_opts(const struct super_block *sb,
+					   struct security_mnt_opts *opts)
+{
+	security_init_mnt_opts(opts);
+	return 0;
+}
+
+static inline int security_sb_set_mnt_opts(struct super_block *sb,
+					   struct security_mnt_opts *opts)
+{
+	return 0;
+}
+
+static inline void security_sb_clone_mnt_opts(const struct super_block *oldsb,
+					      struct super_block *newsb)
+{ }
+
+static inline int security_sb_parse_opts_str(char *options, struct security_mnt_opts *opts)
+{
+	return 0;
+}
 
 static inline int security_inode_alloc (struct inode *inode)
 {

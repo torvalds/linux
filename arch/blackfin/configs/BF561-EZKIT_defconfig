@@ -367,6 +367,7 @@ CONFIG_BINFMT_ZFLAT=y
 # Power management options
 #
 # CONFIG_PM is not set
+# CONFIG_PM_WAKEUP_BY_GPIO is not set
 
 #
 # Networking

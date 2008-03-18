@@ -21,7 +21,7 @@
  * a 1GHz box, that's about 2 seconds.
  */
 
-void __delay(int loops)
+void __delay(unsigned long loops)
 {
 	long long dummy;
 	__asm__ __volatile__("gettr	tr0, %1\n\t"
@@ -33,24 +33,17 @@ void __delay(int loops)
 			     :"0"(loops));
 }
 
-void __udelay(unsigned long long usecs, unsigned long lpj)
+inline void __const_udelay(unsigned long xloops)
 {
-	usecs *= (((unsigned long long) HZ << 32) / 1000000) * lpj;
-	__delay((long long) usecs >> 32);
+	__delay(xloops * (HZ * cpu_data[raw_smp_processor_id()].loops_per_jiffy));
 }
 
-void __ndelay(unsigned long long nsecs, unsigned long lpj)
+void __udelay(unsigned long usecs)
 {
-	nsecs *= (((unsigned long long) HZ << 32) / 1000000000) * lpj;
-	__delay((long long) nsecs >> 32);
+	__const_udelay(usecs * 0x000010c6);  /* 2**32 / 1000000 */
 }
 
-void udelay(unsigned long usecs)
+void __ndelay(unsigned long nsecs)
 {
-	__udelay(usecs, cpu_data[raw_smp_processor_id()].loops_per_jiffy);
-}
-
-void ndelay(unsigned long nsecs)
-{
-	__ndelay(nsecs, cpu_data[raw_smp_processor_id()].loops_per_jiffy);
+	__const_udelay(nsecs * 0x00000005);
 }

@@ -30,7 +30,7 @@ struct cpu_fp_info {
   char* fp_name;
 };
 
-struct cpu_fp_info linux_sparc_fpu[] = {
+static struct cpu_fp_info linux_sparc_fpu[] = {
   { 0x17, 0x10, 0, "UltraSparc I integrated FPU"},
   { 0x22, 0x10, 0, "UltraSparc I integrated FPU"},
   { 0x17, 0x11, 0, "UltraSparc II integrated FPU"},
@@ -46,7 +46,7 @@ struct cpu_fp_info linux_sparc_fpu[] = {
 
 #define NSPARCFPU  ARRAY_SIZE(linux_sparc_fpu)
 
-struct cpu_iu_info linux_sparc_chips[] = {
+static struct cpu_iu_info linux_sparc_chips[] = {
   { 0x17, 0x10, "TI UltraSparc I   (SpitFire)"},
   { 0x22, 0x10, "TI UltraSparc I   (SpitFire)"},
   { 0x17, 0x11, "TI UltraSparc II  (BlackBird)"},

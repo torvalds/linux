@@ -36,7 +36,7 @@
 
 #define NR_IRQS				(MAXIRQNUM + 1)
 
-extern void __init h3_mmc_init(void);
+extern void h3_mmc_init(void);
 extern void h3_mmc_slot_cover_handler(void *arg, int state);
 
 #endif /*  __ASM_ARCH_OMAP_H3_H */

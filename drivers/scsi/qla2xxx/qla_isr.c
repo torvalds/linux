@@ -958,6 +958,11 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		}
 	}
 
+	/* Check for overrun. */
+	if (IS_FWI2_CAPABLE(ha) && comp_status == CS_COMPLETE &&
+	    scsi_status & SS_RESIDUAL_OVER)
+		comp_status = CS_DATA_OVERRUN;
+
 	/*
 	 * Based on Host and scsi status generate status code for Linux
 	 */

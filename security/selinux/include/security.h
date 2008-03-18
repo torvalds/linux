@@ -35,6 +35,11 @@
 #define POLICYDB_VERSION_MAX	POLICYDB_VERSION_POLCAP
 #endif
 
+#define CONTEXT_MNT	0x01
+#define FSCONTEXT_MNT	0x02
+#define ROOTCONTEXT_MNT	0x04
+#define DEFCONTEXT_MNT	0x08
+
 struct netlbl_lsm_secattr;
 
 extern int selinux_enabled;

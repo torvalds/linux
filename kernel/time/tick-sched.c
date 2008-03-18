@@ -282,6 +282,7 @@ void tick_nohz_stop_sched_tick(void)
 			ts->idle_tick = ts->sched_timer.expires;
 			ts->tick_stopped = 1;
 			ts->idle_jiffies = last_jiffies;
+			rcu_enter_nohz();
 		}
 
 		/*
@@ -374,6 +375,8 @@ void tick_nohz_restart_sched_tick(void)
 		local_irq_enable();
 		return;
 	}
+
+	rcu_exit_nohz();
 
 	/* Update jiffies first */
 	select_nohz_load_balancer(0);
@@ -637,7 +640,7 @@ void tick_cancel_sched_timer(int cpu)
 
 	if (ts->sched_timer.base)
 		hrtimer_cancel(&ts->sched_timer);
-	ts->tick_stopped = 0;
+
 	ts->nohz_mode = NOHZ_MODE_INACTIVE;
 }
 #endif /* HIGH_RES_TIMERS */

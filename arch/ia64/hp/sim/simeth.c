@@ -222,7 +222,7 @@ simeth_probe1(void)
 	}
 
 	if ((rc = assign_irq_vector(AUTO_ASSIGN)) < 0)
-		panic("%s: out of interrupt vectors!\n", __FUNCTION__);
+		panic("%s: out of interrupt vectors!\n", __func__);
 	dev->irq = rc;
 
 	/*

@@ -125,7 +125,7 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 #ifdef CONFIG_CIFS_DEBUG2
 	if (cifsFYI && !IS_ERR(spnego_key)) {
 		struct cifs_spnego_msg *msg = spnego_key->payload.data;
-		cifs_dump_mem("SPNEGO reply blob:", msg->data, min(1024,
+		cifs_dump_mem("SPNEGO reply blob:", msg->data, min(1024U,
 				msg->secblob_len + msg->sesskey_len));
 	}
 #endif /* CONFIG_CIFS_DEBUG2 */

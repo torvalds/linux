@@ -2484,6 +2484,7 @@ static int __init espserial_init(void)
 			return 0;
 		}
 
+		spin_lock_init(&info->lock);
 		/* rx_trigger, tx_trigger are needed by autoconfig */
 		info->config.rx_trigger = rx_trigger;
 		info->config.tx_trigger = tx_trigger;

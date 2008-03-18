@@ -366,7 +366,7 @@ __dma_has_cap(enum dma_transaction_type tx_type, dma_cap_mask_t *srcp)
  */
 static inline void dma_async_issue_pending(struct dma_chan *chan)
 {
-	return chan->device->device_issue_pending(chan);
+	chan->device->device_issue_pending(chan);
 }
 
 #define dma_async_memcpy_issue_pending(chan) dma_async_issue_pending(chan)

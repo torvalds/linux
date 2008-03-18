@@ -113,7 +113,12 @@ config FSL_BOOKE
 	default y
 
 config FSL_EMB_PERFMON
-	bool
+	bool "Freescale Embedded Perfmon"
+	depends on E500 || PPC_83xx
+	help
+	  This is the Performance Monitor support found on the e500 core
+	  and some e300 cores (c3 and c4).  Select this only if your
+	  core supports the Embedded Performance Monitor APU
 
 config PTE_64BIT
 	bool

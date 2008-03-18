@@ -195,7 +195,7 @@ NESTED(kernel_entry, 16, sp)			# kernel entry point
 	j		start_kernel
 	END(kernel_entry)
 
-	__INIT
+	__CPUINIT
 
 #ifdef CONFIG_SMP
 /*

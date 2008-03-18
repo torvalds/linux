@@ -353,9 +353,9 @@ static int cifs_reopen_file(struct file *file, int can_flush)
 	int disposition = FILE_OPEN;
 	__u16 netfid;
 
-	if (file->private_data) {
+	if (file->private_data)
 		pCifsFile = (struct cifsFileInfo *)file->private_data;
-	} else
+	else
 		return -EBADF;
 
 	xid = GetXid();
@@ -499,9 +499,8 @@ int cifs_close(struct inode *inode, struct file *file)
 					the struct would be in each open file,
 					but this should give enough time to
 					clear the socket */
-#ifdef CONFIG_CIFS_DEBUG2
-					cFYI(1, ("close delay, write pending"));
-#endif /* DEBUG2 */
+					cFYI(DBG2,
+						("close delay, write pending"));
 					msleep(timeout);
 					timeout *= 4;
 				}
@@ -1423,9 +1422,8 @@ static int cifs_writepage(struct page *page, struct writeback_control *wbc)
 	xid = GetXid();
 /* BB add check for wbc flags */
 	page_cache_get(page);
-	if (!PageUptodate(page)) {
+	if (!PageUptodate(page))
 		cFYI(1, ("ppw - page not up to date"));
-	}
 
 	/*
 	 * Set the "writeback" flag, and clear "dirty" in the radix tree.
@@ -1460,9 +1458,9 @@ static int cifs_commit_write(struct file *file, struct page *page,
 	cFYI(1, ("commit write for page %p up to position %lld for %d",
 		 page, position, to));
 	spin_lock(&inode->i_lock);
-	if (position > inode->i_size) {
+	if (position > inode->i_size)
 		i_size_write(inode, position);
-	}
+
 	spin_unlock(&inode->i_lock);
 	if (!PageUptodate(page)) {
 		position =  ((loff_t)page->index << PAGE_CACHE_SHIFT) + offset;
@@ -1596,9 +1594,9 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 	}
 	open_file = (struct cifsFileInfo *)file->private_data;
 
-	if ((file->f_flags & O_ACCMODE) == O_WRONLY) {
+	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
 		cFYI(1, ("attempting read on write only file instance"));
-	}
+
 	for (total_read = 0, current_offset = read_data;
 	     read_size > total_read;
 	     total_read += bytes_read, current_offset += bytes_read) {
@@ -1625,9 +1623,8 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 						smb_read_data +
 						4 /* RFC1001 length field */ +
 						le16_to_cpu(pSMBr->DataOffset),
-						bytes_read)) {
+						bytes_read))
 					rc = -EFAULT;
-				}
 
 				if (buf_type == CIFS_SMALL_BUFFER)
 					cifs_small_buf_release(smb_read_data);
@@ -1814,9 +1811,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	pTcon = cifs_sb->tcon;
 
 	pagevec_init(&lru_pvec, 0);
-#ifdef CONFIG_CIFS_DEBUG2
-		cFYI(1, ("rpages: num pages %d", num_pages));
-#endif
+		cFYI(DBG2, ("rpages: num pages %d", num_pages));
 	for (i = 0; i < num_pages; ) {
 		unsigned contig_pages;
 		struct page *tmp_page;
@@ -1849,10 +1844,8 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		/* Read size needs to be in multiples of one page */
 		read_size = min_t(const unsigned int, read_size,
 				  cifs_sb->rsize & PAGE_CACHE_MASK);
-#ifdef CONFIG_CIFS_DEBUG2
-		cFYI(1, ("rpages: read size 0x%x  contiguous pages %d",
+		cFYI(DBG2, ("rpages: read size 0x%x  contiguous pages %d",
 				read_size, contig_pages));
-#endif
 		rc = -EAGAIN;
 		while (rc == -EAGAIN) {
 			if ((open_file->invalidHandle) &&
@@ -2026,7 +2019,7 @@ int is_size_safe_to_change(struct cifsInodeInfo *cifsInode, __u64 end_of_file)
 		struct cifs_sb_info *cifs_sb;
 
 		cifs_sb = CIFS_SB(cifsInode->vfs_inode.i_sb);
-		if ( cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO ) {
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO) {
 			/* since no page cache to corrupt on directio
 			we can change size safely */
 			return 1;

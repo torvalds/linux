@@ -1708,8 +1708,8 @@ iscsi_session_setup(struct iscsi_transport *iscsit,
 		qdepth = ISCSI_DEF_CMD_PER_LUN;
 	}
 
-	if (!is_power_of_2(cmds_max) ||
-	    cmds_max >= ISCSI_MGMT_ITT_OFFSET) {
+	if (!is_power_of_2(cmds_max) || cmds_max >= ISCSI_MGMT_ITT_OFFSET ||
+	    cmds_max < 2) {
 		if (cmds_max != 0)
 			printk(KERN_ERR "iscsi: invalid can_queue of %d. "
 			       "can_queue must be a power of 2 and between "

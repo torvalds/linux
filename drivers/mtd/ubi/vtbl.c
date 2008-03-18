@@ -519,6 +519,7 @@ static int init_volumes(struct ubi_device *ubi, const struct ubi_scan_info *si,
 			if (ubi->autoresize_vol_id != -1) {
 				ubi_err("more then one auto-resize volume (%d "
 					"and %d)", ubi->autoresize_vol_id, i);
+				kfree(vol);
 				return -EINVAL;
 			}
 

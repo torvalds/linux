@@ -240,4 +240,5 @@ MACHINE_START(KUROBOX_PRO, "Buffalo/Revogear Kurobox Pro")
 	.map_io		= orion_map_io,
 	.init_irq	= orion_init_irq,
 	.timer		= &orion_timer,
+	.fixup		= tag_fixup_mem32,
 MACHINE_END

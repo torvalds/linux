@@ -93,7 +93,7 @@ extern void (*flush_data_cache_page)(unsigned long addr);
 	clear_bit(PG_dcache_dirty, &(page)->flags)
 
 /* Run kernel code uncached, useful for cache probing functions. */
-unsigned long __init run_uncached(void *func);
+unsigned long run_uncached(void *func);
 
 extern void *kmap_coherent(struct page *page, unsigned long addr);
 extern void kunmap_coherent(void);

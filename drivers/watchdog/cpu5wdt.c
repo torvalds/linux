@@ -59,9 +59,9 @@ static int ticks = 10000;
 
 static struct {
 	struct completion stop;
-	volatile int running;
+	int running;
 	struct timer_list timer;
-	volatile int queue;
+	int queue;
 	int default_ticks;
 	unsigned long inuse;
 } cpu5wdt_device;

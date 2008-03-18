@@ -322,8 +322,8 @@ static void guarantee_online_mems(const struct cpuset *cs, nodemask_t *pmask)
  * Call without callback_mutex or task_lock() held.  May be
  * called with or without cgroup_mutex held.  Thanks in part to
  * 'the_top_cpuset_hack', the task's cpuset pointer will never
- * be NULL.  This routine also might acquire callback_mutex and
- * current->mm->mmap_sem during call.
+ * be NULL.  This routine also might acquire callback_mutex during
+ * call.
  *
  * Reading current->cpuset->mems_generation doesn't need task_lock
  * to guard the current->cpuset derefence, because it is guarded

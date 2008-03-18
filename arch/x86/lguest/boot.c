@@ -57,6 +57,7 @@
 #include <linux/lguest_launcher.h>
 #include <linux/virtio_console.h>
 #include <linux/pm.h>
+#include <asm/lguest.h>
 #include <asm/paravirt.h>
 #include <asm/param.h>
 #include <asm/page.h>
@@ -75,15 +76,6 @@
  * behaving in simplified but equivalent ways.  In particular, the Guest is the
  * same kernel as the Host (or at least, built from the same source code). :*/
 
-/* Declarations for definitions in lguest_guest.S */
-extern char lguest_noirq_start[], lguest_noirq_end[];
-extern const char lgstart_cli[], lgend_cli[];
-extern const char lgstart_sti[], lgend_sti[];
-extern const char lgstart_popf[], lgend_popf[];
-extern const char lgstart_pushf[], lgend_pushf[];
-extern const char lgstart_iret[], lgend_iret[];
-extern void lguest_iret(void);
-
 struct lguest_data lguest_data = {
 	.hcall_status = { [0 ... LHCALL_RING_SIZE-1] = 0xFF },
 	.noirq_start = (u32)lguest_noirq_start,
@@ -92,7 +84,6 @@ struct lguest_data lguest_data = {
 	.blocked_interrupts = { 1 }, /* Block timer interrupts */
 	.syscall_vec = SYSCALL_VECTOR,
 };
-static cycle_t clock_base;
 
 /*G:037 async_hcall() is pretty simple: I'm quite proud of it really.  We have a
  * ring buffer of stored hypercalls which the Host will run though next time we
@@ -335,8 +326,8 @@ static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
 	case 1:	/* Basic feature request. */
 		/* We only allow kernel to see SSE3, CMPXCHG16B and SSSE3 */
 		*cx &= 0x00002201;
-		/* SSE, SSE2, FXSR, MMX, CMOV, CMPXCHG8B, FPU. */
-		*dx &= 0x07808101;
+		/* SSE, SSE2, FXSR, MMX, CMOV, CMPXCHG8B, TSC, FPU. */
+		*dx &= 0x07808111;
 		/* The Host can do a nice optimization if it knows that the
 		 * kernel mappings (addresses above 0xC0000000 or whatever
 		 * PAGE_OFFSET is set to) haven't changed.  But Linux calls
@@ -603,19 +594,25 @@ static unsigned long lguest_get_wallclock(void)
 	return lguest_data.time.tv_sec;
 }
 
+/* The TSC is a Time Stamp Counter.  The Host tells us what speed it runs at,
+ * or 0 if it's unusable as a reliable clock source.  This matches what we want
+ * here: if we return 0 from this function, the x86 TSC clock will not register
+ * itself. */
+static unsigned long lguest_cpu_khz(void)
+{
+	return lguest_data.tsc_khz;
+}
+
+/* If we can't use the TSC, the kernel falls back to our "lguest_clock", where
+ * we read the time value given to us by the Host. */
 static cycle_t lguest_clock_read(void)
 {
 	unsigned long sec, nsec;
 
-	/* If the Host tells the TSC speed, we can trust that. */
-	if (lguest_data.tsc_khz)
-		return native_read_tsc();
-
-	/* If we can't use the TSC, we read the time value written by the Host.
-	 * Since it's in two parts (seconds and nanoseconds), we risk reading
-	 * it just as it's changing from 99 & 0.999999999 to 100 and 0, and
-	 * getting 99 and 0.  As Linux tends to come apart under the stress of
-	 * time travel, we must be careful: */
+	/* Since the time is in two parts (seconds and nanoseconds), we risk
+	 * reading it just as it's changing from 99 & 0.999999999 to 100 and 0,
+	 * and getting 99 and 0.  As Linux tends to come apart under the stress
+	 * of time travel, we must be careful: */
 	do {
 		/* First we read the seconds part. */
 		sec = lguest_data.time.tv_sec;
@@ -630,26 +627,20 @@ static cycle_t lguest_clock_read(void)
 		/* Now if the seconds part has changed, try again. */
 	} while (unlikely(lguest_data.time.tv_sec != sec));
 
-	/* Our non-TSC clock is in real nanoseconds. */
+	/* Our lguest clock is in real nanoseconds. */
 	return sec*1000000000ULL + nsec;
 }
 
-/* This is what we tell the kernel is our clocksource.  */
+/* This is the fallback clocksource: lower priority than the TSC clocksource. */
 static struct clocksource lguest_clock = {
 	.name		= "lguest",
-	.rating		= 400,
+	.rating		= 200,
 	.read		= lguest_clock_read,
 	.mask		= CLOCKSOURCE_MASK(64),
 	.mult		= 1 << 22,
 	.shift		= 22,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
-
-/* The "scheduler clock" is just our real clock, adjusted to start at zero */
-static unsigned long long lguest_sched_clock(void)
-{
-	return cyc2ns(&lguest_clock, lguest_clock_read() - clock_base);
-}
 
 /* We also need a "struct clock_event_device": Linux asks us to set it to go
  * off some time in the future.  Actually, James Morris figured all this out, I
@@ -720,18 +711,7 @@ static void lguest_time_init(void)
 	/* Set up the timer interrupt (0) to go to our simple timer routine */
 	set_irq_handler(0, lguest_time_irq);
 
-	/* Our clock structure looks like arch/x86/kernel/tsc_32.c if we can
-	 * use the TSC, otherwise it's a dumb nanosecond-resolution clock.
-	 * Either way, the "rating" is set so high that it's always chosen over
-	 * any other clocksource. */
-	if (lguest_data.tsc_khz)
-		lguest_clock.mult = clocksource_khz2mult(lguest_data.tsc_khz,
-							 lguest_clock.shift);
-	clock_base = lguest_clock_read();
 	clocksource_register(&lguest_clock);
-
-	/* Now we've set up our clock, we can use it as the scheduler clock */
-	pv_time_ops.sched_clock = lguest_sched_clock;
 
 	/* We can't set cpumask in the initializer: damn C limitations!  Set it
 	 * here and register our timer device. */
@@ -1003,6 +983,7 @@ __init void lguest_init(void)
 	/* time operations */
 	pv_time_ops.get_wallclock = lguest_get_wallclock;
 	pv_time_ops.time_init = lguest_time_init;
+	pv_time_ops.get_cpu_khz = lguest_cpu_khz;
 
 	/* Now is a good time to look at the implementations of these functions
 	 * before returning to the rest of lguest_init(). */

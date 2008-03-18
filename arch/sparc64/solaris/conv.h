@@ -28,7 +28,7 @@ extern unsigned sunos_sys_table[];
 #define SUNOS(x) ((long)sunos_sys_table[x])
 
 #ifdef DEBUG_SOLARIS
-#define SOLD(s) printk("%s,%d,%s(): %s\n",__FILE__,__LINE__,__FUNCTION__,(s))
+#define SOLD(s) printk("%s,%d,%s(): %s\n",__FILE__,__LINE__,__func__,(s))
 #define SOLDD(s) printk("solaris: "); printk s
 #else
 #define SOLD(s)

@@ -711,7 +711,8 @@ static int hpc_power_off_slot(struct slot * slot)
 	retval = pcie_write_cmd(slot, slot_cmd, cmd_mask);
 	if (retval) {
 		err("%s: Write command failed!\n", __FUNCTION__);
-		return -1;
+		retval = -1;
+		goto out;
 	}
 	dbg("%s: SLOTCTRL %x write cmd %x\n",
 	    __FUNCTION__, ctrl->cap_base + SLOTCTRL, slot_cmd);
@@ -722,7 +723,7 @@ static int hpc_power_off_slot(struct slot * slot)
 	 * removed from the slot/adapter.
 	 */
 	msleep(1000);
-
+ out:
 	if (changed)
 		pcie_unmask_bad_dllp(ctrl);
 

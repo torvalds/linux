@@ -118,7 +118,6 @@ machdir-$(CONFIG_SH_EDOSK7705)			+= renesas/edosk7705
 machdir-$(CONFIG_SH_HIGHLANDER)			+= renesas/r7780rp
 machdir-$(CONFIG_SH_MIGOR)			+= renesas/migor
 machdir-$(CONFIG_SH_SDK7780)			+= renesas/sdk7780
-machdir-$(CONFIG_SH_7710VOIPGW)			+= renesas/sh7710voipgw
 machdir-$(CONFIG_SH_X3PROTO)			+= renesas/x3proto
 machdir-$(CONFIG_SH_SH4202_MICRODEV)		+= superh/microdev
 machdir-$(CONFIG_SH_LANDISK)			+= landisk

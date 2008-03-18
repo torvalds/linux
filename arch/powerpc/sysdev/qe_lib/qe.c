@@ -509,7 +509,7 @@ int qe_upload_firmware(const struct qe_firmware *firmware)
 	}
 
 	/* Validate some of the fields */
-	if ((firmware->count < 1) || (firmware->count >= MAX_QE_RISC)) {
+	if ((firmware->count < 1) || (firmware->count > MAX_QE_RISC)) {
 		printk(KERN_ERR "qe-firmware: invalid data\n");
 		return -EINVAL;
 	}
@@ -609,7 +609,10 @@ struct qe_firmware_info *qe_get_firmware_info(void)
 	 * If we haven't checked yet, and a driver hasn't uploaded a firmware
 	 * yet, then check the device tree for information.
 	 */
-	if (initialized || qe_firmware_uploaded)
+	if (qe_firmware_uploaded)
+		return &qe_firmware_info;
+
+	if (initialized)
 		return NULL;
 
 	initialized = 1;

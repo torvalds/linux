@@ -334,43 +334,6 @@ static void __init qd6580_port_init_devs(ide_hwif_t *hwif)
 	hwif->drives[1].drive_data = t2;
 }
 
-/*
- * qd_unsetup:
- *
- * called to unsetup an ata channel : back to default values, unlinks tuning
- */
-/*
-static void __exit qd_unsetup(ide_hwif_t *hwif)
-{
-	u8 config = hwif->config_data;
-	int base = hwif->select_data;
-	void *set_pio_mode = (void *)hwif->set_pio_mode;
-
-	if (hwif->chipset != ide_qd65xx)
-		return;
-
-	printk(KERN_NOTICE "%s: back to defaults\n", hwif->name);
-
-	hwif->selectproc = NULL;
-	hwif->set_pio_mode = NULL;
-
-	if (set_pio_mode == (void *)qd6500_set_pio_mode) {
-		// will do it for both
-		outb(QD6500_DEF_DATA, QD_TIMREG(&hwif->drives[0]));
-	} else if (set_pio_mode == (void *)qd6580_set_pio_mode) {
-		if (QD_CONTROL(hwif) & QD_CONTR_SEC_DISABLED) {
-			outb(QD6580_DEF_DATA, QD_TIMREG(&hwif->drives[0]));
-			outb(QD6580_DEF_DATA2, QD_TIMREG(&hwif->drives[1]));
-		} else {
-			outb(hwif->channel ? QD6580_DEF_DATA2 : QD6580_DEF_DATA, QD_TIMREG(&hwif->drives[0]));
-		}
-	} else {
-		printk(KERN_WARNING "Unknown qd65xx tuning fonction !\n");
-		printk(KERN_WARNING "keeping settings !\n");
-	}
-}
-*/
-
 static const struct ide_port_info qd65xx_port_info __initdata = {
 	.chipset		= ide_qd65xx,
 	.host_flags		= IDE_HFLAG_IO_32BIT |
@@ -444,6 +407,8 @@ static int __init qd_probe(int base)
 		printk(KERN_DEBUG "qd6580: config=%#x, control=%#x, ID3=%u\n",
 			config, control, QD_ID3);
 
+		outb(QD_DEF_CONTR, QD_CONTROL_PORT);
+
 		if (control & QD_CONTR_SEC_DISABLED) {
 			/* secondary disabled */
 
@@ -459,8 +424,6 @@ static int __init qd_probe(int base)
 			idx[unit] = unit;
 
 			ide_device_add(idx, &qd65xx_port_info);
-
-			outb(QD_DEF_CONTR, QD_CONTROL_PORT);
 
 			return 1;
 		} else {
@@ -486,8 +449,6 @@ static int __init qd_probe(int base)
 			idx[1] = 1;
 
 			ide_device_add(idx, &qd65xx_port_info);
-
-			outb(QD_DEF_CONTR, QD_CONTROL_PORT);
 
 			return 0; /* no other qd65xx possible */
 		}

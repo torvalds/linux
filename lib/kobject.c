@@ -153,6 +153,10 @@ static void kobject_init_internal(struct kobject *kobj)
 		return;
 	kref_init(&kobj->kref);
 	INIT_LIST_HEAD(&kobj->entry);
+	kobj->state_in_sysfs = 0;
+	kobj->state_add_uevent_sent = 0;
+	kobj->state_remove_uevent_sent = 0;
+	kobj->state_initialized = 1;
 }
 
 
@@ -289,13 +293,8 @@ void kobject_init(struct kobject *kobj, struct kobj_type *ktype)
 		dump_stack();
 	}
 
-	kref_init(&kobj->kref);
-	INIT_LIST_HEAD(&kobj->entry);
+	kobject_init_internal(kobj);
 	kobj->ktype = ktype;
-	kobj->state_in_sysfs = 0;
-	kobj->state_add_uevent_sent = 0;
-	kobj->state_remove_uevent_sent = 0;
-	kobj->state_initialized = 1;
 	return;
 
 error:
