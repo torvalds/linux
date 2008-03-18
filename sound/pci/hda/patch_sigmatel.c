@@ -52,6 +52,7 @@ enum {
 	STAC_9200_DELL_M26,
 	STAC_9200_DELL_M27,
 	STAC_9200_GATEWAY,
+	STAC_9200_PANASONIC,
 	STAC_9200_MODELS
 };
 
@@ -1121,6 +1122,7 @@ static unsigned int *stac9200_brd_tbl[STAC_9200_MODELS] = {
 	[STAC_9200_DELL_M25] = dell9200_m25_pin_configs,
 	[STAC_9200_DELL_M26] = dell9200_m26_pin_configs,
 	[STAC_9200_DELL_M27] = dell9200_m27_pin_configs,
+	[STAC_9200_PANASONIC] = ref9200_pin_configs,
 };
 
 static const char *stac9200_models[STAC_9200_MODELS] = {
@@ -1137,6 +1139,7 @@ static const char *stac9200_models[STAC_9200_MODELS] = {
 	[STAC_9200_DELL_M26] = "dell-m26",
 	[STAC_9200_DELL_M27] = "dell-m27",
 	[STAC_9200_GATEWAY] = "gateway",
+	[STAC_9200_PANASONIC] = "panasonic",
 };
 
 static struct snd_pci_quirk stac9200_cfg_tbl[] = {
@@ -1203,7 +1206,7 @@ static struct snd_pci_quirk stac9200_cfg_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01f6,
 		      "unknown Dell", STAC_9200_DELL_M26),
 	/* Panasonic */
-	SND_PCI_QUIRK(0x10f7, 0x8338, "Panasonic CF-74", STAC_REF),
+	SND_PCI_QUIRK(0x10f7, 0x8338, "Panasonic CF-74", STAC_9200_PANASONIC),
 	/* Gateway machines needs EAPD to be set on resume */
 	SND_PCI_QUIRK(0x107b, 0x0205, "Gateway S-7110M", STAC_9200_GATEWAY),
 	SND_PCI_QUIRK(0x107b, 0x0317, "Gateway MT3423, MX341*",
@@ -3301,6 +3304,11 @@ static int patch_stac9200(struct hda_codec *codec)
 	else
 		spec->init = stac9200_core_init;
 	spec->mixer = stac9200_mixer;
+
+	if (spec->board_config == STAC_9200_PANASONIC) {
+		spec->gpio_mask = spec->gpio_dir = 0x09;
+		spec->gpio_data = 0x00;
+	}
 
 	err = stac9200_parse_auto_config(codec);
 	if (err < 0) {

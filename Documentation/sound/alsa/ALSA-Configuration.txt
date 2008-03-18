@@ -992,6 +992,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  dell-m26	Dell Inspiron 1501
 	  dell-m27	Dell Inspiron E1705/9400
 	  gateway	Gateway laptops with EAPD control
+	  panasonic	Panasonic CF-74
 
 	STAC9205/9254
 	  ref		Reference board
