@@ -609,8 +609,8 @@ qla2x00_pci_info_show(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-qla2x00_state_show(struct device *dev, struct device_attribute *attr,
-		   char *buf)
+qla2x00_link_state_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
 	scsi_qla_host_t *ha = shost_priv(class_to_shost(dev));
 	int len = 0;
@@ -814,7 +814,7 @@ static DEVICE_ATTR(isp_id, S_IRUGO, qla2x00_isp_id_show, NULL);
 static DEVICE_ATTR(model_name, S_IRUGO, qla2x00_model_name_show, NULL);
 static DEVICE_ATTR(model_desc, S_IRUGO, qla2x00_model_desc_show, NULL);
 static DEVICE_ATTR(pci_info, S_IRUGO, qla2x00_pci_info_show, NULL);
-static DEVICE_ATTR(state, S_IRUGO, qla2x00_state_show, NULL);
+static DEVICE_ATTR(link_state, S_IRUGO, qla2x00_link_state_show, NULL);
 static DEVICE_ATTR(zio, S_IRUGO | S_IWUSR, qla2x00_zio_show, qla2x00_zio_store);
 static DEVICE_ATTR(zio_timer, S_IRUGO | S_IWUSR, qla2x00_zio_timer_show,
 		   qla2x00_zio_timer_store);
@@ -838,7 +838,7 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_model_name,
 	&dev_attr_model_desc,
 	&dev_attr_pci_info,
-	&dev_attr_state,
+	&dev_attr_link_state,
 	&dev_attr_zio,
 	&dev_attr_zio_timer,
 	&dev_attr_beacon,
