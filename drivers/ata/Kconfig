@@ -28,7 +28,7 @@ config ATA_NONSTANDARD
        default n
 
 config ATA_ACPI
-	bool
+	bool "ATA ACPI Support"
 	depends on ACPI && PCI
 	select ACPI_DOCK
 	default y
