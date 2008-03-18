@@ -17,7 +17,7 @@ struct net_device;
 struct cmd_ctrl_node;
 struct cmd_ds_command;
 
-int lbs_set_mac_control(struct lbs_private *priv);
+void lbs_set_mac_control(struct lbs_private *priv);
 
 void lbs_send_tx_feedback(struct lbs_private *priv);
 
