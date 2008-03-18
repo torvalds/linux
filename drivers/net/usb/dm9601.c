@@ -562,6 +562,10 @@ static const struct usb_device_id products[] = {
 	 USB_DEVICE(0x0a46, 0x8515),	/* ADMtek ADM8515 USB NIC */
 	 .driver_info = (unsigned long)&dm9601_info,
 	 },
+	{
+	USB_DEVICE(0x0a47, 0x9601),	/* Hirose USB-100 */
+	.driver_info = (unsigned long)&dm9601_info,
+	 },
 	{},			// END
 };
 
