@@ -177,6 +177,8 @@ struct iscsi_cls_session {
 	struct list_head host_list;
 	struct iscsi_transport *transport;
 	spinlock_t lock;
+	struct work_struct block_work;
+	struct work_struct unblock_work;
 	struct work_struct scan_work;
 	struct work_struct unbind_work;
 

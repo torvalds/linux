@@ -765,7 +765,7 @@ static void __init set_pci_cacheline_size(void)
 	status = ia64_pal_cache_summary(&levels, &unique_caches);
 	if (status != 0) {
 		printk(KERN_ERR "%s: ia64_pal_cache_summary() failed "
-			"(status=%ld)\n", __FUNCTION__, status);
+			"(status=%ld)\n", __func__, status);
 		return;
 	}
 
@@ -773,7 +773,7 @@ static void __init set_pci_cacheline_size(void)
 				/* cache_type (data_or_unified)= */ 2, &cci);
 	if (status != 0) {
 		printk(KERN_ERR "%s: ia64_pal_cache_config_info() failed "
-			"(status=%ld)\n", __FUNCTION__, status);
+			"(status=%ld)\n", __func__, status);
 		return;
 	}
 	pci_cache_line_size = (1 << cci.pcci_line_size) / 4;

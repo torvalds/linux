@@ -131,7 +131,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
 #ifdef DEBUG_FAULT
 		print_task(tsk);
 		printk("%s:%d fault, address is 0x%08x PC %016Lx textaccess %d writeaccess %d\n",
-		       __FUNCTION__,__LINE__,
+		       __func__, __LINE__,
 		       address,regs->pc,textaccess,writeaccess);
 		show_regs(regs);
 #endif
@@ -145,7 +145,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
 #ifdef DEBUG_FAULT
 		print_task(tsk);
 		printk("%s:%d fault, address is 0x%08x PC %016Lx textaccess %d writeaccess %d\n",
-		       __FUNCTION__,__LINE__,
+		       __func__, __LINE__,
 		       address,regs->pc,textaccess,writeaccess);
 		show_regs(regs);
 
@@ -157,7 +157,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
 #ifdef DEBUG_FAULT
 		print_task(tsk);
 		printk("%s:%d fault, address is 0x%08x PC %016Lx textaccess %d writeaccess %d\n",
-		       __FUNCTION__,__LINE__,
+		       __func__, __LINE__,
 		       address,regs->pc,textaccess,writeaccess);
 		show_regs(regs);
 #endif

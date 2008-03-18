@@ -472,11 +472,11 @@ async_trigger_callback(enum async_tx_flags flags,
 		tx = NULL;
 
 	if (tx) {
-		pr_debug("%s: (async)\n", __FUNCTION__);
+		pr_debug("%s: (async)\n", __func__);
 
 		async_tx_submit(chan, tx, flags, depend_tx, cb_fn, cb_param);
 	} else {
-		pr_debug("%s: (sync)\n", __FUNCTION__);
+		pr_debug("%s: (sync)\n", __func__);
 
 		/* wait for any prerequisite operations */
 		if (depend_tx) {
@@ -486,7 +486,7 @@ async_trigger_callback(enum async_tx_flags flags,
 			BUG_ON(depend_tx->ack);
 			if (dma_wait_for_async_tx(depend_tx) == DMA_ERROR)
 				panic("%s: DMA_ERROR waiting for depend_tx\n",
-					__FUNCTION__);
+					__func__);
 		}
 
 		async_tx_sync_epilog(flags, depend_tx, cb_fn, cb_param);

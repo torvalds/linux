@@ -260,7 +260,7 @@ static void pcibios_fixup_device_resources(struct pci_dev *dev,
 	}
 }
 
-void pcibios_fixup_bus(struct pci_bus *bus)
+void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 {
 	/* Propagate hose info into the subordinate devices.  */
 

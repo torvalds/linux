@@ -198,6 +198,11 @@ static int pci_bios_read(unsigned int seg, unsigned int bus,
 			  "b" (bx),
 			  "D" ((long)reg),
 			  "S" (&pci_indirect));
+		/*
+		 * Zero-extend the result beyond 8 bits, do not trust the
+		 * BIOS having done it:
+		 */
+		*value &= 0xff;
 		break;
 	case 2:
 		__asm__("lcall *(%%esi); cld\n\t"
@@ -210,6 +215,11 @@ static int pci_bios_read(unsigned int seg, unsigned int bus,
 			  "b" (bx),
 			  "D" ((long)reg),
 			  "S" (&pci_indirect));
+		/*
+		 * Zero-extend the result beyond 16 bits, do not trust the
+		 * BIOS having done it:
+		 */
+		*value &= 0xffff;
 		break;
 	case 4:
 		__asm__("lcall *(%%esi); cld\n\t"

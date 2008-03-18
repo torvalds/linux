@@ -1080,6 +1080,9 @@ void pdc_io_reset_devices(void)
 	spin_unlock_irqrestore(&pdc_lock, flags);
 }
 
+/* locked by pdc_console_lock */
+static int __attribute__((aligned(8)))   iodc_retbuf[32];
+static char __attribute__((aligned(64))) iodc_dbuf[4096];
 
 /**
  * pdc_iodc_print - Console print using IODC.
@@ -1091,24 +1094,20 @@ void pdc_io_reset_devices(void)
  * Since the HP console requires CR+LF to perform a 'newline', we translate
  * "\n" to "\r\n".
  */
-int pdc_iodc_print(unsigned char *str, unsigned count)
+int pdc_iodc_print(const unsigned char *str, unsigned count)
 {
-	/* XXX Should we spinlock posx usage */
 	static int posx;        /* for simple TAB-Simulation... */
-	int __attribute__((aligned(8)))   iodc_retbuf[32];
-	char __attribute__((aligned(64))) iodc_dbuf[4096];
 	unsigned int i;
 	unsigned long flags;
 
-	memset(iodc_dbuf, 0, 4096);
-	for (i = 0; i < count && i < 2048;) {
+	for (i = 0; i < count && i < 79;) {
 		switch(str[i]) {
 		case '\n':
 			iodc_dbuf[i+0] = '\r';
 			iodc_dbuf[i+1] = '\n';
 			i += 2;
 			posx = 0;
-			break;
+			goto print;
 		case '\t':
 			while (posx & 7) {
 				iodc_dbuf[i] = ' ';
@@ -1124,6 +1123,16 @@ int pdc_iodc_print(unsigned char *str, unsigned count)
 		}
 	}
 
+	/* if we're at the end of line, and not already inserting a newline,
+	 * insert one anyway. iodc console doesn't claim to support >79 char
+	 * lines. don't account for this in the return value.
+	 */
+	if (i == 79 && iodc_dbuf[i-1] != '\n') {
+		iodc_dbuf[i+0] = '\r';
+		iodc_dbuf[i+1] = '\n';
+	}
+
+print:
         spin_lock_irqsave(&pdc_lock, flags);
         real32_call(PAGE0->mem_cons.iodc_io,
                     (unsigned long)PAGE0->mem_cons.hpa, ENTRY_IO_COUT,
@@ -1142,11 +1151,9 @@ int pdc_iodc_print(unsigned char *str, unsigned count)
  */
 int pdc_iodc_getc(void)
 {
-	unsigned long flags;
-        static int __attribute__((aligned(8)))   iodc_retbuf[32];
-        static char __attribute__((aligned(64))) iodc_dbuf[4096];
 	int ch;
 	int status;
+	unsigned long flags;
 
 	/* Bail if no console input device. */
 	if (!PAGE0->mem_kbd.iodc_io)

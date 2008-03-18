@@ -168,7 +168,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 		struct xfrm_encap_tmpl *encap = x->encap;
 		struct udphdr *uh;
 		__be32 *udpdata32;
-		unsigned int sport, dport;
+		__be16 sport, dport;
 		int encap_type;
 
 		spin_lock_bh(&x->lock);

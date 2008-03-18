@@ -83,4 +83,10 @@ struct mv_sata_platform_data;
 
 void __init orion_sata_init(struct mv_sata_platform_data *sata_data);
 
+struct machine_desc;
+struct meminfo;
+struct tag;
+extern void __init tag_fixup_mem32(struct machine_desc *, struct tag *,
+				   char **, struct meminfo *);
+
 #endif /* __ARCH_ORION_COMMON_H__ */

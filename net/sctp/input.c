@@ -944,7 +944,7 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct sk_buff *skb,
 static struct sctp_association *__sctp_rcv_asconf_lookup(
 					sctp_chunkhdr_t *ch,
 					const union sctp_addr *laddr,
-					__be32 peer_port,
+					__be16 peer_port,
 					struct sctp_transport **transportp)
 {
 	sctp_addip_chunk_t *asconf = (struct sctp_addip_chunk *)ch;

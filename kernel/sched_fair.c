@@ -175,8 +175,15 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	 * Maintain a cache of leftmost tree entries (it is frequently
 	 * used):
 	 */
-	if (leftmost)
+	if (leftmost) {
 		cfs_rq->rb_leftmost = &se->run_node;
+		/*
+		 * maintain cfs_rq->min_vruntime to be a monotonic increasing
+		 * value tracking the leftmost vruntime in the tree.
+		 */
+		cfs_rq->min_vruntime =
+			max_vruntime(cfs_rq->min_vruntime, se->vruntime);
+	}
 
 	rb_link_node(&se->run_node, parent, link);
 	rb_insert_color(&se->run_node, &cfs_rq->tasks_timeline);
@@ -184,8 +191,24 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 static void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	if (cfs_rq->rb_leftmost == &se->run_node)
-		cfs_rq->rb_leftmost = rb_next(&se->run_node);
+	if (cfs_rq->rb_leftmost == &se->run_node) {
+		struct rb_node *next_node;
+		struct sched_entity *next;
+
+		next_node = rb_next(&se->run_node);
+		cfs_rq->rb_leftmost = next_node;
+
+		if (next_node) {
+			next = rb_entry(next_node,
+					struct sched_entity, run_node);
+			cfs_rq->min_vruntime =
+				max_vruntime(cfs_rq->min_vruntime,
+					     next->vruntime);
+		}
+	}
+
+	if (cfs_rq->next == se)
+		cfs_rq->next = NULL;
 
 	rb_erase(&se->run_node, &cfs_rq->tasks_timeline);
 }
@@ -202,17 +225,12 @@ static struct sched_entity *__pick_next_entity(struct cfs_rq *cfs_rq)
 
 static inline struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 {
-	struct rb_node **link = &cfs_rq->tasks_timeline.rb_node;
-	struct sched_entity *se = NULL;
-	struct rb_node *parent;
+	struct rb_node *last = rb_last(&cfs_rq->tasks_timeline);
 
-	while (*link) {
-		parent = *link;
-		se = rb_entry(parent, struct sched_entity, run_node);
-		link = &parent->rb_right;
-	}
+	if (!last)
+		return NULL;
 
-	return se;
+	return rb_entry(last, struct sched_entity, run_node);
 }
 
 /**************************************************************
@@ -265,12 +283,8 @@ static u64 __sched_period(unsigned long nr_running)
  */
 static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	u64 slice = __sched_period(cfs_rq->nr_running);
-
-	slice *= se->load.weight;
-	do_div(slice, cfs_rq->load.weight);
-
-	return slice;
+	return calc_delta_mine(__sched_period(cfs_rq->nr_running),
+			       se->load.weight, &cfs_rq->load);
 }
 
 /*
@@ -308,7 +322,6 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 	      unsigned long delta_exec)
 {
 	unsigned long delta_exec_weighted;
-	u64 vruntime;
 
 	schedstat_set(curr->exec_max, max((u64)delta_exec, curr->exec_max));
 
@@ -320,19 +333,6 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 							&curr->load);
 	}
 	curr->vruntime += delta_exec_weighted;
-
-	/*
-	 * maintain cfs_rq->min_vruntime to be a monotonic increasing
-	 * value tracking the leftmost vruntime in the tree.
-	 */
-	if (first_fair(cfs_rq)) {
-		vruntime = min_vruntime(curr->vruntime,
-				__pick_next_entity(cfs_rq)->vruntime);
-	} else
-		vruntime = curr->vruntime;
-
-	cfs_rq->min_vruntime =
-		max_vruntime(cfs_rq->min_vruntime, vruntime);
 }
 
 static void update_curr(struct cfs_rq *cfs_rq)
@@ -498,7 +498,11 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 {
 	u64 vruntime;
 
-	vruntime = cfs_rq->min_vruntime;
+	if (first_fair(cfs_rq)) {
+		vruntime = min_vruntime(cfs_rq->min_vruntime,
+				__pick_next_entity(cfs_rq)->vruntime);
+	} else
+		vruntime = cfs_rq->min_vruntime;
 
 	if (sched_feat(TREE_AVG)) {
 		struct sched_entity *last = __pick_last_entity(cfs_rq);
@@ -520,8 +524,10 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 
 	if (!initial) {
 		/* sleeps upto a single latency don't count. */
-		if (sched_feat(NEW_FAIR_SLEEPERS))
-			vruntime -= sysctl_sched_latency;
+		if (sched_feat(NEW_FAIR_SLEEPERS)) {
+			vruntime -= calc_delta_fair(sysctl_sched_latency,
+						    &cfs_rq->load);
+		}
 
 		/* ensure we never gain time by being placed backwards. */
 		vruntime = max_vruntime(se->vruntime, vruntime);
@@ -621,12 +627,32 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	se->prev_sum_exec_runtime = se->sum_exec_runtime;
 }
 
+static struct sched_entity *
+pick_next(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	s64 diff, gran;
+
+	if (!cfs_rq->next)
+		return se;
+
+	diff = cfs_rq->next->vruntime - se->vruntime;
+	if (diff < 0)
+		return se;
+
+	gran = calc_delta_fair(sysctl_sched_wakeup_granularity, &cfs_rq->load);
+	if (diff > gran)
+		return se;
+
+	return cfs_rq->next;
+}
+
 static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *se = NULL;
 
 	if (first_fair(cfs_rq)) {
 		se = __pick_next_entity(cfs_rq);
+		se = pick_next(cfs_rq, se);
 		set_next_entity(cfs_rq, se);
 	}
 
@@ -732,8 +758,6 @@ static inline struct sched_entity *parent_entity(struct sched_entity *se)
 	return se->parent;
 }
 
-#define GROUP_IMBALANCE_PCT	20
-
 #else	/* CONFIG_FAIR_GROUP_SCHED */
 
 #define for_each_sched_entity(se) \
@@ -824,26 +848,15 @@ hrtick_start_fair(struct rq *rq, struct task_struct *p)
 static void enqueue_task_fair(struct rq *rq, struct task_struct *p, int wakeup)
 {
 	struct cfs_rq *cfs_rq;
-	struct sched_entity *se = &p->se,
-			    *topse = NULL;	/* Highest schedulable entity */
-	int incload = 1;
+	struct sched_entity *se = &p->se;
 
 	for_each_sched_entity(se) {
-		topse = se;
-		if (se->on_rq) {
-			incload = 0;
+		if (se->on_rq)
 			break;
-		}
 		cfs_rq = cfs_rq_of(se);
 		enqueue_entity(cfs_rq, se, wakeup);
 		wakeup = 1;
 	}
-	/* Increment cpu load if we just enqueued the first task of a group on
-	 * 'rq->cpu'. 'topse' represents the group to which task 'p' belongs
-	 * at the highest grouping level.
-	 */
-	if (incload)
-		inc_cpu_load(rq, topse->load.weight);
 
 	hrtick_start_fair(rq, rq->curr);
 }
@@ -856,28 +869,16 @@ static void enqueue_task_fair(struct rq *rq, struct task_struct *p, int wakeup)
 static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int sleep)
 {
 	struct cfs_rq *cfs_rq;
-	struct sched_entity *se = &p->se,
-			    *topse = NULL; 	/* Highest schedulable entity */
-	int decload = 1;
+	struct sched_entity *se = &p->se;
 
 	for_each_sched_entity(se) {
-		topse = se;
 		cfs_rq = cfs_rq_of(se);
 		dequeue_entity(cfs_rq, se, sleep);
 		/* Don't dequeue parent if it has other entities besides us */
-		if (cfs_rq->load.weight) {
-			if (parent_entity(se))
-				decload = 0;
+		if (cfs_rq->load.weight)
 			break;
-		}
 		sleep = 1;
 	}
-	/* Decrement cpu load if we just dequeued the last task of a group on
-	 * 'rq->cpu'. 'topse' represents the group to which task 'p' belongs
-	 * at the highest grouping level.
-	 */
-	if (decload)
-		dec_cpu_load(rq, topse->load.weight);
 
 	hrtick_start_fair(rq, rq->curr);
 }
@@ -1090,6 +1091,9 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 		resched_task(curr);
 		return;
 	}
+
+	cfs_rq_of(pse)->next = pse;
+
 	/*
 	 * Batch tasks do not preempt (their preemption is driven by
 	 * the tick):
@@ -1191,6 +1195,25 @@ static struct task_struct *load_balance_next_fair(void *arg)
 	return __load_balance_iterator(cfs_rq, cfs_rq->rb_load_balance_curr);
 }
 
+#ifdef CONFIG_FAIR_GROUP_SCHED
+static int cfs_rq_best_prio(struct cfs_rq *cfs_rq)
+{
+	struct sched_entity *curr;
+	struct task_struct *p;
+
+	if (!cfs_rq->nr_running || !first_fair(cfs_rq))
+		return MAX_PRIO;
+
+	curr = cfs_rq->curr;
+	if (!curr)
+		curr = __pick_next_entity(cfs_rq);
+
+	p = task_of(curr);
+
+	return p->prio;
+}
+#endif
+
 static unsigned long
 load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		  unsigned long max_load_move,
@@ -1200,45 +1223,28 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	struct cfs_rq *busy_cfs_rq;
 	long rem_load_move = max_load_move;
 	struct rq_iterator cfs_rq_iterator;
-	unsigned long load_moved;
 
 	cfs_rq_iterator.start = load_balance_start_fair;
 	cfs_rq_iterator.next = load_balance_next_fair;
 
 	for_each_leaf_cfs_rq(busiest, busy_cfs_rq) {
 #ifdef CONFIG_FAIR_GROUP_SCHED
-		struct cfs_rq *this_cfs_rq = busy_cfs_rq->tg->cfs_rq[this_cpu];
-		unsigned long maxload, task_load, group_weight;
-		unsigned long thisload, per_task_load;
-		struct sched_entity *se = busy_cfs_rq->tg->se[busiest->cpu];
+		struct cfs_rq *this_cfs_rq;
+		long imbalance;
+		unsigned long maxload;
 
-		task_load = busy_cfs_rq->load.weight;
-		group_weight = se->load.weight;
+		this_cfs_rq = cpu_cfs_rq(busy_cfs_rq, this_cpu);
 
-		/*
-		 * 'group_weight' is contributed by tasks of total weight
-		 * 'task_load'. To move 'rem_load_move' worth of weight only,
-		 * we need to move a maximum task load of:
-		 *
-		 * 	maxload = (remload / group_weight) * task_load;
-		 */
-		maxload = (rem_load_move * task_load) / group_weight;
-
-		if (!maxload || !task_load)
+		imbalance = busy_cfs_rq->load.weight - this_cfs_rq->load.weight;
+		/* Don't pull if this_cfs_rq has more load than busy_cfs_rq */
+		if (imbalance <= 0)
 			continue;
 
-		per_task_load = task_load / busy_cfs_rq->nr_running;
-		/*
-		 * balance_tasks will try to forcibly move atleast one task if
-		 * possible (because of SCHED_LOAD_SCALE_FUZZ). Avoid that if
-		 * maxload is less than GROUP_IMBALANCE_FUZZ% the per_task_load.
-		 */
-		 if (100 * maxload < GROUP_IMBALANCE_PCT * per_task_load)
-			continue;
+		/* Don't pull more than imbalance/2 */
+		imbalance /= 2;
+		maxload = min(rem_load_move, imbalance);
 
-		/* Disable priority-based load balance */
-		*this_best_prio = 0;
-		thisload = this_cfs_rq->load.weight;
+		*this_best_prio = cfs_rq_best_prio(this_cfs_rq);
 #else
 # define maxload rem_load_move
 #endif
@@ -1247,32 +1253,10 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		 * load_balance_[start|next]_fair iterators
 		 */
 		cfs_rq_iterator.arg = busy_cfs_rq;
-		load_moved = balance_tasks(this_rq, this_cpu, busiest,
+		rem_load_move -= balance_tasks(this_rq, this_cpu, busiest,
 					       maxload, sd, idle, all_pinned,
 					       this_best_prio,
 					       &cfs_rq_iterator);
-
-#ifdef CONFIG_FAIR_GROUP_SCHED
-		/*
-		 * load_moved holds the task load that was moved. The
-		 * effective (group) weight moved would be:
-		 * 	load_moved_eff = load_moved/task_load * group_weight;
-		 */
-		load_moved = (group_weight * load_moved) / task_load;
-
-		/* Adjust shares on both cpus to reflect load_moved */
-		group_weight -= load_moved;
-		set_se_shares(se, group_weight);
-
-		se = busy_cfs_rq->tg->se[this_cpu];
-		if (!thisload)
-			group_weight = load_moved;
-		else
-			group_weight = se->load.weight + load_moved;
-		set_se_shares(se, group_weight);
-#endif
-
-		rem_load_move -= load_moved;
 
 		if (rem_load_move <= 0)
 			break;
@@ -1403,6 +1387,16 @@ static void set_curr_task_fair(struct rq *rq)
 		set_next_entity(cfs_rq_of(se), se);
 }
 
+#ifdef CONFIG_FAIR_GROUP_SCHED
+static void moved_group_fair(struct task_struct *p)
+{
+	struct cfs_rq *cfs_rq = task_cfs_rq(p);
+
+	update_curr(cfs_rq);
+	place_entity(cfs_rq, &p->se, 1);
+}
+#endif
+
 /*
  * All the scheduling class methods:
  */
@@ -1431,6 +1425,10 @@ static const struct sched_class fair_sched_class = {
 
 	.prio_changed		= prio_changed_fair,
 	.switched_to		= switched_to_fair,
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	.moved_group		= moved_group_fair,
+#endif
 };
 
 #ifdef CONFIG_SCHED_DEBUG

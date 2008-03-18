@@ -434,7 +434,7 @@ static int sas_recover_I_T(struct domain_device *dev)
 }
 
 /* Find the sas_phy that's attached to this device */
-static struct sas_phy *find_local_sas_phy(struct domain_device *dev)
+struct sas_phy *sas_find_local_phy(struct domain_device *dev)
 {
 	struct domain_device *pdev = dev->parent;
 	struct ex_phy *exphy = NULL;
@@ -456,6 +456,7 @@ static struct sas_phy *find_local_sas_phy(struct domain_device *dev)
 	BUG_ON(!exphy);
 	return exphy->phy;
 }
+EXPORT_SYMBOL_GPL(sas_find_local_phy);
 
 /* Attempt to send a LUN reset message to a device */
 int sas_eh_device_reset_handler(struct scsi_cmnd *cmd)
@@ -482,7 +483,7 @@ int sas_eh_device_reset_handler(struct scsi_cmnd *cmd)
 int sas_eh_bus_reset_handler(struct scsi_cmnd *cmd)
 {
 	struct domain_device *dev = cmd_to_domain_dev(cmd);
-	struct sas_phy *phy = find_local_sas_phy(dev);
+	struct sas_phy *phy = sas_find_local_phy(dev);
 	int res;
 
 	res = sas_phy_reset(phy, 1);
@@ -497,10 +498,10 @@ int sas_eh_bus_reset_handler(struct scsi_cmnd *cmd)
 }
 
 /* Try to reset a device */
-static int try_to_reset_cmd_device(struct Scsi_Host *shost,
-				   struct scsi_cmnd *cmd)
+static int try_to_reset_cmd_device(struct scsi_cmnd *cmd)
 {
 	int res;
+	struct Scsi_Host *shost = cmd->device->host;
 
 	if (!shost->hostt->eh_device_reset_handler)
 		goto try_bus_reset;
@@ -540,6 +541,12 @@ Again:
 		need_reset = task->task_state_flags & SAS_TASK_NEED_DEV_RESET;
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 
+		if (need_reset) {
+			SAS_DPRINTK("%s: task 0x%p requests reset\n",
+				    __FUNCTION__, task);
+			goto reset;
+		}
+
 		SAS_DPRINTK("trying to find task 0x%p\n", task);
 		res = sas_scsi_find_task(task);
 
@@ -550,18 +557,15 @@ Again:
 			SAS_DPRINTK("%s: task 0x%p is done\n", __FUNCTION__,
 				    task);
 			sas_eh_finish_cmd(cmd);
-			if (need_reset)
-				try_to_reset_cmd_device(shost, cmd);
 			continue;
 		case TASK_IS_ABORTED:
 			SAS_DPRINTK("%s: task 0x%p is aborted\n",
 				    __FUNCTION__, task);
 			sas_eh_finish_cmd(cmd);
-			if (need_reset)
-				try_to_reset_cmd_device(shost, cmd);
 			continue;
 		case TASK_IS_AT_LU:
 			SAS_DPRINTK("task 0x%p is at LU: lu recover\n", task);
+ reset:
 			tmf_resp = sas_recover_lu(task->dev, cmd);
 			if (tmf_resp == TMF_RESP_FUNC_COMPLETE) {
 				SAS_DPRINTK("dev %016llx LU %x is "
@@ -569,8 +573,6 @@ Again:
 					    SAS_ADDR(task->dev),
 					    cmd->device->lun);
 				sas_eh_finish_cmd(cmd);
-				if (need_reset)
-					try_to_reset_cmd_device(shost, cmd);
 				sas_scsi_clear_queue_lu(work_q, cmd);
 				goto Again;
 			}
@@ -581,15 +583,15 @@ Again:
 				    task);
 			tmf_resp = sas_recover_I_T(task->dev);
 			if (tmf_resp == TMF_RESP_FUNC_COMPLETE) {
+				struct domain_device *dev = task->dev;
 				SAS_DPRINTK("I_T %016llx recovered\n",
 					    SAS_ADDR(task->dev->sas_addr));
 				sas_eh_finish_cmd(cmd);
-				if (need_reset)
-					try_to_reset_cmd_device(shost, cmd);
-				sas_scsi_clear_queue_I_T(work_q, task->dev);
+				sas_scsi_clear_queue_I_T(work_q, dev);
 				goto Again;
 			}
 			/* Hammer time :-) */
+			try_to_reset_cmd_device(cmd);
 			if (i->dft->lldd_clear_nexus_port) {
 				struct asd_sas_port *port = task->dev->port;
 				SAS_DPRINTK("clearing nexus for port:%d\n",
@@ -599,8 +601,6 @@ Again:
 					SAS_DPRINTK("clear nexus port:%d "
 						    "succeeded\n", port->id);
 					sas_eh_finish_cmd(cmd);
-					if (need_reset)
-						try_to_reset_cmd_device(shost, cmd);
 					sas_scsi_clear_queue_port(work_q,
 								  port);
 					goto Again;
@@ -613,8 +613,6 @@ Again:
 					SAS_DPRINTK("clear nexus ha "
 						    "succeeded\n");
 					sas_eh_finish_cmd(cmd);
-					if (need_reset)
-						try_to_reset_cmd_device(shost, cmd);
 					goto clear_q;
 				}
 			}
@@ -628,8 +626,6 @@ Again:
 				    cmd->device->lun);
 
 			sas_eh_finish_cmd(cmd);
-			if (need_reset)
-				try_to_reset_cmd_device(shost, cmd);
 			goto clear_q;
 		}
 	}

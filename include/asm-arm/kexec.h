@@ -8,7 +8,7 @@
 /* Maximum address we can reach in physical address mode */
 #define KEXEC_DESTINATION_MEMORY_LIMIT (-1UL)
 /* Maximum address we can use for the control code buffer */
-#define KEXEC_CONTROL_MEMORY_LIMIT TASK_SIZE
+#define KEXEC_CONTROL_MEMORY_LIMIT (-1UL)
 
 #define KEXEC_CONTROL_CODE_SIZE	4096
 

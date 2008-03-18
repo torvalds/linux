@@ -43,8 +43,9 @@ struct virtqueue
  *	vq: the struct virtqueue we're talking about.
  * @enable_cb: restart callbacks after disable_cb.
  *	vq: the struct virtqueue we're talking about.
- *	This returns "false" (and doesn't re-enable) if there are pending
- *	buffers in the queue, to avoid a race.
+ *	This re-enables callbacks; it returns "false" if there are pending
+ *	buffers in the queue, to detect a possible race between the driver
+ *	checking for more work, and enabling callbacks.
  *
  * Locking rules are straightforward: the driver is responsible for
  * locking.  No two operations may be invoked simultaneously.

@@ -1010,7 +1010,8 @@ static struct linux_prom64_registers pall[MAX_BANKS] __initdata;
 static int pall_ents __initdata;
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
-static unsigned long kernel_map_range(unsigned long pstart, unsigned long pend, pgprot_t prot)
+static unsigned long __ref kernel_map_range(unsigned long pstart,
+					    unsigned long pend, pgprot_t prot)
 {
 	unsigned long vstart = PAGE_OFFSET + pstart;
 	unsigned long vend = PAGE_OFFSET + pend;

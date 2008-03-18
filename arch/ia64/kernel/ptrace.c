@@ -698,52 +698,6 @@ thread_matches (struct task_struct *thread, unsigned long addr)
 }
 
 /*
- * GDB apparently wants to be able to read the register-backing store
- * of any thread when attached to a given process.  If we are peeking
- * or poking an address that happens to reside in the kernel-backing
- * store of another thread, we need to attach to that thread, because
- * otherwise we end up accessing stale data.
- *
- * task_list_lock must be read-locked before calling this routine!
- */
-static struct task_struct *
-find_thread_for_addr (struct task_struct *child, unsigned long addr)
-{
-	struct task_struct *p;
-	struct mm_struct *mm;
-	struct list_head *this, *next;
-	int mm_users;
-
-	if (!(mm = get_task_mm(child)))
-		return child;
-
-	/* -1 because of our get_task_mm(): */
-	mm_users = atomic_read(&mm->mm_users) - 1;
-	if (mm_users <= 1)
-		goto out;		/* not multi-threaded */
-
-	/*
-	 * Traverse the current process' children list.  Every task that
-	 * one attaches to becomes a child.  And it is only attached children
-	 * of the debugger that are of interest (ptrace_check_attach checks
-	 * for this).
-	 */
- 	list_for_each_safe(this, next, &current->children) {
-		p = list_entry(this, struct task_struct, sibling);
-		if (p->tgid != child->tgid)
-			continue;
-		if (thread_matches(p, addr)) {
-			child = p;
-			goto out;
-		}
-	}
-
-  out:
-	mmput(mm);
-	return child;
-}
-
-/*
  * Write f32-f127 back to task->thread.fph if it has been modified.
  */
 inline void
@@ -826,14 +780,14 @@ convert_to_non_syscall (struct task_struct *child, struct pt_regs  *pt,
 		if ((long)((unsigned long)child + IA64_STK_OFFSET - sp)
 		    < IA64_PT_REGS_SIZE) {
 			dprintk("ptrace.%s: ran off the top of the kernel "
-				"stack\n", __FUNCTION__);
+				"stack\n", __func__);
 			return;
 		}
 		if (unw_get_pr (&prev_info, &pr) < 0) {
 			unw_get_rp(&prev_info, &ip);
 			dprintk("ptrace.%s: failed to read "
 				"predicate register (ip=0x%lx)\n",
-				__FUNCTION__, ip);
+				__func__, ip);
 			return;
 		}
 		if (unw_is_intr_frame(&info)
@@ -908,7 +862,7 @@ static int
 access_uarea (struct task_struct *child, unsigned long addr,
 	      unsigned long *data, int write_access)
 {
-	unsigned long *ptr, regnum, urbs_end, rnat_addr, cfm;
+	unsigned long *ptr, regnum, urbs_end, cfm;
 	struct switch_stack *sw;
 	struct pt_regs *pt;
 #	define pt_reg_addr(pt, reg)	((void *)			    \
@@ -1011,14 +965,9 @@ access_uarea (struct task_struct *child, unsigned long addr,
 			 * the kernel was entered.
 			 *
 			 * Furthermore, when changing the contents of
-			 * PT_AR_BSP (or PT_CFM) we MUST copy any
-			 * users-level stacked registers that are
-			 * stored on the kernel stack back to
-			 * user-space because otherwise, we might end
-			 * up clobbering kernel stacked registers.
-			 * Also, if this happens while the task is
-			 * blocked in a system call, which convert the
-			 * state such that the non-system-call exit
+			 * PT_AR_BSP (or PT_CFM) while the task is
+			 * blocked in a system call, convert the state
+			 * so that the non-system-call exit
 			 * path is used.  This ensures that the proper
 			 * state will be picked up when resuming
 			 * execution.  However, it *also* means that
@@ -1035,10 +984,6 @@ access_uarea (struct task_struct *child, unsigned long addr,
 			urbs_end = ia64_get_user_rbs_end(child, pt, &cfm);
 			if (write_access) {
 				if (*data != urbs_end) {
-					if (ia64_sync_user_rbs(child, sw,
-							       pt->ar_bspstore,
-							       urbs_end) < 0)
-						return -1;
 					if (in_syscall(pt))
 						convert_to_non_syscall(child,
 								       pt,
@@ -1058,10 +1003,6 @@ access_uarea (struct task_struct *child, unsigned long addr,
 			urbs_end = ia64_get_user_rbs_end(child, pt, &cfm);
 			if (write_access) {
 				if (((cfm ^ *data) & PFM_MASK) != 0) {
-					if (ia64_sync_user_rbs(child, sw,
-							       pt->ar_bspstore,
-							       urbs_end) < 0)
-						return -1;
 					if (in_syscall(pt))
 						convert_to_non_syscall(child,
 								       pt,
@@ -1093,16 +1034,8 @@ access_uarea (struct task_struct *child, unsigned long addr,
 			return 0;
 
 		      case PT_AR_RNAT:
-			urbs_end = ia64_get_user_rbs_end(child, pt, NULL);
-			rnat_addr = (long) ia64_rse_rnat_addr((long *)
-							      urbs_end);
-			if (write_access)
-				return ia64_poke(child, sw, urbs_end,
-						 rnat_addr, *data);
-			else
-				return ia64_peek(child, sw, urbs_end,
-						 rnat_addr, data);
-
+			ptr = pt_reg_addr(pt, ar_rnat);
+			break;
 		      case PT_R1:
 			ptr = pt_reg_addr(pt, r1);
 			break;
@@ -1521,13 +1454,26 @@ ptrace_setregs (struct task_struct *child, struct pt_all_user_regs __user *ppr)
 	return ret;
 }
 
-/*
- * Called by kernel/ptrace.c when detaching..
- *
- * Make sure the single step bit is not set.
- */
 void
-ptrace_disable (struct task_struct *child)
+user_enable_single_step (struct task_struct *child)
+{
+	struct ia64_psr *child_psr = ia64_psr(task_pt_regs(child));
+
+	set_tsk_thread_flag(child, TIF_SINGLESTEP);
+	child_psr->ss = 1;
+}
+
+void
+user_enable_block_step (struct task_struct *child)
+{
+	struct ia64_psr *child_psr = ia64_psr(task_pt_regs(child));
+
+	set_tsk_thread_flag(child, TIF_SINGLESTEP);
+	child_psr->tb = 1;
+}
+
+void
+user_disable_single_step (struct task_struct *child)
 {
 	struct ia64_psr *child_psr = ia64_psr(task_pt_regs(child));
 
@@ -1537,199 +1483,68 @@ ptrace_disable (struct task_struct *child)
 	child_psr->tb = 0;
 }
 
-asmlinkage long
-sys_ptrace (long request, pid_t pid, unsigned long addr, unsigned long data)
+/*
+ * Called by kernel/ptrace.c when detaching..
+ *
+ * Make sure the single step bit is not set.
+ */
+void
+ptrace_disable (struct task_struct *child)
 {
-	struct pt_regs *pt;
-	unsigned long urbs_end, peek_or_poke;
-	struct task_struct *child;
-	struct switch_stack *sw;
-	long ret;
-	struct unw_frame_info info;
+	user_disable_single_step(child);
+}
 
-	lock_kernel();
-	ret = -EPERM;
-	if (request == PTRACE_TRACEME) {
-		ret = ptrace_traceme();
-		goto out;
-	}
-
-	peek_or_poke = (request == PTRACE_PEEKTEXT
-			|| request == PTRACE_PEEKDATA
-			|| request == PTRACE_POKETEXT
-			|| request == PTRACE_POKEDATA);
-	ret = -ESRCH;
-	read_lock(&tasklist_lock);
-	{
-		child = find_task_by_pid(pid);
-		if (child) {
-			if (peek_or_poke)
-				child = find_thread_for_addr(child, addr);
-			get_task_struct(child);
-		}
-	}
-	read_unlock(&tasklist_lock);
-	if (!child)
-		goto out;
-	ret = -EPERM;
-	if (pid == 1)		/* no messing around with init! */
-		goto out_tsk;
-
-	if (request == PTRACE_ATTACH) {
-		ret = ptrace_attach(child);
-		if (!ret)
-			arch_ptrace_attach(child);
-		goto out_tsk;
-	}
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret < 0)
-		goto out_tsk;
-
-	pt = task_pt_regs(child);
-	sw = (struct switch_stack *) (child->thread.ksp + 16);
-
+long
+arch_ptrace (struct task_struct *child, long request, long addr, long data)
+{
 	switch (request) {
-	      case PTRACE_PEEKTEXT:
-	      case PTRACE_PEEKDATA:
+	case PTRACE_PEEKTEXT:
+	case PTRACE_PEEKDATA:
 		/* read word at location addr */
-		urbs_end = ia64_get_user_rbs_end(child, pt, NULL);
-		ret = ia64_peek(child, sw, urbs_end, addr, &data);
-		if (ret == 0) {
-			ret = data;
-			/* ensure "ret" is not mistaken as an error code: */
-			force_successful_syscall_return();
-		}
-		goto out_tsk;
-
-	      case PTRACE_POKETEXT:
-	      case PTRACE_POKEDATA:
-		/* write the word at location addr */
-		urbs_end = ia64_get_user_rbs_end(child, pt, NULL);
-		ret = ia64_poke(child, sw, urbs_end, addr, data);
-
-		/* Make sure user RBS has the latest data */
-		unw_init_from_blocked_task(&info, child);
-		do_sync_rbs(&info, ia64_sync_user_rbs);
-
-		goto out_tsk;
-
-	      case PTRACE_PEEKUSR:
-		/* read the word at addr in the USER area */
-		if (access_uarea(child, addr, &data, 0) < 0) {
-			ret = -EIO;
-			goto out_tsk;
-		}
-		ret = data;
-		/* ensure "ret" is not mistaken as an error code */
+		if (access_process_vm(child, addr, &data, sizeof(data), 0)
+		    != sizeof(data))
+			return -EIO;
+		/* ensure return value is not mistaken for error code */
 		force_successful_syscall_return();
-		goto out_tsk;
+		return data;
 
-	      case PTRACE_POKEUSR:
+	/* PTRACE_POKETEXT and PTRACE_POKEDATA is handled
+	 * by the generic ptrace_request().
+	 */
+
+	case PTRACE_PEEKUSR:
+		/* read the word at addr in the USER area */
+		if (access_uarea(child, addr, &data, 0) < 0)
+			return -EIO;
+		/* ensure return value is not mistaken for error code */
+		force_successful_syscall_return();
+		return data;
+
+	case PTRACE_POKEUSR:
 		/* write the word at addr in the USER area */
-		if (access_uarea(child, addr, &data, 1) < 0) {
-			ret = -EIO;
-			goto out_tsk;
-		}
-		ret = 0;
-		goto out_tsk;
+		if (access_uarea(child, addr, &data, 1) < 0)
+			return -EIO;
+		return 0;
 
-	      case PTRACE_OLD_GETSIGINFO:
+	case PTRACE_OLD_GETSIGINFO:
 		/* for backwards-compatibility */
-		ret = ptrace_request(child, PTRACE_GETSIGINFO, addr, data);
-		goto out_tsk;
+		return ptrace_request(child, PTRACE_GETSIGINFO, addr, data);
 
-	      case PTRACE_OLD_SETSIGINFO:
+	case PTRACE_OLD_SETSIGINFO:
 		/* for backwards-compatibility */
-		ret = ptrace_request(child, PTRACE_SETSIGINFO, addr, data);
-		goto out_tsk;
+		return ptrace_request(child, PTRACE_SETSIGINFO, addr, data);
 
-	      case PTRACE_SYSCALL:
-		/* continue and stop at next (return from) syscall */
-	      case PTRACE_CONT:
-		/* restart after signal. */
-		ret = -EIO;
-		if (!valid_signal(data))
-			goto out_tsk;
-		if (request == PTRACE_SYSCALL)
-			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		else
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		child->exit_code = data;
+	case PTRACE_GETREGS:
+		return ptrace_getregs(child,
+				      (struct pt_all_user_regs __user *) data);
 
-		/*
-		 * Make sure the single step/taken-branch trap bits
-		 * are not set:
-		 */
-		clear_tsk_thread_flag(child, TIF_SINGLESTEP);
-		ia64_psr(pt)->ss = 0;
-		ia64_psr(pt)->tb = 0;
+	case PTRACE_SETREGS:
+		return ptrace_setregs(child,
+				      (struct pt_all_user_regs __user *) data);
 
-		wake_up_process(child);
-		ret = 0;
-		goto out_tsk;
-
-	      case PTRACE_KILL:
-		/*
-		 * Make the child exit.  Best I can do is send it a
-		 * sigkill.  Perhaps it should be put in the status
-		 * that it wants to exit.
-		 */
-		if (child->exit_state == EXIT_ZOMBIE)
-			/* already dead */
-			goto out_tsk;
-		child->exit_code = SIGKILL;
-
-		ptrace_disable(child);
-		wake_up_process(child);
-		ret = 0;
-		goto out_tsk;
-
-	      case PTRACE_SINGLESTEP:
-		/* let child execute for one instruction */
-	      case PTRACE_SINGLEBLOCK:
-		ret = -EIO;
-		if (!valid_signal(data))
-			goto out_tsk;
-
-		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		set_tsk_thread_flag(child, TIF_SINGLESTEP);
-		if (request == PTRACE_SINGLESTEP) {
-			ia64_psr(pt)->ss = 1;
-		} else {
-			ia64_psr(pt)->tb = 1;
-		}
-		child->exit_code = data;
-
-		/* give it a chance to run. */
-		wake_up_process(child);
-		ret = 0;
-		goto out_tsk;
-
-	      case PTRACE_DETACH:
-		/* detach a process that was attached. */
-		ret = ptrace_detach(child, data);
-		goto out_tsk;
-
-	      case PTRACE_GETREGS:
-		ret = ptrace_getregs(child,
-				     (struct pt_all_user_regs __user *) data);
-		goto out_tsk;
-
-	      case PTRACE_SETREGS:
-		ret = ptrace_setregs(child,
-				     (struct pt_all_user_regs __user *) data);
-		goto out_tsk;
-
-	      default:
-		ret = ptrace_request(child, request, addr, data);
-		goto out_tsk;
+	default:
+		return ptrace_request(child, request, addr, data);
 	}
-  out_tsk:
-	put_task_struct(child);
-  out:
-	unlock_kernel();
-	return ret;
 }
 
 

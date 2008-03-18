@@ -242,6 +242,7 @@ struct task_struct;
 
 extern void sched_init(void);
 extern void sched_init_smp(void);
+extern asmlinkage void schedule_tail(struct task_struct *prev);
 extern void init_idle(struct task_struct *idle, int cpu);
 extern void init_idle_bootup_task(struct task_struct *idle);
 
@@ -898,6 +899,10 @@ struct sched_class {
 			     int running);
 	void (*prio_changed) (struct rq *this_rq, struct task_struct *task,
 			     int oldprio, int running);
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	void (*moved_group) (struct task_struct *p);
+#endif
 };
 
 struct load_weight {
@@ -1189,7 +1194,7 @@ struct task_struct {
 	int softirq_context;
 #endif
 #ifdef CONFIG_LOCKDEP
-# define MAX_LOCK_DEPTH 30UL
+# define MAX_LOCK_DEPTH 48UL
 	u64 curr_chain_key;
 	int lockdep_depth;
 	struct held_lock held_locks[MAX_LOCK_DEPTH];
@@ -1541,10 +1546,6 @@ extern unsigned int sysctl_sched_child_runs_first;
 extern unsigned int sysctl_sched_features;
 extern unsigned int sysctl_sched_migration_cost;
 extern unsigned int sysctl_sched_nr_migrate;
-#if defined(CONFIG_FAIR_GROUP_SCHED) && defined(CONFIG_SMP)
-extern unsigned int sysctl_sched_min_bal_int_shares;
-extern unsigned int sysctl_sched_max_bal_int_shares;
-#endif
 
 int sched_nr_latency_handler(struct ctl_table *table, int write,
 		struct file *file, void __user *buffer, size_t *length,

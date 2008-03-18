@@ -102,12 +102,6 @@ static inline void mark_rodata_ro(void) { }
 extern void tc_init(void);
 #endif
 
-#ifdef CONFIG_ACPI_CUSTOM_DSDT_INITRD
-extern int populate_rootfs(void);
-#else
-static inline void populate_rootfs(void) {}
-#endif
-
 enum system_states system_state;
 EXPORT_SYMBOL(system_state);
 
@@ -254,7 +248,7 @@ early_param("quiet", quiet_kernel);
 static int __init loglevel(char *str)
 {
 	get_option(&str, &console_loglevel);
-	return 1;
+	return 0;
 }
 
 early_param("loglevel", loglevel);
@@ -650,7 +644,6 @@ asmlinkage void __init start_kernel(void)
 
 	check_bugs();
 
-	populate_rootfs(); /* For DSDT override from initramfs */
 	acpi_early_init(); /* before LAPIC and SMP init */
 
 	/* Do the rest non-__init'ed, we're now alive */

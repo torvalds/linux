@@ -44,6 +44,8 @@ extern enum sparc_cpu sparc_cpu_model;
 
 #define SUN4M_NCPUS            4              /* Architectural limit of sun4m. */
 
+extern char reboot_command[];
+
 extern struct thread_info *current_set[NR_CPUS];
 
 extern unsigned long empty_bad_page;

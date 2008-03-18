@@ -1085,7 +1085,7 @@ static int acpiphp_bus_trim(acpi_handle handle)
  * This function should be called per *physical slot*,
  * not per each slot object in ACPI namespace.
  */
-static int enable_device(struct acpiphp_slot *slot)
+static int __ref enable_device(struct acpiphp_slot *slot)
 {
 	struct pci_dev *dev;
 	struct pci_bus *bus = slot->bridge->pci_bus;

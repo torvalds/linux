@@ -160,21 +160,21 @@ imx_gpio_irq_type(unsigned int _irq, unsigned int type)
 static void
 imx_gpio_ack_irq(unsigned int irq)
 {
-	DEBUG_IRQ("%s: irq %d\n", __FUNCTION__, irq);
+	DEBUG_IRQ("%s: irq %d\n", __func__, irq);
 	ISR(IRQ_TO_REG(irq)) = 1 << ((irq - IRQ_GPIOA(0)) % 32);
 }
 
 static void
 imx_gpio_mask_irq(unsigned int irq)
 {
-	DEBUG_IRQ("%s: irq %d\n", __FUNCTION__, irq);
+	DEBUG_IRQ("%s: irq %d\n", __func__, irq);
 	IMR(IRQ_TO_REG(irq)) &= ~( 1 << ((irq - IRQ_GPIOA(0)) % 32));
 }
 
 static void
 imx_gpio_unmask_irq(unsigned int irq)
 {
-	DEBUG_IRQ("%s: irq %d\n", __FUNCTION__, irq);
+	DEBUG_IRQ("%s: irq %d\n", __func__, irq);
 	IMR(IRQ_TO_REG(irq)) |= 1 << ((irq - IRQ_GPIOA(0)) % 32);
 }
 

@@ -520,6 +520,9 @@
 #define MCCR_FSRIE	(1 << 1)	/* FIFO Service Request Interrupt Enable */
 
 #define GCR		__REG(0x4050000C)  /* Global Control Register */
+#ifdef CONFIG_PXA3xx
+#define GCR_CLKBPB	(1 << 31)	/* Internal clock enable */
+#endif
 #define GCR_nDMAEN	(1 << 24)	/* non DMA Enable */
 #define GCR_CDONE_IE	(1 << 19)	/* Command Done Interrupt Enable */
 #define GCR_SDONE_IE	(1 << 18)	/* Status Done Interrupt Enable */

@@ -26,10 +26,9 @@ struct mm_struct;
 struct vm_area_struct;
 
 extern pgd_t swapper_pg_dir[1024];
-extern struct kmem_cache *pmd_cache;
-void check_pgt_cache(void);
 
-static inline void pgtable_cache_init(void) {}
+static inline void pgtable_cache_init(void) { }
+static inline void check_pgt_cache(void) { }
 void paging_init(void);
 
 

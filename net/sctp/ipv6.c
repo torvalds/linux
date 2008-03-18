@@ -89,6 +89,7 @@ static int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
 	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)ptr;
 	struct sctp_sockaddr_entry *addr = NULL;
 	struct sctp_sockaddr_entry *temp;
+	int found = 0;
 
 	switch (ev) {
 	case NETDEV_UP:
@@ -111,13 +112,14 @@ static int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
 					&sctp_local_addr_list, list) {
 			if (ipv6_addr_equal(&addr->a.v6.sin6_addr,
 					     &ifa->addr)) {
+				found = 1;
 				addr->valid = 0;
 				list_del_rcu(&addr->list);
 				break;
 			}
 		}
 		spin_unlock_bh(&sctp_local_addr_lock);
-		if (addr && !addr->valid)
+		if (found)
 			call_rcu(&addr->rcu, sctp_local_addr_free);
 		break;
 	}

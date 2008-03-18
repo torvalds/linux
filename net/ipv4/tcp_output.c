@@ -1035,6 +1035,13 @@ static void tcp_cwnd_validate(struct sock *sk)
  * introducing MSS oddities to segment boundaries. In rare cases where
  * mss_now != mss_cache, we will request caller to create a small skb
  * per input skb which could be mostly avoided here (if desired).
+ *
+ * We explicitly want to create a request for splitting write queue tail
+ * to a small skb for Nagle purposes while avoiding unnecessary modulos,
+ * thus all the complexity (cwnd_len is always MSS multiple which we
+ * return whenever allowed by the other factors). Basically we need the
+ * modulo only when the receiver window alone is the limiting factor or
+ * when we would be allowed to send the split-due-to-Nagle skb fully.
  */
 static unsigned int tcp_mss_split_point(struct sock *sk, struct sk_buff *skb,
 					unsigned int mss_now, unsigned int cwnd)
@@ -1048,10 +1055,11 @@ static unsigned int tcp_mss_split_point(struct sock *sk, struct sk_buff *skb,
 	if (likely(cwnd_len <= window && skb != tcp_write_queue_tail(sk)))
 		return cwnd_len;
 
-	if (skb == tcp_write_queue_tail(sk) && cwnd_len <= skb->len)
+	needed = min(skb->len, window);
+
+	if (skb == tcp_write_queue_tail(sk) && cwnd_len <= needed)
 		return cwnd_len;
 
-	needed = min(skb->len, window);
 	return needed - needed % mss_now;
 }
 

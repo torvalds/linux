@@ -407,7 +407,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	 * The tracer may want to single-step inside the
 	 * handler too.
 	 */
-	regs->flags &= ~TF_MASK;
+	regs->flags &= ~(TF_MASK | X86_EFLAGS_DF);
 	if (test_thread_flag(TIF_SINGLESTEP))
 		ptrace_notify(SIGTRAP);
 
@@ -500,7 +500,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	 * The tracer may want to single-step inside the
 	 * handler too.
 	 */
-	regs->flags &= ~TF_MASK;
+	regs->flags &= ~(TF_MASK | X86_EFLAGS_DF);
 	if (test_thread_flag(TIF_SINGLESTEP))
 		ptrace_notify(SIGTRAP);
 

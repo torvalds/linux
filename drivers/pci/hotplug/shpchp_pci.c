@@ -96,7 +96,7 @@ static void program_fw_provided_values(struct pci_dev *dev)
 	}
 }
 
-int shpchp_configure_device(struct slot *p_slot)
+int __ref shpchp_configure_device(struct slot *p_slot)
 {
 	struct pci_dev *dev;
 	struct pci_bus *parent = p_slot->ctrl->pci_dev->subordinate;

@@ -994,7 +994,7 @@ static void rt2x00lib_uninitialize(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	/*
-	 * Unregister rfkill.
+	 * Unregister extra components.
 	 */
 	rt2x00rfkill_unregister(rt2x00dev);
 
@@ -1033,11 +1033,9 @@ static int rt2x00lib_initialize(struct rt2x00_dev *rt2x00dev)
 	__set_bit(DEVICE_INITIALIZED, &rt2x00dev->flags);
 
 	/*
-	 * Register the rfkill handler.
+	 * Register the extra components.
 	 */
-	status = rt2x00rfkill_register(rt2x00dev);
-	if (status)
-		goto exit;
+	rt2x00rfkill_register(rt2x00dev);
 
 	return 0;
 
@@ -1151,20 +1149,10 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	}
 
 	/*
-	 * Register LED.
+	 * Register extra components.
 	 */
 	rt2x00leds_register(rt2x00dev);
-
-	/*
-	 * Allocatie rfkill.
-	 */
-	retval = rt2x00rfkill_allocate(rt2x00dev);
-	if (retval)
-		goto exit;
-
-	/*
-	 * Open the debugfs entry.
-	 */
+	rt2x00rfkill_allocate(rt2x00dev);
 	rt2x00debug_register(rt2x00dev);
 
 	__set_bit(DEVICE_PRESENT, &rt2x00dev->flags);
@@ -1193,13 +1181,9 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	rt2x00lib_uninitialize(rt2x00dev);
 
 	/*
-	 * Close debugfs entry.
+	 * Free extra components
 	 */
 	rt2x00debug_deregister(rt2x00dev);
-
-	/*
-	 * Free rfkill
-	 */
 	rt2x00rfkill_free(rt2x00dev);
 
 	/*
@@ -1243,12 +1227,16 @@ int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev, pm_message_t state)
 	__set_bit(DEVICE_STARTED_SUSPEND, &rt2x00dev->flags);
 
 	/*
-	 * Disable radio and unitialize all items
-	 * that must be recreated on resume.
+	 * Disable radio.
 	 */
 	rt2x00lib_stop(rt2x00dev);
 	rt2x00lib_uninitialize(rt2x00dev);
+
+	/*
+	 * Suspend/disable extra components.
+	 */
 	rt2x00leds_suspend(rt2x00dev);
+	rt2x00rfkill_suspend(rt2x00dev);
 	rt2x00debug_deregister(rt2x00dev);
 
 exit:
@@ -1292,9 +1280,10 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	NOTICE(rt2x00dev, "Waking up.\n");
 
 	/*
-	 * Open the debugfs entry and restore led handling.
+	 * Restore/enable extra components.
 	 */
 	rt2x00debug_register(rt2x00dev);
+	rt2x00rfkill_resume(rt2x00dev);
 	rt2x00leds_resume(rt2x00dev);
 
 	/*

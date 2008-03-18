@@ -81,7 +81,7 @@ void mykfree(void *p)
 #define MKCTL_MAGIC	0xDEADBABEBADC0DEDL
 #define PUT_MAGIC(a,m)	do{(*(u64*)(a))=(m);}while(0)
 #define SCHECK_MAGIC(a,m)	do{if((*(u64*)(a))!=(m))printk("%s,%u,%s(): magic %08x at %p corrupted!\n",\
-				__FILE__,__LINE__,__FUNCTION__,(m),(a));}while(0)
+				__FILE__,__LINE__,__func__,(m),(a));}while(0)
 #define BUF_OFFSET	sizeof(u64)
 #define MKCTL_TRAILER	sizeof(u64)
 

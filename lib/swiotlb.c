@@ -310,7 +310,9 @@ map_single(struct device *hwdev, char *buffer, size_t size, int dir)
 	start_dma_addr = virt_to_bus(io_tlb_start) & mask;
 
 	offset_slots = ALIGN(start_dma_addr, 1 << IO_TLB_SHIFT) >> IO_TLB_SHIFT;
-	max_slots = ALIGN(mask + 1, 1 << IO_TLB_SHIFT) >> IO_TLB_SHIFT;
+	max_slots = mask + 1
+		    ? ALIGN(mask + 1, 1 << IO_TLB_SHIFT) >> IO_TLB_SHIFT
+		    : 1UL << (BITS_PER_LONG - IO_TLB_SHIFT);
 
 	/*
 	 * For mappings greater than a page, we limit the stride (and
@@ -333,16 +335,18 @@ map_single(struct device *hwdev, char *buffer, size_t size, int dir)
 		index = ALIGN(io_tlb_index, stride);
 		if (index >= io_tlb_nslabs)
 			index = 0;
-
-		while (is_span_boundary(index, nslots, offset_slots,
-					max_slots)) {
-			index += stride;
-			if (index >= io_tlb_nslabs)
-				index = 0;
-		}
 		wrap = index;
 
 		do {
+			while (is_span_boundary(index, nslots, offset_slots,
+						max_slots)) {
+				index += stride;
+				if (index >= io_tlb_nslabs)
+					index = 0;
+				if (index == wrap)
+					goto not_found;
+			}
+
 			/*
 			 * If we find a slot that indicates we have 'nslots'
 			 * number of contiguous buffers, we allocate the
@@ -367,14 +371,12 @@ map_single(struct device *hwdev, char *buffer, size_t size, int dir)
 
 				goto found;
 			}
-			do {
-				index += stride;
-				if (index >= io_tlb_nslabs)
-					index = 0;
-			} while (is_span_boundary(index, nslots, offset_slots,
-						  max_slots));
+			index += stride;
+			if (index >= io_tlb_nslabs)
+				index = 0;
 		} while (index != wrap);
 
+  not_found:
 		spin_unlock_irqrestore(&io_tlb_lock, flags);
 		return NULL;
 	}

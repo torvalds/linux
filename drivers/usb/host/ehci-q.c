@@ -319,10 +319,10 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 			if (likely (last->urb != urb)) {
 				ehci_urb_done(ehci, last->urb, last_status);
 				count++;
+				last_status = -EINPROGRESS;
 			}
 			ehci_qtd_free (ehci, last);
 			last = NULL;
-			last_status = -EINPROGRESS;
 		}
 
 		/* ignore urbs submitted during completions we reported */

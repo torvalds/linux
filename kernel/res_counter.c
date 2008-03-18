@@ -113,6 +113,7 @@ ssize_t res_counter_write(struct res_counter *counter, int member,
 
 	ret = -EINVAL;
 
+	strstrip(buf);
 	if (write_strategy) {
 		if (write_strategy(buf, &tmp)) {
 			goto out_free;

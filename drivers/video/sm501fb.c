@@ -237,12 +237,14 @@ static int sm501fb_check_var(struct fb_var_screeninfo *var,
 
 	/* check we can fit these values into the registers */
 
-	if (var->hsync_len > 255 || var->vsync_len > 255)
+	if (var->hsync_len > 255 || var->vsync_len > 63)
 		return -EINVAL;
 
-	if ((var->xres + var->right_margin) >= 4096)
+	/* hdisplay end and hsync start */
+	if ((var->xres + var->right_margin) > 4096)
 		return -EINVAL;
 
+	/* vdisplay end and vsync start */
 	if ((var->yres + var->lower_margin) > 2048)
 		return -EINVAL;
 
@@ -281,19 +283,21 @@ static int sm501fb_check_var(struct fb_var_screeninfo *var,
 		var->blue.length	= var->bits_per_pixel;
 		var->blue.offset	= 0;
 		var->transp.length	= 0;
+		var->transp.offset	= 0;
 
 		break;
 
 	case 16:
 		if (sm->pdata->flags & SM501_FBPD_SWAP_FB_ENDIAN) {
-			var->red.offset		= 11;
-			var->green.offset	= 5;
-			var->blue.offset	= 0;
-		} else {
 			var->blue.offset	= 11;
 			var->green.offset	= 5;
 			var->red.offset		= 0;
+		} else {
+			var->red.offset		= 11;
+			var->green.offset	= 5;
+			var->blue.offset	= 0;
 		}
+		var->transp.offset	= 0;
 
 		var->red.length		= 5;
 		var->green.length	= 6;
@@ -397,7 +401,7 @@ static int sm501fb_set_par_common(struct fb_info *info,
 		break;
 
 	case 16:
-		info->fix.visual = FB_VISUAL_DIRECTCOLOR;
+		info->fix.visual = FB_VISUAL_TRUECOLOR;
 		break;
 
 	case 32:
@@ -613,6 +617,7 @@ static int sm501fb_set_par_crt(struct fb_info *info)
 
 	case 16:
 		control |= SM501_DC_CRT_CONTROL_16BPP;
+		sm501fb_setup_gamma(fbi, SM501_DC_CRT_PALETTE);
 		break;
 
 	case 32:
@@ -750,6 +755,7 @@ static int sm501fb_set_par_pnl(struct fb_info *info)
 
 	case 16:
 		control |= SM501_DC_PANEL_CONTROL_16BPP;
+		sm501fb_setup_gamma(fbi, SM501_DC_PANEL_PALETTE);
 		break;
 
 	case 32:

@@ -221,6 +221,7 @@ struct kvm_vapic_addr {
  * Get size for mmap(vcpu_fd)
  */
 #define KVM_GET_VCPU_MMAP_SIZE    _IO(KVMIO,   0x04) /* in bytes */
+#define KVM_GET_SUPPORTED_CPUID   _IOWR(KVMIO, 0x05, struct kvm_cpuid2)
 
 /*
  * Extension capability list.
@@ -230,8 +231,8 @@ struct kvm_vapic_addr {
 #define KVM_CAP_MMU_SHADOW_CACHE_CONTROL 2
 #define KVM_CAP_USER_MEMORY 3
 #define KVM_CAP_SET_TSS_ADDR 4
-#define KVM_CAP_EXT_CPUID 5
 #define KVM_CAP_VAPIC 6
+#define KVM_CAP_EXT_CPUID 7
 
 /*
  * ioctls for VM fds
@@ -249,7 +250,6 @@ struct kvm_vapic_addr {
 #define KVM_CREATE_VCPU           _IO(KVMIO,  0x41)
 #define KVM_GET_DIRTY_LOG         _IOW(KVMIO, 0x42, struct kvm_dirty_log)
 #define KVM_SET_MEMORY_ALIAS      _IOW(KVMIO, 0x43, struct kvm_memory_alias)
-#define KVM_GET_SUPPORTED_CPUID   _IOWR(KVMIO, 0x48, struct kvm_cpuid2)
 /* Device model IOC */
 #define KVM_CREATE_IRQCHIP	  _IO(KVMIO,  0x60)
 #define KVM_IRQ_LINE		  _IOW(KVMIO, 0x61, struct kvm_irq_level)

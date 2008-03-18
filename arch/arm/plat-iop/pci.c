@@ -371,7 +371,7 @@ static int __init iop3xx_init_atu_setup(char *str)
 			default:
 				printk(KERN_DEBUG "\"%s\" malformed at "
 					    "character: \'%c\'",
-					    __FUNCTION__,
+					    __func__,
 					    *str);
 				*(str + 1) = '\0';
 			}

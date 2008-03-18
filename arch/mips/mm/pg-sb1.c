@@ -293,10 +293,10 @@ void copy_page(void *to, void *from)
 EXPORT_SYMBOL(clear_page);
 EXPORT_SYMBOL(copy_page);
 
-void __init build_clear_page(void)
+void __cpuinit build_clear_page(void)
 {
 }
 
-void __init build_copy_page(void)
+void __cpuinit build_copy_page(void)
 {
 }

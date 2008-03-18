@@ -132,7 +132,7 @@ int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_has_fxsr)
 		return -ENODEV;
 
-	unlazy_fpu(target);
+	init_fpu(target);
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 				   &target->thread.i387.fxsave, 0, -1);
@@ -147,7 +147,7 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_has_fxsr)
 		return -ENODEV;
 
-	unlazy_fpu(target);
+	init_fpu(target);
 	set_stopped_child_used_math(target);
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
@@ -261,7 +261,7 @@ static void convert_from_fxsr(struct user_i387_ia32_struct *env,
 	}
 #else
 	env->fip = fxsave->fip;
-	env->fcs = fxsave->fcs;
+	env->fcs = (u16) fxsave->fcs | ((u32) fxsave->fop << 16);
 	env->foo = fxsave->foo;
 	env->fos = fxsave->fos;
 #endif
@@ -307,7 +307,7 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 	if (!HAVE_HWFP)
 		return fpregs_soft_get(target, regset, pos, count, kbuf, ubuf);
 
-	unlazy_fpu(target);
+	init_fpu(target);
 
 	if (!cpu_has_fxsr)
 		return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
@@ -332,7 +332,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (!HAVE_HWFP)
 		return fpregs_soft_set(target, regset, pos, count, kbuf, ubuf);
 
-	unlazy_fpu(target);
+	init_fpu(target);
 	set_stopped_child_used_math(target);
 
 	if (!cpu_has_fxsr)

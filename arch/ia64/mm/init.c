@@ -714,7 +714,7 @@ int arch_add_memory(int nid, u64 start, u64 size)
 
 	if (ret)
 		printk("%s: Problem encountered in __add_pages() as ret=%d\n",
-		       __FUNCTION__,  ret);
+		       __func__,  ret);
 
 	return ret;
 }

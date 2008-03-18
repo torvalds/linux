@@ -99,7 +99,7 @@ static dbdev_tab_t au1550_spi_mem_dbdev =
 static void au1550_spi_bits_handlers_set(struct au1550_spi *hw, int bpw);
 
 
-/**
+/*
  *  compute BRG and DIV bits to setup spi clock based on main input clock rate
  *  that was specified in platform data structure
  *  according to au1550 datasheet:
@@ -650,7 +650,7 @@ static int au1550_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 	return hw->txrx_bufs(spi, t);
 }
 
-static irqreturn_t au1550_spi_irq(int irq, void *dev, struct pt_regs *regs)
+static irqreturn_t au1550_spi_irq(int irq, void *dev)
 {
 	struct au1550_spi *hw = dev;
 	return hw->irq_callback(hw);

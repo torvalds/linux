@@ -553,6 +553,19 @@ config FB_BF54X_LQ043
 	help
 	 This is the framebuffer device driver for a SHARP LQ043T1DG01 TFT LCD
 
+config FB_BFIN_T350MCQB
+	tristate "Varitronix COG-T350MCQB TFT LCD display (BF527 EZKIT)"
+	depends on FB && BLACKFIN
+	select BFIN_GPTIMERS
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	 This is the framebuffer device driver for a Varitronix VL-PS-COG-T350MCQB-01 display TFT LCD
+	 This display is a QVGA 320x240 24-bit RGB display interfaced by an 8-bit wide PPI
+	 It uses PPI[0..7] PPI_FS1, PPI_FS2 and PPI_CLK.
+
+
 config FB_STI
 	tristate "HP STI frame buffer device support"
 	depends on FB && PARISC

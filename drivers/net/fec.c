@@ -1253,7 +1253,7 @@ static void __inline__ fec_request_intrs(struct net_device *dev)
 
 	/* Setup interrupt handlers. */
 	for (idp = id; idp->name; idp++) {
-		if (request_irq(idp->irq, idp->handler, 0, idp->name, dev) != 0)
+		if (request_irq(idp->irq, idp->handler, IRQF_DISABLED, idp->name, dev) != 0)
 			printk("FEC: Could not allocate %s IRQ(%d)!\n", idp->name, idp->irq);
 	}
 
@@ -1382,7 +1382,7 @@ static void __inline__ fec_request_intrs(struct net_device *dev)
 
 	/* Setup interrupt handlers. */
 	for (idp = id; idp->name; idp++) {
-		if (request_irq(b+idp->irq, fec_enet_interrupt, 0, idp->name, dev) != 0)
+		if (request_irq(b+idp->irq, fec_enet_interrupt, IRQF_DISABLED, idp->name, dev) != 0)
 			printk("FEC: Could not allocate %s IRQ(%d)!\n", idp->name, b+idp->irq);
 	}
 
@@ -1553,7 +1553,7 @@ static void __inline__ fec_request_intrs(struct net_device *dev)
 
 	/* Setup interrupt handlers. */
 	for (idp = id; idp->name; idp++) {
-		if (request_irq(b+idp->irq,fec_enet_interrupt,0,idp->name,dev)!=0)
+		if (request_irq(b+idp->irq, fec_enet_interrupt, IRQF_DISABLED, idp->name,dev) != 0)
 			printk("FEC: Could not allocate %s IRQ(%d)!\n", idp->name, b+idp->irq);
 	}
 
@@ -1680,7 +1680,7 @@ static void __inline__ fec_request_intrs(struct net_device *dev)
 
 	/* Setup interrupt handlers. */
 	for (idp = id; idp->name; idp++) {
-		if (request_irq(b+idp->irq,fec_enet_interrupt,0,idp->name,dev)!=0)
+		if (request_irq(b+idp->irq, fec_enet_interrupt, IRQF_DISABLED, idp->name,dev) != 0)
 			printk("FEC: Could not allocate %s IRQ(%d)!\n",
 				idp->name, b+idp->irq);
 	}

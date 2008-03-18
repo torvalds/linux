@@ -45,8 +45,8 @@ struct compat_elf_prpsinfo
 	char				pr_zomb;
 	char				pr_nice;
 	compat_ulong_t			pr_flag;
-	compat_uid_t			pr_uid;
-	compat_gid_t			pr_gid;
+	__compat_uid_t			pr_uid;
+	__compat_gid_t			pr_gid;
 	compat_pid_t			pr_pid, pr_ppid, pr_pgrp, pr_sid;
 	char				pr_fname[16];
 	char				pr_psargs[ELF_PRARGSZ];

@@ -504,11 +504,11 @@ static void cmx270_mci_setpower(struct device *dev, unsigned int vdd)
 	struct pxamci_platform_data *p_d = dev->platform_data;
 
 	if ((1 << vdd) & p_d->ocr_mask) {
-		printk(KERN_DEBUG "%s: on\n", __FUNCTION__);
+		printk(KERN_DEBUG "%s: on\n", __func__);
 		GPCR(105) = GPIO_bit(105);
 	} else {
 		GPSR(105) = GPIO_bit(105);
-		printk(KERN_DEBUG "%s: off\n", __FUNCTION__);
+		printk(KERN_DEBUG "%s: off\n", __func__);
 	}
 }
 

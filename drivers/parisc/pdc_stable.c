@@ -829,7 +829,7 @@ static ssize_t pdcs_autoboot_write(struct kobject *kobj,
 				   struct kobj_attribute *attr,
 				   const char *buf, size_t count)
 {
-	return pdcs_auto_write(kset, attr, buf, count, PF_AUTOBOOT);
+	return pdcs_auto_write(kobj, attr, buf, count, PF_AUTOBOOT);
 }
 
 /**
@@ -845,7 +845,7 @@ static ssize_t pdcs_autosearch_write(struct kobject *kobj,
 				     struct kobj_attribute *attr,
 				     const char *buf, size_t count)
 {
-	return pdcs_auto_write(kset, attr, buf, count, PF_AUTOSEARCH);
+	return pdcs_auto_write(kobj, attr, buf, count, PF_AUTOSEARCH);
 }
 
 /**
@@ -1066,7 +1066,7 @@ pdc_stable_init(void)
 	}
 
 	/* Don't forget the root entries */
-	error = sysfs_create_group(stable_kobj, pdcs_attr_group);
+	error = sysfs_create_group(stable_kobj, &pdcs_attr_group);
 
 	/* register the paths kset as a child of the stable kset */
 	paths_kset = kset_create_and_add("paths", NULL, stable_kobj);

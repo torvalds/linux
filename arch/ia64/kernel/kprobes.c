@@ -838,7 +838,7 @@ out:
 	return 1;
 }
 
-int __kprobes kprobes_fault_handler(struct pt_regs *regs, int trapnr)
+int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
@@ -999,6 +999,11 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	regs->b0 = ((struct fnptr *)(jprobe_inst_return))->ip;
 
 	return 1;
+}
+
+/* ia64 does not need this */
+void __kprobes jprobe_return(void)
+{
 }
 
 int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)

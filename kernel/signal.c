@@ -1623,7 +1623,6 @@ static void ptrace_stop(int exit_code, int clear_code, siginfo_t *info)
 	/* Let the debugger run.  */
 	__set_current_state(TASK_TRACED);
 	spin_unlock_irq(&current->sighand->siglock);
-	try_to_freeze();
 	read_lock(&tasklist_lock);
 	if (!unlikely(killed) && may_ptrace_stop()) {
 		do_notify_parent_cldstop(current, CLD_TRAPPED);
@@ -1639,6 +1638,13 @@ static void ptrace_stop(int exit_code, int clear_code, siginfo_t *info)
 			current->exit_code = 0;
 		read_unlock(&tasklist_lock);
 	}
+
+	/*
+	 * While in TASK_TRACED, we were considered "frozen enough".
+	 * Now that we woke up, it's crucial if we're supposed to be
+	 * frozen that we freeze now before running anything substantial.
+	 */
+	try_to_freeze();
 
 	/*
 	 * We are back.  Now reacquire the siglock before touching
@@ -1757,9 +1763,15 @@ int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka,
 	sigset_t *mask = &current->blocked;
 	int signr = 0;
 
+relock:
+	/*
+	 * We'll jump back here after any time we were stopped in TASK_STOPPED.
+	 * While in TASK_STOPPED, we were considered "frozen enough".
+	 * Now that we woke up, it's crucial if we're supposed to be
+	 * frozen that we freeze now before running anything substantial.
+	 */
 	try_to_freeze();
 
-relock:
 	spin_lock_irq(&current->sighand->siglock);
 	for (;;) {
 		struct k_sigaction *ka;

@@ -235,6 +235,7 @@ finish_inode:
 	 */
 	new_icl = kmem_zone_alloc(xfs_icluster_zone, KM_SLEEP);
 	if (radix_tree_preload(GFP_KERNEL)) {
+		xfs_idestroy(ip);
 		delay(1);
 		goto again;
 	}

@@ -870,12 +870,12 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 	if (!mnt)
 		goto out;
 
-	if (data) {
+	if (data && !(type->fs_flags & FS_BINARY_MOUNTDATA)) {
 		secdata = alloc_secdata();
 		if (!secdata)
 			goto out_mnt;
 
-		error = security_sb_copy_data(type, data, secdata);
+		error = security_sb_copy_data(data, secdata);
 		if (error)
 			goto out_free_secdata;
 	}

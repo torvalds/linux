@@ -323,6 +323,16 @@ static int putreg(struct task_struct *child,
 		return set_flags(child, value);
 
 #ifdef CONFIG_X86_64
+	/*
+	 * Orig_ax is really just a flag with small positive and
+	 * negative values, so make sure to always sign-extend it
+	 * from 32 bits so that it works correctly regardless of
+	 * whether we come from a 32-bit environment or not.
+	 */
+	case offsetof(struct user_regs_struct, orig_ax):
+		value = (long) (s32) value;
+		break;
+
 	case offsetof(struct user_regs_struct,fs_base):
 		if (value >= TASK_SIZE_OF(child))
 			return -EIO;
@@ -543,6 +553,8 @@ static int ptrace_set_debugreg(struct task_struct *child,
 
 	return 0;
 }
+
+#ifdef X86_BTS
 
 static int ptrace_bts_get_size(struct task_struct *child)
 {
@@ -826,6 +838,7 @@ void ptrace_bts_take_timestamp(struct task_struct *tsk,
 
 	ptrace_bts_write_record(tsk, &rec);
 }
+#endif /* X86_BTS */
 
 /*
  * Called by kernel/ptrace.c when detaching..
@@ -839,7 +852,9 @@ void ptrace_disable(struct task_struct *child)
 	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 #endif
 	if (child->thread.ds_area_msr) {
+#ifdef X86_BTS
 		ptrace_bts_realloc(child, 0, 0);
+#endif
 		child->thread.debugctlmsr &= ~ds_debugctl_mask();
 		if (!child->thread.debugctlmsr)
 			clear_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
@@ -961,6 +976,10 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 #endif
 
+	/*
+	 * These bits need more cooking - not enabled yet:
+	 */
+#ifdef X86_BTS
 	case PTRACE_BTS_CONFIG:
 		ret = ptrace_bts_config
 			(child, data, (struct ptrace_bts_config __user *)addr);
@@ -988,6 +1007,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = ptrace_bts_drain
 			(child, data, (struct bts_struct __user *) addr);
 		break;
+#endif
 
 	default:
 		ret = ptrace_request(child, request, addr, data);
@@ -1035,9 +1055,16 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 value)
 	R32(esi, si);
 	R32(ebp, bp);
 	R32(eax, ax);
-	R32(orig_eax, orig_ax);
 	R32(eip, ip);
 	R32(esp, sp);
+
+	case offsetof(struct user32, regs.orig_eax):
+		/*
+		 * Sign-extend the value so that orig_eax = -1
+		 * causes (long)orig_ax < 0 tests to fire correctly.
+		 */
+		regs->orig_ax = (long) (s32) value;
+		break;
 
 	case offsetof(struct user32, regs.eflags):
 		return set_flags(child, value);
@@ -1226,12 +1253,14 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 	case PTRACE_SETOPTIONS:
 	case PTRACE_SET_THREAD_AREA:
 	case PTRACE_GET_THREAD_AREA:
+#ifdef X86_BTS
 	case PTRACE_BTS_CONFIG:
 	case PTRACE_BTS_STATUS:
 	case PTRACE_BTS_SIZE:
 	case PTRACE_BTS_GET:
 	case PTRACE_BTS_CLEAR:
 	case PTRACE_BTS_DRAIN:
+#endif
 		return sys_ptrace(request, pid, addr, data);
 
 	default:

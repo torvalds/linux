@@ -167,7 +167,7 @@ static void program_fw_provided_values(struct pci_dev *dev)
 	}
 }
 
-static int pciehp_add_bridge(struct pci_dev *dev)
+static int __ref pciehp_add_bridge(struct pci_dev *dev)
 {
 	struct pci_bus *parent = dev->bus;
 	int pass, busnr, start = parent->secondary;

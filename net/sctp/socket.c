@@ -2933,17 +2933,39 @@ static int sctp_setsockopt_maxburst(struct sock *sk,
 				    char __user *optval,
 				    int optlen)
 {
+	struct sctp_assoc_value params;
+	struct sctp_sock *sp;
+	struct sctp_association *asoc;
 	int val;
+	int assoc_id = 0;
 
-	if (optlen != sizeof(int))
-		return -EINVAL;
-	if (get_user(val, (int __user *)optval))
-		return -EFAULT;
-
-	if (val < 0)
+	if (optlen < sizeof(int))
 		return -EINVAL;
 
-	sctp_sk(sk)->max_burst = val;
+	if (optlen == sizeof(int)) {
+		printk(KERN_WARNING
+		   "SCTP: Use of int in max_burst socket option deprecated\n");
+		printk(KERN_WARNING
+		   "SCTP: Use struct sctp_assoc_value instead\n");
+		if (copy_from_user(&val, optval, optlen))
+			return -EFAULT;
+	} else if (optlen == sizeof(struct sctp_assoc_value)) {
+		if (copy_from_user(&params, optval, optlen))
+			return -EFAULT;
+		val = params.assoc_value;
+		assoc_id = params.assoc_id;
+	} else
+		return -EINVAL;
+
+	sp = sctp_sk(sk);
+
+	if (assoc_id != 0) {
+		asoc = sctp_id2assoc(sk, assoc_id);
+		if (!asoc)
+			return -EINVAL;
+		asoc->max_burst = val;
+	} else
+		sp->max_burst = val;
 
 	return 0;
 }
@@ -5005,20 +5027,45 @@ static int sctp_getsockopt_maxburst(struct sock *sk, int len,
 				    char __user *optval,
 				    int __user *optlen)
 {
-	int val;
+	struct sctp_assoc_value params;
+	struct sctp_sock *sp;
+	struct sctp_association *asoc;
 
 	if (len < sizeof(int))
 		return -EINVAL;
 
-	len = sizeof(int);
+	if (len == sizeof(int)) {
+		printk(KERN_WARNING
+		   "SCTP: Use of int in max_burst socket option deprecated\n");
+		printk(KERN_WARNING
+		   "SCTP: Use struct sctp_assoc_value instead\n");
+		params.assoc_id = 0;
+	} else if (len == sizeof (struct sctp_assoc_value)) {
+		if (copy_from_user(&params, optval, len))
+			return -EFAULT;
+	} else
+		return -EINVAL;
 
-	val = sctp_sk(sk)->max_burst;
-	if (put_user(len, optlen))
-		return -EFAULT;
-	if (copy_to_user(optval, &val, len))
-		return -EFAULT;
+	sp = sctp_sk(sk);
 
-	return -ENOTSUPP;
+	if (params.assoc_id != 0) {
+		asoc = sctp_id2assoc(sk, params.assoc_id);
+		if (!asoc)
+			return -EINVAL;
+		params.assoc_value = asoc->max_burst;
+	} else
+		params.assoc_value = sp->max_burst;
+
+	if (len == sizeof(int)) {
+		if (copy_to_user(optval, &params.assoc_value, len))
+			return -EFAULT;
+	} else {
+		if (copy_to_user(optval, &params, len))
+			return -EFAULT;
+	}
+
+	return 0;
+
 }
 
 static int sctp_getsockopt_hmac_ident(struct sock *sk, int len,

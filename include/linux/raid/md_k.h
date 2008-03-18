@@ -83,6 +83,7 @@ struct mdk_rdev_s
 #define	BarriersNotsupp	5		/* BIO_RW_BARRIER is not supported */
 #define	AllReserved	6		/* If whole device is reserved for
 					 * one array */
+#define	AutoDetected	7		/* added by auto-detect */
 
 	int desc_nr;			/* descriptor index in the superblock */
 	int raid_disk;			/* role of device in array */

@@ -189,16 +189,9 @@ static void smack_sb_free_security(struct super_block *sb)
  * Copy the Smack specific mount options out of the mount
  * options list.
  */
-static int smack_sb_copy_data(struct file_system_type *type, void *orig,
-			      void *smackopts)
+static int smack_sb_copy_data(char *orig, char *smackopts)
 {
 	char *cp, *commap, *otheropts, *dp;
-
-	/* Binary mount data: just copy */
-	if (type->fs_flags & FS_BINARY_MOUNTDATA) {
-		copy_page(smackopts, orig);
-		return 0;
-	}
 
 	otheropts = (char *)get_zeroed_page(GFP_KERNEL);
 	if (otheropts == NULL)

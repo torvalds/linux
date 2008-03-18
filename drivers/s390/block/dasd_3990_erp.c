@@ -2310,10 +2310,8 @@ static int
 dasd_3990_erp_error_match(struct dasd_ccw_req *cqr1, struct dasd_ccw_req *cqr2)
 {
 
-	/* check failed CCW */
-	if (cqr1->irb.scsw.cpa != cqr2->irb.scsw.cpa) {
-		//	return 0;	/* CCW doesn't match */
-	}
+	if (cqr1->startdev != cqr2->startdev)
+		return 0;
 
 	if (cqr1->irb.esw.esw0.erw.cons != cqr2->irb.esw.esw0.erw.cons)
 		return 0;

@@ -26,14 +26,6 @@
 #define SMK_MAXLEN	23
 #define SMK_LABELLEN	(SMK_MAXLEN+1)
 
-/*
- * How many kinds of access are there?
- * Here's your answer.
- */
-#define SMK_ACCESSDASH	'-'
-#define SMK_ACCESSLOW	"rwxa"
-#define SMK_ACCESSKINDS	(sizeof(SMK_ACCESSLOW) - 1)
-
 struct superblock_smack {
 	char		*smk_root;
 	char		*smk_floor;

@@ -583,7 +583,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		}
 
 		if (!mreq.imr_ifindex) {
-			if (mreq.imr_address.s_addr == INADDR_ANY) {
+			if (mreq.imr_address.s_addr == htonl(INADDR_ANY)) {
 				inet->mc_index = 0;
 				inet->mc_addr  = 0;
 				err = 0;

@@ -170,7 +170,9 @@ void audit_panic(const char *message)
 			printk(KERN_ERR "audit: %s\n", message);
 		break;
 	case AUDIT_FAIL_PANIC:
-		panic("audit: %s\n", message);
+		/* test audit_pid since printk is always losey, why bother? */
+		if (audit_pid)
+			panic("audit: %s\n", message);
 		break;
 	}
 }
@@ -352,6 +354,7 @@ static int kauditd_thread(void *dummy)
 				if (err < 0) {
 					BUG_ON(err != -ECONNREFUSED); /* Shoudn't happen */
 					printk(KERN_ERR "audit: *NO* daemon at audit_pid=%d\n", audit_pid);
+					audit_log_lost("auditd dissapeared\n");
 					audit_pid = 0;
 				}
 			} else {
@@ -1350,17 +1353,19 @@ void audit_log_end(struct audit_buffer *ab)
 	if (!audit_rate_check()) {
 		audit_log_lost("rate limit exceeded");
 	} else {
+		struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
 		if (audit_pid) {
-			struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
 			nlh->nlmsg_len = ab->skb->len - NLMSG_SPACE(0);
 			skb_queue_tail(&audit_skb_queue, ab->skb);
 			ab->skb = NULL;
 			wake_up_interruptible(&kauditd_wait);
-		} else if (printk_ratelimit()) {
-			struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
-			printk(KERN_NOTICE "type=%d %s\n", nlh->nlmsg_type, ab->skb->data + NLMSG_SPACE(0));
-		} else {
-			audit_log_lost("printk limit exceeded\n");
+		} else if (nlh->nlmsg_type != AUDIT_EOE) {
+			if (printk_ratelimit()) {
+				printk(KERN_NOTICE "type=%d %s\n",
+					nlh->nlmsg_type,
+					ab->skb->data + NLMSG_SPACE(0));
+			} else
+				audit_log_lost("printk limit exceeded\n");
 		}
 	}
 	audit_buffer_free(ab);

@@ -65,7 +65,7 @@ static int __init gtwx5715_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	else
 		rc = gtwx5715_irqmap[slot][pin-1];
 
-	printk("%s: Mapped slot %d pin %d to IRQ %d\n", __FUNCTION__,slot, pin, rc);
+	printk("%s: Mapped slot %d pin %d to IRQ %d\n", __func__, slot, pin, rc);
 	return(rc);
 }
 

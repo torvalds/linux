@@ -191,8 +191,12 @@ ps3)
     ksection=.kernel:vmlinux.bin
     isection=.kernel:initrd
     ;;
-ep88xc|ep405|redboot*|ep8248e)
+ep88xc|ep405|ep8248e)
     platformo="$object/fixed-head.o $object/$platform.o"
+    binary=y
+    ;;
+adder875-redboot)
+    platformo="$object/fixed-head.o $object/redboot-8xx.o"
     binary=y
     ;;
 esac

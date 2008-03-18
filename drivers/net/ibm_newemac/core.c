@@ -143,6 +143,10 @@ static inline void emac_report_timeout_error(struct emac_instance *dev,
 #define STOP_TIMEOUT_1000	13
 #define STOP_TIMEOUT_1000_JUMBO	73
 
+static unsigned char default_mcast_addr[] = {
+	0x01, 0x80, 0xC2, 0x00, 0x00, 0x01
+};
+
 /* Please, keep in sync with struct ibm_emac_stats/ibm_emac_error_stats */
 static const char emac_stats_keys[EMAC_ETHTOOL_STATS_COUNT][ETH_GSTRING_LEN] = {
 	"rx_packets", "rx_bytes", "tx_packets", "tx_bytes", "rx_packets_csum",
@@ -617,6 +621,9 @@ static int emac_configure(struct emac_instance *dev)
 	/* We need to take GPCS PHY out of isolate mode after EMAC reset */
 	if (emac_phy_gpcs(dev->phy.mode))
 		emac_mii_reset_phy(&dev->phy);
+
+	/* Required for Pause packet support in EMAC */
+	dev_mc_add(ndev, default_mcast_addr, sizeof(default_mcast_addr), 1);
 
 	return 0;
 }

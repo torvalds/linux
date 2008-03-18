@@ -417,10 +417,6 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 
 		calc_lanman_hash(ses, lnm_session_key);
 		ses->flags |= CIFS_SES_LANMAN;
-/* #ifdef CONFIG_CIFS_DEBUG2
-		cifs_dump_mem("cryptkey: ",ses->server->cryptKey,
-			CIFS_SESS_KEY_SIZE);
-#endif */
 		memcpy(bcc_ptr, (char *)lnm_session_key, CIFS_SESS_KEY_SIZE);
 		bcc_ptr += CIFS_SESS_KEY_SIZE;
 
