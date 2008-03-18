@@ -43,6 +43,14 @@
 #include "iwl-4965.h"
 #include "iwl-helpers.h"
 
+/* module parameters */
+static struct iwl_mod_params iwl4965_mod_params = {
+	.num_of_queues = IWL_MAX_NUM_QUEUES,
+	.enable_qos = 1,
+	.amsdu_size_8K = 1,
+	/* the rest are 0 by default */
+};
+
 static void iwl4965_hw_card_show_info(struct iwl_priv *priv);
 
 #define IWL_DECLARE_RATE_INFO(r, s, ip, in, rp, rn, pp, np)    \
@@ -110,7 +118,7 @@ static int iwl4965_init_drv(struct iwl_priv *priv)
 	int ret;
 	int i;
 
-	priv->antenna = (enum iwl4965_antenna)iwl4965_mod_params.antenna;
+	priv->antenna = (enum iwl4965_antenna)priv->cfg->mod_params->antenna;
 	priv->retry_rate = 1;
 	priv->ibss_beacon = NULL;
 
@@ -404,7 +412,7 @@ static int iwl4965_rx_init(struct iwl_priv *priv, struct iwl4965_rx_queue *rxq)
 		return rc;
 	}
 
-	if (iwl4965_mod_params.amsdu_size_8K)
+	if (priv->cfg->mod_params->amsdu_size_8K)
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
 	else
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K;
@@ -1877,8 +1885,8 @@ int iwl4965_hw_set_hw_setting(struct iwl_priv *priv)
 {
 	int ret = 0;
 
-	if ((iwl4965_mod_params.num_of_queues > IWL_MAX_NUM_QUEUES) ||
-	    (iwl4965_mod_params.num_of_queues < IWL_MIN_NUM_QUEUES)) {
+	if ((priv->cfg->mod_params->num_of_queues > IWL_MAX_NUM_QUEUES) ||
+	    (priv->cfg->mod_params->num_of_queues < IWL_MIN_NUM_QUEUES)) {
 		IWL_ERROR("invalid queues_num, should be between %d and %d\n",
 			  IWL_MIN_NUM_QUEUES, IWL_MAX_NUM_QUEUES);
 		ret = -EINVAL;
@@ -1898,11 +1906,11 @@ int iwl4965_hw_set_hw_setting(struct iwl_priv *priv)
 
 	memset(priv->hw_setting.shared_virt, 0, sizeof(struct iwl4965_shared));
 
-	priv->hw_setting.max_txq_num = iwl4965_mod_params.num_of_queues;
+	priv->hw_setting.max_txq_num = priv->cfg->mod_params->num_of_queues;
 	priv->hw_setting.tx_cmd_len = sizeof(struct iwl4965_tx_cmd);
 	priv->hw_setting.max_rxq_size = RX_QUEUE_SIZE;
 	priv->hw_setting.max_rxq_log = RX_QUEUE_SIZE_LOG;
-	if (iwl4965_mod_params.amsdu_size_8K)
+	if (priv->cfg->mod_params->amsdu_size_8K)
 		priv->hw_setting.rx_buf_size = IWL_RX_BUF_SIZE_8K;
 	else
 		priv->hw_setting.rx_buf_size = IWL_RX_BUF_SIZE_4K;
@@ -3521,7 +3529,7 @@ static void iwl4965_handle_data_packet(struct iwl_priv *priv, int is_data,
 	stats->flag = 0;
 	hdr = (struct ieee80211_hdr *)rxb->skb->data;
 
-	if (iwl4965_mod_params.hw_crypto)
+	if (priv->cfg->mod_params->hw_crypto)
 		iwl4965_set_decrypted_flag(priv, rxb->skb, ampdu_status, stats);
 
 	if (priv->add_radiotap)
@@ -3644,7 +3652,8 @@ static int parse_elems(u8 *start, size_t len, struct ieee802_11_elems *elems)
 	return 0;
 }
 
-void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info,
+void iwl4965_init_ht_hw_capab(struct iwl_priv *priv,
+			      struct ieee80211_ht_info *ht_info,
 			      enum ieee80211_band band)
 {
 	ht_info->cap = 0;
@@ -3661,10 +3670,9 @@ void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info,
 	ht_info->cap |= (u16)IEEE80211_HT_CAP_SGI_20;
 	ht_info->cap |= (u16)(IEEE80211_HT_CAP_MIMO_PS &
 			     (IWL_MIMO_PS_NONE << 2));
-	if (iwl4965_mod_params.amsdu_size_8K) {
-		printk(KERN_DEBUG "iwl4965 in A-MSDU 8K support mode\n");
+
+	if (priv->cfg->mod_params->amsdu_size_8K)
 		ht_info->cap |= (u16)IEEE80211_HT_CAP_MAX_AMSDU;
-	}
 
 	ht_info->ampdu_factor = CFG_HT_RX_AMPDU_FACTOR_DEF;
 	ht_info->ampdu_density = CFG_HT_MPDU_DENSITY_DEF;
@@ -4970,6 +4978,7 @@ static struct iwl_cfg iwl4965_agn_cfg = {
 	.fw_name = "iwlwifi-4965" IWL4965_UCODE_API ".ucode",
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl4965_ops,
+	.mod_params = &iwl4965_mod_params,
 };
 
 struct pci_device_id iwl4965_hw_card_ids[] = {
@@ -4979,3 +4988,26 @@ struct pci_device_id iwl4965_hw_card_ids[] = {
 };
 
 MODULE_DEVICE_TABLE(pci, iwl4965_hw_card_ids);
+
+module_param_named(antenna, iwl4965_mod_params.antenna, int, 0444);
+MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
+module_param_named(disable, iwl4965_mod_params.disable, int, 0444);
+MODULE_PARM_DESC(disable, "manually disable the radio (default 0 [radio on])");
+module_param_named(hwcrypto, iwl4965_mod_params.hw_crypto, int, 0444);
+MODULE_PARM_DESC(hwcrypto,
+		 "using hardware crypto engine (default 0 [software])\n");
+module_param_named(debug, iwl4965_mod_params.debug, int, 0444);
+MODULE_PARM_DESC(debug, "debug output mask");
+module_param_named(
+	disable_hw_scan, iwl4965_mod_params.disable_hw_scan, int, 0444);
+MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
+
+module_param_named(queues_num, iwl4965_mod_params.num_of_queues, int, 0444);
+MODULE_PARM_DESC(queues_num, "number of hw queues.");
+
+/* QoS */
+module_param_named(qos_enable, iwl4965_mod_params.enable_qos, int, 0444);
+MODULE_PARM_DESC(qos_enable, "enable all QoS functionality");
+module_param_named(amsdu_size_8K, iwl4965_mod_params.amsdu_size_8K, int, 0444);
+MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
+

@@ -66,9 +66,6 @@ extern struct pci_device_id iwl4965_hw_card_ids[];
  *   averages within an s8's (used in some apps) range of negative values. */
 #define IWL_NOISE_MEAS_NOT_AVAILABLE (-127)
 
-/* Module parameters accessible from iwl-*.c */
-extern struct iwl_mod_params iwl4965_mod_params;
-
 enum iwl4965_antenna {
 	IWL_ANTENNA_DIVERSITY,
 	IWL_ANTENNA_MAIN,
@@ -761,7 +758,8 @@ extern void iwl4965_hwrate_to_tx_control(struct iwl_priv *priv,
 					 struct ieee80211_tx_control *control);
 
 #ifdef CONFIG_IWL4965_HT
-void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info,
+void iwl4965_init_ht_hw_capab(struct iwl_priv *priv,
+			      struct ieee80211_ht_info *ht_info,
 			      enum ieee80211_band band);
 void iwl4965_set_rxon_ht(struct iwl_priv *priv,
 			 struct iwl_ht_info *ht_info);
@@ -773,7 +771,8 @@ int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 int iwl4965_check_empty_hw_queue(struct iwl_priv *priv, int sta_id,
 					u8 tid, int txq_id);
 #else
-static inline void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info,
+static inline void iwl4965_init_ht_hw_capab(struct iwl_priv *priv,
+					    struct ieee80211_ht_info *ht_info,
 					    enum ieee80211_band band) {}
 
 #endif /*CONFIG_IWL4965_HT */
