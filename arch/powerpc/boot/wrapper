@@ -199,6 +199,10 @@ adder875-redboot)
     platformo="$object/fixed-head.o $object/redboot-8xx.o"
     binary=y
     ;;
+simpleboot-virtex405-*)
+    platformo="$object/virtex405-head.o $object/simpleboot.o"
+    binary=y
+    ;;
 esac
 
 vmz="$tmpdir/`basename \"$kernel\"`.$ext"
