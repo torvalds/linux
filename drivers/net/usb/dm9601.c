@@ -341,7 +341,7 @@ static void dm9601_set_multicast(struct net_device *net)
 	/* We use the 20 byte dev->data for our 8 byte filter buffer
 	 * to avoid allocating memory that is tricky to free later */
 	u8 *hashes = (u8 *) & dev->data;
-	u8 rx_ctl = 0x01;
+	u8 rx_ctl = 0x31;
 
 	memset(hashes, 0x00, DM_MCAST_SIZE);
 	hashes[DM_MCAST_SIZE - 1] |= 0x80;	/* broadcast address */
