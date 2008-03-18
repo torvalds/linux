@@ -143,14 +143,7 @@ MCA Device Drivers
 
 Currently, there are a number of MCA-specific device drivers.
 
-1) PS/2 ESDI
-	drivers/block/ps2esdi.c
-	include/linux/ps2esdi.h
-   Uses major number 36, and should use /dev files /dev/eda, /dev/edb.
-   Supports two drives, but only one controller.  May use the
-   command-line args "ed=cyl,head,sec" and "tp720".
-
-2) PS/2 SCSI
+1) PS/2 SCSI
 	drivers/scsi/ibmmca.c
 	drivers/scsi/ibmmca.h
    The driver for the IBM SCSI subsystem.  Includes both integrated
@@ -159,25 +152,25 @@ Currently, there are a number of MCA-specific device drivers.
    machine with a front-panel display (i.e. model 95), you can use
    "ibmmcascsi=display" to enable a drive activity indicator.
 
-3) 3c523
+2) 3c523
 	drivers/net/3c523.c
 	drivers/net/3c523.h
    3Com 3c523 Etherlink/MC ethernet driver.
 
-4) SMC Ultra/MCA and IBM Adapter/A
+3) SMC Ultra/MCA and IBM Adapter/A
 	drivers/net/smc-mca.c
 	drivers/net/smc-mca.h
 	Driver for the MCA version of the SMC Ultra and various other
 	OEM'ed and work-alike cards (Elite, Adapter/A, etc).
 
-5) NE/2
+4) NE/2
 	driver/net/ne2.c
 	driver/net/ne2.h
 	The NE/2 is the MCA version of the NE2000.  This may not work
 	with clones that have a different adapter id than the original
 	NE/2.
 
-6) Future Domain MCS-600/700, OEM'd IBM Fast SCSI Adapter/A and
+5) Future Domain MCS-600/700, OEM'd IBM Fast SCSI Adapter/A and
    Reply Sound Blaster/SCSI (SCSI part)
 	Better support for these cards than the driver for ISA.
    Supports multiple cards with IRQ sharing.
