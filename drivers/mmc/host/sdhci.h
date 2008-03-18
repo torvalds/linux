@@ -10,18 +10,6 @@
  */
 
 /*
- * PCI registers
- */
-
-#define PCI_SDHCI_IFPIO			0x00
-#define PCI_SDHCI_IFDMA			0x01
-#define PCI_SDHCI_IFVENDOR		0x02
-
-#define PCI_SLOT_INFO			0x40	/* 8 bits */
-#define  PCI_SLOT_INFO_SLOTS(x)		((x >> 4) & 7)
-#define  PCI_SLOT_INFO_FIRST_BAR_MASK	0x07
-
-/*
  * Controller registers
  */
 
@@ -162,10 +150,43 @@
 #define  SDHCI_SPEC_VER_MASK	0x00FF
 #define  SDHCI_SPEC_VER_SHIFT	0
 
-struct sdhci_chip;
+struct sdhci_ops;
 
 struct sdhci_host {
-	struct sdhci_chip	*chip;
+	/* Data set by hardware interface driver */
+	const char		*hw_name;	/* Hardware bus name */
+
+	unsigned int		quirks;		/* Deviations from spec. */
+
+/* Controller doesn't honor resets unless we touch the clock register */
+#define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
+/* Controller has bad caps bits, but really supports DMA */
+#define SDHCI_QUIRK_FORCE_DMA				(1<<1)
+/* Controller doesn't like to be reset when there is no card inserted. */
+#define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<2)
+/* Controller doesn't like clearing the power reg before a change */
+#define SDHCI_QUIRK_SINGLE_POWER_WRITE			(1<<3)
+/* Controller has flaky internal state so reset it on each ios change */
+#define SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS		(1<<4)
+/* Controller has an unusable DMA engine */
+#define SDHCI_QUIRK_BROKEN_DMA				(1<<5)
+/* Controller can only DMA from 32-bit aligned addresses */
+#define SDHCI_QUIRK_32BIT_DMA_ADDR			(1<<6)
+/* Controller can only DMA chunk sizes that are a multiple of 32 bits */
+#define SDHCI_QUIRK_32BIT_DMA_SIZE			(1<<7)
+/* Controller needs to be reset after each request to stay stable */
+#define SDHCI_QUIRK_RESET_AFTER_REQUEST			(1<<8)
+/* Controller needs voltage and power writes to happen separately */
+#define SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER		(1<<9)
+/* Controller has an off-by-one issue with timeout value */
+#define SDHCI_QUIRK_INCR_TIMEOUT_CONTROL		(1<<10)
+
+	int			irq;		/* Device IRQ */
+	void __iomem *		ioaddr;		/* Mapped address */
+
+	const struct sdhci_ops	*ops;		/* Low level hw interface */
+
+	/* Internal data */
 	struct mmc_host		*mmc;		/* MMC structure */
 
 #ifdef CONFIG_LEDS_CLASS
@@ -194,22 +215,33 @@ struct sdhci_host {
 	int			offset;		/* Offset into current sg */
 	int			remain;		/* Bytes left in current */
 
-	int			irq;		/* Device IRQ */
-	int			bar;		/* PCI BAR index */
-	unsigned long		addr;		/* Bus address */
-	void __iomem *		ioaddr;		/* Mapped address */
-
 	struct tasklet_struct	card_tasklet;	/* Tasklet structures */
 	struct tasklet_struct	finish_tasklet;
 
 	struct timer_list	timer;		/* Timer for timeouts */
+
+	unsigned long		private[0] ____cacheline_aligned;
 };
 
-struct sdhci_chip {
-	struct pci_dev		*pdev;
 
-	unsigned long		quirks;
-
-	int			num_slots;	/* Slots on controller */
-	struct sdhci_host	*hosts[0];	/* Pointers to hosts */
+struct sdhci_ops {
+	int		(*enable_dma)(struct sdhci_host *host);
 };
+
+
+extern struct sdhci_host *sdhci_alloc_host(struct device *dev,
+	size_t priv_size);
+extern void sdhci_free_host(struct sdhci_host *host);
+
+static inline void *sdhci_priv(struct sdhci_host *host)
+{
+	return (void *)host->private;
+}
+
+extern int sdhci_add_host(struct sdhci_host *host);
+extern void sdhci_remove_host(struct sdhci_host *host);
+
+#ifdef CONFIG_PM
+extern int sdhci_suspend_host(struct sdhci_host *host, pm_message_t state);
+extern int sdhci_resume_host(struct sdhci_host *host);
+#endif

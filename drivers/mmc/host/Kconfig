@@ -26,18 +26,31 @@ config MMC_PXA
 
 config MMC_SDHCI
 	tristate "Secure Digital Host Controller Interface support"
-	depends on PCI
+	depends on HAS_DMA
 	help
-	  This select the generic Secure Digital Host Controller Interface.
+	  This selects the generic Secure Digital Host Controller Interface.
 	  It is used by manufacturers such as Texas Instruments(R), Ricoh(R)
 	  and Toshiba(R). Most controllers found in laptops are of this type.
+
+	  If you have a controller with this interface, say Y or M here. You
+	  also need to enable an appropriate bus interface.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_PCI
+	tristate "SDHCI support on PCI bus"
+	depends on MMC_SDHCI && PCI
+	help
+	  This selects the PCI Secure Digital Host Controller Interface.
+	  Most controllers found today are PCI devices.
+
 	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
 
 config MMC_RICOH_MMC
 	tristate "Ricoh MMC Controller Disabler  (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL && MMC_SDHCI
+	depends on MMC_SDHCI_PCI
 	help
 	  This selects the disabler for the Ricoh MMC Controller. This
 	  proprietary controller is unnecessary because the SDHCI driver
