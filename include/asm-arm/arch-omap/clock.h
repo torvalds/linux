@@ -16,7 +16,7 @@
 struct module;
 struct clk;
 
-#if defined(CONFIG_ARCH_OMAP2)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 
 struct clksel_rate {
 	u8			div;
@@ -35,6 +35,13 @@ struct dpll_data {
 	u32			div1_mask;
 	void __iomem		*div2_reg;
 	u32			div2_mask;
+#  if defined(CONFIG_ARCH_OMAP3)
+	void __iomem		*control_reg;
+	u32			enable_mask;
+	u8			auto_recal_bit;
+	u8			recal_en_bit;
+	u8			recal_st_bit;
+#  endif
 };
 
 #endif
@@ -56,7 +63,7 @@ struct clk {
 	void			(*init)(struct clk *);
 	int			(*enable)(struct clk *);
 	void			(*disable)(struct clk *);
-#if defined(CONFIG_ARCH_OMAP2)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	u8			fixed_div;
 	void __iomem		*clksel_reg;
 	u32			clksel_mask;
