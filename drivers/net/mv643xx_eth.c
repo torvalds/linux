@@ -1981,9 +1981,11 @@ static int mv643xx_eth_remove(struct platform_device *pdev)
 
 static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 {
+	static int mv643xx_version_printed = 0;
 	struct resource *res;
 
-	printk(KERN_NOTICE "MV-643xx 10/100/1000 Ethernet Driver\n");
+	if (!mv643xx_version_printed++)
+		printk(KERN_NOTICE "MV-643xx 10/100/1000 Ethernet Driver\n");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL)
