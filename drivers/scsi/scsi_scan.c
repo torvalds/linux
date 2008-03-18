@@ -331,9 +331,14 @@ static void scsi_target_dev_release(struct device *dev)
 	put_device(parent);
 }
 
+struct device_type scsi_target_type = {
+	.name =		"scsi_target",
+	.release =	scsi_target_dev_release,
+};
+
 int scsi_is_target_device(const struct device *dev)
 {
-	return dev->release == scsi_target_dev_release;
+	return dev->type == &scsi_target_type;
 }
 EXPORT_SYMBOL(scsi_is_target_device);
 
@@ -391,9 +396,12 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	device_initialize(dev);
 	starget->reap_ref = 1;
 	dev->parent = get_device(parent);
-	dev->release = scsi_target_dev_release;
 	sprintf(dev->bus_id, "target%d:%d:%d",
 		shost->host_no, channel, id);
+#ifndef CONFIG_SYSFS_DEPRECATED
+	dev->bus = &scsi_bus_type;
+#endif
+	dev->type = &scsi_target_type;
 	starget->id = id;
 	starget->channel = channel;
 	INIT_LIST_HEAD(&starget->siblings);

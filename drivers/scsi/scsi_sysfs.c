@@ -21,6 +21,8 @@
 #include "scsi_priv.h"
 #include "scsi_logging.h"
 
+static struct device_type scsi_dev_type;
+
 static const struct {
 	enum scsi_device_state	value;
 	char			*name;
@@ -335,7 +337,12 @@ static struct class sdev_class = {
 /* all probing is done in the individual ->probe routines */
 static int scsi_bus_match(struct device *dev, struct device_driver *gendrv)
 {
-	struct scsi_device *sdp = to_scsi_device(dev);
+	struct scsi_device *sdp;
+
+	if (dev->type != &scsi_dev_type)
+		return 0;
+
+	sdp = to_scsi_device(dev);
 	if (sdp->no_uld_attach)
 		return 0;
 	return (sdp->inq_periph_qual == SCSI_INQ_PQ_CON)? 1: 0;
@@ -351,9 +358,15 @@ static int scsi_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 static int scsi_bus_suspend(struct device * dev, pm_message_t state)
 {
-	struct device_driver *drv = dev->driver;
-	struct scsi_device *sdev = to_scsi_device(dev);
+	struct device_driver *drv;
+	struct scsi_device *sdev;
 	int err;
+
+	if (dev->type != &scsi_dev_type)
+		return 0;
+
+	drv = dev->driver;
+	sdev = to_scsi_device(dev);
 
 	err = scsi_device_quiesce(sdev);
 	if (err)
@@ -370,9 +383,15 @@ static int scsi_bus_suspend(struct device * dev, pm_message_t state)
 
 static int scsi_bus_resume(struct device * dev)
 {
-	struct device_driver *drv = dev->driver;
-	struct scsi_device *sdev = to_scsi_device(dev);
+	struct device_driver *drv;
+	struct scsi_device *sdev;
 	int err = 0;
+
+	if (dev->type != &scsi_dev_type)
+		return 0;
+
+	drv = dev->driver;
+	sdev = to_scsi_device(dev);
 
 	if (drv && drv->resume)
 		err = drv->resume(dev);
