@@ -536,8 +536,9 @@ static void azx_update_rirb(struct azx *chip)
 		if (res_ex & ICH6_RIRB_EX_UNSOL_EV)
 			snd_hda_queue_unsol_event(chip->bus, res, res_ex);
 		else if (chip->rirb.cmds) {
-			chip->rirb.cmds--;
 			chip->rirb.res = res;
+			smp_wmb();
+			chip->rirb.cmds--;
 		}
 	}
 }
@@ -556,8 +557,10 @@ static unsigned int azx_rirb_get_response(struct hda_codec *codec)
 			azx_update_rirb(chip);
 			spin_unlock_irq(&chip->reg_lock);
 		}
-		if (!chip->rirb.cmds)
+		if (!chip->rirb.cmds) {
+			smp_rmb();
 			return chip->rirb.res; /* the last value */
+		}
 		if (time_after(jiffies, timeout))
 			break;
 		if (codec->bus->needs_damn_long_delay)
