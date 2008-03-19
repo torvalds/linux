@@ -9,6 +9,7 @@ extern cpumask_t cpu_callout_map;
 
 extern int smp_num_siblings;
 extern unsigned int num_processors;
+extern cpumask_t cpu_initialized;
 
 extern u16 x86_cpu_to_apicid_init[];
 extern u16 x86_bios_cpu_apicid_init[];
@@ -34,6 +35,8 @@ extern struct {
 	unsigned short ss;
 } stack_start;
 
+extern unsigned long init_rsp;
+extern unsigned long initial_code;
 
 struct smp_ops {
 	void (*smp_prepare_boot_cpu)(void);
