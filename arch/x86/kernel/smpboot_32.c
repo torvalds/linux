@@ -525,16 +525,6 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 #endif	/* WAKE_SECONDARY_VIA_INIT */
 
 extern cpumask_t cpu_initialized;
-static inline int alloc_cpu_id(void)
-{
-	cpumask_t	tmp_map;
-	int cpu;
-	cpus_complement(tmp_map, cpu_present_map);
-	cpu = first_cpu(tmp_map);
-	if (cpu >= NR_CPUS)
-		return -ENODEV;
-	return cpu;
-}
 
 #ifdef CONFIG_HOTPLUG_CPU
 static struct task_struct * __cpuinitdata cpu_idle_tasks[NR_CPUS];
@@ -605,7 +595,6 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 
 	irq_ctx_init(cpu);
 
-	per_cpu(x86_cpu_to_apicid, cpu) = apicid;
 	/*
 	 * This grunge runs the startup process for
 	 * the targeted processor.
@@ -666,10 +655,8 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 		cpu_clear(cpu, cpu_callout_map); /* was set here (do_boot_cpu()) */
 		cpu_clear(cpu, cpu_initialized); /* was set by cpu_init() */
 		cpu_clear(cpu, cpu_possible_map);
+		per_cpu(x86_cpu_to_apicid, cpu) = BAD_APICID;
 		cpucount--;
-	} else {
-		per_cpu(x86_cpu_to_apicid, cpu) = apicid;
-		cpu_set(cpu, cpu_present_map);
 	}
 
 	/* mark "stuck" area as not stuck */
@@ -745,6 +732,7 @@ EXPORT_SYMBOL(xquad_portio);
 static void __init disable_smp(void)
 {
 	cpu_possible_map = cpumask_of_cpu(0);
+	cpu_present_map = cpumask_of_cpu(0);
 	smpboot_clear_io_apic_irqs();
 	phys_cpu_present_map = physid_mask_of_physid(0);
 	map_cpu_to_logical_apicid();
@@ -825,7 +813,6 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 
 	boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
 	boot_cpu_logical_apicid = logical_smp_processor_id();
-	per_cpu(x86_cpu_to_apicid, 0) = boot_cpu_physical_apicid;
 
 	current_thread_info()->cpu = 0;
 
@@ -866,8 +853,11 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 			continue;
 		if (max_cpus <= cpucount+1)
 			continue;
-
-		if (((cpu = alloc_cpu_id()) <= 0) || do_boot_cpu(apicid, cpu))
+		/* Utterly temporary */
+		for (cpu = 0; cpu < NR_CPUS; cpu++)
+			if (per_cpu(x86_cpu_to_apicid, cpu) == apicid)
+				break;
+		if (do_boot_cpu(apicid, cpu))
 			printk("CPU #%d not responding - cannot use it.\n",
 								apicid);
 		else

@@ -105,7 +105,8 @@ static struct mpc_config_translation *translation_table[MAX_MPC_ENTRY] __cpuinit
 
 static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 {
- 	int ver, apicid;
+	int ver, apicid, cpu;
+	cpumask_t tmp_map;
 	physid_mask_t phys_cpu;
  	
 	if (!(m->mpc_cpuflag & CPU_ENABLED)) {
@@ -198,6 +199,16 @@ static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 
 	cpu_set(num_processors, cpu_possible_map);
 	num_processors++;
+	cpus_complement(tmp_map, cpu_present_map);
+	cpu = first_cpu(tmp_map);
+
+	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR)
+		/*
+		 * x86_bios_cpu_apicid is required to have processors listed
+		 * in same order as logical cpu numbers. Hence the first
+		 * entry is BSP, and so on.
+		 */
+		cpu = 0;
 
 	/*
 	 * Would be preferable to switch to bigsmp when CONFIG_HOTPLUG_CPU=y
@@ -220,12 +231,16 @@ static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 	}
 	/* are we being called early in kernel startup? */
 	if (x86_cpu_to_apicid_early_ptr) {
+		u16 *cpu_to_apicid = x86_cpu_to_apicid_early_ptr;
 		u16 *bios_cpu_apicid = x86_bios_cpu_apicid_early_ptr;
+
+		cpu_to_apicid[cpu] = m->mpc_apicid;
 		bios_cpu_apicid[num_processors - 1] = m->mpc_apicid;
 	} else {
-		int cpu = num_processors - 1;
+		per_cpu(x86_cpu_to_apicid, cpu) = m->mpc_apicid;
 		per_cpu(x86_bios_cpu_apicid, cpu) = m->mpc_apicid;
 	}
+	cpu_set(cpu, cpu_present_map);
 }
 
 static void __init MP_bus_info (struct mpc_config_bus *m)
