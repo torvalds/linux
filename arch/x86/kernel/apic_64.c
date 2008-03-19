@@ -431,7 +431,8 @@ void __cpuinit check_boot_apic_timer_broadcast(void)
 	lapic_clockevent.features |= CLOCK_EVT_FEAT_DUMMY;
 
 	local_irq_enable();
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_FORCE, &boot_cpu_id);
+	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_FORCE,
+			   &boot_cpu_physical_apicid);
 	local_irq_disable();
 }
 
@@ -857,7 +858,7 @@ static int __init detect_init_APIC(void)
 	}
 
 	mp_lapic_addr = APIC_DEFAULT_PHYS_BASE;
-	boot_cpu_id = 0;
+	boot_cpu_physical_apicid = 0;
 	return 0;
 }
 
@@ -882,7 +883,7 @@ void __init early_init_lapic_mapping(void)
 	 * Fetch the APIC ID of the BSP in case we have a
 	 * default configuration (or the MP table is broken).
 	 */
-	boot_cpu_id = GET_APIC_ID(apic_read(APIC_ID));
+	boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
 }
 
 /**
@@ -909,7 +910,7 @@ void __init init_apic_mappings(void)
 	 * Fetch the APIC ID of the BSP in case we have a
 	 * default configuration (or the MP table is broken).
 	 */
-	boot_cpu_id = GET_APIC_ID(apic_read(APIC_ID));
+	boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
 }
 
 /*
@@ -930,8 +931,8 @@ int __init APIC_init_uniprocessor(void)
 
 	verify_local_APIC();
 
-	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_id);
-	apic_write(APIC_ID, SET_APIC_ID(boot_cpu_id));
+	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_physical_apicid);
+	apic_write(APIC_ID, SET_APIC_ID(boot_cpu_physical_apicid));
 
 	setup_local_APIC();
 

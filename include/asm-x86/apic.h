@@ -44,7 +44,6 @@ extern int apic_runs_main_timer;
 extern int ioapic_force;
 extern int disable_apic;
 extern int disable_apic_timer;
-extern unsigned boot_cpu_id;
 
 /*
  * Basic functions accessing APICs.

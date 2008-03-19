@@ -30,8 +30,6 @@ extern void zap_low_mappings (void);
 DECLARE_PER_CPU(int, cpu_number);
 #define raw_smp_processor_id() (x86_read_percpu(cpu_number))
 
-#define cpu_physical_id(cpu)	per_cpu(x86_cpu_to_apicid, cpu)
-
 extern int safe_smp_processor_id(void);
 
 /* We don't mark CPUs online until __cpu_up(), so we need another measure */
@@ -41,10 +39,7 @@ static inline int num_booting_cpus(void)
 }
 
 #else /* CONFIG_SMP */
-
 #define safe_smp_processor_id()		0
-#define cpu_physical_id(cpu)		boot_cpu_physical_apicid
-
 #endif /* !CONFIG_SMP */
 
 #ifdef CONFIG_X86_LOCAL_APIC

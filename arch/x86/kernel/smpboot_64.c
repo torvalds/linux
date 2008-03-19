@@ -602,7 +602,8 @@ static __init void disable_smp(void)
 	cpu_present_map = cpumask_of_cpu(0);
 	cpu_possible_map = cpumask_of_cpu(0);
 	if (smp_found_config)
-		phys_cpu_present_map = physid_mask_of_physid(boot_cpu_id);
+		phys_cpu_present_map =
+				physid_mask_of_physid(boot_cpu_physical_apicid);
 	else
 		phys_cpu_present_map = physid_mask_of_physid(0);
 	cpu_set(0, per_cpu(cpu_sibling_map, 0));
@@ -637,9 +638,10 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	 * Should not be necessary because the MP table should list the boot
 	 * CPU too, but we do it for the sake of robustness anyway.
 	 */
-	if (!physid_isset(boot_cpu_id, phys_cpu_present_map)) {
-		printk(KERN_NOTICE "weird, boot CPU (#%d) not listed by the BIOS.\n",
-								 boot_cpu_id);
+	if (!physid_isset(boot_cpu_physical_apicid, phys_cpu_present_map)) {
+		printk(KERN_NOTICE
+			"weird, boot CPU (#%d) not listed by the BIOS.\n",
+			boot_cpu_physical_apicid);
 		physid_set(hard_smp_processor_id(), phys_cpu_present_map);
 	}
 
@@ -648,7 +650,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	 */
 	if (!cpu_has_apic) {
 		printk(KERN_ERR "BIOS bug, local APIC #%d not detected!...\n",
-			boot_cpu_id);
+			boot_cpu_physical_apicid);
 		printk(KERN_ERR "... forcing use of dummy APIC emulation. (tell your hw vendor)\n");
 		nr_ioapics = 0;
 		return -1;
@@ -709,9 +711,9 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 		enable_IO_APIC();
 	end_local_APIC_setup();
 
-	if (GET_APIC_ID(apic_read(APIC_ID)) != boot_cpu_id) {
+	if (GET_APIC_ID(apic_read(APIC_ID)) != boot_cpu_physical_apicid) {
 		panic("Boot APIC ID in local APIC unexpected (%d vs %d)",
-		      GET_APIC_ID(apic_read(APIC_ID)), boot_cpu_id);
+		     GET_APIC_ID(apic_read(APIC_ID)), boot_cpu_physical_apicid);
 		/* Or can we switch back to PIC here? */
 	}
 
@@ -756,7 +758,7 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 
 	Dprintk("++++++++++++++++++++=_---CPU UP  %u\n", cpu);
 
-	if (apicid == BAD_APICID || apicid == boot_cpu_id ||
+	if (apicid == BAD_APICID || apicid == boot_cpu_physical_apicid ||
 	    !physid_isset(apicid, phys_cpu_present_map)) {
 		printk("__cpu_up: bad cpu %d\n", cpu);
 		return -EINVAL;

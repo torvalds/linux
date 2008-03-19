@@ -22,7 +22,6 @@ extern int smp_call_function_mask(cpumask_t mask, void (*func)(void *),
 #ifdef CONFIG_SMP
 
 #define raw_smp_processor_id()	read_pda(cpunumber)
-#define cpu_physical_id(cpu)	per_cpu(x86_cpu_to_apicid, cpu)
 
 #define stack_smp_processor_id()					\
 	({								\
@@ -41,9 +40,6 @@ static inline int num_booting_cpus(void)
 }
 
 #else /* CONFIG_SMP */
-
-extern unsigned int boot_cpu_id;
-#define cpu_physical_id(cpu)	boot_cpu_id
 #define stack_smp_processor_id() 0
 
 #endif /* !CONFIG_SMP */
