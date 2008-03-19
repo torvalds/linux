@@ -1,10 +1,7 @@
 #ifndef __ASM_MACH_APIC_H
 #define __ASM_MACH_APIC_H
 
-
-extern u8 bios_cpu_apicid[];
-
-#define xapic_phys_to_log_apicid(cpu) (bios_cpu_apicid[cpu])
+#define xapic_phys_to_log_apicid(cpu) (per_cpu(x86_bios_cpu_apicid, cpu))
 #define esr_disable (1)
 
 static inline int apic_id_registered(void)
@@ -90,7 +87,7 @@ static inline int apicid_to_node(int logical_apicid)
 static inline int cpu_present_to_apicid(int mps_cpu)
 {
 	if (mps_cpu < NR_CPUS)
-		return (int) bios_cpu_apicid[mps_cpu];
+		return (int) per_cpu(x86_bios_cpu_apicid, mps_cpu);
 
 	return BAD_APICID;
 }

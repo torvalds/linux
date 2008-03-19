@@ -70,6 +70,12 @@ void *x86_cpu_to_apicid_early_ptr;
 DEFINE_PER_CPU(u16, x86_cpu_to_apicid) = BAD_APICID;
 EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
 
+u16 x86_bios_cpu_apicid_init[NR_CPUS] __initdata
+				= { [0 ... NR_CPUS-1] = BAD_APICID };
+void *x86_bios_cpu_apicid_early_ptr;
+DEFINE_PER_CPU(u16, x86_bios_cpu_apicid) = BAD_APICID;
+EXPORT_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
+
 u8 apicid_2_node[MAX_APICID];
 
 static void map_cpu_to_logical_apicid(void);

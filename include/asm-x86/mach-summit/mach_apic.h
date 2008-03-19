@@ -40,7 +40,6 @@ static inline unsigned long check_apicid_present(int bit)
 
 #define apicid_cluster(apicid) ((apicid) & XAPIC_DEST_CLUSTER_MASK)
 
-extern u8 bios_cpu_apicid[];
 extern u8 cpu_2_logical_apicid[];
 
 static inline void init_apic_ldr(void)
@@ -110,7 +109,7 @@ static inline int cpu_to_logical_apicid(int cpu)
 static inline int cpu_present_to_apicid(int mps_cpu)
 {
 	if (mps_cpu < NR_CPUS)
-		return (int)bios_cpu_apicid[mps_cpu];
+		return (int)per_cpu(x86_bios_cpu_apicid, mps_cpu);
 	else
 		return BAD_APICID;
 }

@@ -1,9 +1,7 @@
 #ifndef __ASM_MACH_APIC_H
 #define __ASM_MACH_APIC_H
 
-extern u8 bios_cpu_apicid[];
-
-#define xapic_phys_to_log_apicid(cpu) (bios_cpu_apicid[cpu])
+#define xapic_phys_to_log_apicid(cpu) per_cpu(x86_bios_cpu_apicid, cpu)
 #define esr_disable (1)
 
 static inline int apic_id_registered(void)
@@ -80,7 +78,7 @@ extern void enable_apic_mode(void);
 extern int apic_version [MAX_APICS];
 static inline void setup_apic_routing(void)
 {
-	int apic = bios_cpu_apicid[smp_processor_id()];
+	int apic = per_cpu(x86_bios_cpu_apicid, smp_processor_id());
 	printk("Enabling APIC mode:  %s.  Using %d I/O APICs, target cpus %lx\n",
 		(apic_version[apic] == 0x14) ? 
 		"Physical Cluster" : "Logical Cluster", nr_ioapics, cpus_addr(TARGET_CPUS)[0]);
@@ -102,7 +100,7 @@ static inline int cpu_present_to_apicid(int mps_cpu)
 	if (!mps_cpu)
 		return boot_cpu_physical_apicid;
 	else if (mps_cpu < NR_CPUS)
-		return (int) bios_cpu_apicid[mps_cpu];
+		return (int) per_cpu(x86_bios_cpu_apicid, mps_cpu);
 	else
 		return BAD_APICID;
 }
