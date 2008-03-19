@@ -145,6 +145,17 @@ config USB_STORAGE_KARMA
 	  on the resulting scsi device node returns the Karma to normal
 	  operation.
 
+config USB_STORAGE_CYPRESS_ATACB
+	bool "SAT emulation on Cypress USB/ATA Bridge with ATACB"
+	depends on USB_STORAGE
+	---help---
+	  Say Y here if you want to use SAT (ata pass through) on devices based
+	  on the Cypress USB/ATA bridge supporting ATACB. This will allow you
+	  to use tools to tune and monitor your drive (like hdparm or smartctl).
+
+	  If you say no here your device will still work with the standard usb
+	  mass storage class.
+
 config USB_LIBUSUAL
 	bool "The shared table of common (or usual) storage devices"
 	depends on USB

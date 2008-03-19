@@ -101,6 +101,9 @@
 #ifdef CONFIG_USB_STORAGE_KARMA
 #include "karma.h"
 #endif
+#ifdef CONFIG_USB_STORAGE_CYPRESS_ATACB
+#include "cypress_atacb.h"
+#endif
 
 /* Some informational data */
 MODULE_AUTHOR("Matthew Dharm <mdharm-usb@one-eyed-alien.net>");
@@ -705,6 +708,13 @@ static int get_protocol(struct us_data *us)
 	case US_SC_ISD200:
 		us->protocol_name = "ISD200 ATA/ATAPI";
 		us->proto_handler = isd200_ata_command;
+		break;
+#endif
+
+#ifdef CONFIG_USB_STORAGE_CYPRESS_ATACB
+	case US_SC_CYP_ATACB:
+		us->protocol_name = "Transparent SCSI with Cypress ATACB";
+		us->proto_handler = cypress_atacb_passthrough;
 		break;
 #endif
 

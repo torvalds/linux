@@ -132,7 +132,7 @@ static int slave_configure(struct scsi_device *sdev)
 		/* Disk-type devices use MODE SENSE(6) if the protocol
 		 * (SubClass) is Transparent SCSI, otherwise they use
 		 * MODE SENSE(10). */
-		if (us->subclass != US_SC_SCSI)
+		if (us->subclass != US_SC_SCSI && us->subclass != US_SC_CYP_ATACB)
 			sdev->use_10_for_ms = 1;
 
 		/* Many disks only accept MODE SENSE transfer lengths of
