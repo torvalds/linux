@@ -172,21 +172,19 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	return 0;
 }
 
-/*
- * Cycle through the processors sending APIC IPIs to boot each.
- */
-static void __init smp_boot_cpus(unsigned int max_cpus)
+/* These are wrappers to interface to the new boot process.  Someone
+   who understands all this stuff should rewrite it properly. --RR 15/Jul/02 */
+void __init native_smp_prepare_cpus(unsigned int max_cpus)
 {
+ 	nmi_watchdog_default();
+ 	cpu_callin_map = cpumask_of_cpu(0);
+ 	mb();
+
 	/*
 	 * Setup boot CPU information
 	 */
 	smp_store_cpu_info(0); /* Final full version of the data */
-	printk(KERN_INFO "CPU%d: ", 0);
-	print_cpu_info(&cpu_data(0));
-
-	boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
 	boot_cpu_logical_apicid = logical_smp_processor_id();
-
 	current_thread_info()->cpu = 0;
 
 	set_cpu_sibling_map(0);
@@ -197,25 +195,19 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 		return;
 	}
 
+	boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
+
 	connect_bsp_APIC();
 	setup_local_APIC();
 	end_local_APIC_setup();
 	map_cpu_to_logical_apicid();
 
-
 	setup_portio_remap();
 
 	smpboot_setup_io_apic();
 
+	printk(KERN_INFO "CPU%d: ", 0);
+	print_cpu_info(&cpu_data(0));
 	setup_boot_clock();
 }
 
-/* These are wrappers to interface to the new boot process.  Someone
-   who understands all this stuff should rewrite it properly. --RR 15/Jul/02 */
-void __init native_smp_prepare_cpus(unsigned int max_cpus)
-{
-	nmi_watchdog_default();
-	cpu_callin_map = cpumask_of_cpu(0);
-	mb();
-	smp_boot_cpus(max_cpus);
-}
