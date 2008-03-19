@@ -33,6 +33,8 @@
 #include <linux/kdebug.h>
 #include <linux/utsname.h>
 
+#include <mach_traps.h>
+
 #if defined(CONFIG_EDAC)
 #include <linux/edac.h>
 #endif
