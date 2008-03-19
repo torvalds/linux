@@ -839,6 +839,7 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 {
 	int apicid = cpu_present_to_apicid(cpu);
 	unsigned long flags;
+	int err;
 
 	WARN_ON(irqs_disabled());
 
@@ -848,6 +849,14 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 	    !physid_isset(apicid, phys_cpu_present_map)) {
 		printk(KERN_ERR "%s: bad cpu %d\n", __func__, cpu);
 		return -EINVAL;
+	}
+
+	/*
+	 * Already booted CPU?
+	 */
+	if (cpu_isset(cpu, cpu_callin_map)) {
+		Dprintk("do_boot_cpu %d Already started\n", cpu);
+		return -ENOSYS;
 	}
 
 	/*
@@ -863,14 +872,11 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 			min_t(unsigned long, KERNEL_PGD_PTRS, USER_PGD_PTRS));
 	flush_tlb_all();
 
-	do_boot_cpu(apicid, cpu);
-
-	/* In case one didn't come up */
-	if (!cpu_isset(cpu, cpu_callin_map)) {
-		printk(KERN_DEBUG "skipping cpu%d, didn't come online\n", cpu);
-		return -EIO;
+	err = do_boot_cpu(apicid, cpu);
+	if (err < 0) {
+		Dprintk("do_boot_cpu failed %d\n", err);
+		return err;
 	}
-
 
 	/*
 	 * Check TSC synchronization with the AP (keep irqs disabled
