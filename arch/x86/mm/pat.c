@@ -246,6 +246,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 		struct memtype *saved_ptr;
 
 		if (parse->start >= end) {
+			printk("New Entry\n");
 			list_add(&new_entry->nd, parse->nd.prev);
 			new_entry = NULL;
 			break;
@@ -295,6 +296,8 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 				break;
 			}
 
+			printk("Overlap at 0x%Lx-0x%Lx\n",
+			       saved_ptr->start, saved_ptr->end);
 			/* No conflict. Go ahead and add this new entry */
 			list_add(&new_entry->nd, saved_ptr->nd.prev);
 			new_entry = NULL;
@@ -345,6 +348,8 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 				break;
 			}
 
+			printk("Overlap at 0x%Lx-0x%Lx\n",
+			       saved_ptr->start, saved_ptr->end);
 			/* No conflict. Go ahead and add this new entry */
 			list_add(&new_entry->nd, &saved_ptr->nd);
 			new_entry = NULL;
@@ -353,6 +358,10 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	}
 
 	if (err) {
+		printk(
+	"reserve_memtype failed 0x%Lx-0x%Lx, track %s, req %s\n",
+			start, end, cattr_name(new_entry->type),
+			cattr_name(req_type));
 		kfree(new_entry);
 		spin_unlock(&memtype_lock);
 		return err;
@@ -361,6 +370,19 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	if (new_entry) {
 		/* No conflict. Not yet added to the list. Add to the tail */
 		list_add_tail(&new_entry->nd, &memtype_list);
+		printk("New Entry\n");
+  	}
+
+	if (ret_type) {
+		printk(
+	"reserve_memtype added 0x%Lx-0x%Lx, track %s, req %s, ret %s\n",
+			start, end, cattr_name(actual_type),
+			cattr_name(req_type), cattr_name(*ret_type));
+	} else {
+		printk(
+	"reserve_memtype added 0x%Lx-0x%Lx, track %s, req %s\n",
+			start, end, cattr_name(actual_type),
+			cattr_name(req_type));
 	}
 
 	spin_unlock(&memtype_lock);
@@ -397,6 +419,8 @@ int free_memtype(u64 start, u64 end)
 		printk(KERN_DEBUG "%s:%d freeing invalid memtype %Lx-%Lx\n",
 			current->comm, current->pid, start, end);
 	}
+
+	printk( "free_memtype request 0x%Lx-0x%Lx\n", start, end);
 	return err;
 }
 

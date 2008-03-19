@@ -131,7 +131,7 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 		return NULL;
 
 	if (!phys_addr_valid(phys_addr)) {
-		printk(KERN_WARNING "ioremap: invalid physical address %lx\n",
+		printk(KERN_WARNING "ioremap: invalid physical address %llx\n",
 		       phys_addr);
 		WARN_ON_ONCE(1);
 		return NULL;
@@ -177,6 +177,10 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 		      new_prot_val == _PAGE_CACHE_WC)) ||
 		    (prot_val == _PAGE_CACHE_WC &&
 		     new_prot_val == _PAGE_CACHE_WB)) {
+			printk(
+		"ioremap error for 0x%llx-0x%llx, requested 0x%lx, got 0x%lx\n",
+				phys_addr, phys_addr + size,
+				prot_val, new_prot_val);
 			free_memtype(phys_addr, phys_addr + size);
 			return NULL;
 		}
