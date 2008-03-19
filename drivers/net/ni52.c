@@ -179,7 +179,7 @@ static void    ni52_timeout(struct net_device *dev);
 
 /* helper-functions */
 static int     init586(struct net_device *dev);
-static int     check586(struct net_device *dev, char *where, unsigned size);
+static int     check586(struct net_device *dev, unsigned size);
 static void    alloc586(struct net_device *dev);
 static void    startrecv586(struct net_device *dev);
 static void   __iomem *alloc_rfa(struct net_device *dev, void __iomem *ptr);
@@ -296,16 +296,16 @@ static int ni52_open(struct net_device *dev)
 /**********************************************
  * Check to see if there's an 82586 out there.
  */
-static int check586(struct net_device *dev, char *where, unsigned size)
+static int check586(struct net_device *dev, unsigned size)
 {
+	unsigned long where = dev->mem_start;
 	struct priv pb;
 	struct priv *p = /* (struct priv *) dev->priv*/ &pb;
 	char __iomem *iscp_addrs[2];
 	int i;
 
-	p->base = (unsigned long) isa_bus_to_virt((unsigned long)where)
-							+ size - 0x01000000;
-	p->memtop = (char __iomem *)isa_bus_to_virt((unsigned long)where) + size;
+	p->base = (unsigned long) isa_bus_to_virt(where) + size - 0x01000000;
+	p->memtop = (char __iomem *)isa_bus_to_virt(where) + size;
 	p->scp = (struct scp_struct __iomem *)(p->base + SCP_DEFAULT_ADDRESS);
 	memset_io(p->scp, 0, sizeof(struct scp_struct));
 	for (i = 0; i < sizeof(struct scp_struct); i++)
@@ -316,7 +316,7 @@ static int check586(struct net_device *dev, char *where, unsigned size)
 	if (readb(&p->scp->sysbus) != SYSBUSVAL)
 		return 0;
 
-	iscp_addrs[0] = (char __iomem *)isa_bus_to_virt((unsigned long)where);
+	iscp_addrs[0] = (char __iomem *)isa_bus_to_virt(where);
 	iscp_addrs[1] = (char __iomem *)p->scp - sizeof(struct iscp_struct);
 
 	for (i = 0; i < 2; i++) {
@@ -474,7 +474,7 @@ static int __init ni52_probe1(struct net_device *dev, int ioaddr)
 		retval = -ENODEV;
 		goto out;
 	}
-	if (!check586(dev, (char *)dev->mem_start, size)) {
+	if (!check586(dev, size)) {
 		printk(KERN_ERR "?memcheck, Can't find memory at 0x%lx with size %d!\n", dev->mem_start, size);
 		retval = -ENODEV;
 		goto out;
@@ -483,9 +483,9 @@ static int __init ni52_probe1(struct net_device *dev, int ioaddr)
 	if (dev->mem_start != 0) {
 		/* no auto-mem-probe */
 		size = 0x4000; /* check for 16K mem */
-		if (!check586(dev, (char *) dev->mem_start, size)) {
+		if (!check586(dev, size)) {
 			size = 0x2000; /* check for 8K mem */
-			if (!check586(dev, (char *)dev->mem_start, size)) {
+			if (!check586(dev, size)) {
 				printk(KERN_ERR "?memprobe, Can't find memory at 0x%lx!\n", dev->mem_start);
 				retval = -ENODEV;
 				goto out;
@@ -504,11 +504,11 @@ static int __init ni52_probe1(struct net_device *dev, int ioaddr)
 			}
 			dev->mem_start = memaddrs[i];
 			size = 0x2000; /* check for 8K mem */
-			if (check586(dev, (char *)dev->mem_start, size))
+			if (check586(dev, size))
 				/* 8K-check */
 				break;
 			size = 0x4000; /* check for 16K mem */
-			if (check586(dev, (char *)dev->mem_start, size))
+			if (check586(dev, size))
 				/* 16K-check */
 				break;
 		}
