@@ -7,6 +7,7 @@
 #include <linux/err.h>
 #include <linux/nmi.h>
 
+#include <asm/acpi.h>
 #include <asm/desc.h>
 #include <asm/nmi.h>
 #include <asm/irq.h>
@@ -74,6 +75,8 @@ DEFINE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
 
 static atomic_t init_deasserted;
+
+static int boot_cpu_logical_apicid;
 
 /* ready for x86_64, no harm for x86, since it will overwrite after alloc */
 unsigned char *trampoline_base = __va(SMP_TRAMPOLINE_BASE);
@@ -1001,6 +1004,173 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 	return 0;
 }
 
+/*
+ * Fall back to non SMP mode after errors.
+ *
+ * RED-PEN audit/test this more. I bet there is more state messed up here.
+ */
+static __init void disable_smp(void)
+{
+	cpu_present_map = cpumask_of_cpu(0);
+	cpu_possible_map = cpumask_of_cpu(0);
+#ifdef CONFIG_X86_32
+	smpboot_clear_io_apic_irqs();
+#endif
+	if (smp_found_config)
+		phys_cpu_present_map =
+				physid_mask_of_physid(boot_cpu_physical_apicid);
+	else
+		phys_cpu_present_map = physid_mask_of_physid(0);
+	map_cpu_to_logical_apicid();
+	cpu_set(0, per_cpu(cpu_sibling_map, 0));
+	cpu_set(0, per_cpu(cpu_core_map, 0));
+}
+
+/*
+ * Various sanity checks.
+ */
+static int __init smp_sanity_check(unsigned max_cpus)
+{
+	if (!physid_isset(hard_smp_processor_id(), phys_cpu_present_map)) {
+		printk(KERN_WARNING "weird, boot CPU (#%d) not listed"
+				    "by the BIOS.\n", hard_smp_processor_id());
+		physid_set(hard_smp_processor_id(), phys_cpu_present_map);
+	}
+
+	/*
+	 * If we couldn't find an SMP configuration at boot time,
+	 * get out of here now!
+	 */
+	if (!smp_found_config && !acpi_lapic) {
+		printk(KERN_NOTICE "SMP motherboard not detected.\n");
+		disable_smp();
+		if (APIC_init_uniprocessor())
+			printk(KERN_NOTICE "Local APIC not detected."
+					   " Using dummy APIC emulation.\n");
+		return -1;
+	}
+
+	/*
+	 * Should not be necessary because the MP table should list the boot
+	 * CPU too, but we do it for the sake of robustness anyway.
+	 */
+	if (!check_phys_apicid_present(boot_cpu_physical_apicid)) {
+		printk(KERN_NOTICE
+			"weird, boot CPU (#%d) not listed by the BIOS.\n",
+			boot_cpu_physical_apicid);
+		physid_set(hard_smp_processor_id(), phys_cpu_present_map);
+	}
+
+	/*
+	 * If we couldn't find a local APIC, then get out of here now!
+	 */
+	if (APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid]) &&
+	    !cpu_has_apic) {
+		printk(KERN_ERR "BIOS bug, local APIC #%d not detected!...\n",
+			boot_cpu_physical_apicid);
+		printk(KERN_ERR "... forcing use of dummy APIC emulation."
+				"(tell your hw vendor)\n");
+		smpboot_clear_io_apic();
+		return -1;
+	}
+
+	verify_local_APIC();
+
+	/*
+	 * If SMP should be disabled, then really disable it!
+	 */
+	if (!max_cpus) {
+		printk(KERN_INFO "SMP mode deactivated,"
+				 "forcing use of dummy APIC emulation.\n");
+		smpboot_clear_io_apic();
+#ifdef CONFIG_X86_32
+		if (nmi_watchdog == NMI_LOCAL_APIC) {
+			printk(KERN_INFO "activating minimal APIC for"
+					 "NMI watchdog use.\n");
+			connect_bsp_APIC();
+			setup_local_APIC();
+			end_local_APIC_setup();
+		}
+#endif
+		return -1;
+	}
+
+	return 0;
+}
+
+static void __init smp_cpu_index_default(void)
+{
+	int i;
+	struct cpuinfo_x86 *c;
+
+	for_each_cpu_mask(i, cpu_possible_map) {
+		c = &cpu_data(i);
+		/* mark all to hotplug */
+		c->cpu_index = NR_CPUS;
+	}
+}
+
+/*
+ * Prepare for SMP bootup.  The MP table or ACPI has been read
+ * earlier.  Just do some sanity checking here and enable APIC mode.
+ */
+void __init native_smp_prepare_cpus(unsigned int max_cpus)
+{
+	nmi_watchdog_default();
+	smp_cpu_index_default();
+	current_cpu_data = boot_cpu_data;
+	cpu_callin_map = cpumask_of_cpu(0);
+	mb();
+	/*
+	 * Setup boot CPU information
+	 */
+	smp_store_cpu_info(0); /* Final full version of the data */
+	boot_cpu_logical_apicid = logical_smp_processor_id();
+	current_thread_info()->cpu = 0;  /* needed? */
+	set_cpu_sibling_map(0);
+
+	if (smp_sanity_check(max_cpus) < 0) {
+		printk(KERN_INFO "SMP disabled\n");
+		disable_smp();
+		return;
+	}
+
+	if (GET_APIC_ID(apic_read(APIC_ID)) != boot_cpu_physical_apicid) {
+		panic("Boot APIC ID in local APIC unexpected (%d vs %d)",
+		     GET_APIC_ID(apic_read(APIC_ID)), boot_cpu_physical_apicid);
+		/* Or can we switch back to PIC here? */
+	}
+
+#ifdef CONFIG_X86_32
+	connect_bsp_APIC();
+#endif
+	/*
+	 * Switch from PIC to APIC mode.
+	 */
+	setup_local_APIC();
+
+#ifdef CONFIG_X86_64
+	/*
+	 * Enable IO APIC before setting up error vector
+	 */
+	if (!skip_ioapic_setup && nr_ioapics)
+		enable_IO_APIC();
+#endif
+	end_local_APIC_setup();
+
+	map_cpu_to_logical_apicid();
+
+	setup_portio_remap();
+
+	smpboot_setup_io_apic();
+	/*
+	 * Set up local APIC timer on boot CPU.
+	 */
+
+	printk(KERN_INFO "CPU%d: ", 0);
+	print_cpu_info(&cpu_data(0));
+	setup_boot_clock();
+}
 /*
  * Early setup to make printk work.
  */
