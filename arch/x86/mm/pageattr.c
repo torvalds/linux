@@ -19,6 +19,7 @@
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/proto.h>
+#include <asm/pat.h>
 
 /*
  * The current flushing context - we pass it instead of 5 arguments:
@@ -770,17 +771,33 @@ static inline int change_page_attr_clear(unsigned long addr, int numpages,
 	return change_page_attr_set_clr(addr, numpages, __pgprot(0), mask);
 }
 
-int set_memory_uc(unsigned long addr, int numpages)
+int _set_memory_uc(unsigned long addr, int numpages)
 {
 	return change_page_attr_set(addr, numpages,
 				    __pgprot(_PAGE_CACHE_UC));
 }
+
+int set_memory_uc(unsigned long addr, int numpages)
+{
+	if (reserve_memtype(addr, addr + numpages * PAGE_SIZE,
+	                    _PAGE_CACHE_UC, NULL))
+		return -EINVAL;
+
+	return _set_memory_uc(addr, numpages);
+}
 EXPORT_SYMBOL(set_memory_uc);
 
-int set_memory_wb(unsigned long addr, int numpages)
+int _set_memory_wb(unsigned long addr, int numpages)
 {
 	return change_page_attr_clear(addr, numpages,
 				      __pgprot(_PAGE_CACHE_MASK));
+}
+
+int set_memory_wb(unsigned long addr, int numpages)
+{
+	free_memtype(addr, addr + numpages * PAGE_SIZE);
+
+	return _set_memory_wb(addr, numpages);
 }
 EXPORT_SYMBOL(set_memory_wb);
 
