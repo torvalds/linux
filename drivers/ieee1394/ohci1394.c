@@ -1723,6 +1723,8 @@ struct ohci_iso_xmit {
 	struct dma_prog_region prog;
 	struct ohci1394_iso_tasklet task;
 	int task_active;
+	int last_cycle;
+	atomic_t skips;
 
 	u32 ContextControlSet;
 	u32 ContextControlClear;
@@ -1759,6 +1761,8 @@ static int ohci_iso_xmit_init(struct hpsb_iso *iso)
 	iso->hostdata = xmit;
 	xmit->ohci = iso->host->hostdata;
 	xmit->task_active = 0;
+	xmit->last_cycle = -1;
+	atomic_set(&iso->skips, 0);
 
 	dma_prog_region_init(&xmit->prog);
 
@@ -1856,6 +1860,26 @@ static void ohci_iso_xmit_task(unsigned long data)
 		/* parse cycle */
 		cycle = le32_to_cpu(cmd->output_last.status) & 0x1FFF;
 
+		if (xmit->last_cycle > -1) {
+			int cycle_diff = cycle - xmit->last_cycle;
+			int skip;
+
+			/* unwrap */
+			if (cycle_diff < 0) {
+				cycle_diff += 8000;
+				if (cycle_diff < 0)
+					PRINT(KERN_ERR, "bogus cycle diff %d\n",
+					      cycle_diff);
+			}
+
+			skip = cycle_diff - 1;
+			if (skip > 0) {
+				DBGMSG("skipped %d cycles without packet loss", skip);
+				atomic_add(skip, &iso->skips);
+			}
+		}
+		xmit->last_cycle = cycle;
+
 		/* tell the subsystem the packet has gone out */
 		hpsb_iso_packet_sent(iso, cycle, event != 0x11);
 
@@ -1942,6 +1966,16 @@ static int ohci_iso_xmit_queue(struct hpsb_iso *iso, struct hpsb_iso_packet_info
 	/* set prev branch address to point to next (Z=3) */
 	prev->output_last.branchAddress = cpu_to_le32(
 		dma_prog_region_offset_to_bus(&xmit->prog, sizeof(struct iso_xmit_cmd) * next_i) | 3);
+
+	/*
+	 * Link the skip address to this descriptor itself. This causes a
+	 * context to skip a cycle whenever lost cycles or FIFO overruns occur,
+	 * without dropping the data at that point the application should then
+	 * decide whether this is an error condition or not. Some protocols
+	 * can deal with this by dropping some rate-matching padding packets.
+	 */
+	next->output_more_immediate.branchAddress =
+			prev->output_last.branchAddress;
 
 	/* disable interrupt, unless required by the IRQ interval */
 	if (prev_i % iso->irq_interval) {
