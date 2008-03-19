@@ -245,10 +245,7 @@ static struct fb_monspecs at91fb_default_monspecs = {
 
 static void at91_lcdc_power_control(int on)
 {
-	if (on)
-		at91_set_gpio_value(AT91_PIN_PD12, 0);	/* power up */
-	else
-		at91_set_gpio_value(AT91_PIN_PD12, 1);	/* power down */
+	at91_set_gpio_value(AT91_PIN_PA30, on);
 }
 
 /* Driver datas */

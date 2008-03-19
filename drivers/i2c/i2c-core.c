@@ -90,12 +90,16 @@ static int i2c_device_probe(struct device *dev)
 {
 	struct i2c_client	*client = to_i2c_client(dev);
 	struct i2c_driver	*driver = to_i2c_driver(dev->driver);
+	int status;
 
 	if (!driver->probe)
 		return -ENODEV;
 	client->driver = driver;
 	dev_dbg(dev, "probe\n");
-	return driver->probe(client);
+	status = driver->probe(client);
+	if (status)
+		client->driver = NULL;
+	return status;
 }
 
 static int i2c_device_remove(struct device *dev)

@@ -173,6 +173,7 @@ struct sbp2_target {
 #define SBP2_ORB_TIMEOUT		2000U	/* Timeout in ms */
 #define SBP2_ORB_NULL			0x80000000
 #define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
+#define SBP2_RETRY_LIMIT		0xf	/* 15 retries */
 
 #define SBP2_DIRECTION_TO_MEDIA		0x0
 #define SBP2_DIRECTION_FROM_MEDIA	0x1
@@ -327,6 +328,11 @@ static const struct {
 	},
 	/* Symbios bridge */ {
 		.firmware_revision	= 0xa0b800,
+		.model			= ~0,
+		.workarounds		= SBP2_WORKAROUND_128K_MAX_TRANS,
+	},
+	/* Datafab MD2-FW2 with Symbios/LSILogic SYM13FW500 bridge */ {
+		.firmware_revision	= 0x002600,
 		.model			= ~0,
 		.workarounds		= SBP2_WORKAROUND_128K_MAX_TRANS,
 	},
@@ -812,6 +818,30 @@ static void sbp2_target_put(struct sbp2_target *tgt)
 	kref_put(&tgt->kref, sbp2_release_target);
 }
 
+static void
+complete_set_busy_timeout(struct fw_card *card, int rcode,
+			  void *payload, size_t length, void *done)
+{
+	complete(done);
+}
+
+static void sbp2_set_busy_timeout(struct sbp2_logical_unit *lu)
+{
+	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
+	DECLARE_COMPLETION_ONSTACK(done);
+	struct fw_transaction t;
+	static __be32 busy_timeout;
+
+	/* FIXME: we should try to set dual-phase cycle_limit too */
+	busy_timeout = cpu_to_be32(SBP2_RETRY_LIMIT);
+
+	fw_send_request(device->card, &t, TCODE_WRITE_QUADLET_REQUEST,
+			lu->tgt->node_id, lu->generation, device->max_speed,
+			CSR_REGISTER_BASE + CSR_BUSY_TIMEOUT, &busy_timeout,
+			sizeof(busy_timeout), complete_set_busy_timeout, &done);
+	wait_for_completion(&done);
+}
+
 static void sbp2_reconnect(struct work_struct *work);
 
 static void sbp2_login(struct work_struct *work)
@@ -864,10 +894,8 @@ static void sbp2_login(struct work_struct *work)
 	fw_notify("%s: logged in to LUN %04x (%d retries)\n",
 		  tgt->bus_id, lu->lun, lu->retries);
 
-#if 0
-	/* FIXME: The linux1394 sbp2 does this last step. */
-	sbp2_set_busy_timeout(scsi_id);
-#endif
+	/* set appropriate retry limit(s) in BUSY_TIMEOUT register */
+	sbp2_set_busy_timeout(lu);
 
 	PREPARE_DELAYED_WORK(&lu->work, sbp2_reconnect);
 	sbp2_agent_reset(lu);

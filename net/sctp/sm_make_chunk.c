@@ -2375,6 +2375,14 @@ static int sctp_process_param(struct sctp_association *asoc,
 		asoc->peer.ipv4_address = 0;
 		asoc->peer.ipv6_address = 0;
 
+		/* Assume that peer supports the address family
+		 * by which it sends a packet.
+		 */
+		if (peer_addr->sa.sa_family == AF_INET6)
+			asoc->peer.ipv6_address = 1;
+		else if (peer_addr->sa.sa_family == AF_INET)
+			asoc->peer.ipv4_address = 1;
+
 		/* Cycle through address types; avoid divide by 0. */
 		sat = ntohs(param.p->length) - sizeof(sctp_paramhdr_t);
 		if (sat)

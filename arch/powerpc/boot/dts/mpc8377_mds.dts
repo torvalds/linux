@@ -47,6 +47,72 @@
 		reg = <0x00000000 0x20000000>;	// 512MB at 0
 	};
 
+	localbus@e0005000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8377-elbc", "fsl,elbc", "simple-bus";
+		reg = <0xe0005000 0x1000>;
+		interrupts = <77 0x8>;
+		interrupt-parent = <&ipic>;
+
+		// booting from NOR flash
+		ranges = <0 0x0 0xfe000000 0x02000000
+		          1 0x0 0xf8000000 0x00008000
+		          3 0x0 0xe0600000 0x00008000>;
+
+		flash@0,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0 0x0 0x2000000>;
+			bank-width = <2>;
+			device-width = <1>;
+
+			u-boot@0 {
+				reg = <0x0 0x100000>;
+				read-only;
+			};
+
+			fs@100000 {
+				reg = <0x100000 0x800000>;
+			};
+
+			kernel@1d00000 {
+				reg = <0x1d00000 0x200000>;
+			};
+
+			dtb@1f00000 {
+				reg = <0x1f00000 0x100000>;
+			};
+		};
+
+		bcsr@1,0 {
+			reg = <1 0x0 0x8000>;
+			compatible = "fsl,mpc837xmds-bcsr";
+		};
+
+		nand@3,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8377-fcm-nand",
+			             "fsl,elbc-fcm-nand";
+			reg = <3 0x0 0x8000>;
+
+			u-boot@0 {
+				reg = <0x0 0x100000>;
+				read-only;
+			};
+
+			kernel@100000 {
+				reg = <0x100000 0x300000>;
+			};
+
+			fs@400000 {
+				reg = <0x400000 0x1c00000>;
+			};
+		};
+	};
+
 	soc@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -91,7 +157,6 @@
 			mode = "cpu";
 		};
 
-		/* phy type (ULPI, UTMI, UTMI_WIDE, SERIAL) */
 		usb@23000 {
 			compatible = "fsl-usb2-dr";
 			reg = <0x23000 0x1000>;
@@ -99,7 +164,8 @@
 			#size-cells = <0>;
 			interrupt-parent = <&ipic>;
 			interrupts = <38 0x8>;
-			phy_type = "utmi_wide";
+			dr_mode = "host";
+			phy_type = "ulpi";
 		};
 
 		mdio@24520 {

@@ -138,7 +138,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			strict -- Be less tolerant of platforms that are not
 				strictly ACPI specification compliant.
 
-			See also Documentation/pm.txt, pci=noacpi
+			See also Documentation/power/pm.txt, pci=noacpi
 
 	acpi_apic_instance=	[ACPI, IOAPIC]
 			Format: <int>
@@ -176,9 +176,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			default: pre ACPI 2.0 ordering of _PTS
 
 	acpi_no_auto_ssdt	[HW,ACPI] Disable automatic loading of SSDT
-
-	acpi_no_initrd_override	[KNL,ACPI]
-			Disable loading custom ACPI tables from the initramfs
 
 	acpi_os_name=	[HW,ACPI] Tell ACPI BIOS the name of the OS
 			Format: To spoof as Windows 98: ="Microsoft Windows"
@@ -735,6 +732,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			     (Don't attempt to blink the leds)
 	i8042.noaux	[HW] Don't check for auxiliary (== mouse) port
 	i8042.nokbd	[HW] Don't check/create keyboard port
+	i8042.noloop	[HW] Disable the AUX Loopback command while probing
+			     for the AUX port
 	i8042.nomux	[HW] Don't check presence of an active multiplexing
 			     controller
 	i8042.nopnp	[HW] Don't use ACPIPnP / PnPBIOS to discover KBD/AUX

@@ -251,10 +251,8 @@ int __init eseqiv_module_init(void)
 {
 	return crypto_register_template(&eseqiv_tmpl);
 }
-EXPORT_SYMBOL_GPL(eseqiv_module_init);
 
 void __exit eseqiv_module_exit(void)
 {
 	crypto_unregister_template(&eseqiv_tmpl);
 }
-EXPORT_SYMBOL_GPL(eseqiv_module_exit);

@@ -423,6 +423,25 @@ void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
 }
 
 /*
+ * We got an interrupt on a task_in case, but no errors and no DRQ.
+ *
+ * It might be a spurious irq (shared irq), but it might be a
+ * command that had no output.
+ */
+static ide_startstop_t task_in_unexpected(ide_drive_t *drive, struct request *rq, u8 stat)
+{
+	/* Command all done? */
+	if (OK_STAT(stat, READY_STAT, BUSY_STAT)) {
+		task_end_request(drive, rq, stat);
+		return ide_stopped;
+	}
+
+	/* Assume it was a spurious irq */
+	ide_set_handler(drive, &task_in_intr, WAIT_WORSTCASE, NULL);
+	return ide_started;
+}
+
+/*
  * Handler for command with PIO data-in phase (Read/Read Multiple).
  */
 static ide_startstop_t task_in_intr(ide_drive_t *drive)
@@ -431,18 +450,17 @@ static ide_startstop_t task_in_intr(ide_drive_t *drive)
 	struct request *rq = HWGROUP(drive)->rq;
 	u8 stat = ide_read_status(drive);
 
-	/* new way for dealing with premature shared PCI interrupts */
-	if (!OK_STAT(stat, DRQ_STAT, BAD_R_STAT)) {
-		if (stat & (ERR_STAT | DRQ_STAT))
-			return task_error(drive, rq, __FUNCTION__, stat);
-		/* No data yet, so wait for another IRQ. */
-		ide_set_handler(drive, &task_in_intr, WAIT_WORSTCASE, NULL);
-		return ide_started;
-	}
+	/* Error? */
+	if (stat & ERR_STAT)
+		return task_error(drive, rq, __FUNCTION__, stat);
+
+	/* Didn't want any data? Odd. */
+	if (!(stat & DRQ_STAT))
+		return task_in_unexpected(drive, rq, stat);
 
 	ide_pio_datablock(drive, rq, 0);
 
-	/* If it was the last datablock check status and finish transfer. */
+	/* Are we done? Check status and finish transfer. */
 	if (!hwif->nleft) {
 		stat = wait_drive_not_busy(drive);
 		if (!OK_STAT(stat, 0, BAD_STAT))

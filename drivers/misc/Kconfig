@@ -108,6 +108,7 @@ config ACER_WMI
 	depends on ACPI
 	depends on LEDS_CLASS
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on SERIO_I8042
 	select ACPI_WMI
 	---help---
 	  This is a driver for newer Acer (and Wistron) laptops. It adds

@@ -31,7 +31,6 @@ struct net {
 
 	struct proc_dir_entry 	*proc_net;
 	struct proc_dir_entry 	*proc_net_stat;
-	struct proc_dir_entry 	*proc_net_root;
 
 	struct list_head	sysctl_table_headers;
 

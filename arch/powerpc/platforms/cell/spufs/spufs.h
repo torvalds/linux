@@ -44,6 +44,7 @@ struct spu_gang;
 enum {
 	SPU_SCHED_NOTIFY_ACTIVE,
 	SPU_SCHED_WAS_ACTIVE,	/* was active upon spu_acquire_saved()  */
+	SPU_SCHED_SPU_RUN,	/* context is within spu_run */
 };
 
 struct spu_context {

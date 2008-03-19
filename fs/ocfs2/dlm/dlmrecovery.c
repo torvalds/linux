@@ -519,9 +519,9 @@ static int dlm_do_recovery(struct dlm_ctxt *dlm)
 	return 0;
 
 master_here:
-	mlog(0, "(%d) mastering recovery of %s:%u here(this=%u)!\n",
-	     task_pid_nr(dlm->dlm_reco_thread_task),
-	     dlm->name, dlm->reco.dead_node, dlm->node_num);
+	mlog(ML_NOTICE, "(%d) Node %u is the Recovery Master for the Dead Node "
+	     "%u for Domain %s\n", task_pid_nr(dlm->dlm_reco_thread_task),
+	     dlm->node_num, dlm->reco.dead_node, dlm->name);
 
 	status = dlm_remaster_locks(dlm, dlm->reco.dead_node);
 	if (status < 0) {
@@ -1191,7 +1191,7 @@ static int dlm_add_lock_to_array(struct dlm_lock *lock,
 			    (ml->type == LKM_EXMODE ||
 			     memcmp(mres->lvb, lock->lksb->lvb, DLM_LVB_LEN))) {
 				mlog(ML_ERROR, "mismatched lvbs!\n");
-				__dlm_print_one_lock_resource(lock->lockres);
+				dlm_print_one_lock_resource(lock->lockres);
 				BUG();
 			}
 			memcpy(mres->lvb, lock->lksb->lvb, DLM_LVB_LEN);
@@ -1327,6 +1327,7 @@ int dlm_mig_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
 		(struct dlm_migratable_lockres *)msg->buf;
 	int ret = 0;
 	u8 real_master;
+	u8 extra_refs = 0;
 	char *buf = NULL;
 	struct dlm_work_item *item = NULL;
 	struct dlm_lock_resource *res = NULL;
@@ -1404,16 +1405,28 @@ int dlm_mig_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
 		__dlm_insert_lockres(dlm, res);
 		spin_unlock(&dlm->spinlock);
 
+		/* Add an extra ref for this lock-less lockres lest the
+		 * dlm_thread purges it before we get the chance to add
+		 * locks to it */
+		dlm_lockres_get(res);
+
+		/* There are three refs that need to be put.
+		 * 1. Taken above.
+		 * 2. kref_init in dlm_new_lockres()->dlm_init_lockres().
+		 * 3. dlm_lookup_lockres()
+		 * The first one is handled at the end of this function. The
+		 * other two are handled in the worker thread after locks have
+		 * been attached. Yes, we don't wait for purge time to match
+		 * kref_init. The lockres will still have atleast one ref
+		 * added because it is in the hash __dlm_insert_lockres() */
+		extra_refs++;
+
 		/* now that the new lockres is inserted,
 		 * make it usable by other processes */
 		spin_lock(&res->spinlock);
 		res->state &= ~DLM_LOCK_RES_IN_PROGRESS;
 		spin_unlock(&res->spinlock);
 		wake_up(&res->wq);
-
-		/* add an extra ref for just-allocated lockres 
-		 * otherwise the lockres will be purged immediately */
-		dlm_lockres_get(res);
 	}
 
 	/* at this point we have allocated everything we need,
@@ -1443,12 +1456,17 @@ int dlm_mig_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
 	dlm_init_work_item(dlm, item, dlm_mig_lockres_worker, buf);
 	item->u.ml.lockres = res; /* already have a ref */
 	item->u.ml.real_master = real_master;
+	item->u.ml.extra_ref = extra_refs;
 	spin_lock(&dlm->work_lock);
 	list_add_tail(&item->list, &dlm->work_list);
 	spin_unlock(&dlm->work_lock);
 	queue_work(dlm->dlm_worker, &dlm->dispatched_work);
 
 leave:
+	/* One extra ref taken needs to be put here */
+	if (extra_refs)
+		dlm_lockres_put(res);
+
 	dlm_put(dlm);
 	if (ret < 0) {
 		if (buf)
@@ -1464,17 +1482,19 @@ leave:
 
 static void dlm_mig_lockres_worker(struct dlm_work_item *item, void *data)
 {
-	struct dlm_ctxt *dlm = data;
+	struct dlm_ctxt *dlm;
 	struct dlm_migratable_lockres *mres;
 	int ret = 0;
 	struct dlm_lock_resource *res;
 	u8 real_master;
+	u8 extra_ref;
 
 	dlm = item->dlm;
 	mres = (struct dlm_migratable_lockres *)data;
 
 	res = item->u.ml.lockres;
 	real_master = item->u.ml.real_master;
+	extra_ref = item->u.ml.extra_ref;
 
 	if (real_master == DLM_LOCK_RES_OWNER_UNKNOWN) {
 		/* this case is super-rare. only occurs if
@@ -1517,6 +1537,12 @@ again:
 	}
 
 leave:
+	/* See comment in dlm_mig_lockres_handler() */
+	if (res) {
+		if (extra_ref)
+			dlm_lockres_put(res);
+		dlm_lockres_put(res);
+	}
 	kfree(data);
 	mlog_exit(ret);
 }
@@ -1644,7 +1670,8 @@ int dlm_master_requery_handler(struct o2net_msg *msg, u32 len, void *data,
 				/* retry!? */
 				BUG();
 			}
-		}
+		} else /* put.. incase we are not the master */
+			dlm_lockres_put(res);
 		spin_unlock(&res->spinlock);
 	}
 	spin_unlock(&dlm->spinlock);
@@ -1921,6 +1948,7 @@ void dlm_move_lockres_to_recovery_list(struct dlm_ctxt *dlm,
 		     "Recovering res %s:%.*s, is already on recovery list!\n",
 		     dlm->name, res->lockname.len, res->lockname.name);
 		list_del_init(&res->recovering);
+		dlm_lockres_put(res);
 	}
 	/* We need to hold a reference while on the recovery list */
 	dlm_lockres_get(res);
@@ -2130,10 +2158,15 @@ static void dlm_free_dead_locks(struct dlm_ctxt *dlm,
 	assert_spin_locked(&dlm->spinlock);
 	assert_spin_locked(&res->spinlock);
 
+	/* We do two dlm_lock_put(). One for removing from list and the other is
+	 * to force the DLM_UNLOCK_FREE_LOCK action so as to free the locks */
+
 	/* TODO: check pending_asts, pending_basts here */
 	list_for_each_entry_safe(lock, next, &res->granted, list) {
 		if (lock->ml.node == dead_node) {
 			list_del_init(&lock->list);
+			dlm_lock_put(lock);
+			/* Can't schedule DLM_UNLOCK_FREE_LOCK - do manually */
 			dlm_lock_put(lock);
 			freed++;
 		}
@@ -2142,12 +2175,16 @@ static void dlm_free_dead_locks(struct dlm_ctxt *dlm,
 		if (lock->ml.node == dead_node) {
 			list_del_init(&lock->list);
 			dlm_lock_put(lock);
+			/* Can't schedule DLM_UNLOCK_FREE_LOCK - do manually */
+			dlm_lock_put(lock);
 			freed++;
 		}
 	}
 	list_for_each_entry_safe(lock, next, &res->blocked, list) {
 		if (lock->ml.node == dead_node) {
 			list_del_init(&lock->list);
+			dlm_lock_put(lock);
+			/* Can't schedule DLM_UNLOCK_FREE_LOCK - do manually */
 			dlm_lock_put(lock);
 			freed++;
 		}

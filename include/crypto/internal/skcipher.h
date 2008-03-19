@@ -68,7 +68,7 @@ void skcipher_geniv_exit(struct crypto_tfm *tfm);
 int __init eseqiv_module_init(void);
 void __exit eseqiv_module_exit(void);
 int __init chainiv_module_init(void);
-void __exit chainiv_module_exit(void);
+void chainiv_module_exit(void);
 
 static inline struct crypto_ablkcipher *skcipher_geniv_cipher(
 	struct crypto_ablkcipher *geniv)

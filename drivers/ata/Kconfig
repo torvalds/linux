@@ -30,6 +30,7 @@ config ATA_NONSTANDARD
 config ATA_ACPI
 	bool
 	depends on ACPI && PCI
+	select ACPI_DOCK
 	default y
 	help
 	  This option adds support for ATA-related ACPI objects.
@@ -535,6 +536,15 @@ config PATA_RADISYS
 	help
 	  This option enables support for the RADISYS 82600
 	  PATA controllers via the new ATA layer
+
+	  If unsure, say N.
+
+config PATA_RB500
+	tristate "RouterBoard 500 PATA CompactFlash support"
+	depends on MIKROTIK_RB500
+	help
+	  This option enables support for the RouterBoard 500
+	  PATA CompactFlash controller.
 
 	  If unsure, say N.
 

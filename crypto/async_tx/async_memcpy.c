@@ -66,11 +66,11 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 	}
 
 	if (tx) {
-		pr_debug("%s: (async) len: %zu\n", __FUNCTION__, len);
+		pr_debug("%s: (async) len: %zu\n", __func__, len);
 		async_tx_submit(chan, tx, flags, depend_tx, cb_fn, cb_param);
 	} else {
 		void *dest_buf, *src_buf;
-		pr_debug("%s: (sync) len: %zu\n", __FUNCTION__, len);
+		pr_debug("%s: (sync) len: %zu\n", __func__, len);
 
 		/* wait for any prerequisite operations */
 		if (depend_tx) {
@@ -80,7 +80,7 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 			BUG_ON(depend_tx->ack);
 			if (dma_wait_for_async_tx(depend_tx) == DMA_ERROR)
 				panic("%s: DMA_ERROR waiting for depend_tx\n",
-					__FUNCTION__);
+					__func__);
 		}
 
 		dest_buf = kmap_atomic(dest, KM_USER0) + dest_offset;

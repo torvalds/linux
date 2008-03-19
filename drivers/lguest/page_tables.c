@@ -391,7 +391,7 @@ static unsigned int find_pgdir(struct lguest *lg, unsigned long pgtable)
 {
 	unsigned int i;
 	for (i = 0; i < ARRAY_SIZE(lg->pgdirs); i++)
-		if (lg->pgdirs[i].gpgdir == pgtable)
+		if (lg->pgdirs[i].pgdir && lg->pgdirs[i].gpgdir == pgtable)
 			break;
 	return i;
 }

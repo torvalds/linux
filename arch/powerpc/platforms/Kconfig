@@ -22,7 +22,6 @@ config PPC_83xx
 	select FSL_SOC
 	select MPC83xx
 	select IPIC
-	select FSL_EMB_PERFMON
 
 config PPC_86xx
 	bool "Freescale 86xx"
