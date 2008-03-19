@@ -135,9 +135,9 @@ static int fifo = 0x8;	/* don't change */
 #define ni_enaint()   { outb(0, dev->base_addr + NI52_INTENA); }
 
 #define make32(ptr16) (p->memtop + (short) (ptr16))
-#define make24(ptr32) ((unsigned long)(ptr32)) - p->base
-#define make16(ptr32) ((unsigned short) ((unsigned long)(ptr32)\
-					- (unsigned long) p->memtop))
+#define make24(ptr32) ((char __iomem *)(ptr32)) - p->base
+#define make16(ptr32) ((unsigned short) ((char __iomem *)(ptr32)\
+					- p->memtop))
 
 /******************* how to calculate the buffers *****************************
 
@@ -189,7 +189,8 @@ static void    ni52_rnr_int(struct net_device *dev);
 
 struct priv {
 	struct net_device_stats stats;
-	unsigned long base;
+	char __iomem *base;
+	char __iomem *mapped;
 	char __iomem *memtop;
 	spinlock_t spinlock;
 	int reset;
@@ -304,8 +305,9 @@ static int check586(struct net_device *dev, unsigned size)
 	char __iomem *iscp_addrs[2];
 	int i;
 
-	p->base = (unsigned long) isa_bus_to_virt(where) + size - 0x01000000;
-	p->memtop = (char __iomem *)isa_bus_to_virt(where) + size;
+	p->mapped = (char __iomem *)isa_bus_to_virt(where);
+	p->base = p->mapped + size - 0x01000000;
+	p->memtop = p->mapped + size;
 	p->scp = (struct scp_struct __iomem *)(p->base + SCP_DEFAULT_ADDRESS);
 	memset_io(p->scp, 0, sizeof(struct scp_struct));
 	for (i = 0; i < sizeof(struct scp_struct); i++)
@@ -316,7 +318,7 @@ static int check586(struct net_device *dev, unsigned size)
 	if (readb(&p->scp->sysbus) != SYSBUSVAL)
 		return 0;
 
-	iscp_addrs[0] = (char __iomem *)isa_bus_to_virt(where);
+	iscp_addrs[0] = p->mapped;
 	iscp_addrs[1] = (char __iomem *)p->scp - sizeof(struct iscp_struct);
 
 	for (i = 0; i < 2; i++) {
@@ -436,6 +438,7 @@ out:
 static int __init ni52_probe1(struct net_device *dev, int ioaddr)
 {
 	int i, size, retval;
+	struct priv *priv = dev->priv;
 
 	dev->base_addr = ioaddr;
 	dev->irq = irq;
@@ -517,19 +520,18 @@ static int __init ni52_probe1(struct net_device *dev, int ioaddr)
 	dev->mem_end = dev->mem_start + size;
 #endif
 
-	memset((char *)dev->priv, 0, sizeof(struct priv));
+	memset(priv, 0, sizeof(struct priv));
 
-	((struct priv *)(dev->priv))->memtop =
-				(char __iomem *)isa_bus_to_virt(dev->mem_start) + size;
-	((struct priv *)(dev->priv))->base =  (unsigned long)
-			isa_bus_to_virt(dev->mem_start) + size - 0x01000000;
+	priv->mapped = (char __iomem *)isa_bus_to_virt(dev->mem_start);
+	priv->memtop = priv->mapped + size;
+	priv->base =  priv->mapped + size - 0x01000000;
 	alloc586(dev);
 
 	/* set number of receive-buffs according to memsize */
 	if (size == 0x2000)
-		((struct priv *) dev->priv)->num_recv_buffs = NUM_RECV_BUFFS_8;
+		priv->num_recv_buffs = NUM_RECV_BUFFS_8;
 	else
-		((struct priv *) dev->priv)->num_recv_buffs = NUM_RECV_BUFFS_16;
+		priv->num_recv_buffs = NUM_RECV_BUFFS_16;
 
 	printk(KERN_DEBUG "Memaddr: 0x%lx, Memsize: %d, ",
 				dev->mem_start, size);
@@ -959,7 +961,7 @@ static void ni52_rcv_int(struct net_device *dev)
 				if (skb != NULL) {
 					skb_reserve(skb, 2);
 					skb_put(skb, totlen);
-					skb_copy_to_linear_data(skb, (char *)p->base + (unsigned long) rbd->buffer, totlen);
+					skb_copy_to_linear_data(skb, p->base + (unsigned long) rbd->buffer, totlen);
 					skb->protocol = eth_type_trans(skb, dev);
 					netif_rx(skb);
 					dev->last_rx = jiffies;
