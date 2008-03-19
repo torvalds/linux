@@ -90,6 +90,9 @@ struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
 
 static atomic_t init_deasserted __cpuinitdata;
 
+#define smp_callin_clear_local_apic() do {} while (0)
+#define map_cpu_to_logical_apicid() do {} while (0)
+
 /*
  * Report back to the Boot Processor.
  * Running on AP.
@@ -152,8 +155,10 @@ void __cpuinit smp_callin(void)
 	 */
 
 	Dprintk("CALLIN, before setup_local_APIC().\n");
+	smp_callin_clear_local_apic();
 	setup_local_APIC();
 	end_local_APIC_setup();
+	map_cpu_to_logical_apicid();
 
 	/*
 	 * Get our bogomips.
