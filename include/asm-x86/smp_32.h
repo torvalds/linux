@@ -21,14 +21,6 @@ extern cpumask_t cpu_callin_map;
 extern void (*mtrr_hook) (void);
 extern void zap_low_mappings (void);
 
-extern u16 __initdata x86_cpu_to_apicid_init[];
-extern void *x86_cpu_to_apicid_early_ptr;
-
-DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
-DECLARE_PER_CPU(cpumask_t, cpu_core_map);
-DECLARE_PER_CPU(u16, cpu_llc_id);
-DECLARE_PER_CPU(u16, x86_cpu_to_apicid);
-
 #ifdef CONFIG_SMP
 /*
  * This function is needed by all SMP systems. It must _always_ be valid

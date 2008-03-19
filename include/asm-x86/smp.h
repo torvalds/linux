@@ -3,11 +3,23 @@
 #ifndef __ASSEMBLY__
 #include <linux/cpumask.h>
 #include <linux/init.h>
+#include <asm/percpu.h>
 
 extern cpumask_t cpu_callout_map;
 
 extern int smp_num_siblings;
 extern unsigned int num_processors;
+
+extern u16 x86_cpu_to_apicid_init[];
+extern u16 x86_bios_cpu_apicid_init[];
+extern void *x86_cpu_to_apicid_early_ptr;
+extern void *x86_bios_cpu_apicid_early_ptr;
+
+DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
+DECLARE_PER_CPU(cpumask_t, cpu_core_map);
+DECLARE_PER_CPU(u16, cpu_llc_id);
+DECLARE_PER_CPU(u16, x86_cpu_to_apicid);
+DECLARE_PER_CPU(u16, x86_bios_cpu_apicid);
 
 /*
  * Trampoline 80x86 program as an array.
