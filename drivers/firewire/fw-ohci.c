@@ -1019,20 +1019,26 @@ static void bus_reset_tasklet(unsigned long data)
 	ohci->node_id = reg & (OHCI1394_NodeID_busNumber |
 			       OHCI1394_NodeID_nodeNumber);
 
+	reg = reg_read(ohci, OHCI1394_SelfIDCount);
+	if (reg & OHCI1394_SelfIDCount_selfIDError) {
+		fw_notify("inconsistent self IDs\n");
+		return;
+	}
 	/*
 	 * The count in the SelfIDCount register is the number of
 	 * bytes in the self ID receive buffer.  Since we also receive
 	 * the inverted quadlets and a header quadlet, we shift one
 	 * bit extra to get the actual number of self IDs.
 	 */
-
-	self_id_count = (reg_read(ohci, OHCI1394_SelfIDCount) >> 3) & 0x3ff;
+	self_id_count = (reg >> 3) & 0x3ff;
 	generation = (cond_le32_to_cpu(ohci->self_id_cpu[0]) >> 16) & 0xff;
 	rmb();
 
 	for (i = 1, j = 0; j < self_id_count; i += 2, j++) {
-		if (ohci->self_id_cpu[i] != ~ohci->self_id_cpu[i + 1])
-			fw_error("inconsistent self IDs\n");
+		if (ohci->self_id_cpu[i] != ~ohci->self_id_cpu[i + 1]) {
+			fw_notify("inconsistent self IDs\n");
+			return;
+		}
 		ohci->self_id_buffer[j] =
 				cond_le32_to_cpu(ohci->self_id_cpu[i]);
 	}
