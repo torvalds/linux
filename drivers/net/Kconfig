@@ -467,6 +467,13 @@ config SNI_82596
 	  Say Y here to support the on-board Intel 82596 ethernet controller
 	  built into SNI RM machines.
 
+config KORINA
+	tristate "Korina (IDT RC32434) Ethernet support"
+	depends on NET_ETHERNET && MIKROTIK_RB500
+	help
+	  If you have a Mikrotik RouterBoard 500 or IDT RC32434
+	  based system say Y. Otherwise say N.
+
 config MIPS_JAZZ_SONIC
 	tristate "MIPS JAZZ onboard SONIC Ethernet support"
 	depends on MACH_JAZZ
