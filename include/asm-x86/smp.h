@@ -28,6 +28,13 @@ extern const unsigned char trampoline_data [];
 extern const unsigned char trampoline_end  [];
 extern unsigned char *trampoline_base;
 
+/* Static state in head.S used to set up a CPU */
+extern struct {
+	void *sp;
+	unsigned short ss;
+} stack_start;
+
+
 struct smp_ops {
 	void (*smp_prepare_boot_cpu)(void);
 	void (*smp_prepare_cpus)(unsigned max_cpus);

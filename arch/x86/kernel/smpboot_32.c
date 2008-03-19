@@ -257,12 +257,6 @@ void __devinit initialize_secondary(void)
 		:"m" (current->thread.sp),"m" (current->thread.ip));
 }
 
-/* Static state in head.S used to set up a CPU */
-extern struct {
-	void * sp;
-	unsigned short ss;
-} stack_start;
-
 static inline void __inquire_remote_apic(int apicid)
 {
 	unsigned i, regs[] = { APIC_ID >> 4, APIC_LVR >> 4, APIC_SPIV >> 4 };

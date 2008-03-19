@@ -520,13 +520,6 @@ static void __init do_boot_cpu(__u8 cpu)
 	    & ~(voyager_extended_vic_processors
 		& voyager_allowed_boot_processors);
 
-	/* This is an area in head.S which was used to set up the
-	 * initial kernel stack.  We need to alter this to give the
-	 * booting CPU a new stack (taken from its idle process) */
-	extern struct {
-		__u8 *sp;
-		unsigned short ss;
-	} stack_start;
 	/* This is the format of the CPI IDT gate (in real mode) which
 	 * we're hijacking to boot the CPU */
 	union IDTFormat {
