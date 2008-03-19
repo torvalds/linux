@@ -295,6 +295,15 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 	unsigned long send_status, accept_status = 0;
 	int maxlvt, num_starts, j;
 
+	/*
+	 * Be paranoid about clearing APIC errors.
+	 */
+	if (APIC_INTEGRATED(apic_version[phys_apicid])) {
+		apic_read_around(APIC_SPIV);
+		apic_write(APIC_ESR, 0);
+		apic_read(APIC_ESR);
+	}
+
 	Dprintk("Asserting INIT.\n");
 
 	/*
@@ -327,7 +336,10 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 	mb();
 	atomic_set(&init_deasserted, 1);
 
-	num_starts = 2;
+	if (APIC_INTEGRATED(apic_version[phys_apicid]))
+		num_starts = 2;
+	else
+		num_starts = 0;
 
 	/*
 	 * Paravirt / VMI wants a startup IPI hook here to set up the
