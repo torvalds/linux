@@ -195,11 +195,6 @@ static void __cpuinit start_secondary(void *unused)
 		enable_NMI_through_LVT0();
 		enable_8259A_irq(0);
 	}
-	/*
-	 * low-memory mappings have been cleared, flush them from
-	 * the local TLBs too.
-	 */
-	local_flush_tlb();
 
 	/* This must be done before setting cpu_online_map */
 	set_cpu_sibling_map(raw_smp_processor_id());
@@ -714,8 +709,6 @@ static void __cpuinit __smp_prepare_cpu(int cpu)
 		schedule_work(&info.task);
 		wait_for_completion(&done);
 	}
-
-	zap_low_mappings();
 }
 #endif
 
