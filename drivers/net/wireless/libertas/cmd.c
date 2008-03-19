@@ -1927,10 +1927,6 @@ static int sendconfirmsleep(struct lbs_private *priv, u8 *cmdptr, u16 size)
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_HOST);
-
-	lbs_deb_host("SEND_SLEEPC_CMD: before download, cmd size %d\n",
-	       size);
-
 	lbs_deb_hex(LBS_DEB_HOST, "sleep confirm command", cmdptr, size);
 
 	ret = priv->hw_host_to_card(priv, MVMS_CMD, cmdptr, size);
@@ -1953,8 +1949,6 @@ static int sendconfirmsleep(struct lbs_private *priv, u8 *cmdptr, u16 size)
 			       priv->intcounter);
 		}
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
-
-		lbs_deb_host("SEND_SLEEPC_CMD: sent confirm sleep\n");
 	}
 
 	lbs_deb_leave_args(LBS_DEB_HOST, "ret %d", ret);
@@ -2006,10 +2000,10 @@ void lbs_ps_wakeup(struct lbs_private *priv, int wait_option)
  *  @param psmode  	Power Saving mode
  *  @return 	   	n/a
  */
-void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
+void lbs_ps_confirm_sleep(struct lbs_private *priv)
 {
 	unsigned long flags =0;
-	u8 allowed = 1;
+	int allowed = 1;
 
 	lbs_deb_enter(LBS_DEB_HOST);
 

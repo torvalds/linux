@@ -656,13 +656,10 @@ static int lbs_get_range(struct net_device *dev, struct iw_request_info *info,
 	range->num_encoding_sizes = 2;
 	range->max_encoding_tokens = 4;
 
-	range->min_pmp = 1000000;
-	range->max_pmp = 120000000;
-	range->min_pmt = 1000;
-	range->max_pmt = 1000000;
-	range->pmp_flags = IW_POWER_PERIOD;
-	range->pmt_flags = IW_POWER_TIMEOUT;
-	range->pm_capa = IW_POWER_PERIOD | IW_POWER_TIMEOUT | IW_POWER_ALL_R;
+	/*
+	 * Right now we support only "iwconfig ethX power on|off"
+	 */
+	range->pm_capa = IW_POWER_ON;
 
 	/*
 	 * Minimum version we recommend
@@ -784,21 +781,14 @@ static int lbs_get_power(struct net_device *dev, struct iw_request_info *info,
 			  struct iw_param *vwrq, char *extra)
 {
 	struct lbs_private *priv = dev->priv;
-	int mode;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	mode = priv->psmode;
-
-	if ((vwrq->disabled = (mode == LBS802_11POWERMODECAM))
-	    || priv->connect_status == LBS_DISCONNECTED)
-	{
-		goto out;
-	}
-
 	vwrq->value = 0;
+	vwrq->flags = 0;
+	vwrq->disabled = priv->psmode == LBS802_11POWERMODECAM
+		|| priv->connect_status == LBS_DISCONNECTED;
 
-out:
 	lbs_deb_leave(LBS_DEB_WEXT);
 	return 0;
 }

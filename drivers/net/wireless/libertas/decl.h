@@ -49,7 +49,7 @@ int lbs_set_regiontable(struct lbs_private *priv, u8 region, u8 band);
 int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *);
 
 void lbs_ps_sleep(struct lbs_private *priv, int wait_option);
-void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode);
+void lbs_ps_confirm_sleep(struct lbs_private *priv);
 void lbs_ps_wakeup(struct lbs_private *priv, int wait_option);
 
 struct chan_freq_power *lbs_find_cfp_by_band_and_channel(

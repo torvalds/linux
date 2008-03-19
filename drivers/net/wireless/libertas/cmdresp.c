@@ -656,11 +656,9 @@ int lbs_process_event(struct lbs_private *priv)
 	eventcause = priv->eventcause >> SBI_EVENT_CAUSE_SHIFT;
 	spin_unlock_irq(&priv->driver_lock);
 
-	lbs_deb_cmd("event cause %d\n", eventcause);
-
 	switch (eventcause) {
 	case MACREG_INT_CODE_LINK_SENSED:
-		lbs_deb_cmd("EVENT: MACREG_INT_CODE_LINK_SENSED\n");
+		lbs_deb_cmd("EVENT: link sensed\n");
 		break;
 
 	case MACREG_INT_CODE_DEAUTHENTICATED:
@@ -679,7 +677,7 @@ int lbs_process_event(struct lbs_private *priv)
 		break;
 
 	case MACREG_INT_CODE_PS_SLEEP:
-		lbs_deb_cmd("EVENT: sleep\n");
+		lbs_deb_cmd("EVENT: ps sleep\n");
 
 		/* handle unexpected PS SLEEP event */
 		if (priv->psstate == PS_STATE_FULL_POWER) {
@@ -689,17 +687,17 @@ int lbs_process_event(struct lbs_private *priv)
 		}
 		priv->psstate = PS_STATE_PRE_SLEEP;
 
-		lbs_ps_confirm_sleep(priv, (u16) priv->psmode);
+		lbs_ps_confirm_sleep(priv);
 
 		break;
 
 	case MACREG_INT_CODE_HOST_AWAKE:
-		lbs_deb_cmd("EVENT: HOST_AWAKE\n");
+		lbs_deb_cmd("EVENT: host awake\n");
 		lbs_send_confirmwake(priv);
 		break;
 
 	case MACREG_INT_CODE_PS_AWAKE:
-		lbs_deb_cmd("EVENT: awake\n");
+		lbs_deb_cmd("EVENT: ps awake\n");
 		/* handle unexpected PS AWAKE event */
 		if (priv->psstate == PS_STATE_FULL_POWER) {
 			lbs_deb_cmd(
@@ -730,14 +728,16 @@ int lbs_process_event(struct lbs_private *priv)
 		lbs_deb_cmd("EVENT: MULTICAST MIC ERROR\n");
 		handle_mic_failureevent(priv, MACREG_INT_CODE_MIC_ERR_MULTICAST);
 		break;
-	case MACREG_INT_CODE_MIB_CHANGED:
-	case MACREG_INT_CODE_INIT_DONE:
-		break;
 
+	case MACREG_INT_CODE_MIB_CHANGED:
+		lbs_deb_cmd("EVENT: MIB CHANGED\n");
+		break;
+	case MACREG_INT_CODE_INIT_DONE:
+		lbs_deb_cmd("EVENT: INIT DONE\n");
+		break;
 	case MACREG_INT_CODE_ADHOC_BCN_LOST:
 		lbs_deb_cmd("EVENT: ADHOC beacon lost\n");
 		break;
-
 	case MACREG_INT_CODE_RSSI_LOW:
 		lbs_pr_alert("EVENT: rssi low\n");
 		break;

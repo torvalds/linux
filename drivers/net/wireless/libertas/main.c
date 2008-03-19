@@ -803,7 +803,7 @@ static int lbs_thread(void *data)
 				lbs_deb_thread("main_thread: PRE_SLEEP--intcounter=%d currenttxskb=%p dnld_sent=%d cur_cmd=%p, confirm now\n",
 					       priv->intcounter, priv->currenttxskb, priv->dnld_sent, priv->cur_cmd);
 
-				lbs_ps_confirm_sleep(priv, (u16) priv->psmode);
+				lbs_ps_confirm_sleep(priv);
 			} else {
 				/* workaround for firmware sending
 				 * deauth/linkloss event immediately
