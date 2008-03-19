@@ -310,7 +310,8 @@ static const struct oxygen_model model_generic = {
 		       CAPTURE_1_FROM_SPDIF |
 		       CAPTURE_2_FROM_AC97_1,
 	.dac_channels = 8,
-	.function_flags = OXYGEN_FUNCTION_ENABLE_SPI_4_5,
+	.function_flags = OXYGEN_FUNCTION_SPI |
+			  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
@@ -335,7 +336,8 @@ static const struct oxygen_model model_meridian = {
 		       CAPTURE_1_FROM_SPDIF |
 		       CAPTURE_2_FROM_AC97_1,
 	.dac_channels = 8,
-	.function_flags = OXYGEN_FUNCTION_ENABLE_SPI_4_5,
+	.function_flags = OXYGEN_FUNCTION_SPI |
+			  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };

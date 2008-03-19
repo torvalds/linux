@@ -353,7 +353,8 @@ static const struct oxygen_model model_xonar = {
 		       CAPTURE_0_FROM_I2S_2 |
 		       CAPTURE_1_FROM_SPDIF,
 	.dac_channels = 8,
-	.function_flags = OXYGEN_FUNCTION_ENABLE_SPI_4_5,
+	.function_flags = OXYGEN_FUNCTION_SPI |
+			  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };

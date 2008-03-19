@@ -240,12 +240,12 @@ static void oxygen_init(struct oxygen *chip)
 	chip->has_ac97_0 = (i & OXYGEN_AC97_CODEC_0) != 0;
 	chip->has_ac97_1 = (i & OXYGEN_AC97_CODEC_1) != 0;
 
-	oxygen_set_bits8(chip, OXYGEN_FUNCTION,
-			 OXYGEN_FUNCTION_RESET_CODEC |
-			 chip->model->function_flags);
 	oxygen_write8_masked(chip, OXYGEN_FUNCTION,
-			     OXYGEN_FUNCTION_SPI,
-			     OXYGEN_FUNCTION_2WIRE_SPI_MASK);
+			     OXYGEN_FUNCTION_RESET_CODEC |
+			     chip->model->function_flags,
+			     OXYGEN_FUNCTION_RESET_CODEC |
+			     OXYGEN_FUNCTION_2WIRE_SPI_MASK |
+			     OXYGEN_FUNCTION_ENABLE_SPI_4_5);
 	oxygen_write8(chip, OXYGEN_DMA_STATUS, 0);
 	oxygen_write8(chip, OXYGEN_DMA_PAUSE, 0);
 	oxygen_write8(chip, OXYGEN_PLAY_CHANNELS,

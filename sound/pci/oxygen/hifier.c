@@ -164,7 +164,7 @@ static const struct oxygen_model model_hifier = {
 		       PLAYBACK_1_TO_SPDIF |
 		       CAPTURE_0_FROM_I2S_1,
 	.dac_channels = 2,
-	.function_flags = 0,
+	.function_flags = OXYGEN_FUNCTION_SPI,
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
