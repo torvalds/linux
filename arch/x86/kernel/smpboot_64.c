@@ -824,12 +824,20 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 	return err;
 }
 
+extern void impress_friends(void);
+extern void smp_checks(void);
+
 /*
  * Finish the SMP boot.
  */
 void __init native_smp_cpus_done(unsigned int max_cpus)
 {
 	smp_cleanup_boot();
+
+	Dprintk("Boot done.\n");
+
+	impress_friends();
+	smp_checks();
 	setup_ioapic_dest();
 	check_nmi_watchdog();
 }

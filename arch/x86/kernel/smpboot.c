@@ -114,7 +114,7 @@ void smp_checks(void)
 	 * approved Athlon
 	 */
 	if (tainted & TAINT_UNSAFE_SMP) {
-		if (cpus_weight(cpu_present_map))
+		if (num_online_cpus())
 			printk(KERN_INFO "WARNING: This combination of AMD"
 				"processors is not suitable for SMP.\n");
 		else
@@ -258,7 +258,7 @@ void impress_friends(void)
 			bogosum += cpu_data(cpu).loops_per_jiffy;
 	printk(KERN_INFO
 		"Total of %d processors activated (%lu.%02lu BogoMIPS).\n",
-		cpus_weight(cpu_present_map),
+		num_online_cpus(),
 		bogosum/(500000/HZ),
 		(bogosum/(5000/HZ))%100);
 

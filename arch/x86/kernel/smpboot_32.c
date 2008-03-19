@@ -788,8 +788,6 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	return 0;
 }
 
-extern void impress_friends(void);
-extern void smp_checks(void);
 /*
  * Cycle through the processors sending APIC IPIs to boot each.
  */
@@ -857,14 +855,6 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 			++kicked;
 	}
 
-	/*
-	 * Cleanup possible dangling ends...
-	 */
-	smpboot_restore_warm_reset_vector();
-
-	impress_friends();
-
-	smp_checks();
 	/*
 	 * construct cpu_sibling_map, so that we can tell sibling CPUs
 	 * efficiently.
@@ -959,8 +949,20 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 	return 0;
 }
 
+extern void impress_friends(void);
+extern void smp_checks(void);
+
 void __init native_smp_cpus_done(unsigned int max_cpus)
 {
+	/*
+	 * Cleanup possible dangling ends...
+	 */
+	smpboot_restore_warm_reset_vector();
+
+	Dprintk("Boot done.\n");
+
+	impress_friends();
+	smp_checks();
 #ifdef CONFIG_X86_IO_APIC
 	setup_ioapic_dest();
 #endif
