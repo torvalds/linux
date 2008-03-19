@@ -3,3 +3,6 @@
 #else
 # include "io_64.h"
 #endif
+extern int ioremap_change_attr(unsigned long vaddr, unsigned long size,
+				unsigned long prot_val);
+

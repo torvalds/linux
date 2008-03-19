@@ -20,11 +20,6 @@
 #include <asm/tlbflush.h>
 #include <asm/pgalloc.h>
 
-enum ioremap_mode {
-	IOR_MODE_UNCACHED,
-	IOR_MODE_CACHED,
-};
-
 #ifdef CONFIG_X86_64
 
 unsigned long __phys_addr(unsigned long x)
@@ -90,18 +85,18 @@ int page_is_ram(unsigned long pagenr)
  * Fix up the linear direct mapping of the kernel to avoid cache attribute
  * conflicts.
  */
-static int ioremap_change_attr(unsigned long vaddr, unsigned long size,
-			       enum ioremap_mode mode)
+int ioremap_change_attr(unsigned long vaddr, unsigned long size,
+			       unsigned long prot_val)
 {
 	unsigned long nrpages = size >> PAGE_SHIFT;
 	int err;
 
-	switch (mode) {
-	case IOR_MODE_UNCACHED:
+	switch (prot_val) {
+	case _PAGE_CACHE_UC:
 	default:
 		err = set_memory_uc(vaddr, nrpages);
 		break;
-	case IOR_MODE_CACHED:
+	case _PAGE_CACHE_WB:
 		err = set_memory_wb(vaddr, nrpages);
 		break;
 	}
@@ -119,7 +114,7 @@ static int ioremap_change_attr(unsigned long vaddr, unsigned long size,
  * caller shouldn't need to know that small detail.
  */
 static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
-			       enum ioremap_mode mode)
+			       unsigned long prot_val)
 {
 	unsigned long pfn, offset, last_addr, vaddr;
 	struct vm_struct *area;
@@ -156,12 +151,12 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 		WARN_ON_ONCE(is_ram);
 	}
 
-	switch (mode) {
-	case IOR_MODE_UNCACHED:
+	switch (prot_val) {
+	case _PAGE_CACHE_UC:
 	default:
 		prot = PAGE_KERNEL_NOCACHE;
 		break;
-	case IOR_MODE_CACHED:
+	case _PAGE_CACHE_WB:
 		prot = PAGE_KERNEL;
 		break;
 	}
@@ -186,7 +181,7 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 		return NULL;
 	}
 
-	if (ioremap_change_attr(vaddr, size, mode) < 0) {
+	if (ioremap_change_attr(vaddr, size, prot_val) < 0) {
 		vunmap(area->addr);
 		return NULL;
 	}
@@ -217,13 +212,13 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
  */
 void __iomem *ioremap_nocache(resource_size_t phys_addr, unsigned long size)
 {
-	return __ioremap(phys_addr, size, IOR_MODE_UNCACHED);
+	return __ioremap(phys_addr, size, _PAGE_CACHE_UC);
 }
 EXPORT_SYMBOL(ioremap_nocache);
 
 void __iomem *ioremap_cache(resource_size_t phys_addr, unsigned long size)
 {
-	return __ioremap(phys_addr, size, IOR_MODE_CACHED);
+	return __ioremap(phys_addr, size, _PAGE_CACHE_WB);
 }
 EXPORT_SYMBOL(ioremap_cache);
 
