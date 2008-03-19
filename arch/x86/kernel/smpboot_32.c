@@ -59,8 +59,6 @@
 #include <asm/vmi.h>
 #include <asm/mtrr.h>
 
-static cpumask_t smp_commenced_mask;
-
 /* which logical CPU number maps to which CPU (physical APIC ID) */
 u16 x86_cpu_to_apicid_init[NR_CPUS] __initdata =
 			{ [0 ... NR_CPUS-1] = BAD_APICID };
@@ -180,8 +178,6 @@ static void __cpuinit start_secondary(void *unused)
 	cpu_init();
 	preempt_disable();
 	smp_callin();
-	while (!cpu_isset(smp_processor_id(), smp_commenced_mask))
-		cpu_relax();
 
 	/* otherwise gcc will move up smp_processor_id before the cpu_init */
 	barrier();
@@ -667,7 +663,6 @@ void cpu_exit_clear(void)
 	cpu_clear(cpu, cpu_callout_map);
 	cpu_clear(cpu, cpu_callin_map);
 
-	cpu_clear(cpu, smp_commenced_mask);
 	unmap_cpu_to_logical_apicid(cpu);
 }
 #endif
@@ -827,7 +822,6 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 void __init native_smp_prepare_cpus(unsigned int max_cpus)
 {
 	nmi_watchdog_default();
-	smp_commenced_mask = cpumask_of_cpu(0);
 	cpu_callin_map = cpumask_of_cpu(0);
 	mb();
 	smp_boot_cpus(max_cpus);
@@ -869,8 +863,6 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 		return -EIO;
 	}
 
-	/* Unleash the CPU! */
-	cpu_set(cpu, smp_commenced_mask);
 
 	/*
 	 * Check TSC synchronization with the AP (keep irqs disabled
