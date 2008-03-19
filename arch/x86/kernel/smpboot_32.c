@@ -670,6 +670,7 @@ void cpu_exit_clear(void)
 	cpu_clear(cpu, smp_commenced_mask);
 	unmap_cpu_to_logical_apicid(cpu);
 }
+#endif
 
 struct warm_boot_cpu_info {
 	struct completion *complete;
@@ -710,7 +711,6 @@ static void __cpuinit __smp_prepare_cpu(int cpu)
 		wait_for_completion(&done);
 	}
 }
-#endif
 
 static int boot_cpu_logical_apicid;
 /* Where the IO area was mapped on multiquad, always 0 otherwise */
@@ -790,8 +790,6 @@ static int __init smp_sanity_check(unsigned max_cpus)
  */
 static void __init smp_boot_cpus(unsigned int max_cpus)
 {
-	int apicid, cpu, bit, kicked;
-
 	/*
 	 * Setup boot CPU information
 	 */
@@ -818,39 +816,6 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 
 
 	setup_portio_remap();
-
-	/*
-	 * Scan the CPU present map and fire up the other CPUs via do_boot_cpu
-	 *
-	 * In clustered apic mode, phys_cpu_present_map is a constructed thus:
-	 * bits 0-3 are quad0, 4-7 are quad1, etc. A perverse twist on the 
-	 * clustered apic ID.
-	 */
-	Dprintk("CPU present map: %lx\n", physids_coerce(phys_cpu_present_map));
-
-	kicked = 1;
-	for (bit = 0; kicked < NR_CPUS && bit < MAX_APICS; bit++) {
-		apicid = cpu_present_to_apicid(bit);
-		/*
-		 * Don't even attempt to start the boot CPU!
-		 */
-		if ((apicid == boot_cpu_apicid) || (apicid == BAD_APICID))
-			continue;
-
-		if (!check_apicid_present(bit))
-			continue;
-		if (max_cpus <= cpus_weight(cpu_present_map))
-			continue;
-		/* Utterly temporary */
-		for (cpu = 0; cpu < NR_CPUS; cpu++)
-			if (per_cpu(x86_cpu_to_apicid, cpu) == apicid)
-				break;
-		if (do_boot_cpu(apicid, cpu))
-			printk("CPU #%d not responding - cannot use it.\n",
-								apicid);
-		else
-			++kicked;
-	}
 
 	smpboot_setup_io_apic();
 
@@ -895,17 +860,8 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 	}
 
 	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
-#ifdef CONFIG_HOTPLUG_CPU
 
-	/*
-	 * We do warm boot only on cpus that had booted earlier
-	 * Otherwise cold boot is all handled from smp_boot_cpus().
-	 * cpu_callin_map is set during AP kickstart process. Its reset
-	 * when a cpu is taken offline from cpu_exit_clear().
-	 */
-	if (!cpu_isset(cpu, cpu_callin_map))
-		__smp_prepare_cpu(cpu);
-#endif
+	__smp_prepare_cpu(cpu);
 
 	/* In case one didn't come up */
 	if (!cpu_isset(cpu, cpu_callin_map)) {
