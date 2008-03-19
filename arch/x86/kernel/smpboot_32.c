@@ -889,10 +889,7 @@ void __init native_smp_prepare_boot_cpu(void)
 	init_gdt(cpu);
 	switch_to_new_gdt();
 
-	cpu_set(cpu, cpu_online_map);
 	cpu_set(cpu, cpu_callout_map);
-	cpu_set(cpu, cpu_present_map);
-	cpu_set(cpu, cpu_possible_map);
 	__get_cpu_var(cpu_state) = CPU_ONLINE;
 }
 
