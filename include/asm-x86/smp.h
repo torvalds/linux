@@ -88,6 +88,8 @@ extern void prefill_possible_map(void);
 
 #define SMP_TRAMPOLINE_BASE 0x6000
 extern unsigned long setup_trampoline(void);
+
+void smp_store_cpu_info(int id);
 #endif
 
 #ifdef CONFIG_X86_32

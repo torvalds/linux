@@ -59,8 +59,7 @@
 #include <asm/vmi.h>
 #include <asm/mtrr.h>
 
-/* Set if we find a B stepping CPU */
-static int __cpuinitdata smp_b_stepping;
+extern int smp_b_stepping;
 
 static cpumask_t smp_commenced_mask;
 
@@ -77,74 +76,6 @@ static void map_cpu_to_logical_apicid(void);
 
 /* State of each CPU. */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
-
-static void __cpuinit smp_apply_quirks(struct cpuinfo_x86 *c)
-{
-	/*
-	 * Mask B, Pentium, but not Pentium MMX
-	 */
-	if (c->x86_vendor == X86_VENDOR_INTEL &&
-	    c->x86 == 5 &&
-	    c->x86_mask >= 1 && c->x86_mask <= 4 &&
-	    c->x86_model <= 3)
-		/*
-		 * Remember we have B step Pentia with bugs
-		 */
-		smp_b_stepping = 1;
-
-	/*
-	 * Certain Athlons might work (for various values of 'work') in SMP
-	 * but they are not certified as MP capable.
-	 */
-	if ((c->x86_vendor == X86_VENDOR_AMD) && (c->x86 == 6)) {
-
-		if (num_possible_cpus() == 1)
-			goto valid_k7;
-
-		/* Athlon 660/661 is valid. */	
-		if ((c->x86_model==6) && ((c->x86_mask==0) || (c->x86_mask==1)))
-			goto valid_k7;
-
-		/* Duron 670 is valid */
-		if ((c->x86_model==7) && (c->x86_mask==0))
-			goto valid_k7;
-
-		/*
-		 * Athlon 662, Duron 671, and Athlon >model 7 have capability bit.
-		 * It's worth noting that the A5 stepping (662) of some Athlon XP's
-		 * have the MP bit set.
-		 * See http://www.heise.de/newsticker/data/jow-18.10.01-000 for more.
-		 */
-		if (((c->x86_model==6) && (c->x86_mask>=2)) ||
-		    ((c->x86_model==7) && (c->x86_mask>=1)) ||
-		     (c->x86_model> 7))
-			if (cpu_has_mp)
-				goto valid_k7;
-
-		/* If we get here, it's not a certified SMP capable AMD system. */
-		add_taint(TAINT_UNSAFE_SMP);
-	}
-
-valid_k7:
-	;
-
-}
-
-/*
- * The bootstrap kernel entry code has set these up. Save them for
- * a given CPU
- */
-
-void __cpuinit smp_store_cpu_info(int id)
-{
-	struct cpuinfo_x86 *c = &cpu_data(id);
-
-	*c = boot_cpu_data;
-	c->cpu_index = id;
-	if (id != 0)
-		identify_secondary_cpu(c);
-	smp_apply_quirks(c);
-}
 
 static atomic_t init_deasserted;
 

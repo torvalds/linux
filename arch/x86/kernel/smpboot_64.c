@@ -85,21 +85,6 @@ struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
 #define set_idle_for_cpu(x,p)   (idle_thread_array[(x)] = (p))
 #endif
 
-/*
- * The bootstrap kernel entry code has set these up. Save them for
- * a given CPU
- */
-
-static void __cpuinit smp_store_cpu_info(int id)
-{
-	struct cpuinfo_x86 *c = &cpu_data(id);
-
-	*c = boot_cpu_data;
-	c->cpu_index = id;
-	if (id != 0)
-		identify_secondary_cpu(c);
-}
-
 static inline void wait_for_init_deassert(atomic_t *deassert)
 {
 	while (!atomic_read(deassert))

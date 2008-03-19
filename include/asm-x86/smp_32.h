@@ -42,8 +42,6 @@ DECLARE_PER_CPU(int, cpu_number);
 
 extern int safe_smp_processor_id(void);
 
-void __cpuinit smp_store_cpu_info(int id);
-
 /* We don't mark CPUs online until __cpu_up(), so we need another measure */
 static inline int num_booting_cpus(void)
 {
