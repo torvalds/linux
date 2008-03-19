@@ -19,6 +19,7 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/pgalloc.h>
+#include <asm/pat.h>
 
 #ifdef CONFIG_X86_64
 
@@ -118,6 +119,7 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 {
 	unsigned long pfn, offset, last_addr, vaddr;
 	struct vm_struct *area;
+	unsigned long new_prot_val;
 	pgprot_t prot;
 
 	/* Don't allow wraparound or zero size */
@@ -151,6 +153,28 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 		WARN_ON_ONCE(is_ram);
 	}
 
+	/*
+	 * Mappings have to be page-aligned
+	 */
+	offset = phys_addr & ~PAGE_MASK;
+	phys_addr &= PAGE_MASK;
+	size = PAGE_ALIGN(last_addr+1) - phys_addr;
+
+	if (reserve_memtype(phys_addr, phys_addr + size,
+	                    prot_val, &new_prot_val)) {
+		/*
+		 * Do not fallback to certain memory types with certain
+		 * requested type:
+		 * - request is uncached, return cannot be write-back
+		 */
+		if ((prot_val == _PAGE_CACHE_UC &&
+		     new_prot_val == _PAGE_CACHE_WB)) {
+			free_memtype(phys_addr, phys_addr + size);
+			return NULL;
+		}
+		prot_val = new_prot_val;
+	}
+
 	switch (prot_val) {
 	case _PAGE_CACHE_UC:
 	default:
@@ -162,13 +186,6 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 	}
 
 	/*
-	 * Mappings have to be page-aligned
-	 */
-	offset = phys_addr & ~PAGE_MASK;
-	phys_addr &= PAGE_MASK;
-	size = PAGE_ALIGN(last_addr+1) - phys_addr;
-
-	/*
 	 * Ok, go for it..
 	 */
 	area = get_vm_area(size, VM_IOREMAP);
@@ -177,11 +194,13 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 	area->phys_addr = phys_addr;
 	vaddr = (unsigned long) area->addr;
 	if (ioremap_page_range(vaddr, vaddr + size, phys_addr, prot)) {
+		free_memtype(phys_addr, phys_addr + size);
 		free_vm_area(area);
 		return NULL;
 	}
 
 	if (ioremap_change_attr(vaddr, size, prot_val) < 0) {
+		free_memtype(phys_addr, phys_addr + size);
 		vunmap(area->addr);
 		return NULL;
 	}
@@ -264,6 +283,8 @@ void iounmap(volatile void __iomem *addr)
 		dump_stack();
 		return;
 	}
+
+	free_memtype(p->phys_addr, p->phys_addr + get_vm_area_size(p));
 
 	/* Finally remove it */
 	o = remove_vm_area((void *)addr);
