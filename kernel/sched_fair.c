@@ -73,13 +73,13 @@ unsigned int sysctl_sched_batch_wakeup_granularity = 10000000UL;
 
 /*
  * SCHED_OTHER wake-up granularity.
- * (default: 10 msec * (1 + ilog(ncpus)), units: nanoseconds)
+ * (default: 5 msec * (1 + ilog(ncpus)), units: nanoseconds)
  *
  * This option delays the preemption effects of decoupled workloads
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
-unsigned int sysctl_sched_wakeup_granularity = 10000000UL;
+unsigned int sysctl_sched_wakeup_granularity = 5000000UL;
 
 const_debug unsigned int sysctl_sched_migration_cost = 500000UL;
 
@@ -556,6 +556,21 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 	account_entity_enqueue(cfs_rq, se);
 }
 
+static void update_avg(u64 *avg, u64 sample)
+{
+	s64 diff = sample - *avg;
+	*avg += diff >> 3;
+}
+
+static void update_avg_stats(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	if (!se->last_wakeup)
+		return;
+
+	update_avg(&se->avg_overlap, se->sum_exec_runtime - se->last_wakeup);
+	se->last_wakeup = 0;
+}
+
 static void
 dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 {
@@ -566,6 +581,7 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 
 	update_stats_dequeue(cfs_rq, se);
 	if (sleep) {
+		update_avg_stats(cfs_rq, se);
 #ifdef CONFIG_SCHEDSTATS
 		if (entity_is_task(se)) {
 			struct task_struct *tsk = task_of(se);
@@ -980,96 +996,121 @@ static inline int wake_idle(int cpu, struct task_struct *p)
 #endif
 
 #ifdef CONFIG_SMP
+
+static const struct sched_class fair_sched_class;
+
+static int
+wake_affine(struct rq *rq, struct sched_domain *this_sd, struct rq *this_rq,
+	    struct task_struct *p, int prev_cpu, int this_cpu, int sync,
+	    int idx, unsigned long load, unsigned long this_load,
+	    unsigned int imbalance)
+{
+	struct task_struct *curr = this_rq->curr;
+	unsigned long tl = this_load;
+	unsigned long tl_per_task;
+
+	if (!(this_sd->flags & SD_WAKE_AFFINE))
+		return 0;
+
+	/*
+	 * If the currently running task will sleep within
+	 * a reasonable amount of time then attract this newly
+	 * woken task:
+	 */
+	if (sync && curr->sched_class == &fair_sched_class) {
+		if (curr->se.avg_overlap < sysctl_sched_migration_cost &&
+				p->se.avg_overlap < sysctl_sched_migration_cost)
+			return 1;
+	}
+
+	schedstat_inc(p, se.nr_wakeups_affine_attempts);
+	tl_per_task = cpu_avg_load_per_task(this_cpu);
+
+	/*
+	 * If sync wakeup then subtract the (maximum possible)
+	 * effect of the currently running task from the load
+	 * of the current CPU:
+	 */
+	if (sync)
+		tl -= current->se.load.weight;
+
+	if ((tl <= load && tl + target_load(prev_cpu, idx) <= tl_per_task) ||
+			100*(tl + p->se.load.weight) <= imbalance*load) {
+		/*
+		 * This domain has SD_WAKE_AFFINE and
+		 * p is cache cold in this domain, and
+		 * there is no bad imbalance.
+		 */
+		schedstat_inc(this_sd, ttwu_move_affine);
+		schedstat_inc(p, se.nr_wakeups_affine);
+
+		return 1;
+	}
+	return 0;
+}
+
 static int select_task_rq_fair(struct task_struct *p, int sync)
 {
-	int cpu, this_cpu;
-	struct rq *rq;
 	struct sched_domain *sd, *this_sd = NULL;
-	int new_cpu;
+	int prev_cpu, this_cpu, new_cpu;
+	unsigned long load, this_load;
+	struct rq *rq, *this_rq;
+	unsigned int imbalance;
+	int idx;
 
-	cpu      = task_cpu(p);
-	rq       = task_rq(p);
-	this_cpu = smp_processor_id();
-	new_cpu  = cpu;
+	prev_cpu	= task_cpu(p);
+	rq		= task_rq(p);
+	this_cpu	= smp_processor_id();
+	this_rq		= cpu_rq(this_cpu);
+	new_cpu		= prev_cpu;
 
-	if (cpu == this_cpu)
-		goto out_set_cpu;
-
+	/*
+	 * 'this_sd' is the first domain that both
+	 * this_cpu and prev_cpu are present in:
+	 */
 	for_each_domain(this_cpu, sd) {
-		if (cpu_isset(cpu, sd->span)) {
+		if (cpu_isset(prev_cpu, sd->span)) {
 			this_sd = sd;
 			break;
 		}
 	}
 
 	if (unlikely(!cpu_isset(this_cpu, p->cpus_allowed)))
-		goto out_set_cpu;
+		goto out;
 
 	/*
 	 * Check for affine wakeup and passive balancing possibilities.
 	 */
-	if (this_sd) {
-		int idx = this_sd->wake_idx;
-		unsigned int imbalance;
-		unsigned long load, this_load;
+	if (!this_sd)
+		goto out;
 
-		imbalance = 100 + (this_sd->imbalance_pct - 100) / 2;
+	idx = this_sd->wake_idx;
 
-		load = source_load(cpu, idx);
-		this_load = target_load(this_cpu, idx);
+	imbalance = 100 + (this_sd->imbalance_pct - 100) / 2;
 
-		new_cpu = this_cpu; /* Wake to this CPU if we can */
+	load = source_load(prev_cpu, idx);
+	this_load = target_load(this_cpu, idx);
 
-		if (this_sd->flags & SD_WAKE_AFFINE) {
-			unsigned long tl = this_load;
-			unsigned long tl_per_task;
+	if (wake_affine(rq, this_sd, this_rq, p, prev_cpu, this_cpu, sync, idx,
+				     load, this_load, imbalance))
+		return this_cpu;
 
-			/*
-			 * Attract cache-cold tasks on sync wakeups:
-			 */
-			if (sync && !task_hot(p, rq->clock, this_sd))
-				goto out_set_cpu;
+	if (prev_cpu == this_cpu)
+		goto out;
 
-			schedstat_inc(p, se.nr_wakeups_affine_attempts);
-			tl_per_task = cpu_avg_load_per_task(this_cpu);
-
-			/*
-			 * If sync wakeup then subtract the (maximum possible)
-			 * effect of the currently running task from the load
-			 * of the current CPU:
-			 */
-			if (sync)
-				tl -= current->se.load.weight;
-
-			if ((tl <= load &&
-				tl + target_load(cpu, idx) <= tl_per_task) ||
-			       100*(tl + p->se.load.weight) <= imbalance*load) {
-				/*
-				 * This domain has SD_WAKE_AFFINE and
-				 * p is cache cold in this domain, and
-				 * there is no bad imbalance.
-				 */
-				schedstat_inc(this_sd, ttwu_move_affine);
-				schedstat_inc(p, se.nr_wakeups_affine);
-				goto out_set_cpu;
-			}
-		}
-
-		/*
-		 * Start passive balancing when half the imbalance_pct
-		 * limit is reached.
-		 */
-		if (this_sd->flags & SD_WAKE_BALANCE) {
-			if (imbalance*this_load <= 100*load) {
-				schedstat_inc(this_sd, ttwu_move_balance);
-				schedstat_inc(p, se.nr_wakeups_passive);
-				goto out_set_cpu;
-			}
+	/*
+	 * Start passive balancing when half the imbalance_pct
+	 * limit is reached.
+	 */
+	if (this_sd->flags & SD_WAKE_BALANCE) {
+		if (imbalance*this_load <= 100*load) {
+			schedstat_inc(this_sd, ttwu_move_balance);
+			schedstat_inc(p, se.nr_wakeups_passive);
+			return this_cpu;
 		}
 	}
 
-	new_cpu = cpu; /* Could not wake to this_cpu. Wake to cpu instead */
-out_set_cpu:
+out:
 	return wake_idle(new_cpu, p);
 }
 #endif /* CONFIG_SMP */
@@ -1091,6 +1132,10 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 		resched_task(curr);
 		return;
 	}
+
+	se->last_wakeup = se->sum_exec_runtime;
+	if (unlikely(se == pse))
+		return;
 
 	cfs_rq_of(pse)->next = pse;
 

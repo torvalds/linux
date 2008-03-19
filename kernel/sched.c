@@ -1396,6 +1396,12 @@ task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
 {
 	s64 delta;
 
+	/*
+	 * Buddy candidates are cache hot:
+	 */
+	if (&p->se == cfs_rq_of(&p->se)->next)
+		return 1;
+
 	if (p->sched_class != &fair_sched_class)
 		return 0;
 
@@ -1855,10 +1861,11 @@ out_activate:
 		schedstat_inc(p, se.nr_wakeups_remote);
 	update_rq_clock(rq);
 	activate_task(rq, p, 1);
-	check_preempt_curr(rq, p);
 	success = 1;
 
 out_running:
+	check_preempt_curr(rq, p);
+
 	p->state = TASK_RUNNING;
 #ifdef CONFIG_SMP
 	if (p->sched_class->task_wake_up)
@@ -1892,6 +1899,8 @@ static void __sched_fork(struct task_struct *p)
 	p->se.exec_start		= 0;
 	p->se.sum_exec_runtime		= 0;
 	p->se.prev_sum_exec_runtime	= 0;
+	p->se.last_wakeup		= 0;
+	p->se.avg_overlap		= 0;
 
 #ifdef CONFIG_SCHEDSTATS
 	p->se.wait_start		= 0;
