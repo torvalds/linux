@@ -214,9 +214,6 @@ static void __cpuinit start_secondary(void *unused)
 	unlock_ipi_call_lock();
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
 
-	/* We can take interrupts now: we're officially "up". */
-	local_irq_enable();
-
 	wmb();
 	cpu_idle();
 }
