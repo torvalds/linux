@@ -1145,9 +1145,6 @@ static int rt2x00lib_initialize(struct rt2x00_dev *rt2x00dev)
 
 	return 0;
 
-exit_unitialize:
-	rt2x00lib_uninitialize(rt2x00dev);
-
 exit:
 	rt2x00lib_free_ring_entries(rt2x00dev);
 
