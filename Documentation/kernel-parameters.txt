@@ -812,6 +812,19 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	inttest=	[IA64]
 
+	iommu=		[x86]
+		off
+		force
+		noforce
+		biomerge
+		panic
+		nopanic
+		merge
+		nomerge
+		forcesac
+		soft
+
+
 	intel_iommu=	[DMAR] Intel IOMMU driver (DMAR) option
 		off
 			Disable intel iommu driver.
