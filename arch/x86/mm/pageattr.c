@@ -787,6 +787,25 @@ int set_memory_uc(unsigned long addr, int numpages)
 }
 EXPORT_SYMBOL(set_memory_uc);
 
+int _set_memory_wc(unsigned long addr, int numpages)
+{
+	return change_page_attr_set(addr, numpages,
+				    __pgprot(_PAGE_CACHE_WC));
+}
+
+int set_memory_wc(unsigned long addr, int numpages)
+{
+	if (!pat_wc_enabled)
+		return set_memory_uc(addr, numpages);
+
+	if (reserve_memtype(addr, addr + numpages * PAGE_SIZE,
+		_PAGE_CACHE_WC, NULL))
+		return -EINVAL;
+
+	return _set_memory_wc(addr, numpages);
+}
+EXPORT_SYMBOL(set_memory_wc);
+
 int _set_memory_wb(unsigned long addr, int numpages)
 {
 	return change_page_attr_clear(addr, numpages,
