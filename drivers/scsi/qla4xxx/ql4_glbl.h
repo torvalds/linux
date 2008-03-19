@@ -70,6 +70,8 @@ int qla4xxx_reinitialize_ddb_list(struct scsi_qla_host * ha);
 int qla4xxx_process_ddb_changed(struct scsi_qla_host * ha,
 				uint32_t fw_ddb_index, uint32_t state);
 void qla4xxx_dump_buffer(void *b, uint32_t size);
+int qla4xxx_send_marker_iocb(struct scsi_qla_host *ha,
+	struct ddb_entry *ddb_entry, int lun, uint16_t mrkr_mod);
 
 extern int ql4xextended_error_logging;
 extern int ql4xdiscoverywait;

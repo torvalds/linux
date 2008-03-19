@@ -1552,9 +1552,6 @@ static int qla4xxx_eh_device_reset(struct scsi_cmnd *cmd)
 		goto eh_dev_reset_done;
 	}
 
-	/* Send marker. */
-	ha->marker_needed = 1;
-
 	if (qla4xxx_eh_wait_for_commands(ha, scsi_target(cmd->device),
 					 cmd->device)) {
 		dev_info(&ha->pdev->dev,
@@ -1562,6 +1559,11 @@ static int qla4xxx_eh_device_reset(struct scsi_cmnd *cmd)
 			   "commands.\n");
 		goto eh_dev_reset_done;
 	}
+
+	/* Send marker. */
+	if (qla4xxx_send_marker_iocb(ha, ddb_entry, cmd->device->lun,
+		MM_LUN_RESET) != QLA_SUCCESS)
+		goto eh_dev_reset_done;
 
 	dev_info(&ha->pdev->dev,
 		   "scsi(%ld:%d:%d:%d): DEVICE RESET SUCCEEDED.\n",
@@ -1606,14 +1608,20 @@ static int qla4xxx_eh_target_reset(struct scsi_cmnd *cmd)
 		return FAILED;
 	}
 
-	/* Send marker. */
-	ha->marker_needed = 1;
-
 	if (qla4xxx_eh_wait_for_commands(ha, scsi_target(cmd->device),
 					 NULL)) {
 		starget_printk(KERN_INFO, scsi_target(cmd->device),
 			       "WARM TARGET DEVICE RESET FAILED - "
 			       "waiting for commands.\n");
+		return FAILED;
+	}
+
+	/* Send marker. */
+	if (qla4xxx_send_marker_iocb(ha, ddb_entry, cmd->device->lun,
+		MM_TGT_WARM_RESET) != QLA_SUCCESS) {
+		starget_printk(KERN_INFO, scsi_target(cmd->device),
+			       "WARM TARGET DEVICE RESET FAILED - "
+			       "marker iocb failed.\n");
 		return FAILED;
 	}
 

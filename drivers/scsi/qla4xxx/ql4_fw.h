@@ -678,7 +678,8 @@ struct qla4_marker_entry {
 	uint32_t system_defined; /* 04-07 */
 	uint16_t target;	/* 08-09 */
 	uint16_t modifier;	/* 0A-0B */
-#define MM_LUN_RESET	     0
+#define MM_LUN_RESET		0
+#define MM_TGT_WARM_RESET	1
 
 	uint16_t flags;		/* 0C-0D */
 	uint16_t reserved1;	/* 0E-0F */
