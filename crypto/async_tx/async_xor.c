@@ -271,7 +271,7 @@ async_xor_zero_sum(struct page *dest, struct page **src_list,
 
 	BUG_ON(src_cnt <= 1);
 
-	if (device) {
+	if (device && src_cnt <= device->max_xor) {
 		dma_addr_t *dma_src = (dma_addr_t *) src_list;
 		unsigned long dma_prep_flags = cb_fn ? DMA_PREP_INTERRUPT : 0;
 		int i;
