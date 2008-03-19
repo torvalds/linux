@@ -481,6 +481,7 @@ struct iwl4965_tid_data {
 struct iwl4965_hw_key {
 	enum ieee80211_key_alg alg;
 	int keylen;
+	struct ieee80211_key_conf *conf;
 	u8 key[32];
 };
 
