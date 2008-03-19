@@ -267,20 +267,20 @@ static void oxygen_init(struct oxygen *chip)
 		      (OXYGEN_FORMAT_16 << OXYGEN_MULTICH_FORMAT_SHIFT));
 	oxygen_write8(chip, OXYGEN_REC_CHANNELS, OXYGEN_REC_CHANNELS_2_2_2);
 	oxygen_write16(chip, OXYGEN_I2S_MULTICH_FORMAT,
-		       OXYGEN_RATE_48000 | OXYGEN_I2S_FORMAT_LJUST |
-		       OXYGEN_I2S_MCLK_128 | OXYGEN_I2S_BITS_16 |
+		       OXYGEN_RATE_48000 | chip->model->dac_i2s_format |
+		       OXYGEN_I2S_MCLK_256 | OXYGEN_I2S_BITS_16 |
 		       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
 	oxygen_write16(chip, OXYGEN_I2S_A_FORMAT,
-		       OXYGEN_RATE_48000 | OXYGEN_I2S_FORMAT_LJUST |
-		       OXYGEN_I2S_MCLK_128 | OXYGEN_I2S_BITS_16 |
+		       OXYGEN_RATE_48000 | chip->model->adc_i2s_format |
+		       OXYGEN_I2S_MCLK_256 | OXYGEN_I2S_BITS_16 |
 		       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
 	oxygen_write16(chip, OXYGEN_I2S_B_FORMAT,
-		       OXYGEN_RATE_48000 | OXYGEN_I2S_FORMAT_LJUST |
-		       OXYGEN_I2S_MCLK_128 | OXYGEN_I2S_BITS_16 |
+		       OXYGEN_RATE_48000 | chip->model->adc_i2s_format |
+		       OXYGEN_I2S_MCLK_256 | OXYGEN_I2S_BITS_16 |
 		       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
 	oxygen_write16(chip, OXYGEN_I2S_C_FORMAT,
-		       OXYGEN_RATE_48000 | OXYGEN_I2S_FORMAT_LJUST |
-		       OXYGEN_I2S_MCLK_128 | OXYGEN_I2S_BITS_16 |
+		       OXYGEN_RATE_48000 | chip->model->adc_i2s_format |
+		       OXYGEN_I2S_MCLK_256 | OXYGEN_I2S_BITS_16 |
 		       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
 	oxygen_write32_masked(chip, OXYGEN_SPDIF_CONTROL,
 			      OXYGEN_SPDIF_SENSE_MASK |
