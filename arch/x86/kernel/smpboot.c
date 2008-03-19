@@ -25,6 +25,27 @@
 #include <mach_wakecpu.h>
 #include <smpboot_hooks.h>
 
+/*
+ * FIXME: For x86_64, those are defined in other files. But moving them here,
+ * would make the setup areas dependent on smp, which is a loss. When we
+ * integrate apic between arches, we can probably do a better job, but
+ * right now, they'll stay here -- glommer
+ */
+#ifdef CONFIG_X86_32
+/* which logical CPU number maps to which CPU (physical APIC ID) */
+u16 x86_cpu_to_apicid_init[NR_CPUS] __initdata =
+			{ [0 ... NR_CPUS-1] = BAD_APICID };
+void *x86_cpu_to_apicid_early_ptr;
+DEFINE_PER_CPU(u16, x86_cpu_to_apicid) = BAD_APICID;
+EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
+
+u16 x86_bios_cpu_apicid_init[NR_CPUS] __initdata
+				= { [0 ... NR_CPUS-1] = BAD_APICID };
+void *x86_bios_cpu_apicid_early_ptr;
+DEFINE_PER_CPU(u16, x86_bios_cpu_apicid) = BAD_APICID;
+EXPORT_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
+#endif
+
 /* State of each CPU */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
 
