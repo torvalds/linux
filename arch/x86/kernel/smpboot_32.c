@@ -742,6 +742,15 @@ void *xquad_portio;
 EXPORT_SYMBOL(xquad_portio);
 #endif
 
+static void __init disable_smp(void)
+{
+	smpboot_clear_io_apic_irqs();
+	phys_cpu_present_map = physid_mask_of_physid(0);
+	map_cpu_to_logical_apicid();
+	cpu_set(0, per_cpu(cpu_sibling_map, 0));
+	cpu_set(0, per_cpu(cpu_core_map, 0));
+}
+
 static int __init smp_sanity_check(unsigned max_cpus)
 {
 	/*
@@ -750,14 +759,10 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	 */
 	if (!smp_found_config && !acpi_lapic) {
 		printk(KERN_NOTICE "SMP motherboard not detected.\n");
-		smpboot_clear_io_apic_irqs();
-		phys_cpu_present_map = physid_mask_of_physid(0);
+		disable_smp();
 		if (APIC_init_uniprocessor())
 			printk(KERN_NOTICE "Local APIC not detected."
 					   " Using dummy APIC emulation.\n");
-		map_cpu_to_logical_apicid();
-		cpu_set(0, per_cpu(cpu_sibling_map, 0));
-		cpu_set(0, per_cpu(cpu_core_map, 0));
 		return -1;
 	}
 
@@ -779,11 +784,6 @@ static int __init smp_sanity_check(unsigned max_cpus)
 		printk(KERN_ERR "BIOS bug, local APIC #%d not detected!...\n",
 			boot_cpu_physical_apicid);
 		printk(KERN_ERR "... forcing use of dummy APIC emulation. (tell your hw vendor)\n");
-		smpboot_clear_io_apic_irqs();
-		phys_cpu_present_map = physid_mask_of_physid(0);
-		map_cpu_to_logical_apicid();
-		cpu_set(0, per_cpu(cpu_sibling_map, 0));
-		cpu_set(0, per_cpu(cpu_core_map, 0));
 		return -1;
 	}
 
@@ -801,11 +801,6 @@ static int __init smp_sanity_check(unsigned max_cpus)
 			connect_bsp_APIC();
 			setup_local_APIC();
 		}
-		smpboot_clear_io_apic_irqs();
-		phys_cpu_present_map = physid_mask_of_physid(0);
-		map_cpu_to_logical_apicid();
-		cpu_set(0, per_cpu(cpu_sibling_map, 0));
-		cpu_set(0, per_cpu(cpu_core_map, 0));
 		return -1;
 	}
 	return 0;
@@ -835,7 +830,12 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 
 	set_cpu_sibling_map(0);
 
-	smp_sanity_check(max_cpus);
+	if (smp_sanity_check(max_cpus) < 0) {
+		printk(KERN_INFO "SMP disabled\n");
+		disable_smp();
+		return;
+	}
+
 	connect_bsp_APIC();
 	setup_local_APIC();
 	map_cpu_to_logical_apicid();
