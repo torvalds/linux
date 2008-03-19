@@ -60,6 +60,8 @@
 #include <asm/hw_irq.h>
 #include <asm/numa.h>
 
+#include <mach_wakecpu.h>
+
 /* Set when the idlers are all forked */
 int smp_threads_ready;
 
@@ -84,13 +86,6 @@ struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
 #define get_idle_for_cpu(x)     (idle_thread_array[(x)])
 #define set_idle_for_cpu(x,p)   (idle_thread_array[(x)] = (p))
 #endif
-
-static inline void wait_for_init_deassert(atomic_t *deassert)
-{
-	while (!atomic_read(deassert))
-		cpu_relax();
-	return;
-}
 
 static atomic_t init_deasserted __cpuinitdata;
 
@@ -247,7 +242,7 @@ extern volatile unsigned long init_rsp;
 extern void (*initial_code)(void);
 
 #ifdef APIC_DEBUG
-static void inquire_remote_apic(int apicid)
+static void __inquire_remote_apic(int apicid)
 {
 	unsigned i, regs[] = { APIC_ID >> 4, APIC_LVR >> 4, APIC_SPIV >> 4 };
 	char *names[] = { "ID", "VERSION", "SPIV" };
