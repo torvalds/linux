@@ -71,6 +71,7 @@ int smp_threads_ready;
 cycles_t cacheflush_time;
 unsigned long cache_decay_ticks;
 
+static int boot_cpu_logical_apicid;
 /*
  * Fall back to non SMP mode after errors.
  *
@@ -167,7 +168,11 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 {
 	nmi_watchdog_default();
 	smp_cpu_index_default();
+	cpu_callin_map = cpumask_of_cpu(0);
+	mb();
+
 	current_cpu_data = boot_cpu_data;
+	boot_cpu_logical_apicid = logical_smp_processor_id();
 	current_thread_info()->cpu = 0;  /* needed? */
 	set_cpu_sibling_map(0);
 
@@ -177,6 +182,11 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 		return;
 	}
 
+	if (GET_APIC_ID(apic_read(APIC_ID)) != boot_cpu_physical_apicid) {
+		panic("Boot APIC ID in local APIC unexpected (%d vs %d)",
+		     GET_APIC_ID(apic_read(APIC_ID)), boot_cpu_physical_apicid);
+		/* Or can we switch back to PIC here? */
+	}
 
 	/*
 	 * Switch from PIC to APIC mode.
@@ -189,20 +199,6 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	if (!skip_ioapic_setup && nr_ioapics)
 		enable_IO_APIC();
 	end_local_APIC_setup();
-
-	if (GET_APIC_ID(apic_read(APIC_ID)) != boot_cpu_physical_apicid) {
-		panic("Boot APIC ID in local APIC unexpected (%d vs %d)",
-		     GET_APIC_ID(apic_read(APIC_ID)), boot_cpu_physical_apicid);
-		/* Or can we switch back to PIC here? */
-	}
-
-	/*
-	 * Now start the IO-APICs
-	 */
-	if (!skip_ioapic_setup && nr_ioapics)
-		setup_IO_APIC();
-	else
-		nr_ioapics = 0;
 
 	/*
 	 * Set up local APIC timer on boot CPU.
