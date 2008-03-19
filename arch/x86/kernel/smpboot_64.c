@@ -432,7 +432,7 @@ static void __cpuinit do_fork_idle(struct work_struct *work)
  */
 static int __cpuinit do_boot_cpu(int cpu, int apicid)
 {
-	unsigned long boot_error;
+	unsigned long boot_error = 0;
 	int timeout;
 	unsigned long start_rip;
 	struct create_idle c_idle = {
@@ -531,11 +531,6 @@ do_rest:
 	apic_read(APIC_ESR);
 
 	/*
-	 * Status is now clean
-	 */
-	boot_error = 0;
-
-	/*
 	 * Starting actual IPI sequence...
 	 */
 	boot_error = wakeup_secondary_via_INIT(apicid, start_rip);
@@ -564,7 +559,7 @@ do_rest:
 			print_cpu_info(&cpu_data(cpu));
 		} else {
 			boot_error = 1;
-			if (*((volatile unsigned char *)phys_to_virt(SMP_TRAMPOLINE_BASE))
+			if (*((volatile unsigned char *)trampoline_base)
 					== 0xA5)
 				/* trampoline started but...? */
 				printk("Stuck ??\n");
@@ -583,10 +578,12 @@ do_rest:
 		cpu_clear(cpu, cpu_present_map);
 		cpu_clear(cpu, cpu_possible_map);
 		per_cpu(x86_cpu_to_apicid, cpu) = BAD_APICID;
-		return -EIO;
 	}
 
-	return 0;
+	/* mark "stuck" area as not stuck */
+	*((volatile unsigned long *)trampoline_base) = 0;
+
+	return boot_error;
 }
 
 cycles_t cacheflush_time;

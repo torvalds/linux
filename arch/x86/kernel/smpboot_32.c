@@ -556,7 +556,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
  * Returns zero if CPU booted OK, else error code from wakeup_secondary_cpu.
  */
 {
-	unsigned long boot_error;
+	unsigned long boot_error = 0;
 	int timeout;
 	unsigned long start_eip;
 	unsigned short nmi_high = 0, nmi_low = 0;
@@ -566,11 +566,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 	};
 	INIT_WORK(&c_idle.work, do_fork_idle);
 
-	/*
-	 * Save current MTRR state in case it was changed since early boot
-	 * (e.g. by the ACPI SMI) to initialize new CPUs with MTRRs in sync:
-	 */
-	mtrr_save_state();
+	alternatives_smp_switch(1);
 
 	c_idle.idle = get_idle_for_cpu(cpu);
 
@@ -607,8 +603,6 @@ do_rest:
 	/* start_eip had better be page-aligned! */
 	start_eip = setup_trampoline();
 
-	alternatives_smp_switch(1);
-
 	/* So we see what's up   */
 	printk("Booting processor %d/%d ip %lx\n", cpu, apicid, start_eip);
 	/* Stack for startup_32 can be just as for start_secondary onwards */
@@ -628,6 +622,12 @@ do_rest:
 	store_NMI_vector(&nmi_high, &nmi_low);
 
 	smpboot_setup_warm_reset_vector(start_eip);
+	/*
+	 * Be paranoid about clearing APIC errors.
+	 */
+	apic_write(APIC_ESR, 0);
+	apic_read(APIC_ESR);
+
 
 	/*
 	 * Starting actual IPI sequence...
@@ -863,6 +863,12 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 		printk(KERN_ERR "%s: bad cpu %d\n", __func__, cpu);
 		return -EINVAL;
 	}
+
+	/*
+	 * Save current MTRR state in case it was changed since early boot
+	 * (e.g. by the ACPI SMI) to initialize new CPUs with MTRRs in sync:
+	 */
+	mtrr_save_state();
 
 	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 
