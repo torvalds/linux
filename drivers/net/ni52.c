@@ -294,21 +294,38 @@ static int ni52_open(struct net_device *dev)
 	return 0; /* most done by init */
 }
 
+static int check_iscp(struct net_device *dev, void __iomem *addr)
+{
+	struct iscp_struct __iomem *iscp = addr;
+	struct priv *p = dev->priv;
+	memset_io(iscp, 0, sizeof(struct iscp_struct));
+
+	writel(make24(iscp), &p->scp->iscp);
+	writeb(1, &iscp->busy);
+
+	ni_reset586();
+	ni_attn586();
+	mdelay(32);	/* wait a while... */
+	/* i82586 clears 'busy' after successful init */
+	if (readb(&iscp->busy))
+		return 0;
+	return 1;
+}
+
 /**********************************************
  * Check to see if there's an 82586 out there.
  */
 static int check586(struct net_device *dev, unsigned size)
 {
-	unsigned long where = dev->mem_start;
 	struct priv *p = dev->priv;
-	char __iomem *iscp_addrs[2];
 	int i;
 
-	p->mapped = (char __iomem *)isa_bus_to_virt(where);
+	p->mapped = (char __iomem *)isa_bus_to_virt(dev->mem_start);
 	p->base = p->mapped + size - 0x01000000;
 	p->memtop = p->mapped + size;
 	p->scp = (struct scp_struct __iomem *)(p->base + SCP_DEFAULT_ADDRESS);
 	p->scb	= (struct scb_struct __iomem *)	p->mapped;
+	p->iscp = (struct iscp_struct __iomem *)p->scp - 1;
 	memset_io(p->scp, 0, sizeof(struct scp_struct));
 	for (i = 0; i < sizeof(struct scp_struct); i++)
 		/* memory was writeable? */
@@ -318,26 +335,10 @@ static int check586(struct net_device *dev, unsigned size)
 	if (readb(&p->scp->sysbus) != SYSBUSVAL)
 		return 0;
 
-	iscp_addrs[0] = p->mapped;
-	iscp_addrs[1] = (char __iomem *)p->scp - sizeof(struct iscp_struct);
-
-	for (i = 0; i < 2; i++) {
-		p->iscp = (struct iscp_struct __iomem *) iscp_addrs[i];
-		memset_io(p->iscp, 0, sizeof(struct iscp_struct));
-
-		writel(make24(p->iscp), &p->scp->iscp);
-		writeb(1, &p->iscp->busy);
-
-		ni_reset586();
-		ni_attn586();
-		mdelay(32);	/* wait a while... */
-		/* i82586 clears 'busy' after successful init */
-		if (readb(&p->iscp->busy))
-			return 0;
-	}
-
-	p->iscp = (struct iscp_struct __iomem *)
-			((char __iomem *)p->scp - sizeof(struct iscp_struct));
+	if (!check_iscp(dev, p->mapped))
+		return 0;
+	if (!check_iscp(dev, p->iscp))
+		return 0;
 	return 1;
 }
 
