@@ -118,6 +118,12 @@ static void __init disable_smp(void)
 
 static int __init smp_sanity_check(unsigned max_cpus)
 {
+	if (!physid_isset(hard_smp_processor_id(), phys_cpu_present_map)) {
+		printk(KERN_WARNING "weird, boot CPU (#%d) not listed"
+				    "by the BIOS.\n", hard_smp_processor_id());
+		physid_set(hard_smp_processor_id(), phys_cpu_present_map);
+	}
+
 	/*
 	 * If we couldn't find an SMP configuration at boot time,
 	 * get out of here now!
