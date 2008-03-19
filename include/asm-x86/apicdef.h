@@ -22,7 +22,11 @@
 #define		APIC_LVR_MASK		0xFF00FF
 #define		GET_APIC_VERSION(x)	((x)&0xFFu)
 #define		GET_APIC_MAXLVT(x)	(((x)>>16)&0xFFu)
-#define		APIC_INTEGRATED(x)	((x)&0xF0u)
+#ifdef CONFIG_X86_32
+#  define	APIC_INTEGRATED(x)	((x)&0xF0u)
+#else
+#  define	APIC_INTEGRATED(x)	(1)
+#endif
 #define		APIC_XAPIC(x)		((x) >= 0x14)
 #define	APIC_TASKPRI	0x80
 #define		APIC_TPRI_MASK		0xFFu
