@@ -1009,6 +1009,21 @@ config MTRR
 
 	  See <file:Documentation/mtrr.txt> for more information.
 
+config X86_PAT
+	def_bool y
+	prompt "x86 PAT support"
+	depends on MTRR && NONPROMISC_DEVMEM
+	help
+	  Use PAT attributes to setup page level cache control.
+	---help---
+	  PATs are the modern equivalents of MTRRs and are much more
+	  flexible than MTRRs.
+
+	  Say N here if you see bootup problems (boot crash, boot hang,
+	  spontaneous reboots) or a non-working Xorg.
+
+	  If unsure, say Y.
+
 config EFI
 	def_bool n
 	prompt "EFI runtime service support"

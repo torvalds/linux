@@ -773,14 +773,14 @@ static inline int change_page_attr_clear(unsigned long addr, int numpages,
 int set_memory_uc(unsigned long addr, int numpages)
 {
 	return change_page_attr_set(addr, numpages,
-				    __pgprot(_PAGE_PCD));
+				    __pgprot(_PAGE_CACHE_UC));
 }
 EXPORT_SYMBOL(set_memory_uc);
 
 int set_memory_wb(unsigned long addr, int numpages)
 {
 	return change_page_attr_clear(addr, numpages,
-				      __pgprot(_PAGE_PCD | _PAGE_PWT));
+				      __pgprot(_PAGE_CACHE_MASK));
 }
 EXPORT_SYMBOL(set_memory_wb);
 

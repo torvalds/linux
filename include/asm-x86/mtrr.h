@@ -84,6 +84,8 @@ struct mtrr_gentry
 
 #ifdef __KERNEL__
 
+extern u8 mtrr_type_lookup(u64 addr, u64 end);
+
 /*  The following functions are for use by other drivers  */
 # ifdef CONFIG_MTRR
 extern void mtrr_save_fixed_ranges(void *);
