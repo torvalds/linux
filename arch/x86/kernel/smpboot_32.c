@@ -855,18 +855,6 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 			++kicked;
 	}
 
-	/*
-	 * construct cpu_sibling_map, so that we can tell sibling CPUs
-	 * efficiently.
-	 */
-	for_each_possible_cpu(cpu) {
-		cpus_clear(per_cpu(cpu_sibling_map, cpu));
-		cpus_clear(per_cpu(cpu_core_map, cpu));
-	}
-
-	cpu_set(0, per_cpu(cpu_sibling_map, 0));
-	cpu_set(0, per_cpu(cpu_core_map, 0));
-
 	smpboot_setup_io_apic();
 
 	setup_boot_clock();
