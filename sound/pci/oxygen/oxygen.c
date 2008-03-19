@@ -303,12 +303,13 @@ static const struct oxygen_model model_generic = {
 	.update_dac_mute = update_ak4396_mute,
 	.ac97_switch_hook = cmi9780_switch_hook,
 	.model_data_size = sizeof(struct generic_data),
+	.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
+		       PLAYBACK_1_TO_SPDIF |
+		       PLAYBACK_2_TO_AC97_1 |
+		       CAPTURE_0_FROM_I2S_1 |
+		       CAPTURE_1_FROM_SPDIF |
+		       CAPTURE_2_FROM_AC97_1,
 	.dac_channels = 8,
-	.used_channels = OXYGEN_CHANNEL_A |
-			 OXYGEN_CHANNEL_C |
-			 OXYGEN_CHANNEL_SPDIF |
-			 OXYGEN_CHANNEL_MULTICH |
-			 OXYGEN_CHANNEL_AC97,
 	.function_flags = OXYGEN_FUNCTION_ENABLE_SPI_4_5,
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
@@ -327,12 +328,13 @@ static const struct oxygen_model model_meridian = {
 	.update_dac_mute = update_ak4396_mute,
 	.ac97_switch_hook = cmi9780_switch_hook,
 	.model_data_size = sizeof(struct generic_data),
+	.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
+		       PLAYBACK_1_TO_SPDIF |
+		       PLAYBACK_2_TO_AC97_1 |
+		       CAPTURE_0_FROM_I2S_2 |
+		       CAPTURE_1_FROM_SPDIF |
+		       CAPTURE_2_FROM_AC97_1,
 	.dac_channels = 8,
-	.used_channels = OXYGEN_CHANNEL_B |
-			 OXYGEN_CHANNEL_C |
-			 OXYGEN_CHANNEL_SPDIF |
-			 OXYGEN_CHANNEL_MULTICH |
-			 OXYGEN_CHANNEL_AC97,
 	.function_flags = OXYGEN_FUNCTION_ENABLE_SPI_4_5,
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,

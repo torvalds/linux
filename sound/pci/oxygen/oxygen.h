@@ -16,6 +16,16 @@
 #define PCM_AC97	5
 #define PCM_COUNT	6
 
+/* model-specific configuration of outputs/inputs */
+#define PLAYBACK_0_TO_I2S	0x001
+#define PLAYBACK_1_TO_SPDIF	0x004
+#define PLAYBACK_2_TO_AC97_1	0x008
+#define CAPTURE_0_FROM_I2S_1	0x010
+#define CAPTURE_0_FROM_I2S_2	0x020
+#define CAPTURE_1_FROM_SPDIF	0x080
+#define CAPTURE_2_FROM_I2S_2	0x100
+#define CAPTURE_2_FROM_AC97_1	0x200
+
 enum {
 	CONTROL_SPDIF_PCM,
 	CONTROL_SPDIF_INPUT_BITS,
@@ -91,8 +101,8 @@ struct oxygen_model {
 				 unsigned int reg, int mute);
 	void (*gpio_changed)(struct oxygen *chip);
 	size_t model_data_size;
+	unsigned int pcm_dev_cfg;
 	u8 dac_channels;
-	u8 used_channels;
 	u8 function_flags;
 	u16 dac_i2s_format;
 	u16 adc_i2s_format;

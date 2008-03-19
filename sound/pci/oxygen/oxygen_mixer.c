@@ -737,90 +737,111 @@ static const struct snd_kcontrol_new controls[] = {
 	},
 };
 
-static const struct snd_kcontrol_new monitor_a_controls[] = {
+static const struct {
+	unsigned int pcm_dev;
+	struct snd_kcontrol_new controls[2];
+} monitor_controls[] = {
 	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Analog Input Monitor Switch",
-		.info = snd_ctl_boolean_mono_info,
-		.get = monitor_get,
-		.put = monitor_put,
-		.private_value = OXYGEN_ADC_MONITOR_A,
+		.pcm_dev = CAPTURE_0_FROM_I2S_1,
+		.controls = {
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Analog Input Monitor Switch",
+				.info = snd_ctl_boolean_mono_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_A,
+			},
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Analog Input Monitor Volume",
+				.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+					  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+				.info = monitor_volume_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_A_HALF_VOL
+						| (1 << 8),
+				.tlv = { .p = monitor_db_scale, },
+			},
+		},
 	},
 	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Analog Input Monitor Volume",
-		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
-			  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
-		.info = monitor_volume_info,
-		.get = monitor_get,
-		.put = monitor_put,
-		.private_value = OXYGEN_ADC_MONITOR_A_HALF_VOL | (1 << 8),
-		.tlv = { .p = monitor_db_scale, },
-	},
-};
-static const struct snd_kcontrol_new monitor_b_controls[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Analog Input Monitor Switch",
-		.info = snd_ctl_boolean_mono_info,
-		.get = monitor_get,
-		.put = monitor_put,
-		.private_value = OXYGEN_ADC_MONITOR_B,
-	},
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Analog Input Monitor Volume",
-		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
-			  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
-		.info = monitor_volume_info,
-		.get = monitor_get,
-		.put = monitor_put,
-		.private_value = OXYGEN_ADC_MONITOR_B_HALF_VOL | (1 << 8),
-		.tlv = { .p = monitor_db_scale, },
-	},
-};
-static const struct snd_kcontrol_new monitor_2nd_b_controls[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Analog Input Monitor Switch",
-		.index = 1,
-		.info = snd_ctl_boolean_mono_info,
-		.get = monitor_get,
-		.put = monitor_put,
-		.private_value = OXYGEN_ADC_MONITOR_B,
+		.pcm_dev = CAPTURE_0_FROM_I2S_2,
+		.controls = {
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Analog Input Monitor Switch",
+				.info = snd_ctl_boolean_mono_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_B,
+			},
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Analog Input Monitor Volume",
+				.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+					  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+				.info = monitor_volume_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_B_HALF_VOL
+						| (1 << 8),
+				.tlv = { .p = monitor_db_scale, },
+			},
+		},
 	},
 	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Analog Input Monitor Volume",
-		.index = 1,
-		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
-			  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
-		.info = monitor_volume_info,
-		.get = monitor_get,
-		.put = monitor_put,
-		.private_value = OXYGEN_ADC_MONITOR_B_HALF_VOL | (1 << 8),
-		.tlv = { .p = monitor_db_scale, },
+		.pcm_dev = CAPTURE_2_FROM_I2S_2,
+		.controls = {
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Analog Input Monitor Switch",
+				.index = 1,
+				.info = snd_ctl_boolean_mono_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_B,
+			},
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Analog Input Monitor Volume",
+				.index = 1,
+				.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+					  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+				.info = monitor_volume_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_B_HALF_VOL
+						| (1 << 8),
+				.tlv = { .p = monitor_db_scale, },
+			},
+		},
 	},
-};
-static const struct snd_kcontrol_new monitor_c_controls[] = {
 	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Digital Input Monitor Switch",
-		.info = snd_ctl_boolean_mono_info,
-		.get = monitor_get,
-		.put = monitor_put,
-		.private_value = OXYGEN_ADC_MONITOR_C,
-	},
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Digital Input Monitor Volume",
-		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
-			  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
-		.info = monitor_volume_info,
-		.get = monitor_get,
-		.put = monitor_put,
-		.private_value = OXYGEN_ADC_MONITOR_C_HALF_VOL | (1 << 8),
-		.tlv = { .p = monitor_db_scale, },
+		.pcm_dev = CAPTURE_1_FROM_SPDIF,
+		.controls = {
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Digital Input Monitor Switch",
+				.info = snd_ctl_boolean_mono_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_C,
+			},
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Digital Input Monitor Volume",
+				.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+					  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+				.info = monitor_volume_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_C_HALF_VOL
+						| (1 << 8),
+				.tlv = { .p = monitor_db_scale, },
+			},
+		},
 	},
 };
 
@@ -905,32 +926,17 @@ static int add_controls(struct oxygen *chip,
 
 int oxygen_mixer_init(struct oxygen *chip)
 {
+	unsigned int i;
 	int err;
 
 	err = add_controls(chip, controls, ARRAY_SIZE(controls));
 	if (err < 0)
 		return err;
-	if (chip->model->used_channels & OXYGEN_CHANNEL_A) {
-		err = add_controls(chip, monitor_a_controls,
-				   ARRAY_SIZE(monitor_a_controls));
-		if (err < 0)
-			return err;
-	} else if (chip->model->used_channels & OXYGEN_CHANNEL_B) {
-		err = add_controls(chip, monitor_b_controls,
-				   ARRAY_SIZE(monitor_b_controls));
-		if (err < 0)
-			return err;
-	}
-	if ((chip->model->used_channels & (OXYGEN_CHANNEL_A | OXYGEN_CHANNEL_B))
-	    == (OXYGEN_CHANNEL_A | OXYGEN_CHANNEL_B)) {
-		err = add_controls(chip, monitor_2nd_b_controls,
-				   ARRAY_SIZE(monitor_2nd_b_controls));
-		if (err < 0)
-			return err;
-	}
-	if (chip->model->used_channels & OXYGEN_CHANNEL_C) {
-		err = add_controls(chip, monitor_c_controls,
-				   ARRAY_SIZE(monitor_c_controls));
+	for (i = 0; i < ARRAY_SIZE(monitor_controls); ++i) {
+		if (!(chip->model->pcm_dev_cfg & monitor_controls[i].pcm_dev))
+			continue;
+		err = add_controls(chip, monitor_controls[i].controls,
+				   ARRAY_SIZE(monitor_controls[i].controls));
 		if (err < 0)
 			return err;
 	}
