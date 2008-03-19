@@ -97,7 +97,6 @@ static void __cpuinit smp_store_cpu_info(int id)
 	*c = boot_cpu_data;
 	c->cpu_index = id;
 	identify_cpu(c);
-	print_cpu_info(c);
 }
 
 static inline void wait_for_init_deassert(atomic_t *deassert)
@@ -568,6 +567,8 @@ do_rest:
 		if (cpu_isset(cpu, cpu_callin_map)) {
 			/* number CPUs logically, starting from 1 (BSP is 0) */
 			Dprintk("CPU has booted.\n");
+			printk(KERN_INFO "CPU%d: ", cpu);
+			print_cpu_info(&cpu_data(cpu));
 		} else {
 			boot_error = 1;
 			if (*((volatile unsigned char *)phys_to_virt(SMP_TRAMPOLINE_BASE))
@@ -751,6 +752,8 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	 */
 
 	setup_boot_clock();
+	printk(KERN_INFO "CPU%d: ", 0);
+	print_cpu_info(&cpu_data(0));
 }
 
 /*
