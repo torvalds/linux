@@ -67,7 +67,7 @@ static __init void nmi_cpu_busy(void *data)
 }
 #endif
 
-static int __init check_nmi_watchdog(void)
+int __init check_nmi_watchdog(void)
 {
 	unsigned int *prev_nmi_count;
 	int cpu;
