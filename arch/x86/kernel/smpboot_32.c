@@ -708,8 +708,12 @@ static void __cpuinit __smp_prepare_cpu(int cpu)
 	clone_pgd_range(swapper_pg_dir, swapper_pg_dir + USER_PGD_PTRS,
 			min_t(unsigned long, KERNEL_PGD_PTRS, USER_PGD_PTRS));
 	flush_tlb_all();
-	schedule_work(&info.task);
-	wait_for_completion(&done);
+	if (!keventd_up() || current_is_keventd())
+		info.task.func(&info.task);
+	else {
+		schedule_work(&info.task);
+		wait_for_completion(&done);
+	}
 
 	zap_low_mappings();
 }
