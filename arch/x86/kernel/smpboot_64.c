@@ -233,9 +233,9 @@ void __cpuinit start_secondary(void)
 	 */
 	spin_unlock(&vector_lock);
 	cpu_set(smp_processor_id(), cpu_online_map);
-	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
-
 	unlock_ipi_call_lock();
+
+	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
 
 	setup_secondary_clock();
 
