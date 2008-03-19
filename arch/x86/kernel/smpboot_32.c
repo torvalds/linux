@@ -167,7 +167,9 @@ static void __cpuinit smp_callin(void)
 	/*
 	 * Get our bogomips.
 	 */
+	local_irq_enable();
 	calibrate_delay();
+	local_irq_disable();
 	Dprintk("Stack at about %p\n",&cpuid);
 
 	/*
