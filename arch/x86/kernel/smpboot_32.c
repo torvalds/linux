@@ -368,10 +368,10 @@ static void unmap_cpu_to_logical_apicid(int cpu)
 
 static inline void __inquire_remote_apic(int apicid)
 {
-	int i, regs[] = { APIC_ID >> 4, APIC_LVR >> 4, APIC_SPIV >> 4 };
+	unsigned i, regs[] = { APIC_ID >> 4, APIC_LVR >> 4, APIC_SPIV >> 4 };
 	char *names[] = { "ID", "VERSION", "SPIV" };
 	int timeout;
-	unsigned long status;
+	u32 status;
 
 	printk("Inquiring remote APIC #%d...\n", apicid);
 
