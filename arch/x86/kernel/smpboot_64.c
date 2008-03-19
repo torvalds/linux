@@ -96,7 +96,8 @@ static void __cpuinit smp_store_cpu_info(int id)
 
 	*c = boot_cpu_data;
 	c->cpu_index = id;
-	identify_cpu(c);
+	if (id != 0)
+		identify_secondary_cpu(c);
 }
 
 static inline void wait_for_init_deassert(atomic_t *deassert)
