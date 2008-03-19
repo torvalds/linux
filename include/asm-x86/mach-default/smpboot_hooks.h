@@ -41,4 +41,6 @@ static inline void smpboot_setup_io_apic(void)
 	 */
 	if (!skip_ioapic_setup && nr_ioapics)
 		setup_IO_APIC();
+	else
+		nr_ioapics = 0;
 }
