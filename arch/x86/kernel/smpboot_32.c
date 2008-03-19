@@ -78,19 +78,8 @@ static void map_cpu_to_logical_apicid(void);
 /* State of each CPU. */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
 
-/*
- * The bootstrap kernel entry code has set these up. Save them for
- * a given CPU
- */
-
-void __cpuinit smp_store_cpu_info(int id)
+static void __cpuinit smp_apply_quirks(struct cpuinfo_x86 *c)
 {
-	struct cpuinfo_x86 *c = &cpu_data(id);
-
-	*c = boot_cpu_data;
-	c->cpu_index = id;
-	if (id!=0)
-		identify_secondary_cpu(c);
 	/*
 	 * Mask B, Pentium, but not Pentium MMX
 	 */
@@ -138,6 +127,23 @@ void __cpuinit smp_store_cpu_info(int id)
 
 valid_k7:
 	;
+
+}
+
+/*
+ * The bootstrap kernel entry code has set these up. Save them for
+ * a given CPU
+ */
+
+void __cpuinit smp_store_cpu_info(int id)
+{
+	struct cpuinfo_x86 *c = &cpu_data(id);
+
+	*c = boot_cpu_data;
+	c->cpu_index = id;
+	if (id != 0)
+		identify_secondary_cpu(c);
+	smp_apply_quirks(c);
 }
 
 static atomic_t init_deasserted;
