@@ -711,10 +711,6 @@ static int __cpuinit __smp_prepare_cpu(int cpu)
 	int	apicid, ret;
 
 	apicid = per_cpu(x86_cpu_to_apicid, cpu);
-	if (apicid == BAD_APICID) {
-		ret = -ENODEV;
-		goto exit;
-	}
 
 	info.complete = &done;
 	info.apicid = apicid;
@@ -952,9 +948,21 @@ void __init native_smp_prepare_boot_cpu(void)
 
 int __cpuinit native_cpu_up(unsigned int cpu)
 {
+	int apicid = cpu_present_to_apicid(cpu);
 	unsigned long flags;
-#ifdef CONFIG_HOTPLUG_CPU
 	int ret = 0;
+
+	WARN_ON(irqs_disabled());
+
+	Dprintk("++++++++++++++++++++=_---CPU UP  %u\n", cpu);
+
+	if (apicid == BAD_APICID || apicid == boot_cpu_physical_apicid ||
+	    !physid_isset(apicid, phys_cpu_present_map)) {
+		printk(KERN_ERR "%s: bad cpu %d\n", __func__, cpu);
+		return -EINVAL;
+	}
+
+#ifdef CONFIG_HOTPLUG_CPU
 
 	/*
 	 * We do warm boot only on cpus that had booted earlier
