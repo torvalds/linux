@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/timer.h>
+#include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/input.h>
 
@@ -77,7 +78,7 @@ struct usbhid_device {
 	unsigned long stop_retry;                                       /* Time to give up, in jiffies */
 	unsigned int retry_delay;                                       /* Delay length in ms */
 	struct work_struct reset_work;                                  /* Task context for resets */
-
+	wait_queue_head_t wait;						/* For sleeping */
 };
 
 #define	hid_to_usb_dev(hid_dev) \

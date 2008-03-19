@@ -341,7 +341,7 @@ static void hid_irq_out(struct urb *urb)
 	if (usbhid->outhead != usbhid->outtail) {
 		if (hid_submit_out(hid)) {
 			clear_bit(HID_OUT_RUNNING, &usbhid->iofl);
-			wake_up(&hid->wait);
+			wake_up(&usbhid->wait);
 		}
 		spin_unlock_irqrestore(&usbhid->outlock, flags);
 		return;
@@ -349,7 +349,7 @@ static void hid_irq_out(struct urb *urb)
 
 	clear_bit(HID_OUT_RUNNING, &usbhid->iofl);
 	spin_unlock_irqrestore(&usbhid->outlock, flags);
-	wake_up(&hid->wait);
+	wake_up(&usbhid->wait);
 }
 
 /*
@@ -391,7 +391,7 @@ static void hid_ctrl(struct urb *urb)
 	if (usbhid->ctrlhead != usbhid->ctrltail) {
 		if (hid_submit_ctrl(hid)) {
 			clear_bit(HID_CTRL_RUNNING, &usbhid->iofl);
-			wake_up(&hid->wait);
+			wake_up(&usbhid->wait);
 		}
 		spin_unlock_irqrestore(&usbhid->ctrllock, flags);
 		return;
@@ -399,7 +399,7 @@ static void hid_ctrl(struct urb *urb)
 
 	clear_bit(HID_CTRL_RUNNING, &usbhid->iofl);
 	spin_unlock_irqrestore(&usbhid->ctrllock, flags);
-	wake_up(&hid->wait);
+	wake_up(&usbhid->wait);
 }
 
 void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, unsigned char dir)
@@ -478,8 +478,9 @@ int usbhid_wait_io(struct hid_device *hid)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
 
-	if (!wait_event_timeout(hid->wait, (!test_bit(HID_CTRL_RUNNING, &usbhid->iofl) &&
-					!test_bit(HID_OUT_RUNNING, &usbhid->iofl)),
+	if (!wait_event_timeout(usbhid->wait,
+				(!test_bit(HID_CTRL_RUNNING, &usbhid->iofl) &&
+				!test_bit(HID_OUT_RUNNING, &usbhid->iofl)),
 					10*HZ)) {
 		dbg_hid("timeout waiting for ctrl or out queue to clear\n");
 		return -1;
@@ -869,8 +870,7 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 		goto fail;
 	}
 
-	init_waitqueue_head(&hid->wait);
-
+	init_waitqueue_head(&usbhid->wait);
 	INIT_WORK(&usbhid->reset_work, hid_reset);
 	setup_timer(&usbhid->io_retry, hid_retry_timeout, (unsigned long) hid);
 
