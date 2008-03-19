@@ -63,6 +63,7 @@
 #include <mach_wakecpu.h>
 #include <mach_apic.h>
 #include <smpboot_hooks.h>
+#include <mach_apic.h>
 
 /* Set when the idlers are all forked */
 int smp_threads_ready;
@@ -293,7 +294,8 @@ static void __inquire_remote_apic(int apicid)
 /*
  * Kick the secondary to wake up.
  */
-static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int start_rip)
+static int __cpuinit wakeup_secondary_cpu(int phys_apicid,
+					  unsigned int start_rip)
 {
 	unsigned long send_status, accept_status = 0;
 	int maxlvt, num_starts, j;
@@ -534,7 +536,7 @@ do_rest:
 	/*
 	 * Starting actual IPI sequence...
 	 */
-	boot_error = wakeup_secondary_via_INIT(apicid, start_rip);
+	boot_error = wakeup_secondary_cpu(apicid, start_rip);
 
 	if (!boot_error) {
 		/*
