@@ -212,21 +212,3 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	printk(KERN_INFO "CPU%d: ", 0);
 	print_cpu_info(&cpu_data(0));
 }
-
-extern void impress_friends(void);
-extern void smp_checks(void);
-
-/*
- * Finish the SMP boot.
- */
-void __init native_smp_cpus_done(unsigned int max_cpus)
-{
-	smpboot_restore_warm_reset_vector();
-
-	Dprintk("Boot done.\n");
-
-	impress_friends();
-	smp_checks();
-	setup_ioapic_dest();
-	check_nmi_watchdog();
-}

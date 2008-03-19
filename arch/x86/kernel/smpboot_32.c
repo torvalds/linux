@@ -215,24 +215,3 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	mb();
 	smp_boot_cpus(max_cpus);
 }
-
-extern void impress_friends(void);
-extern void smp_checks(void);
-
-void __init native_smp_cpus_done(unsigned int max_cpus)
-{
-	/*
-	 * Cleanup possible dangling ends...
-	 */
-	smpboot_restore_warm_reset_vector();
-
-	Dprintk("Boot done.\n");
-
-	impress_friends();
-	smp_checks();
-#ifdef CONFIG_X86_IO_APIC
-	setup_ioapic_dest();
-#endif
-	check_nmi_watchdog();
-	zap_low_mappings();
-}

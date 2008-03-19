@@ -880,7 +880,6 @@ do_rest:
 	apic_write(APIC_ESR, 0);
 	apic_read(APIC_ESR);
 
-
 	/*
 	 * Starting actual IPI sequence...
 	 */
@@ -1015,6 +1014,26 @@ void __init native_smp_prepare_boot_cpu(void)
 	/* already set me in cpu_online_map in boot_cpu_init() */
 	cpu_set(me, cpu_callout_map);
 	per_cpu(cpu_state, me) = CPU_ONLINE;
+}
+
+void __init native_smp_cpus_done(unsigned int max_cpus)
+{
+	/*
+	 * Cleanup possible dangling ends...
+	 */
+	smpboot_restore_warm_reset_vector();
+
+	Dprintk("Boot done.\n");
+
+	impress_friends();
+	smp_checks();
+#ifdef CONFIG_X86_IO_APIC
+	setup_ioapic_dest();
+#endif
+	check_nmi_watchdog();
+#ifdef CONFIG_X86_32
+	zap_low_mappings();
+#endif
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
