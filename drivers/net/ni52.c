@@ -182,7 +182,7 @@ static int     init586(struct net_device *dev);
 static int     check586(struct net_device *dev, char *where, unsigned size);
 static void    alloc586(struct net_device *dev);
 static void    startrecv586(struct net_device *dev);
-static void   *alloc_rfa(struct net_device *dev, void *ptr);
+static void   __iomem *alloc_rfa(struct net_device *dev, void __iomem *ptr);
 static void    ni52_rcv_int(struct net_device *dev);
 static void    ni52_xmt_int(struct net_device *dev);
 static void    ni52_rnr_int(struct net_device *dev);
@@ -190,23 +190,23 @@ static void    ni52_rnr_int(struct net_device *dev);
 struct priv {
 	struct net_device_stats stats;
 	unsigned long base;
-	char *memtop;
+	char __iomem *memtop;
 	spinlock_t spinlock;
 	int reset;
-	struct rfd_struct *rfd_last, *rfd_top, *rfd_first;
-	struct scp_struct *scp;
-	struct iscp_struct *iscp;
-	struct scb_struct *scb;
-	struct tbd_struct *xmit_buffs[NUM_XMIT_BUFFS];
+	struct rfd_struct __iomem *rfd_last, *rfd_top, *rfd_first;
+	struct scp_struct __iomem *scp;
+	struct iscp_struct __iomem *iscp;
+	struct scb_struct __iomem *scb;
+	struct tbd_struct __iomem *xmit_buffs[NUM_XMIT_BUFFS];
 #if (NUM_XMIT_BUFFS == 1)
-	struct transmit_cmd_struct *xmit_cmds[2];
-	struct nop_cmd_struct *nop_cmds[2];
+	struct transmit_cmd_struct __iomem *xmit_cmds[2];
+	struct nop_cmd_struct __iomem *nop_cmds[2];
 #else
-	struct transmit_cmd_struct *xmit_cmds[NUM_XMIT_BUFFS];
-	struct nop_cmd_struct *nop_cmds[NUM_XMIT_BUFFS];
+	struct transmit_cmd_struct __iomem *xmit_cmds[NUM_XMIT_BUFFS];
+	struct nop_cmd_struct __iomem *nop_cmds[NUM_XMIT_BUFFS];
 #endif
 	int nop_point, num_recv_buffs;
-	char *xmit_cbuffs[NUM_XMIT_BUFFS];
+	char __iomem *xmit_cbuffs[NUM_XMIT_BUFFS];
 	int xmit_count, xmit_last;
 };
 
@@ -249,9 +249,9 @@ static void wait_for_scb_cmd_ruc(struct net_device *dev)
 	}
 }
 
-static void wait_for_stat_compl(void *p)
+static void wait_for_stat_compl(void __iomem *p)
 {
-	struct nop_cmd_struct *addr = p;
+	struct nop_cmd_struct __iomem *addr = p;
 	int i;
 	for (i = 0; i < 32767; i++) {
 		if (readw(&((addr)->cmd_status)) & STAT_COMPL)
@@ -300,28 +300,28 @@ static int check586(struct net_device *dev, char *where, unsigned size)
 {
 	struct priv pb;
 	struct priv *p = /* (struct priv *) dev->priv*/ &pb;
-	char *iscp_addrs[2];
+	char __iomem *iscp_addrs[2];
 	int i;
 
 	p->base = (unsigned long) isa_bus_to_virt((unsigned long)where)
 							+ size - 0x01000000;
-	p->memtop = isa_bus_to_virt((unsigned long)where) + size;
-	p->scp = (struct scp_struct *)(p->base + SCP_DEFAULT_ADDRESS);
-	memset_io((char *)p->scp, 0, sizeof(struct scp_struct));
+	p->memtop = (char __iomem *)isa_bus_to_virt((unsigned long)where) + size;
+	p->scp = (struct scp_struct __iomem *)(p->base + SCP_DEFAULT_ADDRESS);
+	memset_io(p->scp, 0, sizeof(struct scp_struct));
 	for (i = 0; i < sizeof(struct scp_struct); i++)
 		/* memory was writeable? */
-		if (readb((char *)p->scp + i))
+		if (readb((char __iomem *)p->scp + i))
 			return 0;
 	writeb(SYSBUSVAL, &p->scp->sysbus);	/* 1 = 8Bit-Bus, 0 = 16 Bit */
 	if (readb(&p->scp->sysbus) != SYSBUSVAL)
 		return 0;
 
-	iscp_addrs[0] = isa_bus_to_virt((unsigned long)where);
-	iscp_addrs[1] = (char *) p->scp - sizeof(struct iscp_struct);
+	iscp_addrs[0] = (char __iomem *)isa_bus_to_virt((unsigned long)where);
+	iscp_addrs[1] = (char __iomem *)p->scp - sizeof(struct iscp_struct);
 
 	for (i = 0; i < 2; i++) {
-		p->iscp = (struct iscp_struct *) iscp_addrs[i];
-		memset_io((char *)p->iscp, 0, sizeof(struct iscp_struct));
+		p->iscp = (struct iscp_struct __iomem *) iscp_addrs[i];
+		memset_io(p->iscp, 0, sizeof(struct iscp_struct));
 
 		writel(make24(p->iscp), &p->scp->iscp);
 		writeb(1, &p->iscp->busy);
@@ -348,10 +348,10 @@ static void alloc586(struct net_device *dev)
 
 	spin_lock_init(&p->spinlock);
 
-	p->scp	= (struct scp_struct *)	(p->base + SCP_DEFAULT_ADDRESS);
-	p->scb	= (struct scb_struct *)	isa_bus_to_virt(dev->mem_start);
-	p->iscp = (struct iscp_struct *)
-			((char *)p->scp - sizeof(struct iscp_struct));
+	p->scp	= (struct scp_struct __iomem *)	(p->base + SCP_DEFAULT_ADDRESS);
+	p->scb	= (struct scb_struct __iomem *)	isa_bus_to_virt(dev->mem_start);
+	p->iscp = (struct iscp_struct __iomem *)
+			((char __iomem *)p->scp - sizeof(struct iscp_struct));
 
 	memset_io(p->iscp, 0, sizeof(struct iscp_struct));
 	memset_io(p->scp , 0, sizeof(struct scp_struct));
@@ -371,7 +371,7 @@ static void alloc586(struct net_device *dev)
 
 	p->reset = 0;
 
-	memset_io((char *)p->scb, 0, sizeof(struct scb_struct));
+	memset_io(p->scb, 0, sizeof(struct scb_struct));
 }
 
 /* set: io,irq,memstart,memend or set it when calling insmod */
@@ -520,7 +520,7 @@ static int __init ni52_probe1(struct net_device *dev, int ioaddr)
 	memset((char *)dev->priv, 0, sizeof(struct priv));
 
 	((struct priv *)(dev->priv))->memtop =
-				isa_bus_to_virt(dev->mem_start) + size;
+				(char __iomem *)isa_bus_to_virt(dev->mem_start) + size;
 	((struct priv *)(dev->priv))->base =  (unsigned long)
 			isa_bus_to_virt(dev->mem_start) + size - 0x01000000;
 	alloc586(dev);
@@ -578,19 +578,19 @@ out:
 
 static int init586(struct net_device *dev)
 {
-	void *ptr;
+	void __iomem *ptr;
 	int i, result = 0;
 	struct priv *p = (struct priv *)dev->priv;
-	struct configure_cmd_struct *cfg_cmd;
-	struct iasetup_cmd_struct *ias_cmd;
-	struct tdr_cmd_struct *tdr_cmd;
-	struct mcsetup_cmd_struct *mc_cmd;
+	struct configure_cmd_struct __iomem *cfg_cmd;
+	struct iasetup_cmd_struct __iomem *ias_cmd;
+	struct tdr_cmd_struct __iomem *tdr_cmd;
+	struct mcsetup_cmd_struct __iomem *mc_cmd;
 	struct dev_mc_list *dmi = dev->mc_list;
 	int num_addrs = dev->mc_count;
 
-	ptr = (void *) ((char *)p->scb + sizeof(struct scb_struct));
+	ptr = p->scb + 1;
 
-	cfg_cmd = (struct configure_cmd_struct *)ptr; /* configure-command */
+	cfg_cmd = ptr; /* configure-command */
 	writew(0, &cfg_cmd->cmd_status);
 	writew(CMD_CONFIGURE | CMD_LAST, &cfg_cmd->cmd_cmd);
 	writew(0xFFFF, &cfg_cmd->cmd_link);
@@ -609,7 +609,7 @@ static int init586(struct net_device *dev)
 	writeb(0xf2, &cfg_cmd->time_high);
 	writeb(0x00, &cfg_cmd->promisc);;
 	if (dev->flags & IFF_ALLMULTI) {
-		int len = ((char *) p->iscp - (char *) ptr - 8) / 6;
+		int len = ((char __iomem *)p->iscp - (char __iomem *)ptr - 8) / 6;
 		if (num_addrs > len) {
 			printk(KERN_ERR "%s: switching to promisc. mode\n",
 				dev->name);
@@ -638,13 +638,13 @@ static int init586(struct net_device *dev)
 	 * individual address setup
 	 */
 
-	ias_cmd = (struct iasetup_cmd_struct *)ptr;
+	ias_cmd = ptr;
 
 	writew(0, &ias_cmd->cmd_status);
 	writew(CMD_IASETUP | CMD_LAST, &ias_cmd->cmd_cmd);
 	writew(0xffff, &ias_cmd->cmd_link);
 
-	memcpy_toio((char *)&ias_cmd->iaddr, (char *)dev->dev_addr, ETH_ALEN);
+	memcpy_toio(&ias_cmd->iaddr, (char *)dev->dev_addr, ETH_ALEN);
 
 	writew(make16(ias_cmd), &p->scb->cbl_offset);
 
@@ -663,7 +663,7 @@ static int init586(struct net_device *dev)
 	 * TDR, wire check .. e.g. no resistor e.t.c
 	 */
 
-	tdr_cmd = (struct tdr_cmd_struct *)ptr;
+	tdr_cmd = ptr;
 
 	writew(0, &tdr_cmd->cmd_status);
 	writew(CMD_TDR | CMD_LAST, &tdr_cmd->cmd_cmd);
@@ -707,14 +707,14 @@ static int init586(struct net_device *dev)
 	 * Multicast setup
 	 */
 	if (num_addrs && !(dev->flags & IFF_PROMISC)) {
-		mc_cmd = (struct mcsetup_cmd_struct *) ptr;
+		mc_cmd = ptr;
 		writew(0, &mc_cmd->cmd_status);
 		writew(CMD_MCSETUP | CMD_LAST, &mc_cmd->cmd_cmd);
 		writew(0xffff, &mc_cmd->cmd_link);
 		writew(num_addrs * 6, &mc_cmd->mc_cnt);
 
 		for (i = 0; i < num_addrs; i++, dmi = dmi->next)
-			memcpy_toio((char *) mc_cmd->mc_list[i],
+			memcpy_toio(mc_cmd->mc_list[i],
 							dmi->dmi_addr, 6);
 
 		writew(make16(mc_cmd), &p->scb->cbl_offset);
@@ -733,43 +733,43 @@ static int init586(struct net_device *dev)
 	 */
 #if (NUM_XMIT_BUFFS == 1)
 	for (i = 0; i < 2; i++) {
-		p->nop_cmds[i] = (struct nop_cmd_struct *)ptr;
+		p->nop_cmds[i] = ptr;
 		writew(CMD_NOP, &p->nop_cmds[i]->cmd_cmd);
 		writew(0, &p->nop_cmds[i]->cmd_status);
 		writew(make16(p->nop_cmds[i]), &p->nop_cmds[i]->cmd_link);
-		ptr = (char *) ptr + sizeof(struct nop_cmd_struct);
+		ptr = ptr + sizeof(struct nop_cmd_struct);
 	}
 #else
 	for (i = 0; i < NUM_XMIT_BUFFS; i++) {
-		p->nop_cmds[i] = (struct nop_cmd_struct *)ptr;
+		p->nop_cmds[i] = ptr;
 		writew(CMD_NOP, &p->nop_cmds[i]->cmd_cmd);
 		writew(0, &p->nop_cmds[i]->cmd_status);
 		writew(make16(p->nop_cmds[i]), &p->nop_cmds[i]->cmd_link);
-		ptr = (char *) ptr + sizeof(struct nop_cmd_struct);
+		ptr = ptr + sizeof(struct nop_cmd_struct);
 	}
 #endif
 
-	ptr = alloc_rfa(dev, (void *)ptr); /* init receive-frame-area */
+	ptr = alloc_rfa(dev, ptr); /* init receive-frame-area */
 
 	/*
 	 * alloc xmit-buffs / init xmit_cmds
 	 */
 	for (i = 0; i < NUM_XMIT_BUFFS; i++) {
 		/* Transmit cmd/buff 0 */
-		p->xmit_cmds[i] = (struct transmit_cmd_struct *)ptr;
-		ptr = (char *) ptr + sizeof(struct transmit_cmd_struct);
-		p->xmit_cbuffs[i] = (char *)ptr; /* char-buffs */
-		ptr = (char *) ptr + XMIT_BUFF_SIZE;
-		p->xmit_buffs[i] = (struct tbd_struct *)ptr; /* TBD */
-		ptr = (char *) ptr + sizeof(struct tbd_struct);
-		if ((void *)ptr > (void *)p->iscp) {
+		p->xmit_cmds[i] = ptr;
+		ptr = ptr + sizeof(struct transmit_cmd_struct);
+		p->xmit_cbuffs[i] = ptr; /* char-buffs */
+		ptr = ptr + XMIT_BUFF_SIZE;
+		p->xmit_buffs[i] = ptr; /* TBD */
+		ptr = ptr + sizeof(struct tbd_struct);
+		if ((void __iomem *)ptr > (void __iomem *)p->iscp) {
 			printk(KERN_ERR "%s: not enough shared-mem for your configuration!\n",
 				dev->name);
 			return 1;
 		}
-		memset_io((char *)(p->xmit_cmds[i]), 0,
+		memset_io(p->xmit_cmds[i], 0,
 					sizeof(struct transmit_cmd_struct));
-		memset_io((char *)(p->xmit_buffs[i]), 0,
+		memset_io(p->xmit_buffs[i], 0,
 					sizeof(struct tbd_struct));
 		writew(make16(p->nop_cmds[(i+1)%NUM_XMIT_BUFFS]),
 					&p->xmit_cmds[i]->cmd_link);
@@ -816,14 +816,14 @@ static int init586(struct net_device *dev)
  * It sets up the Receive Frame Area (RFA).
  */
 
-static void *alloc_rfa(struct net_device *dev, void *ptr)
+static void __iomem *alloc_rfa(struct net_device *dev, void __iomem *ptr)
 {
-	struct rfd_struct *rfd = (struct rfd_struct *)ptr;
-	struct rbd_struct *rbd;
+	struct rfd_struct __iomem *rfd = ptr;
+	struct rbd_struct __iomem *rbd;
 	int i;
 	struct priv *p = (struct priv *) dev->priv;
 
-	memset_io((char *) rfd, 0,
+	memset_io(rfd, 0,
 		sizeof(struct rfd_struct) * (p->num_recv_buffs + rfdadd));
 	p->rfd_first = rfd;
 
@@ -835,20 +835,19 @@ static void *alloc_rfa(struct net_device *dev, void *ptr)
 	/* RU suspend */
 	writeb(RFD_SUSP, &rfd[p->num_recv_buffs-1+rfdadd].last);
 
-	ptr = (void *) (rfd + (p->num_recv_buffs + rfdadd));
+	ptr = rfd + (p->num_recv_buffs + rfdadd);
 
-	rbd = (struct rbd_struct *) ptr;
-	ptr = (void *) (rbd + p->num_recv_buffs);
+	rbd = ptr;
+	ptr = rbd + p->num_recv_buffs;
 
 	 /* clr descriptors */
-	memset_io((char *)rbd, 0,
-			sizeof(struct rbd_struct) * (p->num_recv_buffs));
+	memset_io(rbd, 0, sizeof(struct rbd_struct) * (p->num_recv_buffs));
 
 	for (i = 0; i < p->num_recv_buffs; i++) {
 		writew(make16(rbd + (i+1) % p->num_recv_buffs), &rbd[i].next);
 		writew(RECV_BUFF_SIZE, &rbd[i].size);
 		writel(make24(ptr), &rbd[i].buffer);
-		ptr = (char *) ptr + RECV_BUFF_SIZE;
+		ptr = ptr + RECV_BUFF_SIZE;
 	}
 	p->rfd_top	= p->rfd_first;
 	p->rfd_last = p->rfd_first + (p->num_recv_buffs - 1 + rfdadd);
@@ -942,14 +941,14 @@ static void ni52_rcv_int(struct net_device *dev)
 	int status, cnt = 0;
 	unsigned short totlen;
 	struct sk_buff *skb;
-	struct rbd_struct *rbd;
+	struct rbd_struct __iomem *rbd;
 	struct priv *p = (struct priv *)dev->priv;
 
 	if (debuglevel > 0)
 		printk("R");
 
 	for (; (status = readb(&p->rfd_top->stat_high)) & RFD_COMPL;) {
-		rbd = (struct rbd_struct *) make32(p->rfd_top->rbd_offset);
+		rbd = (struct rbd_struct __iomem *) make32(p->rfd_top->rbd_offset);
 		if (status & RFD_OK) { /* frame received without error? */
 			totlen = readw(&rbd->status);
 			if (totlen & RBD_LAST) {
@@ -979,7 +978,7 @@ static void ni52_rcv_int(struct net_device *dev)
 						break;
 					}
 					writew(0, &rbd->status);
-					rbd = (struct rbd_struct *) make32(readl(&rbd->next));
+					rbd = (struct rbd_struct __iomem *) make32(readl(&rbd->next));
 				}
 				totlen += rstat & RBD_MASK;
 				writew(0, &rbd->status);
@@ -997,7 +996,7 @@ static void ni52_rcv_int(struct net_device *dev)
 		writew(0xffff, &p->rfd_top->rbd_offset);
 		writeb(0, &p->rfd_last->last);	/* delete RFD_SUSP	*/
 		p->rfd_last = p->rfd_top;
-		p->rfd_top = (struct rfd_struct *) make32(p->rfd_top->next); /* step to next RFD */
+		p->rfd_top = (struct rfd_struct __iomem *) make32(p->rfd_top->next); /* step to next RFD */
 		writew(make16(p->rfd_top), &p->scb->rfa_offset);
 
 		if (debuglevel > 0)
@@ -1042,7 +1041,7 @@ static void ni52_rnr_int(struct net_device *dev)
 	ni_attn586();
 	wait_for_scb_cmd_ruc(dev);		/* wait for accept cmd. */
 
-	alloc_rfa(dev, (char *)p->rfd_first);
+	alloc_rfa(dev, p->rfd_first);
 	/* maybe add a check here, before restarting the RU */
 	startrecv586(dev); /* restart RU */
 
