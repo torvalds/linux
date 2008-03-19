@@ -1064,9 +1064,13 @@ void __cpuinit setup_local_APIC(void)
 	if (!integrated)		/* 82489DX */
 		value |= APIC_LVT_LEVEL_TRIGGER;
 	apic_write_around(APIC_LVT1, value);
+}
+
+void __cpuinit end_local_APIC_setup(void)
+{
+	unsigned long value;
 
 	lapic_setup_esr();
-
 	/* Disable the local apic timer */
 	value = apic_read(APIC_LVTT);
 	value |= (APIC_LVT_MASKED | LOCAL_TIMER_VECTOR);
@@ -1256,6 +1260,7 @@ int __init APIC_init_uniprocessor(void)
 
 	setup_local_APIC();
 
+	end_local_APIC_setup();
 #ifdef CONFIG_X86_IO_APIC
 	if (smp_found_config)
 		if (!skip_ioapic_setup && nr_ioapics)

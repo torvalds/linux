@@ -161,6 +161,7 @@ static void __cpuinit smp_callin(void)
 	Dprintk("CALLIN, before setup_local_APIC().\n");
 	smp_callin_clear_local_apic();
 	setup_local_APIC();
+	end_local_APIC_setup();
 	map_cpu_to_logical_apicid();
 
 	/*
@@ -780,6 +781,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 			printk(KERN_INFO "activating minimal APIC for NMI watchdog use.\n");
 			connect_bsp_APIC();
 			setup_local_APIC();
+			end_local_APIC_setup();
 		}
 		return -1;
 	}
@@ -813,6 +815,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 
 	connect_bsp_APIC();
 	setup_local_APIC();
+	end_local_APIC_setup();
 	map_cpu_to_logical_apicid();
 
 
