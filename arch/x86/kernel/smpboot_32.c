@@ -963,5 +963,6 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 #ifdef CONFIG_X86_IO_APIC
 	setup_ioapic_dest();
 #endif
+	check_nmi_watchdog();
 	zap_low_mappings();
 }
