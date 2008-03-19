@@ -1036,12 +1036,22 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 #endif
 	select_idle_routine(c);
 
-	if (c != &boot_cpu_data)
-		mtrr_ap_init();
 #ifdef CONFIG_NUMA
 	numa_add_cpu(smp_processor_id());
 #endif
 
+}
+
+void __cpuinit identify_boot_cpu(void)
+{
+	identify_cpu(&boot_cpu_data);
+}
+
+void __cpuinit identify_secondary_cpu(struct cpuinfo_x86 *c)
+{
+	BUG_ON(c == &boot_cpu_data);
+	identify_cpu(c);
+	mtrr_ap_init();
 }
 
 static __init int setup_noclflush(char *arg)
