@@ -876,6 +876,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
    who understands all this stuff should rewrite it properly. --RR 15/Jul/02 */
 void __init native_smp_prepare_cpus(unsigned int max_cpus)
 {
+	nmi_watchdog_default();
 	smp_commenced_mask = cpumask_of_cpu(0);
 	cpu_callin_map = cpumask_of_cpu(0);
 	mb();
