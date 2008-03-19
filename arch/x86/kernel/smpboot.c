@@ -1207,6 +1207,24 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
+
+#  ifdef CONFIG_X86_32
+void cpu_exit_clear(void)
+{
+	int cpu = raw_smp_processor_id();
+
+	idle_task_exit();
+
+	cpu_uninit();
+	irq_ctx_exit(cpu);
+
+	cpu_clear(cpu, cpu_callout_map);
+	cpu_clear(cpu, cpu_callin_map);
+
+	unmap_cpu_to_logical_apicid(cpu);
+}
+#  endif /* CONFIG_X86_32 */
+
 void remove_siblinginfo(int cpu)
 {
 	int sibling;

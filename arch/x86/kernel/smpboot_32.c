@@ -74,25 +74,6 @@ EXPORT_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
 
 u8 apicid_2_node[MAX_APICID];
 
-extern void unmap_cpu_to_logical_apicid(int cpu);
-
-#ifdef CONFIG_HOTPLUG_CPU
-void cpu_exit_clear(void)
-{
-	int cpu = raw_smp_processor_id();
-
-	idle_task_exit();
-
-	cpu_uninit();
-	irq_ctx_exit(cpu);
-
-	cpu_clear(cpu, cpu_callout_map);
-	cpu_clear(cpu, cpu_callin_map);
-
-	unmap_cpu_to_logical_apicid(cpu);
-}
-#endif
-
 /* Where the IO area was mapped on multiquad, always 0 otherwise */
 void *xquad_portio;
 #ifdef CONFIG_X86_NUMAQ
