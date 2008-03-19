@@ -97,6 +97,9 @@ int ioremap_change_attr(unsigned long vaddr, unsigned long size,
 	default:
 		err = _set_memory_uc(vaddr, nrpages);
 		break;
+	case _PAGE_CACHE_WC:
+		err = _set_memory_wc(vaddr, nrpages);
+		break;
 	case _PAGE_CACHE_WB:
 		err = _set_memory_wb(vaddr, nrpages);
 		break;
@@ -166,8 +169,13 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 		 * Do not fallback to certain memory types with certain
 		 * requested type:
 		 * - request is uncached, return cannot be write-back
+		 * - request is uncached, return cannot be write-combine
+		 * - request is write-combine, return cannot be write-back
 		 */
 		if ((prot_val == _PAGE_CACHE_UC &&
+		     (new_prot_val == _PAGE_CACHE_WB ||
+		      new_prot_val == _PAGE_CACHE_WC)) ||
+		    (prot_val == _PAGE_CACHE_WC &&
 		     new_prot_val == _PAGE_CACHE_WB)) {
 			free_memtype(phys_addr, phys_addr + size);
 			return NULL;
@@ -179,6 +187,9 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 	case _PAGE_CACHE_UC:
 	default:
 		prot = PAGE_KERNEL_NOCACHE;
+		break;
+	case _PAGE_CACHE_WC:
+		prot = PAGE_KERNEL_WC;
 		break;
 	case _PAGE_CACHE_WB:
 		prot = PAGE_KERNEL;
@@ -234,6 +245,25 @@ void __iomem *ioremap_nocache(resource_size_t phys_addr, unsigned long size)
 	return __ioremap(phys_addr, size, _PAGE_CACHE_UC);
 }
 EXPORT_SYMBOL(ioremap_nocache);
+
+/**
+ * ioremap_wc	-	map memory into CPU space write combined
+ * @offset:	bus address of the memory
+ * @size:	size of the resource to map
+ *
+ * This version of ioremap ensures that the memory is marked write combining.
+ * Write combining allows faster writes to some hardware devices.
+ *
+ * Must be freed with iounmap.
+ */
+void __iomem *ioremap_wc(unsigned long phys_addr, unsigned long size)
+{
+	if (pat_wc_enabled)
+		return __ioremap(phys_addr, size, _PAGE_CACHE_WC);
+	else
+		return ioremap_nocache(phys_addr, size);
+}
+EXPORT_SYMBOL(ioremap_wc);
 
 void __iomem *ioremap_cache(resource_size_t phys_addr, unsigned long size)
 {
