@@ -127,6 +127,7 @@ void default_idle(void)
 		local_irq_enable();
 		current_thread_info()->status |= TS_POLLING;
 	} else {
+		local_irq_enable();
 		/* loop is done by the caller */
 		cpu_relax();
 	}
@@ -142,6 +143,7 @@ EXPORT_SYMBOL(default_idle);
  */
 static void poll_idle(void)
 {
+	local_irq_enable();
 	cpu_relax();
 }
 
@@ -248,8 +250,11 @@ void mwait_idle_with_hints(unsigned long ax, unsigned long cx)
 		__monitor((void *)&current_thread_info()->flags, 0, 0);
 		smp_mb();
 		if (!need_resched())
-			__mwait(ax, cx);
-	}
+			__sti_mwait(ax, cx);
+		else
+			local_irq_enable();
+	} else
+		local_irq_enable();
 }
 
 /* Default MONITOR/MWAIT with no hints, used for default C1 state */
