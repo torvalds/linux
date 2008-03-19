@@ -1031,6 +1031,10 @@ static void bus_reset_tasklet(unsigned long data)
 	 * bit extra to get the actual number of self IDs.
 	 */
 	self_id_count = (reg >> 3) & 0x3ff;
+	if (self_id_count == 0) {
+		fw_notify("inconsistent self IDs\n");
+		return;
+	}
 	generation = (cond_le32_to_cpu(ohci->self_id_cpu[0]) >> 16) & 0xff;
 	rmb();
 
