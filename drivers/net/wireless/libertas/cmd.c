@@ -20,6 +20,46 @@ static void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
 
 
 /**
+ *  @brief Simple callback that copies response back into command
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *  @param extra  	A pointer to the original command structure for which
+ *                      'resp' is a response
+ *  @param resp         A pointer to the command response
+ *
+ *  @return 	   	0 on success, error on failure
+ */
+int lbs_cmd_copyback(struct lbs_private *priv, unsigned long extra,
+		     struct cmd_header *resp)
+{
+	struct cmd_header *buf = (void *)extra;
+	uint16_t copy_len;
+
+	copy_len = min(le16_to_cpu(buf->size), le16_to_cpu(resp->size));
+	memcpy(buf, resp, copy_len);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(lbs_cmd_copyback);
+
+/**
+ *  @brief Simple callback that ignores the result. Use this if
+ *  you just want to send a command to the hardware, but don't
+ *  care for the result.
+ *
+ *  @param priv         ignored
+ *  @param extra        ignored
+ *  @param resp         ignored
+ *
+ *  @return 	   	0 for success
+ */
+static int lbs_cmd_async_callback(struct lbs_private *priv, unsigned long extra,
+		     struct cmd_header *resp)
+{
+	return 0;
+}
+
+
+/**
  *  @brief Checks whether a command is allowed in Power Save mode
  *
  *  @param command the command ID
@@ -1242,7 +1282,7 @@ void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
 	cmd->cmdwaitqwoken = 1;
 	wake_up_interruptible(&cmd->cmdwait_q);
 
-	if (!cmd->callback)
+	if (!cmd->callback || cmd->callback == lbs_cmd_async_callback)
 		__lbs_cleanup_and_insert_cmd(priv, cmd);
 	priv->cur_cmd = NULL;
 }
@@ -2018,32 +2058,10 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
 }
 
 
-/**
- *  @brief Simple callback that copies response back into command
- *
- *  @param priv    	A pointer to struct lbs_private structure
- *  @param extra  	A pointer to the original command structure for which
- *                      'resp' is a response
- *  @param resp         A pointer to the command response
- *
- *  @return 	   	0 on success, error on failure
- */
-int lbs_cmd_copyback(struct lbs_private *priv, unsigned long extra,
-		     struct cmd_header *resp)
-{
-	struct cmd_header *buf = (void *)extra;
-	uint16_t copy_len;
-
-	copy_len = min(le16_to_cpu(buf->size), le16_to_cpu(resp->size));
-	memcpy(buf, resp, copy_len);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(lbs_cmd_copyback);
-
-struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv, uint16_t command,
-				      struct cmd_header *in_cmd, int in_cmd_size,
-				      int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *),
-				      unsigned long callback_arg)
+static struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv,
+	uint16_t command, struct cmd_header *in_cmd, int in_cmd_size,
+	int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *),
+	unsigned long callback_arg)
 {
 	struct cmd_ctrl_node *cmdnode;
 
@@ -2080,9 +2098,6 @@ struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv, uint16_t command
 
 	lbs_deb_host("PREP_CMD: command 0x%04x\n", command);
 
-	/* here was the big old switch() statement, which is now obsolete,
-	 * because the caller of lbs_cmd() sets up all of *cmd for us. */
-
 	cmdnode->cmdwaitqwoken = 0;
 	lbs_queue_cmd(priv, cmdnode);
 	wake_up_interruptible(&priv->waitq);
@@ -2090,6 +2105,15 @@ struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv, uint16_t command
  done:
 	lbs_deb_leave_args(LBS_DEB_HOST, "ret %p", cmdnode);
 	return cmdnode;
+}
+
+void lbs_cmd_async(struct lbs_private *priv, uint16_t command,
+	struct cmd_header *in_cmd, int in_cmd_size)
+{
+	lbs_deb_enter(LBS_DEB_CMD);
+	__lbs_cmd_async(priv, command, in_cmd, in_cmd_size,
+		lbs_cmd_async_callback, 0);
+	lbs_deb_leave(LBS_DEB_CMD);
 }
 
 int __lbs_cmd(struct lbs_private *priv, uint16_t command,
