@@ -373,17 +373,18 @@ static inline void __inquire_remote_apic(int apicid)
 	int timeout;
 	u32 status;
 
-	printk("Inquiring remote APIC #%d...\n", apicid);
+	printk(KERN_INFO "Inquiring remote APIC #%d...\n", apicid);
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
-		printk("... APIC #%d %s: ", apicid, names[i]);
+		printk(KERN_INFO "... APIC #%d %s: ", apicid, names[i]);
 
 		/*
 		 * Wait for idle.
 		 */
 		status = safe_apic_wait_icr_idle();
 		if (status)
-			printk("a previous APIC delivery may have failed\n");
+			printk(KERN_CONT
+			       "a previous APIC delivery may have failed\n");
 
 		apic_write_around(APIC_ICR2, SET_APIC_DEST_FIELD(apicid));
 		apic_write_around(APIC_ICR, APIC_DM_REMRD | regs[i]);
@@ -397,10 +398,10 @@ static inline void __inquire_remote_apic(int apicid)
 		switch (status) {
 		case APIC_ICR_RR_VALID:
 			status = apic_read(APIC_RRR);
-			printk("%lx\n", status);
+			printk(KERN_CONT "%08x\n", status);
 			break;
 		default:
-			printk("failed\n");
+			printk(KERN_CONT "failed\n");
 		}
 	}
 }
