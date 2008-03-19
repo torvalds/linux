@@ -75,8 +75,6 @@ unsigned disabled_cpus __cpuinitdata;
 /* Bitmask of physically existing CPUs */
 physid_mask_t phys_cpu_present_map;
 
-u8 bios_cpu_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
-
 /*
  * Intel MP BIOS table parsing routines:
  */
@@ -220,7 +218,14 @@ static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 			def_to_bigsmp = 1;
 		}
 	}
-	bios_cpu_apicid[num_processors - 1] = m->mpc_apicid;
+	/* are we being called early in kernel startup? */
+	if (x86_cpu_to_apicid_early_ptr) {
+		u16 *bios_cpu_apicid = x86_bios_cpu_apicid_early_ptr;
+		bios_cpu_apicid[num_processors - 1] = m->mpc_apicid;
+	} else {
+		int cpu = num_processors - 1;
+		per_cpu(x86_bios_cpu_apicid, cpu) = m->mpc_apicid;
+	}
 }
 
 static void __init MP_bus_info (struct mpc_config_bus *m)
