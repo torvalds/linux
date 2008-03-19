@@ -890,12 +890,21 @@ struct iwl4965_rx_frame_hdr {
 #define RX_RES_STATUS_SEC_TYPE_WEP	(0x1 << 8)
 #define RX_RES_STATUS_SEC_TYPE_CCMP	(0x2 << 8)
 #define RX_RES_STATUS_SEC_TYPE_TKIP	(0x3 << 8)
+#define	RX_RES_STATUS_SEC_TYPE_ERR	(0x7 << 8)
+
+#define RX_RES_STATUS_STATION_FOUND	(1<<6)
+#define RX_RES_STATUS_NO_STATION_INFO_MISMATCH	(1<<7)
 
 #define RX_RES_STATUS_DECRYPT_TYPE_MSK	(0x3 << 11)
 #define RX_RES_STATUS_NOT_DECRYPT	(0x0 << 11)
 #define RX_RES_STATUS_DECRYPT_OK	(0x3 << 11)
 #define RX_RES_STATUS_BAD_ICV_MIC	(0x1 << 11)
 #define RX_RES_STATUS_BAD_KEY_TTAK	(0x2 << 11)
+
+#define RX_MPDU_RES_STATUS_ICV_OK	(0x20)
+#define RX_MPDU_RES_STATUS_MIC_OK	(0x40)
+#define RX_MPDU_RES_STATUS_TTAK_OK	(1 << 7)
+#define RX_MPDU_RES_STATUS_DEC_DONE_MSK	(0x800)
 
 struct iwl4965_rx_frame_end {
 	__le32 status;
