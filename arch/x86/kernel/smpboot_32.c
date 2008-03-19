@@ -166,8 +166,6 @@ static void __cpuinit smp_callin(void)
 	cpu_set(cpuid, cpu_callin_map);
 }
 
-static int cpucount;
-
 /*
  * Activate a secondary processor.
  */
@@ -585,7 +583,6 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 	/* start_eip had better be page-aligned! */
 	start_eip = setup_trampoline();
 
-	++cpucount;
 	alternatives_smp_switch(1);
 
 	/* So we see what's up   */
@@ -656,7 +653,6 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 		cpu_clear(cpu, cpu_initialized); /* was set by cpu_init() */
 		cpu_clear(cpu, cpu_possible_map);
 		per_cpu(x86_cpu_to_apicid, cpu) = BAD_APICID;
-		cpucount--;
 	}
 
 	/* mark "stuck" area as not stuck */
@@ -672,7 +668,6 @@ void cpu_exit_clear(void)
 
 	idle_task_exit();
 
-	cpucount --;
 	cpu_uninit();
 	irq_ctx_exit(cpu);
 
@@ -795,7 +790,6 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	return 0;
 }
 
-
 /*
  * Cycle through the processors sending APIC IPIs to boot each.
  */
@@ -851,7 +845,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 
 		if (!check_apicid_present(bit))
 			continue;
-		if (max_cpus <= cpucount+1)
+		if (max_cpus <= cpus_weight(cpu_present_map))
 			continue;
 		/* Utterly temporary */
 		for (cpu = 0; cpu < NR_CPUS; cpu++)
@@ -878,7 +872,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 			bogosum += cpu_data(cpu).loops_per_jiffy;
 	printk(KERN_INFO
 		"Total of %d processors activated (%lu.%02lu BogoMIPS).\n",
-		cpucount+1,
+		cpus_weight(cpu_present_map),
 		bogosum/(500000/HZ),
 		(bogosum/(5000/HZ))%100);
 	
@@ -892,7 +886,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	 * approved Athlon
 	 */
 	if (tainted & TAINT_UNSAFE_SMP) {
-		if (cpucount)
+		if (cpus_weight(cpu_present_map))
 			printk (KERN_INFO "WARNING: This combination of AMD processors is not suitable for SMP.\n");
 		else
 			tainted &= ~TAINT_UNSAFE_SMP;
