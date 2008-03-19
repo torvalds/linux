@@ -61,6 +61,7 @@
 #include <asm/numa.h>
 
 #include <mach_wakecpu.h>
+#include <smpboot_hooks.h>
 
 /* Set when the idlers are all forked */
 int smp_threads_ready;
@@ -517,14 +518,7 @@ do_rest:
 
 	Dprintk("Setting warm reset code and vector.\n");
 
-	CMOS_WRITE(0xa, 0xf);
-	local_flush_tlb();
-	Dprintk("1.\n");
-	*((volatile unsigned short *) phys_to_virt(0x469)) = start_rip >> 4;
-	Dprintk("2.\n");
-	*((volatile unsigned short *) phys_to_virt(0x467)) = start_rip & 0xf;
-	Dprintk("3.\n");
-
+	smpboot_setup_warm_reset_vector(start_rip);
 	/*
 	 * Be paranoid about clearing APIC errors.
 	 */
@@ -592,23 +586,6 @@ do_rest:
 
 cycles_t cacheflush_time;
 unsigned long cache_decay_ticks;
-
-/*
- * Cleanup possible dangling ends...
- */
-static __cpuinit void smp_cleanup_boot(void)
-{
-	/*
-	 * Paranoid:  Set warm reset code and vector here back
-	 * to default values.
-	 */
-	CMOS_WRITE(0, 0xf);
-
-	/*
-	 * Reset trampoline flag
-	 */
-	*((volatile int *) phys_to_virt(0x467)) = 0;
-}
 
 /*
  * Fall back to non SMP mode after errors.
@@ -827,7 +804,7 @@ extern void smp_checks(void);
  */
 void __init native_smp_cpus_done(unsigned int max_cpus)
 {
-	smp_cleanup_boot();
+	smpboot_restore_warm_reset_vector();
 
 	Dprintk("Boot done.\n");
 
