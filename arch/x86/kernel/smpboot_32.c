@@ -702,20 +702,6 @@ void cpu_exit_clear(void)
 }
 #endif
 
-static void __cpuinit __smp_prepare_cpu(int cpu)
-{
-	int	apicid;
-
-	apicid = per_cpu(x86_cpu_to_apicid, cpu);
-
-	/* init low mem mapping */
-	clone_pgd_range(swapper_pg_dir, swapper_pg_dir + USER_PGD_PTRS,
-			min_t(unsigned long, KERNEL_PGD_PTRS, USER_PGD_PTRS));
-	flush_tlb_all();
-
-	do_boot_cpu(apicid, cpu);
-}
-
 static int boot_cpu_logical_apicid;
 /* Where the IO area was mapped on multiquad, always 0 otherwise */
 void *xquad_portio;
@@ -872,7 +858,12 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 
 	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 
-	__smp_prepare_cpu(cpu);
+	/* init low mem mapping */
+	clone_pgd_range(swapper_pg_dir, swapper_pg_dir + USER_PGD_PTRS,
+			min_t(unsigned long, KERNEL_PGD_PTRS, USER_PGD_PTRS));
+	flush_tlb_all();
+
+	do_boot_cpu(apicid, cpu);
 
 	/* In case one didn't come up */
 	if (!cpu_isset(cpu, cpu_callin_map)) {
