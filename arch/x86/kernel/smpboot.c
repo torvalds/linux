@@ -17,6 +17,7 @@
 #include <asm/tlbflush.h>
 #include <asm/mtrr.h>
 #include <asm/nmi.h>
+#include <asm/vmi.h>
 #include <linux/mc146818rtc.h>
 
 #include <mach_apic.h>
@@ -229,6 +230,90 @@ void __cpuinit smp_callin(void)
 	cpu_set(cpuid, cpu_callin_map);
 }
 
+/*
+ * Activate a secondary processor.
+ */
+void __cpuinit start_secondary(void *unused)
+{
+	/*
+	 * Don't put *anything* before cpu_init(), SMP booting is too
+	 * fragile that we want to limit the things done here to the
+	 * most necessary things.
+	 */
+#ifdef CONFIG_VMI
+	vmi_bringup();
+#endif
+	cpu_init();
+	preempt_disable();
+	smp_callin();
+
+	/* otherwise gcc will move up smp_processor_id before the cpu_init */
+	barrier();
+	/*
+	 * Check TSC synchronization with the BP:
+	 */
+	check_tsc_sync_target();
+
+	if (nmi_watchdog == NMI_IO_APIC) {
+		disable_8259A_irq(0);
+		enable_NMI_through_LVT0();
+		enable_8259A_irq(0);
+	}
+
+	/* This must be done before setting cpu_online_map */
+	set_cpu_sibling_map(raw_smp_processor_id());
+	wmb();
+
+	/*
+	 * We need to hold call_lock, so there is no inconsistency
+	 * between the time smp_call_function() determines number of
+	 * IPI recipients, and the time when the determination is made
+	 * for which cpus receive the IPI. Holding this
+	 * lock helps us to not include this cpu in a currently in progress
+	 * smp_call_function().
+	 */
+	lock_ipi_call_lock();
+#ifdef CONFIG_X86_64
+	spin_lock(&vector_lock);
+
+	/* Setup the per cpu irq handling data structures */
+	__setup_vector_irq(smp_processor_id());
+	/*
+	 * Allow the master to continue.
+	 */
+	spin_unlock(&vector_lock);
+#endif
+	cpu_set(smp_processor_id(), cpu_online_map);
+	unlock_ipi_call_lock();
+	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
+
+	setup_secondary_clock();
+
+	wmb();
+	cpu_idle();
+}
+
+#ifdef CONFIG_X86_32
+/*
+ * Everything has been set up for the secondary
+ * CPUs - they just need to reload everything
+ * from the task structure
+ * This function must not return.
+ */
+void __devinit initialize_secondary(void)
+{
+	/*
+	 * We don't actually need to load the full TSS,
+	 * basically just the stack pointer and the ip.
+	 */
+
+	asm volatile(
+		"movl %0,%%esp\n\t"
+		"jmp *%1"
+		:
+		:"m" (current->thread.sp), "m" (current->thread.ip));
+}
+#endif
 
 static void __cpuinit smp_apply_quirks(struct cpuinfo_x86 *c)
 {
@@ -533,7 +618,6 @@ wakeup_secondary_cpu(int logical_apicid, unsigned long start_eip)
 }
 #endif	/* WAKE_SECONDARY_VIA_NMI */
 
-extern void start_secondary(void *unused);
 #ifdef WAKE_SECONDARY_VIA_INIT
 static int __devinit
 wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)

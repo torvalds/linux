@@ -71,69 +71,6 @@ int smp_threads_ready;
 /* State of each CPU */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
 
-extern void smp_callin(void);
-/*
- * Setup code on secondary processor (after comming out of the trampoline)
- */
-void __cpuinit start_secondary(void)
-{
-	/*
-	 * Dont put anything before smp_callin(), SMP
-	 * booting is too fragile that we want to limit the
-	 * things done here to the most necessary things.
-	 */
-	cpu_init();
-	preempt_disable();
-	smp_callin();
-
-	/* otherwise gcc will move up the smp_processor_id before the cpu_init */
-	barrier();
-
-	/*
-  	 * Check TSC sync first:
- 	 */
-	check_tsc_sync_target();
-
-	if (nmi_watchdog == NMI_IO_APIC) {
-		disable_8259A_irq(0);
-		enable_NMI_through_LVT0();
-		enable_8259A_irq(0);
-	}
-
-	/*
-	 * The sibling maps must be set before turing the online map on for
-	 * this cpu
-	 */
-	set_cpu_sibling_map(smp_processor_id());
-
-	/*
-	 * We need to hold call_lock, so there is no inconsistency
-	 * between the time smp_call_function() determines number of
-	 * IPI recipients, and the time when the determination is made
-	 * for which cpus receive the IPI in genapic_flat.c. Holding this
-	 * lock helps us to not include this cpu in a currently in progress
-	 * smp_call_function().
-	 */
-	lock_ipi_call_lock();
-	spin_lock(&vector_lock);
-
-	/* Setup the per cpu irq handling data structures */
-	__setup_vector_irq(smp_processor_id());
-	/*
-	 * Allow the master to continue.
-	 */
-	spin_unlock(&vector_lock);
-	cpu_set(smp_processor_id(), cpu_online_map);
-	unlock_ipi_call_lock();
-
-	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
-
-	setup_secondary_clock();
-
-	wmb();
-	cpu_idle();
-}
-
 cycles_t cacheflush_time;
 unsigned long cache_decay_ticks;
 
