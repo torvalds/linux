@@ -14,9 +14,6 @@
 #include "cmd.h"
 
 static struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv);
-static void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
-		    struct cmd_ctrl_node *ptempnode,
-		    void *pdata_buf);
 
 
 /**
@@ -183,8 +180,7 @@ int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria)
 }
 EXPORT_SYMBOL_GPL(lbs_host_sleep_cfg);
 
-static int lbs_cmd_802_11_ps_mode(struct lbs_private *priv,
-				   struct cmd_ds_command *cmd,
+static int lbs_cmd_802_11_ps_mode(struct cmd_ds_command *cmd,
 				   u16 cmd_action)
 {
 	struct cmd_ds_802_11_ps_mode *psm = &cmd->params.psmode;
@@ -479,8 +475,7 @@ int lbs_cmd_802_11_key_material(struct lbs_private *priv, uint16_t cmd_action,
 	return ret;
 }
 
-static int lbs_cmd_802_11_reset(struct lbs_private *priv,
-				 struct cmd_ds_command *cmd, int cmd_action)
+static int lbs_cmd_802_11_reset(struct cmd_ds_command *cmd, int cmd_action)
 {
 	struct cmd_ds_802_11_reset *reset = &cmd->params.reset;
 
@@ -489,18 +484,6 @@ static int lbs_cmd_802_11_reset(struct lbs_private *priv,
 	cmd->command = cpu_to_le16(CMD_802_11_RESET);
 	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_reset) + S_DS_GEN);
 	reset->action = cpu_to_le16(cmd_action);
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
-static int lbs_cmd_802_11_get_stat(struct lbs_private *priv,
-				    struct cmd_ds_command *cmd)
-{
-	lbs_deb_enter(LBS_DEB_CMD);
-	cmd->command = cpu_to_le16(CMD_802_11_GET_STAT);
-	cmd->size =
-	    cpu_to_le16(sizeof(struct cmd_ds_802_11_get_stat) + S_DS_GEN);
 
 	lbs_deb_leave(LBS_DEB_CMD);
 	return 0;
@@ -626,8 +609,7 @@ static int lbs_cmd_802_11_snmp_mib(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_rf_tx_power(struct lbs_private *priv,
-				       struct cmd_ds_command *cmd,
+static int lbs_cmd_802_11_rf_tx_power(struct cmd_ds_command *cmd,
 				       u16 cmd_action, void *pdata_buf)
 {
 
@@ -670,8 +652,7 @@ static int lbs_cmd_802_11_rf_tx_power(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_monitor_mode(struct lbs_private *priv,
-				      struct cmd_ds_command *cmd,
+static int lbs_cmd_802_11_monitor_mode(struct cmd_ds_command *cmd,
 				      u16 cmd_action, void *pdata_buf)
 {
 	struct cmd_ds_802_11_monitor_mode *monitor = &cmd->params.monitor;
@@ -898,8 +879,7 @@ static int lbs_cmd_802_11_rssi(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_reg_access(struct lbs_private *priv,
-			       struct cmd_ds_command *cmdptr,
+static int lbs_cmd_reg_access(struct cmd_ds_command *cmdptr,
 			       u8 cmd_action, void *pdata_buf)
 {
 	struct lbs_offset_value *offval;
@@ -996,9 +976,8 @@ static int lbs_cmd_802_11_mac_address(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_eeprom_access(struct lbs_private *priv,
-					 struct cmd_ds_command *cmd,
-					 int cmd_action, void *pdata_buf)
+static int lbs_cmd_802_11_eeprom_access(struct cmd_ds_command *cmd,
+					void *pdata_buf)
 {
 	struct lbs_ioctl_regrdwr *ea = pdata_buf;
 
@@ -1018,8 +997,7 @@ static int lbs_cmd_802_11_eeprom_access(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_bt_access(struct lbs_private *priv,
-			       struct cmd_ds_command *cmd,
+static int lbs_cmd_bt_access(struct cmd_ds_command *cmd,
 			       u16 cmd_action, void *pdata_buf)
 {
 	struct cmd_ds_bt_access *bt_access = &cmd->params.bt;
@@ -1056,8 +1034,7 @@ static int lbs_cmd_bt_access(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_fwt_access(struct lbs_private *priv,
-			       struct cmd_ds_command *cmd,
+static int lbs_cmd_fwt_access(struct cmd_ds_command *cmd,
 			       u16 cmd_action, void *pdata_buf)
 {
 	struct cmd_ds_fwt_access *fwt_access = &cmd->params.fwt;
@@ -1376,7 +1353,8 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		goto done;
 	}
 
-	lbs_set_cmd_ctrl_node(priv, cmdnode, pdata_buf);
+	cmdnode->callback = NULL;
+	cmdnode->callback_arg = (unsigned long)pdata_buf;
 
 	cmdptr = (struct cmd_ds_command *)cmdnode->cmdbuf;
 
@@ -1391,7 +1369,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 	switch (cmd_no) {
 	case CMD_802_11_PS_MODE:
-		ret = lbs_cmd_802_11_ps_mode(priv, cmdptr, cmd_action);
+		ret = lbs_cmd_802_11_ps_mode(cmdptr, cmd_action);
 		break;
 
 	case CMD_802_11_ASSOCIATE:
@@ -1408,15 +1386,11 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		break;
 
 	case CMD_802_11_RESET:
-		ret = lbs_cmd_802_11_reset(priv, cmdptr, cmd_action);
+		ret = lbs_cmd_802_11_reset(cmdptr, cmd_action);
 		break;
 
 	case CMD_802_11_AUTHENTICATE:
 		ret = lbs_cmd_80211_authenticate(priv, cmdptr, pdata_buf);
-		break;
-
-	case CMD_802_11_GET_STAT:
-		ret = lbs_cmd_802_11_get_stat(priv, cmdptr);
 		break;
 
 	case CMD_802_11_SNMP_MIB:
@@ -1427,12 +1401,12 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	case CMD_MAC_REG_ACCESS:
 	case CMD_BBP_REG_ACCESS:
 	case CMD_RF_REG_ACCESS:
-		ret = lbs_cmd_reg_access(priv, cmdptr, cmd_action, pdata_buf);
+		ret = lbs_cmd_reg_access(cmdptr, cmd_action, pdata_buf);
 		break;
 
 	case CMD_802_11_RF_TX_POWER:
-		ret = lbs_cmd_802_11_rf_tx_power(priv, cmdptr,
-						  cmd_action, pdata_buf);
+		ret = lbs_cmd_802_11_rf_tx_power(cmdptr,
+						 cmd_action, pdata_buf);
 		break;
 
 	case CMD_802_11_RATE_ADAPT_RATESET:
@@ -1445,7 +1419,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		break;
 
 	case CMD_802_11_MONITOR_MODE:
-		ret = lbs_cmd_802_11_monitor_mode(priv, cmdptr,
+		ret = lbs_cmd_802_11_monitor_mode(cmdptr,
 				          cmd_action, pdata_buf);
 		break;
 
@@ -1458,7 +1432,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		break;
 
 	case CMD_802_11_AD_HOC_STOP:
-		ret = lbs_cmd_80211_ad_hoc_stop(priv, cmdptr);
+		ret = lbs_cmd_80211_ad_hoc_stop(cmdptr);
 		break;
 
 	case CMD_802_11_MAC_ADDRESS:
@@ -1466,8 +1440,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		break;
 
 	case CMD_802_11_EEPROM_ACCESS:
-		ret = lbs_cmd_802_11_eeprom_access(priv, cmdptr,
-						    cmd_action, pdata_buf);
+		ret = lbs_cmd_802_11_eeprom_access(cmdptr, pdata_buf);
 		break;
 
 	case CMD_802_11_SET_AFC:
@@ -1534,11 +1507,11 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		ret = 0;
 		break;
 	case CMD_BT_ACCESS:
-		ret = lbs_cmd_bt_access(priv, cmdptr, cmd_action, pdata_buf);
+		ret = lbs_cmd_bt_access(cmdptr, cmd_action, pdata_buf);
 		break;
 
 	case CMD_FWT_ACCESS:
-		ret = lbs_cmd_fwt_access(priv, cmdptr, cmd_action, pdata_buf);
+		ret = lbs_cmd_fwt_access(cmdptr, cmd_action, pdata_buf);
 		break;
 
 	case CMD_GET_TSF:
@@ -1708,36 +1681,6 @@ static struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv)
 
 	lbs_deb_leave(LBS_DEB_HOST);
 	return tempnode;
-}
-
-/**
- *  @brief This function cleans command node.
- *
- *  @param ptempnode	A pointer to cmdCtrlNode structure
- *  @return 		n/a
- */
-
-/**
- *  @brief This function initializes the command node.
- *
- *  @param priv		A pointer to struct lbs_private structure
- *  @param ptempnode	A pointer to cmd_ctrl_node structure
- *  @param pdata_buf	A pointer to informaion buffer
- *  @return 		0 or -1
- */
-static void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
-				  struct cmd_ctrl_node *ptempnode,
-				  void *pdata_buf)
-{
-	lbs_deb_enter(LBS_DEB_HOST);
-
-	if (!ptempnode)
-		return;
-
-	ptempnode->callback = NULL;
-	ptempnode->callback_arg = (unsigned long)pdata_buf;
-
-	lbs_deb_leave(LBS_DEB_HOST);
 }
 
 /**

@@ -605,7 +605,7 @@ static int lbs_get_range(struct net_device *dev, struct iw_request_info *info,
 			lbs_deb_wext("chan_no %d\n", chan_no);
 			range->freq[range->num_frequency].i = (long)chan_no;
 			range->freq[range->num_frequency].m =
-			    (long)lbs_chan_2_freq(chan_no, band) * 100000;
+			    (long)lbs_chan_2_freq(chan_no) * 100000;
 			range->freq[range->num_frequency].e = 1;
 			range->num_frequency++;
 		}

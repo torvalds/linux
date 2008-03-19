@@ -63,7 +63,6 @@ void lbs_send_iwevcustom_event(struct lbs_private *priv, s8 *str);
 
 /* main.c */
 struct chan_freq_power *lbs_get_region_cfp_table(u8 region,
-	u8 band,
 	int *cfp_no);
 struct lbs_private *lbs_add_card(void *card, struct device *dmdev);
 int lbs_remove_card(struct lbs_private *priv);

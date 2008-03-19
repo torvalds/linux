@@ -1391,7 +1391,7 @@ static void lbs_remove_mesh(struct lbs_private *priv)
  *  @param cfp_no  A pointer to CFP number
  *  @return 	   A pointer to CFP
  */
-struct chan_freq_power *lbs_get_region_cfp_table(u8 region, u8 band, int *cfp_no)
+struct chan_freq_power *lbs_get_region_cfp_table(u8 region, int *cfp_no)
 {
 	int i, end;
 
@@ -1425,7 +1425,7 @@ int lbs_set_regiontable(struct lbs_private *priv, u8 region, u8 band)
 
 	memset(priv->region_channel, 0, sizeof(priv->region_channel));
 
-	cfp = lbs_get_region_cfp_table(region, band, &cfp_no);
+	cfp = lbs_get_region_cfp_table(region, &cfp_no);
 	if (cfp != NULL) {
 		priv->region_channel[i].nrcfp = cfp_no;
 		priv->region_channel[i].CFP = cfp;
