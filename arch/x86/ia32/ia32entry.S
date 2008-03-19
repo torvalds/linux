@@ -162,12 +162,14 @@ sysenter_tracesys:
 	SAVE_REST
 	CLEAR_RREGS
 	movq	%r9,R9(%rsp)
-	movq	$-ENOSYS,RAX(%rsp)	/* really needed? */
+	movq	$-ENOSYS,RAX(%rsp)/* ptrace can change this for a bad syscall */
 	movq	%rsp,%rdi        /* &pt_regs -> arg1 */
 	call	syscall_trace_enter
 	LOAD_ARGS32 ARGOFFSET  /* reload args from stack in case ptrace changed it */
 	RESTORE_REST
 	xchgl	%ebp,%r9d
+	cmpl	$(IA32_NR_syscalls-1),%eax
+	ja	int_ret_from_sys_call /* sysenter_tracesys has set RAX(%rsp) */
 	jmp	sysenter_do_call
 	CFI_ENDPROC
 ENDPROC(ia32_sysenter_target)
@@ -261,13 +263,15 @@ cstar_tracesys:
 	SAVE_REST
 	CLEAR_RREGS
 	movq %r9,R9(%rsp)
-	movq $-ENOSYS,RAX(%rsp)	/* really needed? */
+	movq $-ENOSYS,RAX(%rsp)	/* ptrace can change this for a bad syscall */
 	movq %rsp,%rdi        /* &pt_regs -> arg1 */
 	call syscall_trace_enter
 	LOAD_ARGS32 ARGOFFSET  /* reload args from stack in case ptrace changed it */
 	RESTORE_REST
 	xchgl %ebp,%r9d
 	movl RSP-ARGOFFSET(%rsp), %r8d
+	cmpl $(IA32_NR_syscalls-1),%eax
+	ja int_ret_from_sys_call /* cstar_tracesys has set RAX(%rsp) */
 	jmp cstar_do_call
 END(ia32_cstar_target)
 				
