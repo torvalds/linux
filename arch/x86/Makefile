@@ -151,7 +151,6 @@ mflags-y += -Iinclude/asm-x86/mach-default
 # 64 bit does not support subarch support - clear sub arch variables
 fcore-$(CONFIG_X86_64)  :=
 mcore-$(CONFIG_X86_64)  :=
-mflags-$(CONFIG_X86_64) :=
 
 KBUILD_CFLAGS += $(mflags-y)
 KBUILD_AFLAGS += $(mflags-y)
