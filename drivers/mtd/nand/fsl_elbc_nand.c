@@ -184,11 +184,11 @@ static int fsl_elbc_run_command(struct mtd_info *mtd)
 	         in_be32(&lbc->fbar), in_be32(&lbc->fpar),
 	         in_be32(&lbc->fbcr), priv->bank);
 
+	ctrl->irq_status = 0;
 	/* execute special operation */
 	out_be32(&lbc->lsor, priv->bank);
 
 	/* wait for FCM complete flag or timeout */
-	ctrl->irq_status = 0;
 	wait_event_timeout(ctrl->irq_wait, ctrl->irq_status,
 	                   FCM_TIMEOUT_MSECS * HZ/1000);
 	ctrl->status = ctrl->irq_status;
@@ -667,7 +667,7 @@ static int fsl_elbc_chip_init_tail(struct mtd_info *mtd)
 	/* adjust Option Register and ECC to match Flash page size */
 	if (mtd->writesize == 512) {
 		priv->page_size = 0;
-		clrbits32(&lbc->bank[priv->bank].or, ~OR_FCM_PGS);
+		clrbits32(&lbc->bank[priv->bank].or, OR_FCM_PGS);
 	} else if (mtd->writesize == 2048) {
 		priv->page_size = 1;
 		setbits32(&lbc->bank[priv->bank].or, OR_FCM_PGS);
@@ -688,11 +688,6 @@ static int fsl_elbc_chip_init_tail(struct mtd_info *mtd)
 		return -1;
 	}
 
-	/* The default u-boot configuration on MPC8313ERDB causes errors;
-	 * more delay is needed.  This should be safe for other boards
-	 * as well.
-	 */
-	setbits32(&lbc->bank[priv->bank].or, 0x70);
 	return 0;
 }
 
