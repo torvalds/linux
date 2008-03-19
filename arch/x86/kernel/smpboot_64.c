@@ -134,7 +134,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 		printk(KERN_ERR "BIOS bug, local APIC #%d not detected!...\n",
 			boot_cpu_physical_apicid);
 		printk(KERN_ERR "... forcing use of dummy APIC emulation. (tell your hw vendor)\n");
-		nr_ioapics = 0;
+		smpboot_clear_io_apic();
 		return -1;
 	}
 
@@ -145,7 +145,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	 */
 	if (!max_cpus) {
 		printk(KERN_INFO "SMP mode deactivated, forcing use of dummy APIC emulation.\n");
-		nr_ioapics = 0;
+		smpboot_clear_io_apic();
 		return -1;
 	}
 
