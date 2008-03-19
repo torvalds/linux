@@ -172,11 +172,23 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	return 0;
 }
 
-/* These are wrappers to interface to the new boot process.  Someone
-   who understands all this stuff should rewrite it properly. --RR 15/Jul/02 */
+static void __init smp_cpu_index_default(void)
+{
+	int i;
+	struct cpuinfo_x86 *c;
+
+	for_each_cpu_mask(i, cpu_possible_map) {
+		c = &cpu_data(i);
+		/* mark all to hotplug */
+		c->cpu_index = NR_CPUS;
+	}
+}
+
 void __init native_smp_prepare_cpus(unsigned int max_cpus)
 {
  	nmi_watchdog_default();
+ 	smp_cpu_index_default();
+ 	current_cpu_data = boot_cpu_data;
  	cpu_callin_map = cpumask_of_cpu(0);
  	mb();
 
@@ -195,7 +207,11 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 		return;
 	}
 
-	boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
+	if (GET_APIC_ID(apic_read(APIC_ID)) != boot_cpu_physical_apicid) {
+		panic("Boot APIC ID in local APIC unexpected (%d vs %d)",
+		     GET_APIC_ID(apic_read(APIC_ID)), boot_cpu_physical_apicid);
+		/* Or can we switch back to PIC here? */
+	}
 
 	connect_bsp_APIC();
 	setup_local_APIC();
