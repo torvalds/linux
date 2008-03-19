@@ -25,4 +25,6 @@ if STAGING
 
 source "drivers/staging/et131x/Kconfig"
 
+source "drivers/staging/slicoss/Kconfig"
+
 endif # STAGING
