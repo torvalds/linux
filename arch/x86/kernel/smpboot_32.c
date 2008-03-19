@@ -958,6 +958,7 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 		return -EINVAL;
 	}
 
+	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 #ifdef CONFIG_HOTPLUG_CPU
 
 	/*
@@ -976,7 +977,6 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 		return -EIO;
 	}
 
-	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 	/* Unleash the CPU! */
 	cpu_set(cpu, smp_commenced_mask);
 
