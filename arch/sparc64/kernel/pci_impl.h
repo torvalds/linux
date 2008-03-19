@@ -148,6 +148,8 @@ struct pci_pbm_info {
 	struct pci_bus			*pci_bus;
 	void (*scan_bus)(struct pci_pbm_info *);
 	struct pci_ops			*pci_ops;
+
+	int				numa_node;
 };
 
 struct pci_controller_info {

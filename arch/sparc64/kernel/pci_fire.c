@@ -71,7 +71,8 @@ static int pci_fire_pbm_iommu_init(struct pci_pbm_info *pbm)
 	 */
 	fire_write(iommu->iommu_flushinv, ~(u64)0);
 
-	err = iommu_table_init(iommu, tsbsize * 8 * 1024, vdma[0], dma_mask);
+	err = iommu_table_init(iommu, tsbsize * 8 * 1024, vdma[0], dma_mask,
+			       pbm->numa_node);
 	if (err)
 		return err;
 
@@ -448,6 +449,8 @@ static int __init pci_fire_pbm_init(struct pci_controller_info *p,
 
 	pbm->next = pci_pbm_root;
 	pci_pbm_root = pbm;
+
+	pbm->numa_node = -1;
 
 	pbm->scan_bus = pci_fire_scan_bus;
 	pbm->pci_ops = &sun4u_pci_ops;
