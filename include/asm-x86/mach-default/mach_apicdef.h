@@ -3,7 +3,12 @@
 
 #include <asm/apic.h>
 
+#ifdef CONFIG_X86_64
+#define	APIC_ID_MASK		(0xFFu<<24)
+#define	SET_APIC_ID(x)		(((x)<<24))
+#else
 #define		APIC_ID_MASK		(0xF<<24)
+#endif
 
 static inline unsigned get_apic_id(unsigned long x) 
 { 

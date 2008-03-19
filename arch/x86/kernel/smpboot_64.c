@@ -61,6 +61,7 @@
 #include <asm/numa.h>
 
 #include <mach_wakecpu.h>
+#include <mach_apic.h>
 #include <smpboot_hooks.h>
 
 /* Set when the idlers are all forked */

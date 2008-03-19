@@ -40,6 +40,10 @@
 #include <asm/io.h>
 #include <asm/mpspec.h>
 
+#ifdef CONFIG_X86_LOCAL_APIC
+# include <mach_apic.h>
+#endif
+
 static int __initdata acpi_force = 0;
 
 #ifdef	CONFIG_ACPI

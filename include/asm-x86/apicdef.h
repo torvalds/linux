@@ -12,12 +12,6 @@
 
 #define	APIC_ID		0x20
 
-#ifdef CONFIG_X86_64
-# define	APIC_ID_MASK		(0xFFu<<24)
-# define	GET_APIC_ID(x)		(((x)>>24)&0xFFu)
-# define	SET_APIC_ID(x)		(((x)<<24))
-#endif
-
 #define	APIC_LVR	0x30
 #define		APIC_LVR_MASK		0xFF00FF
 #define		GET_APIC_VERSION(x)	((x)&0xFFu)

@@ -128,7 +128,6 @@ extern void enable_NMI_through_LVT0(void);
  * On 32bit this is mach-xxx local
  */
 #ifdef CONFIG_X86_64
-extern void setup_apic_routing(void);
 extern void early_init_lapic_mapping(void);
 #endif
 

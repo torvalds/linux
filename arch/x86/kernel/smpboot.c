@@ -11,6 +11,8 @@
 #include <asm/cpu.h>
 #include <asm/numa.h>
 
+#include <mach_apic.h>
+
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
 EXPORT_SYMBOL(smp_num_siblings);

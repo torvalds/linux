@@ -19,14 +19,6 @@ extern cpumask_t cpu_callin_map;
 extern int smp_call_function_mask(cpumask_t mask, void (*func)(void *),
 				  void *info, int wait);
 
-static inline int cpu_present_to_apicid(int mps_cpu)
-{
-	if (cpu_present(mps_cpu))
-		return (int)per_cpu(x86_bios_cpu_apicid, mps_cpu);
-	else
-		return BAD_APICID;
-}
-
 #ifdef CONFIG_SMP
 
 #define raw_smp_processor_id()	read_pda(cpunumber)
@@ -64,6 +56,7 @@ static __inline int logical_smp_processor_id(void)
 	return GET_APIC_LOGICAL_ID(*(u32 *)(APIC_BASE + APIC_LDR));
 }
 
+#include <mach_apicdef.h>
 static inline int hard_smp_processor_id(void)
 {
 	/* we don't want to mark this access volatile - bad code generation */

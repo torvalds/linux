@@ -54,21 +54,27 @@ static inline physid_mask_t ioapic_phys_id_map(physid_mask_t phys_map)
 	return phys_map;
 }
 
+#ifdef CONFIG_X86_64
+extern void setup_apic_routing(void);
+#else
 static inline void setup_apic_routing(void)
 {
 	printk("Enabling APIC mode:  %s.  Using %d I/O APICs\n",
 					"Flat", nr_ioapics);
 }
+#endif
 
 static inline int multi_timer_check(int apic, int irq)
 {
 	return 0;
 }
 
+#ifdef CONFIG_X86_32
 static inline int apicid_to_node(int logical_apicid)
 {
 	return 0;
 }
+#endif
 
 /* Mapping from cpu number to logical apicid */
 static inline int cpu_to_logical_apicid(int cpu)
@@ -78,8 +84,13 @@ static inline int cpu_to_logical_apicid(int cpu)
 
 static inline int cpu_present_to_apicid(int mps_cpu)
 {
+#ifdef CONFIG_X86_64
+	if (cpu_present(mps_cpu))
+		return (int)per_cpu(x86_bios_cpu_apicid, mps_cpu);
+#else
 	if (mps_cpu < get_physical_broadcast())
 		return  mps_cpu;
+#endif
 	else
 		return BAD_APICID;
 }

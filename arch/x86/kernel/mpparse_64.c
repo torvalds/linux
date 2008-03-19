@@ -30,6 +30,8 @@
 #include <asm/proto.h>
 #include <asm/acpi.h>
 
+#include <mach_apic.h>
+
 /* Have we found an MP table */
 int smp_found_config;
 unsigned int __cpuinitdata maxcpus = NR_CPUS;
