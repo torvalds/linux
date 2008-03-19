@@ -185,7 +185,6 @@ static void __cpuinit start_secondary(void *unused)
 	 */
 	check_tsc_sync_target();
 
-	setup_secondary_clock();
 	if (nmi_watchdog == NMI_IO_APIC) {
 		disable_8259A_irq(0);
 		enable_NMI_through_LVT0();
@@ -213,6 +212,8 @@ static void __cpuinit start_secondary(void *unused)
 	cpu_set(smp_processor_id(), cpu_online_map);
 	unlock_ipi_call_lock();
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
+
+	setup_secondary_clock();
 
 	wmb();
 	cpu_idle();
