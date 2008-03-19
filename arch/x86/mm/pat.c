@@ -419,3 +419,42 @@ int free_memtype(u64 start, u64 end)
 	return err;
 }
 
+
+/* /dev/mem interface. Use the previous mapping */
+pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
+				unsigned long size, pgprot_t vma_prot)
+{
+	return vma_prot;
+}
+
+int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
+				unsigned long size, pgprot_t *vma_prot)
+{
+
+	if (file->f_flags & O_SYNC) {
+		*vma_prot = pgprot_noncached(*vma_prot);
+		return 1;
+	}
+
+#ifdef CONFIG_X86_32
+	/*
+	 * On the PPro and successors, the MTRRs are used to set
+	 * memory types for physical addresses outside main memory,
+	 * so blindly setting UC or PWT on those pages is wrong.
+	 * For Pentiums and earlier, the surround logic should disable
+	 * caching for the high addresses through the KEN pin, but
+	 * we maintain the tradition of paranoia in this code.
+	 */
+	if (!pat_wc_enabled &&
+	    ! ( test_bit(X86_FEATURE_MTRR, boot_cpu_data.x86_capability) ||
+		test_bit(X86_FEATURE_K6_MTRR, boot_cpu_data.x86_capability) ||
+		test_bit(X86_FEATURE_CYRIX_ARR, boot_cpu_data.x86_capability) ||
+		test_bit(X86_FEATURE_CENTAUR_MCR, boot_cpu_data.x86_capability)) &&
+	   (pfn << PAGE_SHIFT) >= __pa(high_memory)) {
+		*vma_prot = pgprot_noncached(*vma_prot);
+		return 1;
+	}
+#endif
+
+	return 1;
+}
