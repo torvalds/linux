@@ -300,8 +300,7 @@ static int ni52_open(struct net_device *dev)
 static int check586(struct net_device *dev, unsigned size)
 {
 	unsigned long where = dev->mem_start;
-	struct priv pb;
-	struct priv *p = /* (struct priv *) dev->priv*/ &pb;
+	struct priv *p = dev->priv;
 	char __iomem *iscp_addrs[2];
 	int i;
 
@@ -309,6 +308,7 @@ static int check586(struct net_device *dev, unsigned size)
 	p->base = p->mapped + size - 0x01000000;
 	p->memtop = p->mapped + size;
 	p->scp = (struct scp_struct __iomem *)(p->base + SCP_DEFAULT_ADDRESS);
+	p->scb	= (struct scb_struct __iomem *)	p->mapped;
 	memset_io(p->scp, 0, sizeof(struct scp_struct));
 	for (i = 0; i < sizeof(struct scp_struct); i++)
 		/* memory was writeable? */
@@ -335,6 +335,9 @@ static int check586(struct net_device *dev, unsigned size)
 		if (readb(&p->iscp->busy))
 			return 0;
 	}
+
+	p->iscp = (struct iscp_struct __iomem *)
+			((char __iomem *)p->scp - sizeof(struct iscp_struct));
 	return 1;
 }
 
@@ -347,13 +350,6 @@ static void alloc586(struct net_device *dev)
 
 	ni_reset586();
 	mdelay(32);
-
-	spin_lock_init(&p->spinlock);
-
-	p->scp	= (struct scp_struct __iomem *)	(p->base + SCP_DEFAULT_ADDRESS);
-	p->scb	= (struct scb_struct __iomem *)	isa_bus_to_virt(dev->mem_start);
-	p->iscp = (struct iscp_struct __iomem *)
-			((char __iomem *)p->scp - sizeof(struct iscp_struct));
 
 	memset_io(p->iscp, 0, sizeof(struct iscp_struct));
 	memset_io(p->scp , 0, sizeof(struct scp_struct));
@@ -445,6 +441,8 @@ static int __init ni52_probe1(struct net_device *dev, int ioaddr)
 	dev->mem_start = memstart;
 	dev->mem_end = memend;
 
+	spin_lock_init(&priv->spinlock);
+
 	if (!request_region(ioaddr, NI52_TOTAL_SIZE, DRV_NAME))
 		return -EBUSY;
 
@@ -520,11 +518,6 @@ static int __init ni52_probe1(struct net_device *dev, int ioaddr)
 	dev->mem_end = dev->mem_start + size;
 #endif
 
-	memset(priv, 0, sizeof(struct priv));
-
-	priv->mapped = (char __iomem *)isa_bus_to_virt(dev->mem_start);
-	priv->memtop = priv->mapped + size;
-	priv->base =  priv->mapped + size - 0x01000000;
 	alloc586(dev);
 
 	/* set number of receive-buffs according to memsize */
