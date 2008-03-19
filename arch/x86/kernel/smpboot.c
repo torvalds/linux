@@ -45,10 +45,8 @@ unsigned char *trampoline_base = __va(SMP_TRAMPOLINE_BASE);
 /* representing cpus for which sibling maps can be computed */
 static cpumask_t cpu_sibling_setup_map;
 
-#ifdef CONFIG_X86_32
 /* Set if we find a B stepping CPU */
 int __cpuinitdata smp_b_stepping;
-#endif
 
 static void __cpuinit smp_apply_quirks(struct cpuinfo_x86 *c)
 {
@@ -103,6 +101,25 @@ static void __cpuinit smp_apply_quirks(struct cpuinfo_x86 *c)
 valid_k7:
 	;
 #endif
+}
+
+void smp_checks(void)
+{
+	if (smp_b_stepping)
+		printk(KERN_WARNING "WARNING: SMP operation may be unreliable"
+				    "with B stepping processors.\n");
+
+	/*
+	 * Don't taint if we are running SMP kernel on a single non-MP
+	 * approved Athlon
+	 */
+	if (tainted & TAINT_UNSAFE_SMP) {
+		if (cpus_weight(cpu_present_map))
+			printk(KERN_INFO "WARNING: This combination of AMD"
+				"processors is not suitable for SMP.\n");
+		else
+			tainted &= ~TAINT_UNSAFE_SMP;
+	}
 }
 
 /*

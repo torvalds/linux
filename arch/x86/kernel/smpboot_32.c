@@ -59,8 +59,6 @@
 #include <asm/vmi.h>
 #include <asm/mtrr.h>
 
-extern int smp_b_stepping;
-
 static cpumask_t smp_commenced_mask;
 
 /* which logical CPU number maps to which CPU (physical APIC ID) */
@@ -791,6 +789,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 }
 
 extern void impress_friends(void);
+extern void smp_checks(void);
 /*
  * Cycle through the processors sending APIC IPIs to boot each.
  */
@@ -865,22 +864,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 
 	impress_friends();
 
-	if (smp_b_stepping)
-		printk(KERN_WARNING "WARNING: SMP operation may be unreliable with B stepping processors.\n");
-
-	/*
-	 * Don't taint if we are running SMP kernel on a single non-MP
-	 * approved Athlon
-	 */
-	if (tainted & TAINT_UNSAFE_SMP) {
-		if (cpus_weight(cpu_present_map))
-			printk (KERN_INFO "WARNING: This combination of AMD processors is not suitable for SMP.\n");
-		else
-			tainted &= ~TAINT_UNSAFE_SMP;
-	}
-
-	Dprintk("Boot done.\n");
-
+	smp_checks();
 	/*
 	 * construct cpu_sibling_map, so that we can tell sibling CPUs
 	 * efficiently.
