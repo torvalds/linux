@@ -704,11 +704,11 @@ static void __cpuinit do_warm_boot_cpu(struct work_struct *work)
 	complete(info->complete);
 }
 
-static int __cpuinit __smp_prepare_cpu(int cpu)
+static void __cpuinit __smp_prepare_cpu(int cpu)
 {
 	DECLARE_COMPLETION_ONSTACK(done);
 	struct warm_boot_cpu_info info;
-	int	apicid, ret;
+	int	apicid;
 
 	apicid = per_cpu(x86_cpu_to_apicid, cpu);
 
@@ -725,9 +725,6 @@ static int __cpuinit __smp_prepare_cpu(int cpu)
 	wait_for_completion(&done);
 
 	zap_low_mappings();
-	ret = 0;
-exit:
-	return ret;
 }
 #endif
 
@@ -950,7 +947,6 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 {
 	int apicid = cpu_present_to_apicid(cpu);
 	unsigned long flags;
-	int ret = 0;
 
 	WARN_ON(irqs_disabled());
 
@@ -971,10 +967,7 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 	 * when a cpu is taken offline from cpu_exit_clear().
 	 */
 	if (!cpu_isset(cpu, cpu_callin_map))
-		ret = __smp_prepare_cpu(cpu);
-
-	if (ret)
-		return -EIO;
+		__smp_prepare_cpu(cpu);
 #endif
 
 	/* In case one didn't come up */
