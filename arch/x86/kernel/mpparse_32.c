@@ -75,6 +75,10 @@ unsigned disabled_cpus __cpuinitdata;
 /* Bitmask of physically existing CPUs */
 physid_mask_t phys_cpu_present_map;
 
+#ifndef CONFIG_SMP
+DEFINE_PER_CPU(u16, x86_bios_cpu_apicid) = BAD_APICID;
+#endif
+
 /*
  * Intel MP BIOS table parsing routines:
  */
@@ -229,6 +233,7 @@ static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 			def_to_bigsmp = 1;
 		}
 	}
+#ifdef CONFIG_SMP
 	/* are we being called early in kernel startup? */
 	if (x86_cpu_to_apicid_early_ptr) {
 		u16 *cpu_to_apicid = x86_cpu_to_apicid_early_ptr;
@@ -240,6 +245,7 @@ static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 		per_cpu(x86_cpu_to_apicid, cpu) = m->mpc_apicid;
 		per_cpu(x86_bios_cpu_apicid, cpu) = m->mpc_apicid;
 	}
+#endif
 	cpu_set(cpu, cpu_present_map);
 }
 
