@@ -74,7 +74,8 @@ EXPORT_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
 
 u8 apicid_2_node[MAX_APICID];
 
-static void map_cpu_to_logical_apicid(void);
+extern void map_cpu_to_logical_apicid(void);
+extern void unmap_cpu_to_logical_apicid(int cpu);
 
 /* State of each CPU. */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
@@ -261,62 +262,6 @@ extern struct {
 	void * sp;
 	unsigned short ss;
 } stack_start;
-
-#ifdef CONFIG_NUMA
-
-/* which logical CPUs are on which nodes */
-cpumask_t node_to_cpumask_map[MAX_NUMNODES] __read_mostly =
-				{ [0 ... MAX_NUMNODES-1] = CPU_MASK_NONE };
-EXPORT_SYMBOL(node_to_cpumask_map);
-/* which node each logical CPU is on */
-int cpu_to_node_map[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = 0 };
-EXPORT_SYMBOL(cpu_to_node_map);
-
-/* set up a mapping between cpu and node. */
-static inline void map_cpu_to_node(int cpu, int node)
-{
-	printk("Mapping cpu %d to node %d\n", cpu, node);
-	cpu_set(cpu, node_to_cpumask_map[node]);
-	cpu_to_node_map[cpu] = node;
-}
-
-/* undo a mapping between cpu and node. */
-static inline void unmap_cpu_to_node(int cpu)
-{
-	int node;
-
-	printk("Unmapping cpu %d from all nodes\n", cpu);
-	for (node = 0; node < MAX_NUMNODES; node ++)
-		cpu_clear(cpu, node_to_cpumask_map[node]);
-	cpu_to_node_map[cpu] = 0;
-}
-#else /* !CONFIG_NUMA */
-
-#define map_cpu_to_node(cpu, node)	({})
-#define unmap_cpu_to_node(cpu)	({})
-
-#endif /* CONFIG_NUMA */
-
-u8 cpu_2_logical_apicid[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = BAD_APICID };
-
-static void map_cpu_to_logical_apicid(void)
-{
-	int cpu = smp_processor_id();
-	int apicid = logical_smp_processor_id();
-	int node = apicid_to_node(apicid);
-
-	if (!node_online(node))
-		node = first_online_node;
-
-	cpu_2_logical_apicid[cpu] = apicid;
-	map_cpu_to_node(cpu, node);
-}
-
-static void unmap_cpu_to_logical_apicid(int cpu)
-{
-	cpu_2_logical_apicid[cpu] = BAD_APICID;
-	unmap_cpu_to_node(cpu);
-}
 
 static inline void __inquire_remote_apic(int apicid)
 {

@@ -50,6 +50,66 @@ static cpumask_t cpu_sibling_setup_map;
 /* Set if we find a B stepping CPU */
 int __cpuinitdata smp_b_stepping;
 
+#if defined(CONFIG_NUMA) && defined(CONFIG_X86_32)
+
+/* which logical CPUs are on which nodes */
+cpumask_t node_to_cpumask_map[MAX_NUMNODES] __read_mostly =
+				{ [0 ... MAX_NUMNODES-1] = CPU_MASK_NONE };
+EXPORT_SYMBOL(node_to_cpumask_map);
+/* which node each logical CPU is on */
+int cpu_to_node_map[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = 0 };
+EXPORT_SYMBOL(cpu_to_node_map);
+
+/* set up a mapping between cpu and node. */
+static void map_cpu_to_node(int cpu, int node)
+{
+	printk(KERN_INFO "Mapping cpu %d to node %d\n", cpu, node);
+	cpu_set(cpu, node_to_cpumask_map[node]);
+	cpu_to_node_map[cpu] = node;
+}
+
+/* undo a mapping between cpu and node. */
+static void unmap_cpu_to_node(int cpu)
+{
+	int node;
+
+	printk(KERN_INFO "Unmapping cpu %d from all nodes\n", cpu);
+	for (node = 0; node < MAX_NUMNODES; node++)
+		cpu_clear(cpu, node_to_cpumask_map[node]);
+	cpu_to_node_map[cpu] = 0;
+}
+#else /* !(CONFIG_NUMA && CONFIG_X86_32) */
+#define map_cpu_to_node(cpu, node)	({})
+#define unmap_cpu_to_node(cpu)	({})
+#endif
+
+#ifdef CONFIG_X86_32
+u8 cpu_2_logical_apicid[NR_CPUS] __read_mostly =
+					{ [0 ... NR_CPUS-1] = BAD_APICID };
+
+void map_cpu_to_logical_apicid(void)
+{
+	int cpu = smp_processor_id();
+	int apicid = logical_smp_processor_id();
+	int node = apicid_to_node(apicid);
+
+	if (!node_online(node))
+		node = first_online_node;
+
+	cpu_2_logical_apicid[cpu] = apicid;
+	map_cpu_to_node(cpu, node);
+}
+
+void unmap_cpu_to_logical_apicid(int cpu)
+{
+	cpu_2_logical_apicid[cpu] = BAD_APICID;
+	unmap_cpu_to_node(cpu);
+}
+#else
+#define unmap_cpu_to_logical_apicid(cpu) do {} while (0)
+#define map_cpu_to_logical_apicid()  do {} while (0)
+#endif
+
 static void __cpuinit smp_apply_quirks(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_X86_32
