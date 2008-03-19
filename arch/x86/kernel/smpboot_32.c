@@ -665,6 +665,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 		unmap_cpu_to_logical_apicid(cpu);
 		cpu_clear(cpu, cpu_callout_map); /* was set here (do_boot_cpu()) */
 		cpu_clear(cpu, cpu_initialized); /* was set by cpu_init() */
+		cpu_clear(cpu, cpu_possible_map);
 		cpucount--;
 	} else {
 		per_cpu(x86_cpu_to_apicid, cpu) = apicid;
@@ -743,6 +744,7 @@ EXPORT_SYMBOL(xquad_portio);
 
 static void __init disable_smp(void)
 {
+	cpu_possible_map = cpumask_of_cpu(0);
 	smpboot_clear_io_apic_irqs();
 	phys_cpu_present_map = physid_mask_of_physid(0);
 	map_cpu_to_logical_apicid();
