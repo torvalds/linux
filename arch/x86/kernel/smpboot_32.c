@@ -180,6 +180,9 @@ static void __cpuinit start_secondary(void *unused)
 	smp_callin();
 	while (!cpu_isset(smp_processor_id(), smp_commenced_mask))
 		cpu_relax();
+
+	/* otherwise gcc will move up smp_processor_id before the cpu_init */
+	barrier();
 	/*
 	 * Check TSC synchronization with the BP:
 	 */
@@ -432,6 +435,7 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 	Dprintk("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
 
+	mb();
 	atomic_set(&init_deasserted, 1);
 
 	/*

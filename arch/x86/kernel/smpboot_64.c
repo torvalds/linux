@@ -239,6 +239,7 @@ void __cpuinit start_secondary(void)
 
 	setup_secondary_clock();
 
+	wmb();
 	cpu_idle();
 }
 
