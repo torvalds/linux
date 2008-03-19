@@ -134,6 +134,10 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 }
 #endif
 
+void __attribute__((weak)) unxlate_dev_mem_ptr(unsigned long phys, void *addr)
+{
+}
+
 /*
  * This funcion reads the *physical* memory. The f_pos points directly to the 
  * memory location. 
@@ -176,17 +180,25 @@ static ssize_t read_mem(struct file * file, char __user * buf,
 
 		sz = min_t(unsigned long, sz, count);
 
+		if (!range_is_allowed(p >> PAGE_SHIFT, count))
+			return -EPERM;
+
 		/*
 		 * On ia64 if a page has been mapped somewhere as
 		 * uncached, then it must also be accessed uncached
 		 * by the kernel or data corruption may occur
 		 */
 		ptr = xlate_dev_mem_ptr(p);
-
-		if (!range_is_allowed(p >> PAGE_SHIFT, count))
-			return -EPERM;
-		if (copy_to_user(buf, ptr, sz))
+		if (!ptr)
 			return -EFAULT;
+
+		if (copy_to_user(buf, ptr, sz)) {
+			unxlate_dev_mem_ptr(p, ptr);
+			return -EFAULT;
+		}
+
+		unxlate_dev_mem_ptr(p, ptr);
+
 		buf += sz;
 		p += sz;
 		count -= sz;
@@ -235,22 +247,32 @@ static ssize_t write_mem(struct file * file, const char __user * buf,
 
 		sz = min_t(unsigned long, sz, count);
 
+		if (!range_is_allowed(p >> PAGE_SHIFT, sz))
+			return -EPERM;
+
 		/*
 		 * On ia64 if a page has been mapped somewhere as
 		 * uncached, then it must also be accessed uncached
 		 * by the kernel or data corruption may occur
 		 */
 		ptr = xlate_dev_mem_ptr(p);
-
-		if (!range_is_allowed(p >> PAGE_SHIFT, sz))
-			return -EPERM;
-		copied = copy_from_user(ptr, buf, sz);
-		if (copied) {
-			written += sz - copied;
+		if (!ptr) {
 			if (written)
 				break;
 			return -EFAULT;
 		}
+
+		copied = copy_from_user(ptr, buf, sz);
+		if (copied) {
+			written += sz - copied;
+			unxlate_dev_mem_ptr(p, ptr);
+			if (written)
+				break;
+			return -EFAULT;
+		}
+
+		unxlate_dev_mem_ptr(p, ptr);
+
 		buf += sz;
 		p += sz;
 		count -= sz;
