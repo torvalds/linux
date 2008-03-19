@@ -320,7 +320,10 @@ static int check586(struct net_device *dev, unsigned size)
 	struct priv *p = dev->priv;
 	int i;
 
-	p->mapped = (char __iomem *)isa_bus_to_virt(dev->mem_start);
+	p->mapped = ioremap(dev->mem_start, size);
+	if (!p->mapped)
+		return 0;
+
 	p->base = p->mapped + size - 0x01000000;
 	p->memtop = p->mapped + size;
 	p->scp = (struct scp_struct __iomem *)(p->base + SCP_DEFAULT_ADDRESS);
@@ -330,16 +333,19 @@ static int check586(struct net_device *dev, unsigned size)
 	for (i = 0; i < sizeof(struct scp_struct); i++)
 		/* memory was writeable? */
 		if (readb((char __iomem *)p->scp + i))
-			return 0;
+			goto Enodev;
 	writeb(SYSBUSVAL, &p->scp->sysbus);	/* 1 = 8Bit-Bus, 0 = 16 Bit */
 	if (readb(&p->scp->sysbus) != SYSBUSVAL)
-		return 0;
+		goto Enodev;
 
 	if (!check_iscp(dev, p->mapped))
-		return 0;
+		goto Enodev;
 	if (!check_iscp(dev, p->iscp))
-		return 0;
+		goto Enodev;
 	return 1;
+Enodev:
+	iounmap(p->mapped);
+	return 0;
 }
 
 /******************************************************************
@@ -386,11 +392,14 @@ struct net_device * __init ni52_probe(int unit)
 {
 	struct net_device *dev = alloc_etherdev(sizeof(struct priv));
 	static int ports[] = {0x300, 0x280, 0x360 , 0x320 , 0x340, 0};
+	struct priv *p;
 	int *port;
 	int err = 0;
 
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
+
+	p = dev->priv;
 
 	if (unit >= 0) {
 		sprintf(dev->name, "eth%d", unit);
@@ -426,6 +435,7 @@ got_it:
 		goto out1;
 	return dev;
 out1:
+	iounmap(p->mapped);
 	release_region(dev->base_addr, NI52_TOTAL_SIZE);
 out:
 	free_netdev(dev);
@@ -542,6 +552,7 @@ static int __init ni52_probe1(struct net_device *dev, int ioaddr)
 		if (!dev->irq) {
 			printk("?autoirq, Failed to detect IRQ line!\n");
 			retval = -EAGAIN;
+			iounmap(priv->mapped);
 			goto out;
 		}
 		printk("IRQ %d (autodetected).\n", dev->irq);
@@ -1325,7 +1336,9 @@ int __init init_module(void)
 
 void __exit cleanup_module(void)
 {
+	struct priv *p = dev_ni52->priv;
 	unregister_netdev(dev_ni52);
+	iounmap(p->mapped);
 	release_region(dev_ni52->base_addr, NI52_TOTAL_SIZE);
 	free_netdev(dev_ni52);
 }
