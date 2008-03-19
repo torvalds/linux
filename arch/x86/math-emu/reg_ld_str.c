@@ -383,15 +383,15 @@ int FPU_store_double(FPU_REG *st0_ptr, u_char st0_tag, double __user *dfloat)
 	int exp;
 	FPU_REG tmp;
 
+	l[0] = 0;
+	l[1] = 0;
 	if (st0_tag == TAG_Valid) {
 		reg_copy(st0_ptr, &tmp);
 		exp = exponent(&tmp);
 
 		if (exp < DOUBLE_Emin) {	/* It may be a denormal */
 			addexponent(&tmp, -DOUBLE_Emin + 52);	/* largest exp to be 51 */
-
-		      denormal_arg:
-
+denormal_arg:
 			if ((precision_loss = FPU_round_to_int(&tmp, st0_tag))) {
 #ifdef PECULIAR_486
 				/* Did it round to a non-denormal ? */
@@ -477,8 +477,7 @@ int FPU_store_double(FPU_REG *st0_ptr, u_char st0_tag, double __user *dfloat)
 
 				/* This is a special case: see sec 16.2.5.1 of the 80486 book */
 				/* Overflow to infinity */
-				l[0] = 0x00000000;	/* Set to */
-				l[1] = 0x7ff00000;	/* + INF */
+				l[1] = 0x7ff00000;	/* Set to + INF */
 			} else {
 				if (precision_loss) {
 					if (increment)
@@ -492,8 +491,6 @@ int FPU_store_double(FPU_REG *st0_ptr, u_char st0_tag, double __user *dfloat)
 		}
 	} else if (st0_tag == TAG_Zero) {
 		/* Number is zero */
-		l[0] = 0;
-		l[1] = 0;
 	} else if (st0_tag == TAG_Special) {
 		st0_tag = FPU_Special(st0_ptr);
 		if (st0_tag == TW_Denormal) {
@@ -508,7 +505,6 @@ int FPU_store_double(FPU_REG *st0_ptr, u_char st0_tag, double __user *dfloat)
 			reg_copy(st0_ptr, &tmp);
 			goto denormal_arg;
 		} else if (st0_tag == TW_Infinity) {
-			l[0] = 0;
 			l[1] = 0x7ff00000;
 		} else if (st0_tag == TW_NaN) {
 			/* Is it really a NaN ? */
@@ -532,7 +528,6 @@ int FPU_store_double(FPU_REG *st0_ptr, u_char st0_tag, double __user *dfloat)
 				EXCEPTION(EX_Invalid);
 				if (!(control_word & CW_Invalid))
 					return 0;
-				l[0] = 0;
 				l[1] = 0xfff80000;
 			}
 		}
