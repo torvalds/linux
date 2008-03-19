@@ -68,9 +68,6 @@
 /* Set when the idlers are all forked */
 int smp_threads_ready;
 
-/* State of each CPU */
-DEFINE_PER_CPU(int, cpu_state) = { 0 };
-
 cycles_t cacheflush_time;
 unsigned long cache_decay_ticks;
 
@@ -214,17 +211,6 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	setup_boot_clock();
 	printk(KERN_INFO "CPU%d: ", 0);
 	print_cpu_info(&cpu_data(0));
-}
-
-/*
- * Early setup to make printk work.
- */
-void __init native_smp_prepare_boot_cpu(void)
-{
-	int me = smp_processor_id();
-	/* already set me in cpu_online_map in boot_cpu_init() */
-	cpu_set(me, cpu_callout_map);
-	per_cpu(cpu_state, me) = CPU_ONLINE;
 }
 
 extern void impress_friends(void);

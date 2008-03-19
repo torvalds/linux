@@ -77,9 +77,6 @@ u8 apicid_2_node[MAX_APICID];
 extern void map_cpu_to_logical_apicid(void);
 extern void unmap_cpu_to_logical_apicid(int cpu);
 
-/* State of each CPU. */
-DEFINE_PER_CPU(int, cpu_state) = { 0 };
-
 #ifdef CONFIG_HOTPLUG_CPU
 void cpu_exit_clear(void)
 {
@@ -217,17 +214,6 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	cpu_callin_map = cpumask_of_cpu(0);
 	mb();
 	smp_boot_cpus(max_cpus);
-}
-
-void __init native_smp_prepare_boot_cpu(void)
-{
-	unsigned int cpu = smp_processor_id();
-
-	init_gdt(cpu);
-	switch_to_new_gdt();
-
-	cpu_set(cpu, cpu_callout_map);
-	__get_cpu_var(cpu_state) = CPU_ONLINE;
 }
 
 extern void impress_friends(void);

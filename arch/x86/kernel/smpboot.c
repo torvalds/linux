@@ -24,6 +24,9 @@
 #include <mach_wakecpu.h>
 #include <smpboot_hooks.h>
 
+/* State of each CPU */
+DEFINE_PER_CPU(int, cpu_state) = { 0 };
+
 /* Store all idle threads, this can be reused instead of creating
 * a new thread. Also avoids complicated thread destroy functionality
 * for idle threads.
@@ -997,6 +1000,21 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 	}
 
 	return 0;
+}
+
+/*
+ * Early setup to make printk work.
+ */
+void __init native_smp_prepare_boot_cpu(void)
+{
+	int me = smp_processor_id();
+#ifdef CONFIG_X86_32
+	init_gdt(me);
+	switch_to_new_gdt();
+#endif
+	/* already set me in cpu_online_map in boot_cpu_init() */
+	cpu_set(me, cpu_callout_map);
+	per_cpu(cpu_state, me) = CPU_ONLINE;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
