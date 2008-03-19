@@ -200,6 +200,24 @@ static int pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd)
 
 	return 1;
 }
+
+void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd)
+{
+	paravirt_alloc_pd(mm, __pa(pmd) >> PAGE_SHIFT);
+
+	/* Note: almost everything apart from _PAGE_PRESENT is
+	   reserved at the pmd (PDPT) level. */
+	set_pud(pudp, __pud(__pa(pmd) | _PAGE_PRESENT));
+
+	/*
+	 * According to Intel App note "TLBs, Paging-Structure Caches,
+	 * and Their Invalidation", April 2007, document 317080-001,
+	 * section 8.1: in PAE mode we explicitly have to flush the
+	 * TLB via cr3 if the top-level pgd is changed...
+	 */
+	if (mm == current->active_mm)
+		write_cr3(read_cr3());
+}
 #else  /* !CONFIG_X86_PAE */
 /* No need to prepopulate any pagetable entries in non-PAE modes. */
 static int pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd)

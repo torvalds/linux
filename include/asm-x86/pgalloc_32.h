@@ -62,23 +62,8 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 
 extern void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd);
 
-static inline void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd)
-{
-	paravirt_alloc_pd(mm, __pa(pmd) >> PAGE_SHIFT);
+extern void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd);
 
-	/* Note: almost everything apart from _PAGE_PRESENT is
-	   reserved at the pmd (PDPT) level. */
-	set_pud(pudp, __pud(__pa(pmd) | _PAGE_PRESENT));
-
-	/*
-	 * According to Intel App note "TLBs, Paging-Structure Caches,
-	 * and Their Invalidation", April 2007, document 317080-001,
-	 * section 8.1: in PAE mode we explicitly have to flush the
-	 * TLB via cr3 if the top-level pgd is changed...
-	 */
-	if (mm == current->active_mm)
-		write_cr3(read_cr3());
-}
 #endif	/* CONFIG_X86_PAE */
 
 #endif /* _I386_PGALLOC_H */
