@@ -134,7 +134,7 @@ static int fifo = 0x8;	/* don't change */
 #define ni_disint()   { outb(0, dev->base_addr + NI52_INTDIS); }
 #define ni_enaint()   { outb(0, dev->base_addr + NI52_INTENA); }
 
-#define make32(ptr16) (p->memtop + (short) (ptr16))
+#define make32(ptr16) ((void __iomem *)(p->memtop + (short) (ptr16)))
 #define make24(ptr32) ((char __iomem *)(ptr32)) - p->base
 #define make16(ptr32) ((unsigned short) ((char __iomem *)(ptr32)\
 					- p->memtop))
@@ -241,7 +241,8 @@ static void wait_for_scb_cmd_ruc(struct net_device *dev)
 		udelay(4);
 		if (i == 16383) {
 			printk(KERN_ERR "%s: scb_cmd (ruc) timed out: %04x,%04x .. disabling i82586!!\n",
-				dev->name, p->scb->cmd_ruc, p->scb->rus);
+				dev->name, readb(&p->scb->cmd_ruc),
+				readb(&p->scb->rus));
 			if (!p->reset) {
 				p->reset = 1;
 				ni_reset586();
@@ -627,7 +628,7 @@ static int init586(struct net_device *dev)
 		writeb(0x01, &cfg_cmd->promisc);
 	writeb(0x00, &cfg_cmd->carr_coll);
 	writew(make16(cfg_cmd), &p->scb->cbl_offset);
-	writew(0, &p->scb->cmd_ruc);
+	writeb(0, &p->scb->cmd_ruc);
 
 	writeb(CUC_START, &p->scb->cmd_cuc); /* cmd.-unit start */
 	ni_attn586();
@@ -898,7 +899,7 @@ static irqreturn_t ni52_interrupt(int irq, void *dev_id)
 			if (readb(&p->scb->rus) & RU_SUSPEND) {
 				/* special case: RU_SUSPEND */
 				wait_for_scb_cmd(dev);
-				p->scb->cmd_ruc = RUC_RESUME;
+				writeb(RUC_RESUME, &p->scb->cmd_ruc);
 				ni_attn586();
 				wait_for_scb_cmd_ruc(dev);
 			} else {
@@ -925,7 +926,7 @@ static irqreturn_t ni52_interrupt(int irq, void *dev_id)
 
 		/* Wait for ack. (ni52_xmt_int can be faster than ack!!) */
 		wait_for_scb_cmd(dev);
-		if (p->scb->cmd_cuc) {	 /* timed out? */
+		if (readb(&p->scb->cmd_cuc)) {	 /* timed out? */
 			printk(KERN_ERR "%s: Acknowledge timed out.\n",
 				dev->name);
 			ni_disint();
@@ -955,7 +956,7 @@ static void ni52_rcv_int(struct net_device *dev)
 		printk("R");
 
 	for (; (status = readb(&p->rfd_top->stat_high)) & RFD_COMPL;) {
-		rbd = (struct rbd_struct __iomem *) make32(p->rfd_top->rbd_offset);
+		rbd = make32(readw(&p->rfd_top->rbd_offset));
 		if (status & RFD_OK) { /* frame received without error? */
 			totlen = readw(&rbd->status);
 			if (totlen & RBD_LAST) {
@@ -966,7 +967,7 @@ static void ni52_rcv_int(struct net_device *dev)
 				if (skb != NULL) {
 					skb_reserve(skb, 2);
 					skb_put(skb, totlen);
-					skb_copy_to_linear_data(skb, p->base + (unsigned long) rbd->buffer, totlen);
+					memcpy_fromio(skb->data, p->base + readl(&rbd->buffer), totlen);
 					skb->protocol = eth_type_trans(skb, dev);
 					netif_rx(skb);
 					dev->last_rx = jiffies;
@@ -985,7 +986,7 @@ static void ni52_rcv_int(struct net_device *dev)
 						break;
 					}
 					writew(0, &rbd->status);
-					rbd = (struct rbd_struct __iomem *) make32(readl(&rbd->next));
+					rbd = make32(readw(&rbd->next));
 				}
 				totlen += rstat & RBD_MASK;
 				writew(0, &rbd->status);
@@ -1003,7 +1004,7 @@ static void ni52_rcv_int(struct net_device *dev)
 		writew(0xffff, &p->rfd_top->rbd_offset);
 		writeb(0, &p->rfd_last->last);	/* delete RFD_SUSP	*/
 		p->rfd_last = p->rfd_top;
-		p->rfd_top = (struct rfd_struct __iomem *) make32(p->rfd_top->next); /* step to next RFD */
+		p->rfd_top = make32(readw(&p->rfd_top->next)); /* step to next RFD */
 		writew(make16(p->rfd_top), &p->scb->rfa_offset);
 
 		if (debuglevel > 0)
@@ -1052,7 +1053,8 @@ static void ni52_rnr_int(struct net_device *dev)
 	/* maybe add a check here, before restarting the RU */
 	startrecv586(dev); /* restart RU */
 
-	printk(KERN_ERR "%s: Receive-Unit restarted. Status: %04x\n", dev->name, p->scb->rus);
+	printk(KERN_ERR "%s: Receive-Unit restarted. Status: %04x\n",
+		dev->name, readb(&p->scb->rus));
 
 }
 
@@ -1184,12 +1186,11 @@ static int ni52_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	skb_copy_from_linear_data(skb, (char *)p->xmit_cbuffs[p->xmit_count],
-							skb->len);
+	memcpy_toio(p->xmit_cbuffs[p->xmit_count], skb->data, skb->len);
 	len = skb->len;
 	if (len < ETH_ZLEN) {
 		len = ETH_ZLEN;
-		memset((char *)p->xmit_cbuffs[p->xmit_count]+skb->len, 0,
+		memset_io(p->xmit_cbuffs[p->xmit_count]+skb->len, 0,
 							len - skb->len);
 	}
 
@@ -1197,14 +1198,14 @@ static int ni52_send_packet(struct sk_buff *skb, struct net_device *dev)
 #	ifdef NO_NOPCOMMANDS
 
 #ifdef DEBUG
-	if (p->scb->cus & CU_ACTIVE) {
+	if (readb(&p->scb->cus) & CU_ACTIVE) {
 		printk(KERN_ERR "%s: Hmmm .. CU is still running and we wanna send a new packet.\n", dev->name);
 		printk(KERN_ERR "%s: stat: %04x %04x\n",
 				dev->name, readb(&p->scb->cus),
 				readw(&p->xmit_cmds[0]->cmd_status));
 	}
 #endif
-	writew(TBD_LAST | len, &p->xmit_buffs[0]->size);;
+	writew(TBD_LAST | len, &p->xmit_buffs[0]->size);
 	for (i = 0; i < 16; i++) {
 		writew(0, &p->xmit_cmds[0]->cmd_status);
 		wait_for_scb_cmd(dev);
