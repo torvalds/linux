@@ -228,6 +228,26 @@ void __init smp_alloc_memory(void)
 }
 #endif
 
+void impress_friends(void)
+{
+	int cpu;
+	unsigned long bogosum = 0;
+	/*
+	 * Allow the user to impress friends.
+	 */
+	Dprintk("Before bogomips.\n");
+	for_each_possible_cpu(cpu)
+		if (cpu_isset(cpu, cpu_callout_map))
+			bogosum += cpu_data(cpu).loops_per_jiffy;
+	printk(KERN_INFO
+		"Total of %d processors activated (%lu.%02lu BogoMIPS).\n",
+		cpus_weight(cpu_present_map),
+		bogosum/(500000/HZ),
+		(bogosum/(5000/HZ))%100);
+
+	Dprintk("Before bogocount - setting activated=1.\n");
+}
+
 #ifdef CONFIG_HOTPLUG_CPU
 void remove_siblinginfo(int cpu)
 {

@@ -790,13 +790,13 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	return 0;
 }
 
+extern void impress_friends(void);
 /*
  * Cycle through the processors sending APIC IPIs to boot each.
  */
 static void __init smp_boot_cpus(unsigned int max_cpus)
 {
 	int apicid, cpu, bit, kicked;
-	unsigned long bogosum = 0;
 
 	/*
 	 * Setup boot CPU information
@@ -863,20 +863,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	 */
 	smpboot_restore_warm_reset_vector();
 
-	/*
-	 * Allow the user to impress friends.
-	 */
-	Dprintk("Before bogomips.\n");
-	for_each_possible_cpu(cpu)
-		if (cpu_isset(cpu, cpu_callout_map))
-			bogosum += cpu_data(cpu).loops_per_jiffy;
-	printk(KERN_INFO
-		"Total of %d processors activated (%lu.%02lu BogoMIPS).\n",
-		cpus_weight(cpu_present_map),
-		bogosum/(500000/HZ),
-		(bogosum/(5000/HZ))%100);
-	
-	Dprintk("Before bogocount - setting activated=1.\n");
+	impress_friends();
 
 	if (smp_b_stepping)
 		printk(KERN_WARNING "WARNING: SMP operation may be unreliable with B stepping processors.\n");
