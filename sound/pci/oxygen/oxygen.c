@@ -336,6 +336,7 @@ static const struct oxygen_model model_meridian = {
 		       CAPTURE_1_FROM_SPDIF |
 		       CAPTURE_2_FROM_AC97_1,
 	.dac_channels = 8,
+	.misc_flags = OXYGEN_MISC_MIDI,
 	.function_flags = OXYGEN_FUNCTION_SPI |
 			  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
@@ -356,7 +357,7 @@ static int __devinit generic_oxygen_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 	is_meridian = pci_id->driver_data;
-	err = oxygen_pci_probe(pci, index[dev], id[dev], is_meridian,
+	err = oxygen_pci_probe(pci, index[dev], id[dev],
 			       is_meridian ? &model_meridian : &model_generic);
 	if (err >= 0)
 		++dev;

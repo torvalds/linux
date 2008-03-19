@@ -253,11 +253,13 @@ static void oxygen_init(struct oxygen *chip)
 		      OXYGEN_DMA_A_BURST_8 |
 		      OXYGEN_DMA_MULTICH_BURST_8);
 	oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);
-	oxygen_write8_masked(chip, OXYGEN_MISC, 0,
+	oxygen_write8_masked(chip, OXYGEN_MISC,
+			     chip->model->misc_flags,
 			     OXYGEN_MISC_WRITE_PCI_SUBID |
 			     OXYGEN_MISC_REC_C_FROM_SPDIF |
 			     OXYGEN_MISC_REC_B_FROM_AC97 |
-			     OXYGEN_MISC_REC_A_FROM_MULTICH);
+			     OXYGEN_MISC_REC_A_FROM_MULTICH |
+			     OXYGEN_MISC_MIDI);
 	oxygen_write8(chip, OXYGEN_REC_FORMAT,
 		      (OXYGEN_FORMAT_16 << OXYGEN_REC_FORMAT_A_SHIFT) |
 		      (OXYGEN_FORMAT_16 << OXYGEN_REC_FORMAT_B_SHIFT) |
@@ -400,7 +402,7 @@ static void oxygen_card_free(struct snd_card *card)
 }
 
 int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
-		     int midi, const struct oxygen_model *model)
+		     const struct oxygen_model *model)
 {
 	struct snd_card *card;
 	struct oxygen *chip;
@@ -472,9 +474,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	if (err < 0)
 		goto err_card;
 
-	oxygen_write8_masked(chip, OXYGEN_MISC,
-			     midi ? OXYGEN_MISC_MIDI : 0, OXYGEN_MISC_MIDI);
-	if (midi) {
+	if (model->misc_flags & OXYGEN_MISC_MIDI) {
 		err = snd_mpu401_uart_new(card, 0, MPU401_HW_CMIPCI,
 					  chip->addr + OXYGEN_MPU401,
 					  MPU401_INFO_INTEGRATED, 0, 0,

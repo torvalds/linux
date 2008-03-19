@@ -353,6 +353,7 @@ static const struct oxygen_model model_xonar = {
 		       CAPTURE_0_FROM_I2S_2 |
 		       CAPTURE_1_FROM_SPDIF,
 	.dac_channels = 8,
+	.misc_flags = OXYGEN_MISC_MIDI,
 	.function_flags = OXYGEN_FUNCTION_SPI |
 			  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
@@ -371,7 +372,7 @@ static int __devinit xonar_probe(struct pci_dev *pci,
 		++dev;
 		return -ENOENT;
 	}
-	err = oxygen_pci_probe(pci, index[dev], id[dev], 1, &model_xonar);
+	err = oxygen_pci_probe(pci, index[dev], id[dev], &model_xonar);
 	if (err >= 0)
 		++dev;
 	return err;

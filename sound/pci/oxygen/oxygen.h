@@ -103,6 +103,7 @@ struct oxygen_model {
 	size_t model_data_size;
 	unsigned int pcm_dev_cfg;
 	u8 dac_channels;
+	u8 misc_flags;
 	u8 function_flags;
 	u16 dac_i2s_format;
 	u16 adc_i2s_format;
@@ -110,7 +111,7 @@ struct oxygen_model {
 
 /* oxygen_lib.c */
 
-int oxygen_pci_probe(struct pci_dev *pci, int index, char *id, int midi,
+int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 		     const struct oxygen_model *model);
 void oxygen_pci_remove(struct pci_dev *pci);
 
