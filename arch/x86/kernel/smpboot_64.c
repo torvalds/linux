@@ -50,6 +50,7 @@
 #include <linux/smp.h>
 #include <linux/kdebug.h>
 
+#include <asm/acpi.h>
 #include <asm/mtrr.h>
 #include <asm/pgalloc.h>
 #include <asm/desc.h>
@@ -105,7 +106,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	 * If we couldn't find an SMP configuration at boot time,
 	 * get out of here now!
 	 */
-	if (!smp_found_config) {
+	if (!smp_found_config && !acpi_lapic) {
 		printk(KERN_NOTICE "SMP motherboard not detected.\n");
 		disable_smp();
 		if (APIC_init_uniprocessor())
@@ -118,7 +119,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	 * Should not be necessary because the MP table should list the boot
 	 * CPU too, but we do it for the sake of robustness anyway.
 	 */
-	if (!physid_isset(boot_cpu_physical_apicid, phys_cpu_present_map)) {
+	if (!check_phys_apicid_present(boot_cpu_physical_apicid)) {
 		printk(KERN_NOTICE
 			"weird, boot CPU (#%d) not listed by the BIOS.\n",
 			boot_cpu_physical_apicid);
@@ -128,13 +129,16 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	/*
 	 * If we couldn't find a local APIC, then get out of here now!
 	 */
-	if (!cpu_has_apic) {
+	if (APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid]) &&
+	    !cpu_has_apic) {
 		printk(KERN_ERR "BIOS bug, local APIC #%d not detected!...\n",
 			boot_cpu_physical_apicid);
 		printk(KERN_ERR "... forcing use of dummy APIC emulation. (tell your hw vendor)\n");
 		nr_ioapics = 0;
 		return -1;
 	}
+
+	verify_local_APIC();
 
 	/*
 	 * If SMP should be disabled, then really disable it!
