@@ -78,7 +78,7 @@ static ssize_t lbs_getscantable(struct file *file, char __user *userbuf,
 		u16 spectrum_mgmt = (iter_bss->capability & WLAN_CAPABILITY_SPECTRUM_MGMT);
 
 		pos += snprintf(buf+pos, len-pos,
-			"%02u| %03d | %04ld | %s |",
+			"%02u| %03d | %04d | %s |",
 			numscansdone, iter_bss->channel, iter_bss->rssi,
 			print_mac(mac, iter_bss->bssid));
 		pos += snprintf(buf+pos, len-pos, " %04x-", iter_bss->capability);
