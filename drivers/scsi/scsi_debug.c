@@ -2059,25 +2059,24 @@ static struct sdebug_dev_info * devInfoReg(struct scsi_device * sdev)
 			return NULL;
 		}
 	}
-        if (open_devip) {
-		open_devip->channel = sdev->channel;
-		open_devip->target = sdev->id;
-		open_devip->lun = sdev->lun;
-		open_devip->sdbg_host = sdbg_host;
-		open_devip->reset = 1;
-		open_devip->used = 1;
-		memset(open_devip->sense_buff, 0, SDEBUG_SENSE_LEN);
-		if (scsi_debug_dsense)
-			open_devip->sense_buff[0] = 0x72;
-		else {
-			open_devip->sense_buff[0] = 0x70;
-			open_devip->sense_buff[7] = 0xa;
-		}
-		if (sdev->lun == SAM2_WLUN_REPORT_LUNS)
-			open_devip->wlun = SAM2_WLUN_REPORT_LUNS & 0xff;
-		return open_devip;
-        }
-        return NULL;
+
+	open_devip->channel = sdev->channel;
+	open_devip->target = sdev->id;
+	open_devip->lun = sdev->lun;
+	open_devip->sdbg_host = sdbg_host;
+	open_devip->reset = 1;
+	open_devip->used = 1;
+	memset(open_devip->sense_buff, 0, SDEBUG_SENSE_LEN);
+	if (scsi_debug_dsense)
+		open_devip->sense_buff[0] = 0x72;
+	else {
+		open_devip->sense_buff[0] = 0x70;
+		open_devip->sense_buff[7] = 0xa;
+	}
+	if (sdev->lun == SAM2_WLUN_REPORT_LUNS)
+		open_devip->wlun = SAM2_WLUN_REPORT_LUNS & 0xff;
+
+	return open_devip;
 }
 
 static void mk_sense_buffer(struct sdebug_dev_info * devip, int key,
