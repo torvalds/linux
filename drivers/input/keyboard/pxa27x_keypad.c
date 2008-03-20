@@ -50,9 +50,9 @@
 #define KPKDI           0x0048
 
 /* bit definitions */
-#define KPC_MKRN(n)	((((n) & 0x7) - 1) << 26) /* matrix key row number */
-#define KPC_MKCN(n)	((((n) & 0x7) - 1) << 23) /* matrix key column number */
-#define KPC_DKN(n)	((((n) & 0x7) - 1) << 6)  /* direct key number */
+#define KPC_MKRN(n)	((((n) - 1) & 0x7) << 26) /* matrix key row number */
+#define KPC_MKCN(n)	((((n) - 1) & 0x7) << 23) /* matrix key column number */
+#define KPC_DKN(n)	((((n) - 1) & 0x7) << 6)  /* direct key number */
 
 #define KPC_AS          (0x1 << 30)  /* Automatic Scan bit */
 #define KPC_ASACT       (0x1 << 29)  /* Automatic Scan on Activity */
