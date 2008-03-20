@@ -78,9 +78,13 @@ static int	audit_default;
 /* If auditing cannot proceed, audit_failure selects what happens. */
 static int	audit_failure = AUDIT_FAIL_PRINTK;
 
-/* If audit records are to be written to the netlink socket, audit_pid
- * contains the (non-zero) pid. */
+/*
+ * If audit records are to be written to the netlink socket, audit_pid
+ * contains the pid of the auditd process and audit_nlk_pid contains
+ * the pid to use to send netlink messages to that process.
+ */
 int		audit_pid;
+static int	audit_nlk_pid;
 
 /* If audit_rate_limit is non-zero, limit the rate of sending audit records
  * to that number per second.  This prevents DoS attacks, but results in
@@ -350,7 +354,7 @@ static int kauditd_thread(void *dummy)
 		wake_up(&audit_backlog_wait);
 		if (skb) {
 			if (audit_pid) {
-				int err = netlink_unicast(audit_sock, skb, audit_pid, 0);
+				int err = netlink_unicast(audit_sock, skb, audit_nlk_pid, 0);
 				if (err < 0) {
 					BUG_ON(err != -ECONNREFUSED); /* Shoudn't happen */
 					printk(KERN_ERR "audit: *NO* daemon at audit_pid=%d\n", audit_pid);
@@ -626,6 +630,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 							sid, 1);
 
 			audit_pid = new_pid;
+			audit_nlk_pid = NETLINK_CB(skb).pid;
 		}
 		if (status_get->mask & AUDIT_STATUS_RATE_LIMIT)
 			err = audit_set_rate_limit(status_get->rate_limit,
