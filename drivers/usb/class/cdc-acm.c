@@ -489,6 +489,7 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 	else
 		rv = 0;
 
+	set_bit(TTY_NO_WRITE_SPLIT, &tty->flags);
 	tty->driver_data = acm;
 	acm->tty = tty;
 
