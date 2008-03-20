@@ -915,6 +915,7 @@ void __init setup_ioapic_dest(void)
 }
 #endif
 
+#if defined(CONFIG_EISA) || defined(CONFIG_MCA)
 /*
  * EISA Edge/Level control register, ELCR
  */
@@ -928,6 +929,7 @@ static int EISA_ELCR(unsigned int irq)
 			"Broken MPtable reports ISA irq %d\n", irq);
 	return 0;
 }
+#endif
 
 /* ISA interrupts are always polarity zero edge triggered,
  * when listed as conforming in the MP table. */
@@ -1013,6 +1015,7 @@ static int MPBIOS_trigger(int idx)
 			trigger = test_bit(bus, mp_bus_not_pci)?
 					default_ISA_trigger(idx):
 					default_PCI_trigger(idx);
+#if defined(CONFIG_EISA) || defined(CONFIG_MCA)
 			switch (mp_bus_id_to_type[bus])
 			{
 				case MP_BUS_ISA: /* ISA pin */
@@ -1042,6 +1045,7 @@ static int MPBIOS_trigger(int idx)
 					break;
 				}
 			}
+#endif
 			break;
 		}
 		case 1: /* edge */

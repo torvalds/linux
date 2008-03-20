@@ -6,7 +6,6 @@
 #ifdef CONFIG_X86_32
 #include <mach_mpspec.h>
 
-extern int mp_bus_id_to_type[MAX_MP_BUSSES];
 extern int mp_bus_id_to_node[MAX_MP_BUSSES];
 extern int mp_bus_id_to_local[MAX_MP_BUSSES];
 
@@ -28,7 +27,12 @@ extern void early_get_smp_config(void);
 
 #endif
 
+#if defined(CONFIG_MCA) || defined(CONFIG_EISA)
+extern int mp_bus_id_to_type[MAX_MP_BUSSES];
+#endif
+
 extern DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
+
 extern int mp_bus_id_to_pci_bus[MAX_MP_BUSSES];
 
 extern unsigned int boot_cpu_physical_apicid;

@@ -42,7 +42,9 @@ unsigned int __cpuinitdata maxcpus = NR_CPUS;
  * MP-table.
  */
 int apic_version [MAX_APICS];
+#if defined (CONFIG_MCA) || defined (CONFIG_EISA)
 int mp_bus_id_to_type [MAX_MP_BUSSES];
+#endif
 DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 int mp_bus_id_to_node [MAX_MP_BUSSES];
 int mp_bus_id_to_local [MAX_MP_BUSSES];
@@ -245,9 +247,10 @@ static void __init MP_bus_info (struct mpc_config_bus *m)
 	if (strncmp(str, BUSTYPE_PCI, sizeof(BUSTYPE_PCI)-1) == 0) {
 		mpc_oem_pci_bus(m, translation_table[mpc_record]);
 		clear_bit(m->mpc_busid, mp_bus_not_pci);
-		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_PCI;
 		mp_bus_id_to_pci_bus[m->mpc_busid] = mp_current_pci_id;
 		mp_current_pci_id++;
+#if defined(CONFIG_EISA) || defined (CONFIG_MCA)
+		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_PCI;
 	} else if (strncmp(str, BUSTYPE_ISA, sizeof(BUSTYPE_ISA)-1) == 0) {
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_ISA;
 	} else if (strncmp(str, BUSTYPE_EISA, sizeof(BUSTYPE_EISA)-1) == 0) {
@@ -256,6 +259,7 @@ static void __init MP_bus_info (struct mpc_config_bus *m)
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_MCA;
 	} else {
 		printk(KERN_WARNING "Unknown bustype %s - ignoring\n", str);
+#endif
 	}
 }
 
@@ -983,10 +987,12 @@ void __init mp_config_acpi_legacy_irqs (void)
 	int i = 0;
 	int ioapic = -1;
 
+#if defined (CONFIG_MCA) || defined (CONFIG_EISA)
 	/* 
 	 * Fabricate the legacy ISA bus (bus #31).
 	 */
 	mp_bus_id_to_type[MP_ISA_BUS] = MP_BUS_ISA;
+#endif
 	set_bit(MP_ISA_BUS, mp_bus_not_pci);
 	Dprintk("Bus #%d is ISA\n", MP_ISA_BUS);
 
