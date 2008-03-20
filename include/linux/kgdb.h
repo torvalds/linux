@@ -22,31 +22,34 @@
 
 struct pt_regs;
 
-/*
- *	kgdb_skipexception - Bail out of KGDB when we've been triggered.
+/**
+ *	kgdb_skipexception - (optional) exit kgdb_handle_exception early
  *	@exception: Exception vector number
  *	@regs: Current &struct pt_regs.
  *
- *	On some architectures we need to skip a breakpoint exception when
- *	it occurs after a breakpoint has been removed.
+ *	On some architectures it is required to skip a breakpoint
+ *	exception when it occurs after a breakpoint has been removed.
+ *	This can be implemented in the architecture specific portion of
+ *	for kgdb.
  */
 extern int kgdb_skipexception(int exception, struct pt_regs *regs);
 
-/*
- *	kgdb_post_primary_code - Save error vector/code numbers.
+/**
+ *	kgdb_post_primary_code - (optional) Save error vector/code numbers.
  *	@regs: Original pt_regs.
  *	@e_vector: Original error vector.
  *	@err_code: Original error code.
  *
- *	This is needed on architectures which support SMP and KGDB.
- *	This function is called after all the secondary cpus have been put
- *	to a know spin state and the primary CPU has control over KGDB.
+ *	This is usually needed on architectures which support SMP and
+ *	KGDB.  This function is called after all the secondary cpus have
+ *	been put to a know spin state and the primary CPU has control over
+ *	KGDB.
  */
 extern void kgdb_post_primary_code(struct pt_regs *regs, int e_vector,
 				  int err_code);
 
-/*
- *	kgdb_disable_hw_debug - Disable hardware debugging while we in kgdb.
+/**
+ *	kgdb_disable_hw_debug - (optional) Disable hardware debugging hook
  *	@regs: Current &struct pt_regs.
  *
  *	This function will be called if the particular architecture must
@@ -59,7 +62,14 @@ struct tasklet_struct;
 struct task_struct;
 struct uart_port;
 
-/* To enter the debugger explicitly. */
+/**
+ *	kgdb_breakpoint - compiled in breakpoint
+ *
+ *	This will be impelmented a static inline per architecture.  This
+ *	function is called by the kgdb core to execute an architecture
+ *	specific trap to cause kgdb to enter the exception processing.
+ *
+ */
 void kgdb_breakpoint(void);
 
 extern int kgdb_connected;
@@ -102,7 +112,7 @@ struct kgdb_bkpt {
  * Functions each KGDB-supporting architecture must provide:
  */
 
-/*
+/**
  *	kgdb_arch_init - Perform any architecture specific initalization.
  *
  *	This function will handle the initalization of any architecture
@@ -110,7 +120,7 @@ struct kgdb_bkpt {
  */
 extern int kgdb_arch_init(void);
 
-/*
+/**
  *	kgdb_arch_exit - Perform any architecture specific uninitalization.
  *
  *	This function will handle the uninitalization of any architecture
@@ -118,7 +128,7 @@ extern int kgdb_arch_init(void);
  */
 extern void kgdb_arch_exit(void);
 
-/*
+/**
  *	pt_regs_to_gdb_regs - Convert ptrace regs to GDB regs
  *	@gdb_regs: A pointer to hold the registers in the order GDB wants.
  *	@regs: The &struct pt_regs of the current process.
@@ -128,7 +138,7 @@ extern void kgdb_arch_exit(void);
  */
 extern void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs);
 
-/*
+/**
  *	sleeping_thread_to_gdb_regs - Convert ptrace regs to GDB regs
  *	@gdb_regs: A pointer to hold the registers in the order GDB wants.
  *	@p: The &struct task_struct of the desired process.
@@ -143,7 +153,7 @@ extern void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs);
 extern void
 sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p);
 
-/*
+/**
  *	gdb_regs_to_pt_regs - Convert GDB regs to ptrace regs.
  *	@gdb_regs: A pointer to hold the registers we've received from GDB.
  *	@regs: A pointer to a &struct pt_regs to hold these values in.
@@ -153,7 +163,7 @@ sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p);
  */
 extern void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs);
 
-/*
+/**
  *	kgdb_arch_handle_exception - Handle architecture specific GDB packets.
  *	@vector: The error vector of the exception that happened.
  *	@signo: The signal number of the exception that happened.
@@ -175,7 +185,7 @@ kgdb_arch_handle_exception(int vector, int signo, int err_code,
 			   char *remcom_out_buffer,
 			   struct pt_regs *regs);
 
-/*
+/**
  *	kgdb_roundup_cpus - Get other CPUs into a holding pattern
  *	@flags: Current IRQ state
  *
@@ -198,7 +208,7 @@ extern int kgdb_validate_break_address(unsigned long addr);
 extern int kgdb_arch_set_breakpoint(unsigned long addr, char *saved_instr);
 extern int kgdb_arch_remove_breakpoint(unsigned long addr, char *bundle);
 
-/*
+/**
  * struct kgdb_arch - Describe architecture specific values.
  * @gdb_bpt_instr: The instruction to trigger a breakpoint.
  * @flags: Flags for the breakpoint, currently just %KGDB_HW_BREAKPOINT.
@@ -227,7 +237,7 @@ struct kgdb_arch {
 	void	(*correct_hw_break)(void);
 };
 
-/*
+/**
  * struct kgdb_io - Describe the interface for an I/O driver to talk with KGDB.
  * @name: Name of the I/O driver.
  * @read_char: Pointer to a function that will return one char.
