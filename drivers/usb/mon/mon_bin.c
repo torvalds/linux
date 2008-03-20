@@ -1026,8 +1026,6 @@ mon_bin_poll(struct file *file, struct poll_table_struct *wait)
 	return mask;
 }
 
-#if 0
-
 /*
  * open and close: just keep track of how many times the device is
  * mapped, to use the proper memory allocation function.
@@ -1063,13 +1061,13 @@ static int mon_bin_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return 0;
 }
 
-struct vm_operations_struct mon_bin_vm_ops = {
+static struct vm_operations_struct mon_bin_vm_ops = {
 	.open =     mon_bin_vma_open,
 	.close =    mon_bin_vma_close,
 	.fault =    mon_bin_vma_fault,
 };
 
-int mon_bin_mmap(struct file *filp, struct vm_area_struct *vma)
+static int mon_bin_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	/* don't do anything here: "fault" will set up page table entries */
 	vma->vm_ops = &mon_bin_vm_ops;
@@ -1078,8 +1076,6 @@ int mon_bin_mmap(struct file *filp, struct vm_area_struct *vma)
 	mon_bin_vma_open(vma);
 	return 0;
 }
-
-#endif  /*  0  */
 
 static const struct file_operations mon_fops_binary = {
 	.owner =	THIS_MODULE,
@@ -1090,6 +1086,7 @@ static const struct file_operations mon_fops_binary = {
 	.poll =		mon_bin_poll,
 	.ioctl =	mon_bin_ioctl,
 	.release =	mon_bin_release,
+	.mmap =		mon_bin_mmap,
 };
 
 static int mon_bin_wait_event(struct file *file, struct mon_reader_bin *rp)
