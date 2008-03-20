@@ -644,6 +644,21 @@ enum sta_notify_cmd {
 };
 
 /**
+ * enum ieee80211_tkip_key_type - get tkip key
+ *
+ * Used by drivers which need to get a tkip key for skb. Some drivers need a
+ * phase 1 key, others need a phase 2 key. A single function allows the driver
+ * to get the key, this enum indicates what type of key is required.
+ *
+ * @IEEE80211_TKIP_P1_KEY: the driver needs a phase 1 key
+ * @IEEE80211_TKIP_P2_KEY: the driver needs a phase 2 key
+ */
+enum ieee80211_tkip_key_type {
+	IEEE80211_TKIP_P1_KEY,
+	IEEE80211_TKIP_P2_KEY,
+};
+
+/**
  * enum ieee80211_hw_flags - hardware flags
  *
  * These flags are used to indicate hardware capabilities to
@@ -1471,6 +1486,21 @@ int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb);
  */
 int ieee80211_get_hdrlen(u16 fc);
 
+/**
+ * ieee80211_get_tkip_key - get a TKIP rc4 for skb
+ *
+ * This function computes a TKIP rc4 key for an skb. It computes
+ * a phase 1 key if needed (iv16 wraps around). This function is to
+ * be used by drivers which can do HW encryption but need to compute
+ * to phase 1/2 key in SW.
+ *
+ * @keyconf: the parameter passed with the set key
+ * @skb: the skb for which the key is needed
+ * @rc4key: a buffer to which the key will be written
+ */
+void ieee80211_get_tkip_key(struct ieee80211_key_conf *keyconf,
+				struct sk_buff *skb,
+				enum ieee80211_tkip_key_type type, u8 *key);
 /**
  * ieee80211_wake_queue - wake specific queue
  * @hw: pointer as obtained from ieee80211_alloc_hw().
