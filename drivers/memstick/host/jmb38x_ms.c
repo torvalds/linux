@@ -274,7 +274,7 @@ static int jmb38x_ms_transfer_data(struct jmb38x_ms_host *host)
 {
 	unsigned int length;
 	unsigned int off;
-	unsigned int t_size, p_off, p_cnt;
+	unsigned int t_size, p_cnt;
 	unsigned char *buf;
 	struct page *pg;
 	unsigned long flags = 0;
@@ -288,6 +288,8 @@ static int jmb38x_ms_transfer_data(struct jmb38x_ms_host *host)
 	}
 
 	while (length) {
+		unsigned int uninitialized_var(p_off);
+
 		if (host->req->long_data) {
 			pg = nth_page(sg_page(&host->req->sg),
 				      off >> PAGE_SHIFT);
