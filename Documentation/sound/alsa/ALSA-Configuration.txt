@@ -825,6 +825,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  hippo_1	Hippo (Benq) with jack detection
 	  sony-assamd	Sony ASSAMD
 	  ultra		Samsung Q1 Ultra Vista model
+	  lenovo-3000	Lenovo 3000 y410
 	  basic		fixed pin assignment w/o SPDIF
 	  auto		auto-config reading BIOS (default)
 
@@ -838,6 +839,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 			adjusted.  Appearing only when compiled with
 			$CONFIG_SND_DEBUG=y
 	  auto		auto-config reading BIOS (default)
+
+	ALC269
+	  basic		Basic preset
 
 	ALC662
 	  3stack-dig	3-stack (2-channel) with SPDIF
@@ -882,6 +886,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack-hp	HP machines with 3stack (Lucknow, Samba boards)
 	  6stack-dell	Dell machines with 6stack (Inspiron 530)
 	  mitac		Mitac 8252D
+	  clevo-m720r	Clevo laptop M720R
+	  fujitsu-pi2515 Fujitsu AMILO Pi2515
 	  auto		auto-config reading BIOS (default)
 
 	ALC861/660
