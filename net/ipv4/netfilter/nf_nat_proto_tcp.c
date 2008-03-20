@@ -81,7 +81,6 @@ tcp_manip_pkt(struct sk_buff *skb,
 }
 
 const struct nf_nat_protocol nf_nat_protocol_tcp = {
-	.name			= "TCP",
 	.protonum		= IPPROTO_TCP,
 	.me			= THIS_MODULE,
 	.manip_pkt		= tcp_manip_pkt,

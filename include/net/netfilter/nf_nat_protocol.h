@@ -8,9 +8,6 @@ struct nf_nat_range;
 
 struct nf_nat_protocol
 {
-	/* Protocol name */
-	const char *name;
-
 	/* Protocol number. */
 	unsigned int protonum;
 
