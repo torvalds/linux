@@ -12,6 +12,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/highmem.h>
 #include <linux/memstick.h>
