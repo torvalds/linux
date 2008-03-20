@@ -406,6 +406,8 @@ int futex_atomic_cmpxchg_pt(int __user *uaddr, int oldval, int newval)
 {
 	int ret;
 
+	if (!current->mm)
+		return -EFAULT;
 	spin_lock(&current->mm->page_table_lock);
 	uaddr = (int __user *) __dat_user_addr((unsigned long) uaddr);
 	if (!uaddr) {
