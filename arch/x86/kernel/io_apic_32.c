@@ -929,19 +929,19 @@ static int EISA_ELCR(unsigned int irq)
 	return 0;
 }
 
+/* ISA interrupts are always polarity zero edge triggered,
+ * when listed as conforming in the MP table. */
+
+#define default_ISA_trigger(idx)	(0)
+#define default_ISA_polarity(idx)	(0)
+
 /* EISA interrupts are always polarity zero and can be edge or level
  * trigger depending on the ELCR value.  If an interrupt is listed as
  * EISA conforming in the MP table, that means its trigger type must
  * be read in from the ELCR */
 
 #define default_EISA_trigger(idx)	(EISA_ELCR(mp_irqs[idx].mpc_srcbusirq))
-#define default_EISA_polarity(idx)	(0)
-
-/* ISA interrupts are always polarity zero edge triggered,
- * when listed as conforming in the MP table. */
-
-#define default_ISA_trigger(idx)	(0)
-#define default_ISA_polarity(idx)	(0)
+#define default_EISA_polarity(idx)	default_ISA_polarity(idx)
 
 /* PCI interrupts are always polarity one level triggered,
  * when listed as conforming in the MP table. */
@@ -953,7 +953,7 @@ static int EISA_ELCR(unsigned int irq)
  * when listed as conforming in the MP table. */
 
 #define default_MCA_trigger(idx)	(1)
-#define default_MCA_polarity(idx)	(0)
+#define default_MCA_polarity(idx)	default_ISA_polarity(idx)
 
 static int MPBIOS_polarity(int idx)
 {
@@ -967,35 +967,9 @@ static int MPBIOS_polarity(int idx)
 	{
 		case 0: /* conforms, ie. bus-type dependent polarity */
 		{
-			switch (mp_bus_id_to_type[bus])
-			{
-				case MP_BUS_ISA: /* ISA pin */
-				{
-					polarity = default_ISA_polarity(idx);
-					break;
-				}
-				case MP_BUS_EISA: /* EISA pin */
-				{
-					polarity = default_EISA_polarity(idx);
-					break;
-				}
-				case MP_BUS_PCI: /* PCI pin */
-				{
-					polarity = default_PCI_polarity(idx);
-					break;
-				}
-				case MP_BUS_MCA: /* MCA pin */
-				{
-					polarity = default_MCA_polarity(idx);
-					break;
-				}
-				default:
-				{
-					printk(KERN_WARNING "broken BIOS!!\n");
-					polarity = 1;
-					break;
-				}
-			}
+			polarity = test_bit(bus, mp_bus_not_pci)?
+				default_ISA_polarity(idx):
+				default_PCI_polarity(idx);
 			break;
 		}
 		case 1: /* high active */
