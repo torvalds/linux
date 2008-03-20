@@ -112,6 +112,10 @@
 		printk(KERN_INFO a); \
 		touch_nmi_watchdog();	\
 	} while (0)
+#define eprintk(a...) do { \
+		printk(KERN_ERR a); \
+		WARN_ON(1); \
+	} while (0)
 #define MAX_CONFIG_LEN		40
 
 static const char hexchars[] = "0123456789abcdef";
@@ -145,7 +149,11 @@ static struct pt_regs kgdbts_regs;
 /* -1 = init not run yet, 0 = unconfigured, 1 = configured. */
 static int configured		= -1;
 
+#ifdef CONFIG_KGDB_TESTS_BOOT_STRING
+static char config[MAX_CONFIG_LEN] = CONFIG_KGDB_TESTS_BOOT_STRING;
+#else
 static char config[MAX_CONFIG_LEN];
+#endif
 static struct kparam_string kps = {
 	.string			= config,
 	.maxlen			= MAX_CONFIG_LEN,
@@ -289,7 +297,7 @@ static int check_and_rewind_pc(char *put_str, char *arg)
 #endif
 	if (strcmp(arg, "silent") &&
 		instruction_pointer(&kgdbts_regs) + offset != addr) {
-		printk(KERN_ERR "kgdbts: BP mismatch %lx expected %lx\n",
+		eprintk("kgdbts: BP mismatch %lx expected %lx\n",
 			   instruction_pointer(&kgdbts_regs) + offset, addr);
 		return 1;
 	}
@@ -313,7 +321,7 @@ static int check_single_step(char *put_str, char *arg)
 	v2printk("Singlestep stopped at IP: %lx\n",
 		   instruction_pointer(&kgdbts_regs));
 	if (instruction_pointer(&kgdbts_regs) == addr) {
-		printk(KERN_ERR "kgdbts: SingleStep failed at %lx\n",
+		eprintk("kgdbts: SingleStep failed at %lx\n",
 			   instruction_pointer(&kgdbts_regs));
 		return 1;
 	}
@@ -378,7 +386,7 @@ static void emul_sstep_get(char *arg)
 		break_helper("z0", 0, sstep_addr);
 		break;
 	default:
-		printk(KERN_ERR "kgdbts: ERROR failed sstep get emulation\n");
+		eprintk("kgdbts: ERROR failed sstep get emulation\n");
 	}
 	sstep_state++;
 }
@@ -404,26 +412,26 @@ static int emul_sstep_put(char *put_str, char *arg)
 		break;
 	case 2:
 		if (strncmp(put_str, "$OK", 3)) {
-			printk(KERN_ERR "kgdbts: failed sstep break set\n");
+			eprintk("kgdbts: failed sstep break set\n");
 			return 1;
 		}
 		break;
 	case 3:
 		if (strncmp(put_str, "$T0", 3)) {
-			printk(KERN_ERR "kgdbts: failed continue sstep\n");
+			eprintk("kgdbts: failed continue sstep\n");
 			return 1;
 		}
 		break;
 	case 4:
 		if (strncmp(put_str, "$OK", 3)) {
-			printk(KERN_ERR "kgdbts: failed sstep break unset\n");
+			eprintk("kgdbts: failed sstep break unset\n");
 			return 1;
 		}
 		/* Single step is complete so continue on! */
 		sstep_state = 0;
 		return 0;
 	default:
-		printk(KERN_ERR "kgdbts: ERROR failed sstep put emulation\n");
+		eprintk("kgdbts: ERROR failed sstep put emulation\n");
 	}
 
 	/* Continue on the same test line until emulation is complete */
@@ -668,8 +676,7 @@ static int run_simple_test(int is_get_char, int chr)
 		}
 
 		if (get_buf[get_buf_cnt] == '\0') {
-			printk(KERN_ERR
-			   "kgdbts: ERROR GET: end of buffer on '%s' at %i\n",
+			eprintk("kgdbts: ERROR GET: EOB on '%s' at %i\n",
 			   ts.name, ts.idx);
 			get_buf_cnt = 0;
 			fill_get_buf("D");
@@ -684,13 +691,13 @@ static int run_simple_test(int is_get_char, int chr)
 	 */
 	if (ts.tst[ts.idx].get[0] == '\0' &&
 		ts.tst[ts.idx].put[0] == '\0') {
-		printk(KERN_ERR "kgdbts: ERROR: beyond end of test on"
+		eprintk("kgdbts: ERROR: beyond end of test on"
 			   " '%s' line %i\n", ts.name, ts.idx);
 		return 0;
 	}
 
 	if (put_buf_cnt >= BUFMAX) {
-		printk(KERN_ERR "kgdbts: ERROR: put buffer overflow on"
+		eprintk("kgdbts: ERROR: put buffer overflow on"
 			   " '%s' line %i\n", ts.name, ts.idx);
 		put_buf_cnt = 0;
 		return 0;
@@ -708,7 +715,7 @@ static int run_simple_test(int is_get_char, int chr)
 		v2printk("put%i: %s\n", ts.idx, put_buf);
 		/* Trigger check here */
 		if (ts.validate_put && ts.validate_put(put_buf)) {
-			printk(KERN_ERR "kgdbts: ERROR PUT: end of test "
+			eprintk("kgdbts: ERROR PUT: end of test "
 			   "buffer on '%s' line %i expected %s got %s\n",
 			   ts.name, ts.idx, ts.tst[ts.idx].put, put_buf);
 		}
@@ -772,7 +779,7 @@ static void run_breakpoint_test(int is_hw_breakpoint)
 	if (test_complete)
 		return;
 
-	printk(KERN_ERR "kgdbts: ERROR %s test failed\n", ts.name);
+	eprintk("kgdbts: ERROR %s test failed\n", ts.name);
 }
 
 static void run_hw_break_test(int is_write_test)
@@ -791,7 +798,7 @@ static void run_hw_break_test(int is_write_test)
 	hw_break_val_access();
 	if (is_write_test) {
 		if (test_complete == 2)
-			printk(KERN_ERR "kgdbts: ERROR %s broke on access\n",
+			eprintk("kgdbts: ERROR %s broke on access\n",
 				ts.name);
 		hw_break_val_write();
 	}
@@ -800,7 +807,7 @@ static void run_hw_break_test(int is_write_test)
 	if (test_complete == 1)
 		return;
 
-	printk(KERN_ERR "kgdbts: ERROR %s test failed\n", ts.name);
+	eprintk("kgdbts: ERROR %s test failed\n", ts.name);
 }
 
 static void run_nmi_sleep_test(int nmi_sleep)
@@ -817,12 +824,12 @@ static void run_nmi_sleep_test(int nmi_sleep)
 	touch_nmi_watchdog();
 	local_irq_restore(flags);
 	if (test_complete != 2)
-		printk(KERN_ERR "kgdbts: ERROR nmi_test did not hit nmi\n");
+		eprintk("kgdbts: ERROR nmi_test did not hit nmi\n");
 	kgdb_breakpoint();
 	if (test_complete == 1)
 		return;
 
-	printk(KERN_ERR "kgdbts: ERROR %s test failed\n", ts.name);
+	eprintk("kgdbts: ERROR %s test failed\n", ts.name);
 }
 
 static void run_bad_read_test(void)

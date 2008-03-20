@@ -38,3 +38,21 @@ config KGDB_TESTS
 	  See the drivers/misc/kgdbts.c for the details about
 	  the tests.  The most basic of this I/O module is to boot
 	  a kernel boot arguments "kgdbwait kgdbts=V1F100"
+
+config KGDB_TESTS_ON_BOOT
+	bool "KGDB: Run tests on boot"
+	depends on KGDB_TESTS
+	default n
+	help
+	  Run the kgdb tests on boot up automatically without the need
+	  to pass in a kernel parameter
+
+config KGDB_TESTS_BOOT_STRING
+	string "KGDB: which internal kgdb tests to run"
+	depends on KGDB_TESTS_ON_BOOT
+	default "V1F100"
+	help
+	  This is the command string to send the kgdb test suite on
+	  boot.  See the drivers/misc/kgdbts.c for detailed
+	  information about other strings you could use beyond the
+	  default of V1F100.
