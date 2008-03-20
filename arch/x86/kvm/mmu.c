@@ -626,6 +626,14 @@ static void rmap_write_protect(struct kvm *kvm, u64 gfn)
 		}
 		spte = rmap_next(kvm, rmapp, spte);
 	}
+	if (write_protected) {
+		struct page *page;
+
+		spte = rmap_next(kvm, rmapp, NULL);
+		page = pfn_to_page((*spte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT);
+		SetPageDirty(page);
+	}
+
 	/* check for huge page mappings */
 	rmapp = gfn_to_rmap(kvm, gfn, 1);
 	spte = rmap_next(kvm, rmapp, NULL);
