@@ -242,16 +242,16 @@ static void __init MP_bus_info (struct mpc_config_bus *m)
 #endif
 
 	set_bit(m->mpc_busid, mp_bus_not_pci);
-	if (strncmp(str, BUSTYPE_ISA, sizeof(BUSTYPE_ISA)-1) == 0) {
-		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_ISA;
-	} else if (strncmp(str, BUSTYPE_EISA, sizeof(BUSTYPE_EISA)-1) == 0) {
-		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_EISA;
-	} else if (strncmp(str, BUSTYPE_PCI, sizeof(BUSTYPE_PCI)-1) == 0) {
+	if (strncmp(str, BUSTYPE_PCI, sizeof(BUSTYPE_PCI)-1) == 0) {
 		mpc_oem_pci_bus(m, translation_table[mpc_record]);
 		clear_bit(m->mpc_busid, mp_bus_not_pci);
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_PCI;
 		mp_bus_id_to_pci_bus[m->mpc_busid] = mp_current_pci_id;
 		mp_current_pci_id++;
+	} else if (strncmp(str, BUSTYPE_ISA, sizeof(BUSTYPE_ISA)-1) == 0) {
+		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_ISA;
+	} else if (strncmp(str, BUSTYPE_EISA, sizeof(BUSTYPE_EISA)-1) == 0) {
+		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_EISA;
 	} else if (strncmp(str, BUSTYPE_MCA, sizeof(BUSTYPE_MCA)-1) == 0) {
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_MCA;
 	} else {
