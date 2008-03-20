@@ -276,7 +276,7 @@ struct saa7134_format {
 #define SAA7134_BOARD_ADS_INSTANT_HDTV_PCI  151
 #define SAA7134_BOARD_ASUSTeK_TIGER         152
 
-#define SAA7134_MAXBOARDS 8
+#define SAA7134_MAXBOARDS 32
 #define SAA7134_INPUT_MAX 8
 
 /* ----------------------------------------------------------- */
