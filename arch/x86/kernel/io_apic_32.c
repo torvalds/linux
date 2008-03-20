@@ -866,7 +866,7 @@ int IO_APIC_get_PCI_irq_vector(int bus, int slot, int pin)
 			    mp_irqs[i].mpc_dstapic == MP_APIC_ALL)
 				break;
 
-		if ((mp_bus_id_to_type[lbus] == MP_BUS_PCI) &&
+		if (!test_bit(lbus, mp_bus_not_pci) &&
 		    !mp_irqs[i].mpc_irqtype &&
 		    (bus == lbus) &&
 		    (slot == ((mp_irqs[i].mpc_srcbusirq >> 2) & 0x1f))) {
