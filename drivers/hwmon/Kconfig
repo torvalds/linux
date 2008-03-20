@@ -337,8 +337,9 @@ config SENSORS_IBMPEX
 	help
 	  If you say yes here you get support for the temperature and
 	  power sensors in various IBM System X servers that support
-	  PowerExecutive.  So far this includes the x3550, x3650, x3655,
-	  x3755, and certain HS20 blades.
+	  PowerExecutive.  So far this includes the x3350, x3550, x3650,
+	  x3655, and x3755; the x3800, x3850, and x3950 models that have
+	  PCI Express; and some of the HS2x, LS2x, and QS2x blades.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ibmpex.
