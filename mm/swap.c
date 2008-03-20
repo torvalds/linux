@@ -78,12 +78,11 @@ void put_page(struct page *page)
 EXPORT_SYMBOL(put_page);
 
 /**
- * put_pages_list(): release a list of pages
+ * put_pages_list() - release a list of pages
+ * @pages: list of pages threaded on page->lru
  *
  * Release a list of pages which are strung together on page.lru.  Currently
  * used by read_cache_pages() and related error recovery code.
- *
- * @pages: list of pages threaded on page->lru
  */
 void put_pages_list(struct list_head *pages)
 {

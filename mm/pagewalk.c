@@ -77,11 +77,11 @@ static int walk_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end,
 
 /**
  * walk_page_range - walk a memory map's page tables with a callback
- * @mm - memory map to walk
- * @addr - starting address
- * @end - ending address
- * @walk - set of callbacks to invoke for each level of the tree
- * @private - private data passed to the callback function
+ * @mm: memory map to walk
+ * @addr: starting address
+ * @end: ending address
+ * @walk: set of callbacks to invoke for each level of the tree
+ * @private: private data passed to the callback function
  *
  * Recursively walk the page table for the memory area in a VMA,
  * calling supplied callbacks. Callbacks are called in-order (first
