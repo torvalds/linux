@@ -1364,13 +1364,13 @@ static int __lookup_one_len(const char *name, struct qstr *this,
 }
 
 /**
- * lookup_one_len:  filesystem helper to lookup single pathname component
+ * lookup_one_len - filesystem helper to lookup single pathname component
  * @name:	pathname component to lookup
  * @base:	base directory to lookup from
  * @len:	maximum length @len should be interpreted to
  *
- * Note that this routine is purely a helper for filesystem useage and should
- * not be called by generic code.  Also note that by using this function to
+ * Note that this routine is purely a helper for filesystem usage and should
+ * not be called by generic code.  Also note that by using this function the
  * nameidata argument is passed to the filesystem methods and a filesystem
  * using this helper needs to be prepared for that.
  */

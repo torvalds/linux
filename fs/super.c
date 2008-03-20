@@ -556,11 +556,11 @@ out:
 }
 
 /**
- *	mark_files_ro
+ *	mark_files_ro - mark all files read-only
  *	@sb: superblock in question
  *
- *	All files are marked read/only.  We don't care about pending
- *	delete files so this should be used in 'force' mode only
+ *	All files are marked read-only.  We don't care about pending
+ *	delete files so this should be used in 'force' mode only.
  */
 
 static void mark_files_ro(struct super_block *sb)
