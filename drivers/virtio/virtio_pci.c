@@ -388,6 +388,7 @@ static void __devexit virtio_pci_remove(struct pci_dev *pci_dev)
 {
 	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
 
+	unregister_virtio_device(&vp_dev->vdev);
 	free_irq(pci_dev->irq, vp_dev);
 	pci_set_drvdata(pci_dev, NULL);
 	pci_iounmap(pci_dev, vp_dev->ioaddr);
