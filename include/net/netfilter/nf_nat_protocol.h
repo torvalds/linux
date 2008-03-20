@@ -62,6 +62,17 @@ extern int init_protocols(void) __init;
 extern void cleanup_protocols(void);
 extern const struct nf_nat_protocol *find_nat_proto(u_int16_t protonum);
 
+extern int nf_nat_proto_in_range(const struct nf_conntrack_tuple *tuple,
+				 enum nf_nat_manip_type maniptype,
+				 const union nf_conntrack_man_proto *min,
+				 const union nf_conntrack_man_proto *max);
+
+extern int nf_nat_proto_unique_tuple(struct nf_conntrack_tuple *tuple,
+				     const struct nf_nat_range *range,
+				     enum nf_nat_manip_type maniptype,
+				     const struct nf_conn *ct,
+				     u_int16_t *rover);
+
 extern int nf_nat_port_range_to_nlattr(struct sk_buff *skb,
 				       const struct nf_nat_range *range);
 extern int nf_nat_port_nlattr_to_range(struct nlattr *tb[],

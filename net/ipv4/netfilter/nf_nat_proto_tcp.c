@@ -8,7 +8,6 @@
 
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/random.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
 
@@ -19,22 +18,7 @@
 #include <net/netfilter/nf_nat_protocol.h>
 #include <net/netfilter/nf_nat_core.h>
 
-static int
-tcp_in_range(const struct nf_conntrack_tuple *tuple,
-	     enum nf_nat_manip_type maniptype,
-	     const union nf_conntrack_man_proto *min,
-	     const union nf_conntrack_man_proto *max)
-{
-	__be16 port;
-
-	if (maniptype == IP_NAT_MANIP_SRC)
-		port = tuple->src.u.tcp.port;
-	else
-		port = tuple->dst.u.tcp.port;
-
-	return ntohs(port) >= ntohs(min->tcp.port) &&
-	       ntohs(port) <= ntohs(max->tcp.port);
-}
+static u_int16_t tcp_port_rover;
 
 static int
 tcp_unique_tuple(struct nf_conntrack_tuple *tuple,
@@ -42,49 +26,8 @@ tcp_unique_tuple(struct nf_conntrack_tuple *tuple,
 		 enum nf_nat_manip_type maniptype,
 		 const struct nf_conn *ct)
 {
-	static u_int16_t port;
-	__be16 *portptr;
-	unsigned int range_size, min, i;
-
-	if (maniptype == IP_NAT_MANIP_SRC)
-		portptr = &tuple->src.u.tcp.port;
-	else
-		portptr = &tuple->dst.u.tcp.port;
-
-	/* If no range specified... */
-	if (!(range->flags & IP_NAT_RANGE_PROTO_SPECIFIED)) {
-		/* If it's dst rewrite, can't change port */
-		if (maniptype == IP_NAT_MANIP_DST)
-			return 0;
-
-		/* Map privileged onto privileged. */
-		if (ntohs(*portptr) < 1024) {
-			/* Loose convention: >> 512 is credential passing */
-			if (ntohs(*portptr)<512) {
-				min = 1;
-				range_size = 511 - min + 1;
-			} else {
-				min = 600;
-				range_size = 1023 - min + 1;
-			}
-		} else {
-			min = 1024;
-			range_size = 65535 - 1024 + 1;
-		}
-	} else {
-		min = ntohs(range->min.tcp.port);
-		range_size = ntohs(range->max.tcp.port) - min + 1;
-	}
-
-	if (range->flags & IP_NAT_RANGE_PROTO_RANDOM)
-		port =  net_random();
-
-	for (i = 0; i < range_size; i++, port++) {
-		*portptr = htons(min + port % range_size);
-		if (!nf_nat_used_tuple(tuple, ct))
-			return 1;
-	}
-	return 0;
+	return nf_nat_proto_unique_tuple(tuple, range, maniptype, ct,
+					 &tcp_port_rover);
 }
 
 static int
@@ -142,7 +85,7 @@ const struct nf_nat_protocol nf_nat_protocol_tcp = {
 	.protonum		= IPPROTO_TCP,
 	.me			= THIS_MODULE,
 	.manip_pkt		= tcp_manip_pkt,
-	.in_range		= tcp_in_range,
+	.in_range		= nf_nat_proto_in_range,
 	.unique_tuple		= tcp_unique_tuple,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.range_to_nlattr	= nf_nat_port_range_to_nlattr,
