@@ -41,6 +41,9 @@ union nf_conntrack_man_proto
 	} icmp;
 	struct {
 		__be16 port;
+	} dccp;
+	struct {
+		__be16 port;
 	} sctp;
 	struct {
 		__be16 key;	/* GRE key is 32bit, PPtP only uses 16bit */
@@ -77,6 +80,9 @@ struct nf_conntrack_tuple
 			struct {
 				u_int8_t type, code;
 			} icmp;
+			struct {
+				__be16 port;
+			} dccp;
 			struct {
 				__be16 port;
 			} sctp;
