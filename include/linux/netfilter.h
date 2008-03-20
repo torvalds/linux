@@ -234,6 +234,11 @@ struct nf_afinfo {
 	unsigned short	family;
 	__sum16		(*checksum)(struct sk_buff *skb, unsigned int hook,
 				    unsigned int dataoff, u_int8_t protocol);
+	__sum16		(*checksum_partial)(struct sk_buff *skb,
+					    unsigned int hook,
+					    unsigned int dataoff,
+					    unsigned int len,
+					    u_int8_t protocol);
 	int		(*route)(struct dst_entry **dst, struct flowi *fl);
 	void		(*saveroute)(const struct sk_buff *skb,
 				     struct nf_queue_entry *entry);
@@ -259,6 +264,23 @@ nf_checksum(struct sk_buff *skb, unsigned int hook, unsigned int dataoff,
 	afinfo = nf_get_afinfo(family);
 	if (afinfo)
 		csum = afinfo->checksum(skb, hook, dataoff, protocol);
+	rcu_read_unlock();
+	return csum;
+}
+
+static inline __sum16
+nf_checksum_partial(struct sk_buff *skb, unsigned int hook,
+		    unsigned int dataoff, unsigned int len,
+		    u_int8_t protocol, unsigned short family)
+{
+	const struct nf_afinfo *afinfo;
+	__sum16 csum = 0;
+
+	rcu_read_lock();
+	afinfo = nf_get_afinfo(family);
+	if (afinfo)
+		csum = afinfo->checksum_partial(skb, hook, dataoff, len,
+						protocol);
 	rcu_read_unlock();
 	return csum;
 }

@@ -127,32 +127,13 @@ static int udplite_error(struct sk_buff *skb, unsigned int dataoff,
 	}
 
 	/* Checksum invalid? Ignore. */
-	if (nf_conntrack_checksum && !skb_csum_unnecessary(skb) &&
-	    hooknum == NF_INET_PRE_ROUTING) {
-		if (pf == PF_INET) {
-			struct iphdr *iph = ip_hdr(skb);
-
-			skb->csum = csum_tcpudp_nofold(iph->saddr, iph->daddr,
-						       udplen, IPPROTO_UDPLITE, 0);
-		} else {
-			struct ipv6hdr *ipv6h = ipv6_hdr(skb);
-			__wsum hsum = skb_checksum(skb, 0, dataoff, 0);
-
-			skb->csum = ~csum_unfold(
-				csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
-						udplen, IPPROTO_UDPLITE,
-						csum_sub(0, hsum)));
-		}
-
-		skb->ip_summed = CHECKSUM_NONE;
-		if (__skb_checksum_complete_head(skb, dataoff + cscov)) {
-			if (LOG_INVALID(IPPROTO_UDPLITE))
-				nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
-					      "nf_ct_udplite: bad UDPLite "
-					      "checksum ");
-			return -NF_ACCEPT;
-		}
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	if (nf_conntrack_checksum && hooknum == NF_INET_PRE_ROUTING &&
+	    nf_checksum_partial(skb, hooknum, dataoff, cscov, IPPROTO_UDP,
+	    			pf)) {
+		if (LOG_INVALID(IPPROTO_UDPLITE))
+			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
+				      "nf_ct_udplite: bad UDPLite checksum ");
+		return -NF_ACCEPT;
 	}
 
 	return NF_ACCEPT;
