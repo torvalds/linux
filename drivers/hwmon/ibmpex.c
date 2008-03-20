@@ -410,7 +410,7 @@ static int ibmpex_find_sensors(struct ibmpex_bmc_data *data)
 			sensor_type = TEMP_SENSOR;
 			num_temp++;
 			sensor_counter = num_temp;
-			data->sensors[i].multiplier = 1;
+			data->sensors[i].multiplier = 1000;
 		} else
 			continue;
 
