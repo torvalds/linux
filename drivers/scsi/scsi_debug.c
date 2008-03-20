@@ -2930,8 +2930,7 @@ static int sdebug_add_adapter(void)
 	int k, devs_per_host;
         int error = 0;
         struct sdebug_host_info *sdbg_host;
-        struct sdebug_dev_info *sdbg_devinfo;
-        struct list_head *lh, *lh_sf;
+	struct sdebug_dev_info *sdbg_devinfo, *tmp;
 
         sdbg_host = kzalloc(sizeof(*sdbg_host),GFP_KERNEL);
         if (NULL == sdbg_host) {
@@ -2971,9 +2970,8 @@ static int sdebug_add_adapter(void)
         return error;
 
 clean:
-	list_for_each_safe(lh, lh_sf, &sdbg_host->dev_info_list) {
-		sdbg_devinfo = list_entry(lh, struct sdebug_dev_info,
-					  dev_list);
+	list_for_each_entry_safe(sdbg_devinfo, tmp, &sdbg_host->dev_info_list,
+				 dev_list) {
 		list_del(&sdbg_devinfo->dev_list);
 		kfree(sdbg_devinfo);
 	}
@@ -3062,9 +3060,8 @@ static int sdebug_driver_probe(struct device * dev)
 
 static int sdebug_driver_remove(struct device * dev)
 {
-        struct list_head *lh, *lh_sf;
         struct sdebug_host_info *sdbg_host;
-        struct sdebug_dev_info *sdbg_devinfo;
+	struct sdebug_dev_info *sdbg_devinfo, *tmp;
 
 	sdbg_host = to_sdebug_host(dev);
 
@@ -3076,9 +3073,8 @@ static int sdebug_driver_remove(struct device * dev)
 
         scsi_remove_host(sdbg_host->shost);
 
-        list_for_each_safe(lh, lh_sf, &sdbg_host->dev_info_list) {
-                sdbg_devinfo = list_entry(lh, struct sdebug_dev_info,
-                                          dev_list);
+	list_for_each_entry_safe(sdbg_devinfo, tmp, &sdbg_host->dev_info_list,
+				 dev_list) {
                 list_del(&sdbg_devinfo->dev_list);
                 kfree(sdbg_devinfo);
         }
