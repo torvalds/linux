@@ -2681,21 +2681,10 @@ static ssize_t sdebug_add_host_show(struct device_driver * ddp, char * buf)
 static ssize_t sdebug_add_host_store(struct device_driver * ddp,
 				     const char * buf, size_t count)
 {
-        int delta_hosts;
-	char work[20];
+	int delta_hosts;
 
-        if (1 != sscanf(buf, "%10s", work))
+	if (sscanf(buf, "%d", &delta_hosts) != 1)
 		return -EINVAL;
-	{	/* temporary hack around sscanf() problem with -ve nums */
-		int neg = 0;
-
-		if ('-' == *work)
-			neg = 1;
-		if (1 != sscanf(work + neg, "%d", &delta_hosts))
-			return -EINVAL;
-		if (neg)
-			delta_hosts = -delta_hosts;
-	}
 	if (delta_hosts > 0) {
 		do {
 			sdebug_add_adapter();
@@ -2707,7 +2696,7 @@ static ssize_t sdebug_add_host_store(struct device_driver * ddp,
 	}
 	return count;
 }
-DRIVER_ATTR(add_host, S_IRUGO | S_IWUSR, sdebug_add_host_show, 
+DRIVER_ATTR(add_host, S_IRUGO | S_IWUSR, sdebug_add_host_show,
 	    sdebug_add_host_store);
 
 static ssize_t sdebug_vpd_use_hostno_show(struct device_driver * ddp,
