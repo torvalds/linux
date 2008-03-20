@@ -1209,7 +1209,7 @@ __cpuinit int apic_is_clustered_box(void)
 	 * will be [4, 0x23] or [8, 0x27] could be thought to
 	 * vsmp box still need checking...
 	 */
-	if (!is_vsmp_box() && (boot_cpu_data.x86_vendor == X86_VENDOR_AMD))
+	if ((boot_cpu_data.x86_vendor == X86_VENDOR_AMD) && !is_vsmp_box())
 		return 0;
 
 	bios_cpu_apicid = x86_bios_cpu_apicid_early_ptr;
@@ -1248,6 +1248,12 @@ __cpuinit int apic_is_clustered_box(void)
 		} else
 			++zeros;
 	}
+
+	/* ScaleMP vSMPowered boxes have one cluster per board and TSCs are
+	 * not guaranteed to be synced between boards
+	 */
+	if (is_vsmp_box() && clusters > 1)
+		return 1;
 
 	/*
 	 * If clusters > 2, then should be multi-chassis.
