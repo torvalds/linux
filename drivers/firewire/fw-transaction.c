@@ -18,6 +18,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/completion.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -294,42 +295,40 @@ fw_send_request(struct fw_card *card, struct fw_transaction *t,
 }
 EXPORT_SYMBOL(fw_send_request);
 
+struct fw_phy_packet {
+	struct fw_packet packet;
+	struct completion done;
+};
+
 static void
 transmit_phy_packet_callback(struct fw_packet *packet,
 			     struct fw_card *card, int status)
 {
-	kfree(packet);
-}
+	struct fw_phy_packet *p =
+			container_of(packet, struct fw_phy_packet, packet);
 
-static void send_phy_packet(struct fw_card *card, u32 data, int generation)
-{
-	struct fw_packet *packet;
-
-	packet = kzalloc(sizeof(*packet), GFP_ATOMIC);
-	if (packet == NULL)
-		return;
-
-	packet->header[0] = data;
-	packet->header[1] = ~data;
-	packet->header_length = 8;
-	packet->payload_length = 0;
-	packet->speed = SCODE_100;
-	packet->generation = generation;
-	packet->callback = transmit_phy_packet_callback;
-
-	card->driver->send_request(card, packet);
+	complete(&p->done);
 }
 
 void fw_send_phy_config(struct fw_card *card,
 			int node_id, int generation, int gap_count)
 {
-	u32 q;
+	struct fw_phy_packet p;
+	u32 data = PHY_IDENTIFIER(PHY_PACKET_CONFIG) |
+		   PHY_CONFIG_ROOT_ID(node_id) |
+		   PHY_CONFIG_GAP_COUNT(gap_count);
 
-	q = PHY_IDENTIFIER(PHY_PACKET_CONFIG) |
-		PHY_CONFIG_ROOT_ID(node_id) |
-		PHY_CONFIG_GAP_COUNT(gap_count);
+	p.packet.header[0] = data;
+	p.packet.header[1] = ~data;
+	p.packet.header_length = 8;
+	p.packet.payload_length = 0;
+	p.packet.speed = SCODE_100;
+	p.packet.generation = generation;
+	p.packet.callback = transmit_phy_packet_callback;
+	init_completion(&p.done);
 
-	send_phy_packet(card, q, generation);
+	card->driver->send_request(card, &p.packet);
+	wait_for_completion(&p.done);
 }
 
 void fw_flush_transactions(struct fw_card *card)
