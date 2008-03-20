@@ -2484,27 +2484,28 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.gpiomask       = 0x080200000,
-		.inputs         = {{
-			  .name = name_tv,
-			  .vmux = 4,
-			  .amux = TV,
-			  .tv   = 1,
-		},{
-			  .name = name_comp1,
-			  .vmux = 1,
-			 .amux = LINE2,
-	       },{
-			 .name = name_comp2,
-			 .vmux = 0,
-			  .amux = LINE2,
-		},{
-			  .name = name_svideo,
-			  .vmux = 8,
-			  .amux = LINE2,
-		}},
+		.inputs         = { {
+			.name = name_tv,
+			.vmux = 4,
+			.amux = TV,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 1,
+			.amux = LINE2,
+		}, {
+			.name = name_comp2,
+			.vmux = 0,
+			.amux = LINE2,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE2,
+		} },
 		.radio = {
-			  .name = name_radio,
-			  .amux = LINE1,
+			.name = name_radio,
+			.amux = TV,
+			.gpio = 0x0200000,
 		},
 	},
 	[SAA7134_BOARD_ASUSTeK_P7131_DUAL] = {

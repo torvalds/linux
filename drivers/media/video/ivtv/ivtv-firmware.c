@@ -22,6 +22,7 @@
 #include "ivtv-driver.h"
 #include "ivtv-mailbox.h"
 #include "ivtv-firmware.h"
+#include "ivtv-yuv.h"
 #include <linux/firmware.h>
 
 #define IVTV_MASK_SPU_ENABLE 		0xFFFFFFFE
@@ -225,11 +226,14 @@ int ivtv_firmware_init(struct ivtv *itv)
 		return 0;
 
 	itv->dec_mbox.mbox = ivtv_search_mailbox(itv->dec_mem, IVTV_DECODER_SIZE);
-	if (itv->dec_mbox.mbox == NULL)
+	if (itv->dec_mbox.mbox == NULL) {
 		IVTV_ERR("Decoder mailbox not found\n");
-	else if (itv->has_cx23415 && ivtv_vapi(itv, CX2341X_DEC_PING_FW, 0)) {
+	} else if (itv->has_cx23415 && ivtv_vapi(itv, CX2341X_DEC_PING_FW, 0)) {
 		IVTV_ERR("Decoder firmware dead!\n");
 		itv->dec_mbox.mbox = NULL;
+	} else {
+		/* Firmware okay, so check yuv output filter table */
+		ivtv_yuv_filter_check(itv);
 	}
 	return itv->dec_mbox.mbox ? 0 : -ENODEV;
 }
