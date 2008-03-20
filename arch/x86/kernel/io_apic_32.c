@@ -1091,39 +1091,22 @@ static int pin_2_irq(int idx, int apic, int pin)
 	if (mp_irqs[idx].mpc_dstirq != pin)
 		printk(KERN_ERR "broken BIOS or MPTABLE parser, ayiee!!\n");
 
-	switch (mp_bus_id_to_type[bus])
-	{
-		case MP_BUS_ISA: /* ISA pin */
-		case MP_BUS_EISA:
-		case MP_BUS_MCA:
-		{
-			irq = mp_irqs[idx].mpc_srcbusirq;
-			break;
-		}
-		case MP_BUS_PCI: /* PCI pin */
-		{
-			/*
-			 * PCI IRQs are mapped in order
-			 */
-			i = irq = 0;
-			while (i < apic)
-				irq += nr_ioapic_registers[i++];
-			irq += pin;
+	if (test_bit(bus, mp_bus_not_pci))
+		irq = mp_irqs[idx].mpc_srcbusirq;
+	else {
+		/*
+		 * PCI IRQs are mapped in order
+		 */
+		i = irq = 0;
+		while (i < apic)
+			irq += nr_ioapic_registers[i++];
+		irq += pin;
 
-			/*
-			 * For MPS mode, so far only needed by ES7000 platform
-			 */
-			if (ioapic_renumber_irq)
-				irq = ioapic_renumber_irq(apic, irq);
-
-			break;
-		}
-		default:
-		{
-			printk(KERN_ERR "unknown bus type %d.\n",bus); 
-			irq = 0;
-			break;
-		}
+		/*
+		 * For MPS mode, so far only needed by ES7000 platform
+		 */
+		if (ioapic_renumber_irq)
+			irq = ioapic_renumber_irq(apic, irq);
 	}
 
 	/*
