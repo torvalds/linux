@@ -12,7 +12,7 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 	model = "amcc,haleakala";
-	compatible = "amcc,kilauea";
+	compatible = "amcc,haleakala", "amcc,kilauea";
 	dcr-parent = <&/cpus/cpu@0>;
 
 	aliases {
