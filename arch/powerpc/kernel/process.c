@@ -353,6 +353,12 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	account_process_vtime(current);
 	calculate_steal_time();
 
+	/*
+	 * We can't take a PMU exception inside _switch() since there is a
+	 * window where the kernel stack SLB and the kernel stack are out
+	 * of sync. Hard disable here.
+	 */
+	hard_irq_disable();
 	last = _switch(old_thread, new_thread);
 
 	local_irq_restore(flags);

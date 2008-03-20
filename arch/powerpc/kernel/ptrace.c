@@ -530,15 +530,21 @@ static int gpr32_set(struct task_struct *target,
 		--count;
 	}
 
-	if (kbuf)
+	if (kbuf) {
 		for (; count > 0 && pos <= PT_MAX_PUT_REG; --count)
 			regs[pos++] = *k++;
-	else
+		for (; count > 0 && pos < PT_TRAP; --count, ++pos)
+			++k;
+	} else {
 		for (; count > 0 && pos <= PT_MAX_PUT_REG; --count) {
 			if (__get_user(reg, u++))
 				return -EFAULT;
 			regs[pos++] = reg;
 		}
+		for (; count > 0 && pos < PT_TRAP; --count, ++pos)
+			if (__get_user(reg, u++))
+				return -EFAULT;
+	}
 
 	if (count > 0 && pos == PT_TRAP) {
 		if (kbuf)

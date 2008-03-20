@@ -802,17 +802,24 @@ static int __init cell_iommu_init_disabled(void)
 
 static u64 cell_iommu_get_fixed_address(struct device *dev)
 {
-	u64 cpu_addr, size, best_size, pci_addr = OF_BAD_ADDR;
+	u64 cpu_addr, size, best_size, dev_addr = OF_BAD_ADDR;
 	struct device_node *np;
 	const u32 *ranges = NULL;
-	int i, len, best;
+	int i, len, best, naddr, nsize, pna, range_size;
 
 	np = of_node_get(dev->archdata.of_node);
-	while (np) {
-		ranges = of_get_property(np, "dma-ranges", &len);
-		if (ranges)
-			break;
+	while (1) {
+		naddr = of_n_addr_cells(np);
+		nsize = of_n_size_cells(np);
 		np = of_get_next_parent(np);
+		if (!np)
+			break;
+
+		ranges = of_get_property(np, "dma-ranges", &len);
+
+		/* Ignore empty ranges, they imply no translation required */
+		if (ranges && len > 0)
+			break;
 	}
 
 	if (!ranges) {
@@ -822,15 +829,17 @@ static u64 cell_iommu_get_fixed_address(struct device *dev)
 
 	len /= sizeof(u32);
 
+	pna = of_n_addr_cells(np);
+	range_size = naddr + nsize + pna;
+
 	/* dma-ranges format:
-	 * 1 cell:  pci space
-	 * 2 cells: pci address
-	 * 2 cells: parent address
-	 * 2 cells: size
+	 * child addr	: naddr cells
+	 * parent addr	: pna cells
+	 * size		: nsize cells
 	 */
-	for (i = 0, best = -1, best_size = 0; i < len; i += 7) {
-		cpu_addr = of_translate_dma_address(np, ranges +i + 3);
-		size = of_read_number(ranges + i + 5, 2);
+	for (i = 0, best = -1, best_size = 0; i < len; i += range_size) {
+		cpu_addr = of_translate_dma_address(np, ranges + i + naddr);
+		size = of_read_number(ranges + i + naddr + pna, nsize);
 
 		if (cpu_addr == 0 && size > best_size) {
 			best = i;
@@ -838,15 +847,15 @@ static u64 cell_iommu_get_fixed_address(struct device *dev)
 		}
 	}
 
-	if (best >= 0)
-		pci_addr = of_read_number(ranges + best + 1, 2);
-	else
+	if (best >= 0) {
+		dev_addr = of_read_number(ranges + best, naddr);
+	} else
 		dev_dbg(dev, "iommu: no suitable range found!\n");
 
 out:
 	of_node_put(np);
 
-	return pci_addr;
+	return dev_addr;
 }
 
 static int dma_set_mask_and_switch(struct device *dev, u64 dma_mask)
