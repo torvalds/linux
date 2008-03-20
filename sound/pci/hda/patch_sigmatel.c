@@ -1317,7 +1317,7 @@ static unsigned int ref92hd71bxx_pin_configs[10] = {
 
 static unsigned int dell_m4_1_pin_configs[13] = {
 	0x0421101f, 0x04a11221, 0x40f000f0, 0x90170110,
-	0x23a1902e, 0x23014250, 0x40f000f0, 0x4f0000f0,
+	0x23a1902e, 0x23014250, 0x40f000f0, 0x90a000f0,
 	0x40f000f0, 0x4f0000f0,
 };
 
