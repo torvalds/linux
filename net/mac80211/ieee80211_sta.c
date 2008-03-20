@@ -3615,6 +3615,9 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 
 	if (local->sta_hw_scanning) {
 		local->sta_hw_scanning = 0;
+		if (ieee80211_hw_config(local))
+			printk(KERN_DEBUG "%s: failed to restore operational "
+			       "channel after scan\n", dev->name);
 		/* Restart STA timer for HW scan case */
 		rcu_read_lock();
 		list_for_each_entry_rcu(sdata, &local->interfaces, list)

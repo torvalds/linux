@@ -287,7 +287,7 @@ int ieee80211_set_freq(struct ieee80211_local *local, int freqMHz)
 	if (chan && !(chan->flags & IEEE80211_CHAN_DISABLED)) {
 		local->oper_channel = chan;
 
-		if (local->sta_sw_scanning)
+		if (local->sta_sw_scanning || local->sta_hw_scanning)
 			ret = 0;
 		else
 			ret = ieee80211_hw_config(local);
