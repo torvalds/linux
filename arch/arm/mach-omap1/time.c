@@ -132,13 +132,20 @@ static inline void omap_mpu_timer_start(int nr, unsigned long load_val,
 	timer->cntl = timerflags;
 }
 
+static inline void omap_mpu_timer_stop(int nr)
+{
+	volatile omap_mpu_timer_regs_t* timer = omap_mpu_timer_base(nr);
+
+	timer->cntl &= ~MPU_TIMER_ST;
+}
+
 /*
  * ---------------------------------------------------------------------------
  * MPU timer 1 ... count down to zero, interrupt, reload
  * ---------------------------------------------------------------------------
  */
 static int omap_mpu_set_next_event(unsigned long cycles,
-				    struct clock_event_device *evt)
+				   struct clock_event_device *evt)
 {
 	omap_mpu_timer_start(0, cycles, 0);
 	return 0;
@@ -152,6 +159,7 @@ static void omap_mpu_set_mode(enum clock_event_mode mode,
 		omap_mpu_set_autoreset(0);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
+		omap_mpu_timer_stop(0);
 		omap_mpu_remove_autoreset(0);
 		break;
 	case CLOCK_EVT_MODE_UNUSED:
@@ -163,7 +171,7 @@ static void omap_mpu_set_mode(enum clock_event_mode mode,
 
 static struct clock_event_device clockevent_mpu_timer1 = {
 	.name		= "mpu_timer1",
-	.features       = CLOCK_EVT_FEAT_PERIODIC, CLOCK_EVT_FEAT_ONESHOT,
+	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.shift		= 32,
 	.set_next_event	= omap_mpu_set_next_event,
 	.set_mode	= omap_mpu_set_mode,
