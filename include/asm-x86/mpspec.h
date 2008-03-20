@@ -23,13 +23,12 @@ extern int pic_mode;
 /* Each PCI slot may be a combo card with its own bus.  4 IRQ pins per slot. */
 #define MAX_IRQ_SOURCES (MAX_MP_BUSSES * 4)
 
-extern DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
-
 extern void early_find_smp_config(void);
 extern void early_get_smp_config(void);
 
 #endif
 
+extern DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 extern int mp_bus_id_to_pci_bus[MAX_MP_BUSSES];
 
 extern unsigned int boot_cpu_physical_apicid;
