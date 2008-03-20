@@ -50,7 +50,8 @@ static void nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 	if (ct->status & statusbit) {
 		fl->fl4_dst = t->dst.u3.ip;
 		if (t->dst.protonum == IPPROTO_TCP ||
-		    t->dst.protonum == IPPROTO_UDP)
+		    t->dst.protonum == IPPROTO_UDP ||
+		    t->dst.protonum == IPPROTO_UDPLITE)
 			fl->fl_ip_dport = t->dst.u.tcp.port;
 	}
 
@@ -59,7 +60,8 @@ static void nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 	if (ct->status & statusbit) {
 		fl->fl4_src = t->src.u3.ip;
 		if (t->dst.protonum == IPPROTO_TCP ||
-		    t->dst.protonum == IPPROTO_UDP)
+		    t->dst.protonum == IPPROTO_UDP ||
+		    t->dst.protonum == IPPROTO_UDPLITE)
 			fl->fl_ip_sport = t->src.u.tcp.port;
 	}
 }
