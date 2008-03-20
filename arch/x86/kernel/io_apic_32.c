@@ -1010,11 +1010,14 @@ static int MPBIOS_trigger(int idx)
 	{
 		case 0: /* conforms, ie. bus-type dependent */
 		{
+			trigger = test_bit(bus, mp_bus_not_pci)?
+					default_ISA_trigger(idx):
+					default_PCI_trigger(idx);
 			switch (mp_bus_id_to_type[bus])
 			{
 				case MP_BUS_ISA: /* ISA pin */
 				{
-					trigger = default_ISA_trigger(idx);
+					/* set before the switch */
 					break;
 				}
 				case MP_BUS_EISA: /* EISA pin */
@@ -1024,7 +1027,7 @@ static int MPBIOS_trigger(int idx)
 				}
 				case MP_BUS_PCI: /* PCI pin */
 				{
-					trigger = default_PCI_trigger(idx);
+					/* set before the switch */
 					break;
 				}
 				case MP_BUS_MCA: /* MCA pin */
