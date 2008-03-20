@@ -897,7 +897,7 @@ int pcxhr_set_pipe_state(struct pcxhr_mgr *mgr, int playback_mask, int capture_m
 #ifdef CONFIG_SND_DEBUG_DETECT
 	do_gettimeofday(&my_tv2);
 	snd_printdd("***SET PIPE STATE*** TIME = %ld (err = %x)\n",
-		    my_tv2.tv_usec - my_tv1.tv_usec, err);
+		    (long)(my_tv2.tv_usec - my_tv1.tv_usec), err);
 #endif
 	return 0;
 }
