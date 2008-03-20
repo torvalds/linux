@@ -827,6 +827,16 @@ static inline void SET_IEEE80211_PERM_ADDR(struct ieee80211_hw *hw, u8 *addr)
  * parameter is guaranteed to be valid until another call to set_key()
  * removes it, but it can only be used as a cookie to differentiate
  * keys.
+ *
+ * In TKIP some HW need to be provided a phase 1 key, for RX decryption
+ * acceleration (i.e. iwlwifi). Those drivers should provide update_tkip_key
+ * handler.
+ * The update_tkip_key() call updates the driver with the new phase 1 key.
+ * This happens everytime the iv16 wraps around (every 65536 packets). The
+ * set_key() call will happen only once for each key (unless the AP did
+ * rekeying), it will not include a valid phase 1 key. The valid phase 1 key is
+ * provided by udpate_tkip_key only. The trigger that makes mac80211 call this
+ * handler is software decryption with wrap around of iv16.
  */
 
 /**
@@ -1003,6 +1013,10 @@ enum ieee80211_ampdu_mlme_action {
  *	and remove_interface calls, i.e. while the interface with the
  *	given local_address is enabled.
  *
+ * @update_tkip_key: See the section "Hardware crypto acceleration"
+ * 	This callback will be called in the context of Rx. Called for drivers
+ * 	which set IEEE80211_KEY_FLAG_TKIP_REQ_RX_P1_KEY.
+ *
  * @hw_scan: Ask the hardware to service the scan request, no need to start
  *	the scan state machine in stack. The scan must honour the channel
  *	configuration done by the regulatory agent in the wiphy's registered
@@ -1094,6 +1108,9 @@ struct ieee80211_ops {
 	int (*set_key)(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		       const u8 *local_address, const u8 *address,
 		       struct ieee80211_key_conf *key);
+	void (*update_tkip_key)(struct ieee80211_hw *hw,
+			struct ieee80211_key_conf *conf, const u8 *address,
+			u32 iv32, u16 *phase1key);
 	int (*hw_scan)(struct ieee80211_hw *hw, u8 *ssid, size_t len);
 	int (*get_stats)(struct ieee80211_hw *hw,
 			 struct ieee80211_low_level_stats *stats);

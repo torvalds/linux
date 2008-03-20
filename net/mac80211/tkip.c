@@ -291,7 +291,7 @@ void ieee80211_tkip_encrypt_data(struct crypto_blkcipher *tfm,
 int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 				struct ieee80211_key *key,
 				u8 *payload, size_t payload_len, u8 *ta,
-				int only_iv, int queue,
+				u8 *ra, int only_iv, int queue,
 				u32 *out_iv32, u16 *out_iv16)
 {
 	u32 iv32;
@@ -368,6 +368,19 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 			printk("\n");
 		}
 #endif /* CONFIG_TKIP_DEBUG */
+		if (key->local->ops->update_tkip_key &&
+			key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
+			u8 bcast[ETH_ALEN] =
+				{0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+			u8 *sta_addr = key->sta->addr;
+
+			if (is_multicast_ether_addr(ra))
+				sta_addr = bcast;
+
+			key->local->ops->update_tkip_key(
+				local_to_hw(key->local), &key->conf,
+				sta_addr, iv32, key->u.tkip.p1k_rx[queue]);
+		}
 	}
 
 	tkip_mixing_phase2(key->u.tkip.p1k_rx[queue],
