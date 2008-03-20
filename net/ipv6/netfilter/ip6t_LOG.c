@@ -363,11 +363,15 @@ static void dump_packet(const struct nf_loginfo *info,
 	if ((logflags & IP6T_LOG_UID) && recurse && skb->sk) {
 		read_lock_bh(&skb->sk->sk_callback_lock);
 		if (skb->sk->sk_socket && skb->sk->sk_socket->file)
-			printk("UID=%u GID=%u",
+			printk("UID=%u GID=%u ",
 				skb->sk->sk_socket->file->f_uid,
 				skb->sk->sk_socket->file->f_gid);
 		read_unlock_bh(&skb->sk->sk_callback_lock);
 	}
+
+	/* Max length: 16 "MARK=0xFFFFFFFF " */
+	if (!recurse && skb->mark)
+		printk("MARK=0x%x ", skb->mark);
 }
 
 static struct nf_loginfo default_loginfo = {
