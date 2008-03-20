@@ -697,6 +697,7 @@ config SND_ICE1724
 	depends on SND
 	select SND_MPU401_UART
 	select SND_AC97_CODEC
+	select SND_VMASTER
 	help
 	  Say Y here to include support for soundcards based on
 	  ICE/VT1724/1720 (Envy24HT/PT) chips.

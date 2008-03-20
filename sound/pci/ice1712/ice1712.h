@@ -367,6 +367,15 @@ struct snd_ice1712 {
 
 	/* other board-specific data */
 	void *spec;
+
+	/* VT172x specific */
+	int pro_rate_default;
+	int (*is_spdif_master)(struct snd_ice1712 *ice);
+	unsigned int (*get_rate)(struct snd_ice1712 *ice);
+	void (*set_rate)(struct snd_ice1712 *ice, unsigned int rate);
+	unsigned char (*set_mclk)(struct snd_ice1712 *ice, unsigned int rate);
+	void (*set_spdif_clock)(struct snd_ice1712 *ice);
+
 };
 
 
