@@ -327,9 +327,13 @@ static int is_temp_sensor(const char *sensor_id, int len)
 	return 0;
 }
 
-static int power_sensor_multiplier(const char *sensor_id, int len)
+static int power_sensor_multiplier(struct ibmpex_bmc_data *data,
+				   const char *sensor_id, int len)
 {
 	int i;
+
+	if (data->sensor_major == 2)
+		return 1000000;
 
 	for (i = PEX_SENSOR_TYPE_LEN; i < len - 1; i++)
 		if (!memcmp(&sensor_id[i], watt_sensor_sig, PEX_MULT_LEN))
@@ -398,8 +402,9 @@ static int ibmpex_find_sensors(struct ibmpex_bmc_data *data)
 			num_power++;
 			sensor_counter = num_power;
 			data->sensors[i].multiplier =
-				power_sensor_multiplier(data->rx_msg_data,
-						     data->rx_msg_len);
+				power_sensor_multiplier(data,
+							data->rx_msg_data,
+							data->rx_msg_len);
 		} else if (is_temp_sensor(data->rx_msg_data,
 					  data->rx_msg_len)) {
 			sensor_type = TEMP_SENSOR;
