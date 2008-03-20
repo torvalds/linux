@@ -351,9 +351,7 @@ void __init setup_arch(char **cmdline_p)
 	if (efi_enabled)
 		efi_init();
 
-#ifdef	CONFIG_PARAVIRT
 	vsmp_init();
-#endif
 
 	dmi_scan_machine();
 

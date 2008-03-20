@@ -19,6 +19,7 @@
 #include <asm/io.h>
 #include <asm/paravirt.h>
 
+#if defined CONFIG_PCI && defined CONFIG_PARAVIRT
 /*
  * Interrupt control on vSMPowered systems:
  * ~AC is a shadow of IF.  If IF is 'on' AC should be 'off'
@@ -72,39 +73,11 @@ static unsigned __init vsmp_patch(u8 type, u16 clobbers, void *ibuf,
 
 }
 
-static int vsmp = -1;
-
-int is_vsmp_box(void)
-{
-	if (vsmp != -1)
-		return vsmp;
-
-	vsmp = 0;
-	if (!early_pci_allowed())
-		return vsmp;
-
-	/* Check if we are running on a ScaleMP vSMP box */
-	if ((read_pci_config_16(0, 0x1f, 0, PCI_VENDOR_ID) ==
-	     PCI_VENDOR_ID_SCALEMP) &&
-	    (read_pci_config_16(0, 0x1f, 0, PCI_DEVICE_ID) ==
-	    PCI_DEVICE_ID_SCALEMP_VSMP_CTL))
-		vsmp = 1;
-
-	return vsmp;
-}
-
-void __init vsmp_init(void)
+static void __init set_vsmp_pv_ops(void)
 {
 	void *address;
 	unsigned int cap, ctl, cfg;
 
-	if (!is_vsmp_box())
-		return;
-
-	if (!early_pci_allowed())
-		return;
-
-	/* If we are, use the distinguished irq functions */
 	pv_irq_ops.irq_disable = vsmp_irq_disable;
 	pv_irq_ops.irq_enable  = vsmp_irq_enable;
 	pv_irq_ops.save_fl  = vsmp_save_fl;
@@ -127,5 +100,46 @@ void __init vsmp_init(void)
 	}
 
 	early_iounmap(address, 8);
+}
+#else
+static void __init set_vsmp_pv_ops(void)
+{
+}
+#endif
+
+#ifdef CONFIG_PCI
+static int vsmp = -1;
+
+int is_vsmp_box(void)
+{
+	if (vsmp != -1)
+		return vsmp;
+
+	vsmp = 0;
+	if (!early_pci_allowed())
+		return vsmp;
+
+	/* Check if we are running on a ScaleMP vSMP box */
+	if ((read_pci_config_16(0, 0x1f, 0, PCI_VENDOR_ID) ==
+	     PCI_VENDOR_ID_SCALEMP) &&
+	    (read_pci_config_16(0, 0x1f, 0, PCI_DEVICE_ID) ==
+	    PCI_DEVICE_ID_SCALEMP_VSMP_CTL))
+		vsmp = 1;
+
+	return vsmp;
+}
+#else
+int is_vsmp_box(void)
+{
+	return 0;
+}
+#endif
+
+void __init vsmp_init(void)
+{
+	if (!is_vsmp_box())
+		return;
+
+	set_vsmp_pv_ops();
 	return;
 }
