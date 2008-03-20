@@ -78,12 +78,6 @@ static void __init set_vsmp_pv_ops(void)
 	void *address;
 	unsigned int cap, ctl, cfg;
 
-	pv_irq_ops.irq_disable = vsmp_irq_disable;
-	pv_irq_ops.irq_enable  = vsmp_irq_enable;
-	pv_irq_ops.save_fl  = vsmp_save_fl;
-	pv_irq_ops.restore_fl  = vsmp_restore_fl;
-	pv_init_ops.patch = vsmp_patch;
-
 	/* set vSMP magic bits to indicate vSMP capable kernel */
 	cfg = read_pci_config(0, 0x1f, 0, PCI_BASE_ADDRESS_0);
 	address = early_ioremap(cfg, 8);
@@ -92,7 +86,13 @@ static void __init set_vsmp_pv_ops(void)
 	printk(KERN_INFO "vSMP CTL: capabilities:0x%08x  control:0x%08x\n",
 	       cap, ctl);
 	if (cap & ctl & (1 << 4)) {
-		/* Turn on vSMP IRQ fastpath handling (see system.h) */
+		/* Setup irq ops and turn on vSMP  IRQ fastpath handling */
+		pv_irq_ops.irq_disable = vsmp_irq_disable;
+		pv_irq_ops.irq_enable  = vsmp_irq_enable;
+		pv_irq_ops.save_fl  = vsmp_save_fl;
+		pv_irq_ops.restore_fl  = vsmp_restore_fl;
+		pv_init_ops.patch = vsmp_patch;
+
 		ctl &= ~(1 << 4);
 		writel(ctl, address + 4);
 		ctl = readl(address + 4);
