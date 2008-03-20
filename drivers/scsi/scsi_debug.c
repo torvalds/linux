@@ -2014,6 +2014,19 @@ static void scsi_debug_slave_destroy(struct scsi_device * sdp)
 	}
 }
 
+struct sdebug_dev_info *sdebug_device_create(struct sdebug_host_info *sdbg_host,
+					     gfp_t flags)
+{
+	struct sdebug_dev_info *devip;
+
+	devip = kzalloc(sizeof(*devip), flags);
+	if (devip) {
+		devip->sdbg_host = sdbg_host;
+		list_add_tail(&devip->dev_list, &sdbg_host->dev_info_list);
+	}
+	return devip;
+}
+
 static struct sdebug_dev_info * devInfoReg(struct scsi_device * sdev)
 {
 	struct sdebug_host_info * sdbg_host;
@@ -2038,16 +2051,13 @@ static struct sdebug_dev_info * devInfoReg(struct scsi_device * sdev)
 				open_devip = devip;
 		}
 	}
-	if (NULL == open_devip) { /* try and make a new one */
-		open_devip = kzalloc(sizeof(*open_devip),GFP_ATOMIC);
-		if (NULL == open_devip) {
+	if (!open_devip) { /* try and make a new one */
+		open_devip = sdebug_device_create(sdbg_host, GFP_ATOMIC);
+		if (!open_devip) {
 			printk(KERN_ERR "%s: out of memory at line %d\n",
 				__FUNCTION__, __LINE__);
 			return NULL;
 		}
-		open_devip->sdbg_host = sdbg_host;
-		list_add_tail(&open_devip->dev_list,
-		&sdbg_host->dev_info_list);
 	}
         if (open_devip) {
 		open_devip->channel = sdev->channel;
@@ -2935,16 +2945,13 @@ static int sdebug_add_adapter(void)
 
 	devs_per_host = scsi_debug_num_tgts * scsi_debug_max_luns;
         for (k = 0; k < devs_per_host; k++) {
-                sdbg_devinfo = kzalloc(sizeof(*sdbg_devinfo),GFP_KERNEL);
-                if (NULL == sdbg_devinfo) {
+		sdbg_devinfo = sdebug_device_create(sdbg_host, GFP_KERNEL);
+		if (!sdbg_devinfo) {
                         printk(KERN_ERR "%s: out of memory at line %d\n",
                                __FUNCTION__, __LINE__);
                         error = -ENOMEM;
 			goto clean;
                 }
-                sdbg_devinfo->sdbg_host = sdbg_host;
-                list_add_tail(&sdbg_devinfo->dev_list,
-                              &sdbg_host->dev_info_list);
         }
 
         spin_lock(&sdebug_host_list_lock);
