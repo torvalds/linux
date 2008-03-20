@@ -133,6 +133,7 @@ struct mspro_devinfo {
 struct mspro_block_data {
 	struct memstick_dev   *card;
 	unsigned int          usage_count;
+	unsigned int          caps;
 	struct gendisk        *disk;
 	struct request_queue  *queue;
 	spinlock_t            q_lock;
@@ -577,7 +578,6 @@ static int h_mspro_block_wait_for_ced(struct memstick_dev *card,
 static int h_mspro_block_transfer_data(struct memstick_dev *card,
 				       struct memstick_request **mrq)
 {
-	struct memstick_host *host = card->host;
 	struct mspro_block_data *msb = memstick_get_drvdata(card);
 	unsigned char t_val = 0;
 	struct scatterlist t_sg = { 0 };
@@ -591,12 +591,12 @@ static int h_mspro_block_transfer_data(struct memstick_dev *card,
 	switch ((*mrq)->tpc) {
 	case MS_TPC_WRITE_REG:
 		memstick_init_req(*mrq, MS_TPC_SET_CMD, &msb->transfer_cmd, 1);
-		(*mrq)->get_int_reg = 1;
+		(*mrq)->need_card_int = 1;
 		return 0;
 	case MS_TPC_SET_CMD:
 		t_val = (*mrq)->int_reg;
 		memstick_init_req(*mrq, MS_TPC_GET_INT, NULL, 1);
-		if (host->caps & MEMSTICK_CAP_AUTO_GET_INT)
+		if (msb->caps & MEMSTICK_CAP_AUTO_GET_INT)
 			goto has_int_reg;
 		return 0;
 	case MS_TPC_GET_INT:
@@ -646,12 +646,12 @@ has_int_reg:
 					   ? MS_TPC_READ_LONG_DATA
 					   : MS_TPC_WRITE_LONG_DATA,
 				     &t_sg);
-		(*mrq)->get_int_reg = 1;
+		(*mrq)->need_card_int = 1;
 		return 0;
 	case MS_TPC_READ_LONG_DATA:
 	case MS_TPC_WRITE_LONG_DATA:
 		msb->current_page++;
-		if (host->caps & MEMSTICK_CAP_AUTO_GET_INT) {
+		if (msb->caps & MEMSTICK_CAP_AUTO_GET_INT) {
 			t_val = (*mrq)->int_reg;
 			goto has_int_reg;
 		} else {
@@ -1052,7 +1052,8 @@ static int mspro_block_init_card(struct memstick_dev *card)
 	if (memstick_set_rw_addr(card))
 		return -EIO;
 
-	if (host->caps & MEMSTICK_CAP_PAR4) {
+	msb->caps = host->caps;
+	if (msb->caps & MEMSTICK_CAP_PAR4) {
 		if (mspro_block_switch_to_parallel(card))
 			printk(KERN_WARNING "%s: could not switch to "
 			       "parallel interface\n", card->dev.bus_id);
@@ -1062,6 +1063,8 @@ static int mspro_block_init_card(struct memstick_dev *card)
 	if (rc)
 		return rc;
 	dev_dbg(&card->dev, "card activated\n");
+	if (msb->system != MEMSTICK_SYS_SERIAL)
+		msb->caps |= MEMSTICK_CAP_AUTO_GET_INT;
 
 	card->next_request = h_mspro_block_req_init;
 	msb->mrq_handler = h_mspro_block_get_ro;
