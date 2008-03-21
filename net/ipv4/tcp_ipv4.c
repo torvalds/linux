@@ -2050,7 +2050,7 @@ static void *established_get_first(struct seq_file *seq)
 		st->state = TCP_SEQ_STATE_TIME_WAIT;
 		inet_twsk_for_each(tw, node,
 				   &tcp_hashinfo.ehash[st->bucket].twchain) {
-			if (tw->tw_family != st->family &&
+			if (tw->tw_family != st->family ||
 			    tw->tw_net != net) {
 				continue;
 			}
@@ -2078,7 +2078,7 @@ static void *established_get_next(struct seq_file *seq, void *cur)
 		tw = cur;
 		tw = tw_next(tw);
 get_tw:
-		while (tw && tw->tw_family != st->family && tw->tw_net != net) {
+		while (tw && (tw->tw_family != st->family || tw->tw_net != net)) {
 			tw = tw_next(tw);
 		}
 		if (tw) {
