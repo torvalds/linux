@@ -195,6 +195,15 @@ struct ixgb_adapter {
 	struct ixgb_hw_stats stats;
 	uint32_t alloc_rx_buff_failed;
 	boolean_t have_msi;
+	unsigned long flags;
+};
+
+enum ixgb_state_t {
+	/* TBD
+	__IXGB_TESTING,
+	__IXGB_RESETTING,
+	*/
+	__IXGB_DOWN
 };
 
 /* Exported from other modules */
