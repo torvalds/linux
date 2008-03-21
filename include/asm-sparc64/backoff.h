@@ -12,7 +12,8 @@
 	mov	reg, tmp; \
 88:	brnz,pt	tmp, 88b; \
 	 sub	tmp, 1, tmp; \
-	cmp	reg, BACKOFF_LIMIT; \
+	set	BACKOFF_LIMIT, tmp; \
+	cmp	reg, tmp; \
 	bg,pn	%xcc, label; \
 	 nop; \
 	ba,pt	%xcc, label; \
