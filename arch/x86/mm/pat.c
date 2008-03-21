@@ -510,7 +510,6 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 {
 	u64 offset = ((u64) pfn) << PAGE_SHIFT;
 	unsigned long flags = _PAGE_CACHE_UC_MINUS;
-	unsigned long ret_flags;
 	int retval;
 
 	if (!range_is_allowed(pfn, size))
@@ -549,13 +548,11 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 	if (flags != _PAGE_CACHE_UC_MINUS) {
 		retval = reserve_memtype(offset, offset + size, flags, NULL);
 	} else {
-		retval = reserve_memtype(offset, offset + size, -1, &ret_flags);
+		retval = reserve_memtype(offset, offset + size, -1, &flags);
 	}
 
 	if (retval < 0)
 		return 0;
-
-	flags = ret_flags;
 
 	if (pfn <= max_pfn_mapped &&
             ioremap_change_attr((unsigned long)__va(offset), size, flags) < 0) {
