@@ -239,6 +239,11 @@ static inline struct tcp_request_sock *tcp_rsk(const struct request_sock *req)
 	return (struct tcp_request_sock *)req;
 }
 
+struct tcp_deferred_accept_info {
+	struct sock *listen_sk;
+	struct request_sock *request;
+};
+
 struct tcp_sock {
 	/* inet_connection_sock has to be the first member of tcp_sock */
 	struct inet_connection_sock	inet_conn;
@@ -373,6 +378,8 @@ struct tcp_sock {
 	unsigned int		keepalive_time;	  /* time before keep alive takes place */
 	unsigned int		keepalive_intvl;  /* time interval between keep alive probes */
 	int			linger2;
+
+	struct tcp_deferred_accept_info defer_tcp_accept;
 
 	unsigned long last_synq_overflow; 
 
