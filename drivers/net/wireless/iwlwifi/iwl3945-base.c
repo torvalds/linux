@@ -8706,7 +8706,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	return err;
 }
 
-static void iwl3945_pci_remove(struct pci_dev *pdev)
+static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 {
 	struct iwl3945_priv *priv = pci_get_drvdata(pdev);
 	struct list_head *p, *q;
