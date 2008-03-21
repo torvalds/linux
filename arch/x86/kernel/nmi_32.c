@@ -26,6 +26,7 @@
 
 #include <asm/smp.h>
 #include <asm/nmi.h>
+#include <asm/timer.h>
 
 #include "mach_traps.h"
 
@@ -81,7 +82,7 @@ int __init check_nmi_watchdog(void)
 
 	prev_nmi_count = kmalloc(NR_CPUS * sizeof(int), GFP_KERNEL);
 	if (!prev_nmi_count)
-		return -1;
+		goto error;
 
 	printk(KERN_INFO "Testing NMI watchdog ... ");
 
@@ -118,7 +119,7 @@ int __init check_nmi_watchdog(void)
 	if (!atomic_read(&nmi_active)) {
 		kfree(prev_nmi_count);
 		atomic_set(&nmi_active, -1);
-		return -1;
+		goto error;
 	}
 	printk("OK.\n");
 
@@ -129,6 +130,10 @@ int __init check_nmi_watchdog(void)
 
 	kfree(prev_nmi_count);
 	return 0;
+error:
+	timer_ack = !cpu_has_tsc;
+
+	return -1;
 }
 
 static int __init setup_nmi_watchdog(char *str)
