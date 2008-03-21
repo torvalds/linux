@@ -106,6 +106,7 @@ static struct acpi_ec {
 	wait_queue_head_t wait;
 	struct list_head list;
 	struct delayed_work work;
+	atomic_t irq_count;
 	u8 handlers_installed;
 } *boot_ec, *first_ec;
 
@@ -171,6 +172,7 @@ static void ec_switch_to_poll_mode(struct acpi_ec *ec)
 
 static int acpi_ec_wait(struct acpi_ec *ec, enum ec_event event, int force_poll)
 {
+	atomic_set(&ec->irq_count, 0);
 	if (likely(test_bit(EC_FLAGS_GPE_MODE, &ec->flags)) &&
 	    likely(!force_poll)) {
 		if (wait_event_timeout(ec->wait, acpi_ec_check_status(ec, event),
@@ -489,6 +491,12 @@ static u32 acpi_ec_gpe_handler(void *data)
 	u8 state = acpi_ec_read_status(ec);
 
 	pr_debug(PREFIX "~~~> interrupt\n");
+	atomic_inc(&ec->irq_count);
+	if (atomic_read(&ec->irq_count) > 5) {
+		pr_err(PREFIX "GPE storm detected, disabling EC GPE\n");
+		ec_switch_to_poll_mode(ec);
+		goto end;
+	}
 	clear_bit(EC_FLAGS_WAIT_GPE, &ec->flags);
 	if (test_bit(EC_FLAGS_GPE_MODE, &ec->flags))
 		wake_up(&ec->wait);
@@ -507,6 +515,7 @@ static u32 acpi_ec_gpe_handler(void *data)
 		set_bit(EC_FLAGS_GPE_MODE, &ec->flags);
 		clear_bit(EC_FLAGS_RESCHEDULE_POLL, &ec->flags);
 	}
+end:
 	ec_schedule_ec_poll(ec);
 	return ACPI_SUCCESS(status) ?
 	    ACPI_INTERRUPT_HANDLED : ACPI_INTERRUPT_NOT_HANDLED;
@@ -515,6 +524,7 @@ static u32 acpi_ec_gpe_handler(void *data)
 static void do_ec_poll(struct work_struct *work)
 {
 	struct acpi_ec *ec = container_of(work, struct acpi_ec, work.work);
+	atomic_set(&ec->irq_count, 0);
 	(void)acpi_ec_gpe_handler(ec);
 }
 
@@ -679,6 +689,7 @@ static struct acpi_ec *make_acpi_ec(void)
 	init_waitqueue_head(&ec->wait);
 	INIT_LIST_HEAD(&ec->list);
 	INIT_DELAYED_WORK_DEFERRABLE(&ec->work, do_ec_poll);
+	atomic_set(&ec->irq_count, 0);
 	return ec;
 }
 
