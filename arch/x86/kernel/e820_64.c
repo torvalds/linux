@@ -36,11 +36,11 @@ struct e820map e820;
 unsigned long end_pfn;
 
 /*
- * end_pfn only includes RAM, while end_pfn_map includes all e820 entries.
- * The direct mapping extends to end_pfn_map, so that we can directly access
+ * end_pfn only includes RAM, while max_pfn_mapped includes all e820 entries.
+ * The direct mapping extends to max_pfn_mapped, so that we can directly access
  * apertures, ACPI and other tables without having to play with fixmaps.
  */
-unsigned long end_pfn_map;
+unsigned long max_pfn_mapped;
 
 /*
  * Last pfn which the user wants to use.
@@ -281,16 +281,16 @@ unsigned long __init e820_end_of_ram(void)
 
 	end_pfn = find_max_pfn_with_active_regions();
 
-	if (end_pfn > end_pfn_map)
-		end_pfn_map = end_pfn;
-	if (end_pfn_map > MAXMEM>>PAGE_SHIFT)
-		end_pfn_map = MAXMEM>>PAGE_SHIFT;
+	if (end_pfn > max_pfn_mapped)
+		max_pfn_mapped = end_pfn;
+	if (max_pfn_mapped > MAXMEM>>PAGE_SHIFT)
+		max_pfn_mapped = MAXMEM>>PAGE_SHIFT;
 	if (end_pfn > end_user_pfn)
 		end_pfn = end_user_pfn;
-	if (end_pfn > end_pfn_map)
-		end_pfn = end_pfn_map;
+	if (end_pfn > max_pfn_mapped)
+		end_pfn = max_pfn_mapped;
 
-	printk(KERN_INFO "end_pfn_map = %lu\n", end_pfn_map);
+	printk(KERN_INFO "max_pfn_mapped = %lu\n", max_pfn_mapped);
 	return end_pfn;
 }
 
@@ -366,9 +366,9 @@ static int __init e820_find_active_region(const struct e820entry *ei,
 	if (*ei_startpfn >= *ei_endpfn)
 		return 0;
 
-	/* Check if end_pfn_map should be updated */
-	if (ei->type != E820_RAM && *ei_endpfn > end_pfn_map)
-		end_pfn_map = *ei_endpfn;
+	/* Check if max_pfn_mapped should be updated */
+	if (ei->type != E820_RAM && *ei_endpfn > max_pfn_mapped)
+		max_pfn_mapped = *ei_endpfn;
 
 	/* Skip if map is outside the node */
 	if (ei->type != E820_RAM || *ei_endpfn <= start_pfn ||
@@ -759,7 +759,7 @@ static int __init parse_memmap_opt(char *p)
 		saved_max_pfn = e820_end_of_ram();
 		remove_all_active_ranges();
 #endif
-		end_pfn_map = 0;
+		max_pfn_mapped = 0;
 		e820.nr_map = 0;
 		userdef = 1;
 		return 0;

@@ -791,7 +791,7 @@ void __init reserve_bootmem_generic(unsigned long phys, unsigned len)
 		 * This can happen with kdump kernels when accessing
 		 * firmware tables:
 		 */
-		if (pfn < end_pfn_map)
+		if (pfn < max_pfn_mapped)
 			return;
 
 		printk(KERN_ERR "reserve_bootmem: illegal reserve %lx %u\n",

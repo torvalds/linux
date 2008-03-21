@@ -33,10 +33,8 @@
 
 #ifdef CONFIG_X86_64
 #include <asm/page_64.h>
-#define max_pfn_mapped		end_pfn_map
 #else
 #include <asm/page_32.h>
-#define max_pfn_mapped		end_pfn_map
 #endif	/* CONFIG_X86_64 */
 
 #define PAGE_OFFSET		((unsigned long)__PAGE_OFFSET)
@@ -50,7 +48,7 @@
 
 extern int page_is_ram(unsigned long pagenr);
 
-extern unsigned long end_pfn_map;
+extern unsigned long max_pfn_mapped;
 
 struct page;
 

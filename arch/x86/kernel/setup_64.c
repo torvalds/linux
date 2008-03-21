@@ -347,7 +347,7 @@ void __init setup_arch(char **cmdline_p)
 
 	check_efer();
 
-	init_memory_mapping(0, (end_pfn_map << PAGE_SHIFT));
+	init_memory_mapping(0, (max_pfn_mapped << PAGE_SHIFT));
 	if (efi_enabled)
 		efi_init();
 
