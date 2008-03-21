@@ -1648,6 +1648,26 @@ static int pasemi_mac_poll(struct napi_struct *napi, int budget)
 	return pkts;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+/*
+ * Polling 'interrupt' - used by things like netconsole to send skbs
+ * without having to re-enable interrupts. It's not called while
+ * the interrupt routine is executing.
+ */
+static void pasemi_mac_netpoll(struct net_device *dev)
+{
+	const struct pasemi_mac *mac = netdev_priv(dev);
+
+	disable_irq(mac->tx->chan.irq);
+	pasemi_mac_tx_intr(mac->tx->chan.irq, mac->tx);
+	enable_irq(mac->tx->chan.irq);
+
+	disable_irq(mac->rx->chan.irq);
+	pasemi_mac_rx_intr(mac->rx->chan.irq, mac->rx);
+	enable_irq(mac->rx->chan.irq);
+}
+#endif
+
 static int pasemi_mac_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct pasemi_mac *mac = netdev_priv(dev);
@@ -1807,6 +1827,9 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->mtu = PE_DEF_MTU;
 	/* 1500 MTU + ETH_HLEN + VLAN_HLEN + 2 64B cachelines */
 	mac->bufsz = dev->mtu + ETH_HLEN + ETH_FCS_LEN + LOCAL_SKB_ALIGN + 128;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = pasemi_mac_netpoll;
+#endif
 
 	dev->change_mtu = pasemi_mac_change_mtu;
 	dev->ethtool_ops = &pasemi_mac_ethtool_ops;
