@@ -199,7 +199,8 @@ static int ohci_hcd_sm501_drv_remove(struct platform_device *pdev)
 	usb_put_hcd(hcd);
 	dma_release_declared_memory(&pdev->dev);
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	release_mem_region(mem->start, mem->end - mem->start + 1);
+	if (mem)
+		release_mem_region(mem->start, mem->end - mem->start + 1);
 
 	/* mask interrupts and disable power */
 
