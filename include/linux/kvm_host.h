@@ -24,13 +24,6 @@
 
 #include <asm/kvm_host.h>
 
-#define KVM_MAX_VCPUS 16
-#define KVM_MEMORY_SLOTS 32
-/* memory slots that does not exposed to userspace */
-#define KVM_PRIVATE_MEM_SLOTS 4
-
-#define KVM_PIO_PAGE_OFFSET 1
-
 /*
  * vcpu->requests bit members
  */
@@ -42,12 +35,6 @@
 
 struct kvm_vcpu;
 extern struct kmem_cache *kvm_vcpu_cache;
-
-struct kvm_guest_debug {
-	int enabled;
-	unsigned long bp[4];
-	int singlestep;
-};
 
 /*
  * It would be nice to use something smarter than a linear search, TBD...

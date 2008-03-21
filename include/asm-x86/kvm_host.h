@@ -20,6 +20,13 @@
 
 #include <asm/desc.h>
 
+#define KVM_MAX_VCPUS 16
+#define KVM_MEMORY_SLOTS 32
+/* memory slots that does not exposed to userspace */
+#define KVM_PRIVATE_MEM_SLOTS 4
+
+#define KVM_PIO_PAGE_OFFSET 1
+
 #define CR3_PAE_RESERVED_BITS ((X86_CR3_PWT | X86_CR3_PCD) - 1)
 #define CR3_NONPAE_RESERVED_BITS ((PAGE_SIZE-1) & ~(X86_CR3_PWT | X86_CR3_PCD))
 #define CR3_L_MODE_RESERVED_BITS (CR3_NONPAE_RESERVED_BITS |	\
@@ -113,6 +120,12 @@ enum {
 #include <asm/kvm_x86_emulate.h>
 
 #define KVM_NR_MEM_OBJS 40
+
+struct kvm_guest_debug {
+	int enabled;
+	unsigned long bp[4];
+	int singlestep;
+};
 
 /*
  * We don't want allocation failures within the mmu code, so we preallocate
