@@ -650,7 +650,7 @@ struct ixgb_flash_buffer {
  * This is a little-endian specific check.
  */
 #define IS_MULTICAST(Address) \
-    (boolean_t)(((uint8_t *)(Address))[0] & ((uint8_t)0x01))
+    (bool)(((uint8_t *)(Address))[0] & ((uint8_t)0x01))
 
 /*
  * Check whether an address is broadcast.
@@ -663,7 +663,7 @@ struct ixgb_fc {
 	uint32_t high_water;	/* Flow Control High-water          */
 	uint32_t low_water;	/* Flow Control Low-water           */
 	uint16_t pause_time;	/* Flow Control Pause timer         */
-	boolean_t send_xon;	/* Flow control send XON            */
+	bool send_xon;		/* Flow control send XON            */
 	ixgb_fc_type type;	/* Type of flow control             */
 };
 
@@ -700,8 +700,8 @@ struct ixgb_hw {
 	uint32_t num_tx_desc;	/* Number of Transmit descriptors   */
 	uint32_t num_rx_desc;	/* Number of Receive descriptors    */
 	uint32_t rx_buffer_size;	/* Size of Receive buffer           */
-	boolean_t link_up;	/* TRUE if link is valid            */
-	boolean_t adapter_stopped;	/* State of adapter                 */
+	bool link_up;		/* true if link is valid            */
+	bool adapter_stopped;	/* State of adapter                 */
 	uint16_t device_id;	/* device id from PCI configuration space */
 	uint16_t vendor_id;	/* vendor id from PCI configuration space */
 	uint8_t revision_id;	/* revision id from PCI configuration space */
@@ -783,11 +783,11 @@ struct ixgb_hw_stats {
 };
 
 /* Function Prototypes */
-extern boolean_t ixgb_adapter_stop(struct ixgb_hw *hw);
-extern boolean_t ixgb_init_hw(struct ixgb_hw *hw);
-extern boolean_t ixgb_adapter_start(struct ixgb_hw *hw);
+extern bool ixgb_adapter_stop(struct ixgb_hw *hw);
+extern bool ixgb_init_hw(struct ixgb_hw *hw);
+extern bool ixgb_adapter_start(struct ixgb_hw *hw);
 extern void ixgb_check_for_link(struct ixgb_hw *hw);
-extern boolean_t ixgb_check_for_bad_link(struct ixgb_hw *hw);
+extern bool ixgb_check_for_bad_link(struct ixgb_hw *hw);
 
 extern void ixgb_rar_set(struct ixgb_hw *hw,
 				uint8_t *addr,
@@ -809,7 +809,7 @@ extern void ixgb_write_vfta(struct ixgb_hw *hw,
 void ixgb_get_ee_mac_addr(struct ixgb_hw *hw, uint8_t *mac_addr);
 uint32_t ixgb_get_ee_pba_number(struct ixgb_hw *hw);
 uint16_t ixgb_get_ee_device_id(struct ixgb_hw *hw);
-boolean_t ixgb_get_eeprom_data(struct ixgb_hw *hw);
+bool ixgb_get_eeprom_data(struct ixgb_hw *hw);
 __le16 ixgb_get_eeprom_word(struct ixgb_hw *hw, uint16_t index);
 
 /* Everything else */

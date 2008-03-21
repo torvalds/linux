@@ -173,15 +173,15 @@ struct ixgb_adapter {
 	uint64_t hw_csum_tx_error;
 	uint32_t tx_int_delay;
 	uint32_t tx_timeout_count;
-	boolean_t tx_int_delay_enable;
-	boolean_t detect_tx_hung;
+	bool tx_int_delay_enable;
+	bool detect_tx_hung;
 
 	/* RX */
 	struct ixgb_desc_ring rx_ring;
 	uint64_t hw_csum_rx_error;
 	uint64_t hw_csum_rx_good;
 	uint32_t rx_int_delay;
-	boolean_t rx_csum;
+	bool rx_csum;
 
 	/* OS defined structs */
 	struct napi_struct napi;
@@ -194,7 +194,7 @@ struct ixgb_adapter {
 	u16 msg_enable;
 	struct ixgb_hw_stats stats;
 	uint32_t alloc_rx_buff_failed;
-	boolean_t have_msi;
+	bool have_msi;
 	unsigned long flags;
 };
 
