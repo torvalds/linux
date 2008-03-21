@@ -148,8 +148,10 @@ int ibmphp_init_devno(struct slot **cur_slot)
 	len = (rtable->size - sizeof(struct irq_routing_table)) /
 			sizeof(struct irq_info);
 
-	if (!len)
+	if (!len) {
+		kfree(rtable);
 		return -1;
+	}
 	for (loop = 0; loop < len; loop++) {
 		if ((*cur_slot)->number == rtable->slots[loop].slot) {
 		if ((*cur_slot)->bus == rtable->slots[loop].bus) {
@@ -187,11 +189,13 @@ int ibmphp_init_devno(struct slot **cur_slot)
 				debug("rtable->slots[loop].irq[3].link = %x\n",
 					rtable->slots[loop].irq[3].link);
 				debug("end of init_devno\n");
+				kfree(rtable);
 				return 0;
 			}
 		}
 	}
 
+	kfree(rtable);
 	return -1;
 }
 
