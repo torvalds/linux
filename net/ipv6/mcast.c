@@ -2633,6 +2633,41 @@ static const struct file_operations igmp6_mcf_seq_fops = {
 	.llseek		=	seq_lseek,
 	.release	=	seq_release_net,
 };
+
+static int igmp6_proc_init(struct net *net)
+{
+	int err;
+
+	err = -ENOMEM;
+	if (!proc_net_fops_create(net, "igmp6", S_IRUGO, &igmp6_mc_seq_fops))
+		goto out;
+	if (!proc_net_fops_create(net, "mcfilter6", S_IRUGO,
+				  &igmp6_mcf_seq_fops))
+		goto out_proc_net_igmp6;
+
+	err = 0;
+out:
+	return err;
+
+out_proc_net_igmp6:
+	proc_net_remove(net, "igmp6");
+	goto out;
+}
+
+static void igmp6_proc_exit(struct net *net)
+{
+	proc_net_remove(net, "mcfilter6");
+	proc_net_remove(net, "igmp6");
+}
+#else
+static int igmp6_proc_init(struct net *net)
+{
+	return 0;
+}
+static void igmp6_proc_exit(struct net *net)
+{
+	;
+}
 #endif
 
 static int igmp6_net_init(struct net *net)
@@ -2658,18 +2693,9 @@ static int igmp6_net_init(struct net *net)
 	np = inet6_sk(sk);
 	np->hop_limit = 1;
 
-#ifdef CONFIG_PROC_FS
-	err = -ENOMEM;
-	if (!proc_net_fops_create(net, "igmp6", S_IRUGO, &igmp6_mc_seq_fops))
+	err = igmp6_proc_init(net);
+	if (err)
 		goto out_sock_create;
-	if (!proc_net_fops_create(net, "mcfilter6", S_IRUGO,
-				  &igmp6_mcf_seq_fops)) {
-		proc_net_remove(net, "igmp6");
-		goto out_sock_create;
-	}
-#endif
-
-	err = 0;
 out:
 	return err;
 
@@ -2681,10 +2707,7 @@ out_sock_create:
 static void igmp6_net_exit(struct net *net)
 {
 	sk_release_kernel(net->ipv6.igmp_sk);
-#ifdef CONFIG_PROC_FS
-	proc_net_remove(net, "mcfilter6");
-	proc_net_remove(net, "igmp6");
-#endif
+	igmp6_proc_exit(net);
 }
 
 static struct pernet_operations igmp6_net_ops = {
