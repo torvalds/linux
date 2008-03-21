@@ -287,7 +287,7 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 	/*
 	 * Allocate card structure.
 	 */
-	card = mmc_alloc_card(host);
+	card = mmc_alloc_card(host, NULL);
 	if (IS_ERR(card)) {
 		err = PTR_ERR(card);
 		goto err;

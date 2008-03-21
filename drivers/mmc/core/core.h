@@ -18,8 +18,6 @@
 struct mmc_bus_ops {
 	void (*remove)(struct mmc_host *);
 	void (*detect)(struct mmc_host *);
-	int (*sysfs_add)(struct mmc_host *, struct mmc_card *card);
-	void (*sysfs_remove)(struct mmc_host *, struct mmc_card *card);
 	void (*suspend)(struct mmc_host *);
 	void (*resume)(struct mmc_host *);
 };
