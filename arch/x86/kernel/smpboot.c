@@ -140,9 +140,6 @@ static atomic_t init_deasserted;
 
 static int boot_cpu_logical_apicid;
 
-/* ready for x86_64, no harm for x86, since it will overwrite after alloc */
-unsigned char *trampoline_base = __va(TRAMPOLINE_BASE);
-
 /* representing cpus for which sibling maps can be computed */
 static cpumask_t cpu_sibling_setup_map;
 
@@ -548,18 +545,6 @@ cpumask_t cpu_coregroup_map(int cpu)
 		return per_cpu(cpu_core_map, cpu);
 	else
 		return c->llc_shared_map;
-}
-
-/*
- * Currently trivial. Write the real->protected mode
- * bootstrap into the page concerned. The caller
- * has made sure it's suitably aligned.
- */
-unsigned long setup_trampoline(void)
-{
-	memcpy(trampoline_base, trampoline_data,
-	       trampoline_end - trampoline_data);
-	return virt_to_phys(trampoline_base);
 }
 
 #ifdef CONFIG_X86_32
