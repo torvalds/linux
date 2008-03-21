@@ -1948,6 +1948,7 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 	struct hlist_node *node;
 	struct sock *sk = cur;
 	struct tcp_iter_state* st = seq->private;
+	struct net *net = st->net;
 
 	if (!sk) {
 		st->bucket = 0;
@@ -1964,7 +1965,8 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 		req = req->dl_next;
 		while (1) {
 			while (req) {
-				if (req->rsk_ops->family == st->family) {
+				if (req->rsk_ops->family == st->family &&
+				    req->sk->sk_net == net) {
 					cur = req;
 					goto out;
 				}
@@ -1988,7 +1990,7 @@ get_req:
 	}
 get_sk:
 	sk_for_each_from(sk, node) {
-		if (sk->sk_family == st->family) {
+		if (sk->sk_family == st->family && sk->sk_net == net) {
 			cur = sk;
 			goto out;
 		}
@@ -2027,6 +2029,7 @@ static void *listening_get_idx(struct seq_file *seq, loff_t *pos)
 static void *established_get_first(struct seq_file *seq)
 {
 	struct tcp_iter_state* st = seq->private;
+	struct net *net = st->net;
 	void *rc = NULL;
 
 	for (st->bucket = 0; st->bucket < tcp_hashinfo.ehash_size; ++st->bucket) {
@@ -2037,7 +2040,8 @@ static void *established_get_first(struct seq_file *seq)
 
 		read_lock_bh(lock);
 		sk_for_each(sk, node, &tcp_hashinfo.ehash[st->bucket].chain) {
-			if (sk->sk_family != st->family) {
+			if (sk->sk_family != st->family ||
+			    sk->sk_net != net) {
 				continue;
 			}
 			rc = sk;
@@ -2046,7 +2050,8 @@ static void *established_get_first(struct seq_file *seq)
 		st->state = TCP_SEQ_STATE_TIME_WAIT;
 		inet_twsk_for_each(tw, node,
 				   &tcp_hashinfo.ehash[st->bucket].twchain) {
-			if (tw->tw_family != st->family) {
+			if (tw->tw_family != st->family &&
+			    tw->tw_net != net) {
 				continue;
 			}
 			rc = tw;
@@ -2065,6 +2070,7 @@ static void *established_get_next(struct seq_file *seq, void *cur)
 	struct inet_timewait_sock *tw;
 	struct hlist_node *node;
 	struct tcp_iter_state* st = seq->private;
+	struct net *net = st->net;
 
 	++st->num;
 
@@ -2072,7 +2078,7 @@ static void *established_get_next(struct seq_file *seq, void *cur)
 		tw = cur;
 		tw = tw_next(tw);
 get_tw:
-		while (tw && tw->tw_family != st->family) {
+		while (tw && tw->tw_family != st->family && tw->tw_net != net) {
 			tw = tw_next(tw);
 		}
 		if (tw) {
@@ -2093,7 +2099,7 @@ get_tw:
 		sk = sk_next(sk);
 
 	sk_for_each_from(sk, node) {
-		if (sk->sk_family == st->family)
+		if (sk->sk_family == st->family && sk->sk_net == net)
 			goto found;
 	}
 
@@ -2201,6 +2207,7 @@ static int tcp_seq_open(struct inode *inode, struct file *file)
 	struct tcp_seq_afinfo *afinfo = PDE(inode)->data;
 	struct seq_file *seq;
 	struct tcp_iter_state *s;
+	struct net *net;
 	int rc;
 
 	if (unlikely(afinfo == NULL))
@@ -2209,22 +2216,41 @@ static int tcp_seq_open(struct inode *inode, struct file *file)
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
 		return -ENOMEM;
+
+	rc = -ENXIO;
+	net = get_proc_net(inode);
+	if (!net)
+		goto out_kfree;
+
 	s->family		= afinfo->family;
 	s->seq_ops.start	= tcp_seq_start;
 	s->seq_ops.next		= tcp_seq_next;
 	s->seq_ops.show		= afinfo->seq_show;
 	s->seq_ops.stop		= tcp_seq_stop;
+	s->net                  = net;
 
 	rc = seq_open(file, &s->seq_ops);
 	if (rc)
-		goto out_kfree;
-	seq	     = file->private_data;
+		goto out_put_net;
+	seq = file->private_data;
 	seq->private = s;
 out:
 	return rc;
+out_put_net:
+	put_net(net);
 out_kfree:
 	kfree(s);
 	goto out;
+}
+
+static int tcp_seq_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *seq = file->private_data;
+	struct tcp_iter_state *s = seq->private;
+
+	put_net(s->net);
+	seq_release_private(inode, file);
+	return 0;
 }
 
 int tcp_proc_register(struct tcp_seq_afinfo *afinfo)
@@ -2238,7 +2264,7 @@ int tcp_proc_register(struct tcp_seq_afinfo *afinfo)
 	afinfo->seq_fops->open		= tcp_seq_open;
 	afinfo->seq_fops->read		= seq_read;
 	afinfo->seq_fops->llseek	= seq_lseek;
-	afinfo->seq_fops->release	= seq_release_private;
+	afinfo->seq_fops->release	= tcp_seq_release;
 
 	p = proc_net_fops_create(&init_net, afinfo->name, S_IRUGO, afinfo->seq_fops);
 	if (p)
