@@ -26,9 +26,9 @@
 
 static struct resource smc91x_eth_resources[] = {
 	[0] = {
-		.name   = "smc91x-regs" ,
-		.start  = P2SEGADDR(0x10000300),
-		.end    = P2SEGADDR(0x1000030f),
+		.name   = "SMC91C111" ,
+		.start  = 0x10000300,
+		.end    = 0x1000030f,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
