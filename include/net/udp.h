@@ -200,8 +200,8 @@ struct udp_iter_state {
 };
 
 #ifdef CONFIG_PROC_FS
-extern int udp_proc_register(struct udp_seq_afinfo *afinfo);
-extern void udp_proc_unregister(struct udp_seq_afinfo *afinfo);
+extern int udp_proc_register(struct net *net, struct udp_seq_afinfo *afinfo);
+extern void udp_proc_unregister(struct net *net, struct udp_seq_afinfo *afinfo);
 
 extern int  udp4_proc_init(void);
 extern void udp4_proc_exit(void);

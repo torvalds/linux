@@ -1632,7 +1632,7 @@ static int udp_seq_release(struct inode *inode, struct file *file)
 }
 
 /* ------------------------------------------------------------------------ */
-int udp_proc_register(struct udp_seq_afinfo *afinfo)
+int udp_proc_register(struct net *net, struct udp_seq_afinfo *afinfo)
 {
 	struct proc_dir_entry *p;
 	int rc = 0;
@@ -1645,7 +1645,7 @@ int udp_proc_register(struct udp_seq_afinfo *afinfo)
 	afinfo->seq_fops->llseek	= seq_lseek;
 	afinfo->seq_fops->release	= udp_seq_release;
 
-	p = proc_net_fops_create(&init_net, afinfo->name, S_IRUGO, afinfo->seq_fops);
+	p = proc_net_fops_create(net, afinfo->name, S_IRUGO, afinfo->seq_fops);
 	if (p)
 		p->data = afinfo;
 	else
@@ -1653,11 +1653,11 @@ int udp_proc_register(struct udp_seq_afinfo *afinfo)
 	return rc;
 }
 
-void udp_proc_unregister(struct udp_seq_afinfo *afinfo)
+void udp_proc_unregister(struct net *net, struct udp_seq_afinfo *afinfo)
 {
 	if (!afinfo)
 		return;
-	proc_net_remove(&init_net, afinfo->name);
+	proc_net_remove(net, afinfo->name);
 	memset(afinfo->seq_fops, 0, sizeof(*afinfo->seq_fops));
 }
 
@@ -1709,12 +1709,12 @@ static struct udp_seq_afinfo udp4_seq_afinfo = {
 
 int __init udp4_proc_init(void)
 {
-	return udp_proc_register(&udp4_seq_afinfo);
+	return udp_proc_register(&init_net, &udp4_seq_afinfo);
 }
 
 void udp4_proc_exit(void)
 {
-	udp_proc_unregister(&udp4_seq_afinfo);
+	udp_proc_unregister(&init_net, &udp4_seq_afinfo);
 }
 #endif /* CONFIG_PROC_FS */
 

@@ -115,11 +115,11 @@ static struct udp_seq_afinfo udplite6_seq_afinfo = {
 
 int __init udplite6_proc_init(void)
 {
-	return udp_proc_register(&udplite6_seq_afinfo);
+	return udp_proc_register(&init_net, &udplite6_seq_afinfo);
 }
 
 void udplite6_proc_exit(void)
 {
-	udp_proc_unregister(&udplite6_seq_afinfo);
+	udp_proc_unregister(&init_net, &udplite6_seq_afinfo);
 }
 #endif

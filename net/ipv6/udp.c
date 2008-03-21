@@ -989,13 +989,13 @@ static struct udp_seq_afinfo udp6_seq_afinfo = {
 	.seq_fops	= &udp6_seq_fops,
 };
 
-int __init udp6_proc_init(void)
+int udp6_proc_init(struct net *net)
 {
-	return udp_proc_register(&udp6_seq_afinfo);
+	return udp_proc_register(net, &udp6_seq_afinfo);
 }
 
-void udp6_proc_exit(void) {
-	udp_proc_unregister(&udp6_seq_afinfo);
+void udp6_proc_exit(struct net *net) {
+	udp_proc_unregister(net, &udp6_seq_afinfo);
 }
 #endif /* CONFIG_PROC_FS */
 

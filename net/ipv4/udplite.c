@@ -105,7 +105,7 @@ void __init udplite4_register(void)
 	inet_register_protosw(&udplite4_protosw);
 
 #ifdef CONFIG_PROC_FS
-	if (udp_proc_register(&udplite4_seq_afinfo)) /* udplite4_proc_init() */
+	if (udp_proc_register(&init_net, &udplite4_seq_afinfo))
 		printk(KERN_ERR "%s: Cannot register /proc!\n", __func__);
 #endif
 	return;

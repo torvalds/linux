@@ -842,6 +842,8 @@ static void cleanup_ipv6_mibs(void)
 
 static int inet6_net_init(struct net *net)
 {
+	int err = 0;
+
 	net->ipv6.sysctl.bindv6only = 0;
 	net->ipv6.sysctl.flush_delay = 0;
 	net->ipv6.sysctl.ip6_rt_max_size = 4096;
@@ -853,12 +855,20 @@ static int inet6_net_init(struct net *net)
 	net->ipv6.sysctl.ip6_rt_min_advmss = IPV6_MIN_MTU - 20 - 40;
 	net->ipv6.sysctl.icmpv6_time = 1*HZ;
 
-	return 0;
+#ifdef CONFIG_PROC_FS
+	err = udp6_proc_init(net);
+	if (err)
+		goto out;
+out:
+#endif
+	return err;
 }
 
 static void inet6_net_exit(struct net *net)
 {
-	return;
+#ifdef CONFIG_PROC_FS
+	udp6_proc_exit(net);
+#endif
 }
 
 static struct pernet_operations inet6_net_ops = {
@@ -943,8 +953,6 @@ static int __init inet6_init(void)
 		goto proc_raw6_fail;
 	if (tcp6_proc_init())
 		goto proc_tcp6_fail;
-	if (udp6_proc_init())
-		goto proc_udp6_fail;
 	if (udplite6_proc_init())
 		goto proc_udplite6_fail;
 	if (ipv6_misc_proc_init())
@@ -1029,8 +1037,6 @@ proc_anycast6_fail:
 proc_misc6_fail:
 	udplite6_proc_exit();
 proc_udplite6_fail:
-	udp6_proc_exit();
-proc_udp6_fail:
 	tcp6_proc_exit();
 proc_tcp6_fail:
 	raw6_proc_exit();
@@ -1092,7 +1098,6 @@ static void __exit inet6_exit(void)
 	ac6_proc_exit();
 	ipv6_misc_proc_exit();
 	udplite6_proc_exit();
-	udp6_proc_exit();
 	tcp6_proc_exit();
 	raw6_proc_exit();
 #endif
