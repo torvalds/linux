@@ -167,9 +167,6 @@ struct e1000_adapter {
 
 	spinlock_t tx_queue_lock; /* prevent concurrent tail updates */
 
-	/* this is still needed for 82571 and above */
-	atomic_t irq_sem;
-
 	/* track device up/down/testing state */
 	unsigned long state;
 
