@@ -114,6 +114,40 @@ again:
 	return changed;
 }
 
+/* Check for already reserved areas */
+static inline int
+bad_addr_size(unsigned long *addrp, unsigned long *sizep, unsigned long align)
+{
+	int i;
+	unsigned long addr = *addrp, last;
+	unsigned long size = *sizep;
+	int changed = 0;
+again:
+	last = addr + size;
+	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
+		struct early_res *r = &early_res[i];
+		if (last > r->start && addr < r->start) {
+			size = r->start - addr;
+			changed = 1;
+			goto again;
+		}
+		if (last > r->end && addr < r->end) {
+			addr = round_up(r->end, align);
+			size = last - addr;
+			changed = 1;
+			goto again;
+		}
+		if (last <= r->end && addr >= r->start) {
+			(*sizep)++;
+			return 0;
+		}
+	}
+	if (changed) {
+		*addrp = addr;
+		*sizep = size;
+	}
+	return changed;
+}
 /*
  * This function checks if any part of the range <start,end> is mapped
  * with type.
@@ -190,7 +224,7 @@ unsigned long __init find_e820_area(unsigned long start, unsigned long end,
 		ei_last = ei->addr + ei->size;
 		if (addr < start)
 			addr = round_up(start, align);
-		if (addr > ei_last)
+		if (addr >= ei_last)
 			continue;
 		while (bad_addr(&addr, size, align) && addr+size <= ei_last)
 			;
@@ -204,6 +238,40 @@ unsigned long __init find_e820_area(unsigned long start, unsigned long end,
 	return -1UL;
 }
 
+/*
+ * Find next free range after *start
+ */
+unsigned long __init find_e820_area_size(unsigned long start, unsigned long *sizep, unsigned long align)
+{
+	int i;
+
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		unsigned long addr, last;
+		unsigned long ei_last;
+
+		if (ei->type != E820_RAM)
+			continue;
+		addr = round_up(ei->addr, align);
+		ei_last = ei->addr + ei->size;
+//		printk(KERN_DEBUG "find_e820_area_size : e820 %d [%llx, %lx]\n", i, ei->addr, ei_last);
+		if (addr < start)
+			addr = round_up(start, align);
+//		printk(KERN_DEBUG "find_e820_area_size : 0 [%lx, %lx]\n", addr, ei_last);
+		if (addr >= ei_last)
+			continue;
+		*sizep = ei_last - addr;
+		while (bad_addr_size(&addr, sizep, align) && addr+ *sizep <= ei_last)
+			;
+		last = addr + *sizep;
+//		printk(KERN_DEBUG "find_e820_area_size : 1 [%lx, %lx]\n", addr, last);
+		if (last > ei_last)
+			continue;
+		return addr;
+	}
+	return -1UL;
+
+}
 /*
  * Find the highest page frame number we have available
  */

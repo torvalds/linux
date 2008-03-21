@@ -16,6 +16,9 @@
 #ifndef __ASSEMBLY__
 extern unsigned long find_e820_area(unsigned long start, unsigned long end, 
 				    unsigned long size, unsigned long align);
+extern unsigned long find_e820_area_size(unsigned long start,
+					 unsigned long *sizep,
+					 unsigned long align);
 extern void add_memory_region(unsigned long start, unsigned long size, 
 			      int type);
 extern void update_memory_range(u64 start, u64 size, unsigned old_type,
