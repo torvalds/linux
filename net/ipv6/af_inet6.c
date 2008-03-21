@@ -859,15 +859,25 @@ static int inet6_net_init(struct net *net)
 	err = udp6_proc_init(net);
 	if (err)
 		goto out;
+	err = tcp6_proc_init(net);
+	if (err)
+		goto proc_tcp6_fail;
 out:
 #endif
 	return err;
+
+#ifdef CONFIG_PROC_FS
+proc_tcp6_fail:
+	udp6_proc_exit(net);
+	goto out;
+#endif
 }
 
 static void inet6_net_exit(struct net *net)
 {
 #ifdef CONFIG_PROC_FS
 	udp6_proc_exit(net);
+	tcp6_proc_exit(net);
 #endif
 }
 
@@ -951,8 +961,6 @@ static int __init inet6_init(void)
 	err = -ENOMEM;
 	if (raw6_proc_init())
 		goto proc_raw6_fail;
-	if (tcp6_proc_init())
-		goto proc_tcp6_fail;
 	if (udplite6_proc_init())
 		goto proc_udplite6_fail;
 	if (ipv6_misc_proc_init())
@@ -1037,8 +1045,6 @@ proc_anycast6_fail:
 proc_misc6_fail:
 	udplite6_proc_exit();
 proc_udplite6_fail:
-	tcp6_proc_exit();
-proc_tcp6_fail:
 	raw6_proc_exit();
 proc_raw6_fail:
 #endif
@@ -1098,7 +1104,6 @@ static void __exit inet6_exit(void)
 	ac6_proc_exit();
 	ipv6_misc_proc_exit();
 	udplite6_proc_exit();
-	tcp6_proc_exit();
 	raw6_proc_exit();
 #endif
 	ipv6_netfilter_fini();

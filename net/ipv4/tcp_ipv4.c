@@ -2253,7 +2253,7 @@ static int tcp_seq_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-int tcp_proc_register(struct tcp_seq_afinfo *afinfo)
+int tcp_proc_register(struct net *net, struct tcp_seq_afinfo *afinfo)
 {
 	int rc = 0;
 	struct proc_dir_entry *p;
@@ -2266,7 +2266,7 @@ int tcp_proc_register(struct tcp_seq_afinfo *afinfo)
 	afinfo->seq_fops->llseek	= seq_lseek;
 	afinfo->seq_fops->release	= tcp_seq_release;
 
-	p = proc_net_fops_create(&init_net, afinfo->name, S_IRUGO, afinfo->seq_fops);
+	p = proc_net_fops_create(net, afinfo->name, S_IRUGO, afinfo->seq_fops);
 	if (p)
 		p->data = afinfo;
 	else
@@ -2274,11 +2274,11 @@ int tcp_proc_register(struct tcp_seq_afinfo *afinfo)
 	return rc;
 }
 
-void tcp_proc_unregister(struct tcp_seq_afinfo *afinfo)
+void tcp_proc_unregister(struct net *net, struct tcp_seq_afinfo *afinfo)
 {
 	if (!afinfo)
 		return;
-	proc_net_remove(&init_net, afinfo->name);
+	proc_net_remove(net, afinfo->name);
 	memset(afinfo->seq_fops, 0, sizeof(*afinfo->seq_fops));
 }
 
@@ -2419,12 +2419,12 @@ static struct tcp_seq_afinfo tcp4_seq_afinfo = {
 
 int __init tcp4_proc_init(void)
 {
-	return tcp_proc_register(&tcp4_seq_afinfo);
+	return tcp_proc_register(&init_net, &tcp4_seq_afinfo);
 }
 
 void tcp4_proc_exit(void)
 {
-	tcp_proc_unregister(&tcp4_seq_afinfo);
+	tcp_proc_unregister(&init_net, &tcp4_seq_afinfo);
 }
 #endif /* CONFIG_PROC_FS */
 

@@ -2129,14 +2129,14 @@ static struct tcp_seq_afinfo tcp6_seq_afinfo = {
 	.seq_fops	= &tcp6_seq_fops,
 };
 
-int __init tcp6_proc_init(void)
+int tcp6_proc_init(struct net *net)
 {
-	return tcp_proc_register(&tcp6_seq_afinfo);
+	return tcp_proc_register(net, &tcp6_seq_afinfo);
 }
 
-void tcp6_proc_exit(void)
+void tcp6_proc_exit(struct net *net)
 {
-	tcp_proc_unregister(&tcp6_seq_afinfo);
+	tcp_proc_unregister(net, &tcp6_seq_afinfo);
 }
 #endif
 
