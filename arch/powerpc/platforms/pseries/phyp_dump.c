@@ -123,6 +123,61 @@ static unsigned long init_dump_header(struct phyp_dump_header *ph)
 	return addr_offset;
 }
 
+static void print_dump_header(const struct phyp_dump_header *ph)
+{
+#ifdef DEBUG
+	printk(KERN_INFO "dump header:\n");
+	/* setup some ph->sections required */
+	printk(KERN_INFO "version = %d\n", ph->version);
+	printk(KERN_INFO "Sections = %d\n", ph->num_of_sections);
+	printk(KERN_INFO "Status = 0x%x\n", ph->status);
+
+	/* No ph->disk, so all should be set to 0 */
+	printk(KERN_INFO "Offset to first section 0x%x\n",
+		ph->first_offset_section);
+	printk(KERN_INFO "dump disk sections should be zero\n");
+	printk(KERN_INFO "dump disk section = %d\n", ph->dump_disk_section);
+	printk(KERN_INFO "block num = %ld\n", ph->block_num_dd);
+	printk(KERN_INFO "number of blocks = %ld\n", ph->num_of_blocks_dd);
+	printk(KERN_INFO "dump disk offset = %d\n", ph->offset_dd);
+	printk(KERN_INFO "Max auto time= %d\n", ph->maxtime_to_auto);
+
+	/*set cpu state and hpte states as well scratch pad area */
+	printk(KERN_INFO " CPU AREA \n");
+	printk(KERN_INFO "cpu dump_flags =%d\n", ph->cpu_data.dump_flags);
+	printk(KERN_INFO "cpu source_type =%d\n", ph->cpu_data.source_type);
+	printk(KERN_INFO "cpu error_flags =%d\n", ph->cpu_data.error_flags);
+	printk(KERN_INFO "cpu source_address =%lx\n",
+		ph->cpu_data.source_address);
+	printk(KERN_INFO "cpu source_length =%lx\n",
+		ph->cpu_data.source_length);
+	printk(KERN_INFO "cpu length_copied =%lx\n",
+		ph->cpu_data.length_copied);
+
+	printk(KERN_INFO " HPTE AREA \n");
+	printk(KERN_INFO "HPTE dump_flags =%d\n", ph->hpte_data.dump_flags);
+	printk(KERN_INFO "HPTE source_type =%d\n", ph->hpte_data.source_type);
+	printk(KERN_INFO "HPTE error_flags =%d\n", ph->hpte_data.error_flags);
+	printk(KERN_INFO "HPTE source_address =%lx\n",
+		ph->hpte_data.source_address);
+	printk(KERN_INFO "HPTE source_length =%lx\n",
+		ph->hpte_data.source_length);
+	printk(KERN_INFO "HPTE length_copied =%lx\n",
+		ph->hpte_data.length_copied);
+
+	printk(KERN_INFO " SRSD AREA \n");
+	printk(KERN_INFO "SRSD dump_flags =%d\n", ph->kernel_data.dump_flags);
+	printk(KERN_INFO "SRSD source_type =%d\n", ph->kernel_data.source_type);
+	printk(KERN_INFO "SRSD error_flags =%d\n", ph->kernel_data.error_flags);
+	printk(KERN_INFO "SRSD source_address =%lx\n",
+		ph->kernel_data.source_address);
+	printk(KERN_INFO "SRSD source_length =%lx\n",
+		ph->kernel_data.source_length);
+	printk(KERN_INFO "SRSD length_copied =%lx\n",
+		ph->kernel_data.length_copied);
+#endif
+}
+
 static void register_dump_area(struct phyp_dump_header *ph, unsigned long addr)
 {
 	int rc;
@@ -135,9 +190,11 @@ static void register_dump_area(struct phyp_dump_header *ph, unsigned long addr)
 				1, ph, sizeof(struct phyp_dump_header));
 	} while (rtas_busy_delay(rc));
 
-	if (rc)
+	if (rc) {
 		printk(KERN_ERR "phyp-dump: unexpected error (%d) on "
 						"register\n", rc);
+		print_dump_header(ph);
+	}
 }
 
 /* ------------------------------------------------- */
@@ -246,8 +303,8 @@ static int __init phyp_dump_setup(void)
 		of_node_put(rtas);
 	}
 
+	print_dump_header(dump_header);
 	dump_area_length = init_dump_header(&phdr);
-
 	/* align down */
 	dump_area_start = phyp_dump_info->init_reserve_start & PAGE_MASK;
 
