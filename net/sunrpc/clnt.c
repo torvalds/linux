@@ -1199,18 +1199,6 @@ call_decode(struct rpc_task *task)
 		task->tk_flags &= ~RPC_CALL_MAJORSEEN;
 	}
 
-	if (task->tk_status < 12) {
-		if (!RPC_IS_SOFT(task)) {
-			task->tk_action = call_bind;
-			clnt->cl_stats->rpcretrans++;
-			goto out_retry;
-		}
-		dprintk("RPC:       %s: too small RPC reply size (%d bytes)\n",
-				clnt->cl_protname, task->tk_status);
-		task->tk_action = call_timeout;
-		goto out_retry;
-	}
-
 	/*
 	 * Ensure that we see all writes made by xprt_complete_rqst()
 	 * before it changed req->rq_received.
@@ -1221,6 +1209,18 @@ call_decode(struct rpc_task *task)
 	/* Check that the softirq receive buffer is valid */
 	WARN_ON(memcmp(&req->rq_rcv_buf, &req->rq_private_buf,
 				sizeof(req->rq_rcv_buf)) != 0);
+
+	if (req->rq_rcv_buf.len < 12) {
+		if (!RPC_IS_SOFT(task)) {
+			task->tk_action = call_bind;
+			clnt->cl_stats->rpcretrans++;
+			goto out_retry;
+		}
+		dprintk("RPC:       %s: too small RPC reply size (%d bytes)\n",
+				clnt->cl_protname, task->tk_status);
+		task->tk_action = call_timeout;
+		goto out_retry;
+	}
 
 	/* Verify the RPC header */
 	p = call_verify(task);
@@ -1243,7 +1243,7 @@ out_retry:
 	task->tk_status = 0;
 	/* Note: call_verify() may have freed the RPC slot */
 	if (task->tk_rqstp == req) {
-		req->rq_received = req->rq_private_buf.len = 0;
+		req->rq_received = req->rq_rcv_buf.len = 0;
 		if (task->tk_client->cl_discrtry)
 			xprt_force_disconnect(task->tk_xprt);
 	}

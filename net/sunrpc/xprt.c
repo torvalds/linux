@@ -757,9 +757,10 @@ void xprt_complete_rqst(struct rpc_task *task, int copied)
 	task->tk_rtt = (long)jiffies - req->rq_xtime;
 
 	list_del_init(&req->rq_list);
+	req->rq_private_buf.len = copied;
 	/* Ensure all writes are done before we update req->rq_received */
 	smp_wmb();
-	req->rq_received = req->rq_private_buf.len = copied;
+	req->rq_received = copied;
 	rpc_wake_up_queued_task(&xprt->pending, task);
 }
 EXPORT_SYMBOL_GPL(xprt_complete_rqst);
