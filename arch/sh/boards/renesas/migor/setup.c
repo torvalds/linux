@@ -14,6 +14,7 @@
 #include <asm/machvec.h>
 #include <asm/io.h>
 #include <asm/sh_keysc.h>
+#include <asm/migor.h>
 
 /* Address     IRQ  Size  Bus  Description
  * 0x00000000       64MB  16   NOR Flash (SP29PL256N)
@@ -86,14 +87,6 @@ static int __init migor_devices_setup(void)
 	return platform_add_devices(migor_devices, ARRAY_SIZE(migor_devices));
 }
 __initcall(migor_devices_setup);
-
-#define PORT_PJCR       0xA4050110UL
-#define PORT_PSELA      0xA405014EUL
-#define PORT_PYCR       0xA405014AUL
-#define PORT_PZCR       0xA405014CUL
-#define PORT_HIZCRA     0xA4050158UL
-#define PORT_HIZCRC     0xA405015CUL
-#define MSTPCR2         0xA4150038UL
 
 static void __init migor_setup(char **cmdline_p)
 {
