@@ -248,9 +248,9 @@ static int acpi_ec_wait(struct acpi_ec *ec, enum ec_event event, int force_poll)
 			udelay(ACPI_EC_UDELAY);
 		}
 	}
-	pr_err(PREFIX "acpi_ec_wait timeout,"
-			       " status = %d, expect_event = %d\n",
-			       acpi_ec_read_status(ec), event);
+	pr_err(PREFIX "acpi_ec_wait timeout, status = 0x%2.2x, event = %s\n",
+		acpi_ec_read_status(ec),
+		(event == ACPI_EC_EVENT_OBF_1) ? "\"b0=1\"" : "\"b1=0\"");
 	ret = -ETIME;
       end:
 	clear_bit(EC_FLAGS_ADDRESS, &ec->flags);
@@ -264,8 +264,8 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 {
 	int result = 0;
 	set_bit(EC_FLAGS_WAIT_GPE, &ec->flags);
-	acpi_ec_write_cmd(ec, command);
 	pr_debug(PREFIX "transaction start\n");
+	acpi_ec_write_cmd(ec, command);
 	for (; wdata_len > 0; --wdata_len) {
 		result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0, force_poll);
 		if (result) {
