@@ -212,7 +212,6 @@ static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 		return;
 	}
 
-	cpu_set(num_processors, cpu_possible_map);
 	num_processors++;
 	cpus_complement(tmp_map, cpu_present_map);
 	cpu = first_cpu(tmp_map);
@@ -251,12 +250,13 @@ static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 		u16 *bios_cpu_apicid = x86_bios_cpu_apicid_early_ptr;
 
 		cpu_to_apicid[cpu] = m->mpc_apicid;
-		bios_cpu_apicid[num_processors - 1] = m->mpc_apicid;
+		bios_cpu_apicid[cpu] = m->mpc_apicid;
 	} else {
 		per_cpu(x86_cpu_to_apicid, cpu) = m->mpc_apicid;
 		per_cpu(x86_bios_cpu_apicid, cpu) = m->mpc_apicid;
 	}
 #endif
+	cpu_set(cpu, cpu_possible_map);
 	cpu_set(cpu, cpu_present_map);
 }
 
