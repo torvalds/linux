@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
+#include <linux/mtd/physmap.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
 #include <asm/sh_keysc.h>
@@ -77,9 +78,54 @@ static struct platform_device sh_keysc_device = {
 	},
 };
 
+static struct mtd_partition migor_nor_flash_partitions[] =
+{
+	{
+		.name = "uboot",
+		.offset = 0,
+		.size = (1 * 1024 * 1024),
+		.mask_flags = MTD_WRITEABLE,	/* Read-only */
+	},
+	{
+		.name = "rootfs",
+		.offset = MTDPART_OFS_APPEND,
+		.size = (15 * 1024 * 1024),
+	},
+	{
+		.name = "other",
+		.offset = MTDPART_OFS_APPEND,
+		.size = MTDPART_SIZ_FULL,
+	},
+};
+
+static struct physmap_flash_data migor_nor_flash_data = {
+	.width		= 2,
+	.parts		= migor_nor_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(migor_nor_flash_partitions),
+};
+
+static struct resource migor_nor_flash_resources[] = {
+	[0] = {
+		.name		= "NOR Flash",
+		.start		= 0x00000000,
+		.end		= 0x03ffffff,
+		.flags		= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device migor_nor_flash_device = {
+	.name		= "physmap-flash",
+	.resource	= migor_nor_flash_resources,
+	.num_resources	= ARRAY_SIZE(migor_nor_flash_resources),
+	.dev		= {
+		.platform_data = &migor_nor_flash_data,
+	},
+};
+
 static struct platform_device *migor_devices[] __initdata = {
 	&smc91x_eth_device,
 	&sh_keysc_device,
+	&migor_nor_flash_device,
 };
 
 static int __init migor_devices_setup(void)
