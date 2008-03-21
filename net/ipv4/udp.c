@@ -1512,10 +1512,13 @@ static struct sock *udp_get_first(struct seq_file *seq)
 {
 	struct sock *sk;
 	struct udp_iter_state *state = seq->private;
+	struct net *net = state->net;
 
 	for (state->bucket = 0; state->bucket < UDP_HTABLE_SIZE; ++state->bucket) {
 		struct hlist_node *node;
 		sk_for_each(sk, node, state->hashtable + state->bucket) {
+			if (sk->sk_net != net)
+				continue;
 			if (sk->sk_family == state->family)
 				goto found;
 		}
@@ -1528,12 +1531,13 @@ found:
 static struct sock *udp_get_next(struct seq_file *seq, struct sock *sk)
 {
 	struct udp_iter_state *state = seq->private;
+	struct net *net = state->net;
 
 	do {
 		sk = sk_next(sk);
 try_again:
 		;
-	} while (sk && sk->sk_family != state->family);
+	} while (sk && sk->sk_net != net && sk->sk_family != state->family);
 
 	if (!sk && ++state->bucket < UDP_HTABLE_SIZE) {
 		sk = sk_head(state->hashtable + state->bucket);
@@ -1582,29 +1586,49 @@ static int udp_seq_open(struct inode *inode, struct file *file)
 {
 	struct udp_seq_afinfo *afinfo = PDE(inode)->data;
 	struct seq_file *seq;
+	struct net *net;
 	int rc = -ENOMEM;
 	struct udp_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
 
 	if (!s)
 		goto out;
+
+	rc = -ENXIO;
+	net = get_proc_net(inode);
+	if (!net)
+		goto out_kfree;
+
 	s->family		= afinfo->family;
 	s->hashtable		= afinfo->hashtable;
 	s->seq_ops.start	= udp_seq_start;
 	s->seq_ops.next		= udp_seq_next;
 	s->seq_ops.show		= afinfo->seq_show;
 	s->seq_ops.stop		= udp_seq_stop;
+	s->net                  = net;
 
 	rc = seq_open(file, &s->seq_ops);
 	if (rc)
-		goto out_kfree;
+		goto out_put_net;
 
-	seq	     = file->private_data;
+	seq = file->private_data;
 	seq->private = s;
 out:
 	return rc;
+out_put_net:
+	put_net(net);
 out_kfree:
 	kfree(s);
 	goto out;
+}
+
+static int udp_seq_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *seq = file->private_data;
+	struct udp_iter_state *s = seq->private;
+
+	put_net(s->net);
+	seq_release_private(inode, file);
+	return 0;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1619,7 +1643,7 @@ int udp_proc_register(struct udp_seq_afinfo *afinfo)
 	afinfo->seq_fops->open		= udp_seq_open;
 	afinfo->seq_fops->read		= seq_read;
 	afinfo->seq_fops->llseek	= seq_lseek;
-	afinfo->seq_fops->release	= seq_release_private;
+	afinfo->seq_fops->release	= udp_seq_release;
 
 	p = proc_net_fops_create(&init_net, afinfo->name, S_IRUGO, afinfo->seq_fops);
 	if (p)

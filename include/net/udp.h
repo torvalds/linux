@@ -192,6 +192,7 @@ struct udp_seq_afinfo {
 };
 
 struct udp_iter_state {
+	struct net              *net;
 	sa_family_t		family;
 	struct hlist_head	*hashtable;
 	int			bucket;
