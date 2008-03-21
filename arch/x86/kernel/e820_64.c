@@ -300,9 +300,10 @@ unsigned long __init e820_end_of_ram(void)
 void __init e820_reserve_resources(void)
 {
 	int i;
+	struct resource *res;
+
+	res = alloc_bootmem_low(sizeof(struct resource) * e820.nr_map);
 	for (i = 0; i < e820.nr_map; i++) {
-		struct resource *res;
-		res = alloc_bootmem_low(sizeof(struct resource));
 		switch (e820.map[i].type) {
 		case E820_RAM:	res->name = "System RAM"; break;
 		case E820_ACPI:	res->name = "ACPI Tables"; break;
@@ -313,6 +314,7 @@ void __init e820_reserve_resources(void)
 		res->end = res->start + e820.map[i].size - 1;
 		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 		insert_resource(&iomem_resource, res);
+		res++;
 	}
 }
 
