@@ -368,7 +368,7 @@ void iwlcore_eeprom_release_semaphore(struct iwl_priv *priv);
 
 int iwl_init_channel_map(struct iwl_priv *priv);
 void iwl_free_channel_map(struct iwl_priv *priv);
-const struct iwl_channel_info *iwl4965_get_channel_info(
+const struct iwl_channel_info *iwl_get_channel_info(
 		const struct iwl_priv *priv,
 		enum ieee80211_band band, u16 channel);
 

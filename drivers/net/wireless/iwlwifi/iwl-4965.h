@@ -1264,7 +1264,7 @@ static inline int is_channel_ibss(const struct iwl_channel_info *ch)
 	return ((ch->flags & EEPROM_CHANNEL_IBSS)) ? 1 : 0;
 }
 
-extern const struct iwl_channel_info *iwl4965_get_channel_info(
+extern const struct iwl_channel_info *iwl_get_channel_info(
 	const struct iwl_priv *priv, enum ieee80211_band band, u16 channel);
 
 /* Requires full declaration of iwl_priv before including */

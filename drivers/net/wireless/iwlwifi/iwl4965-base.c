@@ -2271,7 +2271,7 @@ static void iwl4965_connection_init_rx_config(struct iwl_priv *priv)
 		priv->staging_rxon.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 #endif
 
-	ch_info = iwl4965_get_channel_info(priv, priv->band,
+	ch_info = iwl_get_channel_info(priv, priv->band,
 				       le16_to_cpu(priv->staging_rxon.channel));
 
 	if (!ch_info)
@@ -2309,7 +2309,7 @@ static int iwl4965_set_mode(struct iwl_priv *priv, int mode)
 	if (mode == IEEE80211_IF_TYPE_IBSS) {
 		const struct iwl_channel_info *ch_info;
 
-		ch_info = iwl4965_get_channel_info(priv,
+		ch_info = iwl_get_channel_info(priv,
 			priv->band,
 			le16_to_cpu(priv->staging_rxon.channel));
 
@@ -5021,7 +5021,7 @@ static int iwl4965_get_channels_for_scan(struct iwl_priv *priv,
 
 		scan_ch->channel = ieee80211_frequency_to_channel(channels[i].center_freq);
 
-		ch_info = iwl4965_get_channel_info(priv, band,
+		ch_info = iwl_get_channel_info(priv, band,
 					 scan_ch->channel);
 		if (!is_channel_valid(ch_info)) {
 			IWL_DEBUG_SCAN("Channel %d is INVALID for this SKU.\n",
@@ -6823,7 +6823,7 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	ch_info = iwl4965_get_channel_info(priv, conf->channel->band,
+	ch_info = iwl_get_channel_info(priv, conf->channel->band,
 			ieee80211_frequency_to_channel(conf->channel->center_freq));
 	if (!is_channel_valid(ch_info)) {
 		IWL_DEBUG_MAC80211("leave - invalid channel\n");

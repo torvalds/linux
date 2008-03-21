@@ -329,7 +329,7 @@ static int iwl4965_set_fat_chan_info(struct iwl_priv *priv,
 	struct iwl_channel_info *ch_info;
 
 	ch_info = (struct iwl_channel_info *)
-			iwl4965_get_channel_info(priv, band, channel);
+			iwl_get_channel_info(priv, band, channel);
 
 	if (!is_channel_valid(ch_info))
 		return -1;
@@ -534,7 +534,7 @@ EXPORT_SYMBOL(iwl_free_channel_map);
  *
  * Based on band and channel number.
  */
-const struct iwl_channel_info *iwl4965_get_channel_info(
+const struct iwl_channel_info *iwl_get_channel_info(
 		const struct iwl_priv *priv,
 		enum ieee80211_band band, u16 channel)
 {
@@ -557,5 +557,5 @@ const struct iwl_channel_info *iwl4965_get_channel_info(
 
 	return NULL;
 }
-EXPORT_SYMBOL(iwl4965_get_channel_info);
+EXPORT_SYMBOL(iwl_get_channel_info);
 

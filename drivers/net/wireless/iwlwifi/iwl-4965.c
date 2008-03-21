@@ -2056,7 +2056,7 @@ iwl4965_get_channel_txpower_info(struct iwl_priv *priv,
 {
 	const struct iwl_channel_info *ch_info;
 
-	ch_info = iwl4965_get_channel_info(priv, band, channel);
+	ch_info = iwl_get_channel_info(priv, band, channel);
 
 	if (!is_channel_valid(ch_info))
 		return NULL;
@@ -2764,7 +2764,7 @@ int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 
 	band = priv->band == IEEE80211_BAND_2GHZ;
 
-	ch_info = iwl4965_get_channel_info(priv, priv->band, channel);
+	ch_info = iwl_get_channel_info(priv, priv->band, channel);
 
 	is_fat = is_fat_channel(priv->staging_rxon.flags);
 
@@ -4574,7 +4574,7 @@ static u8 iwl4965_is_channel_extension(struct iwl_priv *priv,
 {
 	const struct iwl_channel_info *ch_info;
 
-	ch_info = iwl4965_get_channel_info(priv, band, channel);
+	ch_info = iwl_get_channel_info(priv, band, channel);
 	if (!is_channel_valid(ch_info))
 		return 0;
 

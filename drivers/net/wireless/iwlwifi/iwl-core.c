@@ -191,7 +191,7 @@ int iwlcore_set_rxon_channel(struct iwl_priv *priv,
 				enum ieee80211_band band,
 				u16 channel)
 {
-	if (!iwl4965_get_channel_info(priv, band, channel)) {
+	if (!iwl_get_channel_info(priv, band, channel)) {
 		IWL_DEBUG_INFO("Could not set channel to %d [%d]\n",
 			       channel, band);
 		return -EINVAL;
