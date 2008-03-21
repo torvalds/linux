@@ -179,7 +179,7 @@ void smp_send_stop(void)
 }
 
 struct smp_fn_call_struct smp_fn_call = {
-	.lock		= SPIN_LOCK_UNLOCKED,
+	.lock		= __SPIN_LOCK_UNLOCKED(smp_fn_call.lock),
 	.finished	= ATOMIC_INIT(0),
 };
 
