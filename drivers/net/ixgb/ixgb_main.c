@@ -197,7 +197,6 @@ module_exit(ixgb_exit_module);
 static void
 ixgb_irq_disable(struct ixgb_adapter *adapter)
 {
-	atomic_inc(&adapter->irq_sem);
 	IXGB_WRITE_REG(&adapter->hw, IMC, ~0);
 	IXGB_WRITE_FLUSH(&adapter->hw);
 	synchronize_irq(adapter->pdev->irq);
@@ -211,14 +210,12 @@ ixgb_irq_disable(struct ixgb_adapter *adapter)
 static void
 ixgb_irq_enable(struct ixgb_adapter *adapter)
 {
-	if(atomic_dec_and_test(&adapter->irq_sem)) {
-		u32 val = IXGB_INT_RXT0 | IXGB_INT_RXDMT0 |
-			  IXGB_INT_TXDW | IXGB_INT_LSC;
-		if (adapter->hw.subsystem_vendor_id == SUN_SUBVENDOR_ID)
-			val |= IXGB_INT_GPI0;
-		IXGB_WRITE_REG(&adapter->hw, IMS, val);
-		IXGB_WRITE_FLUSH(&adapter->hw);
-	}
+	u32 val = IXGB_INT_RXT0 | IXGB_INT_RXDMT0 |
+		  IXGB_INT_TXDW | IXGB_INT_LSC;
+	if (adapter->hw.subsystem_vendor_id == SUN_SUBVENDOR_ID)
+		val |= IXGB_INT_GPI0;
+	IXGB_WRITE_REG(&adapter->hw, IMS, val);
+	IXGB_WRITE_FLUSH(&adapter->hw);
 }
 
 int
@@ -305,7 +302,6 @@ ixgb_down(struct ixgb_adapter *adapter, bool kill_watchdog)
 
 #ifdef CONFIG_IXGB_NAPI
 	napi_disable(&adapter->napi);
-	atomic_set(&adapter->irq_sem, 0);
 #endif
 	/* waiting for NAPI to complete can re-enable interrupts */
 	ixgb_irq_disable(adapter);
@@ -594,7 +590,6 @@ ixgb_sw_init(struct ixgb_adapter *adapter)
 	/* enable flow control to be programmed */
 	hw->fc.send_xon = 1;
 
-	atomic_set(&adapter->irq_sem, 1);
 	spin_lock_init(&adapter->tx_lock);
 
 	set_bit(__IXGB_DOWN, &adapter->flags);
@@ -1774,7 +1769,6 @@ ixgb_intr(int irq, void *data)
 		  of the posted write is intentionally left out.
 		*/
 
-		atomic_inc(&adapter->irq_sem);
 		IXGB_WRITE_REG(&adapter->hw, IMC, ~0);
 		__netif_rx_schedule(netdev, &adapter->napi);
 	}

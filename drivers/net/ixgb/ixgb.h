@@ -158,7 +158,6 @@ struct ixgb_adapter {
 	uint16_t link_speed;
 	uint16_t link_duplex;
 	spinlock_t tx_lock;
-	atomic_t irq_sem;
 	struct work_struct tx_timeout_task;
 
 	struct timer_list blink_timer;
