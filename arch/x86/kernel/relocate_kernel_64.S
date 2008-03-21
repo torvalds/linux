@@ -15,11 +15,10 @@
  */
 
 #define PTR(x) (x << 3)
-#define PAGE_ALIGNED (1 << PAGE_SHIFT)
 #define PAGE_ATTR 0x63 /* _PAGE_PRESENT|_PAGE_RW|_PAGE_ACCESSED|_PAGE_DIRTY */
 
 	.text
-	.align PAGE_ALIGNED
+	.align PAGE_SIZE
 	.code64
 	.globl relocate_kernel
 relocate_kernel:

@@ -15,12 +15,11 @@
  */
 
 #define PTR(x) (x << 2)
-#define PAGE_ALIGNED (1 << PAGE_SHIFT)
 #define PAGE_ATTR 0x63 /* _PAGE_PRESENT|_PAGE_RW|_PAGE_ACCESSED|_PAGE_DIRTY */
 #define PAE_PGD_ATTR 0x01 /* _PAGE_PRESENT */
 
 	.text
-	.align PAGE_ALIGNED
+	.align PAGE_SIZE
 	.globl relocate_kernel
 relocate_kernel:
 	movl	8(%esp), %ebp /* list of pages */
