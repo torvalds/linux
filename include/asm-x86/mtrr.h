@@ -84,10 +84,9 @@ struct mtrr_gentry
 
 #ifdef __KERNEL__
 
-extern u8 mtrr_type_lookup(u64 addr, u64 end);
-
 /*  The following functions are for use by other drivers  */
 # ifdef CONFIG_MTRR
+extern u8 mtrr_type_lookup(u64 addr, u64 end);
 extern void mtrr_save_fixed_ranges(void *);
 extern void mtrr_save_state(void);
 extern int mtrr_add (unsigned long base, unsigned long size,
@@ -101,6 +100,13 @@ extern void mtrr_ap_init(void);
 extern void mtrr_bp_init(void);
 extern int mtrr_trim_uncached_memory(unsigned long end_pfn);
 #  else
+static inline u8 mtrr_type_lookup(u64 addr, u64 end)
+{
+	/*
+	 * Return no-MTRRs:
+	 */
+	return 0xff;
+}
 #define mtrr_save_fixed_ranges(arg) do {} while (0)
 #define mtrr_save_state() do {} while (0)
 static __inline__ int mtrr_add (unsigned long base, unsigned long size,
