@@ -83,28 +83,6 @@ enum {
 	EC_FLAGS_RESCHEDULE_POLL	/* Re-schedule poll */
 };
 
-static int acpi_ec_remove(struct acpi_device *device, int type);
-static int acpi_ec_start(struct acpi_device *device);
-static int acpi_ec_stop(struct acpi_device *device, int type);
-static int acpi_ec_add(struct acpi_device *device);
-
-static const struct acpi_device_id ec_device_ids[] = {
-	{"PNP0C09", 0},
-	{"", 0},
-};
-
-static struct acpi_driver acpi_ec_driver = {
-	.name = "ec",
-	.class = ACPI_EC_CLASS,
-	.ids = ec_device_ids,
-	.ops = {
-		.add = acpi_ec_add,
-		.remove = acpi_ec_remove,
-		.start = acpi_ec_start,
-		.stop = acpi_ec_stop,
-		},
-};
-
 /* If we find an EC via the ECDT, we need to keep a ptr to its context */
 /* External interfaces use first EC only, so remember */
 typedef int (*acpi_ec_query_func) (void *data);
@@ -924,6 +902,11 @@ int __init acpi_boot_ec_enable(void)
 	return -EFAULT;
 }
 
+static const struct acpi_device_id ec_device_ids[] = {
+	{"PNP0C09", 0},
+	{"", 0},
+};
+
 int __init acpi_ec_ecdt_probe(void)
 {
 	int ret;
@@ -972,6 +955,39 @@ int __init acpi_ec_ecdt_probe(void)
 	boot_ec = NULL;
 	return -ENODEV;
 }
+
+static int acpi_ec_suspend(struct acpi_device *device, pm_message_t state)
+{
+	struct acpi_ec *ec = acpi_driver_data(device);
+	/* Stop using GPE */
+	set_bit(EC_FLAGS_NO_GPE, &ec->flags);
+	clear_bit(EC_FLAGS_GPE_MODE, &ec->flags);
+	acpi_disable_gpe(NULL, ec->gpe, ACPI_NOT_ISR);
+	return 0;
+}
+
+static int acpi_ec_resume(struct acpi_device *device)
+{
+	struct acpi_ec *ec = acpi_driver_data(device);
+	/* Enable use of GPE back */
+	clear_bit(EC_FLAGS_NO_GPE, &ec->flags);
+	acpi_enable_gpe(NULL, ec->gpe, ACPI_NOT_ISR);
+	return 0;
+}
+
+static struct acpi_driver acpi_ec_driver = {
+	.name = "ec",
+	.class = ACPI_EC_CLASS,
+	.ids = ec_device_ids,
+	.ops = {
+		.add = acpi_ec_add,
+		.remove = acpi_ec_remove,
+		.start = acpi_ec_start,
+		.stop = acpi_ec_stop,
+		.suspend = acpi_ec_suspend,
+		.resume = acpi_ec_resume,
+		},
+};
 
 static int __init acpi_ec_init(void)
 {
