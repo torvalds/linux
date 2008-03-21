@@ -305,7 +305,7 @@ int iwl4965_tx_queue_init(struct iwl_priv *priv,
 	 * For normal Tx queues (all other queues), no super-size command
 	 * space is needed.
 	 */
-	len = sizeof(struct iwl4965_cmd) * slots_num;
+	len = sizeof(struct iwl_cmd) * slots_num;
 	if (txq_id == IWL_CMD_QUEUE_NUM)
 		len +=  IWL_MAX_SCAN_SIZE;
 	txq->cmd = pci_alloc_consistent(dev, len, &txq->dma_addr_cmd);
@@ -356,7 +356,7 @@ void iwl4965_tx_queue_free(struct iwl_priv *priv, struct iwl4965_tx_queue *txq)
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd))
 		iwl4965_hw_txq_free_tfd(priv, txq);
 
-	len = sizeof(struct iwl4965_cmd) * q->n_window;
+	len = sizeof(struct iwl_cmd) * q->n_window;
 	if (q->id == IWL_CMD_QUEUE_NUM)
 		len += IWL_MAX_SCAN_SIZE;
 
@@ -541,65 +541,6 @@ static inline int iwl4965_is_ready_rf(struct iwl_priv *priv)
 
 /*************** HOST COMMAND QUEUE FUNCTIONS   *****/
 
-#define IWL_CMD(x) case x : return #x
-
-static const char *get_cmd_string(u8 cmd)
-{
-	switch (cmd) {
-		IWL_CMD(REPLY_ALIVE);
-		IWL_CMD(REPLY_ERROR);
-		IWL_CMD(REPLY_RXON);
-		IWL_CMD(REPLY_RXON_ASSOC);
-		IWL_CMD(REPLY_QOS_PARAM);
-		IWL_CMD(REPLY_RXON_TIMING);
-		IWL_CMD(REPLY_ADD_STA);
-		IWL_CMD(REPLY_REMOVE_STA);
-		IWL_CMD(REPLY_REMOVE_ALL_STA);
-		IWL_CMD(REPLY_TX);
-		IWL_CMD(REPLY_RATE_SCALE);
-		IWL_CMD(REPLY_LEDS_CMD);
-		IWL_CMD(REPLY_TX_LINK_QUALITY_CMD);
-		IWL_CMD(RADAR_NOTIFICATION);
-		IWL_CMD(REPLY_QUIET_CMD);
-		IWL_CMD(REPLY_CHANNEL_SWITCH);
-		IWL_CMD(CHANNEL_SWITCH_NOTIFICATION);
-		IWL_CMD(REPLY_SPECTRUM_MEASUREMENT_CMD);
-		IWL_CMD(SPECTRUM_MEASURE_NOTIFICATION);
-		IWL_CMD(POWER_TABLE_CMD);
-		IWL_CMD(PM_SLEEP_NOTIFICATION);
-		IWL_CMD(PM_DEBUG_STATISTIC_NOTIFIC);
-		IWL_CMD(REPLY_SCAN_CMD);
-		IWL_CMD(REPLY_SCAN_ABORT_CMD);
-		IWL_CMD(SCAN_START_NOTIFICATION);
-		IWL_CMD(SCAN_RESULTS_NOTIFICATION);
-		IWL_CMD(SCAN_COMPLETE_NOTIFICATION);
-		IWL_CMD(BEACON_NOTIFICATION);
-		IWL_CMD(REPLY_TX_BEACON);
-		IWL_CMD(WHO_IS_AWAKE_NOTIFICATION);
-		IWL_CMD(QUIET_NOTIFICATION);
-		IWL_CMD(REPLY_TX_PWR_TABLE_CMD);
-		IWL_CMD(MEASURE_ABORT_NOTIFICATION);
-		IWL_CMD(REPLY_BT_CONFIG);
-		IWL_CMD(REPLY_STATISTICS_CMD);
-		IWL_CMD(STATISTICS_NOTIFICATION);
-		IWL_CMD(REPLY_CARD_STATE_CMD);
-		IWL_CMD(CARD_STATE_NOTIFICATION);
-		IWL_CMD(MISSED_BEACONS_NOTIFICATION);
-		IWL_CMD(REPLY_CT_KILL_CONFIG_CMD);
-		IWL_CMD(SENSITIVITY_CMD);
-		IWL_CMD(REPLY_PHY_CALIBRATION_CMD);
-		IWL_CMD(REPLY_RX_PHY_CMD);
-		IWL_CMD(REPLY_RX_MPDU_CMD);
-		IWL_CMD(REPLY_4965_RX);
-		IWL_CMD(REPLY_COMPRESSED_BA);
-	default:
-		return "UNKNOWN";
-
-	}
-}
-
-#define HOST_COMPLETE_TIMEOUT (HZ / 2)
-
 /**
  * iwl4965_enqueue_hcmd - enqueue a uCode command
  * @priv: device private data point
@@ -609,13 +550,13 @@ static const char *get_cmd_string(u8 cmd)
  * failed. On success, it turns the index (> 0) of command in the
  * command queue.
  */
-static int iwl4965_enqueue_hcmd(struct iwl_priv *priv, struct iwl4965_host_cmd *cmd)
+int iwl4965_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	struct iwl4965_tx_queue *txq = &priv->txq[IWL_CMD_QUEUE_NUM];
 	struct iwl4965_queue *q = &txq->q;
 	struct iwl4965_tfd_frame *tfd;
 	u32 *control_flags;
-	struct iwl4965_cmd *out_cmd;
+	struct iwl_cmd *out_cmd;
 	u32 idx;
 	u16 fix_size = (u16)(cmd->len + sizeof(out_cmd->hdr));
 	dma_addr_t phys_addr;
@@ -662,7 +603,7 @@ static int iwl4965_enqueue_hcmd(struct iwl_priv *priv, struct iwl4965_host_cmd *
 		out_cmd->hdr.sequence |= cpu_to_le16(SEQ_HUGE_FRAME);
 
 	phys_addr = txq->dma_addr_cmd + sizeof(txq->cmd[0]) * idx +
-			offsetof(struct iwl4965_cmd, hdr);
+			offsetof(struct iwl_cmd, hdr);
 	iwl4965_hw_txq_attach_buf_to_tfd(priv, tfd, phys_addr, fix_size);
 
 	IWL_DEBUG_HC("Sending command %s (#%x), seq: 0x%04X, "
@@ -684,118 +625,6 @@ static int iwl4965_enqueue_hcmd(struct iwl_priv *priv, struct iwl4965_host_cmd *
 	return ret ? ret : idx;
 }
 
-static int iwl4965_send_cmd_async(struct iwl_priv *priv, struct iwl4965_host_cmd *cmd)
-{
-	int ret;
-
-	BUG_ON(!(cmd->meta.flags & CMD_ASYNC));
-
-	/* An asynchronous command can not expect an SKB to be set. */
-	BUG_ON(cmd->meta.flags & CMD_WANT_SKB);
-
-	/* An asynchronous command MUST have a callback. */
-	BUG_ON(!cmd->meta.u.callback);
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return -EBUSY;
-
-	ret = iwl4965_enqueue_hcmd(priv, cmd);
-	if (ret < 0) {
-		IWL_ERROR("Error sending %s: iwl4965_enqueue_hcmd failed: %d\n",
-			  get_cmd_string(cmd->id), ret);
-		return ret;
-	}
-	return 0;
-}
-
-static int iwl4965_send_cmd_sync(struct iwl_priv *priv, struct iwl4965_host_cmd *cmd)
-{
-	int cmd_idx;
-	int ret;
-	static atomic_t entry = ATOMIC_INIT(0); /* reentrance protection */
-
-	BUG_ON(cmd->meta.flags & CMD_ASYNC);
-
-	 /* A synchronous command can not have a callback set. */
-	BUG_ON(cmd->meta.u.callback != NULL);
-
-	if (atomic_xchg(&entry, 1)) {
-		IWL_ERROR("Error sending %s: Already sending a host command\n",
-			  get_cmd_string(cmd->id));
-		return -EBUSY;
-	}
-
-	set_bit(STATUS_HCMD_ACTIVE, &priv->status);
-
-	if (cmd->meta.flags & CMD_WANT_SKB)
-		cmd->meta.source = &cmd->meta;
-
-	cmd_idx = iwl4965_enqueue_hcmd(priv, cmd);
-	if (cmd_idx < 0) {
-		ret = cmd_idx;
-		IWL_ERROR("Error sending %s: iwl4965_enqueue_hcmd failed: %d\n",
-			  get_cmd_string(cmd->id), ret);
-		goto out;
-	}
-
-	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
-			!test_bit(STATUS_HCMD_ACTIVE, &priv->status),
-			HOST_COMPLETE_TIMEOUT);
-	if (!ret) {
-		if (test_bit(STATUS_HCMD_ACTIVE, &priv->status)) {
-			IWL_ERROR("Error sending %s: time out after %dms.\n",
-				  get_cmd_string(cmd->id),
-				  jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
-
-			clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
-			ret = -ETIMEDOUT;
-			goto cancel;
-		}
-	}
-
-	if (test_bit(STATUS_RF_KILL_HW, &priv->status)) {
-		IWL_DEBUG_INFO("Command %s aborted: RF KILL Switch\n",
-			       get_cmd_string(cmd->id));
-		ret = -ECANCELED;
-		goto fail;
-	}
-	if (test_bit(STATUS_FW_ERROR, &priv->status)) {
-		IWL_DEBUG_INFO("Command %s failed: FW Error\n",
-			       get_cmd_string(cmd->id));
-		ret = -EIO;
-		goto fail;
-	}
-	if ((cmd->meta.flags & CMD_WANT_SKB) && !cmd->meta.u.skb) {
-		IWL_ERROR("Error: Response NULL in '%s'\n",
-			  get_cmd_string(cmd->id));
-		ret = -EIO;
-		goto out;
-	}
-
-	ret = 0;
-	goto out;
-
-cancel:
-	if (cmd->meta.flags & CMD_WANT_SKB) {
-		struct iwl4965_cmd *qcmd;
-
-		/* Cancel the CMD_WANT_SKB flag for the cmd in the
-		 * TX cmd queue. Otherwise in case the cmd comes
-		 * in later, it will possibly set an invalid
-		 * address (cmd->meta.source). */
-		qcmd = &priv->txq[IWL_CMD_QUEUE_NUM].cmd[cmd_idx];
-		qcmd->meta.flags &= ~CMD_WANT_SKB;
-	}
-fail:
-	if (cmd->meta.u.skb) {
-		dev_kfree_skb_any(cmd->meta.u.skb);
-		cmd->meta.u.skb = NULL;
-	}
-out:
-	atomic_set(&entry, 0);
-	return ret;
-}
-
 static void iwl4965_set_rxon_hwcrypto(struct iwl_priv *priv, int hw_decrypt)
 {
 	struct iwl4965_rxon_cmd *rxon = &priv->staging_rxon;
@@ -807,39 +636,11 @@ static void iwl4965_set_rxon_hwcrypto(struct iwl_priv *priv, int hw_decrypt)
 
 }
 
-int iwl4965_send_cmd(struct iwl_priv *priv, struct iwl4965_host_cmd *cmd)
-{
-	if (cmd->meta.flags & CMD_ASYNC)
-		return iwl4965_send_cmd_async(priv, cmd);
-
-	return iwl4965_send_cmd_sync(priv, cmd);
-}
-
-int iwl4965_send_cmd_pdu(struct iwl_priv *priv, u8 id, u16 len, const void *data)
-{
-	struct iwl4965_host_cmd cmd = {
-		.id = id,
-		.len = len,
-		.data = data,
-	};
-
-	return iwl4965_send_cmd_sync(priv, &cmd);
-}
-
-static int __must_check iwl4965_send_cmd_u32(struct iwl_priv *priv, u8 id, u32 val)
-{
-	struct iwl4965_host_cmd cmd = {
-		.id = id,
-		.len = sizeof(val),
-		.data = &val,
-	};
-
-	return iwl4965_send_cmd_sync(priv, &cmd);
-}
-
 int iwl4965_send_statistics_request(struct iwl_priv *priv)
 {
-	return iwl4965_send_cmd_u32(priv, REPLY_STATISTICS_CMD, 0);
+	u32 flags = 0;
+	return iwl_send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
+				      sizeof(flags), &flags);
 }
 
 /**
@@ -1000,7 +801,7 @@ static int iwl4965_send_rxon_assoc(struct iwl_priv *priv)
 	int rc = 0;
 	struct iwl4965_rx_packet *res = NULL;
 	struct iwl4965_rxon_assoc_cmd rxon_assoc;
-	struct iwl4965_host_cmd cmd = {
+	struct iwl_host_cmd cmd = {
 		.id = REPLY_RXON_ASSOC,
 		.len = sizeof(rxon_assoc),
 		.meta.flags = CMD_WANT_SKB,
@@ -1033,7 +834,7 @@ static int iwl4965_send_rxon_assoc(struct iwl_priv *priv)
 	    priv->staging_rxon.ofdm_ht_dual_stream_basic_rates;
 	rxon_assoc.rx_chain_select_flags = priv->staging_rxon.rx_chain;
 
-	rc = iwl4965_send_cmd_sync(priv, &cmd);
+	rc = iwl_send_cmd_sync(priv, &cmd);
 	if (rc)
 		return rc;
 
@@ -1112,7 +913,7 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 		IWL_DEBUG_INFO("Toggling associated bit on current RXON\n");
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 
-		rc = iwl4965_send_cmd_pdu(priv, REPLY_RXON,
+		rc = iwl_send_cmd_pdu(priv, REPLY_RXON,
 				      sizeof(struct iwl4965_rxon_cmd),
 				      &priv->active_rxon);
 
@@ -1137,7 +938,7 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 
 	iwl4965_set_rxon_hwcrypto(priv, priv->cfg->mod_params->hw_crypto);
 	/* Apply the new configuration */
-	rc = iwl4965_send_cmd_pdu(priv, REPLY_RXON,
+	rc = iwl_send_cmd_pdu(priv, REPLY_RXON,
 			      sizeof(struct iwl4965_rxon_cmd), &priv->staging_rxon);
 	if (rc) {
 		IWL_ERROR("Error setting new configuration (%d).\n", rc);
@@ -1196,7 +997,7 @@ static int iwl4965_send_bt_config(struct iwl_priv *priv)
 		.kill_cts_mask = 0,
 	};
 
-	return iwl4965_send_cmd_pdu(priv, REPLY_BT_CONFIG,
+	return iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
 				sizeof(struct iwl4965_bt_cmd), &bt_cmd);
 }
 
@@ -1204,7 +1005,7 @@ static int iwl4965_send_scan_abort(struct iwl_priv *priv)
 {
 	int rc = 0;
 	struct iwl4965_rx_packet *res;
-	struct iwl4965_host_cmd cmd = {
+	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_ABORT_CMD,
 		.meta.flags = CMD_WANT_SKB,
 	};
@@ -1217,7 +1018,7 @@ static int iwl4965_send_scan_abort(struct iwl_priv *priv)
 		return 0;
 	}
 
-	rc = iwl4965_send_cmd_sync(priv, &cmd);
+	rc = iwl_send_cmd_sync(priv, &cmd);
 	if (rc) {
 		clear_bit(STATUS_SCAN_ABORTING, &priv->status);
 		return rc;
@@ -1242,7 +1043,7 @@ static int iwl4965_send_scan_abort(struct iwl_priv *priv)
 }
 
 static int iwl4965_card_state_sync_callback(struct iwl_priv *priv,
-					struct iwl4965_cmd *cmd,
+					struct iwl_cmd *cmd,
 					struct sk_buff *skb)
 {
 	return 1;
@@ -1260,7 +1061,7 @@ static int iwl4965_card_state_sync_callback(struct iwl_priv *priv,
  */
 static int iwl4965_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_flag)
 {
-	struct iwl4965_host_cmd cmd = {
+	struct iwl_host_cmd cmd = {
 		.id = REPLY_CARD_STATE_CMD,
 		.len = sizeof(u32),
 		.data = &flags,
@@ -1270,11 +1071,11 @@ static int iwl4965_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_fla
 	if (meta_flag & CMD_ASYNC)
 		cmd.meta.u.callback = iwl4965_card_state_sync_callback;
 
-	return iwl4965_send_cmd(priv, &cmd);
+	return iwl_send_cmd(priv, &cmd);
 }
 
 static int iwl4965_add_sta_sync_callback(struct iwl_priv *priv,
-				     struct iwl4965_cmd *cmd, struct sk_buff *skb)
+				     struct iwl_cmd *cmd, struct sk_buff *skb)
 {
 	struct iwl4965_rx_packet *res = NULL;
 
@@ -1306,7 +1107,7 @@ int iwl4965_send_add_station(struct iwl_priv *priv,
 {
 	struct iwl4965_rx_packet *res = NULL;
 	int rc = 0;
-	struct iwl4965_host_cmd cmd = {
+	struct iwl_host_cmd cmd = {
 		.id = REPLY_ADD_STA,
 		.len = sizeof(struct iwl4965_addsta_cmd),
 		.meta.flags = flags,
@@ -1318,7 +1119,7 @@ int iwl4965_send_add_station(struct iwl_priv *priv,
 	else
 		cmd.meta.flags |= CMD_WANT_SKB;
 
-	rc = iwl4965_send_cmd(priv, &cmd);
+	rc = iwl_send_cmd(priv, &cmd);
 
 	if (rc || (flags & CMD_ASYNC))
 		return rc;
@@ -1579,7 +1380,7 @@ static int iwl4965_send_beacon_cmd(struct iwl_priv *priv)
 
 	frame_size = iwl4965_hw_get_beacon_cmd(priv, frame, rate);
 
-	rc = iwl4965_send_cmd_pdu(priv, REPLY_TX_BEACON, frame_size,
+	rc = iwl_send_cmd_pdu(priv, REPLY_TX_BEACON, frame_size,
 			      &frame->u.cmd[0]);
 
 	iwl4965_free_frame(priv, frame);
@@ -1756,7 +1557,7 @@ static int iwl4965_send_qos_params_command(struct iwl_priv *priv,
 				       struct iwl4965_qosparam_cmd *qos)
 {
 
-	return iwl4965_send_cmd_pdu(priv, REPLY_QOS_PARAM,
+	return iwl_send_cmd_pdu(priv, REPLY_QOS_PARAM,
 				sizeof(struct iwl4965_qosparam_cmd), qos);
 }
 
@@ -1966,7 +1767,7 @@ static int iwl4965_send_power_mode(struct iwl_priv *priv, u32 mode)
 
 	iwl4965_update_power_cmd(priv, &cmd, final_mode);
 
-	rc = iwl4965_send_cmd_pdu(priv, POWER_TABLE_CMD, sizeof(cmd), &cmd);
+	rc = iwl_send_cmd_pdu(priv, POWER_TABLE_CMD, sizeof(cmd), &cmd);
 
 	if (final_mode == IWL_POWER_MODE_CAM)
 		clear_bit(STATUS_POWER_PMI, &priv->status);
@@ -2345,7 +2146,7 @@ static int iwl4965_set_mode(struct iwl_priv *priv, int mode)
 
 static void iwl4965_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 				      struct ieee80211_tx_control *ctl,
-				      struct iwl4965_cmd *cmd,
+				      struct iwl_cmd *cmd,
 				      struct sk_buff *skb_frag,
 				      int sta_id)
 {
@@ -2390,7 +2191,7 @@ static void iwl4965_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
  * handle build REPLY_TX command notification.
  */
 static void iwl4965_build_tx_cmd_basic(struct iwl_priv *priv,
-				  struct iwl4965_cmd *cmd,
+				  struct iwl_cmd *cmd,
 				  struct ieee80211_tx_control *ctrl,
 				  struct ieee80211_hdr *hdr,
 				  int is_unicast, u8 std_id)
@@ -2531,7 +2332,7 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
 	dma_addr_t scratch_phys;
-	struct iwl4965_cmd *out_cmd = NULL;
+	struct iwl_cmd *out_cmd = NULL;
 	u16 len, idx, len_org;
 	u8 id, hdr_len, unicast;
 	u8 sta_id;
@@ -2660,7 +2461,7 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 	 * We'll tell device about this padding later.
 	 */
 	len = priv->hw_setting.tx_cmd_len +
-		sizeof(struct iwl4965_cmd_header) + hdr_len;
+		sizeof(struct iwl_cmd_header) + hdr_len;
 
 	len_org = len;
 	len = (len + 3) & ~3;
@@ -2672,8 +2473,8 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 
 	/* Physical address of this Tx command's header (not MAC header!),
 	 * within command buffer array. */
-	txcmd_phys = txq->dma_addr_cmd + sizeof(struct iwl4965_cmd) * idx +
-		     offsetof(struct iwl4965_cmd, hdr);
+	txcmd_phys = txq->dma_addr_cmd + sizeof(struct iwl_cmd) * idx +
+		     offsetof(struct iwl_cmd, hdr);
 
 	/* Add buffer containing Tx command and MAC(!) header to TFD's
 	 * first entry */
@@ -2707,7 +2508,7 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 
 	iwl_update_tx_stats(priv, fc, len);
 
-	scratch_phys = txcmd_phys + sizeof(struct iwl4965_cmd_header) +
+	scratch_phys = txcmd_phys + sizeof(struct iwl_cmd_header) +
 		offsetof(struct iwl4965_tx_cmd, scratch);
 	out_cmd->cmd.tx.dram_lsb_ptr = cpu_to_le32(scratch_phys);
 	out_cmd->cmd.tx.dram_msb_ptr = iwl_get_dma_hi_address(scratch_phys);
@@ -3020,7 +2821,7 @@ static int iwl4965_get_measurement(struct iwl_priv *priv,
 {
 	struct iwl4965_spectrum_cmd spectrum;
 	struct iwl4965_rx_packet *res;
-	struct iwl4965_host_cmd cmd = {
+	struct iwl_host_cmd cmd = {
 		.id = REPLY_SPECTRUM_MEASUREMENT_CMD,
 		.data = (void *)&spectrum,
 		.meta.flags = CMD_WANT_SKB,
@@ -3060,7 +2861,7 @@ static int iwl4965_get_measurement(struct iwl_priv *priv,
 		spectrum.flags |= RXON_FLG_BAND_24G_MSK |
 		    RXON_FLG_AUTO_DETECT_MSK | RXON_FLG_TGG_PROTECT_MSK;
 
-	rc = iwl4965_send_cmd_sync(priv, &cmd);
+	rc = iwl_send_cmd_sync(priv, &cmd);
 	if (rc)
 		return rc;
 
@@ -3835,7 +3636,7 @@ static void iwl4965_tx_cmd_complete(struct iwl_priv *priv,
 	int index = SEQ_TO_INDEX(sequence);
 	int huge = sequence & SEQ_HUGE_FRAME;
 	int cmd_index;
-	struct iwl4965_cmd *cmd;
+	struct iwl_cmd *cmd;
 
 	/* If a Tx command is being handled and it isn't in the actual
 	 * command queue then there a command routing bug has been introduced
@@ -4337,7 +4138,7 @@ static void iwl4965_rx_handle(struct iwl_priv *priv)
 		 *   but apparently a few don't get set; catch them here. */
 		reclaim = !(pkt->hdr.sequence & SEQ_RX_FRAME) &&
 			(pkt->hdr.cmd != REPLY_RX_PHY_CMD) &&
-			(pkt->hdr.cmd != REPLY_4965_RX) &&
+			(pkt->hdr.cmd != REPLY_RX) &&
 			(pkt->hdr.cmd != REPLY_COMPRESSED_BA) &&
 			(pkt->hdr.cmd != STATISTICS_NOTIFICATION) &&
 			(pkt->hdr.cmd != REPLY_TX);
@@ -4360,7 +4161,7 @@ static void iwl4965_rx_handle(struct iwl_priv *priv)
 
 		if (reclaim) {
 			/* Invoke any callbacks, transfer the skb to caller, and
-			 * fire off the (possibly) blocking iwl4965_send_cmd()
+			 * fire off the (possibly) blocking iwl_send_cmd()
 			 * as we reclaim the driver command queue */
 			if (rxb && rxb->skb)
 				iwl4965_tx_cmd_complete(priv, rxb);
@@ -6213,17 +6014,17 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 {
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, request_scan);
-	struct iwl4965_host_cmd cmd = {
+	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_CMD,
 		.len = sizeof(struct iwl4965_scan_cmd),
 		.meta.flags = CMD_SIZE_HUGE,
 	};
-	int rc = 0;
 	struct iwl4965_scan_cmd *scan;
 	struct ieee80211_conf *conf = NULL;
 	u16 cmd_len;
 	enum ieee80211_band band;
 	u8 direct_mask;
+	int ret = 0;
 
 	conf = ieee80211_get_hw_conf(priv->hw);
 
@@ -6244,7 +6045,7 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 	if (test_bit(STATUS_SCAN_HW, &priv->status)) {
 		IWL_DEBUG_INFO("Multiple concurrent scan requests in parallel. "
 			       "Ignoring second request.\n");
-		rc = -EIO;
+		ret = -EIO;
 		goto done;
 	}
 
@@ -6277,7 +6078,7 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 		priv->scan = kmalloc(sizeof(struct iwl4965_scan_cmd) +
 				     IWL_MAX_SCAN_SIZE, GFP_KERNEL);
 		if (!priv->scan) {
-			rc = -ENOMEM;
+			ret = -ENOMEM;
 			goto done;
 		}
 	}
@@ -6329,8 +6130,9 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 		scan->direct_scan[0].len = priv->essid_len;
 		memcpy(scan->direct_scan[0].ssid, priv->essid, priv->essid_len);
 		direct_mask = 1;
-	} else
+	} else {
 		direct_mask = 0;
+	}
 
 	scan->tx_cmd.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK;
 	scan->tx_cmd.sta_id = priv->hw_setting.bcast_sta_id;
@@ -6405,8 +6207,8 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 	scan->len = cpu_to_le16(cmd.len);
 
 	set_bit(STATUS_SCAN_HW, &priv->status);
-	rc = iwl4965_send_cmd_sync(priv, &cmd);
-	if (rc)
+	ret = iwl_send_cmd_sync(priv, &cmd);
+	if (ret)
 		goto done;
 
 	queue_delayed_work(priv->workqueue, &priv->scan_check,
@@ -6463,9 +6265,8 @@ static void iwl4965_bg_post_associate(struct work_struct *data)
 {
 	struct iwl_priv *priv = container_of(data, struct iwl_priv,
 					     post_associate.work);
-
-	int rc = 0;
 	struct ieee80211_conf *conf = NULL;
+	int ret = 0;
 	DECLARE_MAC_BUF(mac);
 
 	if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {
@@ -6496,9 +6297,9 @@ static void iwl4965_bg_post_associate(struct work_struct *data)
 
 	memset(&priv->rxon_timing, 0, sizeof(struct iwl4965_rxon_time_cmd));
 	iwl4965_setup_rxon_timing(priv);
-	rc = iwl4965_send_cmd_pdu(priv, REPLY_RXON_TIMING,
+	ret = iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
 			      sizeof(priv->rxon_timing), &priv->rxon_timing);
-	if (rc)
+	if (ret)
 		IWL_WARNING("REPLY_RXON_TIMING failed - "
 			    "Attempting to continue.\n");
 
@@ -6894,7 +6695,7 @@ out:
 
 static void iwl4965_config_ap(struct iwl_priv *priv)
 {
-	int rc = 0;
+	int ret = 0;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
@@ -6909,9 +6710,9 @@ static void iwl4965_config_ap(struct iwl_priv *priv)
 		/* RXON Timing */
 		memset(&priv->rxon_timing, 0, sizeof(struct iwl4965_rxon_time_cmd));
 		iwl4965_setup_rxon_timing(priv);
-		rc = iwl4965_send_cmd_pdu(priv, REPLY_RXON_TIMING,
+		ret = iwl_send_cmd_pdu(priv, REPLY_RXON_TIMING,
 				sizeof(priv->rxon_timing), &priv->rxon_timing);
-		if (rc)
+		if (ret)
 			IWL_WARNING("REPLY_RXON_TIMING failed - "
 					"Attempting to continue.\n");
 

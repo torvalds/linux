@@ -139,7 +139,7 @@ enum {
 	REPLY_PHY_CALIBRATION_CMD = 0xb0,
 	REPLY_RX_PHY_CMD = 0xc0,
 	REPLY_RX_MPDU_CMD = 0xc1,
-	REPLY_4965_RX = 0xc3,
+	REPLY_RX = 0xc3,
 	REPLY_COMPRESSED_BA = 0xc5,
 	REPLY_MAX = 0xff
 };
@@ -151,16 +151,16 @@ enum {
  *
  *****************************************************************************/
 
-/* iwl4965_cmd_header flags value */
+/* iwl_cmd_header flags value */
 #define IWL_CMD_FAILED_MSK 0x40
 
 /**
- * struct iwl4965_cmd_header
+ * struct iwl_cmd_header
  *
  * This header format appears in the beginning of each command sent from the
  * driver, and each response/notification received from uCode.
  */
-struct iwl4965_cmd_header {
+struct iwl_cmd_header {
 	u8 cmd;		/* Command ID:  REPLY_RXON, etc. */
 	u8 flags;	/* IWL_CMD_* */
 	/*
@@ -194,7 +194,7 @@ struct iwl4965_cmd_header {
  * 4965 rate_n_flags bit fields
  *
  * rate_n_flags format is used in following 4965 commands:
- *  REPLY_4965_RX (response only)
+ *  REPLY_RX (response only)
  *  REPLY_TX (both command and response)
  *  REPLY_TX_LINK_QUALITY_CMD
  *
@@ -939,7 +939,7 @@ struct iwl4965_rx_non_cfg_phy {
 } __attribute__ ((packed));
 
 /*
- * REPLY_4965_RX = 0xc3 (response only, not a command)
+ * REPLY_RX = 0xc3 (response only, not a command)
  * Used only for legacy (non 11n) frames.
  */
 #define RX_RES_PHY_CNT 14
@@ -2664,7 +2664,7 @@ struct iwl4965_led_cmd {
 
 struct iwl4965_rx_packet {
 	__le32 len;
-	struct iwl4965_cmd_header hdr;
+	struct iwl_cmd_header hdr;
 	union {
 		struct iwl4965_alive_resp alive_frame;
 		struct iwl4965_rx_frame rx_frame;

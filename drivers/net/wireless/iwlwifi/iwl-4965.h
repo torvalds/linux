@@ -140,7 +140,7 @@ struct iwl4965_tx_info {
 struct iwl4965_tx_queue {
 	struct iwl4965_queue q;
 	struct iwl4965_tfd_frame *bd;
-	struct iwl4965_cmd *cmd;
+	struct iwl_cmd *cmd;
 	dma_addr_t dma_addr_cmd;
 	struct iwl4965_tx_info *txb;
 	int need_update;
@@ -312,15 +312,15 @@ enum {
 	CMD_WANT_SKB = (1 << 2),
 };
 
-struct iwl4965_cmd;
+struct iwl_cmd;
 struct iwl_priv;
 
-struct iwl4965_cmd_meta {
-	struct iwl4965_cmd_meta *source;
+struct iwl_cmd_meta {
+	struct iwl_cmd_meta *source;
 	union {
 		struct sk_buff *skb;
 		int (*callback)(struct iwl_priv *priv,
-				struct iwl4965_cmd *cmd, struct sk_buff *skb);
+				struct iwl_cmd *cmd, struct sk_buff *skb);
 	} __attribute__ ((packed)) u;
 
 	/* The CMD_SIZE_HUGE flag bit indicates that the command
@@ -330,15 +330,15 @@ struct iwl4965_cmd_meta {
 } __attribute__ ((packed));
 
 /**
- * struct iwl4965_cmd
+ * struct iwl_cmd
  *
  * For allocation of the command and tx queues, this establishes the overall
  * size of the largest command we send to uCode, except for a scan command
  * (which is relatively huge; space is allocated separately).
  */
-struct iwl4965_cmd {
-	struct iwl4965_cmd_meta meta;	/* driver data */
-	struct iwl4965_cmd_header hdr;	/* uCode API */
+struct iwl_cmd {
+	struct iwl_cmd_meta meta;	/* driver data */
+	struct iwl_cmd_header hdr;	/* uCode API */
 	union {
 		struct iwl4965_addsta_cmd addsta;
 		struct iwl4965_led_cmd led;
@@ -358,15 +358,15 @@ struct iwl4965_cmd {
 	} __attribute__ ((packed)) cmd;
 } __attribute__ ((packed));
 
-struct iwl4965_host_cmd {
+struct iwl_host_cmd {
 	u8 id;
 	u16 len;
-	struct iwl4965_cmd_meta meta;
+	struct iwl_cmd_meta meta;
 	const void *data;
 };
 
-#define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl4965_cmd) - \
-			      sizeof(struct iwl4965_cmd_meta))
+#define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl_cmd) - \
+			      sizeof(struct iwl_cmd_meta))
 
 /*
  * RX related structures and functions
@@ -656,10 +656,6 @@ extern int iwl4965_tx_queue_init(struct iwl_priv *priv,
 			     struct iwl4965_tx_queue *txq, int count, u32 id);
 extern void iwl4965_rx_replenish(void *data);
 extern void iwl4965_tx_queue_free(struct iwl_priv *priv, struct iwl4965_tx_queue *txq);
-extern int iwl4965_send_cmd_pdu(struct iwl_priv *priv, u8 id, u16 len,
-			    const void *data);
-extern int __must_check iwl4965_send_cmd(struct iwl_priv *priv,
-		struct iwl4965_host_cmd *cmd);
 extern unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
 					struct ieee80211_hdr *hdr,
 					const u8 *dest, int left);
@@ -674,6 +670,7 @@ int iwl4965_init_geos(struct iwl_priv *priv);
 void iwl4965_free_geos(struct iwl_priv *priv);
 
 extern const u8 iwl4965_broadcast_addr[ETH_ALEN];
+int iwl4965_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 
 /*
  * Currently used by iwl-3945-rs... look at restructuring so that it doesn't
@@ -718,7 +715,7 @@ extern unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
 				 struct iwl4965_frame *frame, u8 rate);
 extern int iwl4965_hw_get_rx_read(struct iwl_priv *priv);
 extern void iwl4965_hw_build_tx_cmd_rate(struct iwl_priv *priv,
-				     struct iwl4965_cmd *cmd,
+				     struct iwl_cmd *cmd,
 				     struct ieee80211_tx_control *ctrl,
 				     struct ieee80211_hdr *hdr,
 				     int sta_id, int tx_id);

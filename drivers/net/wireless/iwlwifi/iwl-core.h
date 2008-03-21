@@ -63,6 +63,13 @@
 #ifndef __iwl_core_h__
 #define __iwl_core_h__
 
+/************************
+ * forward declarations *
+ ************************/
+struct iwl_host_cmd;
+struct iwl_cmd;
+
+
 #define IWLWIFI_VERSION "1.2.26k"
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2008 Intel Corporation"
 
@@ -75,6 +82,10 @@
 #define IWL_SKU_A       0x2
 #define IWL_SKU_N       0x8
 
+struct iwl_hcmd_utils_ops {
+	int (*enqueue_hcmd)(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
+};
+
 struct iwl_lib_ops {
 	/* iwlwifi driver (priv) init */
 	int (*init_drv)(struct iwl_priv *priv);
@@ -84,6 +95,7 @@ struct iwl_lib_ops {
 
 struct iwl_ops {
 	const struct iwl_lib_ops *lib;
+	const struct iwl_hcmd_utils_ops *utils;
 };
 
 struct iwl_mod_params {
@@ -119,5 +131,19 @@ int iwlcore_set_rxon_channel(struct iwl_priv *priv,
 				u16 channel);
 
 int iwl_setup(struct iwl_priv *priv);
+
+/*****************************************************
+ *   S e n d i n g     H o s t     C o m m a n d s   *
+ *****************************************************/
+
+const char *get_cmd_string(u8 cmd);
+int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
+int iwl_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
+int iwl_send_cmd_pdu(struct iwl_priv *priv, u8 id, u16 len, const void *data);
+int iwl_send_cmd_pdu_async(struct iwl_priv *priv, u8 id, u16 len,
+			   const void *data,
+			   int (*callback)(struct iwl_priv *priv,
+					   struct iwl_cmd *cmd,
+					   struct sk_buff *skb));
 
 #endif /* __iwl_core_h__ */
