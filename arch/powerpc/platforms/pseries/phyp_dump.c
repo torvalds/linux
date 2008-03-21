@@ -12,19 +12,24 @@
  */
 
 #include <linux/init.h>
+#include <linux/kobject.h>
 #include <linux/mm.h>
+#include <linux/of.h>
 #include <linux/pfn.h>
 #include <linux/swap.h>
+#include <linux/sysfs.h>
 
 #include <asm/page.h>
 #include <asm/phyp_dump.h>
 #include <asm/machdep.h>
 #include <asm/prom.h>
+#include <asm/rtas.h>
 
 /* Variables, used to communicate data between early boot and late boot */
 static struct phyp_dump phyp_dump_vars;
 struct phyp_dump *phyp_dump_info = &phyp_dump_vars;
 
+/* ------------------------------------------------- */
 /**
  * release_memory_range -- release memory previously lmb_reserved
  * @start_pfn: starting physical frame number
@@ -54,18 +59,84 @@ release_memory_range(unsigned long start_pfn, unsigned long nr_pages)
 	}
 }
 
+/* ------------------------------------------------- */
+/**
+ * sysfs_release_region -- sysfs interface to release memory range.
+ *
+ * Usage:
+ *   "echo <start addr> <length> > /sys/kernel/release_region"
+ *
+ * Example:
+ *   "echo 0x40000000 0x10000000 > /sys/kernel/release_region"
+ *
+ * will release 256MB starting at 1GB.
+ */
+static ssize_t store_release_region(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				const char *buf, size_t count)
+{
+	unsigned long start_addr, length, end_addr;
+	unsigned long start_pfn, nr_pages;
+	ssize_t ret;
+
+	ret = sscanf(buf, "%lx %lx", &start_addr, &length);
+	if (ret != 2)
+		return -EINVAL;
+
+	/* Range-check - don't free any reserved memory that
+	 * wasn't reserved for phyp-dump */
+	if (start_addr < phyp_dump_info->init_reserve_start)
+		start_addr = phyp_dump_info->init_reserve_start;
+
+	end_addr = phyp_dump_info->init_reserve_start +
+			phyp_dump_info->init_reserve_size;
+	if (start_addr+length > end_addr)
+		length = end_addr - start_addr;
+
+	/* Release the region of memory assed in by user */
+	start_pfn = PFN_DOWN(start_addr);
+	nr_pages = PFN_DOWN(length);
+	release_memory_range(start_pfn, nr_pages);
+
+	return count;
+}
+
+static struct kobj_attribute rr = __ATTR(release_region, 0600,
+					 NULL, store_release_region);
+
 static int __init phyp_dump_setup(void)
 {
-	unsigned long start_pfn, nr_pages;
+	struct device_node *rtas;
+	const int *dump_header = NULL;
+	int header_len = 0;
+	int rc;
 
 	/* If no memory was reserved in early boot, there is nothing to do */
 	if (phyp_dump_info->init_reserve_size == 0)
 		return 0;
 
-	/* Release memory that was reserved in early boot */
-	start_pfn = PFN_DOWN(phyp_dump_info->init_reserve_start);
-	nr_pages = PFN_DOWN(phyp_dump_info->init_reserve_size);
-	release_memory_range(start_pfn, nr_pages);
+	/* Return if phyp dump not supported */
+	if (!phyp_dump_info->phyp_dump_configured)
+		return -ENOSYS;
+
+	/* Is there dump data waiting for us? */
+	rtas = of_find_node_by_path("/rtas");
+	if (rtas) {
+		dump_header = of_get_property(rtas, "ibm,kernel-dump",
+						&header_len);
+		of_node_put(rtas);
+	}
+
+	if (dump_header == NULL)
+		return 0;
+
+	/* Should we create a dump_subsys, analogous to s390/ipl.c ? */
+	rc = sysfs_create_file(kernel_kobj, &rr.attr);
+	if (rc) {
+		printk(KERN_ERR "phyp-dump: unable to create sysfs file (%d)\n",
+									rc);
+		return 0;
+	}
 
 	return 0;
 }
