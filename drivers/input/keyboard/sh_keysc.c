@@ -238,7 +238,6 @@ static int __devexit sh_keysc_remove(struct platform_device *pdev)
 
 	input_unregister_device(priv->input);
 	free_irq(platform_get_irq(pdev, 0), pdev);
-	input_free_device(priv->input);
 	iounmap(priv->iomem_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
