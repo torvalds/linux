@@ -120,10 +120,8 @@ int is_vsmp_box(void)
 		return vsmp;
 
 	/* Check if we are running on a ScaleMP vSMP box */
-	if ((read_pci_config_16(0, 0x1f, 0, PCI_VENDOR_ID) ==
-	     PCI_VENDOR_ID_SCALEMP) &&
-	    (read_pci_config_16(0, 0x1f, 0, PCI_DEVICE_ID) ==
-	    PCI_DEVICE_ID_SCALEMP_VSMP_CTL))
+	if (read_pci_config(0, 0x1f, 0, PCI_VENDOR_ID) ==
+	     (PCI_VENDOR_ID_SCALEMP | (PCI_DEVICE_ID_SCALEMP_VSMP_CTL << 16)))
 		vsmp = 1;
 
 	return vsmp;
