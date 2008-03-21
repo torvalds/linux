@@ -263,10 +263,11 @@ static int __init sgiwd93_probe(struct platform_device *pdev)
 	regs.SASR = wdregs + 3;
 	regs.SCMD = wdregs + 7;
 
-	wd33c93_init(host, regs, dma_setup, dma_stop, WD33C93_FS_MHZ(20));
+	hdata->wh.no_sync = 0;
+	hdata->wh.fast = 1;
+	hdata->wh.dma_mode = CTRL_BURST;
 
-	if (hdata->wh.no_sync == 0xff)
-		hdata->wh.no_sync = 0;
+	wd33c93_init(host, regs, dma_setup, dma_stop, WD33C93_FS_MHZ(20));
 
 	err = request_irq(irq, sgiwd93_intr, 0, "SGI WD93", host);
 	if (err) {
