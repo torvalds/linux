@@ -4021,6 +4021,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	}
 
 	dev->egress_subqueue_count = queue_count;
+	dev->gso_max_size = GSO_MAX_SIZE;
 
 	dev->get_stats = internal_stats;
 	netpoll_netdev_init(dev);

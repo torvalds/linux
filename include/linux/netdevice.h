@@ -724,6 +724,10 @@ struct net_device
 	/* rtnetlink link ops */
 	const struct rtnl_link_ops *rtnl_link_ops;
 
+	/* for setting kernel sock attribute on TCP connection setup */
+#define GSO_MAX_SIZE		65536
+	unsigned int		gso_max_size;
+
 	/* The TX queue control structures */
 	unsigned int			egress_subqueue_count;
 	struct net_device_subqueue	egress_subqueue[1];
@@ -1473,6 +1477,12 @@ static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)
 	return skb_is_gso(skb) &&
 	       (!skb_gso_ok(skb, dev->features) ||
 		unlikely(skb->ip_summed != CHECKSUM_PARTIAL));
+}
+
+static inline void netif_set_gso_max_size(struct net_device *dev,
+					  unsigned int size)
+{
+	dev->gso_max_size = size;
 }
 
 /* On bonding slaves other than the currently active slave, suppress
