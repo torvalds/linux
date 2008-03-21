@@ -70,6 +70,10 @@ static struct phyp_dump_header phdr;
 #define DUMP_SOURCE_CPU		0x0001
 #define DUMP_SOURCE_HPTE	0x0002
 #define DUMP_SOURCE_RMO		0x0011
+#define DUMP_ERROR_FLAG		0x2000
+#define DUMP_TRIGGERED		0x4000
+#define DUMP_PERFORMED		0x8000
+
 
 /**
  * init_dump_header() - initialize the header declaring a dump
@@ -181,9 +185,15 @@ static void print_dump_header(const struct phyp_dump_header *ph)
 static void register_dump_area(struct phyp_dump_header *ph, unsigned long addr)
 {
 	int rc;
-	ph->cpu_data.destination_address += addr;
-	ph->hpte_data.destination_address += addr;
-	ph->kernel_data.destination_address += addr;
+
+	/* Add addr value if not initialized before */
+	if (ph->cpu_data.destination_address == 0) {
+		ph->cpu_data.destination_address += addr;
+		ph->hpte_data.destination_address += addr;
+		ph->kernel_data.destination_address += addr;
+	}
+
+	/* ToDo Invalidate kdump and free memory range. */
 
 	do {
 		rc = rtas_call(ibm_configure_kernel_dump, 3, 1, NULL,
@@ -193,6 +203,30 @@ static void register_dump_area(struct phyp_dump_header *ph, unsigned long addr)
 	if (rc) {
 		printk(KERN_ERR "phyp-dump: unexpected error (%d) on "
 						"register\n", rc);
+		print_dump_header(ph);
+	}
+}
+
+static
+void invalidate_last_dump(struct phyp_dump_header *ph, unsigned long addr)
+{
+	int rc;
+
+	/* Add addr value if not initialized before */
+	if (ph->cpu_data.destination_address == 0) {
+		ph->cpu_data.destination_address += addr;
+		ph->hpte_data.destination_address += addr;
+		ph->kernel_data.destination_address += addr;
+	}
+
+	do {
+		rc = rtas_call(ibm_configure_kernel_dump, 3, 1, NULL,
+				2, ph, sizeof(struct phyp_dump_header));
+	} while (rtas_busy_delay(rc));
+
+	if (rc) {
+		printk(KERN_ERR "phyp-dump: unexpected error (%d) "
+						"on invalidate\n", rc);
 		print_dump_header(ph);
 	}
 }
@@ -207,8 +241,8 @@ static void register_dump_area(struct phyp_dump_header *ph, unsigned long addr)
  * lmb_reserved in early boot. The released memory becomes
  * available for genreal use.
  */
-static void
-release_memory_range(unsigned long start_pfn, unsigned long nr_pages)
+static void release_memory_range(unsigned long start_pfn,
+			unsigned long nr_pages)
 {
 	struct page *rpage;
 	unsigned long end_pfn;
@@ -269,8 +303,29 @@ static ssize_t store_release_region(struct kobject *kobj,
 	return count;
 }
 
+static ssize_t show_release_region(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
+{
+	u64 second_addr_range;
+
+	/* total reserved size - start of scratch area */
+	second_addr_range = phyp_dump_info->init_reserve_size -
+				phyp_dump_info->reserved_scratch_size;
+	return sprintf(buf, "CPU:0x%lx-0x%lx: HPTE:0x%lx-0x%lx:"
+			    " DUMP:0x%lx-0x%lx, 0x%lx-0x%lx:\n",
+		phdr.cpu_data.destination_address,
+		phdr.cpu_data.length_copied,
+		phdr.hpte_data.destination_address,
+		phdr.hpte_data.length_copied,
+		phdr.kernel_data.destination_address,
+		phdr.kernel_data.length_copied,
+		phyp_dump_info->init_reserve_start,
+		second_addr_range);
+}
+
 static struct kobj_attribute rr = __ATTR(release_region, 0600,
-					 NULL, store_release_region);
+					show_release_region,
+					store_release_region);
 
 static int __init phyp_dump_setup(void)
 {
@@ -311,6 +366,22 @@ static int __init phyp_dump_setup(void)
 	if (dump_header == NULL) {
 		register_dump_area(&phdr, dump_area_start);
 		return 0;
+	}
+
+	/* re-register the dump area, if old dump was invalid */
+	if ((dump_header) && (dump_header->status & DUMP_ERROR_FLAG)) {
+		invalidate_last_dump(&phdr, dump_area_start);
+		register_dump_area(&phdr, dump_area_start);
+		return 0;
+	}
+
+	if (dump_header) {
+		phyp_dump_info->reserved_scratch_addr =
+				dump_header->cpu_data.destination_address;
+		phyp_dump_info->reserved_scratch_size =
+				dump_header->cpu_data.source_length +
+				dump_header->hpte_data.source_length +
+				dump_header->kernel_data.source_length;
 	}
 
 	/* Should we create a dump_subsys, analogous to s390/ipl.c ? */

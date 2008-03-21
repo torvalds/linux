@@ -30,6 +30,9 @@ struct phyp_dump {
 	/* store cpu & hpte size */
 	unsigned long cpu_state_size;
 	unsigned long hpte_region_size;
+	/* previous scratch area values */
+	unsigned long reserved_scratch_addr;
+	unsigned long reserved_scratch_size;
 };
 
 extern struct phyp_dump *phyp_dump_info;
