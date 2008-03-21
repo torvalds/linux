@@ -707,45 +707,6 @@ struct iwl3945_rx_frame {
 	struct iwl3945_rx_frame_end end;
 } __attribute__ ((packed));
 
-/* Fixed (non-configurable) rx data from phy */
-#define RX_PHY_FLAGS_ANTENNAE_OFFSET		(4)
-#define RX_PHY_FLAGS_ANTENNAE_MASK		(0x70)
-#define IWL_AGC_DB_MASK 	(0x3f80)	/* MASK(7,13) */
-#define IWL_AGC_DB_POS		(7)
-struct iwl4965_rx_non_cfg_phy {
-	__le16 ant_selection;	/* ant A bit 4, ant B bit 5, ant C bit 6 */
-	__le16 agc_info;	/* agc code 0:6, agc dB 7:13, reserved 14:15 */
-	u8 rssi_info[6];	/* we use even entries, 0/2/4 for A/B/C rssi */
-	u8 pad[0];
-} __attribute__ ((packed));
-
-/*
- * REPLY_4965_RX = 0xc3 (response only, not a command)
- * Used only for legacy (non 11n) frames.
- */
-#define RX_RES_PHY_CNT 14
-struct iwl4965_rx_phy_res {
-	u8 non_cfg_phy_cnt;     /* non configurable DSP phy data byte count */
-	u8 cfg_phy_cnt;		/* configurable DSP phy data byte count */
-	u8 stat_id;		/* configurable DSP phy data set ID */
-	u8 reserved1;
-	__le64 timestamp;	/* TSF at on air rise */
-	__le32 beacon_time_stamp; /* beacon at on-air rise */
-	__le16 phy_flags;	/* general phy flags: band, modulation, ... */
-	__le16 channel;		/* channel number */
-	__le16 non_cfg_phy[RX_RES_PHY_CNT];	/* upto 14 phy entries */
-	__le32 reserved2;
-	__le32 rate_n_flags;
-	__le16 byte_count;		/* frame's byte-count */
-	__le16 reserved3;
-} __attribute__ ((packed));
-
-struct iwl4965_rx_mpdu_res_start {
-	__le16 byte_count;
-	__le16 reserved;
-} __attribute__ ((packed));
-
-
 /******************************************************************************
  * (5)
  * Tx Commands & Responses:
