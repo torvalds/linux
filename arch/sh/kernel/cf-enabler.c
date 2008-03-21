@@ -83,6 +83,8 @@ static int __init cf_init_default(void)
 #include <asm/se.h>
 #elif defined(CONFIG_SH_7722_SOLUTION_ENGINE)
 #include <asm/se7722.h>
+#elif defined(CONFIG_SH_7721_SOLUTION_ENGINE)
+#include <asm/se7721.h>
 #endif
 
 /*
@@ -99,7 +101,9 @@ static int __init cf_init_default(void)
  * 0xB0600000 : I/O
  */
 
-#if defined(CONFIG_SH_SOLUTION_ENGINE) || defined(CONFIG_SH_7722_SOLUTION_ENGINE) 
+#if defined(CONFIG_SH_SOLUTION_ENGINE) || \
+    defined(CONFIG_SH_7722_SOLUTION_ENGINE) || \
+    defined(CONFIG_SH_7721_SOLUTION_ENGINE)
 static int __init cf_init_se(void)
 {
 	if ((ctrl_inw(MRSHPC_CSR) & 0x000c) != 0)
@@ -112,7 +116,7 @@ static int __init cf_init_se(void)
 	}
 
 	/*
-	 *  PC-Card window open 
+	 *  PC-Card window open
 	 *  flag == COMMON/ATTRIBUTE/IO
 	 */
 	/* common window open */
@@ -122,7 +126,7 @@ static int __init cf_init_se(void)
 		ctrl_outw(0x0b00, MRSHPC_MW0CR2);
 	else
 		/* common mode & bus width 16bit SWAP = 0*/
-		ctrl_outw(0x0300, MRSHPC_MW0CR2); 
+		ctrl_outw(0x0300, MRSHPC_MW0CR2);
 
 	/* attribute window open */
 	ctrl_outw(0x8a85, MRSHPC_MW1CR1);
@@ -155,10 +159,9 @@ static int __init cf_init_se(void)
 
 int __init cf_init(void)
 {
-	if( mach_is_se() || mach_is_7722se() ){
+	if (mach_is_se() || mach_is_7722se() || mach_is_7721se())
 		return cf_init_se();
-	}
-	
+
 	return cf_init_default();
 }
 
