@@ -29,4 +29,6 @@ source "drivers/staging/slicoss/Kconfig"
 
 source "drivers/staging/sxg/Kconfig"
 
+source "drivers/staging/me4000/Kconfig"
+
 endif # STAGING
