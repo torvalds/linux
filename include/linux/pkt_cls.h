@@ -201,8 +201,8 @@ enum
 
 struct tc_u32_key
 {
-	__u32		mask;
-	__u32		val;
+	__be32		mask;
+	__be32		val;
 	int		off;
 	int		offmask;
 };
@@ -213,12 +213,12 @@ struct tc_u32_sel
 	unsigned char		offshift;
 	unsigned char		nkeys;
 
-	__u16			offmask;
+	__be16			offmask;
 	__u16			off;
 	short			offoff;
 
 	short			hoff;
-	__u32			hmask;
+	__be32			hmask;
 	struct tc_u32_key	keys[0];
 };
 

@@ -64,8 +64,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.87"
-#define DRV_MODULE_RELDATE	"December 20, 2007"
+#define DRV_MODULE_VERSION	"3.88"
+#define DRV_MODULE_RELDATE	"March 20, 2008"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -11841,7 +11841,7 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 	}
 
 	if (!is_valid_ether_addr(&dev->dev_addr[0])) {
-#ifdef CONFIG_SPARC64
+#ifdef CONFIG_SPARC
 		if (!tg3_get_default_macaddr_sparc(tp))
 			return 0;
 #endif

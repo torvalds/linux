@@ -2290,7 +2290,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 	DIR("fd",         S_IRUSR|S_IXUSR, fd),
 	DIR("fdinfo",     S_IRUSR|S_IXUSR, fdinfo),
 #ifdef CONFIG_NET
-	DIR("net",        S_IRUGO|S_IXUSR, net),
+	DIR("net",        S_IRUGO|S_IXUGO, net),
 #endif
 	REG("environ",    S_IRUSR, environ),
 	INF("auxv",       S_IRUSR, pid_auxv),

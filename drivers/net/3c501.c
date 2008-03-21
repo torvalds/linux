@@ -485,9 +485,7 @@ static int el_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			printk(KERN_DEBUG "%s: burped during tx load.\n",
 				dev->name);
 		spin_lock_irqsave(&lp->lock, flags);
-	}
-	while (1);
-
+	} while (1);
 }
 
 /**
@@ -612,7 +610,8 @@ static irqreturn_t el_interrupt(int irq, void *dev_id)
 			dev->stats.tx_packets++;
 			if (el_debug > 6)
 				printk(KERN_DEBUG " Tx succeeded %s\n",
-					(txsr & TX_RDY) ? "." : "but tx is busy!");
+					(txsr & TX_RDY) ? "." :
+							"but tx is busy!");
 			/*
 			 *	This is safe the interrupt is atomic WRT itself.
 			 */
@@ -693,7 +692,8 @@ static void el_receive(struct net_device *dev)
 
 	if (pkt_len < 60 || pkt_len > 1536) {
 		if (el_debug)
-			printk(KERN_DEBUG "%s: bogus packet, length=%d\n", dev->name, pkt_len);
+			printk(KERN_DEBUG "%s: bogus packet, length=%d\n",
+						dev->name, pkt_len);
 		dev->stats.rx_over_errors++;
 		return;
 	}
@@ -711,7 +711,8 @@ static void el_receive(struct net_device *dev)
 
 	outw(0x00, GP_LOW);
 	if (skb == NULL) {
-		printk(KERN_INFO "%s: Memory squeeze, dropping packet.\n", dev->name);
+		printk(KERN_INFO "%s: Memory squeeze, dropping packet.\n",
+								dev->name);
 		dev->stats.rx_dropped++;
 		return;
 	} else {
@@ -748,7 +749,8 @@ static void  el_reset(struct net_device *dev)
 	if (el_debug > 2)
 		printk(KERN_INFO "3c501 reset...");
 	outb(AX_RESET, AX_CMD);		/* Reset the chip */
-	outb(AX_LOOP, AX_CMD);		/* Aux control, irq and loopback enabled */
+	/* Aux control, irq and loopback enabled */
+	outb(AX_LOOP, AX_CMD);
 	{
 		int i;
 		for (i = 0; i < 6; i++)	/* Set the station address. */

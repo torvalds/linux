@@ -1107,9 +1107,15 @@ int t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	q->in_use += ndesc;
-	if (unlikely(credits - ndesc < q->stop_thres))
-		if (USE_GTS || !should_restart_tx(q))
-			t3_stop_queue(dev, qs, q);
+	if (unlikely(credits - ndesc < q->stop_thres)) {
+		t3_stop_queue(dev, qs, q);
+
+		if (should_restart_tx(q) &&
+		    test_and_clear_bit(TXQ_ETH, &qs->txq_stopped)) {
+			q->restarts++;
+			netif_wake_queue(dev);
+		}
+	}
 
 	gen = q->gen;
 	q->unacked += ndesc;

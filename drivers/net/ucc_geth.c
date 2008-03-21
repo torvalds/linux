@@ -154,8 +154,8 @@ static struct ucc_geth_info ugeth_primary_info = {
 	.rxQoSMode = UCC_GETH_QOS_MODE_DEFAULT,
 	.aufc = UPSMR_AUTOMATIC_FLOW_CONTROL_MODE_NONE,
 	.padAndCrc = MACCFG2_PAD_AND_CRC_MODE_PAD_AND_CRC,
-	.numThreadsTx = UCC_GETH_NUM_OF_THREADS_4,
-	.numThreadsRx = UCC_GETH_NUM_OF_THREADS_4,
+	.numThreadsTx = UCC_GETH_NUM_OF_THREADS_1,
+	.numThreadsRx = UCC_GETH_NUM_OF_THREADS_1,
 	.riscTx = QE_RISC_ALLOCATION_RISC1_AND_RISC2,
 	.riscRx = QE_RISC_ALLOCATION_RISC1_AND_RISC2,
 };
@@ -3975,6 +3975,8 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 		ug_info->uf_info.utfs = UCC_GETH_UTFS_GIGA_INIT;
 		ug_info->uf_info.utfet = UCC_GETH_UTFET_GIGA_INIT;
 		ug_info->uf_info.utftt = UCC_GETH_UTFTT_GIGA_INIT;
+		ug_info->numThreadsTx = UCC_GETH_NUM_OF_THREADS_4;
+		ug_info->numThreadsRx = UCC_GETH_NUM_OF_THREADS_4;
 	}
 
 	/* Set the bus id */
