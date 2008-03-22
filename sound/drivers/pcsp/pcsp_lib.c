@@ -18,8 +18,6 @@ module_param(nforce_wa, bool, 0444);
 MODULE_PARM_DESC(nforce_wa, "Apply NForce chipset workaround "
 		"(expect bad sound)");
 
-#define DMIX_WANTS_S16	1
-
 static void pcsp_start_timer(unsigned long dummy)
 {
 	hrtimer_start(&pcsp_chip.timer, ktime_set(0, 0), HRTIMER_MODE_REL);
@@ -49,7 +47,7 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 {
 	unsigned long flags;
 	unsigned char timer_cnt, val;
-	int fmt_size, periods_elapsed;
+	int periods_elapsed;
 	u64 ns;
 	size_t period_bytes, buffer_bytes;
 	struct snd_pcm_substream *substream;
@@ -94,11 +92,8 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 		goto exit_nr_unlock2;
 
 	runtime = substream->runtime;
-	fmt_size = snd_pcm_format_physical_width(runtime->format) >> 3;
-	/* assume it is mono! */
-	val = runtime->dma_area[chip->playback_ptr + fmt_size - 1];
-	if (snd_pcm_format_signed(runtime->format))
-		val ^= 0x80;
+	/* assume it is u8 mono */
+	val = runtime->dma_area[chip->playback_ptr];
 	timer_cnt = val * CUR_DIV() / 256;
 
 	if (timer_cnt && chip->enable) {
@@ -116,7 +111,7 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 
 	period_bytes = snd_pcm_lib_period_bytes(substream);
 	buffer_bytes = snd_pcm_lib_buffer_bytes(substream);
-	chip->playback_ptr += PCSP_INDEX_INC() * fmt_size;
+	chip->playback_ptr += PCSP_INDEX_INC();
 	periods_elapsed = chip->playback_ptr - chip->period_ptr;
 	if (periods_elapsed < 0) {
 		printk(KERN_WARNING "PCSP: playback_ptr inconsistent "
@@ -275,11 +270,7 @@ static struct snd_pcm_hardware snd_pcsp_playback = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED |
 		 SNDRV_PCM_INFO_HALF_DUPLEX |
 		 SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID),
-	.formats = (SNDRV_PCM_FMTBIT_U8
-#if DMIX_WANTS_S16
-		    | SNDRV_PCM_FMTBIT_S16_LE
-#endif
-	    ),
+	.formats = SNDRV_PCM_FMTBIT_U8,
 	.rates = SNDRV_PCM_RATE_KNOT,
 	.rate_min = PCSP_DEFAULT_SRATE,
 	.rate_max = PCSP_DEFAULT_SRATE,
