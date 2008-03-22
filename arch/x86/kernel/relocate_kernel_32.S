@@ -9,6 +9,7 @@
 #include <linux/linkage.h>
 #include <asm/page.h>
 #include <asm/kexec.h>
+#include <asm/processor-flags.h>
 
 /*
  * Must be relocatable PIC code callable as a C function
@@ -167,16 +168,16 @@ identity_mapped:
 	pushl   %edx
 
 	/* Set cr0 to a known state:
-	 * 31 0 == Paging disabled
-	 * 18 0 == Alignment check disabled
-	 * 16 0 == Write protect disabled
-	 * 3  0 == No task switch
-	 * 2  0 == Don't do FP software emulation.
-	 * 0  1 == Proctected mode enabled
+	 *  - Paging disabled
+	 *  - Alignment check disabled
+	 *  - Write protect disabled
+	 *  - No task switch
+	 *  - Don't do FP software emulation.
+	 *  - Proctected mode enabled
 	 */
 	movl	%cr0, %eax
-	andl	$~((1<<31)|(1<<18)|(1<<16)|(1<<3)|(1<<2)), %eax
-	orl	$(1<<0), %eax
+	andl	$~(X86_CR0_PG | X86_CR0_AM | X86_CR0_WP | X86_CR0_TS | X86_CR0_EM), %eax
+	orl	$(X86_CR0_PE), %eax
 	movl	%eax, %cr0
 
 	/* clear cr4 if applicable */
