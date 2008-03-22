@@ -460,3 +460,21 @@ int __init early_init_dt_scan_phyp_dump(unsigned long node,
 						*((unsigned long *)&sizes[4]);
 	return 1;
 }
+
+/* Look for phyp_dump= cmdline option */
+static int __init early_phyp_dump_enabled(char *p)
+{
+	phyp_dump_info->phyp_dump_at_boot = 1;
+
+        if (!p)
+                return 0;
+
+        if (strncmp(p, "1", 1) == 0)
+		phyp_dump_info->phyp_dump_at_boot = 1;
+        else if (strncmp(p, "0", 1) == 0)
+		phyp_dump_info->phyp_dump_at_boot = 0;
+
+        return 0;
+}
+early_param("phyp_dump", early_phyp_dump_enabled);
+

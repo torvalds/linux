@@ -25,6 +25,7 @@ struct phyp_dump {
 	unsigned long init_reserve_start;
 	unsigned long init_reserve_size;
 	/* Check status during boot if dump supported, active & present*/
+	unsigned long phyp_dump_at_boot;
 	unsigned long phyp_dump_configured;
 	unsigned long phyp_dump_is_active;
 	/* store cpu & hpte size */

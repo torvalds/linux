@@ -1060,6 +1060,11 @@ static void __init phyp_dump_reserve_mem(void)
 		return;
 	}
 
+	if (!phyp_dump_info->phyp_dump_at_boot) {
+		printk(KERN_INFO "Phyp-dump disabled at boot time\n");
+		return;
+	}
+
 	if (phyp_dump_info->phyp_dump_is_active) {
 		/* Reserve *everything* above RMR.Area freed by userland tools*/
 		base = PHYP_DUMP_RMR_END;
