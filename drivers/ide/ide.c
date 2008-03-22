@@ -1370,32 +1370,32 @@ static int __init ide_setup(char *s)
 #ifdef CONFIG_BLK_DEV_ALI14XX
 			case -17: /* "ali14xx" */
 				probe_ali14xx = 1;
-				goto done;
+				goto obsolete_option;
 #endif
 #ifdef CONFIG_BLK_DEV_UMC8672
 			case -16: /* "umc8672" */
 				probe_umc8672 = 1;
-				goto done;
+				goto obsolete_option;
 #endif
 #ifdef CONFIG_BLK_DEV_DTC2278
 			case -15: /* "dtc2278" */
 				probe_dtc2278 = 1;
-				goto done;
+				goto obsolete_option;
 #endif
 #ifdef CONFIG_BLK_DEV_CMD640
 			case -14: /* "cmd640_vlb" */
 				cmd640_vlb = 1;
-				goto done;
+				goto obsolete_option;
 #endif
 #ifdef CONFIG_BLK_DEV_HT6560B
 			case -13: /* "ht6560b" */
 				probe_ht6560b = 1;
-				goto done;
+				goto obsolete_option;
 #endif
 #ifdef CONFIG_BLK_DEV_QD65XX
 			case -12: /* "qd65xx" */
 				probe_qd65xx = 1;
-				goto done;
+				goto obsolete_option;
 #endif
 #ifdef CONFIG_BLK_DEV_4DRIVES
 			case -11: /* "four" drives on one set of ports */
