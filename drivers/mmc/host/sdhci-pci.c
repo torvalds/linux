@@ -44,8 +44,7 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.device		= PCI_DEVICE_ID_RICOH_R5C822,
 		.subvendor	= PCI_VENDOR_ID_IBM,
 		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_CLOCK_BEFORE_RESET |
-				  SDHCI_QUIRK_FORCE_DMA,
+		.driver_data	= SDHCI_QUIRK_CLOCK_BEFORE_RESET,
 	},
 
 	{
@@ -53,24 +52,7 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.device		= PCI_DEVICE_ID_RICOH_R5C822,
 		.subvendor	= PCI_VENDOR_ID_SAMSUNG,
 		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_FORCE_DMA |
-				  SDHCI_QUIRK_NO_CARD_NO_RESET,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_RICOH,
-		.device		= PCI_DEVICE_ID_RICOH_R5C822,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_FORCE_DMA,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_TI,
-		.device		= PCI_DEVICE_ID_TI_XX21_XX11_SD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_FORCE_DMA,
+		.driver_data	= SDHCI_QUIRK_NO_CARD_NO_RESET,
 	},
 
 	{
