@@ -262,10 +262,8 @@ static struct vfsmount *clone_mnt(struct vfsmount *old, struct dentry *root,
 		/* stick the duplicate mount on the same expiry list
 		 * as the original if that was on one */
 		if (flag & CL_EXPIRE) {
-			spin_lock(&vfsmount_lock);
 			if (!list_empty(&old->mnt_expire))
 				list_add(&mnt->mnt_expire, &old->mnt_expire);
-			spin_unlock(&vfsmount_lock);
 		}
 	}
 	return mnt;
@@ -1127,11 +1125,9 @@ static noinline int do_move_mount(struct nameidata *nd, char *old_name)
 	if (err)
 		goto out1;
 
-	spin_lock(&vfsmount_lock);
 	/* if the mount is moved, it should no longer be expire
 	 * automatically */
 	list_del_init(&old_nd.path.mnt->mnt_expire);
-	spin_unlock(&vfsmount_lock);
 out1:
 	mutex_unlock(&nd->path.dentry->d_inode->i_mutex);
 out:
@@ -1198,12 +1194,9 @@ int do_add_mount(struct vfsmount *newmnt, struct nameidata *nd,
 	if ((err = graft_tree(newmnt, nd)))
 		goto unlock;
 
-	if (fslist) {
-		/* add to the specified expiration list */
-		spin_lock(&vfsmount_lock);
+	if (fslist) /* add to the specified expiration list */
 		list_add_tail(&newmnt->mnt_expire, fslist);
-		spin_unlock(&vfsmount_lock);
-	}
+
 	up_write(&namespace_sem);
 	return 0;
 
