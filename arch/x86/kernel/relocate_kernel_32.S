@@ -154,7 +154,7 @@ relocate_new_kernel:
 	movl	%eax, %cr3
 
 	/* setup a new stack at the end of the physical control page */
-	lea	4096(%edi), %esp
+	lea	PAGE_SIZE(%edi), %esp
 
 	/* jump to identity mapped page */
 	movl    %edi, %eax

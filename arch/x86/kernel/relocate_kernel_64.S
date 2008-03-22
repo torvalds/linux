@@ -159,7 +159,7 @@ relocate_new_kernel:
 	movq	%r9, %cr3
 
 	/* setup a new stack at the end of the physical control page */
-	lea	4096(%r8), %rsp
+	lea	PAGE_SIZE(%r8), %rsp
 
 	/* jump to identity mapped page */
 	addq	$(identity_mapped - relocate_kernel), %r8
