@@ -573,7 +573,6 @@ extern const struct file_operations afs_mntpt_file_operations;
 
 extern int afs_mntpt_check_symlink(struct afs_vnode *, struct key *);
 extern void afs_mntpt_kill_timer(void);
-extern void afs_umount_begin(struct vfsmount *, int);
 
 /*
  * proc.c

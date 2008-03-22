@@ -581,6 +581,8 @@ void umount_tree(struct vfsmount *mnt, int propagate, struct list_head *kill)
 	}
 }
 
+static void shrink_submounts(struct vfsmount *mnt, struct list_head *umounts);
+
 static int do_umount(struct vfsmount *mnt, int flags)
 {
 	struct super_block *sb = mnt->mnt_sb;
@@ -652,6 +654,9 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	down_write(&namespace_sem);
 	spin_lock(&vfsmount_lock);
 	event++;
+
+	if (!(flags & MNT_DETACH))
+		shrink_submounts(mnt, &umount_list);
 
 	retval = -EBUSY;
 	if (flags & MNT_DETACH || !propagate_mount_busy(mnt, 2)) {
@@ -1302,29 +1307,21 @@ resume:
  * process a list of expirable mountpoints with the intent of discarding any
  * submounts of a specific parent mountpoint
  */
-void shrink_submounts(struct vfsmount *mountpoint, struct list_head *mounts)
+static void shrink_submounts(struct vfsmount *mnt, struct list_head *umounts)
 {
 	LIST_HEAD(graveyard);
-	LIST_HEAD(umounts);
-	struct vfsmount *mnt;
+	struct vfsmount *m;
 
-	down_write(&namespace_sem);
-	spin_lock(&vfsmount_lock);
 	/* extract submounts of 'mountpoint' from the expiration list */
-	while (select_submounts(mountpoint, &graveyard)) {
+	while (select_submounts(mnt, &graveyard)) {
 		while (!list_empty(&graveyard)) {
-			mnt = list_first_entry(&graveyard, struct vfsmount,
+			m = list_first_entry(&graveyard, struct vfsmount,
 						mnt_expire);
 			touch_mnt_namespace(mnt->mnt_ns);
-			umount_tree(mnt, 1, &umounts);
+			umount_tree(mnt, 1, umounts);
 		}
 	}
-	spin_unlock(&vfsmount_lock);
-	up_write(&namespace_sem);
-	release_mounts(&umounts);
 }
-
-EXPORT_SYMBOL_GPL(shrink_submounts);
 
 /*
  * Some copy_from_user() implementations do not return the exact number of
