@@ -35,11 +35,6 @@ static struct inet6_protocol udplitev6_protocol = {
 	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
 
-static int udplite_v6_get_port(struct sock *sk, unsigned short snum)
-{
-	return udplite_get_port(sk, snum, ipv6_rcv_saddr_equal);
-}
-
 DEFINE_PROTO_INUSE(udplitev6)
 
 struct proto udplitev6_prot = {
@@ -58,8 +53,9 @@ struct proto udplitev6_prot = {
 	.backlog_rcv	   = udpv6_queue_rcv_skb,
 	.hash		   = udp_lib_hash,
 	.unhash		   = udp_lib_unhash,
-	.get_port	   = udplite_v6_get_port,
+	.get_port	   = udp_v6_get_port,
 	.obj_size	   = sizeof(struct udp6_sock),
+	.h.udp_hash	   = udplite_hash,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_udpv6_setsockopt,
 	.compat_getsockopt = compat_udpv6_getsockopt,

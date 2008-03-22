@@ -51,9 +51,9 @@
 #include <linux/seq_file.h>
 #include "udp_impl.h"
 
-static inline int udp_v6_get_port(struct sock *sk, unsigned short snum)
+int udp_v6_get_port(struct sock *sk, unsigned short snum)
 {
-	return udp_get_port(sk, snum, ipv6_rcv_saddr_equal);
+	return udp_lib_get_port(sk, snum, ipv6_rcv_saddr_equal);
 }
 
 static struct sock *__udp6_lib_lookup(struct net *net,
@@ -1024,6 +1024,7 @@ struct proto udpv6_prot = {
 	.sysctl_wmem	   = &sysctl_udp_wmem_min,
 	.sysctl_rmem	   = &sysctl_udp_rmem_min,
 	.obj_size	   = sizeof(struct udp6_sock),
+	.h.udp_hash	   = udp_hash,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_udpv6_setsockopt,
 	.compat_getsockopt = compat_udpv6_getsockopt,
