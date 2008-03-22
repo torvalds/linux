@@ -1290,10 +1290,10 @@ static int __init ide_setup(char *s)
 				goto done;
 			case -12: /* "remap" */
 				drive->remap_0_to_1 = 1;
-				goto done;
+				goto obsolete_option;
 			case -13: /* "remap63" */
 				drive->sect0 = 63;
-				goto done;
+				goto obsolete_option;
 			case -14: /* "scsi" */
 				drive->scsi = 1;
 				goto obsolete_option;
