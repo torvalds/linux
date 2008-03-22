@@ -52,6 +52,10 @@ bcom_task_alloc(int bd_count, int bd_size, int priv_size)
 	int i, tasknum = -1;
 	struct bcom_task *tsk;
 
+	/* Don't try to do anything if bestcomm init failed */
+	if (!bcom_eng)
+		return NULL;
+
 	/* Get and reserve a task num */
 	spin_lock(&bcom_eng->lock);
 
