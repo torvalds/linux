@@ -9,6 +9,7 @@
 #include <linux/mnt_namespace.h>
 #include <linux/mount.h>
 #include <linux/fs.h>
+#include "internal.h"
 #include "pnode.h"
 
 /* return the next shared peer mount of @p */
