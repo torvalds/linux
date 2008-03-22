@@ -84,8 +84,9 @@ static struct raw_hashinfo raw_v4_hashinfo = {
 	.lock = __RW_LOCK_UNLOCKED(raw_v4_hashinfo.lock),
 };
 
-void raw_hash_sk(struct sock *sk, struct raw_hashinfo *h)
+void raw_hash_sk(struct sock *sk)
 {
+	struct raw_hashinfo *h = sk->sk_prot->h.raw_hash;
 	struct hlist_head *head;
 
 	head = &h->ht[inet_sk(sk)->num & (RAW_HTABLE_SIZE - 1)];
@@ -97,24 +98,16 @@ void raw_hash_sk(struct sock *sk, struct raw_hashinfo *h)
 }
 EXPORT_SYMBOL_GPL(raw_hash_sk);
 
-void raw_unhash_sk(struct sock *sk, struct raw_hashinfo *h)
+void raw_unhash_sk(struct sock *sk)
 {
+	struct raw_hashinfo *h = sk->sk_prot->h.raw_hash;
+
 	write_lock_bh(&h->lock);
 	if (sk_del_node_init(sk))
 		sock_prot_inuse_add(sk->sk_prot, -1);
 	write_unlock_bh(&h->lock);
 }
 EXPORT_SYMBOL_GPL(raw_unhash_sk);
-
-static void raw_v4_hash(struct sock *sk)
-{
-	raw_hash_sk(sk, &raw_v4_hashinfo);
-}
-
-static void raw_v4_unhash(struct sock *sk)
-{
-	raw_unhash_sk(sk, &raw_v4_hashinfo);
-}
 
 static struct sock *__raw_v4_lookup(struct net *net, struct sock *sk,
 		unsigned short num, __be32 raddr, __be32 laddr, int dif)
@@ -841,9 +834,10 @@ struct proto raw_prot = {
 	.recvmsg	   = raw_recvmsg,
 	.bind		   = raw_bind,
 	.backlog_rcv	   = raw_rcv_skb,
-	.hash		   = raw_v4_hash,
-	.unhash		   = raw_v4_unhash,
+	.hash		   = raw_hash_sk,
+	.unhash		   = raw_unhash_sk,
 	.obj_size	   = sizeof(struct raw_sock),
+	.h.raw_hash	   = &raw_v4_hashinfo,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_raw_setsockopt,
 	.compat_getsockopt = compat_raw_getsockopt,

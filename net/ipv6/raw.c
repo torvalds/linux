@@ -65,17 +65,6 @@ static struct raw_hashinfo raw_v6_hashinfo = {
 	.lock = __RW_LOCK_UNLOCKED(raw_v6_hashinfo.lock),
 };
 
-static void raw_v6_hash(struct sock *sk)
-{
-	raw_hash_sk(sk, &raw_v6_hashinfo);
-}
-
-static void raw_v6_unhash(struct sock *sk)
-{
-	raw_unhash_sk(sk, &raw_v6_hashinfo);
-}
-
-
 static struct sock *__raw_v6_lookup(struct net *net, struct sock *sk,
 		unsigned short num, struct in6_addr *loc_addr,
 		struct in6_addr *rmt_addr, int dif)
@@ -1201,9 +1190,10 @@ struct proto rawv6_prot = {
 	.recvmsg	   = rawv6_recvmsg,
 	.bind		   = rawv6_bind,
 	.backlog_rcv	   = rawv6_rcv_skb,
-	.hash		   = raw_v6_hash,
-	.unhash		   = raw_v6_unhash,
+	.hash		   = raw_hash_sk,
+	.unhash		   = raw_unhash_sk,
 	.obj_size	   = sizeof(struct raw6_sock),
+	.h.raw_hash	   = &raw_v6_hashinfo,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_rawv6_setsockopt,
 	.compat_getsockopt = compat_rawv6_getsockopt,

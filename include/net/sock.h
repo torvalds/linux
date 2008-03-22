@@ -504,6 +504,7 @@ extern int sk_wait_data(struct sock *sk, long *timeo);
 struct request_sock_ops;
 struct timewait_sock_ops;
 struct inet_hashinfo;
+struct raw_hashinfo;
 
 /* Networking protocol blocks we attach to sockets.
  * socket layer -> transport layer interface
@@ -589,6 +590,7 @@ struct proto {
 	union {
 		struct inet_hashinfo	*hashinfo;
 		struct hlist_head	*udp_hash;
+		struct raw_hashinfo	*raw_hash;
 	} h;
 
 	struct module		*owner;
