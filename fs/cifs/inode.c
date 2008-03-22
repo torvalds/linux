@@ -211,7 +211,10 @@ try_again_CIFSSMBUnixQPathInfo:
 	if (rc) {
 		if (rc == -EREMOTE && !is_dfs_referral) {
 			is_dfs_referral = true;
-			full_path = search_path;
+			if (full_path != search_path) {
+				kfree(full_path);
+				full_path = search_path;
+			}
 			goto try_again_CIFSSMBUnixQPathInfo;
 		}
 		goto cgiiu_exit;
@@ -422,7 +425,10 @@ try_again_CIFSSMBQPathInfo:
 	if (rc) {
 		if (rc == -EREMOTE && !is_dfs_referral) {
 			is_dfs_referral = true;
-			full_path = search_path;
+			if (full_path != search_path) {
+				kfree(full_path);
+				full_path = search_path;
+			}
 			goto try_again_CIFSSMBQPathInfo;
 		}
 		goto cgii_exit;
