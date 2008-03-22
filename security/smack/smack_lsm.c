@@ -315,10 +315,10 @@ static int smack_sb_statfs(struct dentry *dentry)
  * Returns 0 if current can write the floor of the filesystem
  * being mounted on, an error code otherwise.
  */
-static int smack_sb_mount(char *dev_name, struct nameidata *nd,
+static int smack_sb_mount(char *dev_name, struct path *path,
 			  char *type, unsigned long flags, void *data)
 {
-	struct superblock_smack *sbp = nd->path.mnt->mnt_sb->s_security;
+	struct superblock_smack *sbp = path->mnt->mnt_sb->s_security;
 
 	return smk_curacc(sbp->smk_floor, MAY_WRITE);
 }

@@ -1220,7 +1220,7 @@ static int graft_tree(struct vfsmount *mnt, struct nameidata *nd)
 	if (IS_DEADDIR(nd->path.dentry->d_inode))
 		goto out_unlock;
 
-	err = security_sb_check_sb(mnt, nd);
+	err = security_sb_check_sb(mnt, &nd->path);
 	if (err)
 		goto out_unlock;
 
@@ -1230,7 +1230,7 @@ static int graft_tree(struct vfsmount *mnt, struct nameidata *nd)
 out_unlock:
 	mutex_unlock(&nd->path.dentry->d_inode->i_mutex);
 	if (!err)
-		security_sb_post_addmount(mnt, nd);
+		security_sb_post_addmount(mnt, &nd->path);
 	return err;
 }
 
@@ -1746,7 +1746,8 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 	if (retval)
 		return retval;
 
-	retval = security_sb_mount(dev_name, &nd, type_page, flags, data_page);
+	retval = security_sb_mount(dev_name, &nd.path,
+				   type_page, flags, data_page);
 	if (retval)
 		goto dput_out;
 
@@ -2007,7 +2008,7 @@ asmlinkage long sys_pivot_root(const char __user * new_root,
 	if (error)
 		goto out1;
 
-	error = security_sb_pivotroot(&old_nd, &new_nd);
+	error = security_sb_pivotroot(&old_nd.path, &new_nd.path);
 	if (error) {
 		path_put(&old_nd.path);
 		goto out1;
@@ -2070,7 +2071,7 @@ asmlinkage long sys_pivot_root(const char __user * new_root,
 	touch_mnt_namespace(current->nsproxy->mnt_ns);
 	spin_unlock(&vfsmount_lock);
 	chroot_fs_refs(&user_nd.path, &new_nd.path);
-	security_sb_post_pivotroot(&user_nd, &new_nd);
+	security_sb_post_pivotroot(&user_nd.path, &new_nd.path);
 	error = 0;
 	path_put(&root_parent);
 	path_put(&parent_path);
