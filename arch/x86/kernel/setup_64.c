@@ -389,8 +389,6 @@ void __init setup_arch(char **cmdline_p)
 
 	early_res_to_bootmem();
 
-	dma32_reserve_bootmem();
-
 #ifdef CONFIG_ACPI_SLEEP
 	/*
 	 * Reserve low memory region for sleep support.
