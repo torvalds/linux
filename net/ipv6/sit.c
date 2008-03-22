@@ -215,6 +215,9 @@ ipip6_tunnel_add_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a, int chg)
 	struct ip_tunnel_prl_entry *p;
 	int err = 0;
 
+	if (a->addr == htonl(INADDR_ANY))
+		return -EINVAL;
+
 	write_lock(&ipip6_lock);
 
 	for (p = t->prl; p; p = p->next) {
@@ -254,7 +257,7 @@ ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 
 	write_lock(&ipip6_lock);
 
-	if (a) {
+	if (a && a->addr != htonl(INADDR_ANY)) {
 		for (p = &t->prl; *p; p = &(*p)->next) {
 			if ((*p)->entry.addr == a->addr) {
 				x = *p;
