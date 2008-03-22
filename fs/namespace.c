@@ -1210,75 +1210,6 @@ unlock:
 
 EXPORT_SYMBOL_GPL(do_add_mount);
 
-static void expire_mount(struct vfsmount *mnt, struct list_head *mounts,
-				struct list_head *umounts)
-{
-	spin_lock(&vfsmount_lock);
-
-	/*
-	 * Check if mount is still attached, if not, let whoever holds it deal
-	 * with the sucker
-	 */
-	if (mnt->mnt_parent == mnt) {
-		spin_unlock(&vfsmount_lock);
-		return;
-	}
-
-	/*
-	 * Check that it is still dead: the count should now be 2 - as
-	 * contributed by the vfsmount parent and the mntget above
-	 */
-	if (!propagate_mount_busy(mnt, 2)) {
-		/* delete from the namespace */
-		touch_mnt_namespace(mnt->mnt_ns);
-		list_del_init(&mnt->mnt_list);
-		mnt->mnt_ns = NULL;
-		umount_tree(mnt, 1, umounts);
-		spin_unlock(&vfsmount_lock);
-	} else {
-		/*
-		 * Someone brought it back to life whilst we didn't have any
-		 * locks held so return it to the expiration list
-		 */
-		list_add_tail(&mnt->mnt_expire, mounts);
-		spin_unlock(&vfsmount_lock);
-	}
-}
-
-/*
- * go through the vfsmounts we've just consigned to the graveyard to
- * - check that they're still dead
- * - delete the vfsmount from the appropriate namespace under lock
- * - dispose of the corpse
- */
-static void expire_mount_list(struct list_head *graveyard, struct list_head *mounts)
-{
-	struct mnt_namespace *ns;
-	struct vfsmount *mnt;
-
-	while (!list_empty(graveyard)) {
-		LIST_HEAD(umounts);
-		mnt = list_first_entry(graveyard, struct vfsmount, mnt_expire);
-		list_del_init(&mnt->mnt_expire);
-
-		/* don't do anything if the namespace is dead - all the
-		 * vfsmounts from it are going away anyway */
-		ns = mnt->mnt_ns;
-		if (!ns || !ns->root)
-			continue;
-		get_mnt_ns(ns);
-
-		spin_unlock(&vfsmount_lock);
-		down_write(&namespace_sem);
-		expire_mount(mnt, mounts, &umounts);
-		up_write(&namespace_sem);
-		release_mounts(&umounts);
-		mntput(mnt);
-		put_mnt_ns(ns);
-		spin_lock(&vfsmount_lock);
-	}
-}
-
 /*
  * process a list of expirable mountpoints with the intent of discarding any
  * mountpoints that aren't in use and haven't been touched since last we came
@@ -1288,10 +1219,12 @@ void mark_mounts_for_expiry(struct list_head *mounts)
 {
 	struct vfsmount *mnt, *next;
 	LIST_HEAD(graveyard);
+	LIST_HEAD(umounts);
 
 	if (list_empty(mounts))
 		return;
 
+	down_write(&namespace_sem);
 	spin_lock(&vfsmount_lock);
 
 	/* extract from the expiration list every vfsmount that matches the
@@ -1302,16 +1235,19 @@ void mark_mounts_for_expiry(struct list_head *mounts)
 	 */
 	list_for_each_entry_safe(mnt, next, mounts, mnt_expire) {
 		if (!xchg(&mnt->mnt_expiry_mark, 1) ||
-		    atomic_read(&mnt->mnt_count) != 1)
+			propagate_mount_busy(mnt, 1))
 			continue;
-
-		mntget(mnt);
 		list_move(&mnt->mnt_expire, &graveyard);
 	}
-
-	expire_mount_list(&graveyard, mounts);
-
+	while (!list_empty(&graveyard)) {
+		mnt = list_first_entry(&graveyard, struct vfsmount, mnt_expire);
+		touch_mnt_namespace(mnt->mnt_ns);
+		umount_tree(mnt, 1, &umounts);
+	}
 	spin_unlock(&vfsmount_lock);
+	up_write(&namespace_sem);
+
+	release_mounts(&umounts);
 }
 
 EXPORT_SYMBOL_GPL(mark_mounts_for_expiry);
@@ -1347,7 +1283,6 @@ resume:
 		}
 
 		if (!propagate_mount_busy(mnt, 1)) {
-			mntget(mnt);
 			list_move_tail(&mnt->mnt_expire, graveyard);
 			found++;
 		}
@@ -1370,15 +1305,23 @@ resume:
 void shrink_submounts(struct vfsmount *mountpoint, struct list_head *mounts)
 {
 	LIST_HEAD(graveyard);
-	int found;
+	LIST_HEAD(umounts);
+	struct vfsmount *mnt;
 
+	down_write(&namespace_sem);
 	spin_lock(&vfsmount_lock);
-
 	/* extract submounts of 'mountpoint' from the expiration list */
-	while ((found = select_submounts(mountpoint, &graveyard)) != 0)
-		expire_mount_list(&graveyard, mounts);
-
+	while (select_submounts(mountpoint, &graveyard)) {
+		while (!list_empty(&graveyard)) {
+			mnt = list_first_entry(&graveyard, struct vfsmount,
+						mnt_expire);
+			touch_mnt_namespace(mnt->mnt_ns);
+			umount_tree(mnt, 1, &umounts);
+		}
+	}
 	spin_unlock(&vfsmount_lock);
+	up_write(&namespace_sem);
+	release_mounts(&umounts);
 }
 
 EXPORT_SYMBOL_GPL(shrink_submounts);
