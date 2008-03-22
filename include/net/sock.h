@@ -586,7 +586,10 @@ struct proto {
 	struct request_sock_ops	*rsk_prot;
 	struct timewait_sock_ops *twsk_prot;
 
-	struct inet_hashinfo	*hashinfo;
+	union {
+		struct inet_hashinfo	*hashinfo;
+		struct hlist_head	*udp_hash;
+	} h;
 
 	struct module		*owner;
 
