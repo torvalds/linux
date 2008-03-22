@@ -155,15 +155,15 @@ static void __touch_mnt_namespace(struct mnt_namespace *ns)
 	}
 }
 
-static void detach_mnt(struct vfsmount *mnt, struct nameidata *old_nd)
+static void detach_mnt(struct vfsmount *mnt, struct path *old_path)
 {
-	old_nd->path.dentry = mnt->mnt_mountpoint;
-	old_nd->path.mnt = mnt->mnt_parent;
+	old_path->dentry = mnt->mnt_mountpoint;
+	old_path->mnt = mnt->mnt_parent;
 	mnt->mnt_parent = mnt;
 	mnt->mnt_mountpoint = mnt->mnt_root;
 	list_del_init(&mnt->mnt_child);
 	list_del_init(&mnt->mnt_hash);
-	old_nd->path.dentry->d_mounted--;
+	old_path->dentry->d_mounted--;
 }
 
 void mnt_set_mountpoint(struct vfsmount *mnt, struct dentry *dentry,
@@ -174,12 +174,12 @@ void mnt_set_mountpoint(struct vfsmount *mnt, struct dentry *dentry,
 	dentry->d_mounted++;
 }
 
-static void attach_mnt(struct vfsmount *mnt, struct nameidata *nd)
+static void attach_mnt(struct vfsmount *mnt, struct path *path)
 {
-	mnt_set_mountpoint(nd->path.mnt, nd->path.dentry, mnt);
+	mnt_set_mountpoint(path->mnt, path->dentry, mnt);
 	list_add_tail(&mnt->mnt_hash, mount_hashtable +
-			hash(nd->path.mnt, nd->path.dentry));
-	list_add_tail(&mnt->mnt_child, &nd->path.mnt->mnt_mounts);
+			hash(path->mnt, path->dentry));
+	list_add_tail(&mnt->mnt_child, &path->mnt->mnt_mounts);
 }
 
 /*
@@ -744,7 +744,7 @@ struct vfsmount *copy_tree(struct vfsmount *mnt, struct dentry *dentry,
 					int flag)
 {
 	struct vfsmount *res, *p, *q, *r, *s;
-	struct nameidata nd;
+	struct path path;
 
 	if (!(flag & CL_COPY_ALL) && IS_MNT_UNBINDABLE(mnt))
 		return NULL;
@@ -769,14 +769,14 @@ struct vfsmount *copy_tree(struct vfsmount *mnt, struct dentry *dentry,
 				q = q->mnt_parent;
 			}
 			p = s;
-			nd.path.mnt = q;
-			nd.path.dentry = p->mnt_mountpoint;
+			path.mnt = q;
+			path.dentry = p->mnt_mountpoint;
 			q = clone_mnt(p, p->mnt_root, flag);
 			if (!q)
 				goto Enomem;
 			spin_lock(&vfsmount_lock);
 			list_add_tail(&q->mnt_list, &res->mnt_list);
-			attach_mnt(q, &nd);
+			attach_mnt(q, &path);
 			spin_unlock(&vfsmount_lock);
 		}
 	}
@@ -876,11 +876,11 @@ void drop_collected_mounts(struct vfsmount *mnt)
  * in allocations.
  */
 static int attach_recursive_mnt(struct vfsmount *source_mnt,
-			struct nameidata *nd, struct nameidata *parent_nd)
+			struct path *path, struct path *parent_path)
 {
 	LIST_HEAD(tree_list);
-	struct vfsmount *dest_mnt = nd->path.mnt;
-	struct dentry *dest_dentry = nd->path.dentry;
+	struct vfsmount *dest_mnt = path->mnt;
+	struct dentry *dest_dentry = path->dentry;
 	struct vfsmount *child, *p;
 
 	if (propagate_mnt(dest_mnt, dest_dentry, source_mnt, &tree_list))
@@ -892,9 +892,9 @@ static int attach_recursive_mnt(struct vfsmount *source_mnt,
 	}
 
 	spin_lock(&vfsmount_lock);
-	if (parent_nd) {
-		detach_mnt(source_mnt, parent_nd);
-		attach_mnt(source_mnt, nd);
+	if (parent_path) {
+		detach_mnt(source_mnt, parent_path);
+		attach_mnt(source_mnt, path);
 		touch_mnt_namespace(current->nsproxy->mnt_ns);
 	} else {
 		mnt_set_mountpoint(dest_mnt, dest_dentry, source_mnt);
@@ -930,7 +930,7 @@ static int graft_tree(struct vfsmount *mnt, struct nameidata *nd)
 
 	err = -ENOENT;
 	if (IS_ROOT(nd->path.dentry) || !d_unhashed(nd->path.dentry))
-		err = attach_recursive_mnt(mnt, nd, NULL);
+		err = attach_recursive_mnt(mnt, &nd->path, NULL);
 out_unlock:
 	mutex_unlock(&nd->path.dentry->d_inode->i_mutex);
 	if (!err)
@@ -1059,7 +1059,8 @@ static inline int tree_contains_unbindable(struct vfsmount *mnt)
  */
 static noinline int do_move_mount(struct nameidata *nd, char *old_name)
 {
-	struct nameidata old_nd, parent_nd;
+	struct nameidata old_nd;
+	struct path parent_path;
 	struct vfsmount *p;
 	int err = 0;
 	if (!capable(CAP_SYS_ADMIN))
@@ -1114,7 +1115,7 @@ static noinline int do_move_mount(struct nameidata *nd, char *old_name)
 		if (p == old_nd.path.mnt)
 			goto out1;
 
-	err = attach_recursive_mnt(old_nd.path.mnt, nd, &parent_nd);
+	err = attach_recursive_mnt(old_nd.path.mnt, &nd->path, &parent_path);
 	if (err)
 		goto out1;
 
@@ -1128,7 +1129,7 @@ out1:
 out:
 	up_write(&namespace_sem);
 	if (!err)
-		path_put(&parent_nd.path);
+		path_put(&parent_path);
 	path_put(&old_nd.path);
 	return err;
 }
@@ -1683,7 +1684,7 @@ void set_fs_pwd(struct fs_struct *fs, struct path *path)
 		path_put(&old_pwd);
 }
 
-static void chroot_fs_refs(struct nameidata *old_nd, struct nameidata *new_nd)
+static void chroot_fs_refs(struct path *old_root, struct path *new_root)
 {
 	struct task_struct *g, *p;
 	struct fs_struct *fs;
@@ -1695,12 +1696,12 @@ static void chroot_fs_refs(struct nameidata *old_nd, struct nameidata *new_nd)
 		if (fs) {
 			atomic_inc(&fs->count);
 			task_unlock(p);
-			if (fs->root.dentry == old_nd->path.dentry
-			    && fs->root.mnt == old_nd->path.mnt)
-				set_fs_root(fs, &new_nd->path);
-			if (fs->pwd.dentry == old_nd->path.dentry
-			    && fs->pwd.mnt == old_nd->path.mnt)
-				set_fs_pwd(fs, &new_nd->path);
+			if (fs->root.dentry == old_root->dentry
+			    && fs->root.mnt == old_root->mnt)
+				set_fs_root(fs, new_root);
+			if (fs->pwd.dentry == old_root->dentry
+			    && fs->pwd.mnt == old_root->mnt)
+				set_fs_pwd(fs, new_root);
 			put_fs_struct(fs);
 		} else
 			task_unlock(p);
@@ -1737,7 +1738,8 @@ asmlinkage long sys_pivot_root(const char __user * new_root,
 			       const char __user * put_old)
 {
 	struct vfsmount *tmp;
-	struct nameidata new_nd, old_nd, parent_nd, root_parent, user_nd;
+	struct nameidata new_nd, old_nd, user_nd;
+	struct path parent_path, root_parent;
 	int error;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -1811,19 +1813,19 @@ asmlinkage long sys_pivot_root(const char __user * new_root,
 			goto out3;
 	} else if (!is_subdir(old_nd.path.dentry, new_nd.path.dentry))
 		goto out3;
-	detach_mnt(new_nd.path.mnt, &parent_nd);
+	detach_mnt(new_nd.path.mnt, &parent_path);
 	detach_mnt(user_nd.path.mnt, &root_parent);
 	/* mount old root on put_old */
-	attach_mnt(user_nd.path.mnt, &old_nd);
+	attach_mnt(user_nd.path.mnt, &old_nd.path);
 	/* mount new_root on / */
 	attach_mnt(new_nd.path.mnt, &root_parent);
 	touch_mnt_namespace(current->nsproxy->mnt_ns);
 	spin_unlock(&vfsmount_lock);
-	chroot_fs_refs(&user_nd, &new_nd);
+	chroot_fs_refs(&user_nd.path, &new_nd.path);
 	security_sb_post_pivotroot(&user_nd, &new_nd);
 	error = 0;
-	path_put(&root_parent.path);
-	path_put(&parent_nd.path);
+	path_put(&root_parent);
+	path_put(&parent_path);
 out2:
 	mutex_unlock(&old_nd.path.dentry->d_inode->i_mutex);
 	up_write(&namespace_sem);
