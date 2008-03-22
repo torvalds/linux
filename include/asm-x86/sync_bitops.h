@@ -123,7 +123,7 @@ static inline int sync_test_and_change_bit(int nr, volatile unsigned long *addr)
 	return oldbit;
 }
 
-#define sync_test_bit test_bit
+#define sync_test_bit(nr, addr) test_bit(nr, addr)
 
 #undef ADDR
 
