@@ -488,8 +488,8 @@ mpc52xx_bcom_remove(struct of_device *op)
 }
 
 static struct of_device_id mpc52xx_bcom_of_match[] = {
-	{ .type = "dma-controller", .compatible = "fsl,mpc5200-bestcomm", },
-	{ .type = "dma-controller", .compatible = "mpc5200-bestcomm", },
+	{ .compatible = "fsl,mpc5200-bestcomm", },
+	{ .compatible = "mpc5200-bestcomm", },
 	{},
 };
 
