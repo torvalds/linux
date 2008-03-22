@@ -182,6 +182,18 @@ static void print_dump_header(const struct phyp_dump_header *ph)
 #endif
 }
 
+static ssize_t show_phyp_dump_active(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
+{
+
+	/* create filesystem entry so kdump is phyp-dump aware */
+	return sprintf(buf, "%lx\n", phyp_dump_info->phyp_dump_at_boot);
+}
+
+static struct kobj_attribute pdl = __ATTR(phyp_dump_active, 0600,
+					show_phyp_dump_active,
+					NULL);
+
 static void register_dump_area(struct phyp_dump_header *ph, unsigned long addr)
 {
 	int rc;
@@ -204,7 +216,13 @@ static void register_dump_area(struct phyp_dump_header *ph, unsigned long addr)
 		printk(KERN_ERR "phyp-dump: unexpected error (%d) on "
 						"register\n", rc);
 		print_dump_header(ph);
+		return;
 	}
+
+	rc = sysfs_create_file(kernel_kobj, &pdl.attr);
+	if (rc)
+		printk(KERN_ERR "phyp-dump: unable to create sysfs"
+				" file (%d)\n", rc);
 }
 
 static
