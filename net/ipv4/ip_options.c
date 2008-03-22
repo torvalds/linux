@@ -267,8 +267,7 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 		optptr = iph + sizeof(struct iphdr);
 		opt->is_data = 0;
 	} else {
-		optptr = opt->is_data ? opt->__data :
-					(unsigned char *)&(ip_hdr(skb)[1]);
+		optptr = opt->__data;
 		iph = optptr - sizeof(struct iphdr);
 	}
 
