@@ -427,7 +427,10 @@ static void __init init_gbpages(void)
 		direct_gbpages = 0;
 }
 
-static void __init memtest(unsigned long start_phys, unsigned long size, unsigned pattern)
+#ifdef CONFIG_MEMTEST_BOOTPARAM
+
+static void __init memtest(unsigned long start_phys, unsigned long size,
+				 unsigned pattern)
 {
 	unsigned long i;
 	unsigned long *start;
@@ -486,11 +489,12 @@ static void __init memtest(unsigned long start_phys, unsigned long size, unsigne
 
 }
 
-static int __initdata memtest_pattern;
+static int memtest_pattern __initdata = CONFIG_MEMTEST_BOOTPARAM_VALUE;
+
 static int __init parse_memtest(char *arg)
 {
 	if (arg)
-		memtest_pattern = simple_strtoul(arg, NULL, 0) + 1;
+		memtest_pattern = simple_strtoul(arg, NULL, 0);
 	return 0;
 }
 
@@ -501,8 +505,10 @@ static void __init early_memtest(unsigned long start, unsigned long end)
 	unsigned long t_start, t_size;
 	unsigned pattern;
 
-	if (memtest_pattern)
-		printk(KERN_INFO "early_memtest: pattern num %d", memtest_pattern);
+	if (!memtest_pattern)
+		return;
+
+	printk(KERN_INFO "early_memtest: pattern num %d", memtest_pattern);
 	for (pattern = 0; pattern < memtest_pattern; pattern++) {
 		t_start = start;
 		t_size = 0;
@@ -523,9 +529,13 @@ static void __init early_memtest(unsigned long start, unsigned long end)
 			t_start += t_size;
 		}
 	}
-	if (memtest_pattern)
-		printk(KERN_CONT "\n");
+	printk(KERN_CONT "\n");
 }
+#else
+static void __init early_memtest(unsigned long start, unsigned long end)
+{
+}
+#endif
 
 /*
  * Setup the direct mapping of the physical memory at PAGE_OFFSET.

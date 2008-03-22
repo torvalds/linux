@@ -241,7 +241,9 @@ unsigned long __init find_e820_area(unsigned long start, unsigned long end,
 /*
  * Find next free range after *start
  */
-unsigned long __init find_e820_area_size(unsigned long start, unsigned long *sizep, unsigned long align)
+unsigned long __init find_e820_area_size(unsigned long start,
+					 unsigned long *sizep,
+					 unsigned long align)
 {
 	int i;
 
@@ -254,17 +256,15 @@ unsigned long __init find_e820_area_size(unsigned long start, unsigned long *siz
 			continue;
 		addr = round_up(ei->addr, align);
 		ei_last = ei->addr + ei->size;
-//		printk(KERN_DEBUG "find_e820_area_size : e820 %d [%llx, %lx]\n", i, ei->addr, ei_last);
 		if (addr < start)
 			addr = round_up(start, align);
-//		printk(KERN_DEBUG "find_e820_area_size : 0 [%lx, %lx]\n", addr, ei_last);
 		if (addr >= ei_last)
 			continue;
 		*sizep = ei_last - addr;
-		while (bad_addr_size(&addr, sizep, align) && addr+ *sizep <= ei_last)
+		while (bad_addr_size(&addr, sizep, align) &&
+			addr + *sizep <= ei_last)
 			;
 		last = addr + *sizep;
-//		printk(KERN_DEBUG "find_e820_area_size : 1 [%lx, %lx]\n", addr, last);
 		if (last > ei_last)
 			continue;
 		return addr;

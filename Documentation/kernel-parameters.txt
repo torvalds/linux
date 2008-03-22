@@ -1147,6 +1147,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			         or
 			         memmap=0x10000$0x18690000
 
+	memtest=	[KNL,X86_64] Enable memtest
+			Format: <integer>
+			range: 0,4 : pattern number
+			default : 0 <disable>
+
 	meye.*=		[HW] Set MotionEye Camera parameters
 			See Documentation/video4linux/meye.txt.
 
