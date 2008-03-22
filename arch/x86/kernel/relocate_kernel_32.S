@@ -185,8 +185,7 @@ identity_mapped:
 	/* Set cr4 to a known state:
 	 * Setting everything to zero seems safe.
 	 */
-	movl	%cr4, %eax
-	andl	$0, %eax
+	xorl	%eax, %eax
 	movl	%eax, %cr4
 
 	jmp 1f
