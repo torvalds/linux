@@ -45,7 +45,6 @@ void ip_options_build(struct sk_buff * skb, struct ip_options * opt,
 	memcpy(&(IPCB(skb)->opt), opt, sizeof(struct ip_options));
 	memcpy(iph+sizeof(struct iphdr), opt->__data, opt->optlen);
 	opt = &(IPCB(skb)->opt);
-	opt->is_data = 0;
 
 	if (opt->srr)
 		memcpy(iph+opt->srr+iph[opt->srr+1]-4, &daddr, 4);
@@ -94,8 +93,6 @@ int ip_options_echo(struct ip_options * dopt, struct sk_buff * skb)
 	__be32	daddr;
 
 	memset(dopt, 0, sizeof(struct ip_options));
-
-	dopt->is_data = 1;
 
 	sopt = &(IPCB(skb)->opt);
 
@@ -265,7 +262,6 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 		iph = skb_network_header(skb);
 		opt->optlen = ((struct iphdr *)iph)->ihl*4 - sizeof(struct iphdr);
 		optptr = iph + sizeof(struct iphdr);
-		opt->is_data = 0;
 	} else {
 		optptr = opt->__data;
 		iph = optptr - sizeof(struct iphdr);
@@ -519,7 +515,6 @@ static int ip_options_get_finish(struct ip_options **optp,
 	while (optlen & 3)
 		opt->__data[optlen++] = IPOPT_END;
 	opt->optlen = optlen;
-	opt->is_data = 1;
 	if (optlen && ip_options_compile(opt, NULL)) {
 		kfree(opt);
 		return -EINVAL;
