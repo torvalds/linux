@@ -10,13 +10,14 @@
 #include <asm/page.h>
 #include <asm/kexec.h>
 #include <asm/processor-flags.h>
+#include <asm/pgtable.h>
 
 /*
  * Must be relocatable PIC code callable as a C function
  */
 
 #define PTR(x) (x << 3)
-#define PAGE_ATTR 0x63 /* _PAGE_PRESENT|_PAGE_RW|_PAGE_ACCESSED|_PAGE_DIRTY */
+#define PAGE_ATTR (_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY)
 
 	.text
 	.align PAGE_SIZE
