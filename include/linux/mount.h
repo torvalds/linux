@@ -61,6 +61,7 @@ struct vfsmount {
 	atomic_t mnt_count;
 	int mnt_expiry_mark;		/* true if marked for expiry */
 	int mnt_pinned;
+	int mnt_ghosts;
 };
 
 static inline struct vfsmount *mntget(struct vfsmount *mnt)

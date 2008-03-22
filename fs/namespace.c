@@ -548,6 +548,7 @@ void release_mounts(struct list_head *head)
 			m = mnt->mnt_parent;
 			mnt->mnt_mountpoint = mnt->mnt_root;
 			mnt->mnt_parent = mnt;
+			m->mnt_ghosts--;
 			spin_unlock(&vfsmount_lock);
 			dput(dentry);
 			mntput(m);
@@ -572,8 +573,10 @@ void umount_tree(struct vfsmount *mnt, int propagate, struct list_head *kill)
 		__touch_mnt_namespace(p->mnt_ns);
 		p->mnt_ns = NULL;
 		list_del_init(&p->mnt_child);
-		if (p->mnt_parent != p)
+		if (p->mnt_parent != p) {
+			p->mnt_parent->mnt_ghosts++;
 			p->mnt_mountpoint->d_mounted--;
+		}
 		change_mnt_propagation(p, MS_PRIVATE);
 	}
 }
