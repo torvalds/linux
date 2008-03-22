@@ -4,13 +4,13 @@
 #define USER_PTRS_PER_PGD	((TASK_SIZE-1)/PGDIR_SIZE+1)
 #define FIRST_USER_ADDRESS	0
 
-#define _PAGE_BIT_PRESENT	0
-#define _PAGE_BIT_RW		1
-#define _PAGE_BIT_USER		2
-#define _PAGE_BIT_PWT		3
-#define _PAGE_BIT_PCD		4
-#define _PAGE_BIT_ACCESSED	5
-#define _PAGE_BIT_DIRTY		6
+#define _PAGE_BIT_PRESENT	0	/* is present */
+#define _PAGE_BIT_RW		1	/* writeable */
+#define _PAGE_BIT_USER		2	/* userspace addressable */
+#define _PAGE_BIT_PWT		3	/* page write through */
+#define _PAGE_BIT_PCD		4	/* page cache disabled */
+#define _PAGE_BIT_ACCESSED	5	/* was accessed (raised by CPU) */
+#define _PAGE_BIT_DIRTY		6	/* was written to (raised by CPU) */
 #define _PAGE_BIT_FILE		6
 #define _PAGE_BIT_PSE		7	/* 4 MB (or 2MB) page */
 #define _PAGE_BIT_PAT		7	/* on 4KB pages */
