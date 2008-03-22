@@ -150,6 +150,14 @@ static inline int wrmsr_safe(unsigned msr, unsigned low, unsigned high)
 	__err;							\
 })
 
+static inline int rdmsrl_safe(unsigned msr, unsigned long long *p)
+{
+	int err;
+
+	*p = native_read_msr_safe(msr, &err);
+	return err;
+}
+
 #define rdtscl(low)						\
 	((low) = (u32)native_read_tsc())
 

@@ -693,6 +693,13 @@ do {						\
 	_err;					\
 })
 
+static inline int rdmsrl_safe(unsigned msr, unsigned long long *p)
+{
+	int err;
+
+	*p = paravirt_read_msr(msr, &err);
+	return err;
+}
 
 static inline u64 paravirt_read_tsc(void)
 {
