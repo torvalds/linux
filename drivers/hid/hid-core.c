@@ -44,8 +44,8 @@
 
 #ifdef CONFIG_HID_DEBUG
 int hid_debug = 0;
-module_param_named(debug, hid_debug, bool, 0600);
-MODULE_PARM_DESC(debug, "Turn HID debugging mode on and off");
+module_param_named(debug, hid_debug, int, 0600);
+MODULE_PARM_DESC(debug, "HID debugging (0=off, 1=probing info, 2=continuous data dumping)");
 EXPORT_SYMBOL_GPL(hid_debug);
 #endif
 
