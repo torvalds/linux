@@ -109,7 +109,8 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of, const struct of_device_i
 		int irq = irq_of_parse_and_map(child, 0);
 		if (irq != NO_IRQ) {
 			const u32 *id = of_get_property(child, "reg", NULL);
-			bus->irq[*id] = irq;
+			if (id)
+				bus->irq[*id] = irq;
 		}
 	}
 
