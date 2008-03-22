@@ -198,7 +198,7 @@ failed:
 }
 
 static struct ip_tunnel_prl_entry *
-ipip6_tunnel_locate_prl(struct ip_tunnel *t, __be32 addr)
+__ipip6_tunnel_locate_prl(struct ip_tunnel *t, __be32 addr)
 {
 	struct ip_tunnel_prl_entry *p = (struct ip_tunnel_prl_entry *)NULL;
 
@@ -213,34 +213,46 @@ static int
 ipip6_tunnel_add_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a, int chg)
 {
 	struct ip_tunnel_prl_entry *p;
+	int err = 0;
+
+	write_lock(&ipip6_lock);
 
 	for (p = t->prl; p; p = p->next) {
 		if (p->entry.addr == a->addr) {
-			if (chg) {
-				p->entry = *a;
-				return 0;
-			}
-			return -EEXIST;
+			if (chg)
+				goto update;
+			err = -EEXIST;
+			goto out;
 		}
 	}
 
-	if (chg)
-		return -ENXIO;
+	if (chg) {
+		err = -ENXIO;
+		goto out;
+	}
 
 	p = kzalloc(sizeof(struct ip_tunnel_prl_entry), GFP_KERNEL);
-	if (!p)
-		return -ENOBUFS;
+	if (!p) {
+		err = -ENOBUFS;
+		goto out;
+	}
 
-	p->entry = *a;
 	p->next = t->prl;
 	t->prl = p;
-	return 0;
+update:
+	p->entry = *a;
+out:
+	write_unlock(&ipip6_lock);
+	return err;
 }
 
 static int
 ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 {
 	struct ip_tunnel_prl_entry *x, **p;
+	int err = 0;
+
+	write_lock(&ipip6_lock);
 
 	if (a) {
 		for (p = &t->prl; *p; p = &(*p)->next) {
@@ -248,10 +260,10 @@ ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 				x = *p;
 				*p = x->next;
 				kfree(x);
-				return 0;
+				goto out;
 			}
 		}
-		return -ENXIO;
+		err = -ENXIO;
 	} else {
 		while (t->prl) {
 			x = t->prl;
@@ -259,6 +271,8 @@ ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 			kfree(x);
 		}
 	}
+out:
+	write_unlock(&ipip6_lock);
 	return 0;
 }
 
@@ -290,9 +304,11 @@ ipip6_onlink(struct in6_addr *addr, struct net_device *dev)
 static int
 isatap_chksrc(struct sk_buff *skb, struct iphdr *iph, struct ip_tunnel *t)
 {
-	struct ip_tunnel_prl_entry *p = ipip6_tunnel_locate_prl(t, iph->saddr);
+	struct ip_tunnel_prl_entry *p;
 	int ok = 1;
 
+	read_lock(&ipip6_lock);
+	p = __ipip6_tunnel_locate_prl(t, iph->saddr);
 	if (p) {
 		if (p->entry.flags & PRL_DEFAULT)
 			skb->ndisc_nodetype = NDISC_NODETYPE_DEFAULT;
@@ -307,6 +323,7 @@ isatap_chksrc(struct sk_buff *skb, struct iphdr *iph, struct ip_tunnel *t)
 		else
 			ok = 0;
 	}
+	read_unlock(&ipip6_lock);
 	return ok;
 }
 
@@ -895,12 +912,10 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (!(t = netdev_priv(dev)))
 			goto done;
 
-		ipip6_tunnel_unlink(t);
 		if (cmd == SIOCDELPRL)
 			err = ipip6_tunnel_del_prl(t, &prl);
 		else
 			err = ipip6_tunnel_add_prl(t, &prl, cmd == SIOCCHGPRL);
-		ipip6_tunnel_link(t);
 		netdev_state_change(dev);
 		break;
 
