@@ -283,13 +283,14 @@ static inline int ip_rcv_options(struct sk_buff *skb)
 	}
 
 	iph = ip_hdr(skb);
+	opt = &(IPCB(skb)->opt);
+	opt->optlen = iph->ihl*4 - sizeof(struct iphdr);
 
-	if (ip_options_compile(NULL, skb)) {
+	if (ip_options_compile(opt, skb)) {
 		IP_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
 		goto drop;
 	}
 
-	opt = &(IPCB(skb)->opt);
 	if (unlikely(opt->srr)) {
 		struct in_device *in_dev = in_dev_get(dev);
 		if (in_dev) {

@@ -255,17 +255,14 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 	unsigned char * optptr;
 	int optlen;
 	unsigned char * pp_ptr = NULL;
-	struct rtable *rt = skb ? skb->rtable : NULL;
+	struct rtable *rt = NULL;
 
-	if (!opt) {
-		opt = &(IPCB(skb)->opt);
-		iph = skb_network_header(skb);
-		opt->optlen = ((struct iphdr *)iph)->ihl*4 - sizeof(struct iphdr);
-		optptr = iph + sizeof(struct iphdr);
-	} else {
+	if (skb != NULL) {
+		rt = skb->rtable;
+		optptr = (unsigned char *)&(ip_hdr(skb)[1]);
+	} else
 		optptr = opt->__data;
-		iph = optptr - sizeof(struct iphdr);
-	}
+	iph = optptr - sizeof(struct iphdr);
 
 	for (l = opt->optlen; l > 0; ) {
 		switch (*optptr) {
