@@ -1091,20 +1091,20 @@ Enomem:
 struct vfsmount *collect_mounts(struct vfsmount *mnt, struct dentry *dentry)
 {
 	struct vfsmount *tree;
-	down_read(&namespace_sem);
+	down_write(&namespace_sem);
 	tree = copy_tree(mnt, dentry, CL_COPY_ALL | CL_PRIVATE);
-	up_read(&namespace_sem);
+	up_write(&namespace_sem);
 	return tree;
 }
 
 void drop_collected_mounts(struct vfsmount *mnt)
 {
 	LIST_HEAD(umount_list);
-	down_read(&namespace_sem);
+	down_write(&namespace_sem);
 	spin_lock(&vfsmount_lock);
 	umount_tree(mnt, 0, &umount_list);
 	spin_unlock(&vfsmount_lock);
-	up_read(&namespace_sem);
+	up_write(&namespace_sem);
 	release_mounts(&umount_list);
 }
 
