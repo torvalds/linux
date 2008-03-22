@@ -1258,7 +1258,7 @@ static int __init ide_setup(char *s)
 		drive = &hwif->drives[unit];
 		if (strncmp(s + 4, "ide-", 4) == 0) {
 			strlcpy(drive->driver_req, s + 4, sizeof(drive->driver_req));
-			goto done;
+			goto obsolete_option;
 		}
 		switch (match_parm(&s[3], hd_words, vals, 3)) {
 			case -1: /* "none" */
@@ -1296,7 +1296,7 @@ static int __init ide_setup(char *s)
 				goto done;
 			case -14: /* "scsi" */
 				drive->scsi = 1;
-				goto done;
+				goto obsolete_option;
 			case 3: /* cyl,head,sect */
 				drive->media	= ide_disk;
 				drive->ready_stat = READY_STAT;

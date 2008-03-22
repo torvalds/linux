@@ -242,10 +242,6 @@ Summary of ide driver parameters for kernel command line
 
  "hdx=nodma"		: disallow DMA
 
- "hdx=scsi"		: the return of the ide-scsi flag, this is useful for
- 			  allowing ide-floppy, ide-tape, and ide-cdrom|writers
- 			  to use ide-scsi emulation on a device specific option.
-
  "idebus=xx"		: inform IDE driver of VESA/PCI bus speed in MHz,
 			  where "xx" is between 20 and 66 inclusive,
 			  used when tuning chipset PIO modes.
