@@ -14,18 +14,18 @@
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 #define flush_icache_range(start, end)		do { } while (0)
-#define flush_icache_page(vma,pg)		do { } while (0)
-#define flush_icache_user_range(vma,pg,adr,len)	do { } while (0)
+#define flush_icache_page(vma, pg)		do { } while (0)
+#define flush_icache_user_range(vma, pg, adr, len)	do { } while (0)
 #define flush_cache_vmap(start, end)		do { } while (0)
 #define flush_cache_vunmap(start, end)		do { } while (0)
 
-#define copy_to_user_page(vma, page, vaddr, dst, src, len) \
-	memcpy(dst, src, len)
-#define copy_from_user_page(vma, page, vaddr, dst, src, len) \
-	memcpy(dst, src, len)
+#define copy_to_user_page(vma, page, vaddr, dst, src, len)	\
+	memcpy((dst), (src), (len))
+#define copy_from_user_page(vma, page, vaddr, dst, src, len)	\
+	memcpy((dst), (src), (len))
 
 int __deprecated_for_modules change_page_attr(struct page *page, int numpages,
-								pgprot_t prot);
+					      pgprot_t prot);
 
 int set_pages_uc(struct page *page, int numpages);
 int set_pages_wb(struct page *page, int numpages);
