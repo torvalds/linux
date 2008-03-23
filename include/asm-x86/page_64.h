@@ -5,7 +5,7 @@
 
 #define THREAD_ORDER	1
 #define THREAD_SIZE  (PAGE_SIZE << THREAD_ORDER)
-#define CURRENT_MASK (~(THREAD_SIZE-1))
+#define CURRENT_MASK (~(THREAD_SIZE - 1))
 
 #define EXCEPTION_STACK_ORDER 0
 #define EXCEPTION_STKSZ (PAGE_SIZE << EXCEPTION_STACK_ORDER)
@@ -51,7 +51,7 @@
  * Kernel image size is limited to 512 MB (see level2_kernel_pgt in
  * arch/x86/kernel/head_64.S), and it is mapped here:
  */
-#define KERNEL_IMAGE_SIZE	(512*1024*1024)
+#define KERNEL_IMAGE_SIZE	(512 * 1024 * 1024)
 #define KERNEL_IMAGE_START	_AC(0xffffffff80000000, UL)
 
 #ifndef __ASSEMBLY__
