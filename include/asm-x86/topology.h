@@ -71,7 +71,7 @@ static inline int cpu_to_node(int cpu)
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
 	if (x86_cpu_to_node_map_early_ptr) {
 		printk("KERN_NOTICE cpu_to_node(%d): usage too early!\n",
-			(int)cpu);
+		       (int)cpu);
 		dump_stack();
 		return ((int *)x86_cpu_to_node_map_early_ptr)[cpu];
 	}
