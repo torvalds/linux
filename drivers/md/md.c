@@ -1849,7 +1849,7 @@ repeat:
 
 }
 
-/* words written to sysfs files may, or my not, be \n terminated.
+/* words written to sysfs files may, or may not, be \n terminated.
  * We want to accept with case. For this we use cmd_match.
  */
 static int cmd_match(const char *cmd, const char *str)
