@@ -195,31 +195,30 @@ const struct file_operations scanlog_fops = {
 static int __init scanlog_init(void)
 {
 	struct proc_dir_entry *ent;
+	void *data;
+	int err = -ENOMEM;
 
 	ibm_scan_log_dump = rtas_token("ibm,scan-log-dump");
-	if (ibm_scan_log_dump == RTAS_UNKNOWN_SERVICE) {
-		printk(KERN_ERR "scan-log-dump not implemented on this system\n");
-		return -EIO;
-	}
+	if (ibm_scan_log_dump == RTAS_UNKNOWN_SERVICE)
+		return -ENODEV;
 
-        ent = create_proc_entry("ppc64/rtas/scan-log-dump",  S_IRUSR, NULL);
-	if (ent) {
-		ent->proc_fops = &scanlog_fops;
-		/* Ideally we could allocate a buffer < 4G */
-		ent->data = kmalloc(RTAS_DATA_BUF_SIZE, GFP_KERNEL);
-		if (!ent->data) {
-			printk(KERN_ERR "Failed to allocate a buffer\n");
-			remove_proc_entry("scan-log-dump", ent->parent);
-			return -ENOMEM;
-		}
-		((unsigned int *)ent->data)[0] = 0;
-	} else {
-		printk(KERN_ERR "Failed to create ppc64/scan-log-dump proc entry\n");
-		return -EIO;
-	}
+	/* Ideally we could allocate a buffer < 4G */
+	data = kzalloc(RTAS_DATA_BUF_SIZE, GFP_KERNEL);
+	if (!data)
+		goto err;
+
+	ent = proc_create("ppc64/rtas/scan-log-dump", S_IRUSR, NULL,
+			  &scanlog_fops);
+	if (!ent)
+		goto err;
+
+	ent->data = data;
 	proc_ppc64_scan_log_dump = ent;
 
 	return 0;
+err:
+	kfree(data);
+	return err;
 }
 
 static void __exit scanlog_cleanup(void)
