@@ -1,8 +1,8 @@
 b43-y				+= main.o
 b43-y				+= tables.o
-b43-y				+= tables_nphy.o
+b43-$(CONFIG_B43_NPHY)		+= tables_nphy.o
 b43-y				+= phy.o
-b43-y				+= nphy.o
+b43-$(CONFIG_B43_NPHY)		+= nphy.o
 b43-y				+= sysfs.o
 b43-y				+= xmit.o
 b43-y				+= lo.o
