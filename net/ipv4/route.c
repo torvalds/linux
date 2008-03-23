@@ -2520,7 +2520,7 @@ static struct dst_ops ipv4_dst_blackhole_ops = {
 };
 
 
-static int ipv4_dst_blackhole(struct rtable **rp, struct flowi *flp, struct sock *sk)
+static int ipv4_dst_blackhole(struct rtable **rp, struct flowi *flp)
 {
 	struct rtable *ort = *rp;
 	struct rtable *rt = (struct rtable *)
@@ -2580,7 +2580,7 @@ int ip_route_output_flow(struct net *net, struct rtable **rp, struct flowi *flp,
 		err = __xfrm_lookup((struct dst_entry **)rp, flp, sk,
 				    flags ? XFRM_LOOKUP_WAIT : 0);
 		if (err == -EREMOTE)
-			err = ipv4_dst_blackhole(rp, flp, sk);
+			err = ipv4_dst_blackhole(rp, flp);
 
 		return err;
 	}
