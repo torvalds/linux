@@ -1416,12 +1416,12 @@ static int ata_hpa_resize(struct ata_device *dev)
 	/* read native max address */
 	rc = ata_read_native_max_address(dev, &native_sectors);
 	if (rc) {
-		/* If HPA isn't going to be unlocked, skip HPA
-		 * resizing from the next try.
+		/* If device aborted the command or HPA isn't going to
+		 * be unlocked, skip HPA resizing.
 		 */
-		if (!ata_ignore_hpa) {
+		if (rc == -EACCES || !ata_ignore_hpa) {
 			ata_dev_printk(dev, KERN_WARNING, "HPA support seems "
-				       "broken, will skip HPA handling\n");
+				       "broken, skipping HPA handling\n");
 			dev->horkage |= ATA_HORKAGE_BROKEN_HPA;
 
 			/* we can continue if device aborted the command */
