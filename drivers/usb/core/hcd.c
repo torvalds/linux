@@ -291,7 +291,6 @@ static int ascii2utf (char *s, u8 *utf, int utfmax)
  * rh_string - provides manufacturer, product and serial strings for root hub
  * @id: the string ID number (1: serial number, 2: product, 3: vendor)
  * @hcd: the host controller for this root hub
- * @type: string describing our driver 
  * @data: return packet in UTF-16 LE
  * @len: length of the return packet
  *
@@ -1677,7 +1676,6 @@ EXPORT_SYMBOL_GPL(usb_bus_start_enum);
  * usb_hcd_irq - hook IRQs to HCD framework (bus glue)
  * @irq: the IRQ being raised
  * @__hcd: pointer to the HCD whose IRQ is being signaled
- * @r: saved hardware registers
  *
  * If the controller isn't HALTed, calls the driver's irq handler.
  * Checks whether the controller is now dead.
