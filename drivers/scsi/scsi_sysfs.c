@@ -809,6 +809,27 @@ sdev_store_queue_type_rw(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static int scsi_target_add(struct scsi_target *starget)
+{
+	int error;
+
+	if (starget->state != STARGET_CREATED)
+		return 0;
+
+	error = device_add(&starget->dev);
+	if (error) {
+		dev_err(&starget->dev, "target device_add failed, error %d\n", error);
+		get_device(&starget->dev);
+		scsi_target_reap(starget);
+		put_device(&starget->dev);
+		return error;
+	}
+	transport_add_device(&starget->dev);
+	starget->state = STARGET_RUNNING;
+
+	return 0;
+}
+
 static struct device_attribute sdev_attr_queue_type_rw =
 	__ATTR(queue_type, S_IRUGO | S_IWUSR, show_queue_type_field,
 	       sdev_store_queue_type_rw);
@@ -824,10 +845,16 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 {
 	int error, i;
 	struct request_queue *rq = sdev->request_queue;
+	struct scsi_target *starget = sdev->sdev_target;
 
 	if ((error = scsi_device_set_state(sdev, SDEV_RUNNING)) != 0)
 		return error;
 
+	error = scsi_target_add(starget);
+	if (error)
+		return error;
+
+	transport_configure_device(&starget->dev);
 	error = device_add(&sdev->sdev_gendev);
 	if (error) {
 		put_device(sdev->sdev_gendev.parent);
