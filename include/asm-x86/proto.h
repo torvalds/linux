@@ -26,7 +26,7 @@ extern int reboot_force;
 
 long do_arch_prctl(struct task_struct *task, int code, unsigned long addr);
 
-#define round_up(x,y) (((x) + (y) - 1) & ~((y)-1))
-#define round_down(x,y) ((x) & ~((y)-1))
+#define round_up(x, y) (((x) + (y) - 1) & ~((y) - 1))
+#define round_down(x, y) ((x) & ~((y) - 1))
 
 #endif
