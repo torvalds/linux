@@ -1436,7 +1436,7 @@ scratch_ram {
 	KERNEL_TQINPOS {
 		size		1
 	}
-	TQINPOS {                
+	TQINPOS {
 		size		1
 	}
 	ARG_1 {

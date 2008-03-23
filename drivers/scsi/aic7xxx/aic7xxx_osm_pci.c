@@ -269,6 +269,57 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return (0);
 }
 
+/******************************* PCI Routines *********************************/
+uint32_t
+ahc_pci_read_config(ahc_dev_softc_t pci, int reg, int width)
+{
+	switch (width) {
+	case 1:
+	{
+		uint8_t retval;
+
+		pci_read_config_byte(pci, reg, &retval);
+		return (retval);
+	}
+	case 2:
+	{
+		uint16_t retval;
+		pci_read_config_word(pci, reg, &retval);
+		return (retval);
+	}
+	case 4:
+	{
+		uint32_t retval;
+		pci_read_config_dword(pci, reg, &retval);
+		return (retval);
+	}
+	default:
+		panic("ahc_pci_read_config: Read size too big");
+		/* NOTREACHED */
+		return (0);
+	}
+}
+
+void
+ahc_pci_write_config(ahc_dev_softc_t pci, int reg, uint32_t value, int width)
+{
+	switch (width) {
+	case 1:
+		pci_write_config_byte(pci, reg, value);
+		break;
+	case 2:
+		pci_write_config_word(pci, reg, value);
+		break;
+	case 4:
+		pci_write_config_dword(pci, reg, value);
+		break;
+	default:
+		panic("ahc_pci_write_config: Write size too big");
+		/* NOTREACHED */
+	}
+}
+
+
 static struct pci_driver aic7xxx_pci_driver = {
 	.name		= "aic7xxx",
 	.probe		= ahc_linux_pci_dev_probe,

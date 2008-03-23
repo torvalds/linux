@@ -369,10 +369,166 @@ static void ahd_release_simq(struct ahd_softc *ahd);
 static int ahd_linux_unit;
 
 
-/****************************** Inlines ***************************************/
-static __inline void ahd_linux_unmap_scb(struct ahd_softc*, struct scb*);
+/************************** OS Utility Wrappers *******************************/
+void ahd_delay(long);
+void
+ahd_delay(long usec)
+{
+	/*
+	 * udelay on Linux can have problems for
+	 * multi-millisecond waits.  Wait at most
+	 * 1024us per call.
+	 */
+	while (usec > 0) {
+		udelay(usec % 1024);
+		usec -= 1024;
+	}
+}
 
-static __inline void
+
+/***************************** Low Level I/O **********************************/
+uint8_t ahd_inb(struct ahd_softc * ahd, long port);
+uint16_t ahd_inw_atomic(struct ahd_softc * ahd, long port);
+void ahd_outb(struct ahd_softc * ahd, long port, uint8_t val);
+void ahd_outw_atomic(struct ahd_softc * ahd,
+				     long port, uint16_t val);
+void ahd_outsb(struct ahd_softc * ahd, long port,
+			       uint8_t *, int count);
+void ahd_insb(struct ahd_softc * ahd, long port,
+			       uint8_t *, int count);
+
+uint8_t
+ahd_inb(struct ahd_softc * ahd, long port)
+{
+	uint8_t x;
+
+	if (ahd->tags[0] == BUS_SPACE_MEMIO) {
+		x = readb(ahd->bshs[0].maddr + port);
+	} else {
+		x = inb(ahd->bshs[(port) >> 8].ioport + ((port) & 0xFF));
+	}
+	mb();
+	return (x);
+}
+
+uint16_t
+ahd_inw_atomic(struct ahd_softc * ahd, long port)
+{
+	uint8_t x;
+
+	if (ahd->tags[0] == BUS_SPACE_MEMIO) {
+		x = readw(ahd->bshs[0].maddr + port);
+	} else {
+		x = inw(ahd->bshs[(port) >> 8].ioport + ((port) & 0xFF));
+	}
+	mb();
+	return (x);
+}
+
+void
+ahd_outb(struct ahd_softc * ahd, long port, uint8_t val)
+{
+	if (ahd->tags[0] == BUS_SPACE_MEMIO) {
+		writeb(val, ahd->bshs[0].maddr + port);
+	} else {
+		outb(val, ahd->bshs[(port) >> 8].ioport + (port & 0xFF));
+	}
+	mb();
+}
+
+void
+ahd_outw_atomic(struct ahd_softc * ahd, long port, uint16_t val)
+{
+	if (ahd->tags[0] == BUS_SPACE_MEMIO) {
+		writew(val, ahd->bshs[0].maddr + port);
+	} else {
+		outw(val, ahd->bshs[(port) >> 8].ioport + (port & 0xFF));
+	}
+	mb();
+}
+
+void
+ahd_outsb(struct ahd_softc * ahd, long port, uint8_t *array, int count)
+{
+	int i;
+
+	/*
+	 * There is probably a more efficient way to do this on Linux
+	 * but we don't use this for anything speed critical and this
+	 * should work.
+	 */
+	for (i = 0; i < count; i++)
+		ahd_outb(ahd, port, *array++);
+}
+
+void
+ahd_insb(struct ahd_softc * ahd, long port, uint8_t *array, int count)
+{
+	int i;
+
+	/*
+	 * There is probably a more efficient way to do this on Linux
+	 * but we don't use this for anything speed critical and this
+	 * should work.
+	 */
+	for (i = 0; i < count; i++)
+		*array++ = ahd_inb(ahd, port);
+}
+
+/******************************* PCI Routines *********************************/
+uint32_t
+ahd_pci_read_config(ahd_dev_softc_t pci, int reg, int width)
+{
+	switch (width) {
+	case 1:
+	{
+		uint8_t retval;
+
+		pci_read_config_byte(pci, reg, &retval);
+		return (retval);
+	}
+	case 2:
+	{
+		uint16_t retval;
+		pci_read_config_word(pci, reg, &retval);
+		return (retval);
+	}
+	case 4:
+	{
+		uint32_t retval;
+		pci_read_config_dword(pci, reg, &retval);
+		return (retval);
+	}
+	default:
+		panic("ahd_pci_read_config: Read size too big");
+		/* NOTREACHED */
+		return (0);
+	}
+}
+
+void
+ahd_pci_write_config(ahd_dev_softc_t pci, int reg, uint32_t value, int width)
+{
+	switch (width) {
+	case 1:
+		pci_write_config_byte(pci, reg, value);
+		break;
+	case 2:
+		pci_write_config_word(pci, reg, value);
+		break;
+	case 4:
+		pci_write_config_dword(pci, reg, value);
+		break;
+	default:
+		panic("ahd_pci_write_config: Write size too big");
+		/* NOTREACHED */
+	}
+}
+
+/****************************** Inlines ***************************************/
+static void ahd_linux_unmap_scb(struct ahd_softc*, struct scb*);
+
+static void
 ahd_linux_unmap_scb(struct ahd_softc *ahd, struct scb *scb)
 {
 	struct scsi_cmnd *cmd;
@@ -432,7 +588,7 @@ ahd_linux_queue(struct scsi_cmnd * cmd, void (*scsi_done) (struct scsi_cmnd *))
 	return rtn;
 }
 
-static inline struct scsi_target **
+static struct scsi_target **
 ahd_linux_target_in_softc(struct scsi_target *starget)
 {
 	struct	ahd_softc *ahd =
