@@ -24,9 +24,9 @@ extern int smp_call_function_mask(cpumask_t mask, void (*func)(void *),
 #define raw_smp_processor_id()	read_pda(cpunumber)
 
 #define stack_smp_processor_id()					\
-	({								\
+({									\
 	struct thread_info *ti;						\
-	__asm__("andq %%rsp,%0; ":"=r" (ti) : "0" (CURRENT_MASK));	\
+	asm("andq %%rsp,%0; ":"=r" (ti) : "0" (CURRENT_MASK));	\
 	ti->cpu;							\
 })
 
@@ -46,7 +46,7 @@ static inline int num_booting_cpus(void)
 
 #define safe_smp_processor_id()		smp_processor_id()
 
-static __inline int logical_smp_processor_id(void)
+static inline int logical_smp_processor_id(void)
 {
 	/* we don't want to mark this access volatile - bad code generation */
 	return GET_APIC_LOGICAL_ID(*(u32 *)(APIC_BASE + APIC_LDR));
