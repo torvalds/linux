@@ -11,8 +11,7 @@
  * - 2 miscellaneous 32-bit values
  */
 
-struct ipc64_perm
-{
+struct ipc64_perm {
 	__kernel_key_t		key;
 	__kernel_uid32_t	uid;
 	__kernel_gid32_t	gid;
