@@ -62,9 +62,7 @@ static inline void set_bit(int nr, volatile void *addr)
  */
 static inline void __set_bit(int nr, volatile void *addr)
 {
-	asm volatile("bts %1,%0"
-		     : ADDR
-		     : "Ir" (nr) : "memory");
+	asm volatile("bts %1,%0" : ADDR : "Ir" (nr) : "memory");
 }
 
 /**
@@ -296,13 +294,11 @@ static inline int variable_test_bit(int nr, volatile const void *addr)
 static int test_bit(int nr, const volatile unsigned long *addr);
 #endif
 
-#define test_bit(nr,addr)			\
-	(__builtin_constant_p(nr) ?		\
-	 constant_test_bit((nr),(addr)) :	\
-	 variable_test_bit((nr),(addr)))
+#define test_bit(nr, addr)			\
+	(__builtin_constant_p((nr))		\
+	 ? constant_test_bit((nr), (addr))	\
+	 : variable_test_bit((nr), (addr)))
 
-#undef BASE_ADDR
-#undef BIT_ADDR
 /**
  * __ffs - find first set bit in word
  * @word: The word to search
@@ -311,9 +307,9 @@ static int test_bit(int nr, const volatile unsigned long *addr);
  */
 static inline unsigned long __ffs(unsigned long word)
 {
-	__asm__("bsf %1,%0"
-		:"=r" (word)
-		:"rm" (word));
+	asm("bsf %1,%0"
+		: "=r" (word)
+		: "rm" (word));
 	return word;
 }
 
@@ -325,9 +321,9 @@ static inline unsigned long __ffs(unsigned long word)
  */
 static inline unsigned long ffz(unsigned long word)
 {
-	__asm__("bsf %1,%0"
-		:"=r" (word)
-		:"r" (~word));
+	asm("bsf %1,%0"
+		: "=r" (word)
+		: "r" (~word));
 	return word;
 }
 
@@ -339,9 +335,9 @@ static inline unsigned long ffz(unsigned long word)
  */
 static inline unsigned long __fls(unsigned long word)
 {
-	__asm__("bsr %1,%0"
-		:"=r" (word)
-		:"rm" (word));
+	asm("bsr %1,%0"
+	    : "=r" (word)
+	    : "rm" (word));
 	return word;
 }
 
@@ -361,14 +357,14 @@ static inline int ffs(int x)
 {
 	int r;
 #ifdef CONFIG_X86_CMOV
-	__asm__("bsfl %1,%0\n\t"
-		"cmovzl %2,%0"
-		: "=r" (r) : "rm" (x), "r" (-1));
+	asm("bsfl %1,%0\n\t"
+	    "cmovzl %2,%0"
+	    : "=r" (r) : "rm" (x), "r" (-1));
 #else
-	__asm__("bsfl %1,%0\n\t"
-		"jnz 1f\n\t"
-		"movl $-1,%0\n"
-		"1:" : "=r" (r) : "rm" (x));
+	asm("bsfl %1,%0\n\t"
+	    "jnz 1f\n\t"
+	    "movl $-1,%0\n"
+	    "1:" : "=r" (r) : "rm" (x));
 #endif
 	return r + 1;
 }
@@ -388,19 +384,21 @@ static inline int fls(int x)
 {
 	int r;
 #ifdef CONFIG_X86_CMOV
-	__asm__("bsrl %1,%0\n\t"
-		"cmovzl %2,%0"
-		: "=&r" (r) : "rm" (x), "rm" (-1));
+	asm("bsrl %1,%0\n\t"
+	    "cmovzl %2,%0"
+	    : "=&r" (r) : "rm" (x), "rm" (-1));
 #else
-	__asm__("bsrl %1,%0\n\t"
-		"jnz 1f\n\t"
-		"movl $-1,%0\n"
-		"1:" : "=r" (r) : "rm" (x));
+	asm("bsrl %1,%0\n\t"
+	    "jnz 1f\n\t"
+	    "movl $-1,%0\n"
+	    "1:" : "=r" (r) : "rm" (x));
 #endif
 	return r + 1;
 }
 #endif /* __KERNEL__ */
 
+#undef BASE_ADDR
+#undef BIT_ADDR
 #undef ADDR
 
 static inline void set_bit_string(unsigned long *bitmap,
