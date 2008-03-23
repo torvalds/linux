@@ -222,8 +222,7 @@ static int is_io_pte(unsigned long pte)
 
 static int is_rmap_pte(u64 pte)
 {
-	return pte != shadow_trap_nonpresent_pte
-		&& pte != shadow_notrap_nonpresent_pte;
+	return is_shadow_present_pte(pte);
 }
 
 static gfn_t pse36_gfn_delta(u32 gpte)
