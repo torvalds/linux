@@ -18,7 +18,7 @@ extern struct pglist_data *node_data[];
 	#include <asm/srat.h>
 #endif
 
-extern int get_memcfg_numa_flat(void );
+extern int get_memcfg_numa_flat(void);
 /*
  * This allows any one NUMA architecture to be compiled
  * for, and still fall back to the flat function if it
