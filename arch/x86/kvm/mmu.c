@@ -1412,7 +1412,7 @@ static void mmu_guess_page_from_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	up_read(&current->mm->mmap_sem);
 
 	vcpu->arch.update_pte.gfn = gfn;
-	vcpu->arch.update_pte.page = gfn_to_page(vcpu->kvm, gfn);
+	vcpu->arch.update_pte.page = page;
 }
 
 void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
