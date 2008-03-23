@@ -175,12 +175,12 @@ static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 				unsigned int *ecx, unsigned int *edx)
 {
 	/* ecx is often an input as well as an output. */
-	__asm__("cpuid"
-		: "=a" (*eax),
-		  "=b" (*ebx),
-		  "=c" (*ecx),
-		  "=d" (*edx)
-		: "0" (*eax), "2" (*ecx));
+	asm("cpuid"
+	    : "=a" (*eax),
+	      "=b" (*ebx),
+	      "=c" (*ecx),
+	      "=d" (*edx)
+	    : "0" (*eax), "2" (*ecx));
 }
 
 static inline void load_cr3(pgd_t *pgdir)
@@ -427,17 +427,23 @@ static inline unsigned long native_get_debugreg(int regno)
 
 	switch (regno) {
 	case 0:
-		asm("mov %%db0, %0" :"=r" (val)); break;
+		asm("mov %%db0, %0" :"=r" (val));
+		break;
 	case 1:
-		asm("mov %%db1, %0" :"=r" (val)); break;
+		asm("mov %%db1, %0" :"=r" (val));
+		break;
 	case 2:
-		asm("mov %%db2, %0" :"=r" (val)); break;
+		asm("mov %%db2, %0" :"=r" (val));
+		break;
 	case 3:
-		asm("mov %%db3, %0" :"=r" (val)); break;
+		asm("mov %%db3, %0" :"=r" (val));
+		break;
 	case 6:
-		asm("mov %%db6, %0" :"=r" (val)); break;
+		asm("mov %%db6, %0" :"=r" (val));
+		break;
 	case 7:
-		asm("mov %%db7, %0" :"=r" (val)); break;
+		asm("mov %%db7, %0" :"=r" (val));
+		break;
 	default:
 		BUG();
 	}
@@ -478,14 +484,14 @@ static inline void native_set_iopl_mask(unsigned mask)
 #ifdef CONFIG_X86_32
 	unsigned int reg;
 
-	__asm__ __volatile__ ("pushfl;"
-			      "popl %0;"
-			      "andl %1, %0;"
-			      "orl %2, %0;"
-			      "pushl %0;"
-			      "popfl"
-				: "=&r" (reg)
-				: "i" (~X86_EFLAGS_IOPL), "r" (mask));
+	asm volatile ("pushfl;"
+		      "popl %0;"
+		      "andl %1, %0;"
+		      "orl %2, %0;"
+		      "pushl %0;"
+		      "popfl"
+		      : "=&r" (reg)
+		      : "i" (~X86_EFLAGS_IOPL), "r" (mask));
 #endif
 }
 
@@ -523,8 +529,8 @@ static inline void native_swapgs(void)
 #define set_debugreg(value, register)				\
 	native_set_debugreg(register, value)
 
-static inline void
-load_sp0(struct tss_struct *tss, struct thread_struct *thread)
+static inline void load_sp0(struct tss_struct *tss,
+			    struct thread_struct *thread)
 {
 	native_load_sp0(tss, thread);
 }
@@ -680,7 +686,7 @@ static inline unsigned int cpuid_edx(unsigned int op)
 /* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
 static inline void rep_nop(void)
 {
-	__asm__ __volatile__("rep; nop" ::: "memory");
+	asm volatile("rep; nop" ::: "memory");
 }
 
 static inline void cpu_relax(void)
@@ -694,32 +700,29 @@ static inline void sync_core(void)
 	int tmp;
 
 	asm volatile("cpuid" : "=a" (tmp) : "0" (1)
-					  : "ebx", "ecx", "edx", "memory");
+		     : "ebx", "ecx", "edx", "memory");
 }
 
-static inline void
-__monitor(const void *eax, unsigned long ecx, unsigned long edx)
+static inline void __monitor(const void *eax, unsigned long ecx,
+			     unsigned long edx)
 {
 	/* "monitor %eax, %ecx, %edx;" */
-	asm volatile(
-		".byte 0x0f, 0x01, 0xc8;"
-		:: "a" (eax), "c" (ecx), "d"(edx));
+	asm volatile(".byte 0x0f, 0x01, 0xc8;"
+		     :: "a" (eax), "c" (ecx), "d"(edx));
 }
 
 static inline void __mwait(unsigned long eax, unsigned long ecx)
 {
 	/* "mwait %eax, %ecx;" */
-	asm volatile(
-		".byte 0x0f, 0x01, 0xc9;"
-		:: "a" (eax), "c" (ecx));
+	asm volatile(".byte 0x0f, 0x01, 0xc9;"
+		     :: "a" (eax), "c" (ecx));
 }
 
 static inline void __sti_mwait(unsigned long eax, unsigned long ecx)
 {
 	/* "mwait %eax, %ecx;" */
-	asm volatile(
-		"sti; .byte 0x0f, 0x01, 0xc9;"
-		:: "a" (eax), "c" (ecx));
+	asm volatile("sti; .byte 0x0f, 0x01, 0xc9;"
+		     :: "a" (eax), "c" (ecx));
 }
 
 extern void mwait_idle_with_hints(unsigned long eax, unsigned long ecx);
