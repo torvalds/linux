@@ -18,8 +18,8 @@
 
 extern cpumask_t cpu_callin_map;
 
-extern void (*mtrr_hook) (void);
-extern void zap_low_mappings (void);
+extern void (*mtrr_hook)(void);
+extern void zap_low_mappings(void);
 
 #ifdef CONFIG_SMP
 /*
@@ -44,7 +44,7 @@ static inline int num_booting_cpus(void)
 
 #ifdef CONFIG_X86_LOCAL_APIC
 
-static __inline int logical_smp_processor_id(void)
+static inline int logical_smp_processor_id(void)
 {
 	/* we don't want to mark this access volatile - bad code generation */
 	return GET_APIC_LOGICAL_ID(*(u32 *)(APIC_BASE + APIC_LDR));
