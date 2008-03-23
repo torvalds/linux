@@ -38,90 +38,13 @@
 
 #define MAX_SLOTS			8
 
-static const struct pci_device_id pci_ids[] __devinitdata = {
-	{
-		.vendor		= PCI_VENDOR_ID_RICOH,
-		.device		= PCI_DEVICE_ID_RICOH_R5C822,
-		.subvendor	= PCI_VENDOR_ID_IBM,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_CLOCK_BEFORE_RESET,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_RICOH,
-		.device		= PCI_DEVICE_ID_RICOH_R5C822,
-		.subvendor	= PCI_VENDOR_ID_SAMSUNG,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_NO_CARD_NO_RESET,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_ENE,
-		.device		= PCI_DEVICE_ID_ENE_CB712_SD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE |
-				  SDHCI_QUIRK_BROKEN_DMA,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_ENE,
-		.device		= PCI_DEVICE_ID_ENE_CB712_SD_2,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE |
-				  SDHCI_QUIRK_BROKEN_DMA,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_ENE,
-		.device		= PCI_DEVICE_ID_ENE_CB714_SD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE |
-				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS |
-				  SDHCI_QUIRK_BROKEN_DMA,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_ENE,
-		.device		= PCI_DEVICE_ID_ENE_CB714_SD_2,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE |
-				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS |
-				  SDHCI_QUIRK_BROKEN_DMA,
-	},
-
-	{
-		.vendor         = PCI_VENDOR_ID_MARVELL,
-		.device         = PCI_DEVICE_ID_MARVELL_CAFE_SD,
-		.subvendor      = PCI_ANY_ID,
-		.subdevice      = PCI_ANY_ID,
-		.driver_data    = SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER |
-				  SDHCI_QUIRK_INCR_TIMEOUT_CONTROL,
-	},
-
-	{
-		.vendor		= PCI_VENDOR_ID_JMICRON,
-		.device		= PCI_DEVICE_ID_JMICRON_JMB38X_SD,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_32BIT_DMA_ADDR |
-				  SDHCI_QUIRK_32BIT_DMA_SIZE |
-				  SDHCI_QUIRK_RESET_AFTER_REQUEST,
-	},
-
-	{	/* Generic SD host controller */
-		PCI_DEVICE_CLASS((PCI_CLASS_SYSTEM_SDHCI << 8), 0xFFFF00)
-	},
-
-	{ /* end: all zeroes */ },
-};
-
-MODULE_DEVICE_TABLE(pci, pci_ids);
-
 struct sdhci_pci_chip;
+
+struct sdhci_pci_fixes {
+	unsigned int		quirks;
+
+	int			(*probe)(struct sdhci_pci_chip*);
+};
 
 struct sdhci_pci_slot {
 	struct sdhci_pci_chip	*chip;
@@ -132,11 +55,123 @@ struct sdhci_pci_slot {
 
 struct sdhci_pci_chip {
 	struct pci_dev		*pdev;
-	unsigned int		 quirks;
+
+	unsigned int		quirks;
+	const struct sdhci_pci_fixes *fixes;
 
 	int			num_slots;	/* Slots on controller */
 	struct sdhci_pci_slot	*slots[MAX_SLOTS]; /* Pointers to host slots */
 };
+
+
+/*****************************************************************************\
+ *                                                                           *
+ * Hardware specific quirk handling                                          *
+ *                                                                           *
+\*****************************************************************************/
+
+static int ricoh_probe(struct sdhci_pci_chip *chip)
+{
+	if (chip->pdev->subsystem_vendor == PCI_VENDOR_ID_IBM)
+		chip->quirks |= SDHCI_QUIRK_CLOCK_BEFORE_RESET;
+
+	if (chip->pdev->subsystem_vendor == PCI_VENDOR_ID_SAMSUNG)
+		chip->quirks |= SDHCI_QUIRK_NO_CARD_NO_RESET;
+
+	return 0;
+}
+
+static const struct sdhci_pci_fixes sdhci_ricoh = {
+	.probe		= ricoh_probe,
+};
+
+static const struct sdhci_pci_fixes sdhci_ene_712 = {
+	.quirks		= SDHCI_QUIRK_SINGLE_POWER_WRITE |
+			  SDHCI_QUIRK_BROKEN_DMA,
+};
+
+static const struct sdhci_pci_fixes sdhci_ene_714 = {
+	.quirks		= SDHCI_QUIRK_SINGLE_POWER_WRITE |
+			  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS |
+			  SDHCI_QUIRK_BROKEN_DMA,
+};
+
+static const struct sdhci_pci_fixes sdhci_cafe = {
+	.quirks		= SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER |
+			  SDHCI_QUIRK_INCR_TIMEOUT_CONTROL,
+};
+
+static const struct sdhci_pci_fixes sdhci_jmicron = {
+	.quirks		= SDHCI_QUIRK_32BIT_DMA_ADDR |
+			  SDHCI_QUIRK_32BIT_DMA_SIZE |
+			  SDHCI_QUIRK_RESET_AFTER_REQUEST,
+};
+
+static const struct pci_device_id pci_ids[] __devinitdata = {
+	{
+		.vendor		= PCI_VENDOR_ID_RICOH,
+		.device		= PCI_DEVICE_ID_RICOH_R5C822,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_ricoh,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_ENE,
+		.device		= PCI_DEVICE_ID_ENE_CB712_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_ene_712,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_ENE,
+		.device		= PCI_DEVICE_ID_ENE_CB712_SD_2,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_ene_712,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_ENE,
+		.device		= PCI_DEVICE_ID_ENE_CB714_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_ene_714,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_ENE,
+		.device		= PCI_DEVICE_ID_ENE_CB714_SD_2,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_ene_714,
+	},
+
+	{
+		.vendor         = PCI_VENDOR_ID_MARVELL,
+		.device         = PCI_DEVICE_ID_MARVELL_CAFE_SD,
+		.subvendor      = PCI_ANY_ID,
+		.subdevice      = PCI_ANY_ID,
+		.driver_data    = (kernel_ulong_t)&sdhci_cafe,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_JMICRON,
+		.device		= PCI_DEVICE_ID_JMICRON_JMB38X_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_jmicron,
+	},
+
+	{	/* Generic SD host controller */
+		PCI_DEVICE_CLASS((PCI_CLASS_SYSTEM_SDHCI << 8), 0xFFFF00)
+	},
+
+	{ /* end: all zeroes */ },
+};
+
+MODULE_DEVICE_TABLE(pci, pci_ids);
 
 /*****************************************************************************\
  *                                                                           *
@@ -389,10 +424,18 @@ static int __devinit sdhci_pci_probe(struct pci_dev *pdev,
 	}
 
 	chip->pdev = pdev;
-	chip->quirks = ent->driver_data;
+	chip->fixes = (const struct sdhci_pci_fixes*)ent->driver_data;
+	if (chip->fixes)
+		chip->quirks = chip->fixes->quirks;
 	chip->num_slots = slots;
 
 	pci_set_drvdata(pdev, chip);
+
+	if (chip->fixes && chip->fixes->probe) {
+		ret = chip->fixes->probe(chip);
+		if (ret)
+			goto free;
+	}
 
 	for (i = 0;i < slots;i++) {
 		slot = sdhci_pci_probe_slot(pdev, chip, first_bar + i);
