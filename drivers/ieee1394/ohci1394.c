@@ -2089,10 +2089,8 @@ static void dma_trm_reset(struct dma_trm_ctx *d)
 
 	spin_lock_irqsave(&d->lock, flags);
 
-	list_splice(&d->fifo_list, &packet_list);
-	list_splice(&d->pending_list, &packet_list);
-	INIT_LIST_HEAD(&d->fifo_list);
-	INIT_LIST_HEAD(&d->pending_list);
+	list_splice_init(&d->fifo_list, &packet_list);
+	list_splice_init(&d->pending_list, &packet_list);
 
 	d->branchAddrPtr = NULL;
 	d->sent_ind = d->prg_ind;

@@ -738,8 +738,7 @@ static int lynx_devctl(struct hpsb_host *host, enum devctl_cmd cmd, int arg)
                 spin_lock_irqsave(&lynx->async.queue_lock, flags);
 
                 reg_write(lynx, DMA_CHAN_CTRL(CHANNEL_ASYNC_SEND), 0);
-		list_splice(&lynx->async.queue, &packet_list);
-		INIT_LIST_HEAD(&lynx->async.queue);
+		list_splice_init(&lynx->async.queue, &packet_list);
 
                 if (list_empty(&lynx->async.pcl_queue)) {
                         spin_unlock_irqrestore(&lynx->async.queue_lock, flags);
