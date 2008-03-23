@@ -25,7 +25,6 @@ extern int (*pci_config_write)(int seg, int bus, int dev, int fn, int reg, int l
 
 
 
-extern void dma32_reserve_bootmem(void);
 extern void pci_iommu_alloc(void);
 
 /* The PCI address space does equal the physical memory
