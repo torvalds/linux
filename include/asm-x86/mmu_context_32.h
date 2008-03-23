@@ -62,7 +62,7 @@ static inline void switch_mm(struct mm_struct *prev,
 		BUG_ON(per_cpu(cpu_tlbstate, cpu).active_mm != next);
 
 		if (!cpu_test_and_set(cpu, next->cpu_vm_mask)) {
-			/* We were in lazy tlb mode and leave_mm disabled 
+			/* We were in lazy tlb mode and leave_mm disabled
 			 * tlb flush IPI delivery. We must reload %cr3.
 			 */
 			load_cr3(next->pgd);
@@ -75,10 +75,10 @@ static inline void switch_mm(struct mm_struct *prev,
 #define deactivate_mm(tsk, mm)			\
 	asm("movl %0,%%gs": :"r" (0));
 
-#define activate_mm(prev, next)				\
-	do {						\
-		paravirt_activate_mm(prev, next);	\
-		switch_mm((prev),(next),NULL);		\
-	} while(0);
+#define activate_mm(prev, next)			\
+do {						\
+	paravirt_activate_mm((prev), (next));	\
+	switch_mm((prev), (next), NULL);	\
+} while (0);
 
 #endif
