@@ -51,11 +51,13 @@ do {                                                            \
                 sprintf(str + strlen(str), "*");                \
 } while(0)
 
+unsigned int cross_build = 0;
 /**
  * Check that sizeof(device_id type) are consistent with size of section
  * in .o file. If in-consistent then userspace and kernel does not agree
  * on actual size which is a bug.
  * Also verify that the final entry in the table is all zeros.
+ * Ignore both checks if build host differ from target host and size differs.
  **/
 static void device_id_check(const char *modname, const char *device_id,
 			    unsigned long size, unsigned long id_size,
@@ -64,6 +66,8 @@ static void device_id_check(const char *modname, const char *device_id,
 	int i;
 
 	if (size % id_size || size < id_size) {
+		if (cross_build != 0)
+			return;
 		fatal("%s: sizeof(struct %s_device_id)=%lu is not a modulo "
 		      "of the size of section __mod_%s_device_table=%lu.\n"
 		      "Fix definition of struct %s_device_id "
