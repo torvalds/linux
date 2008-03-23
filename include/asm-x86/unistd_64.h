@@ -2,7 +2,7 @@
 #define _ASM_X86_64_UNISTD_H_
 
 #ifndef __SYSCALL
-#define __SYSCALL(a,b)
+#define __SYSCALL(a, b)
 #endif
 
 /*
