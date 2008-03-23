@@ -19,6 +19,7 @@
 #define _LINUX_NET_H
 
 #include <linux/wait.h>
+#include <linux/socket.h>
 #include <asm/socket.h>
 
 struct poll_table_struct;
@@ -26,7 +27,7 @@ struct pipe_inode_info;
 struct inode;
 struct net;
 
-#define NPROTO		34		/* should be enough for now..	*/
+#define NPROTO		AF_MAX
 
 #define SYS_SOCKET	1		/* sys_socket(2)		*/
 #define SYS_BIND	2		/* sys_bind(2)			*/
