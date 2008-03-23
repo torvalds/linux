@@ -240,6 +240,13 @@ static int is_rmap_pte(u64 pte)
 	return is_shadow_present_pte(pte);
 }
 
+static struct page *spte_to_page(u64 pte)
+{
+	hfn_t hfn = (pte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
+
+	return pfn_to_page(hfn);
+}
+
 static gfn_t pse36_gfn_delta(u32 gpte)
 {
 	int shift = 32 - PT32_DIR_PSE36_SHIFT - PAGE_SHIFT;
@@ -541,7 +548,7 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 	if (!is_rmap_pte(*spte))
 		return;
 	sp = page_header(__pa(spte));
-	page = pfn_to_page((*spte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT);
+	page = spte_to_page(*spte);
 	mark_page_accessed(page);
 	if (is_writeble_pte(*spte))
 		kvm_release_page_dirty(page);
@@ -630,7 +637,7 @@ static void rmap_write_protect(struct kvm *kvm, u64 gfn)
 		struct page *page;
 
 		spte = rmap_next(kvm, rmapp, NULL);
-		page = pfn_to_page((*spte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT);
+		page = spte_to_page(*spte);
 		SetPageDirty(page);
 	}
 
@@ -1033,7 +1040,6 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 	u64 spte;
 	int was_rmapped = 0;
 	int was_writeble = is_writeble_pte(*shadow_pte);
-	hfn_t host_pfn = (*shadow_pte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
 
 	pgprintk("%s: spte %llx access %x write_fault %d"
 		 " user_fault %d gfn %lx\n",
@@ -1051,9 +1057,10 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 
 			child = page_header(pte & PT64_BASE_ADDR_MASK);
 			mmu_page_remove_parent_pte(child, shadow_pte);
-		} else if (host_pfn != page_to_pfn(page)) {
+		} else if (page != spte_to_page(*shadow_pte)) {
 			pgprintk("hfn old %lx new %lx\n",
-				 host_pfn, page_to_pfn(page));
+				 page_to_pfn(spte_to_page(*shadow_pte)),
+				 page_to_pfn(page));
 			rmap_remove(vcpu->kvm, shadow_pte);
 		} else {
 			if (largepage)
