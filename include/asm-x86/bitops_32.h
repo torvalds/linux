@@ -20,20 +20,22 @@ static inline int find_first_zero_bit(const unsigned long *addr, unsigned size)
 
 	if (!size)
 		return 0;
-	/* This looks at memory. Mark it volatile to tell gcc not to move it around */
-	__asm__ __volatile__(
-		"movl $-1,%%eax\n\t"
-		"xorl %%edx,%%edx\n\t"
-		"repe; scasl\n\t"
-		"je 1f\n\t"
-		"xorl -4(%%edi),%%eax\n\t"
-		"subl $4,%%edi\n\t"
-		"bsfl %%eax,%%edx\n"
-		"1:\tsubl %%ebx,%%edi\n\t"
-		"shll $3,%%edi\n\t"
-		"addl %%edi,%%edx"
-		:"=d" (res), "=&c" (d0), "=&D" (d1), "=&a" (d2)
-		:"1" ((size + 31) >> 5), "2" (addr), "b" (addr) : "memory");
+	/* This looks at memory.
+	 * Mark it volatile to tell gcc not to move it around
+	 */
+	asm volatile("movl $-1,%%eax\n\t"
+		     "xorl %%edx,%%edx\n\t"
+		     "repe; scasl\n\t"
+		     "je 1f\n\t"
+		     "xorl -4(%%edi),%%eax\n\t"
+		     "subl $4,%%edi\n\t"
+		     "bsfl %%eax,%%edx\n"
+		     "1:\tsubl %%ebx,%%edi\n\t"
+		     "shll $3,%%edi\n\t"
+		     "addl %%edi,%%edx"
+		     : "=d" (res), "=&c" (d0), "=&D" (d1), "=&a" (d2)
+		     : "1" ((size + 31) >> 5), "2" (addr),
+		       "b" (addr) : "memory");
 	return res;
 }
 
@@ -75,7 +77,7 @@ static inline unsigned find_first_bit(const unsigned long *addr, unsigned size)
 		unsigned long val = *addr++;
 		if (val)
 			return __ffs(val) + x;
-		x += (sizeof(*addr)<<3);
+		x += sizeof(*addr) << 3;
 	}
 	return x;
 }
@@ -152,10 +154,10 @@ static inline int fls(int x)
 
 #include <asm-generic/bitops/ext2-non-atomic.h>
 
-#define ext2_set_bit_atomic(lock, nr, addr) \
-		test_and_set_bit((nr), (unsigned long *)addr)
-#define ext2_clear_bit_atomic(lock, nr, addr) \
-		test_and_clear_bit((nr), (unsigned long *)addr)
+#define ext2_set_bit_atomic(lock, nr, addr)			\
+	test_and_set_bit((nr), (unsigned long *)(addr))
+#define ext2_clear_bit_atomic(lock, nr, addr)			\
+	test_and_clear_bit((nr), (unsigned long *)(addr))
 
 #include <asm-generic/bitops/minix.h>
 
