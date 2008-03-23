@@ -1163,35 +1163,6 @@ void device_destroy(struct class *class, dev_t devt)
 }
 EXPORT_SYMBOL_GPL(device_destroy);
 
-#ifdef CONFIG_PM_SLEEP
-/**
- * destroy_suspended_device - asks the PM core to remove a suspended device
- * @class: pointer to the struct class that this device was registered with
- * @devt: the dev_t of the device that was previously registered
- *
- * This call notifies the PM core of the necessity to unregister a suspended
- * device created with a call to device_create() (devices cannot be
- * unregistered directly while suspended, since the PM core holds their
- * semaphores at that time).
- *
- * It can only be called within the scope of a system sleep transition.  In
- * practice this means it has to be directly or indirectly invoked either by
- * a suspend or resume method, or by the PM core (e.g. via
- * disable_nonboot_cpus() or enable_nonboot_cpus()).
- */
-void destroy_suspended_device(struct class *class, dev_t devt)
-{
-	struct device *dev;
-
-	dev = class_find_device(class, &devt, __match_devt);
-	if (dev) {
-		device_pm_schedule_removal(dev);
-		put_device(dev);
-	}
-}
-EXPORT_SYMBOL_GPL(destroy_suspended_device);
-#endif /* CONFIG_PM_SLEEP */
-
 /**
  * device_rename - renames a device
  * @dev: the pointer to the struct device to be renamed

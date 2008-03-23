@@ -162,11 +162,9 @@ static int __cpuinit msr_class_cpu_callback(struct notifier_block *nfb,
 		err = msr_device_create(cpu);
 		break;
 	case CPU_UP_CANCELED:
+	case CPU_UP_CANCELED_FROZEN:
 	case CPU_DEAD:
 		msr_device_destroy(cpu);
-		break;
-	case CPU_UP_CANCELED_FROZEN:
-		destroy_suspended_device(msr_class, MKDEV(MSR_MAJOR, cpu));
 		break;
 	}
 	return err ? NOTIFY_BAD : NOTIFY_OK;

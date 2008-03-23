@@ -50,7 +50,6 @@
 LIST_HEAD(dpm_active);
 static LIST_HEAD(dpm_off);
 static LIST_HEAD(dpm_off_irq);
-static LIST_HEAD(dpm_destroy);
 
 static DEFINE_MUTEX(dpm_list_mtx);
 
@@ -103,24 +102,6 @@ void device_pm_remove(struct device *dev)
 	list_del_init(&dev->power.entry);
 	mutex_unlock(&dpm_list_mtx);
 }
-
-/**
- *	device_pm_schedule_removal - schedule the removal of a suspended device
- *	@dev:	Device to destroy
- *
- *	Moves the device to the dpm_destroy list for further processing by
- *	unregister_dropped_devices().
- */
-void device_pm_schedule_removal(struct device *dev)
-{
-	pr_debug("PM: Preparing for removal: %s:%s\n",
-		dev->bus ? dev->bus->name : "No Bus",
-		kobject_name(&dev->kobj));
-	mutex_lock(&dpm_list_mtx);
-	list_move_tail(&dev->power.entry, &dpm_destroy);
-	mutex_unlock(&dpm_list_mtx);
-}
-EXPORT_SYMBOL_GPL(device_pm_schedule_removal);
 
 /*------------------------- Resume routines -------------------------*/
 
@@ -246,26 +227,6 @@ static void dpm_resume(void)
 }
 
 /**
- *	unregister_dropped_devices - Unregister devices scheduled for removal
- *
- *	Unregister all devices on the dpm_destroy list.
- */
-static void unregister_dropped_devices(void)
-{
-	mutex_lock(&dpm_list_mtx);
-	while (!list_empty(&dpm_destroy)) {
-		struct list_head *entry = dpm_destroy.next;
-		struct device *dev = to_device(entry);
-
-		mutex_unlock(&dpm_list_mtx);
-		/* This also removes the device from the list */
-		device_unregister(dev);
-		mutex_lock(&dpm_list_mtx);
-	}
-	mutex_unlock(&dpm_list_mtx);
-}
-
-/**
  *	device_resume - Restore state of each device in system.
  *
  *	Resume all the devices, unlock them all, and allow new
@@ -275,7 +236,6 @@ void device_resume(void)
 {
 	might_sleep();
 	dpm_resume();
-	unregister_dropped_devices();
 }
 EXPORT_SYMBOL_GPL(device_resume);
 
