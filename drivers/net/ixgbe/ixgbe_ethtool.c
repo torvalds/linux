@@ -246,13 +246,26 @@ static int ixgbe_set_tx_csum(struct net_device *netdev, u32 data)
 
 static int ixgbe_set_tso(struct net_device *netdev, u32 data)
 {
-
 	if (data) {
 		netdev->features |= NETIF_F_TSO;
 		netdev->features |= NETIF_F_TSO6;
 	} else {
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+		struct ixgbe_adapter *adapter = netdev_priv(netdev);
+		int i;
+#endif
+		netif_stop_queue(netdev);
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+		for (i = 0; i < adapter->num_tx_queues; i++)
+			netif_stop_subqueue(netdev, i);
+#endif
 		netdev->features &= ~NETIF_F_TSO;
 		netdev->features &= ~NETIF_F_TSO6;
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+		for (i = 0; i < adapter->num_tx_queues; i++)
+			netif_start_subqueue(netdev, i);
+#endif
+		netif_start_queue(netdev);
 	}
 	return 0;
 }
@@ -873,13 +886,13 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-	if (adapter->rx_eitr == 0)
-		ec->rx_coalesce_usecs = 0;
+	if (adapter->rx_eitr < IXGBE_MIN_ITR_USECS)
+		ec->rx_coalesce_usecs = adapter->rx_eitr;
 	else
 		ec->rx_coalesce_usecs = 1000000 / adapter->rx_eitr;
 
-	if (adapter->tx_eitr == 0)
-		ec->tx_coalesce_usecs = 0;
+	if (adapter->tx_eitr < IXGBE_MIN_ITR_USECS)
+		ec->tx_coalesce_usecs = adapter->tx_eitr;
 	else
 		ec->tx_coalesce_usecs = 1000000 / adapter->tx_eitr;
 
@@ -893,22 +906,26 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
 	if ((ec->rx_coalesce_usecs > IXGBE_MAX_ITR_USECS) ||
-	    ((ec->rx_coalesce_usecs > 0) &&
+	    ((ec->rx_coalesce_usecs != 0) &&
+	     (ec->rx_coalesce_usecs != 1) &&
+	     (ec->rx_coalesce_usecs != 3) &&
 	     (ec->rx_coalesce_usecs < IXGBE_MIN_ITR_USECS)))
 		return -EINVAL;
 	if ((ec->tx_coalesce_usecs > IXGBE_MAX_ITR_USECS) ||
-	    ((ec->tx_coalesce_usecs > 0) &&
+	    ((ec->tx_coalesce_usecs != 0) &&
+	     (ec->tx_coalesce_usecs != 1) &&
+	     (ec->tx_coalesce_usecs != 3) &&
 	     (ec->tx_coalesce_usecs < IXGBE_MIN_ITR_USECS)))
 		return -EINVAL;
 
 	/* convert to rate of irq's per second */
-	if (ec->rx_coalesce_usecs == 0)
-		adapter->rx_eitr = 0;
+	if (ec->rx_coalesce_usecs < IXGBE_MIN_ITR_USECS)
+		adapter->rx_eitr = ec->rx_coalesce_usecs;
 	else
 		adapter->rx_eitr = (1000000 / ec->rx_coalesce_usecs);
 
-	if (ec->tx_coalesce_usecs == 0)
-		adapter->tx_eitr = 0;
+	if (ec->tx_coalesce_usecs < IXGBE_MIN_ITR_USECS)
+		adapter->tx_eitr = ec->rx_coalesce_usecs;
 	else
 		adapter->tx_eitr = (1000000 / ec->tx_coalesce_usecs);
 
