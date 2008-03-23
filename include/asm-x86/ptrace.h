@@ -140,7 +140,8 @@ extern unsigned long
 convert_ip_to_linear(struct task_struct *child, struct pt_regs *regs);
 
 #ifdef CONFIG_X86_32
-extern void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code);
+extern void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
+			 int error_code);
 #else
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where);
 #endif
@@ -169,8 +170,8 @@ static inline int user_mode(struct pt_regs *regs)
 static inline int user_mode_vm(struct pt_regs *regs)
 {
 #ifdef CONFIG_X86_32
-	return ((regs->cs & SEGMENT_RPL_MASK) |
-		(regs->flags & VM_MASK)) >= USER_RPL;
+	return ((regs->cs & SEGMENT_RPL_MASK) | (regs->flags & VM_MASK)) >=
+		USER_RPL;
 #else
 	return user_mode(regs);
 #endif
