@@ -5,7 +5,7 @@
 
 extern unsigned int cached_irq_mask;
 
-#define __byte(x,y)		(((unsigned char *) &(y))[x])
+#define __byte(x, y)		(((unsigned char *)&(y))[x])
 #define cached_master_mask	(__byte(0, cached_irq_mask))
 #define cached_slave_mask	(__byte(1, cached_irq_mask))
 
