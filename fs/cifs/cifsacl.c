@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsacl.c
  *
- *   Copyright (C) International Business Machines  Corp., 2007
+ *   Copyright (C) International Business Machines  Corp., 2007,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   Contains the routines for mapping CIFS/NTFS ACLs
@@ -556,9 +556,9 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 
 /* Retrieve an ACL from the server */
 static struct cifs_ntsd *get_cifs_acl(u32 *pacllen, struct inode *inode,
-				       const char *path)
+				       const char *path, const __u16 *pfid)
 {
-	struct cifsFileInfo *open_file;
+	struct cifsFileInfo *open_file = NULL;
 	int unlock_file = FALSE;
 	int xid;
 	int rc = -EIO;
@@ -573,7 +573,11 @@ static struct cifs_ntsd *get_cifs_acl(u32 *pacllen, struct inode *inode,
 		return NULL;
 
 	xid = GetXid();
-	open_file = find_readable_file(CIFS_I(inode));
+	if (pfid == NULL)
+		open_file = find_readable_file(CIFS_I(inode));
+	else
+		fid = *pfid;
+
 	sb = inode->i_sb;
 	if (sb == NULL) {
 		FreeXid(xid);
@@ -584,7 +588,7 @@ static struct cifs_ntsd *get_cifs_acl(u32 *pacllen, struct inode *inode,
 	if (open_file) {
 		unlock_file = TRUE;
 		fid = open_file->netfid;
-	} else {
+	} else if (pfid == NULL) {
 		int oplock = FALSE;
 		/* open file */
 		rc = CIFSSMBOpen(xid, cifs_sb->tcon, path, FILE_OPEN,
@@ -600,10 +604,11 @@ static struct cifs_ntsd *get_cifs_acl(u32 *pacllen, struct inode *inode,
 
 	rc = CIFSSMBGetCIFSACL(xid, cifs_sb->tcon, fid, &pntsd, pacllen);
 	cFYI(1, ("GetCIFSACL rc = %d ACL len %d", rc, *pacllen));
-	if (unlock_file == TRUE)
+	if (unlock_file == TRUE) /* find_readable_file increments ref count */
 		atomic_dec(&open_file->wrtPending);
-	else
+	else if (pfid == NULL) /* if opened above we have to close the handle */
 		CIFSSMBClose(xid, cifs_sb->tcon, fid);
+	/* else handle was passed in by caller */
 
 	FreeXid(xid);
 	return pntsd;
@@ -664,14 +669,14 @@ static int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 }
 
 /* Translate the CIFS ACL (simlar to NTFS ACL) for a file into mode bits */
-void acl_to_uid_mode(struct inode *inode, const char *path)
+void acl_to_uid_mode(struct inode *inode, const char *path, const __u16 *pfid)
 {
 	struct cifs_ntsd *pntsd = NULL;
 	u32 acllen = 0;
 	int rc = 0;
 
 	cFYI(DBG2, ("converting ACL to mode for %s", path));
-	pntsd = get_cifs_acl(&acllen, inode, path);
+	pntsd = get_cifs_acl(&acllen, inode, path, pfid);
 
 	/* if we can retrieve the ACL, now parse Access Control Entries, ACEs */
 	if (pntsd)
@@ -694,7 +699,7 @@ int mode_to_acl(struct inode *inode, const char *path, __u64 nmode)
 	cFYI(DBG2, ("set ACL from mode for %s", path));
 
 	/* Get the security descriptor */
-	pntsd = get_cifs_acl(&acllen, inode, path);
+	pntsd = get_cifs_acl(&acllen, inode, path, NULL);
 
 	/* Add three ACEs for owner, group, everyone getting rid of
 	   other ACEs as chmod disables ACEs and set the security descriptor */
