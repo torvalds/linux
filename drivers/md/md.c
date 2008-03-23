@@ -564,7 +564,7 @@ static int sb_equal(mdp_super_t *sb1, mdp_super_t *sb2)
 
 	if (!tmp1 || !tmp2) {
 		ret = 0;
-		printk(KERN_INFO "md.c: sb1 is not equal to sb2!\n");
+		printk(KERN_INFO "md.c sb_equal(): failed to allocate memory!\n");
 		goto abort;
 	}
 
