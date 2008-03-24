@@ -3242,7 +3242,7 @@ static void ohci1394_pci_remove(struct pci_dev *dev)
 
 	ohci = pci_get_drvdata(dev);
 	if (!ohci)
-		return;
+		goto out;
 
 	device = get_device(&ohci->host->device);
 
@@ -3305,14 +3305,14 @@ static void ohci1394_pci_remove(struct pci_dev *dev)
 		release_mem_region(pci_resource_start(dev, 0),
 				   OHCI1394_REGISTER_SIZE);
 
-		ohci1394_pmac_off(dev);
-
 	case OHCI_INIT_ALLOC_HOST:
 		pci_set_drvdata(dev, NULL);
 	}
 
 	if (device)
 		put_device(device);
+out:
+	ohci1394_pmac_off(dev);
 }
 
 #ifdef CONFIG_PM
