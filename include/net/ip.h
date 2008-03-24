@@ -347,7 +347,8 @@ extern int ip_forward(struct sk_buff *skb);
 extern void ip_options_build(struct sk_buff *skb, struct ip_options *opt, __be32 daddr, struct rtable *rt, int is_frag);
 extern int ip_options_echo(struct ip_options *dopt, struct sk_buff *skb);
 extern void ip_options_fragment(struct sk_buff *skb);
-extern int ip_options_compile(struct ip_options *opt, struct sk_buff *skb);
+extern int ip_options_compile(struct net *net,
+			      struct ip_options *opt, struct sk_buff *skb);
 extern int ip_options_get(struct ip_options **optp,
 			  unsigned char *data, int optlen);
 extern int ip_options_get_from_user(struct ip_options **optp,
