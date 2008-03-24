@@ -28,6 +28,7 @@
 #include "disk-io.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
+#include "volumes.h"
 #include "print-tree.h"
 
 #if 0
@@ -234,6 +235,19 @@ static int btree_writepage_io_hook(struct page *page, u64 start, u64 end)
 	return 0;
 }
 
+static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	u64 offset;
+	offset = bio->bi_sector << 9;
+	if (offset == BTRFS_SUPER_INFO_OFFSET) {
+		bio->bi_bdev = root->fs_info->sb->s_bdev;
+		submit_bio(rw, bio);
+		return 0;
+	}
+	return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio);
+}
+
 static int btree_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct extent_io_tree *tree;
@@ -345,6 +359,23 @@ int readahead_tree_block(struct btrfs_root *root, u64 bytenr, u32 blocksize)
 	return ret;
 }
 
+static int close_all_devices(struct btrfs_fs_info *fs_info)
+{
+	struct list_head *list;
+	struct list_head *next;
+	struct btrfs_device *device;
+
+	list = &fs_info->devices;
+	while(!list_empty(list)) {
+		next = list->next;
+		list_del(next);
+		device = list_entry(next, struct btrfs_device, dev_list);
+		kfree(device->name);
+		kfree(device);
+	}
+	return 0;
+}
+
 struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 				      u32 blocksize)
 {
@@ -420,6 +451,8 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->leafsize = leafsize;
 	root->stripesize = stripesize;
 	root->ref_cows = 0;
+	root->track_dirty = 0;
+
 	root->fs_info = fs_info;
 	root->objectid = objectid;
 	root->last_trans = 0;
@@ -427,6 +460,8 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->last_inode_alloc = 0;
 	root->name = NULL;
 	root->in_sysfs = 0;
+
+	INIT_LIST_HEAD(&root->dirty_list);
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
 	memset(&root->defrag_progress, 0, sizeof(root->defrag_progress));
@@ -634,6 +669,10 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 					       GFP_NOFS);
 	struct btrfs_fs_info *fs_info = kmalloc(sizeof(*fs_info),
 						GFP_NOFS);
+	struct btrfs_root *chunk_root = kmalloc(sizeof(struct btrfs_root),
+						GFP_NOFS);
+	struct btrfs_root *dev_root = kmalloc(sizeof(struct btrfs_root),
+					      GFP_NOFS);
 	int ret;
 	int err = -EIO;
 	struct btrfs_super_block *disk_super;
@@ -657,6 +696,12 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->last_trans_committed = 0;
 	fs_info->tree_root = tree_root;
 	fs_info->extent_root = extent_root;
+	fs_info->chunk_root = chunk_root;
+	fs_info->dev_root = dev_root;
+	INIT_LIST_HEAD(&fs_info->dirty_cowonly_roots);
+	INIT_LIST_HEAD(&fs_info->devices);
+	btrfs_mapping_init(&fs_info->mapping_tree);
+	fs_info->last_device = &fs_info->devices;
 	fs_info->sb = sb;
 	fs_info->throttles = 0;
 	fs_info->mount_opt = 0;
@@ -714,12 +759,12 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 		goto fail_iput;
 	}
 #endif
-	__setup_root(512, 512, 512, 512, tree_root,
+	__setup_root(4096, 4096, 4096, 4096, tree_root,
 		     fs_info, BTRFS_ROOT_TREE_OBJECTID);
 
 	fs_info->sb_buffer = read_tree_block(tree_root,
 					     BTRFS_SUPER_INFO_OFFSET,
-					     512);
+					     4096);
 
 	if (!fs_info->sb_buffer)
 		goto fail_iput;
@@ -730,6 +775,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	read_extent_buffer(fs_info->sb_buffer, fs_info->fsid,
 			   (unsigned long)btrfs_super_fsid(fs_info->sb_buffer),
 			   BTRFS_FSID_SIZE);
+
 	disk_super = &fs_info->super_copy;
 	if (!btrfs_super_root(disk_super))
 		goto fail_sb_buffer;
@@ -753,8 +799,27 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 		goto fail_sb_buffer;
 	}
 
+	mutex_lock(&fs_info->fs_mutex);
+	ret = btrfs_read_sys_array(tree_root);
+	BUG_ON(ret);
+
+	blocksize = btrfs_level_size(tree_root,
+				     btrfs_super_chunk_root_level(disk_super));
+
+	__setup_root(nodesize, leafsize, sectorsize, stripesize,
+		     chunk_root, fs_info, BTRFS_CHUNK_TREE_OBJECTID);
+
+	chunk_root->node = read_tree_block(chunk_root,
+					   btrfs_super_chunk_root(disk_super),
+					   blocksize);
+	BUG_ON(!chunk_root->node);
+
+	ret = btrfs_read_chunk_tree(chunk_root);
+	BUG_ON(ret);
+
 	blocksize = btrfs_level_size(tree_root,
 				     btrfs_super_root_level(disk_super));
+
 
 	tree_root->node = read_tree_block(tree_root,
 					  btrfs_super_root(disk_super),
@@ -762,14 +827,19 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	if (!tree_root->node)
 		goto fail_sb_buffer;
 
-	mutex_lock(&fs_info->fs_mutex);
 
 	ret = find_and_setup_root(tree_root, fs_info,
 				  BTRFS_EXTENT_TREE_OBJECTID, extent_root);
-	if (ret) {
-		mutex_unlock(&fs_info->fs_mutex);
+	if (ret)
 		goto fail_tree_root;
-	}
+	extent_root->track_dirty = 1;
+
+	ret = find_and_setup_root(tree_root, fs_info,
+				  BTRFS_DEV_TREE_OBJECTID, dev_root);
+	dev_root->track_dirty = 1;
+
+	if (ret)
+		goto fail_extent_root;
 
 	btrfs_read_block_groups(extent_root);
 
@@ -777,7 +847,10 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	mutex_unlock(&fs_info->fs_mutex);
 	return tree_root;
 
+fail_extent_root:
+	free_extent_buffer(extent_root->node);
 fail_tree_root:
+	mutex_unlock(&fs_info->fs_mutex);
 	free_extent_buffer(tree_root->node);
 fail_sb_buffer:
 	free_extent_buffer(fs_info->sb_buffer);
@@ -874,6 +947,12 @@ int close_ctree(struct btrfs_root *root)
 	if (fs_info->tree_root->node)
 		free_extent_buffer(fs_info->tree_root->node);
 
+	if (root->fs_info->chunk_root->node);
+		free_extent_buffer(root->fs_info->chunk_root->node);
+
+	if (root->fs_info->dev_root->node);
+		free_extent_buffer(root->fs_info->dev_root->node);
+
 	free_extent_buffer(fs_info->sb_buffer);
 
 	btrfs_free_block_groups(root->fs_info);
@@ -901,8 +980,13 @@ int close_ctree(struct btrfs_root *root)
 		kfree(hasher);
 	}
 #endif
+	close_all_devices(fs_info);
+	btrfs_mapping_tree_free(&fs_info->mapping_tree);
+
 	kfree(fs_info->extent_root);
 	kfree(fs_info->tree_root);
+	kfree(fs_info->chunk_root);
+	kfree(fs_info->dev_root);
 	return 0;
 }
 
@@ -1016,4 +1100,5 @@ int btrfs_read_buffer(struct extent_buffer *buf)
 
 static struct extent_io_ops btree_extent_io_ops = {
 	.writepage_io_hook = btree_writepage_io_hook,
+	.submit_bio_hook = btree_submit_bio_hook,
 };

@@ -198,29 +198,42 @@ int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 	return werr;
 }
 
+static int update_cowonly_root(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root)
+{
+	int ret;
+	u64 old_root_bytenr;
+	struct btrfs_root *tree_root = root->fs_info->tree_root;
+
+	btrfs_write_dirty_block_groups(trans, root);
+	while(1) {
+		old_root_bytenr = btrfs_root_bytenr(&root->root_item);
+		if (old_root_bytenr == root->node->start)
+			break;
+		btrfs_set_root_bytenr(&root->root_item,
+				       root->node->start);
+		btrfs_set_root_level(&root->root_item,
+				     btrfs_header_level(root->node));
+		ret = btrfs_update_root(trans, tree_root,
+					&root->root_key,
+					&root->root_item);
+		BUG_ON(ret);
+		btrfs_write_dirty_block_groups(trans, root);
+	}
+	return 0;
+}
+
 int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root)
 {
-	int ret;
-	u64 old_extent_block;
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_root *tree_root = fs_info->tree_root;
-	struct btrfs_root *extent_root = fs_info->extent_root;
+	struct list_head *next;
 
-	btrfs_write_dirty_block_groups(trans, extent_root);
-	while(1) {
-		old_extent_block = btrfs_root_bytenr(&extent_root->root_item);
-		if (old_extent_block == extent_root->node->start)
-			break;
-		btrfs_set_root_bytenr(&extent_root->root_item,
-				      extent_root->node->start);
-		btrfs_set_root_level(&extent_root->root_item,
-				     btrfs_header_level(extent_root->node));
-		ret = btrfs_update_root(trans, tree_root,
-					&extent_root->root_key,
-					&extent_root->root_item);
-		BUG_ON(ret);
-		btrfs_write_dirty_block_groups(trans, extent_root);
+	while(!list_empty(&fs_info->dirty_cowonly_roots)) {
+		next = fs_info->dirty_cowonly_roots.next;
+		list_del_init(next);
+		root = list_entry(next, struct btrfs_root, dirty_list);
+		update_cowonly_root(trans, root);
 	}
 	return 0;
 }
@@ -616,6 +629,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	unsigned long timeout = 1;
 	struct btrfs_transaction *cur_trans;
 	struct btrfs_transaction *prev_trans = NULL;
+	struct btrfs_root *chunk_root = root->fs_info->chunk_root;
 	struct list_head dirty_fs_roots;
 	struct extent_io_tree *pinned_copy;
 	DEFINE_WAIT(wait);
@@ -714,6 +728,10 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	btrfs_set_super_root_level(&root->fs_info->super_copy,
 			   btrfs_header_level(root->fs_info->tree_root->node));
 
+	btrfs_set_super_chunk_root(&root->fs_info->super_copy,
+				   chunk_root->node->start);
+	btrfs_set_super_chunk_root_level(&root->fs_info->super_copy,
+					 btrfs_header_level(chunk_root->node));
 	write_extent_buffer(root->fs_info->sb_buffer,
 			    &root->fs_info->super_copy, 0,
 			    sizeof(root->fs_info->super_copy));

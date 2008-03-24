@@ -40,6 +40,7 @@
 #include "btrfs_inode.h"
 #include "ioctl.h"
 #include "print-tree.h"
+#include "volumes.h"
 
 struct btrfs_iget_args {
 	u64 ino;
@@ -295,20 +296,20 @@ int btrfs_clear_bit_hook(struct inode *inode, u64 start, u64 end,
 	return 0;
 }
 
-int btrfs_submit_bio_hook(int rw, struct bio *bio)
+int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio)
 {
-	struct bio_vec *bvec = bio->bi_io_vec;
-	struct inode *inode = bvec->bv_page->mapping->host;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
 	int ret = 0;
 
-	if (rw != WRITE)
-		return 0;
+	if (rw != WRITE) {
+		goto mapit;
+	}
 
 	if (btrfs_test_opt(root, NODATASUM) ||
-	    btrfs_test_flag(inode, NODATASUM))
-		return 0;
+	    btrfs_test_flag(inode, NODATASUM)) {
+		goto mapit;
+	}
 
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
@@ -317,7 +318,8 @@ int btrfs_submit_bio_hook(int rw, struct bio *bio)
 	ret = btrfs_end_transaction(trans, root);
 	BUG_ON(ret);
 	mutex_unlock(&root->fs_info->fs_mutex);
-	return ret;
+mapit:
+	return btrfs_map_bio(root, rw, bio);
 }
 
 int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
@@ -406,7 +408,7 @@ void btrfs_read_locked_inode(struct inode *inode)
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
 	struct btrfs_inode_item *inode_item;
-	struct btrfs_inode_timespec *tspec;
+	struct btrfs_timespec *tspec;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_key location;
 	u64 alloc_group_block;
@@ -455,7 +457,8 @@ void btrfs_read_locked_inode(struct inode *inode)
 	BTRFS_I(inode)->flags = btrfs_inode_flags(leaf, inode_item);
 	if (!BTRFS_I(inode)->block_group) {
 		BTRFS_I(inode)->block_group = btrfs_find_block_group(root,
-						         NULL, 0, 0, 0);
+						 NULL, 0,
+						 BTRFS_BLOCK_GROUP_METADATA, 0);
 	}
 	btrfs_free_path(path);
 	inode_item = NULL;
@@ -1550,7 +1553,8 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		owner = 0;
 	else
 		owner = 1;
-	group = btrfs_find_block_group(root, group, 0, 0, owner);
+	group = btrfs_find_block_group(root, group, 0,
+				       BTRFS_BLOCK_GROUP_METADATA, owner);
 	BTRFS_I(inode)->block_group = group;
 	BTRFS_I(inode)->flags = 0;
 

@@ -20,6 +20,7 @@
 #define __DISKIO__
 
 #define BTRFS_SUPER_INFO_OFFSET (16 * 1024)
+struct btrfs_device;
 
 struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 				      u32 blocksize);
@@ -65,4 +66,5 @@ int btrfs_read_buffer(struct extent_buffer *buf);
 u32 btrfs_csum_data(struct btrfs_root *root, char *data, u32 seed, size_t len);
 void btrfs_csum_final(u32 crc, char *result);
 void btrfs_throttle(struct btrfs_root *root);
+int btrfs_open_device(struct btrfs_device *dev);
 #endif

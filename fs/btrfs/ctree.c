@@ -70,6 +70,14 @@ void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p)
 	memset(p, 0, sizeof(*p));
 }
 
+static void add_root_to_dirty_list(struct btrfs_root *root)
+{
+	if (root->track_dirty && list_empty(&root->dirty_list)) {
+		list_add(&root->dirty_list,
+			 &root->fs_info->dirty_cowonly_roots);
+	}
+}
+
 int btrfs_copy_root(struct btrfs_trans_handle *trans,
 		      struct btrfs_root *root,
 		      struct extent_buffer *buf,
@@ -196,6 +204,7 @@ int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 					  root_gen, 0, 0, 1);
 		}
 		free_extent_buffer(buf);
+		add_root_to_dirty_list(root);
 	} else {
 		root_gen = btrfs_header_generation(parent);
 		btrfs_set_node_blockptr(parent, parent_slot,
@@ -241,7 +250,7 @@ int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		return 0;
 	}
 
-	search_start = buf->start & ~((u64)BTRFS_BLOCK_GROUP_SIZE - 1);
+	search_start = buf->start & ~((u64)(1024 * 1024 * 1024) - 1);
 	ret = __btrfs_cow_block(trans, root, buf, parent,
 				 parent_slot, cow_ret, search_start, 0);
 	return ret;
@@ -724,6 +733,7 @@ static int balance_level(struct btrfs_trans_handle *trans,
 		BUG_ON(ret);
 
 		root->node = child;
+		add_root_to_dirty_list(root);
 		path->nodes[level] = NULL;
 		clean_tree_block(trans, root, mid);
 		wait_on_tree_block_writeback(root, mid);
@@ -1369,6 +1379,7 @@ static int noinline insert_new_root(struct btrfs_trans_handle *trans,
 	/* the super has an extra ref to root->node */
 	free_extent_buffer(root->node);
 	root->node = c;
+	add_root_to_dirty_list(root);
 	extent_buffer_get(c);
 	path->nodes[level] = c;
 	path->slots[level] = 0;
@@ -2777,3 +2788,28 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 	}
 	return 0;
 }
+
+int btrfs_previous_item(struct btrfs_root *root,
+			struct btrfs_path *path, u64 min_objectid,
+			int type)
+{
+	struct btrfs_key found_key;
+	struct extent_buffer *leaf;
+	int ret;
+
+	while(1) {
+		if (path->slots[0] == 0) {
+			ret = btrfs_prev_leaf(root, path);
+			if (ret != 0)
+				return ret;
+		} else {
+			path->slots[0]--;
+		}
+		leaf = path->nodes[0];
+		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
+		if (found_key.type == type)
+			return 0;
+	}
+	return 1;
+}
+

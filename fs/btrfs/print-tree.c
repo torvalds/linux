@@ -20,6 +20,40 @@
 #include "disk-io.h"
 #include "print-tree.h"
 
+static void print_chunk(struct extent_buffer *eb, struct btrfs_chunk *chunk)
+{
+	int num_stripes = btrfs_chunk_num_stripes(eb, chunk);
+	int i;
+	printk("\t\tchunk owner %llu type %llu num_stripes %d\n",
+	       (unsigned long long)btrfs_chunk_owner(eb, chunk),
+	       (unsigned long long)btrfs_chunk_type(eb, chunk),
+	       num_stripes);
+	for (i = 0 ; i < num_stripes ; i++) {
+		printk("\t\t\tstripe %d devid %llu offset %llu\n", i,
+		      (unsigned long long)btrfs_stripe_devid_nr(eb, chunk, i),
+		      (unsigned long long)btrfs_stripe_offset_nr(eb, chunk, i));
+	}
+}
+static void print_dev_item(struct extent_buffer *eb,
+			   struct btrfs_dev_item *dev_item)
+{
+	char *name;
+	int name_len;
+
+	name_len = btrfs_device_name_len(eb, dev_item);
+	name = kmalloc(name_len, GFP_NOFS);
+	if (name) {
+		read_extent_buffer(eb, name,
+				   (unsigned long)btrfs_device_name(dev_item),
+				   name_len);
+	}
+	printk("\t\tdev item name %.*s devid %llu "
+	       "total_bytes %llu bytes used %Lu\n", name_len, name,
+	       (unsigned long long)btrfs_device_id(eb, dev_item),
+	       (unsigned long long)btrfs_device_total_bytes(eb, dev_item),
+	       (unsigned long long)btrfs_device_bytes_used(eb, dev_item));
+	kfree(name);
+}
 void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 {
 	int i;
@@ -34,6 +68,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 	struct btrfs_key key;
 	struct btrfs_key found_key;
 	struct btrfs_extent_ref *ref;
+	struct btrfs_dev_extent *dev_extent;
 	u32 type;
 
 	printk("leaf %llu total ptrs %d free space %d\n",
@@ -106,6 +141,19 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 			printk("\t\tblock group used %llu\n",
 			       (unsigned long long)btrfs_disk_block_group_used(l, bi));
 			break;
+		case BTRFS_CHUNK_ITEM_KEY:
+			print_chunk(l, btrfs_item_ptr(l, i, struct btrfs_chunk));
+			break;
+		case BTRFS_DEV_ITEM_KEY:
+			print_dev_item(l, btrfs_item_ptr(l, i,
+					struct btrfs_dev_item));
+			break;
+		case BTRFS_DEV_EXTENT_KEY:
+			dev_extent = btrfs_item_ptr(l, i,
+						    struct btrfs_dev_extent);
+			printk("\t\tdev extent owner %llu length %llu\n",
+			       (unsigned long long)btrfs_dev_extent_owner(l, dev_extent),
+			       (unsigned long long)btrfs_dev_extent_length(l, dev_extent));
 		};
 	}
 }
