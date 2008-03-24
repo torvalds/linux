@@ -232,6 +232,82 @@ long __init lmb_overlaps_region(struct lmb_region *rgn, u64 base,
 	return (i < rgn->cnt) ? i : -1;
 }
 
+static u64 lmb_align_down(u64 addr, u64 size)
+{
+	return addr & ~(size - 1);
+}
+
+static u64 lmb_align_up(u64 addr, u64 size)
+{
+	return (addr + (size - 1)) & ~(size - 1);
+}
+
+static u64 __init lmb_alloc_nid_unreserved(u64 start, u64 end,
+					   u64 size, u64 align)
+{
+	u64 base;
+	long j;
+
+	base = lmb_align_down((end - size), align);
+	while (start <= base &&
+	       ((j = lmb_overlaps_region(&lmb.reserved, base, size)) >= 0))
+		base = lmb_align_down(lmb.reserved.region[j].base - size,
+				      align);
+
+	if (base != 0 && start <= base) {
+		if (lmb_add_region(&lmb.reserved, base,
+				   lmb_align_up(size, align)) < 0)
+			base = ~(u64)0;
+		return base;
+	}
+
+	return ~(u64)0;
+}
+
+static u64 __init lmb_alloc_nid_region(struct lmb_property *mp,
+				       u64 (*nid_range)(u64, u64, int *),
+				       u64 size, u64 align, int nid)
+{
+	u64 start, end;
+
+	start = mp->base;
+	end = start + mp->size;
+
+	start = lmb_align_up(start, align);
+	while (start < end) {
+		u64 this_end;
+		int this_nid;
+
+		this_end = nid_range(start, end, &this_nid);
+		if (this_nid == nid) {
+			u64 ret = lmb_alloc_nid_unreserved(start, this_end,
+							   size, align);
+			if (ret != ~(u64)0)
+				return ret;
+		}
+		start = this_end;
+	}
+
+	return ~(u64)0;
+}
+
+u64 __init lmb_alloc_nid(u64 size, u64 align, int nid,
+			 u64 (*nid_range)(u64 start, u64 end, int *nid))
+{
+	struct lmb_region *mem = &lmb.memory;
+	int i;
+
+	for (i = 0; i < mem->cnt; i++) {
+		u64 ret = lmb_alloc_nid_region(&mem->region[i],
+					       nid_range,
+					       size, align, nid);
+		if (ret != ~(u64)0)
+			return ret;
+	}
+
+	return lmb_alloc(size, align);
+}
+
 u64 __init lmb_alloc(u64 size, u64 align)
 {
 	return lmb_alloc_base(size, align, LMB_ALLOC_ANYWHERE);
@@ -248,16 +324,6 @@ u64 __init lmb_alloc_base(u64 size, u64 align, u64 max_addr)
 		      (unsigned long long) size, (unsigned long long) max_addr);
 
 	return alloc;
-}
-
-static u64 lmb_align_down(u64 addr, u64 size)
-{
-	return addr & ~(size - 1);
-}
-
-static u64 lmb_align_up(u64 addr, u64 size)
-{
-	return (addr + (size - 1)) & ~(size - 1);
 }
 
 u64 __init __lmb_alloc_base(u64 size, u64 align, u64 max_addr)
