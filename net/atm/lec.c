@@ -1250,6 +1250,10 @@ static int __init lane_module_init(void)
 	struct proc_dir_entry *p;
 
 	p = proc_create("lec", S_IRUGO, atm_proc_root, &lec_seq_fops);
+	if (!p) {
+		printk(KERN_ERR "Unable to initialize /proc/net/atm/lec\n");
+		return -ENOMEM;
+	}
 #endif
 
 	register_atm_ioctl(&lane_ioctl_ops);

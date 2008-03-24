@@ -909,11 +909,10 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 			if (!dlci_ioctl_hook)
 				request_module("dlci");
 
-			if (dlci_ioctl_hook) {
-				mutex_lock(&dlci_ioctl_mutex);
+			mutex_lock(&dlci_ioctl_mutex);
+			if (dlci_ioctl_hook)
 				err = dlci_ioctl_hook(cmd, argp);
-				mutex_unlock(&dlci_ioctl_mutex);
-			}
+			mutex_unlock(&dlci_ioctl_mutex);
 			break;
 		default:
 			err = sock->ops->ioctl(sock, cmd, arg);
