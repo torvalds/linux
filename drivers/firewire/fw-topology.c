@@ -290,12 +290,11 @@ static struct fw_node *build_tree(struct fw_card *card,
 			beta_repeaters_present = true;
 
 		/*
-		 * If all PHYs does not report the same gap count
-		 * setting, we fall back to 63 which will force a gap
-		 * count reconfiguration and a reset.
+		 * If PHYs report different gap counts, set an invalid count
+		 * which will force a gap count reconfiguration and a reset.
 		 */
 		if (SELF_ID_GAP_COUNT(q) != gap_count)
-			gap_count = 63;
+			gap_count = 0;
 
 		update_hop_count(node);
 

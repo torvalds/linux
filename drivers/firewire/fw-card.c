@@ -220,7 +220,7 @@ fw_card_bm_work(struct work_struct *work)
 	struct bm_data bmd;
 	unsigned long flags;
 	int root_id, new_root_id, irm_id, gap_count, generation, grace;
-	int do_reset = 0;
+	bool do_reset = false;
 
 	spin_lock_irqsave(&card->lock, flags);
 	local_node = card->local_node;
@@ -360,14 +360,14 @@ fw_card_bm_work(struct work_struct *work)
 		gap_count = 63;
 
 	/*
-	 * Finally, figure out if we should do a reset or not.  If we've
-	 * done less that 5 resets with the same physical topology and we
+	 * Finally, figure out if we should do a reset or not.  If we have
+	 * done less than 5 resets with the same physical topology and we
 	 * have either a new root or a new gap count setting, let's do it.
 	 */
 
 	if (card->bm_retries++ < 5 &&
 	    (card->gap_count != gap_count || new_root_id != root_id))
-		do_reset = 1;
+		do_reset = true;
 
 	spin_unlock_irqrestore(&card->lock, flags);
 
