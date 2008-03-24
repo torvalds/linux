@@ -466,6 +466,28 @@ out_neigh_release:
 	goto out;
 }
 
+struct pneigh_entry *__pneigh_lookup(struct neigh_table *tbl,
+		struct net *net, const void *pkey, struct net_device *dev)
+{
+	struct pneigh_entry *n;
+	int key_len = tbl->key_len;
+	u32 hash_val = *(u32 *)(pkey + key_len - 4);
+
+	hash_val ^= (hash_val >> 16);
+	hash_val ^= hash_val >> 8;
+	hash_val ^= hash_val >> 4;
+	hash_val &= PNEIGH_HASHMASK;
+
+	for (n = tbl->phash_buckets[hash_val]; n; n = n->next) {
+		if (!memcmp(n->key, pkey, key_len) &&
+		    (n->net == net) &&
+		    (n->dev == dev || !n->dev))
+			break;
+	}
+
+	return n;
+}
+
 struct pneigh_entry * pneigh_lookup(struct neigh_table *tbl,
 				    struct net *net, const void *pkey,
 				    struct net_device *dev, int creat)
@@ -2803,6 +2825,7 @@ EXPORT_SYMBOL(neigh_table_init_no_netlink);
 EXPORT_SYMBOL(neigh_update);
 EXPORT_SYMBOL(pneigh_enqueue);
 EXPORT_SYMBOL(pneigh_lookup);
+EXPORT_SYMBOL_GPL(__pneigh_lookup);
 
 #ifdef CONFIG_ARPD
 EXPORT_SYMBOL(neigh_app_ns);
