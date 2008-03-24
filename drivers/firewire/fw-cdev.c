@@ -269,20 +269,27 @@ static int ioctl_get_info(struct client *client, void *buffer)
 {
 	struct fw_cdev_get_info *get_info = buffer;
 	struct fw_cdev_event_bus_reset bus_reset;
+	unsigned long ret = 0;
 
 	client->version = get_info->version;
 	get_info->version = FW_CDEV_VERSION;
+
+	down_read(&fw_device_rwsem);
 
 	if (get_info->rom != 0) {
 		void __user *uptr = u64_to_uptr(get_info->rom);
 		size_t want = get_info->rom_length;
 		size_t have = client->device->config_rom_length * 4;
 
-		if (copy_to_user(uptr, client->device->config_rom,
-				 min(want, have)))
-			return -EFAULT;
+		ret = copy_to_user(uptr, client->device->config_rom,
+				   min(want, have));
 	}
 	get_info->rom_length = client->device->config_rom_length * 4;
+
+	up_read(&fw_device_rwsem);
+
+	if (ret != 0)
+		return -EFAULT;
 
 	client->bus_reset_closure = get_info->bus_reset_closure;
 	if (get_info->bus_reset != 0) {

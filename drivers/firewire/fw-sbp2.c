@@ -153,6 +153,7 @@ struct sbp2_target {
 	struct list_head lu_list;
 
 	u64 management_agent_address;
+	u64 guid;
 	int directory_id;
 	int node_id;
 	int address_high;
@@ -1114,6 +1115,7 @@ static int sbp2_probe(struct device *dev)
 	kref_init(&tgt->kref);
 	INIT_LIST_HEAD(&tgt->lu_list);
 	tgt->bus_id = unit->device.bus_id;
+	tgt->guid = (u64)device->config_rom[3] << 32 | device->config_rom[4];
 
 	if (fw_device_enable_phys_dma(device) < 0)
 		goto fail_shost_put;
@@ -1571,16 +1573,14 @@ sbp2_sysfs_ieee1394_id_show(struct device *dev, struct device_attribute *attr,
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct sbp2_logical_unit *lu;
-	struct fw_device *device;
 
 	if (!sdev)
 		return 0;
 
 	lu = sdev->hostdata;
-	device = fw_device(lu->tgt->unit->device.parent);
 
-	return sprintf(buf, "%08x%08x:%06x:%04x\n",
-			device->config_rom[3], device->config_rom[4],
+	return sprintf(buf, "%016llx:%06x:%04x\n",
+			(unsigned long long)lu->tgt->guid,
 			lu->tgt->directory_id, lu->lun);
 }
 

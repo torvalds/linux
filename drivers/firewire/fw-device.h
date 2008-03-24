@@ -21,6 +21,7 @@
 
 #include <linux/fs.h>
 #include <linux/cdev.h>
+#include <linux/rwsem.h>
 #include <asm/atomic.h>
 
 enum fw_device_state {
@@ -46,6 +47,11 @@ struct fw_attribute_group {
  * fw_device.node_id is guaranteed to be current too.
  *
  * The same applies to fw_device.card->node_id vs. fw_device.generation.
+ *
+ * fw_device.config_rom and fw_device.config_rom_length may be accessed during
+ * the lifetime of any fw_unit belonging to the fw_device, before device_del()
+ * was called on the last fw_unit.  Alternatively, they may be accessed while
+ * holding fw_device_rwsem.
  */
 struct fw_device {
 	atomic_t state;
@@ -53,6 +59,7 @@ struct fw_device {
 	int node_id;
 	int generation;
 	unsigned max_speed;
+	bool cmc;
 	struct fw_card *card;
 	struct device device;
 	struct list_head link;
@@ -92,8 +99,12 @@ int fw_device_enable_phys_dma(struct fw_device *device);
 void fw_device_cdev_update(struct fw_device *device);
 void fw_device_cdev_remove(struct fw_device *device);
 
+extern struct rw_semaphore fw_device_rwsem;
 extern int fw_cdev_major;
 
+/*
+ * fw_unit.directory must not be accessed after device_del(&fw_unit.device).
+ */
 struct fw_unit {
 	struct device device;
 	u32 *directory;

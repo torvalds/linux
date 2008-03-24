@@ -108,6 +108,7 @@ static struct fw_node *fw_node_create(u32 sid, int port_count, int color)
 	node->node_id = LOCAL_BUS | SELF_ID_PHY_ID(sid);
 	node->link_on = SELF_ID_LINK_ON(sid);
 	node->phy_speed = SELF_ID_PHY_SPEED(sid);
+	node->initiated_reset = SELF_ID_PHY_INITIATOR(sid);
 	node->port_count = port_count;
 
 	atomic_set(&node->ref_count, 1);
@@ -431,6 +432,8 @@ update_tree(struct fw_card *card, struct fw_node *root)
 			event = FW_NODE_LINK_OFF;
 		else if (!node0->link_on && node1->link_on)
 			event = FW_NODE_LINK_ON;
+		else if (node1->initiated_reset && node1->link_on)
+			event = FW_NODE_INITIATED_RESET;
 		else
 			event = FW_NODE_UPDATED;
 

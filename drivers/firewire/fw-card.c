@@ -331,7 +331,7 @@ fw_card_bm_work(struct work_struct *work)
 		 */
 		spin_unlock_irqrestore(&card->lock, flags);
 		goto out;
-	} else if (root_device->config_rom[2] & BIB_CMC) {
+	} else if (root_device->cmc) {
 		/*
 		 * FIXME: I suppose we should set the cmstr bit in the
 		 * STATE_CLEAR register of this node, as described in
