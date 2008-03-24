@@ -2425,14 +2425,29 @@ static struct tcp_seq_afinfo tcp4_seq_afinfo = {
 	.seq_fops	= &tcp4_seq_fops,
 };
 
+static int tcp4_proc_init_net(struct net *net)
+{
+	return tcp_proc_register(net, &tcp4_seq_afinfo);
+}
+
+static void tcp4_proc_exit_net(struct net *net)
+{
+	tcp_proc_unregister(net, &tcp4_seq_afinfo);
+}
+
+static struct pernet_operations tcp4_net_ops = {
+	.init = tcp4_proc_init_net,
+	.exit = tcp4_proc_exit_net,
+};
+
 int __init tcp4_proc_init(void)
 {
-	return tcp_proc_register(&init_net, &tcp4_seq_afinfo);
+	return register_pernet_subsys(&tcp4_net_ops);
 }
 
 void tcp4_proc_exit(void)
 {
-	tcp_proc_unregister(&init_net, &tcp4_seq_afinfo);
+	unregister_pernet_subsys(&tcp4_net_ops);
 }
 #endif /* CONFIG_PROC_FS */
 
