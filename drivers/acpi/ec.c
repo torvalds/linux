@@ -533,20 +533,6 @@ static void do_ec_poll(struct work_struct *work)
    -------------------------------------------------------------------------- */
 
 static acpi_status
-acpi_ec_space_setup(acpi_handle region_handle,
-		    u32 function, void *handler_context, void **return_context)
-{
-	/*
-	 * The EC object is in the handler context and is needed
-	 * when calling the acpi_ec_space_handler.
-	 */
-	*return_context = (function != ACPI_REGION_DEACTIVATE) ?
-	    handler_context : NULL;
-
-	return AE_OK;
-}
-
-static acpi_status
 acpi_ec_space_handler(u32 function, acpi_physical_address address,
 		      u32 bits, acpi_integer *value,
 		      void *handler_context, void *region_context)
@@ -858,7 +844,7 @@ static int ec_install_handlers(struct acpi_ec *ec)
 	status = acpi_install_address_space_handler(ec->handle,
 						    ACPI_ADR_SPACE_EC,
 						    &acpi_ec_space_handler,
-						    &acpi_ec_space_setup, ec);
+						    NULL, ec);
 	if (ACPI_FAILURE(status)) {
 		acpi_remove_gpe_handler(NULL, ec->gpe, &acpi_ec_gpe_handler);
 		return -ENODEV;
