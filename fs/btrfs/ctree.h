@@ -47,24 +47,23 @@ extern struct kmem_cache *btrfs_path_cachep;
 /* stores information about which extents are in use, and reference counts */
 #define BTRFS_EXTENT_TREE_OBJECTID 2ULL
 
-/* one per subvolume, storing files and directories */
-#define BTRFS_FS_TREE_OBJECTID 3ULL
-
-/* directory objectid inside the root tree */
-#define BTRFS_ROOT_TREE_DIR_OBJECTID 4ULL
-
-
 /*
  * chunk tree stores translations from logical -> physical block numbering
  * the super block points to the chunk tree
  */
-#define BTRFS_CHUNK_TREE_OBJECTID 5ULL
+#define BTRFS_CHUNK_TREE_OBJECTID 3ULL
 
 /*
  * stores information about which areas of a given device are in use.
  * one per device.  The tree of tree roots points to the device tree
  */
-#define BTRFS_DEV_TREE_OBJECTID 6ULL
+#define BTRFS_DEV_TREE_OBJECTID 4ULL
+
+/* one per subvolume, storing files and directories */
+#define BTRFS_FS_TREE_OBJECTID 5ULL
+
+/* directory objectid inside the root tree */
+#define BTRFS_ROOT_TREE_DIR_OBJECTID 6ULL
 
 /*
  * All files have objectids higher than this.
