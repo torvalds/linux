@@ -693,7 +693,7 @@ static int blackbird_queryctrl(struct cx8802_dev *dev, struct v4l2_queryctrl *qc
 		return -EINVAL;
 
 	/* Standard V4L2 controls */
-	if (cx8800_ctrl_query(qctrl) == 0)
+	if (cx8800_ctrl_query(dev->core, qctrl) == 0)
 		return 0;
 
 	/* MPEG V4L2 controls */
@@ -933,7 +933,7 @@ static int vidioc_queryctrl (struct file *file, void *priv,
 	qctrl->id = v4l2_ctrl_next(ctrl_classes, qctrl->id);
 	if (unlikely(qctrl->id == 0))
 		return -EINVAL;
-	return cx8800_ctrl_query(qctrl);
+	return cx8800_ctrl_query(dev->core, qctrl);
 }
 
 static int vidioc_enum_input (struct file *file, void *priv,

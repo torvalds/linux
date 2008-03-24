@@ -651,7 +651,8 @@ void cx8802_cancel_buffers(struct cx8802_dev *dev);
 /* ----------------------------------------------------------- */
 /* cx88-video.c*/
 extern const u32 cx88_user_ctrls[];
-extern int cx8800_ctrl_query(struct v4l2_queryctrl *qctrl);
+extern int cx8800_ctrl_query(struct cx88_core *core,
+			     struct v4l2_queryctrl *qctrl);
 int cx88_enum_input (struct cx88_core  *core,struct v4l2_input *i);
 int cx88_set_freq (struct cx88_core  *core,struct v4l2_frequency *f);
 int cx88_get_control(struct cx88_core *core, struct v4l2_control *ctl);
