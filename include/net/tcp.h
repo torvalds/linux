@@ -436,7 +436,7 @@ extern int			tcp_disconnect(struct sock *sk, int flags);
 extern void			tcp_unhash(struct sock *sk);
 
 /* From syncookies.c */
-extern __u32 syncookie_secret[2][16-3+SHA_DIGEST_WORDS];
+extern __u32 syncookie_secret[2][16-4+SHA_DIGEST_WORDS];
 extern struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb, 
 				    struct ip_options *opt);
 extern __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb, 

@@ -21,7 +21,7 @@
 
 extern int sysctl_tcp_syncookies;
 
-__u32 syncookie_secret[2][16-3+SHA_DIGEST_WORDS];
+__u32 syncookie_secret[2][16-4+SHA_DIGEST_WORDS];
 EXPORT_SYMBOL(syncookie_secret);
 
 static __init int init_syncookies(void)
@@ -41,7 +41,7 @@ static u32 cookie_hash(__be32 saddr, __be32 daddr, __be16 sport, __be16 dport,
 {
 	__u32 *tmp = __get_cpu_var(cookie_scratch);
 
-	memcpy(tmp + 3, syncookie_secret[c], sizeof(syncookie_secret[c]));
+	memcpy(tmp + 4, syncookie_secret[c], sizeof(syncookie_secret[c]));
 	tmp[0] = (__force u32)saddr;
 	tmp[1] = (__force u32)daddr;
 	tmp[2] = ((__force u32)sport << 16) + (__force u32)dport;
