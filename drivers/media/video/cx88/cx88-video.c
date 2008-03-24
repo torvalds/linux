@@ -240,6 +240,18 @@ static struct cx88_ctrl cx8800_ctls[] = {
 		.mask                  = 1 << 10,
 		.shift                 = 10,
 	}, {
+		.v = {
+			.id            = V4L2_CID_COLOR_KILLER,
+			.name          = "Color killer",
+			.minimum       = 0,
+			.maximum       = 1,
+			.default_value = 0x0,
+			.type          = V4L2_CTRL_TYPE_BOOLEAN,
+		},
+		.reg                   = MO_INPUT_FORMAT,
+		.mask                  = 1 << 9,
+		.shift                 = 9,
+	}, {
 	/* --- audio --- */
 		.v = {
 			.id            = V4L2_CID_AUDIO_MUTE,
@@ -295,6 +307,7 @@ const u32 cx88_user_ctrls[] = {
 	V4L2_CID_AUDIO_BALANCE,
 	V4L2_CID_AUDIO_MUTE,
 	V4L2_CID_CHROMA_AGC,
+	V4L2_CID_COLOR_KILLER,
 	0
 };
 EXPORT_SYMBOL(cx88_user_ctrls);
