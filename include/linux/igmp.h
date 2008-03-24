@@ -80,27 +80,6 @@ struct igmpv3_query {
 	__be32 srcs[0];
 };
 
-#ifdef __KERNEL__
-#include <linux/skbuff.h>
-
-static inline struct igmphdr *igmp_hdr(const struct sk_buff *skb)
-{
-	return (struct igmphdr *)skb_transport_header(skb);
-}
-
-static inline struct igmpv3_report *
-			igmpv3_report_hdr(const struct sk_buff *skb)
-{
-	return (struct igmpv3_report *)skb_transport_header(skb);
-}
-
-static inline struct igmpv3_query *
-			igmpv3_query_hdr(const struct sk_buff *skb)
-{
-	return (struct igmpv3_query *)skb_transport_header(skb);
-}
-#endif
-
 #define IGMP_HOST_MEMBERSHIP_QUERY	0x11	/* From RFC1112 */
 #define IGMP_HOST_MEMBERSHIP_REPORT	0x12	/* Ditto */
 #define IGMP_DVMRP			0x13	/* DVMRP routing */
@@ -150,6 +129,23 @@ static inline struct igmpv3_query *
 #include <linux/skbuff.h>
 #include <linux/timer.h>
 #include <linux/in.h>
+
+static inline struct igmphdr *igmp_hdr(const struct sk_buff *skb)
+{
+	return (struct igmphdr *)skb_transport_header(skb);
+}
+
+static inline struct igmpv3_report *
+			igmpv3_report_hdr(const struct sk_buff *skb)
+{
+	return (struct igmpv3_report *)skb_transport_header(skb);
+}
+
+static inline struct igmpv3_query *
+			igmpv3_query_hdr(const struct sk_buff *skb)
+{
+	return (struct igmpv3_query *)skb_transport_header(skb);
+}
 
 extern int sysctl_igmp_max_memberships;
 extern int sysctl_igmp_max_msf;
