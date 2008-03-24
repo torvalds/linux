@@ -243,6 +243,23 @@ void build_ehash_secret(void)
 }
 EXPORT_SYMBOL(build_ehash_secret);
 
+static inline int inet_netns_ok(struct net *net, int protocol)
+{
+	int hash;
+	struct net_protocol *ipprot;
+
+	if (net == &init_net)
+		return 1;
+
+	hash = protocol & (MAX_INET_PROTOS - 1);
+	ipprot = rcu_dereference(inet_protos[hash]);
+
+	if (ipprot == NULL)
+		/* raw IP is OK */
+		return 1;
+	return ipprot->netns_ok;
+}
+
 /*
  *	Create an inet socket.
  */
@@ -258,9 +275,6 @@ static int inet_create(struct net *net, struct socket *sock, int protocol)
 	char answer_no_check;
 	int try_loading_module = 0;
 	int err;
-
-	if (net != &init_net)
-		return -EAFNOSUPPORT;
 
 	if (sock->type != SOCK_RAW &&
 	    sock->type != SOCK_DGRAM &&
@@ -318,6 +332,10 @@ lookup_protocol:
 
 	err = -EPERM;
 	if (answer->capability > 0 && !capable(answer->capability))
+		goto out_rcu_unlock;
+
+	err = -EAFNOSUPPORT;
+	if (!inet_netns_ok(net, protocol))
 		goto out_rcu_unlock;
 
 	sock->ops = answer->ops;
