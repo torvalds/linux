@@ -34,7 +34,6 @@
 #include <linux/ip.h>
 #include <linux/cache.h>
 #include <linux/security.h>
-#include <net/sock.h>
 
 #ifndef __KERNEL__
 #warning This file is not supposed to be used outside of kernel.
