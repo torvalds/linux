@@ -1701,14 +1701,29 @@ static struct udp_seq_afinfo udp4_seq_afinfo = {
 	.seq_fops	= &udp4_seq_fops,
 };
 
+static int udp4_proc_init_net(struct net *net)
+{
+	return udp_proc_register(net, &udp4_seq_afinfo);
+}
+
+static void udp4_proc_exit_net(struct net *net)
+{
+	udp_proc_unregister(net, &udp4_seq_afinfo);
+}
+
+static struct pernet_operations udp4_net_ops = {
+	.init = udp4_proc_init_net,
+	.exit = udp4_proc_exit_net,
+};
+
 int __init udp4_proc_init(void)
 {
-	return udp_proc_register(&init_net, &udp4_seq_afinfo);
+	return register_pernet_subsys(&udp4_net_ops);
 }
 
 void udp4_proc_exit(void)
 {
-	udp_proc_unregister(&init_net, &udp4_seq_afinfo);
+	unregister_pernet_subsys(&udp4_net_ops);
 }
 #endif /* CONFIG_PROC_FS */
 
