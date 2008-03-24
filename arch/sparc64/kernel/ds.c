@@ -972,8 +972,7 @@ static void process_ds_work(void)
 	LIST_HEAD(todo);
 
 	spin_lock_irqsave(&ds_lock, flags);
-	list_splice(&ds_work_list, &todo);
-	INIT_LIST_HEAD(&ds_work_list);
+	list_splice_init(&ds_work_list, &todo);
 	spin_unlock_irqrestore(&ds_lock, flags);
 
 	list_for_each_entry_safe(qp, tmp, &todo, list) {

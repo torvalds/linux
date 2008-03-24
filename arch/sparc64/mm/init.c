@@ -166,7 +166,7 @@ unsigned long sparc64_kern_pri_context __read_mostly;
 unsigned long sparc64_kern_pri_nuc_bits __read_mostly;
 unsigned long sparc64_kern_sec_context __read_mostly;
 
-int bigkernel = 0;
+int num_kernel_image_mappings;
 
 #ifdef CONFIG_DEBUG_DCFLUSH
 atomic_t dcpage_flushes = ATOMIC_INIT(0);
@@ -572,7 +572,7 @@ static unsigned long kern_large_tte(unsigned long paddr);
 static void __init remap_kernel(void)
 {
 	unsigned long phys_page, tte_vaddr, tte_data;
-	int tlb_ent = sparc64_highest_locked_tlbent();
+	int i, tlb_ent = sparc64_highest_locked_tlbent();
 
 	tte_vaddr = (unsigned long) KERNBASE;
 	phys_page = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
@@ -582,27 +582,20 @@ static void __init remap_kernel(void)
 
 	/* Now lock us into the TLBs via Hypervisor or OBP. */
 	if (tlb_type == hypervisor) {
-		hypervisor_tlb_lock(tte_vaddr, tte_data, HV_MMU_DMMU);
-		hypervisor_tlb_lock(tte_vaddr, tte_data, HV_MMU_IMMU);
-		if (bigkernel) {
-			tte_vaddr += 0x400000;
-			tte_data += 0x400000;
+		for (i = 0; i < num_kernel_image_mappings; i++) {
 			hypervisor_tlb_lock(tte_vaddr, tte_data, HV_MMU_DMMU);
 			hypervisor_tlb_lock(tte_vaddr, tte_data, HV_MMU_IMMU);
+			tte_vaddr += 0x400000;
+			tte_data += 0x400000;
 		}
 	} else {
-		prom_dtlb_load(tlb_ent, tte_data, tte_vaddr);
-		prom_itlb_load(tlb_ent, tte_data, tte_vaddr);
-		if (bigkernel) {
-			tlb_ent -= 1;
-			prom_dtlb_load(tlb_ent,
-				       tte_data + 0x400000, 
-				       tte_vaddr + 0x400000);
-			prom_itlb_load(tlb_ent,
-				       tte_data + 0x400000, 
-				       tte_vaddr + 0x400000);
+		for (i = 0; i < num_kernel_image_mappings; i++) {
+			prom_dtlb_load(tlb_ent - i, tte_data, tte_vaddr);
+			prom_itlb_load(tlb_ent - i, tte_data, tte_vaddr);
+			tte_vaddr += 0x400000;
+			tte_data += 0x400000;
 		}
-		sparc64_highest_unlocked_tlb_ent = tlb_ent - 1;
+		sparc64_highest_unlocked_tlb_ent = tlb_ent - i;
 	}
 	if (tlb_type == cheetah_plus) {
 		sparc64_kern_pri_context = (CTX_CHEETAH_PLUS_CTX0 |
@@ -1352,12 +1345,9 @@ void __init paging_init(void)
 	shift = kern_base + PAGE_OFFSET - ((unsigned long)KERNBASE);
 
 	real_end = (unsigned long)_end;
-	if ((real_end > ((unsigned long)KERNBASE + 0x400000)))
-		bigkernel = 1;
-	if ((real_end > ((unsigned long)KERNBASE + 0x800000))) {
-		prom_printf("paging_init: Kernel > 8MB, too large.\n");
-		prom_halt();
-	}
+	num_kernel_image_mappings = DIV_ROUND_UP(real_end - KERNBASE, 1 << 22);
+	printk("Kernel: Using %d locked TLB entries for main kernel image.\n",
+	       num_kernel_image_mappings);
 
 	/* Set kernel pgd to upper alias so physical page computations
 	 * work.
