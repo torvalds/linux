@@ -44,6 +44,8 @@ struct sdhci_pci_fixes {
 	unsigned int		quirks;
 
 	int			(*probe)(struct sdhci_pci_chip*);
+
+	int			(*resume)(struct sdhci_pci_chip*);
 };
 
 struct sdhci_pci_slot {
@@ -101,10 +103,69 @@ static const struct sdhci_pci_fixes sdhci_cafe = {
 			  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
 };
 
+static int jmicron_pmos(struct sdhci_pci_chip *chip, int on)
+{
+	u8 scratch;
+	int ret;
+
+	ret = pci_read_config_byte(chip->pdev, 0xAE, &scratch);
+	if (ret)
+		return ret;
+
+	/*
+	 * Turn PMOS on [bit 0], set over current detection to 2.4 V
+	 * [bit 1:2] and enable over current debouncing [bit 6].
+	 */
+	if (on)
+		scratch |= 0x47;
+	else
+		scratch &= ~0x47;
+
+	ret = pci_write_config_byte(chip->pdev, 0xAE, scratch);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int jmicron_probe(struct sdhci_pci_chip *chip)
+{
+	int ret;
+
+	/*
+	 * JMicron chips need a bit of a nudge to enable the power
+	 * output pins.
+	 */
+	ret = jmicron_pmos(chip, 1);
+	if (ret) {
+		dev_err(&chip->pdev->dev, "Failure enabling card power\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int jmicron_resume(struct sdhci_pci_chip *chip)
+{
+	int ret;
+
+	ret = jmicron_pmos(chip, 1);
+	if (ret) {
+		dev_err(&chip->pdev->dev, "Failure enabling card power\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static const struct sdhci_pci_fixes sdhci_jmicron = {
 	.quirks		= SDHCI_QUIRK_32BIT_DMA_ADDR |
 			  SDHCI_QUIRK_32BIT_DMA_SIZE |
 			  SDHCI_QUIRK_RESET_AFTER_REQUEST,
+
+	.probe		= jmicron_probe,
+
+	.resume		= jmicron_resume,
 };
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
@@ -263,6 +324,12 @@ static int sdhci_pci_resume (struct pci_dev *pdev)
 	ret = pci_enable_device(pdev);
 	if (ret)
 		return ret;
+
+	if (chip->fixes && chip->fixes->resume) {
+		ret = chip->fixes->resume(chip);
+		if (ret)
+			return ret;
+	}
 
 	for (i = 0;i < chip->num_slots;i++) {
 		slot = chip->slots[i];
