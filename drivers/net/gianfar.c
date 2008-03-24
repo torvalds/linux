@@ -1299,11 +1299,11 @@ static irqreturn_t gfar_transmit(int irq, void *dev_id)
 
 	/* If we are coalescing the interrupts, reset the timer */
 	/* Otherwise, clear it */
-	if (priv->txcoalescing)
+	if (likely(priv->txcoalescing)) {
+		gfar_write(&priv->regs->txic, 0);
 		gfar_write(&priv->regs->txic,
 			   mk_ic_value(priv->txcount, priv->txtime));
-	else
-		gfar_write(&priv->regs->txic, 0);
+	}
 
 	spin_unlock(&priv->txlock);
 
@@ -1417,11 +1417,11 @@ irqreturn_t gfar_receive(int irq, void *dev_id)
 
 	/* If we are coalescing interrupts, update the timer */
 	/* Otherwise, clear it */
-	if (priv->rxcoalescing)
+	if (likely(priv->rxcoalescing)) {
+		gfar_write(&priv->regs->rxic, 0);
 		gfar_write(&priv->regs->rxic,
 			   mk_ic_value(priv->rxcount, priv->rxtime));
-	else
-		gfar_write(&priv->regs->rxic, 0);
+	}
 
 	spin_unlock_irqrestore(&priv->rxlock, flags);
 #endif
@@ -1593,11 +1593,11 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 
 		/* If we are coalescing interrupts, update the timer */
 		/* Otherwise, clear it */
-		if (priv->rxcoalescing)
+		if (likely(priv->rxcoalescing)) {
+			gfar_write(&priv->regs->rxic, 0);
 			gfar_write(&priv->regs->rxic,
 				   mk_ic_value(priv->rxcount, priv->rxtime));
-		else
-			gfar_write(&priv->regs->rxic, 0);
+		}
 	}
 
 	return howmany;
