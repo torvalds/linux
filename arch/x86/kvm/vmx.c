@@ -1395,6 +1395,20 @@ static void vmx_get_segment(struct kvm_vcpu *vcpu,
 	var->unusable = (ar >> 16) & 1;
 }
 
+static int vmx_get_cpl(struct kvm_vcpu *vcpu)
+{
+	struct kvm_segment kvm_seg;
+
+	if (!(vcpu->arch.cr0 & X86_CR0_PE)) /* if real mode */
+		return 0;
+
+	if (vmx_get_rflags(vcpu) & X86_EFLAGS_VM) /* if virtual 8086 */
+		return 3;
+
+	vmx_get_segment(vcpu, &kvm_seg, VCPU_SREG_CS);
+	return kvm_seg.selector & 3;
+}
+
 static u32 vmx_segment_access_rights(struct kvm_segment *var)
 {
 	u32 ar;
@@ -2665,6 +2679,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.get_segment_base = vmx_get_segment_base,
 	.get_segment = vmx_get_segment,
 	.set_segment = vmx_set_segment,
+	.get_cpl = vmx_get_cpl,
 	.get_cs_db_l_bits = vmx_get_cs_db_l_bits,
 	.decache_cr4_guest_bits = vmx_decache_cr4_guest_bits,
 	.set_cr0 = vmx_set_cr0,
