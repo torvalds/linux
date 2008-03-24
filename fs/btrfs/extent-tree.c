@@ -1473,12 +1473,30 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_root * root = orig_root->fs_info->extent_root;
 	struct btrfs_fs_info *info = root->fs_info;
 	u64 total_needed = num_bytes;
+	u64 *last_ptr = NULL;
 	struct btrfs_block_group_cache *block_group;
 	int full_scan = 0;
 	int wrapped = 0;
+	int empty_cluster = 2 * 1024 * 1024;
 
 	WARN_ON(num_bytes < root->sectorsize);
 	btrfs_set_key_type(ins, BTRFS_EXTENT_ITEM_KEY);
+
+	if (data & BTRFS_BLOCK_GROUP_METADATA) {
+		last_ptr = &root->fs_info->last_alloc;
+	}
+
+	if ((data & BTRFS_BLOCK_GROUP_DATA) && btrfs_test_opt(root, SSD)) {
+		last_ptr = &root->fs_info->last_data_alloc;
+	}
+
+	if (last_ptr) {
+		if (*last_ptr)
+			hint_byte = *last_ptr;
+		else {
+			empty_size += empty_cluster;
+		}
+	}
 
 	if (search_end == (u64)-1)
 		search_end = btrfs_super_total_bytes(&info->super_copy);
@@ -1489,11 +1507,14 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 			hint_byte = search_start;
 		block_group = btrfs_find_block_group(root, block_group,
 						     hint_byte, data, 1);
+		if (last_ptr && *last_ptr == 0 && block_group)
+			hint_byte = block_group->key.objectid;
 	} else {
 		block_group = btrfs_find_block_group(root,
 						     trans->block_group,
 						     search_start, data, 1);
 	}
+	search_start = max(search_start, hint_byte);
 
 	total_needed += empty_size;
 
@@ -1506,8 +1527,35 @@ check_failed:
 	}
 	ret = find_search_start(root, &block_group, &search_start,
 				total_needed, data);
+	if (ret == -ENOSPC && last_ptr && *last_ptr) {
+		*last_ptr = 0;
+		block_group = btrfs_lookup_block_group(info,
+						       orig_search_start);
+		search_start = orig_search_start;
+		ret = find_search_start(root, &block_group, &search_start,
+					total_needed, data);
+	}
+	if (ret == -ENOSPC)
+		goto enospc;
 	if (ret)
 		goto error;
+
+	if (last_ptr && *last_ptr && search_start != *last_ptr) {
+		*last_ptr = 0;
+		if (!empty_size) {
+			empty_size += empty_cluster;
+			total_needed += empty_size;
+		}
+		block_group = btrfs_lookup_block_group(info,
+						       orig_search_start);
+		search_start = orig_search_start;
+		ret = find_search_start(root, &block_group,
+					&search_start, total_needed, data);
+		if (ret == -ENOSPC)
+			goto enospc;
+		if (ret)
+			goto error;
+	}
 
 	search_start = stripe_align(root, search_start);
 	ins->objectid = search_start;
@@ -1547,6 +1595,13 @@ check_failed:
 			trans->block_group = block_group;
 	}
 	ins->offset = num_bytes;
+	if (last_ptr) {
+		*last_ptr = ins->objectid + ins->offset;
+		if (*last_ptr ==
+		    btrfs_super_total_bytes(&root->fs_info->super_copy)) {
+			*last_ptr = 0;
+		}
+	}
 	return 0;
 
 new_group:
@@ -1612,12 +1667,12 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	if (root->ref_cows) {
 		if (data != BTRFS_BLOCK_GROUP_METADATA) {
 			ret = do_chunk_alloc(trans, root->fs_info->extent_root,
-					     num_bytes,
+					     2 * 1024 * 1024,
 					     BTRFS_BLOCK_GROUP_METADATA);
 			BUG_ON(ret);
 		}
 		ret = do_chunk_alloc(trans, root->fs_info->extent_root,
-				     num_bytes, data);
+				     num_bytes + 2 * 1024 * 1024, data);
 		BUG_ON(ret);
 	}
 

@@ -578,6 +578,11 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio)
 	map_tree = &root->fs_info->mapping_tree;
 	map_length = length;
 	ret = btrfs_map_block(map_tree, logical, &physical, &map_length, &dev);
+	if (map_length < length) {
+		printk("mapping failed logical %Lu bio len %Lu physical %Lu "
+		       "len %Lu\n", logical, length, physical, map_length);
+		BUG();
+	}
 	BUG_ON(map_length < length);
 	bio->bi_sector = physical >> 9;
 	bio->bi_bdev = dev->bdev;

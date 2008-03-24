@@ -1730,6 +1730,8 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 	if (bio_ret && *bio_ret) {
 		bio = *bio_ret;
 		if (bio->bi_sector + (bio->bi_size >> 9) != sector ||
+		    (tree->ops && tree->ops->merge_bio_hook &&
+		     tree->ops->merge_bio_hook(page, offset, size, bio)) ||
 		    bio_add_page(bio, page, size, offset) < size) {
 			ret = submit_one_bio(rw, bio);
 			bio = NULL;

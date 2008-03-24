@@ -1103,4 +1103,6 @@ int btrfs_read_buffer(struct extent_buffer *buf)
 static struct extent_io_ops btree_extent_io_ops = {
 	.writepage_io_hook = btree_writepage_io_hook,
 	.submit_bio_hook = btree_submit_bio_hook,
+	/* note we're sharing with inode.c for the merge bio hook */
+	.merge_bio_hook = btrfs_merge_bio_hook,
 };

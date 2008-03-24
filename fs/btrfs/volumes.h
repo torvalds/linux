@@ -64,4 +64,7 @@ void btrfs_mapping_init(struct btrfs_mapping_tree *tree);
 void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree);
 int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio);
 int btrfs_read_super_device(struct btrfs_root *root, struct extent_buffer *buf);
+int btrfs_map_block(struct btrfs_mapping_tree *map_tree,
+		    u64 logical, u64 *phys, u64 *length,
+		    struct btrfs_device **dev);
 #endif

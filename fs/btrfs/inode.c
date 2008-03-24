@@ -296,6 +296,34 @@ int btrfs_clear_bit_hook(struct inode *inode, u64 start, u64 end,
 	return 0;
 }
 
+int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
+			 size_t size, struct bio *bio)
+{
+	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
+	struct btrfs_mapping_tree *map_tree;
+	struct btrfs_device *dev;
+	u64 logical = bio->bi_sector << 9;
+	u64 physical;
+	u64 length = 0;
+	u64 map_length;
+	struct bio_vec *bvec;
+	int i;
+	int ret;
+
+	bio_for_each_segment(bvec, bio, i) {
+		length += bvec->bv_len;
+	}
+	map_tree = &root->fs_info->mapping_tree;
+	map_length = length;
+	ret = btrfs_map_block(map_tree, logical, &physical, &map_length, &dev);
+	if (map_length < length + size) {
+		printk("merge bio hook logical %Lu bio len %Lu physical %Lu "
+		       "len %Lu\n", logical, length, physical, map_length);
+		return 1;
+	}
+	return 0;
+}
+
 int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -3033,6 +3061,7 @@ static struct file_operations btrfs_dir_file_operations = {
 static struct extent_io_ops btrfs_extent_io_ops = {
 	.fill_delalloc = run_delalloc_range,
 	.submit_bio_hook = btrfs_submit_bio_hook,
+	.merge_bio_hook = btrfs_merge_bio_hook,
 	.readpage_io_hook = btrfs_readpage_io_hook,
 	.readpage_end_io_hook = btrfs_readpage_end_io_hook,
 	.set_bit_hook = btrfs_set_bit_hook,
