@@ -128,7 +128,7 @@ typedef struct card_s {
 #define get_port(card, port)	     ((port) < (card)->n_ports ? \
 					 (&(card)->ports[port]) : (NULL))
 
-#include "hd6457x.c"
+#include "hd64572.c"
 
 
 static void pc300_set_iface(port_t *port)

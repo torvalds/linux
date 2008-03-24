@@ -127,7 +127,7 @@ static inline void new_memcpy_toio(char __iomem *dest, char *src, int length)
 #undef memcpy_toio
 #define memcpy_toio new_memcpy_toio
 
-#include "hd6457x.c"
+#include "hd64572.c"
 
 
 static void pci200_set_iface(port_t *port)

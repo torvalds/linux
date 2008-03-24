@@ -113,7 +113,7 @@ static inline void openwin(card_t *card, u8 page)
 }
 
 
-#include "hd6457x.c"
+#include "hd64570.c"
 
 
 static inline void set_carrier(port_t *port)
