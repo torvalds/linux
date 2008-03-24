@@ -124,6 +124,7 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 	struct vm_struct *area;
 	unsigned long new_prot_val;
 	pgprot_t prot;
+	int retval;
 
 	/* Don't allow wraparound or zero size */
 	last_addr = phys_addr + size - 1;
@@ -163,8 +164,14 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 	phys_addr &= PAGE_MASK;
 	size = PAGE_ALIGN(last_addr+1) - phys_addr;
 
-	if (reserve_memtype(phys_addr, phys_addr + size,
-	                    prot_val, &new_prot_val)) {
+	retval = reserve_memtype(phys_addr, phys_addr + size,
+						prot_val, &new_prot_val);
+	if (retval) {
+		printk("reserve_memtype returned %d\n", retval);
+		return NULL;
+	}
+
+	if (prot_val != new_prot_val) {
 		/*
 		 * Do not fallback to certain memory types with certain
 		 * requested type:

@@ -328,6 +328,7 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 	unsigned long len = vma->vm_end - vma->vm_start;
 	unsigned long flags;
 	unsigned long new_flags;
+	int retval;
 
 	/* I/O space cannot be accessed via normal processor loads and
 	 * stores on this platform.
@@ -344,7 +345,11 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 	vma->vm_page_prot = __pgprot(prot);
 
 	flags = pgprot_val(vma->vm_page_prot) & _PAGE_CACHE_MASK;
-	if (reserve_memtype(addr, addr + len, flags, &new_flags)) {
+	retval = reserve_memtype(addr, addr + len, flags, &new_flags);
+	if (retval)
+		return retval;
+
+	if (flags != new_flags) {
 		/*
 		 * Do not fallback to certain memory types with certain
 		 * requested type:
