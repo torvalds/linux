@@ -2286,8 +2286,6 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	int err;
 	size_t size;
 
-	ohci_pmac_on(dev);
-
 	ohci = kzalloc(sizeof(*ohci), GFP_KERNEL);
 	if (ohci == NULL) {
 		fw_error("Could not malloc fw_ohci data.\n");
@@ -2295,6 +2293,8 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	}
 
 	fw_card_initialize(&ohci->card, &ohci_driver, &dev->dev);
+
+	ohci_pmac_on(dev);
 
 	err = pci_enable_device(dev);
 	if (err) {
@@ -2397,6 +2397,7 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	pci_disable_device(dev);
  fail_free:
 	kfree(&ohci->card);
+	ohci_pmac_off(dev);
 
 	return err;
 }
