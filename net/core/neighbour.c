@@ -123,6 +123,7 @@ unsigned long neigh_rand_reach_time(unsigned long base)
 {
 	return (base ? (net_random() % base) + (base >> 1) : 0);
 }
+EXPORT_SYMBOL(neigh_rand_reach_time);
 
 
 static int neigh_forced_gc(struct neigh_table *tbl)
@@ -241,6 +242,7 @@ void neigh_changeaddr(struct neigh_table *tbl, struct net_device *dev)
 	neigh_flush_dev(tbl, dev);
 	write_unlock_bh(&tbl->lock);
 }
+EXPORT_SYMBOL(neigh_changeaddr);
 
 int neigh_ifdown(struct neigh_table *tbl, struct net_device *dev)
 {
@@ -253,6 +255,7 @@ int neigh_ifdown(struct neigh_table *tbl, struct net_device *dev)
 	pneigh_queue_purge(&tbl->proxy_queue);
 	return 0;
 }
+EXPORT_SYMBOL(neigh_ifdown);
 
 static struct neighbour *neigh_alloc(struct neigh_table *tbl)
 {
@@ -374,6 +377,7 @@ struct neighbour *neigh_lookup(struct neigh_table *tbl, const void *pkey,
 	read_unlock_bh(&tbl->lock);
 	return n;
 }
+EXPORT_SYMBOL(neigh_lookup);
 
 struct neighbour *neigh_lookup_nodev(struct neigh_table *tbl, struct net *net,
 				     const void *pkey)
@@ -397,6 +401,7 @@ struct neighbour *neigh_lookup_nodev(struct neigh_table *tbl, struct net *net,
 	read_unlock_bh(&tbl->lock);
 	return n;
 }
+EXPORT_SYMBOL(neigh_lookup_nodev);
 
 struct neighbour *neigh_create(struct neigh_table *tbl, const void *pkey,
 			       struct net_device *dev)
@@ -465,6 +470,7 @@ out_neigh_release:
 	neigh_release(n);
 	goto out;
 }
+EXPORT_SYMBOL(neigh_create);
 
 struct pneigh_entry *__pneigh_lookup(struct neigh_table *tbl,
 		struct net *net, const void *pkey, struct net_device *dev)
@@ -487,6 +493,7 @@ struct pneigh_entry *__pneigh_lookup(struct neigh_table *tbl,
 
 	return n;
 }
+EXPORT_SYMBOL_GPL(__pneigh_lookup);
 
 struct pneigh_entry * pneigh_lookup(struct neigh_table *tbl,
 				    struct net *net, const void *pkey,
@@ -546,6 +553,7 @@ struct pneigh_entry * pneigh_lookup(struct neigh_table *tbl,
 out:
 	return n;
 }
+EXPORT_SYMBOL(pneigh_lookup);
 
 
 int pneigh_delete(struct neigh_table *tbl, struct net *net, const void *pkey,
@@ -653,6 +661,7 @@ void neigh_destroy(struct neighbour *neigh)
 	atomic_dec(&neigh->tbl->entries);
 	kmem_cache_free(neigh->tbl->kmem_cachep, neigh);
 }
+EXPORT_SYMBOL(neigh_destroy);
 
 /* Neighbour state is suspicious;
    disable fast path.
@@ -933,6 +942,7 @@ out_unlock_bh:
 	write_unlock_bh(&neigh->lock);
 	return rc;
 }
+EXPORT_SYMBOL(__neigh_event_send);
 
 static void neigh_update_hhs(struct neighbour *neigh)
 {
@@ -1105,6 +1115,7 @@ out:
 
 	return err;
 }
+EXPORT_SYMBOL(neigh_update);
 
 struct neighbour *neigh_event_ns(struct neigh_table *tbl,
 				 u8 *lladdr, void *saddr,
@@ -1117,6 +1128,7 @@ struct neighbour *neigh_event_ns(struct neigh_table *tbl,
 			     NEIGH_UPDATE_F_OVERRIDE);
 	return neigh;
 }
+EXPORT_SYMBOL(neigh_event_ns);
 
 static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst,
 			  __be16 protocol)
@@ -1171,6 +1183,7 @@ int neigh_compat_output(struct sk_buff *skb)
 
 	return dev_queue_xmit(skb);
 }
+EXPORT_SYMBOL(neigh_compat_output);
 
 /* Slow and careful. */
 
@@ -1216,6 +1229,7 @@ out_kfree_skb:
 	kfree_skb(skb);
 	goto out;
 }
+EXPORT_SYMBOL(neigh_resolve_output);
 
 /* As fast as possible without hh cache */
 
@@ -1240,6 +1254,7 @@ int neigh_connected_output(struct sk_buff *skb)
 	}
 	return err;
 }
+EXPORT_SYMBOL(neigh_connected_output);
 
 static void neigh_proxy_process(unsigned long arg)
 {
@@ -1301,6 +1316,7 @@ void pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 	mod_timer(&tbl->proxy_timer, sched_next);
 	spin_unlock(&tbl->proxy_queue.lock);
 }
+EXPORT_SYMBOL(pneigh_enqueue);
 
 static inline struct neigh_parms *lookup_neigh_params(struct neigh_table *tbl,
 						      struct net *net, int ifindex)
@@ -1353,6 +1369,7 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 	}
 	return p;
 }
+EXPORT_SYMBOL(neigh_parms_alloc);
 
 static void neigh_rcu_free_parms(struct rcu_head *head)
 {
@@ -1383,6 +1400,7 @@ void neigh_parms_release(struct neigh_table *tbl, struct neigh_parms *parms)
 	write_unlock_bh(&tbl->lock);
 	NEIGH_PRINTK1("neigh_parms_release: not found\n");
 }
+EXPORT_SYMBOL(neigh_parms_release);
 
 static void neigh_parms_destroy(struct neigh_parms *parms)
 {
@@ -1445,6 +1463,7 @@ void neigh_table_init_no_netlink(struct neigh_table *tbl)
 	tbl->last_flush = now;
 	tbl->last_rand	= now + tbl->parms.reachable_time * 20;
 }
+EXPORT_SYMBOL(neigh_table_init_no_netlink);
 
 void neigh_table_init(struct neigh_table *tbl)
 {
@@ -1466,6 +1485,7 @@ void neigh_table_init(struct neigh_table *tbl)
 		dump_stack();
 	}
 }
+EXPORT_SYMBOL(neigh_table_init);
 
 int neigh_table_clear(struct neigh_table *tbl)
 {
@@ -1503,6 +1523,7 @@ int neigh_table_clear(struct neigh_table *tbl)
 
 	return 0;
 }
+EXPORT_SYMBOL(neigh_table_clear);
 
 static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
@@ -2536,6 +2557,7 @@ void neigh_app_ns(struct neighbour *n)
 {
 	__neigh_notify(n, RTM_GETNEIGH, NLM_F_REQUEST);
 }
+EXPORT_SYMBOL(neigh_app_ns);
 #endif /* CONFIG_ARPD */
 
 #ifdef CONFIG_SYSCTL
@@ -2782,6 +2804,7 @@ free:
 err:
 	return -ENOBUFS;
 }
+EXPORT_SYMBOL(neigh_sysctl_register);
 
 void neigh_sysctl_unregister(struct neigh_parms *p)
 {
@@ -2793,6 +2816,7 @@ void neigh_sysctl_unregister(struct neigh_parms *p)
 		kfree(t);
 	}
 }
+EXPORT_SYMBOL(neigh_sysctl_unregister);
 
 #endif	/* CONFIG_SYSCTL */
 
@@ -2810,32 +2834,3 @@ static int __init neigh_init(void)
 
 subsys_initcall(neigh_init);
 
-EXPORT_SYMBOL(__neigh_event_send);
-EXPORT_SYMBOL(neigh_changeaddr);
-EXPORT_SYMBOL(neigh_compat_output);
-EXPORT_SYMBOL(neigh_connected_output);
-EXPORT_SYMBOL(neigh_create);
-EXPORT_SYMBOL(neigh_destroy);
-EXPORT_SYMBOL(neigh_event_ns);
-EXPORT_SYMBOL(neigh_ifdown);
-EXPORT_SYMBOL(neigh_lookup);
-EXPORT_SYMBOL(neigh_lookup_nodev);
-EXPORT_SYMBOL(neigh_parms_alloc);
-EXPORT_SYMBOL(neigh_parms_release);
-EXPORT_SYMBOL(neigh_rand_reach_time);
-EXPORT_SYMBOL(neigh_resolve_output);
-EXPORT_SYMBOL(neigh_table_clear);
-EXPORT_SYMBOL(neigh_table_init);
-EXPORT_SYMBOL(neigh_table_init_no_netlink);
-EXPORT_SYMBOL(neigh_update);
-EXPORT_SYMBOL(pneigh_enqueue);
-EXPORT_SYMBOL(pneigh_lookup);
-EXPORT_SYMBOL_GPL(__pneigh_lookup);
-
-#ifdef CONFIG_ARPD
-EXPORT_SYMBOL(neigh_app_ns);
-#endif
-#ifdef CONFIG_SYSCTL
-EXPORT_SYMBOL(neigh_sysctl_register);
-EXPORT_SYMBOL(neigh_sysctl_unregister);
-#endif
