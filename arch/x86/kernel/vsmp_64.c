@@ -108,25 +108,34 @@ static void __init set_vsmp_pv_ops(void)
 #endif
 
 #ifdef CONFIG_PCI
-static int vsmp = -1;
+static int is_vsmp = -1;
+
+static void __init detect_vsmp_box(void)
+{
+	is_vsmp = 0;
+
+	if (!early_pci_allowed())
+		return;
+
+	/* Check if we are running on a ScaleMP vSMPowered box */
+	if (read_pci_config(0, 0x1f, 0, PCI_VENDOR_ID) ==
+	     (PCI_VENDOR_ID_SCALEMP | (PCI_DEVICE_ID_SCALEMP_VSMP_CTL << 16)))
+		is_vsmp = 1;
+}
 
 int is_vsmp_box(void)
 {
-	if (vsmp != -1)
-		return vsmp;
-
-	vsmp = 0;
-	if (!early_pci_allowed())
-		return vsmp;
-
-	/* Check if we are running on a ScaleMP vSMP box */
-	if (read_pci_config(0, 0x1f, 0, PCI_VENDOR_ID) ==
-	     (PCI_VENDOR_ID_SCALEMP | (PCI_DEVICE_ID_SCALEMP_VSMP_CTL << 16)))
-		vsmp = 1;
-
-	return vsmp;
+	if (is_vsmp != -1)
+		return is_vsmp;
+	else {
+		WARN_ON_ONCE(1);
+		return 0;
+	}
 }
 #else
+static int __init detect_vsmp_box(void)
+{
+}
 int is_vsmp_box(void)
 {
 	return 0;
@@ -135,6 +144,7 @@ int is_vsmp_box(void)
 
 void __init vsmp_init(void)
 {
+	detect_vsmp_box();
 	if (!is_vsmp_box())
 		return;
 
