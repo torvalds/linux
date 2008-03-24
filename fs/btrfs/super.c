@@ -36,6 +36,7 @@
 #include <linux/parser.h>
 #include <linux/ctype.h>
 #include <linux/namei.h>
+#include <linux/miscdevice.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -444,6 +445,13 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
+static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg)
+{
+	printk("btrfs control ioctl %d\n", cmd);
+	return 0;
+}
+
 static struct file_system_type btrfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "btrfs",
@@ -451,6 +459,7 @@ static struct file_system_type btrfs_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+
 static void btrfs_write_super_lockfs(struct super_block *sb)
 {
 	struct btrfs_root *root = btrfs_sb(sb);
@@ -482,6 +491,30 @@ static struct super_operations btrfs_super_ops = {
 	.write_super_lockfs = btrfs_write_super_lockfs,
 	.unlockfs	= btrfs_unlockfs,
 };
+
+static const struct file_operations btrfs_ctl_fops = {
+	.unlocked_ioctl	 = btrfs_control_ioctl,
+	.compat_ioctl = btrfs_control_ioctl,
+	.owner	 = THIS_MODULE,
+};
+
+static struct miscdevice btrfs_misc = {
+	.minor		= MISC_DYNAMIC_MINOR,
+	.name		= "btrfs-control",
+	.fops		= &btrfs_ctl_fops
+};
+
+static int btrfs_interface_init(void)
+{
+	return misc_register(&btrfs_misc);
+}
+
+void btrfs_interface_exit(void)
+{
+	if (misc_deregister(&btrfs_misc) < 0)
+		printk("misc_deregister failed for control device");
+}
+
 static int __init init_btrfs_fs(void)
 {
 	int err;
@@ -503,11 +536,16 @@ static int __init init_btrfs_fs(void)
 	if (err)
 		goto free_extent_io;
 
-	err = register_filesystem(&btrfs_fs_type);
+	err = btrfs_interface_init();
 	if (err)
 		goto free_extent_map;
+	err = register_filesystem(&btrfs_fs_type);
+	if (err)
+		goto unregister_ioctl;
 	return 0;
 
+unregister_ioctl:
+	btrfs_interface_exit();
 free_extent_map:
 	extent_map_exit();
 free_extent_io:
@@ -526,6 +564,7 @@ static void __exit exit_btrfs_fs(void)
 	btrfs_destroy_cachep();
 	extent_map_exit();
 	extent_io_exit();
+	btrfs_interface_exit();
 	unregister_filesystem(&btrfs_fs_type);
 	btrfs_exit_sysfs();
 }

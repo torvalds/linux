@@ -374,10 +374,6 @@ again:
 			found_group = cache;
 			goto found;
 		}
-		if (full_search) {
-			printk("failed on cache %Lu used %Lu total %Lu\n",
-			       cache->key.objectid, used, cache->key.offset);
-		}
 		cond_resched();
 	}
 	if (!full_search) {
