@@ -1526,9 +1526,7 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 		rmb();
 		skb = priv->rx_skbuff[priv->skb_currx];
 
-		if (!(bdp->status &
-		      (RXBD_LARGE | RXBD_SHORT | RXBD_NONOCTET
-		       | RXBD_CRCERR | RXBD_OVERRUN | RXBD_TRUNCATED))) {
+		if ((bdp->status & RXBD_LAST) && !(bdp->status & RXBD_ERR)) {
 			/* Increment the number of packets */
 			dev->stats.rx_packets++;
 			howmany++;
