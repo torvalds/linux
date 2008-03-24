@@ -700,8 +700,8 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->dev_root = dev_root;
 	INIT_LIST_HEAD(&fs_info->dirty_cowonly_roots);
 	INIT_LIST_HEAD(&fs_info->devices);
+	INIT_LIST_HEAD(&fs_info->space_info);
 	btrfs_mapping_init(&fs_info->mapping_tree);
-	fs_info->last_device = &fs_info->devices;
 	fs_info->sb = sb;
 	fs_info->throttles = 0;
 	fs_info->mount_opt = 0;

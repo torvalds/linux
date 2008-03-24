@@ -1527,6 +1527,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 {
 	struct inode *inode;
 	struct btrfs_inode_item *inode_item;
+	struct btrfs_block_group_cache *new_inode_group;
 	struct btrfs_key *location;
 	struct btrfs_path *path;
 	struct btrfs_inode_ref *ref;
@@ -1553,9 +1554,13 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		owner = 0;
 	else
 		owner = 1;
-	group = btrfs_find_block_group(root, group, 0,
+	new_inode_group = btrfs_find_block_group(root, group, 0,
 				       BTRFS_BLOCK_GROUP_METADATA, owner);
-	BTRFS_I(inode)->block_group = group;
+	if (!new_inode_group) {
+		printk("find_block group failed\n");
+		new_inode_group = group;
+	}
+	BTRFS_I(inode)->block_group = new_inode_group;
 	BTRFS_I(inode)->flags = 0;
 
 	key[0].objectid = objectid;

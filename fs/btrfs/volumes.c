@@ -131,7 +131,7 @@ check_pending:
 	btrfs_release_path(root, path);
 	BUG_ON(*start < search_start);
 
-	if (*start + num_bytes >= search_end) {
+	if (*start + num_bytes > search_end) {
 		ret = -ENOSPC;
 		goto error;
 	}
@@ -159,8 +159,9 @@ int btrfs_alloc_dev_extent(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	ret = find_free_dev_extent(trans, device, path, num_bytes, start);
-	if (ret)
+	if (ret) {
 		goto err;
+	}
 
 	key.objectid = device->devid;
 	key.offset = *start;
@@ -212,22 +213,6 @@ static int find_next_chunk(struct btrfs_root *root, u64 *objectid)
 error:
 	btrfs_free_path(path);
 	return ret;
-}
-
-static struct btrfs_device *next_device(struct list_head *head,
-					struct list_head *last)
-{
-	struct list_head *next = last->next;
-	struct btrfs_device *dev;
-
-	if (list_empty(head))
-		return NULL;
-
-	if (next == head)
-		next = next->next;
-
-	dev = list_entry(next, struct btrfs_device, dev_list);
-	return dev;
 }
 
 static int find_next_devid(struct btrfs_root *root, struct btrfs_path *path,
@@ -397,31 +382,63 @@ int btrfs_add_system_chunk(struct btrfs_trans_handle *trans,
 
 int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		      struct btrfs_root *extent_root, u64 *start,
-		      u64 *num_bytes, u32 type)
+		      u64 *num_bytes, u64 type)
 {
 	u64 dev_offset;
 	struct btrfs_root *chunk_root = extent_root->fs_info->chunk_root;
 	struct btrfs_stripe *stripes;
 	struct btrfs_device *device = NULL;
 	struct btrfs_chunk *chunk;
+	struct list_head private_devs;
 	struct list_head *dev_list = &extent_root->fs_info->devices;
-	struct list_head *last_dev = extent_root->fs_info->last_device;
+	struct list_head *cur;
 	struct extent_map_tree *em_tree;
 	struct map_lookup *map;
 	struct extent_map *em;
 	u64 physical;
 	u64 calc_size = 1024 * 1024 * 1024;
-	int num_stripes;
+	u64 avail;
+	u64 max_avail = 0;
+	int num_stripes = 1;
+	int looped = 0;
 	int ret;
-	int index = 0;
+	int index;
 	struct btrfs_key key;
 
+	if (list_empty(dev_list))
+		return -ENOSPC;
+again:
+	INIT_LIST_HEAD(&private_devs);
+	cur = dev_list->next;
+	index = 0;
+	/* build a private list of devices we will allocate from */
+	while(index < num_stripes) {
+		device = list_entry(cur, struct btrfs_device, dev_list);
+		avail = device->total_bytes - device->bytes_used;
+		cur = cur->next;
+		if (avail > max_avail)
+			max_avail = avail;
+		if (avail >= calc_size) {
+			list_move_tail(&device->dev_list, &private_devs);
+			index++;
+		}
+		if (cur == dev_list)
+			break;
+	}
+	if (index < num_stripes) {
+		list_splice(&private_devs, dev_list);
+		if (!looped && max_avail > 0) {
+			looped = 1;
+			calc_size = max_avail;
+			goto again;
+		}
+		return -ENOSPC;
+	}
 
 	ret = find_next_chunk(chunk_root, &key.objectid);
 	if (ret)
 		return ret;
 
-	num_stripes = 1;
 	chunk = kmalloc(btrfs_chunk_item_size(num_stripes), GFP_NOFS);
 	if (!chunk)
 		return -ENOMEM;
@@ -429,11 +446,12 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	stripes = &chunk->stripe;
 
 	*num_bytes = calc_size;
+	index = 0;
 	while(index < num_stripes) {
-		device = next_device(dev_list, last_dev);
-		BUG_ON(!device);
-		last_dev = &device->dev_list;
-		extent_root->fs_info->last_device = last_dev;
+		BUG_ON(list_empty(&private_devs));
+		cur = private_devs.next;
+		device = list_entry(cur, struct btrfs_device, dev_list);
+		list_move_tail(&device->dev_list, dev_list);
 
 		ret = btrfs_alloc_dev_extent(trans, device,
 					     key.objectid,
@@ -449,6 +467,7 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		physical = dev_offset;
 		index++;
 	}
+	BUG_ON(!list_empty(&private_devs));
 
 	/* key.objectid was set above */
 	key.offset = *num_bytes;
@@ -692,17 +711,17 @@ static int read_one_dev(struct btrfs_root *root, struct btrfs_key *key,
 	int ret;
 
 	devid = btrfs_device_id(leaf, dev_item);
-	if (btrfs_find_device(root, devid))
-		return 0;
-
-	device = kmalloc(sizeof(*device), GFP_NOFS);
-	if (!device)
-		return -ENOMEM;
+	device = btrfs_find_device(root, devid);
+	if (!device) {
+		device = kmalloc(sizeof(*device), GFP_NOFS);
+		if (!device)
+			return -ENOMEM;
+		list_add(&device->dev_list, &root->fs_info->devices);
+	}
 
 	fill_device_from_item(leaf, dev_item, device);
 	device->dev_root = root->fs_info->dev_root;
 	device->bdev = root->fs_info->sb->s_bdev;
-	list_add(&device->dev_list, &root->fs_info->devices);
 	memcpy(&device->dev_key, key, sizeof(*key));
 	ret = 0;
 #if 0

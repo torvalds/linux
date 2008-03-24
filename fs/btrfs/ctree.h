@@ -431,9 +431,19 @@ struct btrfs_block_group_item {
 	__le64 flags;
 } __attribute__ ((__packed__));
 
+struct btrfs_space_info {
+	u64 flags;
+	u64 total_bytes;
+	u64 bytes_used;
+	u64 bytes_pinned;
+	int full;
+	struct list_head list;
+};
+
 struct btrfs_block_group_cache {
 	struct btrfs_key key;
 	struct btrfs_block_group_item item;
+	struct btrfs_space_info *space_info;
 	u64 pinned;
 	u64 flags;
 	int cached;
@@ -490,7 +500,7 @@ struct btrfs_fs_info {
 	struct list_head dirty_cowonly_roots;
 
 	struct list_head devices;
-	struct list_head *last_device;
+	struct list_head space_info;
 	spinlock_t delalloc_lock;
 	spinlock_t new_trans_lock;
 	u64 delalloc_bytes;
