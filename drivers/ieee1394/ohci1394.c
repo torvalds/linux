@@ -149,7 +149,7 @@ printk(level "%s: fw-host%d: " fmt "\n" , OHCI1394_DRIVER_NAME, ohci->host->id ,
 /* Module Parameters */
 static int phys_dma = 1;
 module_param(phys_dma, int, 0444);
-MODULE_PARM_DESC(phys_dma, "Enable physical dma (default = 1).");
+MODULE_PARM_DESC(phys_dma, "Enable physical DMA (default = 1).");
 
 static void dma_trm_tasklet(unsigned long data);
 static void dma_trm_reset(struct dma_trm_ctx *d);
@@ -2785,7 +2785,7 @@ alloc_dma_rcv_ctx(struct ti_ohci *ohci, struct dma_rcv_ctx *d,
 	d->buf_bus = kzalloc(d->num_desc * sizeof(*d->buf_bus), GFP_ATOMIC);
 
 	if (d->buf_cpu == NULL || d->buf_bus == NULL) {
-		PRINT(KERN_ERR, "Failed to allocate dma buffer");
+		PRINT(KERN_ERR, "Failed to allocate %s", "DMA buffer");
 		free_dma_rcv_ctx(d);
 		return -ENOMEM;
 	}
@@ -2794,7 +2794,7 @@ alloc_dma_rcv_ctx(struct ti_ohci *ohci, struct dma_rcv_ctx *d,
 	d->prg_bus = kzalloc(d->num_desc * sizeof(*d->prg_bus), GFP_ATOMIC);
 
 	if (d->prg_cpu == NULL || d->prg_bus == NULL) {
-		PRINT(KERN_ERR, "Failed to allocate dma prg");
+		PRINT(KERN_ERR, "Failed to allocate %s", "DMA prg");
 		free_dma_rcv_ctx(d);
 		return -ENOMEM;
 	}
@@ -2802,7 +2802,7 @@ alloc_dma_rcv_ctx(struct ti_ohci *ohci, struct dma_rcv_ctx *d,
 	d->spb = kmalloc(d->split_buf_size, GFP_ATOMIC);
 
 	if (d->spb == NULL) {
-		PRINT(KERN_ERR, "Failed to allocate split buffer");
+		PRINT(KERN_ERR, "Failed to allocate %s", "split buffer");
 		free_dma_rcv_ctx(d);
 		return -ENOMEM;
 	}
@@ -2828,7 +2828,7 @@ alloc_dma_rcv_ctx(struct ti_ohci *ohci, struct dma_rcv_ctx *d,
 			memset(d->buf_cpu[i], 0, d->buf_size);
 		} else {
 			PRINT(KERN_ERR,
-			      "Failed to allocate dma buffer");
+			      "Failed to allocate %s", "DMA buffer");
 			free_dma_rcv_ctx(d);
 			return -ENOMEM;
 		}
@@ -2839,7 +2839,7 @@ alloc_dma_rcv_ctx(struct ti_ohci *ohci, struct dma_rcv_ctx *d,
                         memset(d->prg_cpu[i], 0, sizeof(struct dma_cmd));
 		} else {
 			PRINT(KERN_ERR,
-			      "Failed to allocate dma prg");
+			      "Failed to allocate %s", "DMA prg");
 			free_dma_rcv_ctx(d);
 			return -ENOMEM;
 		}
@@ -2900,7 +2900,7 @@ alloc_dma_trm_ctx(struct ti_ohci *ohci, struct dma_trm_ctx *d,
 	d->prg_bus = kzalloc(d->num_desc * sizeof(*d->prg_bus), GFP_KERNEL);
 
 	if (d->prg_cpu == NULL || d->prg_bus == NULL) {
-		PRINT(KERN_ERR, "Failed to allocate at dma prg");
+		PRINT(KERN_ERR, "Failed to allocate %s", "AT DMA prg");
 		free_dma_trm_ctx(d);
 		return -ENOMEM;
 	}
@@ -2923,7 +2923,7 @@ alloc_dma_trm_ctx(struct ti_ohci *ohci, struct dma_trm_ctx *d,
                         memset(d->prg_cpu[i], 0, sizeof(struct at_dma_prg));
 		} else {
 			PRINT(KERN_ERR,
-			      "Failed to allocate at dma prg");
+			      "Failed to allocate %s", "AT DMA prg");
 			free_dma_trm_ctx(d);
 			return -ENOMEM;
 		}
@@ -3031,7 +3031,7 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 
 	host = hpsb_alloc_host(&ohci1394_driver, sizeof(struct ti_ohci), &dev->dev);
 	if (!host) {
-		PRINT_G(KERN_ERR, "Failed to allocate host structure");
+		PRINT_G(KERN_ERR, "Failed to allocate %s", "host structure");
 		goto err;
 	}
 	ohci = host->hostdata;
@@ -3104,7 +3104,7 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 		pci_alloc_consistent(ohci->dev, OHCI_CONFIG_ROM_LEN,
 				     &ohci->csr_config_rom_bus);
 	if (ohci->csr_config_rom_cpu == NULL) {
-		PRINT_G(KERN_ERR, "Failed to allocate buffer config rom");
+		PRINT_G(KERN_ERR, "Failed to allocate %s", "buffer config rom");
 		goto err;
 	}
 	ohci->init_state = OHCI_INIT_HAVE_CONFIG_ROM_BUFFER;
@@ -3114,7 +3114,7 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 		pci_alloc_consistent(ohci->dev, OHCI1394_SI_DMA_BUF_SIZE,
                       &ohci->selfid_buf_bus);
 	if (ohci->selfid_buf_cpu == NULL) {
-		PRINT_G(KERN_ERR, "Failed to allocate self-ID buffer");
+		PRINT_G(KERN_ERR, "Failed to allocate %s", "self-ID buffer");
 		goto err;
 	}
 	ohci->init_state = OHCI_INIT_HAVE_SELFID_BUFFER;
@@ -3133,7 +3133,7 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 			      DMA_CTX_ASYNC_REQ, 0, AR_REQ_NUM_DESC,
 			      AR_REQ_BUF_SIZE, AR_REQ_SPLIT_BUF_SIZE,
 			      OHCI1394_AsReqRcvContextBase) < 0) {
-		PRINT_G(KERN_ERR, "Failed to allocate AR Req context");
+		PRINT_G(KERN_ERR, "Failed to allocate %s", "AR Req context");
 		goto err;
 	}
 	/* AR DMA response context allocation */
@@ -3141,21 +3141,21 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 			      DMA_CTX_ASYNC_RESP, 0, AR_RESP_NUM_DESC,
 			      AR_RESP_BUF_SIZE, AR_RESP_SPLIT_BUF_SIZE,
 			      OHCI1394_AsRspRcvContextBase) < 0) {
-		PRINT_G(KERN_ERR, "Failed to allocate AR Resp context");
+		PRINT_G(KERN_ERR, "Failed to allocate %s", "AR Resp context");
 		goto err;
 	}
 	/* AT DMA request context */
 	if (alloc_dma_trm_ctx(ohci, &ohci->at_req_context,
 			      DMA_CTX_ASYNC_REQ, 0, AT_REQ_NUM_DESC,
 			      OHCI1394_AsReqTrContextBase) < 0) {
-		PRINT_G(KERN_ERR, "Failed to allocate AT Req context");
+		PRINT_G(KERN_ERR, "Failed to allocate %s", "AT Req context");
 		goto err;
 	}
 	/* AT DMA response context */
 	if (alloc_dma_trm_ctx(ohci, &ohci->at_resp_context,
 			      DMA_CTX_ASYNC_RESP, 1, AT_RESP_NUM_DESC,
 			      OHCI1394_AsRspTrContextBase) < 0) {
-		PRINT_G(KERN_ERR, "Failed to allocate AT Resp context");
+		PRINT_G(KERN_ERR, "Failed to allocate %s", "AT Resp context");
 		goto err;
 	}
 	/* Start off with a soft reset, to clear everything to a sane
