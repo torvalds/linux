@@ -2249,6 +2249,20 @@ static int handle_apic_access(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 1;
 }
 
+static int handle_task_switch(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+{
+	unsigned long exit_qualification;
+	u16 tss_selector;
+	int reason;
+
+	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
+
+	reason = (u32)exit_qualification >> 30;
+	tss_selector = exit_qualification;
+
+	return kvm_task_switch(vcpu, tss_selector, reason);
+}
+
 /*
  * The exit handlers return 1 if the exit was handled fully and guest execution
  * may resume.  Otherwise they set the kvm_run parameter to indicate what needs
@@ -2271,6 +2285,7 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu,
 	[EXIT_REASON_TPR_BELOW_THRESHOLD]     = handle_tpr_below_threshold,
 	[EXIT_REASON_APIC_ACCESS]             = handle_apic_access,
 	[EXIT_REASON_WBINVD]                  = handle_wbinvd,
+	[EXIT_REASON_TASK_SWITCH]             = handle_task_switch,
 };
 
 static const int kvm_vmx_max_exit_handlers =

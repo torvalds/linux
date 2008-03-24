@@ -1112,9 +1112,18 @@ static int invalid_op_interception(struct vcpu_svm *svm,
 static int task_switch_interception(struct vcpu_svm *svm,
 				    struct kvm_run *kvm_run)
 {
-	pr_unimpl(&svm->vcpu, "%s: task switch is unsupported\n", __func__);
-	kvm_run->exit_reason = KVM_EXIT_UNKNOWN;
-	return 0;
+	u16 tss_selector;
+
+	tss_selector = (u16)svm->vmcb->control.exit_info_1;
+	if (svm->vmcb->control.exit_info_2 &
+	    (1ULL << SVM_EXITINFOSHIFT_TS_REASON_IRET))
+		return kvm_task_switch(&svm->vcpu, tss_selector,
+				       TASK_SWITCH_IRET);
+	if (svm->vmcb->control.exit_info_2 &
+	    (1ULL << SVM_EXITINFOSHIFT_TS_REASON_JMP))
+		return kvm_task_switch(&svm->vcpu, tss_selector,
+				       TASK_SWITCH_JMP);
+	return kvm_task_switch(&svm->vcpu, tss_selector, TASK_SWITCH_CALL);
 }
 
 static int cpuid_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)

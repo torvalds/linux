@@ -492,6 +492,8 @@ int emulator_get_dr(struct x86_emulate_ctxt *ctxt, int dr,
 int emulator_set_dr(struct x86_emulate_ctxt *ctxt, int dr,
 		    unsigned long value);
 
+int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason);
+
 void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 void kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr0);
 void kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr0);
@@ -656,5 +658,12 @@ static inline void kvm_inject_gp(struct kvm_vcpu *vcpu, u32 error_code)
 #define TSS_REDIRECTION_SIZE (256 / 8)
 #define RMODE_TSS_SIZE							\
 	(TSS_BASE_SIZE + TSS_REDIRECTION_SIZE + TSS_IOPB_SIZE + 1)
+
+enum {
+	TASK_SWITCH_CALL = 0,
+	TASK_SWITCH_IRET = 1,
+	TASK_SWITCH_JMP = 2,
+	TASK_SWITCH_GATE = 3,
+};
 
 #endif
