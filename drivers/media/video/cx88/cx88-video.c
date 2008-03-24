@@ -245,7 +245,7 @@ static struct cx88_ctrl cx8800_ctls[] = {
 			.name          = "Color killer",
 			.minimum       = 0,
 			.maximum       = 1,
-			.default_value = 0x0,
+			.default_value = 0x1,
 			.type          = V4L2_CTRL_TYPE_BOOLEAN,
 		},
 		.reg                   = MO_INPUT_FORMAT,
