@@ -182,9 +182,9 @@ static int noinline find_search_start(struct btrfs_root *root,
 	int ret;
 	struct btrfs_block_group_cache *cache = *cache_ret;
 	struct extent_io_tree *free_space_cache;
+	struct extent_state *state;
 	u64 last;
 	u64 start = 0;
-	u64 end = 0;
 	u64 cache_miss = 0;
 	u64 total_fs_bytes;
 	u64 search_start = *start_ret;
@@ -205,30 +205,34 @@ again:
 		goto new_group;
 	}
 
+	spin_lock_irq(&free_space_cache->lock);
+	state = find_first_extent_bit_state(free_space_cache, last, EXTENT_DIRTY);
 	while(1) {
-		ret = find_first_extent_bit(&root->fs_info->free_space_cache,
-					    last, &start, &end, EXTENT_DIRTY);
-		if (ret) {
+		if (!state) {
 			if (!cache_miss)
 				cache_miss = last;
+			spin_unlock_irq(&free_space_cache->lock);
 			goto new_group;
 		}
 
-		start = max(last, start);
-		last = end + 1;
+		start = max(last, state->start);
+		last = state->end + 1;
 		if (last - start < num) {
 			if (last == cache->key.objectid + cache->key.offset)
 				cache_miss = start;
+			do {
+				state = extent_state_next(state);
+			} while(state && !(state->state & EXTENT_DIRTY));
 			continue;
 		}
+		spin_unlock_irq(&free_space_cache->lock);
 		if (start + num > cache->key.objectid + cache->key.offset)
 			goto new_group;
 		if (start + num  > total_fs_bytes)
 			goto new_group;
 		*start_ret = start;
 		return 0;
-	}
-out:
+	} out:
 	cache = btrfs_lookup_block_group(root->fs_info, search_start);
 	if (!cache) {
 		printk("Unable to find block group for %Lu\n", search_start);
