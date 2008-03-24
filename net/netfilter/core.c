@@ -165,6 +165,14 @@ int nf_hook_slow(int pf, unsigned int hook, struct sk_buff *skb,
 	unsigned int verdict;
 	int ret = 0;
 
+#ifdef CONFIG_NET_NS
+	struct net *net;
+
+	net = indev == NULL ? outdev->nd_net : indev->nd_net;
+	if (net != &init_net)
+		return 1;
+#endif
+
 	/* We may already have this, but read-locks nest anyway */
 	rcu_read_lock();
 
