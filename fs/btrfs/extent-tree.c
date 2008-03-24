@@ -209,27 +209,22 @@ again:
 
 	last = max(search_start, cache->key.objectid);
 
-	spin_lock_irq(&free_space_cache->lock);
-	state = find_first_extent_bit_state(free_space_cache, last, EXTENT_DIRTY);
 	while(1) {
-		if (!state) {
+		ret = find_first_extent_bit(&root->fs_info->free_space_cache,
+					    last, &start, &end, EXTENT_DIRTY);
+		if (ret) {
 			if (!cache_miss)
 				cache_miss = last;
-			spin_unlock_irq(&free_space_cache->lock);
 			goto new_group;
 		}
 
-		start = max(last, state->start);
-		last = state->end + 1;
+		start = max(last, start);
+		last = end + 1;
 		if (last - start < num) {
 			if (last == cache->key.objectid + cache->key.offset)
 				cache_miss = start;
-			do {
-				state = extent_state_next(state);
-			} while(state && !(state->state & EXTENT_DIRTY));
 			continue;
 		}
-		spin_unlock_irq(&free_space_cache->lock);
 		if (data != BTRFS_BLOCK_GROUP_MIXED &&
 		    start + num > cache->key.objectid + cache->key.offset)
 			goto new_group;
@@ -1485,29 +1480,8 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 		data = BTRFS_BLOCK_GROUP_MIXED;
 	}
 
-	if (!data) {
-		last_ptr = &root->fs_info->last_alloc;
-		empty_cluster = 128 * 1024;
-	}
-
-	if (data && btrfs_test_opt(root, SSD)) {
-		last_ptr = &root->fs_info->last_data_alloc;
-		empty_cluster = 2 * 1024 * 1024;
-	}
-
-	if (last_ptr) {
-		if (*last_ptr)
-			hint_byte = *last_ptr;
-		else {
-			hint_byte = hint_byte &
-				~((u64)BTRFS_BLOCK_GROUP_SIZE - 1);
-			empty_size += empty_cluster;
-		}
-		search_start = max(search_start, hint_byte);
-	}
-
-	search_end = min(search_end,
-			 btrfs_super_total_bytes(&info->super_copy));
+	if (search_end == (u64)-1)
+		search_end = btrfs_super_total_bytes(&info->super_copy);
 	if (hint_byte) {
 		block_group = btrfs_lookup_block_group(info, hint_byte);
 		if (!block_group)
@@ -1531,18 +1505,6 @@ check_failed:
 	}
 	search_start = find_search_start(root, &block_group, search_start,
 					 total_needed, data);
-
-	if (last_ptr && *last_ptr && search_start != *last_ptr) {
-		*last_ptr = 0;
-		if (!empty_size) {
-			empty_size += empty_cluster;
-			total_needed += empty_size;
-		}
-		search_start = find_search_start(root, &block_group,
-						 search_start, total_needed,
-						 data);
-	}
-
 	search_start = stripe_align(root, search_start);
 	cached_start = search_start;
 	btrfs_init_path(path);
@@ -1670,13 +1632,6 @@ check_pending:
 	}
 	ins->offset = num_bytes;
 	btrfs_free_path(path);
-	if (last_ptr) {
-		*last_ptr = ins->objectid + ins->offset;
-		if (*last_ptr ==
-		    btrfs_super_total_bytes(&root->fs_info->super_copy)) {
-			*last_ptr = 0;
-		}
-	}
 	return 0;
 
 new_group:
