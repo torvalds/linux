@@ -99,6 +99,7 @@ extern void mtrr_centaur_report_mcr(int mcr, u32 lo, u32 hi);
 extern void mtrr_ap_init(void);
 extern void mtrr_bp_init(void);
 extern int mtrr_trim_uncached_memory(unsigned long end_pfn);
+extern int amd_special_default_mtrr(void);
 #  else
 static inline u8 mtrr_type_lookup(u64 addr, u64 end)
 {

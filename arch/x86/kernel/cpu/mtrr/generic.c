@@ -37,6 +37,7 @@ static struct fixed_range_block fixed_range_blocks[] = {
 static unsigned long smp_changes_mask;
 static struct mtrr_state mtrr_state = {};
 static int mtrr_state_set;
+static u64 tom2;
 
 #undef MODULE_PARAM_PREFIX
 #define MODULE_PARAM_PREFIX "mtrr."
@@ -138,6 +139,11 @@ u8 mtrr_type_lookup(u64 start, u64 end)
 		}
 	}
 
+	if (tom2) {
+		if (start >= (1ULL<<32) && (end < tom2))
+			return MTRR_TYPE_WRBACK;
+	}
+
 	if (prev_match != 0xFF)
 		return prev_match;
 
@@ -206,6 +212,15 @@ void __init get_mtrr_state(void)
 	mtrr_state.def_type = (lo & 0xff);
 	mtrr_state.enabled = (lo & 0xc00) >> 10;
 
+	if (amd_special_default_mtrr()) {
+		unsigned lo, hi;
+		/* TOP_MEM2 */
+		rdmsr(MSR_K8_TOP_MEM2, lo, hi);
+		tom2 = hi;
+		tom2 <<= 32;
+		tom2 |= lo;
+		tom2 &= 0xffffff8000000ULL;
+	}
 	if (mtrr_show) {
 		int high_width;
 
@@ -236,6 +251,8 @@ void __init get_mtrr_state(void)
 			else
 				printk(KERN_INFO "MTRR %u disabled\n", i);
 		}
+		if (tom2)
+			printk(KERN_INFO "TOM2: %016lx aka %ldM\n", tom2, tom2>>20);
 	}
 	mtrr_state_set = 1;
 

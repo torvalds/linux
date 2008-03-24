@@ -627,7 +627,7 @@ early_param("disable_mtrr_trim", disable_mtrr_trim_setup);
 #define Tom2Enabled (1U << 21)
 #define Tom2ForceMemTypeWB (1U << 22)
 
-static __init int amd_special_default_mtrr(void)
+int __init amd_special_default_mtrr(void)
 {
 	u32 l, h;
 

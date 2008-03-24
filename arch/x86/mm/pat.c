@@ -47,6 +47,12 @@ static int pat_known_cpu(void)
 			return 1;
 		}
 	}
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
+	     boot_cpu_data.x86 >= 0xf && boot_cpu_data.x86 <= 0x11) {
+		if (cpu_has_pat) {
+			return 1;
+		}
+	}
 
 	pat_wc_enabled = 0;
 	printk(KERN_INFO "CPU and/or kernel does not support PAT.\n");
