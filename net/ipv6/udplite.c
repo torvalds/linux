@@ -109,13 +109,28 @@ static struct udp_seq_afinfo udplite6_seq_afinfo = {
 	.seq_fops	= &udplite6_seq_fops,
 };
 
+static int udplite6_proc_init_net(struct net *net)
+{
+	return udp_proc_register(net, &udplite6_seq_afinfo);
+}
+
+static void udplite6_proc_exit_net(struct net *net)
+{
+	udp_proc_unregister(net, &udplite6_seq_afinfo);
+}
+
+static struct pernet_operations udplite6_net_ops = {
+	.init = udplite6_proc_init_net,
+	.exit = udplite6_proc_exit_net,
+};
+
 int __init udplite6_proc_init(void)
 {
-	return udp_proc_register(&init_net, &udplite6_seq_afinfo);
+	return register_pernet_subsys(&udplite6_net_ops);
 }
 
 void udplite6_proc_exit(void)
 {
-	udp_proc_unregister(&init_net, &udplite6_seq_afinfo);
+	unregister_pernet_subsys(&udplite6_net_ops);
 }
 #endif

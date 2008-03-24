@@ -83,9 +83,24 @@ static struct udp_seq_afinfo udplite4_seq_afinfo = {
 	.seq_fops	= &udplite4_seq_fops,
 };
 
+static int udplite4_proc_init_net(struct net *net)
+{
+	return udp_proc_register(net, &udplite4_seq_afinfo);
+}
+
+static void udplite4_proc_exit_net(struct net *net)
+{
+	udp_proc_unregister(net, &udplite4_seq_afinfo);
+}
+
+static struct pernet_operations udplite4_net_ops = {
+	.init = udplite4_proc_init_net,
+	.exit = udplite4_proc_exit_net,
+};
+
 static __init int udplite4_proc_init(void)
 {
-	return udp_proc_register(&init_net, &udplite4_seq_afinfo);
+	return register_pernet_subsys(&udplite4_net_ops);
 }
 #else
 static inline int udplite4_proc_init(void)
