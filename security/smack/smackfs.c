@@ -74,11 +74,6 @@ struct smk_list_entry *smack_list;
 #define	SEQ_READ_FINISHED	1
 
 /*
- * Disable concurrent writing open() operations
- */
-static struct semaphore smack_write_sem;
-
-/*
  * Values for parsing cipso rules
  * SMK_DIGITLEN: Length of a digit field in a rule.
  * SMK_CIPSOMIN: Minimum possible cipso rule length.
@@ -168,32 +163,7 @@ static struct seq_operations load_seq_ops = {
  */
 static int smk_open_load(struct inode *inode, struct file *file)
 {
-	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
-		return seq_open(file, &load_seq_ops);
-
-	if (down_interruptible(&smack_write_sem))
-		return -ERESTARTSYS;
-
-	return 0;
-}
-
-/**
- * smk_release_load - release() for /smack/load
- * @inode: inode structure representing file
- * @file: "load" file pointer
- *
- * For a reading session, use the seq_file release
- * implementation.
- * Otherwise, we are at the end of a writing session so
- * clean everything up.
- */
-static int smk_release_load(struct inode *inode, struct file *file)
-{
-	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
-		return seq_release(inode, file);
-
-	up(&smack_write_sem);
-	return 0;
+	return seq_open(file, &load_seq_ops);
 }
 
 /**
@@ -341,7 +311,7 @@ static const struct file_operations smk_load_ops = {
 	.read		= seq_read,
 	.llseek         = seq_lseek,
 	.write		= smk_write_load,
-	.release        = smk_release_load,
+	.release        = seq_release,
 };
 
 /**
@@ -1011,7 +981,6 @@ static int __init init_smk_fs(void)
 		}
 	}
 
-	sema_init(&smack_write_sem, 1);
 	smk_cipso_doi();
 	smk_unlbl_ambient(NULL);
 
