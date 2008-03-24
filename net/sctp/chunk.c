@@ -136,20 +136,6 @@ void sctp_datamsg_put(struct sctp_datamsg *msg)
 		sctp_datamsg_destroy(msg);
 }
 
-/* Free a message.  Really just give up a reference, the
- * really free happens in sctp_datamsg_destroy().
- */
-void sctp_datamsg_free(struct sctp_datamsg *msg)
-{
-	sctp_datamsg_put(msg);
-}
-
-/* Hold on to all the fragments until all chunks have been sent. */
-void sctp_datamsg_track(struct sctp_chunk *chunk)
-{
-	sctp_chunk_hold(chunk);
-}
-
 /* Assign a chunk to this datamsg. */
 static void sctp_datamsg_assign(struct sctp_datamsg *msg, struct sctp_chunk *chunk)
 {
@@ -295,7 +281,7 @@ errout:
 		chunk = list_entry(pos, struct sctp_chunk, frag_list);
 		sctp_chunk_free(chunk);
 	}
-	sctp_datamsg_free(msg);
+	sctp_datamsg_put(msg);
 	return NULL;
 }
 

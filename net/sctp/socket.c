@@ -1729,7 +1729,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	/* Now send the (possibly) fragmented message. */
 	list_for_each(pos, &datamsg->chunks) {
 		chunk = list_entry(pos, struct sctp_chunk, frag_list);
-		sctp_datamsg_track(chunk);
+		sctp_chunk_hold(chunk);
 
 		/* Do accounting for the write space.  */
 		sctp_set_owner_w(chunk);
@@ -1748,7 +1748,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 		SCTP_DEBUG_PRINTK("We sent primitively.\n");
 	}
 
-	sctp_datamsg_free(datamsg);
+	sctp_datamsg_put(datamsg);
 	if (err)
 		goto out_free;
 	else
