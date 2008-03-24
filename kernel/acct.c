@@ -482,7 +482,9 @@ static void do_acct_process(struct file *file)
 #endif
 #if ACCT_VERSION==3
 	ac.ac_pid = current->tgid;
-	ac.ac_ppid = current->real_parent->tgid;
+	rcu_read_lock();
+	ac.ac_ppid = rcu_dereference(current->real_parent)->tgid;
+	rcu_read_unlock();
 #endif
 
 	spin_lock_irq(&current->sighand->siglock);
