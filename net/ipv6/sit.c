@@ -203,10 +203,71 @@ __ipip6_tunnel_locate_prl(struct ip_tunnel *t, __be32 addr)
 	struct ip_tunnel_prl_entry *p = (struct ip_tunnel_prl_entry *)NULL;
 
 	for (p = t->prl; p; p = p->next)
-		if (p->entry.addr == addr)
+		if (p->addr == addr)
 			break;
 	return p;
 
+}
+
+static int ipip6_tunnel_get_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
+{
+	struct ip_tunnel_prl *kp;
+	struct ip_tunnel_prl_entry *prl;
+	unsigned int cmax, c = 0, ca, len;
+	int ret = 0;
+
+	cmax = a->datalen / sizeof(*a);
+	if (cmax > 1 && a->addr != htonl(INADDR_ANY))
+		cmax = 1;
+
+	/* For simple GET or for root users,
+	 * we try harder to allocate.
+	 */
+	kp = (cmax <= 1 || capable(CAP_NET_ADMIN)) ?
+		kcalloc(cmax, sizeof(*kp), GFP_KERNEL) :
+		NULL;
+
+	read_lock(&ipip6_lock);
+
+	ca = t->prl_count < cmax ? t->prl_count : cmax;
+
+	if (!kp) {
+		/* We don't try hard to allocate much memory for
+		 * non-root users.
+		 * For root users, retry allocating enough memory for
+		 * the answer.
+		 */
+		kp = kcalloc(ca, sizeof(*kp), GFP_ATOMIC);
+		if (!kp) {
+			ret = -ENOMEM;
+			goto out;
+		}
+	}
+
+	c = 0;
+	for (prl = t->prl; prl; prl = prl->next) {
+		if (c > cmax)
+			break;
+		if (a->addr != htonl(INADDR_ANY) && prl->addr != a->addr)
+			continue;
+		kp[c].addr = prl->addr;
+		kp[c].flags = prl->flags;
+		c++;
+		if (a->addr != htonl(INADDR_ANY))
+			break;
+	}
+out:
+	read_unlock(&ipip6_lock);
+
+	len = sizeof(*kp) * c;
+	ret = len ? copy_to_user(a->data, kp, len) : 0;
+
+	kfree(kp);
+	if (ret)
+		return -EFAULT;
+
+	a->datalen = len;
+	return 0;
 }
 
 static int
@@ -221,7 +282,7 @@ ipip6_tunnel_add_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a, int chg)
 	write_lock(&ipip6_lock);
 
 	for (p = t->prl; p; p = p->next) {
-		if (p->entry.addr == a->addr) {
+		if (p->addr == a->addr) {
 			if (chg)
 				goto update;
 			err = -EEXIST;
@@ -242,8 +303,10 @@ ipip6_tunnel_add_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a, int chg)
 
 	p->next = t->prl;
 	t->prl = p;
+	t->prl_count++;
 update:
-	p->entry = *a;
+	p->addr = a->addr;
+	p->flags = a->flags;
 out:
 	write_unlock(&ipip6_lock);
 	return err;
@@ -259,10 +322,11 @@ ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 
 	if (a && a->addr != htonl(INADDR_ANY)) {
 		for (p = &t->prl; *p; p = &(*p)->next) {
-			if ((*p)->entry.addr == a->addr) {
+			if ((*p)->addr == a->addr) {
 				x = *p;
 				*p = x->next;
 				kfree(x);
+				t->prl_count--;
 				goto out;
 			}
 		}
@@ -272,6 +336,7 @@ ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 			x = t->prl;
 			t->prl = t->prl->next;
 			kfree(x);
+			t->prl_count--;
 		}
 	}
 out:
@@ -313,7 +378,7 @@ isatap_chksrc(struct sk_buff *skb, struct iphdr *iph, struct ip_tunnel *t)
 	read_lock(&ipip6_lock);
 	p = __ipip6_tunnel_locate_prl(t, iph->saddr);
 	if (p) {
-		if (p->entry.flags & PRL_DEFAULT)
+		if (p->flags & PRL_DEFAULT)
 			skb->ndisc_nodetype = NDISC_NODETYPE_DEFAULT;
 		else
 			skb->ndisc_nodetype = NDISC_NODETYPE_NODEFAULT;
@@ -899,11 +964,12 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 		err = 0;
 		break;
 
+	case SIOCGETPRL:
 	case SIOCADDPRL:
 	case SIOCDELPRL:
 	case SIOCCHGPRL:
 		err = -EPERM;
-		if (!capable(CAP_NET_ADMIN))
+		if (cmd != SIOCGETPRL && !capable(CAP_NET_ADMIN))
 			goto done;
 		err = -EINVAL;
 		if (dev == ipip6_fb_tunnel_dev)
@@ -915,11 +981,23 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (!(t = netdev_priv(dev)))
 			goto done;
 
-		if (cmd == SIOCDELPRL)
+		switch (cmd) {
+		case SIOCGETPRL:
+			err = ipip6_tunnel_get_prl(t, &prl);
+			if (!err && copy_to_user(ifr->ifr_ifru.ifru_data,
+						 &prl, sizeof(prl)))
+				err = -EFAULT;
+			break;
+		case SIOCDELPRL:
 			err = ipip6_tunnel_del_prl(t, &prl);
-		else
+			break;
+		case SIOCADDPRL:
+		case SIOCCHGPRL:
 			err = ipip6_tunnel_add_prl(t, &prl, cmd == SIOCCHGPRL);
-		netdev_state_change(dev);
+			break;
+		}
+		if (cmd != SIOCGETPRL)
+			netdev_state_change(dev);
 		break;
 
 	default:

@@ -7,6 +7,7 @@
 #define SIOCADDTUNNEL   (SIOCDEVPRIVATE + 1)
 #define SIOCDELTUNNEL   (SIOCDEVPRIVATE + 2)
 #define SIOCCHGTUNNEL   (SIOCDEVPRIVATE + 3)
+#define SIOCGETPRL      (SIOCDEVPRIVATE + 4)
 #define SIOCADDPRL      (SIOCDEVPRIVATE + 5)
 #define SIOCDELPRL      (SIOCDEVPRIVATE + 6)
 #define SIOCCHGPRL      (SIOCDEVPRIVATE + 7)
@@ -38,6 +39,9 @@ struct ip_tunnel_prl {
 	__be32			addr;
 	__u16			flags;
 	__u16			__reserved;
+	__u32			datalen;
+	__u32			__reserved2;
+	void __user		*data;
 };
 
 /* PRL flags */
