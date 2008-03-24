@@ -109,13 +109,13 @@ void marker_probe_cb(const struct marker *mdata, void *call_private,
 	 * modules and they insure RCU read coherency.
 	 */
 	preempt_disable();
-	ptype = ACCESS_ONCE(mdata->ptype);
+	ptype = mdata->ptype;
 	if (likely(!ptype)) {
 		marker_probe_func *func;
 		/* Must read the ptype before ptr. They are not data dependant,
 		 * so we put an explicit smp_rmb() here. */
 		smp_rmb();
-		func = ACCESS_ONCE(mdata->single.func);
+		func = mdata->single.func;
 		/* Must read the ptr before private data. They are not data
 		 * dependant, so we put an explicit smp_rmb() here. */
 		smp_rmb();
@@ -133,7 +133,7 @@ void marker_probe_cb(const struct marker *mdata, void *call_private,
 		 * in the fast path, so put the explicit barrier here.
 		 */
 		smp_read_barrier_depends();
-		multi = ACCESS_ONCE(mdata->multi);
+		multi = mdata->multi;
 		for (i = 0; multi[i].func; i++) {
 			va_start(args, fmt);
 			multi[i].func(multi[i].probe_private, call_private, fmt,
@@ -161,13 +161,13 @@ void marker_probe_cb_noarg(const struct marker *mdata,
 	char ptype;
 
 	preempt_disable();
-	ptype = ACCESS_ONCE(mdata->ptype);
+	ptype = mdata->ptype;
 	if (likely(!ptype)) {
 		marker_probe_func *func;
 		/* Must read the ptype before ptr. They are not data dependant,
 		 * so we put an explicit smp_rmb() here. */
 		smp_rmb();
-		func = ACCESS_ONCE(mdata->single.func);
+		func = mdata->single.func;
 		/* Must read the ptr before private data. They are not data
 		 * dependant, so we put an explicit smp_rmb() here. */
 		smp_rmb();
@@ -183,7 +183,7 @@ void marker_probe_cb_noarg(const struct marker *mdata,
 		 * in the fast path, so put the explicit barrier here.
 		 */
 		smp_read_barrier_depends();
-		multi = ACCESS_ONCE(mdata->multi);
+		multi = mdata->multi;
 		for (i = 0; multi[i].func; i++)
 			multi[i].func(multi[i].probe_private, call_private, fmt,
 				&args);
