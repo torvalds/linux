@@ -506,13 +506,15 @@ const struct v4l2_queryctrl mt9v022_controls[] = {
 	}
 };
 
-static int mt9v022_get_control(struct soc_camera_device *icd,
-			       struct v4l2_control *ctrl);
-static int mt9v022_set_control(struct soc_camera_device *icd,
-			       struct v4l2_control *ctrl);
+static int mt9v022_video_probe(struct soc_camera_device *);
+static void mt9v022_video_remove(struct soc_camera_device *);
+static int mt9v022_get_control(struct soc_camera_device *, struct v4l2_control *);
+static int mt9v022_set_control(struct soc_camera_device *, struct v4l2_control *);
 
 static struct soc_camera_ops mt9v022_ops = {
 	.owner			= THIS_MODULE,
+	.probe			= mt9v022_video_probe,
+	.remove			= mt9v022_video_remove,
 	.init			= mt9v022_init,
 	.release		= mt9v022_release,
 	.start_capture		= mt9v022_start_capture,
@@ -521,8 +523,6 @@ static struct soc_camera_ops mt9v022_ops = {
 	.try_fmt_cap		= mt9v022_try_fmt_cap,
 	.set_bus_param		= mt9v022_set_bus_param,
 	.query_bus_param	= mt9v022_query_bus_param,
-	.formats		= NULL, /* Filled in later depending on the */
-	.num_formats		= 0,	/* sensor type and data widths */
 	.controls		= mt9v022_controls,
 	.num_controls		= ARRAY_SIZE(mt9v022_controls),
 	.get_control		= mt9v022_get_control,
@@ -705,19 +705,19 @@ static int mt9v022_video_probe(struct soc_camera_device *icd)
 			    !strcmp("color", sensor_type))) {
 		ret = reg_write(icd, MT9V022_PIXEL_OPERATION_MODE, 4 | 0x11);
 		mt9v022->model = V4L2_IDENT_MT9V022IX7ATC;
-		mt9v022_ops.formats = mt9v022_colour_formats;
+		icd->formats = mt9v022_colour_formats;
 		if (mt9v022->client->dev.platform_data)
-			mt9v022_ops.num_formats = ARRAY_SIZE(mt9v022_colour_formats);
+			icd->num_formats = ARRAY_SIZE(mt9v022_colour_formats);
 		else
-			mt9v022_ops.num_formats = 1;
+			icd->num_formats = 1;
 	} else {
 		ret = reg_write(icd, MT9V022_PIXEL_OPERATION_MODE, 0x11);
 		mt9v022->model = V4L2_IDENT_MT9V022IX7ATM;
-		mt9v022_ops.formats = mt9v022_monochrome_formats;
+		icd->formats = mt9v022_monochrome_formats;
 		if (mt9v022->client->dev.platform_data)
-			mt9v022_ops.num_formats = ARRAY_SIZE(mt9v022_monochrome_formats);
+			icd->num_formats = ARRAY_SIZE(mt9v022_monochrome_formats);
 		else
-			mt9v022_ops.num_formats = 1;
+			icd->num_formats = 1;
 	}
 
 	if (ret >= 0)
@@ -773,8 +773,6 @@ static int mt9v022_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, mt9v022);
 
 	icd = &mt9v022->icd;
-	icd->probe	= mt9v022_video_probe;
-	icd->remove	= mt9v022_video_remove;
 	icd->ops	= &mt9v022_ops;
 	icd->control	= &client->dev;
 	icd->x_min	= 1;

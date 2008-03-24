@@ -38,8 +38,8 @@ struct soc_camera_device {
 	struct soc_camera_ops *ops;
 	struct video_device *vdev;
 	const struct soc_camera_data_format *current_fmt;
-	int (*probe)(struct soc_camera_device *icd);
-	void (*remove)(struct soc_camera_device *icd);
+	const struct soc_camera_data_format *formats;
+	int num_formats;
 	struct module *owner;
 	/* soc_camera.c private count. Only accessed with video_lock held */
 	int use_count;
@@ -106,6 +106,8 @@ struct soc_camera_data_format {
 
 struct soc_camera_ops {
 	struct module *owner;
+	int (*probe)(struct soc_camera_device *);
+	void (*remove)(struct soc_camera_device *);
 	int (*init)(struct soc_camera_device *);
 	int (*release)(struct soc_camera_device *);
 	int (*start_capture)(struct soc_camera_device *);
@@ -121,8 +123,6 @@ struct soc_camera_ops {
 	int (*get_register)(struct soc_camera_device *, struct v4l2_register *);
 	int (*set_register)(struct soc_camera_device *, struct v4l2_register *);
 #endif
-	const struct soc_camera_data_format *formats;
-	int num_formats;
 	int (*get_control)(struct soc_camera_device *, struct v4l2_control *);
 	int (*set_control)(struct soc_camera_device *, struct v4l2_control *);
 	const struct v4l2_queryctrl *controls;

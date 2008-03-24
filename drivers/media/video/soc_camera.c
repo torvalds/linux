@@ -38,9 +38,9 @@ format_by_fourcc(struct soc_camera_device *icd, unsigned int fourcc)
 {
 	unsigned int i;
 
-	for (i = 0; i < icd->ops->num_formats; i++)
-		if (icd->ops->formats[i].fourcc == fourcc)
-			return icd->ops->formats + i;
+	for (i = 0; i < icd->num_formats; i++)
+		if (icd->formats[i].fourcc == fourcc)
+			return icd->formats + i;
 	return NULL;
 }
 
@@ -384,10 +384,10 @@ static int soc_camera_enum_fmt_cap(struct file *file, void  *priv,
 
 	WARN_ON(priv != file->private_data);
 
-	if (f->index >= icd->ops->num_formats)
+	if (f->index >= icd->num_formats)
 		return -EINVAL;
 
-	format = &icd->ops->formats[f->index];
+	format = &icd->formats[f->index];
 
 	strlcpy(f->description, format->name, sizeof(f->description));
 	f->pixelformat = format->fourcc;
@@ -701,7 +701,7 @@ static int soc_camera_probe(struct device *dev)
 		to_soc_camera_host(icd->dev.parent);
 	int ret;
 
-	if (!icd->probe)
+	if (!icd->ops->probe)
 		return -ENODEV;
 
 	/* We only call ->add() here to activate and probe the camera.
@@ -710,7 +710,7 @@ static int soc_camera_probe(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	ret = icd->probe(icd);
+	ret = icd->ops->probe(icd);
 	if (ret >= 0) {
 		const struct v4l2_queryctrl *qctrl;
 
@@ -731,8 +731,8 @@ static int soc_camera_remove(struct device *dev)
 {
 	struct soc_camera_device *icd = to_soc_camera_dev(dev);
 
-	if (icd->remove)
-		icd->remove(icd);
+	if (icd->ops->remove)
+		icd->ops->remove(icd);
 
 	return 0;
 }
@@ -928,7 +928,7 @@ int soc_camera_video_start(struct soc_camera_device *icd)
 	vdev->vidioc_s_register	= soc_camera_s_register;
 #endif
 
-	icd->current_fmt = &icd->ops->formats[0];
+	icd->current_fmt = &icd->formats[0];
 
 	err = video_register_device(vdev, VFL_TYPE_GRABBER, vdev->minor);
 	if (err < 0) {

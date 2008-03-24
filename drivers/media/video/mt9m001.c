@@ -410,11 +410,15 @@ const struct v4l2_queryctrl mt9m001_controls[] = {
 	}
 };
 
-static int mt9m001_get_control(struct soc_camera_device *icd, struct v4l2_control *ctrl);
-static int mt9m001_set_control(struct soc_camera_device *icd, struct v4l2_control *ctrl);
+static int mt9m001_video_probe(struct soc_camera_device *);
+static void mt9m001_video_remove(struct soc_camera_device *);
+static int mt9m001_get_control(struct soc_camera_device *, struct v4l2_control *);
+static int mt9m001_set_control(struct soc_camera_device *, struct v4l2_control *);
 
 static struct soc_camera_ops mt9m001_ops = {
 	.owner			= THIS_MODULE,
+	.probe			= mt9m001_video_probe,
+	.remove			= mt9m001_video_remove,
 	.init			= mt9m001_init,
 	.release		= mt9m001_release,
 	.start_capture		= mt9m001_start_capture,
@@ -423,8 +427,6 @@ static struct soc_camera_ops mt9m001_ops = {
 	.try_fmt_cap		= mt9m001_try_fmt_cap,
 	.set_bus_param		= mt9m001_set_bus_param,
 	.query_bus_param	= mt9m001_query_bus_param,
-	.formats		= NULL, /* Filled in later depending on the */
-	.num_formats		= 0,	/* camera type and data widths */
 	.controls		= mt9m001_controls,
 	.num_controls		= ARRAY_SIZE(mt9m001_controls),
 	.get_control		= mt9m001_get_control,
@@ -573,19 +575,19 @@ static int mt9m001_video_probe(struct soc_camera_device *icd)
 	case 0x8411:
 	case 0x8421:
 		mt9m001->model = V4L2_IDENT_MT9M001C12ST;
-		mt9m001_ops.formats = mt9m001_colour_formats;
+		icd->formats = mt9m001_colour_formats;
 		if (mt9m001->client->dev.platform_data)
-			mt9m001_ops.num_formats = ARRAY_SIZE(mt9m001_colour_formats);
+			icd->num_formats = ARRAY_SIZE(mt9m001_colour_formats);
 		else
-			mt9m001_ops.num_formats = 1;
+			icd->num_formats = 1;
 		break;
 	case 0x8431:
 		mt9m001->model = V4L2_IDENT_MT9M001C12STM;
-		mt9m001_ops.formats = mt9m001_monochrome_formats;
+		icd->formats = mt9m001_monochrome_formats;
 		if (mt9m001->client->dev.platform_data)
-			mt9m001_ops.num_formats = ARRAY_SIZE(mt9m001_monochrome_formats);
+			icd->num_formats = ARRAY_SIZE(mt9m001_monochrome_formats);
 		else
-			mt9m001_ops.num_formats = 1;
+			icd->num_formats = 1;
 		break;
 	default:
 		ret = -ENODEV;
@@ -646,8 +648,6 @@ static int mt9m001_probe(struct i2c_client *client)
 
 	/* Second stage probe - when a capture adapter is there */
 	icd = &mt9m001->icd;
-	icd->probe	= mt9m001_video_probe;
-	icd->remove	= mt9m001_video_remove;
 	icd->ops	= &mt9m001_ops;
 	icd->control	= &client->dev;
 	icd->x_min	= 20;
