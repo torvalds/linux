@@ -204,8 +204,11 @@ static void ip_expire(unsigned long arg)
 
 	if ((qp->q.last_in&FIRST_IN) && qp->q.fragments != NULL) {
 		struct sk_buff *head = qp->q.fragments;
+		struct net *net;
+
+		net = container_of(qp->q.net, struct net, ipv4.frags);
 		/* Send an ICMP "Fragment Reassembly Timeout" message. */
-		if ((head->dev = dev_get_by_index(&init_net, qp->iif)) != NULL) {
+		if ((head->dev = dev_get_by_index(net, qp->iif)) != NULL) {
 			icmp_send(head, ICMP_TIME_EXCEEDED, ICMP_EXC_FRAGTIME, 0);
 			dev_put(head->dev);
 		}

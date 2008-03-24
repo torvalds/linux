@@ -449,7 +449,8 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		struct ip_options * opt = NULL;
 		if (optlen > 40 || optlen < 0)
 			goto e_inval;
-		err = ip_options_get_from_user(&init_net, &opt, optval, optlen);
+		err = ip_options_get_from_user(sk->sk_net, &opt,
+					       optval, optlen);
 		if (err)
 			break;
 		if (inet->is_icsk) {
@@ -589,13 +590,13 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 				err = 0;
 				break;
 			}
-			dev = ip_dev_find(&init_net, mreq.imr_address.s_addr);
+			dev = ip_dev_find(sk->sk_net, mreq.imr_address.s_addr);
 			if (dev) {
 				mreq.imr_ifindex = dev->ifindex;
 				dev_put(dev);
 			}
 		} else
-			dev = __dev_get_by_index(&init_net, mreq.imr_ifindex);
+			dev = __dev_get_by_index(sk->sk_net, mreq.imr_ifindex);
 
 
 		err = -EADDRNOTAVAIL;
