@@ -45,9 +45,6 @@ static const char* devname = "PC300";
 
 #define PC300_PLX_SIZE		0x80    /* PLX control window size (128 B) */
 #define PC300_SCA_SIZE		0x400   /* SCA window size (1 KB) */
-#define ALL_PAGES_ALWAYS_MAPPED
-#define NEED_DETECT_RAM
-#define NEED_SCA_MSCI_INTR
 #define MAX_TX_BUFFERS		10
 
 static int pci_clock_freq = 33000000;
@@ -491,7 +488,7 @@ static int __devinit pc300_pci_init_one(struct pci_dev *pdev,
 			pc300_pci_remove_one(pdev);
 			return -ENOBUFS;
 		}
-		sca_init_sync_port(port);	/* Set up SCA memory */
+		sca_init_port(port); /* Set up SCA memory */
 
 		printk(KERN_INFO "%s: PC300 node %d\n",
 		       dev->name, port->phy_node);
