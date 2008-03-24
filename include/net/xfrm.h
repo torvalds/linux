@@ -204,6 +204,7 @@ struct xfrm_state
 	 * transformer. */
 	const struct xfrm_type	*type;
 	struct xfrm_mode	*inner_mode;
+	struct xfrm_mode	*inner_mode_iaf;
 	struct xfrm_mode	*outer_mode;
 
 	/* Security context */
@@ -386,6 +387,27 @@ enum {
 
 extern int xfrm_register_mode(struct xfrm_mode *mode, int family);
 extern int xfrm_unregister_mode(struct xfrm_mode *mode, int family);
+
+static inline int xfrm_af2proto(unsigned int family)
+{
+	switch(family) {
+	case AF_INET:
+		return IPPROTO_IPIP;
+	case AF_INET6:
+		return IPPROTO_IPV6;
+	default:
+		return 0;
+	}
+}
+
+static inline struct xfrm_mode *xfrm_ip2inner_mode(struct xfrm_state *x, int ipproto)
+{
+	if ((ipproto == IPPROTO_IPIP && x->props.family == AF_INET) ||
+	    (ipproto == IPPROTO_IPV6 && x->props.family == AF_INET6))
+		return x->inner_mode;
+	else
+		return x->inner_mode_iaf;
+}
 
 struct xfrm_tmpl
 {
@@ -1253,6 +1275,7 @@ extern int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi,
 extern int xfrm_input_resume(struct sk_buff *skb, int nexthdr);
 extern int xfrm_output_resume(struct sk_buff *skb, int err);
 extern int xfrm_output(struct sk_buff *skb);
+extern int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm4_extract_header(struct sk_buff *skb);
 extern int xfrm4_extract_input(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm4_rcv_encap(struct sk_buff *skb, int nexthdr, __be32 spi,
