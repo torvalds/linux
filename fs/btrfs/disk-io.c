@@ -365,12 +365,12 @@ static int close_all_devices(struct btrfs_fs_info *fs_info)
 	struct list_head *next;
 	struct btrfs_device *device;
 
-	list = &fs_info->devices;
-	while(!list_empty(list)) {
-		next = list->next;
-		list_del(next);
+	list = &fs_info->fs_devices->devices;
+	list_for_each(next, list) {
 		device = list_entry(next, struct btrfs_device, dev_list);
-		kfree(device);
+		if (device->bdev && device->bdev != fs_info->sb->s_bdev)
+			close_bdev_excl(device->bdev);
+		device->bdev = NULL;
 	}
 	return 0;
 }
@@ -655,7 +655,8 @@ static int add_hasher(struct btrfs_fs_info *info, char *type) {
 	return 0;
 }
 #endif
-struct btrfs_root *open_ctree(struct super_block *sb)
+struct btrfs_root *open_ctree(struct super_block *sb,
+			      struct btrfs_fs_devices *fs_devices)
 {
 	u32 sectorsize;
 	u32 nodesize;
@@ -697,8 +698,8 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->extent_root = extent_root;
 	fs_info->chunk_root = chunk_root;
 	fs_info->dev_root = dev_root;
+	fs_info->fs_devices = fs_devices;
 	INIT_LIST_HEAD(&fs_info->dirty_cowonly_roots);
-	INIT_LIST_HEAD(&fs_info->devices);
 	INIT_LIST_HEAD(&fs_info->space_info);
 	btrfs_mapping_init(&fs_info->mapping_tree);
 	fs_info->sb = sb;
@@ -779,6 +780,12 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	if (!btrfs_super_root(disk_super))
 		goto fail_sb_buffer;
 
+	if (btrfs_super_num_devices(disk_super) != fs_devices->num_devices) {
+		printk("Btrfs: wanted %llu devices, but found %llu\n",
+		       (unsigned long long)btrfs_super_num_devices(disk_super),
+		       (unsigned long long)fs_devices->num_devices);
+		goto fail_sb_buffer;
+	}
 	nodesize = btrfs_super_nodesize(disk_super);
 	leafsize = btrfs_super_leafsize(disk_super);
 	sectorsize = btrfs_super_sectorsize(disk_super);
@@ -799,8 +806,6 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	}
 
 	mutex_lock(&fs_info->fs_mutex);
-	ret = btrfs_read_super_device(tree_root, fs_info->sb_buffer);
-	BUG_ON(ret);
 
 	ret = btrfs_read_sys_array(tree_root);
 	BUG_ON(ret);
@@ -859,6 +864,7 @@ fail_sb_buffer:
 fail_iput:
 	iput(fs_info->btree_inode);
 fail:
+	close_all_devices(fs_info);
 	kfree(extent_root);
 	kfree(tree_root);
 	kfree(fs_info);

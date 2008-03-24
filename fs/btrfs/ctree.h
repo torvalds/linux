@@ -37,7 +37,7 @@ extern struct kmem_cache *btrfs_transaction_cachep;
 extern struct kmem_cache *btrfs_bit_radix_cachep;
 extern struct kmem_cache *btrfs_path_cachep;
 
-#define BTRFS_MAGIC "_B4RfS_M"
+#define BTRFS_MAGIC "_B5RfS_M"
 
 #define BTRFS_MAX_LEVEL 8
 
@@ -238,6 +238,7 @@ struct btrfs_super_block {
 	__le64 total_bytes;
 	__le64 bytes_used;
 	__le64 root_dir_objectid;
+	__le64 num_devices;
 	__le32 sectorsize;
 	__le32 nodesize;
 	__le32 leafsize;
@@ -440,6 +441,7 @@ struct btrfs_block_group_cache {
 };
 
 struct btrfs_device;
+struct btrfs_fs_devices;
 struct btrfs_fs_info {
 	u8 fsid[BTRFS_FSID_SIZE];
 	struct btrfs_root *extent_root;
@@ -489,7 +491,7 @@ struct btrfs_fs_info {
 	u64 total_pinned;
 	struct list_head dirty_cowonly_roots;
 
-	struct list_head devices;
+	struct btrfs_fs_devices *fs_devices;
 	struct list_head space_info;
 	spinlock_t delalloc_lock;
 	spinlock_t new_trans_lock;
@@ -676,6 +678,19 @@ BTRFS_SETGET_FUNCS(device_io_align, struct btrfs_dev_item, io_align, 32);
 BTRFS_SETGET_FUNCS(device_io_width, struct btrfs_dev_item, io_width, 32);
 BTRFS_SETGET_FUNCS(device_sector_size, struct btrfs_dev_item, sector_size, 32);
 BTRFS_SETGET_FUNCS(device_id, struct btrfs_dev_item, devid, 64);
+
+BTRFS_SETGET_STACK_FUNCS(stack_device_type, struct btrfs_dev_item, type, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_device_total_bytes, struct btrfs_dev_item,
+			 total_bytes, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_device_bytes_used, struct btrfs_dev_item,
+			 bytes_used, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_device_io_align, struct btrfs_dev_item,
+			 io_align, 32);
+BTRFS_SETGET_STACK_FUNCS(stack_device_io_width, struct btrfs_dev_item,
+			 io_width, 32);
+BTRFS_SETGET_STACK_FUNCS(stack_device_sector_size, struct btrfs_dev_item,
+			 sector_size, 32);
+BTRFS_SETGET_STACK_FUNCS(stack_device_id, struct btrfs_dev_item, devid, 64);
 
 static inline char *btrfs_device_uuid(struct btrfs_dev_item *d)
 {
@@ -1106,6 +1121,8 @@ BTRFS_SETGET_STACK_FUNCS(super_stripesize, struct btrfs_super_block,
 			 stripesize, 32);
 BTRFS_SETGET_STACK_FUNCS(super_root_dir, struct btrfs_super_block,
 			 root_dir_objectid, 64);
+BTRFS_SETGET_STACK_FUNCS(super_num_devices, struct btrfs_super_block,
+			 num_devices, 64);
 
 static inline unsigned long btrfs_leaf_data(struct extent_buffer *l)
 {

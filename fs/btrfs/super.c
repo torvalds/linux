@@ -44,6 +44,7 @@
 #include "ioctl.h"
 #include "print-tree.h"
 #include "xattr.h"
+#include "volumes.h"
 
 #define BTRFS_SUPER_MAGIC 0x9123683E
 
@@ -216,7 +217,9 @@ static int parse_options (char * options,
 	return 1;
 }
 
-static int btrfs_fill_super(struct super_block * sb, void * data, int silent)
+static int btrfs_fill_super(struct super_block * sb,
+			    struct btrfs_fs_devices *fs_devices,
+			    void * data, int silent)
 {
 	struct inode * inode;
 	struct dentry * root_dentry;
@@ -231,7 +234,7 @@ static int btrfs_fill_super(struct super_block * sb, void * data, int silent)
 	sb->s_xattr = btrfs_xattr_handlers;
 	sb->s_time_gran = 1;
 
-	tree_root = open_ctree(sb);
+	tree_root = open_ctree(sb, fs_devices);
 
 	if (!tree_root || IS_ERR(tree_root)) {
 		printk("btrfs: open_ctree failed\n");
@@ -334,18 +337,23 @@ static int test_bdev_super(struct super_block *s, void *data)
 
 int btrfs_get_sb_bdev(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
 	struct vfsmount *mnt, const char *subvol)
 {
 	struct block_device *bdev = NULL;
 	struct super_block *s;
 	struct dentry *root;
+	struct btrfs_fs_devices *fs_devices = NULL;
 	int error = 0;
 
-	bdev = open_bdev_excl(dev_name, flags, fs_type);
-	if (IS_ERR(bdev))
-		return PTR_ERR(bdev);
+	error = btrfs_scan_one_device(dev_name, flags, fs_type, &fs_devices);
+	if (error)
+		return error;
 
+	error = btrfs_open_devices(fs_devices, flags, fs_type);
+	if (error)
+		return error;
+
+	bdev = fs_devices->lowest_bdev;
 	/*
 	 * once the super is inserted into the list by sget, s_umount
 	 * will protect the lockfs code from trying to start a snapshot
@@ -372,7 +380,8 @@ int btrfs_get_sb_bdev(struct file_system_type *fs_type,
 		s->s_flags = flags;
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
 		sb_set_blocksize(s, block_size(bdev));
-		error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
+		error = btrfs_fill_super(s, fs_devices, data,
+					 flags & MS_SILENT ? 1 : 0);
 		if (error) {
 			up_write(&s->s_umount);
 			deactivate_super(s);
@@ -408,7 +417,7 @@ int btrfs_get_sb_bdev(struct file_system_type *fs_type,
 error_s:
 	error = PTR_ERR(s);
 error_bdev:
-	close_bdev_excl(bdev);
+	btrfs_close_devices(fs_devices);
 error:
 	return error;
 }
@@ -421,8 +430,7 @@ static int btrfs_get_sb(struct file_system_type *fs_type,
 	char *subvol_name = NULL;
 
 	parse_options((char *)data, NULL, &subvol_name);
-	ret = btrfs_get_sb_bdev(fs_type, flags, dev_name, data,
-			btrfs_fill_super, mnt,
+	ret = btrfs_get_sb_bdev(fs_type, flags, dev_name, data, mnt,
 			subvol_name ? subvol_name : "default");
 	if (subvol_name)
 		kfree(subvol_name);
@@ -445,13 +453,6 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
-				unsigned long arg)
-{
-	printk("btrfs control ioctl %d\n", cmd);
-	return 0;
-}
-
 static struct file_system_type btrfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "btrfs",
@@ -459,6 +460,31 @@ static struct file_system_type btrfs_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+
+static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg)
+{
+	struct btrfs_ioctl_vol_args *vol;
+	struct btrfs_fs_devices *fs_devices;
+	int ret;
+	int len;
+
+	vol = kmalloc(sizeof(*vol), GFP_KERNEL);
+	if (copy_from_user(vol, (void __user *)arg, sizeof(*vol))) {
+		ret = -EFAULT;
+		goto out;
+	}
+	len = strnlen(vol->name, BTRFS_PATH_NAME_MAX);
+	switch (cmd) {
+	case BTRFS_IOC_SCAN_DEV:
+		ret = btrfs_scan_one_device(vol->name, MS_RDONLY,
+					    &btrfs_fs_type, &fs_devices);
+		break;
+	}
+out:
+	kfree(vol);
+	return 0;
+}
 
 static void btrfs_write_super_lockfs(struct super_block *sb)
 {
@@ -567,6 +593,7 @@ static void __exit exit_btrfs_fs(void)
 	btrfs_interface_exit();
 	unregister_filesystem(&btrfs_fs_type);
 	btrfs_exit_sysfs();
+	btrfs_cleanup_fs_uuids();
 }
 
 module_init(init_btrfs_fs)

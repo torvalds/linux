@@ -22,8 +22,10 @@
 
 #define BTRFS_IOCTL_MAGIC 0x94
 #define BTRFS_VOL_NAME_MAX 255
+#define BTRFS_PATH_NAME_MAX 4095
+
 struct btrfs_ioctl_vol_args {
-	char name[BTRFS_VOL_NAME_MAX + 1];
+	char name[BTRFS_PATH_NAME_MAX + 1];
 };
 
 #define BTRFS_IOC_SNAP_CREATE _IOW(BTRFS_IOCTL_MAGIC, 1, \
@@ -31,5 +33,7 @@ struct btrfs_ioctl_vol_args {
 #define BTRFS_IOC_DEFRAG _IOW(BTRFS_IOCTL_MAGIC, 2, \
 				   struct btrfs_ioctl_vol_args)
 #define BTRFS_IOC_RESIZE _IOW(BTRFS_IOCTL_MAGIC, 3, \
+				   struct btrfs_ioctl_vol_args)
+#define BTRFS_IOC_SCAN_DEV _IOW(BTRFS_IOCTL_MAGIC, 4, \
 				   struct btrfs_ioctl_vol_args)
 #endif

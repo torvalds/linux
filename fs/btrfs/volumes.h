@@ -24,6 +24,8 @@ struct btrfs_device {
 
 	struct block_device *bdev;
 
+	char *name;
+
 	/* the internal btrfs device id */
 	u64 devid;
 
@@ -49,6 +51,20 @@ struct btrfs_device {
 	u8 uuid[BTRFS_DEV_UUID_SIZE];
 };
 
+struct btrfs_fs_devices {
+	u8 fsid[BTRFS_FSID_SIZE]; /* FS specific uuid */
+
+	/* the device with this id has the most recent coyp of the super */
+	u64 latest_devid;
+	u64 latest_trans;
+	u64 lowest_devid;
+	u64 num_devices;
+	struct block_device *latest_bdev;
+	struct block_device *lowest_bdev;
+	struct list_head devices;
+	struct list_head list;
+};
+
 int btrfs_alloc_dev_extent(struct btrfs_trans_handle *trans,
 			   struct btrfs_device *device,
 			   u64 owner, u64 num_bytes, u64 *start);
@@ -67,4 +83,13 @@ int btrfs_read_super_device(struct btrfs_root *root, struct extent_buffer *buf);
 int btrfs_map_block(struct btrfs_mapping_tree *map_tree,
 		    u64 logical, u64 *phys, u64 *length,
 		    struct btrfs_device **dev);
+int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
+		       int flags, void *holder);
+int btrfs_scan_one_device(const char *path, int flags, void *holder,
+			  struct btrfs_fs_devices **fs_devices_ret);
+int btrfs_close_devices(struct btrfs_fs_devices *fs_devices);
+int btrfs_add_device(struct btrfs_trans_handle *trans,
+		     struct btrfs_root *root,
+		     struct btrfs_device *device);
+int btrfs_cleanup_fs_uuids(void);
 #endif

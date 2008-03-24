@@ -21,6 +21,7 @@
 
 #define BTRFS_SUPER_INFO_OFFSET (16 * 1024)
 struct btrfs_device;
+struct btrfs_fs_devices;
 
 struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 				      u32 blocksize);
@@ -29,7 +30,8 @@ struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
 						   u64 bytenr, u32 blocksize);
 int clean_tree_block(struct btrfs_trans_handle *trans,
 		     struct btrfs_root *root, struct extent_buffer *buf);
-struct btrfs_root *open_ctree(struct super_block *sb);
+struct btrfs_root *open_ctree(struct super_block *sb,
+			      struct btrfs_fs_devices *fs_devices);
 int close_ctree(struct btrfs_root *root);
 int write_ctree_super(struct btrfs_trans_handle *trans,
 		      struct btrfs_root *root);
