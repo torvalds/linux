@@ -82,9 +82,8 @@ static char *check[] = {
 	"des", "md5", "des3_ede", "rot13", "sha1", "sha224", "sha256",
 	"blowfish", "twofish", "serpent", "sha384", "sha512", "md4", "aes",
 	"cast6", "arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
-	"arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta",  "fcrypt",
-	"camellia", "seed", "salsa20", "lzo", NULL
+	"camellia", "seed", "salsa20", "lzo", "cts", NULL
 };
 
 static void hexdump(unsigned char *buf, unsigned int len)
@@ -1328,6 +1327,12 @@ static void do_test(void)
 		test_cipher("ecb(seed)", DECRYPT, seed_dec_tv_template,
 			    SEED_DEC_TEST_VECTORS);
 
+		//CTS
+		test_cipher("cts(cbc(aes))", ENCRYPT, cts_mode_enc_tv_template,
+			    CTS_MODE_ENC_TEST_VECTORS);
+		test_cipher("cts(cbc(aes))", DECRYPT, cts_mode_dec_tv_template,
+			    CTS_MODE_DEC_TEST_VECTORS);
+
 		test_hash("sha384", sha384_tv_template, SHA384_TEST_VECTORS);
 		test_hash("sha512", sha512_tv_template, SHA512_TEST_VECTORS);
 		test_hash("wp512", wp512_tv_template, WP512_TEST_VECTORS);
@@ -1609,6 +1614,13 @@ static void do_test(void)
 			  AES_CCM_ENC_TEST_VECTORS);
 		test_aead("ccm(aes)", DECRYPT, aes_ccm_dec_tv_template,
 			  AES_CCM_DEC_TEST_VECTORS);
+		break;
+
+	case 38:
+		test_cipher("cts(cbc(aes))", ENCRYPT, cts_mode_enc_tv_template,
+			    CTS_MODE_ENC_TEST_VECTORS);
+		test_cipher("cts(cbc(aes))", DECRYPT, cts_mode_dec_tv_template,
+			    CTS_MODE_DEC_TEST_VECTORS);
 		break;
 
 	case 100:

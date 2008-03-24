@@ -213,6 +213,17 @@ config CRYPTO_CTR
 	  CTR: Counter mode
 	  This block cipher algorithm is required for IPSec.
 
+config CRYPTO_CTS
+	tristate "CTS support"
+	select CRYPTO_BLKCIPHER
+	help
+	  CTS: Cipher Text Stealing
+	  This is the Cipher Text Stealing mode as described by
+	  Section 8 of rfc2040 and referenced by rfc3962.
+	  (rfc3962 includes errata information in its Appendix A)
+	  This mode is required for Kerberos gss mechanism support
+	  for AES encryption.
+
 config CRYPTO_GCM
 	tristate "GCM/GMAC support"
 	select CRYPTO_CTR
