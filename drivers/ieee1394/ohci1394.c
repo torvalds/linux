@@ -2984,13 +2984,6 @@ static struct hpsb_host_driver ohci1394_driver = {
  * PCI Driver Interface functions  *
  ***********************************/
 
-#define FAIL(err, fmt, args...)			\
-do {						\
-	PRINT_G(KERN_ERR, fmt , ## args);	\
-        ohci1394_pci_remove(dev);               \
-	return err;				\
-} while (0)
-
 #ifdef CONFIG_PPC_PMAC
 static void ohci1394_pmac_on(struct pci_dev *dev)
 {
@@ -3026,15 +3019,21 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 	struct hpsb_host *host;
 	struct ti_ohci *ohci;	/* shortcut to currently handled device */
 	resource_size_t ohci_base;
+	int err = -ENOMEM;
 
 	ohci1394_pmac_on(dev);
-        if (pci_enable_device(dev))
-		FAIL(-ENXIO, "Failed to enable OHCI hardware");
+	if (pci_enable_device(dev)) {
+		PRINT_G(KERN_ERR, "Failed to enable OHCI hardware");
+		err = -ENXIO;
+		goto err;
+	}
         pci_set_master(dev);
 
 	host = hpsb_alloc_host(&ohci1394_driver, sizeof(struct ti_ohci), &dev->dev);
-	if (!host) FAIL(-ENOMEM, "Failed to allocate host structure");
-
+	if (!host) {
+		PRINT_G(KERN_ERR, "Failed to allocate host structure");
+		goto err;
+	}
 	ohci = host->hostdata;
 	ohci->dev = dev;
 	ohci->host = host;
@@ -3083,15 +3082,20 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 		      (unsigned long long)pci_resource_len(dev, 0));
 
 	if (!request_mem_region(ohci_base, OHCI1394_REGISTER_SIZE,
-				OHCI1394_DRIVER_NAME))
-		FAIL(-ENOMEM, "MMIO resource (0x%llx - 0x%llx) unavailable",
+				OHCI1394_DRIVER_NAME)) {
+		PRINT_G(KERN_ERR, "MMIO resource (0x%llx - 0x%llx) unavailable",
 			(unsigned long long)ohci_base,
 			(unsigned long long)ohci_base + OHCI1394_REGISTER_SIZE);
+		goto err;
+	}
 	ohci->init_state = OHCI_INIT_HAVE_MEM_REGION;
 
 	ohci->registers = ioremap(ohci_base, OHCI1394_REGISTER_SIZE);
-	if (ohci->registers == NULL)
-		FAIL(-ENXIO, "Failed to remap registers - card not accessible");
+	if (ohci->registers == NULL) {
+		PRINT_G(KERN_ERR, "Failed to remap registers");
+		err = -ENXIO;
+		goto err;
+	}
 	ohci->init_state = OHCI_INIT_HAVE_IOMAPPING;
 	DBGMSG("Remapped memory spaces reg 0x%p", ohci->registers);
 
@@ -3099,16 +3103,20 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 	ohci->csr_config_rom_cpu =
 		pci_alloc_consistent(ohci->dev, OHCI_CONFIG_ROM_LEN,
 				     &ohci->csr_config_rom_bus);
-	if (ohci->csr_config_rom_cpu == NULL)
-		FAIL(-ENOMEM, "Failed to allocate buffer config rom");
+	if (ohci->csr_config_rom_cpu == NULL) {
+		PRINT_G(KERN_ERR, "Failed to allocate buffer config rom");
+		goto err;
+	}
 	ohci->init_state = OHCI_INIT_HAVE_CONFIG_ROM_BUFFER;
 
 	/* self-id dma buffer allocation */
 	ohci->selfid_buf_cpu =
 		pci_alloc_consistent(ohci->dev, OHCI1394_SI_DMA_BUF_SIZE,
                       &ohci->selfid_buf_bus);
-	if (ohci->selfid_buf_cpu == NULL)
-		FAIL(-ENOMEM, "Failed to allocate DMA buffer for self-id packets");
+	if (ohci->selfid_buf_cpu == NULL) {
+		PRINT_G(KERN_ERR, "Failed to allocate self-ID buffer");
+		goto err;
+	}
 	ohci->init_state = OHCI_INIT_HAVE_SELFID_BUFFER;
 
 	if ((unsigned long)ohci->selfid_buf_cpu & 0x1fff)
@@ -3124,28 +3132,32 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 	if (alloc_dma_rcv_ctx(ohci, &ohci->ar_req_context,
 			      DMA_CTX_ASYNC_REQ, 0, AR_REQ_NUM_DESC,
 			      AR_REQ_BUF_SIZE, AR_REQ_SPLIT_BUF_SIZE,
-			      OHCI1394_AsReqRcvContextBase) < 0)
-		FAIL(-ENOMEM, "Failed to allocate AR Req context");
-
+			      OHCI1394_AsReqRcvContextBase) < 0) {
+		PRINT_G(KERN_ERR, "Failed to allocate AR Req context");
+		goto err;
+	}
 	/* AR DMA response context allocation */
 	if (alloc_dma_rcv_ctx(ohci, &ohci->ar_resp_context,
 			      DMA_CTX_ASYNC_RESP, 0, AR_RESP_NUM_DESC,
 			      AR_RESP_BUF_SIZE, AR_RESP_SPLIT_BUF_SIZE,
-			      OHCI1394_AsRspRcvContextBase) < 0)
-		FAIL(-ENOMEM, "Failed to allocate AR Resp context");
-
+			      OHCI1394_AsRspRcvContextBase) < 0) {
+		PRINT_G(KERN_ERR, "Failed to allocate AR Resp context");
+		goto err;
+	}
 	/* AT DMA request context */
 	if (alloc_dma_trm_ctx(ohci, &ohci->at_req_context,
 			      DMA_CTX_ASYNC_REQ, 0, AT_REQ_NUM_DESC,
-			      OHCI1394_AsReqTrContextBase) < 0)
-		FAIL(-ENOMEM, "Failed to allocate AT Req context");
-
+			      OHCI1394_AsReqTrContextBase) < 0) {
+		PRINT_G(KERN_ERR, "Failed to allocate AT Req context");
+		goto err;
+	}
 	/* AT DMA response context */
 	if (alloc_dma_trm_ctx(ohci, &ohci->at_resp_context,
 			      DMA_CTX_ASYNC_RESP, 1, AT_RESP_NUM_DESC,
-			      OHCI1394_AsRspTrContextBase) < 0)
-		FAIL(-ENOMEM, "Failed to allocate AT Resp context");
-
+			      OHCI1394_AsRspTrContextBase) < 0) {
+		PRINT_G(KERN_ERR, "Failed to allocate AT Resp context");
+		goto err;
+	}
 	/* Start off with a soft reset, to clear everything to a sane
 	 * state. */
 	ohci_soft_reset(ohci);
@@ -3188,9 +3200,10 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 	 * by that point.
 	 */
 	if (request_irq(dev->irq, ohci_irq_handler, IRQF_SHARED,
-			 OHCI1394_DRIVER_NAME, ohci))
-		FAIL(-ENOMEM, "Failed to allocate shared interrupt %d", dev->irq);
-
+			 OHCI1394_DRIVER_NAME, ohci)) {
+		PRINT_G(KERN_ERR, "Failed to allocate interrupt %d", dev->irq);
+		goto err;
+	}
 	ohci->init_state = OHCI_INIT_HAVE_IRQ;
 	ohci_initialize(ohci);
 
@@ -3210,13 +3223,16 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 	host->middle_addr_space = OHCI1394_MIDDLE_ADDRESS_SPACE;
 
 	/* Tell the highlevel this host is ready */
-	if (hpsb_add_host(host))
-		FAIL(-ENOMEM, "Failed to register host with highlevel");
-
+	if (hpsb_add_host(host)) {
+		PRINT_G(KERN_ERR, "Failed to register host with highlevel");
+		goto err;
+	}
 	ohci->init_state = OHCI_INIT_DONE;
 
 	return 0;
-#undef FAIL
+err:
+	ohci1394_pci_remove(dev);
+	return err;
 }
 
 static void ohci1394_pci_remove(struct pci_dev *dev)
