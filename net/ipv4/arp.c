@@ -1377,11 +1377,27 @@ static const struct file_operations arp_seq_fops = {
 	.release	= seq_release_net,
 };
 
-static int __init arp_proc_init(void)
+
+static int __net_init arp_net_init(struct net *net)
 {
-	if (!proc_net_fops_create(&init_net, "arp", S_IRUGO, &arp_seq_fops))
+	if (!proc_net_fops_create(net, "arp", S_IRUGO, &arp_seq_fops))
 		return -ENOMEM;
 	return 0;
+}
+
+static void __net_exit arp_net_exit(struct net *net)
+{
+	proc_net_remove(net, "arp");
+}
+
+static struct pernet_operations arp_net_ops = {
+	.init = arp_net_init,
+	.exit = arp_net_exit,
+};
+
+static int __init arp_proc_init(void)
+{
+	return register_pernet_subsys(&arp_net_ops);
 }
 
 #else /* CONFIG_PROC_FS */
