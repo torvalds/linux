@@ -1015,12 +1015,12 @@ config X86_PAT
 	depends on MTRR && NONPROMISC_DEVMEM
 	help
 	  Use PAT attributes to setup page level cache control.
-	---help---
+
 	  PATs are the modern equivalents of MTRRs and are much more
 	  flexible than MTRRs.
 
 	  Say N here if you see bootup problems (boot crash, boot hang,
-	  spontaneous reboots) or a non-working Xorg.
+	  spontaneous reboots) or a non-working video driver.
 
 	  If unsure, say Y.
 
