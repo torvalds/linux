@@ -39,6 +39,9 @@ module_param(bypass_guest_pf, bool, 0);
 static int enable_vpid = 1;
 module_param(enable_vpid, bool, 0);
 
+static int flexpriority_enabled = 1;
+module_param(flexpriority_enabled, bool, 0);
+
 struct vmcs {
 	u32 revision_id;
 	u32 abort;
@@ -200,8 +203,9 @@ static inline int cpu_has_secondary_exec_ctrls(void)
 
 static inline bool cpu_has_vmx_virtualize_apic_accesses(void)
 {
-	return (vmcs_config.cpu_based_2nd_exec_ctrl &
-		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES);
+	return flexpriority_enabled
+		&& (vmcs_config.cpu_based_2nd_exec_ctrl &
+		    SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES);
 }
 
 static inline int vm_need_virtualize_apic_accesses(struct kvm *kvm)
