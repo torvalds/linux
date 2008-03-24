@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (C) 2001 MontaVista Software, ppopov@mvista.com
+ * Copyright (C) 2001, 2006, 2008 MontaVista Software, <source@mvista.com>
  * Copied and modified Carsten Langgaard's time.c
  *
  * Carsten Langgaard, carstenl@mips.com
@@ -265,12 +265,8 @@ void __init plat_time_init(void)
 	 * Check to ensure we really have a 32KHz oscillator before
 	 * we do this.
 	 */
-	if (no_au1xxx_32khz) {
+	if (no_au1xxx_32khz)
 		printk("WARNING: no 32KHz clock found.\n");
-
-		/* Ensure we get CPO_COUNTER interrupts.  */
-		set_c0_status(IE_IRQ5);
-	}
 	else {
 		while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C0S);
 		au_writel(0, SYS_TOYWRITE);

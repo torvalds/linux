@@ -3,9 +3,8 @@
  * BRIEF MODULE DESCRIPTION
  *	Include file for Alchemy Semiconductor's Au1k CPU.
  *
- * Copyright 2000,2001 MontaVista Software Inc.
- * Author: MontaVista Software, Inc.
- *         	ppopov@mvista.com or source@mvista.com
+ * Copyright 2000-2001, 2006-2008 MontaVista Software Inc.
+ * Author: MontaVista Software, Inc. <source@mvista.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -116,13 +115,6 @@ struct au1xxx_irqmap {
 extern struct au1xxx_irqmap au1xxx_irq_map[];
 
 #endif /* !defined (_LANGUAGE_ASSEMBLY) */
-
-#ifdef CONFIG_PM
-/* no CP0 timer irq */
-#define ALLINTS (IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3 | IE_IRQ4)
-#else
-#define ALLINTS (IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3 | IE_IRQ4 | IE_IRQ5)
-#endif
 
 /*
  * SDRAM Register Offsets
