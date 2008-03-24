@@ -3877,7 +3877,7 @@ static int addrconf_sysctl_forward_strategy(ctl_table *table,
 static struct addrconf_sysctl_table
 {
 	struct ctl_table_header *sysctl_header;
-	ctl_table addrconf_vars[__NET_IPV6_MAX];
+	ctl_table addrconf_vars[DEVCONF_MAX+1];
 	char *dev_name;
 } addrconf_sysctl __read_mostly = {
 	.sysctl_header = NULL,
