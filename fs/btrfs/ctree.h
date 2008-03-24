@@ -150,21 +150,11 @@ struct btrfs_dev_item {
 	/* minimal io size for this device */
 	__le32 sector_size;
 
-	/* the kernel device number */
-	__le64 rdev;
-
 	/* type and info about this device */
 	__le64 type;
 
-	/* partition number, 0 for whole dev */
-	__le32 partition;
-
-	/* length of the name data at the end of the item */
-	__le16 name_len;
-
-	/* physical drive uuid (or lvm uuid) */
+	/* btrfs generated uuid for this device */
 	u8 uuid[BTRFS_DEV_UUID_SIZE];
-	/* name goes here */
 } __attribute__ ((__packed__));
 
 struct btrfs_stripe {
@@ -255,6 +245,7 @@ struct btrfs_super_block {
 	__le32 sys_chunk_array_size;
 	u8 root_level;
 	u8 chunk_root_level;
+	struct btrfs_dev_item dev_item;
 	u8 sys_chunk_array[BTRFS_SYSTEM_CHUNK_ARRAY_SIZE];
 } __attribute__ ((__packed__));
 
@@ -685,18 +676,10 @@ BTRFS_SETGET_FUNCS(device_io_align, struct btrfs_dev_item, io_align, 32);
 BTRFS_SETGET_FUNCS(device_io_width, struct btrfs_dev_item, io_width, 32);
 BTRFS_SETGET_FUNCS(device_sector_size, struct btrfs_dev_item, sector_size, 32);
 BTRFS_SETGET_FUNCS(device_id, struct btrfs_dev_item, devid, 64);
-BTRFS_SETGET_FUNCS(device_rdev, struct btrfs_dev_item, rdev, 64);
-BTRFS_SETGET_FUNCS(device_partition, struct btrfs_dev_item, partition, 32);
-BTRFS_SETGET_FUNCS(device_name_len, struct btrfs_dev_item, name_len, 16);
 
 static inline char *btrfs_device_uuid(struct btrfs_dev_item *d)
 {
 	return (char *)d + offsetof(struct btrfs_dev_item, uuid);
-}
-
-static inline char *btrfs_device_name(struct btrfs_dev_item *d)
-{
-	return (char *)(d + 1);
 }
 
 BTRFS_SETGET_FUNCS(chunk_owner, struct btrfs_chunk, owner, 64);

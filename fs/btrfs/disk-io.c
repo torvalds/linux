@@ -370,7 +370,6 @@ static int close_all_devices(struct btrfs_fs_info *fs_info)
 		next = list->next;
 		list_del(next);
 		device = list_entry(next, struct btrfs_device, dev_list);
-		kfree(device->name);
 		kfree(device);
 	}
 	return 0;
@@ -800,6 +799,9 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	}
 
 	mutex_lock(&fs_info->fs_mutex);
+	ret = btrfs_read_super_device(tree_root, fs_info->sb_buffer);
+	BUG_ON(ret);
+
 	ret = btrfs_read_sys_array(tree_root);
 	BUG_ON(ret);
 

@@ -278,7 +278,7 @@ int btrfs_add_device(struct btrfs_trans_handle *trans,
 	key.offset = free_devid;
 
 	ret = btrfs_insert_empty_item(trans, root, path, &key,
-				      sizeof(*dev_item) + device->name_len);
+				      sizeof(*dev_item));
 	if (ret)
 		goto out;
 
@@ -290,14 +290,8 @@ int btrfs_add_device(struct btrfs_trans_handle *trans,
 	btrfs_set_device_io_align(leaf, dev_item, device->io_align);
 	btrfs_set_device_io_width(leaf, dev_item, device->io_width);
 	btrfs_set_device_sector_size(leaf, dev_item, device->sector_size);
-	btrfs_set_device_rdev(leaf, dev_item, device->rdev);
-	btrfs_set_device_partition(leaf, dev_item, device->partition);
-	btrfs_set_device_name_len(leaf, dev_item, device->name_len);
 	btrfs_set_device_total_bytes(leaf, dev_item, device->total_bytes);
 	btrfs_set_device_bytes_used(leaf, dev_item, device->bytes_used);
-
-	ptr = (unsigned long)btrfs_device_name(dev_item);
-	write_extent_buffer(leaf, device->name, ptr, device->name_len);
 
 	ptr = (unsigned long)btrfs_device_uuid(dev_item);
 	write_extent_buffer(leaf, device->uuid, ptr, BTRFS_DEV_UUID_SIZE);
@@ -345,8 +339,6 @@ int btrfs_update_device(struct btrfs_trans_handle *trans,
 	btrfs_set_device_io_align(leaf, dev_item, device->io_align);
 	btrfs_set_device_io_width(leaf, dev_item, device->io_width);
 	btrfs_set_device_sector_size(leaf, dev_item, device->sector_size);
-	btrfs_set_device_rdev(leaf, dev_item, device->rdev);
-	btrfs_set_device_partition(leaf, dev_item, device->partition);
 	btrfs_set_device_total_bytes(leaf, dev_item, device->total_bytes);
 	btrfs_set_device_bytes_used(leaf, dev_item, device->bytes_used);
 	btrfs_mark_buffer_dirty(leaf);
@@ -676,7 +668,6 @@ static int fill_device_from_item(struct extent_buffer *leaf,
 				 struct btrfs_device *device)
 {
 	unsigned long ptr;
-	char *name;
 
 	device->devid = btrfs_device_id(leaf, dev_item);
 	device->total_bytes = btrfs_device_total_bytes(leaf, dev_item);
@@ -685,24 +676,14 @@ static int fill_device_from_item(struct extent_buffer *leaf,
 	device->io_align = btrfs_device_io_align(leaf, dev_item);
 	device->io_width = btrfs_device_io_width(leaf, dev_item);
 	device->sector_size = btrfs_device_sector_size(leaf, dev_item);
-	device->rdev = btrfs_device_rdev(leaf, dev_item);
-	device->partition = btrfs_device_partition(leaf, dev_item);
-	device->name_len = btrfs_device_name_len(leaf, dev_item);
 
 	ptr = (unsigned long)btrfs_device_uuid(dev_item);
 	read_extent_buffer(leaf, device->uuid, ptr, BTRFS_DEV_UUID_SIZE);
 
-	name = kmalloc(device->name_len + 1, GFP_NOFS);
-	if (!name)
-		return -ENOMEM;
-	device->name = name;
-	ptr = (unsigned long)btrfs_device_name(dev_item);
-	read_extent_buffer(leaf, name, ptr, device->name_len);
-	name[device->name_len] = '\0';
 	return 0;
 }
 
-static int read_one_dev(struct btrfs_root *root, struct btrfs_key *key,
+static int read_one_dev(struct btrfs_root *root,
 			struct extent_buffer *leaf,
 			struct btrfs_dev_item *dev_item)
 {
@@ -722,7 +703,6 @@ static int read_one_dev(struct btrfs_root *root, struct btrfs_key *key,
 	fill_device_from_item(leaf, dev_item, device);
 	device->dev_root = root->fs_info->dev_root;
 	device->bdev = root->fs_info->sb->s_bdev;
-	memcpy(&device->dev_key, key, sizeof(*key));
 	ret = 0;
 #if 0
 	ret = btrfs_open_device(device);
@@ -733,12 +713,20 @@ static int read_one_dev(struct btrfs_root *root, struct btrfs_key *key,
 	return ret;
 }
 
+int btrfs_read_super_device(struct btrfs_root *root, struct extent_buffer *buf)
+{
+	struct btrfs_dev_item *dev_item;
+
+	dev_item = (struct btrfs_dev_item *)offsetof(struct btrfs_super_block,
+						     dev_item);
+	return read_one_dev(root, buf, dev_item);
+}
+
 int btrfs_read_sys_array(struct btrfs_root *root)
 {
 	struct btrfs_super_block *super_copy = &root->fs_info->super_copy;
 	struct extent_buffer *sb = root->fs_info->sb_buffer;
 	struct btrfs_disk_key *disk_key;
-	struct btrfs_dev_item *dev_item;
 	struct btrfs_chunk *chunk;
 	struct btrfs_key key;
 	u32 num_stripes;
@@ -748,7 +736,6 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 	unsigned long sb_ptr;
 	u32 cur;
 	int ret;
-	int dev_only = 1;
 
 	array_size = btrfs_super_sys_array_size(super_copy);
 
@@ -757,7 +744,6 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 	 * once for all of the chunks.  This way there are device
 	 * structs filled in for every chunk
 	 */
-again:
 	ptr = super_copy->sys_chunk_array;
 	sb_ptr = offsetof(struct btrfs_super_block, sys_chunk_array);
 	cur = 0;
@@ -771,22 +757,10 @@ again:
 		sb_ptr += len;
 		cur += len;
 
-		if (key.objectid == BTRFS_DEV_ITEMS_OBJECTID &&
-		    key.type == BTRFS_DEV_ITEM_KEY) {
-			dev_item = (struct btrfs_dev_item *)sb_ptr;
-			if (dev_only) {
-				ret = read_one_dev(root, &key, sb, dev_item);
-				BUG_ON(ret);
-			}
-			len = sizeof(*dev_item);
-			len += btrfs_device_name_len(sb, dev_item);
-		} else if (key.type == BTRFS_CHUNK_ITEM_KEY) {
-
+		if (key.type == BTRFS_CHUNK_ITEM_KEY) {
 			chunk = (struct btrfs_chunk *)sb_ptr;
-			if (!dev_only) {
-				ret = read_one_chunk(root, &key, sb, chunk);
-				BUG_ON(ret);
-			}
+			ret = read_one_chunk(root, &key, sb, chunk);
+			BUG_ON(ret);
 			num_stripes = btrfs_chunk_num_stripes(sb, chunk);
 			len = btrfs_chunk_item_size(num_stripes);
 		} else {
@@ -795,10 +769,6 @@ again:
 		ptr += len;
 		sb_ptr += len;
 		cur += len;
-	}
-	if (dev_only == 1) {
-		dev_only = 0;
-		goto again;
 	}
 	return 0;
 }
@@ -846,8 +816,7 @@ again:
 				struct btrfs_dev_item *dev_item;
 				dev_item = btrfs_item_ptr(leaf, slot,
 						  struct btrfs_dev_item);
-				ret = read_one_dev(root, &found_key, leaf,
-						   dev_item);
+				ret = read_one_dev(root, leaf, dev_item);
 				BUG_ON(ret);
 			}
 		} else if (found_key.type == BTRFS_CHUNK_ITEM_KEY) {

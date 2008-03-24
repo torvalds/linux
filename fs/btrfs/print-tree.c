@@ -37,22 +37,11 @@ static void print_chunk(struct extent_buffer *eb, struct btrfs_chunk *chunk)
 static void print_dev_item(struct extent_buffer *eb,
 			   struct btrfs_dev_item *dev_item)
 {
-	char *name;
-	int name_len;
-
-	name_len = btrfs_device_name_len(eb, dev_item);
-	name = kmalloc(name_len, GFP_NOFS);
-	if (name) {
-		read_extent_buffer(eb, name,
-				   (unsigned long)btrfs_device_name(dev_item),
-				   name_len);
-	}
-	printk("\t\tdev item name %.*s devid %llu "
-	       "total_bytes %llu bytes used %Lu\n", name_len, name,
+	printk("\t\tdev item devid %llu "
+	       "total_bytes %llu bytes used %Lu\n",
 	       (unsigned long long)btrfs_device_id(eb, dev_item),
 	       (unsigned long long)btrfs_device_total_bytes(eb, dev_item),
 	       (unsigned long long)btrfs_device_bytes_used(eb, dev_item));
-	kfree(name);
 }
 void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 {
