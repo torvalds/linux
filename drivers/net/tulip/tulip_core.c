@@ -1437,6 +1437,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	   EEPROM.
 	   */
 	ee_data = tp->eeprom;
+	memset(ee_data, 0, sizeof(tp->eeprom));
 	sum = 0;
 	if (chip_idx == LC82C168) {
 		for (i = 0; i < 3; i++) {
@@ -1458,8 +1459,12 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 		/* A serial EEPROM interface, we read now and sort it out later. */
 		int sa_offset = 0;
 		int ee_addr_size = tulip_read_eeprom(dev, 0xff, 8) & 0x40000 ? 8 : 6;
+		int ee_max_addr = ((1 << ee_addr_size) - 1) * sizeof(u16);
 
-		for (i = 0; i < sizeof(tp->eeprom); i+=2) {
+		if (ee_max_addr > sizeof(tp->eeprom))
+			ee_max_addr = sizeof(tp->eeprom);
+
+		for (i = 0; i < ee_max_addr ; i += sizeof(u16)) {
 			u16 data = tulip_read_eeprom(dev, i/2, ee_addr_size);
 			ee_data[i] = data & 0xff;
 			ee_data[i + 1] = data >> 8;
