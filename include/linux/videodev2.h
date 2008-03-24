@@ -879,7 +879,9 @@ enum v4l2_power_line_frequency {
 #define V4L2_CID_WHITE_BALANCE_TEMPERATURE	(V4L2_CID_BASE+26)
 #define V4L2_CID_SHARPNESS			(V4L2_CID_BASE+27)
 #define V4L2_CID_BACKLIGHT_COMPENSATION 	(V4L2_CID_BASE+28)
-#define V4L2_CID_LASTP1				(V4L2_CID_BASE+29) /* last CID + 1 */
+#define V4L2_CID_CHROMA_AGC                     (V4L2_CID_BASE+29)
+/* last CID + 1 */
+#define V4L2_CID_LASTP1                         (V4L2_CID_BASE+30)
 
 /*  MPEG-class control IDs defined by V4L2 */
 #define V4L2_CID_MPEG_BASE 			(V4L2_CTRL_CLASS_MPEG | 0x900)
