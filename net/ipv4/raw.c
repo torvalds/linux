@@ -499,7 +499,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	ipc.oif = sk->sk_bound_dev_if;
 
 	if (msg->msg_controllen) {
-		err = ip_cmsg_send(&init_net, msg, &ipc);
+		err = ip_cmsg_send(sk->sk_net, msg, &ipc);
 		if (err)
 			goto out;
 		if (ipc.opt)
@@ -553,7 +553,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		}
 
 		security_sk_classify_flow(sk, &fl);
-		err = ip_route_output_flow(&init_net, &rt, &fl, sk, 1);
+		err = ip_route_output_flow(sk->sk_net, &rt, &fl, sk, 1);
 	}
 	if (err)
 		goto done;
