@@ -929,11 +929,10 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 
 	dprintk(1,"set_tvnorm: MO_INPUT_FORMAT  0x%08x [old=0x%08x]\n",
 		cxiformat, cx_read(MO_INPUT_FORMAT) & 0x0f);
-	/* Chroma AGC must be disabled if SECAM is used */
-	if (norm & V4L2_STD_SECAM)
-		cx_andor(MO_INPUT_FORMAT, 0x40f, cxiformat);
-	else
-		cx_andor(MO_INPUT_FORMAT, 0xf, cxiformat);
+	/* Chroma AGC must be disabled if SECAM is used, we enable it
+	   by default on PAL and NTSC */
+	cx_andor(MO_INPUT_FORMAT, 0x40f,
+		 norm & V4L2_STD_SECAM ? cxiformat : cxiformat | 0x400);
 
 	// FIXME: as-is from DScaler
 	dprintk(1,"set_tvnorm: MO_OUTPUT_FORMAT 0x%08x [old=0x%08x]\n",
