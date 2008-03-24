@@ -82,6 +82,16 @@ static struct udp_seq_afinfo udplite4_seq_afinfo = {
 	.seq_show	= udp4_seq_show,
 	.seq_fops	= &udplite4_seq_fops,
 };
+
+static __init int udplite4_proc_init(void)
+{
+	return udp_proc_register(&init_net, &udplite4_seq_afinfo);
+}
+#else
+static inline int udplite4_proc_init(void)
+{
+	return 0;
+}
 #endif
 
 void __init udplite4_register(void)
@@ -94,10 +104,8 @@ void __init udplite4_register(void)
 
 	inet_register_protosw(&udplite4_protosw);
 
-#ifdef CONFIG_PROC_FS
-	if (udp_proc_register(&init_net, &udplite4_seq_afinfo))
+	if (udplite4_proc_init())
 		printk(KERN_ERR "%s: Cannot register /proc!\n", __func__);
-#endif
 	return;
 
 out_unregister_proto:
