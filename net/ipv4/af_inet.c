@@ -1302,17 +1302,20 @@ static struct net_protocol tcp_protocol = {
 	.gso_send_check = tcp_v4_gso_send_check,
 	.gso_segment =	tcp_tso_segment,
 	.no_policy =	1,
+	.netns_ok =	1,
 };
 
 static struct net_protocol udp_protocol = {
 	.handler =	udp_rcv,
 	.err_handler =	udp_err,
 	.no_policy =	1,
+	.netns_ok =	1,
 };
 
 static struct net_protocol icmp_protocol = {
 	.handler =	icmp_rcv,
 	.no_policy =	1,
+	.netns_ok =	1,
 };
 
 static int __init init_ipv4_mibs(void)
