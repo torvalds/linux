@@ -291,10 +291,10 @@ ENTRY(ia32_sysenter_target)
 	movl TSS_sysenter_sp0(%esp),%esp
 sysenter_past_esp:
 	/*
-	 * No need to follow this irqs on/off section: the syscall
-	 * disabled irqs and here we enable it straight after entry:
+	 * Interrupts are disabled here, but we can't trace it until
+	 * enough kernel state to call TRACE_IRQS_OFF can be called - but
+	 * we immediately enable interrupts at that point anyway.
 	 */
-	ENABLE_INTERRUPTS(CLBR_NONE)
 	pushl $(__USER_DS)
 	CFI_ADJUST_CFA_OFFSET 4
 	/*CFI_REL_OFFSET ss, 0*/
@@ -302,6 +302,7 @@ sysenter_past_esp:
 	CFI_ADJUST_CFA_OFFSET 4
 	CFI_REL_OFFSET esp, 0
 	pushfl
+	orl $X86_EFLAGS_IF, (%esp)
 	CFI_ADJUST_CFA_OFFSET 4
 	pushl $(__USER_CS)
 	CFI_ADJUST_CFA_OFFSET 4
@@ -315,6 +316,11 @@ sysenter_past_esp:
 	CFI_ADJUST_CFA_OFFSET 4
 	CFI_REL_OFFSET eip, 0
 
+	pushl %eax
+	CFI_ADJUST_CFA_OFFSET 4
+	SAVE_ALL
+	ENABLE_INTERRUPTS(CLBR_NONE)
+
 /*
  * Load the potential sixth argument from user stack.
  * Careful about security.
@@ -322,14 +328,12 @@ sysenter_past_esp:
 	cmpl $__PAGE_OFFSET-3,%ebp
 	jae syscall_fault
 1:	movl (%ebp),%ebp
+	movl %ebp,PT_EBP(%esp)
 .section __ex_table,"a"
 	.align 4
 	.long 1b,syscall_fault
 .previous
 
-	pushl %eax
-	CFI_ADJUST_CFA_OFFSET 4
-	SAVE_ALL
 	GET_THREAD_INFO(%ebp)
 
 	/* Note, _TIF_SECCOMP is bit number 8, and so it needs testw and not testb */
@@ -543,9 +547,6 @@ END(syscall_exit_work)
 
 	RING0_INT_FRAME			# can't unwind into user space anyway
 syscall_fault:
-	pushl %eax			# save orig_eax
-	CFI_ADJUST_CFA_OFFSET 4
-	SAVE_ALL
 	GET_THREAD_INFO(%ebp)
 	movl $-EFAULT,PT_EAX(%esp)
 	jmp resume_userspace
