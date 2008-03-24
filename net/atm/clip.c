@@ -943,6 +943,8 @@ static const struct file_operations arp_seq_fops = {
 };
 #endif
 
+static void atm_clip_exit_noproc(void);
+
 static int __init atm_clip_init(void)
 {
 	neigh_table_init_no_netlink(&clip_tbl);
@@ -959,17 +961,21 @@ static int __init atm_clip_init(void)
 		struct proc_dir_entry *p;
 
 		p = proc_create("arp", S_IRUGO, atm_proc_root, &arp_seq_fops);
+		if (!p) {
+			printk(KERN_ERR "Unable to initialize "
+			       "/proc/net/atm/arp\n");
+			atm_clip_exit_noproc();
+			return -ENOMEM;
+		}
 	}
 #endif
 
 	return 0;
 }
 
-static void __exit atm_clip_exit(void)
+static void atm_clip_exit_noproc(void)
 {
 	struct net_device *dev, *next;
-
-	remove_proc_entry("arp", atm_proc_root);
 
 	unregister_inetaddr_notifier(&clip_inet_notifier);
 	unregister_netdevice_notifier(&clip_dev_notifier);
@@ -999,6 +1005,13 @@ static void __exit atm_clip_exit(void)
 	neigh_table_clear(&clip_tbl);
 
 	clip_tbl_hook = NULL;
+}
+
+static void __exit atm_clip_exit(void)
+{
+	remove_proc_entry("arp", atm_proc_root);
+
+	atm_clip_exit_noproc();
 }
 
 module_init(atm_clip_init);

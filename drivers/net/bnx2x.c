@@ -63,8 +63,8 @@
 #include "bnx2x.h"
 #include "bnx2x_init.h"
 
-#define DRV_MODULE_VERSION      "1.40.22"
-#define DRV_MODULE_RELDATE      "2007/11/27"
+#define DRV_MODULE_VERSION      "1.42.3"
+#define DRV_MODULE_RELDATE      "2008/3/9"
 #define BNX2X_BC_VER    	0x040200
 
 /* Time in jiffies before concluding the transmitter is hung. */
@@ -8007,38 +8007,6 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	   cmd->cmd, cmd->supported, cmd->advertising, cmd->speed,
 	   cmd->duplex, cmd->port, cmd->phy_address, cmd->transceiver,
 	   cmd->autoneg, cmd->maxtxpkt, cmd->maxrxpkt);
-
-	switch (cmd->port) {
-	case PORT_TP:
-		if (!(bp->supported & SUPPORTED_TP)) {
-			DP(NETIF_MSG_LINK, "TP not supported\n");
-			return -EINVAL;
-		}
-
-		if (bp->phy_flags & PHY_XGXS_FLAG) {
-			bnx2x_link_reset(bp);
-			bnx2x_link_settings_supported(bp, SWITCH_CFG_1G);
-			bnx2x_phy_deassert(bp);
-		}
-		break;
-
-	case PORT_FIBRE:
-		if (!(bp->supported & SUPPORTED_FIBRE)) {
-			DP(NETIF_MSG_LINK, "FIBRE not supported\n");
-			return -EINVAL;
-		}
-
-		if (!(bp->phy_flags & PHY_XGXS_FLAG)) {
-			bnx2x_link_reset(bp);
-			bnx2x_link_settings_supported(bp, SWITCH_CFG_10G);
-			bnx2x_phy_deassert(bp);
-		}
-		break;
-
-	default:
-		DP(NETIF_MSG_LINK, "Unknown port type\n");
-		return -EINVAL;
-	}
 
 	if (cmd->autoneg == AUTONEG_ENABLE) {
 		if (!(bp->supported & SUPPORTED_Autoneg)) {

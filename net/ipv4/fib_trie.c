@@ -177,10 +177,13 @@ static inline struct tnode *node_parent_rcu(struct node *node)
 	return rcu_dereference(ret);
 }
 
+/* Same as rcu_assign_pointer
+ * but that macro() assumes that value is a pointer.
+ */
 static inline void node_set_parent(struct node *node, struct tnode *ptr)
 {
-	rcu_assign_pointer(node->parent,
-			   (unsigned long)ptr | NODE_TYPE(node));
+	smp_wmb();
+	node->parent = (unsigned long)ptr | NODE_TYPE(node);
 }
 
 static inline struct node *tnode_get_child(struct tnode *tn, unsigned int i)
