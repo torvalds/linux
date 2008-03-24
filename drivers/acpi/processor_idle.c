@@ -1487,7 +1487,6 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 		return 0;
 	}
 
-	acpi_unlazy_tlb(smp_processor_id());
 	/*
 	 * Must be done before busmaster disable as we might need to
 	 * access HPET !
@@ -1576,6 +1575,8 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		local_irq_enable();
 		return 0;
 	}
+
+	acpi_unlazy_tlb(smp_processor_id());
 
 	/* Tell the scheduler that we are going deep-idle: */
 	sched_clock_idle_sleep_event();
