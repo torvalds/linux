@@ -199,6 +199,8 @@ int ip_call_ra_chain(struct sk_buff *skb)
 
 static int ip_local_deliver_finish(struct sk_buff *skb)
 {
+	struct net *net = skb->dev->nd_net;
+
 	__skb_pull(skb, ip_hdrlen(skb));
 
 	/* Point into the IP datagram, just past the header. */
@@ -214,7 +216,8 @@ static int ip_local_deliver_finish(struct sk_buff *skb)
 		raw = raw_local_deliver(skb, protocol);
 
 		hash = protocol & (MAX_INET_PROTOS - 1);
-		if ((ipprot = rcu_dereference(inet_protos[hash])) != NULL) {
+		ipprot = rcu_dereference(inet_protos[hash]);
+		if (ipprot != NULL && (net == &init_net || ipprot->netns_ok)) {
 			int ret;
 
 			if (!ipprot->no_policy) {
@@ -374,9 +377,6 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 {
 	struct iphdr *iph;
 	u32 len;
-
-	if (dev->nd_net != &init_net)
-		goto drop;
 
 	/* When the interface is in promisc. mode, drop all the crap
 	 * that it receives, do not try to analyse it.
