@@ -84,8 +84,18 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 		if ((rule->flags & FIB_RULE_FIND_SADDR) &&
 		    r->src.plen && !(flags & RT6_LOOKUP_F_HAS_SADDR)) {
 			struct in6_addr saddr;
+			unsigned int srcprefs = 0;
+
+			if (flags & RT6_LOOKUP_F_SRCPREF_TMP)
+				srcprefs |= IPV6_PREFER_SRC_TMP;
+			if (flags & RT6_LOOKUP_F_SRCPREF_PUBLIC)
+				srcprefs |= IPV6_PREFER_SRC_PUBLIC;
+			if (flags & RT6_LOOKUP_F_SRCPREF_COA)
+				srcprefs |= IPV6_PREFER_SRC_COA;
+
 			if (ipv6_dev_get_saddr(ip6_dst_idev(&rt->u.dst)->dev,
-					       &flp->fl6_dst, &saddr))
+					       &flp->fl6_dst, srcprefs,
+					       &saddr))
 				goto again;
 			if (!ipv6_prefix_equal(&saddr, &r->src.addr,
 					       r->src.plen))

@@ -58,7 +58,7 @@ static int xfrm6_get_saddr(xfrm_address_t *saddr, xfrm_address_t *daddr)
 		return -EHOSTUNREACH;
 
 	ipv6_dev_get_saddr(ip6_dst_idev(dst)->dev,
-			   (struct in6_addr *)&daddr->a6,
+			   (struct in6_addr *)&daddr->a6, 0,
 			   (struct in6_addr *)&saddr->a6);
 	dst_release(dst);
 	return 0;

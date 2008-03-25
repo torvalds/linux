@@ -617,7 +617,67 @@ done:
 		retv = xfrm_user_policy(sk, optname, optval, optlen);
 		break;
 
+	case IPV6_ADDR_PREFERENCES:
+	    {
+		unsigned int pref = 0;
+		unsigned int prefmask = ~0;
+
+		retv = -EINVAL;
+
+		/* check PUBLIC/TMP/PUBTMP_DEFAULT conflicts */
+		switch (val & (IPV6_PREFER_SRC_PUBLIC|
+			       IPV6_PREFER_SRC_TMP|
+			       IPV6_PREFER_SRC_PUBTMP_DEFAULT)) {
+		case IPV6_PREFER_SRC_PUBLIC:
+			pref |= IPV6_PREFER_SRC_PUBLIC;
+			break;
+		case IPV6_PREFER_SRC_TMP:
+			pref |= IPV6_PREFER_SRC_TMP;
+			break;
+		case IPV6_PREFER_SRC_PUBTMP_DEFAULT:
+			break;
+		case 0:
+			goto pref_skip_pubtmp;
+		default:
+			goto e_inval;
+		}
+
+		prefmask &= ~(IPV6_PREFER_SRC_PUBLIC|
+			      IPV6_PREFER_SRC_TMP);
+pref_skip_pubtmp:
+
+		/* check HOME/COA conflicts */
+		switch (val & (IPV6_PREFER_SRC_HOME|IPV6_PREFER_SRC_COA)) {
+		case IPV6_PREFER_SRC_HOME:
+			break;
+		case IPV6_PREFER_SRC_COA:
+			pref |= IPV6_PREFER_SRC_COA;
+		case 0:
+			goto pref_skip_coa;
+		default:
+			goto e_inval;
+		}
+
+		prefmask &= ~IPV6_PREFER_SRC_COA;
+pref_skip_coa:
+
+		/* check CGA/NONCGA conflicts */
+		switch (val & (IPV6_PREFER_SRC_CGA|IPV6_PREFER_SRC_NONCGA)) {
+		case IPV6_PREFER_SRC_CGA:
+		case IPV6_PREFER_SRC_NONCGA:
+		case 0:
+			break;
+		default:
+			goto e_inval;
+		}
+
+		np->srcprefs = (np->srcprefs & prefmask) | pref;
+		retv = 0;
+
+		break;
+	    }
 	}
+
 	release_sock(sk);
 
 	return retv;
@@ -930,6 +990,24 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 	case IPV6_FLOWINFO_SEND:
 		val = np->sndflow;
+		break;
+
+	case IPV6_ADDR_PREFERENCES:
+		val = 0;
+
+		if (np->srcprefs & IPV6_PREFER_SRC_TMP)
+			val |= IPV6_PREFER_SRC_TMP;
+		else if (np->srcprefs & IPV6_PREFER_SRC_PUBLIC)
+			val |= IPV6_PREFER_SRC_PUBLIC;
+		else {
+			/* XXX: should we return system default? */
+			val |= IPV6_PREFER_SRC_PUBTMP_DEFAULT;
+		}
+
+		if (np->srcprefs & IPV6_PREFER_SRC_COA)
+			val |= IPV6_PREFER_SRC_COA;
+		else
+			val |= IPV6_PREFER_SRC_HOME;
 		break;
 
 	default:

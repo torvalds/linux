@@ -782,6 +782,15 @@ struct dst_entry * ip6_route_output(struct net *net, struct sock *sk,
 
 	if (!ipv6_addr_any(&fl->fl6_src))
 		flags |= RT6_LOOKUP_F_HAS_SADDR;
+	else if (sk) {
+		unsigned int prefs = inet6_sk(sk)->srcprefs;
+		if (prefs & IPV6_PREFER_SRC_TMP)
+			flags |= RT6_LOOKUP_F_SRCPREF_TMP;
+		if (prefs & IPV6_PREFER_SRC_PUBLIC)
+			flags |= RT6_LOOKUP_F_SRCPREF_PUBLIC;
+		if (prefs & IPV6_PREFER_SRC_COA)
+			flags |= RT6_LOOKUP_F_SRCPREF_COA;
+	}
 
 	return fib6_rule_lookup(net, fl, flags, ip6_pol_route_output);
 }
@@ -2162,7 +2171,7 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 	else if (dst) {
 		struct in6_addr saddr_buf;
 		if (ipv6_dev_get_saddr(ip6_dst_idev(&rt->u.dst)->dev,
-				       dst, &saddr_buf) == 0)
+				       dst, 0, &saddr_buf) == 0)
 			NLA_PUT(skb, RTA_PREFSRC, 16, &saddr_buf);
 	}
 

@@ -30,9 +30,12 @@ struct route_info {
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 
-#define RT6_LOOKUP_F_IFACE	0x1
-#define RT6_LOOKUP_F_REACHABLE	0x2
-#define RT6_LOOKUP_F_HAS_SADDR	0x4
+#define RT6_LOOKUP_F_IFACE		0x00000001
+#define RT6_LOOKUP_F_REACHABLE		0x00000002
+#define RT6_LOOKUP_F_HAS_SADDR		0x00000004
+#define RT6_LOOKUP_F_SRCPREF_TMP	0x00000008
+#define RT6_LOOKUP_F_SRCPREF_PUBLIC	0x00000010
+#define RT6_LOOKUP_F_SRCPREF_COA	0x00000020
 
 extern struct rt6_info	*ip6_null_entry;
 

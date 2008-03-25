@@ -322,7 +322,11 @@ struct ipv6_pinfo {
 	__u8			recverr:1,
 	                        sndflow:1,
 				pmtudisc:2,
-				ipv6only:1;
+				ipv6only:1,
+				srcprefs:3;	/* 001: prefer temporary address
+						 * 010: prefer public address
+						 * 100: prefer care-of address
+						 */
 	__u8			tclass;
 
 	__u32			dst_cookie;

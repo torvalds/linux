@@ -909,6 +909,7 @@ struct ipv6_saddr_dst {
 	int ifindex;
 	int scope;
 	int label;
+	unsigned int prefs;
 };
 
 static inline int ipv6_saddr_preferred(int type)
@@ -984,9 +985,12 @@ static int ipv6_get_saddr_eval(struct ipv6_saddr_score *score,
 		break;
 #ifdef CONFIG_IPV6_MIP6
 	case IPV6_SADDR_RULE_HOA:
+	    {
 		/* Rule 4: Prefer home address */
-		ret = !!(score->ifa->flags & IFA_F_HOMEADDRESS);
+		int prefhome = !(dst->prefs & IPV6_PREFER_SRC_COA);
+		ret = !(score->ifa->flags & IFA_F_HOMEADDRESS) ^ prefhome;
 		break;
+	    }
 #endif
 	case IPV6_SADDR_RULE_OIF:
 		/* Rule 5: Prefer outgoing interface */
@@ -1000,11 +1004,16 @@ static int ipv6_get_saddr_eval(struct ipv6_saddr_score *score,
 		break;
 #ifdef CONFIG_IPV6_PRIVACY
 	case IPV6_SADDR_RULE_PRIVACY:
+	    {
 		/* Rule 7: Prefer public address
 		 * Note: prefer temprary address if use_tempaddr >= 2
 		 */
-		ret = (!(score->ifa->flags & IFA_F_TEMPORARY)) ^ (score->ifa->idev->cnf.use_tempaddr >= 2);
+		int preftmp = dst->prefs & (IPV6_PREFER_SRC_PUBLIC|IPV6_PREFER_SRC_TMP) ?
+				!!(dst->prefs & IPV6_PREFER_SRC_TMP) :
+				score->ifa->idev->cnf.use_tempaddr >= 2;
+		ret = (!(score->ifa->flags & IFA_F_TEMPORARY)) ^ preftmp;
 		break;
+	    }
 #endif
 	case IPV6_SADDR_RULE_ORCHID:
 		/* Rule 8-: Prefer ORCHID vs ORCHID or
@@ -1030,7 +1039,8 @@ out:
 }
 
 int ipv6_dev_get_saddr(struct net_device *dst_dev,
-		       struct in6_addr *daddr, struct in6_addr *saddr)
+		       struct in6_addr *daddr, unsigned int prefs,
+		       struct in6_addr *saddr)
 {
 	struct ipv6_saddr_score scores[2],
 				*score = &scores[0], *hiscore = &scores[1];
@@ -1044,6 +1054,7 @@ int ipv6_dev_get_saddr(struct net_device *dst_dev,
 	dst.ifindex = dst_dev ? dst_dev->ifindex : 0;
 	dst.scope = __ipv6_addr_src_scope(dst_type);
 	dst.label = ipv6_addr_label(daddr, dst_type, dst.ifindex);
+	dst.prefs = prefs;
 
 	hiscore->rule = -1;
 	hiscore->ifa = NULL;
