@@ -10,7 +10,7 @@
 #include <asm/setup.h>
 #include <asm/topology.h>
 
-#ifdef CONFIG_HAVE_SETUP_PER_CPU_AREA
+#if defined(CONFIG_HAVE_SETUP_PER_CPU_AREA) && defined(CONFIG_SMP)
 /*
  * Copy data used in early init routines from the initial arrays to the
  * per cpu data areas.  These arrays then become expendable and the
@@ -21,21 +21,12 @@ static void __init setup_per_cpu_maps(void)
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-#ifdef CONFIG_SMP
-		if (per_cpu_offset(cpu)) {
-#endif
-			per_cpu(x86_cpu_to_apicid, cpu) =
-						x86_cpu_to_apicid_init[cpu];
-			per_cpu(x86_bios_cpu_apicid, cpu) =
+		per_cpu(x86_cpu_to_apicid, cpu) = x86_cpu_to_apicid_init[cpu];
+		per_cpu(x86_bios_cpu_apicid, cpu) =
 						x86_bios_cpu_apicid_init[cpu];
 #ifdef CONFIG_NUMA
-			per_cpu(x86_cpu_to_node_map, cpu) =
+		per_cpu(x86_cpu_to_node_map, cpu) =
 						x86_cpu_to_node_map_init[cpu];
-#endif
-#ifdef CONFIG_SMP
-		} else
-			printk(KERN_NOTICE "per_cpu_offset zero for cpu %d\n",
-									cpu);
 #endif
 	}
 
@@ -72,17 +63,20 @@ void __init setup_per_cpu_areas(void)
 
 	/* Copy section for each CPU (we discard the original) */
 	size = PERCPU_ENOUGH_ROOM;
-
 	printk(KERN_INFO "PERCPU: Allocating %lu bytes of per cpu data\n",
 			  size);
-	for_each_cpu_mask(i, cpu_possible_map) {
+
+	for_each_possible_cpu(i) {
 		char *ptr;
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 		ptr = alloc_bootmem_pages(size);
 #else
 		int node = early_cpu_to_node(i);
-		if (!node_online(node) || !NODE_DATA(node))
+		if (!node_online(node) || !NODE_DATA(node)) {
 			ptr = alloc_bootmem_pages(size);
+			printk(KERN_INFO
+			       "cpu %d has no node or node-local memory\n", i);
+		}
 		else
 			ptr = alloc_bootmem_pages_node(NODE_DATA(node), size);
 #endif
@@ -96,7 +90,7 @@ void __init setup_per_cpu_areas(void)
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
 	}
 
-	/* setup percpu data maps early */
+	/* Setup percpu data maps */
 	setup_per_cpu_maps();
 }
 
