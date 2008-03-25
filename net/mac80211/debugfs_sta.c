@@ -230,11 +230,13 @@ static ssize_t sta_agg_status_write(struct file *file,
 			strcpy(state, "off ");
 			ieee80211_sta_stop_rx_ba_session(dev, da, tid_num, 0,
 					WLAN_REASON_QSTA_REQUIRE_SETUP);
-			sta->ampdu_mlme.tid_rx[tid_num].buf_size = 0xFF;
+			sta->ampdu_mlme.tid_rx[tid_num].state |=
+					HT_AGG_STATE_DEBUGFS_CTL;
 			tid_static_rx[tid_num] = 0;
 		} else {
 			strcpy(state, "on ");
-			sta->ampdu_mlme.tid_rx[tid_num].buf_size = 0x00;
+			sta->ampdu_mlme.tid_rx[tid_num].state &=
+					~HT_AGG_STATE_DEBUGFS_CTL;
 			tid_static_rx[tid_num] = 1;
 		}
 		printk(KERN_DEBUG "debugfs - try switching tid %u %s\n",
