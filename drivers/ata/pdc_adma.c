@@ -136,8 +136,6 @@ static void adma_port_stop(struct ata_port *ap);
 static void adma_qc_prep(struct ata_queued_cmd *qc);
 static unsigned int adma_qc_issue(struct ata_queued_cmd *qc);
 static int adma_check_atapi_dma(struct ata_queued_cmd *qc);
-static void adma_bmdma_stop(struct ata_queued_cmd *qc);
-static u8 adma_bmdma_status(struct ata_port *ap);
 static void adma_freeze(struct ata_port *ap);
 static void adma_thaw(struct ata_port *ap);
 static int adma_prereset(struct ata_link *link, unsigned long deadline);
@@ -158,8 +156,6 @@ static struct ata_port_operations adma_ata_ops = {
 	.exec_command		= ata_exec_command,
 	.data_xfer		= ata_data_xfer,
 	.check_atapi_dma	= adma_check_atapi_dma,
-	.bmdma_stop		= adma_bmdma_stop,
-	.bmdma_status		= adma_bmdma_status,
 	.qc_prep		= adma_qc_prep,
 	.qc_issue		= adma_qc_issue,
 	.irq_on			= ata_irq_on,
@@ -168,6 +164,8 @@ static struct ata_port_operations adma_ata_ops = {
 	.thaw			= adma_thaw,
 	.prereset		= adma_prereset,
 	.softreset		= ata_std_softreset,
+	.error_handler		= ata_bmdma_error_handler,
+	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 
 	.port_start		= adma_port_start,
 	.port_stop		= adma_port_stop,
@@ -202,16 +200,6 @@ static struct pci_driver adma_ata_pci_driver = {
 static int adma_check_atapi_dma(struct ata_queued_cmd *qc)
 {
 	return 1;	/* ATAPI DMA not yet supported */
-}
-
-static void adma_bmdma_stop(struct ata_queued_cmd *qc)
-{
-	/* nothing */
-}
-
-static u8 adma_bmdma_status(struct ata_port *ap)
-{
-	return 0;
 }
 
 static void adma_reset_engine(struct ata_port *ap)

@@ -2014,7 +2014,8 @@ void ata_bmdma_error_handler(struct ata_port *ap)
 
 	ap->hsm_task_state = HSM_ST_IDLE;
 
-	if (qc && (qc->tf.protocol == ATA_PROT_DMA ||
+	if (ap->ioaddr.bmdma_addr &&
+	    qc && (qc->tf.protocol == ATA_PROT_DMA ||
 		   qc->tf.protocol == ATAPI_PROT_DMA)) {
 		u8 host_stat;
 
