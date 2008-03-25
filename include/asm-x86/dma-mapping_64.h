@@ -96,13 +96,6 @@ dma_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
 	flush_write_buffers();
 }
 
-static inline int
-dma_map_sg(struct device *hwdev, struct scatterlist *sg, int nents, int direction)
-{
-	BUG_ON(!valid_dma_direction(direction));
-	return dma_ops->map_sg(hwdev, sg, nents, direction);
-}
-
 static inline void
 dma_unmap_sg(struct device *hwdev, struct scatterlist *sg, int nents,
 	     int direction)
