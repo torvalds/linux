@@ -185,4 +185,10 @@ static inline void dma_unmap_page(struct device *dev, dma_addr_t addr,
 	dma_unmap_single(dev, addr, size, direction);
 }
 
+static inline void
+dma_cache_sync(struct device *dev, void *vaddr, size_t size,
+	enum dma_data_direction dir)
+{
+	flush_write_buffers();
+}
 #endif

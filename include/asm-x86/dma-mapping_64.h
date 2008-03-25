@@ -24,13 +24,6 @@ static inline int dma_get_cache_alignment(void)
 
 extern int dma_set_mask(struct device *dev, u64 mask);
 
-static inline void
-dma_cache_sync(struct device *dev, void *vaddr, size_t size,
-	enum dma_data_direction dir)
-{
-	flush_write_buffers();
-}
-
 extern struct device fallback_dev;
 extern int panic_on_overflow;
 

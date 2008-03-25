@@ -55,13 +55,6 @@ dma_get_cache_alignment(void)
 
 #define dma_is_consistent(d, h)	(1)
 
-static inline void
-dma_cache_sync(struct device *dev, void *vaddr, size_t size,
-	       enum dma_data_direction direction)
-{
-	flush_write_buffers();
-}
-
 #define ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY
 extern int
 dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
