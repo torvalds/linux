@@ -589,6 +589,13 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 		}
 	}
 
+	if (idx < 0) {
+		WARNING(rt2x00dev, "Frame received with unrecognized signal,"
+			"signal=0x%.2x, plcp=%d.\n", rxdesc->signal,
+			!!(rxdesc->dev_flags & RXDONE_SIGNAL_PLCP));
+		idx = 0;
+	}
+
 	/*
 	 * Only update link status if this is a beacon frame carrying our bssid.
 	 */
