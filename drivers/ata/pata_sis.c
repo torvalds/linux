@@ -862,6 +862,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct pci_dev *host = NULL;
 	struct sis_chipset *chipset = NULL;
 	struct sis_chipset *sets;
+	int rc;
 
 	static struct sis_chipset sis_chipsets[] = {
 
@@ -914,8 +915,11 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "version " DRV_VERSION "\n");
 
-	/* We have to find the bridge first */
+	rc = pcim_enable_device(pdev);
+	if (rc)
+		return rc;
 
+	/* We have to find the bridge first */
 	for (sets = &sis_chipsets[0]; sets->device; sets++) {
 		host = pci_get_device(PCI_VENDOR_ID_SI, sets->device, NULL);
 		if (host != NULL) {

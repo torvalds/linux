@@ -346,6 +346,10 @@ static int __devinit sil680_init_one(struct pci_dev *pdev,
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
+	rc = pcim_enable_device(pdev);
+	if (rc)
+		return rc;
+
 	switch (sil680_init_chip(pdev, &try_mmio)) {
 		case 0:
 			ppi[0] = &info_slow;
@@ -406,10 +410,15 @@ use_ioports:
 #ifdef CONFIG_PM
 static int sil680_reinit_one(struct pci_dev *pdev)
 {
-	int try_mmio;
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	int try_mmio, rc;
 
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
 	sil680_init_chip(pdev, &try_mmio);
-	return ata_pci_device_resume(pdev);
+	ata_host_resume(host);
+	return 0;
 }
 #endif
 

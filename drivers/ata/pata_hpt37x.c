@@ -966,6 +966,11 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 	const struct hpt_chip *chip_table;
 	int clock_slot;
+	int rc;
+
+	rc = pcim_enable_device(dev);
+	if (rc)
+		return rc;
 
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
 	class_rev &= 0xFF;

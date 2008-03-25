@@ -410,6 +410,7 @@ static int ns87415_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		.port_ops	= &ns87415_pata_ops,
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
+	int rc;
 #if defined(CONFIG_SUPERIO)
 	static const struct ata_port_info info87560 = {
 		.sht		= &ns87415_sht,
@@ -425,6 +426,11 @@ static int ns87415_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "version " DRV_VERSION "\n");
+
+	rc = pcim_enable_device(pdev);
+	if (rc)
+		return rc;
+
 	/* Select 512 byte sectors */
 	pci_write_config_byte(pdev, 0x55, 0xEE);
 	/* Select PIO0 8bit clocking */

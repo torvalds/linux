@@ -100,10 +100,15 @@ static int netcell_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		.port_ops	= &netcell_ops,
 	};
 	const struct ata_port_info *port_info[] = { &info, NULL };
+	int rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "version " DRV_VERSION "\n");
+
+	rc = pcim_enable_device(pdev);
+	if (rc)
+		return rc;
 
 	/* Any chip specific setup/optimisation/messages here */
 	ata_pci_clear_simplex(pdev);

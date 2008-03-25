@@ -498,6 +498,11 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 		}
 	};
 	const struct ata_port_info *ppi[] = { &info[id->driver_data], NULL };
+	int rc;
+
+	rc = pcim_enable_device(pdev);
+	if (rc)
+		return rc;
 
 	/* Force master latency timer to 64 PCI clocks */
 	pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0x40);
@@ -535,11 +540,17 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 #ifdef CONFIG_PM
 static int serverworks_reinit_one(struct pci_dev *pdev)
 {
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
+
 	/* Force master latency timer to 64 PCI clocks */
 	pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0x40);
 
-	switch (pdev->device)
-	{
+	switch (pdev->device) {
 		case PCI_DEVICE_ID_SERVERWORKS_OSB4IDE:
 			serverworks_fixup_osb4(pdev);
 			break;
@@ -554,7 +565,9 @@ static int serverworks_reinit_one(struct pci_dev *pdev)
 			serverworks_fixup_ht1000(pdev);
 			break;
 	}
-	return ata_pci_device_resume(pdev);
+
+	ata_host_resume(host);
+	return 0;
 }
 #endif
 

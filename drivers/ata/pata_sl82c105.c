@@ -344,6 +344,11 @@ static int sl82c105_init_one(struct pci_dev *dev, const struct pci_device_id *id
 					       NULL };
 	u32 val;
 	int rev;
+	int rc;
+
+	rc = pcim_enable_device(dev);
+	if (rc)
+		return rc;
 
 	rev = sl82c105_bridge_revision(dev);
 

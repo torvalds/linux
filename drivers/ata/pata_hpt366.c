@@ -402,6 +402,11 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 	u32 class_rev;
 	u32 reg1;
+	int rc;
+
+	rc = pcim_enable_device(dev);
+	if (rc)
+		return rc;
 
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
 	class_rev &= 0xFF;
@@ -435,8 +440,15 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 #ifdef CONFIG_PM
 static int hpt36x_reinit_one(struct pci_dev *dev)
 {
+	struct ata_host *host = dev_get_drvdata(&dev->dev);
+	int rc;
+
+	rc = ata_pci_device_do_resume(dev);
+	if (rc)
+		return rc;
 	hpt36x_init_chipset(dev);
-	return ata_pci_device_resume(dev);
+	ata_host_resume(host);
+	return 0;
 }
 #endif
 

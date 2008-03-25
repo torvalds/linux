@@ -524,9 +524,14 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	static int printed_version;
 	u8 enable;
 	u32 timing;
+	int rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
+
+	rc = pcim_enable_device(pdev);
+	if (rc)
+		return rc;
 
 	/* To find out how the IDE will behave and what features we
 	   actually have to look at the bridge not the IDE controller */
@@ -615,6 +620,11 @@ static int via_reinit_one(struct pci_dev *pdev)
 	u32 timing;
 	struct ata_host *host = dev_get_drvdata(&pdev->dev);
 	const struct via_isa_bridge *config = host->private_data;
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
 
 	via_config_fifo(pdev, config->flags);
 
@@ -630,7 +640,9 @@ static int via_reinit_one(struct pci_dev *pdev)
 		timing &= ~0x80008;
 		pci_write_config_dword(pdev, 0x50, timing);
 	}
-	return ata_pci_device_resume(pdev);
+
+	ata_host_resume(host);
+	return 0;
 }
 #endif
 

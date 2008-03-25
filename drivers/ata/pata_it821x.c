@@ -759,6 +759,11 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	const struct ata_port_info *ppi[] = { NULL, NULL };
 	static char *mode[2] = { "pass through", "smart" };
+	int rc;
+
+	rc = pcim_enable_device(pdev);
+	if (rc)
+		return rc;
 
 	/* Force the card into bypass mode if so requested */
 	if (it8212_noraid) {
@@ -780,10 +785,17 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 #ifdef CONFIG_PM
 static int it821x_reinit_one(struct pci_dev *pdev)
 {
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
 	/* Resume - turn raid back off if need be */
 	if (it8212_noraid)
 		it821x_disable_raid(pdev);
-	return ata_pci_device_resume(pdev);
+	ata_host_resume(host);
+	return rc;
 }
 #endif
 

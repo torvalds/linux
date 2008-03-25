@@ -659,9 +659,14 @@ static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	static int printed_version;
 	int type = id->driver_data;
 	u8 fifo;
+	int rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
+
+	rc = pcim_enable_device(pdev);
+	if (rc)
+		return rc;
 
 	pci_read_config_byte(pdev, 0x41, &fifo);
 
@@ -706,6 +711,13 @@ static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 #ifdef CONFIG_PM
 static int amd_reinit_one(struct pci_dev *pdev)
 {
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
+
 	if (pdev->vendor == PCI_VENDOR_ID_AMD) {
 		u8 fifo;
 		pci_read_config_byte(pdev, 0x41, &fifo);
@@ -718,7 +730,9 @@ static int amd_reinit_one(struct pci_dev *pdev)
 		    pdev->device == PCI_DEVICE_ID_AMD_COBRA_7401)
 		    	ata_pci_clear_simplex(pdev);
 	}
-	return ata_pci_device_resume(pdev);
+
+	ata_host_resume(host);
+	return 0;
 }
 #endif
 

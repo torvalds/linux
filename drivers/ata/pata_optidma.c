@@ -497,9 +497,14 @@ static int optidma_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	};
 	const struct ata_port_info *ppi[] = { &info_82c700, NULL };
 	static int printed_version;
+	int rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &dev->dev, "version " DRV_VERSION "\n");
+
+	rc = pcim_enable_device(dev);
+	if (rc)
+		return rc;
 
 	/* Fixed location chipset magic */
 	inw(0x1F1);

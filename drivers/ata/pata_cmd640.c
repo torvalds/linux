@@ -254,20 +254,31 @@ static int cmd640_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &cmd640_port_ops
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
+	int rc;
+
+	rc = pcim_enable_device(pdev);
+	if (rc)
+		return rc;
 
 	cmd640_hardware_init(pdev);
+
 	return ata_pci_init_one(pdev, ppi);
 }
 
+#ifdef CONFIG_PM
 static int cmd640_reinit_one(struct pci_dev *pdev)
 {
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
 	cmd640_hardware_init(pdev);
-#ifdef CONFIG_PM
-	return ata_pci_device_resume(pdev);
-#else
+	ata_host_resume(host);
 	return 0;
-#endif
 }
+#endif
 
 static const struct pci_device_id cmd640[] = {
 	{ PCI_VDEVICE(CMD, 0x640), 0 },
@@ -281,8 +292,8 @@ static struct pci_driver cmd640_pci_driver = {
 	.remove		= ata_pci_remove_one,
 #ifdef CONFIG_PM
 	.suspend	= ata_pci_device_suspend,
-#endif
 	.resume		= cmd640_reinit_one,
+#endif
 };
 
 static int __init cmd640_init(void)

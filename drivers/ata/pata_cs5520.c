@@ -203,6 +203,10 @@ static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_devi
 	struct ata_ioports *ioaddr;
 	int i, rc;
 
+	rc = pcim_enable_device(pdev);
+	if (rc)
+		return rc;
+
 	/* IDE port enable bits */
 	pci_read_config_byte(pdev, 0x60, &pcicfg);
 
@@ -310,11 +314,20 @@ static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_devi
 
 static int cs5520_reinit_one(struct pci_dev *pdev)
 {
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
 	u8 pcicfg;
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
+
 	pci_read_config_byte(pdev, 0x60, &pcicfg);
 	if ((pcicfg & 0x40) == 0)
 		pci_write_config_byte(pdev, 0x60, pcicfg | 0x40);
-	return ata_pci_device_resume(pdev);
+
+	ata_host_resume(host);
+	return 0;
 }
 
 /**

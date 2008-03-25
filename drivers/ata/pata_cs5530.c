@@ -349,6 +349,11 @@ static int cs5530_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops = &cs5530_port_ops
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
+	int rc;
+
+	rc = pcim_enable_device(pdev);
+	if (rc)
+		return rc;
 
 	/* Chip initialisation */
 	if (cs5530_init_chip())
@@ -364,10 +369,19 @@ static int cs5530_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 #ifdef CONFIG_PM
 static int cs5530_reinit_one(struct pci_dev *pdev)
 {
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
+
 	/* If we fail on resume we are doomed */
 	if (cs5530_init_chip())
-		BUG();
-	return ata_pci_device_resume(pdev);
+		return -EIO;
+
+	ata_host_resume(host);
+	return 0;
 }
 #endif /* CONFIG_PM */
 
