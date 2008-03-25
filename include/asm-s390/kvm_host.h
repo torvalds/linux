@@ -94,7 +94,9 @@ struct sie_block {
 	psw_t	gpsw;			/* 0x0090 */
 	__u64	gg14;			/* 0x00a0 */
 	__u64	gg15;			/* 0x00a8 */
-	__u8	reservedb0[80];		/* 0x00b0 */
+	__u8	reservedb0[30];		/* 0x00b0 */
+	__u16   iprcc;			/* 0x00ce */
+	__u8	reservedd0[48];		/* 0x00d0 */
 	__u64	gcr[16];		/* 0x0100 */
 	__u64	gbea;			/* 0x0180 */
 	__u8	reserved188[120];	/* 0x0188 */
@@ -134,6 +136,7 @@ struct kvm_vcpu_stat {
 	u32 instruction_sigp_arch;
 	u32 instruction_sigp_prefix;
 	u32 instruction_sigp_restart;
+	u32 diagnose_44;
 };
 
 struct io_info {

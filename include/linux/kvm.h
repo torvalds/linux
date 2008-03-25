@@ -75,6 +75,7 @@ struct kvm_irqchip {
 #define KVM_EXIT_SET_TPR          11
 #define KVM_EXIT_TPR_ACCESS       12
 #define KVM_EXIT_S390_SIEIC       13
+#define KVM_EXIT_S390_RESET       14
 
 /* for KVM_RUN, returned by mmap(vcpu_fd, offset=0) */
 struct kvm_run {
@@ -147,6 +148,13 @@ struct kvm_run {
 			__u16 ipa;
 			__u32 ipb;
 		} s390_sieic;
+		/* KVM_EXIT_S390_RESET */
+#define KVM_S390_RESET_POR       1
+#define KVM_S390_RESET_CLEAR     2
+#define KVM_S390_RESET_SUBSYSTEM 4
+#define KVM_S390_RESET_CPU_INIT  8
+#define KVM_S390_RESET_IPL       16
+		__u64 s390_reset_flags;
 		/* Fix the size of the union. */
 		char padding[256];
 	};
