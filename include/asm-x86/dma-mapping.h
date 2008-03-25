@@ -50,10 +50,20 @@ struct dma_mapping_ops {
 	int		is_phys;
 };
 
+extern const struct dma_mapping_ops *dma_ops;
+
 #ifdef CONFIG_X86_32
 # include "dma-mapping_32.h"
 #else
 # include "dma-mapping_64.h"
 #endif
+
+static inline dma_addr_t
+dma_map_single(struct device *hwdev, void *ptr, size_t size,
+	       int direction)
+{
+	BUG_ON(!valid_dma_direction(direction));
+	return dma_ops->map_single(hwdev, ptr, size, direction);
+}
 
 #endif

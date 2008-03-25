@@ -2,7 +2,6 @@
 #define _X8664_DMA_MAPPING_H 1
 
 extern dma_addr_t bad_dma_address;
-extern const struct dma_mapping_ops* dma_ops;
 extern int iommu_merge;
 
 static inline int dma_mapping_error(dma_addr_t dma_addr)
@@ -23,14 +22,6 @@ extern void *dma_alloc_coherent(struct device *dev, size_t size,
 				dma_addr_t *dma_handle, gfp_t gfp);
 extern void dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 			      dma_addr_t dma_handle);
-
-static inline dma_addr_t
-dma_map_single(struct device *hwdev, void *ptr, size_t size,
-	       int direction)
-{
-	BUG_ON(!valid_dma_direction(direction));
-	return dma_ops->map_single(hwdev, ptr, size, direction);
-}
 
 static inline void
 dma_unmap_single(struct device *dev, dma_addr_t addr,size_t size,
