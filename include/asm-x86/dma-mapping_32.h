@@ -21,7 +21,7 @@ dma_get_cache_alignment(void)
 {
 	/* no easy way to get cache size on all x86, so return the
 	 * maximum possible, to be safe */
-	return (1 << INTERNODE_CACHE_SHIFT);
+	return boot_cpu_data.x86_clflush_size;
 }
 
 #define dma_is_consistent(d, h)	(1)
