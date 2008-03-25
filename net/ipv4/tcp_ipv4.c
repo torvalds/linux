@@ -1974,7 +1974,7 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 		while (1) {
 			while (req) {
 				if (req->rsk_ops->family == st->family &&
-				    sock_net(req->sk) == net) {
+				    net_eq(sock_net(req->sk), net)) {
 					cur = req;
 					goto out;
 				}
@@ -1998,7 +1998,7 @@ get_req:
 	}
 get_sk:
 	sk_for_each_from(sk, node) {
-		if (sk->sk_family == st->family && sock_net(sk) == net) {
+		if (sk->sk_family == st->family && net_eq(sock_net(sk), net)) {
 			cur = sk;
 			goto out;
 		}
@@ -2049,7 +2049,7 @@ static void *established_get_first(struct seq_file *seq)
 		read_lock_bh(lock);
 		sk_for_each(sk, node, &tcp_hashinfo.ehash[st->bucket].chain) {
 			if (sk->sk_family != st->family ||
-			    sock_net(sk) != net) {
+			    !net_eq(sock_net(sk), net)) {
 				continue;
 			}
 			rc = sk;
@@ -2059,7 +2059,7 @@ static void *established_get_first(struct seq_file *seq)
 		inet_twsk_for_each(tw, node,
 				   &tcp_hashinfo.ehash[st->bucket].twchain) {
 			if (tw->tw_family != st->family ||
-			    twsk_net(tw) != net) {
+			    !net_eq(twsk_net(tw), net)) {
 				continue;
 			}
 			rc = tw;
@@ -2086,7 +2086,7 @@ static void *established_get_next(struct seq_file *seq, void *cur)
 		tw = cur;
 		tw = tw_next(tw);
 get_tw:
-		while (tw && (tw->tw_family != st->family || twsk_net(tw) != net)) {
+		while (tw && (tw->tw_family != st->family || !net_eq(twsk_net(tw), net))) {
 			tw = tw_next(tw);
 		}
 		if (tw) {
@@ -2107,7 +2107,7 @@ get_tw:
 		sk = sk_next(sk);
 
 	sk_for_each_from(sk, node) {
-		if (sk->sk_family == st->family && sock_net(sk) == net)
+		if (sk->sk_family == st->family && net_eq(sock_net(sk), net))
 			goto found;
 	}
 

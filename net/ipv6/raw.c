@@ -76,7 +76,7 @@ static struct sock *__raw_v6_lookup(struct net *net, struct sock *sk,
 		if (inet_sk(sk)->num == num) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
 
-			if (sock_net(sk) != net)
+			if (!net_eq(sock_net(sk), net))
 				continue;
 
 			if (!ipv6_addr_any(&np->daddr) &&

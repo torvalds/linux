@@ -1196,7 +1196,7 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 				    rth->fl.oif != ikeys[k] ||
 				    rth->fl.iif != 0 ||
 				    rth->rt_genid != atomic_read(&rt_genid) ||
-				    dev_net(rth->u.dst.dev) != net) {
+				    !net_eq(dev_net(rth->u.dst.dev), net)) {
 					rthp = &rth->u.dst.rt_next;
 					continue;
 				}
@@ -1455,7 +1455,7 @@ unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
 			    rth->rt_src  == iph->saddr &&
 			    rth->fl.iif == 0 &&
 			    !(dst_metric_locked(&rth->u.dst, RTAX_MTU)) &&
-			    dev_net(rth->u.dst.dev) == net &&
+			    net_eq(dev_net(rth->u.dst.dev), net) &&
 			    rth->rt_genid == atomic_read(&rt_genid)) {
 				unsigned short mtu = new_mtu;
 
@@ -2085,7 +2085,7 @@ int ip_route_input(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		    rth->fl.oif == 0 &&
 		    rth->fl.mark == skb->mark &&
 		    rth->fl.fl4_tos == tos &&
-		    dev_net(rth->u.dst.dev) == net &&
+		    net_eq(dev_net(rth->u.dst.dev), net) &&
 		    rth->rt_genid == atomic_read(&rt_genid)) {
 			dst_use(&rth->u.dst, jiffies);
 			RT_CACHE_STAT_INC(in_hit);
@@ -2487,7 +2487,7 @@ int __ip_route_output_key(struct net *net, struct rtable **rp,
 		    rth->fl.mark == flp->mark &&
 		    !((rth->fl.fl4_tos ^ flp->fl4_tos) &
 			    (IPTOS_RT_MASK | RTO_ONLINK)) &&
-		    dev_net(rth->u.dst.dev) == net &&
+		    net_eq(dev_net(rth->u.dst.dev), net) &&
 		    rth->rt_genid == atomic_read(&rt_genid)) {
 			dst_use(&rth->u.dst, jiffies);
 			RT_CACHE_STAT_INC(out_hit);
@@ -2796,7 +2796,7 @@ int ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb)
 		rcu_read_lock_bh();
 		for (rt = rcu_dereference(rt_hash_table[h].chain), idx = 0; rt;
 		     rt = rcu_dereference(rt->u.dst.rt_next), idx++) {
-			if (dev_net(rt->u.dst.dev) != net || idx < s_idx)
+			if (!net_eq(dev_net(rt->u.dst.dev), net) || idx < s_idx)
 				continue;
 			if (rt->rt_genid != atomic_read(&rt_genid))
 				continue;

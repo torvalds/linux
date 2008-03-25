@@ -137,7 +137,7 @@ static inline int __udp_lib_lport_inuse(struct net *net, __u16 num,
 	struct hlist_node *node;
 
 	sk_for_each(sk, node, &udptable[num & (UDP_HTABLE_SIZE - 1)])
-		if (sock_net(sk) == net && sk->sk_hash == num)
+		if (net_eq(sock_net(sk), net) && sk->sk_hash == num)
 			return 1;
 	return 0;
 }
@@ -218,7 +218,7 @@ gotit:
 		sk_for_each(sk2, node, head)
 			if (sk2->sk_hash == snum                             &&
 			    sk2 != sk                                        &&
-			    sock_net(sk2) == net				     &&
+			    net_eq(sock_net(sk2), net)			     &&
 			    (!sk2->sk_reuse        || !sk->sk_reuse)         &&
 			    (!sk2->sk_bound_dev_if || !sk->sk_bound_dev_if
 			     || sk2->sk_bound_dev_if == sk->sk_bound_dev_if) &&
@@ -269,7 +269,7 @@ static struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 	sk_for_each(sk, node, &udptable[hnum & (UDP_HTABLE_SIZE - 1)]) {
 		struct inet_sock *inet = inet_sk(sk);
 
-		if (sock_net(sk) == net && sk->sk_hash == hnum &&
+		if (net_eq(sock_net(sk), net) && sk->sk_hash == hnum &&
 				!ipv6_only_sock(sk)) {
 			int score = (sk->sk_family == PF_INET ? 1 : 0);
 			if (inet->rcv_saddr) {
@@ -1511,7 +1511,7 @@ static struct sock *udp_get_first(struct seq_file *seq)
 	for (state->bucket = 0; state->bucket < UDP_HTABLE_SIZE; ++state->bucket) {
 		struct hlist_node *node;
 		sk_for_each(sk, node, state->hashtable + state->bucket) {
-			if (sock_net(sk) != net)
+			if (!net_eq(sock_net(sk), net))
 				continue;
 			if (sk->sk_family == state->family)
 				goto found;
@@ -1531,7 +1531,7 @@ static struct sock *udp_get_next(struct seq_file *seq, struct sock *sk)
 		sk = sk_next(sk);
 try_again:
 		;
-	} while (sk && (sock_net(sk) != net || sk->sk_family != state->family));
+	} while (sk && (!net_eq(sock_net(sk), net) || sk->sk_family != state->family));
 
 	if (!sk && ++state->bucket < UDP_HTABLE_SIZE) {
 		sk = sk_head(state->hashtable + state->bucket);

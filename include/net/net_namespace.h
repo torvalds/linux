@@ -118,6 +118,12 @@ static inline void release_net(struct net *net)
 {
 	atomic_dec(&net->use_count);
 }
+
+static inline
+int net_eq(const struct net *net1, const struct net *net2)
+{
+	return net1 == net2;
+}
 #else
 static inline struct net *get_net(struct net *net)
 {
@@ -140,6 +146,12 @@ static inline void release_net(struct net *net)
 static inline struct net *maybe_get_net(struct net *net)
 {
 	return net;
+}
+
+static inline
+int net_eq(const struct net *net1, const struct net *net2)
+{
+	return 1;
 }
 #endif
 

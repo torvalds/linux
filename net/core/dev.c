@@ -4136,7 +4136,7 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 
 	/* Get out if there is nothing todo */
 	err = 0;
-	if (dev_net(dev) == net)
+	if (net_eq(dev_net(dev), net))
 		goto out;
 
 	/* Pick the destination device name, and ensure

@@ -1217,7 +1217,7 @@ int ipv6_chk_addr(struct net *net, struct in6_addr *addr,
 
 	read_lock_bh(&addrconf_hash_lock);
 	for(ifp = inet6_addr_lst[hash]; ifp; ifp=ifp->lst_next) {
-		if (dev_net(ifp->idev->dev) != net)
+		if (!net_eq(dev_net(ifp->idev->dev), net))
 			continue;
 		if (ipv6_addr_equal(&ifp->addr, addr) &&
 		    !(ifp->flags&IFA_F_TENTATIVE)) {
@@ -1239,7 +1239,7 @@ int ipv6_chk_same_addr(struct net *net, const struct in6_addr *addr,
 	u8 hash = ipv6_addr_hash(addr);
 
 	for(ifp = inet6_addr_lst[hash]; ifp; ifp=ifp->lst_next) {
-		if (dev_net(ifp->idev->dev) != net)
+		if (!net_eq(dev_net(ifp->idev->dev), net))
 			continue;
 		if (ipv6_addr_equal(&ifp->addr, addr)) {
 			if (dev == NULL || ifp->idev->dev == dev)
@@ -1257,7 +1257,7 @@ struct inet6_ifaddr *ipv6_get_ifaddr(struct net *net, struct in6_addr *addr,
 
 	read_lock_bh(&addrconf_hash_lock);
 	for(ifp = inet6_addr_lst[hash]; ifp; ifp=ifp->lst_next) {
-		if (dev_net(ifp->idev->dev) != net)
+		if (!net_eq(dev_net(ifp->idev->dev), net))
 			continue;
 		if (ipv6_addr_equal(&ifp->addr, addr)) {
 			if (dev == NULL || ifp->idev->dev == dev ||
@@ -2771,7 +2771,7 @@ static struct inet6_ifaddr *if6_get_first(struct seq_file *seq)
 	for (state->bucket = 0; state->bucket < IN6_ADDR_HSIZE; ++state->bucket) {
 		ifa = inet6_addr_lst[state->bucket];
 
-		while (ifa && dev_net(ifa->idev->dev) != net)
+		while (ifa && !net_eq(dev_net(ifa->idev->dev), net))
 			ifa = ifa->lst_next;
 		if (ifa)
 			break;
@@ -2787,7 +2787,7 @@ static struct inet6_ifaddr *if6_get_next(struct seq_file *seq, struct inet6_ifad
 	ifa = ifa->lst_next;
 try_again:
 	if (ifa) {
-		if (dev_net(ifa->idev->dev) != net) {
+		if (!net_eq(dev_net(ifa->idev->dev), net)) {
 			ifa = ifa->lst_next;
 			goto try_again;
 		}
@@ -2905,7 +2905,7 @@ int ipv6_chk_home_addr(struct net *net, struct in6_addr *addr)
 	u8 hash = ipv6_addr_hash(addr);
 	read_lock_bh(&addrconf_hash_lock);
 	for (ifp = inet6_addr_lst[hash]; ifp; ifp = ifp->lst_next) {
-		if (dev_net(ifp->idev->dev) != net)
+		if (!net_eq(dev_net(ifp->idev->dev), net))
 			continue;
 		if (ipv6_addr_cmp(&ifp->addr, addr) == 0 &&
 		    (ifp->flags & IFA_F_HOMEADDRESS)) {

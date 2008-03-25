@@ -228,7 +228,7 @@ static inline struct sock *netlink_lookup(struct net *net, int protocol,
 	read_lock(&nl_table_lock);
 	head = nl_pid_hashfn(hash, pid);
 	sk_for_each(sk, node, head) {
-		if (sock_net(sk) == net && (nlk_sk(sk)->pid == pid)) {
+		if (net_eq(sock_net(sk), net) && (nlk_sk(sk)->pid == pid)) {
 			sock_hold(sk);
 			goto found;
 		}
@@ -348,7 +348,7 @@ static int netlink_insert(struct sock *sk, struct net *net, u32 pid)
 	head = nl_pid_hashfn(hash, pid);
 	len = 0;
 	sk_for_each(osk, node, head) {
-		if (sock_net(osk) == net && (nlk_sk(osk)->pid == pid))
+		if (net_eq(sock_net(osk), net) && (nlk_sk(osk)->pid == pid))
 			break;
 		len++;
 	}
@@ -532,7 +532,7 @@ retry:
 	netlink_table_grab();
 	head = nl_pid_hashfn(hash, pid);
 	sk_for_each(osk, node, head) {
-		if (sock_net(osk) != net)
+		if (!net_eq(sock_net(osk), net))
 			continue;
 		if (nlk_sk(osk)->pid == pid) {
 			/* Bind collision, search negative pid values. */
@@ -962,7 +962,7 @@ static inline int do_one_broadcast(struct sock *sk,
 	    !test_bit(p->group - 1, nlk->groups))
 		goto out;
 
-	if (sock_net(sk) != p->net)
+	if (!net_eq(sock_net(sk), p->net))
 		goto out;
 
 	if (p->failure) {

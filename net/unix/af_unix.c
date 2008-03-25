@@ -252,7 +252,7 @@ static struct sock *__unix_find_socket_byname(struct net *net,
 	sk_for_each(s, node, &unix_socket_table[hash ^ type]) {
 		struct unix_sock *u = unix_sk(s);
 
-		if (sock_net(s) != net)
+		if (!net_eq(sock_net(s), net))
 			continue;
 
 		if (u->addr->len == len &&
@@ -289,7 +289,7 @@ static struct sock *unix_find_socket_byinode(struct net *net, struct inode *i)
 		    &unix_socket_table[i->i_ino & (UNIX_HASH_SIZE - 1)]) {
 		struct dentry *dentry = unix_sk(s)->dentry;
 
-		if (sock_net(s) != net)
+		if (!net_eq(sock_net(s), net))
 			continue;
 
 		if(dentry && dentry->d_inode == i)
