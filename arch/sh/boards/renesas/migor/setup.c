@@ -13,6 +13,7 @@
 #include <linux/input.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/nand.h>
+#include <linux/i2c.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
 #include <asm/sh_keysc.h>
@@ -196,8 +197,14 @@ static struct platform_device *migor_devices[] __initdata = {
 	&migor_nand_flash_device,
 };
 
+static struct i2c_board_info __initdata migor_i2c_devices[] = {
+};
+
 static int __init migor_devices_setup(void)
 {
+	i2c_register_board_info(0, migor_i2c_devices,
+				ARRAY_SIZE(migor_i2c_devices));
+ 
 	return platform_add_devices(migor_devices, ARRAY_SIZE(migor_devices));
 }
 __initcall(migor_devices_setup);
@@ -219,6 +226,9 @@ static void __init migor_setup(char **cmdline_p)
 	ctrl_outw(ctrl_inw(PORT_PXCR) & 0x0fff, PORT_PXCR);
 	ctrl_outl((ctrl_inl(BSC_CS6ABCR) & ~0x00000600) | 0x00000200,
 		  BSC_CS6ABCR);
+
+	/* I2C */
+	ctrl_outl(ctrl_inl(MSTPCR1) & ~0x00000200, MSTPCR1);
 }
 
 static struct sh_machine_vector mv_migor __initmv = {
