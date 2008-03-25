@@ -861,7 +861,6 @@ static void p9_mux_free_request(struct p9_conn *m, struct p9_req *req)
 
 static void p9_mux_flush_cb(struct p9_req *freq, void *a)
 {
-	p9_conn_req_callback cb;
 	int tag;
 	struct p9_conn *m;
 	struct p9_req *req, *rreq, *rptr;
@@ -872,7 +871,6 @@ static void p9_mux_flush_cb(struct p9_req *freq, void *a)
 		freq->tcall->params.tflush.oldtag);
 
 	spin_lock(&m->lock);
-	cb = NULL;
 	tag = freq->tcall->params.tflush.oldtag;
 	req = NULL;
 	list_for_each_entry_safe(rreq, rptr, &m->req_list, req_list) {

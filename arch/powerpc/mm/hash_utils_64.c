@@ -351,9 +351,14 @@ static void __init htab_init_page_sizes(void)
 		mmu_vmalloc_psize = MMU_PAGE_64K;
 		if (mmu_linear_psize == MMU_PAGE_4K)
 			mmu_linear_psize = MMU_PAGE_64K;
-		if (cpu_has_feature(CPU_FTR_CI_LARGE_PAGE))
-			mmu_io_psize = MMU_PAGE_64K;
-		else
+		if (cpu_has_feature(CPU_FTR_CI_LARGE_PAGE)) {
+			/*
+			 * Don't use 64k pages for ioremap on pSeries, since
+			 * that would stop us accessing the HEA ethernet.
+			 */
+			if (!machine_is(pseries))
+				mmu_io_psize = MMU_PAGE_64K;
+		} else
 			mmu_ci_restrictions = 1;
 	}
 #endif /* CONFIG_PPC_64K_PAGES */

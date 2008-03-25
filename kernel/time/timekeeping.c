@@ -191,8 +191,12 @@ static void change_clocksource(void)
 
 	tick_clock_notify();
 
+	/*
+	 * We're holding xtime lock and waking up klogd would deadlock
+	 * us on enqueue.  So no printing!
 	printk(KERN_INFO "Time: %s clocksource has been installed.\n",
 	       clock->name);
+	 */
 }
 #else
 static inline void change_clocksource(void) { }

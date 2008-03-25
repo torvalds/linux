@@ -284,14 +284,17 @@ static void ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg)
 {
 	extern unsigned long sparc64_ttable_tl0;
 	extern unsigned long kern_locked_tte_data;
-	extern int bigkernel;
 	struct hvtramp_descr *hdesc;
 	unsigned long trampoline_ra;
 	struct trap_per_cpu *tb;
 	u64 tte_vaddr, tte_data;
 	unsigned long hv_err;
+	int i;
 
-	hdesc = kzalloc(sizeof(*hdesc), GFP_KERNEL);
+	hdesc = kzalloc(sizeof(*hdesc) +
+			(sizeof(struct hvtramp_mapping) *
+			 num_kernel_image_mappings - 1),
+			GFP_KERNEL);
 	if (!hdesc) {
 		printk(KERN_ERR "ldom_startcpu_cpuid: Cannot allocate "
 		       "hvtramp_descr.\n");
@@ -299,7 +302,7 @@ static void ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg)
 	}
 
 	hdesc->cpu = cpu;
-	hdesc->num_mappings = (bigkernel ? 2 : 1);
+	hdesc->num_mappings = num_kernel_image_mappings;
 
 	tb = &trap_block[cpu];
 	tb->hdesc = hdesc;
@@ -312,13 +315,11 @@ static void ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg)
 	tte_vaddr = (unsigned long) KERNBASE;
 	tte_data = kern_locked_tte_data;
 
-	hdesc->maps[0].vaddr = tte_vaddr;
-	hdesc->maps[0].tte   = tte_data;
-	if (bigkernel) {
+	for (i = 0; i < hdesc->num_mappings; i++) {
+		hdesc->maps[i].vaddr = tte_vaddr;
+		hdesc->maps[i].tte   = tte_data;
 		tte_vaddr += 0x400000;
 		tte_data  += 0x400000;
-		hdesc->maps[1].vaddr = tte_vaddr;
-		hdesc->maps[1].tte   = tte_data;
 	}
 
 	trampoline_ra = kimage_addr_to_ra(hv_cpu_startup);

@@ -389,7 +389,7 @@ void sctp_v6_del_protocol(void);
 
 #else /* #ifdef defined(CONFIG_IPV6) */
 
-static inline void sctp_v6_pf_init(void) { return 0; }
+static inline void sctp_v6_pf_init(void) { return; }
 static inline void sctp_v6_pf_exit(void) { return; }
 static inline int sctp_v6_protosw_init(void) { return 0; }
 static inline void sctp_v6_protosw_exit(void) { return; }
