@@ -801,9 +801,13 @@ setup_arch(char **cmdline_p)
 	       "This machine has an IEEE fpu\n" :
 	       "This machine has no IEEE fpu\n");
 #else /* CONFIG_64BIT */
-	printk((MACHINE_IS_VM) ?
-	       "We are running under VM (64 bit mode)\n" :
-	       "We are running native (64 bit mode)\n");
+	if (MACHINE_IS_VM)
+		printk("We are running under VM (64 bit mode)\n");
+	else if (MACHINE_IS_KVM) {
+		printk("We are running under KVM (64 bit mode)\n");
+		add_preferred_console("ttyS", 1, NULL);
+	} else
+		printk("We are running native (64 bit mode)\n");
 #endif /* CONFIG_64BIT */
 
 	/* Save unparsed command line copy for /proc/cmdline */
