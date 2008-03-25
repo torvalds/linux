@@ -167,7 +167,7 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 	retval = reserve_memtype(phys_addr, phys_addr + size,
 						prot_val, &new_prot_val);
 	if (retval) {
-		printk("reserve_memtype returned %d\n", retval);
+		pr_debug("Warning: reserve_memtype returned %d\n", retval);
 		return NULL;
 	}
 
@@ -184,7 +184,7 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 		      new_prot_val == _PAGE_CACHE_WC)) ||
 		    (prot_val == _PAGE_CACHE_WC &&
 		     new_prot_val == _PAGE_CACHE_WB)) {
-			printk(
+			pr_debug(
 		"ioremap error for 0x%llx-0x%llx, requested 0x%lx, got 0x%lx\n",
 				phys_addr, phys_addr + size,
 				prot_val, new_prot_val);
