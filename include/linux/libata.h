@@ -748,14 +748,12 @@ struct ata_port_operations {
 };
 
 struct ata_port_info {
-	struct scsi_host_template	*sht;
 	unsigned long		flags;
 	unsigned long		link_flags;
 	unsigned long		pio_mask;
 	unsigned long		mwdma_mask;
 	unsigned long		udma_mask;
 	struct ata_port_operations *port_ops;
-	irq_handler_t		irq_handler;
 	void 			*private_data;
 };
 

@@ -466,58 +466,61 @@ static struct ata_port_operations nv_swncq_ops = {
 	.port_start		= nv_swncq_port_start,
 };
 
+struct nv_pi_priv {
+	irq_handler_t			irq_handler;
+	struct scsi_host_template	*sht;
+};
+
+#define NV_PI_PRIV(_irq_handler, _sht) \
+	&(struct nv_pi_priv){ .irq_handler = _irq_handler, .sht = _sht }
+
 static const struct ata_port_info nv_port_info[] = {
 	/* generic */
 	{
-		.sht		= &nv_sht,
 		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
 		.port_ops	= &nv_generic_ops,
-		.irq_handler	= nv_generic_interrupt,
+		.private_data	= NV_PI_PRIV(nv_generic_interrupt, &nv_sht),
 	},
 	/* nforce2/3 */
 	{
-		.sht		= &nv_sht,
 		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
 		.port_ops	= &nv_nf2_ops,
-		.irq_handler	= nv_nf2_interrupt,
+		.private_data	= NV_PI_PRIV(nv_nf2_interrupt, &nv_sht),
 	},
 	/* ck804 */
 	{
-		.sht		= &nv_sht,
 		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
 		.port_ops	= &nv_ck804_ops,
-		.irq_handler	= nv_ck804_interrupt,
+		.private_data	= NV_PI_PRIV(nv_ck804_interrupt, &nv_sht),
 	},
 	/* ADMA */
 	{
-		.sht		= &nv_adma_sht,
 		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_MMIO | ATA_FLAG_NCQ,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
 		.port_ops	= &nv_adma_ops,
-		.irq_handler	= nv_adma_interrupt,
+		.private_data	= NV_PI_PRIV(nv_adma_interrupt, &nv_adma_sht),
 	},
 	/* SWNCQ */
 	{
-		.sht		= &nv_swncq_sht,
 		.flags	        = ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_NCQ,
 		.pio_mask	= NV_PIO_MASK,
 		.mwdma_mask	= NV_MWDMA_MASK,
 		.udma_mask	= NV_UDMA_MASK,
 		.port_ops	= &nv_swncq_ops,
-		.irq_handler	= nv_swncq_interrupt,
+		.private_data	= NV_PI_PRIV(nv_swncq_interrupt, &nv_swncq_sht),
 	},
 };
 
@@ -2316,6 +2319,7 @@ static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
 	const struct ata_port_info *ppi[] = { NULL, NULL };
+	struct nv_pi_priv *ipriv;
 	struct ata_host *host;
 	struct nv_host_priv *hpriv;
 	int rc;
@@ -2352,6 +2356,7 @@ static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	ppi[0] = &nv_port_info[type];
+	ipriv = ppi[0]->private_data;
 	rc = ata_pci_prepare_sff_host(pdev, ppi, &host);
 	if (rc)
 		return rc;
@@ -2390,8 +2395,8 @@ static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		nv_swncq_host_init(host);
 
 	pci_set_master(pdev);
-	return ata_host_activate(host, pdev->irq, ppi[0]->irq_handler,
-				 IRQF_SHARED, ppi[0]->sht);
+	return ata_host_activate(host, pdev->irq, ipriv->irq_handler,
+				 IRQF_SHARED, ipriv->sht);
 }
 
 #ifdef CONFIG_PM
