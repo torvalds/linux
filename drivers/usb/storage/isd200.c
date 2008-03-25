@@ -1230,6 +1230,7 @@ static int isd200_get_inquiry_data( struct us_data *us )
 	    
 			/* Free driver structure */	    
 			us->extra_destructor(info);
+			kfree(info);
 			us->extra = NULL;
 			us->extra_destructor = NULL;
 		}
