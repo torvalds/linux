@@ -2407,9 +2407,6 @@ int ata_dev_configure(struct ata_device *dev)
 		}
 	}
 
-	if (ata_msg_probe(ap))
-		ata_dev_printk(dev, KERN_DEBUG, "%s: EXIT, drv_stat = 0x%x\n",
-			__func__, ata_chk_status(ap));
 	return 0;
 
 err_out_nosup:
