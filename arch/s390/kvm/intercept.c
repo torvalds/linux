@@ -95,6 +95,7 @@ static int handle_lctl(struct kvm_vcpu *vcpu)
 }
 
 static intercept_handler_t instruction_handlers[256] = {
+	[0xae] = kvm_s390_handle_sigp,
 	[0xb2] = kvm_s390_handle_priv,
 	[0xb7] = handle_lctl,
 	[0xeb] = handle_lctg,
@@ -117,10 +118,27 @@ static int handle_noop(struct kvm_vcpu *vcpu)
 
 static int handle_stop(struct kvm_vcpu *vcpu)
 {
+	int rc;
+
 	vcpu->stat.exit_stop_request++;
-	VCPU_EVENT(vcpu, 3, "%s", "cpu stopped");
 	atomic_clear_mask(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
-	return -ENOTSUPP;
+	spin_lock_bh(&vcpu->arch.local_int.lock);
+	if (vcpu->arch.local_int.action_bits & ACTION_STORE_ON_STOP) {
+		vcpu->arch.local_int.action_bits &= ~ACTION_STORE_ON_STOP;
+		rc = __kvm_s390_vcpu_store_status(vcpu,
+						  KVM_S390_STORE_STATUS_NOADDR);
+		if (rc >= 0)
+			rc = -ENOTSUPP;
+	}
+
+	if (vcpu->arch.local_int.action_bits & ACTION_STOP_ON_STOP) {
+		vcpu->arch.local_int.action_bits &= ~ACTION_STOP_ON_STOP;
+		VCPU_EVENT(vcpu, 3, "%s", "cpu stopped");
+		rc = -ENOTSUPP;
+	} else
+		rc = 0;
+	spin_unlock_bh(&vcpu->arch.local_int.lock);
+	return rc;
 }
 
 static int handle_validity(struct kvm_vcpu *vcpu)

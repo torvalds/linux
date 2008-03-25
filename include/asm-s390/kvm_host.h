@@ -128,6 +128,12 @@ struct kvm_vcpu_stat {
 	u32 instruction_chsc;
 	u32 instruction_stsi;
 	u32 instruction_stfl;
+	u32 instruction_sigp_sense;
+	u32 instruction_sigp_emergency;
+	u32 instruction_sigp_stop;
+	u32 instruction_sigp_arch;
+	u32 instruction_sigp_prefix;
+	u32 instruction_sigp_restart;
 };
 
 struct io_info {
@@ -169,6 +175,10 @@ struct interrupt_info {
 	};
 };
 
+/* for local_interrupt.action_flags */
+#define ACTION_STORE_ON_STOP 1
+#define ACTION_STOP_ON_STOP  2
+
 struct local_interrupt {
 	spinlock_t lock;
 	struct list_head list;
@@ -176,6 +186,8 @@ struct local_interrupt {
 	struct float_interrupt *float_int;
 	int timer_due; /* event indicator for waitqueue below */
 	wait_queue_head_t wq;
+	atomic_t *cpuflags;
+	unsigned int action_bits;
 };
 
 struct float_interrupt {
