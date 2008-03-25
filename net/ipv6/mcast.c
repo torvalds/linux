@@ -2355,7 +2355,7 @@ static inline struct ifmcaddr6 *igmp6_mc_get_first(struct seq_file *seq)
 {
 	struct ifmcaddr6 *im = NULL;
 	struct igmp6_mc_iter_state *state = igmp6_mc_seq_private(seq);
-	struct net *net = state->p.net;
+	struct net *net = seq_file_net(seq);
 
 	state->idev = NULL;
 	for_each_netdev(net, state->dev) {
@@ -2486,7 +2486,7 @@ static inline struct ip6_sf_list *igmp6_mcf_get_first(struct seq_file *seq)
 	struct ip6_sf_list *psf = NULL;
 	struct ifmcaddr6 *im = NULL;
 	struct igmp6_mcf_iter_state *state = igmp6_mcf_seq_private(seq);
-	struct net *net = state->p.net;
+	struct net *net = seq_file_net(seq);
 
 	state->idev = NULL;
 	state->im = NULL;

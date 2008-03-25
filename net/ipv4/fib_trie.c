@@ -2279,9 +2279,10 @@ static const struct file_operations fib_triestat_fops = {
 	.release = fib_triestat_seq_release,
 };
 
-static struct node *fib_trie_get_idx(struct fib_trie_iter *iter, loff_t pos)
+static struct node *fib_trie_get_idx(struct seq_file *seq, loff_t pos)
 {
-	struct net *net = iter->p.net;
+	struct fib_trie_iter *iter = seq->private;
+	struct net *net = seq_file_net(seq);
 	loff_t idx = 0;
 	unsigned int h;
 
@@ -2309,16 +2310,14 @@ static struct node *fib_trie_get_idx(struct fib_trie_iter *iter, loff_t pos)
 static void *fib_trie_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(RCU)
 {
-	struct fib_trie_iter *iter = seq->private;
-
 	rcu_read_lock();
-	return fib_trie_get_idx(iter, *pos);
+	return fib_trie_get_idx(seq, *pos);
 }
 
 static void *fib_trie_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct fib_trie_iter *iter = seq->private;
-	struct net *net = iter->p.net;
+	struct net *net = seq_file_net(seq);
 	struct fib_table *tb = iter->tb;
 	struct hlist_node *tb_node;
 	unsigned int h;
@@ -2513,7 +2512,7 @@ static void *fib_route_seq_start(struct seq_file *seq, loff_t *pos)
 	struct fib_table *tb;
 
 	rcu_read_lock();
-	tb = fib_get_table(iter->p.net, RT_TABLE_MAIN);
+	tb = fib_get_table(seq_file_net(seq), RT_TABLE_MAIN);
 	if (!tb)
 		return NULL;
 

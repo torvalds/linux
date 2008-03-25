@@ -2016,13 +2016,14 @@ struct unix_iter_state {
 	struct seq_net_private p;
 	int i;
 };
-static struct sock *unix_seq_idx(struct unix_iter_state *iter, loff_t pos)
+static struct sock *unix_seq_idx(struct seq_file *seq, loff_t pos)
 {
+	struct unix_iter_state *iter = seq->private;
 	loff_t off = 0;
 	struct sock *s;
 
 	for (s = first_unix_socket(&iter->i); s; s = next_unix_socket(&iter->i, s)) {
-		if (sock_net(s) != iter->p.net)
+		if (sock_net(s) != seq_file_net(seq))
 			continue;
 		if (off == pos)
 			return s;
@@ -2035,9 +2036,8 @@ static struct sock *unix_seq_idx(struct unix_iter_state *iter, loff_t pos)
 static void *unix_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(unix_table_lock)
 {
-	struct unix_iter_state *iter = seq->private;
 	spin_lock(&unix_table_lock);
-	return *pos ? unix_seq_idx(iter, *pos - 1) : ((void *) 1);
+	return *pos ? unix_seq_idx(seq, *pos - 1) : ((void *) 1);
 }
 
 static void *unix_seq_next(struct seq_file *seq, void *v, loff_t *pos)
@@ -2050,7 +2050,7 @@ static void *unix_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		sk = first_unix_socket(&iter->i);
 	else
 		sk = next_unix_socket(&iter->i, sk);
-	while (sk && (sock_net(sk) != iter->p.net))
+	while (sk && (sock_net(sk) != seq_file_net(seq)))
 		sk = next_unix_socket(&iter->i, sk);
 	return sk;
 }

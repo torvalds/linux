@@ -276,15 +276,16 @@ struct rt_cache_iter_state {
 	int genid;
 };
 
-static struct rtable *rt_cache_get_first(struct rt_cache_iter_state *st)
+static struct rtable *rt_cache_get_first(struct seq_file *seq)
 {
+	struct rt_cache_iter_state *st = seq->private;
 	struct rtable *r = NULL;
 
 	for (st->bucket = rt_hash_mask; st->bucket >= 0; --st->bucket) {
 		rcu_read_lock_bh();
 		r = rcu_dereference(rt_hash_table[st->bucket].chain);
 		while (r) {
-			if (dev_net(r->u.dst.dev) == st->p.net &&
+			if (dev_net(r->u.dst.dev) == seq_file_net(seq) &&
 			    r->rt_genid == st->genid)
 				return r;
 			r = rcu_dereference(r->u.dst.rt_next);
@@ -294,9 +295,10 @@ static struct rtable *rt_cache_get_first(struct rt_cache_iter_state *st)
 	return r;
 }
 
-static struct rtable *__rt_cache_get_next(struct rt_cache_iter_state *st,
+static struct rtable *__rt_cache_get_next(struct seq_file *seq,
 					  struct rtable *r)
 {
+	struct rt_cache_iter_state *st = seq->private;
 	r = r->u.dst.rt_next;
 	while (!r) {
 		rcu_read_unlock_bh();
@@ -308,11 +310,12 @@ static struct rtable *__rt_cache_get_next(struct rt_cache_iter_state *st,
 	return rcu_dereference(r);
 }
 
-static struct rtable *rt_cache_get_next(struct rt_cache_iter_state *st,
+static struct rtable *rt_cache_get_next(struct seq_file *seq,
 					struct rtable *r)
 {
-	while ((r = __rt_cache_get_next(st, r)) != NULL) {
-		if (dev_net(r->u.dst.dev) != st->p.net)
+	struct rt_cache_iter_state *st = seq->private;
+	while ((r = __rt_cache_get_next(seq, r)) != NULL) {
+		if (dev_net(r->u.dst.dev) != seq_file_net(seq))
 			continue;
 		if (r->rt_genid == st->genid)
 			break;
@@ -320,12 +323,12 @@ static struct rtable *rt_cache_get_next(struct rt_cache_iter_state *st,
 	return r;
 }
 
-static struct rtable *rt_cache_get_idx(struct rt_cache_iter_state *st, loff_t pos)
+static struct rtable *rt_cache_get_idx(struct seq_file *seq, loff_t pos)
 {
-	struct rtable *r = rt_cache_get_first(st);
+	struct rtable *r = rt_cache_get_first(seq);
 
 	if (r)
-		while (pos && (r = rt_cache_get_next(st, r)))
+		while (pos && (r = rt_cache_get_next(seq, r)))
 			--pos;
 	return pos ? NULL : r;
 }
@@ -333,9 +336,8 @@ static struct rtable *rt_cache_get_idx(struct rt_cache_iter_state *st, loff_t po
 static void *rt_cache_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct rt_cache_iter_state *st = seq->private;
-
 	if (*pos)
-		return rt_cache_get_idx(st, *pos - 1);
+		return rt_cache_get_idx(seq, *pos - 1);
 	st->genid = atomic_read(&rt_genid);
 	return SEQ_START_TOKEN;
 }
@@ -343,12 +345,11 @@ static void *rt_cache_seq_start(struct seq_file *seq, loff_t *pos)
 static void *rt_cache_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct rtable *r;
-	struct rt_cache_iter_state *st = seq->private;
 
 	if (v == SEQ_START_TOKEN)
-		r = rt_cache_get_first(st);
+		r = rt_cache_get_first(seq);
 	else
-		r = rt_cache_get_next(st, v);
+		r = rt_cache_get_next(seq, v);
 	++*pos;
 	return r;
 }

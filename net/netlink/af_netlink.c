@@ -1758,7 +1758,7 @@ static struct sock *netlink_seq_socket_idx(struct seq_file *seq, loff_t pos)
 
 		for (j = 0; j <= hash->mask; j++) {
 			sk_for_each(s, node, &hash->table[j]) {
-				if (sock_net(s) != iter->p.net)
+				if (sock_net(s) != seq_file_net(seq))
 					continue;
 				if (off == pos) {
 					iter->link = i;
@@ -1794,7 +1794,7 @@ static void *netlink_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	s = v;
 	do {
 		s = sk_next(s);
-	} while (s && (sock_net(s) != iter->p.net));
+	} while (s && sock_net(s) != seq_file_net(seq));
 	if (s)
 		return s;
 
@@ -1806,7 +1806,7 @@ static void *netlink_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 		for (; j <= hash->mask; j++) {
 			s = sk_head(&hash->table[j]);
-			while (s && sock_net(s) != iter->p.net)
+			while (s && sock_net(s) != seq_file_net(seq))
 				s = sk_next(s);
 			if (s) {
 				iter->link = i;
