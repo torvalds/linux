@@ -2156,7 +2156,6 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	if (ata_msg_ctl(ap))
 		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER\n", __func__);
 
-	ata_dev_select(ap, dev->devno, 1, 1); /* select device 0/1 */
  retry:
 	ata_tf_init(dev, &tf);
 
