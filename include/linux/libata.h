@@ -1071,6 +1071,63 @@ extern void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 		      ata_postreset_fn_t postreset);
 
 /*
+ * Base operations to inherit from and initializers for sht
+ *
+ * Operations
+ *
+ * base  : Common to all libata drivers.
+ * sata  : SATA controllers w/ native interface.
+ * pmp   : SATA controllers w/ PMP support.
+ * sff   : SFF ATA controllers w/o BMDMA support.
+ * bmdma : SFF ATA controllers w/ BMDMA support.
+ *
+ * sht initializers
+ *
+ * BASE  : Common to all libata drivers.  The user must set
+ *	   sg_tablesize and dma_boundary.
+ * PIO   : SFF ATA controllers w/ only PIO support.
+ * BMDMA : SFF ATA controllers w/ BMDMA support.  sg_tablesize and
+ *	   dma_boundary are set to BMDMA limits.
+ * NCQ   : SATA controllers supporting NCQ.  The user must set
+ *	   sg_tablesize, dma_boundary and can_queue.
+ */
+extern const struct ata_port_operations ata_base_port_ops;
+extern const struct ata_port_operations sata_port_ops;
+extern const struct ata_port_operations sata_pmp_port_ops;
+extern const struct ata_port_operations ata_sff_port_ops;
+extern const struct ata_port_operations ata_bmdma_port_ops;
+
+#define ATA_BASE_SHT(drv_name)					\
+	.module			= THIS_MODULE,			\
+	.name			= drv_name,			\
+	.ioctl			= ata_scsi_ioctl,		\
+	.queuecommand		= ata_scsi_queuecmd,		\
+	.can_queue		= ATA_DEF_QUEUE,		\
+	.this_id		= ATA_SHT_THIS_ID,		\
+	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,		\
+	.emulated		= ATA_SHT_EMULATED,		\
+	.use_clustering		= ATA_SHT_USE_CLUSTERING,	\
+	.proc_name		= drv_name,			\
+	.slave_configure	= ata_scsi_slave_config,	\
+	.slave_destroy		= ata_scsi_slave_destroy,	\
+	.bios_param		= ata_std_bios_param
+
+/* PIO only, sg_tablesize and dma_boundary limits can be removed */
+#define ATA_PIO_SHT(drv_name)					\
+	ATA_BASE_SHT(drv_name),					\
+	.sg_tablesize		= LIBATA_MAX_PRD,		\
+	.dma_boundary		= ATA_DMA_BOUNDARY
+
+#define ATA_BMDMA_SHT(drv_name)					\
+	ATA_BASE_SHT(drv_name),					\
+	.sg_tablesize		= LIBATA_MAX_PRD,		\
+	.dma_boundary		= ATA_DMA_BOUNDARY
+
+#define ATA_NCQ_SHT(drv_name)					\
+	ATA_BASE_SHT(drv_name),					\
+	.change_queue_depth	= ata_scsi_change_queue_depth
+
+/*
  * printk helpers
  */
 #define ata_port_printk(ap, lv, fmt, args...) \

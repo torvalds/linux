@@ -143,21 +143,9 @@ static void adma_thaw(struct ata_port *ap);
 static void adma_error_handler(struct ata_port *ap);
 
 static struct scsi_host_template adma_ata_sht = {
-	.module			= THIS_MODULE,
-	.name			= DRV_NAME,
-	.ioctl			= ata_scsi_ioctl,
-	.queuecommand		= ata_scsi_queuecmd,
-	.slave_configure	= ata_scsi_slave_config,
-	.slave_destroy		= ata_scsi_slave_destroy,
-	.bios_param		= ata_std_bios_param,
-	.proc_name		= DRV_NAME,
-	.can_queue		= ATA_DEF_QUEUE,
-	.this_id		= ATA_SHT_THIS_ID,
+	ATA_BASE_SHT(DRV_NAME),
 	.sg_tablesize		= LIBATA_MAX_PRD,
 	.dma_boundary		= ADMA_DMA_BOUNDARY,
-	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
-	.use_clustering		= ENABLE_CLUSTERING,
-	.emulated		= ATA_SHT_EMULATED,
 };
 
 static const struct ata_port_operations adma_ata_ops = {

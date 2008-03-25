@@ -1191,22 +1191,10 @@ static int sata_fsl_init_controller(struct ata_host *host)
  * scsi mid-layer and libata interface structures
  */
 static struct scsi_host_template sata_fsl_sht = {
-	.module = THIS_MODULE,
-	.name = "sata_fsl",
-	.ioctl = ata_scsi_ioctl,
-	.queuecommand = ata_scsi_queuecmd,
-	.change_queue_depth = ata_scsi_change_queue_depth,
+	ATA_NCQ_SHT("sata_fsl"),
 	.can_queue = SATA_FSL_QUEUE_DEPTH,
-	.this_id = ATA_SHT_THIS_ID,
 	.sg_tablesize = SATA_FSL_MAX_PRD_USABLE,
-	.cmd_per_lun = ATA_SHT_CMD_PER_LUN,
-	.emulated = ATA_SHT_EMULATED,
-	.use_clustering = ATA_SHT_USE_CLUSTERING,
-	.proc_name = "sata_fsl",
 	.dma_boundary = ATA_DMA_BOUNDARY,
-	.slave_configure = ata_scsi_slave_config,
-	.slave_destroy = ata_scsi_slave_destroy,
-	.bios_param = ata_std_bios_param,
 };
 
 static const struct ata_port_operations sata_fsl_ops = {
