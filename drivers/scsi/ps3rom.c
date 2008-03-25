@@ -26,6 +26,7 @@
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_eh.h>
 
 #include <asm/lv1call.h>
 #include <asm/ps3stor.h>
@@ -330,11 +331,7 @@ static irqreturn_t ps3rom_interrupt(int irq, void *data)
 		goto done;
 	}
 
-	cmd->sense_buffer[0]  = 0x70;
-	cmd->sense_buffer[2]  = sense_key;
-	cmd->sense_buffer[7]  = 16 - 6;
-	cmd->sense_buffer[12] = asc;
-	cmd->sense_buffer[13] = ascq;
+	scsi_build_sense_buffer(0, cmd->sense_buffer, sense_key, asc, ascq);
 	cmd->result = SAM_STAT_CHECK_CONDITION;
 
 done:
