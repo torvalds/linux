@@ -11,6 +11,9 @@
 #include <asm/swiotlb.h>
 
 extern dma_addr_t bad_dma_address;
+extern int iommu_merge;
+extern struct device fallback_dev;
+extern int panic_on_overflow;
 
 struct dma_mapping_ops {
 	int             (*mapping_error)(dma_addr_t dma_addr);
@@ -74,12 +77,6 @@ void dma_free_coherent(struct device *dev, size_t size,
 
 extern int dma_supported(struct device *hwdev, u64 mask);
 extern int dma_set_mask(struct device *dev, u64 mask);
-
-#ifdef CONFIG_X86_32
-# include "dma-mapping_32.h"
-#else
-# include "dma-mapping_64.h"
-#endif
 
 static inline dma_addr_t
 dma_map_single(struct device *hwdev, void *ptr, size_t size,
@@ -205,6 +202,15 @@ dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	flush_write_buffers();
 }
 
+static inline int dma_get_cache_alignment(void)
+{
+	/* no easy way to get cache size on all x86, so return the
+	 * maximum possible, to be safe */
+	return boot_cpu_data.x86_clflush_size;
+}
+
+#define dma_is_consistent(d, h)	(1)
+
 #ifdef CONFIG_X86_32
 #  define ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY
 extern int
@@ -217,5 +223,6 @@ dma_release_declared_memory(struct device *dev);
 extern void *
 dma_mark_declared_memory_occupied(struct device *dev,
 				  dma_addr_t device_addr, size_t size);
+extern int forbid_dac;
 #endif /* CONFIG_X86_32 */
 #endif
