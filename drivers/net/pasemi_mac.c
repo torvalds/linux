@@ -404,6 +404,7 @@ static void pasemi_mac_free_csring(struct pasemi_mac_csring *csring)
 	pasemi_dma_free_flag(csring->events[1]);
 	pasemi_dma_free_ring(&csring->chan);
 	pasemi_dma_free_chan(&csring->chan);
+	pasemi_dma_free_fun(csring->fun);
 }
 
 static int pasemi_mac_setup_rx_resources(const struct net_device *dev)
@@ -1150,7 +1151,10 @@ static int pasemi_mac_open(struct net_device *dev)
 	if (!mac->tx)
 		goto out_tx_ring;
 
-	if (dev->mtu > 1500) {
+	/* We might already have allocated rings in case mtu was changed
+	 * before interface was brought up.
+	 */
+	if (dev->mtu > 1500 && !mac->num_cs) {
 		pasemi_mac_setup_csrings(mac);
 		if (!mac->num_cs)
 			goto out_tx_ring;
@@ -1388,8 +1392,12 @@ static int pasemi_mac_close(struct net_device *dev)
 	free_irq(mac->tx->chan.irq, mac->tx);
 	free_irq(mac->rx->chan.irq, mac->rx);
 
-	for (i = 0; i < mac->num_cs; i++)
+	for (i = 0; i < mac->num_cs; i++) {
 		pasemi_mac_free_csring(mac->cs[i]);
+		mac->cs[i] = NULL;
+	}
+
+	mac->num_cs = 0;
 
 	/* Free resources */
 	pasemi_mac_free_rx_resources(mac);
