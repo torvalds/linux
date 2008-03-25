@@ -55,9 +55,6 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 			key = sta->key;
 		}
 
-		if (!key)
-			return -ENOENT;
-
 		ieee80211_key_free(key);
 		return 0;
 	} else {
