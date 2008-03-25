@@ -202,6 +202,10 @@ static struct i2c_board_info __initdata migor_i2c_devices[] = {
 		I2C_BOARD_INFO("rtc-rs5c372", 0x32),
 		.type   = "rs5c372b",
 	},
+	{
+		I2C_BOARD_INFO("migor_ts", 0x51),
+		.irq = 38, /* IRQ6 */
+	},
 };
 
 static int __init migor_devices_setup(void)
@@ -233,6 +237,11 @@ static void __init migor_setup(char **cmdline_p)
 
 	/* I2C */
 	ctrl_outl(ctrl_inl(MSTPCR1) & ~0x00000200, MSTPCR1);
+
+	/* Touch Panel - Enable IRQ6 */
+	ctrl_outw(ctrl_inw(PORT_PZCR) & ~0xc, PORT_PZCR);
+	ctrl_outw((ctrl_inw(PORT_PSELA) | 0x8000), PORT_PSELA);
+	ctrl_outw((ctrl_inw(PORT_HIZCRC) & ~0x4000), PORT_HIZCRC);
 }
 
 static struct sh_machine_vector mv_migor __initmv = {
