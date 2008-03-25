@@ -547,11 +547,38 @@ static __init void  memory_setup(void)
 		);
 }
 
+/*
+ * Find the lowest, highest page frame number we have available
+ */
+void __init find_min_max_pfn(void)
+{
+	int i;
+
+	max_pfn = 0;
+	min_low_pfn = memory_end;
+
+	for (i = 0; i < bfin_memmap.nr_map; i++) {
+		unsigned long start, end;
+		/* RAM? */
+		if (bfin_memmap.map[i].type != BFIN_MEMMAP_RAM)
+			continue;
+		start = PFN_UP(bfin_memmap.map[i].addr);
+		end = PFN_DOWN(bfin_memmap.map[i].addr +
+				bfin_memmap.map[i].size);
+		if (start >= end)
+			continue;
+		if (end > max_pfn)
+			max_pfn = end;
+		if (start < min_low_pfn)
+			min_low_pfn = start;
+	}
+}
+
 static __init void setup_bootmem_allocator(void)
 {
 	int bootmap_size;
 	int i;
-	unsigned long min_pfn, max_pfn;
+	unsigned long start_pfn, end_pfn;
 	unsigned long curr_pfn, last_pfn, size;
 
 	/* mark memory between memory_start and memory_end usable */
@@ -561,8 +588,19 @@ static __init void setup_bootmem_allocator(void)
 	sanitize_memmap(bfin_memmap.map, &bfin_memmap.nr_map);
 	print_memory_map("boot memmap");
 
-	min_pfn = PAGE_OFFSET >> PAGE_SHIFT;
-	max_pfn = memory_end >> PAGE_SHIFT;
+	/* intialize globals in linux/bootmem.h */
+	find_min_max_pfn();
+	/* pfn of the last usable page frame */
+	if (max_pfn > memory_end >> PAGE_SHIFT)
+		max_pfn = memory_end >> PAGE_SHIFT;
+	/* pfn of last page frame directly mapped by kernel */
+	max_low_pfn = max_pfn;
+	/* pfn of the first usable page frame after kernel image*/
+	if (min_low_pfn < memory_start >> PAGE_SHIFT)
+		min_low_pfn = memory_start >> PAGE_SHIFT;
+
+	start_pfn = PAGE_OFFSET >> PAGE_SHIFT;
+	end_pfn = memory_end >> PAGE_SHIFT;
 
 	/*
 	 * give all the memory to the bootmap allocator,  tell it to put the
@@ -570,7 +608,7 @@ static __init void setup_bootmem_allocator(void)
 	 */
 	bootmap_size = init_bootmem_node(NODE_DATA(0),
 			memory_start >> PAGE_SHIFT,	/* map goes here */
-			min_pfn, max_pfn);
+			start_pfn, end_pfn);
 
 	/* register the memmap regions with the bootmem allocator */
 	for (i = 0; i < bfin_memmap.nr_map; i++) {
@@ -583,7 +621,7 @@ static __init void setup_bootmem_allocator(void)
 		 * We are rounding up the start address of usable memory:
 		 */
 		curr_pfn = PFN_UP(bfin_memmap.map[i].addr);
-		if (curr_pfn >= max_pfn)
+		if (curr_pfn >= end_pfn)
 			continue;
 		/*
 		 * ... and at the end of the usable range downwards:
@@ -591,8 +629,8 @@ static __init void setup_bootmem_allocator(void)
 		last_pfn = PFN_DOWN(bfin_memmap.map[i].addr +
 					 bfin_memmap.map[i].size);
 
-		if (last_pfn > max_pfn)
-			last_pfn = max_pfn;
+		if (last_pfn > end_pfn)
+			last_pfn = end_pfn;
 
 		/*
 		 * .. finally, did all the rounding and playing
