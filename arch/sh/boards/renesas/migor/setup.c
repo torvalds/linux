@@ -198,6 +198,10 @@ static struct platform_device *migor_devices[] __initdata = {
 };
 
 static struct i2c_board_info __initdata migor_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("rtc-rs5c372", 0x32),
+		.type   = "rs5c372b",
+	},
 };
 
 static int __init migor_devices_setup(void)
