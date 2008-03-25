@@ -88,6 +88,8 @@ struct file *shmem_file_setup(char *name, loff_t size, unsigned long flags)
 
 close_file:
 	put_filp(file);
+	return ERR_PTR(error);
+
 put_dentry:
 	dput(dentry);
 put_memory:
