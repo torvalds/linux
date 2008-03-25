@@ -3675,7 +3675,9 @@ static int do_md_run(mddev_t * mddev)
 		mddev->ro = 2; /* read-only, but switch on first write */
 
 	err = mddev->pers->run(mddev);
-	if (!err && mddev->pers->sync_request) {
+	if (err)
+		printk(KERN_ERR "md: pers->run() failed ...\n");
+	else if (mddev->pers->sync_request) {
 		err = bitmap_create(mddev);
 		if (err) {
 			printk(KERN_ERR "%s: failed to create bitmap (%d)\n",
@@ -3684,7 +3686,6 @@ static int do_md_run(mddev_t * mddev)
 		}
 	}
 	if (err) {
-		printk(KERN_ERR "md: pers->run() failed ...\n");
 		module_put(mddev->pers->owner);
 		mddev->pers = NULL;
 		bitmap_destroy(mddev);
