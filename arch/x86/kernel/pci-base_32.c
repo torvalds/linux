@@ -36,6 +36,7 @@ static const struct dma_mapping_ops pci32_dma_ops = {
 	.map_sg = pci32_dma_map_sg,
 	.unmap_sg = NULL,
 	.sync_single_for_cpu = NULL,
+	.sync_single_for_device = NULL,
 };
 
 const struct dma_mapping_ops *dma_ops = &pci32_dma_ops;
