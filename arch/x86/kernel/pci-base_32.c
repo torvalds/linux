@@ -30,6 +30,12 @@ static int pci32_dma_map_sg(struct device *dev, struct scatterlist *sglist,
 	return nents;
 }
 
+/* Make sure we keep the same behaviour */
+static int pci32_map_error(dma_addr_t dma_addr)
+{
+	return 0;
+}
+
 static const struct dma_mapping_ops pci32_dma_ops = {
 	.map_single = pci32_map_single,
 	.unmap_single = NULL,
@@ -41,6 +47,7 @@ static const struct dma_mapping_ops pci32_dma_ops = {
 	.sync_single_range_for_device = NULL,
 	.sync_sg_for_cpu = NULL,
 	.sync_sg_for_device = NULL,
+	.mapping_error = pci32_map_error,
 };
 
 const struct dma_mapping_ops *dma_ops = &pci32_dma_ops;

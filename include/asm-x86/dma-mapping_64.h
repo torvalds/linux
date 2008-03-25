@@ -3,14 +3,6 @@
 
 extern int iommu_merge;
 
-static inline int dma_mapping_error(dma_addr_t dma_addr)
-{
-	if (dma_ops->mapping_error)
-		return dma_ops->mapping_error(dma_addr);
-
-	return (dma_addr == bad_dma_address);
-}
-
 /* same for gart, swiotlb, and nommu */
 static inline int dma_get_cache_alignment(void)
 {

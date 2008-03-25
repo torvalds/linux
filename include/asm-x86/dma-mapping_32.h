@@ -8,12 +8,6 @@
 #include <asm/io.h>
 #include <asm/bug.h>
 
-static inline int
-dma_mapping_error(dma_addr_t dma_addr)
-{
-	return 0;
-}
-
 extern int forbid_dac;
 
 static inline int
