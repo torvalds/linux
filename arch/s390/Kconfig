@@ -62,6 +62,10 @@ config GENERIC_LOCKBREAK
 	default y
 	depends on SMP && PREEMPT
 
+config PGSTE
+	bool
+	default y if KVM
+
 mainmenu "Linux Kernel Configuration"
 
 config S390

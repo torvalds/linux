@@ -966,6 +966,7 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 
 extern int add_shared_memory(unsigned long start, unsigned long size);
 extern int remove_shared_memory(unsigned long start, unsigned long size);
+extern int s390_enable_sie(void);
 
 /*
  * No page table caches to initialise
