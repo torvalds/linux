@@ -95,6 +95,7 @@ static int handle_lctl(struct kvm_vcpu *vcpu)
 }
 
 static intercept_handler_t instruction_handlers[256] = {
+	[0xb2] = kvm_s390_handle_priv,
 	[0xb7] = handle_lctl,
 	[0xeb] = handle_lctg,
 };

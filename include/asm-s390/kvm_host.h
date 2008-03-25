@@ -119,6 +119,15 @@ struct kvm_vcpu_stat {
 	u32 deliver_restart_signal;
 	u32 deliver_program_int;
 	u32 exit_wait_state;
+	u32 instruction_stidp;
+	u32 instruction_spx;
+	u32 instruction_stpx;
+	u32 instruction_stap;
+	u32 instruction_storage_key;
+	u32 instruction_stsch;
+	u32 instruction_chsc;
+	u32 instruction_stsi;
+	u32 instruction_stfl;
 };
 
 struct io_info {
@@ -188,6 +197,10 @@ struct kvm_vcpu_arch {
 	unsigned int      guest_acrs[NUM_ACRS];
 	struct local_interrupt local_int;
 	struct timer_list ckc_timer;
+	union  {
+		cpuid_t	  cpu_id;
+		u64	  stidp_data;
+	};
 };
 
 struct kvm_vm_stat {

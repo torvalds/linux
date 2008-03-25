@@ -48,6 +48,15 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "deliver_restart_signal", VCPU_STAT(deliver_restart_signal) },
 	{ "deliver_program_interruption", VCPU_STAT(deliver_program_int) },
 	{ "exit_wait_state", VCPU_STAT(exit_wait_state) },
+	{ "instruction_stidp", VCPU_STAT(instruction_stidp) },
+	{ "instruction_spx", VCPU_STAT(instruction_spx) },
+	{ "instruction_stpx", VCPU_STAT(instruction_stpx) },
+	{ "instruction_stap", VCPU_STAT(instruction_stap) },
+	{ "instruction_storage_key", VCPU_STAT(instruction_storage_key) },
+	{ "instruction_stsch", VCPU_STAT(instruction_stsch) },
+	{ "instruction_chsc", VCPU_STAT(instruction_chsc) },
+	{ "instruction_stsi", VCPU_STAT(instruction_stsi) },
+	{ "instruction_stfl", VCPU_STAT(instruction_stfl) },
 	{ NULL }
 };
 
@@ -246,6 +255,8 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->eca   = 0xC1002001U;
 	setup_timer(&vcpu->arch.ckc_timer, kvm_s390_idle_wakeup,
 		 (unsigned long) vcpu);
+	get_cpu_id(&vcpu->arch.cpu_id);
+	vcpu->arch.cpu_id.version = 0xfe;
 	return 0;
 }
 
