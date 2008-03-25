@@ -2814,6 +2814,7 @@ void ata_eh_finish(struct ata_port *ap)
 /**
  *	ata_do_eh - do standard error handling
  *	@ap: host port to handle error for
+ *
  *	@prereset: prereset method (can be NULL)
  *	@softreset: softreset method (can be NULL)
  *	@hardreset: hardreset method (can be NULL)
@@ -2842,6 +2843,30 @@ void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 	}
 
 	ata_eh_finish(ap);
+}
+
+/**
+ *	ata_std_error_handler - standard error handler
+ *	@ap: host port to handle error for
+ *
+ *	Standard error handler
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ */
+void ata_std_error_handler(struct ata_port *ap)
+{
+	struct ata_port_operations *ops = ap->ops;
+	ata_reset_fn_t hardreset = ops->hardreset;
+
+	/* sata_std_hardreset is inherited to all drivers from
+	 * ata_base_port_ops.  Ignore it if SCR access is not
+	 * available.
+	 */
+	if (hardreset == sata_std_hardreset && !sata_scr_valid(&ap->link))
+		hardreset = NULL;
+
+	ata_do_eh(ap, ops->prereset, ops->softreset, hardreset, ops->postreset);
 }
 
 #ifdef CONFIG_PM

@@ -44,19 +44,6 @@ static int it8213_pre_reset(struct ata_link *link, unsigned long deadline)
 }
 
 /**
- *	it8213_error_handler - Probe specified port on PATA host controller
- *	@ap: Port to probe
- *
- *	LOCKING:
- *	None (inherited from caller).
- */
-
-static void it8213_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, it8213_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
-}
-
-/**
  *	it8213_cable_detect	-	check for 40/80 pin
  *	@ap: Port
  *
@@ -252,7 +239,7 @@ static struct ata_port_operations it8213_ops = {
 	.cable_detect		= it8213_cable_detect,
 	.set_piomode		= it8213_set_piomode,
 	.set_dmamode		= it8213_set_dmamode,
-	.error_handler		= it8213_error_handler,
+	.prereset		= it8213_pre_reset,
 };
 
 

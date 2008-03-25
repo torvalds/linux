@@ -54,20 +54,6 @@ static int ns87410_pre_reset(struct ata_link *link, unsigned long deadline)
 }
 
 /**
- *	ns87410_error_handler		-	probe reset
- *	@ap: ATA port
- *
- *	Perform the ATA probe and bus reset sequence plus specific handling
- *	for this hardware. The MPIIX has the enable bits in a different place
- *	to PIIX4 and friends. As a pure PIO device it has no cable detect
- */
-
-static void ns87410_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, ns87410_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
-}
-
-/**
  *	ns87410_set_piomode	-	set initial PIO mode data
  *	@ap: ATA interface
  *	@adev: ATA device
@@ -152,7 +138,7 @@ static struct ata_port_operations ns87410_port_ops = {
 	.qc_issue	= ns87410_qc_issue_prot,
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= ns87410_set_piomode,
-	.error_handler	= ns87410_error_handler,
+	.prereset	= ns87410_pre_reset,
 };
 
 static int ns87410_init_one(struct pci_dev *dev, const struct pci_device_id *id)

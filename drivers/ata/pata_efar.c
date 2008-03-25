@@ -49,19 +49,6 @@ static int efar_pre_reset(struct ata_link *link, unsigned long deadline)
 }
 
 /**
- *	efar_probe_reset - Probe specified port on PATA host controller
- *	@ap: Port to probe
- *
- *	LOCKING:
- *	None (inherited from caller).
- */
-
-static void efar_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, efar_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
-}
-
-/**
  *	efar_cable_detect	-	check for 40/80 pin
  *	@ap: Port
  *
@@ -241,7 +228,7 @@ static struct ata_port_operations efar_ops = {
 	.cable_detect		= efar_cable_detect,
 	.set_piomode		= efar_set_piomode,
 	.set_dmamode		= efar_set_dmamode,
-	.error_handler		= efar_error_handler,
+	.prereset		= efar_pre_reset,
 };
 
 

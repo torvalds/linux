@@ -71,11 +71,6 @@ static int triflex_prereset(struct ata_link *link, unsigned long deadline)
 
 
 
-static void triflex_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, triflex_prereset, ata_std_softreset, NULL, ata_std_postreset);
-}
-
 /**
  *	triflex_load_timing		-	timing configuration
  *	@ap: ATA interface
@@ -189,7 +184,7 @@ static struct ata_port_operations triflex_port_ops = {
 	.bmdma_stop	= triflex_bmdma_stop,
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= triflex_set_piomode,
-	.error_handler	= triflex_error_handler,
+	.prereset	= triflex_prereset,
 };
 
 static int triflex_init_one(struct pci_dev *dev, const struct pci_device_id *id)

@@ -252,9 +252,18 @@ static void ahci_freeze(struct ata_port *ap);
 static void ahci_thaw(struct ata_port *ap);
 static void ahci_pmp_attach(struct ata_port *ap);
 static void ahci_pmp_detach(struct ata_port *ap);
+static int ahci_softreset(struct ata_link *link, unsigned int *class,
+			  unsigned long deadline);
+static int ahci_hardreset(struct ata_link *link, unsigned int *class,
+			  unsigned long deadline);
+static int ahci_vt8251_hardreset(struct ata_link *link, unsigned int *class,
+				 unsigned long deadline);
+static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
+				unsigned long deadline);
+static void ahci_postreset(struct ata_link *link, unsigned int *class);
+static int ahci_pmp_softreset(struct ata_link *link, unsigned int *class,
+			      unsigned long deadline);
 static void ahci_error_handler(struct ata_port *ap);
-static void ahci_vt8251_error_handler(struct ata_port *ap);
-static void ahci_p5wdh_error_handler(struct ata_port *ap);
 static void ahci_post_internal_cmd(struct ata_queued_cmd *qc);
 static int ahci_port_resume(struct ata_port *ap);
 static void ahci_dev_config(struct ata_device *dev);
@@ -293,6 +302,10 @@ static struct ata_port_operations ahci_ops = {
 
 	.freeze			= ahci_freeze,
 	.thaw			= ahci_thaw,
+	.softreset		= ahci_softreset,
+	.hardreset		= ahci_hardreset,
+	.postreset		= ahci_postreset,
+	.pmp_softreset		= ahci_pmp_softreset,
 	.error_handler		= ahci_error_handler,
 	.post_internal_cmd	= ahci_post_internal_cmd,
 	.dev_config		= ahci_dev_config,
@@ -314,12 +327,12 @@ static struct ata_port_operations ahci_ops = {
 
 static struct ata_port_operations ahci_vt8251_ops = {
 	.inherits		= &ahci_ops,
-	.error_handler		= ahci_vt8251_error_handler,
+	.hardreset		= ahci_vt8251_hardreset,
 };
 
 static struct ata_port_operations ahci_p5wdh_ops = {
 	.inherits		= &ahci_ops,
-	.error_handler		= ahci_p5wdh_error_handler,
+	.hardreset		= ahci_p5wdh_hardreset,
 };
 
 #define AHCI_HFLAGS(flags)	.private_data	= (void *)(flags)
@@ -1796,37 +1809,7 @@ static void ahci_error_handler(struct ata_port *ap)
 		ahci_start_engine(ap);
 	}
 
-	/* perform recovery */
-	sata_pmp_do_eh(ap, ata_std_prereset, ahci_softreset,
-		       ahci_hardreset, ahci_postreset,
-		       sata_pmp_std_prereset, ahci_pmp_softreset,
-		       sata_pmp_std_hardreset, sata_pmp_std_postreset);
-}
-
-static void ahci_vt8251_error_handler(struct ata_port *ap)
-{
-	if (!(ap->pflags & ATA_PFLAG_FROZEN)) {
-		/* restart engine */
-		ahci_stop_engine(ap);
-		ahci_start_engine(ap);
-	}
-
-	/* perform recovery */
-	ata_do_eh(ap, ata_std_prereset, ahci_softreset, ahci_vt8251_hardreset,
-		  ahci_postreset);
-}
-
-static void ahci_p5wdh_error_handler(struct ata_port *ap)
-{
-	if (!(ap->pflags & ATA_PFLAG_FROZEN)) {
-		/* restart engine */
-		ahci_stop_engine(ap);
-		ahci_start_engine(ap);
-	}
-
-	/* perform recovery */
-	ata_do_eh(ap, ata_std_prereset, ahci_softreset, ahci_p5wdh_hardreset,
-		  ahci_postreset);
+	sata_pmp_error_handler(ap);
 }
 
 static void ahci_post_internal_cmd(struct ata_queued_cmd *qc)

@@ -123,6 +123,7 @@ static void qs_bmdma_stop(struct ata_queued_cmd *qc);
 static u8 qs_bmdma_status(struct ata_port *ap);
 static void qs_freeze(struct ata_port *ap);
 static void qs_thaw(struct ata_port *ap);
+static int qs_prereset(struct ata_link *link, unsigned long deadline);
 static void qs_error_handler(struct ata_port *ap);
 
 static struct scsi_host_template qs_ata_sht = {
@@ -142,6 +143,8 @@ static struct ata_port_operations qs_ata_ops = {
 
 	.freeze			= qs_freeze,
 	.thaw			= qs_thaw,
+	.prereset		= qs_prereset,
+	.softreset		= ATA_OP_NULL,
 	.error_handler		= qs_error_handler,
 	.post_internal_cmd	= ATA_OP_NULL,
 
@@ -250,8 +253,7 @@ static int qs_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
 static void qs_error_handler(struct ata_port *ap)
 {
 	qs_enter_reg_mode(ap);
-	ata_do_eh(ap, qs_prereset, NULL, sata_std_hardreset,
-		  ata_std_postreset);
+	ata_std_error_handler(ap);
 }
 
 static int qs_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val)

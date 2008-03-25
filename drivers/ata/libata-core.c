@@ -76,6 +76,10 @@ const unsigned long sata_deb_timing_long[]		= { 100, 2000, 5000 };
 
 const struct ata_port_operations ata_base_port_ops = {
 	.irq_clear		= ata_noop_irq_clear,
+	.prereset		= ata_std_prereset,
+	.hardreset		= sata_std_hardreset,
+	.postreset		= ata_std_postreset,
+	.error_handler		= ata_std_error_handler,
 };
 
 const struct ata_port_operations sata_port_ops = {
@@ -87,6 +91,11 @@ const struct ata_port_operations sata_port_ops = {
 
 const struct ata_port_operations sata_pmp_port_ops = {
 	.inherits		= &sata_port_ops,
+
+	.pmp_prereset		= sata_pmp_std_prereset,
+	.pmp_hardreset		= sata_pmp_std_hardreset,
+	.pmp_postreset		= sata_pmp_std_postreset,
+	.error_handler		= sata_pmp_error_handler,
 };
 
 const struct ata_port_operations ata_sff_port_ops = {
@@ -97,6 +106,7 @@ const struct ata_port_operations ata_sff_port_ops = {
 
 	.freeze			= ata_bmdma_freeze,
 	.thaw			= ata_bmdma_thaw,
+	.softreset		= ata_std_softreset,
 	.error_handler		= ata_bmdma_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 
@@ -7935,7 +7945,6 @@ EXPORT_SYMBOL_GPL(ata_bmdma_status);
 EXPORT_SYMBOL_GPL(ata_bmdma_stop);
 EXPORT_SYMBOL_GPL(ata_bmdma_freeze);
 EXPORT_SYMBOL_GPL(ata_bmdma_thaw);
-EXPORT_SYMBOL_GPL(ata_bmdma_drive_eh);
 EXPORT_SYMBOL_GPL(ata_bmdma_error_handler);
 EXPORT_SYMBOL_GPL(ata_bmdma_post_internal_cmd);
 EXPORT_SYMBOL_GPL(ata_port_probe);
@@ -8005,7 +8014,7 @@ EXPORT_SYMBOL_GPL(sata_pmp_qc_defer_cmd_switch);
 EXPORT_SYMBOL_GPL(sata_pmp_std_prereset);
 EXPORT_SYMBOL_GPL(sata_pmp_std_hardreset);
 EXPORT_SYMBOL_GPL(sata_pmp_std_postreset);
-EXPORT_SYMBOL_GPL(sata_pmp_do_eh);
+EXPORT_SYMBOL_GPL(sata_pmp_error_handler);
 
 EXPORT_SYMBOL_GPL(__ata_ehi_push_desc);
 EXPORT_SYMBOL_GPL(ata_ehi_push_desc);
@@ -8024,6 +8033,7 @@ EXPORT_SYMBOL_GPL(ata_eh_thaw_port);
 EXPORT_SYMBOL_GPL(ata_eh_qc_complete);
 EXPORT_SYMBOL_GPL(ata_eh_qc_retry);
 EXPORT_SYMBOL_GPL(ata_do_eh);
+EXPORT_SYMBOL_GPL(ata_std_error_handler);
 EXPORT_SYMBOL_GPL(ata_irq_on);
 EXPORT_SYMBOL_GPL(ata_dev_try_classify);
 

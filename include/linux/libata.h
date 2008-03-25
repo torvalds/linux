@@ -693,6 +693,14 @@ struct ata_port_operations {
 
 	void (*freeze)(struct ata_port *ap);
 	void (*thaw)(struct ata_port *ap);
+	ata_prereset_fn_t	prereset;
+	ata_reset_fn_t		softreset;
+	ata_reset_fn_t		hardreset;
+	ata_postreset_fn_t	postreset;
+	ata_prereset_fn_t	pmp_prereset;
+	ata_reset_fn_t		pmp_softreset;
+	ata_reset_fn_t		pmp_hardreset;
+	ata_postreset_fn_t	pmp_postreset;
 	void (*error_handler)(struct ata_port *ap);
 	void (*post_internal_cmd)(struct ata_queued_cmd *qc);
 
@@ -909,10 +917,6 @@ extern void ata_bmdma_irq_clear(struct ata_port *ap);
 extern void ata_noop_irq_clear(struct ata_port *ap);
 extern void ata_bmdma_freeze(struct ata_port *ap);
 extern void ata_bmdma_thaw(struct ata_port *ap);
-extern void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
-			       ata_reset_fn_t softreset,
-			       ata_reset_fn_t hardreset,
-			       ata_postreset_fn_t postreset);
 extern void ata_bmdma_error_handler(struct ata_port *ap);
 extern void ata_bmdma_post_internal_cmd(struct ata_queued_cmd *qc);
 extern int ata_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
@@ -1056,11 +1060,7 @@ extern int sata_pmp_std_prereset(struct ata_link *link, unsigned long deadline);
 extern int sata_pmp_std_hardreset(struct ata_link *link, unsigned int *class,
 				  unsigned long deadline);
 extern void sata_pmp_std_postreset(struct ata_link *link, unsigned int *class);
-extern void sata_pmp_do_eh(struct ata_port *ap,
-		ata_prereset_fn_t prereset, ata_reset_fn_t softreset,
-		ata_reset_fn_t hardreset, ata_postreset_fn_t postreset,
-		ata_prereset_fn_t pmp_prereset, ata_reset_fn_t pmp_softreset,
-		ata_reset_fn_t pmp_hardreset, ata_postreset_fn_t pmp_postreset);
+extern void sata_pmp_error_handler(struct ata_port *ap);
 
 /*
  * EH
@@ -1080,6 +1080,7 @@ extern void ata_eh_qc_retry(struct ata_queued_cmd *qc);
 extern void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 		      ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
 		      ata_postreset_fn_t postreset);
+extern void ata_std_error_handler(struct ata_port *ap);
 
 /*
  * Base operations to inherit from and initializers for sht

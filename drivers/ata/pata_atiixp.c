@@ -48,11 +48,6 @@ static int atiixp_pre_reset(struct ata_link *link, unsigned long deadline)
 	return ata_std_prereset(link, deadline);
 }
 
-static void atiixp_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, atiixp_pre_reset, ata_std_softreset, NULL,   ata_std_postreset);
-}
-
 static int atiixp_cable_detect(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -235,7 +230,7 @@ static struct ata_port_operations atiixp_port_ops = {
 	.cable_detect	= atiixp_cable_detect,
 	.set_piomode	= atiixp_set_piomode,
 	.set_dmamode	= atiixp_set_dmamode,
-	.error_handler	= atiixp_error_handler,
+	.prereset	= atiixp_pre_reset,
 };
 
 static int atiixp_init_one(struct pci_dev *dev, const struct pci_device_id *id)

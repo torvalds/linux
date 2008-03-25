@@ -148,7 +148,7 @@ static int hpt3x2n_cable_detect(struct ata_port *ap)
  *	Reset the hardware and state machine,
  */
 
-static int hpt3xn_pre_reset(struct ata_link *link, unsigned long deadline)
+static int hpt3x2n_pre_reset(struct ata_link *link, unsigned long deadline)
 {
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
@@ -157,18 +157,6 @@ static int hpt3xn_pre_reset(struct ata_link *link, unsigned long deadline)
 	udelay(100);
 
 	return ata_std_prereset(link, deadline);
-}
-
-/**
- *	hpt3x2n_error_handler	-	probe the hpt3x2n bus
- *	@ap: ATA port to reset
- *
- *	Perform the probe reset handling for the 3x2N
- */
-
-static void hpt3x2n_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, hpt3xn_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
 }
 
 /**
@@ -355,7 +343,7 @@ static struct ata_port_operations hpt3x2n_port_ops = {
 	.cable_detect	= hpt3x2n_cable_detect,
 	.set_piomode	= hpt3x2n_set_piomode,
 	.set_dmamode	= hpt3x2n_set_dmamode,
-	.error_handler	= hpt3x2n_error_handler,
+	.prereset	= hpt3x2n_pre_reset,
 };
 
 /**

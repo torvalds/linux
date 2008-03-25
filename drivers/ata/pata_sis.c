@@ -161,19 +161,6 @@ static int sis_pre_reset(struct ata_link *link, unsigned long deadline)
 
 
 /**
- *	sis_error_handler - Probe specified port on PATA host controller
- *	@ap: Port to probe
- *
- *	LOCKING:
- *	None (inherited from caller).
- */
-
-static void sis_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, sis_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
-}
-
-/**
  *	sis_set_fifo	-	Set RWP fifo bits for this device
  *	@ap: Port
  *	@adev: Device
@@ -526,7 +513,7 @@ static struct ata_port_operations sis_133_for_sata_ops = {
 
 static struct ata_port_operations sis_base_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	.error_handler		= sis_error_handler,
+	.prereset		= sis_pre_reset,
 };
 
 static struct ata_port_operations sis_133_ops = {

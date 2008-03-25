@@ -470,7 +470,10 @@ static void mv_port_stop(struct ata_port *ap);
 static void mv_qc_prep(struct ata_queued_cmd *qc);
 static void mv_qc_prep_iie(struct ata_queued_cmd *qc);
 static unsigned int mv_qc_issue(struct ata_queued_cmd *qc);
-static void mv_error_handler(struct ata_port *ap);
+static int mv_prereset(struct ata_link *link, unsigned long deadline);
+static int mv_hardreset(struct ata_link *link, unsigned int *class,
+			unsigned long deadline);
+static void mv_postreset(struct ata_link *link, unsigned int *classes);
 static void mv_eh_freeze(struct ata_port *ap);
 static void mv_eh_thaw(struct ata_port *ap);
 static void mv6_dev_config(struct ata_device *dev);
@@ -534,7 +537,10 @@ static struct ata_port_operations mv5_ops = {
 
 	.freeze			= mv_eh_freeze,
 	.thaw			= mv_eh_thaw,
-	.error_handler		= mv_error_handler,
+	.prereset		= mv_prereset,
+	.hardreset		= mv_hardreset,
+	.postreset		= mv_postreset,
+	.error_handler		= ata_std_error_handler, /* avoid SFF EH */
 	.post_internal_cmd	= ATA_OP_NULL,
 
 	.scr_read		= mv5_scr_read,
@@ -2413,12 +2419,6 @@ static void mv_postreset(struct ata_link *link, unsigned int *classes)
 
 	/* set up device control */
 	iowrite8(ap->ctl, ap->ioaddr.ctl_addr);
-}
-
-static void mv_error_handler(struct ata_port *ap)
-{
-	ata_do_eh(ap, mv_prereset, ata_std_softreset,
-		  mv_hardreset, mv_postreset);
 }
 
 static void mv_eh_freeze(struct ata_port *ap)

@@ -51,20 +51,6 @@ static int oldpiix_pre_reset(struct ata_link *link, unsigned long deadline)
 }
 
 /**
- *	oldpiix_pata_error_handler - Probe specified port on PATA host controller
- *	@ap: Port to probe
- *	@classes:
- *
- *	LOCKING:
- *	None (inherited from caller).
- */
-
-static void oldpiix_pata_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, oldpiix_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
-}
-
-/**
  *	oldpiix_set_piomode - Initialize host controller PATA PIO timings
  *	@ap: Port whose timings we are configuring
  *	@adev: Device whose timings we are configuring
@@ -229,7 +215,7 @@ static struct ata_port_operations oldpiix_pata_ops = {
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= oldpiix_set_piomode,
 	.set_dmamode		= oldpiix_set_dmamode,
-	.error_handler		= oldpiix_pata_error_handler,
+	.prereset		= oldpiix_pre_reset,
 };
 
 

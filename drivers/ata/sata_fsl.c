@@ -912,16 +912,6 @@ err:
 	return -EIO;
 }
 
-static void sata_fsl_error_handler(struct ata_port *ap)
-{
-
-	DPRINTK("in xx_error_handler\n");
-
-	/* perform recovery */
-	ata_do_eh(ap, ata_std_prereset, sata_fsl_softreset, sata_std_hardreset,
-		  ata_std_postreset);
-}
-
 static void sata_fsl_post_internal_cmd(struct ata_queued_cmd *qc)
 {
 	if (qc->flags & ATA_QCFLAG_FAILED)
@@ -1213,7 +1203,7 @@ static const struct ata_port_operations sata_fsl_ops = {
 
 	.freeze = sata_fsl_freeze,
 	.thaw = sata_fsl_thaw,
-	.error_handler = sata_fsl_error_handler,
+	.softreset = sata_fsl_softreset,
 	.post_internal_cmd = sata_fsl_post_internal_cmd,
 
 	.port_start = sata_fsl_port_start,

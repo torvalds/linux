@@ -1314,17 +1314,6 @@ static void bfin_std_postreset(struct ata_link *link, unsigned int *classes)
 	write_atapi_register(base, ATA_REG_CTRL, ap->ctl);
 }
 
-/**
- *	bfin_error_handler - Stock error handler for DMA controller
- *	@ap: port to handle error for
- */
-
-static void bfin_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, ata_std_prereset, bfin_std_softreset, NULL,
-			   bfin_std_postreset);
-}
-
 static void bfin_port_stop(struct ata_port *ap)
 {
 	dev_dbg(ap->dev, "in atapi port stop\n");
@@ -1385,7 +1374,8 @@ static const struct ata_port_operations bfin_pata_ops = {
 
 	.freeze			= bfin_bmdma_freeze,
 	.thaw			= bfin_bmdma_thaw,
-	.error_handler		= bfin_error_handler,
+	.softreset		= bfin_std_softreset,
+	.postreset		= bfin_std_postreset,
 	.post_internal_cmd	= bfin_bmdma_stop,
 
 	.irq_clear		= bfin_irq_clear,

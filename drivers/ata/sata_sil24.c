@@ -352,6 +352,14 @@ static void sil24_pmp_attach(struct ata_port *ap);
 static void sil24_pmp_detach(struct ata_port *ap);
 static void sil24_freeze(struct ata_port *ap);
 static void sil24_thaw(struct ata_port *ap);
+static int sil24_softreset(struct ata_link *link, unsigned int *class,
+			   unsigned long deadline);
+static int sil24_hardreset(struct ata_link *link, unsigned int *class,
+			   unsigned long deadline);
+static int sil24_pmp_softreset(struct ata_link *link, unsigned int *class,
+			       unsigned long deadline);
+static int sil24_pmp_hardreset(struct ata_link *link, unsigned int *class,
+			       unsigned long deadline);
 static void sil24_error_handler(struct ata_port *ap);
 static void sil24_post_internal_cmd(struct ata_queued_cmd *qc);
 static int sil24_port_start(struct ata_port *ap);
@@ -402,6 +410,10 @@ static struct ata_port_operations sil24_ops = {
 
 	.freeze			= sil24_freeze,
 	.thaw			= sil24_thaw,
+	.softreset		= sil24_softreset,
+	.hardreset		= sil24_hardreset,
+	.pmp_softreset		= sil24_pmp_softreset,
+	.pmp_hardreset		= sil24_pmp_hardreset,
 	.error_handler		= sil24_error_handler,
 	.post_internal_cmd	= sil24_post_internal_cmd,
 	.dev_config		= sil24_dev_config,
@@ -1181,11 +1193,7 @@ static void sil24_error_handler(struct ata_port *ap)
 	if (sil24_init_port(ap))
 		ata_eh_freeze_port(ap);
 
-	/* perform recovery */
-	sata_pmp_do_eh(ap, ata_std_prereset, sil24_softreset, sil24_hardreset,
-		       ata_std_postreset, sata_pmp_std_prereset,
-		       sil24_pmp_softreset, sil24_pmp_hardreset,
-		       sata_pmp_std_postreset);
+	sata_pmp_error_handler(ap);
 
 	pp->do_port_rst = 0;
 }

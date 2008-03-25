@@ -905,17 +905,6 @@ static void scc_std_postreset(struct ata_link *link, unsigned int *classes)
 }
 
 /**
- *	scc_error_handler - Stock error handler for BMDMA controller
- *	@ap: port to handle error for
- */
-
-static void scc_error_handler (struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, scc_pata_prereset, scc_std_softreset, NULL,
-			   scc_std_postreset);
-}
-
-/**
  *	scc_bmdma_irq_clear - Clear PCI IDE BMDMA interrupt.
  *	@ap: Port associated with this ATA transaction.
  *
@@ -992,7 +981,9 @@ static const struct ata_port_operations scc_pata_ops = {
 	.data_xfer		= scc_data_xfer,
 
 	.freeze			= scc_bmdma_freeze,
-	.error_handler		= scc_error_handler,
+	.prereset		= scc_pata_prereset,
+	.softreset		= scc_std_softreset,
+	.postreset		= scc_std_postreset,
 	.post_internal_cmd	= scc_bmdma_stop,
 
 	.irq_clear		= scc_bmdma_irq_clear,

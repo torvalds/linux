@@ -341,19 +341,7 @@ static int hpt37x_pre_reset(struct ata_link *link, unsigned long deadline)
 	return ata_std_prereset(link, deadline);
 }
 
-/**
- *	hpt37x_error_handler	-	reset the hpt374
- *	@ap: ATA port to reset
- *
- *	Perform probe for HPT37x, except for HPT374 channel 2
- */
-
-static void hpt37x_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, hpt37x_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
-}
-
-static int hpt374_pre_reset(struct ata_link *link, unsigned long deadline)
+static int hpt374_fn1_pre_reset(struct ata_link *link, unsigned long deadline)
 {
 	static const struct pci_bits hpt37x_enable_bits[] = {
 		{ 0x50, 1, 0x04, 0x04 },
@@ -387,25 +375,6 @@ static int hpt374_pre_reset(struct ata_link *link, unsigned long deadline)
 	udelay(100);
 
 	return ata_std_prereset(link, deadline);
-}
-
-/**
- *	hpt374_error_handler	-	reset the hpt374
- *	@classes:
- *
- *	The 374 cable detect is a little different due to the extra
- *	channels. The function 0 channels work like usual but function 1
- *	is special
- */
-
-static void hpt374_error_handler(struct ata_port *ap)
-{
-	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-
-	if (!(PCI_FUNC(pdev->devfn) & 1))
-		hpt37x_error_handler(ap);
-	else
-		ata_bmdma_drive_eh(ap, hpt374_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
 }
 
 /**
@@ -635,7 +604,7 @@ static struct ata_port_operations hpt370_port_ops = {
 	.mode_filter	= hpt370_filter,
 	.set_piomode	= hpt370_set_piomode,
 	.set_dmamode	= hpt370_set_dmamode,
-	.error_handler	= hpt37x_error_handler,
+	.prereset	= hpt37x_pre_reset,
 };
 
 /*
@@ -659,17 +628,17 @@ static struct ata_port_operations hpt372_port_ops = {
 
 	.set_piomode	= hpt372_set_piomode,
 	.set_dmamode	= hpt372_set_dmamode,
-	.error_handler	= hpt37x_error_handler,
+	.prereset	= hpt37x_pre_reset,
 };
 
 /*
  *	Configuration for HPT374. Mode setting works like 372 and friends
- *	but we have a different cable detection procedure.
+ *	but we have a different cable detection procedure for function 1.
  */
 
-static struct ata_port_operations hpt374_port_ops = {
+static struct ata_port_operations hpt374_fn1_port_ops = {
 	.inherits	= &hpt372_port_ops,
-	.error_handler	= hpt374_error_handler,
+	.prereset	= hpt374_fn1_pre_reset,
 };
 
 /**
@@ -821,13 +790,20 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.udma_mask = ATA_UDMA6,
 		.port_ops = &hpt372_port_ops
 	};
-	/* HPT374 - UDMA100 */
-	static const struct ata_port_info info_hpt374 = {
+	/* HPT374 - UDMA100, function 1 uses different prereset method */
+	static const struct ata_port_info info_hpt374_fn0 = {
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
 		.udma_mask = ATA_UDMA5,
-		.port_ops = &hpt374_port_ops
+		.port_ops = &hpt372_port_ops
+	};
+	static const struct ata_port_info info_hpt374_fn1 = {
+		.flags = ATA_FLAG_SLAVE_POSS,
+		.pio_mask = 0x1f,
+		.mwdma_mask = 0x07,
+		.udma_mask = ATA_UDMA5,
+		.port_ops = &hpt374_fn1_port_ops
 	};
 
 	static const int MHz[4] = { 33, 40, 50, 66 };
@@ -912,7 +888,10 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 				break;
 			case PCI_DEVICE_ID_TTI_HPT374:
 				chip_table = &hpt374;
-				ppi[0] = &info_hpt374;
+				if (!(PCI_FUNC(dev->devfn) & 1))
+					*ppi = &info_hpt374_fn0;
+				else
+					*ppi = &info_hpt374_fn1;
 				break;
 			default:
 				printk(KERN_ERR "pata_hpt37x: PCI table is bogus please report (%d).\n", dev->device);

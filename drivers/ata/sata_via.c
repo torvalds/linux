@@ -71,7 +71,7 @@ static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static int svia_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
 static int svia_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
 static void svia_noop_freeze(struct ata_port *ap);
-static void vt6420_error_handler(struct ata_port *ap);
+static int vt6420_prereset(struct ata_link *link, unsigned long deadline);
 static int vt6421_pata_cable_detect(struct ata_port *ap);
 static void vt6421_set_pio_mode(struct ata_port *ap, struct ata_device *adev);
 static void vt6421_set_dma_mode(struct ata_port *ap, struct ata_device *adev);
@@ -106,7 +106,7 @@ static struct scsi_host_template svia_sht = {
 static struct ata_port_operations vt6420_sata_ops = {
 	.inherits		= &ata_bmdma_port_ops,
 	.freeze			= svia_noop_freeze,
-	.error_handler		= vt6420_error_handler,
+	.prereset		= vt6420_prereset,
 };
 
 static struct ata_port_operations vt6421_pata_ops = {
@@ -245,12 +245,6 @@ static int vt6420_prereset(struct ata_link *link, unsigned long deadline)
 	ata_wait_ready(ap, deadline);
 
 	return 0;
-}
-
-static void vt6420_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, vt6420_prereset, ata_std_softreset, NULL,
-			   ata_std_postreset);
 }
 
 static int vt6421_pata_cable_detect(struct ata_port *ap)

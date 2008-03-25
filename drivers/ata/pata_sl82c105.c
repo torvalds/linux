@@ -64,12 +64,6 @@ static int sl82c105_pre_reset(struct ata_link *link, unsigned long deadline)
 }
 
 
-static void sl82c105_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, sl82c105_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
-}
-
-
 /**
  *	sl82c105_configure_piomode	-	set chip PIO timing
  *	@ap: ATA interface
@@ -245,7 +239,7 @@ static struct ata_port_operations sl82c105_port_ops = {
 	.bmdma_stop	= sl82c105_bmdma_stop,
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= sl82c105_set_piomode,
-	.error_handler	= sl82c105_error_handler,
+	.prereset	= sl82c105_pre_reset,
 };
 
 /**

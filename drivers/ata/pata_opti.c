@@ -68,21 +68,6 @@ static int opti_pre_reset(struct ata_link *link, unsigned long deadline)
 }
 
 /**
- *	opti_probe_reset		-	probe reset
- *	@ap: ATA port
- *
- *	Perform the ATA probe and bus reset sequence plus specific handling
- *	for this hardware. The Opti needs little handling - we have no UDMA66
- *	capability that needs cable detection. All we must do is check the port
- *	is enabled.
- */
-
-static void opti_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, opti_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
-}
-
-/**
  *	opti_write_reg		-	control register setup
  *	@ap: ATA port
  *	@value: value
@@ -172,7 +157,7 @@ static struct ata_port_operations opti_port_ops = {
 	.inherits	= &ata_sff_port_ops,
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= opti_set_piomode,
-	.error_handler	= opti_error_handler,
+	.prereset	= opti_pre_reset,
 };
 
 static int opti_init_one(struct pci_dev *dev, const struct pci_device_id *id)

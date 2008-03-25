@@ -162,15 +162,16 @@ struct piix_host_priv {
 
 static int piix_init_one(struct pci_dev *pdev,
 			 const struct pci_device_id *ent);
-static void piix_pata_error_handler(struct ata_port *ap);
+static int piix_pata_prereset(struct ata_link *link, unsigned long deadline);
 static void piix_set_piomode(struct ata_port *ap, struct ata_device *adev);
 static void piix_set_dmamode(struct ata_port *ap, struct ata_device *adev);
 static void ich_set_dmamode(struct ata_port *ap, struct ata_device *adev);
 static int ich_pata_cable_detect(struct ata_port *ap);
 static u8 piix_vmw_bmdma_status(struct ata_port *ap);
+static int piix_sidpr_hardreset(struct ata_link *link, unsigned int *class,
+				unsigned long deadline);
 static int piix_sidpr_scr_read(struct ata_port *ap, unsigned int reg, u32 *val);
 static int piix_sidpr_scr_write(struct ata_port *ap, unsigned int reg, u32 val);
-static void piix_sidpr_error_handler(struct ata_port *ap);
 #ifdef CONFIG_PM
 static int piix_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg);
 static int piix_pci_device_resume(struct pci_dev *pdev);
@@ -299,7 +300,7 @@ static struct ata_port_operations piix_pata_ops = {
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= piix_set_piomode,
 	.set_dmamode		= piix_set_dmamode,
-	.error_handler		= piix_pata_error_handler,
+	.prereset		= piix_pata_prereset,
 };
 
 static struct ata_port_operations piix_vmw_ops = {
@@ -319,9 +320,9 @@ static struct ata_port_operations piix_sata_ops = {
 
 static struct ata_port_operations piix_sidpr_sata_ops = {
 	.inherits		= &piix_sata_ops,
+	.hardreset		= piix_sidpr_hardreset,
 	.scr_read		= piix_sidpr_scr_read,
 	.scr_write		= piix_sidpr_scr_write,
-	.error_handler		= piix_sidpr_error_handler,
 };
 
 static const struct piix_map_db ich5_map_db = {
@@ -643,12 +644,6 @@ static int piix_pata_prereset(struct ata_link *link, unsigned long deadline)
 	if (!pci_test_config_bits(pdev, &piix_enable_bits[ap->port_no]))
 		return -ENOENT;
 	return ata_std_prereset(link, deadline);
-}
-
-static void piix_pata_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, piix_pata_prereset, ata_std_softreset, NULL,
-			   ata_std_postreset);
 }
 
 /**
@@ -1055,12 +1050,6 @@ static int piix_sidpr_hardreset(struct ata_link *link, unsigned int *class,
 	}
 
 	return -EAGAIN;
-}
-
-static void piix_sidpr_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, ata_std_prereset, ata_std_softreset,
-			   piix_sidpr_hardreset, ata_std_postreset);
 }
 
 #ifdef CONFIG_PM

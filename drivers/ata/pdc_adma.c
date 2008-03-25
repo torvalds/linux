@@ -140,7 +140,7 @@ static void adma_bmdma_stop(struct ata_queued_cmd *qc);
 static u8 adma_bmdma_status(struct ata_port *ap);
 static void adma_freeze(struct ata_port *ap);
 static void adma_thaw(struct ata_port *ap);
-static void adma_error_handler(struct ata_port *ap);
+static int adma_prereset(struct ata_link *link, unsigned long deadline);
 
 static struct scsi_host_template adma_ata_sht = {
 	ATA_BASE_SHT(DRV_NAME),
@@ -166,7 +166,8 @@ static struct ata_port_operations adma_ata_ops = {
 
 	.freeze			= adma_freeze,
 	.thaw			= adma_thaw,
-	.error_handler		= adma_error_handler,
+	.prereset		= adma_prereset,
+	.softreset		= ata_std_softreset,
 
 	.port_start		= adma_port_start,
 	.port_stop		= adma_port_stop,
@@ -290,12 +291,6 @@ static int adma_prereset(struct ata_link *link, unsigned long deadline)
 	adma_reinit_engine(ap);
 
 	return ata_std_prereset(link, deadline);
-}
-
-static void adma_error_handler(struct ata_port *ap)
-{
-	ata_do_eh(ap, adma_prereset, ata_std_softreset, NULL,
-		  ata_std_postreset);
 }
 
 static int adma_fill_sg(struct ata_queued_cmd *qc)

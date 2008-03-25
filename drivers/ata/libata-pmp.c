@@ -962,14 +962,6 @@ static int sata_pmp_handle_link_fail(struct ata_link *link, int *link_tries)
 /**
  *	sata_pmp_eh_recover - recover PMP-enabled port
  *	@ap: ATA port to recover
- *	@prereset: prereset method (can be NULL)
- *	@softreset: softreset method
- *	@hardreset: hardreset method
- *	@postreset: postreset method (can be NULL)
- *	@pmp_prereset: PMP prereset method (can be NULL)
- *	@pmp_softreset: PMP softreset method (can be NULL)
- *	@pmp_hardreset: PMP hardreset method (can be NULL)
- *	@pmp_postreset: PMP postreset method (can be NULL)
  *
  *	Drive EH recovery operation for PMP enabled port @ap.  This
  *	function recovers host and PMP ports with proper retrials and
@@ -982,12 +974,9 @@ static int sata_pmp_handle_link_fail(struct ata_link *link, int *link_tries)
  *	RETURNS:
  *	0 on success, -errno on failure.
  */
-static int sata_pmp_eh_recover(struct ata_port *ap,
-		ata_prereset_fn_t prereset, ata_reset_fn_t softreset,
-		ata_reset_fn_t hardreset, ata_postreset_fn_t postreset,
-		ata_prereset_fn_t pmp_prereset, ata_reset_fn_t pmp_softreset,
-		ata_reset_fn_t pmp_hardreset, ata_postreset_fn_t pmp_postreset)
+static int sata_pmp_eh_recover(struct ata_port *ap)
 {
+	struct ata_port_operations *ops = ap->ops;
 	int pmp_tries, link_tries[SATA_PMP_MAX_PORTS];
 	struct ata_link *pmp_link = &ap->link;
 	struct ata_device *pmp_dev = pmp_link->device;
@@ -1005,8 +994,8 @@ static int sata_pmp_eh_recover(struct ata_port *ap,
  retry:
 	/* PMP attached? */
 	if (!ap->nr_pmp_links) {
-		rc = ata_eh_recover(ap, prereset, softreset, hardreset,
-				    postreset, NULL);
+		rc = ata_eh_recover(ap, ops->prereset, ops->softreset,
+				    ops->hardreset, ops->postreset, NULL);
 		if (rc) {
 			ata_link_for_each_dev(dev, &ap->link)
 				ata_dev_disable(dev);
@@ -1024,8 +1013,8 @@ static int sata_pmp_eh_recover(struct ata_port *ap,
 	}
 
 	/* recover pmp */
-	rc = sata_pmp_eh_recover_pmp(ap, prereset, softreset, hardreset,
-				     postreset);
+	rc = sata_pmp_eh_recover_pmp(ap, ops->prereset, ops->softreset,
+				     ops->hardreset, ops->postreset);
 	if (rc)
 		goto pmp_fail;
 
@@ -1035,8 +1024,8 @@ static int sata_pmp_eh_recover(struct ata_port *ap,
 		goto pmp_fail;
 
 	/* recover links */
-	rc = ata_eh_recover(ap, pmp_prereset, pmp_softreset, pmp_hardreset,
-			    pmp_postreset, &link);
+	rc = ata_eh_recover(ap, ops->pmp_prereset, ops->pmp_softreset,
+			    ops->pmp_hardreset, ops->pmp_postreset, &link);
 	if (rc)
 		goto link_fail;
 
@@ -1132,16 +1121,8 @@ static int sata_pmp_eh_recover(struct ata_port *ap,
 }
 
 /**
- *	sata_pmp_do_eh - do standard error handling for PMP-enabled host
+ *	sata_pmp_error_handler - do standard error handling for PMP-enabled host
  *	@ap: host port to handle error for
- *	@prereset: prereset method (can be NULL)
- *	@softreset: softreset method
- *	@hardreset: hardreset method
- *	@postreset: postreset method (can be NULL)
- *	@pmp_prereset: PMP prereset method (can be NULL)
- *	@pmp_softreset: PMP softreset method (can be NULL)
- *	@pmp_hardreset: PMP hardreset method (can be NULL)
- *	@pmp_postreset: PMP postreset method (can be NULL)
  *
  *	Perform standard error handling sequence for PMP-enabled host
  *	@ap.
@@ -1149,16 +1130,10 @@ static int sata_pmp_eh_recover(struct ata_port *ap,
  *	LOCKING:
  *	Kernel thread context (may sleep).
  */
-void sata_pmp_do_eh(struct ata_port *ap,
-		ata_prereset_fn_t prereset, ata_reset_fn_t softreset,
-		ata_reset_fn_t hardreset, ata_postreset_fn_t postreset,
-		ata_prereset_fn_t pmp_prereset, ata_reset_fn_t pmp_softreset,
-		ata_reset_fn_t pmp_hardreset, ata_postreset_fn_t pmp_postreset)
+void sata_pmp_error_handler(struct ata_port *ap)
 {
 	ata_eh_autopsy(ap);
 	ata_eh_report(ap);
-	sata_pmp_eh_recover(ap, prereset, softreset, hardreset, postreset,
-			    pmp_prereset, pmp_softreset, pmp_hardreset,
-			    pmp_postreset);
+	sata_pmp_eh_recover(ap);
 	ata_eh_finish(ap);
 }

@@ -63,7 +63,7 @@ enum {
 };
 
 static int pdc2027x_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
-static void pdc2027x_error_handler(struct ata_port *ap);
+static int pdc2027x_prereset(struct ata_link *link, unsigned long deadline);
 static void pdc2027x_set_piomode(struct ata_port *ap, struct ata_device *adev);
 static void pdc2027x_set_dmamode(struct ata_port *ap, struct ata_device *adev);
 static int pdc2027x_check_atapi_dma(struct ata_queued_cmd *qc);
@@ -136,7 +136,7 @@ static struct ata_port_operations pdc2027x_pata100_ops = {
 	.inherits		= &ata_bmdma_port_ops,
 	.check_atapi_dma	= pdc2027x_check_atapi_dma,
 	.cable_detect		= pdc2027x_cable_detect,
-	.error_handler		= pdc2027x_error_handler,
+	.prereset		= pdc2027x_prereset,
 };
 
 static struct ata_port_operations pdc2027x_pata133_ops = {
@@ -249,21 +249,6 @@ static int pdc2027x_prereset(struct ata_link *link, unsigned long deadline)
 	if (!pdc2027x_port_enabled(link->ap))
 		return -ENOENT;
 	return ata_std_prereset(link, deadline);
-}
-
-/**
- *	pdc2027x_error_handler - Perform reset on PATA port and classify
- *	@ap: Port to reset
- *
- *	Reset PATA phy and classify attached devices.
- *
- *	LOCKING:
- *	None (inherited from caller).
- */
-
-static void pdc2027x_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, pdc2027x_prereset, ata_std_softreset, NULL, ata_std_postreset);
 }
 
 /**

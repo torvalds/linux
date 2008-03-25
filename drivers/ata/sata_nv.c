@@ -309,7 +309,8 @@ static void nv_nf2_freeze(struct ata_port *ap);
 static void nv_nf2_thaw(struct ata_port *ap);
 static void nv_ck804_freeze(struct ata_port *ap);
 static void nv_ck804_thaw(struct ata_port *ap);
-static void nv_error_handler(struct ata_port *ap);
+static int nv_hardreset(struct ata_link *link, unsigned int *class,
+			unsigned long deadline);
 static int nv_adma_slave_config(struct scsi_device *sdev);
 static int nv_adma_check_atapi_dma(struct ata_queued_cmd *qc);
 static void nv_adma_qc_prep(struct ata_queued_cmd *qc);
@@ -406,7 +407,7 @@ static struct scsi_host_template nv_swncq_sht = {
 
 static struct ata_port_operations nv_generic_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	.error_handler		= nv_error_handler,
+	.hardreset		= nv_hardreset,
 	.scr_read		= nv_scr_read,
 	.scr_write		= nv_scr_write,
 };
@@ -1599,12 +1600,6 @@ static int nv_hardreset(struct ata_link *link, unsigned int *class,
 	return sata_std_hardreset(link, &dummy, deadline);
 }
 
-static void nv_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, ata_std_prereset, ata_std_softreset,
-			   nv_hardreset, ata_std_postreset);
-}
-
 static void nv_adma_error_handler(struct ata_port *ap)
 {
 	struct nv_adma_port_priv *pp = ap->private_data;
@@ -1658,8 +1653,7 @@ static void nv_adma_error_handler(struct ata_port *ap)
 		readw(mmio + NV_ADMA_CTL);	/* flush posted write */
 	}
 
-	ata_bmdma_drive_eh(ap, ata_std_prereset, ata_std_softreset,
-			   nv_hardreset, ata_std_postreset);
+	ata_bmdma_error_handler(ap);
 }
 
 static void nv_swncq_qc_to_dq(struct ata_port *ap, struct ata_queued_cmd *qc)
@@ -1785,8 +1779,7 @@ static void nv_swncq_error_handler(struct ata_port *ap)
 		ehc->i.action |= ATA_EH_RESET;
 	}
 
-	ata_bmdma_drive_eh(ap, ata_std_prereset, ata_std_softreset,
-			   nv_hardreset, ata_std_postreset);
+	ata_bmdma_error_handler(ap);
 }
 
 #ifdef CONFIG_PM

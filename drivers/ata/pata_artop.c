@@ -56,21 +56,6 @@ static int artop6210_pre_reset(struct ata_link *link, unsigned long deadline)
 }
 
 /**
- *	artop6210_error_handler - Probe specified port on PATA host controller
- *	@ap: Port to probe
- *
- *	LOCKING:
- *	None (inherited from caller).
- */
-
-static void artop6210_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, artop6210_pre_reset,
-				    ata_std_softreset, NULL,
-				    ata_std_postreset);
-}
-
-/**
  *	artop6260_pre_reset	-	check for 40/80 pin
  *	@link: link
  *	@deadline: deadline jiffies for the operation
@@ -111,21 +96,6 @@ static int artop6260_cable_detect(struct ata_port *ap)
 	if (tmp & (1 << ap->port_no))
 		return ATA_CBL_PATA40;
 	return ATA_CBL_PATA80;
-}
-
-/**
- *	artop6260_error_handler - Probe specified port on PATA host controller
- *	@ap: Port to probe
- *
- *	LOCKING:
- *	None (inherited from caller).
- */
-
-static void artop6260_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, artop6260_pre_reset,
-				    ata_std_softreset, NULL,
-				    ata_std_postreset);
 }
 
 /**
@@ -322,7 +292,7 @@ static struct ata_port_operations artop6210_ops = {
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= artop6210_set_piomode,
 	.set_dmamode		= artop6210_set_dmamode,
-	.error_handler		= artop6210_error_handler,
+	.prereset		= artop6210_pre_reset,
 };
 
 static struct ata_port_operations artop6260_ops = {
@@ -330,7 +300,7 @@ static struct ata_port_operations artop6260_ops = {
 	.cable_detect		= artop6260_cable_detect,
 	.set_piomode		= artop6260_set_piomode,
 	.set_dmamode		= artop6260_set_dmamode,
-	.error_handler		= artop6260_error_handler,
+	.prereset		= artop6260_pre_reset,
 };
 
 

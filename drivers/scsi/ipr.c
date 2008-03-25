@@ -3937,7 +3937,7 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd * scsi_cmd)
 	if (ipr_is_gata(res) && res->sata_port) {
 		ap = res->sata_port->ap;
 		spin_unlock_irq(scsi_cmd->device->host->host_lock);
-		ata_do_eh(ap, NULL, NULL, ipr_sata_reset, NULL);
+		ata_std_error_handler(ap);
 		spin_lock_irq(scsi_cmd->device->host->host_lock);
 
 		list_for_each_entry(ipr_cmd, &ioa_cfg->pending_q, queue) {
@@ -5275,6 +5275,7 @@ static struct ata_port_operations ipr_sata_ops = {
 	.check_altstatus = ipr_ata_check_altstatus,
 	.dev_select = ata_noop_dev_select,
 	.phy_reset = ipr_ata_phy_reset,
+	.hardreset = ipr_sata_reset,
 	.post_internal_cmd = ipr_ata_post_internal,
 	.tf_read = ipr_tf_read,
 	.qc_prep = ata_noop_qc_prep,

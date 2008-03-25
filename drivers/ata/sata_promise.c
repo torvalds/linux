@@ -148,8 +148,7 @@ static void pdc_freeze(struct ata_port *ap);
 static void pdc_sata_freeze(struct ata_port *ap);
 static void pdc_thaw(struct ata_port *ap);
 static void pdc_sata_thaw(struct ata_port *ap);
-static void pdc_pata_error_handler(struct ata_port *ap);
-static void pdc_sata_error_handler(struct ata_port *ap);
+static void pdc_error_handler(struct ata_port *ap);
 static void pdc_post_internal_cmd(struct ata_queued_cmd *qc);
 static int pdc_pata_cable_detect(struct ata_port *ap);
 static int pdc_sata_cable_detect(struct ata_port *ap);
@@ -171,6 +170,7 @@ static const struct ata_port_operations pdc_common_ops = {
 	.irq_clear		= pdc_irq_clear,
 
 	.post_internal_cmd	= pdc_post_internal_cmd,
+	.error_handler		= pdc_error_handler,
 };
 
 static struct ata_port_operations pdc_sata_ops = {
@@ -178,7 +178,6 @@ static struct ata_port_operations pdc_sata_ops = {
 	.cable_detect		= pdc_sata_cable_detect,
 	.freeze			= pdc_sata_freeze,
 	.thaw			= pdc_sata_thaw,
-	.error_handler		= pdc_sata_error_handler,
 	.scr_read		= pdc_sata_scr_read,
 	.scr_write		= pdc_sata_scr_write,
 	.port_start		= pdc_sata_port_start,
@@ -195,7 +194,6 @@ static struct ata_port_operations pdc_pata_ops = {
 	.cable_detect		= pdc_pata_cable_detect,
 	.freeze			= pdc_freeze,
 	.thaw			= pdc_thaw,
-	.error_handler		= pdc_pata_error_handler,
 	.port_start		= pdc_common_port_start,
 };
 
@@ -694,24 +692,12 @@ static void pdc_sata_thaw(struct ata_port *ap)
 	readl(host_mmio + hotplug_offset); /* flush */
 }
 
-static void pdc_common_error_handler(struct ata_port *ap, ata_reset_fn_t hardreset)
+static void pdc_error_handler(struct ata_port *ap)
 {
 	if (!(ap->pflags & ATA_PFLAG_FROZEN))
 		pdc_reset_port(ap);
 
-	/* perform recovery */
-	ata_do_eh(ap, ata_std_prereset, ata_std_softreset, hardreset,
-		  ata_std_postreset);
-}
-
-static void pdc_pata_error_handler(struct ata_port *ap)
-{
-	pdc_common_error_handler(ap, NULL);
-}
-
-static void pdc_sata_error_handler(struct ata_port *ap)
-{
-	pdc_common_error_handler(ap, sata_std_hardreset);
+	ata_std_error_handler(ap);
 }
 
 static void pdc_post_internal_cmd(struct ata_queued_cmd *qc)

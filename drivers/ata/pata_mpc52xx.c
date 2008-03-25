@@ -255,15 +255,6 @@ mpc52xx_ata_dev_select(struct ata_port *ap, unsigned int device)
 	ata_std_dev_select(ap,device);
 }
 
-static void
-mpc52xx_ata_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, ata_std_prereset, ata_std_softreset, NULL,
-			ata_std_postreset);
-}
-
-
-
 static struct scsi_host_template mpc52xx_ata_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
@@ -273,7 +264,6 @@ static struct ata_port_operations mpc52xx_ata_port_ops = {
 	.dev_select		= mpc52xx_ata_dev_select,
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= mpc52xx_ata_set_piomode,
-	.error_handler		= mpc52xx_ata_error_handler,
 	.post_internal_cmd	= ATA_OP_NULL,
 };
 

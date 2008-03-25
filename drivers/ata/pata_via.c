@@ -215,18 +215,6 @@ static int via_pre_reset(struct ata_link *link, unsigned long deadline)
 
 
 /**
- *	via_error_handler		-	reset for VIA chips
- *	@ap: ATA port
- *
- *	Handle the reset callback for the later chips with cable detect
- */
-
-static void via_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, via_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
-}
-
-/**
  *	via_do_set_mode	-	set initial PIO mode data
  *	@ap: ATA interface
  *	@adev: ATA device
@@ -343,7 +331,7 @@ static struct ata_port_operations via_port_ops = {
 	.cable_detect	= via_cable_detect,
 	.set_piomode	= via_set_piomode,
 	.set_dmamode	= via_set_dmamode,
-	.error_handler	= via_error_handler,
+	.prereset	= via_pre_reset,
 };
 
 static struct ata_port_operations via_port_ops_noirq = {

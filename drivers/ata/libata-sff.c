@@ -396,28 +396,21 @@ void ata_bmdma_thaw(struct ata_port *ap)
 }
 
 /**
- *	ata_bmdma_drive_eh - Perform EH with given methods for BMDMA controller
+ *	ata_bmdma_error_handler - Stock error handler for BMDMA controller
  *	@ap: port to handle error for
- *	@prereset: prereset method (can be NULL)
- *	@softreset: softreset method (can be NULL)
- *	@hardreset: hardreset method (can be NULL)
- *	@postreset: postreset method (can be NULL)
  *
- *	Handle error for ATA BMDMA controller.  It can handle both
+ *	Stock error handler for BMDMA controller.  It can handle both
  *	PATA and SATA controllers.  Many controllers should be able to
  *	use this EH as-is or with some added handling before and
  *	after.
  *
- *	This function is intended to be used for constructing
- *	->error_handler callback by low level drivers.
- *
  *	LOCKING:
  *	Kernel thread context (may sleep)
  */
-void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
-			ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
-			ata_postreset_fn_t postreset)
+void ata_bmdma_error_handler(struct ata_port *ap)
 {
+	ata_reset_fn_t softreset = ap->ops->softreset;
+	ata_reset_fn_t hardreset = ap->ops->hardreset;
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
 	int thaw = 0;
@@ -460,29 +453,19 @@ void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 		ata_eh_thaw_port(ap);
 
 	/* PIO and DMA engines have been stopped, perform recovery */
-	ata_do_eh(ap, prereset, softreset, hardreset, postreset);
-}
 
-/**
- *	ata_bmdma_error_handler - Stock error handler for BMDMA controller
- *	@ap: port to handle error for
- *
- *	Stock error handler for BMDMA controller.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep)
- */
-void ata_bmdma_error_handler(struct ata_port *ap)
-{
-	ata_reset_fn_t softreset = NULL, hardreset = NULL;
+	/* ata_std_softreset and sata_std_hardreset are inherited to
+	 * all SFF drivers from ata_sff_port_ops.  Ignore softreset if
+	 * ctl isn't accessible.  Ignore hardreset if SCR access isn't
+	 * available.
+	 */
+	if (softreset == ata_std_softreset && !ap->ioaddr.ctl_addr)
+		softreset = NULL;
+	if (hardreset == sata_std_hardreset && !sata_scr_valid(&ap->link))
+		hardreset = NULL;
 
-	if (ap->ioaddr.ctl_addr)
-		softreset = ata_std_softreset;
-	if (sata_scr_valid(&ap->link))
-		hardreset = sata_std_hardreset;
-
-	ata_bmdma_drive_eh(ap, ata_std_prereset, softreset, hardreset,
-			   ata_std_postreset);
+	ata_do_eh(ap, ap->ops->prereset, softreset, hardreset,
+		  ap->ops->postreset);
 }
 
 /**

@@ -452,8 +452,7 @@ static void inic_error_handler(struct ata_port *ap)
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	/* PIO and DMA engines have been stopped, perform recovery */
-	ata_do_eh(ap, ata_std_prereset, NULL, inic_hardreset,
-		  ata_std_postreset);
+	ata_std_error_handler(ap);
 }
 
 static void inic_post_internal_cmd(struct ata_queued_cmd *qc)
@@ -532,6 +531,8 @@ static struct ata_port_operations inic_port_ops = {
 
 	.freeze			= inic_freeze,
 	.thaw			= inic_thaw,
+	.softreset		= ATA_OP_NULL,	/* softreset is broken */
+	.hardreset		= inic_hardreset,
 	.error_handler		= inic_error_handler,
 	.post_internal_cmd	= inic_post_internal_cmd,
 	.dev_config		= inic_dev_config,
