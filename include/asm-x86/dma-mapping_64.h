@@ -27,17 +27,6 @@ extern void dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 	dma_map_single((dev), page_address(page)+(offset), (size), (dir))
 
 #define dma_unmap_page dma_unmap_single
-
-static inline void
-dma_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sg,
-		    int nelems, int direction)
-{
-	BUG_ON(!valid_dma_direction(direction));
-	if (dma_ops->sync_sg_for_cpu)
-		dma_ops->sync_sg_for_cpu(hwdev, sg, nelems, direction);
-	flush_write_buffers();
-}
-
 static inline void
 dma_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
 		       int nelems, int direction)
