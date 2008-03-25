@@ -636,71 +636,30 @@ static struct scsi_host_template it821x_sht = {
 };
 
 static struct ata_port_operations it821x_smart_port_ops = {
-	.set_mode	= it821x_smart_set_mode,
-	.tf_load	= ata_tf_load,
-	.tf_read	= ata_tf_read,
-	.mode_filter	= ata_pci_default_filter,
+	.inherits	= &ata_bmdma_port_ops,
 
-	.check_status 	= ata_check_status,
 	.check_atapi_dma= it821x_check_atapi_dma,
-	.exec_command	= ata_exec_command,
-	.dev_select 	= ata_std_dev_select,
-	.dev_config	= it821x_dev_config,
-
-	.freeze		= ata_bmdma_freeze,
-	.thaw		= ata_bmdma_thaw,
-	.error_handler	= ata_bmdma_error_handler,
-	.post_internal_cmd = ata_bmdma_post_internal_cmd,
-	.cable_detect	= it821x_ident_hack,
-
-	.bmdma_setup 	= ata_bmdma_setup,
-	.bmdma_start 	= ata_bmdma_start,
-	.bmdma_stop	= ata_bmdma_stop,
-	.bmdma_status 	= ata_bmdma_status,
-
-	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= it821x_smart_qc_issue_prot,
 
-	.data_xfer	= ata_data_xfer,
-
-	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
-	.irq_on		= ata_irq_on,
+	.cable_detect	= it821x_ident_hack,
+	.set_mode	= it821x_smart_set_mode,
+	.dev_config	= it821x_dev_config,
 
 	.port_start	= it821x_port_start,
 };
 
 static struct ata_port_operations it821x_passthru_port_ops = {
-	.set_piomode	= it821x_passthru_set_piomode,
-	.set_dmamode	= it821x_passthru_set_dmamode,
-	.mode_filter	= ata_pci_default_filter,
+	.inherits	= &ata_bmdma_port_ops,
 
-	.tf_load	= ata_tf_load,
-	.tf_read	= ata_tf_read,
-	.check_status 	= ata_check_status,
-	.exec_command	= ata_exec_command,
 	.check_atapi_dma= it821x_check_atapi_dma,
 	.dev_select 	= it821x_passthru_dev_select,
-
-	.freeze		= ata_bmdma_freeze,
-	.thaw		= ata_bmdma_thaw,
-	.error_handler	= ata_bmdma_error_handler,
-	.post_internal_cmd = ata_bmdma_post_internal_cmd,
-	.cable_detect	= ata_cable_unknown,
-
-	.bmdma_setup 	= ata_bmdma_setup,
 	.bmdma_start 	= it821x_passthru_bmdma_start,
 	.bmdma_stop	= it821x_passthru_bmdma_stop,
-	.bmdma_status 	= ata_bmdma_status,
-
-	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= it821x_passthru_qc_issue_prot,
 
-	.data_xfer	= ata_data_xfer,
-
-	.irq_clear	= ata_bmdma_irq_clear,
-	.irq_handler	= ata_interrupt,
-	.irq_on		= ata_irq_on,
+	.cable_detect	= ata_cable_unknown,
+	.set_piomode	= it821x_passthru_set_piomode,
+	.set_dmamode	= it821x_passthru_set_dmamode,
 
 	.port_start	= it821x_port_start,
 };

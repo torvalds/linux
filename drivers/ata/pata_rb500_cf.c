@@ -118,25 +118,11 @@ static irqreturn_t rb500_pata_irq_handler(int irq, void *dev_instance)
 }
 
 static struct ata_port_operations rb500_pata_port_ops = {
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-
+	.inherits		= &ata_sff_port_ops,
 	.exec_command		= rb500_pata_exec_command,
-	.check_status 		= ata_check_status,
-	.dev_select 		= ata_std_dev_select,
-
 	.data_xfer		= rb500_pata_data_xfer,
-
-	.qc_prep 		= ata_qc_prep,
-	.qc_issue		= ata_qc_issue_prot,
-
 	.freeze			= rb500_pata_freeze,
 	.thaw			= rb500_pata_thaw,
-	.error_handler		= ata_bmdma_error_handler,
-	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
-
-	.irq_clear		= ata_noop_irq_clear,
-	.irq_on			= ata_irq_on,
 };
 
 /* ------------------------------------------------------------------------ */

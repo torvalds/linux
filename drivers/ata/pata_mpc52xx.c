@@ -269,22 +269,12 @@ static struct scsi_host_template mpc52xx_ata_sht = {
 };
 
 static struct ata_port_operations mpc52xx_ata_port_ops = {
-	.set_piomode		= mpc52xx_ata_set_piomode,
+	.inherits		= &ata_sff_port_ops,
 	.dev_select		= mpc52xx_ata_dev_select,
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.check_status		= ata_check_status,
-	.exec_command		= ata_exec_command,
-	.freeze			= ata_bmdma_freeze,
-	.thaw			= ata_bmdma_thaw,
-	.error_handler		= mpc52xx_ata_error_handler,
 	.cable_detect		= ata_cable_40wire,
-	.qc_prep		= ata_qc_prep,
-	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_data_xfer,
-	.irq_clear		= ata_noop_irq_clear,
-	.irq_on			= ata_irq_on,
-	.port_start		= ata_sff_port_start,
+	.set_piomode		= mpc52xx_ata_set_piomode,
+	.error_handler		= mpc52xx_ata_error_handler,
+	.post_internal_cmd	= ATA_OP_NULL,
 };
 
 static int __devinit

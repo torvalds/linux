@@ -339,35 +339,19 @@ static void pata_icside_error_handler(struct ata_port *ap)
 }
 
 static struct ata_port_operations pata_icside_port_ops = {
-	.set_dmamode		= pata_icside_set_dmamode,
-
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.exec_command		= ata_exec_command,
-	.check_status		= ata_check_status,
-	.dev_select		= ata_std_dev_select,
-
-	.cable_detect		= ata_cable_40wire,
-
-	.bmdma_setup		= pata_icside_bmdma_setup,
-	.bmdma_start		= pata_icside_bmdma_start,
-
-	.data_xfer		= ata_data_xfer_noirq,
-
+	.inherits		= &ata_sff_port_ops,
 	/* no need to build any PRD tables for DMA */
 	.qc_prep		= ata_noop_qc_prep,
-	.qc_issue		= ata_qc_issue_prot,
-
-	.freeze			= ata_bmdma_freeze,
-	.thaw			= ata_bmdma_thaw,
-	.error_handler		= pata_icside_error_handler,
-	.post_internal_cmd	= pata_icside_bmdma_stop,
-
-	.irq_clear		= ata_noop_irq_clear,
-	.irq_on			= ata_irq_on,
-
+	.data_xfer		= ata_data_xfer_noirq,
+	.bmdma_setup		= pata_icside_bmdma_setup,
+	.bmdma_start		= pata_icside_bmdma_start,
 	.bmdma_stop		= pata_icside_bmdma_stop,
 	.bmdma_status		= pata_icside_bmdma_status,
+
+	.cable_detect		= ata_cable_40wire,
+	.set_dmamode		= pata_icside_set_dmamode,
+	.error_handler		= pata_icside_error_handler,
+	.post_internal_cmd	= pata_icside_bmdma_stop,
 };
 
 static void __devinit

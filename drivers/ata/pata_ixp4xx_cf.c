@@ -92,29 +92,10 @@ static struct scsi_host_template ixp4xx_sht = {
 };
 
 static struct ata_port_operations ixp4xx_port_ops = {
-	.set_mode		= ixp4xx_set_mode,
-
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.exec_command		= ata_exec_command,
-	.check_status 		= ata_check_status,
-	.dev_select 		= ata_std_dev_select,
-
-	.freeze			= ata_bmdma_freeze,
-	.thaw			= ata_bmdma_thaw,
-	.error_handler		= ata_bmdma_error_handler,
-	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
-
-	.qc_prep 		= ata_qc_prep,
-	.qc_issue		= ata_qc_issue_prot,
+	.inherits		= &ata_sff_port_ops,
 	.data_xfer		= ixp4xx_mmio_data_xfer,
 	.cable_detect		= ata_cable_40wire,
-
-	.irq_handler		= ata_interrupt,
-	.irq_clear		= ata_noop_irq_clear,
-	.irq_on			= ata_irq_on,
-
-	.port_start		= ata_sff_port_start,
+	.set_mode		= ixp4xx_set_mode,
 };
 
 static void ixp4xx_setup_port(struct ata_port *ap,

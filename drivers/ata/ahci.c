@@ -280,118 +280,46 @@ static struct scsi_host_template ahci_sht = {
 	.shost_attrs		= ahci_shost_attrs,
 };
 
-static const struct ata_port_operations ahci_ops = {
+static struct ata_port_operations ahci_ops = {
+	.inherits		= &sata_pmp_port_ops,
+
 	.check_status		= ahci_check_status,
 	.check_altstatus	= ahci_check_status,
-	.dev_select		= ata_noop_dev_select,
-
-	.dev_config		= ahci_dev_config,
 
 	.tf_read		= ahci_tf_read,
-
 	.qc_defer		= sata_pmp_qc_defer_cmd_switch,
 	.qc_prep		= ahci_qc_prep,
 	.qc_issue		= ahci_qc_issue,
 
-	.irq_clear		= ata_noop_irq_clear,
-
-	.scr_read		= ahci_scr_read,
-	.scr_write		= ahci_scr_write,
-
 	.freeze			= ahci_freeze,
 	.thaw			= ahci_thaw,
-
 	.error_handler		= ahci_error_handler,
 	.post_internal_cmd	= ahci_post_internal_cmd,
+	.dev_config		= ahci_dev_config,
 
+	.scr_read		= ahci_scr_read,
+	.scr_write		= ahci_scr_write,
 	.pmp_attach		= ahci_pmp_attach,
 	.pmp_detach		= ahci_pmp_detach,
 
+	.enable_pm		= ahci_enable_alpm,
+	.disable_pm		= ahci_disable_alpm,
 #ifdef CONFIG_PM
 	.port_suspend		= ahci_port_suspend,
 	.port_resume		= ahci_port_resume,
 #endif
-	.enable_pm		= ahci_enable_alpm,
-	.disable_pm		= ahci_disable_alpm,
-
 	.port_start		= ahci_port_start,
 	.port_stop		= ahci_port_stop,
 };
 
-static const struct ata_port_operations ahci_vt8251_ops = {
-	.check_status		= ahci_check_status,
-	.check_altstatus	= ahci_check_status,
-	.dev_select		= ata_noop_dev_select,
-
-	.dev_config		= ahci_dev_config,
-
-	.tf_read		= ahci_tf_read,
-
-	.qc_defer		= sata_pmp_qc_defer_cmd_switch,
-	.qc_prep		= ahci_qc_prep,
-	.qc_issue		= ahci_qc_issue,
-
-	.irq_clear		= ata_noop_irq_clear,
-
-	.scr_read		= ahci_scr_read,
-	.scr_write		= ahci_scr_write,
-
-	.freeze			= ahci_freeze,
-	.thaw			= ahci_thaw,
-
+static struct ata_port_operations ahci_vt8251_ops = {
+	.inherits		= &ahci_ops,
 	.error_handler		= ahci_vt8251_error_handler,
-	.post_internal_cmd	= ahci_post_internal_cmd,
-
-	.pmp_attach		= ahci_pmp_attach,
-	.pmp_detach		= ahci_pmp_detach,
-
-#ifdef CONFIG_PM
-	.port_suspend		= ahci_port_suspend,
-	.port_resume		= ahci_port_resume,
-#endif
-	.enable_pm		= ahci_enable_alpm,
-	.disable_pm		= ahci_disable_alpm,
-
-	.port_start		= ahci_port_start,
-	.port_stop		= ahci_port_stop,
 };
 
-static const struct ata_port_operations ahci_p5wdh_ops = {
-	.check_status		= ahci_check_status,
-	.check_altstatus	= ahci_check_status,
-	.dev_select		= ata_noop_dev_select,
-
-	.dev_config		= ahci_dev_config,
-
-	.tf_read		= ahci_tf_read,
-
-	.qc_defer		= sata_pmp_qc_defer_cmd_switch,
-	.qc_prep		= ahci_qc_prep,
-	.qc_issue		= ahci_qc_issue,
-
-	.irq_clear		= ata_noop_irq_clear,
-
-	.scr_read		= ahci_scr_read,
-	.scr_write		= ahci_scr_write,
-
-	.freeze			= ahci_freeze,
-	.thaw			= ahci_thaw,
-
+static struct ata_port_operations ahci_p5wdh_ops = {
+	.inherits		= &ahci_ops,
 	.error_handler		= ahci_p5wdh_error_handler,
-	.post_internal_cmd	= ahci_post_internal_cmd,
-
-	.pmp_attach		= ahci_pmp_attach,
-	.pmp_detach		= ahci_pmp_detach,
-
-#ifdef CONFIG_PM
-	.port_suspend		= ahci_port_suspend,
-	.port_resume		= ahci_port_resume,
-#endif
-	.enable_pm		= ahci_enable_alpm,
-	.disable_pm		= ahci_disable_alpm,
-
-	.port_start		= ahci_port_start,
-	.port_stop		= ahci_port_stop,
 };
 
 #define AHCI_HFLAGS(flags)	.private_data	= (void *)(flags)

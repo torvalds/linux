@@ -390,34 +390,28 @@ static struct scsi_host_template sil24_sht = {
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 };
 
-static const struct ata_port_operations sil24_ops = {
-	.dev_config		= sil24_dev_config,
+static struct ata_port_operations sil24_ops = {
+	.inherits		= &sata_pmp_port_ops,
 
 	.check_status		= sil24_check_status,
 	.check_altstatus	= sil24_check_status,
-	.dev_select		= ata_noop_dev_select,
-
 	.tf_read		= sil24_tf_read,
-
 	.qc_defer		= sil24_qc_defer,
 	.qc_prep		= sil24_qc_prep,
 	.qc_issue		= sil24_qc_issue,
-
-	.irq_clear		= ata_noop_irq_clear,
-
-	.scr_read		= sil24_scr_read,
-	.scr_write		= sil24_scr_write,
-
-	.pmp_attach		= sil24_pmp_attach,
-	.pmp_detach		= sil24_pmp_detach,
 
 	.freeze			= sil24_freeze,
 	.thaw			= sil24_thaw,
 	.error_handler		= sil24_error_handler,
 	.post_internal_cmd	= sil24_post_internal_cmd,
+	.dev_config		= sil24_dev_config,
+
+	.scr_read		= sil24_scr_read,
+	.scr_write		= sil24_scr_write,
+	.pmp_attach		= sil24_pmp_attach,
+	.pmp_detach		= sil24_pmp_detach,
 
 	.port_start		= sil24_port_start,
-
 #ifdef CONFIG_PM
 	.port_resume		= sil24_port_resume,
 #endif

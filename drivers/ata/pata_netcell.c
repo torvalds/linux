@@ -24,37 +24,9 @@ static struct scsi_host_template netcell_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 
-static const struct ata_port_operations netcell_ops = {
-	/* Task file is PCI ATA format, use helpers */
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.check_status		= ata_check_status,
-	.exec_command		= ata_exec_command,
-	.dev_select		= ata_std_dev_select,
-
-	.mode_filter		= ata_pci_default_filter,
-	.freeze			= ata_bmdma_freeze,
-	.thaw			= ata_bmdma_thaw,
-	.error_handler		= ata_bmdma_error_handler,
-	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
+static struct ata_port_operations netcell_ops = {
+	.inherits	= &ata_bmdma_port_ops,
 	.cable_detect		= ata_cable_80wire,
-
-	/* BMDMA handling is PCI ATA format, use helpers */
-	.bmdma_setup		= ata_bmdma_setup,
-	.bmdma_start		= ata_bmdma_start,
-	.bmdma_stop		= ata_bmdma_stop,
-	.bmdma_status		= ata_bmdma_status,
-	.qc_prep		= ata_qc_prep,
-	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_data_xfer,
-
-	/* IRQ-related hooks */
-	.irq_handler		= ata_interrupt,
-	.irq_clear		= ata_bmdma_irq_clear,
-	.irq_on			= ata_irq_on,
-
-	/* Generic PATA PCI ATA helpers */
-	.port_start		= ata_sff_port_start,
 };
 
 

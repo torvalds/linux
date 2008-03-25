@@ -433,7 +433,7 @@ struct ata_host {
 	void __iomem * const	*iomap;
 	unsigned int		n_ports;
 	void			*private_data;
-	const struct ata_port_operations *ops;
+	struct ata_port_operations *ops;
 	unsigned long		flags;
 #ifdef CONFIG_ATA_ACPI
 	acpi_handle		acpi_handle;
@@ -602,7 +602,7 @@ struct ata_link {
 
 struct ata_port {
 	struct Scsi_Host	*scsi_host; /* our co-allocated scsi host */
-	const struct ata_port_operations *ops;
+	struct ata_port_operations *ops;
 	spinlock_t		*lock;
 	unsigned long		flags;	/* ATA_FLAG_xxx */
 	unsigned int		pflags; /* ATA_PFLAG_xxx */
@@ -663,6 +663,13 @@ struct ata_port {
 #endif
 	u8			sector_buf[ATA_SECT_SIZE]; /* owned by EH */
 };
+
+/* The following initializer overrides a method to NULL whether one of
+ * its parent has the method defined or not.  This is equivalent to
+ * ERR_PTR(-ENOENT).  Unfortunately, ERR_PTR doesn't render a constant
+ * expression and thus can't be used as an initializer.
+ */
+#define ATA_OP_NULL		(void *)(unsigned long)(-ENOENT)
 
 struct ata_port_operations {
 	/*
@@ -733,6 +740,12 @@ struct ata_port_operations {
 	void (*phy_reset)(struct ata_port *ap);
 	void (*eng_timeout)(struct ata_port *ap);
 	irq_handler_t irq_handler;
+
+	/*
+	 * ->inherits must be the last field and all the preceding
+	 * fields must be pointers.
+	 */
+	const struct ata_port_operations	*inherits;
 };
 
 struct ata_port_info {
@@ -742,7 +755,7 @@ struct ata_port_info {
 	unsigned long		pio_mask;
 	unsigned long		mwdma_mask;
 	unsigned long		udma_mask;
-	const struct ata_port_operations *port_ops;
+	struct ata_port_operations *port_ops;
 	irq_handler_t		irq_handler;
 	void 			*private_data;
 };
@@ -765,7 +778,7 @@ extern const unsigned long sata_deb_timing_normal[];
 extern const unsigned long sata_deb_timing_hotplug[];
 extern const unsigned long sata_deb_timing_long[];
 
-extern const struct ata_port_operations ata_dummy_port_ops;
+extern struct ata_port_operations ata_dummy_port_ops;
 extern const struct ata_port_info ata_dummy_port_info;
 
 static inline const unsigned long *
@@ -812,7 +825,7 @@ extern int ata_host_activate(struct ata_host *host, int irq,
 			     struct scsi_host_template *sht);
 extern void ata_host_detach(struct ata_host *host);
 extern void ata_host_init(struct ata_host *, struct device *,
-			  unsigned long, const struct ata_port_operations *);
+			  unsigned long, struct ata_port_operations *);
 extern int ata_scsi_detect(struct scsi_host_template *sht);
 extern int ata_scsi_ioctl(struct scsi_device *dev, int cmd, void __user *arg);
 extern int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *));

@@ -148,26 +148,29 @@ static struct scsi_host_template adma_ata_sht = {
 	.dma_boundary		= ADMA_DMA_BOUNDARY,
 };
 
-static const struct ata_port_operations adma_ata_ops = {
+static struct ata_port_operations adma_ata_ops = {
+	.inherits		= &ata_base_port_ops,
+
+	.dev_select		= ata_std_dev_select,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
-	.exec_command		= ata_exec_command,
 	.check_status		= ata_check_status,
-	.dev_select		= ata_std_dev_select,
-	.check_atapi_dma	= adma_check_atapi_dma,
+	.exec_command		= ata_exec_command,
 	.data_xfer		= ata_data_xfer,
+	.check_atapi_dma	= adma_check_atapi_dma,
+	.bmdma_stop		= adma_bmdma_stop,
+	.bmdma_status		= adma_bmdma_status,
 	.qc_prep		= adma_qc_prep,
 	.qc_issue		= adma_qc_issue,
+	.irq_on			= ata_irq_on,
+
 	.freeze			= adma_freeze,
 	.thaw			= adma_thaw,
 	.error_handler		= adma_error_handler,
-	.irq_clear		= ata_noop_irq_clear,
-	.irq_on			= ata_irq_on,
+
 	.port_start		= adma_port_start,
 	.port_stop		= adma_port_stop,
 	.host_stop		= adma_host_stop,
-	.bmdma_stop		= adma_bmdma_stop,
-	.bmdma_status		= adma_bmdma_status,
 };
 
 static struct ata_port_info adma_port_info[] = {

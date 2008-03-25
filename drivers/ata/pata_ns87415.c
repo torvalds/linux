@@ -297,73 +297,29 @@ static u8 ns87560_bmdma_status(struct ata_port *ap)
 {
 	return ns87560_read_buggy(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
 }
-
-static const struct ata_port_operations ns87560_pata_ops = {
-	.set_piomode		= ns87415_set_piomode,
-	.mode_filter		= ata_pci_default_filter,
-
-	.tf_load		= ata_tf_load,
-	.tf_read		= ns87560_tf_read,
-	.check_status		= ns87560_check_status,
-	.check_atapi_dma	= ns87415_check_atapi_dma,
-	.exec_command		= ata_exec_command,
-	.dev_select		= ata_std_dev_select,
-
-	.freeze			= ata_bmdma_freeze,
-	.thaw			= ata_bmdma_thaw,
-	.error_handler		= ata_bmdma_error_handler,
-	.post_internal_cmd 	= ata_bmdma_post_internal_cmd,
-	.cable_detect		= ata_cable_40wire,
-
-	.bmdma_setup		= ns87415_bmdma_setup,
-	.bmdma_start		= ns87415_bmdma_start,
-	.bmdma_stop		= ns87415_bmdma_stop,
-	.bmdma_status		= ns87560_bmdma_status,
-	.qc_prep		= ata_qc_prep,
-	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_data_xfer,
-
-	.irq_handler		= ata_interrupt,
-	.irq_clear		= ns87415_bmdma_irq_clear,
-	.irq_on			= ata_irq_on,
-
-	.port_start		= ata_sff_port_start,
-};
-
 #endif		/* 87560 SuperIO Support */
 
+static struct ata_port_operations ns87415_pata_ops = {
+	.inherits		= &ata_bmdma_port_ops,
 
-static const struct ata_port_operations ns87415_pata_ops = {
-	.set_piomode		= ns87415_set_piomode,
-	.mode_filter		= ata_pci_default_filter,
-
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.check_status		= ata_check_status,
 	.check_atapi_dma	= ns87415_check_atapi_dma,
-	.exec_command		= ata_exec_command,
-	.dev_select		= ata_std_dev_select,
-
-	.freeze			= ata_bmdma_freeze,
-	.thaw			= ata_bmdma_thaw,
-	.error_handler		= ata_bmdma_error_handler,
-	.post_internal_cmd 	= ata_bmdma_post_internal_cmd,
-	.cable_detect		= ata_cable_40wire,
-
 	.bmdma_setup		= ns87415_bmdma_setup,
 	.bmdma_start		= ns87415_bmdma_start,
 	.bmdma_stop		= ns87415_bmdma_stop,
-	.bmdma_status		= ata_bmdma_status,
-	.qc_prep		= ata_qc_prep,
-	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_data_xfer,
-
-	.irq_handler		= ata_interrupt,
 	.irq_clear		= ns87415_bmdma_irq_clear,
-	.irq_on			= ata_irq_on,
 
-	.port_start		= ata_sff_port_start,
+	.cable_detect		= ata_cable_40wire,
+	.set_piomode		= ns87415_set_piomode,
 };
+
+#if defined(CONFIG_SUPERIO)
+static struct ata_port_operations ns87560_pata_ops = {
+	.inherits		= &ns87415_pata_ops,
+	.tf_read		= ns87560_tf_read,
+	.check_status		= ns87560_check_status,
+	.bmdma_status		= ns87560_bmdma_status,
+};
+#endif
 
 static struct scsi_host_template ns87415_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),

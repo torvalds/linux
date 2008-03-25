@@ -155,28 +155,11 @@ static struct scsi_host_template mpiix_sht = {
 };
 
 static struct ata_port_operations mpiix_port_ops = {
-	.set_piomode	= mpiix_set_piomode,
-
-	.tf_load	= ata_tf_load,
-	.tf_read	= ata_tf_read,
-	.check_status 	= ata_check_status,
-	.exec_command	= ata_exec_command,
-	.dev_select 	= ata_std_dev_select,
-
-	.freeze		= ata_bmdma_freeze,
-	.thaw		= ata_bmdma_thaw,
-	.error_handler	= mpiix_error_handler,
-	.post_internal_cmd = ata_bmdma_post_internal_cmd,
-	.cable_detect	= ata_cable_40wire,
-
-	.qc_prep 	= ata_qc_prep,
+	.inherits	= &ata_sff_port_ops,
 	.qc_issue	= mpiix_qc_issue_prot,
-	.data_xfer	= ata_data_xfer,
-
-	.irq_clear	= ata_noop_irq_clear,
-	.irq_on		= ata_irq_on,
-
-	.port_start	= ata_sff_port_start,
+	.cable_detect	= ata_cable_40wire,
+	.set_piomode	= mpiix_set_piomode,
+	.error_handler	= mpiix_error_handler,
 };
 
 static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)

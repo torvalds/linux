@@ -57,30 +57,9 @@ static struct scsi_host_template rz1000_sht = {
 };
 
 static struct ata_port_operations rz1000_port_ops = {
-	.set_mode	= rz1000_set_mode,
-
-	.tf_load	= ata_tf_load,
-	.tf_read	= ata_tf_read,
-	.check_status 	= ata_check_status,
-	.exec_command	= ata_exec_command,
-	.dev_select 	= ata_std_dev_select,
-
-	.qc_prep 	= ata_qc_prep,
-	.qc_issue	= ata_qc_issue_prot,
-
-	.data_xfer	= ata_data_xfer,
-
-	.freeze		= ata_bmdma_freeze,
-	.thaw		= ata_bmdma_thaw,
-	.error_handler	= ata_bmdma_error_handler,
-	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.inherits	= &ata_sff_port_ops,
 	.cable_detect	= ata_cable_40wire,
-
-	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_noop_irq_clear,
-	.irq_on		= ata_irq_on,
-
-	.port_start	= ata_sff_port_start,
+	.set_mode	= rz1000_set_mode,
 };
 
 static int rz1000_fifo_disable(struct pci_dev *pdev)

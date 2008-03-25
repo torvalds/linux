@@ -160,74 +160,42 @@ static struct scsi_host_template pdc_ata_sht = {
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 };
 
-static const struct ata_port_operations pdc_sata_ops = {
-	.tf_load		= pdc_tf_load_mmio,
-	.tf_read		= ata_tf_read,
-	.check_status		= ata_check_status,
-	.exec_command		= pdc_exec_command_mmio,
-	.dev_select		= ata_std_dev_select,
-	.check_atapi_dma	= pdc_check_atapi_dma,
+static const struct ata_port_operations pdc_common_ops = {
+	.inherits		= &ata_sff_port_ops,
 
+	.tf_load		= pdc_tf_load_mmio,
+	.exec_command		= pdc_exec_command_mmio,
+	.check_atapi_dma	= pdc_check_atapi_dma,
 	.qc_prep		= pdc_qc_prep,
 	.qc_issue		= pdc_qc_issue_prot,
+	.irq_clear		= pdc_irq_clear,
+
+	.post_internal_cmd	= pdc_post_internal_cmd,
+};
+
+static struct ata_port_operations pdc_sata_ops = {
+	.inherits		= &pdc_common_ops,
+	.cable_detect		= pdc_sata_cable_detect,
 	.freeze			= pdc_sata_freeze,
 	.thaw			= pdc_sata_thaw,
 	.error_handler		= pdc_sata_error_handler,
-	.post_internal_cmd	= pdc_post_internal_cmd,
-	.cable_detect		= pdc_sata_cable_detect,
-	.data_xfer		= ata_data_xfer,
-	.irq_clear		= pdc_irq_clear,
-	.irq_on			= ata_irq_on,
-
 	.scr_read		= pdc_sata_scr_read,
 	.scr_write		= pdc_sata_scr_write,
 	.port_start		= pdc_sata_port_start,
 };
 
 /* First-generation chips need a more restrictive ->check_atapi_dma op */
-static const struct ata_port_operations pdc_old_sata_ops = {
-	.tf_load		= pdc_tf_load_mmio,
-	.tf_read		= ata_tf_read,
-	.check_status		= ata_check_status,
-	.exec_command		= pdc_exec_command_mmio,
-	.dev_select		= ata_std_dev_select,
+static struct ata_port_operations pdc_old_sata_ops = {
+	.inherits		= &pdc_sata_ops,
 	.check_atapi_dma	= pdc_old_sata_check_atapi_dma,
-
-	.qc_prep		= pdc_qc_prep,
-	.qc_issue		= pdc_qc_issue_prot,
-	.freeze			= pdc_sata_freeze,
-	.thaw			= pdc_sata_thaw,
-	.error_handler		= pdc_sata_error_handler,
-	.post_internal_cmd	= pdc_post_internal_cmd,
-	.cable_detect		= pdc_sata_cable_detect,
-	.data_xfer		= ata_data_xfer,
-	.irq_clear		= pdc_irq_clear,
-	.irq_on			= ata_irq_on,
-
-	.scr_read		= pdc_sata_scr_read,
-	.scr_write		= pdc_sata_scr_write,
-	.port_start		= pdc_sata_port_start,
 };
 
-static const struct ata_port_operations pdc_pata_ops = {
-	.tf_load		= pdc_tf_load_mmio,
-	.tf_read		= ata_tf_read,
-	.check_status		= ata_check_status,
-	.exec_command		= pdc_exec_command_mmio,
-	.dev_select		= ata_std_dev_select,
-	.check_atapi_dma	= pdc_check_atapi_dma,
-
-	.qc_prep		= pdc_qc_prep,
-	.qc_issue		= pdc_qc_issue_prot,
+static struct ata_port_operations pdc_pata_ops = {
+	.inherits		= &pdc_common_ops,
+	.cable_detect		= pdc_pata_cable_detect,
 	.freeze			= pdc_freeze,
 	.thaw			= pdc_thaw,
 	.error_handler		= pdc_pata_error_handler,
-	.post_internal_cmd	= pdc_post_internal_cmd,
-	.cable_detect		= pdc_pata_cable_detect,
-	.data_xfer		= ata_data_xfer,
-	.irq_clear		= pdc_irq_clear,
-	.irq_on			= ata_irq_on,
-
 	.port_start		= pdc_common_port_start,
 };
 

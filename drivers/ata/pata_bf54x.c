@@ -1363,6 +1363,8 @@ static struct scsi_host_template bfin_sht = {
 };
 
 static const struct ata_port_operations bfin_pata_ops = {
+	.inherits		= &ata_sff_port_ops,
+
 	.set_piomode		= bfin_set_piomode,
 	.set_dmamode		= bfin_set_dmamode,
 
@@ -1380,14 +1382,12 @@ static const struct ata_port_operations bfin_pata_ops = {
 	.data_xfer		= bfin_data_xfer,
 
 	.qc_prep		= ata_noop_qc_prep,
-	.qc_issue		= ata_qc_issue_prot,
 
 	.freeze			= bfin_bmdma_freeze,
 	.thaw			= bfin_bmdma_thaw,
 	.error_handler		= bfin_error_handler,
 	.post_internal_cmd	= bfin_bmdma_stop,
 
-	.irq_handler		= ata_interrupt,
 	.irq_clear		= bfin_irq_clear,
 	.irq_on			= bfin_irq_on,
 

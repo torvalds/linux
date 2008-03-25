@@ -526,23 +526,16 @@ static struct scsi_host_template mv6_sht = {
 	.dma_boundary		= MV_DMA_BOUNDARY,
 };
 
-static const struct ata_port_operations mv5_ops = {
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.check_status		= ata_check_status,
-	.exec_command		= ata_exec_command,
-	.dev_select		= ata_std_dev_select,
+static struct ata_port_operations mv5_ops = {
+	.inherits		= &ata_sff_port_ops,
 
 	.qc_prep		= mv_qc_prep,
 	.qc_issue		= mv_qc_issue,
-	.data_xfer		= ata_data_xfer,
 
-	.irq_clear		= ata_noop_irq_clear,
-	.irq_on			= ata_irq_on,
-
-	.error_handler		= mv_error_handler,
 	.freeze			= mv_eh_freeze,
 	.thaw			= mv_eh_thaw,
+	.error_handler		= mv_error_handler,
+	.post_internal_cmd	= ATA_OP_NULL,
 
 	.scr_read		= mv5_scr_read,
 	.scr_write		= mv5_scr_write,
@@ -551,57 +544,18 @@ static const struct ata_port_operations mv5_ops = {
 	.port_stop		= mv_port_stop,
 };
 
-static const struct ata_port_operations mv6_ops = {
-	.dev_config             = mv6_dev_config,
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.check_status		= ata_check_status,
-	.exec_command		= ata_exec_command,
-	.dev_select		= ata_std_dev_select,
-
-	.qc_prep		= mv_qc_prep,
-	.qc_issue		= mv_qc_issue,
-	.data_xfer		= ata_data_xfer,
-
-	.irq_clear		= ata_noop_irq_clear,
-	.irq_on			= ata_irq_on,
-
-	.error_handler		= mv_error_handler,
-	.freeze			= mv_eh_freeze,
-	.thaw			= mv_eh_thaw,
+static struct ata_port_operations mv6_ops = {
+	.inherits		= &mv5_ops,
 	.qc_defer		= ata_std_qc_defer,
-
+	.dev_config             = mv6_dev_config,
 	.scr_read		= mv_scr_read,
 	.scr_write		= mv_scr_write,
-
-	.port_start		= mv_port_start,
-	.port_stop		= mv_port_stop,
 };
 
-static const struct ata_port_operations mv_iie_ops = {
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.check_status		= ata_check_status,
-	.exec_command		= ata_exec_command,
-	.dev_select		= ata_std_dev_select,
-
+static struct ata_port_operations mv_iie_ops = {
+	.inherits		= &mv6_ops,
+	.dev_config		= ATA_OP_NULL,
 	.qc_prep		= mv_qc_prep_iie,
-	.qc_issue		= mv_qc_issue,
-	.data_xfer		= ata_data_xfer,
-
-	.irq_clear		= ata_noop_irq_clear,
-	.irq_on			= ata_irq_on,
-
-	.error_handler		= mv_error_handler,
-	.freeze			= mv_eh_freeze,
-	.thaw			= mv_eh_thaw,
-	.qc_defer		= ata_std_qc_defer,
-
-	.scr_read		= mv_scr_read,
-	.scr_write		= mv_scr_write,
-
-	.port_start		= mv_port_start,
-	.port_stop		= mv_port_stop,
 };
 
 static const struct ata_port_info mv_port_info[] = {

@@ -1198,16 +1198,15 @@ static struct scsi_host_template sata_fsl_sht = {
 };
 
 static const struct ata_port_operations sata_fsl_ops = {
+	.inherits = &sata_port_ops,
+
 	.check_status = sata_fsl_check_status,
 	.check_altstatus = sata_fsl_check_status,
-	.dev_select = ata_noop_dev_select,
 
 	.tf_read = sata_fsl_tf_read,
 
-	.qc_defer = ata_std_qc_defer,
 	.qc_prep = sata_fsl_qc_prep,
 	.qc_issue = sata_fsl_qc_issue,
-	.irq_clear = ata_noop_irq_clear,
 
 	.scr_read = sata_fsl_scr_read,
 	.scr_write = sata_fsl_scr_write,

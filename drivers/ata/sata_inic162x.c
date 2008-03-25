@@ -522,26 +522,13 @@ static int inic_port_start(struct ata_port *ap)
 }
 
 static struct ata_port_operations inic_port_ops = {
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.check_status		= ata_check_status,
-	.exec_command		= ata_exec_command,
-	.dev_select		= ata_std_dev_select,
-
-	.scr_read		= inic_scr_read,
-	.scr_write		= inic_scr_write,
+	.inherits		= &ata_sff_port_ops,
 
 	.bmdma_setup		= inic_bmdma_setup,
 	.bmdma_start		= inic_bmdma_start,
 	.bmdma_stop		= inic_bmdma_stop,
 	.bmdma_status		= inic_bmdma_status,
-
-	.irq_clear		= ata_noop_irq_clear,
-	.irq_on			= ata_irq_on,
-
-	.qc_prep	 	= ata_qc_prep,
 	.qc_issue		= inic_qc_issue,
-	.data_xfer		= ata_data_xfer,
 
 	.freeze			= inic_freeze,
 	.thaw			= inic_thaw,
@@ -549,8 +536,10 @@ static struct ata_port_operations inic_port_ops = {
 	.post_internal_cmd	= inic_post_internal_cmd,
 	.dev_config		= inic_dev_config,
 
-	.port_resume		= inic_port_resume,
+	.scr_read		= inic_scr_read,
+	.scr_write		= inic_scr_write,
 
+	.port_resume		= inic_port_resume,
 	.port_start		= inic_port_start,
 };
 

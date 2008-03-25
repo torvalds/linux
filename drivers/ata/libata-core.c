@@ -74,6 +74,56 @@ const unsigned long sata_deb_timing_normal[]		= {   5,  100, 2000 };
 const unsigned long sata_deb_timing_hotplug[]		= {  25,  500, 2000 };
 const unsigned long sata_deb_timing_long[]		= { 100, 2000, 5000 };
 
+const struct ata_port_operations ata_base_port_ops = {
+	.irq_clear		= ata_noop_irq_clear,
+};
+
+const struct ata_port_operations sata_port_ops = {
+	.inherits		= &ata_base_port_ops,
+
+	.qc_defer		= ata_std_qc_defer,
+	.dev_select		= ata_noop_dev_select,
+};
+
+const struct ata_port_operations sata_pmp_port_ops = {
+	.inherits		= &sata_port_ops,
+};
+
+const struct ata_port_operations ata_sff_port_ops = {
+	.inherits		= &ata_base_port_ops,
+
+	.qc_prep		= ata_qc_prep,
+	.qc_issue		= ata_qc_issue_prot,
+
+	.freeze			= ata_bmdma_freeze,
+	.thaw			= ata_bmdma_thaw,
+	.error_handler		= ata_bmdma_error_handler,
+	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
+
+	.dev_select		= ata_std_dev_select,
+	.check_status		= ata_check_status,
+	.tf_load		= ata_tf_load,
+	.tf_read		= ata_tf_read,
+	.exec_command		= ata_exec_command,
+	.data_xfer		= ata_data_xfer,
+	.irq_on			= ata_irq_on,
+
+	.port_start		= ata_sff_port_start,
+	.irq_handler		= ata_interrupt,
+};
+
+const struct ata_port_operations ata_bmdma_port_ops = {
+	.inherits		= &ata_sff_port_ops,
+
+	.mode_filter		= ata_pci_default_filter,
+
+	.bmdma_setup		= ata_bmdma_setup,
+	.bmdma_start		= ata_bmdma_start,
+	.bmdma_stop		= ata_bmdma_stop,
+	.bmdma_status		= ata_bmdma_status,
+	.irq_clear		= ata_bmdma_irq_clear,
+};
+
 static unsigned int ata_dev_init_params(struct ata_device *dev,
 					u16 heads, u16 sectors);
 static unsigned int ata_dev_set_xfermode(struct ata_device *dev);
@@ -6972,6 +7022,56 @@ static void ata_host_stop(struct device *gendev, void *res)
 }
 
 /**
+ *	ata_finalize_port_ops - finalize ata_port_operations
+ *	@ops: ata_port_operations to finalize
+ *
+ *	An ata_port_operations can inherit from another ops and that
+ *	ops can again inherit from another.  This can go on as many
+ *	times as necessary as long as there is no loop in the
+ *	inheritance chain.
+ *
+ *	Ops tables are finalized when the host is started.  NULL or
+ *	unspecified entries are inherited from the closet ancestor
+ *	which has the method and the entry is populated with it.
+ *	After finalization, the ops table directly points to all the
+ *	methods and ->inherits is no longer necessary and cleared.
+ *
+ *	Using ATA_OP_NULL, inheriting ops can force a method to NULL.
+ *
+ *	LOCKING:
+ *	None.
+ */
+static void ata_finalize_port_ops(struct ata_port_operations *ops)
+{
+	static spinlock_t lock = SPIN_LOCK_UNLOCKED;
+	const struct ata_port_operations *cur;
+	void **begin = (void **)ops;
+	void **end = (void **)&ops->inherits;
+	void **pp;
+
+	if (!ops || !ops->inherits)
+		return;
+
+	spin_lock(&lock);
+
+	for (cur = ops->inherits; cur; cur = cur->inherits) {
+		void **inherit = (void **)cur;
+
+		for (pp = begin; pp < end; pp++, inherit++)
+			if (!*pp)
+				*pp = *inherit;
+	}
+
+	for (pp = begin; pp < end; pp++)
+		if (IS_ERR(*pp))
+			*pp = NULL;
+
+	ops->inherits = NULL;
+
+	spin_unlock(&lock);
+}
+
+/**
  *	ata_host_start - start and freeze ports of an ATA host
  *	@host: ATA host to start ports for
  *
@@ -6996,8 +7096,12 @@ int ata_host_start(struct ata_host *host)
 	if (host->flags & ATA_HOST_STARTED)
 		return 0;
 
+	ata_finalize_port_ops(host->ops);
+
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
+
+		ata_finalize_port_ops(ap->ops);
 
 		if (!host->ops && !ata_port_is_dummy(ap))
 			host->ops = ap->ops;
@@ -7060,7 +7164,7 @@ int ata_host_start(struct ata_host *host)
  */
 /* KILLME - the only user left is ipr */
 void ata_host_init(struct ata_host *host, struct device *dev,
-		   unsigned long flags, const struct ata_port_operations *ops)
+		   unsigned long flags, struct ata_port_operations *ops)
 {
 	spin_lock_init(&host->lock);
 	host->dev = dev;
@@ -7749,7 +7853,7 @@ static unsigned int ata_dummy_qc_issue(struct ata_queued_cmd *qc)
 	return AC_ERR_SYSTEM;
 }
 
-const struct ata_port_operations ata_dummy_port_ops = {
+struct ata_port_operations ata_dummy_port_ops = {
 	.check_status		= ata_dummy_check_status,
 	.check_altstatus	= ata_dummy_check_status,
 	.dev_select		= ata_noop_dev_select,
@@ -7777,6 +7881,11 @@ const struct ata_port_info ata_dummy_port_info = {
 EXPORT_SYMBOL_GPL(sata_deb_timing_normal);
 EXPORT_SYMBOL_GPL(sata_deb_timing_hotplug);
 EXPORT_SYMBOL_GPL(sata_deb_timing_long);
+EXPORT_SYMBOL_GPL(ata_base_port_ops);
+EXPORT_SYMBOL_GPL(sata_port_ops);
+EXPORT_SYMBOL_GPL(sata_pmp_port_ops);
+EXPORT_SYMBOL_GPL(ata_sff_port_ops);
+EXPORT_SYMBOL_GPL(ata_bmdma_port_ops);
 EXPORT_SYMBOL_GPL(ata_dummy_port_ops);
 EXPORT_SYMBOL_GPL(ata_dummy_port_info);
 EXPORT_SYMBOL_GPL(ata_std_bios_param);

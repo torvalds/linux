@@ -131,27 +131,25 @@ static struct scsi_host_template qs_ata_sht = {
 	.dma_boundary		= QS_DMA_BOUNDARY,
 };
 
-static const struct ata_port_operations qs_ata_ops = {
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.check_status		= ata_check_status,
+static struct ata_port_operations qs_ata_ops = {
+	.inherits		= &ata_sff_port_ops,
+
 	.check_atapi_dma	= qs_check_atapi_dma,
-	.exec_command		= ata_exec_command,
-	.dev_select		= ata_std_dev_select,
+	.bmdma_stop		= qs_bmdma_stop,
+	.bmdma_status		= qs_bmdma_status,
 	.qc_prep		= qs_qc_prep,
 	.qc_issue		= qs_qc_issue,
-	.data_xfer		= ata_data_xfer,
+
 	.freeze			= qs_freeze,
 	.thaw			= qs_thaw,
 	.error_handler		= qs_error_handler,
-	.irq_clear		= ata_noop_irq_clear,
-	.irq_on			= ata_irq_on,
+	.post_internal_cmd	= ATA_OP_NULL,
+
 	.scr_read		= qs_scr_read,
 	.scr_write		= qs_scr_write,
+
 	.port_start		= qs_port_start,
 	.host_stop		= qs_host_stop,
-	.bmdma_stop		= qs_bmdma_stop,
-	.bmdma_status		= qs_bmdma_status,
 };
 
 static const struct ata_port_info qs_port_info[] = {
