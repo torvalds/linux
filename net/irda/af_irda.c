@@ -837,7 +837,7 @@ static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
 
 	IRDA_DEBUG(2, "%s()\n", __func__);
 
-	err = irda_create(sk->sk_net, newsock, sk->sk_protocol);
+	err = irda_create(sock_net(sk), newsock, sk->sk_protocol);
 	if (err)
 		return err;
 

@@ -1496,11 +1496,11 @@ static int compat_do_arpt_set_ctl(struct sock *sk, int cmd, void __user *user,
 
 	switch (cmd) {
 	case ARPT_SO_SET_REPLACE:
-		ret = compat_do_replace(sk->sk_net, user, len);
+		ret = compat_do_replace(sock_net(sk), user, len);
 		break;
 
 	case ARPT_SO_SET_ADD_COUNTERS:
-		ret = do_add_counters(sk->sk_net, user, len, 1);
+		ret = do_add_counters(sock_net(sk), user, len, 1);
 		break;
 
 	default:
@@ -1644,10 +1644,10 @@ static int compat_do_arpt_get_ctl(struct sock *sk, int cmd, void __user *user,
 
 	switch (cmd) {
 	case ARPT_SO_GET_INFO:
-		ret = get_info(sk->sk_net, user, len, 1);
+		ret = get_info(sock_net(sk), user, len, 1);
 		break;
 	case ARPT_SO_GET_ENTRIES:
-		ret = compat_get_entries(sk->sk_net, user, len);
+		ret = compat_get_entries(sock_net(sk), user, len);
 		break;
 	default:
 		ret = do_arpt_get_ctl(sk, cmd, user, len);
@@ -1665,11 +1665,11 @@ static int do_arpt_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned
 
 	switch (cmd) {
 	case ARPT_SO_SET_REPLACE:
-		ret = do_replace(sk->sk_net, user, len);
+		ret = do_replace(sock_net(sk), user, len);
 		break;
 
 	case ARPT_SO_SET_ADD_COUNTERS:
-		ret = do_add_counters(sk->sk_net, user, len, 0);
+		ret = do_add_counters(sock_net(sk), user, len, 0);
 		break;
 
 	default:
@@ -1689,11 +1689,11 @@ static int do_arpt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len
 
 	switch (cmd) {
 	case ARPT_SO_GET_INFO:
-		ret = get_info(sk->sk_net, user, len, 0);
+		ret = get_info(sock_net(sk), user, len, 0);
 		break;
 
 	case ARPT_SO_GET_ENTRIES:
-		ret = get_entries(sk->sk_net, user, len);
+		ret = get_entries(sock_net(sk), user, len);
 		break;
 
 	case ARPT_SO_GET_REVISION_TARGET: {

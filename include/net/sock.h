@@ -126,7 +126,9 @@ struct sock_common {
 	atomic_t		skc_refcnt;
 	unsigned int		skc_hash;
 	struct proto		*skc_prot;
+#ifdef CONFIG_NET_NS
 	struct net	 	*skc_net;
+#endif
 };
 
 /**
@@ -1345,6 +1347,24 @@ static inline void sk_eat_skb(struct sock *sk, struct sk_buff *skb, int copied_e
 }
 #endif
 
+static inline
+struct net *sock_net(const struct sock *sk)
+{
+#ifdef CONFIG_NET_NS
+	return sk->sk_net;
+#else
+	return &init_net;
+#endif
+}
+
+static inline
+void sock_net_set(struct sock *sk, const struct net *net)
+{
+#ifdef CONFIG_NET_NS
+	sk->sk_net = net;
+#endif
+}
+
 /*
  * Kernel sockets, f.e. rtnl or icmp_socket, are a part of a namespace.
  * They should not hold a referrence to a namespace in order to allow
@@ -1353,8 +1373,8 @@ static inline void sk_eat_skb(struct sock *sk, struct sk_buff *skb, int copied_e
  */
 static inline void sk_change_net(struct sock *sk, struct net *net)
 {
-	put_net(sk->sk_net);
-	sk->sk_net = net;
+	put_net(sock_net(sk));
+	sock_net_set(sk, net);
 }
 
 extern void sock_enable_timestamp(struct sock *sk);

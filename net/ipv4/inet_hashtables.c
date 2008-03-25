@@ -139,7 +139,7 @@ static struct sock *inet_lookup_listener_slow(struct net *net,
 	sk_for_each(sk, node, head) {
 		const struct inet_sock *inet = inet_sk(sk);
 
-		if (sk->sk_net == net && inet->num == hnum &&
+		if (sock_net(sk) == net && inet->num == hnum &&
 				!ipv6_only_sock(sk)) {
 			const __be32 rcv_saddr = inet->rcv_saddr;
 			int score = sk->sk_family == PF_INET ? 1 : 0;
@@ -182,7 +182,7 @@ struct sock *__inet_lookup_listener(struct net *net,
 		if (inet->num == hnum && !sk->sk_node.next &&
 		    (!inet->rcv_saddr || inet->rcv_saddr == daddr) &&
 		    (sk->sk_family == PF_INET || !ipv6_only_sock(sk)) &&
-		    !sk->sk_bound_dev_if && sk->sk_net == net)
+		    !sk->sk_bound_dev_if && sock_net(sk) == net)
 			goto sherry_cache;
 		sk = inet_lookup_listener_slow(net, head, daddr, hnum, dif);
 	}
@@ -254,7 +254,7 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	struct sock *sk2;
 	const struct hlist_node *node;
 	struct inet_timewait_sock *tw;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 
 	prefetch(head->chain.first);
 	write_lock(lock);
@@ -406,7 +406,7 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 	struct inet_bind_hashbucket *head;
 	struct inet_bind_bucket *tb;
 	int ret;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 
 	if (!snum) {
 		int i, remaining, low, high, port;

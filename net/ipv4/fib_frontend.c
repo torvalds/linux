@@ -583,7 +583,7 @@ errout:
 
 static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
-	struct net *net = skb->sk->sk_net;
+	struct net *net = sock_net(skb->sk);
 	struct fib_config cfg;
 	struct fib_table *tb;
 	int err;
@@ -605,7 +605,7 @@ errout:
 
 static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
-	struct net *net = skb->sk->sk_net;
+	struct net *net = sock_net(skb->sk);
 	struct fib_config cfg;
 	struct fib_table *tb;
 	int err;
@@ -627,7 +627,7 @@ errout:
 
 static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct net *net = skb->sk->sk_net;
+	struct net *net = sock_net(skb->sk);
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
 	struct fib_table *tb;
@@ -857,7 +857,7 @@ static void nl_fib_input(struct sk_buff *skb)
 	struct fib_table *tb;
 	u32 pid;
 
-	net = skb->sk->sk_net;
+	net = sock_net(skb->sk);
 	nlh = nlmsg_hdr(skb);
 	if (skb->len < NLMSG_SPACE(0) || skb->len < nlh->nlmsg_len ||
 	    nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*frn)))

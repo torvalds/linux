@@ -1762,7 +1762,7 @@ int ip_mc_join_group(struct sock *sk , struct ip_mreqn *imr)
 	if (!ipv4_is_multicast(addr))
 		return -EINVAL;
 
-	if (sk->sk_net != &init_net)
+	if (sock_net(sk) != &init_net)
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -1833,7 +1833,7 @@ int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
 	u32 ifindex;
 	int ret = -EADDRNOTAVAIL;
 
-	if (sk->sk_net != &init_net)
+	if (sock_net(sk) != &init_net)
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -1881,7 +1881,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 	if (!ipv4_is_multicast(addr))
 		return -EINVAL;
 
-	if (sk->sk_net != &init_net)
+	if (sock_net(sk) != &init_net)
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -2017,7 +2017,7 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 	    msf->imsf_fmode != MCAST_EXCLUDE)
 		return -EINVAL;
 
-	if (sk->sk_net != &init_net)
+	if (sock_net(sk) != &init_net)
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -2100,7 +2100,7 @@ int ip_mc_msfget(struct sock *sk, struct ip_msfilter *msf,
 	if (!ipv4_is_multicast(addr))
 		return -EINVAL;
 
-	if (sk->sk_net != &init_net)
+	if (sock_net(sk) != &init_net)
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -2165,7 +2165,7 @@ int ip_mc_gsfget(struct sock *sk, struct group_filter *gsf,
 	if (!ipv4_is_multicast(addr))
 		return -EINVAL;
 
-	if (sk->sk_net != &init_net)
+	if (sock_net(sk) != &init_net)
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -2252,7 +2252,7 @@ void ip_mc_drop_socket(struct sock *sk)
 	if (inet->mc_list == NULL)
 		return;
 
-	if (sk->sk_net != &init_net)
+	if (sock_net(sk) != &init_net)
 		return;
 
 	rtnl_lock();

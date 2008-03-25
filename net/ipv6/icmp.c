@@ -163,7 +163,7 @@ static inline int icmpv6_xrlim_allow(struct sock *sk, int type,
 				     struct flowi *fl)
 {
 	struct dst_entry *dst;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 	int res = 0;
 
 	/* Informational messages are not limited. */

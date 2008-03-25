@@ -2689,7 +2689,7 @@ nla_put_failure:
 
 static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 {
-	struct net *net = in_skb->sk->sk_net;
+	struct net *net = sock_net(in_skb->sk);
 	struct rtmsg *rtm;
 	struct nlattr *tb[RTA_MAX+1];
 	struct rtable *rt = NULL;
@@ -2785,7 +2785,7 @@ int ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb)
 	int idx, s_idx;
 	struct net *net;
 
-	net = skb->sk->sk_net;
+	net = sock_net(skb->sk);
 
 	s_h = cb->args[0];
 	if (s_h < 0)

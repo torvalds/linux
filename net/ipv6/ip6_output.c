@@ -910,7 +910,7 @@ static int ip6_dst_lookup_tail(struct sock *sk,
 			       struct dst_entry **dst, struct flowi *fl)
 {
 	int err;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 
 	if (*dst == NULL)
 		*dst = ip6_route_output(net, sk, fl);

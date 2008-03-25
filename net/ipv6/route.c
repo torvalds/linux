@@ -2020,7 +2020,7 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	cfg->fc_nlinfo.pid = NETLINK_CB(skb).pid;
 	cfg->fc_nlinfo.nlh = nlh;
-	cfg->fc_nlinfo.nl_net = skb->sk->sk_net;
+	cfg->fc_nlinfo.nl_net = sock_net(skb->sk);
 
 	if (tb[RTA_GATEWAY]) {
 		nla_memcpy(&cfg->fc_gateway, tb[RTA_GATEWAY], 16);
@@ -2216,7 +2216,7 @@ int rt6_dump_route(struct rt6_info *rt, void *p_arg)
 
 static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 {
-	struct net *net = in_skb->sk->sk_net;
+	struct net *net = sock_net(in_skb->sk);
 	struct nlattr *tb[RTA_MAX+1];
 	struct rt6_info *rt;
 	struct sk_buff *skb;

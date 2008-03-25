@@ -372,7 +372,7 @@ static int sock_bindtodevice(struct sock *sk, char __user *optval, int optlen)
 {
 	int ret = -ENOPROTOOPT;
 #ifdef CONFIG_NETDEVICES
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 	char devname[IFNAMSIZ];
 	int index;
 
@@ -958,7 +958,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		 */
 		sk->sk_prot = sk->sk_prot_creator = prot;
 		sock_lock_init(sk);
-		sk->sk_net = get_net(net);
+		sock_net_set(sk, get_net(net));
 	}
 
 	return sk;
@@ -983,7 +983,7 @@ void sk_free(struct sock *sk)
 		printk(KERN_DEBUG "%s: optmem leakage (%d bytes) detected.\n",
 		       __func__, atomic_read(&sk->sk_omem_alloc));
 
-	put_net(sk->sk_net);
+	put_net(sock_net(sk));
 	sk_prot_free(sk->sk_prot_creator, sk);
 }
 
@@ -1001,7 +1001,7 @@ void sk_release_kernel(struct sock *sk)
 
 	sock_hold(sk);
 	sock_release(sk->sk_socket);
-	sk->sk_net = get_net(&init_net);
+	sock_net_set(sk, get_net(&init_net));
 	sock_put(sk);
 }
 EXPORT_SYMBOL(sk_release_kernel);
@@ -1017,7 +1017,7 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 		sock_copy(newsk, sk);
 
 		/* SANITY */
-		get_net(newsk->sk_net);
+		get_net(sock_net(newsk));
 		sk_node_init(&newsk->sk_node);
 		sock_lock_init(newsk);
 		bh_lock_sock(newsk);

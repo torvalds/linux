@@ -463,7 +463,7 @@ static int dn_fib_table_dump(struct dn_fib_table *tb, struct sk_buff *skb,
 
 int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct net *net = skb->sk->sk_net;
+	struct net *net = sock_net(skb->sk);
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
 	struct dn_fib_table *tb;

@@ -549,7 +549,7 @@ static struct sock *x25_make_new(struct sock *osk)
 	if (osk->sk_type != SOCK_SEQPACKET)
 		goto out;
 
-	if ((sk = x25_alloc_socket(osk->sk_net)) == NULL)
+	if ((sk = x25_alloc_socket(sock_net(osk))) == NULL)
 		goto out;
 
 	x25 = x25_sk(sk);

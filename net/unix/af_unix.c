@@ -252,7 +252,7 @@ static struct sock *__unix_find_socket_byname(struct net *net,
 	sk_for_each(s, node, &unix_socket_table[hash ^ type]) {
 		struct unix_sock *u = unix_sk(s);
 
-		if (s->sk_net != net)
+		if (sock_net(s) != net)
 			continue;
 
 		if (u->addr->len == len &&
@@ -289,7 +289,7 @@ static struct sock *unix_find_socket_byinode(struct net *net, struct inode *i)
 		    &unix_socket_table[i->i_ino & (UNIX_HASH_SIZE - 1)]) {
 		struct dentry *dentry = unix_sk(s)->dentry;
 
-		if (s->sk_net != net)
+		if (sock_net(s) != net)
 			continue;
 
 		if(dentry && dentry->d_inode == i)
@@ -654,7 +654,7 @@ static int unix_release(struct socket *sock)
 static int unix_autobind(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 	struct unix_sock *u = unix_sk(sk);
 	static u32 ordernum = 1;
 	struct unix_address * addr;
@@ -758,7 +758,7 @@ fail:
 static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 {
 	struct sock *sk = sock->sk;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 	struct unix_sock *u = unix_sk(sk);
 	struct sockaddr_un *sunaddr=(struct sockaddr_un *)uaddr;
 	struct dentry * dentry = NULL;
@@ -899,7 +899,7 @@ static int unix_dgram_connect(struct socket *sock, struct sockaddr *addr,
 			      int alen, int flags)
 {
 	struct sock *sk = sock->sk;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 	struct sockaddr_un *sunaddr=(struct sockaddr_un*)addr;
 	struct sock *other;
 	unsigned hash;
@@ -996,7 +996,7 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 {
 	struct sockaddr_un *sunaddr=(struct sockaddr_un *)uaddr;
 	struct sock *sk = sock->sk;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 	struct unix_sock *u = unix_sk(sk), *newu, *otheru;
 	struct sock *newsk = NULL;
 	struct sock *other = NULL;
@@ -1025,7 +1025,7 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 	err = -ENOMEM;
 
 	/* create new sock for complete connection */
-	newsk = unix_create1(sk->sk_net, NULL);
+	newsk = unix_create1(sock_net(sk), NULL);
 	if (newsk == NULL)
 		goto out;
 
@@ -1312,7 +1312,7 @@ static int unix_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 {
 	struct sock_iocb *siocb = kiocb_to_siocb(kiocb);
 	struct sock *sk = sock->sk;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 	struct unix_sock *u = unix_sk(sk);
 	struct sockaddr_un *sunaddr=msg->msg_name;
 	struct sock *other = NULL;
@@ -2022,7 +2022,7 @@ static struct sock *unix_seq_idx(struct unix_iter_state *iter, loff_t pos)
 	struct sock *s;
 
 	for (s = first_unix_socket(&iter->i); s; s = next_unix_socket(&iter->i, s)) {
-		if (s->sk_net != iter->p.net)
+		if (sock_net(s) != iter->p.net)
 			continue;
 		if (off == pos)
 			return s;
@@ -2050,7 +2050,7 @@ static void *unix_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		sk = first_unix_socket(&iter->i);
 	else
 		sk = next_unix_socket(&iter->i, sk);
-	while (sk && (sk->sk_net != iter->p.net))
+	while (sk && (sock_net(sk) != iter->p.net))
 		sk = next_unix_socket(&iter->i, sk);
 	return sk;
 }

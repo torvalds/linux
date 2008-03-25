@@ -181,7 +181,7 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, struct in6_addr *addr)
 	struct net_device *dev = NULL;
 	struct ipv6_mc_socklist *mc_lst;
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 	int err;
 
 	if (!ipv6_addr_is_multicast(addr))
@@ -255,7 +255,7 @@ int ipv6_sock_mc_drop(struct sock *sk, int ifindex, struct in6_addr *addr)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6_mc_socklist *mc_lst, **lnk;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 
 	write_lock_bh(&ipv6_sk_mc_lock);
 	for (lnk = &np->ipv6_mc_list; (mc_lst = *lnk) !=NULL ; lnk = &mc_lst->next) {
@@ -327,7 +327,7 @@ void ipv6_sock_mc_close(struct sock *sk)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6_mc_socklist *mc_lst;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 
 	write_lock_bh(&ipv6_sk_mc_lock);
 	while ((mc_lst = np->ipv6_mc_list) != NULL) {
@@ -365,7 +365,7 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 	struct inet6_dev *idev;
 	struct ipv6_pinfo *inet6 = inet6_sk(sk);
 	struct ip6_sf_socklist *psl;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 	int i, j, rv;
 	int leavegroup = 0;
 	int pmclocked = 0;
@@ -505,7 +505,7 @@ int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf)
 	struct inet6_dev *idev;
 	struct ipv6_pinfo *inet6 = inet6_sk(sk);
 	struct ip6_sf_socklist *newpsl, *psl;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 	int leavegroup = 0;
 	int i, err;
 
@@ -598,7 +598,7 @@ int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 	struct net_device *dev;
 	struct ipv6_pinfo *inet6 = inet6_sk(sk);
 	struct ip6_sf_socklist *psl;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 
 	group = &((struct sockaddr_in6 *)&gsf->gf_group)->sin6_addr;
 
