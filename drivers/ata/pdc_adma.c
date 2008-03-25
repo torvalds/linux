@@ -147,25 +147,15 @@ static struct scsi_host_template adma_ata_sht = {
 };
 
 static struct ata_port_operations adma_ata_ops = {
-	.inherits		= &ata_base_port_ops,
+	.inherits		= &ata_sff_port_ops,
 
-	.dev_select		= ata_std_dev_select,
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.check_status		= ata_check_status,
-	.exec_command		= ata_exec_command,
-	.data_xfer		= ata_data_xfer,
 	.check_atapi_dma	= adma_check_atapi_dma,
 	.qc_prep		= adma_qc_prep,
 	.qc_issue		= adma_qc_issue,
-	.irq_on			= ata_irq_on,
 
 	.freeze			= adma_freeze,
 	.thaw			= adma_thaw,
 	.prereset		= adma_prereset,
-	.softreset		= ata_std_softreset,
-	.error_handler		= ata_bmdma_error_handler,
-	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 
 	.port_start		= adma_port_start,
 	.port_stop		= adma_port_stop,
