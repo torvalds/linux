@@ -172,7 +172,7 @@ struct btrfs_block_group_cache *btrfs_lookup_block_group(struct
 
 static int block_group_bits(struct btrfs_block_group_cache *cache, u64 bits)
 {
-	return (cache->flags & bits);
+	return (cache->flags & bits) == bits;
 }
 
 static int noinline find_search_start(struct btrfs_root *root,
@@ -1010,6 +1010,35 @@ static struct btrfs_space_info *__find_space_info(struct btrfs_fs_info *info,
 
 }
 
+static int update_space_info(struct btrfs_fs_info *info, u64 flags,
+			     u64 total_bytes, u64 bytes_used,
+			     struct btrfs_space_info **space_info)
+{
+	struct btrfs_space_info *found;
+
+	found = __find_space_info(info, flags);
+	if (found) {
+		found->total_bytes += total_bytes;
+		found->bytes_used += bytes_used;
+		WARN_ON(found->total_bytes < found->bytes_used);
+		*space_info = found;
+		return 0;
+	}
+	found = kmalloc(sizeof(*found), GFP_NOFS);
+	if (!found)
+		return -ENOMEM;
+
+	list_add(&found->list, &info->space_info);
+	found->flags = flags;
+	found->total_bytes = total_bytes;
+	found->bytes_used = bytes_used;
+	found->bytes_pinned = 0;
+	found->full = 0;
+	*space_info = found;
+	return 0;
+}
+
+
 static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *extent_root, u64 alloc_bytes,
 			  u64 flags)
@@ -1021,6 +1050,11 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 	int ret;
 
 	space_info = __find_space_info(extent_root->fs_info, flags);
+	if (!space_info) {
+		ret = update_space_info(extent_root->fs_info, flags,
+					0, 0, &space_info);
+		BUG_ON(ret);
+	}
 	BUG_ON(!space_info);
 
 	if (space_info->full)
@@ -1044,6 +1078,17 @@ printk("space info full %Lu\n", flags);
 		     extent_root->fs_info->chunk_root->root_key.objectid,
 		     start, num_bytes);
 	BUG_ON(ret);
+
+	if (flags & BTRFS_BLOCK_GROUP_RAID0) {
+		if (flags & BTRFS_BLOCK_GROUP_DATA) {
+			extent_root->fs_info->extra_data_alloc_bits =
+				BTRFS_BLOCK_GROUP_RAID0;
+		}
+		if (flags & BTRFS_BLOCK_GROUP_METADATA) {
+			extent_root->fs_info->extra_alloc_bits =
+				BTRFS_BLOCK_GROUP_RAID0;
+		}
+	}
 	return 0;
 }
 
@@ -1655,24 +1700,31 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_extent_ref *ref;
 	struct btrfs_path *path;
 	struct btrfs_key keys[2];
+	int extra_chunk_alloc_bits = 0;
 
 	if (data) {
-		data = BTRFS_BLOCK_GROUP_DATA;
+		data = BTRFS_BLOCK_GROUP_DATA | info->extra_data_alloc_bits;
 	} else if (root == root->fs_info->chunk_root) {
 		data = BTRFS_BLOCK_GROUP_SYSTEM;
 	} else {
-		data = BTRFS_BLOCK_GROUP_METADATA;
+		data = BTRFS_BLOCK_GROUP_METADATA | info->extra_alloc_bits;
 	}
+	if (btrfs_super_num_devices(&info->super_copy) > 1 &&
+	    !(data & BTRFS_BLOCK_GROUP_SYSTEM))
+		extra_chunk_alloc_bits = BTRFS_BLOCK_GROUP_RAID0;
 
 	if (root->ref_cows) {
-		if (data != BTRFS_BLOCK_GROUP_METADATA) {
+		if (!(data & BTRFS_BLOCK_GROUP_METADATA)) {
 			ret = do_chunk_alloc(trans, root->fs_info->extent_root,
 					     2 * 1024 * 1024,
-					     BTRFS_BLOCK_GROUP_METADATA);
+					     BTRFS_BLOCK_GROUP_METADATA |
+					     info->extra_alloc_bits |
+					     extra_chunk_alloc_bits);
 			BUG_ON(ret);
 		}
 		ret = do_chunk_alloc(trans, root->fs_info->extent_root,
-				     num_bytes + 2 * 1024 * 1024, data);
+				     num_bytes + 2 * 1024 * 1024, data |
+				     extra_chunk_alloc_bits);
 		BUG_ON(ret);
 	}
 
@@ -2627,34 +2679,6 @@ error:
 	return ret;
 }
 
-static int update_space_info(struct btrfs_fs_info *info, u64 flags,
-			     u64 total_bytes, u64 bytes_used,
-			     struct btrfs_space_info **space_info)
-{
-	struct btrfs_space_info *found;
-
-	found = __find_space_info(info, flags);
-	if (found) {
-		found->total_bytes += total_bytes;
-		found->bytes_used += bytes_used;
-		WARN_ON(found->total_bytes < found->bytes_used);
-		*space_info = found;
-		return 0;
-	}
-	found = kmalloc(sizeof(*found), GFP_NOFS);
-	if (!found)
-		return -ENOMEM;
-
-	list_add(&found->list, &info->space_info);
-	found->flags = flags;
-	found->total_bytes = total_bytes;
-	found->bytes_used = bytes_used;
-	found->bytes_pinned = 0;
-	found->full = 0;
-	*space_info = found;
-	return 0;
-}
-
 int btrfs_read_block_groups(struct btrfs_root *root)
 {
 	struct btrfs_path *path;
@@ -2711,6 +2735,16 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 			bit = BLOCK_GROUP_SYSTEM;
 		} else if (cache->flags & BTRFS_BLOCK_GROUP_METADATA) {
 			bit = BLOCK_GROUP_METADATA;
+		}
+		if (cache->flags & BTRFS_BLOCK_GROUP_RAID0) {
+			if (cache->flags & BTRFS_BLOCK_GROUP_DATA) {
+				info->extra_data_alloc_bits =
+					BTRFS_BLOCK_GROUP_RAID0;
+			}
+			if (cache->flags & BTRFS_BLOCK_GROUP_METADATA) {
+				info->extra_alloc_bits =
+					BTRFS_BLOCK_GROUP_RAID0;
+			}
 		}
 
 		ret = update_space_info(info, cache->flags, found_key.offset,

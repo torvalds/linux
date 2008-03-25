@@ -317,8 +317,6 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 	map_length = length;
 	ret = btrfs_map_block(map_tree, logical, &physical, &map_length, &dev);
 	if (map_length < length + size) {
-		printk("merge bio hook logical %Lu bio len %Lu physical %Lu "
-		       "len %Lu\n", logical, length, physical, map_length);
 		return 1;
 	}
 	return 0;

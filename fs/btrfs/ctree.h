@@ -413,6 +413,7 @@ struct btrfs_csum_item {
 #define BTRFS_BLOCK_GROUP_DATA     (1 << 0)
 #define BTRFS_BLOCK_GROUP_SYSTEM   (1 << 1)
 #define BTRFS_BLOCK_GROUP_METADATA (1 << 2)
+#define BTRFS_BLOCK_GROUP_RAID0    (1 << 3)
 
 
 struct btrfs_block_group_item {
@@ -498,6 +499,8 @@ struct btrfs_fs_info {
 	u64 delalloc_bytes;
 	u64 last_alloc;
 	u64 last_data_alloc;
+	int extra_data_alloc_bits;
+	int extra_alloc_bits;
 };
 
 /*
