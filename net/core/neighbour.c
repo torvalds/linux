@@ -483,7 +483,7 @@ struct pneigh_entry * pneigh_lookup(struct neigh_table *tbl,
 
 	for (n = tbl->phash_buckets[hash_val]; n; n = n->next) {
 		if (!memcmp(n->key, pkey, key_len) &&
-		    (n->net == net) &&
+		    (pneigh_net(n) == net) &&
 		    (n->dev == dev || !n->dev)) {
 			read_unlock_bh(&tbl->lock);
 			goto out;
@@ -500,7 +500,9 @@ struct pneigh_entry * pneigh_lookup(struct neigh_table *tbl,
 	if (!n)
 		goto out;
 
+#ifdef CONFIG_NET_NS
 	n->net = hold_net(net);
+#endif
 	memcpy(n->key, pkey, key_len);
 	n->dev = dev;
 	if (dev)
@@ -540,14 +542,14 @@ int pneigh_delete(struct neigh_table *tbl, struct net *net, const void *pkey,
 	for (np = &tbl->phash_buckets[hash_val]; (n = *np) != NULL;
 	     np = &n->next) {
 		if (!memcmp(n->key, pkey, key_len) && n->dev == dev &&
-		    (n->net == net)) {
+		    (pneigh_net(n) == net)) {
 			*np = n->next;
 			write_unlock_bh(&tbl->lock);
 			if (tbl->pdestructor)
 				tbl->pdestructor(n);
 			if (n->dev)
 				dev_put(n->dev);
-			release_net(n->net);
+			release_net(pneigh_net(n));
 			kfree(n);
 			return 0;
 		}
@@ -570,7 +572,7 @@ static int pneigh_ifdown(struct neigh_table *tbl, struct net_device *dev)
 					tbl->pdestructor(n);
 				if (n->dev)
 					dev_put(n->dev);
-				release_net(n->net);
+				release_net(pneigh_net(n));
 				kfree(n);
 				continue;
 			}
@@ -1284,7 +1286,7 @@ static inline struct neigh_parms *lookup_neigh_params(struct neigh_table *tbl,
 	struct neigh_parms *p;
 
 	for (p = &tbl->parms; p; p = p->next) {
-		if ((p->dev && p->dev->ifindex == ifindex && p->net == net) ||
+		if ((p->dev && p->dev->ifindex == ifindex && neigh_parms_net(p) == net) ||
 		    (!p->dev && !ifindex))
 			return p;
 	}
@@ -1318,7 +1320,9 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 
 		dev_hold(dev);
 		p->dev = dev;
+#ifdef CONFIG_NET_NS
 		p->net = hold_net(net);
+#endif
 		p->sysctl_table = NULL;
 		write_lock_bh(&tbl->lock);
 		p->next		= tbl->parms.next;
@@ -1360,7 +1364,7 @@ void neigh_parms_release(struct neigh_table *tbl, struct neigh_parms *parms)
 
 static void neigh_parms_destroy(struct neigh_parms *parms)
 {
-	release_net(parms->net);
+	release_net(neigh_parms_net(parms));
 	kfree(parms);
 }
 
@@ -1371,7 +1375,9 @@ void neigh_table_init_no_netlink(struct neigh_table *tbl)
 	unsigned long now = jiffies;
 	unsigned long phsize;
 
+#ifdef CONFIG_NET_NS
 	tbl->parms.net = &init_net;
+#endif
 	atomic_set(&tbl->parms.refcnt, 1);
 	INIT_RCU_HEAD(&tbl->parms.rcu_head);
 	tbl->parms.reachable_time =
@@ -1958,7 +1964,7 @@ static int neightbl_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 			break;
 
 		for (nidx = 0, p = tbl->parms.next; p; p = p->next) {
-			if (net != p->net)
+			if (net != neigh_parms_net(p))
 				continue;
 
 			if (nidx++ < neigh_skip)
@@ -2254,7 +2260,7 @@ static struct pneigh_entry *pneigh_get_first(struct seq_file *seq)
 	state->flags |= NEIGH_SEQ_IS_PNEIGH;
 	for (bucket = 0; bucket <= PNEIGH_HASHMASK; bucket++) {
 		pn = tbl->phash_buckets[bucket];
-		while (pn && (pn->net != net))
+		while (pn && (pneigh_net(pn) != net))
 			pn = pn->next;
 		if (pn)
 			break;
@@ -2277,7 +2283,7 @@ static struct pneigh_entry *pneigh_get_next(struct seq_file *seq,
 		if (++state->bucket > PNEIGH_HASHMASK)
 			break;
 		pn = tbl->phash_buckets[state->bucket];
-		while (pn && (pn->net != net))
+		while (pn && (pneigh_net(pn) != net))
 			pn = pn->next;
 		if (pn)
 			break;
@@ -2740,7 +2746,7 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 	neigh_path[NEIGH_CTL_PATH_PROTO].ctl_name = p_id;
 
 	t->sysctl_header =
-		register_net_sysctl_table(p->net, neigh_path, t->neigh_vars);
+		register_net_sysctl_table(neigh_parms_net(p), neigh_path, t->neigh_vars);
 	if (!t->sysctl_header)
 		goto free_procname;
 
