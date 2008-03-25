@@ -4,8 +4,8 @@
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/apic.h>
-#include <asm/mach_apic.h>
 
+#include <mach_apic.h>
 #include "cpu.h"
 
 /*

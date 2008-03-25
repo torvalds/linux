@@ -58,7 +58,6 @@
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 #include <asm/setup.h>
-#include <asm/mach_apic.h>
 #include <asm/numa.h>
 #include <asm/sections.h>
 #include <asm/dmi.h>
@@ -67,6 +66,7 @@
 #include <asm/ds.h>
 #include <asm/topology.h>
 
+#include <mach_apic.h>
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else

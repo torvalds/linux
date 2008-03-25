@@ -43,7 +43,6 @@
 #include <asm/smp.h>
 #include <asm/desc.h>
 #include <asm/proto.h>
-#include <asm/mach_apic.h>
 #include <asm/acpi.h>
 #include <asm/dma.h>
 #include <asm/nmi.h>
@@ -51,6 +50,7 @@
 #include <asm/hypertransport.h>
 
 #include <mach_ipi.h>
+#include <mach_apic.h>
 
 struct irq_cfg {
 	cpumask_t domain;

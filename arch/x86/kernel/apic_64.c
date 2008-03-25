@@ -34,7 +34,6 @@
 #include <asm/mpspec.h>
 #include <asm/hpet.h>
 #include <asm/pgalloc.h>
-#include <asm/mach_apic.h>
 #include <asm/nmi.h>
 #include <asm/idle.h>
 #include <asm/proto.h>
@@ -42,6 +41,7 @@
 #include <asm/apic.h>
 
 #include <mach_ipi.h>
+#include <mach_apic.h>
 
 int disable_apic_timer __cpuinitdata;
 static int apic_calibrate_pmtmr __initdata;
