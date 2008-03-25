@@ -50,6 +50,8 @@
 #include <asm/msidef.h>
 #include <asm/hypertransport.h>
 
+#include <mach_ipi.h>
+
 struct irq_cfg {
 	cpumask_t domain;
 	cpumask_t old_domain;

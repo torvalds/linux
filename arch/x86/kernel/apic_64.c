@@ -41,6 +41,8 @@
 #include <asm/timex.h>
 #include <asm/apic.h>
 
+#include <mach_ipi.h>
+
 int disable_apic_timer __cpuinitdata;
 static int apic_calibrate_pmtmr __initdata;
 int disable_apic;

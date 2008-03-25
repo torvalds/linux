@@ -20,9 +20,6 @@
 #define vector_allocation_domain	(genapic->vector_allocation_domain)
 #define apic_id_registered (genapic->apic_id_registered)
 #define init_apic_ldr (genapic->init_apic_ldr)
-#define send_IPI_mask (genapic->send_IPI_mask)
-#define send_IPI_allbutself (genapic->send_IPI_allbutself)
-#define send_IPI_all (genapic->send_IPI_all)
 #define cpu_mask_to_apicid (genapic->cpu_mask_to_apicid)
 #define phys_pkg_id	(genapic->phys_pkg_id)
 

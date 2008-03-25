@@ -9,10 +9,15 @@ void __send_IPI_shortcut(unsigned int shortcut, int vector);
 
 extern int no_broadcast;
 
+#ifdef CONFIG_X86_64
+#include <asm/genapic.h>
+#define send_IPI_mask (genapic->send_IPI_mask)
+#else
 static inline void send_IPI_mask(cpumask_t mask, int vector)
 {
 	send_IPI_mask_bitmask(mask, vector);
 }
+#endif
 
 static inline void __local_send_IPI_allbutself(int vector)
 {
@@ -33,6 +38,10 @@ static inline void __local_send_IPI_all(int vector)
 		__send_IPI_shortcut(APIC_DEST_ALLINC, vector);
 }
 
+#ifdef CONFIG_X86_64
+#define send_IPI_allbutself (genapic->send_IPI_allbutself)
+#define send_IPI_all (genapic->send_IPI_all)
+#else
 static inline void send_IPI_allbutself(int vector)
 {
 	/*
@@ -50,5 +59,6 @@ static inline void send_IPI_all(int vector)
 {
 	__local_send_IPI_all(vector);
 }
+#endif
 
 #endif /* __ASM_MACH_IPI_H */

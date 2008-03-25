@@ -11,11 +11,12 @@
 #include <asm/mtrr.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
-#include <asm/mach_apic.h>
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 #include <asm/apicdef.h>
 #include <asm/idle.h>
+
+#include <mach_ipi.h>
 /*
  *	Smarter SMP flushing macros.
  *		c/o Linus Torvalds.

@@ -26,12 +26,8 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
-#ifdef CONFIG_X86_32
-#include <mach_apic.h>
 #include <mach_ipi.h>
-#else
-#include <asm/mach_apic.h>
-#endif
+#include <mach_apic.h>
 /*
  *	Some notes on x86 processor bugs affecting SMP operation:
  *
