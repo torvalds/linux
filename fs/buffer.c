@@ -3213,7 +3213,7 @@ static int buffer_cpu_notify(struct notifier_block *self,
 }
 
 /**
- * bh_uptodate_or_lock: Test whether the buffer is uptodate
+ * bh_uptodate_or_lock - Test whether the buffer is uptodate
  * @bh: struct buffer_head
  *
  * Return true if the buffer is up-to-date and false,
@@ -3232,7 +3232,7 @@ int bh_uptodate_or_lock(struct buffer_head *bh)
 EXPORT_SYMBOL(bh_uptodate_or_lock);
 
 /**
- * bh_submit_read: Submit a locked buffer for reading
+ * bh_submit_read - Submit a locked buffer for reading
  * @bh: struct buffer_head
  *
  * Returns zero on success and -EIO on error.

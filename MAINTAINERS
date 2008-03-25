@@ -266,6 +266,15 @@ L:      linux-acpi@vger.kernel.org
 W:      http://www.lesswatts.org/projects/acpi/
 S:      Maintained
 
+AD1889 ALSA SOUND DRIVER
+P:     Kyle McMartin
+M:     kyle@parisc-linux.org
+P:     Thibaut Varene
+M:     T-Bone@parisc-linux.org
+W:     http://wiki.parisc-linux.org/AD1889
+L:     linux-parisc@vger.kernel.org
+S:     Maintained
+
 ADM1025 HARDWARE MONITOR DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
@@ -443,7 +452,7 @@ S:	Maintained
 
 ARM/ATMEL AT91RM9200 ARM ARCHITECTURE
 P:      Andrew Victor
-M:      andrew@sanpeople.com
+M:      linux@maxim.org.za
 L:      linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 W:      http://maxim.org.za/at91_26.html
 S:      Maintained
@@ -871,7 +880,7 @@ P:	Marcel Holtmann
 M:	marcel@holtmann.org
 P:	Maxim Krasnyansky
 M:	maxk@qualcomm.com
-L:	bluez-devel@lists.sf.net
+L:	linux-bluetooth@vger.kernel.org
 W:	http://bluez.sf.net
 W:	http://www.bluez.org
 W:	http://www.holtmann.org/linux/bluetooth/
@@ -2926,9 +2935,9 @@ S:	Maintained
 
 ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
 P:	Mark Fasheh
-M:	mark.fasheh@oracle.com
-P:	Kurt Hackel
-M:	kurt.hackel@oracle.com
+M:	mfasheh@suse.com
+P:	Joel Becker
+M:	joel.becker@oracle.com
 L:	ocfs2-devel@oss.oracle.com
 W:	http://oss.oracle.com/projects/ocfs2/
 S:	Supported

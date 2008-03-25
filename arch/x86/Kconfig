@@ -1259,7 +1259,7 @@ menuconfig APM
 	  machines with more than one CPU.
 
 	  In order to use APM, you will need supporting software. For location
-	  and more information, read <file:Documentation/pm.txt> and the
+	  and more information, read <file:Documentation/power/pm.txt> and the
 	  Battery Powered Linux mini-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 

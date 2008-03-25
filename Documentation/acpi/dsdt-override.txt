@@ -1,15 +1,7 @@
-Linux supports two methods of overriding the BIOS DSDT:
+Linux supports a method of overriding the BIOS DSDT:
 
 CONFIG_ACPI_CUSTOM_DSDT builds the image into the kernel.
 
-CONFIG_ACPI_CUSTOM_DSDT_INITRD adds the image to the initrd.
-
-When to use these methods is described in detail on the
+When to use this method is described in detail on the
 Linux/ACPI home page:
 http://www.lesswatts.org/projects/acpi/overridingDSDT.php
-
-Note that if both options are used, the DSDT supplied
-by the INITRD method takes precedence.
-
-Documentation/initramfs-add-dsdt.sh is provided for convenience
-for use with the CONFIG_ACPI_CUSTOM_DSDT_INITRD method.

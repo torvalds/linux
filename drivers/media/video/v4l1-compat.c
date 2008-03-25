@@ -303,7 +303,11 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 	{
 		struct video_capability *cap = arg;
 
-		cap2 = kzalloc(sizeof(*cap2),GFP_KERNEL);
+		cap2 = kzalloc(sizeof(*cap2), GFP_KERNEL);
+		if (!cap2) {
+			err = -ENOMEM;
+			break;
+		}
 		memset(cap, 0, sizeof(*cap));
 		memset(&fbuf2, 0, sizeof(fbuf2));
 
@@ -426,7 +430,11 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 	{
 		struct video_window	*win = arg;
 
-		fmt2 = kzalloc(sizeof(*fmt2),GFP_KERNEL);
+		fmt2 = kzalloc(sizeof(*fmt2), GFP_KERNEL);
+		if (!fmt2) {
+			err = -ENOMEM;
+			break;
+		}
 		memset(win,0,sizeof(*win));
 
 		fmt2->type = V4L2_BUF_TYPE_VIDEO_OVERLAY;
@@ -464,7 +472,11 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 		struct video_window	*win = arg;
 		int err1,err2;
 
-		fmt2 = kzalloc(sizeof(*fmt2),GFP_KERNEL);
+		fmt2 = kzalloc(sizeof(*fmt2), GFP_KERNEL);
+		if (!fmt2) {
+			err = -ENOMEM;
+			break;
+		}
 		fmt2->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		drv(inode, file, VIDIOC_STREAMOFF, &fmt2->type);
 		err1 = drv(inode, file, VIDIOC_G_FMT, fmt2);
@@ -586,6 +598,12 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 	{
 		struct video_picture	*pict = arg;
 
+		fmt2 = kzalloc(sizeof(*fmt2), GFP_KERNEL);
+		if (!fmt2) {
+			err = -ENOMEM;
+			break;
+		}
+
 		pict->brightness = get_v4l_control(inode, file,
 						   V4L2_CID_BRIGHTNESS,drv);
 		pict->hue = get_v4l_control(inode, file,
@@ -597,7 +615,6 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 		pict->whiteness = get_v4l_control(inode, file,
 						  V4L2_CID_WHITENESS, drv);
 
-		fmt2 = kzalloc(sizeof(*fmt2),GFP_KERNEL);
 		fmt2->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		err = drv(inode, file, VIDIOC_G_FMT, fmt2);
 		if (err < 0) {
@@ -617,6 +634,11 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 		struct video_picture	*pict = arg;
 		int mem_err = 0, ovl_err = 0;
 
+		fmt2 = kzalloc(sizeof(*fmt2), GFP_KERNEL);
+		if (!fmt2) {
+			err = -ENOMEM;
+			break;
+		}
 		memset(&fbuf2, 0, sizeof(fbuf2));
 
 		set_v4l_control(inode, file,
@@ -636,7 +658,6 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 		 * different pixel formats for memory vs overlay.
 		 */
 
-		fmt2 = kzalloc(sizeof(*fmt2),GFP_KERNEL);
 		fmt2->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		err = drv(inode, file, VIDIOC_G_FMT, fmt2);
 		/* If VIDIOC_G_FMT failed, then the driver likely doesn't
@@ -890,7 +911,11 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 	{
 		struct video_mmap	*mm = arg;
 
-		fmt2 = kzalloc(sizeof(*fmt2),GFP_KERNEL);
+		fmt2 = kzalloc(sizeof(*fmt2), GFP_KERNEL);
+		if (!fmt2) {
+			err = -ENOMEM;
+			break;
+		}
 		memset(&buf2,0,sizeof(buf2));
 
 		fmt2->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -986,7 +1011,11 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 	{
 		struct vbi_format      *fmt = arg;
 
-		fmt2 = kzalloc(sizeof(*fmt2),GFP_KERNEL);
+		fmt2 = kzalloc(sizeof(*fmt2), GFP_KERNEL);
+		if (!fmt2) {
+			err = -ENOMEM;
+			break;
+		}
 		fmt2->type = V4L2_BUF_TYPE_VBI_CAPTURE;
 
 		err = drv(inode, file, VIDIOC_G_FMT, fmt2);
@@ -1018,8 +1047,11 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 			break;
 		}
 
-		fmt2 = kzalloc(sizeof(*fmt2),GFP_KERNEL);
-
+		fmt2 = kzalloc(sizeof(*fmt2), GFP_KERNEL);
+		if (!fmt2) {
+			err = -ENOMEM;
+			break;
+		}
 		fmt2->type = V4L2_BUF_TYPE_VBI_CAPTURE;
 		fmt2->fmt.vbi.samples_per_line = fmt->samples_per_line;
 		fmt2->fmt.vbi.sampling_rate    = fmt->sampling_rate;

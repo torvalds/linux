@@ -672,7 +672,7 @@ static int tvp5150_set_vbi(struct i2c_client *c,
 	if (std == V4L2_STD_ALL) {
 		tvp5150_err("VBI can't be configured without knowing number of lines\n");
 		return 0;
-	} else if (std && V4L2_STD_625_50) {
+	} else if (std & V4L2_STD_625_50) {
 		/* Don't follow NTSC Line number convension */
 		line += 3;
 	}
@@ -719,7 +719,7 @@ static int tvp5150_get_vbi(struct i2c_client *c,
 	if (std == V4L2_STD_ALL) {
 		tvp5150_err("VBI can't be configured without knowing number of lines\n");
 		return 0;
-	} else if (std && V4L2_STD_625_50) {
+	} else if (std & V4L2_STD_625_50) {
 		/* Don't follow NTSC Line number convension */
 		line += 3;
 	}

@@ -1709,7 +1709,7 @@ static int __init riscom8_init_module (void)
 
 	if (iobase || iobase1 || iobase2 || iobase3) {
 		for(i = 0; i < RC_NBOARD; i++)
-			rc_board[0].base = 0;
+			rc_board[i].base = 0;
 	}
 
 	if (iobase)

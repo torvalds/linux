@@ -50,7 +50,9 @@
 	US_FLAG(CAPACITY_HEURISTICS,	0x00001000)		\
 		/* sometimes sizes is too big */		\
 	US_FLAG(MAX_SECTORS_MIN,0x00002000)			\
-		/* Sets max_sectors to arch min */
+		/* Sets max_sectors to arch min */		\
+	US_FLAG(BULK_IGNORE_TAG,0x00004000)			\
+		/* Ignore tag mismatch in bulk operations */
 
 
 #define US_FLAG(name, value)	US_FL_##name = value ,

@@ -1765,14 +1765,11 @@ static irqreturn_t atl1_intr(int irq, void *data)
 {
 	struct atl1_adapter *adapter = netdev_priv(data);
 	u32 status;
-	u8 update_rx;
 	int max_ints = 10;
 
 	status = adapter->cmb.cmb->int_stats;
 	if (!status)
 		return IRQ_NONE;
-
-	update_rx = 0;
 
 	do {
 		/* clear CMB interrupt status at once */

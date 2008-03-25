@@ -35,42 +35,23 @@
 
 # define ATI_PCIGART_PAGE_SIZE		4096	/**< PCI GART page size */
 
-static void *drm_ati_alloc_pcigart_table(int order)
+static int drm_ati_alloc_pcigart_table(struct drm_device *dev,
+				       struct drm_ati_pcigart_info *gart_info)
 {
-	unsigned long address;
-	struct page *page;
-	int i;
+	gart_info->table_handle = drm_pci_alloc(dev, gart_info->table_size,
+						PAGE_SIZE,
+						gart_info->table_mask);
+	if (gart_info->table_handle == NULL)
+		return -ENOMEM;
 
-	DRM_DEBUG("%d order\n", order);
-
-	address = __get_free_pages(GFP_KERNEL | __GFP_COMP,
-				   order);
-	if (address == 0UL) {
-		return NULL;
-	}
-
-	page = virt_to_page(address);
-
-	for (i = 0; i < order; i++, page++)
-		SetPageReserved(page);
-
-	DRM_DEBUG("returning 0x%08lx\n", address);
-	return (void *)address;
+	return 0;
 }
 
-static void drm_ati_free_pcigart_table(void *address, int order)
+static void drm_ati_free_pcigart_table(struct drm_device *dev,
+				       struct drm_ati_pcigart_info *gart_info)
 {
-	struct page *page;
-	int i;
-	int num_pages = 1 << order;
-	DRM_DEBUG("\n");
-
-	page = virt_to_page((unsigned long)address);
-
-	for (i = 0; i < num_pages; i++, page++)
-		ClearPageReserved(page);
-
-	free_pages((unsigned long)address, order);
+	drm_pci_free(dev, gart_info->table_handle);
+	gart_info->table_handle = NULL;
 }
 
 int drm_ati_pcigart_cleanup(struct drm_device *dev, struct drm_ati_pcigart_info *gart_info)
@@ -78,8 +59,7 @@ int drm_ati_pcigart_cleanup(struct drm_device *dev, struct drm_ati_pcigart_info 
 	struct drm_sg_mem *entry = dev->sg;
 	unsigned long pages;
 	int i;
-	int order;
-	int num_pages, max_pages;
+	int max_pages;
 
 	/* we need to support large memory configurations */
 	if (!entry) {
@@ -87,15 +67,7 @@ int drm_ati_pcigart_cleanup(struct drm_device *dev, struct drm_ati_pcigart_info 
 		return 0;
 	}
 
-	order = drm_order((gart_info->table_size + (PAGE_SIZE-1)) / PAGE_SIZE);
-	num_pages = 1 << order;
-
 	if (gart_info->bus_addr) {
-		if (gart_info->gart_table_location == DRM_ATI_GART_MAIN) {
-			pci_unmap_single(dev->pdev, gart_info->bus_addr,
-					 num_pages * PAGE_SIZE,
-					 PCI_DMA_TODEVICE);
-		}
 
 		max_pages = (gart_info->table_size / sizeof(u32));
 		pages = (entry->pages <= max_pages)
@@ -112,10 +84,9 @@ int drm_ati_pcigart_cleanup(struct drm_device *dev, struct drm_ati_pcigart_info 
 			gart_info->bus_addr = 0;
 	}
 
-	if (gart_info->gart_table_location == DRM_ATI_GART_MAIN
-	    && gart_info->addr) {
-		drm_ati_free_pcigart_table(gart_info->addr, order);
-		gart_info->addr = NULL;
+	if (gart_info->gart_table_location == DRM_ATI_GART_MAIN &&
+	    gart_info->table_handle) {
+		drm_ati_free_pcigart_table(dev, gart_info);
 	}
 
 	return 1;
@@ -127,11 +98,10 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 	struct drm_sg_mem *entry = dev->sg;
 	void *address = NULL;
 	unsigned long pages;
-	u32 *pci_gart, page_base, bus_address = 0;
+	u32 *pci_gart, page_base;
+	dma_addr_t bus_address = 0;
 	int i, j, ret = 0;
-	int order;
 	int max_pages;
-	int num_pages;
 
 	if (!entry) {
 		DRM_ERROR("no scatter/gather memory!\n");
@@ -141,31 +111,14 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 	if (gart_info->gart_table_location == DRM_ATI_GART_MAIN) {
 		DRM_DEBUG("PCI: no table in VRAM: using normal RAM\n");
 
-		order = drm_order((gart_info->table_size +
-				   (PAGE_SIZE-1)) / PAGE_SIZE);
-		num_pages = 1 << order;
-		address = drm_ati_alloc_pcigart_table(order);
-		if (!address) {
+		ret = drm_ati_alloc_pcigart_table(dev, gart_info);
+		if (ret) {
 			DRM_ERROR("cannot allocate PCI GART page!\n");
 			goto done;
 		}
 
-		if (!dev->pdev) {
-			DRM_ERROR("PCI device unknown!\n");
-			goto done;
-		}
-
-		bus_address = pci_map_single(dev->pdev, address,
-					     num_pages * PAGE_SIZE,
-					     PCI_DMA_TODEVICE);
-		if (bus_address == 0) {
-			DRM_ERROR("unable to map PCIGART pages!\n");
-			order = drm_order((gart_info->table_size +
-					   (PAGE_SIZE-1)) / PAGE_SIZE);
-			drm_ati_free_pcigart_table(address, order);
-			address = NULL;
-			goto done;
-		}
+		address = gart_info->table_handle->vaddr;
+		bus_address = gart_info->table_handle->busaddr;
 	} else {
 		address = gart_info->addr;
 		bus_address = gart_info->bus_addr;

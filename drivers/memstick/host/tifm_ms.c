@@ -340,11 +340,20 @@ static void tifm_ms_complete_cmd(struct tifm_ms *host)
 
 	del_timer(&host->timer);
 
-	if (host->use_dma)
+	host->req->int_reg = readl(sock->addr + SOCK_MS_STATUS) & 0xff;
+	host->req->int_reg = (host->req->int_reg & 1)
+			     | ((host->req->int_reg << 4) & 0xe0);
+
+	writel(TIFM_FIFO_INT_SETALL,
+	       sock->addr + SOCK_DMA_FIFO_INT_ENABLE_CLEAR);
+	writel(TIFM_DMA_RESET, sock->addr + SOCK_DMA_CONTROL);
+
+	if (host->use_dma) {
 		tifm_unmap_sg(sock, &host->req->sg, 1,
 			      host->req->data_dir == READ
 			      ? PCI_DMA_FROMDEVICE
 			      : PCI_DMA_TODEVICE);
+	}
 
 	writel((~TIFM_CTRL_LED) & readl(sock->addr + SOCK_CONTROL),
 	       sock->addr + SOCK_CONTROL);
@@ -423,12 +432,6 @@ static void tifm_ms_card_event(struct tifm_dev *sock)
 			host->req->error = -ETIME;
 		else if (host_status & TIFM_MS_STAT_CRC)
 			host->req->error = -EILSEQ;
-
-		if (host->req->error) {
-			writel(TIFM_FIFO_INT_SETALL,
-			       sock->addr + SOCK_DMA_FIFO_INT_ENABLE_CLEAR);
-			writel(TIFM_DMA_RESET, sock->addr + SOCK_DMA_CONTROL);
-		}
 
 		if (host_status & TIFM_MS_STAT_RDY)
 			host->cmd_flags |= CMD_READY;

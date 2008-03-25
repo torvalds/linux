@@ -1014,15 +1014,24 @@ static struct sctp_pf sctp_pf_inet6 = {
 };
 
 /* Initialize IPv6 support and register with socket layer.  */
-int sctp_v6_init(void)
+void sctp_v6_pf_init(void)
 {
-	int rc;
-
 	/* Register the SCTP specific PF_INET6 functions. */
 	sctp_register_pf(&sctp_pf_inet6, PF_INET6);
 
 	/* Register the SCTP specific AF_INET6 functions. */
 	sctp_register_af(&sctp_af_inet6);
+}
+
+void sctp_v6_pf_exit(void)
+{
+	list_del(&sctp_af_inet6.list);
+}
+
+/* Initialize IPv6 support and register with socket layer.  */
+int sctp_v6_protosw_init(void)
+{
+	int rc;
 
 	rc = proto_register(&sctpv6_prot, 1);
 	if (rc)
@@ -1035,6 +1044,14 @@ int sctp_v6_init(void)
 	return 0;
 }
 
+void sctp_v6_protosw_exit(void)
+{
+	inet6_unregister_protosw(&sctpv6_seqpacket_protosw);
+	inet6_unregister_protosw(&sctpv6_stream_protosw);
+	proto_unregister(&sctpv6_prot);
+}
+
+
 /* Register with inet6 layer. */
 int sctp_v6_add_protocol(void)
 {
@@ -1045,15 +1062,6 @@ int sctp_v6_add_protocol(void)
 		return -EAGAIN;
 
 	return 0;
-}
-
-/* IPv6 specific exit support. */
-void sctp_v6_exit(void)
-{
-	inet6_unregister_protosw(&sctpv6_seqpacket_protosw);
-	inet6_unregister_protosw(&sctpv6_stream_protosw);
-	proto_unregister(&sctpv6_prot);
-	list_del(&sctp_af_inet6.list);
 }
 
 /* Unregister with inet6 layer. */

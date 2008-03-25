@@ -221,8 +221,7 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 				 bootmap_pages<<PAGE_SHIFT, PAGE_SIZE);
 	if (bootmap == NULL)  {
 		if (nodedata_phys < start || nodedata_phys >= end)
-			free_bootmem((unsigned long)node_data[nodeid],
-				     pgdat_size);
+			free_bootmem(nodedata_phys, pgdat_size);
 		node_data[nodeid] = NULL;
 		return;
 	}

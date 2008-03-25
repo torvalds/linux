@@ -657,7 +657,7 @@ int_msg:
 	.asciz "Unknown interrupt or fault at EIP %p %p %p\n"
 
 fault_msg:
-	.ascii								\
+	.asciz								\
 /* fault info: */	"BUG: Int %d: CR2 %p\n"				\
 /* pusha regs: */	"     EDI %p  ESI %p  EBP %p  ESP %p\n"		\
 			"     EBX %p  EDX %p  ECX %p  EAX %p\n"		\

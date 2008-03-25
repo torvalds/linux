@@ -1589,6 +1589,17 @@ UNUSUAL_DEV(  0x22b8, 0x4810, 0x0001, 0x0001,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
 
+/*
+ * Patch by Constantin Baranov <const@tltsu.ru>
+ * Report by Andreas Koenecke.
+ * Motorola ROKR Z6.
+ */
+UNUSUAL_DEV(  0x22b8, 0x6426, 0x0101, 0x0101,
+		"Motorola",
+		"MSnc.",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_INQUIRY | US_FL_FIX_CAPACITY | US_FL_BULK_IGNORE_TAG),
+
 /* Reported by Radovan Garabik <garabik@kassiopeia.juls.savba.sk> */
 UNUSUAL_DEV(  0x2735, 0x100b, 0x0000, 0x9999,
 		"MPIO",

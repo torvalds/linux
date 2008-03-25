@@ -137,7 +137,7 @@ static void omap_disable_channel_irq(int lch);
 static inline void omap_enable_channel_irq(int lch);
 
 #define REVISIT_24XX()		printk(KERN_ERR "FIXME: no %s on 24xx\n", \
-						__FUNCTION__);
+						__func__);
 
 #ifdef CONFIG_ARCH_OMAP15XX
 /* Returns 1 if the DMA module is in OMAP1510-compatible mode, 0 otherwise */
@@ -699,7 +699,7 @@ omap_dma_set_global_params(int arb_rate, int max_fifo_depth, int tparams)
 	u32 reg;
 
 	if (!cpu_class_is_omap2()) {
-		printk(KERN_ERR "FIXME: no %s on 15xx/16xx\n", __FUNCTION__);
+		printk(KERN_ERR "FIXME: no %s on 15xx/16xx\n", __func__);
 		return;
 	}
 
@@ -1020,12 +1020,12 @@ static void create_dma_lch_chain(int lch_head, int lch_queue)
 	}
 
 	w = OMAP_DMA_CLNK_CTRL_REG(lch_head);
-	w &= ~(0x0f);
+	w &= ~(0x1f);
 	w |= lch_queue;
 	OMAP_DMA_CLNK_CTRL_REG(lch_head) = w;
 
 	w = OMAP_DMA_CLNK_CTRL_REG(lch_queue);
-	w &= ~(0x0f);
+	w &= ~(0x1f);
 	w |= (dma_chan[lch_queue].next_linked_ch);
 	OMAP_DMA_CLNK_CTRL_REG(lch_queue) = w;
 }
@@ -1248,7 +1248,7 @@ EXPORT_SYMBOL(omap_dma_chain_status);
  * @param frame_count
  * @param callbk_data - channel callback parameter data.
  *
- * @return  - Success : start_dma status
+ * @return  - Success : 0
  * 	      Failure: -EINVAL/-EBUSY
  */
 int omap_dma_chain_a_transfer(int chain_id, int src_start, int dest_start,
@@ -1367,7 +1367,7 @@ int omap_dma_chain_a_transfer(int chain_id, int src_start, int dest_start,
 			dma_chan[lch].flags |= OMAP_DMA_ACTIVE;
 		}
 	}
-	return start_dma;
+	return 0;
 }
 EXPORT_SYMBOL(omap_dma_chain_a_transfer);
 
@@ -1663,6 +1663,7 @@ static int omap2_dma_handle_ch(int ch)
 	if (!status) {
 		if (printk_ratelimit())
 			printk(KERN_WARNING "Spurious DMA IRQ for lch %d\n", ch);
+		omap_writel(1 << ch, OMAP_DMA4_IRQSTATUS_L0);
 		return 0;
 	}
 	if (unlikely(dma_chan[ch].dev_id == -1)) {
@@ -1705,14 +1706,8 @@ static int omap2_dma_handle_ch(int ch)
 		status = OMAP_DMA_CSR_REG(ch);
 	}
 
-	if (likely(dma_chan[ch].callback != NULL)) {
-		if (dma_chan[ch].chain_id != -1)
-			dma_chan[ch].callback(dma_chan[ch].chain_id, status,
-					      dma_chan[ch].data);
-		else
-			dma_chan[ch].callback(ch, status, dma_chan[ch].data);
-
-	}
+	if (likely(dma_chan[ch].callback != NULL))
+		dma_chan[ch].callback(ch, status, dma_chan[ch].data);
 
 	OMAP_DMA_CSR_REG(ch) = status;
 

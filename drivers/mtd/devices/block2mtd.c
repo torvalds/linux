@@ -408,7 +408,6 @@ static int block2mtd_setup2(const char *val)
 	if (token[1]) {
 		ret = parse_num(&erase_size, token[1]);
 		if (ret) {
-			kfree(name);
 			parse_err("illegal erase size");
 		}
 	}

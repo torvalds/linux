@@ -1536,9 +1536,15 @@ new_slab:
 	 * That is only possible if certain conditions are met that are being
 	 * checked when a slab is created.
 	 */
-	if (!(gfpflags & __GFP_NORETRY) && (s->flags & __PAGE_ALLOC_FALLBACK))
-		return kmalloc_large(s->objsize, gfpflags);
-
+	if (!(gfpflags & __GFP_NORETRY) &&
+				(s->flags & __PAGE_ALLOC_FALLBACK)) {
+		if (gfpflags & __GFP_WAIT)
+			local_irq_enable();
+		object = kmalloc_large(s->objsize, gfpflags);
+		if (gfpflags & __GFP_WAIT)
+			local_irq_disable();
+		return object;
+	}
 	return NULL;
 debug:
 	if (!alloc_debug_processing(s, c->page, object, addr))

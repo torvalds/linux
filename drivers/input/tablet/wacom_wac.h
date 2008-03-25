@@ -25,6 +25,7 @@ enum {
 	INTUOS3,
 	INTUOS3L,
 	CINTIQ,
+	WACOM_BEE,
 	WACOM_MO,
 	MAX_TYPE
 };

@@ -89,7 +89,7 @@ static const struct tcf_ext_map u32_ext_map = {
 
 static struct tc_u_common *u32_list;
 
-static __inline__ unsigned u32_hash_fold(u32 key, struct tc_u32_sel *sel, u8 fshift)
+static __inline__ unsigned u32_hash_fold(__be32 key, struct tc_u32_sel *sel, u8 fshift)
 {
 	unsigned h = ntohl(key & sel->hmask)>>fshift;
 
@@ -137,7 +137,7 @@ next_knode:
 
 		for (i = n->sel.nkeys; i>0; i--, key++) {
 
-			if ((*(u32*)(ptr+key->off+(off2&key->offmask))^key->val)&key->mask) {
+			if ((*(__be32*)(ptr+key->off+(off2&key->offmask))^key->val)&key->mask) {
 				n = n->next;
 				goto next_knode;
 			}
@@ -182,7 +182,7 @@ check_terminal:
 		ht = n->ht_down;
 		sel = 0;
 		if (ht->divisor)
-			sel = ht->divisor&u32_hash_fold(*(u32*)(ptr+n->sel.hoff), &n->sel,n->fshift);
+			sel = ht->divisor&u32_hash_fold(*(__be32*)(ptr+n->sel.hoff), &n->sel,n->fshift);
 
 		if (!(n->sel.flags&(TC_U32_VAROFFSET|TC_U32_OFFSET|TC_U32_EAT)))
 			goto next_ht;
@@ -190,7 +190,7 @@ check_terminal:
 		if (n->sel.flags&(TC_U32_OFFSET|TC_U32_VAROFFSET)) {
 			off2 = n->sel.off + 3;
 			if (n->sel.flags&TC_U32_VAROFFSET)
-				off2 += ntohs(n->sel.offmask & *(u16*)(ptr+n->sel.offoff)) >>n->sel.offshift;
+				off2 += ntohs(n->sel.offmask & *(__be16*)(ptr+n->sel.offoff)) >>n->sel.offshift;
 			off2 &= ~3;
 		}
 		if (n->sel.flags&TC_U32_EAT) {

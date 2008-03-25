@@ -1170,6 +1170,10 @@ mptscsih_shutdown(struct pci_dev *pdev)
 int
 mptscsih_suspend(struct pci_dev *pdev, pm_message_t state)
 {
+	MPT_ADAPTER 		*ioc = pci_get_drvdata(pdev);
+
+	scsi_block_requests(ioc->sh);
+	flush_scheduled_work();
 	mptscsih_shutdown(pdev);
 	return mpt_suspend(pdev,state);
 }
@@ -1183,7 +1187,12 @@ mptscsih_suspend(struct pci_dev *pdev, pm_message_t state)
 int
 mptscsih_resume(struct pci_dev *pdev)
 {
-	return mpt_resume(pdev);
+	MPT_ADAPTER 		*ioc = pci_get_drvdata(pdev);
+	int rc;
+
+	rc = mpt_resume(pdev);
+	scsi_unblock_requests(ioc->sh);
+	return rc;
 }
 
 #endif

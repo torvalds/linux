@@ -744,6 +744,33 @@ void __init finish_e820_parsing(void)
 	}
 }
 
+void __init update_memory_range(u64 start, u64 size, unsigned old_type,
+				unsigned new_type)
+{
+	int i;
+
+	BUG_ON(old_type == new_type);
+
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		u64 final_start, final_end;
+		if (ei->type != old_type)
+			continue;
+		/* totally covered? */
+		if (ei->addr >= start && ei->size <= size) {
+			ei->type = new_type;
+			continue;
+		}
+		/* partially covered */
+		final_start = max(start, ei->addr);
+		final_end = min(start + size, ei->addr + ei->size);
+		if (final_start >= final_end)
+			continue;
+		add_memory_region(final_start, final_end - final_start,
+					 new_type);
+	}
+}
+
 void __init update_e820(void)
 {
 	u8 nr_map;

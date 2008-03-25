@@ -390,11 +390,11 @@ static void mainstone_mci_setpower(struct device *dev, unsigned int vdd)
 	struct pxamci_platform_data* p_d = dev->platform_data;
 
 	if (( 1 << vdd) & p_d->ocr_mask) {
-		printk(KERN_DEBUG "%s: on\n", __FUNCTION__);
+		printk(KERN_DEBUG "%s: on\n", __func__);
 		MST_MSCWR1 |= MST_MSCWR1_MMC_ON;
 		MST_MSCWR1 &= ~MST_MSCWR1_MS_SEL;
 	} else {
-		printk(KERN_DEBUG "%s: off\n", __FUNCTION__);
+		printk(KERN_DEBUG "%s: off\n", __func__);
 		MST_MSCWR1 &= ~MST_MSCWR1_MMC_ON;
 	}
 }

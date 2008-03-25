@@ -3765,11 +3765,6 @@ static int ide_tape_probe(ide_drive_t *drive)
 	g->fops = &idetape_block_ops;
 	ide_register_region(g);
 
-	printk(KERN_WARNING "It is possible that this driver does not have any"
-		" users anymore and, as a result, it will be REMOVED soon."
-		" Please notify Bart <bzolnier@gmail.com> or Boris"
-		" <petkovbb@gmail.com> in case you still need it.\n");
-
 	return 0;
 
 out_free_tape:

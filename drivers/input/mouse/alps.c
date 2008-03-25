@@ -116,8 +116,8 @@ static void alps_process_packet(struct psmouse *psmouse)
 	}
 
 	if (priv->i->flags & ALPS_FW_BK_1) {
-		back = packet[2] & 4;
-		forward = packet[0] & 0x10;
+		back = packet[0] & 0x10;
+		forward = packet[2] & 4;
 	}
 
 	if (priv->i->flags & ALPS_FW_BK_2) {
@@ -483,6 +483,7 @@ int alps_init(struct psmouse *psmouse)
 	dev2->id.vendor  = 0x0002;
 	dev2->id.product = PSMOUSE_ALPS;
 	dev2->id.version = 0x0000;
+	dev2->dev.parent = &psmouse->ps2dev.serio->dev;
 
 	dev2->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
 	dev2->relbit[BIT_WORD(REL_X)] |= BIT_MASK(REL_X) | BIT_MASK(REL_Y);

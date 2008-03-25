@@ -337,14 +337,14 @@ static int sctp_v4_cmp_addr(const union sctp_addr *addr1,
 static void sctp_v4_inaddr_any(union sctp_addr *addr, __be16 port)
 {
 	addr->v4.sin_family = AF_INET;
-	addr->v4.sin_addr.s_addr = INADDR_ANY;
+	addr->v4.sin_addr.s_addr = htonl(INADDR_ANY);
 	addr->v4.sin_port = port;
 }
 
 /* Is this a wildcard address? */
 static int sctp_v4_is_any(const union sctp_addr *addr)
 {
-	return INADDR_ANY == addr->v4.sin_addr.s_addr;
+	return htonl(INADDR_ANY) == addr->v4.sin_addr.s_addr;
 }
 
 /* This function checks if the address is a valid address to be used for
@@ -375,7 +375,7 @@ static int sctp_v4_available(union sctp_addr *addr, struct sctp_sock *sp)
 	int ret = inet_addr_type(&init_net, addr->v4.sin_addr.s_addr);
 
 
-	if (addr->v4.sin_addr.s_addr != INADDR_ANY &&
+	if (addr->v4.sin_addr.s_addr != htonl(INADDR_ANY) &&
 	   ret != RTN_LOCAL &&
 	   !sp->inet.freebind &&
 	   !sysctl_ip_nonlocal_bind)
@@ -785,8 +785,8 @@ static int sctp_inet_cmp_addr(const union sctp_addr *addr1,
 	/* PF_INET only supports AF_INET addresses. */
 	if (addr1->sa.sa_family != addr2->sa.sa_family)
 		return 0;
-	if (INADDR_ANY == addr1->v4.sin_addr.s_addr ||
-	    INADDR_ANY == addr2->v4.sin_addr.s_addr)
+	if (htonl(INADDR_ANY) == addr1->v4.sin_addr.s_addr ||
+	    htonl(INADDR_ANY) == addr2->v4.sin_addr.s_addr)
 		return 1;
 	if (addr1->v4.sin_addr.s_addr == addr2->v4.sin_addr.s_addr)
 		return 1;
@@ -992,6 +992,58 @@ static void cleanup_sctp_mibs(void)
 	free_percpu(sctp_statistics[1]);
 }
 
+static void sctp_v4_pf_init(void)
+{
+	/* Initialize the SCTP specific PF functions. */
+	sctp_register_pf(&sctp_pf_inet, PF_INET);
+	sctp_register_af(&sctp_af_inet);
+}
+
+static void sctp_v4_pf_exit(void)
+{
+	list_del(&sctp_af_inet.list);
+}
+
+static int sctp_v4_protosw_init(void)
+{
+	int rc;
+
+	rc = proto_register(&sctp_prot, 1);
+	if (rc)
+		return rc;
+
+	/* Register SCTP(UDP and TCP style) with socket layer.  */
+	inet_register_protosw(&sctp_seqpacket_protosw);
+	inet_register_protosw(&sctp_stream_protosw);
+
+	return 0;
+}
+
+static void sctp_v4_protosw_exit(void)
+{
+	inet_unregister_protosw(&sctp_stream_protosw);
+	inet_unregister_protosw(&sctp_seqpacket_protosw);
+	proto_unregister(&sctp_prot);
+}
+
+static int sctp_v4_add_protocol(void)
+{
+	/* Register notifier for inet address additions/deletions. */
+	register_inetaddr_notifier(&sctp_inetaddr_notifier);
+
+	/* Register SCTP with inet layer.  */
+	if (inet_add_protocol(&sctp_protocol, IPPROTO_SCTP) < 0)
+		return -EAGAIN;
+
+	return 0;
+}
+
+static void sctp_v4_del_protocol(void)
+{
+	inet_del_protocol(&sctp_protocol, IPPROTO_SCTP);
+	unregister_inetaddr_notifier(&sctp_inetaddr_notifier);
+}
+
 /* Initialize the universe into something sensible.  */
 SCTP_STATIC __init int sctp_init(void)
 {
@@ -1035,8 +1087,6 @@ SCTP_STATIC __init int sctp_init(void)
 	/* Initialize object count debugging.  */
 	sctp_dbg_objcnt_init();
 
-	/* Initialize the SCTP specific PF functions. */
-	sctp_register_pf(&sctp_pf_inet, PF_INET);
 	/*
 	 * 14. Suggested SCTP Protocol Parameter Values
 	 */
@@ -1194,19 +1244,22 @@ SCTP_STATIC __init int sctp_init(void)
 	sctp_sysctl_register();
 
 	INIT_LIST_HEAD(&sctp_address_families);
-	sctp_register_af(&sctp_af_inet);
+	sctp_v4_pf_init();
+	sctp_v6_pf_init();
 
-	status = proto_register(&sctp_prot, 1);
+	/* Initialize the local address list. */
+	INIT_LIST_HEAD(&sctp_local_addr_list);
+	spin_lock_init(&sctp_local_addr_lock);
+	sctp_get_local_addr_list();
+
+	status = sctp_v4_protosw_init();
+
 	if (status)
-		goto err_proto_register;
+		goto err_protosw_init;
 
-	/* Register SCTP(UDP and TCP style) with socket layer.  */
-	inet_register_protosw(&sctp_seqpacket_protosw);
-	inet_register_protosw(&sctp_stream_protosw);
-
-	status = sctp_v6_init();
+	status = sctp_v6_protosw_init();
 	if (status)
-		goto err_v6_init;
+		goto err_v6_protosw_init;
 
 	/* Initialize the control inode/socket for handling OOTB packets.  */
 	if ((status = sctp_ctl_sock_init())) {
@@ -1215,19 +1268,9 @@ SCTP_STATIC __init int sctp_init(void)
 		goto err_ctl_sock_init;
 	}
 
-	/* Initialize the local address list. */
-	INIT_LIST_HEAD(&sctp_local_addr_list);
-	spin_lock_init(&sctp_local_addr_lock);
-	sctp_get_local_addr_list();
-
-	/* Register notifier for inet address additions/deletions. */
-	register_inetaddr_notifier(&sctp_inetaddr_notifier);
-
-	/* Register SCTP with inet layer.  */
-	if (inet_add_protocol(&sctp_protocol, IPPROTO_SCTP) < 0) {
-		status = -EAGAIN;
+	status = sctp_v4_add_protocol();
+	if (status)
 		goto err_add_protocol;
-	}
 
 	/* Register SCTP with inet6 layer.  */
 	status = sctp_v6_add_protocol();
@@ -1238,18 +1281,18 @@ SCTP_STATIC __init int sctp_init(void)
 out:
 	return status;
 err_v6_add_protocol:
-	inet_del_protocol(&sctp_protocol, IPPROTO_SCTP);
-	unregister_inetaddr_notifier(&sctp_inetaddr_notifier);
+	sctp_v6_del_protocol();
 err_add_protocol:
-	sctp_free_local_addr_list();
+	sctp_v4_del_protocol();
 	sock_release(sctp_ctl_socket);
 err_ctl_sock_init:
-	sctp_v6_exit();
-err_v6_init:
-	inet_unregister_protosw(&sctp_stream_protosw);
-	inet_unregister_protosw(&sctp_seqpacket_protosw);
-	proto_unregister(&sctp_prot);
-err_proto_register:
+	sctp_v6_protosw_exit();
+err_v6_protosw_init:
+	sctp_v4_protosw_exit();
+err_protosw_init:
+	sctp_free_local_addr_list();
+	sctp_v4_pf_exit();
+	sctp_v6_pf_exit();
 	sctp_sysctl_unregister();
 	list_del(&sctp_af_inet.list);
 	free_pages((unsigned long)sctp_port_hashtable,
@@ -1282,23 +1325,21 @@ SCTP_STATIC __exit void sctp_exit(void)
 
 	/* Unregister with inet6/inet layers. */
 	sctp_v6_del_protocol();
-	inet_del_protocol(&sctp_protocol, IPPROTO_SCTP);
-
-	/* Unregister notifier for inet address additions/deletions. */
-	unregister_inetaddr_notifier(&sctp_inetaddr_notifier);
-
-	/* Free the local address list.  */
-	sctp_free_local_addr_list();
+	sctp_v4_del_protocol();
 
 	/* Free the control endpoint.  */
 	sock_release(sctp_ctl_socket);
 
-	/* Cleanup v6 initializations. */
-	sctp_v6_exit();
+	/* Free protosw registrations */
+	sctp_v6_protosw_exit();
+	sctp_v4_protosw_exit();
+
+	/* Free the local address list.  */
+	sctp_free_local_addr_list();
 
 	/* Unregister with socket layer. */
-	inet_unregister_protosw(&sctp_stream_protosw);
-	inet_unregister_protosw(&sctp_seqpacket_protosw);
+	sctp_v6_pf_exit();
+	sctp_v4_pf_exit();
 
 	sctp_sysctl_unregister();
 	list_del(&sctp_af_inet.list);
@@ -1317,8 +1358,6 @@ SCTP_STATIC __exit void sctp_exit(void)
 
 	kmem_cache_destroy(sctp_chunk_cachep);
 	kmem_cache_destroy(sctp_bucket_cachep);
-
-	proto_unregister(&sctp_prot);
 }
 
 module_init(sctp_init);

@@ -100,26 +100,34 @@ static inline void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
  * RFkill handlers.
  */
 #ifdef CONFIG_RT2X00_LIB_RFKILL
-int rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev);
+void rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev);
 void rt2x00rfkill_unregister(struct rt2x00_dev *rt2x00dev);
-int rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev);
+void rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev);
 void rt2x00rfkill_free(struct rt2x00_dev *rt2x00dev);
+void rt2x00rfkill_suspend(struct rt2x00_dev *rt2x00dev);
+void rt2x00rfkill_resume(struct rt2x00_dev *rt2x00dev);
 #else
-static inline int rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
+static inline void rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
 {
-	return 0;
 }
 
 static inline void rt2x00rfkill_unregister(struct rt2x00_dev *rt2x00dev)
 {
 }
 
-static inline int rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
+static inline void rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
 {
-	return 0;
 }
 
 static inline void rt2x00rfkill_free(struct rt2x00_dev *rt2x00dev)
+{
+}
+
+static inline void rt2x00rfkill_suspend(struct rt2x00_dev *rt2x00dev)
+{
+}
+
+static inline void rt2x00rfkill_resume(struct rt2x00_dev *rt2x00dev)
 {
 }
 #endif /* CONFIG_RT2X00_LIB_RFKILL */

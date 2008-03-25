@@ -382,7 +382,7 @@ static int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		vlan_dev_info(dev)->cnt_encap_on_xmit++;
 
 		pr_debug("%s: proto to encap: 0x%hx\n",
-			 __FUNCTION__, htons(veth->h_vlan_proto));
+			 __FUNCTION__, ntohs(veth->h_vlan_proto));
 		/* Construct the second two bytes. This field looks something
 		 * like:
 		 * usr_priority: 3 bits	 (high bits)

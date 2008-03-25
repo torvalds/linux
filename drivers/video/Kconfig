@@ -1893,6 +1893,20 @@ config FB_XILINX
 	  framebuffer. ML300 carries a 640*480 LCD display on the board,
 	  ML403 uses a standard DB15 VGA connector.
 
+config FB_METRONOME
+       tristate "Metronome display controller support"
+       depends on FB && ARCH_PXA && MMU
+       select FB_SYS_FILLRECT
+       select FB_SYS_COPYAREA
+       select FB_SYS_IMAGEBLIT
+       select FB_SYS_FOPS
+       select FB_DEFERRED_IO
+       help
+         This enables support for the Metronome display controller. Tested
+         with an E-Ink 800x600 display and Gumstix Connex through an AMLCD
+         interface. Please read <file:Documentation/fb/metronomefb.txt>
+         for more information.
+
 config FB_VIRTUAL
 	tristate "Virtual Frame Buffer support (ONLY FOR TESTING!)"
 	depends on FB

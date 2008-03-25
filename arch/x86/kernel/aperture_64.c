@@ -18,6 +18,7 @@
 #include <linux/pci.h>
 #include <linux/bitops.h>
 #include <linux/ioport.h>
+#include <linux/suspend.h>
 #include <asm/e820.h>
 #include <asm/io.h>
 #include <asm/gart.h>
@@ -76,6 +77,8 @@ static u32 __init allocate_aperture(void)
 	printk(KERN_INFO "Mapping aperture over %d KB of RAM @ %lx\n",
 			aper_size >> 10, __pa(p));
 	insert_aperture_resource((u32)__pa(p), aper_size);
+	register_nosave_region((u32)__pa(p) >> PAGE_SHIFT,
+				(u32)__pa(p+aper_size) >> PAGE_SHIFT);
 
 	return (u32)__pa(p);
 }

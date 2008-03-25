@@ -216,8 +216,10 @@ static void acpi_safe_halt(void)
 	 * test NEED_RESCHED:
 	 */
 	smp_mb();
-	if (!need_resched())
+	if (!need_resched()) {
 		safe_halt();
+		local_irq_disable();
+	}
 	current_thread_info()->status |= TS_POLLING;
 }
 
@@ -421,7 +423,9 @@ static void acpi_processor_idle(void)
 		else
 			acpi_safe_halt();
 
-		local_irq_enable();
+		if (irqs_disabled())
+			local_irq_enable();
+
 		return;
 	}
 
@@ -530,7 +534,9 @@ static void acpi_processor_idle(void)
 		 *       skew otherwise.
 		 */
 		sleep_ticks = 0xFFFFFFFF;
-		local_irq_enable();
+		if (irqs_disabled())
+			local_irq_enable();
+
 		break;
 
 	case ACPI_STATE_C2:

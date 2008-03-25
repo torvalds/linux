@@ -41,6 +41,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/vmalloc.h>
 
 #include <linux/if_arp.h>	/* For ARPHRD_xxx */
 
@@ -887,13 +888,13 @@ int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 		goto out;
 	}
 
-	priv->tx_ring = kzalloc(ipoib_sendq_size * sizeof *priv->tx_ring,
-				GFP_KERNEL);
+	priv->tx_ring = vmalloc(ipoib_sendq_size * sizeof *priv->tx_ring);
 	if (!priv->tx_ring) {
 		printk(KERN_WARNING "%s: failed to allocate TX ring (%d entries)\n",
 		       ca->name, ipoib_sendq_size);
 		goto out_rx_ring_cleanup;
 	}
+	memset(priv->tx_ring, 0, ipoib_sendq_size * sizeof *priv->tx_ring);
 
 	/* priv->tx_head, tx_tail & tx_outstanding are already 0 */
 
@@ -903,7 +904,7 @@ int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 	return 0;
 
 out_tx_ring_cleanup:
-	kfree(priv->tx_ring);
+	vfree(priv->tx_ring);
 
 out_rx_ring_cleanup:
 	kfree(priv->rx_ring);
@@ -928,7 +929,7 @@ void ipoib_dev_cleanup(struct net_device *dev)
 	ipoib_ib_dev_cleanup(dev);
 
 	kfree(priv->rx_ring);
-	kfree(priv->tx_ring);
+	vfree(priv->tx_ring);
 
 	priv->rx_ring = NULL;
 	priv->tx_ring = NULL;

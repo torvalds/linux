@@ -104,18 +104,18 @@ void marker_probe_cb(const struct marker *mdata, void *call_private,
 	char ptype;
 
 	/*
-	 * disabling preemption to make sure the teardown of the callbacks can
-	 * be done correctly when they are in modules and they insure RCU read
-	 * coherency.
+	 * preempt_disable does two things : disabling preemption to make sure
+	 * the teardown of the callbacks can be done correctly when they are in
+	 * modules and they insure RCU read coherency.
 	 */
 	preempt_disable();
-	ptype = ACCESS_ONCE(mdata->ptype);
+	ptype = mdata->ptype;
 	if (likely(!ptype)) {
 		marker_probe_func *func;
 		/* Must read the ptype before ptr. They are not data dependant,
 		 * so we put an explicit smp_rmb() here. */
 		smp_rmb();
-		func = ACCESS_ONCE(mdata->single.func);
+		func = mdata->single.func;
 		/* Must read the ptr before private data. They are not data
 		 * dependant, so we put an explicit smp_rmb() here. */
 		smp_rmb();
@@ -133,7 +133,7 @@ void marker_probe_cb(const struct marker *mdata, void *call_private,
 		 * in the fast path, so put the explicit barrier here.
 		 */
 		smp_read_barrier_depends();
-		multi = ACCESS_ONCE(mdata->multi);
+		multi = mdata->multi;
 		for (i = 0; multi[i].func; i++) {
 			va_start(args, fmt);
 			multi[i].func(multi[i].probe_private, call_private, fmt,
@@ -161,13 +161,13 @@ void marker_probe_cb_noarg(const struct marker *mdata,
 	char ptype;
 
 	preempt_disable();
-	ptype = ACCESS_ONCE(mdata->ptype);
+	ptype = mdata->ptype;
 	if (likely(!ptype)) {
 		marker_probe_func *func;
 		/* Must read the ptype before ptr. They are not data dependant,
 		 * so we put an explicit smp_rmb() here. */
 		smp_rmb();
-		func = ACCESS_ONCE(mdata->single.func);
+		func = mdata->single.func;
 		/* Must read the ptr before private data. They are not data
 		 * dependant, so we put an explicit smp_rmb() here. */
 		smp_rmb();
@@ -183,7 +183,7 @@ void marker_probe_cb_noarg(const struct marker *mdata,
 		 * in the fast path, so put the explicit barrier here.
 		 */
 		smp_read_barrier_depends();
-		multi = ACCESS_ONCE(mdata->multi);
+		multi = mdata->multi;
 		for (i = 0; multi[i].func; i++)
 			multi[i].func(multi[i].probe_private, call_private, fmt,
 				&args);
@@ -551,9 +551,9 @@ static int set_marker(struct marker_entry **entry, struct marker *elem,
 
 /*
  * Disable a marker and its probe callback.
- * Note: only after a synchronize_sched() issued after setting elem->call to the
- * empty function insures that the original callback is not used anymore. This
- * insured by preemption disabling around the call site.
+ * Note: only waiting an RCU period after setting elem->call to the empty
+ * function insures that the original callback is not used anymore. This insured
+ * by preempt_disable around the call site.
  */
 static void disable_marker(struct marker *elem)
 {
@@ -565,8 +565,8 @@ static void disable_marker(struct marker *elem)
 	elem->ptype = 0;	/* single probe */
 	/*
 	 * Leave the private data and id there, because removal is racy and
-	 * should be done only after a synchronize_sched(). These are never used
-	 * until the next initialization anyway.
+	 * should be done only after an RCU period. These are never used until
+	 * the next initialization anyway.
 	 */
 }
 
@@ -601,9 +601,6 @@ void marker_update_probe_range(struct marker *begin,
 
 /*
  * Update probes, removing the faulty probes.
- * Issues a synchronize_sched() when no reference to the module passed
- * as parameter is found in the probes so the probe module can be
- * safely unloaded from now on.
  *
  * Internal callback only changed before the first probe is connected to it.
  * Single probe private data can only be changed on 0 -> 1 and 2 -> 1

@@ -3389,7 +3389,6 @@ static struct video_device bttv_video_template =
 	.vidiocgmbuf                    = vidiocgmbuf,
 #endif
 	.vidioc_g_crop                  = bttv_g_crop,
-	.vidioc_g_crop                  = bttv_g_crop,
 	.vidioc_s_crop                  = bttv_s_crop,
 	.vidioc_g_fbuf                  = bttv_g_fbuf,
 	.vidioc_s_fbuf                  = bttv_s_fbuf,

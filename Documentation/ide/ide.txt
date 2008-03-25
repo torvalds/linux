@@ -105,7 +105,7 @@ Drives are normally found by auto-probing and/or examining the CMOS/BIOS data.
 For really weird situations, the apparent (fdisk) geometry can also be specified
 on the kernel "command line" using LILO.  The format of such lines is:
 
-	hdx=cyls,heads,sects,wpcom,irq
+	hdx=cyls,heads,sects
 or	hdx=cdrom
 
 where hdx can be any of hda through hdh, Three values are required
@@ -214,9 +214,9 @@ driver using the "options=" keyword to insmod, while replacing any ',' with
 Summary of ide driver parameters for kernel command line
 --------------------------------------------------------
 
- "hdx="  is recognized for all "x" from "a" to "h", such as "hdc".
+ "hdx="  is recognized for all "x" from "a" to "u", such as "hdc".
 
- "idex=" is recognized for all "x" from "0" to "3", such as "ide1".
+ "idex=" is recognized for all "x" from "0" to "9", such as "ide1".
 
  "hdx=noprobe"		: drive may be present, but do not probe for it
 
@@ -228,13 +228,6 @@ Summary of ide driver parameters for kernel command line
 
  "hdx=cyl,head,sect"	: disk drive is present, with specified geometry
 
- "hdx=remap"		: remap access of sector 0 to sector 1 (for EZDrive)
-
- "hdx=remap63"		: remap the drive: add 63 to all sector numbers
-			  (for DM OnTrack)
-
- "idex=noautotune"	: driver will NOT attempt to tune interface speed
-
  "hdx=autotune"		: driver will attempt to tune interface speed
 			  to the fastest PIO mode supported,
 			  if possible for this drive only.
@@ -243,10 +236,6 @@ Summary of ide driver parameters for kernel command line
 			  older/odd IDE drives.
 
  "hdx=nodma"		: disallow DMA
-
- "hdx=scsi"		: the return of the ide-scsi flag, this is useful for
- 			  allowing ide-floppy, ide-tape, and ide-cdrom|writers
- 			  to use ide-scsi emulation on a device specific option.
 
  "idebus=xx"		: inform IDE driver of VESA/PCI bus speed in MHz,
 			  where "xx" is between 20 and 66 inclusive,
@@ -281,10 +270,6 @@ Summary of ide driver parameters for kernel command line
 			  unknown.
 
  "ide=reverse"		: formerly called to pci sub-system, but now local.
-
-The following are valid ONLY on ide0, which usually corresponds
-to the first ATA interface found on the particular host, and the defaults for
-the base,ctl ports must not be altered.
 
  "ide=doubler"		: probe/support IDE doublers on Amiga
 

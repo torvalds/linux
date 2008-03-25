@@ -39,12 +39,11 @@ static int __init init_tmpfs(void)
 }
 module_init(init_tmpfs)
 
-/*
+/**
  * shmem_file_setup - get an unlinked file living in tmpfs
- *
  * @name: name for dentry (to be seen in /proc/<pid>/maps
  * @size: size to be set for the file
- *
+ * @flags: vm_flags
  */
 struct file *shmem_file_setup(char *name, loff_t size, unsigned long flags)
 {
@@ -95,9 +94,8 @@ put_memory:
 	return ERR_PTR(error);
 }
 
-/*
+/**
  * shmem_zero_setup - setup a shared anonymous mapping
- *
  * @vma: the vma to be mmapped is prepared by do_mmap_pgoff
  */
 int shmem_zero_setup(struct vm_area_struct *vma)

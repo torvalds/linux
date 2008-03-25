@@ -179,11 +179,12 @@ config IPV6_SIT
 	  Saying M here will produce a module called sit.ko. If unsure, say Y.
 
 config IPV6_TUNNEL
-	tristate "IPv6: IPv6-in-IPv6 tunnel"
+	tristate "IPv6: IP-in-IPv6 tunnel (RFC2473)"
 	select INET6_TUNNEL
 	depends on IPV6
 	---help---
-	  Support for IPv6-in-IPv6 tunnels described in RFC 2473.
+	  Support for IPv6-in-IPv6 and IPv4-in-IPv6 tunnels described in
+	  RFC 2473.
 
 	  If unsure, say N.
 

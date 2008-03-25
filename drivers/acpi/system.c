@@ -319,7 +319,7 @@ void acpi_irq_stats_init(void)
 		goto fail;
 
 	for (i = 0; i < num_counters; ++i) {
-		char buffer[10];
+		char buffer[12];
 		char *name;
 
 		if (i < num_gpes)

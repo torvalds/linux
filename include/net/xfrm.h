@@ -277,7 +277,7 @@ extern int __xfrm_state_delete(struct xfrm_state *x);
 struct xfrm_state_afinfo {
 	unsigned int		family;
 	unsigned int		proto;
-	unsigned int		eth_proto;
+	__be16			eth_proto;
 	struct module		*owner;
 	const struct xfrm_type	*type_map[IPPROTO_MAX];
 	struct xfrm_mode	*mode_map[XFRM_MODE_MAX];
