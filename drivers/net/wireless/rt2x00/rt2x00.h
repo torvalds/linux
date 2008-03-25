@@ -560,6 +560,8 @@ struct rt2x00lib_ops {
 	/*
 	 * Configuration handlers.
 	 */
+	void (*config_filter) (struct rt2x00_dev *rt2x00dev,
+			       const unsigned int filter_flags);
 	void (*config_intf) (struct rt2x00_dev *rt2x00dev,
 			     struct rt2x00_intf *intf,
 			     struct rt2x00intf_conf *conf,
@@ -568,8 +570,8 @@ struct rt2x00lib_ops {
 #define CONFIG_UPDATE_MAC		( 1 << 2 )
 #define CONFIG_UPDATE_BSSID		( 1 << 3 )
 
-	int (*config_erp) (struct rt2x00_dev *rt2x00dev,
-			   struct rt2x00lib_erp *erp);
+	void (*config_erp) (struct rt2x00_dev *rt2x00dev,
+			    struct rt2x00lib_erp *erp);
 	void (*config) (struct rt2x00_dev *rt2x00dev,
 			struct rt2x00lib_conf *libconf,
 			const unsigned int flags);
@@ -624,6 +626,7 @@ enum rt2x00_flags {
 	DRIVER_REQUIRE_FIRMWARE,
 	DRIVER_REQUIRE_BEACON_GUARD,
 	DRIVER_REQUIRE_ATIM_QUEUE,
+	DRIVER_REQUIRE_SCHEDULED,
 
 	/*
 	 * Driver configuration
@@ -987,6 +990,10 @@ int rt2x00mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf);
 int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_if_conf *conf);
+void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
+				unsigned int changed_flags,
+				unsigned int *total_flags,
+				int mc_count, struct dev_addr_list *mc_list);
 int rt2x00mac_get_stats(struct ieee80211_hw *hw,
 			struct ieee80211_low_level_stats *stats);
 int rt2x00mac_get_tx_stats(struct ieee80211_hw *hw,

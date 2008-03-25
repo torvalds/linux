@@ -316,6 +316,35 @@ static void rt2500usb_led_brightness(struct led_classdev *led_cdev,
 /*
  * Configuration handlers.
  */
+static void rt2500usb_config_filter(struct rt2x00_dev *rt2x00dev,
+				    const unsigned int filter_flags)
+{
+	u16 reg;
+
+	/*
+	 * Start configuration steps.
+	 * Note that the version error will always be dropped
+	 * and broadcast frames will always be accepted since
+	 * there is no filter for it at this time.
+	 */
+	rt2500usb_register_read(rt2x00dev, TXRX_CSR2, &reg);
+	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_CRC,
+			   !(filter_flags & FIF_FCSFAIL));
+	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_PHYSICAL,
+			   !(filter_flags & FIF_PLCPFAIL));
+	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_CONTROL,
+			   !(filter_flags & FIF_CONTROL));
+	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_NOT_TO_ME,
+			   !(filter_flags & FIF_PROMISC_IN_BSS));
+	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_TODS,
+			   !(filter_flags & FIF_PROMISC_IN_BSS));
+	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_VERSION_ERROR, 1);
+	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_MULTICAST,
+			   !(filter_flags & FIF_ALLMULTI));
+	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_BROADCAST, 0);
+	rt2500usb_register_write(rt2x00dev, TXRX_CSR2, reg);
+}
+
 static void rt2500usb_config_intf(struct rt2x00_dev *rt2x00dev,
 				  struct rt2x00_intf *intf,
 				  struct rt2x00intf_conf *conf,
@@ -358,17 +387,10 @@ static void rt2500usb_config_intf(struct rt2x00_dev *rt2x00dev,
 					      (3 * sizeof(__le16)));
 }
 
-static int rt2500usb_config_erp(struct rt2x00_dev *rt2x00dev,
-				struct rt2x00lib_erp *erp)
+static void rt2500usb_config_erp(struct rt2x00_dev *rt2x00dev,
+				 struct rt2x00lib_erp *erp)
 {
 	u16 reg;
-
-	/*
-	 * When in atomic context, we should let rt2x00lib
-	 * try this configuration again later.
-	 */
-	if (in_atomic())
-		return -EAGAIN;
 
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR1, &reg);
 	rt2x00_set_field16(&reg, TXRX_CSR1_ACK_TIMEOUT, erp->ack_timeout);
@@ -378,8 +400,6 @@ static int rt2500usb_config_erp(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field16(&reg, TXRX_CSR10_AUTORESPOND_PREAMBLE,
 			   !!erp->short_preamble);
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR10, reg);
-
-	return 0;
 }
 
 static void rt2500usb_config_phymode(struct rt2x00_dev *rt2x00dev,
@@ -1644,6 +1664,7 @@ static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 */
 	__set_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags);
+	__set_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.
@@ -1656,78 +1677,6 @@ static int rt2500usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 /*
  * IEEE80211 stack callback functions.
  */
-static void rt2500usb_configure_filter(struct ieee80211_hw *hw,
-				       unsigned int changed_flags,
-				       unsigned int *total_flags,
-				       int mc_count,
-				       struct dev_addr_list *mc_list)
-{
-	struct rt2x00_dev *rt2x00dev = hw->priv;
-	u16 reg;
-
-	/*
-	 * Mask off any flags we are going to ignore from
-	 * the total_flags field.
-	 */
-	*total_flags &=
-	    FIF_ALLMULTI |
-	    FIF_FCSFAIL |
-	    FIF_PLCPFAIL |
-	    FIF_CONTROL |
-	    FIF_OTHER_BSS |
-	    FIF_PROMISC_IN_BSS;
-
-	/*
-	 * Apply some rules to the filters:
-	 * - Some filters imply different filters to be set.
-	 * - Some things we can't filter out at all.
-	 */
-	if (mc_count)
-		*total_flags |= FIF_ALLMULTI;
-	if (*total_flags & FIF_OTHER_BSS ||
-	    *total_flags & FIF_PROMISC_IN_BSS)
-		*total_flags |= FIF_PROMISC_IN_BSS | FIF_OTHER_BSS;
-
-	/*
-	 * Check if there is any work left for us.
-	 */
-	if (rt2x00dev->packet_filter == *total_flags)
-		return;
-	rt2x00dev->packet_filter = *total_flags;
-
-	/*
-	 * When in atomic context, reschedule and let rt2x00lib
-	 * call this function again.
-	 */
-	if (in_atomic()) {
-		queue_work(rt2x00dev->hw->workqueue, &rt2x00dev->filter_work);
-		return;
-	}
-
-	/*
-	 * Start configuration steps.
-	 * Note that the version error will always be dropped
-	 * and broadcast frames will always be accepted since
-	 * there is no filter for it at this time.
-	 */
-	rt2500usb_register_read(rt2x00dev, TXRX_CSR2, &reg);
-	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_CRC,
-			   !(*total_flags & FIF_FCSFAIL));
-	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_PHYSICAL,
-			   !(*total_flags & FIF_PLCPFAIL));
-	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_CONTROL,
-			   !(*total_flags & FIF_CONTROL));
-	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_NOT_TO_ME,
-			   !(*total_flags & FIF_PROMISC_IN_BSS));
-	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_TODS,
-			   !(*total_flags & FIF_PROMISC_IN_BSS));
-	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_VERSION_ERROR, 1);
-	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_MULTICAST,
-			   !(*total_flags & FIF_ALLMULTI));
-	rt2x00_set_field16(&reg, TXRX_CSR2_DROP_BROADCAST, 0);
-	rt2500usb_register_write(rt2x00dev, TXRX_CSR2, reg);
-}
-
 static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 				   struct sk_buff *skb,
 				   struct ieee80211_tx_control *control)
@@ -1824,7 +1773,7 @@ static const struct ieee80211_ops rt2500usb_mac80211_ops = {
 	.remove_interface	= rt2x00mac_remove_interface,
 	.config			= rt2x00mac_config,
 	.config_interface	= rt2x00mac_config_interface,
-	.configure_filter	= rt2500usb_configure_filter,
+	.configure_filter	= rt2x00mac_configure_filter,
 	.get_stats		= rt2x00mac_get_stats,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,
 	.conf_tx		= rt2x00mac_conf_tx,
@@ -1848,6 +1797,7 @@ static const struct rt2x00lib_ops rt2500usb_rt2x00_ops = {
 	.get_tx_data_len	= rt2500usb_get_tx_data_len,
 	.kick_tx_queue		= rt2500usb_kick_tx_queue,
 	.fill_rxdone		= rt2500usb_fill_rxdone,
+	.config_filter		= rt2500usb_config_filter,
 	.config_intf		= rt2500usb_config_intf,
 	.config_erp		= rt2500usb_config_erp,
 	.config			= rt2500usb_config,
