@@ -782,28 +782,28 @@ static unsigned int scc_data_xfer (struct ata_device *dev, unsigned char *buf,
 	struct ata_port *ap = dev->link->ap;
 	unsigned int words = buflen >> 1;
 	unsigned int i;
-	u16 *buf16 = (u16 *) buf;
+	__le16 *buf16 = (__le16 *) buf;
 	void __iomem *mmio = ap->ioaddr.data_addr;
 
 	/* Transfer multiple of 2 bytes */
 	if (rw == READ)
 		for (i = 0; i < words; i++)
-			buf16[i] = le16_to_cpu(in_be32(mmio));
+			buf16[i] = cpu_to_le16(in_be32(mmio));
 	else
 		for (i = 0; i < words; i++)
-			out_be32(mmio, cpu_to_le16(buf16[i]));
+			out_be32(mmio, le16_to_cpu(buf16[i]));
 
 	/* Transfer trailing 1 byte, if any. */
 	if (unlikely(buflen & 0x01)) {
-		u16 align_buf[1] = { 0 };
+		__le16 align_buf[1] = { 0 };
 		unsigned char *trailing_buf = buf + buflen - 1;
 
 		if (rw == READ) {
-			align_buf[0] = le16_to_cpu(in_be32(mmio));
+			align_buf[0] = cpu_to_le16(in_be32(mmio));
 			memcpy(trailing_buf, align_buf, 1);
 		} else {
 			memcpy(align_buf, trailing_buf, 1);
-			out_be32(mmio, cpu_to_le16(align_buf[0]));
+			out_be32(mmio, le16_to_cpu(align_buf[0]));
 		}
 		words++;
 	}

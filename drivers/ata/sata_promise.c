@@ -405,7 +405,7 @@ static void pdc_atapi_pkt(struct ata_queued_cmd *qc)
 	u8 *cdb = qc->cdb;
 	struct pdc_port_priv *pp = ap->private_data;
 	u8 *buf = pp->pkt;
-	u32 *buf32 = (u32 *) buf;
+	__le32 *buf32 = (__le32 *) buf;
 	unsigned int dev_sel, feature;
 
 	/* set control bits (byte 0), zero delay seq id (byte 3),
