@@ -463,6 +463,7 @@ struct ata_queued_cmd {
 	unsigned int		sect_size;
 
 	unsigned int		nbytes;
+	unsigned int		extrabytes;
 	unsigned int		curbytes;
 
 	struct scatterlist	*cursg;
@@ -1336,6 +1337,11 @@ static inline struct ata_queued_cmd *ata_qc_from_tag(struct ata_port *ap,
 	return NULL;
 }
 
+static inline unsigned int ata_qc_raw_nbytes(struct ata_queued_cmd *qc)
+{
+	return qc->nbytes - min(qc->extrabytes, qc->nbytes);
+}
+
 static inline void ata_tf_init(struct ata_device *dev, struct ata_taskfile *tf)
 {
 	memset(tf, 0, sizeof(*tf));
@@ -1354,7 +1360,7 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 	qc->flags = 0;
 	qc->cursg = NULL;
 	qc->cursg_ofs = 0;
-	qc->nbytes = qc->curbytes = 0;
+	qc->nbytes = qc->extrabytes = qc->curbytes = 0;
 	qc->n_elem = 0;
 	qc->err_mask = 0;
 	qc->sect_size = ATA_SECT_SIZE;
