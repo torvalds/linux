@@ -3168,11 +3168,11 @@ static ssize_t
 sync_speed_show(mddev_t *mddev, char *page)
 {
 	unsigned long resync, dt, db;
-	resync = (mddev->curr_mark_cnt - atomic_read(&mddev->recovery_active));
-	dt = ((jiffies - mddev->resync_mark) / HZ);
+	resync = mddev->curr_mark_cnt - atomic_read(&mddev->recovery_active);
+	dt = (jiffies - mddev->resync_mark) / HZ;
 	if (!dt) dt++;
-	db = resync - (mddev->resync_mark_cnt);
-	return sprintf(page, "%ld\n", db/dt/2); /* K/sec */
+	db = resync - mddev->resync_mark_cnt;
+	return sprintf(page, "%lu\n", db/dt/2); /* K/sec */
 }
 
 static struct md_sysfs_entry md_sync_speed = __ATTR_RO(sync_speed);
