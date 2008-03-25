@@ -36,7 +36,7 @@
 
 #include "iwl-4965.h"
 #include "iwl-debug.h"
-#include "iwl-4965-io.h"
+#include "iwl-io.h"
 
 
 /* create and remove of files */
@@ -141,9 +141,9 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	printk(KERN_DEBUG "offset is: 0x%x\tlen is: 0x%x\n",
 	priv->dbgfs->sram_offset, priv->dbgfs->sram_len);
 
-	iwl4965_grab_nic_access(priv);
+	iwl_grab_nic_access(priv);
 	for (i = priv->dbgfs->sram_len; i > 0; i -= 4) {
-		val = iwl4965_read_targ_mem(priv, priv->dbgfs->sram_offset + \
+		val = iwl_read_targ_mem(priv, priv->dbgfs->sram_offset + \
 					priv->dbgfs->sram_len - i);
 		if (i < 4) {
 			switch (i) {
@@ -161,7 +161,7 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 		pos += sprintf(buf+pos, "0x%08x ", val);
 	}
 	pos += sprintf(buf+pos, "\n");
-	iwl4965_release_nic_access(priv);
+	iwl_release_nic_access(priv);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	return ret;

@@ -48,6 +48,7 @@
 #include "iwl-eeprom.h"
 #include "iwl-core.h"
 #include "iwl-4965.h"
+#include "iwl-io.h"
 #include "iwl-helpers.h"
 
 static int iwl4965_tx_queue_update_write_ptr(struct iwl_priv *priv,
@@ -2616,7 +2617,7 @@ static void iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
 		/* FIXME: This is a workaround for AP */
 		if (priv->iw_mode != IEEE80211_IF_TYPE_AP) {
 			spin_lock_irqsave(&priv->lock, flags);
-			iwl4965_write32(priv, CSR_UCODE_DRV_GP1_SET,
+			iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
 				    CSR_UCODE_SW_BIT_RFKILL);
 			spin_unlock_irqrestore(&priv->lock, flags);
 			iwl4965_send_card_state(priv, CARD_STATE_CMD_DISABLE, 0);
@@ -2626,7 +2627,7 @@ static void iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	iwl4965_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
+	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
 
 	clear_bit(STATUS_RF_KILL_SW, &priv->status);
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -2635,9 +2636,9 @@ static void iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
 	msleep(10);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	iwl4965_read32(priv, CSR_UCODE_DRV_GP1);
-	if (!iwl4965_grab_nic_access(priv))
-		iwl4965_release_nic_access(priv);
+	iwl_read32(priv, CSR_UCODE_DRV_GP1);
+	if (!iwl_grab_nic_access(priv))
+		iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (test_bit(STATUS_RF_KILL_HW, &priv->status)) {
@@ -3514,35 +3515,35 @@ static void iwl4965_rx_card_state_notif(struct iwl_priv *priv,
 	if (flags & (SW_CARD_DISABLED | HW_CARD_DISABLED |
 		     RF_CARD_DISABLED)) {
 
-		iwl4965_write32(priv, CSR_UCODE_DRV_GP1_SET,
+		iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
 			    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 
-		if (!iwl4965_grab_nic_access(priv)) {
-			iwl4965_write_direct32(
+		if (!iwl_grab_nic_access(priv)) {
+			iwl_write_direct32(
 				priv, HBUS_TARG_MBX_C,
 				HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 
-			iwl4965_release_nic_access(priv);
+			iwl_release_nic_access(priv);
 		}
 
 		if (!(flags & RXON_CARD_DISABLED)) {
-			iwl4965_write32(priv, CSR_UCODE_DRV_GP1_CLR,
+			iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR,
 				    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
-			if (!iwl4965_grab_nic_access(priv)) {
-				iwl4965_write_direct32(
+			if (!iwl_grab_nic_access(priv)) {
+				iwl_write_direct32(
 					priv, HBUS_TARG_MBX_C,
 					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 
-				iwl4965_release_nic_access(priv);
+				iwl_release_nic_access(priv);
 			}
 		}
 
 		if (flags & RF_CARD_DISABLED) {
-			iwl4965_write32(priv, CSR_UCODE_DRV_GP1_SET,
+			iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
 				    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
-			iwl4965_read32(priv, CSR_UCODE_DRV_GP1);
-			if (!iwl4965_grab_nic_access(priv))
-				iwl4965_release_nic_access(priv);
+			iwl_read32(priv, CSR_UCODE_DRV_GP1);
+			if (!iwl_grab_nic_access(priv))
+				iwl_release_nic_access(priv);
 		}
 	}
 
@@ -3756,27 +3757,27 @@ int iwl4965_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl4965_rx_q
 
 	/* If power-saving is in use, make sure device is awake */
 	if (test_bit(STATUS_POWER_PMI, &priv->status)) {
-		reg = iwl4965_read32(priv, CSR_UCODE_DRV_GP1);
+		reg = iwl_read32(priv, CSR_UCODE_DRV_GP1);
 
 		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-			iwl4965_set_bit(priv, CSR_GP_CNTRL,
+			iwl_set_bit(priv, CSR_GP_CNTRL,
 				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 			goto exit_unlock;
 		}
 
-		rc = iwl4965_grab_nic_access(priv);
+		rc = iwl_grab_nic_access(priv);
 		if (rc)
 			goto exit_unlock;
 
 		/* Device expects a multiple of 8 */
-		iwl4965_write_direct32(priv, FH_RSCSR_CHNL0_WPTR,
+		iwl_write_direct32(priv, FH_RSCSR_CHNL0_WPTR,
 				     q->write & ~0x7);
-		iwl4965_release_nic_access(priv);
+		iwl_release_nic_access(priv);
 
 	/* Else device is assumed to be awake */
 	} else
 		/* Device expects a multiple of 8 */
-		iwl4965_write32(priv, FH_RSCSR_CHNL0_WPTR, q->write & ~0x7);
+		iwl_write32(priv, FH_RSCSR_CHNL0_WPTR, q->write & ~0x7);
 
 
 	q->need_update = 0;
@@ -4213,27 +4214,27 @@ static int iwl4965_tx_queue_update_write_ptr(struct iwl_priv *priv,
 		/* wake up nic if it's powered down ...
 		 * uCode will wake up, and interrupt us again, so next
 		 * time we'll skip this part. */
-		reg = iwl4965_read32(priv, CSR_UCODE_DRV_GP1);
+		reg = iwl_read32(priv, CSR_UCODE_DRV_GP1);
 
 		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
 			IWL_DEBUG_INFO("Requesting wakeup, GP1 = 0x%x\n", reg);
-			iwl4965_set_bit(priv, CSR_GP_CNTRL,
+			iwl_set_bit(priv, CSR_GP_CNTRL,
 				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 			return rc;
 		}
 
 		/* restore this queue's parameters in nic hardware. */
-		rc = iwl4965_grab_nic_access(priv);
+		rc = iwl_grab_nic_access(priv);
 		if (rc)
 			return rc;
-		iwl4965_write_direct32(priv, HBUS_TARG_WRPTR,
+		iwl_write_direct32(priv, HBUS_TARG_WRPTR,
 				     txq->q.write_ptr | (txq_id << 8));
-		iwl4965_release_nic_access(priv);
+		iwl_release_nic_access(priv);
 
 	/* else not in power-save mode, uCode will never sleep when we're
 	 * trying to tx (during RFKILL, we're not trying to tx). */
 	} else
-		iwl4965_write32(priv, HBUS_TARG_WRPTR,
+		iwl_write32(priv, HBUS_TARG_WRPTR,
 			    txq->q.write_ptr | (txq_id << 8));
 
 	txq->need_update = 0;
@@ -4268,7 +4269,7 @@ static void iwl4965_enable_interrupts(struct iwl_priv *priv)
 {
 	IWL_DEBUG_ISR("Enabling interrupts\n");
 	set_bit(STATUS_INT_ENABLED, &priv->status);
-	iwl4965_write32(priv, CSR_INT_MASK, CSR_INI_SET_MASK);
+	iwl_write32(priv, CSR_INT_MASK, CSR_INI_SET_MASK);
 }
 
 static inline void iwl4965_disable_interrupts(struct iwl_priv *priv)
@@ -4276,12 +4277,12 @@ static inline void iwl4965_disable_interrupts(struct iwl_priv *priv)
 	clear_bit(STATUS_INT_ENABLED, &priv->status);
 
 	/* disable interrupts from uCode/NIC to host */
-	iwl4965_write32(priv, CSR_INT_MASK, 0x00000000);
+	iwl_write32(priv, CSR_INT_MASK, 0x00000000);
 
 	/* acknowledge/clear/reset any interrupts still pending
 	 * from uCode or flow handler (Rx/Tx DMA) */
-	iwl4965_write32(priv, CSR_INT, 0xffffffff);
-	iwl4965_write32(priv, CSR_FH_INT_STATUS, 0xffffffff);
+	iwl_write32(priv, CSR_INT, 0xffffffff);
+	iwl_write32(priv, CSR_FH_INT_STATUS, 0xffffffff);
 	IWL_DEBUG_ISR("Disabled interrupts\n");
 }
 
@@ -4322,28 +4323,28 @@ static void iwl4965_dump_nic_error_log(struct iwl_priv *priv)
 		return;
 	}
 
-	rc = iwl4965_grab_nic_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc) {
 		IWL_WARNING("Can not read from adapter at this time.\n");
 		return;
 	}
 
-	count = iwl4965_read_targ_mem(priv, base);
+	count = iwl_read_targ_mem(priv, base);
 
 	if (ERROR_START_OFFSET <= count * ERROR_ELEM_SIZE) {
 		IWL_ERROR("Start IWL Error Log Dump:\n");
 		IWL_ERROR("Status: 0x%08lX, count: %d\n", priv->status, count);
 	}
 
-	desc = iwl4965_read_targ_mem(priv, base + 1 * sizeof(u32));
-	blink1 = iwl4965_read_targ_mem(priv, base + 3 * sizeof(u32));
-	blink2 = iwl4965_read_targ_mem(priv, base + 4 * sizeof(u32));
-	ilink1 = iwl4965_read_targ_mem(priv, base + 5 * sizeof(u32));
-	ilink2 = iwl4965_read_targ_mem(priv, base + 6 * sizeof(u32));
-	data1 = iwl4965_read_targ_mem(priv, base + 7 * sizeof(u32));
-	data2 = iwl4965_read_targ_mem(priv, base + 8 * sizeof(u32));
-	line = iwl4965_read_targ_mem(priv, base + 9 * sizeof(u32));
-	time = iwl4965_read_targ_mem(priv, base + 11 * sizeof(u32));
+	desc = iwl_read_targ_mem(priv, base + 1 * sizeof(u32));
+	blink1 = iwl_read_targ_mem(priv, base + 3 * sizeof(u32));
+	blink2 = iwl_read_targ_mem(priv, base + 4 * sizeof(u32));
+	ilink1 = iwl_read_targ_mem(priv, base + 5 * sizeof(u32));
+	ilink2 = iwl_read_targ_mem(priv, base + 6 * sizeof(u32));
+	data1 = iwl_read_targ_mem(priv, base + 7 * sizeof(u32));
+	data2 = iwl_read_targ_mem(priv, base + 8 * sizeof(u32));
+	line = iwl_read_targ_mem(priv, base + 9 * sizeof(u32));
+	time = iwl_read_targ_mem(priv, base + 11 * sizeof(u32));
 
 	IWL_ERROR("Desc               Time       "
 		  "data1      data2      line\n");
@@ -4353,7 +4354,7 @@ static void iwl4965_dump_nic_error_log(struct iwl_priv *priv)
 	IWL_ERROR("0x%05X 0x%05X 0x%05X 0x%05X\n", blink1, blink2,
 		  ilink1, ilink2);
 
-	iwl4965_release_nic_access(priv);
+	iwl_release_nic_access(priv);
 }
 
 #define EVENT_START_OFFSET  (4 * sizeof(u32))
@@ -4361,7 +4362,7 @@ static void iwl4965_dump_nic_error_log(struct iwl_priv *priv)
 /**
  * iwl4965_print_event_log - Dump error event log to syslog
  *
- * NOTE: Must be called with iwl4965_grab_nic_access() already obtained!
+ * NOTE: Must be called with iwl_grab_nic_access() already obtained!
  */
 static void iwl4965_print_event_log(struct iwl_priv *priv, u32 start_idx,
 				u32 num_events, u32 mode)
@@ -4387,14 +4388,14 @@ static void iwl4965_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	/* "time" is actually "data" for mode 0 (no timestamp).
 	 * place event id # at far right for easier visual parsing. */
 	for (i = 0; i < num_events; i++) {
-		ev = iwl4965_read_targ_mem(priv, ptr);
+		ev = iwl_read_targ_mem(priv, ptr);
 		ptr += sizeof(u32);
-		time = iwl4965_read_targ_mem(priv, ptr);
+		time = iwl_read_targ_mem(priv, ptr);
 		ptr += sizeof(u32);
 		if (mode == 0)
 			IWL_ERROR("0x%08x\t%04u\n", time, ev); /* data, ev */
 		else {
-			data = iwl4965_read_targ_mem(priv, ptr);
+			data = iwl_read_targ_mem(priv, ptr);
 			ptr += sizeof(u32);
 			IWL_ERROR("%010u\t0x%08x\t%04u\n", time, data, ev);
 		}
@@ -4417,24 +4418,24 @@ static void iwl4965_dump_nic_event_log(struct iwl_priv *priv)
 		return;
 	}
 
-	rc = iwl4965_grab_nic_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc) {
 		IWL_WARNING("Can not read from adapter at this time.\n");
 		return;
 	}
 
 	/* event log header */
-	capacity = iwl4965_read_targ_mem(priv, base);
-	mode = iwl4965_read_targ_mem(priv, base + (1 * sizeof(u32)));
-	num_wraps = iwl4965_read_targ_mem(priv, base + (2 * sizeof(u32)));
-	next_entry = iwl4965_read_targ_mem(priv, base + (3 * sizeof(u32)));
+	capacity = iwl_read_targ_mem(priv, base);
+	mode = iwl_read_targ_mem(priv, base + (1 * sizeof(u32)));
+	num_wraps = iwl_read_targ_mem(priv, base + (2 * sizeof(u32)));
+	next_entry = iwl_read_targ_mem(priv, base + (3 * sizeof(u32)));
 
 	size = num_wraps ? capacity : next_entry;
 
 	/* bail out if nothing in log */
 	if (size == 0) {
 		IWL_ERROR("Start IWL Event Log Dump: nothing in log\n");
-		iwl4965_release_nic_access(priv);
+		iwl_release_nic_access(priv);
 		return;
 	}
 
@@ -4450,7 +4451,7 @@ static void iwl4965_dump_nic_event_log(struct iwl_priv *priv)
 	/* (then/else) start at top of log */
 	iwl4965_print_event_log(priv, 0, next_entry, mode);
 
-	iwl4965_release_nic_access(priv);
+	iwl_release_nic_access(priv);
 }
 
 /**
@@ -4522,19 +4523,19 @@ static void iwl4965_irq_tasklet(struct iwl_priv *priv)
 	/* Ack/clear/reset pending uCode interrupts.
 	 * Note:  Some bits in CSR_INT are "OR" of bits in CSR_FH_INT_STATUS,
 	 *  and will clear only when CSR_FH_INT_STATUS gets cleared. */
-	inta = iwl4965_read32(priv, CSR_INT);
-	iwl4965_write32(priv, CSR_INT, inta);
+	inta = iwl_read32(priv, CSR_INT);
+	iwl_write32(priv, CSR_INT, inta);
 
 	/* Ack/clear/reset pending flow-handler (DMA) interrupts.
 	 * Any new interrupts that happen after this, either while we're
 	 * in this tasklet, or later, will show up in next ISR/tasklet. */
-	inta_fh = iwl4965_read32(priv, CSR_FH_INT_STATUS);
-	iwl4965_write32(priv, CSR_FH_INT_STATUS, inta_fh);
+	inta_fh = iwl_read32(priv, CSR_FH_INT_STATUS);
+	iwl_write32(priv, CSR_FH_INT_STATUS, inta_fh);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (iwl_debug_level & IWL_DL_ISR) {
 		/* just for debug */
-		inta_mask = iwl4965_read32(priv, CSR_INT_MASK);
+		inta_mask = iwl_read32(priv, CSR_INT_MASK);
 		IWL_DEBUG_ISR("inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
 			      inta, inta_mask, inta_fh);
 	}
@@ -4583,7 +4584,7 @@ static void iwl4965_irq_tasklet(struct iwl_priv *priv)
 	/* HW RF KILL switch toggled */
 	if (inta & CSR_INT_BIT_RF_KILL) {
 		int hw_rf_kill = 0;
-		if (!(iwl4965_read32(priv, CSR_GP_CNTRL) &
+		if (!(iwl_read32(priv, CSR_GP_CNTRL) &
 				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
 			hw_rf_kill = 1;
 
@@ -4658,9 +4659,9 @@ static void iwl4965_irq_tasklet(struct iwl_priv *priv)
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (iwl_debug_level & (IWL_DL_ISR)) {
-		inta = iwl4965_read32(priv, CSR_INT);
-		inta_mask = iwl4965_read32(priv, CSR_INT_MASK);
-		inta_fh = iwl4965_read32(priv, CSR_FH_INT_STATUS);
+		inta = iwl_read32(priv, CSR_INT);
+		inta_mask = iwl_read32(priv, CSR_INT_MASK);
+		inta_fh = iwl_read32(priv, CSR_FH_INT_STATUS);
 		IWL_DEBUG_ISR("End inta 0x%08x, enabled 0x%08x, fh 0x%08x, "
 			"flags 0x%08lx\n", inta, inta_mask, inta_fh, flags);
 	}
@@ -4682,12 +4683,12 @@ static irqreturn_t iwl4965_isr(int irq, void *data)
 	 *    back-to-back ISRs and sporadic interrupts from our NIC.
 	 * If we have something to service, the tasklet will re-enable ints.
 	 * If we *don't* have something, we'll re-enable before leaving here. */
-	inta_mask = iwl4965_read32(priv, CSR_INT_MASK);  /* just for debug */
-	iwl4965_write32(priv, CSR_INT_MASK, 0x00000000);
+	inta_mask = iwl_read32(priv, CSR_INT_MASK);  /* just for debug */
+	iwl_write32(priv, CSR_INT_MASK, 0x00000000);
 
 	/* Discover which interrupts are active/pending */
-	inta = iwl4965_read32(priv, CSR_INT);
-	inta_fh = iwl4965_read32(priv, CSR_FH_INT_STATUS);
+	inta = iwl_read32(priv, CSR_INT);
+	inta_fh = iwl_read32(priv, CSR_FH_INT_STATUS);
 
 	/* Ignore interrupt if there's nothing in NIC to service.
 	 * This may be due to IRQ shared with another device,
@@ -5054,18 +5055,18 @@ static int iwl4965_verify_inst_full(struct iwl_priv *priv, __le32 *image,
 
 	IWL_DEBUG_INFO("ucode inst image size is %u\n", len);
 
-	rc = iwl4965_grab_nic_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc)
 		return rc;
 
-	iwl4965_write_direct32(priv, HBUS_TARG_MEM_RADDR, RTC_INST_LOWER_BOUND);
+	iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR, RTC_INST_LOWER_BOUND);
 
 	errcnt = 0;
 	for (; len > 0; len -= sizeof(u32), image++) {
 		/* read data comes through single port, auto-incr addr */
 		/* NOTE: Use the debugless read so we don't flood kernel log
 		 * if IWL_DL_IO is set */
-		val = _iwl4965_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
 			IWL_ERROR("uCode INST section is invalid at "
 				  "offset 0x%x, is 0x%x, s/b 0x%x\n",
@@ -5077,7 +5078,7 @@ static int iwl4965_verify_inst_full(struct iwl_priv *priv, __le32 *image,
 		}
 	}
 
-	iwl4965_release_nic_access(priv);
+	iwl_release_nic_access(priv);
 
 	if (!errcnt)
 		IWL_DEBUG_INFO
@@ -5101,7 +5102,7 @@ static int iwl4965_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 
 
 	IWL_DEBUG_INFO("ucode inst image size is %u\n", len);
 
-	rc = iwl4965_grab_nic_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc)
 		return rc;
 
@@ -5109,9 +5110,9 @@ static int iwl4965_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 
 		/* read data comes through single port, auto-incr addr */
 		/* NOTE: Use the debugless read so we don't flood kernel log
 		 * if IWL_DL_IO is set */
-		iwl4965_write_direct32(priv, HBUS_TARG_MEM_RADDR,
+		iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
 			i + RTC_INST_LOWER_BOUND);
-		val = _iwl4965_read_direct32(priv, HBUS_TARG_MEM_RDAT);
+		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
 #if 0 /* Enable this if you want to see details */
 			IWL_ERROR("uCode INST section is invalid at "
@@ -5125,7 +5126,7 @@ static int iwl4965_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 
 		}
 	}
 
-	iwl4965_release_nic_access(priv);
+	iwl_release_nic_access(priv);
 
 	return rc;
 }
@@ -5192,11 +5193,11 @@ static int iwl4965_verify_bsm(struct iwl_priv *priv)
 	IWL_DEBUG_INFO("Begin verify bsm\n");
 
 	/* verify BSM SRAM contents */
-	val = iwl4965_read_prph(priv, BSM_WR_DWCOUNT_REG);
+	val = iwl_read_prph(priv, BSM_WR_DWCOUNT_REG);
 	for (reg = BSM_SRAM_LOWER_BOUND;
 	     reg < BSM_SRAM_LOWER_BOUND + len;
 	     reg += sizeof(u32), image ++) {
-		val = iwl4965_read_prph(priv, reg);
+		val = iwl_read_prph(priv, reg);
 		if (val != le32_to_cpu(*image)) {
 			IWL_ERROR("BSM uCode verification failed at "
 				  "addr 0x%08X+%u (of %u), is 0x%x, s/b 0x%x\n",
@@ -5273,42 +5274,42 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 	inst_len = priv->ucode_init.len;
 	data_len = priv->ucode_init_data.len;
 
-	rc = iwl4965_grab_nic_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc)
 		return rc;
 
-	iwl4965_write_prph(priv, BSM_DRAM_INST_PTR_REG, pinst);
-	iwl4965_write_prph(priv, BSM_DRAM_DATA_PTR_REG, pdata);
-	iwl4965_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG, inst_len);
-	iwl4965_write_prph(priv, BSM_DRAM_DATA_BYTECOUNT_REG, data_len);
+	iwl_write_prph(priv, BSM_DRAM_INST_PTR_REG, pinst);
+	iwl_write_prph(priv, BSM_DRAM_DATA_PTR_REG, pdata);
+	iwl_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG, inst_len);
+	iwl_write_prph(priv, BSM_DRAM_DATA_BYTECOUNT_REG, data_len);
 
 	/* Fill BSM memory with bootstrap instructions */
 	for (reg_offset = BSM_SRAM_LOWER_BOUND;
 	     reg_offset < BSM_SRAM_LOWER_BOUND + len;
 	     reg_offset += sizeof(u32), image++)
-		_iwl4965_write_prph(priv, reg_offset,
+		_iwl_write_prph(priv, reg_offset,
 					  le32_to_cpu(*image));
 
 	rc = iwl4965_verify_bsm(priv);
 	if (rc) {
-		iwl4965_release_nic_access(priv);
+		iwl_release_nic_access(priv);
 		return rc;
 	}
 
 	/* Tell BSM to copy from BSM SRAM into instruction SRAM, when asked */
-	iwl4965_write_prph(priv, BSM_WR_MEM_SRC_REG, 0x0);
-	iwl4965_write_prph(priv, BSM_WR_MEM_DST_REG,
+	iwl_write_prph(priv, BSM_WR_MEM_SRC_REG, 0x0);
+	iwl_write_prph(priv, BSM_WR_MEM_DST_REG,
 				 RTC_INST_LOWER_BOUND);
-	iwl4965_write_prph(priv, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
+	iwl_write_prph(priv, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
 
 	/* Load bootstrap code into instruction SRAM now,
 	 *   to prepare to load "initialize" uCode */
-	iwl4965_write_prph(priv, BSM_WR_CTRL_REG,
+	iwl_write_prph(priv, BSM_WR_CTRL_REG,
 		BSM_WR_CTRL_REG_BIT_START);
 
 	/* Wait for load of bootstrap uCode to finish */
 	for (i = 0; i < 100; i++) {
-		done = iwl4965_read_prph(priv, BSM_WR_CTRL_REG);
+		done = iwl_read_prph(priv, BSM_WR_CTRL_REG);
 		if (!(done & BSM_WR_CTRL_REG_BIT_START))
 			break;
 		udelay(10);
@@ -5322,10 +5323,10 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 
 	/* Enable future boot loads whenever power management unit triggers it
 	 *   (e.g. when powering back up after power-save shutdown) */
-	iwl4965_write_prph(priv, BSM_WR_CTRL_REG,
+	iwl_write_prph(priv, BSM_WR_CTRL_REG,
 		BSM_WR_CTRL_REG_BIT_START_EN);
 
-	iwl4965_release_nic_access(priv);
+	iwl_release_nic_access(priv);
 
 	return 0;
 }
@@ -5333,7 +5334,7 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 static void iwl4965_nic_start(struct iwl_priv *priv)
 {
 	/* Remove all resets to allow NIC to operate */
-	iwl4965_write32(priv, CSR_RESET, 0);
+	iwl_write32(priv, CSR_RESET, 0);
 }
 
 
@@ -5555,24 +5556,24 @@ static int iwl4965_set_ucode_ptrs(struct iwl_priv *priv)
 	pdata = priv->ucode_data_backup.p_addr >> 4;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl4965_grab_nic_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc) {
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return rc;
 	}
 
 	/* Tell bootstrap uCode where to find image to load */
-	iwl4965_write_prph(priv, BSM_DRAM_INST_PTR_REG, pinst);
-	iwl4965_write_prph(priv, BSM_DRAM_DATA_PTR_REG, pdata);
-	iwl4965_write_prph(priv, BSM_DRAM_DATA_BYTECOUNT_REG,
+	iwl_write_prph(priv, BSM_DRAM_INST_PTR_REG, pinst);
+	iwl_write_prph(priv, BSM_DRAM_DATA_PTR_REG, pdata);
+	iwl_write_prph(priv, BSM_DRAM_DATA_BYTECOUNT_REG,
 				 priv->ucode_data.len);
 
 	/* Inst bytecount must be last to set up, bit 31 signals uCode
 	 *   that all new ptr/size info is in place */
-	iwl4965_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG,
+	iwl_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG,
 				 priv->ucode_code.len | BSM_DRAM_INST_LOAD);
 
-	iwl4965_release_nic_access(priv);
+	iwl_release_nic_access(priv);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -5752,7 +5753,7 @@ static void __iwl4965_down(struct iwl_priv *priv)
 		clear_bit(STATUS_EXIT_PENDING, &priv->status);
 
 	/* stop and reset the on-board processor */
-	iwl4965_write32(priv, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
+	iwl_write32(priv, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 
 	/* tell the device to stop sending interrupts */
 	iwl4965_disable_interrupts(priv);
@@ -5788,7 +5789,7 @@ static void __iwl4965_down(struct iwl_priv *priv)
 				STATUS_FW_ERROR;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	iwl4965_clear_bit(priv, CSR_GP_CNTRL,
+	iwl_clear_bit(priv, CSR_GP_CNTRL,
 			 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -5796,17 +5797,17 @@ static void __iwl4965_down(struct iwl_priv *priv)
 	iwl4965_hw_rxq_stop(priv);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	if (!iwl4965_grab_nic_access(priv)) {
-		iwl4965_write_prph(priv, APMG_CLK_DIS_REG,
+	if (!iwl_grab_nic_access(priv)) {
+		iwl_write_prph(priv, APMG_CLK_DIS_REG,
 					 APMG_CLK_VAL_DMA_CLK_RQT);
-		iwl4965_release_nic_access(priv);
+		iwl_release_nic_access(priv);
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	udelay(5);
 
 	iwl4965_hw_nic_stop_master(priv);
-	iwl4965_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
+	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
 	iwl4965_hw_nic_reset(priv);
 
  exit:
@@ -5852,7 +5853,7 @@ static int __iwl4965_up(struct iwl_priv *priv)
 	}
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
-	if (iwl4965_read32(priv, CSR_GP_CNTRL) &
+	if (iwl_read32(priv, CSR_GP_CNTRL) &
 				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
 		clear_bit(STATUS_RF_KILL_HW, &priv->status);
 	else {
@@ -5863,7 +5864,7 @@ static int __iwl4965_up(struct iwl_priv *priv)
 		}
 	}
 
-	iwl4965_write32(priv, CSR_INT, 0xFFFFFFFF);
+	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
 
 	rc = iwl4965_hw_nic_init(priv);
 	if (rc) {
@@ -5872,17 +5873,17 @@ static int __iwl4965_up(struct iwl_priv *priv)
 	}
 
 	/* make sure rfkill handshake bits are cleared */
-	iwl4965_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
-	iwl4965_write32(priv, CSR_UCODE_DRV_GP1_CLR,
+	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
+	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR,
 		    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 
 	/* clear (again), then enable host interrupts */
-	iwl4965_write32(priv, CSR_INT, 0xFFFFFFFF);
+	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
 	iwl4965_enable_interrupts(priv);
 
 	/* really make sure rfkill handshake bits are cleared */
-	iwl4965_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
-	iwl4965_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
+	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
+	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
 
 	/* Copy original ucode data image from disk into backup cache.
 	 * This will be used to initialize the on-board processor's
@@ -8082,11 +8083,11 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	 * 4. Read EEPROM
 	 *****************/
 	/* nic init */
-	iwl4965_set_bit(priv, CSR_GIO_CHICKEN_BITS,
+	iwl_set_bit(priv, CSR_GIO_CHICKEN_BITS,
 		CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER);
 
-	iwl4965_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-	err = iwl4965_poll_bit(priv, CSR_GP_CNTRL,
+	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	err = iwl_poll_bit(priv, CSR_GP_CNTRL,
 		CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 		CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 	if (err < 0) {

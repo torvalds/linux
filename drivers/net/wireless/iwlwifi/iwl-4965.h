@@ -1266,6 +1266,5 @@ extern const struct iwl_channel_info *iwl_get_channel_info(
 	const struct iwl_priv *priv, enum ieee80211_band band, u16 channel);
 
 /* Requires full declaration of iwl_priv before including */
-#include "iwl-4965-io.h"
 
 #endif				/* __iwl4965_4965_h__ */
