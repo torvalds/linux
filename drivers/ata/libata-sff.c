@@ -826,6 +826,7 @@ int ata_pci_activate_sff_host(struct ata_host *host,
  *	ata_pci_init_one - Initialize/register PCI IDE host controller
  *	@pdev: Controller to be initialized
  *	@ppi: array of port_info, must be enough for two ports
+ *	@sht: scsi_host_template to use when registering the host
  *
  *	This is a helper function which can be called from a driver's
  *	xxx_init_one() probe function if the hardware uses traditional
@@ -846,7 +847,8 @@ int ata_pci_activate_sff_host(struct ata_host *host,
  *	Zero on success, negative on errno-based value on error.
  */
 int ata_pci_init_one(struct pci_dev *pdev,
-		     const struct ata_port_info * const * ppi)
+		     const struct ata_port_info * const * ppi,
+		     struct scsi_host_template *sht)
 {
 	struct device *dev = &pdev->dev;
 	const struct ata_port_info *pi = NULL;
@@ -882,8 +884,7 @@ int ata_pci_init_one(struct pci_dev *pdev,
 		goto out;
 
 	pci_set_master(pdev);
-	rc = ata_pci_activate_sff_host(host, pi->port_ops->irq_handler,
-				       pi->sht);
+	rc = ata_pci_activate_sff_host(host, ata_interrupt, sht);
  out:
 	if (rc == 0)
 		devres_remove_group(&pdev->dev, NULL);

@@ -783,7 +783,6 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	/* HPT370 - UDMA100 */
 	static const struct ata_port_info info_hpt370 = {
-		.sht = &hpt37x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -792,7 +791,6 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	};
 	/* HPT370A - UDMA100 */
 	static const struct ata_port_info info_hpt370a = {
-		.sht = &hpt37x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -801,7 +799,6 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	};
 	/* HPT370 - UDMA100 */
 	static const struct ata_port_info info_hpt370_33 = {
-		.sht = &hpt37x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -810,7 +807,6 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	};
 	/* HPT370A - UDMA100 */
 	static const struct ata_port_info info_hpt370a_33 = {
-		.sht = &hpt37x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -819,7 +815,6 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	};
 	/* HPT371, 372 and friends - UDMA133 */
 	static const struct ata_port_info info_hpt372 = {
-		.sht = &hpt37x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -828,7 +823,6 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	};
 	/* HPT374 - UDMA100 */
 	static const struct ata_port_info info_hpt374 = {
-		.sht = &hpt37x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -1051,7 +1045,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	port_info = *port;
 	port_info.private_data = private_data;
 
-	return ata_pci_init_one(dev, ppi);
+	return ata_pci_init_one(dev, ppi, &hpt37x_sht);
 }
 
 static const struct pci_device_id hpt37x[] = {

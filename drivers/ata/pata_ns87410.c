@@ -158,13 +158,12 @@ static struct ata_port_operations ns87410_port_ops = {
 static int ns87410_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	static const struct ata_port_info info = {
-		.sht = &ns87410_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x0F,
 		.port_ops = &ns87410_port_ops
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
-	return ata_pci_init_one(dev, ppi);
+	return ata_pci_init_one(dev, ppi, &ns87410_sht);
 }
 
 static const struct pci_device_id ns87410[] = {

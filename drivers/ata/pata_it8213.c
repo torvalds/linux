@@ -274,7 +274,6 @@ static int it8213_init_one (struct pci_dev *pdev, const struct pci_device_id *en
 {
 	static int printed_version;
 	static const struct ata_port_info info = {
-		.sht		= &it8213_sht,
 		.flags		= ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
@@ -288,7 +287,7 @@ static int it8213_init_one (struct pci_dev *pdev, const struct pci_device_id *en
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "version " DRV_VERSION "\n");
 
-	return ata_pci_init_one(pdev, ppi);
+	return ata_pci_init_one(pdev, ppi, &it8213_sht);
 }
 
 static const struct pci_device_id it8213_pci_tbl[] = {

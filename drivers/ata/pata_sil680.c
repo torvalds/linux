@@ -282,7 +282,6 @@ static int __devinit sil680_init_one(struct pci_dev *pdev,
 				     const struct pci_device_id *id)
 {
 	static const struct ata_port_info info = {
-		.sht = &sil680_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -290,7 +289,6 @@ static int __devinit sil680_init_one(struct pci_dev *pdev,
 		.port_ops = &sil680_port_ops
 	};
 	static const struct ata_port_info info_slow = {
-		.sht = &sil680_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -364,7 +362,7 @@ static int __devinit sil680_init_one(struct pci_dev *pdev,
 				 &sil680_sht);
 
 use_ioports:
-	return ata_pci_init_one(pdev, ppi);
+	return ata_pci_init_one(pdev, ppi, &sil680_sht);
 }
 
 #ifdef CONFIG_PM

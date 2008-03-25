@@ -48,7 +48,6 @@ static int netcell_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 {
 	static int printed_version;
 	static const struct ata_port_info info = {
-		.sht		= &netcell_sht,
 		.flags		= ATA_FLAG_SLAVE_POSS,
 		/* Actually we don't really care about these as the
 		   firmware deals with it */
@@ -72,7 +71,7 @@ static int netcell_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	ata_pci_clear_simplex(pdev);
 
 	/* And let the library code do the work */
-	return ata_pci_init_one(pdev, port_info);
+	return ata_pci_init_one(pdev, port_info, &netcell_sht);
 }
 
 static const struct pci_device_id netcell_pci_tbl[] = {

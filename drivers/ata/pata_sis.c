@@ -565,7 +565,6 @@ static struct ata_port_operations sis_old_ops = {
 };
 
 static const struct ata_port_info sis_info = {
-	.sht		= &sis_sht,
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= 0x1f,	/* pio0-4 */
 	.mwdma_mask	= 0x07,
@@ -573,7 +572,6 @@ static const struct ata_port_info sis_info = {
 	.port_ops	= &sis_old_ops,
 };
 static const struct ata_port_info sis_info33 = {
-	.sht		= &sis_sht,
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= 0x1f,	/* pio0-4 */
 	.mwdma_mask	= 0x07,
@@ -581,42 +579,36 @@ static const struct ata_port_info sis_info33 = {
 	.port_ops	= &sis_old_ops,
 };
 static const struct ata_port_info sis_info66 = {
-	.sht		= &sis_sht,
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= 0x1f,	/* pio0-4 */
 	.udma_mask	= ATA_UDMA4,	/* UDMA 66 */
 	.port_ops	= &sis_66_ops,
 };
 static const struct ata_port_info sis_info100 = {
-	.sht		= &sis_sht,
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= 0x1f,	/* pio0-4 */
 	.udma_mask	= ATA_UDMA5,
 	.port_ops	= &sis_100_ops,
 };
 static const struct ata_port_info sis_info100_early = {
-	.sht		= &sis_sht,
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.udma_mask	= ATA_UDMA5,
 	.pio_mask	= 0x1f,	/* pio0-4 */
 	.port_ops	= &sis_66_ops,
 };
 static const struct ata_port_info sis_info133 = {
-	.sht		= &sis_sht,
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= 0x1f,	/* pio0-4 */
 	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &sis_133_ops,
 };
 const struct ata_port_info sis_info133_for_sata = {
-	.sht		= &sis_sht,
 	.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
 	.pio_mask	= 0x1f,	/* pio0-4 */
 	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &sis_133_for_sata_ops,
 };
 static const struct ata_port_info sis_info133_early = {
-	.sht		= &sis_sht,
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= 0x1f,	/* pio0-4 */
 	.udma_mask	= ATA_UDMA6,
@@ -844,7 +836,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	sis_fixup(pdev, chipset);
 
-	return ata_pci_init_one(pdev, ppi);
+	return ata_pci_init_one(pdev, ppi, &sis_sht);
 }
 
 static const struct pci_device_id sis_pci_tbl[] = {

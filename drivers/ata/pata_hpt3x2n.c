@@ -452,7 +452,6 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	/* HPT372N and friends - UDMA133 */
 	static const struct ata_port_info info = {
-		.sht = &hpt3x2n_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -568,7 +567,7 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	/* Now kick off ATA set up */
-	return ata_pci_init_one(dev, ppi);
+	return ata_pci_init_one(dev, ppi, &hpt3x2n_sht);
 }
 
 static const struct pci_device_id hpt3x2n[] = {

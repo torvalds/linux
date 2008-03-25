@@ -148,7 +148,6 @@ static struct ata_port_operations jmicron_ops = {
 static int jmicron_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	static const struct ata_port_info info = {
-		.sht		= &jmicron_sht,
 		.flags	= ATA_FLAG_SLAVE_POSS,
 
 		.pio_mask	= 0x1f,
@@ -159,7 +158,7 @@ static int jmicron_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
 
-	return ata_pci_init_one(pdev, ppi);
+	return ata_pci_init_one(pdev, ppi, &jmicron_sht);
 }
 
 static const struct pci_device_id jmicron_pci_tbl[] = {

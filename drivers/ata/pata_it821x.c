@@ -687,14 +687,12 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	u8 conf;
 
 	static const struct ata_port_info info_smart = {
-		.sht = &it821x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
 		.port_ops = &it821x_smart_port_ops
 	};
 	static const struct ata_port_info info_passthru = {
-		.sht = &it821x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -724,7 +722,7 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	else
 		ppi[0] = &info_smart;
 
-	return ata_pci_init_one(pdev, ppi);
+	return ata_pci_init_one(pdev, ppi, &it821x_sht);
 }
 
 #ifdef CONFIG_PM

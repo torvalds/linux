@@ -739,7 +739,6 @@ struct ata_port_operations {
 	 */
 	void (*phy_reset)(struct ata_port *ap);
 	void (*eng_timeout)(struct ata_port *ap);
-	irq_handler_t irq_handler;
 
 	/*
 	 * ->inherits must be the last field and all the preceding
@@ -1020,7 +1019,8 @@ static inline int ata_acpi_cbl_80wire(struct ata_port *ap,
 struct pci_dev;
 
 extern int ata_pci_init_one(struct pci_dev *pdev,
-			     const struct ata_port_info * const * ppi);
+			    const struct ata_port_info * const * ppi,
+			    struct scsi_host_template *sht);
 extern void ata_pci_remove_one(struct pci_dev *pdev);
 #ifdef CONFIG_PM
 extern void ata_pci_device_do_suspend(struct pci_dev *pdev, pm_message_t mesg);

@@ -178,7 +178,6 @@ static struct ata_port_operations opti_port_ops = {
 static int opti_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	static const struct ata_port_info info = {
-		.sht = &opti_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.port_ops = &opti_port_ops
@@ -189,7 +188,7 @@ static int opti_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &dev->dev, "version " DRV_VERSION "\n");
 
-	return ata_pci_init_one(dev, ppi);
+	return ata_pci_init_one(dev, ppi, &opti_sht);
 }
 
 static const struct pci_device_id opti[] = {

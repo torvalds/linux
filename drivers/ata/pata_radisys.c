@@ -216,7 +216,6 @@ static int radisys_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 {
 	static int printed_version;
 	static const struct ata_port_info info = {
-		.sht		= &radisys_sht,
 		.flags		= ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma1-2 */
@@ -229,7 +228,7 @@ static int radisys_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "version " DRV_VERSION "\n");
 
-	return ata_pci_init_one(pdev, ppi);
+	return ata_pci_init_one(pdev, ppi, &radisys_sht);
 }
 
 static const struct pci_device_id radisys_pci_tbl[] = {

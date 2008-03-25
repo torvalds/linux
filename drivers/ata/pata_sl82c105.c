@@ -289,14 +289,12 @@ static int sl82c105_bridge_revision(struct pci_dev *pdev)
 static int sl82c105_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	static const struct ata_port_info info_dma = {
-		.sht = &sl82c105_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
 		.port_ops = &sl82c105_port_ops
 	};
 	static const struct ata_port_info info_early = {
-		.sht = &sl82c105_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.port_ops = &sl82c105_port_ops
@@ -325,7 +323,7 @@ static int sl82c105_init_one(struct pci_dev *dev, const struct pci_device_id *id
 	val |= CTRL_P0EN | CTRL_P0F16 | CTRL_P1F16;
 	pci_write_config_dword(dev, 0x40, val);
 
-	return ata_pci_init_one(dev, ppi);
+	return ata_pci_init_one(dev, ppi, &sl82c105_sht);
 }
 
 static const struct pci_device_id sl82c105[] = {

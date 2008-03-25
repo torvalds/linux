@@ -398,7 +398,6 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	/* Early VIA without UDMA support */
 	static const struct ata_port_info via_mwdma_info = {
-		.sht = &via_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -406,7 +405,6 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	};
 	/* Ditto with IRQ masking required */
 	static const struct ata_port_info via_mwdma_info_borked = {
-		.sht = &via_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -414,7 +412,6 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	};
 	/* VIA UDMA 33 devices (and borked 66) */
 	static const struct ata_port_info via_udma33_info = {
-		.sht = &via_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -423,7 +420,6 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	};
 	/* VIA UDMA 66 devices */
 	static const struct ata_port_info via_udma66_info = {
-		.sht = &via_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -432,7 +428,6 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	};
 	/* VIA UDMA 100 devices */
 	static const struct ata_port_info via_udma100_info = {
-		.sht = &via_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -441,7 +436,6 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	};
 	/* UDMA133 with bad AST (All current 133) */
 	static const struct ata_port_info via_udma133_info = {
-		.sht = &via_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -532,7 +526,7 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* We have established the device type, now fire it up */
 	type.private_data = (void *)config;
 
-	return ata_pci_init_one(pdev, ppi);
+	return ata_pci_init_one(pdev, ppi, &via_sht);
 }
 
 #ifdef CONFIG_PM

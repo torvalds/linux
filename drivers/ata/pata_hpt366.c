@@ -350,7 +350,6 @@ static void hpt36x_init_chipset(struct pci_dev *dev)
 static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	static const struct ata_port_info info_hpt366 = {
-		.sht = &hpt36x_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
@@ -394,7 +393,7 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 			break;
 	}
 	/* Now kick off ATA set up */
-	return ata_pci_init_one(dev, ppi);
+	return ata_pci_init_one(dev, ppi, &hpt36x_sht);
 }
 
 #ifdef CONFIG_PM

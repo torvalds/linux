@@ -241,7 +241,6 @@ static struct ata_port_operations atiixp_port_ops = {
 static int atiixp_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	static const struct ata_port_info info = {
-		.sht = &atiixp_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x06,	/* No MWDMA0 support */
@@ -249,7 +248,7 @@ static int atiixp_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.port_ops = &atiixp_port_ops
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
-	return ata_pci_init_one(dev, ppi);
+	return ata_pci_init_one(dev, ppi, &atiixp_sht);
 }
 
 static const struct pci_device_id atiixp[] = {

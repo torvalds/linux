@@ -290,7 +290,6 @@ static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id
 {
 	static const struct ata_port_info info[3] = {
 		{
-			.sht = &pdc202xx_sht,
 			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = 0x1f,
 			.mwdma_mask = 0x07,
@@ -298,7 +297,6 @@ static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id
 			.port_ops = &pdc2024x_port_ops
 		},
 		{
-			.sht = &pdc202xx_sht,
 			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = 0x1f,
 			.mwdma_mask = 0x07,
@@ -306,7 +304,6 @@ static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id
 			.port_ops = &pdc2026x_port_ops
 		},
 		{
-			.sht = &pdc202xx_sht,
 			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = 0x1f,
 			.mwdma_mask = 0x07,
@@ -327,7 +324,7 @@ static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id
 				return -ENODEV;
 		}
 	}
-	return ata_pci_init_one(dev, ppi);
+	return ata_pci_init_one(dev, ppi, &pdc202xx_sht);
 }
 
 static const struct pci_device_id pdc202xx[] = {

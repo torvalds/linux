@@ -109,7 +109,6 @@ const struct ata_port_operations ata_sff_port_ops = {
 	.irq_on			= ata_irq_on,
 
 	.port_start		= ata_sff_port_start,
-	.irq_handler		= ata_interrupt,
 };
 
 const struct ata_port_operations ata_bmdma_port_ops = {
