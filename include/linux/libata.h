@@ -1401,11 +1401,6 @@ extern int ata_pci_init_one(struct pci_dev *pdev,
 			    struct scsi_host_template *sht, void *host_priv);
 #endif /* CONFIG_PCI */
 
-static inline u8 ata_chk_status(struct ata_port *ap)
-{
-	return ap->ops->check_status(ap);
-}
-
 /**
  *	ata_pause - Flush writes and pause 400 nanoseconds.
  *	@ap: Port to wait for.
@@ -1439,7 +1434,7 @@ static inline u8 ata_busy_wait(struct ata_port *ap, unsigned int bits,
 
 	do {
 		udelay(10);
-		status = ata_chk_status(ap);
+		status = ap->ops->check_status(ap);
 		max--;
 	} while (status != 0xff && (status & bits) && (max > 0));
 

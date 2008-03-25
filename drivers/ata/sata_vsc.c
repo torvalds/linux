@@ -251,7 +251,7 @@ static void vsc_port_intr(u8 port_status, struct ata_port *ap)
 	 * simply clear the interrupt
 	 */
 	if (unlikely(!handled))
-		ata_chk_status(ap);
+		ap->ops->check_status(ap);
 }
 
 /*

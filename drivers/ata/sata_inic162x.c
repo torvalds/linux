@@ -267,14 +267,14 @@ static void inic_host_intr(struct ata_port *ap)
 			ata_qc_from_tag(ap, ap->link.active_tag);
 
 		if (unlikely(!qc || (qc->tf.flags & ATA_TFLAG_POLLING))) {
-			ata_chk_status(ap);	/* clear ATA interrupt */
+			ap->ops->check_status(ap); /* clear ATA interrupt */
 			return;
 		}
 
 		if (likely(ata_host_intr(ap, qc)))
 			return;
 
-		ata_chk_status(ap);	/* clear ATA interrupt */
+		ap->ops->check_status(ap); /* clear ATA interrupt */
 		ata_port_printk(ap, KERN_WARNING, "unhandled "
 				"interrupt, irq_stat=%x\n", irq_stat);
 		return;
@@ -351,7 +351,7 @@ static unsigned int inic_qc_issue(struct ata_queued_cmd *qc)
 	 */
 	if (unlikely(qc->tf.command == ATA_CMD_ID_ATA ||
 		     qc->tf.command == ATA_CMD_ID_ATAPI)) {
-		u8 stat = ata_chk_status(ap);
+		u8 stat = ap->ops->check_status(ap);
 		if (stat == 0x7f || stat == 0xff)
 			return AC_ERR_HSM;
 	}
@@ -365,7 +365,7 @@ static void inic_freeze(struct ata_port *ap)
 
 	__inic_set_pirq_mask(ap, PIRQ_MASK_FREEZE);
 
-	ata_chk_status(ap);
+	ap->ops->check_status(ap);
 	writeb(0xff, port_base + PORT_IRQ_STAT);
 
 	readb(port_base + PORT_IRQ_STAT); /* flush */
@@ -375,7 +375,7 @@ static void inic_thaw(struct ata_port *ap)
 {
 	void __iomem *port_base = inic_port_base(ap);
 
-	ata_chk_status(ap);
+	ap->ops->check_status(ap);
 	writeb(0xff, port_base + PORT_IRQ_STAT);
 
 	__inic_set_pirq_mask(ap, PIRQ_MASK_OTHER);

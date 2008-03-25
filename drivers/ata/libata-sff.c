@@ -290,7 +290,7 @@ int ata_busy_sleep(struct ata_port *ap,
 	while (status != 0xff && (status & ATA_BUSY) &&
 	       time_before(jiffies, timeout)) {
 		msleep(50);
-		status = ata_chk_status(ap);
+		status = ap->ops->check_status(ap);
 	}
 
 	if (status == 0xff)
@@ -326,7 +326,7 @@ int ata_wait_ready(struct ata_port *ap, unsigned long deadline)
 	int warned = 0;
 
 	while (1) {
-		u8 status = ata_chk_status(ap);
+		u8 status = ap->ops->check_status(ap);
 		unsigned long now = jiffies;
 
 		if (!(status & ATA_BUSY))
@@ -1486,7 +1486,7 @@ inline unsigned int ata_host_intr(struct ata_port *ap,
 		goto idle_irq;
 
 	/* check main status, clearing INTRQ */
-	status = ata_chk_status(ap);
+	status = ap->ops->check_status(ap);
 	if (unlikely(status & ATA_BUSY))
 		goto idle_irq;
 
@@ -1506,7 +1506,7 @@ idle_irq:
 
 #ifdef ATA_IRQ_TRAP
 	if ((ap->stats.idle_irq % 1000) == 0) {
-		ata_chk_status(ap);
+		ap->ops->check_status(ap);
 		ap->ops->irq_clear(ap);
 		ata_port_printk(ap, KERN_WARNING, "irq trap\n");
 		return 1;
@@ -1582,7 +1582,7 @@ void ata_bmdma_freeze(struct ata_port *ap)
 	 * ATA_NIEN manipulation.  Also, many controllers fail to mask
 	 * previously pending IRQ on ATA_NIEN assertion.  Clear it.
 	 */
-	ata_chk_status(ap);
+	ap->ops->check_status(ap);
 
 	ap->ops->irq_clear(ap);
 }
@@ -1599,7 +1599,7 @@ void ata_bmdma_freeze(struct ata_port *ap)
 void ata_bmdma_thaw(struct ata_port *ap)
 {
 	/* clear & re-enable interrupts */
-	ata_chk_status(ap);
+	ap->ops->check_status(ap);
 	ap->ops->irq_clear(ap);
 	ap->ops->irq_on(ap);
 }
@@ -1709,7 +1709,7 @@ unsigned int ata_dev_try_classify(struct ata_device *dev, int present,
 			class = ATA_DEV_ATA;
 		else
 			class = ATA_DEV_NONE;
-	} else if ((class == ATA_DEV_ATA) && (ata_chk_status(ap) == 0))
+	} else if ((class == ATA_DEV_ATA) && (ap->ops->check_status(ap) == 0))
 		class = ATA_DEV_NONE;
 
 	return class;
@@ -1820,7 +1820,7 @@ void ata_wait_after_reset(struct ata_port *ap, unsigned long deadline)
 	 */
 	if (ap->flags & ATA_FLAG_SATA) {
 		while (1) {
-			u8 status = ata_chk_status(ap);
+			u8 status = ap->ops->check_status(ap);
 
 			if (status != 0xff || time_after(jiffies, deadline))
 				return;
@@ -1851,7 +1851,7 @@ static int ata_bus_softreset(struct ata_port *ap, unsigned int devmask,
 	 * the bus shows 0xFF because the odd clown forgets the D7
 	 * pulldown resistor.
 	 */
-	if (ata_chk_status(ap) == 0xFF)
+	if (ap->ops->check_status(ap) == 0xFF)
 		return -ENODEV;
 
 	return ata_bus_post_reset(ap, devmask, deadline);
@@ -2034,7 +2034,7 @@ void ata_bmdma_error_handler(struct ata_port *ap)
 	}
 
 	ata_altstatus(ap);
-	ata_chk_status(ap);
+	ap->ops->check_status(ap);
 	ap->ops->irq_clear(ap);
 
 	spin_unlock_irqrestore(ap->lock, flags);
@@ -2725,7 +2725,6 @@ EXPORT_SYMBOL_GPL(ata_sff_port_ops);
 EXPORT_SYMBOL_GPL(ata_bmdma_port_ops);
 EXPORT_SYMBOL_GPL(ata_qc_prep);
 EXPORT_SYMBOL_GPL(ata_dumb_qc_prep);
-EXPORT_SYMBOL_GPL(ata_pci_default_filter);
 EXPORT_SYMBOL_GPL(ata_std_dev_select);
 EXPORT_SYMBOL_GPL(ata_check_status);
 EXPORT_SYMBOL_GPL(ata_altstatus);
@@ -2754,6 +2753,7 @@ EXPORT_SYMBOL_GPL(ata_bmdma_error_handler);
 EXPORT_SYMBOL_GPL(ata_bmdma_post_internal_cmd);
 EXPORT_SYMBOL_GPL(ata_sff_port_start);
 EXPORT_SYMBOL_GPL(ata_std_ports);
+EXPORT_SYMBOL_GPL(ata_pci_default_filter);
 EXPORT_SYMBOL_GPL(ata_bmdma_setup);
 EXPORT_SYMBOL_GPL(ata_bmdma_start);
 EXPORT_SYMBOL_GPL(ata_bmdma_stop);

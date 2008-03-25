@@ -854,7 +854,7 @@ static void scc_bmdma_freeze (struct ata_port *ap)
 	 * ATA_NIEN manipulation.  Also, many controllers fail to mask
 	 * previously pending IRQ on ATA_NIEN assertion.  Clear it.
 	 */
-	ata_chk_status(ap);
+	ap->ops->check_status(ap);
 
 	ap->ops->irq_clear(ap);
 }

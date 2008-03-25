@@ -369,7 +369,7 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 
 	if (unlikely(!qc || (qc->tf.flags & ATA_TFLAG_POLLING))) {
 		/* this sometimes happens, just clear IRQ */
-		ata_chk_status(ap);
+		ap->ops->check_status(ap);
 		return;
 	}
 
@@ -405,7 +405,7 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 	}
 
 	/* check main status, clearing INTRQ */
-	status = ata_chk_status(ap);
+	status = ap->ops->check_status(ap);
 	if (unlikely(status & ATA_BUSY))
 		goto err_hsm;
 
@@ -480,7 +480,7 @@ static void sil_thaw(struct ata_port *ap)
 	u32 tmp;
 
 	/* clear IRQ */
-	ata_chk_status(ap);
+	ap->ops->check_status(ap);
 	ata_bmdma_irq_clear(ap);
 
 	/* turn on SATA IRQ if supported */
