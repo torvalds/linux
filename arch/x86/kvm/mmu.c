@@ -222,8 +222,7 @@ static int is_io_pte(unsigned long pte)
 
 static int is_rmap_pte(u64 pte)
 {
-	return pte != shadow_trap_nonpresent_pte
-		&& pte != shadow_notrap_nonpresent_pte;
+	return is_shadow_present_pte(pte);
 }
 
 static gfn_t pse36_gfn_delta(u32 gpte)
@@ -893,13 +892,24 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 			 int *ptwrite, gfn_t gfn, struct page *page)
 {
 	u64 spte;
-	int was_rmapped = is_rmap_pte(*shadow_pte);
+	int was_rmapped = 0;
 	int was_writeble = is_writeble_pte(*shadow_pte);
+	hfn_t host_pfn = (*shadow_pte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
 
 	pgprintk("%s: spte %llx access %x write_fault %d"
 		 " user_fault %d gfn %lx\n",
 		 __FUNCTION__, *shadow_pte, pt_access,
 		 write_fault, user_fault, gfn);
+
+	if (is_rmap_pte(*shadow_pte)) {
+		if (host_pfn != page_to_pfn(page)) {
+			pgprintk("hfn old %lx new %lx\n",
+				 host_pfn, page_to_pfn(page));
+			rmap_remove(vcpu->kvm, shadow_pte);
+		}
+		else
+			was_rmapped = 1;
+	}
 
 	/*
 	 * We don't set the accessed bit, since we sometimes want to see
@@ -1402,7 +1412,7 @@ static void mmu_guess_page_from_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	up_read(&current->mm->mmap_sem);
 
 	vcpu->arch.update_pte.gfn = gfn;
-	vcpu->arch.update_pte.page = gfn_to_page(vcpu->kvm, gfn);
+	vcpu->arch.update_pte.page = page;
 }
 
 void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
