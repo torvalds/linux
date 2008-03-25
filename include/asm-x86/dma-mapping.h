@@ -125,4 +125,18 @@ dma_sync_single_range_for_cpu(struct device *hwdev, dma_addr_t dma_handle,
 
 	flush_write_buffers();
 }
+
+static inline void
+dma_sync_single_range_for_device(struct device *hwdev, dma_addr_t dma_handle,
+				 unsigned long offset, size_t size,
+				 int direction)
+{
+	BUG_ON(!valid_dma_direction(direction));
+	if (dma_ops->sync_single_range_for_device)
+		dma_ops->sync_single_range_for_device(hwdev, dma_handle,
+						      offset, size, direction);
+
+	flush_write_buffers();
+}
+
 #endif
