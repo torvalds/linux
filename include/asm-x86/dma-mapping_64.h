@@ -12,10 +12,6 @@ static inline int dma_mapping_error(dma_addr_t dma_addr)
 	return (dma_addr == bad_dma_address);
 }
 
-#define dma_map_page(dev,page,offset,size,dir) \
-	dma_map_single((dev), page_address(page)+(offset), (size), (dir))
-
-#define dma_unmap_page dma_unmap_single
 extern int dma_supported(struct device *hwdev, u64 mask);
 
 /* same for gart, swiotlb, and nommu */

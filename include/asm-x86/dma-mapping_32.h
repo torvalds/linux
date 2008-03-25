@@ -8,21 +8,6 @@
 #include <asm/io.h>
 #include <asm/bug.h>
 
-static inline dma_addr_t
-dma_map_page(struct device *dev, struct page *page, unsigned long offset,
-	     size_t size, enum dma_data_direction direction)
-{
-	BUG_ON(!valid_dma_direction(direction));
-	return page_to_phys(page) + offset;
-}
-
-static inline void
-dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
-	       enum dma_data_direction direction)
-{
-	BUG_ON(!valid_dma_direction(direction));
-}
-
 static inline int
 dma_mapping_error(dma_addr_t dma_addr)
 {

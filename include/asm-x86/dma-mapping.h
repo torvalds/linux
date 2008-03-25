@@ -169,4 +169,18 @@ dma_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
 
 	flush_write_buffers();
 }
+
+static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
+				      size_t offset, size_t size,
+				      int direction)
+{
+	return dma_map_single(dev, page_address(page)+offset, size, direction);
+}
+
+static inline void dma_unmap_page(struct device *dev, dma_addr_t addr,
+				  size_t size, int direction)
+{
+	dma_unmap_single(dev, addr, size, direction);
+}
+
 #endif
