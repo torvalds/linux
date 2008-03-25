@@ -219,6 +219,21 @@ struct kvm_s390_psw {
 	__u64 addr;
 };
 
+/* valid values for type in kvm_s390_interrupt */
+#define KVM_S390_SIGP_STOP		0xfffe0000u
+#define KVM_S390_PROGRAM_INT		0xfffe0001u
+#define KVM_S390_SIGP_SET_PREFIX	0xfffe0002u
+#define KVM_S390_RESTART		0xfffe0003u
+#define KVM_S390_INT_VIRTIO		0xffff2603u
+#define KVM_S390_INT_SERVICE		0xffff2401u
+#define KVM_S390_INT_EMERGENCY		0xffff1201u
+
+struct kvm_s390_interrupt {
+	__u32 type;
+	__u32 parm;
+	__u64 parm64;
+};
+
 #define KVMIO 0xAE
 
 /*
@@ -307,6 +322,8 @@ struct kvm_s390_psw {
 #define KVM_TPR_ACCESS_REPORTING  _IOWR(KVMIO,  0x92, struct kvm_tpr_access_ctl)
 /* Available with KVM_CAP_VAPIC */
 #define KVM_SET_VAPIC_ADDR        _IOW(KVMIO,  0x93, struct kvm_vapic_addr)
+/* valid for virtual machine (for floating interrupt)_and_ vcpu */
+#define KVM_S390_INTERRUPT        _IOW(KVMIO,  0x94, struct kvm_s390_interrupt)
 /* store status for s390 */
 #define KVM_S390_STORE_STATUS_NOADDR    (-1ul)
 #define KVM_S390_STORE_STATUS_PREFIXED  (-2ul)

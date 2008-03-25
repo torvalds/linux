@@ -70,6 +70,7 @@ struct sie_block {
 	__u64	ckc;			/* 0x0030 */
 	__u64	epoch;			/* 0x0038 */
 	__u8	reserved40[4];		/* 0x0040 */
+#define LCTL_CR0	0x8000
 	__u16   lctl;			/* 0x0044 */
 	__s16	icpua;			/* 0x0046 */
 	__u32	ictl;			/* 0x0048 */
@@ -105,7 +106,78 @@ struct kvm_vcpu_stat {
 	u32 exit_external_interrupt;
 	u32 exit_stop_request;
 	u32 exit_validity;
+	u32 exit_instruction;
+	u32 instruction_lctl;
+	u32 instruction_lctg;
+	u32 exit_program_interruption;
+	u32 exit_instr_and_program;
+	u32 deliver_emergency_signal;
+	u32 deliver_service_signal;
+	u32 deliver_virtio_interrupt;
+	u32 deliver_stop_signal;
+	u32 deliver_prefix_signal;
+	u32 deliver_restart_signal;
+	u32 deliver_program_int;
+	u32 exit_wait_state;
 };
+
+struct io_info {
+	__u16        subchannel_id;            /* 0x0b8 */
+	__u16        subchannel_nr;            /* 0x0ba */
+	__u32        io_int_parm;              /* 0x0bc */
+	__u32        io_int_word;              /* 0x0c0 */
+};
+
+struct ext_info {
+	__u32 ext_params;
+	__u64 ext_params2;
+};
+
+#define PGM_OPERATION            0x01
+#define PGM_PRIVILEGED_OPERATION 0x02
+#define PGM_EXECUTE              0x03
+#define PGM_PROTECTION           0x04
+#define PGM_ADDRESSING           0x05
+#define PGM_SPECIFICATION        0x06
+#define PGM_DATA                 0x07
+
+struct pgm_info {
+	__u16 code;
+};
+
+struct prefix_info {
+	__u32 address;
+};
+
+struct interrupt_info {
+	struct list_head list;
+	u64	type;
+	union {
+		struct io_info io;
+		struct ext_info ext;
+		struct pgm_info pgm;
+		struct prefix_info prefix;
+	};
+};
+
+struct local_interrupt {
+	spinlock_t lock;
+	struct list_head list;
+	atomic_t active;
+	struct float_interrupt *float_int;
+	int timer_due; /* event indicator for waitqueue below */
+	wait_queue_head_t wq;
+};
+
+struct float_interrupt {
+	spinlock_t lock;
+	struct list_head list;
+	atomic_t active;
+	int next_rr_cpu;
+	unsigned long idle_mask [(64 + sizeof(long) - 1) / sizeof(long)];
+	struct local_interrupt *local_int[64];
+};
+
 
 struct kvm_vcpu_arch {
 	struct sie_block *sie_block;
@@ -114,6 +186,8 @@ struct kvm_vcpu_arch {
 	unsigned int      host_acrs[NUM_ACRS];
 	s390_fp_regs      guest_fpregs;
 	unsigned int      guest_acrs[NUM_ACRS];
+	struct local_interrupt local_int;
+	struct timer_list ckc_timer;
 };
 
 struct kvm_vm_stat {
@@ -125,6 +199,7 @@ struct kvm_arch{
 	unsigned long guest_memsize;
 	struct sca_block *sca;
 	debug_info_t *dbf;
+	struct float_interrupt float_int;
 };
 
 extern int sie64a(struct sie_block *, __u64 *);

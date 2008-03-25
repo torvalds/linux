@@ -20,6 +20,7 @@
 #include <linux/kvm_host.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/timer.h>
 #include <asm/lowcore.h>
 #include <asm/pgtable.h>
 
@@ -34,6 +35,19 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "exit_stop_request", VCPU_STAT(exit_stop_request) },
 	{ "exit_external_request", VCPU_STAT(exit_external_request) },
 	{ "exit_external_interrupt", VCPU_STAT(exit_external_interrupt) },
+	{ "exit_instruction", VCPU_STAT(exit_instruction) },
+	{ "exit_program_interruption", VCPU_STAT(exit_program_interruption) },
+	{ "exit_instr_and_program_int", VCPU_STAT(exit_instr_and_program) },
+	{ "instruction_lctg", VCPU_STAT(instruction_lctg) },
+	{ "instruction_lctl", VCPU_STAT(instruction_lctl) },
+	{ "deliver_emergency_signal", VCPU_STAT(deliver_emergency_signal) },
+	{ "deliver_service_signal", VCPU_STAT(deliver_service_signal) },
+	{ "deliver_virtio_interrupt", VCPU_STAT(deliver_virtio_interrupt) },
+	{ "deliver_stop_signal", VCPU_STAT(deliver_stop_signal) },
+	{ "deliver_prefix_signal", VCPU_STAT(deliver_prefix_signal) },
+	{ "deliver_restart_signal", VCPU_STAT(deliver_restart_signal) },
+	{ "deliver_program_interruption", VCPU_STAT(deliver_program_int) },
+	{ "exit_wait_state", VCPU_STAT(exit_wait_state) },
 	{ NULL }
 };
 
@@ -106,6 +120,15 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	int r;
 
 	switch (ioctl) {
+	case KVM_S390_INTERRUPT: {
+		struct kvm_s390_interrupt s390int;
+
+		r = -EFAULT;
+		if (copy_from_user(&s390int, argp, sizeof(s390int)))
+			break;
+		r = kvm_s390_inject_vm(kvm, &s390int);
+		break;
+	}
 	default:
 		r = -EINVAL;
 	}
@@ -137,6 +160,9 @@ struct kvm *kvm_arch_create_vm(void)
 	kvm->arch.dbf = debug_register(debug_name, 8, 2, 8 * sizeof(long));
 	if (!kvm->arch.dbf)
 		goto out_nodbf;
+
+	spin_lock_init(&kvm->arch.float_int.lock);
+	INIT_LIST_HEAD(&kvm->arch.float_int.list);
 
 	debug_register_view(kvm->arch.dbf, &debug_sprintf_view);
 	VM_EVENT(kvm, 3, "%s", "vm created");
@@ -218,7 +244,8 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->gmsor = 0x000000000000;
 	vcpu->arch.sie_block->ecb   = 2;
 	vcpu->arch.sie_block->eca   = 0xC1002001U;
-
+	setup_timer(&vcpu->arch.ckc_timer, kvm_s390_idle_wakeup,
+		 (unsigned long) vcpu);
 	return 0;
 }
 
@@ -242,6 +269,14 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	kvm->arch.sca->cpu[id].sda = (__u64) vcpu->arch.sie_block;
 	vcpu->arch.sie_block->scaoh = (__u32)(((__u64)kvm->arch.sca) >> 32);
 	vcpu->arch.sie_block->scaol = (__u32)(__u64)kvm->arch.sca;
+
+	spin_lock_init(&vcpu->arch.local_int.lock);
+	INIT_LIST_HEAD(&vcpu->arch.local_int.list);
+	vcpu->arch.local_int.float_int = &kvm->arch.float_int;
+	spin_lock_bh(&kvm->arch.float_int.lock);
+	kvm->arch.float_int.local_int[id] = &vcpu->arch.local_int;
+	init_waitqueue_head(&vcpu->arch.local_int.wq);
+	spin_unlock_bh(&kvm->arch.float_int.lock);
 
 	rc = kvm_vcpu_init(vcpu, kvm, id);
 	if (rc)
@@ -395,6 +430,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	atomic_set_mask(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
 
+	BUG_ON(vcpu->kvm->arch.float_int.local_int[vcpu->vcpu_id] == NULL);
+
 	switch (kvm_run->exit_reason) {
 	case KVM_EXIT_S390_SIEIC:
 		vcpu->arch.sie_block->gpsw.mask = kvm_run->s390_sieic.mask;
@@ -410,8 +447,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	might_sleep();
 
 	do {
+		kvm_s390_deliver_pending_interrupts(vcpu);
 		__vcpu_run(vcpu);
-
 		rc = kvm_handle_sie_intercept(vcpu);
 	} while (!signal_pending(current) && !rc);
 
@@ -538,6 +575,13 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	void __user *argp = (void __user *)arg;
 
 	switch (ioctl) {
+	case KVM_S390_INTERRUPT: {
+		struct kvm_s390_interrupt s390int;
+
+		if (copy_from_user(&s390int, argp, sizeof(s390int)))
+			return -EFAULT;
+		return kvm_s390_inject_vcpu(vcpu, &s390int);
+	}
 	case KVM_S390_STORE_STATUS:
 		return kvm_s390_vcpu_store_status(vcpu, arg);
 	case KVM_S390_SET_INITIAL_PSW: {

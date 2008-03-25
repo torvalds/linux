@@ -14,6 +14,7 @@
 #ifndef ARCH_S390_KVM_S390_H
 #define ARCH_S390_KVM_S390_H
 
+#include <linux/kvm.h>
 #include <linux/kvm_host.h>
 
 typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
@@ -33,4 +34,18 @@ do { \
 	  d_vcpu->arch.sie_block->gpsw.mask, d_vcpu->arch.sie_block->gpsw.addr,\
 	  d_args); \
 } while (0)
+
+static inline int __cpu_is_stopped(struct kvm_vcpu *vcpu)
+{
+	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_STOP_INT;
+}
+
+int kvm_s390_handle_wait(struct kvm_vcpu *vcpu);
+void kvm_s390_idle_wakeup(unsigned long data);
+void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu);
+int kvm_s390_inject_vm(struct kvm *kvm,
+		struct kvm_s390_interrupt *s390int);
+int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
+		struct kvm_s390_interrupt *s390int);
+int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code);
 #endif
