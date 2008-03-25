@@ -12,8 +12,6 @@ static inline int dma_mapping_error(dma_addr_t dma_addr)
 	return (dma_addr == bad_dma_address);
 }
 
-extern int dma_supported(struct device *hwdev, u64 mask);
-
 /* same for gart, swiotlb, and nommu */
 static inline int dma_get_cache_alignment(void)
 {
@@ -21,8 +19,6 @@ static inline int dma_get_cache_alignment(void)
 }
 
 #define dma_is_consistent(d, h) 1
-
-extern int dma_set_mask(struct device *dev, u64 mask);
 
 extern struct device fallback_dev;
 extern int panic_on_overflow;

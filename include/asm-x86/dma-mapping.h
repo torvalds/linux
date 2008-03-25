@@ -62,6 +62,9 @@ void dma_free_coherent(struct device *dev, size_t size,
 			 void *vaddr, dma_addr_t dma_handle);
 
 
+extern int dma_supported(struct device *hwdev, u64 mask);
+extern int dma_set_mask(struct device *dev, u64 mask);
+
 #ifdef CONFIG_X86_32
 # include "dma-mapping_32.h"
 #else
