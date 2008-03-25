@@ -96,14 +96,6 @@ dma_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
 	flush_write_buffers();
 }
 
-static inline void
-dma_unmap_sg(struct device *hwdev, struct scatterlist *sg, int nents,
-	     int direction)
-{
-	BUG_ON(!valid_dma_direction(direction));
-	dma_ops->unmap_sg(hwdev, sg, nents, direction);
-}
-
 extern int dma_supported(struct device *hwdev, u64 mask);
 
 /* same for gart, swiotlb, and nommu */

@@ -82,4 +82,13 @@ dma_map_sg(struct device *hwdev, struct scatterlist *sg,
 	BUG_ON(!valid_dma_direction(direction));
 	return dma_ops->map_sg(hwdev, sg, nents, direction);
 }
+
+static inline void
+dma_unmap_sg(struct device *hwdev, struct scatterlist *sg, int nents,
+	     int direction)
+{
+	BUG_ON(!valid_dma_direction(direction));
+	if (dma_ops->unmap_sg)
+		dma_ops->unmap_sg(hwdev, sg, nents, direction);
+}
 #endif
