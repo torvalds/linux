@@ -322,11 +322,6 @@ static struct scsi_host_template pata_icside_sht = {
 	.bios_param		= ata_std_bios_param,
 };
 
-/* wish this was exported from libata-core */
-static void ata_dummy_noret(struct ata_port *port)
-{
-}
-
 static void pata_icside_postreset(struct ata_link *link, unsigned int *classes)
 {
 	struct ata_port *ap = link->ap;
@@ -380,7 +375,7 @@ static struct ata_port_operations pata_icside_port_ops = {
 	.error_handler		= pata_icside_error_handler,
 	.post_internal_cmd	= pata_icside_bmdma_stop,
 
-	.irq_clear		= ata_dummy_noret,
+	.irq_clear		= ata_noop_irq_clear,
 	.irq_on			= ata_irq_on,
 
 	.bmdma_stop		= pata_icside_bmdma_stop,

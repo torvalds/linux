@@ -138,7 +138,6 @@ static unsigned int adma_qc_issue(struct ata_queued_cmd *qc);
 static int adma_check_atapi_dma(struct ata_queued_cmd *qc);
 static void adma_bmdma_stop(struct ata_queued_cmd *qc);
 static u8 adma_bmdma_status(struct ata_port *ap);
-static void adma_irq_clear(struct ata_port *ap);
 static void adma_freeze(struct ata_port *ap);
 static void adma_thaw(struct ata_port *ap);
 static void adma_error_handler(struct ata_port *ap);
@@ -174,7 +173,7 @@ static const struct ata_port_operations adma_ata_ops = {
 	.freeze			= adma_freeze,
 	.thaw			= adma_thaw,
 	.error_handler		= adma_error_handler,
-	.irq_clear		= adma_irq_clear,
+	.irq_clear		= ata_noop_irq_clear,
 	.irq_on			= ata_irq_on,
 	.port_start		= adma_port_start,
 	.port_stop		= adma_port_stop,
@@ -221,11 +220,6 @@ static void adma_bmdma_stop(struct ata_queued_cmd *qc)
 static u8 adma_bmdma_status(struct ata_port *ap)
 {
 	return 0;
-}
-
-static void adma_irq_clear(struct ata_port *ap)
-{
-	/* nothing */
 }
 
 static void adma_reset_engine(struct ata_port *ap)

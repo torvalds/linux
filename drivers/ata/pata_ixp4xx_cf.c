@@ -126,7 +126,7 @@ static struct ata_port_operations ixp4xx_port_ops = {
 	.cable_detect		= ata_cable_40wire,
 
 	.irq_handler		= ata_interrupt,
-	.irq_clear		= ata_bmdma_irq_clear,
+	.irq_clear		= ata_noop_irq_clear,
 	.irq_on			= ata_irq_on,
 
 	.port_start		= ata_port_start,

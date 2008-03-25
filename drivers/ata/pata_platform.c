@@ -86,7 +86,7 @@ static struct ata_port_operations pata_platform_port_ops = {
 
 	.data_xfer		= ata_data_xfer_noirq,
 
-	.irq_clear		= ata_bmdma_irq_clear,
+	.irq_clear		= ata_noop_irq_clear,
 	.irq_on			= ata_irq_on,
 
 	.port_start		= ata_dummy_ret0,

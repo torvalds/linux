@@ -933,11 +933,6 @@ static void sata_fsl_post_internal_cmd(struct ata_queued_cmd *qc)
 	}
 }
 
-static void sata_fsl_irq_clear(struct ata_port *ap)
-{
-	/* unused */
-}
-
 static void sata_fsl_error_intr(struct ata_port *ap)
 {
 	struct ata_link *link = &ap->link;
@@ -1223,7 +1218,7 @@ static const struct ata_port_operations sata_fsl_ops = {
 
 	.qc_prep = sata_fsl_qc_prep,
 	.qc_issue = sata_fsl_qc_issue,
-	.irq_clear = sata_fsl_irq_clear,
+	.irq_clear = ata_noop_irq_clear,
 
 	.scr_read = sata_fsl_scr_read,
 	.scr_write = sata_fsl_scr_write,

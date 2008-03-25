@@ -461,7 +461,6 @@ struct mv_hw_ops {
 	void (*reset_bus)(struct ata_host *host, void __iomem *mmio);
 };
 
-static void mv_irq_clear(struct ata_port *ap);
 static int mv_scr_read(struct ata_port *ap, unsigned int sc_reg_in, u32 *val);
 static int mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val);
 static int mv5_scr_read(struct ata_port *ap, unsigned int sc_reg_in, u32 *val);
@@ -564,7 +563,7 @@ static const struct ata_port_operations mv5_ops = {
 	.qc_issue		= mv_qc_issue,
 	.data_xfer		= ata_data_xfer,
 
-	.irq_clear		= mv_irq_clear,
+	.irq_clear		= ata_noop_irq_clear,
 	.irq_on			= ata_irq_on,
 
 	.error_handler		= mv_error_handler,
@@ -592,7 +591,7 @@ static const struct ata_port_operations mv6_ops = {
 	.qc_issue		= mv_qc_issue,
 	.data_xfer		= ata_data_xfer,
 
-	.irq_clear		= mv_irq_clear,
+	.irq_clear		= ata_noop_irq_clear,
 	.irq_on			= ata_irq_on,
 
 	.error_handler		= mv_error_handler,
@@ -620,7 +619,7 @@ static const struct ata_port_operations mv_iie_ops = {
 	.qc_issue		= mv_qc_issue,
 	.data_xfer		= ata_data_xfer,
 
-	.irq_clear		= mv_irq_clear,
+	.irq_clear		= ata_noop_irq_clear,
 	.irq_on			= ata_irq_on,
 
 	.error_handler		= mv_error_handler,
@@ -799,10 +798,6 @@ static inline void __iomem *mv_ap_base(struct ata_port *ap)
 static inline int mv_get_hc_count(unsigned long port_flags)
 {
 	return ((port_flags & MV_FLAG_DUAL_HC) ? 2 : 1);
-}
-
-static void mv_irq_clear(struct ata_port *ap)
-{
 }
 
 static void mv_set_edma_ptrs(void __iomem *port_mmio,

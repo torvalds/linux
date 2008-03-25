@@ -348,7 +348,6 @@ static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 static int sil24_qc_defer(struct ata_queued_cmd *qc);
 static void sil24_qc_prep(struct ata_queued_cmd *qc);
 static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc);
-static void sil24_irq_clear(struct ata_port *ap);
 static void sil24_pmp_attach(struct ata_port *ap);
 static void sil24_pmp_detach(struct ata_port *ap);
 static void sil24_freeze(struct ata_port *ap);
@@ -416,7 +415,7 @@ static const struct ata_port_operations sil24_ops = {
 	.qc_prep		= sil24_qc_prep,
 	.qc_issue		= sil24_qc_issue,
 
-	.irq_clear		= sil24_irq_clear,
+	.irq_clear		= ata_noop_irq_clear,
 
 	.scr_read		= sil24_scr_read,
 	.scr_write		= sil24_scr_write,
@@ -919,11 +918,6 @@ static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc)
 	writel((u64)paddr >> 32, activate + 4);
 
 	return 0;
-}
-
-static void sil24_irq_clear(struct ata_port *ap)
-{
-	/* unused */
 }
 
 static void sil24_pmp_attach(struct ata_port *ap)

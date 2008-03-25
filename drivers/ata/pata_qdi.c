@@ -191,7 +191,7 @@ static struct ata_port_operations qdi6500_port_ops = {
 
 	.data_xfer	= qdi_data_xfer,
 
-	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_clear	= ata_noop_irq_clear,
 	.irq_on		= ata_irq_on,
 
 	.port_start	= ata_sff_port_start,
@@ -217,7 +217,7 @@ static struct ata_port_operations qdi6580_port_ops = {
 
 	.data_xfer	= qdi_data_xfer,
 
-	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_clear	= ata_noop_irq_clear,
 	.irq_on		= ata_irq_on,
 
 	.port_start	= ata_sff_port_start,

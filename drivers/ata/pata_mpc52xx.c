@@ -296,7 +296,7 @@ static struct ata_port_operations mpc52xx_ata_port_ops = {
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
 	.data_xfer		= ata_data_xfer,
-	.irq_clear		= ata_bmdma_irq_clear,
+	.irq_clear		= ata_noop_irq_clear,
 	.irq_on			= ata_irq_on,
 	.port_start		= ata_port_start,
 };

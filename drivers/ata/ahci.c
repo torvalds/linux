@@ -244,7 +244,6 @@ static int ahci_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
 static int ahci_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
 static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static unsigned int ahci_qc_issue(struct ata_queued_cmd *qc);
-static void ahci_irq_clear(struct ata_port *ap);
 static int ahci_port_start(struct ata_port *ap);
 static void ahci_port_stop(struct ata_port *ap);
 static void ahci_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
@@ -307,7 +306,7 @@ static const struct ata_port_operations ahci_ops = {
 	.qc_prep		= ahci_qc_prep,
 	.qc_issue		= ahci_qc_issue,
 
-	.irq_clear		= ahci_irq_clear,
+	.irq_clear		= ata_noop_irq_clear,
 
 	.scr_read		= ahci_scr_read,
 	.scr_write		= ahci_scr_write,
@@ -343,7 +342,7 @@ static const struct ata_port_operations ahci_vt8251_ops = {
 	.qc_prep		= ahci_qc_prep,
 	.qc_issue		= ahci_qc_issue,
 
-	.irq_clear		= ahci_irq_clear,
+	.irq_clear		= ata_noop_irq_clear,
 
 	.scr_read		= ahci_scr_read,
 	.scr_write		= ahci_scr_write,
@@ -377,7 +376,7 @@ static const struct ata_port_operations ahci_p5wdh_ops = {
 	.qc_prep		= ahci_qc_prep,
 	.qc_issue		= ahci_qc_issue,
 
-	.irq_clear		= ahci_irq_clear,
+	.irq_clear		= ata_noop_irq_clear,
 
 	.scr_read		= ahci_scr_read,
 	.scr_write		= ahci_scr_write,
@@ -1767,11 +1766,6 @@ static void ahci_port_intr(struct ata_port *ap)
 		ehi->action |= ATA_EH_RESET;
 		ata_port_freeze(ap);
 	}
-}
-
-static void ahci_irq_clear(struct ata_port *ap)
-{
-	/* TODO */
 }
 
 static irqreturn_t ahci_interrupt(int irq, void *dev_instance)

@@ -303,6 +303,14 @@ void ata_bmdma_irq_clear(struct ata_port *ap)
 }
 
 /**
+ *	ata_noop_irq_clear - Noop placeholder for irq_clear
+ *	@ap: Port associated with this ATA transaction.
+ */
+void ata_noop_irq_clear(struct ata_port *ap)
+{
+}
+
+/**
  *	ata_bmdma_status - Read PCI IDE BMDMA status
  *	@ap: Port associated with this ATA transaction.
  *

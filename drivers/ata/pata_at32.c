@@ -166,11 +166,6 @@ static void pata_at32_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	}
 }
 
-static void pata_at32_irq_clear(struct ata_port *ap)
-{
-	/* No DMA controller yet */
-}
-
 static struct scsi_host_template at32_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
@@ -208,7 +203,7 @@ static struct ata_port_operations at32_port_ops = {
 
 	.data_xfer		= ata_data_xfer,
 
-	.irq_clear		= pata_at32_irq_clear,
+	.irq_clear		= ata_noop_irq_clear,
 	.irq_on			= ata_irq_on,
 
 	.port_start		= ata_sff_port_start,

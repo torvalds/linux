@@ -252,7 +252,7 @@ static struct ata_port_operations simple_port_ops = {
 	.data_xfer	= ata_data_xfer_noirq,
 
 	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_clear	= ata_noop_irq_clear,
 	.irq_on		= ata_irq_on,
 
 	.port_start	= ata_sff_port_start,
@@ -279,7 +279,7 @@ static struct ata_port_operations legacy_port_ops = {
 	.data_xfer	= ata_data_xfer_noirq,
 
 	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_clear	= ata_noop_irq_clear,
 	.irq_on		= ata_irq_on,
 
 	.port_start	= ata_sff_port_start,
@@ -393,7 +393,7 @@ static struct ata_port_operations pdc20230_port_ops = {
 	.data_xfer	= pdc_data_xfer_vlb,
 
 	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_clear	= ata_noop_irq_clear,
 	.irq_on		= ata_irq_on,
 
 	.port_start	= ata_sff_port_start,
@@ -447,7 +447,7 @@ static struct ata_port_operations ht6560a_port_ops = {
 	.data_xfer	= ata_data_xfer,	/* Check vlb/noirq */
 
 	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_clear	= ata_noop_irq_clear,
 	.irq_on		= ata_irq_on,
 
 	.port_start	= ata_sff_port_start,
@@ -512,7 +512,7 @@ static struct ata_port_operations ht6560b_port_ops = {
 	.data_xfer	= ata_data_xfer,    /* FIXME: Check 32bit and noirq */
 
 	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_clear	= ata_noop_irq_clear,
 	.irq_on		= ata_irq_on,
 
 	.port_start	= ata_sff_port_start,
@@ -633,7 +633,7 @@ static struct ata_port_operations opti82c611a_port_ops = {
 	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_clear	= ata_noop_irq_clear,
 	.irq_on		= ata_irq_on,
 
 	.port_start	= ata_sff_port_start,
@@ -765,7 +765,7 @@ static struct ata_port_operations opti82c46x_port_ops = {
 	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_clear	= ata_noop_irq_clear,
 	.irq_on		= ata_irq_on,
 
 	.port_start	= ata_sff_port_start,
@@ -950,7 +950,7 @@ static struct ata_port_operations qdi6500_port_ops = {
 	.data_xfer	= vlb32_data_xfer,
 
 	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_clear	= ata_noop_irq_clear,
 	.irq_on		= ata_irq_on,
 
 	.port_start	= ata_sff_port_start,
@@ -977,7 +977,7 @@ static struct ata_port_operations qdi6580_port_ops = {
 	.data_xfer	= vlb32_data_xfer,
 
 	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_clear	= ata_noop_irq_clear,
 	.irq_on		= ata_irq_on,
 
 	.port_start	= ata_sff_port_start,
@@ -1004,7 +1004,7 @@ static struct ata_port_operations qdi6580dp_port_ops = {
 	.data_xfer	= vlb32_data_xfer,
 
 	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_clear	= ata_noop_irq_clear,
 	.irq_on		= ata_irq_on,
 
 	.port_start	= ata_sff_port_start,
@@ -1095,7 +1095,7 @@ static struct ata_port_operations winbond_port_ops = {
 
 	.data_xfer	= vlb32_data_xfer,
 
-	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_clear	= ata_noop_irq_clear,
 	.irq_on		= ata_irq_on,
 
 	.port_start	= ata_sff_port_start,

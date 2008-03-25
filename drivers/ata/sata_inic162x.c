@@ -266,11 +266,6 @@ static u8 inic_bmdma_status(struct ata_port *ap)
 	return ATA_DMA_INTR;
 }
 
-static void inic_irq_clear(struct ata_port *ap)
-{
-	/* noop */
-}
-
 static void inic_host_intr(struct ata_port *ap)
 {
 	void __iomem *port_base = inic_port_base(ap);
@@ -555,7 +550,7 @@ static struct ata_port_operations inic_port_ops = {
 	.bmdma_stop		= inic_bmdma_stop,
 	.bmdma_status		= inic_bmdma_status,
 
-	.irq_clear		= inic_irq_clear,
+	.irq_clear		= ata_noop_irq_clear,
 	.irq_on			= ata_irq_on,
 
 	.qc_prep	 	= ata_qc_prep,

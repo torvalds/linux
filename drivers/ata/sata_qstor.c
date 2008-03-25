@@ -121,7 +121,6 @@ static unsigned int qs_qc_issue(struct ata_queued_cmd *qc);
 static int qs_check_atapi_dma(struct ata_queued_cmd *qc);
 static void qs_bmdma_stop(struct ata_queued_cmd *qc);
 static u8 qs_bmdma_status(struct ata_port *ap);
-static void qs_irq_clear(struct ata_port *ap);
 static void qs_freeze(struct ata_port *ap);
 static void qs_thaw(struct ata_port *ap);
 static void qs_error_handler(struct ata_port *ap);
@@ -157,7 +156,7 @@ static const struct ata_port_operations qs_ata_ops = {
 	.freeze			= qs_freeze,
 	.thaw			= qs_thaw,
 	.error_handler		= qs_error_handler,
-	.irq_clear		= qs_irq_clear,
+	.irq_clear		= ata_noop_irq_clear,
 	.irq_on			= ata_irq_on,
 	.scr_read		= qs_scr_read,
 	.scr_write		= qs_scr_write,
@@ -209,11 +208,6 @@ static void qs_bmdma_stop(struct ata_queued_cmd *qc)
 static u8 qs_bmdma_status(struct ata_port *ap)
 {
 	return 0;
-}
-
-static void qs_irq_clear(struct ata_port *ap)
-{
-	/* nothing */
 }
 
 static inline void qs_enter_reg_mode(struct ata_port *ap)
