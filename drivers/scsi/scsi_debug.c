@@ -252,33 +252,37 @@ static struct bus_type pseudo_lld_bus;
 static void get_data_transfer_info(unsigned char *cmd,
 				   unsigned long long *lba, unsigned int *num)
 {
-	int i;
-
 	switch (*cmd) {
 	case WRITE_16:
 	case READ_16:
-		for (*lba = 0, i = 0; i < 8; ++i) {
-			if (i > 0)
-				*lba <<= 8;
-			*lba += cmd[2 + i];
-		}
-		*num = cmd[13] + (cmd[12] << 8) +
-			(cmd[11] << 16) + (cmd[10] << 24);
+		*lba = (u64)cmd[9] | (u64)cmd[8] << 8 |
+			(u64)cmd[7] << 16 | (u64)cmd[6] << 24 |
+			(u64)cmd[5] << 32 | (u64)cmd[4] << 40 |
+			(u64)cmd[3] << 48 | (u64)cmd[2] << 56;
+
+		*num = (u32)cmd[13] | (u32)cmd[12] << 8 | (u32)cmd[11] << 16 |
+			(u32)cmd[10] << 24;
 		break;
 	case WRITE_12:
 	case READ_12:
-		*lba = cmd[5] + (cmd[4] << 8) +	(cmd[3] << 16) + (cmd[2] << 24);
-		*num = cmd[9] + (cmd[8] << 8) +	(cmd[7] << 16) + (cmd[6] << 24);
+		*lba = (u32)cmd[5] | (u32)cmd[4] << 8 | (u32)cmd[3] << 16 |
+			(u32)cmd[2] << 24;
+
+		*num = (u32)cmd[9] | (u32)cmd[8] << 8 | (u32)cmd[7] << 16 |
+			(u32)cmd[6] << 24;
 		break;
 	case WRITE_10:
 	case READ_10:
 	case XDWRITEREAD_10:
-		*lba = cmd[5] + (cmd[4] << 8) +	(cmd[3] << 16) + (cmd[2] << 24);
-		*num = cmd[8] + (cmd[7] << 8);
+		*lba = (u32)cmd[5] | (u32)cmd[4] << 8 |	(u32)cmd[3] << 16 |
+			(u32)cmd[2] << 24;
+
+		*num = (u32)cmd[8] | (u32)cmd[7] << 8;
 		break;
 	case WRITE_6:
 	case READ_6:
-		*lba = cmd[3] + (cmd[2] << 8) + ((cmd[1] & 0x1f) << 16);
+		*lba = (u32)cmd[3] | (u32)cmd[2] << 8 |
+			(u32)(cmd[1] & 0x1f) << 16;
 		*num = (0 == cmd[4]) ? 256 : cmd[4];
 		break;
 	default:
