@@ -273,6 +273,13 @@ static inline int __cpumask_scnprintf(char *buf, int len,
 	return bitmap_scnprintf(buf, len, srcp->bits, nbits);
 }
 
+#define cpumask_scnprintf_len(len) \
+			__cpumask_scnprintf_len((len))
+static inline int __cpumask_scnprintf_len(int len)
+{
+	return bitmap_scnprintf_len(len);
+}
+
 #define cpumask_parse_user(ubuf, ulen, dst) \
 			__cpumask_parse_user((ubuf), (ulen), &(dst), NR_CPUS)
 static inline int __cpumask_parse_user(const char __user *buf, int len,
