@@ -91,4 +91,16 @@ dma_unmap_sg(struct device *hwdev, struct scatterlist *sg, int nents,
 	if (dma_ops->unmap_sg)
 		dma_ops->unmap_sg(hwdev, sg, nents, direction);
 }
+
+static inline void
+dma_sync_single_for_cpu(struct device *hwdev, dma_addr_t dma_handle,
+			size_t size, int direction)
+{
+	BUG_ON(!valid_dma_direction(direction));
+	if (dma_ops->sync_single_for_cpu)
+		dma_ops->sync_single_for_cpu(hwdev, dma_handle, size,
+					     direction);
+	flush_write_buffers();
+}
+
 #endif
