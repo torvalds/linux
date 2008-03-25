@@ -323,6 +323,10 @@ static int spu_process_callback(struct spu_context *ctx)
 			return -EINTR;
 	}
 
+	/* need to re-get the ls, as it may have changed when we released the
+	 * spu */
+	ls = (void __iomem *)ctx->ops->get_ls(ctx);
+
 	/* write result, jump over indirect pointer */
 	memcpy_toio(ls + ls_pointer, &spu_ret, sizeof(spu_ret));
 	ctx->ops->npc_write(ctx, npc);
