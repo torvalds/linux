@@ -23,12 +23,17 @@
 #include <asm/lowcore.h>
 #include <asm/pgtable.h>
 
+#include "kvm-s390.h"
 #include "gaccess.h"
 
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "userspace_handled", VCPU_STAT(exit_userspace) },
+	{ "exit_validity", VCPU_STAT(exit_validity) },
+	{ "exit_stop_request", VCPU_STAT(exit_stop_request) },
+	{ "exit_external_request", VCPU_STAT(exit_external_request) },
+	{ "exit_external_interrupt", VCPU_STAT(exit_external_interrupt) },
 	{ NULL }
 };
 
@@ -380,6 +385,7 @@ static void __vcpu_run(struct kvm_vcpu *vcpu)
 
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
+	int rc;
 	sigset_t sigsaved;
 
 	vcpu_load(vcpu);
@@ -389,7 +395,45 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	atomic_set_mask(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
 
-	__vcpu_run(vcpu);
+	switch (kvm_run->exit_reason) {
+	case KVM_EXIT_S390_SIEIC:
+		vcpu->arch.sie_block->gpsw.mask = kvm_run->s390_sieic.mask;
+		vcpu->arch.sie_block->gpsw.addr = kvm_run->s390_sieic.addr;
+		break;
+	case KVM_EXIT_UNKNOWN:
+	case KVM_EXIT_S390_RESET:
+		break;
+	default:
+		BUG();
+	}
+
+	might_sleep();
+
+	do {
+		__vcpu_run(vcpu);
+
+		rc = kvm_handle_sie_intercept(vcpu);
+	} while (!signal_pending(current) && !rc);
+
+	if (signal_pending(current) && !rc)
+		rc = -EINTR;
+
+	if (rc == -ENOTSUPP) {
+		/* intercept cannot be handled in-kernel, prepare kvm-run */
+		kvm_run->exit_reason         = KVM_EXIT_S390_SIEIC;
+		kvm_run->s390_sieic.icptcode = vcpu->arch.sie_block->icptcode;
+		kvm_run->s390_sieic.mask     = vcpu->arch.sie_block->gpsw.mask;
+		kvm_run->s390_sieic.addr     = vcpu->arch.sie_block->gpsw.addr;
+		kvm_run->s390_sieic.ipa      = vcpu->arch.sie_block->ipa;
+		kvm_run->s390_sieic.ipb      = vcpu->arch.sie_block->ipb;
+		rc = 0;
+	}
+
+	if (rc == -EREMOTE) {
+		/* intercept was handled, but userspace support is needed
+		 * kvm_run has been prepared by the handler */
+		rc = 0;
+	}
 
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);

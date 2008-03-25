@@ -13,6 +13,13 @@
 
 #ifndef ARCH_S390_KVM_S390_H
 #define ARCH_S390_KVM_S390_H
+
+#include <linux/kvm_host.h>
+
+typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
+
+int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu);
+
 #define VM_EVENT(d_kvm, d_loglevel, d_string, d_args...)\
 do { \
 	debug_sprintf_event(d_kvm->arch.dbf, d_loglevel, d_string "\n", \
