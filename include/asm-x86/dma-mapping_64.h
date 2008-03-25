@@ -23,14 +23,6 @@ extern void *dma_alloc_coherent(struct device *dev, size_t size,
 extern void dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 			      dma_addr_t dma_handle);
 
-static inline void
-dma_unmap_single(struct device *dev, dma_addr_t addr,size_t size,
-		 int direction)
-{
-	BUG_ON(!valid_dma_direction(direction));
-	dma_ops->unmap_single(dev, addr, size, direction);
-}
-
 #define dma_map_page(dev,page,offset,size,dir) \
 	dma_map_single((dev), page_address(page)+(offset), (size), (dir))
 

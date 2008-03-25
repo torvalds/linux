@@ -14,6 +14,7 @@ static dma_addr_t pci32_map_single(struct device *dev, void *ptr,
 
 static const struct dma_mapping_ops pci32_dma_ops = {
 	.map_single = pci32_map_single,
+	.unmap_single = NULL,
 };
 
 const struct dma_mapping_ops *dma_ops = &pci32_dma_ops;

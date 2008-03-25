@@ -66,4 +66,14 @@ dma_map_single(struct device *hwdev, void *ptr, size_t size,
 	return dma_ops->map_single(hwdev, ptr, size, direction);
 }
 
+static inline void
+dma_unmap_single(struct device *dev, dma_addr_t addr, size_t size,
+		 int direction)
+{
+	BUG_ON(!valid_dma_direction(direction));
+	if (dma_ops->unmap_single)
+		dma_ops->unmap_single(dev, addr, size, direction);
+}
+
+
 #endif
