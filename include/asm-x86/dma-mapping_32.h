@@ -32,13 +32,6 @@ dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
 	BUG_ON(!valid_dma_direction(direction));
 }
 
-static inline void
-dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
-		    enum dma_data_direction direction)
-{
-	flush_write_buffers();
-}
-
 static inline int
 dma_mapping_error(dma_addr_t dma_addr)
 {
