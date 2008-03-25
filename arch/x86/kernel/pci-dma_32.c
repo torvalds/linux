@@ -14,6 +14,10 @@
 #include <linux/module.h>
 #include <asm/io.h>
 
+/* For i386, we make it point to the NULL address */
+dma_addr_t bad_dma_address __read_mostly = 0x0;
+EXPORT_SYMBOL(bad_dma_address);
+
 struct dma_coherent_mem {
 	void		*virt_base;
 	u32		device_base;

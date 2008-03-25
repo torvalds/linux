@@ -1,7 +1,6 @@
 #ifndef _X8664_DMA_MAPPING_H
 #define _X8664_DMA_MAPPING_H 1
 
-extern dma_addr_t bad_dma_address;
 extern int iommu_merge;
 
 static inline int dma_mapping_error(dma_addr_t dma_addr)

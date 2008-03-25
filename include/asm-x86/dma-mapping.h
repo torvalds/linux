@@ -10,6 +10,8 @@
 #include <asm/io.h>
 #include <asm/swiotlb.h>
 
+extern dma_addr_t bad_dma_address;
+
 struct dma_mapping_ops {
 	int             (*mapping_error)(dma_addr_t dma_addr);
 	void*           (*alloc_coherent)(struct device *dev, size_t size,
