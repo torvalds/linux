@@ -1378,6 +1378,8 @@ extern void ata_bmdma_error_handler(struct ata_port *ap);
 extern void ata_bmdma_post_internal_cmd(struct ata_queued_cmd *qc);
 extern int ata_sff_port_start(struct ata_port *ap);
 extern void ata_std_ports(struct ata_ioports *ioaddr);
+extern unsigned long ata_pci_default_filter(struct ata_device *dev,
+					    unsigned long xfer_mask);
 extern void ata_bmdma_setup(struct ata_queued_cmd *qc);
 extern void ata_bmdma_start(struct ata_queued_cmd *qc);
 extern void ata_bmdma_stop(struct ata_queued_cmd *qc);
@@ -1386,8 +1388,6 @@ extern void ata_bus_reset(struct ata_port *ap);
 
 #ifdef CONFIG_PCI
 extern int ata_pci_clear_simplex(struct pci_dev *pdev);
-extern unsigned long ata_pci_default_filter(struct ata_device *dev,
-					    unsigned long xfer_mask);
 extern int ata_pci_init_bmdma(struct ata_host *host);
 extern int ata_pci_init_sff_host(struct ata_host *host);
 extern int ata_pci_prepare_sff_host(struct pci_dev *pdev,
