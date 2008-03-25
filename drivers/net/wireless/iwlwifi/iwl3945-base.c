@@ -2058,6 +2058,8 @@ int iwl3945_is_network_packet(struct iwl3945_priv *priv, struct ieee80211_hdr *h
 			return !compare_ether_addr(header->addr2, priv->bssid);
 		/* packets to our adapter go through */
 		return !compare_ether_addr(header->addr1, priv->mac_addr);
+	default:
+		return 1;
 	}
 
 	return 1;
@@ -2301,6 +2303,9 @@ static void iwl3945_connection_init_rx_config(struct iwl3945_priv *priv)
 		priv->staging_rxon.dev_type = RXON_DEV_TYPE_SNIFFER;
 		priv->staging_rxon.filter_flags = RXON_FILTER_PROMISC_MSK |
 		    RXON_FILTER_CTL2HOST_MSK | RXON_FILTER_ACCEPT_GRP_MSK;
+		break;
+	default:
+		IWL_ERROR("Unsupported interface type %d\n", priv->iw_mode);
 		break;
 	}
 

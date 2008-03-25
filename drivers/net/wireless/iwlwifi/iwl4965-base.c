@@ -1793,6 +1793,8 @@ int iwl4965_is_network_packet(struct iwl_priv *priv, struct ieee80211_hdr *heade
 			return !compare_ether_addr(header->addr2, priv->bssid);
 		/* packets to our adapter go through */
 		return !compare_ether_addr(header->addr1, priv->mac_addr);
+	default:
+		break;
 	}
 
 	return 1;
@@ -2053,6 +2055,9 @@ static void iwl4965_connection_init_rx_config(struct iwl_priv *priv)
 		priv->staging_rxon.dev_type = RXON_DEV_TYPE_SNIFFER;
 		priv->staging_rxon.filter_flags = RXON_FILTER_PROMISC_MSK |
 		    RXON_FILTER_CTL2HOST_MSK | RXON_FILTER_ACCEPT_GRP_MSK;
+		break;
+	default:
+		IWL_ERROR("Unsupported interface type %d\n", priv->iw_mode);
 		break;
 	}
 

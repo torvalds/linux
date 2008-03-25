@@ -1129,7 +1129,7 @@ struct iwl_priv {
 	struct iwl4965_station_entry stations[IWL_STATION_COUNT];
 
 	/* Indication if ieee80211_ops->open has been called */
-	int is_open;
+	u8 is_open;
 
 	u8 mac80211_registered;
 
@@ -1150,7 +1150,7 @@ struct iwl_priv {
 	/* eeprom */
 	struct iwl4965_eeprom eeprom;
 
-	int iw_mode;
+	enum ieee80211_if_types iw_mode;
 
 	struct sk_buff *ibss_beacon;
 
