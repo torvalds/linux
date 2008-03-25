@@ -131,7 +131,6 @@ struct adma_port_priv {
 static int adma_ata_init_one(struct pci_dev *pdev,
 				const struct pci_device_id *ent);
 static int adma_port_start(struct ata_port *ap);
-static void adma_host_stop(struct ata_host *host);
 static void adma_port_stop(struct ata_port *ap);
 static void adma_qc_prep(struct ata_queued_cmd *qc);
 static unsigned int adma_qc_issue(struct ata_queued_cmd *qc);
@@ -159,7 +158,6 @@ static struct ata_port_operations adma_ata_ops = {
 
 	.port_start		= adma_port_start,
 	.port_stop		= adma_port_stop,
-	.host_stop		= adma_host_stop,
 };
 
 static struct ata_port_info adma_port_info[] = {
@@ -589,14 +587,6 @@ static int adma_port_start(struct ata_port *ap)
 static void adma_port_stop(struct ata_port *ap)
 {
 	adma_reset_engine(ap);
-}
-
-static void adma_host_stop(struct ata_host *host)
-{
-	unsigned int port_no;
-
-	for (port_no = 0; port_no < ADMA_PORTS; ++port_no)
-		adma_reset_engine(host->ports[port_no]);
 }
 
 static void adma_host_init(struct ata_host *host, unsigned int chip_id)
