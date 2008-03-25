@@ -46,6 +46,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsicam.h>
+#include <scsi/scsi_eh.h>
 
 #include <linux/stat.h>
 
@@ -1808,22 +1809,13 @@ static struct sdebug_dev_info * devInfoReg(struct scsi_device * sdev)
 static void mk_sense_buffer(struct sdebug_dev_info * devip, int key,
 			    int asc, int asq)
 {
-	unsigned char * sbuff;
+	unsigned char *sbuff;
 
 	sbuff = devip->sense_buff;
 	memset(sbuff, 0, SDEBUG_SENSE_LEN);
-	if (scsi_debug_dsense) {
-		sbuff[0] = 0x72;  /* descriptor, current */
-		sbuff[1] = key;
-		sbuff[2] = asc;
-		sbuff[3] = asq;
-	} else {
-		sbuff[0] = 0x70;  /* fixed, current */
-		sbuff[2] = key;
-		sbuff[7] = 0xa;	  /* implies 18 byte sense buffer */
-		sbuff[12] = asc;
-		sbuff[13] = asq;
-	}
+
+	scsi_build_sense_buffer(scsi_debug_dsense, sbuff, key, asc, asq);
+
 	if (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts)
 		printk(KERN_INFO "scsi_debug:    [sense_key,asc,ascq]: "
 		      "[0x%x,0x%x,0x%x]\n", key, asc, asq);
