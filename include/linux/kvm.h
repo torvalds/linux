@@ -205,6 +205,11 @@ struct kvm_vapic_addr {
 	__u64 vapic_addr;
 };
 
+struct kvm_s390_psw {
+	__u64 mask;
+	__u64 addr;
+};
+
 #define KVMIO 0xAE
 
 /*
@@ -213,6 +218,8 @@ struct kvm_vapic_addr {
 #define KVM_GET_API_VERSION       _IO(KVMIO,   0x00)
 #define KVM_CREATE_VM             _IO(KVMIO,   0x01) /* returns a VM fd */
 #define KVM_GET_MSR_INDEX_LIST    _IOWR(KVMIO, 0x02, struct kvm_msr_list)
+
+#define KVM_S390_ENABLE_SIE       _IO(KVMIO,   0x06)
 /*
  * Check if a kvm extension is available.  Argument is extension number,
  * return is 1 (yes) or 0 (no, sorry).
@@ -291,5 +298,13 @@ struct kvm_vapic_addr {
 #define KVM_TPR_ACCESS_REPORTING  _IOWR(KVMIO,  0x92, struct kvm_tpr_access_ctl)
 /* Available with KVM_CAP_VAPIC */
 #define KVM_SET_VAPIC_ADDR        _IOW(KVMIO,  0x93, struct kvm_vapic_addr)
+/* store status for s390 */
+#define KVM_S390_STORE_STATUS_NOADDR    (-1ul)
+#define KVM_S390_STORE_STATUS_PREFIXED  (-2ul)
+#define KVM_S390_STORE_STATUS	  _IOW(KVMIO,  0x95, unsigned long)
+/* initial ipl psw for s390 */
+#define KVM_S390_SET_INITIAL_PSW  _IOW(KVMIO,  0x96, struct kvm_s390_psw)
+/* initial reset for s390 */
+#define KVM_S390_INITIAL_RESET    _IO(KVMIO,  0x97)
 
 #endif
