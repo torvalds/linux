@@ -79,11 +79,6 @@ static struct ata_port_operations rz1000_port_ops = {
 	.exec_command	= ata_exec_command,
 	.dev_select 	= ata_std_dev_select,
 
-	.bmdma_setup 	= ata_bmdma_setup,
-	.bmdma_start 	= ata_bmdma_start,
-	.bmdma_stop	= ata_bmdma_stop,
-	.bmdma_status 	= ata_bmdma_status,
-
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
@@ -96,7 +91,7 @@ static struct ata_port_operations rz1000_port_ops = {
 	.cable_detect	= ata_cable_40wire,
 
 	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_clear	= ata_noop_irq_clear,
 	.irq_on		= ata_irq_on,
 
 	.port_start	= ata_sff_port_start,

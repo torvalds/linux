@@ -331,6 +331,7 @@ static const struct ata_port_operations vsc_sata_ops = {
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
 	.data_xfer		= ata_data_xfer,
+	.mode_filter		= ata_pci_default_filter,
 	.freeze			= vsc_freeze,
 	.thaw			= vsc_thaw,
 	.error_handler		= ata_bmdma_error_handler,
@@ -339,7 +340,7 @@ static const struct ata_port_operations vsc_sata_ops = {
 	.irq_on			= ata_irq_on,
 	.scr_read		= vsc_sata_scr_read,
 	.scr_write		= vsc_sata_scr_write,
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static void __devinit vsc_sata_setup_port(struct ata_ioports *port,

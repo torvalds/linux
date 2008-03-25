@@ -370,6 +370,7 @@ static struct scsi_host_template optidma_sht = {
 static struct ata_port_operations optidma_port_ops = {
 	.set_piomode	= optidma_set_pio_mode,
 	.set_dmamode	= optidma_set_dma_mode,
+	.mode_filter	= ata_pci_default_filter,
 
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
@@ -404,6 +405,7 @@ static struct ata_port_operations optidma_port_ops = {
 static struct ata_port_operations optiplus_port_ops = {
 	.set_piomode	= optiplus_set_pio_mode,
 	.set_dmamode	= optiplus_set_dma_mode,
+	.mode_filter	= ata_pci_default_filter,
 
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,

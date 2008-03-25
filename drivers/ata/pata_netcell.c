@@ -47,6 +47,7 @@ static const struct ata_port_operations netcell_ops = {
 	.exec_command		= ata_exec_command,
 	.dev_select		= ata_std_dev_select,
 
+	.mode_filter		= ata_pci_default_filter,
 	.freeze			= ata_bmdma_freeze,
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= ata_bmdma_error_handler,

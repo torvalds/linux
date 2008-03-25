@@ -148,6 +148,7 @@ static const struct ata_port_operations jmicron_ops = {
 	.exec_command		= ata_exec_command,
 	.dev_select		= ata_std_dev_select,
 
+	.mode_filter		= ata_pci_default_filter,
 	.freeze			= ata_bmdma_freeze,
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= jmicron_error_handler,
@@ -168,7 +169,7 @@ static const struct ata_port_operations jmicron_ops = {
 	.irq_on			= ata_irq_on,
 
 	/* Generic PATA PCI ATA helpers */
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 

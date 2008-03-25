@@ -336,6 +336,8 @@ static const struct ata_port_operations ahci_vt8251_ops = {
 	.check_altstatus	= ahci_check_status,
 	.dev_select		= ata_noop_dev_select,
 
+	.dev_config		= ahci_dev_config,
+
 	.tf_read		= ahci_tf_read,
 
 	.qc_defer		= sata_pmp_qc_defer_cmd_switch,
@@ -360,6 +362,8 @@ static const struct ata_port_operations ahci_vt8251_ops = {
 	.port_suspend		= ahci_port_suspend,
 	.port_resume		= ahci_port_resume,
 #endif
+	.enable_pm		= ahci_enable_alpm,
+	.disable_pm		= ahci_disable_alpm,
 
 	.port_start		= ahci_port_start,
 	.port_stop		= ahci_port_stop,
@@ -369,6 +373,8 @@ static const struct ata_port_operations ahci_p5wdh_ops = {
 	.check_status		= ahci_check_status,
 	.check_altstatus	= ahci_check_status,
 	.dev_select		= ata_noop_dev_select,
+
+	.dev_config		= ahci_dev_config,
 
 	.tf_read		= ahci_tf_read,
 
@@ -394,6 +400,8 @@ static const struct ata_port_operations ahci_p5wdh_ops = {
 	.port_suspend		= ahci_port_suspend,
 	.port_resume		= ahci_port_resume,
 #endif
+	.enable_pm		= ahci_enable_alpm,
+	.disable_pm		= ahci_disable_alpm,
 
 	.port_start		= ahci_port_start,
 	.port_stop		= ahci_port_stop,

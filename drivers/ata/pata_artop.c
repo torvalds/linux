@@ -367,6 +367,7 @@ static const struct ata_port_operations artop6210_ops = {
 static const struct ata_port_operations artop6260_ops = {
 	.set_piomode		= artop6260_set_piomode,
 	.set_dmamode		= artop6260_set_dmamode,
+	.mode_filter		= ata_pci_default_filter,
 
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,

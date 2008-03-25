@@ -118,6 +118,8 @@ static struct scsi_host_template svia_sht = {
 };
 
 static const struct ata_port_operations vt6420_sata_ops = {
+	.mode_filter		= ata_pci_default_filter,
+
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
@@ -141,12 +143,13 @@ static const struct ata_port_operations vt6420_sata_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations vt6421_pata_ops = {
 	.set_piomode		= vt6421_set_pio_mode,
 	.set_dmamode		= vt6421_set_dma_mode,
+	.mode_filter		= ata_pci_default_filter,
 
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
@@ -172,10 +175,12 @@ static const struct ata_port_operations vt6421_pata_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations vt6421_sata_ops = {
+	.mode_filter		= ata_pci_default_filter,
+
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
@@ -195,7 +200,6 @@ static const struct ata_port_operations vt6421_sata_ops = {
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= ata_bmdma_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
-	.cable_detect		= ata_cable_sata,
 
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
@@ -203,7 +207,7 @@ static const struct ata_port_operations vt6421_sata_ops = {
 	.scr_read		= svia_scr_read,
 	.scr_write		= svia_scr_write,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_info vt6420_port_info = {

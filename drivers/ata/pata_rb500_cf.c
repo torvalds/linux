@@ -117,11 +117,6 @@ static irqreturn_t rb500_pata_irq_handler(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
-static int rb500_pata_port_start(struct ata_port *ap)
-{
-	return 0;
-}
-
 static struct ata_port_operations rb500_pata_port_ops = {
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
@@ -138,12 +133,10 @@ static struct ata_port_operations rb500_pata_port_ops = {
 	.freeze			= rb500_pata_freeze,
 	.thaw			= rb500_pata_thaw,
 	.error_handler		= ata_bmdma_error_handler,
+	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 
-	.irq_handler		= rb500_pata_irq_handler,
 	.irq_clear		= ata_noop_irq_clear,
 	.irq_on			= ata_irq_on,
-
-	.port_start		= rb500_pata_port_start,
 };
 
 /* ------------------------------------------------------------------------ */

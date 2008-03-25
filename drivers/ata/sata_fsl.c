@@ -1216,6 +1216,7 @@ static const struct ata_port_operations sata_fsl_ops = {
 
 	.tf_read = sata_fsl_tf_read,
 
+	.qc_defer = ata_std_qc_defer,
 	.qc_prep = sata_fsl_qc_prep,
 	.qc_issue = sata_fsl_qc_issue,
 	.irq_clear = ata_noop_irq_clear,

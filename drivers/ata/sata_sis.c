@@ -116,6 +116,7 @@ static const struct ata_port_operations sis_ops = {
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
 	.data_xfer		= ata_data_xfer,
+	.mode_filter		= ata_pci_default_filter,
 	.freeze			= ata_bmdma_freeze,
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= ata_bmdma_error_handler,
@@ -124,7 +125,7 @@ static const struct ata_port_operations sis_ops = {
 	.irq_on			= ata_irq_on,
 	.scr_read		= sis_scr_read,
 	.scr_write		= sis_scr_write,
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_info sis_port_info = {

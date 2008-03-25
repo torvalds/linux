@@ -1409,7 +1409,6 @@ static const struct ata_port_operations bfin_pata_ops = {
 
 static struct ata_port_info bfin_port_info[] = {
 	{
-		.sht		= &bfin_sht,
 		.flags		= ATA_FLAG_SLAVE_POSS
 				| ATA_FLAG_MMIO
 				| ATA_FLAG_NO_LEGACY,

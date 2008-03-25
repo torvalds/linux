@@ -160,6 +160,7 @@ static struct scsi_host_template cs5520_sht = {
 static struct ata_port_operations cs5520_port_ops = {
 	.set_piomode		= cs5520_set_piomode,
 	.set_dmamode		= cs5520_set_dmamode,
+	.mode_filter		= ata_pci_default_filter,
 
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,

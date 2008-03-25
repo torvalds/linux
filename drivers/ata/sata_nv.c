@@ -452,6 +452,7 @@ static const struct ata_port_operations nv_generic_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
+	.mode_filter		= ata_pci_default_filter,
 	.freeze			= ata_bmdma_freeze,
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= nv_error_handler,
@@ -461,7 +462,7 @@ static const struct ata_port_operations nv_generic_ops = {
 	.irq_on			= ata_irq_on,
 	.scr_read		= nv_scr_read,
 	.scr_write		= nv_scr_write,
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations nv_nf2_ops = {
@@ -476,6 +477,7 @@ static const struct ata_port_operations nv_nf2_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
+	.mode_filter		= ata_pci_default_filter,
 	.freeze			= nv_nf2_freeze,
 	.thaw			= nv_nf2_thaw,
 	.error_handler		= nv_error_handler,
@@ -485,7 +487,7 @@ static const struct ata_port_operations nv_nf2_ops = {
 	.irq_on			= ata_irq_on,
 	.scr_read		= nv_scr_read,
 	.scr_write		= nv_scr_write,
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations nv_ck804_ops = {
@@ -500,6 +502,7 @@ static const struct ata_port_operations nv_ck804_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
+	.mode_filter		= ata_pci_default_filter,
 	.freeze			= nv_ck804_freeze,
 	.thaw			= nv_ck804_thaw,
 	.error_handler		= nv_error_handler,
@@ -509,7 +512,7 @@ static const struct ata_port_operations nv_ck804_ops = {
 	.irq_on			= ata_irq_on,
 	.scr_read		= nv_scr_read,
 	.scr_write		= nv_scr_write,
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 	.host_stop		= nv_ck804_host_stop,
 };
 
@@ -527,6 +530,7 @@ static const struct ata_port_operations nv_adma_ops = {
 	.qc_defer		= ata_std_qc_defer,
 	.qc_prep		= nv_adma_qc_prep,
 	.qc_issue		= nv_adma_qc_issue,
+	.mode_filter		= ata_pci_default_filter,
 	.freeze			= nv_adma_freeze,
 	.thaw			= nv_adma_thaw,
 	.error_handler		= nv_adma_error_handler,
@@ -558,6 +562,7 @@ static const struct ata_port_operations nv_swncq_ops = {
 	.qc_defer		= ata_std_qc_defer,
 	.qc_prep		= nv_swncq_qc_prep,
 	.qc_issue		= nv_swncq_qc_issue,
+	.mode_filter		= ata_pci_default_filter,
 	.freeze			= nv_mcp55_freeze,
 	.thaw			= nv_mcp55_thaw,
 	.error_handler		= nv_swncq_error_handler,

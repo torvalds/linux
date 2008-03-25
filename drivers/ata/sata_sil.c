@@ -192,6 +192,7 @@ static const struct ata_port_operations sil_ops = {
 	.exec_command		= ata_exec_command,
 	.dev_select		= ata_std_dev_select,
 	.set_mode		= sil_set_mode,
+	.mode_filter		= ata_pci_default_filter,
 	.bmdma_setup            = ata_bmdma_setup,
 	.bmdma_start            = ata_bmdma_start,
 	.bmdma_stop		= ata_bmdma_stop,
@@ -207,7 +208,7 @@ static const struct ata_port_operations sil_ops = {
 	.irq_on			= ata_irq_on,
 	.scr_read		= sil_scr_read,
 	.scr_write		= sil_scr_write,
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_info sil_port_info[] = {

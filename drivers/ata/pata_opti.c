@@ -196,18 +196,13 @@ static struct ata_port_operations opti_port_ops = {
 	.post_internal_cmd = ata_bmdma_post_internal_cmd,
 	.cable_detect	= ata_cable_40wire,
 
-	.bmdma_setup 	= ata_bmdma_setup,
-	.bmdma_start 	= ata_bmdma_start,
-	.bmdma_stop	= ata_bmdma_stop,
-	.bmdma_status 	= ata_bmdma_status,
-
 	.qc_prep 	= ata_qc_prep,
 	.qc_issue	= ata_qc_issue_prot,
 
 	.data_xfer	= ata_data_xfer,
 
 	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
+	.irq_clear	= ata_noop_irq_clear,
 	.irq_on		= ata_irq_on,
 
 	.port_start	= ata_sff_port_start,

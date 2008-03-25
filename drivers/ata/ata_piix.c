@@ -336,7 +336,7 @@ static const struct ata_port_operations piix_pata_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations ich_pata_ops = {
@@ -367,7 +367,7 @@ static const struct ata_port_operations ich_pata_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations piix_sata_ops = {
@@ -385,6 +385,7 @@ static const struct ata_port_operations piix_sata_ops = {
 	.qc_issue		= ata_qc_issue_prot,
 	.data_xfer		= ata_data_xfer,
 
+	.mode_filter		= ata_pci_default_filter,
 	.freeze			= ata_bmdma_freeze,
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= ata_bmdma_error_handler,
@@ -393,7 +394,7 @@ static const struct ata_port_operations piix_sata_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations piix_vmw_ops = {
@@ -425,7 +426,7 @@ static const struct ata_port_operations piix_vmw_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations piix_sidpr_sata_ops = {
@@ -446,6 +447,7 @@ static const struct ata_port_operations piix_sidpr_sata_ops = {
 	.scr_read		= piix_sidpr_scr_read,
 	.scr_write		= piix_sidpr_scr_write,
 
+	.mode_filter		= ata_pci_default_filter,
 	.freeze			= ata_bmdma_freeze,
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= piix_sidpr_error_handler,
@@ -454,7 +456,7 @@ static const struct ata_port_operations piix_sidpr_sata_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct piix_map_db ich5_map_db = {
@@ -683,7 +685,6 @@ static struct ata_port_info piix_port_info[] = {
 
 	[piix_pata_vmw] =
 	{
-		.sht		= &piix_sht,
 		.flags		= PIIX_PATA_FLAGS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x06, /* mwdma1-2 ?? CHECK 0 should be ok but slow */

@@ -114,6 +114,7 @@ static struct scsi_host_template generic_sht = {
 
 static struct ata_port_operations generic_port_ops = {
 	.set_mode	= generic_set_mode,
+	.mode_filter	= ata_pci_default_filter,
 
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,

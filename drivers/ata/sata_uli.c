@@ -108,6 +108,7 @@ static const struct ata_port_operations uli_ops = {
 	.qc_issue		= ata_qc_issue_prot,
 	.data_xfer		= ata_data_xfer,
 
+	.mode_filter		= ata_pci_default_filter,
 	.freeze			= ata_bmdma_freeze,
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= ata_bmdma_error_handler,
@@ -119,7 +120,7 @@ static const struct ata_port_operations uli_ops = {
 	.scr_read		= uli_scr_read,
 	.scr_write		= uli_scr_write,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_info uli_port_info = {
