@@ -690,8 +690,7 @@ static void sis_fixup(struct pci_dev *pdev, struct sis_chipset *sis)
 static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
-	struct ata_port_info port;
-	const struct ata_port_info *ppi[] = { &port, NULL };
+	const struct ata_port_info *ppi[] = { NULL, NULL };
 	struct pci_dev *host = NULL;
 	struct sis_chipset *chipset = NULL;
 	struct sis_chipset *sets;
@@ -831,12 +830,11 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (chipset == NULL)
 		return -ENODEV;
 
-	port = *chipset->info;
-	port.private_data = chipset;
+	ppi[0] = chipset->info;
 
 	sis_fixup(pdev, chipset);
 
-	return ata_pci_init_one(pdev, ppi, &sis_sht);
+	return ata_pci_init_one(pdev, ppi, &sis_sht, chipset);
 }
 
 static const struct pci_device_id sis_pci_tbl[] = {

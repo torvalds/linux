@@ -442,8 +442,7 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.udma_mask = ATA_UDMA6,	/* FIXME: should check north bridge */
 		.port_ops = &via_port_ops
 	};
-	struct ata_port_info type;
-	const struct ata_port_info *ppi[] = { &type, NULL };
+	const struct ata_port_info *ppi[] = { NULL, NULL };
 	struct pci_dev *isa = NULL;
 	const struct via_isa_bridge *config;
 	static int printed_version;
@@ -491,25 +490,25 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	switch(config->flags & VIA_UDMA) {
 		case VIA_UDMA_NONE:
 			if (config->flags & VIA_NO_UNMASK)
-				type = via_mwdma_info_borked;
+				ppi[0] = &via_mwdma_info_borked;
 			else
-				type = via_mwdma_info;
+				ppi[0] = &via_mwdma_info;
 			break;
 		case VIA_UDMA_33:
-			type = via_udma33_info;
+			ppi[0] = &via_udma33_info;
 			break;
 		case VIA_UDMA_66:
-			type = via_udma66_info;
+			ppi[0] = &via_udma66_info;
 			/* The 66 MHz devices require we enable the clock */
 			pci_read_config_dword(pdev, 0x50, &timing);
 			timing |= 0x80008;
 			pci_write_config_dword(pdev, 0x50, timing);
 			break;
 		case VIA_UDMA_100:
-			type = via_udma100_info;
+			ppi[0] = &via_udma100_info;
 			break;
 		case VIA_UDMA_133:
-			type = via_udma133_info;
+			ppi[0] = &via_udma133_info;
 			break;
 		default:
 			WARN_ON(1);
@@ -524,9 +523,7 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* We have established the device type, now fire it up */
-	type.private_data = (void *)config;
-
-	return ata_pci_init_one(pdev, ppi, &via_sht);
+	return ata_pci_init_one(pdev, ppi, &via_sht, (void *)config);
 }
 
 #ifdef CONFIG_PM

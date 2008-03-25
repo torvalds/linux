@@ -75,20 +75,6 @@ static int marvell_cable_detect(struct ata_port *ap)
 	return 0;	/* Our BUG macro needs the right markup */
 }
 
-/**
- *	marvell_error_handler - Setup and error handler
- *	@ap: Port to handle
- *
- *	LOCKING:
- *	None (inherited from caller).
- */
-
-static void marvell_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, marvell_pre_reset, ata_std_softreset, NULL,
-			   ata_std_postreset);
-}
-
 /* No PIO or DMA methods needed for this device */
 
 static struct scsi_host_template marvell_sht = {
@@ -98,7 +84,7 @@ static struct scsi_host_template marvell_sht = {
 static struct ata_port_operations marvell_ops = {
 	.inherits		= &ata_bmdma_port_ops,
 	.cable_detect		= marvell_cable_detect,
-	.error_handler		= marvell_error_handler,
+	.prereset		= marvell_pre_reset,
 };
 
 
@@ -142,7 +128,7 @@ static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 	if (pdev->device == 0x6101)
 		ppi[1] = &ata_dummy_port_info;
 
-	return ata_pci_init_one(pdev, ppi, &marvell_sht);
+	return ata_pci_init_one(pdev, ppi, &marvell_sht, NULL);
 }
 
 static const struct pci_device_id marvell_pci_tbl[] = {

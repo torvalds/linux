@@ -6995,8 +6995,6 @@ struct ata_host *ata_host_alloc_pinfo(struct device *dev,
 
 		if (!host->ops && (pi->port_ops != &ata_dummy_port_ops))
 			host->ops = pi->port_ops;
-		if (!host->private_data && pi->private_data)
-			host->private_data = pi->private_data;
 	}
 
 	return host;

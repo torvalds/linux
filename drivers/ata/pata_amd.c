@@ -144,12 +144,6 @@ static int amd_pre_reset(struct ata_link *link, unsigned long deadline)
 	return ata_std_prereset(link, deadline);
 }
 
-static void amd_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, amd_pre_reset, ata_std_softreset, NULL,
-			   ata_std_postreset);
-}
-
 static int amd_cable_detect(struct ata_port *ap)
 {
 	static const u32 bitmask[2] = {0x03, 0x0C};
@@ -300,13 +294,6 @@ static int nv_pre_reset(struct ata_link *link, unsigned long deadline)
 	return ata_std_prereset(link, deadline);
 }
 
-static void nv_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, nv_pre_reset,
-			       ata_std_softreset, NULL,
-			       ata_std_postreset);
-}
-
 /**
  *	nv100_set_piomode	-	set initial PIO mode data
  *	@ap: ATA interface
@@ -358,7 +345,7 @@ static struct scsi_host_template amd_sht = {
 
 static const struct ata_port_operations amd_base_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
-	.error_handler	= amd_error_handler,
+	.prereset	= amd_pre_reset,
 };
 
 static struct ata_port_operations amd33_port_ops = {
@@ -393,7 +380,7 @@ static const struct ata_port_operations nv_base_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
 	.cable_detect	= ata_cable_ignore,
 	.mode_filter	= nv_mode_filter,
-	.error_handler	= nv_error_handler,
+	.prereset	= nv_pre_reset,
 	.host_stop	= nv_host_stop,
 };
 
@@ -483,10 +470,10 @@ static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			.port_ops = &amd100_port_ops
 		}
 	};
-	struct ata_port_info pi;
-	const struct ata_port_info *ppi[] = { &pi, NULL };
+	const struct ata_port_info *ppi[] = { NULL, NULL };
 	static int printed_version;
 	int type = id->driver_data;
+	void *hpriv = NULL;
 	u8 fifo;
 	int rc;
 
@@ -511,7 +498,7 @@ static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/*
 	 * Okay, type is determined now.  Apply type-specific workarounds.
 	 */
-	pi = info[type];
+	ppi[0] = &info[type];
 
 	if (type < 3)
 		ata_pci_clear_simplex(pdev);
@@ -530,11 +517,11 @@ static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		u32 udma;
 
 		pci_read_config_dword(pdev, 0x60, &udma);
-		pi.private_data = (void *)(unsigned long)udma;
+		hpriv = (void *)(unsigned long)udma;
 	}
 
 	/* And fire it up */
-	return ata_pci_init_one(pdev, ppi, &amd_sht);
+	return ata_pci_init_one(pdev, ppi, &amd_sht, hpriv);
 }
 
 #ifdef CONFIG_PM

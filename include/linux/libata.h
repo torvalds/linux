@@ -1020,7 +1020,7 @@ struct pci_dev;
 
 extern int ata_pci_init_one(struct pci_dev *pdev,
 			    const struct ata_port_info * const * ppi,
-			    struct scsi_host_template *sht);
+			    struct scsi_host_template *sht, void *host_priv);
 extern void ata_pci_remove_one(struct pci_dev *pdev);
 #ifdef CONFIG_PM
 extern void ata_pci_device_do_suspend(struct pci_dev *pdev, pm_message_t mesg);

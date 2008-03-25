@@ -188,7 +188,7 @@ static int opti_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &dev->dev, "version " DRV_VERSION "\n");
 
-	return ata_pci_init_one(dev, ppi, &opti_sht);
+	return ata_pci_init_one(dev, ppi, &opti_sht, NULL);
 }
 
 static const struct pci_device_id opti[] = {

@@ -68,20 +68,6 @@ static int pacpi_cable_detect(struct ata_port *ap)
 }
 
 /**
- *	pacpi_error_handler - Setup and error handler
- *	@ap: Port to handle
- *
- *	LOCKING:
- *	None (inherited from caller).
- */
-
-static void pacpi_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, pacpi_pre_reset, ata_std_softreset, NULL,
-			   ata_std_postreset);
-}
-
-/**
  *	pacpi_discover_modes	-	filter non ACPI modes
  *	@adev: ATA device
  *	@mask: proposed modes
@@ -242,7 +228,7 @@ static struct ata_port_operations pacpi_ops = {
 	.mode_filter		= pacpi_mode_filter,
 	.set_piomode		= pacpi_set_piomode,
 	.set_dmamode		= pacpi_set_dmamode,
-	.error_handler		= pacpi_error_handler,
+	.prereset		= pacpi_pre_reset,
 	.port_start		= pacpi_port_start,
 };
 
@@ -273,7 +259,7 @@ static int pacpi_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops	= &pacpi_ops,
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
-	return ata_pci_init_one(pdev, ppi, &pacpi_sht);
+	return ata_pci_init_one(pdev, ppi, &pacpi_sht, NULL);
 }
 
 static const struct pci_device_id pacpi_pci_tbl[] = {

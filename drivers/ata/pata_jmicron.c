@@ -105,20 +105,6 @@ static int jmicron_pre_reset(struct ata_link *link, unsigned long deadline)
 	return ata_std_prereset(link, deadline);
 }
 
-/**
- *	jmicron_error_handler - Setup and error handler
- *	@ap: Port to handle
- *
- *	LOCKING:
- *	None (inherited from caller).
- */
-
-static void jmicron_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, jmicron_pre_reset, ata_std_softreset, NULL,
-			   ata_std_postreset);
-}
-
 /* No PIO or DMA methods needed for this device */
 
 static struct scsi_host_template jmicron_sht = {
@@ -127,7 +113,7 @@ static struct scsi_host_template jmicron_sht = {
 
 static struct ata_port_operations jmicron_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	.error_handler		= jmicron_error_handler,
+	.prereset		= jmicron_pre_reset,
 };
 
 
@@ -158,7 +144,7 @@ static int jmicron_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
 
-	return ata_pci_init_one(pdev, ppi, &jmicron_sht);
+	return ata_pci_init_one(pdev, ppi, &jmicron_sht, NULL);
 }
 
 static const struct pci_device_id jmicron_pci_tbl[] = {

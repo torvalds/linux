@@ -831,10 +831,8 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	};
 
 	static const int MHz[4] = { 33, 40, 50, 66 };
-	const struct ata_port_info *port;
 	void *private_data = NULL;
-	struct ata_port_info port_info;
-	const struct ata_port_info *ppi[] = { &port_info, NULL };
+	const struct ata_port_info *ppi[] = { NULL, NULL };
 
 	u8 irqmask;
 	u32 class_rev;
@@ -866,17 +864,17 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 		switch(class_rev) {
 			case 3:
-				port = &info_hpt370;
+				ppi[0] = &info_hpt370;
 				chip_table = &hpt370;
 				prefer_dpll = 0;
 				break;
 			case 4:
-				port = &info_hpt370a;
+				ppi[0] = &info_hpt370a;
 				chip_table = &hpt370a;
 				prefer_dpll = 0;
 				break;
 			case 5:
-				port = &info_hpt372;
+				ppi[0] = &info_hpt372;
 				chip_table = &hpt372;
 				break;
 			default:
@@ -889,21 +887,21 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 				/* 372N if rev >= 2*/
 				if (class_rev >= 2)
 					return -ENODEV;
-				port = &info_hpt372;
+				ppi[0] = &info_hpt372;
 				chip_table = &hpt372a;
 				break;
 			case PCI_DEVICE_ID_TTI_HPT302:
 				/* 302N if rev > 1 */
 				if (class_rev > 1)
 					return -ENODEV;
-				port = &info_hpt372;
+				ppi[0] = &info_hpt372;
 				/* Check this */
 				chip_table = &hpt302;
 				break;
 			case PCI_DEVICE_ID_TTI_HPT371:
 				if (class_rev > 1)
 					return -ENODEV;
-				port = &info_hpt372;
+				ppi[0] = &info_hpt372;
 				chip_table = &hpt371;
 				/* Single channel device, master is not present
 				   but the BIOS (or us for non x86) must mark it
@@ -914,7 +912,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 				break;
 			case PCI_DEVICE_ID_TTI_HPT374:
 				chip_table = &hpt374;
-				port = &info_hpt374;
+				ppi[0] = &info_hpt374;
 				break;
 			default:
 				printk(KERN_ERR "pata_hpt37x: PCI table is bogus please report (%d).\n", dev->device);
@@ -993,7 +991,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		int dpll, adjust;
 
 		/* Compute DPLL */
-		dpll = (port->udma_mask & 0xC0) ? 3 : 2;
+		dpll = (ppi[0]->udma_mask & 0xC0) ? 3 : 2;
 
 		f_low = (MHz[clock_slot] * 48) / MHz[dpll];
 		f_high = f_low + 2;
@@ -1033,19 +1031,16 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		 *	about lack of UDMA133 support on lower clocks
  		 */
 
-		if (clock_slot < 2 && port == &info_hpt370)
-			port = &info_hpt370_33;
-		if (clock_slot < 2 && port == &info_hpt370a)
-			port = &info_hpt370a_33;
+		if (clock_slot < 2 && ppi[0] == &info_hpt370)
+			ppi[0] = &info_hpt370_33;
+		if (clock_slot < 2 && ppi[0] == &info_hpt370a)
+			ppi[0] = &info_hpt370a_33;
 		printk(KERN_INFO "pata_hpt37x: %s using %dMHz bus clock.\n",
 		       chip_table->name, MHz[clock_slot]);
 	}
 
 	/* Now kick off ATA set up */
-	port_info = *port;
-	port_info.private_data = private_data;
-
-	return ata_pci_init_one(dev, ppi, &hpt37x_sht);
+	return ata_pci_init_one(dev, ppi, &hpt37x_sht, private_data);
 }
 
 static const struct pci_device_id hpt37x[] = {

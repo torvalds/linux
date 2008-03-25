@@ -356,9 +356,9 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.udma_mask = ATA_UDMA4,
 		.port_ops = &hpt366_port_ops
 	};
-	struct ata_port_info info = info_hpt366;
-	const struct ata_port_info *ppi[] = { &info, NULL };
+	const struct ata_port_info *ppi[] = { &info_hpt366, NULL };
 
+	void *hpriv = NULL;
 	u32 class_rev;
 	u32 reg1;
 	int rc;
@@ -383,17 +383,17 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	/* info_hpt366 is safe against re-entry so we can scribble on it */
 	switch((reg1 & 0x700) >> 8) {
 		case 5:
-			info.private_data = &hpt366_40;
+			hpriv = &hpt366_40;
 			break;
 		case 9:
-			info.private_data = &hpt366_25;
+			hpriv = &hpt366_25;
 			break;
 		default:
-			info.private_data = &hpt366_33;
+			hpriv = &hpt366_33;
 			break;
 	}
 	/* Now kick off ATA set up */
-	return ata_pci_init_one(dev, ppi, &hpt36x_sht);
+	return ata_pci_init_one(dev, ppi, &hpt36x_sht, hpriv);
 }
 
 #ifdef CONFIG_PM
