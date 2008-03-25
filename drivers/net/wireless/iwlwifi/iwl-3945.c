@@ -358,6 +358,8 @@ void iwl3945_hw_rx_statistics(struct iwl3945_priv *priv, struct iwl3945_rx_mem_b
 
 	memcpy(&priv->statistics, pkt->u.raw, sizeof(priv->statistics));
 
+	iwl3945_led_background(priv);
+
 	priv->last_statistics_time = jiffies;
 }
 
@@ -640,6 +642,10 @@ static void iwl3945_handle_data_packet(struct iwl3945_priv *priv, int is_data,
 	if (priv->add_radiotap)
 		iwl3945_add_radiotap(priv, rxb->skb, rx_hdr, stats);
 
+#ifdef CONFIG_IWL3945_LEDS
+	if (is_data)
+		priv->rxtxpackets += len;
+#endif
 	ieee80211_rx_irqsafe(priv->hw, rxb->skb, stats);
 	rxb->skb = NULL;
 }

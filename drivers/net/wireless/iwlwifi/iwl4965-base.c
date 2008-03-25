@@ -2238,8 +2238,9 @@ static void iwl4965_build_tx_cmd_basic(struct iwl_priv *priv,
 			cmd->cmd.tx.timeout.pm_frame_timeout = cpu_to_le16(3);
 		else
 			cmd->cmd.tx.timeout.pm_frame_timeout = cpu_to_le16(2);
-	} else
+	} else {
 		cmd->cmd.tx.timeout.pm_frame_timeout = 0;
+	}
 
 	cmd->cmd.tx.driver_txop = 0;
 	cmd->cmd.tx.tx_flags = tx_flags;
@@ -5712,6 +5713,8 @@ static void iwl4965_alive_start(struct iwl_priv *priv)
 	IWL_DEBUG_INFO("ALIVE processing complete.\n");
 	wake_up_interruptible(&priv->wait_command_queue);
 
+	iwl_leds_register(priv);
+
 	if (priv->error_recovering)
 		iwl4965_error_recovery(priv);
 
@@ -5735,6 +5738,8 @@ static void __iwl4965_down(struct iwl_priv *priv)
 
 	if (!exit_pending)
 		set_bit(STATUS_EXIT_PENDING, &priv->status);
+
+	iwl_leds_unregister(priv);
 
 	iwlcore_clear_stations_table(priv);
 

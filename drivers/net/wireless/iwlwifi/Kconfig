@@ -2,6 +2,13 @@ config IWLCORE
 	tristate "Intel Wireless Wifi Core"
 	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
 
+config IWLWIFI_LEDS
+	bool "Enable LEDS features in iwlwifi driver"
+	depends on IWLCORE && MAC80211_LEDS && LEDS_CLASS
+	---help---
+	  This option enables LEDS for the iwlwifi drivers
+
+
 config IWL4965
 	tristate "Intel Wireless WiFi 4965AGN"
 	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
@@ -36,6 +43,13 @@ config IWL4965_HT
 	---help---
 	  This option enables IEEE 802.11n High Throughput features
 	  for the iwl4965 driver.
+
+config IWL4965_LEDS
+	bool "Enable LEDS features in iwl4965 driver"
+	depends on IWL4965 && IWLWIFI_LEDS
+	---help---
+	  This option enables LEDS for the iwlwifi drivers
+
 
 config IWL4965_SPECTRUM_MEASUREMENT
 	bool "Enable Spectrum Measurement in iwl4965 driver"
@@ -113,6 +127,12 @@ config IWL3945_SPECTRUM_MEASUREMENT
 	depends on IWL3945
 	---help---
 	  This option will enable spectrum measurement for the iwl3945 driver.
+
+config IWL3945_LEDS
+	bool "Enable LEDS features in iwl3945 driver"
+	depends on IWL3945 && MAC80211_LEDS && LEDS_CLASS
+	---help---
+	  This option enables LEDS for the iwl3945 driver.
 
 config IWL3945_DEBUG
 	bool "Enable full debugging output in iwl3945 driver"
