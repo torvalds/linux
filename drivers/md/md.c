@@ -2624,7 +2624,7 @@ __ATTR(resync_start, S_IRUGO|S_IWUSR, resync_start_show, resync_start_store);
  *     When written, doesn't tear down array, but just stops it
  * suspended (not supported yet)
  *     All IO requests will block. The array can be reconfigured.
- *     Writing this, if accepted, will block until array is quiessent
+ *     Writing this, if accepted, will block until array is quiescent
  * readonly
  *     no resync can happen.  no superblocks get written.
  *     write requests fail
