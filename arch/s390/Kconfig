@@ -73,6 +73,7 @@ config S390
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
+	select HAVE_KVM if 64BIT
 
 source "init/Kconfig"
 
@@ -540,3 +541,5 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
+
+source "arch/s390/kvm/Kconfig"
