@@ -130,12 +130,12 @@
  */
 
 #define IGMP_V1_SEEN(in_dev) \
-	(IPV4_DEVCONF_ALL(in_dev->dev->nd_net, FORCE_IGMP_VERSION) == 1 || \
+	(IPV4_DEVCONF_ALL(dev_net(in_dev->dev), FORCE_IGMP_VERSION) == 1 || \
 	 IN_DEV_CONF_GET((in_dev), FORCE_IGMP_VERSION) == 1 || \
 	 ((in_dev)->mr_v1_seen && \
 	  time_before(jiffies, (in_dev)->mr_v1_seen)))
 #define IGMP_V2_SEEN(in_dev) \
-	(IPV4_DEVCONF_ALL(in_dev->dev->nd_net, FORCE_IGMP_VERSION) == 2 || \
+	(IPV4_DEVCONF_ALL(dev_net(in_dev->dev), FORCE_IGMP_VERSION) == 2 || \
 	 IN_DEV_CONF_GET((in_dev), FORCE_IGMP_VERSION) == 2 || \
 	 ((in_dev)->mr_v2_seen && \
 	  time_before(jiffies, (in_dev)->mr_v2_seen)))
@@ -1198,7 +1198,7 @@ void ip_mc_inc_group(struct in_device *in_dev, __be32 addr)
 
 	ASSERT_RTNL();
 
-	if (in_dev->dev->nd_net != &init_net)
+	if (dev_net(in_dev->dev) != &init_net)
 		return;
 
 	for (im=in_dev->mc_list; im; im=im->next) {
@@ -1280,7 +1280,7 @@ void ip_mc_dec_group(struct in_device *in_dev, __be32 addr)
 
 	ASSERT_RTNL();
 
-	if (in_dev->dev->nd_net != &init_net)
+	if (dev_net(in_dev->dev) != &init_net)
 		return;
 
 	for (ip=&in_dev->mc_list; (i=*ip)!=NULL; ip=&i->next) {
@@ -1310,7 +1310,7 @@ void ip_mc_down(struct in_device *in_dev)
 
 	ASSERT_RTNL();
 
-	if (in_dev->dev->nd_net != &init_net)
+	if (dev_net(in_dev->dev) != &init_net)
 		return;
 
 	for (i=in_dev->mc_list; i; i=i->next)
@@ -1333,7 +1333,7 @@ void ip_mc_init_dev(struct in_device *in_dev)
 {
 	ASSERT_RTNL();
 
-	if (in_dev->dev->nd_net != &init_net)
+	if (dev_net(in_dev->dev) != &init_net)
 		return;
 
 	in_dev->mc_tomb = NULL;
@@ -1359,7 +1359,7 @@ void ip_mc_up(struct in_device *in_dev)
 
 	ASSERT_RTNL();
 
-	if (in_dev->dev->nd_net != &init_net)
+	if (dev_net(in_dev->dev) != &init_net)
 		return;
 
 	ip_mc_inc_group(in_dev, IGMP_ALL_HOSTS);
@@ -1378,7 +1378,7 @@ void ip_mc_destroy_dev(struct in_device *in_dev)
 
 	ASSERT_RTNL();
 
-	if (in_dev->dev->nd_net != &init_net)
+	if (dev_net(in_dev->dev) != &init_net)
 		return;
 
 	/* Deactivate timers */

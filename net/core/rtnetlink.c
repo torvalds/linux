@@ -972,7 +972,7 @@ struct net_device *rtnl_create_link(struct net *net, char *ifname,
 			goto err_free;
 	}
 
-	dev->nd_net = net;
+	dev_net_set(dev, net);
 	dev->rtnl_link_ops = ops;
 
 	if (tb[IFLA_MTU])
@@ -1198,7 +1198,7 @@ static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 
 void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change)
 {
-	struct net *net = dev->nd_net;
+	struct net *net = dev_net(dev);
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
 

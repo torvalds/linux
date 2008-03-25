@@ -1400,7 +1400,7 @@ mld_scount(struct ifmcaddr6 *pmc, int type, int gdeleted, int sdeleted)
 
 static struct sk_buff *mld_newpack(struct net_device *dev, int size)
 {
-	struct net *net = dev->nd_net;
+	struct net *net = dev_net(dev);
 	struct sock *sk = net->ipv6.igmp_sk;
 	struct sk_buff *skb;
 	struct mld2_report *pmr;
@@ -1448,7 +1448,7 @@ static void mld_sendpack(struct sk_buff *skb)
 			      (struct mld2_report *)skb_transport_header(skb);
 	int payload_len, mldlen;
 	struct inet6_dev *idev = in6_dev_get(skb->dev);
-	struct net *net = skb->dev->nd_net;
+	struct net *net = dev_net(skb->dev);
 	int err;
 	struct flowi fl;
 
@@ -1762,7 +1762,7 @@ static void mld_send_cr(struct inet6_dev *idev)
 
 static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 {
-	struct net *net = dev->nd_net;
+	struct net *net = dev_net(dev);
 	struct sock *sk = net->ipv6.igmp_sk;
 	struct inet6_dev *idev;
 	struct sk_buff *skb;

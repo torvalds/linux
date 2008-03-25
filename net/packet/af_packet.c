@@ -263,7 +263,7 @@ static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct 
 	if (skb->pkt_type == PACKET_LOOPBACK)
 		goto out;
 
-	if (dev->nd_net != sk->sk_net)
+	if (dev_net(dev) != sk->sk_net)
 		goto out;
 
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
@@ -451,7 +451,7 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet
 	sk = pt->af_packet_priv;
 	po = pkt_sk(sk);
 
-	if (dev->nd_net != sk->sk_net)
+	if (dev_net(dev) != sk->sk_net)
 		goto drop;
 
 	skb->dev = dev;
@@ -568,7 +568,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	sk = pt->af_packet_priv;
 	po = pkt_sk(sk);
 
-	if (dev->nd_net != sk->sk_net)
+	if (dev_net(dev) != sk->sk_net)
 		goto drop;
 
 	if (dev->header_ops) {
@@ -1450,7 +1450,7 @@ static int packet_notifier(struct notifier_block *this, unsigned long msg, void 
 	struct sock *sk;
 	struct hlist_node *node;
 	struct net_device *dev = data;
-	struct net *net = dev->nd_net;
+	struct net *net = dev_net(dev);
 
 	read_lock(&net->packet.sklist_lock);
 	sk_for_each(sk, node, &net->packet.sklist) {

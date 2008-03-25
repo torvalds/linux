@@ -165,7 +165,7 @@ static struct in_device *inetdev_init(struct net_device *dev)
 	if (!in_dev)
 		goto out;
 	INIT_RCU_HEAD(&in_dev->rcu_head);
-	memcpy(&in_dev->cnf, dev->nd_net->ipv4.devconf_dflt,
+	memcpy(&in_dev->cnf, dev_net(dev)->ipv4.devconf_dflt,
 			sizeof(in_dev->cnf));
 	in_dev->cnf.sysctl = NULL;
 	in_dev->dev = dev;
@@ -872,7 +872,7 @@ __be32 inet_select_addr(const struct net_device *dev, __be32 dst, int scope)
 {
 	__be32 addr = 0;
 	struct in_device *in_dev;
-	struct net *net = dev->nd_net;
+	struct net *net = dev_net(dev);
 
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev);
@@ -974,7 +974,7 @@ __be32 inet_confirm_addr(struct in_device *in_dev,
 	if (scope != RT_SCOPE_LINK)
 		return confirm_addr_indev(in_dev, dst, local, scope);
 
-	net = in_dev->dev->nd_net;
+	net = dev_net(in_dev->dev);
 	read_lock(&dev_base_lock);
 	rcu_read_lock();
 	for_each_netdev(net, dev) {
@@ -1203,7 +1203,7 @@ static void rtmsg_ifa(int event, struct in_ifaddr* ifa, struct nlmsghdr *nlh,
 	int err = -ENOBUFS;
 	struct net *net;
 
-	net = ifa->ifa_dev->dev->nd_net;
+	net = dev_net(ifa->ifa_dev->dev);
 	skb = nlmsg_new(inet_nlmsg_size(), GFP_KERNEL);
 	if (skb == NULL)
 		goto errout;
@@ -1517,7 +1517,7 @@ static void devinet_sysctl_register(struct in_device *idev)
 {
 	neigh_sysctl_register(idev->dev, idev->arp_parms, NET_IPV4,
 			NET_IPV4_NEIGH, "ipv4", NULL, NULL);
-	__devinet_sysctl_register(idev->dev->nd_net, idev->dev->name,
+	__devinet_sysctl_register(dev_net(idev->dev), idev->dev->name,
 			idev->dev->ifindex, &idev->cnf);
 }
 

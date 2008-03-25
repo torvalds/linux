@@ -1089,7 +1089,7 @@ static int ipmr_device_event(struct notifier_block *this, unsigned long event, v
 	struct vif_device *v;
 	int ct;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
 
 	if (event != NETDEV_UNREGISTER)

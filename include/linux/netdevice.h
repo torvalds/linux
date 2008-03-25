@@ -708,8 +708,10 @@ struct net_device
 	void                    (*poll_controller)(struct net_device *dev);
 #endif
 
+#ifdef CONFIG_NET_NS
 	/* Network namespace this network device is inside */
 	struct net		*nd_net;
+#endif
 
 	/* bridge stuff */
 	struct net_bridge_port	*br_port;
@@ -736,6 +738,27 @@ struct net_device
 
 #define	NETDEV_ALIGN		32
 #define	NETDEV_ALIGN_CONST	(NETDEV_ALIGN - 1)
+
+/*
+ * Net namespace inlines
+ */
+static inline
+struct net *dev_net(const struct net_device *dev)
+{
+#ifdef CONFIG_NET_NS
+	return dev->nd_net;
+#else
+	return &init_net;
+#endif
+}
+
+static inline
+void dev_net_set(struct net_device *dev, const struct net *net)
+{
+#ifdef CONFIG_NET_NS
+	dev->nd_dev = net;
+#endif
+}
 
 /**
  *	netdev_priv - access network device private data
@@ -813,7 +836,7 @@ static inline struct net_device *next_net_device(struct net_device *dev)
 	struct list_head *lh;
 	struct net *net;
 
-	net = dev->nd_net;
+	net = dev_net(dev);
 	lh = dev->dev_list.next;
 	return lh == &net->dev_base_head ? NULL : net_device_entry(lh);
 }

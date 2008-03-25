@@ -208,7 +208,7 @@ static void ip6_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 	struct rt6_info *rt = (struct rt6_info *)dst;
 	struct inet6_dev *idev = rt->rt6i_idev;
 	struct net_device *loopback_dev =
-		dev->nd_net->loopback_dev;
+		dev_net(dev)->loopback_dev;
 
 	if (dev != loopback_dev && idev != NULL && idev->dev == dev) {
 		struct inet6_dev *loopback_idev =
@@ -433,7 +433,7 @@ static struct rt6_info *rt6_select(struct fib6_node *fn, int oif, int strict)
 	RT6_TRACE("%s() => %p\n",
 		  __func__, match);
 
-	net = rt0->rt6i_dev->nd_net;
+	net = dev_net(rt0->rt6i_dev);
 	return (match ? match : net->ipv6.ip6_null_entry);
 }
 
@@ -441,7 +441,7 @@ static struct rt6_info *rt6_select(struct fib6_node *fn, int oif, int strict)
 int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 		  struct in6_addr *gwaddr)
 {
-	struct net *net = dev->nd_net;
+	struct net *net = dev_net(dev);
 	struct route_info *rinfo = (struct route_info *) opt;
 	struct in6_addr prefix_buf, *prefix;
 	unsigned int pref;
@@ -607,7 +607,7 @@ static int __ip6_ins_rt(struct rt6_info *rt, struct nl_info *info)
 int ip6_ins_rt(struct rt6_info *rt)
 {
 	struct nl_info info = {
-		.nl_net = rt->rt6i_dev->nd_net,
+		.nl_net = dev_net(rt->rt6i_dev),
 	};
 	return __ip6_ins_rt(rt, &info);
 }
@@ -745,7 +745,7 @@ static struct rt6_info *ip6_pol_route_input(struct net *net, struct fib6_table *
 void ip6_route_input(struct sk_buff *skb)
 {
 	struct ipv6hdr *iph = ipv6_hdr(skb);
-	struct net *net = skb->dev->nd_net;
+	struct net *net = dev_net(skb->dev);
 	int flags = RT6_LOOKUP_F_HAS_SADDR;
 	struct flowi fl = {
 		.iif = skb->dev->ifindex,
@@ -928,7 +928,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 {
 	struct rt6_info *rt;
 	struct inet6_dev *idev = in6_dev_get(dev);
-	struct net *net = dev->nd_net;
+	struct net *net = dev_net(dev);
 
 	if (unlikely(idev == NULL))
 		return NULL;
@@ -1252,7 +1252,7 @@ install_route:
 	rt->rt6i_idev = idev;
 	rt->rt6i_table = table;
 
-	cfg->fc_nlinfo.nl_net = dev->nd_net;
+	cfg->fc_nlinfo.nl_net = dev_net(dev);
 
 	return __ip6_ins_rt(rt, &cfg->fc_nlinfo);
 
@@ -1270,7 +1270,7 @@ static int __ip6_del_rt(struct rt6_info *rt, struct nl_info *info)
 {
 	int err;
 	struct fib6_table *table;
-	struct net *net = rt->rt6i_dev->nd_net;
+	struct net *net = dev_net(rt->rt6i_dev);
 
 	if (rt == net->ipv6.ip6_null_entry)
 		return -ENOENT;
@@ -1289,7 +1289,7 @@ static int __ip6_del_rt(struct rt6_info *rt, struct nl_info *info)
 int ip6_del_rt(struct rt6_info *rt)
 {
 	struct nl_info info = {
-		.nl_net = rt->rt6i_dev->nd_net,
+		.nl_net = dev_net(rt->rt6i_dev),
 	};
 	return __ip6_del_rt(rt, &info);
 }
@@ -1401,7 +1401,7 @@ static struct rt6_info *ip6_route_redirect(struct in6_addr *dest,
 					   struct net_device *dev)
 {
 	int flags = RT6_LOOKUP_F_HAS_SADDR;
-	struct net *net = dev->nd_net;
+	struct net *net = dev_net(dev);
 	struct ip6rd_flowi rdfl = {
 		.fl = {
 			.oif = dev->ifindex,
@@ -1428,7 +1428,7 @@ void rt6_redirect(struct in6_addr *dest, struct in6_addr *src,
 {
 	struct rt6_info *rt, *nrt = NULL;
 	struct netevent_redirect netevent;
-	struct net *net = neigh->dev->nd_net;
+	struct net *net = dev_net(neigh->dev);
 
 	rt = ip6_route_redirect(dest, src, saddr, neigh->dev);
 
@@ -1477,7 +1477,7 @@ void rt6_redirect(struct in6_addr *dest, struct in6_addr *src,
 	nrt->rt6i_nexthop = neigh_clone(neigh);
 	/* Reset pmtu, it may be better */
 	nrt->u.dst.metrics[RTAX_MTU-1] = ipv6_get_mtu(neigh->dev);
-	nrt->u.dst.metrics[RTAX_ADVMSS-1] = ipv6_advmss(neigh->dev->nd_net,
+	nrt->u.dst.metrics[RTAX_ADVMSS-1] = ipv6_advmss(dev_net(neigh->dev),
 							dst_mtu(&nrt->u.dst));
 
 	if (ip6_ins_rt(nrt))
@@ -1506,7 +1506,7 @@ void rt6_pmtu_discovery(struct in6_addr *daddr, struct in6_addr *saddr,
 			struct net_device *dev, u32 pmtu)
 {
 	struct rt6_info *rt, *nrt;
-	struct net *net = dev->nd_net;
+	struct net *net = dev_net(dev);
 	int allfrag = 0;
 
 	rt = rt6_lookup(net, daddr, saddr, dev->ifindex, 0);
@@ -1583,7 +1583,7 @@ out:
 
 static struct rt6_info * ip6_rt_copy(struct rt6_info *ort)
 {
-	struct net *net = ort->rt6i_dev->nd_net;
+	struct net *net = dev_net(ort->rt6i_dev);
 	struct rt6_info *rt = ip6_dst_alloc(net->ipv6.ip6_dst_ops);
 
 	if (rt) {
@@ -1682,7 +1682,7 @@ struct rt6_info *rt6_get_dflt_router(struct in6_addr *addr, struct net_device *d
 	struct rt6_info *rt;
 	struct fib6_table *table;
 
-	table = fib6_get_table(dev->nd_net, RT6_TABLE_DFLT);
+	table = fib6_get_table(dev_net(dev), RT6_TABLE_DFLT);
 	if (table == NULL)
 		return NULL;
 
@@ -1713,7 +1713,7 @@ struct rt6_info *rt6_add_dflt_router(struct in6_addr *gwaddr,
 				  RTF_UP | RTF_EXPIRES | RTF_PREF(pref),
 		.fc_nlinfo.pid = 0,
 		.fc_nlinfo.nlh = NULL,
-		.fc_nlinfo.nl_net = dev->nd_net,
+		.fc_nlinfo.nl_net = dev_net(dev),
 	};
 
 	ipv6_addr_copy(&cfg.fc_gateway, gwaddr);
@@ -1862,7 +1862,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 				    const struct in6_addr *addr,
 				    int anycast)
 {
-	struct net *net = idev->dev->nd_net;
+	struct net *net = dev_net(idev->dev);
 	struct rt6_info *rt = ip6_dst_alloc(net->ipv6.ip6_dst_ops);
 
 	if (rt == NULL)
@@ -1939,7 +1939,7 @@ static int rt6_mtu_change_route(struct rt6_info *rt, void *p_arg)
 {
 	struct rt6_mtu_change_arg *arg = (struct rt6_mtu_change_arg *) p_arg;
 	struct inet6_dev *idev;
-	struct net *net = arg->dev->nd_net;
+	struct net *net = dev_net(arg->dev);
 
 	/* In IPv6 pmtu discovery is not optional,
 	   so that RTAX_MTU lock cannot disable it.
@@ -1983,7 +1983,7 @@ void rt6_mtu_change(struct net_device *dev, unsigned mtu)
 		.mtu = mtu,
 	};
 
-	fib6_clean_all(dev->nd_net, rt6_mtu_change_route, 0, &arg);
+	fib6_clean_all(dev_net(dev), rt6_mtu_change_route, 0, &arg);
 }
 
 static const struct nla_policy rtm_ipv6_policy[RTA_MAX+1] = {
@@ -2321,7 +2321,7 @@ static int ip6_route_dev_notify(struct notifier_block *this,
 				unsigned long event, void *data)
 {
 	struct net_device *dev = (struct net_device *)data;
-	struct net *net = dev->nd_net;
+	struct net *net = dev_net(dev);
 
 	if (event == NETDEV_REGISTER && (dev->flags & IFF_LOOPBACK)) {
 		net->ipv6.ip6_null_entry->u.dst.dev = dev;

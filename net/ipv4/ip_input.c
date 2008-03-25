@@ -172,7 +172,7 @@ int ip_call_ra_chain(struct sk_buff *skb)
 		if (sk && inet_sk(sk)->num == protocol &&
 		    (!sk->sk_bound_dev_if ||
 		     sk->sk_bound_dev_if == dev->ifindex) &&
-		    sk->sk_net == dev->nd_net) {
+		    sk->sk_net == dev_net(dev)) {
 			if (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) {
 				if (ip_defrag(skb, IP_DEFRAG_CALL_RA_CHAIN)) {
 					read_unlock(&ip_ra_lock);
@@ -199,7 +199,7 @@ int ip_call_ra_chain(struct sk_buff *skb)
 
 static int ip_local_deliver_finish(struct sk_buff *skb)
 {
-	struct net *net = skb->dev->nd_net;
+	struct net *net = dev_net(skb->dev);
 
 	__skb_pull(skb, ip_hdrlen(skb));
 
@@ -291,7 +291,7 @@ static inline int ip_rcv_options(struct sk_buff *skb)
 	opt = &(IPCB(skb)->opt);
 	opt->optlen = iph->ihl*4 - sizeof(struct iphdr);
 
-	if (ip_options_compile(dev->nd_net, opt, skb)) {
+	if (ip_options_compile(dev_net(dev), opt, skb)) {
 		IP_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
 		goto drop;
 	}

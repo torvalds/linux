@@ -284,7 +284,7 @@ static struct rtable *rt_cache_get_first(struct rt_cache_iter_state *st)
 		rcu_read_lock_bh();
 		r = rcu_dereference(rt_hash_table[st->bucket].chain);
 		while (r) {
-			if (r->u.dst.dev->nd_net == st->p.net &&
+			if (dev_net(r->u.dst.dev) == st->p.net &&
 			    r->rt_genid == st->genid)
 				return r;
 			r = rcu_dereference(r->u.dst.rt_next);
@@ -312,7 +312,7 @@ static struct rtable *rt_cache_get_next(struct rt_cache_iter_state *st,
 					struct rtable *r)
 {
 	while ((r = __rt_cache_get_next(st, r)) != NULL) {
-		if (r->u.dst.dev->nd_net != st->p.net)
+		if (dev_net(r->u.dst.dev) != st->p.net)
 			continue;
 		if (r->rt_genid == st->genid)
 			break;
@@ -680,7 +680,7 @@ static inline int compare_keys(struct flowi *fl1, struct flowi *fl2)
 
 static inline int compare_netns(struct rtable *rt1, struct rtable *rt2)
 {
-	return rt1->u.dst.dev->nd_net == rt2->u.dst.dev->nd_net;
+	return dev_net(rt1->u.dst.dev) == dev_net(rt2->u.dst.dev);
 }
 
 /*
@@ -1164,7 +1164,7 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 	if (!in_dev)
 		return;
 
-	net = dev->nd_net;
+	net = dev_net(dev);
 	if (new_gw == old_gw || !IN_DEV_RX_REDIRECTS(in_dev)
 	    || ipv4_is_multicast(new_gw) || ipv4_is_lbcast(new_gw)
 	    || ipv4_is_zeronet(new_gw))
@@ -1195,7 +1195,7 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 				    rth->fl.oif != ikeys[k] ||
 				    rth->fl.iif != 0 ||
 				    rth->rt_genid != atomic_read(&rt_genid) ||
-				    rth->u.dst.dev->nd_net != net) {
+				    dev_net(rth->u.dst.dev) != net) {
 					rthp = &rth->u.dst.rt_next;
 					continue;
 				}
@@ -1454,7 +1454,7 @@ unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
 			    rth->rt_src  == iph->saddr &&
 			    rth->fl.iif == 0 &&
 			    !(dst_metric_locked(&rth->u.dst, RTAX_MTU)) &&
-			    rth->u.dst.dev->nd_net == net &&
+			    dev_net(rth->u.dst.dev) == net &&
 			    rth->rt_genid == atomic_read(&rt_genid)) {
 				unsigned short mtu = new_mtu;
 
@@ -1530,9 +1530,9 @@ static void ipv4_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 {
 	struct rtable *rt = (struct rtable *) dst;
 	struct in_device *idev = rt->idev;
-	if (dev != dev->nd_net->loopback_dev && idev && idev->dev == dev) {
+	if (dev != dev_net(dev)->loopback_dev && idev && idev->dev == dev) {
 		struct in_device *loopback_idev =
-			in_dev_get(dev->nd_net->loopback_dev);
+			in_dev_get(dev_net(dev)->loopback_dev);
 		if (loopback_idev) {
 			rt->idev = loopback_idev;
 			in_dev_put(idev);
@@ -1576,7 +1576,7 @@ void ip_rt_get_source(u8 *addr, struct rtable *rt)
 
 	if (rt->fl.iif == 0)
 		src = rt->rt_src;
-	else if (fib_lookup(rt->u.dst.dev->nd_net, &rt->fl, &res) == 0) {
+	else if (fib_lookup(dev_net(rt->u.dst.dev), &rt->fl, &res) == 0) {
 		src = FIB_RES_PREFSRC(res);
 		fib_res_put(&res);
 	} else
@@ -1900,7 +1900,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	__be32		spec_dst;
 	int		err = -EINVAL;
 	int		free_res = 0;
-	struct net    * net = dev->nd_net;
+	struct net    * net = dev_net(dev);
 
 	/* IP on this device is disabled. */
 
@@ -2071,7 +2071,7 @@ int ip_route_input(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	int iif = dev->ifindex;
 	struct net *net;
 
-	net = dev->nd_net;
+	net = dev_net(dev);
 	tos &= IPTOS_RT_MASK;
 	hash = rt_hash(daddr, saddr, iif);
 
@@ -2084,7 +2084,7 @@ int ip_route_input(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		    rth->fl.oif == 0 &&
 		    rth->fl.mark == skb->mark &&
 		    rth->fl.fl4_tos == tos &&
-		    rth->u.dst.dev->nd_net == net &&
+		    dev_net(rth->u.dst.dev) == net &&
 		    rth->rt_genid == atomic_read(&rt_genid)) {
 			dst_use(&rth->u.dst, jiffies);
 			RT_CACHE_STAT_INC(in_hit);
@@ -2486,7 +2486,7 @@ int __ip_route_output_key(struct net *net, struct rtable **rp,
 		    rth->fl.mark == flp->mark &&
 		    !((rth->fl.fl4_tos ^ flp->fl4_tos) &
 			    (IPTOS_RT_MASK | RTO_ONLINK)) &&
-		    rth->u.dst.dev->nd_net == net &&
+		    dev_net(rth->u.dst.dev) == net &&
 		    rth->rt_genid == atomic_read(&rt_genid)) {
 			dst_use(&rth->u.dst, jiffies);
 			RT_CACHE_STAT_INC(out_hit);
@@ -2795,7 +2795,7 @@ int ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb)
 		rcu_read_lock_bh();
 		for (rt = rcu_dereference(rt_hash_table[h].chain), idx = 0; rt;
 		     rt = rcu_dereference(rt->u.dst.rt_next), idx++) {
-			if (rt->u.dst.dev->nd_net != net || idx < s_idx)
+			if (dev_net(rt->u.dst.dev) != net || idx < s_idx)
 				continue;
 			if (rt->rt_genid != atomic_read(&rt_genid))
 				continue;

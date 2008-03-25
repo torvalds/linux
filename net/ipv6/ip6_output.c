@@ -402,7 +402,7 @@ int ip6_forward(struct sk_buff *skb)
 	struct dst_entry *dst = skb->dst;
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct inet6_skb_parm *opt = IP6CB(skb);
-	struct net *net = dst->dev->nd_net;
+	struct net *net = dev_net(dst->dev);
 
 	if (ipv6_devconf.forwarding == 0)
 		goto error;
