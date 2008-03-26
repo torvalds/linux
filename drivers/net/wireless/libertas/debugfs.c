@@ -19,7 +19,7 @@ static char *szStates[] = {
 };
 
 #ifdef PROC_DEBUG
-static void lbs_debug_init(struct lbs_private *priv, struct net_device *dev);
+static void lbs_debug_init(struct lbs_private *priv);
 #endif
 
 static int open_file_generic(struct inode *inode, struct file *file)
@@ -78,7 +78,7 @@ static ssize_t lbs_getscantable(struct file *file, char __user *userbuf,
 		u16 spectrum_mgmt = (iter_bss->capability & WLAN_CAPABILITY_SPECTRUM_MGMT);
 
 		pos += snprintf(buf+pos, len-pos,
-			"%02u| %03d | %04ld | %s |",
+			"%02u| %03d | %04d | %s |",
 			numscansdone, iter_bss->channel, iter_bss->rssi,
 			print_mac(mac, iter_bss->bssid));
 		pos += snprintf(buf+pos, len-pos, " %04x-", iter_bss->capability);
@@ -778,7 +778,7 @@ void lbs_debugfs_init_one(struct lbs_private *priv, struct net_device *dev)
 	}
 
 #ifdef PROC_DEBUG
-	lbs_debug_init(priv, dev);
+	lbs_debug_init(priv);
 #endif
 exit:
 	return;
@@ -952,7 +952,7 @@ static struct file_operations lbs_debug_fops = {
  *  @param dev     pointer net_device
  *  @return 	   N/A
  */
-static void lbs_debug_init(struct lbs_private *priv, struct net_device *dev)
+static void lbs_debug_init(struct lbs_private *priv)
 {
 	int i;
 

@@ -31,7 +31,7 @@
 
 #include <linux/io.h>
 
-#include "iwl-4965-debug.h"
+#include "iwl-debug.h"
 
 /*
  * IO, register, and NIC memory access functions
@@ -60,8 +60,8 @@
  */
 
 #define _iwl4965_write32(priv, ofs, val) writel((val), (priv)->hw_base + (ofs))
-#ifdef CONFIG_IWL4965_DEBUG
-static inline void __iwl4965_write32(const char *f, u32 l, struct iwl4965_priv *priv,
+#ifdef CONFIG_IWLWIFI_DEBUG
+static inline void __iwl4965_write32(const char *f, u32 l, struct iwl_priv *priv,
 				 u32 ofs, u32 val)
 {
 	IWL_DEBUG_IO("write32(0x%08X, 0x%08X) - %s %d\n", ofs, val, f, l);
@@ -74,8 +74,8 @@ static inline void __iwl4965_write32(const char *f, u32 l, struct iwl4965_priv *
 #endif
 
 #define _iwl4965_read32(priv, ofs) readl((priv)->hw_base + (ofs))
-#ifdef CONFIG_IWL4965_DEBUG
-static inline u32 __iwl4965_read32(char *f, u32 l, struct iwl4965_priv *priv, u32 ofs)
+#ifdef CONFIG_IWLWIFI_DEBUG
+static inline u32 __iwl4965_read32(char *f, u32 l, struct iwl_priv *priv, u32 ofs)
 {
 	IWL_DEBUG_IO("read_direct32(0x%08X) - %s %d\n", ofs, f, l);
 	return _iwl4965_read32(priv, ofs);
@@ -85,7 +85,7 @@ static inline u32 __iwl4965_read32(char *f, u32 l, struct iwl4965_priv *priv, u3
 #define iwl4965_read32(p, o) _iwl4965_read32(p, o)
 #endif
 
-static inline int _iwl4965_poll_bit(struct iwl4965_priv *priv, u32 addr,
+static inline int _iwl4965_poll_bit(struct iwl_priv *priv, u32 addr,
 				u32 bits, u32 mask, int timeout)
 {
 	int i = 0;
@@ -99,9 +99,9 @@ static inline int _iwl4965_poll_bit(struct iwl4965_priv *priv, u32 addr,
 
 	return -ETIMEDOUT;
 }
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 static inline int __iwl4965_poll_bit(const char *f, u32 l,
-				 struct iwl4965_priv *priv, u32 addr,
+				 struct iwl_priv *priv, u32 addr,
 				 u32 bits, u32 mask, int timeout)
 {
 	int ret = _iwl4965_poll_bit(priv, addr, bits, mask, timeout);
@@ -116,13 +116,13 @@ static inline int __iwl4965_poll_bit(const char *f, u32 l,
 #define iwl4965_poll_bit(p, a, b, m, t) _iwl4965_poll_bit(p, a, b, m, t)
 #endif
 
-static inline void _iwl4965_set_bit(struct iwl4965_priv *priv, u32 reg, u32 mask)
+static inline void _iwl4965_set_bit(struct iwl_priv *priv, u32 reg, u32 mask)
 {
 	_iwl4965_write32(priv, reg, _iwl4965_read32(priv, reg) | mask);
 }
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 static inline void __iwl4965_set_bit(const char *f, u32 l,
-				 struct iwl4965_priv *priv, u32 reg, u32 mask)
+				 struct iwl_priv *priv, u32 reg, u32 mask)
 {
 	u32 val = _iwl4965_read32(priv, reg) | mask;
 	IWL_DEBUG_IO("set_bit(0x%08X, 0x%08X) = 0x%08X\n", reg, mask, val);
@@ -133,13 +133,13 @@ static inline void __iwl4965_set_bit(const char *f, u32 l,
 #define iwl4965_set_bit(p, r, m) _iwl4965_set_bit(p, r, m)
 #endif
 
-static inline void _iwl4965_clear_bit(struct iwl4965_priv *priv, u32 reg, u32 mask)
+static inline void _iwl4965_clear_bit(struct iwl_priv *priv, u32 reg, u32 mask)
 {
 	_iwl4965_write32(priv, reg, _iwl4965_read32(priv, reg) & ~mask);
 }
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 static inline void __iwl4965_clear_bit(const char *f, u32 l,
-				   struct iwl4965_priv *priv, u32 reg, u32 mask)
+				   struct iwl_priv *priv, u32 reg, u32 mask)
 {
 	u32 val = _iwl4965_read32(priv, reg) & ~mask;
 	IWL_DEBUG_IO("clear_bit(0x%08X, 0x%08X) = 0x%08X\n", reg, mask, val);
@@ -150,12 +150,12 @@ static inline void __iwl4965_clear_bit(const char *f, u32 l,
 #define iwl4965_clear_bit(p, r, m) _iwl4965_clear_bit(p, r, m)
 #endif
 
-static inline int _iwl4965_grab_nic_access(struct iwl4965_priv *priv)
+static inline int _iwl4965_grab_nic_access(struct iwl_priv *priv)
 {
 	int ret;
 	u32 gp_ctl;
 
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	if (atomic_read(&priv->restrict_refcnt))
 		return 0;
 #endif
@@ -186,15 +186,15 @@ static inline int _iwl4965_grab_nic_access(struct iwl4965_priv *priv)
 		return -EIO;
 	}
 
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	atomic_inc(&priv->restrict_refcnt);
 #endif
 	return 0;
 }
 
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 static inline int __iwl4965_grab_nic_access(const char *f, u32 l,
-					       struct iwl4965_priv *priv)
+					       struct iwl_priv *priv)
 {
 	if (atomic_read(&priv->restrict_refcnt))
 		IWL_DEBUG_INFO("Grabbing access while already held at "
@@ -210,17 +210,17 @@ static inline int __iwl4965_grab_nic_access(const char *f, u32 l,
 	_iwl4965_grab_nic_access(priv)
 #endif
 
-static inline void _iwl4965_release_nic_access(struct iwl4965_priv *priv)
+static inline void _iwl4965_release_nic_access(struct iwl_priv *priv)
 {
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	if (atomic_dec_and_test(&priv->restrict_refcnt))
 #endif
 		_iwl4965_clear_bit(priv, CSR_GP_CNTRL,
 			       CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 }
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 static inline void __iwl4965_release_nic_access(const char *f, u32 l,
-					    struct iwl4965_priv *priv)
+					    struct iwl_priv *priv)
 {
 	if (atomic_read(&priv->restrict_refcnt) <= 0)
 		IWL_ERROR("Release unheld nic access at line %d.\n", l);
@@ -235,13 +235,13 @@ static inline void __iwl4965_release_nic_access(const char *f, u32 l,
 	_iwl4965_release_nic_access(priv)
 #endif
 
-static inline u32 _iwl4965_read_direct32(struct iwl4965_priv *priv, u32 reg)
+static inline u32 _iwl4965_read_direct32(struct iwl_priv *priv, u32 reg)
 {
 	return _iwl4965_read32(priv, reg);
 }
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 static inline u32 __iwl4965_read_direct32(const char *f, u32 l,
-					struct iwl4965_priv *priv, u32 reg)
+					struct iwl_priv *priv, u32 reg)
 {
 	u32 value = _iwl4965_read_direct32(priv, reg);
 	if (!atomic_read(&priv->restrict_refcnt))
@@ -256,14 +256,14 @@ static inline u32 __iwl4965_read_direct32(const char *f, u32 l,
 #define iwl4965_read_direct32 _iwl4965_read_direct32
 #endif
 
-static inline void _iwl4965_write_direct32(struct iwl4965_priv *priv,
+static inline void _iwl4965_write_direct32(struct iwl_priv *priv,
 					 u32 reg, u32 value)
 {
 	_iwl4965_write32(priv, reg, value);
 }
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 static void __iwl4965_write_direct32(u32 line,
-				   struct iwl4965_priv *priv, u32 reg, u32 value)
+				   struct iwl_priv *priv, u32 reg, u32 value)
 {
 	if (!atomic_read(&priv->restrict_refcnt))
 		IWL_ERROR("Nic access not held from line %d\n", line);
@@ -275,7 +275,7 @@ static void __iwl4965_write_direct32(u32 line,
 #define iwl4965_write_direct32 _iwl4965_write_direct32
 #endif
 
-static inline void iwl4965_write_reg_buf(struct iwl4965_priv *priv,
+static inline void iwl4965_write_reg_buf(struct iwl_priv *priv,
 					       u32 reg, u32 len, u32 *values)
 {
 	u32 count = sizeof(u32);
@@ -286,7 +286,7 @@ static inline void iwl4965_write_reg_buf(struct iwl4965_priv *priv,
 	}
 }
 
-static inline int _iwl4965_poll_direct_bit(struct iwl4965_priv *priv,
+static inline int _iwl4965_poll_direct_bit(struct iwl_priv *priv,
 					   u32 addr, u32 mask, int timeout)
 {
 	int i = 0;
@@ -301,9 +301,9 @@ static inline int _iwl4965_poll_direct_bit(struct iwl4965_priv *priv,
 	return -ETIMEDOUT;
 }
 
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 static inline int __iwl4965_poll_direct_bit(const char *f, u32 l,
-					    struct iwl4965_priv *priv,
+					    struct iwl_priv *priv,
 					    u32 addr, u32 mask, int timeout)
 {
 	int ret  = _iwl4965_poll_direct_bit(priv, addr, mask, timeout);
@@ -322,13 +322,13 @@ static inline int __iwl4965_poll_direct_bit(const char *f, u32 l,
 #define iwl4965_poll_direct_bit _iwl4965_poll_direct_bit
 #endif
 
-static inline u32 _iwl4965_read_prph(struct iwl4965_priv *priv, u32 reg)
+static inline u32 _iwl4965_read_prph(struct iwl_priv *priv, u32 reg)
 {
 	_iwl4965_write_direct32(priv, HBUS_TARG_PRPH_RADDR, reg | (3 << 24));
 	return _iwl4965_read_direct32(priv, HBUS_TARG_PRPH_RDAT);
 }
-#ifdef CONFIG_IWL4965_DEBUG
-static inline u32 __iwl4965_read_prph(u32 line, struct iwl4965_priv *priv, u32 reg)
+#ifdef CONFIG_IWLWIFI_DEBUG
+static inline u32 __iwl4965_read_prph(u32 line, struct iwl_priv *priv, u32 reg)
 {
 	if (!atomic_read(&priv->restrict_refcnt))
 		IWL_ERROR("Nic access not held from line %d\n", line);
@@ -341,15 +341,15 @@ static inline u32 __iwl4965_read_prph(u32 line, struct iwl4965_priv *priv, u32 r
 #define iwl4965_read_prph _iwl4965_read_prph
 #endif
 
-static inline void _iwl4965_write_prph(struct iwl4965_priv *priv,
+static inline void _iwl4965_write_prph(struct iwl_priv *priv,
 					     u32 addr, u32 val)
 {
 	_iwl4965_write_direct32(priv, HBUS_TARG_PRPH_WADDR,
 			      ((addr & 0x0000FFFF) | (3 << 24)));
 	_iwl4965_write_direct32(priv, HBUS_TARG_PRPH_WDAT, val);
 }
-#ifdef CONFIG_IWL4965_DEBUG
-static inline void __iwl4965_write_prph(u32 line, struct iwl4965_priv *priv,
+#ifdef CONFIG_IWLWIFI_DEBUG
+static inline void __iwl4965_write_prph(u32 line, struct iwl_priv *priv,
 					      u32 addr, u32 val)
 {
 	if (!atomic_read(&priv->restrict_refcnt))
@@ -365,8 +365,8 @@ static inline void __iwl4965_write_prph(u32 line, struct iwl4965_priv *priv,
 
 #define _iwl4965_set_bits_prph(priv, reg, mask) \
 	_iwl4965_write_prph(priv, reg, (_iwl4965_read_prph(priv, reg) | mask))
-#ifdef CONFIG_IWL4965_DEBUG
-static inline void __iwl4965_set_bits_prph(u32 line, struct iwl4965_priv *priv,
+#ifdef CONFIG_IWLWIFI_DEBUG
+static inline void __iwl4965_set_bits_prph(u32 line, struct iwl_priv *priv,
 					u32 reg, u32 mask)
 {
 	if (!atomic_read(&priv->restrict_refcnt))
@@ -383,9 +383,9 @@ static inline void __iwl4965_set_bits_prph(u32 line, struct iwl4965_priv *priv,
 #define _iwl4965_set_bits_mask_prph(priv, reg, bits, mask) \
 	_iwl4965_write_prph(priv, reg, ((_iwl4965_read_prph(priv, reg) & mask) | bits))
 
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 static inline void __iwl4965_set_bits_mask_prph(u32 line,
-		struct iwl4965_priv *priv, u32 reg, u32 bits, u32 mask)
+		struct iwl_priv *priv, u32 reg, u32 bits, u32 mask)
 {
 	if (!atomic_read(&priv->restrict_refcnt))
 		IWL_ERROR("Nic access not held from line %d\n", line);
@@ -397,26 +397,26 @@ static inline void __iwl4965_set_bits_mask_prph(u32 line,
 #define iwl4965_set_bits_mask_prph _iwl4965_set_bits_mask_prph
 #endif
 
-static inline void iwl4965_clear_bits_prph(struct iwl4965_priv
+static inline void iwl4965_clear_bits_prph(struct iwl_priv
 						 *priv, u32 reg, u32 mask)
 {
 	u32 val = _iwl4965_read_prph(priv, reg);
 	_iwl4965_write_prph(priv, reg, (val & ~mask));
 }
 
-static inline u32 iwl4965_read_targ_mem(struct iwl4965_priv *priv, u32 addr)
+static inline u32 iwl4965_read_targ_mem(struct iwl_priv *priv, u32 addr)
 {
 	iwl4965_write_direct32(priv, HBUS_TARG_MEM_RADDR, addr);
 	return iwl4965_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 }
 
-static inline void iwl4965_write_targ_mem(struct iwl4965_priv *priv, u32 addr, u32 val)
+static inline void iwl4965_write_targ_mem(struct iwl_priv *priv, u32 addr, u32 val)
 {
 	iwl4965_write_direct32(priv, HBUS_TARG_MEM_WADDR, addr);
 	iwl4965_write_direct32(priv, HBUS_TARG_MEM_WDAT, val);
 }
 
-static inline void iwl4965_write_targ_mem_buf(struct iwl4965_priv *priv, u32 addr,
+static inline void iwl4965_write_targ_mem_buf(struct iwl_priv *priv, u32 addr,
 					  u32 len, u32 *values)
 {
 	iwl4965_write_direct32(priv, HBUS_TARG_MEM_WADDR, addr);

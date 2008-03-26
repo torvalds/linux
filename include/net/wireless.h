@@ -304,4 +304,10 @@ extern int ieee80211_channel_to_frequency(int chan);
  */
 extern int ieee80211_frequency_to_channel(int freq);
 
+/**
+ * ieee80211_get_channel - get channel struct from wiphy for specified frequency
+ */
+extern struct ieee80211_channel *ieee80211_get_channel(struct wiphy *wiphy,
+						       int freq);
+
 #endif /* __NET_WIRELESS_H */

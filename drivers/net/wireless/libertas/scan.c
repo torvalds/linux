@@ -602,7 +602,7 @@ static int lbs_scan_networks(struct lbs_private *priv, int full_scan)
 	lbs_deb_scan("scan table:\n");
 	list_for_each_entry(iter, &priv->network_list, list)
 		lbs_deb_scan("%02d: BSSID %s, RSSI %d, SSID '%s'\n",
-			     i++, print_mac(mac, iter->bssid), (int)iter->rssi,
+			     i++, print_mac(mac, iter->bssid), iter->rssi,
 			     escape_essid(iter->ssid, iter->ssid_len));
 	mutex_unlock(&priv->lock);
 #endif
@@ -948,7 +948,7 @@ struct bss_descriptor *lbs_find_ssid_in_list(struct lbs_private *priv,
 					     uint8_t *bssid, uint8_t mode,
 					     int channel)
 {
-	uint8_t bestrssi = 0;
+	u32 bestrssi = 0;
 	struct bss_descriptor * iter_bss = NULL;
 	struct bss_descriptor * found_bss = NULL;
 	struct bss_descriptor * tmp_oldest = NULL;

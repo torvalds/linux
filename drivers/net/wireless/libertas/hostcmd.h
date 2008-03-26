@@ -195,6 +195,8 @@ struct cmd_ds_802_11_scan_rsp {
 };
 
 struct cmd_ds_802_11_get_log {
+	struct cmd_header hdr;
+
 	__le32 mcasttxframe;
 	__le32 failed;
 	__le32 retry;
@@ -211,8 +213,9 @@ struct cmd_ds_802_11_get_log {
 };
 
 struct cmd_ds_mac_control {
+	struct cmd_header hdr;
 	__le16 action;
-	__le16 reserved;
+	u16 reserved;
 };
 
 struct cmd_ds_mac_multicast_adr {
@@ -695,13 +698,11 @@ struct cmd_ds_command {
 	/* command Body */
 	union {
 		struct cmd_ds_802_11_ps_mode psmode;
-		struct cmd_ds_mac_control macctrl;
 		struct cmd_ds_802_11_associate associate;
 		struct cmd_ds_802_11_deauthenticate deauth;
 		struct cmd_ds_802_11_ad_hoc_start ads;
 		struct cmd_ds_802_11_reset reset;
 		struct cmd_ds_802_11_ad_hoc_result result;
-		struct cmd_ds_802_11_get_log glog;
 		struct cmd_ds_802_11_authenticate auth;
 		struct cmd_ds_802_11_get_stat gstat;
 		struct cmd_ds_802_3_get_stat gstat_8023;

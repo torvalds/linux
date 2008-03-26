@@ -4495,9 +4495,9 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 								       priv->
 								       essid_len),
 							  print_mac(mac, priv->bssid),
-							  ntohs(auth->status),
+							  le16_to_cpu(auth->status),
 							  ipw_get_status_code
-							  (ntohs
+							  (le16_to_cpu
 							   (auth->status)));
 
 						priv->status &=
@@ -4532,9 +4532,9 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 							  IPW_DL_STATE |
 							  IPW_DL_ASSOC,
 							  "association failed (0x%04X): %s\n",
-							  ntohs(resp->status),
+							  le16_to_cpu(resp->status),
 							  ipw_get_status_code
-							  (ntohs
+							  (le16_to_cpu
 							   (resp->status)));
 					}
 
@@ -4591,8 +4591,8 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 					IPW_DEBUG(IPW_DL_NOTIF | IPW_DL_STATE |
 						  IPW_DL_ASSOC,
 						  "authentication failed (0x%04X): %s\n",
-						  ntohs(auth->status),
-						  ipw_get_status_code(ntohs
+						  le16_to_cpu(auth->status),
+						  ipw_get_status_code(le16_to_cpu
 								      (auth->
 								       status)));
 				}

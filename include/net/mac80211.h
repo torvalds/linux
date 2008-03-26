@@ -644,6 +644,21 @@ enum sta_notify_cmd {
 };
 
 /**
+ * enum ieee80211_tkip_key_type - get tkip key
+ *
+ * Used by drivers which need to get a tkip key for skb. Some drivers need a
+ * phase 1 key, others need a phase 2 key. A single function allows the driver
+ * to get the key, this enum indicates what type of key is required.
+ *
+ * @IEEE80211_TKIP_P1_KEY: the driver needs a phase 1 key
+ * @IEEE80211_TKIP_P2_KEY: the driver needs a phase 2 key
+ */
+enum ieee80211_tkip_key_type {
+	IEEE80211_TKIP_P1_KEY,
+	IEEE80211_TKIP_P2_KEY,
+};
+
+/**
  * enum ieee80211_hw_flags - hardware flags
  *
  * These flags are used to indicate hardware capabilities to
@@ -812,6 +827,16 @@ static inline void SET_IEEE80211_PERM_ADDR(struct ieee80211_hw *hw, u8 *addr)
  * parameter is guaranteed to be valid until another call to set_key()
  * removes it, but it can only be used as a cookie to differentiate
  * keys.
+ *
+ * In TKIP some HW need to be provided a phase 1 key, for RX decryption
+ * acceleration (i.e. iwlwifi). Those drivers should provide update_tkip_key
+ * handler.
+ * The update_tkip_key() call updates the driver with the new phase 1 key.
+ * This happens everytime the iv16 wraps around (every 65536 packets). The
+ * set_key() call will happen only once for each key (unless the AP did
+ * rekeying), it will not include a valid phase 1 key. The valid phase 1 key is
+ * provided by udpate_tkip_key only. The trigger that makes mac80211 call this
+ * handler is software decryption with wrap around of iv16.
  */
 
 /**
@@ -988,6 +1013,10 @@ enum ieee80211_ampdu_mlme_action {
  *	and remove_interface calls, i.e. while the interface with the
  *	given local_address is enabled.
  *
+ * @update_tkip_key: See the section "Hardware crypto acceleration"
+ * 	This callback will be called in the context of Rx. Called for drivers
+ * 	which set IEEE80211_KEY_FLAG_TKIP_REQ_RX_P1_KEY.
+ *
  * @hw_scan: Ask the hardware to service the scan request, no need to start
  *	the scan state machine in stack. The scan must honour the channel
  *	configuration done by the regulatory agent in the wiphy's registered
@@ -1079,6 +1108,9 @@ struct ieee80211_ops {
 	int (*set_key)(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		       const u8 *local_address, const u8 *address,
 		       struct ieee80211_key_conf *key);
+	void (*update_tkip_key)(struct ieee80211_hw *hw,
+			struct ieee80211_key_conf *conf, const u8 *address,
+			u32 iv32, u16 *phase1key);
 	int (*hw_scan)(struct ieee80211_hw *hw, u8 *ssid, size_t len);
 	int (*get_stats)(struct ieee80211_hw *hw,
 			 struct ieee80211_low_level_stats *stats);
@@ -1471,6 +1503,21 @@ int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb);
  */
 int ieee80211_get_hdrlen(u16 fc);
 
+/**
+ * ieee80211_get_tkip_key - get a TKIP rc4 for skb
+ *
+ * This function computes a TKIP rc4 key for an skb. It computes
+ * a phase 1 key if needed (iv16 wraps around). This function is to
+ * be used by drivers which can do HW encryption but need to compute
+ * to phase 1/2 key in SW.
+ *
+ * @keyconf: the parameter passed with the set key
+ * @skb: the skb for which the key is needed
+ * @rc4key: a buffer to which the key will be written
+ */
+void ieee80211_get_tkip_key(struct ieee80211_key_conf *keyconf,
+				struct sk_buff *skb,
+				enum ieee80211_tkip_key_type type, u8 *key);
 /**
  * ieee80211_wake_queue - wake specific queue
  * @hw: pointer as obtained from ieee80211_alloc_hw().

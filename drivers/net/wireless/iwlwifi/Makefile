@@ -1,5 +1,9 @@
 obj-$(CONFIG_IWLCORE)	+= iwlcore.o
-iwlcore-objs 		= iwl-core.o iwl-eeprom.o
+iwlcore-objs 		= iwl-core.o iwl-eeprom.o iwl-hcmd.o
+
+ifeq ($(CONFIG_IWLWIFI_DEBUGFS),y)
+	iwlcore-objs += iwl-debugfs.o
+endif
 
 obj-$(CONFIG_IWL3945)	+= iwl3945.o
 iwl3945-objs		= iwl3945-base.o iwl-3945.o iwl-3945-rs.o

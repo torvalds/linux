@@ -268,13 +268,11 @@ static int assoc_helper_wep_keys(struct lbs_private *priv,
 
 	/* enable/disable the MAC's WEP packet filter */
 	if (assoc_req->secinfo.wep_enabled)
-		priv->currentpacketfilter |= CMD_ACT_MAC_WEP_ENABLE;
+		priv->mac_control |= CMD_ACT_MAC_WEP_ENABLE;
 	else
-		priv->currentpacketfilter &= ~CMD_ACT_MAC_WEP_ENABLE;
+		priv->mac_control &= ~CMD_ACT_MAC_WEP_ENABLE;
 
-	ret = lbs_set_mac_packet_filter(priv);
-	if (ret)
-		goto out;
+	lbs_set_mac_control(priv);
 
 	mutex_lock(&priv->lock);
 
@@ -304,9 +302,7 @@ static int assoc_helper_secinfo(struct lbs_private *priv,
 	memcpy(&priv->secinfo, &assoc_req->secinfo,
 		sizeof(struct lbs_802_11_security));
 
-	ret = lbs_set_mac_packet_filter(priv);
-	if (ret)
-		goto out;
+	lbs_set_mac_control(priv);
 
 	/* If RSN is already enabled, don't try to enable it again, since
 	 * ENABLE_RSN resets internal state machines and will clobber the
@@ -627,10 +623,6 @@ void lbs_association_worker(struct work_struct *work)
 				print_mac(mac, priv->curbssparams.bssid));
 			lbs_prepare_and_send_command(priv,
 				CMD_802_11_RSSI,
-				0, CMD_OPTION_WAITFORRSP, 0, NULL);
-
-			lbs_prepare_and_send_command(priv,
-				CMD_802_11_GET_LOG,
 				0, CMD_OPTION_WAITFORRSP, 0, NULL);
 		} else {
 			ret = -1;

@@ -386,7 +386,6 @@ static int ieee80211_stop(struct net_device *dev)
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_init_conf conf;
 	struct sta_info *sta;
-	int i;
 
 	/*
 	 * Stop TX on this interface first.
@@ -400,11 +399,7 @@ static int ieee80211_stop(struct net_device *dev)
 
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
 		if (sta->sdata == sdata)
-			for (i = 0; i <  STA_TID_NUM; i++)
-				ieee80211_sta_stop_rx_ba_session(sdata->dev,
-						sta->addr, i,
-						WLAN_BACK_RECIPIENT,
-						WLAN_REASON_QSTA_LEAVE_QBSS);
+			ieee80211_sta_tear_down_BA_sessions(dev, sta->addr);
 	}
 
 	rcu_read_unlock();

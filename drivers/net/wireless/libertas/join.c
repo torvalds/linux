@@ -561,8 +561,7 @@ done:
 	return ret;
 }
 
-int lbs_cmd_80211_ad_hoc_stop(struct lbs_private *priv,
-				struct cmd_ds_command *cmd)
+int lbs_cmd_80211_ad_hoc_stop(struct cmd_ds_command *cmd)
 {
 	cmd->command = cpu_to_le16(CMD_802_11_AD_HOC_STOP);
 	cmd->size = cpu_to_le16(S_DS_GEN);
@@ -773,8 +772,7 @@ done:
 	return ret;
 }
 
-int lbs_ret_80211_disassociate(struct lbs_private *priv,
-				 struct cmd_ds_command *resp)
+int lbs_ret_80211_disassociate(struct lbs_private *priv)
 {
 	lbs_deb_enter(LBS_DEB_JOIN);
 
@@ -863,8 +861,7 @@ done:
 	return ret;
 }
 
-int lbs_ret_80211_ad_hoc_stop(struct lbs_private *priv,
-				struct cmd_ds_command *resp)
+int lbs_ret_80211_ad_hoc_stop(struct lbs_private *priv)
 {
 	lbs_deb_enter(LBS_DEB_JOIN);
 

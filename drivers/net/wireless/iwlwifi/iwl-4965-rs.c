@@ -39,6 +39,7 @@
 #include "../net/mac80211/ieee80211_rate.h"
 
 #include "iwl-4965.h"
+#include "iwl-core.h"
 #include "iwl-helpers.h"
 
 #define RS_NAME "iwl-4965-rs"
@@ -162,11 +163,11 @@ struct iwl4965_lq_sta {
 	struct dentry *rs_sta_dbgfs_tx_agg_tid_en_file;
 #endif
 	struct iwl4965_rate dbg_fixed;
-	struct iwl4965_priv *drv;
+	struct iwl_priv *drv;
 #endif
 };
 
-static void rs_rate_scale_perform(struct iwl4965_priv *priv,
+static void rs_rate_scale_perform(struct iwl_priv *priv,
 				   struct net_device *dev,
 				   struct ieee80211_hdr *hdr,
 				   struct sta_info *sta);
@@ -229,8 +230,8 @@ static s32 expected_tpt_mimo40MHzSGI[IWL_RATE_COUNT] = {
 	0, 0, 0, 0, 131, 131, 191, 222, 242, 270, 284, 289, 293
 };
 
-static int iwl4965_lq_sync_callback(struct iwl4965_priv *priv,
-				struct iwl4965_cmd *cmd, struct sk_buff *skb)
+static int iwl4965_lq_sync_callback(struct iwl_priv *priv,
+				struct iwl_cmd *cmd, struct sk_buff *skb)
 {
 	/*We didn't cache the SKB; let the caller free it */
 	return 1;
@@ -241,13 +242,13 @@ static inline u8 iwl4965_rate_get_rate(u32 rate_n_flags)
 	return (u8)(rate_n_flags & 0xFF);
 }
 
-static int rs_send_lq_cmd(struct iwl4965_priv *priv,
+static int rs_send_lq_cmd(struct iwl_priv *priv,
 			  struct iwl4965_link_quality_cmd *lq, u8 flags)
 {
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	int i;
 #endif
-	struct iwl4965_host_cmd cmd = {
+	struct iwl_host_cmd cmd = {
 		.id = REPLY_TX_LINK_QUALITY_CMD,
 		.len = sizeof(struct iwl4965_link_quality_cmd),
 		.meta.flags = flags,
@@ -265,7 +266,7 @@ static int rs_send_lq_cmd(struct iwl4965_priv *priv,
 	IWL_DEBUG_RATE("lq dta 0x%X 0x%X\n",
 		       lq->general_params.single_stream_ant_msk,
 		       lq->general_params.dual_stream_ant_msk);
-#ifdef CONFIG_IWL4965_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++)
 		IWL_DEBUG_RATE("lq index %d 0x%X\n",
 				i, lq->rs_table[i].rate_n_flags);
@@ -276,7 +277,7 @@ static int rs_send_lq_cmd(struct iwl4965_priv *priv,
 
 	if (iwl4965_is_associated(priv) && priv->assoc_station_added &&
 	    priv->lq_mngr.lq_ready)
-		return  iwl4965_send_cmd(priv, &cmd);
+		return  iwl_send_cmd(priv, &cmd);
 
 	return 0;
 }
@@ -388,7 +389,7 @@ static u32 rs_tl_get_load(struct iwl4965_lq_sta *lq_data, u8 tid)
 	return tl->total;
 }
 
-static void rs_tl_turn_on_agg_for_tid(struct iwl4965_priv *priv,
+static void rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 				struct iwl4965_lq_sta *lq_data, u8 tid,
 				struct sta_info *sta)
 {
@@ -407,7 +408,7 @@ static void rs_tl_turn_on_agg_for_tid(struct iwl4965_priv *priv,
 	}
 }
 
-static void rs_tl_turn_on_agg(struct iwl4965_priv *priv, u8 tid,
+static void rs_tl_turn_on_agg(struct iwl_priv *priv, u8 tid,
 				struct iwl4965_lq_sta *lq_data,
 				struct sta_info *sta)
 {
@@ -658,7 +659,7 @@ static inline void rs_toggle_antenna(struct iwl4965_rate *new_rate,
 	}
 }
 
-static inline u8 rs_use_green(struct iwl4965_priv *priv,
+static inline u8 rs_use_green(struct iwl_priv *priv,
 			      struct ieee80211_conf *conf)
 {
 #ifdef CONFIG_IWL4965_HT
@@ -821,7 +822,7 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	struct iwl4965_link_quality_cmd *table;
 	struct sta_info *sta;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct iwl4965_priv *priv = (struct iwl4965_priv *)priv_rate;
+	struct iwl_priv *priv = (struct iwl_priv *)priv_rate;
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_hw *hw = local_to_hw(local);
 	struct iwl4965_rate_scale_data *window = NULL;
@@ -1128,7 +1129,7 @@ static void rs_get_expected_tpt_table(struct iwl4965_lq_sta *lq_sta,
  * to decrease to match "active" throughput.  When moving from MIMO to SISO,
  * bit rate will typically need to increase, but not if performance was bad.
  */
-static s32 rs_get_best_rate(struct iwl4965_priv *priv,
+static s32 rs_get_best_rate(struct iwl_priv *priv,
 			    struct iwl4965_lq_sta *lq_sta,
 			    struct iwl4965_scale_tbl_info *tbl,	/* "search" */
 			    u16 rate_mask, s8 index, s8 rate)
@@ -1226,7 +1227,7 @@ static inline u8 rs_is_both_ant_supp(u8 valid_antenna)
 /*
  * Set up search table for MIMO
  */
-static int rs_switch_to_mimo(struct iwl4965_priv *priv,
+static int rs_switch_to_mimo(struct iwl_priv *priv,
 			     struct iwl4965_lq_sta *lq_sta,
 			     struct ieee80211_conf *conf,
 			     struct sta_info *sta,
@@ -1291,7 +1292,7 @@ static int rs_switch_to_mimo(struct iwl4965_priv *priv,
 /*
  * Set up search table for SISO
  */
-static int rs_switch_to_siso(struct iwl4965_priv *priv,
+static int rs_switch_to_siso(struct iwl_priv *priv,
 			     struct iwl4965_lq_sta *lq_sta,
 			     struct ieee80211_conf *conf,
 			     struct sta_info *sta,
@@ -1354,7 +1355,7 @@ static int rs_switch_to_siso(struct iwl4965_priv *priv,
 /*
  * Try to switch to new modulation mode from legacy
  */
-static int rs_move_legacy_other(struct iwl4965_priv *priv,
+static int rs_move_legacy_other(struct iwl_priv *priv,
 				struct iwl4965_lq_sta *lq_sta,
 				struct ieee80211_conf *conf,
 				struct sta_info *sta,
@@ -1452,7 +1453,7 @@ static int rs_move_legacy_other(struct iwl4965_priv *priv,
 /*
  * Try to switch to new modulation mode from SISO
  */
-static int rs_move_siso_to_other(struct iwl4965_priv *priv,
+static int rs_move_siso_to_other(struct iwl_priv *priv,
 				 struct iwl4965_lq_sta *lq_sta,
 				 struct ieee80211_conf *conf,
 				 struct sta_info *sta,
@@ -1548,7 +1549,7 @@ static int rs_move_siso_to_other(struct iwl4965_priv *priv,
 /*
  * Try to switch to new modulation mode from MIMO
  */
-static int rs_move_mimo_to_other(struct iwl4965_priv *priv,
+static int rs_move_mimo_to_other(struct iwl_priv *priv,
 				 struct iwl4965_lq_sta *lq_sta,
 				 struct ieee80211_conf *conf,
 				 struct sta_info *sta,
@@ -1728,7 +1729,7 @@ static void rs_stay_in_table(struct iwl4965_lq_sta *lq_sta)
 /*
  * Do rate scaling and search for new modulation mode.
  */
-static void rs_rate_scale_perform(struct iwl4965_priv *priv,
+static void rs_rate_scale_perform(struct iwl_priv *priv,
 				  struct net_device *dev,
 				  struct ieee80211_hdr *hdr,
 				  struct sta_info *sta)
@@ -2148,7 +2149,7 @@ out:
 }
 
 
-static void rs_initialize_lq(struct iwl4965_priv *priv,
+static void rs_initialize_lq(struct iwl_priv *priv,
 			     struct ieee80211_conf *conf,
 			     struct sta_info *sta)
 {
@@ -2213,7 +2214,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct sta_info *sta;
 	u16 fc;
-	struct iwl4965_priv *priv = (struct iwl4965_priv *)priv_rate;
+	struct iwl_priv *priv = (struct iwl_priv *)priv_rate;
 	struct iwl4965_lq_sta *lq_sta;
 
 	IWL_DEBUG_RATE_LIMIT("rate scale calculate new rate for skb\n");
@@ -2294,7 +2295,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	int i, j;
 	struct ieee80211_conf *conf = &local->hw.conf;
 	struct ieee80211_supported_band *sband;
-	struct iwl4965_priv *priv = (struct iwl4965_priv *)priv_rate;
+	struct iwl_priv *priv = (struct iwl_priv *)priv_rate;
 	struct iwl4965_lq_sta *lq_sta = priv_sta;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
@@ -2516,7 +2517,7 @@ static void rs_free(void *priv_rate)
 
 static void rs_clear(void *priv_rate)
 {
-	struct iwl4965_priv *priv = (struct iwl4965_priv *) priv_rate;
+	struct iwl_priv *priv = (struct iwl_priv *) priv_rate;
 
 	IWL_DEBUG_RATE("enter\n");
 
@@ -2726,7 +2727,7 @@ static struct rate_control_ops rs_ops = {
 int iwl4965_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct iwl4965_priv *priv = hw->priv;
+	struct iwl_priv *priv = hw->priv;
 	struct iwl4965_lq_sta *lq_sta;
 	struct sta_info *sta;
 	int cnt = 0, i;
@@ -2816,7 +2817,7 @@ int iwl4965_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 
 void iwl4965_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 {
-	struct iwl4965_priv *priv = hw->priv;
+	struct iwl_priv *priv = hw->priv;
 
 	priv->lq_mngr.lq_ready = 1;
 }

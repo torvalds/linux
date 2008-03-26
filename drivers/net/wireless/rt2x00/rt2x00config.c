@@ -80,7 +80,6 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 			  struct ieee80211_bss_conf *bss_conf)
 {
 	struct rt2x00lib_erp erp;
-	int retval;
 
 	memset(&erp, 0, sizeof(erp));
 
@@ -101,14 +100,7 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 		erp.ack_consume_time += PREAMBLE;
 	}
 
-	retval = rt2x00dev->ops->lib->config_erp(rt2x00dev, &erp);
-
-	if (retval) {
-		spin_lock(&intf->lock);
-		intf->delayed_flags |= DELAYED_CONFIG_ERP;
-		queue_work(rt2x00dev->hw->workqueue, &rt2x00dev->intf_work);
-		spin_unlock(&intf->lock);
-	}
+	rt2x00dev->ops->lib->config_erp(rt2x00dev, &erp);
 }
 
 void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
