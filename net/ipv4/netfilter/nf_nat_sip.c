@@ -101,10 +101,10 @@ static unsigned int ip_nat_sip(struct sk_buff *skb,
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
-	unsigned int matchoff, matchlen;
+	unsigned int dataoff, matchoff, matchlen;
 	union nf_inet_addr addr;
 	__be16 port;
-	int request;
+	int request, in_header;
 
 	/* Basic rules: requests and responses. */
 	if (strnicmp(*dptr, "SIP/2.0", strlen("SIP/2.0")) != 0) {
@@ -187,9 +187,20 @@ static unsigned int ip_nat_sip(struct sk_buff *skb,
 	}
 
 next:
+	/* Translate Contact headers */
+	dataoff = 0;
+	in_header = 0;
+	while (ct_sip_parse_header_uri(ct, *dptr, &dataoff, *datalen,
+				       SIP_HDR_CONTACT, &in_header,
+				       &matchoff, &matchlen,
+				       &addr, &port) > 0) {
+		if (!map_addr(skb, dptr, datalen, matchoff, matchlen,
+			      &addr, port))
+			return NF_DROP;
+	}
+
 	if (!map_sip_addr(skb, dptr, datalen, SIP_HDR_FROM) ||
-	    !map_sip_addr(skb, dptr, datalen, SIP_HDR_TO) ||
-	    !map_sip_addr(skb, dptr, datalen, SIP_HDR_CONTACT))
+	    !map_sip_addr(skb, dptr, datalen, SIP_HDR_TO))
 		return NF_DROP;
 	return NF_ACCEPT;
 }
