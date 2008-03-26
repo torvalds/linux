@@ -20,9 +20,14 @@ struct task_struct;
 
 extern void save_fpu(struct task_struct *__tsk, struct pt_regs *regs);
 #else
+
 #define release_fpu(regs)	do { } while (0)
 #define grab_fpu(regs)		do { } while (0)
-#define save_fpu(tsk, regs)	do { } while (0)
+
+static inline void save_fpu(struct task_struct *tsk, struct pt_regs *regs)
+{
+	clear_tsk_thread_flag(tsk, TIF_USEDFPU);
+}
 #endif
 
 extern int do_fpu_inst(unsigned short, struct pt_regs *);
