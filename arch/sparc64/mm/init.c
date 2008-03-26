@@ -46,6 +46,7 @@
 #include <asm/prom.h>
 #include <asm/sstate.h>
 #include <asm/mdesc.h>
+#include <asm/cpudata.h>
 
 #define MAX_PHYS_ADDRESS	(1UL << 42UL)
 #define KPTE_BITMAP_CHUNK_SZ	(256UL * 1024UL * 1024UL)
