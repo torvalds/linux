@@ -397,7 +397,7 @@ static void rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 	DECLARE_MAC_BUF(mac);
 
 	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
-	state = sta->ampdu_mlme.tid_tx[tid].state;
+	state = sta->ampdu_mlme.tid_state_tx[tid];
 	spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
 
 	if (state == HT_AGG_STATE_IDLE &&

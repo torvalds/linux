@@ -1514,9 +1514,10 @@ ieee80211_rx_h_ctrl(struct ieee80211_rx_data *rx)
 		if (!rx->sta)
 			return RX_CONTINUE;
 		tid = le16_to_cpu(bar->control) >> 12;
-		tid_agg_rx = &(rx->sta->ampdu_mlme.tid_rx[tid]);
-		if (tid_agg_rx->state != HT_AGG_STATE_OPERATIONAL)
+		if (rx->sta->ampdu_mlme.tid_state_rx[tid]
+					!= HT_AGG_STATE_OPERATIONAL)
 			return RX_CONTINUE;
+		tid_agg_rx = rx->sta->ampdu_mlme.tid_rx[tid];
 
 		start_seq_num = le16_to_cpu(bar->start_seq_num) >> 4;
 
@@ -2123,10 +2124,11 @@ static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
 
 	qc = skb->data + ieee80211_get_hdrlen(fc) - QOS_CONTROL_LEN;
 	tid = qc[0] & QOS_CONTROL_TID_MASK;
-	tid_agg_rx = &(sta->ampdu_mlme.tid_rx[tid]);
 
-	if (tid_agg_rx->state != HT_AGG_STATE_OPERATIONAL)
+	if (sta->ampdu_mlme.tid_state_rx[tid] != HT_AGG_STATE_OPERATIONAL)
 		goto end_reorder;
+
+	tid_agg_rx = sta->ampdu_mlme.tid_rx[tid];
 
 	/* null data frames are excluded */
 	if (unlikely(fc & IEEE80211_STYPE_NULLFUNC))
