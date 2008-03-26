@@ -322,15 +322,6 @@ next_sge:
 		ctxt->direction = DMA_FROM_DEVICE;
 		clear_bit(RDMACTXT_F_READ_DONE, &ctxt->flags);
 		clear_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags);
-		if ((ch+1)->rc_discrim == 0) {
-			/*
-			 * Checked in sq_cq_reap to see if we need to
-			 * be enqueued
-			 */
-			set_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags);
-			ctxt->next = hdr_ctxt;
-			hdr_ctxt->next = head;
-		}
 
 		/* Prepare READ WR */
 		memset(&read_wr, 0, sizeof read_wr);
@@ -348,7 +339,17 @@ next_sge:
 		rdma_set_ctxt_sge(ctxt, &sge[ch_sge_ary[ch_no].start],
 				  &sgl_offset,
 				  read_wr.num_sge);
-
+		if (((ch+1)->rc_discrim == 0) &&
+		    (read_wr.num_sge == ch_sge_ary[ch_no].count)) {
+			/*
+			 * Mark the last RDMA_READ with a bit to
+			 * indicate all RPC data has been fetched from
+			 * the client and the RPC needs to be enqueued.
+			 */
+			set_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags);
+			ctxt->next = hdr_ctxt;
+			hdr_ctxt->next = head;
+		}
 		/* Post the read */
 		err = svc_rdma_send(xprt, &read_wr);
 		if (err) {
