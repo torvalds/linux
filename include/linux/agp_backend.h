@@ -30,14 +30,6 @@
 #ifndef _AGP_BACKEND_H
 #define _AGP_BACKEND_H 1
 
-#ifndef TRUE
-#define TRUE 1
-#endif
-
-#ifndef FALSE
-#define FALSE 0
-#endif
-
 enum chipset_type {
 	NOT_SUPPORTED,
 	SUPPORTED,
@@ -57,7 +49,7 @@ struct agp_kern_info {
 	size_t aper_size;
 	int max_memory;		/* In pages */
 	int current_memory;
-	int cant_use_aperture;
+	bool cant_use_aperture;
 	unsigned long page_mask;
 	struct vm_operations_struct *vm_ops;
 };
@@ -83,8 +75,8 @@ struct agp_memory {
 	off_t pg_start;
 	u32 type;
 	u32 physical;
-	u8 is_bound;
-	u8 is_flushed;
+	bool is_bound;
+	bool is_flushed;
         u8 vmalloc_flag;
 };
 
