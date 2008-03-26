@@ -1,6 +1,6 @@
 /* smp.c: Sparc64 SMP support.
  *
- * Copyright (C) 1997, 2007 David S. Miller (davem@davemloft.net)
+ * Copyright (C) 1997, 2007, 2008 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/module.h>
@@ -30,6 +30,7 @@
 #include <asm/cpudata.h>
 #include <asm/hvtramp.h>
 #include <asm/io.h>
+#include <asm/timer.h>
 
 #include <asm/irq.h>
 #include <asm/irq_regs.h>
