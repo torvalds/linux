@@ -33,8 +33,8 @@ int ieee80211_frequency_to_channel(int freq)
 }
 EXPORT_SYMBOL(ieee80211_frequency_to_channel);
 
-struct ieee80211_channel *ieee80211_get_channel(struct wiphy *wiphy,
-						int freq)
+struct ieee80211_channel *__ieee80211_get_channel(struct wiphy *wiphy,
+						  int freq)
 {
 	enum ieee80211_band band;
 	struct ieee80211_supported_band *sband;
@@ -54,7 +54,7 @@ struct ieee80211_channel *ieee80211_get_channel(struct wiphy *wiphy,
 
 	return NULL;
 }
-EXPORT_SYMBOL(ieee80211_get_channel);
+EXPORT_SYMBOL(__ieee80211_get_channel);
 
 static void set_mandatory_flags_band(struct ieee80211_supported_band *sband,
 				     enum ieee80211_band band)
