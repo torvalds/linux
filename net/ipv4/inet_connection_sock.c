@@ -85,7 +85,7 @@ int inet_csk_get_port(struct sock *sk, unsigned short snum)
 	struct hlist_node *node;
 	struct inet_bind_bucket *tb;
 	int ret;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 
 	local_bh_disable();
 	if (!snum) {
@@ -333,7 +333,7 @@ struct dst_entry* inet_csk_route_req(struct sock *sk,
 					 .dport = ireq->rmt_port } } };
 
 	security_req_classify_flow(req, &fl);
-	if (ip_route_output_flow(sk->sk_net, &rt, &fl, sk, 0)) {
+	if (ip_route_output_flow(sock_net(sk), &rt, &fl, sk, 0)) {
 		IP_INC_STATS_BH(IPSTATS_MIB_OUTNOROUTES);
 		return NULL;
 	}

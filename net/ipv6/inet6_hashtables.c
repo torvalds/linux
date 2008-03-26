@@ -105,7 +105,7 @@ struct sock *inet6_lookup_listener(struct net *net,
 
 	read_lock(&hashinfo->lhash_lock);
 	sk_for_each(sk, node, &hashinfo->listening_hash[inet_lhashfn(hnum)]) {
-		if (sk->sk_net == net && inet_sk(sk)->num == hnum &&
+		if (net_eq(sock_net(sk), net) && inet_sk(sk)->num == hnum &&
 				sk->sk_family == PF_INET6) {
 			const struct ipv6_pinfo *np = inet6_sk(sk);
 
@@ -172,7 +172,7 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	struct sock *sk2;
 	const struct hlist_node *node;
 	struct inet_timewait_sock *tw;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 
 	prefetch(head->chain.first);
 	write_lock(lock);

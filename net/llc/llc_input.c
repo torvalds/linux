@@ -146,7 +146,7 @@ int llc_rcv(struct sk_buff *skb, struct net_device *dev,
 	int (*rcv)(struct sk_buff *, struct net_device *,
 		   struct packet_type *, struct net_device *);
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		goto drop;
 
 	/*

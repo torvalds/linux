@@ -351,7 +351,7 @@ static void icmp_push_reply(struct icmp_bxm *icmp_param,
 	struct sock *sk;
 	struct sk_buff *skb;
 
-	sk = icmp_sk(rt->u.dst.dev->nd_net);
+	sk = icmp_sk(dev_net(rt->u.dst.dev));
 	if (ip_append_data(sk, icmp_glue_bits, icmp_param,
 			   icmp_param->data_len+icmp_param->head_len,
 			   icmp_param->head_len,
@@ -382,7 +382,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 {
 	struct ipcm_cookie ipc;
 	struct rtable *rt = skb->rtable;
-	struct net *net = rt->u.dst.dev->nd_net;
+	struct net *net = dev_net(rt->u.dst.dev);
 	struct sock *sk = icmp_sk(net);
 	struct inet_sock *inet = inet_sk(sk);
 	__be32 daddr;
@@ -447,7 +447,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 
 	if (!rt)
 		goto out;
-	net = rt->u.dst.dev->nd_net;
+	net = dev_net(rt->u.dst.dev);
 	sk = icmp_sk(net);
 
 	/*
@@ -677,7 +677,7 @@ static void icmp_unreach(struct sk_buff *skb)
 	u32 info = 0;
 	struct net *net;
 
-	net = skb->dst->dev->nd_net;
+	net = dev_net(skb->dst->dev);
 
 	/*
 	 *	Incomplete header ?

@@ -321,7 +321,7 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	struct tcp_sock *tp;
 	__u32 seq;
 
-	sk = inet6_lookup(skb->dev->nd_net, &tcp_hashinfo, &hdr->daddr,
+	sk = inet6_lookup(dev_net(skb->dev), &tcp_hashinfo, &hdr->daddr,
 			th->dest, &hdr->saddr, th->source, skb->dev->ifindex);
 
 	if (sk == NULL) {
@@ -988,7 +988,7 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 	struct tcphdr *th = tcp_hdr(skb), *t1;
 	struct sk_buff *buff;
 	struct flowi fl;
-	struct net *net = skb->dst->dev->nd_net;
+	struct net *net = dev_net(skb->dst->dev);
 	struct sock *ctl_sk = net->ipv6.tcp_sk;
 	unsigned int tot_len = sizeof(*th);
 #ifdef CONFIG_TCP_MD5SIG
@@ -1093,7 +1093,7 @@ static void tcp_v6_send_ack(struct tcp_timewait_sock *tw,
 	struct tcphdr *th = tcp_hdr(skb), *t1;
 	struct sk_buff *buff;
 	struct flowi fl;
-	struct net *net = skb->dev->nd_net;
+	struct net *net = dev_net(skb->dev);
 	struct sock *ctl_sk = net->ipv6.tcp_sk;
 	unsigned int tot_len = sizeof(struct tcphdr);
 	__be32 *topt;
@@ -1218,7 +1218,7 @@ static struct sock *tcp_v6_hnd_req(struct sock *sk,struct sk_buff *skb)
 	if (req)
 		return tcp_check_req(sk, skb, req, prev);
 
-	nsk = __inet6_lookup_established(sk->sk_net, &tcp_hashinfo,
+	nsk = __inet6_lookup_established(sock_net(sk), &tcp_hashinfo,
 			&ipv6_hdr(skb)->saddr, th->source,
 			&ipv6_hdr(skb)->daddr, ntohs(th->dest), inet6_iif(skb));
 
@@ -1739,7 +1739,7 @@ static int tcp_v6_rcv(struct sk_buff *skb)
 	TCP_SKB_CB(skb)->flags = ipv6_get_dsfield(ipv6_hdr(skb));
 	TCP_SKB_CB(skb)->sacked = 0;
 
-	sk = __inet6_lookup(skb->dev->nd_net, &tcp_hashinfo,
+	sk = __inet6_lookup(dev_net(skb->dev), &tcp_hashinfo,
 			&ipv6_hdr(skb)->saddr, th->source,
 			&ipv6_hdr(skb)->daddr, ntohs(th->dest),
 			inet6_iif(skb));
@@ -1822,7 +1822,7 @@ do_time_wait:
 	{
 		struct sock *sk2;
 
-		sk2 = inet6_lookup_listener(skb->dev->nd_net, &tcp_hashinfo,
+		sk2 = inet6_lookup_listener(dev_net(skb->dev), &tcp_hashinfo,
 					    &ipv6_hdr(skb)->daddr,
 					    ntohs(th->dest), inet6_iif(skb));
 		if (sk2 != NULL) {

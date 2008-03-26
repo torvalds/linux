@@ -1375,7 +1375,7 @@ static int accept(struct socket *sock, struct socket *newsock, int flags)
 	}
 	buf = skb_peek(&sock->sk->sk_receive_queue);
 
-	res = tipc_create(sock->sk->sk_net, newsock, 0);
+	res = tipc_create(sock_net(sock->sk), newsock, 0);
 	if (!res) {
 		struct tipc_sock *new_tsock = tipc_sk(newsock->sk);
 		struct tipc_portid id;

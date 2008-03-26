@@ -257,7 +257,7 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 	if (in_dev == NULL)
 		goto e_inval;
 
-	net = dev->nd_net;
+	net = dev_net(dev);
 	if (fib_lookup(net, &fl, &res))
 		goto last_resort;
 	if (res.type != RTN_UNICAST)
@@ -583,7 +583,7 @@ errout:
 
 static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
-	struct net *net = skb->sk->sk_net;
+	struct net *net = sock_net(skb->sk);
 	struct fib_config cfg;
 	struct fib_table *tb;
 	int err;
@@ -605,7 +605,7 @@ errout:
 
 static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
-	struct net *net = skb->sk->sk_net;
+	struct net *net = sock_net(skb->sk);
 	struct fib_config cfg;
 	struct fib_table *tb;
 	int err;
@@ -627,7 +627,7 @@ errout:
 
 static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct net *net = skb->sk->sk_net;
+	struct net *net = sock_net(skb->sk);
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
 	struct fib_table *tb;
@@ -674,7 +674,7 @@ out:
 
 static void fib_magic(int cmd, int type, __be32 dst, int dst_len, struct in_ifaddr *ifa)
 {
-	struct net *net = ifa->ifa_dev->dev->nd_net;
+	struct net *net = dev_net(ifa->ifa_dev->dev);
 	struct fib_table *tb;
 	struct fib_config cfg = {
 		.fc_protocol = RTPROT_KERNEL,
@@ -801,15 +801,15 @@ static void fib_del_ifaddr(struct in_ifaddr *ifa)
 		fib_magic(RTM_DELROUTE, RTN_LOCAL, ifa->ifa_local, 32, prim);
 
 		/* Check, that this local address finally disappeared. */
-		if (inet_addr_type(dev->nd_net, ifa->ifa_local) != RTN_LOCAL) {
+		if (inet_addr_type(dev_net(dev), ifa->ifa_local) != RTN_LOCAL) {
 			/* And the last, but not the least thing.
 			   We must flush stray FIB entries.
 
 			   First of all, we scan fib_info list searching
 			   for stray nexthop entries, then ignite fib_flush.
 			*/
-			if (fib_sync_down_addr(dev->nd_net, ifa->ifa_local))
-				fib_flush(dev->nd_net);
+			if (fib_sync_down_addr(dev_net(dev), ifa->ifa_local))
+				fib_flush(dev_net(dev));
 		}
 	}
 #undef LOCAL_OK
@@ -857,7 +857,7 @@ static void nl_fib_input(struct sk_buff *skb)
 	struct fib_table *tb;
 	u32 pid;
 
-	net = skb->sk->sk_net;
+	net = sock_net(skb->sk);
 	nlh = nlmsg_hdr(skb);
 	if (skb->len < NLMSG_SPACE(0) || skb->len < nlh->nlmsg_len ||
 	    nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*frn)))
@@ -899,7 +899,7 @@ static void nl_fib_lookup_exit(struct net *net)
 static void fib_disable_ip(struct net_device *dev, int force)
 {
 	if (fib_sync_down_dev(dev, force))
-		fib_flush(dev->nd_net);
+		fib_flush(dev_net(dev));
 	rt_cache_flush(0);
 	arp_ifdown(dev);
 }

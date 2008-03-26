@@ -554,7 +554,7 @@ static struct sock *sctp_v4_create_accept_sk(struct sock *sk,
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct inet_sock *newinet;
-	struct sock *newsk = sk_alloc(sk->sk_net, PF_INET, GFP_KERNEL,
+	struct sock *newsk = sk_alloc(sock_net(sk), PF_INET, GFP_KERNEL,
 			sk->sk_prot);
 
 	if (!newsk)
@@ -630,7 +630,7 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
 	struct sctp_sockaddr_entry *temp;
 	int found = 0;
 
-	if (ifa->ifa_dev->dev->nd_net != &init_net)
+	if (dev_net(ifa->ifa_dev->dev) != &init_net)
 		return NOTIFY_DONE;
 
 	switch (ev) {

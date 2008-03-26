@@ -106,7 +106,7 @@ static int nr_device_event(struct notifier_block *this, unsigned long event, voi
 {
 	struct net_device *dev = (struct net_device *)ptr;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
 
 	if (event != NETDEV_DOWN)
@@ -466,7 +466,7 @@ static struct sock *nr_make_new(struct sock *osk)
 	if (osk->sk_type != SOCK_SEQPACKET)
 		return NULL;
 
-	sk = sk_alloc(osk->sk_net, PF_NETROM, GFP_ATOMIC, osk->sk_prot);
+	sk = sk_alloc(sock_net(osk), PF_NETROM, GFP_ATOMIC, osk->sk_prot);
 	if (sk == NULL)
 		return NULL;
 

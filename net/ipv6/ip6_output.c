@@ -402,7 +402,7 @@ int ip6_forward(struct sk_buff *skb)
 	struct dst_entry *dst = skb->dst;
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct inet6_skb_parm *opt = IP6CB(skb);
-	struct net *net = dst->dev->nd_net;
+	struct net *net = dev_net(dst->dev);
 
 	if (ipv6_devconf.forwarding == 0)
 		goto error;
@@ -910,7 +910,7 @@ static int ip6_dst_lookup_tail(struct sock *sk,
 			       struct dst_entry **dst, struct flowi *fl)
 {
 	int err;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 
 	if (*dst == NULL)
 		*dst = ip6_route_output(net, sk, fl);

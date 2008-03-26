@@ -168,7 +168,7 @@ int nf_hook_slow(int pf, unsigned int hook, struct sk_buff *skb,
 #ifdef CONFIG_NET_NS
 	struct net *net;
 
-	net = indev == NULL ? outdev->nd_net : indev->nd_net;
+	net = indev == NULL ? dev_net(outdev) : dev_net(indev);
 	if (net != &init_net)
 		return 1;
 #endif

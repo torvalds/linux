@@ -849,7 +849,7 @@ static void mrtsock_destruct(struct sock *sk)
 {
 	rtnl_lock();
 	if (sk == mroute_socket) {
-		IPV4_DEVCONF_ALL(sk->sk_net, MC_FORWARDING)--;
+		IPV4_DEVCONF_ALL(sock_net(sk), MC_FORWARDING)--;
 
 		write_lock_bh(&mrt_lock);
 		mroute_socket=NULL;
@@ -898,7 +898,7 @@ int ip_mroute_setsockopt(struct sock *sk,int optname,char __user *optval,int opt
 			mroute_socket=sk;
 			write_unlock_bh(&mrt_lock);
 
-			IPV4_DEVCONF_ALL(sk->sk_net, MC_FORWARDING)++;
+			IPV4_DEVCONF_ALL(sock_net(sk), MC_FORWARDING)++;
 		}
 		rtnl_unlock();
 		return ret;
@@ -1089,7 +1089,7 @@ static int ipmr_device_event(struct notifier_block *this, unsigned long event, v
 	struct vif_device *v;
 	int ct;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
 
 	if (event != NETDEV_UNREGISTER)

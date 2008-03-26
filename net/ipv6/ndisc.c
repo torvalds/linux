@@ -447,7 +447,7 @@ static void __ndisc_send(struct net_device *dev,
 {
 	struct flowi fl;
 	struct dst_entry *dst;
-	struct net *net = dev->nd_net;
+	struct net *net = dev_net(dev);
 	struct sock *sk = net->ipv6.ndisc_sk;
 	struct sk_buff *skb;
 	struct icmp6hdr *hdr;
@@ -539,7 +539,7 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 	};
 
 	/* for anycast or proxy, solicited_addr != src_addr */
-	ifp = ipv6_get_ifaddr(dev->nd_net, solicited_addr, dev, 1);
+	ifp = ipv6_get_ifaddr(dev_net(dev), solicited_addr, dev, 1);
 	if (ifp) {
 		src_addr = solicited_addr;
 		if (ifp->flags & IFA_F_OPTIMISTIC)
@@ -547,7 +547,7 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 		in6_ifa_put(ifp);
 	} else {
 		if (ipv6_dev_get_saddr(dev, daddr,
-				       inet6_sk(dev->nd_net->ipv6.ndisc_sk)->srcprefs,
+				       inet6_sk(dev_net(dev)->ipv6.ndisc_sk)->srcprefs,
 				       &tmpaddr))
 			return;
 		src_addr = &tmpaddr;
@@ -601,7 +601,7 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 	 * suppress the inclusion of the sllao.
 	 */
 	if (send_sllao) {
-		struct inet6_ifaddr *ifp = ipv6_get_ifaddr(dev->nd_net, saddr,
+		struct inet6_ifaddr *ifp = ipv6_get_ifaddr(dev_net(dev), saddr,
 							   dev, 1);
 		if (ifp) {
 			if (ifp->flags & IFA_F_OPTIMISTIC)  {
@@ -639,7 +639,7 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 	struct in6_addr *target = (struct in6_addr *)&neigh->primary_key;
 	int probes = atomic_read(&neigh->probes);
 
-	if (skb && ipv6_chk_addr(dev->nd_net, &ipv6_hdr(skb)->saddr, dev, 1))
+	if (skb && ipv6_chk_addr(dev_net(dev), &ipv6_hdr(skb)->saddr, dev, 1))
 		saddr = &ipv6_hdr(skb)->saddr;
 
 	if ((probes -= neigh->parms->ucast_probes) < 0) {
@@ -727,7 +727,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 
 	inc = ipv6_addr_is_multicast(daddr);
 
-	ifp = ipv6_get_ifaddr(dev->nd_net, &msg->target, dev, 1);
+	ifp = ipv6_get_ifaddr(dev_net(dev), &msg->target, dev, 1);
 	if (ifp) {
 
 		if (ifp->flags & (IFA_F_TENTATIVE|IFA_F_OPTIMISTIC)) {
@@ -776,7 +776,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 		if (ipv6_chk_acast_addr(dev, &msg->target) ||
 		    (idev->cnf.forwarding &&
 		     (ipv6_devconf.proxy_ndp || idev->cnf.proxy_ndp) &&
-		     (pneigh = pneigh_lookup(&nd_tbl, dev->nd_net,
+		     (pneigh = pneigh_lookup(&nd_tbl, dev_net(dev),
 					     &msg->target, dev, 0)) != NULL)) {
 			if (!(NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED) &&
 			    skb->pkt_type != PACKET_HOST &&
@@ -886,7 +886,7 @@ static void ndisc_recv_na(struct sk_buff *skb)
 			return;
 		}
 	}
-	ifp = ipv6_get_ifaddr(dev->nd_net, &msg->target, dev, 1);
+	ifp = ipv6_get_ifaddr(dev_net(dev), &msg->target, dev, 1);
 	if (ifp) {
 		if (ifp->flags & IFA_F_TENTATIVE) {
 			addrconf_dad_failure(ifp);
@@ -918,7 +918,7 @@ static void ndisc_recv_na(struct sk_buff *skb)
 		 */
 		if (lladdr && !memcmp(lladdr, dev->dev_addr, dev->addr_len) &&
 		    ipv6_devconf.forwarding && ipv6_devconf.proxy_ndp &&
-		    pneigh_lookup(&nd_tbl, dev->nd_net, &msg->target, dev, 0)) {
+		    pneigh_lookup(&nd_tbl, dev_net(dev), &msg->target, dev, 0)) {
 			/* XXX: idev->cnf.prixy_ndp */
 			goto out;
 		}
@@ -1008,7 +1008,7 @@ static void ndisc_ra_useropt(struct sk_buff *ra, struct nd_opt_hdr *opt)
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
 	struct nduseroptmsg *ndmsg;
-	struct net *net = ra->dev->nd_net;
+	struct net *net = dev_net(ra->dev);
 	int err;
 	int base_size = NLMSG_ALIGN(sizeof(struct nduseroptmsg)
 				    + (opt->nd_opt_len << 3));
@@ -1395,7 +1395,7 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 			 struct in6_addr *target)
 {
 	struct net_device *dev = skb->dev;
-	struct net *net = dev->nd_net;
+	struct net *net = dev_net(dev);
 	struct sock *sk = net->ipv6.ndisc_sk;
 	int len = sizeof(struct icmp6hdr) + 2 * sizeof(struct in6_addr);
 	struct sk_buff *buff;
@@ -1597,7 +1597,7 @@ int ndisc_rcv(struct sk_buff *skb)
 static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	struct net_device *dev = ptr;
-	struct net *net = dev->nd_net;
+	struct net *net = dev_net(dev);
 
 	switch (event) {
 	case NETDEV_CHANGEADDR:

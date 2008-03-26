@@ -116,7 +116,7 @@ static int ax25_device_event(struct notifier_block *this, unsigned long event,
 {
 	struct net_device *dev = (struct net_device *)ptr;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
 
 	/* Reject non AX.25 devices */
@@ -869,7 +869,7 @@ struct sock *ax25_make_new(struct sock *osk, struct ax25_dev *ax25_dev)
 	struct sock *sk;
 	ax25_cb *ax25, *oax25;
 
-	sk = sk_alloc(osk->sk_net, PF_AX25, GFP_ATOMIC,	osk->sk_prot);
+	sk = sk_alloc(sock_net(osk), PF_AX25, GFP_ATOMIC,	osk->sk_prot);
 	if (sk == NULL)
 		return NULL;
 

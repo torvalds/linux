@@ -153,7 +153,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	struct net_device_stats *stats;
 	unsigned short vlan_TCI;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		goto err_free;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);

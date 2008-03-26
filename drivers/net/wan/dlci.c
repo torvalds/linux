@@ -517,7 +517,7 @@ static int dlci_dev_event(struct notifier_block *unused,
 {
 	struct net_device *dev = (struct net_device *) ptr;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
 
 	if (event == NETDEV_UNREGISTER) {

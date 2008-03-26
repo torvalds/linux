@@ -181,7 +181,7 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, struct in6_addr *addr)
 	struct net_device *dev = NULL;
 	struct ipv6_mc_socklist *mc_lst;
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 	int err;
 
 	if (!ipv6_addr_is_multicast(addr))
@@ -255,7 +255,7 @@ int ipv6_sock_mc_drop(struct sock *sk, int ifindex, struct in6_addr *addr)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6_mc_socklist *mc_lst, **lnk;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 
 	write_lock_bh(&ipv6_sk_mc_lock);
 	for (lnk = &np->ipv6_mc_list; (mc_lst = *lnk) !=NULL ; lnk = &mc_lst->next) {
@@ -327,7 +327,7 @@ void ipv6_sock_mc_close(struct sock *sk)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6_mc_socklist *mc_lst;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 
 	write_lock_bh(&ipv6_sk_mc_lock);
 	while ((mc_lst = np->ipv6_mc_list) != NULL) {
@@ -365,7 +365,7 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 	struct inet6_dev *idev;
 	struct ipv6_pinfo *inet6 = inet6_sk(sk);
 	struct ip6_sf_socklist *psl;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 	int i, j, rv;
 	int leavegroup = 0;
 	int pmclocked = 0;
@@ -505,7 +505,7 @@ int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf)
 	struct inet6_dev *idev;
 	struct ipv6_pinfo *inet6 = inet6_sk(sk);
 	struct ip6_sf_socklist *newpsl, *psl;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 	int leavegroup = 0;
 	int i, err;
 
@@ -598,7 +598,7 @@ int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 	struct net_device *dev;
 	struct ipv6_pinfo *inet6 = inet6_sk(sk);
 	struct ip6_sf_socklist *psl;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 
 	group = &((struct sockaddr_in6 *)&gsf->gf_group)->sin6_addr;
 
@@ -1400,7 +1400,7 @@ mld_scount(struct ifmcaddr6 *pmc, int type, int gdeleted, int sdeleted)
 
 static struct sk_buff *mld_newpack(struct net_device *dev, int size)
 {
-	struct net *net = dev->nd_net;
+	struct net *net = dev_net(dev);
 	struct sock *sk = net->ipv6.igmp_sk;
 	struct sk_buff *skb;
 	struct mld2_report *pmr;
@@ -1448,7 +1448,7 @@ static void mld_sendpack(struct sk_buff *skb)
 			      (struct mld2_report *)skb_transport_header(skb);
 	int payload_len, mldlen;
 	struct inet6_dev *idev = in6_dev_get(skb->dev);
-	struct net *net = skb->dev->nd_net;
+	struct net *net = dev_net(skb->dev);
 	int err;
 	struct flowi fl;
 
@@ -1762,7 +1762,7 @@ static void mld_send_cr(struct inet6_dev *idev)
 
 static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 {
-	struct net *net = dev->nd_net;
+	struct net *net = dev_net(dev);
 	struct sock *sk = net->ipv6.igmp_sk;
 	struct inet6_dev *idev;
 	struct sk_buff *skb;
@@ -2355,7 +2355,7 @@ static inline struct ifmcaddr6 *igmp6_mc_get_first(struct seq_file *seq)
 {
 	struct ifmcaddr6 *im = NULL;
 	struct igmp6_mc_iter_state *state = igmp6_mc_seq_private(seq);
-	struct net *net = state->p.net;
+	struct net *net = seq_file_net(seq);
 
 	state->idev = NULL;
 	for_each_netdev(net, state->dev) {
@@ -2486,7 +2486,7 @@ static inline struct ip6_sf_list *igmp6_mcf_get_first(struct seq_file *seq)
 	struct ip6_sf_list *psf = NULL;
 	struct ifmcaddr6 *im = NULL;
 	struct igmp6_mcf_iter_state *state = igmp6_mcf_seq_private(seq);
-	struct net *net = state->p.net;
+	struct net *net = seq_file_net(seq);
 
 	state->idev = NULL;
 	state->im = NULL;

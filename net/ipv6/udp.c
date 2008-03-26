@@ -70,7 +70,7 @@ static struct sock *__udp6_lib_lookup(struct net *net,
 	sk_for_each(sk, node, &udptable[hnum & (UDP_HTABLE_SIZE - 1)]) {
 		struct inet_sock *inet = inet_sk(sk);
 
-		if (sk->sk_net == net && sk->sk_hash == hnum &&
+		if (net_eq(sock_net(sk), net) && sk->sk_hash == hnum &&
 				sk->sk_family == PF_INET6) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
 			int score = 0;
@@ -235,7 +235,7 @@ void __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	struct sock *sk;
 	int err;
 
-	sk = __udp6_lib_lookup(skb->dev->nd_net, daddr, uh->dest,
+	sk = __udp6_lib_lookup(dev_net(skb->dev), daddr, uh->dest,
 			       saddr, uh->source, inet6_iif(skb), udptable);
 	if (sk == NULL)
 		return;
@@ -323,7 +323,7 @@ static struct sock *udp_v6_mcast_next(struct sock *sk,
 	sk_for_each_from(s, node) {
 		struct inet_sock *inet = inet_sk(s);
 
-		if (s->sk_net != sk->sk_net)
+		if (sock_net(s) != sock_net(sk))
 			continue;
 
 		if (s->sk_hash == num && s->sk_family == PF_INET6) {
@@ -483,7 +483,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 	 * check socket cache ... must talk to Alan about his plans
 	 * for sock caches... i'll skip this for now.
 	 */
-	sk = __udp6_lib_lookup(skb->dev->nd_net, saddr, uh->source,
+	sk = __udp6_lib_lookup(dev_net(skb->dev), saddr, uh->source,
 			       daddr, uh->dest, inet6_iif(skb), udptable);
 
 	if (sk == NULL) {

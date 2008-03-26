@@ -727,7 +727,7 @@ struct xt_names_priv {
 static void *xt_table_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct xt_names_priv *priv = seq->private;
-	struct net *net = priv->p.net;
+	struct net *net = seq_file_net(seq);
 	int af = priv->af;
 
 	mutex_lock(&xt[af].mutex);
@@ -737,7 +737,7 @@ static void *xt_table_seq_start(struct seq_file *seq, loff_t *pos)
 static void *xt_table_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct xt_names_priv *priv = seq->private;
-	struct net *net = priv->p.net;
+	struct net *net = seq_file_net(seq);
 	int af = priv->af;
 
 	return seq_list_next(v, &net->xt.tables[af], pos);

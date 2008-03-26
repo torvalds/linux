@@ -2079,7 +2079,7 @@ static int stale_bundle(struct dst_entry *dst)
 void xfrm_dst_ifdown(struct dst_entry *dst, struct net_device *dev)
 {
 	while ((dst = dst->child) && dst->xfrm && dst->dev == dev) {
-		dst->dev = dev->nd_net->loopback_dev;
+		dst->dev = dev_net(dev)->loopback_dev;
 		dev_hold(dst->dev);
 		dev_put(dev);
 	}
@@ -2350,7 +2350,7 @@ static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void
 {
 	struct net_device *dev = ptr;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
 
 	switch (event) {

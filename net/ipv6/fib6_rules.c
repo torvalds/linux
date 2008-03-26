@@ -154,7 +154,7 @@ static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 			       struct nlattr **tb)
 {
 	int err = -EINVAL;
-	struct net *net = skb->sk->sk_net;
+	struct net *net = sock_net(skb->sk);
 	struct fib6_rule *rule6 = (struct fib6_rule *) rule;
 
 	if (rule->action == FR_ACT_TO_TBL) {

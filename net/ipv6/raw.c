@@ -76,7 +76,7 @@ static struct sock *__raw_v6_lookup(struct net *net, struct sock *sk,
 		if (inet_sk(sk)->num == num) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
 
-			if (sk->sk_net != net)
+			if (!net_eq(sock_net(sk), net))
 				continue;
 
 			if (!ipv6_addr_any(&np->daddr) &&
@@ -176,7 +176,7 @@ static int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	if (sk == NULL)
 		goto out;
 
-	net = skb->dev->nd_net;
+	net = dev_net(skb->dev);
 	sk = __raw_v6_lookup(net, sk, nexthdr, daddr, saddr, IP6CB(skb)->iif);
 
 	while (sk) {
@@ -280,7 +280,7 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 			if (!sk->sk_bound_dev_if)
 				goto out;
 
-			dev = dev_get_by_index(sk->sk_net, sk->sk_bound_dev_if);
+			dev = dev_get_by_index(sock_net(sk), sk->sk_bound_dev_if);
 			if (!dev) {
 				err = -ENODEV;
 				goto out;
@@ -293,7 +293,7 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		v4addr = LOOPBACK4_IPV6;
 		if (!(addr_type & IPV6_ADDR_MULTICAST))	{
 			err = -EADDRNOTAVAIL;
-			if (!ipv6_chk_addr(sk->sk_net, &addr->sin6_addr,
+			if (!ipv6_chk_addr(sock_net(sk), &addr->sin6_addr,
 					   dev, 0)) {
 				if (dev)
 					dev_put(dev);
@@ -363,7 +363,7 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 	if (sk != NULL) {
 		saddr = &ipv6_hdr(skb)->saddr;
 		daddr = &ipv6_hdr(skb)->daddr;
-		net = skb->dev->nd_net;
+		net = dev_net(skb->dev);
 
 		while ((sk = __raw_v6_lookup(net, sk, nexthdr, saddr, daddr,
 						IP6CB(skb)->iif))) {

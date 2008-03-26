@@ -353,7 +353,7 @@ void tcp_v4_err(struct sk_buff *skb, u32 info)
 		return;
 	}
 
-	sk = inet_lookup(skb->dev->nd_net, &tcp_hashinfo, iph->daddr, th->dest,
+	sk = inet_lookup(dev_net(skb->dev), &tcp_hashinfo, iph->daddr, th->dest,
 			iph->saddr, th->source, inet_iif(skb));
 	if (!sk) {
 		ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
@@ -1486,7 +1486,7 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	if (req)
 		return tcp_check_req(sk, skb, req, prev);
 
-	nsk = inet_lookup_established(sk->sk_net, &tcp_hashinfo, iph->saddr,
+	nsk = inet_lookup_established(sock_net(sk), &tcp_hashinfo, iph->saddr,
 			th->source, iph->daddr, th->dest, inet_iif(skb));
 
 	if (nsk) {
@@ -1644,7 +1644,7 @@ int tcp_v4_rcv(struct sk_buff *skb)
 	TCP_SKB_CB(skb)->flags	 = iph->tos;
 	TCP_SKB_CB(skb)->sacked	 = 0;
 
-	sk = __inet_lookup(skb->dev->nd_net, &tcp_hashinfo, iph->saddr,
+	sk = __inet_lookup(dev_net(skb->dev), &tcp_hashinfo, iph->saddr,
 			th->source, iph->daddr, th->dest, inet_iif(skb));
 	if (!sk)
 		goto no_tcp_socket;
@@ -1718,7 +1718,7 @@ do_time_wait:
 	}
 	switch (tcp_timewait_state_process(inet_twsk(sk), skb, th)) {
 	case TCP_TW_SYN: {
-		struct sock *sk2 = inet_lookup_listener(skb->dev->nd_net,
+		struct sock *sk2 = inet_lookup_listener(dev_net(skb->dev),
 							&tcp_hashinfo,
 							iph->daddr, th->dest,
 							inet_iif(skb));
@@ -1974,7 +1974,7 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 		while (1) {
 			while (req) {
 				if (req->rsk_ops->family == st->family &&
-				    req->sk->sk_net == net) {
+				    net_eq(sock_net(req->sk), net)) {
 					cur = req;
 					goto out;
 				}
@@ -1998,7 +1998,7 @@ get_req:
 	}
 get_sk:
 	sk_for_each_from(sk, node) {
-		if (sk->sk_family == st->family && sk->sk_net == net) {
+		if (sk->sk_family == st->family && net_eq(sock_net(sk), net)) {
 			cur = sk;
 			goto out;
 		}
@@ -2049,7 +2049,7 @@ static void *established_get_first(struct seq_file *seq)
 		read_lock_bh(lock);
 		sk_for_each(sk, node, &tcp_hashinfo.ehash[st->bucket].chain) {
 			if (sk->sk_family != st->family ||
-			    sk->sk_net != net) {
+			    !net_eq(sock_net(sk), net)) {
 				continue;
 			}
 			rc = sk;
@@ -2059,7 +2059,7 @@ static void *established_get_first(struct seq_file *seq)
 		inet_twsk_for_each(tw, node,
 				   &tcp_hashinfo.ehash[st->bucket].twchain) {
 			if (tw->tw_family != st->family ||
-			    tw->tw_net != net) {
+			    !net_eq(twsk_net(tw), net)) {
 				continue;
 			}
 			rc = tw;
@@ -2086,7 +2086,7 @@ static void *established_get_next(struct seq_file *seq, void *cur)
 		tw = cur;
 		tw = tw_next(tw);
 get_tw:
-		while (tw && (tw->tw_family != st->family || tw->tw_net != net)) {
+		while (tw && (tw->tw_family != st->family || !net_eq(twsk_net(tw), net))) {
 			tw = tw_next(tw);
 		}
 		if (tw) {
@@ -2107,7 +2107,7 @@ get_tw:
 		sk = sk_next(sk);
 
 	sk_for_each_from(sk, node) {
-		if (sk->sk_family == st->family && sk->sk_net == net)
+		if (sk->sk_family == st->family && net_eq(sock_net(sk), net))
 			goto found;
 	}
 

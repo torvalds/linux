@@ -214,7 +214,7 @@ errout:
 
 static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
-	struct net *net = skb->sk->sk_net;
+	struct net *net = sock_net(skb->sk);
 	struct fib_rule_hdr *frh = nlmsg_data(nlh);
 	struct fib_rules_ops *ops = NULL;
 	struct fib_rule *rule, *r, *last = NULL;
@@ -352,7 +352,7 @@ errout:
 
 static int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
-	struct net *net = skb->sk->sk_net;
+	struct net *net = sock_net(skb->sk);
 	struct fib_rule_hdr *frh = nlmsg_data(nlh);
 	struct fib_rules_ops *ops = NULL;
 	struct fib_rule *rule, *tmp;
@@ -534,7 +534,7 @@ skip:
 
 static int fib_nl_dumprule(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct net *net = skb->sk->sk_net;
+	struct net *net = sock_net(skb->sk);
 	struct fib_rules_ops *ops;
 	int idx = 0, family;
 
@@ -618,7 +618,7 @@ static int fib_rules_event(struct notifier_block *this, unsigned long event,
 			    void *ptr)
 {
 	struct net_device *dev = ptr;
-	struct net *net = dev->nd_net;
+	struct net *net = dev_net(dev);
 	struct fib_rules_ops *ops;
 
 	ASSERT_RTNL();

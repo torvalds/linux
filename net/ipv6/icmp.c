@@ -163,7 +163,7 @@ static inline int icmpv6_xrlim_allow(struct sock *sk, int type,
 				     struct flowi *fl)
 {
 	struct dst_entry *dst;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 	int res = 0;
 
 	/* Informational messages are not limited. */
@@ -306,7 +306,7 @@ static inline void mip6_addr_swap(struct sk_buff *skb) {}
 void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 		 struct net_device *dev)
 {
-	struct net *net = skb->dev->nd_net;
+	struct net *net = dev_net(skb->dev);
 	struct inet6_dev *idev = NULL;
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct sock *sk;
@@ -507,7 +507,7 @@ EXPORT_SYMBOL(icmpv6_send);
 
 static void icmpv6_echo_reply(struct sk_buff *skb)
 {
-	struct net *net = skb->dev->nd_net;
+	struct net *net = dev_net(skb->dev);
 	struct sock *sk;
 	struct inet6_dev *idev;
 	struct ipv6_pinfo *np;

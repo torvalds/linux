@@ -130,12 +130,12 @@
  */
 
 #define IGMP_V1_SEEN(in_dev) \
-	(IPV4_DEVCONF_ALL(in_dev->dev->nd_net, FORCE_IGMP_VERSION) == 1 || \
+	(IPV4_DEVCONF_ALL(dev_net(in_dev->dev), FORCE_IGMP_VERSION) == 1 || \
 	 IN_DEV_CONF_GET((in_dev), FORCE_IGMP_VERSION) == 1 || \
 	 ((in_dev)->mr_v1_seen && \
 	  time_before(jiffies, (in_dev)->mr_v1_seen)))
 #define IGMP_V2_SEEN(in_dev) \
-	(IPV4_DEVCONF_ALL(in_dev->dev->nd_net, FORCE_IGMP_VERSION) == 2 || \
+	(IPV4_DEVCONF_ALL(dev_net(in_dev->dev), FORCE_IGMP_VERSION) == 2 || \
 	 IN_DEV_CONF_GET((in_dev), FORCE_IGMP_VERSION) == 2 || \
 	 ((in_dev)->mr_v2_seen && \
 	  time_before(jiffies, (in_dev)->mr_v2_seen)))
@@ -1198,7 +1198,7 @@ void ip_mc_inc_group(struct in_device *in_dev, __be32 addr)
 
 	ASSERT_RTNL();
 
-	if (in_dev->dev->nd_net != &init_net)
+	if (dev_net(in_dev->dev) != &init_net)
 		return;
 
 	for (im=in_dev->mc_list; im; im=im->next) {
@@ -1280,7 +1280,7 @@ void ip_mc_dec_group(struct in_device *in_dev, __be32 addr)
 
 	ASSERT_RTNL();
 
-	if (in_dev->dev->nd_net != &init_net)
+	if (dev_net(in_dev->dev) != &init_net)
 		return;
 
 	for (ip=&in_dev->mc_list; (i=*ip)!=NULL; ip=&i->next) {
@@ -1310,7 +1310,7 @@ void ip_mc_down(struct in_device *in_dev)
 
 	ASSERT_RTNL();
 
-	if (in_dev->dev->nd_net != &init_net)
+	if (dev_net(in_dev->dev) != &init_net)
 		return;
 
 	for (i=in_dev->mc_list; i; i=i->next)
@@ -1333,7 +1333,7 @@ void ip_mc_init_dev(struct in_device *in_dev)
 {
 	ASSERT_RTNL();
 
-	if (in_dev->dev->nd_net != &init_net)
+	if (dev_net(in_dev->dev) != &init_net)
 		return;
 
 	in_dev->mc_tomb = NULL;
@@ -1359,7 +1359,7 @@ void ip_mc_up(struct in_device *in_dev)
 
 	ASSERT_RTNL();
 
-	if (in_dev->dev->nd_net != &init_net)
+	if (dev_net(in_dev->dev) != &init_net)
 		return;
 
 	ip_mc_inc_group(in_dev, IGMP_ALL_HOSTS);
@@ -1378,7 +1378,7 @@ void ip_mc_destroy_dev(struct in_device *in_dev)
 
 	ASSERT_RTNL();
 
-	if (in_dev->dev->nd_net != &init_net)
+	if (dev_net(in_dev->dev) != &init_net)
 		return;
 
 	/* Deactivate timers */
@@ -1762,7 +1762,7 @@ int ip_mc_join_group(struct sock *sk , struct ip_mreqn *imr)
 	if (!ipv4_is_multicast(addr))
 		return -EINVAL;
 
-	if (sk->sk_net != &init_net)
+	if (sock_net(sk) != &init_net)
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -1833,7 +1833,7 @@ int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
 	u32 ifindex;
 	int ret = -EADDRNOTAVAIL;
 
-	if (sk->sk_net != &init_net)
+	if (sock_net(sk) != &init_net)
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -1881,7 +1881,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 	if (!ipv4_is_multicast(addr))
 		return -EINVAL;
 
-	if (sk->sk_net != &init_net)
+	if (sock_net(sk) != &init_net)
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -2017,7 +2017,7 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 	    msf->imsf_fmode != MCAST_EXCLUDE)
 		return -EINVAL;
 
-	if (sk->sk_net != &init_net)
+	if (sock_net(sk) != &init_net)
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -2100,7 +2100,7 @@ int ip_mc_msfget(struct sock *sk, struct ip_msfilter *msf,
 	if (!ipv4_is_multicast(addr))
 		return -EINVAL;
 
-	if (sk->sk_net != &init_net)
+	if (sock_net(sk) != &init_net)
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -2165,7 +2165,7 @@ int ip_mc_gsfget(struct sock *sk, struct group_filter *gsf,
 	if (!ipv4_is_multicast(addr))
 		return -EINVAL;
 
-	if (sk->sk_net != &init_net)
+	if (sock_net(sk) != &init_net)
 		return -EPROTONOSUPPORT;
 
 	rtnl_lock();
@@ -2252,7 +2252,7 @@ void ip_mc_drop_socket(struct sock *sk)
 	if (inet->mc_list == NULL)
 		return;
 
-	if (sk->sk_net != &init_net)
+	if (sock_net(sk) != &init_net)
 		return;
 
 	rtnl_lock();

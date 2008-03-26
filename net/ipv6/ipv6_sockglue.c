@@ -107,7 +107,7 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, int optlen)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 	int val, valbool;
 	int retv = -ENOPROTOOPT;
 

@@ -464,7 +464,7 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (addr_len < sizeof(struct sockaddr_in))
 		goto out;
 
-	chk_addr_ret = inet_addr_type(sk->sk_net, addr->sin_addr.s_addr);
+	chk_addr_ret = inet_addr_type(sock_net(sk), addr->sin_addr.s_addr);
 
 	/* Not specified by any standard per-se, however it breaks too
 	 * many applications when removed.  It is unfortunate since
@@ -802,7 +802,7 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct sock *sk = sock->sk;
 	int err = 0;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 
 	switch (cmd) {
 		case SIOCGSTAMP:
@@ -1132,7 +1132,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 	};
 
 	security_sk_classify_flow(sk, &fl);
-	err = ip_route_output_flow(sk->sk_net, &rt, &fl, sk, 0);
+	err = ip_route_output_flow(sock_net(sk), &rt, &fl, sk, 0);
 }
 	if (!err)
 		sk_setup_caps(sk, &rt->u.dst);
