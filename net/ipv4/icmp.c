@@ -821,7 +821,7 @@ static void icmp_echo(struct sk_buff *skb)
 {
 	struct net *net;
 
-	net = skb->dst->dev->nd_net;
+	net = dev_net(skb->dst->dev);
 	if (!net->ipv4.sysctl_icmp_echo_ignore_all) {
 		struct icmp_bxm icmp_param;
 
@@ -1027,7 +1027,7 @@ int icmp_rcv(struct sk_buff *skb)
 	if (rt->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST)) {
 		struct net *net;
 
-		net = rt->u.dst.dev->nd_net;
+		net = dev_net(rt->u.dst.dev);
 		/*
 		 *	RFC 1122: 3.2.2.6 An ICMP_ECHO to broadcast MAY be
 		 *	  silently ignored (we let user decide with a sysctl).
