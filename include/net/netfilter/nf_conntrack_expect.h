@@ -53,7 +53,8 @@ struct nf_conntrack_expect
 	struct rcu_head rcu;
 };
 
-#define NF_CT_EXPECT_PERMANENT 0x1
+#define NF_CT_EXPECT_PERMANENT	0x1
+#define NF_CT_EXPECT_INACTIVE	0x2
 
 int nf_conntrack_expect_init(void);
 void nf_conntrack_expect_fini(void);

@@ -126,9 +126,21 @@ EXPORT_SYMBOL_GPL(nf_ct_expect_find_get);
 struct nf_conntrack_expect *
 nf_ct_find_expectation(const struct nf_conntrack_tuple *tuple)
 {
-	struct nf_conntrack_expect *exp;
+	struct nf_conntrack_expect *i, *exp = NULL;
+	struct hlist_node *n;
+	unsigned int h;
 
-	exp = __nf_ct_expect_find(tuple);
+	if (!nf_ct_expect_count)
+		return NULL;
+
+	h = nf_ct_expect_dst_hash(tuple);
+	hlist_for_each_entry(i, n, &nf_ct_expect_hash[h], hnode) {
+		if (!(i->flags & NF_CT_EXPECT_INACTIVE) &&
+		    nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask)) {
+			exp = i;
+			break;
+		}
+	}
 	if (!exp)
 		return NULL;
 
@@ -460,6 +472,7 @@ static int exp_seq_show(struct seq_file *s, void *v)
 {
 	struct nf_conntrack_expect *expect;
 	struct hlist_node *n = v;
+	char *delim = "";
 
 	expect = hlist_entry(n, struct nf_conntrack_expect, hnode);
 
@@ -476,8 +489,12 @@ static int exp_seq_show(struct seq_file *s, void *v)
 		    __nf_ct_l4proto_find(expect->tuple.src.l3num,
 				       expect->tuple.dst.protonum));
 
-	if (expect->flags & NF_CT_EXPECT_PERMANENT)
-		seq_printf(s, "PERMANENT ");
+	if (expect->flags & NF_CT_EXPECT_PERMANENT) {
+		seq_printf(s, "PERMANENT");
+		delim = ",";
+	}
+	if (expect->flags & NF_CT_EXPECT_INACTIVE)
+		seq_printf(s, "%sINACTIVE", delim);
 
 	return seq_putc(s, '\n');
 }
