@@ -42,6 +42,11 @@ module_param(sip_direct_signalling, int, 0600);
 MODULE_PARM_DESC(sip_direct_signalling, "expect incoming calls from registrar "
 					"only (default 1)");
 
+static int sip_direct_media __read_mostly = 1;
+module_param(sip_direct_media, int, 0600);
+MODULE_PARM_DESC(sip_direct_media, "Expect Media streams between signalling "
+				   "endpoints only (default 1)");
+
 unsigned int (*nf_nat_sip_hook)(struct sk_buff *skb,
 				const char **dptr,
 				unsigned int *datalen) __read_mostly;
@@ -656,21 +661,53 @@ static void flush_expectations(struct nf_conn *ct, bool media)
 
 static int set_expected_rtp(struct sk_buff *skb,
 			    const char **dptr, unsigned int *datalen,
-			    union nf_inet_addr *addr, __be16 port)
+			    union nf_inet_addr *daddr, __be16 port)
 {
 	struct nf_conntrack_expect *exp;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
+	union nf_inet_addr *saddr;
+	struct nf_conntrack_tuple tuple;
 	int family = ct->tuplehash[!dir].tuple.src.l3num;
-	int ret;
+	int skip_expect = 0, ret;
 	typeof(nf_nat_sdp_hook) nf_nat_sdp;
+
+	saddr = NULL;
+	if (sip_direct_media) {
+		if (!nf_inet_addr_cmp(daddr, &ct->tuplehash[dir].tuple.src.u3))
+			return NF_ACCEPT;
+		saddr = &ct->tuplehash[!dir].tuple.src.u3;
+	}
+
+	/* We need to check whether the registration exists before attempting
+	 * to register it since we can see the same media description multiple
+	 * times on different connections in case multiple endpoints receive
+	 * the same call.
+	 */
+	memset(&tuple, 0, sizeof(tuple));
+	if (saddr)
+		tuple.src.u3 = *saddr;
+	tuple.src.l3num		= family;
+	tuple.dst.protonum	= IPPROTO_UDP;
+	tuple.dst.u3		= *daddr;
+	tuple.dst.u.udp.port	= port;
+
+	rcu_read_lock();
+	exp = __nf_ct_expect_find(&tuple);
+	if (exp && exp->master != ct &&
+	    nfct_help(exp->master)->helper == nfct_help(ct)->helper &&
+	    exp->class == SIP_EXPECT_AUDIO)
+		skip_expect = 1;
+	rcu_read_unlock();
+
+	if (skip_expect)
+		return NF_ACCEPT;
 
 	exp = nf_ct_expect_alloc(ct);
 	if (exp == NULL)
 		return NF_DROP;
-	nf_ct_expect_init(exp, SIP_EXPECT_AUDIO, family,
-			  &ct->tuplehash[!dir].tuple.src.u3, addr,
+	nf_ct_expect_init(exp, SIP_EXPECT_AUDIO, family, saddr, daddr,
 			  IPPROTO_UDP, NULL, &port);
 
 	nf_nat_sdp = rcu_dereference(nf_nat_sdp_hook);
