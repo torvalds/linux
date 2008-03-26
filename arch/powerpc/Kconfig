@@ -501,6 +501,9 @@ config FSL_PCI
  	bool
 	select PPC_INDIRECT_PCI
 
+config 4xx_SOC
+	bool
+
 # Yes MCA RS/6000s exist but Linux-PPC does not currently support any
 config MCA
 	bool
