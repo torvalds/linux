@@ -591,7 +591,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		}
 
 		if (xfrm_decode_session_reverse(skb_in, &fl, AF_INET))
-			goto out_unlock;
+			goto ende;
 
 		if (inet_addr_type(net, fl.fl4_src) == RTN_LOCAL)
 			err = __ip_route_output_key(net, &rt2, &fl);
@@ -601,7 +601,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 
 			fl2.fl4_dst = fl.fl4_src;
 			if (ip_route_output_key(net, &rt2, &fl2))
-				goto out_unlock;
+				goto ende;
 
 			/* Ugh! */
 			odst = skb_in->dst;
@@ -614,7 +614,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		}
 
 		if (err)
-			goto out_unlock;
+			goto ende;
 
 		err = xfrm_lookup((struct dst_entry **)&rt2, &fl, NULL,
 				  XFRM_LOOKUP_ICMP);
