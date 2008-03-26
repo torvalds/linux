@@ -256,11 +256,7 @@ static struct net_device_stats *uml_net_get_stats(struct net_device *dev)
 
 static void uml_net_set_multicast_list(struct net_device *dev)
 {
-	if (dev->flags & IFF_PROMISC)
-		return;
-	else if (dev->mc_count)
-		dev->flags |= IFF_ALLMULTI;
-	else dev->flags &= ~IFF_ALLMULTI;
+	return;
 }
 
 static void uml_net_tx_timeout(struct net_device *dev)
