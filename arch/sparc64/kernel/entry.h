@@ -14,6 +14,8 @@ extern void __init boot_cpu_id_too_large(int cpu);
 extern unsigned int dcache_parity_tl1_occurred;
 extern unsigned int icache_parity_tl1_occurred;
 
+extern asmlinkage void update_perfctrs(void);
+extern asmlinkage void sparc_breakpoint(struct pt_regs *regs);
 extern void timer_interrupt(int irq, struct pt_regs *regs);
 
 extern asmlinkage void syscall_trace(struct pt_regs *regs,
