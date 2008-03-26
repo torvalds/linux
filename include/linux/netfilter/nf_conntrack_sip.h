@@ -62,7 +62,8 @@ extern unsigned int (*nf_nat_sdp_hook)(struct sk_buff *skb,
 
 extern int ct_sip_parse_request(const struct nf_conn *ct,
 				const char *dptr, unsigned int datalen,
-				unsigned int *matchoff, unsigned int *matchlen);
+				unsigned int *matchoff, unsigned int *matchlen,
+				union nf_inet_addr *addr, __be16 *port);
 extern int ct_sip_get_header(const struct nf_conn *ct, const char *dptr,
 			     unsigned int dataoff, unsigned int datalen,
 			     enum sip_header_types type,

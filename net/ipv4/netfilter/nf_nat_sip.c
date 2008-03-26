@@ -26,39 +26,6 @@ MODULE_AUTHOR("Christian Hentschel <chentschel@arnet.com.ar>");
 MODULE_DESCRIPTION("SIP NAT helper");
 MODULE_ALIAS("ip_nat_sip");
 
-struct addr_map {
-	struct {
-		char		src[sizeof("nnn.nnn.nnn.nnn:nnnnn")];
-		char		dst[sizeof("nnn.nnn.nnn.nnn:nnnnn")];
-		unsigned int	srclen, srciplen;
-		unsigned int	dstlen, dstiplen;
-	} addr[IP_CT_DIR_MAX];
-};
-
-static void addr_map_init(const struct nf_conn *ct, struct addr_map *map)
-{
-	const struct nf_conntrack_tuple *t;
-	enum ip_conntrack_dir dir;
-	unsigned int n;
-
-	for (dir = 0; dir < IP_CT_DIR_MAX; dir++) {
-		t = &ct->tuplehash[dir].tuple;
-
-		n = sprintf(map->addr[dir].src, "%u.%u.%u.%u",
-			    NIPQUAD(t->src.u3.ip));
-		map->addr[dir].srciplen = n;
-		n += sprintf(map->addr[dir].src + n, ":%u",
-			     ntohs(t->src.u.udp.port));
-		map->addr[dir].srclen = n;
-
-		n = sprintf(map->addr[dir].dst, "%u.%u.%u.%u",
-			    NIPQUAD(t->dst.u3.ip));
-		map->addr[dir].dstiplen = n;
-		n += sprintf(map->addr[dir].dst + n, ":%u",
-			     ntohs(t->dst.u.udp.port));
-		map->addr[dir].dstlen = n;
-	}
-}
 
 static unsigned int mangle_packet(struct sk_buff *skb,
 				  const char **dptr, unsigned int *datalen,
@@ -81,43 +48,51 @@ static unsigned int mangle_packet(struct sk_buff *skb,
 static int map_addr(struct sk_buff *skb,
 		    const char **dptr, unsigned int *datalen,
 		    unsigned int matchoff, unsigned int matchlen,
-		    struct addr_map *map)
+		    union nf_inet_addr *addr, __be16 port)
 {
 	enum ip_conntrack_info ctinfo;
-	struct nf_conn *ct __maybe_unused = nf_ct_get(skb, &ctinfo);
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
-	unsigned int addrlen;
-	char *addr;
+	char buffer[sizeof("nnn.nnn.nnn.nnn:nnnnn")];
+	unsigned int buflen;
+	__be32 newaddr;
+	__be16 newport;
 
-	if ((matchlen == map->addr[dir].srciplen ||
-	     matchlen == map->addr[dir].srclen) &&
-	    strncmp(*dptr + matchoff, map->addr[dir].src, matchlen) == 0) {
-		addr    = map->addr[!dir].dst;
-		addrlen = map->addr[!dir].dstlen;
-	} else if ((matchlen == map->addr[dir].dstiplen ||
-		    matchlen == map->addr[dir].dstlen) &&
-		   strncmp(*dptr + matchoff, map->addr[dir].dst, matchlen) == 0) {
-		addr    = map->addr[!dir].src;
-		addrlen = map->addr[!dir].srclen;
+	if (ct->tuplehash[dir].tuple.src.u3.ip == addr->ip &&
+	    ct->tuplehash[dir].tuple.src.u.udp.port == port) {
+		newaddr = ct->tuplehash[!dir].tuple.dst.u3.ip;
+		newport = ct->tuplehash[!dir].tuple.dst.u.udp.port;
+	} else if (ct->tuplehash[dir].tuple.dst.u3.ip == addr->ip &&
+		   ct->tuplehash[dir].tuple.dst.u.udp.port == port) {
+		newaddr = ct->tuplehash[!dir].tuple.src.u3.ip;
+		newport = ct->tuplehash[!dir].tuple.src.u.udp.port;
 	} else
 		return 1;
 
+	if (newaddr == addr->ip && newport == port)
+		return 1;
+
+	buflen = sprintf(buffer, "%u.%u.%u.%u:%u",
+			 NIPQUAD(newaddr), ntohs(newport));
+
 	return mangle_packet(skb, dptr, datalen, matchoff, matchlen,
-			     addr, addrlen);
+			     buffer, buflen);
 }
 
 static int map_sip_addr(struct sk_buff *skb,
 			const char **dptr, unsigned int *datalen,
-			enum sip_header_types type, struct addr_map *map)
+			enum sip_header_types type)
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	unsigned int matchlen, matchoff;
+	union nf_inet_addr addr;
+	__be16 port;
 
-	if (ct_sip_get_header(ct, *dptr, 0, *datalen, type,
-			      &matchoff, &matchlen) <= 0)
+	if (ct_sip_parse_header_uri(ct, *dptr, NULL, *datalen, type, NULL,
+				    &matchoff, &matchlen, &addr, &port) <= 0)
 		return 1;
-	return map_addr(skb, dptr, datalen, matchoff, matchlen, map);
+	return map_addr(skb, dptr, datalen, matchoff, matchlen, &addr, port);
 }
 
 static unsigned int ip_nat_sip(struct sk_buff *skb,
@@ -125,26 +100,27 @@ static unsigned int ip_nat_sip(struct sk_buff *skb,
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-	struct addr_map map;
 	unsigned int matchoff, matchlen;
+	union nf_inet_addr addr;
+	__be16 port;
 
 	if (*datalen < strlen("SIP/2.0"))
 		return NF_ACCEPT;
 
-	addr_map_init(ct, &map);
-
 	/* Basic rules: requests and responses. */
 	if (strnicmp(*dptr, "SIP/2.0", strlen("SIP/2.0")) != 0) {
 		if (ct_sip_parse_request(ct, *dptr, *datalen,
-					 &matchoff, &matchlen) > 0 &&
-		    !map_addr(skb, dptr, datalen, matchoff, matchlen, &map))
+					 &matchoff, &matchlen,
+					 &addr, &port) > 0 &&
+		    !map_addr(skb, dptr, datalen, matchoff, matchlen,
+			      &addr, port))
 			return NF_DROP;
 	}
 
-	if (!map_sip_addr(skb, dptr, datalen, SIP_HDR_FROM, &map) ||
-	    !map_sip_addr(skb, dptr, datalen, SIP_HDR_TO, &map) ||
-	    !map_sip_addr(skb, dptr, datalen, SIP_HDR_VIA, &map) ||
-	    !map_sip_addr(skb, dptr, datalen, SIP_HDR_CONTACT, &map))
+	if (!map_sip_addr(skb, dptr, datalen, SIP_HDR_FROM) ||
+	    !map_sip_addr(skb, dptr, datalen, SIP_HDR_TO) ||
+	    !map_sip_addr(skb, dptr, datalen, SIP_HDR_VIA) ||
+	    !map_sip_addr(skb, dptr, datalen, SIP_HDR_CONTACT))
 		return NF_DROP;
 	return NF_ACCEPT;
 }

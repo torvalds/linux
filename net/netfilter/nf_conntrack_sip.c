@@ -151,10 +151,12 @@ static int skp_epaddr_len(const struct nf_conn *ct, const char *dptr,
  */
 int ct_sip_parse_request(const struct nf_conn *ct,
 			 const char *dptr, unsigned int datalen,
-			 unsigned int *matchoff, unsigned int *matchlen)
+			 unsigned int *matchoff, unsigned int *matchlen,
+			 union nf_inet_addr *addr, __be16 *port)
 {
-	const char *start = dptr, *limit = dptr + datalen;
+	const char *start = dptr, *limit = dptr + datalen, *end;
 	unsigned int mlen;
+	unsigned int p;
 	int shift = 0;
 
 	/* Skip method and following whitespace */
@@ -173,10 +175,25 @@ int ct_sip_parse_request(const struct nf_conn *ct,
 		if (strnicmp(dptr, "sip:", strlen("sip:")) == 0)
 			break;
 	}
-	*matchlen = skp_epaddr_len(ct, dptr, limit, &shift);
-	if (!*matchlen)
+	if (!skp_epaddr_len(ct, dptr, limit, &shift))
 		return 0;
-	*matchoff = dptr - start + shift;
+	dptr += shift;
+
+	if (!parse_addr(ct, dptr, &end, addr, limit))
+		return -1;
+	if (end < limit && *end == ':') {
+		end++;
+		p = simple_strtoul(end, (char **)&end, 10);
+		if (p < 1024 || p > 65535)
+			return -1;
+		*port = htons(p);
+	} else
+		*port = htons(SIP_PORT);
+
+	if (end == dptr)
+		return 0;
+	*matchoff = dptr - start;
+	*matchlen = end - dptr;
 	return 1;
 }
 EXPORT_SYMBOL_GPL(ct_sip_parse_request);
