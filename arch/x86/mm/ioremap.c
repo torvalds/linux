@@ -159,11 +159,7 @@ static void __iomem *__ioremap(resource_size_t phys_addr, unsigned long size,
 	switch (mode) {
 	case IOR_MODE_UNCACHED:
 	default:
-		/*
-		 * FIXME: we will use UC MINUS for now, as video fb drivers
-		 * depend on it. Upcoming ioremap_wc() will fix this behavior.
-		 */
-		prot = PAGE_KERNEL_UC_MINUS;
+		prot = PAGE_KERNEL_NOCACHE;
 		break;
 	case IOR_MODE_CACHED:
 		prot = PAGE_KERNEL;
