@@ -995,7 +995,7 @@ extern int cdrom_ioctl(struct file *file, struct cdrom_device_info *cdi,
 extern int cdrom_media_changed(struct cdrom_device_info *);
 
 extern int register_cdrom(struct cdrom_device_info *cdi);
-extern int unregister_cdrom(struct cdrom_device_info *cdi);
+extern void unregister_cdrom(struct cdrom_device_info *cdi);
 
 typedef struct {
     int data;

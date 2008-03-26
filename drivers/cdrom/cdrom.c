@@ -442,7 +442,7 @@ int register_cdrom(struct cdrom_device_info *cdi)
 }
 #undef ENSURE
 
-int unregister_cdrom(struct cdrom_device_info *cdi)
+void unregister_cdrom(struct cdrom_device_info *cdi)
 {
 	cdinfo(CD_OPEN, "entering unregister_cdrom\n"); 
 
@@ -455,7 +455,6 @@ int unregister_cdrom(struct cdrom_device_info *cdi)
 
 	cdi->ops->n_minors--;
 	cdinfo(CD_REG_UNREG, "drive \"/dev/%s\" unregistered\n", cdi->name);
-	return 0;
 }
 
 int cdrom_get_media_event(struct cdrom_device_info *cdi,
