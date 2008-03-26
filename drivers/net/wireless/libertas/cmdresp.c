@@ -249,31 +249,6 @@ static int lbs_ret_802_11_rssi(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_eeprom_access(struct lbs_private *priv,
-				  struct cmd_ds_command *resp)
-{
-	struct lbs_ioctl_regrdwr *pbuf;
-	pbuf = (struct lbs_ioctl_regrdwr *) priv->prdeeprom;
-
-	lbs_deb_enter_args(LBS_DEB_CMD, "len %d",
-	       le16_to_cpu(resp->params.rdeeprom.bytecount));
-	if (pbuf->NOB < le16_to_cpu(resp->params.rdeeprom.bytecount)) {
-		pbuf->NOB = 0;
-		lbs_deb_cmd("EEPROM read length too big\n");
-		return -1;
-	}
-	pbuf->NOB = le16_to_cpu(resp->params.rdeeprom.bytecount);
-	if (pbuf->NOB > 0) {
-
-		memcpy(&pbuf->value, (u8 *) & resp->params.rdeeprom.value,
-		       le16_to_cpu(resp->params.rdeeprom.bytecount));
-		lbs_deb_hex(LBS_DEB_CMD, "EEPROM", (char *)&pbuf->value,
-			le16_to_cpu(resp->params.rdeeprom.bytecount));
-	}
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
 static int lbs_ret_802_11_bcn_ctrl(struct lbs_private * priv,
 					struct cmd_ds_command *resp)
 {
@@ -357,10 +332,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 
 	case CMD_RET(CMD_802_11_AD_HOC_STOP):
 		ret = lbs_ret_80211_ad_hoc_stop(priv);
-		break;
-
-	case CMD_RET(CMD_802_11_EEPROM_ACCESS):
-		ret = lbs_ret_802_11_eeprom_access(priv, resp);
 		break;
 
 	case CMD_RET(CMD_802_11D_DOMAIN_INFO):

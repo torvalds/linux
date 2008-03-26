@@ -953,27 +953,6 @@ static int lbs_cmd_reg_access(struct cmd_ds_command *cmdptr,
 	return 0;
 }
 
-static int lbs_cmd_802_11_eeprom_access(struct cmd_ds_command *cmd,
-					void *pdata_buf)
-{
-	struct lbs_ioctl_regrdwr *ea = pdata_buf;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	cmd->command = cpu_to_le16(CMD_802_11_EEPROM_ACCESS);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_eeprom_access) +
-				S_DS_GEN);
-	cmd->result = 0;
-
-	cmd->params.rdeeprom.action = cpu_to_le16(ea->action);
-	cmd->params.rdeeprom.offset = cpu_to_le16(ea->offset);
-	cmd->params.rdeeprom.bytecount = cpu_to_le16(ea->NOB);
-	cmd->params.rdeeprom.value = 0;
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
 static int lbs_cmd_bt_access(struct cmd_ds_command *cmd,
 			       u16 cmd_action, void *pdata_buf)
 {
@@ -1410,10 +1389,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 	case CMD_802_11_AD_HOC_STOP:
 		ret = lbs_cmd_80211_ad_hoc_stop(cmdptr);
-		break;
-
-	case CMD_802_11_EEPROM_ACCESS:
-		ret = lbs_cmd_802_11_eeprom_access(cmdptr, pdata_buf);
 		break;
 
 	case CMD_802_11_SET_AFC:

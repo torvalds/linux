@@ -320,7 +320,6 @@ struct lbs_private {
 	u32 enable11d;
 
 	/**	MISCELLANEOUS */
-	u8 *prdeeprom;
 	struct lbs_offset_value offsetvalue;
 
 	u32 monitormode;
