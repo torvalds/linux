@@ -108,14 +108,14 @@ static int map_addr(struct sk_buff *skb,
 
 static int map_sip_addr(struct sk_buff *skb,
 			const char **dptr, unsigned int *datalen,
-			enum sip_header_pos pos, struct addr_map *map)
+			enum sip_header_types type, struct addr_map *map)
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	unsigned int matchlen, matchoff;
 
-	if (ct_sip_get_info(ct, *dptr, *datalen, &matchoff, &matchlen,
-			    pos) <= 0)
+	if (ct_sip_get_header(ct, *dptr, 0, *datalen, type,
+			      &matchoff, &matchlen) <= 0)
 		return 1;
 	return map_addr(skb, dptr, datalen, matchoff, matchlen, map);
 }
@@ -141,10 +141,10 @@ static unsigned int ip_nat_sip(struct sk_buff *skb,
 			return NF_DROP;
 	}
 
-	if (!map_sip_addr(skb, dptr, datalen, POS_FROM, &map) ||
-	    !map_sip_addr(skb, dptr, datalen, POS_TO, &map) ||
-	    !map_sip_addr(skb, dptr, datalen, POS_VIA, &map) ||
-	    !map_sip_addr(skb, dptr, datalen, POS_CONTACT, &map))
+	if (!map_sip_addr(skb, dptr, datalen, SIP_HDR_FROM, &map) ||
+	    !map_sip_addr(skb, dptr, datalen, SIP_HDR_TO, &map) ||
+	    !map_sip_addr(skb, dptr, datalen, SIP_HDR_VIA, &map) ||
+	    !map_sip_addr(skb, dptr, datalen, SIP_HDR_CONTACT, &map))
 		return NF_DROP;
 	return NF_ACCEPT;
 }
@@ -166,8 +166,8 @@ static int mangle_content_len(struct sk_buff *skb,
 	c_len = *datalen - matchoff + strlen("v=");
 
 	/* Now, update SDP length */
-	if (ct_sip_get_info(ct, *dptr, *datalen, &matchoff, &matchlen,
-			    POS_CONTENT) <= 0)
+	if (ct_sip_get_header(ct, *dptr, 0, *datalen, SIP_HDR_CONTENT_LENGTH,
+			      &matchoff, &matchlen) <= 0)
 		return 0;
 
 	buflen = sprintf(buffer, "%u", c_len);

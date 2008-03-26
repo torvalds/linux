@@ -5,14 +5,6 @@
 #define SIP_PORT	5060
 #define SIP_TIMEOUT	3600
 
-enum sip_header_pos {
-	POS_FROM,
-	POS_TO,
-	POS_VIA,
-	POS_CONTACT,
-	POS_CONTENT,
-};
-
 struct sip_header {
 	const char	*name;
 	const char	*cname;
@@ -36,8 +28,19 @@ struct sip_header {
 	.match_len	= (__match),					\
 }
 
+#define SIP_HDR(__name, __cname, __search, __match) \
+	__SIP_HDR(__name, __cname, __search, __match)
+
 #define SDP_HDR(__name, __search, __match) \
 	__SIP_HDR(__name, NULL, __search, __match)
+
+enum sip_header_types {
+	SIP_HDR_FROM,
+	SIP_HDR_TO,
+	SIP_HDR_CONTACT,
+	SIP_HDR_VIA,
+	SIP_HDR_CONTENT_LENGTH,
+};
 
 enum sdp_header_types {
 	SDP_HDR_UNSPEC,
@@ -60,13 +63,10 @@ extern unsigned int (*nf_nat_sdp_hook)(struct sk_buff *skb,
 extern int ct_sip_parse_request(const struct nf_conn *ct,
 				const char *dptr, unsigned int datalen,
 				unsigned int *matchoff, unsigned int *matchlen);
-extern int ct_sip_get_info(const struct nf_conn *ct, const char *dptr,
-                           size_t dlen, unsigned int *matchoff,
-                           unsigned int *matchlen, enum sip_header_pos pos);
-extern int ct_sip_lnlen(const char *line, const char *limit);
-extern const char *ct_sip_search(const char *needle, const char *haystack,
-				 size_t needle_len, size_t haystack_len,
-				 int case_sensitive);
+extern int ct_sip_get_header(const struct nf_conn *ct, const char *dptr,
+			     unsigned int dataoff, unsigned int datalen,
+			     enum sip_header_types type,
+			     unsigned int *matchoff, unsigned int *matchlen);
 
 extern int ct_sip_get_sdp_header(const struct nf_conn *ct, const char *dptr,
 				 unsigned int dataoff, unsigned int datalen,
