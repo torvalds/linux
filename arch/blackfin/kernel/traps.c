@@ -75,7 +75,7 @@ static void decode_address(char *buf, unsigned long address)
 	struct task_struct *p;
 	struct mm_struct *mm;
 	unsigned long flags, offset;
-	unsigned int in_exception = bfin_read_IPEND() & 0x10;
+	unsigned char in_atomic = (bfin_read_IPEND() & 0x10) || in_atomic();
 
 #ifdef CONFIG_KALLSYMS
 	unsigned long symsize;
@@ -117,7 +117,7 @@ static void decode_address(char *buf, unsigned long address)
 	 */
 	write_lock_irqsave(&tasklist_lock, flags);
 	for_each_process(p) {
-		mm = (in_exception ? p->mm : get_task_mm(p));
+		mm = (in_atomic ? p->mm : get_task_mm(p));
 		if (!mm)
 			continue;
 
@@ -146,14 +146,14 @@ static void decode_address(char *buf, unsigned long address)
 
 				sprintf(buf, "<0x%p> [ %s + 0x%lx ]",
 					(void *)address, name, offset);
-				if (!in_exception)
+				if (!in_atomic)
 					mmput(mm);
 				goto done;
 			}
 
 			vml = vml->next;
 		}
-		if (!in_exception)
+		if (!in_atomic)
 			mmput(mm);
 	}
 
