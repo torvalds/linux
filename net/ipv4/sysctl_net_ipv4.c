@@ -811,12 +811,34 @@ struct ctl_path net_ipv4_ctl_path[] = {
 };
 EXPORT_SYMBOL_GPL(net_ipv4_ctl_path);
 
+static __net_init int ipv4_sysctl_init_net(struct net *net)
+{
+	return 0;
+}
+
+static __net_exit void ipv4_sysctl_exit_net(struct net *net)
+{
+}
+
+static __net_initdata struct pernet_operations ipv4_sysctl_ops = {
+	.init = ipv4_sysctl_init_net,
+	.exit = ipv4_sysctl_exit_net,
+};
+
 static __init int sysctl_ipv4_init(void)
 {
 	struct ctl_table_header *hdr;
 
 	hdr = register_sysctl_paths(net_ipv4_ctl_path, ipv4_table);
-	return hdr == NULL ? -ENOMEM : 0;
+	if (hdr == NULL)
+		return -ENOMEM;
+
+	if (register_pernet_subsys(&ipv4_sysctl_ops)) {
+		unregister_sysctl_table(hdr);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 __initcall(sysctl_ipv4_init);
