@@ -37,6 +37,11 @@ EXPORT_SYMBOL_GPL(lbs_debug);
 module_param_named(libertas_debug, lbs_debug, int, 0644);
 
 
+/* This global structure is used to send the confirm_sleep command as
+ * fast as possible down to the firmware. */
+struct cmd_confirm_sleep confirm_sleep;
+
+
 #define LBS_TX_PWR_DEFAULT		20	/*100mW */
 #define LBS_TX_PWR_US_DEFAULT		20	/*100mW */
 #define LBS_TX_PWR_JP_DEFAULT		16	/*50mW */
@@ -1013,14 +1018,6 @@ static int lbs_init_adapter(struct lbs_private *priv)
 			      &priv->network_free_list);
 	}
 
-	priv->lbs_ps_confirm_sleep.seqnum = cpu_to_le16(++priv->seqnum);
-	priv->lbs_ps_confirm_sleep.command =
-	    cpu_to_le16(CMD_802_11_PS_MODE);
-	priv->lbs_ps_confirm_sleep.size =
-	    cpu_to_le16(sizeof(struct PS_CMD_ConfirmSleep));
-	priv->lbs_ps_confirm_sleep.action =
-	    cpu_to_le16(CMD_SUBCMD_SLEEP_CONFIRMED);
-
 	memset(priv->current_addr, 0xff, ETH_ALEN);
 
 	priv->connect_status = LBS_DISCONNECTED;
@@ -1462,6 +1459,10 @@ EXPORT_SYMBOL_GPL(lbs_interrupt);
 static int __init lbs_init_module(void)
 {
 	lbs_deb_enter(LBS_DEB_MAIN);
+	memset(&confirm_sleep, 0, sizeof(confirm_sleep));
+	confirm_sleep.hdr.command = cpu_to_le16(CMD_802_11_PS_MODE);
+	confirm_sleep.hdr.size = cpu_to_le16(sizeof(confirm_sleep));
+	confirm_sleep.action = cpu_to_le16(CMD_SUBCMD_SLEEP_CONFIRMED);
 	lbs_debugfs_init();
 	lbs_deb_leave(LBS_DEB_MAIN);
 	return 0;

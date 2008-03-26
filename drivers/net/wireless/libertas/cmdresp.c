@@ -548,21 +548,20 @@ done:
 
 static int lbs_send_confirmwake(struct lbs_private *priv)
 {
-	struct cmd_header *cmd = &priv->lbs_ps_confirm_wake;
+	struct cmd_header cmd;
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
-	cmd->command = cpu_to_le16(CMD_802_11_WAKEUP_CONFIRM);
-	cmd->size = cpu_to_le16(sizeof(*cmd));
-	cmd->seqnum = cpu_to_le16(++priv->seqnum);
-	cmd->result = 0;
+	cmd.command = cpu_to_le16(CMD_802_11_WAKEUP_CONFIRM);
+	cmd.size = cpu_to_le16(sizeof(cmd));
+	cmd.seqnum = cpu_to_le16(++priv->seqnum);
+	cmd.result = 0;
 
-	lbs_deb_host("SEND_WAKEC_CMD: before download\n");
+	lbs_deb_hex(LBS_DEB_HOST, "wake confirm", (u8 *) &cmd,
+		sizeof(cmd));
 
-	lbs_deb_hex(LBS_DEB_HOST, "wake confirm command", (void *)cmd, sizeof(*cmd));
-
-	ret = priv->hw_host_to_card(priv, MVMS_CMD, (void *)cmd, sizeof(*cmd));
+	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) &cmd, sizeof(cmd));
 	if (ret)
 		lbs_pr_alert("SEND_WAKEC_CMD: Host to Card failed for Confirm Wake\n");
 

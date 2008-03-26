@@ -480,14 +480,11 @@ struct cmd_ds_802_11_ps_mode {
 	__le16 locallisteninterval;
 };
 
-struct PS_CMD_ConfirmSleep {
-	__le16 command;
-	__le16 size;
-	__le16 seqnum;
-	__le16 result;
+struct cmd_confirm_sleep {
+	struct cmd_header hdr;
 
 	__le16 action;
-	__le16 reserved1;
+	__le16 nullpktinterval;
 	__le16 multipledtim;
 	__le16 reserved;
 	__le16 locallisteninterval;
