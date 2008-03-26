@@ -181,6 +181,7 @@ struct dme1737_data {
 	int valid;			/* !=0 if following fields are valid */
 	unsigned long last_update;	/* in jiffies */
 	unsigned long last_vbat;	/* in jiffies */
+	enum chips type;
 
 	u8 vid;
 	u8 pwm_rr_en;
@@ -215,20 +216,27 @@ struct dme1737_data {
 };
 
 /* Nominal voltage values */
-static const int IN_NOMINAL[] = {5000, 2250, 3300, 5000, 12000, 3300, 3300};
+static const int IN_NOMINAL_DME1737[] = {5000, 2250, 3300, 5000, 12000, 3300,
+					 3300};
+static const int IN_NOMINAL_SCH311x[] = {2500, 1500, 3300, 5000, 12000, 3300,
+					 3300};
+#define IN_NOMINAL(ix, type)	(((type) == dme1737) ? \
+				IN_NOMINAL_DME1737[(ix)] : \
+				IN_NOMINAL_SCH311x[(ix)])
 
 /* Voltage input
  * Voltage inputs have 16 bits resolution, limit values have 8 bits
  * resolution. */
-static inline int IN_FROM_REG(int reg, int ix, int res)
+static inline int IN_FROM_REG(int reg, int ix, int res, int type)
 {
-	return (reg * IN_NOMINAL[ix] + (3 << (res - 3))) / (3 << (res - 2));
+	return (reg * IN_NOMINAL(ix, type) + (3 << (res - 3))) /
+		(3 << (res - 2));
 }
 
-static inline int IN_TO_REG(int val, int ix)
+static inline int IN_TO_REG(int val, int ix, int type)
 {
-	return SENSORS_LIMIT((val * 192 + IN_NOMINAL[ix] / 2) /
-			     IN_NOMINAL[ix], 0, 255);
+	return SENSORS_LIMIT((val * 192 + IN_NOMINAL(ix, type) / 2) /
+			     IN_NOMINAL(ix, type), 0, 255);
 }
 
 /* Temperature input
@@ -727,13 +735,13 @@ static ssize_t show_in(struct device *dev, struct device_attribute *attr,
 
 	switch (fn) {
 	case SYS_IN_INPUT:
-		res = IN_FROM_REG(data->in[ix], ix, 16);
+		res = IN_FROM_REG(data->in[ix], ix, 16, data->type);
 		break;
 	case SYS_IN_MIN:
-		res = IN_FROM_REG(data->in_min[ix], ix, 8);
+		res = IN_FROM_REG(data->in_min[ix], ix, 8, data->type);
 		break;
 	case SYS_IN_MAX:
-		res = IN_FROM_REG(data->in_max[ix], ix, 8);
+		res = IN_FROM_REG(data->in_max[ix], ix, 8, data->type);
 		break;
 	case SYS_IN_ALARM:
 		res = (data->alarms >> DME1737_BIT_ALARM_IN[ix]) & 0x01;
@@ -760,12 +768,12 @@ static ssize_t set_in(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&data->update_lock);
 	switch (fn) {
 	case SYS_IN_MIN:
-		data->in_min[ix] = IN_TO_REG(val, ix);
+		data->in_min[ix] = IN_TO_REG(val, ix, data->type);
 		dme1737_write(client, DME1737_REG_IN_MIN(ix),
 			      data->in_min[ix]);
 		break;
 	case SYS_IN_MAX:
-		data->in_max[ix] = IN_TO_REG(val, ix);
+		data->in_max[ix] = IN_TO_REG(val, ix, data->type);
 		dme1737_write(client, DME1737_REG_IN_MAX(ix),
 			      data->in_max[ix]);
 		break;
@@ -2167,6 +2175,7 @@ static int dme1737_i2c_detect(struct i2c_adapter *adapter, int address,
 
 	kind = dme1737;
 	name = "dme1737";
+	data->type = kind;
 
 	/* Fill in the remaining client fields and put it into the global
 	 * list */
@@ -2359,6 +2368,7 @@ static int __devinit dme1737_isa_probe(struct platform_device *pdev)
 		err = -ENODEV;
 		goto exit_kfree;
 	}
+	data->type = -1;
 
 	/* Fill in the remaining client fields and initialize the mutex */
 	strlcpy(client->name, "sch311x", I2C_NAME_SIZE);
