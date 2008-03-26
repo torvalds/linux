@@ -475,6 +475,10 @@ static int exp_seq_show(struct seq_file *s, void *v)
 		    __nf_ct_l3proto_find(expect->tuple.src.l3num),
 		    __nf_ct_l4proto_find(expect->tuple.src.l3num,
 				       expect->tuple.dst.protonum));
+
+	if (expect->flags & NF_CT_EXPECT_PERMANENT)
+		seq_printf(s, "PERMANENT ");
+
 	return seq_putc(s, '\n');
 }
 
