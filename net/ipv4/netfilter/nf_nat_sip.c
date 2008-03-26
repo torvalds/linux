@@ -364,7 +364,8 @@ static unsigned int mangle_sdp(struct sk_buff *skb,
    Mangle it, and change the expectation to match the new version. */
 static unsigned int ip_nat_sdp(struct sk_buff *skb,
 			       const char **dptr, unsigned int *datalen,
-			       struct nf_conntrack_expect *exp)
+			       struct nf_conntrack_expect *rtp_exp,
+			       struct nf_conntrack_expect *rtcp_exp)
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
@@ -375,31 +376,40 @@ static unsigned int ip_nat_sdp(struct sk_buff *skb,
 	/* Connection will come from reply */
 	if (ct->tuplehash[dir].tuple.src.u3.ip ==
 	    ct->tuplehash[!dir].tuple.dst.u3.ip)
-		newip = exp->tuple.dst.u3.ip;
+		newip = rtp_exp->tuple.dst.u3.ip;
 	else
 		newip = ct->tuplehash[!dir].tuple.dst.u3.ip;
 
-	exp->saved_ip = exp->tuple.dst.u3.ip;
-	exp->tuple.dst.u3.ip = newip;
-	exp->saved_proto.udp.port = exp->tuple.dst.u.udp.port;
-	exp->dir = !dir;
+	rtp_exp->saved_ip = rtp_exp->tuple.dst.u3.ip;
+	rtp_exp->tuple.dst.u3.ip = newip;
+	rtp_exp->saved_proto.udp.port = rtp_exp->tuple.dst.u.udp.port;
+	rtp_exp->dir = !dir;
+	rtp_exp->expectfn = ip_nat_sip_expected;
 
-	/* When you see the packet, we need to NAT it the same as the
-	   this one. */
-	exp->expectfn = ip_nat_sip_expected;
+	rtcp_exp->saved_ip = rtcp_exp->tuple.dst.u3.ip;
+	rtcp_exp->tuple.dst.u3.ip = newip;
+	rtcp_exp->saved_proto.udp.port = rtcp_exp->tuple.dst.u.udp.port;
+	rtcp_exp->dir = !dir;
+	rtcp_exp->expectfn = ip_nat_sip_expected;
 
-	/* Try to get same port: if not, try to change it. */
-	for (port = ntohs(exp->saved_proto.udp.port); port != 0; port++) {
-		exp->tuple.dst.u.udp.port = htons(port);
-		if (nf_ct_expect_related(exp) == 0)
+	/* Try to get same pair of ports: if not, try to change them. */
+	for (port = ntohs(rtp_exp->tuple.dst.u.udp.port);
+	     port != 0; port += 2) {
+		rtp_exp->tuple.dst.u.udp.port = htons(port);
+		if (nf_ct_expect_related(rtp_exp) != 0)
+			continue;
+		rtcp_exp->tuple.dst.u.udp.port = htons(port + 1);
+		if (nf_ct_expect_related(rtcp_exp) == 0)
 			break;
+		nf_ct_unexpect_related(rtp_exp);
 	}
 
 	if (port == 0)
 		return NF_DROP;
 
 	if (!mangle_sdp(skb, ctinfo, ct, newip, port, dptr, datalen)) {
-		nf_ct_unexpect_related(exp);
+		nf_ct_unexpect_related(rtp_exp);
+		nf_ct_unexpect_related(rtcp_exp);
 		return NF_DROP;
 	}
 	return NF_ACCEPT;

@@ -63,7 +63,9 @@ EXPORT_SYMBOL_GPL(nf_nat_sip_expect_hook);
 unsigned int (*nf_nat_sdp_hook)(struct sk_buff *skb,
 				const char **dptr,
 				unsigned int *datalen,
-				struct nf_conntrack_expect *exp) __read_mostly;
+				struct nf_conntrack_expect *rtp_exp,
+				struct nf_conntrack_expect *rtcp_exp)
+				__read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sdp_hook);
 
 static int string_len(const struct nf_conn *ct, const char *dptr,
@@ -659,18 +661,20 @@ static void flush_expectations(struct nf_conn *ct, bool media)
 	spin_unlock_bh(&nf_conntrack_lock);
 }
 
-static int set_expected_rtp(struct sk_buff *skb,
-			    const char **dptr, unsigned int *datalen,
-			    union nf_inet_addr *daddr, __be16 port)
+static int set_expected_rtp_rtcp(struct sk_buff *skb,
+				 const char **dptr, unsigned int *datalen,
+				 union nf_inet_addr *daddr, __be16 port)
 {
-	struct nf_conntrack_expect *exp;
+	struct nf_conntrack_expect *exp, *rtp_exp, *rtcp_exp;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	union nf_inet_addr *saddr;
 	struct nf_conntrack_tuple tuple;
 	int family = ct->tuplehash[!dir].tuple.src.l3num;
-	int skip_expect = 0, ret;
+	int skip_expect = 0, ret = NF_DROP;
+	u_int16_t base_port;
+	__be16 rtp_port, rtcp_port;
 	typeof(nf_nat_sdp_hook) nf_nat_sdp;
 
 	saddr = NULL;
@@ -704,23 +708,37 @@ static int set_expected_rtp(struct sk_buff *skb,
 	if (skip_expect)
 		return NF_ACCEPT;
 
-	exp = nf_ct_expect_alloc(ct);
-	if (exp == NULL)
-		return NF_DROP;
-	nf_ct_expect_init(exp, SIP_EXPECT_AUDIO, family, saddr, daddr,
-			  IPPROTO_UDP, NULL, &port);
+	base_port = ntohs(tuple.dst.u.udp.port) & ~1;
+	rtp_port = htons(base_port);
+	rtcp_port = htons(base_port + 1);
+
+	rtp_exp = nf_ct_expect_alloc(ct);
+	if (rtp_exp == NULL)
+		goto err1;
+	nf_ct_expect_init(rtp_exp, SIP_EXPECT_AUDIO, family, saddr, daddr,
+			  IPPROTO_UDP, NULL, &rtp_port);
+
+	rtcp_exp = nf_ct_expect_alloc(ct);
+	if (rtcp_exp == NULL)
+		goto err2;
+	nf_ct_expect_init(rtcp_exp, SIP_EXPECT_AUDIO, family, saddr, daddr,
+			  IPPROTO_UDP, NULL, &rtcp_port);
 
 	nf_nat_sdp = rcu_dereference(nf_nat_sdp_hook);
 	if (nf_nat_sdp && ct->status & IPS_NAT_MASK)
-		ret = nf_nat_sdp(skb, dptr, datalen, exp);
+		ret = nf_nat_sdp(skb, dptr, datalen, rtp_exp, rtcp_exp);
 	else {
-		if (nf_ct_expect_related(exp) != 0)
-			ret = NF_DROP;
-		else
-			ret = NF_ACCEPT;
+		if (nf_ct_expect_related(rtp_exp) == 0) {
+			if (nf_ct_expect_related(rtcp_exp) != 0)
+				nf_ct_unexpect_related(rtp_exp);
+			else
+				ret = NF_ACCEPT;
+		}
 	}
-	nf_ct_expect_put(exp);
-
+	nf_ct_expect_put(rtcp_exp);
+err2:
+	nf_ct_expect_put(rtp_exp);
+err1:
 	return ret;
 }
 
@@ -758,7 +776,7 @@ static int process_sdp(struct sk_buff *skb,
 	if (port < 1024 || port > 65535)
 		return NF_DROP;
 
-	return set_expected_rtp(skb, dptr, datalen, &addr, htons(port));
+	return set_expected_rtp_rtcp(skb, dptr, datalen, &addr, htons(port));
 }
 static int process_invite_response(struct sk_buff *skb,
 				   const char **dptr, unsigned int *datalen,
@@ -1101,7 +1119,7 @@ static const struct nf_conntrack_expect_policy sip_exp_policy[SIP_EXPECT_MAX + 1
 		.timeout	= 3 * 60,
 	},
 	[SIP_EXPECT_AUDIO] = {
-		.max_expected	= IP_CT_DIR_MAX,
+		.max_expected	= 2 * IP_CT_DIR_MAX,
 		.timeout	= 3 * 60,
 	},
 };

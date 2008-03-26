@@ -96,7 +96,8 @@ extern unsigned int (*nf_nat_sip_expect_hook)(struct sk_buff *skb,
 extern unsigned int (*nf_nat_sdp_hook)(struct sk_buff *skb,
 				       const char **dptr,
 				       unsigned int *datalen,
-				       struct nf_conntrack_expect *exp);
+				       struct nf_conntrack_expect *rtp_exp,
+				       struct nf_conntrack_expect *rtcp_exp);
 
 extern int ct_sip_parse_request(const struct nf_conn *ct,
 				const char *dptr, unsigned int datalen,
