@@ -53,7 +53,7 @@ static int doing_pdma;
 
 static irqreturn_t floppy_hardint(int irq, void *dev_id)
 {
-	register unsigned char st;
+	unsigned char st;
 
 #undef TRACE_FLPY_INT
 
@@ -71,8 +71,8 @@ static irqreturn_t floppy_hardint(int irq, void *dev_id)
 #endif
 
 	{
-		register int lcount;
-		register char *lptr;
+		int lcount;
+		char *lptr;
 
 		st = 1;
 		for (lcount = virtual_dma_count, lptr = virtual_dma_addr;
