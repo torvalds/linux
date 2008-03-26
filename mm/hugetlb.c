@@ -671,9 +671,11 @@ int hugetlb_report_node_meminfo(int nid, char *buf)
 {
 	return sprintf(buf,
 		"Node %d HugePages_Total: %5u\n"
-		"Node %d HugePages_Free:  %5u\n",
+		"Node %d HugePages_Free:  %5u\n"
+		"Node %d HugePages_Surp:  %5u\n",
 		nid, nr_huge_pages_node[nid],
-		nid, free_huge_pages_node[nid]);
+		nid, free_huge_pages_node[nid],
+		nid, surplus_huge_pages_node[nid]);
 }
 
 /* Return the number pages of memory we physically have, in PAGE_SIZE units. */
