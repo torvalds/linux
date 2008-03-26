@@ -773,7 +773,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 			return;
 		}
 
-		if (ipv6_chk_acast_addr(dev, &msg->target) ||
+		if (ipv6_chk_acast_addr(dev_net(dev), dev, &msg->target) ||
 		    (idev->cnf.forwarding &&
 		     (ipv6_devconf.proxy_ndp || idev->cnf.proxy_ndp) &&
 		     (pneigh = pneigh_lookup(&nd_tbl, dev_net(dev),

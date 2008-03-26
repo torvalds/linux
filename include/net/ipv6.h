@@ -591,8 +591,8 @@ extern int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 			 int __user *optlen);
 
 #ifdef CONFIG_PROC_FS
-extern int  ac6_proc_init(void);
-extern void ac6_proc_exit(void);
+extern int  ac6_proc_init(struct net *net);
+extern void ac6_proc_exit(struct net *net);
 extern int  raw6_proc_init(void);
 extern void raw6_proc_exit(void);
 extern int  tcp6_proc_init(struct net *net);
@@ -607,15 +607,10 @@ extern int snmp6_register_dev(struct inet6_dev *idev);
 extern int snmp6_unregister_dev(struct inet6_dev *idev);
 
 #else
-static inline int snmp6_register_dev(struct inet6_dev *idev)
-{
-	return 0;
-}
-
-static inline int snmp6_unregister_dev(struct inet6_dev *idev)
-{
-	return 0;
-}
+static inline int ac6_proc_init(struct net *net) { return 0; }
+static inline void ac6_proc_exit(struct net *net) { }
+static inline int snmp6_register_dev(struct inet6_dev *idev) { return 0; }
+static inline int snmp6_unregister_dev(struct inet6_dev *idev) { return 0; }
 #endif
 
 #ifdef CONFIG_SYSCTL

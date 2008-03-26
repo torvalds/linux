@@ -134,7 +134,8 @@ extern int inet6_ac_check(struct sock *sk, struct in6_addr *addr, int ifindex);
 
 extern int ipv6_dev_ac_inc(struct net_device *dev, struct in6_addr *addr);
 extern int __ipv6_dev_ac_dec(struct inet6_dev *idev, struct in6_addr *addr);
-extern int ipv6_chk_acast_addr(struct net_device *dev, struct in6_addr *addr);
+extern int ipv6_chk_acast_addr(struct net *net, struct net_device *dev,
+			       struct in6_addr *addr);
 
 
 /* Device notifier */
