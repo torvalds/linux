@@ -6,8 +6,6 @@
 #define SIP_TIMEOUT	3600
 
 enum sip_header_pos {
-	POS_REG_REQ_URI,
-	POS_REQ_URI,
 	POS_FROM,
 	POS_TO,
 	POS_VIA,
@@ -59,6 +57,9 @@ extern unsigned int (*nf_nat_sdp_hook)(struct sk_buff *skb,
 				       unsigned int *datalen,
 				       struct nf_conntrack_expect *exp);
 
+extern int ct_sip_parse_request(const struct nf_conn *ct,
+				const char *dptr, unsigned int datalen,
+				unsigned int *matchoff, unsigned int *matchlen);
 extern int ct_sip_get_info(const struct nf_conn *ct, const char *dptr,
                            size_t dlen, unsigned int *matchoff,
                            unsigned int *matchlen, enum sip_header_pos pos);

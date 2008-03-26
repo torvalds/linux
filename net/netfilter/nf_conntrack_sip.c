@@ -65,20 +65,6 @@ struct sip_header_nfo {
 };
 
 static const struct sip_header_nfo ct_sip_hdrs[] = {
-	[POS_REG_REQ_URI] = { 	/* SIP REGISTER request URI */
-		.lname		= "sip:",
-		.lnlen		= sizeof("sip:") - 1,
-		.ln_str		= ":",
-		.ln_strlen	= sizeof(":") - 1,
-		.match_len	= epaddr_len,
-	},
-	[POS_REQ_URI] = { 	/* SIP request URI */
-		.lname		= "sip:",
-		.lnlen		= sizeof("sip:") - 1,
-		.ln_str		= "@",
-		.ln_strlen	= sizeof("@") - 1,
-		.match_len	= epaddr_len,
-	},
 	[POS_FROM] = {		/* SIP From header */
 		.lname		= "From:",
 		.lnlen		= sizeof("From:") - 1,
@@ -163,6 +149,18 @@ const char *ct_sip_search(const char *needle, const char *haystack,
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(ct_sip_search);
+
+static int string_len(const struct nf_conn *ct, const char *dptr,
+		      const char *limit, int *shift)
+{
+	int len = 0;
+
+	while (dptr < limit && isalpha(*dptr)) {
+		dptr++;
+		len++;
+	}
+	return len;
+}
 
 static int digits_len(const struct nf_conn *ct, const char *dptr,
 		      const char *limit, int *shift)
@@ -257,6 +255,44 @@ static int skp_epaddr_len(const struct nf_conn *ct, const char *dptr,
 
 	return epaddr_len(ct, dptr, limit, shift);
 }
+
+/* Parse a SIP request line of the form:
+ *
+ * Request-Line = Method SP Request-URI SP SIP-Version CRLF
+ *
+ * and return the offset and length of the address contained in the Request-URI.
+ */
+int ct_sip_parse_request(const struct nf_conn *ct,
+			 const char *dptr, unsigned int datalen,
+			 unsigned int *matchoff, unsigned int *matchlen)
+{
+	const char *start = dptr, *limit = dptr + datalen;
+	unsigned int mlen;
+	int shift = 0;
+
+	/* Skip method and following whitespace */
+	mlen = string_len(ct, dptr, limit, NULL);
+	if (!mlen)
+		return 0;
+	dptr += mlen;
+	if (++dptr >= limit)
+		return 0;
+
+	/* Find SIP URI */
+	limit -= strlen("sip:");
+	for (; dptr < limit; dptr++) {
+		if (*dptr == '\r' || *dptr == '\n')
+			return -1;
+		if (strnicmp(dptr, "sip:", strlen("sip:")) == 0)
+			break;
+	}
+	*matchlen = skp_epaddr_len(ct, dptr, limit, &shift);
+	if (!*matchlen)
+		return 0;
+	*matchoff = dptr - start + shift;
+	return 1;
+}
+EXPORT_SYMBOL_GPL(ct_sip_parse_request);
 
 /* Returns 0 if not found, -1 error parsing. */
 int ct_sip_get_info(const struct nf_conn *ct,

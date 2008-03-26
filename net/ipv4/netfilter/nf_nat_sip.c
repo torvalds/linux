@@ -78,19 +78,16 @@ static unsigned int mangle_packet(struct sk_buff *skb,
 	return 1;
 }
 
-static int map_sip_addr(struct sk_buff *skb,
-			const char **dptr, unsigned int *datalen,
-			enum sip_header_pos pos, struct addr_map *map)
+static int map_addr(struct sk_buff *skb,
+		    const char **dptr, unsigned int *datalen,
+		    unsigned int matchoff, unsigned int matchlen,
+		    struct addr_map *map)
 {
 	enum ip_conntrack_info ctinfo;
-	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+	struct nf_conn *ct __maybe_unused = nf_ct_get(skb, &ctinfo);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
-	unsigned int matchlen, matchoff, addrlen;
+	unsigned int addrlen;
 	char *addr;
-
-	if (ct_sip_get_info(ct, *dptr, *datalen, &matchoff, &matchlen,
-			    pos) <= 0)
-		return 1;
 
 	if ((matchlen == map->addr[dir].srciplen ||
 	     matchlen == map->addr[dir].srclen) &&
@@ -109,13 +106,27 @@ static int map_sip_addr(struct sk_buff *skb,
 			     addr, addrlen);
 }
 
+static int map_sip_addr(struct sk_buff *skb,
+			const char **dptr, unsigned int *datalen,
+			enum sip_header_pos pos, struct addr_map *map)
+{
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+	unsigned int matchlen, matchoff;
+
+	if (ct_sip_get_info(ct, *dptr, *datalen, &matchoff, &matchlen,
+			    pos) <= 0)
+		return 1;
+	return map_addr(skb, dptr, datalen, matchoff, matchlen, map);
+}
+
 static unsigned int ip_nat_sip(struct sk_buff *skb,
 			       const char **dptr, unsigned int *datalen)
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-	enum sip_header_pos pos;
 	struct addr_map map;
+	unsigned int matchoff, matchlen;
 
 	if (*datalen < strlen("SIP/2.0"))
 		return NF_ACCEPT;
@@ -124,18 +135,9 @@ static unsigned int ip_nat_sip(struct sk_buff *skb,
 
 	/* Basic rules: requests and responses. */
 	if (strnicmp(*dptr, "SIP/2.0", strlen("SIP/2.0")) != 0) {
-		/* 10.2: Constructing the REGISTER Request:
-		 *
-		 * The "userinfo" and "@" components of the SIP URI MUST NOT
-		 * be present.
-		 */
-		if (*datalen >= strlen("REGISTER") &&
-		    strnicmp(*dptr, "REGISTER", strlen("REGISTER")) == 0)
-			pos = POS_REG_REQ_URI;
-		else
-			pos = POS_REQ_URI;
-
-		if (!map_sip_addr(skb, dptr, datalen, pos, &map))
+		if (ct_sip_parse_request(ct, *dptr, *datalen,
+					 &matchoff, &matchlen) > 0 &&
+		    !map_addr(skb, dptr, datalen, matchoff, matchlen, &map))
 			return NF_DROP;
 	}
 
