@@ -5,6 +5,25 @@
 #define SIP_PORT	5060
 #define SIP_TIMEOUT	3600
 
+struct sip_handler {
+	const char	*method;
+	unsigned int	len;
+	int		(*request)(struct sk_buff *skb,
+				   const char **dptr, unsigned int *datalen,
+				   unsigned int cseq);
+	int		(*response)(struct sk_buff *skb,
+				    const char **dptr, unsigned int *datalen,
+				    unsigned int cseq, unsigned int code);
+};
+
+#define SIP_HANDLER(__method, __request, __response)			\
+{									\
+	.method		= (__method),					\
+	.len		= sizeof(__method) - 1,				\
+	.request	= (__request),					\
+	.response	= (__response),					\
+}
+
 struct sip_header {
 	const char	*name;
 	const char	*cname;
@@ -35,6 +54,7 @@ struct sip_header {
 	__SIP_HDR(__name, NULL, __search, __match)
 
 enum sip_header_types {
+	SIP_HDR_CSEQ,
 	SIP_HDR_FROM,
 	SIP_HDR_TO,
 	SIP_HDR_CONTACT,

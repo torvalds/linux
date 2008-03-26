@@ -212,6 +212,7 @@ EXPORT_SYMBOL_GPL(ct_sip_parse_request);
  * equivalent to multiple headers.
  */
 static const struct sip_header ct_sip_hdrs[] = {
+	[SIP_HDR_CSEQ]			= SIP_HDR("CSeq", NULL, NULL, digits_len),
 	[SIP_HDR_FROM]			= SIP_HDR("From", "f", "sip:", skp_epaddr_len),
 	[SIP_HDR_TO]			= SIP_HDR("To", "t", "sip:", skp_epaddr_len),
 	[SIP_HDR_CONTACT]		= SIP_HDR("Contact", "m", "sip:", skp_epaddr_len),
@@ -566,7 +567,8 @@ static int set_expected_rtp(struct sk_buff *skb,
 }
 
 static int process_sdp(struct sk_buff *skb,
-		       const char **dptr, unsigned int *datalen)
+		       const char **dptr, unsigned int *datalen,
+		       unsigned int cseq)
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
@@ -599,6 +601,96 @@ static int process_sdp(struct sk_buff *skb,
 		return NF_DROP;
 
 	return set_expected_rtp(skb, dptr, datalen, &addr, htons(port));
+}
+static int process_invite_response(struct sk_buff *skb,
+				   const char **dptr, unsigned int *datalen,
+				   unsigned int cseq, unsigned int code)
+{
+	if ((code >= 100 && code <= 199) ||
+	    (code >= 200 && code <= 299))
+		return process_sdp(skb, dptr, datalen, cseq);
+
+	return NF_ACCEPT;
+}
+
+static int process_update_response(struct sk_buff *skb,
+				   const char **dptr, unsigned int *datalen,
+				   unsigned int cseq, unsigned int code)
+{
+	if ((code >= 100 && code <= 199) ||
+	    (code >= 200 && code <= 299))
+		return process_sdp(skb, dptr, datalen, cseq);
+
+	return NF_ACCEPT;
+}
+
+static const struct sip_handler sip_handlers[] = {
+	SIP_HANDLER("INVITE", process_sdp, process_invite_response),
+	SIP_HANDLER("UPDATE", process_sdp, process_update_response),
+};
+
+static int process_sip_response(struct sk_buff *skb,
+				const char **dptr, unsigned int *datalen)
+{
+	static const struct sip_handler *handler;
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+	unsigned int matchoff, matchlen;
+	unsigned int code, cseq, dataoff, i;
+
+	if (*datalen < strlen("SIP/2.0 200"))
+		return NF_ACCEPT;
+	code = simple_strtoul(*dptr + strlen("SIP/2.0 "), NULL, 10);
+	if (!code)
+		return NF_DROP;
+
+	if (ct_sip_get_header(ct, *dptr, 0, *datalen, SIP_HDR_CSEQ,
+			      &matchoff, &matchlen) <= 0)
+		return NF_DROP;
+	cseq = simple_strtoul(*dptr + matchoff, NULL, 10);
+	if (!cseq)
+		return NF_DROP;
+	dataoff = matchoff + matchlen + 1;
+
+	for (i = 0; i < ARRAY_SIZE(sip_handlers); i++) {
+		handler = &sip_handlers[i];
+		if (handler->response == NULL)
+			continue;
+		if (*datalen < dataoff + handler->len ||
+		    strnicmp(*dptr + dataoff, handler->method, handler->len))
+			continue;
+		return handler->response(skb, dptr, datalen, cseq, code);
+	}
+	return NF_ACCEPT;
+}
+
+static int process_sip_request(struct sk_buff *skb,
+			       const char **dptr, unsigned int *datalen)
+{
+	static const struct sip_handler *handler;
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+	unsigned int matchoff, matchlen;
+	unsigned int cseq, i;
+
+	for (i = 0; i < ARRAY_SIZE(sip_handlers); i++) {
+		handler = &sip_handlers[i];
+		if (handler->request == NULL)
+			continue;
+		if (*datalen < handler->len ||
+		    strnicmp(*dptr, handler->method, handler->len))
+			continue;
+
+		if (ct_sip_get_header(ct, *dptr, 0, *datalen, SIP_HDR_CSEQ,
+				      &matchoff, &matchlen) <= 0)
+			return NF_DROP;
+		cseq = simple_strtoul(*dptr + matchoff, NULL, 10);
+		if (!cseq)
+			return NF_DROP;
+
+		return handler->request(skb, dptr, datalen, cseq);
+	}
+	return NF_ACCEPT;
 }
 
 static int sip_help(struct sk_buff *skb,
@@ -634,15 +726,10 @@ static int sip_help(struct sk_buff *skb,
 	if (datalen < strlen("SIP/2.0 200"))
 		return NF_ACCEPT;
 
-	/* RTP info only in some SDP pkts */
-	if (strnicmp(dptr, "INVITE", strlen("INVITE")) != 0 &&
-	    strnicmp(dptr, "UPDATE", strlen("UPDATE")) != 0 &&
-	    strnicmp(dptr, "SIP/2.0 180", strlen("SIP/2.0 180")) != 0 &&
-	    strnicmp(dptr, "SIP/2.0 183", strlen("SIP/2.0 183")) != 0 &&
-	    strnicmp(dptr, "SIP/2.0 200", strlen("SIP/2.0 200")) != 0)
-		return NF_ACCEPT;
-
-	return process_sdp(skb, &dptr, &datalen);
+	if (strnicmp(dptr, "SIP/2.0 ", strlen("SIP/2.0 ")) != 0)
+		return process_sip_request(skb, &dptr, &datalen);
+	else
+		return process_sip_response(skb, &dptr, &datalen);
 }
 
 static struct nf_conntrack_helper sip[MAX_PORTS][2] __read_mostly;
