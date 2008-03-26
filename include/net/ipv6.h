@@ -202,6 +202,7 @@ struct ip6_flowlabel
 	u32			owner;
 	unsigned long		lastuse;
 	unsigned long		expires;
+	struct net		*fl_net;
 };
 
 #define IPV6_FLOWINFO_MASK	__constant_htonl(0x0FFFFFFF)
