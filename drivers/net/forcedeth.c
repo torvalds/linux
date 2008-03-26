@@ -2112,9 +2112,8 @@ static inline void nv_tx_flip_ownership(struct net_device *dev)
 
 	np->tx_pkts_in_progress--;
 	if (np->tx_change_owner) {
-		__le32 flaglen = le32_to_cpu(np->tx_change_owner->first_tx_desc->flaglen);
-		flaglen |= NV_TX2_VALID;
-		np->tx_change_owner->first_tx_desc->flaglen = cpu_to_le32(flaglen);
+		np->tx_change_owner->first_tx_desc->flaglen |=
+			cpu_to_le32(NV_TX2_VALID);
 		np->tx_pkts_in_progress++;
 
 		np->tx_change_owner = np->tx_change_owner->next_tx_ctx;
