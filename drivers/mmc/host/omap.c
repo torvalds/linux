@@ -106,6 +106,10 @@ struct mmc_omap_slot {
 	unsigned int		fclk_freq;
 	unsigned		powered:1;
 
+	struct work_struct      switch_work;
+	struct timer_list       switch_timer;
+	unsigned		cover_open;
+
 	struct mmc_request      *mrq;
 	struct mmc_omap_host    *host;
 	struct mmc_host		*mmc;
@@ -225,6 +229,25 @@ static void mmc_omap_release_slot(struct mmc_omap_slot *slot)
 	wake_up(&host->slot_wq);
 	spin_unlock_irqrestore(&host->slot_lock, flags);
 }
+
+static inline
+int mmc_omap_cover_is_open(struct mmc_omap_slot *slot)
+{
+	return slot->pdata->get_cover_state(mmc_dev(slot->mmc), slot->id);
+}
+
+static ssize_t
+mmc_omap_show_cover_switch(struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	struct mmc_host *mmc = container_of(dev, struct mmc_host, class_dev);
+	struct mmc_omap_slot *slot = mmc_priv(mmc);
+
+	return sprintf(buf, "%s\n", mmc_omap_cover_is_open(slot) ? "open" :
+		       "closed");
+}
+
+static DEVICE_ATTR(cover_switch, S_IRUGO, mmc_omap_show_cover_switch, NULL);
 
 static ssize_t
 mmc_omap_show_slot_name(struct device *dev, struct device_attribute *attr,
@@ -544,9 +567,10 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 			if (host->cmd) {
 				struct mmc_omap_slot *slot =
 					host->current_slot;
-				dev_err(mmc_dev(host->mmc),
-					"command timeout, CMD %d\n",
-					host->cmd->opcode);
+				if (!mmc_omap_cover_is_open(slot))
+					dev_err(mmc_dev(host->mmc),
+						"command timeout, CMD %d\n",
+						host->cmd->opcode);
 				host->cmd->error = -ETIMEDOUT;
 				end_command = 1;
 			}
@@ -590,6 +614,42 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 		mmc_omap_end_of_data(host, host->data);
 
 	return IRQ_HANDLED;
+}
+
+void omap_mmc_notify_cover_event(struct device *dev, int slot, int is_closed)
+{
+	struct mmc_omap_host *host = dev_get_drvdata(dev);
+
+	BUG_ON(slot >= host->nr_slots);
+
+	/* Other subsystems can call in here before we're initialised. */
+	if (host->nr_slots == 0 || !host->slots[slot])
+		return;
+
+	schedule_work(&host->slots[slot]->switch_work);
+}
+
+static void mmc_omap_switch_timer(unsigned long arg)
+{
+	struct mmc_omap_slot *slot = (struct mmc_omap_slot *) arg;
+
+	schedule_work(&slot->switch_work);
+}
+
+static void mmc_omap_cover_handler(struct work_struct *work)
+{
+	struct mmc_omap_slot *slot = container_of(work, struct mmc_omap_slot,
+						  switch_work);
+	int cover_open;
+
+	cover_open = mmc_omap_cover_is_open(slot);
+	if (cover_open != slot->cover_open) {
+		sysfs_notify(&slot->mmc->class_dev.kobj, NULL, "cover_switch");
+		slot->cover_open = cover_open;
+		dev_info(mmc_dev(slot->mmc), "cover is now %s\n",
+			 cover_open ? "open" : "closed");
+	}
+	mmc_detect_change(slot->mmc, slot->id);
 }
 
 /* Prepare to transfer the next segment of a scatterlist */
@@ -1062,8 +1122,24 @@ static int __init mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 			goto err_remove_host;
 	}
 
+	if (slot->pdata->get_cover_state != NULL) {
+		r = device_create_file(&mmc->class_dev,
+					&dev_attr_cover_switch);
+		if (r < 0)
+			goto err_remove_slot_name;
+
+		INIT_WORK(&slot->switch_work, mmc_omap_cover_handler);
+		init_timer(&slot->switch_timer);
+		slot->switch_timer.function = mmc_omap_switch_timer;
+		slot->switch_timer.data = (unsigned long) slot;
+		schedule_work(&slot->switch_work);
+	}
+
 	return 0;
 
+err_remove_slot_name:
+	if (slot->pdata->name != NULL)
+		device_remove_file(&mmc->class_dev, &dev_attr_slot_name);
 err_remove_host:
 	mmc_remove_host(mmc);
 	mmc_free_host(mmc);
@@ -1076,6 +1152,11 @@ static void mmc_omap_remove_slot(struct mmc_omap_slot *slot)
 
 	if (slot->pdata->name != NULL)
 		device_remove_file(&mmc->class_dev, &dev_attr_slot_name);
+	if (slot->pdata->get_cover_state != NULL)
+		device_remove_file(&mmc->class_dev, &dev_attr_cover_switch);
+
+	del_timer_sync(&slot->switch_timer);
+	flush_scheduled_work();
 
 	mmc_remove_host(mmc);
 	mmc_free_host(mmc);
