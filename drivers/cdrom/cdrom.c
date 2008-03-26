@@ -362,7 +362,7 @@ static int cdrom_get_disc_info(struct cdrom_device_info *cdi, disc_information *
 
 static void cdrom_sysctl_register(void);
 
-static struct cdrom_device_info *topCdromPtr;
+static LIST_HEAD(cdrom_list);
 
 static int cdrom_dummy_generic_packet(struct cdrom_device_info *cdi,
 				      struct packet_command *cgc)
@@ -436,35 +436,18 @@ int register_cdrom(struct cdrom_device_info *cdi)
 
 	cdinfo(CD_REG_UNREG, "drive \"/dev/%s\" registered\n", cdi->name);
 	mutex_lock(&cdrom_mutex);
-	cdi->next = topCdromPtr; 	
-	topCdromPtr = cdi;
+	list_add(&cdi->list, &cdrom_list);
 	mutex_unlock(&cdrom_mutex);
 	return 0;
 }
 #undef ENSURE
 
-int unregister_cdrom(struct cdrom_device_info *unreg)
+int unregister_cdrom(struct cdrom_device_info *cdi)
 {
-	struct cdrom_device_info *cdi, *prev;
 	cdinfo(CD_OPEN, "entering unregister_cdrom\n"); 
 
-	prev = NULL;
 	mutex_lock(&cdrom_mutex);
-	cdi = topCdromPtr;
-	while (cdi && cdi != unreg) {
-		prev = cdi;
-		cdi = cdi->next;
-	}
-
-	if (cdi == NULL) {
-		mutex_unlock(&cdrom_mutex);
-		return -2;
-	}
-	if (prev)
-		prev->next = cdi->next;
-	else
-		topCdromPtr = cdi->next;
-
+	list_del(&cdi->list);
 	mutex_unlock(&cdrom_mutex);
 
 	if (cdi->exit)
@@ -3306,7 +3289,7 @@ static int cdrom_print_info(const char *header, int val, char *info,
 
 	*pos += ret;
 
-	for (cdi = topCdromPtr; cdi; cdi = cdi->next) {
+	list_for_each_entry(cdi, &cdrom_list, list) {
 		switch (option) {
 		case CTL_NAME:
 			ret = scnprintf(info + *pos, max_size - *pos,
@@ -3428,7 +3411,7 @@ static void cdrom_update_settings(void)
 	struct cdrom_device_info *cdi;
 
 	mutex_lock(&cdrom_mutex);
-	for (cdi = topCdromPtr; cdi != NULL; cdi = cdi->next) {
+	list_for_each_entry(cdi, &cdrom_list, list) {
 		if (autoclose && CDROM_CAN(CDC_CLOSE_TRAY))
 			cdi->options |= CDO_AUTO_CLOSE;
 		else if (!autoclose)
