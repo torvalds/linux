@@ -93,11 +93,26 @@ extern unsigned int (*nf_nat_sip_expect_hook)(struct sk_buff *skb,
 					      struct nf_conntrack_expect *exp,
 					      unsigned int matchoff,
 					      unsigned int matchlen);
-extern unsigned int (*nf_nat_sdp_hook)(struct sk_buff *skb,
-				       const char **dptr,
-				       unsigned int *datalen,
-				       struct nf_conntrack_expect *rtp_exp,
-				       struct nf_conntrack_expect *rtcp_exp);
+extern unsigned int (*nf_nat_sdp_addr_hook)(struct sk_buff *skb,
+					    const char **dptr,
+					    unsigned int dataoff,
+					    unsigned int *datalen,
+					    enum sdp_header_types type,
+					    enum sdp_header_types term,
+					    const union nf_inet_addr *addr);
+extern unsigned int (*nf_nat_sdp_session_hook)(struct sk_buff *skb,
+					       const char **dptr,
+					       unsigned int dataoff,
+					       unsigned int *datalen,
+					       const union nf_inet_addr *addr);
+extern unsigned int (*nf_nat_sdp_media_hook)(struct sk_buff *skb,
+					     const char **dptr,
+					     unsigned int *datalen,
+					     struct nf_conntrack_expect *rtp_exp,
+					     struct nf_conntrack_expect *rtcp_exp,
+					     unsigned int mediaoff,
+					     unsigned int medialen,
+					     union nf_inet_addr *rtp_addr);
 
 extern int ct_sip_parse_request(const struct nf_conn *ct,
 				const char *dptr, unsigned int datalen,

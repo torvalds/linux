@@ -316,45 +316,77 @@ static int mangle_content_len(struct sk_buff *skb,
 			     buffer, buflen);
 }
 
-static unsigned mangle_sdp_packet(struct sk_buff *skb,
-				  const char **dptr, unsigned int *datalen,
+static unsigned mangle_sdp_packet(struct sk_buff *skb, const char **dptr,
+				  unsigned int dataoff, unsigned int *datalen,
 				  enum sdp_header_types type,
+				  enum sdp_header_types term,
 				  char *buffer, int buflen)
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	unsigned int matchlen, matchoff;
 
-	if (ct_sip_get_sdp_header(ct, *dptr, 0, *datalen, type, SDP_HDR_UNSPEC,
+	if (ct_sip_get_sdp_header(ct, *dptr, dataoff, *datalen, type, term,
 				  &matchoff, &matchlen) <= 0)
 		return 0;
 	return mangle_packet(skb, dptr, datalen, matchoff, matchlen,
 			     buffer, buflen);
 }
 
-static unsigned int mangle_sdp(struct sk_buff *skb,
-			       enum ip_conntrack_info ctinfo,
-			       struct nf_conn *ct,
-			       __be32 newip, u_int16_t port,
-			       const char **dptr, unsigned int *datalen)
+static unsigned int ip_nat_sdp_addr(struct sk_buff *skb, const char **dptr,
+				    unsigned int dataoff,
+				    unsigned int *datalen,
+				    enum sdp_header_types type,
+				    enum sdp_header_types term,
+				    const union nf_inet_addr *addr)
 {
 	char buffer[sizeof("nnn.nnn.nnn.nnn")];
-	unsigned int bufflen;
+	unsigned int buflen;
 
-	/* Mangle owner and contact info. */
-	bufflen = sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(newip));
-	if (!mangle_sdp_packet(skb, dptr, datalen, SDP_HDR_OWNER_IP4,
-			       buffer, bufflen))
+	buflen = sprintf(buffer, NIPQUAD_FMT, NIPQUAD(addr->ip));
+	if (!mangle_sdp_packet(skb, dptr, dataoff, datalen, type, term,
+			       buffer, buflen))
 		return 0;
 
-	if (!mangle_sdp_packet(skb, dptr, datalen, SDP_HDR_CONNECTION_IP4,
-			       buffer, bufflen))
+	return mangle_content_len(skb, dptr, datalen);
+}
+
+static unsigned int ip_nat_sdp_port(struct sk_buff *skb,
+				    const char **dptr,
+				    unsigned int *datalen,
+				    unsigned int matchoff,
+				    unsigned int matchlen,
+				    u_int16_t port)
+{
+	char buffer[sizeof("nnnnn")];
+	unsigned int buflen;
+
+	buflen = sprintf(buffer, "%u", port);
+	if (!mangle_packet(skb, dptr, datalen, matchoff, matchlen,
+			   buffer, buflen))
 		return 0;
 
-	/* Mangle media port. */
-	bufflen = sprintf(buffer, "%u", port);
-	if (!mangle_sdp_packet(skb, dptr, datalen, SDP_HDR_MEDIA,
-			       buffer, bufflen))
+	return mangle_content_len(skb, dptr, datalen);
+}
+
+static unsigned int ip_nat_sdp_session(struct sk_buff *skb, const char **dptr,
+				       unsigned int dataoff,
+				       unsigned int *datalen,
+				       const union nf_inet_addr *addr)
+{
+	char buffer[sizeof("nnn.nnn.nnn.nnn")];
+	unsigned int buflen;
+
+	/* Mangle session description owner and contact addresses */
+	buflen = sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(addr->ip));
+	if (!mangle_sdp_packet(skb, dptr, dataoff, datalen,
+			       SDP_HDR_OWNER_IP4, SDP_HDR_MEDIA,
+			       buffer, buflen))
+		return 0;
+
+	if (!mangle_sdp_packet(skb, dptr, dataoff, datalen,
+			       SDP_HDR_CONNECTION_IP4, SDP_HDR_MEDIA,
+			       buffer, buflen))
 		return 0;
 
 	return mangle_content_len(skb, dptr, datalen);
@@ -362,32 +394,35 @@ static unsigned int mangle_sdp(struct sk_buff *skb,
 
 /* So, this packet has hit the connection tracking matching code.
    Mangle it, and change the expectation to match the new version. */
-static unsigned int ip_nat_sdp(struct sk_buff *skb,
-			       const char **dptr, unsigned int *datalen,
-			       struct nf_conntrack_expect *rtp_exp,
-			       struct nf_conntrack_expect *rtcp_exp)
+static unsigned int ip_nat_sdp_media(struct sk_buff *skb,
+				     const char **dptr,
+				     unsigned int *datalen,
+				     struct nf_conntrack_expect *rtp_exp,
+				     struct nf_conntrack_expect *rtcp_exp,
+				     unsigned int mediaoff,
+				     unsigned int medialen,
+				     union nf_inet_addr *rtp_addr)
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
-	__be32 newip;
 	u_int16_t port;
 
 	/* Connection will come from reply */
 	if (ct->tuplehash[dir].tuple.src.u3.ip ==
 	    ct->tuplehash[!dir].tuple.dst.u3.ip)
-		newip = rtp_exp->tuple.dst.u3.ip;
+		rtp_addr->ip = rtp_exp->tuple.dst.u3.ip;
 	else
-		newip = ct->tuplehash[!dir].tuple.dst.u3.ip;
+		rtp_addr->ip = ct->tuplehash[!dir].tuple.dst.u3.ip;
 
 	rtp_exp->saved_ip = rtp_exp->tuple.dst.u3.ip;
-	rtp_exp->tuple.dst.u3.ip = newip;
+	rtp_exp->tuple.dst.u3.ip = rtp_addr->ip;
 	rtp_exp->saved_proto.udp.port = rtp_exp->tuple.dst.u.udp.port;
 	rtp_exp->dir = !dir;
 	rtp_exp->expectfn = ip_nat_sip_expected;
 
 	rtcp_exp->saved_ip = rtcp_exp->tuple.dst.u3.ip;
-	rtcp_exp->tuple.dst.u3.ip = newip;
+	rtcp_exp->tuple.dst.u3.ip = rtp_addr->ip;
 	rtcp_exp->saved_proto.udp.port = rtcp_exp->tuple.dst.u.udp.port;
 	rtcp_exp->dir = !dir;
 	rtcp_exp->expectfn = ip_nat_sip_expected;
@@ -405,21 +440,29 @@ static unsigned int ip_nat_sdp(struct sk_buff *skb,
 	}
 
 	if (port == 0)
-		return NF_DROP;
+		goto err1;
 
-	if (!mangle_sdp(skb, ctinfo, ct, newip, port, dptr, datalen)) {
-		nf_ct_unexpect_related(rtp_exp);
-		nf_ct_unexpect_related(rtcp_exp);
-		return NF_DROP;
-	}
+	/* Update media port. */
+	if (rtp_exp->tuple.dst.u.udp.port != rtp_exp->saved_proto.udp.port &&
+	    !ip_nat_sdp_port(skb, dptr, datalen, mediaoff, medialen, port))
+		goto err2;
+
 	return NF_ACCEPT;
+
+err2:
+	nf_ct_unexpect_related(rtp_exp);
+	nf_ct_unexpect_related(rtcp_exp);
+err1:
+	return NF_DROP;
 }
 
 static void __exit nf_nat_sip_fini(void)
 {
 	rcu_assign_pointer(nf_nat_sip_hook, NULL);
 	rcu_assign_pointer(nf_nat_sip_expect_hook, NULL);
-	rcu_assign_pointer(nf_nat_sdp_hook, NULL);
+	rcu_assign_pointer(nf_nat_sdp_addr_hook, NULL);
+	rcu_assign_pointer(nf_nat_sdp_session_hook, NULL);
+	rcu_assign_pointer(nf_nat_sdp_media_hook, NULL);
 	synchronize_rcu();
 }
 
@@ -427,10 +470,14 @@ static int __init nf_nat_sip_init(void)
 {
 	BUG_ON(nf_nat_sip_hook != NULL);
 	BUG_ON(nf_nat_sip_expect_hook != NULL);
-	BUG_ON(nf_nat_sdp_hook != NULL);
+	BUG_ON(nf_nat_sdp_addr_hook != NULL);
+	BUG_ON(nf_nat_sdp_session_hook != NULL);
+	BUG_ON(nf_nat_sdp_media_hook != NULL);
 	rcu_assign_pointer(nf_nat_sip_hook, ip_nat_sip);
 	rcu_assign_pointer(nf_nat_sip_expect_hook, ip_nat_sip_expect);
-	rcu_assign_pointer(nf_nat_sdp_hook, ip_nat_sdp);
+	rcu_assign_pointer(nf_nat_sdp_addr_hook, ip_nat_sdp_addr);
+	rcu_assign_pointer(nf_nat_sdp_session_hook, ip_nat_sdp_session);
+	rcu_assign_pointer(nf_nat_sdp_media_hook, ip_nat_sdp_media);
 	return 0;
 }
 

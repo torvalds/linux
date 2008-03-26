@@ -60,13 +60,34 @@ unsigned int (*nf_nat_sip_expect_hook)(struct sk_buff *skb,
 				       unsigned int matchlen) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sip_expect_hook);
 
-unsigned int (*nf_nat_sdp_hook)(struct sk_buff *skb,
-				const char **dptr,
-				unsigned int *datalen,
-				struct nf_conntrack_expect *rtp_exp,
-				struct nf_conntrack_expect *rtcp_exp)
-				__read_mostly;
-EXPORT_SYMBOL_GPL(nf_nat_sdp_hook);
+unsigned int (*nf_nat_sdp_addr_hook)(struct sk_buff *skb,
+				     const char **dptr,
+				     unsigned int dataoff,
+				     unsigned int *datalen,
+				     enum sdp_header_types type,
+				     enum sdp_header_types term,
+				     const union nf_inet_addr *addr)
+				     __read_mostly;
+EXPORT_SYMBOL_GPL(nf_nat_sdp_addr_hook);
+
+unsigned int (*nf_nat_sdp_session_hook)(struct sk_buff *skb,
+					const char **dptr,
+					unsigned int dataoff,
+					unsigned int *datalen,
+					const union nf_inet_addr *addr)
+					__read_mostly;
+EXPORT_SYMBOL_GPL(nf_nat_sdp_session_hook);
+
+unsigned int (*nf_nat_sdp_media_hook)(struct sk_buff *skb,
+				      const char **dptr,
+				      unsigned int *datalen,
+				      struct nf_conntrack_expect *rtp_exp,
+				      struct nf_conntrack_expect *rtcp_exp,
+				      unsigned int mediaoff,
+				      unsigned int medialen,
+				      union nf_inet_addr *rtp_addr)
+				      __read_mostly;
+EXPORT_SYMBOL_GPL(nf_nat_sdp_media_hook);
 
 static int string_len(const struct nf_conn *ct, const char *dptr,
 		      const char *limit, int *shift)
@@ -613,6 +634,26 @@ int ct_sip_get_sdp_header(const struct nf_conn *ct, const char *dptr,
 }
 EXPORT_SYMBOL_GPL(ct_sip_get_sdp_header);
 
+static int ct_sip_parse_sdp_addr(const struct nf_conn *ct, const char *dptr,
+				 unsigned int dataoff, unsigned int datalen,
+				 enum sdp_header_types type,
+				 enum sdp_header_types term,
+				 unsigned int *matchoff, unsigned int *matchlen,
+				 union nf_inet_addr *addr)
+{
+	int ret;
+
+	ret = ct_sip_get_sdp_header(ct, dptr, dataoff, datalen, type, term,
+				    matchoff, matchlen);
+	if (ret <= 0)
+		return ret;
+
+	if (!parse_addr(ct, dptr + *matchoff, NULL, addr,
+			dptr + *matchoff + *matchlen))
+		return -1;
+	return 1;
+}
+
 static int refresh_signalling_expectation(struct nf_conn *ct,
 					  union nf_inet_addr *addr,
 					  __be16 port,
@@ -663,7 +704,8 @@ static void flush_expectations(struct nf_conn *ct, bool media)
 
 static int set_expected_rtp_rtcp(struct sk_buff *skb,
 				 const char **dptr, unsigned int *datalen,
-				 union nf_inet_addr *daddr, __be16 port)
+				 union nf_inet_addr *daddr, __be16 port,
+				 unsigned int mediaoff, unsigned int medialen)
 {
 	struct nf_conntrack_expect *exp, *rtp_exp, *rtcp_exp;
 	enum ip_conntrack_info ctinfo;
@@ -675,7 +717,7 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb,
 	int skip_expect = 0, ret = NF_DROP;
 	u_int16_t base_port;
 	__be16 rtp_port, rtcp_port;
-	typeof(nf_nat_sdp_hook) nf_nat_sdp;
+	typeof(nf_nat_sdp_media_hook) nf_nat_sdp_media;
 
 	saddr = NULL;
 	if (sip_direct_media) {
@@ -724,9 +766,10 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb,
 	nf_ct_expect_init(rtcp_exp, SIP_EXPECT_AUDIO, family, saddr, daddr,
 			  IPPROTO_UDP, NULL, &rtcp_port);
 
-	nf_nat_sdp = rcu_dereference(nf_nat_sdp_hook);
-	if (nf_nat_sdp && ct->status & IPS_NAT_MASK)
-		ret = nf_nat_sdp(skb, dptr, datalen, rtp_exp, rtcp_exp);
+	nf_nat_sdp_media = rcu_dereference(nf_nat_sdp_media_hook);
+	if (nf_nat_sdp_media && ct->status & IPS_NAT_MASK)
+		ret = nf_nat_sdp_media(skb, dptr, datalen, rtp_exp, rtcp_exp,
+				       mediaoff, medialen, daddr);
 	else {
 		if (nf_ct_expect_related(rtp_exp) == 0) {
 			if (nf_ct_expect_related(rtcp_exp) != 0)
@@ -750,33 +793,78 @@ static int process_sdp(struct sk_buff *skb,
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	int family = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
 	unsigned int matchoff, matchlen;
-	union nf_inet_addr addr;
+	unsigned int mediaoff, medialen;
+	unsigned int sdpoff;
+	unsigned int caddr_len, maddr_len;
+	union nf_inet_addr caddr, maddr, rtp_addr;
 	unsigned int port;
-	enum sdp_header_types type;
+	enum sdp_header_types c_hdr;
+	int ret;
+	typeof(nf_nat_sdp_addr_hook) nf_nat_sdp_addr;
+	typeof(nf_nat_sdp_session_hook) nf_nat_sdp_session;
 
-	/* Get address and port from SDP packet. */
-	type = family == AF_INET ? SDP_HDR_CONNECTION_IP4 :
-				   SDP_HDR_CONNECTION_IP6;
+	c_hdr = family == AF_INET ? SDP_HDR_CONNECTION_IP4 :
+				    SDP_HDR_CONNECTION_IP6;
 
+	/* Find beginning of session description */
 	if (ct_sip_get_sdp_header(ct, *dptr, 0, *datalen,
-				  type, SDP_HDR_UNSPEC,
+				  SDP_HDR_VERSION, SDP_HDR_UNSPEC,
 				  &matchoff, &matchlen) <= 0)
 		return NF_ACCEPT;
+	sdpoff = matchoff;
 
-	/* We'll drop only if there are parse problems. */
-	if (!parse_addr(ct, *dptr + matchoff, NULL, &addr, *dptr + *datalen))
-		return NF_DROP;
+	/* The connection information is contained in the session description
+	 * and/or once per media description. The first media description marks
+	 * the end of the session description. */
+	caddr_len = 0;
+	if (ct_sip_parse_sdp_addr(ct, *dptr, sdpoff, *datalen,
+				  c_hdr, SDP_HDR_MEDIA,
+				  &matchoff, &matchlen, &caddr) > 0)
+		caddr_len = matchlen;
 
-	if (ct_sip_get_sdp_header(ct, *dptr, 0, *datalen,
+	if (ct_sip_get_sdp_header(ct, *dptr, sdpoff, *datalen,
 				  SDP_HDR_MEDIA, SDP_HDR_UNSPEC,
-				  &matchoff, &matchlen) <= 0)
+				  &mediaoff, &medialen) <= 0)
 		return NF_ACCEPT;
 
-	port = simple_strtoul(*dptr + matchoff, NULL, 10);
+	port = simple_strtoul(*dptr + mediaoff, NULL, 10);
 	if (port < 1024 || port > 65535)
 		return NF_DROP;
 
-	return set_expected_rtp_rtcp(skb, dptr, datalen, &addr, htons(port));
+	/* The media description overrides the session description. */
+	maddr_len = 0;
+	if (ct_sip_parse_sdp_addr(ct, *dptr, mediaoff, *datalen,
+				  c_hdr, SDP_HDR_MEDIA,
+				  &matchoff, &matchlen, &maddr) > 0) {
+		maddr_len = matchlen;
+		memcpy(&rtp_addr, &maddr, sizeof(rtp_addr));
+	} else if (caddr_len)
+		memcpy(&rtp_addr, &caddr, sizeof(rtp_addr));
+	else
+		return NF_DROP;
+
+	ret = set_expected_rtp_rtcp(skb, dptr, datalen, &rtp_addr, htons(port),
+				    mediaoff, medialen);
+	if (ret != NF_ACCEPT)
+		return ret;
+
+	/* Update media connection address if present */
+	if (maddr_len) {
+		nf_nat_sdp_addr = rcu_dereference(nf_nat_sdp_addr_hook);
+		if (nf_nat_sdp_addr && ct->status & IPS_NAT_MASK) {
+			ret = nf_nat_sdp_addr(skb, dptr, mediaoff, datalen,
+					      c_hdr, SDP_HDR_MEDIA, &rtp_addr);
+			if (ret != NF_ACCEPT)
+				return ret;
+		}
+	}
+
+	/* Update session connection and owner addresses */
+	nf_nat_sdp_session = rcu_dereference(nf_nat_sdp_session_hook);
+	if (nf_nat_sdp_session && ct->status & IPS_NAT_MASK)
+		ret = nf_nat_sdp_session(skb, dptr, sdpoff, datalen, &rtp_addr);
+
+	return ret;
 }
 static int process_invite_response(struct sk_buff *skb,
 				   const char **dptr, unsigned int *datalen,
