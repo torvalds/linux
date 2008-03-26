@@ -22,15 +22,12 @@ enum sip_header_pos {
 };
 
 extern unsigned int (*nf_nat_sip_hook)(struct sk_buff *skb,
-				       enum ip_conntrack_info ctinfo,
-				       struct nf_conn *ct,
 				       const char **dptr,
 				       unsigned int *datalen);
 extern unsigned int (*nf_nat_sdp_hook)(struct sk_buff *skb,
-				       enum ip_conntrack_info ctinfo,
-				       struct nf_conntrack_expect *exp,
 				       const char **dptr,
-				       unsigned int *datalen);
+				       unsigned int *datalen,
+				       struct nf_conntrack_expect *exp);
 
 extern int ct_sip_get_info(const struct nf_conn *ct, const char *dptr,
                            size_t dlen, unsigned int *matchoff,

@@ -78,11 +78,12 @@ static unsigned int mangle_packet(struct sk_buff *skb,
 	return 1;
 }
 
-static int map_sip_addr(struct sk_buff *skb, enum ip_conntrack_info ctinfo,
-			struct nf_conn *ct,
+static int map_sip_addr(struct sk_buff *skb,
 			const char **dptr, unsigned int *datalen,
 			enum sip_header_pos pos, struct addr_map *map)
 {
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	unsigned int matchlen, matchoff, addrlen;
 	char *addr;
@@ -109,10 +110,10 @@ static int map_sip_addr(struct sk_buff *skb, enum ip_conntrack_info ctinfo,
 }
 
 static unsigned int ip_nat_sip(struct sk_buff *skb,
-			       enum ip_conntrack_info ctinfo,
-			       struct nf_conn *ct,
 			       const char **dptr, unsigned int *datalen)
 {
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	enum sip_header_pos pos;
 	struct addr_map map;
 
@@ -134,25 +135,25 @@ static unsigned int ip_nat_sip(struct sk_buff *skb,
 		else
 			pos = POS_REQ_URI;
 
-		if (!map_sip_addr(skb, ctinfo, ct, dptr, datalen, pos, &map))
+		if (!map_sip_addr(skb, dptr, datalen, pos, &map))
 			return NF_DROP;
 	}
 
-	if (!map_sip_addr(skb, ctinfo, ct, dptr, datalen, POS_FROM, &map) ||
-	    !map_sip_addr(skb, ctinfo, ct, dptr, datalen, POS_TO, &map) ||
-	    !map_sip_addr(skb, ctinfo, ct, dptr, datalen, POS_VIA, &map) ||
-	    !map_sip_addr(skb, ctinfo, ct, dptr, datalen, POS_CONTACT, &map))
+	if (!map_sip_addr(skb, dptr, datalen, POS_FROM, &map) ||
+	    !map_sip_addr(skb, dptr, datalen, POS_TO, &map) ||
+	    !map_sip_addr(skb, dptr, datalen, POS_VIA, &map) ||
+	    !map_sip_addr(skb, dptr, datalen, POS_CONTACT, &map))
 		return NF_DROP;
 	return NF_ACCEPT;
 }
 
 static unsigned int mangle_sip_packet(struct sk_buff *skb,
-				      enum ip_conntrack_info ctinfo,
-				      struct nf_conn *ct,
 				      const char **dptr, unsigned int *datalen,
 				      char *buffer, int bufflen,
 				      enum sip_header_pos pos)
 {
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	unsigned int matchlen, matchoff;
 
 	if (ct_sip_get_info(ct, *dptr, *datalen, &matchoff, &matchlen,
@@ -164,10 +165,10 @@ static unsigned int mangle_sip_packet(struct sk_buff *skb,
 }
 
 static int mangle_content_len(struct sk_buff *skb,
-			      enum ip_conntrack_info ctinfo,
-			      struct nf_conn *ct,
 			      const char **dptr, unsigned int *datalen)
 {
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	unsigned int matchoff, matchlen;
 	char buffer[sizeof("65536")];
 	int bufflen;
@@ -204,21 +205,21 @@ static unsigned int mangle_sdp(struct sk_buff *skb,
 
 	/* Mangle owner and contact info. */
 	bufflen = sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(newip));
-	if (!mangle_sip_packet(skb, ctinfo, ct, dptr, datalen,
-			       buffer, bufflen, POS_OWNER_IP4))
+	if (!mangle_sip_packet(skb, dptr, datalen, buffer, bufflen,
+			       POS_OWNER_IP4))
 		return 0;
 
-	if (!mangle_sip_packet(skb, ctinfo, ct, dptr, datalen,
-			       buffer, bufflen, POS_CONNECTION_IP4))
+	if (!mangle_sip_packet(skb, dptr, datalen, buffer, bufflen,
+			       POS_CONNECTION_IP4))
 		return 0;
 
 	/* Mangle media port. */
 	bufflen = sprintf(buffer, "%u", port);
-	if (!mangle_sip_packet(skb, ctinfo, ct, dptr, datalen,
-			       buffer, bufflen, POS_MEDIA))
+	if (!mangle_sip_packet(skb, dptr, datalen, buffer, bufflen,
+			       POS_MEDIA))
 		return 0;
 
-	return mangle_content_len(skb, ctinfo, ct, dptr, datalen);
+	return mangle_content_len(skb, dptr, datalen);
 }
 
 static void ip_nat_sdp_expect(struct nf_conn *ct,
@@ -245,11 +246,11 @@ static void ip_nat_sdp_expect(struct nf_conn *ct,
 /* So, this packet has hit the connection tracking matching code.
    Mangle it, and change the expectation to match the new version. */
 static unsigned int ip_nat_sdp(struct sk_buff *skb,
-			       enum ip_conntrack_info ctinfo,
-			       struct nf_conntrack_expect *exp,
-			       const char **dptr, unsigned int *datalen)
+			       const char **dptr, unsigned int *datalen,
+			       struct nf_conntrack_expect *exp)
 {
-	struct nf_conn *ct = exp->master;
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	__be32 newip;
 	u_int16_t port;
