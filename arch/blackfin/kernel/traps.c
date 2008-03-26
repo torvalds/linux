@@ -655,21 +655,30 @@ void dump_bfin_process(struct pt_regs *fp)
 	else if (context & 0x8000)
 		printk(KERN_NOTICE "Kernel process context\n");
 
-	if (current->pid && current->mm) {
+	/* Because we are crashing, and pointers could be bad, we check things
+	 * pretty closely before we use them
+	 */
+	if (!((unsigned long)current & 0x3) && current->pid) {
 		printk(KERN_NOTICE "CURRENT PROCESS:\n");
-		printk(KERN_NOTICE "COMM=%s PID=%d\n",
-			current->comm, current->pid);
+		if (current->comm >= (char *)FIXED_CODE_START)
+			printk(KERN_NOTICE "COMM=%s PID=%d\n",
+				current->comm, current->pid);
+		else
+			printk(KERN_NOTICE "COMM= invalid\n");
 
-		printk(KERN_NOTICE "TEXT = 0x%p-0x%p  DATA = 0x%p-0x%p\n"
-			KERN_NOTICE "BSS = 0x%p-0x%p   USER-STACK = 0x%p\n"
-			KERN_NOTICE "\n",
-			(void *)current->mm->start_code,
-			(void *)current->mm->end_code,
-			(void *)current->mm->start_data,
-			(void *)current->mm->end_data,
-			(void *)current->mm->end_data,
-			(void *)current->mm->brk,
-			(void *)current->mm->start_stack);
+		if (!((unsigned long)current->mm & 0x3) && (unsigned long)current->mm >= FIXED_CODE_START)
+			printk(KERN_NOTICE  "TEXT = 0x%p-0x%p        DATA = 0x%p-0x%p\n"
+				KERN_NOTICE " BSS = 0x%p-0x%p  USER-STACK = 0x%p\n"
+				KERN_NOTICE "\n",
+				(void *)current->mm->start_code,
+				(void *)current->mm->end_code,
+				(void *)current->mm->start_data,
+				(void *)current->mm->end_data,
+				(void *)current->mm->end_data,
+				(void *)current->mm->brk,
+				(void *)current->mm->start_stack);
+		else
+			printk(KERN_NOTICE "invalid mm\n");
 	} else
 		printk(KERN_NOTICE "\n" KERN_NOTICE
 		     "No Valid process in current context\n");
