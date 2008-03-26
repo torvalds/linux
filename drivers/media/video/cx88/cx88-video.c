@@ -1920,6 +1920,9 @@ static void __devexit cx8800_finidev(struct pci_dev *pci_dev)
 		core->kthread = NULL;
 	}
 
+	if (core->ir)
+		cx88_ir_stop(core, core->ir);
+
 	cx88_shutdown(core); /* FIXME */
 	pci_disable_device(pci_dev);
 
