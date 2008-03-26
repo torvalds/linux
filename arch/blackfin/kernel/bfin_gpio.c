@@ -348,11 +348,10 @@ static void portmux_setup(unsigned short per, unsigned short function)
 			offset = port_mux_lut[y].offset;
 			muxreg = bfin_read_PORT_MUX();
 
-			if (offset != 1) {
+			if (offset != 1)
 				muxreg &= ~(1 << offset);
-			} else {
+			else
 				muxreg &= ~(3 << 1);
-			}
 
 			muxreg |= (function << offset);
 			bfin_write_PORT_MUX(muxreg);
@@ -424,11 +423,9 @@ static void default_gpio(unsigned gpio)
 
 static int __init bfin_gpio_init(void)
 {
-
 	printk(KERN_INFO "Blackfin GPIO Controller\n");
 
 	return 0;
-
 }
 arch_initcall(bfin_gpio_init);
 
@@ -833,20 +830,20 @@ int peripheral_request(unsigned short per, const char *label)
 
 		u16 funct = get_portmux(ident);
 
-	/*
-	 * Pin functions like AMC address strobes my
-	 * be requested and used by several drivers
-	 */
+		/*
+		 * Pin functions like AMC address strobes my
+		 * be requested and used by several drivers
+		 */
 
 		if (!((per & P_MAYSHARE) && (funct == P_FUNCT2MUX(per)))) {
 
-		/*
-		 * Allow that the identical pin function can
-		 * be requested from the same driver twice
-		 */
+			/*
+			 * Allow that the identical pin function can
+			 * be requested from the same driver twice
+			 */
 
-		if (cmp_label(ident, label) == 0)
-			goto anyway;
+			if (cmp_label(ident, label) == 0)
+				goto anyway;
 
 			dump_stack();
 			printk(KERN_ERR
@@ -857,7 +854,7 @@ int peripheral_request(unsigned short per, const char *label)
 		}
 	}
 
-anyway:
+ anyway:
 	reserved_peri_map[gpio_bank(ident)] |= gpio_bit(ident);
 
 	portmux_setup(ident, P_FUNCT2MUX(per));
@@ -890,33 +887,33 @@ int peripheral_request(unsigned short per, const char *label)
 
 	if (!check_gpio(ident)) {
 
-	if (unlikely(reserved_gpio_map[gpio_bank(ident)] & gpio_bit(ident))) {
-		dump_stack();
-		printk(KERN_ERR
-		       "%s: Peripheral %d is already reserved as GPIO by %s !\n",
-		       __FUNCTION__, ident, get_label(ident));
-		local_irq_restore(flags);
-		return -EBUSY;
-	}
+		if (unlikely(reserved_gpio_map[gpio_bank(ident)] & gpio_bit(ident))) {
+			dump_stack();
+			printk(KERN_ERR
+			       "%s: Peripheral %d is already reserved as GPIO by %s !\n",
+			       __FUNCTION__, ident, get_label(ident));
+			local_irq_restore(flags);
+			return -EBUSY;
+		}
 
 	}
 
 	if (unlikely(reserved_peri_map[gpio_bank(ident)] & gpio_bit(ident))) {
 
-	/*
-	 * Pin functions like AMC address strobes my
-	 * be requested and used by several drivers
-	 */
+		/*
+		 * Pin functions like AMC address strobes my
+		 * be requested and used by several drivers
+		 */
 
-	if (!(per & P_MAYSHARE)) {
+		if (!(per & P_MAYSHARE)) {
 
-	/*
-	 * Allow that the identical pin function can
-	 * be requested from the same driver twice
-	 */
+			/*
+			 * Allow that the identical pin function can
+			 * be requested from the same driver twice
+			 */
 
-		if (cmp_label(ident, label) == 0)
-			goto anyway;
+			if (cmp_label(ident, label) == 0)
+				goto anyway;
 
 			dump_stack();
 			printk(KERN_ERR
@@ -930,7 +927,7 @@ int peripheral_request(unsigned short per, const char *label)
 
 	}
 
-anyway:
+ anyway:
 	portmux_setup(per, P_FUNCT2MUX(per));
 
 	port_setup(ident, PERIPHERAL_USAGE);
@@ -954,10 +951,10 @@ int peripheral_request_list(unsigned short per[], const char *label)
 		ret = peripheral_request(per[cnt], label);
 
 		if (ret < 0) {
-			for ( ; cnt > 0; cnt--) {
+			for ( ; cnt > 0; cnt--)
 				peripheral_free(per[cnt - 1]);
-			}
-		return ret;
+
+			return ret;
 		}
 	}
 
@@ -981,15 +978,13 @@ void peripheral_free(unsigned short per)
 
 	local_irq_save(flags);
 
-	if (unlikely(!(reserved_peri_map[gpio_bank(ident)]
-			 & gpio_bit(ident)))) {
+	if (unlikely(!(reserved_peri_map[gpio_bank(ident)] & gpio_bit(ident)))) {
 		local_irq_restore(flags);
 		return;
 	}
 
-	if (!(per & P_MAYSHARE)) {
+	if (!(per & P_MAYSHARE))
 		port_setup(ident, GPIO_USAGE);
-	}
 
 	reserved_peri_map[gpio_bank(ident)] &= ~gpio_bit(ident);
 
@@ -1002,11 +997,8 @@ EXPORT_SYMBOL(peripheral_free);
 void peripheral_free_list(unsigned short per[])
 {
 	u16 cnt;
-
-	for (cnt = 0; per[cnt] != 0; cnt++) {
+	for (cnt = 0; per[cnt] != 0; cnt++)
 		peripheral_free(per[cnt]);
-	}
-
 }
 EXPORT_SYMBOL(peripheral_free_list);
 
