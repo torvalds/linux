@@ -1186,8 +1186,8 @@ static void lbs_submit_command(struct lbs_private *priv,
 	    command == CMD_802_11_AUTHENTICATE)
 		timeo = 10 * HZ;
 
-	lbs_deb_cmd("DNLD_CMD: command 0x%04x, seq %d, size %d, jiffies %lu\n",
-		     command, le16_to_cpu(cmd->seqnum), cmdsize, jiffies);
+	lbs_deb_cmd("DNLD_CMD: command 0x%04x, seq %d, size %d\n",
+		     command, le16_to_cpu(cmd->seqnum), cmdsize);
 	lbs_deb_hex(LBS_DEB_CMD, "DNLD_CMD", (void *) cmdnode->cmdbuf, cmdsize);
 
 	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) cmd, cmdsize);
