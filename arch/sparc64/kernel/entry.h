@@ -1,8 +1,9 @@
 #ifndef _ENTRY_H
 #define _ENTRY_H
 
-#include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/init.h>
 
 extern char *sparc_cpu_type;
 extern char *sparc_fpu_type;
@@ -12,6 +13,9 @@ extern void __init sun4v_patch(void);
 extern void __init boot_cpu_id_too_large(int cpu);
 extern unsigned int dcache_parity_tl1_occurred;
 extern unsigned int icache_parity_tl1_occurred;
+
+extern asmlinkage void syscall_trace(struct pt_regs *regs,
+				     int syscall_exit_p);
 
 extern void bad_trap_tl1(struct pt_regs *regs, long lvl);
 
