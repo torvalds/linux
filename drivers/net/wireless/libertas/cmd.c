@@ -953,29 +953,6 @@ static int lbs_cmd_reg_access(struct cmd_ds_command *cmdptr,
 	return 0;
 }
 
-static int lbs_cmd_802_11_mac_address(struct lbs_private *priv,
-				       struct cmd_ds_command *cmd,
-				       u16 cmd_action)
-{
-
-	lbs_deb_enter(LBS_DEB_CMD);
-	cmd->command = cpu_to_le16(CMD_802_11_MAC_ADDRESS);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_mac_address) +
-			     S_DS_GEN);
-	cmd->result = 0;
-
-	cmd->params.macadd.action = cpu_to_le16(cmd_action);
-
-	if (cmd_action == CMD_ACT_SET) {
-		memcpy(cmd->params.macadd.macadd,
-		       priv->current_addr, ETH_ALEN);
-		lbs_deb_hex(LBS_DEB_CMD, "SET_CMD: MAC addr", priv->current_addr, 6);
-	}
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
 static int lbs_cmd_802_11_eeprom_access(struct cmd_ds_command *cmd,
 					void *pdata_buf)
 {
@@ -1433,10 +1410,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 	case CMD_802_11_AD_HOC_STOP:
 		ret = lbs_cmd_80211_ad_hoc_stop(cmdptr);
-		break;
-
-	case CMD_802_11_MAC_ADDRESS:
-		ret = lbs_cmd_802_11_mac_address(priv, cmdptr, cmd_action);
 		break;
 
 	case CMD_802_11_EEPROM_ACCESS:

@@ -188,19 +188,6 @@ static int lbs_ret_802_11_snmp_mib(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_mac_address(struct lbs_private *priv,
-				       struct cmd_ds_command *resp)
-{
-	struct cmd_ds_802_11_mac_address *macadd = &resp->params.macadd;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	memcpy(priv->current_addr, macadd->macadd, ETH_ALEN);
-
-	lbs_deb_enter(LBS_DEB_CMD);
-	return 0;
-}
-
 static int lbs_ret_802_11_rf_tx_power(struct lbs_private *priv,
 				       struct cmd_ds_command *resp)
 {
@@ -366,10 +353,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 
 	case CMD_RET(CMD_802_11_RSSI):
 		ret = lbs_ret_802_11_rssi(priv, resp);
-		break;
-
-	case CMD_RET(CMD_802_11_MAC_ADDRESS):
-		ret = lbs_ret_802_11_mac_address(priv, resp);
 		break;
 
 	case CMD_RET(CMD_802_11_AD_HOC_STOP):

@@ -427,6 +427,8 @@ struct cmd_ds_802_11_rssi_rsp {
 };
 
 struct cmd_ds_802_11_mac_address {
+	struct cmd_header hdr;
+
 	__le16 action;
 	u8 macadd[ETH_ALEN];
 };
@@ -708,7 +710,6 @@ struct cmd_ds_command {
 		struct cmd_ds_802_11_rssi rssi;
 		struct cmd_ds_802_11_rssi_rsp rssirsp;
 		struct cmd_ds_802_11_disassociate dassociate;
-		struct cmd_ds_802_11_mac_address macadd;
 		struct cmd_ds_mac_reg_access macreg;
 		struct cmd_ds_bbp_reg_access bbpreg;
 		struct cmd_ds_rf_reg_access rfreg;
