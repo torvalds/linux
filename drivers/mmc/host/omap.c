@@ -161,8 +161,37 @@ struct mmc_omap_host {
 	wait_queue_head_t       slot_wq;
 	int                     nr_slots;
 
+	struct timer_list       clk_timer;
+	spinlock_t		clk_lock;     /* for changing enabled state */
+	unsigned int            fclk_enabled:1;
+
 	struct omap_mmc_platform_data *pdata;
 };
+
+void mmc_omap_fclk_offdelay(struct mmc_omap_slot *slot)
+{
+	unsigned long tick_ns;
+
+	if (slot != NULL && slot->host->fclk_enabled && slot->fclk_freq > 0) {
+		tick_ns = (1000000000 + slot->fclk_freq - 1) / slot->fclk_freq;
+		ndelay(8 * tick_ns);
+	}
+}
+
+void mmc_omap_fclk_enable(struct mmc_omap_host *host, unsigned int enable)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->clk_lock, flags);
+	if (host->fclk_enabled != enable) {
+		host->fclk_enabled = enable;
+		if (enable)
+			clk_enable(host->fclk);
+		else
+			clk_disable(host->fclk);
+	}
+	spin_unlock_irqrestore(&host->clk_lock, flags);
+}
 
 static void mmc_omap_select_slot(struct mmc_omap_slot *slot, int claimed)
 {
@@ -180,32 +209,49 @@ static void mmc_omap_select_slot(struct mmc_omap_slot *slot, int claimed)
 	host->mmc = slot->mmc;
 	spin_unlock_irqrestore(&host->slot_lock, flags);
 no_claim:
-	clk_enable(host->fclk);
+	del_timer(&host->clk_timer);
+	if (host->current_slot != slot || !claimed)
+		mmc_omap_fclk_offdelay(host->current_slot);
+
 	if (host->current_slot != slot) {
+		OMAP_MMC_WRITE(host, CON, slot->saved_con & 0xFC00);
 		if (host->pdata->switch_slot != NULL)
 			host->pdata->switch_slot(mmc_dev(slot->mmc), slot->id);
 		host->current_slot = slot;
 	}
 
-	/* Doing the dummy read here seems to work around some bug
-	 * at least in OMAP24xx silicon where the command would not
-	 * start after writing the CMD register. Sigh. */
-	OMAP_MMC_READ(host, CON);
+	if (claimed) {
+		mmc_omap_fclk_enable(host, 1);
 
-	OMAP_MMC_WRITE(host, CON, slot->saved_con);
+		/* Doing the dummy read here seems to work around some bug
+		 * at least in OMAP24xx silicon where the command would not
+		 * start after writing the CMD register. Sigh. */
+		OMAP_MMC_READ(host, CON);
+
+		OMAP_MMC_WRITE(host, CON, slot->saved_con);
+	} else
+		mmc_omap_fclk_enable(host, 0);
 }
 
 static void mmc_omap_start_request(struct mmc_omap_host *host,
 				   struct mmc_request *req);
 
-static void mmc_omap_release_slot(struct mmc_omap_slot *slot)
+static void mmc_omap_release_slot(struct mmc_omap_slot *slot, int clk_enabled)
 {
 	struct mmc_omap_host *host = slot->host;
 	unsigned long flags;
 	int i;
 
 	BUG_ON(slot == NULL || host->mmc == NULL);
-	clk_disable(host->fclk);
+
+	if (clk_enabled)
+		/* Keeps clock running for at least 8 cycles on valid freq */
+		mod_timer(&host->clk_timer, jiffies  + HZ/10);
+	else {
+		del_timer(&host->clk_timer);
+		mmc_omap_fclk_offdelay(slot);
+		mmc_omap_fclk_enable(host, 0);
+	}
 
 	spin_lock_irqsave(&host->slot_lock, flags);
 	/* Check for any pending requests */
@@ -373,7 +419,7 @@ mmc_omap_xfer_done(struct mmc_omap_host *host, struct mmc_data *data)
 
 		host->mrq = NULL;
 		mmc = host->mmc;
-		mmc_omap_release_slot(host->current_slot);
+		mmc_omap_release_slot(host->current_slot, 1);
 		mmc_request_done(mmc, data->mrq);
 		return;
 	}
@@ -507,7 +553,7 @@ mmc_omap_cmd_done(struct mmc_omap_host *host, struct mmc_command *cmd)
 			mmc_omap_abort_xfer(host, host->data);
 		host->mrq = NULL;
 		mmc = host->mmc;
-		mmc_omap_release_slot(host->current_slot);
+		mmc_omap_release_slot(host->current_slot, 1);
 		mmc_request_done(mmc, cmd->mrq);
 	}
 }
@@ -538,7 +584,7 @@ static void mmc_omap_abort_command(struct work_struct *work)
 
 		host->mrq = NULL;
 		mmc = host->mmc;
-		mmc_omap_release_slot(host->current_slot);
+		mmc_omap_release_slot(host->current_slot, 1);
 		mmc_request_done(mmc, cmd->mrq);
 	} else
 		mmc_omap_cmd_done(host, host->cmd);
@@ -574,6 +620,14 @@ mmc_omap_sg_to_buf(struct mmc_omap_host *host)
 	host->buffer = sg_virt(sg);
 	if (host->buffer_bytes_left > host->total_bytes_left)
 		host->buffer_bytes_left = host->total_bytes_left;
+}
+
+static void
+mmc_omap_clk_timer(unsigned long data)
+{
+	struct mmc_omap_host *host = (struct mmc_omap_host *) data;
+
+	mmc_omap_fclk_enable(host, 0);
 }
 
 /* PIO only */
@@ -1149,14 +1203,16 @@ static void mmc_omap_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct mmc_omap_slot *slot = mmc_priv(mmc);
 	struct mmc_omap_host *host = slot->host;
 	int i, dsor;
-
-	dsor = mmc_omap_calc_divisor(mmc, ios);
+	int clk_enabled;
 
 	mmc_omap_select_slot(slot, 0);
+
+	dsor = mmc_omap_calc_divisor(mmc, ios);
 
 	if (ios->vdd != slot->vdd)
 		slot->vdd = ios->vdd;
 
+	clk_enabled = 0;
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF:
 		mmc_omap_set_power(slot, 0, ios->vdd);
@@ -1166,6 +1222,8 @@ static void mmc_omap_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		mmc_omap_set_power(slot, 1, ios->vdd);
 		goto exit;
 	case MMC_POWER_ON:
+		mmc_omap_fclk_enable(host, 1);
+		clk_enabled = 1;
 		dsor |= 1 << 11;
 		break;
 	}
@@ -1194,7 +1252,7 @@ static void mmc_omap_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 
 exit:
-	mmc_omap_release_slot(slot);
+	mmc_omap_release_slot(slot, clk_enabled);
 }
 
 static const struct mmc_host_ops mmc_omap_ops = {
@@ -1334,6 +1392,9 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 	INIT_WORK(&host->cmd_abort_work, mmc_omap_abort_command);
 	setup_timer(&host->cmd_abort_timer, mmc_omap_cmd_timer,
 		    (unsigned long) host);
+
+	spin_lock_init(&host->clk_lock);
+	setup_timer(&host->clk_timer, mmc_omap_clk_timer, (unsigned long) host);
 
 	spin_lock_init(&host->dma_lock);
 	setup_timer(&host->dma_timer, mmc_omap_dma_timer, (unsigned long) host);
