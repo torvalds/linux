@@ -700,6 +700,7 @@ static int sip_help(struct sk_buff *skb,
 {
 	unsigned int dataoff, datalen;
 	const char *dptr;
+	int ret;
 	typeof(nf_nat_sip_hook) nf_nat_sip;
 
 	/* No Data ? */
@@ -716,20 +717,22 @@ static int sip_help(struct sk_buff *skb,
 		return NF_ACCEPT;
 	}
 
-	nf_nat_sip = rcu_dereference(nf_nat_sip_hook);
-	if (nf_nat_sip && ct->status & IPS_NAT_MASK) {
-		if (!nf_nat_sip(skb, &dptr, &datalen))
-			return NF_DROP;
-	}
-
 	datalen = skb->len - dataoff;
 	if (datalen < strlen("SIP/2.0 200"))
 		return NF_ACCEPT;
 
 	if (strnicmp(dptr, "SIP/2.0 ", strlen("SIP/2.0 ")) != 0)
-		return process_sip_request(skb, &dptr, &datalen);
+		ret = process_sip_request(skb, &dptr, &datalen);
 	else
-		return process_sip_response(skb, &dptr, &datalen);
+		ret = process_sip_response(skb, &dptr, &datalen);
+
+	if (ret == NF_ACCEPT && ct->status & IPS_NAT_MASK) {
+		nf_nat_sip = rcu_dereference(nf_nat_sip_hook);
+		if (nf_nat_sip && !nf_nat_sip(skb, &dptr, &datalen))
+			ret = NF_DROP;
+	}
+
+	return ret;
 }
 
 static struct nf_conntrack_helper sip[MAX_PORTS][2] __read_mostly;

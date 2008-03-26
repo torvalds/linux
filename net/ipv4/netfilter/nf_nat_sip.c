@@ -104,9 +104,6 @@ static unsigned int ip_nat_sip(struct sk_buff *skb,
 	union nf_inet_addr addr;
 	__be16 port;
 
-	if (*datalen < strlen("SIP/2.0"))
-		return NF_ACCEPT;
-
 	/* Basic rules: requests and responses. */
 	if (strnicmp(*dptr, "SIP/2.0", strlen("SIP/2.0")) != 0) {
 		if (ct_sip_parse_request(ct, *dptr, *datalen,
