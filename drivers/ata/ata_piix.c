@@ -100,13 +100,11 @@ enum {
 	PIIX_IOCFG		= 0x54, /* IDE I/O configuration register */
 	ICH5_PMR		= 0x90, /* port mapping register */
 	ICH5_PCS		= 0x92,	/* port control and status */
-	PIIX_SCC		= 0x0A, /* sub-class code register */
 	PIIX_SIDPR_BAR		= 5,
 	PIIX_SIDPR_LEN		= 16,
 	PIIX_SIDPR_IDX		= 0,
 	PIIX_SIDPR_DATA		= 4,
 
-	PIIX_FLAG_AHCI		= (1 << 27), /* AHCI possible */
 	PIIX_FLAG_CHECKINTR	= (1 << 28), /* make sure PCI INTx enabled */
 	PIIX_FLAG_SIDPR		= (1 << 29), /* SATA idx/data pair regs */
 
@@ -238,8 +236,10 @@ static const struct pci_device_id piix_pci_tbl[] = {
 	{ 0x8086, 0x2651, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata },
 	/* 82801FR/FRW (ICH6R/ICH6RW) */
 	{ 0x8086, 0x2652, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata_ahci },
-	/* 82801FBM ICH6M (ICH6R with only port 0 and 2 implemented) */
-	{ 0x8086, 0x2653, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6m_sata_ahci },
+	/* 82801FBM ICH6M (ICH6R with only port 0 and 2 implemented).
+	 * Attach iff the controller is in IDE mode. */
+	{ 0x8086, 0x2653, PCI_ANY_ID, PCI_ANY_ID,
+	  PCI_CLASS_STORAGE_IDE << 8, 0xffff00, ich6m_sata_ahci },
 	/* 82801GB/GR/GH (ICH7, identical to ICH6) */
 	{ 0x8086, 0x27c0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich6_sata_ahci },
 	/* 2801GBM/GHM (ICH7M, identical to ICH6M) */
@@ -494,7 +494,7 @@ static struct ata_port_info piix_port_info[] = {
 
 	[ich6_sata_ahci] =
 	{
-		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_AHCI,
+		.flags		= PIIX_SATA_FLAGS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= ATA_UDMA6,
@@ -503,7 +503,7 @@ static struct ata_port_info piix_port_info[] = {
 
 	[ich6m_sata_ahci] =
 	{
-		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_AHCI,
+		.flags		= PIIX_SATA_FLAGS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= ATA_UDMA6,
@@ -512,8 +512,7 @@ static struct ata_port_info piix_port_info[] = {
 
 	[ich8_sata_ahci] =
 	{
-		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_AHCI |
-				  PIIX_FLAG_SIDPR,
+		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_SIDPR,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= ATA_UDMA6,
@@ -522,8 +521,7 @@ static struct ata_port_info piix_port_info[] = {
 
 	[ich8_2port_sata] =
 	{
-		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_AHCI |
-				  PIIX_FLAG_SIDPR,
+		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_SIDPR,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= ATA_UDMA6,
@@ -532,7 +530,7 @@ static struct ata_port_info piix_port_info[] = {
 
 	[tolapai_sata_ahci] =
 	{
-		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_AHCI,
+		.flags		= PIIX_SATA_FLAGS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= ATA_UDMA6,
@@ -541,8 +539,7 @@ static struct ata_port_info piix_port_info[] = {
 
 	[ich8m_apple_sata_ahci] =
 	{
-		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_AHCI |
-				  PIIX_FLAG_SIDPR,
+		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_SIDPR,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= ATA_UDMA6,
@@ -1488,6 +1485,16 @@ static int __devinit piix_init_one(struct pci_dev *pdev,
 	if (rc)
 		return rc;
 
+	/* ICH6R may be driven by either ata_piix or ahci driver
+	 * regardless of BIOS configuration.  Make sure AHCI mode is
+	 * off.
+	 */
+	if (pdev->vendor == PCI_VENDOR_ID_INTEL && pdev->device == 0x2652) {
+		int rc = piix_disable_ahci(pdev);
+		if (rc)
+			return rc;
+	}
+
 	/* SATA map init can change port_info, do it before prepping host */
 	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
@@ -1503,16 +1510,6 @@ static int __devinit piix_init_one(struct pci_dev *pdev,
 	host->private_data = hpriv;
 
 	/* initialize controller */
-	if (port_flags & PIIX_FLAG_AHCI) {
-		u8 tmp;
-		pci_read_config_byte(pdev, PIIX_SCC, &tmp);
-		if (tmp == PIIX_AHCI_DEVICE) {
-			rc = piix_disable_ahci(pdev);
-			if (rc)
-				return rc;
-		}
-	}
-
 	if (port_flags & ATA_FLAG_SATA) {
 		piix_init_pcs(host, piix_map_db_table[ent->driver_data]);
 		piix_init_sidpr(host);
