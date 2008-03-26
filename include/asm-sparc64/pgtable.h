@@ -761,6 +761,8 @@ extern unsigned long get_fb_unmapped_area(struct file *filp, unsigned long,
 extern void pgtable_cache_init(void);
 extern void sun4v_register_fault_status(void);
 extern void sun4v_ktsb_register(void);
+extern void __init cheetah_ecache_flush_init(void);
+extern void sun4v_patch_tlb_handlers(void);
 
 extern unsigned long cmdline_memory_size;
 
