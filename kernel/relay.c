@@ -736,7 +736,7 @@ static int relay_file_open(struct inode *inode, struct file *filp)
 	kref_get(&buf->kref);
 	filp->private_data = buf;
 
-	return 0;
+	return nonseekable_open(inode, filp);
 }
 
 /**
