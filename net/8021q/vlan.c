@@ -106,29 +106,35 @@ static void vlan_group_free(struct vlan_group *grp)
 static struct vlan_group *vlan_group_alloc(int ifindex)
 {
 	struct vlan_group *grp;
-	unsigned int size;
-	unsigned int i;
 
 	grp = kzalloc(sizeof(struct vlan_group), GFP_KERNEL);
 	if (!grp)
 		return NULL;
 
-	size = sizeof(struct net_device *) * VLAN_GROUP_ARRAY_PART_LEN;
-
-	for (i = 0; i < VLAN_GROUP_ARRAY_SPLIT_PARTS; i++) {
-		grp->vlan_devices_arrays[i] = kzalloc(size, GFP_KERNEL);
-		if (!grp->vlan_devices_arrays[i])
-			goto err;
-	}
-
 	grp->real_dev_ifindex = ifindex;
 	hlist_add_head_rcu(&grp->hlist,
 			   &vlan_group_hash[vlan_grp_hashfn(ifindex)]);
 	return grp;
+}
 
-err:
-	vlan_group_free(grp);
-	return NULL;
+static int vlan_group_prealloc_vid(struct vlan_group *vg, int vid)
+{
+	struct net_device **array;
+	unsigned int size;
+
+	ASSERT_RTNL();
+
+	array = vg->vlan_devices_arrays[vid / VLAN_GROUP_ARRAY_PART_LEN];
+	if (array != NULL)
+		return 0;
+
+	size = sizeof(struct net_device *) * VLAN_GROUP_ARRAY_PART_LEN;
+	array = kzalloc(size, GFP_KERNEL);
+	if (array == NULL)
+		return -ENOBUFS;
+
+	vg->vlan_devices_arrays[vid / VLAN_GROUP_ARRAY_PART_LEN] = array;
+	return 0;
 }
 
 static void vlan_rcu_free(struct rcu_head *rcu)
@@ -246,6 +252,10 @@ int register_vlan_dev(struct net_device *dev)
 		if (!grp)
 			return -ENOBUFS;
 	}
+
+	err = vlan_group_prealloc_vid(grp, vlan_id);
+	if (err < 0)
+		goto out_free_group;
 
 	err = register_netdevice(dev);
 	if (err < 0)
