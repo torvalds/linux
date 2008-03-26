@@ -190,6 +190,9 @@ EXPORT_SYMBOL_GPL(ct_sip_parse_request);
  * whitespace and the values. Whitespace in this context means any amount of
  * tabs, spaces and continuation lines, which are treated as a single whitespace
  * character.
+ *
+ * Some headers may appear multiple times. A comma seperated list of values is
+ * equivalent to multiple headers.
  */
 static const struct sip_header ct_sip_hdrs[] = {
 	[SIP_HDR_FROM]			= SIP_HDR("From", "f", "sip:", skp_epaddr_len),
@@ -321,6 +324,110 @@ int ct_sip_get_header(const struct nf_conn *ct, const char *dptr,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ct_sip_get_header);
+
+/* Get next header field in a list of comma seperated values */
+static int ct_sip_next_header(const struct nf_conn *ct, const char *dptr,
+			      unsigned int dataoff, unsigned int datalen,
+			      enum sip_header_types type,
+			      unsigned int *matchoff, unsigned int *matchlen)
+{
+	const struct sip_header *hdr = &ct_sip_hdrs[type];
+	const char *start = dptr, *limit = dptr + datalen;
+	int shift = 0;
+
+	dptr += dataoff;
+
+	dptr = ct_sip_header_search(dptr, limit, ",", strlen(","));
+	if (!dptr)
+		return 0;
+
+	dptr = ct_sip_header_search(dptr, limit, hdr->search, hdr->slen);
+	if (!dptr)
+		return 0;
+	dptr += hdr->slen;
+
+	*matchoff = dptr - start;
+	*matchlen = hdr->match_len(ct, dptr, limit, &shift);
+	if (!*matchlen)
+		return -1;
+	*matchoff += shift;
+	return 1;
+}
+
+/* Walk through headers until a parsable one is found or no header of the
+ * given type is left. */
+static int ct_sip_walk_headers(const struct nf_conn *ct, const char *dptr,
+			       unsigned int dataoff, unsigned int datalen,
+			       enum sip_header_types type, int *in_header,
+			       unsigned int *matchoff, unsigned int *matchlen)
+{
+	int ret;
+
+	if (in_header && *in_header) {
+		while (1) {
+			ret = ct_sip_next_header(ct, dptr, dataoff, datalen,
+						 type, matchoff, matchlen);
+			if (ret > 0)
+				return ret;
+			if (ret == 0)
+				break;
+			dataoff += *matchoff;
+		}
+		*in_header = 0;
+	}
+
+	while (1) {
+		ret = ct_sip_get_header(ct, dptr, dataoff, datalen,
+					type, matchoff, matchlen);
+		if (ret > 0)
+			break;
+		if (ret == 0)
+			return ret;
+		dataoff += *matchoff;
+	}
+
+	if (in_header)
+		*in_header = 1;
+	return 1;
+}
+
+/* Locate a SIP header, parse the URI and return the offset and length of
+ * the address as well as the address and port themselves. A stream of
+ * headers can be parsed by handing in a non-NULL datalen and in_header
+ * pointer.
+ */
+int ct_sip_parse_header_uri(const struct nf_conn *ct, const char *dptr,
+			    unsigned int *dataoff, unsigned int datalen,
+			    enum sip_header_types type, int *in_header,
+			    unsigned int *matchoff, unsigned int *matchlen,
+			    union nf_inet_addr *addr, __be16 *port)
+{
+	const char *c, *limit = dptr + datalen;
+	unsigned int p;
+	int ret;
+
+	ret = ct_sip_walk_headers(ct, dptr, dataoff ? *dataoff : 0, datalen,
+				  type, in_header, matchoff, matchlen);
+	WARN_ON(ret < 0);
+	if (ret == 0)
+		return ret;
+
+	if (!parse_addr(ct, dptr + *matchoff, &c, addr, limit))
+		return -1;
+	if (*c == ':') {
+		c++;
+		p = simple_strtoul(c, (char **)&c, 10);
+		if (p < 1024 || p > 65535)
+			return -1;
+		*port = htons(p);
+	} else
+		*port = htons(SIP_PORT);
+
+	if (dataoff)
+		*dataoff = c - dptr;
+	return 1;
+}
+EXPORT_SYMBOL_GPL(ct_sip_parse_header_uri);
 
 /* SDP header parsing: a SDP session description contains an ordered set of
  * headers, starting with a section containing general session parameters,
