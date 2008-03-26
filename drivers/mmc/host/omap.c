@@ -931,7 +931,6 @@ static int mmc_omap_calc_divisor(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	if (dsor > 250)
 		dsor = 250;
-	dsor++;
 
 	if (ios->bus_width == MMC_BUS_WIDTH_4)
 		dsor |= 1 << 15;
