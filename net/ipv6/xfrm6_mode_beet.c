@@ -45,6 +45,7 @@ static int xfrm6_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 	skb->mac_header = skb->network_header +
 			  offsetof(struct ipv6hdr, nexthdr);
 	skb->transport_header = skb->network_header + sizeof(*top_iph);
+	__skb_pull(skb, XFRM_MODE_SKB_CB(skb)->ihl);
 
 	xfrm6_beet_make_header(skb);
 

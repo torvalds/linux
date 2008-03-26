@@ -552,6 +552,9 @@ struct xfrm_mode_skb_cb {
 	__be16 id;
 	__be16 frag_off;
 
+	/* IP header length (excluding options or extension headers). */
+	u8 ihl;
+
 	/* TOS for IPv4, class for IPv6. */
 	u8 tos;
 
@@ -560,6 +563,9 @@ struct xfrm_mode_skb_cb {
 
 	/* Protocol for IPv4, NH for IPv6. */
 	u8 protocol;
+
+	/* Option length for IPv4, zero for IPv6. */
+	u8 optlen;
 
 	/* Used by IPv6 only, zero for IPv4. */
 	u8 flow_lbl[3];
