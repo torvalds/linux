@@ -66,7 +66,7 @@ struct extent_state {
 	/* for use by the FS */
 	u64 private;
 
-	struct list_head list;
+	struct list_head leak_list;
 };
 
 struct extent_buffer {
@@ -80,6 +80,7 @@ struct extent_buffer {
 	struct list_head lru;
 	atomic_t refs;
 	int flags;
+	struct list_head leak_list;
 };
 
 struct extent_map_tree;

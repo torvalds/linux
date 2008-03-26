@@ -915,12 +915,14 @@ fail_tree_root:
 	free_extent_buffer(tree_root->node);
 fail_sb_buffer:
 	free_extent_buffer(fs_info->sb_buffer);
+	extent_io_tree_empty_lru(&BTRFS_I(fs_info->btree_inode)->io_tree);
 fail_iput:
 	iput(fs_info->btree_inode);
 fail:
 	close_all_devices(fs_info);
 	kfree(extent_root);
 	kfree(tree_root);
+	bdi_destroy(&fs_info->bdi);
 	kfree(fs_info);
 	return ERR_PTR(err);
 }
