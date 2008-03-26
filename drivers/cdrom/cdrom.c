@@ -3427,6 +3427,7 @@ static void cdrom_update_settings(void)
 {
 	struct cdrom_device_info *cdi;
 
+	mutex_lock(&cdrom_mutex);
 	for (cdi = topCdromPtr; cdi != NULL; cdi = cdi->next) {
 		if (autoclose && CDROM_CAN(CDC_CLOSE_TRAY))
 			cdi->options |= CDO_AUTO_CLOSE;
@@ -3445,6 +3446,7 @@ static void cdrom_update_settings(void)
 		else
 			cdi->options &= ~CDO_CHECK_TYPE;
 	}
+	mutex_unlock(&cdrom_mutex);
 }
 
 static int cdrom_sysctl_handler(ctl_table *ctl, int write, struct file * filp,
