@@ -113,11 +113,39 @@ struct nf_conntrack_tuple_mask
 
 #ifdef __KERNEL__
 
-#define NF_CT_DUMP_TUPLE(tp)						     \
-pr_debug("tuple %p: %u %u " NIP6_FMT " %hu -> " NIP6_FMT " %hu\n",	     \
-	 (tp), (tp)->src.l3num, (tp)->dst.protonum,			     \
-	 NIP6(*(struct in6_addr *)(tp)->src.u3.all), ntohs((tp)->src.u.all), \
-	 NIP6(*(struct in6_addr *)(tp)->dst.u3.all), ntohs((tp)->dst.u.all))
+static inline void nf_ct_dump_tuple_ip(const struct nf_conntrack_tuple *t)
+{
+#ifdef DEBUG
+	printk("tuple %p: %u " NIPQUAD_FMT ":%hu -> " NIPQUAD_FMT ":%hu\n",
+	       t, t->dst.protonum,
+	       NIPQUAD(t->src.u3.ip), ntohs(t->src.u.all),
+	       NIPQUAD(t->dst.u3.ip), ntohs(t->dst.u.all));
+#endif
+}
+
+static inline void nf_ct_dump_tuple_ipv6(const struct nf_conntrack_tuple *t)
+{
+#ifdef DEBUG
+	printk("tuple %p: %u " NIP6_FMT " %hu -> " NIP6_FMT " %hu\n",
+	       t, t->dst.protonum,
+	       NIP6(*(struct in6_addr *)t->src.u3.all), ntohs(t->src.u.all),
+	       NIP6(*(struct in6_addr *)t->dst.u3.all), ntohs(t->dst.u.all));
+#endif
+}
+
+static inline void nf_ct_dump_tuple(const struct nf_conntrack_tuple *t)
+{
+	switch (t->src.l3num) {
+	case AF_INET:
+		nf_ct_dump_tuple_ip(t);
+		break;
+	case AF_INET6:
+		nf_ct_dump_tuple_ipv6(t);
+		break;
+	}
+}
+
+#define NF_CT_DUMP_TUPLE(tp)	nf_ct_dump_tuple(tp)
 
 /* If we're the first tuple, it's the original dir. */
 #define NF_CT_DIRECTION(h)						\
