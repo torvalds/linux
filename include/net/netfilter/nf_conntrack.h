@@ -46,6 +46,7 @@ union nf_conntrack_expect_proto {
 #include <linux/netfilter/nf_conntrack_pptp.h>
 #include <linux/netfilter/nf_conntrack_h323.h>
 #include <linux/netfilter/nf_conntrack_sane.h>
+#include <linux/netfilter/nf_conntrack_sip.h>
 
 /* per conntrack: application helper private data */
 union nf_conntrack_help {
@@ -54,6 +55,7 @@ union nf_conntrack_help {
 	struct nf_ct_pptp_master ct_pptp_info;
 	struct nf_ct_h323_master ct_h323_info;
 	struct nf_ct_sane_master ct_sane_info;
+	struct nf_ct_sip_master ct_sip_info;
 };
 
 #include <linux/types.h>
@@ -76,7 +78,7 @@ do {									\
 struct nf_conntrack_helper;
 
 /* Must be kept in sync with the classes defined by helpers */
-#define NF_CT_MAX_EXPECT_CLASSES	1
+#define NF_CT_MAX_EXPECT_CLASSES	2
 
 /* nf_conn feature for connections that have a helper */
 struct nf_conn_help {

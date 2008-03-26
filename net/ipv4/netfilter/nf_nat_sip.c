@@ -205,6 +205,91 @@ next:
 	return NF_ACCEPT;
 }
 
+/* Handles expected signalling connections and media streams */
+static void ip_nat_sip_expected(struct nf_conn *ct,
+				struct nf_conntrack_expect *exp)
+{
+	struct nf_nat_range range;
+
+	/* This must be a fresh one. */
+	BUG_ON(ct->status & IPS_NAT_DONE_MASK);
+
+	/* For DST manip, map port here to where it's expected. */
+	range.flags = (IP_NAT_RANGE_MAP_IPS | IP_NAT_RANGE_PROTO_SPECIFIED);
+	range.min = range.max = exp->saved_proto;
+	range.min_ip = range.max_ip = exp->saved_ip;
+	nf_nat_setup_info(ct, &range, IP_NAT_MANIP_DST);
+
+	/* Change src to where master sends to, but only if the connection
+	 * actually came from the same source. */
+	if (ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip ==
+	    ct->master->tuplehash[exp->dir].tuple.src.u3.ip) {
+		range.flags = IP_NAT_RANGE_MAP_IPS;
+		range.min_ip = range.max_ip
+			= ct->master->tuplehash[!exp->dir].tuple.dst.u3.ip;
+		nf_nat_setup_info(ct, &range, IP_NAT_MANIP_SRC);
+	}
+}
+
+static unsigned int ip_nat_sip_expect(struct sk_buff *skb,
+				      const char **dptr, unsigned int *datalen,
+				      struct nf_conntrack_expect *exp,
+				      unsigned int matchoff,
+				      unsigned int matchlen)
+{
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
+	__be32 newip;
+	u_int16_t port;
+	char buffer[sizeof("nnn.nnn.nnn.nnn:nnnnn")];
+	unsigned buflen;
+
+	/* Connection will come from reply */
+	if (ct->tuplehash[dir].tuple.src.u3.ip == ct->tuplehash[!dir].tuple.dst.u3.ip)
+		newip = exp->tuple.dst.u3.ip;
+	else
+		newip = ct->tuplehash[!dir].tuple.dst.u3.ip;
+
+	/* If the signalling port matches the connection's source port in the
+	 * original direction, try to use the destination port in the opposite
+	 * direction. */
+	if (exp->tuple.dst.u.udp.port ==
+	    ct->tuplehash[dir].tuple.src.u.udp.port)
+		port = ntohs(ct->tuplehash[!dir].tuple.dst.u.udp.port);
+	else
+		port = ntohs(exp->tuple.dst.u.udp.port);
+
+	exp->saved_ip = exp->tuple.dst.u3.ip;
+	exp->tuple.dst.u3.ip = newip;
+	exp->saved_proto.udp.port = exp->tuple.dst.u.udp.port;
+	exp->dir = !dir;
+	exp->expectfn = ip_nat_sip_expected;
+
+	for (; port != 0; port++) {
+		exp->tuple.dst.u.udp.port = htons(port);
+		if (nf_ct_expect_related(exp) == 0)
+			break;
+	}
+
+	if (port == 0)
+		return NF_DROP;
+
+	if (exp->tuple.dst.u3.ip != exp->saved_ip ||
+	    exp->tuple.dst.u.udp.port != exp->saved_proto.udp.port) {
+		buflen = sprintf(buffer, "%u.%u.%u.%u:%u",
+				 NIPQUAD(newip), port);
+		if (!mangle_packet(skb, dptr, datalen, matchoff, matchlen,
+				   buffer, buflen))
+			goto err;
+	}
+	return NF_ACCEPT;
+
+err:
+	nf_ct_unexpect_related(exp);
+	return NF_DROP;
+}
+
 static int mangle_content_len(struct sk_buff *skb,
 			      const char **dptr, unsigned int *datalen)
 {
@@ -275,27 +360,6 @@ static unsigned int mangle_sdp(struct sk_buff *skb,
 	return mangle_content_len(skb, dptr, datalen);
 }
 
-static void ip_nat_sdp_expect(struct nf_conn *ct,
-			      struct nf_conntrack_expect *exp)
-{
-	struct nf_nat_range range;
-
-	/* This must be a fresh one. */
-	BUG_ON(ct->status & IPS_NAT_DONE_MASK);
-
-	/* For DST manip, map port here to where it's expected. */
-	range.flags = (IP_NAT_RANGE_MAP_IPS | IP_NAT_RANGE_PROTO_SPECIFIED);
-	range.min = range.max = exp->saved_proto;
-	range.min_ip = range.max_ip = exp->saved_ip;
-	nf_nat_setup_info(ct, &range, IP_NAT_MANIP_DST);
-
-	/* Change src to where master sends to */
-	range.flags = IP_NAT_RANGE_MAP_IPS;
-	range.min_ip = range.max_ip
-		= ct->master->tuplehash[!exp->dir].tuple.dst.u3.ip;
-	nf_nat_setup_info(ct, &range, IP_NAT_MANIP_SRC);
-}
-
 /* So, this packet has hit the connection tracking matching code.
    Mangle it, and change the expectation to match the new version. */
 static unsigned int ip_nat_sdp(struct sk_buff *skb,
@@ -322,7 +386,7 @@ static unsigned int ip_nat_sdp(struct sk_buff *skb,
 
 	/* When you see the packet, we need to NAT it the same as the
 	   this one. */
-	exp->expectfn = ip_nat_sdp_expect;
+	exp->expectfn = ip_nat_sip_expected;
 
 	/* Try to get same port: if not, try to change it. */
 	for (port = ntohs(exp->saved_proto.udp.port); port != 0; port++) {
@@ -344,6 +408,7 @@ static unsigned int ip_nat_sdp(struct sk_buff *skb,
 static void __exit nf_nat_sip_fini(void)
 {
 	rcu_assign_pointer(nf_nat_sip_hook, NULL);
+	rcu_assign_pointer(nf_nat_sip_expect_hook, NULL);
 	rcu_assign_pointer(nf_nat_sdp_hook, NULL);
 	synchronize_rcu();
 }
@@ -351,8 +416,10 @@ static void __exit nf_nat_sip_fini(void)
 static int __init nf_nat_sip_init(void)
 {
 	BUG_ON(nf_nat_sip_hook != NULL);
+	BUG_ON(nf_nat_sip_expect_hook != NULL);
 	BUG_ON(nf_nat_sdp_hook != NULL);
 	rcu_assign_pointer(nf_nat_sip_hook, ip_nat_sip);
+	rcu_assign_pointer(nf_nat_sip_expect_hook, ip_nat_sip_expect);
 	rcu_assign_pointer(nf_nat_sdp_hook, ip_nat_sdp);
 	return 0;
 }

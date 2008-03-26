@@ -5,6 +5,17 @@
 #define SIP_PORT	5060
 #define SIP_TIMEOUT	3600
 
+struct nf_ct_sip_master {
+	unsigned int	register_cseq;
+};
+
+enum sip_expectation_classes {
+	SIP_EXPECT_SIGNALLING,
+	SIP_EXPECT_AUDIO,
+	__SIP_EXPECT_MAX
+};
+#define SIP_EXPECT_MAX	(__SIP_EXPECT_MAX - 1)
+
 struct sip_handler {
 	const char	*method;
 	unsigned int	len;
@@ -59,6 +70,7 @@ enum sip_header_types {
 	SIP_HDR_TO,
 	SIP_HDR_CONTACT,
 	SIP_HDR_VIA,
+	SIP_HDR_EXPIRES,
 	SIP_HDR_CONTENT_LENGTH,
 };
 
@@ -75,6 +87,12 @@ enum sdp_header_types {
 extern unsigned int (*nf_nat_sip_hook)(struct sk_buff *skb,
 				       const char **dptr,
 				       unsigned int *datalen);
+extern unsigned int (*nf_nat_sip_expect_hook)(struct sk_buff *skb,
+					      const char **dptr,
+					      unsigned int *datalen,
+					      struct nf_conntrack_expect *exp,
+					      unsigned int matchoff,
+					      unsigned int matchlen);
 extern unsigned int (*nf_nat_sdp_hook)(struct sk_buff *skb,
 				       const char **dptr,
 				       unsigned int *datalen,
