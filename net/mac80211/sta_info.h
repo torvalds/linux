@@ -81,20 +81,20 @@ struct tid_ampdu_tx {
 /**
  * struct tid_ampdu_rx - TID aggregation information (Rx).
  *
- * @head_seq_num: head sequence number in reordering buffer.
- * @stored_mpdu_num: number of MPDUs in reordering buffer
  * @reorder_buf: buffer to reorder incoming aggregated MPDUs
  * @session_timer: check if peer keeps Tx-ing on the TID (by timeout value)
+ * @head_seq_num: head sequence number in reordering buffer.
+ * @stored_mpdu_num: number of MPDUs in reordering buffer
  * @ssn: Starting Sequence Number expected to be aggregated.
  * @buf_size: buffer size for incoming A-MPDUs
  * @timeout: reset timer value.
  * @dialog_token: dialog token for aggregation session
  */
 struct tid_ampdu_rx {
-	u16 head_seq_num;
-	u16 stored_mpdu_num;
 	struct sk_buff **reorder_buf;
 	struct timer_list session_timer;
+	u16 head_seq_num;
+	u16 stored_mpdu_num;
 	u16 ssn;
 	u16 buf_size;
 	u16 timeout;
