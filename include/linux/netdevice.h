@@ -756,7 +756,7 @@ static inline
 void dev_net_set(struct net_device *dev, const struct net *net)
 {
 #ifdef CONFIG_NET_NS
-	dev->nd_dev = net;
+	dev->nd_net = net;
 #endif
 }
 
