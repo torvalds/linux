@@ -406,7 +406,7 @@ static struct ctl_table ipv4_table[] = {
 	{
 		.ctl_name	= NET_IPV4_ICMP_ECHO_IGNORE_ALL,
 		.procname	= "icmp_echo_ignore_all",
-		.data		= &sysctl_icmp_echo_ignore_all,
+		.data		= &init_net.ipv4.sysctl_icmp_echo_ignore_all,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -414,7 +414,7 @@ static struct ctl_table ipv4_table[] = {
 	{
 		.ctl_name	= NET_IPV4_ICMP_ECHO_IGNORE_BROADCASTS,
 		.procname	= "icmp_echo_ignore_broadcasts",
-		.data		= &sysctl_icmp_echo_ignore_broadcasts,
+		.data		= &init_net.ipv4.sysctl_icmp_echo_ignore_broadcasts,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -422,7 +422,7 @@ static struct ctl_table ipv4_table[] = {
 	{
 		.ctl_name	= NET_IPV4_ICMP_IGNORE_BOGUS_ERROR_RESPONSES,
 		.procname	= "icmp_ignore_bogus_error_responses",
-		.data		= &sysctl_icmp_ignore_bogus_error_responses,
+		.data		= &init_net.ipv4.sysctl_icmp_ignore_bogus_error_responses,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -430,7 +430,7 @@ static struct ctl_table ipv4_table[] = {
 	{
 		.ctl_name	= NET_IPV4_ICMP_ERRORS_USE_INBOUND_IFADDR,
 		.procname	= "icmp_errors_use_inbound_ifaddr",
-		.data		= &sysctl_icmp_errors_use_inbound_ifaddr,
+		.data		= &init_net.ipv4.sysctl_icmp_errors_use_inbound_ifaddr,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -588,7 +588,7 @@ static struct ctl_table ipv4_table[] = {
 	{
 		.ctl_name	= NET_IPV4_ICMP_RATELIMIT,
 		.procname	= "icmp_ratelimit",
-		.data		= &sysctl_icmp_ratelimit,
+		.data		= &init_net.ipv4.sysctl_icmp_ratelimit,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -596,7 +596,7 @@ static struct ctl_table ipv4_table[] = {
 	{
 		.ctl_name	= NET_IPV4_ICMP_RATEMASK,
 		.procname	= "icmp_ratemask",
-		.data		= &sysctl_icmp_ratemask,
+		.data		= &init_net.ipv4.sysctl_icmp_ratemask,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec

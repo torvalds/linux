@@ -188,29 +188,6 @@ struct icmp_err icmp_err_convert[] = {
 	},
 };
 
-/* Control parameters for ECHO replies. */
-int sysctl_icmp_echo_ignore_all __read_mostly;
-int sysctl_icmp_echo_ignore_broadcasts __read_mostly = 1;
-
-/* Control parameter - ignore bogus broadcast responses? */
-int sysctl_icmp_ignore_bogus_error_responses __read_mostly = 1;
-
-/*
- * 	Configurable global rate limit.
- *
- *	ratelimit defines tokens/packet consumed for dst->rate_token bucket
- *	ratemask defines which icmp types are ratelimited by setting
- * 	it's bit position.
- *
- *	default:
- *	dest unreachable (3), source quench (4),
- *	time exceeded (11), parameter problem (12)
- */
-
-int sysctl_icmp_ratelimit __read_mostly = 1 * HZ;
-int sysctl_icmp_ratemask __read_mostly = 0x1818;
-int sysctl_icmp_errors_use_inbound_ifaddr __read_mostly;
-
 /*
  *	ICMP control array. This specifies what to do with each ICMP.
  */
@@ -310,8 +287,8 @@ static inline int icmpv4_xrlim_allow(struct rtable *rt, int type, int code)
 		goto out;
 
 	/* Limit if icmp type is enabled in ratemask. */
-	if ((1 << type) & sysctl_icmp_ratemask)
-		rc = xrlim_allow(dst, sysctl_icmp_ratelimit);
+	if ((1 << type) & init_net.ipv4.sysctl_icmp_ratemask)
+		rc = xrlim_allow(dst, init_net.ipv4.sysctl_icmp_ratelimit);
 out:
 	return rc;
 }
@@ -523,7 +500,8 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	if (!(rt->rt_flags & RTCF_LOCAL)) {
 		struct net_device *dev = NULL;
 
-		if (rt->fl.iif && sysctl_icmp_errors_use_inbound_ifaddr)
+		if (rt->fl.iif &&
+			init_net.ipv4.sysctl_icmp_errors_use_inbound_ifaddr)
 			dev = dev_get_by_index(net, rt->fl.iif);
 
 		if (dev) {
@@ -745,7 +723,7 @@ static void icmp_unreach(struct sk_buff *skb)
 	 *	get the other vendor to fix their kit.
 	 */
 
-	if (!sysctl_icmp_ignore_bogus_error_responses &&
+	if (!init_net.ipv4.sysctl_icmp_ignore_bogus_error_responses &&
 	    inet_addr_type(net, iph->daddr) == RTN_BROADCAST) {
 		if (net_ratelimit())
 			printk(KERN_WARNING "%u.%u.%u.%u sent an invalid ICMP "
@@ -840,7 +818,7 @@ out_err:
 
 static void icmp_echo(struct sk_buff *skb)
 {
-	if (!sysctl_icmp_echo_ignore_all) {
+	if (!init_net.ipv4.sysctl_icmp_echo_ignore_all) {
 		struct icmp_bxm icmp_param;
 
 		icmp_param.data.icmph	   = *icmp_hdr(skb);
@@ -1051,7 +1029,7 @@ int icmp_rcv(struct sk_buff *skb)
 		 */
 		if ((icmph->type == ICMP_ECHO ||
 		     icmph->type == ICMP_TIMESTAMP) &&
-		    sysctl_icmp_echo_ignore_broadcasts) {
+		    init_net.ipv4.sysctl_icmp_echo_ignore_broadcasts) {
 			goto error;
 		}
 		if (icmph->type != ICMP_ECHO &&
@@ -1195,6 +1173,30 @@ int __net_init icmp_sk_init(struct net *net)
 		 */
 		sk->sk_prot->unhash(sk);
 	}
+
+	/* Control parameters for ECHO replies. */
+	net->ipv4.sysctl_icmp_echo_ignore_all = 0;
+	net->ipv4.sysctl_icmp_echo_ignore_broadcasts = 1;
+
+	/* Control parameter - ignore bogus broadcast responses? */
+	net->ipv4.sysctl_icmp_ignore_bogus_error_responses = 1;
+
+	/*
+	 * 	Configurable global rate limit.
+	 *
+	 *	ratelimit defines tokens/packet consumed for dst->rate_token
+	 *	bucket ratemask defines which icmp types are ratelimited by
+	 *	setting	it's bit position.
+	 *
+	 *	default:
+	 *	dest unreachable (3), source quench (4),
+	 *	time exceeded (11), parameter problem (12)
+	 */
+
+	net->ipv4.sysctl_icmp_ratelimit = 1 * HZ;
+	net->ipv4.sysctl_icmp_ratemask = 0x1818;
+	net->ipv4.sysctl_icmp_errors_use_inbound_ifaddr = 0;
+
 	return 0;
 
 fail:

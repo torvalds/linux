@@ -35,5 +35,12 @@ struct netns_ipv4 {
 	struct xt_table		*iptable_raw;
 	struct xt_table		*arptable_filter;
 #endif
+
+	int sysctl_icmp_echo_ignore_all;
+	int sysctl_icmp_echo_ignore_broadcasts;
+	int sysctl_icmp_ignore_bogus_error_responses;
+	int sysctl_icmp_ratelimit;
+	int sysctl_icmp_ratemask;
+	int sysctl_icmp_errors_use_inbound_ifaddr;
 };
 #endif
