@@ -655,6 +655,55 @@ static int add_hasher(struct btrfs_fs_info *info, char *type) {
 	return 0;
 }
 #endif
+
+static int btrfs_congested_fn(void *congested_data, int bdi_bits)
+{
+	struct btrfs_fs_info *info = (struct btrfs_fs_info *)congested_data;
+	int ret = 0;
+	struct list_head *cur;
+	struct btrfs_device *device;
+	struct backing_dev_info *bdi;
+
+	list_for_each(cur, &info->fs_devices->devices) {
+		device = list_entry(cur, struct btrfs_device, dev_list);
+		bdi = blk_get_backing_dev_info(device->bdev);
+		if (bdi && bdi_congested(bdi, bdi_bits)) {
+			ret = 1;
+			break;
+		}
+	}
+	return ret;
+}
+
+void btrfs_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
+{
+	struct list_head *cur;
+	struct btrfs_device *device;
+	struct btrfs_fs_info *info;
+
+	info = (struct btrfs_fs_info *)bdi->unplug_io_data;
+	list_for_each(cur, &info->fs_devices->devices) {
+		device = list_entry(cur, struct btrfs_device, dev_list);
+		bdi = blk_get_backing_dev_info(device->bdev);
+		if (bdi->unplug_io_fn) {
+			bdi->unplug_io_fn(bdi, page);
+		}
+	}
+}
+
+static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
+{
+	bdi_init(bdi);
+	bdi->ra_pages	= default_backing_dev_info.ra_pages;
+	bdi->state		= 0;
+	bdi->capabilities	= default_backing_dev_info.capabilities;
+	bdi->unplug_io_fn	= btrfs_unplug_io_fn;
+	bdi->unplug_io_data	= info;
+	bdi->congested_fn	= btrfs_congested_fn;
+	bdi->congested_data	= info;
+	return 0;
+}
+
 struct btrfs_root *open_ctree(struct super_block *sb,
 			      struct btrfs_fs_devices *fs_devices)
 {
@@ -708,11 +757,14 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->max_extent = (u64)-1;
 	fs_info->max_inline = 8192 * 1024;
 	fs_info->delalloc_bytes = 0;
+	setup_bdi(fs_info, &fs_info->bdi);
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;
 	fs_info->btree_inode->i_nlink = 1;
 	fs_info->btree_inode->i_size = sb->s_bdev->bd_inode->i_size;
 	fs_info->btree_inode->i_mapping->a_ops = &btree_aops;
+	fs_info->btree_inode->i_mapping->backing_dev_info = &fs_info->bdi;
+
 	extent_io_tree_init(&BTRFS_I(fs_info->btree_inode)->io_tree,
 			     fs_info->btree_inode->i_mapping,
 			     GFP_NOFS);
@@ -992,6 +1044,7 @@ int close_ctree(struct btrfs_root *root)
 #endif
 	close_all_devices(fs_info);
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
+	bdi_destroy(&fs_info->bdi);
 
 	kfree(fs_info->extent_root);
 	kfree(fs_info->tree_root);

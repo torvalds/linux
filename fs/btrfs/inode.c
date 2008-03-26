@@ -494,6 +494,7 @@ void btrfs_read_locked_inode(struct inode *inode)
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFREG:
 		inode->i_mapping->a_ops = &btrfs_aops;
+		inode->i_mapping->backing_dev_info = &root->fs_info->bdi;
 		BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
 		inode->i_fop = &btrfs_file_operations;
 		inode->i_op = &btrfs_file_inode_operations;
@@ -508,6 +509,7 @@ void btrfs_read_locked_inode(struct inode *inode)
 	case S_IFLNK:
 		inode->i_op = &btrfs_symlink_inode_operations;
 		inode->i_mapping->a_ops = &btrfs_symlink_aops;
+		inode->i_mapping->backing_dev_info = &root->fs_info->bdi;
 		break;
 	default:
 		init_special_inode(inode, inode->i_mode, rdev);
@@ -1792,6 +1794,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 		drop_inode = 1;
 	else {
 		inode->i_mapping->a_ops = &btrfs_aops;
+		inode->i_mapping->backing_dev_info = &root->fs_info->bdi;
 		inode->i_fop = &btrfs_file_operations;
 		inode->i_op = &btrfs_file_inode_operations;
 		extent_map_tree_init(&BTRFS_I(inode)->extent_tree, GFP_NOFS);
@@ -2960,6 +2963,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 		drop_inode = 1;
 	else {
 		inode->i_mapping->a_ops = &btrfs_aops;
+		inode->i_mapping->backing_dev_info = &root->fs_info->bdi;
 		inode->i_fop = &btrfs_file_operations;
 		inode->i_op = &btrfs_file_inode_operations;
 		extent_map_tree_init(&BTRFS_I(inode)->extent_tree, GFP_NOFS);
@@ -2999,6 +3003,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 
 	inode->i_op = &btrfs_symlink_inode_operations;
 	inode->i_mapping->a_ops = &btrfs_symlink_aops;
+	inode->i_mapping->backing_dev_info = &root->fs_info->bdi;
 	inode->i_size = name_len - 1;
 	err = btrfs_update_inode(trans, root, inode);
 	if (err)

@@ -25,6 +25,7 @@
 #include <linux/fs.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
+#include <linux/backing-dev.h>
 #include <asm/kmap_types.h>
 #include "bit-radix.h"
 #include "extent_io.h"
@@ -472,6 +473,7 @@ struct btrfs_fs_info {
 	struct block_device *__bdev;
 	struct super_block *sb;
 	struct inode *btree_inode;
+	struct backing_dev_info bdi;
 	spinlock_t hash_lock;
 	struct mutex trans_mutex;
 	struct mutex fs_mutex;
