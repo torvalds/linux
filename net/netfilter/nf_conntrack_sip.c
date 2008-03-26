@@ -70,6 +70,14 @@ unsigned int (*nf_nat_sdp_addr_hook)(struct sk_buff *skb,
 				     __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sdp_addr_hook);
 
+unsigned int (*nf_nat_sdp_port_hook)(struct sk_buff *skb,
+				     const char **dptr,
+				     unsigned int *datalen,
+				     unsigned int matchoff,
+				     unsigned int matchlen,
+				     u_int16_t port) __read_mostly;
+EXPORT_SYMBOL_GPL(nf_nat_sdp_port_hook);
+
 unsigned int (*nf_nat_sdp_session_hook)(struct sk_buff *skb,
 					const char **dptr,
 					unsigned int dataoff,
@@ -730,9 +738,10 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb,
 	union nf_inet_addr *saddr;
 	struct nf_conntrack_tuple tuple;
 	int family = ct->tuplehash[!dir].tuple.src.l3num;
-	int skip_expect = 0, ret = NF_DROP;
+	int direct_rtp = 0, skip_expect = 0, ret = NF_DROP;
 	u_int16_t base_port;
 	__be16 rtp_port, rtcp_port;
+	typeof(nf_nat_sdp_port_hook) nf_nat_sdp_port;
 	typeof(nf_nat_sdp_media_hook) nf_nat_sdp_media;
 
 	saddr = NULL;
@@ -746,6 +755,14 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb,
 	 * to register it since we can see the same media description multiple
 	 * times on different connections in case multiple endpoints receive
 	 * the same call.
+	 *
+	 * RTP optimization: if we find a matching media channel expectation
+	 * and both the expectation and this connection are SNATed, we assume
+	 * both sides can reach each other directly and use the final
+	 * destination address from the expectation. We still need to keep
+	 * the NATed expectations for media that might arrive from the
+	 * outside, and additionally need to expect the direct RTP stream
+	 * in case it passes through us even without NAT.
 	 */
 	memset(&tuple, 0, sizeof(tuple));
 	if (saddr)
@@ -756,19 +773,41 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb,
 	tuple.dst.u.udp.port	= port;
 
 	rcu_read_lock();
-	exp = __nf_ct_expect_find(&tuple);
-	if (exp && exp->master != ct &&
-	    nfct_help(exp->master)->helper == nfct_help(ct)->helper &&
-	    exp->class == class)
-		skip_expect = 1;
-	rcu_read_unlock();
+	do {
+		exp = __nf_ct_expect_find(&tuple);
 
-	if (skip_expect)
-		return NF_ACCEPT;
+		if (!exp || exp->master == ct ||
+		    nfct_help(exp->master)->helper != nfct_help(ct)->helper ||
+		    exp->class != class)
+			break;
+
+		if (exp->tuple.src.l3num == AF_INET && !direct_rtp &&
+		    (exp->saved_ip != exp->tuple.dst.u3.ip ||
+		     exp->saved_proto.udp.port != exp->tuple.dst.u.udp.port) &&
+		    ct->status & IPS_NAT_MASK) {
+			daddr->ip		= exp->saved_ip;
+			tuple.dst.u3.ip		= exp->saved_ip;
+			tuple.dst.u.udp.port	= exp->saved_proto.udp.port;
+			direct_rtp = 1;
+		} else
+			skip_expect = 1;
+	} while (!skip_expect);
+	rcu_read_unlock();
 
 	base_port = ntohs(tuple.dst.u.udp.port) & ~1;
 	rtp_port = htons(base_port);
 	rtcp_port = htons(base_port + 1);
+
+	if (direct_rtp) {
+		nf_nat_sdp_port = rcu_dereference(nf_nat_sdp_port_hook);
+		if (nf_nat_sdp_port &&
+		    !nf_nat_sdp_port(skb, dptr, datalen,
+				     mediaoff, medialen, ntohs(rtp_port)))
+			goto err1;
+	}
+
+	if (skip_expect)
+		return NF_ACCEPT;
 
 	rtp_exp = nf_ct_expect_alloc(ct);
 	if (rtp_exp == NULL)
@@ -783,7 +822,7 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb,
 			  IPPROTO_UDP, NULL, &rtcp_port);
 
 	nf_nat_sdp_media = rcu_dereference(nf_nat_sdp_media_hook);
-	if (nf_nat_sdp_media && ct->status & IPS_NAT_MASK)
+	if (nf_nat_sdp_media && ct->status & IPS_NAT_MASK && !direct_rtp)
 		ret = nf_nat_sdp_media(skb, dptr, datalen, rtp_exp, rtcp_exp,
 				       mediaoff, medialen, daddr);
 	else {

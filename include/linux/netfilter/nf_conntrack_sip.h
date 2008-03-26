@@ -114,6 +114,12 @@ extern unsigned int (*nf_nat_sdp_addr_hook)(struct sk_buff *skb,
 					    enum sdp_header_types type,
 					    enum sdp_header_types term,
 					    const union nf_inet_addr *addr);
+extern unsigned int (*nf_nat_sdp_port_hook)(struct sk_buff *skb,
+					    const char **dptr,
+					    unsigned int *datalen,
+					    unsigned int matchoff,
+					    unsigned int matchlen,
+					    u_int16_t port);
 extern unsigned int (*nf_nat_sdp_session_hook)(struct sk_buff *skb,
 					       const char **dptr,
 					       unsigned int dataoff,
