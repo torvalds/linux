@@ -220,6 +220,7 @@ static struct platform_device bfin_uart_device = {
 };
 #endif
 
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 static struct mtd_partition ezkit_partitions[] = {
 	{
 		.name       = "Bootloader",
@@ -257,6 +258,7 @@ static struct platform_device ezkit_flash_device = {
 	.num_resources = 1,
 	.resource      = &ezkit_flash_resource,
 };
+#endif
 
 #ifdef CONFIG_SPI_BFIN
 #if defined(CONFIG_SND_BLACKFIN_AD1836) \
@@ -460,7 +462,10 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #endif
 
 	&bfin_gpios_device,
+
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 	&ezkit_flash_device,
+#endif
 };
 
 static int __init ezkit_init(void)

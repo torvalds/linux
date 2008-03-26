@@ -109,6 +109,7 @@ static struct platform_device net2272_bfin_device = {
 };
 #endif
 
+#if defined(CONFIG_MTD_BF5xx) || defined(CONFIG_MTD_BF5xx_MODULE)
 static struct mtd_partition stamp_partitions[] = {
 	{
 		.name   = "Bootloader",
@@ -152,6 +153,7 @@ static struct platform_device stamp_flash_device = {
 	.num_resources = ARRAY_SIZE(stamp_flash_resource),
 	.resource      = stamp_flash_resource,
 };
+#endif
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* all SPI peripherals info goes here */
@@ -515,7 +517,10 @@ static struct platform_device *stamp_devices[] __initdata = {
 #endif
 
 	&bfin_gpios_device,
+
+#if defined(CONFIG_MTD_BF5xx) || defined(CONFIG_MTD_BF5xx_MODULE)
 	&stamp_flash_device,
+#endif
 };
 
 static int __init stamp_init(void)

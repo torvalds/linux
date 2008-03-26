@@ -330,6 +330,7 @@ static struct platform_device bf54x_sdh_device = {
 };
 #endif
 
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 static struct mtd_partition ezkit_partitions[] = {
 	{
 		.name       = "Bootloader",
@@ -367,6 +368,7 @@ static struct platform_device ezkit_flash_device = {
 	.num_resources = 1,
 	.resource      = &ezkit_flash_resource,
 };
+#endif
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* all SPI peripherals info goes here */
@@ -661,7 +663,10 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #endif
 
 	&bfin_gpios_device,
+
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 	&ezkit_flash_device,
+#endif
 };
 
 static int __init ezkit_init(void)
