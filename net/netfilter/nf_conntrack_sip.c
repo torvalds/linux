@@ -624,9 +624,22 @@ static int process_update_response(struct sk_buff *skb,
 	return NF_ACCEPT;
 }
 
+static int process_prack_response(struct sk_buff *skb,
+				  const char **dptr, unsigned int *datalen,
+				  unsigned int cseq, unsigned int code)
+{
+	if ((code >= 100 && code <= 199) ||
+	    (code >= 200 && code <= 299))
+		return process_sdp(skb, dptr, datalen, cseq);
+
+	return NF_ACCEPT;
+}
+
 static const struct sip_handler sip_handlers[] = {
 	SIP_HANDLER("INVITE", process_sdp, process_invite_response),
 	SIP_HANDLER("UPDATE", process_sdp, process_update_response),
+	SIP_HANDLER("ACK", process_sdp, NULL),
+	SIP_HANDLER("PRACK", process_sdp, process_prack_response),
 };
 
 static int process_sip_response(struct sk_buff *skb,
