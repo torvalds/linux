@@ -434,15 +434,15 @@ static int sip_help(struct sk_buff *skb,
 	}
 
 	datalen = skb->len - dataoff;
-	if (datalen < sizeof("SIP/2.0 200") - 1)
+	if (datalen < strlen("SIP/2.0 200"))
 		goto out;
 
 	/* RTP info only in some SDP pkts */
-	if (memcmp(dptr, "INVITE", sizeof("INVITE") - 1) != 0 &&
-	    memcmp(dptr, "UPDATE", sizeof("UPDATE") - 1) != 0 &&
-	    memcmp(dptr, "SIP/2.0 180", sizeof("SIP/2.0 180") - 1) != 0 &&
-	    memcmp(dptr, "SIP/2.0 183", sizeof("SIP/2.0 183") - 1) != 0 &&
-	    memcmp(dptr, "SIP/2.0 200", sizeof("SIP/2.0 200") - 1) != 0) {
+	if (strnicmp(dptr, "INVITE", strlen("INVITE")) != 0 &&
+	    strnicmp(dptr, "UPDATE", strlen("UPDATE")) != 0 &&
+	    strnicmp(dptr, "SIP/2.0 180", strlen("SIP/2.0 180")) != 0 &&
+	    strnicmp(dptr, "SIP/2.0 183", strlen("SIP/2.0 183")) != 0 &&
+	    strnicmp(dptr, "SIP/2.0 200", strlen("SIP/2.0 200")) != 0) {
 		goto out;
 	}
 	/* Get address and port from SDP packet. */

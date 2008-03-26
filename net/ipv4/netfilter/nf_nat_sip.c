@@ -94,12 +94,12 @@ static int map_sip_addr(struct sk_buff *skb,
 
 	if ((matchlen == map->addr[dir].srciplen ||
 	     matchlen == map->addr[dir].srclen) &&
-	    memcmp(*dptr + matchoff, map->addr[dir].src, matchlen) == 0) {
+	    strncmp(*dptr + matchoff, map->addr[dir].src, matchlen) == 0) {
 		addr    = map->addr[!dir].dst;
 		addrlen = map->addr[!dir].dstlen;
 	} else if ((matchlen == map->addr[dir].dstiplen ||
 		    matchlen == map->addr[dir].dstlen) &&
-		   memcmp(*dptr + matchoff, map->addr[dir].dst, matchlen) == 0) {
+		   strncmp(*dptr + matchoff, map->addr[dir].dst, matchlen) == 0) {
 		addr    = map->addr[!dir].src;
 		addrlen = map->addr[!dir].srclen;
 	} else
@@ -117,20 +117,20 @@ static unsigned int ip_nat_sip(struct sk_buff *skb,
 	enum sip_header_pos pos;
 	struct addr_map map;
 
-	if (*datalen < sizeof("SIP/2.0") - 1)
+	if (*datalen < strlen("SIP/2.0"))
 		return NF_ACCEPT;
 
 	addr_map_init(ct, &map);
 
 	/* Basic rules: requests and responses. */
-	if (strncmp(*dptr, "SIP/2.0", sizeof("SIP/2.0") - 1) != 0) {
+	if (strnicmp(*dptr, "SIP/2.0", strlen("SIP/2.0")) != 0) {
 		/* 10.2: Constructing the REGISTER Request:
 		 *
 		 * The "userinfo" and "@" components of the SIP URI MUST NOT
 		 * be present.
 		 */
-		if (*datalen >= sizeof("REGISTER") - 1 &&
-		    strncmp(*dptr, "REGISTER", sizeof("REGISTER") - 1) == 0)
+		if (*datalen >= strlen("REGISTER") &&
+		    strnicmp(*dptr, "REGISTER", strlen("REGISTER")) == 0)
 			pos = POS_REG_REQ_URI;
 		else
 			pos = POS_REQ_URI;
