@@ -277,10 +277,10 @@ static ssize_t lbs_rtap_set(struct device *dev,
 	struct lbs_private *priv = to_net_dev(dev)->priv;
 
 	sscanf(buf, "%x", &monitor_mode);
-	if (monitor_mode != LBS_MONITOR_OFF) {
-		if(priv->monitormode == monitor_mode)
+	if (monitor_mode) {
+		if (priv->monitormode == monitor_mode)
 			return strlen(buf);
-		if (priv->monitormode == LBS_MONITOR_OFF) {
+		if (!priv->monitormode) {
 			if (priv->infra_open || priv->mesh_open)
 				return -EBUSY;
 			if (priv->mode == IW_MODE_INFRA)
@@ -293,9 +293,9 @@ static ssize_t lbs_rtap_set(struct device *dev,
 	}
 
 	else {
-		if (priv->monitormode == LBS_MONITOR_OFF)
+		if (!priv->monitormode)
 			return strlen(buf);
-		priv->monitormode = LBS_MONITOR_OFF;
+		priv->monitormode = 0;
 		lbs_remove_rtap(priv);
 
 		if (priv->currenttxskb) {
@@ -392,7 +392,7 @@ static int lbs_dev_open(struct net_device *dev)
 
 	spin_lock_irq(&priv->driver_lock);
 
-	if (priv->monitormode != LBS_MONITOR_OFF) {
+	if (priv->monitormode) {
 		ret = -EBUSY;
 		goto out;
 	}
