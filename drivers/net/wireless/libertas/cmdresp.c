@@ -397,14 +397,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
 
-	case CMD_RET(CMD_802_11_PWR_CFG):
-		spin_lock_irqsave(&priv->driver_lock, flags);
-		memmove((void *)priv->cur_cmd->callback_arg, &resp->params.pwrcfg,
-			sizeof(struct cmd_ds_802_11_pwr_cfg));
-		spin_unlock_irqrestore(&priv->driver_lock, flags);
-
-		break;
-
 	case CMD_RET(CMD_GET_TSF):
 		spin_lock_irqsave(&priv->driver_lock, flags);
 		memcpy((void *)priv->cur_cmd->callback_arg,

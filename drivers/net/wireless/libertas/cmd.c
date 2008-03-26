@@ -1496,16 +1496,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 			break;
 		}
 
-	case CMD_802_11_PWR_CFG:
-		cmdptr->command = cpu_to_le16(CMD_802_11_PWR_CFG);
-		cmdptr->size =
-		    cpu_to_le16(sizeof(struct cmd_ds_802_11_pwr_cfg) +
-				     S_DS_GEN);
-		memmove(&cmdptr->params.pwrcfg, pdata_buf,
-			sizeof(struct cmd_ds_802_11_pwr_cfg));
-
-		ret = 0;
-		break;
 	case CMD_BT_ACCESS:
 		ret = lbs_cmd_bt_access(cmdptr, cmd_action, pdata_buf);
 		break;
