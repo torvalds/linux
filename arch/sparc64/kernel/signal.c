@@ -32,6 +32,9 @@
 #include <asm/siginfo.h>
 #include <asm/visasm.h>
 
+#include "entry.h"
+#include "systbls.h"
+
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
 /* {set, get}context() needed for 64-bit SparcLinux userland. */

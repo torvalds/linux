@@ -3,7 +3,9 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/utsname.h>
 #include <asm/utrap.h>
+#include <asm/signal.h>
 
 extern asmlinkage unsigned long sys_getpagesize(void);
 extern asmlinkage unsigned long sparc_brk(unsigned long brk);
@@ -41,5 +43,11 @@ extern asmlinkage long sys_rt_sigaction(int sig,
 					size_t sigsetsize);
 extern asmlinkage long sys_perfctr(int opcode, unsigned long arg0,
 				   unsigned long arg1, unsigned long arg2);
+
+extern asmlinkage void sparc64_set_context(struct pt_regs *regs);
+extern asmlinkage void sparc64_get_context(struct pt_regs *regs);
+extern asmlinkage long sys_sigpause(unsigned int set);
+extern asmlinkage long sys_sigsuspend(old_sigset_t set);
+extern void do_rt_sigreturn(struct pt_regs *regs);
 
 #endif /* _SYSTBLS_H */

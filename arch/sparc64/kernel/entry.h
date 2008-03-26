@@ -18,6 +18,11 @@ extern asmlinkage void update_perfctrs(void);
 extern asmlinkage void sparc_breakpoint(struct pt_regs *regs);
 extern void timer_interrupt(int irq, struct pt_regs *regs);
 
+extern void do_notify_resume(struct pt_regs *regs,
+			     unsigned long orig_i0,
+			     int restart_syscall,
+			     unsigned long thread_info_flags);
+
 extern asmlinkage void syscall_trace(struct pt_regs *regs,
 				     int syscall_exit_p);
 
