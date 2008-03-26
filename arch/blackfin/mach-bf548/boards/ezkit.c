@@ -36,6 +36,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/irq.h>
+#include <linux/i2c.h>
 #include <linux/interrupt.h>
 #if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
 #include <linux/usb/musb.h>
@@ -573,6 +574,29 @@ static struct platform_device i2c_bfin_twi1_device = {
 #endif
 #endif
 
+#ifdef CONFIG_I2C_BOARDINFO
+static struct i2c_board_info __initdata bfin_i2c_board_info0[] = {
+};
+
+#if !defined(CONFIG_BF542)	/* The BF542 only has 1 TWI */
+static struct i2c_board_info __initdata bfin_i2c_board_info1[] = {
+#if defined(CONFIG_TWI_LCD) || defined(CONFIG_TWI_LCD_MODULE)
+	{
+		I2C_BOARD_INFO("pcf8574_lcd", 0x22),
+		.type = "pcf8574_lcd",
+	},
+#endif
+#if defined(CONFIG_TWI_KEYPAD) || defined(CONFIG_TWI_KEYPAD_MODULE)
+	{
+		I2C_BOARD_INFO("pcf8574_keypad", 0x27),
+		.type = "pcf8574_keypad",
+		.irq = 212,
+	},
+#endif
+};
+#endif
+#endif
+
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
 #include <linux/gpio_keys.h>
 
@@ -672,6 +696,16 @@ static struct platform_device *ezkit_devices[] __initdata = {
 static int __init ezkit_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
+
+#ifdef CONFIG_I2C_BOARDINFO
+	i2c_register_board_info(0, bfin_i2c_board_info0,
+				ARRAY_SIZE(bfin_i2c_board_info0));
+#if !defined(CONFIG_BF542)	/* The BF542 only has 1 TWI */
+	i2c_register_board_info(1, bfin_i2c_board_info1,
+				ARRAY_SIZE(bfin_i2c_board_info1));
+#endif
+#endif
+
 	platform_add_devices(ezkit_devices, ARRAY_SIZE(ezkit_devices));
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
