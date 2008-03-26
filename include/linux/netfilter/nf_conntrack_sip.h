@@ -93,6 +93,16 @@ extern int ct_sip_parse_header_uri(const struct nf_conn *ct, const char *dptr,
 				   enum sip_header_types type, int *in_header,
 				   unsigned int *matchoff, unsigned int *matchlen,
 				   union nf_inet_addr *addr, __be16 *port);
+extern int ct_sip_parse_address_param(const struct nf_conn *ct, const char *dptr,
+				      unsigned int dataoff, unsigned int datalen,
+				      const char *name,
+				      unsigned int *matchoff, unsigned int *matchlen,
+				      union nf_inet_addr *addr);
+extern int ct_sip_parse_numerical_param(const struct nf_conn *ct, const char *dptr,
+					unsigned int off, unsigned int datalen,
+					const char *name,
+					unsigned int *matchoff, unsigned int *matchen,
+					unsigned int *val);
 
 extern int ct_sip_get_sdp_header(const struct nf_conn *ct, const char *dptr,
 				 unsigned int dataoff, unsigned int datalen,

@@ -448,6 +448,64 @@ int ct_sip_parse_header_uri(const struct nf_conn *ct, const char *dptr,
 }
 EXPORT_SYMBOL_GPL(ct_sip_parse_header_uri);
 
+/* Parse address from header parameter and return address, offset and length */
+int ct_sip_parse_address_param(const struct nf_conn *ct, const char *dptr,
+			       unsigned int dataoff, unsigned int datalen,
+			       const char *name,
+			       unsigned int *matchoff, unsigned int *matchlen,
+			       union nf_inet_addr *addr)
+{
+	const char *limit = dptr + datalen;
+	const char *start, *end;
+
+	limit = ct_sip_header_search(dptr + dataoff, limit, ",", strlen(","));
+	if (!limit)
+		limit = dptr + datalen;
+
+	start = ct_sip_header_search(dptr + dataoff, limit, name, strlen(name));
+	if (!start)
+		return 0;
+
+	start += strlen(name);
+	if (!parse_addr(ct, start, &end, addr, limit))
+		return 0;
+	*matchoff = start - dptr;
+	*matchlen = end - start;
+	return 1;
+}
+EXPORT_SYMBOL_GPL(ct_sip_parse_address_param);
+
+/* Parse numerical header parameter and return value, offset and length */
+int ct_sip_parse_numerical_param(const struct nf_conn *ct, const char *dptr,
+				 unsigned int dataoff, unsigned int datalen,
+				 const char *name,
+				 unsigned int *matchoff, unsigned int *matchlen,
+				 unsigned int *val)
+{
+	const char *limit = dptr + datalen;
+	const char *start;
+	char *end;
+
+	limit = ct_sip_header_search(dptr + dataoff, limit, ",", strlen(","));
+	if (!limit)
+		limit = dptr + datalen;
+
+	start = ct_sip_header_search(dptr + dataoff, limit, name, strlen(name));
+	if (!start)
+		return 0;
+
+	start += strlen(name);
+	*val = simple_strtoul(start, &end, 0);
+	if (start == end)
+		return 0;
+	if (matchoff && matchlen) {
+		*matchoff = start - dptr;
+		*matchlen = end - start;
+	}
+	return 1;
+}
+EXPORT_SYMBOL_GPL(ct_sip_parse_numerical_param);
+
 /* SDP header parsing: a SDP session description contains an ordered set of
  * headers, starting with a section containing general session parameters,
  * optionally followed by multiple media descriptions.
