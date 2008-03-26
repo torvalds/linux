@@ -736,7 +736,7 @@ static int relay_file_open(struct inode *inode, struct file *filp)
 	kref_get(&buf->kref);
 	filp->private_data = buf;
 
-	return 0;
+	return nonseekable_open(inode, filp);
 }
 
 /**
@@ -1056,6 +1056,10 @@ static struct pipe_buf_operations relay_pipe_buf_ops = {
 	.get = generic_pipe_buf_get,
 };
 
+static void relay_page_release(struct splice_pipe_desc *spd, unsigned int i)
+{
+}
+
 /*
  *	subbuf_splice_actor - splice up to one subbuf's worth of data
  */
@@ -1083,6 +1087,7 @@ static int subbuf_splice_actor(struct file *in,
 		.partial = partial,
 		.flags = flags,
 		.ops = &relay_pipe_buf_ops,
+		.spd_release = relay_page_release,
 	};
 
 	if (rbuf->subbufs_produced == rbuf->subbufs_consumed)
