@@ -1123,7 +1123,8 @@ move_one_task_rt(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	return 0;
 }
 
-static void set_cpus_allowed_rt(struct task_struct *p, cpumask_t *new_mask)
+static void set_cpus_allowed_rt(struct task_struct *p,
+				const cpumask_t *new_mask)
 {
 	int weight = cpus_weight(*new_mask);
 
