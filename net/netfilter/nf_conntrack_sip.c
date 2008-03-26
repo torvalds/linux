@@ -192,10 +192,10 @@ int ct_sip_lnlen(const char *line, const char *limit)
 {
 	const char *k = line;
 
-	while ((line <= limit) && (*line == '\r' || *line == '\n'))
+	while ((line < limit) && (*line == '\r' || *line == '\n'))
 		line++;
 
-	while (line <= limit) {
+	while (line < limit) {
 		if (*line == '\r' || *line == '\n')
 			break;
 		line++;
@@ -211,7 +211,7 @@ const char *ct_sip_search(const char *needle, const char *haystack,
 {
 	const char *limit = haystack + (haystack_len - needle_len);
 
-	while (haystack <= limit) {
+	while (haystack < limit) {
 		if (case_sensitive) {
 			if (strncmp(haystack, needle, needle_len) == 0)
 				return haystack;
@@ -229,7 +229,7 @@ static int digits_len(const struct nf_conn *ct, const char *dptr,
 		      const char *limit, int *shift)
 {
 	int len = 0;
-	while (dptr <= limit && isdigit(*dptr)) {
+	while (dptr < limit && isdigit(*dptr)) {
 		dptr++;
 		len++;
 	}
@@ -240,7 +240,7 @@ static int digits_len(const struct nf_conn *ct, const char *dptr,
 static int skp_digits_len(const struct nf_conn *ct, const char *dptr,
 			  const char *limit, int *shift)
 {
-	for (; dptr <= limit && *dptr == ' '; dptr++)
+	for (; dptr < limit && *dptr == ' '; dptr++)
 		(*shift)++;
 
 	return digits_len(ct, dptr, limit, shift);
@@ -302,13 +302,13 @@ static int skp_epaddr_len(const struct nf_conn *ct, const char *dptr,
 	/* Search for @, but stop at the end of the line.
 	 * We are inside a sip: URI, so we don't need to worry about
 	 * continuation lines. */
-	while (dptr <= limit &&
+	while (dptr < limit &&
 	       *dptr != '@' && *dptr != '\r' && *dptr != '\n') {
 		(*shift)++;
 		dptr++;
 	}
 
-	if (dptr <= limit && *dptr == '@') {
+	if (dptr < limit && *dptr == '@') {
 		dptr++;
 		(*shift)++;
 	} else {
@@ -332,7 +332,7 @@ int ct_sip_get_info(const struct nf_conn *ct,
 
 	limit = dptr + (dlen - hnfo->lnlen);
 
-	while (dptr <= limit) {
+	while (dptr < limit) {
 		if ((strncmp(dptr, hnfo->lname, hnfo->lnlen) != 0) &&
 		    (hnfo->sname == NULL ||
 		     strncmp(dptr, hnfo->sname, hnfo->snlen) != 0)) {
