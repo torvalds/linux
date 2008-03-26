@@ -385,6 +385,7 @@ static const struct user_regset_view user_sparc64_view = {
 	.regsets = sparc64_regsets, .n = ARRAY_SIZE(sparc64_regsets)
 };
 
+#ifdef CONFIG_COMPAT
 static int genregs32_get(struct task_struct *target,
 			 const struct user_regset *regset,
 			 unsigned int pos, unsigned int count,
@@ -679,14 +680,18 @@ static const struct user_regset_view user_sparc32_view = {
 	.name = "sparc", .e_machine = EM_SPARC,
 	.regsets = sparc32_regsets, .n = ARRAY_SIZE(sparc32_regsets)
 };
+#endif /* CONFIG_COMPAT */
 
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 {
+#ifdef CONFIG_COMPAT
 	if (test_tsk_thread_flag(task, TIF_32BIT))
 		return &user_sparc32_view;
+#endif
 	return &user_sparc64_view;
 }
 
+#ifdef CONFIG_COMPAT
 struct compat_fps {
 	unsigned int regs[32];
 	unsigned int fsr;
@@ -801,6 +806,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 
 	return ret;
 }
+#endif /* CONFIG_COMPAT */
 
 struct fps {
 	unsigned int regs[64];
