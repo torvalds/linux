@@ -62,6 +62,7 @@ extern struct property *of_find_property(const struct device_node *np,
 					 int *lenp);
 extern int of_device_is_compatible(const struct device_node *device,
 				   const char *);
+extern int of_device_is_available(const struct device_node *device);
 extern const void *of_get_property(const struct device_node *node,
 				const char *name,
 				int *lenp);
