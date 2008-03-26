@@ -885,6 +885,32 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 	srat_detect_node();
 }
 
+static void __cpuinit early_init_centaur(struct cpuinfo_x86 *c)
+{
+	if (c->x86 == 0x6 && c->x86_model >= 0xf)
+		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
+}
+
+static void __cpuinit init_centaur(struct cpuinfo_x86 *c)
+{
+	/* Cache sizes */
+	unsigned n;
+
+	n = c->extended_cpuid_level;
+	if (n >= 0x80000008) {
+		unsigned eax = cpuid_eax(0x80000008);
+		c->x86_virt_bits = (eax >> 8) & 0xff;
+		c->x86_phys_bits = eax & 0xff;
+	}
+
+	if (c->x86 == 0x6 && c->x86_model >= 0xf) {
+		c->x86_cache_alignment = c->x86_clflush_size * 2;
+		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
+		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
+	}
+	set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
+}
+
 static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 {
 	char *v = c->x86_vendor_id;
@@ -893,6 +919,8 @@ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 		c->x86_vendor = X86_VENDOR_AMD;
 	else if (!strcmp(v, "GenuineIntel"))
 		c->x86_vendor = X86_VENDOR_INTEL;
+	else if (!strcmp(v, "CentaurHauls"))
+		c->x86_vendor = X86_VENDOR_CENTAUR;
 	else
 		c->x86_vendor = X86_VENDOR_UNKNOWN;
 }
@@ -989,6 +1017,9 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 		if (c->x86 == 0xF || (c->x86 == 6 && c->x86_model >= 15))
 			set_cpu_cap(c, X86_FEATURE_PAT);
 		break;
+	case X86_VENDOR_CENTAUR:
+		early_init_centaur(c);
+		break;
 	}
 
 }
@@ -1023,6 +1054,10 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 
 	case X86_VENDOR_INTEL:
 		init_intel(c);
+		break;
+
+	case X86_VENDOR_CENTAUR:
+		init_centaur(c);
 		break;
 
 	case X86_VENDOR_UNKNOWN:
