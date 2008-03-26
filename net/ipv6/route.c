@@ -2390,10 +2390,18 @@ static int ipv6_route_show(struct seq_file *m, void *v)
 
 static int ipv6_route_open(struct inode *inode, struct file *file)
 {
+	int err;
 	struct net *net = get_proc_net(inode);
 	if (!net)
 		return -ENXIO;
-	return single_open(file, ipv6_route_show, net);
+
+	err = single_open(file, ipv6_route_show, net);
+	if (err < 0) {
+		put_net(net);
+		return err;
+	}
+
+	return 0;
 }
 
 static int ipv6_route_release(struct inode *inode, struct file *file)
@@ -2429,8 +2437,18 @@ static int rt6_stats_seq_show(struct seq_file *seq, void *v)
 
 static int rt6_stats_seq_open(struct inode *inode, struct file *file)
 {
+	int err;
 	struct net *net = get_proc_net(inode);
-	return single_open(file, rt6_stats_seq_show, net);
+	if (!net)
+		return -ENXIO;
+
+	err = single_open(file, rt6_stats_seq_show, net);
+	if (err < 0) {
+		put_net(net);
+		return err;
+	}
+
+	return 0;
 }
 
 static int rt6_stats_seq_release(struct inode *inode, struct file *file)
