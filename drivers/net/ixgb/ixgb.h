@@ -158,7 +158,6 @@ struct ixgb_adapter {
 	uint16_t link_speed;
 	uint16_t link_duplex;
 	spinlock_t tx_lock;
-	atomic_t irq_sem;
 	struct work_struct tx_timeout_task;
 
 	struct timer_list blink_timer;
@@ -173,15 +172,15 @@ struct ixgb_adapter {
 	uint64_t hw_csum_tx_error;
 	uint32_t tx_int_delay;
 	uint32_t tx_timeout_count;
-	boolean_t tx_int_delay_enable;
-	boolean_t detect_tx_hung;
+	bool tx_int_delay_enable;
+	bool detect_tx_hung;
 
 	/* RX */
 	struct ixgb_desc_ring rx_ring;
 	uint64_t hw_csum_rx_error;
 	uint64_t hw_csum_rx_good;
 	uint32_t rx_int_delay;
-	boolean_t rx_csum;
+	bool rx_csum;
 
 	/* OS defined structs */
 	struct napi_struct napi;
@@ -194,7 +193,16 @@ struct ixgb_adapter {
 	u16 msg_enable;
 	struct ixgb_hw_stats stats;
 	uint32_t alloc_rx_buff_failed;
-	boolean_t have_msi;
+	bool have_msi;
+	unsigned long flags;
+};
+
+enum ixgb_state_t {
+	/* TBD
+	__IXGB_TESTING,
+	__IXGB_RESETTING,
+	*/
+	__IXGB_DOWN
 };
 
 /* Exported from other modules */
@@ -202,5 +210,15 @@ extern void ixgb_check_options(struct ixgb_adapter *adapter);
 extern void ixgb_set_ethtool_ops(struct net_device *netdev);
 extern char ixgb_driver_name[];
 extern const char ixgb_driver_version[];
+
+extern int ixgb_up(struct ixgb_adapter *adapter);
+extern void ixgb_down(struct ixgb_adapter *adapter, bool kill_watchdog);
+extern void ixgb_reset(struct ixgb_adapter *adapter);
+extern int ixgb_setup_rx_resources(struct ixgb_adapter *adapter);
+extern int ixgb_setup_tx_resources(struct ixgb_adapter *adapter);
+extern void ixgb_free_rx_resources(struct ixgb_adapter *adapter);
+extern void ixgb_free_tx_resources(struct ixgb_adapter *adapter);
+extern void ixgb_update_stats(struct ixgb_adapter *adapter);
+
 
 #endif /* _IXGB_H_ */

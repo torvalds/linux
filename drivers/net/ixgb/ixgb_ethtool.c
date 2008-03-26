@@ -32,15 +32,6 @@
 
 #include <asm/uaccess.h>
 
-extern int ixgb_up(struct ixgb_adapter *adapter);
-extern void ixgb_down(struct ixgb_adapter *adapter, boolean_t kill_watchdog);
-extern void ixgb_reset(struct ixgb_adapter *adapter);
-extern int ixgb_setup_rx_resources(struct ixgb_adapter *adapter);
-extern int ixgb_setup_tx_resources(struct ixgb_adapter *adapter);
-extern void ixgb_free_rx_resources(struct ixgb_adapter *adapter);
-extern void ixgb_free_tx_resources(struct ixgb_adapter *adapter);
-extern void ixgb_update_stats(struct ixgb_adapter *adapter);
-
 #define IXGB_ALL_RAR_ENTRIES 16
 
 struct ixgb_stats {
@@ -136,7 +127,7 @@ ixgb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		return -EINVAL;
 	
 	if(netif_running(adapter->netdev)) {
-		ixgb_down(adapter, TRUE);
+		ixgb_down(adapter, true);
 		ixgb_reset(adapter);
 		ixgb_up(adapter);
 		ixgb_set_speed_duplex(netdev);
@@ -185,7 +176,7 @@ ixgb_set_pauseparam(struct net_device *netdev,
 		hw->fc.type = ixgb_fc_none;
 
 	if(netif_running(adapter->netdev)) {
-		ixgb_down(adapter, TRUE);
+		ixgb_down(adapter, true);
 		ixgb_up(adapter);
 		ixgb_set_speed_duplex(netdev);
 	} else
@@ -210,7 +201,7 @@ ixgb_set_rx_csum(struct net_device *netdev, uint32_t data)
 	adapter->rx_csum = data;
 
 	if(netif_running(netdev)) {
-		ixgb_down(adapter,TRUE);
+		ixgb_down(adapter, true);
 		ixgb_up(adapter);
 		ixgb_set_speed_duplex(netdev);
 	} else
@@ -570,7 +561,7 @@ ixgb_set_ringparam(struct net_device *netdev,
 		return -EINVAL;
 
 	if(netif_running(adapter->netdev))
-		ixgb_down(adapter,TRUE);
+		ixgb_down(adapter, true);
 
 	rxdr->count = max(ring->rx_pending,(uint32_t)MIN_RXD);
 	rxdr->count = min(rxdr->count,(uint32_t)MAX_RXD);

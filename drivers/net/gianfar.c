@@ -1185,7 +1185,7 @@ static int gfar_change_mtu(struct net_device *dev, int new_mtu)
 	int frame_size = new_mtu + ETH_HLEN;
 
 	if (priv->vlan_enable)
-		frame_size += VLAN_ETH_HLEN;
+		frame_size += VLAN_HLEN;
 
 	if (gfar_uses_fcb(priv))
 		frame_size += GMAC_FCB_LEN;
@@ -1299,11 +1299,11 @@ static irqreturn_t gfar_transmit(int irq, void *dev_id)
 
 	/* If we are coalescing the interrupts, reset the timer */
 	/* Otherwise, clear it */
-	if (priv->txcoalescing)
+	if (likely(priv->txcoalescing)) {
+		gfar_write(&priv->regs->txic, 0);
 		gfar_write(&priv->regs->txic,
 			   mk_ic_value(priv->txcount, priv->txtime));
-	else
-		gfar_write(&priv->regs->txic, 0);
+	}
 
 	spin_unlock(&priv->txlock);
 
@@ -1417,11 +1417,11 @@ irqreturn_t gfar_receive(int irq, void *dev_id)
 
 	/* If we are coalescing interrupts, update the timer */
 	/* Otherwise, clear it */
-	if (priv->rxcoalescing)
+	if (likely(priv->rxcoalescing)) {
+		gfar_write(&priv->regs->rxic, 0);
 		gfar_write(&priv->regs->rxic,
 			   mk_ic_value(priv->rxcount, priv->rxtime));
-	else
-		gfar_write(&priv->regs->rxic, 0);
+	}
 
 	spin_unlock_irqrestore(&priv->rxlock, flags);
 #endif
@@ -1526,9 +1526,7 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 		rmb();
 		skb = priv->rx_skbuff[priv->skb_currx];
 
-		if (!(bdp->status &
-		      (RXBD_LARGE | RXBD_SHORT | RXBD_NONOCTET
-		       | RXBD_CRCERR | RXBD_OVERRUN | RXBD_TRUNCATED))) {
+		if ((bdp->status & RXBD_LAST) && !(bdp->status & RXBD_ERR)) {
 			/* Increment the number of packets */
 			dev->stats.rx_packets++;
 			howmany++;
@@ -1595,11 +1593,11 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 
 		/* If we are coalescing interrupts, update the timer */
 		/* Otherwise, clear it */
-		if (priv->rxcoalescing)
+		if (likely(priv->rxcoalescing)) {
+			gfar_write(&priv->regs->rxic, 0);
 			gfar_write(&priv->regs->rxic,
 				   mk_ic_value(priv->rxcount, priv->rxtime));
-		else
-			gfar_write(&priv->regs->rxic, 0);
+		}
 	}
 
 	return howmany;

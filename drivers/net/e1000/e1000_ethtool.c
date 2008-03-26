@@ -353,7 +353,7 @@ e1000_set_tso(struct net_device *netdev, uint32_t data)
 		netdev->features &= ~NETIF_F_TSO6;
 
 	DPRINTK(PROBE, INFO, "TSO is %s\n", data ? "Enabled" : "Disabled");
-	adapter->tso_force = TRUE;
+	adapter->tso_force = true;
 	return 0;
 }
 
@@ -922,7 +922,8 @@ static int
 e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 {
 	struct net_device *netdev = adapter->netdev;
-	uint32_t mask, i=0, shared_int = TRUE;
+	uint32_t mask, i = 0;
+	bool shared_int = true;
 	uint32_t irq = adapter->pdev->irq;
 
 	*data = 0;
@@ -931,7 +932,7 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 	/* Hook up test interrupt handler just for this test */
 	if (!request_irq(irq, &e1000_test_intr, IRQF_PROBE_SHARED, netdev->name,
 	                 netdev))
-		shared_int = FALSE;
+		shared_int = false;
 	else if (request_irq(irq, &e1000_test_intr, IRQF_SHARED,
 	         netdev->name, netdev)) {
 		*data = 1;
@@ -1295,7 +1296,7 @@ e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 	uint32_t ctrl_reg = 0;
 	uint32_t stat_reg = 0;
 
-	adapter->hw.autoneg = FALSE;
+	adapter->hw.autoneg = false;
 
 	if (adapter->hw.phy_type == e1000_phy_m88) {
 		/* Auto-MDI/MDIX Off */
@@ -1473,7 +1474,7 @@ e1000_loopback_cleanup(struct e1000_adapter *adapter)
 	case e1000_82545_rev_3:
 	case e1000_82546_rev_3:
 	default:
-		hw->autoneg = TRUE;
+		hw->autoneg = true;
 		if (hw->phy_type == e1000_phy_gg82563)
 			e1000_write_phy_reg(hw,
 					    GG82563_PHY_KMRN_MODE_CTRL,
@@ -1607,13 +1608,13 @@ e1000_link_test(struct e1000_adapter *adapter, uint64_t *data)
 	*data = 0;
 	if (adapter->hw.media_type == e1000_media_type_internal_serdes) {
 		int i = 0;
-		adapter->hw.serdes_link_down = TRUE;
+		adapter->hw.serdes_link_down = true;
 
 		/* On some blade server designs, link establishment
 		 * could take as long as 2-3 minutes */
 		do {
 			e1000_check_for_link(&adapter->hw);
-			if (adapter->hw.serdes_link_down == FALSE)
+			if (!adapter->hw.serdes_link_down)
 				return *data;
 			msleep(20);
 		} while (i++ < 3750);
@@ -1649,7 +1650,7 @@ e1000_diag_test(struct net_device *netdev,
 		   struct ethtool_test *eth_test, uint64_t *data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	boolean_t if_running = netif_running(netdev);
+	bool if_running = netif_running(netdev);
 
 	set_bit(__E1000_TESTING, &adapter->flags);
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {

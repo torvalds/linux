@@ -1259,26 +1259,7 @@ static void ibmveth_proc_unregister_driver(void)
 	remove_proc_entry(IBMVETH_PROC_DIR, init_net.proc_net);
 }
 
-static void *ibmveth_seq_start(struct seq_file *seq, loff_t *pos)
-{
-	if (*pos == 0) {
-		return (void *)1;
-	} else {
-		return NULL;
-	}
-}
-
-static void *ibmveth_seq_next(struct seq_file *seq, void *v, loff_t *pos)
-{
-	++*pos;
-	return NULL;
-}
-
-static void ibmveth_seq_stop(struct seq_file *seq, void *v)
-{
-}
-
-static int ibmveth_seq_show(struct seq_file *seq, void *v)
+static int ibmveth_show(struct seq_file *seq, void *v)
 {
 	struct ibmveth_adapter *adapter = seq->private;
 	char *current_mac = ((char*) &adapter->netdev->dev_addr);
@@ -1302,27 +1283,10 @@ static int ibmveth_seq_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
-static struct seq_operations ibmveth_seq_ops = {
-	.start = ibmveth_seq_start,
-	.next  = ibmveth_seq_next,
-	.stop  = ibmveth_seq_stop,
-	.show  = ibmveth_seq_show,
-};
 
 static int ibmveth_proc_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	struct proc_dir_entry *proc;
-	int rc;
-
-	rc = seq_open(file, &ibmveth_seq_ops);
-	if (!rc) {
-		/* recover the pointer buried in proc_dir_entry data */
-		seq = file->private_data;
-		proc = PDE(inode);
-		seq->private = proc->data;
-	}
-	return rc;
+	return single_open(file, ibmveth_show, PDE(inode)->data);
 }
 
 static const struct file_operations ibmveth_proc_fops = {
@@ -1330,7 +1294,7 @@ static const struct file_operations ibmveth_proc_fops = {
 	.open    = ibmveth_proc_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = seq_release,
+	.release = single_release,
 };
 
 static void ibmveth_proc_register_adapter(struct ibmveth_adapter *adapter)

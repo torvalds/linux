@@ -97,7 +97,7 @@ struct ixgb_ee_map_type {
 /* EEPROM Functions */
 uint16_t ixgb_read_eeprom(struct ixgb_hw *hw, uint16_t reg);
 
-boolean_t ixgb_validate_eeprom_checksum(struct ixgb_hw *hw);
+bool ixgb_validate_eeprom_checksum(struct ixgb_hw *hw);
 
 void ixgb_update_eeprom_checksum(struct ixgb_hw *hw);
 

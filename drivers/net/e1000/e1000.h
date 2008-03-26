@@ -188,7 +188,7 @@ struct e1000_tx_ring {
 	spinlock_t tx_lock;
 	uint16_t tdh;
 	uint16_t tdt;
-	boolean_t last_tx_tso;
+	bool last_tx_tso;
 };
 
 struct e1000_rx_ring {
@@ -249,7 +249,6 @@ struct e1000_adapter {
 #ifdef CONFIG_E1000_NAPI
 	spinlock_t tx_queue_lock;
 #endif
-	atomic_t irq_sem;
 	unsigned int total_tx_bytes;
 	unsigned int total_tx_packets;
 	unsigned int total_rx_bytes;
@@ -283,17 +282,17 @@ struct e1000_adapter {
 	uint32_t tx_fifo_size;
 	uint8_t  tx_timeout_factor;
 	atomic_t tx_fifo_stall;
-	boolean_t pcix_82544;
-	boolean_t detect_tx_hung;
+	bool pcix_82544;
+	bool detect_tx_hung;
 
 	/* RX */
 #ifdef CONFIG_E1000_NAPI
-	boolean_t (*clean_rx) (struct e1000_adapter *adapter,
-			       struct e1000_rx_ring *rx_ring,
-			       int *work_done, int work_to_do);
+	bool (*clean_rx) (struct e1000_adapter *adapter,
+			  struct e1000_rx_ring *rx_ring,
+			  int *work_done, int work_to_do);
 #else
-	boolean_t (*clean_rx) (struct e1000_adapter *adapter,
-			       struct e1000_rx_ring *rx_ring);
+	bool (*clean_rx) (struct e1000_adapter *adapter,
+			  struct e1000_rx_ring *rx_ring);
 #endif
 	void (*alloc_rx_buf) (struct e1000_adapter *adapter,
 			      struct e1000_rx_ring *rx_ring,
@@ -312,7 +311,7 @@ struct e1000_adapter {
 	uint32_t alloc_rx_buff_failed;
 	uint32_t rx_int_delay;
 	uint32_t rx_abs_int_delay;
-	boolean_t rx_csum;
+	bool rx_csum;
 	unsigned int rx_ps_pages;
 	uint32_t gorcl;
 	uint64_t gorcl_old;
@@ -335,12 +334,12 @@ struct e1000_adapter {
 	struct e1000_rx_ring test_rx_ring;
 
 	int msg_enable;
-	boolean_t have_msi;
+	bool have_msi;
 
 	/* to not mess up cache alignment, always add to the bottom */
-	boolean_t tso_force;
-	boolean_t smart_power_down;	/* phy smart power down */
-	boolean_t quad_port_a;
+	bool tso_force;
+	bool smart_power_down;	/* phy smart power down */
+	bool quad_port_a;
 	unsigned long flags;
 	uint32_t eeprom_wol;
 };
