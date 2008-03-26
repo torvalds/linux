@@ -12,9 +12,23 @@ struct nf_ct_sip_master {
 enum sip_expectation_classes {
 	SIP_EXPECT_SIGNALLING,
 	SIP_EXPECT_AUDIO,
+	SIP_EXPECT_VIDEO,
 	__SIP_EXPECT_MAX
 };
 #define SIP_EXPECT_MAX	(__SIP_EXPECT_MAX - 1)
+
+struct sdp_media_type {
+	const char			*name;
+	unsigned int			len;
+	enum sip_expectation_classes	class;
+};
+
+#define SDP_MEDIA_TYPE(__name, __class)					\
+{									\
+	.name	= (__name),						\
+	.len	= sizeof(__name) - 1,					\
+	.class	= (__class),						\
+}
 
 struct sip_handler {
 	const char	*method;
