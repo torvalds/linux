@@ -1358,7 +1358,7 @@ struct net *sock_net(const struct sock *sk)
 }
 
 static inline
-void sock_net_set(struct sock *sk, const struct net *net)
+void sock_net_set(struct sock *sk, struct net *net)
 {
 #ifdef CONFIG_NET_NS
 	sk->sk_net = net;

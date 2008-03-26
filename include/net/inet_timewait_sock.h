@@ -219,7 +219,7 @@ struct net *twsk_net(const struct inet_timewait_sock *twsk)
 }
 
 static inline
-void twsk_net_set(struct inet_timewait_sock *twsk, const struct net *net)
+void twsk_net_set(struct inet_timewait_sock *twsk, struct net *net)
 {
 #ifdef CONFIG_NET_NS
 	twsk->tw_net = net;

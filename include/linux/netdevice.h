@@ -753,7 +753,7 @@ struct net *dev_net(const struct net_device *dev)
 }
 
 static inline
-void dev_net_set(struct net_device *dev, const struct net *net)
+void dev_net_set(struct net_device *dev, struct net *net)
 {
 #ifdef CONFIG_NET_NS
 	dev->nd_net = net;
