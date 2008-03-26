@@ -393,7 +393,7 @@ int register_cdrom(struct cdrom_device_info *cdi)
 	cdinfo(CD_OPEN, "entering register_cdrom\n"); 
 
 	if (cdo->open == NULL || cdo->release == NULL)
-		return -2;
+		return -EINVAL;
 	if (!banner_printed) {
 		printk(KERN_INFO "Uniform CD-ROM driver " REVISION "\n");
 		banner_printed = 1;
