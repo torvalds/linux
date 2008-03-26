@@ -166,9 +166,8 @@ static void netxen_nic_disable_int(struct netxen_adapter *adapter)
 	int port = adapter->portnum;
 	int pci_fn = adapter->ahw.pci_func;
 
-	if (adapter->msi_mode != MSI_MODE_MULTIFUNC) {
+	if (adapter->msi_mode != MSI_MODE_MULTIFUNC)
 		writel(0x0, NETXEN_CRB_NORMALIZE(adapter, sw_int_mask[port]));
-	}
 
 	if (adapter->intr_scheme != -1 &&
 	    adapter->intr_scheme != INTR_SCHEME_PERPORT)

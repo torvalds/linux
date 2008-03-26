@@ -297,7 +297,7 @@ static int m88e1145_config_init(struct phy_device *phydev)
 /* marvell_read_status
  *
  * Generic status code does not detect Fiber correctly!
- * Description: 
+ * Description:
  *   Check the link, then figure out the current state
  *   by comparing what we advertise with what the link partner
  *   advertises.  Start by checking the gigabit possibilities,

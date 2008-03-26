@@ -1144,9 +1144,8 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 		consumer = (consumer + 1) & (adapter->max_rx_desc_count - 1);
 		count++;
 	}
-	for (ring = 0; ring < NUM_RCV_DESC_RINGS; ring++) {
+	for (ring = 0; ring < NUM_RCV_DESC_RINGS; ring++)
 		netxen_post_rx_buffers_nodb(adapter, ctxid, ring);
-	}
 
 	/* update the consumer index in phantom */
 	if (count) {
