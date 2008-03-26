@@ -187,7 +187,8 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 			}
 			tuple = &ct->tuplehash[!dir].tuple;
 			port = htons(dcc_port);
-			nf_ct_expect_init(exp, tuple->src.l3num,
+			nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT,
+					  tuple->src.l3num,
 					  NULL, &tuple->dst.u3,
 					  IPPROTO_TCP, NULL, &port);
 
@@ -210,6 +211,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 
 static struct nf_conntrack_helper irc[MAX_PORTS] __read_mostly;
 static char irc_names[MAX_PORTS][sizeof("irc-65535")] __read_mostly;
+static struct nf_conntrack_expect_policy irc_exp_policy;
 
 static void nf_conntrack_irc_fini(void);
 
@@ -223,6 +225,9 @@ static int __init nf_conntrack_irc_init(void)
 		return -EINVAL;
 	}
 
+	irc_exp_policy.max_expected = max_dcc_channels;
+	irc_exp_policy.timeout = dcc_timeout;
+
 	irc_buffer = kmalloc(65536, GFP_KERNEL);
 	if (!irc_buffer)
 		return -ENOMEM;
@@ -235,8 +240,7 @@ static int __init nf_conntrack_irc_init(void)
 		irc[i].tuple.src.l3num = AF_INET;
 		irc[i].tuple.src.u.tcp.port = htons(ports[i]);
 		irc[i].tuple.dst.protonum = IPPROTO_TCP;
-		irc[i].max_expected = max_dcc_channels;
-		irc[i].timeout = dcc_timeout;
+		irc[i].expect_policy = &irc_exp_policy;
 		irc[i].me = THIS_MODULE;
 		irc[i].help = help;
 

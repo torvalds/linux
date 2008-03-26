@@ -148,7 +148,8 @@ static int amanda_help(struct sk_buff *skb,
 			goto out;
 		}
 		tuple = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
-		nf_ct_expect_init(exp, family, &tuple->src.u3, &tuple->dst.u3,
+		nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, family,
+				  &tuple->src.u3, &tuple->dst.u3,
 				  IPPROTO_TCP, NULL, &port);
 
 		nf_nat_amanda = rcu_dereference(nf_nat_amanda_hook);
@@ -164,26 +165,29 @@ out:
 	return ret;
 }
 
+static const struct nf_conntrack_expect_policy amanda_exp_policy = {
+	.max_expected		= 3,
+	.timeout		= 180,
+};
+
 static struct nf_conntrack_helper amanda_helper[2] __read_mostly = {
 	{
 		.name			= "amanda",
-		.max_expected		= 3,
-		.timeout		= 180,
 		.me			= THIS_MODULE,
 		.help			= amanda_help,
 		.tuple.src.l3num	= AF_INET,
 		.tuple.src.u.udp.port	= __constant_htons(10080),
 		.tuple.dst.protonum	= IPPROTO_UDP,
+		.expect_policy		= &amanda_exp_policy,
 	},
 	{
 		.name			= "amanda",
-		.max_expected		= 3,
-		.timeout		= 180,
 		.me			= THIS_MODULE,
 		.help			= amanda_help,
 		.tuple.src.l3num	= AF_INET6,
 		.tuple.src.u.udp.port	= __constant_htons(10080),
 		.tuple.dst.protonum	= IPPROTO_UDP,
+		.expect_policy		= &amanda_exp_policy,
 	},
 };
 

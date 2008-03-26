@@ -50,6 +50,7 @@
 #include <net/udp.h>
 
 #include <net/netfilter/nf_nat.h>
+#include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_nat_helper.h>
 
@@ -1267,11 +1268,15 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 	return ret;
 }
 
+static const struct nf_conntrack_expect_policy snmp_exp_policy = {
+	.max_expected	= 0,
+	.timeout	= 180,
+};
+
 static struct nf_conntrack_helper snmp_helper __read_mostly = {
-	.max_expected		= 0,
-	.timeout		= 180,
 	.me			= THIS_MODULE,
 	.help			= help,
+	.expect_policy		= &snmp_exp_policy,
 	.name			= "snmp",
 	.tuple.src.l3num	= AF_INET,
 	.tuple.src.u.udp.port	= __constant_htons(SNMP_PORT),
@@ -1279,10 +1284,9 @@ static struct nf_conntrack_helper snmp_helper __read_mostly = {
 };
 
 static struct nf_conntrack_helper snmp_trap_helper __read_mostly = {
-	.max_expected		= 0,
-	.timeout		= 180,
 	.me			= THIS_MODULE,
 	.help			= help,
+	.expect_policy		= &snmp_exp_policy,
 	.name			= "snmp_trap",
 	.tuple.src.l3num	= AF_INET,
 	.tuple.src.u.udp.port	= __constant_htons(SNMP_TRAP_PORT),

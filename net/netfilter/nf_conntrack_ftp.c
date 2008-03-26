@@ -483,7 +483,7 @@ static int help(struct sk_buff *skb,
 		daddr = &cmd.u3;
 	}
 
-	nf_ct_expect_init(exp, cmd.l3num,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, cmd.l3num,
 			  &ct->tuplehash[!dir].tuple.src.u3, daddr,
 			  IPPROTO_TCP, NULL, &cmd.u.tcp.port);
 
@@ -516,6 +516,11 @@ out_update_nl:
 
 static struct nf_conntrack_helper ftp[MAX_PORTS][2] __read_mostly;
 static char ftp_names[MAX_PORTS][2][sizeof("ftp-65535")] __read_mostly;
+
+static const struct nf_conntrack_expect_policy ftp_exp_policy = {
+	.max_expected	= 1,
+	.timeout	= 5 * 60,
+};
 
 /* don't make this __exit, since it's called from __init ! */
 static void nf_conntrack_ftp_fini(void)
@@ -556,8 +561,7 @@ static int __init nf_conntrack_ftp_init(void)
 		for (j = 0; j < 2; j++) {
 			ftp[i][j].tuple.src.u.tcp.port = htons(ports[i]);
 			ftp[i][j].tuple.dst.protonum = IPPROTO_TCP;
-			ftp[i][j].max_expected = 1;
-			ftp[i][j].timeout = 5 * 60;	/* 5 Minutes */
+			ftp[i][j].expect_policy = &ftp_exp_policy;
 			ftp[i][j].me = THIS_MODULE;
 			ftp[i][j].help = help;
 			tmpname = &ftp_names[i][j][0];

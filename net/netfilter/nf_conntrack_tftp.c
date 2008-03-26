@@ -63,7 +63,8 @@ static int tftp_help(struct sk_buff *skb,
 		if (exp == NULL)
 			return NF_DROP;
 		tuple = &ct->tuplehash[IP_CT_DIR_REPLY].tuple;
-		nf_ct_expect_init(exp, family, &tuple->src.u3, &tuple->dst.u3,
+		nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, family,
+				  &tuple->src.u3, &tuple->dst.u3,
 				  IPPROTO_UDP, NULL, &tuple->dst.u.udp.port);
 
 		pr_debug("expect: ");
@@ -92,6 +93,11 @@ static int tftp_help(struct sk_buff *skb,
 static struct nf_conntrack_helper tftp[MAX_PORTS][2] __read_mostly;
 static char tftp_names[MAX_PORTS][2][sizeof("tftp-65535")] __read_mostly;
 
+static const struct nf_conntrack_expect_policy tftp_exp_policy = {
+	.max_expected	= 1,
+	.timeout	= 5 * 60,
+};
+
 static void nf_conntrack_tftp_fini(void)
 {
 	int i, j;
@@ -118,8 +124,7 @@ static int __init nf_conntrack_tftp_init(void)
 		for (j = 0; j < 2; j++) {
 			tftp[i][j].tuple.dst.protonum = IPPROTO_UDP;
 			tftp[i][j].tuple.src.u.udp.port = htons(ports[i]);
-			tftp[i][j].max_expected = 1;
-			tftp[i][j].timeout = 5 * 60; /* 5 minutes */
+			tftp[i][j].expect_policy = &tftp_exp_policy;
 			tftp[i][j].me = THIS_MODULE;
 			tftp[i][j].help = tftp_help;
 

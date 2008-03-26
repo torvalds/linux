@@ -75,6 +75,9 @@ do {									\
 
 struct nf_conntrack_helper;
 
+/* Must be kept in sync with the classes defined by helpers */
+#define NF_CT_MAX_EXPECT_CLASSES	1
+
 /* nf_conn feature for connections that have a helper */
 struct nf_conn_help {
 	/* Helper. if any */
@@ -85,7 +88,7 @@ struct nf_conn_help {
 	struct hlist_head expectations;
 
 	/* Current number of expected connections */
-	unsigned int expecting;
+	u8 expecting[NF_CT_MAX_EXPECT_CLASSES];
 };
 
 

@@ -380,7 +380,7 @@ static int set_expected_rtp(struct sk_buff *skb,
 	exp = nf_ct_expect_alloc(ct);
 	if (exp == NULL)
 		return NF_DROP;
-	nf_ct_expect_init(exp, family,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, family,
 			  &ct->tuplehash[!dir].tuple.src.u3, addr,
 			  IPPROTO_UDP, NULL, &port);
 
@@ -476,6 +476,11 @@ out:
 static struct nf_conntrack_helper sip[MAX_PORTS][2] __read_mostly;
 static char sip_names[MAX_PORTS][2][sizeof("sip-65535")] __read_mostly;
 
+static const struct nf_conntrack_expect_policy sip_exp_policy = {
+	.max_expected	= 2,
+	.timeout	= 3 * 60,
+};
+
 static void nf_conntrack_sip_fini(void)
 {
 	int i, j;
@@ -505,8 +510,7 @@ static int __init nf_conntrack_sip_init(void)
 		for (j = 0; j < 2; j++) {
 			sip[i][j].tuple.dst.protonum = IPPROTO_UDP;
 			sip[i][j].tuple.src.u.udp.port = htons(ports[i]);
-			sip[i][j].max_expected = 2;
-			sip[i][j].timeout = 3 * 60; /* 3 minutes */
+			sip[i][j].expect_policy = &sip_exp_policy;
 			sip[i][j].me = THIS_MODULE;
 			sip[i][j].help = sip_help;
 

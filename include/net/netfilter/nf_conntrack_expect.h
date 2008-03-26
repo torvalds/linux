@@ -41,6 +41,9 @@ struct nf_conntrack_expect
 	/* Flags */
 	unsigned int flags;
 
+	/* Expectation class */
+	unsigned int class;
+
 #ifdef CONFIG_NF_NAT_NEEDED
 	__be32 saved_ip;
 	/* This is the original per-proto part, used to map the
@@ -52,6 +55,14 @@ struct nf_conntrack_expect
 
 	struct rcu_head rcu;
 };
+
+struct nf_conntrack_expect_policy
+{
+	unsigned int	max_expected;
+	unsigned int	timeout;
+};
+
+#define NF_CT_EXPECT_CLASS_DEFAULT	0
 
 #define NF_CT_EXPECT_PERMANENT	0x1
 #define NF_CT_EXPECT_INACTIVE	0x2
@@ -75,7 +86,7 @@ void nf_ct_unexpect_related(struct nf_conntrack_expect *exp);
 /* Allocate space for an expectation: this is mandatory before calling
    nf_ct_expect_related.  You will have to call put afterwards. */
 struct nf_conntrack_expect *nf_ct_expect_alloc(struct nf_conn *me);
-void nf_ct_expect_init(struct nf_conntrack_expect *, int,
+void nf_ct_expect_init(struct nf_conntrack_expect *, unsigned int, int,
 		       const union nf_inet_addr *,
 		       const union nf_inet_addr *,
 		       u_int8_t, const __be16 *, const __be16 *);
