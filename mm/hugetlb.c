@@ -401,12 +401,20 @@ static void return_unused_surplus_pages(unsigned long unused_resv_pages)
 	struct page *page;
 	unsigned long nr_pages;
 
+	/*
+	 * We want to release as many surplus pages as possible, spread
+	 * evenly across all nodes. Iterate across all nodes until we
+	 * can no longer free unreserved surplus pages. This occurs when
+	 * the nodes with surplus pages have no free pages.
+	 */
+	unsigned long remaining_iterations = num_online_nodes();
+
 	/* Uncommit the reservation */
 	resv_huge_pages -= unused_resv_pages;
 
 	nr_pages = min(unused_resv_pages, surplus_huge_pages);
 
-	while (nr_pages) {
+	while (remaining_iterations-- && nr_pages) {
 		nid = next_node(nid, node_online_map);
 		if (nid == MAX_NUMNODES)
 			nid = first_node(node_online_map);
@@ -424,6 +432,7 @@ static void return_unused_surplus_pages(unsigned long unused_resv_pages)
 			surplus_huge_pages--;
 			surplus_huge_pages_node[nid]--;
 			nr_pages--;
+			remaining_iterations = num_online_nodes();
 		}
 	}
 }
