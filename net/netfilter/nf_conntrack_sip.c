@@ -39,13 +39,15 @@ MODULE_PARM_DESC(sip_timeout, "timeout for the master SIP session");
 unsigned int (*nf_nat_sip_hook)(struct sk_buff *skb,
 				enum ip_conntrack_info ctinfo,
 				struct nf_conn *ct,
-				const char **dptr) __read_mostly;
+				const char **dptr,
+				unsigned int *datalen) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sip_hook);
 
 unsigned int (*nf_nat_sdp_hook)(struct sk_buff *skb,
 				enum ip_conntrack_info ctinfo,
 				struct nf_conntrack_expect *exp,
-				const char *dptr) __read_mostly;
+				const char **dptr,
+				unsigned int *datalen) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sdp_hook);
 
 static int digits_len(const struct nf_conn *, const char *, const char *, int *);
@@ -369,7 +371,7 @@ static int set_expected_rtp(struct sk_buff *skb,
 			    enum ip_conntrack_info ctinfo,
 			    union nf_inet_addr *addr,
 			    __be16 port,
-			    const char *dptr)
+			    const char **dptr, unsigned int *datalen)
 {
 	struct nf_conntrack_expect *exp;
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
@@ -386,7 +388,7 @@ static int set_expected_rtp(struct sk_buff *skb,
 
 	nf_nat_sdp = rcu_dereference(nf_nat_sdp_hook);
 	if (nf_nat_sdp && ct->status & IPS_NAT_MASK)
-		ret = nf_nat_sdp(skb, ctinfo, exp, dptr);
+		ret = nf_nat_sdp(skb, ctinfo, exp, dptr, datalen);
 	else {
 		if (nf_ct_expect_related(exp) != 0)
 			ret = NF_DROP;
@@ -429,7 +431,7 @@ static int sip_help(struct sk_buff *skb,
 
 	nf_nat_sip = rcu_dereference(nf_nat_sip_hook);
 	if (nf_nat_sip && ct->status & IPS_NAT_MASK) {
-		if (!nf_nat_sip(skb, ctinfo, ct, &dptr)) {
+		if (!nf_nat_sip(skb, ctinfo, ct, &dptr, &datalen)) {
 			ret = NF_DROP;
 			goto out;
 		}
@@ -466,7 +468,7 @@ static int sip_help(struct sk_buff *skb,
 				goto out;
 			}
 			ret = set_expected_rtp(skb, ct, ctinfo, &addr,
-					       htons(port), dptr);
+					       htons(port), &dptr, &datalen);
 		}
 	}
 out:
