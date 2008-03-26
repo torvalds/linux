@@ -147,23 +147,6 @@ static unsigned int ip_nat_sip(struct sk_buff *skb,
 	return NF_ACCEPT;
 }
 
-static unsigned int mangle_sip_packet(struct sk_buff *skb,
-				      const char **dptr, unsigned int *datalen,
-				      char *buffer, int bufflen,
-				      enum sip_header_pos pos)
-{
-	enum ip_conntrack_info ctinfo;
-	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-	unsigned int matchlen, matchoff;
-
-	if (ct_sip_get_info(ct, *dptr, *datalen, &matchoff, &matchlen,
-			    pos) <= 0)
-		return 0;
-
-	return mangle_packet(skb, dptr, datalen, matchoff, matchlen,
-			     buffer, bufflen);
-}
-
 static int mangle_content_len(struct sk_buff *skb,
 			      const char **dptr, unsigned int *datalen)
 {
@@ -171,27 +154,39 @@ static int mangle_content_len(struct sk_buff *skb,
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	unsigned int matchoff, matchlen;
 	char buffer[sizeof("65536")];
-	int bufflen;
+	int buflen, c_len;
 
 	/* Get actual SDP length */
-	if (ct_sip_get_info(ct, *dptr, *datalen, &matchoff,
-			    &matchlen, POS_SDP_HEADER) > 0) {
+	if (ct_sip_get_sdp_header(ct, *dptr, 0, *datalen,
+				  SDP_HDR_VERSION, SDP_HDR_UNSPEC,
+				  &matchoff, &matchlen) <= 0)
+		return 0;
+	c_len = *datalen - matchoff + strlen("v=");
 
-		/* since ct_sip_get_info() give us a pointer passing 'v='
-		   we need to add 2 bytes in this count. */
-		int c_len = *datalen - matchoff + 2;
+	/* Now, update SDP length */
+	if (ct_sip_get_info(ct, *dptr, *datalen, &matchoff, &matchlen,
+			    POS_CONTENT) <= 0)
+		return 0;
 
-		/* Now, update SDP length */
-		if (ct_sip_get_info(ct, *dptr, *datalen, &matchoff,
-				    &matchlen, POS_CONTENT) > 0) {
+	buflen = sprintf(buffer, "%u", c_len);
+	return mangle_packet(skb, dptr, datalen, matchoff, matchlen,
+			     buffer, buflen);
+}
 
-			bufflen = sprintf(buffer, "%u", c_len);
-			return mangle_packet(skb, dptr, datalen,
-					     matchoff, matchlen,
-					     buffer, bufflen);
-		}
-	}
-	return 0;
+static unsigned mangle_sdp_packet(struct sk_buff *skb,
+				  const char **dptr, unsigned int *datalen,
+				  enum sdp_header_types type,
+				  char *buffer, int buflen)
+{
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+	unsigned int matchlen, matchoff;
+
+	if (ct_sip_get_sdp_header(ct, *dptr, 0, *datalen, type, SDP_HDR_UNSPEC,
+				  &matchoff, &matchlen) <= 0)
+		return 0;
+	return mangle_packet(skb, dptr, datalen, matchoff, matchlen,
+			     buffer, buflen);
 }
 
 static unsigned int mangle_sdp(struct sk_buff *skb,
@@ -205,18 +200,18 @@ static unsigned int mangle_sdp(struct sk_buff *skb,
 
 	/* Mangle owner and contact info. */
 	bufflen = sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(newip));
-	if (!mangle_sip_packet(skb, dptr, datalen, buffer, bufflen,
-			       POS_OWNER_IP4))
+	if (!mangle_sdp_packet(skb, dptr, datalen, SDP_HDR_OWNER_IP4,
+			       buffer, bufflen))
 		return 0;
 
-	if (!mangle_sip_packet(skb, dptr, datalen, buffer, bufflen,
-			       POS_CONNECTION_IP4))
+	if (!mangle_sdp_packet(skb, dptr, datalen, SDP_HDR_CONNECTION_IP4,
+			       buffer, bufflen))
 		return 0;
 
 	/* Mangle media port. */
 	bufflen = sprintf(buffer, "%u", port);
-	if (!mangle_sip_packet(skb, dptr, datalen, buffer, bufflen,
-			       POS_MEDIA))
+	if (!mangle_sdp_packet(skb, dptr, datalen, SDP_HDR_MEDIA,
+			       buffer, bufflen))
 		return 0;
 
 	return mangle_content_len(skb, dptr, datalen);

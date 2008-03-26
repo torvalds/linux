@@ -124,66 +124,6 @@ static const struct sip_header_nfo ct_sip_hdrs[] = {
 		.ln_strlen	= sizeof(":") - 1,
 		.match_len	= skp_digits_len
 	},
-	[POS_MEDIA] = {		/* SDP media info */
-		.case_sensitive	= 1,
-		.lname		= "\nm=",
-		.lnlen		= sizeof("\nm=") - 1,
-		.sname		= "\rm=",
-		.snlen		= sizeof("\rm=") - 1,
-		.ln_str		= "audio ",
-		.ln_strlen	= sizeof("audio ") - 1,
-		.match_len	= digits_len
-	},
-	[POS_OWNER_IP4] = {	/* SDP owner address*/
-		.case_sensitive	= 1,
-		.lname		= "\no=",
-		.lnlen		= sizeof("\no=") - 1,
-		.sname		= "\ro=",
-		.snlen		= sizeof("\ro=") - 1,
-		.ln_str		= "IN IP4 ",
-		.ln_strlen	= sizeof("IN IP4 ") - 1,
-		.match_len	= epaddr_len
-	},
-	[POS_CONNECTION_IP4] = {/* SDP connection info */
-		.case_sensitive	= 1,
-		.lname		= "\nc=",
-		.lnlen		= sizeof("\nc=") - 1,
-		.sname		= "\rc=",
-		.snlen		= sizeof("\rc=") - 1,
-		.ln_str		= "IN IP4 ",
-		.ln_strlen	= sizeof("IN IP4 ") - 1,
-		.match_len	= epaddr_len
-	},
-	[POS_OWNER_IP6] = {	/* SDP owner address*/
-		.case_sensitive	= 1,
-		.lname		= "\no=",
-		.lnlen		= sizeof("\no=") - 1,
-		.sname		= "\ro=",
-		.snlen		= sizeof("\ro=") - 1,
-		.ln_str		= "IN IP6 ",
-		.ln_strlen	= sizeof("IN IP6 ") - 1,
-		.match_len	= epaddr_len
-	},
-	[POS_CONNECTION_IP6] = {/* SDP connection info */
-		.case_sensitive	= 1,
-		.lname		= "\nc=",
-		.lnlen		= sizeof("\nc=") - 1,
-		.sname		= "\rc=",
-		.snlen		= sizeof("\rc=") - 1,
-		.ln_str		= "IN IP6 ",
-		.ln_strlen	= sizeof("IN IP6 ") - 1,
-		.match_len	= epaddr_len
-	},
-	[POS_SDP_HEADER] = { 	/* SDP version header */
-		.case_sensitive	= 1,
-		.lname		= "\nv=",
-		.lnlen		= sizeof("\nv=") - 1,
-		.sname		= "\rv=",
-		.snlen		= sizeof("\rv=") - 1,
-		.ln_str		= "=",
-		.ln_strlen	= sizeof("=") - 1,
-		.match_len	= digits_len
-	}
 };
 
 /* get line length until first CR or LF seen. */
@@ -363,6 +303,92 @@ int ct_sip_get_info(const struct nf_conn *ct,
 }
 EXPORT_SYMBOL_GPL(ct_sip_get_info);
 
+/* SDP header parsing: a SDP session description contains an ordered set of
+ * headers, starting with a section containing general session parameters,
+ * optionally followed by multiple media descriptions.
+ *
+ * SDP headers always start at the beginning of a line. According to RFC 2327:
+ * "The sequence CRLF (0x0d0a) is used to end a record, although parsers should
+ * be tolerant and also accept records terminated with a single newline
+ * character". We handle both cases.
+ */
+static const struct sip_header ct_sdp_hdrs[] = {
+	[SDP_HDR_VERSION]		= SDP_HDR("v=", NULL, digits_len),
+	[SDP_HDR_OWNER_IP4]		= SDP_HDR("o=", "IN IP4 ", epaddr_len),
+	[SDP_HDR_CONNECTION_IP4]	= SDP_HDR("c=", "IN IP4 ", epaddr_len),
+	[SDP_HDR_OWNER_IP6]		= SDP_HDR("o=", "IN IP6 ", epaddr_len),
+	[SDP_HDR_CONNECTION_IP6]	= SDP_HDR("c=", "IN IP6 ", epaddr_len),
+	[SDP_HDR_MEDIA]			= SDP_HDR("m=", "audio ", digits_len),
+};
+
+/* Linear string search within SDP header values */
+static const char *ct_sdp_header_search(const char *dptr, const char *limit,
+					const char *needle, unsigned int len)
+{
+	for (limit -= len; dptr < limit; dptr++) {
+		if (*dptr == '\r' || *dptr == '\n')
+			break;
+		if (strncmp(dptr, needle, len) == 0)
+			return dptr;
+	}
+	return NULL;
+}
+
+/* Locate a SDP header (optionally a substring within the header value),
+ * optionally stopping at the first occurence of the term header, parse
+ * it and return the offset and length of the data we're interested in.
+ */
+int ct_sip_get_sdp_header(const struct nf_conn *ct, const char *dptr,
+			  unsigned int dataoff, unsigned int datalen,
+			  enum sdp_header_types type,
+			  enum sdp_header_types term,
+			  unsigned int *matchoff, unsigned int *matchlen)
+{
+	const struct sip_header *hdr = &ct_sdp_hdrs[type];
+	const struct sip_header *thdr = &ct_sdp_hdrs[term];
+	const char *start = dptr, *limit = dptr + datalen;
+	int shift = 0;
+
+	for (dptr += dataoff; dptr < limit; dptr++) {
+		/* Find beginning of line */
+		if (*dptr != '\r' && *dptr != '\n')
+			continue;
+		if (++dptr >= limit)
+			break;
+		if (*(dptr - 1) == '\r' && *dptr == '\n') {
+			if (++dptr >= limit)
+				break;
+		}
+
+		if (term != SDP_HDR_UNSPEC &&
+		    limit - dptr >= thdr->len &&
+		    strnicmp(dptr, thdr->name, thdr->len) == 0)
+			break;
+		else if (limit - dptr >= hdr->len &&
+			 strnicmp(dptr, hdr->name, hdr->len) == 0)
+			dptr += hdr->len;
+		else
+			continue;
+
+		*matchoff = dptr - start;
+		if (hdr->search) {
+			dptr = ct_sdp_header_search(dptr, limit, hdr->search,
+						    hdr->slen);
+			if (!dptr)
+				return -1;
+			dptr += hdr->slen;
+		}
+
+		*matchlen = hdr->match_len(ct, dptr, limit, &shift);
+		if (!*matchlen)
+			return -1;
+		*matchoff = dptr - start + shift;
+		return 1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ct_sip_get_sdp_header);
+
 static int set_expected_rtp(struct sk_buff *skb,
 			    const char **dptr, unsigned int *datalen,
 			    union nf_inet_addr *addr, __be16 port)
@@ -408,7 +434,7 @@ static int sip_help(struct sk_buff *skb,
 	int ret = NF_ACCEPT;
 	unsigned int matchoff, matchlen;
 	u_int16_t port;
-	enum sip_header_pos pos;
+	enum sdp_header_types type;
 	typeof(nf_nat_sip_hook) nf_nat_sip;
 
 	/* No Data ? */
@@ -446,8 +472,10 @@ static int sip_help(struct sk_buff *skb,
 		goto out;
 	}
 	/* Get address and port from SDP packet. */
-	pos = family == AF_INET ? POS_CONNECTION_IP4 : POS_CONNECTION_IP6;
-	if (ct_sip_get_info(ct, dptr, datalen, &matchoff, &matchlen, pos) > 0) {
+	type = family == AF_INET ? SDP_HDR_CONNECTION_IP4 :
+				   SDP_HDR_CONNECTION_IP6;
+	if (ct_sip_get_sdp_header(ct, dptr, 0, datalen, type, SDP_HDR_UNSPEC,
+				  &matchoff, &matchlen) > 0) {
 
 		/* We'll drop only if there are parse problems. */
 		if (!parse_addr(ct, dptr + matchoff, NULL, &addr,
@@ -455,8 +483,9 @@ static int sip_help(struct sk_buff *skb,
 			ret = NF_DROP;
 			goto out;
 		}
-		if (ct_sip_get_info(ct, dptr, datalen, &matchoff, &matchlen,
-				    POS_MEDIA) > 0) {
+		if (ct_sip_get_sdp_header(ct, dptr, 0, datalen,
+					  SDP_HDR_MEDIA, SDP_HDR_UNSPEC,
+					  &matchoff, &matchlen) > 0) {
 
 			port = simple_strtoul(dptr + matchoff, NULL, 10);
 			if (port < 1024) {
