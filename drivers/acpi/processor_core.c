@@ -674,22 +674,20 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 		result = PTR_ERR(pr->cdev);
 		goto end;
 	}
-	if (pr->cdev) {
-		printk(KERN_INFO PREFIX
-			"%s is registered as cooling_device%d\n",
-			device->dev.bus_id, pr->cdev->id);
+	printk(KERN_INFO PREFIX
+		"%s is registered as cooling_device%d\n",
+		device->dev.bus_id, pr->cdev->id);
 
-		result = sysfs_create_link(&device->dev.kobj,
-					   &pr->cdev->device.kobj,
-					   "thermal_cooling");
-		if (result)
-			return result;
-		result = sysfs_create_link(&pr->cdev->device.kobj,
-					   &device->dev.kobj,
-					   "device");
-		if (result)
-			return result;
-	}
+	result = sysfs_create_link(&device->dev.kobj,
+				   &pr->cdev->device.kobj,
+				   "thermal_cooling");
+	if (result)
+		return result;
+	result = sysfs_create_link(&pr->cdev->device.kobj,
+				   &device->dev.kobj,
+				   "device");
+	if (result)
+		return result;
 
 	if (pr->flags.throttling) {
 		printk(KERN_INFO PREFIX "%s [%s] (supports",
