@@ -16,11 +16,37 @@
 #define IO_SPACE_LIMIT		0xffffffff
 #define IO_SPACE_REMAP		ORION_PCI_SYS_IO_BASE
 
+static inline void __iomem *
+__arch_ioremap(unsigned long paddr, size_t size, unsigned int mtype)
+{
+	void __iomem *retval;
+
+	if (mtype == MT_DEVICE && size && paddr >= ORION_REGS_PHYS_BASE &&
+	    paddr + size <= ORION_REGS_PHYS_BASE + ORION_REGS_SIZE) {
+		retval = (void __iomem *)ORION_REGS_VIRT_BASE +
+				(paddr - ORION_REGS_PHYS_BASE);
+	} else {
+		retval = __arm_ioremap(paddr, size, mtype);
+	}
+
+	return retval;
+}
+
+static inline void
+__arch_iounmap(void __iomem *addr)
+{
+	if (addr < (void __iomem *)ORION_REGS_VIRT_BASE ||
+	    addr >= (void __iomem *)(ORION_REGS_VIRT_BASE + ORION_REGS_SIZE))
+		__iounmap(addr);
+}
+
 static inline void __iomem *__io(unsigned long addr)
 {
 	return (void __iomem *)addr;
 }
 
+#define __arch_ioremap(p, s, m)	__arch_ioremap(p, s, m)
+#define __arch_iounmap(a)	__arch_iounmap(a)
 #define __io(a)			__io(a)
 #define __mem_pci(a)		(a)
 
