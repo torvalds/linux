@@ -179,6 +179,9 @@ void zfcp_hba_dbf_event_fsf_response(struct zfcp_fsf_req *fsf_req)
 		   (fsf_req->fsf_command == FSF_QTCB_OPEN_LUN)) {
 		strncpy(rec->tag2, "open", ZFCP_DBF_TAG_SIZE);
 		level = 4;
+	} else if (qtcb->header.log_length) {
+		strncpy(rec->tag2, "qtcb", ZFCP_DBF_TAG_SIZE);
+		level = 5;
 	} else {
 		strncpy(rec->tag2, "norm", ZFCP_DBF_TAG_SIZE);
 		level = 6;
@@ -250,6 +253,17 @@ void zfcp_hba_dbf_event_fsf_response(struct zfcp_fsf_req *fsf_req)
 
 	debug_event(adapter->hba_dbf, level,
 		    rec, sizeof(struct zfcp_hba_dbf_record));
+
+	/* have fcp channel microcode fixed to use as little as possible */
+	if (fsf_req->fsf_command != FSF_QTCB_FCP_CMND) {
+		/* adjust length skipping trailing zeros */
+		char *buf = (char *)qtcb + qtcb->header.log_start;
+		int len = qtcb->header.log_length;
+		for (; len && !buf[len - 1]; len--);
+		zfcp_dbf_hexdump(adapter->hba_dbf, rec, sizeof(*rec), level,
+				 buf, len);
+	}
+
 	spin_unlock_irqrestore(&adapter->hba_dbf_lock, flags);
 }
 
