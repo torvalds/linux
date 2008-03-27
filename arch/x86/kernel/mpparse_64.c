@@ -35,7 +35,6 @@
 
 /* Have we found an MP table */
 int smp_found_config;
-unsigned int __cpuinitdata maxcpus = NR_CPUS;
 
 /*
  * Various Linux-internal data structures created from the
@@ -80,52 +79,6 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 		sum += *mp++;
 
 	return sum & 0xFF;
-}
-
-void __cpuinit generic_processor_info(int apicid, int version)
-{
-	int cpu;
-	cpumask_t tmp_map;
-
-	if (num_processors >= NR_CPUS) {
-		printk(KERN_WARNING "WARNING: NR_CPUS limit of %i reached."
-		       " Processor ignored.\n", NR_CPUS);
-		return;
-	}
-
-	if (num_processors >= maxcpus) {
-		printk(KERN_WARNING "WARNING: maxcpus limit of %i reached."
-		       " Processor ignored.\n", maxcpus);
-		return;
-	}
-
-	num_processors++;
-	cpus_complement(tmp_map, cpu_present_map);
-	cpu = first_cpu(tmp_map);
-
-	physid_set(apicid, phys_cpu_present_map);
-	if (apicid == boot_cpu_physical_apicid) {
-		/*
-		 * x86_bios_cpu_apicid is required to have processors listed
-		 * in same order as logical cpu numbers. Hence the first
-		 * entry is BSP, and so on.
-		 */
-		cpu = 0;
-	}
-	/* are we being called early in kernel startup? */
-	if (x86_cpu_to_apicid_early_ptr) {
-		u16 *cpu_to_apicid = x86_cpu_to_apicid_early_ptr;
-		u16 *bios_cpu_apicid = x86_bios_cpu_apicid_early_ptr;
-
-		cpu_to_apicid[cpu] = apicid;
-		bios_cpu_apicid[cpu] = apicid;
-	} else {
-		per_cpu(x86_cpu_to_apicid, cpu) = apicid;
-		per_cpu(x86_bios_cpu_apicid, cpu) = apicid;
-	}
-
-	cpu_set(cpu, cpu_possible_map);
-	cpu_set(cpu, cpu_present_map);
 }
 
 static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
@@ -666,7 +619,6 @@ void __init mp_register_lapic_address(u64 address)
 	if (boot_cpu_physical_apicid == -1U)
 		boot_cpu_physical_apicid  = GET_APIC_ID(apic_read(APIC_ID));
 }
-
 void __cpuinit mp_register_lapic(u8 id, u8 enabled)
 {
 	if (!enabled) {
@@ -676,6 +628,7 @@ void __cpuinit mp_register_lapic(u8 id, u8 enabled)
 
 	generic_processor_info(id, 0);
 }
+
 
 #define MP_ISA_BUS		0
 #define MP_MAX_IOAPIC_PIN	127
