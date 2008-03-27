@@ -88,11 +88,11 @@ void *x86_bios_cpu_apicid_early_ptr;
 unsigned int num_processors;
 unsigned disabled_cpus __cpuinitdata;
 
-/* Bitmask of physically existing CPUs */
-physid_mask_t phys_cpu_present_map;
-
 u8 apicid_2_node[MAX_APICID];
 #endif
+
+/* Bitmask of physically existing CPUs */
+physid_mask_t phys_cpu_present_map;
 
 /* State of each CPU */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };

@@ -65,9 +65,6 @@ unsigned int num_processors;
 
 unsigned disabled_cpus __cpuinitdata;
 
-/* Bitmask of physically existing CPUs */
-physid_mask_t phys_cpu_present_map = PHYSID_MASK_NONE;
-
 #ifdef CONFIG_SMP
 u16 x86_bios_cpu_apicid_init[NR_CPUS] __initdata
     = {[0 ... NR_CPUS - 1] = BAD_APICID };
