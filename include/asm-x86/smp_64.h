@@ -52,12 +52,16 @@ static inline int logical_smp_processor_id(void)
 	return GET_APIC_LOGICAL_ID(*(u32 *)(APIC_BASE + APIC_LDR));
 }
 
-#include <mach_apicdef.h>
+# ifdef APIC_DEFINITION
+extern int hard_smp_processor_id(void);
+# else
+#  include <mach_apicdef.h>
 static inline int hard_smp_processor_id(void)
 {
 	/* we don't want to mark this access volatile - bad code generation */
 	return GET_APIC_ID(*(u32 *)(APIC_BASE + APIC_ID));
 }
+# endif /* APIC_DEFINITION */
 
 #endif
 
