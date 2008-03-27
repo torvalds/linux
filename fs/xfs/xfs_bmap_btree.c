@@ -2027,6 +2027,24 @@ xfs_bmbt_increment(
 
 /*
  * Insert the current record at the point referenced by cur.
+ *
+ * A multi-level split of the tree on insert will invalidate the original
+ * cursor. It appears, however, that some callers assume that the cursor is
+ * always valid. Hence if we do a multi-level split we need to revalidate the
+ * cursor.
+ *
+ * When a split occurs, we will see a new cursor returned. Use that as a
+ * trigger to determine if we need to revalidate the original cursor. If we get
+ * a split, then use the original irec to lookup up the path of the record we
+ * just inserted.
+ *
+ * Note that the fact that the btree root is in the inode means that we can
+ * have the level of the tree change without a "split" occurring at the root
+ * level. What happens is that the root is migrated to an allocated block and
+ * the inode root is pointed to it. This means a single split can change the
+ * level of the tree (level 2 -> level 3) and invalidate the old cursor. Hence
+ * the level change should be accounted as a split so as to correctly trigger a
+ * revalidation of the old cursor.
  */
 int					/* error */
 xfs_bmbt_insert(
@@ -2039,11 +2057,14 @@ xfs_bmbt_insert(
 	xfs_fsblock_t	nbno;
 	xfs_btree_cur_t	*ncur;
 	xfs_bmbt_rec_t	nrec;
+	xfs_bmbt_irec_t	oirec;		/* original irec */
 	xfs_btree_cur_t	*pcur;
+	int		splits = 0;
 
 	XFS_BMBT_TRACE_CURSOR(cur, ENTRY);
 	level = 0;
 	nbno = NULLFSBLOCK;
+	oirec = cur->bc_rec.b;
 	xfs_bmbt_disk_set_all(&nrec, &cur->bc_rec.b);
 	ncur = NULL;
 	pcur = cur;
@@ -2052,11 +2073,13 @@ xfs_bmbt_insert(
 				&i))) {
 			if (pcur != cur)
 				xfs_btree_del_cursor(pcur, XFS_BTREE_ERROR);
-			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-			return error;
+			goto error0;
 		}
 		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
 		if (pcur != cur && (ncur || nbno == NULLFSBLOCK)) {
+			/* allocating a new root is effectively a split */
+			if (cur->bc_nlevels != pcur->bc_nlevels)
+				splits++;
 			cur->bc_nlevels = pcur->bc_nlevels;
 			cur->bc_private.b.allocated +=
 				pcur->bc_private.b.allocated;
@@ -2070,10 +2093,21 @@ xfs_bmbt_insert(
 			xfs_btree_del_cursor(pcur, XFS_BTREE_NOERROR);
 		}
 		if (ncur) {
+			splits++;
 			pcur = ncur;
 			ncur = NULL;
 		}
 	} while (nbno != NULLFSBLOCK);
+
+	if (splits > 1) {
+		/* revalidate the old cursor as we had a multi-level split */
+		error = xfs_bmbt_lookup_eq(cur, oirec.br_startoff,
+				oirec.br_startblock, oirec.br_blockcount, &i);
+		if (error)
+			goto error0;
+		ASSERT(i == 1);
+	}
+
 	XFS_BMBT_TRACE_CURSOR(cur, EXIT);
 	*stat = i;
 	return 0;
