@@ -43,6 +43,7 @@ extern unsigned long mp_lapic_addr;
 extern void find_smp_config(void);
 extern void get_smp_config(void);
 
+void __cpuinit generic_processor_info(int apicid, int version);
 #ifdef CONFIG_ACPI
 extern void mp_register_lapic(u8 id, u8 enabled);
 extern void mp_register_lapic_address(u64 address);

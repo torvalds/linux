@@ -1469,6 +1469,88 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 	}
 }
 
+unsigned int __cpuinitdata maxcpus = NR_CPUS;
+
+void __cpuinit generic_processor_info(int apicid, int version)
+{
+	int cpu;
+	cpumask_t tmp_map;
+	physid_mask_t phys_cpu;
+
+	/*
+	 * Validate version
+	 */
+	if (version == 0x0) {
+		printk(KERN_WARNING "BIOS bug, APIC version is 0 for CPU#%d! "
+				"fixing up to 0x10. (tell your hw vendor)\n",
+				version);
+		version = 0x10;
+	}
+	apic_version[apicid] = version;
+
+	phys_cpu = apicid_to_cpu_present(apicid);
+	physids_or(phys_cpu_present_map, phys_cpu_present_map, phys_cpu);
+
+	if (num_processors >= NR_CPUS) {
+		printk(KERN_WARNING "WARNING: NR_CPUS limit of %i reached."
+			"  Processor ignored.\n", NR_CPUS);
+		return;
+	}
+
+	if (num_processors >= maxcpus) {
+		printk(KERN_WARNING "WARNING: maxcpus limit of %i reached."
+			" Processor ignored.\n", maxcpus);
+		return;
+	}
+
+	num_processors++;
+	cpus_complement(tmp_map, cpu_present_map);
+	cpu = first_cpu(tmp_map);
+
+	if (apicid == boot_cpu_physical_apicid)
+		/*
+		 * x86_bios_cpu_apicid is required to have processors listed
+		 * in same order as logical cpu numbers. Hence the first
+		 * entry is BSP, and so on.
+		 */
+		cpu = 0;
+
+	/*
+	 * Would be preferable to switch to bigsmp when CONFIG_HOTPLUG_CPU=y
+	 * but we need to work other dependencies like SMP_SUSPEND etc
+	 * before this can be done without some confusion.
+	 * if (CPU_HOTPLUG_ENABLED || num_processors > 8)
+	 *       - Ashok Raj <ashok.raj@intel.com>
+	 */
+	if (num_processors > 8) {
+		switch (boot_cpu_data.x86_vendor) {
+		case X86_VENDOR_INTEL:
+			if (!APIC_XAPIC(version)) {
+				def_to_bigsmp = 0;
+				break;
+			}
+			/* If P4 and above fall through */
+		case X86_VENDOR_AMD:
+			def_to_bigsmp = 1;
+		}
+	}
+#ifdef CONFIG_SMP
+	/* are we being called early in kernel startup? */
+	if (x86_cpu_to_apicid_early_ptr) {
+		u16 *cpu_to_apicid = x86_cpu_to_apicid_early_ptr;
+		u16 *bios_cpu_apicid = x86_bios_cpu_apicid_early_ptr;
+
+		cpu_to_apicid[cpu] = apicid;
+		bios_cpu_apicid[cpu] = apicid;
+	} else {
+		per_cpu(x86_cpu_to_apicid, cpu) = apicid;
+		per_cpu(x86_bios_cpu_apicid, cpu) = apicid;
+	}
+#endif
+	cpu_set(cpu, cpu_possible_map);
+	cpu_set(cpu, cpu_present_map);
+}
+
 /*
  * Power management
  */
