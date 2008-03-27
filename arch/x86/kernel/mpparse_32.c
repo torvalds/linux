@@ -41,7 +41,6 @@ unsigned int __cpuinitdata maxcpus = NR_CPUS;
  * Various Linux-internal data structures created from the
  * MP-table.
  */
-int apic_version [MAX_APICS];
 #if defined (CONFIG_MCA) || defined (CONFIG_EISA)
 int mp_bus_id_to_type [MAX_MP_BUSSES];
 #endif

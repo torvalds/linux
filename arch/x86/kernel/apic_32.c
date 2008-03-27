@@ -1225,6 +1225,9 @@ fake_ioapic_page:
  * This initializes the IO-APIC and APIC hardware if this is
  * a UP kernel.
  */
+
+int apic_version[MAX_APICS];
+
 int __init APIC_init_uniprocessor(void)
 {
 	if (enable_local_apic < 0)
