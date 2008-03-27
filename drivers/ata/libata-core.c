@@ -1211,7 +1211,7 @@ static u64 ata_id_n_sectors(const u16 *id)
 	}
 }
 
-static u64 ata_tf_to_lba48(struct ata_taskfile *tf)
+u64 ata_tf_to_lba48(const struct ata_taskfile *tf)
 {
 	u64 sectors = 0;
 
@@ -1222,10 +1222,10 @@ static u64 ata_tf_to_lba48(struct ata_taskfile *tf)
 	sectors |= (tf->lbam & 0xff) << 8;
 	sectors |= (tf->lbal & 0xff);
 
-	return ++sectors;
+	return sectors;
 }
 
-static u64 ata_tf_to_lba(struct ata_taskfile *tf)
+u64 ata_tf_to_lba(const struct ata_taskfile *tf)
 {
 	u64 sectors = 0;
 
@@ -1234,7 +1234,7 @@ static u64 ata_tf_to_lba(struct ata_taskfile *tf)
 	sectors |= (tf->lbam & 0xff) << 8;
 	sectors |= (tf->lbal & 0xff);
 
-	return ++sectors;
+	return sectors;
 }
 
 /**
@@ -1279,9 +1279,9 @@ static int ata_read_native_max_address(struct ata_device *dev, u64 *max_sectors)
 	}
 
 	if (lba48)
-		*max_sectors = ata_tf_to_lba48(&tf);
+		*max_sectors = ata_tf_to_lba48(&tf) + 1;
 	else
-		*max_sectors = ata_tf_to_lba(&tf);
+		*max_sectors = ata_tf_to_lba(&tf) + 1;
 	if (dev->horkage & ATA_HORKAGE_HPA_SIZE)
 		(*max_sectors)--;
 	return 0;
