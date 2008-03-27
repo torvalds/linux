@@ -50,13 +50,16 @@ static int pcie_valid_config(int bus, int dev)
 {
 	/*
 	 * Don't go out when trying to access --
-	 * 1. our own device / nonexisting device on local bus
+	 * 1. nonexisting device on local bus
 	 * 2. where there's no device connected (no link)
 	 */
-	if (bus == 0 && dev != 1)
-		return 0;
+	if (bus == 0 && dev == 0)
+		return 1;
 
 	if (!orion_pcie_link_up(PCIE_BASE))
+		return 0;
+
+	if (bus == 0 && dev != 1)
 		return 0;
 
 	return 1;
@@ -272,12 +275,6 @@ int orion_pci_local_bus_nr(void)
 	return((conf & PCI_P2P_BUS_MASK) >> PCI_P2P_BUS_OFFS);
 }
 
-static int orion_pci_local_dev_nr(void)
-{
-	u32 conf = orion_read(PCI_P2P_CONF);
-	return((conf & PCI_P2P_DEV_MASK) >> PCI_P2P_DEV_OFFS);
-}
-
 static int orion_pci_hw_rd_conf(int bus, int dev, u32 func,
 					u32 where, u32 size, u32 *val)
 {
@@ -333,8 +330,8 @@ static int orion_pci_rd_conf(struct pci_bus *bus, u32 devfn,
 	/*
 	 * Don't go out for local device
 	 */
-	if ((orion_pci_local_bus_nr() == bus->number) &&
-	   (orion_pci_local_dev_nr() == PCI_SLOT(devfn))) {
+	if (bus->number == orion_pci_local_bus_nr() &&
+	    PCI_SLOT(devfn) == 0 && PCI_FUNC(devfn) != 0) {
 		*val = 0xffffffff;
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
@@ -346,11 +343,8 @@ static int orion_pci_rd_conf(struct pci_bus *bus, u32 devfn,
 static int orion_pci_wr_conf(struct pci_bus *bus, u32 devfn,
 				int where, int size, u32 val)
 {
-	/*
-	 * Don't go out for local device
-	 */
-	if ((orion_pci_local_bus_nr() == bus->number) &&
-	   (orion_pci_local_dev_nr() == PCI_SLOT(devfn)))
+	if (bus->number == orion_pci_local_bus_nr() &&
+	    PCI_SLOT(devfn) == 0 && PCI_FUNC(devfn) != 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	return orion_pci_hw_wr_conf(bus->number, PCI_SLOT(devfn),
@@ -389,23 +383,21 @@ static void __init orion_pci_set_bus_nr(int nr)
 
 static void __init orion_pci_master_slave_enable(void)
 {
-	int bus_nr, dev_nr, func, reg;
+	int bus_nr, func, reg;
 	u32 val;
 
 	bus_nr = orion_pci_local_bus_nr();
-	dev_nr = orion_pci_local_dev_nr();
 	func = PCI_CONF_FUNC_STAT_CMD;
 	reg = PCI_CONF_REG_STAT_CMD;
-	orion_pci_hw_rd_conf(bus_nr, dev_nr, func, reg, 4, &val);
+	orion_pci_hw_rd_conf(bus_nr, 0, func, reg, 4, &val);
 	val |= (PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
-	orion_pci_hw_wr_conf(bus_nr, dev_nr, func, reg, 4, val | 0x7);
+	orion_pci_hw_wr_conf(bus_nr, 0, func, reg, 4, val | 0x7);
 }
 
 static void __init orion_setup_pci_wins(struct mbus_dram_target_info *dram)
 {
 	u32 win_enable;
 	int bus;
-	int dev;
 	int i;
 
 	/*
@@ -418,7 +410,6 @@ static void __init orion_setup_pci_wins(struct mbus_dram_target_info *dram)
 	 * Setup windows for DDR banks.
 	 */
 	bus = orion_pci_local_bus_nr();
-	dev = orion_pci_local_dev_nr();
 
 	for (i = 0; i < dram->num_cs; i++) {
 		struct mbus_dram_window *cs = dram->cs + i;
@@ -430,15 +421,15 @@ static void __init orion_setup_pci_wins(struct mbus_dram_target_info *dram)
 		 * Write DRAM bank base address register.
 		 */
 		reg = PCI_CONF_REG_BAR_LO_CS(cs->cs_index);
-		orion_pci_hw_rd_conf(bus, dev, func, reg, 4, &val);
+		orion_pci_hw_rd_conf(bus, 0, func, reg, 4, &val);
 		val = (cs->base & 0xfffff000) | (val & 0xfff);
-		orion_pci_hw_wr_conf(bus, dev, func, reg, 4, val);
+		orion_pci_hw_wr_conf(bus, 0, func, reg, 4, val);
 
 		/*
 		 * Write DRAM bank size register.
 		 */
 		reg = PCI_CONF_REG_BAR_HI_CS(cs->cs_index);
-		orion_pci_hw_wr_conf(bus, dev, func, reg, 4, 0);
+		orion_pci_hw_wr_conf(bus, 0, func, reg, 4, 0);
 		orion_write(PCI_BAR_SIZE_DDR_CS(cs->cs_index),
 				(cs->size - 1) & 0xfffff000);
 		orion_write(PCI_BAR_REMAP_DDR_CS(cs->cs_index),
@@ -519,6 +510,23 @@ static int __init pci_setup(struct pci_sys_data *sys)
 /*****************************************************************************
  * General PCIE + PCI
  ****************************************************************************/
+static void __devinit rc_pci_fixup(struct pci_dev *dev)
+{
+	/*
+	 * Prevent enumeration of root complex.
+	 */
+	if (dev->bus->parent == NULL && dev->devfn == 0) {
+		int i;
+
+		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
+			dev->resource[i].start = 0;
+			dev->resource[i].end   = 0;
+			dev->resource[i].flags = 0;
+		}
+	}
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL, PCI_ANY_ID, rc_pci_fixup);
+
 int __init orion_pci_sys_setup(int nr, struct pci_sys_data *sys)
 {
 	int ret = 0;
