@@ -2158,7 +2158,7 @@ static struct file_system_type futex_fs_type = {
 	.kill_sb	= kill_anon_super,
 };
 
-static int __init init(void)
+static int __init futex_init(void)
 {
 	u32 curval;
 	int i;
@@ -2194,4 +2194,4 @@ static int __init init(void)
 
 	return 0;
 }
-__initcall(init);
+__initcall(futex_init);
