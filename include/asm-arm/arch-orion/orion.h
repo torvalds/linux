@@ -15,13 +15,25 @@
 #define __ASM_ARCH_ORION_H__
 
 /*****************************************************************************
- * Orion Address Map
+ * Orion Address Maps
+ *
+ * phys
+ * e0000000	PCIe MEM space
+ * e8000000	PCI MEM space
+ * f0000000	PCIe WA space (Orion-1/Orion-NAS only)
+ * f1000000	on-chip peripheral registers
+ * f2000000	PCIe I/O space
+ * f2100000	PCI I/O space
+ * f4000000	device bus mappings (boot)
+ * fa000000	device bus mappings (cs0)
+ * fa800000	device bus mappings (cs2)
+ * fc000000	device bus mappings (cs0/cs1)
  *
  * virt		phys		size
  * fdd00000	f1000000	1M	on-chip peripheral registers
  * fde00000	f2000000	1M	PCIe I/O space
  * fdf00000	f2100000	1M	PCI I/O space
- * fe000000	f0000000	16M	PCIe WA space (Orion-NAS only)
+ * fe000000	f0000000	16M	PCIe WA space (Orion-1/Orion-NAS only)
  ****************************************************************************/
 #define ORION_REGS_PHYS_BASE	0xf1000000
 #define ORION_REGS_VIRT_BASE	0xfdd00000
@@ -37,7 +49,7 @@
 #define ORION_PCI_IO_BUS_BASE	0x00100000
 #define ORION_PCI_IO_SIZE	SZ_1M
 
-/* Relevant only for Orion-NAS */
+/* Relevant only for Orion-1/Orion-NAS */
 #define ORION_PCIE_WA_PHYS_BASE	0xf0000000
 #define ORION_PCIE_WA_VIRT_BASE	0xfe000000
 #define ORION_PCIE_WA_SIZE	SZ_16M
