@@ -93,22 +93,10 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 	return sum & 0xFF;
 }
 
-static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
+void __cpuinit generic_processor_info(int apicid, int version)
 {
 	int cpu;
 	cpumask_t tmp_map;
-	char *bootup_cpu = "";
-
-	if (!(m->mpc_cpuflag & CPU_ENABLED)) {
-		disabled_cpus++;
-		return;
-	}
-	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
-		bootup_cpu = " (Bootup-CPU)";
-		boot_cpu_physical_apicid = m->mpc_apicid;
-	}
-
-	printk(KERN_INFO "Processor #%d%s\n", m->mpc_apicid, bootup_cpu);
 
 	if (num_processors >= NR_CPUS) {
 		printk(KERN_WARNING "WARNING: NR_CPUS limit of %i reached."
@@ -126,8 +114,8 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 	cpus_complement(tmp_map, cpu_present_map);
 	cpu = first_cpu(tmp_map);
 
-	physid_set(m->mpc_apicid, phys_cpu_present_map);
-	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
+	physid_set(apicid, phys_cpu_present_map);
+	if (apicid == boot_cpu_physical_apicid) {
 		/*
 		 * x86_bios_cpu_apicid is required to have processors listed
 		 * in same order as logical cpu numbers. Hence the first
@@ -140,15 +128,32 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 		u16 *cpu_to_apicid = x86_cpu_to_apicid_early_ptr;
 		u16 *bios_cpu_apicid = x86_bios_cpu_apicid_early_ptr;
 
-		cpu_to_apicid[cpu] = m->mpc_apicid;
-		bios_cpu_apicid[cpu] = m->mpc_apicid;
+		cpu_to_apicid[cpu] = apicid;
+		bios_cpu_apicid[cpu] = apicid;
 	} else {
-		per_cpu(x86_cpu_to_apicid, cpu) = m->mpc_apicid;
-		per_cpu(x86_bios_cpu_apicid, cpu) = m->mpc_apicid;
+		per_cpu(x86_cpu_to_apicid, cpu) = apicid;
+		per_cpu(x86_bios_cpu_apicid, cpu) = apicid;
 	}
 
 	cpu_set(cpu, cpu_possible_map);
 	cpu_set(cpu, cpu_present_map);
+}
+
+static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
+{
+	char *bootup_cpu = "";
+
+	if (!(m->mpc_cpuflag & CPU_ENABLED)) {
+		disabled_cpus++;
+		return;
+	}
+	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
+		bootup_cpu = " (Bootup-CPU)";
+		boot_cpu_physical_apicid = m->mpc_apicid;
+	}
+
+	printk(KERN_INFO "Processor #%d%s\n", m->mpc_apicid, bootup_cpu);
+	generic_processor_info(m->mpc_apicid, 0);
 }
 
 static void __init MP_bus_info(struct mpc_config_bus *m)
