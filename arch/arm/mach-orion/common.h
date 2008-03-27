@@ -33,7 +33,6 @@ extern struct mbus_dram_target_info orion_mbus_dram_info;
 void orion_setup_cpu_win(enum orion_target target, u32 base, u32 size, int remap);
 void orion_setup_cpu_wins(void);
 void orion_setup_eth_wins(void);
-void orion_setup_usb_wins(void);
 void orion_setup_sata_wins(void);
 
 /*

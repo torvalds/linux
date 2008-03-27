@@ -12,6 +12,14 @@
 #define __ASM_ARCH_PLATFORM_H__
 
 /*
+ * Orion EHCI platform driver data.
+ */
+struct orion_ehci_data {
+	struct mbus_dram_target_info	*dram;
+};
+
+
+/*
  * Device bus NAND private data
  */
 struct orion_nand_data {
@@ -21,5 +29,6 @@ struct orion_nand_data {
 	u8 cle;		/* address line number connected to CLE */
 	u8 width;	/* buswidth */
 };
+
 
 #endif

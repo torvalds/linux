@@ -23,6 +23,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/arch/hardware.h>
+#include <asm/arch/platform.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -149,6 +150,10 @@ static struct resource orion_ehci1_resources[] = {
 	},
 };
 
+static struct orion_ehci_data orion_ehci_data = {
+	.dram		= &orion_mbus_dram_info,
+};
+
 static u64 ehci_dmamask = 0xffffffffUL;
 
 static struct platform_device orion_ehci0 = {
@@ -157,6 +162,7 @@ static struct platform_device orion_ehci0 = {
 	.dev		= {
 		.dma_mask		= &ehci_dmamask,
 		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &orion_ehci_data,
 	},
 	.resource	= orion_ehci0_resources,
 	.num_resources	= ARRAY_SIZE(orion_ehci0_resources),
@@ -168,6 +174,7 @@ static struct platform_device orion_ehci1 = {
 	.dev		= {
 		.dma_mask		= &ehci_dmamask,
 		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &orion_ehci_data,
 	},
 	.resource	= orion_ehci1_resources,
 	.num_resources	= ARRAY_SIZE(orion_ehci1_resources),
@@ -334,7 +341,6 @@ void __init orion_init(void)
 	 * Setup Orion address map
 	 */
 	orion_setup_cpu_wins();
-	orion_setup_usb_wins();
 	orion_setup_eth_wins();
 	if (dev == MV88F5182_DEV_ID)
 		orion_setup_sata_wins();
