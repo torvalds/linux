@@ -172,7 +172,7 @@ zfcp_ccw_set_online(struct ccw_device *ccw_device)
 
 	zfcp_erp_modify_adapter_status(adapter, 10, 0,
 				       ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
-	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED);
+	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED, 85, 0);
 	zfcp_erp_wait(adapter);
 	goto out;
 
@@ -197,7 +197,7 @@ zfcp_ccw_set_offline(struct ccw_device *ccw_device)
 
 	down(&zfcp_data.config_sema);
 	adapter = dev_get_drvdata(&ccw_device->dev);
-	zfcp_erp_adapter_shutdown(adapter, 0);
+	zfcp_erp_adapter_shutdown(adapter, 0, 86, 0);
 	zfcp_erp_wait(adapter);
 	zfcp_erp_thread_kill(adapter);
 	up(&zfcp_data.config_sema);
@@ -224,13 +224,13 @@ zfcp_ccw_notify(struct ccw_device *ccw_device, int event)
 		ZFCP_LOG_NORMAL("adapter %s: device gone\n",
 				zfcp_get_busid_by_adapter(adapter));
 		debug_text_event(adapter->erp_dbf,1,"dev_gone");
-		zfcp_erp_adapter_shutdown(adapter, 0);
+		zfcp_erp_adapter_shutdown(adapter, 0, 87, 0);
 		break;
 	case CIO_NO_PATH:
 		ZFCP_LOG_NORMAL("adapter %s: no path\n",
 				zfcp_get_busid_by_adapter(adapter));
 		debug_text_event(adapter->erp_dbf,1,"no_path");
-		zfcp_erp_adapter_shutdown(adapter, 0);
+		zfcp_erp_adapter_shutdown(adapter, 0, 88, 0);
 		break;
 	case CIO_OPER:
 		ZFCP_LOG_NORMAL("adapter %s: operational again\n",
@@ -240,7 +240,7 @@ zfcp_ccw_notify(struct ccw_device *ccw_device, int event)
 					       ZFCP_STATUS_COMMON_RUNNING,
 					       ZFCP_SET);
 		zfcp_erp_adapter_reopen(adapter,
-					ZFCP_STATUS_COMMON_ERP_FAILED);
+					ZFCP_STATUS_COMMON_ERP_FAILED, 89, 0);
 		break;
 	}
 	zfcp_erp_wait(adapter);
@@ -272,7 +272,7 @@ zfcp_ccw_shutdown(struct ccw_device *cdev)
 
 	down(&zfcp_data.config_sema);
 	adapter = dev_get_drvdata(&cdev->dev);
-	zfcp_erp_adapter_shutdown(adapter, 0);
+	zfcp_erp_adapter_shutdown(adapter, 0, 90, 0);
 	zfcp_erp_wait(adapter);
 	up(&zfcp_data.config_sema);
 }

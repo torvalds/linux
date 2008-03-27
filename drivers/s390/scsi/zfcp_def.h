@@ -295,18 +295,32 @@ struct zfcp_rec_dbf_record_target {
 	u32 erp_count;
 } __attribute__ ((packed));
 
+struct zfcp_rec_dbf_record_trigger {
+	u8 want;
+	u8 need;
+	u32 as;
+	u32 ps;
+	u32 us;
+	u64 ref;
+	u64 action;
+	u64 wwpn;
+	u64 fcp_lun;
+} __attribute__ ((packed));
+
 struct zfcp_rec_dbf_record {
 	u8 id;
 	u8 id2;
 	union {
 		struct zfcp_rec_dbf_record_thread thread;
 		struct zfcp_rec_dbf_record_target target;
+		struct zfcp_rec_dbf_record_trigger trigger;
 	} u;
 } __attribute__ ((packed));
 
 enum {
 	ZFCP_REC_DBF_ID_THREAD,
 	ZFCP_REC_DBF_ID_TARGET,
+	ZFCP_REC_DBF_ID_TRIGGER,
 };
 
 struct zfcp_hba_dbf_record_response {

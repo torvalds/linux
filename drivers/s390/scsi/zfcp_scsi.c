@@ -529,7 +529,7 @@ static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 		unit->fcp_lun, unit->port->wwpn,
 		zfcp_get_busid_by_adapter(unit->port->adapter));
 
-	zfcp_erp_adapter_reopen(adapter, 0);
+	zfcp_erp_adapter_reopen(adapter, 0, 141, (u64)scpnt);
 	zfcp_erp_wait(adapter);
 
 	return SUCCESS;

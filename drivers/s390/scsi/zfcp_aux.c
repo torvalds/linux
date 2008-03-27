@@ -1326,10 +1326,10 @@ zfcp_nameserver_enqueue(struct zfcp_adapter *adapter)
 
 #define ZFCP_LOG_AREA                   ZFCP_LOG_AREA_FC
 
-static void
-zfcp_fsf_incoming_els_rscn(struct zfcp_adapter *adapter,
-			   struct fsf_status_read_buffer *status_buffer)
+static void zfcp_fsf_incoming_els_rscn(struct zfcp_fsf_req *fsf_req)
 {
+	struct fsf_status_read_buffer *status_buffer = (void*)fsf_req->data;
+	struct zfcp_adapter *adapter = fsf_req->adapter;
 	struct fcp_rscn_head *fcp_rscn_head;
 	struct fcp_rscn_element *fcp_rscn_element;
 	struct zfcp_port *port;
@@ -1376,7 +1376,8 @@ zfcp_fsf_incoming_els_rscn(struct zfcp_adapter *adapter,
 				ZFCP_LOG_INFO("incoming RSCN, trying to open "
 					      "port 0x%016Lx\n", port->wwpn);
 				zfcp_erp_port_reopen(port,
-						     ZFCP_STATUS_COMMON_ERP_FAILED);
+						     ZFCP_STATUS_COMMON_ERP_FAILED,
+						     82, (u64)fsf_req);
 				continue;
 			}
 
@@ -1407,10 +1408,10 @@ zfcp_fsf_incoming_els_rscn(struct zfcp_adapter *adapter,
 	}
 }
 
-static void
-zfcp_fsf_incoming_els_plogi(struct zfcp_adapter *adapter,
-			    struct fsf_status_read_buffer *status_buffer)
+static void zfcp_fsf_incoming_els_plogi(struct zfcp_fsf_req *fsf_req)
 {
+	struct fsf_status_read_buffer *status_buffer = (void*)fsf_req->data;
+	struct zfcp_adapter *adapter = fsf_req->adapter;
 	struct fsf_plogi *els_plogi;
 	struct zfcp_port *port;
 	unsigned long flags;
@@ -1429,14 +1430,14 @@ zfcp_fsf_incoming_els_plogi(struct zfcp_adapter *adapter,
 			       status_buffer->d_id,
 			       zfcp_get_busid_by_adapter(adapter));
 	} else {
-		zfcp_erp_port_forced_reopen(port, 0);
+		zfcp_erp_port_forced_reopen(port, 0, 83, (u64)fsf_req);
 	}
 }
 
-static void
-zfcp_fsf_incoming_els_logo(struct zfcp_adapter *adapter,
-			   struct fsf_status_read_buffer *status_buffer)
+static void zfcp_fsf_incoming_els_logo(struct zfcp_fsf_req *fsf_req)
 {
+	struct fsf_status_read_buffer *status_buffer = (void*)fsf_req->data;
+	struct zfcp_adapter *adapter = fsf_req->adapter;
 	struct fcp_logo *els_logo = (struct fcp_logo *) status_buffer->payload;
 	struct zfcp_port *port;
 	unsigned long flags;
@@ -1454,7 +1455,7 @@ zfcp_fsf_incoming_els_logo(struct zfcp_adapter *adapter,
 			       status_buffer->d_id,
 			       zfcp_get_busid_by_adapter(adapter));
 	} else {
-		zfcp_erp_port_forced_reopen(port, 0);
+		zfcp_erp_port_forced_reopen(port, 0, 84, (u64)fsf_req);
 	}
 }
 
@@ -1481,12 +1482,12 @@ zfcp_fsf_incoming_els(struct zfcp_fsf_req *fsf_req)
 
 	zfcp_san_dbf_event_incoming_els(fsf_req);
 	if (els_type == LS_PLOGI)
-		zfcp_fsf_incoming_els_plogi(adapter, status_buffer);
+		zfcp_fsf_incoming_els_plogi(fsf_req);
 	else if (els_type == LS_LOGO)
-		zfcp_fsf_incoming_els_logo(adapter, status_buffer);
+		zfcp_fsf_incoming_els_logo(fsf_req);
 	else if ((els_type & 0xffff0000) == LS_RSCN)
 		/* we are only concerned with the command, not the length */
-		zfcp_fsf_incoming_els_rscn(adapter, status_buffer);
+		zfcp_fsf_incoming_els_rscn(fsf_req);
 	else
 		zfcp_fsf_incoming_els_unknown(adapter, status_buffer);
 }

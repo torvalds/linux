@@ -523,6 +523,7 @@ static struct debug_view zfcp_hba_dbf_view = {
 static const char *zfcp_rec_dbf_tags[] = {
 	[ZFCP_REC_DBF_ID_THREAD] = "thread",
 	[ZFCP_REC_DBF_ID_TARGET] = "target",
+	[ZFCP_REC_DBF_ID_TRIGGER] = "trigger",
 };
 
 static const char *zfcp_rec_dbf_ids[] = {
@@ -587,6 +588,89 @@ static const char *zfcp_rec_dbf_ids[] = {
 	[59]	= "unit access denied open unit",
 	[60]	= "shared unit access denied open unit",
 	[61]	= "unit access denied fcp",
+	[62]	= "request timeout",
+	[63]	= "adisc link test reject or timeout",
+	[64]	= "adisc link test d_id changed",
+	[65]	= "adisc link test failed",
+	[66]	= "recovery out of memory",
+	[67]	= "adapter recovery repeated after state change",
+	[68]	= "port recovery repeated after state change",
+	[69]	= "unit recovery repeated after state change",
+	[70]	= "port recovery follow-up after successful adapter recovery",
+	[71]	= "adapter recovery escalation after failed adapter recovery",
+	[72]	= "port recovery follow-up after successful physical port "
+		  "recovery",
+	[73]	= "adapter recovery escalation after failed physical port "
+		  "recovery",
+	[74]	= "unit recovery follow-up after successful port recovery",
+	[75]	= "physical port recovery escalation after failed port "
+		  "recovery",
+	[76]	= "port recovery escalation after failed unit recovery",
+	[77]	= "recovery opening nameserver port",
+	[78]	= "duplicate request id",
+	[79]	= "link down",
+	[80]	= "exclusive read-only unit access unsupported",
+	[81]	= "shared read-write unit access unsupported",
+	[82]	= "incoming rscn",
+	[83]	= "incoming plogi",
+	[84]	= "incoming logo",
+	[85]	= "online",
+	[86]	= "offline",
+	[87]	= "ccw device gone",
+	[88]	= "ccw device no path",
+	[89]	= "ccw device operational",
+	[90]	= "ccw device shutdown",
+	[91]	= "sysfs port addition",
+	[92]	= "sysfs port removal",
+	[93]	= "sysfs adapter recovery",
+	[94]	= "sysfs unit addition",
+	[95]	= "sysfs unit removal",
+	[96]	= "sysfs port recovery",
+	[97]	= "sysfs unit recovery",
+	[98]	= "sequence number mismatch",
+	[99]	= "link up",
+	[100]	= "error state",
+	[101]	= "status read physical port closed",
+	[102]	= "link up status read",
+	[103]	= "too many failed status read buffers",
+	[104]	= "port handle not valid abort",
+	[105]	= "lun handle not valid abort",
+	[106]	= "port handle not valid ct",
+	[107]	= "port handle not valid close port",
+	[108]	= "port handle not valid close physical port",
+	[109]	= "port handle not valid open unit",
+	[110]	= "port handle not valid close unit",
+	[111]	= "lun handle not valid close unit",
+	[112]	= "port handle not valid fcp",
+	[113]	= "lun handle not valid fcp",
+	[114]	= "handle mismatch fcp",
+	[115]	= "lun not valid fcp",
+	[116]	= "qdio send failed",
+	[117]	= "version mismatch",
+	[118]	= "incompatible qtcb type",
+	[119]	= "unknown protocol status",
+	[120]	= "unknown fsf command",
+	[121]	= "no recommendation for status qualifier",
+	[122]	= "status read physical port closed in error",
+	[123]	= "fc service class not supported ct",
+	[124]	= "fc service class not supported els",
+	[125]	= "need newer zfcp",
+	[126]	= "need newer microcode",
+	[127]	= "arbitrated loop not supported",
+	[128]	= "unknown topology",
+	[129]	= "qtcb size mismatch",
+	[130]	= "unknown fsf status ecd",
+	[131]	= "fcp request too big",
+	[132]	= "fc service class not supported fcp",
+	[133]	= "data direction not valid fcp",
+	[134]	= "command length not valid fcp",
+	[135]	= "status read act update",
+	[136]	= "status read cfdc update",
+	[137]	= "hbaapi port open",
+	[138]	= "hbaapi unit open",
+	[139]	= "hbaapi unit shutdown",
+	[140]	= "qdio error",
+	[141]	= "scsi host reset",
 };
 
 static int zfcp_rec_dbf_view_format(debug_info_t *id, struct debug_view *view,
@@ -612,6 +696,17 @@ static int zfcp_rec_dbf_view_format(debug_info_t *id, struct debug_view *view,
 		zfcp_dbf_out(&p, "d_id", "0x%06x", r->u.target.d_id);
 		zfcp_dbf_out(&p, "wwpn", "0x%016Lx", r->u.target.wwpn);
 		zfcp_dbf_out(&p, "fcp_lun", "0x%016Lx", r->u.target.fcp_lun);
+		break;
+	case ZFCP_REC_DBF_ID_TRIGGER:
+		zfcp_dbf_out(&p, "reference", "0x%016Lx", r->u.trigger.ref);
+		zfcp_dbf_out(&p, "erp_action", "0x%016Lx", r->u.trigger.action);
+		zfcp_dbf_out(&p, "requested", "%d", r->u.trigger.want);
+		zfcp_dbf_out(&p, "executed", "%d", r->u.trigger.need);
+		zfcp_dbf_out(&p, "wwpn", "0x%016Lx", r->u.trigger.wwpn);
+		zfcp_dbf_out(&p, "fcp_lun", "0x%016Lx", r->u.trigger.fcp_lun);
+		zfcp_dbf_out(&p, "adapter_status", "0x%08x", r->u.trigger.as);
+		zfcp_dbf_out(&p, "port_status", "0x%08x", r->u.trigger.ps);
+		zfcp_dbf_out(&p, "unit_status", "0x%08x", r->u.trigger.us);
 		break;
 	}
 	sprintf(p, "\n");
@@ -725,6 +820,45 @@ void zfcp_rec_dbf_event_unit(u8 id, u64 ref, struct zfcp_unit *unit)
 	zfcp_rec_dbf_event_target(id, ref, adapter, &unit->status,
 				  &unit->erp_counter, port->wwpn, port->d_id,
 				  unit->fcp_lun);
+}
+
+/**
+ * zfcp_rec_dbf_event_trigger - trace event for triggered error recovery
+ * @id2: identifier for error recovery trigger
+ * @ref: additional reference (e.g. request)
+ * @want: originally requested error recovery action
+ * @need: error recovery action actually initiated
+ * @action: address of error recovery action struct
+ * @adapter: adapter
+ * @port: port
+ * @unit: unit
+ */
+void zfcp_rec_dbf_event_trigger(u8 id2, u64 ref, u8 want, u8 need, u64 action,
+				struct zfcp_adapter *adapter,
+				struct zfcp_port *port, struct zfcp_unit *unit)
+{
+	struct zfcp_rec_dbf_record *r = &adapter->rec_dbf_buf;
+	unsigned long flags;
+
+	spin_lock_irqsave(&adapter->rec_dbf_lock, flags);
+	memset(r, 0, sizeof(*r));
+	r->id = ZFCP_REC_DBF_ID_TRIGGER;
+	r->id2 = id2;
+	r->u.trigger.ref = ref;
+	r->u.trigger.want = want;
+	r->u.trigger.need = need;
+	r->u.trigger.action = action;
+	r->u.trigger.as = atomic_read(&adapter->status);
+	if (port) {
+		r->u.trigger.ps = atomic_read(&port->status);
+		r->u.trigger.wwpn = port->wwpn;
+	}
+	if (unit) {
+		r->u.trigger.us = atomic_read(&unit->status);
+		r->u.trigger.fcp_lun = unit->fcp_lun;
+	}
+	debug_event(adapter->rec_dbf, action ? 1 : 4, r, sizeof(*r));
+	spin_unlock_irqrestore(&adapter->rec_dbf_lock, flags);
 }
 
 static void
