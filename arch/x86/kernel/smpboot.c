@@ -85,6 +85,10 @@ u16 x86_bios_cpu_apicid_init[NR_CPUS] __initdata
 void *x86_bios_cpu_apicid_early_ptr;
 DEFINE_PER_CPU(u16, x86_bios_cpu_apicid) = BAD_APICID;
 EXPORT_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
+
+/* Bitmask of physically existing CPUs */
+physid_mask_t phys_cpu_present_map;
+
 u8 apicid_2_node[MAX_APICID];
 #endif
 

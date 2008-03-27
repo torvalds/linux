@@ -70,8 +70,10 @@ unsigned int num_processors;
 
 unsigned disabled_cpus __cpuinitdata;
 
-/* Bitmask of physically existing CPUs */
+/* Make it easy to share the UP and SMP code: */
+#ifndef CONFIG_X86_SMP
 physid_mask_t phys_cpu_present_map;
+#endif
 
 #ifndef CONFIG_SMP
 DEFINE_PER_CPU(u16, x86_bios_cpu_apicid) = BAD_APICID;
