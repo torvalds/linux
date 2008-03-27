@@ -88,6 +88,7 @@ EXPORT_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
 
 /* Internal processor count */
 unsigned int num_processors;
+unsigned disabled_cpus __cpuinitdata;
 
 /* Bitmask of physically existing CPUs */
 physid_mask_t phys_cpu_present_map;

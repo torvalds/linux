@@ -69,9 +69,8 @@ unsigned int boot_cpu_physical_apicid = -1U;
 /* Make it easy to share the UP and SMP code: */
 #ifndef CONFIG_X86_SMP
 unsigned int num_processors;
-#endif
-
 unsigned disabled_cpus __cpuinitdata;
+#endif
 
 /* Make it easy to share the UP and SMP code: */
 #ifndef CONFIG_X86_SMP
