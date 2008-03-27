@@ -41,6 +41,7 @@ __cacheline_aligned_in_smp DEFINE_SPINLOCK(vfsmount_lock);
 
 static int event;
 static DEFINE_IDA(mnt_id_ida);
+static DEFINE_IDA(mnt_group_ida);
 
 static struct list_head *mount_hashtable __read_mostly;
 static struct kmem_cache *mnt_cache __read_mostly;
@@ -81,6 +82,28 @@ static void mnt_free_id(struct vfsmount *mnt)
 	spin_lock(&vfsmount_lock);
 	ida_remove(&mnt_id_ida, mnt->mnt_id);
 	spin_unlock(&vfsmount_lock);
+}
+
+/*
+ * Allocate a new peer group ID
+ *
+ * mnt_group_ida is protected by namespace_sem
+ */
+static int mnt_alloc_group_id(struct vfsmount *mnt)
+{
+	if (!ida_pre_get(&mnt_group_ida, GFP_KERNEL))
+		return -ENOMEM;
+
+	return ida_get_new_above(&mnt_group_ida, 1, &mnt->mnt_group_id);
+}
+
+/*
+ * Release a peer group ID
+ */
+void mnt_release_group_id(struct vfsmount *mnt)
+{
+	ida_remove(&mnt_group_ida, mnt->mnt_group_id);
+	mnt->mnt_group_id = 0;
 }
 
 struct vfsmount *alloc_vfsmnt(const char *name)
@@ -533,6 +556,17 @@ static struct vfsmount *clone_mnt(struct vfsmount *old, struct dentry *root,
 	struct vfsmount *mnt = alloc_vfsmnt(old->mnt_devname);
 
 	if (mnt) {
+		if (flag & (CL_SLAVE | CL_PRIVATE))
+			mnt->mnt_group_id = 0; /* not a peer of original */
+		else
+			mnt->mnt_group_id = old->mnt_group_id;
+
+		if ((flag & CL_MAKE_SHARED) && !mnt->mnt_group_id) {
+			int err = mnt_alloc_group_id(mnt);
+			if (err)
+				goto out_free;
+		}
+
 		mnt->mnt_flags = old->mnt_flags;
 		atomic_inc(&sb->s_active);
 		mnt->mnt_sb = sb;
@@ -562,6 +596,10 @@ static struct vfsmount *clone_mnt(struct vfsmount *old, struct dentry *root,
 		}
 	}
 	return mnt;
+
+ out_free:
+	free_vfsmnt(mnt);
+	return NULL;
 }
 
 static inline void __mntput(struct vfsmount *mnt)
@@ -1142,6 +1180,33 @@ void drop_collected_mounts(struct vfsmount *mnt)
 	release_mounts(&umount_list);
 }
 
+static void cleanup_group_ids(struct vfsmount *mnt, struct vfsmount *end)
+{
+	struct vfsmount *p;
+
+	for (p = mnt; p != end; p = next_mnt(p, mnt)) {
+		if (p->mnt_group_id && !IS_MNT_SHARED(p))
+			mnt_release_group_id(p);
+	}
+}
+
+static int invent_group_ids(struct vfsmount *mnt, bool recurse)
+{
+	struct vfsmount *p;
+
+	for (p = mnt; p; p = recurse ? next_mnt(p, mnt) : NULL) {
+		if (!p->mnt_group_id && !IS_MNT_SHARED(p)) {
+			int err = mnt_alloc_group_id(p);
+			if (err) {
+				cleanup_group_ids(mnt, p);
+				return err;
+			}
+		}
+	}
+
+	return 0;
+}
+
 /*
  *  @source_mnt : mount tree to be attached
  *  @nd         : place the mount tree @source_mnt is attached
@@ -1212,9 +1277,16 @@ static int attach_recursive_mnt(struct vfsmount *source_mnt,
 	struct vfsmount *dest_mnt = path->mnt;
 	struct dentry *dest_dentry = path->dentry;
 	struct vfsmount *child, *p;
+	int err;
 
-	if (propagate_mnt(dest_mnt, dest_dentry, source_mnt, &tree_list))
-		return -EINVAL;
+	if (IS_MNT_SHARED(dest_mnt)) {
+		err = invent_group_ids(source_mnt, true);
+		if (err)
+			goto out;
+	}
+	err = propagate_mnt(dest_mnt, dest_dentry, source_mnt, &tree_list);
+	if (err)
+		goto out_cleanup_ids;
 
 	if (IS_MNT_SHARED(dest_mnt)) {
 		for (p = source_mnt; p; p = next_mnt(p, source_mnt))
@@ -1237,6 +1309,12 @@ static int attach_recursive_mnt(struct vfsmount *source_mnt,
 	}
 	spin_unlock(&vfsmount_lock);
 	return 0;
+
+ out_cleanup_ids:
+	if (IS_MNT_SHARED(dest_mnt))
+		cleanup_group_ids(source_mnt, NULL);
+ out:
+	return err;
 }
 
 static int graft_tree(struct vfsmount *mnt, struct path *path)
@@ -1277,6 +1355,7 @@ static noinline int do_change_type(struct nameidata *nd, int flag)
 	struct vfsmount *m, *mnt = nd->path.mnt;
 	int recurse = flag & MS_REC;
 	int type = flag & ~MS_REC;
+	int err = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -1285,12 +1364,20 @@ static noinline int do_change_type(struct nameidata *nd, int flag)
 		return -EINVAL;
 
 	down_write(&namespace_sem);
+	if (type == MS_SHARED) {
+		err = invent_group_ids(mnt, recurse);
+		if (err)
+			goto out_unlock;
+	}
+
 	spin_lock(&vfsmount_lock);
 	for (m = mnt; m; m = (recurse ? next_mnt(m, mnt) : NULL))
 		change_mnt_propagation(m, type);
 	spin_unlock(&vfsmount_lock);
+
+ out_unlock:
 	up_write(&namespace_sem);
-	return 0;
+	return err;
 }
 
 /*

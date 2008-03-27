@@ -46,7 +46,11 @@ static int do_make_slave(struct vfsmount *mnt)
 		if (peer_mnt == mnt)
 			peer_mnt = NULL;
 	}
+	if (IS_MNT_SHARED(mnt) && list_empty(&mnt->mnt_share))
+		mnt_release_group_id(mnt);
+
 	list_del_init(&mnt->mnt_share);
+	mnt->mnt_group_id = 0;
 
 	if (peer_mnt)
 		master = peer_mnt;
@@ -68,7 +72,6 @@ static int do_make_slave(struct vfsmount *mnt)
 	}
 	mnt->mnt_master = master;
 	CLEAR_MNT_SHARED(mnt);
-	INIT_LIST_HEAD(&mnt->mnt_slave_list);
 	return 0;
 }
 
