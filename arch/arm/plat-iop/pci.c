@@ -24,6 +24,7 @@
 #include <asm/hardware.h>
 #include <asm/mach/pci.h>
 #include <asm/hardware/iop3xx.h>
+#include <asm/mach-types.h>
 
 // #define DEBUG
 
@@ -325,13 +326,16 @@ void __init iop3xx_atu_disable(void)
 /* Flag to determine whether the ATU is initialized and the PCI bus scanned */
 int init_atu;
 
-void __init iop3xx_pci_preinit(void)
-{
-	if (iop3xx_get_init_atu() == IOP3XX_INIT_ATU_ENABLE) {
-		iop3xx_atu_disable();
-		iop3xx_atu_setup();
-	}
+int iop3xx_get_init_atu(void) {
+	/* check if default has been overridden */
+	if (init_atu != IOP3XX_INIT_ATU_DEFAULT)
+		return init_atu;
+	else
+		return IOP3XX_INIT_ATU_DISABLE;
+}
 
+static void __init iop3xx_atu_debug(void)
+{
 	DBG("PCI: Intel IOP3xx PCI init.\n");
 	DBG("PCI: Outbound memory window 0: PCI 0x%08x%08x\n",
 		*IOP3XX_OUMWTVR0, *IOP3XX_OMWTVR0);
@@ -356,6 +360,23 @@ void __init iop3xx_pci_preinit(void)
 	DBG("ATU: IOP3XX_ATUCR=0x%08x\n", *IOP3XX_ATUCR);
 
 	hook_fault_code(16+6, iop3xx_pci_abort, SIGBUS, "imprecise external abort");
+}
+
+/* for platforms that might be host-bus-adapters */
+void __init iop3xx_pci_preinit_cond(void)
+{
+	if (iop3xx_get_init_atu() == IOP3XX_INIT_ATU_ENABLE) {
+		iop3xx_atu_disable();
+		iop3xx_atu_setup();
+		iop3xx_atu_debug();
+	}
+}
+
+void __init iop3xx_pci_preinit(void)
+{
+	iop3xx_atu_disable();
+	iop3xx_atu_setup();
+	iop3xx_atu_debug();
 }
 
 /* allow init_atu to be user overridden */
