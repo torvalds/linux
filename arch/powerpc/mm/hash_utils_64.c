@@ -192,6 +192,7 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 	return ret < 0 ? ret : 0;
 }
 
+#ifdef CONFIG_MEMORY_HOTPLUG
 static int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 		      int psize, int ssize)
 {
@@ -212,6 +213,7 @@ static int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 
 	return 0;
 }
+#endif /* CONFIG_MEMORY_HOTPLUG */
 
 static int __init htab_dt_scan_seg_sizes(unsigned long node,
 					 const char *uname, int depth,
