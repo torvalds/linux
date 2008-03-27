@@ -562,38 +562,19 @@ _zfcp_san_dbf_event_common_els(const char *tag, int level,
 {
 	struct zfcp_adapter *adapter = fsf_req->adapter;
 	struct zfcp_san_dbf_record *rec = &adapter->san_dbf_buf;
-	struct zfcp_dbf_dump *dump = (struct zfcp_dbf_dump *)rec;
 	unsigned long flags;
-	int offset = 0;
 
 	spin_lock_irqsave(&adapter->san_dbf_lock, flags);
-	do {
-		memset(rec, 0, sizeof(struct zfcp_san_dbf_record));
-		if (offset == 0) {
-			strncpy(rec->tag, tag, ZFCP_DBF_TAG_SIZE);
-			rec->fsf_reqid = (unsigned long)fsf_req;
-			rec->fsf_seqno = fsf_req->seq_no;
-			rec->s_id = s_id;
-			rec->d_id = d_id;
-			rec->type.els.ls_code = ls_code;
-			buflen = min(buflen, ZFCP_DBF_ELS_MAX_PAYLOAD);
-			rec->type.els.payload_size = buflen;
-			memcpy(rec->type.els.payload,
-			       buffer, min(buflen, ZFCP_DBF_ELS_PAYLOAD));
-			offset += min(buflen, ZFCP_DBF_ELS_PAYLOAD);
-		} else {
-			strncpy(dump->tag, "dump", ZFCP_DBF_TAG_SIZE);
-			dump->total_size = buflen;
-			dump->offset = offset;
-			dump->size = min(buflen - offset,
-					 (int)sizeof(struct zfcp_san_dbf_record)
-					 - (int)sizeof(struct zfcp_dbf_dump));
-			memcpy(dump->data, buffer + offset, dump->size);
-			offset += dump->size;
-		}
-		debug_event(adapter->san_dbf, level,
-			    rec, sizeof(struct zfcp_san_dbf_record));
-	} while (offset < buflen);
+	memset(rec, 0, sizeof(struct zfcp_san_dbf_record));
+	strncpy(rec->tag, tag, ZFCP_DBF_TAG_SIZE);
+	rec->fsf_reqid = (unsigned long)fsf_req;
+	rec->fsf_seqno = fsf_req->seq_no;
+	rec->s_id = s_id;
+	rec->d_id = d_id;
+	rec->type.els.ls_code = ls_code;
+	debug_event(adapter->san_dbf, level, rec, sizeof(*rec));
+	zfcp_dbf_hexdump(adapter->san_dbf, rec, sizeof(*rec), level,
+			 buffer, min(buflen, ZFCP_DBF_ELS_MAX_PAYLOAD));
 	spin_unlock_irqrestore(&adapter->san_dbf_lock, flags);
 }
 
