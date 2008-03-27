@@ -61,8 +61,6 @@ int nr_ioapics;
 
 int pic_mode;
 
-unsigned int def_to_bigsmp = 0;
-
 /* Processor that is doing the boot up */
 unsigned int boot_cpu_physical_apicid = -1U;
 
