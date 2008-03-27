@@ -14,6 +14,7 @@
 #include <linux/pci.h>
 #include <linux/mbus.h>
 #include <asm/mach/pci.h>
+#include <asm/plat-orion/pcie.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -32,55 +33,35 @@
 /*****************************************************************************
  * PCIE controller
  ****************************************************************************/
-#define PCIE_CTRL		ORION_PCIE_REG(0x1a00)
-#define PCIE_STAT		ORION_PCIE_REG(0x1a04)
-#define PCIE_DEV_ID		ORION_PCIE_REG(0x0000)
-#define PCIE_CMD_STAT		ORION_PCIE_REG(0x0004)
-#define PCIE_DEV_REV		ORION_PCIE_REG(0x0008)
-#define PCIE_MASK		ORION_PCIE_REG(0x1910)
-#define PCIE_CONF_ADDR		ORION_PCIE_REG(0x18f8)
-#define PCIE_CONF_DATA		ORION_PCIE_REG(0x18fc)
+#define PCIE_BASE	((void __iomem *)ORION_PCIE_VIRT_BASE)
 
-/*
- * PCIE_STAT bits
- */
-#define PCIE_STAT_LINK_DOWN		1
-#define PCIE_STAT_BUS_OFFS		8
-#define PCIE_STAT_BUS_MASK		(0xff << PCIE_STAT_BUS_OFFS)
-#define PCIE_STAT_DEV_OFFS		20
-#define PCIE_STAT_DEV_MASK		(0x1f << PCIE_STAT_DEV_OFFS)
+void orion_pcie_id(u32 *dev, u32 *rev)
+{
+	*dev = orion_pcie_dev_id(PCIE_BASE);
+	*rev = orion_pcie_rev(PCIE_BASE);
+}
 
-/*
- * PCIE_CONF_ADDR bits
- */
-#define PCIE_CONF_REG(r)		((((r) & 0xf00) << 24) | ((r) & 0xfc))
-#define PCIE_CONF_FUNC(f)		(((f) & 0x3) << 8)
-#define PCIE_CONF_DEV(d)		(((d) & 0x1f) << 11)
-#define PCIE_CONF_BUS(b)		(((b) & 0xff) << 16)
-#define PCIE_CONF_ADDR_EN		(1 << 31)
+int orion_pcie_local_bus_nr(void)
+{
+	return orion_pcie_get_local_bus_nr(PCIE_BASE);
+}
 
-/*
- * PCIE Address Decode Windows registers
- */
-#define PCIE_BAR_CTRL(n)	ORION_PCIE_REG(0x1804 + ((n - 1) * 4))
-#define PCIE_BAR_LO(n)		ORION_PCIE_REG(0x0010 + ((n) * 8))
-#define PCIE_BAR_HI(n)		ORION_PCIE_REG(0x0014 + ((n) * 8))
-#define PCIE_WIN_CTRL(n)	(((n) < 5) ? \
-					ORION_PCIE_REG(0x1820 + ((n) << 4)) : \
-					ORION_PCIE_REG(0x1880))
-#define PCIE_WIN_BASE(n)	(((n) < 5) ? \
-					ORION_PCIE_REG(0x1824 + ((n) << 4)) : \
-					ORION_PCIE_REG(0x1884))
-#define PCIE_WIN_REMAP(n)	(((n) < 5) ? \
-					ORION_PCIE_REG(0x182c + ((n) << 4)) : \
-					ORION_PCIE_REG(0x188c))
-#define PCIE_MAX_BARS		3
-#define PCIE_MAX_WINS		6
+static int pcie_valid_config(int bus, int dev)
+{
+	/*
+	 * Don't go out when trying to access --
+	 * 1. our own device / nonexisting device on local bus
+	 * 2. where there's no device connected (no link)
+	 */
+	if (bus == 0 && dev != 1)
+		return 0;
 
-/*
- * Use PCIE BAR '1' for all DDR banks
- */
-#define PCIE_DRAM_BAR		1
+	if (!orion_pcie_link_up(PCIE_BASE))
+		return 0;
+
+	return 1;
+}
+
 
 /*
  * PCIE config cycles are done by programming the PCIE_CONF_ADDR register
@@ -89,231 +70,99 @@
  */
 static DEFINE_SPINLOCK(orion_pcie_lock);
 
-void orion_pcie_id(u32 *dev, u32 *rev)
-{
-	*dev = orion_read(PCIE_DEV_ID) >> 16;
-	*rev = orion_read(PCIE_DEV_REV) & 0xff;
-}
-
-u32 orion_pcie_local_bus_nr(void)
-{
-	u32 stat = orion_read(PCIE_STAT);
-	return((stat & PCIE_STAT_BUS_MASK) >> PCIE_STAT_BUS_OFFS);
-}
-
-static u32 orion_pcie_local_dev_nr(void)
-{
-	u32 stat = orion_read(PCIE_STAT);
-	return((stat & PCIE_STAT_DEV_MASK) >> PCIE_STAT_DEV_OFFS);
-}
-
-static u32 orion_pcie_no_link(void)
-{
-	u32 stat = orion_read(PCIE_STAT);
-	return(stat & PCIE_STAT_LINK_DOWN);
-}
-
-static void orion_pcie_set_bus_nr(int nr)
-{
-	orion_clrbits(PCIE_STAT, PCIE_STAT_BUS_MASK);
-	orion_setbits(PCIE_STAT, nr << PCIE_STAT_BUS_OFFS);
-}
-
-/*
- * Setup PCIE BARs and Address Decode Wins:
- * BAR[0,2] -> disabled, BAR[1] -> covers all DRAM banks
- * WIN[0-3] -> DRAM bank[0-3]
- */
-static void orion_setup_pcie_wins(struct mbus_dram_target_info *dram)
-{
-	u32 size;
-	int i;
-
-	/*
-	 * First, disable and clear BARs and windows
-	 */
-	for (i = 1; i < PCIE_MAX_BARS; i++) {
-		writel(0, PCIE_BAR_CTRL(i));
-		writel(0, PCIE_BAR_LO(i));
-		writel(0, PCIE_BAR_HI(i));
-	}
-
-	for (i = 0; i < PCIE_MAX_WINS; i++) {
-		writel(0, PCIE_WIN_CTRL(i));
-		writel(0, PCIE_WIN_BASE(i));
-		writel(0, PCIE_WIN_REMAP(i));
-	}
-
-	/*
-	 * Setup windows for DDR banks. Count total DDR size on the fly.
-	 */
-	size = 0;
-	for (i = 0; i < dram->num_cs; i++) {
-		struct mbus_dram_window *cs = dram->cs + i;
-
-		writel(cs->base & 0xffff0000, PCIE_WIN_BASE(i));
-		writel(0, PCIE_WIN_REMAP(i));
-		writel(((cs->size - 1) & 0xffff0000) |
-			(cs->mbus_attr << 8) |
-			(dram->mbus_dram_target_id << 4) |
-			(PCIE_DRAM_BAR << 1) | 1, PCIE_WIN_CTRL(i));
-
-		size += cs->size;
-	}
-
-	/*
-	 * Setup BAR[1] to all DRAM banks
-	 */
-	writel(dram->cs[0].base, PCIE_BAR_LO(PCIE_DRAM_BAR));
-	writel(0, PCIE_BAR_HI(PCIE_DRAM_BAR));
-	writel(((size - 1) & 0xffff0000) | 1, PCIE_BAR_CTRL(PCIE_DRAM_BAR));
-}
-
-static void orion_pcie_master_slave_enable(void)
-{
-	orion_setbits(PCIE_CMD_STAT, PCI_COMMAND_MASTER |
-					  PCI_COMMAND_IO |
-					  PCI_COMMAND_MEMORY);
-}
-
-static void orion_pcie_enable_interrupts(void)
-{
-	/*
-	 * Enable interrupts lines
-	 * INTA[24] INTB[25] INTC[26] INTD[27]
-	 */
-	orion_setbits(PCIE_MASK, 0xf<<24);
-}
-
-static int orion_pcie_valid_config(u32 bus, u32 dev)
-{
-	/*
-	 * Don't go out when trying to access --
-	 * 1. our own device
-	 * 2. where there's no device connected (no link)
-	 * 3. nonexisting devices on local bus
-	 */
-
-	if ((orion_pcie_local_bus_nr() == bus) &&
-	   (orion_pcie_local_dev_nr() == dev))
-		return 0;
-
-	if (orion_pcie_no_link())
-		return 0;
-
-	if (bus == orion_pcie_local_bus_nr())
-		if (((orion_pcie_local_dev_nr() == 0) && (dev != 1)) ||
-		   ((orion_pcie_local_dev_nr() != 0) && (dev != 0)))
-		return 0;
-
-	return 1;
-}
-
-static int orion_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
-						int size, u32 *val)
+static int pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
+			int size, u32 *val)
 {
 	unsigned long flags;
-	unsigned int dev, rev, pcie_addr;
+	int ret;
 
-	if (orion_pcie_valid_config(bus->number, PCI_SLOT(devfn)) == 0) {
+	if (pcie_valid_config(bus->number, PCI_SLOT(devfn)) == 0) {
 		*val = 0xffffffff;
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
 
 	spin_lock_irqsave(&orion_pcie_lock, flags);
-
-	orion_write(PCIE_CONF_ADDR, PCIE_CONF_BUS(bus->number) |
-			PCIE_CONF_DEV(PCI_SLOT(devfn)) |
-			PCIE_CONF_FUNC(PCI_FUNC(devfn)) |
-			PCIE_CONF_REG(where) | PCIE_CONF_ADDR_EN);
-
-	orion_pcie_id(&dev, &rev);
-	if (dev == MV88F5181_DEV_ID || dev == MV88F5182_DEV_ID) {
-		/* extended register space */
-		pcie_addr = ORION_PCIE_WA_VIRT_BASE;
-		pcie_addr |= PCIE_CONF_BUS(bus->number) |
-			PCIE_CONF_DEV(PCI_SLOT(devfn)) |
-			PCIE_CONF_FUNC(PCI_FUNC(devfn)) |
-			PCIE_CONF_REG(where);
-		*val = orion_read(pcie_addr);
-	} else
-		*val = orion_read(PCIE_CONF_DATA);
-
-	if (size == 1)
-		*val = (*val >> (8*(where & 0x3))) & 0xff;
-	else if (size == 2)
-		*val = (*val >> (8*(where & 0x3))) & 0xffff;
-
-	spin_unlock_irqrestore(&orion_pcie_lock, flags);
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-
-static int orion_pcie_wr_conf(struct pci_bus *bus, u32 devfn, int where,
-						int size, u32 val)
-{
-	unsigned long flags;
-	int ret;
-
-	if (orion_pcie_valid_config(bus->number, PCI_SLOT(devfn)) == 0)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	spin_lock_irqsave(&orion_pcie_lock, flags);
-
-	ret = PCIBIOS_SUCCESSFUL;
-
-	orion_write(PCIE_CONF_ADDR, PCIE_CONF_BUS(bus->number) |
-			PCIE_CONF_DEV(PCI_SLOT(devfn)) |
-			PCIE_CONF_FUNC(PCI_FUNC(devfn)) |
-			PCIE_CONF_REG(where) | PCIE_CONF_ADDR_EN);
-
-	if (size == 4) {
-		__raw_writel(val, PCIE_CONF_DATA);
-	} else if (size == 2) {
-		__raw_writew(val, PCIE_CONF_DATA + (where & 0x3));
-	} else if (size == 1) {
-		__raw_writeb(val, PCIE_CONF_DATA + (where & 0x3));
-	} else {
-		ret = PCIBIOS_BAD_REGISTER_NUMBER;
-	}
-
+	ret = orion_pcie_rd_conf(PCIE_BASE, bus, devfn, where, size, val);
 	spin_unlock_irqrestore(&orion_pcie_lock, flags);
 
 	return ret;
 }
 
-struct pci_ops orion_pcie_ops = {
-	.read = orion_pcie_rd_conf,
-	.write = orion_pcie_wr_conf,
+static int pcie_rd_conf_wa(struct pci_bus *bus, u32 devfn,
+			   int where, int size, u32 *val)
+{
+	int ret;
+
+	if (pcie_valid_config(bus->number, PCI_SLOT(devfn)) == 0) {
+		*val = 0xffffffff;
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	}
+
+	/*
+	 * We only support access to the non-extended configuration
+	 * space when using the WA access method (or we would have to
+	 * sacrifice 256M of CPU virtual address space.)
+	 */
+	if (where >= 0x100) {
+		*val = 0xffffffff;
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	}
+
+	ret = orion_pcie_rd_conf_wa((void __iomem *)ORION_PCIE_WA_VIRT_BASE,
+				    bus, devfn, where, size, val);
+
+	return ret;
+}
+
+static int pcie_wr_conf(struct pci_bus *bus, u32 devfn,
+			int where, int size, u32 val)
+{
+	unsigned long flags;
+	int ret;
+
+	if (pcie_valid_config(bus->number, PCI_SLOT(devfn)) == 0)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	spin_lock_irqsave(&orion_pcie_lock, flags);
+	ret = orion_pcie_wr_conf(PCIE_BASE, bus, devfn, where, size, val);
+	spin_unlock_irqrestore(&orion_pcie_lock, flags);
+
+	return ret;
+}
+
+struct pci_ops pcie_ops = {
+	.read = pcie_rd_conf,
+	.write = pcie_wr_conf,
 };
 
 
-static int orion_pcie_setup(struct pci_sys_data *sys)
+static int pcie_setup(struct pci_sys_data *sys)
 {
 	struct resource *res;
+	int dev;
 
 	/*
-	 * Point PCIe unit MBUS decode windows to DRAM space.
+	 * Generic PCIe unit setup.
 	 */
-	orion_setup_pcie_wins(&orion_mbus_dram_info);
+	orion_pcie_setup(PCIE_BASE, &orion_mbus_dram_info);
 
 	/*
-	 * Master + Slave enable
+	 * Check whether to apply Orion-1/Orion-NAS PCIe config
+	 * read transaction workaround.
 	 */
-	orion_pcie_master_slave_enable();
+	dev = orion_pcie_dev_id(PCIE_BASE);
+	if (dev == MV88F5181_DEV_ID || dev == MV88F5182_DEV_ID) {
+		printk(KERN_NOTICE "Applying Orion-1/Orion-NAS PCIe config "
+				   "read transaction workaround\n");
+		pcie_ops.read = pcie_rd_conf_wa;
+	}
 
 	/*
-	 * Enable interrupts lines A-D
-	 */
-	orion_pcie_enable_interrupts();
-
-	/*
-	 * Request resource
+	 * Request resources.
 	 */
 	res = kzalloc(sizeof(struct resource) * 2, GFP_KERNEL);
 	if (!res)
-		panic("orion_pci_setup unable to alloc resources");
+		panic("pcie_setup unable to alloc resources");
 
 	/*
 	 * IORESOURCE_IO
@@ -417,19 +266,19 @@ static int orion_pcie_setup(struct pci_sys_data *sys)
  */
 static DEFINE_SPINLOCK(orion_pci_lock);
 
-u32 orion_pci_local_bus_nr(void)
+int orion_pci_local_bus_nr(void)
 {
 	u32 conf = orion_read(PCI_P2P_CONF);
 	return((conf & PCI_P2P_BUS_MASK) >> PCI_P2P_BUS_OFFS);
 }
 
-static u32 orion_pci_local_dev_nr(void)
+static int orion_pci_local_dev_nr(void)
 {
 	u32 conf = orion_read(PCI_P2P_CONF);
 	return((conf & PCI_P2P_DEV_MASK) >> PCI_P2P_DEV_OFFS);
 }
 
-static int orion_pci_hw_rd_conf(u32 bus, u32 dev, u32 func,
+static int orion_pci_hw_rd_conf(int bus, int dev, u32 func,
 					u32 where, u32 size, u32 *val)
 {
 	unsigned long flags;
@@ -451,7 +300,7 @@ static int orion_pci_hw_rd_conf(u32 bus, u32 dev, u32 func,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int orion_pci_hw_wr_conf(u32 bus, u32 dev, u32 func,
+static int orion_pci_hw_wr_conf(int bus, int dev, u32 func,
 					u32 where, u32 size, u32 val)
 {
 	unsigned long flags;
@@ -508,7 +357,7 @@ static int orion_pci_wr_conf(struct pci_bus *bus, u32 devfn,
 					PCI_FUNC(devfn), where, size, val);
 }
 
-struct pci_ops orion_pci_ops = {
+struct pci_ops pci_ops = {
 	.read = orion_pci_rd_conf,
 	.write = orion_pci_wr_conf,
 };
@@ -540,7 +389,8 @@ static void orion_pci_set_bus_nr(int nr)
 
 static void orion_pci_master_slave_enable(void)
 {
-	u32 bus_nr, dev_nr, func, reg, val;
+	int bus_nr, dev_nr, func, reg;
+	u32 val;
 
 	bus_nr = orion_pci_local_bus_nr();
 	dev_nr = orion_pci_local_dev_nr();
@@ -554,8 +404,8 @@ static void orion_pci_master_slave_enable(void)
 static void orion_setup_pci_wins(struct mbus_dram_target_info *dram)
 {
 	u32 win_enable;
-	u32 bus;
-	u32 dev;
+	int bus;
+	int dev;
 	int i;
 
 	/*
@@ -611,7 +461,7 @@ static void orion_setup_pci_wins(struct mbus_dram_target_info *dram)
 	orion_setbits(PCI_ADDR_DECODE_CTRL, 1);
 }
 
-static int orion_pci_setup(struct pci_sys_data *sys)
+static int pci_setup(struct pci_sys_data *sys)
 {
 	struct resource *res;
 
@@ -635,7 +485,7 @@ static int orion_pci_setup(struct pci_sys_data *sys)
 	 */
 	res = kzalloc(sizeof(struct resource) * 2, GFP_KERNEL);
 	if (!res)
-		panic("orion_pci_setup unable to alloc resources");
+		panic("pci_setup unable to alloc resources");
 
 	/*
 	 * IORESOURCE_IO
@@ -674,16 +524,11 @@ int orion_pci_sys_setup(int nr, struct pci_sys_data *sys)
 	int ret = 0;
 
 	if (nr == 0) {
-		/*
-		 * PCIE setup
-		 */
-		orion_pcie_set_bus_nr(0);
-		ret = orion_pcie_setup(sys);
+		orion_pcie_set_local_bus_nr(PCIE_BASE, sys->busnr);
+		ret = pcie_setup(sys);
 	} else if (nr == 1) {
-		/*
-		 * PCI setup
-		 */
-		ret = orion_pci_setup(sys);
+		orion_pci_set_bus_nr(sys->busnr);
+		ret = pci_setup(sys);
 	}
 
 	return ret;
@@ -691,31 +536,15 @@ int orion_pci_sys_setup(int nr, struct pci_sys_data *sys)
 
 struct pci_bus *orion_pci_sys_scan_bus(int nr, struct pci_sys_data *sys)
 {
-	struct pci_ops *ops;
 	struct pci_bus *bus;
 
-
 	if (nr == 0) {
-		u32 pci_bus;
-		/*
-		 * PCIE scan
-		 */
-		ops = &orion_pcie_ops;
-		bus = pci_scan_bus(sys->busnr, ops, sys);
-		/*
-		 * Set local PCI bus number to follow PCIE bridges (if any)
-		 */
-		pci_bus	= bus->number + bus->subordinate - bus->secondary + 1;
-		orion_pci_set_bus_nr(pci_bus);
+		bus = pci_scan_bus(sys->busnr, &pcie_ops, sys);
 	} else if (nr == 1) {
-		/*
-		 * PCI scan
-		 */
-		ops = &orion_pci_ops;
-		bus = pci_scan_bus(sys->busnr, ops, sys);
+		bus = pci_scan_bus(sys->busnr, &pci_ops, sys);
 	} else {
-		BUG();
 		bus = NULL;
+		BUG();
 	}
 
 	return bus;

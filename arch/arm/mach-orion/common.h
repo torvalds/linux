@@ -43,8 +43,8 @@ struct pci_sys_data;
 struct pci_bus;
 
 void orion_pcie_id(u32 *dev, u32 *rev);
-u32 orion_pcie_local_bus_nr(void);
-u32 orion_pci_local_bus_nr(void);
+int orion_pcie_local_bus_nr(void);
+int orion_pci_local_bus_nr(void);
 int orion_pci_sys_setup(int nr, struct pci_sys_data *sys);
 struct pci_bus *orion_pci_sys_scan_bus(int nr, struct pci_sys_data *sys);
 
