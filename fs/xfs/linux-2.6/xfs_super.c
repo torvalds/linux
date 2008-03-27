@@ -1307,7 +1307,7 @@ xfs_fs_fill_super(
 	void			*data,
 	int			silent)
 {
-	struct inode		*rootvp;
+	struct inode		*root;
 	struct xfs_mount	*mp = NULL;
 	struct xfs_mount_args	*args = xfs_args_allocate(sb, silent);
 	int			error;
@@ -1345,19 +1345,18 @@ xfs_fs_fill_super(
 	sb->s_time_gran = 1;
 	set_posix_acl_flag(sb);
 
-	rootvp = igrab(mp->m_rootip->i_vnode);
-	if (!rootvp) {
+	root = igrab(mp->m_rootip->i_vnode);
+	if (!root) {
 		error = ENOENT;
 		goto fail_unmount;
 	}
-
-	sb->s_root = d_alloc_root(vn_to_inode(rootvp));
-	if (!sb->s_root) {
-		error = ENOMEM;
+	if (is_bad_inode(root)) {
+		error = EINVAL;
 		goto fail_vnrele;
 	}
-	if (is_bad_inode(sb->s_root->d_inode)) {
-		error = EINVAL;
+	sb->s_root = d_alloc_root(root);
+	if (!sb->s_root) {
+		error = ENOMEM;
 		goto fail_vnrele;
 	}
 
@@ -1379,7 +1378,7 @@ fail_vnrele:
 		dput(sb->s_root);
 		sb->s_root = NULL;
 	} else {
-		VN_RELE(rootvp);
+		iput(root);
 	}
 
 fail_unmount:
