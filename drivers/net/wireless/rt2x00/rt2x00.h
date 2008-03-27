@@ -674,7 +674,7 @@ struct rt2x00_dev {
 	 * This will only be compiled in when required.
 	 */
 #ifdef CONFIG_RT2X00_LIB_RFKILL
-unsigned long rfkill_state;
+	unsigned long rfkill_state;
 #define RFKILL_STATE_ALLOCATED		1
 #define RFKILL_STATE_REGISTERED		2
 	struct rfkill *rfkill;

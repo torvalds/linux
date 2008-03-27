@@ -1194,10 +1194,6 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00debug_deregister(rt2x00dev);
 	rt2x00rfkill_free(rt2x00dev);
-
-	/*
-	 * Free LED.
-	 */
 	rt2x00leds_unregister(rt2x00dev);
 
 	/*
