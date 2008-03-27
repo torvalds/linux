@@ -185,6 +185,7 @@ core-$(CONFIG_VFP)		+= arch/arm/vfp/
 
 # If we have a common platform directory, then include it in the build.
 core-$(CONFIG_PLAT_IOP)		+= arch/arm/plat-iop/
+core-$(CONFIG_PLAT_ORION)		+= arch/arm/plat-orion/
 core-$(CONFIG_ARCH_OMAP)	+= arch/arm/plat-omap/
 core-$(CONFIG_PLAT_S3C24XX)		+= arch/arm/plat-s3c24xx/
 core-$(CONFIG_ARCH_MXC)		+= arch/arm/plat-mxc/

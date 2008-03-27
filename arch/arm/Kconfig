@@ -384,6 +384,7 @@ config ARCH_ORION
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
+	select PLAT_ORION
 	help
 	  Support for Marvell Orion System on Chip family.
 
@@ -561,6 +562,9 @@ config ARCH_ACORN
 	bool
 
 config PLAT_IOP
+	bool
+
+config PLAT_ORION
 	bool
 
 source arch/arm/mm/Kconfig
