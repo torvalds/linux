@@ -91,13 +91,10 @@ static int is_prefetch(struct pt_regs *regs, unsigned long addr,
 	int prefetch = 0;
 	unsigned char *max_instr;
 
-#ifdef CONFIG_X86_32
-	/* Catch an obscure case of prefetch inside an NX page: */
-	if ((__supported_pte_mask & _PAGE_NX) && (error_code & 16))
-		return 0;
-#endif
-
-	/* If it was a exec fault on NX page, ignore */
+	/*
+	 * If it was a exec (instruction fetch) fault on NX page, then
+	 * do not ignore the fault:
+	 */
 	if (error_code & PF_INSTR)
 		return 0;
 
