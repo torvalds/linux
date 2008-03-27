@@ -168,13 +168,9 @@ static const struct file_operations nflog_file_ops = {
 int __init netfilter_log_init(void)
 {
 #ifdef CONFIG_PROC_FS
-	struct proc_dir_entry *pde;
-
-	pde = create_proc_entry("nf_log", S_IRUGO, proc_net_netfilter);
-	if (!pde)
+	if (!proc_create("nf_log", S_IRUGO,
+			 proc_net_netfilter, &nflog_file_ops))
 		return -1;
-
-	pde->proc_fops = &nflog_file_ops;
 #endif
 	return 0;
 }
