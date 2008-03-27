@@ -310,7 +310,7 @@ static inline int __check_agg_selection_timer(struct port *port)
  */
 static inline void __get_rx_machine_lock(struct port *port)
 {
-	spin_lock(&(SLAVE_AD_INFO(port->slave).rx_machine_lock));
+	spin_lock_bh(&(SLAVE_AD_INFO(port->slave).rx_machine_lock));
 }
 
 /**
@@ -320,7 +320,7 @@ static inline void __get_rx_machine_lock(struct port *port)
  */
 static inline void __release_rx_machine_lock(struct port *port)
 {
-	spin_unlock(&(SLAVE_AD_INFO(port->slave).rx_machine_lock));
+	spin_unlock_bh(&(SLAVE_AD_INFO(port->slave).rx_machine_lock));
 }
 
 /**

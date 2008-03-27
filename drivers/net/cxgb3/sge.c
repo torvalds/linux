@@ -557,9 +557,9 @@ static void t3_free_qset(struct adapter *adapter, struct sge_qset *q)
 
 	for (i = 0; i < SGE_RXQ_PER_SET; ++i)
 		if (q->fl[i].desc) {
-			spin_lock(&adapter->sge.reg_lock);
+			spin_lock_irq(&adapter->sge.reg_lock);
 			t3_sge_disable_fl(adapter, q->fl[i].cntxt_id);
-			spin_unlock(&adapter->sge.reg_lock);
+			spin_unlock_irq(&adapter->sge.reg_lock);
 			free_rx_bufs(pdev, &q->fl[i]);
 			kfree(q->fl[i].sdesc);
 			dma_free_coherent(&pdev->dev,
@@ -570,9 +570,9 @@ static void t3_free_qset(struct adapter *adapter, struct sge_qset *q)
 
 	for (i = 0; i < SGE_TXQ_PER_SET; ++i)
 		if (q->txq[i].desc) {
-			spin_lock(&adapter->sge.reg_lock);
+			spin_lock_irq(&adapter->sge.reg_lock);
 			t3_sge_enable_ecntxt(adapter, q->txq[i].cntxt_id, 0);
-			spin_unlock(&adapter->sge.reg_lock);
+			spin_unlock_irq(&adapter->sge.reg_lock);
 			if (q->txq[i].sdesc) {
 				free_tx_desc(adapter, &q->txq[i],
 					     q->txq[i].in_use);
@@ -586,9 +586,9 @@ static void t3_free_qset(struct adapter *adapter, struct sge_qset *q)
 		}
 
 	if (q->rspq.desc) {
-		spin_lock(&adapter->sge.reg_lock);
+		spin_lock_irq(&adapter->sge.reg_lock);
 		t3_sge_disable_rspcntxt(adapter, q->rspq.cntxt_id);
-		spin_unlock(&adapter->sge.reg_lock);
+		spin_unlock_irq(&adapter->sge.reg_lock);
 		dma_free_coherent(&pdev->dev,
 				  q->rspq.size * sizeof(struct rsp_desc),
 				  q->rspq.desc, q->rspq.phys_addr);
@@ -2667,7 +2667,7 @@ int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 		(16 * 1024) - SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) :
 		MAX_FRAME_SIZE + 2 + sizeof(struct cpl_rx_pkt);
 
-	spin_lock(&adapter->sge.reg_lock);
+	spin_lock_irq(&adapter->sge.reg_lock);
 
 	/* FL threshold comparison uses < */
 	ret = t3_sge_init_rspcntxt(adapter, q->rspq.cntxt_id, irq_vec_idx,
@@ -2711,7 +2711,7 @@ int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 			goto err_unlock;
 	}
 
-	spin_unlock(&adapter->sge.reg_lock);
+	spin_unlock_irq(&adapter->sge.reg_lock);
 
 	q->adap = adapter;
 	q->netdev = dev;
@@ -2728,7 +2728,7 @@ int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 	return 0;
 
       err_unlock:
-	spin_unlock(&adapter->sge.reg_lock);
+	spin_unlock_irq(&adapter->sge.reg_lock);
       err:
 	t3_free_qset(adapter, q);
 	return ret;

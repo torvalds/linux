@@ -676,6 +676,20 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 	}
 }
 
+static struct pneigh_entry *pndisc_check_router(struct net_device *dev,
+		struct in6_addr *addr, int *is_router)
+{
+	struct pneigh_entry *n;
+
+	read_lock_bh(&nd_tbl.lock);
+	n = __pneigh_lookup(&nd_tbl, &init_net, addr, dev);
+	if (n != NULL)
+		*is_router = (n->flags & NTF_ROUTER);
+	read_unlock_bh(&nd_tbl.lock);
+
+	return n;
+}
+
 static void ndisc_recv_ns(struct sk_buff *skb)
 {
 	struct nd_msg *msg = (struct nd_msg *)skb_transport_header(skb);
@@ -692,7 +706,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 	struct pneigh_entry *pneigh = NULL;
 	int dad = ipv6_addr_any(saddr);
 	int inc;
-	int is_router;
+	int is_router = 0;
 
 	if (ipv6_addr_is_multicast(&msg->target)) {
 		ND_PRINTK2(KERN_WARNING
@@ -790,8 +804,8 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 		if (ipv6_chk_acast_addr(dev, &msg->target) ||
 		    (idev->cnf.forwarding &&
 		     (ipv6_devconf.proxy_ndp || idev->cnf.proxy_ndp) &&
-		     (pneigh = pneigh_lookup(&nd_tbl, &init_net,
-					     &msg->target, dev, 0)) != NULL)) {
+		     (pneigh = pndisc_check_router(dev, &msg->target,
+						  &is_router)) != NULL)) {
 			if (!(NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED) &&
 			    skb->pkt_type != PACKET_HOST &&
 			    inc != 0 &&
@@ -812,7 +826,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 			goto out;
 	}
 
-	is_router = !!(pneigh ? pneigh->flags & NTF_ROUTER : idev->cnf.forwarding);
+	is_router = !!(pneigh ? is_router : idev->cnf.forwarding);
 
 	if (dad) {
 		struct in6_addr maddr;

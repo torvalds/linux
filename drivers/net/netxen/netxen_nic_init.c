@@ -145,6 +145,8 @@ int netxen_init_firmware(struct netxen_adapter *adapter)
 	/* Window 1 call */
 	writel(INTR_SCHEME_PERPORT,
 	       NETXEN_CRB_NORMALIZE(adapter, CRB_NIC_CAPABILITIES_HOST));
+	writel(MSI_MODE_MULTIFUNC,
+	       NETXEN_CRB_NORMALIZE(adapter, CRB_NIC_MSI_MODE_HOST));
 	writel(MPORT_MULTI_FUNCTION_MODE,
 	       NETXEN_CRB_NORMALIZE(adapter, CRB_MPORT_MODE));
 	writel(PHAN_INITIALIZE_ACK,
@@ -183,7 +185,6 @@ void netxen_initialize_adapter_sw(struct netxen_adapter *adapter)
 		for (ring = 0; ring < NUM_RCV_DESC_RINGS; ring++) {
 			struct netxen_rx_buffer *rx_buf;
 			rcv_desc = &adapter->recv_ctx[ctxid].rcv_desc[ring];
-			rcv_desc->rcv_free = rcv_desc->max_rx_desc_count;
 			rcv_desc->begin_alloc = 0;
 			rx_buf = rcv_desc->rx_buf_arr;
 			num_rx_bufs = rcv_desc->max_rx_desc_count;
@@ -974,28 +975,6 @@ int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val)
 	return 0;
 }
 
-int netxen_nic_rx_has_work(struct netxen_adapter *adapter)
-{
-	int ctx;
-
-	for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
-		struct netxen_recv_context *recv_ctx =
-		    &(adapter->recv_ctx[ctx]);
-		u32 consumer;
-		struct status_desc *desc_head;
-		struct status_desc *desc;
-
-		consumer = recv_ctx->status_rx_consumer;
-		desc_head = recv_ctx->rcv_status_desc_head;
-		desc = &desc_head[consumer];
-
-		if (netxen_get_sts_owner(desc) & STATUS_OWNER_HOST)
-			return 1;
-	}
-
-	return 0;
-}
-
 static int netxen_nic_check_temp(struct netxen_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -1038,7 +1017,6 @@ static int netxen_nic_check_temp(struct netxen_adapter *adapter)
 
 void netxen_watchdog_task(struct work_struct *work)
 {
-	struct net_device *netdev;
 	struct netxen_adapter *adapter =
 		container_of(work, struct netxen_adapter, watchdog_task);
 
@@ -1047,20 +1025,6 @@ void netxen_watchdog_task(struct work_struct *work)
 
 	if (adapter->handle_phy_intr)
 		adapter->handle_phy_intr(adapter);
-
-	netdev = adapter->netdev;
-	if ((netif_running(netdev)) && !netif_carrier_ok(netdev) &&
-			netxen_nic_link_ok(adapter) ) {
-		printk(KERN_INFO "%s %s (port %d), Link is up\n",
-			       netxen_nic_driver_name, netdev->name, adapter->portnum);
-		netif_carrier_on(netdev);
-		netif_wake_queue(netdev);
-	} else if(!(netif_running(netdev)) && netif_carrier_ok(netdev)) {
-		printk(KERN_ERR "%s %s Link is Down\n",
-				netxen_nic_driver_name, netdev->name);
-		netif_carrier_off(netdev);
-		netif_stop_queue(netdev);
-	}
 
 	mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
 }
@@ -1125,7 +1089,7 @@ static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 	skb = (struct sk_buff *)buffer->skb;
 
 	if (likely(adapter->rx_csum &&
-				netxen_get_sts_status(sts_data) == STATUS_CKSUM_OK)) {
+			netxen_get_sts_status(sts_data) == STATUS_CKSUM_OK)) {
 		adapter->stats.csummed++;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else
@@ -1142,40 +1106,8 @@ static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 	skb->protocol = eth_type_trans(skb, netdev);
 
 	ret = netif_receive_skb(skb);
-
-	/*
-	 * RH: Do we need these stats on a regular basis. Can we get it from
-	 * Linux stats.
-	 */
-	switch (ret) {
-	case NET_RX_SUCCESS:
-		adapter->stats.uphappy++;
-		break;
-
-	case NET_RX_CN_LOW:
-		adapter->stats.uplcong++;
-		break;
-
-	case NET_RX_CN_MOD:
-		adapter->stats.upmcong++;
-		break;
-
-	case NET_RX_CN_HIGH:
-		adapter->stats.uphcong++;
-		break;
-
-	case NET_RX_DROP:
-		adapter->stats.updropped++;
-		break;
-
-	default:
-		adapter->stats.updunno++;
-		break;
-	}
-
 	netdev->last_rx = jiffies;
 
-	rcv_desc->rcv_free++;
 	rcv_desc->rcv_pending--;
 
 	/*
@@ -1200,13 +1132,6 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 	u32 producer = 0;
 	int count = 0, ring;
 
-	DPRINTK(INFO, "procesing receive\n");
-	/*
-	 * we assume in this case that there is only one port and that is
-	 * port #1...changes need to be done in firmware to indicate port
-	 * number as part of the descriptor. This way we will be able to get
-	 * the netdev which is associated with that device.
-	 */
 	while (count < max) {
 		desc = &desc_head[consumer];
 		if (!(netxen_get_sts_owner(desc) & STATUS_OWNER_HOST)) {
@@ -1219,11 +1144,8 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 		consumer = (consumer + 1) & (adapter->max_rx_desc_count - 1);
 		count++;
 	}
-	if (count) {
-		for (ring = 0; ring < NUM_RCV_DESC_RINGS; ring++) {
-			netxen_post_rx_buffers_nodb(adapter, ctxid, ring);
-		}
-	}
+	for (ring = 0; ring < NUM_RCV_DESC_RINGS; ring++)
+		netxen_post_rx_buffers_nodb(adapter, ctxid, ring);
 
 	/* update the consumer index in phantom */
 	if (count) {
@@ -1233,108 +1155,60 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 		/* Window = 1 */
 		writel(consumer,
 		       NETXEN_CRB_NORMALIZE(adapter,
-					    recv_crb_registers[adapter->portnum].
+				    recv_crb_registers[adapter->portnum].
 					    crb_rcv_status_consumer));
-		wmb();
 	}
 
 	return count;
 }
 
 /* Process Command status ring */
-int netxen_process_cmd_ring(unsigned long data)
+int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 {
-	u32 last_consumer;
-	u32 consumer;
-	struct netxen_adapter *adapter = (struct netxen_adapter *)data;
-	int count1 = 0;
-	int count2 = 0;
+	u32 last_consumer, consumer;
+	int count = 0, i;
 	struct netxen_cmd_buffer *buffer;
-	struct pci_dev *pdev;
+	struct pci_dev *pdev = adapter->pdev;
+	struct net_device *netdev = adapter->netdev;
 	struct netxen_skb_frag *frag;
-	u32 i;
-	int done;
+	int done = 0;
 
-	spin_lock(&adapter->tx_lock);
 	last_consumer = adapter->last_cmd_consumer;
-	DPRINTK(INFO, "procesing xmit complete\n");
-	/* we assume in this case that there is only one port and that is
-	 * port #1...changes need to be done in firmware to indicate port
-	 * number as part of the descriptor. This way we will be able to get
-	 * the netdev which is associated with that device.
-	 */
-
 	consumer = le32_to_cpu(*(adapter->cmd_consumer));
-	if (last_consumer == consumer) {	/* Ring is empty    */
-		DPRINTK(INFO, "last_consumer %d == consumer %d\n",
-			last_consumer, consumer);
-		spin_unlock(&adapter->tx_lock);
-		return 1;
-	}
 
-	adapter->proc_cmd_buf_counter++;
-	/*
-	 * Not needed - does not seem to be used anywhere.
-	 * adapter->cmd_consumer = consumer;
-	 */
-	spin_unlock(&adapter->tx_lock);
-
-	while ((last_consumer != consumer) && (count1 < MAX_STATUS_HANDLE)) {
+	while (last_consumer != consumer) {
 		buffer = &adapter->cmd_buf_arr[last_consumer];
-		pdev = adapter->pdev;
 		if (buffer->skb) {
 			frag = &buffer->frag_array[0];
 			pci_unmap_single(pdev, frag->dma, frag->length,
 					 PCI_DMA_TODEVICE);
 			frag->dma = 0ULL;
 			for (i = 1; i < buffer->frag_count; i++) {
-				DPRINTK(INFO, "getting fragment no %d\n", i);
 				frag++;	/* Get the next frag */
 				pci_unmap_page(pdev, frag->dma, frag->length,
 					       PCI_DMA_TODEVICE);
 				frag->dma = 0ULL;
 			}
 
-			adapter->stats.skbfreed++;
+			adapter->stats.xmitfinished++;
 			dev_kfree_skb_any(buffer->skb);
 			buffer->skb = NULL;
-		} else if (adapter->proc_cmd_buf_counter == 1) {
-			adapter->stats.txnullskb++;
-		}
-		if (unlikely(netif_queue_stopped(adapter->netdev)
-			     && netif_carrier_ok(adapter->netdev))
-		    && ((jiffies - adapter->netdev->trans_start) >
-			adapter->netdev->watchdog_timeo)) {
-			SCHEDULE_WORK(&adapter->tx_timeout_task);
 		}
 
 		last_consumer = get_next_index(last_consumer,
 					       adapter->max_tx_desc_count);
-		count1++;
+		if (++count >= MAX_STATUS_HANDLE)
+			break;
 	}
 
-	count2 = 0;
-	spin_lock(&adapter->tx_lock);
-	if ((--adapter->proc_cmd_buf_counter) == 0) {
+	if (count) {
 		adapter->last_cmd_consumer = last_consumer;
-		while ((adapter->last_cmd_consumer != consumer)
-		       && (count2 < MAX_STATUS_HANDLE)) {
-			buffer =
-			    &adapter->cmd_buf_arr[adapter->last_cmd_consumer];
-			count2++;
-			if (buffer->skb)
-				break;
-			else
-				adapter->last_cmd_consumer =
-				    get_next_index(adapter->last_cmd_consumer,
-						   adapter->max_tx_desc_count);
-		}
-	}
-	if (count1 || count2) {
-		if (netif_queue_stopped(adapter->netdev)
-		    && (adapter->flags & NETXEN_NETDEV_STATUS)) {
-			netif_wake_queue(adapter->netdev);
-			adapter->flags &= ~NETXEN_NETDEV_STATUS;
+		smp_mb();
+		if (netif_queue_stopped(netdev) && netif_running(netdev)) {
+			netif_tx_lock(netdev);
+			netif_wake_queue(netdev);
+			smp_mb();
+			netif_tx_unlock(netdev);
 		}
 	}
 	/*
@@ -1350,16 +1224,9 @@ int netxen_process_cmd_ring(unsigned long data)
 	 * There is still a possible race condition and the host could miss an
 	 * interrupt. The card has to take care of this.
 	 */
-	if (adapter->last_cmd_consumer == consumer &&
-	    (((adapter->cmd_producer + 1) %
-	      adapter->max_tx_desc_count) == adapter->last_cmd_consumer)) {
-		consumer = le32_to_cpu(*(adapter->cmd_consumer));
-	}
-	done = (adapter->last_cmd_consumer == consumer);
+	consumer = le32_to_cpu(*(adapter->cmd_consumer));
+	done = (last_consumer == consumer);
 
-	spin_unlock(&adapter->tx_lock);
-	DPRINTK(INFO, "last consumer is %d in %s\n", last_consumer,
-		__FUNCTION__);
 	return (done);
 }
 
@@ -1433,8 +1300,6 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 		rcv_desc->begin_alloc = index;
 		rcv_desc->rcv_pending += count;
 		rcv_desc->producer = producer;
-		if (rcv_desc->rcv_free >= 32) {
-			rcv_desc->rcv_free = 0;
 			/* Window = 1 */
 			writel((producer - 1) &
 			       (rcv_desc->max_rx_desc_count - 1),
@@ -1458,8 +1323,6 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 			writel(msg,
 			       DB_NORMALIZE(adapter,
 					    NETXEN_RCV_PRODUCER_OFFSET));
-			wmb();
-		}
 	}
 }
 
@@ -1523,8 +1386,6 @@ static void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
 		rcv_desc->begin_alloc = index;
 		rcv_desc->rcv_pending += count;
 		rcv_desc->producer = producer;
-		if (rcv_desc->rcv_free >= 32) {
-			rcv_desc->rcv_free = 0;
 			/* Window = 1 */
 			writel((producer - 1) &
 			       (rcv_desc->max_rx_desc_count - 1),
@@ -1534,20 +1395,8 @@ static void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
 						    rcv_desc_crb[ringid].
 						    crb_rcv_producer_offset));
 			wmb();
-		}
 	}
 }
-
-int netxen_nic_tx_has_work(struct netxen_adapter *adapter)
-{
-	if (find_diff_among(adapter->last_cmd_consumer,
-			    adapter->cmd_producer,
-			    adapter->max_tx_desc_count) > 0)
-		return 1;
-
-	return 0;
-}
-
 
 void netxen_nic_clear_stats(struct netxen_adapter *adapter)
 {

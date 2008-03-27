@@ -2110,7 +2110,7 @@ M:	reinette.chatre@intel.com
 L:	linux-wireless@vger.kernel.org
 L:	ipw3945-devel@lists.sourceforge.net
 W:	http://intellinuxwireless.org
-T:	git git://intellinuxwireless.org/repos/iwlwifi
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rchatre/iwlwifi-2.6.git
 S:	Supported
 
 IOC3 ETHERNET DRIVER

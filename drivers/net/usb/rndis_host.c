@@ -283,7 +283,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 		struct rndis_set_c	*set_c;
 		struct rndis_halt	*halt;
 	} u;
-	u32			tmp, *phym;
+	u32			tmp, phym_unspec, *phym;
 	int			reply_len;
 	unsigned char		*bp;
 
@@ -363,12 +363,15 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 		goto halt_fail_and_release;
 
 	/* Check physical medium */
+	phym = NULL;
 	reply_len = sizeof *phym;
 	retval = rndis_query(dev, intf, u.buf, OID_GEN_PHYSICAL_MEDIUM,
 			0, (void **) &phym, &reply_len);
-	if (retval != 0)
+	if (retval != 0 || !phym) {
 		/* OID is optional so don't fail here. */
-		*phym = RNDIS_PHYSICAL_MEDIUM_UNSPECIFIED;
+		phym_unspec = RNDIS_PHYSICAL_MEDIUM_UNSPECIFIED;
+		phym = &phym_unspec;
+	}
 	if ((flags & FLAG_RNDIS_PHYM_WIRELESS) &&
 			*phym != RNDIS_PHYSICAL_MEDIUM_WIRELESS_LAN) {
 		if (netif_msg_probe(dev))
