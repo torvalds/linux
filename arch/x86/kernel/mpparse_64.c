@@ -56,10 +56,6 @@ int mp_irq_entries;
 
 int nr_ioapics;
 
-/* Processor that is doing the boot up */
-unsigned int boot_cpu_physical_apicid = -1U;
-EXPORT_SYMBOL(boot_cpu_physical_apicid);
-
 #ifdef CONFIG_SMP
 u16 x86_bios_cpu_apicid_init[NR_CPUS] __initdata
     = {[0 ... NR_CPUS - 1] = BAD_APICID };

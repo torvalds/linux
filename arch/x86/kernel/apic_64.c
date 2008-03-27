@@ -87,6 +87,10 @@ static unsigned long apic_phys;
 
 unsigned long mp_lapic_addr;
 
+/* Processor that is doing the boot up */
+unsigned int boot_cpu_physical_apicid = -1U;
+EXPORT_SYMBOL(boot_cpu_physical_apicid);
+
 /*
  * Get the LAPIC version
  */
