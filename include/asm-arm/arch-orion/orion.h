@@ -11,8 +11,8 @@
  * warranty of any kind, whether express or implied.
  */
 
-#ifndef __ASM_ARCH_ORION_H__
-#define __ASM_ARCH_ORION_H__
+#ifndef __ASM_ARCH_ORION_H
+#define __ASM_ARCH_ORION_H
 
 /*****************************************************************************
  * Orion Address Maps
@@ -91,6 +91,7 @@
 
 #define ORION_BRIDGE_VIRT_BASE		(ORION_REGS_VIRT_BASE | 0x20000)
 #define ORION_BRIDGE_REG(x)		(ORION_BRIDGE_VIRT_BASE | (x))
+#define  TIMER_VIRT_BASE		(ORION_BRIDGE_VIRT_BASE | 0x300)
 
 #define ORION_PCI_VIRT_BASE		(ORION_REGS_VIRT_BASE | 0x30000)
 #define ORION_PCI_REG(x)		(ORION_PCI_VIRT_BASE | (x))
@@ -153,8 +154,6 @@
 #define  BRIDGE_INT_TIMER1	0x0004
 #define MAIN_IRQ_CAUSE		ORION_BRIDGE_REG(0x200)
 #define MAIN_IRQ_MASK		ORION_BRIDGE_REG(0x204)
-
-#define TIMER_VIRT_BASE		(ORION_BRIDGE_VIRT_BASE | 0x300)
 
 
 #endif

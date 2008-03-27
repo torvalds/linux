@@ -1,5 +1,5 @@
 /*
- * linux/include/asm-arm/arch-orion/debug-macro.S
+ * include/asm-arm/arch-orion/debug-macro.S
  *
  * Debugging macro include header
  *

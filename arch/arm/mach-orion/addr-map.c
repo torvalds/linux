@@ -5,8 +5,8 @@
  *
  * Maintainer: Tzachi Perelstein <tzachi@marvell.com>
  *
- * This file is licensed under  the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
 
@@ -45,9 +45,9 @@
  * Generic Address Decode Windows bit settings
  */
 #define TARGET_DDR		0
+#define TARGET_DEV_BUS		1
 #define TARGET_PCI		3
 #define TARGET_PCIE		4
-#define TARGET_DEV_BUS		1
 #define ATTR_DDR_CS(n)		(((n) ==0) ? 0xe :	\
 				((n) == 1) ? 0xd :	\
 				((n) == 2) ? 0xb :	\
@@ -64,7 +64,7 @@
 #define WIN_EN			1
 
 /*
- * Helpers to get DDR banks info
+ * Helpers to get DDR bank info
  */
 #define DDR_BASE_CS(n)		ORION_DDR_REG(0x1500 + ((n) * 8))
 #define DDR_SIZE_CS(n)		ORION_DDR_REG(0x1504 + ((n) * 8))

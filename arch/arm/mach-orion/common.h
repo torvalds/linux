@@ -1,13 +1,13 @@
-#ifndef __ARCH_ORION_COMMON_H__
-#define __ARCH_ORION_COMMON_H__
+#ifndef __ARCH_ORION_COMMON_H
+#define __ARCH_ORION_COMMON_H
 
 /*
  * Basic Orion init functions used early by machine-setup.
  */
 
-void __init orion_map_io(void);
-void __init orion_init_irq(void);
-void __init orion_init(void);
+void orion_map_io(void);
+void orion_init_irq(void);
+void orion_init(void);
 extern struct sys_timer orion_timer;
 
 /*
@@ -43,7 +43,7 @@ struct pci_bus *orion_pci_sys_scan_bus(int nr, struct pci_sys_data *sys);
  * (/mach-orion/gpio.c).
  */
 
-void __init orion_gpio_set_valid_pins(u32 pins);
+void orion_gpio_set_valid_pins(u32 pins);
 void gpio_display(void);	/* debug */
 
 /*
@@ -52,7 +52,7 @@ void gpio_display(void);	/* debug */
 
 struct mv643xx_eth_platform_data;
 
-void __init orion_eth_init(struct mv643xx_eth_platform_data *eth_data);
+void orion_eth_init(struct mv643xx_eth_platform_data *eth_data);
 
 /*
  * Orion Sata platform_data, used by machine-setup
@@ -60,7 +60,7 @@ void __init orion_eth_init(struct mv643xx_eth_platform_data *eth_data);
 
 struct mv_sata_platform_data;
 
-void __init orion_sata_init(struct mv_sata_platform_data *sata_data);
+void orion_sata_init(struct mv_sata_platform_data *sata_data);
 
 struct machine_desc;
 struct meminfo;
@@ -68,4 +68,5 @@ struct tag;
 extern void __init tag_fixup_mem32(struct machine_desc *, struct tag *,
 				   char **, struct meminfo *);
 
-#endif /* __ARCH_ORION_COMMON_H__ */
+
+#endif

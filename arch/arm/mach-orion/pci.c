@@ -1,12 +1,12 @@
 /*
  * arch/arm/mach-orion/pci.c
  *
- * PCI and PCIE functions for Marvell Orion System On Chip
+ * PCI and PCIe functions for Marvell Orion System On Chip
  *
  * Maintainer: Tzachi Perelstein <tzachi@marvell.com>
  *
- * This file is licensed under  the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
 
@@ -18,12 +18,12 @@
 #include "common.h"
 
 /*****************************************************************************
- * Orion has one PCIE controller and one PCI controller.
+ * Orion has one PCIe controller and one PCI controller.
  *
- * Note1: The local PCIE bus number is '0'. The local PCI bus number
- * follows the scanned PCIE bridged busses, if any.
+ * Note1: The local PCIe bus number is '0'. The local PCI bus number
+ * follows the scanned PCIe bridged busses, if any.
  *
- * Note2: It is possible for PCI/PCIE agents to access many subsystem's
+ * Note2: It is possible for PCI/PCIe agents to access many subsystem's
  * space, by configuring BARs and Address Decode Windows, e.g. flashes on
  * device bus, Orion registers, etc. However this code only enable the
  * access to DDR banks.
@@ -31,7 +31,7 @@
 
 
 /*****************************************************************************
- * PCIE controller
+ * PCIe controller
  ****************************************************************************/
 #define PCIE_BASE	((void __iomem *)ORION_PCIE_VIRT_BASE)
 
@@ -67,7 +67,7 @@ static int pcie_valid_config(int bus, int dev)
 
 
 /*
- * PCIE config cycles are done by programming the PCIE_CONF_ADDR register
+ * PCIe config cycles are done by programming the PCIE_CONF_ADDR register
  * and then reading the PCIE_CONF_DATA register. Need to make sure these
  * transactions are atomic.
  */
@@ -133,7 +133,7 @@ static int pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 	return ret;
 }
 
-struct pci_ops pcie_ops = {
+static struct pci_ops pcie_ops = {
 	.read = pcie_rd_conf,
 	.write = pcie_wr_conf,
 };
@@ -170,23 +170,23 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	/*
 	 * IORESOURCE_IO
 	 */
-	res[0].name = "PCI-EX I/O Space";
+	res[0].name = "PCIe I/O Space";
 	res[0].flags = IORESOURCE_IO;
 	res[0].start = ORION_PCIE_IO_BUS_BASE;
 	res[0].end = res[0].start + ORION_PCIE_IO_SIZE - 1;
 	if (request_resource(&ioport_resource, &res[0]))
-		panic("Request PCIE IO resource failed\n");
+		panic("Request PCIe IO resource failed\n");
 	sys->resource[0] = &res[0];
 
 	/*
 	 * IORESOURCE_MEM
 	 */
-	res[1].name = "PCI-EX Memory Space";
+	res[1].name = "PCIe Memory Space";
 	res[1].flags = IORESOURCE_MEM;
 	res[1].start = ORION_PCIE_MEM_PHYS_BASE;
 	res[1].end = res[1].start + ORION_PCIE_MEM_SIZE - 1;
 	if (request_resource(&iomem_resource, &res[1]))
-		panic("Request PCIE Memory resource failed\n");
+		panic("Request PCIe Memory resource failed\n");
 	sys->resource[1] = &res[1];
 
 	sys->resource[2] = NULL;
@@ -351,7 +351,7 @@ static int orion_pci_wr_conf(struct pci_bus *bus, u32 devfn,
 					PCI_FUNC(devfn), where, size, val);
 }
 
-struct pci_ops pci_ops = {
+static struct pci_ops pci_ops = {
 	.read = orion_pci_rd_conf,
 	.write = orion_pci_wr_conf,
 };
@@ -508,7 +508,7 @@ static int __init pci_setup(struct pci_sys_data *sys)
 
 
 /*****************************************************************************
- * General PCIE + PCI
+ * General PCIe + PCI
  ****************************************************************************/
 static void __devinit rc_pci_fixup(struct pci_dev *dev)
 {

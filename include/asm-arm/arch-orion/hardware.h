@@ -6,8 +6,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __ASM_ARCH_HARDWARE_H__
-#define __ASM_ARCH_HARDWARE_H__
+#ifndef __ASM_ARCH_HARDWARE_H
+#define __ASM_ARCH_HARDWARE_H
 
 #include "orion.h"
 

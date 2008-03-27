@@ -10,8 +10,8 @@
  *  warranty of any kind, whether express or implied.
  */
 
-#ifndef __ASM_ARCH_IRQS_H__
-#define __ASM_ARCH_IRQS_H__
+#ifndef __ASM_ARCH_IRQS_H
+#define __ASM_ARCH_IRQS_H
 
 #include "orion.h"	/* need GPIO_MAX */
 
@@ -58,4 +58,5 @@
 
 #define NR_IRQS			(IRQ_ORION_GPIO_START + NR_GPIO_IRQS)
 
-#endif /* __ASM_ARCH_IRQS_H__ */
+
+#endif
