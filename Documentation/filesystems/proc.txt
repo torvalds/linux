@@ -2374,7 +2374,13 @@ possible optional fields are:
 
 shared:X  mount is shared in peer group X
 master:X  mount is slave to peer group X
+propagate_from:X  mount is slave and receives propagation from peer group X (*)
 unbindable  mount is unbindable
+
+(*) X is the closest dominant peer group under the process's root.  If
+X is the immediate master of the mount, or if there's no dominant peer
+group under the same root, then only the "master:X" field is present
+and not the "propagate_from:X" field.
 
 For more information on mount propagation see:
 

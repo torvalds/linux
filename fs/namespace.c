@@ -850,8 +850,13 @@ static int show_mountinfo(struct seq_file *m, void *v)
 	/* Tagged fields ("foo:X" or "bar") */
 	if (IS_MNT_SHARED(mnt))
 		seq_printf(m, " shared:%i", mnt->mnt_group_id);
-	if (IS_MNT_SLAVE(mnt))
-		seq_printf(m, " master:%i", mnt->mnt_master->mnt_group_id);
+	if (IS_MNT_SLAVE(mnt)) {
+		int master = mnt->mnt_master->mnt_group_id;
+		int dom = get_dominating_id(mnt, &p->root);
+		seq_printf(m, " master:%i", master);
+		if (dom && dom != master)
+			seq_printf(m, " propagate_from:%i", dom);
+	}
 	if (IS_MNT_UNBINDABLE(mnt))
 		seq_puts(m, " unbindable");
 
