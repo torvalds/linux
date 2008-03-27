@@ -85,6 +85,8 @@ static DEFINE_PER_CPU(struct clock_event_device, lapic_events);
 
 static unsigned long apic_phys;
 
+unsigned long mp_lapic_addr;
+
 /*
  * Get the LAPIC version
  */

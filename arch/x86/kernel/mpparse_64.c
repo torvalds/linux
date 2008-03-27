@@ -55,7 +55,6 @@ struct mpc_config_intsrc mp_irqs[MAX_IRQ_SOURCES];
 int mp_irq_entries;
 
 int nr_ioapics;
-unsigned long mp_lapic_addr = 0;
 
 /* Processor that is doing the boot up */
 unsigned int boot_cpu_physical_apicid = -1U;
