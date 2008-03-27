@@ -209,8 +209,11 @@ int iop3xx_pci_setup(int nr, struct pci_sys_data *sys)
 	res[1].flags = IORESOURCE_MEM;
 	request_resource(&iomem_resource, &res[1]);
 
-	sys->mem_offset = IOP3XX_PCI_LOWER_MEM_PA - IOP3XX_PCI_LOWER_MEM_BA;
-	sys->io_offset  = IOP3XX_PCI_LOWER_IO_PA - IOP3XX_PCI_LOWER_IO_BA;
+	/*
+	 * Use whatever translation is already setup.
+	 */
+	sys->mem_offset = IOP3XX_PCI_LOWER_MEM_PA - *IOP3XX_OMWTVR0;
+	sys->io_offset  = IOP3XX_PCI_LOWER_IO_PA - *IOP3XX_OIOWTVR;
 
 	sys->resource[0] = &res[0];
 	sys->resource[1] = &res[1];
