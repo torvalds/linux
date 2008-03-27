@@ -55,6 +55,7 @@
 #include "xfs_fsops.h"
 #include "xfs_vnodeops.h"
 #include "xfs_vfsops.h"
+#include "xfs_utils.h"
 
 
 int __init
@@ -595,7 +596,7 @@ xfs_unmount(
 	/*
 	 * Drop the reference count
 	 */
-	VN_RELE(rvp);
+	IRELE(rip);
 
 	/*
 	 * If we're forcing a shutdown, typically because of a media error,
@@ -777,8 +778,8 @@ xfs_unmount_flush(
 		goto fscorrupt_out2;
 
 	if (rbmip) {
-		VN_RELE(XFS_ITOV(rbmip));
-		VN_RELE(XFS_ITOV(rsumip));
+		IRELE(rbmip);
+		IRELE(rsumip);
 	}
 
 	xfs_iunlock(rip, XFS_ILOCK_EXCL);
@@ -1156,10 +1157,10 @@ xfs_sync_inodes(
 			 * above, then wait until after we've unlocked
 			 * the inode to release the reference.  This is
 			 * because we can be already holding the inode
-			 * lock when VN_RELE() calls xfs_inactive().
+			 * lock when IRELE() calls xfs_inactive().
 			 *
 			 * Make sure to drop the mount lock before calling
-			 * VN_RELE() so that we don't trip over ourselves if
+			 * IRELE() so that we don't trip over ourselves if
 			 * we have to go for the mount lock again in the
 			 * inactive code.
 			 */
@@ -1167,7 +1168,7 @@ xfs_sync_inodes(
 				IPOINTER_INSERT(ip, mp);
 			}
 
-			VN_RELE(vp);
+			IRELE(ip);
 
 			vnode_refed = B_FALSE;
 		}

@@ -1810,7 +1810,7 @@ xfs_qm_dqusage_adjust(
 	 * Now release the inode. This will send it to 'inactive', and
 	 * possibly even free blocks.
 	 */
-	VN_RELE(XFS_ITOV(ip));
+	IRELE(ip);
 
 	/*
 	 * Goto next inode.
@@ -1968,7 +1968,7 @@ xfs_qm_init_quotainos(
 			if ((error = xfs_iget(mp, NULL, mp->m_sb.sb_gquotino,
 					     0, 0, &gip, 0))) {
 				if (uip)
-					VN_RELE(XFS_ITOV(uip));
+					IRELE(uip);
 				return XFS_ERROR(error);
 			}
 		}
@@ -1999,7 +1999,7 @@ xfs_qm_init_quotainos(
 					  sbflags | XFS_SB_GQUOTINO, flags);
 		if (error) {
 			if (uip)
-				VN_RELE(XFS_ITOV(uip));
+				IRELE(uip);
 
 			return XFS_ERROR(error);
 		}

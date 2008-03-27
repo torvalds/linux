@@ -43,6 +43,7 @@
 #include "xfs_rw.h"
 #include "xfs_quota.h"
 #include "xfs_fsops.h"
+#include "xfs_utils.h"
 
 STATIC void	xfs_mount_log_sb(xfs_mount_t *, __int64_t);
 STATIC int	xfs_uuid_mount(xfs_mount_t *);
@@ -956,7 +957,6 @@ xfs_mountfs(
 {
 	xfs_sb_t	*sbp = &(mp->m_sb);
 	xfs_inode_t	*rip;
-	bhv_vnode_t	*rvp = NULL;
 	__uint64_t	resblks;
 	__int64_t	update_flags = 0LL;
 	uint		quotamount, quotaflags;
@@ -1158,7 +1158,6 @@ xfs_mountfs(
 	}
 
 	ASSERT(rip != NULL);
-	rvp = XFS_ITOV(rip);
 
 	if (unlikely((rip->i_d.di_mode & S_IFMT) != S_IFDIR)) {
 		cmn_err(CE_WARN, "XFS: corrupted root inode");
@@ -1241,7 +1240,7 @@ xfs_mountfs(
 	/*
 	 * Free up the root inode.
 	 */
-	VN_RELE(rvp);
+	IRELE(rip);
  error3:
 	xfs_log_unmount_dealloc(mp);
  error2:

@@ -46,6 +46,7 @@
 #include "xfs_trans_priv.h"
 #include "xfs_quota.h"
 #include "xfs_rw.h"
+#include "xfs_utils.h"
 
 STATIC int	xlog_find_zeroed(xlog_t *, xfs_daddr_t *);
 STATIC int	xlog_clear_stale_blocks(xlog_t *, xfs_lsn_t);
@@ -3248,7 +3249,7 @@ xlog_recover_process_iunlinks(
 					if (ip->i_d.di_mode == 0)
 						xfs_iput_new(ip, 0);
 					else
-						VN_RELE(XFS_ITOV(ip));
+						IRELE(ip);
 				} else {
 					/*
 					 * We can't read in the inode

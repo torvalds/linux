@@ -386,7 +386,7 @@ xfs_qm_scall_trunc_qfiles(
 		error = xfs_iget(mp, NULL, mp->m_sb.sb_uquotino, 0, 0, &qip, 0);
 		if (! error) {
 			(void) xfs_truncate_file(mp, qip);
-			VN_RELE(XFS_ITOV(qip));
+			IRELE(qip);
 		}
 	}
 
@@ -395,7 +395,7 @@ xfs_qm_scall_trunc_qfiles(
 		error = xfs_iget(mp, NULL, mp->m_sb.sb_gquotino, 0, 0, &qip, 0);
 		if (! error) {
 			(void) xfs_truncate_file(mp, qip);
-			VN_RELE(XFS_ITOV(qip));
+			IRELE(qip);
 		}
 	}
 
@@ -552,13 +552,13 @@ xfs_qm_scall_getqstat(
 		out->qs_uquota.qfs_nblks = uip->i_d.di_nblocks;
 		out->qs_uquota.qfs_nextents = uip->i_d.di_nextents;
 		if (tempuqip)
-			VN_RELE(XFS_ITOV(uip));
+			IRELE(uip);
 	}
 	if (gip) {
 		out->qs_gquota.qfs_nblks = gip->i_d.di_nblocks;
 		out->qs_gquota.qfs_nextents = gip->i_d.di_nextents;
 		if (tempgqip)
-			VN_RELE(XFS_ITOV(gip));
+			IRELE(gip);
 	}
 	if (mp->m_quotainfo) {
 		out->qs_incoredqs = XFS_QI_MPLNDQUOTS(mp);
@@ -1095,7 +1095,7 @@ again:
 		 * inactive code in hell.
 		 */
 		if (vnode_refd)
-			VN_RELE(vp);
+			IRELE(ip);
 		XFS_MOUNT_ILOCK(mp);
 		/*
 		 * If an inode was inserted or removed, we gotta

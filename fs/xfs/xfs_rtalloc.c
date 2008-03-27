@@ -44,6 +44,7 @@
 #include "xfs_rw.h"
 #include "xfs_inode_item.h"
 #include "xfs_trans_space.h"
+#include "xfs_utils.h"
 
 
 /*
@@ -2278,7 +2279,7 @@ xfs_rtmount_inodes(
 	ASSERT(sbp->sb_rsumino != NULLFSINO);
 	error = xfs_iget(mp, NULL, sbp->sb_rsumino, 0, 0, &mp->m_rsumip, 0);
 	if (error) {
-		VN_RELE(XFS_ITOV(mp->m_rbmip));
+		IRELE(mp->m_rbmip);
 		return error;
 	}
 	ASSERT(mp->m_rsumip != NULL);
