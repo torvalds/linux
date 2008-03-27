@@ -51,6 +51,8 @@
 #include <net/ipconfig.h>
 #endif
 
+#include "entry.h"
+
 /* Used to synchronize accesses to NatSemi SUPER I/O chip configure
  * operations in asm/ns87303.h
  */
@@ -334,9 +336,6 @@ void __init setup_arch(char **cmdline_p)
 }
 
 /* BUFFER is PAGE_SIZE bytes long. */
-
-extern char *sparc_cpu_type;
-extern char *sparc_fpu_type;
 
 extern void smp_info(struct seq_file *);
 extern void smp_bogo(struct seq_file *);
