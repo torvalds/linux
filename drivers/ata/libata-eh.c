@@ -1785,6 +1785,11 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 		if (qc->flags & ATA_QCFLAG_SENSE_VALID)
 			qc->err_mask &= ~(AC_ERR_DEV | AC_ERR_OTHER);
 
+		/* determine whether the command is worth retrying */
+		if (!(qc->err_mask & AC_ERR_INVALID) &&
+		    ((qc->flags & ATA_QCFLAG_IO) || qc->err_mask != AC_ERR_DEV))
+			qc->flags |= ATA_QCFLAG_RETRY;
+
 		/* accumulate error info */
 		ehc->i.dev = qc->dev;
 		all_err_mask |= qc->err_mask;
@@ -2783,18 +2788,11 @@ void ata_eh_finish(struct ata_port *ap)
 			/* FIXME: Once EH migration is complete,
 			 * generate sense data in this function,
 			 * considering both err_mask and tf.
-			 *
-			 * There's no point in retrying invalid
-			 * (detected by libata) and non-IO device
-			 * errors (rejected by device).  Finish them
-			 * immediately.
 			 */
-			if ((qc->err_mask & AC_ERR_INVALID) ||
-			    (!(qc->flags & ATA_QCFLAG_IO) &&
-			     qc->err_mask == AC_ERR_DEV))
-				ata_eh_qc_complete(qc);
-			else
+			if (qc->flags & ATA_QCFLAG_RETRY)
 				ata_eh_qc_retry(qc);
+			else
+				ata_eh_qc_complete(qc);
 		} else {
 			if (qc->flags & ATA_QCFLAG_SENSE_VALID) {
 				ata_eh_qc_complete(qc);
