@@ -220,7 +220,7 @@ extern void	xfs_icsb_sync_counters_flags(struct xfs_mount *, int);
 #endif
 
 typedef struct xfs_ail {
-	xfs_ail_entry_t		xa_ail;
+	struct list_head	xa_ail;
 	uint			xa_gen;
 	struct task_struct	*xa_task;
 	xfs_lsn_t		xa_target;
