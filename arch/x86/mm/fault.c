@@ -92,7 +92,8 @@ static int is_prefetch(struct pt_regs *regs, unsigned long addr,
 	unsigned char *max_instr;
 
 #ifdef CONFIG_X86_32
-	if (!(__supported_pte_mask & _PAGE_NX))
+	/* Catch an obscure case of prefetch inside an NX page: */
+	if ((__supported_pte_mask & _PAGE_NX) && (error_code & 16))
 		return 0;
 #endif
 
