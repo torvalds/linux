@@ -19,6 +19,7 @@
  */
 
 #include <linux/kernel.h>
+#include <asm/lv1call.h>
 #include <asm/ps3.h>
 
 /**
@@ -50,10 +51,7 @@ void ps3_sys_manager_power_off(void)
 	if (ps3_sys_manager_ops.power_off)
 		ps3_sys_manager_ops.power_off(ps3_sys_manager_ops.dev);
 
-	printk(KERN_EMERG "System Halted, OK to turn off power\n");
-	local_irq_disable();
-	while (1)
-		(void)0;
+	ps3_sys_manager_halt();
 }
 
 void ps3_sys_manager_restart(void)
@@ -61,8 +59,14 @@ void ps3_sys_manager_restart(void)
 	if (ps3_sys_manager_ops.restart)
 		ps3_sys_manager_ops.restart(ps3_sys_manager_ops.dev);
 
-	printk(KERN_EMERG "System Halted, OK to turn off power\n");
+	ps3_sys_manager_halt();
+}
+
+void ps3_sys_manager_halt(void)
+{
+	pr_emerg("System Halted, OK to turn off power\n");
 	local_irq_disable();
 	while (1)
-		(void)0;
+		lv1_pause(1);
 }
+

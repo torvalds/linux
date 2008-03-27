@@ -24,6 +24,7 @@
 #include <linux/reboot.h>
 
 #include <asm/firmware.h>
+#include <asm/lv1call.h>
 #include <asm/ps3.h>
 
 #include "vuart.h"
@@ -581,6 +582,23 @@ fail_id:
 	return -EIO;
 }
 
+static void ps3_sys_manager_fin(struct ps3_system_bus_device *dev)
+{
+	ps3_sys_manager_send_request_shutdown(dev);
+
+	pr_emerg("System Halted, OK to turn off power\n");
+
+	while (ps3_sys_manager_handle_msg(dev)) {
+		/* pause until next DEC interrupt */
+		lv1_pause(0);
+	}
+
+	while (1) {
+		/* pause, ignoring DEC interrupt */
+		lv1_pause(1);
+	}
+}
+
 /**
  * ps3_sys_manager_final_power_off - The final platform machine_power_off routine.
  *
@@ -602,12 +620,8 @@ static void ps3_sys_manager_final_power_off(struct ps3_system_bus_device *dev)
 
 	ps3_sys_manager_send_next_op(dev, PS3_SM_NEXT_OP_SYS_SHUTDOWN,
 		PS3_SM_WAKE_DEFAULT);
-	ps3_sys_manager_send_request_shutdown(dev);
 
-	pr_emerg("System Halted, OK to turn off power\n");
-
-	while (1)
-		ps3_sys_manager_handle_msg(dev);
+	ps3_sys_manager_fin(dev);
 }
 
 /**
@@ -639,12 +653,8 @@ static void ps3_sys_manager_final_restart(struct ps3_system_bus_device *dev)
 	ps3_sys_manager_send_attr(dev, 0);
 	ps3_sys_manager_send_next_op(dev, PS3_SM_NEXT_OP_SYS_REBOOT,
 		PS3_SM_WAKE_DEFAULT);
-	ps3_sys_manager_send_request_shutdown(dev);
 
-	pr_emerg("System Halted, OK to turn off power\n");
-
-	while (1)
-		ps3_sys_manager_handle_msg(dev);
+	ps3_sys_manager_fin(dev);
 }
 
 /**

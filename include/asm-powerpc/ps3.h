@@ -434,8 +434,9 @@ struct ps3_sys_manager_ops {
 };
 
 void ps3_sys_manager_register_ops(const struct ps3_sys_manager_ops *ops);
-void ps3_sys_manager_power_off(void);
-void ps3_sys_manager_restart(void);
+void __noreturn ps3_sys_manager_power_off(void);
+void __noreturn ps3_sys_manager_restart(void);
+void __noreturn ps3_sys_manager_halt(void);
 
 struct ps3_prealloc {
     const char *name;

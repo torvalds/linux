@@ -95,6 +95,14 @@ static void ps3_power_off(void)
 	ps3_sys_manager_power_off(); /* never returns */
 }
 
+static void ps3_halt(void)
+{
+	DBG("%s:%d\n", __func__, __LINE__);
+
+	smp_send_stop();
+	ps3_sys_manager_halt(); /* never returns */
+}
+
 static void ps3_panic(char *str)
 {
 	DBG("%s:%d %s\n", __func__, __LINE__, str);
@@ -105,7 +113,8 @@ static void ps3_panic(char *str)
 	printk("   Please press POWER button.\n");
 	printk("\n");
 
-	while(1);
+	while(1)
+		lv1_pause(1);
 }
 
 #if defined(CONFIG_FB_PS3) || defined(CONFIG_FB_PS3_MODULE) || \
@@ -266,6 +275,7 @@ define_machine(ps3) {
 	.progress			= ps3_progress,
 	.restart			= ps3_restart,
 	.power_off			= ps3_power_off,
+	.halt				= ps3_halt,
 #if defined(CONFIG_KEXEC)
 	.kexec_cpu_down			= ps3_kexec_cpu_down,
 	.machine_kexec			= default_machine_kexec,
