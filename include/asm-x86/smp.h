@@ -19,6 +19,11 @@
 #include <asm/thread_info.h>
 
 extern cpumask_t cpu_callout_map;
+extern cpumask_t cpu_initialized;
+extern cpumask_t cpu_callin_map;
+
+extern void (*mtrr_hook)(void);
+extern void zap_low_mappings(void);
 
 extern int smp_num_siblings;
 extern unsigned int num_processors;
@@ -159,12 +164,6 @@ extern int safe_smp_processor_id(void);
 #define cpu_physical_id(cpu)		boot_cpu_physical_apicid
 #define safe_smp_processor_id()		0
 #define stack_smp_processor_id() 	0
-#endif
-
-#ifdef CONFIG_X86_32
-# include "smp_32.h"
-#else
-# include "smp_64.h"
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
