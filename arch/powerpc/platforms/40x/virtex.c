@@ -14,6 +14,7 @@
 #include <asm/prom.h>
 #include <asm/time.h>
 #include <asm/xilinx_intc.h>
+#include <asm/ppc4xx.h>
 
 static struct of_device_id xilinx_of_bus_ids[] __initdata = {
 	{ .compatible = "xlnx,plb-v46-1.00.a", },
@@ -48,5 +49,6 @@ define_machine(virtex) {
 	.probe			= virtex_probe,
 	.init_IRQ		= xilinx_intc_init_tree,
 	.get_irq		= xilinx_intc_get_irq,
+	.restart		= ppc4xx_reset_system,
 	.calibrate_decr		= generic_calibrate_decr,
 };

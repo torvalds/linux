@@ -129,7 +129,6 @@ config 440GP
 
 config 440GX
 	bool
-	select 4xx_SOC
 	select IBM_NEW_EMAC_EMAC4
 	select IBM_NEW_EMAC_RGMII
 	select IBM_NEW_EMAC_ZMII #test only

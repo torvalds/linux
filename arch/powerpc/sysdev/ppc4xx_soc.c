@@ -23,6 +23,7 @@
 
 #include <asm/dcr.h>
 #include <asm/dcr-regs.h>
+#include <asm/reg.h>
 
 static u32 dcrbase_l2c;
 
@@ -187,3 +188,13 @@ static int __init ppc4xx_l2c_probe(void)
 	return 0;
 }
 arch_initcall(ppc4xx_l2c_probe);
+
+/*
+ * At present, this routine just applies a system reset.
+ */
+void ppc4xx_reset_system(char *cmd)
+{
+	mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) | DBCR0_RST_SYSTEM);
+	while (1)
+		;	/* Just in case the reset doesn't work */
+}
