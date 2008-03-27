@@ -180,6 +180,7 @@ dma_supported(struct device *dev, u64 mask)
 
 	return 1;
 }
+EXPORT_SYMBOL(dma_supported);
 
 int
 dma_set_mask(struct device *dev, u64 mask)
@@ -191,6 +192,7 @@ dma_set_mask(struct device *dev, u64 mask)
 
 	return 0;
 }
+EXPORT_SYMBOL(dma_set_mask);
 
 
 static __devinit void via_no_dac(struct pci_dev *dev)
