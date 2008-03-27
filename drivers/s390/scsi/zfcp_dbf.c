@@ -520,6 +520,36 @@ static struct debug_view zfcp_hba_dbf_view = {
 	NULL
 };
 
+static const char *zfcp_rec_dbf_tags[] = {
+};
+
+static const char *zfcp_rec_dbf_ids[] = {
+};
+
+static int zfcp_rec_dbf_view_format(debug_info_t *id, struct debug_view *view,
+				    char *buf, const char *_rec)
+{
+	struct zfcp_rec_dbf_record *r = (struct zfcp_rec_dbf_record *)_rec;
+	char *p = buf;
+
+	zfcp_dbf_outs(&p, "tag", zfcp_rec_dbf_tags[r->id]);
+	zfcp_dbf_outs(&p, "hint", zfcp_rec_dbf_ids[r->id2]);
+	zfcp_dbf_out(&p, "id", "%d", r->id2);
+	switch (r->id) {
+	}
+	sprintf(p, "\n");
+	return (p - buf) + 1;
+}
+
+static struct debug_view zfcp_rec_dbf_view = {
+	"structured",
+	NULL,
+	&zfcp_dbf_view_header,
+	&zfcp_rec_dbf_view_format,
+	NULL,
+	NULL
+};
+
 static void
 _zfcp_san_dbf_event_common_ct(const char *tag, struct zfcp_fsf_req *fsf_req,
 			      u32 s_id, u32 d_id, void *buffer, int buflen)
@@ -934,6 +964,16 @@ int zfcp_adapter_debug_register(struct zfcp_adapter *adapter)
 	debug_register_view(adapter->erp_dbf, &debug_hex_ascii_view);
 	debug_set_level(adapter->erp_dbf, 3);
 
+	/* debug feature area which records recovery activity */
+	sprintf(dbf_name, "zfcp_%s_rec", zfcp_get_busid_by_adapter(adapter));
+	adapter->rec_dbf = debug_register(dbf_name, dbfsize, 1,
+					  sizeof(struct zfcp_rec_dbf_record));
+	if (!adapter->rec_dbf)
+		goto failed;
+	debug_register_view(adapter->rec_dbf, &debug_hex_ascii_view);
+	debug_register_view(adapter->rec_dbf, &zfcp_rec_dbf_view);
+	debug_set_level(adapter->rec_dbf, 3);
+
 	/* debug feature area which records HBA (FSF and QDIO) conditions */
 	sprintf(dbf_name, "zfcp_%s_hba", zfcp_get_busid_by_adapter(adapter));
 	adapter->hba_dbf = debug_register(dbf_name, dbfsize, 1,
@@ -981,10 +1021,12 @@ void zfcp_adapter_debug_unregister(struct zfcp_adapter *adapter)
 	debug_unregister(adapter->scsi_dbf);
 	debug_unregister(adapter->san_dbf);
 	debug_unregister(adapter->hba_dbf);
+	debug_unregister(adapter->rec_dbf);
 	debug_unregister(adapter->erp_dbf);
 	adapter->scsi_dbf = NULL;
 	adapter->san_dbf = NULL;
 	adapter->hba_dbf = NULL;
+	adapter->rec_dbf = NULL;
 	adapter->erp_dbf = NULL;
 }
 

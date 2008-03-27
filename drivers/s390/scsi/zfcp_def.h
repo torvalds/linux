@@ -279,6 +279,13 @@ struct zfcp_erp_dbf_record {
 	u8 dummy[16];
 } __attribute__ ((packed));
 
+struct zfcp_rec_dbf_record {
+	u8 id;
+	u8 id2;
+	union {
+	} u;
+} __attribute__ ((packed));
+
 struct zfcp_hba_dbf_record_response {
 	u32 fsf_command;
 	u64 fsf_reqid;
@@ -917,14 +924,17 @@ struct zfcp_adapter {
 						      for memory */
 	struct zfcp_port	*nameserver_port;  /* adapter's nameserver */
 	debug_info_t		*erp_dbf;
+	debug_info_t		*rec_dbf;
 	debug_info_t		*hba_dbf;
 	debug_info_t		*san_dbf;          /* debug feature areas */
 	debug_info_t		*scsi_dbf;
 	spinlock_t		erp_dbf_lock;
+	spinlock_t		rec_dbf_lock;
 	spinlock_t		hba_dbf_lock;
 	spinlock_t		san_dbf_lock;
 	spinlock_t		scsi_dbf_lock;
 	struct zfcp_erp_dbf_record	erp_dbf_buf;
+	struct zfcp_rec_dbf_record	rec_dbf_buf;
 	struct zfcp_hba_dbf_record	hba_dbf_buf;
 	struct zfcp_san_dbf_record	san_dbf_buf;
 	struct zfcp_scsi_dbf_record	scsi_dbf_buf;
