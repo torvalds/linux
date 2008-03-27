@@ -1266,6 +1266,85 @@ int gelic_net_set_rx_csum(struct net_device *netdev, u32 data)
 	return 0;
 }
 
+static void gelic_net_get_wol(struct net_device *netdev,
+			      struct ethtool_wolinfo *wol)
+{
+	if (0 <= ps3_compare_firmware_version(2, 2, 0))
+		wol->supported = WAKE_MAGIC;
+	else
+		wol->supported = 0;
+
+	wol->wolopts = ps3_sys_manager_get_wol() ? wol->supported : 0;
+	memset(&wol->sopass, 0, sizeof(wol->sopass));
+}
+static int gelic_net_set_wol(struct net_device *netdev,
+			     struct ethtool_wolinfo *wol)
+{
+	int status;
+	struct gelic_card *card;
+	u64 v1, v2;
+
+	if (ps3_compare_firmware_version(2, 2, 0) < 0 ||
+	    !capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	if (wol->wolopts & ~WAKE_MAGIC)
+		return -EINVAL;
+
+	card = netdev_card(netdev);
+	if (wol->wolopts & WAKE_MAGIC) {
+		status = lv1_net_control(bus_id(card), dev_id(card),
+					 GELIC_LV1_SET_WOL,
+					 GELIC_LV1_WOL_MAGIC_PACKET,
+					 0, GELIC_LV1_WOL_MP_ENABLE,
+					 &v1, &v2);
+		if (status) {
+			pr_info("%s: enabling WOL failed %d\n", __func__,
+				status);
+			status = -EIO;
+			goto done;
+		}
+		status = lv1_net_control(bus_id(card), dev_id(card),
+					 GELIC_LV1_SET_WOL,
+					 GELIC_LV1_WOL_ADD_MATCH_ADDR,
+					 0, GELIC_LV1_WOL_MATCH_ALL,
+					 &v1, &v2);
+		if (!status)
+			ps3_sys_manager_set_wol(1);
+		else {
+			pr_info("%s: enabling WOL filter failed %d\n",
+				__func__, status);
+			status = -EIO;
+		}
+	} else {
+		status = lv1_net_control(bus_id(card), dev_id(card),
+					 GELIC_LV1_SET_WOL,
+					 GELIC_LV1_WOL_MAGIC_PACKET,
+					 0, GELIC_LV1_WOL_MP_DISABLE,
+					 &v1, &v2);
+		if (status) {
+			pr_info("%s: disabling WOL failed %d\n", __func__,
+				status);
+			status = -EIO;
+			goto done;
+		}
+		status = lv1_net_control(bus_id(card), dev_id(card),
+					 GELIC_LV1_SET_WOL,
+					 GELIC_LV1_WOL_DELETE_MATCH_ADDR,
+					 0, GELIC_LV1_WOL_MATCH_ALL,
+					 &v1, &v2);
+		if (!status)
+			ps3_sys_manager_set_wol(0);
+		else {
+			pr_info("%s: removing WOL filter failed %d\n",
+				__func__, status);
+			status = -EIO;
+		}
+	}
+done:
+	return status;
+}
+
 static struct ethtool_ops gelic_ether_ethtool_ops = {
 	.get_drvinfo	= gelic_net_get_drvinfo,
 	.get_settings	= gelic_ether_get_settings,
@@ -1274,6 +1353,8 @@ static struct ethtool_ops gelic_ether_ethtool_ops = {
 	.set_tx_csum	= ethtool_op_set_tx_csum,
 	.get_rx_csum	= gelic_net_get_rx_csum,
 	.set_rx_csum	= gelic_net_set_rx_csum,
+	.get_wol	= gelic_net_get_wol,
+	.set_wol	= gelic_net_set_wol,
 };
 
 /**
