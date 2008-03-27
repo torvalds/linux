@@ -58,11 +58,6 @@ static int create_dir(struct kobject *kobj)
 	return error;
 }
 
-static inline struct kobject *to_kobj(struct list_head *entry)
-{
-	return container_of(entry, struct kobject, entry);
-}
-
 static int get_kobj_path_length(struct kobject *kobj)
 {
 	int length = 1;
@@ -752,12 +747,11 @@ void kset_unregister(struct kset *k)
  */
 struct kobject *kset_find_obj(struct kset *kset, const char *name)
 {
-	struct list_head *entry;
+	struct kobject *k;
 	struct kobject *ret = NULL;
 
 	spin_lock(&kset->list_lock);
-	list_for_each(entry, &kset->list) {
-		struct kobject *k = to_kobj(entry);
+	list_for_each_entry(k, &kset->list, entry) {
 		if (kobject_name(k) && !strcmp(kobject_name(k), name)) {
 			ret = kobject_get(k);
 			break;
