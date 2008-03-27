@@ -50,6 +50,8 @@
 # error SPURIOUS_APIC_VECTOR definition error
 #endif
 
+unsigned long mp_lapic_addr;
+
 /*
  * Knob to control our willingness to enable the local APIC.
  *

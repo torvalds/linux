@@ -60,7 +60,6 @@ int mp_irq_entries;
 int nr_ioapics;
 
 int pic_mode;
-unsigned long mp_lapic_addr;
 
 unsigned int def_to_bigsmp = 0;
 
