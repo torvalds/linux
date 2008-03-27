@@ -253,11 +253,11 @@ void __init iop3xx_atu_setup(void)
 	*IOP3XX_IATVR2 = PHYS_OFFSET;
 
 	/* Outbound window 0 */
-	*IOP3XX_OMWTVR0 = IOP3XX_PCI_LOWER_MEM_PA;
+	*IOP3XX_OMWTVR0 = IOP3XX_PCI_LOWER_MEM_BA;
 	*IOP3XX_OUMWTVR0 = 0;
 
 	/* Outbound window 1 */
-	*IOP3XX_OMWTVR1 = IOP3XX_PCI_LOWER_MEM_PA + IOP3XX_PCI_MEM_WINDOW_SIZE;
+	*IOP3XX_OMWTVR1 = IOP3XX_PCI_LOWER_MEM_BA + IOP3XX_PCI_MEM_WINDOW_SIZE;
 	*IOP3XX_OUMWTVR1 = 0;
 
 	/* BAR 3 ( Disabled ) */
@@ -268,7 +268,7 @@ void __init iop3xx_atu_setup(void)
 
 	/* Setup the I/O Bar
 	 */
-	*IOP3XX_OIOWTVR = IOP3XX_PCI_LOWER_IO_PA;;
+	*IOP3XX_OIOWTVR = IOP3XX_PCI_LOWER_IO_BA;
 
 	/* Enable inbound and outbound cycles
 	 */
