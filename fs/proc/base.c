@@ -604,6 +604,19 @@ static const struct file_operations proc_mounts_operations = {
 	.poll		= mounts_poll,
 };
 
+static int mountinfo_open(struct inode *inode, struct file *file)
+{
+	return mounts_open_common(inode, file, &mountinfo_op);
+}
+
+static const struct file_operations proc_mountinfo_operations = {
+	.open		= mountinfo_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= mounts_release,
+	.poll		= mounts_poll,
+};
+
 static int mountstats_open(struct inode *inode, struct file *file)
 {
 	return mounts_open_common(inode, file, &mountstats_op);
@@ -2303,6 +2316,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 	LNK("root",       root),
 	LNK("exe",        exe),
 	REG("mounts",     S_IRUGO, mounts),
+	REG("mountinfo",  S_IRUGO, mountinfo),
 	REG("mountstats", S_IRUSR, mountstats),
 #ifdef CONFIG_PROC_PAGE_MONITOR
 	REG("clear_refs", S_IWUSR, clear_refs),
@@ -2635,6 +2649,7 @@ static const struct pid_entry tid_base_stuff[] = {
 	LNK("root",      root),
 	LNK("exe",       exe),
 	REG("mounts",    S_IRUGO, mounts),
+	REG("mountinfo",  S_IRUGO, mountinfo),
 #ifdef CONFIG_PROC_PAGE_MONITOR
 	REG("clear_refs", S_IWUSR, clear_refs),
 	REG("smaps",     S_IRUGO, smaps),
