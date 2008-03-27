@@ -284,37 +284,6 @@ zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *fsf_req)
 		goto skip_protstatus;
 	}
 
-	/* log additional information provided by FSF (if any) */
-	if (likely(qtcb->header.log_length)) {
-		/* do not trust them ;-) */
-		if (unlikely(qtcb->header.log_start >
-			     sizeof(struct fsf_qtcb))) {
-			ZFCP_LOG_NORMAL
-			    ("bug: ULP (FSF logging) log data starts "
-			     "beyond end of packet header. Ignored. "
-			     "(start=%i, size=%li)\n",
-			     qtcb->header.log_start,
-			     sizeof(struct fsf_qtcb));
-			goto forget_log;
-		}
-		if (unlikely((size_t) (qtcb->header.log_start +
-				       qtcb->header.log_length) >
-			     sizeof(struct fsf_qtcb))) {
-			ZFCP_LOG_NORMAL("bug: ULP (FSF logging) log data ends "
-					"beyond end of packet header. Ignored. "
-					"(start=%i, length=%i, size=%li)\n",
-					qtcb->header.log_start,
-					qtcb->header.log_length,
-					sizeof(struct fsf_qtcb));
-			goto forget_log;
-		}
-		ZFCP_LOG_TRACE("ULP log data: \n");
-		ZFCP_HEX_DUMP(ZFCP_LOG_LEVEL_TRACE,
-			      (char *) qtcb + qtcb->header.log_start,
-			      qtcb->header.log_length);
-	}
- forget_log:
-
 	/* evaluate FSF Protocol Status */
 	switch (qtcb->prefix.prot_status) {
 
