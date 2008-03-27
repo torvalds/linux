@@ -49,13 +49,13 @@ static void gpio_led_set(struct led_classdev *led_cdev,
 	if (led_dat->active_low)
 		level = !level;
 
-	/* setting GPIOs with I2C/etc requires a preemptible task context */
+	/* Setting GPIOs with I2C/etc requires a task context, and we don't
+	 * seem to have a reliable way to know if we're already in one; so
+	 * let's just assume the worst.
+	 */
 	if (led_dat->can_sleep) {
-		if (preempt_count()) {
-			led_dat->new_level = level;
-			schedule_work(&led_dat->work);
-		} else
-			gpio_set_value_cansleep(led_dat->gpio, level);
+		led_dat->new_level = level;
+		schedule_work(&led_dat->work);
 	} else
 		gpio_set_value(led_dat->gpio, level);
 }
