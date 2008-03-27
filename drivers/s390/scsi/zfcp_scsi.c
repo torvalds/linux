@@ -185,7 +185,7 @@ static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 		atomic_clear_mask(ZFCP_STATUS_UNIT_REGISTERED, &unit->status);
 		sdpnt->hostdata = NULL;
 		unit->device = NULL;
-		zfcp_erp_unit_failed(unit);
+		zfcp_erp_unit_failed(unit, 12, 0);
 		zfcp_unit_put(unit);
 	} else
 		ZFCP_LOG_NORMAL("bug: no unit associated with SCSI device at "

@@ -286,16 +286,27 @@ struct zfcp_rec_dbf_record_thread {
 	u32 running;
 } __attribute__ ((packed));
 
+struct zfcp_rec_dbf_record_target {
+	u64 ref;
+	u32 status;
+	u32 d_id;
+	u64 wwpn;
+	u64 fcp_lun;
+	u32 erp_count;
+} __attribute__ ((packed));
+
 struct zfcp_rec_dbf_record {
 	u8 id;
 	u8 id2;
 	union {
 		struct zfcp_rec_dbf_record_thread thread;
+		struct zfcp_rec_dbf_record_target target;
 	} u;
 } __attribute__ ((packed));
 
 enum {
 	ZFCP_REC_DBF_ID_THREAD,
+	ZFCP_REC_DBF_ID_TARGET,
 };
 
 struct zfcp_hba_dbf_record_response {

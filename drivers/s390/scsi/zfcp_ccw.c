@@ -170,8 +170,8 @@ zfcp_ccw_set_online(struct ccw_device *ccw_device)
 	BUG_ON(!zfcp_reqlist_isempty(adapter));
 	adapter->req_no = 0;
 
-	zfcp_erp_modify_adapter_status(adapter, ZFCP_STATUS_COMMON_RUNNING,
-				       ZFCP_SET);
+	zfcp_erp_modify_adapter_status(adapter, 10, 0,
+				       ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
 	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED);
 	zfcp_erp_wait(adapter);
 	goto out;
@@ -236,7 +236,7 @@ zfcp_ccw_notify(struct ccw_device *ccw_device, int event)
 		ZFCP_LOG_NORMAL("adapter %s: operational again\n",
 				zfcp_get_busid_by_adapter(adapter));
 		debug_text_event(adapter->erp_dbf,1,"dev_oper");
-		zfcp_erp_modify_adapter_status(adapter,
+		zfcp_erp_modify_adapter_status(adapter, 11, 0,
 					       ZFCP_STATUS_COMMON_RUNNING,
 					       ZFCP_SET);
 		zfcp_erp_adapter_reopen(adapter,

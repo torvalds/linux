@@ -163,7 +163,7 @@ static void zfcp_close_fsf(struct zfcp_adapter *adapter)
 	/* reset FSF request sequence number */
 	adapter->fsf_req_seq_no = 0;
 	/* all ports and units are closed */
-	zfcp_erp_modify_adapter_status(adapter,
+	zfcp_erp_modify_adapter_status(adapter, 24, 0,
 				       ZFCP_STATUS_COMMON_OPEN, ZFCP_CLEAR);
 }
 
@@ -216,7 +216,7 @@ zfcp_erp_adapter_reopen_internal(struct zfcp_adapter *adapter, int clear_mask)
 			       zfcp_get_busid_by_adapter(adapter));
 		debug_text_event(adapter->erp_dbf, 5, "a_ro_f");
 		/* ensure propagation of failed status to new devices */
-		zfcp_erp_adapter_failed(adapter);
+		zfcp_erp_adapter_failed(adapter, 13, 0);
 		retval = -EIO;
 		goto out;
 	}
@@ -572,7 +572,7 @@ zfcp_erp_port_reopen_internal(struct zfcp_port *port, int clear_mask)
 		debug_text_event(adapter->erp_dbf, 5, "p_ro_f");
 		debug_event(adapter->erp_dbf, 5, &port->wwpn, sizeof (wwn_t));
 		/* ensure propagation of failed status to new devices */
-		zfcp_erp_port_failed(port);
+		zfcp_erp_port_failed(port, 14, 0);
 		retval = -EIO;
 		goto out;
 	}
@@ -688,9 +688,33 @@ zfcp_erp_unit_reopen(struct zfcp_unit *unit, int clear_mask)
 static void zfcp_erp_adapter_block(struct zfcp_adapter *adapter, int clear_mask)
 {
 	debug_text_event(adapter->erp_dbf, 6, "a_bl");
-	zfcp_erp_modify_adapter_status(adapter,
+	zfcp_erp_modify_adapter_status(adapter, 15, 0,
 				       ZFCP_STATUS_COMMON_UNBLOCKED |
 				       clear_mask, ZFCP_CLEAR);
+}
+
+/* FIXME: isn't really atomic */
+/*
+ * returns the mask which has not been set so far, i.e.
+ * 0 if no bit has been changed, !0 if some bit has been changed
+ */
+static int atomic_test_and_set_mask(unsigned long mask, atomic_t *v)
+{
+	int changed_bits = (atomic_read(v) /*XOR*/^ mask) & mask;
+	atomic_set_mask(mask, v);
+	return changed_bits;
+}
+
+/* FIXME: isn't really atomic */
+/*
+ * returns the mask which has not been cleared so far, i.e.
+ * 0 if no bit has been changed, !0 if some bit has been changed
+ */
+static int atomic_test_and_clear_mask(unsigned long mask, atomic_t *v)
+{
+	int changed_bits = atomic_read(v) & mask;
+	atomic_clear_mask(mask, v);
+	return changed_bits;
 }
 
 /**
@@ -699,7 +723,9 @@ static void zfcp_erp_adapter_block(struct zfcp_adapter *adapter, int clear_mask)
 static void zfcp_erp_adapter_unblock(struct zfcp_adapter *adapter)
 {
 	debug_text_event(adapter->erp_dbf, 6, "a_ubl");
-	atomic_set_mask(ZFCP_STATUS_COMMON_UNBLOCKED, &adapter->status);
+	if (atomic_test_and_set_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
+				     &adapter->status))
+		zfcp_rec_dbf_event_adapter(16, 0, adapter);
 }
 
 /*
@@ -718,7 +744,7 @@ zfcp_erp_port_block(struct zfcp_port *port, int clear_mask)
 
 	debug_text_event(adapter->erp_dbf, 6, "p_bl");
 	debug_event(adapter->erp_dbf, 6, &port->wwpn, sizeof (wwn_t));
-	zfcp_erp_modify_port_status(port,
+	zfcp_erp_modify_port_status(port, 17, 0,
 				    ZFCP_STATUS_COMMON_UNBLOCKED | clear_mask,
 				    ZFCP_CLEAR);
 }
@@ -737,7 +763,9 @@ zfcp_erp_port_unblock(struct zfcp_port *port)
 
 	debug_text_event(adapter->erp_dbf, 6, "p_ubl");
 	debug_event(adapter->erp_dbf, 6, &port->wwpn, sizeof (wwn_t));
-	atomic_set_mask(ZFCP_STATUS_COMMON_UNBLOCKED, &port->status);
+	if (atomic_test_and_set_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
+				     &port->status))
+		zfcp_rec_dbf_event_port(18, 0, port);
 }
 
 /*
@@ -756,7 +784,7 @@ zfcp_erp_unit_block(struct zfcp_unit *unit, int clear_mask)
 
 	debug_text_event(adapter->erp_dbf, 6, "u_bl");
 	debug_event(adapter->erp_dbf, 6, &unit->fcp_lun, sizeof (fcp_lun_t));
-	zfcp_erp_modify_unit_status(unit,
+	zfcp_erp_modify_unit_status(unit, 19, 0,
 				    ZFCP_STATUS_COMMON_UNBLOCKED | clear_mask,
 				    ZFCP_CLEAR);
 }
@@ -775,7 +803,9 @@ zfcp_erp_unit_unblock(struct zfcp_unit *unit)
 
 	debug_text_event(adapter->erp_dbf, 6, "u_ubl");
 	debug_event(adapter->erp_dbf, 6, &unit->fcp_lun, sizeof (fcp_lun_t));
-	atomic_set_mask(ZFCP_STATUS_COMMON_UNBLOCKED, &unit->status);
+	if (atomic_test_and_set_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
+				     &unit->status))
+		zfcp_rec_dbf_event_unit(20, 0, unit);
 }
 
 static void
@@ -1357,9 +1387,9 @@ zfcp_erp_strategy_memwait(struct zfcp_erp_action *erp_action)
  *
  */
 void
-zfcp_erp_adapter_failed(struct zfcp_adapter *adapter)
+zfcp_erp_adapter_failed(struct zfcp_adapter *adapter, u8 id, u64 ref)
 {
-	zfcp_erp_modify_adapter_status(adapter,
+	zfcp_erp_modify_adapter_status(adapter, id, ref,
 				       ZFCP_STATUS_COMMON_ERP_FAILED, ZFCP_SET);
 	ZFCP_LOG_NORMAL("adapter erp failed on adapter %s\n",
 			zfcp_get_busid_by_adapter(adapter));
@@ -1373,9 +1403,9 @@ zfcp_erp_adapter_failed(struct zfcp_adapter *adapter)
  *
  */
 void
-zfcp_erp_port_failed(struct zfcp_port *port)
+zfcp_erp_port_failed(struct zfcp_port *port, u8 id, u64 ref)
 {
-	zfcp_erp_modify_port_status(port,
+	zfcp_erp_modify_port_status(port, id, ref,
 				    ZFCP_STATUS_COMMON_ERP_FAILED, ZFCP_SET);
 
 	if (atomic_test_mask(ZFCP_STATUS_PORT_WKA, &port->status))
@@ -1397,9 +1427,9 @@ zfcp_erp_port_failed(struct zfcp_port *port)
  *
  */
 void
-zfcp_erp_unit_failed(struct zfcp_unit *unit)
+zfcp_erp_unit_failed(struct zfcp_unit *unit, u8 id, u64 ref)
 {
-	zfcp_erp_modify_unit_status(unit,
+	zfcp_erp_modify_unit_status(unit, id, ref,
 				    ZFCP_STATUS_COMMON_ERP_FAILED, ZFCP_SET);
 
 	ZFCP_LOG_NORMAL("unit erp failed on unit 0x%016Lx on port 0x%016Lx "
@@ -1522,7 +1552,7 @@ zfcp_erp_strategy_check_unit(struct zfcp_unit *unit, int result)
 	case ZFCP_ERP_FAILED :
 		atomic_inc(&unit->erp_counter);
 		if (atomic_read(&unit->erp_counter) > ZFCP_MAX_ERPS)
-			zfcp_erp_unit_failed(unit);
+			zfcp_erp_unit_failed(unit, 21, 0);
 		break;
 	case ZFCP_ERP_EXIT :
 		/* nothing */
@@ -1551,7 +1581,7 @@ zfcp_erp_strategy_check_port(struct zfcp_port *port, int result)
 	case ZFCP_ERP_FAILED :
 		atomic_inc(&port->erp_counter);
 		if (atomic_read(&port->erp_counter) > ZFCP_MAX_ERPS)
-			zfcp_erp_port_failed(port);
+			zfcp_erp_port_failed(port, 22, 0);
 		break;
 	case ZFCP_ERP_EXIT :
 		/* nothing */
@@ -1579,7 +1609,7 @@ zfcp_erp_strategy_check_adapter(struct zfcp_adapter *adapter, int result)
 	case ZFCP_ERP_FAILED :
 		atomic_inc(&adapter->erp_counter);
 		if (atomic_read(&adapter->erp_counter) > ZFCP_MAX_ERPS)
-			zfcp_erp_adapter_failed(adapter);
+			zfcp_erp_adapter_failed(adapter, 23, 0);
 		break;
 	case ZFCP_ERP_EXIT :
 		/* nothing */
@@ -1737,29 +1767,30 @@ zfcp_erp_wait(struct zfcp_adapter *adapter)
 	return retval;
 }
 
-void
-zfcp_erp_modify_adapter_status(struct zfcp_adapter *adapter,
-			       u32 mask, int set_or_clear)
+void zfcp_erp_modify_adapter_status(struct zfcp_adapter *adapter, u8 id,
+				    u64 ref, u32 mask, int set_or_clear)
 {
 	struct zfcp_port *port;
-	u32 common_mask = mask & ZFCP_COMMON_FLAGS;
+	u32 changed, common_mask = mask & ZFCP_COMMON_FLAGS;
 
 	if (set_or_clear == ZFCP_SET) {
-		atomic_set_mask(mask, &adapter->status);
+		changed = atomic_test_and_set_mask(mask, &adapter->status);
 		debug_text_event(adapter->erp_dbf, 3, "a_mod_as_s");
 	} else {
-		atomic_clear_mask(mask, &adapter->status);
+		changed = atomic_test_and_clear_mask(mask, &adapter->status);
 		if (mask & ZFCP_STATUS_COMMON_ERP_FAILED)
 			atomic_set(&adapter->erp_counter, 0);
 		debug_text_event(adapter->erp_dbf, 3, "a_mod_as_c");
 	}
+	if (changed)
+		zfcp_rec_dbf_event_adapter(id, ref, adapter);
 	debug_event(adapter->erp_dbf, 3, &mask, sizeof (u32));
 
 	/* Deal with all underlying devices, only pass common_mask */
 	if (common_mask)
 		list_for_each_entry(port, &adapter->port_list_head, list)
-		    zfcp_erp_modify_port_status(port, common_mask,
-						set_or_clear);
+			zfcp_erp_modify_port_status(port, id, ref, common_mask,
+						    set_or_clear);
 }
 
 /*
@@ -1768,29 +1799,31 @@ zfcp_erp_modify_adapter_status(struct zfcp_adapter *adapter,
  * purpose:	sets the port and all underlying devices to ERP_FAILED
  *
  */
-void
-zfcp_erp_modify_port_status(struct zfcp_port *port, u32 mask, int set_or_clear)
+void zfcp_erp_modify_port_status(struct zfcp_port *port, u8 id, u64 ref,
+				 u32 mask, int set_or_clear)
 {
 	struct zfcp_unit *unit;
-	u32 common_mask = mask & ZFCP_COMMON_FLAGS;
+	u32 changed, common_mask = mask & ZFCP_COMMON_FLAGS;
 
 	if (set_or_clear == ZFCP_SET) {
-		atomic_set_mask(mask, &port->status);
+		changed = atomic_test_and_set_mask(mask, &port->status);
 		debug_text_event(port->adapter->erp_dbf, 3, "p_mod_ps_s");
 	} else {
-		atomic_clear_mask(mask, &port->status);
+		changed = atomic_test_and_clear_mask(mask, &port->status);
 		if (mask & ZFCP_STATUS_COMMON_ERP_FAILED)
 			atomic_set(&port->erp_counter, 0);
 		debug_text_event(port->adapter->erp_dbf, 3, "p_mod_ps_c");
 	}
+	if (changed)
+		zfcp_rec_dbf_event_port(id, ref, port);
 	debug_event(port->adapter->erp_dbf, 3, &port->wwpn, sizeof (wwn_t));
 	debug_event(port->adapter->erp_dbf, 3, &mask, sizeof (u32));
 
 	/* Modify status of all underlying devices, only pass common mask */
 	if (common_mask)
 		list_for_each_entry(unit, &port->unit_list_head, list)
-		    zfcp_erp_modify_unit_status(unit, common_mask,
-						set_or_clear);
+			zfcp_erp_modify_unit_status(unit, id, ref, common_mask,
+						    set_or_clear);
 }
 
 /*
@@ -1799,19 +1832,23 @@ zfcp_erp_modify_port_status(struct zfcp_port *port, u32 mask, int set_or_clear)
  * purpose:	sets the unit to ERP_FAILED
  *
  */
-void
-zfcp_erp_modify_unit_status(struct zfcp_unit *unit, u32 mask, int set_or_clear)
+void zfcp_erp_modify_unit_status(struct zfcp_unit *unit, u8 id, u64 ref,
+				 u32 mask, int set_or_clear)
 {
+	u32 changed;
+
 	if (set_or_clear == ZFCP_SET) {
-		atomic_set_mask(mask, &unit->status);
+		changed = atomic_test_and_set_mask(mask, &unit->status);
 		debug_text_event(unit->port->adapter->erp_dbf, 3, "u_mod_us_s");
 	} else {
-		atomic_clear_mask(mask, &unit->status);
+		changed = atomic_test_and_clear_mask(mask, &unit->status);
 		if (mask & ZFCP_STATUS_COMMON_ERP_FAILED) {
 			atomic_set(&unit->erp_counter, 0);
 		}
 		debug_text_event(unit->port->adapter->erp_dbf, 3, "u_mod_us_c");
 	}
+	if (changed)
+		zfcp_rec_dbf_event_unit(id, ref, unit);
 	debug_event(unit->port->adapter->erp_dbf, 3, &unit->fcp_lun,
 		    sizeof (fcp_lun_t));
 	debug_event(unit->port->adapter->erp_dbf, 3, &mask, sizeof (u32));
@@ -2403,7 +2440,7 @@ zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *erp_action)
 						port->wwpn,
 						zfcp_get_busid_by_adapter(adapter),
 						adapter->peer_wwpn);
-				zfcp_erp_port_failed(port);
+				zfcp_erp_port_failed(port, 25, 0);
 				retval = ZFCP_ERP_FAILED;
 				break;
 			}
@@ -2461,7 +2498,7 @@ zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *erp_action)
 					       "for port 0x%016Lx "
 					       "(misconfigured WWPN?)\n",
 					       port->wwpn);
-				zfcp_erp_port_failed(port);
+				zfcp_erp_port_failed(port, 26, 0);
 				retval = ZFCP_ERP_EXIT;
 			} else {
 				ZFCP_LOG_DEBUG("nameserver look-up failed for "
@@ -2567,7 +2604,7 @@ zfcp_erp_port_strategy_open_nameserver_wakeup(struct zfcp_erp_action
 			if (atomic_test_mask(
 				    ZFCP_STATUS_COMMON_ERP_FAILED,
 				    &adapter->nameserver_port->status))
-				zfcp_erp_port_failed(erp_action->port);
+				zfcp_erp_port_failed(erp_action->port, 27, 0);
 			zfcp_erp_action_ready(erp_action);
 		}
 	}
@@ -3274,8 +3311,7 @@ static void zfcp_erp_action_to_ready(struct zfcp_erp_action *erp_action)
 	list_move(&erp_action->list, &erp_action->adapter->erp_ready_head);
 }
 
-void
-zfcp_erp_port_boxed(struct zfcp_port *port)
+void zfcp_erp_port_boxed(struct zfcp_port *port, u8 id, u64 ref)
 {
 	struct zfcp_adapter *adapter = port->adapter;
 	unsigned long flags;
@@ -3283,28 +3319,24 @@ zfcp_erp_port_boxed(struct zfcp_port *port)
 	debug_text_event(adapter->erp_dbf, 3, "p_access_boxed");
 	debug_event(adapter->erp_dbf, 3, &port->wwpn, sizeof(wwn_t));
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	zfcp_erp_modify_port_status(port,
-			ZFCP_STATUS_COMMON_ACCESS_BOXED,
-			ZFCP_SET);
+	zfcp_erp_modify_port_status(port, id, ref,
+				    ZFCP_STATUS_COMMON_ACCESS_BOXED, ZFCP_SET);
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 	zfcp_erp_port_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED);
 }
 
-void
-zfcp_erp_unit_boxed(struct zfcp_unit *unit)
+void zfcp_erp_unit_boxed(struct zfcp_unit *unit, u8 id, u64 ref)
 {
 	struct zfcp_adapter *adapter = unit->port->adapter;
 
 	debug_text_event(adapter->erp_dbf, 3, "u_access_boxed");
 	debug_event(adapter->erp_dbf, 3, &unit->fcp_lun, sizeof(fcp_lun_t));
-	zfcp_erp_modify_unit_status(unit,
-			ZFCP_STATUS_COMMON_ACCESS_BOXED,
-			ZFCP_SET);
+	zfcp_erp_modify_unit_status(unit, id, ref,
+				    ZFCP_STATUS_COMMON_ACCESS_BOXED, ZFCP_SET);
 	zfcp_erp_unit_reopen(unit, ZFCP_STATUS_COMMON_ERP_FAILED);
 }
 
-void
-zfcp_erp_port_access_denied(struct zfcp_port *port)
+void zfcp_erp_port_access_denied(struct zfcp_port *port, u8 id, u64 ref)
 {
 	struct zfcp_adapter *adapter = port->adapter;
 	unsigned long flags;
@@ -3312,24 +3344,21 @@ zfcp_erp_port_access_denied(struct zfcp_port *port)
 	debug_text_event(adapter->erp_dbf, 3, "p_access_denied");
 	debug_event(adapter->erp_dbf, 3, &port->wwpn, sizeof(wwn_t));
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	zfcp_erp_modify_port_status(port,
-			ZFCP_STATUS_COMMON_ERP_FAILED |
-			ZFCP_STATUS_COMMON_ACCESS_DENIED,
-			ZFCP_SET);
+	zfcp_erp_modify_port_status(port, id, ref,
+				    ZFCP_STATUS_COMMON_ERP_FAILED |
+				    ZFCP_STATUS_COMMON_ACCESS_DENIED, ZFCP_SET);
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 }
 
-void
-zfcp_erp_unit_access_denied(struct zfcp_unit *unit)
+void zfcp_erp_unit_access_denied(struct zfcp_unit *unit, u8 id, u64 ref)
 {
 	struct zfcp_adapter *adapter = unit->port->adapter;
 
 	debug_text_event(adapter->erp_dbf, 3, "u_access_denied");
 	debug_event(adapter->erp_dbf, 3, &unit->fcp_lun, sizeof(fcp_lun_t));
-	zfcp_erp_modify_unit_status(unit,
-			ZFCP_STATUS_COMMON_ERP_FAILED |
-			ZFCP_STATUS_COMMON_ACCESS_DENIED,
-			ZFCP_SET);
+	zfcp_erp_modify_unit_status(unit, id, ref,
+				    ZFCP_STATUS_COMMON_ERP_FAILED |
+				    ZFCP_STATUS_COMMON_ACCESS_DENIED, ZFCP_SET);
 }
 
 void

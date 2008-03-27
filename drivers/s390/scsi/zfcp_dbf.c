@@ -522,6 +522,7 @@ static struct debug_view zfcp_hba_dbf_view = {
 
 static const char *zfcp_rec_dbf_tags[] = {
 	[ZFCP_REC_DBF_ID_THREAD] = "thread",
+	[ZFCP_REC_DBF_ID_TARGET] = "target",
 };
 
 static const char *zfcp_rec_dbf_ids[] = {
@@ -534,6 +535,58 @@ static const char *zfcp_rec_dbf_ids[] = {
 	[7]	= "down wakeup ecd",
 	[8]	= "down sleep epd",
 	[9]	= "down wakeup epd",
+	[10]	= "online",
+	[11]	= "operational",
+	[12]	= "scsi slave destroy",
+	[13]	= "propagate failed adapter",
+	[14]	= "propagate failed port",
+	[15]	= "block adapter",
+	[16]	= "unblock adapter",
+	[17]	= "block port",
+	[18]	= "unblock port",
+	[19]	= "block unit",
+	[20]	= "unblock unit",
+	[21]	= "unit recovery failed",
+	[22]	= "port recovery failed",
+	[23]	= "adapter recovery failed",
+	[24]	= "qdio queues down",
+	[25]	= "p2p failed",
+	[26]	= "nameserver lookup failed",
+	[27]	= "nameserver port failed",
+	[28]	= "link up",
+	[29]	= "link down",
+	[30]	= "link up status read",
+	[31]	= "open port failed",
+	[32]	= "open port failed",
+	[33]	= "close port",
+	[34]	= "open unit failed",
+	[35]	= "exclusive open unit failed",
+	[36]	= "shared open unit failed",
+	[37]	= "link down",
+	[38]	= "link down status read no link",
+	[39]	= "link down status read fdisc login",
+	[40]	= "link down status read firmware update",
+	[41]	= "link down status read unknown reason",
+	[42]	= "link down ecd incomplete",
+	[43]	= "link down epd incomplete",
+	[44]	= "sysfs adapter recovery",
+	[45]	= "sysfs port recovery",
+	[46]	= "sysfs unit recovery",
+	[47]	= "port boxed abort",
+	[48]	= "unit boxed abort",
+	[49]	= "port boxed ct",
+	[50]	= "port boxed close physical",
+	[51]	= "port boxed open unit",
+	[52]	= "port boxed close unit",
+	[53]	= "port boxed fcp",
+	[54]	= "unit boxed fcp",
+	[55]	= "port access denied ct",
+	[56]	= "port access denied els",
+	[57]	= "port access denied open port",
+	[58]	= "port access denied close physical",
+	[59]	= "unit access denied open unit",
+	[60]	= "shared unit access denied open unit",
+	[61]	= "unit access denied fcp",
 };
 
 static int zfcp_rec_dbf_view_format(debug_info_t *id, struct debug_view *view,
@@ -551,6 +604,14 @@ static int zfcp_rec_dbf_view_format(debug_info_t *id, struct debug_view *view,
 		zfcp_dbf_out(&p, "total", "%d", r->u.thread.total);
 		zfcp_dbf_out(&p, "ready", "%d", r->u.thread.ready);
 		zfcp_dbf_out(&p, "running", "%d", r->u.thread.running);
+		break;
+	case ZFCP_REC_DBF_ID_TARGET:
+		zfcp_dbf_out(&p, "reference", "0x%016Lx", r->u.target.ref);
+		zfcp_dbf_out(&p, "status", "0x%08x", r->u.target.status);
+		zfcp_dbf_out(&p, "erp_count", "%d", r->u.target.erp_count);
+		zfcp_dbf_out(&p, "d_id", "0x%06x", r->u.target.d_id);
+		zfcp_dbf_out(&p, "wwpn", "0x%016Lx", r->u.target.wwpn);
+		zfcp_dbf_out(&p, "fcp_lun", "0x%016Lx", r->u.target.fcp_lun);
 		break;
 	}
 	sprintf(p, "\n");
@@ -599,6 +660,71 @@ void zfcp_rec_dbf_event_thread(u8 id2, struct zfcp_adapter *adapter, int lock)
 	r->u.thread.running = running;
 	debug_event(adapter->rec_dbf, 5, r, sizeof(*r));
 	spin_unlock_irqrestore(&adapter->rec_dbf_lock, flags);
+}
+
+static void zfcp_rec_dbf_event_target(u8 id2, u64 ref,
+				      struct zfcp_adapter *adapter,
+				      atomic_t *status, atomic_t *erp_count,
+				      u64 wwpn, u32 d_id, u64 fcp_lun)
+{
+	struct zfcp_rec_dbf_record *r = &adapter->rec_dbf_buf;
+	unsigned long flags;
+
+	spin_lock_irqsave(&adapter->rec_dbf_lock, flags);
+	memset(r, 0, sizeof(*r));
+	r->id = ZFCP_REC_DBF_ID_TARGET;
+	r->id2 = id2;
+	r->u.target.ref = ref;
+	r->u.target.status = atomic_read(status);
+	r->u.target.wwpn = wwpn;
+	r->u.target.d_id = d_id;
+	r->u.target.fcp_lun = fcp_lun;
+	r->u.target.erp_count = atomic_read(erp_count);
+	debug_event(adapter->rec_dbf, 3, r, sizeof(*r));
+	spin_unlock_irqrestore(&adapter->rec_dbf_lock, flags);
+}
+
+/**
+ * zfcp_rec_dbf_event_adapter - trace event for adapter state change
+ * @id: identifier for trigger of state change
+ * @ref: additional reference (e.g. request)
+ * @adapter: adapter
+ */
+void zfcp_rec_dbf_event_adapter(u8 id, u64 ref, struct zfcp_adapter *adapter)
+{
+	zfcp_rec_dbf_event_target(id, ref, adapter, &adapter->status,
+				  &adapter->erp_counter, 0, 0, 0);
+}
+
+/**
+ * zfcp_rec_dbf_event_port - trace event for port state change
+ * @id: identifier for trigger of state change
+ * @ref: additional reference (e.g. request)
+ * @port: port
+ */
+void zfcp_rec_dbf_event_port(u8 id, u64 ref, struct zfcp_port *port)
+{
+	struct zfcp_adapter *adapter = port->adapter;
+
+	zfcp_rec_dbf_event_target(id, ref, adapter, &port->status,
+				  &port->erp_counter, port->wwpn, port->d_id,
+				  0);
+}
+
+/**
+ * zfcp_rec_dbf_event_unit - trace event for unit state change
+ * @id: identifier for trigger of state change
+ * @ref: additional reference (e.g. request)
+ * @unit: unit
+ */
+void zfcp_rec_dbf_event_unit(u8 id, u64 ref, struct zfcp_unit *unit)
+{
+	struct zfcp_port *port = unit->port;
+	struct zfcp_adapter *adapter = port->adapter;
+
+	zfcp_rec_dbf_event_target(id, ref, adapter, &unit->status,
+				  &unit->erp_counter, port->wwpn, port->d_id,
+				  unit->fcp_lun);
 }
 
 static void

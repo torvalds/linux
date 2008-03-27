@@ -193,7 +193,8 @@ zfcp_sysfs_port_failed_store(struct device *dev, struct device_attribute *attr, 
 		goto out;
 	}
 
-	zfcp_erp_modify_port_status(port, ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
+	zfcp_erp_modify_port_status(port, 45, 0,
+				    ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
 	zfcp_erp_port_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED);
 	zfcp_erp_wait(port->adapter);
  out:

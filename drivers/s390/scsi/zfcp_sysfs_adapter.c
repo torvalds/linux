@@ -191,8 +191,8 @@ zfcp_sysfs_adapter_failed_store(struct device *dev, struct device_attribute *att
 		goto out;
 	}
 
-	zfcp_erp_modify_adapter_status(adapter, ZFCP_STATUS_COMMON_RUNNING,
-				       ZFCP_SET);
+	zfcp_erp_modify_adapter_status(adapter, 44, 0,
+				       ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
 	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED);
 	zfcp_erp_wait(adapter);
  out:

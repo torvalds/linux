@@ -94,7 +94,8 @@ zfcp_sysfs_unit_failed_store(struct device *dev, struct device_attribute *attr, 
 		goto out;
 	}
 
-	zfcp_erp_modify_unit_status(unit, ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
+	zfcp_erp_modify_unit_status(unit, 46, 0,
+				    ZFCP_STATUS_COMMON_RUNNING, ZFCP_SET);
 	zfcp_erp_unit_reopen(unit, ZFCP_STATUS_COMMON_ERP_FAILED);
 	zfcp_erp_wait(unit->port->adapter);
  out:
