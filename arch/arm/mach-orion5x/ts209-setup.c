@@ -26,7 +26,7 @@
 #include <asm/gpio.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/orion.h>
+#include <asm/arch/orion5x.h>
 #include "common.h"
 
 #define QNAP_TS209_NOR_BOOT_BASE 0xf4000000
@@ -144,8 +144,8 @@ static int __init qnap_ts209_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	/*
 	 * PCIE IRQ is connected internally (not GPIO)
 	 */
-	if (dev->bus->number == orion_pcie_local_bus_nr())
-		return IRQ_ORION_PCIE0_INT;
+	if (dev->bus->number == orion5x_pcie_local_bus_nr())
+		return IRQ_ORION5X_PCIE0_INT;
 
 	/*
 	 * PCI IRQs are connected via GPIOs
@@ -164,8 +164,8 @@ static struct hw_pci qnap_ts209_pci __initdata = {
 	.nr_controllers = 2,
 	.preinit        = qnap_ts209_pci_preinit,
 	.swizzle        = pci_std_swizzle,
-	.setup          = orion_pci_sys_setup,
-	.scan           = orion_pci_sys_scan_bus,
+	.setup          = orion5x_pci_sys_setup,
+	.scan           = orion5x_pci_sys_scan_bus,
 	.map_irq        = qnap_ts209_pci_map_irq,
 };
 
@@ -261,21 +261,21 @@ static struct platform_device *qnap_ts209_devices[] __initdata = {
 static void qnap_ts209_power_off(void)
 {
 	/* 19200 baud divisor */
-	const unsigned divisor = ((ORION_TCLK + (8 * 19200)) / (16 * 19200));
+	const unsigned divisor = ((ORION5X_TCLK + (8 * 19200)) / (16 * 19200));
 
 	pr_info("%s: triggering power-off...\n", __func__);
 
 	/* hijack uart1 and reset into sane state (19200,8n1) */
-	orion_write(UART1_REG(LCR), 0x83);
-	orion_write(UART1_REG(DLL), divisor & 0xff);
-	orion_write(UART1_REG(DLM), (divisor >> 8) & 0xff);
-	orion_write(UART1_REG(LCR), 0x03);
-	orion_write(UART1_REG(IER), 0x00);
-	orion_write(UART1_REG(FCR), 0x00);
-	orion_write(UART1_REG(MCR), 0x00);
+	orion5x_write(UART1_REG(LCR), 0x83);
+	orion5x_write(UART1_REG(DLL), divisor & 0xff);
+	orion5x_write(UART1_REG(DLM), (divisor >> 8) & 0xff);
+	orion5x_write(UART1_REG(LCR), 0x03);
+	orion5x_write(UART1_REG(IER), 0x00);
+	orion5x_write(UART1_REG(FCR), 0x00);
+	orion5x_write(UART1_REG(MCR), 0x00);
 
 	/* send the power-off command 'A' to PIC */
-	orion_write(UART1_REG(TX), 'A');
+	orion5x_write(UART1_REG(TX), 'A');
 }
 
 static void __init qnap_ts209_init(void)
@@ -283,18 +283,19 @@ static void __init qnap_ts209_init(void)
 	/*
 	 * Setup basic Orion functions. Need to be called early.
 	 */
-	orion_init();
+	orion5x_init();
 
 	/*
 	 * Setup flash mapping
 	 */
-	orion_setup_dev_boot_win(QNAP_TS209_NOR_BOOT_BASE,
+	orion5x_setup_dev_boot_win(QNAP_TS209_NOR_BOOT_BASE,
 			    QNAP_TS209_NOR_BOOT_SIZE);
 
 	/*
 	 * Open a special address decode windows for the PCIE WA.
 	 */
-	orion_setup_pcie_wa_win(ORION_PCIE_WA_PHYS_BASE, ORION_PCIE_WA_SIZE);
+	orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
+				ORION5X_PCIE_WA_SIZE);
 
 	/*
 	 * Setup Multiplexing Pins --
@@ -319,10 +320,10 @@ static void __init qnap_ts209_init(void)
 	 * MPP[22] USB 0 over current
 	 * MPP[23-25] Reserved
 	 */
-	orion_write(MPP_0_7_CTRL, 0x3);
-	orion_write(MPP_8_15_CTRL, 0x55550000);
-	orion_write(MPP_16_19_CTRL, 0x5500);
-	orion_gpio_set_valid_pins(0x3cc0fff);
+	orion5x_write(MPP_0_7_CTRL, 0x3);
+	orion5x_write(MPP_8_15_CTRL, 0x55550000);
+	orion5x_write(MPP_16_19_CTRL, 0x5500);
+	orion5x_gpio_set_valid_pins(0x3cc0fff);
 
 	/* register ts209 specific power-off method */
 	pm_power_off = qnap_ts209_power_off;
@@ -341,18 +342,18 @@ static void __init qnap_ts209_init(void)
 		pr_warning("qnap_ts209_init: failed to get RTC IRQ\n");
 	i2c_register_board_info(0, &qnap_ts209_i2c_rtc, 1);
 
-	orion_eth_init(&qnap_ts209_eth_data);
-	orion_sata_init(&qnap_ts209_sata_data);
+	orion5x_eth_init(&qnap_ts209_eth_data);
+	orion5x_sata_init(&qnap_ts209_sata_data);
 }
 
 MACHINE_START(TS209, "QNAP TS-109/TS-209")
 	/* Maintainer:  Byron Bradley <byron.bbradley@gmail.com> */
-	.phys_io	= ORION_REGS_PHYS_BASE,
-	.io_pg_offst	= ((ORION_REGS_VIRT_BASE) >> 18) & 0xFFFC,
+	.phys_io	= ORION5X_REGS_PHYS_BASE,
+	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.init_machine	= qnap_ts209_init,
-	.map_io		= orion_map_io,
-	.init_irq	= orion_init_irq,
-	.timer		= &orion_timer,
+	.map_io		= orion5x_map_io,
+	.init_irq	= orion5x_init_irq,
+	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,
 MACHINE_END

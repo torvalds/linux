@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-orion/memory.h
+ * include/asm-arm/arch-orion5x/memory.h
  *
  * Marvell Orion memory definitions
  */

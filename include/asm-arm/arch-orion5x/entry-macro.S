@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-orion/entry-macro.S
+ * include/asm-arm/arch-orion5x/entry-macro.S
  *
  * Low-level IRQ helper macros for Orion platforms
  *
@@ -8,7 +8,7 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <asm/arch/orion.h>
+#include <asm/arch/orion5x.h>
 
 	.macro  disable_fiq
 	.endm

@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-orion/kurobox_pro-setup.c
+ * arch/arm/mach-orion5x/kurobox_pro-setup.c
  *
  * Maintainer: Ronen Shitrit <rshitrit@marvell.com>
  *
@@ -22,7 +22,7 @@
 #include <asm/gpio.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/orion.h>
+#include <asm/arch/orion5x.h>
 #include <asm/plat-orion/orion_nand.h>
 #include "common.h"
 
@@ -123,8 +123,8 @@ static int __init kurobox_pro_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	/*
 	 * PCI isn't used on the Kuro
 	 */
-	if (dev->bus->number == orion_pcie_local_bus_nr())
-		return IRQ_ORION_PCIE0_INT;
+	if (dev->bus->number == orion5x_pcie_local_bus_nr())
+		return IRQ_ORION5X_PCIE0_INT;
 	else
 		printk(KERN_ERR "kurobox_pro_pci_map_irq failed, unknown bus\n");
 
@@ -134,8 +134,8 @@ static int __init kurobox_pro_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 static struct hw_pci kurobox_pro_pci __initdata = {
 	.nr_controllers	= 1,
 	.swizzle	= pci_std_swizzle,
-	.setup		= orion_pci_sys_setup,
-	.scan		= orion_pci_sys_scan_bus,
+	.setup		= orion5x_pci_sys_setup,
+	.scan		= orion5x_pci_sys_scan_bus,
 	.map_irq	= kurobox_pro_pci_map_irq,
 };
 
@@ -188,19 +188,20 @@ static void __init kurobox_pro_init(void)
 	/*
 	 * Setup basic Orion functions. Need to be called early.
 	 */
-	orion_init();
+	orion5x_init();
 
 	/*
 	 * Setup the CPU address decode windows for our devices
 	 */
-	orion_setup_dev_boot_win(KUROBOX_PRO_NOR_BOOT_BASE,
+	orion5x_setup_dev_boot_win(KUROBOX_PRO_NOR_BOOT_BASE,
 				KUROBOX_PRO_NOR_BOOT_SIZE);
-	orion_setup_dev0_win(KUROBOX_PRO_NAND_BASE, KUROBOX_PRO_NAND_SIZE);
+	orion5x_setup_dev0_win(KUROBOX_PRO_NAND_BASE, KUROBOX_PRO_NAND_SIZE);
 
 	/*
 	 * Open a special address decode windows for the PCIE WA.
 	 */
-	orion_setup_pcie_wa_win(ORION_PCIE_WA_PHYS_BASE, ORION_PCIE_WA_SIZE);
+	orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
+				ORION5X_PCIE_WA_SIZE);
 
 	/*
 	 * Setup Multiplexing Pins --
@@ -217,26 +218,26 @@ static void __init kurobox_pro_init(void)
 	 * MPP[15] SATA 1 active indication
 	 * MPP[16-19] Not used
 	 */
-	orion_write(MPP_0_7_CTRL, 0x44220003);
-	orion_write(MPP_8_15_CTRL, 0x55550000);
-	orion_write(MPP_16_19_CTRL, 0x0);
+	orion5x_write(MPP_0_7_CTRL, 0x44220003);
+	orion5x_write(MPP_8_15_CTRL, 0x55550000);
+	orion5x_write(MPP_16_19_CTRL, 0x0);
 
-	orion_gpio_set_valid_pins(0x0000000c);
+	orion5x_gpio_set_valid_pins(0x0000000c);
 
 	platform_add_devices(kurobox_pro_devices, ARRAY_SIZE(kurobox_pro_devices));
 	i2c_register_board_info(0, &kurobox_pro_i2c_rtc, 1);
-	orion_eth_init(&kurobox_pro_eth_data);
-	orion_sata_init(&kurobox_pro_sata_data);
+	orion5x_eth_init(&kurobox_pro_eth_data);
+	orion5x_sata_init(&kurobox_pro_sata_data);
 }
 
 MACHINE_START(KUROBOX_PRO, "Buffalo/Revogear Kurobox Pro")
 	/* Maintainer: Ronen Shitrit <rshitrit@marvell.com> */
-	.phys_io	= ORION_REGS_PHYS_BASE,
-	.io_pg_offst	= ((ORION_REGS_VIRT_BASE) >> 18) & 0xFFFC,
+	.phys_io	= ORION5X_REGS_PHYS_BASE,
+	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.init_machine	= kurobox_pro_init,
-	.map_io		= orion_map_io,
-	.init_irq	= orion_init_irq,
-	.timer		= &orion_timer,
+	.map_io		= orion5x_map_io,
+	.init_irq	= orion5x_init_irq,
+	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,
 MACHINE_END

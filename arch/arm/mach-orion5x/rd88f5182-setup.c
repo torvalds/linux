@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-orion/rd88f5182-setup.c
+ * arch/arm/mach-orion5x/rd88f5182-setup.c
  *
  * Marvell Orion-NAS Reference Design Setup
  *
@@ -24,7 +24,7 @@
 #include <asm/leds.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/orion.h>
+#include <asm/arch/orion5x.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -175,8 +175,8 @@ static int __init rd88f5182_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	/*
 	 * PCI-E isn't used on the RD2
 	 */
-	if (dev->bus->number == orion_pcie_local_bus_nr())
-		return IRQ_ORION_PCIE0_INT;
+	if (dev->bus->number == orion5x_pcie_local_bus_nr())
+		return IRQ_ORION5X_PCIE0_INT;
 
 	/*
 	 * PCI IRQs are connected via GPIOs
@@ -196,8 +196,8 @@ static struct hw_pci rd88f5182_pci __initdata = {
 	.nr_controllers	= 2,
 	.preinit	= rd88f5182_pci_preinit,
 	.swizzle	= pci_std_swizzle,
-	.setup		= orion_pci_sys_setup,
-	.scan		= orion_pci_sys_scan_bus,
+	.setup		= orion5x_pci_sys_setup,
+	.scan		= orion5x_pci_sys_scan_bus,
 	.map_irq	= rd88f5182_pci_map_irq,
 };
 
@@ -249,19 +249,20 @@ static void __init rd88f5182_init(void)
 	/*
 	 * Setup basic Orion functions. Need to be called early.
 	 */
-	orion_init();
+	orion5x_init();
 
 	/*
 	 * Setup the CPU address decode windows for our devices
 	 */
-	orion_setup_dev_boot_win(RD88F5182_NOR_BOOT_BASE,
+	orion5x_setup_dev_boot_win(RD88F5182_NOR_BOOT_BASE,
 				RD88F5182_NOR_BOOT_SIZE);
-	orion_setup_dev1_win(RD88F5182_NOR_BASE, RD88F5182_NOR_SIZE);
+	orion5x_setup_dev1_win(RD88F5182_NOR_BASE, RD88F5182_NOR_SIZE);
 
 	/*
 	 * Open a special address decode windows for the PCIE WA.
 	 */
-	orion_setup_pcie_wa_win(ORION_PCIE_WA_PHYS_BASE, ORION_PCIE_WA_SIZE);
+	orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
+				ORION5X_PCIE_WA_SIZE);
 
 	/*
 	 * Setup Multiplexing Pins --
@@ -287,25 +288,25 @@ static void __init rd88f5182_init(void)
 	 * MPP[25] USB 0 over current enable
 	 */
 
-	orion_write(MPP_0_7_CTRL, 0x00000003);
-	orion_write(MPP_8_15_CTRL, 0x55550000);
-	orion_write(MPP_16_19_CTRL, 0x5555);
+	orion5x_write(MPP_0_7_CTRL, 0x00000003);
+	orion5x_write(MPP_8_15_CTRL, 0x55550000);
+	orion5x_write(MPP_16_19_CTRL, 0x5555);
 
-	orion_gpio_set_valid_pins(0x000000fb);
+	orion5x_gpio_set_valid_pins(0x000000fb);
 
 	platform_add_devices(rd88f5182_devices, ARRAY_SIZE(rd88f5182_devices));
 	i2c_register_board_info(0, &rd88f5182_i2c_rtc, 1);
-	orion_eth_init(&rd88f5182_eth_data);
-	orion_sata_init(&rd88f5182_sata_data);
+	orion5x_eth_init(&rd88f5182_eth_data);
+	orion5x_sata_init(&rd88f5182_sata_data);
 }
 
 MACHINE_START(RD88F5182, "Marvell Orion-NAS Reference Design")
 	/* Maintainer: Ronen Shitrit <rshitrit@marvell.com> */
-	.phys_io	= ORION_REGS_PHYS_BASE,
-	.io_pg_offst	= ((ORION_REGS_VIRT_BASE) >> 18) & 0xFFFC,
+	.phys_io	= ORION5X_REGS_PHYS_BASE,
+	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.init_machine	= rd88f5182_init,
-	.map_io		= orion_map_io,
-	.init_irq	= orion_init_irq,
-	.timer		= &orion_timer,
+	.map_io		= orion5x_map_io,
+	.init_irq	= orion5x_init_irq,
+	.timer		= &orion5x_timer,
 MACHINE_END

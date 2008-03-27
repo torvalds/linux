@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-orion/gpio.h
+ * include/asm-arm/arch-orion5x/gpio.h
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -12,17 +12,17 @@ extern int gpio_direction_input(unsigned pin);
 extern int gpio_direction_output(unsigned pin, int value);
 extern int gpio_get_value(unsigned pin);
 extern void gpio_set_value(unsigned pin, int value);
-extern void orion_gpio_set_blink(unsigned pin, int blink);
+extern void orion5x_gpio_set_blink(unsigned pin, int blink);
 extern void gpio_display(void);		/* debug */
 
 static inline int gpio_to_irq(int pin)
 {
-	return pin + IRQ_ORION_GPIO_START;
+	return pin + IRQ_ORION5X_GPIO_START;
 }
 
 static inline int irq_to_gpio(int irq)
 {
-	return irq - IRQ_ORION_GPIO_START;
+	return irq - IRQ_ORION5X_GPIO_START;
 }
 
 #include <asm-generic/gpio.h>		/* cansleep wrappers */

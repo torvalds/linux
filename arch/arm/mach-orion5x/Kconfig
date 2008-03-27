@@ -1,4 +1,4 @@
-if ARCH_ORION
+if ARCH_ORION5X
 
 menu "Orion Implementations"
 

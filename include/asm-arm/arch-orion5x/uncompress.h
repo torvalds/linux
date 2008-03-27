@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-orion/uncompress.h
+ * include/asm-arm/arch-orion5x/uncompress.h
  *
  * Tzachi Perelstein <tzachi@marvell.com>
  *
@@ -8,7 +8,7 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <asm/arch/orion.h>
+#include <asm/arch/orion5x.h>
 
 #define MV_UART_THR	((volatile unsigned char *)(UART0_PHYS_BASE + 0x0))
 #define MV_UART_LSR 	((volatile unsigned char *)(UART0_PHYS_BASE + 0x14))

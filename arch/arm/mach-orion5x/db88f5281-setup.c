@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-orion/db88f5281-setup.c
+ * arch/arm/mach-orion5x/db88f5281-setup.c
  *
  * Marvell Orion-2 Development Board Setup
  *
@@ -24,7 +24,7 @@
 #include <asm/gpio.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/orion.h>
+#include <asm/arch/orion5x.h>
 #include <asm/plat-orion/orion_nand.h>
 #include "common.h"
 
@@ -244,8 +244,8 @@ static int __init db88f5281_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	/*
 	 * PCIE IRQ is connected internally (not GPIO)
 	 */
-	if (dev->bus->number == orion_pcie_local_bus_nr())
-		return IRQ_ORION_PCIE0_INT;
+	if (dev->bus->number == orion5x_pcie_local_bus_nr())
+		return IRQ_ORION5X_PCIE0_INT;
 
 	/*
 	 * PCI IRQs are connected via GPIOs
@@ -265,8 +265,8 @@ static struct hw_pci db88f5281_pci __initdata = {
 	.nr_controllers	= 2,
 	.preinit	= db88f5281_pci_preinit,
 	.swizzle	= pci_std_swizzle,
-	.setup		= orion_pci_sys_setup,
-	.scan		= orion_pci_sys_scan_bus,
+	.setup		= orion5x_pci_sys_setup,
+	.scan		= orion5x_pci_sys_scan_bus,
 	.map_irq	= db88f5281_pci_map_irq,
 };
 
@@ -312,16 +312,16 @@ static void __init db88f5281_init(void)
 	/*
 	 * Basic Orion setup. Need to be called early.
 	 */
-	orion_init();
+	orion5x_init();
 
 	/*
 	 * Setup the CPU address decode windows for our on-board devices
 	 */
-	orion_setup_dev_boot_win(DB88F5281_NOR_BOOT_BASE,
+	orion5x_setup_dev_boot_win(DB88F5281_NOR_BOOT_BASE,
 				DB88F5281_NOR_BOOT_SIZE);
-	orion_setup_dev0_win(DB88F5281_7SEG_BASE, DB88F5281_7SEG_SIZE);
-	orion_setup_dev1_win(DB88F5281_NOR_BASE, DB88F5281_NOR_SIZE);
-	orion_setup_dev2_win(DB88F5281_NAND_BASE, DB88F5281_NAND_SIZE);
+	orion5x_setup_dev0_win(DB88F5281_7SEG_BASE, DB88F5281_7SEG_SIZE);
+	orion5x_setup_dev1_win(DB88F5281_NOR_BASE, DB88F5281_NOR_SIZE);
+	orion5x_setup_dev2_win(DB88F5281_NAND_BASE, DB88F5281_NAND_SIZE);
 
 	/*
 	 * Setup Multiplexing Pins:
@@ -337,25 +337,25 @@ static void __init db88f5281_init(void)
 	 * MPP18: UART1_CTS			MPP19: UART1_RTS
 	 * MPP-DEV: DEV_D[16:31]
 	 */
-	orion_write(MPP_0_7_CTRL, 0x00222203);
-	orion_write(MPP_8_15_CTRL, 0x44000000);
-	orion_write(MPP_16_19_CTRL, 0);
-	orion_write(MPP_DEV_CTRL, 0);
+	orion5x_write(MPP_0_7_CTRL, 0x00222203);
+	orion5x_write(MPP_8_15_CTRL, 0x44000000);
+	orion5x_write(MPP_16_19_CTRL, 0);
+	orion5x_write(MPP_DEV_CTRL, 0);
 
-	orion_gpio_set_valid_pins(0x00003fc3);
+	orion5x_gpio_set_valid_pins(0x00003fc3);
 
 	platform_add_devices(db88f5281_devs, ARRAY_SIZE(db88f5281_devs));
 	i2c_register_board_info(0, &db88f5281_i2c_rtc, 1);
-	orion_eth_init(&db88f5281_eth_data);
+	orion5x_eth_init(&db88f5281_eth_data);
 }
 
 MACHINE_START(DB88F5281, "Marvell Orion-2 Development Board")
 	/* Maintainer: Tzachi Perelstein <tzachi@marvell.com> */
-	.phys_io	= ORION_REGS_PHYS_BASE,
-	.io_pg_offst	= ((ORION_REGS_VIRT_BASE) >> 18) & 0xfffc,
+	.phys_io	= ORION5X_REGS_PHYS_BASE,
+	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= db88f5281_init,
-	.map_io		= orion_map_io,
-	.init_irq	= orion_init_irq,
-	.timer		= &orion_timer,
+	.map_io		= orion5x_map_io,
+	.init_irq	= orion5x_init_irq,
+	.timer		= &orion5x_timer,
 MACHINE_END

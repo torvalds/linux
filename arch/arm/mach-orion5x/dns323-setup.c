@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-orion/dns323-setup.c
+ * arch/arm/mach-orion5x/dns323-setup.c
  *
  * Copyright (C) 2007 Herbert Valerio Riedel <hvr@gnu.org>
  *
@@ -25,7 +25,7 @@
 #include <asm/gpio.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/orion.h>
+#include <asm/arch/orion5x.h>
 #include "common.h"
 
 #define DNS323_GPIO_LED_RIGHT_AMBER	1
@@ -44,8 +44,8 @@
 static int __init dns323_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	/* PCI-E */
-	if (dev->bus->number == orion_pcie_local_bus_nr())
-		return IRQ_ORION_PCIE0_INT;
+	if (dev->bus->number == orion5x_pcie_local_bus_nr())
+		return IRQ_ORION5X_PCIE0_INT;
 
 	pr_err("%s: requested mapping for unknown bus\n", __func__);
 
@@ -55,8 +55,8 @@ static int __init dns323_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 static struct hw_pci dns323_pci __initdata = {
 	.nr_controllers = 1,
 	.swizzle	= pci_std_swizzle,
-	.setup		= orion_pci_sys_setup,
-	.scan		= orion_pci_sys_scan_bus,
+	.setup		= orion5x_pci_sys_setup,
+	.scan		= orion5x_pci_sys_scan_bus,
 	.map_irq	= dns323_pci_map_irq,
 };
 
@@ -246,24 +246,25 @@ static void dns323_power_off(void)
 static void __init dns323_init(void)
 {
 	/* Setup basic Orion functions. Need to be called early. */
-	orion_init();
+	orion5x_init();
 
 	/* setup flash mapping
 	 * CS3 holds a 8 MB Spansion S29GL064M90TFIR4
 	 */
-	orion_setup_dev_boot_win(DNS323_NOR_BOOT_BASE, DNS323_NOR_BOOT_SIZE);
+	orion5x_setup_dev_boot_win(DNS323_NOR_BOOT_BASE, DNS323_NOR_BOOT_SIZE);
 
 	/* DNS-323 has a Marvell 88X7042 SATA controller attached via PCIE
 	 *
 	 * Open a special address decode windows for the PCIE WA.
 	 */
-	orion_setup_pcie_wa_win(ORION_PCIE_WA_PHYS_BASE, ORION_PCIE_WA_SIZE);
+	orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
+				ORION5X_PCIE_WA_SIZE);
 
 	/* set MPP to 0 as D-Link's 2.6.12.6 kernel did */
-	orion_write(MPP_0_7_CTRL, 0);
-	orion_write(MPP_8_15_CTRL, 0);
-	orion_write(MPP_16_19_CTRL, 0);
-	orion_write(MPP_DEV_CTRL, 0);
+	orion5x_write(MPP_0_7_CTRL, 0);
+	orion5x_write(MPP_8_15_CTRL, 0);
+	orion5x_write(MPP_16_19_CTRL, 0);
+	orion5x_write(MPP_DEV_CTRL, 0);
 
 	/* Define used GPIO pins
 
@@ -286,7 +287,7 @@ static void __init dns323_init(void)
 	  | 14 | Out | //unknown//
 	  | 15 | Out | //unknown//
 	*/
-	orion_gpio_set_valid_pins(0x07f6);
+	orion5x_gpio_set_valid_pins(0x07f6);
 
 	/* register dns323 specific power-off method */
 	if ((gpio_request(DNS323_GPIO_POWER_OFF, "POWEROFF") != 0)
@@ -302,18 +303,18 @@ static void __init dns323_init(void)
 	i2c_register_board_info(0, dns323_i2c_devices,
 				ARRAY_SIZE(dns323_i2c_devices));
 
-	orion_eth_init(&dns323_eth_data);
+	orion5x_eth_init(&dns323_eth_data);
 }
 
 /* Warning: D-Link uses a wrong mach-type (=526) in their bootloader */
 MACHINE_START(DNS323, "D-Link DNS-323")
 	/* Maintainer: Herbert Valerio Riedel <hvr@gnu.org> */
-	.phys_io	= ORION_REGS_PHYS_BASE,
-	.io_pg_offst	= ((ORION_REGS_VIRT_BASE) >> 18) & 0xFFFC,
+	.phys_io	= ORION5X_REGS_PHYS_BASE,
+	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.init_machine	= dns323_init,
-	.map_io		= orion_map_io,
-	.init_irq	= orion_init_irq,
-	.timer		= &orion_timer,
+	.map_io		= orion5x_map_io,
+	.init_irq	= orion5x_init_irq,
+	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,
 MACHINE_END

@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-orion/system.h
+ * include/asm-arm/arch-orion5x/system.h
  *
  * Tzachi Perelstein <tzachi@marvell.com>
  *
@@ -12,7 +12,7 @@
 #define __ASM_ARCH_SYSTEM_H
 
 #include <asm/arch/hardware.h>
-#include <asm/arch/orion.h>
+#include <asm/arch/orion5x.h>
 
 static inline void arch_idle(void)
 {
@@ -24,8 +24,8 @@ static inline void arch_reset(char mode)
 	/*
 	 * Enable and issue soft reset
 	 */
-	orion_setbits(CPU_RESET_MASK, (1 << 2));
-	orion_setbits(CPU_SOFT_RESET, 1);
+	orion5x_setbits(CPU_RESET_MASK, (1 << 2));
+	orion5x_setbits(CPU_SOFT_RESET, 1);
 }
 
 

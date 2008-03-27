@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/arch-orion/debug-macro.S
+ * include/asm-arm/arch-orion5x/debug-macro.S
  *
  * Debugging macro include header
  *
@@ -8,13 +8,13 @@
  * published by the Free Software Foundation.
 */
 
-#include <asm/arch/orion.h>
+#include <asm/arch/orion5x.h>
 
 	.macro  addruart,rx
 	mrc	p15, 0, \rx, c1, c0
 	tst	\rx, #1					@ MMU enabled?
-	ldreq	\rx, =ORION_REGS_PHYS_BASE
-	ldrne	\rx, =ORION_REGS_VIRT_BASE
+	ldreq	\rx, =ORION5X_REGS_PHYS_BASE
+	ldrne	\rx, =ORION5X_REGS_VIRT_BASE
 	orr	\rx, \rx, #0x00012000
 	.endm
 

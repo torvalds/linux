@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-orion/irq.c
+ * arch/arm/mach-orion5x/irq.c
  *
  * Core IRQ functions for Marvell Orion System On Chip
  *
@@ -15,7 +15,7 @@
 #include <linux/irq.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
-#include <asm/arch/orion.h>
+#include <asm/arch/orion5x.h>
 #include <asm/plat-orion/irq.h>
 #include "common.h"
 
@@ -44,46 +44,46 @@
  *        polarity    LEVEL          mask
  *
  ****************************************************************************/
-static void orion_gpio_irq_ack(u32 irq)
+static void orion5x_gpio_irq_ack(u32 irq)
 {
 	int pin = irq_to_gpio(irq);
 	if (irq_desc[irq].status & IRQ_LEVEL)
 		/*
 		 * Mask bit for level interrupt
 		 */
-		orion_clrbits(GPIO_LEVEL_MASK, 1 << pin);
+		orion5x_clrbits(GPIO_LEVEL_MASK, 1 << pin);
 	else
 		/*
 		 * Clear casue bit for egde interrupt
 		 */
-		orion_clrbits(GPIO_EDGE_CAUSE, 1 << pin);
+		orion5x_clrbits(GPIO_EDGE_CAUSE, 1 << pin);
 }
 
-static void orion_gpio_irq_mask(u32 irq)
+static void orion5x_gpio_irq_mask(u32 irq)
 {
 	int pin = irq_to_gpio(irq);
 	if (irq_desc[irq].status & IRQ_LEVEL)
-		orion_clrbits(GPIO_LEVEL_MASK, 1 << pin);
+		orion5x_clrbits(GPIO_LEVEL_MASK, 1 << pin);
 	else
-		orion_clrbits(GPIO_EDGE_MASK, 1 << pin);
+		orion5x_clrbits(GPIO_EDGE_MASK, 1 << pin);
 }
 
-static void orion_gpio_irq_unmask(u32 irq)
+static void orion5x_gpio_irq_unmask(u32 irq)
 {
 	int pin = irq_to_gpio(irq);
 	if (irq_desc[irq].status & IRQ_LEVEL)
-		orion_setbits(GPIO_LEVEL_MASK, 1 << pin);
+		orion5x_setbits(GPIO_LEVEL_MASK, 1 << pin);
 	else
-		orion_setbits(GPIO_EDGE_MASK, 1 << pin);
+		orion5x_setbits(GPIO_EDGE_MASK, 1 << pin);
 }
 
-static int orion_gpio_set_irq_type(u32 irq, u32 type)
+static int orion5x_gpio_set_irq_type(u32 irq, u32 type)
 {
 	int pin = irq_to_gpio(irq);
 	struct irq_desc *desc;
 
-	if ((orion_read(GPIO_IO_CONF) & (1 << pin)) == 0) {
-		printk(KERN_ERR "orion_gpio_set_irq_type failed "
+	if ((orion5x_read(GPIO_IO_CONF) & (1 << pin)) == 0) {
+		printk(KERN_ERR "orion5x_gpio_set_irq_type failed "
 				"(irq %d, pin %d).\n", irq, pin);
 		return -EINVAL;
 	}
@@ -94,22 +94,22 @@ static int orion_gpio_set_irq_type(u32 irq, u32 type)
 	case IRQT_HIGH:
 		desc->handle_irq = handle_level_irq;
 		desc->status |= IRQ_LEVEL;
-		orion_clrbits(GPIO_IN_POL, (1 << pin));
+		orion5x_clrbits(GPIO_IN_POL, (1 << pin));
 		break;
 	case IRQT_LOW:
 		desc->handle_irq = handle_level_irq;
 		desc->status |= IRQ_LEVEL;
-		orion_setbits(GPIO_IN_POL, (1 << pin));
+		orion5x_setbits(GPIO_IN_POL, (1 << pin));
 		break;
 	case IRQT_RISING:
 		desc->handle_irq = handle_edge_irq;
 		desc->status &= ~IRQ_LEVEL;
-		orion_clrbits(GPIO_IN_POL, (1 << pin));
+		orion5x_clrbits(GPIO_IN_POL, (1 << pin));
 		break;
 	case IRQT_FALLING:
 		desc->handle_irq = handle_edge_irq;
 		desc->status &= ~IRQ_LEVEL;
-		orion_setbits(GPIO_IN_POL, (1 << pin));
+		orion5x_setbits(GPIO_IN_POL, (1 << pin));
 		break;
 	case IRQT_BOTHEDGE:
 		desc->handle_irq = handle_edge_irq;
@@ -117,11 +117,11 @@ static int orion_gpio_set_irq_type(u32 irq, u32 type)
 		/*
 		 * set initial polarity based on current input level
 		 */
-		if ((orion_read(GPIO_IN_POL) ^ orion_read(GPIO_DATA_IN))
+		if ((orion5x_read(GPIO_IN_POL) ^ orion5x_read(GPIO_DATA_IN))
 		    & (1 << pin))
-			orion_setbits(GPIO_IN_POL, (1 << pin)); /* falling */
+			orion5x_setbits(GPIO_IN_POL, (1 << pin)); /* falling */
 		else
-			orion_clrbits(GPIO_IN_POL, (1 << pin)); /* rising */
+			orion5x_clrbits(GPIO_IN_POL, (1 << pin)); /* rising */
 
 		break;
 	default:
@@ -135,22 +135,22 @@ static int orion_gpio_set_irq_type(u32 irq, u32 type)
 	return 0;
 }
 
-static struct irq_chip orion_gpio_irq_chip = {
+static struct irq_chip orion5x_gpio_irq_chip = {
 	.name		= "Orion-IRQ-GPIO",
-	.ack		= orion_gpio_irq_ack,
-	.mask		= orion_gpio_irq_mask,
-	.unmask		= orion_gpio_irq_unmask,
-	.set_type	= orion_gpio_set_irq_type,
+	.ack		= orion5x_gpio_irq_ack,
+	.mask		= orion5x_gpio_irq_mask,
+	.unmask		= orion5x_gpio_irq_unmask,
+	.set_type	= orion5x_gpio_set_irq_type,
 };
 
-static void orion_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
+static void orion5x_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	u32 cause, offs, pin;
 
-	BUG_ON(irq < IRQ_ORION_GPIO_0_7 || irq > IRQ_ORION_GPIO_24_31);
-	offs = (irq - IRQ_ORION_GPIO_0_7) * 8;
-	cause = (orion_read(GPIO_DATA_IN) & orion_read(GPIO_LEVEL_MASK)) |
-		(orion_read(GPIO_EDGE_CAUSE) & orion_read(GPIO_EDGE_MASK));
+	BUG_ON(irq < IRQ_ORION5X_GPIO_0_7 || irq > IRQ_ORION5X_GPIO_24_31);
+	offs = (irq - IRQ_ORION5X_GPIO_0_7) * 8;
+	cause = (orion5x_read(GPIO_DATA_IN) & orion5x_read(GPIO_LEVEL_MASK)) |
+		(orion5x_read(GPIO_EDGE_CAUSE) & orion5x_read(GPIO_EDGE_MASK));
 
 	for (pin = offs; pin < offs + 8; pin++) {
 		if (cause & (1 << pin)) {
@@ -158,16 +158,16 @@ static void orion_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 			desc = irq_desc + irq;
 			if ((desc->status & IRQ_TYPE_SENSE_MASK) == IRQT_BOTHEDGE) {
 				/* Swap polarity (race with GPIO line) */
-				u32 polarity = orion_read(GPIO_IN_POL);
+				u32 polarity = orion5x_read(GPIO_IN_POL);
 				polarity ^= 1 << pin;
-				orion_write(GPIO_IN_POL, polarity);
+				orion5x_write(GPIO_IN_POL, polarity);
 			}
 			desc_handle_irq(irq, desc);
 		}
 	}
 }
 
-static void __init orion_init_gpio_irq(void)
+static void __init orion5x_init_gpio_irq(void)
 {
 	int i;
 	struct irq_desc *desc;
@@ -175,37 +175,37 @@ static void __init orion_init_gpio_irq(void)
 	/*
 	 * Mask and clear GPIO IRQ interrupts
 	 */
-	orion_write(GPIO_LEVEL_MASK, 0x0);
-	orion_write(GPIO_EDGE_MASK, 0x0);
-	orion_write(GPIO_EDGE_CAUSE, 0x0);
+	orion5x_write(GPIO_LEVEL_MASK, 0x0);
+	orion5x_write(GPIO_EDGE_MASK, 0x0);
+	orion5x_write(GPIO_EDGE_CAUSE, 0x0);
 
 	/*
 	 * Register chained level handlers for GPIO IRQs by default.
 	 * User can use set_type() if he wants to use edge types handlers.
 	 */
-	for (i = IRQ_ORION_GPIO_START; i < NR_IRQS; i++) {
-		set_irq_chip(i, &orion_gpio_irq_chip);
+	for (i = IRQ_ORION5X_GPIO_START; i < NR_IRQS; i++) {
+		set_irq_chip(i, &orion5x_gpio_irq_chip);
 		set_irq_handler(i, handle_level_irq);
 		desc = irq_desc + i;
 		desc->status |= IRQ_LEVEL;
 		set_irq_flags(i, IRQF_VALID);
 	}
-	set_irq_chained_handler(IRQ_ORION_GPIO_0_7, orion_gpio_irq_handler);
-	set_irq_chained_handler(IRQ_ORION_GPIO_8_15, orion_gpio_irq_handler);
-	set_irq_chained_handler(IRQ_ORION_GPIO_16_23, orion_gpio_irq_handler);
-	set_irq_chained_handler(IRQ_ORION_GPIO_24_31, orion_gpio_irq_handler);
+	set_irq_chained_handler(IRQ_ORION5X_GPIO_0_7, orion5x_gpio_irq_handler);
+	set_irq_chained_handler(IRQ_ORION5X_GPIO_8_15, orion5x_gpio_irq_handler);
+	set_irq_chained_handler(IRQ_ORION5X_GPIO_16_23, orion5x_gpio_irq_handler);
+	set_irq_chained_handler(IRQ_ORION5X_GPIO_24_31, orion5x_gpio_irq_handler);
 }
 
 /*****************************************************************************
  * Orion Main IRQ
  ****************************************************************************/
-static void __init orion_init_main_irq(void)
+static void __init orion5x_init_main_irq(void)
 {
 	orion_irq_init(0, (void __iomem *)MAIN_IRQ_MASK);
 }
 
-void __init orion_init_irq(void)
+void __init orion5x_init_irq(void)
 {
-	orion_init_main_irq();
-	orion_init_gpio_irq();
+	orion5x_init_main_irq();
+	orion5x_init_gpio_irq();
 }
