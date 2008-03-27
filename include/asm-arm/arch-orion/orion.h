@@ -156,23 +156,5 @@
 
 #define TIMER_VIRT_BASE		(ORION_BRIDGE_VIRT_BASE | 0x300)
 
-#ifndef __ASSEMBLY__
 
-/*******************************************************************************
- * Helpers to access Orion registers
- ******************************************************************************/
-#include <asm/types.h>
-#include <asm/io.h>
-
-#define orion_read(r)		__raw_readl(r)
-#define orion_write(r, val)	__raw_writel(val, r)
-
-/*
- * These are not preempt safe. Locks, if needed, must be taken care by caller.
- */
-#define orion_setbits(r, mask)	orion_write((r), orion_read(r) | (mask))
-#define orion_clrbits(r, mask)	orion_write((r), orion_read(r) & ~(mask))
-
-#endif /* __ASSEMBLY__ */
-
-#endif /* __ASM_ARCH_ORION_H__ */
+#endif

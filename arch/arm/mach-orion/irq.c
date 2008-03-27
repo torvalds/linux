@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <asm/gpio.h>
+#include <asm/io.h>
 #include <asm/arch/orion.h>
 #include <asm/plat-orion/irq.h>
 #include "common.h"

@@ -16,6 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
 #include <asm/gpio.h>
+#include <asm/io.h>
 #include <asm/arch/orion.h>
 #include "common.h"
 

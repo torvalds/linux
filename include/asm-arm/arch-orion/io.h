@@ -24,4 +24,19 @@ static inline void __iomem *__io(unsigned long addr)
 #define __io(a)			__io(a)
 #define __mem_pci(a)		(a)
 
+
+/*****************************************************************************
+ * Helpers to access Orion registers
+ ****************************************************************************/
+#define orion_read(r)		__raw_readl(r)
+#define orion_write(r, val)	__raw_writel(val, r)
+
+/*
+ * These are not preempt-safe.  Locks, if needed, must be taken
+ * care of by the caller.
+ */
+#define orion_setbits(r, mask)	orion_write((r), orion_read(r) | (mask))
+#define orion_clrbits(r, mask)	orion_write((r), orion_read(r) & ~(mask))
+
+
 #endif
