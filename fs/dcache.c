@@ -1759,10 +1759,8 @@ static int prepend(char **buffer, int *buflen, const char *str,
 
 /**
  * d_path - return the path of a dentry
- * @dentry: dentry to report
- * @vfsmnt: vfsmnt to which the dentry belongs
- * @root: root dentry
- * @rootmnt: vfsmnt to which the root dentry belongs
+ * @path: the dentry/vfsmount to report
+ * @root: root vfsmnt/dentry (may be modified by this function)
  * @buffer: buffer to return value in
  * @buflen: buffer length
  *
@@ -1772,10 +1770,15 @@ static int prepend(char **buffer, int *buflen, const char *str,
  * Returns the buffer or an error code if the path was too long.
  *
  * "buflen" should be positive. Caller holds the dcache_lock.
+ *
+ * If path is not reachable from the supplied root, then the value of
+ * root is changed (without modifying refcounts).
  */
-static char *__d_path(struct dentry *dentry, struct vfsmount *vfsmnt,
-		       struct path *root, char *buffer, int buflen)
+char *__d_path(const struct path *path, struct path *root,
+	       char *buffer, int buflen)
 {
+	struct dentry *dentry = path->dentry;
+	struct vfsmount *vfsmnt = path->mnt;
 	char * end = buffer+buflen;
 	char * retval;
 
@@ -1824,6 +1827,8 @@ global_root:
 	if (prepend(&retval, &buflen, dentry->d_name.name,
 		    dentry->d_name.len) != 0)
 		goto Elong;
+	root->mnt = vfsmnt;
+	root->dentry = dentry;
 	return retval;
 Elong:
 	return ERR_PTR(-ENAMETOOLONG);
@@ -1846,6 +1851,7 @@ char *d_path(struct path *path, char *buf, int buflen)
 {
 	char *res;
 	struct path root;
+	struct path tmp;
 
 	/*
 	 * We have various synthetic filesystems that never get mounted.  On
@@ -1862,7 +1868,8 @@ char *d_path(struct path *path, char *buf, int buflen)
 	path_get(&root);
 	read_unlock(&current->fs->lock);
 	spin_lock(&dcache_lock);
-	res = __d_path(path->dentry, path->mnt, &root, buf, buflen);
+	tmp = root;
+	res = __d_path(path, &tmp, buf, buflen);
 	spin_unlock(&dcache_lock);
 	path_put(&root);
 	return res;
@@ -1970,9 +1977,10 @@ asmlinkage long sys_getcwd(char __user *buf, unsigned long size)
 	spin_lock(&dcache_lock);
 	if (pwd.dentry->d_parent == pwd.dentry || !d_unhashed(pwd.dentry)) {
 		unsigned long len;
+		struct path tmp = root;
 		char * cwd;
 
-		cwd = __d_path(pwd.dentry, pwd.mnt, &root, page, PAGE_SIZE);
+		cwd = __d_path(&pwd, &tmp, page, PAGE_SIZE);
 		spin_unlock(&dcache_lock);
 
 		error = PTR_ERR(cwd);

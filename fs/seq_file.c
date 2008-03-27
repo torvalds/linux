@@ -393,6 +393,36 @@ int seq_path(struct seq_file *m, struct path *path, char *esc)
 EXPORT_SYMBOL(seq_path);
 
 /*
+ * Same as seq_path, but relative to supplied root.
+ *
+ * root may be changed, see __d_path().
+ */
+int seq_path_root(struct seq_file *m, struct path *path, struct path *root,
+		  char *esc)
+{
+	int err = -ENAMETOOLONG;
+	if (m->count < m->size) {
+		char *s = m->buf + m->count;
+		char *p;
+
+		spin_lock(&dcache_lock);
+		p = __d_path(path, root, s, m->size - m->count);
+		spin_unlock(&dcache_lock);
+		err = PTR_ERR(p);
+		if (!IS_ERR(p)) {
+			s = mangle_path(s, p, esc);
+			if (s) {
+				p = m->buf + m->count;
+				m->count = s - m->buf;
+				return 0;
+			}
+		}
+	}
+	m->count = m->size;
+	return err;
+}
+
+/*
  * returns the path of the 'dentry' from the root of its filesystem.
  */
 int seq_dentry(struct seq_file *m, struct dentry *dentry, char *esc)
