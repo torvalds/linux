@@ -8,6 +8,7 @@
 void __init orion_map_io(void);
 void __init orion_init_irq(void);
 void __init orion_init(void);
+extern struct sys_timer orion_timer;
 
 /*
  * Enumerations and functions for Orion windows mapping. Used by Orion core
@@ -55,11 +56,6 @@ struct pci_bus *orion_pci_sys_scan_bus(int nr, struct pci_sys_data *sys);
 
 void __init orion_gpio_set_valid_pins(u32 pins);
 void gpio_display(void);	/* debug */
-
-/*
- * Orion system timer (clocksource + clockevnt, /mach-orion/time.c)
- */
-extern struct sys_timer orion_timer;
 
 /*
  * Pull in Orion Ethernet platform_data, used by machine-setup

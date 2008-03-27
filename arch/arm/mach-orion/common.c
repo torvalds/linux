@@ -23,8 +23,11 @@
 #include <asm/timex.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/mach/time.h>
 #include <asm/arch/hardware.h>
+#include <asm/arch/orion.h>
 #include <asm/arch/platform.h>
+#include <asm/plat-orion/time.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -294,6 +297,19 @@ void __init orion_sata_init(struct mv_sata_platform_data *sata_data)
 	orion_sata.dev.platform_data = sata_data;
 	platform_device_register(&orion_sata);
 }
+
+/*****************************************************************************
+ * Time handling
+ ****************************************************************************/
+
+static void orion_timer_init(void)
+{
+	orion_time_init(IRQ_ORION_BRIDGE, ORION_TCLK);
+}
+
+struct sys_timer orion_timer = {
+        .init = orion_timer_init,
+};
 
 /*****************************************************************************
  * General

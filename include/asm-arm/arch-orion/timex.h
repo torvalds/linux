@@ -8,5 +8,6 @@
  * warranty of any kind, whether express or implied.
  */
 
+#define CLOCK_TICK_RATE		(100 * HZ)
+
 #define ORION_TCLK		166666667
-#define CLOCK_TICK_RATE		ORION_TCLK
