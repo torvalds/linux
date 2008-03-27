@@ -23,11 +23,8 @@ DEFINE_PER_CPU(struct mmu_gather, mmu_gathers) = { 0, };
 
 void flush_tlb_pending(void)
 {
-	struct mmu_gather *mp;
+	struct mmu_gather *mp = &get_cpu_var(mmu_gathers);
 
-	preempt_disable();
-
-	mp = &__get_cpu_var(mmu_gathers);
 	if (mp->tlb_nr) {
 		flush_tsb_user(mp);
 
@@ -43,7 +40,7 @@ void flush_tlb_pending(void)
 		mp->tlb_nr = 0;
 	}
 
-	preempt_enable();
+	put_cpu_var(mmu_gathers);
 }
 
 void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr, pte_t *ptep, pte_t orig)
