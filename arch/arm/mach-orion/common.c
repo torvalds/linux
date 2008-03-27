@@ -336,8 +336,6 @@ void __init orion_init(void)
 	orion_setup_cpu_wins();
 	orion_setup_usb_wins();
 	orion_setup_eth_wins();
-	orion_setup_pci_wins();
-	orion_setup_pcie_wins();
 	if (dev == MV88F5182_DEV_ID)
 		orion_setup_sata_wins();
 

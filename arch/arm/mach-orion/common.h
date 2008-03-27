@@ -34,8 +34,6 @@ void orion_setup_cpu_win(enum orion_target target, u32 base, u32 size, int remap
 void orion_setup_cpu_wins(void);
 void orion_setup_eth_wins(void);
 void orion_setup_usb_wins(void);
-void orion_setup_pci_wins(void);
-void orion_setup_pcie_wins(void);
 void orion_setup_sata_wins(void);
 
 /*
@@ -49,11 +47,8 @@ struct pci_bus;
 void orion_pcie_id(u32 *dev, u32 *rev);
 u32 orion_pcie_local_bus_nr(void);
 u32 orion_pci_local_bus_nr(void);
-u32 orion_pci_local_dev_nr(void);
 int orion_pci_sys_setup(int nr, struct pci_sys_data *sys);
 struct pci_bus *orion_pci_sys_scan_bus(int nr, struct pci_sys_data *sys);
-int orion_pci_hw_rd_conf(u32 bus, u32 dev, u32 func, u32 where, u32 size, u32 *val);
-int orion_pci_hw_wr_conf(u32 bus, u32 dev, u32 func, u32 where, u32 size, u32 val);
 
 /*
  * Valid GPIO pins according to MPP setup, used by machine-setup.
