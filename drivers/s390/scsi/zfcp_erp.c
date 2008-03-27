@@ -132,11 +132,9 @@ static void zfcp_close_qdio(struct zfcp_adapter *adapter)
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status);
 	write_unlock_irq(&req_queue->queue_lock);
 
-	debug_text_event(adapter->erp_dbf, 3, "qdio_down2a");
 	while (qdio_shutdown(adapter->ccw_device,
 			     QDIO_FLAG_CLEANUP_USING_CLEAR) == -EINPROGRESS)
 		ssleep(1);
-	debug_text_event(adapter->erp_dbf, 3, "qdio_down2b");
 
 	/* cleanup used outbound sbals */
 	count = atomic_read(&req_queue->free_count);
@@ -209,7 +207,6 @@ static int zfcp_erp_adapter_reopen_internal(struct zfcp_adapter *adapter,
 {
 	int retval;
 
-	debug_text_event(adapter->erp_dbf, 5, "a_ro");
 	ZFCP_LOG_DEBUG("reopen adapter %s\n",
 		       zfcp_get_busid_by_adapter(adapter));
 
@@ -218,7 +215,6 @@ static int zfcp_erp_adapter_reopen_internal(struct zfcp_adapter *adapter,
 	if (atomic_test_mask(ZFCP_STATUS_COMMON_ERP_FAILED, &adapter->status)) {
 		ZFCP_LOG_DEBUG("skipped reopen of failed adapter %s\n",
 			       zfcp_get_busid_by_adapter(adapter));
-		debug_text_event(adapter->erp_dbf, 5, "a_ro_f");
 		/* ensure propagation of failed status to new devices */
 		zfcp_erp_adapter_failed(adapter, 13, 0);
 		retval = -EIO;
@@ -403,7 +399,6 @@ zfcp_erp_adisc_handler(unsigned long data)
 				"force physical port reopen "
 				"(adapter %s, port d_id=0x%06x)\n",
 				zfcp_get_busid_by_adapter(adapter), d_id);
-		debug_text_event(adapter->erp_dbf, 3, "forcreop");
 		if (zfcp_erp_port_forced_reopen(port, 0, 63, 0))
 			ZFCP_LOG_NORMAL("failed reopen of port "
 					"(adapter %s, wwpn=0x%016Lx)\n",
@@ -492,10 +487,6 @@ static int zfcp_erp_port_forced_reopen_internal(struct zfcp_port *port,
 						int clear_mask, u8 id, u64 ref)
 {
 	int retval;
-	struct zfcp_adapter *adapter = port->adapter;
-
-	debug_text_event(adapter->erp_dbf, 5, "pf_ro");
-	debug_event(adapter->erp_dbf, 5, &port->wwpn, sizeof (wwn_t));
 
 	ZFCP_LOG_DEBUG("forced reopen of port 0x%016Lx on adapter %s\n",
 		       port->wwpn, zfcp_get_busid_by_port(port));
@@ -506,8 +497,6 @@ static int zfcp_erp_port_forced_reopen_internal(struct zfcp_port *port,
 		ZFCP_LOG_DEBUG("skipped forced reopen of failed port 0x%016Lx "
 			       "on adapter %s\n", port->wwpn,
 			       zfcp_get_busid_by_port(port));
-		debug_text_event(adapter->erp_dbf, 5, "pf_ro_f");
-		debug_event(adapter->erp_dbf, 5, &port->wwpn, sizeof (wwn_t));
 		retval = -EIO;
 		goto out;
 	}
@@ -560,10 +549,6 @@ static int zfcp_erp_port_reopen_internal(struct zfcp_port *port, int clear_mask,
 					 u8 id, u64 ref)
 {
 	int retval;
-	struct zfcp_adapter *adapter = port->adapter;
-
-	debug_text_event(adapter->erp_dbf, 5, "p_ro");
-	debug_event(adapter->erp_dbf, 5, &port->wwpn, sizeof (wwn_t));
 
 	ZFCP_LOG_DEBUG("reopen of port 0x%016Lx on adapter %s\n",
 		       port->wwpn, zfcp_get_busid_by_port(port));
@@ -574,8 +559,6 @@ static int zfcp_erp_port_reopen_internal(struct zfcp_port *port, int clear_mask,
 		ZFCP_LOG_DEBUG("skipped reopen of failed port 0x%016Lx "
 			       "on adapter %s\n", port->wwpn,
 			       zfcp_get_busid_by_port(port));
-		debug_text_event(adapter->erp_dbf, 5, "p_ro_f");
-		debug_event(adapter->erp_dbf, 5, &port->wwpn, sizeof (wwn_t));
 		/* ensure propagation of failed status to new devices */
 		zfcp_erp_port_failed(port, 14, 0);
 		retval = -EIO;
@@ -630,8 +613,6 @@ static int zfcp_erp_unit_reopen_internal(struct zfcp_unit *unit, int clear_mask,
 	int retval;
 	struct zfcp_adapter *adapter = unit->port->adapter;
 
-	debug_text_event(adapter->erp_dbf, 5, "u_ro");
-	debug_event(adapter->erp_dbf, 5, &unit->fcp_lun, sizeof (fcp_lun_t));
 	ZFCP_LOG_DEBUG("reopen of unit 0x%016Lx on port 0x%016Lx "
 		       "on adapter %s\n", unit->fcp_lun,
 		       unit->port->wwpn, zfcp_get_busid_by_unit(unit));
@@ -643,9 +624,6 @@ static int zfcp_erp_unit_reopen_internal(struct zfcp_unit *unit, int clear_mask,
 			       "on port 0x%016Lx on adapter %s\n",
 			       unit->fcp_lun, unit->port->wwpn,
 			       zfcp_get_busid_by_unit(unit));
-		debug_text_event(adapter->erp_dbf, 5, "u_ro_f");
-		debug_event(adapter->erp_dbf, 5, &unit->fcp_lun,
-			    sizeof (fcp_lun_t));
 		retval = -EIO;
 		goto out;
 	}
@@ -690,7 +668,6 @@ int zfcp_erp_unit_reopen(struct zfcp_unit *unit, int clear_mask, u8 id, u64 ref)
  */
 static void zfcp_erp_adapter_block(struct zfcp_adapter *adapter, int clear_mask)
 {
-	debug_text_event(adapter->erp_dbf, 6, "a_bl");
 	zfcp_erp_modify_adapter_status(adapter, 15, 0,
 				       ZFCP_STATUS_COMMON_UNBLOCKED |
 				       clear_mask, ZFCP_CLEAR);
@@ -725,7 +702,6 @@ static int atomic_test_and_clear_mask(unsigned long mask, atomic_t *v)
  */
 static void zfcp_erp_adapter_unblock(struct zfcp_adapter *adapter)
 {
-	debug_text_event(adapter->erp_dbf, 6, "a_ubl");
 	if (atomic_test_and_set_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
 				     &adapter->status))
 		zfcp_rec_dbf_event_adapter(16, 0, adapter);
@@ -743,10 +719,6 @@ static void zfcp_erp_adapter_unblock(struct zfcp_adapter *adapter)
 static void
 zfcp_erp_port_block(struct zfcp_port *port, int clear_mask)
 {
-	struct zfcp_adapter *adapter = port->adapter;
-
-	debug_text_event(adapter->erp_dbf, 6, "p_bl");
-	debug_event(adapter->erp_dbf, 6, &port->wwpn, sizeof (wwn_t));
 	zfcp_erp_modify_port_status(port, 17, 0,
 				    ZFCP_STATUS_COMMON_UNBLOCKED | clear_mask,
 				    ZFCP_CLEAR);
@@ -762,10 +734,6 @@ zfcp_erp_port_block(struct zfcp_port *port, int clear_mask)
 static void
 zfcp_erp_port_unblock(struct zfcp_port *port)
 {
-	struct zfcp_adapter *adapter = port->adapter;
-
-	debug_text_event(adapter->erp_dbf, 6, "p_ubl");
-	debug_event(adapter->erp_dbf, 6, &port->wwpn, sizeof (wwn_t));
 	if (atomic_test_and_set_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
 				     &port->status))
 		zfcp_rec_dbf_event_port(18, 0, port);
@@ -783,10 +751,6 @@ zfcp_erp_port_unblock(struct zfcp_port *port)
 static void
 zfcp_erp_unit_block(struct zfcp_unit *unit, int clear_mask)
 {
-	struct zfcp_adapter *adapter = unit->port->adapter;
-
-	debug_text_event(adapter->erp_dbf, 6, "u_bl");
-	debug_event(adapter->erp_dbf, 6, &unit->fcp_lun, sizeof (fcp_lun_t));
 	zfcp_erp_modify_unit_status(unit, 19, 0,
 				    ZFCP_STATUS_COMMON_UNBLOCKED | clear_mask,
 				    ZFCP_CLEAR);
@@ -802,10 +766,6 @@ zfcp_erp_unit_block(struct zfcp_unit *unit, int clear_mask)
 static void
 zfcp_erp_unit_unblock(struct zfcp_unit *unit)
 {
-	struct zfcp_adapter *adapter = unit->port->adapter;
-
-	debug_text_event(adapter->erp_dbf, 6, "u_ubl");
-	debug_event(adapter->erp_dbf, 6, &unit->fcp_lun, sizeof (fcp_lun_t));
 	if (atomic_test_and_set_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
 				     &unit->status))
 		zfcp_rec_dbf_event_unit(20, 0, unit);
@@ -815,9 +775,6 @@ static void
 zfcp_erp_action_ready(struct zfcp_erp_action *erp_action)
 {
 	struct zfcp_adapter *adapter = erp_action->adapter;
-
-	debug_text_event(adapter->erp_dbf, 4, "a_ar");
-	debug_event(adapter->erp_dbf, 4, &erp_action->action, sizeof (int));
 
 	zfcp_erp_action_to_ready(erp_action);
 	up(&adapter->erp_ready_sem);
@@ -883,14 +840,9 @@ zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
 		if (zfcp_reqlist_find_safe(adapter, erp_action->fsf_req) &&
 		    erp_action->fsf_req->erp_action == erp_action) {
 			/* fsf_req still exists */
-			debug_text_event(adapter->erp_dbf, 3, "a_ca_req");
-			debug_event(adapter->erp_dbf, 3, &erp_action->fsf_req,
-				    sizeof (unsigned long));
 			/* dismiss fsf_req of timed out/dismissed erp_action */
 			if (erp_action->status & (ZFCP_STATUS_ERP_DISMISSED |
 						  ZFCP_STATUS_ERP_TIMEDOUT)) {
-				debug_text_event(adapter->erp_dbf, 3,
-						 "a_ca_disreq");
 				erp_action->fsf_req->status |=
 					ZFCP_STATUS_FSFREQ_DISMISSED;
 				zfcp_rec_dbf_event_action(142, erp_action);
@@ -915,7 +867,6 @@ zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
 				erp_action->fsf_req = NULL;
 			}
 		} else {
-			debug_text_event(adapter->erp_dbf, 3, "a_ca_gonereq");
 			/*
 			 * even if this fsf_req has gone, forget about
 			 * association between erp_action and fsf_req
@@ -923,8 +874,7 @@ zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
 			erp_action->fsf_req = NULL;
 		}
 		spin_unlock(&adapter->req_list_lock);
-	} else
-		debug_text_event(adapter->erp_dbf, 3, "a_ca_noreq");
+	}
 }
 
 /**
@@ -936,19 +886,11 @@ zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
 static void zfcp_erp_async_handler_nolock(struct zfcp_erp_action *erp_action,
 					  unsigned long set_mask)
 {
-	struct zfcp_adapter *adapter = erp_action->adapter;
-
 	if (zfcp_erp_action_exists(erp_action) == ZFCP_ERP_ACTION_RUNNING) {
-		debug_text_event(adapter->erp_dbf, 2, "a_asyh_ex");
-		debug_event(adapter->erp_dbf, 2, &erp_action->action,
-			    sizeof (int));
 		erp_action->status |= set_mask;
 		zfcp_erp_action_ready(erp_action);
 	} else {
 		/* action is ready or gone - nothing to do */
-		debug_text_event(adapter->erp_dbf, 3, "a_asyh_gone");
-		debug_event(adapter->erp_dbf, 3, &erp_action->action,
-			    sizeof (int));
 	}
 }
 
@@ -975,10 +917,6 @@ static void
 zfcp_erp_memwait_handler(unsigned long data)
 {
 	struct zfcp_erp_action *erp_action = (struct zfcp_erp_action *) data;
-	struct zfcp_adapter *adapter = erp_action->adapter;
-
-	debug_text_event(adapter->erp_dbf, 2, "a_mwh");
-	debug_event(adapter->erp_dbf, 2, &erp_action->action, sizeof (int));
 
 	zfcp_erp_async_handler(erp_action, 0);
 }
@@ -991,10 +929,6 @@ zfcp_erp_memwait_handler(unsigned long data)
 static void zfcp_erp_timeout_handler(unsigned long data)
 {
 	struct zfcp_erp_action *erp_action = (struct zfcp_erp_action *) data;
-	struct zfcp_adapter *adapter = erp_action->adapter;
-
-	debug_text_event(adapter->erp_dbf, 2, "a_th");
-	debug_event(adapter->erp_dbf, 2, &erp_action->action, sizeof (int));
 
 	zfcp_erp_async_handler(erp_action, ZFCP_STATUS_ERP_TIMEDOUT);
 }
@@ -1009,11 +943,6 @@ static void zfcp_erp_timeout_handler(unsigned long data)
  */
 static void zfcp_erp_action_dismiss(struct zfcp_erp_action *erp_action)
 {
-	struct zfcp_adapter *adapter = erp_action->adapter;
-
-	debug_text_event(adapter->erp_dbf, 2, "a_adis");
-	debug_event(adapter->erp_dbf, 2, &erp_action->action, sizeof (int));
-
 	erp_action->status |= ZFCP_STATUS_ERP_DISMISSED;
 	if (zfcp_erp_action_exists(erp_action) == ZFCP_ERP_ACTION_RUNNING)
 		zfcp_erp_action_ready(erp_action);
@@ -1031,12 +960,10 @@ zfcp_erp_thread_setup(struct zfcp_adapter *adapter)
 		ZFCP_LOG_NORMAL("error: creation of erp thread failed for "
 				"adapter %s\n",
 				zfcp_get_busid_by_adapter(adapter));
-		debug_text_event(adapter->erp_dbf, 5, "a_thset_fail");
 	} else {
 		wait_event(adapter->erp_thread_wqh,
 			   atomic_test_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_UP,
 					    &adapter->status));
-		debug_text_event(adapter->erp_dbf, 5, "a_thset_ok");
 	}
 
 	return (retval < 0);
@@ -1072,8 +999,6 @@ zfcp_erp_thread_kill(struct zfcp_adapter *adapter)
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_KILL,
 			  &adapter->status);
 
-	debug_text_event(adapter->erp_dbf, 5, "a_thki_ok");
-
 	return retval;
 }
 
@@ -1096,7 +1021,6 @@ zfcp_erp_thread(void *data)
 	/* Block all signals */
 	siginitsetinv(&current->blocked, 0);
 	atomic_set_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_UP, &adapter->status);
-	debug_text_event(adapter->erp_dbf, 5, "a_th_run");
 	wake_up(&adapter->erp_thread_wqh);
 
 	while (!atomic_test_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_KILL,
@@ -1124,11 +1048,9 @@ zfcp_erp_thread(void *data)
 		zfcp_rec_dbf_event_thread(4, adapter, 1);
 		down_interruptible(&adapter->erp_ready_sem);
 		zfcp_rec_dbf_event_thread(5, adapter, 1);
-		debug_text_event(adapter->erp_dbf, 5, "a_th_woken");
 	}
 
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_UP, &adapter->status);
-	debug_text_event(adapter->erp_dbf, 5, "a_th_stop");
 	wake_up(&adapter->erp_thread_wqh);
 
 	return 0;
@@ -1164,7 +1086,6 @@ zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 	/* dequeue dismissed action and leave, if required */
 	retval = zfcp_erp_strategy_check_action(erp_action, retval);
 	if (retval == ZFCP_ERP_DISMISSED) {
-		debug_text_event(adapter->erp_dbf, 4, "a_st_dis1");
 		goto unlock;
 	}
 
@@ -1215,20 +1136,17 @@ zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 		   element was timed out.
 		 */
 		if (adapter->erp_total_count == adapter->erp_low_mem_count) {
-			debug_text_event(adapter->erp_dbf, 3, "a_st_lowmem");
 			ZFCP_LOG_NORMAL("error: no mempool elements available, "
 					"restarting I/O on adapter %s "
 					"to free mempool\n",
 					zfcp_get_busid_by_adapter(adapter));
 			zfcp_erp_adapter_reopen_internal(adapter, 0, 66, 0);
 		} else {
-		debug_text_event(adapter->erp_dbf, 2, "a_st_memw");
 		retval = zfcp_erp_strategy_memwait(erp_action);
 		}
 		goto unlock;
 	case ZFCP_ERP_CONTINUES:
 		/* leave since this action runs asynchronously */
-		debug_text_event(adapter->erp_dbf, 6, "a_st_cont");
 		if (erp_action->status & ZFCP_STATUS_ERP_LOWMEM) {
 			--adapter->erp_low_mem_count;
 			erp_action->status &= ~ZFCP_STATUS_ERP_LOWMEM;
@@ -1257,7 +1175,6 @@ zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 	 * action is repeated in order to process state change
 	 */
 	if (retval == ZFCP_ERP_EXIT) {
-		debug_text_event(adapter->erp_dbf, 2, "a_st_exit");
 		goto unlock;
 	}
 
@@ -1283,8 +1200,6 @@ zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 	if (retval != ZFCP_ERP_DISMISSED)
 		zfcp_erp_strategy_check_queues(adapter);
 
-	debug_text_event(adapter->erp_dbf, 6, "a_st_done");
-
 	return retval;
 }
 
@@ -1299,17 +1214,12 @@ zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 static int
 zfcp_erp_strategy_check_action(struct zfcp_erp_action *erp_action, int retval)
 {
-	struct zfcp_adapter *adapter = erp_action->adapter;
-
 	zfcp_erp_strategy_check_fsfreq(erp_action);
 
-	debug_event(adapter->erp_dbf, 5, &erp_action->action, sizeof (int));
 	if (erp_action->status & ZFCP_STATUS_ERP_DISMISSED) {
-		debug_text_event(adapter->erp_dbf, 3, "a_stcd_dis");
 		zfcp_erp_action_dequeue(erp_action);
 		retval = ZFCP_ERP_DISMISSED;
-	} else
-		debug_text_event(adapter->erp_dbf, 5, "a_stcd_nodis");
+	}
 
 	return retval;
 }
@@ -1318,7 +1228,6 @@ static int
 zfcp_erp_strategy_do_action(struct zfcp_erp_action *erp_action)
 {
 	int retval = ZFCP_ERP_FAILED;
-	struct zfcp_adapter *adapter = erp_action->adapter;
 
 	/*
 	 * try to execute/continue action as far as possible,
@@ -1348,9 +1257,6 @@ zfcp_erp_strategy_do_action(struct zfcp_erp_action *erp_action)
 		break;
 
 	default:
-		debug_text_exception(adapter->erp_dbf, 1, "a_stda_bug");
-		debug_event(adapter->erp_dbf, 1, &erp_action->action,
-			    sizeof (int));
 		ZFCP_LOG_NORMAL("bug: unknown erp action requested on "
 				"adapter %s (action=%d)\n",
 				zfcp_get_busid_by_adapter(erp_action->adapter),
@@ -1372,10 +1278,7 @@ static int
 zfcp_erp_strategy_memwait(struct zfcp_erp_action *erp_action)
 {
 	int retval = ZFCP_ERP_CONTINUES;
-	struct zfcp_adapter *adapter = erp_action->adapter;
 
-	debug_text_event(adapter->erp_dbf, 6, "a_mwinit");
-	debug_event(adapter->erp_dbf, 6, &erp_action->action, sizeof (int));
 	init_timer(&erp_action->timer);
 	erp_action->timer.function = zfcp_erp_memwait_handler;
 	erp_action->timer.data = (unsigned long) erp_action;
@@ -1398,7 +1301,6 @@ zfcp_erp_adapter_failed(struct zfcp_adapter *adapter, u8 id, u64 ref)
 				       ZFCP_STATUS_COMMON_ERP_FAILED, ZFCP_SET);
 	ZFCP_LOG_NORMAL("adapter erp failed on adapter %s\n",
 			zfcp_get_busid_by_adapter(adapter));
-	debug_text_event(adapter->erp_dbf, 2, "a_afail");
 }
 
 /*
@@ -1420,9 +1322,6 @@ zfcp_erp_port_failed(struct zfcp_port *port, u8 id, u64 ref)
 	else
 		ZFCP_LOG_NORMAL("port erp failed (adapter %s, wwpn=0x%016Lx)\n",
 				zfcp_get_busid_by_port(port), port->wwpn);
-
-	debug_text_event(port->adapter->erp_dbf, 2, "p_pfail");
-	debug_event(port->adapter->erp_dbf, 2, &port->wwpn, sizeof (wwn_t));
 }
 
 /*
@@ -1440,9 +1339,6 @@ zfcp_erp_unit_failed(struct zfcp_unit *unit, u8 id, u64 ref)
 	ZFCP_LOG_NORMAL("unit erp failed on unit 0x%016Lx on port 0x%016Lx "
 			" on adapter %s\n", unit->fcp_lun,
 			unit->port->wwpn, zfcp_get_busid_by_unit(unit));
-	debug_text_event(unit->port->adapter->erp_dbf, 2, "u_ufail");
-	debug_event(unit->port->adapter->erp_dbf, 2,
-		    &unit->fcp_lun, sizeof (fcp_lun_t));
 }
 
 /*
@@ -1465,10 +1361,6 @@ zfcp_erp_strategy_check_target(struct zfcp_erp_action *erp_action, int result)
 	struct zfcp_adapter *adapter = erp_action->adapter;
 	struct zfcp_port *port = erp_action->port;
 	struct zfcp_unit *unit = erp_action->unit;
-
-	debug_text_event(adapter->erp_dbf, 5, "a_stct_norm");
-	debug_event(adapter->erp_dbf, 5, &erp_action->action, sizeof (int));
-	debug_event(adapter->erp_dbf, 5, &result, sizeof (int));
 
 	switch (erp_action->action) {
 
@@ -1496,9 +1388,6 @@ zfcp_erp_strategy_statechange(int action,
 			      struct zfcp_port *port,
 			      struct zfcp_unit *unit, int retval)
 {
-	debug_text_event(adapter->erp_dbf, 3, "a_stsc");
-	debug_event(adapter->erp_dbf, 3, &action, sizeof (int));
-
 	switch (action) {
 
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
@@ -1551,10 +1440,6 @@ zfcp_erp_strategy_statechange_detected(atomic_t * target_status, u32 erp_status)
 static int
 zfcp_erp_strategy_check_unit(struct zfcp_unit *unit, int result)
 {
-	debug_text_event(unit->port->adapter->erp_dbf, 5, "u_stct");
-	debug_event(unit->port->adapter->erp_dbf, 5, &unit->fcp_lun,
-		    sizeof (fcp_lun_t));
-
 	switch (result) {
 	case ZFCP_ERP_SUCCEEDED :
 		atomic_set(&unit->erp_counter, 0);
@@ -1581,9 +1466,6 @@ zfcp_erp_strategy_check_unit(struct zfcp_unit *unit, int result)
 static int
 zfcp_erp_strategy_check_port(struct zfcp_port *port, int result)
 {
-	debug_text_event(port->adapter->erp_dbf, 5, "p_stct");
-	debug_event(port->adapter->erp_dbf, 5, &port->wwpn, sizeof (wwn_t));
-
 	switch (result) {
 	case ZFCP_ERP_SUCCEEDED :
 		atomic_set(&port->erp_counter, 0);
@@ -1610,8 +1492,6 @@ zfcp_erp_strategy_check_port(struct zfcp_port *port, int result)
 static int
 zfcp_erp_strategy_check_adapter(struct zfcp_adapter *adapter, int result)
 {
-	debug_text_event(adapter->erp_dbf, 5, "a_stct");
-
 	switch (result) {
 	case ZFCP_ERP_SUCCEEDED :
 		atomic_set(&adapter->erp_counter, 0);
@@ -1703,9 +1583,6 @@ zfcp_erp_strategy_followup_actions(int action,
 				   struct zfcp_port *port,
 				   struct zfcp_unit *unit, int status)
 {
-	debug_text_event(adapter->erp_dbf, 5, "a_stfol");
-	debug_event(adapter->erp_dbf, 5, &action, sizeof (int));
-
 	/* initiate follow-up actions depending on success of finished action */
 	switch (action) {
 
@@ -1749,12 +1626,10 @@ zfcp_erp_strategy_check_queues(struct zfcp_adapter *adapter)
 	read_lock(&adapter->erp_lock);
 	if (list_empty(&adapter->erp_ready_head) &&
 	    list_empty(&adapter->erp_running_head)) {
-			debug_text_event(adapter->erp_dbf, 4, "a_cq_wake");
 			atomic_clear_mask(ZFCP_STATUS_ADAPTER_ERP_PENDING,
 					  &adapter->status);
 			wake_up(&adapter->erp_done_wqh);
-	} else
-		debug_text_event(adapter->erp_dbf, 5, "a_cq_notempty");
+	}
 	read_unlock(&adapter->erp_lock);
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 
@@ -1786,16 +1661,13 @@ void zfcp_erp_modify_adapter_status(struct zfcp_adapter *adapter, u8 id,
 
 	if (set_or_clear == ZFCP_SET) {
 		changed = atomic_test_and_set_mask(mask, &adapter->status);
-		debug_text_event(adapter->erp_dbf, 3, "a_mod_as_s");
 	} else {
 		changed = atomic_test_and_clear_mask(mask, &adapter->status);
 		if (mask & ZFCP_STATUS_COMMON_ERP_FAILED)
 			atomic_set(&adapter->erp_counter, 0);
-		debug_text_event(adapter->erp_dbf, 3, "a_mod_as_c");
 	}
 	if (changed)
 		zfcp_rec_dbf_event_adapter(id, ref, adapter);
-	debug_event(adapter->erp_dbf, 3, &mask, sizeof (u32));
 
 	/* Deal with all underlying devices, only pass common_mask */
 	if (common_mask)
@@ -1818,17 +1690,13 @@ void zfcp_erp_modify_port_status(struct zfcp_port *port, u8 id, u64 ref,
 
 	if (set_or_clear == ZFCP_SET) {
 		changed = atomic_test_and_set_mask(mask, &port->status);
-		debug_text_event(port->adapter->erp_dbf, 3, "p_mod_ps_s");
 	} else {
 		changed = atomic_test_and_clear_mask(mask, &port->status);
 		if (mask & ZFCP_STATUS_COMMON_ERP_FAILED)
 			atomic_set(&port->erp_counter, 0);
-		debug_text_event(port->adapter->erp_dbf, 3, "p_mod_ps_c");
 	}
 	if (changed)
 		zfcp_rec_dbf_event_port(id, ref, port);
-	debug_event(port->adapter->erp_dbf, 3, &port->wwpn, sizeof (wwn_t));
-	debug_event(port->adapter->erp_dbf, 3, &mask, sizeof (u32));
 
 	/* Modify status of all underlying devices, only pass common mask */
 	if (common_mask)
@@ -1850,19 +1718,14 @@ void zfcp_erp_modify_unit_status(struct zfcp_unit *unit, u8 id, u64 ref,
 
 	if (set_or_clear == ZFCP_SET) {
 		changed = atomic_test_and_set_mask(mask, &unit->status);
-		debug_text_event(unit->port->adapter->erp_dbf, 3, "u_mod_us_s");
 	} else {
 		changed = atomic_test_and_clear_mask(mask, &unit->status);
 		if (mask & ZFCP_STATUS_COMMON_ERP_FAILED) {
 			atomic_set(&unit->erp_counter, 0);
 		}
-		debug_text_event(unit->port->adapter->erp_dbf, 3, "u_mod_us_c");
 	}
 	if (changed)
 		zfcp_rec_dbf_event_unit(id, ref, unit);
-	debug_event(unit->port->adapter->erp_dbf, 3, &unit->fcp_lun,
-		    sizeof (fcp_lun_t));
-	debug_event(unit->port->adapter->erp_dbf, 3, &mask, sizeof (u32));
 }
 
 /*
@@ -1945,10 +1808,6 @@ zfcp_erp_adapter_strategy(struct zfcp_erp_action *erp_action)
 		retval = ZFCP_ERP_EXIT;
 	else
 		retval = zfcp_erp_adapter_strategy_open(erp_action);
-
-	debug_text_event(adapter->erp_dbf, 3, "a_ast/ret");
-	debug_event(adapter->erp_dbf, 3, &erp_action->action, sizeof (int));
-	debug_event(adapter->erp_dbf, 3, &retval, sizeof (int));
 
 	if (retval == ZFCP_ERP_FAILED) {
 		ZFCP_LOG_INFO("Waiting to allow the adapter %s "
@@ -2075,7 +1934,6 @@ zfcp_erp_adapter_strategy_open_qdio(struct zfcp_erp_action *erp_action)
 			      zfcp_get_busid_by_adapter(adapter));
 		goto failed_qdio_establish;
 	}
-	debug_text_event(adapter->erp_dbf, 3, "qdio_est");
 
 	if (qdio_activate(adapter->ccw_device, 0) != 0) {
 		ZFCP_LOG_INFO("error: activation of QDIO queues failed "
@@ -2083,7 +1941,6 @@ zfcp_erp_adapter_strategy_open_qdio(struct zfcp_erp_action *erp_action)
 			      zfcp_get_busid_by_adapter(adapter));
 		goto failed_qdio_activate;
 	}
-	debug_text_event(adapter->erp_dbf, 3, "qdio_act");
 
 	/*
 	 * put buffers into response queue,
@@ -2131,11 +1988,9 @@ zfcp_erp_adapter_strategy_open_qdio(struct zfcp_erp_action *erp_action)
 	/* NOP */
 
  failed_qdio_activate:
-	debug_text_event(adapter->erp_dbf, 3, "qdio_down1a");
 	while (qdio_shutdown(adapter->ccw_device,
 			     QDIO_FLAG_CLEANUP_USING_CLEAR) == -EINPROGRESS)
 		ssleep(1);
-	debug_text_event(adapter->erp_dbf, 3, "qdio_down1b");
 
  failed_qdio_establish:
  failed_sanity:
@@ -2181,14 +2036,12 @@ zfcp_erp_adapter_strategy_open_fsf_xconfig(struct zfcp_erp_action *erp_action)
 		write_unlock_irq(&adapter->erp_lock);
 		if (zfcp_fsf_exchange_config_data(erp_action)) {
 			retval = ZFCP_ERP_FAILED;
-			debug_text_event(adapter->erp_dbf, 5, "a_fstx_xf");
 			ZFCP_LOG_INFO("error:  initiation of exchange of "
 				      "configuration data failed for "
 				      "adapter %s\n",
 				      zfcp_get_busid_by_adapter(adapter));
 			break;
 		}
-		debug_text_event(adapter->erp_dbf, 6, "a_fstx_xok");
 		ZFCP_LOG_DEBUG("Xchange underway\n");
 
 		/*
@@ -2254,13 +2107,10 @@ zfcp_erp_adapter_strategy_open_fsf_xport(struct zfcp_erp_action *erp_action)
 
 	ret = zfcp_fsf_exchange_port_data(erp_action);
 	if (ret == -EOPNOTSUPP) {
-		debug_text_event(adapter->erp_dbf, 3, "a_xport_notsupp");
 		return ZFCP_ERP_SUCCEEDED;
 	} else if (ret) {
-		debug_text_event(adapter->erp_dbf, 3, "a_xport_failed");
 		return ZFCP_ERP_FAILED;
 	}
-	debug_text_event(adapter->erp_dbf, 6, "a_xport_ok");
 
 	ret = ZFCP_ERP_SUCCEEDED;
 	zfcp_rec_dbf_event_thread(8, adapter, 1);
@@ -2319,7 +2169,6 @@ zfcp_erp_port_forced_strategy(struct zfcp_erp_action *erp_action)
 {
 	int retval = ZFCP_ERP_FAILED;
 	struct zfcp_port *port = erp_action->port;
-	struct zfcp_adapter *adapter = erp_action->adapter;
 
 	switch (erp_action->step) {
 
@@ -2356,11 +2205,6 @@ zfcp_erp_port_forced_strategy(struct zfcp_erp_action *erp_action)
 		break;
 	}
 
-	debug_text_event(adapter->erp_dbf, 3, "p_pfst/ret");
-	debug_event(adapter->erp_dbf, 3, &port->wwpn, sizeof (wwn_t));
-	debug_event(adapter->erp_dbf, 3, &erp_action->action, sizeof (int));
-	debug_event(adapter->erp_dbf, 3, &retval, sizeof (int));
-
 	return retval;
 }
 
@@ -2378,7 +2222,6 @@ zfcp_erp_port_strategy(struct zfcp_erp_action *erp_action)
 {
 	int retval = ZFCP_ERP_FAILED;
 	struct zfcp_port *port = erp_action->port;
-	struct zfcp_adapter *adapter = erp_action->adapter;
 
 	switch (erp_action->step) {
 
@@ -2411,11 +2254,6 @@ zfcp_erp_port_strategy(struct zfcp_erp_action *erp_action)
 		retval = zfcp_erp_port_strategy_open(erp_action);
 
  out:
-	debug_text_event(adapter->erp_dbf, 3, "p_pst/ret");
-	debug_event(adapter->erp_dbf, 3, &port->wwpn, sizeof (wwn_t));
-	debug_event(adapter->erp_dbf, 3, &erp_action->action, sizeof (int));
-	debug_event(adapter->erp_dbf, 3, &retval, sizeof (int));
-
 	return retval;
 }
 
@@ -2607,13 +2445,7 @@ zfcp_erp_port_strategy_open_nameserver_wakeup(struct zfcp_erp_action
 	read_lock_irqsave(&adapter->erp_lock, flags);
 	list_for_each_entry_safe(erp_action, tmp, &adapter->erp_running_head,
 				 list) {
-		debug_text_event(adapter->erp_dbf, 4, "p_pstnsw_n");
-		debug_event(adapter->erp_dbf, 4, &erp_action->port->wwpn,
-			    sizeof (wwn_t));
 		if (erp_action->step == ZFCP_ERP_STEP_NAMESERVER_OPEN) {
-			debug_text_event(adapter->erp_dbf, 3, "p_pstnsw_w");
-			debug_event(adapter->erp_dbf, 3,
-				    &erp_action->port->wwpn, sizeof (wwn_t));
 			if (atomic_test_mask(
 				    ZFCP_STATUS_COMMON_ERP_FAILED,
 				    &adapter->nameserver_port->status))
@@ -2638,26 +2470,18 @@ static int
 zfcp_erp_port_forced_strategy_close(struct zfcp_erp_action *erp_action)
 {
 	int retval;
-	struct zfcp_adapter *adapter = erp_action->adapter;
-	struct zfcp_port *port = erp_action->port;
 
 	retval = zfcp_fsf_close_physical_port(erp_action);
 	if (retval == -ENOMEM) {
-		debug_text_event(adapter->erp_dbf, 5, "o_pfstc_nomem");
-		debug_event(adapter->erp_dbf, 5, &port->wwpn, sizeof (wwn_t));
 		retval = ZFCP_ERP_NOMEM;
 		goto out;
 	}
 	erp_action->step = ZFCP_ERP_STEP_PHYS_PORT_CLOSING;
 	if (retval != 0) {
-		debug_text_event(adapter->erp_dbf, 5, "o_pfstc_cpf");
-		debug_event(adapter->erp_dbf, 5, &port->wwpn, sizeof (wwn_t));
 		/* could not send 'open', fail */
 		retval = ZFCP_ERP_FAILED;
 		goto out;
 	}
-	debug_text_event(adapter->erp_dbf, 6, "o_pfstc_cpok");
-	debug_event(adapter->erp_dbf, 6, &port->wwpn, sizeof (wwn_t));
 	retval = ZFCP_ERP_CONTINUES;
  out:
 	return retval;
@@ -2667,10 +2491,6 @@ static int
 zfcp_erp_port_strategy_clearstati(struct zfcp_port *port)
 {
 	int retval = 0;
-	struct zfcp_adapter *adapter = port->adapter;
-
-	debug_text_event(adapter->erp_dbf, 5, "p_pstclst");
-	debug_event(adapter->erp_dbf, 5, &port->wwpn, sizeof (wwn_t));
 
 	atomic_clear_mask(ZFCP_STATUS_COMMON_OPENING |
 			  ZFCP_STATUS_COMMON_CLOSING |
@@ -2694,26 +2514,18 @@ static int
 zfcp_erp_port_strategy_close(struct zfcp_erp_action *erp_action)
 {
 	int retval;
-	struct zfcp_adapter *adapter = erp_action->adapter;
-	struct zfcp_port *port = erp_action->port;
 
 	retval = zfcp_fsf_close_port(erp_action);
 	if (retval == -ENOMEM) {
-		debug_text_event(adapter->erp_dbf, 5, "p_pstc_nomem");
-		debug_event(adapter->erp_dbf, 5, &port->wwpn, sizeof (wwn_t));
 		retval = ZFCP_ERP_NOMEM;
 		goto out;
 	}
 	erp_action->step = ZFCP_ERP_STEP_PORT_CLOSING;
 	if (retval != 0) {
-		debug_text_event(adapter->erp_dbf, 5, "p_pstc_cpf");
-		debug_event(adapter->erp_dbf, 5, &port->wwpn, sizeof (wwn_t));
 		/* could not send 'close', fail */
 		retval = ZFCP_ERP_FAILED;
 		goto out;
 	}
-	debug_text_event(adapter->erp_dbf, 6, "p_pstc_cpok");
-	debug_event(adapter->erp_dbf, 6, &port->wwpn, sizeof (wwn_t));
 	retval = ZFCP_ERP_CONTINUES;
  out:
 	return retval;
@@ -2731,26 +2543,18 @@ static int
 zfcp_erp_port_strategy_open_port(struct zfcp_erp_action *erp_action)
 {
 	int retval;
-	struct zfcp_adapter *adapter = erp_action->adapter;
-	struct zfcp_port *port = erp_action->port;
 
 	retval = zfcp_fsf_open_port(erp_action);
 	if (retval == -ENOMEM) {
-		debug_text_event(adapter->erp_dbf, 5, "p_psto_nomem");
-		debug_event(adapter->erp_dbf, 5, &port->wwpn, sizeof (wwn_t));
 		retval = ZFCP_ERP_NOMEM;
 		goto out;
 	}
 	erp_action->step = ZFCP_ERP_STEP_PORT_OPENING;
 	if (retval != 0) {
-		debug_text_event(adapter->erp_dbf, 5, "p_psto_opf");
-		debug_event(adapter->erp_dbf, 5, &port->wwpn, sizeof (wwn_t));
 		/* could not send 'open', fail */
 		retval = ZFCP_ERP_FAILED;
 		goto out;
 	}
-	debug_text_event(adapter->erp_dbf, 6, "p_psto_opok");
-	debug_event(adapter->erp_dbf, 6, &port->wwpn, sizeof (wwn_t));
 	retval = ZFCP_ERP_CONTINUES;
  out:
 	return retval;
@@ -2768,26 +2572,18 @@ static int
 zfcp_erp_port_strategy_open_common_lookup(struct zfcp_erp_action *erp_action)
 {
 	int retval;
-	struct zfcp_adapter *adapter = erp_action->adapter;
-	struct zfcp_port *port = erp_action->port;
 
 	retval = zfcp_ns_gid_pn_request(erp_action);
 	if (retval == -ENOMEM) {
-		debug_text_event(adapter->erp_dbf, 5, "p_pstn_nomem");
-		debug_event(adapter->erp_dbf, 5, &port->wwpn, sizeof (wwn_t));
 		retval = ZFCP_ERP_NOMEM;
 		goto out;
 	}
 	erp_action->step = ZFCP_ERP_STEP_NAMESERVER_LOOKUP;
 	if (retval != 0) {
-		debug_text_event(adapter->erp_dbf, 5, "p_pstn_ref");
-		debug_event(adapter->erp_dbf, 5, &port->wwpn, sizeof (wwn_t));
 		/* could not send nameserver request, fail */
 		retval = ZFCP_ERP_FAILED;
 		goto out;
 	}
-	debug_text_event(adapter->erp_dbf, 6, "p_pstn_reok");
-	debug_event(adapter->erp_dbf, 6, &port->wwpn, sizeof (wwn_t));
 	retval = ZFCP_ERP_CONTINUES;
  out:
 	return retval;
@@ -2808,7 +2604,6 @@ zfcp_erp_unit_strategy(struct zfcp_erp_action *erp_action)
 {
 	int retval = ZFCP_ERP_FAILED;
 	struct zfcp_unit *unit = erp_action->unit;
-	struct zfcp_adapter *adapter = erp_action->adapter;
 
 	switch (erp_action->step) {
 
@@ -2855,10 +2650,6 @@ zfcp_erp_unit_strategy(struct zfcp_erp_action *erp_action)
 		break;
 	}
 
-	debug_text_event(adapter->erp_dbf, 3, "u_ust/ret");
-	debug_event(adapter->erp_dbf, 3, &unit->fcp_lun, sizeof (fcp_lun_t));
-	debug_event(adapter->erp_dbf, 3, &erp_action->action, sizeof (int));
-	debug_event(adapter->erp_dbf, 3, &retval, sizeof (int));
 	return retval;
 }
 
@@ -2866,10 +2657,6 @@ static int
 zfcp_erp_unit_strategy_clearstati(struct zfcp_unit *unit)
 {
 	int retval = 0;
-	struct zfcp_adapter *adapter = unit->port->adapter;
-
-	debug_text_event(adapter->erp_dbf, 5, "u_ustclst");
-	debug_event(adapter->erp_dbf, 5, &unit->fcp_lun, sizeof (fcp_lun_t));
 
 	atomic_clear_mask(ZFCP_STATUS_COMMON_OPENING |
 			  ZFCP_STATUS_COMMON_CLOSING |
@@ -2893,28 +2680,18 @@ static int
 zfcp_erp_unit_strategy_close(struct zfcp_erp_action *erp_action)
 {
 	int retval;
-	struct zfcp_adapter *adapter = erp_action->adapter;
-	struct zfcp_unit *unit = erp_action->unit;
 
 	retval = zfcp_fsf_close_unit(erp_action);
 	if (retval == -ENOMEM) {
-		debug_text_event(adapter->erp_dbf, 5, "u_ustc_nomem");
-		debug_event(adapter->erp_dbf, 5, &unit->fcp_lun,
-			    sizeof (fcp_lun_t));
 		retval = ZFCP_ERP_NOMEM;
 		goto out;
 	}
 	erp_action->step = ZFCP_ERP_STEP_UNIT_CLOSING;
 	if (retval != 0) {
-		debug_text_event(adapter->erp_dbf, 5, "u_ustc_cuf");
-		debug_event(adapter->erp_dbf, 5, &unit->fcp_lun,
-			    sizeof (fcp_lun_t));
 		/* could not send 'close', fail */
 		retval = ZFCP_ERP_FAILED;
 		goto out;
 	}
-	debug_text_event(adapter->erp_dbf, 6, "u_ustc_cuok");
-	debug_event(adapter->erp_dbf, 6, &unit->fcp_lun, sizeof (fcp_lun_t));
 	retval = ZFCP_ERP_CONTINUES;
 
  out:
@@ -2933,28 +2710,18 @@ static int
 zfcp_erp_unit_strategy_open(struct zfcp_erp_action *erp_action)
 {
 	int retval;
-	struct zfcp_adapter *adapter = erp_action->adapter;
-	struct zfcp_unit *unit = erp_action->unit;
 
 	retval = zfcp_fsf_open_unit(erp_action);
 	if (retval == -ENOMEM) {
-		debug_text_event(adapter->erp_dbf, 5, "u_usto_nomem");
-		debug_event(adapter->erp_dbf, 5, &unit->fcp_lun,
-			    sizeof (fcp_lun_t));
 		retval = ZFCP_ERP_NOMEM;
 		goto out;
 	}
 	erp_action->step = ZFCP_ERP_STEP_UNIT_OPENING;
 	if (retval != 0) {
-		debug_text_event(adapter->erp_dbf, 5, "u_usto_ouf");
-		debug_event(adapter->erp_dbf, 5, &unit->fcp_lun,
-			    sizeof (fcp_lun_t));
 		/* could not send 'open', fail */
 		retval = ZFCP_ERP_FAILED;
 		goto out;
 	}
-	debug_text_event(adapter->erp_dbf, 6, "u_usto_ouok");
-	debug_event(adapter->erp_dbf, 6, &unit->fcp_lun, sizeof (fcp_lun_t));
 	retval = ZFCP_ERP_CONTINUES;
  out:
 	return retval;
@@ -3000,17 +2767,11 @@ static int zfcp_erp_action_enqueue(int want, struct zfcp_adapter *adapter,
 			      &adapter->status))
 		return -EIO;
 
-	debug_event(adapter->erp_dbf, 4, &want, sizeof (int));
 	/* check whether we really need this */
 	switch (want) {
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
 		if (atomic_test_mask
 		    (ZFCP_STATUS_COMMON_ERP_INUSE, &unit->status)) {
-			debug_text_event(adapter->erp_dbf, 4, "u_actenq_drp");
-			debug_event(adapter->erp_dbf, 4, &port->wwpn,
-				    sizeof (wwn_t));
-			debug_event(adapter->erp_dbf, 4, &unit->fcp_lun,
-				    sizeof (fcp_lun_t));
 			goto out;
 		}
 		if (!atomic_test_mask
@@ -3027,9 +2788,6 @@ static int zfcp_erp_action_enqueue(int want, struct zfcp_adapter *adapter,
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
 		if (atomic_test_mask
 		    (ZFCP_STATUS_COMMON_ERP_INUSE, &port->status)) {
-			debug_text_event(adapter->erp_dbf, 4, "p_actenq_drp");
-			debug_event(adapter->erp_dbf, 4, &port->wwpn,
-				    sizeof (wwn_t));
 			goto out;
 		}
 		/* fall through !!! */
@@ -3043,13 +2801,7 @@ static int zfcp_erp_action_enqueue(int want, struct zfcp_adapter *adapter,
 					      "0x%016Lx, action in use: %i)\n",
 					      want, port->wwpn,
 					      port->erp_action.action);
-				debug_text_event(adapter->erp_dbf, 4,
-						 "pf_actenq_drp");
-			} else
-				debug_text_event(adapter->erp_dbf, 4,
-						 "pf_actenq_drpcp");
-			debug_event(adapter->erp_dbf, 4, &port->wwpn,
-				    sizeof (wwn_t));
+			}
 			goto out;
 		}
 		if (!atomic_test_mask
@@ -3066,14 +2818,11 @@ static int zfcp_erp_action_enqueue(int want, struct zfcp_adapter *adapter,
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
 		if (atomic_test_mask
 		    (ZFCP_STATUS_COMMON_ERP_INUSE, &adapter->status)) {
-			debug_text_event(adapter->erp_dbf, 4, "a_actenq_drp");
 			goto out;
 		}
 		break;
 
 	default:
-		debug_text_exception(adapter->erp_dbf, 1, "a_actenq_bug");
-		debug_event(adapter->erp_dbf, 1, &want, sizeof (int));
 		ZFCP_LOG_NORMAL("bug: unknown erp action requested "
 				"on adapter %s (action=%d)\n",
 				zfcp_get_busid_by_adapter(adapter), want);
@@ -3082,9 +2831,6 @@ static int zfcp_erp_action_enqueue(int want, struct zfcp_adapter *adapter,
 
 	/* check whether we need something stronger first */
 	if (need) {
-		debug_text_event(adapter->erp_dbf, 4, "a_actenq_str");
-		debug_event(adapter->erp_dbf, 4, &need,
-			    sizeof (int));
 		ZFCP_LOG_DEBUG("stronger erp action %d needed before "
 			       "erp action %d on adapter %s\n",
 			       need, want, zfcp_get_busid_by_adapter(adapter));
@@ -3127,8 +2873,6 @@ static int zfcp_erp_action_enqueue(int want, struct zfcp_adapter *adapter,
 		break;
 	}
 
-	debug_text_event(adapter->erp_dbf, 4, "a_actenq");
-
 	memset(erp_action, 0, sizeof (struct zfcp_erp_action));
 	erp_action->adapter = adapter;
 	erp_action->port = port;
@@ -3161,8 +2905,6 @@ zfcp_erp_action_dequeue(struct zfcp_erp_action *erp_action)
 		erp_action->status &= ~ZFCP_STATUS_ERP_LOWMEM;
 	}
 
-	debug_text_event(adapter->erp_dbf, 4, "a_actdeq");
-	debug_event(adapter->erp_dbf, 4, &erp_action->action, sizeof (int));
 	list_del(&erp_action->list);
 	zfcp_rec_dbf_event_action(144, erp_action);
 
@@ -3270,7 +3012,6 @@ static void zfcp_erp_action_dismiss_adapter(struct zfcp_adapter *adapter)
 {
 	struct zfcp_port *port;
 
-	debug_text_event(adapter->erp_dbf, 5, "a_actab");
 	if (atomic_test_mask(ZFCP_STATUS_COMMON_ERP_INUSE, &adapter->status))
 		zfcp_erp_action_dismiss(&adapter->erp_action);
 	else
@@ -3281,10 +3022,7 @@ static void zfcp_erp_action_dismiss_adapter(struct zfcp_adapter *adapter)
 static void zfcp_erp_action_dismiss_port(struct zfcp_port *port)
 {
 	struct zfcp_unit *unit;
-	struct zfcp_adapter *adapter = port->adapter;
 
-	debug_text_event(adapter->erp_dbf, 5, "p_actab");
-	debug_event(adapter->erp_dbf, 5, &port->wwpn, sizeof (wwn_t));
 	if (atomic_test_mask(ZFCP_STATUS_COMMON_ERP_INUSE, &port->status))
 		zfcp_erp_action_dismiss(&port->erp_action);
 	else
@@ -3294,41 +3032,26 @@ static void zfcp_erp_action_dismiss_port(struct zfcp_port *port)
 
 static void zfcp_erp_action_dismiss_unit(struct zfcp_unit *unit)
 {
-	struct zfcp_adapter *adapter = unit->port->adapter;
-
-	debug_text_event(adapter->erp_dbf, 5, "u_actab");
-	debug_event(adapter->erp_dbf, 5, &unit->fcp_lun, sizeof (fcp_lun_t));
 	if (atomic_test_mask(ZFCP_STATUS_COMMON_ERP_INUSE, &unit->status))
 		zfcp_erp_action_dismiss(&unit->erp_action);
 }
 
 static void zfcp_erp_action_to_running(struct zfcp_erp_action *erp_action)
 {
-	struct zfcp_adapter *adapter = erp_action->adapter;
-
-	debug_text_event(adapter->erp_dbf, 6, "a_toru");
-	debug_event(adapter->erp_dbf, 6, &erp_action->action, sizeof (int));
 	list_move(&erp_action->list, &erp_action->adapter->erp_running_head);
 	zfcp_rec_dbf_event_action(145, erp_action);
 }
 
 static void zfcp_erp_action_to_ready(struct zfcp_erp_action *erp_action)
 {
-	struct zfcp_adapter *adapter = erp_action->adapter;
-
-	debug_text_event(adapter->erp_dbf, 6, "a_tore");
-	debug_event(adapter->erp_dbf, 6, &erp_action->action, sizeof (int));
 	list_move(&erp_action->list, &erp_action->adapter->erp_ready_head);
 	zfcp_rec_dbf_event_action(146, erp_action);
 }
 
 void zfcp_erp_port_boxed(struct zfcp_port *port, u8 id, u64 ref)
 {
-	struct zfcp_adapter *adapter = port->adapter;
 	unsigned long flags;
 
-	debug_text_event(adapter->erp_dbf, 3, "p_access_boxed");
-	debug_event(adapter->erp_dbf, 3, &port->wwpn, sizeof(wwn_t));
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
 	zfcp_erp_modify_port_status(port, id, ref,
 				    ZFCP_STATUS_COMMON_ACCESS_BOXED, ZFCP_SET);
@@ -3338,10 +3061,6 @@ void zfcp_erp_port_boxed(struct zfcp_port *port, u8 id, u64 ref)
 
 void zfcp_erp_unit_boxed(struct zfcp_unit *unit, u8 id, u64 ref)
 {
-	struct zfcp_adapter *adapter = unit->port->adapter;
-
-	debug_text_event(adapter->erp_dbf, 3, "u_access_boxed");
-	debug_event(adapter->erp_dbf, 3, &unit->fcp_lun, sizeof(fcp_lun_t));
 	zfcp_erp_modify_unit_status(unit, id, ref,
 				    ZFCP_STATUS_COMMON_ACCESS_BOXED, ZFCP_SET);
 	zfcp_erp_unit_reopen(unit, ZFCP_STATUS_COMMON_ERP_FAILED, id, ref);
@@ -3349,11 +3068,8 @@ void zfcp_erp_unit_boxed(struct zfcp_unit *unit, u8 id, u64 ref)
 
 void zfcp_erp_port_access_denied(struct zfcp_port *port, u8 id, u64 ref)
 {
-	struct zfcp_adapter *adapter = port->adapter;
 	unsigned long flags;
 
-	debug_text_event(adapter->erp_dbf, 3, "p_access_denied");
-	debug_event(adapter->erp_dbf, 3, &port->wwpn, sizeof(wwn_t));
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
 	zfcp_erp_modify_port_status(port, id, ref,
 				    ZFCP_STATUS_COMMON_ERP_FAILED |
@@ -3363,10 +3079,6 @@ void zfcp_erp_port_access_denied(struct zfcp_port *port, u8 id, u64 ref)
 
 void zfcp_erp_unit_access_denied(struct zfcp_unit *unit, u8 id, u64 ref)
 {
-	struct zfcp_adapter *adapter = unit->port->adapter;
-
-	debug_text_event(adapter->erp_dbf, 3, "u_access_denied");
-	debug_event(adapter->erp_dbf, 3, &unit->fcp_lun, sizeof(fcp_lun_t));
 	zfcp_erp_modify_unit_status(unit, id, ref,
 				    ZFCP_STATUS_COMMON_ERP_FAILED |
 				    ZFCP_STATUS_COMMON_ACCESS_DENIED, ZFCP_SET);
@@ -3381,9 +3093,6 @@ void zfcp_erp_adapter_access_changed(struct zfcp_adapter *adapter, u8 id,
 	if (adapter->connection_features & FSF_FEATURE_NPIV_MODE)
 		return;
 
-	debug_text_event(adapter->erp_dbf, 3, "a_access_recover");
-	debug_event(adapter->erp_dbf, 3, zfcp_get_busid_by_adapter(adapter), 8);
-
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
 	if (adapter->nameserver_port)
 		zfcp_erp_port_access_changed(adapter->nameserver_port, id, ref);
@@ -3397,9 +3106,6 @@ void zfcp_erp_port_access_changed(struct zfcp_port *port, u8 id, u64 ref)
 {
 	struct zfcp_adapter *adapter = port->adapter;
 	struct zfcp_unit *unit;
-
-	debug_text_event(adapter->erp_dbf, 3, "p_access_recover");
-	debug_event(adapter->erp_dbf, 3, &port->wwpn, sizeof(wwn_t));
 
 	if (!atomic_test_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED,
 			      &port->status) &&
@@ -3423,9 +3129,6 @@ void zfcp_erp_port_access_changed(struct zfcp_port *port, u8 id, u64 ref)
 void zfcp_erp_unit_access_changed(struct zfcp_unit *unit, u8 id, u64 ref)
 {
 	struct zfcp_adapter *adapter = unit->port->adapter;
-
-	debug_text_event(adapter->erp_dbf, 3, "u_access_recover");
-	debug_event(adapter->erp_dbf, 3, &unit->fcp_lun, sizeof(fcp_lun_t));
 
 	if (!atomic_test_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED,
 			      &unit->status) &&

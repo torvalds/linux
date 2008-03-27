@@ -1302,15 +1302,6 @@ int zfcp_adapter_debug_register(struct zfcp_adapter *adapter)
 	char dbf_name[DEBUG_MAX_NAME_LEN];
 
 	/* debug feature area which records recovery activity */
-	sprintf(dbf_name, "zfcp_%s_erp", zfcp_get_busid_by_adapter(adapter));
-	adapter->erp_dbf = debug_register(dbf_name, dbfsize, 2,
-					  sizeof(struct zfcp_erp_dbf_record));
-	if (!adapter->erp_dbf)
-		goto failed;
-	debug_register_view(adapter->erp_dbf, &debug_hex_ascii_view);
-	debug_set_level(adapter->erp_dbf, 3);
-
-	/* debug feature area which records recovery activity */
 	sprintf(dbf_name, "zfcp_%s_rec", zfcp_get_busid_by_adapter(adapter));
 	adapter->rec_dbf = debug_register(dbf_name, dbfsize, 1,
 					  sizeof(struct zfcp_rec_dbf_record));
@@ -1368,12 +1359,10 @@ void zfcp_adapter_debug_unregister(struct zfcp_adapter *adapter)
 	debug_unregister(adapter->san_dbf);
 	debug_unregister(adapter->hba_dbf);
 	debug_unregister(adapter->rec_dbf);
-	debug_unregister(adapter->erp_dbf);
 	adapter->scsi_dbf = NULL;
 	adapter->san_dbf = NULL;
 	adapter->hba_dbf = NULL;
 	adapter->rec_dbf = NULL;
-	adapter->erp_dbf = NULL;
 }
 
 #undef ZFCP_LOG_AREA

@@ -274,11 +274,6 @@ struct zfcp_dbf_dump {
 	u8 data[];		/* dump data */
 } __attribute__ ((packed));
 
-/* FIXME: to be inflated when reworking the erp dbf */
-struct zfcp_erp_dbf_record {
-	u8 dummy[16];
-} __attribute__ ((packed));
-
 struct zfcp_rec_dbf_record_thread {
 	u32 sema;
 	u32 total;
@@ -969,17 +964,14 @@ struct zfcp_adapter {
 	u32			erp_low_mem_count; /* nr of erp actions waiting
 						      for memory */
 	struct zfcp_port	*nameserver_port;  /* adapter's nameserver */
-	debug_info_t		*erp_dbf;
 	debug_info_t		*rec_dbf;
 	debug_info_t		*hba_dbf;
 	debug_info_t		*san_dbf;          /* debug feature areas */
 	debug_info_t		*scsi_dbf;
-	spinlock_t		erp_dbf_lock;
 	spinlock_t		rec_dbf_lock;
 	spinlock_t		hba_dbf_lock;
 	spinlock_t		san_dbf_lock;
 	spinlock_t		scsi_dbf_lock;
-	struct zfcp_erp_dbf_record	erp_dbf_buf;
 	struct zfcp_rec_dbf_record	rec_dbf_buf;
 	struct zfcp_hba_dbf_record	hba_dbf_buf;
 	struct zfcp_san_dbf_record	san_dbf_buf;
