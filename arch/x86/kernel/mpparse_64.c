@@ -678,6 +678,10 @@ void __cpuinit mp_register_lapic(u8 id, u8 enabled)
 	struct mpc_config_processor processor;
 	int boot_cpu = 0;
 
+	if (!enabled) {
+		++disabled_cpus;
+		return;
+	}
 	if (id == boot_cpu_physical_apicid)
 		boot_cpu = 1;
 
