@@ -63,6 +63,7 @@ extern struct list_head *seq_list_start_head(struct list_head *head,
 extern struct list_head *seq_list_next(void *v, struct list_head *head,
 		loff_t *ppos);
 
+#ifdef CONFIG_NET
 struct net;
 struct seq_net_private {
 #ifdef CONFIG_NET_NS
@@ -81,6 +82,7 @@ static inline struct net *seq_file_net(struct seq_file *seq)
 	return &init_net;
 #endif
 }
+#endif	/* CONFIG_NET */
 
 #endif
 #endif
