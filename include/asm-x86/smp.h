@@ -126,8 +126,39 @@ extern unsigned long setup_trampoline(void);
 
 void smp_store_cpu_info(int id);
 #define cpu_physical_id(cpu)	per_cpu(x86_cpu_to_apicid, cpu)
-#else
+
+/* We don't mark CPUs online until __cpu_up(), so we need another measure */
+static inline int num_booting_cpus(void)
+{
+	return cpus_weight(cpu_callout_map);
+}
+#endif /* CONFIG_SMP */
+
+#ifdef CONFIG_X86_32_SMP
+/*
+ * This function is needed by all SMP systems. It must _always_ be valid
+ * from the initial startup. We map APIC_BASE very early in page_setup(),
+ * so this is correct in the x86 case.
+ */
+DECLARE_PER_CPU(int, cpu_number);
+#define raw_smp_processor_id() (x86_read_percpu(cpu_number))
+extern int safe_smp_processor_id(void);
+
+#elif defined(CONFIG_X86_64_SMP)
+#define raw_smp_processor_id()	read_pda(cpunumber)
+
+#define stack_smp_processor_id()					\
+({								\
+	struct thread_info *ti;						\
+	__asm__("andq %%rsp,%0; ":"=r" (ti) : "0" (CURRENT_MASK));	\
+	ti->cpu;							\
+})
+#define safe_smp_processor_id()		smp_processor_id()
+
+#else /* !CONFIG_X86_32_SMP && !CONFIG_X86_64_SMP */
 #define cpu_physical_id(cpu)		boot_cpu_physical_apicid
+#define safe_smp_processor_id()		0
+#define stack_smp_processor_id() 	0
 #endif
 
 #ifdef CONFIG_X86_32
