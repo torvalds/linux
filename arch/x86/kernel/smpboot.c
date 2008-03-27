@@ -84,12 +84,13 @@ u16 x86_bios_cpu_apicid_init[NR_CPUS] __initdata
 				= { [0 ... NR_CPUS-1] = BAD_APICID };
 void *x86_bios_cpu_apicid_early_ptr;
 
-/* Internal processor count */
-unsigned int num_processors;
 unsigned disabled_cpus __cpuinitdata;
 
 u8 apicid_2_node[MAX_APICID];
 #endif
+
+/* Internal processor count */
+unsigned int num_processors;
 
 /* Bitmask of physically existing CPUs */
 physid_mask_t phys_cpu_present_map;
