@@ -867,8 +867,6 @@ void __init find_smp_config (void)
 		smp_scan_config(address, 0x400);
 }
 
-int es7000_plat;
-
 /* --------------------------------------------------------------------------
                             ACPI-based MP Configuration
    -------------------------------------------------------------------------- */
@@ -1028,6 +1026,8 @@ mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 	if (++mp_irq_entries == MAX_IRQ_SOURCES)
 		panic("Max # of irq sources exceeded!\n");
 }
+
+int es7000_plat;
 
 void __init mp_config_acpi_legacy_irqs (void)
 {
