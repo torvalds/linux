@@ -940,17 +940,9 @@ static int ppc405ex_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
 	 * PCIe boards don't show this problem.
 	 * This has to be re-tested and fixed in a later release!
 	 */
-#if 0 /* XXX FIXME: Not resetting the PHY will leave all resources
-       * configured as done previously by U-Boot. Then Linux will currently
-       * not reassign them. So the PHY reset is now done always. This will
-       * lead to problems with the Atheros PCIe board again.
-       */
 	val = mfdcri(SDR0, port->sdr_base + PESDRn_LOOP);
 	if (!(val & 0x00001000))
 		ppc405ex_pcie_phy_reset(port);
-#else
-	ppc405ex_pcie_phy_reset(port);
-#endif
 
 	dcr_write(port->dcrs, DCRO_PEGPL_CFG, 0x10000000);  /* guarded on */
 
