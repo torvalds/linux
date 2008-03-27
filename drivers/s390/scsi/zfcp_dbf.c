@@ -95,6 +95,22 @@ zfcp_dbf_view(char *out_buf, const char *label, const char *format, ...)
 	return len;
 }
 
+static void zfcp_dbf_outs(char **buf, const char *s1, const char *s2)
+{
+	*buf += sprintf(*buf, "%-24s%s\n", s1, s2);
+}
+
+static void zfcp_dbf_out(char **buf, const char *s, const char *format, ...)
+{
+	va_list arg;
+
+	*buf += sprintf(*buf, "%-24s", s);
+	va_start(arg, format);
+	*buf += vsprintf(*buf, format, arg);
+	va_end(arg);
+	*buf += sprintf(*buf, "\n");
+}
+
 static int
 zfcp_dbf_view_dump(char *out_buf, const char *label,
 		   char *buffer, int buflen, int offset, int total_size)
