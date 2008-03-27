@@ -1746,6 +1746,17 @@ shouldnt_be_hashed:
 	goto shouldnt_be_hashed;
 }
 
+static int prepend(char **buffer, int *buflen, const char *str,
+			  int namelen)
+{
+	*buflen -= namelen;
+	if (*buflen < 0)
+		return -ENAMETOOLONG;
+	*buffer -= namelen;
+	memcpy(*buffer, str, namelen);
+	return 0;
+}
+
 /**
  * d_path - return the path of a dentry
  * @dentry: dentry to report
@@ -1767,17 +1778,11 @@ static char *__d_path(struct dentry *dentry, struct vfsmount *vfsmnt,
 {
 	char * end = buffer+buflen;
 	char * retval;
-	int namelen;
 
-	*--end = '\0';
-	buflen--;
-	if (!IS_ROOT(dentry) && d_unhashed(dentry)) {
-		buflen -= 10;
-		end -= 10;
-		if (buflen < 0)
+	prepend(&end, &buflen, "\0", 1);
+	if (!IS_ROOT(dentry) && d_unhashed(dentry) &&
+		(prepend(&end, &buflen, " (deleted)", 10) != 0))
 			goto Elong;
-		memcpy(end, " (deleted)", 10);
-	}
 
 	if (buflen < 1)
 		goto Elong;
@@ -1804,13 +1809,10 @@ static char *__d_path(struct dentry *dentry, struct vfsmount *vfsmnt,
 		}
 		parent = dentry->d_parent;
 		prefetch(parent);
-		namelen = dentry->d_name.len;
-		buflen -= namelen + 1;
-		if (buflen < 0)
+		if ((prepend(&end, &buflen, dentry->d_name.name,
+				dentry->d_name.len) != 0) ||
+		    (prepend(&end, &buflen, "/", 1) != 0))
 			goto Elong;
-		end -= namelen;
-		memcpy(end, dentry->d_name.name, namelen);
-		*--end = '/';
 		retval = end;
 		dentry = parent;
 	}
@@ -1818,12 +1820,10 @@ static char *__d_path(struct dentry *dentry, struct vfsmount *vfsmnt,
 	return retval;
 
 global_root:
-	namelen = dentry->d_name.len;
-	buflen -= namelen;
-	if (buflen < 0)
+	retval += 1;	/* hit the slash */
+	if (prepend(&retval, &buflen, dentry->d_name.name,
+		    dentry->d_name.len) != 0)
 		goto Elong;
-	retval -= namelen-1;	/* hit the slash */
-	memcpy(retval, dentry->d_name.name, namelen);
 	return retval;
 Elong:
 	return ERR_PTR(-ENAMETOOLONG);
@@ -1859,7 +1859,7 @@ char *d_path(struct path *path, char *buf, int buflen)
 
 	read_lock(&current->fs->lock);
 	root = current->fs->root;
-	path_get(&current->fs->root);
+	path_get(&root);
 	read_unlock(&current->fs->lock);
 	spin_lock(&dcache_lock);
 	res = __d_path(path->dentry, path->mnt, &root, buf, buflen);
@@ -1887,6 +1887,48 @@ char *dynamic_dname(struct dentry *dentry, char *buffer, int buflen,
 
 	buffer += buflen - sz;
 	return memcpy(buffer, temp, sz);
+}
+
+/*
+ * Write full pathname from the root of the filesystem into the buffer.
+ */
+char *dentry_path(struct dentry *dentry, char *buf, int buflen)
+{
+	char *end = buf + buflen;
+	char *retval;
+
+	spin_lock(&dcache_lock);
+	prepend(&end, &buflen, "\0", 1);
+	if (!IS_ROOT(dentry) && d_unhashed(dentry) &&
+		(prepend(&end, &buflen, "//deleted", 9) != 0))
+			goto Elong;
+	if (buflen < 1)
+		goto Elong;
+	/* Get '/' right */
+	retval = end-1;
+	*retval = '/';
+
+	for (;;) {
+		struct dentry *parent;
+		if (IS_ROOT(dentry))
+			break;
+
+		parent = dentry->d_parent;
+		prefetch(parent);
+
+		if ((prepend(&end, &buflen, dentry->d_name.name,
+				dentry->d_name.len) != 0) ||
+		    (prepend(&end, &buflen, "/", 1) != 0))
+			goto Elong;
+
+		retval = end;
+		dentry = parent;
+	}
+	spin_unlock(&dcache_lock);
+	return retval;
+Elong:
+	spin_unlock(&dcache_lock);
+	return ERR_PTR(-ENAMETOOLONG);
 }
 
 /*
@@ -1918,9 +1960,9 @@ asmlinkage long sys_getcwd(char __user *buf, unsigned long size)
 
 	read_lock(&current->fs->lock);
 	pwd = current->fs->pwd;
-	path_get(&current->fs->pwd);
+	path_get(&pwd);
 	root = current->fs->root;
-	path_get(&current->fs->root);
+	path_get(&root);
 	read_unlock(&current->fs->lock);
 
 	error = -ENOENT;
