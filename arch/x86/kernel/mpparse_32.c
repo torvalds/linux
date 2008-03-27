@@ -61,13 +61,11 @@ int nr_ioapics;
 
 int pic_mode;
 
-/* Processor that is doing the boot up */
-unsigned int boot_cpu_physical_apicid = -1U;
-
 /* Make it easy to share the UP and SMP code: */
 #ifndef CONFIG_X86_SMP
 unsigned int num_processors;
 unsigned disabled_cpus __cpuinitdata;
+unsigned int boot_cpu_physical_apicid = -1U;
 #endif
 
 /* Make it easy to share the UP and SMP code: */
