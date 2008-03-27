@@ -6194,7 +6194,7 @@ xfs_bmap_check_leaf_extents(
 	xfs_mount_t		*mp;	/* file system mount structure */
 	__be64			*pp;	/* pointer to block address */
 	xfs_bmbt_rec_t		*ep;	/* pointer to current extent */
-	xfs_bmbt_rec_t		*lastp; /* pointer to previous extent */
+	xfs_bmbt_rec_t		last = {0, 0}; /* last extent in prev block */
 	xfs_bmbt_rec_t		*nextp;	/* pointer to next extent */
 	int			bp_release = 0;
 
@@ -6264,7 +6264,6 @@ xfs_bmap_check_leaf_extents(
 	/*
 	 * Loop over all leaf nodes checking that all extents are in the right order.
 	 */
-	lastp = NULL;
 	for (;;) {
 		xfs_fsblock_t	nextbno;
 		xfs_extnum_t	num_recs;
@@ -6285,18 +6284,16 @@ xfs_bmap_check_leaf_extents(
 		 */
 
 		ep = XFS_BTREE_REC_ADDR(xfs_bmbt, block, 1);
+		if (i) {
+			xfs_btree_check_rec(XFS_BTNUM_BMAP, &last, ep);
+		}
 		for (j = 1; j < num_recs; j++) {
 			nextp = XFS_BTREE_REC_ADDR(xfs_bmbt, block, j + 1);
-			if (lastp) {
-				xfs_btree_check_rec(XFS_BTNUM_BMAP,
-					(void *)lastp, (void *)ep);
-			}
-			xfs_btree_check_rec(XFS_BTNUM_BMAP, (void *)ep,
-				(void *)(nextp));
-			lastp = ep;
+			xfs_btree_check_rec(XFS_BTNUM_BMAP, ep, nextp);
 			ep = nextp;
 		}
 
+		last = *ep;
 		i += num_recs;
 		if (bp_release) {
 			bp_release = 0;
