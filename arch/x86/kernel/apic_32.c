@@ -55,6 +55,9 @@ unsigned long mp_lapic_addr;
 /* Processor that is doing the boot up */
 unsigned int boot_cpu_physical_apicid = -1U;
 
+DEFINE_PER_CPU(u16, x86_bios_cpu_apicid) = BAD_APICID;
+EXPORT_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
+
 /*
  * Knob to control our willingness to enable the local APIC.
  *
