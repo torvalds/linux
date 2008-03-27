@@ -27,8 +27,9 @@
 /*
  * __system_reset_overlay - The PS3 first stage entry.
  *
- * The bootwraper build script copies the 0x100 bytes at symbol
- * __system_reset_overlay to offset 0x100 of the rom image.
+ * The bootwraper build script copies the 512 bytes at symbol
+ * __system_reset_overlay to offset 0x100 of the rom image.  This symbol
+ * must occupy 512 or less bytes.
  *
  * The PS3 has a single processor with two threads.
  */
@@ -47,8 +48,6 @@ __system_reset_overlay:
 
 	mfspr	r3, 0x88
 	cntlzw.	r3, r3
-	li	r4, 0
-	li	r5, 0
 	beq	1f
 
 	/* Secondary goes to __secondary_hold in kernel. */
@@ -57,8 +56,14 @@ __system_reset_overlay:
 	mtctr	r4
 	bctr
 
-	/* Primary delays then goes to _zimage_start in wrapper. */
 1:
+	/* Save the value at addr zero for a null pointer write check later. */
+
+	li	r4, 0
+	lwz	r3, 0(r4)
+
+	/* Primary delays then goes to _zimage_start in wrapper. */
+
 	or	31, 31, 31 /* db16cyc */
 	or	31, 31, 31 /* db16cyc */
 
@@ -67,16 +72,18 @@ __system_reset_overlay:
 	mtctr	r4
 	bctr
 
+	. = __system_reset_overlay + 512
+
 /*
  * __system_reset_kernel - Place holder for the kernel reset vector.
  *
- * The bootwrapper build script copies 0x100 bytes from offset 0x100
+ * The bootwrapper build script copies 512 bytes from offset 0x100
  * of the rom image to the symbol __system_reset_kernel.  At runtime
- * the bootwrapper program copies the 0x100 bytes at __system_reset_kernel
- * to ram address 0x100.  This symbol must occupy 0x100 bytes.
+ * the bootwrapper program copies the 512 bytes at __system_reset_kernel
+ * to ram address 0x100.  This symbol must occupy 512 bytes.
  */
 
 	.globl __system_reset_kernel
 __system_reset_kernel:
 
-	. = __system_reset_kernel + 0x100
+	. = __system_reset_kernel + 512
