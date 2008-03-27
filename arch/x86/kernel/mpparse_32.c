@@ -65,8 +65,11 @@ unsigned int def_to_bigsmp = 0;
 
 /* Processor that is doing the boot up */
 unsigned int boot_cpu_physical_apicid = -1U;
-/* Internal processor count */
+
+/* Make it easy to share the UP and SMP code: */
+#ifndef CONFIG_X86_SMP
 unsigned int num_processors;
+#endif
 
 unsigned disabled_cpus __cpuinitdata;
 
