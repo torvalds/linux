@@ -1,22 +1,6 @@
 #ifndef __ASM_SMP_H
 #define __ASM_SMP_H
 
-#include <linux/cpumask.h>
-#include <linux/init.h>
-
-/*
- * We need the APIC definitions automatically as part of 'smp.h'
- */
-#ifdef CONFIG_X86_LOCAL_APIC
-#  include <asm/mpspec.h>
-#  include <asm/apic.h>
-#  ifdef CONFIG_X86_IO_APIC
-#   include <asm/io_apic.h>
-#  endif
-#endif
-#include <asm/pda.h>
-#include <asm/thread_info.h>
-
 extern cpumask_t cpu_initialized;
 extern cpumask_t cpu_callin_map;
 
