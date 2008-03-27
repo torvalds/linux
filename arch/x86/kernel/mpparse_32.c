@@ -114,7 +114,6 @@ static void __cpuinit generic_processor_info(int apicid, int version)
 	int cpu;
 	cpumask_t tmp_map;
 	physid_mask_t phys_cpu;
- 	
 
 	/*
 	 * Validate version
@@ -893,34 +892,18 @@ void __init mp_register_lapic_address(u64 address)
 
 void __cpuinit mp_register_lapic (u8 id, u8 enabled)
 {
-	struct mpc_config_processor processor;
-	int boot_cpu = 0;
-	
 	if (MAX_APICS - id <= 0) {
 		printk(KERN_WARNING "Processor #%d invalid (max %d)\n",
 			id, MAX_APICS);
 		return;
 	}
+
 	if (!enabled) {
 		++disabled_cpus;
 		return;
 	}
 
-	if (id == boot_cpu_physical_apicid)
-		boot_cpu = 1;
-
-	processor.mpc_type = MP_PROCESSOR;
-	processor.mpc_apicid = id;
-	processor.mpc_apicver = GET_APIC_VERSION(apic_read(APIC_LVR));
-	processor.mpc_cpuflag = (enabled ? CPU_ENABLED : 0);
-	processor.mpc_cpuflag |= (boot_cpu ? CPU_BOOTPROCESSOR : 0);
-	processor.mpc_cpufeature = (boot_cpu_data.x86 << 8) | 
-		(boot_cpu_data.x86_model << 4) | boot_cpu_data.x86_mask;
-	processor.mpc_featureflag = boot_cpu_data.x86_capability[0];
-	processor.mpc_reserved[0] = 0;
-	processor.mpc_reserved[1] = 0;
-
-	MP_processor_info(&processor);
+	generic_processor_info(id, GET_APIC_VERSION(apic_read(APIC_LVR)));
 }
 
 #ifdef	CONFIG_X86_IO_APIC
