@@ -25,7 +25,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
 #include <asm/arch/orion.h>
-#include <asm/arch/platform.h>
+#include <asm/plat-orion/orion_nand.h>
 #include "common.h"
 
 /*****************************************************************************

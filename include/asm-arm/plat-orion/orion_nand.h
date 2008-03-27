@@ -1,15 +1,13 @@
 /*
- * asm-arm/arch-orion/platform.h
- *
- * Tzachi Perelstein <tzachi@marvell.com>
+ * include/asm-arm/plat-orion/orion_nand.h
  *
  * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
+ * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
 
-#ifndef __ASM_ARCH_PLATFORM_H__
-#define __ASM_ARCH_PLATFORM_H__
+#ifndef __ASM_PLAT_ORION_ORION_NAND_H
+#define __ASM_PLAT_ORION_ORION_NAND_H
 
 /*
  * Device bus NAND private data

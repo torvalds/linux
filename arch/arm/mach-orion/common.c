@@ -26,8 +26,8 @@
 #include <asm/mach/time.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/orion.h>
-#include <asm/arch/platform.h>
 #include <asm/plat-orion/ehci-orion.h>
+#include <asm/plat-orion/orion_nand.h>
 #include <asm/plat-orion/time.h>
 #include "common.h"
 
