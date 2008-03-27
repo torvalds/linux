@@ -27,12 +27,12 @@ static inline int num_booting_cpus(void)
 	return cpus_weight(cpu_callout_map);
 }
 
+#define safe_smp_processor_id()		smp_processor_id()
 #else /* CONFIG_SMP */
 #define stack_smp_processor_id() 0
-
+#define safe_smp_processor_id() 0
 #endif /* !CONFIG_SMP */
 
-#define safe_smp_processor_id()		smp_processor_id()
 
 #endif
 
