@@ -1212,7 +1212,6 @@ static int suspend(int vetoable)
 	local_irq_enable();
 	device_resume();
 	queue_event(APM_NORMAL_RESUME, NULL);
- out:
 	spin_lock(&user_list_lock);
 	for (as = user_list; as != NULL; as = as->next) {
 		as->suspend_wait = 0;
