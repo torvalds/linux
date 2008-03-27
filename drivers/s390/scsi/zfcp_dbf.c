@@ -31,6 +31,24 @@ MODULE_PARM_DESC(dbfsize,
 
 #define ZFCP_LOG_AREA			ZFCP_LOG_AREA_OTHER
 
+static void zfcp_dbf_hexdump(debug_info_t *dbf, void *to, int to_len,
+			     int level, char *from, int from_len)
+{
+	int offset;
+	struct zfcp_dbf_dump *dump = to;
+	int room = to_len - sizeof(*dump);
+
+	for (offset = 0; offset < from_len; offset += dump->size) {
+		memset(to, 0, to_len);
+		strncpy(dump->tag, "dump", ZFCP_DBF_TAG_SIZE);
+		dump->total_size = from_len;
+		dump->offset = offset;
+		dump->size = min(from_len - offset, room);
+		memcpy(dump->data, from + offset, dump->size);
+		debug_event(dbf, level, dump, dump->size);
+	}
+}
+
 static int
 zfcp_dbf_stck(char *out_buf, const char *label, unsigned long long stck)
 {
