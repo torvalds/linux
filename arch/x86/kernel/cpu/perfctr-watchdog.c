@@ -667,8 +667,10 @@ int lapic_watchdog_init(unsigned nmi_hz)
 {
 	if (!wd_ops) {
 		probe_nmi_watchdog();
-		if (!wd_ops)
+		if (!wd_ops) {
+			printk(KERN_INFO "NMI watchdog: CPU not supported\n");
 			return -1;
+		}
 
 		if (!wd_ops->reserve()) {
 			printk(KERN_ERR
