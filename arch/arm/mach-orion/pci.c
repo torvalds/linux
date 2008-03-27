@@ -35,7 +35,7 @@
  ****************************************************************************/
 #define PCIE_BASE	((void __iomem *)ORION_PCIE_VIRT_BASE)
 
-void orion_pcie_id(u32 *dev, u32 *rev)
+void __init orion_pcie_id(u32 *dev, u32 *rev)
 {
 	*dev = orion_pcie_dev_id(PCIE_BASE);
 	*rev = orion_pcie_rev(PCIE_BASE);
@@ -136,7 +136,7 @@ struct pci_ops pcie_ops = {
 };
 
 
-static int pcie_setup(struct pci_sys_data *sys)
+static int __init pcie_setup(struct pci_sys_data *sys)
 {
 	struct resource *res;
 	int dev;
@@ -362,7 +362,7 @@ struct pci_ops pci_ops = {
 	.write = orion_pci_wr_conf,
 };
 
-static void orion_pci_set_bus_nr(int nr)
+static void __init orion_pci_set_bus_nr(int nr)
 {
 	u32 p2p = orion_read(PCI_P2P_CONF);
 
@@ -387,7 +387,7 @@ static void orion_pci_set_bus_nr(int nr)
 	}
 }
 
-static void orion_pci_master_slave_enable(void)
+static void __init orion_pci_master_slave_enable(void)
 {
 	int bus_nr, dev_nr, func, reg;
 	u32 val;
@@ -401,7 +401,7 @@ static void orion_pci_master_slave_enable(void)
 	orion_pci_hw_wr_conf(bus_nr, dev_nr, func, reg, 4, val | 0x7);
 }
 
-static void orion_setup_pci_wins(struct mbus_dram_target_info *dram)
+static void __init orion_setup_pci_wins(struct mbus_dram_target_info *dram)
 {
 	u32 win_enable;
 	int bus;
@@ -461,7 +461,7 @@ static void orion_setup_pci_wins(struct mbus_dram_target_info *dram)
 	orion_setbits(PCI_ADDR_DECODE_CTRL, 1);
 }
 
-static int pci_setup(struct pci_sys_data *sys)
+static int __init pci_setup(struct pci_sys_data *sys)
 {
 	struct resource *res;
 
@@ -519,7 +519,7 @@ static int pci_setup(struct pci_sys_data *sys)
 /*****************************************************************************
  * General PCIE + PCI
  ****************************************************************************/
-int orion_pci_sys_setup(int nr, struct pci_sys_data *sys)
+int __init orion_pci_sys_setup(int nr, struct pci_sys_data *sys)
 {
 	int ret = 0;
 
@@ -534,7 +534,7 @@ int orion_pci_sys_setup(int nr, struct pci_sys_data *sys)
 	return ret;
 }
 
-struct pci_bus *orion_pci_sys_scan_bus(int nr, struct pci_sys_data *sys)
+struct pci_bus __init *orion_pci_sys_scan_bus(int nr, struct pci_sys_data *sys)
 {
 	struct pci_bus *bus;
 

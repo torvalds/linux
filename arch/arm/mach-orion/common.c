@@ -319,7 +319,7 @@ struct sys_timer orion_timer = {
 /*
  * Identify device ID and rev from PCIE configuration header space '0'.
  */
-static void orion_id(u32 *dev, u32 *rev, char **dev_name)
+static void __init orion_id(u32 *dev, u32 *rev, char **dev_name)
 {
 	orion_pcie_id(dev, rev);
 
