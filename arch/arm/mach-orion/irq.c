@@ -15,6 +15,7 @@
 #include <linux/irq.h>
 #include <asm/gpio.h>
 #include <asm/arch/orion.h>
+#include <asm/plat-orion/irq.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -197,41 +198,9 @@ static void __init orion_init_gpio_irq(void)
 /*****************************************************************************
  * Orion Main IRQ
  ****************************************************************************/
-static void orion_main_irq_mask(u32 irq)
-{
-	orion_clrbits(MAIN_IRQ_MASK, 1 << irq);
-}
-
-static void orion_main_irq_unmask(u32 irq)
-{
-	orion_setbits(MAIN_IRQ_MASK, 1 << irq);
-}
-
-static struct irq_chip orion_main_irq_chip = {
-	.name		= "Orion-IRQ-Main",
-	.ack		= orion_main_irq_mask,
-	.mask		= orion_main_irq_mask,
-	.unmask		= orion_main_irq_unmask,
-};
-
 static void __init orion_init_main_irq(void)
 {
-	int i;
-
-	/*
-	 * Mask and clear Main IRQ interrupts
-	 */
-	orion_write(MAIN_IRQ_MASK, 0x0);
-	orion_write(MAIN_IRQ_CAUSE, 0x0);
-
-	/*
-	 * Register level handler for Main IRQs
-	 */
-	for (i = 0; i < IRQ_ORION_GPIO_START; i++) {
-		set_irq_chip(i, &orion_main_irq_chip);
-		set_irq_handler(i, handle_level_irq);
-		set_irq_flags(i, IRQF_VALID);
-	}
+	orion_irq_init(0, (void __iomem *)MAIN_IRQ_MASK);
 }
 
 void __init orion_init_irq(void)
