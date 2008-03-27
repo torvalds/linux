@@ -3163,6 +3163,15 @@ static struct sas_domain_function_template mvs_transport_ops = {
 static struct pci_device_id __devinitdata mvs_pci_table[] = {
 	{ PCI_VDEVICE(MARVELL, 0x6320), chip_6320 },
 	{ PCI_VDEVICE(MARVELL, 0x6340), chip_6440 },
+	{
+		.vendor 	= PCI_VENDOR_ID_MARVELL,
+		.device 	= 0x6440,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= 0x6480,
+		.class		= 0,
+		.class_mask	= 0,
+		.driver_data	= chip_6480,
+	},
 	{ PCI_VDEVICE(MARVELL, 0x6440), chip_6440 },
 	{ PCI_VDEVICE(MARVELL, 0x6480), chip_6480 },
 
