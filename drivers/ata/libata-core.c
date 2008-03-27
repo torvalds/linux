@@ -4800,32 +4800,6 @@ int ata_link_offline(struct ata_link *link)
 	return 0;
 }
 
-int ata_flush_cache(struct ata_device *dev)
-{
-	unsigned int err_mask;
-	u8 cmd;
-
-	if (!ata_try_flush_cache(dev))
-		return 0;
-
-	if (dev->flags & ATA_DFLAG_FLUSH_EXT)
-		cmd = ATA_CMD_FLUSH_EXT;
-	else
-		cmd = ATA_CMD_FLUSH;
-
-	/* This is wrong. On a failed flush we get back the LBA of the lost
-	   sector and we should (assuming it wasn't aborted as unknown) issue
-	   a further flush command to continue the writeback until it
-	   does not error */
-	err_mask = ata_do_simple_cmd(dev, cmd);
-	if (err_mask) {
-		ata_dev_printk(dev, KERN_ERR, "failed to flush cache\n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
 #ifdef CONFIG_PM
 static int ata_host_request_pm(struct ata_host *host, pm_message_t mesg,
 			       unsigned int action, unsigned int ehi_flags,
