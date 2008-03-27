@@ -173,6 +173,7 @@ extern void zfcp_rec_dbf_event_unit(u8 id, u64 ref, struct zfcp_unit *unit);
 extern void zfcp_rec_dbf_event_trigger(u8 id, u64 ref, u8 want, u8 need,
 				       u64 action, struct zfcp_adapter *,
 				       struct zfcp_port *, struct zfcp_unit *);
+extern void zfcp_rec_dbf_event_action(u8 id, struct zfcp_erp_action *);
 
 extern void zfcp_hba_dbf_event_fsf_response(struct zfcp_fsf_req *);
 extern void zfcp_hba_dbf_event_fsf_unsol(const char *, struct zfcp_adapter *,

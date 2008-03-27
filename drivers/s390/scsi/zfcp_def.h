@@ -307,10 +307,18 @@ struct zfcp_rec_dbf_record_trigger {
 	u64 fcp_lun;
 } __attribute__ ((packed));
 
+struct zfcp_rec_dbf_record_action {
+	u32 status;
+	u32 step;
+	u64 action;
+	u64 fsf_req;
+} __attribute__ ((packed));
+
 struct zfcp_rec_dbf_record {
 	u8 id;
 	u8 id2;
 	union {
+		struct zfcp_rec_dbf_record_action action;
 		struct zfcp_rec_dbf_record_thread thread;
 		struct zfcp_rec_dbf_record_target target;
 		struct zfcp_rec_dbf_record_trigger trigger;
@@ -318,6 +326,7 @@ struct zfcp_rec_dbf_record {
 } __attribute__ ((packed));
 
 enum {
+	ZFCP_REC_DBF_ID_ACTION,
 	ZFCP_REC_DBF_ID_THREAD,
 	ZFCP_REC_DBF_ID_TARGET,
 	ZFCP_REC_DBF_ID_TRIGGER,

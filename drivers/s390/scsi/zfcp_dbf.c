@@ -524,6 +524,7 @@ static const char *zfcp_rec_dbf_tags[] = {
 	[ZFCP_REC_DBF_ID_THREAD] = "thread",
 	[ZFCP_REC_DBF_ID_TARGET] = "target",
 	[ZFCP_REC_DBF_ID_TRIGGER] = "trigger",
+	[ZFCP_REC_DBF_ID_ACTION] = "action",
 };
 
 static const char *zfcp_rec_dbf_ids[] = {
@@ -671,6 +672,11 @@ static const char *zfcp_rec_dbf_ids[] = {
 	[139]	= "hbaapi unit shutdown",
 	[140]	= "qdio error",
 	[141]	= "scsi host reset",
+	[142]	= "dismissing fsf request for recovery action",
+	[143]	= "recovery action timed out",
+	[144]	= "recovery action gone",
+	[145]	= "recovery action being processed",
+	[146]	= "recovery action ready for next step",
 };
 
 static int zfcp_rec_dbf_view_format(debug_info_t *id, struct debug_view *view,
@@ -707,6 +713,12 @@ static int zfcp_rec_dbf_view_format(debug_info_t *id, struct debug_view *view,
 		zfcp_dbf_out(&p, "adapter_status", "0x%08x", r->u.trigger.as);
 		zfcp_dbf_out(&p, "port_status", "0x%08x", r->u.trigger.ps);
 		zfcp_dbf_out(&p, "unit_status", "0x%08x", r->u.trigger.us);
+		break;
+	case ZFCP_REC_DBF_ID_ACTION:
+		zfcp_dbf_out(&p, "erp_action", "0x%016Lx", r->u.action.action);
+		zfcp_dbf_out(&p, "fsf_req", "0x%016Lx", r->u.action.fsf_req);
+		zfcp_dbf_out(&p, "status", "0x%08Lx", r->u.action.status);
+		zfcp_dbf_out(&p, "step", "0x%08Lx", r->u.action.step);
 		break;
 	}
 	sprintf(p, "\n");
@@ -858,6 +870,29 @@ void zfcp_rec_dbf_event_trigger(u8 id2, u64 ref, u8 want, u8 need, u64 action,
 		r->u.trigger.fcp_lun = unit->fcp_lun;
 	}
 	debug_event(adapter->rec_dbf, action ? 1 : 4, r, sizeof(*r));
+	spin_unlock_irqrestore(&adapter->rec_dbf_lock, flags);
+}
+
+/**
+ * zfcp_rec_dbf_event_action - trace event showing progress of recovery action
+ * @id2: identifier
+ * @erp_action: error recovery action struct pointer
+ */
+void zfcp_rec_dbf_event_action(u8 id2, struct zfcp_erp_action *erp_action)
+{
+	struct zfcp_adapter *adapter = erp_action->adapter;
+	struct zfcp_rec_dbf_record *r = &adapter->rec_dbf_buf;
+	unsigned long flags;
+
+	spin_lock_irqsave(&adapter->rec_dbf_lock, flags);
+	memset(r, 0, sizeof(*r));
+	r->id = ZFCP_REC_DBF_ID_ACTION;
+	r->id2 = id2;
+	r->u.action.action = (u64)erp_action;
+	r->u.action.status = erp_action->status;
+	r->u.action.step = erp_action->step;
+	r->u.action.fsf_req = (u64)erp_action->fsf_req;
+	debug_event(adapter->rec_dbf, 4, r, sizeof(*r));
 	spin_unlock_irqrestore(&adapter->rec_dbf_lock, flags);
 }
 

@@ -893,8 +893,10 @@ zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
 						 "a_ca_disreq");
 				erp_action->fsf_req->status |=
 					ZFCP_STATUS_FSFREQ_DISMISSED;
+				zfcp_rec_dbf_event_action(142, erp_action);
 			}
 			if (erp_action->status & ZFCP_STATUS_ERP_TIMEDOUT) {
+				zfcp_rec_dbf_event_action(143, erp_action);
 				ZFCP_LOG_NORMAL("error: erp step timed out "
 						"(action=%d, fsf_req=%p)\n ",
 						erp_action->action,
@@ -3162,6 +3164,8 @@ zfcp_erp_action_dequeue(struct zfcp_erp_action *erp_action)
 	debug_text_event(adapter->erp_dbf, 4, "a_actdeq");
 	debug_event(adapter->erp_dbf, 4, &erp_action->action, sizeof (int));
 	list_del(&erp_action->list);
+	zfcp_rec_dbf_event_action(144, erp_action);
+
 	switch (erp_action->action) {
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
 		atomic_clear_mask(ZFCP_STATUS_COMMON_ERP_INUSE,
@@ -3305,6 +3309,7 @@ static void zfcp_erp_action_to_running(struct zfcp_erp_action *erp_action)
 	debug_text_event(adapter->erp_dbf, 6, "a_toru");
 	debug_event(adapter->erp_dbf, 6, &erp_action->action, sizeof (int));
 	list_move(&erp_action->list, &erp_action->adapter->erp_running_head);
+	zfcp_rec_dbf_event_action(145, erp_action);
 }
 
 static void zfcp_erp_action_to_ready(struct zfcp_erp_action *erp_action)
@@ -3314,6 +3319,7 @@ static void zfcp_erp_action_to_ready(struct zfcp_erp_action *erp_action)
 	debug_text_event(adapter->erp_dbf, 6, "a_tore");
 	debug_event(adapter->erp_dbf, 6, &erp_action->action, sizeof (int));
 	list_move(&erp_action->list, &erp_action->adapter->erp_ready_head);
+	zfcp_rec_dbf_event_action(146, erp_action);
 }
 
 void zfcp_erp_port_boxed(struct zfcp_port *port, u8 id, u64 ref)
