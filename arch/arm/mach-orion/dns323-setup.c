@@ -251,16 +251,13 @@ static void __init dns323_init(void)
 	/* setup flash mapping
 	 * CS3 holds a 8 MB Spansion S29GL064M90TFIR4
 	 */
-	orion_setup_cpu_win(ORION_DEV_BOOT, DNS323_NOR_BOOT_BASE,
-			    DNS323_NOR_BOOT_SIZE, -1);
+	orion_setup_dev_boot_win(DNS323_NOR_BOOT_BASE, DNS323_NOR_BOOT_SIZE);
 
 	/* DNS-323 has a Marvell 88X7042 SATA controller attached via PCIE
 	 *
 	 * Open a special address decode windows for the PCIE WA.
 	 */
-	orion_write(ORION_REGS_VIRT_BASE | 0x20074, ORION_PCIE_WA_PHYS_BASE);
-	orion_write(ORION_REGS_VIRT_BASE | 0x20070,
-		    (0x7941 | (((ORION_PCIE_WA_SIZE >> 16) - 1)) << 16));
+	orion_setup_pcie_wa_win(ORION_PCIE_WA_PHYS_BASE, ORION_PCIE_WA_SIZE);
 
 	/* set MPP to 0 as D-Link's 2.6.12.6 kernel did */
 	orion_write(MPP_0_7_CTRL, 0);

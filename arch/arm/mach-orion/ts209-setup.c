@@ -288,15 +288,13 @@ static void __init qnap_ts209_init(void)
 	/*
 	 * Setup flash mapping
 	 */
-	orion_setup_cpu_win(ORION_DEV_BOOT, QNAP_TS209_NOR_BOOT_BASE,
-			    QNAP_TS209_NOR_BOOT_SIZE, -1);
+	orion_setup_dev_boot_win(QNAP_TS209_NOR_BOOT_BASE,
+			    QNAP_TS209_NOR_BOOT_SIZE);
 
 	/*
 	 * Open a special address decode windows for the PCIE WA.
 	 */
-	orion_write(ORION_REGS_VIRT_BASE | 0x20074, ORION_PCIE_WA_PHYS_BASE);
-	orion_write(ORION_REGS_VIRT_BASE | 0x20070, (0x7941 |
-		(((ORION_PCIE_WA_SIZE >> 16) - 1)) << 16));
+	orion_setup_pcie_wa_win(ORION_PCIE_WA_PHYS_BASE, ORION_PCIE_WA_SIZE);
 
 	/*
 	 * Setup Multiplexing Pins --

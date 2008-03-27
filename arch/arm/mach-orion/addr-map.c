@@ -25,10 +25,10 @@
  * CPU address decoding --
  * Linux assumes that it is the boot loader that already setup the access to
  * DDR and internal registers.
- * Setup access to PCI and PCI-E IO/MEM space is issued by core.c.
+ * Setup access to PCI and PCI-E IO/MEM space is issued by this file.
  * Setup access to various devices located on the device bus interface (e.g.
  * flashes, RTC, etc) should be issued by machine-setup.c according to
- * specific board population (by using orion_setup_cpu_win()).
+ * specific board population (by using orion_setup_*_win()).
  *
  * Non-CPU Masters address decoding --
  * Unlike the CPU, we setup the access from Orion's master interfaces to DDR
@@ -53,6 +53,7 @@
 				((n) == 3) ? 0x7 : 0xf)
 #define ATTR_PCIE_MEM		0x59
 #define ATTR_PCIE_IO		0x51
+#define ATTR_PCIE_WA		0x79
 #define ATTR_PCI_MEM		0x59
 #define ATTR_PCI_IO		0x51
 #define ATTR_DEV_CS0		0x1e
@@ -78,19 +79,6 @@
 #define CPU_WIN_BASE(n)		ORION_BRIDGE_REG(0x004 | ((n) << 4))
 #define CPU_WIN_REMAP_LO(n)	ORION_BRIDGE_REG(0x008 | ((n) << 4))
 #define CPU_WIN_REMAP_HI(n)	ORION_BRIDGE_REG(0x00c | ((n) << 4))
-#define CPU_MAX_WIN		8
-
-/*
- * Use this CPU address decode windows allocation
- */
-#define CPU_WIN_PCIE_IO		0
-#define CPU_WIN_PCI_IO		1
-#define CPU_WIN_PCIE_MEM	2
-#define CPU_WIN_PCI_MEM		3
-#define CPU_WIN_DEV_BOOT	4
-#define CPU_WIN_DEV_CS0		5
-#define CPU_WIN_DEV_CS1		6
-#define CPU_WIN_DEV_CS2		7
 
 /*
  * Gigabit Ethernet Address Decode Windows registers
@@ -106,7 +94,7 @@
 
 struct mbus_dram_target_info orion_mbus_dram_info;
 
-static int __init orion_cpu_win_can_remap(u32 win)
+static int __init orion_cpu_win_can_remap(int win)
 {
 	u32 dev, rev;
 
@@ -119,88 +107,31 @@ static int __init orion_cpu_win_can_remap(u32 win)
 	return 0;
 }
 
-void __init orion_setup_cpu_win(enum orion_target target, u32 base, u32 size, int remap)
+static void __init setup_cpu_win(int win, u32 base, u32 size,
+				 u8 target, u8 attr, int remap)
 {
-	u32 win, attr, ctrl;
-
-	switch (target) {
-	case ORION_PCIE_IO:
-		target = TARGET_PCIE;
-		attr = ATTR_PCIE_IO;
-		win = CPU_WIN_PCIE_IO;
-		break;
-	case ORION_PCI_IO:
-		target = TARGET_PCI;
-		attr = ATTR_PCI_IO;
-		win = CPU_WIN_PCI_IO;
-		break;
-	case ORION_PCIE_MEM:
-		target = TARGET_PCIE;
-		attr = ATTR_PCIE_MEM;
-		win = CPU_WIN_PCIE_MEM;
-		break;
-	case ORION_PCI_MEM:
-		target = TARGET_PCI;
-		attr = ATTR_PCI_MEM;
-		win = CPU_WIN_PCI_MEM;
-		break;
-	case ORION_DEV_BOOT:
-		target = TARGET_DEV_BUS;
-		attr = ATTR_DEV_BOOT;
-		win = CPU_WIN_DEV_BOOT;
-		break;
-	case ORION_DEV0:
-		target = TARGET_DEV_BUS;
-		attr = ATTR_DEV_CS0;
-		win = CPU_WIN_DEV_CS0;
-		break;
-	case ORION_DEV1:
-		target = TARGET_DEV_BUS;
-		attr = ATTR_DEV_CS1;
-		win = CPU_WIN_DEV_CS1;
-		break;
-	case ORION_DEV2:
-		target = TARGET_DEV_BUS;
-		attr = ATTR_DEV_CS2;
-		win = CPU_WIN_DEV_CS2;
-		break;
-	case ORION_DDR:
-	case ORION_REGS:
-		/*
-		 * Must be mapped by bootloader.
-		 */
-	default:
-		target = attr = win = -1;
-		BUG();
-	}
-
-	base &= 0xffff0000;
-	ctrl = (((size - 1) & 0xffff0000) | (attr << 8) |
-		(target << 4) | WIN_EN);
-
-	orion_write(CPU_WIN_BASE(win), base);
-	orion_write(CPU_WIN_CTRL(win), ctrl);
+	orion_write(CPU_WIN_BASE(win), base & 0xffff0000);
+	orion_write(CPU_WIN_CTRL(win),
+		((size - 1) & 0xffff0000) | (attr << 8) | (target << 4) | 1);
 
 	if (orion_cpu_win_can_remap(win)) {
-		if (remap >= 0) {
-			orion_write(CPU_WIN_REMAP_LO(win), remap & 0xffff0000);
-			orion_write(CPU_WIN_REMAP_HI(win), 0);
-		} else {
-			orion_write(CPU_WIN_REMAP_LO(win), base);
-			orion_write(CPU_WIN_REMAP_HI(win), 0);
-		}
+		if (remap < 0)
+			remap = base;
+
+		orion_write(CPU_WIN_REMAP_LO(win), remap & 0xffff0000);
+		orion_write(CPU_WIN_REMAP_HI(win), 0);
 	}
 }
 
-void __init orion_setup_cpu_wins(void)
+void __init orion_setup_cpu_mbus_bridge(void)
 {
 	int i;
 	int cs;
 
 	/*
-	 * First, disable and clear windows
+	 * First, disable and clear windows.
 	 */
-	for (i = 0; i < CPU_MAX_WIN; i++) {
+	for (i = 0; i < 8; i++) {
 		orion_write(CPU_WIN_BASE(i), 0);
 		orion_write(CPU_WIN_CTRL(i), 0);
 		if (orion_cpu_win_can_remap(i)) {
@@ -212,14 +143,14 @@ void __init orion_setup_cpu_wins(void)
 	/*
 	 * Setup windows for PCI+PCIe IO+MEM space.
 	 */
-	orion_setup_cpu_win(ORION_PCIE_IO, ORION_PCIE_IO_PHYS_BASE,
-				ORION_PCIE_IO_SIZE, ORION_PCIE_IO_BUS_BASE);
-	orion_setup_cpu_win(ORION_PCI_IO, ORION_PCI_IO_PHYS_BASE,
-				ORION_PCI_IO_SIZE, ORION_PCI_IO_BUS_BASE);
-	orion_setup_cpu_win(ORION_PCIE_MEM, ORION_PCIE_MEM_PHYS_BASE,
-				ORION_PCIE_MEM_SIZE, -1);
-	orion_setup_cpu_win(ORION_PCI_MEM, ORION_PCI_MEM_PHYS_BASE,
-				ORION_PCI_MEM_SIZE, -1);
+	setup_cpu_win(0, ORION_PCIE_IO_PHYS_BASE, ORION_PCIE_IO_SIZE,
+		TARGET_PCIE, ATTR_PCIE_IO, ORION_PCIE_IO_BUS_BASE);
+	setup_cpu_win(1, ORION_PCI_IO_PHYS_BASE, ORION_PCI_IO_SIZE,
+		TARGET_PCI, ATTR_PCI_IO, ORION_PCI_IO_BUS_BASE);
+	setup_cpu_win(2, ORION_PCIE_MEM_PHYS_BASE, ORION_PCIE_MEM_SIZE,
+		TARGET_PCIE, ATTR_PCIE_MEM, -1);
+	setup_cpu_win(3, ORION_PCI_MEM_PHYS_BASE, ORION_PCI_MEM_SIZE,
+		TARGET_PCI, ATTR_PCI_MEM, -1);
 
 	/*
 	 * Setup MBUS dram target info.
@@ -244,6 +175,31 @@ void __init orion_setup_cpu_wins(void)
 		}
 	}
 	orion_mbus_dram_info.num_cs = cs;
+}
+
+void __init orion_setup_dev_boot_win(u32 base, u32 size)
+{
+	setup_cpu_win(4, base, size, TARGET_DEV_BUS, ATTR_DEV_BOOT, -1);
+}
+
+void __init orion_setup_dev0_win(u32 base, u32 size)
+{
+	setup_cpu_win(5, base, size, TARGET_DEV_BUS, ATTR_DEV_CS0, -1);
+}
+
+void __init orion_setup_dev1_win(u32 base, u32 size)
+{
+	setup_cpu_win(6, base, size, TARGET_DEV_BUS, ATTR_DEV_CS1, -1);
+}
+
+void __init orion_setup_dev2_win(u32 base, u32 size)
+{
+	setup_cpu_win(7, base, size, TARGET_DEV_BUS, ATTR_DEV_CS2, -1);
+}
+
+void __init orion_setup_pcie_wa_win(u32 base, u32 size)
+{
+	setup_cpu_win(7, base, size, TARGET_PCIE, ATTR_PCIE_WA, -1);
 }
 
 void __init orion_setup_eth_wins(void)

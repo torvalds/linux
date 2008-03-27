@@ -359,7 +359,7 @@ void __init orion_init(void)
 	/*
 	 * Setup Orion address map
 	 */
-	orion_setup_cpu_wins();
+	orion_setup_cpu_mbus_bridge();
 	orion_setup_eth_wins();
 
 	/*

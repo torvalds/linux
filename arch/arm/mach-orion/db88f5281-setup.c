@@ -317,14 +317,11 @@ static void __init db88f5281_init(void)
 	/*
 	 * Setup the CPU address decode windows for our on-board devices
 	 */
-	orion_setup_cpu_win(ORION_DEV_BOOT, DB88F5281_NOR_BOOT_BASE,
-				DB88F5281_NOR_BOOT_SIZE, -1);
-	orion_setup_cpu_win(ORION_DEV0,	DB88F5281_7SEG_BASE,
-				DB88F5281_7SEG_SIZE, -1);
-	orion_setup_cpu_win(ORION_DEV1, DB88F5281_NOR_BASE,
-				DB88F5281_NOR_SIZE, -1);
-	orion_setup_cpu_win(ORION_DEV2,	DB88F5281_NAND_BASE,
-				DB88F5281_NAND_SIZE, -1);
+	orion_setup_dev_boot_win(DB88F5281_NOR_BOOT_BASE,
+				DB88F5281_NOR_BOOT_SIZE);
+	orion_setup_dev0_win(DB88F5281_7SEG_BASE, DB88F5281_7SEG_SIZE);
+	orion_setup_dev1_win(DB88F5281_NOR_BASE, DB88F5281_NOR_SIZE);
+	orion_setup_dev2_win(DB88F5281_NAND_BASE, DB88F5281_NAND_SIZE);
 
 	/*
 	 * Setup Multiplexing Pins:

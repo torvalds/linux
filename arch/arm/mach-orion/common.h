@@ -15,24 +15,13 @@ extern struct sys_timer orion_timer;
  * functions to map its interfaces and by the machine-setup to map its on-
  * board devices. Details in /mach-orion/addr-map.c
  */
-
-enum orion_target {
-	ORION_DEV_BOOT = 0,
-	ORION_DEV0,
-	ORION_DEV1,
-	ORION_DEV2,
-	ORION_PCIE_MEM,
-	ORION_PCIE_IO,
-	ORION_PCI_MEM,
-	ORION_PCI_IO,
-	ORION_DDR,
-	ORION_REGS,
-	ORION_MAX_TARGETS
-};
-
 extern struct mbus_dram_target_info orion_mbus_dram_info;
-void orion_setup_cpu_win(enum orion_target target, u32 base, u32 size, int remap);
-void orion_setup_cpu_wins(void);
+void orion_setup_cpu_mbus_bridge(void);
+void orion_setup_dev_boot_win(u32 base, u32 size);
+void orion_setup_dev0_win(u32 base, u32 size);
+void orion_setup_dev1_win(u32 base, u32 size);
+void orion_setup_dev2_win(u32 base, u32 size);
+void orion_setup_pcie_wa_win(u32 base, u32 size);
 void orion_setup_eth_wins(void);
 
 /*
