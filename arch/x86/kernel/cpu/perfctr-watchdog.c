@@ -652,9 +652,6 @@ static void probe_nmi_watchdog(void)
 			wd_ops = &p6_wd_ops;
 			break;
 		case 15:
-			if (boot_cpu_data.x86_model > 0x4)
-				return;
-
 			wd_ops = &p4_wd_ops;
 			break;
 		default:
