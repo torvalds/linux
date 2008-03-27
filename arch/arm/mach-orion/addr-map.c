@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/mbus.h>
 #include <asm/hardware.h>
 #include "common.h"
 
@@ -168,6 +169,9 @@
 #define SATA_WIN_BASE(win)	ORION_SATA_REG(0x34 + ((win) * 0x10))
 #define SATA_MAX_WIN		4
 
+
+struct mbus_dram_target_info orion_mbus_dram_info;
+
 static int __init orion_cpu_win_can_remap(u32 win)
 {
 	u32 dev, rev;
@@ -257,6 +261,7 @@ void __init orion_setup_cpu_win(enum orion_target target, u32 base, u32 size, in
 void __init orion_setup_cpu_wins(void)
 {
 	int i;
+	int cs;
 
 	/*
 	 * First, disable and clear windows
@@ -281,6 +286,30 @@ void __init orion_setup_cpu_wins(void)
 				ORION_PCIE_MEM_SIZE, -1);
 	orion_setup_cpu_win(ORION_PCI_MEM, ORION_PCI_MEM_PHYS_BASE,
 				ORION_PCI_MEM_SIZE, -1);
+
+	/*
+	 * Setup MBUS dram target info.
+	 */
+	orion_mbus_dram_info.mbus_dram_target_id = TARGET_DDR;
+
+	for (i = 0, cs = 0; i < 4; i++) {
+		u32 base = readl(DDR_BASE_CS(i));
+		u32 size = readl(DDR_SIZE_CS(i));
+
+		/*
+		 * Chip select enabled?
+		 */
+		if (size & 1) {
+			struct mbus_dram_window *w;
+
+			w = &orion_mbus_dram_info.cs[cs++];
+			w->cs_index = i;
+			w->mbus_attr = 0xf & ~(1 << i);
+			w->base = base & 0xff000000;
+			w->size = (size | 0x00ffffff) + 1;
+		}
+	}
+	orion_mbus_dram_info.num_cs = cs;
 }
 
 /*

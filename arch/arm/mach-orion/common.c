@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
+#include <linux/mbus.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/mv643xx_i2c.h>
 #include <asm/page.h>
