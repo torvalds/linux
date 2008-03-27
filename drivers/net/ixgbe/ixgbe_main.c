@@ -367,7 +367,7 @@ static int __ixgbe_notify_dca(struct device *dev, void *data)
 		/* Always use CB2 mode, difference is masked
 		 * in the CB driver. */
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_CTRL, 2);
-		if (dca_add_requester(dev) == IXGBE_SUCCESS) {
+		if (dca_add_requester(dev) == 0) {
 			ixgbe_setup_dca(adapter);
 			break;
 		}
@@ -381,7 +381,7 @@ static int __ixgbe_notify_dca(struct device *dev, void *data)
 		break;
 	}
 
-	return IXGBE_SUCCESS;
+	return 0;
 }
 
 #endif /* CONFIG_DCA */
@@ -3605,7 +3605,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		goto err_register;
 
 #ifdef CONFIG_DCA
-	if (dca_add_requester(&pdev->dev) == IXGBE_SUCCESS) {
+	if (dca_add_requester(&pdev->dev) == 0) {
 		adapter->flags |= IXGBE_FLAG_DCA_ENABLED;
 		/* always use CB2 mode, difference is masked
 		 * in the CB driver */
