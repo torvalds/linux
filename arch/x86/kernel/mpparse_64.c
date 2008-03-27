@@ -680,27 +680,12 @@ void __init mp_register_lapic_address(u64 address)
 
 void __cpuinit mp_register_lapic(u8 id, u8 enabled)
 {
-	struct mpc_config_processor processor;
-	int boot_cpu = 0;
-
 	if (!enabled) {
 		++disabled_cpus;
 		return;
 	}
-	if (id == boot_cpu_physical_apicid)
-		boot_cpu = 1;
 
-	processor.mpc_type = MP_PROCESSOR;
-	processor.mpc_apicid = id;
-	processor.mpc_apicver = 0;
-	processor.mpc_cpuflag = (enabled ? CPU_ENABLED : 0);
-	processor.mpc_cpuflag |= (boot_cpu ? CPU_BOOTPROCESSOR : 0);
-	processor.mpc_cpufeature = 0;
-	processor.mpc_featureflag = 0;
-	processor.mpc_reserved[0] = 0;
-	processor.mpc_reserved[1] = 0;
-
-	MP_processor_info(&processor);
+	generic_processor_info(id, 0);
 }
 
 #define MP_ISA_BUS		0
