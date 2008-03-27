@@ -84,8 +84,6 @@ u16 x86_bios_cpu_apicid_init[NR_CPUS] __initdata
 				= { [0 ... NR_CPUS-1] = BAD_APICID };
 void *x86_bios_cpu_apicid_early_ptr;
 
-unsigned disabled_cpus __cpuinitdata;
-
 u8 apicid_2_node[MAX_APICID];
 #endif
 
@@ -97,6 +95,8 @@ physid_mask_t phys_cpu_present_map;
 
 /* State of each CPU */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
+
+unsigned disabled_cpus __cpuinitdata;
 
 /* Store all idle threads, this can be reused instead of creating
 * a new thread. Also avoids complicated thread destroy functionality
