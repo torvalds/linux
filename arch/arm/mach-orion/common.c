@@ -17,6 +17,7 @@
 #include <linux/mbus.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/mv643xx_i2c.h>
+#include <linux/ata_platform.h>
 #include <asm/page.h>
 #include <asm/setup.h>
 #include <asm/timex.h>
@@ -289,6 +290,7 @@ static struct platform_device orion_sata = {
 
 void __init orion_sata_init(struct mv_sata_platform_data *sata_data)
 {
+	sata_data->dram = &orion_mbus_dram_info;
 	orion_sata.dev.platform_data = sata_data;
 	platform_device_register(&orion_sata);
 }
@@ -342,8 +344,6 @@ void __init orion_init(void)
 	 */
 	orion_setup_cpu_wins();
 	orion_setup_eth_wins();
-	if (dev == MV88F5182_DEV_ID)
-		orion_setup_sata_wins();
 
 	/*
 	 * REgister devices

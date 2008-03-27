@@ -103,13 +103,6 @@
 #define ETH_MAX_WIN		6
 #define ETH_MAX_REMAP_WIN	4
 
-/*
- * SATA Address Decode Windows registers
- */
-#define SATA_WIN_CTRL(win)	ORION_SATA_REG(0x30 + ((win) * 0x10))
-#define SATA_WIN_BASE(win)	ORION_SATA_REG(0x34 + ((win) * 0x10))
-#define SATA_MAX_WIN		4
-
 
 struct mbus_dram_target_info orion_mbus_dram_info;
 
@@ -285,38 +278,6 @@ void __init orion_setup_eth_wins(void)
 					TARGET_DDR);
 			orion_clrbits(ETH_WIN_EN, 1 << i);
 			orion_setbits(ETH_WIN_PROT, 0x3 << (i * 2));
-		}
-	}
-}
-
-void __init orion_setup_sata_wins(void)
-{
-	int i;
-
-	/*
-	 * First, disable and clear windows
-	 */
-	for (i = 0; i < SATA_MAX_WIN; i++) {
-		orion_write(SATA_WIN_BASE(i), 0);
-		orion_write(SATA_WIN_CTRL(i), 0);
-	}
-
-	/*
-	 * Setup windows for DDR banks.
-	 */
-	for (i = 0; i < DDR_MAX_CS; i++) {
-		u32 base, size;
-		size = orion_read(DDR_SIZE_CS(i));
-		base = orion_read(DDR_BASE_CS(i));
-		if (size & DDR_BANK_EN) {
-			base = DDR_REG_TO_BASE(base);
-			size = DDR_REG_TO_SIZE(size);
-			orion_write(SATA_WIN_CTRL(i),
-					((size-1) & 0xffff0000) |
-					(ATTR_DDR_CS(i) << 8) |
-					(TARGET_DDR << 4) | WIN_EN);
-			orion_write(SATA_WIN_BASE(i),
-					base & 0xffff0000);
 		}
 	}
 }
