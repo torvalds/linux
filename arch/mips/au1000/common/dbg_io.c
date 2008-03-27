@@ -56,7 +56,7 @@ typedef         unsigned int  uint32;
 #define UART16550_WRITE(y, z) (au_writel(z&0xff, DEBUG_BASE + y))
 
 extern unsigned long get_au1x00_uart_baud_base(void);
-extern unsigned long cal_r4koff(void);
+extern unsigned long calc_clock(void);
 
 void debugInit(uint32 baud, uint8 data, uint8 parity, uint8 stop)
 {
@@ -64,7 +64,7 @@ void debugInit(uint32 baud, uint8 data, uint8 parity, uint8 stop)
 	if (UART16550_READ(UART_MOD_CNTRL) != 0x3) {
 		UART16550_WRITE(UART_MOD_CNTRL, 3);
 	}
-	cal_r4koff();
+	calc_clock();
 
 	/* disable interrupts */
 	UART16550_WRITE(UART_IER, 0);
