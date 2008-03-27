@@ -279,12 +279,24 @@ struct zfcp_erp_dbf_record {
 	u8 dummy[16];
 } __attribute__ ((packed));
 
+struct zfcp_rec_dbf_record_thread {
+	u32 sema;
+	u32 total;
+	u32 ready;
+	u32 running;
+} __attribute__ ((packed));
+
 struct zfcp_rec_dbf_record {
 	u8 id;
 	u8 id2;
 	union {
+		struct zfcp_rec_dbf_record_thread thread;
 	} u;
 } __attribute__ ((packed));
+
+enum {
+	ZFCP_REC_DBF_ID_THREAD,
+};
 
 struct zfcp_hba_dbf_record_response {
 	u32 fsf_command;

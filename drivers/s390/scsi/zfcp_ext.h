@@ -164,6 +164,9 @@ extern void zfcp_erp_port_access_changed(struct zfcp_port *);
 extern void zfcp_erp_unit_access_changed(struct zfcp_unit *);
 
 /******************************** AUX ****************************************/
+extern void zfcp_rec_dbf_event_thread(u8 id, struct zfcp_adapter *adapter,
+				      int lock);
+
 extern void zfcp_hba_dbf_event_fsf_response(struct zfcp_fsf_req *);
 extern void zfcp_hba_dbf_event_fsf_unsol(const char *, struct zfcp_adapter *,
 					 struct fsf_status_read_buffer *);

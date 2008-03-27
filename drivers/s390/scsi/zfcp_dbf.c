@@ -521,9 +521,19 @@ static struct debug_view zfcp_hba_dbf_view = {
 };
 
 static const char *zfcp_rec_dbf_tags[] = {
+	[ZFCP_REC_DBF_ID_THREAD] = "thread",
 };
 
 static const char *zfcp_rec_dbf_ids[] = {
+	[1]	= "new",
+	[2]	= "ready",
+	[3]	= "kill",
+	[4]	= "down sleep",
+	[5]	= "down wakeup",
+	[6]	= "down sleep ecd",
+	[7]	= "down wakeup ecd",
+	[8]	= "down sleep epd",
+	[9]	= "down wakeup epd",
 };
 
 static int zfcp_rec_dbf_view_format(debug_info_t *id, struct debug_view *view,
@@ -536,6 +546,12 @@ static int zfcp_rec_dbf_view_format(debug_info_t *id, struct debug_view *view,
 	zfcp_dbf_outs(&p, "hint", zfcp_rec_dbf_ids[r->id2]);
 	zfcp_dbf_out(&p, "id", "%d", r->id2);
 	switch (r->id) {
+	case ZFCP_REC_DBF_ID_THREAD:
+		zfcp_dbf_out(&p, "sema", "%d", r->u.thread.sema);
+		zfcp_dbf_out(&p, "total", "%d", r->u.thread.total);
+		zfcp_dbf_out(&p, "ready", "%d", r->u.thread.ready);
+		zfcp_dbf_out(&p, "running", "%d", r->u.thread.running);
+		break;
 	}
 	sprintf(p, "\n");
 	return (p - buf) + 1;
@@ -549,6 +565,41 @@ static struct debug_view zfcp_rec_dbf_view = {
 	NULL,
 	NULL
 };
+
+/**
+ * zfcp_rec_dbf_event_thread - trace event related to recovery thread operation
+ * @id2: identifier for event
+ * @adapter: adapter
+ * @lock: non-zero value indicates that erp_lock has not yet been acquired
+ */
+void zfcp_rec_dbf_event_thread(u8 id2, struct zfcp_adapter *adapter, int lock)
+{
+	struct zfcp_rec_dbf_record *r = &adapter->rec_dbf_buf;
+	unsigned long flags = 0;
+	struct list_head *entry;
+	unsigned ready = 0, running = 0, total;
+
+	if (lock)
+		read_lock_irqsave(&adapter->erp_lock, flags);
+	list_for_each(entry, &adapter->erp_ready_head)
+		ready++;
+	list_for_each(entry, &adapter->erp_running_head)
+		running++;
+	total = adapter->erp_total_count;
+	if (lock)
+		read_unlock_irqrestore(&adapter->erp_lock, flags);
+
+	spin_lock_irqsave(&adapter->rec_dbf_lock, flags);
+	memset(r, 0, sizeof(*r));
+	r->id = ZFCP_REC_DBF_ID_THREAD;
+	r->id2 = id2;
+	r->u.thread.sema = atomic_read(&adapter->erp_ready_sem.count);
+	r->u.thread.total = total;
+	r->u.thread.ready = ready;
+	r->u.thread.running = running;
+	debug_event(adapter->rec_dbf, 5, r, sizeof(*r));
+	spin_unlock_irqrestore(&adapter->rec_dbf_lock, flags);
+}
 
 static void
 _zfcp_san_dbf_event_common_ct(const char *tag, struct zfcp_fsf_req *fsf_req,

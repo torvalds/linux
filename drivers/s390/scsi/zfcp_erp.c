@@ -788,6 +788,7 @@ zfcp_erp_action_ready(struct zfcp_erp_action *erp_action)
 
 	zfcp_erp_action_to_ready(erp_action);
 	up(&adapter->erp_ready_sem);
+	zfcp_rec_dbf_event_thread(2, adapter, 0);
 }
 
 /*
@@ -1027,6 +1028,7 @@ zfcp_erp_thread_kill(struct zfcp_adapter *adapter)
 
 	atomic_set_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_KILL, &adapter->status);
 	up(&adapter->erp_ready_sem);
+	zfcp_rec_dbf_event_thread(2, adapter, 1);
 
 	wait_event(adapter->erp_thread_wqh,
 		   !atomic_test_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_UP,
@@ -1084,7 +1086,9 @@ zfcp_erp_thread(void *data)
 		 * no action in 'ready' queue to be processed and
 		 * thread is not to be killed
 		 */
+		zfcp_rec_dbf_event_thread(4, adapter, 1);
 		down_interruptible(&adapter->erp_ready_sem);
+		zfcp_rec_dbf_event_thread(5, adapter, 1);
 		debug_text_event(adapter->erp_dbf, 5, "a_th_woken");
 	}
 
@@ -2150,7 +2154,9 @@ zfcp_erp_adapter_strategy_open_fsf_xconfig(struct zfcp_erp_action *erp_action)
 		 * _must_ be the one belonging to the 'exchange config
 		 * data' request.
 		 */
+		zfcp_rec_dbf_event_thread(6, adapter, 1);
 		down(&adapter->erp_ready_sem);
+		zfcp_rec_dbf_event_thread(7, adapter, 1);
 		if (erp_action->status & ZFCP_STATUS_ERP_TIMEDOUT) {
 			ZFCP_LOG_INFO("error: exchange of configuration data "
 				      "for adapter %s timed out\n",
@@ -2207,7 +2213,9 @@ zfcp_erp_adapter_strategy_open_fsf_xport(struct zfcp_erp_action *erp_action)
 	debug_text_event(adapter->erp_dbf, 6, "a_xport_ok");
 
 	ret = ZFCP_ERP_SUCCEEDED;
+	zfcp_rec_dbf_event_thread(8, adapter, 1);
 	down(&adapter->erp_ready_sem);
+	zfcp_rec_dbf_event_thread(9, adapter, 1);
 	if (erp_action->status & ZFCP_STATUS_ERP_TIMEDOUT) {
 		ZFCP_LOG_INFO("error: exchange port data timed out (adapter "
 			      "%s)\n", zfcp_get_busid_by_adapter(adapter));
@@ -3091,6 +3099,7 @@ zfcp_erp_action_enqueue(int action,
 	/* finally put it into 'ready' queue and kick erp thread */
 	list_add_tail(&erp_action->list, &adapter->erp_ready_head);
 	up(&adapter->erp_ready_sem);
+	zfcp_rec_dbf_event_thread(1, adapter, 0);
 	retval = 0;
  out:
 	return retval;
