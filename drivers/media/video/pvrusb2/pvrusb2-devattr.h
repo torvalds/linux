@@ -68,9 +68,11 @@ struct pvr2_device_desc {
 	   was initialized from internal ROM. */
 	struct pvr2_string_table fx2_firmware;
 
+#ifdef CONFIG_VIDEO_PVRUSB2_DVB
 	/* callback functions to handle attachment of digital tuner & demod */
 	struct pvr2_dvb_props *dvb_props;
 
+#endif
 	/* Initial standard bits to use for this device, if not zero.
 	   Anything set here is also implied as an available standard.
 	   Note: This is ignored if overridden on the module load line via
