@@ -2543,7 +2543,7 @@ static int ehea_open(struct net_device *dev)
 	int ret;
 	struct ehea_port *port = netdev_priv(dev);
 
-	down(&port->port_lock);
+	mutex_lock(&port->port_lock);
 
 	if (netif_msg_ifup(port))
 		ehea_info("enabling port %s", dev->name);
@@ -2554,7 +2554,7 @@ static int ehea_open(struct net_device *dev)
 		netif_start_queue(dev);
 	}
 
-	up(&port->port_lock);
+	mutex_unlock(&port->port_lock);
 
 	return ret;
 }
@@ -2600,11 +2600,11 @@ static int ehea_stop(struct net_device *dev)
 		ehea_info("disabling port %s", dev->name);
 
 	flush_scheduled_work();
-	down(&port->port_lock);
+	mutex_lock(&port->port_lock);
 	netif_stop_queue(dev);
 	port_napi_disable(port);
 	ret = ehea_down(dev);
-	up(&port->port_lock);
+	mutex_unlock(&port->port_lock);
 	return ret;
 }
 
@@ -2802,7 +2802,7 @@ static void ehea_reset_port(struct work_struct *work)
 	struct net_device *dev = port->netdev;
 
 	port->resets++;
-	down(&port->port_lock);
+	mutex_lock(&port->port_lock);
 	netif_stop_queue(dev);
 
 	port_napi_disable(port);
@@ -2822,7 +2822,7 @@ static void ehea_reset_port(struct work_struct *work)
 
 	netif_wake_queue(dev);
 out:
-	up(&port->port_lock);
+	mutex_unlock(&port->port_lock);
 	return;
 }
 
@@ -2839,21 +2839,23 @@ static void ehea_rereg_mrs(struct work_struct *work)
 			/* Shutdown all ports */
 			for (i = 0; i < EHEA_MAX_PORTS; i++) {
 				struct ehea_port *port = adapter->port[i];
+				struct net_device *dev;
 
-				if (port) {
-					struct net_device *dev = port->netdev;
+				if (!port)
+					continue;
 
-					if (dev->flags & IFF_UP) {
-						down(&port->port_lock);
-						netif_stop_queue(dev);
-						ret = ehea_stop_qps(dev);
-						if (ret) {
-							up(&port->port_lock);
-							goto out;
-						}
-						port_napi_disable(port);
-						up(&port->port_lock);
+				dev = port->netdev;
+
+				if (dev->flags & IFF_UP) {
+					mutex_lock(&port->port_lock);
+					netif_stop_queue(dev);
+					ret = ehea_stop_qps(dev);
+					if (ret) {
+						mutex_unlock(&port->port_lock);
+						goto out;
 					}
+					port_napi_disable(port);
+					mutex_unlock(&port->port_lock);
 				}
 			}
 
@@ -2893,12 +2895,12 @@ static void ehea_rereg_mrs(struct work_struct *work)
 					struct net_device *dev = port->netdev;
 
 					if (dev->flags & IFF_UP) {
-						down(&port->port_lock);
+						mutex_lock(&port->port_lock);
 						port_napi_enable(port);
 						ret = ehea_restart_qps(dev);
 						if (!ret)
 							netif_wake_queue(dev);
-						up(&port->port_lock);
+						mutex_unlock(&port->port_lock);
 					}
 				}
 			}
@@ -3064,7 +3066,7 @@ struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 
 	port = netdev_priv(dev);
 
-	sema_init(&port->port_lock, 1);
+	mutex_init(&port->port_lock);
 	port->state = EHEA_PORT_DOWN;
 	port->sig_comp_iv = sq_entries / 10;
 
