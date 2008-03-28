@@ -2401,7 +2401,7 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 		}
 	}
 
-	if (hdw->input_dirty &&
+	if (hdw->input_dirty && hdw->state_pathway_ok &&
 	    (((hdw->input_val == PVR2_CVAL_INPUT_DTV) ?
 	      PVR2_PATHWAY_DIGITAL : PVR2_PATHWAY_ANALOG) !=
 	     hdw->pathway_state)) {
