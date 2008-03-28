@@ -1942,8 +1942,30 @@ static LIST_HEAD(proto_list);
 
 #ifdef CONFIG_PROC_FS
 #define PROTO_INUSE_NR	64	/* should be enough for the first time */
+struct prot_inuse {
+	int val[PROTO_INUSE_NR];
+};
 
 static DECLARE_BITMAP(proto_inuse_idx, PROTO_INUSE_NR);
+static DEFINE_PER_CPU(struct prot_inuse, prot_inuse);
+
+void sock_prot_inuse_add(struct proto *prot, int val)
+{
+	__get_cpu_var(prot_inuse).val[prot->inuse_idx] += val;
+}
+EXPORT_SYMBOL_GPL(sock_prot_inuse_add);
+
+int sock_prot_inuse_get(struct proto *prot)
+{
+	int cpu, idx = prot->inuse_idx;
+	int res = 0;
+
+	for_each_possible_cpu(cpu)
+		res += per_cpu(prot_inuse, cpu).val[idx];
+
+	return res >= 0 ? res : 0;
+}
+EXPORT_SYMBOL_GPL(sock_prot_inuse_get);
 
 static void assign_proto_idx(struct proto *prot)
 {

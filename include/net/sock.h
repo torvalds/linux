@@ -639,18 +639,15 @@ static inline void sk_refcnt_debug_release(const struct sock *sk)
 # define DEFINE_PROTO_INUSE(NAME) DEFINE_PCOUNTER(NAME)
 # define REF_PROTO_INUSE(NAME) PCOUNTER_MEMBER_INITIALIZER(NAME, .inuse)
 /* Called with local bh disabled */
-static inline void sock_prot_inuse_add(struct proto *prot, int inc)
-{
-	pcounter_add(&prot->inuse, inc);
-}
+extern void sock_prot_inuse_add(struct proto *prot, int inc);
+
 static inline int sock_prot_inuse_init(struct proto *proto)
 {
 	return pcounter_alloc(&proto->inuse);
 }
-static inline int sock_prot_inuse_get(struct proto *proto)
-{
-	return pcounter_getval(&proto->inuse);
-}
+
+extern int sock_prot_inuse_get(struct proto *proto);
+
 static inline void sock_prot_inuse_free(struct proto *proto)
 {
 	pcounter_free(&proto->inuse);
