@@ -1727,7 +1727,7 @@ decoder_command (struct zoran *zr,
 		return -EIO;
 
 	if (zr->card.type == LML33 &&
-	    (cmd == DECODER_SET_NORM || DECODER_SET_INPUT)) {
+	    (cmd == DECODER_SET_NORM || cmd == DECODER_SET_INPUT)) {
 		int res;
 
 		// Bt819 needs to reset its FIFO buffer using #FRST pin and
