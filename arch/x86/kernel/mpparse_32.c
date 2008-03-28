@@ -65,7 +65,9 @@ int pic_mode;
 #ifndef CONFIG_X86_SMP
 unsigned int num_processors;
 unsigned disabled_cpus __cpuinitdata;
+#ifndef CONFIG_X86_LOCAL_APIC
 unsigned int boot_cpu_physical_apicid = -1U;
+#endif
 #endif
 
 /* Make it easy to share the UP and SMP code: */
