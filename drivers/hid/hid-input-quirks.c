@@ -353,7 +353,7 @@ static const struct hid_input_blacklist {
 
 	{ VENDOR_ID_SUNPLUS, DEVICE_ID_SUNPLUS_WDESKTOP, quirk_sunplus_wdesktop },
 
-	{ 0, 0, 0 }
+	{ 0, 0, NULL }
 };
 
 int hidinput_mapping_quirks(struct hid_usage *usage, 

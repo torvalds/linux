@@ -97,7 +97,7 @@ static struct hid_field *hid_register_field(struct hid_report *report, unsigned 
 	field->index = report->maxfield++;
 	report->field[field->index] = field;
 	field->usage = (struct hid_usage *)(field + 1);
-	field->value = (unsigned *)(field->usage + usages);
+	field->value = (s32 *)(field->usage + usages);
 	field->report = report;
 
 	return field;

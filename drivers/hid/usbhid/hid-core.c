@@ -610,10 +610,11 @@ static void usbhid_set_leds(struct hid_device *hid)
 /*
  * Traverse the supplied list of reports and find the longest
  */
-static void hid_find_max_report(struct hid_device *hid, unsigned int type, int *max)
+static void hid_find_max_report(struct hid_device *hid, unsigned int type,
+		unsigned int *max)
 {
 	struct hid_report *report;
-	int size;
+	unsigned int size;
 
 	list_for_each_entry(report, &hid->report_enum[type].report_list, list) {
 		size = ((report->size - 1) >> 3) + 1;
@@ -705,9 +706,9 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	struct hid_descriptor *hdesc;
 	struct hid_device *hid;
 	u32 quirks = 0;
-	unsigned rsize = 0;
+	unsigned int insize = 0, rsize = 0;
 	char *rdesc;
-	int n, len, insize = 0;
+	int n, len;
 	struct usbhid_device *usbhid;
 
 	quirks = usbhid_lookup_quirk(le16_to_cpu(dev->descriptor.idVendor),
