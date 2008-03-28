@@ -25,9 +25,9 @@ struct inet_frag_queue {
 	int			meat;
 	__u8			last_in;    /* first/last segment arrived? */
 
-#define COMPLETE		4
-#define FIRST_IN		2
-#define LAST_IN			1
+#define INET_FRAG_COMPLETE	4
+#define INET_FRAG_FIRST_IN	2
+#define INET_FRAG_LAST_IN	1
 };
 
 #define INETFRAGS_HASHSZ		64
