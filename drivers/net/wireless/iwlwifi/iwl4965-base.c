@@ -901,7 +901,7 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 	 * an RXON_ASSOC and the new config wants the associated mask enabled,
 	 * we must clear the associated from the active configuration
 	 * before we apply the new config */
-	if (iwl4965_is_associated(priv) &&
+	if (iwl_is_associated(priv) &&
 	    (priv->staging_rxon.filter_flags & RXON_FILTER_ASSOC_MSK)) {
 		IWL_DEBUG_INFO("Toggling associated bit on current RXON\n");
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
@@ -967,7 +967,7 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 
 	/* If we have set the ASSOC_MSK and we are in BSS mode then
 	 * add the IWL_AP_ID to the station rate table */
-	if (iwl4965_is_associated(priv) &&
+	if (iwl_is_associated(priv) &&
 	    (priv->iw_mode == IEEE80211_IF_TYPE_STA)) {
 		if (iwl4965_rxon_add_station(priv, priv->active_rxon.bssid_addr, 1)
 		    == IWL_INVALID_STATION) {
@@ -1319,7 +1319,7 @@ unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
 				const u8 *dest, int left)
 {
 
-	if (!iwl4965_is_associated(priv) || !priv->ibss_beacon ||
+	if (!iwl_is_associated(priv) || !priv->ibss_beacon ||
 	    ((priv->iw_mode != IEEE80211_IF_TYPE_IBSS) &&
 	     (priv->iw_mode != IEEE80211_IF_TYPE_AP)))
 		return 0;
@@ -1582,7 +1582,7 @@ static void iwl4965_activate_qos(struct iwl_priv *priv, u8 force)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	if (force || iwl4965_is_associated(priv)) {
+	if (force || iwl_is_associated(priv)) {
 		IWL_DEBUG_QOS("send QoS cmd with Qos active=%d FLAGS=0x%X\n",
 				priv->qos_data.qos_active,
 				priv->qos_data.def_qos_parm.qos_flags);
@@ -1921,13 +1921,13 @@ static void iwl4965_setup_rxon_timing(struct iwl_priv *priv)
 	conf = ieee80211_get_hw_conf(priv->hw);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	priv->rxon_timing.timestamp.dw[1] = cpu_to_le32(priv->timestamp1);
-	priv->rxon_timing.timestamp.dw[0] = cpu_to_le32(priv->timestamp0);
+	priv->rxon_timing.timestamp.dw[1] = cpu_to_le32(priv->timestamp >> 32);
+	priv->rxon_timing.timestamp.dw[0] =
+				cpu_to_le32(priv->timestamp & 0xFFFFFFFF);
 
 	priv->rxon_timing.listen_interval = INTEL_CONN_LISTEN_INTERVAL;
 
-	tsf = priv->timestamp1;
-	tsf = ((tsf << 32) | priv->timestamp0);
+	tsf = priv->timestamp;
 
 	beacon_int = priv->beacon_int;
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -2374,10 +2374,10 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 
 	/* drop all data frame if we are not associated */
 	if (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA) &&
-	   (!iwl4965_is_associated(priv) ||
+	   (!iwl_is_associated(priv) ||
 	    ((priv->iw_mode == IEEE80211_IF_TYPE_STA) && !priv->assoc_id) ||
 	    !priv->assoc_station_added)) {
-		IWL_DEBUG_DROP("Dropping - !iwl4965_is_associated\n");
+		IWL_DEBUG_DROP("Dropping - !iwl_is_associated\n");
 		goto drop_unlock;
 	}
 
@@ -2838,7 +2838,7 @@ static int iwl4965_get_measurement(struct iwl_priv *priv,
 	int spectrum_resp_status;
 	int duration = le16_to_cpu(params->duration);
 
-	if (iwl4965_is_associated(priv))
+	if (iwl_is_associated(priv))
 		add_time =
 		    iwl4965_usecs_to_beacons(
 			le64_to_cpu(params->start_time) - priv->last_tsf,
@@ -2853,7 +2853,7 @@ static int iwl4965_get_measurement(struct iwl_priv *priv,
 	cmd.len = sizeof(spectrum);
 	spectrum.len = cpu_to_le16(cmd.len - sizeof(spectrum.len));
 
-	if (iwl4965_is_associated(priv))
+	if (iwl_is_associated(priv))
 		spectrum.start_time =
 		    iwl4965_add_beacon_time(priv->last_beacon_time,
 				add_time,
@@ -4504,7 +4504,7 @@ static void iwl4965_irq_handle_error(struct iwl_priv *priv)
 		IWL_DEBUG(IWL_DL_INFO | IWL_DL_FW_ERRORS,
 			  "Restarting adapter due to uCode error.\n");
 
-		if (iwl4965_is_associated(priv)) {
+		if (iwl_is_associated(priv)) {
 			memcpy(&priv->recovery_rxon, &priv->active_rxon,
 			       sizeof(priv->recovery_rxon));
 			priv->error_recovering = 1;
@@ -4790,7 +4790,7 @@ static u16 iwl4965_get_passive_dwell_time(struct iwl_priv *priv,
 	    IWL_PASSIVE_DWELL_BASE + IWL_PASSIVE_DWELL_TIME_24 :
 	    IWL_PASSIVE_DWELL_BASE + IWL_PASSIVE_DWELL_TIME_52;
 
-	if (iwl4965_is_associated(priv)) {
+	if (iwl_is_associated(priv)) {
 		/* If we're associated, we clamp the maximum passive
 		 * dwell time to be 98% of the beacon interval (minus
 		 * 2 * channel tune time) */
@@ -4830,7 +4830,7 @@ static int iwl4965_get_channels_for_scan(struct iwl_priv *priv,
 	for (i = 0, added = 0; i < sband->n_channels; i++) {
 		if (ieee80211_frequency_to_channel(channels[i].center_freq) ==
 		    le16_to_cpu(priv->active_rxon.channel)) {
-			if (iwl4965_is_associated(priv)) {
+			if (iwl_is_associated(priv)) {
 				IWL_DEBUG_SCAN
 				    ("Skipping current channel %d\n",
 				     le16_to_cpu(priv->active_rxon.channel));
@@ -5711,7 +5711,7 @@ static void iwl4965_alive_start(struct iwl_priv *priv)
 
 	iwl4965_send_power_mode(priv, IWL_POWER_LEVEL(priv->power_mode));
 
-	if (iwl4965_is_associated(priv)) {
+	if (iwl_is_associated(priv)) {
 		struct iwl4965_rxon_cmd *active_rxon =
 				(struct iwl4965_rxon_cmd *)(&priv->active_rxon);
 
@@ -6129,7 +6129,7 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 	scan->quiet_plcp_th = IWL_PLCP_QUIET_THRESH;
 	scan->quiet_time = IWL_ACTIVE_QUIET_TIME;
 
-	if (iwl4965_is_associated(priv)) {
+	if (iwl_is_associated(priv)) {
 		u16 interval = 0;
 		u32 extra;
 		u32 suspend_time = 100;
@@ -6166,7 +6166,7 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 		memcpy(scan->direct_scan[0].ssid,
 		       priv->direct_ssid, priv->direct_ssid_len);
 		direct_mask = 1;
-	} else if (!iwl4965_is_associated(priv) && priv->essid_len) {
+	} else if (!iwl_is_associated(priv) && priv->essid_len) {
 		scan->direct_scan[0].id = WLAN_EID_SSID;
 		scan->direct_scan[0].len = priv->essid_len;
 		memcpy(scan->direct_scan[0].ssid, priv->essid, priv->essid_len);
@@ -6999,6 +6999,7 @@ static inline void iwl4965_ht_conf(struct iwl_priv *priv,
 }
 #endif
 
+#define IWL_DELAY_NEXT_SCAN_AFTER_ASSOC (HZ*6)
 static void iwl4965_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *bss_conf,
@@ -7006,7 +7007,11 @@ static void iwl4965_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct iwl_priv *priv = hw->priv;
 
+	IWL_DEBUG_MAC80211("changes = 0x%X\n", changes);
+
 	if (changes & BSS_CHANGED_ERP_PREAMBLE) {
+		IWL_DEBUG_MAC80211("ERP_PREAMBLE %d\n",
+				   bss_conf->use_short_preamble);
 		if (bss_conf->use_short_preamble)
 			priv->staging_rxon.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 		else
@@ -7014,6 +7019,7 @@ static void iwl4965_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changes & BSS_CHANGED_ERP_CTS_PROT) {
+		IWL_DEBUG_MAC80211("ERP_CTS %d\n", bss_conf->use_cts_prot);
 		if (bss_conf->use_cts_prot && (priv->band != IEEE80211_BAND_5GHZ))
 			priv->staging_rxon.flags |= RXON_FLG_TGG_PROTECT_MSK;
 		else
@@ -7021,19 +7027,30 @@ static void iwl4965_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changes & BSS_CHANGED_HT) {
+		IWL_DEBUG_MAC80211("HT %d\n", bss_conf->assoc_ht);
 		iwl4965_ht_conf(priv, bss_conf);
 		iwl4965_set_rxon_chain(priv);
 	}
 
 	if (changes & BSS_CHANGED_ASSOC) {
-		/*
-		 * TODO:
-		 * do stuff instead of sniffing assoc resp
-		 */
+		IWL_DEBUG_MAC80211("ASSOC %d\n", bss_conf->assoc);
+		if (bss_conf->assoc) {
+			priv->assoc_id = bss_conf->aid;
+			priv->beacon_int = bss_conf->beacon_int;
+			priv->timestamp = bss_conf->timestamp;
+			priv->assoc_capability = bss_conf->assoc_capability;
+			priv->next_scan_jiffies = jiffies +
+					IWL_DELAY_NEXT_SCAN_AFTER_ASSOC;
+			queue_work(priv->workqueue, &priv->post_associate.work);
+		} else {
+			priv->assoc_id = 0;
+			IWL_DEBUG_MAC80211("DISASSOC %d\n", bss_conf->assoc);
+		}
+	} else if (changes && iwl_is_associated(priv) && priv->assoc_id) {
+			IWL_DEBUG_MAC80211("Associated Changes %d\n", changes);
+			iwl4965_send_rxon_assoc(priv);
 	}
 
-	if (iwl4965_is_associated(priv))
-		iwl4965_send_rxon_assoc(priv);
 }
 
 static int iwl4965_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t len)
@@ -7166,7 +7183,7 @@ static int iwl4965_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	/* FIXME: need to differenciate between static and dynamic key
 	 * in the level of mac80211 */
-	static_key = !iwl4965_is_associated(priv);
+	static_key = !iwl_is_associated(priv);
 
 	if (!static_key) {
 		sta_id = iwl4965_hw_find_station(priv, addr);
@@ -7247,7 +7264,7 @@ static int iwl4965_mac_conf_tx(struct ieee80211_hw *hw, int queue,
 	mutex_lock(&priv->mutex);
 	if (priv->iw_mode == IEEE80211_IF_TYPE_AP)
 		iwl4965_activate_qos(priv, 1);
-	else if (priv->assoc_id && iwl4965_is_associated(priv))
+	else if (priv->assoc_id && iwl_is_associated(priv))
 		iwl4965_activate_qos(priv, 0);
 
 	mutex_unlock(&priv->mutex);
@@ -7330,7 +7347,6 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->assoc_id = 0;
 	priv->assoc_capability = 0;
-	priv->call_post_assoc_from_beacon = 0;
 	priv->assoc_station_added = 0;
 
 	/* new association get rid of ibss beacon skb */
@@ -7340,8 +7356,7 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 	priv->ibss_beacon = NULL;
 
 	priv->beacon_int = priv->hw->conf.beacon_int;
-	priv->timestamp1 = 0;
-	priv->timestamp0 = 0;
+	priv->timestamp = 0;
 	if ((priv->iw_mode == IEEE80211_IF_TYPE_STA))
 		priv->beacon_int = 0;
 

@@ -1068,7 +1068,6 @@ struct iwl_priv {
 	u16 active_rate;
 	u16 active_rate_basic;
 
-	u8 call_post_assoc_from_beacon;
 	u8 assoc_station_added;
 	u8 use_ant_b_for_management_frame;	/* Tx antenna selection */
 	u8 valid_antenna;	/* Bit mask of antennas actually connected */
@@ -1161,8 +1160,7 @@ struct iwl_priv {
 	struct sk_buff *ibss_beacon;
 
 	/* Last Rx'd beacon timestamp */
-	u32 timestamp0;
-	u32 timestamp1;
+	u64 timestamp;
 	u16 beacon_int;
 	struct iwl4965_driver_hw_info hw_setting;
 	struct ieee80211_vif *vif;
@@ -1226,7 +1224,7 @@ struct iwl_priv {
 	struct timer_list statistics_periodic;
 }; /*iwl_priv */
 
-static inline int iwl4965_is_associated(struct iwl_priv *priv)
+static inline int iwl_is_associated(struct iwl_priv *priv)
 {
 	return (priv->active_rxon.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
 }

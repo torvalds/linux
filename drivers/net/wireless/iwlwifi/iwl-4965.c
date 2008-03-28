@@ -1306,7 +1306,7 @@ void iwl4965_chain_noise_reset(struct iwl_priv *priv)
 	struct iwl4965_chain_noise_data *data = NULL;
 
 	data = &(priv->chain_noise_data);
-	if ((data->state == IWL_CHAIN_NOISE_ALIVE) && iwl4965_is_associated(priv)) {
+	if ((data->state == IWL_CHAIN_NOISE_ALIVE) && iwl_is_associated(priv)) {
 		struct iwl4965_calibration_cmd cmd;
 
 		memset(&cmd, 0, sizeof(cmd));
@@ -1581,7 +1581,7 @@ static void iwl4965_sensitivity_calibration(struct iwl_priv *priv,
 
 	data = &(priv->sensitivity_data);
 
-	if (!iwl4965_is_associated(priv)) {
+	if (!iwl_is_associated(priv)) {
 		IWL_DEBUG_CALIB("<< - not associated\n");
 		return;
 	}
@@ -3575,77 +3575,6 @@ static int iwl4965_calc_rssi(struct iwl4965_rx_phy_res *rx_resp)
 
 #ifdef CONFIG_IWL4965_HT
 
-/* Parsed Information Elements */
-struct ieee802_11_elems {
-	u8 *ds_params;
-	u8 ds_params_len;
-	u8 *tim;
-	u8 tim_len;
-	u8 *ibss_params;
-	u8 ibss_params_len;
-	u8 *erp_info;
-	u8 erp_info_len;
-	u8 *ht_cap_param;
-	u8 ht_cap_param_len;
-	u8 *ht_extra_param;
-	u8 ht_extra_param_len;
-};
-
-static int parse_elems(u8 *start, size_t len, struct ieee802_11_elems *elems)
-{
-	size_t left = len;
-	u8 *pos = start;
-	int unknown = 0;
-
-	memset(elems, 0, sizeof(*elems));
-
-	while (left >= 2) {
-		u8 id, elen;
-
-		id = *pos++;
-		elen = *pos++;
-		left -= 2;
-
-		if (elen > left)
-			return -1;
-
-		switch (id) {
-		case WLAN_EID_DS_PARAMS:
-			elems->ds_params = pos;
-			elems->ds_params_len = elen;
-			break;
-		case WLAN_EID_TIM:
-			elems->tim = pos;
-			elems->tim_len = elen;
-			break;
-		case WLAN_EID_IBSS_PARAMS:
-			elems->ibss_params = pos;
-			elems->ibss_params_len = elen;
-			break;
-		case WLAN_EID_ERP_INFO:
-			elems->erp_info = pos;
-			elems->erp_info_len = elen;
-			break;
-		case WLAN_EID_HT_CAPABILITY:
-			elems->ht_cap_param = pos;
-			elems->ht_cap_param_len = elen;
-			break;
-		case WLAN_EID_HT_EXTRA_INFO:
-			elems->ht_extra_param = pos;
-			elems->ht_extra_param_len = elen;
-			break;
-		default:
-			unknown++;
-			break;
-		}
-
-		left -= elen;
-		pos += elen;
-	}
-
-	return 0;
-}
-
 void iwl4965_init_ht_hw_capab(struct iwl_priv *priv,
 			      struct ieee80211_ht_info *ht_info,
 			      enum ieee80211_band band)
@@ -3862,7 +3791,6 @@ static inline void iwl4965_dbg_report_frame(struct iwl_priv *priv,
 #endif
 
 
-#define IWL_DELAY_NEXT_SCAN_AFTER_ASSOC (HZ*6)
 
 /* Called for REPLY_RX (legacy ABG frames), or
  * REPLY_RX_MPDU_CMD (HT high-throughput N frames). */
@@ -3951,7 +3879,7 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 	 *   which are gathered only when associated, and indicate noise
 	 *   only for the associated network channel ...
 	 * Ignore these noise values while scanning (other channels) */
-	if (iwl4965_is_associated(priv) &&
+	if (iwl_is_associated(priv) &&
 	    !test_bit(STATUS_SCANNING, &priv->status)) {
 		rx_status.noise = priv->last_rx_noise;
 		rx_status.signal = iwl4965_calc_sig_qual(rx_status.ssi,
@@ -3962,7 +3890,7 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 	}
 
 	/* Reset beacon noise level if not associated. */
-	if (!iwl4965_is_associated(priv))
+	if (!iwl_is_associated(priv))
 		priv->last_rx_noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
 
 	/* Set "1" to report good data frames in groups of 100 */
@@ -3983,101 +3911,9 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 	fc = le16_to_cpu(header->frame_control);
 	switch (fc & IEEE80211_FCTL_FTYPE) {
 	case IEEE80211_FTYPE_MGMT:
-
 		if (priv->iw_mode == IEEE80211_IF_TYPE_AP)
 			iwl4965_update_ps_mode(priv, fc  & IEEE80211_FCTL_PM,
 						header->addr2);
-		switch (fc & IEEE80211_FCTL_STYPE) {
-		case IEEE80211_STYPE_PROBE_RESP:
-		case IEEE80211_STYPE_BEACON:
-			if ((priv->iw_mode == IEEE80211_IF_TYPE_STA &&
-			     !compare_ether_addr(header->addr2, priv->bssid)) ||
-			    (priv->iw_mode == IEEE80211_IF_TYPE_IBSS &&
-			     !compare_ether_addr(header->addr3, priv->bssid))) {
-				struct ieee80211_mgmt *mgmt =
-					(struct ieee80211_mgmt *)header;
-				u64 timestamp =
-					le64_to_cpu(mgmt->u.beacon.timestamp);
-
-				priv->timestamp0 = timestamp & 0xFFFFFFFF;
-				priv->timestamp1 =
-					(timestamp >> 32) & 0xFFFFFFFF;
-				priv->beacon_int = le16_to_cpu(
-				    mgmt->u.beacon.beacon_int);
-				if (priv->call_post_assoc_from_beacon &&
-				    (priv->iw_mode == IEEE80211_IF_TYPE_STA)) {
-					priv->call_post_assoc_from_beacon = 0;
-					queue_work(priv->workqueue,
-					    &priv->post_associate.work);
-				}
-			}
-			break;
-
-		case IEEE80211_STYPE_ACTION:
-			break;
-
-			/*
-			 * TODO: Use the new callback function from
-			 * mac80211 instead of sniffing these packets.
-			 */
-		case IEEE80211_STYPE_ASSOC_RESP:
-		case IEEE80211_STYPE_REASSOC_RESP:
-			if (network_packet) {
-#ifdef CONFIG_IWL4965_HT
-				u8 *pos = NULL;
-				struct ieee802_11_elems elems;
-#endif				/*CONFIG_IWL4965_HT */
-				struct ieee80211_mgmt *mgnt =
-					(struct ieee80211_mgmt *)header;
-
-				/* We have just associated, give some
-				 * time for the 4-way handshake if
-				 * any. Don't start scan too early. */
-				priv->next_scan_jiffies = jiffies +
-					IWL_DELAY_NEXT_SCAN_AFTER_ASSOC;
-
-				priv->assoc_id = (~((1 << 15) | (1 << 14))
-					& le16_to_cpu(mgnt->u.assoc_resp.aid));
-				priv->assoc_capability =
-					le16_to_cpu(
-						mgnt->u.assoc_resp.capab_info);
-#ifdef CONFIG_IWL4965_HT
-				pos = mgnt->u.assoc_resp.variable;
-				if (!parse_elems(pos,
-						 len - (pos - (u8 *) mgnt),
-						 &elems)) {
-					if (elems.ht_extra_param &&
-					    elems.ht_cap_param)
-						break;
-				}
-#endif				/*CONFIG_IWL4965_HT */
-				/* assoc_id is 0 no association */
-				if (!priv->assoc_id)
-					break;
-				if (priv->beacon_int)
-					queue_work(priv->workqueue,
-					    &priv->post_associate.work);
-				else
-					priv->call_post_assoc_from_beacon = 1;
-			}
-
-			break;
-
-		case IEEE80211_STYPE_PROBE_REQ:
-			if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) &&
-			    !iwl4965_is_associated(priv)) {
-				DECLARE_MAC_BUF(mac1);
-				DECLARE_MAC_BUF(mac2);
-				DECLARE_MAC_BUF(mac3);
-
-				IWL_DEBUG_DROP("Dropping (non network): "
-					       "%s, %s, %s\n",
-					       print_mac(mac1, header->addr1),
-					       print_mac(mac2, header->addr2),
-					       print_mac(mac3, header->addr3));
-				return;
-			}
-		}
 		iwl4965_handle_data_packet(priv, 0, include_phy, rxb, &rx_status);
 		break;
 
@@ -4136,7 +3972,6 @@ static void iwl4965_rx_reply_rx_phy(struct iwl_priv *priv,
 	memcpy(&priv->last_phy_res[1], &(pkt->u.raw[0]),
 	       sizeof(struct iwl4965_rx_phy_res));
 }
-
 static void iwl4965_rx_missed_beacon_notif(struct iwl_priv *priv,
 					   struct iwl4965_rx_mem_buffer *rxb)
 
@@ -4158,7 +3993,6 @@ static void iwl4965_rx_missed_beacon_notif(struct iwl_priv *priv,
 	}
 #endif /*CONFIG_IWL4965_SENSITIVITY*/
 }
-
 #ifdef CONFIG_IWL4965_HT
 
 /**
