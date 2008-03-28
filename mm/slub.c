@@ -1470,6 +1470,9 @@ static void *__slab_alloc(struct kmem_cache *s,
 	void **object;
 	struct page *new;
 
+	/* We handle __GFP_ZERO in the caller */
+	gfpflags &= ~__GFP_ZERO;
+
 	if (!c->page)
 		goto new_slab;
 
