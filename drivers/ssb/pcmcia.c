@@ -28,11 +28,6 @@
 
 
 /* PCMCIA configuration registers */
-#define SSB_PCMCIA_CORECTL		0x00
-#define  SSB_PCMCIA_CORECTL_RESET	0x80 /* Core reset */
-#define  SSB_PCMCIA_CORECTL_IRQEN	0x04 /* IRQ enable */
-#define  SSB_PCMCIA_CORECTL_FUNCEN	0x01 /* Function enable */
-#define SSB_PCMCIA_CORECTL2		0x80
 #define SSB_PCMCIA_ADDRESS0		0x2E
 #define SSB_PCMCIA_ADDRESS1		0x30
 #define SSB_PCMCIA_ADDRESS2		0x32
@@ -671,6 +666,24 @@ static DEVICE_ATTR(ssb_sprom, 0600,
 		   ssb_pcmcia_attr_sprom_show,
 		   ssb_pcmcia_attr_sprom_store);
 
+static int ssb_pcmcia_cor_setup(struct ssb_bus *bus, u8 cor)
+{
+	u8 val;
+	int err;
+
+	err = ssb_pcmcia_cfg_read(bus, cor, &val);
+	if (err)
+		return err;
+	val &= ~COR_SOFT_RESET;
+	val |= COR_FUNC_ENA | COR_IREQ_ENA | COR_LEVEL_REQ;
+	err = ssb_pcmcia_cfg_write(bus, cor, val);
+	if (err)
+		return err;
+	msleep(40);
+
+	return 0;
+}
+
 void ssb_pcmcia_exit(struct ssb_bus *bus)
 {
 	if (bus->bustype != SSB_BUSTYPE_PCMCIA)
@@ -681,7 +694,6 @@ void ssb_pcmcia_exit(struct ssb_bus *bus)
 
 int ssb_pcmcia_init(struct ssb_bus *bus)
 {
-	u8 val, offset;
 	int err;
 
 	if (bus->bustype != SSB_BUSTYPE_PCMCIA)
@@ -691,16 +703,12 @@ int ssb_pcmcia_init(struct ssb_bus *bus)
 	 * bus->mapped_pcmcia_seg with hardware state. */
 	ssb_pcmcia_switch_segment(bus, 0);
 
-	/* Init IRQ routing */
-	if (bus->chip_id == 0x4306)
-		offset = SSB_PCMCIA_CORECTL;
-	else
-		offset = SSB_PCMCIA_CORECTL2;
-	err = ssb_pcmcia_cfg_read(bus, offset, &val);
+	/* Init the COR register. */
+	err = ssb_pcmcia_cor_setup(bus, CISREG_COR);
 	if (err)
 		goto error;
-	val |= SSB_PCMCIA_CORECTL_IRQEN | SSB_PCMCIA_CORECTL_FUNCEN;
-	err = ssb_pcmcia_cfg_write(bus, offset, val);
+	/* Some cards also need this register to get poked. */
+	err = ssb_pcmcia_cor_setup(bus, CISREG_COR + 0x80);
 	if (err)
 		goto error;
 

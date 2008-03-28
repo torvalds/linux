@@ -1064,9 +1064,9 @@ u32 ssb_dma_translation(struct ssb_device *dev)
 {
 	switch (dev->bus->bustype) {
 	case SSB_BUSTYPE_SSB:
+	case SSB_BUSTYPE_PCMCIA:
 		return 0;
 	case SSB_BUSTYPE_PCI:
-	case SSB_BUSTYPE_PCMCIA:
 		return SSB_PCI_DMA;
 	}
 	return 0;
