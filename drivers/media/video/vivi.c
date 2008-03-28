@@ -1182,6 +1182,7 @@ static const struct file_operations vivi_fops = {
 	.read           = vivi_read,
 	.poll		= vivi_poll,
 	.ioctl          = video_ioctl2, /* V4L2 ioctl handler */
+        .compat_ioctl   = v4l_compat_ioctl32,
 	.mmap           = vivi_mmap,
 	.llseek         = no_llseek,
 };
