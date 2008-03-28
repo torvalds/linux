@@ -4285,6 +4285,14 @@ static void iwl4965_enable_interrupts(struct iwl_priv *priv)
 	iwl_write32(priv, CSR_INT_MASK, CSR_INI_SET_MASK);
 }
 
+/* call this function to flush any scheduled tasklet */
+static inline void iwl_synchronize_irq(struct iwl_priv *priv)
+{
+	/* wait to make sure we flush pedding tasklet*/
+	synchronize_irq(priv->pci_dev->irq);
+	tasklet_kill(&priv->irq_tasklet);
+}
+
 static inline void iwl4965_disable_interrupts(struct iwl_priv *priv)
 {
 	clear_bit(STATUS_INT_ENABLED, &priv->status);
@@ -4668,7 +4676,9 @@ static void iwl4965_irq_tasklet(struct iwl_priv *priv)
 	}
 
 	/* Re-enable all interrupts */
-	iwl4965_enable_interrupts(priv);
+	/* only Re-enable if diabled by irq */
+	if (test_bit(STATUS_INT_ENABLED, &priv->status))
+		iwl4965_enable_interrupts(priv);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (iwl_debug_level & (IWL_DL_ISR)) {
@@ -4733,7 +4743,9 @@ static irqreturn_t iwl4965_isr(int irq, void *data)
 
  none:
 	/* re-enable interrupts here since we don't have anything to service. */
-	iwl4965_enable_interrupts(priv);
+	/* only Re-enable if diabled by irq */
+	if (test_bit(STATUS_INT_ENABLED, &priv->status))
+		iwl4965_enable_interrupts(priv);
 	spin_unlock(&priv->lock);
 	return IRQ_NONE;
 }
@@ -5772,7 +5784,10 @@ static void __iwl4965_down(struct iwl_priv *priv)
 	iwl_write32(priv, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 
 	/* tell the device to stop sending interrupts */
+	spin_lock_irqsave(&priv->lock, flags);
 	iwl4965_disable_interrupts(priv);
+	spin_unlock_irqrestore(&priv->lock, flags);
+	iwl_synchronize_irq(priv);
 
 	if (priv->mac80211_registered)
 		ieee80211_stop_queues(priv->hw);
@@ -7996,6 +8011,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	struct iwl_priv *priv;
 	struct ieee80211_hw *hw;
 	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
+	unsigned long flags;
 	DECLARE_MAC_BUF(mac);
 
 	/************************
@@ -8133,7 +8149,9 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	/********************
 	 * 8. Setup services
 	 ********************/
+	spin_lock_irqsave(&priv->lock, flags);
 	iwl4965_disable_interrupts(priv);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	err = sysfs_create_group(&pdev->dev.kobj, &iwl4965_attribute_group);
 	if (err) {
@@ -8182,6 +8200,7 @@ static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 	struct iwl_priv *priv = pci_get_drvdata(pdev);
 	struct list_head *p, *q;
 	int i;
+	unsigned long flags;
 
 	if (!priv)
 		return;
@@ -8191,6 +8210,15 @@ static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 	set_bit(STATUS_EXIT_PENDING, &priv->status);
 
 	iwl4965_down(priv);
+
+	/* make sure we flush any pending irq or
+	 * tasklet for the driver
+	 */
+	spin_lock_irqsave(&priv->lock, flags);
+	iwl4965_disable_interrupts(priv);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	iwl_synchronize_irq(priv);
 
 	/* Free MAC hash list for ADHOC */
 	for (i = 0; i < IWL_IBSS_MAC_HASH_SIZE; i++) {
