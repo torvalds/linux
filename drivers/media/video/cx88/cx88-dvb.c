@@ -444,7 +444,6 @@ static struct s5h1409_config dvico_hdtv5_pci_nano_config = {
 
 static struct s5h1409_config kworld_atsc_120_config = {
 	.demod_address = 0x32 >> 1,
-	.qam_if	       = 44000,
 	.output_mode   = S5H1409_SERIAL_OUTPUT,
 	.gpio	       = S5H1409_GPIO_OFF,
 	.inversion     = S5H1409_INVERSION_OFF,
