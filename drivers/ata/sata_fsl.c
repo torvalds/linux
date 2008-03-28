@@ -1348,10 +1348,7 @@ static int sata_fsl_remove(struct of_device *ofdev)
 
 static struct of_device_id fsl_sata_match[] = {
 	{
-		.compatible = "fsl,mpc8315-sata",
-	},
-	{
-		.compatible = "fsl,mpc8379-sata",
+		.compatible = "fsl,pq-sata",
 	},
 	{},
 };
