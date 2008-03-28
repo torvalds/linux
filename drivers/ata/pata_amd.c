@@ -56,7 +56,9 @@ static void timing_setup(struct ata_port *ap, struct ata_device *adev, int offse
 	u8 t;
 
 	T = 1000000000 / amd_clock;
-	UT = T / min_t(int, max_t(int, clock, 1), 2);
+	UT = T;
+	if (clock >= 2)
+		UT = T / 2;
 
 	if (ata_timing_compute(adev, speed, &at, T, UT) < 0) {
 		dev_printk(KERN_ERR, &pdev->dev, "unknown mode %d.\n", speed);
