@@ -603,7 +603,6 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
  **/
 static s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
 {
-	struct e1000_mac_info *mac = &hw->mac;
 	s32 ret_val;
 	u16 nvm_data;
 
@@ -624,12 +623,12 @@ static s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
 	}
 
 	if ((nvm_data & NVM_WORD0F_PAUSE_MASK) == 0)
-		mac->fc = e1000_fc_none;
+		hw->fc.type = e1000_fc_none;
 	else if ((nvm_data & NVM_WORD0F_PAUSE_MASK) ==
 		 NVM_WORD0F_ASM_DIR)
-		mac->fc = e1000_fc_tx_pause;
+		hw->fc.type = e1000_fc_tx_pause;
 	else
-		mac->fc = e1000_fc_full;
+		hw->fc.type = e1000_fc_full;
 
 	return 0;
 }
@@ -660,7 +659,7 @@ s32 e1000e_setup_link(struct e1000_hw *hw)
 	 * If flow control is set to default, set flow control based on
 	 * the EEPROM flow control settings.
 	 */
-	if (mac->fc == e1000_fc_default) {
+	if (hw->fc.type == e1000_fc_default) {
 		ret_val = e1000_set_default_fc_generic(hw);
 		if (ret_val)
 			return ret_val;
@@ -671,9 +670,9 @@ s32 e1000e_setup_link(struct e1000_hw *hw)
 	 * in case we get disconnected and then reconnected into a different
 	 * hub or switch with different Flow Control capabilities.
 	 */
-	mac->original_fc = mac->fc;
+	hw->fc.original_type = hw->fc.type;
 
-	hw_dbg(hw, "After fix-ups FlowControl is now = %x\n", mac->fc);
+	hw_dbg(hw, "After fix-ups FlowControl is now = %x\n", hw->fc.type);
 
 	/* Call the necessary media_type subroutine to configure the link. */
 	ret_val = mac->ops.setup_physical_interface(hw);
@@ -691,7 +690,7 @@ s32 e1000e_setup_link(struct e1000_hw *hw)
 	ew32(FCAH, FLOW_CONTROL_ADDRESS_HIGH);
 	ew32(FCAL, FLOW_CONTROL_ADDRESS_LOW);
 
-	ew32(FCTTV, mac->fc_pause_time);
+	ew32(FCTTV, hw->fc.pause_time);
 
 	return e1000e_set_fc_watermarks(hw);
 }
@@ -725,7 +724,7 @@ static s32 e1000_commit_fc_settings_generic(struct e1000_hw *hw)
 	 *	  do not support receiving pause frames).
 	 *      3:  Both Rx and Tx flow control (symmetric) are enabled.
 	 */
-	switch (mac->fc) {
+	switch (hw->fc.type) {
 	case e1000_fc_none:
 		/* Flow control completely disabled by a software over-ride. */
 		txcw = (E1000_TXCW_ANE | E1000_TXCW_FD);
@@ -857,7 +856,7 @@ s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw)
 	 * detect a signal.  If we have a signal, then poll for a "Link-Up"
 	 * indication.
 	 */
-	if (hw->media_type == e1000_media_type_internal_serdes ||
+	if (hw->phy.media_type == e1000_media_type_internal_serdes ||
 	    (er32(CTRL) & E1000_CTRL_SWDPIN1)) {
 		ret_val = e1000_poll_fiber_serdes_link_generic(hw);
 	} else {
@@ -898,7 +897,6 @@ void e1000e_config_collision_dist(struct e1000_hw *hw)
  **/
 s32 e1000e_set_fc_watermarks(struct e1000_hw *hw)
 {
-	struct e1000_mac_info *mac = &hw->mac;
 	u32 fcrtl = 0, fcrth = 0;
 
 	/*
@@ -908,15 +906,15 @@ s32 e1000e_set_fc_watermarks(struct e1000_hw *hw)
 	 * ability to transmit pause frames is not enabled, then these
 	 * registers will be set to 0.
 	 */
-	if (mac->fc & e1000_fc_tx_pause) {
+	if (hw->fc.type & e1000_fc_tx_pause) {
 		/*
 		 * We need to set up the Receive Threshold high and low water
 		 * marks as well as (optionally) enabling the transmission of
 		 * XON frames.
 		 */
-		fcrtl = mac->fc_low_water;
+		fcrtl = hw->fc.low_water;
 		fcrtl |= E1000_FCRTL_XONE;
-		fcrth = mac->fc_high_water;
+		fcrth = hw->fc.high_water;
 	}
 	ew32(FCRTL, fcrtl);
 	ew32(FCRTH, fcrth);
@@ -936,7 +934,6 @@ s32 e1000e_set_fc_watermarks(struct e1000_hw *hw)
  **/
 s32 e1000e_force_mac_fc(struct e1000_hw *hw)
 {
-	struct e1000_mac_info *mac = &hw->mac;
 	u32 ctrl;
 
 	ctrl = er32(CTRL);
@@ -948,7 +945,7 @@ s32 e1000e_force_mac_fc(struct e1000_hw *hw)
 	 * receive flow control.
 	 *
 	 * The "Case" statement below enables/disable flow control
-	 * according to the "mac->fc" parameter.
+	 * according to the "hw->fc.type" parameter.
 	 *
 	 * The possible values of the "fc" parameter are:
 	 *      0:  Flow control is completely disabled
@@ -959,9 +956,9 @@ s32 e1000e_force_mac_fc(struct e1000_hw *hw)
 	 *      3:  Both Rx and Tx flow control (symmetric) is enabled.
 	 *  other:  No other values should be possible at this point.
 	 */
-	hw_dbg(hw, "mac->fc = %u\n", mac->fc);
+	hw_dbg(hw, "hw->fc.type = %u\n", hw->fc.type);
 
-	switch (mac->fc) {
+	switch (hw->fc.type) {
 	case e1000_fc_none:
 		ctrl &= (~(E1000_CTRL_TFCE | E1000_CTRL_RFCE));
 		break;
@@ -1009,11 +1006,11 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 	 * configuration of the MAC to match the "fc" parameter.
 	 */
 	if (mac->autoneg_failed) {
-		if (hw->media_type == e1000_media_type_fiber ||
-		    hw->media_type == e1000_media_type_internal_serdes)
+		if (hw->phy.media_type == e1000_media_type_fiber ||
+		    hw->phy.media_type == e1000_media_type_internal_serdes)
 			ret_val = e1000e_force_mac_fc(hw);
 	} else {
-		if (hw->media_type == e1000_media_type_copper)
+		if (hw->phy.media_type == e1000_media_type_copper)
 			ret_val = e1000e_force_mac_fc(hw);
 	}
 
@@ -1028,7 +1025,7 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 	 * has completed, and if so, how the PHY and link partner has
 	 * flow control configured.
 	 */
-	if ((hw->media_type == e1000_media_type_copper) && mac->autoneg) {
+	if ((hw->phy.media_type == e1000_media_type_copper) && mac->autoneg) {
 		/*
 		 * Read the MII Status Register and check to see if AutoNeg
 		 * has completed.  We read this twice because this reg has
@@ -1105,11 +1102,11 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 			 * ONLY. Hence, we must now check to see if we need to
 			 * turn OFF  the TRANSMISSION of PAUSE frames.
 			 */
-			if (mac->original_fc == e1000_fc_full) {
-				mac->fc = e1000_fc_full;
+			if (hw->fc.original_type == e1000_fc_full) {
+				hw->fc.type = e1000_fc_full;
 				hw_dbg(hw, "Flow Control = FULL.\r\n");
 			} else {
-				mac->fc = e1000_fc_rx_pause;
+				hw->fc.type = e1000_fc_rx_pause;
 				hw_dbg(hw, "Flow Control = "
 					 "RX PAUSE frames only.\r\n");
 			}
@@ -1127,8 +1124,8 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 			  (mii_nway_adv_reg & NWAY_AR_ASM_DIR) &&
 			  (mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
 			  (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
-			mac->fc = e1000_fc_tx_pause;
-			hw_dbg(hw, "Flow Control = TX PAUSE frames only.\r\n");
+			hw->fc.type = e1000_fc_tx_pause;
+			hw_dbg(hw, "Flow Control = Tx PAUSE frames only.\r\n");
 		}
 		/*
 		 * For transmitting PAUSE frames ONLY.
@@ -1143,14 +1140,14 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 			 (mii_nway_adv_reg & NWAY_AR_ASM_DIR) &&
 			 !(mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
 			 (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
-			mac->fc = e1000_fc_rx_pause;
-			hw_dbg(hw, "Flow Control = RX PAUSE frames only.\r\n");
+			hw->fc.type = e1000_fc_rx_pause;
+			hw_dbg(hw, "Flow Control = Rx PAUSE frames only.\r\n");
 		} else {
 			/*
 			 * Per the IEEE spec, at this point flow control
 			 * should be disabled.
 			 */
-			mac->fc = e1000_fc_none;
+			hw->fc.type = e1000_fc_none;
 			hw_dbg(hw, "Flow Control = NONE.\r\n");
 		}
 
@@ -1166,7 +1163,7 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 		}
 
 		if (duplex == HALF_DUPLEX)
-			mac->fc = e1000_fc_none;
+			hw->fc.type = e1000_fc_none;
 
 		/*
 		 * Now we call a subroutine to actually force the MAC
@@ -1436,7 +1433,7 @@ s32 e1000e_blink_led(struct e1000_hw *hw)
 	u32 ledctl_blink = 0;
 	u32 i;
 
-	if (hw->media_type == e1000_media_type_fiber) {
+	if (hw->phy.media_type == e1000_media_type_fiber) {
 		/* always blink LED0 for PCI-E fiber */
 		ledctl_blink = E1000_LEDCTL_LED0_BLINK |
 		     (E1000_LEDCTL_MODE_LED_ON << E1000_LEDCTL_LED0_MODE_SHIFT);
@@ -1468,7 +1465,7 @@ s32 e1000e_led_on_generic(struct e1000_hw *hw)
 {
 	u32 ctrl;
 
-	switch (hw->media_type) {
+	switch (hw->phy.media_type) {
 	case e1000_media_type_fiber:
 		ctrl = er32(CTRL);
 		ctrl &= ~E1000_CTRL_SWDPIN0;
@@ -1495,7 +1492,7 @@ s32 e1000e_led_off_generic(struct e1000_hw *hw)
 {
 	u32 ctrl;
 
-	switch (hw->media_type) {
+	switch (hw->phy.media_type) {
 	case e1000_media_type_fiber:
 		ctrl = er32(CTRL);
 		ctrl |= E1000_CTRL_SWDPIN0;

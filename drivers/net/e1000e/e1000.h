@@ -234,6 +234,8 @@ struct e1000_adapter {
 
 	unsigned int rx_ps_pages;
 	u16 rx_ps_bsize0;
+	u32 max_frame_size;
+	u32 min_frame_size;
 
 	/* OS defined structs */
 	struct net_device *netdev;
@@ -258,7 +260,7 @@ struct e1000_adapter {
 	u32 wol;
 	u32 pba;
 
-	u8 fc_autoneg;
+	bool fc_autoneg;
 
 	unsigned long led_status;
 
@@ -305,6 +307,7 @@ struct e1000_info {
 #define FLAG_MSI_ENABLED                  (1 << 27)
 #define FLAG_RX_CSUM_ENABLED              (1 << 28)
 #define FLAG_TSO_FORCE                    (1 << 29)
+#define FLAG_RX_RESTART_NOW               (1 << 30)
 
 #define E1000_RX_DESC_PS(R, i)	    \
 	(&(((union e1000_rx_desc_packet_split *)((R).desc))[i]))

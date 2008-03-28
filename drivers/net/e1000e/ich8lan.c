@@ -298,7 +298,7 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_adapter *adapter)
 	struct e1000_mac_info *mac = &hw->mac;
 
 	/* Set media type function pointer */
-	hw->media_type = e1000_media_type_copper;
+	hw->phy.media_type = e1000_media_type_copper;
 
 	/* Set mta register count */
 	mac->mta_reg_count = 32;
@@ -453,7 +453,7 @@ static s32 e1000_phy_force_speed_duplex_ich8lan(struct e1000_hw *hw)
 
 	udelay(1);
 
-	if (phy->wait_for_link) {
+	if (phy->autoneg_wait_to_complete) {
 		hw_dbg(hw, "Waiting for forced speed/duplex link on IFE phy.\n");
 
 		ret_val = e1000e_phy_has_link_generic(hw,
@@ -1852,7 +1852,6 @@ static void e1000_initialize_hw_bits_ich8lan(struct e1000_hw *hw)
  **/
 static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw)
 {
-	struct e1000_mac_info *mac = &hw->mac;
 	s32 ret_val;
 
 	if (e1000_check_reset_block(hw))
@@ -1863,19 +1862,19 @@ static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw)
 	 * the default flow control setting, so we explicitly
 	 * set it to full.
 	 */
-	if (mac->fc == e1000_fc_default)
-		mac->fc = e1000_fc_full;
+	if (hw->fc.type == e1000_fc_default)
+		hw->fc.type = e1000_fc_full;
 
-	mac->original_fc = mac->fc;
+	hw->fc.original_type = hw->fc.type;
 
-	hw_dbg(hw, "After fix-ups FlowControl is now = %x\n", mac->fc);
+	hw_dbg(hw, "After fix-ups FlowControl is now = %x\n", hw->fc.type);
 
 	/* Continue to configure the copper link. */
 	ret_val = e1000_setup_copper_link_ich8lan(hw);
 	if (ret_val)
 		return ret_val;
 
-	ew32(FCTTV, mac->fc_pause_time);
+	ew32(FCTTV, hw->fc.pause_time);
 
 	return e1000e_set_fc_watermarks(hw);
 }

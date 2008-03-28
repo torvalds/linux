@@ -878,6 +878,7 @@ static irqreturn_t e1000_intr_msi(int irq, void *data)
 			/* disable receives */
 			u32 rctl = er32(RCTL);
 			ew32(RCTL, rctl & ~E1000_RCTL_EN);
+			adapter->flags |= FLAG_RX_RESTART_NOW;
 		}
 		/* guard against interrupt when we're going down */
 		if (!test_bit(__E1000_DOWN, &adapter->state))
@@ -944,6 +945,7 @@ static irqreturn_t e1000_intr(int irq, void *data)
 			/* disable receives */
 			rctl = er32(RCTL);
 			ew32(RCTL, rctl & ~E1000_RCTL_EN);
+			adapter->flags |= FLAG_RX_RESTART_NOW;
 		}
 		/* guard against interrupt when we're going down */
 		if (!test_bit(__E1000_DOWN, &adapter->state))
@@ -1794,6 +1796,8 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 	}
 
 	ew32(RCTL, rctl);
+	/* just started the receive unit, no need to restart */
+	adapter->flags &= ~FLAG_RX_RESTART_NOW;
 }
 
 /**
@@ -2003,7 +2007,7 @@ void e1000e_power_up_phy(struct e1000_adapter *adapter)
 	u16 mii_reg = 0;
 
 	/* Just clear the power down bit to wake the phy back up */
-	if (adapter->hw.media_type == e1000_media_type_copper) {
+	if (adapter->hw.phy.media_type == e1000_media_type_copper) {
 		/*
 		 * According to the manual, the phy will retain its
 		 * settings across a power-down/up cycle
@@ -2032,7 +2036,7 @@ static void e1000_power_down_phy(struct e1000_adapter *adapter)
 		return;
 
 	/* non-copper PHY? */
-	if (adapter->hw.media_type != e1000_media_type_copper)
+	if (adapter->hw.phy.media_type != e1000_media_type_copper)
 		return;
 
 	/* reset is blocked because of a SoL/IDER session */
@@ -2061,15 +2065,16 @@ static void e1000_power_down_phy(struct e1000_adapter *adapter)
 void e1000e_reset(struct e1000_adapter *adapter)
 {
 	struct e1000_mac_info *mac = &adapter->hw.mac;
+	struct e1000_fc_info *fc = &adapter->hw.fc;
 	struct e1000_hw *hw = &adapter->hw;
 	u32 tx_space, min_tx_space, min_rx_space;
-	u32 pba;
+	u32 pba = adapter->pba;
 	u16 hwm;
 
 	/* reset Packet Buffer Allocation to default */
-	ew32(PBA, adapter->pba);
+	ew32(PBA, pba);
 
-	if (mac->max_frame_size > ETH_FRAME_LEN + ETH_FCS_LEN ) {
+	if (adapter->max_frame_size > ETH_FRAME_LEN + ETH_FCS_LEN) {
 		/*
 		 * To maintain wire speed transmits, the Tx FIFO should be
 		 * large enough to accommodate two full transmit packets,
@@ -2086,13 +2091,14 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		/*
 		 * the Tx fifo also stores 16 bytes of information about the tx
 		 * but don't include ethernet FCS because hardware appends it
-		 */		min_tx_space = (mac->max_frame_size +
+		 */
+		min_tx_space = (adapter->max_frame_size +
 				sizeof(struct e1000_tx_desc) -
 				ETH_FCS_LEN) * 2;
 		min_tx_space = ALIGN(min_tx_space, 1024);
 		min_tx_space >>= 10;
 		/* software strips receive CRC, so leave room for it */
-		min_rx_space = mac->max_frame_size;
+		min_rx_space = adapter->max_frame_size;
 		min_rx_space = ALIGN(min_rx_space, 1024);
 		min_rx_space >>= 10;
 
@@ -2131,20 +2137,21 @@ void e1000e_reset(struct e1000_adapter *adapter)
 	 * - the full Rx FIFO size minus one full frame
 	 */
 	if (adapter->flags & FLAG_HAS_ERT)
-		hwm = min(((adapter->pba << 10) * 9 / 10),
-			  ((adapter->pba << 10) - (E1000_ERT_2048 << 3)));
+		hwm = min(((pba << 10) * 9 / 10),
+			  ((pba << 10) - (E1000_ERT_2048 << 3)));
 	else
-		hwm = min(((adapter->pba << 10) * 9 / 10),
-			  ((adapter->pba << 10) - mac->max_frame_size));
+		hwm = min(((pba << 10) * 9 / 10),
+			  ((pba << 10) - adapter->max_frame_size));
 
-	mac->fc_high_water = hwm & 0xFFF8; /* 8-byte granularity */
-	mac->fc_low_water = mac->fc_high_water - 8;
+	fc->high_water = hwm & 0xFFF8; /* 8-byte granularity */
+	fc->low_water = fc->high_water - 8;
 
 	if (adapter->flags & FLAG_DISABLE_FC_PAUSE_TIME)
-		mac->fc_pause_time = 0xFFFF;
+		fc->pause_time = 0xFFFF;
 	else
-		mac->fc_pause_time = E1000_FC_PAUSE_TIME;
-	mac->fc = mac->original_fc;
+		fc->pause_time = E1000_FC_PAUSE_TIME;
+	fc->send_xon = 1;
+	fc->type = fc->original_type;
 
 	/* Allow time for pending master requests to run */
 	mac->ops.reset_hw(hw);
@@ -2259,13 +2266,12 @@ void e1000e_reinit_locked(struct e1000_adapter *adapter)
  **/
 static int __devinit e1000_sw_init(struct e1000_adapter *adapter)
 {
-	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
 
 	adapter->rx_buffer_len = ETH_FRAME_LEN + VLAN_HLEN + ETH_FCS_LEN;
 	adapter->rx_ps_bsize0 = 128;
-	hw->mac.max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
-	hw->mac.min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
+	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
+	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
 	adapter->tx_ring = kzalloc(sizeof(struct e1000_ring), GFP_KERNEL);
 	if (!adapter->tx_ring)
@@ -2611,7 +2617,7 @@ void e1000e_update_stats(struct e1000_adapter *adapter)
 	/* Tx Dropped needs to be maintained elsewhere */
 
 	/* Phy Stats */
-	if (hw->media_type == e1000_media_type_copper) {
+	if (hw->phy.media_type == e1000_media_type_copper) {
 		if ((adapter->link_speed == SPEED_1000) &&
 		   (!e1e_rphy(hw, PHY_1000T_STATUS, &phy_tmp))) {
 			phy_tmp &= PHY_IDLE_ERROR_COUNT_MASK;
@@ -2629,8 +2635,8 @@ void e1000e_update_stats(struct e1000_adapter *adapter)
 
 static void e1000_print_link_info(struct e1000_adapter *adapter)
 {
-	struct net_device *netdev = adapter->netdev;
 	struct e1000_hw *hw = &adapter->hw;
+	struct net_device *netdev = adapter->netdev;
 	u32 ctrl = er32(CTRL);
 
 	ndev_info(netdev,
@@ -2642,6 +2648,62 @@ static void e1000_print_link_info(struct e1000_adapter *adapter)
 				"RX/TX" :
 		((ctrl & E1000_CTRL_RFCE) ? "RX" :
 		((ctrl & E1000_CTRL_TFCE) ? "TX" : "None" )));
+}
+
+static bool e1000_has_link(struct e1000_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	bool link_active = 0;
+	s32 ret_val = 0;
+
+	/*
+	 * get_link_status is set on LSC (link status) interrupt or
+	 * Rx sequence error interrupt.  get_link_status will stay
+	 * false until the check_for_link establishes link
+	 * for copper adapters ONLY
+	 */
+	switch (hw->phy.media_type) {
+	case e1000_media_type_copper:
+		if (hw->mac.get_link_status) {
+			ret_val = hw->mac.ops.check_for_link(hw);
+			link_active = !hw->mac.get_link_status;
+		} else {
+			link_active = 1;
+		}
+		break;
+	case e1000_media_type_fiber:
+		ret_val = hw->mac.ops.check_for_link(hw);
+		link_active = !!(er32(STATUS) & E1000_STATUS_LU);
+		break;
+	case e1000_media_type_internal_serdes:
+		ret_val = hw->mac.ops.check_for_link(hw);
+		link_active = adapter->hw.mac.serdes_has_link;
+		break;
+	default:
+	case e1000_media_type_unknown:
+		break;
+	}
+
+	if ((ret_val == E1000_ERR_PHY) && (hw->phy.type == e1000_phy_igp_3) &&
+	    (er32(CTRL) & E1000_PHY_CTRL_GBE_DISABLE)) {
+		/* See e1000_kmrn_lock_loss_workaround_ich8lan() */
+		ndev_info(adapter->netdev,
+			  "Gigabit has been disabled, downgrading speed\n");
+	}
+
+	return link_active;
+}
+
+static void e1000e_enable_receives(struct e1000_adapter *adapter)
+{
+	/* make sure the receive unit is started */
+	if ((adapter->flags & FLAG_RX_NEEDS_RESTART) &&
+	    (adapter->flags & FLAG_RX_RESTART_NOW)) {
+		struct e1000_hw *hw = &adapter->hw;
+		u32 rctl = er32(RCTL);
+		ew32(RCTL, rctl | E1000_RCTL_EN);
+		adapter->flags &= ~FLAG_RX_RESTART_NOW;
+	}
 }
 
 /**
@@ -2662,42 +2724,27 @@ static void e1000_watchdog_task(struct work_struct *work)
 {
 	struct e1000_adapter *adapter = container_of(work,
 					struct e1000_adapter, watchdog_task);
-
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_mac_info *mac = &adapter->hw.mac;
 	struct e1000_ring *tx_ring = adapter->tx_ring;
 	struct e1000_hw *hw = &adapter->hw;
 	u32 link, tctl;
-	s32 ret_val;
 	int tx_pending = 0;
 
-	if ((netif_carrier_ok(netdev)) &&
-	    (er32(STATUS) & E1000_STATUS_LU))
+	link = e1000_has_link(adapter);
+	if ((netif_carrier_ok(netdev)) && link) {
+		e1000e_enable_receives(adapter);
 		goto link_up;
-
-	ret_val = mac->ops.check_for_link(hw);
-	if ((ret_val == E1000_ERR_PHY) &&
-	    (adapter->hw.phy.type == e1000_phy_igp_3) &&
-	    (er32(CTRL) &
-	     E1000_PHY_CTRL_GBE_DISABLE)) {
-		/* See e1000_kmrn_lock_loss_workaround_ich8lan() */
-		ndev_info(netdev,
-			"Gigabit has been disabled, downgrading speed\n");
 	}
 
 	if ((e1000e_enable_tx_pkt_filtering(hw)) &&
 	    (adapter->mng_vlan_id != adapter->hw.mng_cookie.vlan_id))
 		e1000_update_mng_vlan(adapter);
 
-	if ((adapter->hw.media_type == e1000_media_type_internal_serdes) &&
-	   !(er32(TXCW) & E1000_TXCW_ANE))
-		link = adapter->hw.mac.serdes_has_link;
-	else
-		link = er32(STATUS) & E1000_STATUS_LU;
-
 	if (link) {
 		if (!netif_carrier_ok(netdev)) {
 			bool txb2b = 1;
+			/* update snapshot of PHY registers on LSC */
 			mac->ops.get_link_up_info(&adapter->hw,
 						   &adapter->link_speed,
 						   &adapter->link_duplex);
@@ -2770,13 +2817,6 @@ static void e1000_watchdog_task(struct work_struct *work)
 			if (!test_bit(__E1000_DOWN, &adapter->state))
 				mod_timer(&adapter->phy_info_timer,
 					  round_jiffies(jiffies + 2 * HZ));
-		} else {
-			/* make sure the receive unit is started */
-			if (adapter->flags & FLAG_RX_NEEDS_RESTART) {
-				u32 rctl = er32(RCTL);
-				ew32(RCTL, rctl |
-						E1000_RCTL_EN);
-			}
 		}
 	} else {
 		if (netif_carrier_ok(netdev)) {
@@ -3413,7 +3453,7 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 	while (test_and_set_bit(__E1000_RESETTING, &adapter->state))
 		msleep(1);
 	/* e1000e_down has a dependency on max_frame_size */
-	adapter->hw.mac.max_frame_size = max_frame;
+	adapter->max_frame_size = max_frame;
 	if (netif_running(netdev))
 		e1000e_down(adapter);
 
@@ -3462,7 +3502,7 @@ static int e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr,
 	struct mii_ioctl_data *data = if_mii(ifr);
 	unsigned long irq_flags;
 
-	if (adapter->hw.media_type != e1000_media_type_copper)
+	if (adapter->hw.phy.media_type != e1000_media_type_copper)
 		return -EOPNOTSUPP;
 
 	switch (cmd) {
@@ -3544,8 +3584,9 @@ static int e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 			E1000_CTRL_EN_PHY_PWR_MGMT;
 		ew32(CTRL, ctrl);
 
-		if (adapter->hw.media_type == e1000_media_type_fiber ||
-		   adapter->hw.media_type == e1000_media_type_internal_serdes) {
+		if (adapter->hw.phy.media_type == e1000_media_type_fiber ||
+		    adapter->hw.phy.media_type ==
+		    e1000_media_type_internal_serdes) {
 			/* keep the laser running in D3 */
 			ctrl_ext = er32(CTRL_EXT);
 			ctrl_ext |= E1000_CTRL_EXT_SDP7_DATA;
@@ -3939,10 +3980,10 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	hw->mac.ops.get_bus_info(&adapter->hw);
 
-	adapter->hw.phy.wait_for_link = 0;
+	adapter->hw.phy.autoneg_wait_to_complete = 0;
 
 	/* Copper options */
-	if (adapter->hw.media_type == e1000_media_type_copper) {
+	if (adapter->hw.phy.media_type == e1000_media_type_copper) {
 		adapter->hw.phy.mdix = AUTO_ALL_MODES;
 		adapter->hw.phy.disable_polarity_correction = 0;
 		adapter->hw.phy.ms_type = e1000_ms_hw_default;
@@ -4028,8 +4069,8 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	/* Initialize link parameters. User can change them with ethtool */
 	adapter->hw.mac.autoneg = 1;
 	adapter->fc_autoneg = 1;
-	adapter->hw.mac.original_fc = e1000_fc_default;
-	adapter->hw.mac.fc = e1000_fc_default;
+	adapter->hw.fc.original_type = e1000_fc_default;
+	adapter->hw.fc.type = e1000_fc_default;
 	adapter->hw.phy.autoneg_advertised = 0x2f;
 
 	/* ring size defaults */

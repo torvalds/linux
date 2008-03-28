@@ -400,7 +400,7 @@ enum e1000_rev_polarity{
 	e1000_rev_polarity_undefined = 0xFF
 };
 
-enum e1000_fc_mode {
+enum e1000_fc_type {
 	e1000_fc_none = 0,
 	e1000_fc_rx_pause,
 	e1000_fc_tx_pause,
@@ -727,16 +727,12 @@ struct e1000_mac_info {
 	u8 perm_addr[6];
 
 	enum e1000_mac_type type;
-	enum e1000_fc_mode  fc;
-	enum e1000_fc_mode  original_fc;
 
 	u32 collision_delta;
 	u32 ledctl_default;
 	u32 ledctl_mode1;
 	u32 ledctl_mode2;
-	u32 max_frame_size;
 	u32 mc_filter_type;
-	u32 min_frame_size;
 	u32 tx_packet_delta;
 	u32 txcw;
 
@@ -747,9 +743,6 @@ struct e1000_mac_info {
 	u16 ifs_step_size;
 	u16 mta_reg_count;
 	u16 rar_entry_count;
-	u16 fc_high_water;
-	u16 fc_low_water;
-	u16 fc_pause_time;
 
 	u8  forced_speed_duplex;
 
@@ -779,6 +772,8 @@ struct e1000_phy_info {
 	u32 reset_delay_us; /* in usec */
 	u32 revision;
 
+	enum e1000_media_type media_type;
+
 	u16 autoneg_advertised;
 	u16 autoneg_mask;
 	u16 cable_length;
@@ -791,7 +786,7 @@ struct e1000_phy_info {
 	bool is_mdix;
 	bool polarity_correction;
 	bool speed_downgraded;
-	bool wait_for_link;
+	bool autoneg_wait_to_complete;
 };
 
 struct e1000_nvm_info {
@@ -814,6 +809,16 @@ struct e1000_bus_info {
 	enum e1000_bus_width width;
 
 	u16 func;
+};
+
+struct e1000_fc_info {
+	u32 high_water;          /* Flow control high-water mark */
+	u32 low_water;           /* Flow control low-water mark */
+	u16 pause_time;          /* Flow control pause timer */
+	bool send_xon;           /* Flow control send XON */
+	bool strict_ieee;        /* Strict IEEE mode */
+	enum e1000_fc_type type; /* Type of flow control */
+	enum e1000_fc_type original_type;
 };
 
 struct e1000_dev_spec_82571 {
@@ -840,6 +845,7 @@ struct e1000_hw {
 	u8 __iomem *flash_address;
 
 	struct e1000_mac_info  mac;
+	struct e1000_fc_info   fc;
 	struct e1000_phy_info  phy;
 	struct e1000_nvm_info  nvm;
 	struct e1000_bus_info  bus;
@@ -849,8 +855,6 @@ struct e1000_hw {
 		struct e1000_dev_spec_82571	e82571;
 		struct e1000_dev_spec_ich8lan	ich8lan;
 	} dev_spec;
-
-	enum e1000_media_type media_type;
 };
 
 #ifdef DEBUG
