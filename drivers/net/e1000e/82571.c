@@ -972,7 +972,7 @@ void e1000e_clear_vfta(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_mc_addr_list_update_82571 - Update Multicast addresses
+ *  e1000_update_mc_addr_list_82571 - Update Multicast addresses
  *  @hw: pointer to the HW structure
  *  @mc_addr_list: array of multicast addresses to program
  *  @mc_addr_count: number of multicast addresses to program
@@ -984,7 +984,7 @@ void e1000e_clear_vfta(struct e1000_hw *hw)
  *  The parameter rar_count will usually be hw->mac.rar_entry_count
  *  unless there are workarounds that change this.
  **/
-static void e1000_mc_addr_list_update_82571(struct e1000_hw *hw,
+static void e1000_update_mc_addr_list_82571(struct e1000_hw *hw,
 					    u8 *mc_addr_list,
 					    u32 mc_addr_count,
 					    u32 rar_used_count,
@@ -993,8 +993,8 @@ static void e1000_mc_addr_list_update_82571(struct e1000_hw *hw,
 	if (e1000e_get_laa_state_82571(hw))
 		rar_count--;
 
-	e1000e_mc_addr_list_update_generic(hw, mc_addr_list, mc_addr_count,
-					  rar_used_count, rar_count);
+	e1000e_update_mc_addr_list_generic(hw, mc_addr_list, mc_addr_count,
+					   rar_used_count, rar_count);
 }
 
 /**
@@ -1269,7 +1269,7 @@ static struct e1000_mac_operations e82571_mac_ops = {
 	/* .get_link_up_info: media type dependent */
 	.led_on			= e1000e_led_on_generic,
 	.led_off		= e1000e_led_off_generic,
-	.mc_addr_list_update	= e1000_mc_addr_list_update_82571,
+	.update_mc_addr_list	= e1000_update_mc_addr_list_82571,
 	.reset_hw		= e1000_reset_hw_82571,
 	.init_hw		= e1000_init_hw_82571,
 	.setup_link		= e1000_setup_link_82571,

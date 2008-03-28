@@ -265,7 +265,7 @@ static u32 e1000_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
 }
 
 /**
- *  e1000e_mc_addr_list_update_generic - Update Multicast addresses
+ *  e1000e_update_mc_addr_list_generic - Update Multicast addresses
  *  @hw: pointer to the HW structure
  *  @mc_addr_list: array of multicast addresses to program
  *  @mc_addr_count: number of multicast addresses to program
@@ -277,9 +277,9 @@ static u32 e1000_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
  *  The parameter rar_count will usually be hw->mac.rar_entry_count
  *  unless there are workarounds that change this.
  **/
-void e1000e_mc_addr_list_update_generic(struct e1000_hw *hw,
-				       u8 *mc_addr_list, u32 mc_addr_count,
-				       u32 rar_used_count, u32 rar_count)
+void e1000e_update_mc_addr_list_generic(struct e1000_hw *hw,
+					u8 *mc_addr_list, u32 mc_addr_count,
+					u32 rar_used_count, u32 rar_count)
 {
 	u32 hash_value;
 	u32 i;
