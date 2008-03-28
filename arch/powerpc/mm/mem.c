@@ -111,7 +111,7 @@ int memory_add_physaddr_to_nid(u64 start)
 }
 #endif
 
-int __devinit arch_add_memory(int nid, u64 start, u64 size)
+int arch_add_memory(int nid, u64 start, u64 size)
 {
 	struct pglist_data *pgdata;
 	struct zone *zone;
