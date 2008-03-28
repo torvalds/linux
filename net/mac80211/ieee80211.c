@@ -1046,54 +1046,69 @@ int ieee80211_hw_config(struct ieee80211_local *local)
 }
 
 /**
- * ieee80211_hw_config_ht should be used only after legacy configuration
- * has been determined, as ht configuration depends upon the hardware's
- * HT abilities for a _specific_ band.
+ * ieee80211_handle_ht should be used only after legacy configuration
+ * has been determined namely band, as ht configuration depends upon
+ * the hardware's HT abilities for a _specific_ band.
  */
-int ieee80211_hw_config_ht(struct ieee80211_local *local, int enable_ht,
+u32 ieee80211_handle_ht(struct ieee80211_local *local, int enable_ht,
 			   struct ieee80211_ht_info *req_ht_cap,
 			   struct ieee80211_ht_bss_info *req_bss_cap)
 {
 	struct ieee80211_conf *conf = &local->hw.conf;
 	struct ieee80211_supported_band *sband;
+	struct ieee80211_ht_info ht_conf;
+	struct ieee80211_ht_bss_info ht_bss_conf;
 	int i;
+	u32 changed = 0;
 
 	sband = local->hw.wiphy->bands[conf->channel->band];
 
 	/* HT is not supported */
 	if (!sband->ht_info.ht_supported) {
 		conf->flags &= ~IEEE80211_CONF_SUPPORT_HT_MODE;
-		return -EOPNOTSUPP;
+		return 0;
 	}
 
-	/* disable HT */
-	if (!enable_ht) {
-		conf->flags &= ~IEEE80211_CONF_SUPPORT_HT_MODE;
-	} else {
+	memset(&ht_conf, 0, sizeof(struct ieee80211_ht_info));
+	memset(&ht_bss_conf, 0, sizeof(struct ieee80211_ht_bss_info));
+
+	if (enable_ht) {
+		if (!(conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE))
+			changed |= BSS_CHANGED_HT;
+
 		conf->flags |= IEEE80211_CONF_SUPPORT_HT_MODE;
-		conf->ht_conf.cap = req_ht_cap->cap & sband->ht_info.cap;
-		conf->ht_conf.cap &= ~(IEEE80211_HT_CAP_MIMO_PS);
-		conf->ht_conf.cap |=
-			sband->ht_info.cap & IEEE80211_HT_CAP_MIMO_PS;
-		conf->ht_bss_conf.primary_channel =
-			req_bss_cap->primary_channel;
-		conf->ht_bss_conf.bss_cap = req_bss_cap->bss_cap;
-		conf->ht_bss_conf.bss_op_mode = req_bss_cap->bss_op_mode;
-		for (i = 0; i < SUPP_MCS_SET_LEN; i++)
-			conf->ht_conf.supp_mcs_set[i] =
-				sband->ht_info.supp_mcs_set[i] &
-				  req_ht_cap->supp_mcs_set[i];
+		ht_conf.ht_supported = 1;
 
-		/* In STA mode, this gives us indication
-		 * to the AP's mode of operation */
-		conf->ht_conf.ht_supported = 1;
-		conf->ht_conf.ampdu_factor = req_ht_cap->ampdu_factor;
-		conf->ht_conf.ampdu_density = req_ht_cap->ampdu_density;
+		ht_conf.cap = req_ht_cap->cap & sband->ht_info.cap;
+		ht_conf.cap &= ~(IEEE80211_HT_CAP_MIMO_PS);
+		ht_conf.cap |= sband->ht_info.cap & IEEE80211_HT_CAP_MIMO_PS;
+
+		for (i = 0; i < SUPP_MCS_SET_LEN; i++)
+			ht_conf.supp_mcs_set[i] =
+					sband->ht_info.supp_mcs_set[i] &
+					req_ht_cap->supp_mcs_set[i];
+
+		ht_bss_conf.primary_channel = req_bss_cap->primary_channel;
+		ht_bss_conf.bss_cap = req_bss_cap->bss_cap;
+		ht_bss_conf.bss_op_mode = req_bss_cap->bss_op_mode;
+
+		ht_conf.ampdu_factor = req_ht_cap->ampdu_factor;
+		ht_conf.ampdu_density = req_ht_cap->ampdu_density;
+
+		/* if bss configuration changed store the new one */
+		if (memcmp(&conf->ht_conf, &ht_conf, sizeof(ht_conf)) ||
+		    memcmp(&conf->ht_bss_conf, &ht_bss_conf, sizeof(ht_bss_conf))) {
+			changed |= BSS_CHANGED_HT;
+			memcpy(&conf->ht_conf, &ht_conf, sizeof(ht_conf));
+			memcpy(&conf->ht_bss_conf, &ht_bss_conf, sizeof(ht_bss_conf));
+		}
+	} else {
+		if (conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE)
+			changed |= BSS_CHANGED_HT;
+		conf->flags &= ~IEEE80211_CONF_SUPPORT_HT_MODE;
 	}
 
-	local->ops->conf_ht(local_to_hw(local), &local->hw.conf);
-
-	return 0;
+	return changed;
 }
 
 void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,

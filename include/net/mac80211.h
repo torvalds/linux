@@ -178,11 +178,13 @@ struct ieee80211_low_level_stats {
  *	also implies a change in the AID.
  * @BSS_CHANGED_ERP_CTS_PROT: CTS protection changed
  * @BSS_CHANGED_ERP_PREAMBLE: preamble changed
+ * @BSS_CHANGED_HT: 802.11n parameters changed
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
 	BSS_CHANGED_ERP_CTS_PROT	= 1<<1,
 	BSS_CHANGED_ERP_PREAMBLE	= 1<<2,
+	BSS_CHANGED_HT                  = 1<<4,
 };
 
 /**
@@ -195,6 +197,9 @@ enum ieee80211_bss_change {
  * @aid: association ID number, valid only when @assoc is true
  * @use_cts_prot: use CTS protection
  * @use_short_preamble: use 802.11b short preamble
+ * @assoc_ht: association in HT mode
+ * @ht_conf: ht capabilities
+ * @ht_bss_conf: ht extended capabilities
  */
 struct ieee80211_bss_conf {
 	/* association related data */
@@ -203,6 +208,10 @@ struct ieee80211_bss_conf {
 	/* erp related data */
 	bool use_cts_prot;
 	bool use_short_preamble;
+	/* ht related data */
+	bool assoc_ht;
+	struct ieee80211_ht_info *ht_conf;
+	struct ieee80211_ht_bss_info *ht_bss_conf;
 };
 
 /**
@@ -1132,7 +1141,6 @@ struct ieee80211_ops {
 			     struct sk_buff *skb,
 			     struct ieee80211_tx_control *control);
 	int (*tx_last_beacon)(struct ieee80211_hw *hw);
-	int (*conf_ht)(struct ieee80211_hw *hw, struct ieee80211_conf *conf);
 	int (*ampdu_action)(struct ieee80211_hw *hw,
 			    enum ieee80211_ampdu_mlme_action action,
 			    const u8 *addr, u16 tid, u16 *ssn);

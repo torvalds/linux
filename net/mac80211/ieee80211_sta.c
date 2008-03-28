@@ -493,6 +493,7 @@ static void ieee80211_set_associated(struct net_device *dev,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_conf *conf = &local_to_hw(local)->conf;
 	union iwreq_data wrqu;
 	u32 changed = BSS_CHANGED_ASSOC;
 
@@ -505,13 +506,20 @@ static void ieee80211_set_associated(struct net_device *dev,
 			return;
 
 		bss = ieee80211_rx_bss_get(dev, ifsta->bssid,
-					   local->hw.conf.channel->center_freq,
+					   conf->channel->center_freq,
 					   ifsta->ssid, ifsta->ssid_len);
 		if (bss) {
 			if (bss->has_erp_value)
 				changed |= ieee80211_handle_erp_ie(
 						sdata, bss->erp_value);
 			ieee80211_rx_bss_put(dev, bss);
+		}
+
+		if (conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) {
+			changed |= BSS_CHANGED_HT;
+			sdata->bss_conf.assoc_ht = 1;
+			sdata->bss_conf.ht_conf = &conf->ht_conf;
+			sdata->bss_conf.ht_bss_conf = &conf->ht_bss_conf;
 		}
 
 		netif_carrier_on(dev);
@@ -524,6 +532,11 @@ static void ieee80211_set_associated(struct net_device *dev,
 		ifsta->flags &= ~IEEE80211_STA_ASSOCIATED;
 		netif_carrier_off(dev);
 		ieee80211_reset_erp_info(dev);
+
+		sdata->bss_conf.assoc_ht = 0;
+		sdata->bss_conf.ht_conf = NULL;
+		sdata->bss_conf.ht_bss_conf = NULL;
+
 		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
 	}
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
@@ -1999,17 +2012,15 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	else
 		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
 
-	if (elems.ht_cap_elem && elems.ht_info_elem && elems.wmm_param &&
-	    local->ops->conf_ht) {
+	if (elems.ht_cap_elem && elems.ht_info_elem && elems.wmm_param) {
 		struct ieee80211_ht_bss_info bss_info;
-
 		ieee80211_ht_cap_ie_to_ht_info(
 				(struct ieee80211_ht_cap *)
 				elems.ht_cap_elem, &sta->ht_info);
 		ieee80211_ht_addt_info_ie_to_ht_bss_info(
 				(struct ieee80211_ht_addt_info *)
 				elems.ht_info_elem, &bss_info);
-		ieee80211_hw_config_ht(local, 1, &sta->ht_info, &bss_info);
+		ieee80211_handle_ht(local, 1, &sta->ht_info, &bss_info);
 	}
 
 	rate_control_rate_init(sta, local);
@@ -2760,20 +2771,14 @@ static void ieee80211_rx_mgmt_beacon(struct net_device *dev,
 		changed |= ieee80211_handle_erp_ie(sdata, elems.erp_info[0]);
 
 	if (elems.ht_cap_elem && elems.ht_info_elem &&
-	    elems.wmm_param && local->ops->conf_ht &&
-	    conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) {
+	    elems.wmm_param && conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) {
 		struct ieee80211_ht_bss_info bss_info;
 
 		ieee80211_ht_addt_info_ie_to_ht_bss_info(
 				(struct ieee80211_ht_addt_info *)
 				elems.ht_info_elem, &bss_info);
-		/* check if AP changed bss inforamation */
-		if ((conf->ht_bss_conf.primary_channel !=
-		     bss_info.primary_channel) ||
-		    (conf->ht_bss_conf.bss_cap != bss_info.bss_cap) ||
-		    (conf->ht_bss_conf.bss_op_mode != bss_info.bss_op_mode))
-			ieee80211_hw_config_ht(local, 1, &conf->ht_conf,
-						&bss_info);
+		changed |= ieee80211_handle_ht(local, 1, &conf->ht_conf,
+					       &bss_info);
 	}
 
 	if (elems.wmm_param && (ifsta->flags & IEEE80211_STA_WMM_ENABLED)) {
