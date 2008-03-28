@@ -36,6 +36,7 @@
 #include <linux/notifier.h>
 #include <linux/reboot.h>
 #include <asm/kexec.h>
+#include <linux/mutex.h>
 
 #include <net/ip.h>
 
@@ -99,7 +100,7 @@ static int port_name_cnt;
 static LIST_HEAD(adapter_list);
 u64 ehea_driver_flags;
 struct work_struct ehea_rereg_mr_task;
-struct semaphore dlpar_mem_lock;
+static DEFINE_MUTEX(dlpar_mem_lock);
 struct ehea_fw_handle_array ehea_fw_handles;
 struct ehea_bcmc_reg_array ehea_bcmc_regs;
 
@@ -2830,7 +2831,7 @@ static void ehea_rereg_mrs(struct work_struct *work)
 	int ret, i;
 	struct ehea_adapter *adapter;
 
-	down(&dlpar_mem_lock);
+	mutex_lock(&dlpar_mem_lock);
 	ehea_info("LPAR memory enlarged - re-initializing driver");
 
 	list_for_each_entry(adapter, &adapter_list, list)
@@ -2902,7 +2903,7 @@ static void ehea_rereg_mrs(struct work_struct *work)
 				}
 			}
 		}
-       up(&dlpar_mem_lock);
+       mutex_unlock(&dlpar_mem_lock);
        ehea_info("re-initializing driver complete");
 out:
 	return;
@@ -3543,7 +3544,6 @@ int __init ehea_module_init(void)
 	memset(&ehea_fw_handles, 0, sizeof(ehea_fw_handles));
 	memset(&ehea_bcmc_regs, 0, sizeof(ehea_bcmc_regs));
 
-	sema_init(&dlpar_mem_lock, 1);
 	sema_init(&ehea_fw_handles.lock, 1);
 	sema_init(&ehea_bcmc_regs.lock, 1);
 
