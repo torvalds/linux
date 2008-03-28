@@ -107,8 +107,8 @@ complete. Here's the example version:
 
 	static void *ct_seq_next(struct seq_file *s, void *v, loff_t *pos)
 	{
-	        loff_t *spos = (loff_t *) v;
-	        *pos = ++(*spos);
+	        loff_t *spos = v;
+	        *pos = ++*spos;
 	        return spos;
 	}
 
@@ -127,8 +127,8 @@ something goes wrong. The example module's show() function is:
 
 	static int ct_seq_show(struct seq_file *s, void *v)
 	{
-	        loff_t *spos = (loff_t *) v;
-	        seq_printf(s, "%Ld\n", *spos);
+	        loff_t *spos = v;
+	        seq_printf(s, "%lld\n", (long long)*spos);
 	        return 0;
 	}
 
@@ -136,7 +136,7 @@ We will look at seq_printf() in a moment. But first, the definition of the
 seq_file iterator is finished by creating a seq_operations structure with
 the four functions we have just defined:
 
-	static struct seq_operations ct_seq_ops = {
+	static const struct seq_operations ct_seq_ops = {
 	        .start = ct_seq_start,
 	        .next  = ct_seq_next,
 	        .stop  = ct_seq_stop,
@@ -204,7 +204,7 @@ line, as in the example module:
 	static int ct_open(struct inode *inode, struct file *file)
 	{
 		return seq_open(file, &ct_seq_ops);
-	};
+	}
 
 Here, the call to seq_open() takes the seq_operations structure we created
 before, and gets set up to iterate through the virtual file.
@@ -219,7 +219,7 @@ The other operations of interest - read(), llseek(), and release() - are
 all implemented by the seq_file code itself. So a virtual file's
 file_operations structure will look like:
 
-	static struct file_operations ct_file_ops = {
+	static const struct file_operations ct_file_ops = {
 	        .owner   = THIS_MODULE,
 	        .open    = ct_open,
 	        .read    = seq_read,
