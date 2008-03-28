@@ -84,6 +84,28 @@ void __init reserve_early(unsigned long start, unsigned long end, char *name)
 		strncpy(r->name, name, sizeof(r->name) - 1);
 }
 
+void __init free_early(unsigned long start, unsigned long end)
+{
+	struct early_res *r;
+	int i, j;
+
+	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
+		r = &early_res[i];
+		if (start == r->start && end == r->end)
+			break;
+	}
+	if (i >= MAX_EARLY_RES || !early_res[i].end)
+		panic("free_early on not reserved area: %lx-%lx!", start, end);
+
+	for (j = i + 1; j < MAX_EARLY_RES && early_res[j].end; j++)
+		;
+
+	memcpy(&early_res[i], &early_res[i + 1],
+	       (j - 1 - i) * sizeof(struct early_res));
+
+	early_res[j - 1].end = 0;
+}
+
 void __init early_res_to_bootmem(void)
 {
 	int i;
