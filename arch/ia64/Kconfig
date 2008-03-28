@@ -611,6 +611,9 @@ config IRQ_PER_CPU
 	bool
 	default y
 
+config IOMMU_HELPER
+	def_bool (IA64_HP_ZX1 || IA64_HP_ZX1_SWIOTLB || IA64_GENERIC)
+
 source "arch/ia64/hp/sim/Kconfig"
 
 source "arch/ia64/Kconfig.debug"
