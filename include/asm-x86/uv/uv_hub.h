@@ -206,5 +206,79 @@ static inline void uv_write_local_mmr(unsigned long offset, unsigned long val)
 	*uv_local_mmr_address(offset) = val;
 }
 
+/*
+ * Structures and definitions for converting between cpu, node, and blade
+ * numbers.
+ */
+struct uv_blade_info {
+	unsigned short	nr_posible_cpus;
+	unsigned short	nr_online_cpus;
+	unsigned short	nasid;
+};
+struct uv_blade_info *uv_blade_info;
+extern short *uv_node_to_blade;
+extern short *uv_cpu_to_blade;
+extern short uv_possible_blades;
+
+/* Blade-local cpu number of current cpu. Numbered 0 .. <# cpus on the blade> */
+static inline int uv_blade_processor_id(void)
+{
+	return uv_hub_info->blade_processor_id;
+}
+
+/* Blade number of current cpu. Numnbered 0 .. <#blades -1> */
+static inline int uv_numa_blade_id(void)
+{
+	return uv_hub_info->numa_blade_id;
+}
+
+/* Convert a cpu number to the the UV blade number */
+static inline int uv_cpu_to_blade_id(int cpu)
+{
+	return uv_cpu_to_blade[cpu];
+}
+
+/* Convert linux node number to the UV blade number */
+static inline int uv_node_to_blade_id(int nid)
+{
+	return uv_node_to_blade[nid];
+}
+
+/* Convert a blade id to the NASID of the blade */
+static inline int uv_blade_to_nasid(int bid)
+{
+	return uv_blade_info[bid].nasid;
+}
+
+/* Determine the number of possible cpus on a blade */
+static inline int uv_blade_nr_possible_cpus(int bid)
+{
+	return uv_blade_info[bid].nr_posible_cpus;
+}
+
+/* Determine the number of online cpus on a blade */
+static inline int uv_blade_nr_online_cpus(int bid)
+{
+	return uv_blade_info[bid].nr_online_cpus;
+}
+
+/* Convert a cpu id to the NASID of the blade containing the cpu */
+static inline int uv_cpu_to_nasid(int cpu)
+{
+	return uv_blade_info[uv_cpu_to_blade_id(cpu)].nasid;
+}
+
+/* Convert a node number to the NASID of the blade */
+static inline int uv_node_to_nasid(int nid)
+{
+	return uv_blade_info[uv_node_to_blade_id(nid)].nasid;
+}
+
+/* Maximum possible number of blades */
+static inline int uv_num_possible_blades(void)
+{
+	return uv_possible_blades;
+}
+
 #endif /* __ASM_X86_UV_HUB__ */
 
