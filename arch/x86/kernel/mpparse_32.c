@@ -196,7 +196,9 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 	int apicid;
 
 	if (!(m->mpc_cpuflag & CPU_ENABLED)) {
+#ifdef CONFIG_X86_SMP
 		disabled_cpus++;
+#endif
 		return;
 	}
 
@@ -901,7 +903,9 @@ void __cpuinit mp_register_lapic (u8 id, u8 enabled)
 	}
 
 	if (!enabled) {
+#ifdef CONFIG_X86_SMP
 		++disabled_cpus;
+#endif
 		return;
 	}
 
