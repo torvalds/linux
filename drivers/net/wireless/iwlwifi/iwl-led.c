@@ -238,18 +238,20 @@ static int iwl_leds_register_led(struct iwl_priv *priv,
 	led->led_dev.brightness_set = iwl4965_led_brightness_set;
 	led->led_dev.default_trigger = trigger;
 
+	led->priv = priv;
+	led->type = type;
+
 	ret = led_classdev_register(device, &led->led_dev);
 	if (ret) {
 		IWL_ERROR("Error: failed to register led handler.\n");
 		return ret;
 	}
 
-	led->priv = priv;
-	led->type = type;
 	led->registered = 1;
 
 	if (set_led && led->led_on)
 		led->led_on(priv, IWL_LED_LINK);
+
 	return 0;
 }
 
