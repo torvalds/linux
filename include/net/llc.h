@@ -65,7 +65,6 @@ struct llc_sap {
 
 extern struct list_head llc_sap_list;
 extern rwlock_t llc_sap_list_lock;
-extern unsigned char llc_station_mac_sa[ETH_ALEN];
 
 extern int llc_rcv(struct sk_buff *skb, struct net_device *dev,
 		   struct packet_type *pt, struct net_device *orig_dev);
