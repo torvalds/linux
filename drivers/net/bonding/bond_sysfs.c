@@ -341,6 +341,7 @@ static ssize_t bonding_store_slaves(struct device *d,
 
 	if (command[0] == '-') {
 		dev = NULL;
+		original_mtu = 0;
 		bond_for_each_slave(bond, slave, i)
 			if (strnicmp(slave->dev->name, ifname, IFNAMSIZ) == 0) {
 				dev = slave->dev;
