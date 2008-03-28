@@ -185,7 +185,6 @@ static inline void in6_ifa_put(struct inet6_ifaddr *ifp)
 #define in6_ifa_hold(ifp)	atomic_inc(&(ifp)->refcnt)
 
 
-extern void			addrconf_forwarding_on(void);
 /*
  *	Hash function taken from net_alias.c
  */
