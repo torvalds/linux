@@ -927,26 +927,12 @@ static inline unsigned char *skb_push(struct sk_buff *skb, unsigned int len)
 	return skb->data;
 }
 
+extern unsigned char *skb_pull(struct sk_buff *skb, unsigned int len);
 static inline unsigned char *__skb_pull(struct sk_buff *skb, unsigned int len)
 {
 	skb->len -= len;
 	BUG_ON(skb->len < skb->data_len);
 	return skb->data += len;
-}
-
-/**
- *	skb_pull - remove data from the start of a buffer
- *	@skb: buffer to use
- *	@len: amount of data to remove
- *
- *	This function removes data from the start of a buffer, returning
- *	the memory to the headroom. A pointer to the next data in the buffer
- *	is returned. Once the data has been pulled future pushes will overwrite
- *	the old data.
- */
-static inline unsigned char *skb_pull(struct sk_buff *skb, unsigned int len)
-{
-	return unlikely(len > skb->len) ? NULL : __skb_pull(skb, len);
 }
 
 extern unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta);
