@@ -299,7 +299,7 @@ static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk
 	VEFLAGS = info->regs.pt.flags;
 	info->regs.pt.flags &= SAFE_MASK;
 	info->regs.pt.flags |= info->regs32->flags & ~SAFE_MASK;
-	info->regs.pt.flags |= VM_MASK;
+	info->regs.pt.flags |= X86_VM_MASK;
 
 	switch (info->cpu_type) {
 	case CPU_286:

@@ -498,7 +498,7 @@ do_trap(int trapnr, int signr, char *str, int vm86, struct pt_regs *regs,
 {
 	struct task_struct *tsk = current;
 
-	if (regs->flags & VM_MASK) {
+	if (regs->flags & X86_VM_MASK) {
 		if (vm86)
 			goto vm86_trap;
 		goto trap_signal;
@@ -643,7 +643,7 @@ void __kprobes do_general_protection(struct pt_regs *regs, long error_code)
 	}
 	put_cpu();
 
-	if (regs->flags & VM_MASK)
+	if (regs->flags & X86_VM_MASK)
 		goto gp_in_vm86;
 
 	if (!user_mode(regs))
@@ -922,7 +922,7 @@ void __kprobes do_debug(struct pt_regs *regs, long error_code)
 			goto clear_dr7;
 	}
 
-	if (regs->flags & VM_MASK)
+	if (regs->flags & X86_VM_MASK)
 		goto debug_vm86;
 
 	/* Save debug status register where ptrace can see it */
@@ -1094,7 +1094,7 @@ void do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 	 * Handle strange cache flush from user space exception
 	 * in all other cases.  This is undocumented behaviour.
 	 */
-	if (regs->flags & VM_MASK) {
+	if (regs->flags & X86_VM_MASK) {
 		handle_vm86_fault((struct kernel_vm86_regs *)regs, error_code);
 		return;
 	}

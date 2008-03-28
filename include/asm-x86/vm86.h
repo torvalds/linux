@@ -17,9 +17,9 @@
 #define IOPL_MASK	0x00003000
 #define NT_MASK		0x00004000
 #ifdef CONFIG_VM86
-#define VM_MASK		0x00020000
+#define X86_VM_MASK	X86_EFLAGS_VM
 #else
-#define VM_MASK		0 /* ignored */
+#define X86_VM_MASK	0 /* No VM86 support */
 #endif
 #define AC_MASK		0x00040000
 #define VIF_MASK	0x00080000	/* virtual interrupt flag */

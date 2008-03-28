@@ -639,7 +639,7 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 #ifdef CONFIG_X86_32
 	/* It's safe to allow irq's after cr2 has been saved and the vmalloc
 	   fault has been handled. */
-	if (regs->flags & (X86_EFLAGS_IF|VM_MASK))
+	if (regs->flags & (X86_EFLAGS_IF | X86_VM_MASK))
 		local_irq_enable();
 
 	/*

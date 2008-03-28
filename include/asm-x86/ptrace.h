@@ -170,7 +170,7 @@ static inline int user_mode(struct pt_regs *regs)
 static inline int user_mode_vm(struct pt_regs *regs)
 {
 #ifdef CONFIG_X86_32
-	return ((regs->cs & SEGMENT_RPL_MASK) | (regs->flags & VM_MASK)) >=
+	return ((regs->cs & SEGMENT_RPL_MASK) | (regs->flags & X86_VM_MASK)) >=
 		USER_RPL;
 #else
 	return user_mode(regs);
@@ -180,7 +180,7 @@ static inline int user_mode_vm(struct pt_regs *regs)
 static inline int v8086_mode(struct pt_regs *regs)
 {
 #ifdef CONFIG_X86_32
-	return (regs->flags & VM_MASK);
+	return (regs->flags & X86_VM_MASK);
 #else
 	return 0;	/* No V86 mode support in long mode */
 #endif
