@@ -222,7 +222,7 @@ IEEE80211_IF_WFILE(dot11MeshConfirmTimeout,
 IEEE80211_IF_WFILE(dot11MeshHoldingTimeout,
 		u.sta.mshcfg.dot11MeshHoldingTimeout, DEC, u16);
 IEEE80211_IF_WFILE(dot11MeshTTL, u.sta.mshcfg.dot11MeshTTL, DEC, u8);
-IEEE80211_IF_WFILE(auto_open_plinks, u.sta.mshcfg.auto_open_plinks, DEC, bool);
+IEEE80211_IF_WFILE(auto_open_plinks, u.sta.mshcfg.auto_open_plinks, DEC, u8);
 IEEE80211_IF_WFILE(dot11MeshMaxPeerLinks,
 		u.sta.mshcfg.dot11MeshMaxPeerLinks, DEC, u16);
 IEEE80211_IF_WFILE(dot11MeshHWMPactivePathTimeout,
