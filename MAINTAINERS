@@ -2320,8 +2320,6 @@ L:	kexec@lists.infradead.org
 S:	Maintained
 
 KPROBES
-P:	Prasanna S Panchamukhi
-M:	prasanna@in.ibm.com
 P:	Ananth N Mavinakayanahalli
 M:	ananth@in.ibm.com
 P:	Anil S Keshavamurthy
