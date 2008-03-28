@@ -155,7 +155,7 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	if (priv->monitormode != LBS_MONITOR_OFF)
+	if (priv->monitormode)
 		return process_rxed_802_11_packet(priv, skb);
 
 	p_rx_pkt = (struct rxpackethdr *) skb->data;

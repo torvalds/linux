@@ -170,9 +170,16 @@ void sta_info_destroy(struct sta_info *sta)
 		dev_kfree_skb_any(skb);
 
 	for (i = 0; i <  STA_TID_NUM; i++) {
-		del_timer_sync(&sta->ampdu_mlme.tid_rx[i].session_timer);
-		del_timer_sync(&sta->ampdu_mlme.tid_tx[i].addba_resp_timer);
+		spin_lock_bh(&sta->ampdu_mlme.ampdu_rx);
+		if (sta->ampdu_mlme.tid_rx[i])
+		  del_timer_sync(&sta->ampdu_mlme.tid_rx[i]->session_timer);
+		spin_unlock_bh(&sta->ampdu_mlme.ampdu_rx);
+		spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
+		if (sta->ampdu_mlme.tid_tx[i])
+		  del_timer_sync(&sta->ampdu_mlme.tid_tx[i]->addba_resp_timer);
+		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
 	}
+
 	rate_control_free_sta(sta->rate_ctrl, sta->rate_ctrl_priv);
 	rate_control_put(sta->rate_ctrl);
 
@@ -227,18 +234,13 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		sta->timer_to_tid[i] = i;
 		/* tid to tx queue: initialize according to HW (0 is valid) */
 		sta->tid_to_tx_q[i] = local->hw.queues;
-		/* rx timers */
-		sta->ampdu_mlme.tid_rx[i].session_timer.function =
-			sta_rx_agg_session_timer_expired;
-		sta->ampdu_mlme.tid_rx[i].session_timer.data =
-			(unsigned long)&sta->timer_to_tid[i];
-		init_timer(&sta->ampdu_mlme.tid_rx[i].session_timer);
-		/* tx timers */
-		sta->ampdu_mlme.tid_tx[i].addba_resp_timer.function =
-			sta_addba_resp_timer_expired;
-		sta->ampdu_mlme.tid_tx[i].addba_resp_timer.data =
-			(unsigned long)&sta->timer_to_tid[i];
-		init_timer(&sta->ampdu_mlme.tid_tx[i].addba_resp_timer);
+		/* rx */
+		sta->ampdu_mlme.tid_state_rx[i] = HT_AGG_STATE_IDLE;
+		sta->ampdu_mlme.tid_rx[i] = NULL;
+		/* tx */
+		sta->ampdu_mlme.tid_state_tx[i] = HT_AGG_STATE_IDLE;
+		sta->ampdu_mlme.tid_tx[i] = NULL;
+		sta->ampdu_mlme.addba_req_num[i] = 0;
 	}
 	skb_queue_head_init(&sta->ps_tx_buf);
 	skb_queue_head_init(&sta->tx_filtered);

@@ -1186,8 +1186,8 @@ static void lbs_submit_command(struct lbs_private *priv,
 	    command == CMD_802_11_AUTHENTICATE)
 		timeo = 10 * HZ;
 
-	lbs_deb_cmd("DNLD_CMD: command 0x%04x, seq %d, size %d, jiffies %lu\n",
-		     command, le16_to_cpu(cmd->seqnum), cmdsize, jiffies);
+	lbs_deb_cmd("DNLD_CMD: command 0x%04x, seq %d, size %d\n",
+		     command, le16_to_cpu(cmd->seqnum), cmdsize);
 	lbs_deb_hex(LBS_DEB_CMD, "DNLD_CMD", (void *) cmdnode->cmdbuf, cmdsize);
 
 	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) cmd, cmdsize);
@@ -1496,16 +1496,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 			break;
 		}
 
-	case CMD_802_11_PWR_CFG:
-		cmdptr->command = cpu_to_le16(CMD_802_11_PWR_CFG);
-		cmdptr->size =
-		    cpu_to_le16(sizeof(struct cmd_ds_802_11_pwr_cfg) +
-				     S_DS_GEN);
-		memmove(&cmdptr->params.pwrcfg, pdata_buf,
-			sizeof(struct cmd_ds_802_11_pwr_cfg));
-
-		ret = 0;
-		break;
 	case CMD_BT_ACCESS:
 		ret = lbs_cmd_bt_access(cmdptr, cmd_action, pdata_buf);
 		break;

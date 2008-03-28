@@ -1216,12 +1216,11 @@ static void ieee80211_sta_process_addba_request(struct net_device *dev,
 		buf_size = buf_size << sband->ht_info.ampdu_factor;
 	}
 
-	tid_agg_rx = &sta->ampdu_mlme.tid_rx[tid];
 
 	/* examine state machine */
 	spin_lock_bh(&sta->ampdu_mlme.ampdu_rx);
 
-	if (tid_agg_rx->state != HT_AGG_STATE_IDLE) {
+	if (sta->ampdu_mlme.tid_state_rx[tid] != HT_AGG_STATE_IDLE) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		if (net_ratelimit())
 			printk(KERN_DEBUG "unexpected AddBA Req from "
@@ -1231,6 +1230,24 @@ static void ieee80211_sta_process_addba_request(struct net_device *dev,
 		goto end;
 	}
 
+	/* prepare A-MPDU MLME for Rx aggregation */
+	sta->ampdu_mlme.tid_rx[tid] =
+			kmalloc(sizeof(struct tid_ampdu_rx), GFP_ATOMIC);
+	if (!sta->ampdu_mlme.tid_rx[tid]) {
+		if (net_ratelimit())
+			printk(KERN_ERR "allocate rx mlme to tid %d failed\n",
+					tid);
+		goto end;
+	}
+	/* rx timer */
+	sta->ampdu_mlme.tid_rx[tid]->session_timer.function =
+				sta_rx_agg_session_timer_expired;
+	sta->ampdu_mlme.tid_rx[tid]->session_timer.data =
+				(unsigned long)&sta->timer_to_tid[tid];
+	init_timer(&sta->ampdu_mlme.tid_rx[tid]->session_timer);
+
+	tid_agg_rx = sta->ampdu_mlme.tid_rx[tid];
+
 	/* prepare reordering buffer */
 	tid_agg_rx->reorder_buf =
 		kmalloc(buf_size * sizeof(struct sk_buf *), GFP_ATOMIC);
@@ -1238,6 +1255,7 @@ static void ieee80211_sta_process_addba_request(struct net_device *dev,
 		if (net_ratelimit())
 			printk(KERN_ERR "can not allocate reordering buffer "
 			       "to tid %d\n", tid);
+		kfree(sta->ampdu_mlme.tid_rx[tid]);
 		goto end;
 	}
 	memset(tid_agg_rx->reorder_buf, 0,
@@ -1252,11 +1270,13 @@ static void ieee80211_sta_process_addba_request(struct net_device *dev,
 
 	if (ret) {
 		kfree(tid_agg_rx->reorder_buf);
+		kfree(tid_agg_rx);
+		sta->ampdu_mlme.tid_rx[tid] = NULL;
 		goto end;
 	}
 
 	/* change state and send addba resp */
-	tid_agg_rx->state = HT_AGG_STATE_OPERATIONAL;
+	sta->ampdu_mlme.tid_state_rx[tid] = HT_AGG_STATE_OPERATIONAL;
 	tid_agg_rx->dialog_token = dialog_token;
 	tid_agg_rx->ssn = start_seq_num;
 	tid_agg_rx->head_seq_num = start_seq_num;
@@ -1295,39 +1315,37 @@ static void ieee80211_sta_process_addba_resp(struct net_device *dev,
 	capab = le16_to_cpu(mgmt->u.action.u.addba_resp.capab);
 	tid = (capab & IEEE80211_ADDBA_PARAM_TID_MASK) >> 2;
 
-	state = &sta->ampdu_mlme.tid_tx[tid].state;
+	state = &sta->ampdu_mlme.tid_state_tx[tid];
 
 	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
 
+	if (!(*state & HT_ADDBA_REQUESTED_MSK)) {
+		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+		printk(KERN_DEBUG "state not HT_ADDBA_REQUESTED_MSK:"
+			"%d\n", *state);
+		goto addba_resp_exit;
+	}
+
 	if (mgmt->u.action.u.addba_resp.dialog_token !=
-		sta->ampdu_mlme.tid_tx[tid].dialog_token) {
+		sta->ampdu_mlme.tid_tx[tid]->dialog_token) {
 		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "wrong addBA response token, tid %d\n", tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
-		rcu_read_unlock();
-		return;
+		goto addba_resp_exit;
 	}
 
-	del_timer_sync(&sta->ampdu_mlme.tid_tx[tid].addba_resp_timer);
+	del_timer_sync(&sta->ampdu_mlme.tid_tx[tid]->addba_resp_timer);
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "switched off addBA timer for tid %d \n", tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 	if (le16_to_cpu(mgmt->u.action.u.addba_resp.status)
 			== WLAN_STATUS_SUCCESS) {
-		if (!(*state & HT_ADDBA_REQUESTED_MSK)) {
-			spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
-			printk(KERN_DEBUG "state not HT_ADDBA_REQUESTED_MSK:"
-				"%d\n", *state);
-			rcu_read_unlock();
-			return;
-		}
-
 		if (*state & HT_ADDBA_RECEIVED_MSK)
 			printk(KERN_DEBUG "double addBA response\n");
 
 		*state |= HT_ADDBA_RECEIVED_MSK;
-		sta->ampdu_mlme.tid_tx[tid].addba_req_num = 0;
+		sta->ampdu_mlme.addba_req_num[tid] = 0;
 
 		if (*state == HT_AGG_STATE_OPERATIONAL) {
 			printk(KERN_DEBUG "Aggregation on for tid %d \n", tid);
@@ -1339,13 +1357,15 @@ static void ieee80211_sta_process_addba_resp(struct net_device *dev,
 	} else {
 		printk(KERN_DEBUG "recipient rejected agg: tid %d \n", tid);
 
-		sta->ampdu_mlme.tid_tx[tid].addba_req_num++;
+		sta->ampdu_mlme.addba_req_num[tid]++;
 		/* this will allow the state check in stop_BA_session */
 		*state = HT_AGG_STATE_OPERATIONAL;
 		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
 		ieee80211_stop_tx_ba_session(hw, sta->addr, tid,
 					     WLAN_BACK_INITIATOR);
 	}
+
+addba_resp_exit:
 	rcu_read_unlock();
 }
 
@@ -1411,13 +1431,13 @@ void ieee80211_sta_stop_rx_ba_session(struct net_device *dev, u8 *ra, u16 tid,
 
 	/* check if TID is in operational state */
 	spin_lock_bh(&sta->ampdu_mlme.ampdu_rx);
-	if (sta->ampdu_mlme.tid_rx[tid].state
+	if (sta->ampdu_mlme.tid_state_rx[tid]
 				!= HT_AGG_STATE_OPERATIONAL) {
 		spin_unlock_bh(&sta->ampdu_mlme.ampdu_rx);
 		rcu_read_unlock();
 		return;
 	}
-	sta->ampdu_mlme.tid_rx[tid].state =
+	sta->ampdu_mlme.tid_state_rx[tid] =
 		HT_AGG_STATE_REQ_STOP_BA_MSK |
 		(initiator << HT_AGG_STATE_INITIATOR_SHIFT);
 		spin_unlock_bh(&sta->ampdu_mlme.ampdu_rx);
@@ -1434,25 +1454,27 @@ void ieee80211_sta_stop_rx_ba_session(struct net_device *dev, u8 *ra, u16 tid,
 
 	/* shutdown timer has not expired */
 	if (initiator != WLAN_BACK_TIMER)
-		del_timer_sync(&sta->ampdu_mlme.tid_rx[tid].
-					session_timer);
+		del_timer_sync(&sta->ampdu_mlme.tid_rx[tid]->session_timer);
 
 	/* check if this is a self generated aggregation halt */
 	if (initiator == WLAN_BACK_RECIPIENT || initiator == WLAN_BACK_TIMER)
 		ieee80211_send_delba(dev, ra, tid, 0, reason);
 
 	/* free the reordering buffer */
-	for (i = 0; i < sta->ampdu_mlme.tid_rx[tid].buf_size; i++) {
-		if (sta->ampdu_mlme.tid_rx[tid].reorder_buf[i]) {
+	for (i = 0; i < sta->ampdu_mlme.tid_rx[tid]->buf_size; i++) {
+		if (sta->ampdu_mlme.tid_rx[tid]->reorder_buf[i]) {
 			/* release the reordered frames */
-			dev_kfree_skb(sta->ampdu_mlme.tid_rx[tid].reorder_buf[i]);
-			sta->ampdu_mlme.tid_rx[tid].stored_mpdu_num--;
-			sta->ampdu_mlme.tid_rx[tid].reorder_buf[i] = NULL;
+			dev_kfree_skb(sta->ampdu_mlme.tid_rx[tid]->reorder_buf[i]);
+			sta->ampdu_mlme.tid_rx[tid]->stored_mpdu_num--;
+			sta->ampdu_mlme.tid_rx[tid]->reorder_buf[i] = NULL;
 		}
 	}
-	kfree(sta->ampdu_mlme.tid_rx[tid].reorder_buf);
+	/* free resources */
+	kfree(sta->ampdu_mlme.tid_rx[tid]->reorder_buf);
+	kfree(sta->ampdu_mlme.tid_rx[tid]);
+	sta->ampdu_mlme.tid_rx[tid] = NULL;
+	sta->ampdu_mlme.tid_state_rx[tid] = HT_AGG_STATE_IDLE;
 
-	sta->ampdu_mlme.tid_rx[tid].state = HT_AGG_STATE_IDLE;
 	rcu_read_unlock();
 }
 
@@ -1491,7 +1513,7 @@ static void ieee80211_sta_process_delba(struct net_device *dev,
 						 WLAN_BACK_INITIATOR, 0);
 	else { /* WLAN_BACK_RECIPIENT */
 		spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
-		sta->ampdu_mlme.tid_tx[tid].state =
+		sta->ampdu_mlme.tid_state_tx[tid] =
 				HT_AGG_STATE_OPERATIONAL;
 		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
 		ieee80211_stop_tx_ba_session(&local->hw, sta->addr, tid,
@@ -1528,7 +1550,7 @@ void sta_addba_resp_timer_expired(unsigned long data)
 		return;
 	}
 
-	state = &sta->ampdu_mlme.tid_tx[tid].state;
+	state = &sta->ampdu_mlme.tid_state_tx[tid];
 	/* check if the TID waits for addBA response */
 	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
 	if (!(*state & HT_ADDBA_REQUESTED_MSK)) {

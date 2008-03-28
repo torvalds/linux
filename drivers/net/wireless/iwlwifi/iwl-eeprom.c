@@ -73,7 +73,7 @@
 #include "iwl-core.h"
 #include "iwl-debug.h"
 #include "iwl-eeprom.h"
-#include "iwl-4965-io.h"
+#include "iwl-io.h"
 
 /************************** EEPROM BANDS ****************************
  *
@@ -144,7 +144,7 @@ static const u8 iwl_eeprom_band_7[] = {       /* 5.2 FAT channel */
 
 int iwlcore_eeprom_verify_signature(struct iwl_priv *priv)
 {
-	u32 gp = iwl4965_read32(priv, CSR_EEPROM_GP);
+	u32 gp = iwl_read32(priv, CSR_EEPROM_GP);
 	if ((gp & CSR_EEPROM_GP_VALID_MSK) == CSR_EEPROM_GP_BAD_SIGNATURE) {
 		IWL_ERROR("EEPROM not found, EEPROM_GP=0x%08x", gp);
 		return -ENOENT;
@@ -166,14 +166,14 @@ int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv)
 
 	for (count = 0; count < EEPROM_SEM_RETRY_LIMIT; count++) {
 		/* Request semaphore */
-		iwl4965_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-			CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
+		iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+			    CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
 
 		/* See if we got it */
-		ret = iwl4965_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
-					CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
-					CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
-					EEPROM_SEM_TIMEOUT);
+		ret = iwl_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
+				   CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
+				   CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
+				   EEPROM_SEM_TIMEOUT);
 		if (ret >= 0) {
 			IWL_DEBUG_IO("Acquired semaphore after %d tries.\n",
 				count+1);
@@ -187,7 +187,7 @@ EXPORT_SYMBOL(iwlcore_eeprom_acquire_semaphore);
 
 void iwlcore_eeprom_release_semaphore(struct iwl_priv *priv)
 {
-	iwl4965_clear_bit(priv, CSR_HW_IF_CONFIG_REG,
+	iwl_clear_bit(priv, CSR_HW_IF_CONFIG_REG,
 		CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
 
 }
@@ -204,7 +204,7 @@ EXPORT_SYMBOL(iwlcore_eeprom_release_semaphore);
 int iwl_eeprom_init(struct iwl_priv *priv)
 {
 	u16 *e = (u16 *)&priv->eeprom;
-	u32 gp = iwl4965_read32(priv, CSR_EEPROM_GP);
+	u32 gp = iwl_read32(priv, CSR_EEPROM_GP);
 	u32 r;
 	int sz = sizeof(priv->eeprom);
 	int ret;
@@ -231,12 +231,12 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 
 	/* eeprom is an array of 16bit values */
 	for (addr = 0; addr < sz; addr += sizeof(u16)) {
-		_iwl4965_write32(priv, CSR_EEPROM_REG, addr << 1);
-		_iwl4965_clear_bit(priv, CSR_EEPROM_REG, CSR_EEPROM_REG_BIT_CMD);
+		_iwl_write32(priv, CSR_EEPROM_REG, addr << 1);
+		_iwl_clear_bit(priv, CSR_EEPROM_REG, CSR_EEPROM_REG_BIT_CMD);
 
 		for (i = 0; i < IWL_EEPROM_ACCESS_TIMEOUT;
 					i += IWL_EEPROM_ACCESS_DELAY) {
-			r = _iwl4965_read_direct32(priv, CSR_EEPROM_REG);
+			r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
 			if (r & CSR_EEPROM_REG_READ_VALID_MSK)
 				break;
 			udelay(IWL_EEPROM_ACCESS_DELAY);

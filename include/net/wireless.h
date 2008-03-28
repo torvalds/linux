@@ -304,10 +304,22 @@ extern int ieee80211_channel_to_frequency(int chan);
  */
 extern int ieee80211_frequency_to_channel(int freq);
 
+/*
+ * Name indirection necessary because the ieee80211 code also has
+ * a function named "ieee80211_get_channel", so if you include
+ * cfg80211's header file you get cfg80211's version, if you try
+ * to include both header files you'll (rightfully!) get a symbol
+ * clash.
+ */
+extern struct ieee80211_channel *__ieee80211_get_channel(struct wiphy *wiphy,
+							 int freq);
+
 /**
  * ieee80211_get_channel - get channel struct from wiphy for specified frequency
  */
-extern struct ieee80211_channel *ieee80211_get_channel(struct wiphy *wiphy,
-						       int freq);
-
+static inline struct ieee80211_channel *
+ieee80211_get_channel(struct wiphy *wiphy, int freq)
+{
+	return __ieee80211_get_channel(wiphy, freq);
+}
 #endif /* __NET_WIRELESS_H */

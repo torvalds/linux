@@ -2058,6 +2058,8 @@ int iwl3945_is_network_packet(struct iwl3945_priv *priv, struct ieee80211_hdr *h
 			return !compare_ether_addr(header->addr2, priv->bssid);
 		/* packets to our adapter go through */
 		return !compare_ether_addr(header->addr1, priv->mac_addr);
+	default:
+		return 1;
 	}
 
 	return 1;
@@ -2302,6 +2304,9 @@ static void iwl3945_connection_init_rx_config(struct iwl3945_priv *priv)
 		priv->staging_rxon.filter_flags = RXON_FILTER_PROMISC_MSK |
 		    RXON_FILTER_CTL2HOST_MSK | RXON_FILTER_ACCEPT_GRP_MSK;
 		break;
+	default:
+		IWL_ERROR("Unsupported interface type %d\n", priv->iw_mode);
+		break;
 	}
 
 #if 0
@@ -2481,8 +2486,12 @@ static void iwl3945_build_tx_cmd_basic(struct iwl3945_priv *priv,
 			cmd->cmd.tx.timeout.pm_frame_timeout = cpu_to_le16(3);
 		else
 			cmd->cmd.tx.timeout.pm_frame_timeout = cpu_to_le16(2);
-	} else
+	} else {
 		cmd->cmd.tx.timeout.pm_frame_timeout = 0;
+#ifdef CONFIG_IWL3945_LEDS
+		priv->rxtxpackets += le16_to_cpu(cmd->cmd.tx.len);
+#endif
+	}
 
 	cmd->cmd.tx.driver_txop = 0;
 	cmd->cmd.tx.tx_flags = tx_flags;
@@ -5136,8 +5145,12 @@ static int iwl3945_init_geos(struct iwl3945_priv *priv)
 	       priv->bands[IEEE80211_BAND_2GHZ].n_channels,
 	       priv->bands[IEEE80211_BAND_5GHZ].n_channels);
 
-	priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->bands[IEEE80211_BAND_2GHZ];
-	priv->hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &priv->bands[IEEE80211_BAND_5GHZ];
+	if (priv->bands[IEEE80211_BAND_2GHZ].n_channels)
+		priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
+			&priv->bands[IEEE80211_BAND_2GHZ];
+	if (priv->bands[IEEE80211_BAND_5GHZ].n_channels)
+		priv->hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
+			&priv->bands[IEEE80211_BAND_5GHZ];
 
 	set_bit(STATUS_GEO_CONFIGURED, &priv->status);
 
@@ -5851,6 +5864,8 @@ static void iwl3945_alive_start(struct iwl3945_priv *priv)
 	IWL_DEBUG_INFO("ALIVE processing complete.\n");
 	wake_up_interruptible(&priv->wait_command_queue);
 
+	iwl3945_led_register(priv);
+
 	if (priv->error_recovering)
 		iwl3945_error_recovery(priv);
 
@@ -5875,6 +5890,7 @@ static void __iwl3945_down(struct iwl3945_priv *priv)
 	if (!exit_pending)
 		set_bit(STATUS_EXIT_PENDING, &priv->status);
 
+	iwl3945_led_unregister(priv);
 	iwl3945_clear_stations_table(priv);
 
 	/* Unblock any waiting calls */

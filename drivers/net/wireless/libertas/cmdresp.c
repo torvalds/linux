@@ -397,14 +397,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
 
-	case CMD_RET(CMD_802_11_PWR_CFG):
-		spin_lock_irqsave(&priv->driver_lock, flags);
-		memmove((void *)priv->cur_cmd->callback_arg, &resp->params.pwrcfg,
-			sizeof(struct cmd_ds_802_11_pwr_cfg));
-		spin_unlock_irqrestore(&priv->driver_lock, flags);
-
-		break;
-
 	case CMD_RET(CMD_GET_TSF):
 		spin_lock_irqsave(&priv->driver_lock, flags);
 		memcpy((void *)priv->cur_cmd->callback_arg,
@@ -463,8 +455,8 @@ int lbs_process_rx_command(struct lbs_private *priv)
 	respcmd = le16_to_cpu(resp->command);
 	result = le16_to_cpu(resp->result);
 
-	lbs_deb_cmd("CMD_RESP: response 0x%04x, seq %d, size %d, jiffies %lu\n",
-		     respcmd, le16_to_cpu(resp->seqnum), priv->upld_len, jiffies);
+	lbs_deb_cmd("CMD_RESP: response 0x%04x, seq %d, size %d\n",
+		     respcmd, le16_to_cpu(resp->seqnum), priv->upld_len);
 	lbs_deb_hex(LBS_DEB_CMD, "CMD_RESP", (void *) resp, priv->upld_len);
 
 	if (resp->seqnum != priv->cur_cmd->cmdbuf->seqnum) {

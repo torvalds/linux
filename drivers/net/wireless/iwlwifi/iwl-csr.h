@@ -93,6 +93,7 @@
 #define CSR_UCODE_DRV_GP1_CLR   (CSR_BASE+0x05c)
 #define CSR_UCODE_DRV_GP2       (CSR_BASE+0x060)
 #define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
+#define CSR_LED_REG             (CSR_BASE+0x094)
 
 /* Analog phase-lock-loop configuration (3945 only)
  * Set bit 24. */
@@ -213,6 +214,11 @@
 /* GI Chicken Bits */
 #define CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX  (0x00800000)
 #define CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER  (0x20000000)
+
+/* LED */
+#define CSR_LED_BSM_CTRL_MSK (0xFFFFFFDF)
+#define CSR_LED_REG_TRUN_ON (0x78)
+#define CSR_LED_REG_TRUN_OFF (0x38)
 
 /*=== HBUS (Host-side Bus) ===*/
 #define HBUS_BASE	(0x400)

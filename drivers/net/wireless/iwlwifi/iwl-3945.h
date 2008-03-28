@@ -44,6 +44,7 @@ extern struct pci_device_id iwl3945_hw_card_ids[];
 #include "iwl-prph.h"
 #include "iwl-3945-hw.h"
 #include "iwl-3945-debug.h"
+#include "iwl-3945-led.h"
 
 /* Change firmware file name, using "-" and incrementing number,
  *   *only* when uCode interface or architecture changes so that it
@@ -777,12 +778,14 @@ struct iwl3945_priv {
 	struct iwl3945_init_alive_resp card_alive_init;
 	struct iwl3945_alive_resp card_alive;
 
-#ifdef LED
-	/* LED related variables */
-	struct iwl3945_activity_blink activity;
-	unsigned long led_packets;
-	int led_state;
+#ifdef CONFIG_IWL4965_LEDS
+	struct iwl3945_led led[IWL_LED_TRG_MAX];
+	unsigned long last_blink_time;
+	u8 last_blink_rate;
+	u8 allow_blinking;
+	unsigned int rxtxpackets;
 #endif
+
 
 	u16 active_rate;
 	u16 active_rate_basic;
@@ -827,7 +830,7 @@ struct iwl3945_priv {
 	struct iwl3945_station_entry stations[IWL_STATION_COUNT];
 
 	/* Indication if ieee80211_ops->open has been called */
-	int is_open;
+	u8 is_open;
 
 	u8 mac80211_registered;
 
@@ -848,7 +851,7 @@ struct iwl3945_priv {
 	/* eeprom */
 	struct iwl3945_eeprom eeprom;
 
-	int iw_mode;
+	enum ieee80211_if_types iw_mode;
 
 	struct sk_buff *ibss_beacon;
 

@@ -151,7 +151,7 @@ int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev->trans_start = jiffies;
 
-	if (priv->monitormode != LBS_MONITOR_OFF) {
+	if (priv->monitormode) {
 		/* Keep the skb to echo it back once Tx feedback is
 		   received from FW */
 		skb_orphan(skb);
@@ -186,8 +186,7 @@ void lbs_send_tx_feedback(struct lbs_private *priv)
 	int txfail;
 	int try_count;
 
-	if (priv->monitormode == LBS_MONITOR_OFF ||
-	    priv->currenttxskb == NULL)
+	if (!priv->monitormode || priv->currenttxskb == NULL)
 		return;
 
 	radiotap_hdr = (struct tx_radiotap_hdr *)priv->currenttxskb->data;

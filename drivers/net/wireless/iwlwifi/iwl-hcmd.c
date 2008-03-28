@@ -97,6 +97,31 @@ EXPORT_SYMBOL(get_cmd_string);
 
 #define HOST_COMPLETE_TIMEOUT (HZ / 2)
 
+static int iwl_generic_cmd_callback(struct iwl_priv *priv,
+				    struct iwl_cmd *cmd, struct sk_buff *skb)
+{
+	struct iwl4965_rx_packet *pkt = NULL;
+
+	if (!skb) {
+		IWL_ERROR("Error: Response NULL in %s.\n",
+				get_cmd_string(cmd->hdr.cmd));
+		return 1;
+	}
+
+	pkt = (struct iwl4965_rx_packet *)skb->data;
+	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
+		IWL_ERROR("Bad return from %s (0x%08X)\n",
+			get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
+		return 1;
+	}
+
+	IWL_DEBUG_HC("back from %s (0x%08X)\n",
+			get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
+
+	/* Let iwl_tx_complete free the response skb */
+	return 1;
+}
+
 static int iwl_send_cmd_async(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	int ret;
@@ -106,8 +131,9 @@ static int iwl_send_cmd_async(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	/* An asynchronous command can not expect an SKB to be set. */
 	BUG_ON(cmd->meta.flags & CMD_WANT_SKB);
 
-	/* An asynchronous command MUST have a callback. */
-	BUG_ON(!cmd->meta.u.callback);
+	/* Assign a generic callback if one is not provided */
+	if (!cmd->meta.u.callback)
+		cmd->meta.u.callback = iwl_generic_cmd_callback;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return -EBUSY;

@@ -63,47 +63,42 @@ enum ieee80211_sta_info_flags {
 #define HT_AGG_STATE_OPERATIONAL	(HT_ADDBA_REQUESTED_MSK |	\
 					 HT_ADDBA_DRV_READY_MSK |	\
 					 HT_ADDBA_RECEIVED_MSK)
+#define HT_AGG_STATE_DEBUGFS_CTL	BIT(7)
 
 /**
  * struct tid_ampdu_tx - TID aggregation information (Tx).
  *
- * @state: TID's state in session state machine.
- * @dialog_token: dialog token for aggregation session
- * @ssn: Starting Sequence Number expected to be aggregated.
  * @addba_resp_timer: timer for peer's response to addba request
- * @addba_req_num: number of times addBA request has been sent.
+ * @ssn: Starting Sequence Number expected to be aggregated.
+ * @dialog_token: dialog token for aggregation session
  */
 struct tid_ampdu_tx {
-	u8 state;
-	u8 dialog_token;
-	u16 ssn;
 	struct timer_list addba_resp_timer;
-	u8 addba_req_num;
+	u16 ssn;
+	u8 dialog_token;
 };
 
 /**
  * struct tid_ampdu_rx - TID aggregation information (Rx).
  *
- * @state: TID's state in session state machine.
- * @dialog_token: dialog token for aggregation session
+ * @reorder_buf: buffer to reorder incoming aggregated MPDUs
+ * @session_timer: check if peer keeps Tx-ing on the TID (by timeout value)
+ * @head_seq_num: head sequence number in reordering buffer.
+ * @stored_mpdu_num: number of MPDUs in reordering buffer
  * @ssn: Starting Sequence Number expected to be aggregated.
  * @buf_size: buffer size for incoming A-MPDUs
  * @timeout: reset timer value.
- * @head_seq_num: head sequence number in reordering buffer.
- * @stored_mpdu_num: number of MPDUs in reordering buffer
- * @reorder_buf: buffer to reorder incoming aggregated MPDUs
- * @session_timer: check if peer keeps Tx-ing on the TID (by timeout value)
+ * @dialog_token: dialog token for aggregation session
  */
 struct tid_ampdu_rx {
-	u8 state;
-	u8 dialog_token;
+	struct sk_buff **reorder_buf;
+	struct timer_list session_timer;
+	u16 head_seq_num;
+	u16 stored_mpdu_num;
 	u16 ssn;
 	u16 buf_size;
 	u16 timeout;
-	u16 head_seq_num;
-	u16 stored_mpdu_num;
-	struct sk_buff **reorder_buf;
-	struct timer_list session_timer;
+	u8 dialog_token;
 };
 
 /**
@@ -132,16 +127,24 @@ enum plink_state {
 /**
  * struct sta_ampdu_mlme - STA aggregation information.
  *
+ * @tid_state_rx: TID's state in Rx session state machine.
  * @tid_rx: aggregation info for Rx per TID
- * @tid_tx: aggregation info for Tx per TID
  * @ampdu_rx: for locking sections in aggregation Rx flow
+ * @tid_state_tx: TID's state in Tx session state machine.
+ * @tid_tx: aggregation info for Tx per TID
+ * @addba_req_num: number of times addBA request has been sent.
  * @ampdu_tx: for locking sectionsi in aggregation Tx flow
  * @dialog_token_allocator: dialog token enumerator for each new session;
  */
 struct sta_ampdu_mlme {
-	struct tid_ampdu_rx tid_rx[STA_TID_NUM];
-	struct tid_ampdu_tx tid_tx[STA_TID_NUM];
+	/* rx */
+	u8 tid_state_rx[STA_TID_NUM];
+	struct tid_ampdu_rx *tid_rx[STA_TID_NUM];
 	spinlock_t ampdu_rx;
+	/* tx */
+	u8 tid_state_tx[STA_TID_NUM];
+	struct tid_ampdu_tx *tid_tx[STA_TID_NUM];
+	u8 addba_req_num[STA_TID_NUM];
 	spinlock_t ampdu_tx;
 	u8 dialog_token_allocator;
 };

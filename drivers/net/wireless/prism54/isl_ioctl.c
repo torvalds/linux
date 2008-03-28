@@ -218,7 +218,7 @@ prism54_get_wireless_stats(struct net_device *ndev)
 	islpci_private *priv = netdev_priv(ndev);
 
 	/* If the stats are being updated return old data */
-	if (mutex_trylock(&priv->stats_lock) == 0) {
+	if (mutex_trylock(&priv->stats_lock)) {
 		memcpy(&priv->iwstatistics, &priv->local_iwstatistics,
 		       sizeof (struct iw_statistics));
 		/* They won't be marked updated for the next time */

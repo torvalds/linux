@@ -609,14 +609,6 @@ struct cmd_ds_802_11_led_ctrl {
 	u8 data[256];
 } __attribute__ ((packed));
 
-struct cmd_ds_802_11_pwr_cfg {
-	__le16 action;
-	u8 enable;
-	s8 PA_P0;
-	s8 PA_P1;
-	s8 PA_P2;
-} __attribute__ ((packed));
-
 struct cmd_ds_802_11_afc {
 	__le16 afc_auto;
 	union {
@@ -726,7 +718,6 @@ struct cmd_ds_command {
 		struct cmd_ds_802_11d_domain_info domaininforesp;
 
 		struct cmd_ds_802_11_tpc_cfg tpccfg;
-		struct cmd_ds_802_11_pwr_cfg pwrcfg;
 		struct cmd_ds_802_11_afc afc;
 		struct cmd_ds_802_11_led_ctrl ledgpio;
 
