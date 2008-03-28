@@ -619,6 +619,7 @@ static int setup_rx_descbuffer(struct b43_dmaring *ring,
 	}
 
 	if (b43_dma_mapping_error(ring, dmaaddr, ring->rx_buffersize, 0)) {
+		b43err(ring->dev->wl, "RX DMA buffer allocation failed\n");
 		dev_kfree_skb_any(skb);
 		return -EIO;
 	}
@@ -874,8 +875,12 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 						  DMA_TO_DEVICE);
 
 			if (b43_dma_mapping_error(ring, dma_test,
-						  b43_txhdr_size(dev), 1))
+						  b43_txhdr_size(dev), 1)) {
+
+				b43err(dev->wl,
+				       "TXHDR DMA allocation failed\n");
 				goto err_kfree_txhdr_cache;
+			}
 		}
 
 		dma_unmap_single(dev->dev->dev,
