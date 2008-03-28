@@ -344,6 +344,21 @@ static struct rpc_version *	nfs_cb_version[] = {
 	&nfs_cb_version4,
 };
 
+static struct rpc_program cb_program;
+
+static struct rpc_stat cb_stats = {
+		.program	= &cb_program
+};
+
+#define NFS4_CALLBACK 0x40000000
+static struct rpc_program cb_program = {
+		.name 		= "nfs4_cb",
+		.number		= NFS4_CALLBACK,
+		.nrvers		= ARRAY_SIZE(nfs_cb_version),
+		.version	= nfs_cb_version,
+		.stats		= &cb_stats,
+};
+
 /* Reference counting, callback cleanup, etc., all look racy as heck.
  * And why is cb_set an atomic? */
 
@@ -358,13 +373,12 @@ static int do_probe_callback(void *data)
 		.to_maxval	= (NFSD_LEASE_TIME/2) * HZ,
 		.to_exponential	= 1,
 	};
-	struct rpc_program *	program = &cb->cb_program;
 	struct rpc_create_args args = {
 		.protocol	= IPPROTO_TCP,
 		.address	= (struct sockaddr *)&addr,
 		.addrsize	= sizeof(addr),
 		.timeout	= &timeparms,
-		.program	= program,
+		.program	= &cb_program,
 		.version	= nfs_cb_version[1]->number,
 		.authflavor	= RPC_AUTH_UNIX, /* XXX: need AUTH_GSS... */
 		.flags		= (RPC_CLNT_CREATE_NOPING),
@@ -382,16 +396,8 @@ static int do_probe_callback(void *data)
 	addr.sin_port = htons(cb->cb_port);
 	addr.sin_addr.s_addr = htonl(cb->cb_addr);
 
-	/* Initialize rpc_program */
-	program->name = "nfs4_cb";
-	program->number = cb->cb_prog;
-	program->nrvers = ARRAY_SIZE(nfs_cb_version);
-	program->version = nfs_cb_version;
-	program->stats = &cb->cb_stat;
-
 	/* Initialize rpc_stat */
-	memset(program->stats, 0, sizeof(cb->cb_stat));
-	program->stats->program = program;
+	memset(args.program->stats, 0, sizeof(struct rpc_stat));
 
 	/* Create RPC client */
 	client = rpc_create(&args);
