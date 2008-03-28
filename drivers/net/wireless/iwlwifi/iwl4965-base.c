@@ -8207,6 +8207,11 @@ static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 
 	IWL_DEBUG_INFO("*** UNLOAD DRIVER ***\n");
 
+	if (priv->mac80211_registered) {
+		ieee80211_unregister_hw(priv->hw);
+		priv->mac80211_registered = 0;
+	}
+
 	set_bit(STATUS_EXIT_PENDING, &priv->status);
 
 	iwl4965_down(priv);
@@ -8241,9 +8246,6 @@ static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 	iwl4965_unset_hw_setting(priv);
 	iwlcore_clear_stations_table(priv);
 
-	if (priv->mac80211_registered) {
-		ieee80211_unregister_hw(priv->hw);
-	}
 
 	/*netif_stop_queue(dev); */
 	flush_workqueue(priv->workqueue);
