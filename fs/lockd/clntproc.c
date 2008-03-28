@@ -346,10 +346,16 @@ in_grace_period:
 /*
  * Generic NLM call, async version.
  */
-static int __nlm_async_call(struct nlm_rqst *req, u32 proc, struct rpc_message *msg, const struct rpc_call_ops *tk_ops)
+static struct rpc_task *__nlm_async_call(struct nlm_rqst *req, u32 proc, struct rpc_message *msg, const struct rpc_call_ops *tk_ops)
 {
 	struct nlm_host	*host = req->a_host;
 	struct rpc_clnt	*clnt;
+	struct rpc_task_setup task_setup_data = {
+		.rpc_message = msg,
+		.callback_ops = tk_ops,
+		.callback_data = req,
+		.flags = RPC_TASK_ASYNC,
+	};
 
 	dprintk("lockd: call procedure %d on %s (async)\n",
 			(int)proc, host->h_name);
@@ -359,21 +365,36 @@ static int __nlm_async_call(struct nlm_rqst *req, u32 proc, struct rpc_message *
 	if (clnt == NULL)
 		goto out_err;
 	msg->rpc_proc = &clnt->cl_procinfo[proc];
+	task_setup_data.rpc_client = clnt;
 
         /* bootstrap and kick off the async RPC call */
-        return rpc_call_async(clnt, msg, RPC_TASK_ASYNC, tk_ops, req);
+	return rpc_run_task(&task_setup_data);
 out_err:
 	tk_ops->rpc_release(req);
-	return -ENOLCK;
+	return ERR_PTR(-ENOLCK);
 }
 
+static int nlm_do_async_call(struct nlm_rqst *req, u32 proc, struct rpc_message *msg, const struct rpc_call_ops *tk_ops)
+{
+	struct rpc_task *task;
+
+	task = __nlm_async_call(req, proc, msg, tk_ops);
+	if (IS_ERR(task))
+		return PTR_ERR(task);
+	rpc_put_task(task);
+	return 0;
+}
+
+/*
+ * NLM asynchronous call.
+ */
 int nlm_async_call(struct nlm_rqst *req, u32 proc, const struct rpc_call_ops *tk_ops)
 {
 	struct rpc_message msg = {
 		.rpc_argp	= &req->a_args,
 		.rpc_resp	= &req->a_res,
 	};
-	return __nlm_async_call(req, proc, &msg, tk_ops);
+	return nlm_do_async_call(req, proc, &msg, tk_ops);
 }
 
 int nlm_async_reply(struct nlm_rqst *req, u32 proc, const struct rpc_call_ops *tk_ops)
@@ -381,7 +402,32 @@ int nlm_async_reply(struct nlm_rqst *req, u32 proc, const struct rpc_call_ops *t
 	struct rpc_message msg = {
 		.rpc_argp	= &req->a_res,
 	};
-	return __nlm_async_call(req, proc, &msg, tk_ops);
+	return nlm_do_async_call(req, proc, &msg, tk_ops);
+}
+
+/*
+ * NLM client asynchronous call.
+ *
+ * Note that although the calls are asynchronous, and are therefore
+ *      guaranteed to complete, we still always attempt to wait for
+ *      completion in order to be able to correctly track the lock
+ *      state.
+ */
+static int nlmclnt_async_call(struct nlm_rqst *req, u32 proc, const struct rpc_call_ops *tk_ops)
+{
+	struct rpc_message msg = {
+		.rpc_argp	= &req->a_args,
+		.rpc_resp	= &req->a_res,
+	};
+	struct rpc_task *task;
+	int err;
+
+	task = __nlm_async_call(req, proc, &msg, tk_ops);
+	if (IS_ERR(task))
+		return PTR_ERR(task);
+	err = rpc_wait_for_completion_task(task);
+	rpc_put_task(task);
+	return err;
 }
 
 /*
@@ -620,10 +666,8 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 		goto out;
 	}
 
-	if (req->a_flags & RPC_TASK_ASYNC)
-		return nlm_async_call(req, NLMPROC_UNLOCK, &nlmclnt_unlock_ops);
-
-	status = nlmclnt_call(req, NLMPROC_UNLOCK);
+	atomic_inc(&req->a_count);
+	status = nlmclnt_async_call(req, NLMPROC_UNLOCK, &nlmclnt_unlock_ops);
 	if (status < 0)
 		goto out;
 
@@ -697,7 +741,7 @@ static int nlmclnt_cancel(struct nlm_host *host, int block, struct file_lock *fl
 	nlmclnt_setlockargs(req, fl);
 	req->a_args.block = block;
 
-	status = nlm_async_call(req, NLMPROC_CANCEL, &nlmclnt_cancel_ops);
+	status = nlmclnt_async_call(req, NLMPROC_CANCEL, &nlmclnt_cancel_ops);
 
 	spin_lock_irqsave(&current->sighand->siglock, flags);
 	current->blocked = oldset;
