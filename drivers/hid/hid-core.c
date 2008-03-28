@@ -988,8 +988,13 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 
 	if ((hid->claimed & HID_CLAIMED_HIDDEV) && hid->hiddev_report_event)
 		hid->hiddev_report_event(hid, report);
-	if (hid->claimed & HID_CLAIMED_HIDRAW)
-		hidraw_report_event(hid, data, size);
+	if (hid->claimed & HID_CLAIMED_HIDRAW) {
+		/* numbered reports need to be passed with the report num */
+		if (report_enum->numbered)
+			hidraw_report_event(hid, data - 1, size + 1);
+		else
+			hidraw_report_event(hid, data, size);
+	}
 
 	for (n = 0; n < report->maxfield; n++)
 		hid_input_field(hid, report->field[n], data, interrupt);
