@@ -155,8 +155,6 @@ static void nlmclnt_release_lockargs(struct nlm_rqst *req)
 int nlmclnt_proc(struct nlm_host *host, int cmd, struct file_lock *fl)
 {
 	struct nlm_rqst		*call;
-	sigset_t		oldset;
-	unsigned long		flags;
 	int			status;
 
 	nlm_get_host(host);
@@ -167,22 +165,6 @@ int nlmclnt_proc(struct nlm_host *host, int cmd, struct file_lock *fl)
 	nlmclnt_locks_init_private(fl, host);
 	/* Set up the argument struct */
 	nlmclnt_setlockargs(call, fl);
-
-	/* Keep the old signal mask */
-	spin_lock_irqsave(&current->sighand->siglock, flags);
-	oldset = current->blocked;
-
-	/* If we're cleaning up locks because the process is exiting,
-	 * perform the RPC call asynchronously. */
-	if ((IS_SETLK(cmd) || IS_SETLKW(cmd))
-	    && fl->fl_type == F_UNLCK
-	    && (current->flags & PF_EXITING)) {
-		sigfillset(&current->blocked);	/* Mask all signals */
-		recalc_sigpending();
-
-		call->a_flags = RPC_TASK_ASYNC;
-	}
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 
 	if (IS_SETLK(cmd) || IS_SETLKW(cmd)) {
 		if (fl->fl_type != F_UNLCK) {
@@ -197,11 +179,6 @@ int nlmclnt_proc(struct nlm_host *host, int cmd, struct file_lock *fl)
 
 	fl->fl_ops->fl_release_private(fl);
 	fl->fl_ops = NULL;
-
-	spin_lock_irqsave(&current->sighand->siglock, flags);
-	current->blocked = oldset;
-	recalc_sigpending();
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 
 	dprintk("lockd: clnt proc returns %d\n", status);
 	return status;
@@ -722,16 +699,6 @@ static const struct rpc_call_ops nlmclnt_unlock_ops = {
 static int nlmclnt_cancel(struct nlm_host *host, int block, struct file_lock *fl)
 {
 	struct nlm_rqst	*req;
-	unsigned long	flags;
-	sigset_t	oldset;
-	int		status;
-
-	/* Block all signals while setting up call */
-	spin_lock_irqsave(&current->sighand->siglock, flags);
-	oldset = current->blocked;
-	sigfillset(&current->blocked);
-	recalc_sigpending();
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 
 	req = nlm_alloc_call(nlm_get_host(host));
 	if (!req)
@@ -741,14 +708,7 @@ static int nlmclnt_cancel(struct nlm_host *host, int block, struct file_lock *fl
 	nlmclnt_setlockargs(req, fl);
 	req->a_args.block = block;
 
-	status = nlmclnt_async_call(req, NLMPROC_CANCEL, &nlmclnt_cancel_ops);
-
-	spin_lock_irqsave(&current->sighand->siglock, flags);
-	current->blocked = oldset;
-	recalc_sigpending();
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
-
-	return status;
+	return nlmclnt_async_call(req, NLMPROC_CANCEL, &nlmclnt_cancel_ops);
 }
 
 static void nlmclnt_cancel_callback(struct rpc_task *task, void *data)
