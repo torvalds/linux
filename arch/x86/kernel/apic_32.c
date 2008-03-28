@@ -1195,7 +1195,7 @@ void __init init_apic_mappings(void)
 	 * default configuration (or the MP table is broken).
 	 */
 	if (boot_cpu_physical_apicid == -1U)
-		boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
+		boot_cpu_physical_apicid = GET_APIC_ID(read_apic_id());
 
 #ifdef CONFIG_X86_IO_APIC
 	{
@@ -1265,7 +1265,7 @@ int __init APIC_init_uniprocessor(void)
 	 * might be zero if read from MP tables. Get it from LAPIC.
 	 */
 #ifdef CONFIG_CRASH_DUMP
-	boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
+	boot_cpu_physical_apicid = GET_APIC_ID(read_apic_id());
 #endif
 	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_physical_apicid);
 

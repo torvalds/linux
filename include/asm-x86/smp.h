@@ -174,6 +174,11 @@ static inline int logical_smp_processor_id(void)
 	return GET_APIC_LOGICAL_ID(*(u32 *)(APIC_BASE + APIC_LDR));
 }
 
+static inline unsigned int read_apic_id(void)
+{
+	return *(u32 *)(APIC_BASE + APIC_ID);
+}
+
 # ifdef APIC_DEFINITION
 extern int hard_smp_processor_id(void);
 # else
@@ -181,7 +186,7 @@ extern int hard_smp_processor_id(void);
 static inline int hard_smp_processor_id(void)
 {
 	/* we don't want to mark this access volatile - bad code generation */
-	return GET_APIC_ID(*(u32 *)(APIC_BASE + APIC_ID));
+	return GET_APIC_ID(read_apic_id());
 }
 # endif /* APIC_DEFINITION */
 

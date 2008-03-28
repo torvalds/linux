@@ -141,7 +141,7 @@ static inline void setup_portio_remap(void)
 extern unsigned int boot_cpu_physical_apicid;
 static inline int check_phys_apicid_present(int cpu_physical_apicid)
 {
-	boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
+	boot_cpu_physical_apicid = GET_APIC_ID(read_apic_id());
 	return (1);
 }
 
