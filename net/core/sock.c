@@ -1940,6 +1940,38 @@ EXPORT_SYMBOL(sk_common_release);
 static DEFINE_RWLOCK(proto_list_lock);
 static LIST_HEAD(proto_list);
 
+#ifdef CONFIG_PROC_FS
+#define PROTO_INUSE_NR	64	/* should be enough for the first time */
+
+static DECLARE_BITMAP(proto_inuse_idx, PROTO_INUSE_NR);
+
+static void assign_proto_idx(struct proto *prot)
+{
+	prot->inuse_idx = find_first_zero_bit(proto_inuse_idx, PROTO_INUSE_NR);
+
+	if (unlikely(prot->inuse_idx == PROTO_INUSE_NR - 1)) {
+		printk(KERN_ERR "PROTO_INUSE_NR exhausted\n");
+		return;
+	}
+
+	set_bit(prot->inuse_idx, proto_inuse_idx);
+}
+
+static void release_proto_idx(struct proto *prot)
+{
+	if (prot->inuse_idx != PROTO_INUSE_NR - 1)
+		clear_bit(prot->inuse_idx, proto_inuse_idx);
+}
+#else
+static inline void assign_proto_idx(struct proto *prot)
+{
+}
+
+static inline void release_proto_idx(struct proto *prot)
+{
+}
+#endif
+
 int proto_register(struct proto *prot, int alloc_slab)
 {
 	char *request_sock_slab_name = NULL;
@@ -2000,6 +2032,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 
 	write_lock(&proto_list_lock);
 	list_add(&prot->node, &proto_list);
+	assign_proto_idx(prot);
 	write_unlock(&proto_list_lock);
 	return 0;
 
@@ -2026,6 +2059,7 @@ EXPORT_SYMBOL(proto_register);
 void proto_unregister(struct proto *prot)
 {
 	write_lock(&proto_list_lock);
+	release_proto_idx(prot);
 	list_del(&prot->node);
 	write_unlock(&proto_list_lock);
 

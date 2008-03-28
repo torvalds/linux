@@ -562,6 +562,7 @@ struct proto {
 
 	/* Keeping track of sockets in use */
 #ifdef CONFIG_PROC_FS
+	unsigned int		inuse_idx;
 	struct pcounter		inuse;
 #endif
 
