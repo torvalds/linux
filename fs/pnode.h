@@ -35,4 +35,5 @@ int propagate_mnt(struct vfsmount *, struct dentry *, struct vfsmount *,
 		struct list_head *);
 int propagate_umount(struct list_head *);
 int propagate_mount_busy(struct vfsmount *, int);
+void mnt_release_group_id(struct vfsmount *);
 #endif /* _LINUX_PNODE_H */
