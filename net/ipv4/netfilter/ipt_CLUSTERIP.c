@@ -167,14 +167,13 @@ clusterip_config_init(struct ipt_clusterip_tgt_info *i, __be32 ip,
 
 		/* create proc dir entry */
 		sprintf(buffer, "%u.%u.%u.%u", NIPQUAD(ip));
-		c->pde = create_proc_entry(buffer, S_IWUSR|S_IRUSR,
-					   clusterip_procdir);
+		c->pde = proc_create(buffer, S_IWUSR|S_IRUSR,
+				     clusterip_procdir, &clusterip_proc_fops);
 		if (!c->pde) {
 			kfree(c);
 			return NULL;
 		}
 	}
-	c->pde->proc_fops = &clusterip_proc_fops;
 	c->pde->data = c;
 #endif
 

@@ -591,11 +591,9 @@ static int __init ip6_queue_init(void)
 	}
 
 #ifdef CONFIG_PROC_FS
-	proc = create_proc_entry(IPQ_PROC_FS_NAME, 0, init_net.proc_net);
-	if (proc) {
-		proc->owner = THIS_MODULE;
-		proc->proc_fops = &ip6_queue_proc_fops;
-	} else {
+	proc = proc_create(IPQ_PROC_FS_NAME, 0, init_net.proc_net,
+			   &ip6_queue_proc_fops);
+	if (!proc) {
 		printk(KERN_ERR "ip6_queue: failed to create proc entry\n");
 		goto cleanup_ipqnl;
 	}

@@ -3199,12 +3199,14 @@ static int skge_poll(struct napi_struct *napi, int to_do)
 	skge_write8(hw, Q_ADDR(rxqaddr[skge->port], Q_CSR), CSR_START);
 
 	if (work_done < to_do) {
-		spin_lock_irq(&hw->hw_lock);
+		unsigned long flags;
+
+		spin_lock_irqsave(&hw->hw_lock, flags);
 		__netif_rx_complete(dev, napi);
 		hw->intr_mask |= napimask[skge->port];
 		skge_write32(hw, B0_IMSK, hw->intr_mask);
 		skge_read32(hw, B0_IMSK);
-		spin_unlock_irq(&hw->hw_lock);
+		spin_unlock_irqrestore(&hw->hw_lock, flags);
 	}
 
 	return work_done;

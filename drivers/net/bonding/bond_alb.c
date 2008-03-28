@@ -678,12 +678,8 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb, struct bonding *bon
 		}
 
 		if (!list_empty(&bond->vlan_list)) {
-			unsigned short vlan_id;
-			int res = vlan_get_tag(skb, &vlan_id);
-			if (!res) {
+			if (!vlan_get_tag(skb, &client_info->vlan_id))
 				client_info->tag = 1;
-				client_info->vlan_id = vlan_id;
-			}
 		}
 
 		if (!client_info->assigned) {

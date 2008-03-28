@@ -383,9 +383,11 @@ static inline void __napi_complete(struct napi_struct *n)
 
 static inline void napi_complete(struct napi_struct *n)
 {
-	local_irq_disable();
+	unsigned long flags;
+
+	local_irq_save(flags);
 	__napi_complete(n);
-	local_irq_enable();
+	local_irq_restore(flags);
 }
 
 /**

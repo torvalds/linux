@@ -5712,11 +5712,11 @@ static void iwl4965_alive_start(struct iwl_priv *priv)
 
 	/* At this point, the NIC is initialized and operational */
 	priv->notif_missed_beacons = 0;
-	set_bit(STATUS_READY, &priv->status);
 
 	iwl4965_rf_kill_ct_config(priv);
 
 	IWL_DEBUG_INFO("ALIVE processing complete.\n");
+	set_bit(STATUS_READY, &priv->status);
 	wake_up_interruptible(&priv->wait_command_queue);
 
 	iwl_leds_register(priv);
@@ -8186,7 +8186,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	return err;
 }
 
-static void iwl4965_pci_remove(struct pci_dev *pdev)
+static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 {
 	struct iwl_priv *priv = pci_get_drvdata(pdev);
 	struct list_head *p, *q;
