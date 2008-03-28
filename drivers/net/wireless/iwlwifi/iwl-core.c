@@ -249,3 +249,24 @@ int iwl_setup(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_setup);
 
+/* Low level driver call this function to update iwlcore with
+ * driver status.
+ */
+int iwlcore_low_level_notify(struct iwl_priv *priv,
+			      enum iwlcore_card_notify notify)
+{
+	switch (notify) {
+	case IWLCORE_INIT_EVT:
+		break;
+	case IWLCORE_START_EVT:
+		break;
+	case IWLCORE_STOP_EVT:
+		break;
+	case IWLCORE_REMOVE_EVT:
+		break;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(iwlcore_low_level_notify);
+

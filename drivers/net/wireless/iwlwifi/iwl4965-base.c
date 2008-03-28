@@ -5724,6 +5724,7 @@ static void iwl4965_alive_start(struct iwl_priv *priv)
 	if (priv->error_recovering)
 		iwl4965_error_recovery(priv);
 
+	iwlcore_low_level_notify(priv, IWLCORE_START_EVT);
 	return;
 
  restart:
@@ -5746,6 +5747,8 @@ static void __iwl4965_down(struct iwl_priv *priv)
 		set_bit(STATUS_EXIT_PENDING, &priv->status);
 
 	iwl_leds_unregister(priv);
+
+	iwlcore_low_level_notify(priv, IWLCORE_STOP_EVT);
 
 	iwlcore_clear_stations_table(priv);
 
@@ -8167,6 +8170,8 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 
+	/* notify iwlcore to init */
+	iwlcore_low_level_notify(priv, IWLCORE_INIT_EVT);
 	return 0;
 
  out_remove_sysfs:
@@ -8209,6 +8214,7 @@ static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 		}
 	}
 
+	iwlcore_low_level_notify(priv, IWLCORE_REMOVE_EVT);
 	iwl_dbgfs_unregister(priv);
 	sysfs_remove_group(&pdev->dev.kobj, &iwl4965_attribute_group);
 

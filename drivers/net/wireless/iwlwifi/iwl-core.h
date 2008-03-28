@@ -146,4 +146,13 @@ int iwl_send_cmd_pdu_async(struct iwl_priv *priv, u8 id, u16 len,
 					   struct iwl_cmd *cmd,
 					   struct sk_buff *skb));
 
+enum iwlcore_card_notify {
+	IWLCORE_INIT_EVT = 0,
+	IWLCORE_START_EVT = 1,
+	IWLCORE_STOP_EVT = 2,
+	IWLCORE_REMOVE_EVT = 3,
+};
+
+int iwlcore_low_level_notify(struct iwl_priv *priv,
+			     enum iwlcore_card_notify notify);
 #endif /* __iwl_core_h__ */
