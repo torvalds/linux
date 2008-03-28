@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2007 Intel Corporation.
+  Copyright(c) 1999 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -61,7 +61,7 @@ struct e1000_info;
 	ndev_printk(KERN_NOTICE , netdev, format, ## arg)
 
 
-/* TX/RX descriptor defines */
+/* Tx/Rx descriptor defines */
 #define E1000_DEFAULT_TXD		256
 #define E1000_MAX_TXD			4096
 #define E1000_MIN_TXD			80
@@ -114,13 +114,13 @@ struct e1000_buffer {
 	dma_addr_t dma;
 	struct sk_buff *skb;
 	union {
-		/* TX */
+		/* Tx */
 		struct {
 			unsigned long time_stamp;
 			u16 length;
 			u16 next_to_watch;
 		};
-		/* RX */
+		/* Rx */
 		/* arrays of page information for packet split */
 		struct e1000_ps_page *ps_pages;
 	};
@@ -177,7 +177,7 @@ struct e1000_adapter {
 	u16 rx_itr;
 
 	/*
-	 * TX
+	 * Tx
 	 */
 	struct e1000_ring *tx_ring /* One per active queue */
 						____cacheline_aligned_in_smp;
@@ -199,7 +199,7 @@ struct e1000_adapter {
 	unsigned int total_rx_bytes;
 	unsigned int total_rx_packets;
 
-	/* TX stats */
+	/* Tx stats */
 	u64 tpt_old;
 	u64 colc_old;
 	u64 gotcl_old;
@@ -211,7 +211,7 @@ struct e1000_adapter {
 	u32 tx_dma_failed;
 
 	/*
-	 * RX
+	 * Rx
 	 */
 	bool (*clean_rx) (struct e1000_adapter *adapter,
 			  int *work_done, int work_to_do)
@@ -223,7 +223,7 @@ struct e1000_adapter {
 	u32 rx_int_delay;
 	u32 rx_abs_int_delay;
 
-	/* RX stats */
+	/* Rx stats */
 	u64 hw_csum_err;
 	u64 hw_csum_good;
 	u64 rx_hdr_split;

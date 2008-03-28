@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2007 Intel Corporation.
+  Copyright(c) 1999 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -30,7 +30,8 @@
 
 #include "e1000.h"
 
-/* This is the only thing that needs to be changed to adjust the
+/*
+ * This is the only thing that needs to be changed to adjust the
  * maximum number of ports that the driver can manage.
  */
 
@@ -46,7 +47,8 @@ module_param(copybreak, uint, 0644);
 MODULE_PARM_DESC(copybreak,
 	"Maximum size of packet that is copied to a new buffer on receive");
 
-/* All parameters are treated the same, as an integer array of values.
+/*
+ * All parameters are treated the same, as an integer array of values.
  * This macro just reduces the need to repeat the same declaration code
  * over and over (plus this helps to avoid typo bugs).
  */
@@ -60,8 +62,9 @@ MODULE_PARM_DESC(copybreak,
 	MODULE_PARM_DESC(X, desc);
 
 
-/* Transmit Interrupt Delay in units of 1.024 microseconds
- *  Tx interrupt delay needs to typically be set to something non zero
+/*
+ * Transmit Interrupt Delay in units of 1.024 microseconds
+ * Tx interrupt delay needs to typically be set to something non zero
  *
  * Valid Range: 0-65535
  */
@@ -70,7 +73,8 @@ E1000_PARAM(TxIntDelay, "Transmit Interrupt Delay");
 #define MAX_TXDELAY 0xFFFF
 #define MIN_TXDELAY 0
 
-/* Transmit Absolute Interrupt Delay in units of 1.024 microseconds
+/*
+ * Transmit Absolute Interrupt Delay in units of 1.024 microseconds
  *
  * Valid Range: 0-65535
  */
@@ -79,8 +83,9 @@ E1000_PARAM(TxAbsIntDelay, "Transmit Absolute Interrupt Delay");
 #define MAX_TXABSDELAY 0xFFFF
 #define MIN_TXABSDELAY 0
 
-/* Receive Interrupt Delay in units of 1.024 microseconds
- *   hardware will likely hang if you set this to anything but zero.
+/*
+ * Receive Interrupt Delay in units of 1.024 microseconds
+ * hardware will likely hang if you set this to anything but zero.
  *
  * Valid Range: 0-65535
  */
@@ -89,7 +94,8 @@ E1000_PARAM(RxIntDelay, "Receive Interrupt Delay");
 #define MAX_RXDELAY 0xFFFF
 #define MIN_RXDELAY 0
 
-/* Receive Absolute Interrupt Delay in units of 1.024 microseconds
+/*
+ * Receive Absolute Interrupt Delay in units of 1.024 microseconds
  *
  * Valid Range: 0-65535
  */
@@ -98,7 +104,8 @@ E1000_PARAM(RxAbsIntDelay, "Receive Absolute Interrupt Delay");
 #define MAX_RXABSDELAY 0xFFFF
 #define MIN_RXABSDELAY 0
 
-/* Interrupt Throttle Rate (interrupts/sec)
+/*
+ * Interrupt Throttle Rate (interrupts/sec)
  *
  * Valid Range: 100-100000 (0=off, 1=dynamic, 3=dynamic conservative)
  */
@@ -107,7 +114,8 @@ E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
 #define MAX_ITR 100000
 #define MIN_ITR 100
 
-/* Enable Smart Power Down of the PHY
+/*
+ * Enable Smart Power Down of the PHY
  *
  * Valid Range: 0, 1
  *
@@ -115,7 +123,8 @@ E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
  */
 E1000_PARAM(SmartPowerDownEnable, "Enable PHY smart power down");
 
-/* Enable Kumeran Lock Loss workaround
+/*
+ * Enable Kumeran Lock Loss workaround
  *
  * Valid Range: 0, 1
  *
