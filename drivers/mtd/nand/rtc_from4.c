@@ -460,7 +460,7 @@ static int rtc_from4_errstat(struct mtd_info *mtd, struct nand_chip *this,
 			er_stat |= 1 << 1;
 		kfree(buf);
 	}
-
+out:
 	rtn = status;
 	if (er_stat == 0) {	/* if ECC is available   */
 		rtn = (status & ~NAND_STATUS_FAIL);	/*   clear the error bit */
