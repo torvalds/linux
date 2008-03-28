@@ -45,7 +45,6 @@
 #include "nxt200x.h"
 #include "cx24123.h"
 #include "isl6421.h"
-#include "tuner-xc2028.h"
 #include "tuner-xc2028-types.h"
 #include "tuner-simple.h"
 #include "tda9887.h"
@@ -443,6 +442,16 @@ static struct s5h1409_config dvico_hdtv5_pci_nano_config = {
 	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
 };
 
+static struct s5h1409_config kworld_atsc_120_config = {
+	.demod_address = 0x32 >> 1,
+	.qam_if	       = 44000,
+	.output_mode   = S5H1409_SERIAL_OUTPUT,
+	.gpio	       = S5H1409_GPIO_OFF,
+	.inversion     = S5H1409_INVERSION_OFF,
+	.status_mode   = S5H1409_DEMODLOCKING,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+};
+
 static struct xc5000_config pinnacle_pctv_hd_800i_tuner_config = {
 	.i2c_address	= 0x64,
 	.if_khz		= 5380,
@@ -457,9 +466,12 @@ static struct zl10353_config cx88_geniatech_x8000_mt = {
 static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 {
 	struct dvb_frontend *fe;
+	struct xc2028_ctrl ctl;
 	struct xc2028_config cfg = {
 		.i2c_adap  = &dev->core->i2c_adap,
 		.i2c_addr  = addr,
+		.ctrl      = &ctl,
+		.callback  = cx88_tuner_callback,
 	};
 
 	if (!dev->dvb.frontend) {
@@ -468,6 +480,13 @@ static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 		       dev->core->name);
 		return -EINVAL;
 	}
+
+	/*
+	 * Some xc3028 devices may be hidden by an I2C gate. This is known
+	 * to happen with some s5h1409-based devices.
+	 * Now that I2C gate is open, sets up xc3028 configuration
+	 */
+	cx88_setup_xc3028(dev->core, &ctl);
 
 	fe = dvb_attach(xc2028_attach, dev->dvb.frontend, &cfg);
 	if (!fe) {
@@ -810,10 +829,17 @@ static int dvb_register(struct cx8802_dev *dev)
 			return -EINVAL;
 		break;
 	 case CX88_BOARD_GENIATECH_X8000_MT:
-	       dev->ts_gen_cntrl = 0x00;
+		dev->ts_gen_cntrl = 0x00;
 
 		dev->dvb.frontend = dvb_attach(zl10353_attach,
 					       &cx88_geniatech_x8000_mt,
+					       &dev->core->i2c_adap);
+		if (attach_xc3028(0x61, dev) < 0)
+			return -EINVAL;
+		break;
+	 case CX88_BOARD_KWORLD_ATSC_120:
+		dev->dvb.frontend = dvb_attach(s5h1409_attach,
+					       &kworld_atsc_120_config,
 					       &dev->core->i2c_adap);
 		if (attach_xc3028(0x61, dev) < 0)
 			return -EINVAL;

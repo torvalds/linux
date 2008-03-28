@@ -37,6 +37,7 @@
 
 #include "btcx-risc.h"
 #include "cx88-reg.h"
+#include "tuner-xc2028.h"
 
 #include <linux/version.h>
 #include <linux/mutex.h>
@@ -219,6 +220,7 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO 64
 #define CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD 65
 #define CX88_BOARD_PROLINK_PV_8000GT       66
+#define CX88_BOARD_KWORLD_ATSC_120         67
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -603,6 +605,7 @@ extern int cx88_tuner_callback(void *dev, int command, int arg);
 extern int cx88_get_resources(const struct cx88_core *core,
 			      struct pci_dev *pci);
 extern struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr);
+extern void cx88_setup_xc3028(struct cx88_core *core, struct xc2028_ctrl *ctl);
 
 /* ----------------------------------------------------------- */
 /* cx88-tvaudio.c                                              */

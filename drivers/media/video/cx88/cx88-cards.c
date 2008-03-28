@@ -27,7 +27,6 @@
 
 #include "cx88.h"
 #include "tea5767.h"
-#include "tuner-xc2028.h"
 
 static unsigned int tuner[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
 static unsigned int radio[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
@@ -1614,6 +1613,45 @@ static const struct cx88_board cx88_boards[] = {
 			.gpio2 = 0x0cfb,
 		},
 	},
+	/* Both radio, analog and ATSC work with this board.
+	   However, for analog to work, s5h1409 gate should be open,
+	   otherwise, tuner-xc3028 won't be detected.
+	   A proper fix require using the newer i2c methods to add
+	   tuner-xc3028 without doing an i2c probe.
+	 */
+	[CX88_BOARD_KWORLD_ATSC_120] = {
+		.name           = "Kworld PlusTV HD PCI 120 (ATSC 120)",
+		.tuner_type     = TUNER_XC2028,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.input          = { {
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x000000ff,
+			.gpio1  = 0x0000f35d,
+			.gpio2  = 0x00000000,
+		}, {
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x000000ff,
+			.gpio1  = 0x0000f37e,
+			.gpio2  = 0x00000000,
+		}, {
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x000000ff,
+			.gpio1  = 0x0000f37e,
+			.gpio2  = 0x00000000,
+		} },
+		.radio = {
+			.type   = CX88_RADIO,
+			.gpio0  = 0x000000ff,
+			.gpio1  = 0x0000f35d,
+			.gpio2  = 0x00000000,
+		},
+		.mpeg           = CX88_MPEG_DVB,
+	},
 };
 
 /* ------------------------------------------------------------------ */
@@ -1959,6 +1997,10 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x1554,
 		.subdevice = 0x4935,
 		.card      = CX88_BOARD_PROLINK_PV_8000GT,
+	}, {
+		.subvendor = 0x17de,
+		.subdevice = 0x08c1,
+		.card      = CX88_BOARD_KWORLD_ATSC_120,
 	},
 };
 
@@ -2200,6 +2242,7 @@ static int cx88_xc2028_tuner_callback(struct cx88_core *core,
 	case CX88_BOARD_WINFAST_TV2000_XP_GLOBAL:
 	case CX88_BOARD_POWERCOLOR_REAL_ANGEL:
 	case CX88_BOARD_GENIATECH_X8000_MT:
+	case CX88_BOARD_KWORLD_ATSC_120:
 		return cx88_xc3028_geniatech_tuner_callback(core,
 							command, arg);
 	case CX88_BOARD_PROLINK_PV_8000GT:
@@ -2363,6 +2406,40 @@ static void cx88_card_setup_pre_i2c(struct cx88_core *core)
 	}
 }
 
+/*
+ * Sets board-dependent xc3028 configuration
+ */
+void cx88_setup_xc3028(struct cx88_core *core, struct xc2028_ctrl *ctl)
+{
+	memset(ctl, 0, sizeof(*ctl));
+
+	ctl->fname   = XC2028_DEFAULT_FIRMWARE;
+	ctl->max_len = 64;
+
+	switch (core->boardnr) {
+	case CX88_BOARD_POWERCOLOR_REAL_ANGEL:
+		/* Doesn't work with firmware version 2.7 */
+		ctl->fname = "xc3028-v25.fw";
+		break;
+	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
+		ctl->scode_table = XC3028_FE_ZARLINK456;
+		break;
+	case CX88_BOARD_KWORLD_ATSC_120:
+	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
+		ctl->demod = XC3028_FE_OREN538;
+		break;
+	case CX88_BOARD_PROLINK_PV_8000GT:
+		/*
+		 * This board uses non-MTS firmware
+		 */
+		break;
+	default:
+		ctl->demod = XC3028_FE_OREN538;
+		ctl->mts = 1;
+	}
+}
+EXPORT_SYMBOL_GPL(cx88_setup_xc3028);
+
 static void cx88_card_setup(struct cx88_core *core)
 {
 	static u8 eeprom[256];
@@ -2481,36 +2558,13 @@ static void cx88_card_setup(struct cx88_core *core)
 		struct v4l2_priv_tun_config  xc2028_cfg;
 		struct xc2028_ctrl           ctl;
 
+		/* Fills device-dependent initialization parameters */
+		cx88_setup_xc3028(core, &ctl);
+
+		/* Sends parameters to xc2028/3028 tuner */
 		memset(&xc2028_cfg, 0, sizeof(xc2028_cfg));
-		memset(&ctl, 0, sizeof(ctl));
-
-		ctl.fname   = XC2028_DEFAULT_FIRMWARE;
-		ctl.max_len = 64;
-
-		switch (core->boardnr) {
-		case CX88_BOARD_POWERCOLOR_REAL_ANGEL:
-			/* Doesn't work with firmware version 2.7 */
-			ctl.fname = "xc3028-v25.fw";
-			break;
-		case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
-			ctl.scode_table = XC3028_FE_ZARLINK456;
-			break;
-		case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
-			ctl.demod = XC3028_FE_OREN538;
-			break;
-		case CX88_BOARD_PROLINK_PV_8000GT:
-			/*
-			 * This board uses non-MTS firmware
-			 */
-			break;
-		default:
-			ctl.demod = XC3028_FE_OREN538;
-			ctl.mts = 1;
-		}
-
 		xc2028_cfg.tuner = TUNER_XC2028;
 		xc2028_cfg.priv  = &ctl;
-
 		info_printk(core, "Asking xc2028/3028 to load firmware %s\n",
 			    ctl.fname);
 		cx88_call_i2c_clients(core, TUNER_SET_CONFIG, &xc2028_cfg);
