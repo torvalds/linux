@@ -741,6 +741,7 @@ struct net_device
 #define	NETDEV_ALIGN		32
 #define	NETDEV_ALIGN_CONST	(NETDEV_ALIGN - 1)
 
+#ifdef CONFIG_NET
 /*
  * Net namespace inlines
  */
@@ -761,6 +762,7 @@ void dev_net_set(struct net_device *dev, struct net *net)
 	dev->nd_net = net;
 #endif
 }
+#endif
 
 /**
  *	netdev_priv - access network device private data
