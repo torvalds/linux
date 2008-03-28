@@ -202,7 +202,7 @@ extern void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id);
  * ieee80211_register_hw
  *
  */
-extern void iwl3945_rate_control_register(struct ieee80211_hw *hw);
+extern int iwl3945_rate_control_register(void);
 
 /**
  * iwl3945_rate_control_unregister - Unregister the rate control callbacks
@@ -210,6 +210,6 @@ extern void iwl3945_rate_control_register(struct ieee80211_hw *hw);
  * This should be called after calling ieee80211_unregister_hw, but before
  * the driver is unloaded.
  */
-extern void iwl3945_rate_control_unregister(struct ieee80211_hw *hw);
+extern void iwl3945_rate_control_unregister(void);
 
 #endif

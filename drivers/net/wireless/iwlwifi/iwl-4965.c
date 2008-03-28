@@ -177,7 +177,6 @@ static int iwl4965_init_drv(struct iwl_priv *priv)
 		goto err_free_channel_map;
 	}
 
-	iwl4965_rate_control_register(priv->hw);
 	ret = ieee80211_register_hw(priv->hw);
 	if (ret) {
 		IWL_ERROR("Failed to register network device (error %d)\n",

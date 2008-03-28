@@ -8156,7 +8156,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		goto out_free_channel_map;
 	}
 
-	iwl3945_rate_control_register(priv->hw);
 	err = ieee80211_register_hw(priv->hw);
 	if (err) {
 		IWL_ERROR("Failed to register network device (error %d)\n", err);
@@ -8241,7 +8240,6 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 
 	if (priv->mac80211_registered) {
 		ieee80211_unregister_hw(priv->hw);
-		iwl3945_rate_control_unregister(priv->hw);
 	}
 
 	/*netif_stop_queue(dev); */
@@ -8322,20 +8320,34 @@ static int __init iwl3945_init(void)
 	int ret;
 	printk(KERN_INFO DRV_NAME ": " DRV_DESCRIPTION ", " DRV_VERSION "\n");
 	printk(KERN_INFO DRV_NAME ": " DRV_COPYRIGHT "\n");
+
+	ret = iwl3945_rate_control_register();
+	if (ret) {
+		IWL_ERROR("Unable to register rate control algorithm: %d\n", ret);
+		return ret;
+	}
+
 	ret = pci_register_driver(&iwl3945_driver);
 	if (ret) {
 		IWL_ERROR("Unable to initialize PCI module\n");
-		return ret;
+		goto error_register;
 	}
 #ifdef CONFIG_IWL3945_DEBUG
 	ret = driver_create_file(&iwl3945_driver.driver, &driver_attr_debug_level);
 	if (ret) {
 		IWL_ERROR("Unable to create driver sysfs file\n");
-		pci_unregister_driver(&iwl3945_driver);
-		return ret;
+		goto error_debug;
 	}
 #endif
 
+	return ret;
+
+#ifdef CONFIG_IWL3945_DEBUG
+error_debug:
+	pci_unregister_driver(&iwl3945_driver);
+#endif
+error_register:
+	iwl3945_rate_control_unregister();
 	return ret;
 }
 
@@ -8345,6 +8357,7 @@ static void __exit iwl3945_exit(void)
 	driver_remove_file(&iwl3945_driver.driver, &driver_attr_debug_level);
 #endif
 	pci_unregister_driver(&iwl3945_driver);
+	iwl3945_rate_control_unregister();
 }
 
 module_param_named(antenna, iwl3945_param_antenna, int, 0444);

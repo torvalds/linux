@@ -8243,7 +8243,6 @@ static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 
 	if (priv->mac80211_registered) {
 		ieee80211_unregister_hw(priv->hw);
-		iwl4965_rate_control_unregister(priv->hw);
 	}
 
 	/*netif_stop_queue(dev); */
@@ -8324,20 +8323,34 @@ static int __init iwl4965_init(void)
 	int ret;
 	printk(KERN_INFO DRV_NAME ": " DRV_DESCRIPTION ", " DRV_VERSION "\n");
 	printk(KERN_INFO DRV_NAME ": " DRV_COPYRIGHT "\n");
+
+	ret = iwl4965_rate_control_register();
+	if (ret) {
+		IWL_ERROR("Unable to register rate control algorithm: %d\n", ret);
+		return ret;
+	}
+
 	ret = pci_register_driver(&iwl4965_driver);
 	if (ret) {
 		IWL_ERROR("Unable to initialize PCI module\n");
-		return ret;
+		goto error_register;
 	}
 #ifdef CONFIG_IWLWIFI_DEBUG
 	ret = driver_create_file(&iwl4965_driver.driver, &driver_attr_debug_level);
 	if (ret) {
 		IWL_ERROR("Unable to create driver sysfs file\n");
-		pci_unregister_driver(&iwl4965_driver);
-		return ret;
+		goto error_debug;
 	}
 #endif
 
+	return ret;
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+error_debug:
+	pci_unregister_driver(&iwl4965_driver);
+#endif
+error_register:
+	iwl4965_rate_control_unregister();
 	return ret;
 }
 
@@ -8347,6 +8360,7 @@ static void __exit iwl4965_exit(void)
 	driver_remove_file(&iwl4965_driver.driver, &driver_attr_debug_level);
 #endif
 	pci_unregister_driver(&iwl4965_driver);
+	iwl4965_rate_control_unregister();
 }
 
 module_exit(iwl4965_exit);
