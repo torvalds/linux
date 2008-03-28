@@ -11,6 +11,7 @@
 #include <linux/string.h>
 #include <linux/percpu.h>
 #include <linux/start_kernel.h>
+#include <linux/io.h>
 
 #include <asm/processor.h>
 #include <asm/proto.h>
@@ -100,6 +101,24 @@ static void __init reserve_ebda_region(void)
 	reserve_early(lowmem, 0x100000, "BIOS reserved");
 }
 
+static void __init reserve_setup_data(void)
+{
+	struct setup_data *data;
+	unsigned long pa_data;
+	char buf[32];
+
+	if (boot_params.hdr.version < 0x0209)
+		return;
+	pa_data = boot_params.hdr.setup_data;
+	while (pa_data) {
+		data = early_ioremap(pa_data, sizeof(*data));
+		sprintf(buf, "setup data %x", data->type);
+		reserve_early(pa_data, pa_data+sizeof(*data)+data->len, buf);
+		pa_data = data->next;
+		early_iounmap(data, sizeof(*data));
+	}
+}
+
 void __init x86_64_start_kernel(char * real_mode_data)
 {
 	int i;
@@ -156,6 +175,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 #endif
 
 	reserve_ebda_region();
+	reserve_setup_data();
 
 	/*
 	 * At this point everything still needed from the boot loader
