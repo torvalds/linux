@@ -9,6 +9,10 @@ ifeq ($(CONFIG_IWLWIFI_LEDS),y)
 	iwlcore-objs += iwl-led.o
 endif
 
+ifeq ($(CONFIG_IWLCORE_RFKILL),y)
+	iwlcore-objs += iwl-rfkill.o
+endif
+
 obj-$(CONFIG_IWL3945)	+= iwl3945.o
 iwl3945-objs		= iwl3945-base.o iwl-3945.o iwl-3945-rs.o
 

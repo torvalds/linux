@@ -40,6 +40,7 @@
 extern struct pci_device_id iwl4965_hw_card_ids[];
 
 #define DRV_NAME        "iwl4965"
+#include "iwl-rfkill.h"
 #include "iwl-eeprom.h"
 #include "iwl-4965-hw.h"
 #include "iwl-csr.h"
@@ -739,6 +740,7 @@ extern int iwl4965_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index
 extern int iwl4965_queue_space(const struct iwl4965_queue *q);
 struct iwl_priv;
 
+extern void iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio);
 /*
  * Forward declare iwl-4965.c functions for iwl-base.c
  */
@@ -1050,6 +1052,9 @@ struct iwl_priv {
 	 * 4965's initialize alive response contains some calibration data. */
 	struct iwl4965_init_alive_resp card_alive_init;
 	struct iwl4965_alive_resp card_alive;
+#ifdef CONFIG_IWLCORE_RFKILL
+	struct iwl_rfkill_mngr rfkill_mngr;
+#endif
 
 #ifdef CONFIG_IWL4965_LEDS
 	struct iwl4965_led led[IWL_LED_TRG_MAX];

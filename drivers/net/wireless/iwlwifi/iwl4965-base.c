@@ -2607,7 +2607,7 @@ static void iwl4965_set_rate(struct iwl_priv *priv)
 		   (IWL_OFDM_BASIC_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
 }
 
-static void iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
+void iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
 {
 	unsigned long flags;
 
@@ -2625,8 +2625,16 @@ static void iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
 			iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
 				    CSR_UCODE_SW_BIT_RFKILL);
 			spin_unlock_irqrestore(&priv->lock, flags);
-			iwl4965_send_card_state(priv, CARD_STATE_CMD_DISABLE, 0);
+			/* call the host command only if no hw rf-kill set */
+			if (!test_bit(STATUS_RF_KILL_HW, &priv->status))
+				iwl4965_send_card_state(priv,
+							CARD_STATE_CMD_DISABLE,
+							0);
 			set_bit(STATUS_RF_KILL_SW, &priv->status);
+
+			/* make sure mac80211 stop sending Tx frame */
+			if (priv->mac80211_registered)
+				ieee80211_stop_queues(priv->hw);
 		}
 		return;
 	}
@@ -5852,6 +5860,7 @@ static int __iwl4965_up(struct iwl_priv *priv)
 	if (test_bit(STATUS_RF_KILL_SW, &priv->status)) {
 		IWL_WARNING("Radio disabled by SW RF kill (module "
 			    "parameter)\n");
+		iwl_rfkill_set_hw_state(priv);
 		return -ENODEV;
 	}
 
@@ -5867,11 +5876,13 @@ static int __iwl4965_up(struct iwl_priv *priv)
 	else {
 		set_bit(STATUS_RF_KILL_HW, &priv->status);
 		if (!test_bit(STATUS_IN_SUSPEND, &priv->status)) {
+			iwl_rfkill_set_hw_state(priv);
 			IWL_WARNING("Radio disabled by HW RF Kill switch\n");
 			return -ENODEV;
 		}
 	}
 
+	iwl_rfkill_set_hw_state(priv);
 	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
 
 	rc = iwl4965_hw_nic_init(priv);
@@ -5985,6 +5996,9 @@ static void iwl4965_bg_rf_kill(struct work_struct *work)
 		if (!test_bit(STATUS_EXIT_PENDING, &priv->status))
 			queue_work(priv->workqueue, &priv->restart);
 	} else {
+		/* make sure mac80211 stop sending Tx frame */
+		if (priv->mac80211_registered)
+			ieee80211_stop_queues(priv->hw);
 
 		if (!test_bit(STATUS_RF_KILL_HW, &priv->status))
 			IWL_DEBUG_RF_KILL("Can not turn radio back on - "
@@ -5994,6 +6008,8 @@ static void iwl4965_bg_rf_kill(struct work_struct *work)
 				    "Kill switch must be turned off for "
 				    "wireless networking to work.\n");
 	}
+	iwl_rfkill_set_hw_state(priv);
+
 	mutex_unlock(&priv->mutex);
 }
 
@@ -6674,7 +6690,8 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 	}
 #endif
 
-	iwl4965_radio_kill_sw(priv, !conf->radio_enabled);
+	if (priv->cfg->ops->lib->radio_kill_sw)
+		priv->cfg->ops->lib->radio_kill_sw(priv, !conf->radio_enabled);
 
 	if (!conf->radio_enabled) {
 		IWL_DEBUG_MAC80211("leave - radio disabled\n");
@@ -7449,36 +7466,6 @@ static DRIVER_ATTR(debug_level, S_IWUSR | S_IRUGO,
 
 #endif /* CONFIG_IWLWIFI_DEBUG */
 
-static ssize_t show_rf_kill(struct device *d,
-			    struct device_attribute *attr, char *buf)
-{
-	/*
-	 * 0 - RF kill not enabled
-	 * 1 - SW based RF kill active (sysfs)
-	 * 2 - HW based RF kill active
-	 * 3 - Both HW and SW based RF kill active
-	 */
-	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
-	int val = (test_bit(STATUS_RF_KILL_SW, &priv->status) ? 0x1 : 0x0) |
-		  (test_bit(STATUS_RF_KILL_HW, &priv->status) ? 0x2 : 0x0);
-
-	return sprintf(buf, "%i\n", val);
-}
-
-static ssize_t store_rf_kill(struct device *d,
-			     struct device_attribute *attr,
-			     const char *buf, size_t count)
-{
-	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
-
-	mutex_lock(&priv->mutex);
-	iwl4965_radio_kill_sw(priv, buf[0] == '1');
-	mutex_unlock(&priv->mutex);
-
-	return count;
-}
-
-static DEVICE_ATTR(rf_kill, S_IWUSR | S_IRUGO, show_rf_kill, store_rf_kill);
 
 static ssize_t show_temperature(struct device *d,
 				struct device_attribute *attr, char *buf)
@@ -7964,7 +7951,6 @@ static struct attribute *iwl4965_sysfs_entries[] = {
 #endif
 	&dev_attr_power_level.attr,
 	&dev_attr_retry_rate.attr,
-	&dev_attr_rf_kill.attr,
 	&dev_attr_rs_window.attr,
 	&dev_attr_statistics.attr,
 	&dev_attr_status.attr,

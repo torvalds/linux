@@ -9,6 +9,12 @@ config IWLWIFI_LEDS
 	  This option enables LEDS for the iwlwifi drivers
 
 
+config IWLCORE_RFKILL
+	boolean "IWLWIFI RF kill support"
+	depends on IWLCORE
+	select RFKILL
+	select RFKILL_INPUT
+
 config IWL4965
 	tristate "Intel Wireless WiFi 4965AGN"
 	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL

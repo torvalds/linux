@@ -35,6 +35,7 @@ struct iwl_priv; /* FIXME: remove */
 #include "iwl-debug.h"
 #include "iwl-eeprom.h"
 #include "iwl-core.h"
+#include "iwl-rfkill.h"
 
 #include "iwl-4965.h" /* FIXME: remove */
 
@@ -257,12 +258,15 @@ int iwlcore_low_level_notify(struct iwl_priv *priv,
 {
 	switch (notify) {
 	case IWLCORE_INIT_EVT:
+		iwl_rfkill_init(priv);
 		break;
 	case IWLCORE_START_EVT:
 		break;
 	case IWLCORE_STOP_EVT:
 		break;
 	case IWLCORE_REMOVE_EVT:
+		iwl_rfkill_unregister(priv);
+		iwl_rfkill_free(priv);
 		break;
 	}
 

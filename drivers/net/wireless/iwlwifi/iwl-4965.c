@@ -4961,6 +4961,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
 	},
+	.radio_kill_sw = iwl4965_radio_kill_sw,
 };
 
 static struct iwl_ops iwl4965_ops = {
