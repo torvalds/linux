@@ -733,17 +733,17 @@ static int iwl3945_send_cmd_sync(struct iwl3945_priv *priv, struct iwl3945_host_
 {
 	int cmd_idx;
 	int ret;
-	static atomic_t entry = ATOMIC_INIT(0); /* reentrance protection */
 
 	BUG_ON(cmd->meta.flags & CMD_ASYNC);
 
 	 /* A synchronous command can not have a callback set. */
 	BUG_ON(cmd->meta.u.callback != NULL);
 
-	if (atomic_xchg(&entry, 1)) {
+	if (test_and_set_bit(STATUS_HCMD_SYNC_ACTIVE, &priv->status)) {
 		IWL_ERROR("Error sending %s: Already sending a host command\n",
 			  get_cmd_string(cmd->id));
-		return -EBUSY;
+		ret = -EBUSY;
+		goto out;
 	}
 
 	set_bit(STATUS_HCMD_ACTIVE, &priv->status);
@@ -813,7 +813,7 @@ fail:
 		cmd->meta.u.skb = NULL;
 	}
 out:
-	atomic_set(&entry, 0);
+	clear_bit(STATUS_HCMD_SYNC_ACTIVE, &priv->status);
 	return ret;
 }
 

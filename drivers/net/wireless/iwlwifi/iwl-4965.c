@@ -1314,8 +1314,8 @@ void iwl4965_chain_noise_reset(struct iwl_priv *priv)
 		cmd.diff_gain_a = 0;
 		cmd.diff_gain_b = 0;
 		cmd.diff_gain_c = 0;
-		iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
-				 sizeof(cmd), &cmd);
+		iwl_send_cmd_pdu_async(priv, REPLY_PHY_CALIBRATION_CMD,
+				 sizeof(cmd), &cmd, NULL);
 		msleep(4);
 		data->state = IWL_CHAIN_NOISE_ACCUMULATE;
 		IWL_DEBUG_CALIB("Run chain_noise_calibrate\n");
@@ -4563,8 +4563,8 @@ void iwl4965_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 	/* Update the rate scaling for control frame Tx to AP */
 	link_cmd.sta_id = is_ap ? IWL_AP_ID : priv->hw_setting.bcast_sta_id;
 
-	iwl_send_cmd_pdu(priv, REPLY_TX_LINK_QUALITY_CMD, sizeof(link_cmd),
-			 &link_cmd);
+	iwl_send_cmd_pdu_async(priv, REPLY_TX_LINK_QUALITY_CMD,
+			       sizeof(link_cmd), &link_cmd, NULL);
 }
 
 #ifdef CONFIG_IWL4965_HT
