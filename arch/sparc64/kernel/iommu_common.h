@@ -46,19 +46,6 @@ static inline unsigned long iommu_num_pages(unsigned long vaddr,
 	return npages;
 }
 
-static inline unsigned long calc_npages(struct scatterlist *sglist, int nelems)
-{
-	unsigned long i, npages = 0;
-	struct scatterlist *sg;
-
-	for_each_sg(sglist, sg, nelems, i) {
-		unsigned long paddr = SG_ENT_PHYS_ADDRESS(sg);
-		npages += iommu_num_pages(paddr, sg->length);
-	}
-
-	return npages;
-}
-
 static inline int is_span_boundary(unsigned long entry,
 				   unsigned long shift,
 				   unsigned long boundary_size,
