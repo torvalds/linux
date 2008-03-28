@@ -91,6 +91,7 @@ static DEFINE_PER_CPU(struct vmcs *, current_vmcs);
 
 static struct page *vmx_io_bitmap_a;
 static struct page *vmx_io_bitmap_b;
+static struct page *vmx_msr_bitmap;
 
 static DECLARE_BITMAP(vmx_vpid_bitmap, VMX_NR_VPIDS);
 static DEFINE_SPINLOCK(vmx_vpid_lock);
@@ -183,6 +184,11 @@ static inline int is_external_interrupt(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VALID_MASK))
 		== (INTR_TYPE_EXT_INTR | INTR_INFO_VALID_MASK);
+}
+
+static inline int cpu_has_vmx_msr_bitmap(void)
+{
+	return (vmcs_config.cpu_based_exec_ctrl & CPU_BASED_USE_MSR_BITMAPS);
 }
 
 static inline int cpu_has_vmx_tpr_shadow(void)
@@ -1001,6 +1007,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	      CPU_BASED_MOV_DR_EXITING |
 	      CPU_BASED_USE_TSC_OFFSETING;
 	opt = CPU_BASED_TPR_SHADOW |
+	      CPU_BASED_USE_MSR_BITMAPS |
 	      CPU_BASED_ACTIVATE_SECONDARY_CONTROLS;
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_PROCBASED_CTLS,
 				&_cpu_based_exec_control) < 0)
@@ -1575,6 +1582,30 @@ static void allocate_vpid(struct vcpu_vmx *vmx)
 	spin_unlock(&vmx_vpid_lock);
 }
 
+void vmx_disable_intercept_for_msr(struct page *msr_bitmap, u32 msr)
+{
+	void *va;
+
+	if (!cpu_has_vmx_msr_bitmap())
+		return;
+
+	/*
+	 * See Intel PRM Vol. 3, 20.6.9 (MSR-Bitmap Address). Early manuals
+	 * have the write-low and read-high bitmap offsets the wrong way round.
+	 * We can control MSRs 0x00000000-0x00001fff and 0xc0000000-0xc0001fff.
+	 */
+	va = kmap(msr_bitmap);
+	if (msr <= 0x1fff) {
+		__clear_bit(msr, va + 0x000); /* read-low */
+		__clear_bit(msr, va + 0x800); /* write-low */
+	} else if ((msr >= 0xc0000000) && (msr <= 0xc0001fff)) {
+		msr &= 0x1fff;
+		__clear_bit(msr, va + 0x400); /* read-high */
+		__clear_bit(msr, va + 0xc00); /* write-high */
+	}
+	kunmap(msr_bitmap);
+}
+
 /*
  * Sets up the vmcs for emulated real mode.
  */
@@ -1591,6 +1622,9 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	/* I/O */
 	vmcs_write64(IO_BITMAP_A, page_to_phys(vmx_io_bitmap_a));
 	vmcs_write64(IO_BITMAP_B, page_to_phys(vmx_io_bitmap_b));
+
+	if (cpu_has_vmx_msr_bitmap())
+		vmcs_write64(MSR_BITMAP, page_to_phys(vmx_msr_bitmap));
 
 	vmcs_write64(VMCS_LINK_POINTER, -1ull); /* 22.3.1.5 */
 
@@ -2728,7 +2762,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 
 static int __init vmx_init(void)
 {
-	void *iova;
+	void *va;
 	int r;
 
 	vmx_io_bitmap_a = alloc_page(GFP_KERNEL | __GFP_HIGHMEM);
@@ -2741,30 +2775,48 @@ static int __init vmx_init(void)
 		goto out;
 	}
 
+	vmx_msr_bitmap = alloc_page(GFP_KERNEL | __GFP_HIGHMEM);
+	if (!vmx_msr_bitmap) {
+		r = -ENOMEM;
+		goto out1;
+	}
+
 	/*
 	 * Allow direct access to the PC debug port (it is often used for I/O
 	 * delays, but the vmexits simply slow things down).
 	 */
-	iova = kmap(vmx_io_bitmap_a);
-	memset(iova, 0xff, PAGE_SIZE);
-	clear_bit(0x80, iova);
+	va = kmap(vmx_io_bitmap_a);
+	memset(va, 0xff, PAGE_SIZE);
+	clear_bit(0x80, va);
 	kunmap(vmx_io_bitmap_a);
 
-	iova = kmap(vmx_io_bitmap_b);
-	memset(iova, 0xff, PAGE_SIZE);
+	va = kmap(vmx_io_bitmap_b);
+	memset(va, 0xff, PAGE_SIZE);
 	kunmap(vmx_io_bitmap_b);
+
+	va = kmap(vmx_msr_bitmap);
+	memset(va, 0xff, PAGE_SIZE);
+	kunmap(vmx_msr_bitmap);
 
 	set_bit(0, vmx_vpid_bitmap); /* 0 is reserved for host */
 
 	r = kvm_init(&vmx_x86_ops, sizeof(struct vcpu_vmx), THIS_MODULE);
 	if (r)
-		goto out1;
+		goto out2;
+
+	vmx_disable_intercept_for_msr(vmx_msr_bitmap, MSR_FS_BASE);
+	vmx_disable_intercept_for_msr(vmx_msr_bitmap, MSR_GS_BASE);
+	vmx_disable_intercept_for_msr(vmx_msr_bitmap, MSR_IA32_SYSENTER_CS);
+	vmx_disable_intercept_for_msr(vmx_msr_bitmap, MSR_IA32_SYSENTER_ESP);
+	vmx_disable_intercept_for_msr(vmx_msr_bitmap, MSR_IA32_SYSENTER_EIP);
 
 	if (bypass_guest_pf)
 		kvm_mmu_set_nonpresent_ptes(~0xffeull, 0ull);
 
 	return 0;
 
+out2:
+	__free_page(vmx_msr_bitmap);
 out1:
 	__free_page(vmx_io_bitmap_b);
 out:
@@ -2774,6 +2826,7 @@ out:
 
 static void __exit vmx_exit(void)
 {
+	__free_page(vmx_msr_bitmap);
 	__free_page(vmx_io_bitmap_b);
 	__free_page(vmx_io_bitmap_a);
 
