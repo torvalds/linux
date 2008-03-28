@@ -192,7 +192,7 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 	return ret < 0 ? ret : 0;
 }
 
-static void htab_remove_mapping(unsigned long vstart, unsigned long vend,
+static int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 		      int psize, int ssize)
 {
 	unsigned long vaddr;
@@ -202,12 +202,15 @@ static void htab_remove_mapping(unsigned long vstart, unsigned long vend,
 	step = 1 << shift;
 
 	if (!ppc_md.hpte_removebolted) {
-		printk("Sub-arch doesn't implement hpte_removebolted\n");
-		return;
+		printk(KERN_WARNING "Platform doesn't implement "
+				"hpte_removebolted\n");
+		return -EINVAL;
 	}
 
 	for (vaddr = vstart; vaddr < vend; vaddr += step)
 		ppc_md.hpte_removebolted(vaddr, psize, ssize);
+
+	return 0;
 }
 
 static int __init htab_dt_scan_seg_sizes(unsigned long node,
@@ -454,9 +457,10 @@ void create_section_mapping(unsigned long start, unsigned long end)
 			mmu_linear_psize, mmu_kernel_ssize));
 }
 
-void remove_section_mapping(unsigned long start, unsigned long end)
+int remove_section_mapping(unsigned long start, unsigned long end)
 {
-	htab_remove_mapping(start, end, mmu_linear_psize, mmu_kernel_ssize);
+	return htab_remove_mapping(start, end, mmu_linear_psize,
+			mmu_kernel_ssize);
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
