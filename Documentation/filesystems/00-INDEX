@@ -82,6 +82,8 @@ relay.txt
 	- info on relay, for efficient streaming from kernel to user space.
 romfs.txt
 	- description of the ROMFS filesystem.
+seq_file.txt
+	- how to use the seq_file API
 sharedsubtree.txt
 	- a description of shared subtrees for namespaces.
 smbfs.txt
