@@ -35,6 +35,9 @@ pvr2_device_desc structures.
 #ifdef CONFIG_VIDEO_PVRUSB2_DVB
 #include "pvrusb2-hdw-internal.h"
 #include "lgdt330x.h"
+#include "s5h1409.h"
+#include "tda18271.h"
+#include "tda8290.h"
 #include "tuner-simple.h"
 #endif
 
@@ -304,6 +307,60 @@ static const struct pvr2_device_desc pvr2_device_73xxx = {
 /*------------------------------------------------------------------------*/
 /* Hauppauge PVR-USB2 Model 75xxx */
 
+#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+static struct s5h1409_config pvr2_s5h1409_config = {
+	.demod_address = 0x32 >> 1,
+	.output_mode   = S5H1409_PARALLEL_OUTPUT,
+	.gpio          = S5H1409_GPIO_OFF,
+	.qam_if        = 4000,
+	.inversion     = S5H1409_INVERSION_ON,
+	.status_mode   = S5H1409_DEMODLOCKING,
+};
+
+static struct tda829x_config tda829x_no_probe = {
+	.probe_tuner = TDA829X_DONT_PROBE,
+};
+
+static struct tda18271_std_map hauppauge_tda18271_std_map = {
+	.atsc_6   = { .if_freq = 5380, .agc_mode = 3, .std = 3,
+		      .if_lvl = 6, .rfagc_top = 0x37, },
+	.qam_6    = { .if_freq = 4000, .agc_mode = 3, .std = 0,
+		      .if_lvl = 6, .rfagc_top = 0x37, },
+};
+
+static struct tda18271_config hauppauge_tda18271_config = {
+	.std_map = &hauppauge_tda18271_std_map,
+	.gate    = TDA18271_GATE_ANALOG,
+};
+
+static int pvr2_s5h1409_attach(struct pvr2_dvb_adapter *adap)
+{
+	adap->fe = dvb_attach(s5h1409_attach, &pvr2_s5h1409_config,
+			      &adap->channel.hdw->i2c_adap);
+	if (adap->fe)
+		return 0;
+
+	return -EIO;
+}
+
+static int pvr2_tda18271_8295_attach(struct pvr2_dvb_adapter *adap)
+{
+	dvb_attach(tda829x_attach, adap->fe,
+		   &adap->channel.hdw->i2c_adap, 0x42,
+		   &tda829x_no_probe);
+	dvb_attach(tda18271_attach, adap->fe, 0x60,
+		   &adap->channel.hdw->i2c_adap,
+		   &hauppauge_tda18271_config);
+
+	return 0;
+}
+
+struct pvr2_dvb_props pvr2_750xx_dvb_props = {
+	.frontend_attach = pvr2_s5h1409_attach,
+	.tuner_attach    = pvr2_tda18271_8295_attach,
+};
+#endif
+
 static const char *pvr2_client_75xxx[] = {
 	"cx25840",
 	"tuner",
@@ -329,6 +386,9 @@ static const struct pvr2_device_desc pvr2_device_750xx = {
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_HAUPPAUGE,
 		.default_std_mask = V4L2_STD_NTSC_M,
 		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
+#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+		.dvb_props = &pvr2_750xx_dvb_props,
+#endif
 };
 
 static const struct pvr2_device_desc pvr2_device_751xx = {
