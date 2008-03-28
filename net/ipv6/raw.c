@@ -1171,8 +1171,6 @@ static int rawv6_init_sk(struct sock *sk)
 	return(0);
 }
 
-DEFINE_PROTO_INUSE(rawv6)
-
 struct proto rawv6_prot = {
 	.name		   = "RAWv6",
 	.owner		   = THIS_MODULE,
@@ -1196,7 +1194,6 @@ struct proto rawv6_prot = {
 	.compat_setsockopt = compat_rawv6_setsockopt,
 	.compat_getsockopt = compat_rawv6_getsockopt,
 #endif
-	REF_PROTO_INUSE(rawv6)
 };
 
 #ifdef CONFIG_PROC_FS

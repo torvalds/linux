@@ -47,7 +47,6 @@
 #include <linux/module.h>
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
-#include <linux/pcounter.h>
 #include <linux/skbuff.h>	/* struct sk_buff */
 #include <linux/mm.h>
 #include <linux/security.h>
@@ -563,7 +562,6 @@ struct proto {
 	/* Keeping track of sockets in use */
 #ifdef CONFIG_PROC_FS
 	unsigned int		inuse_idx;
-	struct pcounter		inuse;
 #endif
 
 	/* Memory pressure */
@@ -636,14 +634,10 @@ static inline void sk_refcnt_debug_release(const struct sock *sk)
 
 
 #ifdef CONFIG_PROC_FS
-# define DEFINE_PROTO_INUSE(NAME) DEFINE_PCOUNTER(NAME)
-# define REF_PROTO_INUSE(NAME) PCOUNTER_MEMBER_INITIALIZER(NAME, .inuse)
 /* Called with local bh disabled */
 extern void sock_prot_inuse_add(struct proto *prot, int inc);
 extern int sock_prot_inuse_get(struct proto *proto);
 #else
-# define DEFINE_PROTO_INUSE(NAME)
-# define REF_PROTO_INUSE(NAME)
 static void inline sock_prot_inuse_add(struct proto *prot, int inc)
 {
 }

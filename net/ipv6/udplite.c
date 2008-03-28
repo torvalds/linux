@@ -35,8 +35,6 @@ static struct inet6_protocol udplitev6_protocol = {
 	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
 
-DEFINE_PROTO_INUSE(udplitev6)
-
 struct proto udplitev6_prot = {
 	.name		   = "UDPLITEv6",
 	.owner		   = THIS_MODULE,
@@ -60,7 +58,6 @@ struct proto udplitev6_prot = {
 	.compat_setsockopt = compat_udpv6_setsockopt,
 	.compat_getsockopt = compat_udpv6_getsockopt,
 #endif
-	REF_PROTO_INUSE(udplitev6)
 };
 
 static struct inet_protosw udplite6_protosw = {

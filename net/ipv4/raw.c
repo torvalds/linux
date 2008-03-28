@@ -818,8 +818,6 @@ static int raw_ioctl(struct sock *sk, int cmd, unsigned long arg)
 	}
 }
 
-DEFINE_PROTO_INUSE(raw)
-
 struct proto raw_prot = {
 	.name		   = "RAW",
 	.owner		   = THIS_MODULE,
@@ -842,7 +840,6 @@ struct proto raw_prot = {
 	.compat_setsockopt = compat_raw_setsockopt,
 	.compat_getsockopt = compat_raw_getsockopt,
 #endif
-	REF_PROTO_INUSE(raw)
 };
 
 #ifdef CONFIG_PROC_FS

@@ -915,8 +915,6 @@ static struct timewait_sock_ops dccp_timewait_sock_ops = {
 	.twsk_obj_size	= sizeof(struct inet_timewait_sock),
 };
 
-DEFINE_PROTO_INUSE(dccp_v4)
-
 static struct proto dccp_v4_prot = {
 	.name			= "DCCP",
 	.owner			= THIS_MODULE,
@@ -946,7 +944,6 @@ static struct proto dccp_v4_prot = {
 	.compat_setsockopt	= compat_dccp_setsockopt,
 	.compat_getsockopt	= compat_dccp_getsockopt,
 #endif
-	REF_PROTO_INUSE(dccp_v4)
 };
 
 static struct net_protocol dccp_v4_protocol = {

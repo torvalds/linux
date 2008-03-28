@@ -6513,8 +6513,6 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 }
 
 
-DEFINE_PROTO_INUSE(sctp)
-
 /* This proto struct describes the ULP interface for SCTP.  */
 struct proto sctp_prot = {
 	.name        =	"SCTP",
@@ -6544,11 +6542,9 @@ struct proto sctp_prot = {
 	.enter_memory_pressure = sctp_enter_memory_pressure,
 	.memory_allocated = &sctp_memory_allocated,
 	.sockets_allocated = &sctp_sockets_allocated,
-	REF_PROTO_INUSE(sctp)
 };
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-DEFINE_PROTO_INUSE(sctpv6)
 
 struct proto sctpv6_prot = {
 	.name		= "SCTPv6",
@@ -6578,6 +6574,5 @@ struct proto sctpv6_prot = {
 	.enter_memory_pressure = sctp_enter_memory_pressure,
 	.memory_allocated = &sctp_memory_allocated,
 	.sockets_allocated = &sctp_sockets_allocated,
-	REF_PROTO_INUSE(sctpv6)
 };
 #endif /* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
