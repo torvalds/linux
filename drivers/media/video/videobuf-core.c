@@ -123,6 +123,9 @@ void videobuf_queue_core_init(struct videobuf_queue *q,
 	BUG_ON(!q->ops->buf_queue);
 	BUG_ON(!q->ops->buf_release);
 
+	/* Lock is mandatory for queue_cancel to work */
+	BUG_ON(!irqlock);
+
 	/* Having implementations for abstract methods are mandatory */
 	BUG_ON(!q->int_ops);
 
@@ -180,8 +183,7 @@ void videobuf_queue_cancel(struct videobuf_queue *q)
 	wake_up_interruptible_sync(&q->wait);
 
 	/* remove queued buffers from list */
-	if (q->irqlock)
-		spin_lock_irqsave(q->irqlock, flags);
+	spin_lock_irqsave(q->irqlock, flags);
 	for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 		if (NULL == q->bufs[i])
 			continue;
@@ -191,8 +193,7 @@ void videobuf_queue_cancel(struct videobuf_queue *q)
 			wake_up_all(&q->bufs[i]->done);
 		}
 	}
-	if (q->irqlock)
-		spin_unlock_irqrestore(q->irqlock, flags);
+	spin_unlock_irqrestore(q->irqlock, flags);
 
 	/* free all buffers + clear queue */
 	for (i = 0; i < VIDEO_MAX_FRAME; i++) {
@@ -548,11 +549,9 @@ int videobuf_qbuf(struct videobuf_queue *q,
 
 	list_add_tail(&buf->stream, &q->stream);
 	if (q->streaming) {
-		if (q->irqlock)
-			spin_lock_irqsave(q->irqlock, flags);
+		spin_lock_irqsave(q->irqlock, flags);
 		q->ops->buf_queue(q, buf);
-		if (q->irqlock)
-			spin_unlock_irqrestore(q->irqlock, flags);
+		spin_unlock_irqrestore(q->irqlock, flags);
 	}
 	dprintk(1, "qbuf: succeded\n");
 	retval = 0;
@@ -689,13 +688,11 @@ int videobuf_streamon(struct videobuf_queue *q)
 	if (q->streaming)
 		goto done;
 	q->streaming = 1;
-	if (q->irqlock)
-		spin_lock_irqsave(q->irqlock, flags);
+	spin_lock_irqsave(q->irqlock, flags);
 	list_for_each_entry(buf, &q->stream, stream)
 		if (buf->state == VIDEOBUF_PREPARED)
 			q->ops->buf_queue(q, buf);
-	if (q->irqlock)
-		spin_unlock_irqrestore(q->irqlock, flags);
+	spin_unlock_irqrestore(q->irqlock, flags);
 
 	wake_up_interruptible_sync(&q->wait);
  done:
@@ -751,11 +748,9 @@ static ssize_t videobuf_read_zerocopy(struct videobuf_queue *q,
 		goto done;
 
 	/* start capture & wait */
-	if (q->irqlock)
-		spin_lock_irqsave(q->irqlock, flags);
+	spin_lock_irqsave(q->irqlock, flags);
 	q->ops->buf_queue(q, q->read_buf);
-	if (q->irqlock)
-		spin_unlock_irqrestore(q->irqlock, flags);
+	spin_unlock_irqrestore(q->irqlock, flags);
 	retval = videobuf_waiton(q->read_buf, 0, 0);
 	if (0 == retval) {
 		CALL(q, sync, q, q->read_buf);
@@ -816,12 +811,11 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 			q->read_buf = NULL;
 			goto done;
 		}
-		if (q->irqlock)
-			spin_lock_irqsave(q->irqlock, flags);
 
+		spin_lock_irqsave(q->irqlock, flags);
 		q->ops->buf_queue(q, q->read_buf);
-		if (q->irqlock)
-			spin_unlock_irqrestore(q->irqlock, flags);
+		spin_unlock_irqrestore(q->irqlock, flags);
+
 		q->read_off = 0;
 	}
 
@@ -887,12 +881,10 @@ static int __videobuf_read_start(struct videobuf_queue *q)
 			return err;
 		list_add_tail(&q->bufs[i]->stream, &q->stream);
 	}
-	if (q->irqlock)
-		spin_lock_irqsave(q->irqlock, flags);
+	spin_lock_irqsave(q->irqlock, flags);
 	for (i = 0; i < count; i++)
 		q->ops->buf_queue(q, q->bufs[i]);
-	if (q->irqlock)
-		spin_unlock_irqrestore(q->irqlock, flags);
+	spin_unlock_irqrestore(q->irqlock, flags);
 	q->reading = 1;
 	return 0;
 }
@@ -1004,11 +996,9 @@ ssize_t videobuf_read_stream(struct videobuf_queue *q,
 		if (q->read_off == q->read_buf->size) {
 			list_add_tail(&q->read_buf->stream,
 				      &q->stream);
-			if (q->irqlock)
-				spin_lock_irqsave(q->irqlock, flags);
+			spin_lock_irqsave(q->irqlock, flags);
 			q->ops->buf_queue(q, q->read_buf);
-			if (q->irqlock)
-				spin_unlock_irqrestore(q->irqlock, flags);
+			spin_unlock_irqrestore(q->irqlock, flags);
 			q->read_buf = NULL;
 		}
 		if (retval < 0)
