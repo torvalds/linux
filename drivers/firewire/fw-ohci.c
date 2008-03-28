@@ -1390,6 +1390,8 @@ static int ohci_enable(struct fw_card *card, u32 *config_rom, size_t length)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct pci_dev *dev = to_pci_dev(card->device);
+	u32 lps;
+	int i;
 
 	if (software_reset(ohci)) {
 		fw_error("Failed to reset ohci card.\n");
@@ -1401,13 +1403,24 @@ static int ohci_enable(struct fw_card *card, u32 *config_rom, size_t length)
 	 * most of the registers.  In fact, on some cards (ALI M5251),
 	 * accessing registers in the SClk domain without LPS enabled
 	 * will lock up the machine.  Wait 50msec to make sure we have
-	 * full link enabled.
+	 * full link enabled.  However, with some cards (well, at least
+	 * a JMicron PCIe card), we have to try again sometimes.
 	 */
 	reg_write(ohci, OHCI1394_HCControlSet,
 		  OHCI1394_HCControl_LPS |
 		  OHCI1394_HCControl_postedWriteEnable);
 	flush_writes(ohci);
-	msleep(50);
+
+	for (lps = 0, i = 0; !lps && i < 3; i++) {
+		msleep(50);
+		lps = reg_read(ohci, OHCI1394_HCControlSet) &
+		      OHCI1394_HCControl_LPS;
+	}
+
+	if (!lps) {
+		fw_error("Failed to set Link Power Status\n");
+		return -EIO;
+	}
 
 	reg_write(ohci, OHCI1394_HCControlClear,
 		  OHCI1394_HCControl_noByteSwapData);
