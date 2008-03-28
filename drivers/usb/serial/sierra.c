@@ -1,7 +1,7 @@
 /*
   USB Driver for Sierra Wireless
 
-  Copyright (C) 2006, 2007, 2008  Kevin Lloyd <linux@sierrawireless.com>
+  Copyright (C) 2006, 2007, 2008  Kevin Lloyd <klloyd@sierrawireless.com>
 
   IMPORTANT DISCLAIMER: This driver is not commercially supported by
   Sierra Wireless. Use at your own risk.
@@ -14,8 +14,8 @@
   Whom based his on the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 */
 
-#define DRIVER_VERSION "v.1.2.8"
-#define DRIVER_AUTHOR "Kevin Lloyd <linux@sierrawireless.com>"
+#define DRIVER_VERSION "v.1.2.9c"
+#define DRIVER_AUTHOR "Kevin Lloyd <klloyd@sierrawireless.com>"
 #define DRIVER_DESC "USB Driver for Sierra Wireless USB modems"
 
 #include <linux/kernel.h>
@@ -31,7 +31,6 @@
 #define SWIMS_USB_REQUEST_SetPower	0x00
 #define SWIMS_USB_REQUEST_SetNmea	0x07
 #define SWIMS_USB_REQUEST_SetMode	0x0B
-#define SWIMS_USB_REQUEST_TYPE_VSC_SET	0x40
 #define SWIMS_SET_MODE_Modem		0x0001
 
 /* per port private data */
@@ -55,7 +54,7 @@ static int sierra_set_power_state(struct usb_device *udev, __u16 swiState)
 	dev_dbg(&udev->dev, "%s", "SET POWER STATE\n");
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			SWIMS_USB_REQUEST_SetPower,	/* __u8 request      */
-			SWIMS_USB_REQUEST_TYPE_VSC_SET,	/* __u8 request type */
+			USB_TYPE_VENDOR,		/* __u8 request type */
 			swiState,			/* __u16 value       */
 			0,				/* __u16 index       */
 			NULL,				/* void *data        */
@@ -70,7 +69,7 @@ static int sierra_set_ms_mode(struct usb_device *udev, __u16 eSWocMode)
 	dev_dbg(&udev->dev, "%s", "DEVICE MODE SWITCH\n");
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			SWIMS_USB_REQUEST_SetMode,	/* __u8 request      */
-			SWIMS_USB_REQUEST_TYPE_VSC_SET,	/* __u8 request type */
+			USB_TYPE_VENDOR,		/* __u8 request type */
 			eSWocMode,			/* __u16 value       */
 			0x0000,				/* __u16 index       */
 			NULL,				/* void *data        */
@@ -85,7 +84,7 @@ static int sierra_vsc_set_nmea(struct usb_device *udev, __u16 enable)
 	dev_dbg(&udev->dev, "%s", "NMEA Enable sent\n");
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			SWIMS_USB_REQUEST_SetNmea,	/* __u8 request      */
-			SWIMS_USB_REQUEST_TYPE_VSC_SET,	/* __u8 request type */
+			USB_TYPE_VENDOR,		/* __u8 request type */
 			enable,				/* __u16 value       */
 			0x0000,				/* __u16 index       */
 			NULL,				/* void *data        */
@@ -453,7 +452,7 @@ static void sierra_instat_callback(struct urb *urb)
 	struct usb_serial *serial = port->serial;
 
 	dbg("%s", __FUNCTION__);
-	dbg("%s: urb %p port %p has data %p", __FUNCTION__,urb,port,portdata);
+	dbg("%s: urb %p port %p has data %p", __FUNCTION__, urb, port, portdata);
 
 	if (status == 0) {
 		struct usb_ctrlrequest *req_pkt =
@@ -483,7 +482,7 @@ static void sierra_instat_callback(struct urb *urb)
 				tty_hangup(port->tty);
 		} else {
 			dbg("%s: type %x req %x", __FUNCTION__,
-				req_pkt->bRequestType,req_pkt->bRequest);
+				req_pkt->bRequestType, req_pkt->bRequest);
 		}
 	} else
 		dbg("%s: error %d", __FUNCTION__, status);
