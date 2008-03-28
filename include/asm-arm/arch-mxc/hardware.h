@@ -8,12 +8,6 @@
  * published by the Free Software Foundation.
  */
 
-/*!
- * @file hardware.h
- * @brief This file contains the hardware definitions of the board.
- *
- * @ingroup System
- */
 #ifndef __ASM_ARCH_MXC_HARDWARE_H__
 #define __ASM_ARCH_MXC_HARDWARE_H__
 
@@ -49,4 +43,4 @@
                                 MXC_MAX_EXP_IO_LINES + \
                                 MXC_MAX_VIRTUAL_INTS)
 
-#endif				/* __ASM_ARCH_MXC_HARDWARE_H__ */
+#endif /* __ASM_ARCH_MXC_HARDWARE_H__ */
