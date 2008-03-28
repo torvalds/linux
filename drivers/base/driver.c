@@ -133,6 +133,7 @@ int driver_add_kobj(struct device_driver *drv, struct kobject *kobj,
 {
 	va_list args;
 	char *name;
+	int ret;
 
 	va_start(args, fmt);
 	name = kvasprintf(GFP_KERNEL, fmt, args);
@@ -141,7 +142,9 @@ int driver_add_kobj(struct device_driver *drv, struct kobject *kobj,
 	if (!name)
 		return -ENOMEM;
 
-	return kobject_add(kobj, &drv->p->kobj, "%s", name);
+	ret = kobject_add(kobj, &drv->p->kobj, "%s", name);
+	kfree(name);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(driver_add_kobj);
 
