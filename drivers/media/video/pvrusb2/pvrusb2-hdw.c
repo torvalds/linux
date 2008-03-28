@@ -216,6 +216,39 @@ static const char *pvr2_state_names[] = {
 };
 
 
+struct pvr2_fx2cmd_desc {
+	unsigned char id;
+	unsigned char *desc;
+};
+
+static const struct pvr2_fx2cmd_desc pvr2_fx2cmd_desc[] = {
+	{FX2CMD_MEM_WRITE_DWORD, "write encoder dword"},
+	{FX2CMD_MEM_READ_DWORD, "read encoder dword"},
+	{FX2CMD_MEM_READ_64BYTES, "read encoder 64bytes"},
+	{FX2CMD_REG_WRITE, "write encoder register"},
+	{FX2CMD_REG_READ, "read encoder register"},
+	{FX2CMD_MEMSEL, "encoder memsel"},
+	{FX2CMD_I2C_WRITE, "i2c write"},
+	{FX2CMD_I2C_READ, "i2c read"},
+	{FX2CMD_GET_USB_SPEED, "get USB speed"},
+	{FX2CMD_STREAMING_ON, "stream on"},
+	{FX2CMD_STREAMING_OFF, "stream off"},
+	{FX2CMD_FWPOST1, "fwpost1"},
+	{FX2CMD_POWER_OFF, "power off"},
+	{FX2CMD_POWER_ON, "power on"},
+	{FX2CMD_DEEP_RESET, "deep reset"},
+	{FX2CMD_GET_EEPROM_ADDR, "get rom addr"},
+	{FX2CMD_GET_IR_CODE, "get IR code"},
+	{FX2CMD_HCW_DEMOD_RESETIN, "hcw demod resetin"},
+	{FX2CMD_HCW_DTV_STREAMING_ON, "hcw dtv stream on"},
+	{FX2CMD_HCW_DTV_STREAMING_OFF, "hcw dtv stream off"},
+	{FX2CMD_ONAIR_DTV_STREAMING_ON, "onair dtv stream on"},
+	{FX2CMD_ONAIR_DTV_STREAMING_OFF, "onair dtv stream off"},
+	{FX2CMD_ONAIR_DTV_POWER_ON, "onair dtv power on"},
+	{FX2CMD_ONAIR_DTV_POWER_OFF, "onair dtv power off"},
+};
+
+
 static void pvr2_hdw_state_sched(struct pvr2_hdw *);
 static int pvr2_hdw_state_eval(struct pvr2_hdw *);
 static void pvr2_hdw_set_cur_freq(struct pvr2_hdw *,unsigned long);
@@ -231,6 +264,7 @@ static void pvr2_hdw_internal_find_stdenum(struct pvr2_hdw *hdw);
 static void pvr2_hdw_internal_set_std_avail(struct pvr2_hdw *hdw);
 static void pvr2_hdw_quiescent_timeout(unsigned long);
 static void pvr2_hdw_encoder_wait_timeout(unsigned long);
+static int pvr2_issue_simple_cmd(struct pvr2_hdw *,u32);
 static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 				unsigned int timeout,int probe_fl,
 				void *write_data,unsigned int write_len,
@@ -1219,13 +1253,8 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 	ret |= pvr2_write_register(hdw, 0xaa04, 0x00057810); /*unknown*/
 	ret |= pvr2_write_register(hdw, 0xaa10, 0x00148500); /*unknown*/
 	ret |= pvr2_write_register(hdw, 0xaa18, 0x00840000); /*unknown*/
-	LOCK_TAKE(hdw->ctl_lock); do {
-		hdw->cmd_buffer[0] = FX2CMD_FWPOST1;
-		ret |= pvr2_send_request(hdw,hdw->cmd_buffer,1,NULL,0);
-		hdw->cmd_buffer[0] = FX2CMD_MEMSEL;
-		hdw->cmd_buffer[1] = 0;
-		ret |= pvr2_send_request(hdw,hdw->cmd_buffer,2,NULL,0);
-	} while (0); LOCK_GIVE(hdw->ctl_lock);
+	ret |= pvr2_issue_simple_cmd(hdw,FX2CMD_FWPOST1);
+	ret |= pvr2_issue_simple_cmd(hdw,FX2CMD_MEMSEL | (1 << 8) | (0 << 16));
 
 	if (ret) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
@@ -1290,11 +1319,7 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 
 	ret |= pvr2_write_register(hdw, 0x9054, 0xffffffff); /*reset hw blocks*/
 	ret |= pvr2_write_register(hdw, 0x9058, 0xffffffe8); /*VPU ctrl*/
-	LOCK_TAKE(hdw->ctl_lock); do {
-		hdw->cmd_buffer[0] = FX2CMD_MEMSEL;
-		hdw->cmd_buffer[1] = 0;
-		ret |= pvr2_send_request(hdw,hdw->cmd_buffer,2,NULL,0);
-	} while (0); LOCK_GIVE(hdw->ctl_lock);
+	ret |= pvr2_issue_simple_cmd(hdw,FX2CMD_MEMSEL | (1 << 8) | (0 << 16));
 
 	if (ret) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
@@ -3093,6 +3118,67 @@ int pvr2_send_request(struct pvr2_hdw *hdw,
 				    read_data,read_len);
 }
 
+
+static int pvr2_issue_simple_cmd(struct pvr2_hdw *hdw,u32 cmdcode)
+{
+	int ret;
+	unsigned int cnt = 1;
+	unsigned int args = 0;
+	LOCK_TAKE(hdw->ctl_lock);
+	hdw->cmd_buffer[0] = cmdcode & 0xffu;
+	args = (cmdcode >> 8) & 0xffu;
+	args = (args > 2) ? 2 : args;
+	if (args) {
+		cnt += args;
+		hdw->cmd_buffer[1] = (cmdcode >> 16) & 0xffu;
+		if (args > 1) {
+			hdw->cmd_buffer[2] = (cmdcode >> 24) & 0xffu;
+		}
+	}
+	if (pvrusb2_debug & PVR2_TRACE_INIT) {
+		unsigned int idx;
+		unsigned int ccnt,bcnt;
+		char tbuf[50];
+		cmdcode &= 0xffu;
+		bcnt = 0;
+		ccnt = scnprintf(tbuf+bcnt,
+				 sizeof(tbuf)-bcnt,
+				 "Sending FX2 command 0x%x",cmdcode);
+		bcnt += ccnt;
+		for (idx = 0; idx < ARRAY_SIZE(pvr2_fx2cmd_desc); idx++) {
+			if (pvr2_fx2cmd_desc[idx].id == cmdcode) {
+				ccnt = scnprintf(tbuf+bcnt,
+						 sizeof(tbuf)-bcnt,
+						 " \"%s\"",
+						 pvr2_fx2cmd_desc[idx].desc);
+				bcnt += ccnt;
+				break;
+			}
+		}
+		if (args) {
+			ccnt = scnprintf(tbuf+bcnt,
+					 sizeof(tbuf)-bcnt,
+					 " (%u",hdw->cmd_buffer[1]);
+			bcnt += ccnt;
+			if (args > 1) {
+				ccnt = scnprintf(tbuf+bcnt,
+						 sizeof(tbuf)-bcnt,
+						 ",%u",hdw->cmd_buffer[2]);
+				bcnt += ccnt;
+			}
+			ccnt = scnprintf(tbuf+bcnt,
+					 sizeof(tbuf)-bcnt,
+					 ")");
+			bcnt += ccnt;
+		}
+		pvr2_trace(PVR2_TRACE_INIT,"%.*s",bcnt,tbuf);
+	}
+	ret = pvr2_send_request(hdw,hdw->cmd_buffer,cnt,NULL,0);
+	LOCK_GIVE(hdw->ctl_lock);
+	return ret;
+}
+
+
 int pvr2_write_register(struct pvr2_hdw *hdw, u16 reg, u32 data)
 {
 	int ret;
@@ -3200,40 +3286,19 @@ void pvr2_hdw_cpureset_assert(struct pvr2_hdw *hdw,int val)
 
 int pvr2_hdw_cmd_deep_reset(struct pvr2_hdw *hdw)
 {
-	int status;
-	LOCK_TAKE(hdw->ctl_lock); do {
-		pvr2_trace(PVR2_TRACE_INIT,"Requesting uproc hard reset");
-		hdw->cmd_buffer[0] = FX2CMD_DEEP_RESET;
-		status = pvr2_send_request(hdw,hdw->cmd_buffer,1,NULL,0);
-	} while (0); LOCK_GIVE(hdw->ctl_lock);
-	return status;
+	return pvr2_issue_simple_cmd(hdw,FX2CMD_DEEP_RESET);
 }
 
-
-static int pvr2_hdw_cmd_power_ctrl(struct pvr2_hdw *hdw, int onoff)
-{
-	int status;
-	LOCK_TAKE(hdw->ctl_lock); do {
-		if (onoff) {
-			pvr2_trace(PVR2_TRACE_INIT, "Requesting powerup");
-			hdw->cmd_buffer[0] = FX2CMD_POWER_ON;
-		} else {
-			pvr2_trace(PVR2_TRACE_INIT, "Requesting powerdown");
-			hdw->cmd_buffer[0] = FX2CMD_POWER_OFF;
-		}
-		status = pvr2_send_request(hdw, hdw->cmd_buffer, 1, NULL, 0);
-	} while (0); LOCK_GIVE(hdw->ctl_lock);
-	return status;
-}
 
 int pvr2_hdw_cmd_powerup(struct pvr2_hdw *hdw)
 {
-	return pvr2_hdw_cmd_power_ctrl(hdw, 1);
+	return pvr2_issue_simple_cmd(hdw,FX2CMD_POWER_ON);
 }
+
 
 int pvr2_hdw_cmd_powerdown(struct pvr2_hdw *hdw)
 {
-	return pvr2_hdw_cmd_power_ctrl(hdw, 0);
+	return pvr2_issue_simple_cmd(hdw,FX2CMD_POWER_OFF);
 }
 
 
@@ -3260,55 +3325,29 @@ int pvr2_hdw_cmd_decoder_reset(struct pvr2_hdw *hdw)
 
 static int pvr2_hdw_cmd_hcw_demod_reset(struct pvr2_hdw *hdw, int onoff)
 {
-	int status;
-
-	LOCK_TAKE(hdw->ctl_lock); do {
-		pvr2_trace(PVR2_TRACE_INIT,
-			   "Issuing fe demod wake command (%s)",
-			   (onoff ? "on" : "off"));
-		hdw->flag_ok = !0;
-		hdw->cmd_buffer[0] = FX2CMD_HCW_DEMOD_RESETIN;
-		hdw->cmd_buffer[1] = onoff;
-		status = pvr2_send_request(hdw, hdw->cmd_buffer, 2, NULL, 0);
-	} while (0); LOCK_GIVE(hdw->ctl_lock);
-
-	return status;
+	hdw->flag_ok = !0;
+	return pvr2_issue_simple_cmd(hdw,
+				     FX2CMD_HCW_DEMOD_RESETIN |
+				     (1 << 8) |
+				     ((onoff ? 1 : 0) << 16));
 }
 
 
 static int pvr2_hdw_cmd_onair_fe_power_ctrl(struct pvr2_hdw *hdw, int onoff)
 {
-	int status;
-
-	LOCK_TAKE(hdw->ctl_lock); do {
-		pvr2_trace(PVR2_TRACE_INIT,
-			   "Issuing fe power command to CPLD (%s)",
-			   (onoff ? "on" : "off"));
-		hdw->flag_ok = !0;
-		hdw->cmd_buffer[0] =
-			(onoff ? FX2CMD_ONAIR_DTV_POWER_ON :
-				 FX2CMD_ONAIR_DTV_POWER_OFF);
-		status = pvr2_send_request(hdw, hdw->cmd_buffer, 1, NULL, 0);
-	} while (0); LOCK_GIVE(hdw->ctl_lock);
-
-	return status;
+	hdw->flag_ok = !0;
+	return pvr2_issue_simple_cmd(hdw,(onoff ?
+					  FX2CMD_ONAIR_DTV_POWER_ON :
+					  FX2CMD_ONAIR_DTV_POWER_OFF));
 }
 
 
 static int pvr2_hdw_cmd_onair_digital_path_ctrl(struct pvr2_hdw *hdw,
 						int onoff)
 {
-	int status;
-	LOCK_TAKE(hdw->ctl_lock); do {
-		pvr2_trace(PVR2_TRACE_INIT,
-			   "Issuing onair digital setup command (%s)",
-			   (onoff ? "on" : "off"));
-		hdw->cmd_buffer[0] =
-			(onoff ? FX2CMD_ONAIR_DTV_STREAMING_ON :
-				 FX2CMD_ONAIR_DTV_STREAMING_OFF);
-		status = pvr2_send_request(hdw, hdw->cmd_buffer, 1, NULL, 0);
-	} while (0); LOCK_GIVE(hdw->ctl_lock);
-	return status;
+	return pvr2_issue_simple_cmd(hdw,(onoff ?
+					  FX2CMD_ONAIR_DTV_STREAMING_ON :
+					  FX2CMD_ONAIR_DTV_STREAMING_OFF));
 }
 
 
@@ -3398,7 +3437,7 @@ static void pvr2_led_ctrl(struct pvr2_hdw *hdw,int onoff)
 /* Stop / start video stream transport */
 static int pvr2_hdw_cmd_usbstream(struct pvr2_hdw *hdw,int runFl)
 {
-	int status,cc;
+	int cc;
 	if ((hdw->pathway_state == PVR2_PATHWAY_DIGITAL) &&
 	    (hdw->hdw_desc->digital_control_scheme ==
 	     PVR2_DIGITAL_SCHEME_HAUPPAUGE)) {
@@ -3410,12 +3449,7 @@ static int pvr2_hdw_cmd_usbstream(struct pvr2_hdw *hdw,int runFl)
 		      FX2CMD_STREAMING_ON :
 		      FX2CMD_STREAMING_OFF);
 	}
-
-	LOCK_TAKE(hdw->ctl_lock); do {
-		hdw->cmd_buffer[0] = cc;
-		status = pvr2_send_request(hdw,hdw->cmd_buffer,1,NULL,0);
-	} while (0); LOCK_GIVE(hdw->ctl_lock);
-	return status;
+	return pvr2_issue_simple_cmd(hdw,cc);
 }
 
 
