@@ -32,7 +32,11 @@ pvr2_device_desc structures.
 /* This is needed in order to pull in tuner type ids... */
 #include <linux/i2c.h>
 #include <media/tuner.h>
-
+#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+#include "pvrusb2-hdw-internal.h"
+#include "lgdt330x.h"
+#include "tuner-simple.h"
+#endif
 
 
 /*------------------------------------------------------------------------*/
@@ -147,6 +151,38 @@ static const struct pvr2_device_desc pvr2_device_gotview_2d = {
 /*------------------------------------------------------------------------*/
 /* OnAir Creator */
 
+#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+static struct lgdt330x_config pvr2_lgdt3303_config = {
+	.demod_address       = 0x0e,
+	.demod_chip          = LGDT3303,
+	.clock_polarity_flip = 1,
+};
+
+static int pvr2_lgdt3303_attach(struct pvr2_dvb_adapter *adap)
+{
+	adap->fe = dvb_attach(lgdt330x_attach, &pvr2_lgdt3303_config,
+			      &adap->channel.hdw->i2c_adap);
+	if (adap->fe)
+		return 0;
+
+	return -EIO;
+}
+
+static int pvr2_lgh06xf_attach(struct pvr2_dvb_adapter *adap)
+{
+	dvb_attach(simple_tuner_attach, adap->fe,
+		   &adap->channel.hdw->i2c_adap, 0x61,
+		   TUNER_LG_TDVS_H06XF);
+
+	return 0;
+}
+
+struct pvr2_dvb_props pvr2_onair_creator_fe_props = {
+	.frontend_attach = pvr2_lgdt3303_attach,
+	.tuner_attach    = pvr2_lgh06xf_attach,
+};
+#endif
+
 static const char *pvr2_client_onair_creator[] = {
 	"saa7115",
 	"tuner",
@@ -165,6 +201,9 @@ static const struct pvr2_device_desc pvr2_device_onair_creator = {
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_ONAIR,
 		.default_std_mask = V4L2_STD_NTSC_M,
+#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+		.dvb_props = &pvr2_onair_creator_fe_props,
+#endif
 };
 #endif
 
@@ -173,6 +212,37 @@ static const struct pvr2_device_desc pvr2_device_onair_creator = {
 #ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_USB2
 /*------------------------------------------------------------------------*/
 /* OnAir USB 2.0 */
+
+#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+static struct lgdt330x_config pvr2_lgdt3302_config = {
+	.demod_address       = 0x0e,
+	.demod_chip          = LGDT3302,
+};
+
+static int pvr2_lgdt3302_attach(struct pvr2_dvb_adapter *adap)
+{
+	adap->fe = dvb_attach(lgdt330x_attach, &pvr2_lgdt3302_config,
+			      &adap->channel.hdw->i2c_adap);
+	if (adap->fe)
+		return 0;
+
+	return -EIO;
+}
+
+static int pvr2_fcv1236d_attach(struct pvr2_dvb_adapter *adap)
+{
+	dvb_attach(simple_tuner_attach, adap->fe,
+		   &adap->channel.hdw->i2c_adap, 0x61,
+		   TUNER_PHILIPS_FCV1236D);
+
+	return 0;
+}
+
+struct pvr2_dvb_props pvr2_onair_usb2_fe_props = {
+	.frontend_attach = pvr2_lgdt3302_attach,
+	.tuner_attach    = pvr2_fcv1236d_attach,
+};
+#endif
 
 static const char *pvr2_client_onair_usb2[] = {
 	"saa7115",
@@ -192,6 +262,9 @@ static const struct pvr2_device_desc pvr2_device_onair_usb2 = {
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_ONAIR,
 		.default_std_mask = V4L2_STD_NTSC_M,
+#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+		.dvb_props = &pvr2_onair_usb2_fe_props,
+#endif
 };
 #endif
 
