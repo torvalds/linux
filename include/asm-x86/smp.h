@@ -174,10 +174,15 @@ static inline int logical_smp_processor_id(void)
 	return GET_APIC_LOGICAL_ID(*(u32 *)(APIC_BASE + APIC_LDR));
 }
 
+#ifdef CONFIG_X86_32_SMP
 static inline unsigned int read_apic_id(void)
 {
 	return *(u32 *)(APIC_BASE + APIC_ID);
 }
+#else
+extern unsigned int read_apic_id(void);
+#endif
+
 
 # ifdef APIC_DEFINITION
 extern int hard_smp_processor_id(void);

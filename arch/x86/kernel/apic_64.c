@@ -738,6 +738,7 @@ void __cpuinit setup_local_APIC(void)
 	unsigned int value;
 	int i, j;
 
+	preempt_disable();
 	value = apic_read(APIC_LVR);
 
 	BUILD_BUG_ON((SPURIOUS_APIC_VECTOR & 0x0f) != 0x0f);
@@ -831,6 +832,7 @@ void __cpuinit setup_local_APIC(void)
 	else
 		value = APIC_DM_NMI | APIC_LVT_MASKED;
 	apic_write(APIC_LVT1, value);
+	preempt_enable();
 }
 
 void __cpuinit lapic_setup_esr(void)

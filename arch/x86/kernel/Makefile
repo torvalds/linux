@@ -89,7 +89,7 @@ scx200-y			+= scx200_32.o
 ###
 # 64 bit specific files
 ifeq ($(CONFIG_X86_64),y)
-        obj-y				+= genapic_64.o genapic_flat_64.o
+        obj-y				+= genapic_64.o genapic_flat_64.o genx2apic_uv_x.o
         obj-$(CONFIG_X86_PM_TIMER)	+= pmtimer_64.o
         obj-$(CONFIG_AUDIT)		+= audit_64.o
 

@@ -1101,6 +1101,7 @@ static __init void disable_smp(void)
  */
 static int __init smp_sanity_check(unsigned max_cpus)
 {
+	preempt_disable();
 	if (!physid_isset(hard_smp_processor_id(), phys_cpu_present_map)) {
 		printk(KERN_WARNING "weird, boot CPU (#%d) not listed"
 				    "by the BIOS.\n", hard_smp_processor_id());
@@ -1112,6 +1113,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	 * get out of here now!
 	 */
 	if (!smp_found_config && !acpi_lapic) {
+		preempt_enable();
 		printk(KERN_NOTICE "SMP motherboard not detected.\n");
 		disable_smp();
 		if (APIC_init_uniprocessor())
@@ -1130,6 +1132,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 			boot_cpu_physical_apicid);
 		physid_set(hard_smp_processor_id(), phys_cpu_present_map);
 	}
+	preempt_enable();
 
 	/*
 	 * If we couldn't find a local APIC, then get out of here now!
@@ -1205,11 +1208,13 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 		return;
 	}
 
+	preempt_disable();
 	if (GET_APIC_ID(read_apic_id()) != boot_cpu_physical_apicid) {
 		panic("Boot APIC ID in local APIC unexpected (%d vs %d)",
 		     GET_APIC_ID(read_apic_id()), boot_cpu_physical_apicid);
 		/* Or can we switch back to PIC here? */
 	}
+	preempt_enable();
 
 #ifdef CONFIG_X86_32
 	connect_bsp_APIC();

@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
+#include <linux/hardirq.h>
 
 #include <asm/smp.h>
 #include <asm/ipi.h>
@@ -32,6 +33,7 @@ void *x86_cpu_to_apicid_early_ptr;
 #endif
 DEFINE_PER_CPU(u16, x86_cpu_to_apicid) = BAD_APICID;
 EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
+DEFINE_PER_CPU(int, x2apic_extra_bits);
 
 struct genapic __read_mostly *genapic = &apic_flat;
 
@@ -42,6 +44,9 @@ static enum uv_system_type uv_system_type;
  */
 void __init setup_apic_routing(void)
 {
+	if (uv_system_type == UV_NON_UNIQUE_APIC)
+		genapic = &apic_x2apic_uv_x;
+	else
 #ifdef CONFIG_ACPI
 	/*
 	 * Quirk: some x86_64 machines can only use physical APIC mode
@@ -80,6 +85,19 @@ int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 			uv_system_type = UV_NON_UNIQUE_APIC;
 	}
 	return 0;
+}
+
+unsigned int read_apic_id(void)
+{
+	unsigned int id;
+
+	WARN_ON(preemptible());
+	id = apic_read(APIC_ID);
+	if (uv_system_type >= UV_X2APIC)
+		id  |= __get_cpu_var(x2apic_extra_bits);
+	else
+		id = (id >> 24) & 0xFFu;;
+	return id;
 }
 
 enum uv_system_type get_uv_system_type(void)
