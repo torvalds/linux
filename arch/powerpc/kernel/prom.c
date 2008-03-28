@@ -437,7 +437,7 @@ early_param("mem", early_parse_mem);
  * The device tree may be allocated beyond our memory limit, or inside the
  * crash kernel region for kdump. If so, move it out of the way.
  */
-static void move_device_tree(void)
+static void __init move_device_tree(void)
 {
 	unsigned long start, size;
 	void *p;
