@@ -365,16 +365,14 @@ dummy_enable (struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 		case USB_SPEED_HIGH:
 			if (max == 512)
 				break;
-			/* conserve return statements */
-		default:
-			switch (max) {
-			case 8: case 16: case 32: case 64:
+			goto done;
+		case USB_SPEED_FULL:
+			if (max == 8 || max == 16 || max == 32 || max == 64)
 				/* we'll fake any legal size */
 				break;
-			default:
-		case USB_SPEED_LOW:
-				goto done;
-			}
+			/* save a return statement */
+		default:
+			goto done;
 		}
 		break;
 	case USB_ENDPOINT_XFER_INT:
