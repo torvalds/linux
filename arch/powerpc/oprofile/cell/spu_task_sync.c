@@ -68,7 +68,7 @@ static struct cached_info *get_cached_info(struct spu *the_spu, int spu_num)
 	if (spu_num >= num_spu_nodes) {
 		printk(KERN_ERR "SPU_PROF: "
 		       "%s, line %d: Invalid index %d into spu info cache\n",
-		       __FUNCTION__, __LINE__, spu_num);
+		       __func__, __LINE__, spu_num);
 		ret_info = NULL;
 		goto out;
 	}
@@ -115,7 +115,7 @@ prepare_cached_spu_info(struct spu *spu, unsigned long objectId)
 	if (!info) {
 		printk(KERN_ERR "SPU_PROF: "
 		       "%s, line %d: create vma_map failed\n",
-		       __FUNCTION__, __LINE__);
+		       __func__, __LINE__);
 		retval = -ENOMEM;
 		goto err_alloc;
 	}
@@ -123,7 +123,7 @@ prepare_cached_spu_info(struct spu *spu, unsigned long objectId)
 	if (!new_map) {
 		printk(KERN_ERR "SPU_PROF: "
 		       "%s, line %d: create vma_map failed\n",
-		       __FUNCTION__, __LINE__);
+		       __func__, __LINE__);
 		retval = -ENOMEM;
 		goto err_alloc;
 	}
@@ -171,7 +171,7 @@ static int release_cached_info(int spu_index)
 			printk(KERN_ERR "SPU_PROF: "
 				"%s, line %d: "
 				"Invalid index %d into spu info cache\n",
-				__FUNCTION__, __LINE__, spu_index);
+				__func__, __LINE__, spu_index);
 			goto out;
 		}
 		end = spu_index + 1;
@@ -273,7 +273,7 @@ fail_no_image_cookie:
 
 	printk(KERN_ERR "SPU_PROF: "
 		"%s, line %d: Cannot find dcookie for SPU binary\n",
-		__FUNCTION__, __LINE__);
+		__func__, __LINE__);
 	goto out;
 }
 
@@ -467,7 +467,7 @@ int spu_sync_stop(void)
 	if (ret) {
 		printk(KERN_ERR "SPU_PROF: "
 			"%s, line %d: spu_switch_event_unregister returned %d\n",
-			__FUNCTION__, __LINE__, ret);
+			__func__, __LINE__, ret);
 		goto out;
 	}
 

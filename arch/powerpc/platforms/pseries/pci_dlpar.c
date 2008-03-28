@@ -123,7 +123,7 @@ pcibios_pci_config_bridge(struct pci_dev *dev)
 	/* Add to children of PCI bridge dev->bus */
 	child_bus = pci_add_new_bus(dev->bus, dev, sec_busno);
 	if (!child_bus) {
-		printk (KERN_ERR "%s: could not add second bus\n", __FUNCTION__);
+		printk (KERN_ERR "%s: could not add second bus\n", __func__);
 		return -EIO;
 	}
 	sprintf(child_bus->name, "PCI Bus #%02x", child_bus->number);

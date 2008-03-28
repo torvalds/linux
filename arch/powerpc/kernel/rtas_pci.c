@@ -326,7 +326,7 @@ int pcibios_remove_root_bus(struct pci_controller *phb)
 
 	res = b->resource[0];
 	if (!res->flags) {
-		printk(KERN_ERR "%s: no IO resource for PHB %s\n", __FUNCTION__,
+		printk(KERN_ERR "%s: no IO resource for PHB %s\n", __func__,
 				b->name);
 		return 1;
 	}
@@ -334,13 +334,13 @@ int pcibios_remove_root_bus(struct pci_controller *phb)
 	rc = pcibios_unmap_io_space(b);
 	if (rc) {
 		printk(KERN_ERR "%s: failed to unmap IO on bus %s\n",
-			__FUNCTION__, b->name);
+			__func__, b->name);
 		return 1;
 	}
 
 	if (release_resource(res)) {
 		printk(KERN_ERR "%s: failed to release IO on bus %s\n",
-				__FUNCTION__, b->name);
+				__func__, b->name);
 		return 1;
 	}
 
@@ -348,13 +348,13 @@ int pcibios_remove_root_bus(struct pci_controller *phb)
 		res = b->resource[i];
 		if (!res->flags && i == 0) {
 			printk(KERN_ERR "%s: no MEM resource for PHB %s\n",
-				__FUNCTION__, b->name);
+				__func__, b->name);
 			return 1;
 		}
 		if (res->flags && release_resource(res)) {
 			printk(KERN_ERR
 			       "%s: failed to release IO %d on bus %s\n",
-				__FUNCTION__, i, b->name);
+				__func__, i, b->name);
 			return 1;
 		}
 	}

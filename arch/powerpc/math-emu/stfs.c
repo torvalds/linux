@@ -15,7 +15,7 @@ stfs(void *frS, void *ea)
 	int err;
 
 #ifdef DEBUG
-	printk("%s: S %p, ea %p\n", __FUNCTION__, frS, ea);
+	printk("%s: S %p, ea %p\n", __func__, frS, ea);
 #endif
 
 	__FP_UNPACK_D(A, frS);

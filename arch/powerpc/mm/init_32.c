@@ -276,7 +276,7 @@ static int __init setup_kcore(void)
 
 		kcore_mem = kmalloc(sizeof(struct kcore_list), GFP_ATOMIC);
 		if (!kcore_mem)
-			panic("%s: kmalloc failed\n", __FUNCTION__);
+			panic("%s: kmalloc failed\n", __func__);
 
 		/* must stay under 32 bits */
 		if ( 0xfffffffful - (unsigned long)__va(base) < size) {

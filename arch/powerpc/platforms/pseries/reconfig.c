@@ -222,14 +222,14 @@ static char * parse_next_property(char *buf, char *end, char **name, int *length
 	tmp = strchr(buf, ' ');
 	if (!tmp) {
 		printk(KERN_ERR "property parse failed in %s at line %d\n",
-		       __FUNCTION__, __LINE__);
+		       __func__, __LINE__);
 		return NULL;
 	}
 	*tmp = '\0';
 
 	if (++tmp >= end) {
 		printk(KERN_ERR "property parse failed in %s at line %d\n",
-		       __FUNCTION__, __LINE__);
+		       __func__, __LINE__);
 		return NULL;
 	}
 
@@ -238,12 +238,12 @@ static char * parse_next_property(char *buf, char *end, char **name, int *length
 	*length = simple_strtoul(tmp, &tmp, 10);
 	if (*length == -1) {
 		printk(KERN_ERR "property parse failed in %s at line %d\n",
-		       __FUNCTION__, __LINE__);
+		       __func__, __LINE__);
 		return NULL;
 	}
 	if (*tmp != ' ' || ++tmp >= end) {
 		printk(KERN_ERR "property parse failed in %s at line %d\n",
-		       __FUNCTION__, __LINE__);
+		       __func__, __LINE__);
 		return NULL;
 	}
 
@@ -252,12 +252,12 @@ static char * parse_next_property(char *buf, char *end, char **name, int *length
 	tmp += *length;
 	if (tmp > end) {
 		printk(KERN_ERR "property parse failed in %s at line %d\n",
-		       __FUNCTION__, __LINE__);
+		       __func__, __LINE__);
 		return NULL;
 	}
 	else if (tmp < end && *tmp != ' ' && *tmp != '\0') {
 		printk(KERN_ERR "property parse failed in %s at line %d\n",
-		       __FUNCTION__, __LINE__);
+		       __func__, __LINE__);
 		return NULL;
 	}
 	tmp++;

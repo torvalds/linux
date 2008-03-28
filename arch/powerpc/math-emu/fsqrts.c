@@ -14,7 +14,7 @@ fsqrts(void *frD, void *frB)
 	int ret = 0;
 
 #ifdef DEBUG
-	printk("%s: %p %p %p %p\n", __FUNCTION__, frD, frB);
+	printk("%s: %p %p %p %p\n", __func__, frD, frB);
 #endif
 
 	__FP_UNPACK_D(B, frB);

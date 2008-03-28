@@ -65,7 +65,7 @@ static void cbe_power_save(void)
 		break;
 	default:
 		printk(KERN_WARNING "%s: unknown configuration\n",
-			__FUNCTION__);
+			__func__);
 		break;
 	}
 	mtspr(SPRN_TSC_CELL, thread_switch_control);

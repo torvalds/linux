@@ -507,7 +507,7 @@ int rtas_error_rc(int rtas_rc)
 			break;
 		default:
 			printk(KERN_ERR "%s: unexpected RTAS error %d\n",
-					__FUNCTION__, rtas_rc);
+					__func__, rtas_rc);
 			rc = -ERANGE;
 			break;
 	}

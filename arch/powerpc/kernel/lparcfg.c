@@ -226,7 +226,7 @@ static void parse_system_parameter_string(struct seq_file *m)
 	unsigned char *local_buffer = kmalloc(SPLPAR_MAXLENGTH, GFP_KERNEL);
 	if (!local_buffer) {
 		printk(KERN_ERR "%s %s kmalloc failure at line %d \n",
-		       __FILE__, __FUNCTION__, __LINE__);
+		       __FILE__, __func__, __LINE__);
 		return;
 	}
 
@@ -243,14 +243,14 @@ static void parse_system_parameter_string(struct seq_file *m)
 	if (call_status != 0) {
 		printk(KERN_INFO
 		       "%s %s Error calling get-system-parameter (0x%x)\n",
-		       __FILE__, __FUNCTION__, call_status);
+		       __FILE__, __func__, call_status);
 	} else {
 		int splpar_strlen;
 		int idx, w_idx;
 		char *workbuffer = kzalloc(SPLPAR_MAXLENGTH, GFP_KERNEL);
 		if (!workbuffer) {
 			printk(KERN_ERR "%s %s kmalloc failure at line %d \n",
-			       __FILE__, __FUNCTION__, __LINE__);
+			       __FILE__, __func__, __LINE__);
 			kfree(local_buffer);
 			return;
 		}
@@ -484,10 +484,10 @@ static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 	current_weight = (resource >> 5 * 8) & 0xFF;
 
 	pr_debug("%s: current_entitled = %lu, current_weight = %u\n",
-		 __FUNCTION__, current_entitled, current_weight);
+		 __func__, current_entitled, current_weight);
 
 	pr_debug("%s: new_entitled = %lu, new_weight = %u\n",
-		 __FUNCTION__, *new_entitled_ptr, *new_weight_ptr);
+		 __func__, *new_entitled_ptr, *new_weight_ptr);
 
 	retval = plpar_hcall_norets(H_SET_PPP, *new_entitled_ptr,
 				    *new_weight_ptr);
@@ -502,7 +502,7 @@ static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 		retval = -EINVAL;
 	} else {
 		printk(KERN_WARNING "%s: received unknown hv return code %ld",
-		       __FUNCTION__, retval);
+		       __func__, retval);
 		retval = -EIO;
 	}
 

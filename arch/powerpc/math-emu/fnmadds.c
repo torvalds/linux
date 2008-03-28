@@ -17,7 +17,7 @@ fnmadds(void *frD, void *frA, void *frB, void *frC)
 	int ret = 0;
 
 #ifdef DEBUG
-	printk("%s: %p %p %p %p\n", __FUNCTION__, frD, frA, frB, frC);
+	printk("%s: %p %p %p %p\n", __func__, frD, frA, frB, frC);
 #endif
 
 	__FP_UNPACK_D(A, frA);

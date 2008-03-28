@@ -35,7 +35,7 @@
 #define check_err(err) \
 	({ \
 		if (BAD_ERROR(err) || ((err < 0) && DEBUG)) \
-			printf("%s():%d  %s\n\r", __FUNCTION__, __LINE__, \
+			printf("%s():%d  %s\n\r", __func__, __LINE__, \
 			       fdt_strerror(err)); \
 		if (BAD_ERROR(err)) \
 			exit(); \

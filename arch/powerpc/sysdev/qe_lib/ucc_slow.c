@@ -142,7 +142,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 
 	/* check if the UCC port number is in range. */
 	if ((us_info->ucc_num < 0) || (us_info->ucc_num > UCC_MAX_NUM - 1)) {
-		printk(KERN_ERR "%s: illegal UCC number\n", __FUNCTION__);
+		printk(KERN_ERR "%s: illegal UCC number\n", __func__);
 		return -EINVAL;
 	}
 
@@ -161,7 +161,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	uccs = kzalloc(sizeof(struct ucc_slow_private), GFP_KERNEL);
 	if (!uccs) {
 		printk(KERN_ERR "%s: Cannot allocate private data\n",
-			__FUNCTION__);
+			__func__);
 		return -ENOMEM;
 	}
 
@@ -170,7 +170,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	/* Set the PHY base address */
 	uccs->us_regs = ioremap(us_info->regs, sizeof(struct ucc_slow));
 	if (uccs->us_regs == NULL) {
-		printk(KERN_ERR "%s: Cannot map UCC registers\n", __FUNCTION__);
+		printk(KERN_ERR "%s: Cannot map UCC registers\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -189,7 +189,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	uccs->us_pram_offset =
 		qe_muram_alloc(UCC_SLOW_PRAM_SIZE, ALIGNMENT_OF_UCC_SLOW_PRAM);
 	if (IS_ERR_VALUE(uccs->us_pram_offset)) {
-		printk(KERN_ERR "%s: cannot allocate MURAM for PRAM", __FUNCTION__);
+		printk(KERN_ERR "%s: cannot allocate MURAM for PRAM", __func__);
 		ucc_slow_free(uccs);
 		return -ENOMEM;
 	}
@@ -202,7 +202,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 	/* Set UCC to slow type */
 	ret = ucc_set_type(us_info->ucc_num, UCC_SPEED_TYPE_SLOW);
 	if (ret) {
-		printk(KERN_ERR "%s: cannot set UCC type", __FUNCTION__);
+		printk(KERN_ERR "%s: cannot set UCC type", __func__);
 		ucc_slow_free(uccs);
 		return ret;
 	}
@@ -216,7 +216,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 		qe_muram_alloc(us_info->rx_bd_ring_len * sizeof(struct qe_bd),
 				QE_ALIGNMENT_OF_BD);
 	if (IS_ERR_VALUE(uccs->rx_base_offset)) {
-		printk(KERN_ERR "%s: cannot allocate %u RX BDs\n", __FUNCTION__,
+		printk(KERN_ERR "%s: cannot allocate %u RX BDs\n", __func__,
 			us_info->rx_bd_ring_len);
 		uccs->rx_base_offset = 0;
 		ucc_slow_free(uccs);
@@ -227,7 +227,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 		qe_muram_alloc(us_info->tx_bd_ring_len * sizeof(struct qe_bd),
 			QE_ALIGNMENT_OF_BD);
 	if (IS_ERR_VALUE(uccs->tx_base_offset)) {
-		printk(KERN_ERR "%s: cannot allocate TX BDs", __FUNCTION__);
+		printk(KERN_ERR "%s: cannot allocate TX BDs", __func__);
 		uccs->tx_base_offset = 0;
 		ucc_slow_free(uccs);
 		return -ENOMEM;
@@ -317,7 +317,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 		if (ucc_set_qe_mux_rxtx(us_info->ucc_num, us_info->rx_clock,
 					COMM_DIR_RX)) {
 			printk(KERN_ERR "%s: illegal value for RX clock\n",
-			       __FUNCTION__);
+			       __func__);
 			ucc_slow_free(uccs);
 			return -EINVAL;
 		}
@@ -325,7 +325,7 @@ int ucc_slow_init(struct ucc_slow_info * us_info, struct ucc_slow_private ** ucc
 		if (ucc_set_qe_mux_rxtx(us_info->ucc_num, us_info->tx_clock,
 					COMM_DIR_TX)) {
 			printk(KERN_ERR "%s: illegal value for TX clock\n",
-			       __FUNCTION__);
+			       __func__);
 			ucc_slow_free(uccs);
 			return -EINVAL;
 		}

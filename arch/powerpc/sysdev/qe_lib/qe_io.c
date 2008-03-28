@@ -200,7 +200,7 @@ static void dump_par_io(void)
 {
 	unsigned int i;
 
-	printk(KERN_INFO "%s: par_io=%p\n", __FUNCTION__, par_io);
+	printk(KERN_INFO "%s: par_io=%p\n", __func__, par_io);
 	for (i = 0; i < num_par_io_ports; i++) {
 		printk(KERN_INFO "	cpodr[%u]=%08x\n", i,
 			in_be32(&par_io[i].cpodr));

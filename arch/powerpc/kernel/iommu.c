@@ -520,7 +520,7 @@ void iommu_free_table(struct iommu_table *tbl, const char *node_name)
 	unsigned int order;
 
 	if (!tbl || !tbl->it_map) {
-		printk(KERN_ERR "%s: expected TCE map for %s\n", __FUNCTION__,
+		printk(KERN_ERR "%s: expected TCE map for %s\n", __func__,
 				node_name);
 		return;
 	}
@@ -530,7 +530,7 @@ void iommu_free_table(struct iommu_table *tbl, const char *node_name)
 	for (i = 0; i < (tbl->it_size/64); i++) {
 		if (tbl->it_map[i] != 0) {
 			printk(KERN_WARNING "%s: Unexpected TCEs for %s\n",
-				__FUNCTION__, node_name);
+				__func__, node_name);
 			break;
 		}
 	}

@@ -99,7 +99,7 @@ static void __devinit pci_process_ISA_OF_ranges(struct device_node *isa_node,
 	 */
 	if ((pci_addr != 0) || (isa_addr != 0)) {
 		printk(KERN_ERR "unexpected isa to pci mapping: %s\n",
-		       __FUNCTION__);
+		       __func__);
 		return;
 	}
 
