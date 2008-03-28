@@ -63,6 +63,20 @@ void *x86_bios_cpu_apicid_early_ptr;
 DEFINE_PER_CPU(u16, x86_bios_cpu_apicid) = BAD_APICID;
 EXPORT_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
 
+/* Make it easy to share the UP and SMP code: */
+#ifndef CONFIG_X86_SMP
+unsigned int num_processors;
+unsigned disabled_cpus __cpuinitdata;
+#ifndef CONFIG_X86_LOCAL_APIC
+unsigned int boot_cpu_physical_apicid = -1U;
+#endif
+#endif
+
+/* Make it easy to share the UP and SMP code: */
+#ifndef CONFIG_X86_SMP
+physid_mask_t phys_cpu_present_map;
+#endif
+
 /*
  * Intel MP BIOS table parsing routines:
  */
