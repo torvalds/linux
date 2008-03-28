@@ -17,6 +17,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+/*P:450 This file contains the x86-specific lguest code.  It used to be all
+ * mixed in with drivers/lguest/core.c but several foolhardy code slashers
+ * wrestled most of the dependencies out to here in preparation for porting
+ * lguest to other architectures (see what I mean by foolhardy?).
+ *
+ * This also contains a couple of non-obvious setup and teardown pieces which
+ * were implemented after days of debugging pain. :*/
 #include <linux/kernel.h>
 #include <linux/start_kernel.h>
 #include <linux/string.h>
@@ -157,6 +164,8 @@ static void run_guest_once(struct lg_cpu *cpu, struct lguest_pages *pages)
  * also simplify copy_in_guest_info().  Note that we'd still need to restore
  * things when we exit to Launcher userspace, but that's fairly easy.
  *
+ * We could also try using this hooks for PGE, but that might be too expensive.
+ *
  * The hooks were designed for KVM, but we can also put them to good use. :*/
 
 /*H:040 This is the i386-specific code to setup and run the Guest.  Interrupts
@@ -182,7 +191,7 @@ void lguest_arch_run_guest(struct lg_cpu *cpu)
 	 * was doing. */
 	run_guest_once(cpu, lguest_pages(raw_smp_processor_id()));
 
-	/* Note that the "regs" pointer contains two extra entries which are
+	/* Note that the "regs" structure contains two extra entries which are
 	 * not really registers: a trap number which says what interrupt or
 	 * trap made the switcher code come back, and an error code which some
 	 * traps set.  */
@@ -293,11 +302,10 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 		break;
 	case 14: /* We've intercepted a Page Fault. */
 		/* The Guest accessed a virtual address that wasn't mapped.
-		 * This happens a lot: we don't actually set up most of the
-		 * page tables for the Guest at all when we start: as it runs
-		 * it asks for more and more, and we set them up as
-		 * required. In this case, we don't even tell the Guest that
-		 * the fault happened.
+		 * This happens a lot: we don't actually set up most of the page
+		 * tables for the Guest at all when we start: as it runs it asks
+		 * for more and more, and we set them up as required. In this
+		 * case, we don't even tell the Guest that the fault happened.
 		 *
 		 * The errcode tells whether this was a read or a write, and
 		 * whether kernel or userspace code. */
@@ -342,7 +350,7 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 	if (!deliver_trap(cpu, cpu->regs->trapnum))
 		/* If the Guest doesn't have a handler (either it hasn't
 		 * registered any yet, or it's one of the faults we don't let
-		 * it handle), it dies with a cryptic error message. */
+		 * it handle), it dies with this cryptic error message. */
 		kill_guest(cpu, "unhandled trap %li at %#lx (%#lx)",
 			   cpu->regs->trapnum, cpu->regs->eip,
 			   cpu->regs->trapnum == 14 ? cpu->arch.last_pagefault
@@ -375,8 +383,8 @@ void __init lguest_arch_host_init(void)
 	 * The only exception is the interrupt handlers in switcher.S: their
 	 * addresses are placed in a table (default_idt_entries), so we need to
 	 * update the table with the new addresses.  switcher_offset() is a
-	 * convenience function which returns the distance between the builtin
-	 * switcher code and the high-mapped copy we just made. */
+	 * convenience function which returns the distance between the
+	 * compiled-in switcher code and the high-mapped copy we just made. */
 	for (i = 0; i < IDT_ENTRIES; i++)
 		default_idt_entries[i] += switcher_offset();
 
@@ -416,7 +424,7 @@ void __init lguest_arch_host_init(void)
 		state->guest_gdt_desc.address = (long)&state->guest_gdt;
 
 		/* We know where we want the stack to be when the Guest enters
-		 * the switcher: in pages->regs.  The stack grows upwards, so
+		 * the Switcher: in pages->regs.  The stack grows upwards, so
 		 * we start it at the end of that structure. */
 		state->guest_tss.sp0 = (long)(&pages->regs + 1);
 		/* And this is the GDT entry to use for the stack: we keep a
@@ -513,8 +521,8 @@ int lguest_arch_init_hypercalls(struct lg_cpu *cpu)
 {
 	u32 tsc_speed;
 
-	/* The pointer to the Guest's "struct lguest_data" is the only
-	 * argument.  We check that address now. */
+	/* The pointer to the Guest's "struct lguest_data" is the only argument.
+	 * We check that address now. */
 	if (!lguest_address_ok(cpu->lg, cpu->hcall->arg1,
 			       sizeof(*cpu->lg->lguest_data)))
 		return -EFAULT;
@@ -546,6 +554,7 @@ int lguest_arch_init_hypercalls(struct lg_cpu *cpu)
 
 	return 0;
 }
+/*:*/
 
 /*L:030 lguest_arch_setup_regs()
  *
