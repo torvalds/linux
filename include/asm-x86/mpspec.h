@@ -1,6 +1,8 @@
 #ifndef _AM_X86_MPSPEC_H
 #define _AM_X86_MPSPEC_H
 
+#include <linux/init.h>
+
 #include <asm/mpspec_def.h>
 
 #ifdef CONFIG_X86_32
