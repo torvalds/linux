@@ -216,12 +216,12 @@ static const char *pvr2_state_names[] = {
 };
 
 
-struct pvr2_fx2cmd_desc {
+struct pvr2_fx2cmd_descdef {
 	unsigned char id;
 	unsigned char *desc;
 };
 
-static const struct pvr2_fx2cmd_desc pvr2_fx2cmd_desc[] = {
+static const struct pvr2_fx2cmd_descdef pvr2_fx2cmd_desc[] = {
 	{FX2CMD_MEM_WRITE_DWORD, "write encoder dword"},
 	{FX2CMD_MEM_READ_DWORD, "read encoder dword"},
 	{FX2CMD_MEM_READ_64BYTES, "read encoder 64bytes"},
