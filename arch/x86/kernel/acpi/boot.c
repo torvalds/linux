@@ -265,6 +265,24 @@ acpi_parse_lapic(struct acpi_subtable_header * header, const unsigned long end)
 }
 
 static int __init
+acpi_parse_sapic(struct acpi_subtable_header *header, const unsigned long end)
+{
+	struct acpi_madt_local_sapic *processor = NULL;
+
+	processor = (struct acpi_madt_local_sapic *)header;
+
+	if (BAD_MADT_ENTRY(processor, end))
+		return -EINVAL;
+
+	acpi_table_print_madt_entry(header);
+
+	mp_register_lapic((processor->id << 8) | processor->eid,/* APIC ID */
+		processor->lapic_flags & ACPI_MADT_ENABLED);	/* Enabled? */
+
+	return 0;
+}
+
+static int __init
 acpi_parse_lapic_addr_ovr(struct acpi_subtable_header * header,
 			  const unsigned long end)
 {
@@ -757,8 +775,12 @@ static int __init acpi_parse_madt_lapic_entries(void)
 
 	mp_register_lapic_address(acpi_lapic_addr);
 
-	count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_APIC, acpi_parse_lapic,
-				      MAX_APICS);
+	count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_SAPIC,
+				      acpi_parse_sapic, MAX_APICS);
+
+	if (!count)
+		count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_APIC,
+					      acpi_parse_lapic, MAX_APICS);
 	if (!count) {
 		printk(KERN_ERR PREFIX "No LAPIC entries present\n");
 		/* TBD: Cleanup to allow fallback to MPS */
