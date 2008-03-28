@@ -3377,9 +3377,7 @@ static void pvr2_hdw_cmd_modeswitch(struct pvr2_hdw *hdw,int digitalFl)
 		/* Supposedly we should always have the power on whether in
 		   digital or analog mode.  But for now do what appears to
 		   work... */
-		if (digitalFl) pvr2_hdw_cmd_onair_fe_power_ctrl(hdw,!0);
-		pvr2_hdw_cmd_onair_digital_path_ctrl(hdw,digitalFl);
-		if (!digitalFl) pvr2_hdw_cmd_onair_fe_power_ctrl(hdw,0);
+		pvr2_hdw_cmd_onair_fe_power_ctrl(hdw,digitalFl);
 		break;
 	default: break;
 	}
@@ -3437,19 +3435,43 @@ static void pvr2_led_ctrl(struct pvr2_hdw *hdw,int onoff)
 /* Stop / start video stream transport */
 static int pvr2_hdw_cmd_usbstream(struct pvr2_hdw *hdw,int runFl)
 {
-	int cc;
-	if ((hdw->pathway_state == PVR2_PATHWAY_DIGITAL) &&
-	    (hdw->hdw_desc->digital_control_scheme ==
-	     PVR2_DIGITAL_SCHEME_HAUPPAUGE)) {
-		cc = (runFl ?
-		      FX2CMD_HCW_DTV_STREAMING_ON :
-		      FX2CMD_HCW_DTV_STREAMING_OFF);
-	} else {
-		cc = (runFl ?
-		      FX2CMD_STREAMING_ON :
-		      FX2CMD_STREAMING_OFF);
+	int ret;
+
+	/* If we're in analog mode, then just issue the usual analog
+	   command. */
+	if (hdw->pathway_state == PVR2_PATHWAY_ANALOG) {
+		return pvr2_issue_simple_cmd(hdw,
+					     (runFl ?
+					      FX2CMD_STREAMING_ON :
+					      FX2CMD_STREAMING_OFF));
+		/*Note: Not reached */
 	}
-	return pvr2_issue_simple_cmd(hdw,cc);
+
+	if (hdw->pathway_state != PVR2_PATHWAY_DIGITAL) {
+		/* Whoops, we don't know what mode we're in... */
+		return -EINVAL;
+	}
+
+	/* To get here we have to be in digital mode.  The mechanism here
+	   is unfortunately different for different vendors.  So we switch
+	   on the device's digital scheme attribute in order to figure out
+	   what to do. */
+	switch (hdw->hdw_desc->digital_control_scheme) {
+	case PVR2_DIGITAL_SCHEME_HAUPPAUGE:
+		return pvr2_issue_simple_cmd(hdw,
+					     (runFl ?
+					      FX2CMD_HCW_DTV_STREAMING_ON :
+					      FX2CMD_HCW_DTV_STREAMING_OFF));
+	case PVR2_DIGITAL_SCHEME_ONAIR:
+		ret = pvr2_issue_simple_cmd(hdw,
+					    (runFl ?
+					     FX2CMD_STREAMING_ON :
+					     FX2CMD_STREAMING_OFF));
+		if (ret) return ret;
+		return pvr2_hdw_cmd_onair_digital_path_ctrl(hdw,runFl);
+	default:
+		return -EINVAL;
+	}
 }
 
 
