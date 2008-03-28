@@ -19,6 +19,7 @@ config IA64
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
+	select HAVE_KVM
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
@@ -588,6 +589,8 @@ config MSPEC
 	  otherwise say N.
 
 source "fs/Kconfig"
+
+source "arch/ia64/kvm/Kconfig"
 
 source "lib/Kconfig"
 
