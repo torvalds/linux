@@ -1999,11 +1999,6 @@ int proto_register(struct proto *prot, int alloc_slab)
 	char *request_sock_slab_name = NULL;
 	char *timewait_sock_slab_name;
 
-	if (sock_prot_inuse_init(prot) != 0) {
-		printk(KERN_CRIT "%s: Can't alloc inuse counters!\n", prot->name);
-		goto out;
-	}
-
 	if (alloc_slab) {
 		prot->slab = kmem_cache_create(prot->name, prot->obj_size, 0,
 					       SLAB_HWCACHE_ALIGN, NULL);
@@ -2011,7 +2006,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 		if (prot->slab == NULL) {
 			printk(KERN_CRIT "%s: Can't create sock SLAB cache!\n",
 			       prot->name);
-			goto out_free_inuse;
+			goto out;
 		}
 
 		if (prot->rsk_prot != NULL) {
@@ -2070,8 +2065,6 @@ out_free_request_sock_slab_name:
 out_free_sock_slab:
 	kmem_cache_destroy(prot->slab);
 	prot->slab = NULL;
-out_free_inuse:
-	sock_prot_inuse_free(prot);
 out:
 	return -ENOBUFS;
 }
@@ -2084,8 +2077,6 @@ void proto_unregister(struct proto *prot)
 	release_proto_idx(prot);
 	list_del(&prot->node);
 	write_unlock(&proto_list_lock);
-
-	sock_prot_inuse_free(prot);
 
 	if (prot->slab != NULL) {
 		kmem_cache_destroy(prot->slab);
