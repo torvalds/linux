@@ -1383,7 +1383,6 @@ struct vblk_info
 	 * Launcher triggers interrupt to Guest. */
 	int done_fd;
 };
-/*:*/
 
 /*L:210
  * The Disk
