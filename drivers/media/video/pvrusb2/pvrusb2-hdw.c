@@ -3801,13 +3801,11 @@ static unsigned int pvr2_hdw_report_unlocked(struct pvr2_hdw *hdw,int which,
 			 " <usb:run>" : " <usb:stop>"),
 			(hdw->state_pathway_ok ?
 			 " <pathway:ok>" : ""));
-		break;
 	case 3:
 		return scnprintf(
 			buf,acnt,
 			"state: %s",
 			pvr2_get_state_name(hdw->master_state));
-		break;
 	default: break;
 	}
 	return 0;
