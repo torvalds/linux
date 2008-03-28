@@ -250,15 +250,6 @@ int ip6_frag_mem(struct net *net);
 
 #define IPV6_FRAG_TIMEOUT	(60*HZ)		/* 60 seconds */
 
-/*
- *	Function prototype for build_xmit
- */
-
-typedef int		(*inet_getfrag_t) (const void *data,
-					   struct in6_addr *addr,
-					   char *,
-					   unsigned int, unsigned int);
-
 extern int __ipv6_addr_type(const struct in6_addr *addr);
 static inline int ipv6_addr_type(const struct in6_addr *addr)
 {
@@ -510,14 +501,6 @@ extern int			ip6_local_out(struct sk_buff *skb);
  *	Extension header (options) processing
  */
 
-extern u8 *			ipv6_build_nfrag_opts(struct sk_buff *skb,
-						      u8 *prev_hdr,
-						      struct ipv6_txoptions *opt,
-						      struct in6_addr *daddr,
-						      u32 jumbolen);
-extern u8 *			ipv6_build_frag_opts(struct sk_buff *skb,
-						     u8 *prev_hdr,
-						     struct ipv6_txoptions *opt);
 extern void 			ipv6_push_nfrag_opts(struct sk_buff *skb,
 						     struct ipv6_txoptions *opt,
 						     u8 *proto,
