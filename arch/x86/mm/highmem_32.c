@@ -73,14 +73,14 @@ void *kmap_atomic_prot(struct page *page, enum km_type type, pgprot_t prot)
 {
 	enum fixed_addresses idx;
 	unsigned long vaddr;
+
 	/* even !CONFIG_PREEMPT needs this, for in_atomic in do_page_fault */
-
-	debug_kmap_atomic_prot(type);
-
 	pagefault_disable();
 
 	if (!PageHighMem(page))
 		return page_address(page);
+
+	debug_kmap_atomic_prot(type);
 
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
