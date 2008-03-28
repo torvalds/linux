@@ -472,26 +472,40 @@ out_neigh_release:
 }
 EXPORT_SYMBOL(neigh_create);
 
-struct pneigh_entry *__pneigh_lookup(struct neigh_table *tbl,
-		struct net *net, const void *pkey, struct net_device *dev)
+static u32 pneigh_hash(const void *pkey, int key_len)
 {
-	struct pneigh_entry *n;
-	int key_len = tbl->key_len;
 	u32 hash_val = *(u32 *)(pkey + key_len - 4);
-
 	hash_val ^= (hash_val >> 16);
 	hash_val ^= hash_val >> 8;
 	hash_val ^= hash_val >> 4;
 	hash_val &= PNEIGH_HASHMASK;
+	return hash_val;
+}
 
-	for (n = tbl->phash_buckets[hash_val]; n; n = n->next) {
+static struct pneigh_entry *__pneigh_lookup_1(struct pneigh_entry *n,
+					      struct net *net,
+					      const void *pkey,
+					      int key_len,
+					      struct net_device *dev)
+{
+	while (n) {
 		if (!memcmp(n->key, pkey, key_len) &&
-		    (pneigh_net(n) == net) &&
+		    net_eq(pneigh_net(n), net) &&
 		    (n->dev == dev || !n->dev))
-			break;
+			return n;
+		n = n->next;
 	}
+	return NULL;
+}
 
-	return n;
+struct pneigh_entry *__pneigh_lookup(struct neigh_table *tbl,
+		struct net *net, const void *pkey, struct net_device *dev)
+{
+	int key_len = tbl->key_len;
+	u32 hash_val = pneigh_hash(pkey, key_len);
+
+	return __pneigh_lookup_1(tbl->phash_buckets[hash_val],
+				 net, pkey, key_len, dev);
 }
 EXPORT_SYMBOL_GPL(__pneigh_lookup);
 
@@ -501,26 +515,14 @@ struct pneigh_entry * pneigh_lookup(struct neigh_table *tbl,
 {
 	struct pneigh_entry *n;
 	int key_len = tbl->key_len;
-	u32 hash_val = *(u32 *)(pkey + key_len - 4);
-
-	hash_val ^= (hash_val >> 16);
-	hash_val ^= hash_val >> 8;
-	hash_val ^= hash_val >> 4;
-	hash_val &= PNEIGH_HASHMASK;
+	u32 hash_val = pneigh_hash(pkey, key_len);
 
 	read_lock_bh(&tbl->lock);
-
-	for (n = tbl->phash_buckets[hash_val]; n; n = n->next) {
-		if (!memcmp(n->key, pkey, key_len) &&
-		    net_eq(pneigh_net(n), net) &&
-		    (n->dev == dev || !n->dev)) {
-			read_unlock_bh(&tbl->lock);
-			goto out;
-		}
-	}
+	n = __pneigh_lookup_1(tbl->phash_buckets[hash_val],
+			      net, pkey, key_len, dev);
 	read_unlock_bh(&tbl->lock);
-	n = NULL;
-	if (!creat)
+
+	if (n || !creat)
 		goto out;
 
 	ASSERT_RTNL();
@@ -561,12 +563,7 @@ int pneigh_delete(struct neigh_table *tbl, struct net *net, const void *pkey,
 {
 	struct pneigh_entry *n, **np;
 	int key_len = tbl->key_len;
-	u32 hash_val = *(u32 *)(pkey + key_len - 4);
-
-	hash_val ^= (hash_val >> 16);
-	hash_val ^= hash_val >> 8;
-	hash_val ^= hash_val >> 4;
-	hash_val &= PNEIGH_HASHMASK;
+	u32 hash_val = pneigh_hash(pkey, key_len);
 
 	write_lock_bh(&tbl->lock);
 	for (np = &tbl->phash_buckets[hash_val]; (n = *np) != NULL;
