@@ -47,9 +47,9 @@ extern void get_smp_config(void);
 
 void __cpuinit generic_processor_info(int apicid, int version);
 #ifdef CONFIG_ACPI
-extern void mp_register_lapic(u8 id, u8 enabled);
+extern void mp_register_lapic(int id, u8 enabled);
 extern void mp_register_lapic_address(u64 address);
-extern void mp_register_ioapic(u8 id, u32 address, u32 gsi_base);
+extern void mp_register_ioapic(int id, u32 address, u32 gsi_base);
 extern void mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger,
 				   u32 gsi);
 extern void mp_config_acpi_legacy_irqs(void);

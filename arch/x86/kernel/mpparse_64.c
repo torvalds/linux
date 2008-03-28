@@ -633,7 +633,7 @@ void __init mp_register_lapic_address(u64 address)
 	if (boot_cpu_physical_apicid == -1U)
 		boot_cpu_physical_apicid  = GET_APIC_ID(read_apic_id());
 }
-void __cpuinit mp_register_lapic(u8 id, u8 enabled)
+void __cpuinit mp_register_lapic(int id, u8 enabled)
 {
 	if (!enabled) {
 		++disabled_cpus;
@@ -683,7 +683,7 @@ static u8 uniq_ioapic_id(u8 id)
 	return find_first_zero_bit(used, 256);
 }
 
-void __init mp_register_ioapic(u8 id, u32 address, u32 gsi_base)
+void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
 {
 	int idx = 0;
 

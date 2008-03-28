@@ -807,7 +807,7 @@ void __init mp_register_lapic_address(u64 address)
 	Dprintk("Boot CPU = %d\n", boot_cpu_physical_apicid);
 }
 
-void __cpuinit mp_register_lapic (u8 id, u8 enabled)
+void __cpuinit mp_register_lapic (int id, u8 enabled)
 {
 	if (MAX_APICS - id <= 0) {
 		printk(KERN_WARNING "Processor #%d invalid (max %d)\n",
@@ -862,7 +862,7 @@ static u8 uniq_ioapic_id(u8 id)
 		return id;
 }
 
-void __init mp_register_ioapic(u8 id, u32 address, u32 gsi_base)
+void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
 {
 	int idx = 0;
 

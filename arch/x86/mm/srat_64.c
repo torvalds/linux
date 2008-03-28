@@ -20,6 +20,7 @@
 #include <asm/proto.h>
 #include <asm/numa.h>
 #include <asm/e820.h>
+#include <asm/genapic.h>
 
 int acpi_numa __initdata;
 
@@ -148,7 +149,10 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 		return;
 	}
 
-	apic_id = pa->apic_id;
+	if (is_uv_system())
+		apic_id = (pa->apic_id << 8) | pa->local_sapic_eid;
+	else
+		apic_id = pa->apic_id;
 	apicid_to_node[apic_id] = node;
 	acpi_numa = 1;
 	printk(KERN_INFO "SRAT: PXM %u -> APIC %u -> Node %u\n",

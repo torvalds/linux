@@ -133,7 +133,7 @@
 # define MAX_IO_APICS 64
 #else
 # define MAX_IO_APICS 128
-# define MAX_LOCAL_APIC 256
+# define MAX_LOCAL_APIC 32768
 #endif
 
 /*
@@ -406,6 +406,9 @@ struct local_apic {
 
 #undef u32
 
-#define BAD_APICID 0xFFu
-
+#ifdef CONFIG_X86_32
+ #define BAD_APICID 0xFFu
+#else
+ #define BAD_APICID 0xFFFFu
+#endif
 #endif
