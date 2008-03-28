@@ -6941,6 +6941,64 @@ static void iwl4965_mac_remove_interface(struct ieee80211_hw *hw,
 
 }
 
+
+#ifdef CONFIG_IWL4965_HT
+static void iwl4965_ht_conf(struct iwl_priv *priv,
+			    struct ieee80211_bss_conf *bss_conf)
+{
+	struct ieee80211_ht_info *ht_conf = bss_conf->ht_conf;
+	struct ieee80211_ht_bss_info *ht_bss_conf = bss_conf->ht_bss_conf;
+	struct iwl_ht_info *iwl_conf = &priv->current_ht_config;
+
+	IWL_DEBUG_MAC80211("enter: \n");
+
+	iwl_conf->is_ht = bss_conf->assoc_ht;
+
+	if (!iwl_conf->is_ht)
+		return;
+
+	priv->ps_mode = (u8)((ht_conf->cap & IEEE80211_HT_CAP_MIMO_PS) >> 2);
+
+	if (ht_conf->cap & IEEE80211_HT_CAP_SGI_20)
+		iwl_conf->sgf |= 0x1;
+	if (ht_conf->cap & IEEE80211_HT_CAP_SGI_40)
+		iwl_conf->sgf |= 0x2;
+
+	iwl_conf->is_green_field = !!(ht_conf->cap & IEEE80211_HT_CAP_GRN_FLD);
+	iwl_conf->max_amsdu_size =
+		!!(ht_conf->cap & IEEE80211_HT_CAP_MAX_AMSDU);
+
+	iwl_conf->supported_chan_width =
+		!!(ht_conf->cap & IEEE80211_HT_CAP_SUP_WIDTH);
+	iwl_conf->extension_chan_offset =
+		ht_bss_conf->bss_cap & IEEE80211_HT_IE_CHA_SEC_OFFSET;
+	/* If no above or below channel supplied disable FAT channel */
+	if (iwl_conf->extension_chan_offset != IWL_EXT_CHANNEL_OFFSET_ABOVE &&
+	    iwl_conf->extension_chan_offset != IWL_EXT_CHANNEL_OFFSET_BELOW)
+		iwl_conf->supported_chan_width = 0;
+
+	iwl_conf->tx_mimo_ps_mode =
+		(u8)((ht_conf->cap & IEEE80211_HT_CAP_MIMO_PS) >> 2);
+	memcpy(iwl_conf->supp_mcs_set, ht_conf->supp_mcs_set, 16);
+
+	iwl_conf->control_channel = ht_bss_conf->primary_channel;
+	iwl_conf->tx_chan_width =
+		!!(ht_bss_conf->bss_cap & IEEE80211_HT_IE_CHA_WIDTH);
+	iwl_conf->ht_protection =
+		ht_bss_conf->bss_op_mode & IEEE80211_HT_IE_HT_PROTECTION;
+	iwl_conf->non_GF_STA_present =
+		!!(ht_bss_conf->bss_op_mode & IEEE80211_HT_IE_NON_GF_STA_PRSNT);
+
+	IWL_DEBUG_MAC80211("control channel %d\n", iwl_conf->control_channel);
+	IWL_DEBUG_MAC80211("leave\n");
+}
+#else
+static inline void iwl4965_ht_conf(struct iwl_priv *priv,
+				   struct ieee80211_bss_conf *bss_conf)
+{
+}
+#endif
+
 static void iwl4965_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *bss_conf,
@@ -6960,6 +7018,11 @@ static void iwl4965_bss_info_changed(struct ieee80211_hw *hw,
 			priv->staging_rxon.flags |= RXON_FLG_TGG_PROTECT_MSK;
 		else
 			priv->staging_rxon.flags &= ~RXON_FLG_TGG_PROTECT_MSK;
+	}
+
+	if (changes & BSS_CHANGED_HT) {
+		iwl4965_ht_conf(priv, bss_conf);
+		iwl4965_set_rxon_chain(priv);
 	}
 
 	if (changes & BSS_CHANGED_ASSOC) {
@@ -7357,88 +7420,6 @@ static int iwl4965_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *sk
 
 	return 0;
 }
-
-#ifdef CONFIG_IWL4965_HT
-
-static void iwl4965_ht_info_fill(struct ieee80211_conf *conf,
-				 struct iwl_priv *priv)
-{
-	struct iwl_ht_info *iwl_conf = &priv->current_ht_config;
-	struct ieee80211_ht_info *ht_conf = &conf->ht_conf;
-	struct ieee80211_ht_bss_info *ht_bss_conf = &conf->ht_bss_conf;
-
-	IWL_DEBUG_MAC80211("enter: \n");
-
-	if (!(conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE)) {
-		iwl_conf->is_ht = 0;
-		return;
-	}
-
-	iwl_conf->is_ht = 1;
-	priv->ps_mode = (u8)((ht_conf->cap & IEEE80211_HT_CAP_MIMO_PS) >> 2);
-
-	if (ht_conf->cap & IEEE80211_HT_CAP_SGI_20)
-		iwl_conf->sgf |= 0x1;
-	if (ht_conf->cap & IEEE80211_HT_CAP_SGI_40)
-		iwl_conf->sgf |= 0x2;
-
-	iwl_conf->is_green_field = !!(ht_conf->cap & IEEE80211_HT_CAP_GRN_FLD);
-	iwl_conf->max_amsdu_size =
-		!!(ht_conf->cap & IEEE80211_HT_CAP_MAX_AMSDU);
-
-	iwl_conf->supported_chan_width =
-		!!(ht_conf->cap & IEEE80211_HT_CAP_SUP_WIDTH);
-	iwl_conf->extension_chan_offset =
-		ht_bss_conf->bss_cap & IEEE80211_HT_IE_CHA_SEC_OFFSET;
-	/* If no above or below channel supplied disable FAT channel */
-	if (iwl_conf->extension_chan_offset != IWL_EXT_CHANNEL_OFFSET_ABOVE &&
-	    iwl_conf->extension_chan_offset != IWL_EXT_CHANNEL_OFFSET_BELOW)
-		iwl_conf->supported_chan_width = 0;
-
-	iwl_conf->tx_mimo_ps_mode =
-		(u8)((ht_conf->cap & IEEE80211_HT_CAP_MIMO_PS) >> 2);
-	memcpy(iwl_conf->supp_mcs_set, ht_conf->supp_mcs_set, 16);
-
-	iwl_conf->control_channel = ht_bss_conf->primary_channel;
-	iwl_conf->tx_chan_width =
-		!!(ht_bss_conf->bss_cap & IEEE80211_HT_IE_CHA_WIDTH);
-	iwl_conf->ht_protection =
-		ht_bss_conf->bss_op_mode & IEEE80211_HT_IE_HT_PROTECTION;
-	iwl_conf->non_GF_STA_present =
-		!!(ht_bss_conf->bss_op_mode & IEEE80211_HT_IE_NON_GF_STA_PRSNT);
-
-	IWL_DEBUG_MAC80211("control channel %d\n",
-		iwl_conf->control_channel);
-	IWL_DEBUG_MAC80211("leave\n");
-}
-
-static int iwl4965_mac_conf_ht(struct ieee80211_hw *hw,
-			       struct ieee80211_conf *conf)
-{
-	struct iwl_priv *priv = hw->priv;
-
-	IWL_DEBUG_MAC80211("enter: \n");
-
-	iwl4965_ht_info_fill(conf, priv);
-	iwl4965_set_rxon_chain(priv);
-
-	if (priv && priv->assoc_id &&
-	    (priv->iw_mode == IEEE80211_IF_TYPE_STA)) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&priv->lock, flags);
-		if (priv->beacon_int)
-			queue_work(priv->workqueue, &priv->post_associate.work);
-		else
-			priv->call_post_assoc_from_beacon = 1;
-		spin_unlock_irqrestore(&priv->lock, flags);
-	}
-
-	IWL_DEBUG_MAC80211("leave:\n");
-	return 0;
-}
-
-#endif /*CONFIG_IWL4965_HT*/
 
 /*****************************************************************************
  *
@@ -7999,7 +7980,6 @@ static struct ieee80211_ops iwl4965_hw_ops = {
 	.beacon_update = iwl4965_mac_beacon_update,
 	.bss_info_changed = iwl4965_bss_info_changed,
 #ifdef CONFIG_IWL4965_HT
-	.conf_ht = iwl4965_mac_conf_ht,
 	.ampdu_action = iwl4965_mac_ampdu_action,
 #endif  /* CONFIG_IWL4965_HT */
 	.hw_scan = iwl4965_mac_hw_scan
