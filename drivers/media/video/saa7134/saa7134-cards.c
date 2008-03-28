@@ -5217,6 +5217,13 @@ static int saa7134_xc2028_callback(struct saa7134_dev *dev,
 	case XC2028_TUNER_RESET:
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2, 0x06e20000, 0x06e20000);
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x06a20000, 0x06a20000);
+		mdelay(250);
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2, 0x06e20000, 0);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x06a20000, 0);
+		mdelay(250);
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2, 0x06e20000, 0x06e20000);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x06a20000, 0x06a20000);
+		mdelay(250);
 		saa_andorl(SAA7133_ANALOG_IO_SELECT >> 2, 0x02, 0x02);
 		saa_andorl(SAA7134_ANALOG_IN_CTRL1 >> 2, 0x81, 0x81);
 		saa_andorl(SAA7134_AUDIO_CLOCK0 >> 2, 0x03187de7, 0x03187de7);
@@ -5413,10 +5420,15 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
 	case SAA7134_BOARD_AVERMEDIA_M115:
 	case SAA7134_BOARD_BEHOLD_COLUMBUS_TVFM:
+	case SAA7134_BOARD_AVERMEDIA_A16D:
+		/* power-down tuner chip */
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0xffffffff, 0);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0xffffffff, 0);
+		msleep(10);
 		/* power-up tuner chip */
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0xffffffff, 0xffffffff);
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0xffffffff, 0xffffffff);
-		msleep(1);
+		msleep(10);
 		break;
 	case SAA7134_BOARD_RTD_VFG7350:
 
@@ -5709,9 +5721,14 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		ctl.fname   = XC2028_DEFAULT_FIRMWARE;
 		ctl.max_len = 64;
 
-		/* FIXME: This should be device-dependent */
-		ctl.demod = XC3028_FE_OREN538;
-		ctl.mts = 1;
+		switch (dev->board) {
+		case SAA7134_BOARD_AVERMEDIA_A16D:
+			ctl.demod = XC3028_FE_ZARLINK456;
+			break;
+		default:
+			ctl.demod = XC3028_FE_OREN538;
+			ctl.mts = 1;
+		}
 
 		xc2028_cfg.tuner = TUNER_XC2028;
 		xc2028_cfg.priv  = &ctl;

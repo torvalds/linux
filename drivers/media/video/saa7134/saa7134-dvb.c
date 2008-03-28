@@ -151,6 +151,26 @@ static int mt352_aver777_init(struct dvb_frontend* fe)
 	return 0;
 }
 
+static int mt352_aver_a16d_init(struct dvb_frontend *fe)
+{
+	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x2d };
+	static u8 reset []         = { RESET,      0x80 };
+	static u8 adc_ctl_1_cfg [] = { ADC_CTL_1,  0x40 };
+	static u8 agc_cfg []       = { AGC_TARGET, 0x28, 0xa0 };
+	static u8 capt_range_cfg[] = { CAPT_RANGE, 0x33 };
+
+	mt352_write(fe, clock_config,   sizeof(clock_config));
+	udelay(200);
+	mt352_write(fe, reset,          sizeof(reset));
+	mt352_write(fe, adc_ctl_1_cfg,  sizeof(adc_ctl_1_cfg));
+	mt352_write(fe, agc_cfg,        sizeof(agc_cfg));
+	mt352_write(fe, capt_range_cfg, sizeof(capt_range_cfg));
+
+	return 0;
+}
+
+
+
 static int mt352_pinnacle_tuner_set_params(struct dvb_frontend* fe,
 					   struct dvb_frontend_parameters* params)
 {
@@ -191,6 +211,11 @@ static struct mt352_config pinnacle_300i = {
 static struct mt352_config avermedia_777 = {
 	.demod_address = 0xf,
 	.demod_init    = mt352_aver777_init,
+};
+
+static struct mt352_config avermedia_16d = {
+	.demod_address = 0xf,
+	.demod_init    = mt352_aver_a16d_init,
 };
 
 static struct mt352_config avermedia_e506r_mt352_dev = {
@@ -935,6 +960,12 @@ static int dvb_init(struct saa7134_dev *dev)
 				   TUNER_PHILIPS_TD1316);
 		}
 		break;
+	case SAA7134_BOARD_AVERMEDIA_A16D:
+		dprintk("avertv A16D dvb setup\n");
+		dev->dvb.frontend = dvb_attach(mt352_attach, &avermedia_16d,
+					       &dev->i2c_adap);
+		attach_xc3028 = 1;
+		break;
 	case SAA7134_BOARD_MD7134:
 		dev->dvb.frontend = dvb_attach(tda10046_attach,
 					       &medion_cardbus,
@@ -1205,6 +1236,10 @@ static int dvb_init(struct saa7134_dev *dev)
 			.i2c_adap  = &dev->i2c_adap,
 			.i2c_addr  = 0x61,
 		};
+
+		if (!dev->dvb.frontend)
+			return -1;
+
 		fe = dvb_attach(xc2028_attach, dev->dvb.frontend, &cfg);
 		if (!fe) {
 			printk(KERN_ERR "%s/2: xc3028 attach failed\n",
