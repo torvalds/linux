@@ -139,7 +139,7 @@ struct pt_regs *save_v86_state(struct kernel_vm86_regs *regs)
 		printk("no vm86_info: BAD\n");
 		do_exit(SIGSEGV);
 	}
-	set_flags(regs->pt.flags, VEFLAGS, VIF_MASK | current->thread.v86mask);
+	set_flags(regs->pt.flags, VEFLAGS, X86_EFLAGS_VIF | current->thread.v86mask);
 	tmp = copy_vm86_regs_to_user(&current->thread.vm86_info->regs, regs);
 	tmp += put_user(current->thread.screen_bitmap, &current->thread.vm86_info->screen_bitmap);
 	if (tmp) {
@@ -306,13 +306,13 @@ static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk
 		tsk->thread.v86mask = 0;
 		break;
 	case CPU_386:
-		tsk->thread.v86mask = NT_MASK | IOPL_MASK;
+		tsk->thread.v86mask = X86_EFLAGS_NT | X86_EFLAGS_IOPL;
 		break;
 	case CPU_486:
-		tsk->thread.v86mask = AC_MASK | NT_MASK | IOPL_MASK;
+		tsk->thread.v86mask = X86_EFLAGS_AC | X86_EFLAGS_NT | X86_EFLAGS_IOPL;
 		break;
 	default:
-		tsk->thread.v86mask = ID_MASK | AC_MASK | NT_MASK | IOPL_MASK;
+		tsk->thread.v86mask = X86_EFLAGS_ID | X86_EFLAGS_AC | X86_EFLAGS_NT | X86_EFLAGS_IOPL;
 		break;
 	}
 
@@ -363,24 +363,24 @@ static inline void return_to_32bit(struct kernel_vm86_regs *regs16, int retval)
 
 static inline void set_IF(struct kernel_vm86_regs *regs)
 {
-	VEFLAGS |= VIF_MASK;
-	if (VEFLAGS & VIP_MASK)
+	VEFLAGS |= X86_EFLAGS_VIF;
+	if (VEFLAGS & X86_EFLAGS_VIP)
 		return_to_32bit(regs, VM86_STI);
 }
 
 static inline void clear_IF(struct kernel_vm86_regs *regs)
 {
-	VEFLAGS &= ~VIF_MASK;
+	VEFLAGS &= ~X86_EFLAGS_VIF;
 }
 
 static inline void clear_TF(struct kernel_vm86_regs *regs)
 {
-	regs->pt.flags &= ~TF_MASK;
+	regs->pt.flags &= ~X86_EFLAGS_TF;
 }
 
 static inline void clear_AC(struct kernel_vm86_regs *regs)
 {
-	regs->pt.flags &= ~AC_MASK;
+	regs->pt.flags &= ~X86_EFLAGS_AC;
 }
 
 /*
@@ -399,7 +399,7 @@ static inline void set_vflags_long(unsigned long flags, struct kernel_vm86_regs 
 {
 	set_flags(VEFLAGS, flags, current->thread.v86mask);
 	set_flags(regs->pt.flags, flags, SAFE_MASK);
-	if (flags & IF_MASK)
+	if (flags & X86_EFLAGS_IF)
 		set_IF(regs);
 	else
 		clear_IF(regs);
@@ -409,7 +409,7 @@ static inline void set_vflags_short(unsigned short flags, struct kernel_vm86_reg
 {
 	set_flags(VFLAGS, flags, current->thread.v86mask);
 	set_flags(regs->pt.flags, flags, SAFE_MASK);
-	if (flags & IF_MASK)
+	if (flags & X86_EFLAGS_IF)
 		set_IF(regs);
 	else
 		clear_IF(regs);
@@ -419,9 +419,9 @@ static inline unsigned long get_vflags(struct kernel_vm86_regs *regs)
 {
 	unsigned long flags = regs->pt.flags & RETURN_MASK;
 
-	if (VEFLAGS & VIF_MASK)
-		flags |= IF_MASK;
-	flags |= IOPL_MASK;
+	if (VEFLAGS & X86_EFLAGS_VIF)
+		flags |= X86_EFLAGS_IF;
+	flags |= X86_EFLAGS_IOPL;
 	return flags | (VEFLAGS & current->thread.v86mask);
 }
 
@@ -573,11 +573,11 @@ void handle_vm86_fault(struct kernel_vm86_regs *regs, long error_code)
 
 #define CHECK_IF_IN_TRAP \
 	if (VMPI.vm86dbg_active && VMPI.vm86dbg_TFpendig) \
-		newflags |= TF_MASK
+		newflags |= X86_EFLAGS_TF
 #define VM86_FAULT_RETURN do { \
-	if (VMPI.force_return_for_pic  && (VEFLAGS & (IF_MASK | VIF_MASK))) \
+	if (VMPI.force_return_for_pic  && (VEFLAGS & (X86_EFLAGS_IF | X86_EFLAGS_VIF))) \
 		return_to_32bit(regs, VM86_PICRETURN); \
-	if (orig_flags & TF_MASK) \
+	if (orig_flags & X86_EFLAGS_TF) \
 		handle_vm86_trap(regs, 0, 1); \
 	return; } while (0)
 

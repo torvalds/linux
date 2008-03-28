@@ -489,7 +489,7 @@ static int __kprobes reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 		break;
 	case KPROBE_HIT_SS:
 		if (p == kprobe_running()) {
-			regs->flags &= ~TF_MASK;
+			regs->flags &= ~X86_EFLAGS_TF;
 			regs->flags |= kcb->kprobe_saved_flags;
 			return 0;
 		} else {
