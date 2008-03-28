@@ -1,10 +1,10 @@
 /*P:050 Lguest guests use a very simple method to describe devices.  It's a
- * series of device descriptors contained just above the top of normal
+ * series of device descriptors contained just above the top of normal Guest
  * memory.
  *
  * We use the standard "virtio" device infrastructure, which provides us with a
  * console, a network and a block driver.  Each one expects some configuration
- * information and a "virtqueue" mechanism to send and receive data. :*/
+ * information and a "virtqueue" or two to send and receive data. :*/
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/lguest_launcher.h>
@@ -53,7 +53,7 @@ struct lguest_device {
  * Device configurations
  *
  * The configuration information for a device consists of one or more
- * virtqueues, a feature bitmaks, and some configuration bytes.  The
+ * virtqueues, a feature bitmap, and some configuration bytes.  The
  * configuration bytes don't really matter to us: the Launcher sets them up, and
  * the driver will look at them during setup.
  *
@@ -179,7 +179,7 @@ struct lguest_vq_info
 };
 
 /* When the virtio_ring code wants to prod the Host, it calls us here and we
- * make a hypercall.  We hand the page number of the virtqueue so the Host
+ * make a hypercall.  We hand the physical address of the virtqueue so the Host
  * knows which virtqueue we're talking about. */
 static void lg_notify(struct virtqueue *vq)
 {
@@ -199,7 +199,8 @@ static void lg_notify(struct virtqueue *vq)
  * allocate its own pages and tell the Host where they are, but for lguest it's
  * simpler for the Host to simply tell us where the pages are.
  *
- * So we provide devices with a "find virtqueue and set it up" function. */
+ * So we provide drivers with a "find the Nth virtqueue and set it up"
+ * function. */
 static struct virtqueue *lg_find_vq(struct virtio_device *vdev,
 				    unsigned index,
 				    void (*callback)(struct virtqueue *vq))

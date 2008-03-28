@@ -1,6 +1,7 @@
-Rusty's Remarkably Unreliable Guide to Lguest
-	- or, A Young Coder's Illustrated Hypervisor
-http://lguest.ozlabs.org
+      __
+ (___()'`;  Rusty's Remarkably Unreliable Guide to Lguest
+ /,    /`      - or, A Young Coder's Illustrated Hypervisor
+ \\"--\\    http://lguest.ozlabs.org
 
 Lguest is designed to be a minimal hypervisor for the Linux kernel, for
 Linux developers and users to experiment with virtualization with the
@@ -41,12 +42,16 @@ Running Lguest:
          CONFIG_PHYSICAL_ALIGN=0x100000)
 
   "Device Drivers":
+     "Block devices"
+        "Virtio block driver (EXPERIMENTAL)" = M/Y
      "Network device support"
         "Universal TUN/TAP device driver support" = M/Y
-           (CONFIG_TUN=m)
-     "Virtualization"
-        "Linux hypervisor example code" = M/Y
-           (CONFIG_LGUEST=m)
+        "Virtio network driver (EXPERIMENTAL)" = M/Y
+           (CONFIG_VIRTIO_BLK=m, CONFIG_VIRTIO_NET=m and CONFIG_TUN=m)
+
+  "Virtualization"
+     "Linux hypervisor example code" = M/Y
+        (CONFIG_LGUEST=m)
 
 - A tool called "lguest" is available in this directory: type "make"
   to build it.  If you didn't build your kernel in-tree, use "make
