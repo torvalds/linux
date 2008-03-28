@@ -3400,8 +3400,8 @@ static int pvr2_hdw_cmd_usbstream(struct pvr2_hdw *hdw,int runFl)
 {
 	int status,cc;
 	if ((hdw->pathway_state == PVR2_PATHWAY_DIGITAL) &&
-	    hdw->hdw_desc->digital_control_scheme ==
-	    PVR2_DIGITAL_SCHEME_HAUPPAUGE) {
+	    (hdw->hdw_desc->digital_control_scheme ==
+	     PVR2_DIGITAL_SCHEME_HAUPPAUGE)) {
 		cc = (runFl ?
 		      FX2CMD_HCW_DTV_STREAMING_ON :
 		      FX2CMD_HCW_DTV_STREAMING_OFF);
