@@ -336,7 +336,7 @@ static void asd_tmf_tasklet_complete(struct asd_ascb *ascb,
 	asd_ascb_free(ascb);
 }
 
-static inline int asd_clear_nexus(struct sas_task *task)
+static int asd_clear_nexus(struct sas_task *task)
 {
 	int res = TMF_RESP_FUNC_FAILED;
 	int leftover;

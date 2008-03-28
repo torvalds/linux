@@ -50,7 +50,7 @@
 			   | CURRENT_SPINUP_HOLD | CURRENT_GTO_TIMEOUT \
 			   | CURRENT_OOB_ERROR)
 
-static inline void get_lrate_mode(struct asd_phy *phy, u8 oob_mode)
+static void get_lrate_mode(struct asd_phy *phy, u8 oob_mode)
 {
 	struct sas_phy *sas_phy = phy->sas_phy.phy;
 
@@ -81,7 +81,7 @@ static inline void get_lrate_mode(struct asd_phy *phy, u8 oob_mode)
 		phy->sas_phy.oob_mode = SATA_OOB_MODE;
 }
 
-static inline void asd_phy_event_tasklet(struct asd_ascb *ascb,
+static void asd_phy_event_tasklet(struct asd_ascb *ascb,
 					 struct done_list_struct *dl)
 {
 	struct asd_ha_struct *asd_ha = ascb->ha;
@@ -125,8 +125,7 @@ static inline void asd_phy_event_tasklet(struct asd_ascb *ascb,
 }
 
 /* If phys are enabled sparsely, this will do the right thing. */
-static inline unsigned ord_phy(struct asd_ha_struct *asd_ha,
-			       struct asd_phy *phy)
+static unsigned ord_phy(struct asd_ha_struct *asd_ha, struct asd_phy *phy)
 {
 	u8 enabled_mask = asd_ha->hw_prof.enabled_phys;
 	int i, k = 0;
@@ -151,7 +150,7 @@ static inline unsigned ord_phy(struct asd_ha_struct *asd_ha,
  * LOCKING: the frame_rcvd_lock needs to be held since this parses the frame
  * buffer.
  */
-static inline void asd_get_attached_sas_addr(struct asd_phy *phy, u8 *sas_addr)
+static void asd_get_attached_sas_addr(struct asd_phy *phy, u8 *sas_addr)
 {
 	if (phy->sas_phy.frame_rcvd[0] == 0x34
 	    && phy->sas_phy.oob_mode == SATA_OOB_MODE) {
@@ -232,9 +231,9 @@ static void asd_deform_port(struct asd_ha_struct *asd_ha, struct asd_phy *phy)
 	spin_unlock_irqrestore(&asd_ha->asd_ports_lock, flags);
 }
 
-static inline void asd_bytes_dmaed_tasklet(struct asd_ascb *ascb,
-					   struct done_list_struct *dl,
-					   int edb_id, int phy_id)
+static void asd_bytes_dmaed_tasklet(struct asd_ascb *ascb,
+				    struct done_list_struct *dl,
+				    int edb_id, int phy_id)
 {
 	unsigned long flags;
 	int edb_el = edb_id + ascb->edb_index;
@@ -255,9 +254,9 @@ static inline void asd_bytes_dmaed_tasklet(struct asd_ascb *ascb,
 	sas_ha->notify_port_event(&phy->sas_phy, PORTE_BYTES_DMAED);
 }
 
-static inline void asd_link_reset_err_tasklet(struct asd_ascb *ascb,
-					      struct done_list_struct *dl,
-					      int phy_id)
+static void asd_link_reset_err_tasklet(struct asd_ascb *ascb,
+				       struct done_list_struct *dl,
+				       int phy_id)
 {
 	struct asd_ha_struct *asd_ha = ascb->ha;
 	struct sas_ha_struct *sas_ha = &asd_ha->sas_ha;
@@ -308,9 +307,9 @@ out:
 	;
 }
 
-static inline void asd_primitive_rcvd_tasklet(struct asd_ascb *ascb,
-					      struct done_list_struct *dl,
-					      int phy_id)
+static void asd_primitive_rcvd_tasklet(struct asd_ascb *ascb,
+				       struct done_list_struct *dl,
+				       int phy_id)
 {
 	unsigned long flags;
 	struct sas_ha_struct *sas_ha = &ascb->ha->sas_ha;
@@ -715,7 +714,7 @@ out:
 	asd_ascb_free(ascb);
 }
 
-static inline void set_speed_mask(u8 *speed_mask, struct asd_phy_desc *pd)
+static void set_speed_mask(u8 *speed_mask, struct asd_phy_desc *pd)
 {
 	/* disable all speeds, then enable defaults */
 	*speed_mask = SAS_SPEED_60_DIS | SAS_SPEED_30_DIS | SAS_SPEED_15_DIS
@@ -820,6 +819,8 @@ void asd_build_control_phy(struct asd_ascb *ascb, int phy_id, u8 subfunc)
 
 /* ---------- INITIATE LINK ADM TASK ---------- */
 
+#if 0
+
 static void link_adm_tasklet_complete(struct asd_ascb *ascb,
 				      struct done_list_struct *dl)
 {
@@ -851,6 +852,8 @@ void asd_build_initiate_link_adm_task(struct asd_ascb *ascb, int phy_id,
 
 	ascb->tasklet_complete = link_adm_tasklet_complete;
 }
+
+#endif  /*  0  */
 
 /* ---------- SCB timer ---------- */
 
