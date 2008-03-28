@@ -114,4 +114,9 @@ struct genapic {
 
 extern struct genapic *genapic;
 
+enum uv_system_type {UV_NONE, UV_LEGACY_APIC, UV_X2APIC, UV_NON_UNIQUE_APIC};
+#define get_uv_system_type()		UV_NONE
+#define is_uv_system()			0
+
+
 #endif

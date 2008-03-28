@@ -56,9 +56,7 @@ EXPORT_SYMBOL(acpi_disabled);
 #ifdef	CONFIG_X86_64
 
 #include <asm/proto.h>
-
-static inline int acpi_madt_oem_check(char *oem_id, char *oem_table_id) { return 0; }
-
+#include <asm/genapic.h>
 
 #else				/* X86 */
 

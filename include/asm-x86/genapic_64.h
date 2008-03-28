@@ -33,5 +33,10 @@ extern struct genapic *genapic;
 
 extern struct genapic apic_flat;
 extern struct genapic apic_physflat;
+extern int acpi_madt_oem_check(char *, char *);
+
+enum uv_system_type {UV_NONE, UV_LEGACY_APIC, UV_X2APIC, UV_NON_UNIQUE_APIC};
+extern enum uv_system_type get_uv_system_type(void);
+extern int is_uv_system(void);
 
 #endif
