@@ -3796,7 +3796,7 @@ static unsigned int pvr2_hdw_report_unlocked(struct pvr2_hdw *hdw,int which,
 			(hdw->state_encoder_config ?
 			 " <encode:configok>" :
 			 (hdw->state_encoder_waitok ?
-			  "" : " <encode:wait>")),
+			  "" : " <encode:waitok>")),
 			(hdw->state_usbstream_run ?
 			 " <usb:run>" : " <usb:stop>"),
 			(hdw->state_pathway_ok ?
