@@ -1854,6 +1854,7 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ring_desc* start_tx;
 	struct ring_desc* prev_tx;
 	struct nv_skb_map* prev_tx_ctx;
+	unsigned long flags;
 
 	/* add fragments to entries count */
 	for (i = 0; i < fragments; i++) {
@@ -1863,10 +1864,10 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	empty_slots = nv_get_empty_tx_slots(np);
 	if (unlikely(empty_slots <= entries)) {
-		spin_lock_irq(&np->lock);
+		spin_lock_irqsave(&np->lock, flags);
 		netif_stop_queue(dev);
 		np->tx_stop = 1;
-		spin_unlock_irq(&np->lock);
+		spin_unlock_irqrestore(&np->lock, flags);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -1929,13 +1930,13 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		tx_flags_extra = skb->ip_summed == CHECKSUM_PARTIAL ?
 			 NV_TX2_CHECKSUM_L3 | NV_TX2_CHECKSUM_L4 : 0;
 
-	spin_lock_irq(&np->lock);
+	spin_lock_irqsave(&np->lock, flags);
 
 	/* set tx flags */
 	start_tx->flaglen |= cpu_to_le32(tx_flags | tx_flags_extra);
 	np->put_tx.orig = put_tx;
 
-	spin_unlock_irq(&np->lock);
+	spin_unlock_irqrestore(&np->lock, flags);
 
 	dprintk(KERN_DEBUG "%s: nv_start_xmit: entries %d queued for transmission. tx_flags_extra: %x\n",
 		dev->name, entries, tx_flags_extra);
@@ -1971,6 +1972,7 @@ static int nv_start_xmit_optimized(struct sk_buff *skb, struct net_device *dev)
 	struct ring_desc_ex* prev_tx;
 	struct nv_skb_map* prev_tx_ctx;
 	struct nv_skb_map* start_tx_ctx;
+	unsigned long flags;
 
 	/* add fragments to entries count */
 	for (i = 0; i < fragments; i++) {
@@ -1980,10 +1982,10 @@ static int nv_start_xmit_optimized(struct sk_buff *skb, struct net_device *dev)
 
 	empty_slots = nv_get_empty_tx_slots(np);
 	if (unlikely(empty_slots <= entries)) {
-		spin_lock_irq(&np->lock);
+		spin_lock_irqsave(&np->lock, flags);
 		netif_stop_queue(dev);
 		np->tx_stop = 1;
-		spin_unlock_irq(&np->lock);
+		spin_unlock_irqrestore(&np->lock, flags);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -2059,7 +2061,7 @@ static int nv_start_xmit_optimized(struct sk_buff *skb, struct net_device *dev)
 			start_tx->txvlan = 0;
 	}
 
-	spin_lock_irq(&np->lock);
+	spin_lock_irqsave(&np->lock, flags);
 
 	if (np->tx_limit) {
 		/* Limit the number of outstanding tx. Setup all fragments, but
@@ -2085,7 +2087,7 @@ static int nv_start_xmit_optimized(struct sk_buff *skb, struct net_device *dev)
 	start_tx->flaglen |= cpu_to_le32(tx_flags | tx_flags_extra);
 	np->put_tx.ex = put_tx;
 
-	spin_unlock_irq(&np->lock);
+	spin_unlock_irqrestore(&np->lock, flags);
 
 	dprintk(KERN_DEBUG "%s: nv_start_xmit_optimized: entries %d queued for transmission. tx_flags_extra: %x\n",
 		dev->name, entries, tx_flags_extra);
