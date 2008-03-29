@@ -148,7 +148,6 @@ static int scsi_debug_cmnd_count = 0;
 #define DEV_READONLY(TGT)      (0)
 #define DEV_REMOVEABLE(TGT)    (0)
 
-static unsigned int sdebug_store_size;	/* in bytes */
 static unsigned int sdebug_store_sectors;
 static sector_t sdebug_capacity;	/* in sectors */
 
@@ -1969,7 +1968,8 @@ static void __init init_all_queued(void)
 	spin_unlock_irqrestore(&queued_arr_lock, iflags);
 }
 
-static void __init sdebug_build_parts(unsigned char * ramp)
+static void __init sdebug_build_parts(unsigned char *ramp,
+				      unsigned int store_size)
 {
 	struct partition * pp;
 	int starts[SDEBUG_MAX_PARTS + 2];
@@ -1977,7 +1977,7 @@ static void __init sdebug_build_parts(unsigned char * ramp)
 	int heads_by_sects, start_sec, end_sec;
 
 	/* assume partition table already zeroed */
-	if ((scsi_debug_num_parts < 1) || (sdebug_store_size < 1048576))
+	if ((scsi_debug_num_parts < 1) || (store_size < 1048576))
 		return;
 	if (scsi_debug_num_parts > SDEBUG_MAX_PARTS) {
 		scsi_debug_num_parts = SDEBUG_MAX_PARTS;
@@ -2505,8 +2505,8 @@ static int __init scsi_debug_init(void)
 
 	if (scsi_debug_dev_size_mb < 1)
 		scsi_debug_dev_size_mb = 1;  /* force minimum 1 MB ramdisk */
-	sdebug_store_size = (unsigned int)scsi_debug_dev_size_mb * 1048576;
-	sdebug_store_sectors = sdebug_store_size / SECT_SIZE;
+	sz = (unsigned int)scsi_debug_dev_size_mb * 1048576;
+	sdebug_store_sectors = sz / SECT_SIZE;
 	if (scsi_debug_virtual_gb > 0) {
 		sdebug_capacity = 2048 * 1024;
 		sdebug_capacity *= scsi_debug_virtual_gb;
@@ -2530,7 +2530,6 @@ static int __init scsi_debug_init(void)
 			       (sdebug_sectors_per * sdebug_heads);
 	}
 
-	sz = sdebug_store_size;
 	fake_storep = vmalloc(sz);
 	if (NULL == fake_storep) {
 		printk(KERN_ERR "scsi_debug_init: out of memory, 1\n");
@@ -2538,7 +2537,7 @@ static int __init scsi_debug_init(void)
 	}
 	memset(fake_storep, 0, sz);
 	if (scsi_debug_num_parts > 0)
-		sdebug_build_parts(fake_storep);
+		sdebug_build_parts(fake_storep, sz);
 
 	ret = device_register(&pseudo_primary);
 	if (ret < 0) {
