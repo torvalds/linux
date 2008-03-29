@@ -189,8 +189,8 @@ struct udp_seq_afinfo {
 	char			*name;
 	sa_family_t		family;
 	struct hlist_head	*hashtable;
-	int 			(*seq_show) (struct seq_file *m, void *v);
 	struct file_operations	*seq_fops;
+	struct seq_operations	seq_ops;
 };
 
 struct udp_iter_state {
@@ -198,7 +198,6 @@ struct udp_iter_state {
 	sa_family_t		family;
 	struct hlist_head	*hashtable;
 	int			bucket;
-	struct seq_operations	seq_ops;
 };
 
 #ifdef CONFIG_PROC_FS

@@ -102,8 +102,10 @@ static struct udp_seq_afinfo udplite6_seq_afinfo = {
 	.name		= "udplite6",
 	.family		= AF_INET6,
 	.hashtable	= udplite_hash,
-	.seq_show	= udp6_seq_show,
 	.seq_fops	= &udplite6_seq_fops,
+	.seq_ops	= {
+		.show		= udp6_seq_show,
+	},
 };
 
 static int udplite6_proc_init_net(struct net *net)

@@ -77,8 +77,10 @@ static struct udp_seq_afinfo udplite4_seq_afinfo = {
 	.name		= "udplite",
 	.family		= AF_INET,
 	.hashtable	= udplite_hash,
-	.seq_show	= udp4_seq_show,
 	.seq_fops	= &udplite4_seq_fops,
+	.seq_ops	= {
+		.show		= udp4_seq_show,
+	},
 };
 
 static int udplite4_proc_init_net(struct net *net)
