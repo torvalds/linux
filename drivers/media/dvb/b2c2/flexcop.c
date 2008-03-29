@@ -257,6 +257,12 @@ int flexcop_device_initialize(struct flexcop_device *fc)
 	if ((ret = flexcop_dvb_init(fc)))
 		goto error;
 
+	/* i2c has to be done before doing EEProm stuff -
+	 * because the EEProm is accessed via i2c */
+	ret = flexcop_i2c_init(fc);
+	if (ret)
+		goto error;
+
 	/* do the MAC address reading after initializing the dvb_adapter */
 	if (fc->get_mac_addr(fc, 0) == 0) {
 		u8 *b = fc->dvb_adapter.proposed_mac;
@@ -265,10 +271,6 @@ int flexcop_device_initialize(struct flexcop_device *fc)
 		flexcop_mac_filter_ctrl(fc,1);
 	} else
 		warn("reading of MAC address failed.\n");
-
-
-	if ((ret = flexcop_i2c_init(fc)))
-		goto error;
 
 	if ((ret = flexcop_frontend_init(fc)))
 		goto error;

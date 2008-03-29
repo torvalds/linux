@@ -211,10 +211,11 @@ static int flexcop_usb_utility_req(struct flexcop_usb *fc_usb, int set,
 #endif
 
 /* usb i2c stuff */
-static int flexcop_usb_i2c_req(struct flexcop_usb *fc_usb,
+static int flexcop_usb_i2c_req(struct flexcop_i2c_adapter *i2c,
 		flexcop_usb_request_t req, flexcop_usb_i2c_function_t func,
-		flexcop_i2c_port_t port, u8 chipaddr, u8 addr, u8 *buf, u8 buflen)
+		u8 chipaddr, u8 addr, u8 *buf, u8 buflen)
 {
+	struct flexcop_usb *fc_usb = i2c->fc->bus_specific;
 	u16 wValue, wIndex;
 	int nWaitTime,pipe,len;
 //	u8 dwRequestType;
@@ -242,7 +243,7 @@ static int flexcop_usb_i2c_req(struct flexcop_usb *fc_usb,
 			deb_info("unsupported function for i2c_req %x\n",func);
 			return -EINVAL;
 	}
-	wValue = (func << 8 ) | (port << 4);
+	wValue = (func << 8) | (i2c->port << 4);
 	wIndex = (chipaddr << 8 ) | addr;
 
 	deb_i2c("i2c %2d: %02x %02x %02x %02x %02x %02x\n",func,request_type,req,
@@ -274,13 +275,15 @@ static int flexcop_usb_write_ibi_reg(struct flexcop_device *fc, flexcop_ibi_regi
 	return flexcop_usb_readwrite_dw(fc,reg, &val.raw, 0);
 }
 
-static int flexcop_usb_i2c_request(struct flexcop_device *fc, flexcop_access_op_t op,
-		flexcop_i2c_port_t port, u8 chipaddr, u8 addr, u8 *buf, u16 len)
+static int flexcop_usb_i2c_request(struct flexcop_i2c_adapter *i2c,
+	flexcop_access_op_t op, u8 chipaddr, u8 addr, u8 *buf, u16 len)
 {
 	if (op == FC_READ)
-		return flexcop_usb_i2c_req(fc->bus_specific,B2C2_USB_I2C_REQUEST,USB_FUNC_I2C_READ,port,chipaddr,addr,buf,len);
+		return flexcop_usb_i2c_req(i2c, B2C2_USB_I2C_REQUEST,
+			USB_FUNC_I2C_READ, chipaddr, addr, buf, len);
 	else
-		return flexcop_usb_i2c_req(fc->bus_specific,B2C2_USB_I2C_REQUEST,USB_FUNC_I2C_WRITE,port,chipaddr,addr,buf,len);
+		return flexcop_usb_i2c_req(i2c, B2C2_USB_I2C_REQUEST,
+			USB_FUNC_I2C_WRITE, chipaddr, addr, buf, len);
 }
 
 static void flexcop_usb_process_frame(struct flexcop_usb *fc_usb, u8 *buffer, int buffer_length)
