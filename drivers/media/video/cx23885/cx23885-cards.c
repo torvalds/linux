@@ -347,10 +347,13 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 	case CX23885_BOARD_HAUPPAUGE_HVR1500:
 	case CX23885_BOARD_HAUPPAUGE_HVR1500Q:
+		if (dev->i2c_bus[0].i2c_rc == 0)
+			hauppauge_eeprom(dev, eeprom+0x80);
+		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
 		if (dev->i2c_bus[0].i2c_rc == 0)
-			hauppauge_eeprom(dev, eeprom+0x80);
+			hauppauge_eeprom(dev, eeprom+0xc0);
 		break;
 	}
 
