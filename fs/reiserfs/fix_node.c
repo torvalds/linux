@@ -153,7 +153,7 @@ static void create_virtual_node(struct tree_balance *tb, int h)
 	if (vn->vn_mode == M_INSERT) {
 		struct virtual_item *vi = vn->vn_vi + vn->vn_affected_item_num;
 
-		RFALSE(vn->vn_ins_ih == 0,
+		RFALSE(vn->vn_ins_ih == NULL,
 		       "vs-8040: item header of inserted item is not specified");
 		vi->vi_item_len = tb->insert_size[0];
 		vi->vi_ih = vn->vn_ins_ih;
@@ -857,7 +857,8 @@ static int get_lfree(struct tree_balance *tb, int h)
 	struct buffer_head *l, *f;
 	int order;
 
-	if ((f = PATH_H_PPARENT(tb->tb_path, h)) == 0 || (l = tb->FL[h]) == 0)
+	if ((f = PATH_H_PPARENT(tb->tb_path, h)) == NULL ||
+	    (l = tb->FL[h]) == NULL)
 		return 0;
 
 	if (f == l)
@@ -878,7 +879,8 @@ static int get_rfree(struct tree_balance *tb, int h)
 	struct buffer_head *r, *f;
 	int order;
 
-	if ((f = PATH_H_PPARENT(tb->tb_path, h)) == 0 || (r = tb->FR[h]) == 0)
+	if ((f = PATH_H_PPARENT(tb->tb_path, h)) == NULL ||
+	    (r = tb->FR[h]) == NULL)
 		return 0;
 
 	if (f == r)
