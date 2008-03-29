@@ -279,7 +279,7 @@ struct sk_buff *dev_alloc_skb(unsigned int length)
 {
 	/*
 	 * There is more code here than it seems:
-	 * __def_alloc_skb is an inline
+	 * __dev_alloc_skb is an inline
 	 */
 	return __dev_alloc_skb(length, GFP_ATOMIC);
 }
