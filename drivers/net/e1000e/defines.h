@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2007 Intel Corporation.
+  Copyright(c) 1999 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -120,10 +120,10 @@
 #define E1000_MANC_ARP_EN        0x00002000 /* Enable ARP Request Filtering */
 #define E1000_MANC_RCV_TCO_EN    0x00020000 /* Receive TCO Packets Enabled */
 #define E1000_MANC_BLK_PHY_RST_ON_IDE   0x00040000 /* Block phy resets */
-#define E1000_MANC_EN_MAC_ADDR_FILTER   0x00100000 /* Enable MAC address
-						    * filtering */
-#define E1000_MANC_EN_MNG2HOST   0x00200000 /* Enable MNG packets to host
-					     * memory */
+/* Enable MAC address filtering */
+#define E1000_MANC_EN_MAC_ADDR_FILTER   0x00100000
+/* Enable MNG packets to host memory */
+#define E1000_MANC_EN_MNG2HOST   0x00200000
 
 /* Receive Control */
 #define E1000_RCTL_EN             0x00000002    /* enable */
@@ -135,25 +135,26 @@
 #define E1000_RCTL_LBM_MAC        0x00000040    /* MAC loopback mode */
 #define E1000_RCTL_LBM_TCVR       0x000000C0    /* tcvr loopback mode */
 #define E1000_RCTL_DTYP_PS        0x00000400    /* Packet Split descriptor */
-#define E1000_RCTL_RDMTS_HALF     0x00000000    /* rx desc min threshold size */
+#define E1000_RCTL_RDMTS_HALF     0x00000000    /* Rx desc min threshold size */
 #define E1000_RCTL_MO_SHIFT       12            /* multicast offset shift */
 #define E1000_RCTL_BAM            0x00008000    /* broadcast enable */
 /* these buffer sizes are valid if E1000_RCTL_BSEX is 0 */
-#define E1000_RCTL_SZ_2048        0x00000000    /* rx buffer size 2048 */
-#define E1000_RCTL_SZ_1024        0x00010000    /* rx buffer size 1024 */
-#define E1000_RCTL_SZ_512         0x00020000    /* rx buffer size 512 */
-#define E1000_RCTL_SZ_256         0x00030000    /* rx buffer size 256 */
+#define E1000_RCTL_SZ_2048        0x00000000    /* Rx buffer size 2048 */
+#define E1000_RCTL_SZ_1024        0x00010000    /* Rx buffer size 1024 */
+#define E1000_RCTL_SZ_512         0x00020000    /* Rx buffer size 512 */
+#define E1000_RCTL_SZ_256         0x00030000    /* Rx buffer size 256 */
 /* these buffer sizes are valid if E1000_RCTL_BSEX is 1 */
-#define E1000_RCTL_SZ_16384       0x00010000    /* rx buffer size 16384 */
-#define E1000_RCTL_SZ_8192        0x00020000    /* rx buffer size 8192 */
-#define E1000_RCTL_SZ_4096        0x00030000    /* rx buffer size 4096 */
+#define E1000_RCTL_SZ_16384       0x00010000    /* Rx buffer size 16384 */
+#define E1000_RCTL_SZ_8192        0x00020000    /* Rx buffer size 8192 */
+#define E1000_RCTL_SZ_4096        0x00030000    /* Rx buffer size 4096 */
 #define E1000_RCTL_VFE            0x00040000    /* vlan filter enable */
 #define E1000_RCTL_CFIEN          0x00080000    /* canonical form enable */
 #define E1000_RCTL_CFI            0x00100000    /* canonical form indicator */
 #define E1000_RCTL_BSEX           0x02000000    /* Buffer size extension */
 #define E1000_RCTL_SECRC          0x04000000    /* Strip Ethernet CRC */
 
-/* Use byte values for the following shift parameters
+/*
+ * Use byte values for the following shift parameters
  * Usage:
  *     psrctl |= (((ROUNDUP(value0, 128) >> E1000_PSRCTL_BSIZE0_SHIFT) &
  *                  E1000_PSRCTL_BSIZE0_MASK) |
@@ -206,7 +207,8 @@
 #define E1000_CTRL_VME      0x40000000  /* IEEE VLAN mode enable */
 #define E1000_CTRL_PHY_RST  0x80000000  /* PHY Reset */
 
-/* Bit definitions for the Management Data IO (MDIO) and Management Data
+/*
+ * Bit definitions for the Management Data IO (MDIO) and Management Data
  * Clock (MDC) pins in the Device Control Register.
  */
 
@@ -279,7 +281,7 @@
 #define E1000_TXD_STAT_TC    0x00000004 /* Tx Underrun */
 
 /* Transmit Control */
-#define E1000_TCTL_EN     0x00000002    /* enable tx */
+#define E1000_TCTL_EN     0x00000002    /* enable Tx */
 #define E1000_TCTL_PSP    0x00000008    /* pad short packets */
 #define E1000_TCTL_CT     0x00000ff0    /* collision threshold */
 #define E1000_TCTL_COLD   0x003ff000    /* collision distance */
@@ -337,8 +339,8 @@
 #define E1000_KABGTXD_BGSQLBIAS           0x00050000
 
 /* PBA constants */
-#define E1000_PBA_8K  0x0008    /* 8KB, default Rx allocation */
-#define E1000_PBA_16K 0x0010    /* 16KB, default TX allocation */
+#define E1000_PBA_8K  0x0008    /* 8KB */
+#define E1000_PBA_16K 0x0010    /* 16KB */
 
 #define E1000_PBS_16K E1000_PBA_16K
 
@@ -356,12 +358,13 @@
 /* Interrupt Cause Read */
 #define E1000_ICR_TXDW          0x00000001 /* Transmit desc written back */
 #define E1000_ICR_LSC           0x00000004 /* Link Status Change */
-#define E1000_ICR_RXSEQ         0x00000008 /* rx sequence error */
-#define E1000_ICR_RXDMT0        0x00000010 /* rx desc min. threshold (0) */
-#define E1000_ICR_RXT0          0x00000080 /* rx timer intr (ring 0) */
+#define E1000_ICR_RXSEQ         0x00000008 /* Rx sequence error */
+#define E1000_ICR_RXDMT0        0x00000010 /* Rx desc min. threshold (0) */
+#define E1000_ICR_RXT0          0x00000080 /* Rx timer intr (ring 0) */
 #define E1000_ICR_INT_ASSERTED  0x80000000 /* If this bit asserted, the driver should claim the interrupt */
 
-/* This defines the bits that are set in the Interrupt Mask
+/*
+ * This defines the bits that are set in the Interrupt Mask
  * Set/Read Register.  Each bit is documented below:
  *   o RXT0   = Receiver Timer Interrupt (ring 0)
  *   o TXDW   = Transmit Descriptor Written Back
@@ -379,21 +382,22 @@
 /* Interrupt Mask Set */
 #define E1000_IMS_TXDW      E1000_ICR_TXDW      /* Transmit desc written back */
 #define E1000_IMS_LSC       E1000_ICR_LSC       /* Link Status Change */
-#define E1000_IMS_RXSEQ     E1000_ICR_RXSEQ     /* rx sequence error */
-#define E1000_IMS_RXDMT0    E1000_ICR_RXDMT0    /* rx desc min. threshold */
-#define E1000_IMS_RXT0      E1000_ICR_RXT0      /* rx timer intr */
+#define E1000_IMS_RXSEQ     E1000_ICR_RXSEQ     /* Rx sequence error */
+#define E1000_IMS_RXDMT0    E1000_ICR_RXDMT0    /* Rx desc min. threshold */
+#define E1000_IMS_RXT0      E1000_ICR_RXT0      /* Rx timer intr */
 
 /* Interrupt Cause Set */
 #define E1000_ICS_LSC       E1000_ICR_LSC       /* Link Status Change */
 #define E1000_ICS_RXDMT0    E1000_ICR_RXDMT0    /* rx desc min. threshold */
+#define E1000_ICS_RXDMT0    E1000_ICR_RXDMT0    /* Rx desc min. threshold */
 
 /* Transmit Descriptor Control */
 #define E1000_TXDCTL_PTHRESH 0x0000003F /* TXDCTL Prefetch Threshold */
 #define E1000_TXDCTL_WTHRESH 0x003F0000 /* TXDCTL Writeback Threshold */
 #define E1000_TXDCTL_FULL_TX_DESC_WB 0x01010000 /* GRAN=1, WTHRESH=1 */
 #define E1000_TXDCTL_MAX_TX_DESC_PREFETCH 0x0100001F /* GRAN=1, PTHRESH=31 */
-#define E1000_TXDCTL_COUNT_DESC 0x00400000 /* Enable the counting of desc.
-					      still to be processed. */
+/* Enable the counting of desc. still to be processed. */
+#define E1000_TXDCTL_COUNT_DESC 0x00400000
 
 /* Flow Control Constants */
 #define FLOW_CONTROL_ADDRESS_LOW  0x00C28001
@@ -404,7 +408,8 @@
 #define E1000_VLAN_FILTER_TBL_SIZE 128  /* VLAN Filter Table (4096 bits) */
 
 /* Receive Address */
-/* Number of high/low register pairs in the RAR. The RAR (Receive Address
+/*
+ * Number of high/low register pairs in the RAR. The RAR (Receive Address
  * Registers) holds the directed and multicast addresses that we monitor.
  * Technically, we have 16 spots.  However, we reserve one of these spots
  * (RAR[15]) for our directed address used by controllers with
@@ -533,8 +538,8 @@
 #define E1000_EECD_REQ       0x00000040 /* NVM Access Request */
 #define E1000_EECD_GNT       0x00000080 /* NVM Access Grant */
 #define E1000_EECD_SIZE      0x00000200 /* NVM Size (0=64 word 1=256 word) */
-#define E1000_EECD_ADDR_BITS 0x00000400 /* NVM Addressing bits based on type
-					 * (0-small, 1-large) */
+/* NVM Addressing bits based on type (0-small, 1-large) */
+#define E1000_EECD_ADDR_BITS 0x00000400
 #define E1000_NVM_GRANT_ATTEMPTS   1000 /* NVM # attempts to gain grant */
 #define E1000_EECD_AUTO_RD          0x00000200  /* NVM Auto Read done */
 #define E1000_EECD_SIZE_EX_MASK     0x00007800  /* NVM Size */
@@ -626,7 +631,8 @@
 #define MAX_PHY_MULTI_PAGE_REG 0xF
 
 /* Bit definitions for valid PHY IDs. */
-/* I = Integrated
+/*
+ * I = Integrated
  * E = External
  */
 #define M88E1000_E_PHY_ID    0x01410C50
@@ -653,37 +659,37 @@
 #define M88E1000_PSCR_MDI_MANUAL_MODE  0x0000  /* MDI Crossover Mode bits 6:5 */
 					       /* Manual MDI configuration */
 #define M88E1000_PSCR_MDIX_MANUAL_MODE 0x0020  /* Manual MDIX configuration */
-#define M88E1000_PSCR_AUTO_X_1000T     0x0040  /* 1000BASE-T: Auto crossover,
-						*  100BASE-TX/10BASE-T:
-						*  MDI Mode
-						*/
-#define M88E1000_PSCR_AUTO_X_MODE      0x0060  /* Auto crossover enabled
-						* all speeds.
-						*/
-					/* 1=Enable Extended 10BASE-T distance
-					 * (Lower 10BASE-T RX Threshold)
-					 * 0=Normal 10BASE-T RX Threshold */
-					/* 1=5-Bit interface in 100BASE-TX
-					 * 0=MII interface in 100BASE-TX */
-#define M88E1000_PSCR_ASSERT_CRS_ON_TX     0x0800 /* 1=Assert CRS on Transmit */
+/* 1000BASE-T: Auto crossover, 100BASE-TX/10BASE-T: MDI Mode */
+#define M88E1000_PSCR_AUTO_X_1000T     0x0040
+/* Auto crossover enabled all speeds */
+#define M88E1000_PSCR_AUTO_X_MODE      0x0060
+/*
+ * 1=Enable Extended 10BASE-T distance (Lower 10BASE-T Rx Threshold)
+ * 0=Normal 10BASE-T Rx Threshold
+ */
+#define M88E1000_PSCR_ASSERT_CRS_ON_TX 0x0800 /* 1=Assert CRS on Transmit */
 
 /* M88E1000 PHY Specific Status Register */
 #define M88E1000_PSSR_REV_POLARITY       0x0002 /* 1=Polarity reversed */
 #define M88E1000_PSSR_DOWNSHIFT          0x0020 /* 1=Downshifted */
 #define M88E1000_PSSR_MDIX               0x0040 /* 1=MDIX; 0=MDI */
-#define M88E1000_PSSR_CABLE_LENGTH       0x0380 /* 0=<50M;1=50-80M;2=80-110M;
-					    * 3=110-140M;4=>140M */
+/* 0=<50M; 1=50-80M; 2=80-110M; 3=110-140M; 4=>140M */
+#define M88E1000_PSSR_CABLE_LENGTH       0x0380
 #define M88E1000_PSSR_SPEED              0xC000 /* Speed, bits 14:15 */
 #define M88E1000_PSSR_1000MBS            0x8000 /* 10=1000Mbs */
 
 #define M88E1000_PSSR_CABLE_LENGTH_SHIFT 7
 
-/* Number of times we will attempt to autonegotiate before downshifting if we
- * are the master */
+/*
+ * Number of times we will attempt to autonegotiate before downshifting if we
+ * are the master
+ */
 #define M88E1000_EPSCR_MASTER_DOWNSHIFT_MASK 0x0C00
 #define M88E1000_EPSCR_MASTER_DOWNSHIFT_1X   0x0000
-/* Number of times we will attempt to autonegotiate before downshifting if we
- * are the slave */
+/*
+ * Number of times we will attempt to autonegotiate before downshifting if we
+ * are the slave
+ */
 #define M88E1000_EPSCR_SLAVE_DOWNSHIFT_MASK  0x0300
 #define M88E1000_EPSCR_SLAVE_DOWNSHIFT_1X    0x0100
 #define M88E1000_EPSCR_TX_CLK_25      0x0070 /* 25  MHz TX_CLK */
@@ -692,7 +698,8 @@
 #define M88EC018_EPSCR_DOWNSHIFT_COUNTER_MASK  0x0E00
 #define M88EC018_EPSCR_DOWNSHIFT_COUNTER_5X    0x0800
 
-/* Bits...
+/*
+ * Bits...
  * 15-5: page
  * 4-0: register offset
  */
