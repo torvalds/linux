@@ -390,7 +390,7 @@ static int read_frame(struct zr364xx_camera *cam, int framenum)
 }
 
 
-static ssize_t zr364xx_read(struct file *file, char *buf, size_t cnt,
+static ssize_t zr364xx_read(struct file *file, char __user *buf, size_t cnt,
 			    loff_t * ppos)
 {
 	unsigned long count = cnt;
