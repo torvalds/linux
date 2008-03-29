@@ -189,7 +189,7 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	}
 
 	/* Populate the easy fields of our "struct lguest" */
-	lg->mem_base = (void __user *)(long)args[0];
+	lg->mem_base = (void __user *)args[0];
 	lg->pfn_limit = args[1];
 
 	/* This is the first cpu (cpu 0) and it will start booting at args[3] */
