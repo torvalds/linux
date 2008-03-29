@@ -1596,7 +1596,6 @@ int udp_proc_register(struct net *net, struct udp_seq_afinfo *afinfo)
 	struct proc_dir_entry *p;
 	int rc = 0;
 
-	afinfo->seq_fops.owner		= afinfo->owner;
 	afinfo->seq_fops.open		= udp_seq_open;
 	afinfo->seq_fops.read		= seq_read;
 	afinfo->seq_fops.llseek		= seq_lseek;
@@ -1656,10 +1655,12 @@ int udp4_seq_show(struct seq_file *seq, void *v)
 
 /* ------------------------------------------------------------------------ */
 static struct udp_seq_afinfo udp4_seq_afinfo = {
-	.owner		= THIS_MODULE,
 	.name		= "udp",
 	.family		= AF_INET,
 	.hashtable	= udp_hash,
+	.seq_fops	= {
+		.owner	=	THIS_MODULE,
+	},
 	.seq_ops	= {
 		.show		= udp4_seq_show,
 	},

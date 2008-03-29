@@ -72,10 +72,12 @@ static struct inet_protosw udplite4_protosw = {
 
 #ifdef CONFIG_PROC_FS
 static struct udp_seq_afinfo udplite4_seq_afinfo = {
-	.owner		= THIS_MODULE,
 	.name		= "udplite",
 	.family		= AF_INET,
 	.hashtable	= udplite_hash,
+	.seq_fops	= {
+		.owner	=	THIS_MODULE,
+	},
 	.seq_ops	= {
 		.show		= udp4_seq_show,
 	},

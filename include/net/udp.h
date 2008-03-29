@@ -185,7 +185,6 @@ DECLARE_SNMP_STAT(struct udp_mib, udplite_stats_in6);
 
 /* /proc */
 struct udp_seq_afinfo {
-	struct module		*owner;
 	char			*name;
 	sa_family_t		family;
 	struct hlist_head	*hashtable;
