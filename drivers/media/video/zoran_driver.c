@@ -339,7 +339,7 @@ v4l_fbuffer_alloc (struct file *file)
 			/* Use kmalloc */
 
 			mem = kmalloc(fh->v4l_buffers.buffer_size, GFP_KERNEL);
-			if (mem == 0) {
+			if (!mem) {
 				dprintk(1,
 					KERN_ERR
 					"%s: v4l_fbuffer_alloc() - kmalloc for V4L buf %d failed\n",

@@ -1072,12 +1072,12 @@ static int tvp5150_detect_client(struct i2c_adapter *adapter,
 		return 0;
 
 	c = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (c == 0)
+	if (!c)
 		return -ENOMEM;
 	memcpy(c, &client_template, sizeof(struct i2c_client));
 
 	core = kzalloc(sizeof(struct tvp5150), GFP_KERNEL);
-	if (core == 0) {
+	if (!core) {
 		kfree(c);
 		return -ENOMEM;
 	}
