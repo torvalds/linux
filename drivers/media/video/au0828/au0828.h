@@ -22,6 +22,7 @@
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <media/tveeprom.h>
 
 /* DVB */
 #include "demux.h"
@@ -103,6 +104,7 @@ extern struct usb_device_id au0828_usb_id_table[];
 extern const unsigned int au0828_bcount;
 extern void au0828_gpio_setup(struct au0828_dev *dev);
 extern int au0828_tuner_callback(void *priv, int command, int arg);
+extern void au0828_card_setup(struct au0828_dev *dev);
 
 /* ----------------------------------------------------------- */
 /* au0828-i2c.c */

@@ -75,6 +75,45 @@ int au0828_tuner_callback(void *priv, int command, int arg)
 	return 0; /* Should never be here */
 }
 
+static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
+{
+	struct tveeprom tv;
+
+	tveeprom_hauppauge_analog(&dev->i2c_client, &tv, eeprom_data);
+
+	/* Make sure we support the board model */
+	switch (tv.model)
+	{
+	case 72001: /* WinTV-HVR950q (Retail, IR, ATSC/QAM and basic analog video */
+		break;
+	default:
+		printk("%s: warning: unknown hauppauge model #%d\n", __FUNCTION__, tv.model);
+		break;
+	}
+
+	printk(KERN_INFO "%s: hauppauge eeprom: model=%d\n", __FUNCTION__, tv.model);
+}
+
+
+void au0828_card_setup(struct au0828_dev *dev)
+{
+
+	static u8 eeprom[256];
+
+	if (dev->i2c_rc == 0) {
+		dev->i2c_client.addr = 0xa0 >> 1;
+		tveeprom_read(&dev->i2c_client, eeprom, sizeof(eeprom));
+	}
+
+	switch(dev->board) {
+	case AU0828_BOARD_HAUPPAUGE_HVR850:
+	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
+		if (dev->i2c_rc == 0)
+			hauppauge_eeprom(dev, eeprom+0xa0);
+		break;
+	}
+}
+
 /*
  * The bridge has between 8 and 12 gpios.
  * Regs 1 and 0 deal with output enables.

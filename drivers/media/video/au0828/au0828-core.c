@@ -210,6 +210,9 @@ static int au0828_usb_probe (struct usb_interface *interface,
 	/* I2C */
 	au0828_i2c_register(dev);
 
+	/* Setup */
+	au0828_card_setup(dev);
+
 	/* Digital TV */
 	au0828_dvb_register(dev);
 
