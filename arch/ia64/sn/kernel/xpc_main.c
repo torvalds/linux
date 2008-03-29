@@ -199,7 +199,7 @@ xpc_timeout_partition_disengage_request(unsigned long data)
 	struct xpc_partition *part = (struct xpc_partition *) data;
 
 
-	DBUG_ON(jiffies < part->disengage_request_timeout);
+	DBUG_ON(time_before(jiffies, part->disengage_request_timeout));
 
 	(void) xpc_partition_disengaged(part);
 
@@ -230,7 +230,7 @@ xpc_hb_beater(unsigned long dummy)
 {
 	xpc_vars->heartbeat++;
 
-	if (jiffies >= xpc_hb_check_timeout) {
+	if (time_after_eq(jiffies, xpc_hb_check_timeout)) {
 		wake_up_interruptible(&xpc_act_IRQ_wq);
 	}
 
@@ -270,7 +270,7 @@ xpc_hb_checker(void *ignore)
 
 
 		/* checking of remote heartbeats is skewed by IRQ handling */
-		if (jiffies >= xpc_hb_check_timeout) {
+		if (time_after_eq(jiffies, xpc_hb_check_timeout)) {
 			dev_dbg(xpc_part, "checking remote heartbeats\n");
 			xpc_check_remote_hb();
 
@@ -305,7 +305,7 @@ xpc_hb_checker(void *ignore)
 		/* wait for IRQ or timeout */
 		(void) wait_event_interruptible(xpc_act_IRQ_wq,
 			    (last_IRQ_count < atomic_read(&xpc_act_IRQ_rcvd) ||
-					jiffies >= xpc_hb_check_timeout ||
+					time_after_eq(jiffies, xpc_hb_check_timeout) ||
 						(volatile int) xpc_exiting));
 	}
 
