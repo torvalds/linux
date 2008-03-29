@@ -1949,7 +1949,7 @@ static void __init init_all_queued(void)
 }
 
 static void __init sdebug_build_parts(unsigned char *ramp,
-				      unsigned int store_size)
+				      unsigned long store_size)
 {
 	struct partition * pp;
 	int starts[SDEBUG_MAX_PARTS + 2];
@@ -2476,14 +2476,14 @@ static void do_remove_driverfs_files(void)
 
 static int __init scsi_debug_init(void)
 {
-	unsigned int sz;
+	unsigned long sz;
 	int host_to_add;
 	int k;
 	int ret;
 
 	if (scsi_debug_dev_size_mb < 1)
 		scsi_debug_dev_size_mb = 1;  /* force minimum 1 MB ramdisk */
-	sz = (unsigned int)scsi_debug_dev_size_mb * 1048576;
+	sz = (unsigned long)scsi_debug_dev_size_mb * 1048576;
 	sdebug_store_sectors = sz / SECT_SIZE;
 	sdebug_capacity = get_sdebug_capacity();
 
