@@ -1204,8 +1204,6 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 
 	struct page *page;
 
-	down_read(&vcpu->kvm->slots_lock);
-
 	down_read(&current->mm->mmap_sem);
 	if (is_largepage_backed(vcpu, gfn & ~(KVM_PAGES_PER_HPAGE-1))) {
 		gfn &= ~(KVM_PAGES_PER_HPAGE-1);
@@ -1218,7 +1216,6 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 	/* mmio */
 	if (is_error_page(page)) {
 		kvm_release_page_clean(page);
-		up_read(&vcpu->kvm->slots_lock);
 		return 1;
 	}
 
@@ -1228,7 +1225,6 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 			 PT32E_ROOT_LEVEL);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
-	up_read(&vcpu->kvm->slots_lock);
 
 	return r;
 }
@@ -1376,9 +1372,9 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
 		largepage = 1;
 	}
 	page = gfn_to_page(vcpu->kvm, gfn);
+	up_read(&current->mm->mmap_sem);
 	if (is_error_page(page)) {
 		kvm_release_page_clean(page);
-		up_read(&current->mm->mmap_sem);
 		return 1;
 	}
 	spin_lock(&vcpu->kvm->mmu_lock);
@@ -1386,7 +1382,6 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
 	r = __direct_map(vcpu, gpa, error_code & PFERR_WRITE_MASK,
 			 largepage, gfn, page, TDP_ROOT_LEVEL);
 	spin_unlock(&vcpu->kvm->mmu_lock);
-	up_read(&current->mm->mmap_sem);
 
 	return r;
 }
@@ -1808,9 +1803,7 @@ int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)
 	gpa_t gpa;
 	int r;
 
-	down_read(&vcpu->kvm->slots_lock);
 	gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, gva);
-	up_read(&vcpu->kvm->slots_lock);
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 	r = kvm_mmu_unprotect_page(vcpu->kvm, gpa >> PAGE_SHIFT);
@@ -2063,7 +2056,7 @@ static int kvm_pv_mmu_write(struct kvm_vcpu *vcpu,
 	if (r)
 		return r;
 
-	if (!__emulator_write_phys(vcpu, addr, &value, bytes))
+	if (!emulator_write_phys(vcpu, addr, &value, bytes))
 		return -EFAULT;
 
 	return 1;
@@ -2127,7 +2120,6 @@ int kvm_pv_mmu_op(struct kvm_vcpu *vcpu, unsigned long bytes,
 	int r;
 	struct kvm_pv_mmu_op_buffer buffer;
 
-	down_read(&vcpu->kvm->slots_lock);
 	down_read(&current->mm->mmap_sem);
 
 	buffer.ptr = buffer.buf;
@@ -2150,7 +2142,6 @@ int kvm_pv_mmu_op(struct kvm_vcpu *vcpu, unsigned long bytes,
 out:
 	*ret = buffer.processed;
 	up_read(&current->mm->mmap_sem);
-	up_read(&vcpu->kvm->slots_lock);
 	return r;
 }
 

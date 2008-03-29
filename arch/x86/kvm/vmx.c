@@ -1505,7 +1505,6 @@ static int init_rmode_tss(struct kvm *kvm)
 	int ret = 0;
 	int r;
 
-	down_read(&kvm->slots_lock);
 	r = kvm_clear_guest_page(kvm, fn, 0, PAGE_SIZE);
 	if (r < 0)
 		goto out;
@@ -1528,7 +1527,6 @@ static int init_rmode_tss(struct kvm *kvm)
 
 	ret = 1;
 out:
-	up_read(&kvm->slots_lock);
 	return ret;
 }
 
@@ -1730,6 +1728,7 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	u64 msr;
 	int ret;
 
+	down_read(&vcpu->kvm->slots_lock);
 	if (!init_rmode_tss(vmx->vcpu.kvm)) {
 		ret = -ENOMEM;
 		goto out;
@@ -1833,9 +1832,10 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 
 	vpid_sync_vcpu_all(vmx);
 
-	return 0;
+	ret = 0;
 
 out:
+	up_read(&vcpu->kvm->slots_lock);
 	return ret;
 }
 

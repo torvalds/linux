@@ -388,7 +388,6 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	if (r)
 		return r;
 
-	down_read(&vcpu->kvm->slots_lock);
 	/*
 	 * Look up the shadow pte for the faulting address.
 	 */
@@ -402,7 +401,6 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 		pgprintk("%s: guest page fault\n", __func__);
 		inject_page_fault(vcpu, addr, walker.error_code);
 		vcpu->arch.last_pt_write_count = 0; /* reset fork detector */
-		up_read(&vcpu->kvm->slots_lock);
 		return 0;
 	}
 
@@ -422,7 +420,6 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	if (is_error_page(page)) {
 		pgprintk("gfn %x is mmio\n", walker.gfn);
 		kvm_release_page_clean(page);
-		up_read(&vcpu->kvm->slots_lock);
 		return 1;
 	}
 
@@ -440,7 +437,6 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	++vcpu->stat.pf_fixed;
 	kvm_mmu_audit(vcpu, "post page fault (fixed)");
 	spin_unlock(&vcpu->kvm->mmu_lock);
-	up_read(&vcpu->kvm->slots_lock);
 
 	return write_pt;
 }

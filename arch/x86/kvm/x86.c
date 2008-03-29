@@ -201,7 +201,6 @@ int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3)
 	int ret;
 	u64 pdpte[ARRAY_SIZE(vcpu->arch.pdptrs)];
 
-	down_read(&vcpu->kvm->slots_lock);
 	ret = kvm_read_guest_page(vcpu->kvm, pdpt_gfn, pdpte,
 				  offset * sizeof(u64), sizeof(pdpte));
 	if (ret < 0) {
@@ -218,7 +217,6 @@ int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3)
 
 	memcpy(vcpu->arch.pdptrs, pdpte, sizeof(vcpu->arch.pdptrs));
 out:
-	up_read(&vcpu->kvm->slots_lock);
 
 	return ret;
 }
@@ -233,13 +231,11 @@ static bool pdptrs_changed(struct kvm_vcpu *vcpu)
 	if (is_long_mode(vcpu) || !is_pae(vcpu))
 		return false;
 
-	down_read(&vcpu->kvm->slots_lock);
 	r = kvm_read_guest(vcpu->kvm, vcpu->arch.cr3 & ~31u, pdpte, sizeof(pdpte));
 	if (r < 0)
 		goto out;
 	changed = memcmp(pdpte, vcpu->arch.pdptrs, sizeof(pdpte)) != 0;
 out:
-	up_read(&vcpu->kvm->slots_lock);
 
 	return changed;
 }
@@ -377,7 +373,6 @@ void kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 		 */
 	}
 
-	down_read(&vcpu->kvm->slots_lock);
 	/*
 	 * Does the new cr3 value map to physical memory? (Note, we
 	 * catch an invalid cr3 even in real-mode, because it would
@@ -393,7 +388,6 @@ void kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 		vcpu->arch.cr3 = cr3;
 		vcpu->arch.mmu.new_cr3(vcpu);
 	}
-	up_read(&vcpu->kvm->slots_lock);
 }
 EXPORT_SYMBOL_GPL(kvm_set_cr3);
 
@@ -503,7 +497,6 @@ static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
 
 	version++;
 
-	down_read(&kvm->slots_lock);
 	kvm_write_guest(kvm, wall_clock, &version, sizeof(version));
 
 	wc_ts = current_kernel_time();
@@ -515,7 +508,6 @@ static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
 
 	version++;
 	kvm_write_guest(kvm, wall_clock, &version, sizeof(version));
-	up_read(&kvm->slots_lock);
 }
 
 static void kvm_write_guest_time(struct kvm_vcpu *v)
@@ -609,10 +601,8 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		vcpu->arch.hv_clock.tsc_shift = 22;
 
 		down_read(&current->mm->mmap_sem);
-		down_read(&vcpu->kvm->slots_lock);
 		vcpu->arch.time_page =
 				gfn_to_page(vcpu->kvm, data >> PAGE_SHIFT);
-		up_read(&vcpu->kvm->slots_lock);
 		up_read(&current->mm->mmap_sem);
 
 		if (is_error_page(vcpu->arch.time_page)) {
@@ -715,9 +705,11 @@ static int __msr_io(struct kvm_vcpu *vcpu, struct kvm_msrs *msrs,
 
 	vcpu_load(vcpu);
 
+	down_read(&vcpu->kvm->slots_lock);
 	for (i = 0; i < msrs->nmsrs; ++i)
 		if (do_msr(vcpu, entries[i].index, &entries[i].data))
 			break;
+	up_read(&vcpu->kvm->slots_lock);
 
 	vcpu_put(vcpu);
 
@@ -1768,7 +1760,6 @@ int emulator_read_std(unsigned long addr,
 	void *data = val;
 	int r = X86EMUL_CONTINUE;
 
-	down_read(&vcpu->kvm->slots_lock);
 	while (bytes) {
 		gpa_t gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, addr);
 		unsigned offset = addr & (PAGE_SIZE-1);
@@ -1790,7 +1781,6 @@ int emulator_read_std(unsigned long addr,
 		addr += tocopy;
 	}
 out:
-	up_read(&vcpu->kvm->slots_lock);
 	return r;
 }
 EXPORT_SYMBOL_GPL(emulator_read_std);
@@ -1809,9 +1799,7 @@ static int emulator_read_emulated(unsigned long addr,
 		return X86EMUL_CONTINUE;
 	}
 
-	down_read(&vcpu->kvm->slots_lock);
 	gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, addr);
-	up_read(&vcpu->kvm->slots_lock);
 
 	/* For APIC access vmexit */
 	if ((gpa & PAGE_MASK) == APIC_DEFAULT_PHYS_BASE)
@@ -1844,7 +1832,7 @@ mmio:
 	return X86EMUL_UNHANDLEABLE;
 }
 
-int __emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
+int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 			  const void *val, int bytes)
 {
 	int ret;
@@ -1856,17 +1844,6 @@ int __emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 	return 1;
 }
 
-static int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
-			const void *val, int bytes)
-{
-	int ret;
-
-	down_read(&vcpu->kvm->slots_lock);
-	ret =__emulator_write_phys(vcpu, gpa, val, bytes);
-	up_read(&vcpu->kvm->slots_lock);
-	return ret;
-}
-
 static int emulator_write_emulated_onepage(unsigned long addr,
 					   const void *val,
 					   unsigned int bytes,
@@ -1875,9 +1852,7 @@ static int emulator_write_emulated_onepage(unsigned long addr,
 	struct kvm_io_device *mmio_dev;
 	gpa_t                 gpa;
 
-	down_read(&vcpu->kvm->slots_lock);
 	gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, addr);
-	up_read(&vcpu->kvm->slots_lock);
 
 	if (gpa == UNMAPPED_GVA) {
 		kvm_inject_page_fault(vcpu, addr, 2);
@@ -1954,7 +1929,6 @@ static int emulator_cmpxchg_emulated(unsigned long addr,
 		char *kaddr;
 		u64 val;
 
-		down_read(&vcpu->kvm->slots_lock);
 		gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, addr);
 
 		if (gpa == UNMAPPED_GVA ||
@@ -1974,9 +1948,8 @@ static int emulator_cmpxchg_emulated(unsigned long addr,
 		set_64bit((u64 *)(kaddr + offset_in_page(gpa)), val);
 		kunmap_atomic(kaddr, KM_USER0);
 		kvm_release_page_dirty(page);
-	emul_write:
-		up_read(&vcpu->kvm->slots_lock);
 	}
+emul_write:
 #endif
 
 	return emulator_write_emulated(addr, new, bytes, vcpu);
@@ -2368,10 +2341,8 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 		kvm_x86_ops->skip_emulated_instruction(vcpu);
 
 	for (i = 0; i < nr_pages; ++i) {
-		down_read(&vcpu->kvm->slots_lock);
 		page = gva_to_page(vcpu, address + i * PAGE_SIZE);
 		vcpu->arch.pio.guest_pages[i] = page;
-		up_read(&vcpu->kvm->slots_lock);
 		if (!page) {
 			kvm_inject_gp(vcpu, 0);
 			free_pio_guest_pages(vcpu);
@@ -2445,7 +2416,9 @@ int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 	++vcpu->stat.halt_exits;
 	if (irqchip_in_kernel(vcpu->kvm)) {
 		vcpu->arch.mp_state = VCPU_MP_STATE_HALTED;
+		up_read(&vcpu->kvm->slots_lock);
 		kvm_vcpu_block(vcpu);
+		down_read(&vcpu->kvm->slots_lock);
 		if (vcpu->arch.mp_state != VCPU_MP_STATE_RUNNABLE)
 			return -EINTR;
 		return 1;
@@ -2738,6 +2711,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		vcpu->arch.mp_state = VCPU_MP_STATE_RUNNABLE;
 	}
 
+	down_read(&vcpu->kvm->slots_lock);
 	vapic_enter(vcpu);
 
 preempted:
@@ -2811,6 +2785,8 @@ again:
 
 	kvm_lapic_sync_to_vapic(vcpu);
 
+	up_read(&vcpu->kvm->slots_lock);
+
 	vcpu->guest_mode = 1;
 	kvm_guest_enter();
 
@@ -2836,6 +2812,8 @@ again:
 	kvm_guest_exit();
 
 	preempt_enable();
+
+	down_read(&vcpu->kvm->slots_lock);
 
 	/*
 	 * Profile KVM exit RIPs:
@@ -2864,14 +2842,18 @@ again:
 	}
 
 out:
+	up_read(&vcpu->kvm->slots_lock);
 	if (r > 0) {
 		kvm_resched(vcpu);
+		down_read(&vcpu->kvm->slots_lock);
 		goto preempted;
 	}
 
 	post_kvm_run_save(vcpu, kvm_run);
 
+	down_read(&vcpu->kvm->slots_lock);
 	vapic_exit(vcpu);
+	up_read(&vcpu->kvm->slots_lock);
 
 	return r;
 }
@@ -2906,9 +2888,12 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		memcpy(vcpu->mmio_data, kvm_run->mmio.data, 8);
 		vcpu->mmio_read_completed = 1;
 		vcpu->mmio_needed = 0;
+
+		down_read(&vcpu->kvm->slots_lock);
 		r = emulate_instruction(vcpu, kvm_run,
 					vcpu->arch.mmio_fault_cr2, 0,
 					EMULTYPE_NO_DECODE);
+		up_read(&vcpu->kvm->slots_lock);
 		if (r == EMULATE_DO_MMIO) {
 			/*
 			 * Read-modify-write.  Back to userspace.
@@ -3817,7 +3802,9 @@ fail:
 void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
 	kvm_free_lapic(vcpu);
+	down_read(&vcpu->kvm->slots_lock);
 	kvm_mmu_destroy(vcpu);
+	up_read(&vcpu->kvm->slots_lock);
 	free_page((unsigned long)vcpu->arch.pio_data);
 }
 
