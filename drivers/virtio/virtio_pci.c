@@ -37,7 +37,7 @@ struct virtio_pci_device
 	struct pci_dev *pci_dev;
 
 	/* the IO mapping for the PCI config space */
-	void *ioaddr;
+	void __iomem *ioaddr;
 
 	/* a list of queues so we can dispatch IRQs */
 	spinlock_t lock;
@@ -111,7 +111,7 @@ static void vp_get(struct virtio_device *vdev, unsigned offset,
 		   void *buf, unsigned len)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
-	void *ioaddr = vp_dev->ioaddr + VIRTIO_PCI_CONFIG + offset;
+	void __iomem *ioaddr = vp_dev->ioaddr + VIRTIO_PCI_CONFIG + offset;
 	u8 *ptr = buf;
 	int i;
 
@@ -125,7 +125,7 @@ static void vp_set(struct virtio_device *vdev, unsigned offset,
 		   const void *buf, unsigned len)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
-	void *ioaddr = vp_dev->ioaddr + VIRTIO_PCI_CONFIG + offset;
+	void __iomem *ioaddr = vp_dev->ioaddr + VIRTIO_PCI_CONFIG + offset;
 	const u8 *ptr = buf;
 	int i;
 
