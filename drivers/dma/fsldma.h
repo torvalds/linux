@@ -75,12 +75,15 @@
 #define FSL_DMA_DGSR_EOSI	0x02
 #define FSL_DMA_DGSR_EOLSI	0x01
 
+typedef u64 __bitwise v64;
+typedef u32 __bitwise v32;
+
 struct fsl_dma_ld_hw {
-	u64 __bitwise	src_addr;
-	u64 __bitwise	dst_addr;
-	u64 __bitwise	next_ln_addr;
-	u32 __bitwise	count;
-	u32 __bitwise	reserve;
+	v64 src_addr;
+	v64 dst_addr;
+	v64 next_ln_addr;
+	v32 count;
+	v32 reserve;
 } __attribute__((aligned(32)));
 
 struct fsl_desc_sw {
@@ -92,13 +95,13 @@ struct fsl_desc_sw {
 } __attribute__((aligned(32)));
 
 struct fsl_dma_chan_regs {
-	u32 __bitwise	mr;	/* 0x00 - Mode Register */
-	u32 __bitwise	sr;	/* 0x04 - Status Register */
-	u64 __bitwise	cdar;	/* 0x08 - Current descriptor address register */
-	u64 __bitwise	sar;	/* 0x10 - Source Address Register */
-	u64 __bitwise	dar;	/* 0x18 - Destination Address Register */
-	u32 __bitwise	bcr;	/* 0x20 - Byte Count Register */
-	u64 __bitwise	ndar;	/* 0x24 - Next Descriptor Address Register */
+	u32 mr;	/* 0x00 - Mode Register */
+	u32 sr;	/* 0x04 - Status Register */
+	u64 cdar;	/* 0x08 - Current descriptor address register */
+	u64 sar;	/* 0x10 - Source Address Register */
+	u64 dar;	/* 0x18 - Destination Address Register */
+	u32 bcr;	/* 0x20 - Byte Count Register */
+	u64 ndar;	/* 0x24 - Next Descriptor Address Register */
 };
 
 struct fsl_dma_chan;
@@ -151,25 +154,27 @@ struct fsl_dma_chan {
 #ifndef __powerpc64__
 static u64 in_be64(const u64 __iomem *addr)
 {
-	return ((u64)in_be32((u32 *)addr) << 32) | (in_be32((u32 *)addr + 1));
+	return ((u64)in_be32((u32 __iomem *)addr) << 32) |
+		(in_be32((u32 __iomem *)addr + 1));
 }
 
 static void out_be64(u64 __iomem *addr, u64 val)
 {
-	out_be32((u32 *)addr, val >> 32);
-	out_be32((u32 *)addr + 1, (u32)val);
+	out_be32((u32 __iomem *)addr, val >> 32);
+	out_be32((u32 __iomem *)addr + 1, (u32)val);
 }
 
 /* There is no asm instructions for 64 bits reverse loads and stores */
 static u64 in_le64(const u64 __iomem *addr)
 {
-	return ((u64)in_le32((u32 *)addr + 1) << 32) | (in_le32((u32 *)addr));
+	return ((u64)in_le32((u32 __iomem *)addr + 1) << 32) |
+		(in_le32((u32 __iomem *)addr));
 }
 
 static void out_le64(u64 __iomem *addr, u64 val)
 {
-	out_le32((u32 *)addr + 1, val >> 32);
-	out_le32((u32 *)addr, (u32)val);
+	out_le32((u32 __iomem *)addr + 1, val >> 32);
+	out_le32((u32 __iomem *)addr, (u32)val);
 }
 #endif
 
@@ -182,9 +187,11 @@ static void out_le64(u64 __iomem *addr, u64 val)
 
 #define DMA_TO_CPU(fsl_chan, d, width)					\
 		(((fsl_chan)->feature & FSL_DMA_BIG_ENDIAN) ?		\
-			be##width##_to_cpu(d) :	le##width##_to_cpu(d))
+			be##width##_to_cpu((__force __be##width)(v##width)d) : \
+			le##width##_to_cpu((__force __le##width)(v##width)d))
 #define CPU_TO_DMA(fsl_chan, c, width)					\
 		(((fsl_chan)->feature & FSL_DMA_BIG_ENDIAN) ?		\
-			cpu_to_be##width(c) : cpu_to_le##width(c))
+			(__force v##width)cpu_to_be##width(c) :		\
+			(__force v##width)cpu_to_le##width(c))
 
 #endif	/* __DMA_FSLDMA_H */
