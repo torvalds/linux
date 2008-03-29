@@ -47,6 +47,7 @@
 #include "debugfs.h"
 #include "phy.h"
 #include "dma.h"
+#include "pio.h"
 #include "sysfs.h"
 #include "xmit.h"
 #include "lo.h"
@@ -1593,8 +1594,12 @@ static void b43_interrupt_tasklet(struct b43_wldev *dev)
 		handle_irq_noise(dev);
 
 	/* Check the DMA reason registers for received data. */
-	if (dma_reason[0] & B43_DMAIRQ_RX_DONE)
-		b43_dma_rx(dev->dma.rx_ring);
+	if (dma_reason[0] & B43_DMAIRQ_RX_DONE) {
+		if (b43_using_pio_transfers(dev))
+			b43_pio_rx(dev->pio.rx_queue);
+		else
+			b43_dma_rx(dev->dma.rx_ring);
+	}
 	B43_WARN_ON(dma_reason[1] & B43_DMAIRQ_RX_DONE);
 	B43_WARN_ON(dma_reason[2] & B43_DMAIRQ_RX_DONE);
 	B43_WARN_ON(dma_reason[3] & B43_DMAIRQ_RX_DONE);
@@ -2698,12 +2703,21 @@ static int b43_op_tx(struct ieee80211_hw *hw,
 	struct b43_wldev *dev = wl->current_dev;
 	int err = -ENODEV;
 
+	if (unlikely(skb->len < 2 + 2 + 6)) {
+		/* Too short, this can't be a valid frame. */
+		return -EINVAL;
+	}
+	B43_WARN_ON(skb_shinfo(skb)->nr_frags);
+
 	if (unlikely(!dev))
 		goto out;
 	if (unlikely(b43_status(dev) < B43_STAT_STARTED))
 		goto out;
-	/* DMA-TX is done without a global lock. */
-	err = b43_dma_tx(dev, skb, ctl);
+	/* TX is done without a global lock. */
+	if (b43_using_pio_transfers(dev))
+		err = b43_pio_tx(dev, skb, ctl);
+	else
+		err = b43_dma_tx(dev, skb, ctl);
 out:
 	if (unlikely(err))
 		return NETDEV_TX_BUSY;
@@ -2897,7 +2911,10 @@ static int b43_op_get_tx_stats(struct ieee80211_hw *hw,
 		goto out;
 	spin_lock_irqsave(&wl->irq_lock, flags);
 	if (likely(b43_status(dev) >= B43_STAT_STARTED)) {
-		b43_dma_get_tx_stats(dev, stats);
+		if (b43_using_pio_transfers(dev))
+			b43_pio_get_tx_stats(dev, stats);
+		else
+			b43_dma_get_tx_stats(dev, stats);
 		err = 0;
 	}
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
@@ -3366,6 +3383,7 @@ static void b43_wireless_core_stop(struct b43_wldev *dev)
 
 	b43_set_status(dev, B43_STAT_INITIALIZED);
 
+	b43_pio_stop(dev);
 	mutex_unlock(&wl->mutex);
 	/* Must unlock as it would otherwise deadlock. No races here.
 	 * Cancel the possibly running self-rearming periodic work. */
@@ -3683,6 +3701,7 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 		b43_rng_exit(dev->wl, false);
 	}
 	b43_dma_free(dev);
+	b43_pio_free(dev);
 	b43_chip_exit(dev);
 	b43_radio_turn_off(dev, 1);
 	b43_switch_analog(dev, 0);
@@ -3780,7 +3799,13 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	/* Maximum Contention Window */
 	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_MAXCONT, 0x3FF);
 
-	err = b43_dma_init(dev);
+	if ((dev->dev->bus->bustype == SSB_BUSTYPE_PCMCIA) || B43_FORCE_PIO) {
+		dev->__using_pio_transfers = 1;
+		err = b43_pio_init(dev);
+	} else {
+		dev->__using_pio_transfers = 0;
+		err = b43_dma_init(dev);
+	}
 	if (err)
 		goto err_chip_exit;
 	b43_qos_init(dev);

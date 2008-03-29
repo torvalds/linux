@@ -207,18 +207,6 @@ enum {
 	B43_TXST_SUPP_ABNACK,	/* Afterburner NACK */
 };
 
-/* Transmit Status as received through DMA/PIO on old chips */
-struct b43_hwtxstatus {
-	PAD_BYTES(4);
-	__le16 cookie;
-	u8 flags;
-	u8 count;
-	 PAD_BYTES(2);
-	__le16 seq;
-	u8 phy_stat;
-	 PAD_BYTES(1);
-} __attribute__ ((__packed__));
-
 /* Receive header for v4 firmware. */
 struct b43_rxhdr_fw4 {
 	__le16 frame_len;	/* Frame length */
@@ -295,9 +283,8 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr);
 
 void b43_handle_txstatus(struct b43_wldev *dev,
 			 const struct b43_txstatus *status);
-
-void b43_handle_hwtxstatus(struct b43_wldev *dev,
-			   const struct b43_hwtxstatus *hw);
+bool b43_fill_txstatus_report(struct ieee80211_tx_status *report,
+			      const struct b43_txstatus *status);
 
 void b43_tx_suspend(struct b43_wldev *dev);
 void b43_tx_resume(struct b43_wldev *dev);

@@ -30,6 +30,7 @@
 #include "xmit.h"
 #include "phy.h"
 #include "dma.h"
+#include "pio.h"
 
 
 /* Extract the bitrate index out of a CCK PLCP header. */
@@ -668,40 +669,54 @@ void b43_handle_txstatus(struct b43_wldev *dev,
 			dev->wl->ieee_stats.dot11RTSSuccessCount++;
 	}
 
-	b43_dma_handle_txstatus(dev, status);
+	if (b43_using_pio_transfers(dev))
+		b43_pio_handle_txstatus(dev, status);
+	else
+		b43_dma_handle_txstatus(dev, status);
 }
 
-/* Handle TX status report as received through DMA/PIO queues */
-void b43_handle_hwtxstatus(struct b43_wldev *dev,
-			   const struct b43_hwtxstatus *hw)
+/* Fill out the mac80211 TXstatus report based on the b43-specific
+ * txstatus report data. This returns a boolean whether the frame was
+ * successfully transmitted. */
+bool b43_fill_txstatus_report(struct ieee80211_tx_status *report,
+			      const struct b43_txstatus *status)
 {
-	struct b43_txstatus status;
-	u8 tmp;
+	bool frame_success = 1;
 
-	status.cookie = le16_to_cpu(hw->cookie);
-	status.seq = le16_to_cpu(hw->seq);
-	status.phy_stat = hw->phy_stat;
-	tmp = hw->count;
-	status.frame_count = (tmp >> 4);
-	status.rts_count = (tmp & 0x0F);
-	tmp = hw->flags;
-	status.supp_reason = ((tmp & 0x1C) >> 2);
-	status.pm_indicated = !!(tmp & 0x80);
-	status.intermediate = !!(tmp & 0x40);
-	status.for_ampdu = !!(tmp & 0x20);
-	status.acked = !!(tmp & 0x02);
+	if (status->acked) {
+		/* The frame was ACKed. */
+		report->flags |= IEEE80211_TX_STATUS_ACK;
+	} else {
+		/* The frame was not ACKed... */
+		if (!(report->control.flags & IEEE80211_TXCTL_NO_ACK)) {
+			/* ...but we expected an ACK. */
+			frame_success = 0;
+			report->excessive_retries = 1;
+		}
+	}
+	if (status->frame_count == 0) {
+		/* The frame was not transmitted at all. */
+		report->retry_count = 0;
+	} else
+		report->retry_count = status->frame_count - 1;
 
-	b43_handle_txstatus(dev, &status);
+	return frame_success;
 }
 
 /* Stop any TX operation on the device (suspend the hardware queues) */
 void b43_tx_suspend(struct b43_wldev *dev)
 {
-	b43_dma_tx_suspend(dev);
+	if (b43_using_pio_transfers(dev))
+		b43_pio_tx_suspend(dev);
+	else
+		b43_dma_tx_suspend(dev);
 }
 
 /* Resume any TX operation on the device (resume the hardware queues) */
 void b43_tx_resume(struct b43_wldev *dev)
 {
-	b43_dma_tx_resume(dev);
+	if (b43_using_pio_transfers(dev))
+		b43_pio_tx_resume(dev);
+	else
+		b43_dma_tx_resume(dev);
 }

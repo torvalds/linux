@@ -75,6 +75,23 @@
 #define B43_MMIO_DMA64_BASE4		0x300
 #define B43_MMIO_DMA64_BASE5		0x340
 
+/* PIO on core rev < 11 */
+#define B43_MMIO_PIO_BASE0		0x300
+#define B43_MMIO_PIO_BASE1		0x310
+#define B43_MMIO_PIO_BASE2		0x320
+#define B43_MMIO_PIO_BASE3		0x330
+#define B43_MMIO_PIO_BASE4		0x340
+#define B43_MMIO_PIO_BASE5		0x350
+#define B43_MMIO_PIO_BASE6		0x360
+#define B43_MMIO_PIO_BASE7		0x370
+/* PIO on core rev >= 11 */
+#define B43_MMIO_PIO11_BASE0		0x200
+#define B43_MMIO_PIO11_BASE1		0x240
+#define B43_MMIO_PIO11_BASE2		0x280
+#define B43_MMIO_PIO11_BASE3		0x2C0
+#define B43_MMIO_PIO11_BASE4		0x300
+#define B43_MMIO_PIO11_BASE5		0x340
+
 #define B43_MMIO_PHY_VER		0x3E0
 #define B43_MMIO_PHY_RADIO		0x3E2
 #define B43_MMIO_PHY0			0x3E6
@@ -442,7 +459,6 @@ enum {
 };
 
 struct b43_dmaring;
-struct b43_pioqueue;
 
 /* The firmware file header */
 #define B43_FW_TYPE_UCODE	'u'
@@ -596,6 +612,20 @@ struct b43_dma {
 	struct b43_dmaring *tx_ring_mcast; /* Multicast */
 
 	struct b43_dmaring *rx_ring;
+};
+
+struct b43_pio_txqueue;
+struct b43_pio_rxqueue;
+
+/* Data structures for PIO transmission, per 80211 core. */
+struct b43_pio {
+	struct b43_pio_txqueue *tx_queue_AC_BK; /* Background */
+	struct b43_pio_txqueue *tx_queue_AC_BE; /* Best Effort */
+	struct b43_pio_txqueue *tx_queue_AC_VI; /* Video */
+	struct b43_pio_txqueue *tx_queue_AC_VO; /* Voice */
+	struct b43_pio_txqueue *tx_queue_mcast; /* Multicast */
+
+	struct b43_pio_rxqueue *rx_queue;
 };
 
 /* Context information for a noise calculation (Link Quality). */
@@ -773,8 +803,15 @@ struct b43_wldev {
 	/* PHY/Radio device. */
 	struct b43_phy phy;
 
-	/* DMA engines. */
-	struct b43_dma dma;
+	union {
+		/* DMA engines. */
+		struct b43_dma dma;
+		/* PIO engines. */
+		struct b43_pio pio;
+	};
+	/* Use b43_using_pio_transfers() to check whether we are using
+	 * DMA or PIO data transfers. */
+	bool __using_pio_transfers;
 
 	/* Various statistics about the physical device. */
 	struct b43_stats stats;
@@ -857,6 +894,22 @@ static inline void b43_write32(struct b43_wldev *dev, u16 offset, u32 value)
 {
 	ssb_write32(dev->dev, offset, value);
 }
+
+static inline bool b43_using_pio_transfers(struct b43_wldev *dev)
+{
+#ifdef CONFIG_B43_PIO
+	return dev->__using_pio_transfers;
+#else
+	return 0;
+#endif
+}
+
+#ifdef CONFIG_B43_FORCE_PIO
+# define B43_FORCE_PIO	1
+#else
+# define B43_FORCE_PIO	0
+#endif
+
 
 /* Message printing */
 void b43info(struct b43_wl *wl, const char *fmt, ...)
