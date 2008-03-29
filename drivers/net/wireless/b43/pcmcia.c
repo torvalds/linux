@@ -43,14 +43,16 @@ MODULE_DEVICE_TABLE(pcmcia, b43_pcmcia_tbl);
 #ifdef CONFIG_PM
 static int b43_pcmcia_suspend(struct pcmcia_device *dev)
 {
-	//TODO
-	return 0;
+	struct ssb_bus *ssb = dev->priv;
+
+	return ssb_bus_suspend(ssb);
 }
 
 static int b43_pcmcia_resume(struct pcmcia_device *dev)
 {
-	//TODO
-	return 0;
+	struct ssb_bus *ssb = dev->priv;
+
+	return ssb_bus_resume(ssb);
 }
 #else /* CONFIG_PM */
 # define b43_pcmcia_suspend		NULL

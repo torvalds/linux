@@ -120,35 +120,12 @@ static void ssb_device_put(struct ssb_device *dev)
 		put_device(dev->dev);
 }
 
-static int ssb_bus_resume(struct ssb_bus *bus)
-{
-	int err;
-
-	ssb_pci_xtal(bus, SSB_GPIO_XTAL | SSB_GPIO_PLL, 1);
-	err = ssb_pcmcia_init(bus);
-	if (err) {
-		/* No need to disable XTAL, as we don't have one on PCMCIA. */
-		return err;
-	}
-	ssb_chipco_resume(&bus->chipco);
-
-	return 0;
-}
-
 static int ssb_device_resume(struct device *dev)
 {
 	struct ssb_device *ssb_dev = dev_to_ssb_dev(dev);
 	struct ssb_driver *ssb_drv;
-	struct ssb_bus *bus;
 	int err = 0;
 
-	bus = ssb_dev->bus;
-	if (bus->suspend_cnt == bus->nr_devices) {
-		err = ssb_bus_resume(bus);
-		if (err)
-			return err;
-	}
-	bus->suspend_cnt--;
 	if (dev->driver) {
 		ssb_drv = drv_to_ssb_drv(dev->driver);
 		if (ssb_drv && ssb_drv->resume)
@@ -160,27 +137,10 @@ out:
 	return err;
 }
 
-static void ssb_bus_suspend(struct ssb_bus *bus, pm_message_t state)
-{
-	ssb_chipco_suspend(&bus->chipco, state);
-	ssb_pci_xtal(bus, SSB_GPIO_XTAL | SSB_GPIO_PLL, 0);
-
-	/* Reset HW state information in memory, so that HW is
-	 * completely reinitialized on resume. */
-	bus->mapped_device = NULL;
-#ifdef CONFIG_SSB_DRIVER_PCICORE
-	bus->pcicore.setup_done = 0;
-#endif
-#ifdef CONFIG_SSB_DEBUG
-	bus->powered_up = 0;
-#endif
-}
-
 static int ssb_device_suspend(struct device *dev, pm_message_t state)
 {
 	struct ssb_device *ssb_dev = dev_to_ssb_dev(dev);
 	struct ssb_driver *ssb_drv;
-	struct ssb_bus *bus;
 	int err = 0;
 
 	if (dev->driver) {
@@ -190,17 +150,44 @@ static int ssb_device_suspend(struct device *dev, pm_message_t state)
 		if (err)
 			goto out;
 	}
-
-	bus = ssb_dev->bus;
-	bus->suspend_cnt++;
-	if (bus->suspend_cnt == bus->nr_devices) {
-		/* All devices suspended. Shutdown the bus. */
-		ssb_bus_suspend(bus, state);
-	}
-
 out:
 	return err;
 }
+
+int ssb_bus_resume(struct ssb_bus *bus)
+{
+	int err;
+
+	/* Reset HW state information in memory, so that HW is
+	 * completely reinitialized. */
+	bus->mapped_device = NULL;
+#ifdef CONFIG_SSB_DRIVER_PCICORE
+	bus->pcicore.setup_done = 0;
+#endif
+
+	err = ssb_bus_powerup(bus, 0);
+	if (err)
+		return err;
+	err = ssb_pcmcia_hardware_setup(bus);
+	if (err) {
+		ssb_bus_may_powerdown(bus);
+		return err;
+	}
+	ssb_chipco_resume(&bus->chipco);
+	ssb_bus_may_powerdown(bus);
+
+	return 0;
+}
+EXPORT_SYMBOL(ssb_bus_resume);
+
+int ssb_bus_suspend(struct ssb_bus *bus)
+{
+	ssb_chipco_suspend(&bus->chipco);
+	ssb_pci_xtal(bus, SSB_GPIO_XTAL | SSB_GPIO_PLL, 0);
+
+	return 0;
+}
+EXPORT_SYMBOL(ssb_bus_suspend);
 
 #ifdef CONFIG_SSB_PCIHOST
 int ssb_devices_freeze(struct ssb_bus *bus)

@@ -81,6 +81,7 @@ extern int ssb_pcmcia_switch_segment(struct ssb_bus *bus,
 				     u8 seg);
 extern int ssb_pcmcia_get_invariants(struct ssb_bus *bus,
 				     struct ssb_init_invariants *iv);
+extern int ssb_pcmcia_hardware_setup(struct ssb_bus *bus);
 extern void ssb_pcmcia_exit(struct ssb_bus *bus);
 extern int ssb_pcmcia_init(struct ssb_bus *bus);
 extern const struct ssb_bus_ops ssb_pcmcia_ops;
@@ -97,6 +98,10 @@ static inline int ssb_pcmcia_switch_coreidx(struct ssb_bus *bus,
 }
 static inline int ssb_pcmcia_switch_segment(struct ssb_bus *bus,
 					    u8 seg)
+{
+	return 0;
+}
+static inline int ssb_pcmcia_hardware_setup(struct ssb_bus *bus)
 {
 	return 0;
 }

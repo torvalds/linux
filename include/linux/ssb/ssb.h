@@ -260,9 +260,6 @@ struct ssb_bus {
 	struct ssb_device devices[SSB_MAX_NR_CORES];
 	u8 nr_devices;
 
-	/* Reference count. Number of suspended devices. */
-	u8 suspend_cnt;
-
 	/* Software ID number for this bus. */
 	unsigned int busnumber;
 
@@ -333,6 +330,13 @@ extern int ssb_bus_pcmciabus_register(struct ssb_bus *bus,
 #endif /* CONFIG_SSB_PCMCIAHOST */
 
 extern void ssb_bus_unregister(struct ssb_bus *bus);
+
+/* Suspend a SSB bus.
+ * Call this from the parent bus suspend routine. */
+extern int ssb_bus_suspend(struct ssb_bus *bus);
+/* Resume a SSB bus.
+ * Call this from the parent bus resume routine. */
+extern int ssb_bus_resume(struct ssb_bus *bus);
 
 extern u32 ssb_clockspeed(struct ssb_bus *bus);
 

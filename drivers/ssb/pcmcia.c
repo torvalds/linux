@@ -684,6 +684,29 @@ static int ssb_pcmcia_cor_setup(struct ssb_bus *bus, u8 cor)
 	return 0;
 }
 
+/* Initialize the PCMCIA hardware. This is called on Init and Resume. */
+int ssb_pcmcia_hardware_setup(struct ssb_bus *bus)
+{
+	int err;
+
+	if (bus->bustype != SSB_BUSTYPE_PCMCIA)
+		return 0;
+
+	/* Switch segment to a known state and sync
+	 * bus->mapped_pcmcia_seg with hardware state. */
+	ssb_pcmcia_switch_segment(bus, 0);
+	/* Init the COR register. */
+	err = ssb_pcmcia_cor_setup(bus, CISREG_COR);
+	if (err)
+		return err;
+	/* Some cards also need this register to get poked. */
+	err = ssb_pcmcia_cor_setup(bus, CISREG_COR + 0x80);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 void ssb_pcmcia_exit(struct ssb_bus *bus)
 {
 	if (bus->bustype != SSB_BUSTYPE_PCMCIA)
@@ -699,16 +722,7 @@ int ssb_pcmcia_init(struct ssb_bus *bus)
 	if (bus->bustype != SSB_BUSTYPE_PCMCIA)
 		return 0;
 
-	/* Switch segment to a known state and sync
-	 * bus->mapped_pcmcia_seg with hardware state. */
-	ssb_pcmcia_switch_segment(bus, 0);
-
-	/* Init the COR register. */
-	err = ssb_pcmcia_cor_setup(bus, CISREG_COR);
-	if (err)
-		goto error;
-	/* Some cards also need this register to get poked. */
-	err = ssb_pcmcia_cor_setup(bus, CISREG_COR + 0x80);
+	err = ssb_pcmcia_hardware_setup(bus);
 	if (err)
 		goto error;
 

@@ -18,6 +18,12 @@
 #ifdef CONFIG_PM
 static int ssb_pcihost_suspend(struct pci_dev *dev, pm_message_t state)
 {
+	struct ssb_bus *ssb = pci_get_drvdata(dev);
+	int err;
+
+	err = ssb_bus_suspend(ssb);
+	if (err)
+		return err;
 	pci_save_state(dev);
 	pci_disable_device(dev);
 	pci_set_power_state(dev, pci_choose_state(dev, state));
@@ -27,6 +33,7 @@ static int ssb_pcihost_suspend(struct pci_dev *dev, pm_message_t state)
 
 static int ssb_pcihost_resume(struct pci_dev *dev)
 {
+	struct ssb_bus *ssb = pci_get_drvdata(dev);
 	int err;
 
 	pci_set_power_state(dev, 0);
@@ -34,6 +41,9 @@ static int ssb_pcihost_resume(struct pci_dev *dev)
 	if (err)
 		return err;
 	pci_restore_state(dev);
+	err = ssb_bus_resume(ssb);
+	if (err)
+		return err;
 
 	return 0;
 }

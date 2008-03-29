@@ -367,8 +367,7 @@ static inline bool ssb_chipco_available(struct ssb_chipcommon *cc)
 
 extern void ssb_chipcommon_init(struct ssb_chipcommon *cc);
 
-#include <linux/pm.h>
-extern void ssb_chipco_suspend(struct ssb_chipcommon *cc, pm_message_t state);
+extern void ssb_chipco_suspend(struct ssb_chipcommon *cc);
 extern void ssb_chipco_resume(struct ssb_chipcommon *cc);
 
 extern void ssb_chipco_get_clockcpu(struct ssb_chipcommon *cc,

@@ -251,7 +251,7 @@ void ssb_chipcommon_init(struct ssb_chipcommon *cc)
 	calc_fast_powerup_delay(cc);
 }
 
-void ssb_chipco_suspend(struct ssb_chipcommon *cc, pm_message_t state)
+void ssb_chipco_suspend(struct ssb_chipcommon *cc)
 {
 	if (!cc->dev)
 		return;
