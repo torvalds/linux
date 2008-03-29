@@ -1503,7 +1503,7 @@ static struct sock *udp_get_first(struct seq_file *seq)
 {
 	struct sock *sk;
 	struct udp_iter_state *state = seq->private;
-	struct net *net = state->net;
+	struct net *net = seq_file_net(seq);
 
 	for (state->bucket = 0; state->bucket < UDP_HTABLE_SIZE; ++state->bucket) {
 		struct hlist_node *node;
@@ -1522,7 +1522,7 @@ found:
 static struct sock *udp_get_next(struct seq_file *seq, struct sock *sk)
 {
 	struct udp_iter_state *state = seq->private;
-	struct net *net = state->net;
+	struct net *net = seq_file_net(seq);
 
 	do {
 		sk = sk_next(sk);
@@ -1595,7 +1595,7 @@ static int udp_seq_open(struct inode *inode, struct file *file)
 	s->seq_ops.next		= udp_seq_next;
 	s->seq_ops.show		= afinfo->seq_show;
 	s->seq_ops.stop		= udp_seq_stop;
-	s->net                  = net;
+	s->p.net                = net;
 
 	rc = seq_open(file, &s->seq_ops);
 	if (rc)
@@ -1617,7 +1617,7 @@ static int udp_seq_release(struct inode *inode, struct file *file)
 	struct seq_file *seq = file->private_data;
 	struct udp_iter_state *s = seq->private;
 
-	put_net(s->net);
+	put_net(s->p.net);
 	seq_release_private(inode, file);
 	return 0;
 }
