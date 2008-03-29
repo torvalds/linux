@@ -1576,46 +1576,18 @@ static void udp_seq_stop(struct seq_file *seq, void *v)
 static int udp_seq_open(struct inode *inode, struct file *file)
 {
 	struct udp_seq_afinfo *afinfo = PDE(inode)->data;
-	struct seq_file *seq;
-	struct net *net;
-	int rc = -ENOMEM;
-	struct udp_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
+	struct udp_iter_state *s;
+	int err;
 
-	if (!s)
-		goto out;
+	err = seq_open_net(inode, file, &afinfo->seq_ops,
+			   sizeof(struct udp_iter_state));
+	if (err < 0)
+		return err;
 
-	rc = -ENXIO;
-	net = get_proc_net(inode);
-	if (!net)
-		goto out_kfree;
-
+	s = ((struct seq_file *)file->private_data)->private;
 	s->family		= afinfo->family;
 	s->hashtable		= afinfo->hashtable;
-	s->p.net                = net;
-
-	rc = seq_open(file, &afinfo->seq_ops);
-	if (rc)
-		goto out_put_net;
-
-	seq = file->private_data;
-	seq->private = s;
-out:
-	return rc;
-out_put_net:
-	put_net(net);
-out_kfree:
-	kfree(s);
-	goto out;
-}
-
-static int udp_seq_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct udp_iter_state *s = seq->private;
-
-	put_net(s->p.net);
-	seq_release_private(inode, file);
-	return 0;
+	return err;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1628,7 +1600,7 @@ int udp_proc_register(struct net *net, struct udp_seq_afinfo *afinfo)
 	afinfo->seq_fops->open		= udp_seq_open;
 	afinfo->seq_fops->read		= seq_read;
 	afinfo->seq_fops->llseek	= seq_lseek;
-	afinfo->seq_fops->release	= udp_seq_release;
+	afinfo->seq_fops->release	= seq_release_net;
 
 	afinfo->seq_ops.start		= udp_seq_start;
 	afinfo->seq_ops.next		= udp_seq_next;
