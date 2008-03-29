@@ -96,13 +96,11 @@ void udplitev6_exit(void)
 }
 
 #ifdef CONFIG_PROC_FS
-static struct file_operations udplite6_seq_fops;
 static struct udp_seq_afinfo udplite6_seq_afinfo = {
 	.owner		= THIS_MODULE,
 	.name		= "udplite6",
 	.family		= AF_INET6,
 	.hashtable	= udplite_hash,
-	.seq_fops	= &udplite6_seq_fops,
 	.seq_ops	= {
 		.show		= udp6_seq_show,
 	},

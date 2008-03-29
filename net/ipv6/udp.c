@@ -977,13 +977,11 @@ int udp6_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct file_operations udp6_seq_fops;
 static struct udp_seq_afinfo udp6_seq_afinfo = {
 	.owner		= THIS_MODULE,
 	.name		= "udp6",
 	.family		= AF_INET6,
 	.hashtable	= udp_hash,
-	.seq_fops	= &udp6_seq_fops,
 	.seq_ops	= {
 		.show		= udp6_seq_show,
 	},

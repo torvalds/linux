@@ -189,7 +189,7 @@ struct udp_seq_afinfo {
 	char			*name;
 	sa_family_t		family;
 	struct hlist_head	*hashtable;
-	struct file_operations	*seq_fops;
+	struct file_operations	seq_fops;
 	struct seq_operations	seq_ops;
 };
 
