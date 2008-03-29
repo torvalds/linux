@@ -1628,8 +1628,6 @@ int udp_proc_register(struct net *net, struct udp_seq_afinfo *afinfo)
 	struct proc_dir_entry *p;
 	int rc = 0;
 
-	if (!afinfo)
-		return -EINVAL;
 	afinfo->seq_fops->owner		= afinfo->owner;
 	afinfo->seq_fops->open		= udp_seq_open;
 	afinfo->seq_fops->read		= seq_read;
@@ -1646,8 +1644,6 @@ int udp_proc_register(struct net *net, struct udp_seq_afinfo *afinfo)
 
 void udp_proc_unregister(struct net *net, struct udp_seq_afinfo *afinfo)
 {
-	if (!afinfo)
-		return;
 	proc_net_remove(net, afinfo->name);
 	memset(afinfo->seq_fops, 0, sizeof(*afinfo->seq_fops));
 }
