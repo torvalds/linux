@@ -972,7 +972,7 @@ static void ata_dev_disable_pm(struct ata_device *dev)
 void ata_lpm_schedule(struct ata_port *ap, enum link_pm policy)
 {
 	ap->pm_policy = policy;
-	ap->link.eh_info.action |= ATA_EHI_LPM;
+	ap->link.eh_info.action |= ATA_EH_LPM;
 	ap->link.eh_info.flags |= ATA_EHI_NO_AUTOPSY;
 	ata_port_schedule_eh(ap);
 }
