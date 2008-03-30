@@ -853,6 +853,9 @@ static void evdev_cleanup(struct evdev *evdev)
 	evdev_hangup(evdev);
 	evdev_remove_chrdev(evdev);
 
+	if (evdev->grab)
+		evdev_ungrab(evdev, evdev->grab);
+
 	/* evdev is marked dead so no one else accesses evdev->open */
 	if (evdev->open) {
 		input_flush_device(handle, NULL);
