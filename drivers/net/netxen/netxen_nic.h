@@ -95,23 +95,6 @@
 
 #define ADDR_IN_WINDOW1(off)	\
 	((off > NETXEN_CRB_PCIX_HOST2) && (off < NETXEN_CRB_MAX)) ? 1 : 0
-/*
- * In netxen_nic_down(), we must wait for any pending callback requests into
- * netxen_watchdog_task() to complete; eg otherwise the watchdog_timer could be
- * reenabled right after it is deleted in netxen_nic_down(). FLUSH_SCHEDULED_WORK()
- * does this synchronization.
- *
- * Normally, schedule_work()/flush_scheduled_work() could have worked, but
- * netxen_nic_close() is invoked with kernel rtnl lock held. netif_carrier_off()
- * call in netxen_nic_close() triggers a schedule_work(&linkwatch_work), and a
- * subsequent call to flush_scheduled_work() in netxen_nic_down() would cause
- * linkwatch_event() to be executed which also attempts to acquire the rtnl
- * lock thus causing a deadlock.
- */
-
-#define SCHEDULE_WORK(tp)	queue_work(netxen_workq, tp)
-#define FLUSH_SCHEDULED_WORK()	flush_workqueue(netxen_workq)
-extern struct workqueue_struct *netxen_workq;
 
 /*
  * normalize a 64MB crb address to 32MB PCI window
