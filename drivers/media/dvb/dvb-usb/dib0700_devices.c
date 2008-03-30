@@ -1115,6 +1115,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_YUAN,	USB_PID_YUAN_EC372S) },
 	{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_CINERGY_HT_EXPRESS) },
 	{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_CINERGY_T_XXS) },
+	{ USB_DEVICE(USB_VID_LEADTEK,   USB_PID_WINFAST_DTV_DONGLE_STK7700P_2) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1179,7 +1180,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ NULL },
 			},
 			{   "Leadtek Winfast DTV Dongle (STK7700P based)",
-				{ &dib0700_usb_id_table[8], NULL },
+				{ &dib0700_usb_id_table[8], &dib0700_usb_id_table[34] },
 				{ NULL },
 			},
 			{   "AVerMedia AVerTV DVB-T Express",
