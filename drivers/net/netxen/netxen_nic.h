@@ -1033,7 +1033,6 @@ void netxen_halt_pegs(struct netxen_adapter *adapter);
 int netxen_rom_se(struct netxen_adapter *adapter, int addr);
 
 /* Functions from netxen_nic_isr.c */
-int netxen_nic_link_ok(struct netxen_adapter *adapter);
 void netxen_initialize_adapter_sw(struct netxen_adapter *adapter);
 void netxen_initialize_adapter_hw(struct netxen_adapter *adapter);
 void *netxen_alloc(struct pci_dev *pdev, size_t sz, dma_addr_t * ptr,
