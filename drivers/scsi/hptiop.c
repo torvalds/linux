@@ -338,7 +338,8 @@ static int iop_get_config_mv(struct hptiop_hba *hba,
 	req->header.size =
 		cpu_to_le32(sizeof(struct hpt_iop_request_get_config));
 	req->header.result = cpu_to_le32(IOP_RESULT_PENDING);
-	req->header.context = cpu_to_le64(IOP_REQUEST_TYPE_GET_CONFIG<<5);
+	req->header.context = cpu_to_le32(IOP_REQUEST_TYPE_GET_CONFIG<<5);
+	req->header.context_hi32 = 0;
 
 	if (iop_send_sync_request_mv(hba, 0, 20000)) {
 		dprintk("Get config send cmd failed\n");
@@ -392,7 +393,8 @@ static int iop_set_config_mv(struct hptiop_hba *hba,
 	req->header.size =
 		cpu_to_le32(sizeof(struct hpt_iop_request_set_config));
 	req->header.result = cpu_to_le32(IOP_RESULT_PENDING);
-	req->header.context = cpu_to_le64(IOP_REQUEST_TYPE_SET_CONFIG<<5);
+	req->header.context = cpu_to_le32(IOP_REQUEST_TYPE_SET_CONFIG<<5);
+	req->header.context_hi32 = 0;
 
 	if (iop_send_sync_request_mv(hba, 0, 20000)) {
 		dprintk("Set config send cmd failed\n");
