@@ -1836,7 +1836,7 @@ mpt_suspend(struct pci_dev *pdev, pm_message_t state)
 	CHIPREG_WRITE32(&ioc->chip->IntStatus, 0);
 
 	free_irq(ioc->pci_irq, ioc);
-	if (mpt_msi_enable)
+	if (ioc->msi_enable)
 		pci_disable_msi(ioc->pcidev);
 	ioc->pci_irq = -1;
 	pci_save_state(pdev);
