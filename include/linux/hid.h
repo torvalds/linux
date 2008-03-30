@@ -531,14 +531,12 @@ int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int 
 int hidinput_mapping_quirks(struct hid_usage *, struct input_dev *, unsigned long **, int *);
 int hidinput_event_quirks(struct hid_device *, struct hid_field *, struct hid_usage *, __s32);
 int hidinput_apple_event(struct hid_device *, struct input_dev *, struct hid_usage *, __s32);
-void hid_input_field(struct hid_device *hid, struct hid_field *field, __u8 *data, int interrupt);
 void hid_output_report(struct hid_report *report, __u8 *data);
 void hid_free_device(struct hid_device *device);
 struct hid_device *hid_parse_report(__u8 *start, unsigned size);
 
 /* HID quirks API */
 u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct);
-int usbhid_modify_dquirk(const u16 idVendor, const u16 idProduct, const u32 quirks);
 int usbhid_quirks_init(char **quirks_param);
 void usbhid_quirks_exit(void);
 void usbhid_fixup_report_descriptor(const u16, const u16, char *, unsigned, char **);

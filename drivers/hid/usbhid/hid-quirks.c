@@ -809,8 +809,8 @@ static struct hid_blacklist *usbhid_exists_dquirk(const u16 idVendor,
  *
  * Returns: 0 OK, -error on failure.
  */
-int usbhid_modify_dquirk(const u16 idVendor, const u16 idProduct,
-		const u32 quirks)
+static int usbhid_modify_dquirk(const u16 idVendor, const u16 idProduct,
+				const u32 quirks)
 {
 	struct quirks_list_struct *q_new, *q;
 	int list_edited = 0;

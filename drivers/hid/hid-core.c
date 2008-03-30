@@ -830,7 +830,8 @@ static void hid_process_event(struct hid_device *hid, struct hid_field *field, s
  * reporting to the layer).
  */
 
-void hid_input_field(struct hid_device *hid, struct hid_field *field, __u8 *data, int interrupt)
+static void hid_input_field(struct hid_device *hid, struct hid_field *field,
+			    __u8 *data, int interrupt)
 {
 	unsigned n;
 	unsigned count = field->report_count;
@@ -876,7 +877,6 @@ void hid_input_field(struct hid_device *hid, struct hid_field *field, __u8 *data
 exit:
 	kfree(value);
 }
-EXPORT_SYMBOL_GPL(hid_input_field);
 
 /*
  * Output the field into the report.
