@@ -19,6 +19,11 @@
 #include "dvb-pll.h"
 #include "tuner-simple.h"
 
+#include "cx24123.h"
+#include "cx24113.h"
+
+#include "isl6421.h"
+
 /* lnb control */
 
 static int flexcop_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
@@ -476,11 +481,54 @@ static struct stv0297_config alps_tdee4_stv0297_config = {
 //	.pll_set = alps_tdee4_stv0297_pll_set,
 };
 
+
+static struct cx24123_config skystar2_rev2_8_cx24123_config = {
+	.demod_address = 0x55,
+	.dont_use_pll = 1,
+	.agc_callback = cx24113_agc_callback,
+};
+
+static const struct cx24113_config skystar2_rev2_8_cx24113_config = {
+	.i2c_addr = 0x54,
+	.xtal_khz = 10111,
+};
+
 /* try to figure out the frontend, each card/box can have on of the following list */
 int flexcop_frontend_init(struct flexcop_device *fc)
 {
 	struct dvb_frontend_ops *ops;
 	struct i2c_adapter *i2c = &fc->fc_i2c_adap[0].i2c_adap;
+	struct i2c_adapter *i2c_tuner;
+
+	/* try the sky v2.8 (cx24123, isl6421) */
+	fc->fe = dvb_attach(cx24123_attach,
+		&skystar2_rev2_8_cx24123_config, i2c);
+	if (fc->fe != NULL) {
+		i2c_tuner = cx24123_get_tuner_i2c_adapter(fc->fe);
+		if (i2c_tuner != NULL) {
+			if (dvb_attach(cx24113_attach, fc->fe,
+					&skystar2_rev2_8_cx24113_config,
+					i2c_tuner) == NULL)
+				err("CX24113 could NOT be attached");
+			else
+				info("CX24113 successfully attached");
+		}
+
+		fc->dev_type = FC_SKY_REV28;
+
+		fc->fc_i2c_adap[2].no_base_addr = 1;
+		if (dvb_attach(isl6421_attach, fc->fe,
+		       &fc->fc_i2c_adap[2].i2c_adap, 0x08, 0, 0) == NULL)
+			err("ISL6421 could NOT be attached");
+		else
+			info("ISL6421 successfully attached");
+
+		/* TODO on i2c_adap[1] addr 0x11 (EEPROM) there seems to be an
+		 * IR-receiver (PIC16F818) - but the card has no input for
+		 * that ??? */
+
+		goto fe_found;
+    }
 
 	/* try the sky v2.6 (stv0299/Samsung tbmu24112(sl1935)) */
 	fc->fe = dvb_attach(stv0299_attach, &samsung_tbmu24112_config, i2c);
