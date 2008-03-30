@@ -951,16 +951,19 @@ static int tda18271_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 
 #define tda18271_update_std(std_cfg, name) do {				\
 	if (map->std_cfg.if_freq +					\
-		map->std_cfg.agc_mode + map->std_cfg.std > 0) {		\
+		map->std_cfg.agc_mode + map->std_cfg.std +		\
+		map->std_cfg.if_lvl + map->std_cfg.rfagc_top > 0) {	\
 		tda_dbg("Using custom std config for %s\n", name);	\
 		memcpy(&std->std_cfg, &map->std_cfg,			\
 			sizeof(struct tda18271_std_map_item));		\
 	} } while (0)
 
 #define tda18271_dump_std_item(std_cfg, name) do {			\
-	tda_dbg("(%s) if freq = %d, agc_mode = %d, std = %d\n",		\
+	tda_dbg("(%s) if_freq = %d, agc_mode = %d, std = %d, "		\
+		"if_lvl = %d, rfagc_top = 0x%02x\n",			\
 		name, std->std_cfg.if_freq,				\
-		std->std_cfg.agc_mode, std->std_cfg.std);		\
+		std->std_cfg.agc_mode, std->std_cfg.std,		\
+		std->std_cfg.if_lvl, std->std_cfg.rfagc_top);		\
 	} while (0)
 
 static int tda18271_dump_std_map(struct dvb_frontend *fe)
@@ -969,20 +972,20 @@ static int tda18271_dump_std_map(struct dvb_frontend *fe)
 	struct tda18271_std_map *std = &priv->std;
 
 	tda_dbg("========== STANDARD MAP SETTINGS ==========\n");
-	tda18271_dump_std_item(fm_radio, "fm");
-	tda18271_dump_std_item(atv_b,  "pal b");
-	tda18271_dump_std_item(atv_dk, "pal dk");
-	tda18271_dump_std_item(atv_gh, "pal gh");
-	tda18271_dump_std_item(atv_i,  "pal i");
-	tda18271_dump_std_item(atv_l,  "pal l");
-	tda18271_dump_std_item(atv_lc, "pal l'");
+	tda18271_dump_std_item(fm_radio, "  fm  ");
+	tda18271_dump_std_item(atv_b,  "atv b ");
+	tda18271_dump_std_item(atv_dk, "atv dk");
+	tda18271_dump_std_item(atv_gh, "atv gh");
+	tda18271_dump_std_item(atv_i,  "atv i ");
+	tda18271_dump_std_item(atv_l,  "atv l ");
+	tda18271_dump_std_item(atv_lc, "atv l'");
 	tda18271_dump_std_item(atv_mn, "atv mn");
 	tda18271_dump_std_item(atsc_6, "atsc 6");
 	tda18271_dump_std_item(dvbt_6, "dvbt 6");
 	tda18271_dump_std_item(dvbt_7, "dvbt 7");
 	tda18271_dump_std_item(dvbt_8, "dvbt 8");
-	tda18271_dump_std_item(qam_6,  "qam 6");
-	tda18271_dump_std_item(qam_8,  "qam 8");
+	tda18271_dump_std_item(qam_6,  "qam 6 ");
+	tda18271_dump_std_item(qam_8,  "qam 8 ");
 
 	return 0;
 }
@@ -1125,7 +1128,7 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 	memcpy(&fe->ops.tuner_ops, &tda18271_tuner_ops,
 	       sizeof(struct dvb_tuner_ops));
 
-	if (tda18271_debug & DBG_MAP)
+	if (tda18271_debug & (DBG_MAP | DBG_ADV))
 		tda18271_dump_std_map(fe);
 
 	return fe;
