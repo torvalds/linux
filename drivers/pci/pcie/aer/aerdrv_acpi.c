@@ -37,7 +37,7 @@ int aer_osc_setup(struct pcie_device *pciedev)
 		return -1;
 
 	/* Find root host bridge */
-	while (pdev->bus && pdev->bus->self)
+	while (pdev->bus->self)
 		pdev = pdev->bus->self;
 	handle = acpi_get_pci_rootbridge_handle(
 		pci_domain_nr(pdev->bus), pdev->bus->number);
