@@ -388,10 +388,13 @@ lookup_enclosing_address_handler(struct list_head *list,
 static DEFINE_SPINLOCK(address_handler_lock);
 static LIST_HEAD(address_handler_list);
 
-const struct fw_address_region fw_low_memory_region =
-	{ .start = 0x000000000000ULL, .end = 0x000100000000ULL,  };
 const struct fw_address_region fw_high_memory_region =
 	{ .start = 0x000100000000ULL, .end = 0xffffe0000000ULL,  };
+EXPORT_SYMBOL(fw_high_memory_region);
+
+#if 0
+const struct fw_address_region fw_low_memory_region =
+	{ .start = 0x000000000000ULL, .end = 0x000100000000ULL,  };
 const struct fw_address_region fw_private_region =
 	{ .start = 0xffffe0000000ULL, .end = 0xfffff0000000ULL,  };
 const struct fw_address_region fw_csr_region =
@@ -399,11 +402,7 @@ const struct fw_address_region fw_csr_region =
 	  .end   = CSR_REGISTER_BASE | CSR_CONFIG_ROM_END,  };
 const struct fw_address_region fw_unit_space_region =
 	{ .start = 0xfffff0000900ULL, .end = 0x1000000000000ULL, };
-EXPORT_SYMBOL(fw_low_memory_region);
-EXPORT_SYMBOL(fw_high_memory_region);
-EXPORT_SYMBOL(fw_private_region);
-EXPORT_SYMBOL(fw_csr_region);
-EXPORT_SYMBOL(fw_unit_space_region);
+#endif  /*  0  */
 
 /**
  * Allocate a range of addresses in the node space of the OHCI

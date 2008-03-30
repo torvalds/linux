@@ -201,11 +201,7 @@ struct fw_address_region {
 	u64 end;
 };
 
-extern const struct fw_address_region fw_low_memory_region;
 extern const struct fw_address_region fw_high_memory_region;
-extern const struct fw_address_region fw_private_region;
-extern const struct fw_address_region fw_csr_region;
-extern const struct fw_address_region fw_unit_space_region;
 
 int fw_core_add_address_handler(struct fw_address_handler *handler,
 				const struct fw_address_region *region);

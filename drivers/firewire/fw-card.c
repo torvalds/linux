@@ -167,7 +167,6 @@ fw_core_add_descriptor(struct fw_descriptor *desc)
 
 	return 0;
 }
-EXPORT_SYMBOL(fw_core_add_descriptor);
 
 void
 fw_core_remove_descriptor(struct fw_descriptor *desc)
@@ -182,7 +181,6 @@ fw_core_remove_descriptor(struct fw_descriptor *desc)
 
 	mutex_unlock(&card_mutex);
 }
-EXPORT_SYMBOL(fw_core_remove_descriptor);
 
 static const char gap_count_table[] = {
 	63, 5, 7, 8, 10, 13, 16, 18, 21, 24, 26, 29, 32, 35, 37, 40
