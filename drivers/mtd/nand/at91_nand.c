@@ -83,7 +83,7 @@ static void at91_nand_disable(struct at91_nand_host *host)
 }
 
 #ifdef CONFIG_MTD_PARTITIONS
-const char *part_probes[] = { "cmdlinepart", NULL };
+static const char *part_probes[] = { "cmdlinepart", NULL };
 #endif
 
 /*
