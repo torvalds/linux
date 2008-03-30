@@ -84,10 +84,11 @@ obj-$(CONFIG_VIDEO_DPC) += dpc7146.o
 obj-$(CONFIG_TUNER_3036) += tuner-3036.o
 
 obj-$(CONFIG_VIDEO_TUNER) += tuner.o
-obj-$(CONFIG_VIDEO_TUNER_TYPES) += tuner-types.o
 
 obj-$(CONFIG_TUNER_XC2028) += tuner-xc2028.o
 obj-$(CONFIG_TUNER_SIMPLE) += tuner-simple.o
+# tuner-types will be merged into tuner-simple, in the future
+obj-$(CONFIG_TUNER_SIMPLE) += tuner-types.o
 obj-$(CONFIG_TUNER_MT20XX) += mt20xx.o
 obj-$(CONFIG_TUNER_TDA8290) += tda8290.o
 obj-$(CONFIG_TUNER_TEA5767) += tea5767.o
