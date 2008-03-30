@@ -88,31 +88,31 @@ static int sb1000_close(struct net_device *dev);
 
 
 /* SB1000 hardware routines to be used during open/configuration phases */
-static inline int card_wait_for_busy_clear(const int ioaddr[],
+static int card_wait_for_busy_clear(const int ioaddr[],
 	const char* name);
-static inline int card_wait_for_ready(const int ioaddr[], const char* name,
+static int card_wait_for_ready(const int ioaddr[], const char* name,
 	unsigned char in[]);
 static int card_send_command(const int ioaddr[], const char* name,
 	const unsigned char out[], unsigned char in[]);
 
 /* SB1000 hardware routines to be used during frame rx interrupt */
-static inline int sb1000_wait_for_ready(const int ioaddr[], const char* name);
-static inline int sb1000_wait_for_ready_clear(const int ioaddr[],
+static int sb1000_wait_for_ready(const int ioaddr[], const char* name);
+static int sb1000_wait_for_ready_clear(const int ioaddr[],
 	const char* name);
-static inline void sb1000_send_command(const int ioaddr[], const char* name,
+static void sb1000_send_command(const int ioaddr[], const char* name,
 	const unsigned char out[]);
-static inline void sb1000_read_status(const int ioaddr[], unsigned char in[]);
-static inline void sb1000_issue_read_command(const int ioaddr[],
+static void sb1000_read_status(const int ioaddr[], unsigned char in[]);
+static void sb1000_issue_read_command(const int ioaddr[],
 	const char* name);
 
 /* SB1000 commands for open/configuration */
-static inline int sb1000_reset(const int ioaddr[], const char* name);
-static inline int sb1000_check_CRC(const int ioaddr[], const char* name);
+static int sb1000_reset(const int ioaddr[], const char* name);
+static int sb1000_check_CRC(const int ioaddr[], const char* name);
 static inline int sb1000_start_get_set_command(const int ioaddr[],
 	const char* name);
-static inline int sb1000_end_get_set_command(const int ioaddr[],
+static int sb1000_end_get_set_command(const int ioaddr[],
 	const char* name);
-static inline int sb1000_activate(const int ioaddr[], const char* name);
+static int sb1000_activate(const int ioaddr[], const char* name);
 static int sb1000_get_firmware_version(const int ioaddr[],
 	const char* name, unsigned char version[], int do_end);
 static int sb1000_get_frequency(const int ioaddr[], const char* name,
@@ -125,8 +125,8 @@ static int sb1000_set_PIDs(const int ioaddr[], const char* name,
 	const short PID[]);
 
 /* SB1000 commands for frame rx interrupt */
-static inline int sb1000_rx(struct net_device *dev);
-static inline void sb1000_error_dpc(struct net_device *dev);
+static int sb1000_rx(struct net_device *dev);
+static void sb1000_error_dpc(struct net_device *dev);
 
 static const struct pnp_device_id sb1000_pnp_ids[] = {
 	{ "GIC1000", 0 },
@@ -250,7 +250,7 @@ static struct pnp_driver sb1000_driver = {
 static const int TimeOutJiffies = (875 * HZ) / 100;
 
 /* Card Wait For Busy Clear (cannot be used during an interrupt) */
-static inline int
+static int
 card_wait_for_busy_clear(const int ioaddr[], const char* name)
 {
 	unsigned char a;
@@ -274,7 +274,7 @@ card_wait_for_busy_clear(const int ioaddr[], const char* name)
 }
 
 /* Card Wait For Ready (cannot be used during an interrupt) */
-static inline int
+static int
 card_wait_for_ready(const int ioaddr[], const char* name, unsigned char in[])
 {
 	unsigned char a;
@@ -354,7 +354,7 @@ card_send_command(const int ioaddr[], const char* name,
 static const int Sb1000TimeOutJiffies = 7 * HZ;
 
 /* Card Wait For Ready (to be used during frame rx) */
-static inline int
+static int
 sb1000_wait_for_ready(const int ioaddr[], const char* name)
 {
 	unsigned long timeout;
@@ -380,7 +380,7 @@ sb1000_wait_for_ready(const int ioaddr[], const char* name)
 }
 
 /* Card Wait For Ready Clear (to be used during frame rx) */
-static inline int
+static int
 sb1000_wait_for_ready_clear(const int ioaddr[], const char* name)
 {
 	unsigned long timeout;
@@ -405,7 +405,7 @@ sb1000_wait_for_ready_clear(const int ioaddr[], const char* name)
 }
 
 /* Card Send Command (to be used during frame rx) */
-static inline void
+static void
 sb1000_send_command(const int ioaddr[], const char* name,
 	const unsigned char out[])
 {
@@ -422,7 +422,7 @@ sb1000_send_command(const int ioaddr[], const char* name,
 }
 
 /* Card Read Status (to be used during frame rx) */
-static inline void
+static void
 sb1000_read_status(const int ioaddr[], unsigned char in[])
 {
 	in[1] = inb(ioaddr[0] + 1);
@@ -434,7 +434,7 @@ sb1000_read_status(const int ioaddr[], unsigned char in[])
 }
 
 /* Issue Read Command (to be used during frame rx) */
-static inline void
+static void
 sb1000_issue_read_command(const int ioaddr[], const char* name)
 {
 	const unsigned char Command0[6] = {0x20, 0x00, 0x00, 0x01, 0x00, 0x00};
@@ -450,7 +450,7 @@ sb1000_issue_read_command(const int ioaddr[], const char* name)
  * SB1000 commands for open/configuration
  */
 /* reset SB1000 card */
-static inline int
+static int
 sb1000_reset(const int ioaddr[], const char* name)
 {
 	unsigned char st[7];
@@ -479,7 +479,7 @@ sb1000_reset(const int ioaddr[], const char* name)
 }
 
 /* check SB1000 firmware CRC */
-static inline int
+static int
 sb1000_check_CRC(const int ioaddr[], const char* name)
 {
 	unsigned char st[7];
@@ -504,7 +504,7 @@ sb1000_start_get_set_command(const int ioaddr[], const char* name)
 	return card_send_command(ioaddr, name, Command0, st);
 }
 
-static inline int
+static int
 sb1000_end_get_set_command(const int ioaddr[], const char* name)
 {
 	unsigned char st[7];
@@ -517,7 +517,7 @@ sb1000_end_get_set_command(const int ioaddr[], const char* name)
 	return card_send_command(ioaddr, name, Command1, st);
 }
 
-static inline int
+static int
 sb1000_activate(const int ioaddr[], const char* name)
 {
 	unsigned char st[7];
@@ -694,7 +694,7 @@ sb1000_set_PIDs(const int ioaddr[], const char* name, const short PID[])
 }
 
 
-static inline void
+static void
 sb1000_print_status_buffer(const char* name, unsigned char st[],
 	unsigned char buffer[], int size)
 {
@@ -725,7 +725,7 @@ sb1000_print_status_buffer(const char* name, unsigned char st[],
 /* receive a single frame and assemble datagram
  * (this is the heart of the interrupt routine)
  */
-static inline int
+static int
 sb1000_rx(struct net_device *dev)
 {
 
@@ -888,7 +888,7 @@ dropped_frame:
 	return -1;
 }
 
-static inline void
+static void
 sb1000_error_dpc(struct net_device *dev)
 {
 	char *name;
