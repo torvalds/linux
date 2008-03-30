@@ -114,6 +114,7 @@ struct kvm {
 	struct kvm_io_bus pio_bus;
 	struct kvm_vm_stat stat;
 	struct kvm_arch arch;
+	atomic_t users_count;
 };
 
 /* The guest did something we don't support. */
@@ -139,6 +140,9 @@ void decache_vcpus_on_cpu(int cpu);
 int kvm_init(void *opaque, unsigned int vcpu_size,
 		  struct module *module);
 void kvm_exit(void);
+
+void kvm_get_kvm(struct kvm *kvm);
+void kvm_put_kvm(struct kvm *kvm);
 
 #define HPA_MSB ((sizeof(hpa_t) * 8) - 1)
 #define HPA_ERR_MASK ((hpa_t)1 << HPA_MSB)

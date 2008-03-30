@@ -193,6 +193,7 @@ static struct kvm *kvm_create_vm(void)
 	mutex_init(&kvm->lock);
 	kvm_io_bus_init(&kvm->mmio_bus);
 	init_rwsem(&kvm->slots_lock);
+	atomic_set(&kvm->users_count, 1);
 	spin_lock(&kvm_lock);
 	list_add(&kvm->vm_list, &vm_list);
 	spin_unlock(&kvm_lock);
@@ -242,11 +243,25 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	mmdrop(mm);
 }
 
+void kvm_get_kvm(struct kvm *kvm)
+{
+	atomic_inc(&kvm->users_count);
+}
+EXPORT_SYMBOL_GPL(kvm_get_kvm);
+
+void kvm_put_kvm(struct kvm *kvm)
+{
+	if (atomic_dec_and_test(&kvm->users_count))
+		kvm_destroy_vm(kvm);
+}
+EXPORT_SYMBOL_GPL(kvm_put_kvm);
+
+
 static int kvm_vm_release(struct inode *inode, struct file *filp)
 {
 	struct kvm *kvm = filp->private_data;
 
-	kvm_destroy_vm(kvm);
+	kvm_put_kvm(kvm);
 	return 0;
 }
 
