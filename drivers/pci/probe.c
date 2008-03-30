@@ -235,7 +235,7 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 			res->flags |= l & ~PCI_BASE_ADDRESS_IO_MASK;
 		}
 		res->end = res->start + (unsigned long) sz;
-		res->flags |= pci_calc_resource_flags(l);
+		res->flags |= pci_calc_resource_flags(l) | IORESOURCE_SIZEALIGN;
 		if (is_64bit_memory(l)) {
 			u32 szhi, lhi;
 
@@ -288,7 +288,8 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 			if (sz) {
 				res->flags = (l & IORESOURCE_ROM_ENABLE) |
 				  IORESOURCE_MEM | IORESOURCE_PREFETCH |
-				  IORESOURCE_READONLY | IORESOURCE_CACHEABLE;
+				  IORESOURCE_READONLY | IORESOURCE_CACHEABLE |
+				  IORESOURCE_SIZEALIGN;
 				res->start = l & PCI_ROM_ADDRESS_MASK;
 				res->end = res->start + (unsigned long) sz;
 			}

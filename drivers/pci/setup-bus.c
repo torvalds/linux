@@ -65,6 +65,7 @@ static void pbus_assign_resources_sorted(struct pci_bus *bus)
 		res = list->res;
 		idx = res - &list->dev->resource[0];
 		if (pci_assign_resource(list->dev, idx)) {
+			/* FIXME: get rid of this */
 			res->start = 0;
 			res->end = 0;
 			res->flags = 0;
@@ -327,6 +328,7 @@ static void pbus_size_io(struct pci_bus *bus)
 	/* Alignment of the IO window is always 4K */
 	b_res->start = 4096;
 	b_res->end = b_res->start + size - 1;
+	b_res->flags |= IORESOURCE_STARTALIGN;
 }
 
 /* Calculate the size of the bus and minimal alignment which
@@ -401,6 +403,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask, unsigned long 
 	}
 	b_res->start = min_align;
 	b_res->end = size + min_align - 1;
+	b_res->flags |= IORESOURCE_STARTALIGN;
 	return 1;
 }
 

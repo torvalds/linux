@@ -137,10 +137,16 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 
 	size = res->end - res->start + 1;
 	min = (res->flags & IORESOURCE_IO) ? PCIBIOS_MIN_IO : PCIBIOS_MIN_MEM;
-	/* The bridge resources are special, as their
-	   size != alignment. Sizing routines return
-	   required alignment in the "start" field. */
-	align = (resno < PCI_BRIDGE_RESOURCES) ? size : res->start;
+
+	align = resource_alignment(res);
+	if (!align) {
+		printk(KERN_ERR "PCI: Cannot allocate resource (bogus "
+			"alignment) %d [%llx:%llx] (flags %lx) of %s\n",
+			resno, (unsigned long long)res->start,
+			(unsigned long long)res->end, res->flags,
+			pci_name(dev));
+		return -EINVAL;
+	}
 
 	/* First, try exact prefetching match.. */
 	ret = pci_bus_alloc_resource(bus, res, size, align, min,
@@ -164,8 +170,10 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 			res->flags & IORESOURCE_IO ? "I/O" : "mem",
 			resno, (unsigned long long)size,
 			(unsigned long long)res->start, pci_name(dev));
-	} else if (resno < PCI_BRIDGE_RESOURCES) {
-		pci_update_resource(dev, res, resno);
+	} else {
+		res->flags &= ~IORESOURCE_STARTALIGN;
+		if (resno < PCI_BRIDGE_RESOURCES)
+			pci_update_resource(dev, res, resno);
 	}
 
 	return ret;
@@ -226,29 +234,25 @@ void pdev_sort_resources(struct pci_dev *dev, struct resource_list *head)
 		if (r->flags & IORESOURCE_PCI_FIXED)
 			continue;
 
-		r_align = r->end - r->start;
-		
 		if (!(r->flags) || r->parent)
 			continue;
+
+		r_align = resource_alignment(r);
 		if (!r_align) {
-			printk(KERN_WARNING "PCI: Ignore bogus resource %d "
-				"[%llx:%llx] of %s\n",
+			printk(KERN_WARNING "PCI: bogus alignment of resource "
+				"%d [%llx:%llx] (flags %lx) of %s\n",
 				i, (unsigned long long)r->start,
-				(unsigned long long)r->end, pci_name(dev));
+				(unsigned long long)r->end, r->flags,
+				pci_name(dev));
 			continue;
 		}
-		r_align = (i < PCI_BRIDGE_RESOURCES) ? r_align + 1 : r->start;
 		for (list = head; ; list = list->next) {
 			resource_size_t align = 0;
 			struct resource_list *ln = list->next;
-			int idx;
 
-			if (ln) {
-				idx = ln->res - &ln->dev->resource[0];
-				align = (idx < PCI_BRIDGE_RESOURCES) ?
-					ln->res->end - ln->res->start + 1 :
-					ln->res->start;
-			}
+			if (ln)
+				align = resource_alignment(ln->res);
+
 			if (r_align > align) {
 				tmp = kmalloc(sizeof(*tmp), GFP_KERNEL);
 				if (!tmp)
