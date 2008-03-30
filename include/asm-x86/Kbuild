@@ -10,6 +10,7 @@ header-y += prctl.h
 header-y += ptrace-abi.h
 header-y += sigcontext32.h
 header-y += ucontext.h
+header-y += processor-flags.h
 
 unifdef-y += e820.h
 unifdef-y += ist.h
