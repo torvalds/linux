@@ -40,6 +40,7 @@
 #include <linux/sched.h>
 #include <linux/audit.h>
 #include <linux/mutex.h>
+#include <linux/selinux.h>
 #include <net/netlabel.h>
 
 #include "flask.h"
