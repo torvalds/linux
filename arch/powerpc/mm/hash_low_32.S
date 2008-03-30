@@ -44,6 +44,9 @@ mmu_hash_lock:
 #ifdef CONFIG_SMP
 	.text
 _GLOBAL(hash_page_sync)
+	mfmsr   r10
+	rlwinm  r0,r10,0,17,15          /* clear bit 16 (MSR_EE) */
+	mtmsr   r0
 	lis	r8,mmu_hash_lock@h
 	ori	r8,r8,mmu_hash_lock@l
 	lis	r0,0x0fff
@@ -60,8 +63,9 @@ _GLOBAL(hash_page_sync)
 	eieio
 	li	r0,0
 	stw	r0,0(r8)
-	blr	
-#endif
+	mtmsr	r10
+	blr
+#endif /* CONFIG_SMP */
 
 /*
  * Load a PTE into the hash table, if possible.
