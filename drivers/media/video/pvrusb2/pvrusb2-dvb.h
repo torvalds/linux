@@ -28,6 +28,7 @@ struct pvr2_dvb_adapter {
 	unsigned int		stream_run:1;
 
 	wait_queue_head_t	buffer_wait_data;
+	int			feed_thread_stop;
 	char			*buffer_storage[PVR2_DVB_BUFFER_COUNT];
 };
 
