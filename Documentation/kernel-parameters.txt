@@ -170,11 +170,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	acpi_irq_isa=	[HW,ACPI] If irq_balance, mark listed IRQs used by ISA
 			Format: <irq>,<irq>...
 
-	acpi_new_pts_ordering [HW,ACPI]
-			Enforce the ACPI 2.0 ordering of the _PTS control
-			method wrt putting devices into low power states
-			default: pre ACPI 2.0 ordering of _PTS
-
 	acpi_no_auto_ssdt	[HW,ACPI] Disable automatic loading of SSDT
 
 	acpi_os_name=	[HW,ACPI] Tell ACPI BIOS the name of the OS
