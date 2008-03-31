@@ -267,7 +267,7 @@ nfs_xdr_readres(struct rpc_rqst *req, __be32 *p, struct nfs_readres *res)
 	int status;
 
 	if ((status = ntohl(*p++)))
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 	p = xdr_decode_fattr(p, res->fattr);
 
 	count = ntohl(*p++);
@@ -432,7 +432,7 @@ nfs_xdr_readdirres(struct rpc_rqst *req, __be32 *p, void *dummy)
 	__be32 *end, *entry, *kaddr;
 
 	if ((status = ntohl(*p++)))
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 
 	hdrlen = (u8 *) p - (u8 *) iov->iov_base;
 	if (iov->iov_len < hdrlen) {
@@ -537,7 +537,7 @@ nfs_xdr_stat(struct rpc_rqst *req, __be32 *p, void *dummy)
 	int	status;
 
 	if ((status = ntohl(*p++)) != 0)
-		status = -nfs_stat_to_errno(status);
+		status = nfs_stat_to_errno(status);
 	return status;
 }
 
@@ -551,7 +551,7 @@ nfs_xdr_attrstat(struct rpc_rqst *req, __be32 *p, struct nfs_fattr *fattr)
 	int	status;
 
 	if ((status = ntohl(*p++)))
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 	xdr_decode_fattr(p, fattr);
 	return 0;
 }
@@ -566,7 +566,7 @@ nfs_xdr_diropres(struct rpc_rqst *req, __be32 *p, struct nfs_diropok *res)
 	int	status;
 
 	if ((status = ntohl(*p++)))
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 	p = xdr_decode_fhandle(p, res->fh);
 	xdr_decode_fattr(p, res->fattr);
 	return 0;
@@ -604,7 +604,7 @@ nfs_xdr_readlinkres(struct rpc_rqst *req, __be32 *p, void *dummy)
 	int	status;
 
 	if ((status = ntohl(*p++)))
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 	/* Convert length of symlink */
 	len = ntohl(*p++);
 	if (len >= rcvbuf->page_len) {
@@ -653,7 +653,7 @@ nfs_xdr_statfsres(struct rpc_rqst *req, __be32 *p, struct nfs2_fsstat *res)
 	int	status;
 
 	if ((status = ntohl(*p++)))
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 
 	res->tsize  = ntohl(*p++);
 	res->bsize  = ntohl(*p++);
@@ -672,39 +672,39 @@ static struct {
 	int errno;
 } nfs_errtbl[] = {
 	{ NFS_OK,		0		},
-	{ NFSERR_PERM,		EPERM		},
-	{ NFSERR_NOENT,		ENOENT		},
-	{ NFSERR_IO,		errno_NFSERR_IO	},
-	{ NFSERR_NXIO,		ENXIO		},
-/*	{ NFSERR_EAGAIN,	EAGAIN		}, */
-	{ NFSERR_ACCES,		EACCES		},
-	{ NFSERR_EXIST,		EEXIST		},
-	{ NFSERR_XDEV,		EXDEV		},
-	{ NFSERR_NODEV,		ENODEV		},
-	{ NFSERR_NOTDIR,	ENOTDIR		},
-	{ NFSERR_ISDIR,		EISDIR		},
-	{ NFSERR_INVAL,		EINVAL		},
-	{ NFSERR_FBIG,		EFBIG		},
-	{ NFSERR_NOSPC,		ENOSPC		},
-	{ NFSERR_ROFS,		EROFS		},
-	{ NFSERR_MLINK,		EMLINK		},
-	{ NFSERR_NAMETOOLONG,	ENAMETOOLONG	},
-	{ NFSERR_NOTEMPTY,	ENOTEMPTY	},
-	{ NFSERR_DQUOT,		EDQUOT		},
-	{ NFSERR_STALE,		ESTALE		},
-	{ NFSERR_REMOTE,	EREMOTE		},
+	{ NFSERR_PERM,		-EPERM		},
+	{ NFSERR_NOENT,		-ENOENT		},
+	{ NFSERR_IO,		-errno_NFSERR_IO},
+	{ NFSERR_NXIO,		-ENXIO		},
+/*	{ NFSERR_EAGAIN,	-EAGAIN		}, */
+	{ NFSERR_ACCES,		-EACCES		},
+	{ NFSERR_EXIST,		-EEXIST		},
+	{ NFSERR_XDEV,		-EXDEV		},
+	{ NFSERR_NODEV,		-ENODEV		},
+	{ NFSERR_NOTDIR,	-ENOTDIR	},
+	{ NFSERR_ISDIR,		-EISDIR		},
+	{ NFSERR_INVAL,		-EINVAL		},
+	{ NFSERR_FBIG,		-EFBIG		},
+	{ NFSERR_NOSPC,		-ENOSPC		},
+	{ NFSERR_ROFS,		-EROFS		},
+	{ NFSERR_MLINK,		-EMLINK		},
+	{ NFSERR_NAMETOOLONG,	-ENAMETOOLONG	},
+	{ NFSERR_NOTEMPTY,	-ENOTEMPTY	},
+	{ NFSERR_DQUOT,		-EDQUOT		},
+	{ NFSERR_STALE,		-ESTALE		},
+	{ NFSERR_REMOTE,	-EREMOTE	},
 #ifdef EWFLUSH
-	{ NFSERR_WFLUSH,	EWFLUSH		},
+	{ NFSERR_WFLUSH,	-EWFLUSH	},
 #endif
-	{ NFSERR_BADHANDLE,	EBADHANDLE	},
-	{ NFSERR_NOT_SYNC,	ENOTSYNC	},
-	{ NFSERR_BAD_COOKIE,	EBADCOOKIE	},
-	{ NFSERR_NOTSUPP,	ENOTSUPP	},
-	{ NFSERR_TOOSMALL,	ETOOSMALL	},
-	{ NFSERR_SERVERFAULT,	ESERVERFAULT	},
-	{ NFSERR_BADTYPE,	EBADTYPE	},
-	{ NFSERR_JUKEBOX,	EJUKEBOX	},
-	{ -1,			EIO		}
+	{ NFSERR_BADHANDLE,	-EBADHANDLE	},
+	{ NFSERR_NOT_SYNC,	-ENOTSYNC	},
+	{ NFSERR_BAD_COOKIE,	-EBADCOOKIE	},
+	{ NFSERR_NOTSUPP,	-ENOTSUPP	},
+	{ NFSERR_TOOSMALL,	-ETOOSMALL	},
+	{ NFSERR_SERVERFAULT,	-ESERVERFAULT	},
+	{ NFSERR_BADTYPE,	-EBADTYPE	},
+	{ NFSERR_JUKEBOX,	-EJUKEBOX	},
+	{ -1,			-EIO		}
 };
 
 /*

@@ -2241,7 +2241,7 @@ static int decode_op_hdr(struct xdr_stream *xdr, enum nfs_opnum4 expected)
 	}
 	READ32(nfserr);
 	if (nfserr != NFS_OK)
-		return -nfs4_stat_to_errno(nfserr);
+		return nfs4_stat_to_errno(nfserr);
 	return 0;
 }
 
@@ -3760,7 +3760,7 @@ static int decode_setclientid(struct xdr_stream *xdr, struct nfs_client *clp)
 		READ_BUF(len);
 		return -NFSERR_CLID_INUSE;
 	} else
-		return -nfs4_stat_to_errno(nfserr);
+		return nfs4_stat_to_errno(nfserr);
 
 	return 0;
 }
@@ -4422,7 +4422,7 @@ static int nfs4_xdr_dec_fsinfo(struct rpc_rqst *req, __be32 *p, struct nfs_fsinf
 	if (!status)
 		status = decode_fsinfo(&xdr, fsinfo);
 	if (!status)
-		status = -nfs4_stat_to_errno(hdr.status);
+		status = nfs4_stat_to_errno(hdr.status);
 	return status;
 }
 
@@ -4512,7 +4512,7 @@ static int nfs4_xdr_dec_setclientid(struct rpc_rqst *req, __be32 *p,
 	if (!status)
 		status = decode_setclientid(&xdr, clp);
 	if (!status)
-		status = -nfs4_stat_to_errno(hdr.status);
+		status = nfs4_stat_to_errno(hdr.status);
 	return status;
 }
 
@@ -4534,7 +4534,7 @@ static int nfs4_xdr_dec_setclientid_confirm(struct rpc_rqst *req, __be32 *p, str
 	if (!status)
 		status = decode_fsinfo(&xdr, fsinfo);
 	if (!status)
-		status = -nfs4_stat_to_errno(hdr.status);
+		status = nfs4_stat_to_errno(hdr.status);
 	return status;
 }
 
@@ -4644,42 +4644,42 @@ static struct {
 	int errno;
 } nfs_errtbl[] = {
 	{ NFS4_OK,		0		},
-	{ NFS4ERR_PERM,		EPERM		},
-	{ NFS4ERR_NOENT,	ENOENT		},
-	{ NFS4ERR_IO,		errno_NFSERR_IO	},
-	{ NFS4ERR_NXIO,		ENXIO		},
-	{ NFS4ERR_ACCESS,	EACCES		},
-	{ NFS4ERR_EXIST,	EEXIST		},
-	{ NFS4ERR_XDEV,		EXDEV		},
-	{ NFS4ERR_NOTDIR,	ENOTDIR		},
-	{ NFS4ERR_ISDIR,	EISDIR		},
-	{ NFS4ERR_INVAL,	EINVAL		},
-	{ NFS4ERR_FBIG,		EFBIG		},
-	{ NFS4ERR_NOSPC,	ENOSPC		},
-	{ NFS4ERR_ROFS,		EROFS		},
-	{ NFS4ERR_MLINK,	EMLINK		},
-	{ NFS4ERR_NAMETOOLONG,	ENAMETOOLONG	},
-	{ NFS4ERR_NOTEMPTY,	ENOTEMPTY	},
-	{ NFS4ERR_DQUOT,	EDQUOT		},
-	{ NFS4ERR_STALE,	ESTALE		},
-	{ NFS4ERR_BADHANDLE,	EBADHANDLE	},
-	{ NFS4ERR_BADOWNER,	EINVAL		},
-	{ NFS4ERR_BADNAME,	EINVAL		},
-	{ NFS4ERR_BAD_COOKIE,	EBADCOOKIE	},
-	{ NFS4ERR_NOTSUPP,	ENOTSUPP	},
-	{ NFS4ERR_TOOSMALL,	ETOOSMALL	},
-	{ NFS4ERR_SERVERFAULT,	ESERVERFAULT	},
-	{ NFS4ERR_BADTYPE,	EBADTYPE	},
-	{ NFS4ERR_LOCKED,	EAGAIN		},
-	{ NFS4ERR_RESOURCE,	EREMOTEIO	},
-	{ NFS4ERR_SYMLINK,	ELOOP		},
-	{ NFS4ERR_OP_ILLEGAL,	EOPNOTSUPP	},
-	{ NFS4ERR_DEADLOCK,	EDEADLK		},
-	{ NFS4ERR_WRONGSEC,	EPERM		}, /* FIXME: this needs
+	{ NFS4ERR_PERM,		-EPERM		},
+	{ NFS4ERR_NOENT,	-ENOENT		},
+	{ NFS4ERR_IO,		-errno_NFSERR_IO},
+	{ NFS4ERR_NXIO,		-ENXIO		},
+	{ NFS4ERR_ACCESS,	-EACCES		},
+	{ NFS4ERR_EXIST,	-EEXIST		},
+	{ NFS4ERR_XDEV,		-EXDEV		},
+	{ NFS4ERR_NOTDIR,	-ENOTDIR	},
+	{ NFS4ERR_ISDIR,	-EISDIR		},
+	{ NFS4ERR_INVAL,	-EINVAL		},
+	{ NFS4ERR_FBIG,		-EFBIG		},
+	{ NFS4ERR_NOSPC,	-ENOSPC		},
+	{ NFS4ERR_ROFS,		-EROFS		},
+	{ NFS4ERR_MLINK,	-EMLINK		},
+	{ NFS4ERR_NAMETOOLONG,	-ENAMETOOLONG	},
+	{ NFS4ERR_NOTEMPTY,	-ENOTEMPTY	},
+	{ NFS4ERR_DQUOT,	-EDQUOT		},
+	{ NFS4ERR_STALE,	-ESTALE		},
+	{ NFS4ERR_BADHANDLE,	-EBADHANDLE	},
+	{ NFS4ERR_BADOWNER,	-EINVAL		},
+	{ NFS4ERR_BADNAME,	-EINVAL		},
+	{ NFS4ERR_BAD_COOKIE,	-EBADCOOKIE	},
+	{ NFS4ERR_NOTSUPP,	-ENOTSUPP	},
+	{ NFS4ERR_TOOSMALL,	-ETOOSMALL	},
+	{ NFS4ERR_SERVERFAULT,	-ESERVERFAULT	},
+	{ NFS4ERR_BADTYPE,	-EBADTYPE	},
+	{ NFS4ERR_LOCKED,	-EAGAIN		},
+	{ NFS4ERR_RESOURCE,	-EREMOTEIO	},
+	{ NFS4ERR_SYMLINK,	-ELOOP		},
+	{ NFS4ERR_OP_ILLEGAL,	-EOPNOTSUPP	},
+	{ NFS4ERR_DEADLOCK,	-EDEADLK	},
+	{ NFS4ERR_WRONGSEC,	-EPERM		}, /* FIXME: this needs
 						    * to be handled by a
 						    * middle-layer.
 						    */
-	{ -1,			EIO		}
+	{ -1,			-EIO		}
 };
 
 /*
@@ -4696,14 +4696,14 @@ nfs4_stat_to_errno(int stat)
 	}
 	if (stat <= 10000 || stat > 10100) {
 		/* The server is looney tunes. */
-		return ESERVERFAULT;
+		return -ESERVERFAULT;
 	}
 	/* If we cannot translate the error, the recovery routines should
 	 * handle it.
 	 * Note: remaining NFSv4 error codes have values > 10000, so should
 	 * not conflict with native Linux error codes.
 	 */
-	return stat;
+	return -stat;
 }
 
 #define PROC(proc, argtype, restype)				\

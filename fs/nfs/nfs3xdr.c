@@ -515,7 +515,7 @@ nfs3_xdr_readdirres(struct rpc_rqst *req, __be32 *p, struct nfs3_readdirres *res
 	/* Decode post_op_attrs */
 	p = xdr_decode_post_op_attr(p, res->dir_attr);
 	if (status)
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 	/* Decode verifier cookie */
 	if (res->verf) {
 		res->verf[0] = *p++;
@@ -751,7 +751,7 @@ nfs3_xdr_attrstat(struct rpc_rqst *req, __be32 *p, struct nfs_fattr *fattr)
 	int	status;
 
 	if ((status = ntohl(*p++)))
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 	xdr_decode_fattr(p, fattr);
 	return 0;
 }
@@ -766,7 +766,7 @@ nfs3_xdr_wccstat(struct rpc_rqst *req, __be32 *p, struct nfs_fattr *fattr)
 	int	status;
 
 	if ((status = ntohl(*p++)))
-		status = -nfs_stat_to_errno(status);
+		status = nfs_stat_to_errno(status);
 	xdr_decode_wcc_data(p, fattr);
 	return status;
 }
@@ -786,7 +786,7 @@ nfs3_xdr_lookupres(struct rpc_rqst *req, __be32 *p, struct nfs3_diropres *res)
 	int	status;
 
 	if ((status = ntohl(*p++))) {
-		status = -nfs_stat_to_errno(status);
+		status = nfs_stat_to_errno(status);
 	} else {
 		if (!(p = xdr_decode_fhandle(p, res->fh)))
 			return -errno_NFSERR_IO;
@@ -806,7 +806,7 @@ nfs3_xdr_accessres(struct rpc_rqst *req, __be32 *p, struct nfs3_accessres *res)
 
 	p = xdr_decode_post_op_attr(p, res->fattr);
 	if (status)
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 	res->access = ntohl(*p++);
 	return 0;
 }
@@ -843,7 +843,7 @@ nfs3_xdr_readlinkres(struct rpc_rqst *req, __be32 *p, struct nfs_fattr *fattr)
 	p = xdr_decode_post_op_attr(p, fattr);
 
 	if (status != 0)
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 
 	/* Convert length of symlink */
 	len = ntohl(*p++);
@@ -891,7 +891,7 @@ nfs3_xdr_readres(struct rpc_rqst *req, __be32 *p, struct nfs_readres *res)
 	p = xdr_decode_post_op_attr(p, res->fattr);
 
 	if (status != 0)
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 
 	/* Decode reply count and EOF flag. NFSv3 is somewhat redundant
 	 * in that it puts the count both in the res struct and in the
@@ -941,7 +941,7 @@ nfs3_xdr_writeres(struct rpc_rqst *req, __be32 *p, struct nfs_writeres *res)
 	p = xdr_decode_wcc_data(p, res->fattr);
 
 	if (status != 0)
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 
 	res->count = ntohl(*p++);
 	res->verf->committed = (enum nfs3_stable_how)ntohl(*p++);
@@ -972,7 +972,7 @@ nfs3_xdr_createres(struct rpc_rqst *req, __be32 *p, struct nfs3_diropres *res)
 			res->fattr->valid = 0;
 		}
 	} else {
-		status = -nfs_stat_to_errno(status);
+		status = nfs_stat_to_errno(status);
 	}
 	p = xdr_decode_wcc_data(p, res->dir_attr);
 	return status;
@@ -987,7 +987,7 @@ nfs3_xdr_renameres(struct rpc_rqst *req, __be32 *p, struct nfs3_renameres *res)
 	int	status;
 
 	if ((status = ntohl(*p++)) != 0)
-		status = -nfs_stat_to_errno(status);
+		status = nfs_stat_to_errno(status);
 	p = xdr_decode_wcc_data(p, res->fromattr);
 	p = xdr_decode_wcc_data(p, res->toattr);
 	return status;
@@ -1002,7 +1002,7 @@ nfs3_xdr_linkres(struct rpc_rqst *req, __be32 *p, struct nfs3_linkres *res)
 	int	status;
 
 	if ((status = ntohl(*p++)) != 0)
-		status = -nfs_stat_to_errno(status);
+		status = nfs_stat_to_errno(status);
 	p = xdr_decode_post_op_attr(p, res->fattr);
 	p = xdr_decode_wcc_data(p, res->dir_attr);
 	return status;
@@ -1020,7 +1020,7 @@ nfs3_xdr_fsstatres(struct rpc_rqst *req, __be32 *p, struct nfs_fsstat *res)
 
 	p = xdr_decode_post_op_attr(p, res->fattr);
 	if (status != 0)
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 
 	p = xdr_decode_hyper(p, &res->tbytes);
 	p = xdr_decode_hyper(p, &res->fbytes);
@@ -1045,7 +1045,7 @@ nfs3_xdr_fsinfores(struct rpc_rqst *req, __be32 *p, struct nfs_fsinfo *res)
 
 	p = xdr_decode_post_op_attr(p, res->fattr);
 	if (status != 0)
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 
 	res->rtmax  = ntohl(*p++);
 	res->rtpref = ntohl(*p++);
@@ -1073,7 +1073,7 @@ nfs3_xdr_pathconfres(struct rpc_rqst *req, __be32 *p, struct nfs_pathconf *res)
 
 	p = xdr_decode_post_op_attr(p, res->fattr);
 	if (status != 0)
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 	res->max_link = ntohl(*p++);
 	res->max_namelen = ntohl(*p++);
 
@@ -1092,7 +1092,7 @@ nfs3_xdr_commitres(struct rpc_rqst *req, __be32 *p, struct nfs_writeres *res)
 	status = ntohl(*p++);
 	p = xdr_decode_wcc_data(p, res->fattr);
 	if (status != 0)
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 
 	res->verf->verifier[0] = *p++;
 	res->verf->verifier[1] = *p++;
@@ -1114,7 +1114,7 @@ nfs3_xdr_getaclres(struct rpc_rqst *req, __be32 *p,
 	int err, base;
 
 	if (status != 0)
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 	p = xdr_decode_post_op_attr(p, res->fattr);
 	res->mask = ntohl(*p++);
 	if (res->mask & ~(NFS_ACL|NFS_ACLCNT|NFS_DFACL|NFS_DFACLCNT))
@@ -1141,7 +1141,7 @@ nfs3_xdr_setaclres(struct rpc_rqst *req, __be32 *p, struct nfs_fattr *fattr)
 	int status = ntohl(*p++);
 
 	if (status)
-		return -nfs_stat_to_errno(status);
+		return nfs_stat_to_errno(status);
 	xdr_decode_post_op_attr(p, fattr);
 	return 0;
 }
