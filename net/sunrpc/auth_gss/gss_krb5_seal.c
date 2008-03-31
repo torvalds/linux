@@ -116,7 +116,7 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 	spin_unlock(&krb5_seq_lock);
 
 	if (krb5_make_seq_num(ctx->seq, ctx->initiate ? 0 : 0xff,
-			       ctx->seq_send, krb5_hdr + 16, krb5_hdr + 8))
+			      seq_send, krb5_hdr + 16, krb5_hdr + 8))
 		return GSS_S_FAILURE;
 
 	return (ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
