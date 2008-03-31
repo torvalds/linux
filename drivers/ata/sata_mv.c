@@ -517,7 +517,7 @@ static void mv_reset_pci_bus(struct ata_host *host, void __iomem *mmio);
 static void mv_reset_channel(struct mv_host_priv *hpriv, void __iomem *mmio,
 			     unsigned int port_no);
 static int mv_stop_edma(struct ata_port *ap);
-static int mv_stop_edma_engine(struct ata_port *ap);
+static int mv_stop_edma_engine(void __iomem *port_mmio);
 static void mv_edma_cfg(struct ata_port *ap, int want_ncq);
 
 /* .sg_tablesize is (MV_MAX_SG_CT / 2) in the structures below
@@ -805,7 +805,7 @@ static void mv_start_dma(struct ata_port *ap, void __iomem *port_mmio,
 	if (pp->pp_flags & MV_PP_FLAG_EDMA_EN) {
 		int using_ncq = ((pp->pp_flags & MV_PP_FLAG_NCQ_EN) != 0);
 		if (want_ncq != using_ncq)
-			mv_stop_edma_engine(ap);
+			mv_stop_edma(ap);
 	}
 	if (!(pp->pp_flags & MV_PP_FLAG_EDMA_EN)) {
 		struct mv_host_priv *hpriv = ap->host->private_data;
@@ -841,57 +841,41 @@ static void mv_start_dma(struct ata_port *ap, void __iomem *port_mmio,
 
 /**
  *      mv_stop_edma_engine - Disable eDMA engine
- *      @ap: ATA channel to manipulate
- *
- *      Verify the local cache of the eDMA state is accurate with a
- *      WARN_ON.
+ *      @port_mmio: io base address
  *
  *      LOCKING:
  *      Inherited from caller.
  */
-static int mv_stop_edma_engine(struct ata_port *ap)
+static int mv_stop_edma_engine(void __iomem *port_mmio)
 {
-	void __iomem *port_mmio = mv_ap_base(ap);
-	struct mv_port_priv *pp	= ap->private_data;
-	u32 reg;
-	int i, err = 0;
+	int i;
 
-	if (pp->pp_flags & MV_PP_FLAG_EDMA_EN) {
-		/* Disable EDMA if active.   The disable bit auto clears.
-		 */
-		writelfl(EDMA_DS, port_mmio + EDMA_CMD_OFS);
-		pp->pp_flags &= ~MV_PP_FLAG_EDMA_EN;
-	} else {
-		WARN_ON(EDMA_EN & readl(port_mmio + EDMA_CMD_OFS));
-	}
+	/* Disable eDMA.  The disable bit auto clears. */
+	writelfl(EDMA_DS, port_mmio + EDMA_CMD_OFS);
 
-	/* now properly wait for the eDMA to stop */
-	for (i = 1000; i > 0; i--) {
-		reg = readl(port_mmio + EDMA_CMD_OFS);
+	/* Wait for the chip to confirm eDMA is off. */
+	for (i = 10000; i > 0; i--) {
+		u32 reg = readl(port_mmio + EDMA_CMD_OFS);
 		if (!(reg & EDMA_EN))
-			break;
-
-		udelay(100);
+			return 0;
+		udelay(10);
 	}
-
-	if (reg & EDMA_EN) {
-		ata_port_printk(ap, KERN_ERR, "Unable to stop eDMA\n");
-		err = -EIO;
-	}
-
-	return err;
+	return -EIO;
 }
 
 static int mv_stop_edma(struct ata_port *ap)
 {
-	unsigned long flags;
-	int rc;
+	void __iomem *port_mmio = mv_ap_base(ap);
+	struct mv_port_priv *pp = ap->private_data;
 
-	spin_lock_irqsave(&ap->host->lock, flags);
-	rc = mv_stop_edma_engine(ap);
-	spin_unlock_irqrestore(&ap->host->lock, flags);
-
-	return rc;
+	if (!(pp->pp_flags & MV_PP_FLAG_EDMA_EN))
+		return 0;
+	pp->pp_flags &= ~MV_PP_FLAG_EDMA_EN;
+	if (mv_stop_edma_engine(port_mmio)) {
+		ata_port_printk(ap, KERN_ERR, "Unable to stop eDMA\n");
+		return -EIO;
+	}
+	return 0;
 }
 
 #ifdef ATA_DEBUG
@@ -1401,7 +1385,7 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 		 * port.  Turn off EDMA so there won't be problems accessing
 		 * shadow block, etc registers.
 		 */
-		mv_stop_edma_engine(ap);
+		mv_stop_edma(ap);
 		return ata_qc_issue_prot(qc);
 	}
 
@@ -1915,8 +1899,12 @@ static void mv5_reset_hc_port(struct mv_host_priv *hpriv, void __iomem *mmio,
 {
 	void __iomem *port_mmio = mv_port_base(mmio, port);
 
-	writelfl(EDMA_DS, port_mmio + EDMA_CMD_OFS);
-
+	/*
+	 * The datasheet warns against setting ATA_RST when EDMA is active
+	 * (but doesn't say what the problem might be).  So we first try
+	 * to disable the EDMA engine before doing the ATA_RST operation.
+	 */
+	mv_stop_edma_engine(port_mmio);
 	mv_reset_channel(hpriv, mmio, port);
 
 	ZERO(0x028);	/* command */
@@ -2191,8 +2179,12 @@ static void mv_soc_reset_hc_port(struct mv_host_priv *hpriv,
 {
 	void __iomem *port_mmio = mv_port_base(mmio, port);
 
-	writelfl(EDMA_DS, port_mmio + EDMA_CMD_OFS);
-
+	/*
+	 * The datasheet warns against setting ATA_RST when EDMA is active
+	 * (but doesn't say what the problem might be).  So we first try
+	 * to disable the EDMA engine before doing the ATA_RST operation.
+	 */
+	mv_stop_edma_engine(port_mmio);
 	mv_reset_channel(hpriv, mmio, port);
 
 	ZERO(0x028);		/* command */
@@ -2250,6 +2242,10 @@ static void mv_soc_reset_bus(struct ata_host *host, void __iomem *mmio)
 	return;
 }
 
+/*
+ * Caller must ensure that EDMA is not active,
+ * by first doing mv_stop_edma() where needed.
+ */
 static void mv_reset_channel(struct mv_host_priv *hpriv, void __iomem *mmio,
 			     unsigned int port_no)
 {
@@ -2392,10 +2388,11 @@ static int mv_hardreset(struct ata_link *link, unsigned int *class,
 {
 	struct ata_port *ap = link->ap;
 	struct mv_host_priv *hpriv = ap->host->private_data;
+	struct mv_port_priv *pp = ap->private_data;
 	void __iomem *mmio = hpriv->base;
 
-	mv_stop_edma(ap);
 	mv_reset_channel(hpriv, mmio, ap->port_no);
+	pp->pp_flags &= ~MV_PP_FLAG_EDMA_EN;
 	mv_phy_reset(ap, class, deadline);
 
 	return 0;
