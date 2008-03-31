@@ -244,7 +244,7 @@ _copy_to_pages(struct page **pages, size_t pgbase, const char *p, size_t len)
 	pgto = pages + (pgbase >> PAGE_CACHE_SHIFT);
 	pgbase &= ~PAGE_CACHE_MASK;
 
-	do {
+	for (;;) {
 		copy = PAGE_CACHE_SIZE - pgbase;
 		if (copy > len)
 			copy = len;
@@ -253,6 +253,10 @@ _copy_to_pages(struct page **pages, size_t pgbase, const char *p, size_t len)
 		memcpy(vto + pgbase, p, copy);
 		kunmap_atomic(vto, KM_USER0);
 
+		len -= copy;
+		if (len == 0)
+			break;
+
 		pgbase += copy;
 		if (pgbase == PAGE_CACHE_SIZE) {
 			flush_dcache_page(*pgto);
@@ -260,8 +264,7 @@ _copy_to_pages(struct page **pages, size_t pgbase, const char *p, size_t len)
 			pgto++;
 		}
 		p += copy;
-
-	} while ((len -= copy) != 0);
+	}
 	flush_dcache_page(*pgto);
 }
 
