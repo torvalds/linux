@@ -740,16 +740,21 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 					 struct file *file)
 {
 	struct bsg_device *bd;
+	int ret;
 #ifdef BSG_DEBUG
 	unsigned char buf[32];
 #endif
+	ret = blk_get_queue(rq);
+	if (ret)
+		return ERR_PTR(-ENXIO);
 
 	bd = bsg_alloc_device();
-	if (!bd)
+	if (!bd) {
+		blk_put_queue(rq);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	bd->queue = rq;
-	kobject_get(&rq->kobj);
 	bsg_set_block(bd, file);
 
 	atomic_set(&bd->ref_count, 1);
