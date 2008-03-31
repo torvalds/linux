@@ -226,7 +226,7 @@ void __init kgdb_config(void)
 }
 #endif
 
-void __init mips_nmi_setup(void)
+static void __init mips_nmi_setup(void)
 {
 	void *base;
 	extern char except_vec_nmi;
