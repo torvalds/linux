@@ -2242,6 +2242,16 @@ static void mv_soc_reset_bus(struct ata_host *host, void __iomem *mmio)
 	return;
 }
 
+static void mv_setup_ifctl(void __iomem *port_mmio, int want_gen2i)
+{
+	u32 ifctl = readl(port_mmio + SATA_INTERFACE_CFG);
+
+	ifctl = (ifctl & 0xf7f) | 0x9b1000;	/* from chip spec */
+	if (want_gen2i)
+		ifctl |= (1 << 7);		/* enable gen2i speed */
+	writelfl(ifctl, port_mmio + SATA_INTERFACE_CFG);
+}
+
 /*
  * Caller must ensure that EDMA is not active,
  * by first doing mv_stop_edma() where needed.
@@ -2253,18 +2263,17 @@ static void mv_reset_channel(struct mv_host_priv *hpriv, void __iomem *mmio,
 
 	writelfl(ATA_RST, port_mmio + EDMA_CMD_OFS);
 
-	if (IS_GEN_II(hpriv)) {
-		u32 ifctl = readl(port_mmio + SATA_INTERFACE_CFG);
-		ifctl |= (1 << 7);		/* enable gen2i speed */
-		ifctl = (ifctl & 0xfff) | 0x9b1000; /* from chip spec */
-		writelfl(ifctl, port_mmio + SATA_INTERFACE_CFG);
+	if (!IS_GEN_I(hpriv)) {
+		/* Enable 3.0gb/s link speed */
+		mv_setup_ifctl(port_mmio, 1);
 	}
-
-	udelay(25);		/* allow reset propagation */
-
-	/* Spec never mentions clearing the bit.  Marvell's driver does
-	 * clear the bit, however.
+	/*
+	 * Strobing ATA_RST here causes a hard reset of the SATA transport,
+	 * link, and physical layers.  It resets all SATA interface registers
+	 * (except for SATA_INTERFACE_CFG), and issues a COMRESET to the dev.
 	 */
+	writelfl(ATA_RST, port_mmio + EDMA_CMD_OFS);
+	udelay(25);	/* allow reset propagation */
 	writelfl(0, port_mmio + EDMA_CMD_OFS);
 
 	hpriv->ops->phy_errata(hpriv, mmio, port_no);
@@ -2709,19 +2718,6 @@ static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 	hpriv->ops->reset_flash(hpriv, mmio);
 	hpriv->ops->reset_bus(host, mmio);
 	hpriv->ops->enable_leds(hpriv, mmio);
-
-	for (port = 0; port < host->n_ports; port++) {
-		if (IS_GEN_II(hpriv)) {
-			void __iomem *port_mmio = mv_port_base(mmio, port);
-
-			u32 ifctl = readl(port_mmio + SATA_INTERFACE_CFG);
-			ifctl |= (1 << 7);		/* enable gen2i speed */
-			ifctl = (ifctl & 0xfff) | 0x9b1000; /* from chip spec */
-			writelfl(ifctl, port_mmio + SATA_INTERFACE_CFG);
-		}
-
-		hpriv->ops->phy_errata(hpriv, mmio, port);
-	}
 
 	for (port = 0; port < host->n_ports; port++) {
 		struct ata_port *ap = host->ports[port];
