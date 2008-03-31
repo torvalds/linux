@@ -700,11 +700,7 @@ static int ieee80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 			return -ENOENT;
 
 		sta_info_unlink(&sta);
-
-		if (sta) {
-			synchronize_rcu();
-			sta_info_destroy(sta);
-		}
+		sta_info_destroy(sta);
 	} else
 		sta_info_flush(local, sdata);
 

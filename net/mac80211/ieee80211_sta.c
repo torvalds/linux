@@ -939,7 +939,6 @@ static void ieee80211_associated(struct net_device *dev,
 	rcu_read_unlock();
 
 	if (disassoc && sta) {
-		synchronize_rcu();
 		rtnl_lock();
 		sta_info_destroy(sta);
 		rtnl_unlock();
