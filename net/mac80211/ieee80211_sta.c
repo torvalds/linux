@@ -244,7 +244,6 @@ static void ieee80211_sta_def_wmm_params(struct net_device *dev,
 
 	if (local->ops->conf_tx) {
 		struct ieee80211_tx_queue_params qparam;
-		int i;
 
 		memset(&qparam, 0, sizeof(qparam));
 
