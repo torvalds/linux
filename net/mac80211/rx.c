@@ -433,7 +433,7 @@ ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 		}
 
 	 } else if ((rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA &&
-		    is_broadcast_ether_addr(hdr->addr1) &&
+		    is_multicast_ether_addr(hdr->addr1) &&
 		    mesh_rmc_check(hdr->addr4, msh_h_get(hdr, hdrlen), rx->dev))
 		return RX_DROP_MONITOR;
 #undef msh_h_get
