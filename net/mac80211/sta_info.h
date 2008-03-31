@@ -357,5 +357,7 @@ int sta_info_start(struct ieee80211_local *local);
 void sta_info_stop(struct ieee80211_local *local);
 int sta_info_flush(struct ieee80211_local *local,
 		    struct ieee80211_sub_if_data *sdata);
+void sta_info_flush_delayed(struct ieee80211_sub_if_data *sdata);
+void __ieee80211_run_pending_flush(struct ieee80211_local *local);
 
 #endif /* STA_INFO_H */

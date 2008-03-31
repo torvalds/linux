@@ -2254,7 +2254,7 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	/* Remove possible STA entries from other IBSS networks. */
-	sta_info_flush(local, sdata);
+	sta_info_flush_delayed(sdata);
 
 	if (local->ops->reset_tsf) {
 		/* Reset own TSF to allow time synchronization work. */

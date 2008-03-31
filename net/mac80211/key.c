@@ -73,6 +73,15 @@ static void ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 	if (!key->local->ops->set_key)
 		return;
 
+	/*
+	 * This makes sure that all pending flushes have
+	 * actually completed prior to uploading new key
+	 * material to the hardware. That is necessary to
+	 * avoid races between flushing STAs and adding
+	 * new keys for them.
+	 */
+	__ieee80211_run_pending_flush(key->local);
+
 	addr = get_mac_for_key(key);
 
 	ret = key->local->ops->set_key(local_to_hw(key->local), SET_KEY,
