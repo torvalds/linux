@@ -95,8 +95,6 @@ unsigned int read_apic_id(void)
 	id = apic_read(APIC_ID);
 	if (uv_system_type >= UV_X2APIC)
 		id  |= __get_cpu_var(x2apic_extra_bits);
-	else
-		id = (id >> 24) & 0xFFu;;
 	return id;
 }
 
