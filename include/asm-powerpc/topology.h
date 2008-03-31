@@ -96,10 +96,9 @@ static inline void sysfs_remove_device_from_node(struct sys_device *dev,
 {
 }
 
+#endif /* CONFIG_NUMA */
 
 #include <asm-generic/topology.h>
-
-#endif /* CONFIG_NUMA */
 
 #ifdef CONFIG_SMP
 #include <asm/cputable.h>

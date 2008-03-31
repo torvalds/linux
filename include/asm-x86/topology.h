@@ -88,6 +88,17 @@ static inline int cpu_to_node(int cpu)
 #endif
 	return per_cpu(x86_cpu_to_node_map, cpu);
 }
+
+#ifdef	CONFIG_NUMA
+
+/* Returns a pointer to the cpumask of CPUs on Node 'node'. */
+#define node_to_cpumask_ptr(v, node)		\
+		cpumask_t *v = &(node_to_cpumask_map[node])
+
+#define node_to_cpumask_ptr_next(v, node)	\
+			   v = &(node_to_cpumask_map[node])
+#endif
+
 #endif /* CONFIG_X86_64 */
 
 /*
@@ -174,9 +185,9 @@ extern int __node_distance(int, int);
 
 #else /* CONFIG_NUMA */
 
-#include <asm-generic/topology.h>
-
 #endif
+
+#include <asm-generic/topology.h>
 
 extern cpumask_t cpu_coregroup_map(int cpu);
 
