@@ -253,6 +253,13 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	 */
 	rt2x00lib_config_intf(rt2x00dev, intf, conf->type, intf->mac, NULL);
 
+	/*
+	 * Some filters depend on the current working mode. We can force
+	 * an update during the next configure_filter() run by mac80211 by
+	 * resetting the current packet_filter state.
+	 */
+	rt2x00dev->packet_filter = 0;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_add_interface);
