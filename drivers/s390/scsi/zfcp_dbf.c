@@ -74,21 +74,6 @@ static int zfcp_dbf_tag(char *out_buf, const char *label, const char *tag)
 	return len;
 }
 
-static int
-zfcp_dbf_view(char *out_buf, const char *label, const char *format, ...)
-{
-	va_list arg;
-	int len = 0;
-
-	len += sprintf(out_buf + len, "%-24s", label);
-	va_start(arg, format);
-	len += vsprintf(out_buf + len, format, arg);
-	va_end(arg);
-	len += sprintf(out_buf + len, "\n");
-
-	return len;
-}
-
 static void zfcp_dbf_outs(char **buf, const char *s1, const char *s2)
 {
 	*buf += sprintf(*buf, "%-24s%s\n", s1, s2);
