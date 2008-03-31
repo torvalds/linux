@@ -31,7 +31,10 @@
 
 void rt2x00leds_led_quality(struct rt2x00_dev *rt2x00dev, int rssi)
 {
-	if (!rt2x00dev->trigger_qual.registered)
+	struct rt2x00_led *led = &rt2x00dev->led_qual;
+	unsigned int brightness;
+
+	if ((led->type != LED_TYPE_QUALITY) || !(led->flags & LED_REGISTERED))
 		return;
 
 	/*
@@ -62,39 +65,51 @@ void rt2x00leds_led_quality(struct rt2x00_dev *rt2x00dev, int rssi)
 	 * is going to calculate the value and might use it in a
 	 * division.
 	 */
-	led_trigger_event(&rt2x00dev->trigger_qual.trigger,
-			  ((LED_FULL / 6) * rssi) + 1);
+	brightness = ((LED_FULL / 6) * rssi) + 1;
+	if (brightness != led->led_dev.brightness) {
+		led->led_dev.brightness_set(&led->led_dev, brightness);
+		led->led_dev.brightness = brightness;
+	}
 }
 
-static int rt2x00leds_register_trigger(struct rt2x00_dev *rt2x00dev,
-				       struct rt2x00_trigger *trigger,
-				       const char *name)
+void rt2x00leds_led_assoc(struct rt2x00_dev *rt2x00dev, bool enabled)
 {
-	int retval;
+	struct rt2x00_led *led = &rt2x00dev->led_assoc;
+	unsigned int brightness;
 
-	trigger->trigger.name = name;
-	retval = led_trigger_register(&trigger->trigger);
-	if (retval) {
-		ERROR(rt2x00dev, "Failed to register led trigger.\n");
-		return retval;
+	if ((led->type != LED_TYPE_ASSOC) || !(led->flags & LED_REGISTERED))
+		return;
+
+	brightness = enabled ? LED_FULL : LED_OFF;
+	if (brightness != led->led_dev.brightness) {
+		led->led_dev.brightness_set(&led->led_dev, brightness);
+		led->led_dev.brightness = brightness;
 	}
+}
 
-	trigger->registered = 1;
+void rt2x00leds_led_radio(struct rt2x00_dev *rt2x00dev, bool enabled)
+{
+	struct rt2x00_led *led = &rt2x00dev->led_radio;
+	unsigned int brightness;
 
-	return 0;
+	if ((led->type != LED_TYPE_RADIO) || !(led->flags & LED_REGISTERED))
+		return;
+
+	brightness = enabled ? LED_FULL : LED_OFF;
+	if (brightness != led->led_dev.brightness) {
+		led->led_dev.brightness_set(&led->led_dev, brightness);
+		led->led_dev.brightness = brightness;
+	}
 }
 
 static int rt2x00leds_register_led(struct rt2x00_dev *rt2x00dev,
 				   struct rt2x00_led *led,
-				   enum led_type type,
-				   const char *name, char *trigger)
+				   const char *name)
 {
 	struct device *device = wiphy_dev(rt2x00dev->hw->wiphy);
 	int retval;
 
 	led->led_dev.name = name;
-	led->led_dev.brightness_set = rt2x00dev->ops->lib->led_brightness;
-	led->led_dev.default_trigger = trigger;
 
 	retval = led_classdev_register(device, &led->led_dev);
 	if (retval) {
@@ -102,63 +117,62 @@ static int rt2x00leds_register_led(struct rt2x00_dev *rt2x00dev,
 		return retval;
 	}
 
-	led->rt2x00dev = rt2x00dev;
-	led->type = type;
-	led->registered = 1;
+	led->flags |= LED_REGISTERED;
 
 	return 0;
 }
 
 void rt2x00leds_register(struct rt2x00_dev *rt2x00dev)
 {
-	char *trigger;
 	char dev_name[16];
 	char name[32];
 	int retval;
-
-	if (!rt2x00dev->ops->lib->led_brightness)
-		return;
+	unsigned long on_period;
+	unsigned long off_period;
 
 	snprintf(dev_name, sizeof(dev_name), "%s-%s",
 		 rt2x00dev->ops->name, wiphy_name(rt2x00dev->hw->wiphy));
 
-	if (rt2x00dev->led_flags & LED_SUPPORT_RADIO) {
-		trigger = ieee80211_get_radio_led_name(rt2x00dev->hw);
+	if (rt2x00dev->led_radio.flags & LED_INITIALIZED) {
 		snprintf(name, sizeof(name), "%s:radio", dev_name);
 
 		retval = rt2x00leds_register_led(rt2x00dev,
 						 &rt2x00dev->led_radio,
-						 LED_TYPE_RADIO,
-						 name, trigger);
+						 name);
 		if (retval)
 			goto exit_fail;
 	}
 
-	if (rt2x00dev->led_flags & LED_SUPPORT_ASSOC) {
-		trigger = ieee80211_get_assoc_led_name(rt2x00dev->hw);
+	if (rt2x00dev->led_assoc.flags & LED_INITIALIZED) {
 		snprintf(name, sizeof(name), "%s:assoc", dev_name);
 
 		retval = rt2x00leds_register_led(rt2x00dev,
 						 &rt2x00dev->led_assoc,
-						 LED_TYPE_ASSOC,
-						 name, trigger);
+						 name);
 		if (retval)
 			goto exit_fail;
 	}
 
-	if (rt2x00dev->led_flags & LED_SUPPORT_QUALITY) {
+	if (rt2x00dev->led_qual.flags & LED_INITIALIZED) {
 		snprintf(name, sizeof(name), "%s:quality", dev_name);
-
-		retval = rt2x00leds_register_trigger(rt2x00dev,
-						     &rt2x00dev->trigger_qual,
-						     name);
 
 		retval = rt2x00leds_register_led(rt2x00dev,
 						 &rt2x00dev->led_qual,
-						 LED_TYPE_QUALITY,
-						 name, name);
+						 name);
 		if (retval)
 			goto exit_fail;
+	}
+
+	/*
+	 * Initialize blink time to default value:
+	 * On period: 70ms
+	 * Off period: 30ms
+	 */
+	if (rt2x00dev->led_radio.led_dev.blink_set) {
+		on_period = 70;
+		off_period = 30;
+		rt2x00dev->led_radio.led_dev.blink_set(
+		    &rt2x00dev->led_radio.led_dev, &on_period, &off_period);
 	}
 
 	return;
@@ -167,50 +181,39 @@ exit_fail:
 	rt2x00leds_unregister(rt2x00dev);
 }
 
-static void rt2x00leds_unregister_trigger(struct rt2x00_trigger *trigger)
-{
-	if (!trigger->registered)
-		return;
-
-	led_trigger_unregister(&trigger->trigger);
-	trigger->registered = 0;
-}
-
 static void rt2x00leds_unregister_led(struct rt2x00_led *led)
 {
-	if (!led->registered)
-		return;
-
 	led_classdev_unregister(&led->led_dev);
-
 	led->led_dev.brightness_set(&led->led_dev, LED_OFF);
-	led->registered = 0;
+	led->flags &= ~LED_REGISTERED;
 }
 
 void rt2x00leds_unregister(struct rt2x00_dev *rt2x00dev)
 {
-	rt2x00leds_unregister_trigger(&rt2x00dev->trigger_qual);
-	rt2x00leds_unregister_led(&rt2x00dev->led_qual);
-	rt2x00leds_unregister_led(&rt2x00dev->led_assoc);
-	rt2x00leds_unregister_led(&rt2x00dev->led_radio);
+	if (rt2x00dev->led_qual.flags & LED_REGISTERED)
+		rt2x00leds_unregister_led(&rt2x00dev->led_qual);
+	if (rt2x00dev->led_assoc.flags & LED_REGISTERED)
+		rt2x00leds_unregister_led(&rt2x00dev->led_assoc);
+	if (rt2x00dev->led_radio.flags & LED_REGISTERED)
+		rt2x00leds_unregister_led(&rt2x00dev->led_radio);
 }
 
 void rt2x00leds_suspend(struct rt2x00_dev *rt2x00dev)
 {
-	if (rt2x00dev->led_qual.registered)
+	if (rt2x00dev->led_qual.flags & LED_REGISTERED)
 		led_classdev_suspend(&rt2x00dev->led_qual.led_dev);
-	if (rt2x00dev->led_assoc.registered)
+	if (rt2x00dev->led_assoc.flags & LED_REGISTERED)
 		led_classdev_suspend(&rt2x00dev->led_assoc.led_dev);
-	if (rt2x00dev->led_radio.registered)
+	if (rt2x00dev->led_radio.flags & LED_REGISTERED)
 		led_classdev_suspend(&rt2x00dev->led_radio.led_dev);
 }
 
 void rt2x00leds_resume(struct rt2x00_dev *rt2x00dev)
 {
-	if (rt2x00dev->led_radio.registered)
+	if (rt2x00dev->led_radio.flags & LED_REGISTERED)
 		led_classdev_resume(&rt2x00dev->led_radio.led_dev);
-	if (rt2x00dev->led_assoc.registered)
+	if (rt2x00dev->led_assoc.flags & LED_REGISTERED)
 		led_classdev_resume(&rt2x00dev->led_assoc.led_dev);
-	if (rt2x00dev->led_qual.registered)
+	if (rt2x00dev->led_qual.flags & LED_REGISTERED)
 		led_classdev_resume(&rt2x00dev->led_qual.led_dev);
 }

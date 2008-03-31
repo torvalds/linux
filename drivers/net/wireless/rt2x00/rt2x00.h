@@ -385,6 +385,7 @@ struct rt2x00_intf {
 	unsigned int delayed_flags;
 #define DELAYED_UPDATE_BEACON		0x00000001
 #define DELAYED_CONFIG_ERP		0x00000002
+#define DELAYED_LED_ASSOC		0x00000004
 };
 
 static inline struct rt2x00_intf* vif_to_intf(struct ieee80211_vif *vif)
@@ -533,8 +534,6 @@ struct rt2x00lib_ops {
 			    struct link_qual *qual);
 	void (*reset_tuner) (struct rt2x00_dev *rt2x00dev);
 	void (*link_tuner) (struct rt2x00_dev *rt2x00dev);
-	void (*led_brightness) (struct led_classdev *led_cdev,
-				enum led_brightness brightness);
 
 	/*
 	 * TX control handlers
@@ -694,8 +693,6 @@ struct rt2x00_dev {
 	 * by mac8011 or the kernel.
 	 */
 #ifdef CONFIG_RT2X00_LIB_LEDS
-	unsigned int led_flags;
-	struct rt2x00_trigger trigger_qual;
 	struct rt2x00_led led_radio;
 	struct rt2x00_led led_assoc;
 	struct rt2x00_led led_qual;

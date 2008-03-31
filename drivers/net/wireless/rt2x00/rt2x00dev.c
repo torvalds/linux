@@ -108,10 +108,12 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Enable radio.
 	 */
-	status = rt2x00dev->ops->lib->set_device_state(rt2x00dev,
-						       STATE_RADIO_ON);
+	status =
+	    rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_ON);
 	if (status)
 		return status;
+
+	rt2x00leds_led_radio(rt2x00dev, true);
 
 	__set_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags);
 
@@ -155,6 +157,7 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	 * Disable radio.
 	 */
 	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_OFF);
+	rt2x00leds_led_radio(rt2x00dev, false);
 }
 
 void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, enum dev_state state)
@@ -449,6 +452,9 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 
 	if (delayed_flags & DELAYED_CONFIG_ERP)
 		rt2x00lib_config_erp(rt2x00dev, intf, &intf->conf);
+
+	if (delayed_flags & DELAYED_LED_ASSOC)
+		rt2x00leds_led_assoc(rt2x00dev, !!rt2x00dev->intf_associated);
 }
 
 static void rt2x00lib_intf_scheduled(struct work_struct *work)

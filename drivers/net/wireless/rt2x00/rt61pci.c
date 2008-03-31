@@ -277,7 +277,7 @@ static int rt61pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 #endif /* CONFIG_RT61PCI_RFKILL */
 
 #ifdef CONFIG_RT61PCI_LEDS
-static void rt61pci_led_brightness(struct led_classdev *led_cdev,
+static void rt61pci_brightness_set(struct led_classdev *led_cdev,
 				   enum led_brightness brightness)
 {
 	struct rt2x00_led *led =
@@ -314,8 +314,22 @@ static void rt61pci_led_brightness(struct led_classdev *led_cdev,
 				    brightness / (LED_FULL / 6), 0);
 	}
 }
-#else
-#define rt61pci_led_brightness	NULL
+
+static int rt61pci_blink_set(struct led_classdev *led_cdev,
+			     unsigned long *delay_on,
+			     unsigned long *delay_off)
+{
+	struct rt2x00_led *led =
+	    container_of(led_cdev, struct rt2x00_led, led_dev);
+	u32 reg;
+
+	rt2x00pci_register_read(led->rt2x00dev, MAC_CSR14, &reg);
+	rt2x00_set_field32(&reg, MAC_CSR14_ON_PERIOD, *delay_on);
+	rt2x00_set_field32(&reg, MAC_CSR14_OFF_PERIOD, *delay_off);
+	rt2x00pci_register_write(led->rt2x00dev, MAC_CSR14, reg);
+
+	return 0;
+}
 #endif /* CONFIG_RT61PCI_LEDS */
 
 /*
@@ -1202,11 +1216,6 @@ static int rt61pci_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	rt2x00pci_register_write(rt2x00dev, MAC_CSR13, 0x0000e000);
 
-	rt2x00pci_register_read(rt2x00dev, MAC_CSR14, &reg);
-	rt2x00_set_field32(&reg, MAC_CSR14_ON_PERIOD, 70);
-	rt2x00_set_field32(&reg, MAC_CSR14_OFF_PERIOD, 30);
-	rt2x00pci_register_write(rt2x00dev, MAC_CSR14, reg);
-
 	/*
 	 * Invalidate all Shared Keys (SEC_CSR0),
 	 * and clear the Shared key Cipher algorithms (SEC_CSR1 & SEC_CSR5)
@@ -2058,22 +2067,32 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 */
 #ifdef CONFIG_RT61PCI_LEDS
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED, &eeprom);
-
 	value = rt2x00_get_field16(eeprom, EEPROM_LED_LED_MODE);
 
-	switch (value) {
-	case LED_MODE_TXRX_ACTIVITY:
-	case LED_MODE_ASUS:
-	case LED_MODE_ALPHA:
-	case LED_MODE_DEFAULT:
-		rt2x00dev->led_flags =
-		    LED_SUPPORT_RADIO | LED_SUPPORT_ASSOC;
-		break;
-	case LED_MODE_SIGNAL_STRENGTH:
-		rt2x00dev->led_flags =
-		    LED_SUPPORT_RADIO | LED_SUPPORT_ASSOC |
-		    LED_SUPPORT_QUALITY;
-		break;
+	rt2x00dev->led_radio.rt2x00dev = rt2x00dev;
+	rt2x00dev->led_radio.type = LED_TYPE_RADIO;
+	rt2x00dev->led_radio.led_dev.brightness_set =
+	    rt61pci_brightness_set;
+	rt2x00dev->led_radio.led_dev.blink_set =
+	    rt61pci_blink_set;
+	rt2x00dev->led_radio.flags = LED_INITIALIZED;
+
+	rt2x00dev->led_assoc.rt2x00dev = rt2x00dev;
+	rt2x00dev->led_assoc.type = LED_TYPE_ASSOC;
+	rt2x00dev->led_assoc.led_dev.brightness_set =
+	    rt61pci_brightness_set;
+	rt2x00dev->led_assoc.led_dev.blink_set =
+	    rt61pci_blink_set;
+	rt2x00dev->led_assoc.flags = LED_INITIALIZED;
+
+	if (value == LED_MODE_SIGNAL_STRENGTH) {
+		rt2x00dev->led_qual.rt2x00dev = rt2x00dev;
+		rt2x00dev->led_radio.type = LED_TYPE_QUALITY;
+		rt2x00dev->led_qual.led_dev.brightness_set =
+		    rt61pci_brightness_set;
+		rt2x00dev->led_qual.led_dev.blink_set =
+		    rt61pci_blink_set;
+		rt2x00dev->led_qual.flags = LED_INITIALIZED;
 	}
 
 	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_LED_MODE, value);
@@ -2447,7 +2466,6 @@ static const struct rt2x00lib_ops rt61pci_rt2x00_ops = {
 	.link_stats		= rt61pci_link_stats,
 	.reset_tuner		= rt61pci_reset_tuner,
 	.link_tuner		= rt61pci_link_tuner,
-	.led_brightness		= rt61pci_led_brightness,
 	.write_tx_desc		= rt61pci_write_tx_desc,
 	.write_tx_data		= rt2x00pci_write_tx_data,
 	.kick_tx_queue		= rt61pci_kick_tx_queue,

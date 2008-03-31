@@ -485,6 +485,12 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 			rt2x00dev->intf_associated++;
 		else
 			rt2x00dev->intf_associated--;
+
+		if (!test_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags))
+			rt2x00leds_led_assoc(rt2x00dev,
+					     !!rt2x00dev->intf_associated);
+		else
+			delayed |= DELAYED_LED_ASSOC;
 	}
 
 	/*

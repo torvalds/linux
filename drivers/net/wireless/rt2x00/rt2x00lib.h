@@ -185,6 +185,8 @@ static inline void rt2x00rfkill_resume(struct rt2x00_dev *rt2x00dev)
  */
 #ifdef CONFIG_RT2X00_LIB_LEDS
 void rt2x00leds_led_quality(struct rt2x00_dev *rt2x00dev, int rssi);
+void rt2x00leds_led_assoc(struct rt2x00_dev *rt2x00dev, bool enabled);
+void rt2x00leds_led_radio(struct rt2x00_dev *rt2x00dev, bool enabled);
 void rt2x00leds_register(struct rt2x00_dev *rt2x00dev);
 void rt2x00leds_unregister(struct rt2x00_dev *rt2x00dev);
 void rt2x00leds_suspend(struct rt2x00_dev *rt2x00dev);
@@ -192,6 +194,16 @@ void rt2x00leds_resume(struct rt2x00_dev *rt2x00dev);
 #else
 static inline void rt2x00leds_led_quality(struct rt2x00_dev *rt2x00dev,
 					  int rssi)
+{
+}
+
+static inline void rt2x00leds_led_assoc(struct rt2x00_dev *rt2x00dev,
+					bool enabled)
+{
+}
+
+static inline void rt2x00leds_led_radio(struct rt2x00_dev *rt2x00dev,
+					bool enabled)
 {
 }
 
