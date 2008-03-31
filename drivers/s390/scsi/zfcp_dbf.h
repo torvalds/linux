@@ -104,9 +104,9 @@ struct zfcp_hba_dbf_record_response {
 	u64 erp_action;
 	union {
 		struct {
-			u64 scsi_cmnd;
-			u64 scsi_serial;
-		} send_fcp;
+			u64 cmnd;
+			u64 serial;
+		} fcp;
 		struct {
 			u64 wwpn;
 			u32 d_id;
@@ -121,8 +121,8 @@ struct zfcp_hba_dbf_record_response {
 		struct {
 			u32 d_id;
 			u8 ls_code;
-		} send_els;
-	} data;
+		} els;
+	} u;
 } __attribute__ ((packed));
 
 struct zfcp_hba_dbf_record_status {
@@ -154,35 +154,34 @@ struct zfcp_hba_dbf_record {
 		struct zfcp_hba_dbf_record_response response;
 		struct zfcp_hba_dbf_record_status status;
 		struct zfcp_hba_dbf_record_qdio qdio;
-	} type;
+	} u;
 } __attribute__ ((packed));
 
-struct zfcp_san_dbf_record_ct {
-	union {
-		struct {
-			u16 cmd_req_code;
-			u8 revision;
-			u8 gs_type;
-			u8 gs_subtype;
-			u8 options;
-			u16 max_res_size;
-		} request;
-		struct {
-			u16 cmd_rsp_code;
-			u8 revision;
-			u8 reason_code;
-			u8 reason_code_expl;
-			u8 vendor_unique;
-		} response;
-	} type;
-	u32 payload_size;
+struct zfcp_san_dbf_record_ct_request {
+	u16 cmd_req_code;
+	u8 revision;
+	u8 gs_type;
+	u8 gs_subtype;
+	u8 options;
+	u16 max_res_size;
+	u32 len;
 #define ZFCP_DBF_CT_PAYLOAD	24
+	u8 payload[ZFCP_DBF_CT_PAYLOAD];
+} __attribute__ ((packed));
+
+struct zfcp_san_dbf_record_ct_response {
+	u16 cmd_rsp_code;
+	u8 revision;
+	u8 reason_code;
+	u8 expl;
+	u8 vendor_unique;
+	u32 len;
 	u8 payload[ZFCP_DBF_CT_PAYLOAD];
 } __attribute__ ((packed));
 
 struct zfcp_san_dbf_record_els {
 	u8 ls_code;
-	u32 payload_size;
+	u32 len;
 #define ZFCP_DBF_ELS_PAYLOAD	32
 #define ZFCP_DBF_ELS_MAX_PAYLOAD 1024
 	u8 payload[ZFCP_DBF_ELS_PAYLOAD];
@@ -195,9 +194,10 @@ struct zfcp_san_dbf_record {
 	u32 s_id;
 	u32 d_id;
 	union {
-		struct zfcp_san_dbf_record_ct ct;
+		struct zfcp_san_dbf_record_ct_request ct_req;
+		struct zfcp_san_dbf_record_ct_response ct_resp;
 		struct zfcp_san_dbf_record_els els;
-	} type;
+	} u;
 } __attribute__ ((packed));
 
 struct zfcp_scsi_dbf_record {
@@ -215,19 +215,15 @@ struct zfcp_scsi_dbf_record {
 	u64 fsf_reqid;
 	u32 fsf_seqno;
 	u64 fsf_issued;
-	union {
-		u64 old_fsf_reqid;
-		struct {
-			u8 rsp_validity;
-			u8 rsp_scsi_status;
-			u32 rsp_resid;
-			u8 rsp_code;
+	u64 old_fsf_reqid;
+	u8 rsp_validity;
+	u8 rsp_scsi_status;
+	u32 rsp_resid;
+	u8 rsp_code;
 #define ZFCP_DBF_SCSI_FCP_SNS_INFO	16
 #define ZFCP_DBF_SCSI_MAX_FCP_SNS_INFO	256
-			u32 sns_info_len;
-			u8 sns_info[ZFCP_DBF_SCSI_FCP_SNS_INFO];
-		} fcp;
-	} type;
+	u32 sns_info_len;
+	u8 sns_info[ZFCP_DBF_SCSI_FCP_SNS_INFO];
 } __attribute__ ((packed));
 
 #endif /* ZFCP_DBF_H */
