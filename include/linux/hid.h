@@ -547,6 +547,7 @@ void usbhid_fixup_report_descriptor(const u16, const u16, char *, unsigned, char
 int hid_ff_init(struct hid_device *hid);
 
 int hid_lgff_init(struct hid_device *hid);
+int hid_lg2ff_init(struct hid_device *hid);
 int hid_plff_init(struct hid_device *hid);
 int hid_tmff_init(struct hid_device *hid);
 int hid_zpff_init(struct hid_device *hid);

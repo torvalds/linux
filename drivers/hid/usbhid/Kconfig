@@ -71,6 +71,14 @@ config LOGITECH_FF
 	  Note: if you say N here, this device will still be supported, but without
 	  force feedback.
 
+config LOGIRUMBLEPAD2_FF
+	bool "Logitech Rumblepad 2 support"
+	depends on HID_FF
+	select INPUT_FF_MEMLESS if USB_HID
+	help
+	  Say Y here if you want to enable force feedback support for Logitech
+	  Rumblepad 2 devices.
+
 config PANTHERLORD_FF
 	bool "PantherLord/GreenAsia based device support"
 	depends on HID_FF
