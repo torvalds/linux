@@ -464,9 +464,9 @@ sn9c102_i2c_try_read(struct sn9c102_device* cam,
 }
 
 
-int
-sn9c102_i2c_try_write(struct sn9c102_device* cam,
-		      const struct sn9c102_sensor* sensor, u8 address, u8 value)
+static int sn9c102_i2c_try_write(struct sn9c102_device* cam,
+				 const struct sn9c102_sensor* sensor,
+				 u8 address, u8 value)
 {
 	return sn9c102_i2c_try_raw_write(cam, sensor, 3,
 					 sensor->i2c_slave_id, address,
