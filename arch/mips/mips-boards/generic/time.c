@@ -147,7 +147,7 @@ unsigned long read_persistent_clock(void)
 	return mc146818_get_cmos_time();
 }
 
-void __init plat_perf_setup(void)
+static void __init plat_perf_setup(void)
 {
 #ifdef MSC01E_INT_BASE
 	if (cpu_has_veic) {
