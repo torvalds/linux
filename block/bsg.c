@@ -37,7 +37,6 @@ struct bsg_device {
 	struct list_head done_list;
 	struct hlist_node dev_list;
 	atomic_t ref_count;
-	int minor;
 	int queued_cmds;
 	int done_cmds;
 	wait_queue_head_t wq_done;
@@ -758,9 +757,8 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 	bsg_set_block(bd, file);
 
 	atomic_set(&bd->ref_count, 1);
-	bd->minor = iminor(inode);
 	mutex_lock(&bsg_mutex);
-	hlist_add_head(&bd->dev_list, bsg_dev_idx_hash(bd->minor));
+	hlist_add_head(&bd->dev_list, bsg_dev_idx_hash(iminor(inode)));
 
 	strncpy(bd->name, rq->bsg_dev.class_dev->class_id, sizeof(bd->name) - 1);
 	dprintk("bound to <%s>, max queue %d\n",
@@ -770,7 +768,7 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 	return bd;
 }
 
-static struct bsg_device *__bsg_get_device(int minor)
+static struct bsg_device *__bsg_get_device(int minor, struct request_queue *q)
 {
 	struct bsg_device *bd;
 	struct hlist_node *entry;
@@ -778,7 +776,7 @@ static struct bsg_device *__bsg_get_device(int minor)
 	mutex_lock(&bsg_mutex);
 
 	hlist_for_each_entry(bd, entry, bsg_dev_idx_hash(minor), dev_list) {
-		if (bd->minor == minor) {
+		if (bd->queue == q) {
 			atomic_inc(&bd->ref_count);
 			goto found;
 		}
@@ -806,7 +804,7 @@ static struct bsg_device *bsg_get_device(struct inode *inode, struct file *file)
 	if (!bcd)
 		return ERR_PTR(-ENODEV);
 
-	bd = __bsg_get_device(iminor(inode));
+	bd = __bsg_get_device(iminor(inode), bcd->queue);
 	if (bd)
 		return bd;
 
