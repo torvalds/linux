@@ -238,7 +238,7 @@ static void __init mips_nmi_setup(void)
 	flush_icache_range((unsigned long)base, (unsigned long)base + 0x80);
 }
 
-void __init mips_ejtag_setup(void)
+static void __init mips_ejtag_setup(void)
 {
 	void *base;
 	extern char except_vec_ejtag_debug;
