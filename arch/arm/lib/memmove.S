@@ -13,14 +13,6 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 
-/*
- * This can be used to enable code to cacheline align the source pointer.
- * Experiments on tested architectures (StrongARM and XScale) didn't show
- * this a worthwhile thing to do.  That might be different in the future.
- */
-//#define CALGN(code...)        code
-#define CALGN(code...)
-
 		.text
 
 /*
@@ -55,7 +47,7 @@ ENTRY(memmove)
 		stmfd	sp!, {r5 - r8}
 		blt	5f
 
-	CALGN(	ands	ip, r1, #31		)
+	CALGN(	ands	ip, r0, #31		)
 	CALGN(	sbcnes	r4, ip, r2		)  @ C is always set here
 	CALGN(	bcs	2f			)
 	CALGN(	adr	r4, 6f			)
@@ -139,7 +131,7 @@ ENTRY(memmove)
 		subs	r2, r2, #28
 		blt	14f
 
-	CALGN(	ands	ip, r1, #31		)
+	CALGN(	ands	ip, r0, #31		)
 	CALGN(	sbcnes	r4, ip, r2		)  @ C is always set here
 	CALGN(	subcc	r2, r2, ip		)
 	CALGN(	bcc	15f			)
