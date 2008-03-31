@@ -2150,10 +2150,13 @@ ieee80211_rx_mesh_bss_get(struct net_device *dev, u8 *mesh_id, int mesh_id_len,
 
 static struct ieee80211_sta_bss *
 ieee80211_rx_mesh_bss_add(struct net_device *dev, u8 *mesh_id, int mesh_id_len,
-			  u8 *mesh_cfg, int freq)
+			  u8 *mesh_cfg, int mesh_config_len, int freq)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sta_bss *bss;
+
+	if (mesh_config_len != MESH_CFG_LEN)
+		return NULL;
 
 	bss = kzalloc(sizeof(*bss), GFP_ATOMIC);
 	if (!bss)
@@ -2528,7 +2531,8 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 #ifdef CONFIG_MAC80211_MESH
 		if (elems.mesh_config)
 			bss = ieee80211_rx_mesh_bss_add(dev, elems.mesh_id,
-				elems.mesh_id_len, elems.mesh_config, freq);
+				elems.mesh_id_len, elems.mesh_config,
+				elems.mesh_config_len, freq);
 		else
 #endif
 			bss = ieee80211_rx_bss_add(dev, mgmt->bssid, freq,
