@@ -2253,8 +2253,10 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
 	/* Remove possible STA entries from other IBSS networks. */
-	sta_info_flush(local, NULL);
+	sta_info_flush(local, sdata);
 
 	if (local->ops->reset_tsf) {
 		/* Reset own TSF to allow time synchronization work. */
@@ -2267,7 +2269,6 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 
 	local->hw.conf.beacon_int = bss->beacon_int >= 10 ? bss->beacon_int : 10;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	sdata->drop_unencrypted = bss->capability &
 		WLAN_CAPABILITY_PRIVACY ? 1 : 0;
 
