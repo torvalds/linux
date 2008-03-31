@@ -705,6 +705,7 @@ static struct bsg_device *bsg_alloc_device(void)
 static int bsg_put_device(struct bsg_device *bd)
 {
 	int ret = 0;
+	struct device *dev = bd->queue->bsg_dev.dev;
 
 	mutex_lock(&bsg_mutex);
 
@@ -730,6 +731,7 @@ static int bsg_put_device(struct bsg_device *bd)
 	kfree(bd);
 out:
 	mutex_unlock(&bsg_mutex);
+	put_device(dev);
 	return ret;
 }
 
@@ -789,21 +791,27 @@ static struct bsg_device *bsg_get_device(struct inode *inode, struct file *file)
 	struct bsg_device *bd;
 	struct bsg_class_device *bcd;
 
-	bd = __bsg_get_device(iminor(inode));
-	if (bd)
-		return bd;
-
 	/*
 	 * find the class device
 	 */
 	mutex_lock(&bsg_mutex);
 	bcd = idr_find(&bsg_minor_idr, iminor(inode));
+	if (bcd)
+		get_device(bcd->dev);
 	mutex_unlock(&bsg_mutex);
 
 	if (!bcd)
 		return ERR_PTR(-ENODEV);
 
-	return bsg_add_device(inode, bcd->queue, file);
+	bd = __bsg_get_device(iminor(inode));
+	if (bd)
+		return bd;
+
+	bd = bsg_add_device(inode, bcd->queue, file);
+	if (IS_ERR(bd))
+		put_device(bcd->dev);
+
+	return bd;
 }
 
 static int bsg_open(struct inode *inode, struct file *file)
@@ -942,7 +950,6 @@ void bsg_unregister_queue(struct request_queue *q)
 	class_device_unregister(bcd->class_dev);
 	put_device(bcd->dev);
 	bcd->class_dev = NULL;
-	bcd->dev = NULL;
 	mutex_unlock(&bsg_mutex);
 }
 EXPORT_SYMBOL_GPL(bsg_unregister_queue);
