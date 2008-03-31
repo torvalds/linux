@@ -903,17 +903,18 @@ plip_interrupt(void *dev_id)
 	struct net_local *nl;
 	struct plip_local *rcv;
 	unsigned char c0;
+	unsigned long flags;
 
 	nl = netdev_priv(dev);
 	rcv = &nl->rcv_data;
 
-	spin_lock_irq (&nl->lock);
+	spin_lock_irqsave (&nl->lock, flags);
 
 	c0 = read_status(dev);
 	if ((c0 & 0xf8) != 0xc0) {
 		if ((dev->irq != -1) && (net_debug > 1))
 			printk(KERN_DEBUG "%s: spurious interrupt\n", dev->name);
-		spin_unlock_irq (&nl->lock);
+		spin_unlock_irqrestore (&nl->lock, flags);
 		return;
 	}
 
@@ -942,7 +943,7 @@ plip_interrupt(void *dev_id)
 		break;
 	}
 
-	spin_unlock_irq(&nl->lock);
+	spin_unlock_irqrestore(&nl->lock, flags);
 }
 
 static int
