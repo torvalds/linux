@@ -467,8 +467,6 @@ static int bsg_complete_all_commands(struct bsg_device *bd)
 
 	dprintk("%s: entered\n", bd->name);
 
-	set_bit(BSG_F_BLOCK, &bd->flags);
-
 	/*
 	 * wait for all commands to complete
 	 */
