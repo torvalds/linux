@@ -111,6 +111,11 @@ static struct policydb_compat_info policydb_compat[] = {
 		.version	= POLICYDB_VERSION_POLCAP,
 		.sym_num	= SYM_NUM,
 		.ocon_num	= OCON_NUM,
+	},
+	{
+		.version	= POLICYDB_VERSION_PERMISSIVE,
+		.sym_num	= SYM_NUM,
+		.ocon_num	= OCON_NUM,
 	}
 };
 
@@ -194,6 +199,7 @@ static int policydb_init(struct policydb *p)
 		goto out_free_symtab;
 
 	ebitmap_init(&p->policycaps);
+	ebitmap_init(&p->permissive_map);
 
 out:
 	return rc;
@@ -687,6 +693,7 @@ void policydb_destroy(struct policydb *p)
 	kfree(p->type_attr_map);
 	kfree(p->undefined_perms);
 	ebitmap_destroy(&p->policycaps);
+	ebitmap_destroy(&p->permissive_map);
 
 	return;
 }
@@ -1568,6 +1575,10 @@ int policydb_read(struct policydb *p, void *fp)
 
 	if (p->policyvers >= POLICYDB_VERSION_POLCAP &&
 	    ebitmap_read(&p->policycaps, fp) != 0)
+		goto bad;
+
+	if (p->policyvers >= POLICYDB_VERSION_PERMISSIVE &&
+	    ebitmap_read(&p->permissive_map, fp) != 0)
 		goto bad;
 
 	info = policydb_lookup_compat(p->policyvers);

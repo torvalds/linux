@@ -417,6 +417,31 @@ inval_class:
 	return -EINVAL;
 }
 
+/*
+ * Given a sid find if the type has the permissive flag set
+ */
+int security_permissive_sid(u32 sid)
+{
+	struct context *context;
+	u32 type;
+	int rc;
+
+	POLICY_RDLOCK;
+
+	context = sidtab_search(&sidtab, sid);
+	BUG_ON(!context);
+
+	type = context->type;
+	/*
+	 * we are intentionally using type here, not type-1, the 0th bit may
+	 * someday indicate that we are globally setting permissive in policy.
+	 */
+	rc = ebitmap_get_bit(&policydb.permissive_map, type);
+
+	POLICY_RDUNLOCK;
+	return rc;
+}
+
 static int security_validtrans_handle_fail(struct context *ocontext,
                                            struct context *ncontext,
                                            struct context *tcontext,
