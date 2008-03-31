@@ -82,6 +82,7 @@ static int hid_start_in(struct hid_device *hid)
 
 	spin_lock_irqsave(&usbhid->inlock, flags);
 	if (hid->open > 0 && !test_bit(HID_SUSPENDED, &usbhid->iofl) &&
+			!test_bit(HID_DISCONNECTED, &usbhid->iofl) &&
 			!test_and_set_bit(HID_IN_RUNNING, &usbhid->iofl)) {
 		rc = usb_submit_urb(usbhid->urbin, GFP_ATOMIC);
 		if (rc != 0)
@@ -155,7 +156,7 @@ static void hid_io_error(struct hid_device *hid)
 	spin_lock_irqsave(&usbhid->inlock, flags);
 
 	/* Stop when disconnected */
-	if (usb_get_intfdata(usbhid->intf) == NULL)
+	if (test_bit(HID_DISCONNECTED, &usbhid->iofl))
 		goto done;
 
 	/* If it has been a while since the last error, we'll assume
@@ -941,6 +942,7 @@ static void hid_disconnect(struct usb_interface *intf)
 
 	spin_lock_irq(&usbhid->inlock);	/* Sync with error handler */
 	usb_set_intfdata(intf, NULL);
+	set_bit(HID_DISCONNECTED, &usbhid->iofl);
 	spin_unlock_irq(&usbhid->inlock);
 	usb_kill_urb(usbhid->urbin);
 	usb_kill_urb(usbhid->urbout);
