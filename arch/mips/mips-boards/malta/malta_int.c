@@ -342,13 +342,13 @@ static struct irqaction corehi_irqaction = {
 	.name = "CoreHi"
 };
 
-msc_irqmap_t __initdata msc_irqmap[] = {
+static msc_irqmap_t __initdata msc_irqmap[] = {
 	{MSC01C_INT_TMR,		MSC01_IRQ_EDGE, 0},
 	{MSC01C_INT_PCI,		MSC01_IRQ_LEVEL, 0},
 };
-int __initdata msc_nr_irqs = ARRAY_SIZE(msc_irqmap);
+static int __initdata msc_nr_irqs = ARRAY_SIZE(msc_irqmap);
 
-msc_irqmap_t __initdata msc_eicirqmap[] = {
+static msc_irqmap_t __initdata msc_eicirqmap[] = {
 	{MSC01E_INT_SW0,		MSC01_IRQ_LEVEL, 0},
 	{MSC01E_INT_SW1,		MSC01_IRQ_LEVEL, 0},
 	{MSC01E_INT_I8259A,		MSC01_IRQ_LEVEL, 0},
@@ -361,7 +361,7 @@ msc_irqmap_t __initdata msc_eicirqmap[] = {
 	{MSC01E_INT_CPUCTR,		MSC01_IRQ_LEVEL, 0}
 };
 
-int __initdata msc_nr_eicirqs = ARRAY_SIZE(msc_eicirqmap);
+static int __initdata msc_nr_eicirqs = ARRAY_SIZE(msc_eicirqmap);
 
 /*
  * This GIC specific tabular array defines the association between External
