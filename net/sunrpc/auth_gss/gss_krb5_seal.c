@@ -87,10 +87,10 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 
 	now = get_seconds();
 
-	token->len = g_token_size(&ctx->mech_used, 22);
+	token->len = g_token_size(&ctx->mech_used, 24);
 
 	ptr = token->data;
-	g_make_token_header(&ctx->mech_used, 22, &ptr);
+	g_make_token_header(&ctx->mech_used, 24, &ptr);
 
 	*ptr++ = (unsigned char) ((KG_TOK_MIC_MSG>>8)&0xff);
 	*ptr++ = (unsigned char) (KG_TOK_MIC_MSG&0xff);
