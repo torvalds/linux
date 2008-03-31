@@ -1199,14 +1199,10 @@ static int eligible_child(enum pid_type type, struct pid *pid, int options,
 		return 0;
 
 	err = security_task_wait(p);
-	if (likely(!err))
-		return 1;
+	if (err)
+		return err;
 
-	if (type != PIDTYPE_PID)
-		return 0;
-	/* This child was explicitly requested, abort */
-	read_unlock(&tasklist_lock);
-	return err;
+	return 1;
 }
 
 static int wait_noreap_copyout(struct task_struct *p, pid_t pid, uid_t uid,
@@ -1536,7 +1532,8 @@ static int wait_task_continued(struct task_struct *p, int options,
  * -ECHILD should be in *@notask_error before the first call.
  * Returns nonzero for a final return, when we have unlocked tasklist_lock.
  * Returns zero if the search for a child should continue;
- * then *@notask_error is 0 if @p is an eligible child, or still -ECHILD.
+ * then *@notask_error is 0 if @p is an eligible child,
+ * or another error from security_task_wait(), or still -ECHILD.
  */
 static int wait_consider_task(struct task_struct *parent, int ptrace,
 			      struct task_struct *p, int *notask_error,
@@ -1545,8 +1542,20 @@ static int wait_consider_task(struct task_struct *parent, int ptrace,
 			      int __user *stat_addr, struct rusage __user *ru)
 {
 	int ret = eligible_child(type, pid, options, p);
-	if (ret <= 0)
+	if (!ret)
 		return ret;
+
+	if (unlikely(ret < 0)) {
+		/*
+		 * If we have not yet seen any eligible child,
+		 * then let this error code replace -ECHILD.
+		 * A permission error will give the user a clue
+		 * to look for security policy problems, rather
+		 * than for mysterious wait bugs.
+		 */
+		if (*notask_error)
+			*notask_error = ret;
+	}
 
 	if (likely(!ptrace) && unlikely(p->ptrace)) {
 		/*
@@ -1585,7 +1594,8 @@ static int wait_consider_task(struct task_struct *parent, int ptrace,
  * -ECHILD should be in *@notask_error before the first call.
  * Returns nonzero for a final return, when we have unlocked tasklist_lock.
  * Returns zero if the search for a child should continue; then
- * *@notask_error is 0 if there were any eligible children, or still -ECHILD.
+ * *@notask_error is 0 if there were any eligible children,
+ * or another error from security_task_wait(), or still -ECHILD.
  */
 static int do_wait_thread(struct task_struct *tsk, int *notask_error,
 			  enum pid_type type, struct pid *pid, int options,
