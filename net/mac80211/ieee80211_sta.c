@@ -3079,7 +3079,7 @@ static void ieee80211_sta_expire(struct net_device *dev, unsigned long exp_time)
 		if (time_after(jiffies, sta->last_rx + exp_time)) {
 			printk(KERN_DEBUG "%s: expiring inactive STA %s\n",
 			       dev->name, print_mac(mac, sta->addr));
-			sta_info_unlink(&sta);
+			__sta_info_unlink(&sta);
 			if (sta)
 				list_add(&sta->list, &tmp_list);
 		}

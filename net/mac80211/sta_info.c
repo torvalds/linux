@@ -454,7 +454,7 @@ static struct sta_info *__sta_info_unpin(struct sta_info *sta)
 	return ret;
 }
 
-static void __sta_info_unlink(struct sta_info **sta)
+void __sta_info_unlink(struct sta_info **sta)
 {
 	struct ieee80211_local *local = (*sta)->local;
 	struct ieee80211_sub_if_data *sdata = (*sta)->sdata;
