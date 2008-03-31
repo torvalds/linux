@@ -368,7 +368,7 @@ static struct bsg_command *bsg_next_done_cmd(struct bsg_device *bd)
 
 	spin_lock_irq(&bd->lock);
 	if (bd->done_cmds) {
-		bc = list_entry(bd->done_list.next, struct bsg_command, list);
+		bc = list_first_entry(&bd->done_list, struct bsg_command, list);
 		list_del(&bc->list);
 		bd->done_cmds--;
 	}
@@ -772,21 +772,19 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 
 static struct bsg_device *__bsg_get_device(int minor)
 {
-	struct bsg_device *bd = NULL;
+	struct bsg_device *bd;
 	struct hlist_node *entry;
 
 	mutex_lock(&bsg_mutex);
 
-	hlist_for_each(entry, bsg_dev_idx_hash(minor)) {
-		bd = hlist_entry(entry, struct bsg_device, dev_list);
+	hlist_for_each_entry(bd, entry, bsg_dev_idx_hash(minor), dev_list) {
 		if (bd->minor == minor) {
 			atomic_inc(&bd->ref_count);
-			break;
+			goto found;
 		}
-
-		bd = NULL;
 	}
-
+	bd = NULL;
+found:
 	mutex_unlock(&bsg_mutex);
 	return bd;
 }
