@@ -46,6 +46,13 @@ config MPC85xx_DS
 	help
 	  This option enables support for the MPC85xx DS (MPC8544 DS) board
 
+config KSI8560
+        bool "Emerson KSI8560"
+        select PPC_CPM_NEW_BINDING
+        select DEFAULT_UIMAGE
+        help
+          This option enables support for the Emerson KSI8560 board
+
 config STX_GP3
 	bool "Silicon Turnkey Express GP3"
 	help
