@@ -38,7 +38,6 @@ int __weak rtc_mips_set_time(unsigned long sec)
 {
 	return 0;
 }
-EXPORT_SYMBOL(rtc_mips_set_time);
 
 int __weak rtc_mips_set_mmss(unsigned long nowtime)
 {
