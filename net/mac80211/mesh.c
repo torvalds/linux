@@ -11,10 +11,6 @@
 #include "ieee80211_i.h"
 #include "mesh.h"
 
-#define PP_OFFSET 	1		/* Path Selection Protocol */
-#define PM_OFFSET	5		/* Path Selection Metric   */
-#define CC_OFFSET	9		/* Congestion Control Mode */
-#define CAPAB_OFFSET 17
 #define ACCEPT_PLINKS 0x80
 
 int mesh_allocated;

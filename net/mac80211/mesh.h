@@ -157,6 +157,16 @@ struct mesh_rmc {
  */
 #define MESH_CFG_CMP_LEN 	17
 
+/*
+ * Components offset within the mesh configuration IE
+ */
+#define PP_OFFSET	1		/* Path Selection Protocol */
+#define PM_OFFSET	5		/* Path Selection Metric   */
+#define CC_OFFSET	9		/* Congestion Control Mode */
+#define CP_OFFSET	13		/* Channel Precedence */
+#define CAPAB_OFFSET	17		/* Mesh Capabilities */
+
+
 /* Default values, timeouts in ms */
 #define MESH_TTL 		5
 #define MESH_MAX_RETR	 	3
