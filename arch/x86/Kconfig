@@ -78,7 +78,7 @@ config GENERIC_BUG
 	depends on BUG
 
 config GENERIC_FIND_FIRST_BIT
-	def_bool X86_32
+	def_bool y
 
 config GENERIC_FIND_NEXT_BIT
 	def_bool y

@@ -1,3 +1,4 @@
+#ifndef CONFIG_GENERIC_FIND_FIRST_BIT
 #include <linux/bitops.h>
 
 #undef find_first_zero_bit
@@ -105,3 +106,4 @@ long find_first_bit(const unsigned long * addr, unsigned long size)
 
 EXPORT_SYMBOL(find_first_bit);
 EXPORT_SYMBOL(find_first_zero_bit);
+#endif
