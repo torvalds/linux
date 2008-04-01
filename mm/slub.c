@@ -2688,7 +2688,7 @@ void kfree(const void *x)
 }
 EXPORT_SYMBOL(kfree);
 
-#if defined(SLUB_DEBUG) || defined(CONFIG_SLABINFO)
+#if defined(CONFIG_SLUB_DEBUG) || defined(CONFIG_SLABINFO)
 static unsigned long count_partial(struct kmem_cache_node *n)
 {
 	unsigned long flags;
