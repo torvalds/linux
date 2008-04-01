@@ -262,13 +262,21 @@ void dump_mtregs(void)
 /* Find some VPE program space  */
 static void *alloc_progmem(unsigned long len)
 {
+	void *addr;
+
 #ifdef CONFIG_MIPS_VPE_LOADER_TOM
-	/* this means you must tell linux to use less memory than you physically have */
-	return pfn_to_kaddr(max_pfn);
+	/*
+	 * This means you must tell Linux to use less memory than you
+	 * physically have, for example by passing a mem= boot argument.
+	 */
+	addr = pfn_to_kaddr(max_pfn);
+	memset(addr, 0, len);
 #else
-	// simple grab some mem for now
-	return kmalloc(len, GFP_KERNEL);
+	/* simple grab some mem for now */
+	addr = kzalloc(len, GFP_KERNEL);
 #endif
+
+	return addr;
 }
 
 static void release_progmem(void *ptr)
@@ -884,9 +892,10 @@ static int vpe_elfload(struct vpe * v)
 	}
 
 	v->load_addr = alloc_progmem(mod.core_size);
-	memset(v->load_addr, 0, mod.core_size);
+	if (!v->load_addr)
+		return -ENOMEM;
 
-	printk("VPE loader: loading to %p\n", v->load_addr);
+	pr_info("VPE loader: loading to %p\n", v->load_addr);
 
 	if (relocate) {
 		for (i = 0; i < hdr->e_shnum; i++) {

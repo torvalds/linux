@@ -180,8 +180,8 @@ static struct resource bcm1480ht_mem_resource = {
 
 static struct resource bcm1480ht_io_resource = {
 	.name	= "BCM1480 HT I/O",
-	.start	= 0x00000000UL,
-	.end	= 0x01ffffffUL,
+	.start	= A_BCM1480_PHYS_HT_IO_MATCH_BYTES,
+	.end	= A_BCM1480_PHYS_HT_IO_MATCH_BYTES + 0x01ffffffUL,
 	.flags	= IORESOURCE_IO,
 };
 
@@ -191,29 +191,22 @@ struct pci_controller bcm1480ht_controller = {
 	.io_resource	= &bcm1480ht_io_resource,
 	.index		= 1,
 	.get_busno	= bcm1480ht_pcibios_get_busno,
+	.io_offset      = A_BCM1480_PHYS_HT_IO_MATCH_BYTES,
 };
 
 static int __init bcm1480ht_pcibios_init(void)
 {
-	uint32_t cmdreg;
-
 	ht_cfg_space = ioremap(A_BCM1480_PHYS_HT_CFG_MATCH_BITS, 16*1024*1024);
 
-	/*
-	 * See if the PCI bus has been configured by the firmware.
-	 */
-	cmdreg = READCFG32(CFGOFFSET(0, PCI_DEVFN(PCI_BRIDGE_DEVICE, 0),
-				     PCI_COMMAND));
-	if (!(cmdreg & PCI_COMMAND_MASTER)) {
-		printk("HT: Skipping HT probe. Bus is not initialized.\n");
-		iounmap(ht_cfg_space);
-		return 1; /* XXX */
-	}
+	/* CFE doesn't always init all HT paths, so we always scan */
 	bcm1480ht_bus_status |= PCI_BUS_ENABLED;
 
 	ht_eoi_space = (unsigned long)
 		ioremap(A_BCM1480_PHYS_HT_SPECIAL_MATCH_BYTES,
 			4 * 1024 * 1024);
+	bcm1480ht_controller.io_map_base = (unsigned long)
+		ioremap(A_BCM1480_PHYS_HT_IO_MATCH_BYTES, 65536);
+	bcm1480ht_controller.io_map_base -= bcm1480ht_controller.io_offset;
 
 	register_pci_controller(&bcm1480ht_controller);
 
