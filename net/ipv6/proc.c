@@ -35,16 +35,18 @@ static struct proc_dir_entry *proc_net_devsnmp6;
 
 static int sockstat6_seq_show(struct seq_file *seq, void *v)
 {
+	struct net *net = seq->private;
+
 	seq_printf(seq, "TCP6: inuse %d\n",
-		       sock_prot_inuse_get(&init_net, &tcpv6_prot));
+		       sock_prot_inuse_get(net, &tcpv6_prot));
 	seq_printf(seq, "UDP6: inuse %d\n",
-		       sock_prot_inuse_get(&init_net, &udpv6_prot));
+		       sock_prot_inuse_get(net, &udpv6_prot));
 	seq_printf(seq, "UDPLITE6: inuse %d\n",
-			sock_prot_inuse_get(&init_net, &udplitev6_prot));
+			sock_prot_inuse_get(net, &udplitev6_prot));
 	seq_printf(seq, "RAW6: inuse %d\n",
-		       sock_prot_inuse_get(&init_net, &rawv6_prot));
+		       sock_prot_inuse_get(net, &rawv6_prot));
 	seq_printf(seq, "FRAG6: inuse %d memory %d\n",
-		       ip6_frag_nqueues(&init_net), ip6_frag_mem(&init_net));
+		       ip6_frag_nqueues(net), ip6_frag_mem(net));
 	return 0;
 }
 
@@ -183,7 +185,32 @@ static int snmp6_seq_show(struct seq_file *seq, void *v)
 
 static int sockstat6_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, sockstat6_seq_show, NULL);
+	int err;
+	struct net *net;
+
+	err = -ENXIO;
+	net = get_proc_net(inode);
+	if (net == NULL)
+		goto err_net;
+
+	err = single_open(file, sockstat6_seq_show, net);
+	if (err < 0)
+		goto err_open;
+
+	return 0;
+
+err_open:
+	put_net(net);
+err_net:
+	return err;
+}
+
+static int sockstat6_seq_release(struct inode *inode, struct file *file)
+{
+	struct net *net = ((struct seq_file *)file->private_data)->private;
+
+	put_net(net);
+	return single_release(inode, file);
 }
 
 static const struct file_operations sockstat6_seq_fops = {
@@ -191,7 +218,7 @@ static const struct file_operations sockstat6_seq_fops = {
 	.open	 = sockstat6_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = single_release,
+	.release = sockstat6_seq_release,
 };
 
 static int snmp6_seq_open(struct inode *inode, struct file *file)
