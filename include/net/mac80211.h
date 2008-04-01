@@ -302,6 +302,7 @@ struct ieee80211_tx_control {
 	u8 iv_len;		/* length of the IV field in octets */
 	u8 queue;		/* hardware queue to use for this frame;
 				 * 0 = highest, hw->queues-1 = lowest */
+	u16 aid;		/* Station AID */
 	int type;	/* internal */
 };
 

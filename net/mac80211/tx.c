@@ -741,6 +741,7 @@ ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 	}
 
 	if (tx->sta) {
+		control->aid = tx->sta->aid;
 		tx->sta->tx_packets++;
 		tx->sta->tx_fragments++;
 		tx->sta->tx_bytes += tx->skb->len;
