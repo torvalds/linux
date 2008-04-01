@@ -193,6 +193,8 @@ static inline unsigned long btrfs_chunk_item_size(int num_stripes)
 }
 
 #define BTRFS_FSID_SIZE 16
+#define BTRFS_HEADER_FLAG_WRITTEN (1 << 0)
+
 /*
  * every tree block (leaf or node) starts with this header.
  */
@@ -200,10 +202,10 @@ struct btrfs_header {
 	u8 csum[BTRFS_CSUM_SIZE];
 	u8 fsid[BTRFS_FSID_SIZE]; /* FS specific uuid */
 	__le64 bytenr; /* which block this node is supposed to live in */
+	__le64 flags;
 	__le64 generation;
 	__le64 owner;
 	__le32 nritems;
-	__le16 flags;
 	u8 level;
 } __attribute__ ((__packed__));
 
@@ -229,9 +231,10 @@ struct btrfs_header {
  */
 struct btrfs_super_block {
 	u8 csum[BTRFS_CSUM_SIZE];
-	/* the first 3 fields must match struct btrfs_header */
+	/* the first 4 fields must match struct btrfs_header */
 	u8 fsid[16];    /* FS specific uuid */
 	__le64 bytenr; /* this block number */
+	__le64 flags;
 	__le64 magic;
 	__le64 generation;
 	__le64 root;
@@ -1045,8 +1048,27 @@ BTRFS_SETGET_HEADER_FUNCS(header_generation, struct btrfs_header,
 			  generation, 64);
 BTRFS_SETGET_HEADER_FUNCS(header_owner, struct btrfs_header, owner, 64);
 BTRFS_SETGET_HEADER_FUNCS(header_nritems, struct btrfs_header, nritems, 32);
-BTRFS_SETGET_HEADER_FUNCS(header_flags, struct btrfs_header, flags, 16);
+BTRFS_SETGET_HEADER_FUNCS(header_flags, struct btrfs_header, flags, 64);
 BTRFS_SETGET_HEADER_FUNCS(header_level, struct btrfs_header, level, 8);
+
+static inline int btrfs_header_flag(struct extent_buffer *eb, u64 flag)
+{
+	return (btrfs_header_flags(eb) & flag) == flag;
+}
+
+static inline int btrfs_set_header_flag(struct extent_buffer *eb, u64 flag)
+{
+	u64 flags = btrfs_header_flags(eb);
+	btrfs_set_header_flags(eb, flags | flag);
+	return (flags & flag) == flag;
+}
+
+static inline int btrfs_clear_header_flag(struct extent_buffer *eb, u64 flag)
+{
+	u64 flags = btrfs_header_flags(eb);
+	btrfs_set_header_flags(eb, flags & ~flag);
+	return (flags & flag) == flag;
+}
 
 static inline u8 *btrfs_header_fsid(struct extent_buffer *eb)
 {

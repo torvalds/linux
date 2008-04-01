@@ -159,17 +159,19 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 			from_this_trans = 1;
 
 		/* FIXME, this is not good */
-		if (from_this_trans == 0 &&
-		    memcmp_extent_buffer(buf, result, 0, BTRFS_CRC32_SIZE)) {
+		if (memcmp_extent_buffer(buf, result, 0, BTRFS_CRC32_SIZE)) {
 			u32 val;
 			u32 found = 0;
 			memcpy(&found, result, BTRFS_CRC32_SIZE);
 
 			read_extent_buffer(buf, &val, 0, BTRFS_CRC32_SIZE);
+			WARN_ON(1);
 			printk("btrfs: %s checksum verify failed on %llu "
-			       "wanted %X found %X from_this_trans %d\n",
+			       "wanted %X found %X from_this_trans %d "
+			       "level %d\n",
 			       root->fs_info->sb->s_id,
-			       buf->start, val, found, from_this_trans);
+			       buf->start, val, found, from_this_trans,
+			       btrfs_header_level(buf));
 			return 1;
 		}
 	} else {
@@ -220,6 +222,9 @@ int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 		goto err;
 	}
 	found_level = btrfs_header_level(eb);
+	spin_lock(&root->fs_info->hash_lock);
+	btrfs_set_header_flag(eb, BTRFS_HEADER_FLAG_WRITTEN);
+	spin_unlock(&root->fs_info->hash_lock);
 	csum_tree_block(root, eb, 0);
 err:
 	free_extent_buffer(eb);

@@ -124,6 +124,7 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 	btrfs_set_header_bytenr(cow, cow->start);
 	btrfs_set_header_generation(cow, trans->transid);
 	btrfs_set_header_owner(cow, new_root_objectid);
+	btrfs_clear_header_flag(cow, BTRFS_HEADER_FLAG_WRITTEN);
 
 	WARN_ON(btrfs_header_generation(buf) > trans->transid);
 	ret = btrfs_inc_ref(trans, new_root, buf);
@@ -183,6 +184,7 @@ int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	btrfs_set_header_bytenr(cow, cow->start);
 	btrfs_set_header_generation(cow, trans->transid);
 	btrfs_set_header_owner(cow, root->root_key.objectid);
+	btrfs_clear_header_flag(cow, BTRFS_HEADER_FLAG_WRITTEN);
 
 	WARN_ON(btrfs_header_generation(buf) > trans->transid);
 	if (btrfs_header_generation(buf) != trans->transid) {
@@ -245,11 +247,14 @@ int btrfs_cow_block(struct btrfs_trans_handle *trans,
 	}
 
 	header_trans = btrfs_header_generation(buf);
-	if (header_trans == trans->transid) {
+	spin_lock(&root->fs_info->hash_lock);
+	if (header_trans == trans->transid &&
+	    !btrfs_header_flag(buf, BTRFS_HEADER_FLAG_WRITTEN)) {
 		*cow_ret = buf;
+		spin_unlock(&root->fs_info->hash_lock);
 		return 0;
 	}
-
+	spin_unlock(&root->fs_info->hash_lock);
 	search_start = buf->start & ~((u64)(1024 * 1024 * 1024) - 1);
 	ret = __btrfs_cow_block(trans, root, buf, parent,
 				 parent_slot, cow_ret, search_start, 0);
@@ -1494,6 +1499,7 @@ static int split_node(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_header_bytenr(split, split->start);
 	btrfs_set_header_generation(split, trans->transid);
 	btrfs_set_header_owner(split, root->root_key.objectid);
+	btrfs_set_header_flags(split, 0);
 	write_extent_buffer(split, root->fs_info->fsid,
 			    (unsigned long)btrfs_header_fsid(split),
 			    BTRFS_FSID_SIZE);
