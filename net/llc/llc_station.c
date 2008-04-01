@@ -253,7 +253,8 @@ static int llc_station_ac_inc_xid_r_cnt_by_1(struct sk_buff *skb)
 static int llc_station_ac_send_null_dsap_xid_c(struct sk_buff *skb)
 {
 	int rc = 1;
-	struct sk_buff *nskb = llc_alloc_frame(NULL, skb->dev);
+	struct sk_buff *nskb = llc_alloc_frame(NULL, skb->dev, LLC_PDU_TYPE_U,
+					       sizeof(struct llc_xid_info));
 
 	if (!nskb)
 		goto out;
@@ -274,7 +275,8 @@ static int llc_station_ac_send_xid_r(struct sk_buff *skb)
 {
 	u8 mac_da[ETH_ALEN], dsap;
 	int rc = 1;
-	struct sk_buff* nskb = llc_alloc_frame(NULL, skb->dev);
+	struct sk_buff *nskb = llc_alloc_frame(NULL, skb->dev, LLC_PDU_TYPE_U,
+					       sizeof(struct llc_xid_info));
 
 	if (!nskb)
 		goto out;
@@ -298,7 +300,12 @@ static int llc_station_ac_send_test_r(struct sk_buff *skb)
 {
 	u8 mac_da[ETH_ALEN], dsap;
 	int rc = 1;
-	struct sk_buff *nskb = llc_alloc_frame(NULL, skb->dev);
+	u32 data_size;
+	struct sk_buff *nskb;
+
+	/* The test request command is type U (llc_len = 3) */
+	data_size = ntohs(eth_hdr(skb)->h_proto) - 3;
+	nskb = llc_alloc_frame(NULL, skb->dev, LLC_PDU_TYPE_U, data_size);
 
 	if (!nskb)
 		goto out;
