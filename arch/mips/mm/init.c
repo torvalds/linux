@@ -263,9 +263,6 @@ void copy_from_user_page(struct vm_area_struct *vma,
 	}
 }
 
-EXPORT_SYMBOL(copy_from_user_page);
-
-
 #ifdef CONFIG_HIGHMEM
 unsigned long highstart_pfn, highend_pfn;
 
