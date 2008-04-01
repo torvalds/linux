@@ -120,7 +120,7 @@ struct extent_state *alloc_extent_state(gfp_t mask)
 	unsigned long flags;
 
 	state = kmem_cache_alloc(extent_state_cache, mask);
-	if (!state || IS_ERR(state))
+	if (!state)
 		return state;
 	state->state = 0;
 	state->private = 0;
@@ -957,7 +957,7 @@ int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
 	 * our range starts.
 	 */
 	node = tree_search(tree, start);
-	if (!node || IS_ERR(node)) {
+	if (!node) {
 		goto out;
 	}
 
@@ -990,7 +990,7 @@ struct extent_state *find_first_extent_bit_state(struct extent_io_tree *tree,
 	 * our range starts.
 	 */
 	node = tree_search(tree, start);
-	if (!node || IS_ERR(node)) {
+	if (!node) {
 		goto out;
 	}
 
@@ -1024,7 +1024,7 @@ u64 find_lock_delalloc_range(struct extent_io_tree *tree,
 	 */
 search_again:
 	node = tree_search(tree, cur_start);
-	if (!node || IS_ERR(node)) {
+	if (!node) {
 		*end = (u64)-1;
 		goto out;
 	}
@@ -1112,7 +1112,7 @@ u64 count_range_bits(struct extent_io_tree *tree,
 	 * our range starts.
 	 */
 	node = tree_search(tree, cur_start);
-	if (!node || IS_ERR(node)) {
+	if (!node) {
 		goto out;
 	}
 
@@ -1213,7 +1213,7 @@ int set_state_private(struct extent_io_tree *tree, u64 start, u64 private)
 	 * our range starts.
 	 */
 	node = tree_search(tree, start);
-	if (!node || IS_ERR(node)) {
+	if (!node) {
 		ret = -ENOENT;
 		goto out;
 	}
@@ -1240,7 +1240,7 @@ int get_state_private(struct extent_io_tree *tree, u64 start, u64 *private)
 	 * our range starts.
 	 */
 	node = tree_search(tree, start);
-	if (!node || IS_ERR(node)) {
+	if (!node) {
 		ret = -ENOENT;
 		goto out;
 	}
@@ -2642,7 +2642,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 	int uptodate = 1;
 
 	eb = __alloc_extent_buffer(tree, start, len, mask);
-	if (!eb || IS_ERR(eb))
+	if (!eb)
 		return NULL;
 
 	if (eb->flags & EXTENT_BUFFER_FILLED)
@@ -2717,7 +2717,7 @@ struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
 	int uptodate = 1;
 
 	eb = __alloc_extent_buffer(tree, start, len, mask);
-	if (!eb || IS_ERR(eb))
+	if (!eb)
 		return NULL;
 
 	if (eb->flags & EXTENT_BUFFER_FILLED)
