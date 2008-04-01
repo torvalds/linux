@@ -128,4 +128,11 @@
 #define        IRQ_DSMG600_PCI_INTE    IRQ_IXP4XX_GPIO7
 #define        IRQ_DSMG600_PCI_INTF    IRQ_IXP4XX_GPIO6
 
+/*
+ * Freecom FSG-3 Board IRQs
+ */
+#define        IRQ_FSG_PCI_INTA        IRQ_IXP4XX_GPIO6
+#define        IRQ_FSG_PCI_INTB        IRQ_IXP4XX_GPIO7
+#define        IRQ_FSG_PCI_INTC        IRQ_IXP4XX_GPIO5
+
 #endif
