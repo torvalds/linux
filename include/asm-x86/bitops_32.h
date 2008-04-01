@@ -5,6 +5,7 @@
  * Copyright 1992, Linus Torvalds.
  */
 
+#ifndef CONFIG_GENERIC_FIND_FIRST_BIT
 /**
  * find_first_zero_bit - find the first zero bit in a memory region
  * @addr: The address to start the search at
@@ -59,6 +60,7 @@ static inline unsigned find_first_bit(const unsigned long *addr, unsigned size)
 	}
 	return x;
 }
+#endif
 
 #ifdef __KERNEL__
 

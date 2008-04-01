@@ -113,6 +113,40 @@ static inline unsigned fls_long(unsigned long l)
 }
 
 #ifdef __KERNEL__
+#ifdef CONFIG_GENERIC_FIND_FIRST_BIT
+extern unsigned long __find_first_bit(const unsigned long *addr,
+		unsigned long size);
+
+/**
+ * find_first_bit - find the first set bit in a memory region
+ * @addr: The address to start the search at
+ * @size: The maximum size to search
+ *
+ * Returns the bit number of the first set bit.
+ */
+static __always_inline unsigned long
+find_first_bit(const unsigned long *addr, unsigned long size)
+{
+	return __find_first_bit(addr, size);
+}
+
+extern unsigned long __find_first_zero_bit(const unsigned long *addr,
+		unsigned long size);
+
+/**
+ * find_first_zero_bit - find the first cleared bit in a memory region
+ * @addr: The address to start the search at
+ * @size: The maximum size to search
+ *
+ * Returns the bit number of the first cleared bit.
+ */
+static __always_inline unsigned long
+find_first_zero_bit(const unsigned long *addr, unsigned long size)
+{
+	return __find_first_zero_bit(addr, size);
+}
+#endif /* CONFIG_GENERIC_FIND_FIRST_BIT */
+
 #ifdef CONFIG_GENERIC_FIND_NEXT_BIT
 extern unsigned long __find_next_bit(const unsigned long *addr,
 		unsigned long size, unsigned long offset);

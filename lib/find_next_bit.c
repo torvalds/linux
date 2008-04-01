@@ -16,6 +16,7 @@
 
 #define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
 
+#ifdef CONFIG_GENERIC_FIND_NEXT_BIT
 /*
  * Find the next set bit in a memory region.
  */
@@ -102,6 +103,63 @@ found_middle:
 	return result + ffz(tmp);
 }
 EXPORT_SYMBOL(__find_next_zero_bit);
+#endif /* CONFIG_GENERIC_FIND_NEXT_BIT */
+
+#ifdef CONFIG_GENERIC_FIND_FIRST_BIT
+/*
+ * Find the first set bit in a memory region.
+ */
+unsigned long __find_first_bit(const unsigned long *addr,
+		unsigned long size)
+{
+	const unsigned long *p = addr;
+	unsigned long result = 0;
+	unsigned long tmp;
+
+	while (size & ~(BITS_PER_LONG-1)) {
+		if ((tmp = *(p++)))
+			goto found;
+		result += BITS_PER_LONG;
+		size -= BITS_PER_LONG;
+	}
+	if (!size)
+		return result;
+
+	tmp = (*p) & (~0UL >> (BITS_PER_LONG - size));
+	if (tmp == 0UL)		/* Are any bits set? */
+		return result + size;	/* Nope. */
+found:
+	return result + __ffs(tmp);
+}
+EXPORT_SYMBOL(__find_first_bit);
+
+/*
+ * Find the first cleared bit in a memory region.
+ */
+unsigned long __find_first_zero_bit(const unsigned long *addr,
+		unsigned long size)
+{
+	const unsigned long *p = addr;
+	unsigned long result = 0;
+	unsigned long tmp;
+
+	while (size & ~(BITS_PER_LONG-1)) {
+		if (~(tmp = *(p++)))
+			goto found;
+		result += BITS_PER_LONG;
+		size -= BITS_PER_LONG;
+	}
+	if (!size)
+		return result;
+
+	tmp = (*p) | (~0UL << size);
+	if (tmp == ~0UL)	/* Are any bits zero? */
+		return result + size;	/* Nope. */
+found:
+	return result + ffz(tmp);
+}
+EXPORT_SYMBOL(__find_first_zero_bit);
+#endif /* CONFIG_GENERIC_FIND_FIRST_BIT */
 
 #ifdef __BIG_ENDIAN
 
