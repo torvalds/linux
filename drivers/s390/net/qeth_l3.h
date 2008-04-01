@@ -13,16 +13,7 @@
 
 #include "qeth_core.h"
 
-#define QETH_DBF_TEXT_(name, level, text...) \
-	do { \
-		if (qeth_dbf_passes(qeth_dbf_##name, level)) { \
-			char *dbf_txt_buf = get_cpu_var(qeth_l3_dbf_txt_buf); \
-			sprintf(dbf_txt_buf, text); \
-			debug_text_event(qeth_dbf_##name, level, dbf_txt_buf); \
-			put_cpu_var(qeth_l3_dbf_txt_buf); \
-		} \
-	} while (0)
-
+#define QETH_DBF_TXT_BUF qeth_l3_dbf_txt_buf
 DECLARE_PER_CPU(char[256], qeth_l3_dbf_txt_buf);
 
 struct qeth_ipaddr {

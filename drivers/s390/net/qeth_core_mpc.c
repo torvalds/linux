@@ -230,7 +230,7 @@ static struct ipa_cmd_names qeth_ipa_cmd_names[] = {
 	{IPA_CMD_STARTLAN,	"startlan"},
 	{IPA_CMD_STOPLAN,	"stoplan"},
 	{IPA_CMD_SETVMAC,	"setvmac"},
-	{IPA_CMD_DELVMAC,	"delvmca"},
+	{IPA_CMD_DELVMAC,	"delvmac"},
 	{IPA_CMD_SETGMAC,	"setgmac"},
 	{IPA_CMD_DELGMAC,	"delgmac"},
 	{IPA_CMD_SETVLAN,	"setvlan"},

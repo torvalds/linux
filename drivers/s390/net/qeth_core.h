@@ -34,59 +34,53 @@
 
 #include "qeth_core_mpc.h"
 
+#define KMSG_COMPONENT "qeth"
+
 /**
  * Debug Facility stuff
  */
-#define QETH_DBF_SETUP_NAME "qeth_setup"
-#define QETH_DBF_SETUP_LEN 8
-#define QETH_DBF_SETUP_PAGES 8
-#define QETH_DBF_SETUP_NR_AREAS 1
-#define QETH_DBF_SETUP_LEVEL 5
+enum qeth_dbf_names {
+	QETH_DBF_SETUP,
+	QETH_DBF_QERR,
+	QETH_DBF_TRACE,
+	QETH_DBF_MSG,
+	QETH_DBF_SENSE,
+	QETH_DBF_MISC,
+	QETH_DBF_CTRL,
+	QETH_DBF_INFOS	/* must be last element */
+};
 
-#define QETH_DBF_MISC_NAME "qeth_misc"
-#define QETH_DBF_MISC_LEN 128
-#define QETH_DBF_MISC_PAGES 2
-#define QETH_DBF_MISC_NR_AREAS 1
-#define QETH_DBF_MISC_LEVEL 2
+struct qeth_dbf_info {
+	char name[DEBUG_MAX_NAME_LEN];
+	int pages;
+	int areas;
+	int len;
+	int level;
+	struct debug_view *view;
+	debug_info_t *id;
+};
 
-#define QETH_DBF_DATA_NAME "qeth_data"
-#define QETH_DBF_DATA_LEN 96
-#define QETH_DBF_DATA_PAGES 8
-#define QETH_DBF_DATA_NR_AREAS 1
-#define QETH_DBF_DATA_LEVEL 2
-
-#define QETH_DBF_CONTROL_NAME "qeth_control"
-#define QETH_DBF_CONTROL_LEN 256
-#define QETH_DBF_CONTROL_PAGES 8
-#define QETH_DBF_CONTROL_NR_AREAS 1
-#define QETH_DBF_CONTROL_LEVEL 5
-
-#define QETH_DBF_TRACE_NAME "qeth_trace"
-#define QETH_DBF_TRACE_LEN 8
-#define QETH_DBF_TRACE_PAGES 4
-#define QETH_DBF_TRACE_NR_AREAS 1
-#define QETH_DBF_TRACE_LEVEL 3
-
-#define QETH_DBF_SENSE_NAME "qeth_sense"
-#define QETH_DBF_SENSE_LEN 64
-#define QETH_DBF_SENSE_PAGES 2
-#define QETH_DBF_SENSE_NR_AREAS 1
-#define QETH_DBF_SENSE_LEVEL 2
-
-#define QETH_DBF_QERR_NAME "qeth_qerr"
-#define QETH_DBF_QERR_LEN 8
-#define QETH_DBF_QERR_PAGES 2
-#define QETH_DBF_QERR_NR_AREAS 1
-#define QETH_DBF_QERR_LEVEL 2
+#define QETH_DBF_CTRL_LEN 256
 
 #define QETH_DBF_TEXT(name, level, text) \
-	do { \
-		debug_text_event(qeth_dbf_##name, level, text); \
-	} while (0)
+	debug_text_event(qeth_dbf[QETH_DBF_##name].id, level, text)
 
 #define QETH_DBF_HEX(name, level, addr, len) \
+	debug_event(qeth_dbf[QETH_DBF_##name].id, level, (void *)(addr), len)
+
+#define QETH_DBF_MESSAGE(level, text...) \
+	debug_sprintf_event(qeth_dbf[QETH_DBF_MSG].id, level, text)
+
+#define QETH_DBF_TEXT_(name, level, text...) \
 	do { \
-		debug_event(qeth_dbf_##name, level, (void *)(addr), len); \
+		if (qeth_dbf_passes(qeth_dbf[QETH_DBF_##name].id, level)) { \
+			char *dbf_txt_buf = \
+				get_cpu_var(QETH_DBF_TXT_BUF); \
+			sprintf(dbf_txt_buf, text); \
+			debug_text_event(qeth_dbf[QETH_DBF_##name].id, \
+					level, dbf_txt_buf); \
+			put_cpu_var(QETH_DBF_TXT_BUF); \
+		} \
 	} while (0)
 
 /* Allow to sort out low debug levels early to avoid wasted sprints */
@@ -826,13 +820,8 @@ void qeth_core_remove_osn_attributes(struct device *);
 
 /* exports for qeth discipline device drivers */
 extern struct qeth_card_list_struct qeth_core_card_list;
-extern debug_info_t *qeth_dbf_setup;
-extern debug_info_t *qeth_dbf_data;
-extern debug_info_t *qeth_dbf_misc;
-extern debug_info_t *qeth_dbf_control;
-extern debug_info_t *qeth_dbf_trace;
-extern debug_info_t *qeth_dbf_sense;
-extern debug_info_t *qeth_dbf_qerr;
+
+extern struct qeth_dbf_info qeth_dbf[QETH_DBF_INFOS];
 
 void qeth_set_allowed_threads(struct qeth_card *, unsigned long , int);
 int qeth_threads_running(struct qeth_card *, unsigned long);
