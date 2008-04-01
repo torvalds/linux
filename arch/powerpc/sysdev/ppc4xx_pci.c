@@ -785,19 +785,17 @@ static int ppc460ex_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
 	u32 val;
 	u32 utlset1;
 
-	if (port->endpoint) {
+	if (port->endpoint)
 		val = PTYPE_LEGACY_ENDPOINT << 20;
-		utlset1 = 0x20222222;
-	} else {
+	else
 		val = PTYPE_ROOT_PORT << 20;
-		utlset1 = 0x21222222;
-	}
 
 	if (port->index == 0) {
 		val |= LNKW_X1 << 12;
+		utlset1 = 0x20000000;
 	} else {
 		val |= LNKW_X4 << 12;
-		utlset1 |= 0x00101101;
+		utlset1 = 0x20101101;
 	}
 
 	mtdcri(SDR0, port->sdr_base + PESDRn_DLPSET, val);
