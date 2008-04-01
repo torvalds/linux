@@ -28,7 +28,4 @@ struct xics_ipi_struct {
 
 extern struct xics_ipi_struct xics_ipi_message[NR_CPUS] __cacheline_aligned;
 
-struct irq_desc;
-extern void pseries_8259_cascade(unsigned int irq, struct irq_desc *desc);
-
 #endif /* _POWERPC_KERNEL_XICS_H */

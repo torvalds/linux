@@ -124,6 +124,51 @@ void pseries_8259_cascade(unsigned int irq, struct irq_desc *desc)
 	desc->chip->eoi(irq);
 }
 
+static void __init xics_setup_8259_cascade(void)
+{
+	struct device_node *np, *old, *found = NULL;
+	int cascade, naddr;
+	const u32 *addrp;
+	unsigned long intack = 0;
+
+	for_each_node_by_type(np, "interrupt-controller")
+		if (of_device_is_compatible(np, "chrp,iic")) {
+			found = np;
+			break;
+		}
+	if (found == NULL) {
+		printk(KERN_DEBUG "xics: no ISA interrupt controller\n");
+		return;
+	}
+	cascade = irq_of_parse_and_map(found, 0);
+	if (cascade == NO_IRQ) {
+		printk(KERN_ERR "xics: failed to map cascade interrupt");
+		return;
+	}
+	pr_debug("xics: cascade mapped to irq %d\n", cascade);
+
+	for (old = of_node_get(found); old != NULL ; old = np) {
+		np = of_get_parent(old);
+		of_node_put(old);
+		if (np == NULL)
+			break;
+		if (strcmp(np->name, "pci") != 0)
+			continue;
+		addrp = of_get_property(np, "8259-interrupt-acknowledge", NULL);
+		if (addrp == NULL)
+			continue;
+		naddr = of_n_addr_cells(np);
+		intack = addrp[naddr-1];
+		if (naddr > 1)
+			intack |= ((unsigned long)addrp[naddr-2]) << 32;
+	}
+	if (intack)
+		printk(KERN_DEBUG "xics: PCI 8259 intack at 0x%016lx\n", intack);
+	i8259_init(found, intack);
+	of_node_put(found);
+	set_irq_chained_handler(cascade, pseries_8259_cascade);
+}
+
 static void __init pseries_mpic_init_IRQ(void)
 {
 	struct device_node *np, *old, *cascade = NULL;
@@ -203,6 +248,12 @@ static void __init pseries_mpic_init_IRQ(void)
 	set_irq_chained_handler(cascade_irq, pseries_8259_cascade);
 }
 
+static void __init pseries_xics_init_IRQ(void)
+{
+	xics_init_IRQ();
+	xics_setup_8259_cascade();
+}
+
 static void pseries_lpar_enable_pmcs(void)
 {
 	unsigned long set, reset;
@@ -232,7 +283,7 @@ static void __init pseries_discover_pic(void)
 			smp_init_pseries_mpic();
 			return;
 		} else if (strstr(typep, "ppc-xicp")) {
-			ppc_md.init_IRQ       = xics_init_IRQ;
+			ppc_md.init_IRQ       = pseries_xics_init_IRQ;
 			setup_kexec_cpu_down_xics();
 			smp_init_pseries_xics();
 			return;
