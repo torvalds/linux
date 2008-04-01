@@ -3611,6 +3611,7 @@ static const struct file_operations radio_fops =
 	.open	  = radio_open,
 	.read     = radio_read,
 	.release  = radio_release,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.ioctl	  = video_ioctl2,
 	.llseek	  = no_llseek,
 	.poll     = radio_poll,
