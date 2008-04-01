@@ -1556,14 +1556,14 @@ static void *udp_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(udp_hash_lock)
 {
 	read_lock(&udp_hash_lock);
-	return *pos ? udp_get_idx(seq, *pos-1) : (void *)1;
+	return *pos ? udp_get_idx(seq, *pos-1) : SEQ_START_TOKEN;
 }
 
 static void *udp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct sock *sk;
 
-	if (v == (void *)1)
+	if (v == SEQ_START_TOKEN)
 		sk = udp_get_idx(seq, 0);
 	else
 		sk = udp_get_next(seq, v);
