@@ -220,11 +220,11 @@ int ds_allocate(void **dsp, size_t bts_size_in_bytes)
 
 int ds_free(void **dsp)
 {
-	if (*dsp)
+	if (*dsp) {
 		kfree((void *)get_bts_buffer_base(*dsp));
-	kfree(*dsp);
-	*dsp = NULL;
-
+		kfree(*dsp);
+		*dsp = NULL;
+	}
 	return 0;
 }
 
