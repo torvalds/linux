@@ -2961,6 +2961,7 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 	card->dev->vlan_rx_add_vid = qeth_l3_vlan_rx_add_vid;
 	card->dev->vlan_rx_kill_vid = qeth_l3_vlan_rx_kill_vid;
 	card->dev->mtu = card->info.initial_mtu;
+	card->dev->set_mac_address = NULL;
 	SET_ETHTOOL_OPS(card->dev, &qeth_l3_ethtool_ops);
 	card->dev->features |=	NETIF_F_HW_VLAN_TX |
 				NETIF_F_HW_VLAN_RX |
