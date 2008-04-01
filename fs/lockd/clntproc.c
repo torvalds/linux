@@ -221,6 +221,7 @@ struct nlm_rqst *nlm_alloc_call(struct nlm_host *host)
 	for(;;) {
 		call = kzalloc(sizeof(*call), GFP_KERNEL);
 		if (call != NULL) {
+			atomic_set(&call->a_count, 1);
 			locks_init_lock(&call->a_args.lock.fl);
 			locks_init_lock(&call->a_res.lock.fl);
 			call->a_host = host;
@@ -237,6 +238,8 @@ struct nlm_rqst *nlm_alloc_call(struct nlm_host *host)
 
 void nlm_release_call(struct nlm_rqst *call)
 {
+	if (!atomic_dec_and_test(&call->a_count))
+		return;
 	nlm_release_host(call->a_host);
 	nlmclnt_release_lockargs(call);
 	kfree(call);
