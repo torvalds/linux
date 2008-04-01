@@ -401,8 +401,11 @@ static int __qeth_l3_ref_ip_on_card(struct qeth_card *card,
 static void __qeth_l3_delete_all_mc(struct qeth_card *card,
 					unsigned long *flags)
 {
+	struct list_head fail_list;
 	struct qeth_ipaddr *addr, *tmp;
 	int rc;
+
+	INIT_LIST_HEAD(&fail_list);
 again:
 	list_for_each_entry_safe(addr, tmp, &card->ip_list, entry) {
 		if (addr->is_multicast) {
@@ -410,13 +413,14 @@ again:
 			spin_unlock_irqrestore(&card->ip_lock, *flags);
 			rc = qeth_l3_deregister_addr_entry(card, addr);
 			spin_lock_irqsave(&card->ip_lock, *flags);
-			if (!rc) {
+			if (!rc || (rc == IPA_RC_MC_ADDR_NOT_FOUND))
 				kfree(addr);
-				goto again;
-			} else
-				list_add(&addr->entry, &card->ip_list);
+			else
+				list_add_tail(&addr->entry, &fail_list);
+			goto again;
 		}
 	}
+	list_splice(&fail_list, &card->ip_list);
 }
 
 static void qeth_l3_set_ip_addr_list(struct qeth_card *card)
@@ -467,7 +471,7 @@ static void qeth_l3_set_ip_addr_list(struct qeth_card *card)
 			spin_unlock_irqrestore(&card->ip_lock, flags);
 			rc = qeth_l3_deregister_addr_entry(card, addr);
 			spin_lock_irqsave(&card->ip_lock, flags);
-			if (!rc)
+			if (!rc || (rc == IPA_RC_PRIMARY_ALREADY_DEFINED))
 				kfree(addr);
 			else
 				list_add_tail(&addr->entry, &card->ip_list);

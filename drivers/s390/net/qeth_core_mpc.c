@@ -195,7 +195,7 @@ static struct ipa_rc_msg qeth_ipa_rc_msg[] = {
 	{IPA_RC_SETIP_NO_STARTLAN,	"Setip no startlan received"},
 	{IPA_RC_SETIP_ALREADY_RECEIVED,	"Setip already received"},
 	{IPA_RC_IP_ADDR_ALREADY_USED,	"IP address already in use on LAN"},
-	{IPA_RC_MULTICAST_FULL,		"No task available, multicast full"},
+	{IPA_RC_MC_ADDR_NOT_FOUND,	"Multicast address not found"},
 	{IPA_RC_SETIP_INVALID_VERSION,	"SETIP invalid IP version"},
 	{IPA_RC_UNSUPPORTED_SUBCMD,	"Unsupported assist subcommand"},
 	{IPA_RC_ARP_ASSIST_NO_ENABLE,	"Only partial success, no enable"},
