@@ -3971,7 +3971,7 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 
 	IWL_DEBUG_STATS_LIMIT("Rssi %d, noise %d, qual %d, TSF %llu\n",
 			      rx_status.ssi, rx_status.noise, rx_status.signal,
-			      rx_status.mactime);
+			      (unsigned long long)rx_status.mactime);
 
 	network_packet = iwl4965_is_network_packet(priv, header);
 	if (network_packet) {
