@@ -229,8 +229,6 @@ void copy_user_highpage(struct page *to, struct page *from,
 	smp_wmb();
 }
 
-EXPORT_SYMBOL(copy_user_highpage);
-
 void copy_to_user_page(struct vm_area_struct *vma,
 	struct page *page, unsigned long vaddr, void *dst, const void *src,
 	unsigned long len)
