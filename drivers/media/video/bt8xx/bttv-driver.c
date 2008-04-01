@@ -3117,12 +3117,18 @@ static int bttv_s_crop(struct file *file, void *f, struct v4l2_crop *crop)
 
 static int bttv_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 {
+	if (unlikely(a->index))
+		return -EINVAL;
+
 	strcpy(a->name, "audio");
 	return 0;
 }
 
 static int bttv_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
 {
+	if (unlikely(a->index))
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -3510,7 +3516,7 @@ static int radio_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 
 	strcpy(i->name, "Radio");
-	 i->type = V4L2_INPUT_TYPE_TUNER;
+	i->type = V4L2_INPUT_TYPE_TUNER;
 
 	return 0;
 }
@@ -3518,10 +3524,9 @@ static int radio_enum_input(struct file *file, void *priv,
 static int radio_g_audio(struct file *file, void *priv,
 					struct v4l2_audio *a)
 {
-	if (a->index != 0)
+	if (unlikely(a->index))
 		return -EINVAL;
 
-	memset(a, 0, sizeof(*a));
 	strcpy(a->name, "Radio");
 
 	return 0;
@@ -3543,11 +3548,17 @@ static int radio_s_tuner(struct file *file, void *priv,
 static int radio_s_audio(struct file *file, void *priv,
 					struct v4l2_audio *a)
 {
+	if (unlikely(a->index))
+		return -EINVAL;
+
 	return 0;
 }
 
 static int radio_s_input(struct file *filp, void *priv, unsigned int i)
 {
+	if (unlikely(i))
+		return -EINVAL;
+
 	return 0;
 }
 
