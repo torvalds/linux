@@ -8,6 +8,7 @@
 #include <linux/workqueue.h>
 #include <linux/list.h>
 
+#include <net/netns/core.h>
 #include <net/netns/unix.h>
 #include <net/netns/packet.h>
 #include <net/netns/ipv4.h>
@@ -46,10 +47,7 @@ struct net {
 
 	struct sock 		*rtnl;			/* rtnetlink socket */
 
-	/* core sysctls */
-	struct ctl_table_header	*sysctl_core_hdr;
-	int			sysctl_somaxconn;
-
+	struct netns_core	core;
 	struct netns_packet	packet;
 	struct netns_unix	unx;
 	struct netns_ipv4	ipv4;

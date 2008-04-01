@@ -1375,7 +1375,7 @@ asmlinkage long sys_listen(int fd, int backlog)
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (sock) {
-		somaxconn = sock_net(sock->sk)->sysctl_somaxconn;
+		somaxconn = sock_net(sock->sk)->core.sysctl_somaxconn;
 		if ((unsigned)backlog > somaxconn)
 			backlog = somaxconn;
 

@@ -127,7 +127,7 @@ static struct ctl_table net_core_table[] = {
 	{
 		.ctl_name	= NET_CORE_SOMAXCONN,
 		.procname	= "somaxconn",
-		.data		= &init_net.sysctl_somaxconn,
+		.data		= &init_net.core.sysctl_somaxconn,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -161,7 +161,7 @@ static __net_init int sysctl_core_net_init(struct net *net)
 {
 	struct ctl_table *tbl, *tmp;
 
-	net->sysctl_somaxconn = SOMAXCONN;
+	net->core.sysctl_somaxconn = SOMAXCONN;
 
 	tbl = net_core_table;
 	if (net != &init_net) {
@@ -178,9 +178,9 @@ static __net_init int sysctl_core_net_init(struct net *net)
 		}
 	}
 
-	net->sysctl_core_hdr = register_net_sysctl_table(net,
+	net->core.sysctl_hdr = register_net_sysctl_table(net,
 			net_core_path, tbl);
-	if (net->sysctl_core_hdr == NULL)
+	if (net->core.sysctl_hdr == NULL)
 		goto err_reg;
 
 	return 0;
@@ -196,8 +196,8 @@ static __net_exit void sysctl_core_net_exit(struct net *net)
 {
 	struct ctl_table *tbl;
 
-	tbl = net->sysctl_core_hdr->ctl_table_arg;
-	unregister_net_sysctl_table(net->sysctl_core_hdr);
+	tbl = net->core.sysctl_hdr->ctl_table_arg;
+	unregister_net_sysctl_table(net->core.sysctl_hdr);
 	BUG_ON(tbl == net_core_table);
 	kfree(tbl);
 }
