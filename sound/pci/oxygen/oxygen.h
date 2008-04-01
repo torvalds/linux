@@ -97,8 +97,6 @@ struct oxygen_model {
 			       struct snd_pcm_hw_params *params);
 	void (*update_dac_volume)(struct oxygen *chip);
 	void (*update_dac_mute)(struct oxygen *chip);
-	void (*ac97_switch_hook)(struct oxygen *chip, unsigned int codec,
-				 unsigned int reg, int mute);
 	void (*gpio_changed)(struct oxygen *chip);
 	size_t model_data_size;
 	unsigned int pcm_dev_cfg;

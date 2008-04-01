@@ -510,6 +510,19 @@ static int ac97_switch_get(struct snd_kcontrol *ctl,
 	return 0;
 }
 
+static void mute_ac97_ctl(struct oxygen *chip, unsigned int control)
+{
+	unsigned int priv_idx = chip->controls[control]->private_value & 0xff;
+	u16 value;
+
+	value = oxygen_read_ac97(chip, 0, priv_idx);
+	if (!(value & 0x8000)) {
+		oxygen_write_ac97(chip, 0, priv_idx, value | 0x8000);
+		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			       &chip->controls[control]->id);
+	}
+}
+
 static int ac97_switch_put(struct snd_kcontrol *ctl,
 			   struct snd_ctl_elem_value *value)
 {
@@ -531,9 +544,22 @@ static int ac97_switch_put(struct snd_kcontrol *ctl,
 	change = newreg != oldreg;
 	if (change) {
 		oxygen_write_ac97(chip, codec, index, newreg);
-		if (bitnr == 15 && chip->model->ac97_switch_hook)
-			chip->model->ac97_switch_hook(chip, codec, index,
-						      newreg & 0x8000);
+		if (index == AC97_LINE) {
+			oxygen_write_ac97_masked(chip, 0, CM9780_GPIO_STATUS,
+						 newreg & 0x8000 ?
+						 CM9780_GPO0 : 0, CM9780_GPO0);
+			if (!(newreg & 0x8000)) {
+				mute_ac97_ctl(chip, CONTROL_MIC_CAPTURE_SWITCH);
+				mute_ac97_ctl(chip, CONTROL_CD_CAPTURE_SWITCH);
+				mute_ac97_ctl(chip, CONTROL_AUX_CAPTURE_SWITCH);
+			}
+		} else if ((index == AC97_MIC || index == AC97_CD ||
+			    index == AC97_VIDEO || index == AC97_AUX) &&
+			   bitnr == 15 && !(newreg & 0x8000)) {
+			mute_ac97_ctl(chip, CONTROL_LINE_CAPTURE_SWITCH);
+			oxygen_write_ac97_masked(chip, 0, CM9780_GPIO_STATUS,
+						 CM9780_GPO0, CM9780_GPO0);
+		}
 	}
 	mutex_unlock(&chip->mutex);
 	return change;
@@ -849,7 +875,6 @@ static const struct snd_kcontrol_new ac97_controls[] = {
 	AC97_VOLUME("Mic Capture Volume", 0, AC97_MIC),
 	AC97_SWITCH("Mic Capture Switch", 0, AC97_MIC, 15, 1),
 	AC97_SWITCH("Mic Boost (+20dB)", 0, AC97_MIC, 6, 0),
-	AC97_VOLUME("Line Capture Volume", 0, AC97_LINE),
 	AC97_SWITCH("Line Capture Switch", 0, AC97_LINE, 15, 1),
 	AC97_VOLUME("CD Capture Volume", 0, AC97_CD),
 	AC97_SWITCH("CD Capture Switch", 0, AC97_CD, 15, 1),
