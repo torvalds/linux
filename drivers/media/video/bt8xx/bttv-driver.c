@@ -3518,8 +3518,12 @@ static int radio_enum_input(struct file *file, void *priv,
 static int radio_g_audio(struct file *file, void *priv,
 					struct v4l2_audio *a)
 {
+	if (a->index != 0)
+		return -EINVAL;
+
 	memset(a, 0, sizeof(*a));
 	strcpy(a->name, "Radio");
+
 	return 0;
 }
 
