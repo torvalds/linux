@@ -2046,11 +2046,12 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 		if (!next || !btrfs_buffer_uptodate(next)) {
 			free_extent_buffer(next);
 			reada_walk_down(root, cur, path->slots[*level]);
-			mutex_unlock(&root->fs_info->fs_mutex);
 			next = read_tree_block(root, bytenr, blocksize);
-			mutex_lock(&root->fs_info->fs_mutex);
 
-			/* we dropped the lock, check one more time */
+			/* we used to drop the lock above, keep the
+			 * code to double check so that we won't forget
+			 * when we drop the lock again in the future
+			 */
 			ret = lookup_extent_ref(trans, root, bytenr,
 						blocksize, &refs);
 			BUG_ON(ret);
