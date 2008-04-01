@@ -247,8 +247,6 @@ void copy_to_user_page(struct vm_area_struct *vma,
 		flush_cache_page(vma, vaddr, page_to_pfn(page));
 }
 
-EXPORT_SYMBOL(copy_to_user_page);
-
 void copy_from_user_page(struct vm_area_struct *vma,
 	struct page *page, unsigned long vaddr, void *dst, const void *src,
 	unsigned long len)
