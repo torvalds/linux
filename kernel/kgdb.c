@@ -561,18 +561,6 @@ static void kgdb_wait(struct pt_regs *regs)
 	smp_wmb();
 	atomic_set(&cpu_in_kgdb[cpu], 1);
 
-	/*
-	 * The primary CPU must be active to enter here, but this is
-	 * guard in case the primary CPU had not been selected if
-	 * this was an entry via nmi.
-	 */
-	while (atomic_read(&kgdb_active) == -1)
-		cpu_relax();
-
-	/* Wait till primary CPU goes completely into the debugger. */
-	while (!atomic_read(&cpu_in_kgdb[atomic_read(&kgdb_active)]))
-		cpu_relax();
-
 	/* Wait till primary CPU is done with debugging */
 	while (atomic_read(&passive_cpu_wait[cpu]))
 		cpu_relax();
@@ -1447,17 +1435,17 @@ acquirelock:
 			atomic_set(&passive_cpu_wait[i], 1);
 	}
 
-#ifdef CONFIG_SMP
-	/* Signal the other CPUs to enter kgdb_wait() */
-	if ((!kgdb_single_step || !kgdb_contthread) && kgdb_do_roundup)
-		kgdb_roundup_cpus(flags);
-#endif
-
 	/*
 	 * spin_lock code is good enough as a barrier so we don't
 	 * need one here:
 	 */
 	atomic_set(&cpu_in_kgdb[ks->cpu], 1);
+
+#ifdef CONFIG_SMP
+	/* Signal the other CPUs to enter kgdb_wait() */
+	if ((!kgdb_single_step || !kgdb_contthread) && kgdb_do_roundup)
+		kgdb_roundup_cpus(flags);
+#endif
 
 	/*
 	 * Wait for the other CPUs to be notified and be waiting for us:
@@ -1514,7 +1502,8 @@ int kgdb_nmicallback(int cpu, void *regs)
 {
 #ifdef CONFIG_SMP
 	if (!atomic_read(&cpu_in_kgdb[cpu]) &&
-			atomic_read(&kgdb_active) != cpu) {
+			atomic_read(&kgdb_active) != cpu &&
+			atomic_read(&cpu_in_kgdb[atomic_read(&kgdb_active)])) {
 		kgdb_wait((struct pt_regs *)regs);
 		return 0;
 	}
