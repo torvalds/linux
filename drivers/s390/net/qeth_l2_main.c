@@ -451,7 +451,8 @@ static void qeth_l2_process_inbound_buffer(struct qeth_card *card,
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 			else
 				skb->ip_summed = CHECKSUM_NONE;
-			*((__u32 *)skb->cb) = ++card->seqno.pkt_seqno;
+			if (skb->protocol == htons(ETH_P_802_2))
+				*((__u32 *)skb->cb) = ++card->seqno.pkt_seqno;
 			len = skb->len;
 			netif_rx(skb);
 			break;
