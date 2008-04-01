@@ -516,6 +516,8 @@ static struct irq_chip xics_pic_lpar = {
 	.set_affinity = xics_set_affinity
 };
 
+/* Points to the irq_chip we're actually using */
+static struct irq_chip *xics_irq_chip;
 
 static int xics_host_match(struct irq_host *h, struct device_node *node)
 {
@@ -526,23 +528,13 @@ static int xics_host_match(struct irq_host *h, struct device_node *node)
 	return !of_device_is_compatible(node, "chrp,iic");
 }
 
-static int xics_host_map_direct(struct irq_host *h, unsigned int virq,
-				irq_hw_number_t hw)
+static int xics_host_map(struct irq_host *h, unsigned int virq,
+			 irq_hw_number_t hw)
 {
-	pr_debug("xics: map_direct virq %d, hwirq 0x%lx\n", virq, hw);
+	pr_debug("xics: map virq %d, hwirq 0x%lx\n", virq, hw);
 
 	get_irq_desc(virq)->status |= IRQ_LEVEL;
-	set_irq_chip_and_handler(virq, &xics_pic_direct, handle_fasteoi_irq);
-	return 0;
-}
-
-static int xics_host_map_lpar(struct irq_host *h, unsigned int virq,
-			      irq_hw_number_t hw)
-{
-	pr_debug("xics: map_direct virq %d, hwirq 0x%lx\n", virq, hw);
-
-	get_irq_desc(virq)->status |= IRQ_LEVEL;
-	set_irq_chip_and_handler(virq, &xics_pic_lpar, handle_fasteoi_irq);
+	set_irq_chip_and_handler(virq, xics_irq_chip, handle_fasteoi_irq);
 	return 0;
 }
 
@@ -561,27 +553,20 @@ static int xics_host_xlate(struct irq_host *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_host_ops xics_host_direct_ops = {
+static struct irq_host_ops xics_host_ops = {
 	.match = xics_host_match,
-	.map = xics_host_map_direct,
-	.xlate = xics_host_xlate,
-};
-
-static struct irq_host_ops xics_host_lpar_ops = {
-	.match = xics_host_match,
-	.map = xics_host_map_lpar,
+	.map = xics_host_map,
 	.xlate = xics_host_xlate,
 };
 
 static void __init xics_init_host(void)
 {
-	struct irq_host_ops *ops;
-
 	if (firmware_has_feature(FW_FEATURE_LPAR))
-		ops = &xics_host_lpar_ops;
+		xics_irq_chip = &xics_pic_lpar;
 	else
-		ops = &xics_host_direct_ops;
-	xics_host = irq_alloc_host(NULL, IRQ_HOST_MAP_TREE, 0, ops,
+		xics_irq_chip = &xics_pic_direct;
+
+	xics_host = irq_alloc_host(NULL, IRQ_HOST_MAP_TREE, 0, &xics_host_ops,
 				   XICS_IRQ_SPURIOUS);
 	BUG_ON(xics_host == NULL);
 	irq_set_default_host(xics_host);
