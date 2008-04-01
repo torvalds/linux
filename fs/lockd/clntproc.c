@@ -493,6 +493,7 @@ nlmclnt_lock(struct nlm_rqst *req, struct file_lock *fl)
 	}
 	fl->fl_flags |= FL_ACCESS;
 	status = do_vfs_lock(fl);
+	fl->fl_flags = fl_flags;
 	if (status < 0)
 		goto out;
 
@@ -530,10 +531,11 @@ again:
 			goto again;
 		}
 		/* Ensure the resulting lock will get added to granted list */
-		fl->fl_flags = fl_flags | FL_SLEEP;
+		fl->fl_flags |= FL_SLEEP;
 		if (do_vfs_lock(fl) < 0)
 			printk(KERN_WARNING "%s: VFS is out of sync with lock manager!\n", __FUNCTION__);
 		up_read(&host->h_rwsem);
+		fl->fl_flags = fl_flags;
 	}
 	status = nlm_stat_to_errno(resp->status);
 out_unblock:
@@ -543,7 +545,6 @@ out_unblock:
 		nlmclnt_cancel(host, req->a_args.block, fl);
 out:
 	nlm_release_call(req);
-	fl->fl_flags = fl_flags;
 	return status;
 }
 
@@ -598,7 +599,8 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 {
 	struct nlm_host	*host = req->a_host;
 	struct nlm_res	*resp = &req->a_res;
-	int status = 0;
+	int status;
+	unsigned char fl_flags = fl->fl_flags;
 
 	/*
 	 * Note: the server is supposed to either grant us the unlock
@@ -607,11 +609,13 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 	 */
 	fl->fl_flags |= FL_EXISTS;
 	down_read(&host->h_rwsem);
-	if (do_vfs_lock(fl) == -ENOENT) {
-		up_read(&host->h_rwsem);
+	status = do_vfs_lock(fl);
+	up_read(&host->h_rwsem);
+	fl->fl_flags = fl_flags;
+	if (status == -ENOENT) {
+		status = 0;
 		goto out;
 	}
-	up_read(&host->h_rwsem);
 
 	if (req->a_flags & RPC_TASK_ASYNC)
 		return nlm_async_call(req, NLMPROC_UNLOCK, &nlmclnt_unlock_ops);
