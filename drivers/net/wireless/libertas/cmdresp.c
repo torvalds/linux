@@ -578,7 +578,7 @@ int lbs_process_rx_command(struct lbs_private *priv)
 		goto done;
 	}
 	if (respcmd != CMD_RET(curcmd) &&
-	    respcmd != CMD_802_11_ASSOCIATE && curcmd != CMD_RET_802_11_ASSOCIATE) {
+	    respcmd != CMD_RET_802_11_ASSOCIATE && curcmd != CMD_802_11_ASSOCIATE) {
 		lbs_pr_info("Invalid CMD_RESP %x to command %x!\n", respcmd, curcmd);
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		ret = -1;

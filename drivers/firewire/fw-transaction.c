@@ -736,6 +736,12 @@ fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 		break;
 	}
 
+	/*
+	 * The response handler may be executed while the request handler
+	 * is still pending.  Cancel the request handler.
+	 */
+	card->driver->cancel_packet(card, &t->packet);
+
 	t->callback(card, rcode, data, data_length, t->callback_data);
 }
 EXPORT_SYMBOL(fw_core_handle_response);
@@ -751,7 +757,7 @@ handle_topology_map(struct fw_card *card, struct fw_request *request,
 		    void *payload, size_t length, void *callback_data)
 {
 	int i, start, end;
-	u32 *map;
+	__be32 *map;
 
 	if (!TCODE_IS_READ_REQUEST(tcode)) {
 		fw_send_response(card, request, RCODE_TYPE_ERROR);

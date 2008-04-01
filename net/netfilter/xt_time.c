@@ -95,8 +95,11 @@ static inline void localtime_2(struct xtm *r, time_t time)
 	 */
 	r->dse = time / 86400;
 
-	/* 1970-01-01 (w=0) was a Thursday (4). */
-	r->weekday = (4 + r->dse) % 7;
+	/*
+	 * 1970-01-01 (w=0) was a Thursday (4).
+	 * -1 and +1 map Sunday properly onto 7.
+	 */
+	r->weekday = (4 + r->dse - 1) % 7 + 1;
 }
 
 static void localtime_3(struct xtm *r, time_t time)

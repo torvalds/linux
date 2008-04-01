@@ -349,90 +349,90 @@ typedef struct oc3_block {
 /* physical encoding statistics */
 
 typedef struct stats_phy {
-    u32 crc_header_errors;    /* cells received with bad header CRC */
-    u32 framing_errors;       /* cells received with bad framing    */
-    u32 pad[ 2 ];             /* i960 padding                       */
+    __be32 crc_header_errors;    /* cells received with bad header CRC */
+    __be32 framing_errors;       /* cells received with bad framing    */
+    __be32 pad[ 2 ];             /* i960 padding                       */
 } stats_phy_t;
 
 
 /* OC-3 statistics */
 
 typedef struct stats_oc3 {
-    u32 section_bip8_errors;    /* section 8 bit interleaved parity    */
-    u32 path_bip8_errors;       /* path 8 bit interleaved parity       */
-    u32 line_bip24_errors;      /* line 24 bit interleaved parity      */
-    u32 line_febe_errors;       /* line far end block errors           */
-    u32 path_febe_errors;       /* path far end block errors           */
-    u32 corr_hcs_errors;        /* correctable header check sequence   */
-    u32 ucorr_hcs_errors;       /* uncorrectable header check sequence */
-    u32 pad[ 1 ];               /* i960 padding                        */
+    __be32 section_bip8_errors;    /* section 8 bit interleaved parity    */
+    __be32 path_bip8_errors;       /* path 8 bit interleaved parity       */
+    __be32 line_bip24_errors;      /* line 24 bit interleaved parity      */
+    __be32 line_febe_errors;       /* line far end block errors           */
+    __be32 path_febe_errors;       /* path far end block errors           */
+    __be32 corr_hcs_errors;        /* correctable header check sequence   */
+    __be32 ucorr_hcs_errors;       /* uncorrectable header check sequence */
+    __be32 pad[ 1 ];               /* i960 padding                        */
 } stats_oc3_t;
 
 
 /* ATM statistics */
 
 typedef struct stats_atm {
-    u32	cells_transmitted;    /* cells transmitted                 */
-    u32	cells_received;       /* cells received                    */
-    u32	vpi_bad_range;        /* cell drops: VPI out of range      */
-    u32	vpi_no_conn;          /* cell drops: no connection for VPI */
-    u32	vci_bad_range;        /* cell drops: VCI out of range      */
-    u32	vci_no_conn;          /* cell drops: no connection for VCI */
-    u32	pad[ 2 ];             /* i960 padding                      */
+    __be32	cells_transmitted;    /* cells transmitted                 */
+    __be32	cells_received;       /* cells received                    */
+    __be32	vpi_bad_range;        /* cell drops: VPI out of range      */
+    __be32	vpi_no_conn;          /* cell drops: no connection for VPI */
+    __be32	vci_bad_range;        /* cell drops: VCI out of range      */
+    __be32	vci_no_conn;          /* cell drops: no connection for VCI */
+    __be32	pad[ 2 ];             /* i960 padding                      */
 } stats_atm_t;
 
 /* AAL0 statistics */
 
 typedef struct stats_aal0 {
-    u32	cells_transmitted;    /* cells transmitted */
-    u32	cells_received;       /* cells received    */
-    u32	cells_dropped;        /* cells dropped     */
-    u32	pad[ 1 ];             /* i960 padding      */
+    __be32	cells_transmitted;    /* cells transmitted */
+    __be32	cells_received;       /* cells received    */
+    __be32	cells_dropped;        /* cells dropped     */
+    __be32	pad[ 1 ];             /* i960 padding      */
 } stats_aal0_t;
 
 
 /* AAL3/4 statistics */
 
 typedef struct stats_aal34 {
-    u32	cells_transmitted;         /* cells transmitted from segmented PDUs */
-    u32	cells_received;            /* cells reassembled into PDUs           */
-    u32	cells_crc_errors;          /* payload CRC error count               */
-    u32	cells_protocol_errors;     /* SAR or CS layer protocol errors       */
-    u32	cells_dropped;             /* cells dropped: partial reassembly     */
-    u32	cspdus_transmitted;        /* CS PDUs transmitted                   */
-    u32	cspdus_received;           /* CS PDUs received                      */
-    u32	cspdus_protocol_errors;    /* CS layer protocol errors              */
-    u32	cspdus_dropped;            /* reassembled PDUs drop'd (in cells)    */
-    u32	pad[ 3 ];                  /* i960 padding                          */
+    __be32	cells_transmitted;         /* cells transmitted from segmented PDUs */
+    __be32	cells_received;            /* cells reassembled into PDUs           */
+    __be32	cells_crc_errors;          /* payload CRC error count               */
+    __be32	cells_protocol_errors;     /* SAR or CS layer protocol errors       */
+    __be32	cells_dropped;             /* cells dropped: partial reassembly     */
+    __be32	cspdus_transmitted;        /* CS PDUs transmitted                   */
+    __be32	cspdus_received;           /* CS PDUs received                      */
+    __be32	cspdus_protocol_errors;    /* CS layer protocol errors              */
+    __be32	cspdus_dropped;            /* reassembled PDUs drop'd (in cells)    */
+    __be32	pad[ 3 ];                  /* i960 padding                          */
 } stats_aal34_t;
 
 
 /* AAL5 statistics */
 
 typedef struct stats_aal5 {
-    u32	cells_transmitted;         /* cells transmitted from segmented SDUs */
-    u32	cells_received;		   /* cells reassembled into SDUs           */
-    u32	cells_dropped;		   /* reassembled PDUs dropped (in cells)   */
-    u32	congestion_experienced;    /* CRC error and length wrong            */
-    u32	cspdus_transmitted;        /* CS PDUs transmitted                   */
-    u32	cspdus_received;           /* CS PDUs received                      */
-    u32	cspdus_crc_errors;         /* CS PDUs CRC errors                    */
-    u32	cspdus_protocol_errors;    /* CS layer protocol errors              */
-    u32	cspdus_dropped;            /* reassembled PDUs dropped              */
-    u32	pad[ 3 ];                  /* i960 padding                          */
+    __be32	cells_transmitted;         /* cells transmitted from segmented SDUs */
+    __be32	cells_received;		   /* cells reassembled into SDUs           */
+    __be32	cells_dropped;		   /* reassembled PDUs dropped (in cells)   */
+    __be32	congestion_experienced;    /* CRC error and length wrong            */
+    __be32	cspdus_transmitted;        /* CS PDUs transmitted                   */
+    __be32	cspdus_received;           /* CS PDUs received                      */
+    __be32	cspdus_crc_errors;         /* CS PDUs CRC errors                    */
+    __be32	cspdus_protocol_errors;    /* CS layer protocol errors              */
+    __be32	cspdus_dropped;            /* reassembled PDUs dropped              */
+    __be32	pad[ 3 ];                  /* i960 padding                          */
 } stats_aal5_t;
 
 
 /* auxiliary statistics */
 
 typedef struct stats_aux {
-    u32	small_b1_failed;     /* receive BD allocation failures  */
-    u32	large_b1_failed;     /* receive BD allocation failures  */
-    u32	small_b2_failed;     /* receive BD allocation failures  */
-    u32	large_b2_failed;     /* receive BD allocation failures  */
-    u32	rpd_alloc_failed;    /* receive PDU allocation failures */
-    u32	receive_carrier;     /* no carrier = 0, carrier = 1     */
-    u32	pad[ 2 ];            /* i960 padding                    */
+    __be32	small_b1_failed;     /* receive BD allocation failures  */
+    __be32	large_b1_failed;     /* receive BD allocation failures  */
+    __be32	small_b2_failed;     /* receive BD allocation failures  */
+    __be32	large_b2_failed;     /* receive BD allocation failures  */
+    __be32	rpd_alloc_failed;    /* receive PDU allocation failures */
+    __be32	receive_carrier;     /* no carrier = 0, carrier = 1     */
+    __be32	pad[ 2 ];            /* i960 padding                    */
 } stats_aux_t;
 
 
@@ -643,10 +643,10 @@ typedef struct host_bsq {
 /* header of the firmware image */
 
 typedef struct fw_header {
-    u32 magic;           /* magic number                               */
-    u32 version;         /* firmware version id                        */
-    u32 load_offset;     /* fw load offset in board memory             */
-    u32 start_offset;    /* fw execution start address in board memory */
+    __le32 magic;           /* magic number                               */
+    __le32 version;         /* firmware version id                        */
+    __le32 load_offset;     /* fw load offset in board memory             */
+    __le32 start_offset;    /* fw execution start address in board memory */
 } fw_header_t;
 
 #define FW_HEADER_MAGIC  0x65726f66    /* 'fore' */

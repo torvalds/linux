@@ -293,13 +293,12 @@ static int extract_package(struct acpi_battery *battery,
 				strncpy(ptr, (u8 *)&element->integer.value,
 					sizeof(acpi_integer));
 				ptr[sizeof(acpi_integer)] = 0;
-			} else return -EFAULT;
+			} else
+				*ptr = 0; /* don't have value */
 		} else {
-			if (element->type == ACPI_TYPE_INTEGER) {
-				int *x = (int *)((u8 *)battery +
-						offsets[i].offset);
-				*x = element->integer.value;
-			} else return -EFAULT;
+			int *x = (int *)((u8 *)battery + offsets[i].offset);
+			*x = (element->type == ACPI_TYPE_INTEGER) ?
+				element->integer.value : -1;
 		}
 	}
 	return 0;

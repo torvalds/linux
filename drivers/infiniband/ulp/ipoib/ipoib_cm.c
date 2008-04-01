@@ -38,6 +38,7 @@
 #include <net/icmp.h>
 #include <linux/icmpv6.h>
 #include <linux/delay.h>
+#include <linux/vmalloc.h>
 
 #include "ipoib.h"
 
@@ -637,6 +638,7 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 	priv->tx_sge[0].addr          = addr;
 	priv->tx_sge[0].length        = len;
 
+	priv->tx_wr.num_sge	= 1;
 	priv->tx_wr.wr_id	= wr_id | IPOIB_OP_CM;
 
 	return ib_post_send(tx->qp, &priv->tx_wr, &bad_wr);
@@ -1030,13 +1032,13 @@ static int ipoib_cm_tx_init(struct ipoib_cm_tx *p, u32 qpn,
 	struct ipoib_dev_priv *priv = netdev_priv(p->dev);
 	int ret;
 
-	p->tx_ring = kzalloc(ipoib_sendq_size * sizeof *p->tx_ring,
-				GFP_KERNEL);
+	p->tx_ring = vmalloc(ipoib_sendq_size * sizeof *p->tx_ring);
 	if (!p->tx_ring) {
 		ipoib_warn(priv, "failed to allocate tx ring\n");
 		ret = -ENOMEM;
 		goto err_tx;
 	}
+	memset(p->tx_ring, 0, ipoib_sendq_size * sizeof *p->tx_ring);
 
 	p->qp = ipoib_cm_create_tx_qp(p->dev, p);
 	if (IS_ERR(p->qp)) {
@@ -1077,6 +1079,7 @@ err_id:
 	ib_destroy_qp(p->qp);
 err_qp:
 	p->qp = NULL;
+	vfree(p->tx_ring);
 err_tx:
 	return ret;
 }
@@ -1127,7 +1130,7 @@ timeout:
 	if (p->qp)
 		ib_destroy_qp(p->qp);
 
-	kfree(p->tx_ring);
+	vfree(p->tx_ring);
 	kfree(p);
 }
 

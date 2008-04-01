@@ -146,7 +146,7 @@ struct cn_queue_dev *cn_queue_alloc_dev(char *name, struct sock *nls)
 
 	dev->nls = nls;
 
-	dev->cn_queue = create_workqueue(dev->name);
+	dev->cn_queue = create_singlethread_workqueue(dev->name);
 	if (!dev->cn_queue) {
 		kfree(dev);
 		return NULL;

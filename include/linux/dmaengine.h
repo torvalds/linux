@@ -423,7 +423,7 @@ void dma_async_device_unregister(struct dma_device *device);
 /* --- Helper iov-locking functions --- */
 
 struct dma_page_list {
-	char *base_address;
+	char __user *base_address;
 	int nr_pages;
 	struct page **pages;
 };

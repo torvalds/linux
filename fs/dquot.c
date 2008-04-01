@@ -1522,8 +1522,8 @@ int vfs_quota_off(struct super_block *sb, int type)
 				truncate_inode_pages(&toputinode[cnt]->i_data, 0);
 				mutex_unlock(&toputinode[cnt]->i_mutex);
 				mark_inode_dirty(toputinode[cnt]);
-				iput(toputinode[cnt]);
 			}
+			iput(toputinode[cnt]);
 			mutex_unlock(&dqopt->dqonoff_mutex);
 		}
 	if (sb->s_bdev)

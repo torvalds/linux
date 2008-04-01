@@ -104,7 +104,7 @@ static int __init cmx270_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
 
-	dev_dbg(&dev->dev, "%s: slot=%x, pin=%x\n", __FUNCTION__, slot, pin);
+	dev_dbg(&dev->dev, "%s: slot=%x, pin=%x\n", __func__, slot, pin);
 
 	irq = it8152_pci_map_irq(dev, slot, pin);
 	if (irq)

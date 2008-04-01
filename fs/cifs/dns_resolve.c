@@ -77,14 +77,14 @@ dns_resolve_server_name_to_ip(const char *unc, char **ip_addr)
 	/* search for server name delimiter */
 	len = strlen(unc);
 	if (len < 3) {
-		cFYI(1, ("%s: unc is too short: %s", __FUNCTION__, unc));
+		cFYI(1, ("%s: unc is too short: %s", __func__, unc));
 		return -EINVAL;
 	}
 	len -= 2;
 	name = memchr(unc+2, '\\', len);
 	if (!name) {
 		cFYI(1, ("%s: probably server name is whole unc: %s",
-					__FUNCTION__, unc));
+					__func__, unc));
 	} else {
 		len = (name - unc) - 2/* leading // */;
 	}
@@ -104,7 +104,7 @@ dns_resolve_server_name_to_ip(const char *unc, char **ip_addr)
 		if (*ip_addr) {
 			memcpy(*ip_addr, rkey->payload.data, len);
 			(*ip_addr)[len] = '\0';
-			cFYI(1, ("%s: resolved: %s to %s", __FUNCTION__,
+			cFYI(1, ("%s: resolved: %s to %s", __func__,
 					rkey->description,
 					*ip_addr
 				));
@@ -114,7 +114,7 @@ dns_resolve_server_name_to_ip(const char *unc, char **ip_addr)
 		}
 		key_put(rkey);
 	} else {
-		cERROR(1, ("%s: unable to resolve: %s", __FUNCTION__, name));
+		cERROR(1, ("%s: unable to resolve: %s", __func__, name));
 	}
 
 	kfree(name);

@@ -729,6 +729,47 @@ static void r300_discard_buffer(struct drm_device * dev, struct drm_buf * buf)
 	buf->used = 0;
 }
 
+static void r300_cmd_wait(drm_radeon_private_t * dev_priv,
+			  drm_r300_cmd_header_t header)
+{
+	u32 wait_until;
+	RING_LOCALS;
+
+	if (!header.wait.flags)
+		return;
+
+	wait_until = 0;
+
+	switch(header.wait.flags) {
+	case R300_WAIT_2D:
+		wait_until = RADEON_WAIT_2D_IDLE;
+		break;
+	case R300_WAIT_3D:
+		wait_until = RADEON_WAIT_3D_IDLE;
+		break;
+	case R300_NEW_WAIT_2D_3D:
+		wait_until = RADEON_WAIT_2D_IDLE|RADEON_WAIT_3D_IDLE;
+		break;
+	case R300_NEW_WAIT_2D_2D_CLEAN:
+		wait_until = RADEON_WAIT_2D_IDLE|RADEON_WAIT_2D_IDLECLEAN;
+		break;
+	case R300_NEW_WAIT_3D_3D_CLEAN:
+		wait_until = RADEON_WAIT_3D_IDLE|RADEON_WAIT_3D_IDLECLEAN;
+		break;
+	case R300_NEW_WAIT_2D_2D_CLEAN_3D_3D_CLEAN:
+		wait_until = RADEON_WAIT_2D_IDLE|RADEON_WAIT_2D_IDLECLEAN;
+		wait_until |= RADEON_WAIT_3D_IDLE|RADEON_WAIT_3D_IDLECLEAN;
+		break;
+	default:
+		return;
+	}
+
+	BEGIN_RING(2);
+	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));
+	OUT_RING(wait_until);
+	ADVANCE_RING();
+}
+
 static int r300_scratch(drm_radeon_private_t *dev_priv,
 			drm_radeon_kcmd_buffer_t *cmdbuf,
 			drm_r300_cmd_header_t header)
@@ -909,19 +950,8 @@ int r300_do_cp_cmdbuf(struct drm_device *dev,
 			break;
 
 		case R300_CMD_WAIT:
-			/* simple enough, we can do it here */
 			DRM_DEBUG("R300_CMD_WAIT\n");
-			if (header.wait.flags == 0)
-				break;	/* nothing to do */
-
-			{
-				RING_LOCALS;
-
-				BEGIN_RING(2);
-				OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));
-				OUT_RING((header.wait.flags & 0xf) << 14);
-				ADVANCE_RING();
-			}
+			r300_cmd_wait(dev_priv, header);
 			break;
 
 		case R300_CMD_SCRATCH:

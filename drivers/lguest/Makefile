@@ -19,3 +19,11 @@ Beer:
 	@for f in Preparation Guest Drivers Launcher Host Switcher Mastery; do echo "{==- $$f -==}"; make -s $$f; done; echo "{==-==}"
 Preparation Preparation! Guest Drivers Launcher Host Switcher Mastery:
 	@sh ../../Documentation/lguest/extract $(PREFIX) `find ../../* -name '*.[chS]' -wholename '*lguest*'`
+Puppy:
+	@clear
+	@printf "      __  \n (___()'\`;\n /,    /\`\n \\\\\\\"--\\\\\\   \n"
+	@sleep 2; clear; printf "\n\n   Sit!\n\n"; sleep 1; clear
+	@printf "    __    \n   ()'\`;  \n   /\\|\` \n  /  |  \n(/_)_|_   \n"
+	@sleep 2; clear; printf "\n\n  Stand!\n\n"; sleep 1; clear
+	@printf "    __    \n   ()'\`;  \n   /\\|\` \n  /._.= \n /| /     \n(_\_)_    \n"
+	@sleep 2; clear; printf "\n\n  Good puppy!\n\n"; sleep 1; clear

@@ -302,14 +302,14 @@ pppol2tp_session_find(struct pppol2tp_tunnel *tunnel, u16 session_id)
 	struct pppol2tp_session *session;
 	struct hlist_node *walk;
 
-	read_lock(&tunnel->hlist_lock);
+	read_lock_bh(&tunnel->hlist_lock);
 	hlist_for_each_entry(session, walk, session_list, hlist) {
 		if (session->tunnel_addr.s_session == session_id) {
-			read_unlock(&tunnel->hlist_lock);
+			read_unlock_bh(&tunnel->hlist_lock);
 			return session;
 		}
 	}
-	read_unlock(&tunnel->hlist_lock);
+	read_unlock_bh(&tunnel->hlist_lock);
 
 	return NULL;
 }
@@ -320,14 +320,14 @@ static struct pppol2tp_tunnel *pppol2tp_tunnel_find(u16 tunnel_id)
 {
 	struct pppol2tp_tunnel *tunnel = NULL;
 
-	read_lock(&pppol2tp_tunnel_list_lock);
+	read_lock_bh(&pppol2tp_tunnel_list_lock);
 	list_for_each_entry(tunnel, &pppol2tp_tunnel_list, list) {
 		if (tunnel->stats.tunnel_id == tunnel_id) {
-			read_unlock(&pppol2tp_tunnel_list_lock);
+			read_unlock_bh(&pppol2tp_tunnel_list_lock);
 			return tunnel;
 		}
 	}
-	read_unlock(&pppol2tp_tunnel_list_lock);
+	read_unlock_bh(&pppol2tp_tunnel_list_lock);
 
 	return NULL;
 }
@@ -342,10 +342,11 @@ static struct pppol2tp_tunnel *pppol2tp_tunnel_find(u16 tunnel_id)
 static void pppol2tp_recv_queue_skb(struct pppol2tp_session *session, struct sk_buff *skb)
 {
 	struct sk_buff *skbp;
+	struct sk_buff *tmp;
 	u16 ns = PPPOL2TP_SKB_CB(skb)->ns;
 
-	spin_lock(&session->reorder_q.lock);
-	skb_queue_walk(&session->reorder_q, skbp) {
+	spin_lock_bh(&session->reorder_q.lock);
+	skb_queue_walk_safe(&session->reorder_q, skbp, tmp) {
 		if (PPPOL2TP_SKB_CB(skbp)->ns > ns) {
 			__skb_insert(skb, skbp->prev, skbp, &session->reorder_q);
 			PRINTK(session->debug, PPPOL2TP_MSG_SEQ, KERN_DEBUG,
@@ -360,7 +361,7 @@ static void pppol2tp_recv_queue_skb(struct pppol2tp_session *session, struct sk_
 	__skb_queue_tail(&session->reorder_q, skb);
 
 out:
-	spin_unlock(&session->reorder_q.lock);
+	spin_unlock_bh(&session->reorder_q.lock);
 }
 
 /* Dequeue a single skb.
@@ -371,10 +372,9 @@ static void pppol2tp_recv_dequeue_skb(struct pppol2tp_session *session, struct s
 	int length = PPPOL2TP_SKB_CB(skb)->length;
 	struct sock *session_sock = NULL;
 
-	/* We're about to requeue the skb, so unlink it and return resources
+	/* We're about to requeue the skb, so return resources
 	 * to its current owner (a socket receive buffer).
 	 */
-	skb_unlink(skb, &session->reorder_q);
 	skb_orphan(skb);
 
 	tunnel->stats.rx_packets++;
@@ -442,7 +442,7 @@ static void pppol2tp_recv_dequeue(struct pppol2tp_session *session)
 	 * expect to send up next, dequeue it and any other
 	 * in-sequence packets behind it.
 	 */
-	spin_lock(&session->reorder_q.lock);
+	spin_lock_bh(&session->reorder_q.lock);
 	skb_queue_walk_safe(&session->reorder_q, skb, tmp) {
 		if (time_after(jiffies, PPPOL2TP_SKB_CB(skb)->expires)) {
 			session->stats.rx_seq_discards++;
@@ -470,13 +470,18 @@ static void pppol2tp_recv_dequeue(struct pppol2tp_session *session)
 				goto out;
 			}
 		}
-		spin_unlock(&session->reorder_q.lock);
+		__skb_unlink(skb, &session->reorder_q);
+
+		/* Process the skb. We release the queue lock while we
+		 * do so to let other contexts process the queue.
+		 */
+		spin_unlock_bh(&session->reorder_q.lock);
 		pppol2tp_recv_dequeue_skb(session, skb);
-		spin_lock(&session->reorder_q.lock);
+		spin_lock_bh(&session->reorder_q.lock);
 	}
 
 out:
-	spin_unlock(&session->reorder_q.lock);
+	spin_unlock_bh(&session->reorder_q.lock);
 }
 
 /* Internal receive frame. Do the real work of receiving an L2TP data frame
@@ -1059,7 +1064,7 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 
 	/* Get routing info from the tunnel socket */
 	dst_release(skb->dst);
-	skb->dst = sk_dst_get(sk_tun);
+	skb->dst = dst_clone(__sk_dst_get(sk_tun));
 	skb_orphan(skb);
 	skb->sk = sk_tun;
 
@@ -1107,7 +1112,7 @@ static void pppol2tp_tunnel_closeall(struct pppol2tp_tunnel *tunnel)
 	PRINTK(tunnel->debug, PPPOL2TP_MSG_CONTROL, KERN_INFO,
 	       "%s: closing all sessions...\n", tunnel->name);
 
-	write_lock(&tunnel->hlist_lock);
+	write_lock_bh(&tunnel->hlist_lock);
 	for (hash = 0; hash < PPPOL2TP_HASH_SIZE; hash++) {
 again:
 		hlist_for_each_safe(walk, tmp, &tunnel->session_hlist[hash]) {
@@ -1129,7 +1134,7 @@ again:
 			 * disappear as we're jumping between locks.
 			 */
 			sock_hold(sk);
-			write_unlock(&tunnel->hlist_lock);
+			write_unlock_bh(&tunnel->hlist_lock);
 			lock_sock(sk);
 
 			if (sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND)) {
@@ -1154,11 +1159,11 @@ again:
 			 * list so we are guaranteed to make forward
 			 * progress.
 			 */
-			write_lock(&tunnel->hlist_lock);
+			write_lock_bh(&tunnel->hlist_lock);
 			goto again;
 		}
 	}
-	write_unlock(&tunnel->hlist_lock);
+	write_unlock_bh(&tunnel->hlist_lock);
 }
 
 /* Really kill the tunnel.
@@ -1167,9 +1172,9 @@ again:
 static void pppol2tp_tunnel_free(struct pppol2tp_tunnel *tunnel)
 {
 	/* Remove from socket list */
-	write_lock(&pppol2tp_tunnel_list_lock);
+	write_lock_bh(&pppol2tp_tunnel_list_lock);
 	list_del_init(&tunnel->list);
-	write_unlock(&pppol2tp_tunnel_list_lock);
+	write_unlock_bh(&pppol2tp_tunnel_list_lock);
 
 	atomic_dec(&pppol2tp_tunnel_count);
 	kfree(tunnel);
@@ -1245,9 +1250,9 @@ static void pppol2tp_session_destruct(struct sock *sk)
 				/* Delete the session socket from the
 				 * hash
 				 */
-				write_lock(&tunnel->hlist_lock);
+				write_lock_bh(&tunnel->hlist_lock);
 				hlist_del_init(&session->hlist);
-				write_unlock(&tunnel->hlist_lock);
+				write_unlock_bh(&tunnel->hlist_lock);
 
 				atomic_dec(&pppol2tp_session_count);
 			}
@@ -1392,9 +1397,9 @@ static struct sock *pppol2tp_prepare_tunnel_socket(int fd, u16 tunnel_id,
 
 	/* Add tunnel to our list */
 	INIT_LIST_HEAD(&tunnel->list);
-	write_lock(&pppol2tp_tunnel_list_lock);
+	write_lock_bh(&pppol2tp_tunnel_list_lock);
 	list_add(&tunnel->list, &pppol2tp_tunnel_list);
-	write_unlock(&pppol2tp_tunnel_list_lock);
+	write_unlock_bh(&pppol2tp_tunnel_list_lock);
 	atomic_inc(&pppol2tp_tunnel_count);
 
 	/* Bump the reference count. The tunnel context is deleted
@@ -1599,11 +1604,11 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	sk->sk_user_data = session;
 
 	/* Add session to the tunnel's hash list */
-	write_lock(&tunnel->hlist_lock);
+	write_lock_bh(&tunnel->hlist_lock);
 	hlist_add_head(&session->hlist,
 		       pppol2tp_session_id_hash(tunnel,
 						session->tunnel_addr.s_session));
-	write_unlock(&tunnel->hlist_lock);
+	write_unlock_bh(&tunnel->hlist_lock);
 
 	atomic_inc(&pppol2tp_session_count);
 
@@ -2205,7 +2210,7 @@ static struct pppol2tp_session *next_session(struct pppol2tp_tunnel *tunnel, str
 	int next = 0;
 	int i;
 
-	read_lock(&tunnel->hlist_lock);
+	read_lock_bh(&tunnel->hlist_lock);
 	for (i = 0; i < PPPOL2TP_HASH_SIZE; i++) {
 		hlist_for_each_entry(session, walk, &tunnel->session_hlist[i], hlist) {
 			if (curr == NULL) {
@@ -2223,7 +2228,7 @@ static struct pppol2tp_session *next_session(struct pppol2tp_tunnel *tunnel, str
 		}
 	}
 out:
-	read_unlock(&tunnel->hlist_lock);
+	read_unlock_bh(&tunnel->hlist_lock);
 	if (!found)
 		session = NULL;
 
@@ -2234,13 +2239,13 @@ static struct pppol2tp_tunnel *next_tunnel(struct pppol2tp_tunnel *curr)
 {
 	struct pppol2tp_tunnel *tunnel = NULL;
 
-	read_lock(&pppol2tp_tunnel_list_lock);
+	read_lock_bh(&pppol2tp_tunnel_list_lock);
 	if (list_is_last(&curr->list, &pppol2tp_tunnel_list)) {
 		goto out;
 	}
 	tunnel = list_entry(curr->list.next, struct pppol2tp_tunnel, list);
 out:
-	read_unlock(&pppol2tp_tunnel_list_lock);
+	read_unlock_bh(&pppol2tp_tunnel_list_lock);
 
 	return tunnel;
 }

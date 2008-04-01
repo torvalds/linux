@@ -90,12 +90,16 @@ static int i2c_device_probe(struct device *dev)
 {
 	struct i2c_client	*client = to_i2c_client(dev);
 	struct i2c_driver	*driver = to_i2c_driver(dev->driver);
+	int status;
 
 	if (!driver->probe)
 		return -ENODEV;
 	client->driver = driver;
 	dev_dbg(dev, "probe\n");
-	return driver->probe(client);
+	status = driver->probe(client);
+	if (status)
+		client->driver = NULL;
+	return status;
 }
 
 static int i2c_device_remove(struct device *dev)
@@ -485,8 +489,8 @@ EXPORT_SYMBOL(i2c_add_adapter);
  * Context: can sleep
  *
  * This routine is used to declare an I2C adapter when its bus number
- * matters.  Example: for I2C adapters from system-on-chip CPUs, or
- * otherwise built in to the system's mainboard, and where i2c_board_info
+ * matters.  For example, use it for I2C adapters from system-on-chip CPUs,
+ * or otherwise built in to the system's mainboard, and where i2c_board_info
  * is used to properly configure I2C devices.
  *
  * If no devices have pre-been declared for this bus, then be sure to

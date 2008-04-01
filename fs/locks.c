@@ -1275,13 +1275,13 @@ out:
 EXPORT_SYMBOL(__break_lease);
 
 /**
- *	lease_get_mtime
+ *	lease_get_mtime - get the last modified time of an inode
  *	@inode: the inode
  *      @time:  pointer to a timespec which will contain the last modified time
  *
  * This is to force NFS clients to flush their caches for files with
  * exclusive leases.  The justification is that if someone has an
- * exclusive lease, then they could be modifiying it.
+ * exclusive lease, then they could be modifying it.
  */
 void lease_get_mtime(struct inode *inode, struct timespec *time)
 {

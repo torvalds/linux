@@ -204,6 +204,7 @@ struct xfrm_state
 	 * transformer. */
 	const struct xfrm_type	*type;
 	struct xfrm_mode	*inner_mode;
+	struct xfrm_mode	*inner_mode_iaf;
 	struct xfrm_mode	*outer_mode;
 
 	/* Security context */
@@ -277,7 +278,7 @@ extern int __xfrm_state_delete(struct xfrm_state *x);
 struct xfrm_state_afinfo {
 	unsigned int		family;
 	unsigned int		proto;
-	unsigned int		eth_proto;
+	__be16			eth_proto;
 	struct module		*owner;
 	const struct xfrm_type	*type_map[IPPROTO_MAX];
 	struct xfrm_mode	*mode_map[XFRM_MODE_MAX];
@@ -386,6 +387,27 @@ enum {
 
 extern int xfrm_register_mode(struct xfrm_mode *mode, int family);
 extern int xfrm_unregister_mode(struct xfrm_mode *mode, int family);
+
+static inline int xfrm_af2proto(unsigned int family)
+{
+	switch(family) {
+	case AF_INET:
+		return IPPROTO_IPIP;
+	case AF_INET6:
+		return IPPROTO_IPV6;
+	default:
+		return 0;
+	}
+}
+
+static inline struct xfrm_mode *xfrm_ip2inner_mode(struct xfrm_state *x, int ipproto)
+{
+	if ((ipproto == IPPROTO_IPIP && x->props.family == AF_INET) ||
+	    (ipproto == IPPROTO_IPV6 && x->props.family == AF_INET6))
+		return x->inner_mode;
+	else
+		return x->inner_mode_iaf;
+}
 
 struct xfrm_tmpl
 {
@@ -530,6 +552,9 @@ struct xfrm_mode_skb_cb {
 	__be16 id;
 	__be16 frag_off;
 
+	/* IP header length (excluding options or extension headers). */
+	u8 ihl;
+
 	/* TOS for IPv4, class for IPv6. */
 	u8 tos;
 
@@ -538,6 +563,9 @@ struct xfrm_mode_skb_cb {
 
 	/* Protocol for IPv4, NH for IPv6. */
 	u8 protocol;
+
+	/* Option length for IPv4, zero for IPv6. */
+	u8 optlen;
 
 	/* Used by IPv6 only, zero for IPv4. */
 	u8 flow_lbl[3];
@@ -1253,6 +1281,7 @@ extern int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi,
 extern int xfrm_input_resume(struct sk_buff *skb, int nexthdr);
 extern int xfrm_output_resume(struct sk_buff *skb, int err);
 extern int xfrm_output(struct sk_buff *skb);
+extern int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm4_extract_header(struct sk_buff *skb);
 extern int xfrm4_extract_input(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm4_rcv_encap(struct sk_buff *skb, int nexthdr, __be32 spi,

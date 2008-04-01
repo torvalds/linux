@@ -1143,7 +1143,7 @@ static void raid5_end_read_request(struct bio * bi, int error)
 			rdev = conf->disks[i].rdev;
 			printk(KERN_INFO "raid5:%s: read error corrected (%lu sectors at %llu on %s)\n",
 			       mdname(conf->mddev), STRIPE_SECTORS,
-			       (unsigned long long)sh->sector + rdev->data_offset,
+			       (unsigned long long)(sh->sector + rdev->data_offset),
 			       bdevname(rdev->bdev, b));
 			clear_bit(R5_ReadError, &sh->dev[i].flags);
 			clear_bit(R5_ReWrite, &sh->dev[i].flags);
@@ -1160,13 +1160,13 @@ static void raid5_end_read_request(struct bio * bi, int error)
 		if (conf->mddev->degraded)
 			printk(KERN_WARNING "raid5:%s: read error not correctable (sector %llu on %s).\n",
 			       mdname(conf->mddev),
-			       (unsigned long long)sh->sector + rdev->data_offset,
+			       (unsigned long long)(sh->sector + rdev->data_offset),
 			       bdn);
 		else if (test_bit(R5_ReWrite, &sh->dev[i].flags))
 			/* Oh, no!!! */
 			printk(KERN_WARNING "raid5:%s: read error NOT corrected!! (sector %llu on %s).\n",
 			       mdname(conf->mddev),
-			       (unsigned long long)sh->sector + rdev->data_offset,
+			       (unsigned long long)(sh->sector + rdev->data_offset),
 			       bdn);
 		else if (atomic_read(&rdev->read_errors)
 			 > conf->max_nr_stripes)

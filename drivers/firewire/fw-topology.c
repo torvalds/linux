@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/wait.h>
 #include <linux/errno.h>
+#include <asm/bug.h>
 #include <asm/system.h>
 #include "fw-transaction.h"
 #include "fw-topology.h"
@@ -424,8 +425,8 @@ update_tree(struct fw_card *card, struct fw_node *root)
 	node1 = fw_node(list1.next);
 
 	while (&node0->link != &list0) {
+		WARN_ON(node0->port_count != node1->port_count);
 
-		/* assert(node0->port_count == node1->port_count); */
 		if (node0->link_on && !node1->link_on)
 			event = FW_NODE_LINK_OFF;
 		else if (!node0->link_on && node1->link_on)

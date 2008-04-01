@@ -1644,13 +1644,24 @@ static void gelic_wl_scan_complete_event(struct gelic_wl_info *wl)
 	}
 
 	/* put them in the newtork_list */
-	scan_info = wl->buf;
-	scan_info_size = 0;
-	i = 0;
-	while (scan_info_size < data_len) {
+	for (i = 0, scan_info_size = 0, scan_info = wl->buf;
+	     scan_info_size < data_len;
+	     i++, scan_info_size += be16_to_cpu(scan_info->size),
+	     scan_info = (void *)scan_info + be16_to_cpu(scan_info->size)) {
 		pr_debug("%s:size=%d bssid=%s scan_info=%p\n", __func__,
 			 be16_to_cpu(scan_info->size),
 			 print_mac(mac, &scan_info->bssid[2]), scan_info);
+
+		/*
+		 * The wireless firmware may return invalid channel 0 and/or
+		 * invalid rate if the AP emits zero length SSID ie. As this
+		 * scan information is useless, ignore it
+		 */
+		if (!be16_to_cpu(scan_info->channel) || !scan_info->rate[0]) {
+			pr_debug("%s: invalid scan info\n", __func__);
+			continue;
+		}
+
 		found = 0;
 		oldest = NULL;
 		list_for_each_entry(target, &wl->network_list, list) {
@@ -1687,10 +1698,6 @@ static void gelic_wl_scan_complete_event(struct gelic_wl_info *wl)
 					 GFP_KERNEL);
 		if (!target->hwinfo) {
 			pr_info("%s: kzalloc failed\n", __func__);
-			i++;
-			scan_info_size += be16_to_cpu(scan_info->size);
-			scan_info = (void *)scan_info +
-				be16_to_cpu(scan_info->size);
 			continue;
 		}
 		/* copy hw scan info */
@@ -1709,10 +1716,6 @@ static void gelic_wl_scan_complete_event(struct gelic_wl_info *wl)
 			if (scan_info->ext_rate[r])
 				target->rate_ext_len++;
 		list_move_tail(&target->list, &wl->network_list);
-		/* bump pointer */
-		i++;
-		scan_info_size += be16_to_cpu(scan_info->size);
-		scan_info = (void *)scan_info + be16_to_cpu(scan_info->size);
 	}
 	memset(&data, 0, sizeof(data));
 	wireless_send_event(port_to_netdev(wl_port(wl)), SIOCGIWSCAN, &data,
@@ -2388,6 +2391,8 @@ static struct net_device *gelic_wl_alloc(struct gelic_card *card)
 	pr_debug("%s: netdev =%p card=%p \np", __func__, netdev, card);
 	if (!netdev)
 		return NULL;
+
+	strcpy(netdev->name, "wlan%d");
 
 	port = netdev_priv(netdev);
 	port->netdev = netdev;

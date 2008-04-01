@@ -154,7 +154,11 @@ drivers-$(CONFIG_OPROFILE)	+= arch/sh/oprofile/
 
 boot := arch/sh/boot
 
+ifneq ($(KBUILD_SRC),)
 incdir-prefix	:= $(srctree)/include/asm-sh/
+else
+incdir-prefix	:=
+endif
 
 #	Update machine arch and proc symlinks if something which affects
 #	them changed.  We use .arch and .mach to indicate when they were
@@ -182,7 +186,7 @@ include/asm-sh/.mach: $(wildcard include/config/sh/*.h) \
 	$(Q)if [ ! -d include/asm-sh ]; then mkdir -p include/asm-sh; fi
 	$(Q)rm -f include/asm-sh/mach
 	$(Q)for i in $(incdir-y); do \
-	if [ -d $(incdir-prefix)$$i ]; then \
+	if [ -d $(srctree)/include/asm-sh/$$i ]; then \
 		echo -n '  SYMLINK include/asm-sh/mach -> '; \
 		echo -e "include/asm-sh/$$i"; \
 		ln -fsn $(incdir-prefix)$$i \
@@ -191,7 +195,7 @@ include/asm-sh/.mach: $(wildcard include/config/sh/*.h) \
 		if [ ! -d include/asm-sh/mach ]; then \
 			echo -n '  SYMLINK include/asm-sh/mach -> '; \
 			echo -e 'include/asm-sh'; \
-			ln -fsn $(incdir-prefix) include/asm-sh/mach; \
+			ln -fsn $(incdir-prefix)../asm-sh include/asm-sh/mach; \
 		fi; \
 	fi; \
 	done

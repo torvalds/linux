@@ -52,6 +52,10 @@ bcom_task_alloc(int bd_count, int bd_size, int priv_size)
 	int i, tasknum = -1;
 	struct bcom_task *tsk;
 
+	/* Don't try to do anything if bestcomm init failed */
+	if (!bcom_eng)
+		return NULL;
+
 	/* Get and reserve a task num */
 	spin_lock(&bcom_eng->lock);
 
@@ -484,8 +488,8 @@ mpc52xx_bcom_remove(struct of_device *op)
 }
 
 static struct of_device_id mpc52xx_bcom_of_match[] = {
-	{ .type = "dma-controller", .compatible = "fsl,mpc5200-bestcomm", },
-	{ .type = "dma-controller", .compatible = "mpc5200-bestcomm", },
+	{ .compatible = "fsl,mpc5200-bestcomm", },
+	{ .compatible = "mpc5200-bestcomm", },
 	{},
 };
 

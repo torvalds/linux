@@ -600,21 +600,6 @@ static int ptrace_bts_read_record(struct task_struct *child,
 	return sizeof(ret);
 }
 
-static int ptrace_bts_write_record(struct task_struct *child,
-				   const struct bts_struct *in)
-{
-	int retval;
-
-	if (!child->thread.ds_area_msr)
-		return -ENXIO;
-
-	retval = ds_write_bts((void *)child->thread.ds_area_msr, in);
-	if (retval)
-		return retval;
-
-	return sizeof(*in);
-}
-
 static int ptrace_bts_clear(struct task_struct *child)
 {
 	if (!child->thread.ds_area_msr)
@@ -655,75 +640,6 @@ static int ptrace_bts_drain(struct task_struct *child,
 	ds_clear(ds);
 
 	return end;
-}
-
-static int ptrace_bts_realloc(struct task_struct *child,
-			      int size, int reduce_size)
-{
-	unsigned long rlim, vm;
-	int ret, old_size;
-
-	if (size < 0)
-		return -EINVAL;
-
-	old_size = ds_get_bts_size((void *)child->thread.ds_area_msr);
-	if (old_size < 0)
-		return old_size;
-
-	ret = ds_free((void **)&child->thread.ds_area_msr);
-	if (ret < 0)
-		goto out;
-
-	size >>= PAGE_SHIFT;
-	old_size >>= PAGE_SHIFT;
-
-	current->mm->total_vm  -= old_size;
-	current->mm->locked_vm -= old_size;
-
-	if (size == 0)
-		goto out;
-
-	rlim = current->signal->rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
-	vm = current->mm->total_vm  + size;
-	if (rlim < vm) {
-		ret = -ENOMEM;
-
-		if (!reduce_size)
-			goto out;
-
-		size = rlim - current->mm->total_vm;
-		if (size <= 0)
-			goto out;
-	}
-
-	rlim = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
-	vm = current->mm->locked_vm  + size;
-	if (rlim < vm) {
-		ret = -ENOMEM;
-
-		if (!reduce_size)
-			goto out;
-
-		size = rlim - current->mm->locked_vm;
-		if (size <= 0)
-			goto out;
-	}
-
-	ret = ds_allocate((void **)&child->thread.ds_area_msr,
-			  size << PAGE_SHIFT);
-	if (ret < 0)
-		goto out;
-
-	current->mm->total_vm  += size;
-	current->mm->locked_vm += size;
-
-out:
-	if (child->thread.ds_area_msr)
-		set_tsk_thread_flag(child, TIF_DS_AREA_MSR);
-	else
-		clear_tsk_thread_flag(child, TIF_DS_AREA_MSR);
-
-	return ret;
 }
 
 static int ptrace_bts_config(struct task_struct *child,
@@ -826,6 +742,91 @@ static int ptrace_bts_status(struct task_struct *child,
 		return -EFAULT;
 
 	return sizeof(cfg);
+}
+
+
+static int ptrace_bts_write_record(struct task_struct *child,
+				   const struct bts_struct *in)
+{
+	int retval;
+
+	if (!child->thread.ds_area_msr)
+		return -ENXIO;
+
+	retval = ds_write_bts((void *)child->thread.ds_area_msr, in);
+	if (retval)
+		return retval;
+
+	return sizeof(*in);
+}
+
+static int ptrace_bts_realloc(struct task_struct *child,
+			      int size, int reduce_size)
+{
+	unsigned long rlim, vm;
+	int ret, old_size;
+
+	if (size < 0)
+		return -EINVAL;
+
+	old_size = ds_get_bts_size((void *)child->thread.ds_area_msr);
+	if (old_size < 0)
+		return old_size;
+
+	ret = ds_free((void **)&child->thread.ds_area_msr);
+	if (ret < 0)
+		goto out;
+
+	size >>= PAGE_SHIFT;
+	old_size >>= PAGE_SHIFT;
+
+	current->mm->total_vm  -= old_size;
+	current->mm->locked_vm -= old_size;
+
+	if (size == 0)
+		goto out;
+
+	rlim = current->signal->rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
+	vm = current->mm->total_vm  + size;
+	if (rlim < vm) {
+		ret = -ENOMEM;
+
+		if (!reduce_size)
+			goto out;
+
+		size = rlim - current->mm->total_vm;
+		if (size <= 0)
+			goto out;
+	}
+
+	rlim = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
+	vm = current->mm->locked_vm  + size;
+	if (rlim < vm) {
+		ret = -ENOMEM;
+
+		if (!reduce_size)
+			goto out;
+
+		size = rlim - current->mm->locked_vm;
+		if (size <= 0)
+			goto out;
+	}
+
+	ret = ds_allocate((void **)&child->thread.ds_area_msr,
+			  size << PAGE_SHIFT);
+	if (ret < 0)
+		goto out;
+
+	current->mm->total_vm  += size;
+	current->mm->locked_vm += size;
+
+out:
+	if (child->thread.ds_area_msr)
+		set_tsk_thread_flag(child, TIF_DS_AREA_MSR);
+	else
+		clear_tsk_thread_flag(child, TIF_DS_AREA_MSR);
+
+	return ret;
 }
 
 void ptrace_bts_take_timestamp(struct task_struct *tsk,

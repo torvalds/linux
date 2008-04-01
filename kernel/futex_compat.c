@@ -30,7 +30,7 @@ fetch_robust_entry(compat_uptr_t *uentry, struct robust_list __user **entry,
 	return 0;
 }
 
-static void __user *futex_uaddr(struct robust_list *entry,
+static void __user *futex_uaddr(struct robust_list __user *entry,
 				compat_long_t futex_offset)
 {
 	compat_uptr_t base = ptr_to_compat(entry);

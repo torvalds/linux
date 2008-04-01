@@ -626,7 +626,7 @@ static int dma_4u_map_sg(struct device *dev, struct scatterlist *sglist,
 iommu_map_failed:
 	for_each_sg(sglist, s, nelems, i) {
 		if (s->dma_length != 0) {
-			unsigned long vaddr, npages, entry, i;
+			unsigned long vaddr, npages, entry, j;
 			iopte_t *base;
 
 			vaddr = s->dma_address & IO_PAGE_MASK;
@@ -637,8 +637,8 @@ iommu_map_failed:
 				>> IO_PAGE_SHIFT;
 			base = iommu->page_table + entry;
 
-			for (i = 0; i < npages; i++)
-				iopte_make_dummy(iommu, base + i);
+			for (j = 0; j < npages; j++)
+				iopte_make_dummy(iommu, base + j);
 
 			s->dma_address = DMA_ERROR_CODE;
 			s->dma_length = 0;
@@ -803,7 +803,7 @@ static void dma_4u_sync_sg_for_cpu(struct device *dev,
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
-const struct dma_ops sun4u_dma_ops = {
+static const struct dma_ops sun4u_dma_ops = {
 	.alloc_coherent		= dma_4u_alloc_coherent,
 	.free_coherent		= dma_4u_free_coherent,
 	.map_single		= dma_4u_map_single,

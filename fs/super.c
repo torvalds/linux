@@ -556,11 +556,11 @@ out:
 }
 
 /**
- *	mark_files_ro
+ *	mark_files_ro - mark all files read-only
  *	@sb: superblock in question
  *
- *	All files are marked read/only.  We don't care about pending
- *	delete files so this should be used in 'force' mode only
+ *	All files are marked read-only.  We don't care about pending
+ *	delete files so this should be used in 'force' mode only.
  */
 
 static void mark_files_ro(struct super_block *sb)
@@ -945,6 +945,7 @@ do_kern_mount(const char *fstype, int flags, const char *name, void *data)
 	put_filesystem(type);
 	return mnt;
 }
+EXPORT_SYMBOL_GPL(do_kern_mount);
 
 struct vfsmount *kern_mount_data(struct file_system_type *type, void *data)
 {

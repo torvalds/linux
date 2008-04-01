@@ -589,8 +589,6 @@ static void nfs_umount_begin(struct vfsmount *vfsmnt, int flags)
 	struct nfs_server *server = NFS_SB(vfsmnt->mnt_sb);
 	struct rpc_clnt *rpc;
 
-	shrink_submounts(vfsmnt, &nfs_automount_list);
-
 	if (!(flags & MNT_FORCE))
 		return;
 	/* -EIO all pending I/O */
@@ -632,7 +630,7 @@ static int nfs_verify_server_address(struct sockaddr *addr)
 	switch (addr->sa_family) {
 	case AF_INET: {
 		struct sockaddr_in *sa = (struct sockaddr_in *)addr;
-		return sa->sin_addr.s_addr != INADDR_ANY;
+		return sa->sin_addr.s_addr != htonl(INADDR_ANY);
 	}
 	case AF_INET6: {
 		struct in6_addr *sa = &((struct sockaddr_in6 *)addr)->sin6_addr;

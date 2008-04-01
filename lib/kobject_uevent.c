@@ -55,7 +55,7 @@ int kobject_action_type(const char *buf, size_t count,
 	enum kobject_action action;
 	int ret = -EINVAL;
 
-	if (count && buf[count-1] == '\n')
+	if (count && (buf[count-1] == '\n' || buf[count-1] == '\0'))
 		count--;
 
 	if (!count)

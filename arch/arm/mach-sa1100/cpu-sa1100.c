@@ -139,7 +139,7 @@ static void sa1100_update_dram_timings(int current_speed, int new_speed)
 
 	if (settings->speed == 0) {
 		panic("%s: couldn't find dram setting for speed %d\n",
-		      __FUNCTION__, new_speed);
+		      __func__, new_speed);
 	}
 
 	/* No risk, no fun: run with interrupts on! */

@@ -60,7 +60,7 @@ int pvr2_ctrl_set_mask_value(struct pvr2_ctrl *cptr,int mask,int val)
 	int ret = 0;
 	if (!cptr) return -EINVAL;
 	LOCK_TAKE(cptr->hdw->big_lock); do {
-		if (cptr->info->set_value != 0) {
+		if (cptr->info->set_value) {
 			if (cptr->info->type == pvr2_ctl_bitmask) {
 				mask &= cptr->info->def.type_bitmask.valid_bits;
 			} else if (cptr->info->type == pvr2_ctl_int) {
@@ -265,7 +265,7 @@ unsigned int pvr2_ctrl_get_v4lflags(struct pvr2_ctrl *cptr)
 int pvr2_ctrl_is_writable(struct pvr2_ctrl *cptr)
 {
 	if (!cptr) return 0;
-	return cptr->info->set_value != 0;
+	return cptr->info->set_value != NULL;
 }
 
 

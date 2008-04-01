@@ -305,7 +305,7 @@ comment "MPEG video encoders"
 
 config VIDEO_CX2341X
 	tristate "Conexant CX2341x MPEG encoders"
-	depends on VIDEO_V4L2 && EXPERIMENTAL
+	depends on VIDEO_V4L2 && EXPERIMENTAL && VIDEO_V4L2_COMMON
 	---help---
 	  Support for the Conexant CX23416 MPEG encoders
 	  and CX23415 MPEG encoder/decoders.
@@ -382,7 +382,7 @@ endmenu # encoder / decoder chips
 
 config VIDEO_VIVI
 	tristate "Virtual Video Driver"
-	depends on VIDEO_V4L2 && !SPARC32 && !SPARC64
+	depends on VIDEO_DEV && VIDEO_V4L2 && !SPARC32 && !SPARC64
 	select VIDEOBUF_VMALLOC
 	default n
 	---help---

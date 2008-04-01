@@ -39,12 +39,9 @@ static int mpc837xmds_usb_cfg(void)
 	if (ret)
 		return ret;
 	/* Map BCSR area */
-	np = of_find_node_by_name(NULL, "bcsr");
+	np = of_find_compatible_node(NULL, NULL, "fsl,mpc837xmds-bcsr");
 	if (np) {
-		struct resource res;
-
-		of_address_to_resource(np, 0, &res);
-		bcsr_regs = ioremap(res.start, res.end - res.start + 1);
+		bcsr_regs = of_iomap(np, 0);
 		of_node_put(np);
 	}
 	if (!bcsr_regs)
@@ -96,6 +93,7 @@ static void __init mpc837x_mds_setup_arch(void)
 static struct of_device_id mpc837x_ids[] = {
 	{ .type = "soc", },
 	{ .compatible = "soc", },
+	{ .compatible = "simple-bus", },
 	{},
 };
 

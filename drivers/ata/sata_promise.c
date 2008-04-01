@@ -46,7 +46,7 @@
 #include "sata_promise.h"
 
 #define DRV_NAME	"sata_promise"
-#define DRV_VERSION	"2.11"
+#define DRV_VERSION	"2.12"
 
 enum {
 	PDC_MAX_PORTS		= 4,
@@ -145,7 +145,9 @@ static int pdc_old_sata_check_atapi_dma(struct ata_queued_cmd *qc);
 static void pdc_irq_clear(struct ata_port *ap);
 static unsigned int pdc_qc_issue_prot(struct ata_queued_cmd *qc);
 static void pdc_freeze(struct ata_port *ap);
+static void pdc_sata_freeze(struct ata_port *ap);
 static void pdc_thaw(struct ata_port *ap);
+static void pdc_sata_thaw(struct ata_port *ap);
 static void pdc_pata_error_handler(struct ata_port *ap);
 static void pdc_sata_error_handler(struct ata_port *ap);
 static void pdc_post_internal_cmd(struct ata_queued_cmd *qc);
@@ -180,8 +182,8 @@ static const struct ata_port_operations pdc_sata_ops = {
 
 	.qc_prep		= pdc_qc_prep,
 	.qc_issue		= pdc_qc_issue_prot,
-	.freeze			= pdc_freeze,
-	.thaw			= pdc_thaw,
+	.freeze			= pdc_sata_freeze,
+	.thaw			= pdc_sata_thaw,
 	.error_handler		= pdc_sata_error_handler,
 	.post_internal_cmd	= pdc_post_internal_cmd,
 	.cable_detect		= pdc_sata_cable_detect,
@@ -205,8 +207,8 @@ static const struct ata_port_operations pdc_old_sata_ops = {
 
 	.qc_prep		= pdc_qc_prep,
 	.qc_issue		= pdc_qc_issue_prot,
-	.freeze			= pdc_freeze,
-	.thaw			= pdc_thaw,
+	.freeze			= pdc_sata_freeze,
+	.thaw			= pdc_sata_thaw,
 	.error_handler		= pdc_sata_error_handler,
 	.post_internal_cmd	= pdc_post_internal_cmd,
 	.cable_detect		= pdc_sata_cable_detect,
@@ -631,6 +633,41 @@ static void pdc_qc_prep(struct ata_queued_cmd *qc)
 	}
 }
 
+static int pdc_is_sataii_tx4(unsigned long flags)
+{
+	const unsigned long mask = PDC_FLAG_GEN_II | PDC_FLAG_4_PORTS;
+	return (flags & mask) == mask;
+}
+
+static unsigned int pdc_port_no_to_ata_no(unsigned int port_no,
+					  int is_sataii_tx4)
+{
+	static const unsigned char sataii_tx4_port_remap[4] = { 3, 1, 0, 2};
+	return is_sataii_tx4 ? sataii_tx4_port_remap[port_no] : port_no;
+}
+
+static unsigned int pdc_sata_nr_ports(const struct ata_port *ap)
+{
+	return (ap->flags & PDC_FLAG_4_PORTS) ? 4 : 2;
+}
+
+static unsigned int pdc_sata_ata_port_to_ata_no(const struct ata_port *ap)
+{
+	const struct ata_host *host = ap->host;
+	unsigned int nr_ports = pdc_sata_nr_ports(ap);
+	unsigned int i;
+
+	for(i = 0; i < nr_ports && host->ports[i] != ap; ++i)
+		;
+	BUG_ON(i >= nr_ports);
+	return pdc_port_no_to_ata_no(i, pdc_is_sataii_tx4(ap->flags));
+}
+
+static unsigned int pdc_sata_hotplug_offset(const struct ata_port *ap)
+{
+	return (ap->flags & PDC_FLAG_GEN_II) ? PDC2_SATA_PLUG_CSR : PDC_SATA_PLUG_CSR;
+}
+
 static void pdc_freeze(struct ata_port *ap)
 {
 	void __iomem *mmio = ap->ioaddr.cmd_addr;
@@ -641,6 +678,29 @@ static void pdc_freeze(struct ata_port *ap)
 	tmp &= ~PDC_DMA_ENABLE;
 	writel(tmp, mmio + PDC_CTLSTAT);
 	readl(mmio + PDC_CTLSTAT); /* flush */
+}
+
+static void pdc_sata_freeze(struct ata_port *ap)
+{
+	struct ata_host *host = ap->host;
+	void __iomem *host_mmio = host->iomap[PDC_MMIO_BAR];
+	unsigned int hotplug_offset = pdc_sata_hotplug_offset(ap);
+	unsigned int ata_no = pdc_sata_ata_port_to_ata_no(ap);
+	u32 hotplug_status;
+
+	/* Disable hotplug events on this port.
+	 *
+	 * Locking:
+	 * 1) hotplug register accesses must be serialised via host->lock
+	 * 2) ap->lock == &ap->host->lock
+	 * 3) ->freeze() and ->thaw() are called with ap->lock held
+	 */
+	hotplug_status = readl(host_mmio + hotplug_offset);
+	hotplug_status |= 0x11 << (ata_no + 16);
+	writel(hotplug_status, host_mmio + hotplug_offset);
+	readl(host_mmio + hotplug_offset); /* flush */
+
+	pdc_freeze(ap);
 }
 
 static void pdc_thaw(struct ata_port *ap)
@@ -656,6 +716,26 @@ static void pdc_thaw(struct ata_port *ap)
 	tmp &= ~PDC_IRQ_DISABLE;
 	writel(tmp, mmio + PDC_CTLSTAT);
 	readl(mmio + PDC_CTLSTAT); /* flush */
+}
+
+static void pdc_sata_thaw(struct ata_port *ap)
+{
+	struct ata_host *host = ap->host;
+	void __iomem *host_mmio = host->iomap[PDC_MMIO_BAR];
+	unsigned int hotplug_offset = pdc_sata_hotplug_offset(ap);
+	unsigned int ata_no = pdc_sata_ata_port_to_ata_no(ap);
+	u32 hotplug_status;
+
+	pdc_thaw(ap);
+
+	/* Enable hotplug events on this port.
+	 * Locking: see pdc_sata_freeze().
+	 */
+	hotplug_status = readl(host_mmio + hotplug_offset);
+	hotplug_status |= 0x11 << ata_no;
+	hotplug_status &= ~(0x11 << (ata_no + 16));
+	writel(hotplug_status, host_mmio + hotplug_offset);
+	readl(host_mmio + hotplug_offset); /* flush */
 }
 
 static void pdc_common_error_handler(struct ata_port *ap, ata_reset_fn_t hardreset)
@@ -765,19 +845,6 @@ static void pdc_irq_clear(struct ata_port *ap)
 	readl(mmio + PDC_INT_SEQMASK);
 }
 
-static int pdc_is_sataii_tx4(unsigned long flags)
-{
-	const unsigned long mask = PDC_FLAG_GEN_II | PDC_FLAG_4_PORTS;
-	return (flags & mask) == mask;
-}
-
-static unsigned int pdc_port_no_to_ata_no(unsigned int port_no,
-					  int is_sataii_tx4)
-{
-	static const unsigned char sataii_tx4_port_remap[4] = { 3, 1, 0, 2};
-	return is_sataii_tx4 ? sataii_tx4_port_remap[port_no] : port_no;
-}
-
 static irqreturn_t pdc_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
@@ -799,6 +866,8 @@ static irqreturn_t pdc_interrupt(int irq, void *dev_instance)
 
 	mmio_base = host->iomap[PDC_MMIO_BAR];
 
+	spin_lock(&host->lock);
+
 	/* read and clear hotplug flags for all ports */
 	if (host->ports[0]->flags & PDC_FLAG_GEN_II)
 		hotplug_offset = PDC2_SATA_PLUG_CSR;
@@ -814,10 +883,8 @@ static irqreturn_t pdc_interrupt(int irq, void *dev_instance)
 
 	if (mask == 0xffffffff && hotplug_status == 0) {
 		VPRINTK("QUICK EXIT 2\n");
-		return IRQ_NONE;
+		goto done_irq;
 	}
-
-	spin_lock(&host->lock);
 
 	mask &= 0xffff;		/* only 16 tags possible */
 	if (mask == 0 && hotplug_status == 0) {

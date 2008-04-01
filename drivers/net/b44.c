@@ -2082,6 +2082,11 @@ static int __devinit b44_get_invariants(struct b44 *bp)
 		addr = sdev->bus->sprom.et0mac;
 		bp->phy_addr = sdev->bus->sprom.et0phyaddr;
 	}
+	/* Some ROMs have buggy PHY addresses with the high
+	 * bits set (sign extension?). Truncate them to a
+	 * valid PHY address. */
+	bp->phy_addr &= 0x1F;
+
 	memcpy(bp->dev->dev_addr, addr, 6);
 
 	if (!is_valid_ether_addr(&bp->dev->dev_addr[0])){

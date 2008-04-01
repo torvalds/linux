@@ -330,6 +330,9 @@ config PCI_DOMAINS
 config PCI_SYSCALL
 	def_bool PCI
 
+config IOMMU_HELPER
+	def_bool PCI
+
 config ALPHA_CORE_AGP
 	bool
 	depends on ALPHA_GENERIC || ALPHA_TITAN || ALPHA_MARVEL

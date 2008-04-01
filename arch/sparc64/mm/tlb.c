@@ -23,10 +23,11 @@ DEFINE_PER_CPU(struct mmu_gather, mmu_gathers) = { 0, };
 
 void flush_tlb_pending(void)
 {
-	struct mmu_gather *mp = &__get_cpu_var(mmu_gathers);
+	struct mmu_gather *mp;
 
 	preempt_disable();
 
+	mp = &__get_cpu_var(mmu_gathers);
 	if (mp->tlb_nr) {
 		flush_tsb_user(mp);
 

@@ -143,14 +143,18 @@ void pci_bus_add_devices(struct pci_bus *bus)
 			/* register the bus with sysfs as the parent is now
 			 * properly registered. */
 			child_bus = dev->subordinate;
+			if (child_bus->is_added)
+				continue;
 			child_bus->dev.parent = child_bus->bridge;
 			retval = device_register(&child_bus->dev);
 			if (retval)
 				dev_err(&dev->dev, "Error registering pci_bus,"
 					" continuing...\n");
-			else
+			else {
+				child_bus->is_added = 1;
 				retval = device_create_file(&child_bus->dev,
 							&dev_attr_cpuaffinity);
+			}
 			if (retval)
 				dev_err(&dev->dev, "Error creating cpuaffinity"
 					" file, continuing...\n");

@@ -81,6 +81,42 @@ static void cell_progress(char *s, unsigned short hex)
 	printk("*** %04x : %s\n", hex, s ? s : "");
 }
 
+static void cell_fixup_pcie_rootcomplex(struct pci_dev *dev)
+{
+	struct pci_controller *hose;
+	const char *s;
+	int i;
+
+	if (!machine_is(cell))
+		return;
+
+	/* We're searching for a direct child of the PHB */
+	if (dev->bus->self != NULL || dev->devfn != 0)
+		return;
+
+	hose = pci_bus_to_host(dev->bus);
+	if (hose == NULL)
+		return;
+
+	/* Only on PCIE */
+	if (!of_device_is_compatible(hose->dn, "pciex"))
+		return;
+
+	/* And only on axon */
+	s = of_get_property(hose->dn, "model", NULL);
+	if (!s || strcmp(s, "Axon") != 0)
+		return;
+
+	for (i = 0; i < PCI_BRIDGE_RESOURCES; i++) {
+		dev->resource[i].start = dev->resource[i].end = 0;
+		dev->resource[i].flags = 0;
+	}
+
+	printk(KERN_DEBUG "PCI: Hiding resources on Axon PCIE RC %s\n",
+	       pci_name(dev));
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, cell_fixup_pcie_rootcomplex);
+
 static int __init cell_publish_devices(void)
 {
 	int node;

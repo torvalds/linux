@@ -73,13 +73,13 @@ unsigned int sysctl_sched_batch_wakeup_granularity = 10000000UL;
 
 /*
  * SCHED_OTHER wake-up granularity.
- * (default: 10 msec * (1 + ilog(ncpus)), units: nanoseconds)
+ * (default: 5 msec * (1 + ilog(ncpus)), units: nanoseconds)
  *
  * This option delays the preemption effects of decoupled workloads
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
-unsigned int sysctl_sched_wakeup_granularity = 10000000UL;
+unsigned int sysctl_sched_wakeup_granularity = 5000000UL;
 
 const_debug unsigned int sysctl_sched_migration_cost = 500000UL;
 
@@ -175,8 +175,15 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	 * Maintain a cache of leftmost tree entries (it is frequently
 	 * used):
 	 */
-	if (leftmost)
+	if (leftmost) {
 		cfs_rq->rb_leftmost = &se->run_node;
+		/*
+		 * maintain cfs_rq->min_vruntime to be a monotonic increasing
+		 * value tracking the leftmost vruntime in the tree.
+		 */
+		cfs_rq->min_vruntime =
+			max_vruntime(cfs_rq->min_vruntime, se->vruntime);
+	}
 
 	rb_link_node(&se->run_node, parent, link);
 	rb_insert_color(&se->run_node, &cfs_rq->tasks_timeline);
@@ -184,8 +191,24 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 static void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	if (cfs_rq->rb_leftmost == &se->run_node)
-		cfs_rq->rb_leftmost = rb_next(&se->run_node);
+	if (cfs_rq->rb_leftmost == &se->run_node) {
+		struct rb_node *next_node;
+		struct sched_entity *next;
+
+		next_node = rb_next(&se->run_node);
+		cfs_rq->rb_leftmost = next_node;
+
+		if (next_node) {
+			next = rb_entry(next_node,
+					struct sched_entity, run_node);
+			cfs_rq->min_vruntime =
+				max_vruntime(cfs_rq->min_vruntime,
+					     next->vruntime);
+		}
+	}
+
+	if (cfs_rq->next == se)
+		cfs_rq->next = NULL;
 
 	rb_erase(&se->run_node, &cfs_rq->tasks_timeline);
 }
@@ -260,12 +283,8 @@ static u64 __sched_period(unsigned long nr_running)
  */
 static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	u64 slice = __sched_period(cfs_rq->nr_running);
-
-	slice *= se->load.weight;
-	do_div(slice, cfs_rq->load.weight);
-
-	return slice;
+	return calc_delta_mine(__sched_period(cfs_rq->nr_running),
+			       se->load.weight, &cfs_rq->load);
 }
 
 /*
@@ -283,11 +302,6 @@ static u64 __sched_vslice(unsigned long rq_weight, unsigned long nr_running)
 	return vslice;
 }
 
-static u64 sched_vslice(struct cfs_rq *cfs_rq)
-{
-	return __sched_vslice(cfs_rq->load.weight, cfs_rq->nr_running);
-}
-
 static u64 sched_vslice_add(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	return __sched_vslice(cfs_rq->load.weight + se->load.weight,
@@ -303,7 +317,6 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 	      unsigned long delta_exec)
 {
 	unsigned long delta_exec_weighted;
-	u64 vruntime;
 
 	schedstat_set(curr->exec_max, max((u64)delta_exec, curr->exec_max));
 
@@ -315,19 +328,6 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 							&curr->load);
 	}
 	curr->vruntime += delta_exec_weighted;
-
-	/*
-	 * maintain cfs_rq->min_vruntime to be a monotonic increasing
-	 * value tracking the leftmost vruntime in the tree.
-	 */
-	if (first_fair(cfs_rq)) {
-		vruntime = min_vruntime(curr->vruntime,
-				__pick_next_entity(cfs_rq)->vruntime);
-	} else
-		vruntime = curr->vruntime;
-
-	cfs_rq->min_vruntime =
-		max_vruntime(cfs_rq->min_vruntime, vruntime);
 }
 
 static void update_curr(struct cfs_rq *cfs_rq)
@@ -493,16 +493,11 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 {
 	u64 vruntime;
 
-	vruntime = cfs_rq->min_vruntime;
-
-	if (sched_feat(TREE_AVG)) {
-		struct sched_entity *last = __pick_last_entity(cfs_rq);
-		if (last) {
-			vruntime += last->vruntime;
-			vruntime >>= 1;
-		}
-	} else if (sched_feat(APPROX_AVG) && cfs_rq->nr_running)
-		vruntime += sched_vslice(cfs_rq)/2;
+	if (first_fair(cfs_rq)) {
+		vruntime = min_vruntime(cfs_rq->min_vruntime,
+				__pick_next_entity(cfs_rq)->vruntime);
+	} else
+		vruntime = cfs_rq->min_vruntime;
 
 	/*
 	 * The 'current' period is already promised to the current tasks,
@@ -515,8 +510,10 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 
 	if (!initial) {
 		/* sleeps upto a single latency don't count. */
-		if (sched_feat(NEW_FAIR_SLEEPERS))
-			vruntime -= sysctl_sched_latency;
+		if (sched_feat(NEW_FAIR_SLEEPERS)) {
+			vruntime -= calc_delta_fair(sysctl_sched_latency,
+						    &cfs_rq->load);
+		}
 
 		/* ensure we never gain time by being placed backwards. */
 		vruntime = max_vruntime(se->vruntime, vruntime);
@@ -545,6 +542,21 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 	account_entity_enqueue(cfs_rq, se);
 }
 
+static void update_avg(u64 *avg, u64 sample)
+{
+	s64 diff = sample - *avg;
+	*avg += diff >> 3;
+}
+
+static void update_avg_stats(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	if (!se->last_wakeup)
+		return;
+
+	update_avg(&se->avg_overlap, se->sum_exec_runtime - se->last_wakeup);
+	se->last_wakeup = 0;
+}
+
 static void
 dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 {
@@ -555,6 +567,7 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 
 	update_stats_dequeue(cfs_rq, se);
 	if (sleep) {
+		update_avg_stats(cfs_rq, se);
 #ifdef CONFIG_SCHEDSTATS
 		if (entity_is_task(se)) {
 			struct task_struct *tsk = task_of(se);
@@ -616,12 +629,32 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	se->prev_sum_exec_runtime = se->sum_exec_runtime;
 }
 
+static struct sched_entity *
+pick_next(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	s64 diff, gran;
+
+	if (!cfs_rq->next)
+		return se;
+
+	diff = cfs_rq->next->vruntime - se->vruntime;
+	if (diff < 0)
+		return se;
+
+	gran = calc_delta_fair(sysctl_sched_wakeup_granularity, &cfs_rq->load);
+	if (diff > gran)
+		return se;
+
+	return cfs_rq->next;
+}
+
 static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *se = NULL;
 
 	if (first_fair(cfs_rq)) {
 		se = __pick_next_entity(cfs_rq);
+		se = pick_next(cfs_rq, se);
 		set_next_entity(cfs_rq, se);
 	}
 
@@ -949,96 +982,121 @@ static inline int wake_idle(int cpu, struct task_struct *p)
 #endif
 
 #ifdef CONFIG_SMP
+
+static const struct sched_class fair_sched_class;
+
+static int
+wake_affine(struct rq *rq, struct sched_domain *this_sd, struct rq *this_rq,
+	    struct task_struct *p, int prev_cpu, int this_cpu, int sync,
+	    int idx, unsigned long load, unsigned long this_load,
+	    unsigned int imbalance)
+{
+	struct task_struct *curr = this_rq->curr;
+	unsigned long tl = this_load;
+	unsigned long tl_per_task;
+
+	if (!(this_sd->flags & SD_WAKE_AFFINE))
+		return 0;
+
+	/*
+	 * If the currently running task will sleep within
+	 * a reasonable amount of time then attract this newly
+	 * woken task:
+	 */
+	if (sync && curr->sched_class == &fair_sched_class) {
+		if (curr->se.avg_overlap < sysctl_sched_migration_cost &&
+				p->se.avg_overlap < sysctl_sched_migration_cost)
+			return 1;
+	}
+
+	schedstat_inc(p, se.nr_wakeups_affine_attempts);
+	tl_per_task = cpu_avg_load_per_task(this_cpu);
+
+	/*
+	 * If sync wakeup then subtract the (maximum possible)
+	 * effect of the currently running task from the load
+	 * of the current CPU:
+	 */
+	if (sync)
+		tl -= current->se.load.weight;
+
+	if ((tl <= load && tl + target_load(prev_cpu, idx) <= tl_per_task) ||
+			100*(tl + p->se.load.weight) <= imbalance*load) {
+		/*
+		 * This domain has SD_WAKE_AFFINE and
+		 * p is cache cold in this domain, and
+		 * there is no bad imbalance.
+		 */
+		schedstat_inc(this_sd, ttwu_move_affine);
+		schedstat_inc(p, se.nr_wakeups_affine);
+
+		return 1;
+	}
+	return 0;
+}
+
 static int select_task_rq_fair(struct task_struct *p, int sync)
 {
-	int cpu, this_cpu;
-	struct rq *rq;
 	struct sched_domain *sd, *this_sd = NULL;
-	int new_cpu;
+	int prev_cpu, this_cpu, new_cpu;
+	unsigned long load, this_load;
+	struct rq *rq, *this_rq;
+	unsigned int imbalance;
+	int idx;
 
-	cpu      = task_cpu(p);
-	rq       = task_rq(p);
-	this_cpu = smp_processor_id();
-	new_cpu  = cpu;
+	prev_cpu	= task_cpu(p);
+	rq		= task_rq(p);
+	this_cpu	= smp_processor_id();
+	this_rq		= cpu_rq(this_cpu);
+	new_cpu		= prev_cpu;
 
-	if (cpu == this_cpu)
-		goto out_set_cpu;
-
+	/*
+	 * 'this_sd' is the first domain that both
+	 * this_cpu and prev_cpu are present in:
+	 */
 	for_each_domain(this_cpu, sd) {
-		if (cpu_isset(cpu, sd->span)) {
+		if (cpu_isset(prev_cpu, sd->span)) {
 			this_sd = sd;
 			break;
 		}
 	}
 
 	if (unlikely(!cpu_isset(this_cpu, p->cpus_allowed)))
-		goto out_set_cpu;
+		goto out;
 
 	/*
 	 * Check for affine wakeup and passive balancing possibilities.
 	 */
-	if (this_sd) {
-		int idx = this_sd->wake_idx;
-		unsigned int imbalance;
-		unsigned long load, this_load;
+	if (!this_sd)
+		goto out;
 
-		imbalance = 100 + (this_sd->imbalance_pct - 100) / 2;
+	idx = this_sd->wake_idx;
 
-		load = source_load(cpu, idx);
-		this_load = target_load(this_cpu, idx);
+	imbalance = 100 + (this_sd->imbalance_pct - 100) / 2;
 
-		new_cpu = this_cpu; /* Wake to this CPU if we can */
+	load = source_load(prev_cpu, idx);
+	this_load = target_load(this_cpu, idx);
 
-		if (this_sd->flags & SD_WAKE_AFFINE) {
-			unsigned long tl = this_load;
-			unsigned long tl_per_task;
+	if (wake_affine(rq, this_sd, this_rq, p, prev_cpu, this_cpu, sync, idx,
+				     load, this_load, imbalance))
+		return this_cpu;
 
-			/*
-			 * Attract cache-cold tasks on sync wakeups:
-			 */
-			if (sync && !task_hot(p, rq->clock, this_sd))
-				goto out_set_cpu;
+	if (prev_cpu == this_cpu)
+		goto out;
 
-			schedstat_inc(p, se.nr_wakeups_affine_attempts);
-			tl_per_task = cpu_avg_load_per_task(this_cpu);
-
-			/*
-			 * If sync wakeup then subtract the (maximum possible)
-			 * effect of the currently running task from the load
-			 * of the current CPU:
-			 */
-			if (sync)
-				tl -= current->se.load.weight;
-
-			if ((tl <= load &&
-				tl + target_load(cpu, idx) <= tl_per_task) ||
-			       100*(tl + p->se.load.weight) <= imbalance*load) {
-				/*
-				 * This domain has SD_WAKE_AFFINE and
-				 * p is cache cold in this domain, and
-				 * there is no bad imbalance.
-				 */
-				schedstat_inc(this_sd, ttwu_move_affine);
-				schedstat_inc(p, se.nr_wakeups_affine);
-				goto out_set_cpu;
-			}
-		}
-
-		/*
-		 * Start passive balancing when half the imbalance_pct
-		 * limit is reached.
-		 */
-		if (this_sd->flags & SD_WAKE_BALANCE) {
-			if (imbalance*this_load <= 100*load) {
-				schedstat_inc(this_sd, ttwu_move_balance);
-				schedstat_inc(p, se.nr_wakeups_passive);
-				goto out_set_cpu;
-			}
+	/*
+	 * Start passive balancing when half the imbalance_pct
+	 * limit is reached.
+	 */
+	if (this_sd->flags & SD_WAKE_BALANCE) {
+		if (imbalance*this_load <= 100*load) {
+			schedstat_inc(this_sd, ttwu_move_balance);
+			schedstat_inc(p, se.nr_wakeups_passive);
+			return this_cpu;
 		}
 	}
 
-	new_cpu = cpu; /* Could not wake to this_cpu. Wake to cpu instead */
-out_set_cpu:
+out:
 	return wake_idle(new_cpu, p);
 }
 #endif /* CONFIG_SMP */
@@ -1060,6 +1118,13 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 		resched_task(curr);
 		return;
 	}
+
+	se->last_wakeup = se->sum_exec_runtime;
+	if (unlikely(se == pse))
+		return;
+
+	cfs_rq_of(pse)->next = pse;
+
 	/*
 	 * Batch tasks do not preempt (their preemption is driven by
 	 * the tick):

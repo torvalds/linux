@@ -69,25 +69,24 @@ static void rt2x00rfkill_poll(struct input_polled_dev *poll_dev)
 	}
 }
 
-int rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
+void rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
 {
-	int retval;
+	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags) ||
+	    !test_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->rfkill_state))
+		return;
 
-	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
-		return 0;
-
-	retval = rfkill_register(rt2x00dev->rfkill);
-	if (retval) {
+	if (rfkill_register(rt2x00dev->rfkill)) {
 		ERROR(rt2x00dev, "Failed to register rfkill handler.\n");
-		return retval;
+		return;
 	}
 
-	retval = input_register_polled_device(rt2x00dev->poll_dev);
-	if (retval) {
+	if (input_register_polled_device(rt2x00dev->poll_dev)) {
 		ERROR(rt2x00dev, "Failed to register polled device.\n");
 		rfkill_unregister(rt2x00dev->rfkill);
-		return retval;
+		return;
 	}
+
+	__set_bit(RFKILL_STATE_REGISTERED, &rt2x00dev->rfkill_state);
 
 	/*
 	 * Force initial poll which will detect the initial device state,
@@ -95,30 +94,56 @@ int rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
 	 * state.
 	 */
 	rt2x00rfkill_poll(rt2x00dev->poll_dev);
-
-	return 0;
 }
 
 void rt2x00rfkill_unregister(struct rt2x00_dev *rt2x00dev)
 {
-	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
+	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags) ||
+	    !test_bit(RFKILL_STATE_REGISTERED, &rt2x00dev->rfkill_state))
 		return;
 
 	input_unregister_polled_device(rt2x00dev->poll_dev);
 	rfkill_unregister(rt2x00dev->rfkill);
+
+	__clear_bit(RFKILL_STATE_REGISTERED, &rt2x00dev->rfkill_state);
 }
 
-int rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
+static struct input_polled_dev *
+rt2x00rfkill_allocate_polldev(struct rt2x00_dev *rt2x00dev)
 {
-	struct device *device = wiphy_dev(rt2x00dev->hw->wiphy);
+	struct input_polled_dev *poll_dev;
 
+	poll_dev = input_allocate_polled_device();
+	if (!poll_dev)
+		return NULL;
+
+	poll_dev->private = rt2x00dev;
+	poll_dev->poll = rt2x00rfkill_poll;
+	poll_dev->poll_interval = RFKILL_POLL_INTERVAL;
+
+	poll_dev->input->name = rt2x00dev->ops->name;
+	poll_dev->input->phys = wiphy_name(rt2x00dev->hw->wiphy);
+	poll_dev->input->id.bustype = BUS_HOST;
+	poll_dev->input->id.vendor = 0x1814;
+	poll_dev->input->id.product = rt2x00dev->chip.rt;
+	poll_dev->input->id.version = rt2x00dev->chip.rev;
+	poll_dev->input->dev.parent = wiphy_dev(rt2x00dev->hw->wiphy);
+	poll_dev->input->evbit[0] = BIT(EV_KEY);
+	set_bit(KEY_WLAN, poll_dev->input->keybit);
+
+	return poll_dev;
+}
+
+void rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
+{
 	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
-		return 0;
+		return;
 
-	rt2x00dev->rfkill = rfkill_allocate(device, RFKILL_TYPE_WLAN);
+	rt2x00dev->rfkill =
+	    rfkill_allocate(wiphy_dev(rt2x00dev->hw->wiphy), RFKILL_TYPE_WLAN);
 	if (!rt2x00dev->rfkill) {
 		ERROR(rt2x00dev, "Failed to allocate rfkill handler.\n");
-		goto exit;
+		return;
 	}
 
 	rt2x00dev->rfkill->name = rt2x00dev->ops->name;
@@ -126,40 +151,49 @@ int rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->rfkill->state = -1;
 	rt2x00dev->rfkill->toggle_radio = rt2x00rfkill_toggle_radio;
 
-	rt2x00dev->poll_dev = input_allocate_polled_device();
+	rt2x00dev->poll_dev = rt2x00rfkill_allocate_polldev(rt2x00dev);
 	if (!rt2x00dev->poll_dev) {
 		ERROR(rt2x00dev, "Failed to allocate polled device.\n");
-		goto exit_free_rfkill;
+		rfkill_free(rt2x00dev->rfkill);
+		rt2x00dev->rfkill = NULL;
+		return;
 	}
 
-	rt2x00dev->poll_dev->private = rt2x00dev;
-	rt2x00dev->poll_dev->poll = rt2x00rfkill_poll;
-	rt2x00dev->poll_dev->poll_interval = RFKILL_POLL_INTERVAL;
-
-	rt2x00dev->poll_dev->input->name = rt2x00dev->ops->name;
-	rt2x00dev->poll_dev->input->phys = wiphy_name(rt2x00dev->hw->wiphy);
-	rt2x00dev->poll_dev->input->id.bustype = BUS_HOST;
-	rt2x00dev->poll_dev->input->id.vendor = 0x1814;
-	rt2x00dev->poll_dev->input->id.product = rt2x00dev->chip.rt;
-	rt2x00dev->poll_dev->input->id.version = rt2x00dev->chip.rev;
-	rt2x00dev->poll_dev->input->dev.parent = device;
-	rt2x00dev->poll_dev->input->evbit[0] = BIT(EV_KEY);
-	set_bit(KEY_WLAN, rt2x00dev->poll_dev->input->keybit);
-
-	return 0;
-
-exit_free_rfkill:
-	rfkill_free(rt2x00dev->rfkill);
-
-exit:
-	return -ENOMEM;
+	return;
 }
 
 void rt2x00rfkill_free(struct rt2x00_dev *rt2x00dev)
 {
-	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
+	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags) ||
+	    !test_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->rfkill_state))
 		return;
 
 	input_free_polled_device(rt2x00dev->poll_dev);
+	rt2x00dev->poll_dev = NULL;
+
 	rfkill_free(rt2x00dev->rfkill);
+	rt2x00dev->rfkill = NULL;
+}
+
+void rt2x00rfkill_suspend(struct rt2x00_dev *rt2x00dev)
+{
+	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags) ||
+	    !test_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->rfkill_state))
+		return;
+
+	input_free_polled_device(rt2x00dev->poll_dev);
+	rt2x00dev->poll_dev = NULL;
+}
+
+void rt2x00rfkill_resume(struct rt2x00_dev *rt2x00dev)
+{
+	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags) ||
+	    !test_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->rfkill_state))
+		return;
+
+	rt2x00dev->poll_dev = rt2x00rfkill_allocate_polldev(rt2x00dev);
+	if (!rt2x00dev->poll_dev) {
+		ERROR(rt2x00dev, "Failed to allocate polled device.\n");
+		return;
+	}
 }

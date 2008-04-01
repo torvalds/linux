@@ -452,7 +452,7 @@ static int reiserfs_add_entry(struct reiserfs_transaction_handle *th,
 	buflen = DEH_SIZE + ROUND_UP(namelen);
 	if (buflen > sizeof(small_buf)) {
 		buffer = kmalloc(buflen, GFP_NOFS);
-		if (buffer == 0)
+		if (!buffer)
 			return -ENOMEM;
 	} else
 		buffer = small_buf;

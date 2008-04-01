@@ -1426,7 +1426,8 @@ int journal_stop(handle_t *handle)
 	return err;
 }
 
-/**int journal_force_commit() - force any uncommitted transactions
+/**
+ * int journal_force_commit() - force any uncommitted transactions
  * @journal: journal to force
  *
  * For synchronous operations: force any uncommitted transactions
@@ -1903,13 +1904,12 @@ zap_buffer_unlocked:
 }
 
 /**
- * void journal_invalidatepage()
- * @journal: journal to use for flush...
+ * void journal_invalidatepage() - invalidate a journal page
+ * @journal: journal to use for flush
  * @page:    page to flush
  * @offset:  length of page to invalidate.
  *
  * Reap page buffers containing data after offset in page.
- *
  */
 void journal_invalidatepage(journal_t *journal,
 		      struct page *page,

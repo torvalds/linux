@@ -713,7 +713,7 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 
 	kfree(obj);
 
-	if (device->cap._BCL && device->cap._BCM && device->cap._BQC && max_level > 0){
+	if (device->cap._BCL && device->cap._BCM && max_level > 0) {
 		int result;
 		static int count = 0;
 		char *name;
@@ -807,39 +807,10 @@ static void acpi_video_bus_find_cap(struct acpi_video_bus *video)
 static int acpi_video_bus_check(struct acpi_video_bus *video)
 {
 	acpi_status status = -ENOENT;
-	long device_id;
-	struct device *dev;
-	struct acpi_device *device;
+
 
 	if (!video)
 		return -EINVAL;
-
-	device = video->device;
-
-	status =
-	    acpi_evaluate_integer(device->handle, "_ADR", NULL, &device_id);
-
-	if (!ACPI_SUCCESS(status))
-		return -ENODEV;
-
-	/* We need to attempt to determine whether the _ADR refers to a
-	   PCI device or not. There's no terribly good way to do this,
-	   so the best we can hope for is to assume that there'll never
-	   be a video device in the host bridge */
-	if (device_id >= 0x10000) {
-		/* It looks like a PCI device. Does it exist? */
-		dev = acpi_get_physical_device(device->handle);
-	} else {
-		/* It doesn't look like a PCI device. Does its parent
-		   exist? */
-		acpi_handle phandle;
-		if (acpi_get_parent(device->handle, &phandle))
-			return -ENODEV;
-		dev = acpi_get_physical_device(phandle);
-	}
-	if (!dev)
-		return -ENODEV;
-	put_device(dev);
 
 	/* Since there is no HID, CID and so on for VGA driver, we have
 	 * to check well known required nodes.
@@ -1201,7 +1172,7 @@ static int acpi_video_bus_ROM_seq_show(struct seq_file *seq, void *offset)
 	if (!video)
 		goto end;
 
-	printk(KERN_INFO PREFIX "Please implement %s\n", __FUNCTION__);
+	printk(KERN_INFO PREFIX "Please implement %s\n", __func__);
 	seq_printf(seq, "<TODO>\n");
 
       end:
@@ -1366,37 +1337,8 @@ acpi_video_bus_write_DOS(struct file *file,
 
 static int acpi_video_bus_add_fs(struct acpi_device *device)
 {
-	long device_id;
-	int status;
 	struct proc_dir_entry *entry = NULL;
 	struct acpi_video_bus *video;
-	struct device *dev;
-
-	status =
-	    acpi_evaluate_integer(device->handle, "_ADR", NULL, &device_id);
-
-	if (!ACPI_SUCCESS(status))
-		return -ENODEV;
-
-	/* We need to attempt to determine whether the _ADR refers to a
-	   PCI device or not. There's no terribly good way to do this,
-	   so the best we can hope for is to assume that there'll never
-	   be a video device in the host bridge */
-	if (device_id >= 0x10000) {
-		/* It looks like a PCI device. Does it exist? */
-		dev = acpi_get_physical_device(device->handle);
-	} else {
-		/* It doesn't look like a PCI device. Does its parent
-		   exist? */
-		acpi_handle phandle;
-		if (acpi_get_parent(device->handle, &phandle))
-			return -ENODEV;
-		dev = acpi_get_physical_device(phandle);
-	}
-	if (!dev)
-		return -ENODEV;
-	put_device(dev);
-
 
 
 	video = acpi_driver_data(device);

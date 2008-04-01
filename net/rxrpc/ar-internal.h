@@ -23,7 +23,7 @@
 struct rxrpc_crypt {
 	union {
 		u8	x[FCRYPT_BSIZE];
-		u32	n[2];
+		__be32	n[2];
 	};
 } __attribute__((aligned(8)));
 

@@ -1036,6 +1036,26 @@ static const struct file_operations proc_loginuid_operations = {
 	.read		= proc_loginuid_read,
 	.write		= proc_loginuid_write,
 };
+
+static ssize_t proc_sessionid_read(struct file * file, char __user * buf,
+				  size_t count, loff_t *ppos)
+{
+	struct inode * inode = file->f_path.dentry->d_inode;
+	struct task_struct *task = get_proc_task(inode);
+	ssize_t length;
+	char tmpbuf[TMPBUFLEN];
+
+	if (!task)
+		return -ESRCH;
+	length = scnprintf(tmpbuf, TMPBUFLEN, "%u",
+				audit_get_sessionid(task));
+	put_task_struct(task);
+	return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
+}
+
+static const struct file_operations proc_sessionid_operations = {
+	.read		= proc_sessionid_read,
+};
 #endif
 
 #ifdef CONFIG_FAULT_INJECTION
@@ -2269,6 +2289,9 @@ static const struct pid_entry tgid_base_stuff[] = {
 	DIR("task",       S_IRUGO|S_IXUGO, task),
 	DIR("fd",         S_IRUSR|S_IXUSR, fd),
 	DIR("fdinfo",     S_IRUSR|S_IXUSR, fdinfo),
+#ifdef CONFIG_NET
+	DIR("net",        S_IRUGO|S_IXUGO, net),
+#endif
 	REG("environ",    S_IRUSR, environ),
 	INF("auxv",       S_IRUSR, pid_auxv),
 	ONE("status",     S_IRUGO, pid_status),
@@ -2316,6 +2339,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 	REG("oom_adj",    S_IRUGO|S_IWUSR, oom_adjust),
 #ifdef CONFIG_AUDITSYSCALL
 	REG("loginuid",   S_IWUSR|S_IRUGO, loginuid),
+	REG("sessionid",  S_IRUSR, sessionid),
 #endif
 #ifdef CONFIG_FAULT_INJECTION
 	REG("make-it-fail", S_IRUGO|S_IWUSR, fault_inject),
@@ -2646,6 +2670,7 @@ static const struct pid_entry tid_base_stuff[] = {
 	REG("oom_adj",   S_IRUGO|S_IWUSR, oom_adjust),
 #ifdef CONFIG_AUDITSYSCALL
 	REG("loginuid",  S_IWUSR|S_IRUGO, loginuid),
+	REG("sessionid",  S_IRUSR, sessionid),
 #endif
 #ifdef CONFIG_FAULT_INJECTION
 	REG("make-it-fail", S_IRUGO|S_IWUSR, fault_inject),

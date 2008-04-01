@@ -2082,7 +2082,7 @@ static int cgroup_tasks_open(struct inode *unused, struct file *file)
 
 		kfree(pidarray);
 	} else {
-		ctr->buf = 0;
+		ctr->buf = NULL;
 		ctr->bufsz = 0;
 	}
 	file->private_data = ctr;
@@ -2614,7 +2614,7 @@ static int proc_cgroupstats_show(struct seq_file *m, void *v)
 
 static int cgroupstats_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, proc_cgroupstats_show, 0);
+	return single_open(file, proc_cgroupstats_show, NULL);
 }
 
 static struct file_operations proc_cgroupstats_operations = {

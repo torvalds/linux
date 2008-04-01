@@ -1187,10 +1187,8 @@ static struct i2c_driver aic3x_i2c_driver = {
 		.name = "aic3x I2C Codec",
 		.owner = THIS_MODULE,
 	},
-	.id = I2C_DRIVERID_I2CDEV,
 	.attach_adapter = aic3x_i2c_attach,
 	.detach_client = aic3x_i2c_detach,
-	.command = NULL,
 };
 
 static struct i2c_client client_template = {

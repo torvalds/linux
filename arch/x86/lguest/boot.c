@@ -10,21 +10,19 @@
  * (such as the example in Documentation/lguest/lguest.c) is called the
  * Launcher.
  *
- * Secondly, we only run specially modified Guests, not normal kernels.  When
- * you set CONFIG_LGUEST to 'y' or 'm', this automatically sets
- * CONFIG_LGUEST_GUEST=y, which compiles this file into the kernel so it knows
- * how to be a Guest.  This means that you can use the same kernel you boot
- * normally (ie. as a Host) as a Guest.
+ * Secondly, we only run specially modified Guests, not normal kernels: setting
+ * CONFIG_LGUEST_GUEST to "y" compiles this file into the kernel so it knows
+ * how to be a Guest at boot time.  This means that you can use the same kernel
+ * you boot normally (ie. as a Host) as a Guest.
  *
  * These Guests know that they cannot do privileged operations, such as disable
  * interrupts, and that they have to ask the Host to do such things explicitly.
  * This file consists of all the replacements for such low-level native
  * hardware operations: these special Guest versions call the Host.
  *
- * So how does the kernel know it's a Guest?  The Guest starts at a special
- * entry point marked with a magic string, which sets up a few things then
- * calls here.  We replace the native functions various "paravirt" structures
- * with our Guest versions, then boot like normal. :*/
+ * So how does the kernel know it's a Guest?  We'll see that later, but let's
+ * just say that we end up here where we replace the native functions various
+ * "paravirt" structures with our Guest versions, then boot like normal. :*/
 
 /*
  * Copyright (C) 2006, Rusty Russell <rusty@rustcorp.com.au> IBM Corporation.
@@ -134,7 +132,7 @@ static void async_hcall(unsigned long call, unsigned long arg1,
  * lguest_leave_lazy_mode().
  *
  * So, when we're in lazy mode, we call async_hcall() to store the call for
- * future processing. */
+ * future processing: */
 static void lazy_hcall(unsigned long call,
 		       unsigned long arg1,
 		       unsigned long arg2,
@@ -147,7 +145,7 @@ static void lazy_hcall(unsigned long call,
 }
 
 /* When lazy mode is turned off reset the per-cpu lazy mode variable and then
- * issue a hypercall to flush any stored calls. */
+ * issue the do-nothing hypercall to flush any stored calls. */
 static void lguest_leave_lazy_mode(void)
 {
 	paravirt_leave_lazy(paravirt_get_lazy_mode());
@@ -164,7 +162,7 @@ static void lguest_leave_lazy_mode(void)
  *
  * So instead we keep an "irq_enabled" field inside our "struct lguest_data",
  * which the Guest can update with a single instruction.  The Host knows to
- * check there when it wants to deliver an interrupt.
+ * check there before it tries to deliver an interrupt.
  */
 
 /* save_flags() is expected to return the processor state (ie. "flags").  The
@@ -196,10 +194,15 @@ static void irq_enable(void)
 /*M:003 Note that we don't check for outstanding interrupts when we re-enable
  * them (or when we unmask an interrupt).  This seems to work for the moment,
  * since interrupts are rare and we'll just get the interrupt on the next timer
- * tick, but when we turn on CONFIG_NO_HZ, we should revisit this.  One way
+ * tick, but now we can run with CONFIG_NO_HZ, we should revisit this.  One way
  * would be to put the "irq_enabled" field in a page by itself, and have the
  * Host write-protect it when an interrupt comes in when irqs are disabled.
- * There will then be a page fault as soon as interrupts are re-enabled. :*/
+ * There will then be a page fault as soon as interrupts are re-enabled.
+ *
+ * A better method is to implement soft interrupt disable generally for x86:
+ * instead of disabling interrupts, we set a flag.  If an interrupt does come
+ * in, we then disable them for real.  This is uncommon, so we could simply use
+ * a hypercall for interrupt control and not worry about efficiency. :*/
 
 /*G:034
  * The Interrupt Descriptor Table (IDT).
@@ -212,6 +215,10 @@ static void irq_enable(void)
 static void lguest_write_idt_entry(gate_desc *dt,
 				   int entrynum, const gate_desc *g)
 {
+	/* The gate_desc structure is 8 bytes long: we hand it to the Host in
+	 * two 32-bit chunks.  The whole 32-bit kernel used to hand descriptors
+	 * around like this; typesafety wasn't a big concern in Linux's early
+	 * years. */
 	u32 *desc = (u32 *)g;
 	/* Keep the local copy up to date. */
 	native_write_idt_entry(dt, entrynum, g);
@@ -243,7 +250,8 @@ static void lguest_load_idt(const struct desc_ptr *desc)
  *
  * This is the opposite of the IDT code where we have a LOAD_IDT_ENTRY
  * hypercall and use that repeatedly to load a new IDT.  I don't think it
- * really matters, but wouldn't it be nice if they were the same?
+ * really matters, but wouldn't it be nice if they were the same?  Wouldn't
+ * it be even better if you were the one to send the patch to fix it?
  */
 static void lguest_load_gdt(const struct desc_ptr *desc)
 {
@@ -298,9 +306,9 @@ static void lguest_load_tr_desc(void)
 
 /* The "cpuid" instruction is a way of querying both the CPU identity
  * (manufacturer, model, etc) and its features.  It was introduced before the
- * Pentium in 1993 and keeps getting extended by both Intel and AMD.  As you
- * might imagine, after a decade and a half this treatment, it is now a giant
- * ball of hair.  Its entry in the current Intel manual runs to 28 pages.
+ * Pentium in 1993 and keeps getting extended by both Intel, AMD and others.
+ * As you might imagine, after a decade and a half this treatment, it is now a
+ * giant ball of hair.  Its entry in the current Intel manual runs to 28 pages.
  *
  * This instruction even it has its own Wikipedia entry.  The Wikipedia entry
  * has been translated into 4 languages.  I am not making this up!
@@ -594,17 +602,17 @@ static unsigned long lguest_get_wallclock(void)
 	return lguest_data.time.tv_sec;
 }
 
-/* The TSC is a Time Stamp Counter.  The Host tells us what speed it runs at,
- * or 0 if it's unusable as a reliable clock source.  This matches what we want
- * here: if we return 0 from this function, the x86 TSC clock will not register
- * itself. */
+/* The TSC is an Intel thing called the Time Stamp Counter.  The Host tells us
+ * what speed it runs at, or 0 if it's unusable as a reliable clock source.
+ * This matches what we want here: if we return 0 from this function, the x86
+ * TSC clock will give up and not register itself. */
 static unsigned long lguest_cpu_khz(void)
 {
 	return lguest_data.tsc_khz;
 }
 
-/* If we can't use the TSC, the kernel falls back to our "lguest_clock", where
- * we read the time value given to us by the Host. */
+/* If we can't use the TSC, the kernel falls back to our lower-priority
+ * "lguest_clock", where we read the time value given to us by the Host. */
 static cycle_t lguest_clock_read(void)
 {
 	unsigned long sec, nsec;
@@ -648,12 +656,16 @@ static struct clocksource lguest_clock = {
 static int lguest_clockevent_set_next_event(unsigned long delta,
                                            struct clock_event_device *evt)
 {
+	/* FIXME: I don't think this can ever happen, but James tells me he had
+	 * to put this code in.  Maybe we should remove it now.  Anyone? */
 	if (delta < LG_CLOCK_MIN_DELTA) {
 		if (printk_ratelimit())
 			printk(KERN_DEBUG "%s: small delta %lu ns\n",
 			       __FUNCTION__, delta);
 		return -ETIME;
 	}
+
+	/* Please wake us this far in the future. */
 	hcall(LHCALL_SET_CLOCKEVENT, delta, 0, 0);
 	return 0;
 }
@@ -738,7 +750,7 @@ static void lguest_time_init(void)
  * will not tolerate us trying to use that), the stack pointer, and the number
  * of pages in the stack. */
 static void lguest_load_sp0(struct tss_struct *tss,
-				     struct thread_struct *thread)
+			    struct thread_struct *thread)
 {
 	lazy_hcall(LHCALL_SET_STACK, __KERNEL_DS|0x1, thread->sp0,
 		   THREAD_SIZE/PAGE_SIZE);
@@ -786,9 +798,8 @@ static void lguest_safe_halt(void)
 	hcall(LHCALL_HALT, 0, 0, 0);
 }
 
-/* Perhaps CRASH isn't the best name for this hypercall, but we use it to get a
- * message out when we're crashing as well as elegant termination like powering
- * off.
+/* The SHUTDOWN hypercall takes a string to describe what's happening, and
+ * an argument which says whether this to restart (reboot) the Guest or not.
  *
  * Note that the Host always prefers that the Guest speak in physical addresses
  * rather than virtual addresses, so we use __pa() here. */
@@ -816,8 +827,9 @@ static struct notifier_block paniced = {
 /* Setting up memory is fairly easy. */
 static __init char *lguest_memory_setup(void)
 {
-	/* We do this here and not earlier because lockcheck barfs if we do it
-	 * before start_kernel() */
+	/* We do this here and not earlier because lockcheck used to barf if we
+	 * did it before start_kernel().  I think we fixed that, so it'd be
+	 * nice to move it back to lguest_init.  Patch welcome... */
 	atomic_notifier_chain_register(&panic_notifier_list, &paniced);
 
 	/* The Linux bootloader header contains an "e820" memory map: the
@@ -850,12 +862,19 @@ static __init int early_put_chars(u32 vtermno, const char *buf, int count)
 	return len;
 }
 
+/* Rebooting also tells the Host we're finished, but the RESTART flag tells the
+ * Launcher to reboot us. */
+static void lguest_restart(char *reason)
+{
+	hcall(LHCALL_SHUTDOWN, __pa(reason), LGUEST_SHUTDOWN_RESTART, 0);
+}
+
 /*G:050
  * Patching (Powerfully Placating Performance Pedants)
  *
- * We have already seen that pv_ops structures let us replace simple
- * native instructions with calls to the appropriate back end all throughout
- * the kernel.  This allows the same kernel to run as a Guest and as a native
+ * We have already seen that pv_ops structures let us replace simple native
+ * instructions with calls to the appropriate back end all throughout the
+ * kernel.  This allows the same kernel to run as a Guest and as a native
  * kernel, but it's slow because of all the indirect branches.
  *
  * Remember that David Wheeler quote about "Any problem in computer science can
@@ -908,14 +927,9 @@ static unsigned lguest_patch(u8 type, u16 clobber, void *ibuf,
 	return insn_len;
 }
 
-static void lguest_restart(char *reason)
-{
-	hcall(LHCALL_SHUTDOWN, __pa(reason), LGUEST_SHUTDOWN_RESTART, 0);
-}
-
-/*G:030 Once we get to lguest_init(), we know we're a Guest.  The pv_ops
- * structures in the kernel provide points for (almost) every routine we have
- * to override to avoid privileged instructions. */
+/*G:030 Once we get to lguest_init(), we know we're a Guest.  The various
+ * pv_ops structures in the kernel provide points for (almost) every routine we
+ * have to override to avoid privileged instructions. */
 __init void lguest_init(void)
 {
 	/* We're under lguest, paravirt is enabled, and we're running at
@@ -1003,9 +1017,9 @@ __init void lguest_init(void)
 	 * the normal data segment to get through booting. */
 	asm volatile ("mov %0, %%fs" : : "r" (__KERNEL_DS) : "memory");
 
-	/* The Host uses the top of the Guest's virtual address space for the
-	 * Host<->Guest Switcher, and it tells us how big that is in
-	 * lguest_data.reserve_mem, set up on the LGUEST_INIT hypercall. */
+	/* The Host<->Guest Switcher lives at the top of our address space, and
+	 * the Host told us how big it is when we made LGUEST_INIT hypercall:
+	 * it put the answer in lguest_data.reserve_mem  */
 	reserve_top_address(lguest_data.reserve_mem);
 
 	/* If we don't initialize the lock dependency checker now, it crashes
@@ -1027,6 +1041,7 @@ __init void lguest_init(void)
 	/* Math is always hard! */
 	new_cpu_data.hard_math = 1;
 
+	/* We don't have features.  We have puppies!  Puppies! */
 #ifdef CONFIG_X86_MCE
 	mce_disabled = 1;
 #endif
@@ -1044,10 +1059,11 @@ __init void lguest_init(void)
 	virtio_cons_early_init(early_put_chars);
 
 	/* Last of all, we set the power management poweroff hook to point to
-	 * the Guest routine to power off. */
+	 * the Guest routine to power off, and the reboot hook to our restart
+	 * routine. */
 	pm_power_off = lguest_power_off;
-
 	machine_ops.restart = lguest_restart;
+
 	/* Now we're set up, call start_kernel() in init/main.c and we proceed
 	 * to boot as normal.  It never returns. */
 	start_kernel();

@@ -163,6 +163,12 @@ M:	A2232@gmx.net
 L:	linux-m68k@lists.linux-m68k.org
 S:	Maintained
 
+AFS FILESYSTEM & AF_RXRPC SOCKET DOMAIN
+P:	David Howells
+M:	dhowells@redhat.com
+L:	linux-afs@lists.infradead.org
+S:	Supported
+
 AIO
 P:	Benjamin LaHaise
 M:	bcrl@kvack.org
@@ -265,6 +271,15 @@ M:      carlos@strangeworlds.co.uk
 L:      linux-acpi@vger.kernel.org
 W:      http://www.lesswatts.org/projects/acpi/
 S:      Maintained
+
+AD1889 ALSA SOUND DRIVER
+P:     Kyle McMartin
+M:     kyle@parisc-linux.org
+P:     Thibaut Varene
+M:     T-Bone@parisc-linux.org
+W:     http://wiki.parisc-linux.org/AD1889
+L:     linux-parisc@vger.kernel.org
+S:     Maintained
 
 ADM1025 HARDWARE MONITOR DRIVER
 P:	Jean Delvare
@@ -443,7 +458,7 @@ S:	Maintained
 
 ARM/ATMEL AT91RM9200 ARM ARCHITECTURE
 P:      Andrew Victor
-M:      andrew@sanpeople.com
+M:      linux@maxim.org.za
 L:      linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 W:      http://maxim.org.za/at91_26.html
 S:      Maintained
@@ -871,7 +886,7 @@ P:	Marcel Holtmann
 M:	marcel@holtmann.org
 P:	Maxim Krasnyansky
 M:	maxk@qualcomm.com
-L:	bluez-devel@lists.sf.net
+L:	linux-bluetooth@vger.kernel.org
 W:	http://bluez.sf.net
 W:	http://www.bluez.org
 W:	http://www.holtmann.org/linux/bluetooth/
@@ -2052,43 +2067,19 @@ M:	kernel@wantstofly.org
 L:	netdev@vger.kernel.org
 S:	Maintained
 
-INTEL PRO/100 ETHERNET SUPPORT
+INTEL ETHERNET DRIVERS (e100/e1000/e1000e/igb/ixgb/ixgbe)
 P:	Auke Kok
 M:	auke-jan.h.kok@intel.com
 P:	Jesse Brandeburg
 M:	jesse.brandeburg@intel.com
 P:	Jeff Kirsher
 M:	jeffrey.t.kirsher@intel.com
+P:	Bruce Allan
+M:	bruce.w.allan@intel.com
 P:	John Ronciak
 M:	john.ronciak@intel.com
 L:	e1000-devel@lists.sourceforge.net
-W:	http://sourceforge.net/projects/e1000/
-S:	Supported
-
-INTEL PRO/1000 GIGABIT ETHERNET SUPPORT
-P:	Auke Kok
-M:	auke-jan.h.kok@intel.com
-P:	Jesse Brandeburg
-M:	jesse.brandeburg@intel.com
-P:	Jeff Kirsher
-M:	jeffrey.t.kirsher@intel.com
-P:	John Ronciak
-M:	john.ronciak@intel.com
-L:	e1000-devel@lists.sourceforge.net
-W:	http://sourceforge.net/projects/e1000/
-S:	Supported
-
-INTEL PRO/10GbE SUPPORT
-P:	Ayyappan Veeraiyan
-M:	ayyappan.veeraiyan@intel.com
-P:	Auke Kok
-M:	auke-jan.h.kok@intel.com
-P:	Jesse Brandeburg
-M:	jesse.brandeburg@intel.com
-P:	John Ronciak
-M:	john.ronciak@intel.com
-L:	e1000-devel@lists.sourceforge.net
-W:	http://sourceforge.net/projects/e1000/
+W:	http://e1000.sourceforge.net/
 S:	Supported
 
 INTEL PRO/WIRELESS 2100 NETWORK CONNECTION SUPPORT
@@ -2125,7 +2116,7 @@ M:	reinette.chatre@intel.com
 L:	linux-wireless@vger.kernel.org
 L:	ipw3945-devel@lists.sourceforge.net
 W:	http://intellinuxwireless.org
-T:	git git://intellinuxwireless.org/repos/iwlwifi
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rchatre/iwlwifi-2.6.git
 S:	Supported
 
 IOC3 ETHERNET DRIVER
@@ -2329,14 +2320,14 @@ L:	kexec@lists.infradead.org
 S:	Maintained
 
 KPROBES
-P:	Prasanna S Panchamukhi
-M:	prasanna@in.ibm.com
 P:	Ananth N Mavinakayanahalli
 M:	ananth@in.ibm.com
 P:	Anil S Keshavamurthy
 M:	anil.s.keshavamurthy@intel.com
 P:	David S. Miller
 M:	davem@davemloft.net
+P:	Masami Hiramatsu
+M:	mhiramat@redhat.com
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
@@ -2950,9 +2941,9 @@ S:	Maintained
 
 ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
 P:	Mark Fasheh
-M:	mark.fasheh@oracle.com
-P:	Kurt Hackel
-M:	kurt.hackel@oracle.com
+M:	mfasheh@suse.com
+P:	Joel Becker
+M:	joel.becker@oracle.com
 L:	ocfs2-devel@oss.oracle.com
 W:	http://oss.oracle.com/projects/ocfs2/
 S:	Supported

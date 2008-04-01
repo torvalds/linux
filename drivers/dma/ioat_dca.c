@@ -98,7 +98,7 @@ struct ioat_dca_slot {
 
 struct ioat_dca_priv {
 	void __iomem		*iobase;
-	void			*dca_base;
+	void __iomem		*dca_base;
 	int			 max_requesters;
 	int			 requester_count;
 	u8			 tag_map[IOAT_TAG_MAP_LEN];
@@ -338,7 +338,7 @@ static struct dca_ops ioat2_dca_ops = {
 	.get_tag		= ioat2_dca_get_tag,
 };
 
-static int ioat2_dca_count_dca_slots(void *iobase, u16 dca_offset)
+static int ioat2_dca_count_dca_slots(void __iomem *iobase, u16 dca_offset)
 {
 	int slots = 0;
 	u32 req;

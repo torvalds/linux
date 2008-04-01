@@ -52,13 +52,13 @@ extern int page_is_ram(unsigned long pagenr);
 
 struct page;
 
-static void inline clear_user_page(void *page, unsigned long vaddr,
+static inline void clear_user_page(void *page, unsigned long vaddr,
 				struct page *pg)
 {
 	clear_page(page);
 }
 
-static void inline copy_user_page(void *to, void *from, unsigned long vaddr,
+static inline void copy_user_page(void *to, void *from, unsigned long vaddr,
 				struct page *topage)
 {
 	copy_page(to, from);

@@ -30,7 +30,7 @@
 #include "cifs_fs_sb.h"
 
 
-static void cifs_set_ops(struct inode *inode)
+static void cifs_set_ops(struct inode *inode, const bool is_dfs_referral)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 
@@ -57,8 +57,16 @@ static void cifs_set_ops(struct inode *inode)
 			inode->i_data.a_ops = &cifs_addr_ops;
 		break;
 	case S_IFDIR:
-		inode->i_op = &cifs_dir_inode_ops;
-		inode->i_fop = &cifs_dir_ops;
+#ifdef CONFIG_CIFS_DFS_UPCALL
+		if (is_dfs_referral) {
+			inode->i_op = &cifs_dfs_referral_inode_operations;
+		} else {
+#else /* NO DFS support, treat as a directory */
+		{
+#endif
+			inode->i_op = &cifs_dir_inode_ops;
+			inode->i_fop = &cifs_dir_ops;
+		}
 		break;
 	case S_IFLNK:
 		inode->i_op = &cifs_symlink_inode_ops;
@@ -153,6 +161,30 @@ static void cifs_unix_info_to_inode(struct inode *inode,
 	spin_unlock(&inode->i_lock);
 }
 
+static const unsigned char *cifs_get_search_path(struct cifsTconInfo *pTcon,
+					const char *search_path)
+{
+	int tree_len;
+	int path_len;
+	char *tmp_path;
+
+	if (!(pTcon->Flags & SMB_SHARE_IS_IN_DFS))
+		return search_path;
+
+	/* use full path name for working with DFS */
+	tree_len = strnlen(pTcon->treeName, MAX_TREE_SIZE + 1);
+	path_len = strnlen(search_path, MAX_PATHCONF);
+
+	tmp_path = kmalloc(tree_len+path_len+1, GFP_KERNEL);
+	if (tmp_path == NULL)
+		return search_path;
+
+	strncpy(tmp_path, pTcon->treeName, tree_len);
+	strncpy(tmp_path+tree_len, search_path, path_len);
+	tmp_path[tree_len+path_len] = 0;
+	return tmp_path;
+}
+
 int cifs_get_inode_info_unix(struct inode **pinode,
 	const unsigned char *search_path, struct super_block *sb, int xid)
 {
@@ -161,41 +193,31 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 	struct cifsTconInfo *pTcon;
 	struct inode *inode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	char *tmp_path;
+	const unsigned char *full_path;
+	bool is_dfs_referral = false;
 
 	pTcon = cifs_sb->tcon;
 	cFYI(1, ("Getting info on %s", search_path));
+
+	full_path = cifs_get_search_path(pTcon, search_path);
+
+try_again_CIFSSMBUnixQPathInfo:
 	/* could have done a find first instead but this returns more info */
-	rc = CIFSSMBUnixQPathInfo(xid, pTcon, search_path, &findData,
+	rc = CIFSSMBUnixQPathInfo(xid, pTcon, full_path, &findData,
 				  cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 /*	dump_mem("\nUnixQPathInfo return data", &findData,
 		 sizeof(findData)); */
 	if (rc) {
-		if (rc == -EREMOTE) {
-			tmp_path =
-			    kmalloc(strnlen(pTcon->treeName,
-					    MAX_TREE_SIZE + 1) +
-				    strnlen(search_path, MAX_PATHCONF) + 1,
-				    GFP_KERNEL);
-			if (tmp_path == NULL)
-				return -ENOMEM;
-
-			/* have to skip first of the double backslash of
-			   UNC name */
-			strncpy(tmp_path, pTcon->treeName, MAX_TREE_SIZE);
-			strncat(tmp_path, search_path, MAX_PATHCONF);
-			rc = connect_to_dfs_path(xid, pTcon->ses,
-						 /* treename + */ tmp_path,
-						 cifs_sb->local_nls,
-						 cifs_sb->mnt_cifs_flags &
-						    CIFS_MOUNT_MAP_SPECIAL_CHR);
-			kfree(tmp_path);
-
-			/* BB fix up inode etc. */
-		} else if (rc) {
-			return rc;
+		if (rc == -EREMOTE && !is_dfs_referral) {
+			is_dfs_referral = true;
+			if (full_path != search_path) {
+				kfree(full_path);
+				full_path = search_path;
+			}
+			goto try_again_CIFSSMBUnixQPathInfo;
 		}
+		goto cgiiu_exit;
 	} else {
 		struct cifsInodeInfo *cifsInfo;
 		__u64 num_of_bytes = le64_to_cpu(findData.NumOfBytes);
@@ -204,8 +226,10 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 		/* get new inode */
 		if (*pinode == NULL) {
 			*pinode = new_inode(sb);
-			if (*pinode == NULL)
-				return -ENOMEM;
+			if (*pinode == NULL) {
+				rc = -ENOMEM;
+				goto cgiiu_exit;
+			}
 			/* Is an i_ino of zero legal? */
 			/* Are there sanity checks we can use to ensure that
 			   the server is really filling in that field? */
@@ -237,8 +261,11 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 			(unsigned long) inode->i_size,
 			(unsigned long long)inode->i_blocks));
 
-		cifs_set_ops(inode);
+		cifs_set_ops(inode, is_dfs_referral);
 	}
+cgiiu_exit:
+	if (full_path != search_path)
+		kfree(full_path);
 	return rc;
 }
 
@@ -347,15 +374,16 @@ static int get_sfu_mode(struct inode *inode,
 
 int cifs_get_inode_info(struct inode **pinode,
 	const unsigned char *search_path, FILE_ALL_INFO *pfindData,
-	struct super_block *sb, int xid)
+	struct super_block *sb, int xid, const __u16 *pfid)
 {
 	int rc = 0;
 	struct cifsTconInfo *pTcon;
 	struct inode *inode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	char *tmp_path;
+	const unsigned char *full_path = NULL;
 	char *buf = NULL;
 	int adjustTZ = FALSE;
+	bool is_dfs_referral = false;
 
 	pTcon = cifs_sb->tcon;
 	cFYI(1, ("Getting info on %s", search_path));
@@ -373,8 +401,12 @@ int cifs_get_inode_info(struct inode **pinode,
 		if (buf == NULL)
 			return -ENOMEM;
 		pfindData = (FILE_ALL_INFO *)buf;
+
+		full_path = cifs_get_search_path(pTcon, search_path);
+
+try_again_CIFSSMBQPathInfo:
 		/* could do find first instead but this returns more info */
-		rc = CIFSSMBQPathInfo(xid, pTcon, search_path, pfindData,
+		rc = CIFSSMBQPathInfo(xid, pTcon, full_path, pfindData,
 			      0 /* not legacy */,
 			      cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
@@ -382,7 +414,7 @@ int cifs_get_inode_info(struct inode **pinode,
 		when server claims no NT SMB support and the above call
 		failed at least once - set flag in tcon or mount */
 		if ((rc == -EOPNOTSUPP) || (rc == -EINVAL)) {
-			rc = SMBQueryInformation(xid, pTcon, search_path,
+			rc = SMBQueryInformation(xid, pTcon, full_path,
 					pfindData, cifs_sb->local_nls,
 					cifs_sb->mnt_cifs_flags &
 					  CIFS_MOUNT_MAP_SPECIAL_CHR);
@@ -391,31 +423,15 @@ int cifs_get_inode_info(struct inode **pinode,
 	}
 	/* dump_mem("\nQPathInfo return data",&findData, sizeof(findData)); */
 	if (rc) {
-		if (rc == -EREMOTE) {
-			tmp_path =
-			    kmalloc(strnlen
-				    (pTcon->treeName,
-				     MAX_TREE_SIZE + 1) +
-				    strnlen(search_path, MAX_PATHCONF) + 1,
-				    GFP_KERNEL);
-			if (tmp_path == NULL) {
-				kfree(buf);
-				return -ENOMEM;
+		if (rc == -EREMOTE && !is_dfs_referral) {
+			is_dfs_referral = true;
+			if (full_path != search_path) {
+				kfree(full_path);
+				full_path = search_path;
 			}
-
-			strncpy(tmp_path, pTcon->treeName, MAX_TREE_SIZE);
-			strncat(tmp_path, search_path, MAX_PATHCONF);
-			rc = connect_to_dfs_path(xid, pTcon->ses,
-						 /* treename + */ tmp_path,
-						 cifs_sb->local_nls,
-						 cifs_sb->mnt_cifs_flags &
-						   CIFS_MOUNT_MAP_SPECIAL_CHR);
-			kfree(tmp_path);
-			/* BB fix up inode etc. */
-		} else if (rc) {
-			kfree(buf);
-			return rc;
+			goto try_again_CIFSSMBQPathInfo;
 		}
+		goto cgii_exit;
 	} else {
 		struct cifsInodeInfo *cifsInfo;
 		__u32 attr = le32_to_cpu(pfindData->Attributes);
@@ -424,8 +440,8 @@ int cifs_get_inode_info(struct inode **pinode,
 		if (*pinode == NULL) {
 			*pinode = new_inode(sb);
 			if (*pinode == NULL) {
-				kfree(buf);
-				return -ENOMEM;
+				rc = -ENOMEM;
+				goto cgii_exit;
 			}
 			/* Is an i_ino of zero legal? Can we use that to check
 			   if the server supports returning inode numbers?  Are
@@ -559,7 +575,7 @@ int cifs_get_inode_info(struct inode **pinode,
 		/* fill in 0777 bits from ACL */
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
 			cFYI(1, ("Getting mode bits from ACL"));
-			acl_to_uid_mode(inode, search_path);
+			acl_to_uid_mode(inode, search_path, pfid);
 		}
 #endif
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
@@ -573,8 +589,11 @@ int cifs_get_inode_info(struct inode **pinode,
 			atomic_set(&cifsInfo->inUse, 1);
 		}
 
-		cifs_set_ops(inode);
+		cifs_set_ops(inode, is_dfs_referral);
 	}
+cgii_exit:
+	if (full_path != search_path)
+		kfree(full_path);
 	kfree(buf);
 	return rc;
 }
@@ -603,7 +622,8 @@ struct inode *cifs_iget(struct super_block *sb, unsigned long ino)
 	if (cifs_sb->tcon->unix_ext)
 		rc = cifs_get_inode_info_unix(&inode, "", inode->i_sb, xid);
 	else
-		rc = cifs_get_inode_info(&inode, "", NULL, inode->i_sb, xid);
+		rc = cifs_get_inode_info(&inode, "", NULL, inode->i_sb, xid,
+					 NULL);
 	if (rc && cifs_sb->tcon->ipc) {
 		cFYI(1, ("ipc connection - fake read inode"));
 		inode->i_mode |= S_IFDIR;
@@ -804,7 +824,7 @@ static void posix_fill_in_inode(struct inode *tmp_inode,
 	local_size  = tmp_inode->i_size;
 
 	cifs_unix_info_to_inode(tmp_inode, pData, 1);
-	cifs_set_ops(tmp_inode);
+	cifs_set_ops(tmp_inode, false);
 
 	if (!S_ISREG(tmp_inode->i_mode))
 		return;
@@ -936,7 +956,7 @@ mkdir_get_info:
 						      inode->i_sb, xid);
 		else
 			rc = cifs_get_inode_info(&newinode, full_path, NULL,
-						 inode->i_sb, xid);
+						 inode->i_sb, xid, NULL);
 
 		if (pTcon->nocase)
 			direntry->d_op = &cifs_ci_dentry_ops;
@@ -1218,7 +1238,7 @@ int cifs_revalidate(struct dentry *direntry)
 		}
 	} else {
 		rc = cifs_get_inode_info(&direntry->d_inode, full_path, NULL,
-					 direntry->d_sb, xid);
+					 direntry->d_sb, xid, NULL);
 		if (rc) {
 			cFYI(1, ("error on getting revalidate info %d", rc));
 /*			if (rc != -ENOENT)
@@ -1407,11 +1427,10 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	}
 	cifsInode = CIFS_I(direntry->d_inode);
 
-	/* BB check if we need to refresh inode from server now ? BB */
-
-	if (attrs->ia_valid & ATTR_SIZE) {
+	if ((attrs->ia_valid & ATTR_MTIME) || (attrs->ia_valid & ATTR_SIZE)) {
 		/*
-		   Flush data before changing file size on server. If the
+		   Flush data before changing file size or changing the last
+		   write time of the file on the server. If the
 		   flush returns error, store it to report later and continue.
 		   BB: This should be smarter. Why bother flushing pages that
 		   will be truncated anyway? Also, should we error out here if
@@ -1422,7 +1441,9 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			CIFS_I(direntry->d_inode)->write_behind_rc = rc;
 			rc = 0;
 		}
+	}
 
+	if (attrs->ia_valid & ATTR_SIZE) {
 		/* To avoid spurious oplock breaks from server, in the case of
 		   inodes that we already have open, avoid doing path based
 		   setting of file size if we can do it by handle.

@@ -9,3 +9,6 @@
 
 /* device can't resume correctly so reset it instead */
 #define USB_QUIRK_RESET_RESUME		0x00000002
+
+/* device can't handle Set-Interface requests */
+#define USB_QUIRK_NO_SET_INTF		0x00000004

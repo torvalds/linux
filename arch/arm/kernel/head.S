@@ -29,9 +29,6 @@
 #define KERNEL_RAM_VADDR	(PAGE_OFFSET + TEXT_OFFSET)
 #define KERNEL_RAM_PADDR	(PHYS_OFFSET + TEXT_OFFSET)
 
-#define ATAG_CORE 0x54410001
-#define ATAG_CORE_SIZE ((2*4 + 3*4) >> 2)
-
 
 /*
  * swapper_pg_dir is the virtual address of the initial page table.

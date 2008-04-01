@@ -50,7 +50,6 @@ static const struct super_operations afs_super_ops = {
 	.write_inode	= afs_write_inode,
 	.destroy_inode	= afs_destroy_inode,
 	.clear_inode	= afs_clear_inode,
-	.umount_begin	= afs_umount_begin,
 	.put_super	= afs_put_super,
 	.show_options	= generic_show_options,
 };

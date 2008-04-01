@@ -31,7 +31,6 @@
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
 #include <linux/netdevice.h>
-#include <linux/tcp.h>
 #include <linux/ipv6.h>
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
@@ -2484,10 +2483,24 @@ static inline bool igb_tx_csum_adv(struct igb_adapter *adapter,
 		tu_cmd |= (E1000_TXD_CMD_DEXT | E1000_ADVTXD_DTYP_CTXT);
 
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			if (skb->protocol == htons(ETH_P_IP))
+			switch (skb->protocol) {
+			case __constant_htons(ETH_P_IP):
 				tu_cmd |= E1000_ADVTXD_TUCMD_IPV4;
-			if (skb->sk && (skb->sk->sk_protocol == IPPROTO_TCP))
-				tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
+				if (ip_hdr(skb)->protocol == IPPROTO_TCP)
+					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
+				break;
+			case __constant_htons(ETH_P_IPV6):
+				/* XXX what about other V6 headers?? */
+				if (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP)
+					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
+				break;
+			default:
+				if (unlikely(net_ratelimit()))
+					dev_warn(&adapter->pdev->dev,
+					    "partial checksum but proto=%x!\n",
+					    skb->protocol);
+				break;
+			}
 		}
 
 		context_desc->type_tucmd_mlhl = cpu_to_le32(tu_cmd);
@@ -3241,6 +3254,13 @@ quit_polling:
 
 	return 1;
 }
+
+static inline u32 get_head(struct igb_ring *tx_ring)
+{
+	void *end = (struct e1000_tx_desc *)tx_ring->desc + tx_ring->count;
+	return le32_to_cpu(*(volatile __le32 *)end);
+}
+
 /**
  * igb_clean_tx_irq - Reclaim resources after transmit completes
  * @adapter: board private structure
@@ -3262,9 +3282,7 @@ static bool igb_clean_tx_irq(struct igb_adapter *adapter,
 	unsigned int total_bytes = 0, total_packets = 0;
 
 	rmb();
-	head = *(volatile u32 *)((struct e1000_tx_desc *)tx_ring->desc
-				 + tx_ring->count);
-	head = le32_to_cpu(head);
+	head = get_head(tx_ring);
 	i = tx_ring->next_to_clean;
 	while (1) {
 		while (i != head) {
@@ -3299,9 +3317,7 @@ static bool igb_clean_tx_irq(struct igb_adapter *adapter,
 		}
 		oldhead = head;
 		rmb();
-		head = *(volatile u32 *)((struct e1000_tx_desc *)tx_ring->desc
-					 + tx_ring->count);
-		head = le32_to_cpu(head);
+		head = get_head(tx_ring);
 		if (head == oldhead)
 			goto done_cleaning;
 	}  /* while (1) */
@@ -3375,7 +3391,7 @@ done_cleaning:
  * @vlan: descriptor vlan field as written by hardware (no le/be conversion)
  * @skb: pointer to sk_buff to be indicated to stack
  **/
-static void igb_receive_skb(struct igb_adapter *adapter, u8 status, u16 vlan,
+static void igb_receive_skb(struct igb_adapter *adapter, u8 status, __le16 vlan,
 			    struct sk_buff *skb)
 {
 	if (adapter->vlgrp && (status & E1000_RXD_STAT_VP))
@@ -3439,8 +3455,8 @@ static bool igb_clean_rx_irq_adv(struct igb_adapter *adapter,
 		 * that case, it fills the header buffer and spills the rest
 		 * into the page.
 		 */
-		hlen = le16_to_cpu((rx_desc->wb.lower.lo_dword.hdr_info &
-		  E1000_RXDADV_HDRBUFLEN_MASK) >> E1000_RXDADV_HDRBUFLEN_SHIFT);
+		hlen = (le16_to_cpu(rx_desc->wb.lower.lo_dword.hdr_info) &
+		  E1000_RXDADV_HDRBUFLEN_MASK) >> E1000_RXDADV_HDRBUFLEN_SHIFT;
 		if (hlen > adapter->rx_ps_hdr_size)
 			hlen = adapter->rx_ps_hdr_size;
 

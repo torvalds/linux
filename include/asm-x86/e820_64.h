@@ -18,6 +18,8 @@ extern unsigned long find_e820_area(unsigned long start, unsigned long end,
 				    unsigned size, unsigned long align);
 extern void add_memory_region(unsigned long start, unsigned long size, 
 			      int type);
+extern void update_memory_range(u64 start, u64 size, unsigned old_type,
+				unsigned new_type);
 extern void setup_memory_region(void);
 extern void contig_e820_setup(void); 
 extern unsigned long e820_end_of_ram(void);

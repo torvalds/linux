@@ -48,7 +48,7 @@ DSDT.
 
 To send me the DSDT, as root/sudo:
 
-cat /sys/firmware/acpi/DSDT > dsdt
+cat /sys/firmware/acpi/tables/DSDT > dsdt
 
 And send me the resulting 'dsdt' file.
 
@@ -169,7 +169,7 @@ can be added to acer-wmi.
 
 The LED is exposed through the LED subsystem, and can be found in:
 
-/sys/devices/platform/acer-wmi/leds/acer-mail:green/
+/sys/devices/platform/acer-wmi/leds/acer-wmi::mail/
 
 The mail LED is autodetected, so if you don't have one, the LED device won't
 be registered.

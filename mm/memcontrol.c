@@ -1079,7 +1079,7 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
 	 * Only thread group leaders are allowed to migrate, the mm_struct is
 	 * in effect owned by the leader
 	 */
-	if (p->tgid != p->pid)
+	if (!thread_group_leader(p))
 		goto out;
 
 	css_get(&mem->css);

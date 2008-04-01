@@ -555,10 +555,7 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 		/* FALLTHROUGH */
 	case IB_PORT_DOWN:
 		if (lstate == 0)
-			if (get_linkdowndefaultstate(dd))
-				lstate = IPATH_IB_LINKDOWN_SLEEP;
-			else
-				lstate = IPATH_IB_LINKDOWN;
+			lstate = IPATH_IB_LINKDOWN_ONLY;
 		else if (lstate == 1)
 			lstate = IPATH_IB_LINKDOWN_SLEEP;
 		else if (lstate == 2)
@@ -568,6 +565,8 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 		else
 			goto err;
 		ipath_set_linkstate(dd, lstate);
+		ipath_wait_linkstate(dd, IPATH_LINKINIT | IPATH_LINKARMED |
+				IPATH_LINKACTIVE, 1000);
 		break;
 	case IB_PORT_ARMED:
 		ipath_set_linkstate(dd, IPATH_IB_LINKARM);
