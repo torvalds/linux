@@ -31,6 +31,8 @@
 
 #define M_COUNTER_OVERFLOW		(1UL      << 31)
 
+static int (*save_perf_irq)(void);
+
 #ifdef CONFIG_MIPS_MT_SMP
 static int cpu_has_mipsmt_pertccounters;
 #define WHAT		(M_TC_EN_VPE | \
@@ -369,6 +371,7 @@ static int __init mipsxx_init(void)
 		return -ENODEV;
 	}
 
+	save_perf_irq = perf_irq;
 	perf_irq = mipsxx_perfcount_handler;
 
 	return 0;
@@ -381,7 +384,7 @@ static void mipsxx_exit(void)
 	counters = counters_per_cpu_to_total(counters);
 	on_each_cpu(reset_counters, (void *)counters, 0, 1);
 
-	perf_irq = null_perf_irq;
+	perf_irq = save_perf_irq;
 }
 
 struct op_mips_model op_model_mipsxx_ops = {
