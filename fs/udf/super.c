@@ -1103,16 +1103,18 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 
 	if (phd->unallocSpaceBitmap.extLength) {
 		struct udf_bitmap *bitmap = udf_sb_alloc_bitmap(sb, i);
-		map->s_uspace.s_bitmap = bitmap;
-		if (bitmap != NULL) {
-			bitmap->s_extLength = le32_to_cpu(
-				phd->unallocSpaceBitmap.extLength);
-			bitmap->s_extPosition = le32_to_cpu(
-				phd->unallocSpaceBitmap.extPosition);
-			map->s_partition_flags |= UDF_PART_FLAG_UNALLOC_BITMAP;
-			udf_debug("unallocSpaceBitmap (part %d) @ %d\n",
-					i, bitmap->s_extPosition);
+		if (!bitmap) {
+			ret = 1;
+			goto out_bh;
 		}
+		map->s_uspace.s_bitmap = bitmap;
+		bitmap->s_extLength = le32_to_cpu(
+				phd->unallocSpaceBitmap.extLength);
+		bitmap->s_extPosition = le32_to_cpu(
+				phd->unallocSpaceBitmap.extPosition);
+		map->s_partition_flags |= UDF_PART_FLAG_UNALLOC_BITMAP;
+		udf_debug("unallocSpaceBitmap (part %d) @ %d\n", i,
+						bitmap->s_extPosition);
 	}
 
 	if (phd->partitionIntegrityTable.extLength)
@@ -1139,19 +1141,22 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 
 	if (phd->freedSpaceBitmap.extLength) {
 		struct udf_bitmap *bitmap = udf_sb_alloc_bitmap(sb, i);
-		map->s_fspace.s_bitmap = bitmap;
-		if (bitmap != NULL) {
-			bitmap->s_extLength = le32_to_cpu(
-				phd->freedSpaceBitmap.extLength);
-			bitmap->s_extPosition = le32_to_cpu(
-				phd->freedSpaceBitmap.extPosition);
-			map->s_partition_flags |= UDF_PART_FLAG_FREED_BITMAP;
-			udf_debug("freedSpaceBitmap (part %d) @ %d\n",
-					i, bitmap->s_extPosition);
+		if (!bitmap) {
+			ret = 1;
+			goto out_bh;
 		}
+		map->s_fspace.s_bitmap = bitmap;
+		bitmap->s_extLength = le32_to_cpu(
+				phd->freedSpaceBitmap.extLength);
+		bitmap->s_extPosition = le32_to_cpu(
+				phd->freedSpaceBitmap.extPosition);
+		map->s_partition_flags |= UDF_PART_FLAG_FREED_BITMAP;
+		udf_debug("freedSpaceBitmap (part %d) @ %d\n", i,
+					bitmap->s_extPosition);
 	}
 
 out_bh:
+	/* In case loading failed, we handle cleanup in udf_fill_super */
 	brelse(bh);
 	return ret;
 }
@@ -1677,6 +1682,23 @@ static void udf_sb_free_bitmap(struct udf_bitmap *bitmap)
 		vfree(bitmap);
 }
 
+static void udf_free_partition(struct udf_part_map *map)
+{
+	int i;
+
+	if (map->s_partition_flags & UDF_PART_FLAG_UNALLOC_TABLE)
+		iput(map->s_uspace.s_table);
+	if (map->s_partition_flags & UDF_PART_FLAG_FREED_TABLE)
+		iput(map->s_fspace.s_table);
+	if (map->s_partition_flags & UDF_PART_FLAG_UNALLOC_BITMAP)
+		udf_sb_free_bitmap(map->s_uspace.s_bitmap);
+	if (map->s_partition_flags & UDF_PART_FLAG_FREED_BITMAP)
+		udf_sb_free_bitmap(map->s_fspace.s_bitmap);
+	if (map->s_partition_type == UDF_SPARABLE_MAP15)
+		for (i = 0; i < 4; i++)
+			brelse(map->s_type_specific.s_sparing.s_spar_map[i]);
+}
+
 static int udf_fill_super(struct super_block *sb, void *options, int silent)
 {
 	int i;
@@ -1846,21 +1868,9 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 error_out:
 	if (sbi->s_vat_inode)
 		iput(sbi->s_vat_inode);
-	if (sbi->s_partitions) {
-		struct udf_part_map *map = &sbi->s_partmaps[sbi->s_partition];
-		if (map->s_partition_flags & UDF_PART_FLAG_UNALLOC_TABLE)
-			iput(map->s_uspace.s_table);
-		if (map->s_partition_flags & UDF_PART_FLAG_FREED_TABLE)
-			iput(map->s_fspace.s_table);
-		if (map->s_partition_flags & UDF_PART_FLAG_UNALLOC_BITMAP)
-			udf_sb_free_bitmap(map->s_uspace.s_bitmap);
-		if (map->s_partition_flags & UDF_PART_FLAG_FREED_BITMAP)
-			udf_sb_free_bitmap(map->s_fspace.s_bitmap);
-		if (map->s_partition_type == UDF_SPARABLE_MAP15)
-			for (i = 0; i < 4; i++)
-				brelse(map->s_type_specific.s_sparing.
-						s_spar_map[i]);
-	}
+	if (sbi->s_partitions)
+		for (i = 0; i < sbi->s_partitions; i++)
+			udf_free_partition(&sbi->s_partmaps[i]);
 #ifdef CONFIG_UDF_NLS
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP))
 		unload_nls(sbi->s_nls_map);
@@ -1912,21 +1922,9 @@ static void udf_put_super(struct super_block *sb)
 	sbi = UDF_SB(sb);
 	if (sbi->s_vat_inode)
 		iput(sbi->s_vat_inode);
-	if (sbi->s_partitions) {
-		struct udf_part_map *map = &sbi->s_partmaps[sbi->s_partition];
-		if (map->s_partition_flags & UDF_PART_FLAG_UNALLOC_TABLE)
-			iput(map->s_uspace.s_table);
-		if (map->s_partition_flags & UDF_PART_FLAG_FREED_TABLE)
-			iput(map->s_fspace.s_table);
-		if (map->s_partition_flags & UDF_PART_FLAG_UNALLOC_BITMAP)
-			udf_sb_free_bitmap(map->s_uspace.s_bitmap);
-		if (map->s_partition_flags & UDF_PART_FLAG_FREED_BITMAP)
-			udf_sb_free_bitmap(map->s_fspace.s_bitmap);
-		if (map->s_partition_type == UDF_SPARABLE_MAP15)
-			for (i = 0; i < 4; i++)
-				brelse(map->s_type_specific.s_sparing.
-						s_spar_map[i]);
-	}
+	if (sbi->s_partitions)
+		for (i = 0; i < sbi->s_partitions; i++)
+			udf_free_partition(&sbi->s_partmaps[i]);
 #ifdef CONFIG_UDF_NLS
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP))
 		unload_nls(sbi->s_nls_map);
