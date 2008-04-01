@@ -85,16 +85,12 @@ static int udf_remount_fs(struct super_block *, int *, char *);
 static int udf_check_valid(struct super_block *, int, int);
 static int udf_vrs(struct super_block *sb, int silent);
 static int udf_load_partition(struct super_block *, kernel_lb_addr *);
-static int udf_load_logicalvol(struct super_block *, struct buffer_head *,
-			       kernel_lb_addr *);
 static void udf_load_logicalvolint(struct super_block *, kernel_extent_ad);
 static void udf_find_anchor(struct super_block *);
 static int udf_find_fileset(struct super_block *, kernel_lb_addr *,
 			    kernel_lb_addr *);
-static void udf_load_pvoldesc(struct super_block *, struct buffer_head *);
 static void udf_load_fileset(struct super_block *, struct buffer_head *,
 			     kernel_lb_addr *);
-static int udf_load_partdesc(struct super_block *, struct buffer_head *);
 static void udf_open_lvid(struct super_block *);
 static void udf_close_lvid(struct super_block *);
 static unsigned int udf_count_free(struct super_block *);
@@ -935,11 +931,18 @@ static int udf_find_fileset(struct super_block *sb,
 	return 1;
 }
 
-static void udf_load_pvoldesc(struct super_block *sb, struct buffer_head *bh)
+static int udf_load_pvoldesc(struct super_block *sb, sector_t block)
 {
 	struct primaryVolDesc *pvoldesc;
 	struct ustr instr;
 	struct ustr outstr;
+	struct buffer_head *bh;
+	uint16_t ident;
+
+	bh = udf_read_tagged(sb, block, block, &ident);
+	if (!bh)
+		return 1;
+	BUG_ON(ident != TAG_IDENT_PVD);
 
 	pvoldesc = (struct primaryVolDesc *)bh->b_data;
 
@@ -965,6 +968,9 @@ static void udf_load_pvoldesc(struct super_block *sb, struct buffer_head *bh)
 	if (!udf_build_ustr(&instr, pvoldesc->volSetIdent, 128))
 		if (udf_CS0toUTF8(&outstr, &instr))
 			udf_debug("volSetIdent[] = '%s'\n", outstr.u_name);
+
+	brelse(bh);
+	return 0;
 }
 
 static void udf_load_fileset(struct super_block *sb, struct buffer_head *bh,
@@ -1018,16 +1024,27 @@ static struct udf_bitmap *udf_sb_alloc_bitmap(struct super_block *sb, u32 index)
 	return bitmap;
 }
 
-static int udf_load_partdesc(struct super_block *sb, struct buffer_head *bh)
+static int udf_load_partdesc(struct super_block *sb, sector_t block)
 {
+	struct buffer_head *bh;
 	struct partitionHeaderDesc *phd;
-	struct partitionDesc *p = (struct partitionDesc *)bh->b_data;
+	struct partitionDesc *p;
 	struct udf_part_map *map;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	bool found = false;
 	int i;
-	u16 partitionNumber = le16_to_cpu(p->partitionNumber);
+	uint16_t partitionNumber;
+	uint16_t ident;
+	int ret = 0;
 
+	bh = udf_read_tagged(sb, block, block, &ident);
+	if (!bh)
+		return 1;
+	if (ident != TAG_IDENT_PD)
+		goto out_bh;
+
+	p = (struct partitionDesc *)bh->b_data;
+	partitionNumber = le16_to_cpu(p->partitionNumber);
 	for (i = 0; i < sbi->s_partitions; i++) {
 		map = &sbi->s_partmaps[i];
 		udf_debug("Searching map: (%d == %d)\n",
@@ -1040,7 +1057,7 @@ static int udf_load_partdesc(struct super_block *sb, struct buffer_head *bh)
 	if (!found) {
 		udf_debug("Partition (%d) not found in partition map\n",
 			  partitionNumber);
-		return 0;
+		goto out_bh;
 	}
 
 	map->s_partition_len = le32_to_cpu(p->partitionLength); /* blocks */
@@ -1062,7 +1079,7 @@ static int udf_load_partdesc(struct super_block *sb, struct buffer_head *bh)
 
 	if (strcmp(p->partitionContents.ident, PD_PARTITION_CONTENTS_NSR02) &&
 	    strcmp(p->partitionContents.ident, PD_PARTITION_CONTENTS_NSR03))
-		return 0;
+		goto out_bh;
 
 	phd = (struct partitionHeaderDesc *)p->partitionContentsUse;
 	if (phd->unallocSpaceTable.extLength) {
@@ -1076,7 +1093,8 @@ static int udf_load_partdesc(struct super_block *sb, struct buffer_head *bh)
 		if (!map->s_uspace.s_table) {
 			udf_debug("cannot load unallocSpaceTable (part %d)\n",
 					i);
-			return 1;
+			ret = 1;
+			goto out_bh;
 		}
 		map->s_partition_flags |= UDF_PART_FLAG_UNALLOC_TABLE;
 		udf_debug("unallocSpaceTable (part %d) @ %ld\n",
@@ -1110,7 +1128,8 @@ static int udf_load_partdesc(struct super_block *sb, struct buffer_head *bh)
 		map->s_fspace.s_table = udf_iget(sb, loc);
 		if (!map->s_fspace.s_table) {
 			udf_debug("cannot load freedSpaceTable (part %d)\n", i);
-			return 1;
+			ret = 1;
+			goto out_bh;
 		}
 
 		map->s_partition_flags |= UDF_PART_FLAG_FREED_TABLE;
@@ -1132,10 +1151,12 @@ static int udf_load_partdesc(struct super_block *sb, struct buffer_head *bh)
 		}
 	}
 
-	return 0;
+out_bh:
+	brelse(bh);
+	return ret;
 }
 
-static int udf_load_logicalvol(struct super_block *sb, struct buffer_head *bh,
+static int udf_load_logicalvol(struct super_block *sb, sector_t block,
 			       kernel_lb_addr *fileset)
 {
 	struct logicalVolDesc *lvd;
@@ -1143,12 +1164,21 @@ static int udf_load_logicalvol(struct super_block *sb, struct buffer_head *bh,
 	uint8_t type;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct genericPartitionMap *gpm;
+	uint16_t ident;
+	struct buffer_head *bh;
+	int ret = 0;
 
+	bh = udf_read_tagged(sb, block, block, &ident);
+	if (!bh)
+		return 1;
+	BUG_ON(ident != TAG_IDENT_LVD);
 	lvd = (struct logicalVolDesc *)bh->b_data;
 
 	i = udf_sb_alloc_partition_maps(sb, le32_to_cpu(lvd->numPartitionMaps));
-	if (i != 0)
-		return i;
+	if (i != 0) {
+		ret = i;
+		goto out_bh;
+	}
 
 	for (i = 0, offset = 0;
 	     i < sbi->s_partitions && offset < le32_to_cpu(lvd->mapTableLength);
@@ -1187,7 +1217,6 @@ static int udf_load_logicalvol(struct super_block *sb, struct buffer_head *bh,
 						UDF_ID_SPARABLE,
 						strlen(UDF_ID_SPARABLE))) {
 				uint32_t loc;
-				uint16_t ident;
 				struct sparingTable *st;
 				struct sparablePartitionMap *spm =
 					(struct sparablePartitionMap *)gpm;
@@ -1243,7 +1272,9 @@ static int udf_load_logicalvol(struct super_block *sb, struct buffer_head *bh,
 	if (lvd->integritySeqExt.extLength)
 		udf_load_logicalvolint(sb, leea_to_cpu(lvd->integritySeqExt));
 
-	return 0;
+out_bh:
+	brelse(bh);
+	return ret;
 }
 
 /*
@@ -1301,19 +1332,25 @@ static noinline int udf_process_sequence(struct super_block *sb, long block,
 	struct generic_desc *gd;
 	struct volDescPtr *vdp;
 	int done = 0;
-	int i, j;
 	uint32_t vdsn;
 	uint16_t ident;
 	long next_s = 0, next_e = 0;
 
 	memset(vds, 0, sizeof(struct udf_vds_record) * VDS_POS_LENGTH);
 
-	/* Read the main descriptor sequence */
+	/*
+	 * Read the main descriptor sequence and find which descriptors
+	 * are in it.
+	 */
 	for (; (!done && block <= lastblock); block++) {
 
 		bh = udf_read_tagged(sb, block, block, &ident);
-		if (!bh)
-			break;
+		if (!bh) {
+			printk(KERN_ERR "udf: Block %Lu of volume descriptor "
+			       "sequence is corrupted or we could not read "
+			       "it.\n", (unsigned long long)block);
+			return 1;
+		}
 
 		/* Process each descriptor (ISO 13346 3/8.3-8.4) */
 		gd = (struct generic_desc *)bh->b_data;
@@ -1379,41 +1416,31 @@ static noinline int udf_process_sequence(struct super_block *sb, long block,
 		}
 		brelse(bh);
 	}
-	for (i = 0; i < VDS_POS_LENGTH; i++) {
-		if (!vds[i].block)
-			continue;
+	/*
+	 * Now read interesting descriptors again and process them
+	 * in a suitable order
+	 */
+	if (!vds[VDS_POS_PRIMARY_VOL_DESC].block) {
+		printk(KERN_ERR "udf: Primary Volume Descriptor not found!\n");
+		return 1;
+	}
+	if (udf_load_pvoldesc(sb, vds[VDS_POS_PRIMARY_VOL_DESC].block))
+		return 1;
 
-		bh = udf_read_tagged(sb, vds[i].block, vds[i].block,
-					&ident);
+	if (vds[VDS_POS_LOGICAL_VOL_DESC].block && udf_load_logicalvol(sb,
+	    vds[VDS_POS_LOGICAL_VOL_DESC].block, fileset))
+		return 1;
 
-		if (i == VDS_POS_PRIMARY_VOL_DESC)
-			udf_load_pvoldesc(sb, bh);
-		else if (i == VDS_POS_LOGICAL_VOL_DESC) {
-			if (udf_load_logicalvol(sb, bh, fileset)) {
-				brelse(bh);
+	if (vds[VDS_POS_PARTITION_DESC].block) {
+		/*
+		 * We rescan the whole descriptor sequence to find
+		 * partition descriptor blocks and process them.
+		 */
+		for (block = vds[VDS_POS_PARTITION_DESC].block;
+		     block < vds[VDS_POS_TERMINATING_DESC].block;
+		     block++)
+			if (udf_load_partdesc(sb, block))
 				return 1;
-			}
-		} else if (i == VDS_POS_PARTITION_DESC) {
-			struct buffer_head *bh2 = NULL;
-			if (udf_load_partdesc(sb, bh)) {
-				brelse(bh);
-				return 1;
-			}
-			for (j = vds[i].block + 1;
-				j <  vds[VDS_POS_TERMINATING_DESC].block;
-				j++) {
-				bh2 = udf_read_tagged(sb, j, j, &ident);
-				gd = (struct generic_desc *)bh2->b_data;
-				if (ident == TAG_IDENT_PD)
-					if (udf_load_partdesc(sb, bh2)) {
-						brelse(bh);
-						brelse(bh2);
-						return 1;
-					}
-				brelse(bh2);
-			}
-		}
-		brelse(bh);
 	}
 
 	return 0;
