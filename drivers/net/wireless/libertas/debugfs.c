@@ -824,7 +824,6 @@ struct debug_data {
 /* To debug any member of struct lbs_private, simply add one line here.
  */
 static struct debug_data items[] = {
-	{"intcounter", item_size(intcounter), item_addr(intcounter)},
 	{"psmode", item_size(psmode), item_addr(psmode)},
 	{"psstate", item_size(psstate), item_addr(psstate)},
 };

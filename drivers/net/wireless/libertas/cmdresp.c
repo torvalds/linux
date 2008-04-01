@@ -384,7 +384,7 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 	return ret;
 }
 
-int lbs_process_rx_command(struct lbs_private *priv)
+int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 {
 	uint16_t respcmd, curcmd;
 	struct cmd_header *resp;
@@ -404,14 +404,14 @@ int lbs_process_rx_command(struct lbs_private *priv)
 		goto done;
 	}
 
-	resp = (void *)priv->upld_buf;
+	resp = (void *)data;
 	curcmd = le16_to_cpu(priv->cur_cmd->cmdbuf->command);
 	respcmd = le16_to_cpu(resp->command);
 	result = le16_to_cpu(resp->result);
 
 	lbs_deb_cmd("CMD_RESP: response 0x%04x, seq %d, size %d\n",
-		     respcmd, le16_to_cpu(resp->seqnum), priv->upld_len);
-	lbs_deb_hex(LBS_DEB_CMD, "CMD_RESP", (void *) resp, priv->upld_len);
+		     respcmd, le16_to_cpu(resp->seqnum), len);
+	lbs_deb_hex(LBS_DEB_CMD, "CMD_RESP", (void *) resp, len);
 
 	if (resp->seqnum != priv->cur_cmd->cmdbuf->seqnum) {
 		lbs_pr_info("Received CMD_RESP with invalid sequence %d (expected %d)\n",
@@ -569,18 +569,13 @@ static int lbs_send_confirmwake(struct lbs_private *priv)
 	return ret;
 }
 
-int lbs_process_event(struct lbs_private *priv)
+int lbs_process_event(struct lbs_private *priv, u32 event)
 {
 	int ret = 0;
-	u32 eventcause;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	spin_lock_irq(&priv->driver_lock);
-	eventcause = priv->eventcause >> SBI_EVENT_CAUSE_SHIFT;
-	spin_unlock_irq(&priv->driver_lock);
-
-	switch (eventcause) {
+	switch (event) {
 	case MACREG_INT_CODE_LINK_SENSED:
 		lbs_deb_cmd("EVENT: link sensed\n");
 		break;
@@ -696,13 +691,9 @@ int lbs_process_event(struct lbs_private *priv)
 		break;
 
 	default:
-		lbs_pr_alert("EVENT: unknown event id %d\n", eventcause);
+		lbs_pr_alert("EVENT: unknown event id %d\n", event);
 		break;
 	}
-
-	spin_lock_irq(&priv->driver_lock);
-	priv->eventcause = 0;
-	spin_unlock_irq(&priv->driver_lock);
 
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;

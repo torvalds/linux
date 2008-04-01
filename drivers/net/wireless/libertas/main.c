@@ -10,6 +10,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/kthread.h>
+#include <linux/kfifo.h>
 
 #include <net/iw_handler.h>
 #include <net/ieee80211.h>
@@ -480,10 +481,9 @@ static void lbs_tx_timeout(struct net_device *dev)
 
 	dev->trans_start = jiffies;
 
-	if (priv->currenttxskb) {
-		priv->eventcause = 0x01000000;
-		lbs_send_tx_feedback(priv);
-	}
+	if (priv->currenttxskb)
+		lbs_send_tx_feedback(priv, 0);
+
 	/* XX: Shouldn't we also call into the hw-specific driver
 	   to kick it somehow? */
 	lbs_host_to_card_done(priv);
@@ -659,7 +659,6 @@ static int lbs_thread(void *data)
 	struct net_device *dev = data;
 	struct lbs_private *priv = dev->priv;
 	wait_queue_t wait;
-	u8 ireg = 0;
 
 	lbs_deb_enter(LBS_DEB_THREAD);
 
@@ -667,9 +666,10 @@ static int lbs_thread(void *data)
 
 	for (;;) {
 		int shouldsleep;
+		u8 resp_idx;
 
-		lbs_deb_thread( "main-thread 111: intcounter=%d currenttxskb=%p dnld_sent=%d\n",
-				priv->intcounter, priv->currenttxskb, priv->dnld_sent);
+		lbs_deb_thread("1: currenttxskb %p, dnld_sent %d\n",
+				priv->currenttxskb, priv->dnld_sent);
 
 		add_wait_queue(&priv->waitq, &wait);
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -681,8 +681,6 @@ static int lbs_thread(void *data)
 			shouldsleep = 1;	/* We need to wait until we're _told_ to die */
 		else if (priv->psstate == PS_STATE_SLEEP)
 			shouldsleep = 1;	/* Sleep mode. Nothing we can do till it wakes */
-		else if (priv->intcounter)
-			shouldsleep = 0;	/* Interrupt pending. Deal with it now */
 		else if (priv->cmd_timed_out)
 			shouldsleep = 0;	/* Command timed out. Recover */
 		else if (!priv->fw_ready)
@@ -695,29 +693,34 @@ static int lbs_thread(void *data)
 			shouldsleep = 1;	/* Can't send a command; one already running */
 		else if (!list_empty(&priv->cmdpendingq))
 			shouldsleep = 0;	/* We have a command to send */
+		else if (__kfifo_len(priv->event_fifo))
+			shouldsleep = 0;	/* We have an event to process */
+		else if (priv->resp_len[priv->resp_idx])
+			shouldsleep = 0;	/* We have a command response */
 		else
 			shouldsleep = 1;	/* No command */
 
 		if (shouldsleep) {
-			lbs_deb_thread("main-thread sleeping... Conn=%d IntC=%d PS_mode=%d PS_State=%d\n",
-				       priv->connect_status, priv->intcounter,
-				       priv->psmode, priv->psstate);
+			lbs_deb_thread("sleeping, connect_status %d, "
+				"ps_mode %d, ps_state %d\n",
+				priv->connect_status,
+				priv->psmode, priv->psstate);
 			spin_unlock_irq(&priv->driver_lock);
 			schedule();
 		} else
 			spin_unlock_irq(&priv->driver_lock);
 
-		lbs_deb_thread("main-thread 222 (waking up): intcounter=%d currenttxskb=%p dnld_sent=%d\n",
-			       priv->intcounter, priv->currenttxskb, priv->dnld_sent);
+		lbs_deb_thread("2: currenttxskb %p, dnld_send %d\n",
+			       priv->currenttxskb, priv->dnld_sent);
 
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&priv->waitq, &wait);
 
-		lbs_deb_thread("main-thread 333: intcounter=%d currenttxskb=%p dnld_sent=%d\n",
-			       priv->intcounter, priv->currenttxskb, priv->dnld_sent);
+		lbs_deb_thread("3: currenttxskb %p, dnld_sent %d\n",
+			       priv->currenttxskb, priv->dnld_sent);
 
 		if (kthread_should_stop()) {
-			lbs_deb_thread("main-thread: break from main thread\n");
+			lbs_deb_thread("break from main thread\n");
 			break;
 		}
 
@@ -726,35 +729,23 @@ static int lbs_thread(void *data)
 			continue;
 		}
 
+		lbs_deb_thread("4: currenttxskb %p, dnld_sent %d\n",
+		       priv->currenttxskb, priv->dnld_sent);
+
 		spin_lock_irq(&priv->driver_lock);
-
-		if (priv->intcounter) {
-			u8 int_status;
-
-			priv->intcounter = 0;
-			int_status = priv->hw_get_int_status(priv, &ireg);
-
-			if (int_status) {
-				lbs_deb_thread("main-thread: reading HOST_INT_STATUS_REG failed\n");
-				spin_unlock_irq(&priv->driver_lock);
-				continue;
-			}
-			priv->hisregcpy |= ireg;
-		}
-
-		lbs_deb_thread("main-thread 444: intcounter=%d currenttxskb=%p dnld_sent=%d\n",
-			       priv->intcounter, priv->currenttxskb, priv->dnld_sent);
-
-		/* command response? */
-		if (priv->hisregcpy & MRVDRV_CMD_UPLD_RDY) {
-			lbs_deb_thread("main-thread: cmd response ready\n");
-
-			priv->hisregcpy &= ~MRVDRV_CMD_UPLD_RDY;
+		/* Process any pending command response */
+		resp_idx = priv->resp_idx;
+		if (priv->resp_len[resp_idx]) {
 			spin_unlock_irq(&priv->driver_lock);
-			lbs_process_rx_command(priv);
+			lbs_process_command_response(priv,
+				priv->resp_buf[resp_idx],
+				priv->resp_len[resp_idx]);
 			spin_lock_irq(&priv->driver_lock);
+			priv->resp_len[resp_idx] = 0;
 		}
+		spin_unlock_irq(&priv->driver_lock);
 
+		/* command timeout stuff */
 		if (priv->cmd_timed_out && priv->cur_cmd) {
 			struct cmd_ctrl_node *cmdnode = priv->cur_cmd;
 
@@ -775,21 +766,18 @@ static int lbs_thread(void *data)
 		}
 		priv->cmd_timed_out = 0;
 
-		/* Any Card Event */
-		if (priv->hisregcpy & MRVDRV_CARDEVENT) {
-			lbs_deb_thread("main-thread: Card Event Activity\n");
+		/* Process hardware events, e.g. card removed, link lost */
+		spin_lock_irq(&priv->driver_lock);
+		while (__kfifo_len(priv->event_fifo)) {
+			u32 event;
 
-			priv->hisregcpy &= ~MRVDRV_CARDEVENT;
-
-			if (priv->hw_read_event_cause(priv)) {
-				lbs_pr_alert("main-thread: hw_read_event_cause failed\n");
-				spin_unlock_irq(&priv->driver_lock);
-				continue;
-			}
+			__kfifo_get(priv->event_fifo, (unsigned char *) &event,
+				sizeof(event));
 			spin_unlock_irq(&priv->driver_lock);
-			lbs_process_event(priv);
-		} else
-			spin_unlock_irq(&priv->driver_lock);
+			lbs_process_event(priv, event);
+			spin_lock_irq(&priv->driver_lock);
+		}
+		spin_unlock_irq(&priv->driver_lock);
 
 		if (!priv->fw_ready)
 			continue;
@@ -798,8 +786,10 @@ static int lbs_thread(void *data)
 		if (priv->psstate == PS_STATE_PRE_SLEEP &&
 		    !priv->dnld_sent && !priv->cur_cmd) {
 			if (priv->connect_status == LBS_CONNECTED) {
-				lbs_deb_thread("main_thread: PRE_SLEEP--intcounter=%d currenttxskb=%p dnld_sent=%d cur_cmd=%p, confirm now\n",
-					       priv->intcounter, priv->currenttxskb, priv->dnld_sent, priv->cur_cmd);
+				lbs_deb_thread("pre-sleep, currenttxskb %p, "
+					"dnld_sent %d, cur_cmd %p\n",
+					priv->currenttxskb, priv->dnld_sent,
+					priv->cur_cmd);
 
 				lbs_ps_confirm_sleep(priv);
 			} else {
@@ -809,7 +799,8 @@ static int lbs_thread(void *data)
 				 * after firmware fixes it
 				 */
 				priv->psstate = PS_STATE_AWAKE;
-				lbs_pr_alert("main-thread: ignore PS_SleepConfirm in non-connected state\n");
+				lbs_pr_alert("ignore PS_SleepConfirm in "
+					"non-connected state\n");
 			}
 		}
 
@@ -1046,7 +1037,18 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	/* Allocate the command buffers */
 	if (lbs_allocate_cmd_buffer(priv)) {
 		lbs_pr_err("Out of memory allocating command buffers\n");
-		ret = -1;
+		ret = -ENOMEM;
+		goto out;
+	}
+	priv->resp_idx = 0;
+	priv->resp_len[0] = priv->resp_len[1] = 0;
+
+	/* Create the event FIFO */
+	priv->event_fifo = kfifo_alloc(sizeof(u32) * 16, GFP_KERNEL, NULL);
+	if (IS_ERR(priv->event_fifo)) {
+		lbs_pr_err("Out of memory allocating event FIFO buffer\n");
+		ret = -ENOMEM;
+		goto out;
 	}
 
 out:
@@ -1060,6 +1062,8 @@ static void lbs_free_adapter(struct lbs_private *priv)
 	lbs_deb_enter(LBS_DEB_MAIN);
 
 	lbs_free_cmd_buffer(priv);
+	if (priv->event_fifo)
+		kfifo_free(priv->event_fifo);
 	del_timer(&priv->command_timer);
 	kfree(priv->networks);
 	priv->networks = NULL;
@@ -1434,27 +1438,41 @@ out:
 	return ret;
 }
 
-/**
- *  @brief This function handles the interrupt. it will change PS
- *  state if applicable. it will wake up main_thread to handle
- *  the interrupt event as well.
- *
- *  @param dev     A pointer to net_device structure
- *  @return 	   n/a
- */
-void lbs_interrupt(struct lbs_private *priv)
+void lbs_queue_event(struct lbs_private *priv, u32 event)
+{
+	unsigned long flags;
+
+	lbs_deb_enter(LBS_DEB_THREAD);
+	spin_lock_irqsave(&priv->driver_lock, flags);
+
+	if (priv->psstate == PS_STATE_SLEEP)
+		priv->psstate = PS_STATE_AWAKE;
+
+	__kfifo_put(priv->event_fifo, (unsigned char *) &event, sizeof(u32));
+
+	wake_up_interruptible(&priv->waitq);
+
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
+	lbs_deb_leave(LBS_DEB_THREAD);
+}
+EXPORT_SYMBOL_GPL(lbs_queue_event);
+
+void lbs_notify_command_response(struct lbs_private *priv, u8 resp_idx)
 {
 	lbs_deb_enter(LBS_DEB_THREAD);
 
-	lbs_deb_thread("lbs_interrupt: intcounter=%d\n", priv->intcounter);
-	priv->intcounter++;
 	if (priv->psstate == PS_STATE_SLEEP)
 		priv->psstate = PS_STATE_AWAKE;
+
+	/* Swap buffers by flipping the response index */
+	BUG_ON(resp_idx > 1);
+	priv->resp_idx = resp_idx;
+
 	wake_up_interruptible(&priv->waitq);
 
 	lbs_deb_leave(LBS_DEB_THREAD);
 }
-EXPORT_SYMBOL_GPL(lbs_interrupt);
+EXPORT_SYMBOL_GPL(lbs_notify_command_response);
 
 static int __init lbs_init_module(void)
 {

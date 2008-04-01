@@ -129,10 +129,6 @@ struct lbs_private {
 	u32 bbp_offset;
 	u32 rf_offset;
 
-	/** Upload length */
-	u32 upld_len;
-	/* Upload buffer */
-	u8 upld_buf[LBS_UPLD_SIZE];
 	/* Download sent:
 	   bit0 1/0=data_sent/data_tx_done,
 	   bit1 1/0=cmd_sent/cmd_tx_done,
@@ -155,21 +151,16 @@ struct lbs_private {
 
 	/** Hardware access */
 	int (*hw_host_to_card) (struct lbs_private *priv, u8 type, u8 *payload, u16 nb);
-	int (*hw_get_int_status) (struct lbs_private *priv, u8 *);
-	int (*hw_read_event_cause) (struct lbs_private *);
 
 	/* Wake On LAN */
 	uint32_t wol_criteria;
 	uint8_t wol_gpio;
 	uint8_t wol_gap;
 
-	/* was struct lbs_adapter from here... */
-
 	/** Wlan adapter data structure*/
 	/** STATUS variables */
 	u32 fwrelease;
 	u32 fwcapinfo;
-	/* protected with big lock */
 
 	struct mutex lock;
 
@@ -181,7 +172,6 @@ struct lbs_private {
 
 	/** command-related variables */
 	u16 seqnum;
-	/* protected by big lock */
 
 	struct cmd_ctrl_node *cmd_array;
 	/** Current command */
@@ -194,12 +184,17 @@ struct lbs_private {
 	struct list_head cmdpendingq;
 
 	wait_queue_head_t cmd_pending;
-	/* command related variables protected by priv->driver_lock */
 
-	/** Async and Sync Event variables */
-	u32 intcounter;
-	u32 eventcause;
-	u8 nodename[16];	/* nickname */
+	/* Command responses sent from the hardware to the driver */
+	u8 resp_idx;
+	u8 resp_buf[2][LBS_UPLD_SIZE];
+	u32 resp_len[2];
+
+	/* Events sent from hardware to driver */
+	struct kfifo *event_fifo;
+
+	/* nickname */
+	u8 nodename[16];
 
 	/** spin locks */
 	spinlock_t driver_lock;
@@ -208,8 +203,6 @@ struct lbs_private {
 	struct timer_list command_timer;
 	int nr_retries;
 	int cmd_timed_out;
-
-	u8 hisregcpy;
 
 	/** current ssid/bssid related parameters*/
 	struct current_bss_params curbssparams;
