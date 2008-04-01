@@ -461,7 +461,7 @@ static void qeth_l3_set_ip_addr_list(struct qeth_card *card)
 			spin_unlock_irqrestore(&card->ip_lock, flags);
 			rc = qeth_l3_register_addr_entry(card, todo);
 			spin_lock_irqsave(&card->ip_lock, flags);
-			if (!rc)
+			if (!rc || (rc == IPA_RC_LAN_OFFLINE))
 				list_add_tail(&todo->entry, &card->ip_list);
 			else
 				kfree(todo);
