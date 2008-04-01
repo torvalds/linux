@@ -495,9 +495,9 @@ int emulator_set_dr(struct x86_emulate_ctxt *ctxt, int dr,
 int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason);
 
 void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
-void kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr0);
-void kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr0);
-void kvm_set_cr8(struct kvm_vcpu *vcpu, unsigned long cr0);
+void kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3);
+void kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
+void kvm_set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8);
 unsigned long kvm_get_cr8(struct kvm_vcpu *vcpu);
 void kvm_lmsw(struct kvm_vcpu *vcpu, unsigned long msw);
 void kvm_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l);
