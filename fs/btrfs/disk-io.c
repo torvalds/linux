@@ -46,27 +46,6 @@ static int check_tree_block(struct btrfs_root *root, struct extent_buffer *buf)
 
 static struct extent_io_ops btree_extent_io_ops;
 
-struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
-					    u64 bytenr, u32 blocksize)
-{
-	struct inode *btree_inode = root->fs_info->btree_inode;
-	struct extent_buffer *eb;
-	eb = find_extent_buffer(&BTRFS_I(btree_inode)->io_tree,
-				bytenr, blocksize, GFP_NOFS);
-	return eb;
-}
-
-struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
-						 u64 bytenr, u32 blocksize)
-{
-	struct inode *btree_inode = root->fs_info->btree_inode;
-	struct extent_buffer *eb;
-
-	eb = alloc_extent_buffer(&BTRFS_I(btree_inode)->io_tree,
-				 bytenr, blocksize, NULL, GFP_NOFS);
-	return eb;
-}
-
 struct extent_map *btree_get_extent(struct inode *inode, struct page *page,
 				    size_t page_offset, u64 start, u64 len,
 				    int create)
@@ -380,13 +359,69 @@ static int close_all_devices(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 
+int btrfs_verify_block_csum(struct btrfs_root *root,
+			    struct extent_buffer *buf)
+{
+	struct extent_io_tree *io_tree;
+	u64 end;
+	int ret;
+
+	io_tree = &BTRFS_I(root->fs_info->btree_inode)->io_tree;
+	if (buf->flags & EXTENT_CSUM)
+		return 0;
+
+	end = min_t(u64, buf->len, PAGE_CACHE_SIZE);
+	end = buf->start + end - 1;
+	if (test_range_bit(io_tree, buf->start, end, EXTENT_CSUM, 1)) {
+		buf->flags |= EXTENT_CSUM;
+		return 0;
+	}
+
+	lock_extent(io_tree, buf->start, end, GFP_NOFS);
+
+	if (test_range_bit(io_tree, buf->start, end, EXTENT_CSUM, 1)) {
+		buf->flags |= EXTENT_CSUM;
+		ret = 0;
+		goto out_unlock;
+	}
+
+	ret = csum_tree_block(root, buf, 1);
+	set_extent_bits(io_tree, buf->start, end, EXTENT_CSUM, GFP_NOFS);
+	buf->flags |= EXTENT_CSUM;
+
+out_unlock:
+	unlock_extent(io_tree, buf->start, end, GFP_NOFS);
+	return ret;
+}
+
+struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
+					    u64 bytenr, u32 blocksize)
+{
+	struct inode *btree_inode = root->fs_info->btree_inode;
+	struct extent_buffer *eb;
+	eb = find_extent_buffer(&BTRFS_I(btree_inode)->io_tree,
+				bytenr, blocksize, GFP_NOFS);
+	return eb;
+}
+
+struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
+						 u64 bytenr, u32 blocksize)
+{
+	struct inode *btree_inode = root->fs_info->btree_inode;
+	struct extent_buffer *eb;
+
+	eb = alloc_extent_buffer(&BTRFS_I(btree_inode)->io_tree,
+				 bytenr, blocksize, NULL, GFP_NOFS);
+	return eb;
+}
+
+
 struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 				      u32 blocksize)
 {
 	struct extent_buffer *buf = NULL;
 	struct inode *btree_inode = root->fs_info->btree_inode;
 	struct extent_io_tree *io_tree;
-	u64 end;
 	int ret;
 
 	io_tree = &BTRFS_I(btree_inode)->io_tree;
@@ -397,28 +432,7 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 	read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree, buf, 0, 1,
 				 btree_get_extent);
 
-	if (buf->flags & EXTENT_CSUM)
-		return buf;
-
-	end = buf->start + PAGE_CACHE_SIZE - 1;
-	if (test_range_bit(io_tree, buf->start, end, EXTENT_CSUM, 1)) {
-		buf->flags |= EXTENT_CSUM;
-		return buf;
-	}
-
-	lock_extent(io_tree, buf->start, end, GFP_NOFS);
-
-	if (test_range_bit(io_tree, buf->start, end, EXTENT_CSUM, 1)) {
-		buf->flags |= EXTENT_CSUM;
-		goto out_unlock;
-	}
-
-	ret = csum_tree_block(root, buf, 1);
-	set_extent_bits(io_tree, buf->start, end, EXTENT_CSUM, GFP_NOFS);
-	buf->flags |= EXTENT_CSUM;
-
-out_unlock:
-	unlock_extent(io_tree, buf->start, end, GFP_NOFS);
+	ret = btrfs_verify_block_csum(root, buf);
 	return buf;
 }
 

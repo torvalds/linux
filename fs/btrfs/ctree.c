@@ -158,6 +158,8 @@ int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	} else {
 		root_gen = 0;
 	}
+	if (!(buf->flags & EXTENT_CSUM))
+		WARN_ON(1);
 
 	WARN_ON(root->ref_cows && trans->transid !=
 		root->fs_info->running_transaction->transid);
@@ -245,6 +247,8 @@ int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		       root->fs_info->generation);
 		WARN_ON(1);
 	}
+	if (!(buf->flags & EXTENT_CSUM))
+		WARN_ON(1);
 
 	header_trans = btrfs_header_generation(buf);
 	spin_lock(&root->fs_info->hash_lock);
@@ -396,6 +400,7 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		if (search_start == 0)
 			search_start = last_block;
 
+		btrfs_verify_block_csum(root, cur);
 		err = __btrfs_cow_block(trans, root, cur, parent, i,
 					&tmp, search_start,
 					min(16 * blocksize,

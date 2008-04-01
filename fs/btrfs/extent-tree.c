@@ -2069,6 +2069,8 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 				BUG_ON(ret);
 				continue;
 			}
+		} else if (next) {
+			btrfs_verify_block_csum(root, next);
 		}
 		WARN_ON(*level <= 0);
 		if (path->nodes[*level-1])

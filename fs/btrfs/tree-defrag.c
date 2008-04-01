@@ -101,6 +101,7 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 				path->slots[*level]++;
 				continue;
 			}
+			btrfs_verify_block_csum(root, next);
 		} else {
 			next = read_tree_block(root, bytenr,
 				       btrfs_level_size(root, *level - 1));
