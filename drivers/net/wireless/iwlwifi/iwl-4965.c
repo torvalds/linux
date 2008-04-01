@@ -3296,6 +3296,7 @@ static void iwl4965_add_radiotap(struct iwl_priv *priv,
 	s8 noise = 0;
 	int rate = stats->rate_idx;
 	u64 tsf = stats->mactime;
+	__le16 antenna;
 	__le16 phy_flags_hw = rx_start->phy_flags;
 	struct iwl4965_rt_rx_hdr {
 		struct ieee80211_radiotap_header rt_hdr;
@@ -3380,8 +3381,8 @@ static void iwl4965_add_radiotap(struct iwl_priv *priv,
 	 * new 802.11n radiotap field "RX chains" that is defined
 	 * as a bitmask.
 	 */
-	iwl4965_rt->rt_antenna =
-		le16_to_cpu(phy_flags_hw & RX_RES_PHY_FLAGS_ANTENNA_MSK) >> 4;
+	antenna = phy_flags_hw & RX_RES_PHY_FLAGS_ANTENNA_MSK;
+	iwl4965_rt->rt_antenna = le16_to_cpu(antenna) >> 4;
 
 	/* set the preamble flag if appropriate */
 	if (phy_flags_hw & RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK)
