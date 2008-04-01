@@ -111,15 +111,6 @@ superio_inw(int reg)
 	return val;
 }
 
-static void
-superio_outw(int val, int reg)
-{
-	outb(reg++, REG);
-	outb((val >> 8) & 0xff, VAL);
-	outb(reg, REG);
-	outb(val & 0xff, VAL);
-}
-
 static inline void
 superio_select(int ldn)
 {
@@ -170,9 +161,8 @@ it8712f_wdt_update_margin(void)
 	superio_outb(config, WDT_CONFIG);
 
 	if (revision >= 0x08)
-		superio_outw(units, WDT_TIMEOUT);
-	else
-		superio_outb(units, WDT_TIMEOUT);
+		superio_outb(units >> 8, WDT_TIMEOUT + 1);
+	superio_outb(units, WDT_TIMEOUT);
 }
 
 static int
