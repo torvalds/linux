@@ -1990,7 +1990,7 @@ static int bttv_g_frequency(struct file *file, void *priv,
 	if (0 != err)
 		return err;
 
-	f->type = V4L2_TUNER_ANALOG_TV;
+	f->type = btv->radio_user ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 	f->frequency = btv->freq;
 
 	return 0;
@@ -2009,7 +2009,8 @@ static int bttv_s_frequency(struct file *file, void *priv,
 
 	if (unlikely(f->tuner != 0))
 		return -EINVAL;
-	if (unlikely(f->type != V4L2_TUNER_ANALOG_TV))
+	if (unlikely(f->type != (btv->radio_user
+		? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV)))
 		return -EINVAL;
 	mutex_lock(&btv->lock);
 	btv->freq = f->frequency;
