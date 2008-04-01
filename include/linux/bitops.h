@@ -127,6 +127,20 @@ extern unsigned long __find_first_bit(const unsigned long *addr,
 static __always_inline unsigned long
 find_first_bit(const unsigned long *addr, unsigned long size)
 {
+	/* Avoid a function call if the bitmap size is a constant */
+	/* and not bigger than BITS_PER_LONG. */
+
+	/* insert a sentinel so that __ffs returns size if there */
+	/* are no set bits in the bitmap */
+	if (__builtin_constant_p(size) && (size < BITS_PER_LONG))
+		return __ffs((*addr) | (1ul << size));
+
+	/* the result of __ffs(0) is undefined, so it needs to be */
+	/* handled separately */
+	if (__builtin_constant_p(size) && (size == BITS_PER_LONG))
+		return ((*addr) == 0) ? BITS_PER_LONG : __ffs(*addr);
+
+	/* size is not constant or too big */
 	return __find_first_bit(addr, size);
 }
 
@@ -143,6 +157,21 @@ extern unsigned long __find_first_zero_bit(const unsigned long *addr,
 static __always_inline unsigned long
 find_first_zero_bit(const unsigned long *addr, unsigned long size)
 {
+	/* Avoid a function call if the bitmap size is a constant */
+	/* and not bigger than BITS_PER_LONG. */
+
+	/* insert a sentinel so that __ffs returns size if there */
+	/* are no set bits in the bitmap */
+	if (__builtin_constant_p(size) && (size < BITS_PER_LONG)) {
+		return __ffs(~(*addr) | (1ul << size));
+	}
+
+	/* the result of __ffs(0) is undefined, so it needs to be */
+	/* handled separately */
+	if (__builtin_constant_p(size) && (size == BITS_PER_LONG))
+		return (~(*addr) == 0) ? BITS_PER_LONG : __ffs(~(*addr));
+
+	/* size is not constant or too big */
 	return __find_first_zero_bit(addr, size);
 }
 #endif /* CONFIG_GENERIC_FIND_FIRST_BIT */
