@@ -1046,12 +1046,13 @@ static struct clk iva2_ck = {
 	.name		= "iva2_ck",
 	.parent		= &dpll2_m2_ck,
 	.init		= &omap2_init_clksel_parent,
+	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_IVA2_MOD, CM_FCLKEN),
+	.enable_bit	= OMAP3430_CM_FCLKEN_IVA2_EN_IVA2_SHIFT,
 	.clksel_reg	= OMAP_CM_REGADDR(OMAP3430_IVA2_MOD,
 					  OMAP3430_CM_IDLEST_PLL),
 	.clksel_mask	= OMAP3430_ST_IVA2_CLK_MASK,
 	.clksel		= iva2_clksel,
-	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES |
-				PARENT_CONTROLS_CLOCK,
+	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
 	.recalc		= &omap2_clksel_recalc,
 };
 
