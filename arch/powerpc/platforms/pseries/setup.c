@@ -175,12 +175,9 @@ static void __init pseries_setup_i8259_cascade(void)
 
 static void __init pseries_mpic_init_IRQ(void)
 {
-	struct device_node *np, *old, *cascade = NULL;
-        const unsigned int *addrp;
-	unsigned long intack = 0;
+	struct device_node *np;
 	const unsigned int *opprop;
 	unsigned long openpic_addr = 0;
-	unsigned int cascade_irq;
 	int naddr, n, i, opplen;
 	struct mpic *mpic;
 
@@ -213,43 +210,7 @@ static void __init pseries_mpic_init_IRQ(void)
 	mpic_init(mpic);
 
 	/* Look for cascade */
-	for_each_node_by_type(np, "interrupt-controller")
-		if (of_device_is_compatible(np, "chrp,iic")) {
-			cascade = np;
-			break;
-		}
-	if (cascade == NULL)
-		return;
-
-	cascade_irq = irq_of_parse_and_map(cascade, 0);
-	if (cascade_irq == NO_IRQ) {
-		printk(KERN_ERR "mpic: failed to map cascade interrupt");
-		return;
-	}
-
-	/* Check ACK type */
-	for (old = of_node_get(cascade); old != NULL ; old = np) {
-		np = of_get_parent(old);
-		of_node_put(old);
-		if (np == NULL)
-			break;
-		if (strcmp(np->name, "pci") != 0)
-			continue;
-		addrp = of_get_property(np, "8259-interrupt-acknowledge",
-					    NULL);
-		if (addrp == NULL)
-			continue;
-		naddr = of_n_addr_cells(np);
-		intack = addrp[naddr-1];
-		if (naddr > 1)
-			intack |= ((unsigned long)addrp[naddr-2]) << 32;
-	}
-	if (intack)
-		printk(KERN_DEBUG "mpic: PCI 8259 intack at 0x%016lx\n",
-		       intack);
-	i8259_init(cascade, intack);
-	of_node_put(cascade);
-	set_irq_chained_handler(cascade_irq, pseries_8259_cascade);
+	pseries_setup_i8259_cascade();
 }
 
 static void __init pseries_xics_init_IRQ(void)
