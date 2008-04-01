@@ -36,13 +36,13 @@ static struct proc_dir_entry *proc_net_devsnmp6;
 static int sockstat6_seq_show(struct seq_file *seq, void *v)
 {
 	seq_printf(seq, "TCP6: inuse %d\n",
-		       sock_prot_inuse_get(&tcpv6_prot));
+		       sock_prot_inuse_get(&init_net, &tcpv6_prot));
 	seq_printf(seq, "UDP6: inuse %d\n",
-		       sock_prot_inuse_get(&udpv6_prot));
+		       sock_prot_inuse_get(&init_net, &udpv6_prot));
 	seq_printf(seq, "UDPLITE6: inuse %d\n",
-			sock_prot_inuse_get(&udplitev6_prot));
+			sock_prot_inuse_get(&init_net, &udplitev6_prot));
 	seq_printf(seq, "RAW6: inuse %d\n",
-		       sock_prot_inuse_get(&rawv6_prot));
+		       sock_prot_inuse_get(&init_net, &rawv6_prot));
 	seq_printf(seq, "FRAG6: inuse %d memory %d\n",
 		       ip6_frag_nqueues(&init_net), ip6_frag_mem(&init_net));
 	return 0;

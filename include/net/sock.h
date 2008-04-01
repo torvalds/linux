@@ -635,10 +635,11 @@ static inline void sk_refcnt_debug_release(const struct sock *sk)
 
 #ifdef CONFIG_PROC_FS
 /* Called with local bh disabled */
-extern void sock_prot_inuse_add(struct proto *prot, int inc);
-extern int sock_prot_inuse_get(struct proto *proto);
+extern void sock_prot_inuse_add(struct net *net, struct proto *prot, int inc);
+extern int sock_prot_inuse_get(struct net *net, struct proto *proto);
 #else
-static void inline sock_prot_inuse_add(struct proto *prot, int inc)
+static void inline sock_prot_inuse_add(struct net *net, struct proto *prot,
+		int inc)
 {
 }
 #endif

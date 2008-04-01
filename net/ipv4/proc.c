@@ -53,14 +53,17 @@ static int sockstat_seq_show(struct seq_file *seq, void *v)
 {
 	socket_seq_show(seq);
 	seq_printf(seq, "TCP: inuse %d orphan %d tw %d alloc %d mem %d\n",
-		   sock_prot_inuse_get(&tcp_prot),
+		   sock_prot_inuse_get(&init_net, &tcp_prot),
 		   atomic_read(&tcp_orphan_count),
 		   tcp_death_row.tw_count, atomic_read(&tcp_sockets_allocated),
 		   atomic_read(&tcp_memory_allocated));
-	seq_printf(seq, "UDP: inuse %d mem %d\n", sock_prot_inuse_get(&udp_prot),
+	seq_printf(seq, "UDP: inuse %d mem %d\n",
+		   sock_prot_inuse_get(&init_net, &udp_prot),
 		   atomic_read(&udp_memory_allocated));
-	seq_printf(seq, "UDPLITE: inuse %d\n", sock_prot_inuse_get(&udplite_prot));
-	seq_printf(seq, "RAW: inuse %d\n", sock_prot_inuse_get(&raw_prot));
+	seq_printf(seq, "UDPLITE: inuse %d\n",
+		   sock_prot_inuse_get(&init_net, &udplite_prot));
+	seq_printf(seq, "RAW: inuse %d\n",
+		   sock_prot_inuse_get(&init_net, &raw_prot));
 	seq_printf(seq,  "FRAG: inuse %d memory %d\n",
 			ip_frag_nqueues(&init_net), ip_frag_mem(&init_net));
 	return 0;

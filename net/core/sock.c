@@ -1949,13 +1949,13 @@ struct prot_inuse {
 static DECLARE_BITMAP(proto_inuse_idx, PROTO_INUSE_NR);
 static DEFINE_PER_CPU(struct prot_inuse, prot_inuse);
 
-void sock_prot_inuse_add(struct proto *prot, int val)
+void sock_prot_inuse_add(struct net *net, struct proto *prot, int val)
 {
 	__get_cpu_var(prot_inuse).val[prot->inuse_idx] += val;
 }
 EXPORT_SYMBOL_GPL(sock_prot_inuse_add);
 
-int sock_prot_inuse_get(struct proto *prot)
+int sock_prot_inuse_get(struct net *net, struct proto *prot)
 {
 	int cpu, idx = prot->inuse_idx;
 	int res = 0;
