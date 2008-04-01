@@ -188,6 +188,87 @@ static struct mv643xx_eth_platform_data qnap_ts209_eth_data = {
 	.force_phy_addr = 1,
 };
 
+static int __init parse_hex_nibble(char n)
+{
+	if (n >= '0' && n <= '9')
+		return n - '0';
+
+	if (n >= 'A' && n <= 'F')
+		return n - 'A' + 10;
+
+	if (n >= 'a' && n <= 'f')
+		return n - 'a' + 10;
+
+	return -1;
+}
+
+static int __init parse_hex_byte(const char *b)
+{
+	int hi;
+	int lo;
+
+	hi = parse_hex_nibble(b[0]);
+	lo = parse_hex_nibble(b[1]);
+
+	if (hi < 0 || lo < 0)
+		return -1;
+
+	return (hi << 4) | lo;
+}
+
+static int __init check_mac_addr(const char *addr_str)
+{
+	u_int8_t addr[6];
+	int i;
+
+	for (i = 0; i < 6; i++) {
+		int byte;
+
+		/*
+		 * Enforce "xx:xx:xx:xx:xx:xx\n" format.
+		 */
+		if (addr_str[(i * 3) + 2] != ((i < 5) ? ':' : '\n'))
+			return -1;
+
+		byte = parse_hex_byte(addr_str + (i * 3));
+		if (byte < 0)
+			return -1;
+		addr[i] = byte;
+	}
+
+	printk(KERN_INFO "ts209: found ethernet mac address ");
+	for (i = 0; i < 6; i++)
+		printk("%.2x%s", addr[i], (i < 5) ? ":" : ".\n");
+
+	memcpy(qnap_ts209_eth_data.mac_addr, addr, 6);
+
+	return 0;
+}
+
+/*
+ * The 'NAS Config' flash partition has an ext2 filesystem which
+ * contains a file that has the ethernet MAC address in plain text
+ * (format "xx:xx:xx:xx:xx:xx\n".)
+ */
+static void __init ts209_find_mac_addr(void)
+{
+	unsigned long addr;
+
+	for (addr = 0x00700000; addr < 0x00760000; addr += 1024) {
+		char *nor_page;
+		int ret = 0;
+
+		nor_page = ioremap(QNAP_TS209_NOR_BOOT_BASE + addr, 1024);
+		if (nor_page != NULL) {
+			ret = check_mac_addr(nor_page);
+			iounmap(nor_page);
+		}
+
+		if (ret == 0)
+			break;
+	}
+}
+
 /*****************************************************************************
  * RTC S35390A on I2C bus
  ****************************************************************************/
@@ -342,7 +423,9 @@ static void __init qnap_ts209_init(void)
 		pr_warning("qnap_ts209_init: failed to get RTC IRQ\n");
 	i2c_register_board_info(0, &qnap_ts209_i2c_rtc, 1);
 
+	ts209_find_mac_addr();
 	orion5x_eth_init(&qnap_ts209_eth_data);
+
 	orion5x_sata_init(&qnap_ts209_sata_data);
 }
 
