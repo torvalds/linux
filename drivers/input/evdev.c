@@ -124,6 +124,7 @@ static void evdev_free(struct device *dev)
 {
 	struct evdev *evdev = container_of(dev, struct evdev, dev);
 
+	input_put_device(evdev->handle.dev);
 	kfree(evdev);
 }
 
@@ -853,9 +854,6 @@ static void evdev_cleanup(struct evdev *evdev)
 	evdev_hangup(evdev);
 	evdev_remove_chrdev(evdev);
 
-	if (evdev->grab)
-		evdev_ungrab(evdev, evdev->grab);
-
 	/* evdev is marked dead so no one else accesses evdev->open */
 	if (evdev->open) {
 		input_flush_device(handle, NULL);
@@ -896,7 +894,7 @@ static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 	evdev->exist = 1;
 	evdev->minor = minor;
 
-	evdev->handle.dev = dev;
+	evdev->handle.dev = input_get_device(dev);
 	evdev->handle.name = evdev->name;
 	evdev->handle.handler = handler;
 	evdev->handle.private = evdev;
