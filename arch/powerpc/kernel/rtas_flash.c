@@ -356,7 +356,7 @@ static int rtas_excl_open(struct inode *inode, struct file *file)
 
 	/* Enforce exclusive open with use count of PDE */
 	spin_lock(&flash_file_open_lock);
-	if (atomic_read(&dp->count) > 1) {
+	if (atomic_read(&dp->count) > 2) {
 		spin_unlock(&flash_file_open_lock);
 		return -EBUSY;
 	}
