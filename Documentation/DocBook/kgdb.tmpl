@@ -152,9 +152,10 @@
   <para>
   The kgdboc driver was originally an abbreviation meant to stand for
   "kgdb over console".  Kgdboc is designed to work with a single
-  serial port as example, and it was meant to cover the circumstance
+  serial port. It was meant to cover the circumstance
   where you wanted to use a serial console as your primary console as
-  well as using it to perform kernel debugging.
+  well as using it to perform kernel debugging.  Of course you can
+  also use kgdboc without assigning a console to the same port.
   </para>
   <sect2 id="UsingKgdboc">
   <title>Using kgdboc</title>
@@ -193,37 +194,6 @@
   this are to hack gdb to send the sysrq-g for you as well as on the
   initial connect, or to use a debugger proxy that allows an
   unmodified gdb to do the debugging.
-  </para>
-  </sect2>
-  <sect2 id="kgdbocDesign">
-  <title>kgdboc internals</title>
-  <para>
-  The kgdboc driver is actually a very thin driver that relies on the
-  underlying low level to the hardware driver having "polling hooks"
-  which the to which the tty driver is attached.  In the initial
-  implementation of kgdboc it the serial_core was changed to expose a
-  low level uart hook for doing polled mode reading and writing of a
-  single character while in an atomic context.  When kgdb makes an I/O
-  request to the debugger, kgdboc invokes a call back in the serial
-  core which in turn uses the call back in the uart driver.  It is
-  certainly possible to extend kgdboc to work with non-uart based
-  consoles in the future.
-  </para>
-  <para>
-  When using kgdboc with a uart, the uart driver must implement two callbacks in the <constant>struct uart_ops</constant>. Example from drivers/8250.c:<programlisting>
-#ifdef CONFIG_CONSOLE_POLL
-	.poll_get_char = serial8250_get_poll_char,
-	.poll_put_char = serial8250_put_poll_char,
-#endif
-  </programlisting>
-  Any implementation specifics around creating a polling driver use the
-  <constant>#ifdef CONFIG_CONSOLE_POLL</constant>, as shown above.
-  Keep in mind that polling hooks have to be implemented in such a way
-  that they can be called from an atomic context and have to restore
-  the state of the uart chip on return such that the system can return
-  to normal when the debugger detaches.  You need to be very careful
-  with any kind of lock you consider, because failing here is most
-  going to mean pressing the reset button.
   </para>
   </sect2>
   </sect1>
@@ -327,6 +297,8 @@
     </para>
   </chapter>
   <chapter id="CommonBackEndReq">
+  <title>KGDB Internals</title>
+  <sect1 id="kgdbArchitecture">
     <title>Architecture Specifics</title>
       <para>
       Kgdb is organized into three basic components:
@@ -365,18 +337,23 @@
       </listitem>
       <listitem><para>kgdb I/O driver</para>
       <para>
-      Each kgdb I/O driver has to provide an configuration
-      initialization, and cleanup handler for when it
-      unloads/unconfigures.  Any given kgdb I/O driver has to operate
-      very closely with the hardware and must do it in such a way that
-      does not enable interrupts or change other parts of the system
-      context without completely restoring them.  Every kgdb I/O
-      driver must provide a read and write character interface.  The
-      kgdb core will repeatedly "poll" a kgdb I/O driver for characters
-      when it needs input.  The I/O driver is expected to return
-      immediately if there is no data available.  Doing so allows for
-      the future possibility to touch watch dog hardware in such a way
-      as to have a target system not reset when these are enabled.
+      Each kgdb I/O driver has to provide an implemenation for the following:
+      <itemizedlist>
+      <listitem><para>configuration via builtin or module</para></listitem>
+      <listitem><para>dynamic configuration and kgdb hook registration calls</para></listitem>
+      <listitem><para>read and write character interface</para></listitem>
+      <listitem><para>A cleanup handler for unconfiguring from the kgdb core</para></listitem>
+      <listitem><para>(optional) Early debug methodology</para></listitem>
+      </itemizedlist>
+      Any given kgdb I/O driver has to operate very closely with the
+      hardware and must do it in such a way that does not enable
+      interrupts or change other parts of the system context without
+      completely restoring them. The kgdb core will repeatedly "poll"
+      a kgdb I/O driver for characters when it needs input.  The I/O
+      driver is expected to return immediately if there is no data
+      available.  Doing so allows for the future possibility to touch
+      watch dog hardware in such a way as to have a target system not
+      reset when these are enabled.
       </para>
       </listitem>
       </orderedlist>
@@ -419,6 +396,38 @@
       does not need to provide a specific implementation.
       </para>
 !Iinclude/linux/kgdb.h
+  </sect1>
+  <sect1 id="kgdbocDesign">
+  <title>kgdboc internals</title>
+  <para>
+  The kgdboc driver is actually a very thin driver that relies on the
+  underlying low level to the hardware driver having "polling hooks"
+  which the to which the tty driver is attached.  In the initial
+  implementation of kgdboc it the serial_core was changed to expose a
+  low level uart hook for doing polled mode reading and writing of a
+  single character while in an atomic context.  When kgdb makes an I/O
+  request to the debugger, kgdboc invokes a call back in the serial
+  core which in turn uses the call back in the uart driver.  It is
+  certainly possible to extend kgdboc to work with non-uart based
+  consoles in the future.
+  </para>
+  <para>
+  When using kgdboc with a uart, the uart driver must implement two callbacks in the <constant>struct uart_ops</constant>. Example from drivers/8250.c:<programlisting>
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_get_char = serial8250_get_poll_char,
+	.poll_put_char = serial8250_put_poll_char,
+#endif
+  </programlisting>
+  Any implementation specifics around creating a polling driver use the
+  <constant>#ifdef CONFIG_CONSOLE_POLL</constant>, as shown above.
+  Keep in mind that polling hooks have to be implemented in such a way
+  that they can be called from an atomic context and have to restore
+  the state of the uart chip on return such that the system can return
+  to normal when the debugger detaches.  You need to be very careful
+  with any kind of lock you consider, because failing here is most
+  going to mean pressing the reset button.
+  </para>
+  </sect1>
   </chapter>
   <chapter id="credits">
      <title>Credits</title>
@@ -427,8 +436,11 @@
 		<orderedlist>
 			<listitem><para>Amit Kale<email>amitkale@linsyssoft.com</email></para></listitem>
 			<listitem><para>Tom Rini<email>trini@kernel.crashing.org</email></para></listitem>
-			<listitem><para>Jason Wessel<email>jason.wessel@windriver.com</email></para></listitem>
 		</orderedlist>
+                In March 2008 this document was completely rewritten by:
+		<itemizedlist>
+		<listitem><para>Jason Wessel<email>jason.wessel@windriver.com</email></para></listitem>
+		</itemizedlist>
 	</para>
   </chapter>
 </book>
