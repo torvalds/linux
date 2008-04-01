@@ -89,6 +89,10 @@ static inline void mesh_plink_fsm_restart(struct sta_info *sta)
 	sta->plink_retries = 0;
 }
 
+/*
+ * NOTE: This is just an alias for sta_info_alloc(), see notes
+ *       on it in the lifecycle management section!
+ */
 static struct sta_info *mesh_plink_alloc(struct ieee80211_sub_if_data *sdata,
 					 u8 *hw_addr, u64 rates)
 {
@@ -235,7 +239,6 @@ void mesh_neighbour_update(u8 *hw_addr, u64 rates, struct net_device *dev,
 			return;
 		}
 		if (sta_info_insert(sta)) {
-			sta_info_destroy(sta);
 			rcu_read_unlock();
 			return;
 		}
@@ -506,7 +509,6 @@ void mesh_rx_plink_frame(struct net_device *dev, struct ieee80211_mgmt *mgmt,
 			return;
 		}
 		if (sta_info_insert(sta)) {
-			sta_info_destroy(sta);
 			rcu_read_unlock();
 			return;
 		}
