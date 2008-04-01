@@ -70,6 +70,7 @@ extern struct sh_cpuinfo cpu_data[];
  */
 #define SR_DSP		0x00001000
 #define SR_IMASK	0x000000f0
+#define SR_FD		0x00008000
 
 /*
  * FPU structure and data

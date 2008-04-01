@@ -17,6 +17,7 @@
 #include <asm/processor.h>
 #include <asm/user.h>
 #include <asm/io.h>
+#include <asm/fpu.h>
 
 /*
  * Initially load the FPU with signalling NANS.  This bit pattern
