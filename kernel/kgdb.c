@@ -591,9 +591,9 @@ static void kgdb_flush_swbreak_addr(unsigned long addr)
 	if (current->mm && current->mm->mmap_cache) {
 		flush_cache_range(current->mm->mmap_cache,
 				  addr, addr + BREAK_INSTR_SIZE);
-	} else {
-		flush_icache_range(addr, addr + BREAK_INSTR_SIZE);
 	}
+	/* Force flush instruction cache if it was outside the mm */
+	flush_icache_range(addr, addr + BREAK_INSTR_SIZE);
 }
 
 /*
