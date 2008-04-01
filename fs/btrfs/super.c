@@ -236,9 +236,9 @@ static int btrfs_fill_super(struct super_block * sb,
 
 	tree_root = open_ctree(sb, fs_devices);
 
-	if (!tree_root || IS_ERR(tree_root)) {
+	if (IS_ERR(tree_root)) {
 		printk("btrfs: open_ctree failed\n");
-		return -EIO;
+		return PTR_ERR(tree_root);
 	}
 	sb->s_fs_info = tree_root;
 	disk_super = &tree_root->fs_info->super_copy;

@@ -237,7 +237,7 @@ int btrfs_scan_one_device(const char *path, int flags, void *holder,
 	if (strncmp((char *)(&disk_super->magic), BTRFS_MAGIC,
 	    sizeof(disk_super->magic))) {
 		printk("no btrfs found on %s\n", path);
-		ret = -ENOENT;
+		ret = -EINVAL;
 		goto error_brelse;
 	}
 	devid = le64_to_cpu(disk_super->dev_item.devid);

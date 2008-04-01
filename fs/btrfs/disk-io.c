@@ -728,9 +728,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	struct btrfs_root *dev_root = kmalloc(sizeof(struct btrfs_root),
 					      GFP_NOFS);
 	int ret;
-	int err = -EIO;
+	int err = -EINVAL;
 	struct btrfs_super_block *disk_super;
-
 	if (!extent_root || !tree_root || !fs_info) {
 		err = -ENOMEM;
 		goto fail;
