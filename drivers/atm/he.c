@@ -3000,8 +3000,7 @@ he_proc_read(struct atm_dev *dev, loff_t *pos, char *page)
 
 /* eeprom routines  -- see 4.7 */
 
-u8
-read_prom_byte(struct he_dev *he_dev, int addr)
+static u8 read_prom_byte(struct he_dev *he_dev, int addr)
 {
 	u32 val = 0, tmp_read = 0;
 	int i, j = 0;
