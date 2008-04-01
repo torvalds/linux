@@ -417,6 +417,7 @@ static struct qeth_ipa_cmd *qeth_check_ipa_data(struct qeth_card *card,
 					   QETH_CARD_IFNAME(card),
 					   card->info.chpid);
 				netif_carrier_on(card->dev);
+				card->lan_online = 1;
 				qeth_schedule_recovery(card);
 				return NULL;
 			case IPA_CMD_MODCCID:
