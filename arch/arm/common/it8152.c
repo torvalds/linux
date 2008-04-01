@@ -120,6 +120,7 @@ void it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
 			  time, when they all three were 0. */
 		       bits_pd = __raw_readl(IT8152_INTC_PDCNIRR);
 		       bits_lp = __raw_readl(IT8152_INTC_LPCNIRR);
+		       bits_ld = __raw_readl(IT8152_INTC_LDCNIRR);
 		       if (!(bits_ld | bits_lp | bits_pd))
 			       return;
 	       }
@@ -133,14 +134,14 @@ void it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
 
 	       bits_lp &= ((1 << IT8152_LP_IRQ_COUNT) - 1);
 	       while (bits_lp) {
-		       i = __ffs(bits_pd);
+		       i = __ffs(bits_lp);
 		       it8152_irq(IT8152_LP_IRQ(i));
 		       bits_lp &= ~(1 << i);
 	       }
 
 	       bits_ld &= ((1 << IT8152_LD_IRQ_COUNT) - 1);
 	       while (bits_ld) {
-		       i = __ffs(bits_pd);
+		       i = __ffs(bits_ld);
 		       it8152_irq(IT8152_LD_IRQ(i));
 		       bits_ld &= ~(1 << i);
 	       }
