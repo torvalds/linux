@@ -426,25 +426,42 @@ static const struct file_operations netstat_seq_fops = {
 	.release = single_release,
 };
 
+static __net_init int ip_proc_init_net(struct net *net)
+{
+	if (!proc_net_fops_create(net, "sockstat", S_IRUGO, &sockstat_seq_fops))
+		return -ENOMEM;
+	return 0;
+}
+
+static __net_exit void ip_proc_exit_net(struct net *net)
+{
+	proc_net_remove(net, "sockstat");
+}
+
+static __net_initdata struct pernet_operations ip_proc_ops = {
+	.init = ip_proc_init_net,
+	.exit = ip_proc_exit_net,
+};
+
 int __init ip_misc_proc_init(void)
 {
 	int rc = 0;
+
+	if (register_pernet_subsys(&ip_proc_ops))
+		goto out_pernet;
 
 	if (!proc_net_fops_create(&init_net, "netstat", S_IRUGO, &netstat_seq_fops))
 		goto out_netstat;
 
 	if (!proc_net_fops_create(&init_net, "snmp", S_IRUGO, &snmp_seq_fops))
 		goto out_snmp;
-
-	if (!proc_net_fops_create(&init_net, "sockstat", S_IRUGO, &sockstat_seq_fops))
-		goto out_sockstat;
 out:
 	return rc;
-out_sockstat:
-	proc_net_remove(&init_net, "snmp");
 out_snmp:
 	proc_net_remove(&init_net, "netstat");
 out_netstat:
+	unregister_pernet_subsys(&ip_proc_ops);
+out_pernet:
 	rc = -ENOMEM;
 	goto out;
 }

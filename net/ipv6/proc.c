@@ -243,9 +243,30 @@ int snmp6_unregister_dev(struct inet6_dev *idev)
 	return 0;
 }
 
+static int ipv6_proc_init_net(struct net *net)
+{
+	if (!proc_net_fops_create(net, "sockstat6", S_IRUGO,
+			&sockstat6_seq_fops))
+		return -ENOMEM;
+	return 0;
+}
+
+static void ipv6_proc_exit_net(struct net *net)
+{
+	proc_net_remove(net, "sockstat6");
+}
+
+static struct pernet_operations ipv6_proc_ops = {
+	.init = ipv6_proc_init_net,
+	.exit = ipv6_proc_exit_net,
+};
+
 int __init ipv6_misc_proc_init(void)
 {
 	int rc = 0;
+
+	if (register_pernet_subsys(&ipv6_proc_ops))
+		goto proc_net_fail;
 
 	if (!proc_net_fops_create(&init_net, "snmp6", S_IRUGO, &snmp6_seq_fops))
 		goto proc_snmp6_fail;
@@ -253,17 +274,14 @@ int __init ipv6_misc_proc_init(void)
 	proc_net_devsnmp6 = proc_mkdir("dev_snmp6", init_net.proc_net);
 	if (!proc_net_devsnmp6)
 		goto proc_dev_snmp6_fail;
-
-	if (!proc_net_fops_create(&init_net, "sockstat6", S_IRUGO, &sockstat6_seq_fops))
-		goto proc_sockstat6_fail;
 out:
 	return rc;
 
-proc_sockstat6_fail:
-	proc_net_remove(&init_net, "dev_snmp6");
 proc_dev_snmp6_fail:
 	proc_net_remove(&init_net, "snmp6");
 proc_snmp6_fail:
+	unregister_pernet_subsys(&ipv6_proc_ops);
+proc_net_fail:
 	rc = -ENOMEM;
 	goto out;
 }
@@ -273,5 +291,6 @@ void ipv6_misc_proc_exit(void)
 	proc_net_remove(&init_net, "sockstat6");
 	proc_net_remove(&init_net, "dev_snmp6");
 	proc_net_remove(&init_net, "snmp6");
+	unregister_pernet_subsys(&ipv6_proc_ops);
 }
 
