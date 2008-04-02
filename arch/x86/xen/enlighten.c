@@ -689,8 +689,6 @@ static void xen_alloc_ptpage(struct mm_struct *mm, u32 pfn, unsigned level)
 			make_lowmem_page_readonly(__va(PFN_PHYS(pfn)));
 			if (level == PT_PTE)
 				pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
-			else if (level == PT_PMD)
-				pin_pagetable_pfn(MMUEXT_PIN_L2_TABLE, pfn);
 		} else
 			/* make sure there are no stray mappings of
 			   this page */
@@ -715,7 +713,8 @@ static void xen_release_ptpage(u32 pfn, unsigned level)
 
 	if (PagePinned(page)) {
 		if (!PageHighMem(page)) {
-			pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, pfn);
+			if (level == PT_PTE)
+				pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, pfn);
 			make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
 		}
 	}
