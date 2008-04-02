@@ -846,6 +846,7 @@ static int is_disconnected_device(struct device *dev, void *data)
 {
 	struct xenbus_device *xendev = to_xenbus_device(dev);
 	struct device_driver *drv = data;
+	struct xenbus_driver *xendrv;
 
 	/*
 	 * A device with no driver will never connect. We care only about
@@ -858,7 +859,9 @@ static int is_disconnected_device(struct device *dev, void *data)
 	if (drv && (dev->driver != drv))
 		return 0;
 
-	return (xendev->state != XenbusStateConnected);
+	xendrv = to_xenbus_driver(dev->driver);
+	return (xendev->state != XenbusStateConnected ||
+		(xendrv->is_ready && !xendrv->is_ready(xendev)));
 }
 
 static int exists_disconnected_device(struct device_driver *drv)
