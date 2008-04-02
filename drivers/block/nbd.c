@@ -153,6 +153,12 @@ static int sock_xmit(struct nbd_device *lo, int send, void *buf, int size,
 	struct kvec iov;
 	sigset_t blocked, oldset;
 
+	if (unlikely(!sock)) {
+		printk(KERN_ERR "%s: Attempted %s on closed socket in sock_xmit\n",
+		       lo->disk->disk_name, (send ? "send" : "recv"));
+		return -EINVAL;
+	}
+
 	/* Allow interception of SIGKILL only
 	 * Don't allow other signals to interrupt the transmission */
 	siginitsetinv(&blocked, sigmask(SIGKILL));
