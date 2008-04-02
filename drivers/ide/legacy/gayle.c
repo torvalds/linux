@@ -195,3 +195,5 @@ found:
 }
 
 module_init(gayle_init);
+
+MODULE_LICENSE("GPL");
