@@ -36,11 +36,12 @@ struct au8522_config
 };
 
 #if defined(CONFIG_DVB_AU8522) || (defined(CONFIG_DVB_AU8522_MODULE) && defined(MODULE))
-extern struct dvb_frontend* au8522_attach(const struct au8522_config* config,
-					   struct i2c_adapter* i2c);
+extern struct dvb_frontend *au8522_attach(const struct au8522_config *config,
+					  struct i2c_adapter *i2c);
 #else
-static inline struct dvb_frontend* au8522_attach(const struct au8522_config* config,
-						  struct i2c_adapter* i2c)
+static inline
+struct dvb_frontend *au8522_attach(const struct au8522_config *config,
+				   struct i2c_adapter *i2c)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
 	return NULL;

@@ -31,10 +31,10 @@
 
 struct au8522_state {
 
-	struct i2c_adapter* i2c;
+	struct i2c_adapter *i2c;
 
 	/* configuration settings */
-	const struct au8522_config* config;
+	const struct au8522_config *config;
 
 	struct dvb_frontend frontend;
 
@@ -47,7 +47,7 @@ static int debug = 0;
 #define dprintk	if (debug) printk
 
 /* 16 bit registers, 8 bit values */
-static int au8522_writereg(struct au8522_state* state, u16 reg, u8 data)
+static int au8522_writereg(struct au8522_state *state, u16 reg, u8 data)
 {
 	int ret;
 	u8 buf [] = { reg >> 8, reg & 0xff, data };
@@ -64,7 +64,7 @@ static int au8522_writereg(struct au8522_state* state, u16 reg, u8 data)
 	return (ret != 1) ? -1 : 0;
 }
 
-static u8 au8522_readreg(struct au8522_state* state, u16 reg)
+static u8 au8522_readreg(struct au8522_state *state, u16 reg)
 {
 	int ret;
 	u8 b0 [] = { reg >> 8, reg & 0xff };
@@ -83,9 +83,9 @@ static u8 au8522_readreg(struct au8522_state* state, u16 reg)
 	return b1[0];
 }
 
-static int au8522_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
+static int au8522_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
-	struct au8522_state* state = fe->demodulator_priv;
+	struct au8522_state *state = fe->demodulator_priv;
 
 	dprintk("%s(%d)\n", __FUNCTION__, enable);
 
@@ -95,10 +95,10 @@ static int au8522_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
 		return au8522_writereg(state, 0x106, 0);
 }
 
-static int au8522_enable_modulation(struct dvb_frontend* fe,
-	fe_modulation_t m)
+static int au8522_enable_modulation(struct dvb_frontend *fe,
+				    fe_modulation_t m)
 {
-	struct au8522_state* state = fe->demodulator_priv;
+	struct au8522_state *state = fe->demodulator_priv;
 
 	dprintk("%s(0x%08x)\n", __FUNCTION__, m);
 
@@ -230,10 +230,10 @@ static int au8522_enable_modulation(struct dvb_frontend* fe,
 }
 
 /* Talk to the demod, set the FEC, GUARD, QAM settings etc */
-static int au8522_set_frontend (struct dvb_frontend* fe,
-	struct dvb_frontend_parameters *p)
+static int au8522_set_frontend(struct dvb_frontend *fe,
+			       struct dvb_frontend_parameters *p)
 {
-	struct au8522_state* state = fe->demodulator_priv;
+	struct au8522_state *state = fe->demodulator_priv;
 
 	dprintk("%s(frequency=%d)\n", __FUNCTION__, p->frequency);
 
@@ -255,9 +255,9 @@ static int au8522_set_frontend (struct dvb_frontend* fe,
 
 /* Reset the demod hardware and reset all of the configuration registers
    to a default state. */
-static int au8522_init(struct dvb_frontend* fe)
+static int au8522_init(struct dvb_frontend *fe)
 {
-	struct au8522_state* state = fe->demodulator_priv;
+	struct au8522_state *state = fe->demodulator_priv;
 	dprintk("%s()\n", __FUNCTION__);
 
 	au8522_writereg(state, 0xa4, 1 << 5);
@@ -267,9 +267,9 @@ static int au8522_init(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int au8522_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
-	struct au8522_state* state = fe->demodulator_priv;
+	struct au8522_state *state = fe->demodulator_priv;
 	u8 reg;
 	u32 tuner_status = 0;
 
@@ -279,16 +279,16 @@ static int au8522_read_status(struct dvb_frontend* fe, fe_status_t* status)
 		dprintk("%s() Checking VSB_8\n", __FUNCTION__);
 		//au8522_writereg(state, 0x80a4, 0x20);
 		reg = au8522_readreg(state, 0x4088);
-		if(reg & 0x01)
+		if (reg & 0x01)
 			*status |= FE_HAS_VITERBI;
-		if(reg & 0x02)
+		if (reg & 0x02)
 			*status |= FE_HAS_LOCK | FE_HAS_SYNC;
 	} else {
 		dprintk("%s() Checking QAM\n", __FUNCTION__);
 		reg = au8522_readreg(state, 0x4541);
-		if(reg & 0x80)
+		if (reg & 0x80)
 			*status |= FE_HAS_VITERBI;
-		if(reg & 0x20)
+		if (reg & 0x20)
 			*status |= FE_HAS_LOCK | FE_HAS_SYNC;
 	}
 
@@ -320,7 +320,7 @@ static int au8522_read_status(struct dvb_frontend* fe, fe_status_t* status)
 	return 0;
 }
 
-static int au8522_read_snr(struct dvb_frontend* fe, u16* snr)
+static int au8522_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	dprintk("%s()\n", __FUNCTION__);
 
@@ -329,30 +329,30 @@ static int au8522_read_snr(struct dvb_frontend* fe, u16* snr)
 	return 0;
 }
 
-static int au8522_read_signal_strength(struct dvb_frontend* fe,
-					u16* signal_strength)
+static int au8522_read_signal_strength(struct dvb_frontend *fe,
+				       u16 *signal_strength)
 {
 	return au8522_read_snr(fe, signal_strength);
 }
 
-static int au8522_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
+static int au8522_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
-	struct au8522_state* state = fe->demodulator_priv;
+	struct au8522_state *state = fe->demodulator_priv;
 
 	*ucblocks = au8522_readreg(state, 0x4087);
 
 	return 0;
 }
 
-static int au8522_read_ber(struct dvb_frontend* fe, u32* ber)
+static int au8522_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	return au8522_read_ucblocks(fe, ber);
 }
 
-static int au8522_get_frontend(struct dvb_frontend* fe,
+static int au8522_get_frontend(struct dvb_frontend *fe,
 				struct dvb_frontend_parameters *p)
 {
-	struct au8522_state* state = fe->demodulator_priv;
+	struct au8522_state *state = fe->demodulator_priv;
 
 	p->frequency = state->current_frequency;
 	p->u.vsb.modulation = state->current_modulation;
@@ -360,25 +360,25 @@ static int au8522_get_frontend(struct dvb_frontend* fe,
 	return 0;
 }
 
-static int au8522_get_tune_settings(struct dvb_frontend* fe,
-				     struct dvb_frontend_tune_settings *tune)
+static int au8522_get_tune_settings(struct dvb_frontend *fe,
+				    struct dvb_frontend_tune_settings *tune)
 {
 	tune->min_delay_ms = 1000;
 	return 0;
 }
 
-static void au8522_release(struct dvb_frontend* fe)
+static void au8522_release(struct dvb_frontend *fe)
 {
-	struct au8522_state* state = fe->demodulator_priv;
+	struct au8522_state *state = fe->demodulator_priv;
 	kfree(state);
 }
 
 static struct dvb_frontend_ops au8522_ops;
 
-struct dvb_frontend* au8522_attach(const struct au8522_config* config,
-				    struct i2c_adapter* i2c)
+struct dvb_frontend *au8522_attach(const struct au8522_config *config,
+				   struct i2c_adapter *i2c)
 {
-	struct au8522_state* state = NULL;
+	struct au8522_state *state = NULL;
 
 	/* allocate memory for the internal state */
 	state = kmalloc(sizeof(struct au8522_state), GFP_KERNEL);
