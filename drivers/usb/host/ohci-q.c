@@ -169,7 +169,7 @@ static int ed_schedule (struct ohci_hcd *ohci, struct ed *ed)
 	if (quirk_zfmicro(ohci)
 			&& (ed->type == PIPE_INTERRUPT)
 			&& !(ohci->eds_scheduled++))
-		mod_timer(&ohci->unlink_watchdog, round_jiffies_relative(HZ));
+		mod_timer(&ohci->unlink_watchdog, round_jiffies(jiffies + HZ));
 	wmb ();
 
 	/* we care about rm_list when setting CLE/BLE in case the HC was at
