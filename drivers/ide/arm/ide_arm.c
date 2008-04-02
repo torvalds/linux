@@ -46,3 +46,5 @@ static int __init ide_arm_init(void)
 }
 
 module_init(ide_arm_init);
+
+MODULE_LICENSE("GPL");
