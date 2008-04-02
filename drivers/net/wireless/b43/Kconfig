@@ -67,6 +67,7 @@ config B43_PCMCIA
 config B43_PIO
 	bool
 	depends on B43 && (B43_PCMCIA || B43_FORCE_PIO)
+	select SSB_BLOCKIO
 	default y
 
 config B43_NPHY
