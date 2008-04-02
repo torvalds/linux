@@ -51,7 +51,6 @@ int seq_open_net(struct inode *ino, struct file *f,
 }
 EXPORT_SYMBOL_GPL(seq_open_net);
 
-#ifdef CONFIG_NET
 int seq_release_net(struct inode *ino, struct file *f)
 {
 	struct seq_file *seq;
@@ -219,4 +218,3 @@ int __init proc_net_init(void)
 
 	return register_pernet_subsys(&proc_net_ns_ops);
 }
-#endif /* CONFIG_NET */
