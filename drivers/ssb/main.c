@@ -189,7 +189,7 @@ int ssb_bus_suspend(struct ssb_bus *bus)
 }
 EXPORT_SYMBOL(ssb_bus_suspend);
 
-#ifdef CONFIG_SSB_PCIHOST
+#ifdef CONFIG_SSB_SPROM
 int ssb_devices_freeze(struct ssb_bus *bus)
 {
 	struct ssb_device *dev;
@@ -275,7 +275,7 @@ int ssb_devices_thaw(struct ssb_bus *bus)
 
 	return 0;
 }
-#endif /* CONFIG_SSB_PCIHOST */
+#endif /* CONFIG_SSB_SPROM */
 
 static void ssb_device_shutdown(struct device *dev)
 {
