@@ -59,7 +59,7 @@ static int au8522_writereg(struct au8522_state *state, u16 reg, u8 data)
 
 	if (ret != 1)
 		printk("%s: writereg error (reg == 0x%02x, val == 0x%04x, "
-		       "ret == %i)\n", __FUNCTION__, reg, data, ret);
+		       "ret == %i)\n", __func__, reg, data, ret);
 
 	return (ret != 1) ? -1 : 0;
 }
@@ -79,7 +79,8 @@ static u8 au8522_readreg(struct au8522_state *state, u16 reg)
 	ret = i2c_transfer(state->i2c, msg, 2);
 
 	if (ret != 2)
-		printk("%s: readreg error (ret == %i)\n", __FUNCTION__, ret);
+		printk(KERN_ERR "%s: readreg error (ret == %i)\n",
+		       __func__, ret);
 	return b1[0];
 }
 
@@ -87,7 +88,7 @@ static int au8522_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct au8522_state *state = fe->demodulator_priv;
 
-	dprintk("%s(%d)\n", __FUNCTION__, enable);
+	dprintk("%s(%d)\n", __func__, enable);
 
 	if (enable)
 		return au8522_writereg(state, 0x106, 1);
@@ -100,11 +101,11 @@ static int au8522_enable_modulation(struct dvb_frontend *fe,
 {
 	struct au8522_state *state = fe->demodulator_priv;
 
-	dprintk("%s(0x%08x)\n", __FUNCTION__, m);
+	dprintk("%s(0x%08x)\n", __func__, m);
 
 	switch(m) {
 	case VSB_8:
-		dprintk("%s() VSB_8\n", __FUNCTION__);
+		dprintk("%s() VSB_8\n", __func__);
 
 		//au8522_writereg(state, 0x410b, 0x84); // Serial
 
@@ -220,7 +221,7 @@ static int au8522_enable_modulation(struct dvb_frontend *fe,
 		au8522_writereg(state, 0x8526, 0x01);
 		break;
 	default:
-		dprintk("%s() Invalid modulation\n", __FUNCTION__);
+		dprintk("%s() Invalid modulation\n", __func__);
 		return -EINVAL;
 	}
 
@@ -235,7 +236,7 @@ static int au8522_set_frontend(struct dvb_frontend *fe,
 {
 	struct au8522_state *state = fe->demodulator_priv;
 
-	dprintk("%s(frequency=%d)\n", __FUNCTION__, p->frequency);
+	dprintk("%s(frequency=%d)\n", __func__, p->frequency);
 
 	state->current_frequency = p->frequency;
 
@@ -258,7 +259,7 @@ static int au8522_set_frontend(struct dvb_frontend *fe,
 static int au8522_init(struct dvb_frontend *fe)
 {
 	struct au8522_state *state = fe->demodulator_priv;
-	dprintk("%s()\n", __FUNCTION__);
+	dprintk("%s()\n", __func__);
 
 	au8522_writereg(state, 0xa4, 1 << 5);
 
@@ -276,7 +277,7 @@ static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	*status = 0;
 
 	if (state->current_modulation == VSB_8) {
-		dprintk("%s() Checking VSB_8\n", __FUNCTION__);
+		dprintk("%s() Checking VSB_8\n", __func__);
 		//au8522_writereg(state, 0x80a4, 0x20);
 		reg = au8522_readreg(state, 0x4088);
 		if (reg & 0x01)
@@ -284,7 +285,7 @@ static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
 		if (reg & 0x02)
 			*status |= FE_HAS_LOCK | FE_HAS_SYNC;
 	} else {
-		dprintk("%s() Checking QAM\n", __FUNCTION__);
+		dprintk("%s() Checking QAM\n", __func__);
 		reg = au8522_readreg(state, 0x4541);
 		if (reg & 0x80)
 			*status |= FE_HAS_VITERBI;
@@ -294,13 +295,13 @@ static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 	switch(state->config->status_mode) {
 	case AU8522_DEMODLOCKING:
-		dprintk("%s() DEMODLOCKING\n", __FUNCTION__);
+		dprintk("%s() DEMODLOCKING\n", __func__);
 		if (*status & FE_HAS_VITERBI)
 			*status |= FE_HAS_CARRIER | FE_HAS_SIGNAL;
 		break;
 	case AU8522_TUNERLOCKING:
 		/* Get the tuner status */
-		dprintk("%s() TUNERLOCKING\n", __FUNCTION__);
+		dprintk("%s() TUNERLOCKING\n", __func__);
 		if (fe->ops.tuner_ops.get_status) {
 			if (fe->ops.i2c_gate_ctrl)
 				fe->ops.i2c_gate_ctrl(fe, 1);
@@ -315,14 +316,14 @@ static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
 		break;
 	}
 
-	dprintk("%s() status 0x%08x\n", __FUNCTION__, *status);
+	dprintk("%s() status 0x%08x\n", __func__, *status);
 
 	return 0;
 }
 
 static int au8522_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	dprintk("%s()\n", __FUNCTION__);
+	dprintk("%s()\n", __func__);
 
 	*snr = 0;
 
@@ -395,7 +396,7 @@ struct dvb_frontend *au8522_attach(const struct au8522_config *config,
 
 	if (au8522_init(&state->frontend) != 0) {
 		printk(KERN_ERR "%s: Failed to initialize correctly\n",
-			__FUNCTION__);
+			__func__);
 		goto error;
 	}
 
