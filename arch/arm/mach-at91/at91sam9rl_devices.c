@@ -423,7 +423,7 @@ static struct resource rtt_resources[] = {
 
 static struct platform_device at91sam9rl_rtt_device = {
 	.name		= "at91_rtt",
-	.id		= -1,
+	.id		= 0,
 	.resource	= rtt_resources,
 	.num_resources	= ARRAY_SIZE(rtt_resources),
 };
