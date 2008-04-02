@@ -26,11 +26,61 @@
 #include <asm/mach-types.h>
 
 #include <asm/arch/at91_pmc.h>
-#include <asm/arch/at91rm9200_mc.h>
 #include <asm/arch/gpio.h>
 #include <asm/arch/cpu.h>
 
 #include "generic.h"
+
+#ifdef CONFIG_ARCH_AT91RM9200
+#include <asm/arch/at91rm9200_mc.h>
+
+/*
+ * The AT91RM9200 goes into self-refresh mode with this command, and will
+ * terminate self-refresh automatically on the next SDRAM access.
+ */
+#define sdram_selfrefresh_enable()	at91_sys_write(AT91_SDRAMC_SRR, 1)
+#define sdram_selfrefresh_disable()	do {} while (0)
+
+#elif defined(CONFIG_ARCH_AT91CAP9)
+#include <asm/arch/at91cap9_ddrsdr.h>
+
+static u32 saved_lpr;
+
+static inline void sdram_selfrefresh_enable(void)
+{
+	u32 lpr;
+
+	saved_lpr = at91_sys_read(AT91_DDRSDRC_LPR);
+
+	lpr = saved_lpr & ~AT91_DDRSDRC_LPCB;
+	at91_sys_write(AT91_DDRSDRC_LPR, lpr | AT91_DDRSDRC_LPCB_SELF_REFRESH);
+}
+
+#define sdram_selfrefresh_disable()	at91_sys_write(AT91_DDRSDRC_LPR, saved_lpr)
+
+#else
+#include <asm/arch/at91sam9_sdramc.h>
+
+static u32 saved_lpr;
+
+static inline void sdram_selfrefresh_enable(void)
+{
+	u32 lpr;
+
+	saved_lpr = at91_sys_read(AT91_SDRAMC_LPR);
+
+	lpr = saved_lpr & ~AT91_SDRAMC_LPCB;
+	at91_sys_write(AT91_SDRAMC_LPR, lpr | AT91_SDRAMC_LPCB_SELF_REFRESH);
+}
+
+#define sdram_selfrefresh_disable()	at91_sys_write(AT91_SDRAMC_LPR, saved_lpr)
+
+/*
+ * FIXME: The AT91SAM9263 has a second EBI controller which may have
+ *        additional SDRAM.  pm_slowclock.S will require a similar fix.
+ */
+
+#endif
 
 
 static int at91_pm_valid_state(suspend_state_t state)
@@ -125,6 +175,11 @@ EXPORT_SYMBOL(at91_suspend_entering_slow_clock);
 
 static void (*slow_clock)(void);
 
+#ifdef CONFIG_AT91_SLOW_CLOCK
+extern void at91_slow_clock(void);
+extern u32 at91_slow_clock_sz;
+#endif
+
 
 static int at91_pm_enter(suspend_state_t state)
 {
@@ -158,11 +213,14 @@ static int at91_pm_enter(suspend_state_t state)
 			 * turning off the main oscillator; reverse on wakeup.
 			 */
 			if (slow_clock) {
+#ifdef CONFIG_AT91_SLOW_CLOCK
+				/* copy slow_clock handler to SRAM, and call it */
+				memcpy(slow_clock, at91_slow_clock, at91_slow_clock_sz);
+#endif
 				slow_clock();
 				break;
 			} else {
-				/* DEVELOPMENT ONLY */
-				pr_info("AT91: PM - no slow clock mode yet ...\n");
+				pr_info("AT91: PM - no slow clock mode enabled ...\n");
 				/* FALLTHROUGH leaving master clock alone */
 			}
 
@@ -175,13 +233,15 @@ static int at91_pm_enter(suspend_state_t state)
 		case PM_SUSPEND_STANDBY:
 			/*
 			 * NOTE: the Wait-for-Interrupt instruction needs to be
-			 * in icache so the SDRAM stays in self-refresh mode until
-			 * the wakeup IRQ occurs.
+			 * in icache so no SDRAM accesses are needed until the
+			 * wakeup IRQ occurs and self-refresh is terminated.
 			 */
 			asm("b 1f; .align 5; 1:");
 			asm("mcr p15, 0, r0, c7, c10, 4");	/* drain write buffer */
-			at91_sys_write(AT91_SDRAMC_SRR, 1);	/* self-refresh mode */
-			/* fall though to next state */
+			sdram_selfrefresh_enable();
+			asm("mcr p15, 0, r0, c7, c0, 4");	/* wait for interrupt */
+			sdram_selfrefresh_disable();
+			break;
 
 		case PM_SUSPEND_ON:
 			asm("mcr p15, 0, r0, c7, c0, 4");	/* wait for interrupt */
@@ -196,6 +256,7 @@ static int at91_pm_enter(suspend_state_t state)
 			at91_sys_read(AT91_AIC_IPR) & at91_sys_read(AT91_AIC_IMR));
 
 error:
+	sdram_selfrefresh_disable();
 	target_state = PM_SUSPEND_ON;
 	at91_irq_resume();
 	at91_gpio_resume();
@@ -220,18 +281,16 @@ static struct platform_suspend_ops at91_pm_ops ={
 
 static int __init at91_pm_init(void)
 {
-	printk("AT91: Power Management\n");
-
-#ifdef CONFIG_AT91_PM_SLOW_CLOCK
-	/* REVISIT allocations of SRAM should be dynamically managed.
-	 * FIQ handlers and other components will want SRAM/TCM too...
-	 */
-	slow_clock = (void *) (AT91_VA_BASE_SRAM + (3 * SZ_4K));
-	memcpy(slow_clock, at91rm9200_slow_clock, at91rm9200_slow_clock_sz);
+#ifdef CONFIG_AT91_SLOW_CLOCK
+	slow_clock = (void *) (AT91_IO_VIRT_BASE - at91_slow_clock_sz);
 #endif
 
-	/* Disable SDRAM low-power mode.  Cannot be used with self-refresh. */
+	pr_info("AT91: Power Management%s\n", (slow_clock ? " (with slow clock mode)" : ""));
+
+#ifdef CONFIG_ARCH_AT91RM9200
+	/* AT91RM9200 SDRAM low-power mode cannot be used with self-refresh. */
 	at91_sys_write(AT91_SDRAMC_LPR, 0);
+#endif
 
 	suspend_set_ops(&at91_pm_ops);
 
