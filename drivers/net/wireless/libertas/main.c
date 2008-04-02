@@ -20,7 +20,6 @@
 #include "wext.h"
 #include "debugfs.h"
 #include "assoc.h"
-#include "join.h"
 #include "cmd.h"
 
 #define DRIVER_RELEASE_VERSION "323.p0"

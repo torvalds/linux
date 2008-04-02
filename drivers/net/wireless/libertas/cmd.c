@@ -9,7 +9,7 @@
 #include "decl.h"
 #include "defs.h"
 #include "dev.h"
-#include "join.h"
+#include "assoc.h"
 #include "wext.h"
 #include "cmd.h"
 
