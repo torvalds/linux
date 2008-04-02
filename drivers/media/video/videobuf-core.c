@@ -64,32 +64,25 @@ void *videobuf_alloc(struct videobuf_queue *q)
 	return vb;
 }
 
+#define WAITON_CONDITION (vb->state != VIDEOBUF_ACTIVE &&\
+				vb->state != VIDEOBUF_QUEUED)
 int videobuf_waiton(struct videobuf_buffer *vb, int non_blocking, int intr)
 {
-	int retval = 0;
-	DECLARE_WAITQUEUE(wait, current);
-
 	MAGIC_CHECK(vb->magic, MAGIC_BUFFER);
-	add_wait_queue(&vb->done, &wait);
-	while (vb->state == VIDEOBUF_ACTIVE || vb->state == VIDEOBUF_QUEUED) {
-		if (non_blocking) {
-			retval = -EAGAIN;
-			break;
-		}
-		set_current_state(intr  ? TASK_INTERRUPTIBLE
-					: TASK_UNINTERRUPTIBLE);
-		if (vb->state == VIDEOBUF_ACTIVE ||
-		    vb->state == VIDEOBUF_QUEUED)
-			schedule();
-		set_current_state(TASK_RUNNING);
-		if (intr && signal_pending(current)) {
-			dprintk(1, "buffer waiton: -EINTR\n");
-			retval = -EINTR;
-			break;
-		}
+
+	if (non_blocking) {
+		if (WAITON_CONDITION)
+			return 0;
+		else
+			return -EAGAIN;
 	}
-	remove_wait_queue(&vb->done, &wait);
-	return retval;
+
+	if (intr)
+		return wait_event_interruptible(vb->done, WAITON_CONDITION);
+	else
+		wait_event(vb->done, WAITON_CONDITION);
+
+	return 0;
 }
 
 int videobuf_iolock(struct videobuf_queue *q, struct videobuf_buffer *vb,
