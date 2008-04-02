@@ -1831,6 +1831,9 @@ ok:
 				 * lifetimes of an existing temporary address
 				 * when processing a Prefix Information Option.
 				 */
+				if (ifp != ift->ifpub)
+					continue;
+
 				spin_lock(&ift->lock);
 				flags = ift->flags;
 				if (ift->valid_lft > valid_lft &&
