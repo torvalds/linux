@@ -439,24 +439,6 @@ static inline unsigned int max_nr_grant_frames(void)
 	return xen_max;
 }
 
-static int map_pte_fn(pte_t *pte, struct page *pmd_page,
-		      unsigned long addr, void *data)
-{
-	unsigned long **frames = (unsigned long **)data;
-
-	set_pte_at(&init_mm, addr, pte, mfn_pte((*frames)[0], PAGE_KERNEL));
-	(*frames)++;
-	return 0;
-}
-
-static int unmap_pte_fn(pte_t *pte, struct page *pmd_page,
-			unsigned long addr, void *data)
-{
-
-	set_pte_at(&init_mm, addr, pte, __pte(0));
-	return 0;
-}
-
 static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 {
 	struct gnttab_setup_table setup;
@@ -480,17 +462,9 @@ static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 
 	BUG_ON(rc || setup.status);
 
-	if (shared == NULL) {
-		struct vm_struct *area;
-		area = xen_alloc_vm_area(PAGE_SIZE * max_nr_grant_frames());
-		BUG_ON(area == NULL);
-		shared = area->addr;
-	}
-	rc = apply_to_page_range(&init_mm, (unsigned long)shared,
-				 PAGE_SIZE * nr_gframes,
-				 map_pte_fn, &frames);
+	rc = arch_gnttab_map_shared(frames, nr_gframes, max_nr_grant_frames(),
+				    &shared);
 	BUG_ON(rc);
-	frames -= nr_gframes; /* adjust after map_pte_fn() */
 
 	kfree(frames);
 
@@ -506,10 +480,7 @@ static int gnttab_resume(void)
 
 static int gnttab_suspend(void)
 {
-	apply_to_page_range(&init_mm, (unsigned long)shared,
-			    PAGE_SIZE * nr_grant_frames,
-			    unmap_pte_fn, NULL);
-
+	arch_gnttab_unmap_shared(shared, nr_grant_frames);
 	return 0;
 }
 
