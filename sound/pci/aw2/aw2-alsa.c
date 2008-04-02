@@ -36,7 +36,6 @@
 #include "saa7146.h"
 #include "aw2-saa7146.h"
 
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Cedric Bregardis <cedric.bregardis@free.fr>, "
 	      "Jean-Christian Hassler <jhassler@free.fr>");
 MODULE_DESCRIPTION("Emagic Audiowerk 2 sound driver");
