@@ -108,7 +108,8 @@ EXPORT_SYMBOL_GPL(anon_transport_class_register);
  */
 void anon_transport_class_unregister(struct anon_transport_class *atc)
 {
-	attribute_container_unregister(&atc->container);
+	if (unlikely(attribute_container_unregister(&atc->container)))
+		BUG();
 }
 EXPORT_SYMBOL_GPL(anon_transport_class_unregister);
 

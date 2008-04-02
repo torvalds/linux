@@ -37,7 +37,7 @@ attribute_container_set_no_classdevs(struct attribute_container *atc)
 }
 
 int attribute_container_register(struct attribute_container *cont);
-int attribute_container_unregister(struct attribute_container *cont);
+int __must_check attribute_container_unregister(struct attribute_container *cont);
 void attribute_container_create_device(struct device *dev,
 				       int (*fn)(struct attribute_container *,
 						 struct device *,
