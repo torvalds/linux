@@ -125,3 +125,5 @@ out_busy:
 }
 
 module_init(h8300_ide_init);
+
+MODULE_LICENSE("GPL");
