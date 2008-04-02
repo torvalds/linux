@@ -168,11 +168,6 @@ static int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	read_lock(&raw_v6_hashinfo.lock);
 	sk = sk_head(&raw_v6_hashinfo.ht[hash]);
 
-	/*
-	 *	The first socket found will be delivered after
-	 *	delivery to transport protocols.
-	 */
-
 	if (sk == NULL)
 		goto out;
 
