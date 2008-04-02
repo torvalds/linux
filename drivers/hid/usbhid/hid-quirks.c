@@ -1163,6 +1163,9 @@ static void __usbhid_fixup_report_descriptor(__u32 quirks, char *rdesc, unsigned
 
 	if (quirks & HID_QUIRK_RDESC_MICROSOFT_RECV_1028)
 		usbhid_fixup_microsoft_descriptor(rdesc, rsize);
+
+	if (quirks & HID_QUIRK_RDESC_SUNPLUS_WDESKTOP)
+		usbhid_fixup_sunplus_wdesktop(rdesc, rsize);
 }
 
 /**
@@ -1201,8 +1204,4 @@ void usbhid_fixup_report_descriptor(const u16 idVendor, const u16 idProduct,
 		else if (paramVendor == idVendor && paramProduct == idProduct)
 			__usbhid_fixup_report_descriptor(quirks, rdesc, rsize);
 	}
-
-	if (quirks & HID_QUIRK_RDESC_SUNPLUS_WDESKTOP)
-		usbhid_fixup_sunplus_wdesktop(rdesc, rsize);
-
 }
