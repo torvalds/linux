@@ -350,7 +350,8 @@ enum {
 	ATAPI_READ		= 0,		/* READs */
 	ATAPI_WRITE		= 1,		/* WRITEs */
 	ATAPI_READ_CD		= 2,		/* READ CD [MSF] */
-	ATAPI_MISC		= 3,		/* the rest */
+	ATAPI_PASS_THRU		= 3,		/* SAT pass-thru */
+	ATAPI_MISC		= 4,		/* the rest */
 };
 
 enum ata_xfer_mask {

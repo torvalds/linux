@@ -353,6 +353,11 @@ int atapi_cmd_type(u8 opcode)
 	case GPCMD_READ_CD_MSF:
 		return ATAPI_READ_CD;
 
+	case ATA_16:
+	case ATA_12:
+		if (atapi_passthru16)
+			return ATAPI_PASS_THRU;
+		/* fall thru */
 	default:
 		return ATAPI_MISC;
 	}
