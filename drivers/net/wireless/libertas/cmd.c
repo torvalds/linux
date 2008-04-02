@@ -825,6 +825,22 @@ out:
 	return ret;
 }
 
+int lbs_update_channel(struct lbs_private *priv)
+{
+	int ret;
+
+	/* the channel in f/w could be out of sync; get the current channel */
+	lbs_deb_enter(LBS_DEB_ASSOC);
+
+	ret = lbs_get_channel(priv);
+	if (ret > 0) {
+		priv->curbssparams.channel = ret;
+		ret = 0;
+	}
+	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
+	return ret;
+}
+
 /**
  *  @brief Set the radio channel
  *
