@@ -947,16 +947,16 @@ static struct net_device_stats *sc92031_get_stats(struct net_device *dev)
 
 static int sc92031_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	int err = 0;
 	struct sc92031_priv *priv = netdev_priv(dev);
 	void __iomem *port_base = priv->port_base;
-
 	unsigned len;
 	unsigned entry;
 	u32 tx_status;
 
+	if (skb_padto(skb, ETH_ZLEN))
+		return NETDEV_TX_OK;
+
 	if (unlikely(skb->len > TX_BUF_SIZE)) {
-		err = -EMSGSIZE;
 		dev->stats.tx_dropped++;
 		goto out;
 	}
@@ -964,7 +964,6 @@ static int sc92031_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_lock(&priv->lock);
 
 	if (unlikely(!netif_carrier_ok(dev))) {
-		err = -ENOLINK;
 		dev->stats.tx_dropped++;
 		goto out_unlock;
 	}
@@ -976,11 +975,6 @@ static int sc92031_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_copy_and_csum_dev(skb, priv->tx_bufs + entry * TX_BUF_SIZE);
 
 	len = skb->len;
-	if (unlikely(len < ETH_ZLEN)) {
-		memset(priv->tx_bufs + entry * TX_BUF_SIZE + len,
-				0, ETH_ZLEN - len);
-		len = ETH_ZLEN;
-	}
 
 	wmb();
 
@@ -1007,7 +1001,7 @@ out_unlock:
 out:
 	dev_kfree_skb(skb);
 
-	return err;
+	return NETDEV_TX_OK;
 }
 
 static int sc92031_open(struct net_device *dev)
