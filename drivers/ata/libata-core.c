@@ -2660,7 +2660,7 @@ int ata_bus_probe(struct ata_port *ap)
 	   specific sequence bass-ackwards so that PDIAG- is released by
 	   the slave device */
 
-	ata_link_for_each_dev(dev, &ap->link) {
+	ata_link_for_each_dev_reverse(dev, &ap->link) {
 		if (tries[dev->devno])
 			dev->class = classes[dev->devno];
 
