@@ -1044,15 +1044,8 @@ ENTRY(xen_hypervisor_callback)
 
 	jmp  xen_iret_crit_fixup
 
-1:	cmpl $xen_sysexit_start_crit,%eax
-	jb   2f
-	cmpl $xen_sysexit_end_crit,%eax
-	jae  2f
-
-	jmp xen_sysexit_crit_fixup
-
 ENTRY(xen_do_upcall)
-2:	mov %esp, %eax
+1:	mov %esp, %eax
 	call xen_evtchn_do_upcall
 	jmp  ret_from_intr
 	CFI_ENDPROC
