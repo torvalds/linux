@@ -423,8 +423,8 @@ static int __rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 
 		rfcomm_dlc_lock(d);
 		d->state = BT_CLOSED;
-		d->state_change(d, err);
 		rfcomm_dlc_unlock(d);
+		d->state_change(d, err);
 
 		skb_queue_purge(&d->tx_queue);
 		rfcomm_dlc_unlink(d);
