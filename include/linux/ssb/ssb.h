@@ -78,6 +78,12 @@ struct ssb_bus_ops {
 	void (*write8)(struct ssb_device *dev, u16 offset, u8 value);
 	void (*write16)(struct ssb_device *dev, u16 offset, u16 value);
 	void (*write32)(struct ssb_device *dev, u16 offset, u32 value);
+#ifdef CONFIG_SSB_BLOCKIO
+	void (*block_read)(struct ssb_device *dev, void *buffer,
+			   size_t count, u16 offset, u8 reg_width);
+	void (*block_write)(struct ssb_device *dev, const void *buffer,
+			    size_t count, u16 offset, u8 reg_width);
+#endif
 };
 
 
@@ -374,6 +380,19 @@ static inline void ssb_write32(struct ssb_device *dev, u16 offset, u32 value)
 {
 	dev->ops->write32(dev, offset, value);
 }
+#ifdef CONFIG_SSB_BLOCKIO
+static inline void ssb_block_read(struct ssb_device *dev, void *buffer,
+				  size_t count, u16 offset, u8 reg_width)
+{
+	dev->ops->block_read(dev, buffer, count, offset, reg_width);
+}
+
+static inline void ssb_block_write(struct ssb_device *dev, const void *buffer,
+				   size_t count, u16 offset, u8 reg_width)
+{
+	dev->ops->block_write(dev, buffer, count, offset, reg_width);
+}
+#endif /* CONFIG_SSB_BLOCKIO */
 
 
 /* Translation (routing) bits that need to be ORed to DMA

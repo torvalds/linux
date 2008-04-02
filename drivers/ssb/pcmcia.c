@@ -285,6 +285,64 @@ static u32 ssb_pcmcia_read32(struct ssb_device *dev, u16 offset)
 	return (lo | (hi << 16));
 }
 
+#ifdef CONFIG_SSB_BLOCKIO
+static void ssb_pcmcia_block_read(struct ssb_device *dev, void *buffer,
+				  size_t count, u16 offset, u8 reg_width)
+{
+	struct ssb_bus *bus = dev->bus;
+	unsigned long flags;
+	void __iomem *addr = bus->mmio + offset;
+	int err;
+
+	spin_lock_irqsave(&bus->bar_lock, flags);
+	err = select_core_and_segment(dev, &offset);
+	if (unlikely(err)) {
+		memset(buffer, 0xFF, count);
+		goto unlock;
+	}
+	switch (reg_width) {
+	case sizeof(u8): {
+		u8 *buf = buffer;
+
+		while (count) {
+			*buf = __raw_readb(addr);
+			buf++;
+			count--;
+		}
+		break;
+	}
+	case sizeof(u16): {
+		__le16 *buf = buffer;
+
+		SSB_WARN_ON(count & 1);
+		while (count) {
+			*buf = (__force __le16)__raw_readw(addr);
+			buf++;
+			count -= 2;
+		}
+		break;
+	}
+	case sizeof(u32): {
+		__le16 *buf = buffer;
+
+		SSB_WARN_ON(count & 3);
+		while (count) {
+			*buf = (__force __le16)__raw_readw(addr);
+			buf++;
+			*buf = (__force __le16)__raw_readw(addr + 2);
+			buf++;
+			count -= 4;
+		}
+		break;
+	}
+	default:
+		SSB_WARN_ON(1);
+	}
+unlock:
+	spin_unlock_irqrestore(&bus->bar_lock, flags);
+}
+#endif /* CONFIG_SSB_BLOCKIO */
+
 static void ssb_pcmcia_write8(struct ssb_device *dev, u16 offset, u8 value)
 {
 	struct ssb_bus *bus = dev->bus;
@@ -329,6 +387,63 @@ static void ssb_pcmcia_write32(struct ssb_device *dev, u16 offset, u32 value)
 	spin_unlock_irqrestore(&bus->bar_lock, flags);
 }
 
+#ifdef CONFIG_SSB_BLOCKIO
+static void ssb_pcmcia_block_write(struct ssb_device *dev, const void *buffer,
+				   size_t count, u16 offset, u8 reg_width)
+{
+	struct ssb_bus *bus = dev->bus;
+	unsigned long flags;
+	void __iomem *addr = bus->mmio + offset;
+	int err;
+
+	spin_lock_irqsave(&bus->bar_lock, flags);
+	err = select_core_and_segment(dev, &offset);
+	if (unlikely(err))
+		goto unlock;
+	switch (reg_width) {
+	case sizeof(u8): {
+		const u8 *buf = buffer;
+
+		while (count) {
+			__raw_writeb(*buf, addr);
+			buf++;
+			count--;
+		}
+		break;
+	}
+	case sizeof(u16): {
+		const __le16 *buf = buffer;
+
+		SSB_WARN_ON(count & 1);
+		while (count) {
+			__raw_writew((__force u16)(*buf), addr);
+			buf++;
+			count -= 2;
+		}
+		break;
+	}
+	case sizeof(u32): {
+		const __le16 *buf = buffer;
+
+		SSB_WARN_ON(count & 3);
+		while (count) {
+			__raw_writew((__force u16)(*buf), addr);
+			buf++;
+			__raw_writew((__force u16)(*buf), addr + 2);
+			buf++;
+			count -= 4;
+		}
+		break;
+	}
+	default:
+		SSB_WARN_ON(1);
+	}
+unlock:
+	mmiowb();
+	spin_unlock_irqrestore(&bus->bar_lock, flags);
+}
+#endif /* CONFIG_SSB_BLOCKIO */
+
 /* Not "static", as it's used in main.c */
 const struct ssb_bus_ops ssb_pcmcia_ops = {
 	.read8		= ssb_pcmcia_read8,
@@ -337,6 +452,10 @@ const struct ssb_bus_ops ssb_pcmcia_ops = {
 	.write8		= ssb_pcmcia_write8,
 	.write16	= ssb_pcmcia_write16,
 	.write32	= ssb_pcmcia_write32,
+#ifdef CONFIG_SSB_BLOCKIO
+	.block_read	= ssb_pcmcia_block_read,
+	.block_write	= ssb_pcmcia_block_write,
+#endif
 };
 
 static int ssb_pcmcia_sprom_command(struct ssb_bus *bus, u8 command)

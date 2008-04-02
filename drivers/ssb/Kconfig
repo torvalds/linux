@@ -24,6 +24,11 @@ config SSB
 config SSB_SPROM
 	bool
 
+# Support for Block-I/O. SELECT this from the driver that needs it.
+config SSB_BLOCKIO
+	bool
+	depends on SSB
+
 config SSB_PCIHOST_POSSIBLE
 	bool
 	depends on SSB && (PCI = y || PCI = SSB)

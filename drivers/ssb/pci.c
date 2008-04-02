@@ -613,6 +613,41 @@ static u32 ssb_pci_read32(struct ssb_device *dev, u16 offset)
 	return ioread32(bus->mmio + offset);
 }
 
+#ifdef CONFIG_SSB_BLOCKIO
+static void ssb_pci_block_read(struct ssb_device *dev, void *buffer,
+			       size_t count, u16 offset, u8 reg_width)
+{
+	struct ssb_bus *bus = dev->bus;
+	void __iomem *addr = bus->mmio + offset;
+
+	if (unlikely(ssb_pci_assert_buspower(bus)))
+		goto error;
+	if (unlikely(bus->mapped_device != dev)) {
+		if (unlikely(ssb_pci_switch_core(bus, dev)))
+			goto error;
+	}
+	switch (reg_width) {
+	case sizeof(u8):
+		ioread8_rep(addr, buffer, count);
+		break;
+	case sizeof(u16):
+		SSB_WARN_ON(count & 1);
+		ioread16_rep(addr, buffer, count >> 1);
+		break;
+	case sizeof(u32):
+		SSB_WARN_ON(count & 3);
+		ioread32_rep(addr, buffer, count >> 2);
+		break;
+	default:
+		SSB_WARN_ON(1);
+	}
+
+	return;
+error:
+	memset(buffer, 0xFF, count);
+}
+#endif /* CONFIG_SSB_BLOCKIO */
+
 static void ssb_pci_write8(struct ssb_device *dev, u16 offset, u8 value)
 {
 	struct ssb_bus *bus = dev->bus;
@@ -652,6 +687,37 @@ static void ssb_pci_write32(struct ssb_device *dev, u16 offset, u32 value)
 	iowrite32(value, bus->mmio + offset);
 }
 
+#ifdef CONFIG_SSB_BLOCKIO
+static void ssb_pci_block_write(struct ssb_device *dev, const void *buffer,
+				size_t count, u16 offset, u8 reg_width)
+{
+	struct ssb_bus *bus = dev->bus;
+	void __iomem *addr = bus->mmio + offset;
+
+	if (unlikely(ssb_pci_assert_buspower(bus)))
+		return;
+	if (unlikely(bus->mapped_device != dev)) {
+		if (unlikely(ssb_pci_switch_core(bus, dev)))
+			return;
+	}
+	switch (reg_width) {
+	case sizeof(u8):
+		iowrite8_rep(addr, buffer, count);
+		break;
+	case sizeof(u16):
+		SSB_WARN_ON(count & 1);
+		iowrite16_rep(addr, buffer, count >> 1);
+		break;
+	case sizeof(u32):
+		SSB_WARN_ON(count & 3);
+		iowrite32_rep(addr, buffer, count >> 2);
+		break;
+	default:
+		SSB_WARN_ON(1);
+	}
+}
+#endif /* CONFIG_SSB_BLOCKIO */
+
 /* Not "static", as it's used in main.c */
 const struct ssb_bus_ops ssb_pci_ops = {
 	.read8		= ssb_pci_read8,
@@ -660,6 +726,10 @@ const struct ssb_bus_ops ssb_pci_ops = {
 	.write8		= ssb_pci_write8,
 	.write16	= ssb_pci_write16,
 	.write32	= ssb_pci_write32,
+#ifdef CONFIG_SSB_BLOCKIO
+	.block_read	= ssb_pci_block_read,
+	.block_write	= ssb_pci_block_write,
+#endif
 };
 
 static ssize_t ssb_pci_attr_sprom_show(struct device *pcidev,
