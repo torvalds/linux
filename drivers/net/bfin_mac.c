@@ -575,7 +575,6 @@ adjust_head:
 static int bf537mac_hard_start_xmit(struct sk_buff *skb,
 				struct net_device *dev)
 {
-	struct bf537mac_local *lp = netdev_priv(dev);
 	unsigned int data;
 
 	current_tx_ptr->skb = skb;
@@ -634,7 +633,6 @@ out:
 static void bf537mac_rx(struct net_device *dev)
 {
 	struct sk_buff *skb, *new_skb;
-	struct bf537mac_local *lp = netdev_priv(dev);
 	unsigned short len;
 
 	/* allocate a new skb for next time receive */

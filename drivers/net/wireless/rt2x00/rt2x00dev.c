@@ -1393,11 +1393,20 @@ int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev, pm_message_t state)
 
 exit:
 	/*
-	 * Set device mode to sleep for power management.
+	 * Set device mode to sleep for power management,
+	 * on some hardware this call seems to consistently fail.
+	 * From the specifications it is hard to tell why it fails,
+	 * and if this is a "bad thing".
+	 * Overall it is safe to just ignore the failure and
+	 * continue suspending. The only downside is that the
+	 * device will not be in optimal power save mode, but with
+	 * the radio and the other components already disabled the
+	 * device is as good as disabled.
 	 */
 	retval = rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_SLEEP);
 	if (retval)
-		return retval;
+		WARNING(rt2x00dev, "Device failed to enter sleep state, "
+			"continue suspending.\n");
 
 	return 0;
 }

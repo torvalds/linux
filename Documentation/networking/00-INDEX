@@ -84,9 +84,6 @@ policy-routing.txt
 	- IP policy-based routing
 ray_cs.txt
 	- Raylink Wireless LAN card driver info.
-sk98lin.txt
-	- Marvell Yukon Chipset / SysKonnect SK-98xx compliant Gigabit
-	  Ethernet Adapter family driver info
 skfp.txt
 	- SysKonnect FDDI (SK-5xxx, Compaq Netelligent) driver info.
 smc9.txt

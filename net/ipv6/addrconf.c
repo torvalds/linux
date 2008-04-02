@@ -776,6 +776,7 @@ static int ipv6_create_tempaddr(struct inet6_ifaddr *ifp, struct inet6_ifaddr *i
 	struct inet6_dev *idev = ifp->idev;
 	struct in6_addr addr, *tmpaddr;
 	unsigned long tmp_prefered_lft, tmp_valid_lft, tmp_cstamp, tmp_tstamp;
+	unsigned long regen_advance;
 	int tmp_plen;
 	int ret = 0;
 	int max_addresses;
@@ -836,7 +837,22 @@ retry:
 	tmp_tstamp = ifp->tstamp;
 	spin_unlock_bh(&ifp->lock);
 
+	regen_advance = idev->cnf.regen_max_retry *
+	                idev->cnf.dad_transmits *
+	                idev->nd_parms->retrans_time / HZ;
 	write_unlock(&idev->lock);
+
+	/* A temporary address is created only if this calculated Preferred
+	 * Lifetime is greater than REGEN_ADVANCE time units.  In particular,
+	 * an implementation must not create a temporary address with a zero
+	 * Preferred Lifetime.
+	 */
+	if (tmp_prefered_lft <= regen_advance) {
+		in6_ifa_put(ifp);
+		in6_dev_put(idev);
+		ret = -1;
+		goto out;
+	}
 
 	addr_flags = IFA_F_TEMPORARY;
 	/* set in addrconf_prefix_rcv() */
@@ -1831,6 +1847,9 @@ ok:
 				 * lifetimes of an existing temporary address
 				 * when processing a Prefix Information Option.
 				 */
+				if (ifp != ift->ifpub)
+					continue;
+
 				spin_lock(&ift->lock);
 				flags = ift->flags;
 				if (ift->valid_lft > valid_lft &&

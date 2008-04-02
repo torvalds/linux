@@ -319,7 +319,7 @@ static u32 ieee80211_handle_erp_ie(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_bss_conf *bss_conf = &sdata->bss_conf;
 	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 	bool use_protection = (erp_value & WLAN_ERP_USE_PROTECTION) != 0;
-	bool preamble_mode = (erp_value & WLAN_ERP_BARKER_PREAMBLE) != 0;
+	bool use_short_preamble = (erp_value & WLAN_ERP_BARKER_PREAMBLE) == 0;
 	DECLARE_MAC_BUF(mac);
 	u32 changed = 0;
 
@@ -335,16 +335,15 @@ static u32 ieee80211_handle_erp_ie(struct ieee80211_sub_if_data *sdata,
 		changed |= BSS_CHANGED_ERP_CTS_PROT;
 	}
 
-	if (preamble_mode != bss_conf->use_short_preamble) {
+	if (use_short_preamble != bss_conf->use_short_preamble) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: switched to %s barker preamble"
 			       " (BSSID=%s)\n",
 			       sdata->dev->name,
-			       (preamble_mode == WLAN_ERP_PREAMBLE_SHORT) ?
-					"short" : "long",
+			       use_short_preamble ? "short" : "long",
 			       print_mac(mac, ifsta->bssid));
 		}
-		bss_conf->use_short_preamble = preamble_mode;
+		bss_conf->use_short_preamble = use_short_preamble;
 		changed |= BSS_CHANGED_ERP_PREAMBLE;
 	}
 

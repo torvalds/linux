@@ -282,7 +282,7 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 	struct scatterlist *sg;
 	struct scatterlist *asg;
 
-	if (!pskb_may_pull(skb, sizeof(*esph))) {
+	if (!pskb_may_pull(skb, sizeof(*esph) + crypto_aead_ivsize(aead))) {
 		ret = -EINVAL;
 		goto out;
 	}
