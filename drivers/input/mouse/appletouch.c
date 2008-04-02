@@ -62,6 +62,10 @@
 #define GEYSER4_ISO_PRODUCT_ID	0x021B
 #define GEYSER4_JIS_PRODUCT_ID	0x021C
 
+#define GEYSER4_HF_ANSI_PRODUCT_ID	0x0229
+#define GEYSER4_HF_ISO_PRODUCT_ID	0x022A
+#define GEYSER4_HF_JIS_PRODUCT_ID	0x022B
+
 #define ATP_DEVICE(prod)					\
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |		\
 		       USB_DEVICE_ID_MATCH_INT_CLASS |		\
@@ -92,6 +96,10 @@ static struct usb_device_id atp_table [] = {
 	{ ATP_DEVICE(GEYSER4_ANSI_PRODUCT_ID) },
 	{ ATP_DEVICE(GEYSER4_ISO_PRODUCT_ID) },
 	{ ATP_DEVICE(GEYSER4_JIS_PRODUCT_ID) },
+
+	{ ATP_DEVICE(GEYSER4_HF_ANSI_PRODUCT_ID) },
+	{ ATP_DEVICE(GEYSER4_HF_ISO_PRODUCT_ID) },
+	{ ATP_DEVICE(GEYSER4_HF_JIS_PRODUCT_ID) },
 
 	/* Terminating entry */
 	{ }
@@ -217,7 +225,10 @@ static inline int atp_is_geyser_3(struct atp *dev)
 		(productId == GEYSER3_JIS_PRODUCT_ID) ||
 		(productId == GEYSER4_ANSI_PRODUCT_ID) ||
 		(productId == GEYSER4_ISO_PRODUCT_ID) ||
-		(productId == GEYSER4_JIS_PRODUCT_ID);
+		(productId == GEYSER4_JIS_PRODUCT_ID) ||
+		(productId == GEYSER4_HF_ANSI_PRODUCT_ID) ||
+		(productId == GEYSER4_HF_ISO_PRODUCT_ID) ||
+		(productId == GEYSER4_HF_JIS_PRODUCT_ID);
 }
 
 /*
