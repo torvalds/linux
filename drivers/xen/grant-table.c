@@ -482,7 +482,7 @@ static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 
 	if (shared == NULL) {
 		struct vm_struct *area;
-		area = alloc_vm_area(PAGE_SIZE * max_nr_grant_frames());
+		area = xen_alloc_vm_area(PAGE_SIZE * max_nr_grant_frames());
 		BUG_ON(area == NULL);
 		shared = area->addr;
 	}

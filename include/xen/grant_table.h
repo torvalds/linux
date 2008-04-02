@@ -39,6 +39,7 @@
 
 #include <asm/xen/hypervisor.h>
 #include <xen/interface/grant_table.h>
+#include <asm/xen/grant_table.h>
 
 /* NR_GRANT_FRAMES must be less than or equal to that configured in Xen */
 #define NR_GRANT_FRAMES 4
