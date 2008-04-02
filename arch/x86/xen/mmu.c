@@ -156,6 +156,10 @@ void set_pte_mfn(unsigned long vaddr, unsigned long mfn, pgprot_t flags)
 void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
 		    pte_t *ptep, pte_t pteval)
 {
+	/* updates to init_mm may be done without lock */
+	if (mm == &init_mm)
+		preempt_disable();
+
 	if (mm == current->mm || mm == &init_mm) {
 		if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU) {
 			struct multicall_space mcs;
@@ -163,12 +167,16 @@ void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
 
 			MULTI_update_va_mapping(mcs.mc, addr, pteval, 0);
 			xen_mc_issue(PARAVIRT_LAZY_MMU);
-			return;
+			goto out;
 		} else
 			if (HYPERVISOR_update_va_mapping(addr, pteval, 0) == 0)
-				return;
+				goto out;
 	}
 	xen_set_pte(ptep, pteval);
+
+out:
+	if (mm == &init_mm)
+		preempt_enable();
 }
 
 pteval_t xen_pte_val(pte_t pte)
