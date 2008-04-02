@@ -24,13 +24,14 @@ static void lbs_ethtool_get_drvinfo(struct net_device *dev,
 					 struct ethtool_drvinfo *info)
 {
 	struct lbs_private *priv = (struct lbs_private *) dev->priv;
-	char fwver[32];
 
-	lbs_get_fwversion(priv, fwver, sizeof(fwver) - 1);
-
+	snprintf(info->fw_version, 32, "%u.%u.%u.p%u",
+		priv->fwrelease >> 24 & 0xff,
+		priv->fwrelease >> 16 & 0xff,
+		priv->fwrelease >>  8 & 0xff,
+		priv->fwrelease       & 0xff);
 	strcpy(info->driver, "libertas");
 	strcpy(info->version, lbs_driver_version);
-	strcpy(info->fw_version, fwver);
 }
 
 /* All 8388 parts have 16KiB EEPROM size at the time of writing.

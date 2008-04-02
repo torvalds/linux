@@ -35,9 +35,6 @@ void lbs_interrupt(struct lbs_private *priv);
 int lbs_set_radio_control(struct lbs_private *priv);
 u32 lbs_fw_index_to_data_rate(u8 index);
 u8 lbs_data_rate_to_fw_index(u32 rate);
-void lbs_get_fwversion(struct lbs_private *priv,
-	char *fwversion,
-	int maxlen);
 
 /** The proc fs interface */
 int lbs_process_rx_command(struct lbs_private *priv);

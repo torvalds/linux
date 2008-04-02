@@ -2060,23 +2060,6 @@ static int lbs_set_wap(struct net_device *dev, struct iw_request_info *info,
 	return ret;
 }
 
-void lbs_get_fwversion(struct lbs_private *priv, char *fwversion, int maxlen)
-{
-	char fwver[32];
-
-	mutex_lock(&priv->lock);
-
-	sprintf(fwver, "%u.%u.%u.p%u",
-		priv->fwrelease >> 24 & 0xff,
-		priv->fwrelease >> 16 & 0xff,
-		priv->fwrelease >>  8 & 0xff,
-		priv->fwrelease       & 0xff);
-
-	mutex_unlock(&priv->lock);
-	snprintf(fwversion, maxlen, fwver);
-}
-
-
 /*
  * iwconfig settable callbacks
  */
