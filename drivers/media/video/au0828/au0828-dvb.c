@@ -57,6 +57,9 @@ static void urb_completion(struct urb *purb)
 	struct au0828_dev *dev = purb->context;
 	int ptype = usb_pipetype(purb->pipe);
 
+	if (!dev)
+		return;
+
 	if (dev->urb_streaming == 0)
 		return;
 
@@ -309,6 +312,9 @@ fail_adapter:
 void au0828_dvb_unregister(struct au0828_dev *dev)
 {
 	struct au0828_dvb *dvb = &dev->dvb;
+
+	if(dvb->frontend == NULL)
+		return;
 
 	dvb_net_release(&dvb->net);
 	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_mem);

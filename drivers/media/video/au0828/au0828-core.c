@@ -217,6 +217,7 @@ static int au0828_usb_probe (struct usb_interface *interface,
 	au0828_dvb_register(dev);
 
 	_info("Registered device AU0828 [%s]\n",
+		au0828_boards[dev->board].name == NULL ? "Unset" :
 		au0828_boards[dev->board].name);
 
 	return 0;
