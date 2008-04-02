@@ -669,7 +669,9 @@ static void xen_write_cr3(unsigned long cr3)
    everything is pinned. */
 static __init void xen_alloc_pte_init(struct mm_struct *mm, u32 pfn)
 {
+#ifdef CONFIG_FLATMEM
 	BUG_ON(mem_map);	/* should only be used early */
+#endif
 	make_lowmem_page_readonly(__va(PFN_PHYS(pfn)));
 }
 
