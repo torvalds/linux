@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
 #include <linux/device.h>
+#include <linux/iommu-helper.h>
 
 #include <asm/iommu.h>
 #include <asm/scatterlist.h>
@@ -45,17 +46,16 @@ static inline unsigned long iommu_num_pages(unsigned long vaddr,
 	return npages;
 }
 
-static inline unsigned long calc_npages(struct scatterlist *sglist, int nelems)
+static inline int is_span_boundary(unsigned long entry,
+				   unsigned long shift,
+				   unsigned long boundary_size,
+				   struct scatterlist *outs,
+				   struct scatterlist *sg)
 {
-	unsigned long i, npages = 0;
-	struct scatterlist *sg;
+	unsigned long paddr = SG_ENT_PHYS_ADDRESS(outs);
+	int nr = iommu_num_pages(paddr, outs->dma_length + sg->length);
 
-	for_each_sg(sglist, sg, nelems, i) {
-		unsigned long paddr = SG_ENT_PHYS_ADDRESS(sg);
-		npages += iommu_num_pages(paddr, sg->length);
-	}
-
-	return npages;
+	return iommu_is_span_boundary(entry, nr, shift, boundary_size);
 }
 
 extern unsigned long iommu_range_alloc(struct device *dev,
