@@ -116,13 +116,11 @@ static int crypto_xcbc_digest_update2(struct hash_desc *pdesc,
 	struct crypto_xcbc_ctx *ctx = crypto_hash_ctx_aligned(parent);
 	struct crypto_cipher *tfm = ctx->child;
 	int bs = crypto_hash_blocksize(parent);
-	unsigned int i = 0;
 
-	do {
-
-		struct page *pg = sg_page(&sg[i]);
-		unsigned int offset = sg[i].offset;
-		unsigned int slen = sg[i].length;
+	for (;;) {
+		struct page *pg = sg_page(sg);
+		unsigned int offset = sg->offset;
+		unsigned int slen = sg->length;
 
 		if (unlikely(slen > nbytes))
 			slen = nbytes;
@@ -182,8 +180,11 @@ static int crypto_xcbc_digest_update2(struct hash_desc *pdesc,
 			offset = 0;
 			pg++;
 		}
-		i++;
-	} while (nbytes>0);
+
+		if (!nbytes)
+			break;
+		sg = scatterwalk_sg_next(sg);
+	}
 
 	return 0;
 }
