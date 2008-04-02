@@ -208,6 +208,15 @@ config TOUCHSCREEN_WM9705
 
 	  If unsure, say N.
 
+config TOUCHSCREEN_WM9712
+	bool "WM9712 Touchscreen interface support"
+	depends on TOUCHSCREEN_WM97XX
+	help
+	  Say Y here if you have a Wolfson Microelectronics WM9712
+	  touchscreen controller connected to your system.
+
+	  If unsure, say N.
+
 config TOUCHSCREEN_USB_COMPOSITE
 	tristate "USB Touchscreen Driver"
 	depends on USB_ARCH_HAS_HCD
