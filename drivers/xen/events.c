@@ -469,7 +469,7 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
 	for_each_online_cpu(i) {
 		struct vcpu_info *v = per_cpu(xen_vcpu, i);
 		printk("%d: masked=%d pending=%d event_sel %08lx\n  ", i,
-			(get_irq_regs() && i == cpu) ? !(get_irq_regs()->flags & X86_EFLAGS_IF) : v->evtchn_upcall_mask,
+			(get_irq_regs() && i == cpu) ? xen_irqs_disabled(get_irq_regs()) : v->evtchn_upcall_mask,
 			v->evtchn_upcall_pending,
 			v->evtchn_pending_sel);
 	}
@@ -527,7 +527,10 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 		if (__get_cpu_var(nesting_count)++)
 			goto out;
 
-		/* NB. No need for a barrier here -- XCHG is a barrier on x86. */
+#ifndef CONFIG_X86 /* No need for a barrier -- XCHG is a barrier on x86. */
+		/* Clear master flag /before/ clearing selector flag. */
+		rmb();
+#endif
 		pending_words = xchg(&vcpu_info->evtchn_pending_sel, 0);
 		while (pending_words != 0) {
 			unsigned long pending_bits;
@@ -539,10 +542,8 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 				int port = (word_idx * BITS_PER_LONG) + bit_idx;
 				int irq = evtchn_to_irq[port];
 
-				if (irq != -1) {
-					regs->orig_ax = ~irq;
-					do_IRQ(regs);
-				}
+				if (irq != -1)
+					xen_do_IRQ(irq, regs);
 			}
 		}
 

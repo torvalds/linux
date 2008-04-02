@@ -5,13 +5,7 @@
 
 #include <xen/interface/event_channel.h>
 #include <asm/xen/hypercall.h>
-
-enum ipi_vector {
-	XEN_RESCHEDULE_VECTOR,
-	XEN_CALL_FUNCTION_VECTOR,
-
-	XEN_NR_IPIS,
-};
+#include <asm/xen/events.h>
 
 int bind_evtchn_to_irq(unsigned int evtchn);
 int bind_evtchn_to_irqhandler(unsigned int evtchn,
