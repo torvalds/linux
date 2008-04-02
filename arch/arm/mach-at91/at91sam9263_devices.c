@@ -358,9 +358,14 @@ static struct at91_nand_data nand_data;
 #define NAND_BASE	AT91_CHIPSELECT_3
 
 static struct resource nand_resources[] = {
-	{
+	[0] = {
 		.start	= NAND_BASE,
 		.end	= NAND_BASE + SZ_256M - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91_BASE_SYS + AT91_ECC0,
+		.end	= AT91_BASE_SYS + AT91_ECC0 + SZ_512 - 1,
 		.flags	= IORESOURCE_MEM,
 	}
 };
