@@ -1809,3 +1809,4 @@ module_exit(netif_exit);
 
 MODULE_DESCRIPTION("Xen virtual network device frontend");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("xen:vif");
