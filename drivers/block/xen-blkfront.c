@@ -47,6 +47,7 @@
 
 #include <xen/interface/grant_table.h>
 #include <xen/interface/io/blkif.h>
+#include <xen/interface/io/protocols.h>
 
 #include <asm/xen/hypervisor.h>
 
@@ -612,6 +613,12 @@ again:
 			    "event-channel", "%u", info->evtchn);
 	if (err) {
 		message = "writing event-channel";
+		goto abort_transaction;
+	}
+	err = xenbus_printf(xbt, dev->nodename, "protocol", "%s",
+			    XEN_IO_PROTO_ABI_NATIVE);
+	if (err) {
+		message = "writing protocol";
 		goto abort_transaction;
 	}
 
