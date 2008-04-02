@@ -33,11 +33,10 @@
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
 
+#include <xen/xen-ops.h>
 #include <xen/events.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/event_channel.h>
-
-#include "xen-ops.h"
 
 /*
  * This lock protects updates to the following mapping and reference-count
