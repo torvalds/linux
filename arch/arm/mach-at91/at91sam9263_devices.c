@@ -788,6 +788,43 @@ void __init at91_add_device_isi(void) {}
 
 
 /* --------------------------------------------------------------------
+ *  Timer/Counter block
+ * -------------------------------------------------------------------- */
+
+#ifdef CONFIG_ATMEL_TCLIB
+
+static struct resource tcb_resources[] = {
+	[0] = {
+		.start	= AT91SAM9263_BASE_TCB0,
+		.end	= AT91SAM9263_BASE_TCB0 + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9263_ID_TCB,
+		.end	= AT91SAM9263_ID_TCB,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91sam9263_tcb_device = {
+	.name		= "atmel_tcb",
+	.id		= 0,
+	.resource	= tcb_resources,
+	.num_resources	= ARRAY_SIZE(tcb_resources),
+};
+
+static void __init at91_add_device_tc(void)
+{
+	/* this chip has one clock and irq for all three TC channels */
+	at91_clock_associate("tcb_clk", &at91sam9263_tcb_device.dev, "t0_clk");
+	platform_device_register(&at91sam9263_tcb_device);
+}
+#else
+static void __init at91_add_device_tc(void) { }
+#endif
+
+
+/* --------------------------------------------------------------------
  *  RTT
  * -------------------------------------------------------------------- */
 
@@ -1262,6 +1299,7 @@ static int __init at91_add_standard_devices(void)
 {
 	at91_add_device_rtt();
 	at91_add_device_watchdog();
+	at91_add_device_tc();
 	return 0;
 }
 

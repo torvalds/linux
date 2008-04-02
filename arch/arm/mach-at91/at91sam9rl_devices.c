@@ -390,6 +390,55 @@ void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data) {}
 
 
 /* --------------------------------------------------------------------
+ *  Timer/Counter block
+ * -------------------------------------------------------------------- */
+
+#ifdef CONFIG_ATMEL_TCLIB
+
+static struct resource tcb_resources[] = {
+	[0] = {
+		.start	= AT91SAM9RL_BASE_TCB0,
+		.end	= AT91SAM9RL_BASE_TCB0 + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9RL_ID_TC0,
+		.end	= AT91SAM9RL_ID_TC0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= AT91SAM9RL_ID_TC1,
+		.end	= AT91SAM9RL_ID_TC1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start	= AT91SAM9RL_ID_TC2,
+		.end	= AT91SAM9RL_ID_TC2,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91sam9rl_tcb_device = {
+	.name		= "atmel_tcb",
+	.id		= 0,
+	.resource	= tcb_resources,
+	.num_resources	= ARRAY_SIZE(tcb_resources),
+};
+
+static void __init at91_add_device_tc(void)
+{
+	/* this chip has a separate clock and irq for each TC channel */
+	at91_clock_associate("tc0_clk", &at91sam9rl_tcb_device.dev, "t0_clk");
+	at91_clock_associate("tc1_clk", &at91sam9rl_tcb_device.dev, "t1_clk");
+	at91_clock_associate("tc2_clk", &at91sam9rl_tcb_device.dev, "t2_clk");
+	platform_device_register(&at91sam9rl_tcb_device);
+}
+#else
+static void __init at91_add_device_tc(void) { }
+#endif
+
+
+/* --------------------------------------------------------------------
  *  RTC
  * -------------------------------------------------------------------- */
 
@@ -930,6 +979,7 @@ static int __init at91_add_standard_devices(void)
 	at91_add_device_rtc();
 	at91_add_device_rtt();
 	at91_add_device_watchdog();
+	at91_add_device_tc();
 	return 0;
 }
 
