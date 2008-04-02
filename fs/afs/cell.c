@@ -138,6 +138,7 @@ struct afs_cell *afs_cell_create(const char *name, char *vllist)
 	cell = afs_cell_alloc(name, vllist);
 	if (IS_ERR(cell)) {
 		_leave(" = %ld", PTR_ERR(cell));
+		up_write(&afs_cells_sem);
 		return cell;
 	}
 
