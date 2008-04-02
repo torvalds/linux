@@ -470,7 +470,7 @@ static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 
 	setup.dom        = DOMID_SELF;
 	setup.nr_frames  = nr_gframes;
-	setup.frame_list = frames;
+	set_xen_guest_handle(setup.frame_list, frames);
 
 	rc = HYPERVISOR_grant_table_op(GNTTABOP_setup_table, &setup, 1);
 	if (rc == -ENOSYS) {
