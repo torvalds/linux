@@ -83,6 +83,79 @@ static inline void sdram_selfrefresh_enable(void)
 #endif
 
 
+/*
+ * Show the reason for the previous system reset.
+ */
+#if defined(AT91_SHDWC)
+
+#include <asm/arch/at91_rstc.h>
+#include <asm/arch/at91_shdwc.h>
+
+static void __init show_reset_status(void)
+{
+	static char reset[] __initdata = "reset";
+
+	static char general[] __initdata = "general";
+	static char wakeup[] __initdata = "wakeup";
+	static char watchdog[] __initdata = "watchdog";
+	static char software[] __initdata = "software";
+	static char user[] __initdata = "user";
+	static char unknown[] __initdata = "unknown";
+
+	static char signal[] __initdata = "signal";
+	static char rtc[] __initdata = "rtc";
+	static char rtt[] __initdata = "rtt";
+	static char restore[] __initdata = "power-restored";
+
+	char *reason, *r2 = reset;
+	u32 reset_type, wake_type;
+
+	reset_type = at91_sys_read(AT91_RSTC_SR) & AT91_RSTC_RSTTYP;
+	wake_type = at91_sys_read(AT91_SHDW_SR);
+
+	switch (reset_type) {
+	case AT91_RSTC_RSTTYP_GENERAL:
+		reason = general;
+		break;
+	case AT91_RSTC_RSTTYP_WAKEUP:
+		/* board-specific code enabled the wakeup sources */
+		reason = wakeup;
+
+		/* "wakeup signal" */
+		if (wake_type & AT91_SHDW_WAKEUP0)
+			r2 = signal;
+		else {
+			r2 = reason;
+			if (wake_type & AT91_SHDW_RTTWK)	/* rtt wakeup */
+				reason = rtt;
+			else if (wake_type & AT91_SHDW_RTCWK)	/* rtc wakeup */
+				reason = rtc;
+			else if (wake_type == 0)	/* power-restored wakeup */
+				reason = restore;
+			else				/* unknown wakeup */
+				reason = unknown;
+		}
+		break;
+	case AT91_RSTC_RSTTYP_WATCHDOG:
+		reason = watchdog;
+		break;
+	case AT91_RSTC_RSTTYP_SOFTWARE:
+		reason = software;
+		break;
+	case AT91_RSTC_RSTTYP_USER:
+		reason = user;
+		break;
+	default:
+		reason = unknown;
+		break;
+	}
+	pr_info("AT91: Starting after %s %s\n", reason, r2);
+}
+#else
+static void __init show_reset_status(void) {}
+#endif
+
+
 static int at91_pm_valid_state(suspend_state_t state)
 {
 	switch (state) {
@@ -294,6 +367,7 @@ static int __init at91_pm_init(void)
 
 	suspend_set_ops(&at91_pm_ops);
 
+	show_reset_status();
 	return 0;
 }
 arch_initcall(at91_pm_init);
