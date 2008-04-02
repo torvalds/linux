@@ -566,17 +566,9 @@ static int do_setlk(struct file *filp, int cmd, struct file_lock *fl)
 
 	lock_kernel();
 	/* Use local locking if mounted with "-onolock" */
-	if (!(NFS_SERVER(inode)->flags & NFS_MOUNT_NONLM)) {
+	if (!(NFS_SERVER(inode)->flags & NFS_MOUNT_NONLM))
 		status = NFS_PROTO(inode)->lock(filp, cmd, fl);
-		/* If we were signalled we still need to ensure that
-		 * we clean up any state on the server. We therefore
-		 * record the lock call as having succeeded in order to
-		 * ensure that locks_remove_posix() cleans it out when
-		 * the process exits.
-		 */
-		if (status == -EINTR || status == -ERESTARTSYS)
-			do_vfs_lock(filp, fl);
-	} else
+	else
 		status = do_vfs_lock(filp, fl);
 	unlock_kernel();
 	if (status < 0)
