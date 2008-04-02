@@ -199,6 +199,15 @@ config TOUCHSCREEN_WM97XX
 	  To compile this driver as a module, choose M here: the
 	  module will be called wm97xx-ts.
 
+config TOUCHSCREEN_WM9705
+	bool "WM9705 Touchscreen interface support"
+	depends on TOUCHSCREEN_WM97XX
+	help
+	  Say Y here if you have a Wolfson Microelectronics WM9705
+	  touchscreen controller connected to your system.
+
+	  If unsure, say N.
+
 config TOUCHSCREEN_USB_COMPOSITE
 	tristate "USB Touchscreen Driver"
 	depends on USB_ARCH_HAS_HCD
