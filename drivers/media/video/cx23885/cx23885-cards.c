@@ -232,6 +232,7 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 	case 78631: /* WinTV-HVR1800 (PCIe, OEM, No IR, No FM, Dual channel ATSC and MPEG2 HW Encoder */
 	case 79001: /* WinTV-HVR1250 (PCIe, Retail, IR, full height, ATSC and Basic analog */
 	case 79101: /* WinTV-HVR1250 (PCIe, Retail, IR, half height, ATSC and Basic analog */
+	case 79561: /* WinTV-HVR1250 (PCIe, OEM, No IR, half height, ATSC and Basic analog */
 	case 79571: /* WinTV-HVR1250 (PCIe, OEM, No IR, full height, ATSC and Basic analog */
 	case 79671: /* WinTV-HVR1250 (PCIe, OEM, No IR, half height, ATSC and Basic analog */
 		break;
@@ -347,10 +348,13 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 	case CX23885_BOARD_HAUPPAUGE_HVR1500:
 	case CX23885_BOARD_HAUPPAUGE_HVR1500Q:
+		if (dev->i2c_bus[0].i2c_rc == 0)
+			hauppauge_eeprom(dev, eeprom+0x80);
+		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
 		if (dev->i2c_bus[0].i2c_rc == 0)
-			hauppauge_eeprom(dev, eeprom+0x80);
+			hauppauge_eeprom(dev, eeprom+0xc0);
 		break;
 	}
 

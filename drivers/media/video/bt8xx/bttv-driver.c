@@ -1990,7 +1990,7 @@ static int bttv_g_frequency(struct file *file, void *priv,
 	if (0 != err)
 		return err;
 
-	f->type = V4L2_TUNER_ANALOG_TV;
+	f->type = btv->radio_user ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 	f->frequency = btv->freq;
 
 	return 0;
@@ -2009,7 +2009,8 @@ static int bttv_s_frequency(struct file *file, void *priv,
 
 	if (unlikely(f->tuner != 0))
 		return -EINVAL;
-	if (unlikely(f->type != V4L2_TUNER_ANALOG_TV))
+	if (unlikely(f->type != (btv->radio_user
+		? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV)))
 		return -EINVAL;
 	mutex_lock(&btv->lock);
 	btv->freq = f->frequency;
@@ -3415,6 +3416,7 @@ static int radio_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
 	struct bttv *btv = NULL;
+	struct bttv_fh *fh;
 	unsigned int i;
 
 	dprintk("bttv: open minor=%d\n",minor);
@@ -3429,11 +3431,18 @@ static int radio_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 
 	dprintk("bttv%d: open called (radio)\n",btv->c.nr);
+
+	/* allocate per filehandle data */
+	fh = kmalloc(sizeof(*fh), GFP_KERNEL);
+	if (NULL == fh)
+		return -ENOMEM;
+	file->private_data = fh;
+	*fh = btv->init;
+	v4l2_prio_open(&btv->prio, &fh->prio);
+
 	mutex_lock(&btv->lock);
 
 	btv->radio_user++;
-
-	file->private_data = btv;
 
 	bttv_call_i2c_clients(btv,AUDC_SET_RADIO,NULL);
 	audio_input(btv,TVAUDIO_INPUT_RADIO);
@@ -3444,7 +3453,8 @@ static int radio_open(struct inode *inode, struct file *file)
 
 static int radio_release(struct inode *inode, struct file *file)
 {
-	struct bttv *btv = file->private_data;
+	struct bttv_fh *fh = file->private_data;
+	struct bttv *btv = fh->btv;
 	struct rds_command cmd;
 
 	btv->radio_user--;
@@ -3508,8 +3518,12 @@ static int radio_enum_input(struct file *file, void *priv,
 static int radio_g_audio(struct file *file, void *priv,
 					struct v4l2_audio *a)
 {
+	if (a->index != 0)
+		return -EINVAL;
+
 	memset(a, 0, sizeof(*a));
 	strcpy(a->name, "Radio");
+
 	return 0;
 }
 
@@ -3569,7 +3583,8 @@ static int radio_g_input(struct file *filp, void *priv, unsigned int *i)
 static ssize_t radio_read(struct file *file, char __user *data,
 			 size_t count, loff_t *ppos)
 {
-	struct bttv    *btv = file->private_data;
+	struct bttv_fh *fh = file->private_data;
+	struct bttv *btv = fh->btv;
 	struct rds_command cmd;
 	cmd.block_count = count/3;
 	cmd.buffer = data;
@@ -3583,7 +3598,8 @@ static ssize_t radio_read(struct file *file, char __user *data,
 
 static unsigned int radio_poll(struct file *file, poll_table *wait)
 {
-	struct bttv    *btv = file->private_data;
+	struct bttv_fh *fh = file->private_data;
+	struct bttv *btv = fh->btv;
 	struct rds_command cmd;
 	cmd.instance = file;
 	cmd.event_list = wait;
@@ -3599,6 +3615,7 @@ static const struct file_operations radio_fops =
 	.open	  = radio_open,
 	.read     = radio_read,
 	.release  = radio_release,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.ioctl	  = video_ioctl2,
 	.llseek	  = no_llseek,
 	.poll     = radio_poll,
