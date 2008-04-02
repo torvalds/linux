@@ -59,25 +59,27 @@ struct net {
 #endif
 };
 
+
 #ifdef CONFIG_NET
 /* Init's network namespace */
 extern struct net init_net;
 #define INIT_NET_NS(net_ns) .net_ns = &init_net,
-#else
-#define INIT_NET_NS(net_ns)
-#endif
 
-extern struct list_head net_namespace_list;
-
-#ifdef CONFIG_NET
 extern struct net *copy_net_ns(unsigned long flags, struct net *net_ns);
-#else
+
+#else /* CONFIG_NET */
+
+#define INIT_NET_NS(net_ns)
+
 static inline struct net *copy_net_ns(unsigned long flags, struct net *net_ns)
 {
 	/* There is nothing to copy so this is a noop */
 	return net_ns;
 }
-#endif
+#endif /* CONFIG_NET */
+
+
+extern struct list_head net_namespace_list;
 
 #ifdef CONFIG_NET_NS
 extern void __put_net(struct net *net);
