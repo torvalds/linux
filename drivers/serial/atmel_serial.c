@@ -107,6 +107,7 @@
 
 #define UART_PUT_TPR(port,v)	__raw_writel(v, (port)->membase + ATMEL_PDC_TPR)
 #define UART_PUT_TCR(port,v)	__raw_writel(v, (port)->membase + ATMEL_PDC_TCR)
+#define UART_GET_TCR(port)	__raw_readl((port)->membase + ATMEL_PDC_TCR)
 
 static int (*atmel_open_hook)(struct uart_port *);
 static void (*atmel_close_hook)(struct uart_port *);
@@ -1275,12 +1276,17 @@ static void atmel_console_write(struct console *co, const char *s, u_int count)
 {
 	struct uart_port *port = &atmel_ports[co->index].uart;
 	unsigned int status, imr;
+	unsigned int pdc_tx;
 
 	/*
 	 * First, save IMR and then disable interrupts
 	 */
 	imr = UART_GET_IMR(port);
 	UART_PUT_IDR(port, ATMEL_US_RXRDY | ATMEL_US_TXRDY);
+
+	/* Store PDC transmit status and disable it */
+	pdc_tx = UART_GET_PTSR(port) & ATMEL_PDC_TXTEN;
+	UART_PUT_PTCR(port, ATMEL_PDC_TXTDIS);
 
 	uart_console_write(port, s, count, atmel_console_putchar);
 
@@ -1291,6 +1297,11 @@ static void atmel_console_write(struct console *co, const char *s, u_int count)
 	do {
 		status = UART_GET_CSR(port);
 	} while (!(status & ATMEL_US_TXRDY));
+
+	/* Restore PDC transmit status */
+	if (pdc_tx)
+		UART_PUT_PTCR(port, ATMEL_PDC_TXTEN);
+
 	/* set interrupts back the way they were */
 	UART_PUT_IER(port, imr);
 }
