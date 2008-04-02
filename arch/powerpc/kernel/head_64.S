@@ -1387,12 +1387,14 @@ __secondary_start:
 #ifdef CONFIG_PPC_ISERIES
 BEGIN_FW_FTR_SECTION
 	ori	r4,r4,MSR_EE
+	li	r8,1
+	stb	r8,PACAHARDIRQEN(r13)
 END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 #endif
 BEGIN_FW_FTR_SECTION
-	stb	r7,PACASOFTIRQEN(r13)
 	stb	r7,PACAHARDIRQEN(r13)
 END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
+	stb	r7,PACASOFTIRQEN(r13)
 
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
@@ -1520,15 +1522,14 @@ _INIT_GLOBAL(start_here_common)
 #ifdef CONFIG_PPC_ISERIES
 BEGIN_FW_FTR_SECTION
 	mfmsr	r5
-	ori	r5,r5,MSR_EE		/* Hard Enabled */
+	ori	r5,r5,MSR_EE		/* Hard Enabled on iSeries*/
 	mtmsrd	r5
+	li	r5,1
 END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 #endif
-BEGIN_FW_FTR_SECTION
-	stb	r5,PACAHARDIRQEN(r13)
-END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
+	stb	r5,PACAHARDIRQEN(r13)	/* Hard Disabled on others */
 
-	bl .start_kernel
+	bl	.start_kernel
 
 	/* Not reached */
 	BUG_OPCODE
