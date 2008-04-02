@@ -20,7 +20,7 @@
 #include <asm/arch/gpio.h>
 #include <asm/arch/at91sam9rl.h>
 #include <asm/arch/at91sam9rl_matrix.h>
-#include <asm/arch/at91sam926x_mc.h>
+#include <asm/arch/at91sam9_smc.h>
 
 #include "generic.h"
 

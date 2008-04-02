@@ -44,7 +44,7 @@
 
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
-#include <asm/arch/at91sam926x_mc.h>
+#include <asm/arch/at91sam9_smc.h>
 
 #include "generic.h"
 
