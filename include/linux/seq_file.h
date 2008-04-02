@@ -5,7 +5,6 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/mutex.h>
-#include <net/net_namespace.h>
 
 struct seq_operations;
 struct file;
@@ -62,27 +61,6 @@ extern struct list_head *seq_list_start_head(struct list_head *head,
 		loff_t pos);
 extern struct list_head *seq_list_next(void *v, struct list_head *head,
 		loff_t *ppos);
-
-#ifdef CONFIG_NET
-struct net;
-struct seq_net_private {
-#ifdef CONFIG_NET_NS
-	struct net *net;
-#endif
-};
-
-int seq_open_net(struct inode *, struct file *,
-		 const struct seq_operations *, int);
-int seq_release_net(struct inode *, struct file *);
-static inline struct net *seq_file_net(struct seq_file *seq)
-{
-#ifdef CONFIG_NET_NS
-	return ((struct seq_net_private *)seq->private)->net;
-#else
-	return &init_net;
-#endif
-}
-#endif	/* CONFIG_NET */
 
 #endif
 #endif

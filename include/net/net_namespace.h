@@ -61,6 +61,8 @@ struct net {
 
 
 #ifdef CONFIG_NET
+#include <linux/seq_file_net.h>
+
 /* Init's network namespace */
 extern struct net init_net;
 #define INIT_NET_NS(net_ns) .net_ns = &init_net,
