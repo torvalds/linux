@@ -141,6 +141,7 @@ void videobuf_queue_core_init(struct videobuf_queue *q,
 	BUG_ON(!q->int_ops);
 
 	mutex_init(&q->vb_lock);
+	init_waitqueue_head(&q->wait);
 	INIT_LIST_HEAD(&q->stream);
 }
 
@@ -187,6 +188,10 @@ void videobuf_queue_cancel(struct videobuf_queue *q)
 {
 	unsigned long flags = 0;
 	int i;
+
+	q->streaming = 0;
+	q->reading  = 0;
+	wake_up_interruptible_sync(&q->wait);
 
 	/* remove queued buffers from list */
 	if (q->irqlock)
@@ -565,6 +570,7 @@ int videobuf_qbuf(struct videobuf_queue *q,
 	}
 	dprintk(1, "qbuf: succeded\n");
 	retval = 0;
+	wake_up_interruptible_sync(&q->wait);
 
  done:
 	mutex_unlock(&q->vb_lock);
@@ -575,37 +581,88 @@ int videobuf_qbuf(struct videobuf_queue *q,
 	return retval;
 }
 
+
+/* Locking: Caller holds q->vb_lock */
+static int stream_next_buffer_check_queue(struct videobuf_queue *q, int noblock)
+{
+	int retval;
+
+checks:
+	if (!q->streaming) {
+		dprintk(1, "next_buffer: Not streaming\n");
+		retval = -EINVAL;
+		goto done;
+	}
+
+	if (list_empty(&q->stream)) {
+		if (noblock) {
+			retval = -EAGAIN;
+			dprintk(2, "next_buffer: no buffers to dequeue\n");
+			goto done;
+		} else {
+			dprintk(2, "next_buffer: waiting on buffer\n");
+
+			/* Drop lock to avoid deadlock with qbuf */
+			mutex_unlock(&q->vb_lock);
+
+			/* Checking list_empty and streaming is safe without
+			 * locks because we goto checks to validate while
+			 * holding locks before proceeding */
+			retval = wait_event_interruptible(q->wait,
+				!list_empty(&q->stream) || !q->streaming);
+			mutex_lock(&q->vb_lock);
+
+			if (retval)
+				goto done;
+
+			goto checks;
+		}
+	}
+
+	retval = 0;
+
+done:
+	return retval;
+}
+
+
+/* Locking: Caller holds q->vb_lock */
+static int stream_next_buffer(struct videobuf_queue *q,
+			struct videobuf_buffer **vb, int nonblocking)
+{
+	int retval;
+	struct videobuf_buffer *buf = NULL;
+
+	retval = stream_next_buffer_check_queue(q, nonblocking);
+	if (retval)
+		goto done;
+
+	buf = list_entry(q->stream.next, struct videobuf_buffer, stream);
+	retval = videobuf_waiton(buf, nonblocking, 1);
+	if (retval < 0)
+		goto done;
+
+	*vb = buf;
+done:
+	return retval;
+}
+
 int videobuf_dqbuf(struct videobuf_queue *q,
 	       struct v4l2_buffer *b, int nonblocking)
 {
-	struct videobuf_buffer *buf;
+	struct videobuf_buffer *buf = NULL;
 	int retval;
 
 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
 
 	mutex_lock(&q->vb_lock);
-	retval = -EBUSY;
-	if (q->reading) {
-		dprintk(1, "dqbuf: Reading running...\n");
-		goto done;
-	}
-	retval = -EINVAL;
-	if (b->type != q->type) {
-		dprintk(1, "dqbuf: Wrong type.\n");
-		goto done;
-	}
-	if (list_empty(&q->stream)) {
-		dprintk(1, "dqbuf: stream running\n");
-		goto done;
-	}
-	buf = list_entry(q->stream.next, struct videobuf_buffer, stream);
-	mutex_unlock(&q->vb_lock);
-	retval = videobuf_waiton(buf, nonblocking, 1);
-	mutex_lock(&q->vb_lock);
+
+	retval = stream_next_buffer(q, &buf, nonblocking);
 	if (retval < 0) {
-		dprintk(1, "dqbuf: waiton returned %d\n", retval);
+		dprintk(1, "dqbuf: next_buffer error: %i\n", retval);
 		goto done;
 	}
+
 	switch (buf->state) {
 	case VIDEOBUF_ERROR:
 		dprintk(1, "dqbuf: state is error\n");
@@ -654,6 +711,7 @@ int videobuf_streamon(struct videobuf_queue *q)
 	if (q->irqlock)
 		spin_unlock_irqrestore(q->irqlock, flags);
 
+	wake_up_interruptible_sync(&q->wait);
  done:
 	mutex_unlock(&q->vb_lock);
 	return retval;
@@ -666,7 +724,6 @@ static int __videobuf_streamoff(struct videobuf_queue *q)
 		return -EINVAL;
 
 	videobuf_queue_cancel(q);
-	q->streaming = 0;
 
 	return 0;
 }
@@ -869,7 +926,6 @@ static void __videobuf_read_stop(struct videobuf_queue *q)
 		q->bufs[i] = NULL;
 	}
 	q->read_buf = NULL;
-	q->reading  = 0;
 
 }
 

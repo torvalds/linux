@@ -153,6 +153,8 @@ struct videobuf_queue {
 	spinlock_t                 *irqlock;
 	struct device		   *dev;
 
+	wait_queue_head_t	   wait; /* wait if queue is empty */
+
 	enum v4l2_buf_type         type;
 	unsigned int               inputs; /* for V4L2_BUF_FLAG_INPUT */
 	unsigned int               msize;
