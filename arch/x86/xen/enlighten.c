@@ -717,6 +717,7 @@ static void xen_release_ptpage(u32 pfn, unsigned level)
 				pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, pfn);
 			make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
 		}
+		ClearPagePinned(page);
 	}
 }
 
