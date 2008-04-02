@@ -10,9 +10,10 @@
 #include <linux/wireless.h>
 #include <linux/ethtool.h>
 #include <linux/debugfs.h>
+#include <net/ieee80211.h>
 
 #include "defs.h"
-#include "scan.h"
+#include "hostcmd.h"
 
 extern struct ethtool_ops lbs_ethtool_ops;
 
@@ -324,6 +325,44 @@ struct lbs_private {
 };
 
 extern struct cmd_confirm_sleep confirm_sleep;
+
+/**
+ *  @brief Structure used to store information for each beacon/probe response
+ */
+struct bss_descriptor {
+	u8 bssid[ETH_ALEN];
+
+	u8 ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 ssid_len;
+
+	u16 capability;
+	u32 rssi;
+	u32 channel;
+	u16 beaconperiod;
+	u32 atimwindow;
+
+	/* IW_MODE_AUTO, IW_MODE_ADHOC, IW_MODE_INFRA */
+	u8 mode;
+
+	/* zero-terminated array of supported data rates */
+	u8 rates[MAX_RATES + 1];
+
+	unsigned long last_scanned;
+
+	union ieeetypes_phyparamset phyparamset;
+	union IEEEtypes_ssparamset ssparamset;
+
+	struct ieeetypes_countryinfofullset countryinfo;
+
+	u8 wpa_ie[MAX_WPA_IE_LEN];
+	size_t wpa_ie_len;
+	u8 rsn_ie[MAX_WPA_IE_LEN];
+	size_t rsn_ie_len;
+
+	u8 mesh;
+
+	struct list_head list;
+};
 
 /** Association request
  *
