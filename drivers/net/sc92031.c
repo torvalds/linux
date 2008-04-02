@@ -796,7 +796,7 @@ static void _sc92031_rx_tasklet(struct net_device *dev)
 
 		rx_len -= rx_size_align + 4;
 
-		skb = dev_alloc_skb(pkt_size + NET_IP_ALIGN);
+		skb = netdev_alloc_skb(dev, pkt_size + NET_IP_ALIGN);
 		if (unlikely(!skb)) {
 			if (printk_ratelimit())
 				printk(KERN_ERR "%s: Couldn't allocate a skb_buff for a packet of size %u\n",
