@@ -532,26 +532,37 @@ static void xen_apic_write(unsigned long reg, u32 val)
 static void xen_flush_tlb(void)
 {
 	struct mmuext_op *op;
-	struct multicall_space mcs = xen_mc_entry(sizeof(*op));
+	struct multicall_space mcs;
+
+	preempt_disable();
+
+	mcs = xen_mc_entry(sizeof(*op));
 
 	op = mcs.args;
 	op->cmd = MMUEXT_TLB_FLUSH_LOCAL;
 	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
 
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
+
+	preempt_enable();
 }
 
 static void xen_flush_tlb_single(unsigned long addr)
 {
 	struct mmuext_op *op;
-	struct multicall_space mcs = xen_mc_entry(sizeof(*op));
+	struct multicall_space mcs;
 
+	preempt_disable();
+
+	mcs = xen_mc_entry(sizeof(*op));
 	op = mcs.args;
 	op->cmd = MMUEXT_INVLPG_LOCAL;
 	op->arg1.linear_addr = addr & PAGE_MASK;
 	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
 
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
+
+	preempt_enable();
 }
 
 static void xen_flush_tlb_others(const cpumask_t *cpus, struct mm_struct *mm,
