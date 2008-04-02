@@ -75,7 +75,6 @@ static struct block_device_operations xlvbd_block_fops;
 struct blkfront_info
 {
 	struct xenbus_device *xbdev;
-	dev_t dev;
 	struct gendisk *gd;
 	int vdevice;
 	blkif_vdev_t handle;
@@ -903,7 +902,7 @@ static void backend_changed(struct xenbus_device *dev,
 		break;
 
 	case XenbusStateClosing:
-		bd = bdget(info->dev);
+		bd = bdget_disk(info->gd, 0);
 		if (bd == NULL)
 			xenbus_dev_fatal(dev, -ENODEV, "bdget failed");
 
