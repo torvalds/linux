@@ -204,6 +204,24 @@ static struct at91_mmc_data __initdata ek_mmc_data = {
 //	.vcc_pin	= ... not connected
 };
 
+
+/*
+ * LEDs
+ */
+static struct gpio_led ek_leds[] = {
+	{	/* "bottom" led, green, userled1 to be defined */
+		.name			= "ds5",
+		.gpio			= AT91_PIN_PA6,
+		.active_low		= 1,
+		.default_trigger	= "none",
+	},
+	{	/* "power" led, yellow */
+		.name			= "ds1",
+		.gpio			= AT91_PIN_PA9,
+		.default_trigger	= "heartbeat",
+	}
+};
+
 static void __init ek_board_init(void)
 {
 	/* Serial */
@@ -225,6 +243,8 @@ static void __init ek_board_init(void)
 	/* SSC (to AT73C213) */
 	at73c213_set_clk(&at73c213_data);
 	at91_add_device_ssc(AT91SAM9260_ID_SSC, ATMEL_SSC_TX);
+	/* LEDs */
+	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
 }
 
 MACHINE_START(AT91SAM9260EK, "Atmel AT91SAM9260-EK")

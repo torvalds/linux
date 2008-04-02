@@ -487,6 +487,29 @@ static void __init ek_add_device_buttons(void)
 static void __init ek_add_device_buttons(void) {}
 #endif
 
+/*
+ * LEDs
+ */
+static struct gpio_led ek_leds[] = {
+	{	/* "bottom" led, green, userled1 to be defined */
+		.name			= "ds7",
+		.gpio			= AT91_PIN_PA14,
+		.active_low		= 1,
+		.default_trigger	= "none",
+	},
+	{	/* "top" led, green, userled2 to be defined */
+		.name			= "ds8",
+		.gpio			= AT91_PIN_PA13,
+		.active_low		= 1,
+		.default_trigger	= "none",
+	},
+	{	/* "power" led, yellow */
+		.name			= "ds1",
+		.gpio			= AT91_PIN_PA23,
+		.default_trigger	= "heartbeat",
+	}
+};
+
 static void __init ek_board_init(void)
 {
 	/* Serial */
@@ -519,6 +542,8 @@ static void __init ek_board_init(void)
 	at91_add_device_lcdc(&ek_lcdc_data);
 	/* Push Buttons */
 	ek_add_device_buttons();
+	/* LEDs */
+	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
 }
 
 MACHINE_START(AT91SAM9261EK, "Atmel AT91SAM9261-EK")
