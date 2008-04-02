@@ -164,6 +164,7 @@ struct vivi_dev {
 
 	struct mutex               lock;
 	spinlock_t                 slock;
+	struct mutex		   mutex;
 
 	int                        users;
 
@@ -1036,6 +1037,7 @@ static int vivi_open(struct inode *inode, struct file *file)
 	struct vivi_dev *dev;
 	struct vivi_fh *fh;
 	int i;
+	int retval = 0;
 
 	printk(KERN_DEBUG "vivi: open called (minor=%d)\n", minor);
 
@@ -1045,8 +1047,14 @@ static int vivi_open(struct inode *inode, struct file *file)
 	return -ENODEV;
 
 found:
-	/* If more than one user, mutex should be added */
+	mutex_lock(&dev->mutex);
 	dev->users++;
+
+	if (dev->users > 1) {
+		dev->users--;
+		retval = -EBUSY;
+		goto unlock;
+	}
 
 	dprintk(dev, 1, "open minor=%d type=%s users=%d\n", minor,
 		v4l2_type_names[V4L2_BUF_TYPE_VIDEO_CAPTURE], dev->users);
@@ -1055,8 +1063,13 @@ found:
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 	if (NULL == fh) {
 		dev->users--;
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto unlock;
 	}
+unlock:
+	mutex_unlock(&dev->mutex);
+	if (retval)
+		return retval;
 
 	file->private_data = fh;
 	fh->dev      = dev;
@@ -1128,7 +1141,9 @@ static int vivi_close(struct inode *inode, struct file *file)
 
 	kfree(fh);
 
+	mutex_lock(&dev->mutex);
 	dev->users--;
+	mutex_unlock(&dev->mutex);
 
 	dprintk(dev, 1, "close called (minor=%d, users=%d)\n",
 		minor, dev->users);
@@ -1243,6 +1258,7 @@ static int __init vivi_init(void)
 		/* initialize locks */
 		mutex_init(&dev->lock);
 		spin_lock_init(&dev->slock);
+		mutex_init(&dev->mutex);
 
 		dev->vidq.timeout.function = vivi_vid_timeout;
 		dev->vidq.timeout.data     = (unsigned long)dev;
