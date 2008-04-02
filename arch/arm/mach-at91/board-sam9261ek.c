@@ -49,17 +49,6 @@
 #include "generic.h"
 
 
-/*
- * Serial port configuration.
- *    0 .. 2 = USART0 .. USART2
- *    3      = DBGU
- */
-static struct at91_uart_config __initdata ek_uart_config = {
-	.console_tty	= 0,				/* ttyS0 */
-	.nr_tty		= 1,
-	.tty_map	= { 3, -1, -1, -1 }		/* ttyS0, ..., ttyS3 */
-};
-
 static void __init ek_map_io(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
@@ -68,8 +57,11 @@ static void __init ek_map_io(void)
 	/* Setup the LEDs */
 	at91_init_leds(AT91_PIN_PA13, AT91_PIN_PA14);
 
-	/* Setup the serial ports and console */
-	at91_init_serial(&ek_uart_config);
+	/* DGBU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* set serial console to ttyS0 (ie, DBGU) */
+	at91_set_serial_console(0);
 }
 
 static void __init ek_init_irq(void)
