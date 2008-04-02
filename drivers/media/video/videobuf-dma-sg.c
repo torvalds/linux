@@ -546,6 +546,14 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 		goto done;
 	}
 
+	/* This function maintains backwards compatibility with V4L1 and will
+	 * map more than one buffer if the vma length is equal to the combined
+	 * size of multiple buffers than it will map them together.  See
+	 * VIDIOCGMBUF in the v4l spec
+	 *
+	 * TODO: Allow drivers to specify if they support this mode
+	 */
+
 	/* look for first buffer to map */
 	for (first = 0; first < VIDEO_MAX_FRAME; first++) {
 		if (NULL == q->bufs[first])
@@ -590,10 +598,16 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	map = kmalloc(sizeof(struct videobuf_mapping),GFP_KERNEL);
 	if (NULL == map)
 		goto done;
-	for (size = 0, i = first; i <= last; size += q->bufs[i++]->bsize) {
+
+	size = 0;
+	for (i = first; i <= last; i++) {
+		if (NULL == q->bufs[i])
+			continue;
 		q->bufs[i]->map   = map;
 		q->bufs[i]->baddr = vma->vm_start + size;
+		size += q->bufs[i]->bsize;
 	}
+
 	map->count    = 1;
 	map->start    = vma->vm_start;
 	map->end      = vma->vm_end;
