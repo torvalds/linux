@@ -436,10 +436,10 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	}
 
 	if (xfrm_decode_session_reverse(skb, &fl2, AF_INET6))
-		goto out;
+		goto out_dst_release;
 
 	if (ip6_dst_lookup(sk, &dst2, &fl))
-		goto out;
+		goto out_dst_release;
 
 	err = xfrm_lookup(&dst2, &fl, sk, XFRM_LOOKUP_ICMP);
 	if (err == -ENOENT) {
