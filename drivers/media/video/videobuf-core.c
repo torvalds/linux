@@ -204,6 +204,7 @@ void videobuf_queue_cancel(struct videobuf_queue *q)
 		if (q->bufs[i]->state == VIDEOBUF_QUEUED) {
 			list_del(&q->bufs[i]->queue);
 			q->bufs[i]->state = VIDEOBUF_ERROR;
+			wake_up_all(&q->bufs[i]->done);
 		}
 	}
 	if (q->irqlock)
