@@ -510,6 +510,7 @@ nlmclnt_lock(struct nlm_rqst *req, struct file_lock *fl)
 	struct nlm_res	*resp = &req->a_res;
 	struct nlm_wait *block = NULL;
 	unsigned char fl_flags = fl->fl_flags;
+	unsigned char fl_type;
 	int status = -ENOLCK;
 
 	if (nsm_monitor(host) < 0) {
@@ -525,13 +526,16 @@ nlmclnt_lock(struct nlm_rqst *req, struct file_lock *fl)
 
 	block = nlmclnt_prepare_block(host, fl);
 again:
+	/*
+	 * Initialise resp->status to a valid non-zero value,
+	 * since 0 == nlm_lck_granted
+	 */
+	resp->status = nlm_lck_blocked;
 	for(;;) {
 		/* Reboot protection */
 		fl->fl_u.nfs_fl.state = host->h_state;
 		status = nlmclnt_call(req, NLMPROC_LOCK);
 		if (status < 0)
-			goto out_unblock;
-		if (!req->a_args.block)
 			break;
 		/* Did a reclaimer thread notify us of a server reboot? */
 		if (resp->status ==  nlm_lck_denied_grace_period)
@@ -540,13 +544,20 @@ again:
 			break;
 		/* Wait on an NLM blocking lock */
 		status = nlmclnt_block(block, req, NLMCLNT_POLL_TIMEOUT);
-		/* if we were interrupted. Send a CANCEL request to the server
-		 * and exit
-		 */
 		if (status < 0)
-			goto out_unblock;
+			break;
 		if (resp->status != nlm_lck_blocked)
 			break;
+	}
+
+	/* if we were interrupted while blocking, then cancel the lock request
+	 * and exit
+	 */
+	if (resp->status == nlm_lck_blocked) {
+		if (!req->a_args.block)
+			goto out_unlock;
+		if (nlmclnt_cancel(host, req->a_args.block, fl) == 0)
+			goto out_unblock;
 	}
 
 	if (resp->status == nlm_granted) {
@@ -562,15 +573,29 @@ again:
 			printk(KERN_WARNING "%s: VFS is out of sync with lock manager!\n", __FUNCTION__);
 		up_read(&host->h_rwsem);
 		fl->fl_flags = fl_flags;
+		status = 0;
 	}
+	if (status < 0)
+		goto out_unlock;
 	status = nlm_stat_to_errno(resp->status);
 out_unblock:
 	nlmclnt_finish_block(block);
-	/* Cancel the blocked request if it is still pending */
-	if (resp->status == nlm_lck_blocked)
-		nlmclnt_cancel(host, req->a_args.block, fl);
 out:
 	nlm_release_call(req);
+	return status;
+out_unlock:
+	/* Fatal error: ensure that we remove the lock altogether */
+	dprintk("lockd: lock attempt ended in fatal error.\n"
+		"       Attempting to unlock.\n");
+	nlmclnt_finish_block(block);
+	fl_type = fl->fl_type;
+	fl->fl_type = F_UNLCK;
+	down_read(&host->h_rwsem);
+	do_vfs_lock(fl);
+	up_read(&host->h_rwsem);
+	fl->fl_type = fl_type;
+	fl->fl_flags = fl_flags;
+	nlmclnt_async_call(req, NLMPROC_UNLOCK, &nlmclnt_unlock_ops);
 	return status;
 }
 
