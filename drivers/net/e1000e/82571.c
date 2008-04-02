@@ -836,19 +836,19 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	ret_val = e1000_setup_link_82571(hw);
 
 	/* Set the transmit descriptor write-back policy */
-	reg_data = er32(TXDCTL);
+	reg_data = er32(TXDCTL(0));
 	reg_data = (reg_data & ~E1000_TXDCTL_WTHRESH) |
 		   E1000_TXDCTL_FULL_TX_DESC_WB |
 		   E1000_TXDCTL_COUNT_DESC;
-	ew32(TXDCTL, reg_data);
+	ew32(TXDCTL(0), reg_data);
 
 	/* ...for both queues. */
 	if (mac->type != e1000_82573) {
-		reg_data = er32(TXDCTL1);
+		reg_data = er32(TXDCTL(1));
 		reg_data = (reg_data & ~E1000_TXDCTL_WTHRESH) |
 			   E1000_TXDCTL_FULL_TX_DESC_WB |
 			   E1000_TXDCTL_COUNT_DESC;
-		ew32(TXDCTL1, reg_data);
+		ew32(TXDCTL(1), reg_data);
 	} else {
 		e1000e_enable_tx_pkt_filtering(hw);
 		reg_data = er32(GCR);
@@ -878,17 +878,17 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	u32 reg;
 
 	/* Transmit Descriptor Control 0 */
-	reg = er32(TXDCTL);
+	reg = er32(TXDCTL(0));
 	reg |= (1 << 22);
-	ew32(TXDCTL, reg);
+	ew32(TXDCTL(0), reg);
 
 	/* Transmit Descriptor Control 1 */
-	reg = er32(TXDCTL1);
+	reg = er32(TXDCTL(1));
 	reg |= (1 << 22);
-	ew32(TXDCTL1, reg);
+	ew32(TXDCTL(1), reg);
 
 	/* Transmit Arbitration Control 0 */
-	reg = er32(TARC0);
+	reg = er32(TARC(0));
 	reg &= ~(0xF << 27); /* 30:27 */
 	switch (hw->mac.type) {
 	case e1000_82571:
@@ -898,10 +898,10 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	default:
 		break;
 	}
-	ew32(TARC0, reg);
+	ew32(TARC(0), reg);
 
 	/* Transmit Arbitration Control 1 */
-	reg = er32(TARC1);
+	reg = er32(TARC(1));
 	switch (hw->mac.type) {
 	case e1000_82571:
 	case e1000_82572:
@@ -911,7 +911,7 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 			reg &= ~(1 << 28);
 		else
 			reg |= (1 << 28);
-		ew32(TARC1, reg);
+		ew32(TARC(1), reg);
 		break;
 	default:
 		break;

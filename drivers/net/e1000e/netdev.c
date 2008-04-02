@@ -1639,24 +1639,24 @@ static void e1000_configure_tx(struct e1000_adapter *adapter)
 		(E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT);
 
 	if (adapter->flags & FLAG_TARC_SPEED_MODE_BIT) {
-		tarc = er32(TARC0);
+		tarc = er32(TARC(0));
 		/*
 		 * set the speed mode bit, we'll clear it if we're not at
 		 * gigabit link later
 		 */
 #define SPEED_MODE_BIT (1 << 21)
 		tarc |= SPEED_MODE_BIT;
-		ew32(TARC0, tarc);
+		ew32(TARC(0), tarc);
 	}
 
 	/* errata: program both queues to unweighted RR */
 	if (adapter->flags & FLAG_TARC_SET_BIT_ZERO) {
-		tarc = er32(TARC0);
+		tarc = er32(TARC(0));
 		tarc |= 1;
-		ew32(TARC0, tarc);
-		tarc = er32(TARC1);
+		ew32(TARC(0), tarc);
+		tarc = er32(TARC(1));
 		tarc |= 1;
-		ew32(TARC1, tarc);
+		ew32(TARC(1), tarc);
 	}
 
 	e1000e_config_collision_dist(hw);
@@ -2775,9 +2775,9 @@ static void e1000_watchdog_task(struct work_struct *work)
 			if ((adapter->flags & FLAG_TARC_SPEED_MODE_BIT) &&
 			    !txb2b) {
 				u32 tarc0;
-				tarc0 = er32(TARC0);
+				tarc0 = er32(TARC(0));
 				tarc0 &= ~SPEED_MODE_BIT;
-				ew32(TARC0, tarc0);
+				ew32(TARC(0), tarc0);
 			}
 
 			/*

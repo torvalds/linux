@@ -93,6 +93,8 @@ enum e1e_registers {
 	E1000_RDH      = 0x02810, /* Rx Descriptor Head - RW */
 	E1000_RDT      = 0x02818, /* Rx Descriptor Tail - RW */
 	E1000_RDTR     = 0x02820, /* Rx Delay Timer - RW */
+	E1000_RXDCTL_BASE = 0x02828, /* Rx Descriptor Control - RW */
+#define E1000_RXDCTL(_n)   (E1000_RXDCTL_BASE + (_n << 8))
 	E1000_RADV     = 0x0282C, /* RX Interrupt Absolute Delay Timer - RW */
 
 /* Convenience macros
@@ -111,11 +113,11 @@ enum e1e_registers {
 	E1000_TDH      = 0x03810, /* Tx Descriptor Head - RW */
 	E1000_TDT      = 0x03818, /* Tx Descriptor Tail - RW */
 	E1000_TIDV     = 0x03820, /* Tx Interrupt Delay Value - RW */
-	E1000_TXDCTL   = 0x03828, /* Tx Descriptor Control - RW */
+	E1000_TXDCTL_BASE = 0x03828, /* Tx Descriptor Control - RW */
+#define E1000_TXDCTL(_n)   (E1000_TXDCTL_BASE + (_n << 8))
 	E1000_TADV     = 0x0382C, /* Tx Interrupt Absolute Delay Val - RW */
-	E1000_TARC0    = 0x03840, /* Tx Arbitration Count (0) */
-	E1000_TXDCTL1  = 0x03928, /* Tx Descriptor Control (1) - RW */
-	E1000_TARC1    = 0x03940, /* Tx Arbitration Count (1) */
+	E1000_TARC_BASE = 0x03840, /* Tx Arbitration Count (0) */
+#define E1000_TARC(_n)   (E1000_TARC_BASE + (_n << 8))
 	E1000_CRCERRS  = 0x04000, /* CRC Error Count - R/clr */
 	E1000_ALGNERRC = 0x04004, /* Alignment Error Count - R/clr */
 	E1000_SYMERRS  = 0x04008, /* Symbol Error Count - R/clr */
