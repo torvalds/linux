@@ -78,8 +78,6 @@ videobuf_vm_close(struct vm_area_struct *vma)
 			if (q->bufs[i]->map != map)
 				continue;
 
-			q->ops->buf_release(q,q->bufs[i]);
-
 			q->bufs[i]->map   = NULL;
 			q->bufs[i]->baddr = 0;
 		}
