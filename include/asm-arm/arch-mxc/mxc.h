@@ -15,6 +15,11 @@
 #error "Do not include directly."
 #endif
 
+/* clean up all things that are not used */
+#ifndef CONFIG_ARCH_MX3
+# define cpu_is_mx31() (0)
+#endif
+
 /*
  *****************************************
  * GPT  Register definitions             *

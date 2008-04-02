@@ -19,7 +19,9 @@
 #define MXC_GPIO_TO_IRQ(x)	(MXC_GPIO_INT_BASE + x)
 
 /* Number of normal interrupts */
-#define NR_IRQS		MXC_MAX_INTS
+#define NR_IRQS		(MXC_MAX_INT_LINES + \
+			MXC_MAX_GPIO_LINES + \
+			MXC_MAX_VIRTUAL_INTS)
 
 /* Number of fast interrupts */
 #define NR_FIQS		MXC_MAX_INTS
