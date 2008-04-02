@@ -1057,7 +1057,7 @@ struct iwl_priv {
 	struct iwl_rfkill_mngr rfkill_mngr;
 #endif
 
-#ifdef CONFIG_IWL4965_LEDS
+#ifdef CONFIG_IWLWIFI_LEDS
 	struct iwl4965_led led[IWL_LED_TRG_MAX];
 	unsigned long last_blink_time;
 	u8 last_blink_rate;
