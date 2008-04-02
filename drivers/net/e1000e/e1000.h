@@ -271,7 +271,7 @@ struct e1000_info {
 	enum e1000_mac_type	mac;
 	unsigned int		flags;
 	u32			pba;
-	s32			(*get_invariants)(struct e1000_adapter *);
+	s32			(*get_variants)(struct e1000_adapter *);
 	struct e1000_mac_operations *mac_ops;
 	struct e1000_phy_operations *phy_ops;
 	struct e1000_nvm_operations *nvm_ops;
@@ -357,7 +357,7 @@ extern struct e1000_info e1000_ich8_info;
 extern struct e1000_info e1000_ich9_info;
 extern struct e1000_info e1000_es2_info;
 
-extern s32 e1000e_read_part_num(struct e1000_hw *hw, u32 *part_num);
+extern s32 e1000e_read_pba_num(struct e1000_hw *hw, u32 *pba_num);
 
 extern s32  e1000e_commit_phy(struct e1000_hw *hw);
 

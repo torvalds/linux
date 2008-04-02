@@ -248,7 +248,7 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	return 0;
 }
 
-static s32 e1000_get_invariants_82571(struct e1000_adapter *adapter)
+static s32 e1000_get_variants_82571(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	static int global_quad_port_a; /* global port a indication */
@@ -1337,7 +1337,7 @@ struct e1000_info e1000_82571_info = {
 				  | FLAG_TARC_SPEED_MODE_BIT /* errata */
 				  | FLAG_APME_CHECK_PORT_B,
 	.pba			= 38,
-	.get_invariants		= e1000_get_invariants_82571,
+	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,
 	.phy_ops		= &e82_phy_ops_igp,
 	.nvm_ops		= &e82571_nvm_ops,
@@ -1355,7 +1355,7 @@ struct e1000_info e1000_82572_info = {
 				  | FLAG_HAS_STATS_ICR_ICT
 				  | FLAG_TARC_SPEED_MODE_BIT, /* errata */
 	.pba			= 38,
-	.get_invariants		= e1000_get_invariants_82571,
+	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,
 	.phy_ops		= &e82_phy_ops_igp,
 	.nvm_ops		= &e82571_nvm_ops,
@@ -1375,7 +1375,7 @@ struct e1000_info e1000_82573_info = {
 				  | FLAG_HAS_ERT
 				  | FLAG_HAS_SWSM_ON_LOAD,
 	.pba			= 20,
-	.get_invariants		= e1000_get_invariants_82571,
+	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,
 	.phy_ops		= &e82_phy_ops_m88,
 	.nvm_ops		= &e82571_nvm_ops,

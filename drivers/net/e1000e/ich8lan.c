@@ -316,7 +316,7 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_adapter *adapter)
 	return 0;
 }
 
-static s32 e1000_get_invariants_ich8lan(struct e1000_adapter *adapter)
+static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	s32 rc;
@@ -2253,7 +2253,7 @@ struct e1000_info e1000_ich8_info = {
 				  | FLAG_HAS_FLASH
 				  | FLAG_APME_IN_WUC,
 	.pba			= 8,
-	.get_invariants		= e1000_get_invariants_ich8lan,
+	.get_variants		= e1000_get_variants_ich8lan,
 	.mac_ops		= &ich8_mac_ops,
 	.phy_ops		= &ich8_phy_ops,
 	.nvm_ops		= &ich8_nvm_ops,
@@ -2270,7 +2270,7 @@ struct e1000_info e1000_ich9_info = {
 				  | FLAG_HAS_FLASH
 				  | FLAG_APME_IN_WUC,
 	.pba			= 10,
-	.get_invariants		= e1000_get_invariants_ich8lan,
+	.get_variants		= e1000_get_variants_ich8lan,
 	.mac_ops		= &ich8_mac_ops,
 	.phy_ops		= &ich8_phy_ops,
 	.nvm_ops		= &ich8_nvm_ops,

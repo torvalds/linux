@@ -238,7 +238,7 @@ static s32 e1000_init_mac_params_80003es2lan(struct e1000_adapter *adapter)
 	return 0;
 }
 
-static s32 e1000_get_invariants_80003es2lan(struct e1000_adapter *adapter)
+static s32 e1000_get_variants_80003es2lan(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	s32 rc;
@@ -1243,7 +1243,7 @@ struct e1000_info e1000_es2_info = {
 				  | FLAG_DISABLE_FC_PAUSE_TIME /* errata */
 				  | FLAG_TIPG_MEDIUM_FOR_80003ESLAN,
 	.pba			= 38,
-	.get_invariants		= e1000_get_invariants_80003es2lan,
+	.get_variants		= e1000_get_variants_80003es2lan,
 	.mac_ops		= &es2_mac_ops,
 	.phy_ops		= &es2_phy_ops,
 	.nvm_ops		= &es2_nvm_ops,
