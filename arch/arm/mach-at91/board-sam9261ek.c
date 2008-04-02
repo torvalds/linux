@@ -26,6 +26,8 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+#include <linux/spi/at73c213.h>
+#include <linux/clk.h>
 #include <linux/dm9000.h>
 #include <linux/fb.h>
 #include <linux/gpio_keys.h>
@@ -231,6 +233,35 @@ static void __init ek_add_device_ts(void) {}
 #endif
 
 /*
+ * Audio
+ */
+static struct at73c213_board_info at73c213_data = {
+	.ssc_id		= 1,
+	.shortname	= "AT91SAM9261-EK external DAC",
+};
+
+#if defined(CONFIG_SND_AT73C213) || defined(CONFIG_SND_AT73C213_MODULE)
+static void __init at73c213_set_clk(struct at73c213_board_info *info)
+{
+	struct clk *pck2;
+	struct clk *plla;
+
+	pck2 = clk_get(NULL, "pck2");
+	plla = clk_get(NULL, "plla");
+
+	/* AT73C213 MCK Clock */
+	at91_set_B_periph(AT91_PIN_PB31, 0);	/* PCK2 */
+
+	clk_set_parent(pck2, plla);
+	clk_put(plla);
+
+	info->dac_clk = pck2;
+}
+#else
+static void __init at73c213_set_clk(struct at73c213_board_info *info) {}
+#endif
+
+/*
  * SPI devices
  */
 static struct spi_board_info ek_spi_devices[] = {
@@ -248,6 +279,7 @@ static struct spi_board_info ek_spi_devices[] = {
 		.bus_num	= 0,
 		.platform_data	= &ads_info,
 		.irq		= AT91SAM9261_ID_IRQ0,
+		.controller_data = (void *) AT91_PIN_PA28,	/* CS pin */
 	},
 #endif
 #if defined(CONFIG_MTD_AT91_DATAFLASH_CARD)
@@ -263,6 +295,9 @@ static struct spi_board_info ek_spi_devices[] = {
 		.chip_select	= 3,
 		.max_speed_hz	= 10 * 1000 * 1000,
 		.bus_num	= 0,
+		.mode		= SPI_MODE_1,
+		.platform_data	= &at73c213_data,
+		.controller_data = (void*) AT91_PIN_PA29,	/* default for CS3 is PA6, but it must be PA29 */
 	},
 #endif
 };
@@ -473,6 +508,9 @@ static void __init ek_board_init(void)
 	at91_add_device_spi(ek_spi_devices, ARRAY_SIZE(ek_spi_devices));
 	/* Touchscreen */
 	ek_add_device_ts();
+	/* SSC (to AT73C213) */
+	at73c213_set_clk(&at73c213_data);
+	at91_add_device_ssc(AT91SAM9261_ID_SSC1, ATMEL_SSC_TX);
 #else
 	/* MMC */
 	at91_add_device_mmc(0, &ek_mmc_data);

@@ -25,6 +25,8 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/at73c213.h>
+#include <linux/clk.h>
 
 #include <asm/hardware.h>
 #include <asm/setup.h>
@@ -37,7 +39,6 @@
 
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
-#include <asm/arch/at91sam9_smc.h>
 
 #include "generic.h"
 
@@ -85,6 +86,35 @@ static struct at91_udc_data __initdata ek_udc_data = {
 
 
 /*
+ * Audio
+ */
+static struct at73c213_board_info at73c213_data = {
+	.ssc_id		= 0,
+	.shortname	= "AT91SAM9260-EK external DAC",
+};
+
+#if defined(CONFIG_SND_AT73C213) || defined(CONFIG_SND_AT73C213_MODULE)
+static void __init at73c213_set_clk(struct at73c213_board_info *info)
+{
+	struct clk *pck0;
+	struct clk *plla;
+
+	pck0 = clk_get(NULL, "pck0");
+	plla = clk_get(NULL, "plla");
+
+	/* AT73C213 MCK Clock */
+	at91_set_B_periph(AT91_PIN_PC1, 0);	/* PCK0 */
+
+	clk_set_parent(pck0, plla);
+	clk_put(plla);
+
+	info->dac_clk = pck0;
+}
+#else
+static void __init at73c213_set_clk(struct at73c213_board_info *info) {}
+#endif
+
+/*
  * SPI devices.
  */
 static struct spi_board_info ek_spi_devices[] = {
@@ -110,6 +140,8 @@ static struct spi_board_info ek_spi_devices[] = {
 		.chip_select	= 0,
 		.max_speed_hz	= 10 * 1000 * 1000,
 		.bus_num	= 1,
+		.mode		= SPI_MODE_1,
+		.platform_data	= &at73c213_data,
 	},
 #endif
 };
@@ -190,6 +222,9 @@ static void __init ek_board_init(void)
 	at91_add_device_mmc(0, &ek_mmc_data);
 	/* I2C */
 	at91_add_device_i2c(NULL, 0);
+	/* SSC (to AT73C213) */
+	at73c213_set_clk(&at73c213_data);
+	at91_add_device_ssc(AT91SAM9260_ID_SSC, ATMEL_SSC_TX);
 }
 
 MACHINE_START(AT91SAM9260EK, "Atmel AT91SAM9260-EK")
