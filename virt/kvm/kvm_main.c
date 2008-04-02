@@ -40,6 +40,7 @@
 #include <linux/kvm_para.h>
 #include <linux/pagemap.h>
 #include <linux/mman.h>
+#include <linux/swap.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -458,6 +459,12 @@ int is_error_page(struct page *page)
 }
 EXPORT_SYMBOL_GPL(is_error_page);
 
+int is_error_pfn(pfn_t pfn)
+{
+	return pfn == bad_pfn;
+}
+EXPORT_SYMBOL_GPL(is_error_pfn);
+
 static inline unsigned long bad_hva(void)
 {
 	return PAGE_OFFSET;
@@ -519,7 +526,7 @@ unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
 /*
  * Requires current->mm->mmap_sem to be held
  */
-struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
+pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
 {
 	struct page *page[1];
 	unsigned long addr;
@@ -530,7 +537,7 @@ struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 	addr = gfn_to_hva(kvm, gfn);
 	if (kvm_is_error_hva(addr)) {
 		get_page(bad_page);
-		return bad_page;
+		return page_to_pfn(bad_page);
 	}
 
 	npages = get_user_pages(current, current->mm, addr, 1, 1, 1, page,
@@ -538,27 +545,71 @@ struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 
 	if (npages != 1) {
 		get_page(bad_page);
-		return bad_page;
+		return page_to_pfn(bad_page);
 	}
 
-	return page[0];
+	return page_to_pfn(page[0]);
+}
+
+EXPORT_SYMBOL_GPL(gfn_to_pfn);
+
+struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
+{
+	return pfn_to_page(gfn_to_pfn(kvm, gfn));
 }
 
 EXPORT_SYMBOL_GPL(gfn_to_page);
 
 void kvm_release_page_clean(struct page *page)
 {
-	put_page(page);
+	kvm_release_pfn_clean(page_to_pfn(page));
 }
 EXPORT_SYMBOL_GPL(kvm_release_page_clean);
 
+void kvm_release_pfn_clean(pfn_t pfn)
+{
+	put_page(pfn_to_page(pfn));
+}
+EXPORT_SYMBOL_GPL(kvm_release_pfn_clean);
+
 void kvm_release_page_dirty(struct page *page)
 {
-	if (!PageReserved(page))
-		SetPageDirty(page);
-	put_page(page);
+	kvm_release_pfn_dirty(page_to_pfn(page));
 }
 EXPORT_SYMBOL_GPL(kvm_release_page_dirty);
+
+void kvm_release_pfn_dirty(pfn_t pfn)
+{
+	kvm_set_pfn_dirty(pfn);
+	kvm_release_pfn_clean(pfn);
+}
+EXPORT_SYMBOL_GPL(kvm_release_pfn_dirty);
+
+void kvm_set_page_dirty(struct page *page)
+{
+	kvm_set_pfn_dirty(page_to_pfn(page));
+}
+EXPORT_SYMBOL_GPL(kvm_set_page_dirty);
+
+void kvm_set_pfn_dirty(pfn_t pfn)
+{
+	struct page *page = pfn_to_page(pfn);
+	if (!PageReserved(page))
+		SetPageDirty(page);
+}
+EXPORT_SYMBOL_GPL(kvm_set_pfn_dirty);
+
+void kvm_set_pfn_accessed(pfn_t pfn)
+{
+	mark_page_accessed(pfn_to_page(pfn));
+}
+EXPORT_SYMBOL_GPL(kvm_set_pfn_accessed);
+
+void kvm_get_pfn(pfn_t pfn)
+{
+	get_page(pfn_to_page(pfn));
+}
+EXPORT_SYMBOL_GPL(kvm_get_pfn);
 
 static int next_segment(unsigned long len, int offset)
 {
@@ -1351,6 +1402,7 @@ static struct sys_device kvm_sysdev = {
 };
 
 struct page *bad_page;
+pfn_t bad_pfn;
 
 static inline
 struct kvm_vcpu *preempt_notifier_to_vcpu(struct preempt_notifier *pn)
@@ -1391,6 +1443,8 @@ int kvm_init(void *opaque, unsigned int vcpu_size,
 		r = -ENOMEM;
 		goto out;
 	}
+
+	bad_pfn = page_to_pfn(bad_page);
 
 	r = kvm_arch_hardware_setup();
 	if (r < 0)

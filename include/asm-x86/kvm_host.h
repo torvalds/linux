@@ -248,8 +248,8 @@ struct kvm_vcpu_arch {
 	u64  *last_pte_updated;
 
 	struct {
-		gfn_t gfn;          /* presumed gfn during guest pte update */
-		struct page *page;  /* page corresponding to that gfn */
+		gfn_t gfn;	/* presumed gfn during guest pte update */
+		pfn_t pfn;	/* pfn corresponding to that gfn */
 		int largepage;
 	} update_pte;
 

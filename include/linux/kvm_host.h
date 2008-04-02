@@ -150,8 +150,10 @@ static inline int is_error_hpa(hpa_t hpa) { return hpa >> HPA_MSB; }
 struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva);
 
 extern struct page *bad_page;
+extern pfn_t bad_pfn;
 
 int is_error_page(struct page *page);
+int is_error_pfn(pfn_t pfn);
 int kvm_is_error_hva(unsigned long addr);
 int kvm_set_memory_region(struct kvm *kvm,
 			  struct kvm_userspace_memory_region *mem,
@@ -168,6 +170,16 @@ struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);
 unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn);
 void kvm_release_page_clean(struct page *page);
 void kvm_release_page_dirty(struct page *page);
+void kvm_set_page_dirty(struct page *page);
+void kvm_set_page_accessed(struct page *page);
+
+pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn);
+void kvm_release_pfn_dirty(pfn_t);
+void kvm_release_pfn_clean(pfn_t pfn);
+void kvm_set_pfn_dirty(pfn_t pfn);
+void kvm_set_pfn_accessed(pfn_t pfn);
+void kvm_get_pfn(pfn_t pfn);
+
 int kvm_read_guest_page(struct kvm *kvm, gfn_t gfn, void *data, int offset,
 			int len);
 int kvm_read_guest_atomic(struct kvm *kvm, gpa_t gpa, void *data,

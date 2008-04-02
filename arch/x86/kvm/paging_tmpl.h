@@ -247,7 +247,7 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 {
 	pt_element_t gpte;
 	unsigned pte_access;
-	struct page *npage;
+	pfn_t pfn;
 	int largepage = vcpu->arch.update_pte.largepage;
 
 	gpte = *(const pt_element_t *)pte;
@@ -260,13 +260,13 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 	pte_access = page->role.access & FNAME(gpte_access)(vcpu, gpte);
 	if (gpte_to_gfn(gpte) != vcpu->arch.update_pte.gfn)
 		return;
-	npage = vcpu->arch.update_pte.page;
-	if (!npage)
+	pfn = vcpu->arch.update_pte.pfn;
+	if (is_error_pfn(pfn))
 		return;
-	get_page(npage);
+	kvm_get_pfn(pfn);
 	mmu_set_spte(vcpu, spte, page->role.access, pte_access, 0, 0,
 		     gpte & PT_DIRTY_MASK, NULL, largepage, gpte_to_gfn(gpte),
-		     npage, true);
+		     pfn, true);
 }
 
 /*
@@ -275,7 +275,7 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			 struct guest_walker *walker,
 			 int user_fault, int write_fault, int largepage,
-			 int *ptwrite, struct page *page)
+			 int *ptwrite, pfn_t pfn)
 {
 	hpa_t shadow_addr;
 	int level;
@@ -336,7 +336,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 						  walker->pte_gpa[level - 2],
 						  &curr_pte, sizeof(curr_pte));
 			if (r || curr_pte != walker->ptes[level - 2]) {
-				kvm_release_page_clean(page);
+				kvm_release_pfn_clean(pfn);
 				return NULL;
 			}
 		}
@@ -349,7 +349,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	mmu_set_spte(vcpu, shadow_ent, access, walker->pte_access & access,
 		     user_fault, write_fault,
 		     walker->ptes[walker->level-1] & PT_DIRTY_MASK,
-		     ptwrite, largepage, walker->gfn, page, false);
+		     ptwrite, largepage, walker->gfn, pfn, false);
 
 	return shadow_ent;
 }
@@ -378,7 +378,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	u64 *shadow_pte;
 	int write_pt = 0;
 	int r;
-	struct page *page;
+	pfn_t pfn;
 	int largepage = 0;
 
 	pgprintk("%s: addr %lx err %x\n", __func__, addr, error_code);
@@ -413,20 +413,20 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 			largepage = 1;
 		}
 	}
-	page = gfn_to_page(vcpu->kvm, walker.gfn);
+	pfn = gfn_to_pfn(vcpu->kvm, walker.gfn);
 	up_read(&current->mm->mmap_sem);
 
 	/* mmio */
-	if (is_error_page(page)) {
+	if (is_error_pfn(pfn)) {
 		pgprintk("gfn %x is mmio\n", walker.gfn);
-		kvm_release_page_clean(page);
+		kvm_release_pfn_clean(pfn);
 		return 1;
 	}
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 	kvm_mmu_free_some_pages(vcpu);
 	shadow_pte = FNAME(fetch)(vcpu, addr, &walker, user_fault, write_fault,
-				  largepage, &write_pt, page);
+				  largepage, &write_pt, pfn);
 
 	pgprintk("%s: shadow pte %p %llx ptwrite %d\n", __func__,
 		 shadow_pte, *shadow_pte, write_pt);
