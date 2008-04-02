@@ -84,7 +84,6 @@ static void udf_write_super(struct super_block *);
 static int udf_remount_fs(struct super_block *, int *, char *);
 static int udf_check_valid(struct super_block *, int, int);
 static int udf_vrs(struct super_block *sb, int silent);
-static int udf_load_partition(struct super_block *, kernel_lb_addr *);
 static void udf_load_logicalvolint(struct super_block *, kernel_extent_ad);
 static void udf_find_anchor(struct super_block *);
 static int udf_find_fileset(struct super_block *, kernel_lb_addr *,
@@ -1125,14 +1124,54 @@ static int udf_fill_partdesc_info(struct super_block *sb,
 	return 0;
 }
 
+static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
+{
+	struct udf_sb_info *sbi = UDF_SB(sb);
+	struct udf_part_map *map = &sbi->s_partmaps[p_index];
+	kernel_lb_addr ino;
+	struct buffer_head *bh;
+
+	/* VAT file entry is in the last recorded block */
+	ino.partitionReferenceNum = type1_index;
+	ino.logicalBlockNum = sbi->s_last_block - map->s_partition_root;
+	sbi->s_vat_inode = udf_iget(sb, ino);
+	if (!sbi->s_vat_inode)
+		return 1;
+
+	if (map->s_partition_type == UDF_VIRTUAL_MAP15) {
+		map->s_type_specific.s_virtual.s_start_offset =
+			udf_ext0_offset(sbi->s_vat_inode);
+		map->s_type_specific.s_virtual.s_num_entries =
+			(sbi->s_vat_inode->i_size - 36) >> 2;
+	} else if (map->s_partition_type == UDF_VIRTUAL_MAP20) {
+		uint32_t pos;
+		struct virtualAllocationTable20 *vat20;
+
+		pos = udf_block_map(sbi->s_vat_inode, 0);
+		bh = sb_bread(sb, pos);
+		if (!bh)
+			return 1;
+		vat20 = (struct virtualAllocationTable20 *)bh->b_data +
+				udf_ext0_offset(sbi->s_vat_inode);
+		map->s_type_specific.s_virtual.s_start_offset =
+			le16_to_cpu(vat20->lengthHeader) +
+			udf_ext0_offset(sbi->s_vat_inode);
+		map->s_type_specific.s_virtual.s_num_entries =
+			(sbi->s_vat_inode->i_size -
+				map->s_type_specific.s_virtual.
+					s_start_offset) >> 2;
+		brelse(bh);
+	}
+	return 0;
+}
+
 static int udf_load_partdesc(struct super_block *sb, sector_t block)
 {
 	struct buffer_head *bh;
 	struct partitionDesc *p;
 	struct udf_part_map *map;
 	struct udf_sb_info *sbi = UDF_SB(sb);
-	bool found = false;
-	int i;
+	int i, type1_idx;
 	uint16_t partitionNumber;
 	uint16_t ident;
 	int ret = 0;
@@ -1145,22 +1184,59 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 
 	p = (struct partitionDesc *)bh->b_data;
 	partitionNumber = le16_to_cpu(p->partitionNumber);
+
+	/* First scan for TYPE1 and SPARABLE partitions */
 	for (i = 0; i < sbi->s_partitions; i++) {
 		map = &sbi->s_partmaps[i];
 		udf_debug("Searching map: (%d == %d)\n",
 			  map->s_partition_num, partitionNumber);
-		found = map->s_partition_num == partitionNumber;
-		if (found)
+		if (map->s_partition_num == partitionNumber &&
+		    (map->s_partition_type == UDF_TYPE1_MAP15 ||
+		     map->s_partition_type == UDF_SPARABLE_MAP15))
 			break;
 	}
 
-	if (!found) {
+	if (i >= sbi->s_partitions) {
 		udf_debug("Partition (%d) not found in partition map\n",
 			  partitionNumber);
 		goto out_bh;
 	}
 
 	ret = udf_fill_partdesc_info(sb, p, i);
+
+	/*
+	 * Now rescan for VIRTUAL partitions when TYPE1 partitions are
+	 * already set up
+	 */
+	type1_idx = i;
+	for (i = 0; i < sbi->s_partitions; i++) {
+		map = &sbi->s_partmaps[i];
+
+		if (map->s_partition_num == partitionNumber &&
+		    (map->s_partition_type == UDF_VIRTUAL_MAP15 ||
+		     map->s_partition_type == UDF_VIRTUAL_MAP20))
+			break;
+	}
+
+	if (i >= sbi->s_partitions)
+		goto out_bh;
+
+	ret = udf_fill_partdesc_info(sb, p, i);
+	if (ret)
+		goto out_bh;
+
+	if (!sbi->s_last_block) {
+		sbi->s_last_block = udf_get_last_block(sb);
+		udf_find_anchor(sb);
+		if (!sbi->s_last_block) {
+			udf_debug("Unable to determine Lastblock (For "
+					"Virtual Partition)\n");
+			ret = 1;
+			goto out_bh;
+		}
+	}
+
+	ret = udf_load_vat(sb, i, type1_idx);
 out_bh:
 	/* In case loading failed, we handle cleanup in udf_fill_super */
 	brelse(bh);
@@ -1480,13 +1556,13 @@ static int udf_check_valid(struct super_block *sb, int novrs, int silent)
 	return !block;
 }
 
-static int udf_load_partition(struct super_block *sb, kernel_lb_addr *fileset)
+static int udf_load_sequence(struct super_block *sb, kernel_lb_addr *fileset)
 {
 	struct anchorVolDescPtr *anchor;
 	uint16_t ident;
 	struct buffer_head *bh;
 	long main_s, main_e, reserve_s, reserve_e;
-	int i, j;
+	int i;
 	struct udf_sb_info *sbi;
 
 	if (!sb)
@@ -1535,77 +1611,6 @@ static int udf_load_partition(struct super_block *sb, kernel_lb_addr *fileset)
 	}
 	udf_debug("Using anchor in block %d\n", sbi->s_anchor[i]);
 
-	for (i = 0; i < sbi->s_partitions; i++) {
-		kernel_lb_addr uninitialized_var(ino);
-		struct udf_part_map *map = &sbi->s_partmaps[i];
-
-		if (map->s_partition_type != UDF_VIRTUAL_MAP15 &&
-			map->s_partition_type != UDF_VIRTUAL_MAP20)
-			continue;
-
-		if (!sbi->s_last_block) {
-			sbi->s_last_block = udf_get_last_block(sb);
-			udf_find_anchor(sb);
-		}
-
-		if (!sbi->s_last_block) {
-			udf_debug("Unable to determine Lastblock (For "
-					"Virtual Partition)\n");
-			return 1;
-		}
-
-		for (j = 0; j < sbi->s_partitions; j++) {
-			struct udf_part_map *map2 = &sbi->s_partmaps[j];
-			if (j != i &&
-				map->s_volumeseqnum ==
-					map2->s_volumeseqnum &&
-				map->s_partition_num ==
-					map2->s_partition_num) {
-				ino.partitionReferenceNum = j;
-				ino.logicalBlockNum =
-					sbi->s_last_block -
-						map2->s_partition_root;
-				break;
-			}
-		}
-
-		if (j == sbi->s_partitions)
-			return 1;
-
-		sbi->s_vat_inode = udf_iget(sb, ino);
-		if (!sbi->s_vat_inode)
-			return 1;
-
-		if (map->s_partition_type == UDF_VIRTUAL_MAP15) {
-			map->s_type_specific.s_virtual.s_start_offset =
-				udf_ext0_offset(sbi->s_vat_inode);
-			map->s_type_specific.s_virtual.s_num_entries =
-				(sbi->s_vat_inode->i_size - 36) >> 2;
-		} else if (map->s_partition_type == UDF_VIRTUAL_MAP20) {
-			uint32_t pos;
-			struct virtualAllocationTable20 *vat20;
-
-			pos = udf_block_map(sbi->s_vat_inode, 0);
-			bh = sb_bread(sb, pos);
-			if (!bh)
-				return 1;
-			vat20 = (struct virtualAllocationTable20 *)
-				bh->b_data +
-				udf_ext0_offset(sbi->s_vat_inode);
-			map->s_type_specific.s_virtual.s_start_offset =
-				le16_to_cpu(vat20->lengthHeader) +
-				udf_ext0_offset(sbi->s_vat_inode);
-			map->s_type_specific.s_virtual.s_num_entries =
-				(sbi->s_vat_inode->i_size -
-					map->s_type_specific.s_virtual.
-						s_start_offset) >> 2;
-			brelse(bh);
-		}
-		map->s_partition_root = udf_get_pblock(sb, 0, i, 0);
-		map->s_partition_len =
-			sbi->s_partmaps[ino.partitionReferenceNum].
-							s_partition_len;
-	}
 	return 0;
 }
 
@@ -1790,7 +1795,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	sb->s_magic = UDF_SUPER_MAGIC;
 	sb->s_time_gran = 1000;
 
-	if (udf_load_partition(sb, &fileset)) {
+	if (udf_load_sequence(sb, &fileset)) {
 		printk(KERN_WARNING "UDF-fs: No partition found (1)\n");
 		goto error_out;
 	}
