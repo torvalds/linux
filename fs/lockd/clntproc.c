@@ -699,6 +699,10 @@ static const struct rpc_call_ops nlmclnt_unlock_ops = {
 static int nlmclnt_cancel(struct nlm_host *host, int block, struct file_lock *fl)
 {
 	struct nlm_rqst	*req;
+	int status;
+
+	dprintk("lockd: blocking lock attempt was interrupted by a signal.\n"
+		"       Attempting to cancel lock.\n");
 
 	req = nlm_alloc_call(nlm_get_host(host));
 	if (!req)
@@ -708,7 +712,12 @@ static int nlmclnt_cancel(struct nlm_host *host, int block, struct file_lock *fl
 	nlmclnt_setlockargs(req, fl);
 	req->a_args.block = block;
 
-	return nlmclnt_async_call(req, NLMPROC_CANCEL, &nlmclnt_cancel_ops);
+	atomic_inc(&req->a_count);
+	status = nlmclnt_async_call(req, NLMPROC_CANCEL, &nlmclnt_cancel_ops);
+	if (status == 0 && req->a_res.status == nlm_lck_denied)
+		status = -ENOLCK;
+	nlm_release_call(req);
+	return status;
 }
 
 static void nlmclnt_cancel_callback(struct rpc_task *task, void *data)
