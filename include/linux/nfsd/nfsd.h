@@ -27,7 +27,6 @@
 #define NFSD_VERSION		"0.5"
 #define NFSD_SUPPORTED_MINOR_VERSION	0
 
-#ifdef __KERNEL__
 /*
  * Special flags for nfsd_permission. These must be different from MAY_READ,
  * MAY_WRITE, and MAY_EXEC.
@@ -333,7 +332,5 @@ extern struct timeval	nfssvc_boot;
  | FATTR4_WORD1_TIME_ACCESS_SET | FATTR4_WORD1_TIME_METADATA | FATTR4_WORD1_TIME_MODIFY_SET)
 
 #endif /* CONFIG_NFSD_V4 */
-
-#endif /* __KERNEL__ */
 
 #endif /* LINUX_NFSD_NFSD_H */
