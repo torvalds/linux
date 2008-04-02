@@ -31,7 +31,8 @@ static int __devinit of_platform_serial_setup(struct of_device *ofdev,
 	struct resource resource;
 	struct device_node *np = ofdev->node;
 	const unsigned int *clk, *spd;
-	int ret;
+	const u32 *prop;
+	int ret, prop_size;
 
 	memset(port, 0, sizeof *port);
 	spd = of_get_property(np, "current-speed", NULL);
@@ -49,6 +50,17 @@ static int __devinit of_platform_serial_setup(struct of_device *ofdev,
 
 	spin_lock_init(&port->lock);
 	port->mapbase = resource.start;
+
+	/* Check for shifted address mapping */
+	prop = of_get_property(np, "reg-offset", &prop_size);
+	if (prop && (prop_size == sizeof(u32)))
+		port->mapbase += *prop;
+
+	/* Check for registers offset within the devices address range */
+	prop = of_get_property(np, "reg-shift", &prop_size);
+	if (prop && (prop_size == sizeof(u32)))
+		port->regshift = *prop;
+
 	port->irq = irq_of_parse_and_map(np, 0);
 	port->iotype = UPIO_MEM;
 	port->type = type;

@@ -2601,6 +2601,17 @@ platforms are moved over to use the flattened-device-tree model.
                       differ between different families.  May be
                       'virtex2p', 'virtex4', or 'virtex5'.
 
+      vi) Xilinx Uart 16550
+
+      Xilinx UART 16550 devices are very similar to the NS16550 but with
+      different register spacing and an offset from the base address.
+
+      Requred properties:
+       - clock-frequency : Frequency of the clock input
+       - reg-offset : A value of 3 is required
+       - reg-shift : A value of 2 is required
+
+
     p) Freescale Synchronous Serial Interface
 
        The SSI is a serial device that communicates with audio codecs.  It can
