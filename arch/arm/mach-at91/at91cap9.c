@@ -13,12 +13,14 @@
  */
 
 #include <linux/module.h>
+#include <linux/pm.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/arch/at91cap9.h>
 #include <asm/arch/at91_pmc.h>
 #include <asm/arch/at91_rstc.h>
+#include <asm/arch/at91_shdwc.h>
 
 #include "generic.h"
 #include "clock.h"
@@ -288,6 +290,12 @@ static void at91cap9_reset(void)
 	at91_sys_write(AT91_RSTC_CR, AT91_RSTC_KEY | AT91_RSTC_PROCRST | AT91_RSTC_PERRST);
 }
 
+static void at91cap9_poweroff(void)
+{
+	at91_sys_write(AT91_SHDW_CR, AT91_SHDW_KEY | AT91_SHDW_SHDW);
+}
+
+
 /* --------------------------------------------------------------------
  *  AT91CAP9 processor initialization
  * -------------------------------------------------------------------- */
@@ -298,6 +306,7 @@ void __init at91cap9_initialize(unsigned long main_clock)
 	iotable_init(at91cap9_io_desc, ARRAY_SIZE(at91cap9_io_desc));
 
 	at91_arch_reset = at91cap9_reset;
+	pm_power_off = at91cap9_poweroff;
 	at91_extern_irq = (1 << AT91CAP9_ID_IRQ0) | (1 << AT91CAP9_ID_IRQ1);
 
 	/* Init clock subsystem */
