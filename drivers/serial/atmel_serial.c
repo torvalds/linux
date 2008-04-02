@@ -96,6 +96,7 @@
 
  /* PDC registers */
 #define UART_PUT_PTCR(port,v)	__raw_writel(v, (port)->membase + ATMEL_PDC_PTCR)
+#define UART_GET_TCR(port)      __raw_readl((port)->membase + ATMEL_PDC_TCR)
 #define UART_GET_PTSR(port)	__raw_readl((port)->membase + ATMEL_PDC_PTSR)
 
 #define UART_PUT_RPR(port,v)	__raw_writel(v, (port)->membase + ATMEL_PDC_RPR)
@@ -562,17 +563,22 @@ static void atmel_tx_dma(struct uart_port *port)
 	struct atmel_dma_buffer *pdc = &atmel_port->pdc_tx;
 	int count;
 
+	/* nothing left to transmit? */
+	if (UART_GET_TCR(port))
+		return;
+
 	xmit->tail += pdc->ofs;
 	xmit->tail &= UART_XMIT_SIZE - 1;
 
 	port->icount.tx += pdc->ofs;
 	pdc->ofs = 0;
 
-	if (!uart_circ_empty(xmit)) {
-		/* more to transmit - setup next transfer */
+	/* more to transmit - setup next transfer */
 
-		/* disable PDC transmit */
-		UART_PUT_PTCR(port, ATMEL_PDC_TXTDIS);
+	/* disable PDC transmit */
+	UART_PUT_PTCR(port, ATMEL_PDC_TXTDIS);
+
+	if (!uart_circ_empty(xmit)) {
 		dma_sync_single_for_device(port->dev,
 					   pdc->dma_addr,
 					   pdc->dma_size,
@@ -586,11 +592,6 @@ static void atmel_tx_dma(struct uart_port *port)
 		/* re-enable PDC transmit and interrupts */
 		UART_PUT_PTCR(port, ATMEL_PDC_TXTEN);
 		UART_PUT_IER(port, ATMEL_US_ENDTX | ATMEL_US_TXBUFE);
-	} else {
-		/* nothing left to transmit - disable the transmitter */
-
-		/* disable PDC transmit */
-		UART_PUT_PTCR(port, ATMEL_PDC_TXTDIS);
 	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
