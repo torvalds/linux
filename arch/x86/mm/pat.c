@@ -284,7 +284,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 		struct memtype *saved_ptr;
 
 		if (parse->start >= end) {
-			printk("New Entry\n");
+			pr_debug("New Entry\n");
 			list_add(&new_entry->nd, parse->nd.prev);
 			new_entry = NULL;
 			break;
@@ -386,7 +386,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 				break;
 			}
 
-			printk("Overlap at 0x%Lx-0x%Lx\n",
+			printk(KERN_INFO "Overlap at 0x%Lx-0x%Lx\n",
 			       saved_ptr->start, saved_ptr->end);
 			/* No conflict. Go ahead and add this new entry */
 			list_add(&new_entry->nd, &saved_ptr->nd);
@@ -396,7 +396,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	}
 
 	if (err) {
-		printk(
+		printk(KERN_INFO
 	"reserve_memtype failed 0x%Lx-0x%Lx, track %s, req %s\n",
 			start, end, cattr_name(new_entry->type),
 			cattr_name(req_type));
@@ -408,16 +408,16 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	if (new_entry) {
 		/* No conflict. Not yet added to the list. Add to the tail */
 		list_add_tail(&new_entry->nd, &memtype_list);
-		printk("New Entry\n");
-  	}
+		pr_debug("New Entry\n");
+	}
 
 	if (ret_type) {
-		printk(
+		pr_debug(
 	"reserve_memtype added 0x%Lx-0x%Lx, track %s, req %s, ret %s\n",
 			start, end, cattr_name(actual_type),
 			cattr_name(req_type), cattr_name(*ret_type));
 	} else {
-		printk(
+		pr_debug(
 	"reserve_memtype added 0x%Lx-0x%Lx, track %s, req %s\n",
 			start, end, cattr_name(actual_type),
 			cattr_name(req_type));
@@ -454,11 +454,11 @@ int free_memtype(u64 start, u64 end)
 	spin_unlock(&memtype_lock);
 
 	if (err) {
-		printk(KERN_DEBUG "%s:%d freeing invalid memtype %Lx-%Lx\n",
+		printk(KERN_INFO "%s:%d freeing invalid memtype %Lx-%Lx\n",
 			current->comm, current->pid, start, end);
 	}
 
-	printk( "free_memtype request 0x%Lx-0x%Lx\n", start, end);
+	pr_debug("free_memtype request 0x%Lx-0x%Lx\n", start, end);
 	return err;
 }
 
@@ -529,7 +529,7 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 	if (pfn <= max_pfn_mapped &&
             ioremap_change_attr((unsigned long)__va(offset), size, flags) < 0) {
 		free_memtype(offset, offset + size);
-		printk(KERN_DEBUG
+		printk(KERN_INFO
 		"%s:%d /dev/mem ioremap_change_attr failed %s for %Lx-%Lx\n",
 			current->comm, current->pid,
 			cattr_name(flags),
@@ -550,7 +550,7 @@ void map_devmem(unsigned long pfn, unsigned long size, pgprot_t vma_prot)
 
 	reserve_memtype(addr, addr + size, want_flags, &flags);
 	if (flags != want_flags) {
-		printk(KERN_DEBUG
+		printk(KERN_INFO
 		"%s:%d /dev/mem expected mapping type %s for %Lx-%Lx, got %s\n",
 			current->comm, current->pid,
 			cattr_name(want_flags),
