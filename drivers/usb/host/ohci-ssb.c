@@ -60,36 +60,6 @@ static int ssb_ohci_start(struct usb_hcd *hcd)
 	return err;
 }
 
-#ifdef CONFIG_PM
-static int ssb_ohci_hcd_suspend(struct usb_hcd *hcd, pm_message_t message)
-{
-	struct ssb_ohci_device *ohcidev = hcd_to_ssb_ohci(hcd);
-	struct ohci_hcd *ohci = &ohcidev->ohci;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ohci->lock, flags);
-
-	ohci_writel(ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
-	ohci_readl(ohci, &ohci->regs->intrdisable); /* commit write */
-
-	/* make sure snapshot being resumed re-enumerates everything */
-	if (message.event == PM_EVENT_PRETHAW)
-		ohci_usb_reset(ohci);
-
-	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-
-	spin_unlock_irqrestore(&ohci->lock, flags);
-	return 0;
-}
-
-static int ssb_ohci_hcd_resume(struct usb_hcd *hcd)
-{
-	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-	usb_hcd_resume_root_hub(hcd);
-	return 0;
-}
-#endif /* CONFIG_PM */
-
 static const struct hc_driver ssb_ohci_hc_driver = {
 	.description		= "ssb-usb-ohci",
 	.product_desc		= "SSB OHCI Controller",
@@ -102,11 +72,6 @@ static const struct hc_driver ssb_ohci_hc_driver = {
 	.start			= ssb_ohci_start,
 	.stop			= ohci_stop,
 	.shutdown		= ohci_shutdown,
-
-#ifdef CONFIG_PM
-	.suspend		= ssb_ohci_hcd_suspend,
-	.resume			= ssb_ohci_hcd_resume,
-#endif
 
 	.urb_enqueue		= ohci_urb_enqueue,
 	.urb_dequeue		= ohci_urb_dequeue,

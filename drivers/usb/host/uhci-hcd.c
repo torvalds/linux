@@ -737,7 +737,7 @@ static int uhci_rh_resume(struct usb_hcd *hcd)
 	return rc;
 }
 
-static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
+static int uhci_pci_suspend(struct usb_hcd *hcd, pm_message_t message)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	int rc = 0;
@@ -774,7 +774,7 @@ done:
 	return rc;
 }
 
-static int uhci_resume(struct usb_hcd *hcd)
+static int uhci_pci_resume(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
@@ -872,8 +872,8 @@ static const struct hc_driver uhci_driver = {
 	.reset =		uhci_init,
 	.start =		uhci_start,
 #ifdef CONFIG_PM
-	.suspend =		uhci_suspend,
-	.resume =		uhci_resume,
+	.pci_suspend =		uhci_pci_suspend,
+	.pci_resume =		uhci_pci_resume,
 	.bus_suspend =		uhci_rh_suspend,
 	.bus_resume =		uhci_rh_resume,
 #endif

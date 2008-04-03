@@ -2946,34 +2946,6 @@ static void u132_hub_irq_enable(struct usb_hcd *hcd)
 
 
 #ifdef CONFIG_PM
-static int u132_hcd_suspend(struct usb_hcd *hcd, pm_message_t message)
-{
-	struct u132 *u132 = hcd_to_u132(hcd);
-	if (u132->going > 1) {
-		dev_err(&u132->platform_dev->dev, "device has been removed %d\n"
-			, u132->going);
-		return -ENODEV;
-	} else if (u132->going > 0) {
-		dev_err(&u132->platform_dev->dev, "device is being removed\n");
-		return -ESHUTDOWN;
-	} else
-		return 0;
-}
-
-static int u132_hcd_resume(struct usb_hcd *hcd)
-{
-	struct u132 *u132 = hcd_to_u132(hcd);
-	if (u132->going > 1) {
-		dev_err(&u132->platform_dev->dev, "device has been removed %d\n"
-			, u132->going);
-		return -ENODEV;
-	} else if (u132->going > 0) {
-		dev_err(&u132->platform_dev->dev, "device is being removed\n");
-		return -ESHUTDOWN;
-	} else
-		return 0;
-}
-
 static int u132_bus_suspend(struct usb_hcd *hcd)
 {
 	struct u132 *u132 = hcd_to_u132(hcd);
@@ -3003,8 +2975,6 @@ static int u132_bus_resume(struct usb_hcd *hcd)
 }
 
 #else
-#define u132_hcd_suspend NULL
-#define u132_hcd_resume NULL
 #define u132_bus_suspend NULL
 #define u132_bus_resume NULL
 #endif
@@ -3015,8 +2985,6 @@ static struct hc_driver u132_hc_driver = {
 	.flags = HCD_USB11 | HCD_MEMORY,
 	.reset = u132_hcd_reset,
 	.start = u132_hcd_start,
-	.suspend = u132_hcd_suspend,
-	.resume = u132_hcd_resume,
 	.stop = u132_hcd_stop,
 	.urb_enqueue = u132_urb_enqueue,
 	.urb_dequeue = u132_urb_dequeue,

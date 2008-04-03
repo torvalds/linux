@@ -215,9 +215,9 @@ int usb_hcd_pci_suspend(struct pci_dev *dev, pm_message_t message)
 			hcd->state == HC_STATE_HALT))
 		return -EBUSY;
 
-	if (hcd->driver->suspend) {
-		retval = hcd->driver->suspend(hcd, message);
-		suspend_report_result(hcd->driver->suspend, retval);
+	if (hcd->driver->pci_suspend) {
+		retval = hcd->driver->pci_suspend(hcd, message);
+		suspend_report_result(hcd->driver->pci_suspend, retval);
 		if (retval)
 			goto done;
 	}
@@ -405,8 +405,8 @@ int usb_hcd_pci_resume(struct pci_dev *dev)
 
 	clear_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
 
-	if (hcd->driver->resume) {
-		retval = hcd->driver->resume(hcd);
+	if (hcd->driver->pci_resume) {
+		retval = hcd->driver->pci_resume(hcd);
 		if (retval) {
 			dev_err(hcd->self.controller,
 				"PCI post-resume error %d!\n", retval);

@@ -353,8 +353,8 @@ static const struct hc_driver ehci_pci_hc_driver = {
 	.reset =		ehci_pci_setup,
 	.start =		ehci_run,
 #ifdef	CONFIG_PM
-	.suspend =		ehci_pci_suspend,
-	.resume =		ehci_pci_resume,
+	.pci_suspend =		ehci_pci_suspend,
+	.pci_resume =		ehci_pci_resume,
 #endif
 	.stop =			ehci_stop,
 	.shutdown =		ehci_shutdown,
