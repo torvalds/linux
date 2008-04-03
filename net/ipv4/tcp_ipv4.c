@@ -89,7 +89,7 @@ int sysctl_tcp_low_latency __read_mostly;
 #define ICMP_MIN_LENGTH 8
 
 /* Socket used for sending RSTs */
-static struct socket *tcp_socket __read_mostly;
+static struct sock *tcp_sock __read_mostly;
 
 void tcp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb);
 
@@ -598,7 +598,7 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 				      sizeof(struct tcphdr), IPPROTO_TCP, 0);
 	arg.csumoffset = offsetof(struct tcphdr, check) / 2;
 
-	ip_send_reply(tcp_socket->sk, skb, &arg, arg.iov[0].iov_len);
+	ip_send_reply(tcp_sock, skb, &arg, arg.iov[0].iov_len);
 
 	TCP_INC_STATS_BH(TCP_MIB_OUTSEGS);
 	TCP_INC_STATS_BH(TCP_MIB_OUTRSTS);
@@ -693,7 +693,7 @@ static void tcp_v4_send_ack(struct tcp_timewait_sock *twsk,
 	if (twsk)
 		arg.bound_dev_if = twsk->tw_sk.tw_bound_dev_if;
 
-	ip_send_reply(tcp_socket->sk, skb, &arg, arg.iov[0].iov_len);
+	ip_send_reply(tcp_sock, skb, &arg, arg.iov[0].iov_len);
 
 	TCP_INC_STATS_BH(TCP_MIB_OUTSEGS);
 }
@@ -2490,9 +2490,11 @@ struct proto tcp_prot = {
 
 void __init tcp_v4_init(void)
 {
-	if (inet_csk_ctl_sock_create(&tcp_socket, PF_INET, SOCK_RAW,
+	struct socket *__tcp_socket;
+	if (inet_csk_ctl_sock_create(&__tcp_socket, PF_INET, SOCK_RAW,
 				     IPPROTO_TCP) < 0)
 		panic("Failed to create the TCP control socket.\n");
+	tcp_sock = __tcp_socket->sk;
 }
 
 EXPORT_SYMBOL(ipv4_specific);
