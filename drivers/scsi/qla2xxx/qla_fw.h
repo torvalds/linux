@@ -719,7 +719,7 @@ struct tsk_mgmt_entry {
 
 	uint16_t timeout;		/* Command timeout. */
 
-	uint8_t lun[8];			/* FCP LUN (BE). */
+	struct scsi_lun lun;		/* FCP LUN (BE). */
 
 	uint32_t control_flags;		/* Control Flags. */
 #define TCF_NOTMCMD_TO_TARGET	BIT_31

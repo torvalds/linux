@@ -2062,7 +2062,8 @@ struct isp_operations {
 	void (*disable_intrs) (struct scsi_qla_host *);
 
 	int (*abort_command) (struct scsi_qla_host *, srb_t *);
-	int (*abort_target) (struct fc_port *);
+	int (*target_reset) (struct fc_port *, unsigned int);
+	int (*lun_reset) (struct fc_port *, unsigned int);
 	int (*fabric_login) (struct scsi_qla_host *, uint16_t, uint8_t,
 		uint8_t, uint8_t, uint16_t *, uint8_t);
 	int (*fabric_logout) (struct scsi_qla_host *, uint16_t, uint8_t,

@@ -784,35 +784,20 @@ qla2x00_abort_command(scsi_qla_host_t *ha, srb_t *sp)
 	return rval;
 }
 
-/*
- * qla2x00_abort_target
- *	Issue abort target mailbox command.
- *
- * Input:
- *	ha = adapter block pointer.
- *
- * Returns:
- *	qla2x00 local function return status code.
- *
- * Context:
- *	Kernel context.
- */
 int
-qla2x00_abort_target(fc_port_t *fcport)
+qla2x00_abort_target(struct fc_port *fcport, unsigned int l)
 {
-	int        rval;
+	int rval, rval2;
 	mbx_cmd_t  mc;
 	mbx_cmd_t  *mcp = &mc;
 	scsi_qla_host_t *ha;
 
-	if (fcport == NULL)
-		return 0;
-
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, fcport->ha->host_no));
 
+	l = l;
 	ha = fcport->ha;
 	mcp->mb[0] = MBC_ABORT_TARGET;
-	mcp->out_mb = MBX_2|MBX_1|MBX_0;
+	mcp->out_mb = MBX_9|MBX_2|MBX_1|MBX_0;
 	if (HAS_EXTENDED_IDS(ha)) {
 		mcp->mb[1] = fcport->loop_id;
 		mcp->mb[10] = 0;
@@ -821,22 +806,66 @@ qla2x00_abort_target(fc_port_t *fcport)
 		mcp->mb[1] = fcport->loop_id << 8;
 	}
 	mcp->mb[2] = ha->loop_reset_delay;
+	mcp->mb[9] = ha->vp_idx;
 
 	mcp->in_mb = MBX_0;
 	mcp->tov = 30;
 	mcp->flags = 0;
 	rval = qla2x00_mailbox_command(ha, mcp);
-
-	/* Issue marker command. */
-	ha->marker_needed = 1;
-
 	if (rval != QLA_SUCCESS) {
-		DEBUG2_3_11(printk("qla2x00_abort_target(%ld): failed=%x.\n",
+		DEBUG2_3_11(printk("%s(%ld): failed=%x.\n", __func__,
 		    ha->host_no, rval));
+	}
+
+	/* Issue marker IOCB. */
+	rval2 = qla2x00_marker(ha, fcport->loop_id, 0, MK_SYNC_ID);
+	if (rval2 != QLA_SUCCESS) {
+		DEBUG2_3_11(printk("%s(%ld): failed to issue Marker IOCB "
+		    "(%x).\n", __func__, ha->host_no, rval2));
 	} else {
-		/*EMPTY*/
-		DEBUG11(printk("qla2x00_abort_target(%ld): done.\n",
-		    ha->host_no));
+		DEBUG11(printk("%s(%ld): done.\n", __func__, ha->host_no));
+	}
+
+	return rval;
+}
+
+int
+qla2x00_lun_reset(struct fc_port *fcport, unsigned int l)
+{
+	int rval, rval2;
+	mbx_cmd_t  mc;
+	mbx_cmd_t  *mcp = &mc;
+	scsi_qla_host_t *ha;
+
+	DEBUG11(printk("%s(%ld): entered.\n", __func__, fcport->ha->host_no));
+
+	ha = fcport->ha;
+	mcp->mb[0] = MBC_LUN_RESET;
+	mcp->out_mb = MBX_9|MBX_3|MBX_2|MBX_1|MBX_0;
+	if (HAS_EXTENDED_IDS(ha))
+		mcp->mb[1] = fcport->loop_id;
+	else
+		mcp->mb[1] = fcport->loop_id << 8;
+	mcp->mb[2] = l;
+	mcp->mb[3] = 0;
+	mcp->mb[9] = ha->vp_idx;
+
+	mcp->in_mb = MBX_0;
+	mcp->tov = 30;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(ha, mcp);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_3_11(printk("%s(%ld): failed=%x.\n", __func__,
+		    ha->host_no, rval));
+	}
+
+	/* Issue marker IOCB. */
+	rval2 = qla2x00_marker(ha, fcport->loop_id, l, MK_SYNC_ID_LUN);
+	if (rval2 != QLA_SUCCESS) {
+		DEBUG2_3_11(printk("%s(%ld): failed to issue Marker IOCB "
+		    "(%x).\n", __func__, ha->host_no, rval2));
+	} else {
+		DEBUG11(printk("%s(%ld): done.\n", __func__, ha->host_no));
 	}
 
 	return rval;
@@ -2186,16 +2215,14 @@ struct tsk_mgmt_cmd {
 	} p;
 };
 
-int
-qla24xx_abort_target(fc_port_t *fcport)
+static int
+__qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
+    unsigned int l)
 {
-	int		rval;
+	int		rval, rval2;
 	struct tsk_mgmt_cmd *tsk;
 	dma_addr_t	tsk_dma;
 	scsi_qla_host_t *ha, *pha;
-
-	if (fcport == NULL)
-		return 0;
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, fcport->ha->host_no));
 
@@ -2213,45 +2240,59 @@ qla24xx_abort_target(fc_port_t *fcport)
 	tsk->p.tsk.entry_count = 1;
 	tsk->p.tsk.nport_handle = cpu_to_le16(fcport->loop_id);
 	tsk->p.tsk.timeout = cpu_to_le16(ha->r_a_tov / 10 * 2);
-	tsk->p.tsk.control_flags = __constant_cpu_to_le32(TCF_TARGET_RESET);
+	tsk->p.tsk.control_flags = cpu_to_le32(type);
 	tsk->p.tsk.port_id[0] = fcport->d_id.b.al_pa;
 	tsk->p.tsk.port_id[1] = fcport->d_id.b.area;
 	tsk->p.tsk.port_id[2] = fcport->d_id.b.domain;
 	tsk->p.tsk.vp_index = fcport->vp_idx;
+	if (type == TCF_LUN_RESET) {
+		int_to_scsilun(l, &tsk->p.tsk.lun);
+		host_to_fcp_swap((uint8_t *)&tsk->p.tsk.lun,
+		    sizeof(tsk->p.tsk.lun));
+	}
 
 	rval = qla2x00_issue_iocb(ha, tsk, tsk_dma, 0);
 	if (rval != QLA_SUCCESS) {
-		DEBUG2_3_11(printk("%s(%ld): failed to issue Target Reset IOCB "
-		    "(%x).\n", __func__, ha->host_no, rval));
-		goto atarget_done;
+		DEBUG2_3_11(printk("%s(%ld): failed to issue %s Reset IOCB "
+		    "(%x).\n", __func__, ha->host_no, name, rval));
 	} else if (tsk->p.sts.entry_status != 0) {
 		DEBUG2_3_11(printk("%s(%ld): failed to complete IOCB "
 		    "-- error status (%x).\n", __func__, ha->host_no,
 		    tsk->p.sts.entry_status));
 		rval = QLA_FUNCTION_FAILED;
-		goto atarget_done;
 	} else if (tsk->p.sts.comp_status !=
 	    __constant_cpu_to_le16(CS_COMPLETE)) {
 		DEBUG2_3_11(printk("%s(%ld): failed to complete IOCB "
 		    "-- completion status (%x).\n", __func__,
 		    ha->host_no, le16_to_cpu(tsk->p.sts.comp_status)));
 		rval = QLA_FUNCTION_FAILED;
-		goto atarget_done;
 	}
 
 	/* Issue marker IOCB. */
-	rval = qla2x00_marker(ha, fcport->loop_id, 0, MK_SYNC_ID);
-	if (rval != QLA_SUCCESS) {
+	rval2 = qla2x00_marker(ha, fcport->loop_id, l,
+	    type == TCF_LUN_RESET ? MK_SYNC_ID_LUN: MK_SYNC_ID);
+	if (rval2 != QLA_SUCCESS) {
 		DEBUG2_3_11(printk("%s(%ld): failed to issue Marker IOCB "
-		    "(%x).\n", __func__, ha->host_no, rval));
+		    "(%x).\n", __func__, ha->host_no, rval2));
 	} else {
 		DEBUG11(printk("%s(%ld): done.\n", __func__, ha->host_no));
 	}
 
-atarget_done:
 	dma_pool_free(pha->s_dma_pool, tsk, tsk_dma);
 
 	return rval;
+}
+
+int
+qla24xx_abort_target(struct fc_port *fcport, unsigned int l)
+{
+	return __qla24xx_issue_tmf("Target", TCF_TARGET_RESET, fcport, l);
+}
+
+int
+qla24xx_lun_reset(struct fc_port *fcport, unsigned int l)
+{
+	return __qla24xx_issue_tmf("Lun", TCF_LUN_RESET, fcport, l);
 }
 
 #if 0
