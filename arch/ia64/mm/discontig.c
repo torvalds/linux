@@ -124,6 +124,7 @@ static unsigned long __meminit compute_pernodesize(int node)
 	pernodesize += node * L1_CACHE_BYTES;
 	pernodesize += L1_CACHE_ALIGN(sizeof(pg_data_t));
 	pernodesize += L1_CACHE_ALIGN(sizeof(struct ia64_node_data));
+	pernodesize += L1_CACHE_ALIGN(sizeof(pg_data_t));
 	pernodesize = PAGE_ALIGN(pernodesize);
 	return pernodesize;
 }
