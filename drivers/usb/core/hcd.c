@@ -129,7 +129,7 @@ static const u8 usb2_rh_dev_descriptor [18] = {
 
 	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
 	0x00,	    /*  __u8  bDeviceSubClass; */
-	0x01,       /*  __u8  bDeviceProtocol; [ usb 2.0 single TT ]*/
+	0x00,       /*  __u8  bDeviceProtocol; [ usb 2.0 no TT ] */
 	0x40,       /*  __u8  bMaxPacketSize0; 64 Bytes */
 
 	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation */
@@ -354,9 +354,10 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 		__attribute__((aligned(4)));
 	const u8	*bufp = tbuf;
 	int		len = 0;
-	int		patch_wakeup = 0;
 	int		status;
 	int		n;
+	u8		patch_wakeup = 0;
+	u8		patch_protocol = 0;
 
 	might_sleep();
 
@@ -433,6 +434,8 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 			else
 				goto error;
 			len = 18;
+			if (hcd->has_tt)
+				patch_protocol = 1;
 			break;
 		case USB_DT_CONFIG << 8:
 			if (hcd->driver->flags & HCD_USB2) {
@@ -527,6 +530,13 @@ error:
 						bmAttributes))
 			((struct usb_config_descriptor *)ubuf)->bmAttributes
 				|= USB_CONFIG_ATT_WAKEUP;
+
+		/* report whether RH hardware has an integrated TT */
+		if (patch_protocol &&
+				len > offsetof(struct usb_device_descriptor,
+						bDeviceProtocol))
+			((struct usb_device_descriptor *) ubuf)->
+					bDeviceProtocol = 1;
 	}
 
 	/* any errors get returned through the urb completion */

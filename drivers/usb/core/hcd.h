@@ -99,6 +99,7 @@ struct usb_hcd {
 	unsigned		poll_pending:1;	/* status has changed? */
 	unsigned		wireless:1;	/* Wireless USB HCD */
 	unsigned		authorized_default:1;
+	unsigned		has_tt:1;	/* Integrated TT in root hub */
 
 	int			irq;		/* irq allocated */
 	void __iomem		*regs;		/* device memory/io */
