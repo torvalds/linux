@@ -1841,8 +1841,10 @@ qla2x00_gpsc(scsi_qla_host_t *ha, sw_info_t *list)
 		    "GPSC")) != QLA_SUCCESS) {
 			/* FM command unsupported? */
 			if (rval == QLA_INVALID_COMMAND &&
-			    ct_rsp->header.reason_code ==
-			    CT_REASON_INVALID_COMMAND_CODE) {
+			    (ct_rsp->header.reason_code ==
+				CT_REASON_INVALID_COMMAND_CODE ||
+			     ct_rsp->header.reason_code ==
+				CT_REASON_COMMAND_UNSUPPORTED)) {
 				DEBUG2(printk("scsi(%ld): GPSC command "
 				    "unsupported, disabling query...\n",
 				    ha->host_no));
