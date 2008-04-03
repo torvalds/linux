@@ -542,13 +542,13 @@ static void ieee80211_set_associated(struct net_device *dev,
 
 		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
 	}
-	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
 	ifsta->last_probe = jiffies;
 	ieee80211_led_assoc(local, assoc);
 
 	sdata->bss_conf.assoc = assoc;
 	ieee80211_bss_info_change_notify(sdata, changed);
+	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
+	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
 }
 
 static void ieee80211_set_disassoc(struct net_device *dev,
