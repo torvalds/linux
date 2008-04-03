@@ -61,6 +61,9 @@
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
+#ifdef CONFIG_IPV6_MROUTE
+#include <linux/mroute6.h>
+#endif
 
 MODULE_AUTHOR("Cast of dozens");
 MODULE_DESCRIPTION("IPv6 protocol stack for Linux");
@@ -953,6 +956,9 @@ static int __init inet6_init(void)
 	err = icmpv6_init();
 	if (err)
 		goto icmp_fail;
+#ifdef CONFIG_IPV6_MROUTE
+	ip6_mr_init();
+#endif
 	err = ndisc_init();
 	if (err)
 		goto ndisc_fail;

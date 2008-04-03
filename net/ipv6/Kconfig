@@ -209,3 +209,10 @@ config IPV6_SUBTREES
 
 	  If unsure, say N.
 
+config IPV6_MROUTE
+	bool "IPv6: multicast routing (EXPERIMENTAL)"
+	depends on IPV6 && EXPERIMENTAL
+	---help---
+	  Experimental support for IPv6 multicast forwarding.
+	  If unsure, say N.
+

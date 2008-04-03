@@ -33,6 +33,7 @@
 #include <linux/sockios.h>
 #include <linux/net.h>
 #include <linux/in6.h>
+#include <linux/mroute6.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/init.h>
@@ -117,6 +118,9 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		return -EFAULT;
 
 	valbool = (val!=0);
+
+	if (ip6_mroute_opt(optname))
+		return ip6_mroute_setsockopt(sk, optname, optval, optlen);
 
 	lock_sock(sk);
 
@@ -789,6 +793,9 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	int len;
 	int val;
+
+	if (ip6_mroute_opt(optname))
+		return ip6_mroute_getsockopt(sk, optname, optval, optlen);
 
 	if (get_user(len, optlen))
 		return -EFAULT;
