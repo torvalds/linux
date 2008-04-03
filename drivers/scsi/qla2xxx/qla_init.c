@@ -106,6 +106,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 		rval = qla2x00_setup_chip(ha);
 		if (rval)
 			return (rval);
+		qla2xxx_get_flash_info(ha);
 	}
 	rval = qla2x00_init_rings(ha);
 

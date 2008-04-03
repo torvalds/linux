@@ -1186,4 +1186,36 @@ struct vf_evfp_entry_24xx {
 };
 
 /* END MID Support ***********************************************************/
+
+/* Flash Description Table ***************************************************/
+
+struct qla_fdt_layout {
+	uint8_t sig[4];
+	uint16_t version;
+	uint16_t len;
+	uint16_t checksum;
+	uint8_t unused1[2];
+	uint8_t model[16];
+	uint16_t man_id;
+	uint16_t id;
+	uint8_t flags;
+	uint8_t erase_cmd;
+	uint8_t alt_erase_cmd;
+	uint8_t wrt_enable_cmd;
+	uint8_t wrt_enable_bits;
+	uint8_t wrt_sts_reg_cmd;
+	uint8_t unprotect_sec_cmd;
+	uint8_t read_man_id_cmd;
+	uint32_t block_size;
+	uint32_t alt_block_size;
+	uint32_t flash_size;
+	uint32_t wrt_enable_data;
+	uint8_t read_id_addr_len;
+	uint8_t wrt_disable_bits;
+	uint8_t read_dev_id_len;
+	uint8_t chip_erase_cmd;
+	uint16_t read_timeout;
+	uint8_t protect_sec_cmd;
+	uint8_t unused2[65];
+};
 #endif

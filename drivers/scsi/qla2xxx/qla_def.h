@@ -2521,6 +2521,13 @@ typedef struct scsi_qla_host {
 	uint8_t		fcode_revision[16];
 	uint32_t	fw_revision[4];
 
+	uint16_t	fdt_odd_index;
+	uint32_t	fdt_wrt_disable;
+	uint32_t	fdt_erase_cmd;
+	uint32_t	fdt_block_size;
+	uint32_t	fdt_unprotect_sec_cmd;
+	uint32_t	fdt_protect_sec_cmd;
+
 	/* Needed for BEACON */
 	uint16_t	beacon_blink_led;
 	uint8_t		beacon_color_state;
