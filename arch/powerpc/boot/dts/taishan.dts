@@ -304,7 +304,7 @@
 				mal-tx-channel = <2>;
 				mal-rx-channel = <2>;
 				cell-index = <2>;
-				max-frame-size = <5dc>;
+				max-frame-size = <2328>;
 				rx-fifo-size = <1000>;
 				tx-fifo-size = <800>;
 				phy-mode = "rgmii";
@@ -328,7 +328,7 @@
 				mal-tx-channel = <3>;
 				mal-rx-channel = <3>;
 				cell-index = <3>;
-				max-frame-size = <5dc>;
+				max-frame-size = <2328>;
 				rx-fifo-size = <1000>;
 				tx-fifo-size = <800>;
 				phy-mode = "rgmii";
