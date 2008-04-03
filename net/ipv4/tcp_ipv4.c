@@ -2488,11 +2488,28 @@ struct proto tcp_prot = {
 #endif
 };
 
+
+static int __net_init tcp_sk_init(struct net *net)
+{
+	return inet_ctl_sock_create(&net->ipv4.tcp_sock,
+				    PF_INET, SOCK_RAW, IPPROTO_TCP, net);
+}
+
+static void __net_exit tcp_sk_exit(struct net *net)
+{
+	inet_ctl_sock_destroy(net->ipv4.tcp_sock);
+}
+
+static struct pernet_operations __net_initdata tcp_sk_ops = {
+       .init = tcp_sk_init,
+       .exit = tcp_sk_exit,
+};
+
 void __init tcp_v4_init(void)
 {
-	if (inet_ctl_sock_create(&tcp_sock, PF_INET, SOCK_RAW,
-				 IPPROTO_TCP, &init_net) < 0)
+	if (register_pernet_device(&tcp_sk_ops))
 		panic("Failed to create the TCP control socket.\n");
+	tcp_sock = init_net.ipv4.tcp_sock;
 }
 
 EXPORT_SYMBOL(ipv4_specific);

@@ -28,6 +28,7 @@ struct netns_ipv4 {
 	struct sock		*fibnl;
 
 	struct sock		**icmp_sk;
+	struct sock		*tcp_sock;
 
 	struct netns_frags	frags;
 #ifdef CONFIG_NETFILTER
