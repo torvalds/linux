@@ -2577,7 +2577,8 @@ qla2x00_timer(scsi_qla_host_t *ha)
 			set_bit(RESTART_QUEUES_NEEDED, &ha->dpc_flags);
 			start_dpc++;
 
-			if (!(ha->device_flags & DFLG_NO_CABLE)) {
+			if (!(ha->device_flags & DFLG_NO_CABLE) &&
+			    !ha->parent) {
 				DEBUG(printk("scsi(%ld): Loop down - "
 				    "aborting ISP.\n",
 				    ha->host_no));
