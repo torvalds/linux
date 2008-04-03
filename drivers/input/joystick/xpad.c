@@ -339,9 +339,11 @@ static void xpad360_process_packet(struct usb_xpad *xpad,
 static void xpad_irq_in(struct urb *urb)
 {
 	struct usb_xpad *xpad = urb->context;
-	int retval;
+	int retval, status;
 
-	switch (urb->status) {
+	status = urb->status;
+
+	switch (status) {
 	case 0:
 		/* success */
 		break;
@@ -350,11 +352,11 @@ static void xpad_irq_in(struct urb *urb)
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d",
-			__FUNCTION__, urb->status);
+			__FUNCTION__, status);
 		return;
 	default:
 		dbg("%s - nonzero urb status received: %d",
-			__FUNCTION__, urb->status);
+			__FUNCTION__, status);
 		goto exit;
 	}
 
@@ -373,9 +375,11 @@ exit:
 #if defined(CONFIG_JOYSTICK_XPAD_FF) || defined(CONFIG_JOYSTICK_XPAD_LEDS)
 static void xpad_irq_out(struct urb *urb)
 {
-	int retval;
+	int retval, status;
 
-	switch (urb->status) {
+	status = urb->status;
+
+	switch (status) {
 		case 0:
 		/* success */
 		break;
@@ -384,11 +388,11 @@ static void xpad_irq_out(struct urb *urb)
 		case -ESHUTDOWN:
 			/* this urb is terminated, clean up */
 			dbg("%s - urb shutting down with status: %d",
-				__FUNCTION__, urb->status);
+				__FUNCTION__, status);
 			return;
 		default:
 			dbg("%s - nonzero urb status received: %d",
-				__FUNCTION__, urb->status);
+				__FUNCTION__, status);
 			goto exit;
 	}
 
