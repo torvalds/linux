@@ -179,6 +179,7 @@ static int mpc52xx_fec_mdio_remove(struct of_device *of)
 
 static struct of_device_id mpc52xx_fec_mdio_match[] = {
 	{ .compatible = "fsl,mpc5200b-mdio", },
+	{ .compatible = "fsl,mpc5200-mdio", },
 	{ .compatible = "mpc5200b-fec-phy", },
 	{}
 };
