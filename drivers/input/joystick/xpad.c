@@ -497,7 +497,7 @@ static int xpad_init_output(struct usb_interface *intf, struct usb_xpad *xpad)
 		return 0;
 
 	xpad->odata = usb_buffer_alloc(xpad->udev, XPAD_PKT_LEN,
-				       GFP_ATOMIC, &xpad->odata_dma );
+				       GFP_KERNEL, &xpad->odata_dma);
 	if (!xpad->odata)
 		goto fail1;
 
@@ -729,7 +729,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 		goto fail1;
 
 	xpad->idata = usb_buffer_alloc(udev, XPAD_PKT_LEN,
-				       GFP_ATOMIC, &xpad->idata_dma);
+				       GFP_KERNEL, &xpad->idata_dma);
 	if (!xpad->idata)
 		goto fail1;
 
