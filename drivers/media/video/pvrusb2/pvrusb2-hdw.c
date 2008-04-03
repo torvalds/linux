@@ -3502,7 +3502,12 @@ static int state_eval_encoder_ok(struct pvr2_hdw *hdw)
 	if (hdw->state_encoder_config) return 0;
 	if (hdw->state_decoder_run) return 0;
 	if (hdw->state_usbstream_run) return 0;
-	if (hdw->pathway_state != PVR2_PATHWAY_ANALOG) return 0;
+	if (hdw->pathway_state == PVR2_PATHWAY_DIGITAL) {
+		if (!hdw->hdw_desc->flag_digital_requires_cx23416) return 0;
+	} else if (hdw->pathway_state != PVR2_PATHWAY_ANALOG) {
+		return 0;
+	}
+
 	if (pvr2_upload_firmware2(hdw) < 0) {
 		hdw->flag_tripped = !0;
 		trace_stbit("flag_tripped",hdw->flag_tripped);
@@ -3687,14 +3692,19 @@ static int state_eval_decoder_run(struct pvr2_hdw *hdw)
 static int state_eval_usbstream_run(struct pvr2_hdw *hdw)
 {
 	if (hdw->state_usbstream_run) {
+		int fl = !0;
 		if (hdw->pathway_state == PVR2_PATHWAY_ANALOG) {
-			if (hdw->state_encoder_ok &&
-			    hdw->state_encoder_run &&
-			    hdw->state_pathway_ok) return 0;
-		} else {
-			if (hdw->state_pipeline_req &&
-			    !hdw->state_pipeline_pause &&
-			    hdw->state_pathway_ok) return 0;
+			fl = (hdw->state_encoder_ok &&
+			      hdw->state_encoder_run);
+		} else if ((hdw->pathway_state == PVR2_PATHWAY_DIGITAL) &&
+			   (hdw->hdw_desc->flag_digital_requires_cx23416)) {
+			fl = hdw->state_encoder_ok;
+		}
+		if (fl &&
+		    hdw->state_pipeline_req &&
+		    !hdw->state_pipeline_pause &&
+		    hdw->state_pathway_ok) {
+			return 0;
 		}
 		pvr2_hdw_cmd_usbstream(hdw,0);
 		hdw->state_usbstream_run = 0;
@@ -3705,6 +3715,9 @@ static int state_eval_usbstream_run(struct pvr2_hdw *hdw)
 		if (hdw->pathway_state == PVR2_PATHWAY_ANALOG) {
 			if (!hdw->state_encoder_ok ||
 			    !hdw->state_encoder_run) return 0;
+		} else if ((hdw->pathway_state == PVR2_PATHWAY_DIGITAL) &&
+			   (hdw->hdw_desc->flag_digital_requires_cx23416)) {
+			if (!hdw->state_encoder_ok) return 0;
 		}
 		if (pvr2_hdw_cmd_usbstream(hdw,!0) < 0) return 0;
 		hdw->state_usbstream_run = !0;
@@ -3943,7 +3956,9 @@ static int pvr2_hdw_state_eval(struct pvr2_hdw *hdw)
 		st = PVR2_STATE_DEAD;
 	} else if (hdw->fw1_state != FW1_STATE_OK) {
 		st = PVR2_STATE_COLD;
-	} else if (analog_mode && !hdw->state_encoder_ok) {
+	} else if ((analog_mode ||
+		    hdw->hdw_desc->flag_digital_requires_cx23416) &&
+		   !hdw->state_encoder_ok) {
 		st = PVR2_STATE_WARM;
 	} else if (hdw->flag_tripped ||
 		   (analog_mode && hdw->flag_decoder_missed)) {

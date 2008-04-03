@@ -106,6 +106,13 @@ struct pvr2_device_desc {
 	/* If set, we don't bother trying to load cx23416 firmware. */
 	int flag_skip_cx23416_firmware:1;
 
+	/* If set, the encoder must be healthy in order for digital mode to
+	   work (otherwise we assume that digital streaming will work even
+	   if we fail to locate firmware for the encoder).  If the device
+	   doesn't support digital streaming then this flag has no
+	   effect. */
+	int flag_digital_requires_cx23416:1;
+
 	/* Device has a hauppauge eeprom which we can interrogate. */
 	int flag_has_hauppauge_rom:1;
 
