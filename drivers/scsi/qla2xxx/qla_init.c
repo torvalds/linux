@@ -500,6 +500,7 @@ qla2x00_reset_chip(scsi_qla_host_t *ha)
 static inline void
 qla24xx_reset_risc(scsi_qla_host_t *ha)
 {
+	int hw_evt = 0;
 	unsigned long flags = 0;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	uint32_t cnt, d2;
@@ -528,6 +529,8 @@ qla24xx_reset_risc(scsi_qla_host_t *ha)
 		d2 = (uint32_t) RD_REG_WORD(&reg->mailbox0);
 		barrier();
 	}
+	if (cnt == 0)
+		hw_evt = 1;
 
 	/* Wait for soft-reset to complete. */
 	d2 = RD_REG_DWORD(&reg->ctrl_status);
@@ -536,6 +539,10 @@ qla24xx_reset_risc(scsi_qla_host_t *ha)
 		d2 = RD_REG_DWORD(&reg->ctrl_status);
 		barrier();
 	}
+	if (cnt == 0 || hw_evt)
+		qla2xxx_hw_event_log(ha, HW_EVENT_RESET_ERR,
+		    RD_REG_WORD(&reg->mailbox1), RD_REG_WORD(&reg->mailbox2),
+		    RD_REG_WORD(&reg->mailbox3));
 
 	WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_RESET);
 	RD_REG_DWORD(&reg->hccr);
@@ -1554,6 +1561,10 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 		    nv->nvram_version);
 		qla_printk(KERN_WARNING, ha, "Falling back to functioning (yet "
 		    "invalid -- WWPN) defaults.\n");
+
+		if (chksum)
+			qla2xxx_hw_event_log(ha, HW_EVENT_NVRAM_CHKSUM_ERR, 0,
+			    MSW(chksum), LSW(chksum));
 
 		/*
 		 * Set default initialization control block.

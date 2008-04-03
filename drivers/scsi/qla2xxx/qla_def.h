@@ -2118,6 +2118,7 @@ struct qla_msix_entry {
 /* Work events.  */
 enum qla_work_type {
 	QLA_EVT_AEN,
+	QLA_EVT_HWE_LOG,
 };
 
 
@@ -2132,6 +2133,10 @@ struct qla_work_evt {
 			enum fc_host_event_code code;
 			u32 data;
 		} aen;
+		struct {
+			uint16_t code;
+			uint16_t d1, d2, d3;
+		} hwe;
 	} u;
 };
 
@@ -2173,6 +2178,7 @@ typedef struct scsi_qla_host {
 		uint32_t        vsan_enabled            :1;
 		uint32_t	npiv_supported		:1;
 		uint32_t	fce_enabled		:1;
+		uint32_t	hw_event_marker_found	:1;
 	} flags;
 
 	atomic_t	loop_state;
@@ -2477,6 +2483,10 @@ typedef struct scsi_qla_host {
 	uint16_t	fce_mb[8];
 	uint64_t	fce_wr, fce_rd;
 	struct mutex	fce_mutex;
+
+	uint32_t	hw_event_start;
+	uint32_t	hw_event_ptr;
+	uint32_t	hw_event_pause_errors;
 
 	uint8_t		host_str[16];
 	uint32_t	pci_attr;

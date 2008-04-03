@@ -69,6 +69,8 @@ extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
 extern int qla2x00_post_aen_work(struct scsi_qla_host *, enum
     fc_host_event_code, u32);
+extern int qla2x00_post_hwe_work(struct scsi_qla_host *, uint16_t , uint16_t,
+    uint16_t, uint16_t);
 
 /*
  * Global Functions in qla_mid.c source file.
@@ -297,6 +299,9 @@ extern uint8_t *qla25xx_read_optrom_data(struct scsi_qla_host *, uint8_t *,
 
 extern int qla2x00_get_flash_version(scsi_qla_host_t *, void *);
 extern int qla24xx_get_flash_version(scsi_qla_host_t *, void *);
+
+extern int qla2xxx_hw_event_log(scsi_qla_host_t *, uint16_t , uint16_t,
+    uint16_t, uint16_t);
 
 /*
  * Global Function Prototypes in qla_dbg.c source file.

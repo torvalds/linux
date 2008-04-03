@@ -1690,6 +1690,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->gid_list_info_size = 8;
 		ha->optrom_size = OPTROM_SIZE_25XX;
 		ha->isp_ops = &qla25xx_isp_ops;
+		ha->hw_event_start = PCI_FUNC(pdev->devfn) ?
+		    FA_HW_EVENT1_ADDR: FA_HW_EVENT0_ADDR;
 	}
 	host->can_queue = ha->request_q_length + 128;
 
@@ -2244,6 +2246,23 @@ qla2x00_post_aen_work(struct scsi_qla_host *ha, enum fc_host_event_code code,
 	return qla2x00_post_work(ha, e, 1);
 }
 
+int
+qla2x00_post_hwe_work(struct scsi_qla_host *ha, uint16_t code, uint16_t d1,
+    uint16_t d2, uint16_t d3)
+{
+	struct qla_work_evt *e;
+
+	e = qla2x00_alloc_work(ha, QLA_EVT_HWE_LOG, 1);
+	if (!e)
+		return QLA_FUNCTION_FAILED;
+
+	e->u.hwe.code = code;
+	e->u.hwe.d1 = d1;
+	e->u.hwe.d2 = d2;
+	e->u.hwe.d3 = d3;
+	return qla2x00_post_work(ha, e, 1);
+}
+
 static void
 qla2x00_do_work(struct scsi_qla_host *ha)
 {
@@ -2259,6 +2278,10 @@ qla2x00_do_work(struct scsi_qla_host *ha)
 		case QLA_EVT_AEN:
 			fc_host_post_event(ha->host, fc_get_event_number(),
 			    e->u.aen.code, e->u.aen.data);
+			break;
+		case QLA_EVT_HWE_LOG:
+			qla2xxx_hw_event_log(ha, e->u.hwe.code, e->u.hwe.d1,
+			    e->u.hwe.d2, e->u.hwe.d3);
 			break;
 		}
 		if (e->flags & QLA_EVT_FLAG_FREE)
