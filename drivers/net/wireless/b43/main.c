@@ -3690,6 +3690,41 @@ static void b43_set_retry_limits(struct b43_wldev *dev,
 			long_retry);
 }
 
+static void b43_set_synth_pu_delay(struct b43_wldev *dev, bool idle)
+{
+	u16 pu_delay;
+
+	/* The time value is in microseconds. */
+	if (dev->phy.type == B43_PHYTYPE_A)
+		pu_delay = 3700;
+	else
+		pu_delay = 1050;
+	if ((dev->wl->if_type == IEEE80211_IF_TYPE_IBSS) || idle)
+		pu_delay = 500;
+	if ((dev->phy.radio_ver == 0x2050) && (dev->phy.radio_rev == 8))
+		pu_delay = max(pu_delay, (u16)2400);
+
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_SPUWKUP, pu_delay);
+}
+
+/* Set the TSF CFP pre-TargetBeaconTransmissionTime. */
+static void b43_set_pretbtt(struct b43_wldev *dev)
+{
+	u16 pretbtt;
+
+	/* The time value is in microseconds. */
+	if (dev->wl->if_type == IEEE80211_IF_TYPE_IBSS) {
+		pretbtt = 2;
+	} else {
+		if (dev->phy.type == B43_PHYTYPE_A)
+			pretbtt = 120;
+		else
+			pretbtt = 250;
+	}
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_PRETBTT, pretbtt);
+	b43_write16(dev, B43_MMIO_TSF_CFP_PRETBTT, pretbtt);
+}
+
 /* Shutdown a wireless core */
 /* Locking: wl->mutex */
 static void b43_wireless_core_exit(struct b43_wldev *dev)
@@ -3821,14 +3856,7 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	if (err)
 		goto err_chip_exit;
 	b43_qos_init(dev);
-
-//FIXME
-#if 1
-	b43_write16(dev, 0x0612, 0x0050);
-	b43_shm_write16(dev, B43_SHM_SHARED, 0x0416, 0x0050);
-	b43_shm_write16(dev, B43_SHM_SHARED, 0x0414, 0x01F4);
-#endif
-
+	b43_set_synth_pu_delay(dev, 1);
 	b43_bluetooth_coext_enable(dev);
 
 	ssb_bus_powerup(bus, 1);	/* Enable dynamic PCTL */
@@ -3888,6 +3916,8 @@ static int b43_op_add_interface(struct ieee80211_hw *hw,
 
 	spin_lock_irqsave(&wl->irq_lock, flags);
 	b43_adjust_opmode(dev);
+	b43_set_pretbtt(dev);
+	b43_set_synth_pu_delay(dev, 0);
 	b43_upload_card_macaddress(dev);
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 
