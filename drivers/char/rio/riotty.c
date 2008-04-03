@@ -319,6 +319,7 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 			PortP->State |= RIO_WOPEN;
 			rio_spin_unlock_irqrestore(&PortP->portSem, flags);
 			if (RIODelay(PortP, HUNDRED_MS) == RIO_FAIL) {
+				rio_spin_lock_irqsave(&PortP->portSem, flags);
 				/*
 				 ** ACTION: verify that this is a good thing
 				 ** to do here. -- ???
@@ -334,6 +335,7 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 				func_exit();
 				return -EINTR;
 			}
+			rio_spin_lock_irqsave(&PortP->portSem, flags);
 		}
 		PortP->State &= ~RIO_WOPEN;
 	}
@@ -493,6 +495,7 @@ int riotclose(void *ptr)
 
 	if (RIOShortCommand(p, PortP, CLOSE, 1, 0) == RIO_FAIL) {
 		RIOPreemptiveCmd(p, PortP, FCLOSE);
+		rio_spin_lock_irqsave(&PortP->portSem, flags);
 		goto close_end;
 	}
 
@@ -508,6 +511,7 @@ int riotclose(void *ptr)
 
 			if (p->RIOHalted) {
 				RIOClearUp(PortP);
+				rio_spin_lock_irqsave(&PortP->portSem, flags);
 				goto close_end;
 			}
 			if (RIODelay(PortP, HUNDRED_MS) == RIO_FAIL) {

@@ -106,7 +106,7 @@
  * any extra contention...
  */
 
-static int link_path_walk(const char *name, struct nameidata *nd);
+static int __link_path_walk(const char *name, struct nameidata *nd);
 
 /* In order to reduce some races, while at the same time doing additional
  * checking and hopefully speeding things up, we copy filenames to the
@@ -561,6 +561,37 @@ walk_init_root(const char *name, struct nameidata *nd)
 	path_get(&fs->root);
 	read_unlock(&fs->lock);
 	return 1;
+}
+
+/*
+ * Wrapper to retry pathname resolution whenever the underlying
+ * file system returns an ESTALE.
+ *
+ * Retry the whole path once, forcing real lookup requests
+ * instead of relying on the dcache.
+ */
+static __always_inline int link_path_walk(const char *name, struct nameidata *nd)
+{
+	struct path save = nd->path;
+	int result;
+
+	/* make sure the stuff we saved doesn't go away */
+	dget(save.dentry);
+	mntget(save.mnt);
+
+	result = __link_path_walk(name, nd);
+	if (result == -ESTALE) {
+		/* nd->path had been dropped */
+		nd->path = save;
+		dget(nd->path.dentry);
+		mntget(nd->path.mnt);
+		nd->flags |= LOOKUP_REVAL;
+		result = __link_path_walk(name, nd);
+	}
+
+	path_put(&save);
+
+	return result;
 }
 
 static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *link)
@@ -1020,36 +1051,6 @@ return_err:
 	return err;
 }
 
-/*
- * Wrapper to retry pathname resolution whenever the underlying
- * file system returns an ESTALE.
- *
- * Retry the whole path once, forcing real lookup requests
- * instead of relying on the dcache.
- */
-static int link_path_walk(const char *name, struct nameidata *nd)
-{
-	struct nameidata save = *nd;
-	int result;
-
-	/* make sure the stuff we saved doesn't go away */
-	dget(save.path.dentry);
-	mntget(save.path.mnt);
-
-	result = __link_path_walk(name, nd);
-	if (result == -ESTALE) {
-		*nd = save;
-		dget(nd->path.dentry);
-		mntget(nd->path.mnt);
-		nd->flags |= LOOKUP_REVAL;
-		result = __link_path_walk(name, nd);
-	}
-
-	path_put(&save.path);
-
-	return result;
-}
-
 static int path_walk(const char *name, struct nameidata *nd)
 {
 	current->total_link_count = 0;
@@ -1364,13 +1365,13 @@ static int __lookup_one_len(const char *name, struct qstr *this,
 }
 
 /**
- * lookup_one_len:  filesystem helper to lookup single pathname component
+ * lookup_one_len - filesystem helper to lookup single pathname component
  * @name:	pathname component to lookup
  * @base:	base directory to lookup from
  * @len:	maximum length @len should be interpreted to
  *
- * Note that this routine is purely a helper for filesystem useage and should
- * not be called by generic code.  Also note that by using this function to
+ * Note that this routine is purely a helper for filesystem usage and should
+ * not be called by generic code.  Also note that by using this function the
  * nameidata argument is passed to the filesystem methods and a filesystem
  * using this helper needs to be prepared for that.
  */

@@ -324,7 +324,6 @@ unsigned long __init setup_memory(void)
 	 * this space and use it to adjust the boundary between ZONE_NORMAL
 	 * and ZONE_HIGHMEM.
 	 */
-	find_max_pfn();
 	get_memcfg_numa();
 
 	kva_pages = calculate_numa_remap_pages();

@@ -1,9 +1,8 @@
 #ifndef __ASM_SH_FPU_H
 #define __ASM_SH_FPU_H
 
-#define SR_FD    0x00008000
-
 #ifndef __ASSEMBLY__
+#include <linux/preempt.h>
 #include <asm/ptrace.h>
 
 #ifdef CONFIG_SH_FPU
@@ -21,25 +20,35 @@ struct task_struct;
 
 extern void save_fpu(struct task_struct *__tsk, struct pt_regs *regs);
 #else
+
 #define release_fpu(regs)	do { } while (0)
 #define grab_fpu(regs)		do { } while (0)
-#define save_fpu(tsk, regs)	do { } while (0)
+
+static inline void save_fpu(struct task_struct *tsk, struct pt_regs *regs)
+{
+	clear_tsk_thread_flag(tsk, TIF_USEDFPU);
+}
 #endif
 
 extern int do_fpu_inst(unsigned short, struct pt_regs *);
 
-#define unlazy_fpu(tsk, regs) do {			\
-	if (test_tsk_thread_flag(tsk, TIF_USEDFPU)) {	\
-		save_fpu(tsk, regs);			\
-	}						\
-} while (0)
+static inline void unlazy_fpu(struct task_struct *tsk, struct pt_regs *regs)
+{
+	preempt_disable();
+	if (test_tsk_thread_flag(tsk, TIF_USEDFPU))
+		save_fpu(tsk, regs);
+	preempt_enable();
+}
 
-#define clear_fpu(tsk, regs) do {				\
-	if (test_tsk_thread_flag(tsk, TIF_USEDFPU)) {		\
-		clear_tsk_thread_flag(tsk, TIF_USEDFPU);	\
-		release_fpu(regs);				\
-	}							\
-} while (0)
+static inline void clear_fpu(struct task_struct *tsk, struct pt_regs *regs)
+{
+	preempt_disable();
+	if (test_tsk_thread_flag(tsk, TIF_USEDFPU)) {
+		clear_tsk_thread_flag(tsk, TIF_USEDFPU);
+		release_fpu(regs);
+	}
+	preempt_enable();
+}
 
 #endif /* __ASSEMBLY__ */
 

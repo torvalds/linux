@@ -16,6 +16,10 @@
  * a new device, we simply need to write a new virtio driver and create support
  * for it in the Launcher: this code won't need to change.
  *
+ * Virtio devices are also used by kvm, so we can simply reuse their optimized
+ * device drivers.  And one day when everyone uses virtio, my plan will be
+ * complete.  Bwahahahah!
+ *
  * Devices are described by a simplified ID, a status byte, and some "config"
  * bytes which describe this device's configuration.  This is placed by the
  * Launcher just above the top of physical memory:
@@ -26,7 +30,7 @@ struct lguest_device_desc {
 	/* The number of virtqueues (first in config array) */
 	__u8 num_vq;
 	/* The number of bytes of feature bits.  Multiply by 2: one for host
-	 * features and one for guest acknowledgements. */
+	 * features and one for Guest acknowledgements. */
 	__u8 feature_len;
 	/* The number of bytes of the config array after virtqueues. */
 	__u8 config_len;

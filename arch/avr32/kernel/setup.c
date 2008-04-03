@@ -163,6 +163,7 @@ add_reserved_region(resource_size_t start, resource_size_t end,
 	new->start = start;
 	new->end = end;
 	new->name = name;
+	new->sibling = next;
 	new->flags = IORESOURCE_MEM;
 
 	*pprev = new;

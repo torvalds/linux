@@ -54,6 +54,7 @@
 #include <linux/pci.h>
 #include <linux/jiffies.h>
 #include <linux/smp_lock.h>	/* For (un)lock_kernel */
+#include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/cdev.h>
 #include <linux/mutex.h>
@@ -551,6 +552,8 @@ struct drm_ati_pcigart_info {
 	int gart_reg_if;
 	void *addr;
 	dma_addr_t bus_addr;
+	dma_addr_t table_mask;
+	struct drm_dma_handle *table_handle;
 	drm_local_map_t mapping;
 	int table_size;
 };

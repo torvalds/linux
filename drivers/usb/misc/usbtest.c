@@ -378,6 +378,7 @@ alloc_sglist (int nents, int max, int vary)
 	sg = kmalloc (nents * sizeof *sg, GFP_KERNEL);
 	if (!sg)
 		return NULL;
+	sg_init_table(sg, nents);
 
 	for (i = 0; i < nents; i++) {
 		char		*buf;
@@ -390,7 +391,7 @@ alloc_sglist (int nents, int max, int vary)
 		}
 
 		/* kmalloc pages are always physically contiguous! */
-		sg_init_one(&sg[i], buf, size);
+		sg_set_buf(&sg[i], buf, size);
 
 		switch (pattern) {
 		case 0:

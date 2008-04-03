@@ -114,13 +114,13 @@ static inline void * phys_to_virt(unsigned long address)
  * If the area you are trying to map is a PCI BAR you should have a
  * look at pci_iomap().
  */
-extern void __iomem *ioremap_nocache(unsigned long offset, unsigned long size);
-extern void __iomem *ioremap_cache(unsigned long offset, unsigned long size);
+extern void __iomem *ioremap_nocache(resource_size_t offset, unsigned long size);
+extern void __iomem *ioremap_cache(resource_size_t offset, unsigned long size);
 
 /*
  * The default ioremap() behavior is non-cached:
  */
-static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
+static inline void __iomem *ioremap(resource_size_t offset, unsigned long size)
 {
 	return ioremap_nocache(offset, size);
 }

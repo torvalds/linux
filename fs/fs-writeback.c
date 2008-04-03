@@ -751,7 +751,7 @@ int generic_osync_inode(struct inode *inode, struct address_space *mapping, int 
 EXPORT_SYMBOL(generic_osync_inode);
 
 /**
- * writeback_acquire: attempt to get exclusive writeback access to a device
+ * writeback_acquire - attempt to get exclusive writeback access to a device
  * @bdi: the device's backing_dev_info structure
  *
  * It is a waste of resources to have more than one pdflush thread blocked on
@@ -768,7 +768,7 @@ int writeback_acquire(struct backing_dev_info *bdi)
 }
 
 /**
- * writeback_in_progress: determine whether there is writeback in progress
+ * writeback_in_progress - determine whether there is writeback in progress
  * @bdi: the device's backing_dev_info structure.
  *
  * Determine whether there is writeback in progress against a backing device.
@@ -779,7 +779,7 @@ int writeback_in_progress(struct backing_dev_info *bdi)
 }
 
 /**
- * writeback_release: relinquish exclusive writeback access against a device.
+ * writeback_release - relinquish exclusive writeback access against a device.
  * @bdi: the device's backing_dev_info structure
  */
 void writeback_release(struct backing_dev_info *bdi)

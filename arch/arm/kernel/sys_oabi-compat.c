@@ -25,6 +25,7 @@
  * sys_stat64:
  * sys_lstat64:
  * sys_fstat64:
+ * sys_fstatat64:
  *
  *   struct stat64 has different sizes and some members are shifted
  *   Compatibility wrappers are needed for them and provided below.
@@ -166,6 +167,29 @@ asmlinkage long sys_oabi_fstat64(unsigned long fd,
 	int error = vfs_fstat(fd, &stat);
 	if (!error)
 		error = cp_oldabi_stat64(&stat, statbuf);
+	return error;
+}
+
+asmlinkage long sys_oabi_fstatat64(int dfd,
+				   char __user *filename,
+				   struct oldabi_stat64  __user *statbuf,
+				   int flag)
+{
+	struct kstat stat;
+	int error = -EINVAL;
+
+	if ((flag & ~AT_SYMLINK_NOFOLLOW) != 0)
+		goto out;
+
+	if (flag & AT_SYMLINK_NOFOLLOW)
+		error = vfs_lstat_fd(dfd, filename, &stat);
+	else
+		error = vfs_stat_fd(dfd, filename, &stat);
+
+	if (!error)
+	error = cp_oldabi_stat64(&stat, statbuf);
+
+out:
 	return error;
 }
 

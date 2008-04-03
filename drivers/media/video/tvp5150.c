@@ -672,7 +672,7 @@ static int tvp5150_set_vbi(struct i2c_client *c,
 	if (std == V4L2_STD_ALL) {
 		tvp5150_err("VBI can't be configured without knowing number of lines\n");
 		return 0;
-	} else if (std && V4L2_STD_625_50) {
+	} else if (std & V4L2_STD_625_50) {
 		/* Don't follow NTSC Line number convension */
 		line += 3;
 	}
@@ -719,7 +719,7 @@ static int tvp5150_get_vbi(struct i2c_client *c,
 	if (std == V4L2_STD_ALL) {
 		tvp5150_err("VBI can't be configured without knowing number of lines\n");
 		return 0;
-	} else if (std && V4L2_STD_625_50) {
+	} else if (std & V4L2_STD_625_50) {
 		/* Don't follow NTSC Line number convension */
 		line += 3;
 	}
@@ -1072,12 +1072,12 @@ static int tvp5150_detect_client(struct i2c_adapter *adapter,
 		return 0;
 
 	c = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (c == 0)
+	if (!c)
 		return -ENOMEM;
 	memcpy(c, &client_template, sizeof(struct i2c_client));
 
 	core = kzalloc(sizeof(struct tvp5150), GFP_KERNEL);
-	if (core == 0) {
+	if (!core) {
 		kfree(c);
 		return -ENOMEM;
 	}

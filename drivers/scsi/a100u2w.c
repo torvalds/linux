@@ -674,12 +674,13 @@ static struct orc_scb *__orc_alloc_scb(struct orc_host * host)
 		for (index = 0; index < 32; index++) {
 			if ((host->allocation_map[channel][i] >> index) & 0x01) {
 				host->allocation_map[channel][i] &= ~(1 << index);
-				break;
+				idx = index + 32 * i;
+				/*
+				 * Translate the index to a structure instance
+				 */
+				return host->scb_virt + idx;
 			}
 		}
-		idx = index + 32 * i;
-		/* Translate the index to a structure instance */
-		return (struct orc_scb *) ((unsigned long) host->scb_virt + (idx * sizeof(struct orc_scb)));
 	}
 	return NULL;
 }

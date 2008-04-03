@@ -288,8 +288,12 @@ sun4v_chip_type:
 	/* Leave arg2 as-is, prom_mmu_ihandle_cache */
 	mov	-1, %l3
 	stx	%l3, [%sp + 2047 + 128 + 0x28]	! arg3: mode (-1 default)
-	sethi	%hi(8 * 1024 * 1024), %l3
-	stx	%l3, [%sp + 2047 + 128 + 0x30]	! arg4: size (8MB)
+	/* 4MB align the kernel image size. */
+	set	(_end - KERNBASE), %l3
+	set	((4 * 1024 * 1024) - 1), %l4
+	add	%l3, %l4, %l3
+	andn	%l3, %l4, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x30]	! arg4: roundup(ksize, 4MB)
 	sethi	%hi(KERNBASE), %l3
 	stx	%l3, [%sp + 2047 + 128 + 0x38]	! arg5: vaddr (KERNBASE)
 	stx	%g0, [%sp + 2047 + 128 + 0x40]	! arg6: empty

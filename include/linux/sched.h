@@ -790,6 +790,7 @@ struct sched_domain {
 };
 
 extern void partition_sched_domains(int ndoms_new, cpumask_t *doms_new);
+extern int arch_reinit_sched_domains(void);
 
 #endif	/* CONFIG_SMP */
 
@@ -928,6 +929,9 @@ struct sched_entity {
 	u64			sum_exec_runtime;
 	u64			vruntime;
 	u64			prev_sum_exec_runtime;
+
+	u64			last_wakeup;
+	u64			avg_overlap;
 
 #ifdef CONFIG_SCHEDSTATS
 	u64			wait_start;
@@ -1536,6 +1540,12 @@ static inline void idle_task_exit(void) {}
 #endif
 
 extern void sched_idle_next(void);
+
+#if defined(CONFIG_NO_HZ) && defined(CONFIG_SMP)
+extern void wake_up_idle_cpu(int cpu);
+#else
+static inline void wake_up_idle_cpu(int cpu) { }
+#endif
 
 #ifdef CONFIG_SCHED_DEBUG
 extern unsigned int sysctl_sched_latency;

@@ -163,6 +163,12 @@ M:	A2232@gmx.net
 L:	linux-m68k@lists.linux-m68k.org
 S:	Maintained
 
+AFS FILESYSTEM & AF_RXRPC SOCKET DOMAIN
+P:	David Howells
+M:	dhowells@redhat.com
+L:	linux-afs@lists.infradead.org
+S:	Supported
+
 AIO
 P:	Benjamin LaHaise
 M:	bcrl@kvack.org
@@ -452,7 +458,7 @@ S:	Maintained
 
 ARM/ATMEL AT91RM9200 ARM ARCHITECTURE
 P:      Andrew Victor
-M:      andrew@sanpeople.com
+M:      linux@maxim.org.za
 L:      linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 W:      http://maxim.org.za/at91_26.html
 S:      Maintained
@@ -2305,14 +2311,14 @@ L:	kexec@lists.infradead.org
 S:	Maintained
 
 KPROBES
-P:	Prasanna S Panchamukhi
-M:	prasanna@in.ibm.com
 P:	Ananth N Mavinakayanahalli
 M:	ananth@in.ibm.com
 P:	Anil S Keshavamurthy
 M:	anil.s.keshavamurthy@intel.com
 P:	David S. Miller
 M:	davem@davemloft.net
+P:	Masami Hiramatsu
+M:	mhiramat@redhat.com
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
@@ -2926,9 +2932,9 @@ S:	Maintained
 
 ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
 P:	Mark Fasheh
-M:	mark.fasheh@oracle.com
-P:	Kurt Hackel
-M:	kurt.hackel@oracle.com
+M:	mfasheh@suse.com
+P:	Joel Becker
+M:	joel.becker@oracle.com
 L:	ocfs2-devel@oss.oracle.com
 W:	http://oss.oracle.com/projects/ocfs2/
 S:	Supported

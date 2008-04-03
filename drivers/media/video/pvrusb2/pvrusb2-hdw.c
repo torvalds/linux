@@ -2291,7 +2291,7 @@ static int pvr2_hdw_commit_setup(struct pvr2_hdw *hdw)
 
 	for (idx = 0; idx < hdw->control_cnt; idx++) {
 		cptr = hdw->controls + idx;
-		if (cptr->info->is_dirty == 0) continue;
+		if (!cptr->info->is_dirty) continue;
 		if (!cptr->info->is_dirty(cptr)) continue;
 		commit_flag = !0;
 
@@ -2646,7 +2646,7 @@ void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw,
 	u16 address;
 	unsigned int pipe;
 	LOCK_TAKE(hdw->big_lock); do {
-		if ((hdw->fw_buffer == 0) == !enable_flag) break;
+		if ((hdw->fw_buffer == NULL) == !enable_flag) break;
 
 		if (!enable_flag) {
 			pvr2_trace(PVR2_TRACE_FIRMWARE,
@@ -2715,7 +2715,7 @@ void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw,
 /* Return true if we're in a mode for retrieval CPU firmware */
 int pvr2_hdw_cpufw_get_enabled(struct pvr2_hdw *hdw)
 {
-	return hdw->fw_buffer != 0;
+	return hdw->fw_buffer != NULL;
 }
 
 

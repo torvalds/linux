@@ -171,6 +171,7 @@ static void joydev_free(struct device *dev)
 {
 	struct joydev *joydev = container_of(dev, struct joydev, dev);
 
+	input_put_device(joydev->handle.dev);
 	kfree(joydev);
 }
 
@@ -750,7 +751,7 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 	joydev->minor = minor;
 
 	joydev->exist = 1;
-	joydev->handle.dev = dev;
+	joydev->handle.dev = input_get_device(dev);
 	joydev->handle.name = joydev->name;
 	joydev->handle.handler = handler;
 	joydev->handle.private = joydev;

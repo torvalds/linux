@@ -158,13 +158,13 @@ extern void early_iounmap(void *addr, unsigned long size);
  * it's useful if some control registers are in such an area and write combining
  * or read caching is not desirable:
  */
-extern void __iomem *ioremap_nocache(unsigned long offset, unsigned long size);
-extern void __iomem *ioremap_cache(unsigned long offset, unsigned long size);
+extern void __iomem *ioremap_nocache(resource_size_t offset, unsigned long size);
+extern void __iomem *ioremap_cache(resource_size_t offset, unsigned long size);
 
 /*
  * The default ioremap() behavior is non-cached:
  */
-static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
+static inline void __iomem *ioremap(resource_size_t offset, unsigned long size)
 {
 	return ioremap_nocache(offset, size);
 }

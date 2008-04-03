@@ -40,6 +40,7 @@
 #include <linux/tcp.h>
 #include <linux/init.h>
 #include <linux/if_arp.h>
+#include <linux/if_vlan.h>
 #include <linux/notifier.h>
 #include <linux/net.h>
 #include <linux/types.h>
@@ -1072,7 +1073,7 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 	ts = current_kernel_time();
 	cm_node->tcp_cntxt.loc_seq_num = htonl(ts.tv_nsec);
 	cm_node->tcp_cntxt.mss = nesvnic->max_frame_size - sizeof(struct iphdr) -
-			sizeof(struct tcphdr) - ETH_HLEN;
+			sizeof(struct tcphdr) - ETH_HLEN - VLAN_HLEN;
 	cm_node->tcp_cntxt.rcv_nxt = 0;
 	/* get a unique session ID , add thread_id to an upcounter to handle race */
 	atomic_inc(&cm_core->node_cnt);

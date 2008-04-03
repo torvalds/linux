@@ -425,8 +425,10 @@ int RIOApel(struct rio_info *p)
 
 		MapP = &p->RIOConnectTable[Next++];
 		MapP->HostUniqueNum = HostP->UniqueNum;
-		if ((HostP->Flags & RUN_STATE) != RC_RUNNING)
+		if ((HostP->Flags & RUN_STATE) != RC_RUNNING) {
+			rio_spin_unlock_irqrestore(&HostP->HostLock, flags);
 			continue;
+		}
 		MapP->RtaUniqueNum = 0;
 		MapP->ID = 0;
 		MapP->Flags = SLOT_IN_USE;

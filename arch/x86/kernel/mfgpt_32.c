@@ -30,6 +30,7 @@
 
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <asm/geode.h>
 
 static struct mfgpt_timer_t {

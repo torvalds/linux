@@ -76,7 +76,13 @@ extern inline void pcibios_penalize_isa_irq(int irq, int active)
    successful and sets *DMA_ADDRP to the pci side dma address as well,
    else DMA_ADDRP is undefined.  */
 
-extern void *pci_alloc_consistent(struct pci_dev *, size_t, dma_addr_t *);
+extern void *__pci_alloc_consistent(struct pci_dev *, size_t,
+				    dma_addr_t *, gfp_t);
+static inline void *
+pci_alloc_consistent(struct pci_dev *dev, size_t size, dma_addr_t *dma)
+{
+	return __pci_alloc_consistent(dev, size, dma, GFP_ATOMIC);
+}
 
 /* Free and unmap a consistent DMA buffer.  CPU_ADDR and DMA_ADDR must
    be values that were returned from pci_alloc_consistent.  SIZE must

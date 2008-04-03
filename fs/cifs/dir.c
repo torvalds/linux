@@ -229,7 +229,8 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 						 inode->i_sb, xid);
 		else {
 			rc = cifs_get_inode_info(&newinode, full_path,
-						 buf, inode->i_sb, xid);
+						 buf, inode->i_sb, xid,
+						 &fileHandle);
 			if (newinode) {
 				newinode->i_mode = mode;
 				if ((oplock & CIFS_CREATE_ACTION) &&
@@ -483,7 +484,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 					      parent_dir_inode->i_sb, xid);
 	else
 		rc = cifs_get_inode_info(&newInode, full_path, NULL,
-					 parent_dir_inode->i_sb, xid);
+					 parent_dir_inode->i_sb, xid, NULL);
 
 	if ((rc == 0) && (newInode != NULL)) {
 		if (pTcon->nocase)

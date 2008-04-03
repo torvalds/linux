@@ -213,7 +213,7 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 	struct ads7846		*ts = dev_get_drvdata(dev);
 	struct ser_req		*req = kzalloc(sizeof *req, GFP_KERNEL);
 	int			status;
-	int			sample;
+	int			uninitialized_var(sample);
 	int			use_internal;
 
 	if (!req)

@@ -115,6 +115,7 @@ void __delete_from_swap_cache(struct page *page)
 /**
  * add_to_swap - allocate swap space for a page
  * @page: page we want to move to swap
+ * @gfp_mask: memory allocation flags
  *
  * Allocate swap space for the page and add the page to the
  * swap cache.  Caller needs to hold the page lock. 
@@ -315,6 +316,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 /**
  * swapin_readahead - swap in pages in hope we need them soon
  * @entry: swap entry of this memory
+ * @gfp_mask: memory allocation flags
  * @vma: user vma this address belongs to
  * @addr: target address for mempolicy
  *

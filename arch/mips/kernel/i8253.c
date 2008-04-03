@@ -15,6 +15,7 @@
 #include <asm/time.h>
 
 DEFINE_SPINLOCK(i8253_lock);
+EXPORT_SYMBOL(i8253_lock);
 
 /*
  * Initialize the PIT timer.

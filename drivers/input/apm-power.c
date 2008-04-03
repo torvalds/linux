@@ -63,8 +63,6 @@ static int apmpower_connect(struct input_handler *handler,
 	handle->handler = handler;
 	handle->name = "apm-power";
 
-	handler->private = handle;
-
 	error = input_register_handle(handle);
 	if (error) {
 		printk(KERN_ERR
@@ -87,11 +85,10 @@ static int apmpower_connect(struct input_handler *handler,
 	return 0;
 }
 
-static void apmpower_disconnect(struct input_handle *handler)
+static void apmpower_disconnect(struct input_handle *handle)
 {
-	struct input_handle *handle = handler->private;
-
 	input_close_device(handle);
+	input_unregister_handle(handle);
 	kfree(handle);
 }
 

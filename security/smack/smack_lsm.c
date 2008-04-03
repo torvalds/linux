@@ -1117,11 +1117,6 @@ static int smack_task_movememory(struct task_struct *p)
 static int smack_task_kill(struct task_struct *p, struct siginfo *info,
 			   int sig, u32 secid)
 {
-	int rc;
-
-	rc = cap_task_kill(p, info, sig, secid);
-	if (rc != 0)
-		return rc;
 	/*
 	 * Special cases where signals really ought to go through
 	 * in spite of policy. Stephen Smalley suggests it may
@@ -1508,7 +1503,7 @@ static int smack_shm_associate(struct shmid_kernel *shp, int shmflg)
  */
 static int smack_shm_shmctl(struct shmid_kernel *shp, int cmd)
 {
-	char *ssp = smack_of_shm(shp);
+	char *ssp;
 	int may;
 
 	switch (cmd) {
@@ -1532,6 +1527,7 @@ static int smack_shm_shmctl(struct shmid_kernel *shp, int cmd)
 		return -EINVAL;
 	}
 
+	ssp = smack_of_shm(shp);
 	return smk_curacc(ssp, may);
 }
 
@@ -1616,7 +1612,7 @@ static int smack_sem_associate(struct sem_array *sma, int semflg)
  */
 static int smack_sem_semctl(struct sem_array *sma, int cmd)
 {
-	char *ssp = smack_of_sem(sma);
+	char *ssp;
 	int may;
 
 	switch (cmd) {
@@ -1645,6 +1641,7 @@ static int smack_sem_semctl(struct sem_array *sma, int cmd)
 		return -EINVAL;
 	}
 
+	ssp = smack_of_sem(sma);
 	return smk_curacc(ssp, may);
 }
 
@@ -1730,7 +1727,7 @@ static int smack_msg_queue_associate(struct msg_queue *msq, int msqflg)
  */
 static int smack_msg_queue_msgctl(struct msg_queue *msq, int cmd)
 {
-	char *msp = smack_of_msq(msq);
+	char *msp;
 	int may;
 
 	switch (cmd) {
@@ -1752,6 +1749,7 @@ static int smack_msg_queue_msgctl(struct msg_queue *msq, int cmd)
 		return -EINVAL;
 	}
 
+	msp = smack_of_msq(msq);
 	return smk_curacc(msp, may);
 }
 

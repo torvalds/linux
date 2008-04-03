@@ -269,22 +269,26 @@ static inline unsigned long cmpxchg_386(volatile void *ptr, unsigned long old,
 ({									\
 	__typeof__(*(ptr)) __ret;					\
 	if (likely(boot_cpu_data.x86 > 3))				\
-		__ret = __cmpxchg((ptr), (unsigned long)(o),		\
-					(unsigned long)(n), sizeof(*(ptr))); \
+		__ret = (__typeof__(*(ptr)))__cmpxchg((ptr),		\
+				(unsigned long)(o), (unsigned long)(n),	\
+				sizeof(*(ptr)));			\
 	else								\
-		__ret = cmpxchg_386((ptr), (unsigned long)(o),		\
-					(unsigned long)(n), sizeof(*(ptr))); \
+		__ret = (__typeof__(*(ptr)))cmpxchg_386((ptr),		\
+				(unsigned long)(o), (unsigned long)(n),	\
+				sizeof(*(ptr)));			\
 	__ret;								\
 })
 #define cmpxchg_local(ptr, o, n)					\
 ({									\
 	__typeof__(*(ptr)) __ret;					\
 	if (likely(boot_cpu_data.x86 > 3))				\
-		__ret = __cmpxchg_local((ptr), (unsigned long)(o),	\
-					(unsigned long)(n), sizeof(*(ptr))); \
+		__ret = (__typeof__(*(ptr)))__cmpxchg_local((ptr),	\
+				(unsigned long)(o), (unsigned long)(n),	\
+				sizeof(*(ptr)));			\
 	else								\
-		__ret = cmpxchg_386((ptr), (unsigned long)(o),		\
-					(unsigned long)(n), sizeof(*(ptr))); \
+		__ret = (__typeof__(*(ptr)))cmpxchg_386((ptr),		\
+				(unsigned long)(o), (unsigned long)(n),	\
+				sizeof(*(ptr)));			\
 	__ret;								\
 })
 #endif
@@ -301,10 +305,12 @@ extern unsigned long long cmpxchg_486_u64(volatile void *, u64, u64);
 ({									\
 	__typeof__(*(ptr)) __ret;					\
 	if (likely(boot_cpu_data.x86 > 4))				\
-		__ret = __cmpxchg64((ptr), (unsigned long long)(o),	\
+		__ret = (__typeof__(*(ptr)))__cmpxchg64((ptr),		\
+				(unsigned long long)(o),		\
 				(unsigned long long)(n));		\
 	else								\
-		__ret = cmpxchg_486_u64((ptr), (unsigned long long)(o),	\
+		__ret = (__typeof__(*(ptr)))cmpxchg_486_u64((ptr),	\
+				(unsigned long long)(o),		\
 				(unsigned long long)(n));		\
 	__ret;								\
 })
@@ -312,10 +318,12 @@ extern unsigned long long cmpxchg_486_u64(volatile void *, u64, u64);
 ({									\
 	__typeof__(*(ptr)) __ret;					\
 	if (likely(boot_cpu_data.x86 > 4))				\
-		__ret = __cmpxchg64_local((ptr), (unsigned long long)(o), \
+		__ret = (__typeof__(*(ptr)))__cmpxchg64_local((ptr),	\
+				(unsigned long long)(o),		\
 				(unsigned long long)(n));		\
 	else								\
-		__ret = cmpxchg_486_u64((ptr), (unsigned long long)(o),	\
+		__ret = (__typeof__(*(ptr)))cmpxchg_486_u64((ptr),	\
+				(unsigned long long)(o),		\
 				(unsigned long long)(n));		\
 	__ret;								\
 })

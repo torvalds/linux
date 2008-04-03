@@ -64,7 +64,7 @@ static int detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* allocate memory for client structure */
 	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (0 == client) {
+	if (!client) {
 		return -ENOMEM;
 	}
 

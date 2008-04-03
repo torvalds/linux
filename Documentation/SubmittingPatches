@@ -512,7 +512,7 @@ They provide type safety, have no length limitations, no formatting
 limitations, and under gcc they are as cheap as macros.
 
 Macros should only be used for cases where a static inline is clearly
-suboptimal [there a few, isolated cases of this in fast paths],
+suboptimal [there are a few, isolated cases of this in fast paths],
 or where it is impossible to use a static inline function [such as
 string-izing].
 

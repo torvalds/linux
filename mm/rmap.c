@@ -335,6 +335,7 @@ static int page_referenced_anon(struct page *page,
 /**
  * page_referenced_file - referenced check for object-based rmap
  * @page: the page we're checking references on.
+ * @mem_cont: target memory controller
  *
  * For an object-based mapped page, find all the places it is mapped and
  * check/clear the referenced flag.  This is done by following the page->mapping
@@ -402,6 +403,7 @@ static int page_referenced_file(struct page *page,
  * page_referenced - test if the page was referenced
  * @page: the page to test
  * @is_locked: caller holds lock on the page
+ * @mem_cont: target memory controller
  *
  * Quick test_and_clear_referenced for all mappings to a page,
  * returns the number of ptes which referenced the page.
@@ -506,7 +508,7 @@ int page_mkclean(struct page *page)
 EXPORT_SYMBOL_GPL(page_mkclean);
 
 /**
- * page_set_anon_rmap - setup new anonymous rmap
+ * __page_set_anon_rmap - setup new anonymous rmap
  * @page:	the page to add the mapping to
  * @vma:	the vm area in which the mapping is added
  * @address:	the user virtual address mapped
@@ -530,7 +532,7 @@ static void __page_set_anon_rmap(struct page *page,
 }
 
 /**
- * page_set_anon_rmap - sanity check anonymous rmap addition
+ * __page_check_anon_rmap - sanity check anonymous rmap addition
  * @page:	the page to add the mapping to
  * @vma:	the vm area in which the mapping is added
  * @address:	the user virtual address mapped
@@ -583,7 +585,7 @@ void page_add_anon_rmap(struct page *page,
 	}
 }
 
-/*
+/**
  * page_add_new_anon_rmap - add pte mapping to a new anonymous page
  * @page:	the page to add the mapping to
  * @vma:	the vm area in which the mapping is added
@@ -623,6 +625,8 @@ void page_add_file_rmap(struct page *page)
 /**
  * page_dup_rmap - duplicate pte mapping to a page
  * @page:	the page to add the mapping to
+ * @vma:	the vm area being duplicated
+ * @address:	the user virtual address mapped
  *
  * For copy_page_range only: minimal extract from page_add_file_rmap /
  * page_add_anon_rmap, avoiding unnecessary tests (already checked) so it's
@@ -642,6 +646,7 @@ void page_dup_rmap(struct page *page, struct vm_area_struct *vma, unsigned long 
 /**
  * page_remove_rmap - take down pte mapping from a page
  * @page: page to remove mapping from
+ * @vma: the vm area in which the mapping is removed
  *
  * The caller needs to hold the pte lock.
  */
@@ -890,6 +895,7 @@ static int try_to_unmap_anon(struct page *page, int migration)
 /**
  * try_to_unmap_file - unmap file page using the object-based rmap method
  * @page: the page to unmap
+ * @migration: migration flag
  *
  * Find all the mappings of a page using the mapping pointer and the vma chains
  * contained in the address_space struct it points to.
@@ -986,6 +992,7 @@ out:
 /**
  * try_to_unmap - try to remove all page table mappings to a page
  * @page: the page to get unmapped
+ * @migration: migration flag
  *
  * Tries to remove all the page table entries which are mapping this
  * page, used in the pageout path.  Caller must hold the page lock.

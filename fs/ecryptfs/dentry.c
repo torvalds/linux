@@ -80,8 +80,8 @@ static void ecryptfs_d_release(struct dentry *dentry)
 {
 	if (ecryptfs_dentry_to_private(dentry)) {
 		if (ecryptfs_dentry_to_lower(dentry)) {
-			mntput(ecryptfs_dentry_to_lower_mnt(dentry));
 			dput(ecryptfs_dentry_to_lower(dentry));
+			mntput(ecryptfs_dentry_to_lower_mnt(dentry));
 		}
 		kmem_cache_free(ecryptfs_dentry_info_cache,
 				ecryptfs_dentry_to_private(dentry));

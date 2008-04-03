@@ -563,7 +563,7 @@ void pvr2_stream_kill(struct pvr2_stream *sp)
 	struct pvr2_buffer *bp;
 	mutex_lock(&sp->mutex); do {
 		pvr2_stream_internal_flush(sp);
-		while ((bp = pvr2_stream_get_ready_buffer(sp)) != 0) {
+		while ((bp = pvr2_stream_get_ready_buffer(sp)) != NULL) {
 			pvr2_buffer_set_idle(bp);
 		}
 		if (sp->buffer_total_count != sp->buffer_target_count) {

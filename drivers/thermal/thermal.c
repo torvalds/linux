@@ -30,10 +30,8 @@
 #include <linux/idr.h>
 #include <linux/thermal.h>
 #include <linux/spinlock.h>
-#include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 
-MODULE_AUTHOR("Zhang Rui");
+MODULE_AUTHOR("Zhang Rui")
 MODULE_DESCRIPTION("Generic thermal management sysfs support");
 MODULE_LICENSE("GPL");
 
@@ -57,9 +55,6 @@ static DEFINE_MUTEX(thermal_idr_lock);
 static LIST_HEAD(thermal_tz_list);
 static LIST_HEAD(thermal_cdev_list);
 static DEFINE_MUTEX(thermal_list_lock);
-
-static struct device *thermal_hwmon;
-#define MAX_THERMAL_ZONES	10
 
 static int get_idr(struct idr *idr, struct mutex *lock, int *id)
 {
@@ -92,67 +87,7 @@ static void release_idr(struct idr *idr, struct mutex *lock, int id)
 		mutex_unlock(lock);
 }
 
-/* hwmon sys I/F*/
-static ssize_t
-name_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "thermal_sys_class\n");
-}
-
-static ssize_t
-temp_input_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct thermal_zone_device *tz;
-	struct sensor_device_attribute *sensor_attr
-						= to_sensor_dev_attr(attr);
-
-	list_for_each_entry(tz, &thermal_tz_list, node)
-		if (tz->id == sensor_attr->index)
-			return tz->ops->get_temp(tz, buf);
-
-	return -ENODEV;
-}
-
-static ssize_t
-temp_crit_show(struct device *dev, struct device_attribute *attr,
-		char *buf)
-{
-	struct thermal_zone_device *tz;
-	struct sensor_device_attribute *sensor_attr
-						= to_sensor_dev_attr(attr);
-
-	list_for_each_entry(tz, &thermal_tz_list, node)
-		if (tz->id == sensor_attr->index)
-			return tz->ops->get_trip_temp(tz, 0, buf);
-
-	return -ENODEV;
-}
-
-static DEVICE_ATTR(name, 0444, name_show, NULL);
-static struct sensor_device_attribute sensor_attrs[] = {
-	SENSOR_ATTR(temp1_input, 0444, temp_input_show, NULL, 0),
-	SENSOR_ATTR(temp1_crit, 0444, temp_crit_show, NULL, 0),
-	SENSOR_ATTR(temp2_input, 0444, temp_input_show, NULL, 1),
-	SENSOR_ATTR(temp2_crit, 0444, temp_crit_show, NULL, 1),
-	SENSOR_ATTR(temp3_input, 0444, temp_input_show, NULL, 2),
-	SENSOR_ATTR(temp3_crit, 0444, temp_crit_show, NULL, 2),
-	SENSOR_ATTR(temp4_input, 0444, temp_input_show, NULL, 3),
-	SENSOR_ATTR(temp4_crit, 0444, temp_crit_show, NULL, 3),
-	SENSOR_ATTR(temp5_input, 0444, temp_input_show, NULL, 4),
-	SENSOR_ATTR(temp5_crit, 0444, temp_crit_show, NULL, 4),
-	SENSOR_ATTR(temp6_input, 0444, temp_input_show, NULL, 5),
-	SENSOR_ATTR(temp6_crit, 0444, temp_crit_show, NULL, 5),
-	SENSOR_ATTR(temp7_input, 0444, temp_input_show, NULL, 6),
-	SENSOR_ATTR(temp7_crit, 0444, temp_crit_show, NULL, 6),
-	SENSOR_ATTR(temp8_input, 0444, temp_input_show, NULL, 7),
-	SENSOR_ATTR(temp8_crit, 0444, temp_crit_show, NULL, 7),
-	SENSOR_ATTR(temp9_input, 0444, temp_input_show, NULL, 8),
-	SENSOR_ATTR(temp9_crit, 0444, temp_crit_show, NULL, 8),
-	SENSOR_ATTR(temp10_input, 0444, temp_input_show, NULL, 9),
-	SENSOR_ATTR(temp10_crit, 0444, temp_crit_show, NULL, 9),
-};
-
-/* thermal zone sys I/F */
+/* sys I/F for thermal zone */
 
 #define to_thermal_zone(_dev) \
 	container_of(_dev, struct thermal_zone_device, device)
@@ -279,7 +214,7 @@ do {	\
 	device_remove_file(_dev, &trip_point_attrs[_index * 2 + 1]);	\
 } while (0)
 
-/* cooling device sys I/F */
+/* sys I/F for cooling device */
 #define to_cooling_device(_dev)	\
 	container_of(_dev, struct thermal_cooling_device, device)
 
@@ -512,9 +447,6 @@ struct thermal_cooling_device *thermal_cooling_device_register(char *type,
 	struct thermal_zone_device *pos;
 	int result;
 
-	if (!type)
-		return ERR_PTR(-EINVAL);
-
 	if (strlen(type) >= THERMAL_NAME_LENGTH)
 		return ERR_PTR(-EINVAL);
 
@@ -545,9 +477,11 @@ struct thermal_cooling_device *thermal_cooling_device_register(char *type,
 	}
 
 	/* sys I/F */
-	result = device_create_file(&cdev->device, &dev_attr_cdev_type);
-	if (result)
-		goto unregister;
+	if (type) {
+		result = device_create_file(&cdev->device, &dev_attr_cdev_type);
+		if (result)
+			goto unregister;
+	}
 
 	result = device_create_file(&cdev->device, &dev_attr_max_state);
 	if (result)
@@ -613,8 +547,8 @@ void thermal_cooling_device_unregister(struct
 		tz->ops->unbind(tz, cdev);
 	}
 	mutex_unlock(&thermal_list_lock);
-
-	device_remove_file(&cdev->device, &dev_attr_cdev_type);
+	if (cdev->type[0])
+		device_remove_file(&cdev->device, &dev_attr_cdev_type);
 	device_remove_file(&cdev->device, &dev_attr_max_state);
 	device_remove_file(&cdev->device, &dev_attr_cur_state);
 
@@ -646,9 +580,6 @@ struct thermal_zone_device *thermal_zone_device_register(char *type,
 	int result;
 	int count;
 
-	if (!type)
-		return ERR_PTR(-EINVAL);
-
 	if (strlen(type) >= THERMAL_NAME_LENGTH)
 		return ERR_PTR(-EINVAL);
 
@@ -670,13 +601,6 @@ struct thermal_zone_device *thermal_zone_device_register(char *type,
 		kfree(tz);
 		return ERR_PTR(result);
 	}
-	if (tz->id >= MAX_THERMAL_ZONES) {
-		printk(KERN_ERR PREFIX
-			"Too many thermal zones\n");
-		release_idr(&thermal_tz_idr, &thermal_idr_lock, tz->id);
-		kfree(tz);
-		return ERR_PTR(-EINVAL);
-	}
 
 	strcpy(tz->type, type);
 	tz->ops = ops;
@@ -691,27 +615,12 @@ struct thermal_zone_device *thermal_zone_device_register(char *type,
 		return ERR_PTR(result);
 	}
 
-	/* hwmon sys I/F */
-	result = device_create_file(thermal_hwmon,
-					&sensor_attrs[tz->id * 2].dev_attr);
-	if (result)
-		goto unregister;
-
-	if (trips > 0) {
-		char buf[40];
-		result = tz->ops->get_trip_type(tz, 0, buf);
-		if (result > 0 && !strcmp(buf, "critical\n")) {
-			result = device_create_file(thermal_hwmon,
-					&sensor_attrs[tz->id * 2 + 1].dev_attr);
-			if (result)
-				goto unregister;
-		}
-	}
-
 	/* sys I/F */
-	result = device_create_file(&tz->device, &dev_attr_type);
-	if (result)
-		goto unregister;
+	if (type) {
+		result = device_create_file(&tz->device, &dev_attr_type);
+		if (result)
+			goto unregister;
+	}
 
 	result = device_create_file(&tz->device, &dev_attr_temp);
 	if (result)
@@ -778,17 +687,8 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 		    tz->ops->unbind(tz, cdev);
 	mutex_unlock(&thermal_list_lock);
 
-	device_remove_file(thermal_hwmon,
-				&sensor_attrs[tz->id * 2].dev_attr);
-	if (tz->trips > 0) {
-		char buf[40];
-		if (tz->ops->get_trip_type(tz, 0, buf) > 0)
-			if (!strcmp(buf, "critical\n"))
-				device_remove_file(thermal_hwmon,
-				&sensor_attrs[tz->id * 2 + 1].dev_attr);
-	}
-
-	device_remove_file(&tz->device, &dev_attr_type);
+	if (tz->type[0])
+		device_remove_file(&tz->device, &dev_attr_type);
 	device_remove_file(&tz->device, &dev_attr_temp);
 	if (tz->ops->get_mode)
 		device_remove_file(&tz->device, &dev_attr_mode);
@@ -805,19 +705,6 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 
 EXPORT_SYMBOL(thermal_zone_device_unregister);
 
-static void thermal_exit(void)
-{
-	if (thermal_hwmon) {
-		device_remove_file(thermal_hwmon, &dev_attr_name);
-		hwmon_device_unregister(thermal_hwmon);
-	}
-	class_unregister(&thermal_class);
-	idr_destroy(&thermal_tz_idr);
-	idr_destroy(&thermal_cdev_idr);
-	mutex_destroy(&thermal_idr_lock);
-	mutex_destroy(&thermal_list_lock);
-}
-
 static int __init thermal_init(void)
 {
 	int result = 0;
@@ -829,20 +716,16 @@ static int __init thermal_init(void)
 		mutex_destroy(&thermal_idr_lock);
 		mutex_destroy(&thermal_list_lock);
 	}
-
-	thermal_hwmon = hwmon_device_register(NULL);
-	if (IS_ERR(thermal_hwmon)) {
-		result = PTR_ERR(thermal_hwmon);
-		thermal_hwmon = NULL;
-		printk(KERN_ERR PREFIX
-			"unable to register hwmon device\n");
-		thermal_exit();
-		return result;
-	}
-
-	result = device_create_file(thermal_hwmon, &dev_attr_name);
-
 	return result;
+}
+
+static void __exit thermal_exit(void)
+{
+	class_unregister(&thermal_class);
+	idr_destroy(&thermal_tz_idr);
+	idr_destroy(&thermal_cdev_idr);
+	mutex_destroy(&thermal_idr_lock);
+	mutex_destroy(&thermal_list_lock);
 }
 
 subsys_initcall(thermal_init);

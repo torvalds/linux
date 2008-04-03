@@ -16,7 +16,7 @@ menuconfig RTC_CLASS
 	  probably want to enable one or more of the interfaces below.
 
 	  This driver can also be built as a module. If so, the module
-	  will be called rtc-class.
+	  will be called rtc-core.
 
 if RTC_CLASS
 

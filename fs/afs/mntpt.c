@@ -283,11 +283,3 @@ void afs_mntpt_kill_timer(void)
 	cancel_delayed_work(&afs_mntpt_expiry_timer);
 	flush_scheduled_work();
 }
-
-/*
- * begin unmount by attempting to remove all automounted mountpoints we added
- */
-void afs_umount_begin(struct vfsmount *vfsmnt, int flags)
-{
-	shrink_submounts(vfsmnt, &afs_vfsmounts);
-}

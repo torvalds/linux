@@ -72,9 +72,6 @@ config SYS_SUPPORTS_NUMA
 config SYS_SUPPORTS_PCI
 	bool
 
-config ARCH_MAY_HAVE_PC_FDC
-	bool
-
 config STACKTRACE_SUPPORT
 	def_bool y
 
@@ -580,6 +577,7 @@ config SH_TIMER_IRQ
 			CPU_SUBTYPE_SH7763
 	default "86" if CPU_SUBTYPE_SH7619
 	default "140" if CPU_SUBTYPE_SH7206
+	default "142" if CPU_SUBTYPE_SH7203
 	default "16"
 
 config SH_PCLK_FREQ

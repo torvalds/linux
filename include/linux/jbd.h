@@ -348,8 +348,7 @@ static inline void jbd_unlock_bh_journal_head(struct buffer_head *bh)
 struct jbd_revoke_table_s;
 
 /**
- * struct handle_s - The handle_s type is the concrete type associated with
- *     handle_t.
+ * struct handle_s - this is the concrete type associated with handle_t.
  * @h_transaction: Which compound transaction is this update a part of?
  * @h_buffer_credits: Number of remaining buffers we are allowed to dirty.
  * @h_ref: Reference count on this handle
@@ -358,12 +357,7 @@ struct jbd_revoke_table_s;
  * @h_jdata: flag to force data journaling
  * @h_aborted: flag indicating fatal error on handle
  * @h_lockdep_map: lockdep info for debugging lock problems
- **/
-
-/* Docbook can't yet cope with the bit fields, but will leave the documentation
- * in so it can be fixed later.
  */
-
 struct handle_s
 {
 	/* Which compound transaction is this update a part of? */
@@ -558,8 +552,7 @@ struct transaction_s
 };
 
 /**
- * struct journal_s - The journal_s type is the concrete type associated with
- *     journal_t.
+ * struct journal_s - this is the concrete type associated with journal_t.
  * @j_flags:  General journaling state flags
  * @j_errno:  Is there an outstanding uncleared error on the journal (from a
  *     prior abort)?

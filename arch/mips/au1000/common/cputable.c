@@ -22,24 +22,24 @@ struct cpu_spec* cur_cpu_spec[NR_CPUS];
 /* With some thought, we can probably use the mask to reduce the
  * size of the table.
  */
-struct cpu_spec	cpu_specs[] = {
-    { 0xffffffff, 0x00030100, "Au1000 DA", 1, 0 },
-    { 0xffffffff, 0x00030201, "Au1000 HA", 1, 0 },
-    { 0xffffffff, 0x00030202, "Au1000 HB", 1, 0 },
-    { 0xffffffff, 0x00030203, "Au1000 HC", 1, 1 },
-    { 0xffffffff, 0x00030204, "Au1000 HD", 1, 1 },
-    { 0xffffffff, 0x01030200, "Au1500 AB", 1, 1 },
-    { 0xffffffff, 0x01030201, "Au1500 AC", 0, 1 },
-    { 0xffffffff, 0x01030202, "Au1500 AD", 0, 1 },
-    { 0xffffffff, 0x02030200, "Au1100 AB", 1, 1 },
-    { 0xffffffff, 0x02030201, "Au1100 BA", 1, 1 },
-    { 0xffffffff, 0x02030202, "Au1100 BC", 1, 1 },
-    { 0xffffffff, 0x02030203, "Au1100 BD", 0, 1 },
-    { 0xffffffff, 0x02030204, "Au1100 BE", 0, 1 },
-    { 0xffffffff, 0x03030200, "Au1550 AA", 0, 1 },
-    { 0xffffffff, 0x04030200, "Au1200 AB", 0, 0 },
-    { 0xffffffff, 0x04030201, "Au1200 AC", 1, 0 },
-    { 0x00000000, 0x00000000, "Unknown Au1xxx", 1, 0 },
+struct cpu_spec cpu_specs[] = {
+	{ 0xffffffff, 0x00030100, "Au1000 DA", 1, 0, 1 },
+	{ 0xffffffff, 0x00030201, "Au1000 HA", 1, 0, 1 },
+	{ 0xffffffff, 0x00030202, "Au1000 HB", 1, 0, 1 },
+	{ 0xffffffff, 0x00030203, "Au1000 HC", 1, 1, 0 },
+	{ 0xffffffff, 0x00030204, "Au1000 HD", 1, 1, 0 },
+	{ 0xffffffff, 0x01030200, "Au1500 AB", 1, 1, 0 },
+	{ 0xffffffff, 0x01030201, "Au1500 AC", 0, 1, 0 },
+	{ 0xffffffff, 0x01030202, "Au1500 AD", 0, 1, 0 },
+	{ 0xffffffff, 0x02030200, "Au1100 AB", 1, 1, 0 },
+	{ 0xffffffff, 0x02030201, "Au1100 BA", 1, 1, 0 },
+	{ 0xffffffff, 0x02030202, "Au1100 BC", 1, 1, 0 },
+	{ 0xffffffff, 0x02030203, "Au1100 BD", 0, 1, 0 },
+	{ 0xffffffff, 0x02030204, "Au1100 BE", 0, 1, 0 },
+	{ 0xffffffff, 0x03030200, "Au1550 AA", 0, 1, 0 },
+	{ 0xffffffff, 0x04030200, "Au1200 AB", 0, 0, 0 },
+	{ 0xffffffff, 0x04030201, "Au1200 AC", 1, 0, 0 },
+	{ 0x00000000, 0x00000000, "Unknown Au1xxx", 1, 0, 0 }
 };
 
 void

@@ -1,6 +1,6 @@
-/*P:900 This is the Switcher: code which sits at 0xFFC00000 to do the low-level
- * Guest<->Host switch.  It is as simple as it can be made, but it's naturally
- * very specific to x86.
+/*P:900 This is the Switcher: code which sits at 0xFFC00000 astride both the
+ * Host and Guest to do the low-level Guest<->Host switch.  It is as simple as
+ * it can be made, but it's naturally very specific to x86.
  *
  * You have now completed Preparation.  If this has whet your appetite; if you
  * are feeling invigorated and refreshed then the next, more challenging stage
@@ -189,7 +189,7 @@ ENTRY(switch_to_guest)
 	// Interrupts are turned back on: we are Guest.
 	iret
 
-// We treat two paths to switch back to the Host
+// We tread two paths to switch back to the Host
 // Yet both must save Guest state and restore Host
 // So we put the routine in a macro.
 #define SWITCH_TO_HOST							\

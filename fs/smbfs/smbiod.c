@@ -206,7 +206,7 @@ int smbiod_retry(struct smb_sb_info *server)
 
 	smb_close_socket(server);
 
-	if (pid == 0) {
+	if (!pid) {
 		/* FIXME: this is fatal, umount? */
 		printk(KERN_ERR "smb_retry: no connection process\n");
 		server->state = CONN_RETRIED;

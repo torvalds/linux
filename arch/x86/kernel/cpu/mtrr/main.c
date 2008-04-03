@@ -711,7 +711,8 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 		trim_size = end_pfn;
 		trim_size <<= PAGE_SHIFT;
 		trim_size -= trim_start;
-		add_memory_region(trim_start, trim_size, E820_RESERVED);
+		update_memory_range(trim_start, trim_size, E820_RAM,
+					E820_RESERVED);
 		update_e820();
 		return 1;
 	}

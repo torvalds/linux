@@ -2564,14 +2564,13 @@ int nobh_write_end(struct file *file, struct address_space *mapping,
 	struct inode *inode = page->mapping->host;
 	struct buffer_head *head = fsdata;
 	struct buffer_head *bh;
+	BUG_ON(fsdata != NULL && page_has_buffers(page));
 
-	if (!PageMappedToDisk(page)) {
-		if (unlikely(copied < len) && !page_has_buffers(page))
-			attach_nobh_buffers(page, head);
-		if (page_has_buffers(page))
-			return generic_write_end(file, mapping, pos, len,
-						copied, page, fsdata);
-	}
+	if (unlikely(copied < len) && !page_has_buffers(page))
+		attach_nobh_buffers(page, head);
+	if (page_has_buffers(page))
+		return generic_write_end(file, mapping, pos, len,
+					copied, page, fsdata);
 
 	SetPageUptodate(page);
 	set_page_dirty(page);
@@ -3213,7 +3212,7 @@ static int buffer_cpu_notify(struct notifier_block *self,
 }
 
 /**
- * bh_uptodate_or_lock: Test whether the buffer is uptodate
+ * bh_uptodate_or_lock - Test whether the buffer is uptodate
  * @bh: struct buffer_head
  *
  * Return true if the buffer is up-to-date and false,
@@ -3232,7 +3231,7 @@ int bh_uptodate_or_lock(struct buffer_head *bh)
 EXPORT_SYMBOL(bh_uptodate_or_lock);
 
 /**
- * bh_submit_read: Submit a locked buffer for reading
+ * bh_submit_read - Submit a locked buffer for reading
  * @bh: struct buffer_head
  *
  * Returns zero on success and -EIO on error.

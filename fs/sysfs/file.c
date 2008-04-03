@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/kobject.h>
+#include <linux/kallsyms.h>
 #include <linux/namei.h>
 #include <linux/poll.h>
 #include <linux/list.h>
@@ -86,7 +87,12 @@ static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer
 	 * The code works fine with PAGE_SIZE return but it's likely to
 	 * indicate truncated result or overflow in normal use cases.
 	 */
-	BUG_ON(count >= (ssize_t)PAGE_SIZE);
+	if (count >= (ssize_t)PAGE_SIZE) {
+		print_symbol("fill_read_buffer: %s returned bad count\n",
+			(unsigned long)ops->show);
+		/* Try to struggle along */
+		count = PAGE_SIZE - 1;
+	}
 	if (count >= 0) {
 		buffer->needs_read_fill = 0;
 		buffer->count = count;

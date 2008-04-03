@@ -218,18 +218,24 @@ int scsi_add_host(struct Scsi_Host *shost, struct device *dev)
 
 	get_device(&shost->shost_gendev);
 
-	if (shost->transportt->host_size &&
-	    (shost->shost_data = kzalloc(shost->transportt->host_size,
-					 GFP_KERNEL)) == NULL)
-		goto out_del_classdev;
+	if (shost->transportt->host_size) {
+		shost->shost_data = kzalloc(shost->transportt->host_size,
+					 GFP_KERNEL);
+		if (shost->shost_data == NULL) {
+			error = -ENOMEM;
+			goto out_del_classdev;
+		}
+	}
 
 	if (shost->transportt->create_work_queue) {
 		snprintf(shost->work_q_name, KOBJ_NAME_LEN, "scsi_wq_%d",
 			shost->host_no);
 		shost->work_q = create_singlethread_workqueue(
 					shost->work_q_name);
-		if (!shost->work_q)
+		if (!shost->work_q) {
+			error = -EINVAL;
 			goto out_free_shost_data;
+		}
 	}
 
 	error = scsi_sysfs_add_host(shost);

@@ -800,7 +800,8 @@ static void selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 	mutex_unlock(&newsbsec->lock);
 }
 
-int selinux_parse_opts_str(char *options, struct security_mnt_opts *opts)
+static int selinux_parse_opts_str(char *options,
+				  struct security_mnt_opts *opts)
 {
 	char *p;
 	char *context = NULL, *defcontext = NULL;
@@ -1628,6 +1629,12 @@ static inline u32 file_to_av(struct file *file)
 			av |= FILE__APPEND;
 		else
 			av |= FILE__WRITE;
+	}
+	if (!av) {
+		/*
+		 * Special file opened with flags 3 for ioctl-only use.
+		 */
+		av = FILE__IOCTL;
 	}
 
 	return av;

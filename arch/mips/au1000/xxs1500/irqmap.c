@@ -45,7 +45,7 @@
 #include <asm/io.h>
 #include <asm/mipsregs.h>
 #include <asm/system.h>
-#include <asm/au1000.h>
+#include <asm/mach-au1x00/au1000.h>
 
 struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
 	{ AU1500_GPIO_204, INTC_INT_HIGH_LEVEL, 0},

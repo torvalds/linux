@@ -1654,6 +1654,7 @@ static int sd_probe(struct device *dev)
 	sdkp->disk = gd;
 	sdkp->index = index;
 	sdkp->openers = 0;
+	sdkp->previous_state = 1;
 
 	if (!sdp->timeout) {
 		if (sdp->type != TYPE_MOD)

@@ -1,5 +1,6 @@
 #include <linux/elfcore.h>
 #include <linux/sched.h>
+#include <asm/fpu.h>
 
 /*
  * Capture the user space registers if the task is not running (in user space)

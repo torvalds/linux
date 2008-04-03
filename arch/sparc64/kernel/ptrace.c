@@ -35,6 +35,9 @@
 #include <asm/spitfire.h>
 #include <asm/page.h>
 #include <asm/cpudata.h>
+#include <asm/cacheflush.h>
+
+#include "entry.h"
 
 /* #define ALLOW_INIT_TRACING */
 
@@ -66,6 +69,8 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 
 	if (tlb_type == hypervisor)
 		return;
+
+	preempt_disable();
 
 #ifdef DCACHE_ALIASING_POSSIBLE
 	/* If bit 13 of the kernel address we used to access the
@@ -105,6 +110,8 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 		for (; start < end; start += icache_line_size)
 			flushi(start);
 	}
+
+	preempt_enable();
 }
 
 enum sparc_regset {
@@ -382,6 +389,7 @@ static const struct user_regset_view user_sparc64_view = {
 	.regsets = sparc64_regsets, .n = ARRAY_SIZE(sparc64_regsets)
 };
 
+#ifdef CONFIG_COMPAT
 static int genregs32_get(struct task_struct *target,
 			 const struct user_regset *regset,
 			 unsigned int pos, unsigned int count,
@@ -676,14 +684,18 @@ static const struct user_regset_view user_sparc32_view = {
 	.name = "sparc", .e_machine = EM_SPARC,
 	.regsets = sparc32_regsets, .n = ARRAY_SIZE(sparc32_regsets)
 };
+#endif /* CONFIG_COMPAT */
 
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 {
+#ifdef CONFIG_COMPAT
 	if (test_tsk_thread_flag(task, TIF_32BIT))
 		return &user_sparc32_view;
+#endif
 	return &user_sparc64_view;
 }
 
+#ifdef CONFIG_COMPAT
 struct compat_fps {
 	unsigned int regs[32];
 	unsigned int fsr;
@@ -798,6 +810,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 
 	return ret;
 }
+#endif /* CONFIG_COMPAT */
 
 struct fps {
 	unsigned int regs[64];
@@ -807,10 +820,13 @@ struct fps {
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	const struct user_regset_view *view = task_user_regset_view(child);
-	struct pt_regs __user *pregs = (struct pt_regs __user *) addr;
 	unsigned long addr2 = task_pt_regs(current)->u_regs[UREG_I4];
-	struct fps __user *fps = (struct fps __user *) addr;
+	struct pt_regs __user *pregs;
+	struct fps __user *fps;
 	int ret;
+
+	pregs = (struct pt_regs __user *) (unsigned long) addr;
+	fps = (struct fps __user *) (unsigned long) addr;
 
 	switch (request) {
 	case PTRACE_PEEKUSR:

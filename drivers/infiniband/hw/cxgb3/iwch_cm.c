@@ -1745,7 +1745,7 @@ int iwch_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	/* bind QP to EP and move to RTS */
 	attrs.mpa_attr = ep->mpa_attr;
-	attrs.max_ird = ep->ord;
+	attrs.max_ird = ep->ird;
 	attrs.max_ord = ep->ord;
 	attrs.llp_stream_handle = ep;
 	attrs.next_state = IWCH_QP_STATE_RTS;

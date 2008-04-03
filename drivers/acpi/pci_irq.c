@@ -131,8 +131,8 @@ struct prt_quirk {
  */
 static struct prt_quirk prt_quirks[] = {
 	{ medion_md9580, 0, 0, 9, 'A',
-		"\\_SB_.PCI0.ISA.LNKA",
-		"\\_SB_.PCI0.ISA.LNKB"},
+		"\\_SB_.PCI0.ISA_.LNKA",
+		"\\_SB_.PCI0.ISA_.LNKB"},
 	{ dell_optiplex, 0, 0, 0xd, 'A',
 		"\\_SB_.LNKB",
 		"\\_SB_.LNKA"},

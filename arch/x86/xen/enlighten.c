@@ -95,7 +95,7 @@ struct shared_info *HYPERVISOR_shared_info = (void *)&dummy_shared_info;
  *
  * 0: not available, 1: available
  */
-static int have_vcpu_info_placement = 0;
+static int have_vcpu_info_placement = 1;
 
 static void __init xen_vcpu_setup(int cpu)
 {
@@ -103,6 +103,7 @@ static void __init xen_vcpu_setup(int cpu)
 	int err;
 	struct vcpu_info *vcpup;
 
+	BUG_ON(HYPERVISOR_shared_info == &dummy_shared_info);
 	per_cpu(xen_vcpu, cpu) = &HYPERVISOR_shared_info->vcpu_info[cpu];
 
 	if (!have_vcpu_info_placement)
@@ -805,6 +806,31 @@ static __init void xen_pagetable_setup_start(pgd_t *base)
 			  PFN_DOWN(__pa(xen_start_info->pt_base)));
 }
 
+static __init void setup_shared_info(void)
+{
+	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+		unsigned long addr = fix_to_virt(FIX_PARAVIRT_BOOTMAP);
+
+		/*
+		 * Create a mapping for the shared info page.
+		 * Should be set_fixmap(), but shared_info is a machine
+		 * address with no corresponding pseudo-phys address.
+		 */
+		set_pte_mfn(addr,
+			    PFN_DOWN(xen_start_info->shared_info),
+			    PAGE_KERNEL);
+
+		HYPERVISOR_shared_info = (struct shared_info *)addr;
+	} else
+		HYPERVISOR_shared_info =
+			(struct shared_info *)__va(xen_start_info->shared_info);
+
+#ifndef CONFIG_SMP
+	/* In UP this is as good a place as any to set up shared info */
+	xen_setup_vcpu_info_placement();
+#endif
+}
+
 static __init void xen_pagetable_setup_done(pgd_t *base)
 {
 	/* This will work as long as patching hasn't happened yet
@@ -815,22 +841,7 @@ static __init void xen_pagetable_setup_done(pgd_t *base)
 	pv_mmu_ops.release_pd = xen_release_pt;
 	pv_mmu_ops.set_pte = xen_set_pte;
 
-	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
-		/*
-		 * Create a mapping for the shared info page.
-		 * Should be set_fixmap(), but shared_info is a machine
-		 * address with no corresponding pseudo-phys address.
-		 */
-		set_pte_mfn(fix_to_virt(FIX_PARAVIRT_BOOTMAP),
-			    PFN_DOWN(xen_start_info->shared_info),
-			    PAGE_KERNEL);
-
-		HYPERVISOR_shared_info =
-			(struct shared_info *)fix_to_virt(FIX_PARAVIRT_BOOTMAP);
-
-	} else
-		HYPERVISOR_shared_info =
-			(struct shared_info *)__va(xen_start_info->shared_info);
+	setup_shared_info();
 
 	/* Actually pin the pagetable down, but we can't set PG_pinned
 	   yet because the page structures don't exist yet. */
@@ -1182,15 +1193,9 @@ asmlinkage void __init xen_start_kernel(void)
 	x86_write_percpu(xen_cr3, __pa(pgd));
 	x86_write_percpu(xen_current_cr3, __pa(pgd));
 
-#ifdef CONFIG_SMP
 	/* Don't do the full vcpu_info placement stuff until we have a
-	   possible map. */
+	   possible map and a non-dummy shared_info. */
 	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
-#else
-	/* May as well do it now, since there's no good time to call
-	   it later on UP. */
-	xen_setup_vcpu_info_placement();
-#endif
 
 	pv_info.kernel_rpl = 1;
 	if (xen_feature(XENFEAT_supervisor_mode_kernel))

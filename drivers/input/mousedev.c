@@ -414,6 +414,7 @@ static void mousedev_free(struct device *dev)
 {
 	struct mousedev *mousedev = container_of(dev, struct mousedev, dev);
 
+	input_put_device(mousedev->handle.dev);
 	kfree(mousedev);
 }
 
@@ -865,7 +866,7 @@ static struct mousedev *mousedev_create(struct input_dev *dev,
 
 	mousedev->minor = minor;
 	mousedev->exist = 1;
-	mousedev->handle.dev = dev;
+	mousedev->handle.dev = input_get_device(dev);
 	mousedev->handle.name = mousedev->name;
 	mousedev->handle.handler = handler;
 	mousedev->handle.private = mousedev;

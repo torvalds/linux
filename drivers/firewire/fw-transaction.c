@@ -736,6 +736,12 @@ fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 		break;
 	}
 
+	/*
+	 * The response handler may be executed while the request handler
+	 * is still pending.  Cancel the request handler.
+	 */
+	card->driver->cancel_packet(card, &t->packet);
+
 	t->callback(card, rcode, data, data_length, t->callback_data);
 }
 EXPORT_SYMBOL(fw_core_handle_response);

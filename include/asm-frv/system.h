@@ -234,7 +234,7 @@ extern void free_initmem(void);
 		break;								\
 										\
 	default:								\
-		__xg_orig = 0;							\
+		__xg_orig = (__typeof__(__xg_orig))0;				\
 		asm volatile("break");						\
 		break;								\
 	}									\
@@ -259,7 +259,7 @@ extern uint32_t __cmpxchg_32(uint32_t *v, uint32_t test, uint32_t new);
 					 (__force uint32_t)__xg_test,		\
 					 (__force uint32_t)__xg_new); break;	\
 	default:								\
-		__xg_orig = 0;							\
+		__xg_orig = (__typeof__(__xg_orig))0;				\
 		asm volatile("break");						\
 		break;								\
 	}									\

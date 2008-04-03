@@ -123,6 +123,11 @@ static dma_addr_t get_ndar(struct fsl_dma_chan *fsl_chan)
 	return DMA_IN(fsl_chan, &fsl_chan->reg_base->ndar, 64);
 }
 
+static u32 get_bcr(struct fsl_dma_chan *fsl_chan)
+{
+	return DMA_IN(fsl_chan, &fsl_chan->reg_base->bcr, 32);
+}
+
 static int dma_is_idle(struct fsl_dma_chan *fsl_chan)
 {
 	u32 sr = get_sr(fsl_chan);
@@ -426,6 +431,9 @@ fsl_dma_prep_interrupt(struct dma_chan *chan)
 	new->async_tx.cookie = -EBUSY;
 	new->async_tx.ack = 0;
 
+	/* Insert the link descriptor to the LD ring */
+	list_add_tail(&new->node, &new->async_tx.tx_list);
+
 	/* Set End-of-link to the last link descriptor of new list*/
 	set_ld_eol(fsl_chan, new);
 
@@ -701,6 +709,23 @@ static irqreturn_t fsl_dma_chan_do_interrupt(int irq, void *data)
 	if (stat & FSL_DMA_SR_TE)
 		dev_err(fsl_chan->dev, "Transfer Error!\n");
 
+	/* Programming Error
+	 * The DMA_INTERRUPT async_tx is a NULL transfer, which will
+	 * triger a PE interrupt.
+	 */
+	if (stat & FSL_DMA_SR_PE) {
+		dev_dbg(fsl_chan->dev, "event: Programming Error INT\n");
+		if (get_bcr(fsl_chan) == 0) {
+			/* BCR register is 0, this is a DMA_INTERRUPT async_tx.
+			 * Now, update the completed cookie, and continue the
+			 * next uncompleted transfer.
+			 */
+			fsl_dma_update_completed_cookie(fsl_chan);
+			fsl_chan_xfer_ld_queue(fsl_chan);
+		}
+		stat &= ~FSL_DMA_SR_PE;
+	}
+
 	/* If the link descriptor segment transfer finishes,
 	 * we will recycle the used descriptor.
 	 */
@@ -840,6 +865,11 @@ static int fsl_dma_self_test(struct fsl_dma_chan *fsl_chan)
 					test_size / 4, DMA_FROM_DEVICE);
 	tx3 = fsl_dma_prep_memcpy(chan, dma_dest, dma_src, test_size / 4, 0);
 	async_tx_ack(tx3);
+
+	/* Interrupt tx test */
+	tx1 = fsl_dma_prep_interrupt(chan);
+	async_tx_ack(tx1);
+	cookie = fsl_dma_tx_submit(tx1);
 
 	/* Test exchanging the prepared tx sort */
 	cookie = fsl_dma_tx_submit(tx3);

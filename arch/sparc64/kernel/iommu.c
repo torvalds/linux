@@ -516,9 +516,11 @@ static int dma_4u_map_sg(struct device *dev, struct scatterlist *sglist,
 	unsigned long flags, handle, prot, ctx;
 	dma_addr_t dma_next = 0, dma_addr;
 	unsigned int max_seg_size;
+	unsigned long seg_boundary_size;
 	int outcount, incount, i;
 	struct strbuf *strbuf;
 	struct iommu *iommu;
+	unsigned long base_shift;
 
 	BUG_ON(direction == DMA_NONE);
 
@@ -549,8 +551,11 @@ static int dma_4u_map_sg(struct device *dev, struct scatterlist *sglist,
 	outs->dma_length = 0;
 
 	max_seg_size = dma_get_max_seg_size(dev);
+	seg_boundary_size = ALIGN(dma_get_seg_boundary(dev) + 1,
+				  IO_PAGE_SIZE) >> IO_PAGE_SHIFT;
+	base_shift = iommu->page_table_map_base >> IO_PAGE_SHIFT;
 	for_each_sg(sglist, s, nelems, i) {
-		unsigned long paddr, npages, entry, slen;
+		unsigned long paddr, npages, entry, out_entry = 0, slen;
 		iopte_t *base;
 
 		slen = s->length;
@@ -593,7 +598,9 @@ static int dma_4u_map_sg(struct device *dev, struct scatterlist *sglist,
 			 * - allocated dma_addr isn't contiguous to previous allocation
 			 */
 			if ((dma_addr != dma_next) ||
-			    (outs->dma_length + s->length > max_seg_size)) {
+			    (outs->dma_length + s->length > max_seg_size) ||
+			    (is_span_boundary(out_entry, base_shift,
+					      seg_boundary_size, outs, s))) {
 				/* Can't merge: create a new segment */
 				segstart = s;
 				outcount++;
@@ -607,6 +614,7 @@ static int dma_4u_map_sg(struct device *dev, struct scatterlist *sglist,
 			/* This is a new segment, fill entries */
 			outs->dma_address = dma_addr;
 			outs->dma_length = slen;
+			out_entry = entry;
 		}
 
 		/* Calculate next page pointer for contiguous check */
@@ -626,7 +634,7 @@ static int dma_4u_map_sg(struct device *dev, struct scatterlist *sglist,
 iommu_map_failed:
 	for_each_sg(sglist, s, nelems, i) {
 		if (s->dma_length != 0) {
-			unsigned long vaddr, npages, entry, i;
+			unsigned long vaddr, npages, entry, j;
 			iopte_t *base;
 
 			vaddr = s->dma_address & IO_PAGE_MASK;
@@ -637,8 +645,8 @@ iommu_map_failed:
 				>> IO_PAGE_SHIFT;
 			base = iommu->page_table + entry;
 
-			for (i = 0; i < npages; i++)
-				iopte_make_dummy(iommu, base + i);
+			for (j = 0; j < npages; j++)
+				iopte_make_dummy(iommu, base + j);
 
 			s->dma_address = DMA_ERROR_CODE;
 			s->dma_length = 0;
@@ -803,7 +811,7 @@ static void dma_4u_sync_sg_for_cpu(struct device *dev,
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
-const struct dma_ops sun4u_dma_ops = {
+static const struct dma_ops sun4u_dma_ops = {
 	.alloc_coherent		= dma_4u_alloc_coherent,
 	.free_coherent		= dma_4u_free_coherent,
 	.map_single		= dma_4u_map_single,

@@ -281,7 +281,7 @@ static int get_futex_key(u32 __user *uaddr, struct rw_semaphore *fshared,
  */
 static void get_futex_key_refs(union futex_key *key)
 {
-	if (key->both.ptr == 0)
+	if (key->both.ptr == NULL)
 		return;
 	switch (key->both.offset & (FUT_OFF_INODE|FUT_OFF_MMSHARED)) {
 		case FUT_OFF_INODE:
@@ -2158,7 +2158,7 @@ static struct file_system_type futex_fs_type = {
 	.kill_sb	= kill_anon_super,
 };
 
-static int __init init(void)
+static int __init futex_init(void)
 {
 	u32 curval;
 	int i;
@@ -2194,4 +2194,4 @@ static int __init init(void)
 
 	return 0;
 }
-__initcall(init);
+__initcall(futex_init);

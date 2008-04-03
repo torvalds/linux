@@ -968,7 +968,7 @@ dm9000_interrupt(int irq, void *dev_id)
 struct dm9000_rxhdr {
 	u8	RxPktReady;
 	u8	RxStatus;
-	u16	RxLen;
+	__le16	RxLen;
 } __attribute__((__packed__));
 
 /*

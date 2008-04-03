@@ -951,6 +951,12 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82375,	quirk_e
  * accesses to the SMBus registers, with potentially bad effects. Thus you
  * should be very careful when adding new entries: if SMM is accessing the
  * Intel SMBus, this is a very good reason to leave it hidden.
+ *
+ * Likewise, many recent laptops use ACPI for thermal management. If the
+ * ACPI DSDT code accesses the SMBus, then Linux should not access it
+ * natively, and keeping the SMBus hidden is the right thing to do. If you
+ * are about to add an entry in the table below, please first disassemble
+ * the DSDT and double-check that there is no code accessing the SMBus.
  */
 static int asus_hides_smbus;
 
@@ -1026,11 +1032,6 @@ static void __init asus_hides_smbus_hostbridge(struct pci_dev *dev)
 		else if (dev->device == PCI_DEVICE_ID_INTEL_82875_HB)
 			switch (dev->subsystem_device) {
 			case 0x12bf: /* HP xw4100 */
-				asus_hides_smbus = 1;
-			}
-		else if (dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB)
-			switch (dev->subsystem_device) {
-			case 0x099c: /* HP Compaq nx6110 */
 				asus_hides_smbus = 1;
 			}
        } else if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_SAMSUNG)) {
