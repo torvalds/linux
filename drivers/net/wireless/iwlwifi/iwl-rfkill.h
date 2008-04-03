@@ -41,12 +41,10 @@ struct iwl_rfkill_mngr {
 };
 
 void iwl_rfkill_set_hw_state(struct iwl_priv *priv);
-void iwl_rfkill_free(struct iwl_priv *priv);
 void iwl_rfkill_unregister(struct iwl_priv *priv);
 int iwl_rfkill_init(struct iwl_priv *priv);
 #else
 static inline void iwl_rfkill_set_hw_state(struct iwl_priv *priv) {}
-static inline void iwl_rfkill_free(struct iwl_priv *priv) {}
 static inline void iwl_rfkill_unregister(struct iwl_priv *priv) {}
 static inline int iwl_rfkill_init(struct iwl_priv *priv) { return 0; }
 #endif

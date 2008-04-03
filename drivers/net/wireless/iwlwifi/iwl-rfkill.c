@@ -75,8 +75,10 @@ int iwl_rfkill_init(struct iwl_priv *priv)
 
 	BUG_ON(device == NULL);
 
+	IWL_DEBUG_RF_KILL("Initializing RFKILL.\n");
 	priv->rfkill_mngr.rfkill = rfkill_allocate(device, RFKILL_TYPE_WLAN);
 	if (!priv->rfkill_mngr.rfkill) {
+		IWL_ERROR("Unable to allocate rfkill device.\n");
 		ret = -ENOMEM;
 		goto error;
 	}
@@ -92,6 +94,7 @@ int iwl_rfkill_init(struct iwl_priv *priv)
 
 	priv->rfkill_mngr.input_dev = input_allocate_device();
 	if (!priv->rfkill_mngr.input_dev) {
+		IWL_ERROR("Unable to allocate rfkill input device.\n");
 		ret = -ENOMEM;
 		goto freed_rfkill;
 	}
@@ -105,27 +108,35 @@ int iwl_rfkill_init(struct iwl_priv *priv)
 	set_bit(KEY_WLAN, priv->rfkill_mngr.input_dev->keybit);
 
 	ret = rfkill_register(priv->rfkill_mngr.rfkill);
-	if (ret)
+	if (ret) {
+		IWL_ERROR("Unable to register rfkill: %d\n", ret);
 		goto free_input_dev;
+	}
 
 	ret = input_register_device(priv->rfkill_mngr.input_dev);
-	if (ret)
+	if (ret) {
+		IWL_ERROR("Unable to register rfkill input device: %d\n", ret);
 		goto unregister_rfkill;
+	}
 
+	IWL_DEBUG_RF_KILL("RFKILL initialization complete.\n");
 	return ret;
 
 unregister_rfkill:
 	rfkill_unregister(priv->rfkill_mngr.rfkill);
+	priv->rfkill_mngr.rfkill = NULL;
 
 free_input_dev:
 	input_free_device(priv->rfkill_mngr.input_dev);
 	priv->rfkill_mngr.input_dev = NULL;
 
 freed_rfkill:
-	rfkill_free(priv->rfkill_mngr.rfkill);
+	if (priv->rfkill_mngr.rfkill != NULL)
+		rfkill_free(priv->rfkill_mngr.rfkill);
 	priv->rfkill_mngr.rfkill = NULL;
 
 error:
+	IWL_DEBUG_RF_KILL("RFKILL initialization complete.\n");
 	return ret;
 }
 EXPORT_SYMBOL(iwl_rfkill_init);
@@ -138,19 +149,11 @@ void iwl_rfkill_unregister(struct iwl_priv *priv)
 
 	if (priv->rfkill_mngr.rfkill)
 		rfkill_unregister(priv->rfkill_mngr.rfkill);
+
+	priv->rfkill_mngr.input_dev = NULL;
+	priv->rfkill_mngr.rfkill = NULL;
 }
 EXPORT_SYMBOL(iwl_rfkill_unregister);
-
-
-void iwl_rfkill_free(struct iwl_priv *priv)
-{
-	if (priv->rfkill_mngr.input_dev)
-		input_free_device(priv->rfkill_mngr.input_dev);
-
-	if (priv->rfkill_mngr.rfkill)
-		rfkill_free(priv->rfkill_mngr.rfkill);
-}
-EXPORT_SYMBOL(iwl_rfkill_free);
 
 /* set rf-kill to the right state. */
 void iwl_rfkill_set_hw_state(struct iwl_priv *priv)
