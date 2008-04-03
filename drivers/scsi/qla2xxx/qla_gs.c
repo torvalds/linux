@@ -1532,7 +1532,7 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *ha)
 		eiter->a.sup_speed = __constant_cpu_to_be32(
 		    FDMI_PORT_SPEED_1GB|FDMI_PORT_SPEED_2GB|
 		    FDMI_PORT_SPEED_4GB|FDMI_PORT_SPEED_8GB);
-	else if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
+	else if (IS_QLA24XX_TYPE(ha))
 		eiter->a.sup_speed = __constant_cpu_to_be32(
 		    FDMI_PORT_SPEED_1GB|FDMI_PORT_SPEED_2GB|
 		    FDMI_PORT_SPEED_4GB);

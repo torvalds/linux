@@ -1218,4 +1218,127 @@ struct qla_fdt_layout {
 	uint8_t protect_sec_cmd;
 	uint8_t unused2[65];
 };
+
+/* 84XX Support **************************************************************/
+
+#define MBA_ISP84XX_ALERT	0x800f  /* Alert Notification. */
+#define A84_PANIC_RECOVERY	0x1
+#define A84_OP_LOGIN_COMPLETE	0x2
+#define A84_DIAG_LOGIN_COMPLETE	0x3
+#define A84_GOLD_LOGIN_COMPLETE	0x4
+
+#define MBC_ISP84XX_RESET	0x3a    /* Reset. */
+
+#define FSTATE_REMOTE_FC_DOWN	BIT_0
+#define FSTATE_NSL_LINK_DOWN	BIT_1
+#define FSTATE_IS_DIAG_FW	BIT_2
+#define FSTATE_LOGGED_IN	BIT_3
+#define FSTATE_WAITING_FOR_VERIFY	BIT_4
+
+#define VERIFY_CHIP_IOCB_TYPE	0x1B
+struct verify_chip_entry_84xx {
+	uint8_t entry_type;
+	uint8_t entry_count;
+	uint8_t sys_defined;
+	uint8_t entry_status;
+
+	uint32_t handle;
+
+	uint16_t options;
+#define VCO_DONT_UPDATE_FW	BIT_0
+#define VCO_FORCE_UPDATE	BIT_1
+#define VCO_DONT_RESET_UPDATE	BIT_2
+#define VCO_DIAG_FW		BIT_3
+#define VCO_END_OF_DATA		BIT_14
+#define VCO_ENABLE_DSD		BIT_15
+
+	uint16_t reserved_1;
+
+	uint16_t data_seg_cnt;
+	uint16_t reserved_2[3];
+
+	uint32_t fw_ver;
+	uint32_t exchange_address;
+
+	uint32_t reserved_3[3];
+	uint32_t fw_size;
+	uint32_t fw_seq_size;
+	uint32_t relative_offset;
+
+	uint32_t dseg_address[2];
+	uint32_t dseg_length;
+};
+
+struct verify_chip_rsp_84xx {
+	uint8_t entry_type;
+	uint8_t entry_count;
+	uint8_t sys_defined;
+	uint8_t entry_status;
+
+	uint32_t handle;
+
+	uint16_t comp_status;
+#define CS_VCS_CHIP_FAILURE	0x3
+#define CS_VCS_BAD_EXCHANGE	0x8
+#define CS_VCS_SEQ_COMPLETEi	0x40
+
+	uint16_t failure_code;
+#define VFC_CHECKSUM_ERROR	0x1
+#define VFC_INVALID_LEN		0x2
+#define VFC_ALREADY_IN_PROGRESS	0x8
+
+	uint16_t reserved_1[4];
+
+	uint32_t fw_ver;
+	uint32_t exchange_address;
+
+	uint32_t reserved_2[6];
+};
+
+#define ACCESS_CHIP_IOCB_TYPE	0x2B
+struct access_chip_84xx {
+	uint8_t entry_type;
+	uint8_t entry_count;
+	uint8_t sys_defined;
+	uint8_t entry_status;
+
+	uint32_t handle;
+
+	uint16_t options;
+#define ACO_DUMP_MEMORY		0x0
+#define ACO_LOAD_MEMORY		0x1
+#define ACO_CHANGE_CONFIG_PARAM	0x2
+#define ACO_REQUEST_INFO	0x3
+
+	uint16_t reserved1;
+
+	uint16_t dseg_count;
+	uint16_t reserved2[3];
+
+	uint32_t parameter1;
+	uint32_t parameter2;
+	uint32_t parameter3;
+
+	uint32_t reserved3[3];
+	uint32_t total_byte_cnt;
+	uint32_t reserved4;
+
+	uint32_t dseg_address[2];
+	uint32_t dseg_length;
+};
+
+struct access_chip_rsp_84xx {
+	uint8_t entry_type;
+	uint8_t entry_count;
+	uint8_t sys_defined;
+	uint8_t entry_status;
+
+	uint32_t handle;
+
+	uint16_t comp_status;
+	uint16_t failure_code;
+	uint32_t residual_count;
+
+	uint32_t reserved[12];
+};
 #endif

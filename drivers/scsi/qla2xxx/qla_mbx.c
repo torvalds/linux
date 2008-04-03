@@ -682,8 +682,8 @@ qla2x00_verify_checksum(scsi_qla_host_t *ha, uint32_t risc_addr)
  *	Kernel context.
  */
 int
-qla2x00_issue_iocb(scsi_qla_host_t *ha, void*  buffer, dma_addr_t phys_addr,
-    size_t size)
+qla2x00_issue_iocb_timeout(scsi_qla_host_t *ha, void *buffer,
+    dma_addr_t phys_addr, size_t size, uint32_t tov)
 {
 	int		rval;
 	mbx_cmd_t	mc;
@@ -697,7 +697,7 @@ qla2x00_issue_iocb(scsi_qla_host_t *ha, void*  buffer, dma_addr_t phys_addr,
 	mcp->mb[7] = LSW(MSD(phys_addr));
 	mcp->out_mb = MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
 	mcp->in_mb = MBX_2|MBX_0;
-	mcp->tov = MBX_TOV_SECONDS;
+	mcp->tov = tov;
 	mcp->flags = 0;
 	rval = qla2x00_mailbox_command(ha, mcp);
 
@@ -716,6 +716,14 @@ qla2x00_issue_iocb(scsi_qla_host_t *ha, void*  buffer, dma_addr_t phys_addr,
 	}
 
 	return rval;
+}
+
+int
+qla2x00_issue_iocb(scsi_qla_host_t *ha, void *buffer, dma_addr_t phys_addr,
+    size_t size)
+{
+	return qla2x00_issue_iocb_timeout(ha, buffer, phys_addr, size,
+	    MBX_TOV_SECONDS);
 }
 
 /*
@@ -1208,7 +1216,7 @@ gpd_error_out:
  *	Kernel context.
  */
 int
-qla2x00_get_firmware_state(scsi_qla_host_t *ha, uint16_t *dptr)
+qla2x00_get_firmware_state(scsi_qla_host_t *ha, uint16_t *states)
 {
 	int rval;
 	mbx_cmd_t mc;
@@ -1219,13 +1227,15 @@ qla2x00_get_firmware_state(scsi_qla_host_t *ha, uint16_t *dptr)
 
 	mcp->mb[0] = MBC_GET_FIRMWARE_STATE;
 	mcp->out_mb = MBX_0;
-	mcp->in_mb = MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_3|MBX_2|MBX_1|MBX_0;
 	mcp->tov = MBX_TOV_SECONDS;
 	mcp->flags = 0;
 	rval = qla2x00_mailbox_command(ha, mcp);
 
-	/* Return firmware state. */
-	*dptr = mcp->mb[1];
+	/* Return firmware states. */
+	states[0] = mcp->mb[1];
+	states[1] = mcp->mb[2];
+	states[2] = mcp->mb[3];
 
 	if (rval != QLA_SUCCESS) {
 		/*EMPTY*/
@@ -2933,6 +2943,107 @@ qla2x00_dump_ram(scsi_qla_host_t *ha, dma_addr_t req_dma, uint32_t addr,
 		    ha->host_no, rval, mcp->mb[0]));
 	} else {
 		DEBUG11(printk("%s(%ld): done.\n", __func__, ha->host_no));
+	}
+
+	return rval;
+}
+
+/* 84XX Support **************************************************************/
+
+struct cs84xx_mgmt_cmd {
+	union {
+		struct verify_chip_entry_84xx req;
+		struct verify_chip_rsp_84xx rsp;
+	} p;
+};
+
+int
+qla84xx_verify_chip(struct scsi_qla_host *ha, uint16_t *status)
+{
+	int rval, retry;
+	struct cs84xx_mgmt_cmd *mn;
+	dma_addr_t mn_dma;
+	uint16_t options;
+	unsigned long flags;
+
+	DEBUG16(printk("%s(%ld): entered.\n", __func__, ha->host_no));
+
+	mn = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &mn_dma);
+	if (mn == NULL) {
+		DEBUG2_3(printk("%s(%ld): failed to allocate Verify ISP84XX "
+		    "IOCB.\n", __func__, ha->host_no));
+		return QLA_MEMORY_ALLOC_FAILED;
+	}
+
+	/* Force Update? */
+	options = ha->cs84xx->fw_update ? VCO_FORCE_UPDATE : 0;
+	/* Diagnostic firmware? */
+	/* options |= MENLO_DIAG_FW; */
+	/* We update the firmware with only one data sequence. */
+	options |= VCO_END_OF_DATA;
+
+	retry = 0;
+	do {
+		memset(mn, 0, sizeof(*mn));
+		mn->p.req.entry_type = VERIFY_CHIP_IOCB_TYPE;
+		mn->p.req.entry_count = 1;
+		mn->p.req.options = cpu_to_le16(options);
+
+		DEBUG16(printk("%s(%ld): Dump of Verify Request.\n", __func__,
+		    ha->host_no));
+		DEBUG16(qla2x00_dump_buffer((uint8_t *)mn,
+		    sizeof(*mn)));
+
+		rval = qla2x00_issue_iocb_timeout(ha, mn, mn_dma, 0, 120);
+		if (rval != QLA_SUCCESS) {
+			DEBUG2_16(printk("%s(%ld): failed to issue Verify "
+			    "IOCB (%x).\n", __func__, ha->host_no, rval));
+			goto verify_done;
+		}
+
+		DEBUG16(printk("%s(%ld): Dump of Verify Response.\n", __func__,
+		    ha->host_no));
+		DEBUG16(qla2x00_dump_buffer((uint8_t *)mn,
+		    sizeof(*mn)));
+
+		status[0] = le16_to_cpu(mn->p.rsp.comp_status);
+		status[1] = status[0] == CS_VCS_CHIP_FAILURE ?
+		    le16_to_cpu(mn->p.rsp.failure_code) : 0;
+		DEBUG2_16(printk("%s(%ld): cs=%x fc=%x\n", __func__,
+		    ha->host_no, status[0], status[1]));
+
+		if (status[0] != CS_COMPLETE) {
+			rval = QLA_FUNCTION_FAILED;
+			if (!(options & VCO_DONT_UPDATE_FW)) {
+				DEBUG2_16(printk("%s(%ld): Firmware update "
+				    "failed. Retrying without update "
+				    "firmware.\n", __func__, ha->host_no));
+				options |= VCO_DONT_UPDATE_FW;
+				options &= ~VCO_FORCE_UPDATE;
+				retry = 1;
+			}
+		} else {
+			DEBUG2_16(printk("%s(%ld): firmware updated to %x.\n",
+			    __func__, ha->host_no,
+			    le32_to_cpu(mn->p.rsp.fw_ver)));
+
+			/* NOTE: we only update OP firmware. */
+			spin_lock_irqsave(&ha->cs84xx->access_lock, flags);
+			ha->cs84xx->op_fw_version =
+			    le32_to_cpu(mn->p.rsp.fw_ver);
+			spin_unlock_irqrestore(&ha->cs84xx->access_lock,
+			    flags);
+		}
+	} while (retry);
+
+verify_done:
+	dma_pool_free(ha->s_dma_pool, mn, mn_dma);
+
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_16(printk("%s(%ld): failed=%x.\n", __func__,
+		    ha->host_no, rval));
+	} else {
+		DEBUG16(printk("%s(%ld): done.\n", __func__, ha->host_no));
 	}
 
 	return rval;

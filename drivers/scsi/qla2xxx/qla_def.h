@@ -24,6 +24,7 @@
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
 #include <linux/aer.h>
+#include <linux/mutex.h>
 #include <asm/semaphore.h>
 
 #include <scsi/scsi.h>
@@ -2142,6 +2143,21 @@ struct qla_work_evt {
 	} u;
 };
 
+struct qla_chip_state_84xx {
+	struct list_head list;
+	struct kref kref;
+
+	void *bus;
+	spinlock_t access_lock;
+	struct mutex fw_update_mutex;
+	uint32_t fw_update;
+	uint32_t op_fw_version;
+	uint32_t op_fw_size;
+	uint32_t op_fw_seq_size;
+	uint32_t diag_fw_version;
+	uint32_t gold_fw_version;
+};
+
 /*
  * Linux Host Adapter structure
  */
@@ -2230,6 +2246,7 @@ typedef struct scsi_qla_host {
 #define	DFLG_NO_CABLE			BIT_4
 
 #define PCI_DEVICE_ID_QLOGIC_ISP2532	0x2532
+#define PCI_DEVICE_ID_QLOGIC_ISP8432	0x8432
 	uint32_t	device_type;
 #define DT_ISP2100			BIT_0
 #define DT_ISP2200			BIT_1
@@ -2243,7 +2260,8 @@ typedef struct scsi_qla_host {
 #define DT_ISP5422			BIT_9
 #define DT_ISP5432			BIT_10
 #define DT_ISP2532			BIT_11
-#define DT_ISP_LAST			(DT_ISP2532 << 1)
+#define DT_ISP8432			BIT_12
+#define DT_ISP_LAST			(DT_ISP8432 << 1)
 
 #define DT_IIDMA			BIT_26
 #define DT_FWI2				BIT_27
@@ -2265,12 +2283,16 @@ typedef struct scsi_qla_host {
 #define IS_QLA5422(ha)	(DT_MASK(ha) & DT_ISP5422)
 #define IS_QLA5432(ha)	(DT_MASK(ha) & DT_ISP5432)
 #define IS_QLA2532(ha)	(DT_MASK(ha) & DT_ISP2532)
+#define IS_QLA8432(ha)	(DT_MASK(ha) & DT_ISP8432)
 
 #define IS_QLA23XX(ha)	(IS_QLA2300(ha) || IS_QLA2312(ha) || IS_QLA2322(ha) || \
     			 IS_QLA6312(ha) || IS_QLA6322(ha))
 #define IS_QLA24XX(ha)	(IS_QLA2422(ha) || IS_QLA2432(ha))
 #define IS_QLA54XX(ha)	(IS_QLA5422(ha) || IS_QLA5432(ha))
 #define IS_QLA25XX(ha)	(IS_QLA2532(ha))
+#define IS_QLA84XX(ha)	(IS_QLA8432(ha))
+#define IS_QLA24XX_TYPE(ha)	(IS_QLA24XX(ha) || IS_QLA54XX(ha) || \
+			IS_QLA84XX(ha))
 
 #define IS_IIDMA_CAPABLE(ha)	((ha)->device_type & DT_IIDMA)
 #define IS_FWI2_CAPABLE(ha)	((ha)->device_type & DT_FWI2)
@@ -2575,6 +2597,8 @@ typedef struct scsi_qla_host {
 #define VP_ERR_ADAP_NORESOURCES	5
 	uint16_t	max_npiv_vports;	/* 63 or 125 per topoloty */
 	int		cur_vport_count;
+
+	struct qla_chip_state_84xx *cs84xx;
 } scsi_qla_host_t;
 
 

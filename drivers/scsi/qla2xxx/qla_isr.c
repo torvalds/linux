@@ -271,6 +271,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	uint32_t	rscn_entry, host_pid;
 	uint8_t		rscn_queue_index;
+	unsigned long	flags;
 
 	/* Setup to process RIO completion. */
 	handle_cnt = 0;
@@ -432,9 +433,10 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		break;
 
 	case MBA_LOOP_DOWN:		/* Loop Down Event */
-		DEBUG2(printk("scsi(%ld): Asynchronous LOOP DOWN (%x).\n",
-		    ha->host_no, mb[1]));
-		qla_printk(KERN_INFO, ha, "LOOP DOWN detected (%x).\n", mb[1]);
+		DEBUG2(printk("scsi(%ld): Asynchronous LOOP DOWN "
+		    "(%x %x %x).\n", ha->host_no, mb[1], mb[2], mb[3]));
+		qla_printk(KERN_INFO, ha, "LOOP DOWN detected (%x %x %x).\n",
+		    mb[1], mb[2], mb[3]);
 
 		if (atomic_read(&ha->loop_state) != LOOP_DOWN) {
 			atomic_set(&ha->loop_state, LOOP_DOWN);
@@ -639,6 +641,42 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 	case MBA_TRACE_NOTIFICATION:
 		DEBUG2(printk("scsi(%ld): Trace Notification -- %04x %04x.\n",
 		ha->host_no, mb[1], mb[2]));
+		break;
+
+	case MBA_ISP84XX_ALERT:
+		DEBUG2(printk("scsi(%ld): ISP84XX Alert Notification -- "
+		    "%04x %04x %04x\n", ha->host_no, mb[1], mb[2], mb[3]));
+
+		spin_lock_irqsave(&ha->cs84xx->access_lock, flags);
+		switch (mb[1]) {
+		case A84_PANIC_RECOVERY:
+			qla_printk(KERN_INFO, ha, "Alert 84XX: panic recovery "
+			    "%04x %04x\n", mb[2], mb[3]);
+			break;
+		case A84_OP_LOGIN_COMPLETE:
+			ha->cs84xx->op_fw_version = mb[3] << 16 | mb[2];
+			DEBUG2(qla_printk(KERN_INFO, ha, "Alert 84XX:"
+			    "firmware version %x\n", ha->cs84xx->op_fw_version));
+			break;
+		case A84_DIAG_LOGIN_COMPLETE:
+			ha->cs84xx->diag_fw_version = mb[3] << 16 | mb[2];
+			DEBUG2(qla_printk(KERN_INFO, ha, "Alert 84XX:"
+			    "diagnostic firmware version %x\n",
+			    ha->cs84xx->diag_fw_version));
+			break;
+		case A84_GOLD_LOGIN_COMPLETE:
+			ha->cs84xx->diag_fw_version = mb[3] << 16 | mb[2];
+			ha->cs84xx->fw_update = 1;
+			DEBUG2(qla_printk(KERN_INFO, ha, "Alert 84XX: gold "
+			    "firmware version %x\n",
+			    ha->cs84xx->gold_fw_version));
+			break;
+		default:
+			qla_printk(KERN_ERR, ha,
+			    "Alert 84xx: Invalid Alert %04x %04x %04x\n",
+			    mb[1], mb[2], mb[3]);
+		}
+		spin_unlock_irqrestore(&ha->cs84xx->access_lock, flags);
 		break;
 	}
 
@@ -1747,7 +1785,7 @@ qla2x00_request_irqs(scsi_qla_host_t *ha)
 	device_reg_t __iomem *reg = ha->iobase;
 
 	/* If possible, enable MSI-X. */
-	if (!IS_QLA2432(ha) && !IS_QLA2532(ha))
+	if (!IS_QLA2432(ha) && !IS_QLA2532(ha) && !IS_QLA8432(ha))
 		goto skip_msix;
 
         if (IS_QLA2432(ha) && (ha->chip_revision < QLA_MSIX_CHIP_REV_24XX ||
@@ -1782,7 +1820,7 @@ qla2x00_request_irqs(scsi_qla_host_t *ha)
 	    "MSI-X: Falling back-to INTa mode -- %d.\n", ret);
 skip_msix:
 
-	if (!IS_QLA24XX(ha) && !IS_QLA2532(ha))
+	if (!IS_QLA24XX(ha) && !IS_QLA2532(ha) && !IS_QLA8432(ha))
 		goto skip_msi;
 
 	ret = pci_enable_msi(ha->pdev);

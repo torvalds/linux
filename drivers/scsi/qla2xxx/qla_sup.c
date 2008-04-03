@@ -553,7 +553,7 @@ qla2xxx_get_flash_info(scsi_qla_host_t *ha)
 	struct qla_fdt_layout *fdt;
 	uint8_t	man_id, flash_id;
 
-	if (!IS_QLA24XX(ha) && !IS_QLA25XX(ha))
+	if (!IS_QLA24XX_TYPE(ha) && !IS_QLA25XX(ha))
 		return;
 
 	wptr = (uint16_t *)ha->request_ring;

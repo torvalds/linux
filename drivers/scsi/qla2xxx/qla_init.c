@@ -37,6 +37,9 @@ static int qla2x00_restart_isp(scsi_qla_host_t *);
 
 static int qla2x00_find_new_loop_id(scsi_qla_host_t *ha, fc_port_t *dev);
 
+static struct qla_chip_state_84xx *qla84xx_get_chip(struct scsi_qla_host *);
+static int qla84xx_init_chip(scsi_qla_host_t *);
+
 /****************************************************************************/
 /*                QLogic ISP2x00 Hardware Support Functions.                */
 /****************************************************************************/
@@ -107,6 +110,14 @@ qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 		if (rval)
 			return (rval);
 		qla2xxx_get_flash_info(ha);
+	}
+	if (IS_QLA84XX(ha)) {
+		ha->cs84xx = qla84xx_get_chip(ha);
+		if (!ha->cs84xx) {
+			qla_printk(KERN_ERR, ha,
+			    "Unable to configure ISP84XX.\n");
+			return QLA_FUNCTION_FAILED;
+		}
 	}
 	rval = qla2x00_init_rings(ha);
 
@@ -1243,10 +1254,10 @@ static int
 qla2x00_fw_ready(scsi_qla_host_t *ha)
 {
 	int		rval;
-	unsigned long	wtime, mtime;
+	unsigned long	wtime, mtime, cs84xx_time;
 	uint16_t	min_wait;	/* Minimum wait time if loop is down */
 	uint16_t	wait_time;	/* Wait time if loop is coming ready */
-	uint16_t	fw_state;
+	uint16_t	state[3];
 
 	rval = QLA_SUCCESS;
 
@@ -1275,12 +1286,34 @@ qla2x00_fw_ready(scsi_qla_host_t *ha)
 	    ha->host_no));
 
 	do {
-		rval = qla2x00_get_firmware_state(ha, &fw_state);
+		rval = qla2x00_get_firmware_state(ha, state);
 		if (rval == QLA_SUCCESS) {
-			if (fw_state < FSTATE_LOSS_OF_SYNC) {
+			if (state[0] < FSTATE_LOSS_OF_SYNC) {
 				ha->device_flags &= ~DFLG_NO_CABLE;
 			}
-			if (fw_state == FSTATE_READY) {
+			if (IS_QLA84XX(ha) && state[0] != FSTATE_READY) {
+				DEBUG16(printk("scsi(%ld): fw_state=%x "
+				    "84xx=%x.\n", ha->host_no, state[0],
+				    state[2]));
+				if ((state[2] & FSTATE_LOGGED_IN) &&
+				     (state[2] & FSTATE_WAITING_FOR_VERIFY)) {
+					DEBUG16(printk("scsi(%ld): Sending "
+					    "verify iocb.\n", ha->host_no));
+
+					cs84xx_time = jiffies;
+					rval = qla84xx_init_chip(ha);
+					if (rval != QLA_SUCCESS)
+						break;
+
+					/* Add time taken to initialize. */
+					cs84xx_time = jiffies - cs84xx_time;
+					wtime += cs84xx_time;
+					mtime += cs84xx_time;
+					DEBUG16(printk("scsi(%ld): Increasing "
+					    "wait time by %ld. New time %ld\n",
+					    ha->host_no, cs84xx_time, wtime));
+				}
+			} else if (state[0] == FSTATE_READY) {
 				DEBUG(printk("scsi(%ld): F/W Ready - OK \n",
 				    ha->host_no));
 
@@ -1294,7 +1327,7 @@ qla2x00_fw_ready(scsi_qla_host_t *ha)
 			rval = QLA_FUNCTION_FAILED;
 
 			if (atomic_read(&ha->loop_down_timer) &&
-			    fw_state != FSTATE_READY) {
+			    state[0] != FSTATE_READY) {
 				/* Loop down. Timeout on min_wait for states
 				 * other than Wait for Login.
 				 */
@@ -1319,11 +1352,11 @@ qla2x00_fw_ready(scsi_qla_host_t *ha)
 		msleep(500);
 
 		DEBUG3(printk("scsi(%ld): fw_state=%x curr time=%lx.\n",
-		    ha->host_no, fw_state, jiffies));
+		    ha->host_no, state[0], jiffies));
 	} while (1);
 
 	DEBUG(printk("scsi(%ld): fw_state=%x curr time=%lx.\n",
-	    ha->host_no, fw_state, jiffies));
+	    ha->host_no, state[0], jiffies));
 
 	if (rval) {
 		DEBUG2_3(printk("scsi(%ld): Firmware ready **** FAILED ****.\n",
@@ -4037,4 +4070,74 @@ qla24xx_configure_vhba(scsi_qla_host_t *ha)
 	rval = qla2x00_loop_resync(ha);
 
 	return rval;
+}
+
+/* 84XX Support **************************************************************/
+
+static LIST_HEAD(qla_cs84xx_list);
+static DEFINE_MUTEX(qla_cs84xx_mutex);
+
+static struct qla_chip_state_84xx *
+qla84xx_get_chip(struct scsi_qla_host *ha)
+{
+	struct qla_chip_state_84xx *cs84xx;
+
+	mutex_lock(&qla_cs84xx_mutex);
+
+	/* Find any shared 84xx chip. */
+	list_for_each_entry(cs84xx, &qla_cs84xx_list, list) {
+		if (cs84xx->bus == ha->pdev->bus) {
+			kref_get(&cs84xx->kref);
+			goto done;
+		}
+	}
+
+	cs84xx = kzalloc(sizeof(*cs84xx), GFP_KERNEL);
+	if (!cs84xx)
+		goto done;
+
+	kref_init(&cs84xx->kref);
+	spin_lock_init(&cs84xx->access_lock);
+	mutex_init(&cs84xx->fw_update_mutex);
+	cs84xx->bus = ha->pdev->bus;
+
+	list_add_tail(&cs84xx->list, &qla_cs84xx_list);
+done:
+	mutex_unlock(&qla_cs84xx_mutex);
+	return cs84xx;
+}
+
+static void
+__qla84xx_chip_release(struct kref *kref)
+{
+	struct qla_chip_state_84xx *cs84xx =
+	    container_of(kref, struct qla_chip_state_84xx, kref);
+
+	mutex_lock(&qla_cs84xx_mutex);
+	list_del(&cs84xx->list);
+	mutex_unlock(&qla_cs84xx_mutex);
+	kfree(cs84xx);
+}
+
+void
+qla84xx_put_chip(struct scsi_qla_host *ha)
+{
+	if (ha->cs84xx)
+		kref_put(&ha->cs84xx->kref, __qla84xx_chip_release);
+}
+
+static int
+qla84xx_init_chip(scsi_qla_host_t *ha)
+{
+	int rval;
+	uint16_t status[2];
+
+	mutex_lock(&ha->cs84xx->fw_update_mutex);
+
+	rval = qla84xx_verify_chip(ha, status);
+
+	mutex_unlock(&ha->cs84xx->fw_update_mutex);
+
+	return rval != QLA_SUCCESS || status[0] ? QLA_FUNCTION_FAILED:
+	    QLA_SUCCESS;
 }

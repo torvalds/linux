@@ -1291,7 +1291,7 @@ qla2x00_init_host_attr(scsi_qla_host_t *ha)
 	if (IS_QLA25XX(ha))
 		speed = FC_PORTSPEED_8GBIT | FC_PORTSPEED_4GBIT |
 		    FC_PORTSPEED_2GBIT | FC_PORTSPEED_1GBIT;
-	else if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
+	else if (IS_QLA24XX_TYPE(ha))
 		speed = FC_PORTSPEED_4GBIT | FC_PORTSPEED_2GBIT |
 		    FC_PORTSPEED_1GBIT;
 	else if (IS_QLA23XX(ha))
