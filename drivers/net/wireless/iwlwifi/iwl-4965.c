@@ -532,7 +532,7 @@ static int iwl4965_txq_ctx_reset(struct iwl_priv *priv)
 	}
 
 	/* Turn off all Tx DMA channels */
-	iwl_write_prph(priv, KDR_SCD_TXFACT, 0);
+	iwl_write_prph(priv, IWL49_SCD_TXFACT, 0);
 	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -1731,7 +1731,7 @@ static void iwl4965_set_wr_ptrs(struct iwl_priv *priv, int txq_id, u32 index)
 {
 	iwl_write_direct32(priv, HBUS_TARG_WRPTR,
 			     (index & 0xff) | (txq_id << 8));
-	iwl_write_prph(priv, KDR_SCD_QUEUE_RDPTR(txq_id), index);
+	iwl_write_prph(priv, IWL49_SCD_QUEUE_RDPTR(txq_id), index);
 }
 
 /**
@@ -1751,7 +1751,7 @@ static void iwl4965_tx_queue_set_status(struct iwl_priv *priv,
 	int active = test_bit(txq_id, &priv->txq_ctx_active_msk)?1:0;
 
 	/* Set up and activate */
-	iwl_write_prph(priv, KDR_SCD_QUEUE_STATUS_BITS(txq_id),
+	iwl_write_prph(priv, IWL49_SCD_QUEUE_STATUS_BITS(txq_id),
 				 (active << SCD_QUEUE_STTS_REG_POS_ACTIVE) |
 				 (tx_fifo_id << SCD_QUEUE_STTS_REG_POS_TXF) |
 				 (scd_retry << SCD_QUEUE_STTS_REG_POS_WSL) |
@@ -1810,7 +1810,7 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 	}
 
 	/* Clear 4965's internal Tx Scheduler data base */
-	priv->scd_base_addr = iwl_read_prph(priv, KDR_SCD_SRAM_BASE_ADDR);
+	priv->scd_base_addr = iwl_read_prph(priv, IWL49_SCD_SRAM_BASE_ADDR);
 	a = priv->scd_base_addr + SCD_CONTEXT_DATA_OFFSET;
 	for (; a < priv->scd_base_addr + SCD_TX_STTS_BITMAP_OFFSET; a += 4)
 		iwl_write_targ_mem(priv, a, 0);
@@ -1820,18 +1820,18 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 		iwl_write_targ_mem(priv, a, 0);
 
 	/* Tel 4965 where to find Tx byte count tables */
-	iwl_write_prph(priv, KDR_SCD_DRAM_BASE_ADDR,
+	iwl_write_prph(priv, IWL49_SCD_DRAM_BASE_ADDR,
 		(priv->hw_setting.shared_phys +
 		 offsetof(struct iwl4965_shared, queues_byte_cnt_tbls)) >> 10);
 
 	/* Disable chain mode for all queues */
-	iwl_write_prph(priv, KDR_SCD_QUEUECHAIN_SEL, 0);
+	iwl_write_prph(priv, IWL49_SCD_QUEUECHAIN_SEL, 0);
 
 	/* Initialize each Tx queue (including the command queue) */
 	for (i = 0; i < priv->hw_setting.max_txq_num; i++) {
 
 		/* TFD circular buffer read/write indexes */
-		iwl_write_prph(priv, KDR_SCD_QUEUE_RDPTR(i), 0);
+		iwl_write_prph(priv, IWL49_SCD_QUEUE_RDPTR(i), 0);
 		iwl_write_direct32(priv, HBUS_TARG_WRPTR, 0 | (i << 8));
 
 		/* Max Tx Window size for Scheduler-ACK mode */
@@ -1850,11 +1850,11 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 					SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK);
 
 	}
-	iwl_write_prph(priv, KDR_SCD_INTERRUPT_MASK,
+	iwl_write_prph(priv, IWL49_SCD_INTERRUPT_MASK,
 				 (1 << priv->hw_setting.max_txq_num) - 1);
 
 	/* Activate all Tx DMA/FIFO channels */
-	iwl_write_prph(priv, KDR_SCD_TXFACT,
+	iwl_write_prph(priv, IWL49_SCD_TXFACT,
 				 SCD_TXFACT_REG_TXFIFO_MASK(0, 7));
 
 	iwl4965_set_wr_ptrs(priv, IWL_CMD_QUEUE_NUM, 0);
@@ -4091,7 +4091,7 @@ static void iwl4965_tx_queue_stop_scheduler(struct iwl_priv *priv,
 	/* Simply stop the queue, but don't change any configuration;
 	 * the SCD_ACT_EN bit is the write-enable mask for the ACTIVE bit. */
 	iwl_write_prph(priv,
-		KDR_SCD_QUEUE_STATUS_BITS(txq_id),
+		IWL49_SCD_QUEUE_STATUS_BITS(txq_id),
 		(0 << SCD_QUEUE_STTS_REG_POS_ACTIVE)|
 		(1 << SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
 }
@@ -4117,14 +4117,14 @@ static int iwl4965_tx_queue_agg_disable(struct iwl_priv *priv, u16 txq_id,
 
 	iwl4965_tx_queue_stop_scheduler(priv, txq_id);
 
-	iwl_clear_bits_prph(priv, KDR_SCD_QUEUECHAIN_SEL, (1 << txq_id));
+	iwl_clear_bits_prph(priv, IWL49_SCD_QUEUECHAIN_SEL, (1 << txq_id));
 
 	priv->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
 	priv->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
 	/* supposes that ssn_idx is valid (!= 0xFFF) */
 	iwl4965_set_wr_ptrs(priv, txq_id, ssn_idx);
 
-	iwl_clear_bits_prph(priv, KDR_SCD_INTERRUPT_MASK, (1 << txq_id));
+	iwl_clear_bits_prph(priv, IWL49_SCD_INTERRUPT_MASK, (1 << txq_id));
 	iwl4965_txq_ctx_deactivate(priv, txq_id);
 	iwl4965_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 0);
 
@@ -4313,7 +4313,7 @@ static int iwl4965_tx_queue_agg_enable(struct iwl_priv *priv, int txq_id,
 	iwl4965_tx_queue_set_q2ratid(priv, ra_tid, txq_id);
 
 	/* Set this queue as a chain-building queue */
-	iwl_set_bits_prph(priv, KDR_SCD_QUEUECHAIN_SEL, (1 << txq_id));
+	iwl_set_bits_prph(priv, IWL49_SCD_QUEUECHAIN_SEL, (1 << txq_id));
 
 	/* Place first TFD at index corresponding to start sequence number.
 	 * Assumes that ssn_idx is valid (!= 0xFFF) */
@@ -4332,7 +4332,7 @@ static int iwl4965_tx_queue_agg_enable(struct iwl_priv *priv, int txq_id,
 			(SCD_FRAME_LIMIT << SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS)
 			& SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK);
 
-	iwl_set_bits_prph(priv, KDR_SCD_INTERRUPT_MASK, (1 << txq_id));
+	iwl_set_bits_prph(priv, IWL49_SCD_INTERRUPT_MASK, (1 << txq_id));
 
 	/* Set up Status area in SRAM, map to Tx DMA/FIFO, activate the queue */
 	iwl4965_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 1);
