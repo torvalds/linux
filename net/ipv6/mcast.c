@@ -59,6 +59,7 @@
 #include <net/ndisc.h>
 #include <net/addrconf.h>
 #include <net/ip6_route.h>
+#include <net/inet_common.h>
 
 #include <net/ip6_checksum.h>
 
@@ -2672,12 +2673,10 @@ static void igmp6_proc_exit(struct net *net)
 
 static int igmp6_net_init(struct net *net)
 {
-	struct ipv6_pinfo *np;
-	struct socket *sock;
-	struct sock *sk;
 	int err;
 
-	err = sock_create_kern(PF_INET6, SOCK_RAW, IPPROTO_ICMPV6, &sock);
+	err = inet_ctl_sock_create(&net->ipv6.igmp_sk, PF_INET6,
+				   SOCK_RAW, IPPROTO_ICMPV6, net);
 	if (err < 0) {
 		printk(KERN_ERR
 		       "Failed to initialize the IGMP6 control socket (err %d).\n",
@@ -2685,13 +2684,7 @@ static int igmp6_net_init(struct net *net)
 		goto out;
 	}
 
-	net->ipv6.igmp_sk = sk = sock->sk;
-	sk_change_net(sk, net);
-	sk->sk_allocation = GFP_ATOMIC;
-	sk->sk_prot->unhash(sk);
-
-	np = inet6_sk(sk);
-	np->hop_limit = 1;
+	inet6_sk(net->ipv6.igmp_sk)->hop_limit = 1;
 
 	err = igmp6_proc_init(net);
 	if (err)
@@ -2700,13 +2693,13 @@ out:
 	return err;
 
 out_sock_create:
-	sk_release_kernel(net->ipv6.igmp_sk);
+	inet_ctl_sock_destroy(net->ipv6.igmp_sk);
 	goto out;
 }
 
 static void igmp6_net_exit(struct net *net)
 {
-	sk_release_kernel(net->ipv6.igmp_sk);
+	inet_ctl_sock_destroy(net->ipv6.igmp_sk);
 	igmp6_proc_exit(net);
 }
 

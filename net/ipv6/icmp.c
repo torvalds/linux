@@ -64,6 +64,7 @@
 #include <net/addrconf.h>
 #include <net/icmp.h>
 #include <net/xfrm.h>
+#include <net/inet_common.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -808,9 +809,8 @@ static int __net_init icmpv6_sk_init(struct net *net)
 		return -ENOMEM;
 
 	for_each_possible_cpu(i) {
-		struct socket *sock;
-		err = sock_create_kern(PF_INET6, SOCK_RAW, IPPROTO_ICMPV6,
-				       &sock);
+		err = inet_ctl_sock_create(&sk, PF_INET6,
+					   SOCK_RAW, IPPROTO_ICMPV6, net);
 		if (err < 0) {
 			printk(KERN_ERR
 			       "Failed to initialize the ICMP6 control socket "
@@ -819,10 +819,8 @@ static int __net_init icmpv6_sk_init(struct net *net)
 			goto fail;
 		}
 
-		net->ipv6.icmp_sk[i] = sk = sock->sk;
-		sk_change_net(sk, net);
+		net->ipv6.icmp_sk[i] = sk;
 
-		sk->sk_allocation = GFP_ATOMIC;
 		/*
 		 * Split off their lock-class, because sk->sk_dst_lock
 		 * gets used from softirqs, which is safe for
@@ -837,14 +835,12 @@ static int __net_init icmpv6_sk_init(struct net *net)
 		 */
 		sk->sk_sndbuf =
 			(2 * ((64 * 1024) + sizeof(struct sk_buff)));
-
-		sk->sk_prot->unhash(sk);
 	}
 	return 0;
 
  fail:
 	for (j = 0; j < i; j++)
-		sk_release_kernel(net->ipv6.icmp_sk[j]);
+		inet_ctl_sock_destroy(net->ipv6.icmp_sk[j]);
 	kfree(net->ipv6.icmp_sk);
 	return err;
 }
@@ -854,7 +850,7 @@ static void __net_exit icmpv6_sk_exit(struct net *net)
 	int i;
 
 	for_each_possible_cpu(i) {
-		sk_release_kernel(net->ipv6.icmp_sk[i]);
+		inet_ctl_sock_destroy(net->ipv6.icmp_sk[i]);
 	}
 	kfree(net->ipv6.icmp_sk);
 }

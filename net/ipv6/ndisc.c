@@ -84,6 +84,7 @@
 
 #include <net/flow.h>
 #include <net/ip6_checksum.h>
+#include <net/inet_common.h>
 #include <linux/proc_fs.h>
 
 #include <linux/netfilter.h>
@@ -1731,12 +1732,12 @@ static int ndisc_ifinfo_sysctl_strategy(ctl_table *ctl, int __user *name,
 
 static int ndisc_net_init(struct net *net)
 {
-	struct socket *sock;
 	struct ipv6_pinfo *np;
 	struct sock *sk;
 	int err;
 
-	err = sock_create_kern(PF_INET6, SOCK_RAW, IPPROTO_ICMPV6, &sock);
+	err = inet_ctl_sock_create(&sk, PF_INET6,
+				   SOCK_RAW, IPPROTO_ICMPV6, net);
 	if (err < 0) {
 		ND_PRINTK0(KERN_ERR
 			   "ICMPv6 NDISC: Failed to initialize the control socket (err %d).\n",
@@ -1744,22 +1745,19 @@ static int ndisc_net_init(struct net *net)
 		return err;
 	}
 
-	net->ipv6.ndisc_sk = sk = sock->sk;
-	sk_change_net(sk, net);
+	net->ipv6.ndisc_sk = sk;
 
 	np = inet6_sk(sk);
-	sk->sk_allocation = GFP_ATOMIC;
 	np->hop_limit = 255;
 	/* Do not loopback ndisc messages */
 	np->mc_loop = 0;
-	sk->sk_prot->unhash(sk);
 
 	return 0;
 }
 
 static void ndisc_net_exit(struct net *net)
 {
-	sk_release_kernel(net->ipv6.ndisc_sk);
+	inet_ctl_sock_destroy(net->ipv6.ndisc_sk);
 }
 
 static struct pernet_operations ndisc_net_ops = {
