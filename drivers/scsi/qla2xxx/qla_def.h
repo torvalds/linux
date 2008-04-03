@@ -1542,8 +1542,6 @@ typedef struct fc_port {
 	atomic_t state;
 	uint32_t flags;
 
-	unsigned int os_target_id;
-
 	int port_login_retry_count;
 	int login_retry;
 	atomic_t port_down_timer;

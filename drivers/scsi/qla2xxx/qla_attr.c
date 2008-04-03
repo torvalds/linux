@@ -900,7 +900,8 @@ qla2x00_get_starget_node_name(struct scsi_target *starget)
 	u64 node_name = 0;
 
 	list_for_each_entry(fcport, &ha->fcports, list) {
-		if (starget->id == fcport->os_target_id) {
+		if (fcport->rport &&
+		    starget->id == fcport->rport->scsi_target_id) {
 			node_name = wwn_to_u64(fcport->node_name);
 			break;
 		}
@@ -918,7 +919,8 @@ qla2x00_get_starget_port_name(struct scsi_target *starget)
 	u64 port_name = 0;
 
 	list_for_each_entry(fcport, &ha->fcports, list) {
-		if (starget->id == fcport->os_target_id) {
+		if (fcport->rport &&
+		    starget->id == fcport->rport->scsi_target_id) {
 			port_name = wwn_to_u64(fcport->port_name);
 			break;
 		}
@@ -936,7 +938,8 @@ qla2x00_get_starget_port_id(struct scsi_target *starget)
 	uint32_t port_id = ~0U;
 
 	list_for_each_entry(fcport, &ha->fcports, list) {
-		if (starget->id == fcport->os_target_id) {
+		if (fcport->rport &&
+		    starget->id == fcport->rport->scsi_target_id) {
 			port_id = fcport->d_id.b.domain << 16 |
 			    fcport->d_id.b.area << 8 | fcport->d_id.b.al_pa;
 			break;
