@@ -5701,11 +5701,11 @@ static void iwl4965_alive_start(struct iwl_priv *priv)
 
 	iwl4965_rf_kill_ct_config(priv);
 
+	iwl_leds_register(priv);
+
 	IWL_DEBUG_INFO("ALIVE processing complete.\n");
 	set_bit(STATUS_READY, &priv->status);
 	wake_up_interruptible(&priv->wait_command_queue);
-
-	iwl_leds_register(priv);
 
 	if (priv->error_recovering)
 		iwl4965_error_recovery(priv);
