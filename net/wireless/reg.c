@@ -136,7 +136,10 @@ static void handle_channel(struct ieee80211_channel *chan,
 	chan->flags = flags;
 	chan->max_antenna_gain = min(chan->orig_mag,
 					 rg->max_antenna_gain);
-	chan->max_power = min(chan->orig_mpwr, rg->max_power);
+	if (chan->orig_mpwr)
+		chan->max_power = min(chan->orig_mpwr, rg->max_power);
+	else
+		chan->max_power = rg->max_power;
 }
 
 static void handle_band(struct ieee80211_supported_band *sband,
