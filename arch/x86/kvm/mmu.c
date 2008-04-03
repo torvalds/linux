@@ -549,7 +549,8 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 		return;
 	sp = page_header(__pa(spte));
 	page = spte_to_page(*spte);
-	mark_page_accessed(page);
+	if (*spte & PT_ACCESSED_MASK)
+		mark_page_accessed(page);
 	if (is_writeble_pte(*spte))
 		kvm_release_page_dirty(page);
 	else
