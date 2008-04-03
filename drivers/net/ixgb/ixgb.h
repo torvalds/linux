@@ -117,8 +117,8 @@ struct ixgb_buffer {
 	struct sk_buff *skb;
 	dma_addr_t dma;
 	unsigned long time_stamp;
-	uint16_t length;
-	uint16_t next_to_watch;
+	u16 length;
+	u16 next_to_watch;
 };
 
 struct ixgb_desc_ring {
@@ -152,11 +152,11 @@ struct ixgb_desc_ring {
 struct ixgb_adapter {
 	struct timer_list watchdog_timer;
 	struct vlan_group *vlgrp;
-	uint32_t bd_number;
-	uint32_t rx_buffer_len;
-	uint32_t part_num;
-	uint16_t link_speed;
-	uint16_t link_duplex;
+	u32 bd_number;
+	u32 rx_buffer_len;
+	u32 part_num;
+	u16 link_speed;
+	u16 link_duplex;
 	spinlock_t tx_lock;
 	struct work_struct tx_timeout_task;
 
@@ -167,19 +167,19 @@ struct ixgb_adapter {
 	struct ixgb_desc_ring tx_ring ____cacheline_aligned_in_smp;
 	unsigned int restart_queue;
 	unsigned long timeo_start;
-	uint32_t tx_cmd_type;
-	uint64_t hw_csum_tx_good;
-	uint64_t hw_csum_tx_error;
-	uint32_t tx_int_delay;
-	uint32_t tx_timeout_count;
+	u32 tx_cmd_type;
+	u64 hw_csum_tx_good;
+	u64 hw_csum_tx_error;
+	u32 tx_int_delay;
+	u32 tx_timeout_count;
 	bool tx_int_delay_enable;
 	bool detect_tx_hung;
 
 	/* RX */
 	struct ixgb_desc_ring rx_ring;
-	uint64_t hw_csum_rx_error;
-	uint64_t hw_csum_rx_good;
-	uint32_t rx_int_delay;
+	u64 hw_csum_rx_error;
+	u64 hw_csum_rx_good;
+	u32 rx_int_delay;
 	bool rx_csum;
 
 	/* OS defined structs */
@@ -192,7 +192,7 @@ struct ixgb_adapter {
 	struct ixgb_hw hw;
 	u16 msg_enable;
 	struct ixgb_hw_stats stats;
-	uint32_t alloc_rx_buff_failed;
+	u32 alloc_rx_buff_failed;
 	bool have_msi;
 	unsigned long flags;
 };

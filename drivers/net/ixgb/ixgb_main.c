@@ -108,8 +108,8 @@ static void ixgb_tx_timeout(struct net_device *dev);
 static void ixgb_tx_timeout_task(struct work_struct *work);
 static void ixgb_vlan_rx_register(struct net_device *netdev,
 				  struct vlan_group *grp);
-static void ixgb_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid);
-static void ixgb_vlan_rx_kill_vid(struct net_device *netdev, uint16_t vid);
+static void ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid);
+static void ixgb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid);
 static void ixgb_restore_vlan(struct ixgb_adapter *adapter);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -271,7 +271,7 @@ ixgb_up(struct ixgb_adapter *adapter)
 
 		if(hw->max_frame_size >
 		   IXGB_MAX_ENET_FRAME_SIZE_WITHOUT_FCS + ENET_FCS_LENGTH) {
-			uint32_t ctrl0 = IXGB_READ_REG(hw, CTRL0);
+			u32 ctrl0 = IXGB_READ_REG(hw, CTRL0);
 
 			if(!(ctrl0 & IXGB_CTRL0_JFE)) {
 				ctrl0 |= IXGB_CTRL0_JFE;
@@ -718,9 +718,9 @@ ixgb_setup_tx_resources(struct ixgb_adapter *adapter)
 static void
 ixgb_configure_tx(struct ixgb_adapter *adapter)
 {
-	uint64_t tdba = adapter->tx_ring.dma;
-	uint32_t tdlen = adapter->tx_ring.count * sizeof(struct ixgb_tx_desc);
-	uint32_t tctl;
+	u64 tdba = adapter->tx_ring.dma;
+	u32 tdlen = adapter->tx_ring.count * sizeof(struct ixgb_tx_desc);
+	u32 tctl;
 	struct ixgb_hw *hw = &adapter->hw;
 
 	/* Setup the Base and Length of the Tx Descriptor Ring 
@@ -806,7 +806,7 @@ ixgb_setup_rx_resources(struct ixgb_adapter *adapter)
 static void
 ixgb_setup_rctl(struct ixgb_adapter *adapter)
 {
-	uint32_t rctl;
+	u32 rctl;
 
 	rctl = IXGB_READ_REG(&adapter->hw, RCTL);
 
@@ -841,12 +841,12 @@ ixgb_setup_rctl(struct ixgb_adapter *adapter)
 static void
 ixgb_configure_rx(struct ixgb_adapter *adapter)
 {
-	uint64_t rdba = adapter->rx_ring.dma;
-	uint32_t rdlen = adapter->rx_ring.count * sizeof(struct ixgb_rx_desc);
+	u64 rdba = adapter->rx_ring.dma;
+	u32 rdlen = adapter->rx_ring.count * sizeof(struct ixgb_rx_desc);
 	struct ixgb_hw *hw = &adapter->hw;
-	uint32_t rctl;
-	uint32_t rxcsum;
-	uint32_t rxdctl;
+	u32 rctl;
+	u32 rxcsum;
+	u32 rxdctl;
 
 	/* make sure receives are disabled while setting up the descriptors */
 
@@ -1079,7 +1079,7 @@ ixgb_set_multi(struct net_device *netdev)
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
 	struct dev_mc_list *mc_ptr;
-	uint32_t rctl;
+	u32 rctl;
 	int i;
 
 	/* Check for Promiscuous and All Multicast modes */
@@ -1099,7 +1099,7 @@ ixgb_set_multi(struct net_device *netdev)
 		rctl |= IXGB_RCTL_MPE;
 		IXGB_WRITE_REG(hw, RCTL, rctl);
 	} else {
-		uint8_t mta[IXGB_MAX_NUM_MULTICAST_ADDRESSES *
+		u8 mta[IXGB_MAX_NUM_MULTICAST_ADDRESSES *
 			    IXGB_ETH_LENGTH_OF_ADDRESS];
 
 		IXGB_WRITE_REG(hw, RCTL, rctl);
@@ -1183,8 +1183,8 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 {
 	struct ixgb_context_desc *context_desc;
 	unsigned int i;
-	uint8_t ipcss, ipcso, tucss, tucso, hdr_len;
-	uint16_t ipcse, tucse, mss;
+	u8 ipcss, ipcso, tucss, tucso, hdr_len;
+	u16 ipcse, tucse, mss;
 	int err;
 
 	if (likely(skb_is_gso(skb))) {
@@ -1249,7 +1249,7 @@ ixgb_tx_csum(struct ixgb_adapter *adapter, struct sk_buff *skb)
 {
 	struct ixgb_context_desc *context_desc;
 	unsigned int i;
-	uint8_t css, cso;
+	u8 css, cso;
 
 	if(likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		struct ixgb_buffer *buffer_info;
@@ -1265,7 +1265,7 @@ ixgb_tx_csum(struct ixgb_adapter *adapter, struct sk_buff *skb)
 		context_desc->tucso = cso;
 		context_desc->tucse = 0;
 		/* zero out any previously existing data in one instruction */
-		*(uint32_t *)&(context_desc->ipcss) = 0;
+		*(u32 *)&(context_desc->ipcss) = 0;
 		context_desc->status = 0;
 		context_desc->hdr_len = 0;
 		context_desc->mss = 0;
@@ -1372,9 +1372,9 @@ ixgb_tx_queue(struct ixgb_adapter *adapter, int count, int vlan_id,int tx_flags)
 	struct ixgb_desc_ring *tx_ring = &adapter->tx_ring;
 	struct ixgb_tx_desc *tx_desc = NULL;
 	struct ixgb_buffer *buffer_info;
-	uint32_t cmd_type_len = adapter->tx_cmd_type;
-	uint8_t status = 0;
-	uint8_t popts = 0;
+	u32 cmd_type_len = adapter->tx_cmd_type;
+	u8 status = 0;
+	u8 popts = 0;
 	unsigned int i;
 
 	if(tx_flags & IXGB_TX_FLAGS_TSO) {
@@ -1750,7 +1750,7 @@ ixgb_intr(int irq, void *data)
 	struct net_device *netdev = data;
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
-	uint32_t icr = IXGB_READ_REG(hw, ICR);
+	u32 icr = IXGB_READ_REG(hw, ICR);
 #ifndef CONFIG_IXGB_NAPI
 	unsigned int i;
 #endif
@@ -1843,7 +1843,7 @@ ixgb_clean_tx_irq(struct ixgb_adapter *adapter)
 
 			ixgb_unmap_and_free_tx_resource(adapter, buffer_info);
 
-			*(uint32_t *)&(tx_desc->status) = 0;
+			*(u32 *)&(tx_desc->status) = 0;
 
 			cleaned = (i == eop);
 			if(++i == tx_ring->count) i = 0;
@@ -1948,7 +1948,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 	struct ixgb_rx_desc *rx_desc, *next_rxd;
 	struct ixgb_buffer *buffer_info, *next_buffer, *next2_buffer;
-	uint32_t length;
+	u32 length;
 	unsigned int i, j;
 	bool cleaned = false;
 
@@ -2166,7 +2166,7 @@ static void
 ixgb_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
-	uint32_t ctrl, rctl;
+	u32 ctrl, rctl;
 
 	ixgb_irq_disable(adapter);
 	adapter->vlgrp = grp;
@@ -2203,10 +2203,10 @@ ixgb_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 }
 
 static void
-ixgb_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid)
+ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
-	uint32_t vfta, index;
+	u32 vfta, index;
 
 	/* add VID to filter table */
 
@@ -2217,10 +2217,10 @@ ixgb_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid)
 }
 
 static void
-ixgb_vlan_rx_kill_vid(struct net_device *netdev, uint16_t vid)
+ixgb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
-	uint32_t vfta, index;
+	u32 vfta, index;
 
 	ixgb_irq_disable(adapter);
 
@@ -2244,7 +2244,7 @@ ixgb_restore_vlan(struct ixgb_adapter *adapter)
 	ixgb_vlan_rx_register(adapter->netdev, adapter->vlgrp);
 
 	if(adapter->vlgrp) {
-		uint16_t vid;
+		u16 vid;
 		for(vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
 			if(!vlan_group_get_device(adapter->vlgrp, vid))
 				continue;
