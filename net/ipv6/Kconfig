@@ -216,3 +216,10 @@ config IPV6_MROUTE
 	  Experimental support for IPv6 multicast forwarding.
 	  If unsure, say N.
 
+config IPV6_PIMSM_V2
+	bool "IPv6: PIM-SM version 2 support (EXPERIMENTAL)"
+	depends on IPV6_MROUTE
+	---help---
+	  Support for IPv6 PIM multicast routing protocol PIM-SMv2.
+	  If unsure, say N.
+

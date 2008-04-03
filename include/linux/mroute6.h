@@ -23,6 +23,8 @@
 #define MRT6_ADD_MFC	(MRT6_BASE+4)	/* Add a multicast forwarding entry	*/
 #define MRT6_DEL_MFC	(MRT6_BASE+5)	/* Delete a multicast forwarding entry	*/
 #define MRT6_VERSION	(MRT6_BASE+6)	/* Get the kernel multicast version	*/
+#define MRT6_ASSERT	(MRT6_BASE+7)	/* Activate PIM assert mode		*/
+#define MRT6_PIM	(MRT6_BASE+8)	/* enable PIM code	*/
 
 #define SIOCGETMIFCNT_IN6	SIOCPROTOPRIVATE	/* IP protocol privates */
 #define SIOCGETSGCNT_IN6	(SIOCPROTOPRIVATE+1)
@@ -217,6 +219,8 @@ static inline int ip6mr_sk_done(struct sock *sk) { return 0; }
 
 struct mrt6msg {
 #define MRT6MSG_NOCACHE		1
+#define MRT6MSG_WRONGMIF	2
+#define MRT6MSG_WHOLEPKT	3		/* used for use level encap */
 	__u8		im6_mbz;		/* must be zero		   */
 	__u8		im6_msgtype;		/* what type of message    */
 	__u16		im6_mif;		/* mif rec'd on		   */

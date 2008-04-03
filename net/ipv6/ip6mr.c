@@ -54,6 +54,7 @@
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
 #include <linux/mroute6.h>
+#include <linux/pim.h>
 #include <net/addrconf.h>
 #include <linux/netfilter_ipv6.h>
 
@@ -74,6 +75,13 @@ static struct mif_device vif6_table[MAXMIFS];		/* Devices 		*/
 static int maxvif;
 
 #define MIF_EXISTS(idx) (vif6_table[idx].dev != NULL)
+
+static int mroute_do_assert;				/* Set in PIM assert	*/
+#ifdef CONFIG_IPV6_PIMSM_V2
+static int mroute_do_pim;
+#else
+#define mroute_do_pim 0
+#endif
 
 static struct mfc6_cache *mfc6_cache_array[MFC_LINES];	/* Forwarding cache	*/
 
@@ -96,6 +104,10 @@ static struct kmem_cache *mrt_cachep __read_mostly;
 static int ip6_mr_forward(struct sk_buff *skb, struct mfc6_cache *cache);
 static int ip6mr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert);
 static int ip6mr_fill_mroute(struct sk_buff *skb, struct mfc6_cache *c, struct rtmsg *rtm);
+
+#ifdef CONFIG_IPV6_PIMSM_V2
+static struct inet6_protocol pim6_protocol;
+#endif
 
 static struct timer_list ipmr_expire_timer;
 
@@ -339,6 +351,132 @@ static struct file_operations ip6mr_mfc_fops = {
 };
 #endif
 
+#ifdef CONFIG_IPV6_PIMSM_V2
+static int reg_vif_num = -1;
+
+static int pim6_rcv(struct sk_buff *skb)
+{
+	struct pimreghdr *pim;
+	struct ipv6hdr   *encap;
+	struct net_device  *reg_dev = NULL;
+
+	if (!pskb_may_pull(skb, sizeof(*pim) + sizeof(*encap)))
+		goto drop;
+
+	pim = (struct pimreghdr *)skb_transport_header(skb);
+	if (pim->type != ((PIM_VERSION << 4) | PIM_REGISTER) ||
+	    (pim->flags & PIM_NULL_REGISTER) ||
+	    (ip_compute_csum((void *)pim, sizeof(*pim)) != 0 &&
+	     (u16)csum_fold(skb_checksum(skb, 0, skb->len, 0))))
+		goto drop;
+
+	/* check if the inner packet is destined to mcast group */
+	encap = (struct ipv6hdr *)(skb_transport_header(skb) +
+				   sizeof(*pim));
+
+	if (!ipv6_addr_is_multicast(&encap->daddr) ||
+	    encap->payload_len == 0 ||
+	    ntohs(encap->payload_len) + sizeof(*pim) > skb->len)
+		goto drop;
+
+	read_lock(&mrt_lock);
+	if (reg_vif_num >= 0)
+		reg_dev = vif6_table[reg_vif_num].dev;
+	if (reg_dev)
+		dev_hold(reg_dev);
+	read_unlock(&mrt_lock);
+
+	if (reg_dev == NULL)
+		goto drop;
+
+	skb->mac_header = skb->network_header;
+	skb_pull(skb, (u8 *)encap - skb->data);
+	skb_reset_network_header(skb);
+	skb->dev = reg_dev;
+	skb->protocol = htons(ETH_P_IP);
+	skb->ip_summed = 0;
+	skb->pkt_type = PACKET_HOST;
+	dst_release(skb->dst);
+	((struct net_device_stats *)netdev_priv(reg_dev))->rx_bytes += skb->len;
+	((struct net_device_stats *)netdev_priv(reg_dev))->rx_packets++;
+	skb->dst = NULL;
+	nf_reset(skb);
+	netif_rx(skb);
+	dev_put(reg_dev);
+	return 0;
+ drop:
+	kfree_skb(skb);
+	return 0;
+}
+
+static struct inet6_protocol pim6_protocol = {
+	.handler	=	pim6_rcv,
+};
+
+/* Service routines creating virtual interfaces: PIMREG */
+
+static int reg_vif_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	read_lock(&mrt_lock);
+	((struct net_device_stats *)netdev_priv(dev))->tx_bytes += skb->len;
+	((struct net_device_stats *)netdev_priv(dev))->tx_packets++;
+	ip6mr_cache_report(skb, reg_vif_num, MRT6MSG_WHOLEPKT);
+	read_unlock(&mrt_lock);
+	kfree_skb(skb);
+	return 0;
+}
+
+static struct net_device_stats *reg_vif_get_stats(struct net_device *dev)
+{
+	return (struct net_device_stats *)netdev_priv(dev);
+}
+
+static void reg_vif_setup(struct net_device *dev)
+{
+	dev->type		= ARPHRD_PIMREG;
+	dev->mtu		= 1500 - sizeof(struct ipv6hdr) - 8;
+	dev->flags		= IFF_NOARP;
+	dev->hard_start_xmit	= reg_vif_xmit;
+	dev->get_stats		= reg_vif_get_stats;
+	dev->destructor		= free_netdev;
+}
+
+static struct net_device *ip6mr_reg_vif(void)
+{
+	struct net_device *dev;
+	struct inet6_dev *in_dev;
+
+	dev = alloc_netdev(sizeof(struct net_device_stats), "pim6reg",
+			   reg_vif_setup);
+
+	if (dev == NULL)
+		return NULL;
+
+	if (register_netdevice(dev)) {
+		free_netdev(dev);
+		return NULL;
+	}
+	dev->iflink = 0;
+
+	in_dev = ipv6_find_idev(dev);
+	if (!in_dev)
+		goto failure;
+
+	if (dev_open(dev))
+		goto failure;
+
+	return dev;
+
+failure:
+	/* allow the register to be completed before unregistering. */
+	rtnl_unlock();
+	rtnl_lock();
+
+	unregister_netdevice(dev);
+	return NULL;
+}
+#endif
+
 /*
  *	Delete a VIF entry
  */
@@ -360,6 +498,11 @@ static int mif6_delete(int vifi)
 		write_unlock_bh(&mrt_lock);
 		return -EADDRNOTAVAIL;
 	}
+
+#ifdef CONFIG_IPV6_PIMSM_V2
+	if (vifi == reg_vif_num)
+		reg_vif_num = -1;
+#endif
 
 	if (vifi + 1 == maxvif) {
 		int tmp;
@@ -480,6 +623,19 @@ static int mif6_add(struct mif6ctl *vifc, int mrtsock)
 		return -EADDRINUSE;
 
 	switch (vifc->mif6c_flags) {
+#ifdef CONFIG_IPV6_PIMSM_V2
+	case MIFF_REGISTER:
+		/*
+		 * Special Purpose VIF in PIM
+		 * All the packets will be sent to the daemon
+		 */
+		if (reg_vif_num >= 0)
+			return -EADDRINUSE;
+		dev = ip6mr_reg_vif();
+		if (!dev)
+			return -ENOBUFS;
+		break;
+#endif
 	case 0:
 		dev = dev_get_by_index(&init_net, vifc->mif6c_pifi);
 		if (!dev)
@@ -512,6 +668,10 @@ static int mif6_add(struct mif6ctl *vifc, int mrtsock)
 	write_lock_bh(&mrt_lock);
 	dev_hold(dev);
 	v->dev = dev;
+#ifdef CONFIG_IPV6_PIMSM_V2
+	if (v->flags & MIFF_REGISTER)
+		reg_vif_num = vifi;
+#endif
 	if (vifi + 1 > maxvif)
 		maxvif = vifi + 1;
 	write_unlock_bh(&mrt_lock);
@@ -599,7 +759,13 @@ static int ip6mr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
 	struct mrt6msg *msg;
 	int ret;
 
-	skb = alloc_skb(sizeof(struct ipv6hdr) + sizeof(*msg), GFP_ATOMIC);
+#ifdef CONFIG_IPV6_PIMSM_V2
+	if (assert == MRT6MSG_WHOLEPKT)
+		skb = skb_realloc_headroom(pkt, -skb_network_offset(pkt)
+						+sizeof(*msg));
+	else
+#endif
+		skb = alloc_skb(sizeof(struct ipv6hdr) + sizeof(*msg), GFP_ATOMIC);
 
 	if (!skb)
 		return -ENOBUFS;
@@ -609,6 +775,29 @@ static int ip6mr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
 
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
+#ifdef CONFIG_IPV6_PIMSM_V2
+	if (assert == MRT6MSG_WHOLEPKT) {
+		/* Ugly, but we have no choice with this interface.
+		   Duplicate old header, fix length etc.
+		   And all this only to mangle msg->im6_msgtype and
+		   to set msg->im6_mbz to "mbz" :-)
+		 */
+		skb_push(skb, -skb_network_offset(pkt));
+
+		skb_push(skb, sizeof(*msg));
+		skb_reset_transport_header(skb);
+		msg = (struct mrt6msg *)skb_transport_header(skb);
+		msg->im6_mbz = 0;
+		msg->im6_msgtype = MRT6MSG_WHOLEPKT;
+		msg->im6_mif = reg_vif_num;
+		msg->im6_pad = 0;
+		ipv6_addr_copy(&msg->im6_src, &ipv6_hdr(pkt)->saddr);
+		ipv6_addr_copy(&msg->im6_dst, &ipv6_hdr(pkt)->daddr);
+
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	} else
+#endif
+	{
 	/*
 	 *	Copy the IP header
 	 */
@@ -635,6 +824,7 @@ static int ip6mr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	skb_pull(skb, sizeof(struct ipv6hdr));
+	}
 
 	if (mroute6_socket == NULL) {
 		kfree_skb(skb);
@@ -1034,6 +1224,44 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int
 		return ret;
 
 	/*
+	 *	Control PIM assert (to activate pim will activate assert)
+	 */
+	case MRT6_ASSERT:
+	{
+		int v;
+		if (get_user(v, (int __user *)optval))
+			return -EFAULT;
+		mroute_do_assert = !!v;
+		return 0;
+	}
+
+#ifdef CONFIG_IPV6_PIMSM_V2
+	case MRT6_PIM:
+	{
+		int v, ret;
+		if (get_user(v, (int __user *)optval))
+			return -EFAULT;
+		v = !!v;
+		rtnl_lock();
+		ret = 0;
+		if (v != mroute_do_pim) {
+			mroute_do_pim = v;
+			mroute_do_assert = v;
+			if (mroute_do_pim)
+				ret = inet6_add_protocol(&pim6_protocol,
+							 IPPROTO_PIM);
+			else
+				ret = inet6_del_protocol(&pim6_protocol,
+							 IPPROTO_PIM);
+			if (ret < 0)
+				ret = -EAGAIN;
+		}
+		rtnl_unlock();
+		return ret;
+	}
+
+#endif
+	/*
 	 *	Spurious command, or MRT_VERSION which you cannot
 	 *	set.
 	 */
@@ -1055,6 +1283,14 @@ int ip6_mroute_getsockopt(struct sock *sk, int optname, char __user *optval,
 	switch (optname) {
 	case MRT6_VERSION:
 		val = 0x0305;
+		break;
+#ifdef CONFIG_IPV6_PIMSM_V2
+	case MRT6_PIM:
+		val = mroute_do_pim;
+		break;
+#endif
+	case MRT6_ASSERT:
+		val = mroute_do_assert;
 		break;
 	default:
 		return -ENOPROTOOPT;
@@ -1151,6 +1387,18 @@ static int ip6mr_forward2(struct sk_buff *skb, struct mfc6_cache *c, int vifi)
 	if (vif->dev == NULL)
 		goto out_free;
 
+#ifdef CONFIG_IPV6_PIMSM_V2
+	if (vif->flags & MIFF_REGISTER) {
+		vif->pkt_out++;
+		vif->bytes_out += skb->len;
+		((struct net_device_stats *)netdev_priv(vif->dev))->tx_bytes += skb->len;
+		((struct net_device_stats *)netdev_priv(vif->dev))->tx_packets++;
+		ip6mr_cache_report(skb, vifi, MRT6MSG_WHOLEPKT);
+		kfree_skb(skb);
+		return 0;
+	}
+#endif
+
 	ipv6h = ipv6_hdr(skb);
 
 	fl = (struct flowi) {
@@ -1220,6 +1468,30 @@ static int ip6_mr_forward(struct sk_buff *skb, struct mfc6_cache *cache)
 	cache->mfc_un.res.pkt++;
 	cache->mfc_un.res.bytes += skb->len;
 
+	/*
+	 * Wrong interface: drop packet and (maybe) send PIM assert.
+	 */
+	if (vif6_table[vif].dev != skb->dev) {
+		int true_vifi;
+
+		cache->mfc_un.res.wrong_if++;
+		true_vifi = ip6mr_find_vif(skb->dev);
+
+		if (true_vifi >= 0 && mroute_do_assert &&
+		    /* pimsm uses asserts, when switching from RPT to SPT,
+		       so that we cannot check that packet arrived on an oif.
+		       It is bad, but otherwise we would need to move pretty
+		       large chunk of pimd to kernel. Ough... --ANK
+		     */
+		    (mroute_do_pim || cache->mfc_un.res.ttls[true_vifi] < 255) &&
+		    time_after(jiffies,
+			       cache->mfc_un.res.last_assert + MFC_ASSERT_THRESH)) {
+			cache->mfc_un.res.last_assert = jiffies;
+			ip6mr_cache_report(skb, true_vifi, MRT6MSG_WRONGMIF);
+		}
+		goto dont_forward;
+	}
+
 	vif6_table[vif].pkt_in++;
 	vif6_table[vif].bytes_in += skb->len;
 
@@ -1241,6 +1513,7 @@ static int ip6_mr_forward(struct sk_buff *skb, struct mfc6_cache *cache)
 		return 0;
 	}
 
+dont_forward:
 	kfree_skb(skb);
 	return 0;
 }
