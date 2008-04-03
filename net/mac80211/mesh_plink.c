@@ -18,7 +18,6 @@
 #define mpl_dbg(fmt, args...)	do { (void)(0); } while (0)
 #endif
 
-#define IEEE80211_FC(type, stype) cpu_to_le16(type | stype)
 #define PLINK_GET_FRAME_SUBTYPE(p) (p)
 #define PLINK_GET_LLID(p) (p + 1)
 #define PLINK_GET_PLID(p) (p + 3)

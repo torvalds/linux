@@ -35,9 +35,9 @@
 
 #define WLAN_FC_DATA_PRESENT(fc) (((fc) & 0x4c) == 0x08)
 
-struct ieee80211_local;
+#define IEEE80211_FC(type, subtype) cpu_to_le16(type | subtype)
 
-#define IEEE80211_ALIGN32_PAD(a) ((4 - ((a) & 3)) & 3)
+struct ieee80211_local;
 
 /* Maximum number of broadcast/multicast frames to buffer when some of the
  * associated stations are using power saving. */
@@ -893,11 +893,8 @@ extern const struct iw_handler_def ieee80211_iw_handler_def;
 
 
 /* ieee80211_ioctl.c */
-int ieee80211_set_compression(struct ieee80211_local *local,
-			      struct net_device *dev, struct sta_info *sta);
 int ieee80211_set_freq(struct ieee80211_local *local, int freq);
 /* ieee80211_sta.c */
-#define IEEE80211_FC(type, stype) cpu_to_le16(type | stype)
 void ieee80211_sta_timer(unsigned long data);
 void ieee80211_sta_work(struct work_struct *work);
 void ieee80211_sta_scan_work(struct work_struct *work);

@@ -57,8 +57,6 @@
 #define IEEE80211_IBSS_MAX_STA_ENTRIES 128
 
 
-#define IEEE80211_FC(type, stype) cpu_to_le16(type | stype)
-
 #define ERP_INFO_USE_PROTECTION BIT(1)
 
 /* mgmt header + 1 byte action code */
