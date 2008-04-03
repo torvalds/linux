@@ -254,9 +254,17 @@ qla2x00_vp_abort_isp(scsi_qla_host_t *vha)
 static int
 qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 {
+	scsi_qla_host_t *ha = vha->parent;
+
 	if (test_and_clear_bit(VP_IDX_ACQUIRED, &vha->vp_flags)) {
 		/* VP acquired. complete port configuration */
-		qla24xx_configure_vp(vha);
+		if (atomic_read(&ha->loop_state) == LOOP_READY) {
+			qla24xx_configure_vp(vha);
+		} else {
+			set_bit(VP_IDX_ACQUIRED, &vha->vp_flags);
+			set_bit(VP_DPC_NEEDED, &ha->dpc_flags);
+		}
+
 		return 0;
 	}
 
