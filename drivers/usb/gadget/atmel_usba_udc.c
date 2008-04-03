@@ -1998,6 +1998,7 @@ static int __exit usba_udc_remove(struct platform_device *pdev)
 		gpio_free(udc->vbus_pin);
 
 	free_irq(udc->irq, udc);
+	kfree(usba_ep);
 	iounmap(udc->fifo);
 	iounmap(udc->regs);
 	clk_put(udc->hclk);
