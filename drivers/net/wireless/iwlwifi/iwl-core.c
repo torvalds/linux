@@ -34,10 +34,10 @@
 struct iwl_priv; /* FIXME: remove */
 #include "iwl-debug.h"
 #include "iwl-eeprom.h"
+#include "iwl-4965.h" /* FIXME: remove */
 #include "iwl-core.h"
 #include "iwl-rfkill.h"
 
-#include "iwl-4965.h" /* FIXME: remove */
 
 MODULE_DESCRIPTION("iwl core");
 MODULE_VERSION(IWLWIFI_VERSION);

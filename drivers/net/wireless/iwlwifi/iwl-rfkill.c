@@ -33,16 +33,9 @@
 #include <net/mac80211.h>
 
 #include "iwl-eeprom.h"
-#include "iwl-core.h"
 #include "iwl-4965.h"
+#include "iwl-core.h"
 #include "iwl-helpers.h"
-
-
-static inline int iwl_is_rfkill(struct iwl_priv *priv)
-{
-	return test_bit(STATUS_RF_KILL_HW, &priv->status) ||
-		test_bit(STATUS_RF_KILL_SW, &priv->status);
-}
 
 
 /* software rf-kill from user */

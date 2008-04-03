@@ -148,6 +148,63 @@ int iwl_send_cmd_pdu_async(struct iwl_priv *priv, u8 id, u16 len,
 			   int (*callback)(struct iwl_priv *priv,
 					   struct iwl_cmd *cmd,
 					   struct sk_buff *skb));
+/*************** DRIVER STATUS FUNCTIONS   *****/
+
+#define STATUS_HCMD_ACTIVE	0	/* host command in progress */
+#define STATUS_HCMD_SYNC_ACTIVE	1	/* sync host command in progress */
+#define STATUS_INT_ENABLED	2
+#define STATUS_RF_KILL_HW	3
+#define STATUS_RF_KILL_SW	4
+#define STATUS_INIT		5
+#define STATUS_ALIVE		6
+#define STATUS_READY		7
+#define STATUS_TEMPERATURE	8
+#define STATUS_GEO_CONFIGURED	9
+#define STATUS_EXIT_PENDING	10
+#define STATUS_IN_SUSPEND	11
+#define STATUS_STATISTICS	12
+#define STATUS_SCANNING		13
+#define STATUS_SCAN_ABORTING	14
+#define STATUS_SCAN_HW		15
+#define STATUS_POWER_PMI	16
+#define STATUS_FW_ERROR		17
+#define STATUS_CONF_PENDING	18
+
+
+static inline int iwl_is_ready(struct iwl_priv *priv)
+{
+	/* The adapter is 'ready' if READY and GEO_CONFIGURED bits are
+	 * set but EXIT_PENDING is not */
+	return test_bit(STATUS_READY, &priv->status) &&
+	       test_bit(STATUS_GEO_CONFIGURED, &priv->status) &&
+	       !test_bit(STATUS_EXIT_PENDING, &priv->status);
+}
+
+static inline int iwl_is_alive(struct iwl_priv *priv)
+{
+	return test_bit(STATUS_ALIVE, &priv->status);
+}
+
+static inline int iwl_is_init(struct iwl_priv *priv)
+{
+	return test_bit(STATUS_INIT, &priv->status);
+}
+
+static inline int iwl_is_rfkill(struct iwl_priv *priv)
+{
+	return test_bit(STATUS_RF_KILL_HW, &priv->status) ||
+	       test_bit(STATUS_RF_KILL_SW, &priv->status);
+}
+
+static inline int iwl_is_ready_rf(struct iwl_priv *priv)
+{
+
+	if (iwl_is_rfkill(priv))
+		return 0;
+
+	return iwl_is_ready(priv);
+}
+
 
 enum iwlcore_card_notify {
 	IWLCORE_INIT_EVT = 0,

@@ -40,8 +40,8 @@
 #include <asm/unaligned.h>
 
 #include "iwl-4965.h"
-#include "iwl-io.h"
 #include "iwl-core.h"
+#include "iwl-io.h"
 #include "iwl-helpers.h"
 
 #define IWL_1MB_RATE (128 * 1024)
