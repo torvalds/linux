@@ -1185,8 +1185,8 @@ static int __init dccp_v6_init(void)
 
 	inet6_register_protosw(&dccp_v6_protosw);
 
-	err = inet_csk_ctl_sock_create(&socket, PF_INET6,
-				       SOCK_DCCP, IPPROTO_DCCP);
+	err = inet_ctl_sock_create(&socket, PF_INET6,
+				   SOCK_DCCP, IPPROTO_DCCP);
 	if (err != 0)
 		goto out_unregister_protosw;
 	dccp_v6_ctl_sk = socket->sk;

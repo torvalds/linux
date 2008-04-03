@@ -1003,8 +1003,8 @@ static int __init dccp_v4_init(void)
 
 	inet_register_protosw(&dccp_v4_protosw);
 
-	err = inet_csk_ctl_sock_create(&socket, PF_INET,
-				       SOCK_DCCP, IPPROTO_DCCP);
+	err = inet_ctl_sock_create(&socket, PF_INET,
+				   SOCK_DCCP, IPPROTO_DCCP);
 	if (err)
 		goto out_unregister_protosw;
 	dccp_v4_ctl_sk = socket->sk;

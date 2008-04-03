@@ -2491,8 +2491,8 @@ struct proto tcp_prot = {
 void __init tcp_v4_init(void)
 {
 	struct socket *__tcp_socket;
-	if (inet_csk_ctl_sock_create(&__tcp_socket, PF_INET, SOCK_RAW,
-				     IPPROTO_TCP) < 0)
+	if (inet_ctl_sock_create(&__tcp_socket, PF_INET, SOCK_RAW,
+				 IPPROTO_TCP) < 0)
 		panic("Failed to create the TCP control socket.\n");
 	tcp_sock = __tcp_socket->sk;
 }

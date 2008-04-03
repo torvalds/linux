@@ -60,6 +60,7 @@
 #include <net/dsfield.h>
 #include <net/timewait_sock.h>
 #include <net/netdma.h>
+#include <net/inet_common.h>
 
 #include <asm/uaccess.h>
 
@@ -2202,7 +2203,7 @@ static int tcpv6_net_init(struct net *net)
 	struct socket *sock;
 	struct sock *sk;
 
-	err = inet_csk_ctl_sock_create(&sock, PF_INET6, SOCK_RAW, IPPROTO_TCP);
+	err = inet_ctl_sock_create(&sock, PF_INET6, SOCK_RAW, IPPROTO_TCP);
 	if (err)
 		return err;
 
