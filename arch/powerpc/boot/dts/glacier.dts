@@ -287,9 +287,10 @@
 				rgmii-device = <&RGMII0>;
 				rgmii-channel = <1>;
 				tah-device = <&TAH1>;
-				tah-channel = <0>;
+				tah-channel = <1>;
 				has-inverted-stacr-oc;
 				has-new-stacr-staopc;
+				mdio-device = <&EMAC0>;
 			};
 
 			EMAC2: ethernet@ef601100 {
@@ -317,6 +318,7 @@
 				rgmii-channel = <0>;
 				has-inverted-stacr-oc;
 				has-new-stacr-staopc;
+				mdio-device = <&EMAC0>;
 			};
 
 			EMAC3: ethernet@ef601200 {
@@ -344,6 +346,7 @@
 				rgmii-channel = <1>;
 				has-inverted-stacr-oc;
 				has-new-stacr-staopc;
+				mdio-device = <&EMAC0>;
 			};
 		};
 

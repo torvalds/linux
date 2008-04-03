@@ -215,6 +215,16 @@
 				has-mdio;
 			};
 
+			TAH0: emac-tah@ef601350 {
+				compatible = "ibm,tah-460ex", "ibm,tah";
+				reg = <ef601350 30>;
+			};
+
+			TAH1: emac-tah@ef601450 {
+				compatible = "ibm,tah-460ex", "ibm,tah";
+				reg = <ef601450 30>;
+			};
+
 			EMAC0: ethernet@ef600e00 {
 				device_type = "network";
 				compatible = "ibm,emac-460ex", "ibm,emac4";
@@ -236,10 +246,10 @@
 				tx-fifo-size = <800>;
 				phy-mode = "rgmii";
 				phy-map = <00000000>;
-				zmii-device = <&ZMII0>;
-				zmii-channel = <0>;
 				rgmii-device = <&RGMII0>;
 				rgmii-channel = <0>;
+				tah-device = <&TAH0>;
+				tah-channel = <0>;
 				has-inverted-stacr-oc;
 				has-new-stacr-staopc;
 			};
@@ -265,12 +275,13 @@
 				tx-fifo-size = <800>;
 				phy-mode = "rgmii";
 				phy-map = <00000000>;
-				zmii-device = <&ZMII0>;
-				zmii-channel = <1>;
 				rgmii-device = <&RGMII0>;
 				rgmii-channel = <1>;
+				tah-device = <&TAH1>;
+				tah-channel = <1>;
 				has-inverted-stacr-oc;
 				has-new-stacr-staopc;
+				mdio-device = <&EMAC0>;
 			};
 		};
 
