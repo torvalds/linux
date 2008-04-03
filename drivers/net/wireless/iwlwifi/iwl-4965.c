@@ -3814,12 +3814,12 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 	u8 network_packet;
 
 	rx_status.mactime = le64_to_cpu(rx_start->timestamp);
-	rx_status.freq = ieee80211chan2mhz(le16_to_cpu(rx_start->channel));
+	rx_status.freq =
+		ieee80211_frequency_to_channel(le16_to_cpu(rx_start->channel));
 	rx_status.band = (rx_start->phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ?
 				IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
-	rx_status.rate_idx = iwl4965_hwrate_to_plcp_idx(
-					le32_to_cpu(rx_start->rate_n_flags));
-
+	rx_status.rate_idx =
+		iwl4965_hwrate_to_plcp_idx(le32_to_cpu(rx_start->rate_n_flags));
 	if (rx_status.band == IEEE80211_BAND_5GHZ)
 		rx_status.rate_idx -= IWL_FIRST_OFDM_RATE;
 
@@ -3827,9 +3827,8 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 	rx_status.flag = 0;
 
 	if ((unlikely(rx_start->cfg_phy_cnt > 20))) {
-		IWL_DEBUG_DROP
-			("dsp size out of range [0,20]: "
-			 "%d/n", rx_start->cfg_phy_cnt);
+		IWL_DEBUG_DROP("dsp size out of range [0,20]: %d/n",
+				rx_start->cfg_phy_cnt);
 		return;
 	}
 
