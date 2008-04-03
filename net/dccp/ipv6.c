@@ -1202,6 +1202,7 @@ out_unregister_proto:
 
 static void __exit dccp_v6_exit(void)
 {
+	sock_release(dccp_v6_ctl_sk->sk_socket);
 	inet6_del_protocol(&dccp_v6_protocol, IPPROTO_DCCP);
 	inet6_unregister_protosw(&dccp_v6_protosw);
 	proto_unregister(&dccp_v6_prot);
