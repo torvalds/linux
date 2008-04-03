@@ -138,8 +138,17 @@ static int genregs64_get(struct task_struct *target,
 			(regs->u_regs[UREG_I6] + STACK_BIAS);
 		unsigned long window[16];
 
-		if (copy_from_user(window, reg_window, sizeof(window)))
-			return -EFAULT;
+		if (target == current) {
+			if (copy_from_user(window, reg_window, sizeof(window)))
+				return -EFAULT;
+		} else {
+			if (access_process_vm(target,
+					      (unsigned long) reg_window,
+					      window,
+					      sizeof(window), 0) !=
+			    sizeof(window))
+				return -EFAULT;
+		}
 
 		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 					  window,
@@ -190,16 +199,37 @@ static int genregs64_set(struct task_struct *target,
 			(regs->u_regs[UREG_I6] + STACK_BIAS);
 		unsigned long window[16];
 
-		if (copy_from_user(window, reg_window, sizeof(window)))
-			return -EFAULT;
+		if (target == current) {
+			if (copy_from_user(window, reg_window, sizeof(window)))
+				return -EFAULT;
+		} else {
+			if (access_process_vm(target,
+					      (unsigned long) reg_window,
+					      window,
+					      sizeof(window), 0) !=
+			    sizeof(window))
+				return -EFAULT;
+		}
 
 		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 					 window,
 					 16 * sizeof(u64),
 					 32 * sizeof(u64));
-		if (!ret &&
-		    copy_to_user(reg_window, window, sizeof(window)))
-			return -EFAULT;
+		if (!ret) {
+			if (target == current) {
+				if (copy_to_user(reg_window, window,
+						 sizeof(window)))
+					return -EFAULT;
+			} else {
+				if (access_process_vm(target,
+						      (unsigned long)
+						      reg_window,
+						      window,
+						      sizeof(window), 1) !=
+				    sizeof(window))
+					return -EFAULT;
+			}
+		}
 	}
 
 	if (!ret && count > 0) {
@@ -412,9 +442,22 @@ static int genregs32_get(struct task_struct *target,
 			*k++ = regs->u_regs[pos++];
 
 		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
-		for (; count > 0 && pos < 32; count--) {
-			if (get_user(*k++, &reg_window[pos++]))
-				return -EFAULT;
+		if (target == current) {
+			for (; count > 0 && pos < 32; count--) {
+				if (get_user(*k++, &reg_window[pos++]))
+					return -EFAULT;
+			}
+		} else {
+			for (; count > 0 && pos < 32; count--) {
+				if (access_process_vm(target,
+						      (unsigned long)
+						      &reg_window[pos],
+						      k, sizeof(*k), 0)
+				    != sizeof(*k))
+					return -EFAULT;
+				k++;
+				pos++;
+			}
 		}
 	} else {
 		for (; count > 0 && pos < 16; count--) {
@@ -423,10 +466,28 @@ static int genregs32_get(struct task_struct *target,
 		}
 
 		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
-		for (; count > 0 && pos < 32; count--) {
-			if (get_user(reg, &reg_window[pos++]) ||
-			    put_user(reg, u++))
-				return -EFAULT;
+		if (target == current) {
+			for (; count > 0 && pos < 32; count--) {
+				if (get_user(reg, &reg_window[pos++]) ||
+				    put_user(reg, u++))
+					return -EFAULT;
+			}
+		} else {
+			for (; count > 0 && pos < 32; count--) {
+				if (access_process_vm(target,
+						      (unsigned long)
+						      &reg_window[pos],
+						      &reg, sizeof(reg), 0)
+				    != sizeof(reg))
+					return -EFAULT;
+				if (access_process_vm(target,
+						      (unsigned long) u,
+						      &reg, sizeof(reg), 1)
+				    != sizeof(reg))
+					return -EFAULT;
+				pos++;
+				u++;
+			}
 		}
 	}
 	while (count > 0) {
@@ -488,9 +549,23 @@ static int genregs32_set(struct task_struct *target,
 			regs->u_regs[pos++] = *k++;
 
 		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
-		for (; count > 0 && pos < 32; count--) {
-			if (put_user(*k++, &reg_window[pos++]))
-				return -EFAULT;
+		if (target == current) {
+			for (; count > 0 && pos < 32; count--) {
+				if (put_user(*k++, &reg_window[pos++]))
+					return -EFAULT;
+			}
+		} else {
+			for (; count > 0 && pos < 32; count--) {
+				if (access_process_vm(target,
+						      (unsigned long)
+						      &reg_window[pos],
+						      (void *) k,
+						      sizeof(*k), 1)
+				    != sizeof(*k))
+					return -EFAULT;
+				k++;
+				pos++;
+			}
 		}
 	} else {
 		for (; count > 0 && pos < 16; count--) {
@@ -500,10 +575,29 @@ static int genregs32_set(struct task_struct *target,
 		}
 
 		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
-		for (; count > 0 && pos < 32; count--) {
-			if (get_user(reg, u++) ||
-			    put_user(reg, &reg_window[pos++]))
-				return -EFAULT;
+		if (target == current) {
+			for (; count > 0 && pos < 32; count--) {
+				if (get_user(reg, u++) ||
+				    put_user(reg, &reg_window[pos++]))
+					return -EFAULT;
+			}
+		} else {
+			for (; count > 0 && pos < 32; count--) {
+				if (access_process_vm(target,
+						      (unsigned long)
+						      u,
+						      &reg, sizeof(reg), 0)
+				    != sizeof(reg))
+					return -EFAULT;
+				if (access_process_vm(target,
+						      (unsigned long)
+						      &reg_window[pos],
+						      &reg, sizeof(reg), 1)
+				    != sizeof(reg))
+					return -EFAULT;
+				pos++;
+				u++;
+			}
 		}
 	}
 	while (count > 0) {
