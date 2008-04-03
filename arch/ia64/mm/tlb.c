@@ -26,6 +26,8 @@
 #include <asm/pal.h>
 #include <asm/tlbflush.h>
 #include <asm/dma.h>
+#include <asm/processor.h>
+#include <asm/tlb.h>
 
 static struct {
 	unsigned long mask;	/* mask of supported purge page-sizes */
@@ -39,6 +41,10 @@ struct ia64_ctx ia64_ctx = {
 };
 
 DEFINE_PER_CPU(u8, ia64_need_tlb_flush);
+DEFINE_PER_CPU(u8, ia64_tr_num);  /*Number of TR slots in current processor*/
+DEFINE_PER_CPU(u8, ia64_tr_used); /*Max Slot number used by kernel*/
+
+struct ia64_tr_entry __per_cpu_idtrs[NR_CPUS][2][IA64_TR_ALLOC_MAX];
 
 /*
  * Initializes the ia64_ctx.bitmap array based on max_ctx+1.
@@ -190,6 +196,9 @@ ia64_tlb_init (void)
 	ia64_ptce_info_t uninitialized_var(ptce_info); /* GCC be quiet */
 	unsigned long tr_pgbits;
 	long status;
+	pal_vm_info_1_u_t vm_info_1;
+	pal_vm_info_2_u_t vm_info_2;
+	int cpu = smp_processor_id();
 
 	if ((status = ia64_pal_vm_page_size(&tr_pgbits, &purge.mask)) != 0) {
 		printk(KERN_ERR "PAL_VM_PAGE_SIZE failed with status=%ld; "
@@ -206,4 +215,191 @@ ia64_tlb_init (void)
 	local_cpu_data->ptce_stride[1] = ptce_info.stride[1];
 
 	local_flush_tlb_all();	/* nuke left overs from bootstrapping... */
+	status = ia64_pal_vm_summary(&vm_info_1, &vm_info_2);
+
+	if (status) {
+		printk(KERN_ERR "ia64_pal_vm_summary=%ld\n", status);
+		per_cpu(ia64_tr_num, cpu) = 8;
+		return;
+	}
+	per_cpu(ia64_tr_num, cpu) = vm_info_1.pal_vm_info_1_s.max_itr_entry+1;
+	if (per_cpu(ia64_tr_num, cpu) >
+				(vm_info_1.pal_vm_info_1_s.max_dtr_entry+1))
+		per_cpu(ia64_tr_num, cpu) =
+				vm_info_1.pal_vm_info_1_s.max_dtr_entry+1;
+	if (per_cpu(ia64_tr_num, cpu) > IA64_TR_ALLOC_MAX) {
+		per_cpu(ia64_tr_num, cpu) = IA64_TR_ALLOC_MAX;
+		printk(KERN_DEBUG "TR register number exceeds IA64_TR_ALLOC_MAX!"
+			"IA64_TR_ALLOC_MAX should be extended\n");
+	}
 }
+
+/*
+ * is_tr_overlap
+ *
+ * Check overlap with inserted TRs.
+ */
+static int is_tr_overlap(struct ia64_tr_entry *p, u64 va, u64 log_size)
+{
+	u64 tr_log_size;
+	u64 tr_end;
+	u64 va_rr = ia64_get_rr(va);
+	u64 va_rid = RR_TO_RID(va_rr);
+	u64 va_end = va + (1<<log_size) - 1;
+
+	if (va_rid != RR_TO_RID(p->rr))
+		return 0;
+	tr_log_size = (p->itir & 0xff) >> 2;
+	tr_end = p->ifa + (1<<tr_log_size) - 1;
+
+	if (va > tr_end || p->ifa > va_end)
+		return 0;
+	return 1;
+
+}
+
+/*
+ * ia64_insert_tr in virtual mode. Allocate a TR slot
+ *
+ * target_mask : 0x1 : itr, 0x2 : dtr, 0x3 : idtr
+ *
+ * va 	: virtual address.
+ * pte 	: pte entries inserted.
+ * log_size: range to be covered.
+ *
+ * Return value:  <0 :  error No.
+ *
+ *		  >=0 : slot number allocated for TR.
+ * Must be called with preemption disabled.
+ */
+int ia64_itr_entry(u64 target_mask, u64 va, u64 pte, u64 log_size)
+{
+	int i, r;
+	unsigned long psr;
+	struct ia64_tr_entry *p;
+	int cpu = smp_processor_id();
+
+	r = -EINVAL;
+	/*Check overlap with existing TR entries*/
+	if (target_mask & 0x1) {
+		p = &__per_cpu_idtrs[cpu][0][0];
+		for (i = IA64_TR_ALLOC_BASE; i <= per_cpu(ia64_tr_used, cpu);
+								i++, p++) {
+			if (p->pte & 0x1)
+				if (is_tr_overlap(p, va, log_size)) {
+					printk(KERN_DEBUG "Overlapped Entry"
+						"Inserted for TR Reigster!!\n");
+					goto out;
+			}
+		}
+	}
+	if (target_mask & 0x2) {
+		p = &__per_cpu_idtrs[cpu][1][0];
+		for (i = IA64_TR_ALLOC_BASE; i <= per_cpu(ia64_tr_used, cpu);
+								i++, p++) {
+			if (p->pte & 0x1)
+				if (is_tr_overlap(p, va, log_size)) {
+					printk(KERN_DEBUG "Overlapped Entry"
+						"Inserted for TR Reigster!!\n");
+					goto out;
+				}
+		}
+	}
+
+	for (i = IA64_TR_ALLOC_BASE; i < per_cpu(ia64_tr_num, cpu); i++) {
+		switch (target_mask & 0x3) {
+		case 1:
+			if (!(__per_cpu_idtrs[cpu][0][i].pte & 0x1))
+				goto found;
+			continue;
+		case 2:
+			if (!(__per_cpu_idtrs[cpu][1][i].pte & 0x1))
+				goto found;
+			continue;
+		case 3:
+			if (!(__per_cpu_idtrs[cpu][0][i].pte & 0x1) &&
+				!(__per_cpu_idtrs[cpu][1][i].pte & 0x1))
+				goto found;
+			continue;
+		default:
+			r = -EINVAL;
+			goto out;
+		}
+	}
+found:
+	if (i >= per_cpu(ia64_tr_num, cpu))
+		return -EBUSY;
+
+	/*Record tr info for mca hander use!*/
+	if (i > per_cpu(ia64_tr_used, cpu))
+		per_cpu(ia64_tr_used, cpu) = i;
+
+	psr = ia64_clear_ic();
+	if (target_mask & 0x1) {
+		ia64_itr(0x1, i, va, pte, log_size);
+		ia64_srlz_i();
+		p = &__per_cpu_idtrs[cpu][0][i];
+		p->ifa = va;
+		p->pte = pte;
+		p->itir = log_size << 2;
+		p->rr = ia64_get_rr(va);
+	}
+	if (target_mask & 0x2) {
+		ia64_itr(0x2, i, va, pte, log_size);
+		ia64_srlz_i();
+		p = &__per_cpu_idtrs[cpu][1][i];
+		p->ifa = va;
+		p->pte = pte;
+		p->itir = log_size << 2;
+		p->rr = ia64_get_rr(va);
+	}
+	ia64_set_psr(psr);
+	r = i;
+out:
+	return r;
+}
+EXPORT_SYMBOL_GPL(ia64_itr_entry);
+
+/*
+ * ia64_purge_tr
+ *
+ * target_mask: 0x1: purge itr, 0x2 : purge dtr, 0x3 purge idtr.
+ * slot: slot number to be freed.
+ *
+ * Must be called with preemption disabled.
+ */
+void ia64_ptr_entry(u64 target_mask, int slot)
+{
+	int cpu = smp_processor_id();
+	int i;
+	struct ia64_tr_entry *p;
+
+	if (slot < IA64_TR_ALLOC_BASE || slot >= per_cpu(ia64_tr_num, cpu))
+		return;
+
+	if (target_mask & 0x1) {
+		p = &__per_cpu_idtrs[cpu][0][slot];
+		if ((p->pte&0x1) && is_tr_overlap(p, p->ifa, p->itir>>2)) {
+			p->pte = 0;
+			ia64_ptr(0x1, p->ifa, p->itir>>2);
+			ia64_srlz_i();
+		}
+	}
+
+	if (target_mask & 0x2) {
+		p = &__per_cpu_idtrs[cpu][1][slot];
+		if ((p->pte & 0x1) && is_tr_overlap(p, p->ifa, p->itir>>2)) {
+			p->pte = 0;
+			ia64_ptr(0x2, p->ifa, p->itir>>2);
+			ia64_srlz_i();
+		}
+	}
+
+	for (i = per_cpu(ia64_tr_used, cpu); i >= IA64_TR_ALLOC_BASE; i--) {
+		if ((__per_cpu_idtrs[cpu][0][i].pte & 0x1) ||
+				(__per_cpu_idtrs[cpu][1][i].pte & 0x1))
+			break;
+	}
+	per_cpu(ia64_tr_used, cpu) = i;
+}
+EXPORT_SYMBOL_GPL(ia64_ptr_entry);

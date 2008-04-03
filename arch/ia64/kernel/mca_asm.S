@@ -219,8 +219,13 @@ ia64_reload_tr:
 	mov r20=IA64_TR_CURRENT_STACK
 	;;
 	itr.d dtr[r20]=r16
+	GET_THIS_PADDR(r2, ia64_mca_tr_reload)
+	mov r18 = 1
 	;;
 	srlz.d
+	;;
+	st8 [r2] =r18
+	;;
 
 done_tlb_purge_and_reload:
 
