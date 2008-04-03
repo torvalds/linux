@@ -240,6 +240,7 @@ int cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode)
 	case CPM_CLK_SCC1:
 		reg = &im_cpmux->cmx_scr;
 		shift = 24;
+		break;
 	case CPM_CLK_SCC2:
 		reg = &im_cpmux->cmx_scr;
 		shift = 16;

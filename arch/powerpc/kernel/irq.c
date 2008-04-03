@@ -143,7 +143,6 @@ void local_irq_restore(unsigned long en)
 		 */
 		if (local_paca->lppaca_ptr->int_dword.any_int)
 			iseries_handle_interrupts();
-		return;
 	}
 
 	/*

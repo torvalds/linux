@@ -148,7 +148,6 @@
 			interrupt-parent = <&mpc5200_pic>;
 		};
 
-
 		spi@f00 {
 			compatible = "fsl,mpc5200b-spi","fsl,mpc5200-spi";
 			reg = <f00 20>;
@@ -209,10 +208,25 @@
 		ethernet@3000 {
 			device_type = "network";
 			compatible = "fsl,mpc5200b-fec","fsl,mpc5200-fec";
-			reg = <3000 800>;
+			reg = <3000 400>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <2 5 0>;
 			interrupt-parent = <&mpc5200_pic>;
+			phy-handle = <&phy0>;
+		};
+
+		mdio@3000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,mpc5200b-mdio","fsl,mpc5200-mdio";
+			reg = <3000 400>;       // fec range, since we need to setup fec interrupts
+			interrupts = <2 5 0>;   // these are for "mii command finished", not link changes & co.
+			interrupt-parent = <&mpc5200_pic>;
+
+			phy0: ethernet-phy@2 {
+				device_type = "ethernet-phy";
+				reg = <2>;
+			};
 		};
 
 		ata@3a00 {
@@ -223,11 +237,19 @@
 		};
 
 		i2c@3d40 {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			compatible = "fsl,mpc5200b-i2c","fsl,mpc5200-i2c","fsl-i2c";
 			reg = <3d40 40>;
 			interrupts = <2 10 0>;
 			interrupt-parent = <&mpc5200_pic>;
 			fsl5200-clocking;
+
+			rtc@68 {
+				device_type = "rtc";
+				compatible = "dallas,ds1339";
+				reg = <68>;
+			};
 		};
 
 		sram@8000 {
@@ -240,7 +262,8 @@
 		compatible = "fsl,lpb";
 		#address-cells = <2>;
 		#size-cells = <1>;
-		ranges = <1 0 50000000 00010000
+		ranges = <0 0 ff000000 01000000
+			  1 0 50000000 00010000
 			  2 0 50010000 00010000
 			  3 0 50020000 00010000>;
 
@@ -271,31 +294,15 @@
 			compatible = "promess,pro_module_dio";
 			reg = <3 800 2>;
 		};
-	};
 
-	pci@f0000d00 {
-		#interrupt-cells = <1>;
-		#size-cells = <2>;
-		#address-cells = <3>;
-		device_type = "pci";
-		compatible = "fsl,mpc5200b-pci","fsl,mpc5200-pci";
-		reg = <f0000d00 100>;
-		interrupt-map-mask = <f800 0 0 7>;
-		interrupt-map = <c000 0 0 1 &mpc5200_pic 0 0 3 // 1st slot
-				 c000 0 0 2 &mpc5200_pic 1 1 3
-				 c000 0 0 3 &mpc5200_pic 1 2 3
-				 c000 0 0 4 &mpc5200_pic 1 3 3
-
-				 c800 0 0 1 &mpc5200_pic 1 1 3 // 2nd slot
-				 c800 0 0 2 &mpc5200_pic 1 2 3
-				 c800 0 0 3 &mpc5200_pic 1 3 3
-				 c800 0 0 4 &mpc5200_pic 0 0 3>;
-		clock-frequency = <0>; // From boot loader
-		interrupts = <2 8 0 2 9 0 2 a 0>;
-		interrupt-parent = <&mpc5200_pic>;
-		bus-range = <0 0>;
-		ranges = <42000000 0 80000000 80000000 0 20000000
-			  02000000 0 a0000000 a0000000 0 10000000
-			  01000000 0 00000000 b0000000 0 01000000>;
+		// 16-bit flash device at LocalPlus Bus CS0
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0 01000000>;
+			bank-width = <2>;
+			device-width = <2>;
+			#size-cells = <1>;
+			#address-cells = <1>;
+		};
 	};
 };
