@@ -356,8 +356,7 @@ static int ohci_hcd_pxa27x_drv_resume(struct platform_device *pdev)
 	if ((status = pxa27x_start_hc(&pdev->dev)) < 0)
 		return status;
 
-	usb_hcd_resume_root_hub(hcd);
-
+	ohci_finish_controller_resume(hcd);
 	return 0;
 }
 #endif

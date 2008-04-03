@@ -192,8 +192,8 @@ static int ohci_hcd_ep93xx_drv_resume(struct platform_device *pdev)
 	ohci->next_statechange = jiffies;
 
 	ep93xx_start_hc(&pdev->dev);
-	usb_hcd_resume_root_hub(hcd);
 
+	ohci_finish_controller_resume(hcd);
 	return 0;
 }
 #endif

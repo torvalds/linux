@@ -348,6 +348,7 @@ static int ohci_hcd_at91_drv_resume(struct platform_device *pdev)
 	if (!clocked)
 		at91_start_clock();
 
+	ohci_finish_controller_resume(hcd);
 	return 0;
 }
 #else

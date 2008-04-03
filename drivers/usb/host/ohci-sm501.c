@@ -231,14 +231,15 @@ static int ohci_sm501_suspend(struct platform_device *pdev, pm_message_t msg)
 static int ohci_sm501_resume(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct ohci_hcd	*ohci = hcd_to_ohci(platform_get_drvdata(pdev));
+	struct usb_hcd	*hcd = platform_get_drvdata(pdev);
+	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
 
 	if (time_before(jiffies, ohci->next_statechange))
 		msleep(5);
 	ohci->next_statechange = jiffies;
 
 	sm501_unit_power(dev->parent, SM501_GATE_USB_HOST, 1);
-	usb_hcd_resume_root_hub(platform_get_drvdata(pdev));
+	ohci_finish_controller_resume(hcd);
 	return 0;
 }
 #else
