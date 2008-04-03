@@ -125,6 +125,7 @@
 #define OHCI1394_lockRespErr		0x00000200
 #define OHCI1394_selfIDComplete		0x00010000
 #define OHCI1394_busReset		0x00020000
+#define OHCI1394_regAccessFail		0x00040000
 #define OHCI1394_phy			0x00080000
 #define OHCI1394_cycleSynch		0x00100000
 #define OHCI1394_cycle64Seconds		0x00200000

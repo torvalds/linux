@@ -257,7 +257,7 @@ static void log_irqs(u32 evt)
 	if (likely(!(param_debug & OHCI_PARAM_DEBUG_IRQS)))
 		return;
 
-	printk(KERN_DEBUG KBUILD_MODNAME ": IRQ %08x%s%s%s%s%s%s%s%s%s%s%s\n",
+	printk(KERN_DEBUG KBUILD_MODNAME ": IRQ %08x%s%s%s%s%s%s%s%s%s%s%s%s\n",
 	       evt,
 	       evt & OHCI1394_selfIDComplete	? " selfID"		: "",
 	       evt & OHCI1394_RQPkt		? " AR_req"		: "",
@@ -269,11 +269,13 @@ static void log_irqs(u32 evt)
 	       evt & OHCI1394_postedWriteErr	? " postedWriteErr"	: "",
 	       evt & OHCI1394_cycleTooLong	? " cycleTooLong"	: "",
 	       evt & OHCI1394_cycle64Seconds	? " cycle64Seconds"	: "",
+	       evt & OHCI1394_regAccessFail	? " regAccessFail"	: "",
 	       evt & ~(OHCI1394_selfIDComplete | OHCI1394_RQPkt |
 		       OHCI1394_RSPkt | OHCI1394_reqTxComplete |
 		       OHCI1394_respTxComplete | OHCI1394_isochRx |
 		       OHCI1394_isochTx | OHCI1394_postedWriteErr |
-		       OHCI1394_cycleTooLong | OHCI1394_cycle64Seconds)
+		       OHCI1394_cycleTooLong | OHCI1394_cycle64Seconds |
+		       OHCI1394_regAccessFail)
 						? " ?"			: "");
 }
 
@@ -1351,6 +1353,10 @@ static irqreturn_t irq_handler(int irq, void *data)
 		iso_event &= ~(1 << i);
 	}
 
+	if (unlikely(event & OHCI1394_regAccessFail))
+		fw_error("Register access failure - "
+			 "please notify linux1394-devel@lists.sf.net\n");
+
 	if (unlikely(event & OHCI1394_postedWriteErr))
 		fw_error("PCI posted write error\n");
 
@@ -1448,7 +1454,8 @@ static int ohci_enable(struct fw_card *card, u32 *config_rom, size_t length)
 		  OHCI1394_reqTxComplete | OHCI1394_respTxComplete |
 		  OHCI1394_isochRx | OHCI1394_isochTx |
 		  OHCI1394_postedWriteErr | OHCI1394_cycleTooLong |
-		  OHCI1394_cycle64Seconds | OHCI1394_masterIntEnable);
+		  OHCI1394_cycle64Seconds | OHCI1394_regAccessFail |
+		  OHCI1394_masterIntEnable);
 
 	/* Activate link_on bit and contender bit in our self ID packets.*/
 	if (ohci_update_phy_reg(card, 4, 0,
