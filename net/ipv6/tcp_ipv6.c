@@ -2199,21 +2199,13 @@ static struct inet_protosw tcpv6_protosw = {
 
 static int tcpv6_net_init(struct net *net)
 {
-	int err;
-	struct sock *sk;
-
-	err = inet_ctl_sock_create(&sk, PF_INET6, SOCK_RAW, IPPROTO_TCP);
-	if (err)
-		return err;
-
-	net->ipv6.tcp_sk = sk;
-	sk_change_net(sk, net);
-	return err;
+	return inet_ctl_sock_create(&net->ipv6.tcp_sk, PF_INET6,
+				    SOCK_RAW, IPPROTO_TCP, net);
 }
 
 static void tcpv6_net_exit(struct net *net)
 {
-	sk_release_kernel(net->ipv6.tcp_sk);
+	inet_ctl_sock_destroy(net->ipv6.tcp_sk);
 }
 
 static struct pernet_operations tcpv6_net_ops = {

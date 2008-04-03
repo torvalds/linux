@@ -681,7 +681,7 @@ static int sctp_ctl_sock_init(void)
 		family = PF_INET;
 
 	err = inet_ctl_sock_create(&sctp_ctl_sock, family,
-				   SOCK_SEQPACKET, IPPROTO_SCTP);
+				   SOCK_SEQPACKET, IPPROTO_SCTP, &init_net);
 	if (err < 0) {
 		printk(KERN_ERR
 		       "SCTP: Failed to create the SCTP control socket.\n");
@@ -1284,7 +1284,7 @@ err_v6_add_protocol:
 	sctp_v6_del_protocol();
 err_add_protocol:
 	sctp_v4_del_protocol();
-	sock_release(sctp_ctl_sock->sk_socket);
+	inet_ctl_sock_destroy(sctp_ctl_sock);
 err_ctl_sock_init:
 	sctp_v6_protosw_exit();
 err_v6_protosw_init:
@@ -1328,7 +1328,7 @@ SCTP_STATIC __exit void sctp_exit(void)
 	sctp_v4_del_protocol();
 
 	/* Free the control endpoint.  */
-	sock_release(sctp_ctl_sock->sk_socket);
+	inet_ctl_sock_destroy(sctp_ctl_sock);
 
 	/* Free protosw registrations */
 	sctp_v6_protosw_exit();

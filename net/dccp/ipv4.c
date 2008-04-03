@@ -1003,7 +1003,7 @@ static int __init dccp_v4_init(void)
 	inet_register_protosw(&dccp_v4_protosw);
 
 	err = inet_ctl_sock_create(&dccp_v4_ctl_sk, PF_INET,
-				   SOCK_DCCP, IPPROTO_DCCP);
+				   SOCK_DCCP, IPPROTO_DCCP, &init_net);
 	if (err)
 		goto out_unregister_protosw;
 out:
@@ -1018,7 +1018,7 @@ out_proto_unregister:
 
 static void __exit dccp_v4_exit(void)
 {
-	sock_release(dccp_v4_ctl_sk->sk_socket);
+	inet_ctl_sock_destroy(dccp_v4_ctl_sk);
 	inet_unregister_protosw(&dccp_v4_protosw);
 	inet_del_protocol(&dccp_v4_protocol, IPPROTO_DCCP);
 	proto_unregister(&dccp_v4_prot);

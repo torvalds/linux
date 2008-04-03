@@ -42,7 +42,13 @@ extern int			inet_ioctl(struct socket *sock,
 extern int			inet_ctl_sock_create(struct sock **sk,
 						     unsigned short family,
 						     unsigned short type,
-						     unsigned char protocol);
+						     unsigned char protocol,
+						     struct net *net);
+
+static inline void inet_ctl_sock_destroy(struct sock *sk)
+{
+	sk_release_kernel(sk);
+}
 
 #endif
 
