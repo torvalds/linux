@@ -193,9 +193,6 @@ typedef struct srb {
 
 	uint16_t flags;
 
-	/* Single transfer DMA context */
-	dma_addr_t dma_handle;
-
 	uint32_t request_sense_length;
 	uint8_t *request_sense_ptr;
 } srb_t;
