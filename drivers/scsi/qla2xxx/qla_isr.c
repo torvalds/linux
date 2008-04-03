@@ -408,6 +408,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		set_bit(REGISTER_FC4_NEEDED, &ha->dpc_flags);
 
 		ha->flags.management_server_logged_in = 0;
+		qla2x00_post_aen_work(ha, FCH_EVT_LIP, mb[1]);
 		break;
 
 	case MBA_LOOP_UP:		/* Loop Up Event */
@@ -427,6 +428,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		    link_speed);
 
 		ha->flags.management_server_logged_in = 0;
+		qla2x00_post_aen_work(ha, FCH_EVT_LINKUP, ha->link_data_rate);
 		break;
 
 	case MBA_LOOP_DOWN:		/* Loop Down Event */
@@ -450,6 +452,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		ha->link_data_rate = PORT_SPEED_UNKNOWN;
 		if (ql2xfdmienable)
 			set_bit(REGISTER_FDMI_NEEDED, &ha->dpc_flags);
+		qla2x00_post_aen_work(ha, FCH_EVT_LINKDOWN, 0);
 		break;
 
 	case MBA_LIP_RESET:		/* LIP reset occurred */
@@ -473,6 +476,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 
 		ha->operating_mode = LOOP;
 		ha->flags.management_server_logged_in = 0;
+		qla2x00_post_aen_work(ha, FCH_EVT_LIPRESET, mb[1]);
 		break;
 
 	case MBA_POINT_TO_POINT:	/* Point-to-Point */
@@ -610,6 +614,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 
 		set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
 		set_bit(RSCN_UPDATE, &ha->dpc_flags);
+		qla2x00_post_aen_work(ha, FCH_EVT_RSCN, rscn_entry);
 		break;
 
 	/* case MBA_RIO_RESPONSE: */

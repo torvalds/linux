@@ -2115,6 +2115,26 @@ struct qla_msix_entry {
 
 #define	WATCH_INTERVAL		1       /* number of seconds */
 
+/* Work events.  */
+enum qla_work_type {
+	QLA_EVT_AEN,
+};
+
+
+struct qla_work_evt {
+	struct list_head	list;
+	enum qla_work_type	type;
+	u32			flags;
+#define QLA_EVT_FLAG_FREE	0x1
+
+	union {
+		struct {
+			enum fc_host_event_code code;
+			u32 data;
+		} aen;
+	} u;
+};
+
 /*
  * Linux Host Adapter structure
  */
@@ -2353,6 +2373,8 @@ typedef struct scsi_qla_host {
 
         uint32_t	login_retry_count;
 	int		max_q_depth;
+
+	struct list_head	work_list;
 
 	/* Fibre Channel Device List. */
 	struct list_head	fcports;

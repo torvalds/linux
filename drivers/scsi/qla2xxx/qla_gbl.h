@@ -67,6 +67,8 @@ extern int num_hosts;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
+extern int qla2x00_post_aen_work(struct scsi_qla_host *, enum
+    fc_host_event_code, u32);
 
 /*
  * Global Functions in qla_mid.c source file.

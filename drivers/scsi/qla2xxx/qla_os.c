@@ -1704,6 +1704,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&ha->list);
 	INIT_LIST_HEAD(&ha->fcports);
 	INIT_LIST_HEAD(&ha->vp_list);
+	INIT_LIST_HEAD(&ha->work_list);
 
 	set_bit(0, (unsigned long *) ha->vp_idx_map);
 
@@ -2197,6 +2198,76 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 	kfree(ha->nvram);
 }
 
+struct qla_work_evt *
+qla2x00_alloc_work(struct scsi_qla_host *ha, enum qla_work_type type,
+    int locked)
+{
+	struct qla_work_evt *e;
+
+	e = kzalloc(sizeof(struct qla_work_evt), locked ? GFP_ATOMIC:
+	    GFP_KERNEL);
+	if (!e)
+		return NULL;
+
+	INIT_LIST_HEAD(&e->list);
+	e->type = type;
+	e->flags = QLA_EVT_FLAG_FREE;
+	return e;
+}
+
+int
+qla2x00_post_work(struct scsi_qla_host *ha, struct qla_work_evt *e, int locked)
+{
+	unsigned long flags;
+
+	if (!locked)
+		spin_lock_irqsave(&ha->hardware_lock, flags);
+	list_add_tail(&e->list, &ha->work_list);
+	qla2xxx_wake_dpc(ha);
+	if (!locked)
+		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	return QLA_SUCCESS;
+}
+
+int
+qla2x00_post_aen_work(struct scsi_qla_host *ha, enum fc_host_event_code code,
+    u32 data)
+{
+	struct qla_work_evt *e;
+
+	e = qla2x00_alloc_work(ha, QLA_EVT_AEN, 1);
+	if (!e)
+		return QLA_FUNCTION_FAILED;
+
+	e->u.aen.code = code;
+	e->u.aen.data = data;
+	return qla2x00_post_work(ha, e, 1);
+}
+
+static void
+qla2x00_do_work(struct scsi_qla_host *ha)
+{
+	struct qla_work_evt *e;
+
+	spin_lock_irq(&ha->hardware_lock);
+	while (!list_empty(&ha->work_list)) {
+		e = list_entry(ha->work_list.next, struct qla_work_evt, list);
+		list_del_init(&e->list);
+		spin_unlock_irq(&ha->hardware_lock);
+
+		switch (e->type) {
+		case QLA_EVT_AEN:
+			fc_host_post_event(ha->host, fc_get_event_number(),
+			    e->u.aen.code, e->u.aen.data);
+			break;
+		}
+		if (e->flags & QLA_EVT_FLAG_FREE)
+			kfree(e);
+		spin_lock_irq(&ha->hardware_lock);
+	}
+	spin_unlock_irq(&ha->hardware_lock);
+}
+
 /**************************************************************************
 * qla2x00_do_dpc
 *   This kernel thread is a task that is schedule by the interrupt handler
@@ -2247,6 +2318,8 @@ qla2x00_do_dpc(void *data)
 			ha->dpc_active = 0;
 			continue;
 		}
+
+		qla2x00_do_work(ha);
 
 		if (test_and_clear_bit(ISP_ABORT_NEEDED, &ha->dpc_flags)) {
 
