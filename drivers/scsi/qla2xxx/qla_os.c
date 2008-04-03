@@ -249,9 +249,9 @@ qla24xx_pci_info_str(struct scsi_qla_host *ha, char *str)
 
 		strcpy(str, "PCIe (");
 		if (lspeed == 1)
-			strcat(str, "2.5Gb/s ");
+			strcat(str, "2.5GT/s ");
 		else if (lspeed == 2)
-			strcat(str, "5.0Gb/s ");
+			strcat(str, "5.0GT/s ");
 		else
 			strcat(str, "<unknown> ");
 		snprintf(lwstr, sizeof(lwstr), "x%d)", lwidth);
