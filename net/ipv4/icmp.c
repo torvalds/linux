@@ -93,6 +93,7 @@
 #include <asm/uaccess.h>
 #include <net/checksum.h>
 #include <net/xfrm.h>
+#include <net/inet_common.h>
 
 /*
  *	Build xmit assembly blocks
@@ -1136,7 +1137,7 @@ static void __net_exit icmp_sk_exit(struct net *net)
 	int i;
 
 	for_each_possible_cpu(i)
-		sk_release_kernel(net->ipv4.icmp_sk[i]);
+		inet_ctl_sock_destroy(net->ipv4.icmp_sk[i]);
 	kfree(net->ipv4.icmp_sk);
 	net->ipv4.icmp_sk = NULL;
 }
@@ -1152,17 +1153,13 @@ int __net_init icmp_sk_init(struct net *net)
 
 	for_each_possible_cpu(i) {
 		struct sock *sk;
-		struct socket *sock;
-		struct inet_sock *inet;
 
-		err = sock_create_kern(PF_INET, SOCK_RAW, IPPROTO_ICMP, &sock);
+		err = inet_ctl_sock_create(&sk, PF_INET,
+					   SOCK_RAW, IPPROTO_ICMP, net);
 		if (err < 0)
 			goto fail;
 
-		net->ipv4.icmp_sk[i] = sk = sock->sk;
-		sk_change_net(sk, net);
-
-		sk->sk_allocation = GFP_ATOMIC;
+		net->ipv4.icmp_sk[i] = sk;
 
 		/* Enough space for 2 64K ICMP packets, including
 		 * sk_buff struct overhead.
@@ -1170,15 +1167,7 @@ int __net_init icmp_sk_init(struct net *net)
 		sk->sk_sndbuf =
 			(2 * ((64 * 1024) + sizeof(struct sk_buff)));
 
-		inet = inet_sk(sk);
-		inet->uc_ttl = -1;
-		inet->pmtudisc = IP_PMTUDISC_DONT;
-
-		/* Unhash it so that IP input processing does not even
-		 * see it, we do not wish this socket to see incoming
-		 * packets.
-		 */
-		sk->sk_prot->unhash(sk);
+		inet_sk(sk)->pmtudisc = IP_PMTUDISC_DONT;
 	}
 
 	/* Control parameters for ECHO replies. */
@@ -1208,7 +1197,7 @@ int __net_init icmp_sk_init(struct net *net)
 
 fail:
 	for_each_possible_cpu(i)
-		sk_release_kernel(net->ipv4.icmp_sk[i]);
+		inet_ctl_sock_destroy(net->ipv4.icmp_sk[i]);
 	kfree(net->ipv4.icmp_sk);
 	return err;
 }
