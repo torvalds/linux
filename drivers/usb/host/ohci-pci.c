@@ -312,11 +312,13 @@ static int ohci_pci_suspend (struct usb_hcd *hcd, pm_message_t message)
 
 static int ohci_pci_resume (struct usb_hcd *hcd)
 {
+	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
+
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
 	/* FIXME: we should try to detect loss of VBUS power here */
 	prepare_for_handover(hcd);
-
+	ohci_writel(ohci, OHCI_INTR_MIE, &ohci->regs->intrenable);
 	return 0;
 }
 
