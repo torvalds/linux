@@ -18,11 +18,15 @@
 
 #ifndef __BTRFS_VOLUMES_
 #define __BTRFS_VOLUMES_
+
 struct btrfs_device {
 	struct list_head dev_list;
 	struct btrfs_root *dev_root;
+	spinlock_t io_lock;
 
 	struct block_device *bdev;
+
+	u64 total_ios;
 
 	char *name;
 
@@ -68,9 +72,9 @@ struct btrfs_fs_devices {
 int btrfs_alloc_dev_extent(struct btrfs_trans_handle *trans,
 			   struct btrfs_device *device,
 			   u64 owner, u64 num_bytes, u64 *start);
-int btrfs_map_block(struct btrfs_mapping_tree *map_tree,
+int btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw, int stripe_nr,
 		    u64 logical, u64 *phys, u64 *length,
-		    struct btrfs_device **dev);
+		    struct btrfs_device **dev, int *total_stripes);
 int btrfs_read_sys_array(struct btrfs_root *root);
 int btrfs_read_chunk_tree(struct btrfs_root *root);
 int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
@@ -80,9 +84,6 @@ void btrfs_mapping_init(struct btrfs_mapping_tree *tree);
 void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree);
 int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio);
 int btrfs_read_super_device(struct btrfs_root *root, struct extent_buffer *buf);
-int btrfs_map_block(struct btrfs_mapping_tree *map_tree,
-		    u64 logical, u64 *phys, u64 *length,
-		    struct btrfs_device **dev);
 int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		       int flags, void *holder);
 int btrfs_scan_one_device(const char *path, int flags, void *holder,

@@ -735,7 +735,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 						 GFP_NOFS);
 	struct btrfs_root *tree_root = kmalloc(sizeof(struct btrfs_root),
 					       GFP_NOFS);
-	struct btrfs_fs_info *fs_info = kmalloc(sizeof(*fs_info),
+	struct btrfs_fs_info *fs_info = kzalloc(sizeof(*fs_info),
 						GFP_NOFS);
 	struct btrfs_root *chunk_root = kmalloc(sizeof(struct btrfs_root),
 						GFP_NOFS);
@@ -744,6 +744,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	int ret;
 	int err = -EINVAL;
 	struct btrfs_super_block *disk_super;
+
 	if (!extent_root || !tree_root || !fs_info) {
 		err = -ENOMEM;
 		goto fail;
@@ -756,11 +757,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->delalloc_lock);
 	spin_lock_init(&fs_info->new_trans_lock);
 
-	memset(&fs_info->super_kobj, 0, sizeof(fs_info->super_kobj));
 	init_completion(&fs_info->kobj_unregister);
 	sb_set_blocksize(sb, 4096);
-	fs_info->running_transaction = NULL;
-	fs_info->last_trans_committed = 0;
 	fs_info->tree_root = tree_root;
 	fs_info->extent_root = extent_root;
 	fs_info->chunk_root = chunk_root;
@@ -770,11 +768,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	INIT_LIST_HEAD(&fs_info->space_info);
 	btrfs_mapping_init(&fs_info->mapping_tree);
 	fs_info->sb = sb;
-	fs_info->throttles = 0;
-	fs_info->mount_opt = 0;
 	fs_info->max_extent = (u64)-1;
 	fs_info->max_inline = 8192 * 1024;
-	fs_info->delalloc_bytes = 0;
 	setup_bdi(fs_info, &fs_info->bdi);
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;
@@ -802,12 +797,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	extent_io_tree_init(&fs_info->extent_ins,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 	fs_info->do_barriers = 1;
-	fs_info->closing = 0;
-	fs_info->total_pinned = 0;
-	fs_info->last_alloc = 0;
-	fs_info->last_data_alloc = 0;
-	fs_info->extra_alloc_bits = 0;
-	fs_info->extra_data_alloc_bits = 0;
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
 	INIT_WORK(&fs_info->trans_work, btrfs_transaction_cleaner, fs_info);
@@ -923,6 +912,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	btrfs_read_block_groups(extent_root);
 
 	fs_info->generation = btrfs_super_generation(disk_super) + 1;
+	if (btrfs_super_num_devices(disk_super) > 0) {
+		fs_info->data_alloc_profile = BTRFS_BLOCK_GROUP_RAID0;
+		fs_info->metadata_alloc_profile = BTRFS_BLOCK_GROUP_RAID1;
+		fs_info->system_alloc_profile = BTRFS_BLOCK_GROUP_RAID0;
+	}
 	mutex_unlock(&fs_info->fs_mutex);
 	return tree_root;
 

@@ -31,6 +31,13 @@ struct stripe {
 	u64 physical;
 };
 
+struct multi_bio {
+	atomic_t stripes;
+	bio_end_io_t *end_io;
+	void *private;
+	int error;
+};
+
 struct map_lookup {
 	u64 type;
 	int io_align;
@@ -632,12 +639,12 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	if (list_empty(dev_list))
 		return -ENOSPC;
 
-	if (type & BTRFS_BLOCK_GROUP_RAID0)
+	if (type & (BTRFS_BLOCK_GROUP_RAID0))
 		num_stripes = btrfs_super_num_devices(&info->super_copy);
-	if (type & BTRFS_BLOCK_GROUP_DATA)
-		stripe_len = 64 * 1024;
-	if (type & (BTRFS_BLOCK_GROUP_METADATA | BTRFS_BLOCK_GROUP_SYSTEM))
-		stripe_len = 32 * 1024;
+	if (type & (BTRFS_BLOCK_GROUP_RAID1)) {
+		num_stripes = min_t(u64, 2,
+				  btrfs_super_num_devices(&info->super_copy));
+	}
 again:
 	INIT_LIST_HEAD(&private_devs);
 	cur = dev_list->next;
@@ -682,7 +689,11 @@ again:
 
 	stripes = &chunk->stripe;
 
-	*num_bytes = calc_size * num_stripes;
+	if (type & BTRFS_BLOCK_GROUP_RAID1)
+		*num_bytes = calc_size;
+	else
+		*num_bytes = calc_size * num_stripes;
+
 	index = 0;
 	while(index < num_stripes) {
 		BUG_ON(list_empty(&private_devs));
@@ -694,7 +705,7 @@ again:
 					     key.objectid,
 					     calc_size, &dev_offset);
 		BUG_ON(ret);
-printk("alloc chunk size %Lu from dev %Lu\n", calc_size, device->devid);
+printk("alloc chunk start %Lu size %Lu from dev %Lu type %Lu\n", key.objectid, calc_size, device->devid, type);
 		device->bytes_used += calc_size;
 		ret = btrfs_update_device(trans, device);
 		BUG_ON(ret);
@@ -774,9 +785,9 @@ void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree)
 	}
 }
 
-int btrfs_map_block(struct btrfs_mapping_tree *map_tree,
-		    u64 logical, u64 *phys, u64 *length,
-		    struct btrfs_device **dev)
+int btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
+		    int dev_nr, u64 logical, u64 *phys, u64 *length,
+		    struct btrfs_device **dev, int *total_devs)
 {
 	struct extent_map *em;
 	struct map_lookup *map;
@@ -808,19 +819,39 @@ int btrfs_map_block(struct btrfs_mapping_tree *map_tree,
 	/* stripe_offset is the offset of this block in its stripe*/
 	stripe_offset = offset - stripe_offset;
 
-	/*
-	 * after this do_div call, stripe_nr is the number of stripes
-	 * on this device we have to walk to find the data, and
-	 * stripe_index is the number of our device in the stripe array
-	 */
-	stripe_index = do_div(stripe_nr, map->num_stripes);
+	if (map->type & BTRFS_BLOCK_GROUP_RAID1) {
+		stripe_index = dev_nr;
+		if (rw & (1 << BIO_RW))
+			*total_devs = map->num_stripes;
+		else {
+			int i;
+			u64 least = (u64)-1;
+			struct btrfs_device *cur;
 
+			for (i = 0; i < map->num_stripes; i++) {
+				cur = map->stripes[i].dev;
+				spin_lock(&cur->io_lock);
+				if (cur->total_ios < least) {
+					least = cur->total_ios;
+					stripe_index = i;
+				}
+				spin_unlock(&cur->io_lock);
+			}
+			*total_devs = 1;
+		}
+	} else {
+		/*
+		 * after this do_div call, stripe_nr is the number of stripes
+		 * on this device we have to walk to find the data, and
+		 * stripe_index is the number of our device in the stripe array
+		 */
+		stripe_index = do_div(stripe_nr, map->num_stripes);
+	}
 	BUG_ON(stripe_index >= map->num_stripes);
-
 	*phys = map->stripes[stripe_index].physical + stripe_offset +
 		stripe_nr * map->stripe_len;
 
-	if (map->type & BTRFS_BLOCK_GROUP_RAID0) {
+	if (map->type & (BTRFS_BLOCK_GROUP_RAID0 | BTRFS_BLOCK_GROUP_RAID1)) {
 		/* we limit the length of each bio to what fits in a stripe */
 		*length = min_t(u64, em->len - offset,
 			      map->stripe_len - stripe_offset);
@@ -833,33 +864,98 @@ int btrfs_map_block(struct btrfs_mapping_tree *map_tree,
 	return 0;
 }
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
+static void end_bio_multi_stripe(struct bio *bio, int err)
+#else
+static int end_bio_multi_stripe(struct bio *bio,
+				   unsigned int bytes_done, int err)
+#endif
+{
+	struct multi_bio *multi = bio->bi_private;
+
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
+	if (bio->bi_size)
+		return 1;
+#endif
+	if (err)
+		multi->error = err;
+
+	if (atomic_dec_and_test(&multi->stripes)) {
+		bio->bi_private = multi->private;
+		bio->bi_end_io = multi->end_io;
+
+		if (!err && multi->error)
+			err = multi->error;
+		kfree(multi);
+
+		bio_endio(bio, err);
+	} else {
+		bio_put(bio);
+	}
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
+	return 0;
+#endif
+}
+
 int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio)
 {
 	struct btrfs_mapping_tree *map_tree;
 	struct btrfs_device *dev;
+	struct bio *first_bio = bio;
 	u64 logical = bio->bi_sector << 9;
 	u64 physical;
 	u64 length = 0;
 	u64 map_length;
 	struct bio_vec *bvec;
+	struct multi_bio *multi = NULL;
 	int i;
 	int ret;
+	int dev_nr = 0;
+	int total_devs = 1;
 
 	bio_for_each_segment(bvec, bio, i) {
 		length += bvec->bv_len;
 	}
+
 	map_tree = &root->fs_info->mapping_tree;
 	map_length = length;
-	ret = btrfs_map_block(map_tree, logical, &physical, &map_length, &dev);
-	if (map_length < length) {
-		printk("mapping failed logical %Lu bio len %Lu physical %Lu "
-		       "len %Lu\n", logical, length, physical, map_length);
-		BUG();
+	while(dev_nr < total_devs) {
+		ret = btrfs_map_block(map_tree, rw, dev_nr, logical,
+				      &physical, &map_length, &dev,
+				      &total_devs);
+		if (map_length < length) {
+			printk("mapping failed logical %Lu bio len %Lu physical %Lu "
+			       "len %Lu\n", logical, length, physical, map_length);
+			BUG();
+		}
+		BUG_ON(map_length < length);
+		if (total_devs > 1) {
+			if (!multi) {
+				multi = kmalloc(sizeof(*multi), GFP_NOFS);
+				atomic_set(&multi->stripes, 1);
+				multi->end_io = bio->bi_end_io;
+				multi->private = first_bio->bi_private;
+				multi->error = 0;
+			} else {
+				atomic_inc(&multi->stripes);
+			}
+			if (dev_nr < total_devs - 1) {
+				bio = bio_clone(first_bio, GFP_NOFS);
+				BUG_ON(!bio);
+			} else {
+				bio = first_bio;
+			}
+			bio->bi_private = multi;
+			bio->bi_end_io = end_bio_multi_stripe;
+		}
+		bio->bi_sector = physical >> 9;
+		bio->bi_bdev = dev->bdev;
+		spin_lock(&dev->io_lock);
+		dev->total_ios++;
+		spin_unlock(&dev->io_lock);
+		submit_bio(rw, bio);
+		dev_nr++;
 	}
-	BUG_ON(map_length < length);
-	bio->bi_sector = physical >> 9;
-	bio->bi_bdev = dev->bdev;
-	submit_bio(rw, bio);
 	return 0;
 }
 
@@ -982,6 +1078,8 @@ static int read_one_dev(struct btrfs_root *root,
 			return -ENOMEM;
 		list_add(&device->dev_list,
 			 &root->fs_info->fs_devices->devices);
+		device->total_ios = 0;
+		spin_lock_init(&device->io_lock);
 	}
 
 	fill_device_from_item(leaf, dev_item, device);
