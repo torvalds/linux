@@ -212,8 +212,19 @@ struct b43_rxhdr_fw4 {
 	__le16 frame_len;	/* Frame length */
 	 PAD_BYTES(2);
 	__le16 phy_status0;	/* PHY RX Status 0 */
-	__u8 jssi;		/* PHY RX Status 1: JSSI */
-	__u8 sig_qual;		/* PHY RX Status 1: Signal Quality */
+	union {
+		/* RSSI for A/B/G-PHYs */
+		struct {
+			__u8 jssi;	/* PHY RX Status 1: JSSI */
+			__u8 sig_qual;	/* PHY RX Status 1: Signal Quality */
+		} __attribute__ ((__packed__));
+
+		/* RSSI for N-PHYs */
+		struct {
+			__s8 power0;	/* PHY RX Status 1: Power 0 */
+			__s8 power1;	/* PHY RX Status 1: Power 1 */
+		} __attribute__ ((__packed__));
+	} __attribute__ ((__packed__));
 	__le16 phy_status2;	/* PHY RX Status 2 */
 	__le16 phy_status3;	/* PHY RX Status 3 */
 	__le32 mac_status;	/* MAC RX status */

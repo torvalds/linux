@@ -513,7 +513,6 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	u32 macstat;
 	u16 chanid;
 	u16 phytype;
-	u8 jssi;
 	int padding;
 
 	memset(&status, 0, sizeof(status));
@@ -521,7 +520,6 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	/* Get metadata about the frame from the header. */
 	phystat0 = le16_to_cpu(rxhdr->phy_status0);
 	phystat3 = le16_to_cpu(rxhdr->phy_status3);
-	jssi = rxhdr->jssi;
 	macstat = le32_to_cpu(rxhdr->mac_status);
 	mactime = le16_to_cpu(rxhdr->mac_time);
 	chanstat = le16_to_cpu(rxhdr->channel);
@@ -575,13 +573,22 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		}
 	}
 
-	status.ssi = b43_rssi_postprocess(dev, jssi,
-					  (phystat0 & B43_RX_PHYST0_OFDM),
-					  (phystat0 & B43_RX_PHYST0_GAINCTL),
-					  (phystat3 & B43_RX_PHYST3_TRSTATE));
+	/* Link quality statistics */
 	status.noise = dev->stats.link_noise;
-	/* the next line looks wrong, but is what mac80211 wants */
-	status.signal = (jssi * 100) / B43_RX_MAX_SSI;
+	if ((chanstat & B43_RX_CHAN_PHYTYPE) == B43_PHYTYPE_N) {
+//		s8 rssi = max(rxhdr->power0, rxhdr->power1);
+		//TODO: Find out what the rssi value is (dBm or percentage?)
+		//      and also find out what the maximum possible value is.
+		//      Fill status.ssi and status.signal fields.
+	} else {
+		status.ssi = b43_rssi_postprocess(dev, rxhdr->jssi,
+						  (phystat0 & B43_RX_PHYST0_OFDM),
+						  (phystat0 & B43_RX_PHYST0_GAINCTL),
+						  (phystat3 & B43_RX_PHYST3_TRSTATE));
+		/* the next line looks wrong, but is what mac80211 wants */
+		status.signal = (rxhdr->jssi * 100) / B43_RX_MAX_SSI;
+	}
+
 	if (phystat0 & B43_RX_PHYST0_OFDM)
 		status.rate_idx = b43_plcp_get_bitrate_idx_ofdm(plcp,
 						phytype == B43_PHYTYPE_A);

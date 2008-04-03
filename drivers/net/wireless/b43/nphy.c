@@ -240,7 +240,6 @@ static void b43_nphy_workarounds(struct b43_wldev *dev)
 
 	b43_phy_set(dev, B43_NPHY_IQFLIP,
 		    B43_NPHY_IQFLIP_ADC1 | B43_NPHY_IQFLIP_ADC2);
-	//FIXME the following condition is different in the specs.
 	if (1 /* FIXME band is 2.4GHz */) {
 		b43_phy_set(dev, B43_NPHY_CLASSCTL,
 			    B43_NPHY_CLASSCTL_CCKEN);

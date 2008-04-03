@@ -46,6 +46,7 @@
 #include "main.h"
 #include "debugfs.h"
 #include "phy.h"
+#include "nphy.h"
 #include "dma.h"
 #include "pio.h"
 #include "sysfs.h"
@@ -1019,7 +1020,18 @@ void b43_power_saving_ctl_bits(struct b43_wldev *dev, unsigned int ps_flags)
 /* Turn the Analog ON/OFF */
 static void b43_switch_analog(struct b43_wldev *dev, int on)
 {
-	b43_write16(dev, B43_MMIO_PHY0, on ? 0 : 0xF4);
+	switch (dev->phy.type) {
+	case B43_PHYTYPE_A:
+	case B43_PHYTYPE_G:
+		b43_write16(dev, B43_MMIO_PHY0, on ? 0 : 0xF4);
+		break;
+	case B43_PHYTYPE_N:
+		b43_phy_write(dev, B43_NPHY_AFECTL_OVER,
+			      on ? 0 : 0x7FFF);
+		break;
+	default:
+		B43_WARN_ON(1);
+	}
 }
 
 void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags)
