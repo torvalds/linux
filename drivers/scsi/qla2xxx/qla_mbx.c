@@ -776,7 +776,6 @@ qla2x00_abort_command(scsi_qla_host_t *ha, srb_t *sp)
 	return rval;
 }
 
-#if USE_ABORT_TGT
 /*
  * qla2x00_abort_target
  *	Issue abort target mailbox command.
@@ -834,7 +833,6 @@ qla2x00_abort_target(fc_port_t *fcport)
 
 	return rval;
 }
-#endif
 
 /*
  * qla2x00_get_adapter_id

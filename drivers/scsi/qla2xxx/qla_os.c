@@ -816,15 +816,6 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 	if (qla2x00_wait_for_loop_ready(ha) == QLA_SUCCESS) {
 		if (qla2x00_device_reset(ha, fcport) == 0)
 			ret = SUCCESS;
-
-#if defined(LOGOUT_AFTER_DEVICE_RESET)
-		if (ret == SUCCESS) {
-			if (fcport->flags & FC_FABRIC_DEVICE) {
-				ha->isp_ops->fabric_logout(ha, fcport->loop_id);
-				qla2x00_mark_device_lost(ha, fcport, 0, 0);
-			}
-		}
-#endif
 	} else {
 		DEBUG2(printk(KERN_INFO
 		    "%s failed: loop not ready\n",__func__));

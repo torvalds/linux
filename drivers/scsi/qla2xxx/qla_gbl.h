@@ -151,10 +151,8 @@ qla2x00_issue_iocb(scsi_qla_host_t *, void *, dma_addr_t, size_t);
 extern int
 qla2x00_abort_command(scsi_qla_host_t *, srb_t *);
 
-#if USE_ABORT_TGT
 extern int
 qla2x00_abort_target(fc_port_t *);
-#endif
 
 extern int
 qla2x00_get_adapter_id(scsi_qla_host_t *, uint16_t *, uint8_t *, uint8_t *,
