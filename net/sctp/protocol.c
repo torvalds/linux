@@ -674,21 +674,19 @@ static int sctp_ctl_sock_init(void)
 {
 	int err;
 	sa_family_t family;
-	struct socket *socket;
 
 	if (sctp_get_pf_specific(PF_INET6))
 		family = PF_INET6;
 	else
 		family = PF_INET;
 
-	err = inet_ctl_sock_create(&socket, family,
+	err = inet_ctl_sock_create(&sctp_ctl_sock, family,
 				   SOCK_SEQPACKET, IPPROTO_SCTP);
 	if (err < 0) {
 		printk(KERN_ERR
 		       "SCTP: Failed to create the SCTP control socket.\n");
 		return err;
 	}
-	sctp_ctl_sock = socket->sk;
 	return 0;
 }
 

@@ -1250,19 +1250,21 @@ out:
 	return segs;
 }
 
-int inet_ctl_sock_create(struct socket **sock, unsigned short family,
+int inet_ctl_sock_create(struct sock **sk, unsigned short family,
 			 unsigned short type, unsigned char protocol)
 {
-	int rc = sock_create_kern(family, type, protocol, sock);
+	struct socket *sock;
+	int rc = sock_create_kern(family, type, protocol, &sock);
 
 	if (rc == 0) {
-		(*sock)->sk->sk_allocation = GFP_ATOMIC;
-		inet_sk((*sock)->sk)->uc_ttl = -1;
+		*sk = sock->sk;
+		(*sk)->sk_allocation = GFP_ATOMIC;
+		inet_sk(*sk)->uc_ttl = -1;
 		/*
 		 * Unhash it so that IP input processing does not even see it,
 		 * we do not wish this socket to see incoming packets.
 		 */
-		(*sock)->sk->sk_prot->unhash((*sock)->sk);
+		(*sk)->sk_prot->unhash(*sk);
 	}
 	return rc;
 }

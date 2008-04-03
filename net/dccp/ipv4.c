@@ -991,7 +991,6 @@ static struct inet_protosw dccp_v4_protosw = {
 
 static int __init dccp_v4_init(void)
 {
-	struct socket *socket;
 	int err = proto_register(&dccp_v4_prot, 1);
 
 	if (err != 0)
@@ -1003,11 +1002,10 @@ static int __init dccp_v4_init(void)
 
 	inet_register_protosw(&dccp_v4_protosw);
 
-	err = inet_ctl_sock_create(&socket, PF_INET,
+	err = inet_ctl_sock_create(&dccp_v4_ctl_sk, PF_INET,
 				   SOCK_DCCP, IPPROTO_DCCP);
 	if (err)
 		goto out_unregister_protosw;
-	dccp_v4_ctl_sk = socket->sk;
 out:
 	return err;
 out_unregister_protosw:

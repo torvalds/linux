@@ -1173,7 +1173,6 @@ static struct inet_protosw dccp_v6_protosw = {
 
 static int __init dccp_v6_init(void)
 {
-	struct socket *socket;
 	int err = proto_register(&dccp_v6_prot, 1);
 
 	if (err != 0)
@@ -1185,11 +1184,10 @@ static int __init dccp_v6_init(void)
 
 	inet6_register_protosw(&dccp_v6_protosw);
 
-	err = inet_ctl_sock_create(&socket, PF_INET6,
+	err = inet_ctl_sock_create(&dccp_v6_ctl_sk, PF_INET6,
 				   SOCK_DCCP, IPPROTO_DCCP);
 	if (err != 0)
 		goto out_unregister_protosw;
-	dccp_v6_ctl_sk = socket->sk;
 out:
 	return err;
 out_unregister_protosw:

@@ -2200,14 +2200,13 @@ static struct inet_protosw tcpv6_protosw = {
 static int tcpv6_net_init(struct net *net)
 {
 	int err;
-	struct socket *sock;
 	struct sock *sk;
 
-	err = inet_ctl_sock_create(&sock, PF_INET6, SOCK_RAW, IPPROTO_TCP);
+	err = inet_ctl_sock_create(&sk, PF_INET6, SOCK_RAW, IPPROTO_TCP);
 	if (err)
 		return err;
 
-	net->ipv6.tcp_sk = sk = sock->sk;
+	net->ipv6.tcp_sk = sk;
 	sk_change_net(sk, net);
 	return err;
 }
