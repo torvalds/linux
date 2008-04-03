@@ -19,12 +19,10 @@
 #include <linux/kobject.h>
 #include <linux/module.h>
 
-#ifdef CONFIG_NET
 #include <linux/socket.h>
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
 #include <net/sock.h>
-#endif
 
 
 u64 uevent_seqnum;

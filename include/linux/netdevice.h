@@ -741,7 +741,6 @@ struct net_device
 #define	NETDEV_ALIGN		32
 #define	NETDEV_ALIGN_CONST	(NETDEV_ALIGN - 1)
 
-#ifdef CONFIG_NET
 /*
  * Net namespace inlines
  */
@@ -762,7 +761,6 @@ void dev_net_set(struct net_device *dev, struct net *net)
 	dev->nd_net = net;
 #endif
 }
-#endif
 
 /**
  *	netdev_priv - access network device private data
@@ -827,7 +825,6 @@ struct packet_type {
 extern rwlock_t				dev_base_lock;		/* Device list lock */
 
 
-#ifdef CONFIG_NET
 #define for_each_netdev(net, d)		\
 		list_for_each_entry(d, &(net)->dev_base_head, dev_list)
 #define for_each_netdev_safe(net, d, n)	\
@@ -851,7 +848,6 @@ static inline struct net_device *first_net_device(struct net *net)
 	return list_empty(&net->dev_base_head) ? NULL :
 		net_device_entry(net->dev_base_head.next);
 }
-#endif
 
 extern int 			netdev_boot_setup_check(struct net_device *dev);
 extern unsigned long		netdev_boot_base(const char *prefix, int unit);
