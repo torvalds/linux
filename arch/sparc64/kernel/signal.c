@@ -357,7 +357,7 @@ static int invalid_frame_pointer(void __user *fp, int fplen)
 static inline int
 save_fpu_state(struct pt_regs *regs, __siginfo_fpu_t __user *fpu)
 {
-	unsigned long *fpregs = (unsigned long *)(regs+1);
+	unsigned long *fpregs = current_thread_info()->fpregs;
 	unsigned long fprs;
 	int err = 0;
 	
