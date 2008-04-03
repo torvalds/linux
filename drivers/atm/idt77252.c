@@ -2016,8 +2016,7 @@ idt77252_send_skb(struct atm_vcc *vcc, struct sk_buff *skb, int oam)
 	return 0;
 }
 
-int
-idt77252_send(struct atm_vcc *vcc, struct sk_buff *skb)
+static int idt77252_send(struct atm_vcc *vcc, struct sk_buff *skb)
 {
 	return idt77252_send_skb(vcc, skb, 0);
 }
@@ -3072,8 +3071,7 @@ idt77252_dev_open(struct idt77252_dev *card)
 	return 0;
 }
 
-void
-idt77252_dev_close(struct atm_dev *dev)
+static void idt77252_dev_close(struct atm_dev *dev)
 {
 	struct idt77252_dev *card = dev->dev_data;
 	u32 conf;

@@ -84,7 +84,7 @@ static struct hci_sec_filter hci_sec_filter = {
 };
 
 static struct bt_sock_list hci_sk_list = {
-	.lock = RW_LOCK_UNLOCKED
+	.lock = __RW_LOCK_UNLOCKED(hci_sk_list.lock)
 };
 
 /* Send frame to RAW socket */

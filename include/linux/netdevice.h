@@ -1105,12 +1105,14 @@ static inline int netif_is_multiqueue(const struct net_device *dev)
 }
 
 /* Use this variant when it is known for sure that it
- * is executing from interrupt context.
+ * is executing from hardware interrupt context or with hardware interrupts
+ * disabled.
  */
 extern void dev_kfree_skb_irq(struct sk_buff *skb);
 
 /* Use this variant in places where it could be invoked
- * either from interrupt or non-interrupt context.
+ * from either hardware interrupt or other context, with hardware interrupts
+ * either disabled or enabled.
  */
 extern void dev_kfree_skb_any(struct sk_buff *skb);
 
