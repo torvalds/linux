@@ -913,9 +913,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	fs_info->generation = btrfs_super_generation(disk_super) + 1;
 	if (btrfs_super_num_devices(disk_super) > 0) {
-		fs_info->data_alloc_profile = BTRFS_BLOCK_GROUP_RAID0;
-		fs_info->metadata_alloc_profile = BTRFS_BLOCK_GROUP_RAID1;
-		fs_info->system_alloc_profile = BTRFS_BLOCK_GROUP_RAID0;
+		fs_info->data_alloc_profile = BTRFS_BLOCK_GROUP_RAID0 |
+			BTRFS_BLOCK_GROUP_RAID1;
+		fs_info->metadata_alloc_profile = BTRFS_BLOCK_GROUP_RAID1 |
+			BTRFS_BLOCK_GROUP_DUP;
+		fs_info->system_alloc_profile = fs_info->metadata_alloc_profile;
 	}
 	mutex_unlock(&fs_info->fs_mutex);
 	return tree_root;

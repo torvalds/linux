@@ -419,6 +419,7 @@ struct btrfs_csum_item {
 #define BTRFS_BLOCK_GROUP_METADATA (1 << 2)
 #define BTRFS_BLOCK_GROUP_RAID0    (1 << 3)
 #define BTRFS_BLOCK_GROUP_RAID1    (1 << 4)
+#define BTRFS_BLOCK_GROUP_DUP	   (1 << 5)
 
 
 struct btrfs_block_group_item {

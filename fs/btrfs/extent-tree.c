@@ -231,7 +231,7 @@ again:
 		if (start + num  > total_fs_bytes)
 			goto new_group;
 		if (!block_group_bits(cache, data)) {
-			printk("block group bits don't match %Lu %Lu\n", cache->flags, data);
+			printk("block group bits don't match %Lu %d\n", cache->flags, data);
 		}
 		*start_ret = start;
 		return 0;
@@ -1048,7 +1048,8 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 static void set_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
 {
 	u64 extra_flags = flags & (BTRFS_BLOCK_GROUP_RAID0 |
-				   BTRFS_BLOCK_GROUP_RAID1);
+				   BTRFS_BLOCK_GROUP_RAID1 |
+				   BTRFS_BLOCK_GROUP_DUP);
 	if (extra_flags) {
 		if (flags & BTRFS_BLOCK_GROUP_DATA)
 			fs_info->avail_data_alloc_bits |= extra_flags;
