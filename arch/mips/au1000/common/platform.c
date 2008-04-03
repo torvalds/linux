@@ -3,15 +3,64 @@
  *
  * Copyright 2004, Matt Porter <mporter@kernel.crashing.org>
  *
+ * (C) Copyright Embedded Alley Solutions, Inc 2005
+ * Author: Pantelis Antoniou <pantelis@embeddedalley.com>
+ *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
 
 #include <linux/platform_device.h>
+#include <linux/serial_8250.h>
 #include <linux/init.h>
 
 #include <asm/mach-au1x00/au1xxx.h>
+
+#define PORT(_base, _irq)				\
+	{						\
+		.iobase		= _base,		\
+		.membase	= (void __iomem *)_base,\
+		.mapbase	= CPHYSADDR(_base),	\
+		.irq		= _irq,			\
+		.regshift	= 2,			\
+		.iotype		= UPIO_AU,		\
+		.flags		= UPF_SKIP_TEST 	\
+	}
+
+static struct plat_serial8250_port au1x00_uart_data[] = {
+#if defined(CONFIG_SERIAL_8250_AU1X00)
+#if defined(CONFIG_SOC_AU1000)
+	PORT(UART0_ADDR, AU1000_UART0_INT),
+	PORT(UART1_ADDR, AU1000_UART1_INT),
+	PORT(UART2_ADDR, AU1000_UART2_INT),
+	PORT(UART3_ADDR, AU1000_UART3_INT),
+#elif defined(CONFIG_SOC_AU1500)
+	PORT(UART0_ADDR, AU1500_UART0_INT),
+	PORT(UART3_ADDR, AU1500_UART3_INT),
+#elif defined(CONFIG_SOC_AU1100)
+	PORT(UART0_ADDR, AU1100_UART0_INT),
+	PORT(UART1_ADDR, AU1100_UART1_INT),
+	PORT(UART3_ADDR, AU1100_UART3_INT),
+#elif defined(CONFIG_SOC_AU1550)
+	PORT(UART0_ADDR, AU1550_UART0_INT),
+	PORT(UART1_ADDR, AU1550_UART1_INT),
+	PORT(UART3_ADDR, AU1550_UART3_INT),
+#elif defined(CONFIG_SOC_AU1200)
+	PORT(UART0_ADDR, AU1200_UART0_INT),
+	PORT(UART1_ADDR, AU1200_UART1_INT),
+#endif
+#endif	/* CONFIG_SERIAL_8250_AU1X00 */
+	{ },
+};
+
+static struct platform_device au1xx0_uart_device = {
+	.name			= "serial8250",
+	.id			= PLAT8250_DEV_AU1X00,
+	.dev			= {
+		.platform_data	= au1x00_uart_data,
+	},
+};
 
 /* OHCI (USB full speed host controller) */
 static struct resource au1xxx_usb_ohci_resources[] = {
@@ -287,6 +336,7 @@ static struct platform_device pbdb_smbus_device = {
 #endif
 
 static struct platform_device *au1xxx_platform_devices[] __initdata = {
+	&au1xx0_uart_device,
 	&au1xxx_usb_ohci_device,
 	&au1x00_pcmcia_device,
 #ifdef CONFIG_FB_AU1100
@@ -310,6 +360,13 @@ static struct platform_device *au1xxx_platform_devices[] __initdata = {
 
 int __init au1xxx_platform_init(void)
 {
+	unsigned int uartclk = get_au1x00_uart_baud_base() * 16;
+	int i;
+
+	/* Fill up uartclk. */
+	for (i = 0; au1x00_uart_data[i].flags ; i++)
+		au1x00_uart_data[i].uartclk = uartclk;
+
 	return platform_add_devices(au1xxx_platform_devices, ARRAY_SIZE(au1xxx_platform_devices));
 }
 
