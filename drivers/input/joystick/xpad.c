@@ -1,5 +1,5 @@
 /*
- * X-Box gamepad - v0.0.6
+ * X-Box gamepad driver
  *
  * Copyright (c) 2002 Marko Friedemann <mfr@bmx-chemnitz.de>
  *               2004 Oliver Schwartz <Oliver.Schwartz@gmx.de>,
@@ -68,6 +68,8 @@
  *  - dance pads will map D-PAD to buttons, not axes
  *  - pass the module paramater 'dpad_to_buttons' to force
  *    the D-PAD to map to buttons if your pad is not detected
+ *
+ * Later changes can be tracked in SCM.
  */
 
 #include <linux/kernel.h>
@@ -77,7 +79,6 @@
 #include <linux/module.h>
 #include <linux/usb/input.h>
 
-#define DRIVER_VERSION "v0.0.6"
 #define DRIVER_AUTHOR "Marko Friedemann <mfr@bmx-chemnitz.de>"
 #define DRIVER_DESC "X-Box pad driver"
 
@@ -771,7 +772,7 @@ static int __init usb_xpad_init(void)
 {
 	int result = usb_register(&xpad_driver);
 	if (result == 0)
-		info(DRIVER_DESC ":" DRIVER_VERSION);
+		info(DRIVER_DESC);
 	return result;
 }
 
