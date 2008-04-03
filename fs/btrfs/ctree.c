@@ -2052,6 +2052,7 @@ again:
 				path->nodes[0] = right;
 				path->slots[0] = 0;
 				path->slots[1] += 1;
+				btrfs_mark_buffer_dirty(right);
 				return ret;
 			}
 			mid = slot;
@@ -2082,6 +2083,7 @@ again:
 					if (wret)
 						ret = wret;
 				}
+				btrfs_mark_buffer_dirty(right);
 				return ret;
 			} else if (extend && slot == 0) {
 				mid = 1;
