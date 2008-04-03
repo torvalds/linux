@@ -15,14 +15,6 @@
 #include <asm/prom.h>
 #endif
 
-/* XXX(hch): this is ugly, but we don't want to pull in exioctl.h */
-#ifndef EXT_IS_LUN_BIT_SET
-#define EXT_IS_LUN_BIT_SET(P,L) \
-    (((P)->mask[L/8] & (0x80 >> (L%8)))?1:0)
-#define EXT_SET_LUN_BIT(P,L) \
-    ((P)->mask[L/8] |= (0x80 >> (L%8)))
-#endif
-
 /*
 *  QLogic ISP2x00 Hardware Support Function Prototypes.
 */
@@ -2176,20 +2168,6 @@ cleanup_allocation:
 }
 
 static void
-qla2x00_probe_for_all_luns(scsi_qla_host_t *ha)
-{
-	fc_port_t	*fcport;
-
-	qla2x00_mark_all_devices_lost(ha, 0);
- 	list_for_each_entry(fcport, &ha->fcports, list) {
-		if (fcport->port_type != FCT_TARGET)
-			continue;
-
-		qla2x00_update_fcport(ha, fcport);
-	}
-}
-
-static void
 qla2x00_iidma_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
 {
 #define LS_UNKNOWN      2
@@ -3197,25 +3175,6 @@ qla2x00_loop_resync(scsi_qla_host_t *ha)
 	}
 
 	return (rval);
-}
-
-void
-qla2x00_rescan_fcports(scsi_qla_host_t *ha)
-{
-	int rescan_done;
-	fc_port_t *fcport;
-
-	rescan_done = 0;
-	list_for_each_entry(fcport, &ha->fcports, list) {
-		if ((fcport->flags & FCF_RESCAN_NEEDED) == 0)
-			continue;
-
-		qla2x00_update_fcport(ha, fcport);
-		fcport->flags &= ~FCF_RESCAN_NEEDED;
-
-		rescan_done = 1;
-	}
-	qla2x00_probe_for_all_luns(ha);
 }
 
 void

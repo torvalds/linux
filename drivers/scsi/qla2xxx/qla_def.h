@@ -2449,8 +2449,6 @@ typedef struct scsi_qla_host {
 #define  MBX_TIMEDOUT		BIT_5
 #define  MBX_ACCESS_TIMEDOUT	BIT_6
 
-	mbx_cmd_t 	mc;
-
 	/* Basic firmware related information. */
 	uint16_t	fw_major_version;
 	uint16_t	fw_minor_version;

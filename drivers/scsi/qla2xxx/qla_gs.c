@@ -6,12 +6,6 @@
  */
 #include "qla_def.h"
 
-static inline struct ct_sns_req *
-qla2x00_prep_ct_req(struct ct_sns_req *, uint16_t, uint16_t);
-
-static inline struct sns_cmd_pkt *
-qla2x00_prep_sns_cmd(scsi_qla_host_t *, uint16_t, uint16_t, uint16_t);
-
 static int qla2x00_sns_ga_nxt(scsi_qla_host_t *, fc_port_t *);
 static int qla2x00_sns_gid_pt(scsi_qla_host_t *, sw_info_t *);
 static int qla2x00_sns_gpn_id(scsi_qla_host_t *, sw_info_t *);

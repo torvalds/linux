@@ -26,9 +26,6 @@ char qla2x00_version_str[40];
  */
 static struct kmem_cache *srb_cachep;
 
-/*
- * Ioctl related information.
- */
 int num_hosts;
 int ql2xlogintimeout = 20;
 module_param(ql2xlogintimeout, int, S_IRUGO|S_IRUSR);
@@ -105,7 +102,6 @@ static int qla2xxx_eh_abort(struct scsi_cmnd *);
 static int qla2xxx_eh_device_reset(struct scsi_cmnd *);
 static int qla2xxx_eh_bus_reset(struct scsi_cmnd *);
 static int qla2xxx_eh_host_reset(struct scsi_cmnd *);
-static int qla2x00_device_reset(scsi_qla_host_t *, fc_port_t *);
 
 static int qla2x00_change_queue_depth(struct scsi_device *, int);
 static int qla2x00_change_queue_type(struct scsi_device *, int);
@@ -685,7 +681,6 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 
 		DEBUG2(printk("%s(%ld): aborting sp %p from RISC. pid=%ld.\n",
 		    __func__, ha->host_no, sp, serial));
-		DEBUG3(qla2x00_print_scsi_cmd(cmd));
 
 		spin_unlock_irqrestore(&pha->hardware_lock, flags);
 		if (ha->isp_ops->abort_command(ha, sp)) {
@@ -814,7 +809,7 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 		goto eh_dev_reset_done;
 
 	if (qla2x00_wait_for_loop_ready(ha) == QLA_SUCCESS) {
-		if (qla2x00_device_reset(ha, fcport) == 0)
+		if (ha->isp_ops->abort_target(fcport) == 0)
 			ret = SUCCESS;
 	} else {
 		DEBUG2(printk(KERN_INFO
@@ -1071,7 +1066,7 @@ qla2x00_loop_reset(scsi_qla_host_t *ha)
 			if (fcport->port_type != FCT_TARGET)
 				continue;
 
-			ret = qla2x00_device_reset(ha, fcport);
+			ret = ha->isp_ops->abort_target(fcport);
 			if (ret != QLA_SUCCESS) {
 				DEBUG2_3(printk("%s(%ld): bus_reset failed: "
 				    "target_reset=%d d_id=%x.\n", __func__,
@@ -1084,26 +1079,6 @@ qla2x00_loop_reset(scsi_qla_host_t *ha)
 	ha->marker_needed = 1;
 
 	return QLA_SUCCESS;
-}
-
-/*
- * qla2x00_device_reset
- *	Issue bus device reset message to the target.
- *
- * Input:
- *	ha = adapter block pointer.
- *	t = SCSI ID.
- *	TARGET_QUEUE_LOCK must be released.
- *	ADAPTER_STATE_LOCK must be released.
- *
- * Context:
- *	Kernel context.
- */
-static int
-qla2x00_device_reset(scsi_qla_host_t *ha, fc_port_t *reset_fcport)
-{
-	/* Abort Target command will clear Reservation */
-	return ha->isp_ops->abort_target(reset_fcport);
 }
 
 void
@@ -2378,12 +2353,6 @@ qla2x00_do_dpc(void *data)
 		if (test_and_clear_bit(FCPORT_UPDATE_NEEDED, &ha->dpc_flags))
 			qla2x00_update_fcports(ha);
 
-		if (test_and_clear_bit(LOOP_RESET_NEEDED, &ha->dpc_flags)) {
-			DEBUG(printk("scsi(%ld): dpc: sched loop_reset()\n",
-			    ha->host_no));
-			qla2x00_loop_reset(ha);
-		}
-
 		if (test_and_clear_bit(RESET_MARKER_NEEDED, &ha->dpc_flags) &&
 		    (!(test_and_set_bit(RESET_ACTIVE, &ha->dpc_flags)))) {
 
@@ -2454,19 +2423,6 @@ qla2x00_do_dpc(void *data)
 			    ha->host_no));
 		}
 
-		if ((test_bit(LOGIN_RETRY_NEEDED, &ha->dpc_flags)) &&
-		    atomic_read(&ha->loop_state) != LOOP_DOWN) {
-
-			clear_bit(LOGIN_RETRY_NEEDED, &ha->dpc_flags);
-			DEBUG(printk("scsi(%ld): qla2x00_login_retry()\n",
-			    ha->host_no));
-
-			set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
-
-			DEBUG(printk("scsi(%ld): qla2x00_login_retry - end\n",
-			    ha->host_no));
-		}
-
 		if (test_and_clear_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags)) {
 
 			DEBUG(printk("scsi(%ld): qla2x00_loop_resync()\n",
@@ -2481,18 +2437,6 @@ qla2x00_do_dpc(void *data)
 			}
 
 			DEBUG(printk("scsi(%ld): qla2x00_loop_resync - end\n",
-			    ha->host_no));
-		}
-
-		if (test_and_clear_bit(FCPORT_RESCAN_NEEDED, &ha->dpc_flags)) {
-
-			DEBUG(printk("scsi(%ld): Rescan flagged fcports...\n",
-			    ha->host_no));
-
-			qla2x00_rescan_fcports(ha);
-
-			DEBUG(printk("scsi(%ld): Rescan flagged fcports..."
-			    "end.\n",
 			    ha->host_no));
 		}
 
@@ -2697,10 +2641,8 @@ qla2x00_timer(scsi_qla_host_t *ha)
 	/* Schedule the DPC routine if needed */
 	if ((test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags) ||
 	    test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags) ||
-	    test_bit(LOOP_RESET_NEEDED, &ha->dpc_flags) ||
 	    test_bit(FCPORT_UPDATE_NEEDED, &ha->dpc_flags) ||
 	    start_dpc ||
-	    test_bit(LOGIN_RETRY_NEEDED, &ha->dpc_flags) ||
 	    test_bit(RESET_MARKER_NEEDED, &ha->dpc_flags) ||
 	    test_bit(BEACON_BLINK_NEEDED, &ha->dpc_flags) ||
 	    test_bit(VP_DPC_NEEDED, &ha->dpc_flags) ||

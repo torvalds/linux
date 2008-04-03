@@ -38,9 +38,6 @@ extern int qla2x00_loop_resync(scsi_qla_host_t *);
 extern int qla2x00_fabric_login(scsi_qla_host_t *, fc_port_t *, uint16_t *);
 extern int qla2x00_local_device_login(scsi_qla_host_t *, fc_port_t *);
 
-extern void qla2x00_restart_queues(scsi_qla_host_t *, uint8_t);
-
-extern void qla2x00_rescan_fcports(scsi_qla_host_t *);
 extern void qla2x00_update_fcports(scsi_qla_host_t *);
 
 extern int qla2x00_abort_isp(scsi_qla_host_t *);
@@ -312,7 +309,6 @@ extern void qla24xx_fw_dump(scsi_qla_host_t *, int);
 extern void qla25xx_fw_dump(scsi_qla_host_t *, int);
 extern void qla2x00_dump_regs(scsi_qla_host_t *);
 extern void qla2x00_dump_buffer(uint8_t *, uint32_t);
-extern void qla2x00_print_scsi_cmd(struct scsi_cmnd *);
 
 /*
  * Global Function Prototypes in qla_gs.c source file.

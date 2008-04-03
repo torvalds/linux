@@ -16,8 +16,6 @@
 #include <scsi/scsicam.h>
 #include <linux/delay.h>
 
-void qla2x00_vp_stop_timer(scsi_qla_host_t *);
-
 void
 qla2x00_vp_stop_timer(scsi_qla_host_t *vha)
 {
