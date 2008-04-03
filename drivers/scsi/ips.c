@@ -2377,7 +2377,7 @@ ips_get_bios_version(ips_ha_t * ha, int intr)
 			if (inb(ha->io_addr + IPS_REG_FLDP) != 0x55)
 				return;
 
-			outl(cpu_to_le32(1), ha->io_addr + IPS_REG_FLAP);
+			outl(1, ha->io_addr + IPS_REG_FLAP);
 			if (ha->pcidev->revision == IPS_REVID_TROMBONE64)
 				udelay(25);	/* 25 us */
 
@@ -2385,21 +2385,21 @@ ips_get_bios_version(ips_ha_t * ha, int intr)
 				return;
 
 			/* Get Major version */
-			outl(cpu_to_le32(0x1FF), ha->io_addr + IPS_REG_FLAP);
+			outl(0x1FF, ha->io_addr + IPS_REG_FLAP);
 			if (ha->pcidev->revision == IPS_REVID_TROMBONE64)
 				udelay(25);	/* 25 us */
 
 			major = inb(ha->io_addr + IPS_REG_FLDP);
 
 			/* Get Minor version */
-			outl(cpu_to_le32(0x1FE), ha->io_addr + IPS_REG_FLAP);
+			outl(0x1FE, ha->io_addr + IPS_REG_FLAP);
 			if (ha->pcidev->revision == IPS_REVID_TROMBONE64)
 				udelay(25);	/* 25 us */
 
 			minor = inb(ha->io_addr + IPS_REG_FLDP);
 
 			/* Get SubMinor version */
-			outl(cpu_to_le32(0x1FD), ha->io_addr + IPS_REG_FLAP);
+			outl(0x1FD, ha->io_addr + IPS_REG_FLAP);
 			if (ha->pcidev->revision == IPS_REVID_TROMBONE64)
 				udelay(25);	/* 25 us */
 
@@ -4852,7 +4852,7 @@ ips_init_copperhead(ips_ha_t * ha)
 		return (0);
 
 	/* setup CCCR */
-	outl(cpu_to_le32(0x1010), ha->io_addr + IPS_REG_CCCR);
+	outl(0x1010, ha->io_addr + IPS_REG_CCCR);
 
 	/* Enable busmastering */
 	outb(IPS_BIT_EBM, ha->io_addr + IPS_REG_SCPR);
@@ -5234,12 +5234,12 @@ ips_statinit(ips_ha_t * ha)
 	ha->adapt->p_status_tail = ha->adapt->status;
 
 	phys_status_start = ha->adapt->hw_status_start;
-	outl(cpu_to_le32(phys_status_start), ha->io_addr + IPS_REG_SQSR);
-	outl(cpu_to_le32(phys_status_start + IPS_STATUS_Q_SIZE),
+	outl(phys_status_start, ha->io_addr + IPS_REG_SQSR);
+	outl(phys_status_start + IPS_STATUS_Q_SIZE,
 	     ha->io_addr + IPS_REG_SQER);
-	outl(cpu_to_le32(phys_status_start + IPS_STATUS_SIZE),
+	outl(phys_status_start + IPS_STATUS_SIZE,
 	     ha->io_addr + IPS_REG_SQHR);
-	outl(cpu_to_le32(phys_status_start), ha->io_addr + IPS_REG_SQTR);
+	outl(phys_status_start, ha->io_addr + IPS_REG_SQTR);
 
 	ha->adapt->hw_status_tail = phys_status_start;
 }
@@ -5296,7 +5296,7 @@ ips_statupd_copperhead(ips_ha_t * ha)
 		ha->adapt->hw_status_tail = ha->adapt->hw_status_start;
 	}
 
-	outl(cpu_to_le32(ha->adapt->hw_status_tail),
+	outl(ha->adapt->hw_status_tail,
 	     ha->io_addr + IPS_REG_SQTR);
 
 	return (ha->adapt->p_status_tail->value);
@@ -5398,8 +5398,8 @@ ips_issue_copperhead(ips_ha_t * ha, ips_scb_t * scb)
 		}		/* end if */
 	}			/* end while */
 
-	outl(cpu_to_le32(scb->scb_busaddr), ha->io_addr + IPS_REG_CCSAR);
-	outw(cpu_to_le32(IPS_BIT_START_CMD), ha->io_addr + IPS_REG_CCCR);
+	outl(scb->scb_busaddr, ha->io_addr + IPS_REG_CCSAR);
+	outw(IPS_BIT_START_CMD, ha->io_addr + IPS_REG_CCCR);
 
 	return (IPS_SUCCESS);
 }
@@ -5484,7 +5484,7 @@ ips_issue_i2o(ips_ha_t * ha, ips_scb_t * scb)
 			  ips_name, ha->host_num, scb->cmd.basic_io.command_id);
 	}
 
-	outl(cpu_to_le32(scb->scb_busaddr), ha->io_addr + IPS_REG_I2O_INMSGQ);
+	outl(scb->scb_busaddr, ha->io_addr + IPS_REG_I2O_INMSGQ);
 
 	return (IPS_SUCCESS);
 }
@@ -6376,7 +6376,7 @@ ips_program_bios(ips_ha_t * ha, char *buffer, uint32_t buffersize,
 
 	for (i = 0; i < buffersize; i++) {
 		/* write a byte */
-		outl(cpu_to_le32(i + offset), ha->io_addr + IPS_REG_FLAP);
+		outl(i + offset, ha->io_addr + IPS_REG_FLAP);
 		if (ha->pcidev->revision == IPS_REVID_TROMBONE64)
 			udelay(25);	/* 25 us */
 
@@ -6561,7 +6561,7 @@ ips_verify_bios(ips_ha_t * ha, char *buffer, uint32_t buffersize,
 	if (inb(ha->io_addr + IPS_REG_FLDP) != 0x55)
 		return (1);
 
-	outl(cpu_to_le32(1), ha->io_addr + IPS_REG_FLAP);
+	outl(1, ha->io_addr + IPS_REG_FLAP);
 	if (ha->pcidev->revision == IPS_REVID_TROMBONE64)
 		udelay(25);	/* 25 us */
 	if (inb(ha->io_addr + IPS_REG_FLDP) != 0xAA)
@@ -6570,7 +6570,7 @@ ips_verify_bios(ips_ha_t * ha, char *buffer, uint32_t buffersize,
 	checksum = 0xff;
 	for (i = 2; i < buffersize; i++) {
 
-		outl(cpu_to_le32(i + offset), ha->io_addr + IPS_REG_FLAP);
+		outl(i + offset, ha->io_addr + IPS_REG_FLAP);
 		if (ha->pcidev->revision == IPS_REVID_TROMBONE64)
 			udelay(25);	/* 25 us */
 
