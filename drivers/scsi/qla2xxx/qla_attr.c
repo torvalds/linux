@@ -849,20 +849,20 @@ static void
 qla2x00_get_host_speed(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *ha = to_qla_parent(shost_priv(shost));
-	uint32_t speed = 0;
+	u32 speed = FC_PORTSPEED_UNKNOWN;
 
 	switch (ha->link_data_rate) {
 	case PORT_SPEED_1GB:
-		speed = 1;
+		speed = FC_PORTSPEED_1GBIT;
 		break;
 	case PORT_SPEED_2GB:
-		speed = 2;
+		speed = FC_PORTSPEED_2GBIT;
 		break;
 	case PORT_SPEED_4GB:
-		speed = 4;
+		speed = FC_PORTSPEED_4GBIT;
 		break;
 	case PORT_SPEED_8GB:
-		speed = 8;
+		speed = FC_PORTSPEED_8GBIT;
 		break;
 	}
 	fc_host_speed(shost) = speed;
@@ -1196,6 +1196,7 @@ struct fc_function_template qla2xxx_transport_functions = {
 	.show_host_node_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
+	.show_host_supported_speeds = 1,
 
 	.get_host_port_id = qla2x00_get_host_port_id,
 	.show_host_port_id = 1,
@@ -1276,9 +1277,23 @@ struct fc_function_template qla2xxx_transport_vport_functions = {
 void
 qla2x00_init_host_attr(scsi_qla_host_t *ha)
 {
+	u32 speed = FC_PORTSPEED_UNKNOWN;
+
 	fc_host_node_name(ha->host) = wwn_to_u64(ha->node_name);
 	fc_host_port_name(ha->host) = wwn_to_u64(ha->port_name);
 	fc_host_supported_classes(ha->host) = FC_COS_CLASS3;
 	fc_host_max_npiv_vports(ha->host) = ha->max_npiv_vports;;
 	fc_host_npiv_vports_inuse(ha->host) = ha->cur_vport_count;
+
+	if (IS_QLA25XX(ha))
+		speed = FC_PORTSPEED_8GBIT | FC_PORTSPEED_4GBIT |
+		    FC_PORTSPEED_2GBIT | FC_PORTSPEED_1GBIT;
+	else if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
+		speed = FC_PORTSPEED_4GBIT | FC_PORTSPEED_2GBIT |
+		    FC_PORTSPEED_1GBIT;
+	else if (IS_QLA23XX(ha))
+		speed = FC_PORTSPEED_2GBIT | FC_PORTSPEED_1GBIT;
+	else
+		speed = FC_PORTSPEED_1GBIT;
+	fc_host_supported_speeds(ha->host) = speed;
 }
