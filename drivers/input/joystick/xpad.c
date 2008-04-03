@@ -87,7 +87,7 @@
    but we map them to axes when possible to simplify things */
 #define MAP_DPAD_TO_BUTTONS    0
 #define MAP_DPAD_TO_AXES       1
-#define MAP_DPAD_UNKNOWN       -1
+#define MAP_DPAD_UNKNOWN       2
 
 #define XTYPE_XBOX        0
 #define XTYPE_XBOX360     1
@@ -653,7 +653,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	xpad->dpad_mapping = xpad_device[i].dpad_mapping;
 	xpad->xtype = xpad_device[i].xtype;
 	if (xpad->dpad_mapping == MAP_DPAD_UNKNOWN)
-		xpad->dpad_mapping = dpad_to_buttons;
+		xpad->dpad_mapping = !dpad_to_buttons;
 	if (xpad->xtype == XTYPE_UNKNOWN)
 		xpad->xtype = (intf->cur_altsetting->desc.bInterfaceClass == USB_CLASS_VENDOR_SPEC);
 	xpad->dev = input_dev;
