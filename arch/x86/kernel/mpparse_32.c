@@ -288,39 +288,40 @@ static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 	unsigned char *mpt = ((unsigned char *)mpc) + count;
 
 	if (memcmp(mpc->mpc_signature, MPC_SIGNATURE, 4)) {
-		printk(KERN_ERR "SMP mptable: bad signature [0x%x]!\n",
-		       *(u32 *) mpc->mpc_signature);
+		printk(KERN_ERR "MPTABLE: bad signature [%c%c%c%c]!\n",
+		       mpc->mpc_signature[0], mpc->mpc_signature[1],
+		       mpc->mpc_signature[2], mpc->mpc_signature[3]);
 		return 0;
 	}
 	if (mpf_checksum((unsigned char *)mpc, mpc->mpc_length)) {
-		printk(KERN_ERR "SMP mptable: checksum error!\n");
+		printk(KERN_ERR "MPTABLE: checksum error!\n");
 		return 0;
 	}
 	if (mpc->mpc_spec != 0x01 && mpc->mpc_spec != 0x04) {
-		printk(KERN_ERR "SMP mptable: bad table version (%d)!!\n",
+		printk(KERN_ERR "MPTABLE: bad table version (%d)!!\n",
 		       mpc->mpc_spec);
 		return 0;
 	}
 	if (!mpc->mpc_lapic) {
-		printk(KERN_ERR "SMP mptable: null local APIC address!\n");
+		printk(KERN_ERR "MPTABLE: null local APIC address!\n");
 		return 0;
 	}
 	memcpy(oem, mpc->mpc_oem, 8);
 	oem[8] = 0;
-	printk(KERN_INFO "OEM ID: %s ", oem);
+	printk(KERN_INFO "MPTABLE: OEM ID: %s ", oem);
 
 	memcpy(str, mpc->mpc_productid, 12);
 	str[12] = 0;
 	printk("Product ID: %s ", str);
 
+#ifdef CONFIG_X86_32
 	mps_oem_check(mpc, oem, str);
+#endif
+	printk(KERN_INFO "MPTABLE: Product ID: %s ", str);
 
-	printk("APIC at: 0x%X\n", mpc->mpc_lapic);
+	printk(KERN_INFO "MPTABLE: APIC at: 0x%X\n", mpc->mpc_lapic);
 
-	/*
-	 * Save the local APIC address (it might be non-default) -- but only
-	 * if we're not using ACPI.
-	 */
+	/* save the local APIC address, it might be non-default */
 	if (!acpi_lapic)
 		mp_lapic_addr = mpc->mpc_lapic;
 
@@ -399,7 +400,7 @@ static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 	}
 	setup_apic_routing();
 	if (!num_processors)
-		printk(KERN_ERR "SMP mptable: no processors registered!\n");
+		printk(KERN_ERR "MPTABLE: no processors registered!\n");
 	return num_processors;
 }
 

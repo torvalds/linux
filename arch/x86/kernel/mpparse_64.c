@@ -188,13 +188,13 @@ static void __init MP_lintsrc_info(struct mpc_config_lintsrc *m)
 static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 {
 	char str[16];
+	char oem[10];
 	int count = sizeof(*mpc);
 	unsigned char *mpt = ((unsigned char *)mpc) + count;
 
 	if (memcmp(mpc->mpc_signature, MPC_SIGNATURE, 4)) {
 		printk(KERN_ERR "MPTABLE: bad signature [%c%c%c%c]!\n",
-		       mpc->mpc_signature[0],
-		       mpc->mpc_signature[1],
+		       mpc->mpc_signature[0], mpc->mpc_signature[1],
 		       mpc->mpc_signature[2], mpc->mpc_signature[3]);
 		return 0;
 	}
@@ -211,12 +211,17 @@ static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 		printk(KERN_ERR "MPTABLE: null local APIC address!\n");
 		return 0;
 	}
-	memcpy(str, mpc->mpc_oem, 8);
-	str[8] = 0;
-	printk(KERN_INFO "MPTABLE: OEM ID: %s ", str);
+	memcpy(oem, mpc->mpc_oem, 8);
+	oem[8] = 0;
+	printk(KERN_INFO "MPTABLE: OEM ID: %s ", oem);
 
 	memcpy(str, mpc->mpc_productid, 12);
 	str[12] = 0;
+	printk("Product ID: %s ", str);
+
+#ifdef CONFIG_X86_32
+	mps_oem_check(mpc, oem, str);
+#endif
 	printk(KERN_INFO "MPTABLE: Product ID: %s ", str);
 
 	printk(KERN_INFO "MPTABLE: APIC at: 0x%X\n", mpc->mpc_lapic);
@@ -231,12 +236,16 @@ static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 	/*
 	 *      Now process the configuration blocks.
 	 */
+#ifdef CONFIG_X86_NUMAQ
+	mpc_record = 0;
+#endif
 	while (count < mpc->mpc_length) {
 		switch (*mpt) {
 		case MP_PROCESSOR:
 			{
 				struct mpc_config_processor *m =
 				    (struct mpc_config_processor *)mpt;
+				/* ACPI may have already provided this data */
 				if (!acpi_lapic)
 					MP_processor_info(m);
 				mpt += sizeof(*m);
@@ -280,7 +289,15 @@ static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 				count += sizeof(*m);
 				break;
 			}
+		default:
+			{
+				count = mpc->mpc_length;
+				break;
+			}
 		}
+#ifdef CONFIG_X86_NUMAQ
+		++mpc_record;
+#endif
 	}
 	setup_apic_routing();
 	if (!num_processors)
