@@ -65,19 +65,25 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 
 static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 {
+	int apicid;
 	char *bootup_cpu = "";
 
 	if (!(m->mpc_cpuflag & CPU_ENABLED)) {
 		disabled_cpus++;
 		return;
 	}
+#ifdef CONFIG_X86_NUMAQ
+	apicid = mpc_apic_id(m, translation_table[mpc_record]);
+#else
+	apicid = m->mpc_apicid;
+#endif
 	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
 		bootup_cpu = " (Bootup-CPU)";
 		boot_cpu_physical_apicid = m->mpc_apicid;
 	}
 
 	printk(KERN_INFO "Processor #%d%s\n", m->mpc_apicid, bootup_cpu);
-	generic_processor_info(m->mpc_apicid, 0);
+	generic_processor_info(apicid, m->mpc_apicver);
 }
 
 static void __init MP_bus_info(struct mpc_config_bus *m)

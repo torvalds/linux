@@ -82,6 +82,7 @@ static struct mpc_config_translation *translation_table[MAX_MPC_ENTRY]
 static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 {
 	int apicid;
+	char *bootup_cpu = "";
 
 	if (!(m->mpc_cpuflag & CPU_ENABLED)) {
 		disabled_cpus++;
@@ -90,65 +91,14 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 #ifdef CONFIG_X86_NUMAQ
 	apicid = mpc_apic_id(m, translation_table[mpc_record]);
 #else
-	Dprintk("Processor #%d %u:%u APIC version %d\n",
-		m->mpc_apicid,
-		(m->mpc_cpufeature & CPU_FAMILY_MASK) >> 8,
-		(m->mpc_cpufeature & CPU_MODEL_MASK) >> 4, m->mpc_apicver);
 	apicid = m->mpc_apicid;
 #endif
-
-	if (m->mpc_featureflag & (1 << 0))
-		Dprintk("    Floating point unit present.\n");
-	if (m->mpc_featureflag & (1 << 7))
-		Dprintk("    Machine Exception supported.\n");
-	if (m->mpc_featureflag & (1 << 8))
-		Dprintk("    64 bit compare & exchange supported.\n");
-	if (m->mpc_featureflag & (1 << 9))
-		Dprintk("    Internal APIC present.\n");
-	if (m->mpc_featureflag & (1 << 11))
-		Dprintk("    SEP present.\n");
-	if (m->mpc_featureflag & (1 << 12))
-		Dprintk("    MTRR  present.\n");
-	if (m->mpc_featureflag & (1 << 13))
-		Dprintk("    PGE  present.\n");
-	if (m->mpc_featureflag & (1 << 14))
-		Dprintk("    MCA  present.\n");
-	if (m->mpc_featureflag & (1 << 15))
-		Dprintk("    CMOV  present.\n");
-	if (m->mpc_featureflag & (1 << 16))
-		Dprintk("    PAT  present.\n");
-	if (m->mpc_featureflag & (1 << 17))
-		Dprintk("    PSE  present.\n");
-	if (m->mpc_featureflag & (1 << 18))
-		Dprintk("    PSN  present.\n");
-	if (m->mpc_featureflag & (1 << 19))
-		Dprintk("    Cache Line Flush Instruction present.\n");
-	/* 20 Reserved */
-	if (m->mpc_featureflag & (1 << 21))
-		Dprintk("    Debug Trace and EMON Store present.\n");
-	if (m->mpc_featureflag & (1 << 22))
-		Dprintk("    ACPI Thermal Throttle Registers  present.\n");
-	if (m->mpc_featureflag & (1 << 23))
-		Dprintk("    MMX  present.\n");
-	if (m->mpc_featureflag & (1 << 24))
-		Dprintk("    FXSR  present.\n");
-	if (m->mpc_featureflag & (1 << 25))
-		Dprintk("    XMM  present.\n");
-	if (m->mpc_featureflag & (1 << 26))
-		Dprintk("    Willamette New Instructions  present.\n");
-	if (m->mpc_featureflag & (1 << 27))
-		Dprintk("    Self Snoop  present.\n");
-	if (m->mpc_featureflag & (1 << 28))
-		Dprintk("    HT  present.\n");
-	if (m->mpc_featureflag & (1 << 29))
-		Dprintk("    Thermal Monitor present.\n");
-	/* 30, 31 Reserved */
-
 	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
-		Dprintk("    Bootup CPU\n");
+		bootup_cpu = " (Bootup-CPU)";
 		boot_cpu_physical_apicid = m->mpc_apicid;
 	}
 
+	printk(KERN_INFO "Processor #%d%s\n", m->mpc_apicid, bootup_cpu);
 	generic_processor_info(apicid, m->mpc_apicver);
 }
 
