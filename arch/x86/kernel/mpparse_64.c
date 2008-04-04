@@ -804,19 +804,31 @@ void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 		panic("Max # of irq sources exceeded!\n");
 }
 
+int es7000_plat;
+
 void __init mp_config_acpi_legacy_irqs(void)
 {
 	struct mpc_config_intsrc intsrc;
 	int i = 0;
 	int ioapic = -1;
 
-	/* 
+#if defined (CONFIG_MCA) || defined (CONFIG_EISA)
+	/*
 	 * Fabricate the legacy ISA bus (bus #31).
 	 */
+	mp_bus_id_to_type[MP_ISA_BUS] = MP_BUS_ISA;
+#endif
 	set_bit(MP_ISA_BUS, mp_bus_not_pci);
+	Dprintk("Bus #%d is ISA\n", MP_ISA_BUS);
 
-	/* 
-	 * Locate the IOAPIC that manages the ISA IRQs (0-15). 
+	/*
+	 * Older generations of ES7000 have no legacy identity mappings
+	 */
+	if (es7000_plat == 1)
+		return;
+
+	/*
+	 * Locate the IOAPIC that manages the ISA IRQs (0-15).
 	 */
 	ioapic = mp_find_ioapic(0);
 	if (ioapic < 0)
@@ -827,7 +839,7 @@ void __init mp_config_acpi_legacy_irqs(void)
 	intsrc.mpc_srcbus = MP_ISA_BUS;
 	intsrc.mpc_dstapic = mp_ioapics[ioapic].mpc_apicid;
 
-	/* 
+	/*
 	 * Use the default configuration for the IRQs 0-15.  Unless
 	 * overridden by (MADT) interrupt source override entries.
 	 */
