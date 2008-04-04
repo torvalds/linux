@@ -553,12 +553,12 @@ static inline void ptep_rcp_copy(pte_t *ptep)
 
 	skey = page_get_storage_key(page_to_phys(page));
 	if (skey & _PAGE_CHANGED)
-		set_bit(RCP_GC_BIT, pgste);
+		set_bit_simple(RCP_GC_BIT, pgste);
 	if (skey & _PAGE_REFERENCED)
-		set_bit(RCP_GR_BIT, pgste);
-	if (test_and_clear_bit(RCP_HC_BIT, pgste))
+		set_bit_simple(RCP_GR_BIT, pgste);
+	if (test_and_clear_bit_simple(RCP_HC_BIT, pgste))
 		SetPageDirty(page);
-	if (test_and_clear_bit(RCP_HR_BIT, pgste))
+	if (test_and_clear_bit_simple(RCP_HR_BIT, pgste))
 		SetPageReferenced(page);
 #endif
 }
@@ -732,8 +732,8 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 	young = ((page_get_storage_key(physpage) & _PAGE_REFERENCED) != 0);
 	rcp_lock(ptep);
 	if (young)
-		set_bit(RCP_GR_BIT, pgste);
-	young |= test_and_clear_bit(RCP_HR_BIT, pgste);
+		set_bit_simple(RCP_GR_BIT, pgste);
+	young |= test_and_clear_bit_simple(RCP_HR_BIT, pgste);
 	rcp_unlock(ptep);
 	return young;
 #endif
