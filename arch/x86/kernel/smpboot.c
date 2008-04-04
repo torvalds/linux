@@ -72,12 +72,13 @@
  * integrate apic between arches, we can probably do a better job, but
  * right now, they'll stay here -- glommer
  */
-#ifdef CONFIG_X86_32
+
 /* which logical CPU number maps to which CPU (physical APIC ID) */
 u16 x86_cpu_to_apicid_init[NR_CPUS] __initdata =
 			{ [0 ... NR_CPUS-1] = BAD_APICID };
 void *x86_cpu_to_apicid_early_ptr;
 
+#ifdef CONFIG_X86_32
 u16 x86_bios_cpu_apicid_init[NR_CPUS] __initdata
 				= { [0 ... NR_CPUS-1] = BAD_APICID };
 void *x86_bios_cpu_apicid_early_ptr;
