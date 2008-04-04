@@ -4794,6 +4794,9 @@ static int iwl4965_get_channels_for_scan(struct iwl_priv *priv,
 	passive_dwell = iwl4965_get_passive_dwell_time(priv, band);
 
 	for (i = 0, added = 0; i < sband->n_channels; i++) {
+		if (channels[i].flags & IEEE80211_CHAN_DISABLED)
+			continue;
+
 		if (ieee80211_frequency_to_channel(channels[i].center_freq) ==
 		    le16_to_cpu(priv->active_rxon.channel)) {
 			if (iwl_is_associated(priv)) {

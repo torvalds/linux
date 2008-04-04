@@ -4965,6 +4965,9 @@ static int iwl3945_get_channels_for_scan(struct iwl3945_priv *priv,
 	passive_dwell = iwl3945_get_passive_dwell_time(priv, band);
 
 	for (i = 0, added = 0; i < sband->n_channels; i++) {
+		if (channels[i].flags & IEEE80211_CHAN_DISABLED)
+			continue;
+
 		if (channels[i].hw_value ==
 		    le16_to_cpu(priv->active_rxon.channel)) {
 			if (iwl3945_is_associated(priv)) {
