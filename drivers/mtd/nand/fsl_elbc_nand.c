@@ -346,19 +346,20 @@ static void fsl_elbc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 		ctrl->column = column;
 		ctrl->oob = 0;
 
-		fcr = (NAND_CMD_PAGEPROG << FCR_CMD1_SHIFT) |
-		      (NAND_CMD_SEQIN << FCR_CMD2_SHIFT);
-
 		if (priv->page_size) {
+			fcr = (NAND_CMD_SEQIN << FCR_CMD0_SHIFT) |
+			      (NAND_CMD_PAGEPROG << FCR_CMD1_SHIFT);
+
 			out_be32(&lbc->fir,
 			         (FIR_OP_CW0 << FIR_OP0_SHIFT) |
 			         (FIR_OP_CA  << FIR_OP1_SHIFT) |
 			         (FIR_OP_PA  << FIR_OP2_SHIFT) |
 			         (FIR_OP_WB  << FIR_OP3_SHIFT) |
 			         (FIR_OP_CW1 << FIR_OP4_SHIFT));
-
-			fcr |= NAND_CMD_READ0 << FCR_CMD0_SHIFT;
 		} else {
+			fcr = (NAND_CMD_PAGEPROG << FCR_CMD1_SHIFT) |
+			      (NAND_CMD_SEQIN << FCR_CMD2_SHIFT);
+
 			out_be32(&lbc->fir,
 			         (FIR_OP_CW0 << FIR_OP0_SHIFT) |
 			         (FIR_OP_CM2 << FIR_OP1_SHIFT) |
