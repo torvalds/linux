@@ -1568,9 +1568,8 @@ static void __devinit detect_and_report_it87(void)
 		outb(r | 8, 0x2F);
 		outb(0x02, 0x2E);	/* Lock */
 		outb(0x02, 0x2F);
-
-		release_region(0x2e, 1);
 	}
+	release_region(0x2e, 1);
 }
 #endif /* CONFIG_PARPORT_PC_SUPERIO */
 
