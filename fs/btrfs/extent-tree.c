@@ -1100,7 +1100,6 @@ printk("space info full %Lu\n", flags);
 		     start, num_bytes);
 	BUG_ON(ret);
 
-	set_avail_alloc_bits(extent_root->fs_info, flags);
 	return 0;
 }
 
@@ -2813,13 +2812,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 				&cache->space_info);
 	BUG_ON(ret);
 
-	if (type & BTRFS_BLOCK_GROUP_DATA) {
-		bit = BLOCK_GROUP_DATA;
-	} else if (type & BTRFS_BLOCK_GROUP_SYSTEM) {
-		bit = BLOCK_GROUP_SYSTEM;
-	} else if (type & BTRFS_BLOCK_GROUP_METADATA) {
-		bit = BLOCK_GROUP_METADATA;
-	}
+	bit = block_group_state_bits(type);
 	set_extent_bits(block_group_cache, chunk_objectid,
 			chunk_objectid + size - 1,
 			bit | EXTENT_LOCKED, GFP_NOFS);
@@ -2833,5 +2826,6 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	finish_current_insert(trans, extent_root);
 	ret = del_pending_extents(trans, extent_root);
 	BUG_ON(ret);
+	set_avail_alloc_bits(extent_root->fs_info, type);
 	return 0;
 }

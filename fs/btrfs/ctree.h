@@ -506,12 +506,13 @@ struct btrfs_fs_info {
 	u64 delalloc_bytes;
 	u64 last_alloc;
 	u64 last_data_alloc;
-	int avail_data_alloc_bits;
-	int avail_metadata_alloc_bits;
-	int avail_system_alloc_bits;
-	int data_alloc_profile;
-	int metadata_alloc_profile;
-	int system_alloc_profile;
+
+	u64 avail_data_alloc_bits;
+	u64 avail_metadata_alloc_bits;
+	u64 avail_system_alloc_bits;
+	u64 data_alloc_profile;
+	u64 metadata_alloc_profile;
+	u64 system_alloc_profile;
 };
 
 /*
