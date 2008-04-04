@@ -386,7 +386,7 @@ int usbvision_scratch_alloc(struct usb_usbvision *usbvision)
 	scratch_reset(usbvision);
 	if(usbvision->scratch == NULL) {
 		err("%s: unable to allocate %d bytes for scratch",
-		    __FUNCTION__, scratch_buf_size);
+		    __func__, scratch_buf_size);
 		return -ENOMEM;
 	}
 	return 0;
@@ -495,7 +495,8 @@ int usbvision_decompress_alloc(struct usb_usbvision *usbvision)
 	int IFB_size = MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * 3 / 2;
 	usbvision->IntraFrameBuffer = vmalloc_32(IFB_size);
 	if (usbvision->IntraFrameBuffer == NULL) {
-		err("%s: unable to allocate %d for compr. frame buffer", __FUNCTION__, IFB_size);
+		err("%s: unable to allocate %d for compr. frame buffer",
+		    __func__, IFB_size);
 		return -ENOMEM;
 	}
 	return 0;
@@ -1518,7 +1519,7 @@ static void usbvision_isocIrq(struct urb *urb)
 
 	if(errCode) {
 		err("%s: usb_submit_urb failed: error %d",
-		    __FUNCTION__, errCode);
+		    __func__, errCode);
 	}
 
 	return;
@@ -1549,7 +1550,7 @@ int usbvision_read_reg(struct usb_usbvision *usbvision, unsigned char reg)
 				0, (__u16) reg, buffer, 1, HZ);
 
 	if (errCode < 0) {
-		err("%s: failed: error %d", __FUNCTION__, errCode);
+		err("%s: failed: error %d", __func__, errCode);
 		return errCode;
 	}
 	return buffer[0];
@@ -1577,7 +1578,7 @@ int usbvision_write_reg(struct usb_usbvision *usbvision, unsigned char reg,
 				USB_RECIP_ENDPOINT, 0, (__u16) reg, &value, 1, HZ);
 
 	if (errCode < 0) {
-		err("%s: failed: error %d", __FUNCTION__, errCode);
+		err("%s: failed: error %d", __func__, errCode);
 	}
 	return errCode;
 }
@@ -1853,7 +1854,7 @@ int usbvision_set_output(struct usb_usbvision *usbvision, int width,
 				 0, (__u16) USBVISION_LXSIZE_O, value, 4, HZ);
 
 		if (errCode < 0) {
-			err("%s failed: error %d", __FUNCTION__, errCode);
+			err("%s failed: error %d", __func__, errCode);
 			return errCode;
 		}
 		usbvision->curwidth = usbvision->stretch_width * UsbWidth;
@@ -2239,7 +2240,7 @@ static int usbvision_set_dram_settings(struct usb_usbvision *usbvision)
 			     (__u16) USBVISION_DRM_PRM1, value, 8, HZ);
 
 	if (rc < 0) {
-		err("%sERROR=%d", __FUNCTION__, rc);
+		err("%sERROR=%d", __func__, rc);
 		return rc;
 	}
 
@@ -2488,7 +2489,7 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 
 		urb = usb_alloc_urb(USBVISION_URB_FRAMES, GFP_KERNEL);
 		if (urb == NULL) {
-			err("%s: usb_alloc_urb() failed", __FUNCTION__);
+			err("%s: usb_alloc_urb() failed", __func__);
 			return -ENOMEM;
 		}
 		usbvision->sbuf[bufIdx].urb = urb;
@@ -2522,13 +2523,13 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 						 GFP_KERNEL);
 		if (errCode) {
 			err("%s: usb_submit_urb(%d) failed: error %d",
-			    __FUNCTION__, bufIdx, errCode);
+			    __func__, bufIdx, errCode);
 		}
 	}
 
 	usbvision->streaming = Stream_Idle;
 	PDEBUG(DBG_ISOC, "%s: streaming=1 usbvision->video_endp=$%02x",
-	       __FUNCTION__,
+	       __func__,
 	       usbvision->video_endp);
 	return 0;
 }
@@ -2562,7 +2563,7 @@ void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 	}
 
 
-	PDEBUG(DBG_ISOC, "%s: streaming=Stream_Off\n", __FUNCTION__);
+	PDEBUG(DBG_ISOC, "%s: streaming=Stream_Off\n", __func__);
 	usbvision->streaming = Stream_Off;
 
 	if (!usbvision->remove_pending) {
@@ -2573,7 +2574,7 @@ void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 					    usbvision->ifaceAlt);
 		if (errCode < 0) {
 			err("%s: usb_set_interface() failed: error %d",
-			    __FUNCTION__, errCode);
+			    __func__, errCode);
 			usbvision->last_error = errCode;
 		}
 		regValue = (16-usbvision_read_reg(usbvision, USBVISION_ALTER_REG)) & 0x0F;
