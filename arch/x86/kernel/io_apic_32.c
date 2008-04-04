@@ -71,6 +71,10 @@ int sis_apic_bug = -1;
  */
 int nr_ioapic_registers[MAX_IO_APICS];
 
+/* I/O APIC entries */
+struct mpc_config_ioapic mp_ioapics[MAX_IO_APICS];
+int nr_ioapics;
+
 static int disable_timer_pin_1 __initdata;
 
 /*
