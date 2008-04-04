@@ -314,6 +314,6 @@ struct tx3927_ccfg_reg {
 #define tx3927_ccfgptr		((struct tx3927_ccfg_reg *)TX3927_CCFG_REG)
 #define tx3927_tmrptr(ch)	((struct txx927_tmr_reg *)TX3927_TMR_REG(ch))
 #define tx3927_sioptr(ch)	((struct txx927_sio_reg *)TX3927_SIO_REG(ch))
-#define tx3927_pioptr		((struct txx927_pio_reg *)TX3927_PIO_REG)
+#define tx3927_pioptr		((struct txx9_pio_reg __iomem *)TX3927_PIO_REG)
 
 #endif /* __ASM_TX3927_H */
