@@ -531,7 +531,7 @@ MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, nv_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
 
-static int adma_enabled = 1;
+static int adma_enabled;
 static int swncq_enabled = 1;
 
 static void nv_adma_register_mode(struct ata_port *ap)
