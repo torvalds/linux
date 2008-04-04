@@ -742,11 +742,14 @@ void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
 
 	set_fixmap_nocache(FIX_IO_APIC_BASE_0 + idx, address);
 	mp_ioapics[idx].mpc_apicid = uniq_ioapic_id(id);
+#ifdef CONFIG_X86_32
+	mp_ioapics[idx].mpc_apicver = io_apic_get_version(idx);
+#else
 	mp_ioapics[idx].mpc_apicver = 0;
-
-	/* 
-	 * Build basic IRQ lookup table to facilitate gsi->io_apic lookups
-	 * and to prevent reprogramming of IOAPIC pins (PCI IRQs).
+#endif
+	/*
+	 * Build basic GSI lookup table to facilitate gsi->io_apic lookups
+	 * and to prevent reprogramming of IOAPIC pins (PCI GSIs).
 	 */
 	mp_ioapic_routing[idx].apic_id = mp_ioapics[idx].mpc_apicid;
 	mp_ioapic_routing[idx].gsi_base = gsi_base;
@@ -755,9 +758,8 @@ void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
 
 	printk(KERN_INFO "IOAPIC[%d]: apic_id %d, address 0x%x, "
 	       "GSI %d-%d\n", idx, mp_ioapics[idx].mpc_apicid,
-	       mp_ioapics[idx].mpc_apicaddr,
-	       mp_ioapic_routing[idx].gsi_base,
-	       mp_ioapic_routing[idx].gsi_end);
+	       mp_ioapics[idx].mpc_apicver, mp_ioapics[idx].mpc_apicaddr,
+	       mp_ioapic_routing[idx].gsi_base, mp_ioapic_routing[idx].gsi_end);
 
 	nr_ioapics++;
 }
