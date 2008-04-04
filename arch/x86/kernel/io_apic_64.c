@@ -107,6 +107,12 @@ int nr_ioapic_registers[MAX_IO_APICS];
 struct mpc_config_ioapic mp_ioapics[MAX_IO_APICS];
 int nr_ioapics;
 
+/* MP IRQ source entries */
+struct mpc_config_intsrc mp_irqs[MAX_IRQ_SOURCES];
+
+/* # of MP IRQ source entries */
+int mp_irq_entries;
+
 /*
  * Rough estimation of how many shared IRQs there are, can
  * be changed anytime.

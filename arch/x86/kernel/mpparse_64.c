@@ -45,12 +45,6 @@ int mp_bus_id_to_pci_bus[MAX_MP_BUSSES] = {[0 ... MAX_MP_BUSSES - 1] = -1 };
 
 static int mp_current_pci_id = 0;
 
-/* # of MP IRQ source entries */
-struct mpc_config_intsrc mp_irqs[MAX_IRQ_SOURCES];
-
-/* MP IRQ source entries */
-int mp_irq_entries;
-
 /* Make it easy to share the UP and SMP code: */
 #ifndef CONFIG_X86_SMP
 unsigned int num_processors;
