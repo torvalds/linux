@@ -39,6 +39,7 @@
 #include <asm/apic.h>
 #include <asm/io.h>
 #include <asm/mpspec.h>
+#include <asm/smp.h>
 
 #ifdef CONFIG_X86_LOCAL_APIC
 # include <mach_apic.h>
@@ -239,6 +240,16 @@ static int __init acpi_parse_madt(struct acpi_table_header *table)
 	return 0;
 }
 
+static void __cpuinit acpi_register_lapic(int id, u8 enabled)
+{
+	if (!enabled) {
+		++disabled_cpus;
+		return;
+	}
+
+	generic_processor_info(id, 0);
+}
+
 static int __init
 acpi_parse_lapic(struct acpi_subtable_header * header, const unsigned long end)
 {
@@ -258,8 +269,8 @@ acpi_parse_lapic(struct acpi_subtable_header * header, const unsigned long end)
 	 * to not preallocating memory for all NR_CPUS
 	 * when we use CPU hotplug.
 	 */
-	mp_register_lapic(processor->id,	/* APIC ID */
-			  processor->lapic_flags & ACPI_MADT_ENABLED);	/* Enabled? */
+	acpi_register_lapic(processor->id,	/* APIC ID */
+			    processor->lapic_flags & ACPI_MADT_ENABLED);
 
 	return 0;
 }
@@ -276,8 +287,8 @@ acpi_parse_sapic(struct acpi_subtable_header *header, const unsigned long end)
 
 	acpi_table_print_madt_entry(header);
 
-	mp_register_lapic((processor->id << 8) | processor->eid,/* APIC ID */
-		processor->lapic_flags & ACPI_MADT_ENABLED);	/* Enabled? */
+	acpi_register_lapic((processor->id << 8) | processor->eid,/* APIC ID */
+			    processor->lapic_flags & ACPI_MADT_ENABLED);
 
 	return 0;
 }
@@ -554,7 +565,7 @@ static int __cpuinit _acpi_map_lsapic(acpi_handle handle, int *pcpu)
 	buffer.pointer = NULL;
 
 	tmp_map = cpu_present_map;
-	mp_register_lapic(physid, lapic->lapic_flags & ACPI_MADT_ENABLED);
+	acpi_register_lapic(physid, lapic->lapic_flags & ACPI_MADT_ENABLED);
 
 	/*
 	 * If mp_register_lapic successfully generates a new logical cpu

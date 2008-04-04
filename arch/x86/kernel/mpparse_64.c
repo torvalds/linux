@@ -601,16 +601,6 @@ void __init mp_register_lapic_address(u64 address)
 	if (boot_cpu_physical_apicid == -1U)
 		boot_cpu_physical_apicid  = GET_APIC_ID(read_apic_id());
 }
-void __cpuinit mp_register_lapic(int id, u8 enabled)
-{
-	if (!enabled) {
-		++disabled_cpus;
-		return;
-	}
-
-	generic_processor_info(id, 0);
-}
-
 
 #define MP_ISA_BUS		0
 #define MP_MAX_IOAPIC_PIN	127

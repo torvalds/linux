@@ -797,22 +797,6 @@ void __init mp_register_lapic_address(u64 address)
 	Dprintk("Boot CPU = %d\n", boot_cpu_physical_apicid);
 }
 
-void __cpuinit mp_register_lapic (int id, u8 enabled)
-{
-	if (MAX_APICS - id <= 0) {
-		printk(KERN_WARNING "Processor #%d invalid (max %d)\n",
-			id, MAX_APICS);
-		return;
-	}
-
-	if (!enabled) {
-		++disabled_cpus;
-		return;
-	}
-
-	generic_processor_info(id, GET_APIC_VERSION(apic_read(APIC_LVR)));
-}
-
 #ifdef	CONFIG_X86_IO_APIC
 
 #define MP_ISA_BUS		0
