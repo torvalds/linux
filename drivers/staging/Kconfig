@@ -23,5 +23,6 @@ menuconfig STAGING
 
 if STAGING
 
+source "drivers/staging/et131x/Kconfig"
 
 endif # STAGING
