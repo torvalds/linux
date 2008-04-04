@@ -139,7 +139,6 @@
 #include <asm/system.h>
 #include <asm/gdb-stub.h>
 #include <asm/inst.h>
-#include <asm/smp.h>
 
 /*
  * external low-level support routines
@@ -656,6 +655,7 @@ void set_async_breakpoint(unsigned long *epc)
 	*epc = (unsigned long)async_breakpoint;
 }
 
+#ifdef CONFIG_SMP
 static void kgdb_wait(void *arg)
 {
 	unsigned flags;
@@ -668,6 +668,7 @@ static void kgdb_wait(void *arg)
 
 	local_irq_restore(flags);
 }
+#endif
 
 /*
  * GDB stub needs to call kgdb_wait on all processor with interrupts
