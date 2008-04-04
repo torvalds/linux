@@ -39,12 +39,18 @@
 #define MAX_SLOTS			8
 
 struct sdhci_pci_chip;
+struct sdhci_pci_slot;
 
 struct sdhci_pci_fixes {
 	unsigned int		quirks;
 
 	int			(*probe)(struct sdhci_pci_chip*);
 
+	int			(*probe_slot)(struct sdhci_pci_slot*);
+	void			(*remove_slot)(struct sdhci_pci_slot*);
+
+	int			(*suspend)(struct sdhci_pci_chip*,
+					pm_message_t);
 	int			(*resume)(struct sdhci_pci_chip*);
 };
 
@@ -133,6 +139,38 @@ static int jmicron_probe(struct sdhci_pci_chip *chip)
 	int ret;
 
 	/*
+	 * JMicron chips can have two interfaces to the same hardware
+	 * in order to work around limitations in Microsoft's driver.
+	 * We need to make sure we only bind to one of them.
+	 *
+	 * This code assumes two things:
+	 *
+	 * 1. The PCI code adds subfunctions in order.
+	 *
+	 * 2. The MMC interface has a lower subfunction number
+	 *    than the SD interface.
+	 */
+	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_SD) {
+		struct pci_dev *sd_dev;
+
+		sd_dev = NULL;
+		while ((sd_dev = pci_get_device(PCI_VENDOR_ID_JMICRON,
+			PCI_DEVICE_ID_JMICRON_JMB38X_MMC, sd_dev)) != NULL) {
+			if ((PCI_SLOT(chip->pdev->devfn) ==
+				PCI_SLOT(sd_dev->devfn)) &&
+				(chip->pdev->bus == sd_dev->bus))
+				break;
+		}
+
+		if (sd_dev) {
+			pci_dev_put(sd_dev);
+			dev_info(&chip->pdev->dev, "Refusing to bind to "
+				"secondary interface.\n");
+			return -ENODEV;
+		}
+	}
+
+	/*
 	 * JMicron chips need a bit of a nudge to enable the power
 	 * output pins.
 	 */
@@ -145,9 +183,58 @@ static int jmicron_probe(struct sdhci_pci_chip *chip)
 	return 0;
 }
 
+static void jmicron_enable_mmc(struct sdhci_host *host, int on)
+{
+	u8 scratch;
+
+	scratch = readb(host->ioaddr + 0xC0);
+
+	if (on)
+		scratch |= 0x01;
+	else
+		scratch &= ~0x01;
+
+	writeb(scratch, host->ioaddr + 0xC0);
+}
+
+static int jmicron_probe_slot(struct sdhci_pci_slot *slot)
+{
+	/*
+	 * The secondary interface requires a bit set to get the
+	 * interrupts.
+	 */
+	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC)
+		jmicron_enable_mmc(slot->host, 1);
+
+	return 0;
+}
+
+static void jmicron_remove_slot(struct sdhci_pci_slot *slot)
+{
+	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC)
+		jmicron_enable_mmc(slot->host, 0);
+}
+
+static int jmicron_suspend(struct sdhci_pci_chip *chip, pm_message_t state)
+{
+	int i;
+
+	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC) {
+		for (i = 0;i < chip->num_slots;i++)
+			jmicron_enable_mmc(chip->slots[i]->host, 0);
+	}
+
+	return 0;
+}
+
 static int jmicron_resume(struct sdhci_pci_chip *chip)
 {
-	int ret;
+	int ret, i;
+
+	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC) {
+		for (i = 0;i < chip->num_slots;i++)
+			jmicron_enable_mmc(chip->slots[i]->host, 1);
+	}
 
 	ret = jmicron_pmos(chip, 1);
 	if (ret) {
@@ -165,6 +252,10 @@ static const struct sdhci_pci_fixes sdhci_jmicron = {
 
 	.probe		= jmicron_probe,
 
+	.probe_slot	= jmicron_probe_slot,
+	.remove_slot	= jmicron_remove_slot,
+
+	.suspend	= jmicron_suspend,
 	.resume		= jmicron_resume,
 };
 
@@ -220,6 +311,14 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
 		.vendor		= PCI_VENDOR_ID_JMICRON,
 		.device		= PCI_DEVICE_ID_JMICRON_JMB38X_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_jmicron,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_JMICRON,
+		.device		= PCI_DEVICE_ID_JMICRON_JMB38X_MMC,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= (kernel_ulong_t)&sdhci_jmicron,
@@ -296,6 +395,15 @@ static int sdhci_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 
 		if (ret) {
 			for (i--;i >= 0;i--)
+				sdhci_resume_host(chip->slots[i]->host);
+			return ret;
+		}
+	}
+
+	if (chip->fixes && chip->fixes->suspend) {
+		ret = chip->fixes->suspend(chip, state);
+		if (ret) {
+			for (i = chip->num_slots - 1;i >= 0;i--)
 				sdhci_resume_host(chip->slots[i]->host);
 			return ret;
 		}
@@ -418,11 +526,21 @@ static struct sdhci_pci_slot * __devinit sdhci_pci_probe_slot(
 		goto release;
 	}
 
+	if (chip->fixes && chip->fixes->probe_slot) {
+		ret = chip->fixes->probe_slot(slot);
+		if (ret)
+			goto unmap;
+	}
+
 	ret = sdhci_add_host(host);
 	if (ret)
-		goto unmap;
+		goto remove;
 
 	return slot;
+
+remove:
+	if (chip->fixes && chip->fixes->remove_slot)
+		chip->fixes->remove_slot(slot);
 
 unmap:
 	iounmap(host->ioaddr);
@@ -437,7 +555,12 @@ release:
 static void sdhci_pci_remove_slot(struct sdhci_pci_slot *slot)
 {
 	sdhci_remove_host(slot->host);
+
+	if (slot->chip->fixes && slot->chip->fixes->remove_slot)
+		slot->chip->fixes->remove_slot(slot);
+
 	pci_release_region(slot->chip->pdev, slot->pci_bar);
+
 	sdhci_free_host(slot->host);
 }
 
