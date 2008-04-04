@@ -11,6 +11,9 @@
  * Rohit Seth <rohit.seth@intel.com>
  * Ken Chen <kenneth.w.chen@intel.com>
  * Christophe de Dinechin <ddd@hp.com>: Avoid ptc.e on memory allocation
+ * Copyright (C) 2007 Intel Corp
+ *	Fenghua Yu <fenghua.yu@intel.com>
+ *	Add multiple ptc.g/ptc.ga instruction support in global tlb purge.
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -26,6 +29,7 @@
 #include <asm/pal.h>
 #include <asm/tlbflush.h>
 #include <asm/dma.h>
+#include <asm/sal.h>
 
 static struct {
 	unsigned long mask;	/* mask of supported purge page-sizes */
@@ -84,13 +88,103 @@ wrap_mmu_context (struct mm_struct *mm)
 	local_flush_tlb_all();
 }
 
+/*
+ * Implement "spinaphores" ... like counting semaphores, but they
+ * spin instead of sleeping.  If there are ever any other users for
+ * this primitive it can be moved up to a spinaphore.h header.
+ */
+struct spinaphore {
+	atomic_t	cur;
+};
+
+static inline void spinaphore_init(struct spinaphore *ss, int val)
+{
+	atomic_set(&ss->cur, val);
+}
+
+static inline void down_spin(struct spinaphore *ss)
+{
+	while (unlikely(!atomic_add_unless(&ss->cur, -1, 0)))
+		while (atomic_read(&ss->cur) == 0)
+			cpu_relax();
+}
+
+static inline void up_spin(struct spinaphore *ss)
+{
+	atomic_add(1, &ss->cur);
+}
+
+static struct spinaphore ptcg_sem;
+static u16 nptcg = 1;
+static int need_ptcg_sem = 1;
+static int toolatetochangeptcgsem = 0;
+
+/*
+ * Maximum number of simultaneous ptc.g purges in the system can
+ * be defined by PAL_VM_SUMMARY (in which case we should take
+ * the smallest value for any cpu in the system) or by the PAL
+ * override table (in which case we should ignore the value from
+ * PAL_VM_SUMMARY).
+ *
+ * Complicating the logic here is the fact that num_possible_cpus()
+ * isn't fully setup until we start bringing cpus online.
+ */
+void
+setup_ptcg_sem(int max_purges, int from_palo)
+{
+	static int have_palo;
+	static int firstcpu = 1;
+
+	if (toolatetochangeptcgsem) {
+		BUG_ON(max_purges < nptcg);
+		return;
+	}
+
+	if (from_palo) {
+		have_palo = 1;
+
+		/* In PALO max_purges == 0 really means it! */
+		if (max_purges == 0)
+			panic("Whoa! Platform does not support global TLB purges.\n");
+		nptcg = max_purges;
+		if (nptcg == PALO_MAX_TLB_PURGES) {
+			need_ptcg_sem = 0;
+			return;
+		}
+		goto resetsema;
+	}
+	if (have_palo) {
+		if (nptcg != PALO_MAX_TLB_PURGES)
+			need_ptcg_sem = (num_possible_cpus() > nptcg);
+		return;
+	}
+
+	/* In PAL_VM_SUMMARY max_purges == 0 actually means 1 */
+	if (max_purges == 0) max_purges = 1;
+
+	if (firstcpu) {
+		nptcg = max_purges;
+		firstcpu = 0;
+	}
+	if (max_purges < nptcg)
+		nptcg = max_purges;
+	if (nptcg == PAL_MAX_PURGES) {
+		need_ptcg_sem = 0;
+		return;
+	} else
+		need_ptcg_sem = (num_possible_cpus() > nptcg);
+
+resetsema:
+	spinaphore_init(&ptcg_sem, max_purges);
+}
+
 void
 ia64_global_tlb_purge (struct mm_struct *mm, unsigned long start,
 		       unsigned long end, unsigned long nbits)
 {
-	static DEFINE_SPINLOCK(ptcg_lock);
-
 	struct mm_struct *active_mm = current->active_mm;
+
+	toolatetochangeptcgsem = 1;
 
 	if (mm != active_mm) {
 		/* Restore region IDs for mm */
@@ -102,19 +196,20 @@ ia64_global_tlb_purge (struct mm_struct *mm, unsigned long start,
 		}
 	}
 
-	/* HW requires global serialization of ptc.ga.  */
-	spin_lock(&ptcg_lock);
-	{
-		do {
-			/*
-			 * Flush ALAT entries also.
-			 */
-			ia64_ptcga(start, (nbits<<2));
-			ia64_srlz_i();
-			start += (1UL << nbits);
-		} while (start < end);
-	}
-	spin_unlock(&ptcg_lock);
+	if (need_ptcg_sem)
+		down_spin(&ptcg_sem);
+
+	do {
+		/*
+		 * Flush ALAT entries also.
+		 */
+		ia64_ptcga(start, (nbits << 2));
+		ia64_srlz_i();
+		start += (1UL << nbits);
+	} while (start < end);
+
+	if (need_ptcg_sem)
+		up_spin(&ptcg_sem);
 
         if (mm != active_mm) {
                 activate_context(active_mm);

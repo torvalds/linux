@@ -59,6 +59,7 @@
 #include <asm/setup.h>
 #include <asm/smp.h>
 #include <asm/system.h>
+#include <asm/tlbflush.h>
 #include <asm/unistd.h>
 #include <asm/hpsim.h>
 
@@ -946,9 +947,10 @@ cpu_init (void)
 #endif
 
 	/* set ia64_ctx.max_rid to the maximum RID that is supported by all CPUs: */
-	if (ia64_pal_vm_summary(NULL, &vmi) == 0)
+	if (ia64_pal_vm_summary(NULL, &vmi) == 0) {
 		max_ctx = (1U << (vmi.pal_vm_info_2_s.rid_size - 3)) - 1;
-	else {
+		setup_ptcg_sem(vmi.pal_vm_info_2_s.max_purges, 0);
+	} else {
 		printk(KERN_WARNING "cpu_init: PAL VM summary failed, assuming 18 RID bits\n");
 		max_ctx = (1U << 15) - 1;	/* use architected minimum */
 	}
