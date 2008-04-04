@@ -36,9 +36,6 @@ extern int mp_bus_id_to_pci_bus[MAX_MP_BUSSES];
 
 extern unsigned int boot_cpu_physical_apicid;
 extern int smp_found_config;
-extern int nr_ioapics;
-extern int mp_irq_entries;
-extern struct mpc_config_intsrc mp_irqs[MAX_IRQ_SOURCES];
 extern int mpc_default_type;
 extern unsigned long mp_lapic_addr;
 

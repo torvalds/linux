@@ -69,8 +69,10 @@ static inline u32 phys_pkg_id(u32 cpuid_apic, int index_msb)
 
 static inline void setup_apic_routing(void)
 {
+#ifdef CONFIG_X86_IO_APIC
 	printk("Enabling APIC mode:  %s.  Using %d I/O APICs\n",
 					"Flat", nr_ioapics);
+#endif
 }
 
 static inline int apicid_to_node(int logical_apicid)

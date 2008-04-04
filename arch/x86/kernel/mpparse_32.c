@@ -221,6 +221,8 @@ static void __init MP_bus_info (struct mpc_config_bus *m)
 	}
 }
 
+#ifdef CONFIG_X86_IO_APIC
+
 static int bad_ioapic(unsigned long address)
 {
 	if (nr_ioapics >= MAX_IO_APICS) {
@@ -262,6 +264,8 @@ static void __init MP_intsrc_info (struct mpc_config_intsrc *m)
 	if (++mp_irq_entries == MAX_IRQ_SOURCES)
 		panic("Max # of irq sources exceeded!!\n");
 }
+
+#endif
 
 static void __init MP_lintsrc_info (struct mpc_config_lintsrc *m)
 {
@@ -421,21 +425,25 @@ static int __init smp_read_mpc(struct mp_config_table *mpc)
 			}
 			case MP_IOAPIC:
 			{
+#ifdef CONFIG_X86_IO_APIC
 				struct mpc_config_ioapic *m=
 					(struct mpc_config_ioapic *)mpt;
 				MP_ioapic_info(m);
 				mpt+=sizeof(*m);
 				count+=sizeof(*m);
+#endif
 				break;
 			}
 			case MP_INTSRC:
 			{
+#ifdef CONFIG_X86_IO_APIC
 				struct mpc_config_intsrc *m=
 					(struct mpc_config_intsrc *)mpt;
 
 				MP_intsrc_info(m);
 				mpt+=sizeof(*m);
 				count+=sizeof(*m);
+#endif
 				break;
 			}
 			case MP_LINTSRC:
@@ -462,6 +470,8 @@ static int __init smp_read_mpc(struct mp_config_table *mpc)
 		printk(KERN_ERR "SMP mptable: no processors registered!\n");
 	return num_processors;
 }
+
+#ifdef CONFIG_X86_IO_APIC
 
 static int __init ELCR_trigger(unsigned int irq)
 {
@@ -537,11 +547,15 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 	MP_intsrc_info(&intsrc);
 }
 
+#endif
+
 static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 {
 	struct mpc_config_processor processor;
 	struct mpc_config_bus bus;
+#ifdef CONFIG_X86_IO_APIC
 	struct mpc_config_ioapic ioapic;
+#endif
 	struct mpc_config_lintsrc lintsrc;
 	int linttypes[2] = { mp_ExtINT, mp_NMI };
 	int i;
@@ -597,6 +611,7 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 		MP_bus_info(&bus);
 	}
 
+#ifdef CONFIG_X86_IO_APIC
 	ioapic.mpc_type = MP_IOAPIC;
 	ioapic.mpc_apicid = 2;
 	ioapic.mpc_apicver = mpc_default_type > 4 ? 0x10 : 0x01;
@@ -608,7 +623,7 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 	 * We set up most of the low 16 IO-APIC pins according to MPS rules.
 	 */
 	construct_default_ioirq_mptable(mpc_default_type);
-
+#endif
 	lintsrc.mpc_type = MP_LINTSRC;
 	lintsrc.mpc_irqflag = 0;		/* conforming */
 	lintsrc.mpc_srcbusid = 0;
@@ -670,6 +685,8 @@ void __init get_smp_config (void)
 			printk(KERN_ERR "... disabling SMP support. (tell your hw vendor)\n");
 			return;
 		}
+
+#ifdef CONFIG_X86_IO_APIC
 		/*
 		 * If there are no explicit MP IRQ entries, then we are
 		 * broken.  We set up most of the low 16 IO-APIC pins to
@@ -687,7 +704,7 @@ void __init get_smp_config (void)
 
 			construct_default_ioirq_mptable(0);
 		}
-
+#endif
 	} else
 		BUG();
 
@@ -967,8 +984,9 @@ void __init mp_config_acpi_legacy_irqs (void)
 	intsrc.mpc_type = MP_INTSRC;
 	intsrc.mpc_irqflag = 0;					/* Conforming */
 	intsrc.mpc_srcbus = MP_ISA_BUS;
+#ifdef CONFIG_X86_IO_APIC
 	intsrc.mpc_dstapic = mp_ioapics[ioapic].mpc_apicid;
-
+#endif
 	/* 
 	 * Use the default configuration for the IRQs 0-15.  Unless
 	 * overridden by (MADT) interrupt source override entries.
