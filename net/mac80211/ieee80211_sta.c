@@ -4225,3 +4225,26 @@ int ieee80211_sta_disassociate(struct net_device *dev, u16 reason)
 	ieee80211_set_disassoc(dev, ifsta, 0);
 	return 0;
 }
+
+void ieee80211_notify_mac(struct ieee80211_hw *hw,
+			  enum ieee80211_notification_types  notif_type)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_sub_if_data *sdata;
+
+	switch (notif_type) {
+	case IEEE80211_NOTIFY_RE_ASSOC:
+		rcu_read_lock();
+		list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+
+			if (sdata->vif.type == IEEE80211_IF_TYPE_STA) {
+				ieee80211_sta_req_auth(sdata->dev,
+						       &sdata->u.sta);
+			}
+
+		}
+		rcu_read_unlock();
+		break;
+	}
+}
+EXPORT_SYMBOL(ieee80211_notify_mac);

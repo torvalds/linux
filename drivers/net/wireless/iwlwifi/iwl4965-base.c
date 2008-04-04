@@ -5714,6 +5714,7 @@ static void iwl4965_alive_start(struct iwl_priv *priv)
 		iwl4965_error_recovery(priv);
 
 	iwlcore_low_level_notify(priv, IWLCORE_START_EVT);
+	ieee80211_notify_mac(priv->hw, IEEE80211_NOTIFY_RE_ASSOC);
 	return;
 
  restart:

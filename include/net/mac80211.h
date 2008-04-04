@@ -74,6 +74,14 @@
  */
 
 /**
+ * enum ieee80211_notification_type - Low level driver notification
+ * @IEEE80211_NOTIFY_RE_ASSOC: start the re-association sequence
+ */
+enum ieee80211_notification_types {
+	IEEE80211_NOTIFY_RE_ASSOC,
+};
+
+/**
  * struct ieee80211_ht_bss_info - describing BSS's HT characteristics
  *
  * This structure describes most essential parameters needed
@@ -1678,4 +1686,15 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid);
 void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_hw *hw, const u8 *ra,
 				     u16 tid);
 
+/**
+ * ieee80211_notify_mac - low level driver notification
+ * @hw: pointer as obtained from ieee80211_alloc_hw().
+ * @notification_types: enum ieee80211_notification_types
+ *
+ * This function must be called by low level driver to inform mac80211 of
+ * low level driver status change or force mac80211 to re-assoc for low
+ * level driver internal error that require re-assoc.
+ */
+void ieee80211_notify_mac(struct ieee80211_hw *hw,
+			  enum ieee80211_notification_types  notif_type);
 #endif /* MAC80211_H */
