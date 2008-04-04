@@ -266,7 +266,7 @@ static ssize_t sta_agg_status_write(struct file *file,
 STA_OPS_WR(agg_status);
 
 #define DEBUGFS_ADD(name) \
-	sta->debugfs.name = debugfs_create_file(#name, 0444, \
+	sta->debugfs.name = debugfs_create_file(#name, 0400, \
 		sta->debugfs.dir, sta, &sta_ ##name## _ops);
 
 #define DEBUGFS_DEL(name) \

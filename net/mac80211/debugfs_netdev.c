@@ -243,7 +243,7 @@ IEEE80211_IF_WFILE(min_discovery_timeout,
 
 
 #define DEBUGFS_ADD(name, type)\
-	sdata->debugfs.type.name = debugfs_create_file(#name, 0444,\
+	sdata->debugfs.type.name = debugfs_create_file(#name, 0400,\
 		sdata->debugfsdir, sdata, &name##_ops);
 
 static void add_sta_files(struct ieee80211_sub_if_data *sdata)
@@ -298,7 +298,7 @@ static void add_monitor_files(struct ieee80211_sub_if_data *sdata)
 
 #ifdef CONFIG_MAC80211_MESH
 #define MESHSTATS_ADD(name)\
-	sdata->mesh_stats.name = debugfs_create_file(#name, 0444,\
+	sdata->mesh_stats.name = debugfs_create_file(#name, 0400,\
 		sdata->mesh_stats_dir, sdata, &name##_ops);
 
 static void add_mesh_stats(struct ieee80211_sub_if_data *sdata)
@@ -312,7 +312,7 @@ static void add_mesh_stats(struct ieee80211_sub_if_data *sdata)
 }
 
 #define MESHPARAMS_ADD(name)\
-	sdata->mesh_config.name = debugfs_create_file(#name, 0644,\
+	sdata->mesh_config.name = debugfs_create_file(#name, 0600,\
 		sdata->mesh_config_dir, sdata, &name##_ops);
 
 static void add_mesh_config(struct ieee80211_sub_if_data *sdata)

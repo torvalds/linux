@@ -37,7 +37,7 @@ static const struct file_operations name## _ops = {			\
 };
 
 #define DEBUGFS_ADD(name)						\
-	local->debugfs.name = debugfs_create_file(#name, 0444, phyd,	\
+	local->debugfs.name = debugfs_create_file(#name, 0400, phyd,	\
 						  local, &name## _ops);
 
 #define DEBUGFS_DEL(name)						\
@@ -130,7 +130,7 @@ static const struct file_operations stats_ ##name## _ops = {		\
 };
 
 #define DEBUGFS_STATS_ADD(name)						\
-	local->debugfs.stats.name = debugfs_create_file(#name, 0444, statsd,\
+	local->debugfs.stats.name = debugfs_create_file(#name, 0400, statsd,\
 		local, &stats_ ##name## _ops);
 
 #define DEBUGFS_STATS_DEL(name)						\
