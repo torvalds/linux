@@ -103,6 +103,10 @@ DEFINE_SPINLOCK(vector_lock);
  */
 int nr_ioapic_registers[MAX_IO_APICS];
 
+/* I/O APIC entries */
+struct mpc_config_ioapic mp_ioapics[MAX_IO_APICS];
+int nr_ioapics;
+
 /*
  * Rough estimation of how many shared IRQs there are, can
  * be changed anytime.

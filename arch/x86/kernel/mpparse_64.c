@@ -44,16 +44,12 @@ DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 int mp_bus_id_to_pci_bus[MAX_MP_BUSSES] = {[0 ... MAX_MP_BUSSES - 1] = -1 };
 
 static int mp_current_pci_id = 0;
-/* I/O APIC entries */
-struct mpc_config_ioapic mp_ioapics[MAX_IO_APICS];
 
 /* # of MP IRQ source entries */
 struct mpc_config_intsrc mp_irqs[MAX_IRQ_SOURCES];
 
 /* MP IRQ source entries */
 int mp_irq_entries;
-
-int nr_ioapics;
 
 /* Make it easy to share the UP and SMP code: */
 #ifndef CONFIG_X86_SMP
