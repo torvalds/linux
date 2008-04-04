@@ -110,6 +110,13 @@ extern int nr_ioapic_registers[MAX_IO_APICS];
  * MP-BIOS irq configuration table structures:
  */
 
+struct mp_ioapic_routing {
+	int apic_id;
+	int gsi_base;
+	int gsi_end;
+	u32 pin_programmed[4];
+};
+
 /* I/O APIC entries */
 extern struct mpc_config_ioapic mp_ioapics[MAX_IO_APICS];
 

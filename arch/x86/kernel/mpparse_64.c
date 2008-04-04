@@ -630,12 +630,7 @@ void __cpuinit mp_register_lapic(int id, u8 enabled)
 #define MP_ISA_BUS		0
 #define MP_MAX_IOAPIC_PIN	127
 
-static struct mp_ioapic_routing {
-	int apic_id;
-	int gsi_base;
-	int gsi_end;
-	u32 pin_programmed[4];
-} mp_ioapic_routing[MAX_IO_APICS];
+extern struct mp_ioapic_routing mp_ioapic_routing[MAX_IO_APICS];
 
 static int mp_find_ioapic(int gsi)
 {
