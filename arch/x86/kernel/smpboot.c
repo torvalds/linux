@@ -86,13 +86,8 @@ void *x86_bios_cpu_apicid_early_ptr;
 u8 apicid_2_node[MAX_APICID];
 #endif
 
-/* Internal processor count */
-unsigned int num_processors;
-
 /* State of each CPU */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
-
-unsigned disabled_cpus __cpuinitdata;
 
 /* Store all idle threads, this can be reused instead of creating
 * a new thread. Also avoids complicated thread destroy functionality

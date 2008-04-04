@@ -128,7 +128,6 @@ int native_cpu_up(unsigned int cpunum);
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 
-extern unsigned disabled_cpus;
 extern void prefill_possible_map(void);
 
 #define SMP_TRAMPOLINE_BASE 0x6000
@@ -143,6 +142,8 @@ static inline int num_booting_cpus(void)
 	return cpus_weight(cpu_callout_map);
 }
 #endif /* CONFIG_SMP */
+
+extern unsigned disabled_cpus __cpuinitdata;
 
 #ifdef CONFIG_X86_32_SMP
 /*

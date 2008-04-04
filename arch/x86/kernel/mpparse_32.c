@@ -49,15 +49,6 @@ static int mp_current_pci_id;
 
 int pic_mode;
 
-/* Make it easy to share the UP and SMP code: */
-#ifndef CONFIG_X86_SMP
-unsigned int num_processors;
-unsigned disabled_cpus __cpuinitdata;
-#ifndef CONFIG_X86_LOCAL_APIC
-unsigned int boot_cpu_physical_apicid = -1U;
-#endif
-#endif
-
 /*
  * Intel MP BIOS table parsing routines:
  */
@@ -93,9 +84,7 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 	int apicid;
 
 	if (!(m->mpc_cpuflag & CPU_ENABLED)) {
-#ifdef CONFIG_X86_SMP
 		disabled_cpus++;
-#endif
 		return;
 	}
 
@@ -817,9 +806,7 @@ void __cpuinit mp_register_lapic (int id, u8 enabled)
 	}
 
 	if (!enabled) {
-#ifdef CONFIG_X86_SMP
 		++disabled_cpus;
-#endif
 		return;
 	}
 

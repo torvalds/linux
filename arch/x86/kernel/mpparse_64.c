@@ -45,15 +45,6 @@ int mp_bus_id_to_pci_bus[MAX_MP_BUSSES] = {[0 ... MAX_MP_BUSSES - 1] = -1 };
 
 static int mp_current_pci_id = 0;
 
-/* Make it easy to share the UP and SMP code: */
-#ifndef CONFIG_X86_SMP
-unsigned int num_processors;
-unsigned disabled_cpus __cpuinitdata;
-#ifndef CONFIG_X86_LOCAL_APIC
-unsigned int boot_cpu_physical_apicid = -1U;
-#endif
-#endif
-
 /*
  * Intel MP BIOS table parsing routines:
  */
