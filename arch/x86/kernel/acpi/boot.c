@@ -765,6 +765,16 @@ static int __init acpi_parse_fadt(struct acpi_table_header *table)
  * Parse LAPIC entries in MADT
  * returns 0 on success, < 0 on error
  */
+
+static void __init acpi_register_lapic_address(unsigned long address)
+{
+	mp_lapic_addr = address;
+
+	set_fixmap_nocache(FIX_APIC_BASE, address);
+	if (boot_cpu_physical_apicid == -1U)
+		boot_cpu_physical_apicid  = GET_APIC_ID(read_apic_id());
+}
+
 static int __init acpi_parse_madt_lapic_entries(void)
 {
 	int count;
@@ -786,7 +796,7 @@ static int __init acpi_parse_madt_lapic_entries(void)
 		return count;
 	}
 
-	mp_register_lapic_address(acpi_lapic_addr);
+	acpi_register_lapic_address(acpi_lapic_addr);
 
 	count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_SAPIC,
 				      acpi_parse_sapic, MAX_APICS);
