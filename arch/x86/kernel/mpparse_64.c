@@ -70,11 +70,6 @@ unsigned int boot_cpu_physical_apicid = -1U;
 #endif
 #endif
 
-/* Make it easy to share the UP and SMP code: */
-#ifndef CONFIG_X86_SMP
-physid_mask_t phys_cpu_present_map;
-#endif
-
 /*
  * Intel MP BIOS table parsing routines:
  */
