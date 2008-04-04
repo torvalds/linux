@@ -497,7 +497,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	vcpu_put(vcpu);
 
 	vcpu->stat.exit_userspace++;
-	return 0;
+	return rc;
 }
 
 static int __guestcopy(struct kvm_vcpu *vcpu, u64 guestdest, const void *from,
