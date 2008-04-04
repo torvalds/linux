@@ -266,7 +266,7 @@ static void __init dmi_save_ipmi_device(const struct dmi_header *dm)
 	dev->name = "IPMI controller";
 	dev->device_data = data;
 
-	list_add(&dev->list, &dmi_devices);
+	list_add_tail(&dev->list, &dmi_devices);
 }
 
 static void __init dmi_save_extended_devices(const struct dmi_header *dm)
