@@ -55,12 +55,6 @@ int mp_irq_entries;
 
 int nr_ioapics;
 
-#ifdef CONFIG_SMP
-u16 x86_bios_cpu_apicid_init[NR_CPUS] __initdata
-    = {[0 ... NR_CPUS - 1] = BAD_APICID };
-void *x86_bios_cpu_apicid_early_ptr;
-#endif
-
 /* Make it easy to share the UP and SMP code: */
 #ifndef CONFIG_X86_SMP
 unsigned int num_processors;
