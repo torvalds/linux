@@ -803,6 +803,15 @@ static int pxa_camera_querycap(struct soc_camera_host *ici,
 	return 0;
 }
 
+static spinlock_t *pxa_camera_spinlock_alloc(struct soc_camera_file *icf)
+{
+	struct soc_camera_host *ici =
+		to_soc_camera_host(icf->icd->dev.parent);
+	struct pxa_camera_dev *pcdev = ici->priv;
+
+	return &pcdev->lock;
+}
+
 static struct soc_camera_host_ops pxa_soc_camera_host_ops = {
 	.owner		= THIS_MODULE,
 	.add		= pxa_camera_add_device,
@@ -814,6 +823,7 @@ static struct soc_camera_host_ops pxa_soc_camera_host_ops = {
 	.querycap	= pxa_camera_querycap,
 	.try_bus_param	= pxa_camera_try_bus_param,
 	.set_bus_param	= pxa_camera_set_bus_param,
+	.spinlock_alloc	= pxa_camera_spinlock_alloc,
 };
 
 /* Should be allocated dynamically too, but we have only one. */

@@ -48,6 +48,7 @@ struct soc_camera_device {
 struct soc_camera_file {
 	struct soc_camera_device *icd;
 	struct videobuf_queue vb_vidq;
+	spinlock_t *lock;
 };
 
 struct soc_camera_host {
@@ -73,6 +74,8 @@ struct soc_camera_host_ops {
 	int (*try_bus_param)(struct soc_camera_device *, __u32);
 	int (*set_bus_param)(struct soc_camera_device *, __u32);
 	unsigned int (*poll)(struct file *, poll_table *);
+	spinlock_t* (*spinlock_alloc)(struct soc_camera_file *);
+	void (*spinlock_free)(spinlock_t *);
 };
 
 struct soc_camera_link {
