@@ -401,10 +401,12 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 	 * 2 CPUs, numbered 0 & 1.
 	 */
 	processor.mpc_type = MP_PROCESSOR;
-	processor.mpc_apicver = 0;
+	/* Either an integrated APIC or a discrete 82489DX. */
+	processor.mpc_apicver = mpc_default_type > 4 ? 0x10 : 0x01;
 	processor.mpc_cpuflag = CPU_ENABLED;
-	processor.mpc_cpufeature = 0;
-	processor.mpc_featureflag = 0;
+	processor.mpc_cpufeature = (boot_cpu_data.x86 << 8) |
+	    (boot_cpu_data.x86_model << 4) | boot_cpu_data.x86_mask;
+	processor.mpc_featureflag = boot_cpu_data.x86_capability[0];
 	processor.mpc_reserved[0] = 0;
 	processor.mpc_reserved[1] = 0;
 	for (i = 0; i < 2; i++) {
@@ -423,6 +425,14 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 	case 5:
 		memcpy(bus.mpc_bustype, "ISA   ", 6);
 		break;
+	case 2:
+	case 6:
+	case 3:
+		memcpy(bus.mpc_bustype, "EISA  ", 6);
+		break;
+	case 4:
+	case 7:
+		memcpy(bus.mpc_bustype, "MCA   ", 6);
 	}
 	MP_bus_info(&bus);
 	if (mpc_default_type > 4) {
@@ -433,7 +443,7 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 
 	ioapic.mpc_type = MP_IOAPIC;
 	ioapic.mpc_apicid = 2;
-	ioapic.mpc_apicver = 0;
+	ioapic.mpc_apicver = mpc_default_type > 4 ? 0x10 : 0x01;
 	ioapic.mpc_flags = MPC_APIC_USABLE;
 	ioapic.mpc_apicaddr = 0xFEC00000;
 	MP_ioapic_info(&ioapic);

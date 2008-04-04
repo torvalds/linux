@@ -436,13 +436,13 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 	 *  If it does, we assume it's valid.
 	 */
 	if (mpc_default_type == 5) {
-		printk(KERN_INFO
-		       "ISA/PCI bus type with no IRQ information... falling back to ELCR\n");
+		printk(KERN_INFO "ISA/PCI bus type with no IRQ information... "
+		       "falling back to ELCR\n");
 
-		if (ELCR_trigger(0) || ELCR_trigger(1) || ELCR_trigger(2)
-		    || ELCR_trigger(13))
-			printk(KERN_WARNING
-			       "ELCR contains invalid data... not using ELCR\n");
+		if (ELCR_trigger(0) || ELCR_trigger(1) || ELCR_trigger(2) ||
+		    ELCR_trigger(13))
+			printk(KERN_ERR "ELCR contains invalid data... "
+			       "not using ELCR\n");
 		else {
 			printk(KERN_INFO
 			       "Using ELCR to identify PCI interrupts\n");
@@ -523,8 +523,7 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 	bus.mpc_busid = 0;
 	switch (mpc_default_type) {
 	default:
-		printk("???\n");
-		printk(KERN_ERR "Unknown standard configuration %d\n",
+		printk(KERN_ERR "???\nUnknown standard configuration %d\n",
 		       mpc_default_type);
 		/* fall through */
 	case 1:
