@@ -151,7 +151,7 @@ static int handle_chsc(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static unsigned int stfl(void)
+static unsigned int kvm_stfl(void)
 {
 	asm volatile(
 		"	.insn	s,0xb2b10000,0(0)\n" /* stfl */
@@ -162,7 +162,7 @@ static unsigned int stfl(void)
 
 static int handle_stfl(struct kvm_vcpu *vcpu)
 {
-	unsigned int facility_list = stfl();
+	unsigned int facility_list = kvm_stfl();
 	int rc;
 
 	vcpu->stat.instruction_stfl++;
