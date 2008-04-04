@@ -56,9 +56,13 @@ struct soc_camera_host {
 	unsigned char nr;				/* Host number */
 	size_t msize;
 	struct videobuf_queue_ops *vbq_ops;
-	struct module *owner;
 	void *priv;
 	char *drv_name;
+	struct soc_camera_host_ops *ops;
+};
+
+struct soc_camera_host_ops {
+	struct module *owner;
 	int (*add)(struct soc_camera_device *);
 	void (*remove)(struct soc_camera_device *);
 	int (*set_fmt_cap)(struct soc_camera_device *, __u32,
@@ -88,8 +92,7 @@ static inline struct soc_camera_host *to_soc_camera_host(struct device *dev)
 	return container_of(dev, struct soc_camera_host, dev);
 }
 
-extern int soc_camera_host_register(struct soc_camera_host *ici,
-				     struct module *owner);
+extern int soc_camera_host_register(struct soc_camera_host *ici);
 extern void soc_camera_host_unregister(struct soc_camera_host *ici);
 extern int soc_camera_device_register(struct soc_camera_device *icd);
 extern void soc_camera_device_unregister(struct soc_camera_device *icd);

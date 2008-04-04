@@ -76,12 +76,12 @@ static int soc_camera_try_fmt_cap(struct file *file, void *priv,
 	}
 
 	/* test physical bus parameters */
-	ret = ici->try_bus_param(icd, f->fmt.pix.pixelformat);
+	ret = ici->ops->try_bus_param(icd, f->fmt.pix.pixelformat);
 	if (ret)
 		return ret;
 
 	/* limit format to hardware capabilities */
-	ret = ici->try_fmt_cap(icd, f);
+	ret = ici->ops->try_fmt_cap(icd, f);
 
 	/* calculate missing fields */
 	f->fmt.pix.field = field;
@@ -143,7 +143,7 @@ static int soc_camera_reqbufs(struct file *file, void *priv,
 	if (ret < 0)
 		return ret;
 
-	return ici->reqbufs(icf, p);
+	return ici->ops->reqbufs(icf, p);
 
 	return ret;
 }
@@ -203,7 +203,7 @@ static int soc_camera_open(struct inode *inode, struct file *file)
 		goto emgd;
 	}
 
-	if (!try_module_get(ici->owner)) {
+	if (!try_module_get(ici->ops->owner)) {
 		dev_err(&icd->dev, "Couldn't lock capture bus driver.\n");
 		ret = -EINVAL;
 		goto emgi;
@@ -215,7 +215,7 @@ static int soc_camera_open(struct inode *inode, struct file *file)
 
 	/* Now we really have to activate the camera */
 	if (icd->use_count == 1) {
-		ret = ici->add(icd);
+		ret = ici->ops->add(icd);
 		if (ret < 0) {
 			dev_err(&icd->dev, "Couldn't activate the camera: %d\n", ret);
 			icd->use_count--;
@@ -238,7 +238,7 @@ static int soc_camera_open(struct inode *inode, struct file *file)
 
 	/* All errors are entered with the video_lock held */
 eiciadd:
-	module_put(ici->owner);
+	module_put(ici->ops->owner);
 emgi:
 	module_put(icd->ops->owner);
 emgd:
@@ -257,9 +257,9 @@ static int soc_camera_close(struct inode *inode, struct file *file)
 	mutex_lock(&video_lock);
 	icd->use_count--;
 	if (!icd->use_count)
-		ici->remove(icd);
+		ici->ops->remove(icd);
 	module_put(icd->ops->owner);
-	module_put(ici->owner);
+	module_put(ici->ops->owner);
 	mutex_unlock(&video_lock);
 
 	vfree(file->private_data);
@@ -312,7 +312,7 @@ static unsigned int soc_camera_poll(struct file *file, poll_table *pt)
 		return POLLERR;
 	}
 
-	return ici->poll(file, pt);
+	return ici->ops->poll(file, pt);
 }
 
 
@@ -356,7 +356,7 @@ static int soc_camera_s_fmt_cap(struct file *file, void *priv,
 	rect.top	= icd->y_current;
 	rect.width	= f->fmt.pix.width;
 	rect.height	= f->fmt.pix.height;
-	ret = ici->set_fmt_cap(icd, f->fmt.pix.pixelformat, &rect);
+	ret = ici->ops->set_fmt_cap(icd, f->fmt.pix.pixelformat, &rect);
 	if (ret < 0)
 		return ret;
 
@@ -372,7 +372,7 @@ static int soc_camera_s_fmt_cap(struct file *file, void *priv,
 		icd->width, icd->height);
 
 	/* set physical bus parameters */
-	return ici->set_bus_param(icd, f->fmt.pix.pixelformat);
+	return ici->ops->set_bus_param(icd, f->fmt.pix.pixelformat);
 }
 
 static int soc_camera_enum_fmt_cap(struct file *file, void  *priv,
@@ -426,7 +426,7 @@ static int soc_camera_querycap(struct file *file, void  *priv,
 	WARN_ON(priv != file->private_data);
 
 	strlcpy(cap->driver, ici->drv_name, sizeof(cap->driver));
-	return ici->querycap(ici, cap);
+	return ici->ops->querycap(ici, cap);
 }
 
 static int soc_camera_streamon(struct file *file, void *priv,
@@ -579,7 +579,7 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	ret = ici->set_fmt_cap(icd, 0, &a->c);
+	ret = ici->ops->set_fmt_cap(icd, 0, &a->c);
 	if (!ret) {
 		icd->width	= a->c.width;
 		icd->height	= a->c.height;
@@ -706,7 +706,7 @@ static int soc_camera_probe(struct device *dev)
 
 	/* We only call ->add() here to activate and probe the camera.
 	 * We shall ->remove() and deactivate it immediately afterwards. */
-	ret = ici->add(icd);
+	ret = ici->ops->add(icd);
 	if (ret < 0)
 		return ret;
 
@@ -720,7 +720,7 @@ static int soc_camera_probe(struct device *dev)
 		icd->exposure = qctrl ? qctrl->default_value :
 			(unsigned short)~0;
 	}
-	ici->remove(icd);
+	ici->ops->remove(icd);
 
 	return ret;
 }
@@ -762,12 +762,12 @@ static void dummy_release(struct device *dev)
 {
 }
 
-int soc_camera_host_register(struct soc_camera_host *ici, struct module *owner)
+int soc_camera_host_register(struct soc_camera_host *ici)
 {
 	int ret;
 	struct soc_camera_host *ix;
 
-	if (!ici->vbq_ops || !ici->add || !ici->remove || !owner)
+	if (!ici->vbq_ops || !ici->ops->add || !ici->ops->remove)
 		return -EINVAL;
 
 	/* Number might be equal to the platform device ID */
@@ -785,7 +785,6 @@ int soc_camera_host_register(struct soc_camera_host *ici, struct module *owner)
 	list_add_tail(&ici->list, &hosts);
 	mutex_unlock(&list_lock);
 
-	ici->owner = owner;
 	ici->dev.release = dummy_release;
 
 	ret = device_register(&ici->dev);
@@ -819,7 +818,7 @@ void soc_camera_host_unregister(struct soc_camera_host *ici)
 		if (icd->dev.parent == &ici->dev) {
 			device_unregister(&icd->dev);
 			/* Not before device_unregister(), .remove
-			 * needs parent to call ici->remove() */
+			 * needs parent to call ici->ops->remove() */
 			icd->dev.parent = NULL;
 			memset(&icd->dev.kobj, 0, sizeof(icd->dev.kobj));
 		}

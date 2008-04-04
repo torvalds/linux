@@ -803,20 +803,25 @@ static int pxa_camera_querycap(struct soc_camera_host *ici,
 	return 0;
 }
 
-/* Should beallocated dynamically too, but we have only one. */
+static struct soc_camera_host_ops pxa_soc_camera_host_ops = {
+	.owner		= THIS_MODULE,
+	.add		= pxa_camera_add_device,
+	.remove		= pxa_camera_remove_device,
+	.set_fmt_cap	= pxa_camera_set_fmt_cap,
+	.try_fmt_cap	= pxa_camera_try_fmt_cap,
+	.reqbufs	= pxa_camera_reqbufs,
+	.poll		= pxa_camera_poll,
+	.querycap	= pxa_camera_querycap,
+	.try_bus_param	= pxa_camera_try_bus_param,
+	.set_bus_param	= pxa_camera_set_bus_param,
+};
+
+/* Should be allocated dynamically too, but we have only one. */
 static struct soc_camera_host pxa_soc_camera_host = {
 	.drv_name		= PXA_CAM_DRV_NAME,
 	.vbq_ops		= &pxa_videobuf_ops,
-	.add			= pxa_camera_add_device,
-	.remove			= pxa_camera_remove_device,
 	.msize			= sizeof(struct pxa_buffer),
-	.set_fmt_cap		= pxa_camera_set_fmt_cap,
-	.try_fmt_cap		= pxa_camera_try_fmt_cap,
-	.reqbufs		= pxa_camera_reqbufs,
-	.poll			= pxa_camera_poll,
-	.querycap		= pxa_camera_querycap,
-	.try_bus_param		= pxa_camera_try_bus_param,
-	.set_bus_param		= pxa_camera_set_bus_param,
+	.ops			= &pxa_soc_camera_host_ops,
 };
 
 static int pxa_camera_probe(struct platform_device *pdev)
@@ -912,7 +917,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	pxa_soc_camera_host.priv	= pcdev;
 	pxa_soc_camera_host.dev.parent	= &pdev->dev;
 	pxa_soc_camera_host.nr		= pdev->id;
-	err = soc_camera_host_register(&pxa_soc_camera_host, THIS_MODULE);
+	err = soc_camera_host_register(&pxa_soc_camera_host);
 	if (err)
 		goto exit_free_irq;
 
