@@ -396,9 +396,12 @@ static int gunze_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 {
 	struct usb_device *dev = usbtouch->udev;
-	int ret;
-	unsigned char buf[2];
+	int ret = -ENOMEM;
+	unsigned char *buf;
 
+	buf = kmalloc(2, GFP_KERNEL);
+	if (!buf)
+		goto err_nobuf;
 	/* reset */
 	buf[0] = buf[1] = 0xFF;
 	ret = usb_control_msg(dev, usb_rcvctrlpipe (dev, 0),
@@ -406,9 +409,11 @@ static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 	                      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 	                      0, 0, buf, 2, USB_CTRL_SET_TIMEOUT);
 	if (ret < 0)
-		return ret;
-	if (buf[0] != 0x06 || buf[1] != 0x00)
-		return -ENODEV;
+		goto err_out;
+	if (buf[0] != 0x06 || buf[1] != 0x00) {
+		ret = -ENODEV;
+		goto err_out;
+	}
 
 	/* set coordinate output rate */
 	buf[0] = buf[1] = 0xFF;
@@ -417,20 +422,22 @@ static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 	                      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 	                      TSC10_RATE_150, 0, buf, 2, USB_CTRL_SET_TIMEOUT);
 	if (ret < 0)
-		return ret;
+		goto err_out;
 	if ((buf[0] != 0x06 || buf[1] != 0x00) &&
-	    (buf[0] != 0x15 || buf[1] != 0x01))
-		return -ENODEV;
+	    (buf[0] != 0x15 || buf[1] != 0x01)) {
+		ret = -ENODEV;
+		goto err_out;
+	}
 
 	/* start sending data */
 	ret = usb_control_msg(dev, usb_rcvctrlpipe (dev, 0),
 	                      TSC10_CMD_DATA1,
 	                      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 	                      0, 0, NULL, 0, USB_CTRL_SET_TIMEOUT);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+err_out:
+	kfree(buf);
+err_nobuf:
+	return ret;
 }
 
 
