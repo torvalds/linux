@@ -588,15 +588,16 @@ static void __init __get_smp_config(unsigned early)
 	 * processors, where MPS only supports physical.
 	 */
 	if (acpi_lapic && acpi_ioapic) {
-		printk(KERN_INFO
-		       "Using ACPI (MADT) for SMP configuration information\n");
+		printk(KERN_INFO "Using ACPI (MADT) for SMP configuration "
+		       "information\n");
 		return;
 	} else if (acpi_lapic)
-		printk(KERN_INFO
-		       "Using ACPI for processor (LAPIC) configuration information\n");
+		printk(KERN_INFO "Using ACPI for processor (LAPIC) "
+		       "configuration information\n");
 
 	printk(KERN_INFO "Intel MultiProcessor Specification v1.%d\n",
 	       mpf->mpf_specification);
+#ifdef CONFIG_X86_32
 	if (mpf->mpf_feature2 & (1 << 7)) {
 		printk(KERN_INFO "    IMCR and PIC compatibility mode.\n");
 		pic_mode = 1;
@@ -604,7 +605,7 @@ static void __init __get_smp_config(unsigned early)
 		printk(KERN_INFO "    Virtual Wire compatibility mode.\n");
 		pic_mode = 0;
 	}
-
+#endif
 	/*
 	 * Now see if we need to read further.
 	 */
@@ -631,8 +632,8 @@ static void __init __get_smp_config(unsigned early)
 			smp_found_config = 0;
 			printk(KERN_ERR
 			       "BIOS bug, MP table errors detected!...\n");
-			printk(KERN_ERR
-			       "... disabling SMP support. (tell your hw vendor)\n");
+			printk(KERN_ERR "... disabling SMP support. "
+			       "(tell your hw vendor)\n");
 			return;
 		}
 
@@ -647,8 +648,9 @@ static void __init __get_smp_config(unsigned early)
 		if (!mp_irq_entries) {
 			struct mpc_config_bus bus;
 
-			printk(KERN_ERR
-			       "BIOS bug, no explicit IRQ entries, using default mptable. (tell your hw vendor)\n");
+			printk(KERN_ERR "BIOS bug, no explicit IRQ entries, "
+			       "using default mptable. "
+			       "(tell your hw vendor)\n");
 
 			bus.mpc_type = MP_BUS;
 			bus.mpc_busid = 0;
