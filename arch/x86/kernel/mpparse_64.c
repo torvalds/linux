@@ -92,17 +92,43 @@ static void __init MP_bus_info(struct mpc_config_bus *m)
 
 	memcpy(str, m->mpc_bustype, 6);
 	str[6] = 0;
-	Dprintk("Bus #%d is %s\n", m->mpc_busid, str);
 
-	if (strncmp(str, "ISA", 3) == 0) {
-		set_bit(m->mpc_busid, mp_bus_not_pci);
-	} else if (strncmp(str, "PCI", 3) == 0) {
+#ifdef CONFIG_X86_NUMAQ
+	mpc_oem_bus_info(m, str, translation_table[mpc_record]);
+#else
+	Dprintk("Bus #%d is %s\n", m->mpc_busid, str);
+#endif
+
+#if MAX_MP_BUSSES < 256
+	if (m->mpc_busid >= MAX_MP_BUSSES) {
+		printk(KERN_WARNING "MP table busid value (%d) for bustype %s "
+		       " is too large, max. supported is %d\n",
+		       m->mpc_busid, str, MAX_MP_BUSSES - 1);
+		return;
+	}
+#endif
+
+	if (strncmp(str, BUSTYPE_ISA, sizeof(BUSTYPE_ISA) - 1) == 0) {
+		 set_bit(m->mpc_busid, mp_bus_not_pci);
+#if defined(CONFIG_EISA) || defined (CONFIG_MCA)
+		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_ISA;
+#endif
+	} else if (strncmp(str, BUSTYPE_PCI, sizeof(BUSTYPE_PCI) - 1) == 0) {
+#ifdef CONFIG_X86_NUMAQ
+		mpc_oem_pci_bus(m, translation_table[mpc_record]);
+#endif
 		clear_bit(m->mpc_busid, mp_bus_not_pci);
 		mp_bus_id_to_pci_bus[m->mpc_busid] = mp_current_pci_id;
 		mp_current_pci_id++;
-	} else {
-		printk(KERN_ERR "Unknown bustype %s\n", str);
-	}
+#if defined(CONFIG_EISA) || defined (CONFIG_MCA)
+		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_PCI;
+	} else if (strncmp(str, BUSTYPE_EISA, sizeof(BUSTYPE_EISA) - 1) == 0) {
+		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_EISA;
+	} else if (strncmp(str, BUSTYPE_MCA, sizeof(BUSTYPE_MCA) - 1) == 0) {
+		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_MCA;
+#endif
+	} else
+		printk(KERN_WARNING "Unknown bustype %s - ignoring\n", str);
 }
 
 static int bad_ioapic(unsigned long address)

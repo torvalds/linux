@@ -124,8 +124,12 @@ static void __init MP_bus_info(struct mpc_config_bus *m)
 	}
 #endif
 
-	set_bit(m->mpc_busid, mp_bus_not_pci);
-	if (strncmp(str, BUSTYPE_PCI, sizeof(BUSTYPE_PCI) - 1) == 0) {
+	if (strncmp(str, BUSTYPE_ISA, sizeof(BUSTYPE_ISA) - 1) == 0) {
+		 set_bit(m->mpc_busid, mp_bus_not_pci);
+#if defined(CONFIG_EISA) || defined (CONFIG_MCA)
+		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_ISA;
+#endif
+	} else if (strncmp(str, BUSTYPE_PCI, sizeof(BUSTYPE_PCI) - 1) == 0) {
 #ifdef CONFIG_X86_NUMAQ
 		mpc_oem_pci_bus(m, translation_table[mpc_record]);
 #endif
@@ -134,16 +138,13 @@ static void __init MP_bus_info(struct mpc_config_bus *m)
 		mp_current_pci_id++;
 #if defined(CONFIG_EISA) || defined (CONFIG_MCA)
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_PCI;
-	} else if (strncmp(str, BUSTYPE_ISA, sizeof(BUSTYPE_ISA) - 1) == 0) {
-		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_ISA;
 	} else if (strncmp(str, BUSTYPE_EISA, sizeof(BUSTYPE_EISA) - 1) == 0) {
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_EISA;
 	} else if (strncmp(str, BUSTYPE_MCA, sizeof(BUSTYPE_MCA) - 1) == 0) {
 		mp_bus_id_to_type[m->mpc_busid] = MP_BUS_MCA;
-	} else {
-		printk(KERN_WARNING "Unknown bustype %s - ignoring\n", str);
 #endif
-	}
+	} else
+		printk(KERN_WARNING "Unknown bustype %s - ignoring\n", str);
 }
 
 #ifdef CONFIG_X86_IO_APIC
