@@ -261,18 +261,6 @@ struct tx4938_sio_reg {
 	volatile unsigned long rfifo;
 };
 
-struct tx4938_pio_reg {
-	volatile unsigned long dout;
-	volatile unsigned long din;
-	volatile unsigned long dir;
-	volatile unsigned long od;
-	volatile unsigned long flag[2];
-	volatile unsigned long pol;
-	volatile unsigned long intc;
-	volatile unsigned long maskcpu;
-	volatile unsigned long maskext;
-};
-
 struct tx4938_ndfmc_reg {
 	endian_def_l2(unused0, dtr);
 	endian_def_l2(unused1, mcr);
@@ -642,7 +630,7 @@ struct tx4938_ccfg_reg {
 #define tx4938_pcic1ptr		((struct tx4938_pcic_reg *)TX4938_PCIC1_REG)
 #define tx4938_ccfgptr		((struct tx4938_ccfg_reg *)TX4938_CCFG_REG)
 #define tx4938_sioptr(ch)	((struct tx4938_sio_reg *)TX4938_SIO_REG(ch))
-#define tx4938_pioptr		((struct tx4938_pio_reg *)TX4938_PIO_REG)
+#define tx4938_pioptr		((struct txx9_pio_reg __iomem *)TX4938_PIO_REG)
 #define tx4938_aclcptr		((struct tx4938_aclc_reg *)TX4938_ACLC_REG)
 #define tx4938_spiptr		((struct tx4938_spi_reg *)TX4938_SPI_REG)
 #define tx4938_sramcptr		((struct tx4938_sramc_reg *)TX4938_SRAMC_REG)

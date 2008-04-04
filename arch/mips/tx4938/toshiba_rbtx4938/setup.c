@@ -21,6 +21,7 @@
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/gpio.h>
 
 #include <asm/wbflush.h>
 #include <asm/reboot.h>
@@ -34,7 +35,7 @@
 #endif
 #include <linux/spi/spi.h>
 #include <asm/tx4938/spi.h>
-#include <asm/gpio.h>
+#include <asm/txx9pio.h>
 
 extern char * __init prom_getcmdline(void);
 static inline void tx4938_report_pcic_status1(struct tx4938_pcic_reg *pcicptr);
@@ -615,9 +616,6 @@ static void __init rbtx4938_spi_setup(void)
 {
 	/* set SPI_SEL */
 	tx4938_ccfgptr->pcfg |= TX4938_PCFG_SPI_SEL;
-	/* chip selects for SPI devices */
-	tx4938_pioptr->dout |= (1 << SEEPROM1_CS);
-	tx4938_pioptr->dir |= (1 << SEEPROM1_CS);
 }
 
 static struct resource rbtx4938_fpga_resource;
@@ -780,8 +778,8 @@ void __init tx4938_board_setup(void)
 	TX4938_WR64(0xff1fb950, TX4938_DMA_MCR_MSTEN);
 
 	/* PIO */
-	tx4938_pioptr->maskcpu = 0;
-	tx4938_pioptr->maskext = 0;
+	__raw_writel(0, &tx4938_pioptr->maskcpu);
+	__raw_writel(0, &tx4938_pioptr->maskext);
 
 	/* TX4938 internal registers */
 	if (request_resource(&iomem_resource, &tx4938_reg_resource))
@@ -984,106 +982,48 @@ device_initcall(rbtx4938_ne_init);
 
 /* GPIO support */
 
+int gpio_to_irq(unsigned gpio)
+{
+	return -EINVAL;
+}
+
+int irq_to_gpio(unsigned irq)
+{
+	return -EINVAL;
+}
+
 static DEFINE_SPINLOCK(rbtx4938_spi_gpio_lock);
 
-static void rbtx4938_spi_gpio_set(unsigned gpio, int value)
+static void rbtx4938_spi_gpio_set(struct gpio_chip *chip, unsigned int offset,
+				  int value)
 {
 	u8 val;
 	unsigned long flags;
-	gpio -= 16;
 	spin_lock_irqsave(&rbtx4938_spi_gpio_lock, flags);
 	val = *rbtx4938_spics_ptr;
 	if (value)
-		val |= 1 << gpio;
+		val |= 1 << offset;
 	else
-		val &= ~(1 << gpio);
+		val &= ~(1 << offset);
 	*rbtx4938_spics_ptr = val;
 	mmiowb();
 	spin_unlock_irqrestore(&rbtx4938_spi_gpio_lock, flags);
 }
 
-static int rbtx4938_spi_gpio_dir_out(unsigned gpio, int value)
+static int rbtx4938_spi_gpio_dir_out(struct gpio_chip *chip,
+				     unsigned int offset, int value)
 {
-	rbtx4938_spi_gpio_set(gpio, value);
+	rbtx4938_spi_gpio_set(chip, offset, value);
 	return 0;
 }
 
-static DEFINE_SPINLOCK(tx4938_gpio_lock);
-
-static int tx4938_gpio_get(unsigned gpio)
-{
-	return tx4938_pioptr->din & (1 << gpio);
-}
-
-static void tx4938_gpio_set_raw(unsigned gpio, int value)
-{
-	u32 val;
-	val = tx4938_pioptr->dout;
-	if (value)
-		val |= 1 << gpio;
-	else
-		val &= ~(1 << gpio);
-	tx4938_pioptr->dout = val;
-}
-
-static void tx4938_gpio_set(unsigned gpio, int value)
-{
-	unsigned long flags;
-	spin_lock_irqsave(&tx4938_gpio_lock, flags);
-	tx4938_gpio_set_raw(gpio, value);
-	mmiowb();
-	spin_unlock_irqrestore(&tx4938_gpio_lock, flags);
-}
-
-static int tx4938_gpio_dir_in(unsigned gpio)
-{
-	spin_lock_irq(&tx4938_gpio_lock);
-	tx4938_pioptr->dir &= ~(1 << gpio);
-	mmiowb();
-	spin_unlock_irq(&tx4938_gpio_lock);
-	return 0;
-}
-
-static int tx4938_gpio_dir_out(unsigned int gpio, int value)
-{
-	spin_lock_irq(&tx4938_gpio_lock);
-	tx4938_gpio_set_raw(gpio, value);
-	tx4938_pioptr->dir |= 1 << gpio;
-	mmiowb();
-	spin_unlock_irq(&tx4938_gpio_lock);
-	return 0;
-}
-
-int gpio_direction_input(unsigned gpio)
-{
-	if (gpio < 16)
-		return tx4938_gpio_dir_in(gpio);
-	return -EINVAL;
-}
-
-int gpio_direction_output(unsigned gpio, int value)
-{
-	if (gpio < 16)
-		return tx4938_gpio_dir_out(gpio, value);
-	if (gpio < 16 + 3)
-		return rbtx4938_spi_gpio_dir_out(gpio, value);
-	return -EINVAL;
-}
-
-int gpio_get_value(unsigned gpio)
-{
-	if (gpio < 16)
-		return tx4938_gpio_get(gpio);
-	return 0;
-}
-
-void gpio_set_value(unsigned gpio, int value)
-{
-	if (gpio < 16)
-		tx4938_gpio_set(gpio, value);
-	else
-		rbtx4938_spi_gpio_set(gpio, value);
-}
+static struct gpio_chip rbtx4938_spi_gpio_chip = {
+	.set = rbtx4938_spi_gpio_set,
+	.direction_output = rbtx4938_spi_gpio_dir_out,
+	.label = "RBTX4938-SPICS",
+	.base = 16,
+	.ngpio = 3,
+};
 
 /* SPI support */
 
@@ -1118,10 +1058,25 @@ static int __init rbtx4938_spi_init(void)
 	spi_eeprom_register(SEEPROM1_CS);
 	spi_eeprom_register(16 + SEEPROM2_CS);
 	spi_eeprom_register(16 + SEEPROM3_CS);
+	gpio_request(16 + SRTC_CS, "rtc-rs5c348");
+	gpio_direction_output(16 + SRTC_CS, 0);
+	gpio_request(SEEPROM1_CS, "seeprom1");
+	gpio_direction_output(SEEPROM1_CS, 1);
+	gpio_request(16 + SEEPROM2_CS, "seeprom2");
+	gpio_direction_output(16 + SEEPROM2_CS, 1);
+	gpio_request(16 + SEEPROM3_CS, "seeprom3");
+	gpio_direction_output(16 + SEEPROM3_CS, 1);
 	txx9_spi_init(TX4938_SPI_REG & 0xfffffffffULL, RBTX4938_IRQ_IRC_SPI);
 	return 0;
 }
-arch_initcall(rbtx4938_spi_init);
+
+static int __init rbtx4938_arch_init(void)
+{
+	txx9_gpio_init(TX4938_PIO_REG & 0xfffffffffULL, 0, 16);
+	gpiochip_add(&rbtx4938_spi_gpio_chip);
+	return rbtx4938_spi_init();
+}
+arch_initcall(rbtx4938_arch_init);
 
 /* Watchdog support */
 
