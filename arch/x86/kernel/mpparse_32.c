@@ -994,14 +994,15 @@ void __init mp_config_acpi_legacy_irqs(void)
 	}
 }
 
-#define MAX_GSI_NUM	4096
-#define IRQ_COMPRESSION_START	64
-
 int mp_register_gsi(u32 gsi, int triggering, int polarity)
 {
 	int ioapic = -1;
 	int ioapic_pin = 0;
 	int idx, bit = 0;
+#ifdef CONFIG_X86_32
+#define MAX_GSI_NUM	4096
+#define IRQ_COMPRESSION_START	64
+
 	static int pci_irq = IRQ_COMPRESSION_START;
 	/*
 	 * Mapping between Global System Interrupts, which
@@ -1009,6 +1010,11 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 	 * assigned to actual devices.
 	 */
 	static int gsi_to_irq[MAX_GSI_NUM];
+#else
+
+	if (acpi_irq_model != ACPI_IRQ_MODEL_IOAPIC)
+		return gsi;
+#endif
 
 	/* Don't set up the ACPI SCI because it's already set up */
 	if (acpi_gbl_FADT.sci_interrupt == gsi)
@@ -1022,8 +1028,10 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 
 	ioapic_pin = gsi - mp_ioapic_routing[ioapic].gsi_base;
 
+#ifdef CONFIG_X86_32
 	if (ioapic_renumber_irq)
 		gsi = ioapic_renumber_irq(ioapic, gsi);
+#endif
 
 	/*
 	 * Avoid pin reprogramming.  PRTs typically include entries
@@ -1041,11 +1049,15 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 	if ((1 << bit) & mp_ioapic_routing[ioapic].pin_programmed[idx]) {
 		Dprintk(KERN_DEBUG "Pin %d-%d already programmed\n",
 			mp_ioapic_routing[ioapic].apic_id, ioapic_pin);
+#ifdef CONFIG_X86_32
 		return (gsi < IRQ_COMPRESSION_START ? gsi : gsi_to_irq[gsi]);
+#else
+		return gsi;
+#endif
 	}
 
 	mp_ioapic_routing[ioapic].pin_programmed[idx] |= (1 << bit);
-
+#ifdef CONFIG_X86_32
 	/*
 	 * For GSI >= 64, use IRQ compression
 	 */
@@ -1079,7 +1091,7 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 			return gsi;
 		}
 	}
-
+#endif
 	io_apic_set_pci_routing(ioapic, ioapic_pin, gsi,
 				triggering == ACPI_EDGE_SENSITIVE ? 0 : 1,
 				polarity == ACPI_ACTIVE_HIGH ? 0 : 1);
