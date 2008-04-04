@@ -8,7 +8,8 @@ of second share to disconnected server session (autoreconnect on this).
 Add ability to modify cifs acls for handling chmod (when mounted with
 cifsacl flag). Fix prefixpath path separator so we can handle mounts
 with prefixpaths longer than one directory (one path component) when
-mounted to Windows servers.
+mounted to Windows servers.  Fix slow file open when cifsacl
+enabled.
 
 Version 1.51
 ------------
