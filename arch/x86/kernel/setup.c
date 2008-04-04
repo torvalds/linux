@@ -9,6 +9,10 @@
 #include <asm/processor.h>
 #include <asm/setup.h>
 #include <asm/topology.h>
+#include <asm/apicdef.h>
+
+DEFINE_PER_CPU(u16, x86_cpu_to_apicid) = BAD_APICID;
+EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
 
 #if defined(CONFIG_HAVE_SETUP_PER_CPU_AREA) && defined(CONFIG_SMP)
 /*
