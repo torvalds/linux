@@ -667,10 +667,10 @@ static void xen_release_pt_init(u32 pfn)
 	make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
 }
 
-static void pin_pagetable_pfn(unsigned level, unsigned long pfn)
+static void pin_pagetable_pfn(unsigned cmd, unsigned long pfn)
 {
 	struct mmuext_op op;
-	op.cmd = level;
+	op.cmd = cmd;
 	op.arg1.mfn = pfn_to_mfn(pfn);
 	if (HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF))
 		BUG();
@@ -687,7 +687,8 @@ static void xen_alloc_ptpage(struct mm_struct *mm, u32 pfn, unsigned level)
 
 		if (!PageHighMem(page)) {
 			make_lowmem_page_readonly(__va(PFN_PHYS(pfn)));
-			pin_pagetable_pfn(level, pfn);
+			if (level == PT_PTE)
+				pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
 		} else
 			/* make sure there are no stray mappings of
 			   this page */
@@ -697,25 +698,37 @@ static void xen_alloc_ptpage(struct mm_struct *mm, u32 pfn, unsigned level)
 
 static void xen_alloc_pt(struct mm_struct *mm, u32 pfn)
 {
-	xen_alloc_ptpage(mm, pfn, MMUEXT_PIN_L1_TABLE);
+	xen_alloc_ptpage(mm, pfn, PT_PTE);
 }
 
 static void xen_alloc_pd(struct mm_struct *mm, u32 pfn)
 {
-	xen_alloc_ptpage(mm, pfn, MMUEXT_PIN_L2_TABLE);
+	xen_alloc_ptpage(mm, pfn, PT_PMD);
 }
 
 /* This should never happen until we're OK to use struct page */
-static void xen_release_pt(u32 pfn)
+static void xen_release_ptpage(u32 pfn, unsigned level)
 {
 	struct page *page = pfn_to_page(pfn);
 
 	if (PagePinned(page)) {
 		if (!PageHighMem(page)) {
-			pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, pfn);
+			if (level == PT_PTE)
+				pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, pfn);
 			make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
 		}
+		ClearPagePinned(page);
 	}
+}
+
+static void xen_release_pt(u32 pfn)
+{
+	xen_release_ptpage(pfn, PT_PTE);
+}
+
+static void xen_release_pd(u32 pfn)
+{
+	xen_release_ptpage(pfn, PT_PMD);
 }
 
 #ifdef CONFIG_HIGHPTE
@@ -838,7 +851,7 @@ static __init void xen_pagetable_setup_done(pgd_t *base)
 	pv_mmu_ops.alloc_pt = xen_alloc_pt;
 	pv_mmu_ops.alloc_pd = xen_alloc_pd;
 	pv_mmu_ops.release_pt = xen_release_pt;
-	pv_mmu_ops.release_pd = xen_release_pt;
+	pv_mmu_ops.release_pd = xen_release_pd;
 	pv_mmu_ops.set_pte = xen_set_pte;
 
 	setup_shared_info();

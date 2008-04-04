@@ -133,13 +133,16 @@ static void hpet_reserve_platform_timers(unsigned long id)
 #ifdef CONFIG_HPET_EMULATE_RTC
 	hpet_reserve_timer(&hd, 1);
 #endif
+
 	hd.hd_irq[0] = HPET_LEGACY_8254;
 	hd.hd_irq[1] = HPET_LEGACY_RTC;
 
-       for (i = 2; i < nrtimers; timer++, i++)
-	       hd.hd_irq[i] = (timer->hpet_config & Tn_INT_ROUTE_CNF_MASK) >>
-		       Tn_INT_ROUTE_CNF_SHIFT;
+	for (i = 2; i < nrtimers; timer++, i++)
+		hd.hd_irq[i] = (timer->hpet_config & Tn_INT_ROUTE_CNF_MASK) >>
+			Tn_INT_ROUTE_CNF_SHIFT;
+
 	hpet_alloc(&hd);
+
 }
 #else
 static void hpet_reserve_platform_timers(unsigned long id) { }

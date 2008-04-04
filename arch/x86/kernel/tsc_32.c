@@ -287,14 +287,27 @@ core_initcall(cpufreq_tsc);
 /* clock source code */
 
 static unsigned long current_tsc_khz = 0;
+static struct clocksource clocksource_tsc;
 
+/*
+ * We compare the TSC to the cycle_last value in the clocksource
+ * structure to avoid a nasty time-warp issue. This can be observed in
+ * a very small window right after one CPU updated cycle_last under
+ * xtime lock and the other CPU reads a TSC value which is smaller
+ * than the cycle_last reference value due to a TSC which is slighty
+ * behind. This delta is nowhere else observable, but in that case it
+ * results in a forward time jump in the range of hours due to the
+ * unsigned delta calculation of the time keeping core code, which is
+ * necessary to support wrapping clocksources like pm timer.
+ */
 static cycle_t read_tsc(void)
 {
 	cycle_t ret;
 
 	rdtscll(ret);
 
-	return ret;
+	return ret >= clocksource_tsc.cycle_last ?
+		ret : clocksource_tsc.cycle_last;
 }
 
 static struct clocksource clocksource_tsc = {
