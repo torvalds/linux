@@ -593,7 +593,30 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 
 			smp_found_config = 1;
 			mpf_found = mpf;
+#ifdef CONFIG_X86_32
+			printk(KERN_INFO "found SMP MP-table at [%p] %08lx\n",
+			       mpf, virt_to_phys(mpf));
+			reserve_bootmem(virt_to_phys(mpf), PAGE_SIZE,
+					BOOTMEM_DEFAULT);
+			if (mpf->mpf_physptr) {
+				/*
+				 * We cannot access to MPC table to compute
+				 * table size yet, as only few megabytes from
+				 * the bottom is mapped now.
+				 * PC-9800's MPC table places on the very last
+				 * of physical memory; so that simply reserving
+				 * PAGE_SIZE from mpg->mpf_physptr yields BUG()
+				 * in reserve_bootmem.
+				 */
+				unsigned long size = PAGE_SIZE;
+				unsigned long end = max_low_pfn * PAGE_SIZE;
+				if (mpf->mpf_physptr + size > end)
+					size = end - mpf->mpf_physptr;
+				reserve_bootmem(mpf->mpf_physptr, size,
+						BOOTMEM_DEFAULT);
+			}
 
+#else
 			if (!reserve)
 				return 1;
 
@@ -601,7 +624,8 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 			if (mpf->mpf_physptr)
 				reserve_bootmem_generic(mpf->mpf_physptr,
 							PAGE_SIZE);
-			return 1;
+#endif
+		return 1;
 		}
 		bp += 4;
 		length -= 16;

@@ -683,12 +683,13 @@ void __init get_smp_config(void)
 static int __init smp_scan_config(unsigned long base, unsigned long length,
 				  unsigned reserve)
 {
-	unsigned long *bp = phys_to_virt(base);
+	extern void __bad_mpf_size(void);
+	unsigned int *bp = phys_to_virt(base);
 	struct intel_mp_floating *mpf;
 
-	printk(KERN_INFO "Scan SMP from %p for %ld bytes.\n", bp, length);
+	Dprintk("Scan SMP from %p for %ld bytes.\n", bp, length);
 	if (sizeof(*mpf) != 16)
-		printk("Error: MPF size\n");
+		__bad_mpf_size();
 
 	while (length > 0) {
 		mpf = (struct intel_mp_floating *)bp;
@@ -699,6 +700,8 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 		     || (mpf->mpf_specification == 4))) {
 
 			smp_found_config = 1;
+			mpf_found = mpf;
+#ifdef CONFIG_X86_32
 			printk(KERN_INFO "found SMP MP-table at [%p] %08lx\n",
 			       mpf, virt_to_phys(mpf));
 			reserve_bootmem(virt_to_phys(mpf), PAGE_SIZE,
@@ -721,8 +724,16 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 						BOOTMEM_DEFAULT);
 			}
 
-			mpf_found = mpf;
-			return 1;
+#else
+			if (!reserve)
+				return 1;
+
+			reserve_bootmem_generic(virt_to_phys(mpf), PAGE_SIZE);
+			if (mpf->mpf_physptr)
+				reserve_bootmem_generic(mpf->mpf_physptr,
+							PAGE_SIZE);
+#endif
+		return 1;
 		}
 		bp += 4;
 		length -= 16;
