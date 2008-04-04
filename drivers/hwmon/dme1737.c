@@ -48,6 +48,11 @@ static unsigned short force_id;
 module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
+static int probe_all_addr;
+module_param(probe_all_addr, bool, 0);
+MODULE_PARM_DESC(probe_all_addr, "Include probing of non-standard LPC "
+		 "addresses");
+
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = {0x2c, 0x2d, 0x2e, I2C_CLIENT_END};
 
@@ -2430,7 +2435,10 @@ static int __init dme1737_init(void)
 	}
 
 	if (dme1737_isa_detect(0x2e, &addr) &&
-	    dme1737_isa_detect(0x4e, &addr)) {
+	    dme1737_isa_detect(0x4e, &addr) &&
+	    (!probe_all_addr ||
+	     (dme1737_isa_detect(0x162e, &addr) &&
+	      dme1737_isa_detect(0x164e, &addr)))) {
 		/* Return 0 if we didn't find an ISA device */
 		return 0;
 	}
