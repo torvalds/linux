@@ -60,8 +60,6 @@ u16 x86_bios_cpu_apicid_init[NR_CPUS] __initdata
     = {[0 ... NR_CPUS - 1] = BAD_APICID };
 void *x86_bios_cpu_apicid_early_ptr;
 #endif
-DEFINE_PER_CPU(u16, x86_bios_cpu_apicid) = BAD_APICID;
-EXPORT_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
 
 /* Make it easy to share the UP and SMP code: */
 #ifndef CONFIG_X86_SMP
