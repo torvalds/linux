@@ -533,6 +533,9 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
 	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
 	struct mem_cgroup_per_zone *mz;
 
+	if (mem_cgroup_subsys.disabled)
+		return 0;
+
 	/*
 	 * Should page_cgroup's go to their own slab?
 	 * One could optimize the performance of the charging routine
@@ -665,6 +668,9 @@ void mem_cgroup_uncharge_page(struct page *page)
 	struct mem_cgroup_per_zone *mz;
 	unsigned long flags;
 
+	if (mem_cgroup_subsys.disabled)
+		return;
+
 	/*
 	 * Check if our page_cgroup is valid
 	 */
@@ -704,6 +710,9 @@ unlock:
 int mem_cgroup_prepare_migration(struct page *page)
 {
 	struct page_cgroup *pc;
+
+	if (mem_cgroup_subsys.disabled)
+		return 0;
 
 	lock_page_cgroup(page);
 	pc = page_get_page_cgroup(page);
@@ -802,6 +811,9 @@ static int mem_cgroup_force_empty(struct mem_cgroup *mem)
 {
 	int ret = -EBUSY;
 	int node, zid;
+
+	if (mem_cgroup_subsys.disabled)
+		return 0;
 
 	css_get(&mem->css);
 	/*
@@ -1053,6 +1065,8 @@ static void mem_cgroup_destroy(struct cgroup_subsys *ss,
 static int mem_cgroup_populate(struct cgroup_subsys *ss,
 				struct cgroup *cont)
 {
+	if (mem_cgroup_subsys.disabled)
+		return 0;
 	return cgroup_add_files(cont, ss, mem_cgroup_files,
 					ARRAY_SIZE(mem_cgroup_files));
 }
@@ -1064,6 +1078,9 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
 {
 	struct mm_struct *mm;
 	struct mem_cgroup *mem, *old_mem;
+
+	if (mem_cgroup_subsys.disabled)
+		return;
 
 	mm = get_task_mm(p);
 	if (mm == NULL)
