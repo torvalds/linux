@@ -4,34 +4,33 @@
  *
  *	(c) 1995 Alan Cox, Building #3 <alan@redhat.com>
  *	(c) 1998, 1999, 2000 Ingo Molnar <mingo@redhat.com>
- *
- *	Fixes
- *		Erich Boleyn	:	MP v1.4 and additional changes.
- *		Alan Cox	:	Added EBDA scanning
- *		Ingo Molnar	:	various cleanups and rewrites
- *		Maciej W. Rozycki:	Bits for default MP configurations
- *		Paul Diefenbaugh:	Added full ACPI support
+ *      (c) 2008 Alexey Starikovskiy <astarikovskiy@suse.de>
  */
 
 #include <linux/mm.h>
 #include <linux/init.h>
-#include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/bootmem.h>
 #include <linux/kernel_stat.h>
 #include <linux/mc146818rtc.h>
 #include <linux/bitops.h>
+#include <linux/acpi.h>
+#include <linux/module.h>
 
 #include <asm/smp.h>
-#include <asm/acpi.h>
 #include <asm/mtrr.h>
 #include <asm/mpspec.h>
+#include <asm/pgalloc.h>
 #include <asm/io_apic.h>
+#include <asm/proto.h>
+#include <asm/acpi.h>
 #include <asm/bios_ebda.h>
 
 #include <mach_apic.h>
+#ifdef CONFIG_X86_32
 #include <mach_apicdef.h>
 #include <mach_mpparse.h>
+#endif
 
 /* Have we found an MP table */
 int smp_found_config;
@@ -43,8 +42,10 @@ int smp_found_config;
 #if defined (CONFIG_MCA) || defined (CONFIG_EISA)
 int mp_bus_id_to_type[MAX_MP_BUSSES];
 #endif
+
 DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 int mp_bus_id_to_pci_bus[MAX_MP_BUSSES] = {[0 ... MAX_MP_BUSSES - 1] = -1 };
+
 static int mp_current_pci_id;
 
 int pic_mode;
@@ -582,7 +583,6 @@ static void __init __get_smp_config(unsigned early)
 
 	if (acpi_lapic && early)
 		return;
-
 	/*
 	 * ACPI supports both logical (e.g. Hyper-Threading) and physical
 	 * processors, where MPS only supports physical.
