@@ -586,19 +586,25 @@ static int ieee80211_ioctl_giwrate(struct net_device *dev,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	if (sdata->vif.type == IEEE80211_IF_TYPE_STA)
-		sta = sta_info_get(local, sdata->u.sta.bssid);
-	else
+	if (sdata->vif.type != IEEE80211_IF_TYPE_STA)
 		return -EOPNOTSUPP;
-	if (!sta)
-		return -ENODEV;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
-	if (sta->txrate_idx < sband->n_bitrates)
+	rcu_read_lock();
+
+	sta = sta_info_get(local, sdata->u.sta.bssid);
+
+	if (sta && sta->txrate_idx < sband->n_bitrates)
 		rate->value = sband->bitrates[sta->txrate_idx].bitrate;
 	else
 		rate->value = 0;
+
+	rcu_read_unlock();
+
+	if (!sta)
+		return -ENODEV;
+
 	rate->value *= 100000;
 
 	return 0;
