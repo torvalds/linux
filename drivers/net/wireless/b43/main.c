@@ -1337,7 +1337,8 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
 		b43warn(dev->wl, "Did not find a valid TIM IE in "
 			"the beacon template packet. AP or IBSS operation "
 			"may be broken.\n");
-	}
+	} else
+		b43dbg(dev->wl, "Updated beacon template\n");
 }
 
 static void b43_write_probe_resp_plcp(struct b43_wldev *dev,
@@ -1447,6 +1448,27 @@ static void b43_write_probe_resp_template(struct b43_wldev *dev,
 	kfree(probe_resp_data);
 }
 
+static void b43_beacon_update_trigger_work(struct work_struct *work)
+{
+	struct b43_wl *wl = container_of(work, struct b43_wl,
+					 beacon_update_trigger);
+	struct b43_wldev *dev;
+
+	mutex_lock(&wl->mutex);
+	dev = wl->current_dev;
+	if (likely(dev && (b43_status(dev) >= B43_STAT_INITIALIZED))) {
+		/* Force the microcode to trigger the
+		 * beacon update bottom-half IRQ. */
+		spin_lock_irq(&wl->irq_lock);
+		b43_write32(dev, B43_MMIO_MACCMD,
+			    b43_read32(dev, B43_MMIO_MACCMD)
+			    | B43_MACCMD_BEACON0_VALID
+			    | B43_MACCMD_BEACON1_VALID);
+		spin_unlock_irq(&wl->irq_lock);
+	}
+	mutex_unlock(&wl->mutex);
+}
+
 /* Asynchronously update the packet templates in template RAM.
  * Locking: Requires wl->irq_lock to be locked. */
 static void b43_update_templates(struct b43_wl *wl, struct sk_buff *beacon)
@@ -1462,6 +1484,7 @@ static void b43_update_templates(struct b43_wl *wl, struct sk_buff *beacon)
 	wl->current_beacon = beacon;
 	wl->beacon0_uploaded = 0;
 	wl->beacon1_uploaded = 0;
+	queue_work(wl->hw->workqueue, &wl->beacon_update_trigger);
 }
 
 static void b43_set_ssid(struct b43_wldev *dev, const u8 * ssid, u8 ssid_len)
@@ -1487,18 +1510,20 @@ static void b43_set_beacon_int(struct b43_wldev *dev, u16 beacon_int)
 {
 	b43_time_lock(dev);
 	if (dev->dev->id.revision >= 3) {
-		b43_write32(dev, 0x188, (beacon_int << 16));
+		b43_write32(dev, B43_MMIO_TSF_CFP_REP, (beacon_int << 16));
+		b43_write32(dev, B43_MMIO_TSF_CFP_START, (beacon_int << 10));
 	} else {
 		b43_write16(dev, 0x606, (beacon_int >> 6));
 		b43_write16(dev, 0x610, beacon_int);
 	}
 	b43_time_unlock(dev);
+	b43dbg(dev->wl, "Set beacon interval to %u\n", beacon_int);
 }
 
 static void handle_irq_beacon(struct b43_wldev *dev)
 {
 	struct b43_wl *wl = dev->wl;
-	u32 cmd;
+	u32 cmd, beacon0_valid, beacon1_valid;
 
 	if (!b43_is_mode(wl, IEEE80211_IF_TYPE_AP))
 		return;
@@ -1506,7 +1531,11 @@ static void handle_irq_beacon(struct b43_wldev *dev)
 	/* This is the bottom half of the asynchronous beacon update. */
 
 	cmd = b43_read32(dev, B43_MMIO_MACCMD);
-	if (!(cmd & B43_MACCMD_BEACON0_VALID)) {
+	beacon0_valid = (cmd & B43_MACCMD_BEACON0_VALID);
+	beacon1_valid = (cmd & B43_MACCMD_BEACON1_VALID);
+	cmd &= ~(B43_MACCMD_BEACON0_VALID | B43_MACCMD_BEACON1_VALID);
+
+	if (!beacon0_valid) {
 		if (!wl->beacon0_uploaded) {
 			b43_write_beacon_template(dev, 0x68, 0x18,
 						  B43_CCK_RATE_1MB);
@@ -1515,8 +1544,7 @@ static void handle_irq_beacon(struct b43_wldev *dev)
 			wl->beacon0_uploaded = 1;
 		}
 		cmd |= B43_MACCMD_BEACON0_VALID;
-	}
-	if (!(cmd & B43_MACCMD_BEACON1_VALID)) {
+	} else if (!beacon1_valid) {
 		if (!wl->beacon1_uploaded) {
 			b43_write_beacon_template(dev, 0x468, 0x1A,
 						  B43_CCK_RATE_1MB);
@@ -4012,6 +4040,7 @@ static void b43_op_stop(struct ieee80211_hw *hw)
 
 	b43_rfkill_exit(dev);
 	cancel_work_sync(&(wl->qos_update_work));
+	cancel_work_sync(&(wl->beacon_update_trigger));
 
 	mutex_lock(&wl->mutex);
 	if (b43_status(dev) >= B43_STAT_STARTED)
@@ -4389,6 +4418,7 @@ static int b43_wireless_init(struct ssb_device *dev)
 	mutex_init(&wl->mutex);
 	INIT_LIST_HEAD(&wl->devlist);
 	INIT_WORK(&wl->qos_update_work, b43_qos_update_work);
+	INIT_WORK(&wl->beacon_update_trigger, b43_beacon_update_trigger_work);
 
 	ssb_set_devtypedata(dev, wl);
 	b43info(wl, "Broadcom %04X WLAN found\n", dev->bus->chip_id);

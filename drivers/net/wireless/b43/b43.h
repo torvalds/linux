@@ -733,6 +733,7 @@ struct b43_wl {
 	struct sk_buff *current_beacon;
 	bool beacon0_uploaded;
 	bool beacon1_uploaded;
+	struct work_struct beacon_update_trigger;
 
 	/* The current QOS parameters for the 4 queues.
 	 * This is protected by the irq_lock. */
