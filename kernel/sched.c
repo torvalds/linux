@@ -67,6 +67,7 @@
 #include <linux/pagemap.h>
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
+#include <linux/bootmem.h>
 
 #include <asm/tlb.h>
 #include <asm/irq_regs.h>
@@ -276,17 +277,11 @@ struct task_group {
 static DEFINE_PER_CPU(struct sched_entity, init_sched_entity);
 /* Default task group's cfs_rq on each cpu */
 static DEFINE_PER_CPU(struct cfs_rq, init_cfs_rq) ____cacheline_aligned_in_smp;
-
-static struct sched_entity *init_sched_entity_p[NR_CPUS];
-static struct cfs_rq *init_cfs_rq_p[NR_CPUS];
 #endif
 
 #ifdef CONFIG_RT_GROUP_SCHED
 static DEFINE_PER_CPU(struct sched_rt_entity, init_sched_rt_entity);
 static DEFINE_PER_CPU(struct rt_rq, init_rt_rq) ____cacheline_aligned_in_smp;
-
-static struct sched_rt_entity *init_sched_rt_entity_p[NR_CPUS];
-static struct rt_rq *init_rt_rq_p[NR_CPUS];
 #endif
 
 /* task_group_lock serializes add/remove of task groups and also changes to
@@ -310,17 +305,7 @@ static int init_task_group_load = INIT_TASK_GROUP_LOAD;
 /* Default task group.
  *	Every task in system belong to this group at bootup.
  */
-struct task_group init_task_group = {
-#ifdef CONFIG_FAIR_GROUP_SCHED
-	.se	= init_sched_entity_p,
-	.cfs_rq = init_cfs_rq_p,
-#endif
-
-#ifdef CONFIG_RT_GROUP_SCHED
-	.rt_se	= init_sched_rt_entity_p,
-	.rt_rq	= init_rt_rq_p,
-#endif
-};
+struct task_group init_task_group;
 
 /* return group to which a task belongs */
 static inline struct task_group *task_group(struct task_struct *p)
@@ -3720,7 +3705,7 @@ static inline void trigger_load_balance(struct rq *rq, int cpu)
 			 */
 			int ilb = first_cpu(nohz.cpu_mask);
 
-			if (ilb != NR_CPUS)
+			if (ilb < nr_cpu_ids)
 				resched_cpu(ilb);
 		}
 	}
@@ -5671,11 +5656,11 @@ static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *p)
 		dest_cpu = any_online_cpu(mask);
 
 		/* On any allowed CPU? */
-		if (dest_cpu == NR_CPUS)
+		if (dest_cpu >= nr_cpu_ids)
 			dest_cpu = any_online_cpu(p->cpus_allowed);
 
 		/* No more Mr. Nice Guy. */
-		if (dest_cpu == NR_CPUS) {
+		if (dest_cpu >= nr_cpu_ids) {
 			cpumask_t cpus_allowed = cpuset_cpus_allowed_locked(p);
 			/*
 			 * Try to stay on the same cpuset, where the
@@ -6134,9 +6119,9 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level)
 {
 	struct sched_group *group = sd->groups;
 	cpumask_t groupmask;
-	char str[NR_CPUS];
+	char str[256];
 
-	cpumask_scnprintf(str, NR_CPUS, sd->span);
+	cpulist_scnprintf(str, sizeof(str), sd->span);
 	cpus_clear(groupmask);
 
 	printk(KERN_DEBUG "%*s domain %d: ", level, "", level);
@@ -6189,7 +6174,7 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level)
 
 		cpus_or(groupmask, groupmask, group->cpumask);
 
-		cpumask_scnprintf(str, NR_CPUS, group->cpumask);
+		cpulist_scnprintf(str, sizeof(str), group->cpumask);
 		printk(KERN_CONT " %s", str);
 
 		group = group->next;
@@ -6601,7 +6586,7 @@ cpu_to_phys_group(int cpu, const cpumask_t *cpu_map, struct sched_group **sg)
  * gets dynamically allocated.
  */
 static DEFINE_PER_CPU(struct sched_domain, node_domains);
-static struct sched_group **sched_group_nodes_bycpu[NR_CPUS];
+static struct sched_group ***sched_group_nodes_bycpu;
 
 static DEFINE_PER_CPU(struct sched_domain, allnodes_domains);
 static DEFINE_PER_CPU(struct sched_group, sched_group_allnodes);
@@ -7244,6 +7229,11 @@ void __init sched_init_smp(void)
 {
 	cpumask_t non_isolated_cpus;
 
+#if defined(CONFIG_NUMA)
+	sched_group_nodes_bycpu = kzalloc(nr_cpu_ids * sizeof(void **),
+								GFP_KERNEL);
+	BUG_ON(sched_group_nodes_bycpu == NULL);
+#endif
 	get_online_cpus();
 	arch_init_sched_domains(&cpu_online_map);
 	cpus_andnot(non_isolated_cpus, cpu_possible_map, cpu_isolated_map);
@@ -7261,6 +7251,11 @@ void __init sched_init_smp(void)
 #else
 void __init sched_init_smp(void)
 {
+#if defined(CONFIG_NUMA)
+	sched_group_nodes_bycpu = kzalloc(nr_cpu_ids * sizeof(void **),
+								GFP_KERNEL);
+	BUG_ON(sched_group_nodes_bycpu == NULL);
+#endif
 	sched_init_granularity();
 }
 #endif /* CONFIG_SMP */
@@ -7358,6 +7353,35 @@ void __init sched_init(void)
 {
 	int highest_cpu = 0;
 	int i, j;
+	unsigned long alloc_size = 0, ptr;
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	alloc_size += 2 * nr_cpu_ids * sizeof(void **);
+#endif
+#ifdef CONFIG_RT_GROUP_SCHED
+	alloc_size += 2 * nr_cpu_ids * sizeof(void **);
+#endif
+	/*
+	 * As sched_init() is called before page_alloc is setup,
+	 * we use alloc_bootmem().
+	 */
+	if (alloc_size) {
+		ptr = (unsigned long)alloc_bootmem_low(alloc_size);
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+		init_task_group.se = (struct sched_entity **)ptr;
+		ptr += nr_cpu_ids * sizeof(void **);
+
+		init_task_group.cfs_rq = (struct cfs_rq **)ptr;
+		ptr += nr_cpu_ids * sizeof(void **);
+#endif
+#ifdef CONFIG_RT_GROUP_SCHED
+		init_task_group.rt_se = (struct sched_rt_entity **)ptr;
+		ptr += nr_cpu_ids * sizeof(void **);
+
+		init_task_group.rt_rq = (struct rt_rq **)ptr;
+#endif
+	}
 
 #ifdef CONFIG_SMP
 	init_defrootdomain();
@@ -7610,10 +7634,10 @@ static int alloc_fair_sched_group(struct task_group *tg)
 	struct rq *rq;
 	int i;
 
-	tg->cfs_rq = kzalloc(sizeof(cfs_rq) * NR_CPUS, GFP_KERNEL);
+	tg->cfs_rq = kzalloc(sizeof(cfs_rq) * nr_cpu_ids, GFP_KERNEL);
 	if (!tg->cfs_rq)
 		goto err;
-	tg->se = kzalloc(sizeof(se) * NR_CPUS, GFP_KERNEL);
+	tg->se = kzalloc(sizeof(se) * nr_cpu_ids, GFP_KERNEL);
 	if (!tg->se)
 		goto err;
 
@@ -7695,10 +7719,10 @@ static int alloc_rt_sched_group(struct task_group *tg)
 	struct rq *rq;
 	int i;
 
-	tg->rt_rq = kzalloc(sizeof(rt_rq) * NR_CPUS, GFP_KERNEL);
+	tg->rt_rq = kzalloc(sizeof(rt_rq) * nr_cpu_ids, GFP_KERNEL);
 	if (!tg->rt_rq)
 		goto err;
-	tg->rt_se = kzalloc(sizeof(rt_se) * NR_CPUS, GFP_KERNEL);
+	tg->rt_se = kzalloc(sizeof(rt_se) * nr_cpu_ids, GFP_KERNEL);
 	if (!tg->rt_se)
 		goto err;
 
