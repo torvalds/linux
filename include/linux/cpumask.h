@@ -222,8 +222,13 @@ int __next_cpu(int n, const cpumask_t *srcp);
 #define next_cpu(n, src)	({ (void)(src); 1; })
 #endif
 
+#ifdef CONFIG_HAVE_CPUMASK_OF_CPU_MAP
+extern cpumask_t *cpumask_of_cpu_map;
+#define cpumask_of_cpu(cpu)    (cpumask_of_cpu_map[cpu])
+
+#else
 #define cpumask_of_cpu(cpu)						\
-({									\
+(*({									\
 	typeof(_unused_cpumask_arg_) m;					\
 	if (sizeof(m) == sizeof(unsigned long)) {			\
 		m.bits[0] = 1UL<<(cpu);					\
@@ -231,8 +236,9 @@ int __next_cpu(int n, const cpumask_t *srcp);
 		cpus_clear(m);						\
 		cpu_set((cpu), m);					\
 	}								\
-	m;								\
-})
+	&m;								\
+}))
+#endif
 
 #define CPU_MASK_LAST_WORD BITMAP_LAST_WORD_MASK(NR_CPUS)
 

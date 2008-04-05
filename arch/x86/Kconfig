@@ -117,6 +117,9 @@ config ARCH_HAS_CPU_RELAX
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool X86_64 || (X86_SMP && !X86_VOYAGER)
 
+config HAVE_CPUMASK_OF_CPU_MAP
+	def_bool X86_64_SMP
+
 config ARCH_HIBERNATION_POSSIBLE
 	def_bool y
 	depends on !SMP || !X86_VOYAGER
