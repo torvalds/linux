@@ -39,10 +39,14 @@
 #define	AT91_PMC_PCSR		(AT91_PMC + 0x18)	/* Peripheral Clock Status Register */
 
 #define	AT91_CKGR_UCKR		(AT91_PMC + 0x1C)	/* UTMI Clock Register [SAM9RL, CAP9] */
+#define		AT91_PMC_UPLLEN		(1   << 16)		/* UTMI PLL Enable */
+#define		AT91_PMC_UPLLCOUNT	(0xf << 20)		/* UTMI PLL Start-up Time */
+#define		AT91_PMC_BIASEN		(1   << 24)		/* UTMI BIAS Enable */
+#define		AT91_PMC_BIASCOUNT	(0xf << 28)		/* UTMI PLL Start-up Time */
 
 #define	AT91_CKGR_MOR		(AT91_PMC + 0x20)	/* Main Oscillator Register [not on SAM9RL] */
 #define		AT91_PMC_MOSCEN		(1    << 0)		/* Main Oscillator Enable */
-#define		AT91_PMC_OSCBYPASS	(1    << 1)		/* Oscillator Bypass [AT91SAM926x only] */
+#define		AT91_PMC_OSCBYPASS	(1    << 1)		/* Oscillator Bypass [SAM9x, CAP9] */
 #define		AT91_PMC_OSCOUNT	(0xff << 8)		/* Main Oscillator Start-up Time */
 
 #define	AT91_CKGR_MCFR		(AT91_PMC + 0x24)	/* Main Clock Frequency Register */
@@ -97,6 +101,7 @@
 #define		AT91_PMC_LOCKA		(1 <<  1)		/* PLLA Lock */
 #define		AT91_PMC_LOCKB		(1 <<  2)		/* PLLB Lock */
 #define		AT91_PMC_MCKRDY		(1 <<  3)		/* Master Clock */
+#define		AT91_PMC_LOCKU		(1 <<  6)		/* UPLL Lock [AT91CAP9 only] */
 #define		AT91_PMC_PCK0RDY	(1 <<  8)		/* Programmable Clock 0 */
 #define		AT91_PMC_PCK1RDY	(1 <<  9)		/* Programmable Clock 1 */
 #define		AT91_PMC_PCK2RDY	(1 << 10)		/* Programmable Clock 2 */

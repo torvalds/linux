@@ -36,6 +36,7 @@
 #include <linux/i2c.h>
 #include <linux/leds.h>
 #include <linux/spi/spi.h>
+#include <linux/usb/atmel_usba_udc.h>
 
  /* USB Device */
 struct at91_udc_data {
@@ -44,6 +45,9 @@ struct at91_udc_data {
 	u8	pullup_active_low;	/* true == pullup_pin is active low */
 };
 extern void __init at91_add_device_udc(struct at91_udc_data *data);
+
+ /* USB High Speed Device */
+extern void __init at91_add_device_usba(struct usba_platform_data *data);
 
  /* Compact Flash */
 struct at91_cf_data {
