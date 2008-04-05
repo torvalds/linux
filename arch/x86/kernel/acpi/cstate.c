@@ -93,7 +93,7 @@ int acpi_processor_ffh_cstate_probe(unsigned int cpu,
 
 	/* Make sure we are running on right CPU */
 	saved_mask = current->cpus_allowed;
-	retval = set_cpus_allowed(current, cpumask_of_cpu(cpu));
+	retval = set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 	if (retval)
 		return -1;
 
@@ -130,7 +130,7 @@ int acpi_processor_ffh_cstate_probe(unsigned int cpu,
 		 cx->address);
 
 out:
-	set_cpus_allowed(current, saved_mask);
+	set_cpus_allowed_ptr(current, &saved_mask);
 	return retval;
 }
 EXPORT_SYMBOL_GPL(acpi_processor_ffh_cstate_probe);

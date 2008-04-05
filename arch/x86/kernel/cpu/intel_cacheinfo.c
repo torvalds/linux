@@ -525,7 +525,7 @@ static int __cpuinit detect_cache_attributes(unsigned int cpu)
 		return -ENOMEM;
 
 	oldmask = current->cpus_allowed;
-	retval = set_cpus_allowed(current, cpumask_of_cpu(cpu));
+	retval = set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 	if (retval)
 		goto out;
 
@@ -542,7 +542,7 @@ static int __cpuinit detect_cache_attributes(unsigned int cpu)
 		}
 		cache_shared_cpu_map_setup(cpu, j);
 	}
-	set_cpus_allowed(current, oldmask);
+	set_cpus_allowed_ptr(current, &oldmask);
 
 out:
 	if (retval) {
