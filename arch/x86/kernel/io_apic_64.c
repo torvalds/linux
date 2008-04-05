@@ -785,7 +785,7 @@ static void __clear_irq_vector(int irq)
 		per_cpu(vector_irq, cpu)[vector] = -1;
 
 	cfg->vector = 0;
-	cfg->domain = CPU_MASK_NONE;
+	cpus_clear(cfg->domain);
 }
 
 void __setup_vector_irq(int cpu)
