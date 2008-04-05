@@ -2315,7 +2315,6 @@ static struct resource * __init ioapic_setup_resources(void)
 	res = (void *)mem;
 
 	if (mem != NULL) {
-		memset(mem, 0, n);
 		mem += sizeof(struct resource) * nr_ioapics;
 
 		for (i = 0; i < nr_ioapics; i++) {
