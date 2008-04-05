@@ -269,8 +269,8 @@ static struct platform_device au1x00_pcmcia_device = {
 #ifdef SMBUS_PSC_BASE
 static struct resource pbdb_smbus_resources[] = {
 	{
-		.start	= SMBUS_PSC_BASE,
-		.end	= SMBUS_PSC_BASE + 0x24 - 1,
+		.start	= CPHYSADDR(SMBUS_PSC_BASE),
+		.end	= CPHYSADDR(SMBUS_PSC_BASE + 0xfffff),
 		.flags	= IORESOURCE_MEM,
 	},
 };
