@@ -1810,7 +1810,7 @@ static void do_test(void)
 	}
 }
 
-static int __init init(void)
+static int __init tcrypt_mod_init(void)
 {
 	int err = -ENOMEM;
 
@@ -1849,10 +1849,10 @@ static int __init init(void)
  * If an init function is provided, an exit function must also be provided
  * to allow module unload.
  */
-static void __exit fini(void) { }
+static void __exit tcrypt_mod_fini(void) { }
 
-module_init(init);
-module_exit(fini);
+module_init(tcrypt_mod_init);
+module_exit(tcrypt_mod_fini);
 
 module_param(mode, int, 0);
 module_param(sec, uint, 0);

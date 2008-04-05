@@ -663,7 +663,7 @@ static struct crypto_alg tgr128 = {
 			     .dia_final = tgr128_final}}
 };
 
-static int __init init(void)
+static int __init tgr192_mod_init(void)
 {
 	int ret = 0;
 
@@ -688,7 +688,7 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit tgr192_mod_fini(void)
 {
 	crypto_unregister_alg(&tgr192);
 	crypto_unregister_alg(&tgr160);
@@ -698,8 +698,8 @@ static void __exit fini(void)
 MODULE_ALIAS("tgr160");
 MODULE_ALIAS("tgr128");
 
-module_init(init);
-module_exit(fini);
+module_init(tgr192_mod_init);
+module_exit(tgr192_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Tiger Message Digest Algorithm");

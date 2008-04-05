@@ -278,7 +278,7 @@ static struct crypto_alg sha384 = {
         }
 };
 
-static int __init init(void)
+static int __init sha512_generic_mod_init(void)
 {
         int ret = 0;
 
@@ -290,14 +290,14 @@ out:
         return ret;
 }
 
-static void __exit fini(void)
+static void __exit sha512_generic_mod_fini(void)
 {
         crypto_unregister_alg(&sha384);
         crypto_unregister_alg(&sha512);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(sha512_generic_mod_init);
+module_exit(sha512_generic_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA-512 and SHA-384 Secure Hash Algorithms");
