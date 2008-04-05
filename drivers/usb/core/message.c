@@ -1089,8 +1089,8 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 				continue;
 			dev_dbg(&dev->dev, "unregistering interface %s\n",
 				interface->dev.bus_id);
-			usb_remove_sysfs_intf_files(interface);
 			device_del(&interface->dev);
+			usb_remove_sysfs_intf_files(interface);
 		}
 
 		/* Now that the interfaces are unbound, nobody should
@@ -1231,7 +1231,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	 */
 
 	/* prevent submissions using previous endpoint settings */
-	if (iface->cur_altsetting != alt && device_is_registered(&iface->dev))
+	if (iface->cur_altsetting != alt)
 		usb_remove_sysfs_intf_files(iface);
 	usb_disable_interface(dev, iface);
 
@@ -1330,8 +1330,7 @@ int usb_reset_configuration(struct usb_device *dev)
 		struct usb_interface *intf = config->interface[i];
 		struct usb_host_interface *alt;
 
-		if (device_is_registered(&intf->dev))
-			usb_remove_sysfs_intf_files(intf);
+		usb_remove_sysfs_intf_files(intf);
 		alt = usb_altnum_to_altsetting(intf, 0);
 
 		/* No altsetting 0?  We'll assume the first altsetting.
