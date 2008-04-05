@@ -445,7 +445,7 @@ asmlinkage long compat_sys_sched_setaffinity(compat_pid_t pid,
 	if (retval)
 		return retval;
 
-	return sched_setaffinity(pid, new_mask);
+	return sched_setaffinity(pid, &new_mask);
 }
 
 asmlinkage long compat_sys_sched_getaffinity(compat_pid_t pid, unsigned int len,
