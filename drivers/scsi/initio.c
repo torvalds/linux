@@ -2581,8 +2581,8 @@ static void initio_build_scb(struct initio_host * host, struct scsi_ctrl_blk * c
 	/* Map the sense buffer into bus memory */
 	dma_addr = dma_map_single(&host->pci_dev->dev, cmnd->sense_buffer,
 				  SENSE_SIZE, DMA_FROM_DEVICE);
-	cblk->senseptr = cpu_to_le32((u32)dma_addr);
-	cblk->senselen = cpu_to_le32(SENSE_SIZE);
+	cblk->senseptr = (u32)dma_addr;
+	cblk->senselen = SENSE_SIZE;
 	cmnd->SCp.ptr = (char *)(unsigned long)dma_addr;
 	cblk->cdblen = cmnd->cmd_len;
 
@@ -2606,7 +2606,7 @@ static void initio_build_scb(struct initio_host * host, struct scsi_ctrl_blk * c
 		dma_addr = dma_map_single(&host->pci_dev->dev, &cblk->sglist[0],
 					  sizeof(struct sg_entry) * TOTAL_SG_ENTRY,
 					  DMA_BIDIRECTIONAL);
-		cblk->bufptr = cpu_to_le32((u32)dma_addr);
+		cblk->bufptr = (u32)dma_addr;
 		cmnd->SCp.dma_handle = dma_addr;
 
 		cblk->sglen = nseg;
@@ -2616,7 +2616,8 @@ static void initio_build_scb(struct initio_host * host, struct scsi_ctrl_blk * c
 		sg = &cblk->sglist[0];
 		scsi_for_each_sg(cmnd, sglist, cblk->sglen, i) {
 			sg->data = cpu_to_le32((u32)sg_dma_address(sglist));
-			total_len += sg->len = cpu_to_le32((u32)sg_dma_len(sglist));
+			sg->len = cpu_to_le32((u32)sg_dma_len(sglist));
+			total_len += sg_dma_len(sglist);
 			++sg;
 		}
 
