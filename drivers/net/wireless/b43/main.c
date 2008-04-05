@@ -1448,6 +1448,53 @@ static void b43_write_probe_resp_template(struct b43_wldev *dev,
 	kfree(probe_resp_data);
 }
 
+static void handle_irq_beacon(struct b43_wldev *dev)
+{
+	struct b43_wl *wl = dev->wl;
+	u32 cmd, beacon0_valid, beacon1_valid;
+
+	if (!b43_is_mode(wl, IEEE80211_IF_TYPE_AP))
+		return;
+
+	/* This is the bottom half of the asynchronous beacon update. */
+
+	/* Ignore interrupt in the future. */
+	dev->irq_savedstate &= ~B43_IRQ_BEACON;
+
+	cmd = b43_read32(dev, B43_MMIO_MACCMD);
+	beacon0_valid = (cmd & B43_MACCMD_BEACON0_VALID);
+	beacon1_valid = (cmd & B43_MACCMD_BEACON1_VALID);
+
+	/* Schedule interrupt manually, if busy. */
+	if (beacon0_valid && beacon1_valid) {
+		b43_write32(dev, B43_MMIO_GEN_IRQ_REASON, B43_IRQ_BEACON);
+		dev->irq_savedstate |= B43_IRQ_BEACON;
+		return;
+	}
+
+	if (!beacon0_valid) {
+		if (!wl->beacon0_uploaded) {
+			b43_write_beacon_template(dev, 0x68, 0x18,
+						  B43_CCK_RATE_1MB);
+			b43_write_probe_resp_template(dev, 0x268, 0x4A,
+						      &__b43_ratetable[3]);
+			wl->beacon0_uploaded = 1;
+		}
+		cmd = b43_read32(dev, B43_MMIO_MACCMD);
+		cmd |= B43_MACCMD_BEACON0_VALID;
+		b43_write32(dev, B43_MMIO_MACCMD, cmd);
+	} else if (!beacon1_valid) {
+		if (!wl->beacon1_uploaded) {
+			b43_write_beacon_template(dev, 0x468, 0x1A,
+						  B43_CCK_RATE_1MB);
+			wl->beacon1_uploaded = 1;
+		}
+		cmd = b43_read32(dev, B43_MMIO_MACCMD);
+		cmd |= B43_MACCMD_BEACON1_VALID;
+		b43_write32(dev, B43_MMIO_MACCMD, cmd);
+	}
+}
+
 static void b43_beacon_update_trigger_work(struct work_struct *work)
 {
 	struct b43_wl *wl = container_of(work, struct b43_wl,
@@ -1457,13 +1504,14 @@ static void b43_beacon_update_trigger_work(struct work_struct *work)
 	mutex_lock(&wl->mutex);
 	dev = wl->current_dev;
 	if (likely(dev && (b43_status(dev) >= B43_STAT_INITIALIZED))) {
-		/* Force the microcode to trigger the
-		 * beacon update bottom-half IRQ. */
 		spin_lock_irq(&wl->irq_lock);
-		b43_write32(dev, B43_MMIO_MACCMD,
-			    b43_read32(dev, B43_MMIO_MACCMD)
-			    | B43_MACCMD_BEACON0_VALID
-			    | B43_MACCMD_BEACON1_VALID);
+		/* update beacon right away or defer to irq */
+		dev->irq_savedstate = b43_read32(dev, B43_MMIO_GEN_IRQ_MASK);
+		handle_irq_beacon(dev);
+		/* The handler might have updated the IRQ mask. */
+		b43_write32(dev, B43_MMIO_GEN_IRQ_MASK,
+			    dev->irq_savedstate);
+		mmiowb();
 		spin_unlock_irq(&wl->irq_lock);
 	}
 	mutex_unlock(&wl->mutex);
@@ -1518,41 +1566,6 @@ static void b43_set_beacon_int(struct b43_wldev *dev, u16 beacon_int)
 	}
 	b43_time_unlock(dev);
 	b43dbg(dev->wl, "Set beacon interval to %u\n", beacon_int);
-}
-
-static void handle_irq_beacon(struct b43_wldev *dev)
-{
-	struct b43_wl *wl = dev->wl;
-	u32 cmd, beacon0_valid, beacon1_valid;
-
-	if (!b43_is_mode(wl, IEEE80211_IF_TYPE_AP))
-		return;
-
-	/* This is the bottom half of the asynchronous beacon update. */
-
-	cmd = b43_read32(dev, B43_MMIO_MACCMD);
-	beacon0_valid = (cmd & B43_MACCMD_BEACON0_VALID);
-	beacon1_valid = (cmd & B43_MACCMD_BEACON1_VALID);
-	cmd &= ~(B43_MACCMD_BEACON0_VALID | B43_MACCMD_BEACON1_VALID);
-
-	if (!beacon0_valid) {
-		if (!wl->beacon0_uploaded) {
-			b43_write_beacon_template(dev, 0x68, 0x18,
-						  B43_CCK_RATE_1MB);
-			b43_write_probe_resp_template(dev, 0x268, 0x4A,
-						      &__b43_ratetable[3]);
-			wl->beacon0_uploaded = 1;
-		}
-		cmd |= B43_MACCMD_BEACON0_VALID;
-	} else if (!beacon1_valid) {
-		if (!wl->beacon1_uploaded) {
-			b43_write_beacon_template(dev, 0x468, 0x1A,
-						  B43_CCK_RATE_1MB);
-			wl->beacon1_uploaded = 1;
-		}
-		cmd |= B43_MACCMD_BEACON1_VALID;
-	}
-	b43_write32(dev, B43_MMIO_MACCMD, cmd);
 }
 
 static void handle_irq_ucode_debug(struct b43_wldev *dev)

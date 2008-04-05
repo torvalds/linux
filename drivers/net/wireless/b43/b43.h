@@ -411,7 +411,6 @@ enum {
 
 #define B43_IRQ_ALL			0xFFFFFFFF
 #define B43_IRQ_MASKTEMPLATE		(B43_IRQ_MAC_SUSPENDED | \
-					 B43_IRQ_BEACON | \
 					 B43_IRQ_TBTT_INDI | \
 					 B43_IRQ_ATIM_END | \
 					 B43_IRQ_PMQ | \
