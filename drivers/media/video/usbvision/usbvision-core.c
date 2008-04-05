@@ -84,8 +84,10 @@ MODULE_PARM_DESC(adjust_Y_Offset, "adjust Y offset display [core]");
 
 
 #ifdef USBVISION_DEBUG
-	#define PDEBUG(level, fmt, args...) \
-		if (core_debug & (level)) info("[%s:%d] " fmt, __PRETTY_FUNCTION__, __LINE__ , ## args)
+	#define PDEBUG(level, fmt, args...) { \
+		if (core_debug & (level)) \
+			info("[%s:%d] " fmt, __func__, __LINE__ , ## args); \
+	}
 #else
 	#define PDEBUG(level, fmt, args...) do {} while(0)
 #endif

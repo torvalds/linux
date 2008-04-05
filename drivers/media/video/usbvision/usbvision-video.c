@@ -97,10 +97,10 @@ USBVISION_DRIVER_VERSION_PATCHLEVEL)
 
 
 #ifdef USBVISION_DEBUG
-	#define PDEBUG(level, fmt, args...) \
+	#define PDEBUG(level, fmt, args...) { \
 		if (video_debug & (level)) \
-			info("[%s:%d] " fmt, __PRETTY_FUNCTION__, __LINE__ ,\
-				## args)
+			info("[%s:%d] " fmt, __func__, __LINE__ , ## args); \
+	}
 #else
 	#define PDEBUG(level, fmt, args...) do {} while(0)
 #endif
