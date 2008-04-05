@@ -4941,13 +4941,13 @@ long sched_setaffinity(pid_t pid, cpumask_t new_mask)
 	if (retval)
 		goto out_unlock;
 
-	cpus_allowed = cpuset_cpus_allowed(p);
+	cpuset_cpus_allowed(p, &cpus_allowed);
 	cpus_and(new_mask, new_mask, cpus_allowed);
  again:
 	retval = set_cpus_allowed(p, new_mask);
 
 	if (!retval) {
-		cpus_allowed = cpuset_cpus_allowed(p);
+		cpuset_cpus_allowed(p, &cpus_allowed);
 		if (!cpus_subset(new_mask, cpus_allowed)) {
 			/*
 			 * We must have raced with a concurrent cpuset
@@ -5661,7 +5661,9 @@ static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *p)
 
 		/* No more Mr. Nice Guy. */
 		if (dest_cpu >= nr_cpu_ids) {
-			cpumask_t cpus_allowed = cpuset_cpus_allowed_locked(p);
+			cpumask_t cpus_allowed;
+
+			cpuset_cpus_allowed_locked(p, &cpus_allowed);
 			/*
 			 * Try to stay on the same cpuset, where the
 			 * current cpuset may be a subset of all cpus.

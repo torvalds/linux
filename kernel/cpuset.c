@@ -729,7 +729,7 @@ int cpuset_test_cpumask(struct task_struct *tsk, struct cgroup_scanner *scan)
  */
 void cpuset_change_cpumask(struct task_struct *tsk, struct cgroup_scanner *scan)
 {
-	set_cpus_allowed(tsk, (cgroup_cs(scan->cg))->cpus_allowed);
+	set_cpus_allowed_ptr(tsk, &((cgroup_cs(scan->cg))->cpus_allowed));
 }
 
 /**
@@ -1178,7 +1178,7 @@ static void cpuset_attach(struct cgroup_subsys *ss,
 
 	mutex_lock(&callback_mutex);
 	guarantee_online_cpus(cs, &cpus);
-	set_cpus_allowed(tsk, cpus);
+	set_cpus_allowed_ptr(tsk, &cpus);
 	mutex_unlock(&callback_mutex);
 
 	from = oldcs->mems_allowed;
@@ -1555,8 +1555,8 @@ static struct cgroup_subsys_state *cpuset_create(
 	if (is_spread_slab(parent))
 		set_bit(CS_SPREAD_SLAB, &cs->flags);
 	set_bit(CS_SCHED_LOAD_BALANCE, &cs->flags);
-	cs->cpus_allowed = CPU_MASK_NONE;
-	cs->mems_allowed = NODE_MASK_NONE;
+	cpus_clear(cs->cpus_allowed);
+	nodes_clear(cs->mems_allowed);
 	cs->mems_generation = cpuset_mems_generation++;
 	fmeter_init(&cs->fmeter);
 
@@ -1625,8 +1625,8 @@ int __init cpuset_init(void)
 {
 	int err = 0;
 
-	top_cpuset.cpus_allowed = CPU_MASK_ALL;
-	top_cpuset.mems_allowed = NODE_MASK_ALL;
+	cpus_setall(top_cpuset.cpus_allowed);
+	nodes_setall(top_cpuset.mems_allowed);
 
 	fmeter_init(&top_cpuset.fmeter);
 	top_cpuset.mems_generation = cpuset_mems_generation++;
@@ -1844,6 +1844,7 @@ void __init cpuset_init_smp(void)
 
  * cpuset_cpus_allowed - return cpus_allowed mask from a tasks cpuset.
  * @tsk: pointer to task_struct from which to obtain cpuset->cpus_allowed.
+ * @pmask: pointer to cpumask_t variable to receive cpus_allowed set.
  *
  * Description: Returns the cpumask_t cpus_allowed of the cpuset
  * attached to the specified @tsk.  Guaranteed to return some non-empty
@@ -1851,35 +1852,27 @@ void __init cpuset_init_smp(void)
  * tasks cpuset.
  **/
 
-cpumask_t cpuset_cpus_allowed(struct task_struct *tsk)
+void cpuset_cpus_allowed(struct task_struct *tsk, cpumask_t *pmask)
 {
-	cpumask_t mask;
-
 	mutex_lock(&callback_mutex);
-	mask = cpuset_cpus_allowed_locked(tsk);
+	cpuset_cpus_allowed_locked(tsk, pmask);
 	mutex_unlock(&callback_mutex);
-
-	return mask;
 }
 
 /**
  * cpuset_cpus_allowed_locked - return cpus_allowed mask from a tasks cpuset.
  * Must be called with callback_mutex held.
  **/
-cpumask_t cpuset_cpus_allowed_locked(struct task_struct *tsk)
+void cpuset_cpus_allowed_locked(struct task_struct *tsk, cpumask_t *pmask)
 {
-	cpumask_t mask;
-
 	task_lock(tsk);
-	guarantee_online_cpus(task_cs(tsk), &mask);
+	guarantee_online_cpus(task_cs(tsk), pmask);
 	task_unlock(tsk);
-
-	return mask;
 }
 
 void cpuset_init_current_mems_allowed(void)
 {
-	current->mems_allowed = NODE_MASK_ALL;
+	nodes_setall(current->mems_allowed);
 }
 
 /**
