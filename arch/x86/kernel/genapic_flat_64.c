@@ -138,11 +138,8 @@ static cpumask_t physflat_target_cpus(void)
 
 static cpumask_t physflat_vector_allocation_domain(int cpu)
 {
-	cpumask_t domain = CPU_MASK_NONE;
-	cpu_set(cpu, domain);
-	return domain;
+	return cpumask_of_cpu(cpu);
 }
-
 
 static void physflat_send_IPI_mask(cpumask_t cpumask, int vector)
 {

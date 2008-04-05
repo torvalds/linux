@@ -1362,9 +1362,7 @@ static int ioapic_retrigger_irq(unsigned int irq)
 	unsigned long flags;
 
 	spin_lock_irqsave(&vector_lock, flags);
-	cpus_clear(mask);
-	cpu_set(first_cpu(cfg->domain), mask);
-
+	mask = cpumask_of_cpu(first_cpu(cfg->domain));
 	send_IPI_mask(mask, cfg->vector);
 	spin_unlock_irqrestore(&vector_lock, flags);
 
