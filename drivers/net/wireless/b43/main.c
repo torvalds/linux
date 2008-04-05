@@ -3771,7 +3771,7 @@ static void b43_set_synth_pu_delay(struct b43_wldev *dev, bool idle)
 		pu_delay = 3700;
 	else
 		pu_delay = 1050;
-	if ((dev->wl->if_type == IEEE80211_IF_TYPE_IBSS) || idle)
+	if (b43_is_mode(dev->wl, IEEE80211_IF_TYPE_IBSS) || idle)
 		pu_delay = 500;
 	if ((dev->phy.radio_ver == 0x2050) && (dev->phy.radio_rev == 8))
 		pu_delay = max(pu_delay, (u16)2400);
@@ -3785,7 +3785,7 @@ static void b43_set_pretbtt(struct b43_wldev *dev)
 	u16 pretbtt;
 
 	/* The time value is in microseconds. */
-	if (dev->wl->if_type == IEEE80211_IF_TYPE_IBSS) {
+	if (b43_is_mode(dev->wl, IEEE80211_IF_TYPE_IBSS)) {
 		pretbtt = 2;
 	} else {
 		if (dev->phy.type == B43_PHYTYPE_A)
