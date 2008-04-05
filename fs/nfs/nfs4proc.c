@@ -982,11 +982,8 @@ static int _nfs4_open_expired(struct nfs_open_context *ctx, struct nfs4_state *s
 	if (IS_ERR(opendata))
 		return PTR_ERR(opendata);
 	ret = nfs4_open_recover(opendata, state);
-	if (ret == -ESTALE) {
-		/* Invalidate the state owner so we don't ever use it again */
-		nfs4_drop_state_owner(state->owner);
+	if (ret == -ESTALE)
 		d_drop(ctx->path.dentry);
-	}
 	nfs4_opendata_put(opendata);
 	return ret;
 }
