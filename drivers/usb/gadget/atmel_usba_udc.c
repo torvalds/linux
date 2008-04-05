@@ -326,6 +326,28 @@ static int vbus_is_present(struct usba_udc *udc)
 	return 1;
 }
 
+#if defined(CONFIG_AVR32)
+
+static void toggle_bias(int is_on)
+{
+}
+
+#elif defined(CONFIG_ARCH_AT91)
+
+#include <asm/arch/at91_pmc.h>
+
+static void toggle_bias(int is_on)
+{
+	unsigned int uckr = at91_sys_read(AT91_CKGR_UCKR);
+
+	if (is_on)
+		at91_sys_write(AT91_CKGR_UCKR, uckr | AT91_PMC_BIASEN);
+	else
+		at91_sys_write(AT91_CKGR_UCKR, uckr & ~(AT91_PMC_BIASEN));
+}
+
+#endif /* CONFIG_ARCH_AT91 */
+
 static void next_fifo_transaction(struct usba_ep *ep, struct usba_request *req)
 {
 	unsigned int transaction_len;
@@ -1457,7 +1479,7 @@ restart:
 		DBG(DBG_HW, "Packet length: %u\n", pkt_len);
 		if (pkt_len != sizeof(crq)) {
 			pr_warning("udc: Invalid packet length %u "
-				"(expected %lu)\n", pkt_len, sizeof(crq));
+				"(expected %zu)\n", pkt_len, sizeof(crq));
 			set_protocol_stall(udc, ep);
 			return;
 		}
@@ -1615,6 +1637,7 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 	DBG(DBG_INT, "irq, status=%#08x\n", status);
 
 	if (status & USBA_DET_SUSPEND) {
+		toggle_bias(0);
 		usba_writel(udc, INT_CLR, USBA_DET_SUSPEND);
 		DBG(DBG_BUS, "Suspend detected\n");
 		if (udc->gadget.speed != USB_SPEED_UNKNOWN
@@ -1626,6 +1649,7 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 	}
 
 	if (status & USBA_WAKE_UP) {
+		toggle_bias(1);
 		usba_writel(udc, INT_CLR, USBA_WAKE_UP);
 		DBG(DBG_BUS, "Wake Up CPU detected\n");
 	}
@@ -1719,12 +1743,14 @@ static irqreturn_t usba_vbus_irq(int irq, void *devid)
 	vbus = gpio_get_value(udc->vbus_pin);
 	if (vbus != udc->vbus_prev) {
 		if (vbus) {
-			usba_writel(udc, CTRL, USBA_EN_USBA);
+			toggle_bias(1);
+			usba_writel(udc, CTRL, USBA_ENABLE_MASK);
 			usba_writel(udc, INT_ENB, USBA_END_OF_RESET);
 		} else {
 			udc->gadget.speed = USB_SPEED_UNKNOWN;
 			reset_all_endpoints(udc);
-			usba_writel(udc, CTRL, 0);
+			toggle_bias(0);
+			usba_writel(udc, CTRL, USBA_DISABLE_MASK);
 			spin_unlock(&udc->lock);
 			udc->driver->disconnect(&udc->gadget);
 			spin_lock(&udc->lock);
@@ -1777,7 +1803,8 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	/* If Vbus is present, enable the controller and wait for reset */
 	spin_lock_irqsave(&udc->lock, flags);
 	if (vbus_is_present(udc) && udc->vbus_prev == 0) {
-		usba_writel(udc, CTRL, USBA_EN_USBA);
+		toggle_bias(1);
+		usba_writel(udc, CTRL, USBA_ENABLE_MASK);
 		usba_writel(udc, INT_ENB, USBA_END_OF_RESET);
 	}
 	spin_unlock_irqrestore(&udc->lock, flags);
@@ -1810,7 +1837,8 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	spin_unlock_irqrestore(&udc->lock, flags);
 
 	/* This will also disable the DP pullup */
-	usba_writel(udc, CTRL, 0);
+	toggle_bias(0);
+	usba_writel(udc, CTRL, USBA_DISABLE_MASK);
 
 	driver->unbind(&udc->gadget);
 	udc->gadget.dev.driver = NULL;
@@ -1880,7 +1908,8 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 
 	/* Make sure we start from a clean slate */
 	clk_enable(pclk);
-	usba_writel(udc, CTRL, 0);
+	toggle_bias(0);
+	usba_writel(udc, CTRL, USBA_DISABLE_MASK);
 	clk_disable(pclk);
 
 	usba_ep = kmalloc(sizeof(struct usba_ep) * pdata->num_ep,
