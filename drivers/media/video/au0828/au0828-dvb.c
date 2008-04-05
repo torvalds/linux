@@ -36,7 +36,35 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 #define _AU0828_BULKPIPE 0x83
 #define _BULKPIPESIZE 0xe522
 
+static u8 hauppauge_hvr950q_led_states[] = {
+	0x00, /* off */
+	0x02, /* yellow */
+	0x04, /* green */
+};
+
+static struct au8522_led_config hauppauge_hvr950q_led_cfg = {
+	.gpio_output = 0x00e0,
+	.gpio_output_enable  = 0x6006,
+	.gpio_output_disable = 0x0660,
+
+	.gpio_leds = 0x00e2,
+	.led_states  = hauppauge_hvr950q_led_states,
+	.num_led_states = sizeof(hauppauge_hvr950q_led_states),
+
+	.vsb8_strong   = 20 /* dB */ * 10,
+	.qam64_strong  = 25 /* dB */ * 10,
+	.qam256_strong = 32 /* dB */ * 10,
+};
+
 static struct au8522_config hauppauge_hvr950q_config = {
+	.demod_address = 0x8e >> 1,
+	.status_mode   = AU8522_DEMODLOCKING,
+	.qam_if        = AU8522_IF_6MHZ,
+	.vsb_if        = AU8522_IF_6MHZ,
+	.led_cfg       = &hauppauge_hvr950q_led_cfg,
+};
+
+static struct au8522_config fusionhdtv7usb_config = {
 	.demod_address = 0x8e >> 1,
 	.status_mode   = AU8522_DEMODLOCKING,
 	.qam_if        = AU8522_IF_6MHZ,
@@ -352,7 +380,6 @@ int au0828_dvb_register(struct au0828_dev *dev)
 	switch (dev->board) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
-	case AU0828_BOARD_DVICO_FUSIONHDTV7:
 		dvb->frontend = dvb_attach(au8522_attach,
 				&hauppauge_hvr950q_config,
 				&dev->i2c_adap);
@@ -377,6 +404,16 @@ int au0828_dvb_register(struct au0828_dev *dev)
 			dvb_attach(tda18271_attach, dvb->frontend,
 				   0x60, &dev->i2c_adap,
 				   &hauppauge_woodbury_tunerconfig);
+		break;
+	case AU0828_BOARD_DVICO_FUSIONHDTV7:
+		dvb->frontend = dvb_attach(au8522_attach,
+				&fusionhdtv7usb_config,
+				&dev->i2c_adap);
+		if (dvb->frontend != NULL) {
+			dvb_attach(xc5000_attach, dvb->frontend,
+				&dev->i2c_adap,
+				&hauppauge_hvr950q_tunerconfig);
+		}
 		break;
 	default:
 		printk(KERN_WARNING "The frontend of your DVB/ATSC card "
