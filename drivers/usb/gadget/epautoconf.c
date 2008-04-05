@@ -34,12 +34,12 @@
 
 
 /* we must assign addresses for configurable endpoints (like net2280) */
-static __devinitdata unsigned epnum;
+static __initdata unsigned epnum;
 
 // #define MANY_ENDPOINTS
 #ifdef MANY_ENDPOINTS
 /* more than 15 configurable endpoints */
-static __devinitdata unsigned in_epnum;
+static __initdata unsigned in_epnum;
 #endif
 
 
@@ -59,7 +59,7 @@ static __devinitdata unsigned in_epnum;
  * NOTE:  each endpoint is unidirectional, as specified by its USB
  * descriptor; and isn't specific to a configuration or altsetting.
  */
-static int __devinit
+static int __init
 ep_matches (
 	struct usb_gadget		*gadget,
 	struct usb_ep			*ep,
@@ -186,7 +186,7 @@ ep_matches (
 	return 1;
 }
 
-static struct usb_ep * __devinit
+static struct usb_ep * __init
 find_ep (struct usb_gadget *gadget, const char *name)
 {
 	struct usb_ep	*ep;
@@ -228,7 +228,7 @@ find_ep (struct usb_gadget *gadget, const char *name)
  *
  * On failure, this returns a null endpoint descriptor.
  */
-struct usb_ep * __devinit usb_ep_autoconfig (
+struct usb_ep * __init usb_ep_autoconfig (
 	struct usb_gadget		*gadget,
 	struct usb_endpoint_descriptor	*desc
 )
@@ -295,7 +295,7 @@ struct usb_ep * __devinit usb_ep_autoconfig (
  * state such as ep->driver_data and the record of assigned endpoints
  * used by usb_ep_autoconfig().
  */
-void __devinit usb_ep_autoconfig_reset (struct usb_gadget *gadget)
+void __init usb_ep_autoconfig_reset (struct usb_gadget *gadget)
 {
 	struct usb_ep	*ep;
 
