@@ -167,11 +167,10 @@ static inline void io_apic_modify(unsigned int apic, unsigned int value)
 	writel(value, &io_apic->data);
 }
 
-static int io_apic_level_ack_pending(unsigned int irq)
+static bool io_apic_level_ack_pending(unsigned int irq)
 {
 	struct irq_pin_list *entry;
 	unsigned long flags;
-	int pending = 0;
 
 	spin_lock_irqsave(&ioapic_lock, flags);
 	entry = irq_2_pin + irq;
@@ -184,13 +183,17 @@ static int io_apic_level_ack_pending(unsigned int irq)
 			break;
 		reg = io_apic_read(entry->apic, 0x10 + pin*2);
 		/* Is the remote IRR bit set? */
-		pending |= (reg >> 14) & 1;
+		if ((reg >> 14) & 1) {
+			spin_unlock_irqrestore(&ioapic_lock, flags);
+			return true;
+		}
 		if (!entry->next)
 			break;
 		entry = irq_2_pin + entry->next;
 	}
 	spin_unlock_irqrestore(&ioapic_lock, flags);
-	return pending;
+
+	return false;
 }
 
 /*
