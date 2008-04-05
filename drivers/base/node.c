@@ -22,14 +22,15 @@ static struct sysdev_class node_class = {
 static ssize_t node_read_cpumap(struct sys_device * dev, char * buf)
 {
 	struct node *node_dev = to_node(dev);
-	cpumask_t mask = node_to_cpumask(node_dev->sysdev.id);
+	node_to_cpumask_ptr(mask, node_dev->sysdev.id);
 	int len;
 
 	/* 2004/06/03: buf currently PAGE_SIZE, need > 1 char per 4 bits. */
 	BUILD_BUG_ON(MAX_NUMNODES/4 > PAGE_SIZE/2);
 
-	len = cpumask_scnprintf(buf, PAGE_SIZE-1, mask);
-	len += sprintf(buf + len, "\n");
+	len = cpumask_scnprintf(buf, PAGE_SIZE-2, *mask);
+ 	buf[len++] = '\n';
+ 	buf[len] = '\0';
 	return len;
 }
 

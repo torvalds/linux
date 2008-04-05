@@ -6448,7 +6448,7 @@ init_sched_build_groups(cpumask_t span, const cpumask_t *cpu_map,
  *
  * Should use nodemask_t.
  */
-static int find_next_best_node(int node, unsigned long *used_nodes)
+static int find_next_best_node(int node, nodemask_t *used_nodes)
 {
 	int i, n, val, min_val, best_node = 0;
 
@@ -6462,7 +6462,7 @@ static int find_next_best_node(int node, unsigned long *used_nodes)
 			continue;
 
 		/* Skip already used nodes */
-		if (test_bit(n, used_nodes))
+		if (node_isset(n, *used_nodes))
 			continue;
 
 		/* Simple min distance search */
@@ -6474,14 +6474,13 @@ static int find_next_best_node(int node, unsigned long *used_nodes)
 		}
 	}
 
-	set_bit(best_node, used_nodes);
+	node_set(best_node, *used_nodes);
 	return best_node;
 }
 
 /**
  * sched_domain_node_span - get a cpumask for a node's sched_domain
  * @node: node whose cpumask we're constructing
- * @size: number of nodes to include in this span
  *
  * Given a node, construct a good cpumask for its sched_domain to span. It
  * should be one that prevents unnecessary balancing, but also spreads tasks
@@ -6489,22 +6488,22 @@ static int find_next_best_node(int node, unsigned long *used_nodes)
  */
 static cpumask_t sched_domain_node_span(int node)
 {
-	DECLARE_BITMAP(used_nodes, MAX_NUMNODES);
-	cpumask_t span, nodemask;
+	nodemask_t used_nodes;
+	cpumask_t span;
+	node_to_cpumask_ptr(nodemask, node);
 	int i;
 
 	cpus_clear(span);
-	bitmap_zero(used_nodes, MAX_NUMNODES);
+	nodes_clear(used_nodes);
 
-	nodemask = node_to_cpumask(node);
-	cpus_or(span, span, nodemask);
-	set_bit(node, used_nodes);
+	cpus_or(span, span, *nodemask);
+	node_set(node, used_nodes);
 
 	for (i = 1; i < SD_NODES_PER_DOMAIN; i++) {
-		int next_node = find_next_best_node(node, used_nodes);
+		int next_node = find_next_best_node(node, &used_nodes);
 
-		nodemask = node_to_cpumask(next_node);
-		cpus_or(span, span, nodemask);
+		node_to_cpumask_ptr_next(nodemask, next_node);
+		cpus_or(span, span, *nodemask);
 	}
 
 	return span;
@@ -6901,6 +6900,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 		for (j = 0; j < MAX_NUMNODES; j++) {
 			cpumask_t tmp, notcovered;
 			int n = (i + j) % MAX_NUMNODES;
+			node_to_cpumask_ptr(pnodemask, n);
 
 			cpus_complement(notcovered, covered);
 			cpus_and(tmp, notcovered, *cpu_map);
@@ -6908,8 +6908,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 			if (cpus_empty(tmp))
 				break;
 
-			nodemask = node_to_cpumask(n);
-			cpus_and(tmp, tmp, nodemask);
+			cpus_and(tmp, tmp, *pnodemask);
 			if (cpus_empty(tmp))
 				continue;
 

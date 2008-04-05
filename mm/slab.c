@@ -1160,14 +1160,13 @@ static void __cpuinit cpuup_canceled(long cpu)
 	struct kmem_cache *cachep;
 	struct kmem_list3 *l3 = NULL;
 	int node = cpu_to_node(cpu);
+	node_to_cpumask_ptr(mask, node);
 
 	list_for_each_entry(cachep, &cache_chain, next) {
 		struct array_cache *nc;
 		struct array_cache *shared;
 		struct array_cache **alien;
-		cpumask_t mask;
 
-		mask = node_to_cpumask(node);
 		/* cpu is dead; no one can alloc from it. */
 		nc = cachep->array[cpu];
 		cachep->array[cpu] = NULL;
@@ -1183,7 +1182,7 @@ static void __cpuinit cpuup_canceled(long cpu)
 		if (nc)
 			free_block(cachep, nc->entry, nc->avail, node);
 
-		if (!cpus_empty(mask)) {
+		if (!cpus_empty(*mask)) {
 			spin_unlock_irq(&l3->list_lock);
 			goto free_array_cache;
 		}
