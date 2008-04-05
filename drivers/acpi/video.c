@@ -713,7 +713,7 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 
 	kfree(obj);
 
-	if (device->cap._BCL && device->cap._BCM && max_level > 0) {
+	if (device->cap._BCL && device->cap._BCM && device->cap._BQC && max_level > 0){
 		int result;
 		static int count = 0;
 		char *name;
