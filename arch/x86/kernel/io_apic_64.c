@@ -917,9 +917,8 @@ static void __init setup_IO_APIC_irqs(void)
 static void __init setup_ExtINT_IRQ0_pin(unsigned int apic, unsigned int pin, int vector)
 {
 	struct IO_APIC_route_entry entry;
-	unsigned long flags;
 
-	memset(&entry,0,sizeof(entry));
+	memset(&entry, 0, sizeof(entry));
 
 	disable_8259A_irq(0);
 
@@ -947,10 +946,7 @@ static void __init setup_ExtINT_IRQ0_pin(unsigned int apic, unsigned int pin, in
 	/*
 	 * Add it to the IO-APIC irq-routing table:
 	 */
-	spin_lock_irqsave(&ioapic_lock, flags);
-	io_apic_write(apic, 0x11+2*pin, *(((int *)&entry)+1));
-	io_apic_write(apic, 0x10+2*pin, *(((int *)&entry)+0));
-	spin_unlock_irqrestore(&ioapic_lock, flags);
+	ioapic_write_entry(apic, pin, entry);
 
 	enable_8259A_irq(0);
 }
@@ -1611,17 +1607,14 @@ static inline void unlock_ExtINT_logic(void)
 	int apic, pin, i;
 	struct IO_APIC_route_entry entry0, entry1;
 	unsigned char save_control, save_freq_select;
-	unsigned long flags;
 
 	pin  = find_isa_irq_pin(8, mp_INT);
 	apic = find_isa_irq_apic(8, mp_INT);
 	if (pin == -1)
 		return;
 
-	spin_lock_irqsave(&ioapic_lock, flags);
-	*(((int *)&entry0) + 1) = io_apic_read(apic, 0x11 + 2 * pin);
-	*(((int *)&entry0) + 0) = io_apic_read(apic, 0x10 + 2 * pin);
-	spin_unlock_irqrestore(&ioapic_lock, flags);
+	entry0 = ioapic_read_entry(apic, pin);
+
 	clear_IO_APIC_pin(apic, pin);
 
 	memset(&entry1, 0, sizeof(entry1));
@@ -1634,10 +1627,7 @@ static inline void unlock_ExtINT_logic(void)
 	entry1.trigger = 0;
 	entry1.vector = 0;
 
-	spin_lock_irqsave(&ioapic_lock, flags);
-	io_apic_write(apic, 0x11 + 2 * pin, *(((int *)&entry1) + 1));
-	io_apic_write(apic, 0x10 + 2 * pin, *(((int *)&entry1) + 0));
-	spin_unlock_irqrestore(&ioapic_lock, flags);
+	ioapic_write_entry(apic, pin, entry1);
 
 	save_control = CMOS_READ(RTC_CONTROL);
 	save_freq_select = CMOS_READ(RTC_FREQ_SELECT);
@@ -1656,10 +1646,7 @@ static inline void unlock_ExtINT_logic(void)
 	CMOS_WRITE(save_freq_select, RTC_FREQ_SELECT);
 	clear_IO_APIC_pin(apic, pin);
 
-	spin_lock_irqsave(&ioapic_lock, flags);
-	io_apic_write(apic, 0x11 + 2 * pin, *(((int *)&entry0) + 1));
-	io_apic_write(apic, 0x10 + 2 * pin, *(((int *)&entry0) + 0));
-	spin_unlock_irqrestore(&ioapic_lock, flags);
+	ioapic_write_entry(apic, pin, entry0);
 }
 
 /*

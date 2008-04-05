@@ -1228,7 +1228,6 @@ static void __init setup_IO_APIC_irqs(void)
 {
 	struct IO_APIC_route_entry entry;
 	int apic, pin, idx, irq, first_notcon = 1, vector;
-	unsigned long flags;
 
 	apic_printk(APIC_VERBOSE, KERN_DEBUG "init IO_APIC IRQs\n");
 
@@ -1294,9 +1293,7 @@ static void __init setup_IO_APIC_irqs(void)
 			if (!apic && (irq < 16))
 				disable_8259A_irq(irq);
 		}
-		spin_lock_irqsave(&ioapic_lock, flags);
-		__ioapic_write_entry(apic, pin, entry);
-		spin_unlock_irqrestore(&ioapic_lock, flags);
+		ioapic_write_entry(apic, pin, entry);
 	}
 	}
 
@@ -2760,7 +2757,6 @@ int __init io_apic_get_redir_entries (int ioapic)
 int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int active_high_low)
 {
 	struct IO_APIC_route_entry entry;
-	unsigned long flags;
 
 	if (!IO_APIC_IRQ(irq)) {
 		printk(KERN_ERR "IOAPIC[%d]: Invalid reference to IRQ 0\n",
@@ -2801,9 +2797,7 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int a
 	if (!ioapic && (irq < 16))
 		disable_8259A_irq(irq);
 
-	spin_lock_irqsave(&ioapic_lock, flags);
-	__ioapic_write_entry(ioapic, pin, entry);
-	spin_unlock_irqrestore(&ioapic_lock, flags);
+	ioapic_write_entry(ioapic, pin, entry);
 
 	return 0;
 }
