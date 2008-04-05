@@ -733,7 +733,7 @@ static void ip6mr_cache_resolve(struct mfc6_cache *uc, struct mfc6_cache *c)
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb_pull(skb, sizeof(struct ipv6hdr));
 
 			if (ip6mr_fill_mroute(skb, c, NLMSG_DATA(nlh)) > 0) {
-				nlh->nlmsg_len = skb->tail - (u8 *)nlh;
+				nlh->nlmsg_len = skb_tail_pointer(skb) - (u8 *)nlh;
 			} else {
 				nlh->nlmsg_type = NLMSG_ERROR;
 				nlh->nlmsg_len = NLMSG_LENGTH(sizeof(struct nlmsgerr));
@@ -1562,7 +1562,7 @@ ip6mr_fill_mroute(struct sk_buff *skb, struct mfc6_cache *c, struct rtmsg *rtm)
 	int ct;
 	struct rtnexthop *nhp;
 	struct net_device *dev = vif6_table[c->mf6c_parent].dev;
-	u8 *b = skb->tail;
+	u8 *b = skb_tail_pointer(skb);
 	struct rtattr *mp_head;
 
 	if (dev)
@@ -1582,7 +1582,7 @@ ip6mr_fill_mroute(struct sk_buff *skb, struct mfc6_cache *c, struct rtmsg *rtm)
 		}
 	}
 	mp_head->rta_type = RTA_MULTIPATH;
-	mp_head->rta_len = skb->tail - (u8 *)mp_head;
+	mp_head->rta_len = skb_tail_pointer(skb) - (u8 *)mp_head;
 	rtm->rtm_type = RTN_MULTICAST;
 	return 1;
 
