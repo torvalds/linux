@@ -223,7 +223,7 @@ static memptr free_mem_end_ptr;
 #define HEAP_SIZE             0x4000
 #endif
 
-static char *vidmem = (char *)0xb8000;
+static char *vidmem;
 static int vidport;
 static int lines, cols;
 
