@@ -264,6 +264,7 @@ static void pvr2_hdw_internal_find_stdenum(struct pvr2_hdw *hdw);
 static void pvr2_hdw_internal_set_std_avail(struct pvr2_hdw *hdw);
 static void pvr2_hdw_quiescent_timeout(unsigned long);
 static void pvr2_hdw_encoder_wait_timeout(unsigned long);
+static void pvr2_hdw_encoder_run_timeout(unsigned long);
 static int pvr2_issue_simple_cmd(struct pvr2_hdw *,u32);
 static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 				unsigned int timeout,int probe_fl,
@@ -1236,6 +1237,14 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 	   time we configure the encoder, then we'll fully configure it. */
 	hdw->enc_cur_valid = 0;
 
+	/* Encoder is about to be reset so note that as far as we're
+	   concerned now, the encoder has never been run. */
+	del_timer_sync(&hdw->encoder_run_timer);
+	if (hdw->state_encoder_runok) {
+		hdw->state_encoder_runok = 0;
+		trace_stbit("state_encoder_runok",hdw->state_encoder_runok);
+	}
+
 	/* First prepare firmware loading */
 	ret |= pvr2_write_register(hdw, 0x0048, 0xffffffff); /*interrupt mask*/
 	ret |= pvr2_hdw_gpio_chg_dir(hdw,0xffffffff,0x00000088); /*gpio dir*/
@@ -1882,6 +1891,10 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	hdw->encoder_wait_timer.data = (unsigned long)hdw;
 	hdw->encoder_wait_timer.function = pvr2_hdw_encoder_wait_timeout;
 
+	init_timer(&hdw->encoder_run_timer);
+	hdw->encoder_run_timer.data = (unsigned long)hdw;
+	hdw->encoder_run_timer.function = pvr2_hdw_encoder_run_timeout;
+
 	hdw->master_state = PVR2_STATE_DEAD;
 
 	init_waitqueue_head(&hdw->state_wait_data);
@@ -2082,6 +2095,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
  fail:
 	if (hdw) {
 		del_timer_sync(&hdw->quiescent_timer);
+		del_timer_sync(&hdw->encoder_run_timer);
 		del_timer_sync(&hdw->encoder_wait_timer);
 		if (hdw->workqueue) {
 			flush_workqueue(hdw->workqueue);
@@ -2144,6 +2158,7 @@ void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 		hdw->workqueue = NULL;
 	}
 	del_timer_sync(&hdw->quiescent_timer);
+	del_timer_sync(&hdw->encoder_run_timer);
 	del_timer_sync(&hdw->encoder_wait_timer);
 	if (hdw->fw_buffer) {
 		kfree(hdw->fw_buffer);
@@ -3584,23 +3599,116 @@ static int state_eval_encoder_config(struct pvr2_hdw *hdw)
 }
 
 
+/* Return true if the encoder should not be running. */
+static int state_check_disable_encoder_run(struct pvr2_hdw *hdw)
+{
+	if (!hdw->state_encoder_ok) {
+		/* Encoder isn't healthy at the moment, so stop it. */
+		return !0;
+	}
+	if (!hdw->state_pathway_ok) {
+		/* Mode is not understood at the moment (i.e. it wants to
+		   change), so encoder must be stopped. */
+		return !0;
+	}
+
+	switch (hdw->pathway_state) {
+	case PVR2_PATHWAY_ANALOG:
+		if (!hdw->state_decoder_run) {
+			/* We're in analog mode and the decoder is not
+			   running; thus the encoder should be stopped as
+			   well. */
+			return !0;
+		}
+		break;
+	case PVR2_PATHWAY_DIGITAL:
+		if (hdw->state_encoder_runok) {
+			/* This is a funny case.  We're in digital mode so
+			   really the encoder should be stopped.  However
+			   if it really is running, only kill it after
+			   runok has been set.  This gives a chance for the
+			   onair quirk to function (encoder must run
+			   briefly first, at least once, before onair
+			   digital streaming can work). */
+			return !0;
+		}
+		break;
+	default:
+		/* Unknown mode; so encoder should be stopped. */
+		return !0;
+	}
+
+	/* If we get here, we haven't found a reason to stop the
+	   encoder. */
+	return 0;
+}
+
+
+/* Return true if the encoder should be running. */
+static int state_check_enable_encoder_run(struct pvr2_hdw *hdw)
+{
+	if (!hdw->state_encoder_ok) {
+		/* Don't run the encoder if it isn't healthy... */
+		return 0;
+	}
+	if (!hdw->state_pathway_ok) {
+		/* Don't run the encoder if we don't (yet) know what mode
+		   we need to be in... */
+		return 0;
+	}
+
+	switch (hdw->pathway_state) {
+	case PVR2_PATHWAY_ANALOG:
+		if (hdw->state_decoder_run) {
+			/* In analog mode, if the decoder is running, then
+			   run the encoder. */
+			return !0;
+		}
+		break;
+	case PVR2_PATHWAY_DIGITAL:
+		if ((hdw->hdw_desc->digital_control_scheme ==
+		     PVR2_DIGITAL_SCHEME_ONAIR) &&
+		    !hdw->state_encoder_runok) {
+			/* This is a quirk.  OnAir hardware won't stream
+			   digital until the encoder has been run at least
+			   once, for a minimal period of time (empiricially
+			   measured to be 1/4 second).  So if we're on
+			   OnAir hardware and the encoder has never been
+			   run at all, then start the encoder.  Normal
+			   state machine logic in the driver will
+			   automatically handle the remaining bits. */
+			return !0;
+		}
+		break;
+	default:
+		/* For completeness (unknown mode; encoder won't run ever) */
+		break;
+	}
+	/* If we get here, then we haven't found any reason to run the
+	   encoder, so don't run it. */
+	return 0;
+}
+
+
 /* Evaluate whether or not state_encoder_run can change */
 static int state_eval_encoder_run(struct pvr2_hdw *hdw)
 {
 	if (hdw->state_encoder_run) {
+		if (!state_check_disable_encoder_run(hdw)) return 0;
 		if (hdw->state_encoder_ok) {
-			if (hdw->state_decoder_run &&
-			    hdw->state_pathway_ok) return 0;
+			del_timer_sync(&hdw->encoder_run_timer);
 			if (pvr2_encoder_stop(hdw) < 0) return !0;
 		}
 		hdw->state_encoder_run = 0;
 	} else {
-		if (!hdw->state_encoder_ok) return 0;
-		if (!hdw->state_decoder_run) return 0;
-		if (!hdw->state_pathway_ok) return 0;
-		if (hdw->pathway_state != PVR2_PATHWAY_ANALOG) return 0;
+		if (!state_check_enable_encoder_run(hdw)) return 0;
 		if (pvr2_encoder_start(hdw) < 0) return !0;
 		hdw->state_encoder_run = !0;
+		if (!hdw->state_encoder_runok) {
+			hdw->encoder_run_timer.expires =
+				jiffies + (HZ*250/1000);
+			add_timer(&hdw->encoder_run_timer);
+		}
 	}
 	trace_stbit("state_encoder_run",hdw->state_encoder_run);
 	return !0;
@@ -3626,6 +3734,19 @@ static void pvr2_hdw_encoder_wait_timeout(unsigned long data)
 	trace_stbit("state_encoder_waitok",hdw->state_encoder_waitok);
 	hdw->state_stale = !0;
 	queue_work(hdw->workqueue,&hdw->workpoll);
+}
+
+
+/* Timeout function for encoder run timer. */
+static void pvr2_hdw_encoder_run_timeout(unsigned long data)
+{
+	struct pvr2_hdw *hdw = (struct pvr2_hdw *)data;
+	if (!hdw->state_encoder_runok) {
+		hdw->state_encoder_runok = !0;
+		trace_stbit("state_encoder_runok",hdw->state_encoder_runok);
+		hdw->state_stale = !0;
+		queue_work(hdw->workqueue,&hdw->workpoll);
+	}
 }
 
 
@@ -3718,6 +3839,16 @@ static int state_eval_usbstream_run(struct pvr2_hdw *hdw)
 		} else if ((hdw->pathway_state == PVR2_PATHWAY_DIGITAL) &&
 			   (hdw->hdw_desc->flag_digital_requires_cx23416)) {
 			if (!hdw->state_encoder_ok) return 0;
+			if (hdw->state_encoder_run) return 0;
+			if (hdw->hdw_desc->digital_control_scheme ==
+			    PVR2_DIGITAL_SCHEME_ONAIR) {
+				/* OnAir digital receivers won't stream
+				   unless the analog encoder has run first.
+				   Why?  I have no idea.  But don't even
+				   try until we know the analog side is
+				   known to have run. */
+				if (!hdw->state_encoder_runok) return 0;
+			}
 		}
 		if (pvr2_hdw_cmd_usbstream(hdw,!0) < 0) return 0;
 		hdw->state_usbstream_run = !0;
@@ -3861,7 +3992,12 @@ static unsigned int pvr2_hdw_report_unlocked(struct pvr2_hdw *hdw,int which,
 			(hdw->state_encoder_ok ?
 			 "" : " <encode:init>"),
 			(hdw->state_encoder_run ?
-			 " <encode:run>" : " <encode:stop>"),
+			 (hdw->state_encoder_runok ?
+			  " <encode:run>" :
+			  " <encode:firstrun>") :
+			 (hdw->state_encoder_runok ?
+			  " <encode:stop>" :
+			  " <encode:virgin>")),
 			(hdw->state_encoder_config ?
 			 " <encode:configok>" :
 			 (hdw->state_encoder_waitok ?

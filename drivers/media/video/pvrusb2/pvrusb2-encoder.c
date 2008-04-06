@@ -278,11 +278,20 @@ static int pvr2_encoder_cmd(void *ctxt,
 			ret = -EBUSY;
 		}
 		if (ret) {
+			del_timer_sync(&hdw->encoder_run_timer);
 			hdw->state_encoder_ok = 0;
 			pvr2_trace(PVR2_TRACE_STBITS,
 				   "State bit %s <-- %s",
 				   "state_encoder_ok",
 				   (hdw->state_encoder_ok ? "true" : "false"));
+			if (hdw->state_encoder_runok) {
+				hdw->state_encoder_runok = 0;
+				pvr2_trace(PVR2_TRACE_STBITS,
+				   "State bit %s <-- %s",
+					   "state_encoder_runok",
+					   (hdw->state_encoder_runok ?
+					    "true" : "false"));
+			}
 			pvr2_trace(
 				PVR2_TRACE_ERROR_LEGS,
 				"Giving up on command."

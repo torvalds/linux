@@ -238,6 +238,7 @@ struct pvr2_hdw {
 	int state_encoder_run;        /* Encoder is running */
 	int state_encoder_config;     /* Encoder is configured */
 	int state_encoder_waitok;     /* Encoder pre-wait done */
+	int state_encoder_runok;      /* Encoder has run for >= .25 sec */
 	int state_decoder_run;        /* Decoder is running */
 	int state_usbstream_run;      /* FX2 is streaming */
 	int state_decoder_quiescent;  /* Decoder idle for > 50msec */
@@ -266,6 +267,9 @@ struct pvr2_hdw {
 
 	/* Timer for measuring encoder pre-wait time */
 	struct timer_list encoder_wait_timer;
+
+	/* Timer for measuring encoder minimum run time */
+	struct timer_list encoder_run_timer;
 
 	/* Place to block while waiting for state changes */
 	wait_queue_head_t state_wait_data;
