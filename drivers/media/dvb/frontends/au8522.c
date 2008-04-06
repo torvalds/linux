@@ -340,7 +340,10 @@ static int au8522_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct au8522_state *state = fe->demodulator_priv;
 
-	*ucblocks = au8522_readreg(state, 0x4087);
+	if (state->current_modulation == VSB_8)
+		*ucblocks = au8522_readreg(state, 0x4087);
+	else
+		*ucblocks = au8522_readreg(state, 0x4543);
 
 	return 0;
 }
