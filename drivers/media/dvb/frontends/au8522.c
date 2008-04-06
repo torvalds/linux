@@ -321,11 +321,28 @@ static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	return 0;
 }
 
+static int au8522_read_mse(struct dvb_frontend *fe)
+{
+	struct au8522_state *state = fe->demodulator_priv;
+	int mse = 0;
+
+	if (state->current_modulation == VSB_8)
+		mse = au8522_readreg(state, 0x4311);
+	else
+		mse = au8522_readreg(state, 0x4522);
+
+	dprintk("%s: %d\n", __func__, mse);
+
+	return mse;
+}
+
 static int au8522_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	dprintk("%s()\n", __func__);
 
-	*snr = 0;
+	/* FIXME: This is mse, not snr
+	 * TODO: mse2snr */
+	*snr = au8522_read_mse(fe);
 
 	return 0;
 }
