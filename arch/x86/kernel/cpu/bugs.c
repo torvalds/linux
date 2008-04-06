@@ -143,14 +143,6 @@ static void __init check_config(void)
 #endif
 
 /*
- * If we configured ourselves for a TSC, we'd better have one!
- */
-#ifdef CONFIG_X86_TSC
-	if (!cpu_has_tsc)
-		panic("Kernel compiled for Pentium+, requires TSC feature!");
-#endif
-
-/*
  * If we were told we had a good local APIC, check for buggy Pentia,
  * i.e. all B steppings and the C2 stepping of P54C when using their
  * integrated APIC (see 11AP erratum in "Pentium Processor
