@@ -1044,6 +1044,12 @@ int ssb_bus_may_powerdown(struct ssb_bus *bus)
 		goto out;
 
 	cc = &bus->chipco;
+
+	if (!cc->dev)
+		goto out;
+	if (cc->dev->id.revision < 5)
+		goto out;
+
 	ssb_chipco_set_clockmode(cc, SSB_CLKMODE_SLOW);
 	err = ssb_pci_xtal(bus, SSB_GPIO_XTAL | SSB_GPIO_PLL, 0);
 	if (err)
