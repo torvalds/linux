@@ -7,3 +7,4 @@ obj-$(CONFIG_MACH_DNS323)	+= dns323-setup.o
 obj-$(CONFIG_MACH_TS209)	+= ts209-setup.o
 obj-$(CONFIG_MACH_TS409)	+= ts409-setup.o
 obj-$(CONFIG_MACH_WRT350N_V2)	+= wrt350n-v2-setup.o
+obj-$(CONFIG_MACH_MV2120)	+= mv2120-setup.o

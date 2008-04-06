@@ -56,6 +56,12 @@ config MACH_WRT350N_V2
 	  Say 'Y' here if you want your kernel to support the
 	  Linksys WRT350N v2 platform.
 
+config MACH_MV2120
+	bool "HP Media Vault mv2120"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  HP Media Vault mv2120 or mv5100.
+
 endmenu
 
 endif
