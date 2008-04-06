@@ -1256,7 +1256,6 @@ static int sata_fsl_probe(struct of_device *ofdev,
 	void __iomem *ssr_base = NULL;
 	void __iomem *csr_base = NULL;
 	struct sata_fsl_host_priv *host_priv = NULL;
-	struct resource *r;
 	int irq;
 	struct ata_host *host;
 
@@ -1265,8 +1264,6 @@ static int sata_fsl_probe(struct of_device *ofdev,
 
 	dev_printk(KERN_INFO, &ofdev->dev,
 		   "Sata FSL Platform/CSB Driver init\n");
-
-	r = kmalloc(sizeof(struct resource), GFP_KERNEL);
 
 	hcr_base = of_iomap(ofdev->node, 0);
 	if (!hcr_base)
