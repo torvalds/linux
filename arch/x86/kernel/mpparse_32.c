@@ -429,9 +429,9 @@ static int __init smp_read_mpc(struct mp_config_table *mpc)
 				struct mpc_config_ioapic *m=
 					(struct mpc_config_ioapic *)mpt;
 				MP_ioapic_info(m);
-				mpt+=sizeof(*m);
-				count+=sizeof(*m);
 #endif
+				mpt+=sizeof(struct mpc_config_ioapic);
+				count+=sizeof(struct mpc_config_ioapic);
 				break;
 			}
 			case MP_INTSRC:
@@ -441,9 +441,9 @@ static int __init smp_read_mpc(struct mp_config_table *mpc)
 					(struct mpc_config_intsrc *)mpt;
 
 				MP_intsrc_info(m);
-				mpt+=sizeof(*m);
-				count+=sizeof(*m);
 #endif
+				mpt+=sizeof(struct mpc_config_intsrc);
+				count+=sizeof(struct mpc_config_intsrc);
 				break;
 			}
 			case MP_LINTSRC:
