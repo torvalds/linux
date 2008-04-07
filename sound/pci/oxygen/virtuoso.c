@@ -74,10 +74,11 @@ static struct pci_device_id xonar_ids[] __devinitdata = {
 MODULE_DEVICE_TABLE(pci, xonar_ids);
 
 
-#define GPIO_CS5381_M_MASK	0x000c
-#define GPIO_CS5381_M_SINGLE	0x0000
-#define GPIO_CS5381_M_DOUBLE	0x0004
-#define GPIO_CS5381_M_QUAD	0x0008
+#define GPIO_CS53x1_M_MASK	0x000c
+#define GPIO_CS53x1_M_SINGLE	0x0000
+#define GPIO_CS53x1_M_DOUBLE	0x0004
+#define GPIO_CS53x1_M_QUAD	0x0008
+
 #define GPIO_EXT_POWER		0x0020
 #define GPIO_ALT		0x0080
 #define GPIO_OUTPUT_ENABLE	0x0100
@@ -115,10 +116,10 @@ static void xonar_d2_init(struct oxygen *chip)
 	}
 
 	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL,
-			  GPIO_CS5381_M_MASK | GPIO_ALT);
+			  GPIO_CS53x1_M_MASK | GPIO_ALT);
 	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
-			      GPIO_CS5381_M_SINGLE,
-			      GPIO_CS5381_M_MASK | GPIO_ALT);
+			      GPIO_CS53x1_M_SINGLE,
+			      GPIO_CS53x1_M_MASK | GPIO_ALT);
 	oxygen_ac97_set_bits(chip, 0, CM9780_JACK, CM9780_FMIC2MIC);
 	msleep(300);
 	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_OUTPUT_ENABLE);
@@ -180,19 +181,19 @@ static void update_pcm1796_mute(struct oxygen *chip)
 		pcm1796_write(chip, i, 18, value);
 }
 
-static void set_cs5381_params(struct oxygen *chip,
+static void set_cs53x1_params(struct oxygen *chip,
 			      struct snd_pcm_hw_params *params)
 {
 	unsigned int value;
 
 	if (params_rate(params) <= 54000)
-		value = GPIO_CS5381_M_SINGLE;
+		value = GPIO_CS53x1_M_SINGLE;
 	else if (params_rate(params) <= 108000)
-		value = GPIO_CS5381_M_DOUBLE;
+		value = GPIO_CS53x1_M_DOUBLE;
 	else
-		value = GPIO_CS5381_M_QUAD;
+		value = GPIO_CS53x1_M_QUAD;
 	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
-			      value, GPIO_CS5381_M_MASK);
+			      value, GPIO_CS53x1_M_MASK);
 }
 
 static void xonar_gpio_changed(struct oxygen *chip)
@@ -293,7 +294,7 @@ static const struct oxygen_model xonar_models[] = {
 		.mixer_init = xonar_mixer_init,
 		.cleanup = xonar_cleanup,
 		.set_dac_params = set_pcm1796_params,
-		.set_adc_params = set_cs5381_params,
+		.set_adc_params = set_cs53x1_params,
 		.update_dac_volume = update_pcm1796_volume,
 		.update_dac_mute = update_pcm1796_mute,
 		.model_data_size = sizeof(struct xonar_data),
@@ -318,7 +319,7 @@ static const struct oxygen_model xonar_models[] = {
 		.mixer_init = xonar_mixer_init,
 		.cleanup = xonar_cleanup,
 		.set_dac_params = set_pcm1796_params,
-		.set_adc_params = set_cs5381_params,
+		.set_adc_params = set_cs53x1_params,
 		.update_dac_volume = update_pcm1796_volume,
 		.update_dac_mute = update_pcm1796_mute,
 		.gpio_changed = xonar_gpio_changed,
