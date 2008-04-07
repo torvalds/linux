@@ -27,7 +27,7 @@
 		PowerPC,7447 {
 			device_type = "cpu";
 			reg = <0>;
-			clock-frequency = <733000000>;	/* Default */
+			clock-frequency = <733333333>;	/* Default */
 			bus-frequency = <133333333>;
 			timebase-frequency = <33333333>;
 			i-cache-line-size = <32>;
@@ -137,7 +137,7 @@
 			compatible = "marvell,mv64x60-brg";
 			reg = <0xb200 0x8>;
 			clock-src = <8>;
-			clock-frequency = <133000000>;
+			clock-frequency = <133333333>;
 			current-speed = <9600>;
 			bcr = <0>;
 		};
@@ -146,7 +146,7 @@
 			compatible = "marvell,mv64x60-brg";
 			reg = <0xb208 0x8>;
 			clock-src = <8>;
-			clock-frequency = <133000000>;
+			clock-frequency = <133333333>;
 			current-speed = <9600>;
 			bcr = <0>;
 		};
