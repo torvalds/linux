@@ -100,7 +100,7 @@ struct udf_sb_info {
 
 	/* Sector headers */
 	__s32			s_session;
-	__u32			s_anchor[4];
+	__u32			s_anchor[3];
 	__u32			s_last_block;
 
 	struct buffer_head	*s_lvid_bh;

@@ -678,149 +678,120 @@ static int udf_vrs(struct super_block *sb, int silent)
 }
 
 /*
- * udf_find_anchor
+ * Check whether there is an anchor block in the given block
+ */
+static int udf_check_anchor_block(struct super_block *sb, sector_t block,
+					bool varconv)
+{
+	struct buffer_head *bh = NULL;
+	tag *t;
+	uint16_t ident;
+	uint32_t location;
+
+	if (varconv)
+		bh = sb_bread(sb, udf_fixed_to_variable(block));
+	else
+		bh = sb_bread(sb, block);
+
+	if (!bh)
+		return 0;
+
+	t = (tag *)bh->b_data;
+	ident = le16_to_cpu(t->tagIdent);
+	location = le32_to_cpu(t->tagLocation);
+	brelse(bh);
+	if (ident != TAG_IDENT_AVDP)
+		return 0;
+	return location == block;
+}
+
+/* Search for an anchor volume descriptor pointer */
+static sector_t udf_scan_anchors(struct super_block *sb, bool varconv,
+					sector_t lastblock)
+{
+	sector_t last[4];
+	int i;
+	struct udf_sb_info *sbi = UDF_SB(sb);
+
+	last[0] = lastblock;
+	last[1] = last[0] - 2;
+	last[2] = last[0] - 150;
+	last[3] = last[0] - 152;
+
+	/*  according to spec, anchor is in either:
+	 *     block 256
+	 *     lastblock-256
+	 *     lastblock
+	 *  however, if the disc isn't closed, it could be 512 */
+
+	for (i = 0; i < ARRAY_SIZE(last); i++) {
+		if (last[i] < 0)
+			continue;
+
+		if (udf_check_anchor_block(sb, last[i], varconv)) {
+			sbi->s_anchor[0] = last[i];
+			sbi->s_anchor[1] = last[i] - 256;
+			return last[i];
+		}
+
+		if (last[i] < 256)
+			continue;
+
+		if (udf_check_anchor_block(sb, last[i] - 256, varconv)) {
+			sbi->s_anchor[1] = last[i] - 256;
+			return last[i];
+		}
+	}
+
+	if (udf_check_anchor_block(sb, sbi->s_session + 256, varconv)) {
+		sbi->s_anchor[0] = sbi->s_session + 256;
+		return last[0];
+	}
+	if (udf_check_anchor_block(sb, sbi->s_session + 512, varconv)) {
+		sbi->s_anchor[0] = sbi->s_session + 512;
+		return last[0];
+	}
+	return 0;
+}
+
+/*
+ * Find an anchor volume descriptor. The function expects sbi->s_lastblock to
+ * be the last block on the media.
  *
- * PURPOSE
- *	Find an anchor volume descriptor.
+ * Return 1 if not found, 0 if ok
  *
- * PRE-CONDITIONS
- *	sb			Pointer to _locked_ superblock.
- *	lastblock		Last block on media.
- *
- * POST-CONDITIONS
- *	<return>		1 if not found, 0 if ok
- *
- * HISTORY
- *	July 1, 1997 - Andrew E. Mileski
- *	Written, tested, and released.
  */
 static void udf_find_anchor(struct super_block *sb)
 {
-	int lastblock;
+	sector_t lastblock;
 	struct buffer_head *bh = NULL;
 	uint16_t ident;
-	uint32_t location;
 	int i;
-	struct udf_sb_info *sbi;
+	struct udf_sb_info *sbi = UDF_SB(sb);
 
-	sbi = UDF_SB(sb);
-	lastblock = sbi->s_last_block;
+	lastblock = udf_scan_anchors(sb, 0, sbi->s_last_block);
+	if (lastblock)
+		goto check_anchor;
 
+	/* No anchor found? Try VARCONV conversion of block numbers */
+	/* Firstly, we try to not convert number of the last block */
+	lastblock = udf_scan_anchors(sb, 1,
+				udf_variable_to_fixed(sbi->s_last_block));
 	if (lastblock) {
-		int varlastblock = udf_variable_to_fixed(lastblock);
-		int last[] =  { lastblock, lastblock - 2,
-				lastblock - 150, lastblock - 152,
-				varlastblock, varlastblock - 2,
-				varlastblock - 150, varlastblock - 152 };
-
-		lastblock = 0;
-
-		/* Search for an anchor volume descriptor pointer */
-
-		/*  according to spec, anchor is in either:
-		 *     block 256
-		 *     lastblock-256
-		 *     lastblock
-		 *  however, if the disc isn't closed, it could be 512 */
-
-		for (i = 0; !lastblock && i < ARRAY_SIZE(last); i++) {
-			ident = location = 0;
-			if (last[i] >= 0) {
-				bh = sb_bread(sb, last[i]);
-				if (bh) {
-					tag *t = (tag *)bh->b_data;
-					ident = le16_to_cpu(t->tagIdent);
-					location = le32_to_cpu(t->tagLocation);
-					brelse(bh);
-				}
-			}
-
-			if (ident == TAG_IDENT_AVDP) {
-				if (location == last[i] - sbi->s_session) {
-					lastblock = last[i] - sbi->s_session;
-					sbi->s_anchor[0] = lastblock;
-					sbi->s_anchor[1] = lastblock - 256;
-				} else if (location ==
-						udf_variable_to_fixed(last[i]) -
-							sbi->s_session) {
-					UDF_SET_FLAG(sb, UDF_FLAG_VARCONV);
-					lastblock =
-						udf_variable_to_fixed(last[i]) -
-							sbi->s_session;
-					sbi->s_anchor[0] = lastblock;
-					sbi->s_anchor[1] = lastblock - 256 -
-								sbi->s_session;
-				} else {
-					udf_debug("Anchor found at block %d, "
-						  "location mismatch %d.\n",
-						  last[i], location);
-				}
-			} else if (ident == TAG_IDENT_FE ||
-					ident == TAG_IDENT_EFE) {
-				lastblock = last[i];
-				sbi->s_anchor[3] = 512;
-			} else {
-				ident = location = 0;
-				if (last[i] >= 256) {
-					bh = sb_bread(sb, last[i] - 256);
-					if (bh) {
-						tag *t = (tag *)bh->b_data;
-						ident = le16_to_cpu(
-								t->tagIdent);
-						location = le32_to_cpu(
-								t->tagLocation);
-						brelse(bh);
-					}
-				}
-
-				if (ident == TAG_IDENT_AVDP &&
-				    location == last[i] - 256 -
-						sbi->s_session) {
-					lastblock = last[i];
-					sbi->s_anchor[1] = last[i] - 256;
-				} else {
-					ident = location = 0;
-					if (last[i] >= 312 + sbi->s_session) {
-						bh = sb_bread(sb,
-								last[i] - 312 -
-								sbi->s_session);
-						if (bh) {
-							tag *t = (tag *)
-								 bh->b_data;
-							ident = le16_to_cpu(
-								t->tagIdent);
-							location = le32_to_cpu(
-								t->tagLocation);
-							brelse(bh);
-						}
-					}
-
-					if (ident == TAG_IDENT_AVDP &&
-					    location == udf_variable_to_fixed(last[i]) - 256) {
-						UDF_SET_FLAG(sb,
-							     UDF_FLAG_VARCONV);
-						lastblock = udf_variable_to_fixed(last[i]);
-						sbi->s_anchor[1] = lastblock - 256;
-					}
-				}
-			}
-		}
+		UDF_SET_FLAG(sb, UDF_FLAG_VARCONV);
+		goto check_anchor;
 	}
 
-	if (!lastblock) {
-		/* We haven't found the lastblock. check 312 */
-		bh = sb_bread(sb, 312 + sbi->s_session);
-		if (bh) {
-			tag *t = (tag *)bh->b_data;
-			ident = le16_to_cpu(t->tagIdent);
-			location = le32_to_cpu(t->tagLocation);
-			brelse(bh);
+	/* Secondly, we try with converted number of the last block */
+	lastblock = udf_scan_anchors(sb, 1, sbi->s_last_block);
+	if (lastblock)
+		UDF_SET_FLAG(sb, UDF_FLAG_VARCONV);
 
-			if (ident == TAG_IDENT_AVDP && location == 256)
-				UDF_SET_FLAG(sb, UDF_FLAG_VARCONV);
-		}
-	}
-
+check_anchor:
+	/*
+	 * Check located anchors and the anchor block supplied via
+	 * mount options
+	 */
 	for (i = 0; i < ARRAY_SIZE(sbi->s_anchor); i++) {
 		if (!sbi->s_anchor[i])
 			continue;
@@ -830,9 +801,7 @@ static void udf_find_anchor(struct super_block *sb)
 			sbi->s_anchor[i] = 0;
 		else {
 			brelse(bh);
-			if ((ident != TAG_IDENT_AVDP) &&
-				(i || (ident != TAG_IDENT_FE &&
-					ident != TAG_IDENT_EFE)))
+			if (ident != TAG_IDENT_AVDP)
 				sbi->s_anchor[i] = 0;
 		}
 	}
@@ -1224,17 +1193,6 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 	ret = udf_fill_partdesc_info(sb, p, i);
 	if (ret)
 		goto out_bh;
-
-	if (!sbi->s_last_block) {
-		sbi->s_last_block = udf_get_last_block(sb);
-		udf_find_anchor(sb);
-		if (!sbi->s_last_block) {
-			udf_debug("Unable to determine Lastblock (For "
-					"Virtual Partition)\n");
-			ret = 1;
-			goto out_bh;
-		}
-	}
 
 	ret = udf_load_vat(sb, i, type1_idx);
 out_bh:
@@ -1778,7 +1736,6 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	sbi->s_last_block = uopt.lastblock;
 	sbi->s_anchor[0] = sbi->s_anchor[1] = 0;
 	sbi->s_anchor[2] = uopt.anchor;
-	sbi->s_anchor[3] = 256;
 
 	if (udf_check_valid(sb, uopt.novrs, silent)) {
 		/* read volume recognition sequences */
