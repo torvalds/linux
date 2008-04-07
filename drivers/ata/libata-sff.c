@@ -310,7 +310,7 @@ int ata_sff_busy_sleep(struct ata_port *ap,
 
 /**
  *	ata_sff_wait_ready - sleep until BSY clears, or timeout
- *	@ap: port containing status register to be polled
+ *	@link: SFF link to wait ready status for
  *	@deadline: deadline jiffies for the operation
  *
  *	Sleep until ATA Status register bit BSY clears, or timeout
@@ -322,10 +322,15 @@ int ata_sff_busy_sleep(struct ata_port *ap,
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-int ata_sff_wait_ready(struct ata_port *ap, unsigned long deadline)
+int ata_sff_wait_ready(struct ata_link *link, unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	unsigned long start = jiffies;
+	unsigned long nodev_deadline = start + ATA_TMOUT_FF_WAIT;
 	int warned = 0;
+
+	if (time_after(nodev_deadline, deadline))
+		nodev_deadline = deadline;
 
 	while (1) {
 		u8 status = ap->ops->sff_check_status(ap);
@@ -333,15 +338,36 @@ int ata_sff_wait_ready(struct ata_port *ap, unsigned long deadline)
 
 		if (!(status & ATA_BUSY))
 			return 0;
-		if (!ata_link_online(&ap->link) && status == 0xff)
-			return -ENODEV;
+
+		/* No device status could be transient.  Ignore it if
+		 * link is online.  Also, some SATA devices take a
+		 * long time to clear 0xff after reset.  For example,
+		 * HHD424020F7SV00 iVDR needs >= 800ms while Quantum
+		 * GoVault needs even more than that.  Wait for
+		 * ATA_TMOUT_FF_WAIT on -ENODEV if link isn't offline.
+		 *
+		 * Note that some PATA controllers (pata_ali) explode
+		 * if status register is read more than once when
+		 * there's no device attached.
+		 */
+		if (status == 0xff) {
+			if (ata_link_online(link))
+				status = ATA_BUSY;
+			else if ((link->ap->flags & ATA_FLAG_SATA) &&
+				 !ata_link_offline(link) &&
+				 time_before(now, nodev_deadline))
+				status = ATA_BUSY;
+			if (status == 0xff)
+				return -ENODEV;
+		}
+
 		if (time_after(now, deadline))
 			return -EBUSY;
 
 		if (!warned && time_after(now, start + 5 * HZ) &&
 		    (deadline - now > 3 * HZ)) {
-			ata_port_printk(ap, KERN_WARNING,
-				"port is slow to respond, please be patient "
+			ata_link_printk(link, KERN_WARNING,
+				"link is slow to respond, please be patient "
 				"(Status 0x%x)\n", status);
 			warned = 1;
 		}
@@ -1625,7 +1651,6 @@ void ata_sff_thaw(struct ata_port *ap)
  */
 int ata_sff_prereset(struct ata_link *link, unsigned long deadline)
 {
-	struct ata_port *ap = link->ap;
 	struct ata_eh_context *ehc = &link->eh_context;
 	int rc;
 
@@ -1639,7 +1664,7 @@ int ata_sff_prereset(struct ata_link *link, unsigned long deadline)
 
 	/* wait for !BSY if we don't know that no device is attached */
 	if (!ata_link_offline(link)) {
-		rc = ata_sff_wait_ready(ap, deadline);
+		rc = ata_sff_wait_ready(link, deadline);
 		if (rc && rc != -ENODEV) {
 			ata_link_printk(link, KERN_WARNING, "device not ready "
 					"(errno=%d), forcing hardreset\n", rc);
@@ -1762,25 +1787,41 @@ unsigned int ata_sff_dev_classify(struct ata_device *dev, int present,
 	return class;
 }
 
-static int ata_bus_post_reset(struct ata_port *ap, unsigned int devmask,
-			      unsigned long deadline)
+/**
+ *	ata_sff_wait_after_reset - wait for devices to become ready after reset
+ *	@link: SFF link which is just reset
+ *	@devmask: mask of present devices
+ *	@deadline: deadline jiffies for the operation
+ *
+ *	Wait devices attached to SFF @link to become ready after
+ *	reset.  It contains preceding 150ms wait to avoid accessing TF
+ *	status register too early.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ *
+ *	RETURNS:
+ *	0 on success, -ENODEV if some or all of devices in @devmask
+ *	don't seem to exist.  -errno on other errors.
+ */
+int ata_sff_wait_after_reset(struct ata_link *link, unsigned int devmask,
+			     unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 	unsigned int dev0 = devmask & (1 << 0);
 	unsigned int dev1 = devmask & (1 << 1);
 	int rc, ret = 0;
 
-	/* if device 0 was found in ata_devchk, wait for its
-	 * BSY bit to clear
+	msleep(ATA_WAIT_AFTER_RESET_MSECS);
+
+	/* always check readiness of the master device */
+	rc = ata_sff_wait_ready(link, deadline);
+	/* -ENODEV means the odd clown forgot the D7 pulldown resistor
+	 * and TF status is 0xff, bail out on it too.
 	 */
-	if (dev0) {
-		rc = ata_sff_wait_ready(ap, deadline);
-		if (rc) {
-			if (rc != -ENODEV)
-				return rc;
-			ret = rc;
-		}
-	}
+	if (rc)
+		return rc;
 
 	/* if device 1 was found in ata_devchk, wait for register
 	 * access briefly, then wait for BSY to clear.
@@ -1804,7 +1845,7 @@ static int ata_bus_post_reset(struct ata_port *ap, unsigned int devmask,
 			msleep(50);	/* give drive a breather */
 		}
 
-		rc = ata_sff_wait_ready(ap, deadline);
+		rc = ata_sff_wait_ready(link, deadline);
 		if (rc) {
 			if (rc != -ENODEV)
 				return rc;
@@ -1822,61 +1863,6 @@ static int ata_bus_post_reset(struct ata_port *ap, unsigned int devmask,
 	return ret;
 }
 
-/**
- *	ata_sff_wait_after_reset - wait before checking status after reset
- *	@ap: port containing status register to be polled
- *	@deadline: deadline jiffies for the operation
- *
- *	After reset, we need to pause a while before reading status.
- *	Also, certain combination of controller and device report 0xff
- *	for some duration (e.g. until SATA PHY is up and running)
- *	which is interpreted as empty port in ATA world.  This
- *	function also waits for such devices to get out of 0xff
- *	status.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep).
- */
-void ata_sff_wait_after_reset(struct ata_port *ap, unsigned long deadline)
-{
-	unsigned long until = jiffies + ATA_TMOUT_FF_WAIT;
-
-	if (time_before(until, deadline))
-		deadline = until;
-
-	/* Spec mandates ">= 2ms" before checking status.  We wait
-	 * 150ms, because that was the magic delay used for ATAPI
-	 * devices in Hale Landis's ATADRVR, for the period of time
-	 * between when the ATA command register is written, and then
-	 * status is checked.  Because waiting for "a while" before
-	 * checking status is fine, post SRST, we perform this magic
-	 * delay here as well.
-	 *
-	 * Old drivers/ide uses the 2mS rule and then waits for ready.
-	 */
-	msleep(150);
-
-	/* Wait for 0xff to clear.  Some SATA devices take a long time
-	 * to clear 0xff after reset.  For example, HHD424020F7SV00
-	 * iVDR needs >= 800ms while.  Quantum GoVault needs even more
-	 * than that.
-	 *
-	 * Note that some PATA controllers (pata_ali) explode if
-	 * status register is read more than once when there's no
-	 * device attached.
-	 */
-	if (ap->flags & ATA_FLAG_SATA) {
-		while (1) {
-			u8 status = ap->ops->sff_check_status(ap);
-
-			if (status != 0xff || time_after(jiffies, deadline))
-				return;
-
-			msleep(50);
-		}
-	}
-}
-
 static int ata_bus_softreset(struct ata_port *ap, unsigned int devmask,
 			     unsigned long deadline)
 {
@@ -1891,17 +1877,8 @@ static int ata_bus_softreset(struct ata_port *ap, unsigned int devmask,
 	udelay(20);	/* FIXME: flush */
 	iowrite8(ap->ctl, ioaddr->ctl_addr);
 
-	/* wait a while before checking status */
-	ata_sff_wait_after_reset(ap, deadline);
-
-	/* Before we perform post reset processing we want to see if
-	 * the bus shows 0xFF because the odd clown forgets the D7
-	 * pulldown resistor.
-	 */
-	if (ap->ops->sff_check_status(ap) == 0xFF)
-		return -ENODEV;
-
-	return ata_bus_post_reset(ap, devmask, deadline);
+	/* wait the port to become ready */
+	return ata_sff_wait_after_reset(&ap->link, devmask, deadline);
 }
 
 /**
@@ -2003,28 +1980,24 @@ int sata_sff_hardreset(struct ata_link *link, unsigned int *class,
 		return 0;
 	}
 
-	/* wait a while before checking status */
-	ata_sff_wait_after_reset(ap, deadline);
-
 	/* If PMP is supported, we have to do follow-up SRST.  Note
 	 * that some PMPs don't send D2H Reg FIS after hardreset at
 	 * all if the first port is empty.  Wait for it just for a
 	 * second and request follow-up SRST.
 	 */
 	if (ap->flags & ATA_FLAG_PMP) {
-		ata_sff_wait_ready(ap, jiffies + HZ);
+		ata_sff_wait_after_reset(link, 1, jiffies + HZ);
 		return -EAGAIN;
 	}
 
-	rc = ata_sff_wait_ready(ap, deadline);
+	/* wait for the link to become online */
+	rc = ata_sff_wait_after_reset(link, 1, deadline);
 	/* link occupied, -ENODEV too is an error */
 	if (rc) {
 		ata_link_printk(link, KERN_ERR,
 				"COMRESET failed (errno=%d)\n", rc);
 		return rc;
 	}
-
-	ap->ops->sff_dev_select(ap, 0);	/* probably unnecessary */
 
 	*class = ata_sff_dev_classify(link->device, 1, NULL);
 

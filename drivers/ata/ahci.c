@@ -1302,10 +1302,8 @@ static int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 	tf.ctl &= ~ATA_SRST;
 	ahci_exec_polled_cmd(ap, pmp, &tf, 0, 0, 0);
 
-	/* wait a while before checking status */
-	ata_sff_wait_after_reset(ap, deadline);
-
-	rc = ata_sff_wait_ready(ap, deadline);
+	/* wait for link to become ready */
+	rc = ata_sff_wait_after_reset(link, 1, deadline);
 	/* link occupied, -ENODEV too is an error */
 	if (rc) {
 		reason = "device not ready";
@@ -1415,9 +1413,6 @@ static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
 	if (rc || ata_link_offline(link))
 		return rc;
 
-	/* spec mandates ">= 2ms" before checking status */
-	msleep(150);
-
 	/* The pseudo configuration device on SIMG4726 attached to
 	 * ASUS P5W-DH Deluxe doesn't send signature FIS after
 	 * hardreset if no device is attached to the first downstream
@@ -1431,7 +1426,7 @@ static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
 	 * have to be reset again.  For most cases, this should
 	 * suffice while making probing snappish enough.
 	 */
-	rc = ata_sff_wait_ready(ap, jiffies + 2 * HZ);
+	rc = ata_sff_wait_after_reset(link, 1, jiffies + 2 * HZ);
 	if (rc)
 		ahci_kick_engine(ap, 0);
 

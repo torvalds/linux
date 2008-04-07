@@ -497,47 +497,68 @@ static unsigned int scc_devchk (struct ata_port *ap,
 }
 
 /**
- *	scc_bus_post_reset - PATA device post reset
+ *	scc_wait_after_reset - wait for devices to become ready after reset
  *
- *	Note: Original code is ata_bus_post_reset().
+ *	Note: Original code is ata_sff_wait_after_reset
  */
 
-static int scc_bus_post_reset(struct ata_port *ap, unsigned int devmask,
-                              unsigned long deadline)
+int scc_wait_after_reset(struct ata_link *link, unsigned int devmask,
+			 unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 	unsigned int dev0 = devmask & (1 << 0);
 	unsigned int dev1 = devmask & (1 << 1);
-	int rc;
+	int rc, ret = 0;
 
-	/* if device 0 was found in ata_devchk, wait for its
-	 * BSY bit to clear
+	/* Spec mandates ">= 2ms" before checking status.  We wait
+	 * 150ms, because that was the magic delay used for ATAPI
+	 * devices in Hale Landis's ATADRVR, for the period of time
+	 * between when the ATA command register is written, and then
+	 * status is checked.  Because waiting for "a while" before
+	 * checking status is fine, post SRST, we perform this magic
+	 * delay here as well.
+	 *
+	 * Old drivers/ide uses the 2mS rule and then waits for ready.
 	 */
-	if (dev0) {
-		rc = ata_sff_wait_ready(ap, deadline);
-		if (rc && rc != -ENODEV)
-			return rc;
-	}
+	msleep(150);
 
-	/* if device 1 was found in ata_devchk, wait for
-	 * register access, then wait for BSY to clear
+	/* always check readiness of the master device */
+	rc = ata_sff_wait_ready(link, deadline);
+	/* -ENODEV means the odd clown forgot the D7 pulldown resistor
+	 * and TF status is 0xff, bail out on it too.
 	 */
-	while (dev1) {
-		u8 nsect, lbal;
+	if (rc)
+		return rc;
+
+	/* if device 1 was found in ata_devchk, wait for register
+	 * access briefly, then wait for BSY to clear.
+	 */
+	if (dev1) {
+		int i;
 
 		ap->ops->sff_dev_select(ap, 1);
-		nsect = in_be32(ioaddr->nsect_addr);
-		lbal = in_be32(ioaddr->lbal_addr);
-		if ((nsect == 1) && (lbal == 1))
-			break;
-		if (time_after(jiffies, deadline))
-			return -EBUSY;
-		msleep(50);	/* give drive a breather */
-	}
-	if (dev1) {
-		rc = ata_sff_wait_ready(ap, deadline);
-		if (rc && rc != -ENODEV)
-			return rc;
+
+		/* Wait for register access.  Some ATAPI devices fail
+		 * to set nsect/lbal after reset, so don't waste too
+		 * much time on it.  We're gonna wait for !BSY anyway.
+		 */
+		for (i = 0; i < 2; i++) {
+			u8 nsect, lbal;
+
+			nsect = in_be32(ioaddr->nsect_addr);
+			lbal = in_be32(ioaddr->lbal_addr);
+			if ((nsect == 1) && (lbal == 1))
+				break;
+			msleep(50);	/* give drive a breather */
+		}
+
+		rc = ata_sff_wait_ready(link, deadline);
+		if (rc) {
+			if (rc != -ENODEV)
+				return rc;
+			ret = rc;
+		}
 	}
 
 	/* is all this really necessary? */
@@ -547,7 +568,7 @@ static int scc_bus_post_reset(struct ata_port *ap, unsigned int devmask,
 	if (dev0)
 		ap->ops->sff_dev_select(ap, 0);
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -570,17 +591,7 @@ static unsigned int scc_bus_softreset(struct ata_port *ap, unsigned int devmask,
 	udelay(20);
 	out_be32(ioaddr->ctl_addr, ap->ctl);
 
-	/* wait a while before checking status */
-	ata_sff_wait_after_reset(ap, deadline);
-
-	/* Before we perform post reset processing we want to see if
-	 * the bus shows 0xFF because the odd clown forgets the D7
-	 * pulldown resistor.
-	 */
-	if (scc_check_status(ap) == 0xFF)
-		return 0;
-
-	scc_bus_post_reset(ap, devmask, deadline);
+	scc_wait_after_reset(&ap->link, devmask, deadlien);
 
 	return 0;
 }

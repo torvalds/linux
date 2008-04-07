@@ -249,6 +249,18 @@ enum {
 	 */
 	ATA_TMOUT_FF_WAIT	= 4 * HZ / 5,
 
+	/* Spec mandates to wait for ">= 2ms" before checking status
+	 * after reset.  We wait 150ms, because that was the magic
+	 * delay used for ATAPI devices in Hale Landis's ATADRVR, for
+	 * the period of time between when the ATA command register is
+	 * written, and then status is checked.  Because waiting for
+	 * "a while" before checking status is fine, post SRST, we
+	 * perform this magic delay here as well.
+	 *
+	 * Old drivers/ide uses the 2mS rule and then waits for ready.
+	 */
+	ATA_WAIT_AFTER_RESET_MSECS = 150,
+
 	/* ATA bus states */
 	BUS_UNKNOWN		= 0,
 	BUS_DMA			= 1,
@@ -1351,7 +1363,7 @@ extern u8 ata_sff_check_status(struct ata_port *ap);
 extern u8 ata_sff_altstatus(struct ata_port *ap);
 extern int ata_sff_busy_sleep(struct ata_port *ap,
 			      unsigned long timeout_pat, unsigned long timeout);
-extern int ata_sff_wait_ready(struct ata_port *ap, unsigned long deadline);
+extern int ata_sff_wait_ready(struct ata_link *link, unsigned long deadline);
 extern void ata_sff_tf_load(struct ata_port *ap, const struct ata_taskfile *tf);
 extern void ata_sff_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 extern void ata_sff_exec_command(struct ata_port *ap,
@@ -1373,8 +1385,8 @@ extern void ata_sff_thaw(struct ata_port *ap);
 extern int ata_sff_prereset(struct ata_link *link, unsigned long deadline);
 extern unsigned int ata_sff_dev_classify(struct ata_device *dev, int present,
 					  u8 *r_err);
-extern void ata_sff_wait_after_reset(struct ata_port *ap,
-				     unsigned long deadline);
+extern int ata_sff_wait_after_reset(struct ata_link *link, unsigned int devmask,
+				    unsigned long deadline);
 extern int ata_sff_softreset(struct ata_link *link, unsigned int *classes,
 			     unsigned long deadline);
 extern int sata_sff_hardreset(struct ata_link *link, unsigned int *class,

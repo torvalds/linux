@@ -417,10 +417,8 @@ static int inic_hardreset(struct ata_link *link, unsigned int *class,
 	if (ata_link_online(link)) {
 		struct ata_taskfile tf;
 
-		/* wait a while before checking status */
-		ata_sff_wait_after_reset(ap, deadline);
-
-		rc = ata_sff_wait_ready(ap, deadline);
+		/* wait for link to become ready */
+		rc = ata_sff_wait_after_reset(link, 1, deadline);
 		/* link occupied, -ENODEV too is an error */
 		if (rc) {
 			ata_link_printk(link, KERN_WARNING, "device not ready "

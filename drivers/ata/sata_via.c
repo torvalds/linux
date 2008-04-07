@@ -242,7 +242,7 @@ static int vt6420_prereset(struct ata_link *link, unsigned long deadline)
 
  skip_scr:
 	/* wait for !BSY */
-	ata_sff_wait_ready(ap, deadline);
+	ata_sff_wait_ready(link, deadline);
 
 	return 0;
 }
