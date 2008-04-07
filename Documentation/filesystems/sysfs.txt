@@ -176,8 +176,10 @@ implementations:
   Recall that an attribute should only be exporting one value, or an
   array of similar values, so this shouldn't be that expensive. 
 
-  This allows userspace to do partial reads and seeks arbitrarily over
-  the entire file at will. 
+  This allows userspace to do partial reads and forward seeks
+  arbitrarily over the entire file at will. If userspace seeks back to
+  zero or does a pread(2) with an offset of '0' the show() method will
+  be called again, rearmed, to fill the buffer.
 
 - On write(2), sysfs expects the entire buffer to be passed during the
   first write. Sysfs then passes the entire buffer to the store()
@@ -191,6 +193,9 @@ implementations:
   buffer when reading and writing values. 
 
 Other notes:
+
+- Writing causes the show() method to be rearmed regardless of current
+  file position.
 
 - The buffer will always be PAGE_SIZE bytes in length. On i386, this
   is 4096. 
