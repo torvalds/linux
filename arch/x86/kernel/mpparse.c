@@ -390,10 +390,13 @@ static int __init smp_read_mpc(struct mp_config_table *mpc, unsigned early)
 				break;
 			}
 		default:
-			{
-				count = mpc->mpc_length;
-				break;
-			}
+			/* wrong mptable */
+			printk(KERN_ERR "Your mptable is wrong, contact your HW vendor!\n");
+			printk(KERN_ERR "type %x\n", *mpt);
+			print_hex_dump(KERN_ERR, "  ", DUMP_PREFIX_ADDRESS, 16,
+					1, mpc, mpc->mpc_length, 1);
+			count = mpc->mpc_length;
+			break;
 		}
 #ifdef CONFIG_X86_NUMAQ
 		++mpc_record;
