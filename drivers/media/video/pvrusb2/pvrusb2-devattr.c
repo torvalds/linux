@@ -175,12 +175,16 @@ static const struct pvr2_device_desc pvr2_device_73xxx = {
 		.fx2_firmware.cnt = ARRAY_SIZE(pvr2_fw1_names_73xxx),
 		.flag_has_cx25840 = !0,
 		.flag_has_hauppauge_rom = !0,
+#if 0
 		.flag_has_analogtuner = !0,
 		.flag_has_composite = !0,
 		.flag_has_svideo = !0,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_HAUPPAUGE,
 		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
+#else
+		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
+#endif
 };
 
 
