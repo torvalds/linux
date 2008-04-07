@@ -1933,69 +1933,57 @@ static struct platform_driver dummy_hcd_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-/* These don't need to do anything because the pdev structures are
- * statically allocated. */
-static void
-dummy_udc_release (struct device *dev) {}
-
-static void
-dummy_hcd_release (struct device *dev) {}
-
-static struct platform_device		the_udc_pdev = {
-	.name		= (char *) gadget_name,
-	.id		= -1,
-	.dev		= {
-		.release	= dummy_udc_release,
-	},
-};
-
-static struct platform_device		the_hcd_pdev = {
-	.name		= (char *) driver_name,
-	.id		= -1,
-	.dev		= {
-		.release	= dummy_hcd_release,
-	},
-};
+static struct platform_device *the_udc_pdev;
+static struct platform_device *the_hcd_pdev;
 
 static int __init init (void)
 {
-	int	retval;
+	int	retval = -ENOMEM;
 
 	if (usb_disabled ())
 		return -ENODEV;
 
-	retval = platform_driver_register (&dummy_hcd_driver);
-	if (retval < 0)
+	the_hcd_pdev = platform_device_alloc(driver_name, -1);
+	if (!the_hcd_pdev)
 		return retval;
+	the_udc_pdev = platform_device_alloc(gadget_name, -1);
+	if (!the_udc_pdev)
+		goto err_alloc_udc;
 
-	retval = platform_driver_register (&dummy_udc_driver);
+	retval = platform_driver_register(&dummy_hcd_driver);
+	if (retval < 0)
+		goto err_register_hcd_driver;
+	retval = platform_driver_register(&dummy_udc_driver);
 	if (retval < 0)
 		goto err_register_udc_driver;
 
-	retval = platform_device_register (&the_hcd_pdev);
+	retval = platform_device_add(the_hcd_pdev);
 	if (retval < 0)
-		goto err_register_hcd;
-
-	retval = platform_device_register (&the_udc_pdev);
+		goto err_add_hcd;
+	retval = platform_device_add(the_udc_pdev);
 	if (retval < 0)
-		goto err_register_udc;
+		goto err_add_udc;
 	return retval;
 
-err_register_udc:
-	platform_device_unregister (&the_hcd_pdev);
-err_register_hcd:
-	platform_driver_unregister (&dummy_udc_driver);
+err_add_udc:
+	platform_device_del(the_hcd_pdev);
+err_add_hcd:
+	platform_driver_unregister(&dummy_udc_driver);
 err_register_udc_driver:
-	platform_driver_unregister (&dummy_hcd_driver);
+	platform_driver_unregister(&dummy_hcd_driver);
+err_register_hcd_driver:
+	platform_device_put(the_udc_pdev);
+err_alloc_udc:
+	platform_device_put(the_hcd_pdev);
 	return retval;
 }
 module_init (init);
 
 static void __exit cleanup (void)
 {
-	platform_device_unregister (&the_udc_pdev);
-	platform_device_unregister (&the_hcd_pdev);
-	platform_driver_unregister (&dummy_udc_driver);
-	platform_driver_unregister (&dummy_hcd_driver);
+	platform_device_unregister(the_udc_pdev);
+	platform_device_unregister(the_hcd_pdev);
+	platform_driver_unregister(&dummy_udc_driver);
+	platform_driver_unregister(&dummy_hcd_driver);
 }
 module_exit (cleanup);
