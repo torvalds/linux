@@ -619,16 +619,6 @@ out_thread:
 }
 
 /*
- * Create a thread in the default pool.  Caller must hold BKL.
- */
-int
-svc_create_thread(svc_thread_fn func, struct svc_serv *serv)
-{
-	return __svc_create_thread(func, serv, &serv->sv_pools[0]);
-}
-EXPORT_SYMBOL(svc_create_thread);
-
-/*
  * Choose a pool in which to create a new thread, for svc_set_num_threads
  */
 static inline struct svc_pool *
