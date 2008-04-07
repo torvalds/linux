@@ -1929,7 +1929,6 @@ int sata_sff_hardreset(struct ata_link *link, unsigned int *class,
 
 	rc = sata_link_hardreset(link, timing, deadline, &online,
 				 ata_sff_check_ready);
-	*class = ATA_DEV_NONE;
 	if (online)
 		*class = ata_sff_dev_classify(link->device, 1, NULL);
 

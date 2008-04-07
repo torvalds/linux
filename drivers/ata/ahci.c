@@ -1365,7 +1365,6 @@ static int ahci_hardreset(struct ata_link *link, unsigned int *class,
 
 	ahci_start_engine(ap);
 
-	*class = ATA_DEV_NONE;
 	if (online)
 		*class = ahci_dev_classify(ap);
 
@@ -1394,7 +1393,6 @@ static int ahci_vt8251_hardreset(struct ata_link *link, unsigned int *class,
 	/* vt8251 doesn't clear BSY on signature FIS reception,
 	 * request follow-up softreset.
 	 */
-	*class = ATA_DEV_NONE;
 	return online ? -EAGAIN : rc;
 }
 
@@ -1439,7 +1437,6 @@ static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
 		if (rc)
 			ahci_kick_engine(ap, 0);
 	}
-	*class = ATA_DEV_NONE;
 	return rc;
 }
 

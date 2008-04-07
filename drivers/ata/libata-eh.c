@@ -2055,20 +2055,10 @@ static int ata_do_reset(struct ata_link *link, ata_reset_fn_t reset,
 	if (rc)
 		return rc;
 
-	/* If any class isn't ATA_DEV_UNKNOWN, consider classification
-	 * is complete and convert all ATA_DEV_UNKNOWN to
-	 * ATA_DEV_NONE.
-	 */
+	/* convert all ATA_DEV_UNKNOWN to ATA_DEV_NONE */
 	ata_link_for_each_dev(dev, link)
-		if (classes[dev->devno] != ATA_DEV_UNKNOWN)
-			break;
-
-	if (dev) {
-		ata_link_for_each_dev(dev, link) {
-			if (classes[dev->devno] == ATA_DEV_UNKNOWN)
-				classes[dev->devno] = ATA_DEV_NONE;
-		}
-	}
+		if (classes[dev->devno] == ATA_DEV_UNKNOWN)
+			classes[dev->devno] = ATA_DEV_NONE;
 
 	return 0;
 }
@@ -2079,14 +2069,14 @@ static int ata_eh_followup_srst_needed(struct ata_link *link,
 {
 	if (link->flags & ATA_LFLAG_NO_SRST)
 		return 0;
-	if (rc == -EAGAIN)
-		return 1;
+	if (rc == -EAGAIN) {
+		if (classify)
+			return 1;
+		rc = 0;
+	}
 	if (rc != 0)
 		return 0;
 	if ((link->ap->flags & ATA_FLAG_PMP) && ata_is_host_link(link))
-		return 1;
-	if (classify && !(link->flags & ATA_LFLAG_ASSUME_CLASS) &&
-	    classes[0] == ATA_DEV_UNKNOWN)
 		return 1;
 	return 0;
 }

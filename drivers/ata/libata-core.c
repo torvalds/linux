@@ -3701,7 +3701,6 @@ int sata_std_hardreset(struct ata_link *link, unsigned int *class,
 
 	/* do hardreset */
 	rc = sata_link_hardreset(link, timing, deadline, &online, NULL);
-	*class = ATA_DEV_NONE;
 	return online ? -EAGAIN : rc;
 }
 
