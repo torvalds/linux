@@ -247,7 +247,6 @@ static bool ahci_qc_fill_rtf(struct ata_queued_cmd *qc);
 static int ahci_port_start(struct ata_port *ap);
 static void ahci_port_stop(struct ata_port *ap);
 static void ahci_qc_prep(struct ata_queued_cmd *qc);
-static u8 ahci_check_status(struct ata_port *ap);
 static void ahci_freeze(struct ata_port *ap);
 static void ahci_thaw(struct ata_port *ap);
 static void ahci_pmp_attach(struct ata_port *ap);
@@ -291,9 +290,6 @@ static struct scsi_host_template ahci_sht = {
 
 static struct ata_port_operations ahci_ops = {
 	.inherits		= &sata_pmp_port_ops,
-
-	.sff_check_status	= ahci_check_status,
-	.sff_check_altstatus	= ahci_check_status,
 
 	.qc_defer		= sata_pmp_qc_defer_cmd_switch,
 	.qc_prep		= ahci_qc_prep,
@@ -1185,11 +1181,12 @@ static int ahci_kick_engine(struct ata_port *ap, int force_restart)
 {
 	void __iomem *port_mmio = ap->ioaddr.cmd_addr;
 	struct ahci_host_priv *hpriv = ap->host->private_data;
+	u8 status = readl(port_mmio + PORT_TFDATA) & 0xFF;
 	u32 tmp;
 	int busy, rc;
 
 	/* do we need to kick the port? */
-	busy = ahci_check_status(ap) & (ATA_BUSY | ATA_DRQ);
+	busy = status & (ATA_BUSY | ATA_DRQ);
 	if (!busy && !force_restart)
 		return 0;
 
@@ -1464,13 +1461,6 @@ static int ahci_pmp_softreset(struct ata_link *link, unsigned int *class,
 			      unsigned long deadline)
 {
 	return ahci_do_softreset(link, class, link->pmp, deadline);
-}
-
-static u8 ahci_check_status(struct ata_port *ap)
-{
-	void __iomem *mmio = ap->ioaddr.cmd_addr;
-
-	return readl(mmio + PORT_TFDATA) & 0xFF;
 }
 
 static unsigned int ahci_fill_sg(struct ata_queued_cmd *qc, void *cmd_tbl)

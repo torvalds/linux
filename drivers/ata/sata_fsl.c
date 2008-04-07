@@ -244,17 +244,6 @@ struct sata_fsl_port_priv {
 	dma_addr_t cmdslot_paddr;
 	struct command_desc *cmdentry;
 	dma_addr_t cmdentry_paddr;
-
-	/*
-	 * SATA FSL controller has a Status FIS which should contain the
-	 * received D2H FIS & taskfile registers. This SFIS is present in
-	 * the command descriptor, and to have a ready reference to it,
-	 * we are caching it here, quite similar to what is done in H/W on
-	 * AHCI compliant devices by copying taskfile fields to a 32-bit
-	 * register.
-	 */
-
-	struct ata_taskfile tf;
 };
 
 /*
@@ -567,31 +556,6 @@ static void sata_fsl_thaw(struct ata_port *ap)
 
 	VPRINTK("xx_thaw : HControl = 0x%x, HStatus = 0x%x\n",
 		ioread32(hcr_base + HCONTROL), ioread32(hcr_base + HSTATUS));
-}
-
-/*
- * NOTE : 1st D2H FIS from device does not update sfis in command descriptor.
- */
-static inline void sata_fsl_cache_taskfile_from_d2h_fis(struct ata_queued_cmd
-							*qc,
-							struct ata_port *ap)
-{
-	struct sata_fsl_port_priv *pp = ap->private_data;
-	struct sata_fsl_host_priv *host_priv = ap->host->private_data;
-	void __iomem *hcr_base = host_priv->hcr_base;
-	unsigned int tag = sata_fsl_tag(qc->tag, hcr_base);
-	struct command_desc *cd;
-
-	cd = pp->cmdentry + tag;
-
-	ata_tf_from_fis(cd->sfis, &pp->tf);
-}
-
-static u8 sata_fsl_check_status(struct ata_port *ap)
-{
-	struct sata_fsl_port_priv *pp = ap->private_data;
-
-	return pp->tf.command;
 }
 
 static int sata_fsl_port_start(struct ata_port *ap)
@@ -1004,10 +968,9 @@ static void sata_fsl_error_intr(struct ata_port *ap)
 	/* record error info */
 	qc = ata_qc_from_tag(ap, link->active_tag);
 
-	if (qc) {
-		sata_fsl_cache_taskfile_from_d2h_fis(qc, qc->ap);
+	if (qc)
 		qc->err_mask |= err_mask;
-	} else
+	else
 		ehi->err_mask |= err_mask;
 
 	ehi->action |= action;
@@ -1018,14 +981,6 @@ static void sata_fsl_error_intr(struct ata_port *ap)
 		ata_port_freeze(ap);
 	else
 		ata_port_abort(ap);
-}
-
-static void sata_fsl_qc_complete(struct ata_queued_cmd *qc)
-{
-	if (qc->flags & ATA_QCFLAG_RESULT_TF) {
-		DPRINTK("xx_qc_complete called\n");
-		sata_fsl_cache_taskfile_from_d2h_fis(qc, qc->ap);
-	}
 }
 
 static void sata_fsl_host_intr(struct ata_port *ap)
@@ -1068,10 +1023,8 @@ static void sata_fsl_host_intr(struct ata_port *ap)
 		for (i = 0; i < SATA_FSL_QUEUE_DEPTH; i++) {
 			if (qc_active & (1 << i)) {
 				qc = ata_qc_from_tag(ap, i);
-				if (qc) {
-					sata_fsl_qc_complete(qc);
+				if (qc)
 					ata_qc_complete(qc);
-				}
 				DPRINTK
 				    ("completing ncq cmd,tag=%d,CC=0x%x,CA=0x%x\n",
 				     i, ioread32(hcr_base + CC),
@@ -1087,10 +1040,8 @@ static void sata_fsl_host_intr(struct ata_port *ap)
 		DPRINTK("completing non-ncq cmd, tag=%d,CC=0x%x\n",
 			link->active_tag, ioread32(hcr_base + CC));
 
-		if (qc) {
-			sata_fsl_qc_complete(qc);
+		if (qc)
 			ata_qc_complete(qc);
-		}
 	} else {
 		/* Spurious Interrupt!! */
 		DPRINTK("spurious interrupt!!, CC = 0x%x\n",
@@ -1196,9 +1147,6 @@ static struct scsi_host_template sata_fsl_sht = {
 
 static const struct ata_port_operations sata_fsl_ops = {
 	.inherits = &sata_port_ops,
-
-	.sff_check_status = sata_fsl_check_status,
-	.sff_check_altstatus = sata_fsl_check_status,
 
 	.qc_prep = sata_fsl_qc_prep,
 	.qc_issue = sata_fsl_qc_issue,

@@ -336,12 +336,10 @@ static struct sil24_cerr_info {
 struct sil24_port_priv {
 	union sil24_cmd_block *cmd_block;	/* 32 cmd blocks */
 	dma_addr_t cmd_block_dma;		/* DMA base addr for them */
-	struct ata_taskfile tf;			/* Cached taskfile registers */
 	int do_port_rst;
 };
 
 static void sil24_dev_config(struct ata_device *dev);
-static u8 sil24_check_status(struct ata_port *ap);
 static int sil24_scr_read(struct ata_port *ap, unsigned sc_reg, u32 *val);
 static int sil24_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val);
 static int sil24_qc_defer(struct ata_queued_cmd *qc);
@@ -401,8 +399,6 @@ static struct scsi_host_template sil24_sht = {
 static struct ata_port_operations sil24_ops = {
 	.inherits		= &sata_pmp_port_ops,
 
-	.sff_check_status	= sil24_check_status,
-	.sff_check_altstatus	= sil24_check_status,
 	.qc_defer		= sil24_qc_defer,
 	.qc_prep		= sil24_qc_prep,
 	.qc_issue		= sil24_qc_issue,
@@ -490,12 +486,6 @@ static void sil24_read_tf(struct ata_port *ap, int tag, struct ata_taskfile *tf)
 	prb = port + PORT_LRAM + sil24_tag(tag) * PORT_LRAM_SLOT_SZ;
 	memcpy_fromio(fis, prb->fis, sizeof(fis));
 	ata_tf_from_fis(fis, tf);
-}
-
-static u8 sil24_check_status(struct ata_port *ap)
-{
-	struct sil24_port_priv *pp = ap->private_data;
-	return pp->tf.command;
 }
 
 static int sil24_scr_map[] = {
@@ -1074,10 +1064,9 @@ static void sil24_error_intr(struct ata_port *ap)
 		}
 
 		/* record error info */
-		if (qc) {
-			sil24_read_tf(ap, qc->tag, &pp->tf);
+		if (qc)
 			qc->err_mask |= err_mask;
-		} else
+		else
 			ehi->err_mask |= err_mask;
 
 		ehi->action |= action;
@@ -1209,8 +1198,6 @@ static int sil24_port_start(struct ata_port *ap)
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)
 		return -ENOMEM;
-
-	pp->tf.command = ATA_DRDY;
 
 	cb = dmam_alloc_coherent(dev, cb_size, &cb_dma, GFP_KERNEL);
 	if (!cb)

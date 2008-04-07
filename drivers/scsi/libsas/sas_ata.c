@@ -233,12 +233,6 @@ static bool sas_ata_qc_fill_rtf(struct ata_queued_cmd *qc)
 	return true;
 }
 
-static u8 sas_ata_check_status(struct ata_port *ap)
-{
-	struct domain_device *dev = ap->private_data;
-	return dev->sata_dev.tf.command;
-}
-
 static void sas_ata_phy_reset(struct ata_port *ap)
 {
 	struct domain_device *dev = ap->private_data;
@@ -350,8 +344,6 @@ static int sas_ata_scr_read(struct ata_port *ap, unsigned int sc_reg_in,
 }
 
 static struct ata_port_operations sas_sata_ops = {
-	.sff_check_status	= sas_ata_check_status,
-	.sff_check_altstatus	= sas_ata_check_status,
 	.sff_dev_select		= ata_noop_dev_select,
 	.phy_reset		= sas_ata_phy_reset,
 	.post_internal_cmd	= sas_ata_post_internal,

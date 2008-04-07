@@ -5246,35 +5246,7 @@ static bool ipr_qc_fill_rtf(struct ata_queued_cmd *qc)
 	return true;
 }
 
-/**
- * ipr_ata_check_status - Return last ATA status
- * @ap:	ATA port
- *
- * Return value:
- * 	ATA status
- **/
-static u8 ipr_ata_check_status(struct ata_port *ap)
-{
-	struct ipr_sata_port *sata_port = ap->private_data;
-	return sata_port->ioasa.status;
-}
-
-/**
- * ipr_ata_check_altstatus - Return last ATA altstatus
- * @ap:	ATA port
- *
- * Return value:
- * 	Alt ATA status
- **/
-static u8 ipr_ata_check_altstatus(struct ata_port *ap)
-{
-	struct ipr_sata_port *sata_port = ap->private_data;
-	return sata_port->ioasa.alt_status;
-}
-
 static struct ata_port_operations ipr_sata_ops = {
-	.sff_check_status = ipr_ata_check_status,
-	.sff_check_altstatus = ipr_ata_check_altstatus,
 	.sff_dev_select = ata_noop_dev_select,
 	.phy_reset = ipr_ata_phy_reset,
 	.hardreset = ipr_sata_reset,
