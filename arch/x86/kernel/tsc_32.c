@@ -256,9 +256,7 @@ time_cpufreq_notifier(struct notifier_block *nb, unsigned long val, void *data)
 						ref_freq, freq->new);
 			if (!(freq->flags & CPUFREQ_CONST_LOOPS)) {
 				tsc_khz = cpu_khz;
-				preempt_disable();
-				set_cyc2ns_scale(cpu_khz, smp_processor_id());
-				preempt_enable();
+				set_cyc2ns_scale(cpu_khz, freq->cpu);
 				/*
 				 * TSC based sched_clock turns
 				 * to junk w/ cpufreq
