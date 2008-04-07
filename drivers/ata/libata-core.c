@@ -86,15 +86,6 @@ const struct ata_port_operations sata_port_ops = {
 	.hardreset		= sata_std_hardreset,
 };
 
-const struct ata_port_operations sata_pmp_port_ops = {
-	.inherits		= &sata_port_ops,
-
-	.pmp_prereset		= ata_std_prereset,
-	.pmp_hardreset		= sata_std_hardreset,
-	.pmp_postreset		= ata_std_postreset,
-	.error_handler		= sata_pmp_error_handler,
-};
-
 static unsigned int ata_dev_init_params(struct ata_device *dev,
 					u16 heads, u16 sectors);
 static unsigned int ata_dev_set_xfermode(struct ata_device *dev);
@@ -6192,7 +6183,6 @@ EXPORT_SYMBOL_GPL(sata_deb_timing_hotplug);
 EXPORT_SYMBOL_GPL(sata_deb_timing_long);
 EXPORT_SYMBOL_GPL(ata_base_port_ops);
 EXPORT_SYMBOL_GPL(sata_port_ops);
-EXPORT_SYMBOL_GPL(sata_pmp_port_ops);
 EXPORT_SYMBOL_GPL(ata_dummy_port_ops);
 EXPORT_SYMBOL_GPL(ata_dummy_port_info);
 EXPORT_SYMBOL_GPL(ata_std_bios_param);
@@ -6271,9 +6261,6 @@ EXPORT_SYMBOL_GPL(ata_pci_device_suspend);
 EXPORT_SYMBOL_GPL(ata_pci_device_resume);
 #endif /* CONFIG_PM */
 #endif /* CONFIG_PCI */
-
-EXPORT_SYMBOL_GPL(sata_pmp_qc_defer_cmd_switch);
-EXPORT_SYMBOL_GPL(sata_pmp_error_handler);
 
 EXPORT_SYMBOL_GPL(__ata_ehi_push_desc);
 EXPORT_SYMBOL_GPL(ata_ehi_push_desc);

@@ -1027,12 +1027,6 @@ static inline int ata_acpi_cbl_80wire(struct ata_port *ap,
 #endif
 
 /*
- * PMP - drivers/ata/libata-pmp.c
- */
-extern int sata_pmp_qc_defer_cmd_switch(struct ata_queued_cmd *qc);
-extern void sata_pmp_error_handler(struct ata_port *ap);
-
-/*
  * EH - drivers/ata/libata-eh.c
  */
 extern void ata_port_schedule_eh(struct ata_port *ap);
@@ -1075,7 +1069,6 @@ extern void ata_std_error_handler(struct ata_port *ap);
  */
 extern const struct ata_port_operations ata_base_port_ops;
 extern const struct ata_port_operations sata_port_ops;
-extern const struct ata_port_operations sata_pmp_port_ops;
 
 #define ATA_BASE_SHT(drv_name)					\
 	.module			= THIS_MODULE,			\
@@ -1351,6 +1344,16 @@ static inline struct ata_port *ata_shost_to_port(struct Scsi_Host *host)
 {
 	return *(struct ata_port **)&host->hostdata[0];
 }
+
+
+/**************************************************************************
+ * PMP - drivers/ata/libata-pmp.c
+ */
+extern const struct ata_port_operations sata_pmp_port_ops;
+
+extern int sata_pmp_qc_defer_cmd_switch(struct ata_queued_cmd *qc);
+extern void sata_pmp_error_handler(struct ata_port *ap);
+
 
 /**************************************************************************
  * SFF - drivers/ata/libata-sff.c

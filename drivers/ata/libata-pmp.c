@@ -11,6 +11,14 @@
 #include <linux/libata.h>
 #include "libata.h"
 
+const struct ata_port_operations sata_pmp_port_ops = {
+	.inherits		= &sata_port_ops,
+	.pmp_prereset		= ata_std_prereset,
+	.pmp_hardreset		= sata_std_hardreset,
+	.pmp_postreset		= ata_std_postreset,
+	.error_handler		= sata_pmp_error_handler,
+};
+
 /**
  *	sata_pmp_read - read PMP register
  *	@link: link to read PMP register for
@@ -1012,3 +1020,7 @@ void sata_pmp_error_handler(struct ata_port *ap)
 	sata_pmp_eh_recover(ap);
 	ata_eh_finish(ap);
 }
+
+EXPORT_SYMBOL_GPL(sata_pmp_port_ops);
+EXPORT_SYMBOL_GPL(sata_pmp_qc_defer_cmd_switch);
+EXPORT_SYMBOL_GPL(sata_pmp_error_handler);
