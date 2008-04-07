@@ -700,11 +700,6 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
 	if (tid >= STA_TID_NUM)
 		return -EINVAL;
 
-#ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "Stop a BA session requested for %s tid %u\n",
-				print_mac(mac, ra), tid);
-#endif /* CONFIG_MAC80211_HT_DEBUG */
-
 	rcu_read_lock();
 	sta = sta_info_get(local, ra);
 	if (!sta) {
@@ -717,13 +712,14 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
 	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
 
 	if (*state != HT_AGG_STATE_OPERATIONAL) {
-#ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "Try to stop Tx aggregation on"
-				" non active TID\n");
-#endif /* CONFIG_MAC80211_HT_DEBUG */
 		ret = -ENOENT;
 		goto stop_BA_exit;
 	}
+
+#ifdef CONFIG_MAC80211_HT_DEBUG
+	printk(KERN_DEBUG "Tx BA session stop requested for %s tid %u\n",
+				print_mac(mac, ra), tid);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	ieee80211_stop_queue(hw, sta->tid_to_tx_q[tid]);
 
@@ -809,8 +805,10 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 		return;
 	}
 
-	printk(KERN_DEBUG "Stop a BA session requested on DA %s tid %d\n",
+#ifdef CONFIG_MAC80211_HT_DEBUG
+	printk(KERN_DEBUG "Stopping Tx BA session for %s tid %d\n",
 				print_mac(mac, ra), tid);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	rcu_read_lock();
 	sta = sta_info_get(local, ra);
