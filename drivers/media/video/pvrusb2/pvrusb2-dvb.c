@@ -41,7 +41,6 @@ static int pvr2_dvb_feed_func(struct pvr2_dvb_adapter *adap)
 	stream = adap->channel.stream->stream;
 
 	for (;;) {
-		if (adap->feed_thread_stop) break;
 		if (kthread_should_stop()) break;
 
 		/* Not sure about this... */
@@ -76,7 +75,7 @@ static int pvr2_dvb_feed_func(struct pvr2_dvb_adapter *adap)
 		ret = wait_event_interruptible(
 		    adap->buffer_wait_data,
 		    (pvr2_stream_get_ready_count(stream) > 0) ||
-		    adap->feed_thread_stop);
+		    kthread_should_stop());
 		if (ret < 0) break;
 	}
 
@@ -110,8 +109,6 @@ static void pvr2_dvb_stream_end(struct pvr2_dvb_adapter *adap)
 	struct pvr2_stream *stream;
 
 	if (adap->thread) {
-		adap->feed_thread_stop = !0;
-		pvr2_dvb_notify(adap);
 		kthread_stop(adap->thread);
 		adap->thread = NULL;
 	}
@@ -182,7 +179,6 @@ static int pvr2_dvb_stream_do_start(struct pvr2_dvb_adapter *adap)
 		if (ret < 0) return ret;
 	}
 
-	adap->feed_thread_stop = 0;
 	adap->thread = kthread_run(pvr2_dvb_feed_thread, adap, "pvrusb2-dvb");
 
 	if (IS_ERR(adap->thread)) {
