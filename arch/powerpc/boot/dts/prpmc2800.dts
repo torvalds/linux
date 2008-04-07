@@ -46,7 +46,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		model = "mv64360";			/* Default */
-		compatible = "marvell,mv64x60";
+		compatible = "marvell,mv64360";
 		clock-frequency = <133333333>;
 		reg = <0xf1000000 0x10000>;
 		virtual-reg = <0xf1000000>;
@@ -74,7 +74,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			device_type = "mdio";
-			compatible = "marvell,mv64x60-mdio";
+			compatible = "marvell,mv64360-mdio";
 			PHY0: ethernet-phy@1 {
 				device_type = "ethernet-phy";
 				compatible = "broadcom,bcm5421";
@@ -95,7 +95,7 @@
 			reg = <0x2000 0x2000>;
 			eth0 {
 				device_type = "network";
-				compatible = "marvell,mv64x60-eth";
+				compatible = "marvell,mv64360-eth";
 				block-index = <0>;
 				interrupts = <32>;
 				interrupt-parent = <&PIC>;
@@ -104,7 +104,7 @@
 			};
 			eth1 {
 				device_type = "network";
-				compatible = "marvell,mv64x60-eth";
+				compatible = "marvell,mv64360-eth";
 				block-index = <1>;
 				interrupts = <33>;
 				interrupt-parent = <&PIC>;
@@ -115,7 +115,7 @@
 
 		SDMA0: sdma@4000 {
 			device_type = "dma";
-			compatible = "marvell,mv64x60-sdma";
+			compatible = "marvell,mv64360-sdma";
 			reg = <0x4000 0xc18>;
 			virtual-reg = <0xf1004000>;
 			interrupt-base = <0>;
@@ -125,7 +125,7 @@
 
 		SDMA1: sdma@6000 {
 			device_type = "dma";
-			compatible = "marvell,mv64x60-sdma";
+			compatible = "marvell,mv64360-sdma";
 			reg = <0x6000 0xc18>;
 			virtual-reg = <0xf1006000>;
 			interrupt-base = <0>;
@@ -134,7 +134,7 @@
 		};
 
 		BRG0: brg@b200 {
-			compatible = "marvell,mv64x60-brg";
+			compatible = "marvell,mv64360-brg";
 			reg = <0xb200 0x8>;
 			clock-src = <8>;
 			clock-frequency = <133333333>;
@@ -143,7 +143,7 @@
 		};
 
 		BRG1: brg@b208 {
-			compatible = "marvell,mv64x60-brg";
+			compatible = "marvell,mv64360-brg";
 			reg = <0xb208 0x8>;
 			clock-src = <8>;
 			clock-frequency = <133333333>;
@@ -166,7 +166,7 @@
 
 		MPSC0: mpsc@8000 {
 			device_type = "serial";
-			compatible = "marvell,mpsc";
+			compatible = "marvell,mv64360-mpsc";
 			reg = <0x8000 0x38>;
 			virtual-reg = <0xf1008000>;
 			sdma = <&SDMA0>;
@@ -186,7 +186,7 @@
 
 		MPSC1: mpsc@9000 {
 			device_type = "serial";
-			compatible = "marvell,mpsc";
+			compatible = "marvell,mv64360-mpsc";
 			reg = <0x9000 0x38>;
 			virtual-reg = <0xf1009000>;
 			sdma = <&SDMA1>;
@@ -205,14 +205,14 @@
 		};
 
 		wdt@b410 {			/* watchdog timer */
-			compatible = "marvell,mv64x60-wdt";
+			compatible = "marvell,mv64360-wdt";
 			reg = <0xb410 0x8>;
 			timeout = <10>;		/* wdt timeout in seconds */
 		};
 
 		i2c@c000 {
 			device_type = "i2c";
-			compatible = "marvell,mv64x60-i2c";
+			compatible = "marvell,mv64360-i2c";
 			reg = <0xc000 0x20>;
 			virtual-reg = <0xf100c000>;
 			freq_m = <8>;
@@ -226,18 +226,18 @@
 		PIC: pic {
 			#interrupt-cells = <1>;
 			#address-cells = <0>;
-			compatible = "marvell,mv64x60-pic";
+			compatible = "marvell,mv64360-pic";
 			reg = <0x0 0x88>;
 			interrupt-controller;
 		};
 
 		mpp@f000 {
-			compatible = "marvell,mv64x60-mpp";
+			compatible = "marvell,mv64360-mpp";
 			reg = <0xf000 0x10>;
 		};
 
 		gpp@f100 {
-			compatible = "marvell,mv64x60-gpp";
+			compatible = "marvell,mv64360-gpp";
 			reg = <0xf100 0x20>;
 		};
 
@@ -246,7 +246,7 @@
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
 			device_type = "pci";
-			compatible = "marvell,mv64x60-pci";
+			compatible = "marvell,mv64360-pci";
 			reg = <0xcf8 0x8>;
 			ranges = <0x01000000 0x0        0x0
 					0x88000000 0x0 0x01000000
@@ -285,28 +285,28 @@
 		};
 
 		cpu-error@0070 {
-			compatible = "marvell,mv64x60-cpu-error";
+			compatible = "marvell,mv64360-cpu-error";
 			reg = <0x70 0x10 0x128 0x28>;
 			interrupts = <3>;
 			interrupt-parent = <&PIC>;
 		};
 
 		sram-ctrl@0380 {
-			compatible = "marvell,mv64x60-sram-ctrl";
+			compatible = "marvell,mv64360-sram-ctrl";
 			reg = <0x380 0x80>;
 			interrupts = <13>;
 			interrupt-parent = <&PIC>;
 		};
 
 		pci-error@1d40 {
-			compatible = "marvell,mv64x60-pci-error";
+			compatible = "marvell,mv64360-pci-error";
 			reg = <0x1d40 0x40 0xc28 0x4>;
 			interrupts = <12>;
 			interrupt-parent = <&PIC>;
 		};
 
 		mem-ctrl@1400 {
-			compatible = "marvell,mv64x60-mem-ctrl";
+			compatible = "marvell,mv64360-mem-ctrl";
 			reg = <0x1400 0x60>;
 			interrupts = <17>;
 			interrupt-parent = <&PIC>;

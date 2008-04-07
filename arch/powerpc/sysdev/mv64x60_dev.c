@@ -446,22 +446,22 @@ static int __init mv64x60_device_setup(void)
 	int err;
 
 	id = 0;
-	for_each_compatible_node(np, "serial", "marvell,mpsc")
+	for_each_compatible_node(np, "serial", "marvell,mv64360-mpsc")
 		if ((err = mv64x60_mpsc_device_setup(np, id++)))
 			goto error;
 
 	id = 0;
-	for_each_compatible_node(np, "network", "marvell,mv64x60-eth")
+	for_each_compatible_node(np, "network", "marvell,mv64360-eth")
 		if ((err = mv64x60_eth_device_setup(np, id++)))
 			goto error;
 
 	id = 0;
-	for_each_compatible_node(np, "i2c", "marvell,mv64x60-i2c")
+	for_each_compatible_node(np, "i2c", "marvell,mv64360-i2c")
 		if ((err = mv64x60_i2c_device_setup(np, id++)))
 			goto error;
 
 	/* support up to one watchdog timer */
-	np = of_find_compatible_node(np, NULL, "marvell,mv64x60-wdt");
+	np = of_find_compatible_node(np, NULL, "marvell,mv64360-wdt");
 	if (np) {
 		if ((err = mv64x60_wdt_device_setup(np, id)))
 			goto error;
@@ -489,7 +489,7 @@ static int __init mv64x60_add_mpsc_console(void)
 	if (!np)
 		goto not_mpsc;
 
-	if (!of_device_is_compatible(np, "marvell,mpsc"))
+	if (!of_device_is_compatible(np, "marvell,mv64360-mpsc"))
 		goto not_mpsc;
 
 	prop = of_get_property(np, "block-index", NULL);
