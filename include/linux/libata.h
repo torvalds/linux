@@ -831,6 +831,7 @@ extern int sata_link_resume(struct ata_link *link, const unsigned long *params,
 			    unsigned long deadline);
 extern int sata_link_hardreset(struct ata_link *link,
 			const unsigned long *timing, unsigned long deadline);
+extern void ata_std_postreset(struct ata_link *link, unsigned int *classes);
 extern void ata_port_disable(struct ata_port *);
 
 extern struct ata_host *ata_host_alloc(struct device *dev, int max_ports);

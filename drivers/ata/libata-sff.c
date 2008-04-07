@@ -49,6 +49,7 @@ const struct ata_port_operations ata_sff_port_ops = {
 	.thaw			= ata_sff_thaw,
 	.prereset		= ata_sff_prereset,
 	.softreset		= ata_sff_softreset,
+	.postreset		= ata_sff_postreset,
 	.error_handler		= ata_sff_error_handler,
 	.post_internal_cmd	= ata_sff_post_internal_cmd,
 
@@ -2029,6 +2030,41 @@ int sata_sff_hardreset(struct ata_link *link, unsigned int *class,
 
 	DPRINTK("EXIT, class=%u\n", *class);
 	return 0;
+}
+
+/**
+ *	ata_sff_postreset - SFF postreset callback
+ *	@link: the target SFF ata_link
+ *	@classes: classes of attached devices
+ *
+ *	This function is invoked after a successful reset.  It first
+ *	calls ata_std_postreset() and performs SFF specific postreset
+ *	processing.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ */
+void ata_sff_postreset(struct ata_link *link, unsigned int *classes)
+{
+	struct ata_port *ap = link->ap;
+
+	ata_std_postreset(link, classes);
+
+	/* is double-select really necessary? */
+	if (classes[0] != ATA_DEV_NONE)
+		ap->ops->sff_dev_select(ap, 1);
+	if (classes[1] != ATA_DEV_NONE)
+		ap->ops->sff_dev_select(ap, 0);
+
+	/* bail out if no device is present */
+	if (classes[0] == ATA_DEV_NONE && classes[1] == ATA_DEV_NONE) {
+		DPRINTK("EXIT, no device\n");
+		return;
+	}
+
+	/* set up device control */
+	if (ap->ioaddr.ctl_addr)
+		iowrite8(ap->ctl, ap->ioaddr.ctl_addr);
 }
 
 /**

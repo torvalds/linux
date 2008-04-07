@@ -76,7 +76,7 @@ const unsigned long sata_deb_timing_long[]		= { 100, 2000, 5000 };
 const struct ata_port_operations ata_base_port_ops = {
 	.prereset		= ata_std_prereset,
 	.hardreset		= sata_sff_hardreset,
-	.postreset		= ata_sff_postreset,
+	.postreset		= ata_std_postreset,
 	.error_handler		= ata_std_error_handler,
 };
 
@@ -3516,7 +3516,7 @@ int sata_link_hardreset(struct ata_link *link, const unsigned long *timing,
 }
 
 /**
- *	ata_sff_postreset - standard postreset callback
+ *	ata_std_postreset - standard postreset callback
  *	@link: the target ata_link
  *	@classes: classes of attached devices
  *
@@ -3527,9 +3527,8 @@ int sata_link_hardreset(struct ata_link *link, const unsigned long *timing,
  *	LOCKING:
  *	Kernel thread context (may sleep)
  */
-void ata_sff_postreset(struct ata_link *link, unsigned int *classes)
+void ata_std_postreset(struct ata_link *link, unsigned int *classes)
 {
-	struct ata_port *ap = link->ap;
 	u32 serror;
 
 	DPRINTK("ENTER\n");
@@ -3541,22 +3540,6 @@ void ata_sff_postreset(struct ata_link *link, unsigned int *classes)
 	if (sata_scr_read(link, SCR_ERROR, &serror) == 0)
 		sata_scr_write(link, SCR_ERROR, serror);
 	link->eh_info.serror = 0;
-
-	/* is double-select really necessary? */
-	if (classes[0] != ATA_DEV_NONE)
-		ap->ops->sff_dev_select(ap, 1);
-	if (classes[1] != ATA_DEV_NONE)
-		ap->ops->sff_dev_select(ap, 0);
-
-	/* bail out if no device is present */
-	if (classes[0] == ATA_DEV_NONE && classes[1] == ATA_DEV_NONE) {
-		DPRINTK("EXIT, no device\n");
-		return;
-	}
-
-	/* set up device control */
-	if (ap->ioaddr.ctl_addr)
-		iowrite8(ap->ctl, ap->ioaddr.ctl_addr);
 
 	DPRINTK("EXIT\n");
 }
@@ -6096,6 +6079,7 @@ EXPORT_SYMBOL_GPL(sata_link_debounce);
 EXPORT_SYMBOL_GPL(sata_link_resume);
 EXPORT_SYMBOL_GPL(ata_std_prereset);
 EXPORT_SYMBOL_GPL(sata_link_hardreset);
+EXPORT_SYMBOL_GPL(ata_std_postreset);
 EXPORT_SYMBOL_GPL(ata_dev_classify);
 EXPORT_SYMBOL_GPL(ata_dev_pair);
 EXPORT_SYMBOL_GPL(ata_port_disable);
