@@ -46,6 +46,7 @@
 #include <asm/arch/mainstone.h>
 #include <asm/arch/audio.h>
 #include <asm/arch/pxafb.h>
+#include <asm/arch/i2c.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/ohci.h>
@@ -637,6 +638,7 @@ static void __init mainstone_init(void)
 	pxa_set_mci_info(&mainstone_mci_platform_data);
 	pxa_set_ficp_info(&mainstone_ficp_platform_data);
 	pxa_set_ohci_info(&mainstone_ohci_platform_data);
+	pxa_set_i2c_info(NULL);
 
 	mainstone_init_keypad();
 }
