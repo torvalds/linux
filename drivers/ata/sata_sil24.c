@@ -348,6 +348,7 @@ static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 static int sil24_qc_defer(struct ata_queued_cmd *qc);
 static void sil24_qc_prep(struct ata_queued_cmd *qc);
 static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc);
+static bool sil24_qc_fill_rtf(struct ata_queued_cmd *qc);
 static void sil24_pmp_attach(struct ata_port *ap);
 static void sil24_pmp_detach(struct ata_port *ap);
 static void sil24_freeze(struct ata_port *ap);
@@ -407,6 +408,7 @@ static struct ata_port_operations sil24_ops = {
 	.qc_defer		= sil24_qc_defer,
 	.qc_prep		= sil24_qc_prep,
 	.qc_issue		= sil24_qc_issue,
+	.qc_fill_rtf		= sil24_qc_fill_rtf,
 
 	.freeze			= sil24_freeze,
 	.thaw			= sil24_thaw,
@@ -914,6 +916,12 @@ static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc)
 	return 0;
 }
 
+static bool sil24_qc_fill_rtf(struct ata_queued_cmd *qc)
+{
+	sil24_read_tf(qc->ap, qc->tag, &qc->result_tf);
+	return true;
+}
+
 static void sil24_pmp_attach(struct ata_port *ap)
 {
 	sil24_config_pmp(ap, 1);
@@ -1098,15 +1106,6 @@ static void sil24_error_intr(struct ata_port *ap)
 	}
 }
 
-static void sil24_finish_qc(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	struct sil24_port_priv *pp = ap->private_data;
-
-	if (qc->flags & ATA_QCFLAG_RESULT_TF)
-		sil24_read_tf(ap, qc->tag, &pp->tf);
-}
-
 static inline void sil24_host_intr(struct ata_port *ap)
 {
 	void __iomem *port = ap->ioaddr.cmd_addr;
@@ -1131,7 +1130,7 @@ static inline void sil24_host_intr(struct ata_port *ap)
 	}
 
 	qc_active = slot_stat & ~HOST_SSTAT_ATTN;
-	rc = ata_qc_complete_multiple(ap, qc_active, sil24_finish_qc);
+	rc = ata_qc_complete_multiple(ap, qc_active);
 	if (rc > 0)
 		return;
 	if (rc < 0) {

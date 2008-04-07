@@ -4673,7 +4673,6 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
  *	ata_qc_complete_multiple - Complete multiple qcs successfully
  *	@ap: port in question
  *	@qc_active: new qc_active mask
- *	@finish_qc: LLDD callback invoked before completing a qc
  *
  *	Complete in-flight commands.  This functions is meant to be
  *	called from low-level driver's interrupt routine to complete
@@ -4686,8 +4685,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
  *	RETURNS:
  *	Number of completed commands on success, -errno otherwise.
  */
-int ata_qc_complete_multiple(struct ata_port *ap, u32 qc_active,
-			     void (*finish_qc)(struct ata_queued_cmd *))
+int ata_qc_complete_multiple(struct ata_port *ap, u32 qc_active)
 {
 	int nr_done = 0;
 	u32 done_mask;
@@ -4708,8 +4706,6 @@ int ata_qc_complete_multiple(struct ata_port *ap, u32 qc_active,
 			continue;
 
 		if ((qc = ata_qc_from_tag(ap, i))) {
-			if (finish_qc)
-				finish_qc(qc);
 			ata_qc_complete(qc);
 			nr_done++;
 		}

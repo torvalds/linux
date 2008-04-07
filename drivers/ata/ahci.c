@@ -1696,7 +1696,7 @@ static void ahci_port_intr(struct ata_port *ap)
 	else
 		qc_active = readl(port_mmio + PORT_CMD_ISSUE);
 
-	rc = ata_qc_complete_multiple(ap, qc_active, NULL);
+	rc = ata_qc_complete_multiple(ap, qc_active);
 
 	/* while resetting, invalid completions are expected */
 	if (unlikely(rc < 0 && !resetting)) {
