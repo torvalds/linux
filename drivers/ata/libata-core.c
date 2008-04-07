@@ -84,7 +84,6 @@ const struct ata_port_operations sata_port_ops = {
 
 	.qc_defer		= ata_std_qc_defer,
 	.hardreset		= sata_std_hardreset,
-	.sff_dev_select		= ata_noop_dev_select,
 };
 
 const struct ata_port_operations sata_pmp_port_ops = {
@@ -1429,22 +1428,6 @@ static int ata_hpa_resize(struct ata_device *dev)
 	}
 
 	return 0;
-}
-
-/**
- *	ata_noop_dev_select - Select device 0/1 on ATA bus
- *	@ap: ATA channel to manipulate
- *	@device: ATA device (numbered from zero) to select
- *
- *	This function performs no actual function.
- *
- *	May be used as the dev_select() entry in ata_port_operations.
- *
- *	LOCKING:
- *	caller.
- */
-void ata_noop_dev_select(struct ata_port *ap, unsigned int device)
-{
 }
 
 /**
@@ -6193,7 +6176,6 @@ static unsigned int ata_dummy_qc_issue(struct ata_queued_cmd *qc)
 struct ata_port_operations ata_dummy_port_ops = {
 	.sff_check_status	= ata_dummy_check_status,
 	.sff_check_altstatus	= ata_dummy_check_status,
-	.sff_dev_select		= ata_noop_dev_select,
 	.qc_prep		= ata_noop_qc_prep,
 	.qc_issue		= ata_dummy_qc_issue,
 	.freeze			= ata_dummy_noret,
@@ -6234,7 +6216,6 @@ EXPORT_SYMBOL_GPL(ata_host_detach);
 EXPORT_SYMBOL_GPL(ata_sg_init);
 EXPORT_SYMBOL_GPL(ata_qc_complete);
 EXPORT_SYMBOL_GPL(ata_qc_complete_multiple);
-EXPORT_SYMBOL_GPL(ata_noop_dev_select);
 EXPORT_SYMBOL_GPL(sata_print_link_status);
 EXPORT_SYMBOL_GPL(atapi_cmd_type);
 EXPORT_SYMBOL_GPL(ata_tf_to_fis);

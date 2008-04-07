@@ -5247,7 +5247,6 @@ static bool ipr_qc_fill_rtf(struct ata_queued_cmd *qc)
 }
 
 static struct ata_port_operations ipr_sata_ops = {
-	.sff_dev_select = ata_noop_dev_select,
 	.phy_reset = ipr_ata_phy_reset,
 	.hardreset = ipr_sata_reset,
 	.post_internal_cmd = ipr_ata_post_internal,
