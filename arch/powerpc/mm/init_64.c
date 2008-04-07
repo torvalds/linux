@@ -72,9 +72,6 @@
 #warning TASK_SIZE is smaller than it needs to be.
 #endif
 
-/* max amount of RAM to use */
-unsigned long __max_memory;
-
 phys_addr_t memstart_addr;
 
 void free_initmem(void)
