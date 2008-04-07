@@ -308,7 +308,7 @@ static int xonar_mixer_init(struct oxygen *chip)
 
 static const struct oxygen_model xonar_models[] = {
 	[MODEL_D2] = {
-		.shortname = "Asus AV200",
+		.shortname = "Xonar D2",
 		.longname = "Asus Virtuoso 200",
 		.chip = "AV200",
 		.owner = THIS_MODULE,
@@ -333,7 +333,7 @@ static const struct oxygen_model xonar_models[] = {
 		.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	},
 	[MODEL_D2X] = {
-		.shortname = "Asus AV200",
+		.shortname = "Xonar D2X",
 		.longname = "Asus Virtuoso 200",
 		.chip = "AV200",
 		.owner = THIS_MODULE,
