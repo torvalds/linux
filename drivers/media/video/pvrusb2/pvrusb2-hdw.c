@@ -1854,10 +1854,19 @@ int pvr2_hdw_initialize(struct pvr2_hdw *hdw,
 			void *callback_data)
 {
 	LOCK_TAKE(hdw->big_lock); do {
+		if (hdw->flag_disconnected) {
+			/* Handle a race here: If we're already
+			   disconnected by this point, then give up.  If we
+			   get past this then we'll remain connected for
+			   the duration of initialization since the entire
+			   initialization sequence is now protected by the
+			   big_lock. */
+			break;
+		}
 		hdw->state_data = callback_data;
 		hdw->state_func = callback_func;
+		pvr2_hdw_setup(hdw);
 	} while (0); LOCK_GIVE(hdw->big_lock);
-	pvr2_hdw_setup(hdw);
 	return hdw->flag_init_ok;
 }
 
