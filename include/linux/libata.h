@@ -1025,10 +1025,8 @@ static inline int ata_acpi_cbl_80wire(struct ata_port *ap,
  * PMP - drivers/ata/libata-pmp.c
  */
 extern int sata_pmp_qc_defer_cmd_switch(struct ata_queued_cmd *qc);
-extern int sata_pmp_std_prereset(struct ata_link *link, unsigned long deadline);
 extern int sata_pmp_std_hardreset(struct ata_link *link, unsigned int *class,
 				  unsigned long deadline);
-extern void sata_pmp_std_postreset(struct ata_link *link, unsigned int *class);
 extern void sata_pmp_error_handler(struct ata_port *ap);
 
 /*

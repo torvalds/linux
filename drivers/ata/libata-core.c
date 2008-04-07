@@ -90,9 +90,9 @@ const struct ata_port_operations sata_port_ops = {
 const struct ata_port_operations sata_pmp_port_ops = {
 	.inherits		= &sata_port_ops,
 
-	.pmp_prereset		= sata_pmp_std_prereset,
+	.pmp_prereset		= ata_std_prereset,
 	.pmp_hardreset		= sata_pmp_std_hardreset,
-	.pmp_postreset		= sata_pmp_std_postreset,
+	.pmp_postreset		= ata_std_postreset,
 	.error_handler		= sata_pmp_error_handler,
 };
 
@@ -3493,7 +3493,7 @@ int sata_link_debounce(struct ata_link *link, const unsigned long *params,
 int sata_link_resume(struct ata_link *link, const unsigned long *params,
 		     unsigned long deadline)
 {
-	u32 scontrol;
+	u32 scontrol, serror;
 	int rc;
 
 	if ((rc = sata_scr_read(link, SCR_CONTROL, &scontrol)))
@@ -3509,7 +3509,25 @@ int sata_link_resume(struct ata_link *link, const unsigned long *params,
 	 */
 	msleep(200);
 
-	return sata_link_debounce(link, params, deadline);
+	if ((rc = sata_link_debounce(link, params, deadline)))
+		return rc;
+
+	/* Clear SError.  PMP and some host PHYs require this to
+	 * operate and clearing should be done before checking PHY
+	 * online status to avoid race condition (hotplugging between
+	 * link resume and status check).
+	 */
+	if (!(rc = sata_scr_read(link, SCR_ERROR, &serror)))
+		rc = sata_scr_write(link, SCR_ERROR, serror);
+	if (rc == 0 || rc == -EINVAL) {
+		unsigned long flags;
+
+		spin_lock_irqsave(link->ap->lock, flags);
+		link->eh_info.serror = 0;
+		spin_unlock_irqrestore(link->ap->lock, flags);
+		rc = 0;
+	}
+	return rc;
 }
 
 /**
@@ -3701,17 +3719,10 @@ int sata_std_hardreset(struct ata_link *link, unsigned int *class,
  */
 void ata_std_postreset(struct ata_link *link, unsigned int *classes)
 {
-	u32 serror;
-
 	DPRINTK("ENTER\n");
 
 	/* print link status */
 	sata_print_link_status(link);
-
-	/* clear SError */
-	if (sata_scr_read(link, SCR_ERROR, &serror) == 0)
-		sata_scr_write(link, SCR_ERROR, serror);
-	link->eh_info.serror = 0;
 
 	DPRINTK("EXIT\n");
 }
@@ -6296,9 +6307,7 @@ EXPORT_SYMBOL_GPL(ata_pci_device_resume);
 #endif /* CONFIG_PCI */
 
 EXPORT_SYMBOL_GPL(sata_pmp_qc_defer_cmd_switch);
-EXPORT_SYMBOL_GPL(sata_pmp_std_prereset);
 EXPORT_SYMBOL_GPL(sata_pmp_std_hardreset);
-EXPORT_SYMBOL_GPL(sata_pmp_std_postreset);
 EXPORT_SYMBOL_GPL(sata_pmp_error_handler);
 
 EXPORT_SYMBOL_GPL(__ata_ehi_push_desc);

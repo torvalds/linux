@@ -176,49 +176,6 @@ int sata_pmp_scr_write(struct ata_link *link, int reg, u32 val)
 }
 
 /**
- *	sata_pmp_std_prereset - prepare PMP link for reset
- *	@link: link to be reset
- *	@deadline: deadline jiffies for the operation
- *
- *	@link is about to be reset.  Initialize it.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep)
- *
- *	RETURNS:
- *	0 on success, -errno otherwise.
- */
-int sata_pmp_std_prereset(struct ata_link *link, unsigned long deadline)
-{
-	struct ata_eh_context *ehc = &link->eh_context;
-	const unsigned long *timing = sata_ehc_deb_timing(ehc);
-	int rc;
-
-	/* if we're about to do hardreset, nothing more to do */
-	if (ehc->i.action & ATA_EH_HARDRESET)
-		return 0;
-
-	/* resume link */
-	rc = sata_link_resume(link, timing, deadline);
-	if (rc) {
-		/* phy resume failed */
-		ata_link_printk(link, KERN_WARNING, "failed to resume link "
-				"for reset (errno=%d)\n", rc);
-		return rc;
-	}
-
-	/* clear SError bits including .X which blocks the port when set */
-	rc = sata_scr_write(link, SCR_ERROR, 0xffffffff);
-	if (rc) {
-		ata_link_printk(link, KERN_ERR,
-				"failed to clear SError (errno=%d)\n", rc);
-		return rc;
-	}
-
-	return 0;
-}
-
-/**
  *	sata_pmp_std_hardreset - standard hardreset method for PMP link
  *	@link: link to be reset
  *	@class: resulting class of attached device
@@ -238,67 +195,19 @@ int sata_pmp_std_prereset(struct ata_link *link, unsigned long deadline)
 int sata_pmp_std_hardreset(struct ata_link *link, unsigned int *class,
 			   unsigned long deadline)
 {
-	const unsigned long *timing = sata_ehc_deb_timing(&link->eh_context);
-	bool online;
 	u32 tmp;
 	int rc;
 
 	DPRINTK("ENTER\n");
 
-	/* do hardreset */
-	rc = sata_link_hardreset(link, timing, deadline, &online, NULL);
-	if (rc) {
-		ata_link_printk(link, KERN_ERR,
-				"COMRESET failed (errno=%d)\n", rc);
-		goto out;
-	}
+	rc = sata_std_hardreset(link, class, deadline);
 
-	/* clear SError bits including .X which blocks the port when set */
-	rc = sata_scr_write(link, SCR_ERROR, 0xffffffff);
-	if (rc) {
-		ata_link_printk(link, KERN_ERR, "failed to clear SError "
-				"during hardreset (errno=%d)\n", rc);
-		goto out;
-	}
-
-	/* if device is present, follow up with srst to wait for !BSY */
-	if (online)
-		rc = -EAGAIN;
- out:
 	/* if SCR isn't accessible, we need to reset the PMP */
 	if (rc && rc != -EAGAIN && sata_scr_read(link, SCR_STATUS, &tmp))
 		rc = -ERESTART;
 
 	DPRINTK("EXIT, rc=%d\n", rc);
 	return rc;
-}
-
-/**
- *	ata_std_postreset - standard postreset method for PMP link
- *	@link: the target ata_link
- *	@classes: classes of attached devices
- *
- *	This function is invoked after a successful reset.  Note that
- *	the device might have been reset more than once using
- *	different reset methods before postreset is invoked.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep)
- */
-void sata_pmp_std_postreset(struct ata_link *link, unsigned int *class)
-{
-	u32 serror;
-
-	DPRINTK("ENTER\n");
-
-	/* clear SError */
-	if (sata_scr_read(link, SCR_ERROR, &serror) == 0)
-		sata_scr_write(link, SCR_ERROR, serror);
-
-	/* print link status */
-	sata_print_link_status(link);
-
-	DPRINTK("EXIT\n");
 }
 
 /**

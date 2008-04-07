@@ -1377,7 +1377,6 @@ static int ahci_vt8251_hardreset(struct ata_link *link, unsigned int *class,
 				 unsigned long deadline)
 {
 	struct ata_port *ap = link->ap;
-	u32 serror;
 	bool online;
 	int rc;
 
@@ -1387,10 +1386,6 @@ static int ahci_vt8251_hardreset(struct ata_link *link, unsigned int *class,
 
 	rc = sata_link_hardreset(link, sata_ehc_deb_timing(&link->eh_context),
 				 deadline, &online, NULL);
-
-	/* vt8251 needs SError cleared for the port to operate */
-	ahci_scr_read(ap, SCR_ERROR, &serror);
-	ahci_scr_write(ap, SCR_ERROR, serror);
 
 	ahci_start_engine(ap);
 
