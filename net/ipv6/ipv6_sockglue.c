@@ -449,6 +449,9 @@ done:
 	{
 		struct ipv6_mreq mreq;
 
+		if (optlen < sizeof(struct ipv6_mreq))
+			goto e_inval;
+
 		retv = -EPROTO;
 		if (inet_sk(sk)->is_icsk)
 			break;
@@ -468,7 +471,7 @@ done:
 	{
 		struct ipv6_mreq mreq;
 
-		if (optlen != sizeof(struct ipv6_mreq))
+		if (optlen < sizeof(struct ipv6_mreq))
 			goto e_inval;
 
 		retv = -EFAULT;
@@ -486,6 +489,9 @@ done:
 	{
 		struct group_req greq;
 		struct sockaddr_in6 *psin6;
+
+		if (optlen < sizeof(struct group_req))
+			goto e_inval;
 
 		retv = -EFAULT;
 		if (copy_from_user(&greq, optval, sizeof(struct group_req)))
@@ -511,7 +517,7 @@ done:
 		struct group_source_req greqs;
 		int omode, add;
 
-		if (optlen != sizeof(struct group_source_req))
+		if (optlen < sizeof(struct group_source_req))
 			goto e_inval;
 		if (copy_from_user(&greqs, optval, sizeof(greqs))) {
 			retv = -EFAULT;
