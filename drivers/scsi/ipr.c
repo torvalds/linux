@@ -5280,6 +5280,7 @@ static struct ata_port_operations ipr_sata_ops = {
 	.sff_tf_read = ipr_tf_read,
 	.qc_prep = ata_noop_qc_prep,
 	.qc_issue = ipr_qc_issue,
+	.qc_fill_rtf = ata_sff_qc_fill_rtf,
 	.port_start = ata_sas_port_start,
 	.port_stop = ata_sas_port_stop
 };

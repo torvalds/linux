@@ -356,6 +356,7 @@ static struct ata_port_operations sas_sata_ops = {
 	.sff_tf_read		= sas_ata_tf_read,
 	.qc_prep		= ata_noop_qc_prep,
 	.qc_issue		= sas_ata_qc_issue,
+	.qc_fill_rtf		= ata_sff_qc_fill_rtf,
 	.port_start		= ata_sas_port_start,
 	.port_stop		= ata_sas_port_stop,
 	.scr_read		= sas_ata_scr_read,

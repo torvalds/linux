@@ -1408,6 +1408,25 @@ unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc)
 }
 
 /**
+ *	ata_sff_qc_fill_rtf - fill result TF using ->sff_tf_read
+ *	@qc: qc to fill result TF for
+ *
+ *	@qc is finished and result TF needs to be filled.  Fill it
+ *	using ->sff_tf_read.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ *
+ *	RETURNS:
+ *	true indicating that result TF is successfully filled.
+ */
+bool ata_sff_qc_fill_rtf(struct ata_queued_cmd *qc)
+{
+	qc->ap->ops->sff_tf_read(qc->ap, &qc->result_tf);
+	return true;
+}
+
+/**
  *	ata_sff_host_intr - Handle host interrupt for given (port, task)
  *	@ap: Port on which interrupt arrived (possibly...)
  *	@qc: Taskfile currently active in engine
@@ -2724,6 +2743,7 @@ EXPORT_SYMBOL_GPL(ata_sff_irq_on);
 EXPORT_SYMBOL_GPL(ata_sff_irq_clear);
 EXPORT_SYMBOL_GPL(ata_sff_hsm_move);
 EXPORT_SYMBOL_GPL(ata_sff_qc_issue);
+EXPORT_SYMBOL_GPL(ata_sff_qc_fill_rtf);
 EXPORT_SYMBOL_GPL(ata_sff_host_intr);
 EXPORT_SYMBOL_GPL(ata_sff_interrupt);
 EXPORT_SYMBOL_GPL(ata_sff_freeze);

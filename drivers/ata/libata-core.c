@@ -74,6 +74,7 @@ const unsigned long sata_deb_timing_hotplug[]		= {  25,  500, 2000 };
 const unsigned long sata_deb_timing_long[]		= { 100, 2000, 5000 };
 
 const struct ata_port_operations ata_base_port_ops = {
+	.qc_fill_rtf		= ata_sff_qc_fill_rtf,
 	.prereset		= ata_std_prereset,
 	.postreset		= ata_std_postreset,
 	.error_handler		= ata_std_error_handler,
@@ -4562,7 +4563,7 @@ static void fill_result_tf(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 
 	qc->result_tf.flags = qc->tf.flags;
-	ap->ops->sff_tf_read(ap, &qc->result_tf);
+	ap->ops->qc_fill_rtf(qc);
 }
 
 static void ata_verify_xfer(struct ata_queued_cmd *qc)
