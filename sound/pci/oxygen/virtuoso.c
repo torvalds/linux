@@ -174,14 +174,12 @@ static void xonar_cleanup(struct oxygen *chip)
 static void set_pcm1796_params(struct oxygen *chip,
 			       struct snd_pcm_hw_params *params)
 {
-#if 0
 	unsigned int i;
 	u8 value;
 
 	value = params_rate(params) >= 96000 ? PCM1796_OS_32 : PCM1796_OS_64;
 	for (i = 0; i < 4; ++i)
 		pcm1796_write(chip, i, 20, value);
-#endif
 }
 
 static void update_pcm1796_volume(struct oxygen *chip)
