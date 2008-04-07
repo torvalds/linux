@@ -445,6 +445,7 @@ enum link_pm {
 };
 extern struct class_device_attribute class_device_attr_link_power_management_policy;
 
+#ifdef CONFIG_ATA_SFF
 struct ata_ioports {
 	void __iomem		*cmd_addr;
 	void __iomem		*data_addr;
@@ -462,6 +463,7 @@ struct ata_ioports {
 	void __iomem		*bmdma_addr;
 	void __iomem		*scr_addr;
 };
+#endif /* CONFIG_ATA_SFF */
 
 struct ata_host {
 	spinlock_t		lock;
@@ -648,7 +650,9 @@ struct ata_port {
 	struct ata_prd		*prd;	 /* our SG list */
 	dma_addr_t		prd_dma; /* and its DMA mapping */
 
+#ifdef CONFIG_ATA_SFF
 	struct ata_ioports	ioaddr;	/* ATA cmd/ctl/dma register blocks */
+#endif /* CONFIG_ATA_SFF */
 
 	u8			ctl;	/* cache of ATA control register */
 	u8			last_ctl;	/* Cache last written value */
@@ -760,6 +764,7 @@ struct ata_port_operations {
 	void (*port_stop)(struct ata_port *ap);
 	void (*host_stop)(struct ata_host *host);
 
+#ifdef CONFIG_ATA_SFF
 	/*
 	 * SFF / taskfile oriented ops
 	 */
@@ -779,6 +784,7 @@ struct ata_port_operations {
 	void (*bmdma_start)(struct ata_queued_cmd *qc);
 	void (*bmdma_stop)(struct ata_queued_cmd *qc);
 	u8   (*bmdma_status)(struct ata_port *ap);
+#endif /* CONFIG_ATA_SFF */
 
 	/*
 	 * Obsolete
@@ -1349,6 +1355,8 @@ static inline struct ata_port *ata_shost_to_port(struct Scsi_Host *host)
 /**************************************************************************
  * SFF - drivers/ata/libata-sff.c
  */
+#ifdef CONFIG_ATA_SFF
+
 extern const struct ata_port_operations ata_sff_port_ops;
 extern const struct ata_port_operations ata_bmdma_port_ops;
 
@@ -1489,5 +1497,6 @@ static inline u8 ata_wait_idle(struct ata_port *ap)
 
 	return status;
 }
+#endif /* CONFIG_ATA_SFF */
 
 #endif /* __LINUX_LIBATA_H__ */

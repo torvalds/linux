@@ -42,8 +42,10 @@ static inline int ata_is_builtin_hardreset(ata_reset_fn_t reset)
 {
 	if (reset == sata_std_hardreset)
 		return 1;
+#ifdef CONFIG_ATA_SFF
 	if (reset == sata_sff_hardreset)
 		return 1;
+#endif
 	return 0;
 }
 
@@ -206,9 +208,11 @@ extern int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 extern void ata_eh_finish(struct ata_port *ap);
 
 /* libata-sff.c */
+#ifdef CONFIG_ATA_SFF
 extern void ata_dev_select(struct ata_port *ap, unsigned int device,
                            unsigned int wait, unsigned int can_sleep);
 extern u8 ata_irq_on(struct ata_port *ap);
 extern void ata_pio_task(struct work_struct *work);
+#endif /* CONFIG_ATA_SFF */
 
 #endif /* __LIBATA_H__ */
