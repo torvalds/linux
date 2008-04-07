@@ -488,9 +488,6 @@ do {									   \
 	if (stsr & ADM8211_STSR_TCI)
 		adm8211_interrupt_tci(dev);
 
-	/*ADM8211_INT(LinkOn);*/
-	/*ADM8211_INT(LinkOff);*/
-
 	ADM8211_INT(PCF);
 	ADM8211_INT(BCNTC);
 	ADM8211_INT(GPINT);
@@ -500,7 +497,6 @@ do {									   \
 	ADM8211_INT(SQL);
 	ADM8211_INT(WEPTD);
 	ADM8211_INT(ATIME);
-	/*ADM8211_INT(TBTT);*/
 	ADM8211_INT(TEIS);
 	ADM8211_INT(FBE);
 	ADM8211_INT(REIS);
@@ -508,9 +504,6 @@ do {									   \
 	ADM8211_INT(RPS);
 	ADM8211_INT(RDU);
 	ADM8211_INT(TUF);
-	/*ADM8211_INT(TRT);*/
-	/*ADM8211_INT(TLT);*/
-	/*ADM8211_INT(TDU);*/
 	ADM8211_INT(TPS);
 
 	return IRQ_HANDLED;
