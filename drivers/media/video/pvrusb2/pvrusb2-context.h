@@ -40,13 +40,16 @@ struct pvr2_context_stream {
 struct pvr2_context {
 	struct pvr2_channel *mc_first;
 	struct pvr2_channel *mc_last;
+	struct pvr2_context *exist_next;
+	struct pvr2_context *exist_prev;
+	struct pvr2_context *notify_next;
+	struct pvr2_context *notify_prev;
 	struct pvr2_hdw *hdw;
 	struct pvr2_context_stream video_stream;
 	struct mutex mutex;
 	int notify_flag;
+	int initialized_flag;
 	int disconnect_flag;
-
-	wait_queue_head_t wait_data;
 
 	/* Called after pvr2_context initialization is complete */
 	void (*setup_func)(struct pvr2_context *);
@@ -74,6 +77,8 @@ int pvr2_channel_claim_stream(struct pvr2_channel *,
 struct pvr2_ioread *pvr2_channel_create_mpeg_stream(
 	struct pvr2_context_stream *);
 
+int pvr2_context_global_init(void);
+void pvr2_context_global_done(void);
 
 #endif /* __PVRUSB2_CONTEXT_H */
 /*
