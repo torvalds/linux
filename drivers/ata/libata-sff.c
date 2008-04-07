@@ -44,6 +44,7 @@ const struct ata_port_operations ata_sff_port_ops = {
 
 	.qc_prep		= ata_sff_qc_prep,
 	.qc_issue		= ata_sff_qc_issue,
+	.qc_fill_rtf		= ata_sff_qc_fill_rtf,
 
 	.freeze			= ata_sff_freeze,
 	.thaw			= ata_sff_thaw,

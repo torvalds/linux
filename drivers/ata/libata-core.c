@@ -74,7 +74,6 @@ const unsigned long sata_deb_timing_hotplug[]		= {  25,  500, 2000 };
 const unsigned long sata_deb_timing_long[]		= { 100, 2000, 5000 };
 
 const struct ata_port_operations ata_base_port_ops = {
-	.qc_fill_rtf		= ata_sff_qc_fill_rtf,
 	.prereset		= ata_std_prereset,
 	.postreset		= ata_std_postreset,
 	.error_handler		= ata_std_error_handler,

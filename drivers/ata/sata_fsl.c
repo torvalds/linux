@@ -464,6 +464,20 @@ static unsigned int sata_fsl_qc_issue(struct ata_queued_cmd *qc)
 	return 0;
 }
 
+static bool sata_fsl_qc_fill_rtf(struct ata_queued_cmd *qc)
+{
+	struct sata_fsl_port_priv *pp = qc->ap->private_data;
+	struct sata_fsl_host_priv *host_priv = qc->ap->host->private_data;
+	void __iomem *hcr_base = host_priv->hcr_base;
+	unsigned int tag = sata_fsl_tag(qc->tag, hcr_base);
+	struct command_desc *cd;
+
+	cd = pp->cmdentry + tag;
+
+	ata_tf_from_fis(cd->sfis, &qc->result_tf);
+	return true;
+}
+
 static int sata_fsl_scr_write(struct ata_port *ap, unsigned int sc_reg_in,
 			       u32 val)
 {
@@ -578,13 +592,6 @@ static u8 sata_fsl_check_status(struct ata_port *ap)
 	struct sata_fsl_port_priv *pp = ap->private_data;
 
 	return pp->tf.command;
-}
-
-static void sata_fsl_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
-{
-	struct sata_fsl_port_priv *pp = ap->private_data;
-
-	*tf = pp->tf;
 }
 
 static int sata_fsl_port_start(struct ata_port *ap)
@@ -1193,10 +1200,9 @@ static const struct ata_port_operations sata_fsl_ops = {
 	.sff_check_status = sata_fsl_check_status,
 	.sff_check_altstatus = sata_fsl_check_status,
 
-	.sff_tf_read = sata_fsl_tf_read,
-
 	.qc_prep = sata_fsl_qc_prep,
 	.qc_issue = sata_fsl_qc_issue,
+	.qc_fill_rtf = sata_fsl_qc_fill_rtf,
 
 	.scr_read = sata_fsl_scr_read,
 	.scr_write = sata_fsl_scr_write,

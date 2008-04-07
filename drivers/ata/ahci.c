@@ -243,9 +243,9 @@ static int ahci_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
 static int ahci_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
 static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static unsigned int ahci_qc_issue(struct ata_queued_cmd *qc);
+static bool ahci_qc_fill_rtf(struct ata_queued_cmd *qc);
 static int ahci_port_start(struct ata_port *ap);
 static void ahci_port_stop(struct ata_port *ap);
-static void ahci_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 static void ahci_qc_prep(struct ata_queued_cmd *qc);
 static u8 ahci_check_status(struct ata_port *ap);
 static void ahci_freeze(struct ata_port *ap);
@@ -295,10 +295,10 @@ static struct ata_port_operations ahci_ops = {
 	.sff_check_status	= ahci_check_status,
 	.sff_check_altstatus	= ahci_check_status,
 
-	.sff_tf_read		= ahci_tf_read,
 	.qc_defer		= sata_pmp_qc_defer_cmd_switch,
 	.qc_prep		= ahci_qc_prep,
 	.qc_issue		= ahci_qc_issue,
+	.qc_fill_rtf		= ahci_qc_fill_rtf,
 
 	.freeze			= ahci_freeze,
 	.thaw			= ahci_thaw,
@@ -1473,14 +1473,6 @@ static u8 ahci_check_status(struct ata_port *ap)
 	return readl(mmio + PORT_TFDATA) & 0xFF;
 }
 
-static void ahci_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
-{
-	struct ahci_port_priv *pp = ap->private_data;
-	u8 *d2h_fis = pp->rx_fis + RX_FIS_D2H_REG;
-
-	ata_tf_from_fis(d2h_fis, tf);
-}
-
 static unsigned int ahci_fill_sg(struct ata_queued_cmd *qc, void *cmd_tbl)
 {
 	struct scatterlist *sg;
@@ -1777,6 +1769,15 @@ static unsigned int ahci_qc_issue(struct ata_queued_cmd *qc)
 	readl(port_mmio + PORT_CMD_ISSUE);	/* flush */
 
 	return 0;
+}
+
+static bool ahci_qc_fill_rtf(struct ata_queued_cmd *qc)
+{
+	struct ahci_port_priv *pp = qc->ap->private_data;
+	u8 *d2h_fis = pp->rx_fis + RX_FIS_D2H_REG;
+
+	ata_tf_from_fis(d2h_fis, &qc->result_tf);
+	return true;
 }
 
 static void ahci_freeze(struct ata_port *ap)

@@ -344,7 +344,6 @@ static void sil24_dev_config(struct ata_device *dev);
 static u8 sil24_check_status(struct ata_port *ap);
 static int sil24_scr_read(struct ata_port *ap, unsigned sc_reg, u32 *val);
 static int sil24_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val);
-static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 static int sil24_qc_defer(struct ata_queued_cmd *qc);
 static void sil24_qc_prep(struct ata_queued_cmd *qc);
 static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc);
@@ -404,7 +403,6 @@ static struct ata_port_operations sil24_ops = {
 
 	.sff_check_status	= sil24_check_status,
 	.sff_check_altstatus	= sil24_check_status,
-	.sff_tf_read		= sil24_tf_read,
 	.qc_defer		= sil24_qc_defer,
 	.qc_prep		= sil24_qc_prep,
 	.qc_issue		= sil24_qc_issue,
@@ -531,12 +529,6 @@ static int sil24_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val)
 		return 0;
 	}
 	return -EINVAL;
-}
-
-static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
-{
-	struct sil24_port_priv *pp = ap->private_data;
-	*tf = pp->tf;
 }
 
 static void sil24_config_port(struct ata_port *ap)

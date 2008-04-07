@@ -5041,33 +5041,6 @@ static void ipr_ata_post_internal(struct ata_queued_cmd *qc)
 }
 
 /**
- * ipr_tf_read - Read the current ATA taskfile for the ATA port
- * @ap:	ATA port
- * @tf:	destination ATA taskfile
- *
- * Return value:
- * 	none
- **/
-static void ipr_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
-{
-	struct ipr_sata_port *sata_port = ap->private_data;
-	struct ipr_ioasa_gata *g = &sata_port->ioasa;
-
-	tf->feature = g->error;
-	tf->nsect = g->nsect;
-	tf->lbal = g->lbal;
-	tf->lbam = g->lbam;
-	tf->lbah = g->lbah;
-	tf->device = g->device;
-	tf->command = g->status;
-	tf->hob_nsect = g->hob_nsect;
-	tf->hob_lbal = g->hob_lbal;
-	tf->hob_lbam = g->hob_lbam;
-	tf->hob_lbah = g->hob_lbah;
-	tf->ctl = g->alt_status;
-}
-
-/**
  * ipr_copy_sata_tf - Copy a SATA taskfile to an IOA data structure
  * @regs:	destination
  * @tf:	source ATA taskfile
@@ -5245,6 +5218,35 @@ static unsigned int ipr_qc_issue(struct ata_queued_cmd *qc)
 }
 
 /**
+ * ipr_qc_fill_rtf - Read result TF
+ * @qc: ATA queued command
+ *
+ * Return value:
+ * 	true
+ **/
+static bool ipr_qc_fill_rtf(struct ata_queued_cmd *qc)
+{
+	struct ipr_sata_port *sata_port = qc->ap->private_data;
+	struct ipr_ioasa_gata *g = &sata_port->ioasa;
+	struct ata_taskfile *tf = &qc->result_tf;
+
+	tf->feature = g->error;
+	tf->nsect = g->nsect;
+	tf->lbal = g->lbal;
+	tf->lbam = g->lbam;
+	tf->lbah = g->lbah;
+	tf->device = g->device;
+	tf->command = g->status;
+	tf->hob_nsect = g->hob_nsect;
+	tf->hob_lbal = g->hob_lbal;
+	tf->hob_lbam = g->hob_lbam;
+	tf->hob_lbah = g->hob_lbah;
+	tf->ctl = g->alt_status;
+
+	return true;
+}
+
+/**
  * ipr_ata_check_status - Return last ATA status
  * @ap:	ATA port
  *
@@ -5277,10 +5279,9 @@ static struct ata_port_operations ipr_sata_ops = {
 	.phy_reset = ipr_ata_phy_reset,
 	.hardreset = ipr_sata_reset,
 	.post_internal_cmd = ipr_ata_post_internal,
-	.sff_tf_read = ipr_tf_read,
 	.qc_prep = ata_noop_qc_prep,
 	.qc_issue = ipr_qc_issue,
-	.qc_fill_rtf = ata_sff_qc_fill_rtf,
+	.qc_fill_rtf = ipr_qc_fill_rtf,
 	.port_start = ata_sas_port_start,
 	.port_stop = ata_sas_port_stop
 };
