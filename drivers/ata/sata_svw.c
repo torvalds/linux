@@ -233,7 +233,7 @@ static void k2_bmdma_setup_mmio(struct ata_queued_cmd *qc)
 
 	/* issue r/w command if this is not a ATA DMA command*/
 	if (qc->tf.protocol != ATA_PROT_DMA)
-		ap->ops->exec_command(ap, &qc->tf);
+		ap->ops->sff_exec_command(ap, &qc->tf);
 }
 
 /**
@@ -269,7 +269,7 @@ static void k2_bmdma_start_mmio(struct ata_queued_cmd *qc)
 	   and the start command. */
 	/* issue r/w command if the access is to ATA*/
 	if (qc->tf.protocol == ATA_PROT_DMA)
-		ap->ops->exec_command(ap, &qc->tf);
+		ap->ops->sff_exec_command(ap, &qc->tf);
 }
 
 
@@ -336,9 +336,9 @@ static struct scsi_host_template k2_sata_sht = {
 
 static struct ata_port_operations k2_sata_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	.tf_load		= k2_sata_tf_load,
-	.tf_read		= k2_sata_tf_read,
-	.check_status		= k2_stat_check_status,
+	.sff_tf_load		= k2_sata_tf_load,
+	.sff_tf_read		= k2_sata_tf_read,
+	.sff_check_status	= k2_stat_check_status,
 	.check_atapi_dma	= k2_sata_check_atapi_dma,
 	.bmdma_setup		= k2_bmdma_setup_mmio,
 	.bmdma_start		= k2_bmdma_start_mmio,

@@ -292,10 +292,10 @@ static struct scsi_host_template ahci_sht = {
 static struct ata_port_operations ahci_ops = {
 	.inherits		= &sata_pmp_port_ops,
 
-	.check_status		= ahci_check_status,
-	.check_altstatus	= ahci_check_status,
+	.sff_check_status	= ahci_check_status,
+	.sff_check_altstatus	= ahci_check_status,
 
-	.tf_read		= ahci_tf_read,
+	.sff_tf_read		= ahci_tf_read,
 	.qc_defer		= sata_pmp_qc_defer_cmd_switch,
 	.qc_prep		= ahci_qc_prep,
 	.qc_issue		= ahci_qc_issue,

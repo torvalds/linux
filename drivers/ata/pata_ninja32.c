@@ -84,7 +84,7 @@ static struct scsi_host_template ninja32_sht = {
 
 static struct ata_port_operations ninja32_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
-	.dev_select 	= ninja32_dev_select,
+	.sff_dev_select = ninja32_dev_select,
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= ninja32_set_piomode,
 };

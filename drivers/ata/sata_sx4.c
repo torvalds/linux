@@ -243,18 +243,18 @@ static struct scsi_host_template pdc_sata_sht = {
 
 /* TODO: inherit from base port_ops after converting to new EH */
 static struct ata_port_operations pdc_20621_ops = {
-	.tf_load		= pdc_tf_load_mmio,
-	.tf_read		= ata_sff_tf_read,
-	.check_status		= ata_sff_check_status,
-	.exec_command		= pdc_exec_command_mmio,
-	.dev_select		= ata_sff_dev_select,
+	.sff_tf_load		= pdc_tf_load_mmio,
+	.sff_tf_read		= ata_sff_tf_read,
+	.sff_check_status	= ata_sff_check_status,
+	.sff_exec_command	= pdc_exec_command_mmio,
+	.sff_dev_select		= ata_sff_dev_select,
 	.phy_reset		= pdc_20621_phy_reset,
 	.qc_prep		= pdc20621_qc_prep,
 	.qc_issue		= pdc20621_qc_issue,
-	.data_xfer		= ata_sff_data_xfer,
+	.sff_data_xfer		= ata_sff_data_xfer,
 	.eng_timeout		= pdc_eng_timeout,
-	.irq_clear		= pdc20621_irq_clear,
-	.irq_on			= ata_sff_irq_on,
+	.sff_irq_clear		= pdc20621_irq_clear,
+	.sff_irq_on		= ata_sff_irq_on,
 	.port_start		= pdc_port_start,
 };
 

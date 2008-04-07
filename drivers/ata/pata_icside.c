@@ -250,7 +250,7 @@ static void pata_icside_bmdma_setup(struct ata_queued_cmd *qc)
 	set_dma_mode(state->dma, write ? DMA_MODE_WRITE : DMA_MODE_READ);
 
 	/* issue r/w command */
-	ap->ops->exec_command(ap, &qc->tf);
+	ap->ops->sff_exec_command(ap, &qc->tf);
 }
 
 static void pata_icside_bmdma_start(struct ata_queued_cmd *qc)
@@ -336,7 +336,7 @@ static struct ata_port_operations pata_icside_port_ops = {
 	.inherits		= &ata_sff_port_ops,
 	/* no need to build any PRD tables for DMA */
 	.qc_prep		= ata_noop_qc_prep,
-	.data_xfer		= ata_sff_data_xfer_noirq,
+	.sff_data_xfer		= ata_sff_data_xfer_noirq,
 	.bmdma_setup		= pata_icside_bmdma_setup,
 	.bmdma_start		= pata_icside_bmdma_start,
 	.bmdma_stop		= pata_icside_bmdma_stop,

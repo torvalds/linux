@@ -119,8 +119,8 @@ static irqreturn_t rb500_pata_irq_handler(int irq, void *dev_instance)
 
 static struct ata_port_operations rb500_pata_port_ops = {
 	.inherits		= &ata_sff_port_ops,
-	.exec_command		= rb500_pata_exec_command,
-	.data_xfer		= rb500_pata_data_xfer,
+	.sff_exec_command	= rb500_pata_exec_command,
+	.sff_data_xfer		= rb500_pata_data_xfer,
 	.freeze			= rb500_pata_freeze,
 	.thaw			= rb500_pata_thaw,
 };

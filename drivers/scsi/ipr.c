@@ -5271,13 +5271,13 @@ static u8 ipr_ata_check_altstatus(struct ata_port *ap)
 }
 
 static struct ata_port_operations ipr_sata_ops = {
-	.check_status = ipr_ata_check_status,
-	.check_altstatus = ipr_ata_check_altstatus,
-	.dev_select = ata_noop_dev_select,
+	.sff_check_status = ipr_ata_check_status,
+	.sff_check_altstatus = ipr_ata_check_altstatus,
+	.sff_dev_select = ata_noop_dev_select,
 	.phy_reset = ipr_ata_phy_reset,
 	.hardreset = ipr_sata_reset,
 	.post_internal_cmd = ipr_ata_post_internal,
-	.tf_read = ipr_tf_read,
+	.sff_tf_read = ipr_tf_read,
 	.qc_prep = ata_noop_qc_prep,
 	.qc_issue = ipr_qc_issue,
 	.port_start = ata_sas_port_start,

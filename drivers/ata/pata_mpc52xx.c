@@ -261,7 +261,7 @@ static struct scsi_host_template mpc52xx_ata_sht = {
 
 static struct ata_port_operations mpc52xx_ata_port_ops = {
 	.inherits		= &ata_sff_port_ops,
-	.dev_select		= mpc52xx_ata_dev_select,
+	.sff_dev_select		= mpc52xx_ata_dev_select,
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= mpc52xx_ata_set_piomode,
 	.post_internal_cmd	= ATA_OP_NULL,

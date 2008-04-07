@@ -401,9 +401,9 @@ static struct scsi_host_template sil24_sht = {
 static struct ata_port_operations sil24_ops = {
 	.inherits		= &sata_pmp_port_ops,
 
-	.check_status		= sil24_check_status,
-	.check_altstatus	= sil24_check_status,
-	.tf_read		= sil24_tf_read,
+	.sff_check_status	= sil24_check_status,
+	.sff_check_altstatus	= sil24_check_status,
+	.sff_tf_read		= sil24_tf_read,
 	.qc_defer		= sil24_qc_defer,
 	.qc_prep		= sil24_qc_prep,
 	.qc_issue		= sil24_qc_issue,

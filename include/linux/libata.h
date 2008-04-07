@@ -743,17 +743,18 @@ struct ata_port_operations {
 	/*
 	 * SFF / taskfile oriented ops
 	 */
-	void (*dev_select)(struct ata_port *ap, unsigned int device);
-	u8   (*check_status)(struct ata_port *ap);
-	u8   (*check_altstatus)(struct ata_port *ap);
-	void (*tf_load)(struct ata_port *ap, const struct ata_taskfile *tf);
-	void (*tf_read)(struct ata_port *ap, struct ata_taskfile *tf);
-	void (*exec_command)(struct ata_port *ap, const struct ata_taskfile *tf);
-	unsigned int (*data_xfer)(struct ata_device *dev, unsigned char *buf,
-				  unsigned int buflen, int rw);
-	u8   (*irq_on)(struct ata_port *);
+	void (*sff_dev_select)(struct ata_port *ap, unsigned int device);
+	u8   (*sff_check_status)(struct ata_port *ap);
+	u8   (*sff_check_altstatus)(struct ata_port *ap);
+	void (*sff_tf_load)(struct ata_port *ap, const struct ata_taskfile *tf);
+	void (*sff_tf_read)(struct ata_port *ap, struct ata_taskfile *tf);
+	void (*sff_exec_command)(struct ata_port *ap,
+				 const struct ata_taskfile *tf);
+	unsigned int (*sff_data_xfer)(struct ata_device *dev,
+			unsigned char *buf, unsigned int buflen, int rw);
+	u8   (*sff_irq_on)(struct ata_port *);
+	void (*sff_irq_clear)(struct ata_port *);
 
-	void (*irq_clear)(struct ata_port *);
 	void (*bmdma_setup)(struct ata_queued_cmd *qc);
 	void (*bmdma_start)(struct ata_queued_cmd *qc);
 	void (*bmdma_stop)(struct ata_queued_cmd *qc);
@@ -1438,7 +1439,7 @@ static inline u8 ata_sff_busy_wait(struct ata_port *ap, unsigned int bits,
 
 	do {
 		udelay(10);
-		status = ap->ops->check_status(ap);
+		status = ap->ops->sff_check_status(ap);
 		max--;
 	} while (status != 0xff && (status & bits) && (max > 0));
 

@@ -441,7 +441,7 @@ static void scc_bmdma_setup (struct ata_queued_cmd *qc)
 	out_be32(mmio + SCC_DMA_CMD, dmactl);
 
 	/* issue r/w command */
-	ap->ops->exec_command(ap, &qc->tf);
+	ap->ops->sff_exec_command(ap, &qc->tf);
 }
 
 /**
@@ -476,7 +476,7 @@ static unsigned int scc_devchk (struct ata_port *ap,
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 	u8 nsect, lbal;
 
-	ap->ops->dev_select(ap, device);
+	ap->ops->sff_dev_select(ap, device);
 
 	out_be32(ioaddr->nsect_addr, 0x55);
 	out_be32(ioaddr->lbal_addr, 0xaa);
@@ -525,7 +525,7 @@ static int scc_bus_post_reset(struct ata_port *ap, unsigned int devmask,
 	while (dev1) {
 		u8 nsect, lbal;
 
-		ap->ops->dev_select(ap, 1);
+		ap->ops->sff_dev_select(ap, 1);
 		nsect = in_be32(ioaddr->nsect_addr);
 		lbal = in_be32(ioaddr->lbal_addr);
 		if ((nsect == 1) && (lbal == 1))
@@ -541,11 +541,11 @@ static int scc_bus_post_reset(struct ata_port *ap, unsigned int devmask,
 	}
 
 	/* is all this really necessary? */
-	ap->ops->dev_select(ap, 0);
+	ap->ops->sff_dev_select(ap, 0);
 	if (dev1)
-		ap->ops->dev_select(ap, 1);
+		ap->ops->sff_dev_select(ap, 1);
 	if (dev0)
-		ap->ops->dev_select(ap, 0);
+		ap->ops->sff_dev_select(ap, 0);
 
 	return 0;
 }
@@ -616,7 +616,7 @@ static int scc_softreset(struct ata_link *link, unsigned int *classes,
 		devmask |= (1 << 1);
 
 	/* select device 0 again */
-	ap->ops->dev_select(ap, 0);
+	ap->ops->sff_dev_select(ap, 0);
 
 	/* issue bus reset */
 	DPRINTK("about to softreset, devmask=%x\n", devmask);
@@ -829,7 +829,7 @@ static u8 scc_irq_on (struct ata_port *ap)
 	out_be32(ioaddr->ctl_addr, ap->ctl);
 	tmp = ata_wait_idle(ap);
 
-	ap->ops->irq_clear(ap);
+	ap->ops->sff_irq_clear(ap);
 
 	return tmp;
 }
@@ -854,9 +854,9 @@ static void scc_freeze (struct ata_port *ap)
 	 * ATA_NIEN manipulation.  Also, many controllers fail to mask
 	 * previously pending IRQ on ATA_NIEN assertion.  Clear it.
 	 */
-	ap->ops->check_status(ap);
+	ap->ops->sff_check_status(ap);
 
-	ap->ops->irq_clear(ap);
+	ap->ops->sff_irq_clear(ap);
 }
 
 /**
@@ -887,9 +887,9 @@ static void scc_postreset(struct ata_link *link, unsigned int *classes)
 
 	/* is double-select really necessary? */
 	if (classes[0] != ATA_DEV_NONE)
-		ap->ops->dev_select(ap, 1);
+		ap->ops->sff_dev_select(ap, 1);
 	if (classes[1] != ATA_DEV_NONE)
-		ap->ops->dev_select(ap, 0);
+		ap->ops->sff_dev_select(ap, 0);
 
 	/* bail out if no device is present */
 	if (classes[0] == ATA_DEV_NONE && classes[1] == ATA_DEV_NONE) {
@@ -967,18 +967,18 @@ static struct ata_port_operations scc_pata_ops = {
 	.set_dmamode		= scc_set_dmamode,
 	.mode_filter		= scc_mode_filter,
 
-	.tf_load		= scc_tf_load,
-	.tf_read		= scc_tf_read,
-	.exec_command		= scc_exec_command,
-	.check_status		= scc_check_status,
-	.check_altstatus	= scc_check_altstatus,
-	.dev_select		= scc_dev_select,
+	.sff_tf_load		= scc_tf_load,
+	.sff_tf_read		= scc_tf_read,
+	.sff_exec_command	= scc_exec_command,
+	.sff_check_status	= scc_check_status,
+	.sff_check_altstatus	= scc_check_altstatus,
+	.sff_dev_select		= scc_dev_select,
 
 	.bmdma_setup		= scc_bmdma_setup,
 	.bmdma_start		= scc_bmdma_start,
 	.bmdma_stop		= scc_bmdma_stop,
 	.bmdma_status		= scc_bmdma_status,
-	.data_xfer		= scc_data_xfer,
+	.sff_data_xfer		= scc_data_xfer,
 
 	.freeze			= scc_freeze,
 	.prereset		= scc_pata_prereset,
@@ -986,8 +986,8 @@ static struct ata_port_operations scc_pata_ops = {
 	.postreset		= scc_postreset,
 	.post_internal_cmd	= scc_bmdma_stop,
 
-	.irq_clear		= scc_irq_clear,
-	.irq_on			= scc_irq_on,
+	.sff_irq_clear		= scc_irq_clear,
+	.sff_irq_on		= scc_irq_on,
 
 	.port_start		= scc_port_start,
 	.port_stop		= scc_port_stop,

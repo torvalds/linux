@@ -173,7 +173,7 @@ static void svia_noop_freeze(struct ata_port *ap)
 	/* Some VIA controllers choke if ATA_NIEN is manipulated in
 	 * certain way.  Leave it alone and just clear pending IRQ.
 	 */
-	ap->ops->check_status(ap);
+	ap->ops->sff_check_status(ap);
 	ata_sff_irq_clear(ap);
 }
 

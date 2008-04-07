@@ -138,7 +138,7 @@ static void ns87415_bmdma_setup(struct ata_queued_cmd *qc)
 		dmactl |= ATA_DMA_WR;
 	iowrite8(dmactl, ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
 	/* issue r/w command */
-	ap->ops->exec_command(ap, &qc->tf);
+	ap->ops->sff_exec_command(ap, &qc->tf);
 }
 
 /**
@@ -306,7 +306,7 @@ static struct ata_port_operations ns87415_pata_ops = {
 	.bmdma_setup		= ns87415_bmdma_setup,
 	.bmdma_start		= ns87415_bmdma_start,
 	.bmdma_stop		= ns87415_bmdma_stop,
-	.irq_clear		= ns87415_irq_clear,
+	.sff_irq_clear		= ns87415_irq_clear,
 
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= ns87415_set_piomode,
@@ -315,8 +315,8 @@ static struct ata_port_operations ns87415_pata_ops = {
 #if defined(CONFIG_SUPERIO)
 static struct ata_port_operations ns87560_pata_ops = {
 	.inherits		= &ns87415_pata_ops,
-	.tf_read		= ns87560_tf_read,
-	.check_status		= ns87560_check_status,
+	.sff_tf_read		= ns87560_tf_read,
+	.sff_check_status	= ns87560_check_status,
 	.bmdma_status		= ns87560_bmdma_status,
 };
 #endif

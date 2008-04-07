@@ -652,7 +652,7 @@ static struct ata_port_operations it821x_passthru_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
 
 	.check_atapi_dma= it821x_check_atapi_dma,
-	.dev_select 	= it821x_passthru_dev_select,
+	.sff_dev_select	= it821x_passthru_dev_select,
 	.bmdma_start 	= it821x_passthru_bmdma_start,
 	.bmdma_stop	= it821x_passthru_bmdma_stop,
 	.qc_issue	= it821x_passthru_qc_issue,

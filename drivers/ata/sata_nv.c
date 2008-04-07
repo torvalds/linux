@@ -429,11 +429,11 @@ static struct ata_port_operations nv_adma_ops = {
 	.inherits		= &nv_generic_ops,
 
 	.check_atapi_dma	= nv_adma_check_atapi_dma,
-	.tf_read		= nv_adma_tf_read,
+	.sff_tf_read		= nv_adma_tf_read,
 	.qc_defer		= ata_std_qc_defer,
 	.qc_prep		= nv_adma_qc_prep,
 	.qc_issue		= nv_adma_qc_issue,
-	.irq_clear		= nv_adma_irq_clear,
+	.sff_irq_clear		= nv_adma_irq_clear,
 
 	.freeze			= nv_adma_freeze,
 	.thaw			= nv_adma_thaw,
@@ -1440,7 +1440,7 @@ static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance)
 			else
 				// No request pending?  Clear interrupt status
 				// anyway, in case there's one pending.
-				ap->ops->check_status(ap);
+				ap->ops->sff_check_status(ap);
 		}
 
 	}
@@ -1739,7 +1739,7 @@ static void nv_swncq_ncq_stop(struct ata_port *ap)
 		pp->dhfis_bits, pp->dmafis_bits, pp->sdbfis_bits);
 
 	ata_port_printk(ap, KERN_ERR, "ATA_REG 0x%X ERR_REG 0x%X\n",
-			ap->ops->check_status(ap),
+			ap->ops->sff_check_status(ap),
 			ioread8(ap->ioaddr.error_addr));
 
 	sactive = readl(pp->sactive_block);
@@ -1765,7 +1765,7 @@ static void nv_swncq_ncq_stop(struct ata_port *ap)
 	}
 
 	nv_swncq_pp_reinit(ap);
-	ap->ops->irq_clear(ap);
+	ap->ops->sff_irq_clear(ap);
 	__ata_bmdma_stop(ap);
 	nv_swncq_irq_clear(ap, 0xffff);
 }
@@ -1987,8 +1987,8 @@ static unsigned int nv_swncq_issue_atacmd(struct ata_port *ap,
 	pp->dmafis_bits &= ~(1 << qc->tag);
 	pp->qc_active |= (0x1 << qc->tag);
 
-	ap->ops->tf_load(ap, &qc->tf);	 /* load tf registers */
-	ap->ops->exec_command(ap, &qc->tf);
+	ap->ops->sff_tf_load(ap, &qc->tf);	 /* load tf registers */
+	ap->ops->sff_exec_command(ap, &qc->tf);
 
 	DPRINTK("Issued tag %u\n", qc->tag);
 
@@ -2060,7 +2060,7 @@ static int nv_swncq_sdbfis(struct ata_port *ap)
 		return -EINVAL;
 	}
 
-	ap->ops->irq_clear(ap);
+	ap->ops->sff_irq_clear(ap);
 	__ata_bmdma_stop(ap);
 
 	sactive = readl(pp->sactive_block);
@@ -2182,7 +2182,7 @@ static void nv_swncq_host_interrupt(struct ata_port *ap, u16 fis)
 	u8 ata_stat;
 	int rc = 0;
 
-	ata_stat = ap->ops->check_status(ap);
+	ata_stat = ap->ops->sff_check_status(ap);
 	nv_swncq_irq_clear(ap, fis);
 	if (!fis)
 		return;
@@ -2245,7 +2245,7 @@ static void nv_swncq_host_interrupt(struct ata_port *ap, u16 fis)
 
 		if (!(fis & NV_SWNCQ_IRQ_DMASETUP) &&
 		    !(pp->ncq_flags & ncq_saw_dmas)) {
-			ata_stat = ap->ops->check_status(ap);
+			ata_stat = ap->ops->sff_check_status(ap);
 			if (ata_stat & ATA_BUSY)
 				goto irq_exit;
 

@@ -226,12 +226,12 @@ static const struct ata_port_operations legacy_base_port_ops = {
 
 static struct ata_port_operations simple_port_ops = {
 	.inherits	= &legacy_base_port_ops,
-	.data_xfer	= ata_sff_data_xfer_noirq,
+	.sff_data_xfer	= ata_sff_data_xfer_noirq,
 };
 
 static struct ata_port_operations legacy_port_ops = {
 	.inherits	= &legacy_base_port_ops,
-	.data_xfer	= ata_sff_data_xfer_noirq,
+	.sff_data_xfer	= ata_sff_data_xfer_noirq,
 	.set_mode	= legacy_set_mode,
 };
 
@@ -325,7 +325,7 @@ static unsigned int pdc_data_xfer_vlb(struct ata_device *dev,
 static struct ata_port_operations pdc20230_port_ops = {
 	.inherits	= &legacy_base_port_ops,
 	.set_piomode	= pdc20230_set_piomode,
-	.data_xfer	= pdc_data_xfer_vlb,
+	.sff_data_xfer	= pdc_data_xfer_vlb,
 };
 
 /*
@@ -775,19 +775,19 @@ static struct ata_port_operations qdi6500_port_ops = {
 	.inherits	= &legacy_base_port_ops,
 	.set_piomode	= qdi6500_set_piomode,
 	.qc_issue	= qdi_qc_issue,
-	.data_xfer	= vlb32_data_xfer,
+	.sff_data_xfer	= vlb32_data_xfer,
 };
 
 static struct ata_port_operations qdi6580_port_ops = {
 	.inherits	= &legacy_base_port_ops,
 	.set_piomode	= qdi6580_set_piomode,
-	.data_xfer	= vlb32_data_xfer,
+	.sff_data_xfer	= vlb32_data_xfer,
 };
 
 static struct ata_port_operations qdi6580dp_port_ops = {
 	.inherits	= &legacy_base_port_ops,
 	.set_piomode	= qdi6580dp_set_piomode,
-	.data_xfer	= vlb32_data_xfer,
+	.sff_data_xfer	= vlb32_data_xfer,
 };
 
 static DEFINE_SPINLOCK(winbond_lock);
@@ -858,7 +858,7 @@ static int winbond_port(struct platform_device *dev,
 static struct ata_port_operations winbond_port_ops = {
 	.inherits	= &legacy_base_port_ops,
 	.set_piomode	= winbond_set_piomode,
-	.data_xfer	= vlb32_data_xfer,
+	.sff_data_xfer	= vlb32_data_xfer,
 };
 
 static struct legacy_controller controllers[] = {

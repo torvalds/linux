@@ -162,12 +162,12 @@ static struct scsi_host_template pdc_ata_sht = {
 static const struct ata_port_operations pdc_common_ops = {
 	.inherits		= &ata_sff_port_ops,
 
-	.tf_load		= pdc_tf_load_mmio,
-	.exec_command		= pdc_exec_command_mmio,
+	.sff_tf_load		= pdc_tf_load_mmio,
+	.sff_exec_command	= pdc_exec_command_mmio,
 	.check_atapi_dma	= pdc_check_atapi_dma,
 	.qc_prep		= pdc_qc_prep,
 	.qc_issue		= pdc_qc_issue,
-	.irq_clear		= pdc_irq_clear,
+	.sff_irq_clear		= pdc_irq_clear,
 
 	.post_internal_cmd	= pdc_post_internal_cmd,
 	.error_handler		= pdc_error_handler,

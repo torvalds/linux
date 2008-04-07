@@ -2393,7 +2393,7 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 	/* FIXME: is this needed? */
 	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 
-	ap->ops->tf_read(ap, &qc->tf);
+	ap->ops->sff_tf_read(ap, &qc->tf);
 
 	/* fill these in, for the case where they are -not- overwritten */
 	cmd->sense_buffer[0] = 0x70;

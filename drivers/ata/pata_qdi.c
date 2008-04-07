@@ -160,7 +160,7 @@ static struct scsi_host_template qdi_sht = {
 static struct ata_port_operations qdi6500_port_ops = {
 	.inherits	= &ata_sff_port_ops,
 	.qc_issue	= qdi_qc_issue,
-	.data_xfer	= qdi_data_xfer,
+	.sff_data_xfer	= qdi_data_xfer,
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= qdi6500_set_piomode,
 };

@@ -1190,10 +1190,10 @@ static struct scsi_host_template sata_fsl_sht = {
 static const struct ata_port_operations sata_fsl_ops = {
 	.inherits = &sata_port_ops,
 
-	.check_status = sata_fsl_check_status,
-	.check_altstatus = sata_fsl_check_status,
+	.sff_check_status = sata_fsl_check_status,
+	.sff_check_altstatus = sata_fsl_check_status,
 
-	.tf_read = sata_fsl_tf_read,
+	.sff_tf_read = sata_fsl_tf_read,
 
 	.qc_prep = sata_fsl_qc_prep,
 	.qc_issue = sata_fsl_qc_issue,

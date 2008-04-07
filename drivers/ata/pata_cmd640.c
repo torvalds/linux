@@ -172,7 +172,7 @@ static struct scsi_host_template cmd640_sht = {
 static struct ata_port_operations cmd640_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
 	/* In theory xfer_noirq is not needed once we kill the prefetcher */
-	.data_xfer	= ata_sff_data_xfer_noirq,
+	.sff_data_xfer	= ata_sff_data_xfer_noirq,
 	.qc_issue	= cmd640_qc_issue,
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= cmd640_set_piomode,

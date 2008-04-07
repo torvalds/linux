@@ -251,7 +251,7 @@ static void vsc_port_intr(u8 port_status, struct ata_port *ap)
 	 * simply clear the interrupt
 	 */
 	if (unlikely(!handled))
-		ap->ops->check_status(ap);
+		ap->ops->sff_check_status(ap);
 }
 
 /*
@@ -306,8 +306,8 @@ static struct scsi_host_template vsc_sata_sht = {
 
 static struct ata_port_operations vsc_sata_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	.tf_load		= vsc_sata_tf_load,
-	.tf_read		= vsc_sata_tf_read,
+	.sff_tf_load		= vsc_sata_tf_load,
+	.sff_tf_read		= vsc_sata_tf_read,
 	.freeze			= vsc_freeze,
 	.thaw			= vsc_thaw,
 	.scr_read		= vsc_sata_scr_read,

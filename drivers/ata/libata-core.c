@@ -74,7 +74,7 @@ const unsigned long sata_deb_timing_hotplug[]		= {  25,  500, 2000 };
 const unsigned long sata_deb_timing_long[]		= { 100, 2000, 5000 };
 
 const struct ata_port_operations ata_base_port_ops = {
-	.irq_clear		= ata_noop_irq_clear,
+	.sff_irq_clear		= ata_noop_irq_clear,
 	.prereset		= ata_sff_prereset,
 	.hardreset		= sata_sff_hardreset,
 	.postreset		= ata_sff_postreset,
@@ -85,7 +85,7 @@ const struct ata_port_operations sata_port_ops = {
 	.inherits		= &ata_base_port_ops,
 
 	.qc_defer		= ata_std_qc_defer,
-	.dev_select		= ata_noop_dev_select,
+	.sff_dev_select		= ata_noop_dev_select,
 };
 
 const struct ata_port_operations sata_pmp_port_ops = {
@@ -3563,9 +3563,9 @@ void ata_sff_postreset(struct ata_link *link, unsigned int *classes)
 
 	/* is double-select really necessary? */
 	if (classes[0] != ATA_DEV_NONE)
-		ap->ops->dev_select(ap, 1);
+		ap->ops->sff_dev_select(ap, 1);
 	if (classes[1] != ATA_DEV_NONE)
-		ap->ops->dev_select(ap, 0);
+		ap->ops->sff_dev_select(ap, 0);
 
 	/* bail out if no device is present */
 	if (classes[0] == ATA_DEV_NONE && classes[1] == ATA_DEV_NONE) {
@@ -4416,7 +4416,7 @@ static void fill_result_tf(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 
 	qc->result_tf.flags = qc->tf.flags;
-	ap->ops->tf_read(ap, &qc->result_tf);
+	ap->ops->sff_tf_read(ap, &qc->result_tf);
 }
 
 static void ata_verify_xfer(struct ata_queued_cmd *qc)
@@ -6049,16 +6049,16 @@ static unsigned int ata_dummy_qc_issue(struct ata_queued_cmd *qc)
 }
 
 struct ata_port_operations ata_dummy_port_ops = {
-	.check_status		= ata_dummy_check_status,
-	.check_altstatus	= ata_dummy_check_status,
-	.dev_select		= ata_noop_dev_select,
+	.sff_check_status	= ata_dummy_check_status,
+	.sff_check_altstatus	= ata_dummy_check_status,
+	.sff_dev_select		= ata_noop_dev_select,
 	.qc_prep		= ata_noop_qc_prep,
 	.qc_issue		= ata_dummy_qc_issue,
 	.freeze			= ata_dummy_noret,
 	.thaw			= ata_dummy_noret,
 	.error_handler		= ata_dummy_noret,
 	.post_internal_cmd	= ata_dummy_qc_noret,
-	.irq_clear		= ata_dummy_noret,
+	.sff_irq_clear		= ata_dummy_noret,
 	.port_start		= ata_dummy_ret0,
 	.port_stop		= ata_dummy_noret,
 };

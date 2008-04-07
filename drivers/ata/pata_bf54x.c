@@ -1264,7 +1264,7 @@ static void bfin_freeze(struct ata_port *ap)
 	 * ATA_NIEN manipulation.  Also, many controllers fail to mask
 	 * previously pending IRQ on ATA_NIEN assertion.  Clear it.
 	 */
-	ap->ops->check_status(ap);
+	ap->ops->sff_check_status(ap);
 
 	bfin_irq_clear(ap);
 }
@@ -1357,18 +1357,18 @@ static const struct ata_port_operations bfin_pata_ops = {
 	.set_piomode		= bfin_set_piomode,
 	.set_dmamode		= bfin_set_dmamode,
 
-	.tf_load		= bfin_tf_load,
-	.tf_read		= bfin_tf_read,
-	.exec_command		= bfin_exec_command,
-	.check_status		= bfin_check_status,
-	.check_altstatus	= bfin_check_altstatus,
-	.dev_select		= bfin_dev_select,
+	.sff_tf_load		= bfin_tf_load,
+	.sff_tf_read		= bfin_tf_read,
+	.sff_exec_command	= bfin_exec_command,
+	.sff_check_status	= bfin_check_status,
+	.sff_check_altstatus	= bfin_check_altstatus,
+	.sff_dev_select		= bfin_dev_select,
 
 	.bmdma_setup		= bfin_bmdma_setup,
 	.bmdma_start		= bfin_bmdma_start,
 	.bmdma_stop		= bfin_bmdma_stop,
 	.bmdma_status		= bfin_bmdma_status,
-	.data_xfer		= bfin_data_xfer,
+	.sff_data_xfer		= bfin_data_xfer,
 
 	.qc_prep		= ata_noop_qc_prep,
 
@@ -1378,8 +1378,8 @@ static const struct ata_port_operations bfin_pata_ops = {
 	.postreset		= bfin_postreset,
 	.post_internal_cmd	= bfin_bmdma_stop,
 
-	.irq_clear		= bfin_irq_clear,
-	.irq_on			= bfin_irq_on,
+	.sff_irq_clear		= bfin_irq_clear,
+	.sff_irq_on		= bfin_irq_on,
 
 	.port_start		= bfin_port_start,
 	.port_stop		= bfin_port_stop,
