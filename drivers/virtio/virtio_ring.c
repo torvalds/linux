@@ -214,10 +214,7 @@ static void vring_disable_cb(struct virtqueue *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
-	START_USE(vq);
-	BUG_ON(vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT);
 	vq->vring.avail->flags |= VRING_AVAIL_F_NO_INTERRUPT;
-	END_USE(vq);
 }
 
 static bool vring_enable_cb(struct virtqueue *_vq)
