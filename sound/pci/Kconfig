@@ -914,12 +914,12 @@ config SND_VIA82XX_MODEM
 	  will be called snd-via82xx-modem.
 
 config SND_VIRTUOSO
-	tristate "Asus Virtuoso 200 (Xonar)"
+	tristate "Asus Virtuoso 100/200 (Xonar)"
 	depends on SND
 	select SND_OXYGEN_LIB
 	help
 	  Say Y here to include support for sound cards based on the
-	  Asus AV200 chip, i.e., Xonar D2 and Xonar D2X.
+	  Asus AV100/AV200 chips, i.e., Xonar D2, DX and D2X.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-virtuoso.
