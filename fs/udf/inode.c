@@ -1275,6 +1275,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 	case ICBTAG_FILE_TYPE_REALTIME:
 	case ICBTAG_FILE_TYPE_REGULAR:
 	case ICBTAG_FILE_TYPE_UNDEF:
+	case ICBTAG_FILE_TYPE_VAT20:
 		if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
 			inode->i_data.a_ops = &udf_adinicb_aops;
 		else
