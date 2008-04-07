@@ -3005,6 +3005,8 @@ static int decode_close(struct xdr_stream *xdr, struct nfs_closeres *res)
 	int status;
 
 	status = decode_op_hdr(xdr, OP_CLOSE);
+	if (status != -EIO)
+		nfs_increment_open_seqid(status, res->seqid);
 	if (status)
 		return status;
 	READ_BUF(NFS4_STATEID_SIZE);
@@ -3296,11 +3298,17 @@ static int decode_lock(struct xdr_stream *xdr, struct nfs_lock_res *res)
 	int status;
 
 	status = decode_op_hdr(xdr, OP_LOCK);
+	if (status == -EIO)
+		goto out;
 	if (status == 0) {
 		READ_BUF(NFS4_STATEID_SIZE);
 		COPYMEM(res->stateid.data, NFS4_STATEID_SIZE);
 	} else if (status == -NFS4ERR_DENIED)
-		return decode_lock_denied(xdr, NULL);
+		status = decode_lock_denied(xdr, NULL);
+	if (res->open_seqid != NULL)
+		nfs_increment_open_seqid(status, res->open_seqid);
+	nfs_increment_lock_seqid(status, res->lock_seqid);
+out:
 	return status;
 }
 
@@ -3319,6 +3327,8 @@ static int decode_locku(struct xdr_stream *xdr, struct nfs_locku_res *res)
 	int status;
 
 	status = decode_op_hdr(xdr, OP_LOCKU);
+	if (status != -EIO)
+		nfs_increment_lock_seqid(status, res->seqid);
 	if (status == 0) {
 		READ_BUF(NFS4_STATEID_SIZE);
 		COPYMEM(res->stateid.data, NFS4_STATEID_SIZE);
@@ -3384,6 +3394,8 @@ static int decode_open(struct xdr_stream *xdr, struct nfs_openres *res)
         int status;
 
         status = decode_op_hdr(xdr, OP_OPEN);
+	if (status != -EIO)
+		nfs_increment_open_seqid(status, res->seqid);
         if (status)
                 return status;
         READ_BUF(NFS4_STATEID_SIZE);
@@ -3416,6 +3428,8 @@ static int decode_open_confirm(struct xdr_stream *xdr, struct nfs_open_confirmre
 	int status;
 
         status = decode_op_hdr(xdr, OP_OPEN_CONFIRM);
+	if (status != -EIO)
+		nfs_increment_open_seqid(status, res->seqid);
         if (status)
                 return status;
         READ_BUF(NFS4_STATEID_SIZE);
@@ -3429,6 +3443,8 @@ static int decode_open_downgrade(struct xdr_stream *xdr, struct nfs_closeres *re
 	int status;
 
 	status = decode_op_hdr(xdr, OP_OPEN_DOWNGRADE);
+	if (status != -EIO)
+		nfs_increment_open_seqid(status, res->seqid);
 	if (status)
 		return status;
 	READ_BUF(NFS4_STATEID_SIZE);

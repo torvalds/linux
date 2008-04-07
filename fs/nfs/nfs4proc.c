@@ -240,6 +240,8 @@ static void nfs4_init_opendata_res(struct nfs4_opendata *p)
 {
 	p->o_res.f_attr = &p->f_attr;
 	p->o_res.dir_attr = &p->dir_attr;
+	p->o_res.seqid = p->o_arg.seqid;
+	p->c_res.seqid = p->c_arg.seqid;
 	p->o_res.server = p->o_arg.server;
 	nfs_fattr_init(&p->f_attr);
 	nfs_fattr_init(&p->dir_attr);
@@ -730,7 +732,6 @@ static void nfs4_open_confirm_done(struct rpc_task *task, void *calldata)
 		renew_lease(data->o_res.server, data->timestamp);
 		data->rpc_done = 1;
 	}
-	nfs_increment_open_seqid(data->rpc_status, data->c_arg.seqid);
 }
 
 static void nfs4_open_confirm_release(void *calldata)
@@ -860,7 +861,6 @@ static void nfs4_open_done(struct rpc_task *task, void *calldata)
 		if (!(data->o_res.rflags & NFS4_OPEN_RESULT_CONFIRM))
 			nfs_confirm_seqid(&data->owner->so_seqid, 0);
 	}
-	nfs_increment_open_seqid(data->rpc_status, data->o_arg.seqid);
 	data->rpc_done = 1;
 }
 
@@ -1226,7 +1226,6 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
         /* hmm. we are done with the inode, and in the process of freeing
 	 * the state_owner. we keep this around to process errors
 	 */
-	nfs_increment_open_seqid(task->tk_status, calldata->arg.seqid);
 	switch (task->tk_status) {
 		case 0:
 			nfs_set_open_stateid(state, &calldata->res.stateid, 0);
@@ -1333,6 +1332,7 @@ int nfs4_do_close(struct path *path, struct nfs4_state *state, int wait)
 		goto out_free_calldata;
 	calldata->arg.bitmask = server->attr_bitmask;
 	calldata->res.fattr = &calldata->fattr;
+	calldata->res.seqid = calldata->arg.seqid;
 	calldata->res.server = server;
 	calldata->path.mnt = mntget(path->mnt);
 	calldata->path.dentry = dget(path->dentry);
@@ -3159,6 +3159,7 @@ static struct nfs4_unlockdata *nfs4_alloc_unlockdata(struct file_lock *fl,
 	p->arg.fh = NFS_FH(inode);
 	p->arg.fl = &p->fl;
 	p->arg.seqid = seqid;
+	p->res.seqid = seqid;
 	p->arg.stateid = &lsp->ls_stateid;
 	p->lsp = lsp;
 	atomic_inc(&lsp->ls_count);
@@ -3184,7 +3185,6 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 
 	if (RPC_ASSASSINATED(task))
 		return;
-	nfs_increment_lock_seqid(task->tk_status, calldata->arg.seqid);
 	switch (task->tk_status) {
 		case 0:
 			memcpy(calldata->lsp->ls_stateid.data,
@@ -3322,6 +3322,7 @@ static struct nfs4_lockdata *nfs4_alloc_lockdata(struct file_lock *fl,
 	p->arg.lock_stateid = &lsp->ls_stateid;
 	p->arg.lock_owner.clientid = server->nfs_client->cl_clientid;
 	p->arg.lock_owner.id = lsp->ls_id.id;
+	p->res.lock_seqid = p->arg.lock_seqid;
 	p->lsp = lsp;
 	atomic_inc(&lsp->ls_count);
 	p->ctx = get_nfs_open_context(ctx);
@@ -3348,6 +3349,7 @@ static void nfs4_lock_prepare(struct rpc_task *task, void *calldata)
 			return;
 		data->arg.open_stateid = &state->stateid;
 		data->arg.new_lock_owner = 1;
+		data->res.open_seqid = data->arg.open_seqid;
 	} else
 		data->arg.new_lock_owner = 0;
 	data->timestamp = jiffies;
@@ -3365,7 +3367,6 @@ static void nfs4_lock_done(struct rpc_task *task, void *calldata)
 	if (RPC_ASSASSINATED(task))
 		goto out;
 	if (data->arg.new_lock_owner != 0) {
-		nfs_increment_open_seqid(data->rpc_status, data->arg.open_seqid);
 		if (data->rpc_status == 0)
 			nfs_confirm_seqid(&data->lsp->ls_seqid, 0);
 		else
@@ -3377,7 +3378,6 @@ static void nfs4_lock_done(struct rpc_task *task, void *calldata)
 		data->lsp->ls_flags |= NFS_LOCK_INITIALIZED;
 		renew_lease(NFS_SERVER(data->ctx->path.dentry->d_inode), data->timestamp);
 	}
-	nfs_increment_lock_seqid(data->rpc_status, data->arg.lock_seqid);
 out:
 	dprintk("%s: done, ret = %d!\n", __FUNCTION__, data->rpc_status);
 }
