@@ -177,10 +177,16 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 	}
 
 	if (id != I2C_DRIVERID_TUNER) {
-		c = i2c_new_device(&itv->i2c_adap, &info);
-		if (c->driver == NULL)
+		if (id == I2C_DRIVERID_UPD64031A ||
+		    id == I2C_DRIVERID_UPD64083) {
+			unsigned short addrs[2] = { info.addr, I2C_CLIENT_END };
+
+			c = i2c_new_probed_device(&itv->i2c_adap, &info, addrs);
+		} else
+			c = i2c_new_device(&itv->i2c_adap, &info);
+		if (c && c->driver == NULL)
 			i2c_unregister_device(c);
-		else
+		else if (c)
 			itv->i2c_clients[i] = c;
 		return itv->i2c_clients[i] ? 0 : -ENODEV;
 	}
