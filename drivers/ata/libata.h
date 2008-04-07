@@ -203,9 +203,26 @@ extern int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 extern void ata_eh_finish(struct ata_port *ap);
 
 /* libata-pmp.c */
+#ifdef CONFIG_SATA_PMP
 extern int sata_pmp_scr_read(struct ata_link *link, int reg, u32 *val);
 extern int sata_pmp_scr_write(struct ata_link *link, int reg, u32 val);
 extern int sata_pmp_attach(struct ata_device *dev);
+#else /* CONFIG_SATA_PMP */
+static inline int sata_pmp_scr_read(struct ata_link *link, int reg, u32 *val)
+{
+	return -EINVAL;
+}
+
+static inline int sata_pmp_scr_write(struct ata_link *link, int reg, u32 val)
+{
+	return -EINVAL;
+}
+
+static inline int sata_pmp_attach(struct ata_device *dev)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_SATA_PMP */
 
 /* libata-sff.c */
 #ifdef CONFIG_ATA_SFF

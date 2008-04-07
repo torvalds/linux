@@ -41,6 +41,12 @@ config ATA_ACPI
 	  You can disable this at kernel boot time by using the
 	  option libata.noacpi=1
 
+config SATA_PMP
+	bool "SATA Port Multiplier support"
+	default y
+	help
+	  This option adds support for SATA Port Multipliers.
+
 config SATA_AHCI
 	tristate "AHCI SATA support"
 	depends on PCI

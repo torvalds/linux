@@ -1092,6 +1092,7 @@ extern const struct ata_port_operations sata_port_ops;
 /*
  * PMP helpers
  */
+#ifdef CONFIG_SATA_PMP
 static inline bool sata_pmp_supported(struct ata_port *ap)
 {
 	return ap->flags & ATA_FLAG_PMP;
@@ -1106,6 +1107,22 @@ static inline int ata_is_host_link(const struct ata_link *link)
 {
 	return link == &link->ap->link;
 }
+#else /* CONFIG_SATA_PMP */
+static inline bool sata_pmp_supported(struct ata_port *ap)
+{
+	return false;
+}
+
+static inline bool sata_pmp_attached(struct ata_port *ap)
+{
+	return false;
+}
+
+static inline int ata_is_host_link(const struct ata_link *link)
+{
+	return 1;
+}
+#endif /* CONFIG_SATA_PMP */
 
 static inline int sata_srst_pmp(struct ata_link *link)
 {
@@ -1369,10 +1386,20 @@ static inline struct ata_port *ata_shost_to_port(struct Scsi_Host *host)
 /**************************************************************************
  * PMP - drivers/ata/libata-pmp.c
  */
+#ifdef CONFIG_SATA_PMP
+
 extern const struct ata_port_operations sata_pmp_port_ops;
 
 extern int sata_pmp_qc_defer_cmd_switch(struct ata_queued_cmd *qc);
 extern void sata_pmp_error_handler(struct ata_port *ap);
+
+#else /* CONFIG_SATA_PMP */
+
+#define sata_pmp_port_ops		sata_port_ops
+#define sata_pmp_qc_defer_cmd_switch	ata_std_qc_defer
+#define sata_pmp_error_handler		ata_std_error_handler
+
+#endif /* CONFIG_SATA_PMP */
 
 
 /**************************************************************************
