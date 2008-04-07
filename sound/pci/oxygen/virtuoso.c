@@ -79,11 +79,16 @@ MODULE_DEVICE_TABLE(pci, xonar_ids);
 #define GPIO_CS53x1_M_DOUBLE	0x0004
 #define GPIO_CS53x1_M_QUAD	0x0008
 
-#define GPIO_EXT_POWER		0x0020
-#define GPIO_ALT		0x0080
-#define GPIO_OUTPUT_ENABLE	0x0100
+#define GPIO_D2X_EXT_POWER	0x0020
+#define GPIO_D2_ALT		0x0080
+#define GPIO_D2_OUTPUT_ENABLE	0x0100
 
 struct xonar_data {
+	unsigned int anti_pop_delay;
+	u16 output_enable_bit;
+	u8 ext_power_reg;
+	u8 ext_power_int_reg;
+	u8 ext_power_bit;
 	u8 has_power;
 };
 
@@ -102,9 +107,33 @@ static void pcm1796_write(struct oxygen *chip, unsigned int codec,
 			 (reg << 8) | value);
 }
 
+static void xonar_common_init(struct oxygen *chip)
+{
+	struct xonar_data *data = chip->model_data;
+
+	if (data->ext_power_reg) {
+		oxygen_set_bits8(chip, data->ext_power_int_reg,
+				 data->ext_power_bit);
+		chip->interrupt_mask |= OXYGEN_INT_GPIO;
+		data->has_power = !!(oxygen_read8(chip, data->ext_power_reg)
+				     & data->ext_power_bit);
+	}
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_CS53x1_M_MASK);
+	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
+			      GPIO_CS53x1_M_SINGLE, GPIO_CS53x1_M_MASK);
+	oxygen_ac97_set_bits(chip, 0, CM9780_JACK, CM9780_FMIC2MIC);
+	msleep(data->anti_pop_delay);
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, data->output_enable_bit);
+	oxygen_set_bits16(chip, OXYGEN_GPIO_DATA, data->output_enable_bit);
+}
+
 static void xonar_d2_init(struct oxygen *chip)
 {
+	struct xonar_data *data = chip->model_data;
 	unsigned int i;
+
+	data->anti_pop_delay = 300;
+	data->output_enable_bit = GPIO_D2_OUTPUT_ENABLE;
 
 	for (i = 0; i < 4; ++i) {
 		pcm1796_write(chip, i, 18, PCM1796_FMT_24_LJUST | PCM1796_ATLD);
@@ -115,15 +144,10 @@ static void xonar_d2_init(struct oxygen *chip)
 		pcm1796_write(chip, i, 17, 0xff);
 	}
 
-	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL,
-			  GPIO_CS53x1_M_MASK | GPIO_ALT);
-	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
-			      GPIO_CS53x1_M_SINGLE,
-			      GPIO_CS53x1_M_MASK | GPIO_ALT);
-	oxygen_ac97_set_bits(chip, 0, CM9780_JACK, CM9780_FMIC2MIC);
-	msleep(300);
-	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_OUTPUT_ENABLE);
-	oxygen_set_bits16(chip, OXYGEN_GPIO_DATA, GPIO_OUTPUT_ENABLE);
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_D2_ALT);
+	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, GPIO_D2_ALT);
+
+	xonar_common_init(chip);
 
 	snd_component_add(chip->card, "PCM1796");
 	snd_component_add(chip->card, "CS5381");
@@ -133,17 +157,18 @@ static void xonar_d2x_init(struct oxygen *chip)
 {
 	struct xonar_data *data = chip->model_data;
 
+	data->ext_power_reg = OXYGEN_GPIO_DATA;
+	data->ext_power_int_reg = OXYGEN_GPIO_INTERRUPT_MASK;
+	data->ext_power_bit = GPIO_D2X_EXT_POWER;
+	oxygen_clear_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_D2X_EXT_POWER);
 	xonar_d2_init(chip);
-	oxygen_clear_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_EXT_POWER);
-	oxygen_set_bits16(chip, OXYGEN_GPIO_INTERRUPT_MASK, GPIO_EXT_POWER);
-	chip->interrupt_mask |= OXYGEN_INT_GPIO;
-	data->has_power = !!(oxygen_read16(chip, OXYGEN_GPIO_DATA)
-			     & GPIO_EXT_POWER);
 }
 
 static void xonar_cleanup(struct oxygen *chip)
 {
-	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, GPIO_OUTPUT_ENABLE);
+	struct xonar_data *data = chip->model_data;
+
+	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, data->output_enable_bit);
 }
 
 static void set_pcm1796_params(struct oxygen *chip,
@@ -201,8 +226,8 @@ static void xonar_gpio_changed(struct oxygen *chip)
 	struct xonar_data *data = chip->model_data;
 	u8 has_power;
 
-	has_power = !!(oxygen_read16(chip, OXYGEN_GPIO_DATA)
-		       & GPIO_EXT_POWER);
+	has_power = !!(oxygen_read8(chip, data->ext_power_reg)
+		       & data->ext_power_bit);
 	if (has_power != data->has_power) {
 		data->has_power = has_power;
 		if (has_power) {
@@ -231,7 +256,7 @@ static int alt_switch_get(struct snd_kcontrol *ctl,
 	struct oxygen *chip = ctl->private_data;
 
 	value->value.integer.value[0] =
-		!!(oxygen_read16(chip, OXYGEN_GPIO_DATA) & GPIO_ALT);
+		!!(oxygen_read16(chip, OXYGEN_GPIO_DATA) & GPIO_D2_ALT);
 	return 0;
 }
 
@@ -245,9 +270,9 @@ static int alt_switch_put(struct snd_kcontrol *ctl,
 	spin_lock_irq(&chip->reg_lock);
 	old_bits = oxygen_read16(chip, OXYGEN_GPIO_DATA);
 	if (value->value.integer.value[0])
-		new_bits = old_bits | GPIO_ALT;
+		new_bits = old_bits | GPIO_D2_ALT;
 	else
-		new_bits = old_bits & ~GPIO_ALT;
+		new_bits = old_bits & ~GPIO_D2_ALT;
 	changed = new_bits != old_bits;
 	if (changed)
 		oxygen_write16(chip, OXYGEN_GPIO_DATA, new_bits);
@@ -265,7 +290,7 @@ static const struct snd_kcontrol_new alt_switch = {
 
 static const DECLARE_TLV_DB_SCALE(pcm1796_db_scale, -12000, 50, 0);
 
-static int xonar_control_filter(struct snd_kcontrol_new *template)
+static int xonar_d2_control_filter(struct snd_kcontrol_new *template)
 {
 	if (!strcmp(template->name, "Master Playback Volume")) {
 		template->access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
@@ -290,7 +315,7 @@ static const struct oxygen_model xonar_models[] = {
 		.chip = "AV200",
 		.owner = THIS_MODULE,
 		.init = xonar_d2_init,
-		.control_filter = xonar_control_filter,
+		.control_filter = xonar_d2_control_filter,
 		.mixer_init = xonar_mixer_init,
 		.cleanup = xonar_cleanup,
 		.set_dac_params = set_pcm1796_params,
@@ -315,7 +340,7 @@ static const struct oxygen_model xonar_models[] = {
 		.chip = "AV200",
 		.owner = THIS_MODULE,
 		.init = xonar_d2x_init,
-		.control_filter = xonar_control_filter,
+		.control_filter = xonar_d2_control_filter,
 		.mixer_init = xonar_mixer_init,
 		.cleanup = xonar_cleanup,
 		.set_dac_params = set_pcm1796_params,
