@@ -240,24 +240,32 @@ static char ohci_driver_name[] = KBUILD_MODNAME;
 
 #ifdef CONFIG_FIREWIRE_OHCI_DEBUG
 
-#define OHCI_PARAM_DEBUG_IRQS		1
+#define OHCI_PARAM_DEBUG_AT_AR		1
 #define OHCI_PARAM_DEBUG_SELFIDS	2
-#define OHCI_PARAM_DEBUG_AT_AR		4
+#define OHCI_PARAM_DEBUG_IRQS		4
+#define OHCI_PARAM_DEBUG_BUSRESETS	8 /* only effective before chip init */
 
 static int param_debug;
 module_param_named(debug, param_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Verbose logging (default = 0"
-	", IRQs = "		__stringify(OHCI_PARAM_DEBUG_IRQS)
-	", self-IDs = "		__stringify(OHCI_PARAM_DEBUG_SELFIDS)
 	", AT/AR events = "	__stringify(OHCI_PARAM_DEBUG_AT_AR)
+	", self-IDs = "		__stringify(OHCI_PARAM_DEBUG_SELFIDS)
+	", IRQs = "		__stringify(OHCI_PARAM_DEBUG_IRQS)
+	", busReset events = "	__stringify(OHCI_PARAM_DEBUG_BUSRESETS)
 	", or a combination, or all = -1)");
 
 static void log_irqs(u32 evt)
 {
-	if (likely(!(param_debug & OHCI_PARAM_DEBUG_IRQS)))
+	if (likely(!(param_debug &
+			(OHCI_PARAM_DEBUG_IRQS | OHCI_PARAM_DEBUG_BUSRESETS))))
 		return;
 
-	printk(KERN_DEBUG KBUILD_MODNAME ": IRQ %08x%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	if (!(param_debug & OHCI_PARAM_DEBUG_IRQS) &&
+	    !(evt & OHCI1394_busReset))
+		return;
+
+	printk(KERN_DEBUG KBUILD_MODNAME ": IRQ "
+	       "%08x%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 	       evt,
 	       evt & OHCI1394_selfIDComplete	? " selfID"		: "",
 	       evt & OHCI1394_RQPkt		? " AR_req"		: "",
@@ -270,12 +278,13 @@ static void log_irqs(u32 evt)
 	       evt & OHCI1394_cycleTooLong	? " cycleTooLong"	: "",
 	       evt & OHCI1394_cycle64Seconds	? " cycle64Seconds"	: "",
 	       evt & OHCI1394_regAccessFail	? " regAccessFail"	: "",
+	       evt & OHCI1394_busReset		? " busReset"		: "",
 	       evt & ~(OHCI1394_selfIDComplete | OHCI1394_RQPkt |
 		       OHCI1394_RSPkt | OHCI1394_reqTxComplete |
 		       OHCI1394_respTxComplete | OHCI1394_isochRx |
 		       OHCI1394_isochTx | OHCI1394_postedWriteErr |
 		       OHCI1394_cycleTooLong | OHCI1394_cycle64Seconds |
-		       OHCI1394_regAccessFail)
+		       OHCI1394_regAccessFail | OHCI1394_busReset)
 						? " ?"			: "");
 }
 
@@ -1328,7 +1337,8 @@ static irqreturn_t irq_handler(int irq, void *data)
 	if (!event || !~event)
 		return IRQ_NONE;
 
-	reg_write(ohci, OHCI1394_IntEventClear, event);
+	/* busReset must not be cleared yet, see OHCI 1.1 clause 7.2.3.2 */
+	reg_write(ohci, OHCI1394_IntEventClear, event & ~OHCI1394_busReset);
 	log_irqs(event);
 
 	if (event & OHCI1394_selfIDComplete)
@@ -1467,6 +1477,8 @@ static int ohci_enable(struct fw_card *card, u32 *config_rom, size_t length)
 		  OHCI1394_postedWriteErr | OHCI1394_cycleTooLong |
 		  OHCI1394_cycle64Seconds | OHCI1394_regAccessFail |
 		  OHCI1394_masterIntEnable);
+	if (param_debug & OHCI_PARAM_DEBUG_BUSRESETS)
+		reg_write(ohci, OHCI1394_IntMaskSet, OHCI1394_busReset);
 
 	/* Activate link_on bit and contender bit in our self ID packets.*/
 	if (ohci_update_phy_reg(card, 4, 0,
