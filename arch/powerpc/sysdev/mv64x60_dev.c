@@ -206,30 +206,24 @@ error:
 /*
  * Create mv64x60_eth platform devices
  */
-static int __init eth_register_shared_pdev(struct device_node *np)
+static struct platform_device * __init mv64x60_eth_register_shared_pdev(
+						struct device_node *np, int id)
 {
 	struct platform_device *pdev;
 	struct resource r[1];
 	int err;
 
-	np = of_get_parent(np);
-	if (!np)
-		return -ENODEV;
-
 	err = of_address_to_resource(np, 0, &r[0]);
-	of_node_put(np);
 	if (err)
-		return err;
+		return ERR_PTR(err);
 
-	pdev = platform_device_register_simple(MV643XX_ETH_SHARED_NAME, 0,
+	pdev = platform_device_register_simple(MV643XX_ETH_SHARED_NAME, id,
 					       r, 1);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
-
-	return 0;
+	return pdev;
 }
 
-static int __init mv64x60_eth_device_setup(struct device_node *np, int id)
+static int __init mv64x60_eth_device_setup(struct device_node *np, int id,
+					   struct platform_device *shared_pdev)
 {
 	struct resource r[1];
 	struct mv643xx_eth_platform_data pdata;
@@ -240,16 +234,12 @@ static int __init mv64x60_eth_device_setup(struct device_node *np, int id)
 	const phandle *ph;
 	int err;
 
-	/* only register the shared platform device the first time through */
-	if (id == 0 && (err = eth_register_shared_pdev(np)))
-		return err;
-
 	memset(r, 0, sizeof(r));
 	of_irq_to_resource(np, 0, &r[0]);
 
 	memset(&pdata, 0, sizeof(pdata));
 
-	prop = of_get_property(np, "block-index", NULL);
+	prop = of_get_property(np, "reg", NULL);
 	if (!prop)
 		return -ENODEV;
 	pdata.port_number = *prop;
@@ -302,7 +292,7 @@ static int __init mv64x60_eth_device_setup(struct device_node *np, int id)
 
 	of_node_put(phy);
 
-	pdev = platform_device_alloc(MV643XX_ETH_NAME, pdata.port_number);
+	pdev = platform_device_alloc(MV643XX_ETH_NAME, id);
 	if (!pdev)
 		return -ENOMEM;
 
@@ -437,8 +427,9 @@ error:
 
 static int __init mv64x60_device_setup(void)
 {
-	struct device_node *np = NULL;
-	int id;
+	struct device_node *np, *np2;
+	struct platform_device *pdev;
+	int id, id2;
 	int err;
 
 	id = 0;
@@ -447,9 +438,24 @@ static int __init mv64x60_device_setup(void)
 			goto error;
 
 	id = 0;
-	for_each_compatible_node(np, "network", "marvell,mv64360-eth")
-		if ((err = mv64x60_eth_device_setup(np, id++)))
+	id2 = 0;
+	for_each_compatible_node(np, NULL, "marvell,mv64360-eth-group") {
+		pdev = mv64x60_eth_register_shared_pdev(np, id++);
+		if (IS_ERR(pdev)) {
+			err = PTR_ERR(pdev);
 			goto error;
+		}
+		for_each_child_of_node(np, np2) {
+			if (!of_device_is_compatible(np2,
+					"marvell,mv64360-eth"))
+				continue;
+			err = mv64x60_eth_device_setup(np2, id2++, pdev);
+			if (err) {
+				of_node_put(np2);
+				goto error;
+			}
+		}
+	}
 
 	id = 0;
 	for_each_compatible_node(np, "i2c", "marvell,mv64360-i2c")

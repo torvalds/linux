@@ -91,21 +91,24 @@
 			};
 		};
 
-		ethernet@2000 {
+		ethernet-group@2000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "marvell,mv64360-eth-group";
 			reg = <0x2000 0x2000>;
-			eth0 {
+			ethernet@0 {
 				device_type = "network";
 				compatible = "marvell,mv64360-eth";
-				block-index = <0>;
+				reg = <0>;
 				interrupts = <32>;
 				interrupt-parent = <&PIC>;
 				phy = <&PHY0>;
 				local-mac-address = [ 00 00 00 00 00 00 ];
 			};
-			eth1 {
+			ethernet@1 {
 				device_type = "network";
 				compatible = "marvell,mv64360-eth";
-				block-index = <1>;
+				reg = <1>;
 				interrupts = <33>;
 				interrupt-parent = <&PIC>;
 				phy = <&PHY1>;
