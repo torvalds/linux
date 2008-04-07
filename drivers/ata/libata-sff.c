@@ -308,6 +308,17 @@ int ata_sff_busy_sleep(struct ata_port *ap,
 	return 0;
 }
 
+static int ata_sff_check_ready(struct ata_link *link)
+{
+	u8 status = link->ap->ops->sff_check_status(link->ap);
+
+	if (!(status & ATA_BUSY))
+		return 1;
+	if (status == 0xff)
+		return -ENODEV;
+	return 0;
+}
+
 /**
  *	ata_sff_wait_ready - sleep until BSY clears, or timeout
  *	@link: SFF link to wait ready status for
@@ -324,56 +335,7 @@ int ata_sff_busy_sleep(struct ata_port *ap,
  */
 int ata_sff_wait_ready(struct ata_link *link, unsigned long deadline)
 {
-	struct ata_port *ap = link->ap;
-	unsigned long start = jiffies;
-	unsigned long nodev_deadline = start + ATA_TMOUT_FF_WAIT;
-	int warned = 0;
-
-	if (time_after(nodev_deadline, deadline))
-		nodev_deadline = deadline;
-
-	while (1) {
-		u8 status = ap->ops->sff_check_status(ap);
-		unsigned long now = jiffies;
-
-		if (!(status & ATA_BUSY))
-			return 0;
-
-		/* No device status could be transient.  Ignore it if
-		 * link is online.  Also, some SATA devices take a
-		 * long time to clear 0xff after reset.  For example,
-		 * HHD424020F7SV00 iVDR needs >= 800ms while Quantum
-		 * GoVault needs even more than that.  Wait for
-		 * ATA_TMOUT_FF_WAIT on -ENODEV if link isn't offline.
-		 *
-		 * Note that some PATA controllers (pata_ali) explode
-		 * if status register is read more than once when
-		 * there's no device attached.
-		 */
-		if (status == 0xff) {
-			if (ata_link_online(link))
-				status = ATA_BUSY;
-			else if ((link->ap->flags & ATA_FLAG_SATA) &&
-				 !ata_link_offline(link) &&
-				 time_before(now, nodev_deadline))
-				status = ATA_BUSY;
-			if (status == 0xff)
-				return -ENODEV;
-		}
-
-		if (time_after(now, deadline))
-			return -EBUSY;
-
-		if (!warned && time_after(now, start + 5 * HZ) &&
-		    (deadline - now > 3 * HZ)) {
-			ata_link_printk(link, KERN_WARNING,
-				"link is slow to respond, please be patient "
-				"(Status 0x%x)\n", status);
-			warned = 1;
-		}
-
-		msleep(50);
-	}
+	return ata_wait_ready(link, deadline, ata_sff_check_ready);
 }
 
 /**

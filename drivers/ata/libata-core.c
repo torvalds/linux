@@ -3311,6 +3311,103 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 }
 
 /**
+ *	ata_wait_ready - wait for link to become ready
+ *	@link: link to be waited on
+ *	@deadline: deadline jiffies for the operation
+ *	@check_ready: callback to check link readiness
+ *
+ *	Wait for @link to become ready.  @check_ready should return
+ *	positive number if @link is ready, 0 if it isn't, -ENODEV if
+ *	link doesn't seem to be occupied, other errno for other error
+ *	conditions.
+ *
+ *	Transient -ENODEV conditions are allowed for
+ *	ATA_TMOUT_FF_WAIT.
+ *
+ *	LOCKING:
+ *	EH context.
+ *
+ *	RETURNS:
+ *	0 if @linke is ready before @deadline; otherwise, -errno.
+ */
+int ata_wait_ready(struct ata_link *link, unsigned long deadline,
+		   int (*check_ready)(struct ata_link *link))
+{
+	unsigned long start = jiffies;
+	unsigned long nodev_deadline = start + ATA_TMOUT_FF_WAIT;
+	int warned = 0;
+
+	if (time_after(nodev_deadline, deadline))
+		nodev_deadline = deadline;
+
+	while (1) {
+		unsigned long now = jiffies;
+		int ready, tmp;
+
+		ready = tmp = check_ready(link);
+		if (ready > 0)
+			return 0;
+
+		/* -ENODEV could be transient.  Ignore -ENODEV if link
+		 * is online.  Also, some SATA devices take a long
+		 * time to clear 0xff after reset.  For example,
+		 * HHD424020F7SV00 iVDR needs >= 800ms while Quantum
+		 * GoVault needs even more than that.  Wait for
+		 * ATA_TMOUT_FF_WAIT on -ENODEV if link isn't offline.
+		 *
+		 * Note that some PATA controllers (pata_ali) explode
+		 * if status register is read more than once when
+		 * there's no device attached.
+		 */
+		if (ready == -ENODEV) {
+			if (ata_link_online(link))
+				ready = 0;
+			else if ((link->ap->flags & ATA_FLAG_SATA) &&
+				 !ata_link_offline(link) &&
+				 time_before(now, nodev_deadline))
+				ready = 0;
+		}
+
+		if (ready)
+			return ready;
+		if (time_after(now, deadline))
+			return -EBUSY;
+
+		if (!warned && time_after(now, start + 5 * HZ) &&
+		    (deadline - now > 3 * HZ)) {
+			ata_link_printk(link, KERN_WARNING,
+				"link is slow to respond, please be patient "
+				"(ready=%d)\n", tmp);
+			warned = 1;
+		}
+
+		msleep(50);
+	}
+}
+
+/**
+ *	ata_wait_after_reset - wait for link to become ready after reset
+ *	@link: link to be waited on
+ *	@deadline: deadline jiffies for the operation
+ *	@check_ready: callback to check link readiness
+ *
+ *	Wait for @link to become ready after reset.
+ *
+ *	LOCKING:
+ *	EH context.
+ *
+ *	RETURNS:
+ *	0 if @linke is ready before @deadline; otherwise, -errno.
+ */
+extern int ata_wait_after_reset(struct ata_link *link, unsigned long deadline,
+				int (*check_ready)(struct ata_link *link))
+{
+	msleep(ATA_WAIT_AFTER_RESET_MSECS);
+
+	return ata_wait_ready(link, deadline, check_ready);
+}
+
+/**
  *	sata_link_debounce - debounce SATA phy status
  *	@link: ATA link to debounce SATA phy status for
  *	@params: timing parameters { interval, duratinon, timeout } in msec
@@ -6075,6 +6172,7 @@ EXPORT_SYMBOL_GPL(ata_noop_qc_prep);
 EXPORT_SYMBOL_GPL(ata_port_probe);
 EXPORT_SYMBOL_GPL(ata_dev_disable);
 EXPORT_SYMBOL_GPL(sata_set_spd);
+EXPORT_SYMBOL_GPL(ata_wait_after_reset);
 EXPORT_SYMBOL_GPL(sata_link_debounce);
 EXPORT_SYMBOL_GPL(sata_link_resume);
 EXPORT_SYMBOL_GPL(ata_std_prereset);
