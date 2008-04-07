@@ -292,7 +292,7 @@ static int xonar_d2_control_filter(struct snd_kcontrol_new *template)
 {
 	if (!strcmp(template->name, "Master Playback Volume")) {
 		template->access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-		template->info = pcm1796_volume_info,
+		template->info = pcm1796_volume_info;
 		template->tlv.p = pcm1796_db_scale;
 	} else if (!strncmp(template->name, "CD Capture ", 11)) {
 		/* CD in is actually connected to the video in pin */
