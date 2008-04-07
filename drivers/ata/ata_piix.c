@@ -1022,7 +1022,7 @@ static int piix_sidpr_hardreset(struct ata_link *link, unsigned int *class,
 	int rc;
 
 	/* do hardreset */
-	rc = sata_link_hardreset(link, timing, deadline);
+	rc = sata_link_hardreset(link, timing, deadline, NULL, NULL);
 	if (rc) {
 		ata_link_printk(link, KERN_ERR,
 				"COMRESET failed (errno=%d)\n", rc);

@@ -1343,10 +1343,12 @@ static int ahci_softreset(struct ata_link *link, unsigned int *class,
 static int ahci_hardreset(struct ata_link *link, unsigned int *class,
 			  unsigned long deadline)
 {
+	const unsigned long *timing = sata_ehc_deb_timing(&link->eh_context);
 	struct ata_port *ap = link->ap;
 	struct ahci_port_priv *pp = ap->private_data;
 	u8 *d2h_fis = pp->rx_fis + RX_FIS_D2H_REG;
 	struct ata_taskfile tf;
+	bool online;
 	int rc;
 
 	DPRINTK("ENTER\n");
@@ -1358,14 +1360,14 @@ static int ahci_hardreset(struct ata_link *link, unsigned int *class,
 	tf.command = 0x80;
 	ata_tf_to_fis(&tf, 0, 0, d2h_fis);
 
-	rc = sata_sff_hardreset(link, class, deadline);
+	rc = sata_link_hardreset(link, timing, deadline, &online,
+				 ahci_check_ready);
 
 	ahci_start_engine(ap);
 
-	if (rc == 0 && ata_link_online(link))
+	*class = ATA_DEV_NONE;
+	if (online)
 		*class = ahci_dev_classify(ap);
-	if (rc != -EAGAIN && *class == ATA_DEV_UNKNOWN)
-		*class = ATA_DEV_NONE;
 
 	DPRINTK("EXIT, rc=%d, class=%u\n", rc, *class);
 	return rc;
@@ -1376,6 +1378,7 @@ static int ahci_vt8251_hardreset(struct ata_link *link, unsigned int *class,
 {
 	struct ata_port *ap = link->ap;
 	u32 serror;
+	bool online;
 	int rc;
 
 	DPRINTK("ENTER\n");
@@ -1383,7 +1386,7 @@ static int ahci_vt8251_hardreset(struct ata_link *link, unsigned int *class,
 	ahci_stop_engine(ap);
 
 	rc = sata_link_hardreset(link, sata_ehc_deb_timing(&link->eh_context),
-				 deadline);
+				 deadline, &online, NULL);
 
 	/* vt8251 needs SError cleared for the port to operate */
 	ahci_scr_read(ap, SCR_ERROR, &serror);
@@ -1396,7 +1399,8 @@ static int ahci_vt8251_hardreset(struct ata_link *link, unsigned int *class,
 	/* vt8251 doesn't clear BSY on signature FIS reception,
 	 * request follow-up softreset.
 	 */
-	return rc ?: -EAGAIN;
+	*class = ATA_DEV_NONE;
+	return online ? -EAGAIN : rc;
 }
 
 static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
@@ -1406,6 +1410,7 @@ static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
 	struct ahci_port_priv *pp = ap->private_data;
 	u8 *d2h_fis = pp->rx_fis + RX_FIS_D2H_REG;
 	struct ata_taskfile tf;
+	bool online;
 	int rc;
 
 	ahci_stop_engine(ap);
@@ -1416,12 +1421,9 @@ static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
 	ata_tf_to_fis(&tf, 0, 0, d2h_fis);
 
 	rc = sata_link_hardreset(link, sata_ehc_deb_timing(&link->eh_context),
-				 deadline);
+				 deadline, &online, NULL);
 
 	ahci_start_engine(ap);
-
-	if (rc || ata_link_offline(link))
-		return rc;
 
 	/* The pseudo configuration device on SIMG4726 attached to
 	 * ASUS P5W-DH Deluxe doesn't send signature FIS after
@@ -1436,11 +1438,14 @@ static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
 	 * have to be reset again.  For most cases, this should
 	 * suffice while making probing snappish enough.
 	 */
-	rc = ata_wait_after_reset(link, jiffies + 2 * HZ, ahci_check_ready);
-	if (rc)
-		ahci_kick_engine(ap, 0);
-
-	return 0;
+	if (online) {
+		rc = ata_wait_after_reset(link, jiffies + 2 * HZ,
+					  ahci_check_ready);
+		if (rc)
+			ahci_kick_engine(ap, 0);
+	}
+	*class = ATA_DEV_NONE;
+	return rc;
 }
 
 static void ahci_postreset(struct ata_link *link, unsigned int *class)

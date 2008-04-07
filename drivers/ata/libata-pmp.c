@@ -239,13 +239,14 @@ int sata_pmp_std_hardreset(struct ata_link *link, unsigned int *class,
 			   unsigned long deadline)
 {
 	const unsigned long *timing = sata_ehc_deb_timing(&link->eh_context);
+	bool online;
 	u32 tmp;
 	int rc;
 
 	DPRINTK("ENTER\n");
 
 	/* do hardreset */
-	rc = sata_link_hardreset(link, timing, deadline);
+	rc = sata_link_hardreset(link, timing, deadline, &online, NULL);
 	if (rc) {
 		ata_link_printk(link, KERN_ERR,
 				"COMRESET failed (errno=%d)\n", rc);
@@ -261,7 +262,7 @@ int sata_pmp_std_hardreset(struct ata_link *link, unsigned int *class,
 	}
 
 	/* if device is present, follow up with srst to wait for !BSY */
-	if (ata_link_online(link))
+	if (online)
 		rc = -EAGAIN;
  out:
 	/* if SCR isn't accessible, we need to reset the PMP */
@@ -916,7 +917,7 @@ static int sata_pmp_eh_handle_disabled_links(struct ata_port *ap)
 		 * SError.N working.
 		 */
 		sata_link_hardreset(link, sata_deb_timing_normal,
-				    jiffies + ATA_TMOUT_INTERNAL_QUICK);
+				jiffies + ATA_TMOUT_INTERNAL_QUICK, NULL, NULL);
 
 		/* unconditionally clear SError.N */
 		rc = sata_scr_write(link, SCR_ERROR, SERR_PHYRDY_CHG);

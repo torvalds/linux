@@ -261,6 +261,13 @@ enum {
 	 */
 	ATA_WAIT_AFTER_RESET_MSECS = 150,
 
+	/* If PMP is supported, we have to do follow-up SRST.  As some
+	 * PMPs don't send D2H Reg FIS after hardreset, LLDs are
+	 * advised to wait only for the following duration before
+	 * doing SRST.
+	 */
+	ATA_TMOUT_PMP_SRST_WAIT	= 1 * HZ,
+
 	/* ATA bus states */
 	BUS_UNKNOWN		= 0,
 	BUS_DMA			= 1,
@@ -844,7 +851,8 @@ extern int sata_link_debounce(struct ata_link *link,
 extern int sata_link_resume(struct ata_link *link, const unsigned long *params,
 			    unsigned long deadline);
 extern int sata_link_hardreset(struct ata_link *link,
-			const unsigned long *timing, unsigned long deadline);
+			const unsigned long *timing, unsigned long deadline,
+			bool *online, int (*check_ready)(struct ata_link *));
 extern void ata_std_postreset(struct ata_link *link, unsigned int *classes);
 extern void ata_port_disable(struct ata_port *);
 

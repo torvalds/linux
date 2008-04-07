@@ -1921,50 +1921,19 @@ int ata_sff_softreset(struct ata_link *link, unsigned int *classes,
 int sata_sff_hardreset(struct ata_link *link, unsigned int *class,
 		       unsigned long deadline)
 {
-	struct ata_port *ap = link->ap;
-	const unsigned long *timing = sata_ehc_deb_timing(&link->eh_context);
+	struct ata_eh_context *ehc = &link->eh_context;
+	const unsigned long *timing = sata_ehc_deb_timing(ehc);
+	bool online;
 	int rc;
 
-	DPRINTK("ENTER\n");
-
-	/* do hardreset */
-	rc = sata_link_hardreset(link, timing, deadline);
-	if (rc) {
-		ata_link_printk(link, KERN_ERR,
-				"COMRESET failed (errno=%d)\n", rc);
-		return rc;
-	}
-
-	/* TODO: phy layer with polling, timeouts, etc. */
-	if (ata_link_offline(link)) {
-		*class = ATA_DEV_NONE;
-		DPRINTK("EXIT, link offline\n");
-		return 0;
-	}
-
-	/* If PMP is supported, we have to do follow-up SRST.  Note
-	 * that some PMPs don't send D2H Reg FIS after hardreset at
-	 * all if the first port is empty.  Wait for it just for a
-	 * second and request follow-up SRST.
-	 */
-	if (ap->flags & ATA_FLAG_PMP) {
-		ata_sff_wait_after_reset(link, 1, jiffies + HZ);
-		return -EAGAIN;
-	}
-
-	/* wait for the link to become online */
-	rc = ata_sff_wait_after_reset(link, 1, deadline);
-	/* link occupied, -ENODEV too is an error */
-	if (rc) {
-		ata_link_printk(link, KERN_ERR,
-				"COMRESET failed (errno=%d)\n", rc);
-		return rc;
-	}
-
-	*class = ata_sff_dev_classify(link->device, 1, NULL);
+	rc = sata_link_hardreset(link, timing, deadline, &online,
+				 ata_sff_check_ready);
+	*class = ATA_DEV_NONE;
+	if (online)
+		*class = ata_sff_dev_classify(link->device, 1, NULL);
 
 	DPRINTK("EXIT, class=%u\n", *class);
-	return 0;
+	return rc;
 }
 
 /**
