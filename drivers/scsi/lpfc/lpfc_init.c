@@ -2371,6 +2371,7 @@ static pci_ers_result_t lpfc_io_slot_reset(struct pci_dev *pdev)
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 	struct lpfc_sli *psli = &phba->sli;
+	int error, retval;
 
 	dev_printk(KERN_INFO, &pdev->dev, "recovering from a slot reset.\n");
 	if (pci_enable_device_mem(pdev)) {
@@ -2385,6 +2386,36 @@ static pci_ers_result_t lpfc_io_slot_reset(struct pci_dev *pdev)
 	psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
 	spin_unlock_irq(&phba->hbalock);
 
+	/* Enable configured interrupt method */
+	phba->intr_type = NONE;
+	if (phba->cfg_use_msi == 2) {
+		error = lpfc_enable_msix(phba);
+		if (!error)
+			phba->intr_type = MSIX;
+	}
+
+	/* Fallback to MSI if MSI-X initialization failed */
+	if (phba->cfg_use_msi >= 1 && phba->intr_type == NONE) {
+		retval = pci_enable_msi(phba->pcidev);
+		if (!retval)
+			phba->intr_type = MSI;
+		else
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"0470 Enable MSI failed, continuing "
+					"with IRQ\n");
+	}
+
+	/* MSI-X is the only case the doesn't need to call request_irq */
+	if (phba->intr_type != MSIX) {
+		retval = request_irq(phba->pcidev->irq, lpfc_intr_handler,
+				     IRQF_SHARED, LPFC_DRIVER_NAME, phba);
+		if (retval) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"0471 Enable interrupt handler "
+					"failed\n");
+		} else if (phba->intr_type != MSI)
+			phba->intr_type = INTx;
+	}
 
 	/* Take device offline; this will perform cleanup */
 	lpfc_offline(phba);

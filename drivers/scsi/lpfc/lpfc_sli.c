@@ -3634,8 +3634,7 @@ lpfc_sli_abort_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 *  If the iocb is not found in Firmware queue the iocb
 		 *  might have completed already. Do not free it again.
 		 */
-		if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
-			(irsp->un.ulpWord[4] == IOERR_NO_XRI)) {
+		if (irsp->ulpStatus == IOSTAT_LOCAL_REJECT) {
 			spin_unlock_irq(&phba->hbalock);
 			lpfc_sli_release_iocbq(phba, cmdiocb);
 			return;
