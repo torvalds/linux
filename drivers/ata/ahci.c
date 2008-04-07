@@ -1256,6 +1256,16 @@ static int ahci_exec_polled_cmd(struct ata_port *ap, int pmp,
 	return 0;
 }
 
+static int ahci_check_ready(struct ata_link *link)
+{
+	void __iomem *mmio = link->ap->ioaddr.cmd_addr;
+	u8 status = readl(mmio + PORT_TFDATA) & 0xFF;
+
+	if (!(status & ATA_BUSY))
+		return 1;
+	return 0;
+}
+
 static int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 			     int pmp, unsigned long deadline)
 {
@@ -1303,7 +1313,7 @@ static int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 	ahci_exec_polled_cmd(ap, pmp, &tf, 0, 0, 0);
 
 	/* wait for link to become ready */
-	rc = ata_sff_wait_after_reset(link, 1, deadline);
+	rc = ata_wait_after_reset(link, deadline, ahci_check_ready);
 	/* link occupied, -ENODEV too is an error */
 	if (rc) {
 		reason = "device not ready";
@@ -1426,7 +1436,7 @@ static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
 	 * have to be reset again.  For most cases, this should
 	 * suffice while making probing snappish enough.
 	 */
-	rc = ata_sff_wait_after_reset(link, 1, jiffies + 2 * HZ);
+	rc = ata_wait_after_reset(link, jiffies + 2 * HZ, ahci_check_ready);
 	if (rc)
 		ahci_kick_engine(ap, 0);
 
