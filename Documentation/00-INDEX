@@ -319,8 +319,6 @@ robust-futexes.txt
 	- a description of what robust futexes are.
 rocket.txt
 	- info on the Comtrol RocketPort multiport serial driver.
-rpc-cache.txt
-	- introduction to the caching mechanisms in the sunrpc layer.
 rt-mutex-design.txt
 	- description of the RealTime mutex implementation design.
 rt-mutex.txt
