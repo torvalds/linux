@@ -709,14 +709,16 @@ static int udf_check_anchor_block(struct super_block *sb, sector_t block,
 static sector_t udf_scan_anchors(struct super_block *sb, bool varconv,
 					sector_t lastblock)
 {
-	sector_t last[4];
+	sector_t last[6];
 	int i;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 
 	last[0] = lastblock;
-	last[1] = last[0] - 2;
-	last[2] = last[0] - 150;
-	last[3] = last[0] - 152;
+	last[1] = last[0] - 1;
+	last[2] = last[0] + 1;
+	last[3] = last[0] - 2;
+	last[4] = last[0] - 150;
+	last[5] = last[0] - 152;
 
 	/*  according to spec, anchor is in either:
 	 *     block 256
@@ -726,6 +728,9 @@ static sector_t udf_scan_anchors(struct super_block *sb, bool varconv,
 
 	for (i = 0; i < ARRAY_SIZE(last); i++) {
 		if (last[i] < 0)
+			continue;
+		if (last[i] >= sb->s_bdev->bd_inode->i_size >>
+				sb->s_blocksize_bits)
 			continue;
 
 		if (udf_check_anchor_block(sb, last[i], varconv)) {
