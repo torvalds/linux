@@ -845,4 +845,11 @@ config SOC_CAMERA
 	  over a bus like PCI or USB. For example some i2c camera connected
 	  directly to the data bus of an SoC.
 
+config VIDEO_PXA27x
+	tristate "PXA27x Quick Capture Interface driver"
+	depends on VIDEO_DEV && PXA27x
+	select SOC_CAMERA
+	---help---
+	  This is a v4l2 driver for the PXA27x Quick Capture Interface
+
 endif # VIDEO_CAPTURE_DRIVERS
