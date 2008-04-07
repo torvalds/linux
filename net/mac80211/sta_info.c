@@ -424,36 +424,6 @@ void sta_info_clear_tim_bit(struct sta_info *sta)
 	spin_unlock_irqrestore(&sta->local->sta_lock, flags);
 }
 
-/*
- * See comment in __sta_info_unlink,
- * caller must hold local->sta_lock.
- */
-static void __sta_info_pin(struct sta_info *sta)
-{
-	WARN_ON(sta->pin_status != STA_INFO_PIN_STAT_NORMAL);
-	sta->pin_status = STA_INFO_PIN_STAT_PINNED;
-}
-
-/*
- * See comment in __sta_info_unlink, returns sta if it
- * needs to be destroyed.
- */
-static struct sta_info *__sta_info_unpin(struct sta_info *sta)
-{
-	struct sta_info *ret = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&sta->local->sta_lock, flags);
-	WARN_ON(sta->pin_status != STA_INFO_PIN_STAT_DESTROY &&
-		sta->pin_status != STA_INFO_PIN_STAT_PINNED);
-	if (sta->pin_status == STA_INFO_PIN_STAT_DESTROY)
-		ret = sta;
-	sta->pin_status = STA_INFO_PIN_STAT_NORMAL;
-	spin_unlock_irqrestore(&sta->local->sta_lock, flags);
-
-	return ret;
-}
-
 void __sta_info_unlink(struct sta_info **sta)
 {
 	struct ieee80211_local *local = (*sta)->local;
@@ -617,6 +587,36 @@ static void sta_info_cleanup(unsigned long data)
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
+/*
+ * See comment in __sta_info_unlink,
+ * caller must hold local->sta_lock.
+ */
+static void __sta_info_pin(struct sta_info *sta)
+{
+	WARN_ON(sta->pin_status != STA_INFO_PIN_STAT_NORMAL);
+	sta->pin_status = STA_INFO_PIN_STAT_PINNED;
+}
+
+/*
+ * See comment in __sta_info_unlink, returns sta if it
+ * needs to be destroyed.
+ */
+static struct sta_info *__sta_info_unpin(struct sta_info *sta)
+{
+	struct sta_info *ret = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sta->local->sta_lock, flags);
+	WARN_ON(sta->pin_status != STA_INFO_PIN_STAT_DESTROY &&
+		sta->pin_status != STA_INFO_PIN_STAT_PINNED);
+	if (sta->pin_status == STA_INFO_PIN_STAT_DESTROY)
+		ret = sta;
+	sta->pin_status = STA_INFO_PIN_STAT_NORMAL;
+	spin_unlock_irqrestore(&sta->local->sta_lock, flags);
+
+	return ret;
+}
+
 static void sta_info_debugfs_add_work(struct work_struct *work)
 {
 	struct ieee80211_local *local =
