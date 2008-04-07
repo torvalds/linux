@@ -944,7 +944,7 @@ static int sil24_pmp_hardreset(struct ata_link *link, unsigned int *class,
 		return rc;
 	}
 
-	return sata_pmp_std_hardreset(link, class, deadline);
+	return sata_std_hardreset(link, class, deadline);
 }
 
 static void sil24_freeze(struct ata_port *ap)

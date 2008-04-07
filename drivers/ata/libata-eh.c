@@ -2276,6 +2276,11 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	return rc;
 
  fail:
+	/* if SCR isn't accessible on a fan-out port, PMP needs to be reset */
+	if (!ata_is_host_link(link) &&
+	    sata_scr_read(link, SCR_STATUS, &sstatus))
+		rc = -ERESTART;
+
 	if (rc == -ERESTART || try >= max_tries)
 		goto out;
 

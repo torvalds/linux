@@ -91,7 +91,7 @@ const struct ata_port_operations sata_pmp_port_ops = {
 	.inherits		= &sata_port_ops,
 
 	.pmp_prereset		= ata_std_prereset,
-	.pmp_hardreset		= sata_pmp_std_hardreset,
+	.pmp_hardreset		= sata_std_hardreset,
 	.pmp_postreset		= ata_std_postreset,
 	.error_handler		= sata_pmp_error_handler,
 };
@@ -6307,7 +6307,6 @@ EXPORT_SYMBOL_GPL(ata_pci_device_resume);
 #endif /* CONFIG_PCI */
 
 EXPORT_SYMBOL_GPL(sata_pmp_qc_defer_cmd_switch);
-EXPORT_SYMBOL_GPL(sata_pmp_std_hardreset);
 EXPORT_SYMBOL_GPL(sata_pmp_error_handler);
 
 EXPORT_SYMBOL_GPL(__ata_ehi_push_desc);

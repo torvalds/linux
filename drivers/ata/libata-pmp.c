@@ -176,41 +176,6 @@ int sata_pmp_scr_write(struct ata_link *link, int reg, u32 val)
 }
 
 /**
- *	sata_pmp_std_hardreset - standard hardreset method for PMP link
- *	@link: link to be reset
- *	@class: resulting class of attached device
- *	@deadline: deadline jiffies for the operation
- *
- *	Hardreset PMP port @link.  Note that this function doesn't
- *	wait for BSY clearance.  There simply isn't a generic way to
- *	wait the event.  Instead, this function return -EAGAIN thus
- *	telling libata-EH to followup with softreset.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep)
- *
- *	RETURNS:
- *	0 on success, -errno otherwise.
- */
-int sata_pmp_std_hardreset(struct ata_link *link, unsigned int *class,
-			   unsigned long deadline)
-{
-	u32 tmp;
-	int rc;
-
-	DPRINTK("ENTER\n");
-
-	rc = sata_std_hardreset(link, class, deadline);
-
-	/* if SCR isn't accessible, we need to reset the PMP */
-	if (rc && rc != -EAGAIN && sata_scr_read(link, SCR_STATUS, &tmp))
-		rc = -ERESTART;
-
-	DPRINTK("EXIT, rc=%d\n", rc);
-	return rc;
-}
-
-/**
  *	sata_pmp_read_gscr - read GSCR block of SATA PMP
  *	@dev: PMP device
  *	@gscr: buffer to read GSCR block into
