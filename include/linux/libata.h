@@ -853,6 +853,8 @@ extern int sata_link_resume(struct ata_link *link, const unsigned long *params,
 extern int sata_link_hardreset(struct ata_link *link,
 			const unsigned long *timing, unsigned long deadline,
 			bool *online, int (*check_ready)(struct ata_link *));
+extern int sata_std_hardreset(struct ata_link *link, unsigned int *class,
+			      unsigned long deadline);
 extern void ata_std_postreset(struct ata_link *link, unsigned int *classes);
 extern void ata_port_disable(struct ata_port *);
 

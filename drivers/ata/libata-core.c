@@ -75,7 +75,6 @@ const unsigned long sata_deb_timing_long[]		= { 100, 2000, 5000 };
 
 const struct ata_port_operations ata_base_port_ops = {
 	.prereset		= ata_std_prereset,
-	.hardreset		= sata_sff_hardreset,
 	.postreset		= ata_std_postreset,
 	.error_handler		= ata_std_error_handler,
 };
@@ -84,6 +83,7 @@ const struct ata_port_operations sata_port_ops = {
 	.inherits		= &ata_base_port_ops,
 
 	.qc_defer		= ata_std_qc_defer,
+	.hardreset		= sata_std_hardreset,
 	.sff_dev_select		= ata_noop_dev_select,
 };
 
@@ -3661,6 +3661,33 @@ int sata_link_hardreset(struct ata_link *link, const unsigned long *timing,
 }
 
 /**
+ *	sata_std_hardreset - COMRESET w/o waiting or classification
+ *	@link: link to reset
+ *	@class: resulting class of attached device
+ *	@deadline: deadline jiffies for the operation
+ *
+ *	Standard SATA COMRESET w/o waiting or classification.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 if link offline, -EAGAIN if link online, -errno on errors.
+ */
+int sata_std_hardreset(struct ata_link *link, unsigned int *class,
+		       unsigned long deadline)
+{
+	const unsigned long *timing = sata_ehc_deb_timing(&link->eh_context);
+	bool online;
+	int rc;
+
+	/* do hardreset */
+	rc = sata_link_hardreset(link, timing, deadline, &online, NULL);
+	*class = ATA_DEV_NONE;
+	return online ? -EAGAIN : rc;
+}
+
+/**
  *	ata_std_postreset - standard postreset callback
  *	@link: the target ata_link
  *	@classes: classes of attached devices
@@ -6225,6 +6252,7 @@ EXPORT_SYMBOL_GPL(sata_link_debounce);
 EXPORT_SYMBOL_GPL(sata_link_resume);
 EXPORT_SYMBOL_GPL(ata_std_prereset);
 EXPORT_SYMBOL_GPL(sata_link_hardreset);
+EXPORT_SYMBOL_GPL(sata_std_hardreset);
 EXPORT_SYMBOL_GPL(ata_std_postreset);
 EXPORT_SYMBOL_GPL(ata_dev_classify);
 EXPORT_SYMBOL_GPL(ata_dev_pair);

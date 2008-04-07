@@ -49,6 +49,7 @@ const struct ata_port_operations ata_sff_port_ops = {
 	.thaw			= ata_sff_thaw,
 	.prereset		= ata_sff_prereset,
 	.softreset		= ata_sff_softreset,
+	.hardreset		= sata_sff_hardreset,
 	.postreset		= ata_sff_postreset,
 	.error_handler		= ata_sff_error_handler,
 	.post_internal_cmd	= ata_sff_post_internal_cmd,
@@ -2031,14 +2032,12 @@ void ata_sff_error_handler(struct ata_port *ap)
 
 	/* PIO and DMA engines have been stopped, perform recovery */
 
-	/* ata_sff_softreset and sata_sff_hardreset are inherited to
-	 * all SFF drivers from ata_sff_port_ops.  Ignore softreset if
-	 * ctl isn't accessible.  Ignore hardreset if SCR access isn't
-	 * available.
+	/* Ignore ata_sff_softreset if ctl isn't accessible and
+	 * built-in hardresets if SCR access isn't available.
 	 */
 	if (softreset == ata_sff_softreset && !ap->ioaddr.ctl_addr)
 		softreset = NULL;
-	if (hardreset == sata_sff_hardreset && !sata_scr_valid(&ap->link))
+	if (ata_is_builtin_hardreset(hardreset) && !sata_scr_valid(&ap->link))
 		hardreset = NULL;
 
 	ata_do_eh(ap, ap->ops->prereset, softreset, hardreset,

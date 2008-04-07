@@ -2857,11 +2857,8 @@ void ata_std_error_handler(struct ata_port *ap)
 	struct ata_port_operations *ops = ap->ops;
 	ata_reset_fn_t hardreset = ops->hardreset;
 
-	/* sata_std_hardreset is inherited to all drivers from
-	 * ata_base_port_ops.  Ignore it if SCR access is not
-	 * available.
-	 */
-	if (hardreset == sata_sff_hardreset && !sata_scr_valid(&ap->link))
+	/* ignore built-in hardreset if SCR access is not available */
+	if (ata_is_builtin_hardreset(hardreset) && !sata_scr_valid(&ap->link))
 		hardreset = NULL;
 
 	ata_do_eh(ap, ops->prereset, ops->softreset, hardreset, ops->postreset);

@@ -165,8 +165,6 @@ static void piix_set_dmamode(struct ata_port *ap, struct ata_device *adev);
 static void ich_set_dmamode(struct ata_port *ap, struct ata_device *adev);
 static int ich_pata_cable_detect(struct ata_port *ap);
 static u8 piix_vmw_bmdma_status(struct ata_port *ap);
-static int piix_sidpr_hardreset(struct ata_link *link, unsigned int *class,
-				unsigned long deadline);
 static int piix_sidpr_scr_read(struct ata_port *ap, unsigned int reg, u32 *val);
 static int piix_sidpr_scr_write(struct ata_port *ap, unsigned int reg, u32 val);
 #ifdef CONFIG_PM
@@ -319,7 +317,7 @@ static struct ata_port_operations piix_sata_ops = {
 
 static struct ata_port_operations piix_sidpr_sata_ops = {
 	.inherits		= &piix_sata_ops,
-	.hardreset		= piix_sidpr_hardreset,
+	.hardreset		= sata_std_hardreset,
 	.scr_read		= piix_sidpr_scr_read,
 	.scr_write		= piix_sidpr_scr_write,
 };
@@ -1013,29 +1011,6 @@ static int piix_sidpr_scr_write(struct ata_port *ap, unsigned int reg, u32 val)
 		piix_sidpr_write(&ap->link.device[1], reg, val);
 
 	return 0;
-}
-
-static int piix_sidpr_hardreset(struct ata_link *link, unsigned int *class,
-				unsigned long deadline)
-{
-	const unsigned long *timing = sata_ehc_deb_timing(&link->eh_context);
-	int rc;
-
-	/* do hardreset */
-	rc = sata_link_hardreset(link, timing, deadline, NULL, NULL);
-	if (rc) {
-		ata_link_printk(link, KERN_ERR,
-				"COMRESET failed (errno=%d)\n", rc);
-		return rc;
-	}
-
-	/* TODO: phy layer with polling, timeouts, etc. */
-	if (ata_link_offline(link)) {
-		*class = ATA_DEV_NONE;
-		return 0;
-	}
-
-	return -EAGAIN;
 }
 
 #ifdef CONFIG_PM
