@@ -199,7 +199,7 @@ static unsigned long serverworks_osb4_filter(struct ata_device *adev, unsigned l
 {
 	if (adev->class == ATA_DEV_ATA)
 		mask &= ~ATA_MASK_UDMA;
-	return ata_pci_default_filter(adev, mask);
+	return ata_bmdma_mode_filter(adev, mask);
 }
 
 
@@ -219,7 +219,7 @@ static unsigned long serverworks_csb_filter(struct ata_device *adev, unsigned lo
 
 	/* Disk, UDMA */
 	if (adev->class != ATA_DEV_ATA)
-		return ata_pci_default_filter(adev, mask);
+		return ata_bmdma_mode_filter(adev, mask);
 
 	/* Actually do need to check */
 	ata_id_c_string(adev->id, model_num, ATA_ID_PROD, sizeof(model_num));
@@ -228,7 +228,7 @@ static unsigned long serverworks_csb_filter(struct ata_device *adev, unsigned lo
 		if (!strcmp(p, model_num))
 			mask &= ~(0xE0 << ATA_SHIFT_UDMA);
 	}
-	return ata_pci_default_filter(adev, mask);
+	return ata_bmdma_mode_filter(adev, mask);
 }
 
 /**
@@ -459,9 +459,9 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 		serverworks_fixup_ht1000(pdev);
 
 	if (pdev->device == PCI_DEVICE_ID_SERVERWORKS_CSB5IDE)
-		ata_pci_clear_simplex(pdev);
+		ata_pci_bmdma_clear_simplex(pdev);
 
-	return ata_pci_init_one(pdev, ppi, &serverworks_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &serverworks_sht, NULL);
 }
 
 #ifdef CONFIG_PM
@@ -482,7 +482,7 @@ static int serverworks_reinit_one(struct pci_dev *pdev)
 			serverworks_fixup_osb4(pdev);
 			break;
 		case PCI_DEVICE_ID_SERVERWORKS_CSB5IDE:
-			ata_pci_clear_simplex(pdev);
+			ata_pci_bmdma_clear_simplex(pdev);
 			/* fall through */
 		case PCI_DEVICE_ID_SERVERWORKS_CSB6IDE:
 		case PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2:

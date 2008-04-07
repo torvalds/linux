@@ -226,12 +226,12 @@ static const struct ata_port_operations legacy_base_port_ops = {
 
 static struct ata_port_operations simple_port_ops = {
 	.inherits	= &legacy_base_port_ops,
-	.data_xfer	= ata_data_xfer_noirq,
+	.data_xfer	= ata_sff_data_xfer_noirq,
 };
 
 static struct ata_port_operations legacy_port_ops = {
 	.inherits	= &legacy_base_port_ops,
-	.data_xfer	= ata_data_xfer_noirq,
+	.data_xfer	= ata_sff_data_xfer_noirq,
 	.set_mode	= legacy_set_mode,
 };
 
@@ -317,7 +317,7 @@ static unsigned int pdc_data_xfer_vlb(struct ata_device *dev,
 		}
 		local_irq_restore(flags);
 	} else
-		buflen = ata_data_xfer_noirq(dev, buf, buflen, rw);
+		buflen = ata_sff_data_xfer_noirq(dev, buf, buflen, rw);
 
 	return buflen;
 }
@@ -579,7 +579,7 @@ static void opti82c46x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	opt82c465mv_qc_issue_prot	-	command issue
+ *	opt82c465mv_qc_issue		-	command issue
  *	@qc: command pending
  *
  *	Called when the libata layer is about to issue a command. We wrap
@@ -593,7 +593,7 @@ static void opti82c46x_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	FIXME: dual channel needs ->serialize support
  */
 
-static unsigned int opti82c46x_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int opti82c46x_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_device *adev = qc->dev;
@@ -604,13 +604,13 @@ static unsigned int opti82c46x_qc_issue_prot(struct ata_queued_cmd *qc)
 	    && ap->host->private_data != NULL)
 		opti82c46x_set_piomode(ap, adev);
 
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 static struct ata_port_operations opti82c46x_port_ops = {
 	.inherits	= &legacy_base_port_ops,
 	.set_piomode	= opti82c46x_set_piomode,
-	.qc_issue	= opti82c46x_qc_issue_prot,
+	.qc_issue	= opti82c46x_qc_issue,
 };
 
 static void qdi6500_set_piomode(struct ata_port *ap, struct ata_device *adev)
@@ -644,7 +644,7 @@ static void qdi6500_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	@irq: interrupt line
  *
  *	In dual channel mode the 6580 has one clock per channel and we have
- *	to software clockswitch in qc_issue_prot.
+ *	to software clockswitch in qc_issue.
  */
 
 static void qdi6580dp_set_piomode(struct ata_port *ap, struct ata_device *adev)
@@ -710,14 +710,14 @@ static void qdi6580_set_piomode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	qdi_qc_issue_prot	-	command issue
+ *	qdi_qc_issue		-	command issue
  *	@qc: command pending
  *
  *	Called when the libata layer is about to issue a command. We wrap
  *	this interface so that we can load the correct ATA timings.
  */
 
-static unsigned int qdi_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int qdi_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_device *adev = qc->dev;
@@ -730,7 +730,7 @@ static unsigned int qdi_qc_issue_prot(struct ata_queued_cmd *qc)
 							2 * ap->port_no);
 		}
 	}
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 static unsigned int vlb32_data_xfer(struct ata_device *adev, unsigned char *buf,
@@ -759,7 +759,7 @@ static unsigned int vlb32_data_xfer(struct ata_device *adev, unsigned char *buf,
 		}
 		return (buflen + 3) & ~3;
 	} else
-		return ata_data_xfer(adev, buf, buflen, rw);
+		return ata_sff_data_xfer(adev, buf, buflen, rw);
 }
 
 static int qdi_port(struct platform_device *dev,
@@ -774,7 +774,7 @@ static int qdi_port(struct platform_device *dev,
 static struct ata_port_operations qdi6500_port_ops = {
 	.inherits	= &legacy_base_port_ops,
 	.set_piomode	= qdi6500_set_piomode,
-	.qc_issue	= qdi_qc_issue_prot,
+	.qc_issue	= qdi_qc_issue,
 	.data_xfer	= vlb32_data_xfer,
 };
 
@@ -1016,13 +1016,13 @@ static __init int legacy_init_one(struct legacy_probe *probe)
 	ap->ioaddr.cmd_addr = io_addr;
 	ap->ioaddr.altstatus_addr = ctrl_addr;
 	ap->ioaddr.ctl_addr = ctrl_addr;
-	ata_std_ports(&ap->ioaddr);
+	ata_sff_std_ports(&ap->ioaddr);
 	ap->host->private_data = ld;
 
 	ata_port_desc(ap, "cmd 0x%lx ctl 0x%lx", io, io + 0x0206);
 
-	ret = ata_host_activate(host, probe->irq, ata_interrupt, 0,
-								&legacy_sht);
+	ret = ata_host_activate(host, probe->irq, ata_sff_interrupt, 0,
+				&legacy_sht);
 	if (ret)
 		goto fail;
 	ld->platform_dev = pdev;

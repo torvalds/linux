@@ -223,7 +223,7 @@ static int __init pata_at32_init_one(struct device *dev,
 	host->private_data = info;
 
 	/* Register ATA device and return */
-	return ata_host_activate(host, info->irq, ata_interrupt,
+	return ata_host_activate(host, info->irq, ata_sff_interrupt,
 				 IRQF_SHARED | IRQF_TRIGGER_RISING,
 				 &at32_sht);
 }

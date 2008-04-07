@@ -143,7 +143,7 @@ static void pdc_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile
 static int pdc_check_atapi_dma(struct ata_queued_cmd *qc);
 static int pdc_old_sata_check_atapi_dma(struct ata_queued_cmd *qc);
 static void pdc_irq_clear(struct ata_port *ap);
-static unsigned int pdc_qc_issue_prot(struct ata_queued_cmd *qc);
+static unsigned int pdc_qc_issue(struct ata_queued_cmd *qc);
 static void pdc_freeze(struct ata_port *ap);
 static void pdc_sata_freeze(struct ata_port *ap);
 static void pdc_thaw(struct ata_port *ap);
@@ -166,7 +166,7 @@ static const struct ata_port_operations pdc_common_ops = {
 	.exec_command		= pdc_exec_command_mmio,
 	.check_atapi_dma	= pdc_check_atapi_dma,
 	.qc_prep		= pdc_qc_prep,
-	.qc_issue		= pdc_qc_issue_prot,
+	.qc_issue		= pdc_qc_issue,
 	.irq_clear		= pdc_irq_clear,
 
 	.post_internal_cmd	= pdc_post_internal_cmd,
@@ -894,7 +894,7 @@ static inline void pdc_packet_start(struct ata_queued_cmd *qc)
 	readl(ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT); /* flush */
 }
 
-static unsigned int pdc_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int pdc_qc_issue(struct ata_queued_cmd *qc)
 {
 	switch (qc->tf.protocol) {
 	case ATAPI_PROT_NODATA:
@@ -914,20 +914,20 @@ static unsigned int pdc_qc_issue_prot(struct ata_queued_cmd *qc)
 		break;
 	}
 
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	WARN_ON(tf->protocol == ATA_PROT_DMA || tf->protocol == ATAPI_PROT_DMA);
-	ata_tf_load(ap, tf);
+	ata_sff_tf_load(ap, tf);
 }
 
 static void pdc_exec_command_mmio(struct ata_port *ap,
 				  const struct ata_taskfile *tf)
 {
 	WARN_ON(tf->protocol == ATA_PROT_DMA || tf->protocol == ATAPI_PROT_DMA);
-	ata_exec_command(ap, tf);
+	ata_sff_exec_command(ap, tf);
 }
 
 static int pdc_check_atapi_dma(struct ata_queued_cmd *qc)

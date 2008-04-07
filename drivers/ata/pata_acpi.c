@@ -47,7 +47,7 @@ static int pacpi_pre_reset(struct ata_link *link, unsigned long deadline)
 	if (ap->acpi_handle == NULL || ata_acpi_gtm(ap, &acpi->gtm) < 0)
 		return -ENODEV;
 
-	return ata_std_prereset(link, deadline);
+	return ata_sff_prereset(link, deadline);
 }
 
 /**
@@ -106,7 +106,7 @@ static unsigned long pacpi_discover_modes(struct ata_port *ap, struct ata_device
 static unsigned long pacpi_mode_filter(struct ata_device *adev, unsigned long mask)
 {
 	struct pata_acpi *acpi = adev->link->ap->private_data;
-	return ata_pci_default_filter(adev, mask & acpi->mask[adev->devno]);
+	return ata_bmdma_mode_filter(adev, mask & acpi->mask[adev->devno]);
 }
 
 /**
@@ -162,7 +162,7 @@ static void pacpi_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	pacpi_qc_issue_prot	-	command issue
+ *	pacpi_qc_issue	-	command issue
  *	@qc: command pending
  *
  *	Called when the libata layer is about to issue a command. We wrap
@@ -170,14 +170,14 @@ static void pacpi_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *	neccessary.
  */
 
-static unsigned int pacpi_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int pacpi_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_device *adev = qc->dev;
 	struct pata_acpi *acpi = ap->private_data;
 
 	if (acpi->gtm.flags & 0x10)
-		return ata_qc_issue_prot(qc);
+		return ata_sff_qc_issue(qc);
 
 	if (adev != acpi->last) {
 		pacpi_set_piomode(ap, adev);
@@ -185,7 +185,7 @@ static unsigned int pacpi_qc_issue_prot(struct ata_queued_cmd *qc)
 			pacpi_set_dmamode(ap, adev);
 		acpi->last = adev;
 	}
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 /**
@@ -223,7 +223,7 @@ static struct scsi_host_template pacpi_sht = {
 
 static struct ata_port_operations pacpi_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	.qc_issue		= pacpi_qc_issue_prot,
+	.qc_issue		= pacpi_qc_issue,
 	.cable_detect		= pacpi_cable_detect,
 	.mode_filter		= pacpi_mode_filter,
 	.set_piomode		= pacpi_set_piomode,
@@ -259,7 +259,7 @@ static int pacpi_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 		.port_ops	= &pacpi_ops,
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
-	return ata_pci_init_one(pdev, ppi, &pacpi_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &pacpi_sht, NULL);
 }
 
 static const struct pci_device_id pacpi_pci_tbl[] = {

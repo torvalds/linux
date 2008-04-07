@@ -174,7 +174,7 @@ static void svia_noop_freeze(struct ata_port *ap)
 	 * certain way.  Leave it alone and just clear pending IRQ.
 	 */
 	ap->ops->check_status(ap);
-	ata_bmdma_irq_clear(ap);
+	ata_sff_irq_clear(ap);
 }
 
 /**
@@ -242,7 +242,7 @@ static int vt6420_prereset(struct ata_link *link, unsigned long deadline)
 
  skip_scr:
 	/* wait for !BSY */
-	ata_wait_ready(ap, deadline);
+	ata_sff_wait_ready(ap, deadline);
 
 	return 0;
 }
@@ -304,7 +304,7 @@ static void vt6421_init_addrs(struct ata_port *ap)
 	ioaddr->bmdma_addr = bmdma_addr;
 	ioaddr->scr_addr = vt6421_scr_addr(iomap[5], ap->port_no);
 
-	ata_std_ports(ioaddr);
+	ata_sff_std_ports(ioaddr);
 
 	ata_port_pbar_desc(ap, ap->port_no, -1, "port");
 	ata_port_pbar_desc(ap, 4, ap->port_no * 8, "bmdma");
@@ -316,7 +316,7 @@ static int vt6420_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 	struct ata_host *host;
 	int rc;
 
-	rc = ata_pci_prepare_sff_host(pdev, ppi, &host);
+	rc = ata_pci_sff_prepare_host(pdev, ppi, &host);
 	if (rc)
 		return rc;
 	*r_host = host;
@@ -448,8 +448,8 @@ static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	svia_configure(pdev);
 
 	pci_set_master(pdev);
-	return ata_host_activate(host, pdev->irq, ata_interrupt, IRQF_SHARED,
-				 &svia_sht);
+	return ata_host_activate(host, pdev->irq, ata_sff_interrupt,
+				 IRQF_SHARED, &svia_sht);
 }
 
 static int __init svia_init(void)

@@ -270,7 +270,7 @@ static void pata_icside_bmdma_stop(struct ata_queued_cmd *qc)
 	disable_dma(state->dma);
 
 	/* see ata_bmdma_stop */
-	ata_altstatus(ap);
+	ata_sff_altstatus(ap);
 }
 
 static u8 pata_icside_bmdma_status(struct ata_port *ap)
@@ -316,7 +316,7 @@ static void pata_icside_postreset(struct ata_link *link, unsigned int *classes)
 	struct pata_icside_state *state = ap->host->private_data;
 
 	if (classes[0] != ATA_DEV_NONE || classes[1] != ATA_DEV_NONE)
-		return ata_std_postreset(link, classes);
+		return ata_sff_postreset(link, classes);
 
 	state->port[ap->port_no].disabled = 1;
 
@@ -336,7 +336,7 @@ static struct ata_port_operations pata_icside_port_ops = {
 	.inherits		= &ata_sff_port_ops,
 	/* no need to build any PRD tables for DMA */
 	.qc_prep		= ata_noop_qc_prep,
-	.data_xfer		= ata_data_xfer_noirq,
+	.data_xfer		= ata_sff_data_xfer_noirq,
 	.bmdma_setup		= pata_icside_bmdma_setup,
 	.bmdma_start		= pata_icside_bmdma_start,
 	.bmdma_stop		= pata_icside_bmdma_stop,
@@ -481,7 +481,7 @@ static int __devinit pata_icside_add_ports(struct pata_icside_info *info)
 		pata_icside_setup_ioaddr(ap, info->base, info, info->port[i]);
 	}
 
-	return ata_host_activate(host, ec->irq, ata_interrupt, 0,
+	return ata_host_activate(host, ec->irq, ata_sff_interrupt, 0,
 				 &pata_icside_sht);
 }
 

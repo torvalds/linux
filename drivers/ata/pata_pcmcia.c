@@ -133,7 +133,7 @@ static struct scsi_host_template pcmcia_sht = {
 
 static struct ata_port_operations pcmcia_port_ops = {
 	.inherits	= &ata_sff_port_ops,
-	.data_xfer	= ata_data_xfer_noirq,
+	.data_xfer	= ata_sff_data_xfer_noirq,
 	.cable_detect	= ata_cable_40wire,
 	.set_mode	= pcmcia_set_mode,
 };
@@ -323,13 +323,13 @@ next_entry:
 		ap->ioaddr.cmd_addr = io_addr + 0x10 * p;
 		ap->ioaddr.altstatus_addr = ctl_addr + 0x10 * p;
 		ap->ioaddr.ctl_addr = ctl_addr + 0x10 * p;
-		ata_std_ports(&ap->ioaddr);
+		ata_sff_std_ports(&ap->ioaddr);
 
 		ata_port_desc(ap, "cmd 0x%lx ctl 0x%lx", io_base, ctl_base);
 	}
 
 	/* activate */
-	ret = ata_host_activate(host, pdev->irq.AssignedIRQ, ata_interrupt,
+	ret = ata_host_activate(host, pdev->irq.AssignedIRQ, ata_sff_interrupt,
 				IRQF_SHARED, &pcmcia_sht);
 	if (ret)
 		goto failed;

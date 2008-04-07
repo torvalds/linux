@@ -349,7 +349,7 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	class_rev &= 0xFF;
 
 	if (id->driver_data == 0)	/* 643 */
-		ata_pci_clear_simplex(pdev);
+		ata_pci_bmdma_clear_simplex(pdev);
 
 	if (pdev->device == PCI_DEVICE_ID_CMD_646) {
 		/* Does UDMA work ? */
@@ -373,7 +373,7 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_write_config_byte(pdev, UDIDETCR0, 0xF0);
 #endif
 
-	return ata_pci_init_one(pdev, ppi, &cmd64x_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &cmd64x_sht, NULL);
 }
 
 #ifdef CONFIG_PM

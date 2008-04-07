@@ -210,7 +210,7 @@ static int via_pre_reset(struct ata_link *link, unsigned long deadline)
 			return -ENOENT;
 	}
 
-	return ata_std_prereset(link, deadline);
+	return ata_sff_prereset(link, deadline);
 }
 
 
@@ -336,7 +336,7 @@ static struct ata_port_operations via_port_ops = {
 
 static struct ata_port_operations via_port_ops_noirq = {
 	.inherits	= &via_port_ops,
-	.data_xfer	= ata_data_xfer_noirq,
+	.data_xfer	= ata_sff_data_xfer_noirq,
 };
 
 /**
@@ -511,7 +511,7 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* We have established the device type, now fire it up */
-	return ata_pci_init_one(pdev, ppi, &via_sht, (void *)config);
+	return ata_pci_sff_init_one(pdev, ppi, &via_sht, (void *)config);
 }
 
 #ifdef CONFIG_PM

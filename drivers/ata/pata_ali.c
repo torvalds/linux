@@ -121,7 +121,7 @@ static unsigned long ali_20_filter(struct ata_device *adev, unsigned long mask)
 	ata_id_c_string(adev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 	if (strstr(model_num, "WDC"))
 		return mask &= ~ATA_MASK_UDMA;
-	return ata_pci_default_filter(adev, mask);
+	return ata_bmdma_mode_filter(adev, mask);
 }
 
 /**
@@ -449,7 +449,7 @@ static void ali_init_chipset(struct pci_dev *pdev)
 	}
 	pci_dev_put(isa_bridge);
 	pci_dev_put(north);
-	ata_pci_clear_simplex(pdev);
+	ata_pci_bmdma_clear_simplex(pdev);
 }
 /**
  *	ali_init_one		-	discovery callback
@@ -552,7 +552,7 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	        	ppi[0] = &info_20_udma;
 		pci_dev_put(isa_bridge);
 	}
-	return ata_pci_init_one(pdev, ppi, &ali_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &ali_sht, NULL);
 }
 
 #ifdef CONFIG_PM

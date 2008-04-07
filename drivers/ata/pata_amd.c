@@ -143,7 +143,7 @@ static int amd_pre_reset(struct ata_link *link, unsigned long deadline)
 	if (!pci_test_config_bits(pdev, &amd_enable_bits[ap->port_no]))
 		return -ENOENT;
 
-	return ata_std_prereset(link, deadline);
+	return ata_sff_prereset(link, deadline);
 }
 
 static int amd_cable_detect(struct ata_port *ap)
@@ -293,7 +293,7 @@ static int nv_pre_reset(struct ata_link *link, unsigned long deadline)
 	if (!pci_test_config_bits(pdev, &nv_enable_bits[ap->port_no]))
 		return -ENOENT;
 
-	return ata_std_prereset(link, deadline);
+	return ata_sff_prereset(link, deadline);
 }
 
 /**
@@ -503,7 +503,7 @@ static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ppi[0] = &info[type];
 
 	if (type < 3)
-		ata_pci_clear_simplex(pdev);
+		ata_pci_bmdma_clear_simplex(pdev);
 
 	/* Check for AMD7411 */
 	if (type == 3)
@@ -523,7 +523,7 @@ static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* And fire it up */
-	return ata_pci_init_one(pdev, ppi, &amd_sht, hpriv);
+	return ata_pci_sff_init_one(pdev, ppi, &amd_sht, hpriv);
 }
 
 #ifdef CONFIG_PM
@@ -546,7 +546,7 @@ static int amd_reinit_one(struct pci_dev *pdev)
 			pci_write_config_byte(pdev, 0x41, fifo | 0xF0);
 		if (pdev->device == PCI_DEVICE_ID_AMD_VIPER_7409 ||
 		    pdev->device == PCI_DEVICE_ID_AMD_COBRA_7401)
-		    	ata_pci_clear_simplex(pdev);
+			ata_pci_bmdma_clear_simplex(pdev);
 	}
 
 	ata_host_resume(host);

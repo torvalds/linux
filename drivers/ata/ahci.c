@@ -1303,9 +1303,9 @@ static int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 	ahci_exec_polled_cmd(ap, pmp, &tf, 0, 0, 0);
 
 	/* wait a while before checking status */
-	ata_wait_after_reset(ap, deadline);
+	ata_sff_wait_after_reset(ap, deadline);
 
-	rc = ata_wait_ready(ap, deadline);
+	rc = ata_sff_wait_ready(ap, deadline);
 	/* link occupied, -ENODEV too is an error */
 	if (rc) {
 		reason = "device not ready";
@@ -1350,7 +1350,7 @@ static int ahci_hardreset(struct ata_link *link, unsigned int *class,
 	tf.command = 0x80;
 	ata_tf_to_fis(&tf, 0, 0, d2h_fis);
 
-	rc = sata_std_hardreset(link, class, deadline);
+	rc = sata_sff_hardreset(link, class, deadline);
 
 	ahci_start_engine(ap);
 
@@ -1431,7 +1431,7 @@ static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
 	 * have to be reset again.  For most cases, this should
 	 * suffice while making probing snappish enough.
 	 */
-	rc = ata_wait_ready(ap, jiffies + 2 * HZ);
+	rc = ata_sff_wait_ready(ap, jiffies + 2 * HZ);
 	if (rc)
 		ahci_kick_engine(ap, 0);
 
@@ -1444,7 +1444,7 @@ static void ahci_postreset(struct ata_link *link, unsigned int *class)
 	void __iomem *port_mmio = ahci_port_base(ap);
 	u32 new_tmp, tmp;
 
-	ata_std_postreset(link, class);
+	ata_sff_postreset(link, class);
 
 	/* Make sure port's ATAPI bit is set appropriately */
 	new_tmp = tmp = readl(port_mmio + PORT_CMD);

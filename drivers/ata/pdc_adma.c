@@ -208,7 +208,7 @@ static void adma_reinit_engine(struct ata_port *ap)
 
 	/* mask/clear ATA interrupts */
 	writeb(ATA_NIEN, ap->ioaddr.ctl_addr);
-	ata_check_status(ap);
+	ata_sff_check_status(ap);
 
 	/* reset the ADMA engine */
 	adma_reset_engine(ap);
@@ -243,7 +243,7 @@ static void adma_freeze(struct ata_port *ap)
 
 	/* mask/clear ATA interrupts */
 	writeb(ATA_NIEN, ap->ioaddr.ctl_addr);
-	ata_check_status(ap);
+	ata_sff_check_status(ap);
 
 	/* reset ADMA to idle state */
 	writew(aPIOMD4 | aNIEN | aRSTADM, chan + ADMA_CONTROL);
@@ -266,7 +266,7 @@ static int adma_prereset(struct ata_link *link, unsigned long deadline)
 		pp->state = adma_state_mmio;
 	adma_reinit_engine(ap);
 
-	return ata_std_prereset(link, deadline);
+	return ata_sff_prereset(link, deadline);
 }
 
 static int adma_fill_sg(struct ata_queued_cmd *qc)
@@ -322,7 +322,7 @@ static void adma_qc_prep(struct ata_queued_cmd *qc)
 
 	adma_enter_reg_mode(qc->ap);
 	if (qc->tf.protocol != ATA_PROT_DMA) {
-		ata_qc_prep(qc);
+		ata_sff_qc_prep(qc);
 		return;
 	}
 
@@ -421,7 +421,7 @@ static unsigned int adma_qc_issue(struct ata_queued_cmd *qc)
 	}
 
 	pp->state = adma_state_mmio;
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 static inline unsigned int adma_intr_pkt(struct ata_host *host)
@@ -492,7 +492,7 @@ static inline unsigned int adma_intr_mmio(struct ata_host *host)
 			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
 
 				/* check main status, clearing INTRQ */
-				u8 status = ata_check_status(ap);
+				u8 status = ata_sff_check_status(ap);
 				if ((status & ATA_BUSY))
 					continue;
 				DPRINTK("ata%u: protocol %d (dev_stat 0x%X)\n",

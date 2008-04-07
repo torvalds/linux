@@ -492,8 +492,8 @@ static int k2_sata_init_one(struct pci_dev *pdev, const struct pci_device_id *en
 	writel(0x0, mmio_base + K2_SATA_SIM_OFFSET);
 
 	pci_set_master(pdev);
-	return ata_host_activate(host, pdev->irq, ata_interrupt, IRQF_SHARED,
-				 &k2_sata_sht);
+	return ata_host_activate(host, pdev->irq, ata_sff_interrupt,
+				 IRQF_SHARED, &k2_sata_sht);
 }
 
 /* 0x240 is device ID for Apple K2 device

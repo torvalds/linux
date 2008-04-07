@@ -57,7 +57,7 @@ static inline void rb500_pata_finish_io(struct ata_port *ap)
 	struct ata_host *ah = ap->host;
 	struct rb500_cf_info *info = ah->private_data;
 
-	ata_altstatus(ap);
+	ata_sff_altstatus(ap);
 	ndelay(RB500_CF_IO_DELAY);
 
 	set_irq_type(info->irq, IRQ_TYPE_LEVEL_HIGH);
@@ -109,7 +109,7 @@ static irqreturn_t rb500_pata_irq_handler(int irq, void *dev_instance)
 	if (gpio_get_value(info->gpio_line)) {
 		set_irq_type(info->irq, IRQ_TYPE_LEVEL_LOW);
 		if (!info->frozen)
-			ata_interrupt(info->irq, dev_instance);
+			ata_sff_interrupt(info->irq, dev_instance);
 	} else {
 		set_irq_type(info->irq, IRQ_TYPE_LEVEL_HIGH);
 	}
@@ -148,7 +148,7 @@ static void rb500_pata_setup_ports(struct ata_host *ah)
 	ap->ioaddr.ctl_addr	= info->iobase + RB500_CF_REG_CTRL;
 	ap->ioaddr.altstatus_addr = info->iobase + RB500_CF_REG_CTRL;
 
-	ata_std_ports(&ap->ioaddr);
+	ata_sff_std_ports(&ap->ioaddr);
 
 	ap->ioaddr.data_addr	= info->iobase + RB500_CF_REG_DATA;
 }

@@ -156,7 +156,7 @@ static void radisys_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	radisys_qc_issue_prot	-	command issue
+ *	radisys_qc_issue	-	command issue
  *	@qc: command pending
  *
  *	Called when the libata layer is about to issue a command. We wrap
@@ -166,7 +166,7 @@ static void radisys_set_dmamode (struct ata_port *ap, struct ata_device *adev)
  *	be made PIO0.
  */
 
-static unsigned int radisys_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int radisys_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_device *adev = qc->dev;
@@ -180,7 +180,7 @@ static unsigned int radisys_qc_issue_prot(struct ata_queued_cmd *qc)
 				radisys_set_piomode(ap, adev);
 		}
 	}
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 
@@ -190,7 +190,7 @@ static struct scsi_host_template radisys_sht = {
 
 static struct ata_port_operations radisys_pata_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	.qc_issue		= radisys_qc_issue_prot,
+	.qc_issue		= radisys_qc_issue,
 	.cable_detect		= ata_cable_unknown,
 	.set_piomode		= radisys_set_piomode,
 	.set_dmamode		= radisys_set_dmamode,
@@ -228,7 +228,7 @@ static int radisys_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "version " DRV_VERSION "\n");
 
-	return ata_pci_init_one(pdev, ppi, &radisys_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &radisys_sht, NULL);
 }
 
 static const struct pci_device_id radisys_pci_tbl[] = {

@@ -271,7 +271,7 @@ static void inic_host_intr(struct ata_port *ap)
 			return;
 		}
 
-		if (likely(ata_host_intr(ap, qc)))
+		if (likely(ata_sff_host_intr(ap, qc)))
 			return;
 
 		ap->ops->check_status(ap); /* clear ATA interrupt */
@@ -356,7 +356,7 @@ static unsigned int inic_qc_issue(struct ata_queued_cmd *qc)
 			return AC_ERR_HSM;
 	}
 
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 static void inic_freeze(struct ata_port *ap)
@@ -418,9 +418,9 @@ static int inic_hardreset(struct ata_link *link, unsigned int *class,
 		struct ata_taskfile tf;
 
 		/* wait a while before checking status */
-		ata_wait_after_reset(ap, deadline);
+		ata_sff_wait_after_reset(ap, deadline);
 
-		rc = ata_wait_ready(ap, deadline);
+		rc = ata_sff_wait_ready(ap, deadline);
 		/* link occupied, -ENODEV too is an error */
 		if (rc) {
 			ata_link_printk(link, KERN_WARNING, "device not ready "
@@ -428,7 +428,7 @@ static int inic_hardreset(struct ata_link *link, unsigned int *class,
 			return rc;
 		}
 
-		ata_tf_read(ap, &tf);
+		ata_sff_tf_read(ap, &tf);
 		*class = ata_dev_classify(&tf);
 		if (*class == ATA_DEV_UNKNOWN)
 			*class = ATA_DEV_NONE;
@@ -663,7 +663,7 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			((unsigned long)iomap[2 * i + 1] | ATA_PCI_CTL_OFS);
 		port->scr_addr = iomap[MMIO_BAR] + offset + PORT_SCR;
 
-		ata_std_ports(port);
+		ata_sff_std_ports(port);
 
 		ata_port_pbar_desc(ap, MMIO_BAR, -1, "mmio");
 		ata_port_pbar_desc(ap, MMIO_BAR, offset, "port");

@@ -68,10 +68,10 @@ static int netcell_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		return rc;
 
 	/* Any chip specific setup/optimisation/messages here */
-	ata_pci_clear_simplex(pdev);
+	ata_pci_bmdma_clear_simplex(pdev);
 
 	/* And let the library code do the work */
-	return ata_pci_init_one(pdev, port_info, &netcell_sht, NULL);
+	return ata_pci_sff_init_one(pdev, port_info, &netcell_sht, NULL);
 }
 
 static const struct pci_device_id netcell_pci_tbl[] = {

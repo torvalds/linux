@@ -395,11 +395,11 @@ static void it821x_passthru_dev_select(struct ata_port *ap,
 		it821x_program(ap, adev, itdev->pio[adev->devno]);
 		itdev->last_device = device;
 	}
-	ata_std_dev_select(ap, device);
+	ata_sff_dev_select(ap, device);
 }
 
 /**
- *	it821x_smart_qc_issue_prot	-	wrap qc issue prot
+ *	it821x_smart_qc_issue		-	wrap qc issue prot
  *	@qc: command
  *
  *	Wrap the command issue sequence for the IT821x. We need to
@@ -407,7 +407,7 @@ static void it821x_passthru_dev_select(struct ata_port *ap,
  *	usual happenings kick off
  */
 
-static unsigned int it821x_smart_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int it821x_smart_qc_issue(struct ata_queued_cmd *qc)
 {
 	switch(qc->tf.command)
 	{
@@ -427,14 +427,14 @@ static unsigned int it821x_smart_qc_issue_prot(struct ata_queued_cmd *qc)
 		case ATA_CMD_ID_ATA:
 		/* Arguably should just no-op this one */
 		case ATA_CMD_SET_FEATURES:
-			return ata_qc_issue_prot(qc);
+			return ata_sff_qc_issue(qc);
 	}
 	printk(KERN_DEBUG "it821x: can't process command 0x%02X\n", qc->tf.command);
 	return AC_ERR_DEV;
 }
 
 /**
- *	it821x_passthru_qc_issue_prot	-	wrap qc issue prot
+ *	it821x_passthru_qc_issue	-	wrap qc issue prot
  *	@qc: command
  *
  *	Wrap the command issue sequence for the IT821x. We need to
@@ -442,10 +442,10 @@ static unsigned int it821x_smart_qc_issue_prot(struct ata_queued_cmd *qc)
  *	usual happenings kick off
  */
 
-static unsigned int it821x_passthru_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int it821x_passthru_qc_issue(struct ata_queued_cmd *qc)
 {
 	it821x_passthru_dev_select(qc->ap, qc->dev->devno);
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 /**
@@ -639,7 +639,7 @@ static struct ata_port_operations it821x_smart_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
 
 	.check_atapi_dma= it821x_check_atapi_dma,
-	.qc_issue	= it821x_smart_qc_issue_prot,
+	.qc_issue	= it821x_smart_qc_issue,
 
 	.cable_detect	= it821x_ident_hack,
 	.set_mode	= it821x_smart_set_mode,
@@ -655,7 +655,7 @@ static struct ata_port_operations it821x_passthru_port_ops = {
 	.dev_select 	= it821x_passthru_dev_select,
 	.bmdma_start 	= it821x_passthru_bmdma_start,
 	.bmdma_stop	= it821x_passthru_bmdma_stop,
-	.qc_issue	= it821x_passthru_qc_issue_prot,
+	.qc_issue	= it821x_passthru_qc_issue,
 
 	.cable_detect	= ata_cable_unknown,
 	.set_piomode	= it821x_passthru_set_piomode,
@@ -722,7 +722,7 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	else
 		ppi[0] = &info_smart;
 
-	return ata_pci_init_one(pdev, ppi, &it821x_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &it821x_sht, NULL);
 }
 
 #ifdef CONFIG_PM

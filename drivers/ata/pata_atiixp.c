@@ -45,7 +45,7 @@ static int atiixp_pre_reset(struct ata_link *link, unsigned long deadline)
 	if (!pci_test_config_bits(pdev, &atiixp_enable_bits[ap->port_no]))
 		return -ENOENT;
 
-	return ata_std_prereset(link, deadline);
+	return ata_sff_prereset(link, deadline);
 }
 
 static int atiixp_cable_detect(struct ata_port *ap)
@@ -223,7 +223,7 @@ static struct scsi_host_template atiixp_sht = {
 static struct ata_port_operations atiixp_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
 
-	.qc_prep 	= ata_dumb_qc_prep,
+	.qc_prep 	= ata_sff_dumb_qc_prep,
 	.bmdma_start 	= atiixp_bmdma_start,
 	.bmdma_stop	= atiixp_bmdma_stop,
 
@@ -243,7 +243,7 @@ static int atiixp_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.port_ops = &atiixp_port_ops
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
-	return ata_pci_init_one(dev, ppi, &atiixp_sht, NULL);
+	return ata_pci_sff_init_one(dev, ppi, &atiixp_sht, NULL);
 }
 
 static const struct pci_device_id atiixp[] = {

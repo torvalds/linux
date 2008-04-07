@@ -52,7 +52,7 @@ static struct scsi_host_template pata_platform_sht = {
 
 static struct ata_port_operations pata_platform_port_ops = {
 	.inherits		= &ata_sff_port_ops,
-	.data_xfer		= ata_data_xfer_noirq,
+	.data_xfer		= ata_sff_data_xfer_noirq,
 	.cable_detect		= ata_cable_unknown,
 	.set_mode		= pata_platform_set_mode,
 	.port_start		= ATA_OP_NULL,
@@ -176,7 +176,7 @@ int __devinit __pata_platform_probe(struct device *dev,
 		      (unsigned long long)ctl_res->start);
 
 	/* activate */
-	return ata_host_activate(host, irq, irq ? ata_interrupt : NULL,
+	return ata_host_activate(host, irq, irq ? ata_sff_interrupt : NULL,
 				 irq_flags, &pata_platform_sht);
 }
 EXPORT_SYMBOL_GPL(__pata_platform_probe);

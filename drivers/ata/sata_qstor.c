@@ -239,7 +239,7 @@ static int qs_prereset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap = link->ap;
 
 	qs_reset_channel_logic(ap);
-	return ata_std_prereset(link, deadline);
+	return ata_sff_prereset(link, deadline);
 }
 
 static int qs_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
@@ -303,7 +303,7 @@ static void qs_qc_prep(struct ata_queued_cmd *qc)
 
 	qs_enter_reg_mode(qc->ap);
 	if (qc->tf.protocol != ATA_PROT_DMA) {
-		ata_qc_prep(qc);
+		ata_sff_qc_prep(qc);
 		return;
 	}
 
@@ -362,7 +362,7 @@ static unsigned int qs_qc_issue(struct ata_queued_cmd *qc)
 	}
 
 	pp->state = qs_state_mmio;
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 static void qs_do_or_die(struct ata_queued_cmd *qc, u8 status)
@@ -451,7 +451,7 @@ static inline unsigned int qs_intr_mmio(struct ata_host *host)
 				 * and pretend we knew it was ours.. (ugh).
 				 * This does not affect packet mode.
 				 */
-				ata_check_status(ap);
+				ata_sff_check_status(ap);
 				handled = 1;
 				continue;
 			}
@@ -459,7 +459,7 @@ static inline unsigned int qs_intr_mmio(struct ata_host *host)
 			if (!pp || pp->state != qs_state_mmio)
 				continue;
 			if (!(qc->tf.flags & ATA_TFLAG_POLLING))
-				handled |= ata_host_intr(ap, qc);
+				handled |= ata_sff_host_intr(ap, qc);
 		}
 	}
 	return handled;

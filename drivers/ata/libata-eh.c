@@ -2861,7 +2861,7 @@ void ata_std_error_handler(struct ata_port *ap)
 	 * ata_base_port_ops.  Ignore it if SCR access is not
 	 * available.
 	 */
-	if (hardreset == sata_std_hardreset && !sata_scr_valid(&ap->link))
+	if (hardreset == sata_sff_hardreset && !sata_scr_valid(&ap->link))
 		hardreset = NULL;
 
 	ata_do_eh(ap, ops->prereset, ops->softreset, hardreset, ops->postreset);

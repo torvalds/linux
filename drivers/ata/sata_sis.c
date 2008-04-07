@@ -309,7 +309,7 @@ static int sis_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	}
 
-	rc = ata_pci_prepare_sff_host(pdev, ppi, &host);
+	rc = ata_pci_sff_prepare_host(pdev, ppi, &host);
 	if (rc)
 		return rc;
 
@@ -327,8 +327,8 @@ static int sis_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 	pci_intx(pdev, 1);
-	return ata_host_activate(host, pdev->irq, ata_interrupt, IRQF_SHARED,
-				 &sis_sht);
+	return ata_host_activate(host, pdev->irq, ata_sff_interrupt,
+				 IRQF_SHARED, &sis_sht);
 }
 
 static int __init sis_init(void)

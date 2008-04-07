@@ -50,7 +50,7 @@ static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev
 
 	if (pnp_irq_valid(idev, 0)) {
 		irq = pnp_irq(idev, 0);
-		handler = ata_interrupt;
+		handler = ata_sff_interrupt;
 	}
 
 	/* allocate host */
@@ -78,7 +78,7 @@ static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev
 		ap->ioaddr.ctl_addr = ctl_addr;
 	}
 
-	ata_std_ports(&ap->ioaddr);
+	ata_sff_std_ports(&ap->ioaddr);
 
 	ata_port_desc(ap, "cmd 0x%llx ctl 0x%llx",
 		      (unsigned long long)pnp_port_start(idev, 0),

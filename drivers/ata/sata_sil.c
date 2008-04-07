@@ -410,10 +410,10 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 		goto err_hsm;
 
 	/* ack bmdma irq events */
-	ata_bmdma_irq_clear(ap);
+	ata_sff_irq_clear(ap);
 
 	/* kick HSM in the ass */
-	ata_hsm_move(ap, qc, status, 0);
+	ata_sff_hsm_move(ap, qc, status, 0);
 
 	if (unlikely(qc->err_mask) && ata_is_dma(qc->tf.protocol))
 		ata_ehi_push_desc(ehi, "BMDMA2 stat 0x%x", bmdma2);
@@ -481,7 +481,7 @@ static void sil_thaw(struct ata_port *ap)
 
 	/* clear IRQ */
 	ap->ops->check_status(ap);
-	ata_bmdma_irq_clear(ap);
+	ata_sff_irq_clear(ap);
 
 	/* turn on SATA IRQ if supported */
 	if (!(ap->flags & SIL_FLAG_NO_SATA_IRQ))
@@ -655,7 +655,7 @@ static int sil_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ioaddr->ctl_addr = mmio_base + sil_port[i].ctl;
 		ioaddr->bmdma_addr = mmio_base + sil_port[i].bmdma;
 		ioaddr->scr_addr = mmio_base + sil_port[i].scr;
-		ata_std_ports(ioaddr);
+		ata_sff_std_ports(ioaddr);
 
 		ata_port_pbar_desc(ap, SIL_MMIO_BAR, -1, "mmio");
 		ata_port_pbar_desc(ap, SIL_MMIO_BAR, sil_port[i].tf, "tf");

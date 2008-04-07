@@ -156,7 +156,7 @@ static int sis_pre_reset(struct ata_link *link, unsigned long deadline)
 	/* Clear the FIFO settings. We can't enable the FIFO until
 	   we know we are poking at a disk */
 	pci_write_config_byte(pdev, 0x4B, 0);
-	return ata_std_prereset(link, deadline);
+	return ata_sff_prereset(link, deadline);
 }
 
 
@@ -821,7 +821,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	sis_fixup(pdev, chipset);
 
-	return ata_pci_init_one(pdev, ppi, &sis_sht, chipset);
+	return ata_pci_sff_init_one(pdev, ppi, &sis_sht, chipset);
 }
 
 static const struct pci_device_id sis_pci_tbl[] = {

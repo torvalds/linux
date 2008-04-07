@@ -102,14 +102,14 @@ static void qdi6580_set_piomode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	qdi_qc_issue_prot	-	command issue
+ *	qdi_qc_issue		-	command issue
  *	@qc: command pending
  *
  *	Called when the libata layer is about to issue a command. We wrap
  *	this interface so that we can load the correct ATA timings.
  */
 
-static unsigned int qdi_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int qdi_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_device *adev = qc->dev;
@@ -121,7 +121,7 @@ static unsigned int qdi_qc_issue_prot(struct ata_queued_cmd *qc)
 			outb(qdi->clock[adev->devno], qdi->timing);
 		}
 	}
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 static unsigned int qdi_data_xfer(struct ata_device *dev, unsigned char *buf,
@@ -148,7 +148,7 @@ static unsigned int qdi_data_xfer(struct ata_device *dev, unsigned char *buf,
 			buflen += 4 - slop;
 		}
 	} else
-		buflen = ata_data_xfer(dev, buf, buflen, rw);
+		buflen = ata_sff_data_xfer(dev, buf, buflen, rw);
 
 	return buflen;
 }
@@ -159,7 +159,7 @@ static struct scsi_host_template qdi_sht = {
 
 static struct ata_port_operations qdi6500_port_ops = {
 	.inherits	= &ata_sff_port_ops,
-	.qc_issue	= qdi_qc_issue_prot,
+	.qc_issue	= qdi_qc_issue,
 	.data_xfer	= qdi_data_xfer,
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= qdi6500_set_piomode,
@@ -223,7 +223,7 @@ static __init int qdi_init_one(unsigned long port, int type, unsigned long io, i
 	ap->ioaddr.cmd_addr = io_addr;
 	ap->ioaddr.altstatus_addr = ctl_addr;
 	ap->ioaddr.ctl_addr = ctl_addr;
-	ata_std_ports(&ap->ioaddr);
+	ata_sff_std_ports(&ap->ioaddr);
 
 	ata_port_desc(ap, "cmd %lx ctl %lx", io, ctl);
 
@@ -239,7 +239,7 @@ static __init int qdi_init_one(unsigned long port, int type, unsigned long io, i
 	printk(KERN_INFO DRV_NAME": qd%d at 0x%lx.\n", type, io);
 
 	/* activate */
-	ret = ata_host_activate(host, irq, ata_interrupt, 0, &qdi_sht);
+	ret = ata_host_activate(host, irq, ata_sff_interrupt, 0, &qdi_sht);
 	if (ret)
 		goto fail;
 

@@ -175,11 +175,11 @@ static int uli_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	host->private_data = hpriv;
 
 	/* the first two ports are standard SFF */
-	rc = ata_pci_init_sff_host(host);
+	rc = ata_pci_sff_init_host(host);
 	if (rc)
 		return rc;
 
-	rc = ata_pci_init_bmdma(host);
+	rc = ata_pci_bmdma_init(host);
 	if (rc)
 		return rc;
 
@@ -200,7 +200,7 @@ static int uli_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			((unsigned long)iomap[1] | ATA_PCI_CTL_OFS) + 4;
 		ioaddr->bmdma_addr = iomap[4] + 16;
 		hpriv->scr_cfg_addr[2] = ULI5287_BASE + ULI5287_OFFS*4;
-		ata_std_ports(ioaddr);
+		ata_sff_std_ports(ioaddr);
 
 		ata_port_desc(host->ports[2],
 			"cmd 0x%llx ctl 0x%llx bmdma 0x%llx",
@@ -215,7 +215,7 @@ static int uli_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			((unsigned long)iomap[3] | ATA_PCI_CTL_OFS) + 4;
 		ioaddr->bmdma_addr = iomap[4] + 24;
 		hpriv->scr_cfg_addr[3] = ULI5287_BASE + ULI5287_OFFS*5;
-		ata_std_ports(ioaddr);
+		ata_sff_std_ports(ioaddr);
 
 		ata_port_desc(host->ports[2],
 			"cmd 0x%llx ctl 0x%llx bmdma 0x%llx",
@@ -242,8 +242,8 @@ static int uli_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 	pci_intx(pdev, 1);
-	return ata_host_activate(host, pdev->irq, ata_interrupt, IRQF_SHARED,
-				 &uli_sht);
+	return ata_host_activate(host, pdev->irq, ata_sff_interrupt,
+				 IRQF_SHARED, &uli_sht);
 }
 
 static int __init uli_init(void)

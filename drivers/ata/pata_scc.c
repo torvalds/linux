@@ -266,7 +266,7 @@ unsigned long scc_mode_filter(struct ata_device *adev, unsigned long mask)
 		printk(KERN_INFO "%s: limit ATAPI UDMA to UDMA4\n", DRV_NAME);
 		mask &= ~(0xE0 << ATA_SHIFT_UDMA);
 	}
-	return ata_pci_default_filter(adev, mask);
+	return ata_bmdma_mode_filter(adev, mask);
 }
 
 /**
@@ -274,7 +274,7 @@ unsigned long scc_mode_filter(struct ata_device *adev, unsigned long mask)
  *	@ap: Port to which output is sent
  *	@tf: ATA taskfile register set
  *
- *	Note: Original code is ata_tf_load().
+ *	Note: Original code is ata_sff_tf_load().
  */
 
 static void scc_tf_load (struct ata_port *ap, const struct ata_taskfile *tf)
@@ -341,7 +341,7 @@ static u8 scc_check_status (struct ata_port *ap)
  *	@ap: Port from which input is read
  *	@tf: ATA taskfile register set for storing input
  *
- *	Note: Original code is ata_tf_read().
+ *	Note: Original code is ata_sff_tf_read().
  */
 
 static void scc_tf_read (struct ata_port *ap, struct ata_taskfile *tf)
@@ -373,7 +373,7 @@ static void scc_tf_read (struct ata_port *ap, struct ata_taskfile *tf)
  *	@ap: port to which command is being issued
  *	@tf: ATA taskfile register set
  *
- *	Note: Original code is ata_exec_command().
+ *	Note: Original code is ata_sff_exec_command().
  */
 
 static void scc_exec_command (struct ata_port *ap,
@@ -382,7 +382,7 @@ static void scc_exec_command (struct ata_port *ap,
 	DPRINTK("ata%u: cmd 0x%X\n", ap->print_id, tf->command);
 
 	out_be32(ap->ioaddr.command_addr, tf->command);
-	ata_pause(ap);
+	ata_sff_pause(ap);
 }
 
 /**
@@ -396,14 +396,14 @@ static u8 scc_check_altstatus (struct ata_port *ap)
 }
 
 /**
- *	scc_std_dev_select - Select device 0/1 on ATA bus
+ *	scc_dev_select - Select device 0/1 on ATA bus
  *	@ap: ATA channel to manipulate
  *	@device: ATA device (numbered from zero) to select
  *
- *	Note: Original code is ata_std_dev_select().
+ *	Note: Original code is ata_sff_dev_select().
  */
 
-static void scc_std_dev_select (struct ata_port *ap, unsigned int device)
+static void scc_dev_select (struct ata_port *ap, unsigned int device)
 {
 	u8 tmp;
 
@@ -413,7 +413,7 @@ static void scc_std_dev_select (struct ata_port *ap, unsigned int device)
 		tmp = ATA_DEVICE_OBS | ATA_DEV1;
 
 	out_be32(ap->ioaddr.device_addr, tmp);
-	ata_pause(ap);
+	ata_sff_pause(ap);
 }
 
 /**
@@ -514,7 +514,7 @@ static int scc_bus_post_reset(struct ata_port *ap, unsigned int devmask,
 	 * BSY bit to clear
 	 */
 	if (dev0) {
-		rc = ata_wait_ready(ap, deadline);
+		rc = ata_sff_wait_ready(ap, deadline);
 		if (rc && rc != -ENODEV)
 			return rc;
 	}
@@ -535,7 +535,7 @@ static int scc_bus_post_reset(struct ata_port *ap, unsigned int devmask,
 		msleep(50);	/* give drive a breather */
 	}
 	if (dev1) {
-		rc = ata_wait_ready(ap, deadline);
+		rc = ata_sff_wait_ready(ap, deadline);
 		if (rc && rc != -ENODEV)
 			return rc;
 	}
@@ -571,7 +571,7 @@ static unsigned int scc_bus_softreset(struct ata_port *ap, unsigned int devmask,
 	out_be32(ioaddr->ctl_addr, ap->ctl);
 
 	/* wait a while before checking status */
-	ata_wait_after_reset(ap, deadline);
+	ata_sff_wait_after_reset(ap, deadline);
 
 	/* Before we perform post reset processing we want to see if
 	 * the bus shows 0xFF because the odd clown forgets the D7
@@ -586,16 +586,16 @@ static unsigned int scc_bus_softreset(struct ata_port *ap, unsigned int devmask,
 }
 
 /**
- *	scc_std_softreset - reset host port via ATA SRST
+ *	scc_softreset - reset host port via ATA SRST
  *	@ap: port to reset
  *	@classes: resulting classes of attached devices
  *	@deadline: deadline jiffies for the operation
  *
- *	Note: Original code is ata_std_softreset().
+ *	Note: Original code is ata_sff_softreset().
  */
 
-static int scc_std_softreset(struct ata_link *link, unsigned int *classes,
-                             unsigned long deadline)
+static int scc_softreset(struct ata_link *link, unsigned int *classes,
+			 unsigned long deadline)
 {
 	struct ata_port *ap = link->ap;
 	unsigned int slave_possible = ap->flags & ATA_FLAG_SLAVE_POSS;
@@ -628,10 +628,10 @@ static int scc_std_softreset(struct ata_link *link, unsigned int *classes,
 	}
 
 	/* determine by signature whether we have ATA or ATAPI devices */
-	classes[0] = ata_dev_try_classify(&ap->link.device[0],
+	classes[0] = ata_sff_dev_classify(&ap->link.device[0],
 					  devmask & (1 << 0), &err);
 	if (slave_possible && err != 0x81)
-		classes[1] = ata_dev_try_classify(&ap->link.device[1],
+		classes[1] = ata_sff_dev_classify(&ap->link.device[1],
 						  devmask & (1 << 1), &err);
 
  out:
@@ -695,7 +695,7 @@ static void scc_bmdma_stop (struct ata_queued_cmd *qc)
 			printk(KERN_WARNING "%s: Internal Bus Error\n", DRV_NAME);
 			out_be32(bmid_base + SCC_DMA_INTST, INTSTS_BMSINT);
 			/* TBD: SW reset */
-			scc_std_softreset(&ap->link, &classes, deadline);
+			scc_softreset(&ap->link, &classes, deadline);
 			continue;
 		}
 
@@ -721,7 +721,7 @@ static void scc_bmdma_stop (struct ata_queued_cmd *qc)
 		 in_be32(bmid_base + SCC_DMA_CMD) & ~ATA_DMA_START);
 
 	/* one-PIO-cycle guaranteed wait, per spec, for HDMA1:0 transition */
-	ata_altstatus(ap);	/* dummy read */
+	ata_sff_altstatus(ap);	/* dummy read */
 }
 
 /**
@@ -742,7 +742,7 @@ static u8 scc_bmdma_status (struct ata_port *ap)
 		return host_stat;
 
 	/* errata A252,A308 workaround: Step4 */
-	if ((ata_altstatus(ap) & ATA_ERR) && (int_status & INTSTS_INTRQ))
+	if ((ata_sff_altstatus(ap) & ATA_ERR) && (int_status & INTSTS_INTRQ))
 		return (host_stat | ATA_DMA_INTR);
 
 	/* errata A308 workaround Step5 */
@@ -773,7 +773,7 @@ static u8 scc_bmdma_status (struct ata_port *ap)
  *	@buflen: buffer length
  *	@rw: read/write
  *
- *	Note: Original code is ata_data_xfer().
+ *	Note: Original code is ata_sff_data_xfer().
  */
 
 static unsigned int scc_data_xfer (struct ata_device *dev, unsigned char *buf,
@@ -815,7 +815,7 @@ static unsigned int scc_data_xfer (struct ata_device *dev, unsigned char *buf,
  *	scc_irq_on - Enable interrupts on a port.
  *	@ap: Port on which interrupts are enabled.
  *
- *	Note: Original code is ata_irq_on().
+ *	Note: Original code is ata_sff_irq_on().
  */
 
 static u8 scc_irq_on (struct ata_port *ap)
@@ -835,13 +835,13 @@ static u8 scc_irq_on (struct ata_port *ap)
 }
 
 /**
- *	scc_bmdma_freeze - Freeze BMDMA controller port
+ *	scc_freeze - Freeze BMDMA controller port
  *	@ap: port to freeze
  *
- *	Note: Original code is ata_bmdma_freeze().
+ *	Note: Original code is ata_sff_freeze().
  */
 
-static void scc_bmdma_freeze (struct ata_port *ap)
+static void scc_freeze (struct ata_port *ap)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 
@@ -868,18 +868,18 @@ static void scc_bmdma_freeze (struct ata_port *ap)
 static int scc_pata_prereset(struct ata_link *link, unsigned long deadline)
 {
 	link->ap->cbl = ATA_CBL_PATA80;
-	return ata_std_prereset(link, deadline);
+	return ata_sff_prereset(link, deadline);
 }
 
 /**
- *	scc_std_postreset - standard postreset callback
+ *	scc_postreset - standard postreset callback
  *	@ap: the target ata_port
  *	@classes: classes of attached devices
  *
- *	Note: Original code is ata_std_postreset().
+ *	Note: Original code is ata_sff_postreset().
  */
 
-static void scc_std_postreset(struct ata_link *link, unsigned int *classes)
+static void scc_postreset(struct ata_link *link, unsigned int *classes)
 {
 	struct ata_port *ap = link->ap;
 
@@ -905,13 +905,13 @@ static void scc_std_postreset(struct ata_link *link, unsigned int *classes)
 }
 
 /**
- *	scc_bmdma_irq_clear - Clear PCI IDE BMDMA interrupt.
+ *	scc_irq_clear - Clear PCI IDE BMDMA interrupt.
  *	@ap: Port associated with this ATA transaction.
  *
- *	Note: Original code is ata_bmdma_irq_clear().
+ *	Note: Original code is ata_sff_irq_clear().
  */
 
-static void scc_bmdma_irq_clear (struct ata_port *ap)
+static void scc_irq_clear (struct ata_port *ap)
 {
 	void __iomem *mmio = ap->ioaddr.bmdma_addr;
 
@@ -972,7 +972,7 @@ static struct ata_port_operations scc_pata_ops = {
 	.exec_command		= scc_exec_command,
 	.check_status		= scc_check_status,
 	.check_altstatus	= scc_check_altstatus,
-	.dev_select		= scc_std_dev_select,
+	.dev_select		= scc_dev_select,
 
 	.bmdma_setup		= scc_bmdma_setup,
 	.bmdma_start		= scc_bmdma_start,
@@ -980,13 +980,13 @@ static struct ata_port_operations scc_pata_ops = {
 	.bmdma_status		= scc_bmdma_status,
 	.data_xfer		= scc_data_xfer,
 
-	.freeze			= scc_bmdma_freeze,
+	.freeze			= scc_freeze,
 	.prereset		= scc_pata_prereset,
-	.softreset		= scc_std_softreset,
-	.postreset		= scc_std_postreset,
+	.softreset		= scc_softreset,
+	.postreset		= scc_postreset,
 	.post_internal_cmd	= scc_bmdma_stop,
 
-	.irq_clear		= scc_bmdma_irq_clear,
+	.irq_clear		= scc_irq_clear,
 	.irq_on			= scc_irq_on,
 
 	.port_start		= scc_port_start,
@@ -1140,8 +1140,8 @@ static int scc_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	return ata_host_activate(host, pdev->irq, ata_interrupt, IRQF_SHARED,
-				 &scc_sht);
+	return ata_host_activate(host, pdev->irq, ata_sff_interrupt,
+				 IRQF_SHARED, &scc_sht);
 }
 
 static struct pci_driver scc_pci_driver = {

@@ -55,7 +55,7 @@ static int marvell_pre_reset(struct ata_link *link, unsigned long deadline)
 	    (!(devices & 0x10)))	/* PATA enable ? */
 		return -ENOENT;
 
-	return ata_std_prereset(link, deadline);
+	return ata_sff_prereset(link, deadline);
 }
 
 static int marvell_cable_detect(struct ata_port *ap)
@@ -128,7 +128,7 @@ static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 	if (pdev->device == 0x6101)
 		ppi[1] = &ata_dummy_port_info;
 
-	return ata_pci_init_one(pdev, ppi, &marvell_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &marvell_sht, NULL);
 }
 
 static const struct pci_device_id marvell_pci_tbl[] = {

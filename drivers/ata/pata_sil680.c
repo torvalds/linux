@@ -350,19 +350,19 @@ static int __devinit sil680_init_one(struct pci_dev *pdev,
 	host->ports[0]->ioaddr.cmd_addr = mmio_base + 0x80;
 	host->ports[0]->ioaddr.ctl_addr = mmio_base + 0x8a;
 	host->ports[0]->ioaddr.altstatus_addr = mmio_base + 0x8a;
-	ata_std_ports(&host->ports[0]->ioaddr);
+	ata_sff_std_ports(&host->ports[0]->ioaddr);
 	host->ports[1]->ioaddr.bmdma_addr = mmio_base + 0x08;
 	host->ports[1]->ioaddr.cmd_addr = mmio_base + 0xc0;
 	host->ports[1]->ioaddr.ctl_addr = mmio_base + 0xca;
 	host->ports[1]->ioaddr.altstatus_addr = mmio_base + 0xca;
-	ata_std_ports(&host->ports[1]->ioaddr);
+	ata_sff_std_ports(&host->ports[1]->ioaddr);
 
 	/* Register & activate */
-	return ata_host_activate(host, pdev->irq, ata_interrupt, IRQF_SHARED,
-				 &sil680_sht);
+	return ata_host_activate(host, pdev->irq, ata_sff_interrupt,
+				 IRQF_SHARED, &sil680_sht);
 
 use_ioports:
-	return ata_pci_init_one(pdev, ppi, &sil680_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &sil680_sht, NULL);
 }
 
 #ifdef CONFIG_PM

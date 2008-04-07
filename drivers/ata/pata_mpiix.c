@@ -55,7 +55,7 @@ static int mpiix_pre_reset(struct ata_link *link, unsigned long deadline)
 	if (!pci_test_config_bits(pdev, &mpiix_enable_bits))
 		return -ENOENT;
 
-	return ata_std_prereset(link, deadline);
+	return ata_sff_prereset(link, deadline);
 }
 
 /**
@@ -69,8 +69,8 @@ static int mpiix_pre_reset(struct ata_link *link, unsigned long deadline)
  *
  *	This would get very ugly because we can only program timing for one
  *	device at a time, the other gets PIO0. Fortunately libata calls
- *	our qc_issue_prot command before a command is issued so we can
- *	flip the timings back and forth to reduce the pain.
+ *	our qc_issue command before a command is issued so we can flip the
+ *	timings back and forth to reduce the pain.
  */
 
 static void mpiix_set_piomode(struct ata_port *ap, struct ata_device *adev)
@@ -110,7 +110,7 @@ static void mpiix_set_piomode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	mpiix_qc_issue_prot	-	command issue
+ *	mpiix_qc_issue		-	command issue
  *	@qc: command pending
  *
  *	Called when the libata layer is about to issue a command. We wrap
@@ -120,7 +120,7 @@ static void mpiix_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	be made PIO0.
  */
 
-static unsigned int mpiix_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int mpiix_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_device *adev = qc->dev;
@@ -133,7 +133,7 @@ static unsigned int mpiix_qc_issue_prot(struct ata_queued_cmd *qc)
 	if (adev->pio_mode && adev != ap->private_data)
 		mpiix_set_piomode(ap, adev);
 
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 static struct scsi_host_template mpiix_sht = {
@@ -142,7 +142,7 @@ static struct scsi_host_template mpiix_sht = {
 
 static struct ata_port_operations mpiix_port_ops = {
 	.inherits	= &ata_sff_port_ops,
-	.qc_issue	= mpiix_qc_issue_prot,
+	.qc_issue	= mpiix_qc_issue,
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= mpiix_set_piomode,
 	.prereset	= mpiix_pre_reset,
@@ -207,10 +207,10 @@ static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	ap->ioaddr.altstatus_addr = ctl_addr;
 
 	/* Let libata fill in the port details */
-	ata_std_ports(&ap->ioaddr);
+	ata_sff_std_ports(&ap->ioaddr);
 
 	/* activate host */
-	return ata_host_activate(host, irq, ata_interrupt, IRQF_SHARED,
+	return ata_host_activate(host, irq, ata_sff_interrupt, IRQF_SHARED,
 				 &mpiix_sht);
 }
 

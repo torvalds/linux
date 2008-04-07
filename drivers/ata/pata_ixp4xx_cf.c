@@ -110,7 +110,7 @@ static void ixp4xx_setup_port(struct ata_port *ap,
 	ioaddr->altstatus_addr	= data->cs1 + 0x06;
 	ioaddr->ctl_addr	= data->cs1 + 0x06;
 
-	ata_std_ports(ioaddr);
+	ata_sff_std_ports(ioaddr);
 
 #ifndef __ARMEB__
 
@@ -186,7 +186,7 @@ static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
 	dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
 
 	/* activate host */
-	return ata_host_activate(host, irq, ata_interrupt, 0, &ixp4xx_sht);
+	return ata_host_activate(host, irq, ata_sff_interrupt, 0, &ixp4xx_sht);
 }
 
 static __devexit int ixp4xx_pata_remove(struct platform_device *dev)

@@ -232,7 +232,7 @@ static void pdc20621_get_from_dimm(struct ata_host *host,
 static void pdc20621_put_to_dimm(struct ata_host *host,
 				 void *psource, u32 offset, u32 size);
 static void pdc20621_irq_clear(struct ata_port *ap);
-static unsigned int pdc20621_qc_issue_prot(struct ata_queued_cmd *qc);
+static unsigned int pdc20621_qc_issue(struct ata_queued_cmd *qc);
 
 
 static struct scsi_host_template pdc_sata_sht = {
@@ -244,17 +244,17 @@ static struct scsi_host_template pdc_sata_sht = {
 /* TODO: inherit from base port_ops after converting to new EH */
 static struct ata_port_operations pdc_20621_ops = {
 	.tf_load		= pdc_tf_load_mmio,
-	.tf_read		= ata_tf_read,
-	.check_status		= ata_check_status,
+	.tf_read		= ata_sff_tf_read,
+	.check_status		= ata_sff_check_status,
 	.exec_command		= pdc_exec_command_mmio,
-	.dev_select		= ata_std_dev_select,
+	.dev_select		= ata_sff_dev_select,
 	.phy_reset		= pdc_20621_phy_reset,
 	.qc_prep		= pdc20621_qc_prep,
-	.qc_issue		= pdc20621_qc_issue_prot,
-	.data_xfer		= ata_data_xfer,
+	.qc_issue		= pdc20621_qc_issue,
+	.data_xfer		= ata_sff_data_xfer,
 	.eng_timeout		= pdc_eng_timeout,
 	.irq_clear		= pdc20621_irq_clear,
-	.irq_on			= ata_irq_on,
+	.irq_on			= ata_sff_irq_on,
 	.port_start		= pdc_port_start,
 };
 
@@ -682,7 +682,7 @@ static void pdc20621_packet_start(struct ata_queued_cmd *qc)
 	}
 }
 
-static unsigned int pdc20621_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int pdc20621_qc_issue(struct ata_queued_cmd *qc)
 {
 	switch (qc->tf.protocol) {
 	case ATA_PROT_DMA:
@@ -698,7 +698,7 @@ static unsigned int pdc20621_qc_issue_prot(struct ata_queued_cmd *qc)
 		break;
 	}
 
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 static inline unsigned int pdc20621_host_intr(struct ata_port *ap,
@@ -770,7 +770,7 @@ static inline unsigned int pdc20621_host_intr(struct ata_port *ap,
 	/* command completion, but no data xfer */
 	} else if (qc->tf.protocol == ATA_PROT_NODATA) {
 
-		status = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 1000);
+		status = ata_sff_busy_wait(ap, ATA_BUSY | ATA_DRQ, 1000);
 		DPRINTK("BUS_NODATA (drv_stat 0x%X)\n", status);
 		qc->err_mask |= ac_err_mask(status);
 		ata_qc_complete(qc);
@@ -879,7 +879,7 @@ static void pdc_eng_timeout(struct ata_port *ap)
 		break;
 
 	default:
-		drv_stat = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 1000);
+		drv_stat = ata_sff_busy_wait(ap, ATA_BUSY | ATA_DRQ, 1000);
 
 		ata_port_printk(ap, KERN_ERR,
 				"unknown timeout, cmd 0x%x stat 0x%x\n",
@@ -898,7 +898,7 @@ static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	WARN_ON(tf->protocol == ATA_PROT_DMA ||
 		tf->protocol == ATA_PROT_NODATA);
-	ata_tf_load(ap, tf);
+	ata_sff_tf_load(ap, tf);
 }
 
 
@@ -906,7 +906,7 @@ static void pdc_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile
 {
 	WARN_ON(tf->protocol == ATA_PROT_DMA ||
 		tf->protocol == ATA_PROT_NODATA);
-	ata_exec_command(ap, tf);
+	ata_sff_exec_command(ap, tf);
 }
 
 

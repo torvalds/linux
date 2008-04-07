@@ -1386,7 +1386,7 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 		 * shadow block, etc registers.
 		 */
 		mv_stop_edma(ap);
-		return ata_qc_issue_prot(qc);
+		return ata_sff_qc_issue(qc);
 	}
 
 	mv_start_dma(ap, port_mmio, pp, qc->tf.protocol);
@@ -2362,7 +2362,7 @@ comreset_retry:
 	 */
 	retry = 20;
 	while (1) {
-		u8 drv_stat = ata_check_status(ap);
+		u8 drv_stat = ata_sff_check_status(ap);
 		if ((drv_stat != 0x80) && (drv_stat != 0x7f))
 			break;
 		msleep(500);
@@ -2377,7 +2377,7 @@ comreset_retry:
 	 */
 
 	/* finally, read device signature from TF registers */
-	*class = ata_dev_try_classify(ap->link.device, 1, NULL);
+	*class = ata_sff_dev_classify(ap->link.device, 1, NULL);
 
 	writelfl(0, port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);
 

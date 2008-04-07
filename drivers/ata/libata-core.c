@@ -75,9 +75,9 @@ const unsigned long sata_deb_timing_long[]		= { 100, 2000, 5000 };
 
 const struct ata_port_operations ata_base_port_ops = {
 	.irq_clear		= ata_noop_irq_clear,
-	.prereset		= ata_std_prereset,
-	.hardreset		= sata_std_hardreset,
-	.postreset		= ata_std_postreset,
+	.prereset		= ata_sff_prereset,
+	.hardreset		= sata_sff_hardreset,
+	.postreset		= ata_sff_postreset,
 	.error_handler		= ata_std_error_handler,
 };
 
@@ -3425,7 +3425,7 @@ int sata_link_resume(struct ata_link *link, const unsigned long *params,
 }
 
 /**
- *	ata_std_prereset - prepare for reset
+ *	ata_sff_prereset - prepare for reset
  *	@link: ATA link to be reset
  *	@deadline: deadline jiffies for the operation
  *
@@ -3441,7 +3441,7 @@ int sata_link_resume(struct ata_link *link, const unsigned long *params,
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-int ata_std_prereset(struct ata_link *link, unsigned long deadline)
+int ata_sff_prereset(struct ata_link *link, unsigned long deadline)
 {
 	struct ata_port *ap = link->ap;
 	struct ata_eh_context *ehc = &link->eh_context;
@@ -3463,7 +3463,7 @@ int ata_std_prereset(struct ata_link *link, unsigned long deadline)
 
 	/* wait for !BSY if we don't know that no device is attached */
 	if (!ata_link_offline(link)) {
-		rc = ata_wait_ready(ap, deadline);
+		rc = ata_sff_wait_ready(ap, deadline);
 		if (rc && rc != -ENODEV) {
 			ata_link_printk(link, KERN_WARNING, "device not ready "
 					"(errno=%d), forcing hardreset\n", rc);
@@ -3535,7 +3535,7 @@ int sata_link_hardreset(struct ata_link *link, const unsigned long *timing,
 }
 
 /**
- *	ata_std_postreset - standard postreset callback
+ *	ata_sff_postreset - standard postreset callback
  *	@link: the target ata_link
  *	@classes: classes of attached devices
  *
@@ -3546,7 +3546,7 @@ int sata_link_hardreset(struct ata_link *link, const unsigned long *timing,
  *	LOCKING:
  *	Kernel thread context (may sleep)
  */
-void ata_std_postreset(struct ata_link *link, unsigned int *classes)
+void ata_sff_postreset(struct ata_link *link, unsigned int *classes)
 {
 	struct ata_port *ap = link->ap;
 	u32 serror;

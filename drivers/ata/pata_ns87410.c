@@ -50,7 +50,7 @@ static int ns87410_pre_reset(struct ata_link *link, unsigned long deadline)
 	if (!pci_test_config_bits(pdev, &ns87410_enable_bits[ap->port_no]))
 		return -ENOENT;
 
-	return ata_std_prereset(link, deadline);
+	return ata_sff_prereset(link, deadline);
 }
 
 /**
@@ -105,7 +105,7 @@ static void ns87410_set_piomode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	ns87410_qc_issue_prot	-	command issue
+ *	ns87410_qc_issue	-	command issue
  *	@qc: command pending
  *
  *	Called when the libata layer is about to issue a command. We wrap
@@ -113,7 +113,7 @@ static void ns87410_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	necessary.
  */
 
-static unsigned int ns87410_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int ns87410_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_device *adev = qc->dev;
@@ -126,7 +126,7 @@ static unsigned int ns87410_qc_issue_prot(struct ata_queued_cmd *qc)
 	if (adev->pio_mode && adev != ap->private_data)
 		ns87410_set_piomode(ap, adev);
 
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 static struct scsi_host_template ns87410_sht = {
@@ -135,7 +135,7 @@ static struct scsi_host_template ns87410_sht = {
 
 static struct ata_port_operations ns87410_port_ops = {
 	.inherits	= &ata_sff_port_ops,
-	.qc_issue	= ns87410_qc_issue_prot,
+	.qc_issue	= ns87410_qc_issue,
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= ns87410_set_piomode,
 	.prereset	= ns87410_pre_reset,
@@ -149,7 +149,7 @@ static int ns87410_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.port_ops = &ns87410_port_ops
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
-	return ata_pci_init_one(dev, ppi, &ns87410_sht, NULL);
+	return ata_pci_sff_init_one(dev, ppi, &ns87410_sht, NULL);
 }
 
 static const struct pci_device_id ns87410[] = {

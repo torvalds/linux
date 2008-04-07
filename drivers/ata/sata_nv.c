@@ -730,7 +730,7 @@ static void nv_adma_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 	   ADMA mode could abort outstanding commands. */
 	nv_adma_register_mode(ap);
 
-	ata_tf_read(ap, tf);
+	ata_sff_tf_read(ap, tf);
 }
 
 static unsigned int nv_adma_tf_to_cpb(struct ata_taskfile *tf, __le16 *cpb)
@@ -844,12 +844,12 @@ static int nv_host_intr(struct ata_port *ap, u8 irq_stat)
 
 	/* DEV interrupt w/ no active qc? */
 	if (unlikely(!qc || (qc->tf.flags & ATA_TFLAG_POLLING))) {
-		ata_check_status(ap);
+		ata_sff_check_status(ap);
 		return 1;
 	}
 
 	/* handle interrupt */
-	return ata_host_intr(ap, qc);
+	return ata_sff_host_intr(ap, qc);
 }
 
 static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
@@ -1028,7 +1028,7 @@ static void nv_adma_irq_clear(struct ata_port *ap)
 	u32 notifier_clears[2];
 
 	if (pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE) {
-		ata_bmdma_irq_clear(ap);
+		ata_sff_irq_clear(ap);
 		return;
 	}
 
@@ -1059,7 +1059,7 @@ static void nv_adma_post_internal_cmd(struct ata_queued_cmd *qc)
 	struct nv_adma_port_priv *pp = qc->ap->private_data;
 
 	if (pp->flags & NV_ADMA_PORT_REGISTER_MODE)
-		ata_bmdma_post_internal_cmd(qc);
+		ata_sff_post_internal_cmd(qc);
 }
 
 static int nv_adma_port_start(struct ata_port *ap)
@@ -1336,7 +1336,7 @@ static void nv_adma_qc_prep(struct ata_queued_cmd *qc)
 		BUG_ON(!(pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE) &&
 			(qc->flags & ATA_QCFLAG_DMAMAP));
 		nv_adma_register_mode(qc->ap);
-		ata_qc_prep(qc);
+		ata_sff_qc_prep(qc);
 		return;
 	}
 
@@ -1395,7 +1395,7 @@ static unsigned int nv_adma_qc_issue(struct ata_queued_cmd *qc)
 		BUG_ON(!(pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE) &&
 			(qc->flags & ATA_QCFLAG_DMAMAP));
 		nv_adma_register_mode(qc->ap);
-		return ata_qc_issue_prot(qc);
+		return ata_sff_qc_issue(qc);
 	} else
 		nv_adma_mode(qc->ap);
 
@@ -1436,7 +1436,7 @@ static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance)
 
 			qc = ata_qc_from_tag(ap, ap->link.active_tag);
 			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)))
-				handled += ata_host_intr(ap, qc);
+				handled += ata_sff_host_intr(ap, qc);
 			else
 				// No request pending?  Clear interrupt status
 				// anyway, in case there's one pending.
@@ -1571,7 +1571,7 @@ static void nv_mcp55_freeze(struct ata_port *ap)
 	mask = readl(mmio_base + NV_INT_ENABLE_MCP55);
 	mask &= ~(NV_INT_ALL_MCP55 << shift);
 	writel(mask, mmio_base + NV_INT_ENABLE_MCP55);
-	ata_bmdma_freeze(ap);
+	ata_sff_freeze(ap);
 }
 
 static void nv_mcp55_thaw(struct ata_port *ap)
@@ -1585,7 +1585,7 @@ static void nv_mcp55_thaw(struct ata_port *ap)
 	mask = readl(mmio_base + NV_INT_ENABLE_MCP55);
 	mask |= (NV_INT_MASK_MCP55 << shift);
 	writel(mask, mmio_base + NV_INT_ENABLE_MCP55);
-	ata_bmdma_thaw(ap);
+	ata_sff_thaw(ap);
 }
 
 static int nv_hardreset(struct ata_link *link, unsigned int *class,
@@ -1597,7 +1597,7 @@ static int nv_hardreset(struct ata_link *link, unsigned int *class,
 	 * some controllers.  Don't classify on hardreset.  For more
 	 * info, see http://bugzilla.kernel.org/show_bug.cgi?id=3352
 	 */
-	return sata_std_hardreset(link, &dummy, deadline);
+	return sata_sff_hardreset(link, &dummy, deadline);
 }
 
 static void nv_adma_error_handler(struct ata_port *ap)
@@ -1653,7 +1653,7 @@ static void nv_adma_error_handler(struct ata_port *ap)
 		readw(mmio + NV_ADMA_CTL);	/* flush posted write */
 	}
 
-	ata_bmdma_error_handler(ap);
+	ata_sff_error_handler(ap);
 }
 
 static void nv_swncq_qc_to_dq(struct ata_port *ap, struct ata_queued_cmd *qc)
@@ -1779,7 +1779,7 @@ static void nv_swncq_error_handler(struct ata_port *ap)
 		ehc->i.action |= ATA_EH_RESET;
 	}
 
-	ata_bmdma_error_handler(ap);
+	ata_sff_error_handler(ap);
 }
 
 #ifdef CONFIG_PM
@@ -1925,7 +1925,7 @@ static int nv_swncq_port_start(struct ata_port *ap)
 static void nv_swncq_qc_prep(struct ata_queued_cmd *qc)
 {
 	if (qc->tf.protocol != ATA_PROT_NCQ) {
-		ata_qc_prep(qc);
+		ata_sff_qc_prep(qc);
 		return;
 	}
 
@@ -2001,7 +2001,7 @@ static unsigned int nv_swncq_qc_issue(struct ata_queued_cmd *qc)
 	struct nv_swncq_port_priv *pp = ap->private_data;
 
 	if (qc->tf.protocol != ATA_PROT_NCQ)
-		return ata_qc_issue_prot(qc);
+		return ata_sff_qc_issue(qc);
 
 	DPRINTK("Enter\n");
 
@@ -2350,7 +2350,7 @@ static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ppi[0] = &nv_port_info[type];
 	ipriv = ppi[0]->private_data;
-	rc = ata_pci_prepare_sff_host(pdev, ppi, &host);
+	rc = ata_pci_sff_prepare_host(pdev, ppi, &host);
 	if (rc)
 		return rc;
 

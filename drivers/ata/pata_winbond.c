@@ -116,7 +116,7 @@ static unsigned int winbond_data_xfer(struct ata_device *dev,
 			buflen += 4 - slop;
 		}
 	} else
-		buflen = ata_data_xfer(dev, buf, buflen, rw);
+		buflen = ata_sff_data_xfer(dev, buf, buflen, rw);
 
 	return buflen;
 }
@@ -198,7 +198,7 @@ static __init int winbond_init_one(unsigned long port)
 		ap->ioaddr.cmd_addr = cmd_addr;
 		ap->ioaddr.altstatus_addr = ctl_addr;
 		ap->ioaddr.ctl_addr = ctl_addr;
-		ata_std_ports(&ap->ioaddr);
+		ata_sff_std_ports(&ap->ioaddr);
 
 		/* hook in a private data structure per channel */
 		host->private_data = &winbond_data[nr_winbond_host];
@@ -206,7 +206,7 @@ static __init int winbond_init_one(unsigned long port)
 		winbond_data[nr_winbond_host].platform_dev = pdev;
 
 		/* activate */
-		rc = ata_host_activate(host, 14 + i, ata_interrupt, 0,
+		rc = ata_host_activate(host, 14 + i, ata_sff_interrupt, 0,
 				       &winbond_sht);
 		if (rc)
 			goto err_unregister;

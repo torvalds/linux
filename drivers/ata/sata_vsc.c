@@ -200,7 +200,7 @@ static void vsc_sata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 	u16 nsect, lbal, lbam, lbah, feature;
 
-	tf->command = ata_check_status(ap);
+	tf->command = ata_sff_check_status(ap);
 	tf->device = readw(ioaddr->device_addr);
 	feature = readw(ioaddr->error_addr);
 	nsect = readw(ioaddr->nsect_addr);
@@ -243,7 +243,7 @@ static void vsc_port_intr(u8 port_status, struct ata_port *ap)
 
 	qc = ata_qc_from_tag(ap, ap->link.active_tag);
 	if (qc && likely(!(qc->tf.flags & ATA_TFLAG_POLLING)))
-		handled = ata_host_intr(ap, qc);
+		handled = ata_sff_host_intr(ap, qc);
 
 	/* We received an interrupt during a polled command,
 	 * or some other spurious condition.  Interrupt reporting

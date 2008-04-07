@@ -172,14 +172,14 @@ static void ns87415_bmdma_stop(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ns87415_bmdma_irq_clear		-	Clear interrupt
+ *	ns87415_irq_clear		-	Clear interrupt
  *	@ap: Channel to clear
  *
  *	Erratum: Due to a chip bug regisers 02 and 0A bit 1 and 2 (the
  *	error bits) are reset by writing to register 00 or 08.
  */
 
-static void ns87415_bmdma_irq_clear(struct ata_port *ap)
+static void ns87415_irq_clear(struct ata_port *ap)
 {
 	void __iomem *mmio = ap->ioaddr.bmdma_addr;
 
@@ -306,7 +306,7 @@ static struct ata_port_operations ns87415_pata_ops = {
 	.bmdma_setup		= ns87415_bmdma_setup,
 	.bmdma_start		= ns87415_bmdma_start,
 	.bmdma_stop		= ns87415_bmdma_stop,
-	.irq_clear		= ns87415_bmdma_irq_clear,
+	.irq_clear		= ns87415_irq_clear,
 
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= ns87415_set_piomode,
@@ -375,7 +375,7 @@ static int ns87415_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	pci_write_config_byte(pdev, 0x55, 0xEE);
 	/* Select PIO0 8bit clocking */
 	pci_write_config_byte(pdev, 0x54, 0xB7);
-	return ata_pci_init_one(pdev, ppi, &ns87415_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &ns87415_sht, NULL);
 }
 
 static const struct pci_device_id ns87415_pci_tbl[] = {

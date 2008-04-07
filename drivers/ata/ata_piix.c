@@ -629,7 +629,7 @@ static int piix_pata_prereset(struct ata_link *link, unsigned long deadline)
 
 	if (!pci_test_config_bits(pdev, &piix_enable_bits[ap->port_no]))
 		return -ENOENT;
-	return ata_std_prereset(link, deadline);
+	return ata_sff_prereset(link, deadline);
 }
 
 /**
@@ -1493,7 +1493,7 @@ static int __devinit piix_init_one(struct pci_dev *pdev,
 		hpriv->map = piix_init_sata_map(pdev, port_info,
 					piix_map_db_table[ent->driver_data]);
 
-	rc = ata_pci_prepare_sff_host(pdev, ppi, &host);
+	rc = ata_pci_sff_prepare_host(pdev, ppi, &host);
 	if (rc)
 		return rc;
 	host->private_data = hpriv;
@@ -1527,7 +1527,7 @@ static int __devinit piix_init_one(struct pci_dev *pdev,
 	}
 
 	pci_set_master(pdev);
-	return ata_pci_activate_sff_host(host, ata_interrupt, &piix_sht);
+	return ata_pci_sff_activate_host(host, ata_sff_interrupt, &piix_sht);
 }
 
 static int __init piix_init(void)

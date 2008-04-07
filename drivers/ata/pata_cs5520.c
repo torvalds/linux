@@ -146,7 +146,7 @@ static struct scsi_host_template cs5520_sht = {
 
 static struct ata_port_operations cs5520_port_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	.qc_prep		= ata_dumb_qc_prep,
+	.qc_prep		= ata_sff_dumb_qc_prep,
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= cs5520_set_piomode,
 	.set_dmamode		= cs5520_set_dmamode,
@@ -227,7 +227,7 @@ static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_devi
 	ioaddr->ctl_addr = iomap[1];
 	ioaddr->altstatus_addr = iomap[1];
 	ioaddr->bmdma_addr = iomap[4];
-	ata_std_ports(ioaddr);
+	ata_sff_std_ports(ioaddr);
 
 	ata_port_desc(host->ports[0],
 		      "cmd 0x%x ctl 0x%x", cmd_port[0], ctl_port[0]);
@@ -238,7 +238,7 @@ static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_devi
 	ioaddr->ctl_addr = iomap[3];
 	ioaddr->altstatus_addr = iomap[3];
 	ioaddr->bmdma_addr = iomap[4] + 8;
-	ata_std_ports(ioaddr);
+	ata_sff_std_ports(ioaddr);
 
 	ata_port_desc(host->ports[1],
 		      "cmd 0x%x ctl 0x%x", cmd_port[1], ctl_port[1]);
@@ -258,7 +258,7 @@ static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_devi
 			continue;
 
 		rc = devm_request_irq(&pdev->dev, irq[ap->port_no],
-				      ata_interrupt, 0, DRV_NAME, host);
+				      ata_sff_interrupt, 0, DRV_NAME, host);
 		if (rc)
 			return rc;
 

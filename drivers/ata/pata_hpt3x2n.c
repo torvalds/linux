@@ -156,7 +156,7 @@ static int hpt3x2n_pre_reset(struct ata_link *link, unsigned long deadline)
 	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
 	udelay(100);
 
-	return ata_std_prereset(link, deadline);
+	return ata_sff_prereset(link, deadline);
 }
 
 /**
@@ -308,7 +308,7 @@ static int hpt3x2n_use_dpll(struct ata_port *ap, int writing)
 	return 0;
 }
 
-static unsigned int hpt3x2n_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int hpt3x2n_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_taskfile *tf = &qc->tf;
 	struct ata_port *ap = qc->ap;
@@ -323,7 +323,7 @@ static unsigned int hpt3x2n_qc_issue_prot(struct ata_queued_cmd *qc)
 				hpt3x2n_set_clock(ap, 0x23);
 		}
 	}
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 static struct scsi_host_template hpt3x2n_sht = {
@@ -338,7 +338,7 @@ static struct ata_port_operations hpt3x2n_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
 
 	.bmdma_stop	= hpt3x2n_bmdma_stop,
-	.qc_issue	= hpt3x2n_qc_issue_prot,
+	.qc_issue	= hpt3x2n_qc_issue,
 
 	.cable_detect	= hpt3x2n_cable_detect,
 	.set_piomode	= hpt3x2n_set_piomode,
@@ -554,7 +554,7 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	/* Now kick off ATA set up */
-	return ata_pci_init_one(dev, ppi, &hpt3x2n_sht, hpriv);
+	return ata_pci_sff_init_one(dev, ppi, &hpt3x2n_sht, hpriv);
 }
 
 static const struct pci_device_id hpt3x2n[] = {

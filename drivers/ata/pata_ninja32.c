@@ -73,7 +73,7 @@ static void ninja32_dev_select(struct ata_port *ap, unsigned int device)
 	struct ata_device *adev = &ap->link.device[device];
 	if (ap->private_data != adev) {
 		iowrite8(0xd6, ap->ioaddr.bmdma_addr + 0x1f);
-		ata_std_dev_select(ap, device);
+		ata_sff_dev_select(ap, device);
 		ninja32_set_piomode(ap, adev);
 	}
 }
@@ -132,7 +132,7 @@ static int ninja32_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	ap->ioaddr.ctl_addr = base + 0x1E;
 	ap->ioaddr.altstatus_addr = base + 0x1E;
 	ap->ioaddr.bmdma_addr = base;
-	ata_std_ports(&ap->ioaddr);
+	ata_sff_std_ports(&ap->ioaddr);
 
 	iowrite8(0x05, base + 0x01);	/* Enable interrupt lines */
 	iowrite8(0xBE, base + 0x02);	/* Burst, ?? setup */
@@ -142,7 +142,7 @@ static int ninja32_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	iowrite8(0xa4, base + 0x1c);	/* Unknown */
 	iowrite8(0x83, base + 0x1d);	/* BMDMA control: WAIT0 */
 	/* FIXME: Should we disable them at remove ? */
-	return ata_host_activate(host, dev->irq, ata_interrupt,
+	return ata_host_activate(host, dev->irq, ata_sff_interrupt,
 				 IRQF_SHARED, &ninja32_sht);
 }
 

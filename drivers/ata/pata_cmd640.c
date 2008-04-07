@@ -107,8 +107,8 @@ static void cmd640_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		pci_write_config_byte(pdev, arttim + 1, (t.active << 4) | t.recover);
 	} else {
 		/* Save the shared timings for channel, they will be loaded
-		   by qc_issue_prot. Reloading the setup time is expensive
-		   so we keep a merged one loaded */
+		   by qc_issue. Reloading the setup time is expensive so we
+		   keep a merged one loaded */
 		pci_read_config_byte(pdev, ARTIM23, &reg);
 		reg &= 0x3F;
 		reg |= t.setup;
@@ -119,14 +119,14 @@ static void cmd640_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 
 /**
- *	cmd640_qc_issue_prot	-	command preparation hook
+ *	cmd640_qc_issue	-	command preparation hook
  *	@qc: Command to be issued
  *
  *	Channel 1 has shared timings. We must reprogram the
  *	clock each drive 2/3 switch we do.
  */
 
-static unsigned int cmd640_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int cmd640_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_device *adev = qc->dev;
@@ -137,7 +137,7 @@ static unsigned int cmd640_qc_issue_prot(struct ata_queued_cmd *qc)
 		pci_write_config_byte(pdev, DRWTIM23, timing->reg58[adev->devno]);
 		timing->last = adev->devno;
 	}
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 /**
@@ -172,8 +172,8 @@ static struct scsi_host_template cmd640_sht = {
 static struct ata_port_operations cmd640_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
 	/* In theory xfer_noirq is not needed once we kill the prefetcher */
-	.data_xfer	= ata_data_xfer_noirq,
-	.qc_issue	= cmd640_qc_issue_prot,
+	.data_xfer	= ata_sff_data_xfer_noirq,
+	.qc_issue	= cmd640_qc_issue,
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= cmd640_set_piomode,
 	.port_start	= cmd640_port_start,
@@ -224,7 +224,7 @@ static int cmd640_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	cmd640_hardware_init(pdev);
 
-	return ata_pci_init_one(pdev, ppi, &cmd640_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &cmd640_sht, NULL);
 }
 
 #ifdef CONFIG_PM

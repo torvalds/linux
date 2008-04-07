@@ -252,7 +252,7 @@ mpc52xx_ata_dev_select(struct ata_port *ap, unsigned int device)
 	if (device != priv->csel)
 		mpc52xx_ata_apply_timings(priv, device);
 
-	ata_std_dev_select(ap,device);
+	ata_sff_dev_select(ap,device);
 }
 
 static struct scsi_host_template mpc52xx_ata_sht = {
@@ -305,7 +305,7 @@ mpc52xx_ata_init_one(struct device *dev, struct mpc52xx_ata_priv *priv,
 	ata_port_desc(ap, "ata_regs 0x%lx", raw_ata_regs);
 
 	/* activate host */
-	return ata_host_activate(host, priv->ata_irq, ata_interrupt, 0,
+	return ata_host_activate(host, priv->ata_irq, ata_sff_interrupt, 0,
 				 &mpc52xx_ata_sht);
 }
 
