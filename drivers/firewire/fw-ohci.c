@@ -950,8 +950,19 @@ at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
 				     DESCRIPTOR_IRQ_ALWAYS |
 				     DESCRIPTOR_BRANCH_ALWAYS);
 
-	/* FIXME: Document how the locking works. */
-	if (ohci->generation != packet->generation) {
+	/*
+	 * If the controller and packet generations don't match, we need to
+	 * bail out and try again.  If IntEvent.busReset is set, the AT context
+	 * is halted, so appending to the context and trying to run it is
+	 * futile.  Most controllers do the right thing and just flush the AT
+	 * queue (per section 7.2.3.2 of the OHCI 1.1 specification), but
+	 * some controllers (like a JMicron JMB381 PCI-e) misbehave and wind
+	 * up stalling out.  So we just bail out in software and try again
+	 * later, and everyone is happy.
+	 * FIXME: Document how the locking works.
+	 */
+	if (ohci->generation != packet->generation ||
+	    reg_read(ohci, OHCI1394_IntEventSet) & OHCI1394_busReset) {
 		if (packet->payload_length > 0)
 			dma_unmap_single(ohci->card.device, payload_bus,
 					 packet->payload_length, DMA_TO_DEVICE);
