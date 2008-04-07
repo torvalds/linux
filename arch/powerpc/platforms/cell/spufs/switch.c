@@ -462,7 +462,9 @@ static inline void purge_mfc_queue(struct spu_state *csa, struct spu *spu)
 	 * Restore, Step 14.
 	 *     Write MFC_CNTL[Pc]=1 (purge queue).
 	 */
-	out_be64(&priv2->mfc_control_RW, MFC_CNTL_PURGE_DMA_REQUEST);
+	out_be64(&priv2->mfc_control_RW,
+			MFC_CNTL_PURGE_DMA_REQUEST |
+			MFC_CNTL_SUSPEND_MASK);
 	eieio();
 }
 
