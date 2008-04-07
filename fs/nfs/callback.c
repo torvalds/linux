@@ -153,7 +153,7 @@ out_err:
 }
 
 /*
- * Kill the server process if it is not already up.
+ * Kill the server process if it is not already down.
  */
 void nfs_callback_down(void)
 {
