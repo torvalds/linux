@@ -47,6 +47,7 @@ const struct ata_port_operations ata_sff_port_ops = {
 
 	.freeze			= ata_sff_freeze,
 	.thaw			= ata_sff_thaw,
+	.prereset		= ata_sff_prereset,
 	.softreset		= ata_sff_softreset,
 	.error_handler		= ata_sff_error_handler,
 	.post_internal_cmd	= ata_sff_post_internal_cmd,
@@ -1604,6 +1605,48 @@ void ata_sff_thaw(struct ata_port *ap)
 	ap->ops->sff_check_status(ap);
 	ap->ops->sff_irq_clear(ap);
 	ap->ops->sff_irq_on(ap);
+}
+
+/**
+ *	ata_sff_prereset - prepare SFF link for reset
+ *	@link: SFF link to be reset
+ *	@deadline: deadline jiffies for the operation
+ *
+ *	SFF link @link is about to be reset.  Initialize it.  It first
+ *	calls ata_std_prereset() and wait for !BSY if the port is
+ *	being softreset.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise.
+ */
+int ata_sff_prereset(struct ata_link *link, unsigned long deadline)
+{
+	struct ata_port *ap = link->ap;
+	struct ata_eh_context *ehc = &link->eh_context;
+	int rc;
+
+	rc = ata_std_prereset(link, deadline);
+	if (rc)
+		return rc;
+
+	/* if we're about to do hardreset, nothing more to do */
+	if (ehc->i.action & ATA_EH_HARDRESET)
+		return 0;
+
+	/* wait for !BSY if we don't know that no device is attached */
+	if (!ata_link_offline(link)) {
+		rc = ata_sff_wait_ready(ap, deadline);
+		if (rc && rc != -ENODEV) {
+			ata_link_printk(link, KERN_WARNING, "device not ready "
+					"(errno=%d), forcing hardreset\n", rc);
+			ehc->i.action |= ATA_EH_HARDRESET;
+		}
+	}
+
+	return 0;
 }
 
 /**
