@@ -2456,7 +2456,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	ASSERT_RTNL();
 
-	if (dev == init_net.loopback_dev && how == 1)
+	if ((dev->flags & IFF_LOOPBACK) && how == 1)
 		how = 0;
 
 	rt6_ifdown(dev);
@@ -2469,7 +2469,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 	/* Step 1: remove reference to ipv6 device from parent device.
 		   Do not dev_put!
 	 */
-	if (how == 1) {
+	if (how) {
 		idev->dead = 1;
 
 		/* protected by rtnl_lock */
@@ -2501,12 +2501,12 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 	write_lock_bh(&idev->lock);
 
 	/* Step 3: clear flags for stateless addrconf */
-	if (how != 1)
+	if (!how)
 		idev->if_flags &= ~(IF_RS_SENT|IF_RA_RCVD|IF_READY);
 
 	/* Step 4: clear address list */
 #ifdef CONFIG_IPV6_PRIVACY
-	if (how == 1 && del_timer(&idev->regen_timer))
+	if (how && del_timer(&idev->regen_timer))
 		in6_dev_put(idev);
 
 	/* clear tempaddr list */
@@ -2543,7 +2543,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	/* Step 5: Discard multicast list */
 
-	if (how == 1)
+	if (how)
 		ipv6_mc_destroy_dev(idev);
 	else
 		ipv6_mc_down(idev);
@@ -2552,7 +2552,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	/* Shot the device (if unregistered) */
 
-	if (how == 1) {
+	if (how) {
 		addrconf_sysctl_unregister(idev);
 		neigh_parms_release(&nd_tbl, idev->nd_parms);
 		neigh_ifdown(&nd_tbl, dev);
