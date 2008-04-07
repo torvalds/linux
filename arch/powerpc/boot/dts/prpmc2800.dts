@@ -42,7 +42,7 @@
 		reg = <0x0 0x20000000>;			/* Default (512MB) */
 	};
 
-	mv64x60@f1000000 { /* Marvell Discovery */
+	system-controller@f1000000 { /* Marvell Discovery mv64360 */
 		#address-cells = <1>;
 		#size-cells = <1>;
 		model = "mv64360";			/* Default */
@@ -114,21 +114,17 @@
 		};
 
 		SDMA0: sdma@4000 {
-			device_type = "dma";
 			compatible = "marvell,mv64360-sdma";
 			reg = <0x4000 0xc18>;
 			virtual-reg = <0xf1004000>;
-			interrupt-base = <0>;
 			interrupts = <36>;
 			interrupt-parent = <&PIC>;
 		};
 
 		SDMA1: sdma@6000 {
-			device_type = "dma";
 			compatible = "marvell,mv64360-sdma";
 			reg = <0x6000 0xc18>;
 			virtual-reg = <0xf1006000>;
-			interrupt-base = <0>;
 			interrupts = <38>;
 			interrupt-parent = <&PIC>;
 		};
@@ -139,7 +135,6 @@
 			clock-src = <8>;
 			clock-frequency = <133333333>;
 			current-speed = <9600>;
-			bcr = <0>;
 		};
 
 		BRG1: brg@b208 {
@@ -148,7 +143,6 @@
 			clock-src = <8>;
 			clock-frequency = <133333333>;
 			current-speed = <9600>;
-			bcr = <0>;
 		};
 
 		CUNIT: cunit@f200 {
@@ -174,12 +168,7 @@
 			cunit = <&CUNIT>;
 			mpscrouting = <&MPSCROUTING>;
 			mpscintr = <&MPSCINTR>;
-			block-index = <0>;
-			max_idle = <40>;
-			chr_1 = <0>;
-			chr_2 = <0>;
-			chr_10 = <3>;
-			mpcr = <0>;
+			cell-index = <0>;
 			interrupts = <40>;
 			interrupt-parent = <&PIC>;
 		};
@@ -194,12 +183,7 @@
 			cunit = <&CUNIT>;
 			mpscrouting = <&MPSCROUTING>;
 			mpscintr = <&MPSCINTR>;
-			block-index = <1>;
-			max_idle = <40>;
-			chr_1 = <0>;
-			chr_2 = <0>;
-			chr_10 = <3>;
-			mpcr = <0>;
+			cell-index = <1>;
 			interrupts = <42>;
 			interrupt-parent = <&PIC>;
 		};
@@ -207,7 +191,6 @@
 		wdt@b410 {			/* watchdog timer */
 			compatible = "marvell,mv64360-wdt";
 			reg = <0xb410 0x8>;
-			timeout = <10>;		/* wdt timeout in seconds */
 		};
 
 		i2c@c000 {
@@ -215,10 +198,6 @@
 			compatible = "marvell,mv64360-i2c";
 			reg = <0xc000 0x20>;
 			virtual-reg = <0xf100c000>;
-			freq_m = <8>;
-			freq_n = <3>;
-			timeout = <1000>;		/* 1000 = 1 second */
-			retries = <1>;
 			interrupts = <37>;
 			interrupt-parent = <&PIC>;
 		};

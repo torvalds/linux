@@ -127,7 +127,7 @@ static int __init mv64x60_mpsc_device_setup(struct device_node *np, int id)
 	if (err)
 		return err;
 
-	prop = of_get_property(np, "block-index", NULL);
+	prop = of_get_property(np, "cell-index", NULL);
 	if (!prop)
 		return -ENODEV;
 	port_number = *(int *)prop;
@@ -136,6 +136,7 @@ static int __init mv64x60_mpsc_device_setup(struct device_node *np, int id)
 
 	pdata.cache_mgmt = 1; /* All current revs need this set */
 
+	pdata.max_idle = 40; /* default */
 	prop = of_get_property(np, "max_idle", NULL);
 	if (prop)
 		pdata.max_idle = *prop;
@@ -345,21 +346,19 @@ static int __init mv64x60_i2c_device_setup(struct device_node *np, int id)
 
 	memset(&pdata, 0, sizeof(pdata));
 
+	pdata.freq_m = 8;	/* default */
 	prop = of_get_property(np, "freq_m", NULL);
 	if (!prop)
 		return -ENODEV;
 	pdata.freq_m = *prop;
 
+	pdata.freq_m = 3;	/* default */
 	prop = of_get_property(np, "freq_n", NULL);
 	if (!prop)
 		return -ENODEV;
 	pdata.freq_n = *prop;
 
-	prop = of_get_property(np, "timeout", NULL);
-	if (prop)
-		pdata.timeout = *prop;
-	else
-		pdata.timeout = 1000;	/* 1 second */
+	pdata.timeout = 1000;				/* default: 1 second */
 
 	pdev = platform_device_alloc(MV64XXX_I2C_CTLR_NAME, id);
 	if (!pdev)
@@ -401,10 +400,7 @@ static int __init mv64x60_wdt_device_setup(struct device_node *np, int id)
 
 	memset(&pdata, 0, sizeof(pdata));
 
-	prop = of_get_property(np, "timeout", NULL);
-	if (!prop)
-		return -ENODEV;
-	pdata.timeout = *prop;
+	pdata.timeout = 10;			/* Default: 10 seconds */
 
 	np = of_get_parent(np);
 	if (!np)
@@ -492,7 +488,7 @@ static int __init mv64x60_add_mpsc_console(void)
 	if (!of_device_is_compatible(np, "marvell,mv64360-mpsc"))
 		goto not_mpsc;
 
-	prop = of_get_property(np, "block-index", NULL);
+	prop = of_get_property(np, "cell-index", NULL);
 	if (!prop)
 		goto not_mpsc;
 
