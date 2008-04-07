@@ -389,6 +389,7 @@ static int write_fifo(struct at91_ep *ep, struct at91_request *req)
 	u32		csr = __raw_readl(creg);
 	u8 __iomem	*dreg = ep->creg + (AT91_UDP_FDR(0) - AT91_UDP_CSR(0));
 	unsigned	total, count, is_last;
+	u8		*buf;
 
 	/*
 	 * TODO: allow for writing two packets to the fifo ... that'll
@@ -413,6 +414,8 @@ static int write_fifo(struct at91_ep *ep, struct at91_request *req)
 			return 0;
 	}
 
+	buf = req->req.buf + req->req.actual;
+	prefetch(buf);
 	total = req->req.length - req->req.actual;
 	if (ep->ep.maxpacket < total) {
 		count = ep->ep.maxpacket;
@@ -435,7 +438,7 @@ static int write_fifo(struct at91_ep *ep, struct at91_request *req)
 	 * recover when the actual bytecount matters (e.g. for USB Test
 	 * and Measurement Class devices).
 	 */
-	__raw_writesb(dreg, req->req.buf + req->req.actual, count);
+	__raw_writesb(dreg, buf, count);
 	csr &= ~SET_FX;
 	csr |= CLR_FX | AT91_UDP_TXPKTRDY;
 	__raw_writel(csr, creg);
