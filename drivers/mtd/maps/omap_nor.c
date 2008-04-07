@@ -70,7 +70,7 @@ static void omap_set_vpp(struct map_info *map, int enable)
 	}
 }
 
-static int __devinit omapflash_probe(struct platform_device *pdev)
+static int __init omapflash_probe(struct platform_device *pdev)
 {
 	int err;
 	struct omapflash_info *info;
@@ -130,7 +130,7 @@ out_free_info:
 	return err;
 }
 
-static int __devexit omapflash_remove(struct platform_device *pdev)
+static int __exit omapflash_remove(struct platform_device *pdev)
 {
 	struct omapflash_info *info = platform_get_drvdata(pdev);
 
@@ -152,8 +152,7 @@ static int __devexit omapflash_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver omapflash_driver = {
-	.probe	= omapflash_probe,
-	.remove	= __devexit_p(omapflash_remove),
+	.remove	= __exit_p(omapflash_remove),
 	.driver = {
 		.name	= "omapflash",
 		.owner	= THIS_MODULE,
@@ -162,7 +161,7 @@ static struct platform_driver omapflash_driver = {
 
 static int __init omapflash_init(void)
 {
-	return platform_driver_register(&omapflash_driver);
+	return platform_driver_probe(&omapflash_driver, omapflash_probe);
 }
 
 static void __exit omapflash_exit(void)
