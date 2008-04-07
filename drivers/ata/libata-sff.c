@@ -58,6 +58,7 @@ const struct ata_port_operations ata_sff_port_ops = {
 	.sff_exec_command	= ata_sff_exec_command,
 	.sff_data_xfer		= ata_sff_data_xfer,
 	.sff_irq_on		= ata_sff_irq_on,
+	.sff_irq_clear		= ata_sff_irq_clear,
 
 	.port_start		= ata_sff_port_start,
 };
@@ -71,7 +72,6 @@ const struct ata_port_operations ata_bmdma_port_ops = {
 	.bmdma_start		= ata_bmdma_start,
 	.bmdma_stop		= ata_bmdma_stop,
 	.bmdma_status		= ata_bmdma_status,
-	.sff_irq_clear		= ata_sff_irq_clear,
 };
 
 /**

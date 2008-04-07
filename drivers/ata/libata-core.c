@@ -74,7 +74,6 @@ const unsigned long sata_deb_timing_hotplug[]		= {  25,  500, 2000 };
 const unsigned long sata_deb_timing_long[]		= { 100, 2000, 5000 };
 
 const struct ata_port_operations ata_base_port_ops = {
-	.sff_irq_clear		= ata_noop_irq_clear,
 	.prereset		= ata_sff_prereset,
 	.hardreset		= sata_sff_hardreset,
 	.postreset		= ata_sff_postreset,
@@ -384,14 +383,6 @@ int atapi_cmd_type(u8 opcode)
 	default:
 		return ATAPI_MISC;
 	}
-}
-
-/**
- *	ata_noop_irq_clear - Noop placeholder for irq_clear
- *	@ap: Port associated with this ATA transaction.
- */
-void ata_noop_irq_clear(struct ata_port *ap)
-{
 }
 
 /**
@@ -6108,7 +6099,6 @@ EXPORT_SYMBOL_GPL(ata_port_start);
 EXPORT_SYMBOL_GPL(ata_do_set_mode);
 EXPORT_SYMBOL_GPL(ata_std_qc_defer);
 EXPORT_SYMBOL_GPL(ata_noop_qc_prep);
-EXPORT_SYMBOL_GPL(ata_noop_irq_clear);
 EXPORT_SYMBOL_GPL(ata_port_probe);
 EXPORT_SYMBOL_GPL(ata_dev_disable);
 EXPORT_SYMBOL_GPL(sata_set_spd);
