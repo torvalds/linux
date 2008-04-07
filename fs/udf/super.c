@@ -1256,12 +1256,12 @@ static int udf_load_logicalvol(struct super_block *sb, sector_t block,
 				u16 suf =
 					le16_to_cpu(((__le16 *)upm2->partIdent.
 							identSuffix)[0]);
-				if (suf == 0x0150) {
+				if (suf < 0x0200) {
 					map->s_partition_type =
 							UDF_VIRTUAL_MAP15;
 					map->s_partition_func =
 							udf_get_pblock_virt15;
-				} else if (suf == 0x0200) {
+				} else {
 					map->s_partition_type =
 							UDF_VIRTUAL_MAP20;
 					map->s_partition_func =
