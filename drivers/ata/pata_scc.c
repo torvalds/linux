@@ -615,11 +615,6 @@ static int scc_softreset(struct ata_link *link, unsigned int *classes,
 
 	DPRINTK("ENTER\n");
 
-	if (ata_link_offline(link)) {
-		classes[0] = ATA_DEV_NONE;
-		goto out;
-	}
-
 	/* determine if device 0/1 are present */
 	if (scc_devchk(ap, 0))
 		devmask |= (1 << 0);
@@ -645,7 +640,6 @@ static int scc_softreset(struct ata_link *link, unsigned int *classes,
 		classes[1] = ata_sff_dev_classify(&ap->link.device[1],
 						  devmask & (1 << 1), &err);
 
- out:
 	DPRINTK("EXIT, classes[0]=%u [1]=%u\n", classes[0], classes[1]);
 	return 0;
 }

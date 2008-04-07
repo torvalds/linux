@@ -2065,7 +2065,7 @@ static int ata_eh_followup_srst_needed(struct ata_link *link,
 				       int rc, int classify,
 				       const unsigned int *classes)
 {
-	if (link->flags & ATA_LFLAG_NO_SRST)
+	if ((link->flags & ATA_LFLAG_NO_SRST) || ata_link_offline(link))
 		return 0;
 	if (rc == -EAGAIN) {
 		if (classify)

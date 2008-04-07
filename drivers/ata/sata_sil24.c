@@ -663,12 +663,6 @@ static int sil24_softreset(struct ata_link *link, unsigned int *class,
 
 	DPRINTK("ENTER\n");
 
-	if (ata_link_offline(link)) {
-		DPRINTK("PHY reports no device\n");
-		*class = ATA_DEV_NONE;
-		goto out;
-	}
-
 	/* put the port into known state */
 	if (sil24_init_port(ap)) {
 		reason = "port not ready";
@@ -693,7 +687,6 @@ static int sil24_softreset(struct ata_link *link, unsigned int *class,
 	sil24_read_tf(ap, 0, &tf);
 	*class = ata_dev_classify(&tf);
 
- out:
 	DPRINTK("EXIT, class=%u\n", *class);
 	return 0;
 

@@ -1103,11 +1103,6 @@ static int bfin_softreset(struct ata_link *link, unsigned int *classes,
 	unsigned int devmask = 0, err_mask;
 	u8 err;
 
-	if (ata_link_offline(link)) {
-		classes[0] = ATA_DEV_NONE;
-		goto out;
-	}
-
 	/* determine if device 0/1 are present */
 	if (bfin_devchk(ap, 0))
 		devmask |= (1 << 0);
@@ -1132,7 +1127,6 @@ static int bfin_softreset(struct ata_link *link, unsigned int *classes,
 		classes[1] = ata_sff_dev_classify(&ap->link.device[1],
 					devmask & (1 << 1), &err);
 
- out:
 	return 0;
 }
 

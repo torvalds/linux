@@ -3541,6 +3541,10 @@ int ata_std_prereset(struct ata_link *link, unsigned long deadline)
 					"link for reset (errno=%d)\n", rc);
 	}
 
+	/* no point in trying softreset on offline link */
+	if (ata_link_offline(link))
+		ehc->i.action &= ~ATA_EH_SOFTRESET;
+
 	return 0;
 }
 
