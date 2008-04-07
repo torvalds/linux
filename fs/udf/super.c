@@ -688,8 +688,12 @@ static int udf_check_anchor_block(struct super_block *sb, sector_t block,
 	uint16_t ident;
 	uint32_t location;
 
-	if (varconv)
+	if (varconv) {
+		if (udf_fixed_to_variable(block) >=
+		    sb->s_bdev->bd_inode->i_size >> sb->s_blocksize_bits)
+			return 0;
 		bh = sb_bread(sb, udf_fixed_to_variable(block));
+	}
 	else
 		bh = sb_bread(sb, block);
 
