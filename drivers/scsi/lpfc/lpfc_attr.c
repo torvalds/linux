@@ -1954,7 +1954,9 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 			(phba->sysfs_mbox.mbox->mb.mbxCommand !=
 				MBX_DUMP_MEMORY &&
 			 phba->sysfs_mbox.mbox->mb.mbxCommand !=
-				MBX_RESTART)) {
+				MBX_RESTART &&
+			 phba->sysfs_mbox.mbox->mb.mbxCommand !=
+				MBX_WRITE_VPARMS)) {
 			sysfs_mbox_idle(phba);
 			spin_unlock_irq(&phba->hbalock);
 			return -EPERM;

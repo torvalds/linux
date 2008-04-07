@@ -2948,24 +2948,6 @@ __lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
 	return NULL;
 }
 
-#if 0
-/*
- * Search node lists for a remote port matching filter criteria
- * Caller needs to hold host_lock before calling this routine.
- */
-struct lpfc_nodelist *
-lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
-{
-	struct Scsi_Host     *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_nodelist *ndlp;
-
-	spin_lock_irq(shost->host_lock);
-	ndlp = __lpfc_find_node(vport, filter, param);
-	spin_unlock_irq(shost->host_lock);
-	return ndlp;
-}
-#endif  /*  0  */
-
 /*
  * This routine looks up the ndlp lists for the given RPI. If rpi found it
  * returns the node list element pointer else return NULL.
@@ -2975,20 +2957,6 @@ __lpfc_findnode_rpi(struct lpfc_vport *vport, uint16_t rpi)
 {
 	return __lpfc_find_node(vport, lpfc_filter_by_rpi, &rpi);
 }
-
-#if 0
-struct lpfc_nodelist *
-lpfc_findnode_rpi(struct lpfc_vport *vport, uint16_t rpi)
-{
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_nodelist *ndlp;
-
-	spin_lock_irq(shost->host_lock);
-	ndlp = __lpfc_findnode_rpi(vport, rpi);
-	spin_unlock_irq(shost->host_lock);
-	return ndlp;
-}
-#endif  /*  0  */
 
 /*
  * This routine looks up the ndlp lists for the given WWPN. If WWPN found it

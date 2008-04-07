@@ -729,8 +729,7 @@ lpfc_handle_eratt(struct lpfc_hba *phba)
 	if (!phba->cfg_enable_hba_reset)
 		return;
 
-	if (phba->work_hs & HS_FFER6 ||
-	    phba->work_hs & HS_FFER5) {
+	if (phba->work_hs & HS_FFER6) {
 		/* Re-establishing Link */
 		lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
 				"1301 Re-establishing Link "

@@ -5097,39 +5097,3 @@ void lpfc_fabric_abort_hba(struct lpfc_hba *phba)
 		(piocb->iocb_cmpl) (phba, piocb, piocb);
 	}
 }
-
-
-#if 0
-void lpfc_fabric_abort_flogi(struct lpfc_hba *phba)
-{
-	LIST_HEAD(completions);
-	struct lpfc_iocbq *tmp_iocb, *piocb;
-	IOCB_t *cmd;
-	struct lpfc_nodelist *ndlp;
-
-	spin_lock_irq(&phba->hbalock);
-	list_for_each_entry_safe(piocb, tmp_iocb, &phba->fabric_iocb_list,
-				 list) {
-
-		cmd = &piocb->iocb;
-		ndlp = (struct lpfc_nodelist *) piocb->context1;
-		if (cmd->ulpCommand == CMD_ELS_REQUEST64_CR &&
-		    ndlp != NULL &&
-		    ndlp->nlp_DID == Fabric_DID)
-			list_move_tail(&piocb->list, &completions);
-	}
-	spin_unlock_irq(&phba->hbalock);
-
-	while (!list_empty(&completions)) {
-		piocb = list_get_first(&completions, struct lpfc_iocbq, list);
-		list_del_init(&piocb->list);
-
-		cmd = &piocb->iocb;
-		cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-		cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
-		(piocb->iocb_cmpl) (phba, piocb, piocb);
-	}
-}
-#endif  /*  0  */
-
-

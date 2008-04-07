@@ -63,7 +63,7 @@ lpfc_ct_ignore_hbq_buffer(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 {
 	if (!mp) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-				"0146 Ignoring unsolicted CT No HBQ "
+				"0146 Ignoring unsolicited CT No HBQ "
 				"status = x%x\n",
 				piocbq->iocb.ulpStatus);
 	}

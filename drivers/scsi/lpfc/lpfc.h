@@ -23,7 +23,7 @@
 
 struct lpfc_sli2_slim;
 
-#define LPFC_MAX_TARGET		256	/* max number of targets supported */
+#define LPFC_MAX_TARGET		4096	/* max number of targets supported */
 #define LPFC_MAX_DISC_THREADS	64	/* max outstanding discovery els
 					   requests */
 #define LPFC_MAX_NS_RETRY	3	/* Number of retry attempts to contact

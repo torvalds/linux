@@ -3481,26 +3481,21 @@ lpfc_sli_hba_down(struct lpfc_hba *phba)
 	phba->pport->work_port_events &= ~WORKER_MBOX_TMO;
 	spin_unlock(&phba->pport->work_port_lock);
 
+	/* Return any pending or completed mbox cmds */
+	list_splice_init(&phba->sli.mboxq, &completions);
 	if (psli->mbox_active) {
 		list_add_tail(&psli->mbox_active->list, &completions);
 		psli->mbox_active = NULL;
 		psli->sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
 	}
-
-	/* Return any pending or completed mbox cmds */
-	list_splice_init(&phba->sli.mboxq, &completions);
 	list_splice_init(&phba->sli.mboxq_cmpl, &completions);
-	INIT_LIST_HEAD(&psli->mboxq);
-	INIT_LIST_HEAD(&psli->mboxq_cmpl);
-
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 
 	while (!list_empty(&completions)) {
 		list_remove_head(&completions, pmb, LPFC_MBOXQ_t, list);
 		pmb->mb.mbxStatus = MBX_NOT_FINISHED;
-		if (pmb->mbox_cmpl) {
+		if (pmb->mbox_cmpl)
 			pmb->mbox_cmpl(phba,pmb);
-		}
 	}
 	return 1;
 }
@@ -4201,6 +4196,7 @@ lpfc_intr_handler(int irq, void *dev_id)
 			phba->pport->stopped = 1;
 		}
 
+		spin_lock(&phba->hbalock);
 		if ((work_ha_copy & HA_MBATT) &&
 		    (phba->sli.mbox_active)) {
 			pmb = phba->sli.mbox_active;
@@ -4211,6 +4207,7 @@ lpfc_intr_handler(int irq, void *dev_id)
 			/* First check out the status word */
 			lpfc_sli_pcimem_bcopy(mbox, pmbox, sizeof(uint32_t));
 			if (pmbox->mbxOwner != OWN_HOST) {
+				spin_unlock(&phba->hbalock);
 				/*
 				 * Stray Mailbox Interrupt, mbxCommand <cmd>
 				 * mbxStatus <status>
@@ -4226,10 +4223,10 @@ lpfc_intr_handler(int irq, void *dev_id)
 				/* clear mailbox attention bit */
 				work_ha_copy &= ~HA_MBATT;
 			} else {
+				phba->sli.mbox_active = NULL;
+				spin_unlock(&phba->hbalock);
 				phba->last_completion_time = jiffies;
 				del_timer(&phba->sli.mbox_tmo);
-
-				phba->sli.mbox_active = NULL;
 				if (pmb->mbox_cmpl) {
 					lpfc_sli_pcimem_bcopy(mbox, pmbox,
 							MAILBOX_CMD_SIZE);
@@ -4282,7 +4279,8 @@ lpfc_intr_handler(int irq, void *dev_id)
 				spin_unlock(&phba->pport->work_port_lock);
 				lpfc_mbox_cmpl_put(phba, pmb);
 			}
-		}
+		} else
+			spin_unlock(&phba->hbalock);
 		if ((work_ha_copy & HA_MBATT) &&
 		    (phba->sli.mbox_active == NULL)) {
 send_current_mbox:

@@ -169,6 +169,9 @@ lpfc_ramp_up_queue_handler(struct lpfc_hba *phba)
 		for(i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
 			shost = lpfc_shost_from_vport(vports[i]);
 			shost_for_each_device(sdev, shost) {
+				if (vports[i]->cfg_lun_queue_depth <=
+				    sdev->queue_depth)
+					continue;
 				if (sdev->ordered_tags)
 					scsi_adjust_queue_depth(sdev,
 							MSG_ORDERED_TAG,
@@ -606,6 +609,9 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	result = cmd->result;
 	sdev = cmd->device;
 	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
+	spin_lock_irqsave(sdev->host->host_lock, flags);
+	lpfc_cmd->pCmd = NULL;	/* This must be done before scsi_done */
+	spin_unlock_irqrestore(sdev->host->host_lock, flags);
 	cmd->scsi_done(cmd);
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
@@ -614,7 +620,6 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		 * wake up the thread.
 		 */
 		spin_lock_irqsave(sdev->host->host_lock, flags);
-		lpfc_cmd->pCmd = NULL;
 		if (lpfc_cmd->waitq)
 			wake_up(lpfc_cmd->waitq);
 		spin_unlock_irqrestore(sdev->host->host_lock, flags);
@@ -685,7 +690,6 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	 * wake up the thread.
 	 */
 	spin_lock_irqsave(sdev->host->host_lock, flags);
-	lpfc_cmd->pCmd = NULL;
 	if (lpfc_cmd->waitq)
 		wake_up(lpfc_cmd->waitq);
 	spin_unlock_irqrestore(sdev->host->host_lock, flags);
