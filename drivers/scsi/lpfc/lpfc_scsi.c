@@ -578,14 +578,14 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 			    lpfc_cmd->result == IOERR_NO_RESOURCES ||
 			    lpfc_cmd->result == RJT_LOGIN_REQUIRED) {
 				cmd->result = ScsiResult(DID_REQUEUE, 0);
-			break;
-		} /* else: fall through */
+				break;
+			} /* else: fall through */
 		default:
 			cmd->result = ScsiResult(DID_ERROR, 0);
 			break;
 		}
 
-		if ((pnode == NULL )
+		if (!pnode || !NLP_CHK_NODE_ACT(pnode)
 		    || (pnode->nlp_state != NLP_STE_MAPPED_NODE))
 			cmd->result = ScsiResult(DID_BUS_BUSY, SAM_STAT_BUSY);
 	} else {
@@ -626,7 +626,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	if (!result)
 		lpfc_rampup_queue_depth(vport, sdev);
 
-	if (!result && pnode != NULL &&
+	if (!result && pnode && NLP_CHK_NODE_ACT(pnode) &&
 	   ((jiffies - pnode->last_ramp_up_time) >
 		LPFC_Q_RAMP_UP_INTERVAL * HZ) &&
 	   ((jiffies - pnode->last_q_full_time) >
@@ -654,7 +654,8 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	 * Check for queue full.  If the lun is reporting queue full, then
 	 * back off the lun queue depth to prevent target overloads.
 	 */
-	if (result == SAM_STAT_TASK_SET_FULL && pnode != NULL) {
+	if (result == SAM_STAT_TASK_SET_FULL && pnode &&
+	    NLP_CHK_NODE_ACT(pnode)) {
 		pnode->last_q_full_time = jiffies;
 
 		shost_for_each_device(tmp_sdev, sdev->host) {
@@ -703,6 +704,9 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	struct lpfc_iocbq *piocbq = &(lpfc_cmd->cur_iocbq);
 	int datadir = scsi_cmnd->sc_data_direction;
 	char tag[2];
+
+	if (!pnode || !NLP_CHK_NODE_ACT(pnode))
+		return;
 
 	lpfc_cmd->fcp_rsp->rspSnsLen = 0;
 	/* clear task management bits */
@@ -785,9 +789,9 @@ lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_vport *vport,
 	struct lpfc_rport_data *rdata = lpfc_cmd->rdata;
 	struct lpfc_nodelist *ndlp = rdata->pnode;
 
-	if ((ndlp == NULL) || (ndlp->nlp_state != NLP_STE_MAPPED_NODE)) {
+	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp) ||
+	    ndlp->nlp_state != NLP_STE_MAPPED_NODE)
 		return 0;
-	}
 
 	piocbq = &(lpfc_cmd->cur_iocbq);
 	piocbq->vport = vport;
@@ -842,7 +846,7 @@ lpfc_scsi_tgt_reset(struct lpfc_scsi_buf *lpfc_cmd, struct lpfc_vport *vport,
 	struct lpfc_iocbq *iocbqrsp;
 	int ret;
 
-	if (!rdata->pnode)
+	if (!rdata->pnode || !NLP_CHK_NODE_ACT(rdata->pnode))
 		return FAILED;
 
 	lpfc_cmd->rdata = rdata;
@@ -959,7 +963,7 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 	 * Catch race where our node has transitioned, but the
 	 * transport is still transitioning.
 	 */
-	if (!ndlp) {
+	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
 		cmnd->result = ScsiResult(DID_BUS_BUSY, 0);
 		goto out_fail_command;
 	}
@@ -1146,7 +1150,7 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 	 * target is rediscovered or devloss timeout expires.
 	 */
 	while (1) {
-		if (!pnode)
+		if (!pnode || !NLP_CHK_NODE_ACT(pnode))
 			goto out;
 
 		if (pnode->nlp_state != NLP_STE_MAPPED_NODE) {
@@ -1162,7 +1166,7 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 				goto out;
 			}
 			pnode = rdata->pnode;
-			if (!pnode)
+			if (!pnode || !NLP_CHK_NODE_ACT(pnode))
 				goto out;
 		}
 		if (pnode->nlp_state == NLP_STE_MAPPED_NODE)

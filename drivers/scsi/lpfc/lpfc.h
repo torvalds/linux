@@ -268,7 +268,6 @@ struct lpfc_vport {
 #define FC_NLP_MORE             0x40	 /* More node to process in node tbl */
 #define FC_OFFLINE_MODE         0x80	 /* Interface is offline for diag */
 #define FC_FABRIC               0x100	 /* We are fabric attached */
-#define FC_ESTABLISH_LINK       0x200	 /* Reestablish Link */
 #define FC_RSCN_DISCOVERY       0x400	 /* Auth all devices after RSCN */
 #define FC_SCSI_SCAN_TMO        0x4000	 /* scsi scan timer running */
 #define FC_ABORT_DISCOVERY      0x8000	 /* we want to abort discovery */
@@ -433,8 +432,6 @@ struct lpfc_hba {
 
 	uint32_t fc_eventTag;	/* event tag for link attention */
 
-
-	struct timer_list fc_estabtmo;	/* link establishment timer */
 	/* These fields used to be binfo */
 	uint32_t fc_pref_DID;	/* preferred D_ID */
 	uint8_t  fc_pref_ALPA;	/* preferred AL_PA */

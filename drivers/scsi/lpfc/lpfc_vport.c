@@ -538,7 +538,8 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	/* Otherwise, we will perform fabric logo as needed */
 	if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
 	    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
-	    phba->link_state >= LPFC_LINK_UP) {
+	    phba->link_state >= LPFC_LINK_UP &&
+	    phba->fc_topology != TOPOLOGY_LOOP) {
 		if (vport->cfg_enable_da_id) {
 			timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
 			if (!lpfc_ns_cmd(vport, SLI_CTNS_DA_ID, 0, 0))

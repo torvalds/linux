@@ -451,7 +451,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			spin_unlock_irq(shost->host_lock);
 
 			if ((ndlp->nlp_flag & NLP_ADISC_SND) &&
-				(vport->num_disc_nodes)) {
+			    (vport->num_disc_nodes)) {
 				/* Check to see if there are more
 				 * ADISCs to be sent
 				 */
@@ -469,20 +469,23 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 					lpfc_end_rscn(vport);
 				}
 			}
-			else if (vport->num_disc_nodes) {
-				/* Check to see if there are more
-				 * PLOGIs to be sent
-				 */
-				lpfc_more_plogi(vport);
-
-				if (vport->num_disc_nodes == 0) {
-					spin_lock_irq(shost->host_lock);
-					vport->fc_flag &= ~FC_NDISC_ACTIVE;
-					spin_unlock_irq(shost->host_lock);
-					lpfc_can_disctmo(vport);
-					lpfc_end_rscn(vport);
-				}
-			}
+		}
+	} else if ((ndlp->nlp_state == NLP_STE_PLOGI_ISSUE) &&
+		   (ndlp->nlp_flag & NLP_NPR_2B_DISC) &&
+		   (vport->num_disc_nodes)) {
+		spin_lock_irq(shost->host_lock);
+		ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+		spin_unlock_irq(shost->host_lock);
+		/* Check to see if there are more
+		 * PLOGIs to be sent
+		 */
+		lpfc_more_plogi(vport);
+		if (vport->num_disc_nodes == 0) {
+			spin_lock_irq(shost->host_lock);
+			vport->fc_flag &= ~FC_NDISC_ACTIVE;
+			spin_unlock_irq(shost->host_lock);
+			lpfc_can_disctmo(vport);
+			lpfc_end_rscn(vport);
 		}
 	}
 
@@ -869,8 +872,11 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 
 	lp = (uint32_t *) prsp->virt;
 	sp = (struct serv_parm *) ((uint8_t *) lp + sizeof (uint32_t));
-	if (wwn_to_u64(sp->portName.u.wwn) == 0 ||
-	    wwn_to_u64(sp->nodeName.u.wwn) == 0) {
+
+	/* Some switches have FDMI servers returning 0 for WWN */
+	if ((ndlp->nlp_DID != FDMI_DID) &&
+		(wwn_to_u64(sp->portName.u.wwn) == 0 ||
+		wwn_to_u64(sp->nodeName.u.wwn) == 0)) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
 				 "0142 PLOGI RSP: Invalid WWN.\n");
 		goto out;
