@@ -227,8 +227,7 @@ failed:
 }
 
 /*
- * Delete a block. If the lock was cancelled or the grant callback
- * failed, unlock is set to 1.
+ * Delete a block.
  * It is the caller's responsibility to check whether the file
  * can be closed hereafter.
  */
