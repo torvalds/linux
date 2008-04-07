@@ -693,9 +693,6 @@ static int sil24_softreset(struct ata_link *link, unsigned int *class,
 	sil24_read_tf(ap, 0, &tf);
 	*class = ata_dev_classify(&tf);
 
-	if (*class == ATA_DEV_UNKNOWN)
-		*class = ATA_DEV_NONE;
-
  out:
 	DPRINTK("EXIT, class=%u\n", *class);
 	return 0;

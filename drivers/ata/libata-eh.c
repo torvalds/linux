@@ -2052,15 +2052,13 @@ static int ata_do_reset(struct ata_link *link, ata_reset_fn_t reset,
 		classes[dev->devno] = ATA_DEV_UNKNOWN;
 
 	rc = reset(link, classes, deadline);
-	if (rc)
-		return rc;
 
 	/* convert all ATA_DEV_UNKNOWN to ATA_DEV_NONE */
 	ata_link_for_each_dev(dev, link)
 		if (classes[dev->devno] == ATA_DEV_UNKNOWN)
 			classes[dev->devno] = ATA_DEV_NONE;
 
-	return 0;
+	return rc;
 }
 
 static int ata_eh_followup_srst_needed(struct ata_link *link,
@@ -2208,21 +2206,6 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	/* -EAGAIN can happen if we skipped followup SRST */
 	if (rc && rc != -EAGAIN)
 		goto fail;
-
-	/* was classification successful? */
-	if (classify && classes[0] == ATA_DEV_UNKNOWN &&
-	    !(lflags & ATA_LFLAG_ASSUME_CLASS)) {
-		if (try < max_tries) {
-			ata_link_printk(link, KERN_WARNING,
-					"classification failed\n");
-			rc = -EINVAL;
-			goto fail;
-		}
-
-		ata_link_printk(link, KERN_WARNING,
-				"classfication failed, assuming ATA\n");
-		lflags |= ATA_LFLAG_ASSUME_ATA;
-	}
 
  done:
 	ata_link_for_each_dev(dev, link) {

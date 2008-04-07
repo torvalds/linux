@@ -428,8 +428,6 @@ static int inic_hardreset(struct ata_link *link, unsigned int *class,
 
 		ata_sff_tf_read(ap, &tf);
 		*class = ata_dev_classify(&tf);
-		if (*class == ATA_DEV_UNKNOWN)
-			*class = ATA_DEV_NONE;
 	}
 
 	return 0;
