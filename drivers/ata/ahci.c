@@ -1179,7 +1179,7 @@ static void ahci_fill_cmd_slot(struct ahci_port_priv *pp, unsigned int tag,
 
 static int ahci_kick_engine(struct ata_port *ap, int force_restart)
 {
-	void __iomem *port_mmio = ap->ioaddr.cmd_addr;
+	void __iomem *port_mmio = ahci_port_base(ap);
 	struct ahci_host_priv *hpriv = ap->host->private_data;
 	u8 status = readl(port_mmio + PORT_TFDATA) & 0xFF;
 	u32 tmp;
@@ -1255,8 +1255,8 @@ static int ahci_exec_polled_cmd(struct ata_port *ap, int pmp,
 
 static int ahci_check_ready(struct ata_link *link)
 {
-	void __iomem *mmio = link->ap->ioaddr.cmd_addr;
-	u8 status = readl(mmio + PORT_TFDATA) & 0xFF;
+	void __iomem *port_mmio = ahci_port_base(link->ap);
+	u8 status = readl(port_mmio + PORT_TFDATA) & 0xFF;
 
 	if (!(status & ATA_BUSY))
 		return 1;
@@ -1616,7 +1616,7 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 
 static void ahci_port_intr(struct ata_port *ap)
 {
-	void __iomem *port_mmio = ap->ioaddr.cmd_addr;
+	void __iomem *port_mmio = ahci_port_base(ap);
 	struct ata_eh_info *ehi = &ap->link.eh_info;
 	struct ahci_port_priv *pp = ap->private_data;
 	struct ahci_host_priv *hpriv = ap->host->private_data;
@@ -2210,7 +2210,6 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
-		void __iomem *port_mmio = ahci_port_base(ap);
 
 		ata_port_pbar_desc(ap, AHCI_PCI_BAR, -1, "abar");
 		ata_port_pbar_desc(ap, AHCI_PCI_BAR,
@@ -2219,12 +2218,8 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		/* set initial link pm policy */
 		ap->pm_policy = NOT_AVAILABLE;
 
-		/* standard SATA port setup */
-		if (hpriv->port_map & (1 << i))
-			ap->ioaddr.cmd_addr = port_mmio;
-
 		/* disabled/not-implemented port */
-		else
+		if (!(hpriv->port_map & (1 << i)))
 			ap->ops = &ata_dummy_port_ops;
 	}
 

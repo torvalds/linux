@@ -1222,11 +1222,6 @@ static int sata_fsl_probe(struct of_device *ofdev,
 	/* host->iomap is not used currently */
 	host->private_data = host_priv;
 
-	/* setup port(s) */
-
-	host->ports[0]->ioaddr.cmd_addr = host_priv->hcr_base;
-	host->ports[0]->ioaddr.scr_addr = host_priv->ssr_base;
-
 	/* initialize host controller */
 	sata_fsl_init_controller(host);
 
