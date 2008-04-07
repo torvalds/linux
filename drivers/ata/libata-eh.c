@@ -873,9 +873,9 @@ int sata_async_notification(struct ata_port *ap)
 	if (rc == 0)
 		sata_scr_write(&ap->link, SCR_NOTIFICATION, sntf);
 
-	if (!ap->nr_pmp_links || rc) {
+	if (!sata_pmp_attached(ap) || rc) {
 		/* PMP is not attached or SNTF is not available */
-		if (!ap->nr_pmp_links) {
+		if (!sata_pmp_attached(ap)) {
 			/* PMP is not attached.  Check whether ATAPI
 			 * AN is configured.  If so, notify media
 			 * change.
@@ -1853,7 +1853,7 @@ void ata_eh_autopsy(struct ata_port *ap)
 	/* Autopsy of fanout ports can affect host link autopsy.
 	 * Perform host link autopsy last.
 	 */
-	if (ap->nr_pmp_links)
+	if (sata_pmp_attached(ap))
 		ata_eh_link_autopsy(&ap->link);
 }
 
@@ -2076,7 +2076,7 @@ static int ata_eh_followup_srst_needed(struct ata_link *link,
 	}
 	if (rc != 0)
 		return 0;
-	if ((link->ap->flags & ATA_FLAG_PMP) && ata_is_host_link(link))
+	if (sata_pmp_supported(link->ap) && ata_is_host_link(link))
 		return 1;
 	return 0;
 }
@@ -2668,7 +2668,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		/* if PMP is attached, this function only deals with
 		 * downstream links, port should stay thawed.
 		 */
-		if (!ap->nr_pmp_links)
+		if (!sata_pmp_attached(ap))
 			ata_eh_freeze_port(ap);
 
 		ata_port_for_each_link(link, ap) {
@@ -2687,7 +2687,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 			}
 		}
 
-		if (!ap->nr_pmp_links)
+		if (!sata_pmp_attached(ap))
 			ata_eh_thaw_port(ap);
 	}
 
@@ -2731,7 +2731,7 @@ dev_fail:
 			/* PMP reset requires working host port.
 			 * Can't retry if it's frozen.
 			 */
-			if (ap->nr_pmp_links)
+			if (sata_pmp_attached(ap))
 				goto out;
 			break;
 		}

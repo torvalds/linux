@@ -260,8 +260,6 @@ static int ahci_vt8251_hardreset(struct ata_link *link, unsigned int *class,
 static int ahci_p5wdh_hardreset(struct ata_link *link, unsigned int *class,
 				unsigned long deadline);
 static void ahci_postreset(struct ata_link *link, unsigned int *class);
-static int ahci_pmp_softreset(struct ata_link *link, unsigned int *class,
-			      unsigned long deadline);
 static void ahci_error_handler(struct ata_port *ap);
 static void ahci_post_internal_cmd(struct ata_queued_cmd *qc);
 static int ahci_port_resume(struct ata_port *ap);
@@ -301,7 +299,7 @@ static struct ata_port_operations ahci_ops = {
 	.softreset		= ahci_softreset,
 	.hardreset		= ahci_hardreset,
 	.postreset		= ahci_postreset,
-	.pmp_softreset		= ahci_pmp_softreset,
+	.pmp_softreset		= ahci_softreset,
 	.error_handler		= ahci_error_handler,
 	.post_internal_cmd	= ahci_post_internal_cmd,
 	.dev_config		= ahci_dev_config,
@@ -1263,10 +1261,11 @@ static int ahci_check_ready(struct ata_link *link)
 	return 0;
 }
 
-static int ahci_do_softreset(struct ata_link *link, unsigned int *class,
-			     int pmp, unsigned long deadline)
+static int ahci_softreset(struct ata_link *link, unsigned int *class,
+			  unsigned long deadline)
 {
 	struct ata_port *ap = link->ap;
+	int pmp = sata_srst_pmp(link);
 	const char *reason = NULL;
 	unsigned long now, msecs;
 	struct ata_taskfile tf;
@@ -1324,17 +1323,6 @@ static int ahci_do_softreset(struct ata_link *link, unsigned int *class,
  fail:
 	ata_link_printk(link, KERN_ERR, "softreset failed (%s)\n", reason);
 	return rc;
-}
-
-static int ahci_softreset(struct ata_link *link, unsigned int *class,
-			  unsigned long deadline)
-{
-	int pmp = 0;
-
-	if (link->ap->flags & ATA_FLAG_PMP)
-		pmp = SATA_PMP_CTRL_PORT;
-
-	return ahci_do_softreset(link, class, pmp, deadline);
 }
 
 static int ahci_hardreset(struct ata_link *link, unsigned int *class,
@@ -1457,12 +1445,6 @@ static void ahci_postreset(struct ata_link *link, unsigned int *class)
 	}
 }
 
-static int ahci_pmp_softreset(struct ata_link *link, unsigned int *class,
-			      unsigned long deadline)
-{
-	return ahci_do_softreset(link, class, link->pmp, deadline);
-}
-
 static unsigned int ahci_fill_sg(struct ata_queued_cmd *qc, void *cmd_tbl)
 {
 	struct scatterlist *sg;
@@ -1581,7 +1563,7 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 				  unk[0], unk[1], unk[2], unk[3]);
 	}
 
-	if (ap->nr_pmp_links && (irq_stat & PORT_IRQ_BAD_PMP)) {
+	if (sata_pmp_attached(ap) && (irq_stat & PORT_IRQ_BAD_PMP)) {
 		active_ehi->err_mask |= AC_ERR_HSM;
 		active_ehi->action |= ATA_EH_RESET;
 		ata_ehi_push_desc(active_ehi, "incorrect PMP");
@@ -1847,7 +1829,7 @@ static int ahci_port_resume(struct ata_port *ap)
 	ahci_power_up(ap);
 	ahci_start_port(ap);
 
-	if (ap->nr_pmp_links)
+	if (sata_pmp_attached(ap))
 		ahci_pmp_attach(ap);
 	else
 		ahci_pmp_detach(ap);

@@ -77,7 +77,7 @@ void ata_acpi_associate_sata_port(struct ata_port *ap)
 {
 	WARN_ON(!(ap->flags & ATA_FLAG_ACPI_SATA));
 
-	if (!ap->nr_pmp_links) {
+	if (!sata_pmp_attached(ap)) {
 		acpi_integer adr = SATA_ADR(ap->port_no, NO_PORT_MULT);
 
 		ap->link.device->acpi_handle =

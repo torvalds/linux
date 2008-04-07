@@ -2617,7 +2617,7 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc)
 
 static struct ata_device *ata_find_dev(struct ata_port *ap, int devno)
 {
-	if (ap->nr_pmp_links == 0) {
+	if (!sata_pmp_attached(ap)) {
 		if (likely(devno < ata_link_max_devices(&ap->link)))
 			return &ap->link.device[devno];
 	} else {
@@ -2634,7 +2634,7 @@ static struct ata_device *__ata_scsi_find_dev(struct ata_port *ap,
 	int devno;
 
 	/* skip commands not addressed to targets we simulate */
-	if (ap->nr_pmp_links == 0) {
+	if (!sata_pmp_attached(ap)) {
 		if (unlikely(scsidev->channel || scsidev->lun))
 			return NULL;
 		devno = scsidev->id;
@@ -3492,7 +3492,7 @@ static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 	if (lun != SCAN_WILD_CARD && lun)
 		return -EINVAL;
 
-	if (ap->nr_pmp_links == 0) {
+	if (!sata_pmp_attached(ap)) {
 		if (channel != SCAN_WILD_CARD && channel)
 			return -EINVAL;
 		devno = id;

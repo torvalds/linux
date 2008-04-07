@@ -354,8 +354,6 @@ static int sil24_softreset(struct ata_link *link, unsigned int *class,
 			   unsigned long deadline);
 static int sil24_hardreset(struct ata_link *link, unsigned int *class,
 			   unsigned long deadline);
-static int sil24_pmp_softreset(struct ata_link *link, unsigned int *class,
-			       unsigned long deadline);
 static int sil24_pmp_hardreset(struct ata_link *link, unsigned int *class,
 			       unsigned long deadline);
 static void sil24_error_handler(struct ata_port *ap);
@@ -408,7 +406,7 @@ static struct ata_port_operations sil24_ops = {
 	.thaw			= sil24_thaw,
 	.softreset		= sil24_softreset,
 	.hardreset		= sil24_hardreset,
-	.pmp_softreset		= sil24_pmp_softreset,
+	.pmp_softreset		= sil24_softreset,
 	.pmp_hardreset		= sil24_pmp_hardreset,
 	.error_handler		= sil24_error_handler,
 	.post_internal_cmd	= sil24_post_internal_cmd,
@@ -588,7 +586,7 @@ static int sil24_init_port(struct ata_port *ap)
 	u32 tmp;
 
 	/* clear PMP error status */
-	if (ap->nr_pmp_links)
+	if (sata_pmp_attached(ap))
 		sil24_clear_pmp(ap);
 
 	writel(PORT_CS_INIT, port + PORT_CTRL_STAT);
@@ -653,10 +651,11 @@ static int sil24_exec_polled_cmd(struct ata_port *ap, int pmp,
 	return rc;
 }
 
-static int sil24_do_softreset(struct ata_link *link, unsigned int *class,
-			      int pmp, unsigned long deadline)
+static int sil24_softreset(struct ata_link *link, unsigned int *class,
+			   unsigned long deadline)
 {
 	struct ata_port *ap = link->ap;
+	int pmp = sata_srst_pmp(link);
 	unsigned long timeout_msec = 0;
 	struct ata_taskfile tf;
 	const char *reason;
@@ -704,12 +703,6 @@ static int sil24_do_softreset(struct ata_link *link, unsigned int *class,
  err:
 	ata_link_printk(link, KERN_ERR, "softreset failed (%s)\n", reason);
 	return -EIO;
-}
-
-static int sil24_softreset(struct ata_link *link, unsigned int *class,
-			   unsigned long deadline)
-{
-	return sil24_do_softreset(link, class, SATA_PMP_CTRL_PORT, deadline);
 }
 
 static int sil24_hardreset(struct ata_link *link, unsigned int *class,
@@ -926,12 +919,6 @@ static void sil24_pmp_detach(struct ata_port *ap)
 	sil24_config_pmp(ap, 0);
 }
 
-static int sil24_pmp_softreset(struct ata_link *link, unsigned int *class,
-			       unsigned long deadline)
-{
-	return sil24_do_softreset(link, class, link->pmp, deadline);
-}
-
 static int sil24_pmp_hardreset(struct ata_link *link, unsigned int *class,
 			       unsigned long deadline)
 {
@@ -1034,7 +1021,7 @@ static void sil24_error_intr(struct ata_port *ap)
 		}
 
 		/* find out the offending link and qc */
-		if (ap->nr_pmp_links) {
+		if (sata_pmp_attached(ap)) {
 			context = readl(port + PORT_CONTEXT);
 			pmp = (context >> 5) & 0xf;
 
@@ -1082,7 +1069,7 @@ static void sil24_error_intr(struct ata_port *ap)
 		ehi->action |= action;
 
 		/* if PMP, resume */
-		if (ap->nr_pmp_links)
+		if (sata_pmp_attached(ap))
 			writel(PORT_CS_PMP_RESUME, port + PORT_CTRL_STAT);
 	}
 

@@ -1090,13 +1090,38 @@ extern const struct ata_port_operations sata_port_ops;
 	.change_queue_depth	= ata_scsi_change_queue_depth
 
 /*
+ * PMP helpers
+ */
+static inline bool sata_pmp_supported(struct ata_port *ap)
+{
+	return ap->flags & ATA_FLAG_PMP;
+}
+
+static inline bool sata_pmp_attached(struct ata_port *ap)
+{
+	return ap->nr_pmp_links != 0;
+}
+
+static inline int ata_is_host_link(const struct ata_link *link)
+{
+	return link == &link->ap->link;
+}
+
+static inline int sata_srst_pmp(struct ata_link *link)
+{
+	if (sata_pmp_supported(link->ap) && ata_is_host_link(link))
+		return SATA_PMP_CTRL_PORT;
+	return link->pmp;
+}
+
+/*
  * printk helpers
  */
 #define ata_port_printk(ap, lv, fmt, args...) \
 	printk("%sata%u: "fmt, lv, (ap)->print_id , ##args)
 
 #define ata_link_printk(link, lv, fmt, args...) do { \
-	if ((link)->ap->nr_pmp_links) \
+	if (sata_pmp_attached((link)->ap)) \
 		printk("%sata%u.%02u: "fmt, lv, (link)->ap->print_id,	\
 		       (link)->pmp , ##args); \
 	else \
@@ -1182,11 +1207,6 @@ static inline unsigned int ata_dev_absent(const struct ata_device *dev)
 /*
  * link helpers
  */
-static inline int ata_is_host_link(const struct ata_link *link)
-{
-	return link == &link->ap->link;
-}
-
 static inline int ata_link_max_devices(const struct ata_link *link)
 {
 	if (ata_is_host_link(link) && link->ap->flags & ATA_FLAG_SLAVE_POSS)
@@ -1201,7 +1221,7 @@ static inline int ata_link_active(struct ata_link *link)
 
 static inline struct ata_link *ata_port_first_link(struct ata_port *ap)
 {
-	if (ap->nr_pmp_links)
+	if (sata_pmp_attached(ap))
 		return ap->pmp_link;
 	return &ap->link;
 }
@@ -1210,8 +1230,8 @@ static inline struct ata_link *ata_port_next_link(struct ata_link *link)
 {
 	struct ata_port *ap = link->ap;
 
-	if (link == &ap->link) {
-		if (!ap->nr_pmp_links)
+	if (ata_is_host_link(link)) {
+		if (!sata_pmp_attached(ap))
 			return NULL;
 		return ap->pmp_link;
 	}

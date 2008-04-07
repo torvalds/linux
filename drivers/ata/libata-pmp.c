@@ -411,7 +411,7 @@ int sata_pmp_attach(struct ata_device *dev)
 	int rc;
 
 	/* is it hanging off the right place? */
-	if (!(ap->flags & ATA_FLAG_PMP)) {
+	if (!sata_pmp_supported(ap)) {
 		ata_dev_printk(dev, KERN_ERR,
 			       "host does not support Port Multiplier\n");
 		return -EINVAL;
@@ -876,7 +876,7 @@ static int sata_pmp_eh_recover(struct ata_port *ap)
 
  retry:
 	/* PMP attached? */
-	if (!ap->nr_pmp_links) {
+	if (!sata_pmp_attached(ap)) {
 		rc = ata_eh_recover(ap, ops->prereset, ops->softreset,
 				    ops->hardreset, ops->postreset, NULL);
 		if (rc) {
@@ -983,7 +983,7 @@ static int sata_pmp_eh_recover(struct ata_port *ap)
 	if (ap->pflags & ATA_PFLAG_UNLOADING)
 		return rc;
 
-	if (!ap->nr_pmp_links)
+	if (!sata_pmp_attached(ap))
 		goto retry;
 
 	if (--pmp_tries) {

@@ -2278,7 +2278,7 @@ int ata_dev_configure(struct ata_device *dev)
 		 * changed notifications and ATAPI ANs.
 		 */
 		if ((ap->flags & ATA_FLAG_AN) && ata_id_has_atapi_AN(id) &&
-		    (!ap->nr_pmp_links ||
+		    (!sata_pmp_attached(ap) ||
 		     sata_scr_read(&ap->link, SCR_NOTIFICATION, &sntf) == 0)) {
 			unsigned int err_mask;
 
@@ -3623,7 +3623,7 @@ int sata_link_hardreset(struct ata_link *link, const unsigned long *timing,
 	if (online)
 		*online = true;
 
-	if ((link->ap->flags & ATA_FLAG_PMP) && ata_is_host_link(link)) {
+	if (sata_pmp_supported(link->ap) && ata_is_host_link(link)) {
 		/* If PMP is supported, we have to do follow-up SRST.
 		 * Some PMPs don't send D2H Reg FIS after hardreset if
 		 * the first port is empty.  Wait only for
