@@ -331,17 +331,13 @@ static void ehci_turn_off_all_ports(struct ehci_hcd *ehci)
 				&ehci->regs->port_status[port]);
 }
 
-/* ehci_shutdown kick in for silicon on any bus (not just pci, etc).
- * This forcibly disables dma and IRQs, helping kexec and other cases
- * where the next system software may expect clean state.
+/*
+ * Halt HC, turn off all ports, and let the BIOS use the companion controllers.
+ * Should be called with ehci->lock held.
  */
-static void
-ehci_shutdown (struct usb_hcd *hcd)
+static void ehci_silence_controller(struct ehci_hcd *ehci)
 {
-	struct ehci_hcd	*ehci;
-
-	ehci = hcd_to_ehci (hcd);
-	(void) ehci_halt (ehci);
+	ehci_halt(ehci);
 	ehci_turn_off_all_ports(ehci);
 
 	/* make BIOS/etc use companion controller during reboot */
@@ -349,6 +345,22 @@ ehci_shutdown (struct usb_hcd *hcd)
 
 	/* unblock posted writes */
 	ehci_readl(ehci, &ehci->regs->configured_flag);
+}
+
+/* ehci_shutdown kick in for silicon on any bus (not just pci, etc).
+ * This forcibly disables dma and IRQs, helping kexec and other cases
+ * where the next system software may expect clean state.
+ */
+static void ehci_shutdown(struct usb_hcd *hcd)
+{
+	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
+
+	del_timer_sync(&ehci->watchdog);
+	del_timer_sync(&ehci->iaa_watchdog);
+
+	spin_lock_irq(&ehci->lock);
+	ehci_silence_controller(ehci);
+	spin_unlock_irq(&ehci->lock);
 }
 
 static void ehci_port_power (struct ehci_hcd *ehci, int is_on)
@@ -401,14 +413,14 @@ static void ehci_work (struct ehci_hcd *ehci)
 		timer_action (ehci, TIMER_IO_WATCHDOG);
 }
 
+/*
+ * Called when the ehci_hcd module is removed.
+ */
 static void ehci_stop (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 
 	ehci_dbg (ehci, "stop\n");
-
-	/* Turn off port power on all root hub ports. */
-	ehci_port_power (ehci, 0);
 
 	/* no more interrupts ... */
 	del_timer_sync (&ehci->watchdog);
@@ -418,12 +430,9 @@ static void ehci_stop (struct usb_hcd *hcd)
 	if (HC_IS_RUNNING (hcd->state))
 		ehci_quiesce (ehci);
 
+	ehci_silence_controller(ehci);
 	ehci_reset (ehci);
-	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
 	spin_unlock_irq(&ehci->lock);
-
-	/* let companion controllers work when we aren't */
-	ehci_writel(ehci, 0, &ehci->regs->configured_flag);
 
 	remove_companion_file(ehci);
 	remove_debug_files (ehci);
