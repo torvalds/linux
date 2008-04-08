@@ -317,6 +317,12 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir_type = IR_TYPE_RC5;
 		ir->sampling = 1;
 		break;
+	case CX88_BOARD_POWERCOLOR_REAL_ANGEL:
+		ir_codes = ir_codes_powercolor_real_angel;
+		ir->gpio_addr = MO_GP2_IO;
+		ir->mask_keycode = 0x7e;
+		ir->polling = 100; /* ms */
+		break;
 	}
 
 	if (NULL == ir_codes) {
