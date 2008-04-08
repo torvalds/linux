@@ -35,10 +35,6 @@ nommu_map_single(struct device *hwdev, phys_addr_t paddr, size_t size,
 	return bus;
 }
 
-static void nommu_unmap_single(struct device *dev, dma_addr_t addr,size_t size,
-			int direction)
-{
-}
 
 /* Map a set of buffers described by scatterlist in streaming
  * mode for DMA.  This is the scatter-gather version of the
@@ -71,20 +67,9 @@ static int nommu_map_sg(struct device *hwdev, struct scatterlist *sg,
 	return nents;
 }
 
-/* Unmap a set of streaming mode DMA translations.
- * Again, cpu read rules concerning calls here are the same as for
- * pci_unmap_single() above.
- */
-static void nommu_unmap_sg(struct device *dev, struct scatterlist *sg,
-		  int nents, int dir)
-{
-}
-
 const struct dma_mapping_ops nommu_dma_ops = {
 	.map_single = nommu_map_single,
-	.unmap_single = nommu_unmap_single,
 	.map_sg = nommu_map_sg,
-	.unmap_sg = nommu_unmap_sg,
 	.is_phys = 1,
 };
 
