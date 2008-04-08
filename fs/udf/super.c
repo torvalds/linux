@@ -1208,6 +1208,14 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 	ret = udf_fill_partdesc_info(sb, p, i);
 	if (ret)
 		goto out_bh;
+	/*
+	 * Mark filesystem read-only if we have a partition with virtual map
+	 * since we don't handle writing to it (we overwrite blocks instead of
+	 * relocating them).
+	 */
+	sb->s_flags |= MS_RDONLY;
+	printk(KERN_NOTICE "UDF-fs: Filesystem marked read-only because "
+		"writing to pseudooverwrite partition is not implemented.\n");
 
 	ret = udf_load_vat(sb, i, type1_idx);
 out_bh:
