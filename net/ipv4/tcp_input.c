@@ -2138,7 +2138,9 @@ static void tcp_mark_head_lost(struct sock *sk, int packets)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
-	int cnt;
+	int cnt, oldcnt;
+	int err;
+	unsigned int mss;
 
 	BUG_TRAP(packets <= tp->packets_out);
 	if (tp->lost_skb_hint) {
@@ -2157,13 +2159,25 @@ static void tcp_mark_head_lost(struct sock *sk, int packets)
 		tp->lost_skb_hint = skb;
 		tp->lost_cnt_hint = cnt;
 
+		if (after(TCP_SKB_CB(skb)->end_seq, tp->high_seq))
+			break;
+
+		oldcnt = cnt;
 		if (tcp_is_fack(tp) || tcp_is_reno(tp) ||
 		    (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED))
 			cnt += tcp_skb_pcount(skb);
 
-		if ((cnt > packets) ||
-		    after(TCP_SKB_CB(skb)->end_seq, tp->high_seq))
-			break;
+		if (cnt > packets) {
+			if (tcp_is_sack(tp) || (oldcnt >= packets))
+				break;
+
+			mss = skb_shinfo(skb)->gso_size;
+			err = tcp_fragment(sk, skb, (packets - oldcnt) * mss, mss);
+			if (err < 0)
+				break;
+			cnt = packets;
+		}
+
 		if (!(TCP_SKB_CB(skb)->sacked & (TCPCB_SACKED_ACKED|TCPCB_LOST))) {
 			TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
 			tp->lost_out += tcp_skb_pcount(skb);
