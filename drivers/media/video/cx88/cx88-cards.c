@@ -1492,28 +1492,26 @@ static const struct cx88_board cx88_boards[] = {
 		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
-			.gpio0 = 0x0400, /* pin 2:mute = 0 (off?) */
+			.gpio0 = 0x00ff,
 			.gpio1 = 0xf35d,
-			.gpio2 = 0x0800, /* pin 19:audio = 0 (tv) */
+			.gpio3 = 0x0000,
 		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
-			.gpio0 = 0x0400, /* probably?  or 0x0404 to turn mute on */
-			.gpio1 = 0x0000,
-			.gpio2 = 0x0808, /* pin 19:audio = 1 (line) */
+			.gpio0 = 0x00ff,
+			.gpio1 = 0xf37d,
+			.gpio3 = 0x0000,
 		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x000ff,
 			.gpio1  = 0x0f37d,
-			.gpio2  = 0x00019,
 			.gpio3  = 0x00000,
 		} },
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0  = 0x000ff,
 			.gpio1  = 0x0f35d,
-			.gpio2  = 0x00019,
 			.gpio3  = 0x00000,
 		},
 	},
