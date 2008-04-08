@@ -28,13 +28,11 @@ struct device fallback_dev = {
 noinline static void *
 dma_alloc_pages(struct device *dev, gfp_t gfp, unsigned order)
 {
-	struct page *page;
 	int node;
 
 	node = dev_to_node(dev);
 
-	page = alloc_pages_node(node, gfp, order);
-	return page ? page_address(page) : NULL;
+	return alloc_pages_node(node, gfp, order);
 }
 
 #define dma_alloc_from_coherent_mem(dev, size, handle, ret) (0)
@@ -47,6 +45,7 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		   gfp_t gfp)
 {
 	void *memory;
+	struct page *page;
 	unsigned long dma_mask = 0;
 	u64 bus;
 
@@ -79,13 +78,14 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		gfp |= GFP_DMA32;
 
  again:
-	memory = dma_alloc_pages(dev, gfp, get_order(size));
-	if (memory == NULL)
+	page = dma_alloc_pages(dev, gfp, get_order(size));
+	if (page == NULL)
 		return NULL;
 
 	{
 		int high, mmu;
-		bus = virt_to_bus(memory);
+		bus = page_to_phys(page);
+		memory = page_address(page);
 	        high = (bus + size) >= dma_mask;
 		mmu = high;
 		if (force_iommu && !(gfp & GFP_DMA))
@@ -112,7 +112,7 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 
 		memset(memory, 0, size);
 		if (!mmu) {
-			*dma_handle = virt_to_bus(memory);
+			*dma_handle = bus;
 			return memory;
 		}
 	}
