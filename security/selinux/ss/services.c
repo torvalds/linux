@@ -680,7 +680,8 @@ out:
 
 }
 
-static int security_context_to_sid_core(char *scontext, u32 scontext_len, u32 *sid, u32 def_sid)
+static int security_context_to_sid_core(char *scontext, u32 scontext_len,
+					u32 *sid, u32 def_sid, gfp_t gfp_flags)
 {
 	char *scontext2;
 	struct context context;
@@ -709,7 +710,7 @@ static int security_context_to_sid_core(char *scontext, u32 scontext_len, u32 *s
 	   null suffix to the copy to avoid problems with the existing
 	   attr package, which doesn't view the null terminator as part
 	   of the attribute value. */
-	scontext2 = kmalloc(scontext_len+1,GFP_KERNEL);
+	scontext2 = kmalloc(scontext_len+1, gfp_flags);
 	if (!scontext2) {
 		rc = -ENOMEM;
 		goto out;
@@ -809,7 +810,7 @@ out:
 int security_context_to_sid(char *scontext, u32 scontext_len, u32 *sid)
 {
 	return security_context_to_sid_core(scontext, scontext_len,
-	                                    sid, SECSID_NULL);
+					    sid, SECSID_NULL, GFP_KERNEL);
 }
 
 /**
@@ -829,10 +830,11 @@ int security_context_to_sid(char *scontext, u32 scontext_len, u32 *sid)
  * Returns -%EINVAL if the context is invalid, -%ENOMEM if insufficient
  * memory is available, or 0 on success.
  */
-int security_context_to_sid_default(char *scontext, u32 scontext_len, u32 *sid, u32 def_sid)
+int security_context_to_sid_default(char *scontext, u32 scontext_len, u32 *sid,
+				    u32 def_sid, gfp_t gfp_flags)
 {
 	return security_context_to_sid_core(scontext, scontext_len,
-	                                    sid, def_sid);
+					    sid, def_sid, gfp_flags);
 }
 
 static int compute_sid_handle_invalid_context(
