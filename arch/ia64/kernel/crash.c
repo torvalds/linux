@@ -174,32 +174,32 @@ kdump_init_notifier(struct notifier_block *self, unsigned long val, void *data)
 		return NOTIFY_DONE;
 
 	switch (val) {
-		case DIE_INIT_MONARCH_PROCESS:
-			if (kdump_on_init) {
-				atomic_set(&kdump_in_progress, 1);
-				*(nd->monarch_cpu) = -1;
-			}
-			break;
-		case DIE_INIT_MONARCH_LEAVE:
-			if (kdump_on_init)
-				machine_kdump_on_init();
-			break;
-		case DIE_INIT_SLAVE_LEAVE:
-			if (atomic_read(&kdump_in_progress))
-				unw_init_running(kdump_cpu_freeze, NULL);
-			break;
-		case DIE_MCA_RENDZVOUS_LEAVE:
-			if (atomic_read(&kdump_in_progress))
-				unw_init_running(kdump_cpu_freeze, NULL);
-			break;
-		case DIE_MCA_MONARCH_LEAVE:
-			/* die_register->signr indicate if MCA is recoverable */
-			if (kdump_on_fatal_mca && !args->signr) {
-				atomic_set(&kdump_in_progress, 1);
-				*(nd->monarch_cpu) = -1;
-				machine_kdump_on_init();
-			}
-			break;
+	case DIE_INIT_MONARCH_PROCESS:
+		if (kdump_on_init) {
+			atomic_set(&kdump_in_progress, 1);
+			*(nd->monarch_cpu) = -1;
+		}
+		break;
+	case DIE_INIT_MONARCH_LEAVE:
+		if (kdump_on_init)
+			machine_kdump_on_init();
+		break;
+	case DIE_INIT_SLAVE_LEAVE:
+		if (atomic_read(&kdump_in_progress))
+			unw_init_running(kdump_cpu_freeze, NULL);
+		break;
+	case DIE_MCA_RENDZVOUS_LEAVE:
+		if (atomic_read(&kdump_in_progress))
+			unw_init_running(kdump_cpu_freeze, NULL);
+		break;
+	case DIE_MCA_MONARCH_LEAVE:
+		/* die_register->signr indicate if MCA is recoverable */
+		if (kdump_on_fatal_mca && !args->signr) {
+			atomic_set(&kdump_in_progress, 1);
+			*(nd->monarch_cpu) = -1;
+			machine_kdump_on_init();
+		}
+		break;
 	}
 	return NOTIFY_DONE;
 }
