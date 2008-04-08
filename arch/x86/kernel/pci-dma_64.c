@@ -24,7 +24,7 @@ EXPORT_SYMBOL(bad_dma_address);
 int iommu_bio_merge __read_mostly = 0;
 EXPORT_SYMBOL(iommu_bio_merge);
 
-static int iommu_sac_force __read_mostly = 0;
+extern int iommu_sac_force;
 
 int no_iommu __read_mostly;
 /* Set this to 1 if there is a HW IOMMU in the system */
@@ -160,48 +160,6 @@ void dma_free_coherent(struct device *dev, size_t size,
 	free_pages((unsigned long)vaddr, get_order(size));
 }
 EXPORT_SYMBOL(dma_free_coherent);
-
-int dma_supported(struct device *dev, u64 mask)
-{
-#ifdef CONFIG_PCI
-	if (mask > 0xffffffff && forbid_dac > 0) {
-
-
-
-		printk(KERN_INFO "PCI: Disallowing DAC for device %s\n", dev->bus_id);
-		return 0;
-	}
-#endif
-
-	if (dma_ops->dma_supported)
-		return dma_ops->dma_supported(dev, mask);
-
-	/* Copied from i386. Doesn't make much sense, because it will
-	   only work for pci_alloc_coherent.
-	   The caller just has to use GFP_DMA in this case. */
-        if (mask < DMA_24BIT_MASK)
-                return 0;
-
-	/* Tell the device to use SAC when IOMMU force is on.  This
-	   allows the driver to use cheaper accesses in some cases.
-
-	   Problem with this is that if we overflow the IOMMU area and
-	   return DAC as fallback address the device may not handle it
-	   correctly.
-
-	   As a special case some controllers have a 39bit address
-	   mode that is as efficient as 32bit (aic79xx). Don't force
-	   SAC for these.  Assume all masks <= 40 bits are of this
-	   type. Normally this doesn't make any difference, but gives
-	   more gentle handling of IOMMU overflow. */
-	if (iommu_sac_force && (mask >= DMA_40BIT_MASK)) {
-		printk(KERN_INFO "%s: Force SAC with mask %Lx\n", dev->bus_id,mask);
-		return 0;
-	}
-
-	return 1;
-}
-EXPORT_SYMBOL(dma_supported);
 
 /*
  * See <Documentation/x86_64/boot-options.txt> for the iommu kernel parameter
