@@ -251,8 +251,10 @@ void __init get_mtrr_state(void)
 			else
 				printk(KERN_INFO "MTRR %u disabled\n", i);
 		}
-		if (tom2)
-			printk(KERN_INFO "TOM2: %016lx aka %ldM\n", tom2, tom2>>20);
+		if (tom2) {
+			printk(KERN_INFO "TOM2: %016llx aka %lldM\n",
+					  tom2, tom2>>20);
+		}
 	}
 	mtrr_state_set = 1;
 
