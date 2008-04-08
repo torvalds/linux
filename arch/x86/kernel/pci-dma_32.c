@@ -82,9 +82,6 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 	if (dma_alloc_from_coherent_mem(dev, size, dma_handle, &ret))
 		return ret;
 
-	if (dev == NULL || (dev->coherent_dma_mask < 0xffffffff))
-		gfp |= GFP_DMA;
-
 	if (!dev)
 		dev = &fallback_dev;
 
