@@ -24,6 +24,7 @@ static int pci32_dma_map_sg(struct device *dev, struct scatterlist *sglist,
 		BUG_ON(!sg_page(sg));
 
 		sg->dma_address = sg_phys(sg);
+		sg->dma_length = sg->length;
 	}
 
 	flush_write_buffers();
