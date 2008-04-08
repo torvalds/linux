@@ -551,7 +551,7 @@ int ssb_pcicore_dev_irqvecs_enable(struct ssb_pcicore *pc,
 		} else {
 			tmp = ssb_read32(dev, SSB_TPSFLAG);
 			tmp &= SSB_TPSFLAG_BPFLAG;
-			intvec |= tmp;
+			intvec |= (1 << tmp);
 		}
 		ssb_write32(pdev, SSB_INTVEC, intvec);
 	}
