@@ -1107,7 +1107,10 @@ static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct udf_part_map *map = &sbi->s_partmaps[p_index];
 	kernel_lb_addr ino;
-	struct buffer_head *bh;
+	struct buffer_head *bh = NULL;
+	struct udf_inode_info *vati;
+	uint32_t pos;
+	struct virtualAllocationTable20 *vat20;
 
 	/* VAT file entry is in the last recorded block */
 	ino.partitionReferenceNum = type1_index;
@@ -1122,15 +1125,18 @@ static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
 		map->s_type_specific.s_virtual.s_num_entries =
 			(sbi->s_vat_inode->i_size - 36) >> 2;
 	} else if (map->s_partition_type == UDF_VIRTUAL_MAP20) {
-		uint32_t pos;
-		struct virtualAllocationTable20 *vat20;
+		vati = UDF_I(sbi->s_vat_inode);
+		if (vati->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB) {
+			pos = udf_block_map(sbi->s_vat_inode, 0);
+			bh = sb_bread(sb, pos);
+			if (!bh)
+				return 1;
+			vat20 = (struct virtualAllocationTable20 *)bh->b_data;
+		} else {
+			vat20 = (struct virtualAllocationTable20 *)
+							vati->i_ext.i_data;
+		}
 
-		pos = udf_block_map(sbi->s_vat_inode, 0);
-		bh = sb_bread(sb, pos);
-		if (!bh)
-			return 1;
-		vat20 = (struct virtualAllocationTable20 *)bh->b_data +
-				udf_ext0_offset(sbi->s_vat_inode);
 		map->s_type_specific.s_virtual.s_start_offset =
 			le16_to_cpu(vat20->lengthHeader) +
 			udf_ext0_offset(sbi->s_vat_inode);

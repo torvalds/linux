@@ -54,11 +54,10 @@ uint32_t udf_get_pblock_virt15(struct super_block *sb, uint32_t block,
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct udf_part_map *map;
 	struct udf_virtual_data *vdata;
-	struct udf_inode_info *iinfo;
+	struct udf_inode_info *iinfo = UDF_I(sbi->s_vat_inode);
 
 	map = &sbi->s_partmaps[partition];
 	vdata = &map->s_type_specific.s_virtual;
-	index = (sb->s_blocksize - vdata->s_start_offset) / sizeof(uint32_t);
 
 	if (block > vdata->s_num_entries) {
 		udf_debug("Trying to access block beyond end of VAT "
@@ -66,6 +65,11 @@ uint32_t udf_get_pblock_virt15(struct super_block *sb, uint32_t block,
 		return 0xFFFFFFFF;
 	}
 
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
+		loc = le32_to_cpu(((__le32 *)iinfo->i_ext.i_data)[block]);
+		goto translate;
+	}
+	index = (sb->s_blocksize - vdata->s_start_offset) / sizeof(uint32_t);
 	if (block >= index) {
 		block -= index;
 		newblock = 1 + (block / (sb->s_blocksize / sizeof(uint32_t)));
@@ -88,7 +92,7 @@ uint32_t udf_get_pblock_virt15(struct super_block *sb, uint32_t block,
 
 	brelse(bh);
 
-	iinfo = UDF_I(sbi->s_vat_inode);
+translate:
 	if (iinfo->i_location.partitionReferenceNum == partition) {
 		udf_debug("recursive call to udf_get_pblock!\n");
 		return 0xFFFFFFFF;
