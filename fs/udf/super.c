@@ -950,6 +950,101 @@ static int udf_load_pvoldesc(struct super_block *sb, sector_t block)
 	return 0;
 }
 
+static int udf_load_metadata_files(struct super_block *sb, int partition)
+{
+	struct udf_sb_info *sbi = UDF_SB(sb);
+	struct udf_part_map *map;
+	struct udf_meta_data *mdata;
+	kernel_lb_addr addr;
+	int fe_error = 0;
+
+	map = &sbi->s_partmaps[partition];
+	mdata = &map->s_type_specific.s_metadata;
+
+	/* metadata address */
+	addr.logicalBlockNum =  mdata->s_meta_file_loc;
+	addr.partitionReferenceNum = map->s_partition_num;
+
+	udf_debug("Metadata file location: block = %d part = %d\n",
+			  addr.logicalBlockNum, addr.partitionReferenceNum);
+
+	mdata->s_metadata_fe = udf_iget(sb, addr);
+
+	if (mdata->s_metadata_fe == NULL) {
+		udf_warning(sb, __func__, "metadata inode efe not found, "
+				"will try mirror inode.");
+		fe_error = 1;
+	} else if (UDF_I(mdata->s_metadata_fe)->i_alloc_type !=
+		 ICBTAG_FLAG_AD_SHORT) {
+		udf_warning(sb, __func__, "metadata inode efe does not have "
+			"short allocation descriptors!");
+		fe_error = 1;
+		iput(mdata->s_metadata_fe);
+		mdata->s_metadata_fe = NULL;
+	}
+
+	/* mirror file entry */
+	addr.logicalBlockNum = mdata->s_mirror_file_loc;
+	addr.partitionReferenceNum = map->s_partition_num;
+
+	udf_debug("Mirror metadata file location: block = %d part = %d\n",
+			  addr.logicalBlockNum, addr.partitionReferenceNum);
+
+	mdata->s_mirror_fe = udf_iget(sb, addr);
+
+	if (mdata->s_mirror_fe == NULL) {
+		if (fe_error) {
+			udf_error(sb, __func__, "mirror inode efe not found "
+			"and metadata inode is missing too, exiting...");
+			goto error_exit;
+		} else
+			udf_warning(sb, __func__, "mirror inode efe not found,"
+					" but metadata inode is OK");
+	} else if (UDF_I(mdata->s_mirror_fe)->i_alloc_type !=
+		 ICBTAG_FLAG_AD_SHORT) {
+		udf_warning(sb, __func__, "mirror inode efe does not have "
+			"short allocation descriptors!");
+		iput(mdata->s_mirror_fe);
+		mdata->s_mirror_fe = NULL;
+		if (fe_error)
+			goto error_exit;
+	}
+
+	/*
+	 * bitmap file entry
+	 * Note:
+	 * Load only if bitmap file location differs from 0xFFFFFFFF (DCN-5102)
+	*/
+	if (mdata->s_bitmap_file_loc != 0xFFFFFFFF) {
+		addr.logicalBlockNum = mdata->s_bitmap_file_loc;
+		addr.partitionReferenceNum = map->s_partition_num;
+
+		udf_debug("Bitmap file location: block = %d part = %d\n",
+			addr.logicalBlockNum, addr.partitionReferenceNum);
+
+		mdata->s_bitmap_fe = udf_iget(sb, addr);
+
+		if (mdata->s_bitmap_fe == NULL) {
+			if (sb->s_flags & MS_RDONLY)
+				udf_warning(sb, __func__, "bitmap inode efe "
+					"not found but it's ok since the disc"
+					" is mounted read-only");
+			else {
+				udf_error(sb, __func__, "bitmap inode efe not "
+					"found and attempted read-write mount");
+				goto error_exit;
+			}
+		}
+	}
+
+	udf_debug("udf_load_metadata_files Ok\n");
+
+	return 0;
+
+error_exit:
+	return 1;
+}
+
 static void udf_load_fileset(struct super_block *sb, struct buffer_head *bh,
 			     kernel_lb_addr *root)
 {
@@ -1169,7 +1264,7 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 	p = (struct partitionDesc *)bh->b_data;
 	partitionNumber = le16_to_cpu(p->partitionNumber);
 
-	/* First scan for TYPE1 and SPARABLE partitions */
+	/* First scan for TYPE1, SPARABLE and METADATA partitions */
 	for (i = 0; i < sbi->s_partitions; i++) {
 		map = &sbi->s_partmaps[i];
 		udf_debug("Searching map: (%d == %d)\n",
@@ -1189,8 +1284,8 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 	ret = udf_fill_partdesc_info(sb, p, i);
 
 	/*
-	 * Now rescan for VIRTUAL partitions when TYPE1 partitions are
-	 * already set up
+	 * Now rescan for VIRTUAL or METADATA partitions when SPARABLE and
+	 * PHYSICAL partitions are already set up
 	 */
 	type1_idx = i;
 	for (i = 0; i < sbi->s_partitions; i++) {
@@ -1198,7 +1293,8 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 
 		if (map->s_partition_num == partitionNumber &&
 		    (map->s_partition_type == UDF_VIRTUAL_MAP15 ||
-		     map->s_partition_type == UDF_VIRTUAL_MAP20))
+		     map->s_partition_type == UDF_VIRTUAL_MAP20 ||
+		     map->s_partition_type == UDF_METADATA_MAP25))
 			break;
 	}
 
@@ -1208,16 +1304,28 @@ static int udf_load_partdesc(struct super_block *sb, sector_t block)
 	ret = udf_fill_partdesc_info(sb, p, i);
 	if (ret)
 		goto out_bh;
-	/*
-	 * Mark filesystem read-only if we have a partition with virtual map
-	 * since we don't handle writing to it (we overwrite blocks instead of
-	 * relocating them).
-	 */
-	sb->s_flags |= MS_RDONLY;
-	printk(KERN_NOTICE "UDF-fs: Filesystem marked read-only because "
-		"writing to pseudooverwrite partition is not implemented.\n");
 
-	ret = udf_load_vat(sb, i, type1_idx);
+	if (map->s_partition_type == UDF_METADATA_MAP25) {
+		ret = udf_load_metadata_files(sb, i);
+		if (ret) {
+			printk(KERN_ERR "UDF-fs: error loading MetaData "
+			"partition map %d\n", i);
+			goto out_bh;
+		}
+	} else {
+		ret = udf_load_vat(sb, i, type1_idx);
+		if (ret)
+			goto out_bh;
+		/*
+		 * Mark filesystem read-only if we have a partition with
+		 * virtual map since we don't handle writing to it (we
+		 * overwrite blocks instead of relocating them).
+		 */
+		sb->s_flags |= MS_RDONLY;
+		printk(KERN_NOTICE "UDF-fs: Filesystem marked read-only "
+			"because writing to pseudooverwrite partition is "
+			"not implemented.\n");
+	}
 out_bh:
 	/* In case loading failed, we handle cleanup in udf_fill_super */
 	brelse(bh);
@@ -1316,6 +1424,50 @@ static int udf_load_logicalvol(struct super_block *sb, sector_t block,
 					}
 				}
 				map->s_partition_func = udf_get_pblock_spar15;
+			} else if (!strncmp(upm2->partIdent.ident,
+						UDF_ID_METADATA,
+						strlen(UDF_ID_METADATA))) {
+				struct udf_meta_data *mdata =
+					&map->s_type_specific.s_metadata;
+				struct metadataPartitionMap *mdm =
+						(struct metadataPartitionMap *)
+						&(lvd->partitionMaps[offset]);
+				udf_debug("Parsing Logical vol part %d "
+					"type %d  id=%s\n", i, type,
+					UDF_ID_METADATA);
+
+				map->s_partition_type = UDF_METADATA_MAP25;
+				map->s_partition_func = udf_get_pblock_meta25;
+
+				mdata->s_meta_file_loc   =
+					le32_to_cpu(mdm->metadataFileLoc);
+				mdata->s_mirror_file_loc =
+					le32_to_cpu(mdm->metadataMirrorFileLoc);
+				mdata->s_bitmap_file_loc =
+					le32_to_cpu(mdm->metadataBitmapFileLoc);
+				mdata->s_alloc_unit_size =
+					le32_to_cpu(mdm->allocUnitSize);
+				mdata->s_align_unit_size =
+					le16_to_cpu(mdm->alignUnitSize);
+				mdata->s_dup_md_flag 	 =
+					mdm->flags & 0x01;
+
+				udf_debug("Metadata Ident suffix=0x%x\n",
+					(le16_to_cpu(
+					 ((__le16 *)
+					      mdm->partIdent.identSuffix)[0])));
+				udf_debug("Metadata part num=%d\n",
+					le16_to_cpu(mdm->partitionNum));
+				udf_debug("Metadata part alloc unit size=%d\n",
+					le32_to_cpu(mdm->allocUnitSize));
+				udf_debug("Metadata file loc=%d\n",
+					le32_to_cpu(mdm->metadataFileLoc));
+				udf_debug("Mirror file loc=%d\n",
+				       le32_to_cpu(mdm->metadataMirrorFileLoc));
+				udf_debug("Bitmap file loc=%d\n",
+				       le32_to_cpu(mdm->metadataBitmapFileLoc));
+				udf_debug("Duplicate Flag: %d %d\n",
+					mdata->s_dup_md_flag, mdm->flags);
 			} else {
 				udf_debug("Unknown ident: %s\n",
 					  upm2->partIdent.ident);
@@ -1677,6 +1829,7 @@ static void udf_sb_free_bitmap(struct udf_bitmap *bitmap)
 static void udf_free_partition(struct udf_part_map *map)
 {
 	int i;
+	struct udf_meta_data *mdata;
 
 	if (map->s_partition_flags & UDF_PART_FLAG_UNALLOC_TABLE)
 		iput(map->s_uspace.s_table);
@@ -1689,6 +1842,17 @@ static void udf_free_partition(struct udf_part_map *map)
 	if (map->s_partition_type == UDF_SPARABLE_MAP15)
 		for (i = 0; i < 4; i++)
 			brelse(map->s_type_specific.s_sparing.s_spar_map[i]);
+	else if (map->s_partition_type == UDF_METADATA_MAP25) {
+		mdata = &map->s_type_specific.s_metadata;
+		iput(mdata->s_metadata_fe);
+		mdata->s_metadata_fe = NULL;
+
+		iput(mdata->s_mirror_fe);
+		mdata->s_mirror_fe = NULL;
+
+		iput(mdata->s_bitmap_fe);
+		mdata->s_bitmap_fe = NULL;
+	}
 }
 
 static int udf_fill_super(struct super_block *sb, void *options, int silent)

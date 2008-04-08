@@ -1301,6 +1301,15 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 		inode->i_op = &page_symlink_inode_operations;
 		inode->i_mode = S_IFLNK | S_IRWXUGO;
 		break;
+	case ICBTAG_FILE_TYPE_MAIN:
+		udf_debug("METADATA FILE-----\n");
+		break;
+	case ICBTAG_FILE_TYPE_MIRROR:
+		udf_debug("METADATA MIRROR FILE-----\n");
+		break;
+	case ICBTAG_FILE_TYPE_BITMAP:
+		udf_debug("METADATA BITMAP FILE-----\n");
+		break;
 	default:
 		printk(KERN_ERR "udf: udf_fill_inode(ino %ld) failed unknown "
 				"file type=%d\n", inode->i_ino,

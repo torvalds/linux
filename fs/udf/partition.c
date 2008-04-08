@@ -266,3 +266,58 @@ int udf_relocate_blocks(struct super_block *sb, long old_block, long *new_block)
 
 	return 0;
 }
+
+static uint32_t udf_try_read_meta(struct inode *inode, uint32_t block,
+					uint16_t partition, uint32_t offset)
+{
+	struct super_block *sb = inode->i_sb;
+	struct udf_part_map *map;
+	kernel_lb_addr eloc;
+	uint32_t elen;
+	sector_t ext_offset;
+	struct extent_position epos = {};
+	uint32_t phyblock;
+
+	if (inode_bmap(inode, block, &epos, &eloc, &elen, &ext_offset) !=
+						(EXT_RECORDED_ALLOCATED >> 30))
+		phyblock = 0xFFFFFFFF;
+	else {
+		map = &UDF_SB(sb)->s_partmaps[partition];
+		/* map to sparable/physical partition desc */
+		phyblock = udf_get_pblock(sb, eloc.logicalBlockNum,
+			map->s_partition_num, ext_offset + offset);
+	}
+
+	brelse(epos.bh);
+	return phyblock;
+}
+
+uint32_t udf_get_pblock_meta25(struct super_block *sb, uint32_t block,
+				uint16_t partition, uint32_t offset)
+{
+	struct udf_sb_info *sbi = UDF_SB(sb);
+	struct udf_part_map *map;
+	struct udf_meta_data *mdata;
+	uint32_t retblk;
+	struct inode *inode;
+
+	udf_debug("READING from METADATA\n");
+
+	map = &sbi->s_partmaps[partition];
+	mdata = &map->s_type_specific.s_metadata;
+	inode = mdata->s_metadata_fe ? : mdata->s_mirror_fe;
+
+	/* We shouldn't mount such media... */
+	BUG_ON(!inode);
+	retblk = udf_try_read_meta(inode, block, partition, offset);
+	if (retblk == 0xFFFFFFFF) {
+		udf_warning(sb, __func__, "error reading from METADATA, "
+			"trying to read from MIRROR");
+		inode = mdata->s_mirror_fe;
+		if (!inode)
+			return 0xFFFFFFFF;
+		retblk = udf_try_read_meta(inode, block, partition, offset);
+	}
+
+	return retblk;
+}

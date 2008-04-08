@@ -6,7 +6,7 @@
 /* Since UDF 2.01 is ISO 13346 based... */
 #define UDF_SUPER_MAGIC			0x15013346
 
-#define UDF_MAX_READ_VERSION		0x0201
+#define UDF_MAX_READ_VERSION		0x0250
 #define UDF_MAX_WRITE_VERSION		0x0201
 
 #define UDF_FLAG_USE_EXTENDED_FE	0
@@ -46,8 +46,21 @@
 #define UDF_VIRTUAL_MAP15		0x1512U
 #define UDF_VIRTUAL_MAP20		0x2012U
 #define UDF_SPARABLE_MAP15		0x1522U
+#define UDF_METADATA_MAP25		0x2511U
 
 #pragma pack(1) /* XXX(hch): Why?  This file just defines in-core structures */
+
+struct udf_meta_data {
+	__u32	s_meta_file_loc;
+	__u32	s_mirror_file_loc;
+	__u32	s_bitmap_file_loc;
+	__u32	s_alloc_unit_size;
+	__u16	s_align_unit_size;
+	__u8 	s_dup_md_flag;
+	struct inode *s_metadata_fe;
+	struct inode *s_mirror_fe;
+	struct inode *s_bitmap_fe;
+};
 
 struct udf_sparing_data {
 	__u16	s_packet_len;
@@ -82,6 +95,7 @@ struct udf_part_map {
 	union {
 		struct udf_sparing_data s_sparing;
 		struct udf_virtual_data s_virtual;
+		struct udf_meta_data s_metadata;
 	} s_type_specific;
 	__u32	(*s_partition_func)(struct super_block *, __u32, __u16, __u32);
 	__u16	s_volumeseqnum;
