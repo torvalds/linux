@@ -4033,6 +4033,10 @@ static int cable_is_40wire(struct ata_port *ap)
 	/* If the controller thinks we are 80 wire, we are */
 	if (ap->cbl == ATA_CBL_PATA80 || ap->cbl == ATA_CBL_SATA)
 		return 0;
+	/* If the system is known to be 40 wire short cable (eg laptop),
+	   then we allow 80 wire modes even if the drive isn't sure */
+	if (ap->cbl == ATA_CBL_PATA40_SHORT)
+		return 0;
 	/* If the controller doesn't know we scan
 
 	   - Note: We look for all 40 wire detects at this point.
