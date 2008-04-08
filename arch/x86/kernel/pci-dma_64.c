@@ -39,6 +39,8 @@ dma_alloc_pages(struct device *dev, gfp_t gfp, unsigned order)
 	return page ? page_address(page) : NULL;
 }
 
+#define dma_alloc_from_coherent_mem(dev, size, handle, ret) (0)
+#define dma_release_coherent(dev, order, vaddr) (0)
 /*
  * Allocate memory for a coherent mapping.
  */
@@ -49,6 +51,10 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	void *memory;
 	unsigned long dma_mask = 0;
 	u64 bus;
+
+
+	if (dma_alloc_from_coherent_mem(dev, size, dma_handle, &memory))
+		return memory;
 
 	if (!dev)
 		dev = &fallback_dev;
@@ -141,9 +147,12 @@ EXPORT_SYMBOL(dma_alloc_coherent);
 void dma_free_coherent(struct device *dev, size_t size,
 			 void *vaddr, dma_addr_t bus)
 {
+	int order = get_order(size);
 	WARN_ON(irqs_disabled());	/* for portability */
+	if (dma_release_coherent(dev, order, vaddr))
+		return;
 	if (dma_ops->unmap_single)
 		dma_ops->unmap_single(dev, bus, size, 0);
-	free_pages((unsigned long)vaddr, get_order(size));
+	free_pages((unsigned long)vaddr, order);
 }
 EXPORT_SYMBOL(dma_free_coherent);
