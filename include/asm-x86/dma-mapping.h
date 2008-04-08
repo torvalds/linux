@@ -215,6 +215,14 @@ static inline int dma_get_cache_alignment(void)
 
 #ifdef CONFIG_X86_32
 #  define ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY
+struct dma_coherent_mem {
+	void		*virt_base;
+	u32		device_base;
+	int		size;
+	int		flags;
+	unsigned long	*bitmap;
+};
+
 extern int
 dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
 			    dma_addr_t device_addr, size_t size, int flags);
