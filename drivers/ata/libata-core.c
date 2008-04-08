@@ -3132,16 +3132,21 @@ static int ata_dev_set_mode(struct ata_device *dev)
 	if (rc)
 		return rc;
 
-	/* Old CFA may refuse this command, which is just fine */
-	if (dev->xfer_shift == ATA_SHIFT_PIO && ata_id_is_cfa(dev->id))
-		ign_dev_err = 1;
-
-	/* Some very old devices and some bad newer ones fail any kind of
-	   SET_XFERMODE request but support PIO0-2 timings and no IORDY */
-	if (dev->xfer_shift == ATA_SHIFT_PIO && !ata_id_has_iordy(dev->id) &&
-			dev->pio_mode <= XFER_PIO_2)
-		ign_dev_err = 1;
-
+	if (dev->xfer_shift == ATA_SHIFT_PIO) {
+		/* Old CFA may refuse this command, which is just fine */
+		if (ata_id_is_cfa(dev->id))
+			ign_dev_err = 1;
+		/* Catch several broken garbage emulations plus some pre
+		   ATA devices */
+		if (ata_id_major_version(dev->id) == 0 &&
+					dev->pio_mode <= XFER_PIO_2)
+			ign_dev_err = 1;
+		/* Some very old devices and some bad newer ones fail
+		   any kind of SET_XFERMODE request but support PIO0-2
+		   timings and no IORDY */
+		if (!ata_id_has_iordy(dev->id) && dev->pio_mode <= XFER_PIO_2)
+			ign_dev_err = 1;
+	}
 	/* Early MWDMA devices do DMA but don't allow DMA mode setting.
 	   Don't fail an MWDMA0 set IFF the device indicates it is in MWDMA0 */
 	if (dev->xfer_shift == ATA_SHIFT_MWDMA &&
