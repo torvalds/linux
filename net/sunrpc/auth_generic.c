@@ -136,9 +136,7 @@ static struct rpc_cred_cache generic_cred_cache = {
 
 static const struct rpc_authops generic_auth_ops = {
 	.owner = THIS_MODULE,
-#ifdef RPC_DEBUG
 	.au_name = "Generic",
-#endif
 	.lookup_cred = generic_lookup_cred,
 	.crcreate = generic_create_cred,
 };

@@ -96,9 +96,7 @@ struct rpc_auth {
 struct rpc_authops {
 	struct module		*owner;
 	rpc_authflavor_t	au_flavor;	/* flavor (RPC_AUTH_*) */
-#ifdef RPC_DEBUG
 	char *			au_name;
-#endif
 	struct rpc_auth *	(*create)(struct rpc_clnt *, rpc_authflavor_t);
 	void			(*destroy)(struct rpc_auth *);
 

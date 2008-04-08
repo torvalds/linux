@@ -104,9 +104,7 @@ nul_validate(struct rpc_task *task, __be32 *p)
 const struct rpc_authops authnull_ops = {
 	.owner		= THIS_MODULE,
 	.au_flavor	= RPC_AUTH_NULL,
-#ifdef RPC_DEBUG
 	.au_name	= "NULL",
-#endif
 	.create		= nul_create,
 	.destroy	= nul_destroy,
 	.lookup_cred	= nul_lookup_cred,

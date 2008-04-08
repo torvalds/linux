@@ -210,9 +210,7 @@ void __init rpc_init_authunix(void)
 const struct rpc_authops authunix_ops = {
 	.owner		= THIS_MODULE,
 	.au_flavor	= RPC_AUTH_UNIX,
-#ifdef RPC_DEBUG
 	.au_name	= "UNIX",
-#endif
 	.create		= unx_create,
 	.destroy	= unx_destroy,
 	.lookup_cred	= unx_lookup_cred,

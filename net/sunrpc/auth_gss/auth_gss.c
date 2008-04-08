@@ -1287,9 +1287,7 @@ out:
 static const struct rpc_authops authgss_ops = {
 	.owner		= THIS_MODULE,
 	.au_flavor	= RPC_AUTH_GSS,
-#ifdef RPC_DEBUG
 	.au_name	= "RPCSEC_GSS",
-#endif
 	.create		= gss_create,
 	.destroy	= gss_destroy,
 	.lookup_cred	= gss_lookup_cred,

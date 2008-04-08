@@ -2885,7 +2885,7 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program, unsigned short po
 							RPC_DISPLAY_ADDR),
 				rpc_peeraddr2str(clp->cl_rpcclient,
 							RPC_DISPLAY_PROTO),
-				cred->cr_ops->cr_name,
+				clp->cl_rpcclient->cl_auth->au_ops->au_name,
 				clp->cl_id_uniquifier);
 		setclientid.sc_netid_len = scnprintf(setclientid.sc_netid,
 				sizeof(setclientid.sc_netid),
