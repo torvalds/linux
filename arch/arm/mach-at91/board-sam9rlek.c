@@ -56,6 +56,14 @@ static void __init ek_init_irq(void)
 
 
 /*
+ * USB HS Device port
+ */
+static struct usba_platform_data __initdata ek_usba_udc_data = {
+	.vbus_pin	= AT91_PIN_PA8,
+};
+
+
+/*
  * MCI (SD/MMC)
  */
 static struct at91_mmc_data __initdata ek_mmc_data = {
@@ -175,6 +183,8 @@ static void __init ek_board_init(void)
 {
 	/* Serial */
 	at91_add_device_serial();
+	/* USB HS */
+	at91_add_device_usba(&ek_usba_udc_data);
 	/* I2C */
 	at91_add_device_i2c(NULL, 0);
 	/* NAND */

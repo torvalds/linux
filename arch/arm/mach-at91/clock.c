@@ -391,8 +391,9 @@ static int at91_clk_show(struct seq_file *s, void *unused)
 	seq_printf(s, "MOR  = %8x\n", at91_sys_read(AT91_CKGR_MOR));
 	seq_printf(s, "MCFR = %8x\n", at91_sys_read(AT91_CKGR_MCFR));
 	seq_printf(s, "PLLA = %8x\n", at91_sys_read(AT91_CKGR_PLLAR));
-	seq_printf(s, "PLLB = %8x\n", at91_sys_read(AT91_CKGR_PLLBR));
-	if (cpu_is_at91cap9())
+	if (!cpu_is_at91sam9rl())
+		seq_printf(s, "PLLB = %8x\n", at91_sys_read(AT91_CKGR_PLLBR));
+	if (cpu_is_at91cap9() || cpu_is_at91sam9rl())
 		seq_printf(s, "UCKR = %8x\n", uckr = at91_sys_read(AT91_CKGR_UCKR));
 	seq_printf(s, "MCKR = %8x\n", at91_sys_read(AT91_PMC_MCKR));
 	seq_printf(s, "SR   = %8x\n", sr = at91_sys_read(AT91_PMC_SR));
@@ -610,7 +611,7 @@ int __init at91_clock_init(unsigned long main_clock)
 	/*
 	 * USB HS clock init
 	 */
-	if (cpu_is_at91cap9()) {
+	if (cpu_is_at91cap9() || cpu_is_at91sam9rl()) {
 		/*
 		 * multiplier is hard-wired to 40
 		 * (obtain the USB High Speed 480 MHz when input is 12 MHz)
@@ -635,7 +636,7 @@ int __init at91_clock_init(unsigned long main_clock)
 	for (i = 0; i < ARRAY_SIZE(standard_pmc_clocks); i++)
 		list_add_tail(&standard_pmc_clocks[i]->node, &clocks);
 
-	if (cpu_is_at91cap9())
+	if (cpu_is_at91cap9() || cpu_is_at91sam9rl())
 		list_add_tail(&utmi_clk.node, &clocks);
 
 	/* MCK and CPU clock are "always on" */
