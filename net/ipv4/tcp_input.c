@@ -2134,7 +2134,7 @@ static void tcp_verify_retransmit_hint(struct tcp_sock *tp, struct sk_buff *skb)
 /* Mark head of queue up as lost. With RFC3517 SACK, the packets is
  * is against sacked "cnt", otherwise it's against facked "cnt"
  */
-static void tcp_mark_head_lost(struct sock *sk, int packets, int fast_rexmit)
+static void tcp_mark_head_lost(struct sock *sk, int packets)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
@@ -2161,7 +2161,7 @@ static void tcp_mark_head_lost(struct sock *sk, int packets, int fast_rexmit)
 		    (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED))
 			cnt += tcp_skb_pcount(skb);
 
-		if (((!fast_rexmit || (tp->lost_out > 0)) && (cnt > packets)) ||
+		if ((cnt > packets) ||
 		    after(TCP_SKB_CB(skb)->end_seq, tp->high_seq))
 			break;
 		if (!(TCP_SKB_CB(skb)->sacked & (TCPCB_SACKED_ACKED|TCPCB_LOST))) {
@@ -2180,17 +2180,17 @@ static void tcp_update_scoreboard(struct sock *sk, int fast_rexmit)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	if (tcp_is_reno(tp)) {
-		tcp_mark_head_lost(sk, 1, fast_rexmit);
+		tcp_mark_head_lost(sk, 1);
 	} else if (tcp_is_fack(tp)) {
 		int lost = tp->fackets_out - tp->reordering;
 		if (lost <= 0)
 			lost = 1;
-		tcp_mark_head_lost(sk, lost, fast_rexmit);
+		tcp_mark_head_lost(sk, lost);
 	} else {
 		int sacked_upto = tp->sacked_out - tp->reordering;
-		if (sacked_upto < 0)
-			sacked_upto = 0;
-		tcp_mark_head_lost(sk, sacked_upto, fast_rexmit);
+		if (sacked_upto < fast_rexmit)
+			sacked_upto = fast_rexmit;
+		tcp_mark_head_lost(sk, sacked_upto);
 	}
 
 	/* New heuristics: it is possible only after we switched
@@ -2524,7 +2524,7 @@ static void tcp_fastretrans_alert(struct sock *sk, int pkts_acked, int flag)
 	    before(tp->snd_una, tp->high_seq) &&
 	    icsk->icsk_ca_state != TCP_CA_Open &&
 	    tp->fackets_out > tp->reordering) {
-		tcp_mark_head_lost(sk, tp->fackets_out - tp->reordering, 0);
+		tcp_mark_head_lost(sk, tp->fackets_out - tp->reordering);
 		NET_INC_STATS_BH(LINUX_MIB_TCPLOSS);
 	}
 
