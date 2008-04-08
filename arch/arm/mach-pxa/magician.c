@@ -135,7 +135,7 @@ static struct generic_bl_info backlight_info = {
 };
 
 static struct platform_device backlight = {
-	.name = "corgi-bl",
+	.name = "generic-bl",
 	.dev  = {
 		.platform_data = &backlight_info,
 	},
