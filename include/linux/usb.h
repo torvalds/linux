@@ -23,6 +23,7 @@
 
 struct usb_device;
 struct usb_driver;
+struct wusb_dev;
 
 /*-------------------------------------------------------------------------*/
 
@@ -480,6 +481,7 @@ struct usb_device {
 	unsigned autoresume_disabled:1;
 	unsigned skip_sys_resume:1;
 #endif
+	struct wusb_dev *wusb_dev;
 };
 #define	to_usb_device(d) container_of(d, struct usb_device, dev)
 
