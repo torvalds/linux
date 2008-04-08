@@ -32,6 +32,8 @@ struct nfs_client {
 	const struct nfs_rpc_ops *rpc_ops;	/* NFS protocol vector */
 	int			cl_proto;	/* Network transport protocol */
 
+	struct rpc_cred		*cl_machine_cred;
+
 #ifdef CONFIG_NFS_V4
 	u64			cl_clientid;	/* constant */
 	nfs4_verifier		cl_confirm;

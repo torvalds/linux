@@ -371,9 +371,16 @@ gss_alloc_msg(struct gss_auth *gss_auth, uid_t uid)
 static struct gss_upcall_msg *
 gss_setup_upcall(struct rpc_clnt *clnt, struct gss_auth *gss_auth, struct rpc_cred *cred)
 {
+	struct gss_cred *gss_cred = container_of(cred,
+			struct gss_cred, gc_base);
 	struct gss_upcall_msg *gss_new, *gss_msg;
+	uid_t uid = cred->cr_uid;
 
-	gss_new = gss_alloc_msg(gss_auth, cred->cr_uid);
+	/* Special case: rpc.gssd assumes that uid == 0 implies machine creds */
+	if (gss_cred->gc_machine_cred != 0)
+		uid = 0;
+
+	gss_new = gss_alloc_msg(gss_auth, uid);
 	if (gss_new == NULL)
 		return ERR_PTR(-ENOMEM);
 	gss_msg = gss_add_msg(gss_auth, gss_new);
@@ -818,6 +825,7 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	 */
 	cred->gc_base.cr_flags = 1UL << RPCAUTH_CRED_NEW;
 	cred->gc_service = gss_auth->service;
+	cred->gc_machine_cred = acred->machine_cred;
 	kref_get(&gss_auth->kref);
 	return &cred->gc_base;
 
@@ -855,6 +863,8 @@ gss_match(struct auth_cred *acred, struct rpc_cred *rc, int flags)
 	if (gss_cred->gc_ctx && time_after(jiffies, gss_cred->gc_ctx->gc_expiry))
 		return 0;
 out:
+	if (acred->machine_cred != gss_cred->gc_machine_cred)
+		return 0;
 	return (rc->cr_uid == acred->uid);
 }
 

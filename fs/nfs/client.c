@@ -112,6 +112,7 @@ struct nfs_client_initdata {
 static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 {
 	struct nfs_client *clp;
+	struct rpc_cred *cred;
 
 	if ((clp = kzalloc(sizeof(*clp), GFP_KERNEL)) == NULL)
 		goto error_0;
@@ -150,6 +151,9 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	clp->cl_boot_time = CURRENT_TIME;
 	clp->cl_state = 1 << NFS4CLNT_LEASE_EXPIRED;
 #endif
+	cred = rpc_lookup_machine_cred();
+	if (!IS_ERR(cred))
+		clp->cl_machine_cred = cred;
 
 	return clp;
 
@@ -190,6 +194,9 @@ static void nfs_free_client(struct nfs_client *clp)
 
 	if (__test_and_clear_bit(NFS_CS_CALLBACK, &clp->cl_res_state))
 		nfs_callback_down();
+
+	if (clp->cl_machine_cred != NULL)
+		put_rpccred(clp->cl_machine_cred);
 
 	kfree(clp->cl_hostname);
 	kfree(clp);

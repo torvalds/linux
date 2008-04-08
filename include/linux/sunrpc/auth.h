@@ -26,6 +26,7 @@ struct auth_cred {
 	uid_t	uid;
 	gid_t	gid;
 	struct group_info *group_info;
+	unsigned char machine_cred : 1;
 };
 
 /*
@@ -130,6 +131,7 @@ void __exit		rpcauth_remove_module(void);
 void __exit		rpc_destroy_generic_auth(void);
 
 struct rpc_cred *	rpc_lookup_cred(void);
+struct rpc_cred *	rpc_lookup_machine_cred(void);
 int			rpcauth_register(const struct rpc_authops *);
 int			rpcauth_unregister(const struct rpc_authops *);
 struct rpc_auth *	rpcauth_create(rpc_authflavor_t, struct rpc_clnt *);

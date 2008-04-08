@@ -17,6 +17,9 @@
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
+#define RPC_ANONYMOUS_USERID	((uid_t)-2)
+#define RPC_ANONYMOUS_GROUPID	((gid_t)-2)
+
 struct generic_cred {
 	struct rpc_cred gc_base;
 	struct auth_cred acred;
@@ -34,6 +37,22 @@ struct rpc_cred *rpc_lookup_cred(void)
 	return rpcauth_lookupcred(&generic_auth, 0);
 }
 EXPORT_SYMBOL_GPL(rpc_lookup_cred);
+
+/*
+ * Public call interface for looking up machine creds.
+ */
+struct rpc_cred *rpc_lookup_machine_cred(void)
+{
+	struct auth_cred acred = {
+		.uid = RPC_ANONYMOUS_USERID,
+		.gid = RPC_ANONYMOUS_GROUPID,
+		.machine_cred = 1,
+	};
+
+	dprintk("RPC:       looking up machine cred\n");
+	return generic_auth.au_ops->lookup_cred(&generic_auth, &acred, 0);
+}
+EXPORT_SYMBOL_GPL(rpc_lookup_machine_cred);
 
 static void
 generic_bind_cred(struct rpc_task *task, struct rpc_cred *cred)
@@ -75,8 +94,10 @@ generic_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	gcred->acred.group_info = acred->group_info;
 	if (gcred->acred.group_info != NULL)
 		get_group_info(gcred->acred.group_info);
+	gcred->acred.machine_cred = acred->machine_cred;
 
-	dprintk("RPC:       allocated generic cred %p for uid %d gid %d\n",
+	dprintk("RPC:       allocated %s cred %p for uid %d gid %d\n",
+			gcred->acred.machine_cred ? "machine" : "generic",
 			gcred, acred->uid, acred->gid);
 	return &gcred->gc_base;
 }
@@ -115,7 +136,8 @@ generic_match(struct auth_cred *acred, struct rpc_cred *cred, int flags)
 
 	if (gcred->acred.uid != acred->uid ||
 	    gcred->acred.gid != acred->gid ||
-	    gcred->acred.group_info != acred->group_info)
+	    gcred->acred.group_info != acred->group_info ||
+	    gcred->acred.machine_cred != acred->machine_cred)
 		return 0;
 	return 1;
 }
