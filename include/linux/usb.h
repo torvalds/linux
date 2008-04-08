@@ -372,6 +372,7 @@ struct usb_tt;
  *	used or not. By default, wired USB devices are authorized.
  *	WUSB devices are not, until we authorize them from user space.
  *	FIXME -- complete doc
+ * @authenticated: Crypto authentication passed
  * @wusb: device is Wireless USB
  * @string_langid: language ID for strings
  * @product: iProduct string, if present (static)
@@ -438,6 +439,7 @@ struct usb_device {
 	unsigned persist_enabled:1;
 	unsigned have_langid:1;
 	unsigned authorized:1;
+ 	unsigned authenticated:1;
 	unsigned wusb:1;
 	int string_langid;
 
