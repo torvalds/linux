@@ -203,16 +203,15 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 {
 	tag *tag_p;
 	struct buffer_head *bh = NULL;
-	struct udf_sb_info *sbi = UDF_SB(sb);
 
 	/* Read the block */
 	if (block == 0xFFFFFFFF)
 		return NULL;
 
-	bh = udf_tread(sb, block + sbi->s_session);
+	bh = udf_tread(sb, block);
 	if (!bh) {
 		udf_debug("block=%d, location=%d: read failed\n",
-			  block + sbi->s_session, location);
+			  block, location);
 		return NULL;
 	}
 
@@ -222,8 +221,7 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 
 	if (location != le32_to_cpu(tag_p->tagLocation)) {
 		udf_debug("location mismatch block %u, tag %u != %u\n",
-			  block + sbi->s_session,
-			  le32_to_cpu(tag_p->tagLocation), location);
+			  block, le32_to_cpu(tag_p->tagLocation), location);
 		goto error_out;
 	}
 
@@ -247,9 +245,8 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 					le16_to_cpu(tag_p->descCRCLength), 0))
 		return bh;
 
-	udf_debug("Crc failure block %d: crc = %d, crclen = %d\n",
-		  block + sbi->s_session, le16_to_cpu(tag_p->descCRC),
-		  le16_to_cpu(tag_p->descCRCLength));
+	udf_debug("Crc failure block %d: crc = %d, crclen = %d\n", block,
+	    le16_to_cpu(tag_p->descCRC), le16_to_cpu(tag_p->descCRCLength));
 
 error_out:
 	brelse(bh);

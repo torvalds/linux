@@ -587,7 +587,7 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 static int udf_vrs(struct super_block *sb, int silent)
 {
 	struct volStructDesc *vsd = NULL;
-	int sector = 32768;
+	loff_t sector = 32768;
 	int sectorsize;
 	struct buffer_head *bh = NULL;
 	int iso9660 = 0;
