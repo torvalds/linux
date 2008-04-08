@@ -1245,6 +1245,13 @@ static void release_address(struct usb_device *udev)
 	}
 }
 
+static void update_address(struct usb_device *udev, int devnum)
+{
+	/* The address for a WUSB device is managed by wusbcore. */
+	if (!udev->wusb)
+		udev->devnum = devnum;
+}
+
 #ifdef	CONFIG_USB_SUSPEND
 
 static void usb_stop_pm(struct usb_device *udev)
@@ -1733,7 +1740,7 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 		case 0:
 			/* TRSTRCY = 10 ms; plus some extra */
 			msleep(10 + 40);
-		  	udev->devnum = 0;	/* Device now at address 0 */
+			update_address(udev, 0);
 			/* FALL THROUGH */
 		case -ENOTCONN:
 		case -ENODEV:
@@ -2236,7 +2243,8 @@ static int hub_set_address(struct usb_device *udev, int devnum)
 		USB_REQ_SET_ADDRESS, 0, devnum, 0,
 		NULL, 0, USB_CTRL_SET_TIMEOUT);
 	if (retval == 0) {
-		udev->devnum = devnum;	/* Device now using proper address */
+		/* Device now using proper address. */
+		update_address(udev, devnum);
 		usb_set_device_state(udev, USB_STATE_ADDRESS);
 		usb_ep0_reinit(udev);
 	}
@@ -2491,7 +2499,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 fail:
 	if (retval) {
 		hub_port_disable(hub, port1, 0);
-		udev->devnum = devnum;	/* for disconnect processing */
+		update_address(udev, devnum);	/* for disconnect processing */
 	}
 	mutex_unlock(&usb_address0_mutex);
 	return retval;
