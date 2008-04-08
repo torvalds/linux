@@ -14,6 +14,16 @@
 #include <linux/module.h>
 #include <asm/io.h>
 
+/* Dummy device used for NULL arguments (normally ISA). Better would
+   be probably a smaller DMA mask, but this is bug-to-bug compatible
+   to i386. */
+struct device fallback_dev = {
+	.bus_id = "fallback device",
+	.coherent_dma_mask = DMA_32BIT_MASK,
+	.dma_mask = &fallback_dev.coherent_dma_mask,
+};
+
+
 static int dma_alloc_from_coherent_mem(struct device *dev, ssize_t size,
 				       dma_addr_t *dma_handle, void **ret)
 {
@@ -74,6 +84,9 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 
 	if (dev == NULL || (dev->coherent_dma_mask < 0xffffffff))
 		gfp |= GFP_DMA;
+
+	if (!dev)
+		dev = &fallback_dev;
 
 	page = dma_alloc_pages(dev, gfp, order);
 	if (page == NULL)
