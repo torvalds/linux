@@ -80,6 +80,8 @@ void dma_free_coherent(struct device *dev, size_t size,
 	WARN_ON(irqs_disabled());	/* for portability */
 	if (dma_release_coherent(dev, order, vaddr))
 		return;
+	if (dma_ops->unmap_single)
+		dma_ops->unmap_single(dev, dma_handle, size, 0);
 	free_pages((unsigned long)vaddr, order);
 }
 EXPORT_SYMBOL(dma_free_coherent);
