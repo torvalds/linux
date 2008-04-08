@@ -27,7 +27,6 @@
 #include <linux/rtnetlink.h>
 #include <net/iw_handler.h>
 #include <asm/types.h>
-#include <asm/unaligned.h>
 
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
@@ -2123,11 +2122,6 @@ ieee80211_rx_bss_get(struct net_device *dev, u8 *bssid, int freq,
 }
 
 #ifdef CONFIG_MAC80211_MESH
-static inline u32 bss_mesh_cfg_get(u8 *mesh_cfg, u8 offset)
-{
-	return be32_to_cpu(get_unaligned((__be32 *) (mesh_cfg + offset)));
-}
-
 static struct ieee80211_sta_bss *
 ieee80211_rx_mesh_bss_get(struct net_device *dev, u8 *mesh_id, int mesh_id_len,
 			  u8 *mesh_cfg, int freq)
@@ -2167,7 +2161,7 @@ ieee80211_rx_mesh_bss_add(struct net_device *dev, u8 *mesh_id, int mesh_id_len,
 	if (!bss)
 		return NULL;
 
-	bss->mesh_cfg = kmalloc(sizeof(struct bss_mesh_config), GFP_ATOMIC);
+	bss->mesh_cfg = kmalloc(MESH_CFG_CMP_LEN, GFP_ATOMIC);
 	if (!bss->mesh_cfg) {
 		kfree(bss);
 		return NULL;
@@ -2185,12 +2179,7 @@ ieee80211_rx_mesh_bss_add(struct net_device *dev, u8 *mesh_id, int mesh_id_len,
 
 	atomic_inc(&bss->users);
 	atomic_inc(&bss->users);
-	bss->mesh_cfg->mesh_version = mesh_cfg[0];
-	bss->mesh_cfg->path_proto_id = bss_mesh_cfg_get(mesh_cfg, PP_OFFSET);
-	bss->mesh_cfg->path_metric_id = bss_mesh_cfg_get(mesh_cfg, PM_OFFSET);
-	bss->mesh_cfg->cong_control_id = bss_mesh_cfg_get(mesh_cfg, CC_OFFSET);
-	bss->mesh_cfg->channel_precedence = bss_mesh_cfg_get(mesh_cfg,
-							     CP_OFFSET);
+	memcpy(bss->mesh_cfg, mesh_cfg, MESH_CFG_CMP_LEN);
 	bss->mesh_id_len = mesh_id_len;
 	bss->freq = freq;
 	spin_lock_bh(&local->sta_bss_lock);
@@ -4067,33 +4056,36 @@ ieee80211_sta_scan_result(struct net_device *dev,
 
 	if (bss_mesh_cfg(bss)) {
 		char *buf;
-		struct bss_mesh_config *cfg = bss_mesh_cfg(bss);
+		u8 *cfg = bss_mesh_cfg(bss);
 		buf = kmalloc(50, GFP_ATOMIC);
 		if (buf) {
 			memset(&iwe, 0, sizeof(iwe));
 			iwe.cmd = IWEVCUSTOM;
-			sprintf(buf, "Mesh network (version %d)",
-				cfg->mesh_version);
+			sprintf(buf, "Mesh network (version %d)", cfg[0]);
 			iwe.u.data.length = strlen(buf);
 			current_ev = iwe_stream_add_point(current_ev, end_buf,
 							  &iwe, buf);
 			sprintf(buf, "Path Selection Protocol ID: "
-				"0x%08X", cfg->path_proto_id);
+				"0x%02X%02X%02X%02X", cfg[1], cfg[2], cfg[3],
+							cfg[4]);
 			iwe.u.data.length = strlen(buf);
 			current_ev = iwe_stream_add_point(current_ev, end_buf,
 							  &iwe, buf);
 			sprintf(buf, "Path Selection Metric ID: "
-				"0x%08X", cfg->path_metric_id);
+				"0x%02X%02X%02X%02X", cfg[5], cfg[6], cfg[7],
+							cfg[8]);
 			iwe.u.data.length = strlen(buf);
 			current_ev = iwe_stream_add_point(current_ev, end_buf,
 							  &iwe, buf);
 			sprintf(buf, "Congestion Control Mode ID: "
-				"0x%08X", cfg->cong_control_id);
+				"0x%02X%02X%02X%02X", cfg[9], cfg[10],
+							cfg[11], cfg[12]);
 			iwe.u.data.length = strlen(buf);
 			current_ev = iwe_stream_add_point(current_ev, end_buf,
 							  &iwe, buf);
 			sprintf(buf, "Channel Precedence: "
-				"0x%08X", cfg->channel_precedence);
+				"0x%02X%02X%02X%02X", cfg[13], cfg[14],
+							cfg[15], cfg[16]);
 			iwe.u.data.length = strlen(buf);
 			current_ev = iwe_stream_add_point(current_ev, end_buf,
 							  &iwe, buf);

@@ -69,14 +69,6 @@ struct ieee80211_fragment_entry {
 	u8 last_pn[6]; /* PN of the last fragment if CCMP was used */
 };
 
-struct bss_mesh_config {
-	u32 path_proto_id;
-	u32 path_metric_id;
-	u32 cong_control_id;
-	u32 channel_precedence;
-	u8 mesh_version;
-};
-
 
 struct ieee80211_sta_bss {
 	struct list_head list;
@@ -102,7 +94,7 @@ struct ieee80211_sta_bss {
 #ifdef CONFIG_MAC80211_MESH
 	u8 *mesh_id;
 	size_t mesh_id_len;
-	struct bss_mesh_config *mesh_cfg;
+	u8 *mesh_cfg;
 #endif
 #define IEEE80211_MAX_SUPP_RATES 32
 	u8 supp_rates[IEEE80211_MAX_SUPP_RATES];
@@ -121,8 +113,7 @@ struct ieee80211_sta_bss {
 	u8 erp_value;
 };
 
-static inline
-struct bss_mesh_config *bss_mesh_cfg(struct ieee80211_sta_bss *bss)
+static inline u8 *bss_mesh_cfg(struct ieee80211_sta_bss *bss)
 {
 #ifdef CONFIG_MAC80211_MESH
 	return bss->mesh_cfg;
