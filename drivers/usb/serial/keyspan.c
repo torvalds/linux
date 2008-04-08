@@ -1187,6 +1187,7 @@ static int keyspan_write_room (struct usb_serial_port *port)
 	p_priv = usb_get_serial_port_data(port);
 	d_details = p_priv->device_details;
 
+	/* FIXME: locking */
 	if (d_details->msg_format == msg_usa90)
    		data_len = 64;
 	else
@@ -1203,13 +1204,13 @@ static int keyspan_write_room (struct usb_serial_port *port)
 			if (this_urb->status != -EINPROGRESS)
 				return (data_len);
 	}
-	return (0);
+	return 0;
 }
 
 
 static int keyspan_chars_in_buffer (struct usb_serial_port *port)
 {
-	return (0);
+	return 0;
 }
 
 
@@ -1289,7 +1290,7 @@ static int keyspan_open (struct usb_serial_port *port, struct file *filp)
 	//mdelay(100);
 	//keyspan_set_termios(port, NULL);
 
-	return (0);
+	return 0;
 }
 
 static inline void stop_urb(struct urb *urb)
@@ -2006,7 +2007,7 @@ static int keyspan_usa26_send_setup(struct usb_serial *serial,
 	}
 #endif
 
-	return (0);
+	return 0;
 }
 
 static int keyspan_usa28_send_setup(struct usb_serial *serial,
@@ -2131,7 +2132,7 @@ static int keyspan_usa28_send_setup(struct usb_serial *serial,
 	}
 #endif
 
-	return (0);
+	return 0;
 }
 
 static int keyspan_usa49_send_setup(struct usb_serial *serial,
@@ -2317,7 +2318,7 @@ static int keyspan_usa49_send_setup(struct usb_serial *serial,
 	}
 #endif
 
-	return (0);
+	return 0;
 }
 
 static int keyspan_usa90_send_setup(struct usb_serial *serial,
@@ -2455,7 +2456,7 @@ static int keyspan_usa90_send_setup(struct usb_serial *serial,
 	if ((err = usb_submit_urb(this_urb, GFP_ATOMIC)) != 0) {
 		dbg("%s - usb_submit_urb(setup) failed (%d)", __func__, err);
 	}
-	return (0);
+	return 0;
 }
 
 static int keyspan_usa67_send_setup(struct usb_serial *serial,
@@ -2603,7 +2604,7 @@ static int keyspan_usa67_send_setup(struct usb_serial *serial,
 	if (err != 0)
 		dbg("%s - usb_submit_urb(setup) failed (%d)", __func__,
 				err);
-	return (0);
+	return 0;
 }
 
 static void keyspan_send_setup(struct usb_serial_port *port, int reset_port)
@@ -2696,7 +2697,7 @@ static int keyspan_startup (struct usb_serial *serial)
 				err);
 	}
 			
-	return (0);
+	return 0;
 }
 
 static void keyspan_shutdown (struct usb_serial *serial)

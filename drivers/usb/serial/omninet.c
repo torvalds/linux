@@ -295,8 +295,9 @@ static int omninet_write_room (struct usb_serial_port *port)
 	struct usb_serial 	*serial = port->serial;
 	struct usb_serial_port 	*wport 	= serial->port[1];
 
-	int room = 0; // Default: no room
+	int room = 0; /* Default: no room */
 
+	/* FIXME: no consistent locking for write_urb_busy */
 	if (wport->write_urb_busy)
 		room = wport->bulk_out_size - OMNINET_HEADERLEN;
 

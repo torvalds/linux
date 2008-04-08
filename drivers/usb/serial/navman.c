@@ -6,6 +6,10 @@
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
  *	version 2 as published by the Free Software Foundation.
+ *
+ * TODO:
+ *	Add termios method that uses copy_hw but also kills all echo
+ *	flags as the navman is rx only so cannot echo.
  */
 
 #include <linux/kernel.h>
@@ -106,12 +110,8 @@ static int navman_write(struct usb_serial_port *port,
 
 	/*
 	 * This device can't write any data, only read from the device
-	 * so we just silently eat all data sent to us and say it was
-	 * successfully sent.
-	 * Evil, I know, but do you have a better idea?
 	 */
-
-	return count;
+	return -EOPNOTSUPP;
 }
 
 static struct usb_serial_driver navman_device = {

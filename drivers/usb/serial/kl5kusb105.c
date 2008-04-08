@@ -702,12 +702,14 @@ static void klsi_105_set_termios (struct usb_serial_port *port,
 				  struct ktermios *old_termios)
 {
 	struct klsi_105_private *priv = usb_get_serial_port_data(port);
-	unsigned int iflag = port->tty->termios->c_iflag;
+	struct tty_struct *tty = port->tty;
+	unsigned int iflag = tty->termios->c_iflag;
 	unsigned int old_iflag = old_termios->c_iflag;
-	unsigned int cflag = port->tty->termios->c_cflag;
+	unsigned int cflag = tty->termios->c_cflag;
 	unsigned int old_cflag = old_termios->c_cflag;
 	struct klsi_105_port_settings cfg;
 	unsigned long flags;
+	speed_t baud;
 	
 	/* lock while we are modifying the settings */
 	spin_lock_irqsave (&priv->lock, flags);
@@ -715,6 +717,8 @@ static void klsi_105_set_termios (struct usb_serial_port *port,
 	/*
 	 * Update baud rate
 	 */
+	baud = tty_get_baud_rate(tty);
+
 	if( (cflag & CBAUD) != (old_cflag & CBAUD) ) {
 	        /* reassert DTR and (maybe) RTS on transition from B0 */
 		if( (old_cflag & CBAUD) == B0 ) {
@@ -728,8 +732,8 @@ static void klsi_105_set_termios (struct usb_serial_port *port,
 			mct_u232_set_modem_ctrl(serial, priv->control_state);
 #endif
 		}
-		
-		switch(tty_get_baud_rate(port->tty)) {
+	}
+	switch(baud) {
 		case 0: /* handled below */
 			break;
 		case 1200:
@@ -757,25 +761,26 @@ static void klsi_105_set_termios (struct usb_serial_port *port,
 			priv->cfg.baudrate = kl5kusb105a_sio_b115200;
 			break;
 		default:
-			err("KLSI USB->Serial converter:"
+			dbg("KLSI USB->Serial converter:"
 			    " unsupported baudrate request, using default"
 			    " of 9600");
 			priv->cfg.baudrate = kl5kusb105a_sio_b9600;
+			baud = 9600;
 			break;
-		}
-		if ((cflag & CBAUD) == B0 ) {
-			dbg("%s: baud is B0", __func__);
-			/* Drop RTS and DTR */
-			/* maybe this should be simulated by sending read
-			 * disable and read enable messages?
-			 */
-			;
-#if 0
-			priv->control_state &= ~(TIOCM_DTR | TIOCM_RTS);
-        		mct_u232_set_modem_ctrl(serial, priv->control_state);
-#endif
-		}
 	}
+	if ((cflag & CBAUD) == B0 ) {
+		dbg("%s: baud is B0", __func__);
+		/* Drop RTS and DTR */
+		/* maybe this should be simulated by sending read
+		 * disable and read enable messages?
+		 */
+		;
+#if 0
+		priv->control_state &= ~(TIOCM_DTR | TIOCM_RTS);
+       		mct_u232_set_modem_ctrl(serial, priv->control_state);
+#endif
+	}
+	tty_encode_baud_rate(tty, baud, baud);
 
 	if ((cflag & CSIZE) != (old_cflag & CSIZE)) {
 		/* set the number of data bits */
@@ -807,6 +812,8 @@ static void klsi_105_set_termios (struct usb_serial_port *port,
 	if ((cflag & (PARENB|PARODD)) != (old_cflag & (PARENB|PARODD))
 	    || (cflag & CSTOPB) != (old_cflag & CSTOPB) ) {
 		
+		/* Not currently supported */
+		tty->termios->c_cflag &= ~(PARENB|PARODD|CSTOPB);
 #if 0
 		priv->last_lcr = 0;
 
@@ -834,6 +841,8 @@ static void klsi_105_set_termios (struct usb_serial_port *port,
 	    || (iflag & IXON) != (old_iflag & IXON)
 	    ||  (cflag & CRTSCTS) != (old_cflag & CRTSCTS) ) {
 		
+		/* Not currently supported */
+		tty->termios->c_cflag &= ~CRTSCTS;
 		/* Drop DTR/RTS if no flow control otherwise assert */
 #if 0
 		if ((iflag & IXOFF) || (iflag & IXON) || (cflag & CRTSCTS) )

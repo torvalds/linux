@@ -262,13 +262,14 @@ int usb_serial_generic_write_room (struct usb_serial_port *port)
 
 	dbg("%s - port %d", __func__, port->number);
 
+	/* FIXME: Locking */
 	if (serial->num_bulk_out) {
 		if (!(port->write_urb_busy))
 			room = port->bulk_out_size;
 	}
 
 	dbg("%s - returns %d", __func__, room);
-	return (room);
+	return room;
 }
 
 int usb_serial_generic_chars_in_buffer (struct usb_serial_port *port)
@@ -278,6 +279,7 @@ int usb_serial_generic_chars_in_buffer (struct usb_serial_port *port)
 
 	dbg("%s - port %d", __func__, port->number);
 
+	/* FIXME: Locking */
 	if (serial->num_bulk_out) {
 		if (port->write_urb_busy)
 			chars = port->write_urb->transfer_buffer_length;
@@ -368,7 +370,6 @@ void usb_serial_generic_write_bulk_callback (struct urb *urb)
 		    __func__, status);
 		return;
 	}
-
 	usb_serial_port_softint(port);
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_write_bulk_callback);

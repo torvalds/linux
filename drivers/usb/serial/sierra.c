@@ -566,6 +566,8 @@ static int sierra_chars_in_buffer(struct usb_serial_port *port)
 	 * have sent out, but hasn't made it through to the
 	 * device as we can't see the backend here, so just
 	 * tell the tty layer that everything is flushed.
+	 *
+	 * FIXME: should walk the outstanding urbs info
 	 */
 	return 0;
 }

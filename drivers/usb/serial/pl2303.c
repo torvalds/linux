@@ -546,6 +546,8 @@ static void pl2303_set_termios(struct usb_serial_port *port,
 	buf = kzalloc(7, GFP_KERNEL);
 	if (!buf) {
 		dev_err(&port->dev, "%s - out of memory.\n", __func__);
+		/* Report back no change occurred */
+		*port->tty->termios = *old_termios;
 		return;
 	}
 

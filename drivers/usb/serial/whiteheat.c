@@ -219,7 +219,7 @@ struct whiteheat_urb_wrap {
 struct whiteheat_private {
 	spinlock_t		lock;
 	__u8			flags;
-	__u8			mcr;
+	__u8			mcr;		/* FIXME: no locking on mcr */
 	struct list_head	rx_urbs_free;
 	struct list_head	rx_urbs_submitted;
 	struct list_head	rx_urb_q;

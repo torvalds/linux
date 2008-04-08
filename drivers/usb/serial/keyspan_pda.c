@@ -636,14 +636,19 @@ static int keyspan_pda_write_room (struct usb_serial_port *port)
 static int keyspan_pda_chars_in_buffer (struct usb_serial_port *port)
 {
 	struct keyspan_pda_private *priv;
+	unsigned long flags;
+	int ret = 0;
 
 	priv = usb_get_serial_port_data(port);
 
 	/* when throttled, return at least WAKEUP_CHARS to tell select() (via
 	   n_tty.c:normal_poll() ) that we're not writeable. */
+
+	spin_lock_irqsave(&port->lock, flags);
 	if (port->write_urb_busy || priv->tx_throttled)
-		return 256;
-	return 0;
+		ret = 256;
+	spin_unlock_irqrestore(&port->lock, flags);
+	return ret;
 }
 
 

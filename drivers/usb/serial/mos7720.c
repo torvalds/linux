@@ -635,6 +635,7 @@ static int mos7720_write_room(struct usb_serial_port *port)
 		return -ENODEV;
 	}
 
+	/* FIXME: Locking */
 	for (i = 0; i < NUM_URBS; ++i) {
 		if (mos7720_port->write_urb_pool[i] && mos7720_port->write_urb_pool[i]->status != -EINPROGRESS)
 			room += URB_TRANSFER_BUFFER_SIZE;

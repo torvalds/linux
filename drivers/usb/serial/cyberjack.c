@@ -151,7 +151,7 @@ static void cyberjack_shutdown (struct usb_serial *serial)
 	
 	dbg("%s", __func__);
 
-	for (i=0; i < serial->num_ports; ++i) {
+	for (i = 0; i < serial->num_ports; ++i) {
 		usb_kill_urb(serial->port[i]->interrupt_in_urb);
 		/* My special items, the standard routines free my urbs */
 		kfree(usb_get_serial_port_data(serial->port[i]));
@@ -209,7 +209,7 @@ static int cyberjack_write (struct usb_serial_port *port, const unsigned char *b
 
 	if (count == 0) {
 		dbg("%s - write request of 0 bytes", __func__);
-		return (0);
+		return 0;
 	}
 
 	spin_lock_bh(&port->lock);
@@ -223,12 +223,12 @@ static int cyberjack_write (struct usb_serial_port *port, const unsigned char *b
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	if( (count+priv->wrfilled)>sizeof(priv->wrbuf) ) {
+	if( (count+priv->wrfilled) > sizeof(priv->wrbuf) ) {
 		/* To much data for buffer. Reset buffer. */
-		priv->wrfilled=0;
-		spin_unlock_irqrestore(&priv->lock, flags);
+		priv->wrfilled = 0;
 		port->write_urb_busy = 0;
-		return (0);
+		spin_unlock_irqrestore(&priv->lock, flags);
+		return 0;
 	}
 
 	/* Copy data */
@@ -269,8 +269,8 @@ static int cyberjack_write (struct usb_serial_port *port, const unsigned char *b
 		if (result) {
 			err("%s - failed submitting write urb, error %d", __func__, result);
 			/* Throw away data. No better idea what to do with it. */
-			priv->wrfilled=0;
-			priv->wrsent=0;
+			priv->wrfilled = 0;
+			priv->wrsent = 0;
 			spin_unlock_irqrestore(&priv->lock, flags);
 			port->write_urb_busy = 0;
 			return 0;
@@ -282,8 +282,8 @@ static int cyberjack_write (struct usb_serial_port *port, const unsigned char *b
 		if( priv->wrsent>=priv->wrfilled ) {
 			dbg("%s - buffer cleaned", __func__);
 			memset( priv->wrbuf, 0, sizeof(priv->wrbuf) );
-			priv->wrfilled=0;
-			priv->wrsent=0;
+			priv->wrfilled = 0;
+			priv->wrsent = 0;
 		}
 	}
 
@@ -294,6 +294,7 @@ static int cyberjack_write (struct usb_serial_port *port, const unsigned char *b
 
 static int cyberjack_write_room( struct usb_serial_port *port )
 {
+	/* FIXME: .... */
 	return CYBERJACK_LOCAL_BUF_SIZE;
 }
 
@@ -314,7 +315,7 @@ static void cyberjack_read_int_callback( struct urb *urb )
 	usb_serial_debug_data(debug, &port->dev, __func__, urb->actual_length, data);
 
 	/* React only to interrupts signaling a bulk_in transfer */
-	if( (urb->actual_length==4) && (data[0]==0x01) ) {
+	if( (urb->actual_length == 4) && (data[0] == 0x01) ) {
 		short old_rdtodo;
 
 		/* This is a announcement of coming bulk_ins. */
@@ -450,8 +451,8 @@ static void cyberjack_write_bulk_callback (struct urb *urb)
 		if (result) {
 			err("%s - failed submitting write urb, error %d", __func__, result);
 			/* Throw away data. No better idea what to do with it. */
-			priv->wrfilled=0;
-			priv->wrsent=0;
+			priv->wrfilled = 0;
+			priv->wrsent = 0;
 			goto exit;
 		}
 
@@ -463,8 +464,8 @@ static void cyberjack_write_bulk_callback (struct urb *urb)
 		if( (priv->wrsent>=priv->wrfilled) || (priv->wrsent>=blksize) ) {
 			dbg("%s - buffer cleaned", __func__);
 			memset( priv->wrbuf, 0, sizeof(priv->wrbuf) );
-			priv->wrfilled=0;
-			priv->wrsent=0;
+			priv->wrfilled = 0;
+			priv->wrsent = 0;
 		}
 	}
 

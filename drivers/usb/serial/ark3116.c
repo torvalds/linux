@@ -192,6 +192,7 @@ static void ark3116_set_termios(struct usb_serial_port *port,
 	buf = kmalloc(1, GFP_KERNEL);
 	if (!buf) {
 		dbg("error kmalloc");
+		*port->tty->termios = *old_termios;
 		return;
 	}
 

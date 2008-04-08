@@ -656,6 +656,7 @@ static int option_write_room(struct usb_serial_port *port)
 
 	portdata = usb_get_serial_port_data(port);
 
+
 	for (i=0; i < N_OUT_URB; i++) {
 		this_urb = portdata->out_urbs[i];
 		if (this_urb && !test_bit(i, &portdata->out_busy))
@@ -677,6 +678,8 @@ static int option_chars_in_buffer(struct usb_serial_port *port)
 
 	for (i=0; i < N_OUT_URB; i++) {
 		this_urb = portdata->out_urbs[i];
+		/* FIXME: This locking is insufficient as this_urb may
+		   go unused during the test */
 		if (this_urb && test_bit(i, &portdata->out_busy))
 			data_len += this_urb->transfer_buffer_length;
 	}

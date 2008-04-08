@@ -469,6 +469,8 @@ static int visor_chars_in_buffer (struct usb_serial_port *port)
 	 * have sent out, but hasn't made it through to the
 	 * device, so just tell the tty layer that everything
 	 * is flushed.
+	 *
+	 * FIXME: Should walk outstanding_urbs
 	 */
 	return 0;
 }
