@@ -27,14 +27,6 @@ EXPORT_SYMBOL(iommu_bio_merge);
 static int iommu_sac_force __read_mostly = 0;
 
 int no_iommu __read_mostly;
-#ifdef CONFIG_IOMMU_DEBUG
-int panic_on_overflow __read_mostly = 1;
-int force_iommu __read_mostly = 1;
-#else
-int panic_on_overflow __read_mostly = 0;
-int force_iommu __read_mostly= 0;
-#endif
-
 /* Set this to 1 if there is a HW IOMMU in the system */
 int iommu_detected __read_mostly = 0;
 

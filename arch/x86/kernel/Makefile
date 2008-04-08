@@ -24,9 +24,8 @@ obj-$(CONFIG_X86_64)	+= sys_x86_64.o x8664_ksyms_64.o
 obj-$(CONFIG_X86_64)	+= syscall_64.o vsyscall_64.o setup64.o
 obj-y			+= pci-dma_$(BITS).o  bootflag.o e820_$(BITS).o
 obj-y			+= pci-dma.o quirks.o i8237.o topology.o kdebugfs.o
-obj-y			+= alternative.o i8253.o
-obj-$(CONFIG_X86_64)	+= pci-nommu_64.o bugs_64.o
-obj-$(CONFIG_X86_32)	+= pci-base_32.o
+obj-y			+= alternative.o i8253.o pci-nommu.o
+obj-$(CONFIG_X86_64)	+= bugs_64.o
 obj-y			+= tsc_$(BITS).o io_delay.o rtc.o
 
 obj-$(CONFIG_X86_TRAMPOLINE)	+= trampoline.o
