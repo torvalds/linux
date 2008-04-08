@@ -591,18 +591,32 @@ static ssize_t show_size(struct _cpuid4_info *this_leaf, char *buf)
 	return sprintf (buf, "%luK\n", this_leaf->size / 1024);
 }
 
-static ssize_t show_shared_cpu_map(struct _cpuid4_info *this_leaf, char *buf)
+static ssize_t show_shared_cpu_map_func(struct _cpuid4_info *this_leaf,
+					int type, char *buf)
 {
+	ptrdiff_t len = PTR_ALIGN(buf + PAGE_SIZE - 1, PAGE_SIZE) - buf;
 	int n = 0;
-	int len = cpumask_scnprintf_len(nr_cpu_ids);
-	char *mask_str = kmalloc(len, GFP_KERNEL);
 
-	if (mask_str) {
-		cpumask_scnprintf(mask_str, len, this_leaf->shared_cpu_map);
-		n = sprintf(buf, "%s\n", mask_str);
-		kfree(mask_str);
+	if (len > 1) {
+		cpumask_t *mask = &this_leaf->shared_cpu_map;
+
+		n = type?
+			cpulist_scnprintf(buf, len-2, *mask):
+			cpumask_scnprintf(buf, len-2, *mask);
+		buf[n++] = '\n';
+		buf[n] = '\0';
 	}
 	return n;
+}
+
+static inline ssize_t show_shared_cpu_map(struct _cpuid4_info *leaf, char *buf)
+{
+	return show_shared_cpu_map_func(leaf, 0, buf);
+}
+
+static inline ssize_t show_shared_cpu_list(struct _cpuid4_info *leaf, char *buf)
+{
+	return show_shared_cpu_map_func(leaf, 1, buf);
 }
 
 static ssize_t show_type(struct _cpuid4_info *this_leaf, char *buf) {
@@ -640,6 +654,7 @@ define_one_ro(ways_of_associativity);
 define_one_ro(number_of_sets);
 define_one_ro(size);
 define_one_ro(shared_cpu_map);
+define_one_ro(shared_cpu_list);
 
 static struct attribute * default_attrs[] = {
 	&type.attr,
@@ -650,6 +665,7 @@ static struct attribute * default_attrs[] = {
 	&number_of_sets.attr,
 	&size.attr,
 	&shared_cpu_map.attr,
+	&shared_cpu_list.attr,
 	NULL
 };
 
