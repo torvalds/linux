@@ -161,8 +161,6 @@ void dma_free_coherent(struct device *dev, size_t size,
 }
 EXPORT_SYMBOL(dma_free_coherent);
 
-static int forbid_dac __read_mostly;
-
 int dma_supported(struct device *dev, u64 mask)
 {
 #ifdef CONFIG_PCI
@@ -270,16 +268,3 @@ static __init int iommu_setup(char *p)
 	return 0;
 }
 early_param("iommu", iommu_setup);
-
-#ifdef CONFIG_PCI
-/* Many VIA bridges seem to corrupt data for DAC. Disable it here */
-
-static __devinit void via_no_dac(struct pci_dev *dev)
-{
-	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI && forbid_dac == 0) {
-		printk(KERN_INFO "PCI: VIA PCI bridge detected. Disabling DAC.\n");
-		forbid_dac = 1;
-	}
-}
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, PCI_ANY_ID, via_no_dac);
-#endif
