@@ -60,7 +60,7 @@ static int nommu_map_sg(struct device *hwdev, struct scatterlist *sg,
 
 	for_each_sg(sg, s, nents, i) {
 		BUG_ON(!sg_page(s));
-		s->dma_address = virt_to_bus(sg_virt(s));
+		s->dma_address = sg_phys(s);
 		if (!check_addr("map_sg", hwdev, s->dma_address, s->length))
 			return 0;
 		s->dma_length = s->length;
