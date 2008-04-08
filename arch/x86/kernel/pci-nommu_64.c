@@ -30,6 +30,7 @@ nommu_map_single(struct device *hwdev, phys_addr_t paddr, size_t size,
 	       int direction)
 {
 	dma_addr_t bus = paddr;
+	WARN_ON(size == 0);
 	if (!check_addr("map_single", hwdev, bus, size))
 				return bad_dma_address;
 	flush_write_buffers();
@@ -57,6 +58,8 @@ static int nommu_map_sg(struct device *hwdev, struct scatterlist *sg,
 {
 	struct scatterlist *s;
 	int i;
+
+	WARN_ON(nents == 0 || sg[0].length == 0);
 
 	for_each_sg(sg, s, nents, i) {
 		BUG_ON(!sg_page(s));
