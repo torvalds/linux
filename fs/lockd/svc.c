@@ -112,7 +112,7 @@ static inline void clear_grace_period(void)
 static int
 lockd(void *vrqstp)
 {
-	int		err = 0;
+	int		err = 0, preverr = 0;
 	struct svc_rqst *rqstp = vrqstp;
 	unsigned long grace_period_expire;
 
@@ -172,14 +172,20 @@ lockd(void *vrqstp)
 		 * recvfrom routine.
 		 */
 		err = svc_recv(rqstp, timeout);
-		if (err == -EAGAIN || err == -EINTR)
+		if (err == -EAGAIN || err == -EINTR) {
+			preverr = err;
 			continue;
-		if (err < 0) {
-			printk(KERN_WARNING
-			       "lockd: terminating on error %d\n",
-			       -err);
-			break;
 		}
+		if (err < 0) {
+			if (err != preverr) {
+				printk(KERN_WARNING "%s: unexpected error "
+					"from svc_recv (%d)\n", __func__, err);
+				preverr = err;
+			}
+			schedule_timeout_interruptible(HZ);
+			continue;
+		}
+		preverr = err;
 
 		dprintk("lockd: request from %s\n",
 				svc_print_addr(rqstp, buf, sizeof(buf)));
