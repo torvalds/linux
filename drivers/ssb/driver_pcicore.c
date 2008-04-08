@@ -562,15 +562,9 @@ int ssb_pcicore_dev_irqvecs_enable(struct ssb_pcicore *pc,
 		u32 intvec;
 
 		intvec = ssb_read32(pdev, SSB_INTVEC);
-		if ((bus->chip_id & 0xFF00) == 0x4400) {
-			/* Workaround: On the BCM44XX the BPFLAG routing
-			 * bit is wrong. Use a hardcoded constant. */
-			intvec |= 0x00000002;
-		} else {
-			tmp = ssb_read32(dev, SSB_TPSFLAG);
-			tmp &= SSB_TPSFLAG_BPFLAG;
-			intvec |= (1 << tmp);
-		}
+		tmp = ssb_read32(dev, SSB_TPSFLAG);
+		tmp &= SSB_TPSFLAG_BPFLAG;
+		intvec |= (1 << tmp);
 		ssb_write32(pdev, SSB_INTVEC, intvec);
 	}
 
