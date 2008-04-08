@@ -48,10 +48,23 @@ static int dma_release_coherent(struct device *dev, int order, void *vaddr)
 	return 0;
 }
 
+/* Allocate DMA memory on node near device */
+noinline struct page *
+dma_alloc_pages(struct device *dev, gfp_t gfp, unsigned order)
+{
+	int node;
+
+	node = dev_to_node(dev);
+
+	return alloc_pages_node(node, gfp, order);
+}
+
 void *dma_alloc_coherent(struct device *dev, size_t size,
 			   dma_addr_t *dma_handle, gfp_t gfp)
 {
 	void *ret = NULL;
+	struct page *page;
+	dma_addr_t bus;
 	int order = get_order(size);
 	/* ignore region specifiers */
 	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM);
@@ -62,12 +75,16 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 	if (dev == NULL || (dev->coherent_dma_mask < 0xffffffff))
 		gfp |= GFP_DMA;
 
-	ret = (void *)__get_free_pages(gfp, order);
+	page = dma_alloc_pages(dev, gfp, order);
+	if (page == NULL)
+		return NULL;
 
-	if (ret != NULL) {
-		memset(ret, 0, size);
-		*dma_handle = virt_to_phys(ret);
-	}
+	ret = page_address(page);
+	bus = page_to_phys(page);
+
+	memset(ret, 0, size);
+	*dma_handle = bus;
+
 	return ret;
 }
 EXPORT_SYMBOL(dma_alloc_coherent);
