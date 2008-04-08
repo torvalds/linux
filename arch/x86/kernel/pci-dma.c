@@ -35,6 +35,8 @@ int iommu_detected __read_mostly = 0;
 int iommu_bio_merge __read_mostly = 0;
 EXPORT_SYMBOL(iommu_bio_merge);
 
+dma_addr_t bad_dma_address __read_mostly = 0;
+EXPORT_SYMBOL(bad_dma_address);
 
 int dma_set_mask(struct device *dev, u64 mask)
 {

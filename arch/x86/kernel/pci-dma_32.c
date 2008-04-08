@@ -14,10 +14,6 @@
 #include <linux/module.h>
 #include <asm/io.h>
 
-/* For i386, we make it point to the NULL address */
-dma_addr_t bad_dma_address __read_mostly = 0x0;
-EXPORT_SYMBOL(bad_dma_address);
-
 static int dma_alloc_from_coherent_mem(struct device *dev, ssize_t size,
 				       dma_addr_t *dma_handle, void **ret)
 {
