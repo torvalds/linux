@@ -339,27 +339,6 @@ void __init pci_iommu_alloc(void)
 #endif
 }
 
-static int __init pci_iommu_init(void)
-{
-#ifdef CONFIG_CALGARY_IOMMU
-	calgary_iommu_init();
-#endif
-
-	intel_iommu_init();
-
-#ifdef CONFIG_GART_IOMMU
-	gart_iommu_init();
-#endif
-
-	no_iommu_init();
-	return 0;
-}
-
-void pci_iommu_shutdown(void)
-{
-	gart_iommu_shutdown();
-}
-
 #ifdef CONFIG_PCI
 /* Many VIA bridges seem to corrupt data for DAC. Disable it here */
 
@@ -372,5 +351,3 @@ static __devinit void via_no_dac(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, PCI_ANY_ID, via_no_dac);
 #endif
-/* Must execute after PCI subsystem */
-fs_initcall(pci_iommu_init);

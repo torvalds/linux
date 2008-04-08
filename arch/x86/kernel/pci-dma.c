@@ -1,4 +1,8 @@
 #include <linux/dma-mapping.h>
+#include <linux/dmar.h>
+
+#include <asm/gart.h>
+#include <asm/calgary.h>
 
 const struct dma_mapping_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
@@ -22,4 +26,25 @@ int dma_set_mask(struct device *dev, u64 mask)
 }
 EXPORT_SYMBOL(dma_set_mask);
 
+static int __init pci_iommu_init(void)
+{
+#ifdef CONFIG_CALGARY_IOMMU
+	calgary_iommu_init();
+#endif
 
+	intel_iommu_init();
+
+#ifdef CONFIG_GART_IOMMU
+	gart_iommu_init();
+#endif
+
+	no_iommu_init();
+	return 0;
+}
+
+void pci_iommu_shutdown(void)
+{
+	gart_iommu_shutdown();
+}
+/* Must execute after PCI subsystem */
+fs_initcall(pci_iommu_init);
