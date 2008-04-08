@@ -439,8 +439,39 @@ void __sta_info_unlink(struct sta_info **sta)
 		return;
 	}
 
+	list_del(&(*sta)->list);
+
+	if ((*sta)->flags & WLAN_STA_PS) {
+		(*sta)->flags &= ~WLAN_STA_PS;
+		if (sdata->bss)
+			atomic_dec(&sdata->bss->num_sta_ps);
+		__sta_info_clear_tim_bit(sdata->bss, *sta);
+	}
+
+	local->num_sta--;
+
+	if (local->ops->sta_notify) {
+		if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
+			sdata = sdata->u.vlan.ap;
+
+		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
+				       STA_NOTIFY_REMOVE, (*sta)->addr);
+	}
+
+	if (ieee80211_vif_is_mesh(&sdata->vif)) {
+		mesh_accept_plinks_update(sdata);
+#ifdef CONFIG_MAC80211_MESH
+		del_timer(&(*sta)->plink_timer);
+#endif
+	}
+
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+	printk(KERN_DEBUG "%s: Removed STA %s\n",
+	       wiphy_name(local->hw.wiphy), print_mac(mbuf, (*sta)->addr));
+#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
+
 	/*
-	 * Also pull caller's reference if the STA is pinned by the
+	 * Finally, pull caller's reference if the STA is pinned by the
 	 * task that is adding the debugfs entries. In that case, we
 	 * leave the STA "to be freed".
 	 *
@@ -472,37 +503,6 @@ void __sta_info_unlink(struct sta_info **sta)
 		*sta = NULL;
 		return;
 	}
-
-	list_del(&(*sta)->list);
-
-	if ((*sta)->flags & WLAN_STA_PS) {
-		(*sta)->flags &= ~WLAN_STA_PS;
-		if (sdata->bss)
-			atomic_dec(&sdata->bss->num_sta_ps);
-		__sta_info_clear_tim_bit(sdata->bss, *sta);
-	}
-
-	local->num_sta--;
-
-	if (local->ops->sta_notify) {
-		if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
-			sdata = sdata->u.vlan.ap;
-
-		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
-				       STA_NOTIFY_REMOVE, (*sta)->addr);
-	}
-
-	if (ieee80211_vif_is_mesh(&sdata->vif)) {
-		mesh_accept_plinks_update(sdata);
-#ifdef CONFIG_MAC80211_MESH
-		del_timer(&(*sta)->plink_timer);
-#endif
-	}
-
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: Removed STA %s\n",
-	       wiphy_name(local->hw.wiphy), print_mac(mbuf, (*sta)->addr));
-#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 }
 
 void sta_info_unlink(struct sta_info **sta)
