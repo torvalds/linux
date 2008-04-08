@@ -2419,26 +2419,33 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 #undef GET_DESCRIPTOR_BUFSIZE
 		}
 
-		for (j = 0; j < SET_ADDRESS_TRIES; ++j) {
-			retval = hub_set_address(udev, devnum);
-			if (retval >= 0)
+ 		/*
+ 		 * If device is WUSB, we already assigned an
+ 		 * unauthorized address in the Connect Ack sequence;
+ 		 * authorization will assign the final address.
+ 		 */
+ 		if (udev->wusb == 0) {
+			for (j = 0; j < SET_ADDRESS_TRIES; ++j) {
+				retval = hub_set_address(udev, devnum);
+				if (retval >= 0)
+					break;
+				msleep(200);
+			}
+			if (retval < 0) {
+				dev_err(&udev->dev,
+					"device not accepting address %d, error %d\n",
+					devnum, retval);
+				goto fail;
+			}
+
+			/* cope with hardware quirkiness:
+			 *  - let SET_ADDRESS settle, some device hardware wants it
+			 *  - read ep0 maxpacket even for high and low speed,
+			 */
+			msleep(10);
+			if (USE_NEW_SCHEME(retry_counter))
 				break;
-			msleep(200);
-		}
-		if (retval < 0) {
-			dev_err(&udev->dev,
-				"device not accepting address %d, error %d\n",
-				devnum, retval);
-			goto fail;
-		}
- 
-		/* cope with hardware quirkiness:
-		 *  - let SET_ADDRESS settle, some device hardware wants it
-		 *  - read ep0 maxpacket even for high and low speed,
-  		 */
-		msleep(10);
-		if (USE_NEW_SCHEME(retry_counter))
-			break;
+  		}
 
 		retval = usb_get_device_descriptor(udev, 8);
 		if (retval < 8) {
@@ -2455,7 +2462,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	if (retval)
 		goto fail;
 
-	i = udev->descriptor.bMaxPacketSize0 == 0xff?
+	i = udev->descriptor.bMaxPacketSize0 == 0xff?	/* wusb device? */
 	    512 : udev->descriptor.bMaxPacketSize0;
 	if (le16_to_cpu(udev->ep0.desc.wMaxPacketSize) != i) {
 		if (udev->speed != USB_SPEED_FULL ||
