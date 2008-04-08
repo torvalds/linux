@@ -16,27 +16,8 @@
 #include <asm/page.h>		/* PAGE_SIZE */
 #include <asm/e820.h>
 #include <asm/k8.h>
+#include <asm/gart.h>
 #include "agp.h"
-
-/* PTE bits. */
-#define GPTE_VALID	1
-#define GPTE_COHERENT	2
-
-/* Aperture control register bits. */
-#define GARTEN		(1<<0)
-#define DISGARTCPU	(1<<4)
-#define DISGARTIO	(1<<5)
-
-/* GART cache control register bits. */
-#define INVGART		(1<<0)
-#define GARTPTEERR	(1<<1)
-
-/* K8 On-cpu GART registers */
-#define AMD64_GARTAPERTURECTL	0x90
-#define AMD64_GARTAPERTUREBASE	0x94
-#define AMD64_GARTTABLEBASE	0x98
-#define AMD64_GARTCACHECTL	0x9c
-#define AMD64_GARTEN		(1<<0)
 
 /* NVIDIA K8 registers */
 #define NVIDIA_X86_64_0_APBASE		0x10
@@ -165,7 +146,7 @@ static int amd64_fetch_size(void)
  * In a multiprocessor x86-64 system, this function gets
  * called once for each CPU.
  */
-static u64 amd64_configure (struct pci_dev *hammer, u64 gatt_table)
+static u64 amd64_configure(struct pci_dev *hammer, u64 gatt_table)
 {
 	u64 aperturebase;
 	u32 tmp;
@@ -181,7 +162,7 @@ static u64 amd64_configure (struct pci_dev *hammer, u64 gatt_table)
 	addr >>= 12;
 	tmp = (u32) addr<<4;
 	tmp &= ~0xf;
-	pci_write_config_dword (hammer, AMD64_GARTTABLEBASE, tmp);
+	pci_write_config_dword(hammer, AMD64_GARTTABLEBASE, tmp);
 
 	/* Enable GART translation for this hammer. */
 	pci_read_config_dword(hammer, AMD64_GARTAPERTURECTL, &tmp);

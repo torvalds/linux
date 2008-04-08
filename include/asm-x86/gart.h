@@ -5,6 +5,7 @@ extern void pci_iommu_shutdown(void);
 extern void no_iommu_init(void);
 extern int force_iommu, no_iommu;
 extern int iommu_detected;
+extern int agp_amd64_init(void);
 #ifdef CONFIG_GART_IOMMU
 extern void gart_iommu_init(void);
 extern void gart_iommu_shutdown(void);
@@ -30,5 +31,25 @@ static inline void gart_iommu_shutdown(void)
 }
 
 #endif
+
+/* PTE bits. */
+#define GPTE_VALID	1
+#define GPTE_COHERENT	2
+
+/* Aperture control register bits. */
+#define GARTEN		(1<<0)
+#define DISGARTCPU	(1<<4)
+#define DISGARTIO	(1<<5)
+
+/* GART cache control register bits. */
+#define INVGART		(1<<0)
+#define GARTPTEERR	(1<<1)
+
+/* K8 On-cpu GART registers */
+#define AMD64_GARTAPERTURECTL	0x90
+#define AMD64_GARTAPERTUREBASE	0x94
+#define AMD64_GARTTABLEBASE	0x98
+#define AMD64_GARTCACHECTL	0x9c
+#define AMD64_GARTEN		(1<<0)
 
 #endif

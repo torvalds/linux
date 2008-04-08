@@ -598,13 +598,13 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 		dev = k8_northbridges[i];
 		gatt_reg = __pa(gatt) >> 12;
 		gatt_reg <<= 4;
-		pci_write_config_dword(dev, 0x98, gatt_reg);
-		pci_read_config_dword(dev, 0x90, &ctl);
+		pci_write_config_dword(dev, AMD64_GARTTABLEBASE, gatt_reg);
+		pci_read_config_dword(dev, AMD64_GARTAPERTURECTL, &ctl);
 
-		ctl |= 1;
-		ctl &= ~((1<<4) | (1<<5));
+		ctl |= GARTEN;
+		ctl &= ~(DISGARTCPU | DISGARTIO);
 
-		pci_write_config_dword(dev, 0x90, ctl);
+		pci_write_config_dword(dev, AMD64_GARTAPERTURECTL, ctl);
 	}
 	flush_gart();
 
