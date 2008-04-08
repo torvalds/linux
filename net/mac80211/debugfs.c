@@ -10,7 +10,7 @@
 #include <linux/debugfs.h>
 #include <linux/rtnetlink.h>
 #include "ieee80211_i.h"
-#include "ieee80211_rate.h"
+#include "rate.h"
 #include "debugfs.h"
 
 int mac80211_open_file_generic(struct inode *inode, struct file *file)

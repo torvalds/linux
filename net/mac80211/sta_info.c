@@ -19,7 +19,7 @@
 
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
-#include "ieee80211_rate.h"
+#include "rate.h"
 #include "sta_info.h"
 #include "debugfs_sta.h"
 #include "mesh.h"

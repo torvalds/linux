@@ -25,12 +25,12 @@
 #include <asm/unaligned.h>
 
 #include "ieee80211_i.h"
-#include "ieee80211_led.h"
+#include "led.h"
 #include "mesh.h"
 #include "wep.h"
 #include "wpa.h"
 #include "wme.h"
-#include "ieee80211_rate.h"
+#include "rate.h"
 
 #define IEEE80211_TX_OK		0
 #define IEEE80211_TX_AGAIN	1

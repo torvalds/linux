@@ -10,7 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/rtnetlink.h>
-#include "ieee80211_rate.h"
+#include "rate.h"
 #include "ieee80211_i.h"
 
 struct rate_control_alg {

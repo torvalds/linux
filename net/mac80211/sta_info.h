@@ -12,7 +12,7 @@
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/if_ether.h>
-#include "ieee80211_key.h"
+#include "key.h"
 
 /**
  * enum ieee80211_sta_info_flags - Stations flags

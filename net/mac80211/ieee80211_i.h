@@ -23,7 +23,7 @@
 #include <linux/spinlock.h>
 #include <linux/etherdevice.h>
 #include <net/wireless.h>
-#include "ieee80211_key.h"
+#include "key.h"
 #include "sta_info.h"
 
 /* ieee80211.o internal definitions, etc. These are not included into

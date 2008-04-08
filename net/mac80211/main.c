@@ -25,12 +25,12 @@
 #include <net/cfg80211.h>
 
 #include "ieee80211_i.h"
-#include "ieee80211_rate.h"
+#include "rate.h"
 #include "mesh.h"
 #include "wep.h"
 #include "wme.h"
 #include "aes_ccm.h"
-#include "ieee80211_led.h"
+#include "led.h"
 #include "cfg.h"
 #include "debugfs.h"
 #include "debugfs_netdev.h"

@@ -19,7 +19,7 @@
 #include <net/ieee80211_radiotap.h>
 
 #include "ieee80211_i.h"
-#include "ieee80211_led.h"
+#include "led.h"
 #include "mesh.h"
 #include "wep.h"
 #include "wpa.h"

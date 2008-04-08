@@ -14,7 +14,7 @@
 #include <net/cfg80211.h>
 #include "ieee80211_i.h"
 #include "cfg.h"
-#include "ieee80211_rate.h"
+#include "rate.h"
 #include "mesh.h"
 
 static enum ieee80211_if_types

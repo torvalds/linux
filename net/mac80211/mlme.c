@@ -30,8 +30,8 @@
 
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
-#include "ieee80211_rate.h"
-#include "ieee80211_led.h"
+#include "rate.h"
+#include "led.h"
 #include "mesh.h"
 
 #define IEEE80211_AUTH_TIMEOUT (HZ / 5)

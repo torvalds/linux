@@ -17,7 +17,7 @@
 #include <net/mac80211.h>
 #include <net/cfg80211.h>
 #include "ieee80211_i.h"
-#include "ieee80211_rate.h"
+#include "rate.h"
 #include "debugfs.h"
 #include "debugfs_netdev.h"
 

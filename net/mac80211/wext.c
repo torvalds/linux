@@ -21,8 +21,8 @@
 
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
-#include "ieee80211_led.h"
-#include "ieee80211_rate.h"
+#include "led.h"
+#include "rate.h"
 #include "wpa.h"
 #include "aes_ccm.h"
 

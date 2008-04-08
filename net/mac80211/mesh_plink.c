@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/random.h>
 #include "ieee80211_i.h"
-#include "ieee80211_rate.h"
+#include "rate.h"
 #include "mesh.h"
 
 #ifdef CONFIG_MAC80211_VERBOSE_MPL_DEBUG

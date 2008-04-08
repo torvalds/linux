@@ -37,7 +37,7 @@
 
 #include <linux/workqueue.h>
 
-#include "../net/mac80211/ieee80211_rate.h"
+#include "../net/mac80211/rate.h"
 
 #include "iwl-3945.h"
 
