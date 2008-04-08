@@ -1625,13 +1625,11 @@ out:
 	return flag;
 }
 
-/* If we receive more dupacks than we expected counting segments
- * in assumption of absent reordering, interpret this as reordering.
- * The only another reason could be bug in receiver TCP.
+/* Limits sacked_out so that sum with lost_out isn't ever larger than
+ * packets_out. Returns zero if sacked_out adjustement wasn't necessary.
  */
-static void tcp_check_reno_reordering(struct sock *sk, const int addend)
+int tcp_limit_reno_sacked(struct tcp_sock *tp)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
 	u32 holes;
 
 	holes = max(tp->lost_out, 1U);
@@ -1639,8 +1637,20 @@ static void tcp_check_reno_reordering(struct sock *sk, const int addend)
 
 	if ((tp->sacked_out + holes) > tp->packets_out) {
 		tp->sacked_out = tp->packets_out - holes;
-		tcp_update_reordering(sk, tp->packets_out + addend, 0);
+		return 1;
 	}
+	return 0;
+}
+
+/* If we receive more dupacks than we expected counting segments
+ * in assumption of absent reordering, interpret this as reordering.
+ * The only another reason could be bug in receiver TCP.
+ */
+static void tcp_check_reno_reordering(struct sock *sk, const int addend)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	if (tcp_limit_reno_sacked(tp))
+		tcp_update_reordering(sk, tp->packets_out + addend, 0);
 }
 
 /* Emulate SACKs for SACKless connection: account for a new dupack. */
@@ -2600,6 +2610,8 @@ static void tcp_fastretrans_alert(struct sock *sk, int pkts_acked, int flag)
 	case TCP_CA_Loss:
 		if (flag & FLAG_DATA_ACKED)
 			icsk->icsk_retransmits = 0;
+		if (tcp_is_reno(tp) && flag & FLAG_SND_UNA_ADVANCED)
+			tcp_reset_reno_sack(tp);
 		if (!tcp_try_undo_loss(sk)) {
 			tcp_moderate_cwnd(tp);
 			tcp_xmit_retransmit_queue(sk);
