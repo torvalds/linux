@@ -37,7 +37,7 @@ static int pci32_map_error(dma_addr_t dma_addr)
 	return 0;
 }
 
-static const struct dma_mapping_ops pci32_dma_ops = {
+const struct dma_mapping_ops pci32_dma_ops = {
 	.map_single = pci32_map_single,
 	.unmap_single = NULL,
 	.map_sg = pci32_dma_map_sg,
@@ -51,5 +51,10 @@ static const struct dma_mapping_ops pci32_dma_ops = {
 	.mapping_error = pci32_map_error,
 };
 
-const struct dma_mapping_ops *dma_ops = &pci32_dma_ops;
-EXPORT_SYMBOL(dma_ops);
+/* this is temporary */
+int __init no_iommu_init(void)
+{
+	dma_ops = &pci32_dma_ops;
+	return 0;
+}
+fs_initcall(no_iommu_init);
