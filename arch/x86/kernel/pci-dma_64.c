@@ -14,21 +14,8 @@
 #include <asm/gart.h>
 #include <asm/calgary.h>
 
-int iommu_merge __read_mostly = 0;
-
 dma_addr_t bad_dma_address __read_mostly;
 EXPORT_SYMBOL(bad_dma_address);
-
-/* This tells the BIO block layer to assume merging. Default to off
-   because we cannot guarantee merging later. */
-int iommu_bio_merge __read_mostly = 0;
-EXPORT_SYMBOL(iommu_bio_merge);
-
-extern int iommu_sac_force;
-
-int no_iommu __read_mostly;
-/* Set this to 1 if there is a HW IOMMU in the system */
-int iommu_detected __read_mostly = 0;
 
 /* Dummy device used for NULL arguments (normally ISA). Better would
    be probably a smaller DMA mask, but this is bug-to-bug compatible
@@ -160,69 +147,3 @@ void dma_free_coherent(struct device *dev, size_t size,
 	free_pages((unsigned long)vaddr, get_order(size));
 }
 EXPORT_SYMBOL(dma_free_coherent);
-
-/*
- * See <Documentation/x86_64/boot-options.txt> for the iommu kernel parameter
- * documentation.
- */
-static __init int iommu_setup(char *p)
-{
-	iommu_merge = 1;
-
-	if (!p)
-		return -EINVAL;
-
-	while (*p) {
-		if (!strncmp(p, "off", 3))
-			no_iommu = 1;
-		/* gart_parse_options has more force support */
-		if (!strncmp(p, "force", 5))
-			force_iommu = 1;
-		if (!strncmp(p, "noforce", 7)) {
-			iommu_merge = 0;
-			force_iommu = 0;
-		}
-
-		if (!strncmp(p, "biomerge", 8)) {
-			iommu_bio_merge = 4096;
-			iommu_merge = 1;
-			force_iommu = 1;
-		}
-		if (!strncmp(p, "panic", 5))
-			panic_on_overflow = 1;
-		if (!strncmp(p, "nopanic", 7))
-			panic_on_overflow = 0;
-		if (!strncmp(p, "merge", 5)) {
-			iommu_merge = 1;
-			force_iommu = 1;
-		}
-		if (!strncmp(p, "nomerge", 7))
-			iommu_merge = 0;
-		if (!strncmp(p, "forcesac", 8))
-			iommu_sac_force = 1;
-		if (!strncmp(p, "allowdac", 8))
-			forbid_dac = 0;
-		if (!strncmp(p, "nodac", 5))
-			forbid_dac = -1;
-
-#ifdef CONFIG_SWIOTLB
-		if (!strncmp(p, "soft", 4))
-			swiotlb = 1;
-#endif
-
-#ifdef CONFIG_GART_IOMMU
-		gart_parse_options(p);
-#endif
-
-#ifdef CONFIG_CALGARY_IOMMU
-		if (!strncmp(p, "calgary", 7))
-			use_calgary = 1;
-#endif /* CONFIG_CALGARY_IOMMU */
-
-		p += strcspn(p, ",");
-		if (*p == ',')
-			++p;
-	}
-	return 0;
-}
-early_param("iommu", iommu_setup);

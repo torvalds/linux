@@ -153,15 +153,3 @@ void *dma_mark_declared_memory_occupied(struct device *dev,
 	return mem->virt_base + (pos << PAGE_SHIFT);
 }
 EXPORT_SYMBOL(dma_mark_declared_memory_occupied);
-
-#ifdef CONFIG_PCI
-static int check_iommu(char *s)
-{
-	if (!strcmp(s, "usedac")) {
-		forbid_dac = -1;
-		return 1;
-	}
-	return 0;
-}
-__setup("iommu=", check_iommu);
-#endif
