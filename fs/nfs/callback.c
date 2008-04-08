@@ -59,7 +59,7 @@ module_param_call(callback_tcpport, param_set_port, param_get_int,
 static int
 nfs_callback_svc(void *vrqstp)
 {
-	int err;
+	int err, preverr = 0;
 	struct svc_rqst *rqstp = vrqstp;
 
 	set_freezable();
@@ -74,14 +74,20 @@ nfs_callback_svc(void *vrqstp)
 		 * Listen for a request on the socket
 		 */
 		err = svc_recv(rqstp, MAX_SCHEDULE_TIMEOUT);
-		if (err == -EAGAIN || err == -EINTR)
+		if (err == -EAGAIN || err == -EINTR) {
+			preverr = err;
 			continue;
-		if (err < 0) {
-			printk(KERN_WARNING
-					"%s: terminating on error %d\n",
-					__FUNCTION__, -err);
-			break;
 		}
+		if (err < 0) {
+			if (err != preverr) {
+				printk(KERN_WARNING "%s: unexpected error "
+					"from svc_recv (%d)\n", __func__, err);
+				preverr = err;
+			}
+			schedule_timeout_uninterruptible(HZ);
+			continue;
+		}
+		preverr = err;
 		svc_process(rqstp);
 	}
 	unlock_kernel();
