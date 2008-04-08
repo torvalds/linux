@@ -1093,6 +1093,14 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 		return;
 	}
 
+#ifdef CONFIG_IPV6_NDISC_NODETYPE
+	if (skb->ndisc_nodetype == NDISC_NODETYPE_HOST) {
+		ND_PRINTK2(KERN_WARNING
+			   "ICMPv6 RA: from host or unauthorized router\n");
+		return;
+	}
+#endif
+
 	/*
 	 *	set the RA_RECV flag in the interface
 	 */
@@ -1115,6 +1123,12 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 			   "ICMP6 RA: invalid ND options\n");
 		return;
 	}
+
+#ifdef CONFIG_IPV6_NDISC_NODETYPE
+	/* skip link-specific parameters from interior routers */
+	if (skb->ndisc_nodetype == NDISC_NODETYPE_NODEFAULT)
+		goto skip_linkparms;
+#endif
 
 	if (in6_dev->if_flags & IF_RS_SENT) {
 		/*
@@ -1230,6 +1244,10 @@ skip_defrtr:
 		}
 	}
 
+#ifdef CONFIG_IPV6_NDISC_NODETYPE
+skip_linkparms:
+#endif
+
 	/*
 	 *	Process options.
 	 */
@@ -1261,12 +1279,24 @@ skip_defrtr:
 		for (p = ndopts.nd_opts_ri;
 		     p;
 		     p = ndisc_next_option(p, ndopts.nd_opts_ri_end)) {
-			if (((struct route_info *)p)->prefix_len > in6_dev->cnf.accept_ra_rt_info_max_plen)
+			struct route_info *ri = (struct route_info *)p;
+#ifdef CONFIG_IPV6_NDISC_NODETYPE
+			if (skb->ndisc_nodetype == NDISC_NODETYPE_NODEFAULT &&
+			    ri->prefix_len == 0)
+				continue;
+#endif
+			if (ri->prefix_len > in6_dev->cnf.accept_ra_rt_info_max_plen)
 				continue;
 			rt6_route_rcv(skb->dev, (u8*)p, (p->nd_opt_len) << 3,
 				      &ipv6_hdr(skb)->saddr);
 		}
 	}
+#endif
+
+#ifdef CONFIG_IPV6_NDISC_NODETYPE
+	/* skip link-specific ndopts from interior routers */
+	if (skb->ndisc_nodetype == NDISC_NODETYPE_NODEFAULT)
+		goto out;
 #endif
 
 	if (in6_dev->cnf.accept_ra_pinfo && ndopts.nd_opts_pi) {
@@ -1331,6 +1361,16 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 	struct ndisc_options ndopts;
 	int optlen;
 	u8 *lladdr = NULL;
+
+#ifdef CONFIG_IPV6_NDISC_NODETYPE
+	switch (skb->ndisc_nodetype) {
+	case NDISC_NODETYPE_HOST:
+	case NDISC_NODETYPE_NODEFAULT:
+		ND_PRINTK2(KERN_WARNING
+			   "ICMPv6 Redirect: from host or unauthorized router\n");
+		return;
+	}
+#endif
 
 	if (!(ipv6_addr_type(&ipv6_hdr(skb)->saddr) & IPV6_ADDR_LINKLOCAL)) {
 		ND_PRINTK2(KERN_WARNING

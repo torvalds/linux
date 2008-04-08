@@ -12,6 +12,15 @@
 #define NDISC_REDIRECT			137
 
 /*
+ * Router type: cross-layer information from link-layer to
+ * IPv6 layer reported by certain link types (e.g., RFC4214).
+ */
+#define NDISC_NODETYPE_UNSPEC		0	/* unspecified (default) */
+#define NDISC_NODETYPE_HOST		1	/* host or unauthorized router */
+#define NDISC_NODETYPE_NODEFAULT	2	/* non-default router */
+#define NDISC_NODETYPE_DEFAULT		3	/* default router */
+
+/*
  *	ndisc options
  */
 
