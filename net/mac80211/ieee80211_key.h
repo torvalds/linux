@@ -51,13 +51,19 @@ struct sta_info;
  *
  * @KEY_FLAG_UPLOADED_TO_HARDWARE: Indicates that this key is present
  *	in the hardware for TX crypto hardware acceleration.
- * @KEY_FLAG_REMOVE_FROM_HARDWARE: Indicates to the key code that this
- *	key is present in the hardware (but it cannot be used for
- *	hardware acceleration any more!)
+ * @KEY_FLAG_TODO_DELETE: Key is marked for deletion and will, after an
+ *	RCU grace period, no longer be reachable other than from the
+ *	todo list.
+ * @KEY_FLAG_TODO_HWACCEL: Key needs to be added to hardware acceleration.
+ * @KEY_FLAG_TODO_DEFKEY: Key is default key and debugfs needs to be updated.
+ * @KEY_FLAG_TODO_ADD_DEBUGFS: Key needs to be added to debugfs.
  */
 enum ieee80211_internal_key_flags {
 	KEY_FLAG_UPLOADED_TO_HARDWARE	= BIT(0),
-	KEY_FLAG_REMOVE_FROM_HARDWARE	= BIT(1),
+	KEY_FLAG_TODO_DELETE		= BIT(1),
+	KEY_FLAG_TODO_HWACCEL		= BIT(2),
+	KEY_FLAG_TODO_DEFKEY		= BIT(3),
+	KEY_FLAG_TODO_ADD_DEBUGFS	= BIT(4),
 };
 
 struct ieee80211_key {
@@ -65,8 +71,12 @@ struct ieee80211_key {
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
 
+	/* for sdata list */
 	struct list_head list;
+	/* for todo list */
+	struct list_head todo;
 
+	/* protected by todo lock! */
 	unsigned int flags;
 
 	union {
@@ -141,5 +151,7 @@ void ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata, int idx);
 void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata);
 void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata);
 void ieee80211_disable_keys(struct ieee80211_sub_if_data *sdata);
+
+void ieee80211_key_todo(void);
 
 #endif /* IEEE80211_KEY_H */

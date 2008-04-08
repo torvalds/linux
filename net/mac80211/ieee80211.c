@@ -1868,6 +1868,12 @@ static void __exit ieee80211_exit(void)
 {
 	rc80211_pid_exit();
 
+	/*
+	 * For key todo, it'll be empty by now but the work
+	 * might still be scheduled.
+	 */
+	flush_scheduled_work();
+
 	if (mesh_allocated)
 		ieee80211s_stop();
 

@@ -600,8 +600,8 @@ struct ieee80211_local {
 	/*
 	 * The lock only protects the list, hash, timer and counter
 	 * against manipulation, reads are done in RCU. Additionally,
-	 * the lock protects each BSS's TIM bitmap and a few items
-	 * in a STA info structure.
+	 * the lock protects each BSS's TIM bitmap, a few items in
+	 * STA info structures and various key pointers.
 	 */
 	spinlock_t sta_lock;
 	unsigned long num_sta;

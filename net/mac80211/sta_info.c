@@ -51,17 +51,15 @@
  *
  * In order to remove a STA info structure, the caller needs to first
  * unlink it (sta_info_unlink()) from the list and hash tables and
- * then destroy it while holding the RTNL; sta_info_destroy() will wait
- * for an RCU grace period to elapse before actually freeing it. Due to
- * the pinning and the possibility of multiple callers trying to remove
- * the same STA info at the same time, sta_info_unlink() can clear the
- * STA info pointer it is passed to indicate that the STA info is owned
- * by somebody else now.
+ * then destroy it; sta_info_destroy() will wait for an RCU grace period
+ * to elapse before actually freeing it. Due to the pinning and the
+ * possibility of multiple callers trying to remove the same STA info at
+ * the same time, sta_info_unlink() can clear the STA info pointer it is
+ * passed to indicate that the STA info is owned by somebody else now.
  *
  * If sta_info_unlink() did not clear the pointer then the caller owns
  * the STA info structure now and is responsible of destroying it with
- * a call to sta_info_destroy(), not before RCU synchronisation, of
- * course. Note that sta_info_destroy() must be protected by the RTNL.
+ * a call to sta_info_destroy().
  *
  * In all other cases, there is no concept of ownership on a STA entry,
  * each structure is owned by the global hash table/list until it is
@@ -164,7 +162,6 @@ void sta_info_destroy(struct sta_info *sta)
 	struct sk_buff *skb;
 	int i;
 
-	ASSERT_RTNL();
 	might_sleep();
 
 	if (!sta)
@@ -180,22 +177,16 @@ void sta_info_destroy(struct sta_info *sta)
 		mesh_plink_deactivate(sta);
 #endif
 
-	if (sta->key) {
-		/*
-		 * NOTE: This will call synchronize_rcu() internally to
-		 * make sure no key references can be in use. We rely on
-		 * that when we take this branch to make sure nobody can
-		 * reference this STA struct any longer!
-		 */
-		ieee80211_key_free(sta->key);
-		WARN_ON(sta->key);
-	} else {
-		/*
-		 * Make sure that nobody can reference this STA struct
-		 * any longer.
-		 */
-		synchronize_rcu();
-	}
+	/*
+	 * We have only unlinked the key, and actually destroying it
+	 * may mean it is removed from hardware which requires that
+	 * the key->sta pointer is still valid, so flush the key todo
+	 * list here.
+	 *
+	 * ieee80211_key_todo() will synchronize_rcu() so after this
+	 * nothing can reference this sta struct any more.
+	 */
+	ieee80211_key_todo();
 
 #ifdef CONFIG_MAC80211_MESH
 	if (ieee80211_vif_is_mesh(&sta->sdata->vif))
@@ -439,6 +430,11 @@ void __sta_info_unlink(struct sta_info **sta)
 		return;
 	}
 
+	if ((*sta)->key) {
+		ieee80211_key_free((*sta)->key);
+		WARN_ON((*sta)->key);
+	}
+
 	list_del(&(*sta)->list);
 
 	if ((*sta)->flags & WLAN_STA_PS) {
@@ -652,7 +648,7 @@ static void sta_info_debugfs_add_work(struct work_struct *work)
 }
 #endif
 
-void __ieee80211_run_pending_flush(struct ieee80211_local *local)
+static void __ieee80211_run_pending_flush(struct ieee80211_local *local)
 {
 	struct sta_info *sta;
 	unsigned long flags;

@@ -952,11 +952,8 @@ static void ieee80211_associated(struct net_device *dev,
 
 	rcu_read_unlock();
 
-	if (disassoc && sta) {
-		rtnl_lock();
+	if (disassoc && sta)
 		sta_info_destroy(sta);
-		rtnl_unlock();
-	}
 
 	if (disassoc) {
 		ifsta->state = IEEE80211_DISABLED;
@@ -3104,12 +3101,8 @@ static void ieee80211_sta_expire(struct net_device *dev, unsigned long exp_time)
 		}
 	spin_unlock_irqrestore(&local->sta_lock, flags);
 
-	synchronize_rcu();
-
-	rtnl_lock();
 	list_for_each_entry_safe(sta, tmp, &tmp_list, list)
 		sta_info_destroy(sta);
-	rtnl_unlock();
 }
 
 
