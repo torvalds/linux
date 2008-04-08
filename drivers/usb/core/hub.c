@@ -2211,12 +2211,13 @@ static int hub_port_debounce(struct usb_hub *hub, int port1)
 	return portstatus;
 }
 
-static void ep0_reinit(struct usb_device *udev)
+void usb_ep0_reinit(struct usb_device *udev)
 {
 	usb_disable_endpoint(udev, 0 + USB_DIR_IN);
 	usb_disable_endpoint(udev, 0 + USB_DIR_OUT);
 	usb_enable_endpoint(udev, &udev->ep0);
 }
+EXPORT_SYMBOL_GPL(usb_ep0_reinit);
 
 #define usb_sndaddr0pipe()	(PIPE_CONTROL << 30)
 #define usb_rcvaddr0pipe()	((PIPE_CONTROL << 30) | USB_DIR_IN)
@@ -2237,7 +2238,7 @@ static int hub_set_address(struct usb_device *udev, int devnum)
 	if (retval == 0) {
 		udev->devnum = devnum;	/* Device now using proper address */
 		usb_set_device_state(udev, USB_STATE_ADDRESS);
-		ep0_reinit(udev);
+		usb_ep0_reinit(udev);
 	}
 	return retval;
 }
@@ -2473,7 +2474,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 		}
 		dev_dbg(&udev->dev, "ep0 maxpacket = %d\n", i);
 		udev->ep0.desc.wMaxPacketSize = cpu_to_le16(i);
-		ep0_reinit(udev);
+		usb_ep0_reinit(udev);
 	}
   
 	retval = usb_get_device_descriptor(udev, USB_DT_DEVICE_SIZE);
@@ -2729,7 +2730,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 loop_disable:
 		hub_port_disable(hub, port1, 1);
 loop:
-		ep0_reinit(udev);
+		usb_ep0_reinit(udev);
 		release_address(udev);
 		usb_put_dev(udev);
 		if ((status == -ENOTCONN) || (status == -ENOTSUPP))
@@ -3164,7 +3165,7 @@ int usb_reset_device(struct usb_device *udev)
 
 		/* ep0 maxpacket size may change; let the HCD know about it.
 		 * Other endpoints will be handled by re-enumeration. */
-		ep0_reinit(udev);
+		usb_ep0_reinit(udev);
 		ret = hub_port_init(parent_hub, udev, port1, i);
 		if (ret >= 0 || ret == -ENOTCONN || ret == -ENODEV)
 			break;

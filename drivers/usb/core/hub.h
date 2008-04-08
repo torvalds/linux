@@ -195,5 +195,6 @@ struct usb_tt_clear {
 };
 
 extern void usb_hub_tt_clear_buffer(struct usb_device *dev, int pipe);
+extern void usb_ep0_reinit(struct usb_device *);
 
 #endif /* __LINUX_HUB_H */
