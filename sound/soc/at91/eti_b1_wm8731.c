@@ -33,8 +33,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/arch/at91_pio.h>
+#include <asm/hardware.h>
 #include <asm/arch/gpio.h>
 
 #include "../codecs/wm8731.h"
@@ -46,13 +45,6 @@
 #else
 #define	DBG(x...)
 #endif
-
-#define AT91_PIO_TF1	(1 << (AT91_PIN_PB6 - PIN_BASE) % 32)
-#define AT91_PIO_TK1	(1 << (AT91_PIN_PB7 - PIN_BASE) % 32)
-#define AT91_PIO_TD1	(1 << (AT91_PIN_PB8 - PIN_BASE) % 32)
-#define AT91_PIO_RD1	(1 << (AT91_PIN_PB9 - PIN_BASE) % 32)
-#define AT91_PIO_RK1	(1 << (AT91_PIN_PB10 - PIN_BASE) % 32)
-#define AT91_PIO_RF1	(1 << (AT91_PIN_PB11 - PIN_BASE) % 32)
 
 static struct clk *pck1_clk;
 static struct clk *pllb_clk;
@@ -276,7 +268,6 @@ static struct platform_device *eti_b1_snd_device;
 static int __init eti_b1_init(void)
 {
 	int ret;
-	u32 ssc_pio_lines;
 	struct at91_ssc_periph *ssc = eti_b1_dai.cpu_dai->private_data;
 
 	if (!request_mem_region(AT91RM9200_BASE_SSC1, SZ_16K, "soc-audio")) {
@@ -310,19 +301,12 @@ static int __init eti_b1_init(void)
 		goto fail_io_unmap;
 	}
 
- 	ssc_pio_lines = AT91_PIO_TF1 | AT91_PIO_TK1 | AT91_PIO_TD1
-			| AT91_PIO_RD1 /* | AT91_PIO_RK1 */ | AT91_PIO_RF1;
-
-	/* Reset all PIO registers and assign lines to peripheral A */
- 	at91_sys_write(AT91_PIOB + PIO_PDR,  ssc_pio_lines);
- 	at91_sys_write(AT91_PIOB + PIO_ODR,  ssc_pio_lines);
- 	at91_sys_write(AT91_PIOB + PIO_IFDR, ssc_pio_lines);
- 	at91_sys_write(AT91_PIOB + PIO_CODR, ssc_pio_lines);
- 	at91_sys_write(AT91_PIOB + PIO_IDR,  ssc_pio_lines);
- 	at91_sys_write(AT91_PIOB + PIO_MDDR, ssc_pio_lines);
- 	at91_sys_write(AT91_PIOB + PIO_PUDR, ssc_pio_lines);
- 	at91_sys_write(AT91_PIOB + PIO_ASR,  ssc_pio_lines);
- 	at91_sys_write(AT91_PIOB + PIO_OWDR, ssc_pio_lines);
+	at91_set_A_periph(AT91_PIN_PB6, 0);	/* TF1 */
+	at91_set_A_periph(AT91_PIN_PB7, 0);	/* TK1 */
+	at91_set_A_periph(AT91_PIN_PB8, 0);	/* TD1 */
+	at91_set_A_periph(AT91_PIN_PB9, 0);	/* RD1 */
+/*	at91_set_A_periph(AT91_PIN_PB10, 0);*/	/* RK1 */
+	at91_set_A_periph(AT91_PIN_PB11, 0);	/* RF1 */
 
 	/*
 	 * Set PCK1 parent to PLLB and its rate to 12 Mhz.
