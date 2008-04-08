@@ -1472,13 +1472,12 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 #ifndef final_version			/* Remove after testing. */
 		/* You will want this info for the initial debug. */
 		if (debug > 5) {
-			DECLARE_MAC_BUF(mac);
-			DECLARE_MAC_BUF(mac2);
-
-			printk(KERN_DEBUG "  Rx data %s %s"
+			printk(KERN_DEBUG "  Rx data " MAC_FMT " " MAC_FMT
 			       " %2.2x%2.2x.\n",
-			       print_mac(mac, &skb->data[0]),
-			       print_mac(mac2, &skb->data[6]),
+			       skb->data[0], skb->data[1], skb->data[2],
+			       skb->data[3], skb->data[4], skb->data[5],
+			       skb->data[6], skb->data[7], skb->data[8],
+			       skb->data[9], skb->data[10], skb->data[11],
 			       skb->data[12], skb->data[13]);
 		}
 #endif

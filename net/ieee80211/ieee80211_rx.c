@@ -271,7 +271,6 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
 {
 	struct ieee80211_hdr_3addr *hdr;
 	int res, hdrlen;
-	DECLARE_MAC_BUF(mac);
 
 	if (crypt == NULL || crypt->ops->decrypt_mpdu == NULL)
 		return 0;
@@ -283,8 +282,12 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
 	res = crypt->ops->decrypt_mpdu(skb, hdrlen, crypt->priv);
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
-		IEEE80211_DEBUG_DROP("decryption failed (SA=%s"
-				     ") res=%d\n", print_mac(mac, hdr->addr2), res);
+		IEEE80211_DEBUG_DROP("decryption failed (SA=" MAC_FMT
+				     ") res=%d\n",
+				     hdr->addr2[0], hdr->addr2[1],
+				     hdr->addr2[2], hdr->addr2[3],
+				     hdr->addr2[4], hdr->addr2[5],
+				     res);
 		if (res == -2)
 			IEEE80211_DEBUG_DROP("Decryption failed ICV "
 					     "mismatch (key %d)\n",
@@ -304,7 +307,6 @@ ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device *ieee,
 {
 	struct ieee80211_hdr_3addr *hdr;
 	int res, hdrlen;
-	DECLARE_MAC_BUF(mac);
 
 	if (crypt == NULL || crypt->ops->decrypt_msdu == NULL)
 		return 0;
@@ -317,8 +319,12 @@ ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device *ieee,
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
 		printk(KERN_DEBUG "%s: MSDU decryption/MIC verification failed"
-		       " (SA=%s keyidx=%d)\n",
-		       ieee->dev->name, print_mac(mac, hdr->addr2), keyidx);
+		       " (SA=" MAC_FMT " keyidx=%d)\n",
+		       ieee->dev->name,
+		       hdr->addr2[0], hdr->addr2[1],
+		       hdr->addr2[2], hdr->addr2[3],
+		       hdr->addr2[4], hdr->addr2[5],
+		       keyidx);
 		return -1;
 	}
 
@@ -462,8 +468,10 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			 * frames silently instead of filling system log with
 			 * these reports. */
 			IEEE80211_DEBUG_DROP("Decryption failed (not set)"
-					     " (SA=%s)\n",
-					     print_mac(mac, hdr->addr2));
+					     " (SA=" MAC_FMT ")\n",
+					     hdr->addr2[0], hdr->addr2[1],
+					     hdr->addr2[2], hdr->addr2[3],
+					     hdr->addr2[4], hdr->addr2[5]);
 			ieee->ieee_stats.rx_discards_undecryptable++;
 			goto rx_dropped;
 		}
@@ -474,8 +482,10 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		    fc & IEEE80211_FCTL_PROTECTED && ieee->host_decrypt &&
 		    (keyidx = hostap_rx_frame_decrypt(ieee, skb, crypt)) < 0) {
 			printk(KERN_DEBUG "%s: failed to decrypt mgmt::auth "
-			       "from %s\n", dev->name,
-			       print_mac(mac, hdr->addr2));
+			       "from " MAC_FMT "\n", dev->name,
+			       hdr->addr2[0], hdr->addr2[1],
+			       hdr->addr2[2], hdr->addr2[3],
+			       hdr->addr2[4], hdr->addr2[5]);
 			/* TODO: could inform hostapd about this so that it
 			 * could send auth failure report */
 			goto rx_dropped;
@@ -653,8 +663,11 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			 * configured */
 		} else {
 			IEEE80211_DEBUG_DROP("encryption configured, but RX "
-					     "frame not encrypted (SA=%s"
-					     ")\n", print_mac(mac, hdr->addr2));
+					     "frame not encrypted (SA="
+					     MAC_FMT ")\n",
+					     hdr->addr2[0], hdr->addr2[1],
+					     hdr->addr2[2], hdr->addr2[3],
+					     hdr->addr2[4], hdr->addr2[5]);
 			goto rx_dropped;
 		}
 	}
@@ -662,9 +675,11 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	if (crypt && !(fc & IEEE80211_FCTL_PROTECTED) && !ieee->open_wep &&
 	    !ieee80211_is_eapol_frame(ieee, skb)) {
 		IEEE80211_DEBUG_DROP("dropped unencrypted RX data "
-				     "frame from %s"
+				     "frame from " MAC_FMT
 				     " (drop_unencrypted=1)\n",
-				     print_mac(mac, hdr->addr2));
+				     hdr->addr2[0], hdr->addr2[1],
+				     hdr->addr2[2], hdr->addr2[3],
+				     hdr->addr2[4], hdr->addr2[5]);
 		goto rx_dropped;
 	}
 

@@ -266,7 +266,6 @@ static int lec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	char buf[300];
 	int i = 0;
 #endif /* DUMP_PACKETS >0 */
-	DECLARE_MAC_BUF(mac);
 
 	pr_debug("lec_start_xmit called\n");
 	if (!priv->lecd) {
@@ -374,15 +373,19 @@ static int lec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (entry && (entry->tx_wait.qlen < LEC_UNRES_QUE_LEN)) {
 			pr_debug("%s:lec_start_xmit: queuing packet, ",
 				dev->name);
-			pr_debug("MAC address %s\n",
-				 print_mac(mac, lec_h->h_dest));
+			pr_debug("MAC address " MAC_FMT "\n",
+				 lec_h->h_dest[0], lec_h->h_dest[1],
+				 lec_h->h_dest[2], lec_h->h_dest[3],
+				 lec_h->h_dest[4], lec_h->h_dest[5]);
 			skb_queue_tail(&entry->tx_wait, skb);
 		} else {
 			pr_debug
 			    ("%s:lec_start_xmit: tx queue full or no arp entry, dropping, ",
 			     dev->name);
-			pr_debug("MAC address %s\n",
-				 print_mac(mac, lec_h->h_dest));
+			pr_debug("MAC address " MAC_FMT "\n",
+				 lec_h->h_dest[0], lec_h->h_dest[1],
+				 lec_h->h_dest[2], lec_h->h_dest[3],
+				 lec_h->h_dest[4], lec_h->h_dest[5]);
 			priv->stats.tx_dropped++;
 			dev_kfree_skb(skb);
 		}
@@ -394,8 +397,10 @@ static int lec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	while (entry && (skb2 = skb_dequeue(&entry->tx_wait))) {
 		pr_debug("lec.c: emptying tx queue, ");
-		pr_debug("MAC address %s\n",
-			 print_mac(mac, lec_h->h_dest));
+		pr_debug("MAC address " MAC_FMT "\n",
+			 lec_h->h_dest[0], lec_h->h_dest[1],
+			 lec_h->h_dest[2], lec_h->h_dest[3],
+			 lec_h->h_dest[4], lec_h->h_dest[5]);
 		lec_send(vcc, skb2, priv);
 	}
 
@@ -449,7 +454,6 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 	struct lec_arp_table *entry;
 	int i;
 	char *tmp;		/* FIXME */
-	DECLARE_MAC_BUF(mac);
 
 	atomic_sub(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
 	mesg = (struct atmlec_msg *)skb->data;
@@ -536,9 +540,14 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 			struct net_bridge_fdb_entry *f;
 
 			pr_debug
-			    ("%s: bridge zeppelin asks about %s\n",
+			    ("%s: bridge zeppelin asks about " MAC_FMT "\n",
 			     dev->name,
-			     print_mac(mac, mesg->content.proxy.mac_addr));
+			     mesg->content.proxy.mac_addr[0],
+			     mesg->content.proxy.mac_addr[1],
+			     mesg->content.proxy.mac_addr[2],
+			     mesg->content.proxy.mac_addr[3],
+			     mesg->content.proxy.mac_addr[4],
+			     mesg->content.proxy.mac_addr[5]);
 
 			if (br_fdb_get_hook == NULL || dev->br_port == NULL)
 				break;
