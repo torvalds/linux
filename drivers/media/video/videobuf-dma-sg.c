@@ -252,7 +252,7 @@ int videobuf_dma_map(struct videobuf_queue* q, struct videobuf_dmabuf *dma)
 					dma->nr_pages, dma->direction);
 		if (0 == dma->sglen) {
 			printk(KERN_WARNING
-			       "%s: videobuf_map_sg failed\n",__FUNCTION__);
+			       "%s: videobuf_map_sg failed\n",__func__);
 			kfree(dma->sglist);
 			dma->sglist = NULL;
 			dma->sglen = 0;
@@ -430,7 +430,7 @@ static void *__videobuf_alloc(size_t size)
 	videobuf_dma_init(&mem->dma);
 
 	dprintk(1,"%s: allocated at %p(%ld+%ld) & %p(%ld)\n",
-		__FUNCTION__,vb,(long)sizeof(*vb),(long)size-sizeof(*vb),
+		__func__,vb,(long)sizeof(*vb),(long)size-sizeof(*vb),
 		mem,(long)sizeof(*mem));
 
 	return vb;

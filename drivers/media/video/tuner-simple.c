@@ -999,7 +999,7 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 
 	if (type >= tuner_count) {
 		printk(KERN_WARNING "%s: invalid tuner type: %d (max: %d)\n",
-		       __FUNCTION__, type, tuner_count-1);
+		       __func__, type, tuner_count-1);
 		return NULL;
 	}
 

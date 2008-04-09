@@ -148,7 +148,7 @@ static void free_buffer(struct videobuf_queue *vq, struct pxa_buffer *buf)
 
 	BUG_ON(in_interrupt());
 
-	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __FUNCTION__,
+	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		&buf->vb, buf->vb.baddr, buf->vb.bsize);
 
 	/* This waits until this buffer is out of danger, i.e., until it is no
@@ -175,7 +175,7 @@ static int pxa_videobuf_prepare(struct videobuf_queue *vq,
 	struct pxa_buffer *buf = container_of(vb, struct pxa_buffer, vb);
 	int i, ret;
 
-	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __FUNCTION__,
+	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	/* Added list head initialization on alloc */
@@ -281,7 +281,7 @@ static void pxa_videobuf_queue(struct videobuf_queue *vq,
 	int nents = dma->sglen;
 	unsigned long flags;
 
-	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __FUNCTION__,
+	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 	spin_lock_irqsave(&pcdev->lock, flags);
 
@@ -354,21 +354,21 @@ static void pxa_videobuf_release(struct videobuf_queue *vq,
 #ifdef DEBUG
 	struct soc_camera_device *icd = vq->priv_data;
 
-	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __FUNCTION__,
+	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	switch (vb->state) {
 	case VIDEOBUF_ACTIVE:
-		dev_dbg(&icd->dev, "%s (active)\n", __FUNCTION__);
+		dev_dbg(&icd->dev, "%s (active)\n", __func__);
 		break;
 	case VIDEOBUF_QUEUED:
-		dev_dbg(&icd->dev, "%s (queued)\n", __FUNCTION__);
+		dev_dbg(&icd->dev, "%s (queued)\n", __func__);
 		break;
 	case VIDEOBUF_PREPARED:
-		dev_dbg(&icd->dev, "%s (prepared)\n", __FUNCTION__);
+		dev_dbg(&icd->dev, "%s (prepared)\n", __func__);
 		break;
 	default:
-		dev_dbg(&icd->dev, "%s (unknown)\n", __FUNCTION__);
+		dev_dbg(&icd->dev, "%s (unknown)\n", __func__);
 		break;
 	}
 #endif
@@ -408,7 +408,7 @@ static void pxa_camera_dma_irq_y(int channel, void *data)
 	vb = &pcdev->active->vb;
 	buf = container_of(vb, struct pxa_buffer, vb);
 	WARN_ON(buf->inwork || list_empty(&vb->queue));
-	dev_dbg(pcdev->dev, "%s (vb=0x%p) 0x%08lx %d\n", __FUNCTION__,
+	dev_dbg(pcdev->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	/* _init is used to debug races, see comment in pxa_camera_reqbufs() */
@@ -466,18 +466,18 @@ static void pxa_camera_activate(struct pxa_camera_dev *pcdev)
 		pcdev, pdata);
 
 	if (pdata && pdata->init) {
-		dev_dbg(pcdev->dev, "%s: Init gpios\n", __FUNCTION__);
+		dev_dbg(pcdev->dev, "%s: Init gpios\n", __func__);
 		pdata->init(pcdev->dev);
 	}
 
 	if (pdata && pdata->power) {
-		dev_dbg(pcdev->dev, "%s: Power on camera\n", __FUNCTION__);
+		dev_dbg(pcdev->dev, "%s: Power on camera\n", __func__);
 		pdata->power(pcdev->dev, 1);
 	}
 
 	if (pdata && pdata->reset) {
 		dev_dbg(pcdev->dev, "%s: Releasing camera reset\n",
-			__FUNCTION__);
+			__func__);
 		pdata->reset(pcdev->dev, 1);
 	}
 
@@ -507,12 +507,12 @@ static void pxa_camera_deactivate(struct pxa_camera_dev *pcdev)
 
 	if (board && board->reset) {
 		dev_dbg(pcdev->dev, "%s: Asserting camera reset\n",
-			__FUNCTION__);
+			__func__);
 		board->reset(pcdev->dev, 0);
 	}
 
 	if (board && board->power) {
-		dev_dbg(pcdev->dev, "%s: Power off camera\n", __FUNCTION__);
+		dev_dbg(pcdev->dev, "%s: Power off camera\n", __func__);
 		board->power(pcdev->dev, 0);
 	}
 }

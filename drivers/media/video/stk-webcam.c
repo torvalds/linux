@@ -1100,7 +1100,7 @@ static int stk_setup_format(struct stk_camera *dev)
 			&& i < ARRAY_SIZE(stk_sizes))
 		i++;
 	if (i == ARRAY_SIZE(stk_sizes)) {
-		STK_ERROR("Something is broken in %s\n", __FUNCTION__);
+		STK_ERROR("Something is broken in %s\n", __func__);
 		return -EFAULT;
 	}
 	/* This registers controls some timings, not sure of what. */

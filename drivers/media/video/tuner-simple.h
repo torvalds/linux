@@ -31,7 +31,7 @@ static inline struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 						       u8 i2c_addr,
 						       unsigned int type)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
 #endif

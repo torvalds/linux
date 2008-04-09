@@ -4247,7 +4247,7 @@ zoran_poll (struct file *file,
 		dprintk(3,
 			KERN_DEBUG
 			"%s: %s() raw - active=%c, sync_tail=%lu/%c, pend_tail=%lu, pend_head=%lu\n",
-			ZR_DEVNAME(zr), __FUNCTION__,
+			ZR_DEVNAME(zr), __func__,
 			"FAL"[fh->v4l_buffers.active], zr->v4l_sync_tail,
 			"UPMD"[zr->v4l_buffers.buffer[frame].state],
 			zr->v4l_pend_tail, zr->v4l_pend_head);
@@ -4269,7 +4269,7 @@ zoran_poll (struct file *file,
 		dprintk(3,
 			KERN_DEBUG
 			"%s: %s() jpg - active=%c, que_tail=%lu/%c, que_head=%lu, dma=%lu/%lu\n",
-			ZR_DEVNAME(zr), __FUNCTION__,
+			ZR_DEVNAME(zr), __func__,
 			"FAL"[fh->jpg_buffers.active], zr->jpg_que_tail,
 			"UPMD"[zr->jpg_buffers.buffer[frame].state],
 			zr->jpg_que_head, zr->jpg_dma_tail, zr->jpg_dma_head);

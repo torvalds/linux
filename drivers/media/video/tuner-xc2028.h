@@ -55,7 +55,7 @@ static inline struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
 						 struct xc2028_config *cfg)
 {
 	printk(KERN_INFO "%s: not probed - driver disabled by Kconfig\n",
-	       __FUNCTION__);
+	       __func__);
 	return NULL;
 }
 #endif

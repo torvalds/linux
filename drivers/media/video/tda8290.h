@@ -39,7 +39,7 @@ extern struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 #else
 static inline int tda829x_probe(struct i2c_adapter *i2c_adap, u8 i2c_addr)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return -EINVAL;
 }
 
@@ -49,7 +49,7 @@ static inline struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 						  struct tda829x_config *cfg)
 {
 	printk(KERN_INFO "%s: not probed - driver disabled by Kconfig\n",
-	       __FUNCTION__);
+	       __func__);
 	return NULL;
 }
 #endif

@@ -137,7 +137,7 @@ static int soc_camera_reqbufs(struct file *file, void *priv,
 
 	WARN_ON(priv != file->private_data);
 
-	dev_dbg(&icd->dev, "%s: %d\n", __FUNCTION__, p->memory);
+	dev_dbg(&icd->dev, "%s: %d\n", __func__, p->memory);
 
 	ret = videobuf_reqbufs(&icf->vb_vidq, p);
 	if (ret < 0)
@@ -453,7 +453,7 @@ static int soc_camera_streamon(struct file *file, void *priv,
 
 	WARN_ON(priv != file->private_data);
 
-	dev_dbg(&icd->dev, "%s\n", __FUNCTION__);
+	dev_dbg(&icd->dev, "%s\n", __func__);
 
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -472,7 +472,7 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 
 	WARN_ON(priv != file->private_data);
 
-	dev_dbg(&icd->dev, "%s\n", __FUNCTION__);
+	dev_dbg(&icd->dev, "%s\n", __func__);
 
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -985,7 +985,7 @@ void soc_camera_video_stop(struct soc_camera_device *icd)
 {
 	struct video_device *vdev = icd->vdev;
 
-	dev_dbg(&icd->dev, "%s\n", __FUNCTION__);
+	dev_dbg(&icd->dev, "%s\n", __func__);
 
 	if (!icd->dev.parent || !vdev)
 		return;

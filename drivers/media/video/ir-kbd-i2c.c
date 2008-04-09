@@ -153,7 +153,7 @@ static int get_key_fusionhdtv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	}
 
 	if(buf[0] !=0 || buf[1] !=0 || buf[2] !=0 || buf[3] != 0)
-		dprintk(2, "%s: 0x%2x 0x%2x 0x%2x 0x%2x\n", __FUNCTION__,
+		dprintk(2, "%s: 0x%2x 0x%2x 0x%2x 0x%2x\n", __func__,
 			buf[0], buf[1], buf[2], buf[3]);
 
 	/* no key pressed or signal from other ir remote */

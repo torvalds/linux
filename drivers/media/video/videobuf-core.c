@@ -970,7 +970,7 @@ ssize_t videobuf_read_stream(struct videobuf_queue *q,
 
 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
 
-	dprintk(2, "%s\n", __FUNCTION__);
+	dprintk(2, "%s\n", __func__);
 	mutex_lock(&q->vb_lock);
 	retval = -EBUSY;
 	if (q->streaming)

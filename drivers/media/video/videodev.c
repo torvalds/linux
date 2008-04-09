@@ -2019,7 +2019,7 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 			break;
 		default:
 			printk(KERN_ERR "%s called with unknown type: %d\n",
-			       __FUNCTION__, type);
+			       __func__, type);
 			return -1;
 	}
 
@@ -2057,7 +2057,7 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 	ret = device_register(&vfd->class_dev);
 	if (ret < 0) {
 		printk(KERN_ERR "%s: device_register failed\n",
-		       __FUNCTION__);
+		       __func__);
 		goto fail_minor;
 	}
 

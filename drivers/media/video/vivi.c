@@ -426,7 +426,7 @@ static void vivi_sleep(struct vivi_fh *fh)
 	int timeout;
 	DECLARE_WAITQUEUE(wait, current);
 
-	dprintk(dev, 1, "%s dma_q=0x%08lx\n", __FUNCTION__,
+	dprintk(dev, 1, "%s dma_q=0x%08lx\n", __func__,
 		(unsigned long)dma_q);
 
 	add_wait_queue(&dma_q->wq, &wait);
@@ -472,7 +472,7 @@ static int vivi_start_thread(struct vivi_fh *fh)
 	dma_q->frame = 0;
 	dma_q->ini_jiffies = jiffies;
 
-	dprintk(dev, 1, "%s\n", __FUNCTION__);
+	dprintk(dev, 1, "%s\n", __func__);
 
 	dma_q->kthread = kthread_run(vivi_thread, fh, "vivi");
 
@@ -483,7 +483,7 @@ static int vivi_start_thread(struct vivi_fh *fh)
 	/* Wakes thread */
 	wake_up_interruptible(&dma_q->wq);
 
-	dprintk(dev, 1, "returning from %s\n", __FUNCTION__);
+	dprintk(dev, 1, "returning from %s\n", __func__);
 	return 0;
 }
 
@@ -491,7 +491,7 @@ static void vivi_stop_thread(struct vivi_dmaqueue  *dma_q)
 {
 	struct vivi_dev *dev = container_of(dma_q, struct vivi_dev, vidq);
 
-	dprintk(dev, 1, "%s\n", __FUNCTION__);
+	dprintk(dev, 1, "%s\n", __func__);
 	/* shutdown control thread */
 	if (dma_q->kthread) {
 		kthread_stop(dma_q->kthread);
@@ -516,7 +516,7 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 	while (*size * *count > vid_limit * 1024 * 1024)
 		(*count)--;
 
-	dprintk(dev, 1, "%s, count=%d, size=%d\n", __FUNCTION__,
+	dprintk(dev, 1, "%s, count=%d, size=%d\n", __func__,
 		*count, *size);
 
 	return 0;
@@ -527,7 +527,7 @@ static void free_buffer(struct videobuf_queue *vq, struct vivi_buffer *buf)
 	struct vivi_fh  *fh = vq->priv_data;
 	struct vivi_dev *dev  = fh->dev;
 
-	dprintk(dev, 1, "%s, state: %i\n", __FUNCTION__, buf->vb.state);
+	dprintk(dev, 1, "%s, state: %i\n", __func__, buf->vb.state);
 
 	if (in_interrupt())
 		BUG();
@@ -548,7 +548,7 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	struct vivi_buffer *buf = container_of(vb, struct vivi_buffer, vb);
 	int rc;
 
-	dprintk(dev, 1, "%s, field=%d\n", __FUNCTION__, field);
+	dprintk(dev, 1, "%s, field=%d\n", __func__, field);
 
 	BUG_ON(NULL == fh->fmt);
 
@@ -589,7 +589,7 @@ buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 	struct vivi_dev       *dev  = fh->dev;
 	struct vivi_dmaqueue *vidq = &dev->vidq;
 
-	dprintk(dev, 1, "%s\n", __FUNCTION__);
+	dprintk(dev, 1, "%s\n", __func__);
 
 	buf->vb.state = VIDEOBUF_QUEUED;
 	list_add_tail(&buf->vb.queue, &vidq->active);
@@ -602,7 +602,7 @@ static void buffer_release(struct videobuf_queue *vq,
 	struct vivi_fh       *fh   = vq->priv_data;
 	struct vivi_dev      *dev  = (struct vivi_dev *)fh->dev;
 
-	dprintk(dev, 1, "%s\n", __FUNCTION__);
+	dprintk(dev, 1, "%s\n", __func__);
 
 	free_buffer(vq, buf);
 }
@@ -718,7 +718,7 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 	mutex_lock(&q->vb_lock);
 
 	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
-		dprintk(fh->dev, 1, "%s queue busy\n", __FUNCTION__);
+		dprintk(fh->dev, 1, "%s queue busy\n", __func__);
 		ret = -EBUSY;
 		goto out;
 	}
@@ -974,7 +974,7 @@ vivi_poll(struct file *file, struct poll_table_struct *wait)
 	struct vivi_dev       *dev = fh->dev;
 	struct videobuf_queue *q = &fh->vb_vidq;
 
-	dprintk(dev, 1, "%s\n", __FUNCTION__);
+	dprintk(dev, 1, "%s\n", __func__);
 
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != fh->type)
 		return POLLERR;

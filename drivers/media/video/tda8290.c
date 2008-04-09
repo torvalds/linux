@@ -363,7 +363,7 @@ static void tda8295_set_params(struct dvb_frontend *fe,
 
 	set_audio(fe, params);
 
-	tuner_dbg("%s: freq = %d\n", __FUNCTION__, params->frequency);
+	tuner_dbg("%s: freq = %d\n", __func__, params->frequency);
 
 	tda8295_power(fe, 1);
 	tda8295_agc1_out(fe, 1);
@@ -613,7 +613,7 @@ static int tda8290_probe(struct tuner_i2c_props *i2c_props)
 	if (tda8290_id[1] == TDA8290_ID) {
 		if (debug)
 			printk(KERN_DEBUG "%s: tda8290 detected @ %d-%04x\n",
-			       __FUNCTION__, i2c_adapter_id(i2c_props->adap),
+			       __func__, i2c_adapter_id(i2c_props->adap),
 			       i2c_props->addr);
 		return 0;
 	}
@@ -633,7 +633,7 @@ static int tda8295_probe(struct tuner_i2c_props *i2c_props)
 	if (tda8295_id[1] == TDA8295_ID) {
 		if (debug)
 			printk(KERN_DEBUG "%s: tda8295 detected @ %d-%04x\n",
-			       __FUNCTION__, i2c_adapter_id(i2c_props->adap),
+			       __func__, i2c_adapter_id(i2c_props->adap),
 			       i2c_props->addr);
 		return 0;
 	}
