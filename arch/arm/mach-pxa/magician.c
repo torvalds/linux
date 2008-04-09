@@ -268,9 +268,18 @@ static void magician_set_bl_intensity(int intensity)
 	if (intensity) {
 		PWM_CTRL0 = 1;
 		PWM_PERVAL0 = 0xc8;
-		PWM_PWDUTY0 = intensity;
+		if (intensity > 0xc7) {
+			PWM_PWDUTY0 = intensity - 0x48;
+			gpio_set_value(EGPIO_MAGICIAN_BL_POWER2, 1);
+		} else {
+			PWM_PWDUTY0 = intensity;
+			gpio_set_value(EGPIO_MAGICIAN_BL_POWER2, 0);
+		}
+		gpio_set_value(EGPIO_MAGICIAN_BL_POWER, 1);
 		pxa_set_cken(CKEN_PWM0, 1);
 	} else {
+		/* PWM_PWDUTY0 = intensity; */
+		gpio_set_value(EGPIO_MAGICIAN_BL_POWER, 0);
 		pxa_set_cken(CKEN_PWM0, 0);
 	}
 }
@@ -278,7 +287,7 @@ static void magician_set_bl_intensity(int intensity)
 static struct generic_bl_info backlight_info = {
 	.default_intensity = 0x64,
 	.limit_mask        = 0x0b,
-	.max_intensity     = 0xc7,
+	.max_intensity     = 0xc7+0x48,
 	.set_bl_intensity  = magician_set_bl_intensity,
 };
 
