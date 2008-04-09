@@ -355,7 +355,19 @@ void ieee80211_key_link(struct ieee80211_key *key,
 
 	add_todo(key, KEY_FLAG_TODO_ADD_DEBUGFS);
 	if (netif_running(sdata->dev))
-		add_todo(key, KEY_FLAG_TODO_HWACCEL);
+		add_todo(key, KEY_FLAG_TODO_HWACCEL_ADD);
+}
+
+static void __ieee80211_key_free(struct ieee80211_key *key)
+{
+	/*
+	 * Replace key with nothingness if it was ever used.
+	 */
+	if (key->sdata)
+		__ieee80211_key_replace(key->sdata, key->sta,
+					key, NULL);
+
+	add_todo(key, KEY_FLAG_TODO_DELETE);
 }
 
 void ieee80211_key_free(struct ieee80211_key *key)
@@ -365,51 +377,52 @@ void ieee80211_key_free(struct ieee80211_key *key)
 	if (!key)
 		return;
 
-	/*
-	 * Replace key with nothingness if it was ever used.
-	 */
-	if (key->sdata) {
-		spin_lock_irqsave(&key->sdata->local->sta_lock, flags);
-		__ieee80211_key_replace(key->sdata, key->sta,
-					key, NULL);
-		spin_unlock_irqrestore(&key->sdata->local->sta_lock, flags);
-	}
+	spin_lock_irqsave(&key->sdata->local->sta_lock, flags);
+	__ieee80211_key_free(key);
+	spin_unlock_irqrestore(&key->sdata->local->sta_lock, flags);
+}
 
-	add_todo(key, KEY_FLAG_TODO_DELETE);
+/*
+ * To be safe against concurrent manipulations of the list (which shouldn't
+ * actually happen) we need to hold the spinlock. But under the spinlock we
+ * can't actually do much, so we defer processing to the todo list. Then run
+ * the todo list to be sure the operation and possibly previously pending
+ * operations are completed.
+ */
+static void ieee80211_todo_for_each_key(struct ieee80211_sub_if_data *sdata,
+					u32 todo_flags)
+{
+	struct ieee80211_key *key;
+	unsigned long flags;
+
+	might_sleep();
+
+	spin_lock_irqsave(&sdata->local->sta_lock, flags);
+	list_for_each_entry(key, &sdata->key_list, list)
+		add_todo(key, todo_flags);
+	spin_unlock_irqrestore(&sdata->local->sta_lock, flags);
+
+	ieee80211_key_todo();
 }
 
 void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_key *key;
-
-	might_sleep();
+	ASSERT_RTNL();
 
 	if (WARN_ON(!netif_running(sdata->dev)))
 		return;
 
-	ieee80211_key_lock();
-
-	list_for_each_entry(key, &sdata->key_list, list)
-		ieee80211_key_enable_hw_accel(key);
-
-	ieee80211_key_unlock();
+	ieee80211_todo_for_each_key(sdata, KEY_FLAG_TODO_HWACCEL_ADD);
 }
 
 void ieee80211_disable_keys(struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_key *key;
+	ASSERT_RTNL();
 
-	might_sleep();
-
-	ieee80211_key_lock();
-
-	list_for_each_entry(key, &sdata->key_list, list)
-		ieee80211_key_disable_hw_accel(key);
-
-	ieee80211_key_unlock();
+	ieee80211_todo_for_each_key(sdata, KEY_FLAG_TODO_HWACCEL_REMOVE);
 }
 
-static void __ieee80211_key_free(struct ieee80211_key *key)
+static void __ieee80211_key_destroy(struct ieee80211_key *key)
 {
 	if (!key)
 		return;
@@ -440,7 +453,8 @@ static void __ieee80211_key_todo(void)
 		list_del_init(&key->todo);
 		todoflags = key->flags & (KEY_FLAG_TODO_ADD_DEBUGFS |
 					  KEY_FLAG_TODO_DEFKEY |
-					  KEY_FLAG_TODO_HWACCEL |
+					  KEY_FLAG_TODO_HWACCEL_ADD |
+					  KEY_FLAG_TODO_HWACCEL_REMOVE |
 					  KEY_FLAG_TODO_DELETE);
 		key->flags &= ~todoflags;
 		spin_unlock(&todo_lock);
@@ -456,12 +470,16 @@ static void __ieee80211_key_todo(void)
 			ieee80211_debugfs_key_add_default(key->sdata);
 			work_done = true;
 		}
-		if (todoflags & KEY_FLAG_TODO_HWACCEL) {
+		if (todoflags & KEY_FLAG_TODO_HWACCEL_ADD) {
 			ieee80211_key_enable_hw_accel(key);
 			work_done = true;
 		}
+		if (todoflags & KEY_FLAG_TODO_HWACCEL_REMOVE) {
+			ieee80211_key_disable_hw_accel(key);
+			work_done = true;
+		}
 		if (todoflags & KEY_FLAG_TODO_DELETE) {
-			__ieee80211_key_free(key);
+			__ieee80211_key_destroy(key);
 			work_done = true;
 		}
 
@@ -482,14 +500,16 @@ void ieee80211_key_todo(void)
 void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_key *key, *tmp;
-	LIST_HEAD(tmp_list);
+	unsigned long flags;
 
 	ieee80211_key_lock();
 
 	ieee80211_debugfs_key_remove_default(sdata);
 
+	spin_lock_irqsave(&sdata->local->sta_lock, flags);
 	list_for_each_entry_safe(key, tmp, &sdata->key_list, list)
-		ieee80211_key_free(key);
+		__ieee80211_key_free(key);
+	spin_unlock_irqrestore(&sdata->local->sta_lock, flags);
 
 	__ieee80211_key_todo();
 

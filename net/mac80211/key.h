@@ -54,16 +54,19 @@ struct sta_info;
  * @KEY_FLAG_TODO_DELETE: Key is marked for deletion and will, after an
  *	RCU grace period, no longer be reachable other than from the
  *	todo list.
- * @KEY_FLAG_TODO_HWACCEL: Key needs to be added to hardware acceleration.
+ * @KEY_FLAG_TODO_HWACCEL_ADD: Key needs to be added to hardware acceleration.
+ * @KEY_FLAG_TODO_HWACCEL_REMOVE: Key needs to be removed from hardware
+ *	acceleration.
  * @KEY_FLAG_TODO_DEFKEY: Key is default key and debugfs needs to be updated.
  * @KEY_FLAG_TODO_ADD_DEBUGFS: Key needs to be added to debugfs.
  */
 enum ieee80211_internal_key_flags {
 	KEY_FLAG_UPLOADED_TO_HARDWARE	= BIT(0),
 	KEY_FLAG_TODO_DELETE		= BIT(1),
-	KEY_FLAG_TODO_HWACCEL		= BIT(2),
-	KEY_FLAG_TODO_DEFKEY		= BIT(3),
-	KEY_FLAG_TODO_ADD_DEBUGFS	= BIT(4),
+	KEY_FLAG_TODO_HWACCEL_ADD	= BIT(2),
+	KEY_FLAG_TODO_HWACCEL_REMOVE	= BIT(3),
+	KEY_FLAG_TODO_DEFKEY		= BIT(4),
+	KEY_FLAG_TODO_ADD_DEBUGFS	= BIT(5),
 };
 
 struct ieee80211_key {
