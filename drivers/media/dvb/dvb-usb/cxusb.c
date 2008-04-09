@@ -492,14 +492,14 @@ static int dvico_bluebird_xc2028_callback(void *ptr, int command, int arg)
 
 	switch (command) {
 	case XC2028_TUNER_RESET:
-		deb_info("%s: XC2028_TUNER_RESET %d\n", __FUNCTION__, arg);
+		deb_info("%s: XC2028_TUNER_RESET %d\n", __func__, arg);
 		cxusb_bluebird_gpio_pulse(d, 0x01, 1);
 		break;
 	case XC2028_RESET_CLK:
-		deb_info("%s: XC2028_RESET_CLK %d\n", __FUNCTION__, arg);
+		deb_info("%s: XC2028_RESET_CLK %d\n", __func__, arg);
 		break;
 	default:
-		deb_info("%s: unknown command %d, arg %d\n", __FUNCTION__,
+		deb_info("%s: unknown command %d, arg %d\n", __func__,
 			 command, arg);
 		return -EINVAL;
 	}

@@ -152,7 +152,7 @@ static int gp8psk_fe_send_diseqc_msg (struct dvb_frontend* fe,
 {
 	struct gp8psk_fe_state *st = fe->demodulator_priv;
 
-	deb_fe("%s\n",__FUNCTION__);
+	deb_fe("%s\n",__func__);
 
 	if (gp8psk_usb_out_op(st->d,SEND_DISEQC_COMMAND, m->msg[0], 0,
 			m->msg, m->msg_len)) {
@@ -167,7 +167,7 @@ static int gp8psk_fe_send_diseqc_burst (struct dvb_frontend* fe,
 	struct gp8psk_fe_state *st = fe->demodulator_priv;
 	u8 cmd;
 
-	deb_fe("%s\n",__FUNCTION__);
+	deb_fe("%s\n",__func__);
 
 	/* These commands are certainly wrong */
 	cmd = (burst == SEC_MINI_A) ? 0x00 : 0x01;

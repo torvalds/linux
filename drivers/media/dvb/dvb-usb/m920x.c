@@ -477,7 +477,7 @@ static struct qt1010_config m920x_qt1010_config = {
 /* Callbacks for DVB USB */
 static int m920x_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	deb("%s\n",__FUNCTION__);
+	deb("%s\n",__func__);
 
 	if ((adap->fe = dvb_attach(mt352_attach,
 				   &m920x_mt352_config,
@@ -489,7 +489,7 @@ static int m920x_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 
 static int m920x_tda10046_08_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	deb("%s\n",__FUNCTION__);
+	deb("%s\n",__func__);
 
 	if ((adap->fe = dvb_attach(tda10046_attach,
 				   &m920x_tda10046_08_config,
@@ -501,7 +501,7 @@ static int m920x_tda10046_08_frontend_attach(struct dvb_usb_adapter *adap)
 
 static int m920x_tda10046_0b_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	deb("%s\n",__FUNCTION__);
+	deb("%s\n",__func__);
 
 	if ((adap->fe = dvb_attach(tda10046_attach,
 				   &m920x_tda10046_0b_config,
@@ -513,7 +513,7 @@ static int m920x_tda10046_0b_frontend_attach(struct dvb_usb_adapter *adap)
 
 static int m920x_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	deb("%s\n",__FUNCTION__);
+	deb("%s\n",__func__);
 
 	if (dvb_attach(qt1010_attach, adap->fe, &adap->dev->i2c_adap, &m920x_qt1010_config) == NULL)
 		return -ENODEV;
@@ -523,7 +523,7 @@ static int m920x_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 
 static int m920x_tda8275_60_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	deb("%s\n",__FUNCTION__);
+	deb("%s\n",__func__);
 
 	if (dvb_attach(tda827x_attach, adap->fe, 0x60, &adap->dev->i2c_adap, NULL) == NULL)
 		return -ENODEV;
@@ -533,7 +533,7 @@ static int m920x_tda8275_60_tuner_attach(struct dvb_usb_adapter *adap)
 
 static int m920x_tda8275_61_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	deb("%s\n",__FUNCTION__);
+	deb("%s\n",__func__);
 
 	if (dvb_attach(tda827x_attach, adap->fe, 0x61, &adap->dev->i2c_adap, NULL) == NULL)
 		return -ENODEV;
