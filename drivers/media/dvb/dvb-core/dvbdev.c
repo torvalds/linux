@@ -196,7 +196,7 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	if ((id = dvbdev_get_free_id (adap, type)) < 0){
 		mutex_unlock(&dvbdev_register_lock);
 		*pdvbdev = NULL;
-		printk(KERN_ERR "%s: couldn't find free device id\n", __FUNCTION__);
+		printk(KERN_ERR "%s: couldn't find free device id\n", __func__);
 		return -ENFILE;
 	}
 
@@ -235,7 +235,7 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 			       "dvb%d.%s%d", adap->num, dnames[type], id);
 	if (IS_ERR(clsdev)) {
 		printk(KERN_ERR "%s: failed to create device dvb%d.%s%d (%ld)\n",
-		       __FUNCTION__, adap->num, dnames[type], id, PTR_ERR(clsdev));
+		       __func__, adap->num, dnames[type], id, PTR_ERR(clsdev));
 		return PTR_ERR(clsdev);
 	}
 

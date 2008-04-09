@@ -126,7 +126,7 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 	struct dmxdev *dmxdev = dvbdev->priv;
 	struct dmx_frontend *front;
 
-	dprintk("function : %s\n", __FUNCTION__);
+	dprintk("function : %s\n", __func__);
 
 	if (mutex_lock_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
@@ -551,7 +551,7 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 								   dvb_dmxdev_section_callback);
 			if (ret < 0) {
 				printk("DVB (%s): could not alloc feed\n",
-				       __FUNCTION__);
+				       __func__);
 				return ret;
 			}
 
@@ -559,7 +559,7 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 					      (para->flags & DMX_CHECK_CRC) ? 1 : 0);
 			if (ret < 0) {
 				printk("DVB (%s): could not set feed\n",
-				       __FUNCTION__);
+				       __func__);
 				dvb_dmxdev_feed_restart(filter);
 				return ret;
 			}
@@ -734,7 +734,7 @@ static int dvb_dmxdev_filter_set(struct dmxdev *dmxdev,
 				 struct dmxdev_filter *dmxdevfilter,
 				 struct dmx_sct_filter_params *params)
 {
-	dprintk("function : %s\n", __FUNCTION__);
+	dprintk("function : %s\n", __func__);
 
 	dvb_dmxdev_filter_stop(dmxdevfilter);
 
@@ -1040,7 +1040,7 @@ static unsigned int dvb_dvr_poll(struct file *file, poll_table *wait)
 	struct dmxdev *dmxdev = dvbdev->priv;
 	unsigned int mask = 0;
 
-	dprintk("function : %s\n", __FUNCTION__);
+	dprintk("function : %s\n", __func__);
 
 	poll_wait(file, &dmxdev->dvr_buffer.queue, wait);
 
