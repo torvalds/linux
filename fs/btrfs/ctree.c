@@ -158,9 +158,6 @@ int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	} else {
 		root_gen = 0;
 	}
-	if (!(buf->flags & EXTENT_CSUM))
-		WARN_ON(1);
-
 	WARN_ON(root->ref_cows && trans->transid !=
 		root->fs_info->running_transaction->transid);
 	WARN_ON(root->ref_cows && trans->transid != root->last_trans);
@@ -247,8 +244,6 @@ int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		       root->fs_info->generation);
 		WARN_ON(1);
 	}
-	if (!(buf->flags & EXTENT_CSUM))
-		WARN_ON(1);
 
 	header_trans = btrfs_header_generation(buf);
 	spin_lock(&root->fs_info->hash_lock);

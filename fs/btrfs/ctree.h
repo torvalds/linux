@@ -485,6 +485,10 @@ struct btrfs_fs_info {
 	struct list_head trans_list;
 	struct list_head hashers;
 	struct list_head dead_roots;
+	struct list_head end_io_work_list;
+	struct work_struct end_io_work;
+	spinlock_t end_io_work_lock;
+
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
 	struct work_struct trans_work;
 #else

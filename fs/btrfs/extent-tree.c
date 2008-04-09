@@ -1898,10 +1898,6 @@ struct extent_buffer *__btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 
 	set_extent_dirty(&trans->transaction->dirty_pages, buf->start,
 			 buf->start + buf->len - 1, GFP_NOFS);
-	set_extent_bits(&BTRFS_I(root->fs_info->btree_inode)->io_tree,
-			buf->start, buf->start + buf->len - 1,
-			EXTENT_CSUM, GFP_NOFS);
-	buf->flags |= EXTENT_CSUM;
 	if (!btrfs_test_opt(root, SSD))
 		btrfs_set_buffer_defrag(buf);
 	trans->blocks_used++;

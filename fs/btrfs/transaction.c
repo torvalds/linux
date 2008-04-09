@@ -843,7 +843,7 @@ void btrfs_transaction_flush_work(struct btrfs_root *root)
 
 void __init btrfs_init_transaction_sys(void)
 {
-	trans_wq = create_workqueue("btrfs");
+	trans_wq = create_workqueue("btrfs-transaction");
 }
 
 void btrfs_exit_transaction_sys(void)

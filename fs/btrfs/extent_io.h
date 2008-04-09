@@ -13,7 +13,6 @@
 #define EXTENT_DEFRAG (1 << 6)
 #define EXTENT_DEFRAG_DONE (1 << 7)
 #define EXTENT_BUFFER_FILLED (1 << 8)
-#define EXTENT_CSUM (1 << 9)
 #define EXTENT_IOBITS (EXTENT_LOCKED | EXTENT_WRITEBACK)
 
 /*
@@ -218,4 +217,7 @@ int map_private_extent_buffer(struct extent_buffer *eb, unsigned long offset,
 void unmap_extent_buffer(struct extent_buffer *eb, char *token, int km);
 int invalidate_extent_lru(struct extent_io_tree *tree, u64 start,
 			  unsigned long len);
+int release_extent_buffer_tail_pages(struct extent_buffer *eb);
+int extent_range_uptodate(struct extent_io_tree *tree,
+			  u64 start, u64 end);
 #endif

@@ -2592,6 +2592,22 @@ static inline struct page *extent_buffer_page(struct extent_buffer *eb,
 	return p;
 }
 
+int release_extent_buffer_tail_pages(struct extent_buffer *eb)
+{
+	unsigned long num_pages = num_extent_pages(eb->start, eb->len);
+	struct page *page;
+	unsigned long i;
+
+	if (num_pages == 1)
+		return 0;
+	for (i = 1; i < num_pages; i++) {
+		page = extent_buffer_page(eb, i);
+		page_cache_release(page);
+	}
+	return 0;
+}
+
+
 int invalidate_extent_lru(struct extent_io_tree *tree, u64 start,
 			  unsigned long len)
 {
@@ -2608,9 +2624,6 @@ int invalidate_extent_lru(struct extent_io_tree *tree, u64 start,
 		eb = list_entry(cur, struct extent_buffer, lru);
 		if (eb->start <= start && eb->start + eb->len > start) {
 			eb->flags &= ~EXTENT_UPTODATE;
-		}
-		if (eb->start == start) {
-			eb->flags &= ~EXTENT_CSUM;
 		}
 		cur = cur->next;
 	} while (cur != lru);
@@ -2682,7 +2695,6 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 		page_cache_get(page0);
 		mark_page_accessed(page0);
 		set_page_extent_mapped(page0);
-		WARN_ON(!PageUptodate(page0));
 		set_page_extent_head(page0, len);
 	} else {
 		i = 0;
@@ -2933,13 +2945,39 @@ int set_extent_buffer_uptodate(struct extent_io_tree *tree,
 }
 EXPORT_SYMBOL(set_extent_buffer_uptodate);
 
+int extent_range_uptodate(struct extent_io_tree *tree,
+			  u64 start, u64 end)
+{
+	struct page *page;
+	int ret;
+	int pg_uptodate = 1;
+	int uptodate;
+	unsigned long index;
+
+	ret = test_range_bit(tree, start, end, EXTENT_UPTODATE, 1);
+	if (ret)
+		return 1;
+	while(start <= end) {
+		index = start >> PAGE_CACHE_SHIFT;
+		page = find_get_page(tree->mapping, index);
+		uptodate = PageUptodate(page);
+		page_cache_release(page);
+		if (!uptodate) {
+			pg_uptodate = 0;
+			break;
+		}
+		start += PAGE_CACHE_SIZE;
+	}
+	return pg_uptodate;
+}
+
 int extent_buffer_uptodate(struct extent_io_tree *tree,
-			     struct extent_buffer *eb)
+			   struct extent_buffer *eb)
 {
 	int ret = 0;
 	int ret2;
-	int num_pages;
-	int i;
+	unsigned long num_pages;
+	unsigned long i;
 	struct page *page;
 	int pg_uptodate = 1;
 
@@ -2975,13 +3013,16 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	struct page *page;
 	int err;
 	int ret = 0;
+	int locked_pages = 0;
+	int all_uptodate = 1;
+	int inc_all_pages = 0;
 	unsigned long num_pages;
 	struct bio *bio = NULL;
 
 	if (eb->flags & EXTENT_UPTODATE)
 		return 0;
 
-	if (0 && test_range_bit(tree, eb->start, eb->start + eb->len - 1,
+	if (test_range_bit(tree, eb->start, eb->start + eb->len - 1,
 			   EXTENT_UPTODATE, 1)) {
 		return 0;
 	}
@@ -2997,17 +3038,30 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	num_pages = num_extent_pages(eb->start, eb->len);
 	for (i = start_i; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
-		if (PageUptodate(page)) {
-			continue;
-		}
 		if (!wait) {
-			if (TestSetPageLocked(page)) {
-				continue;
-			}
+			if (TestSetPageLocked(page))
+				goto unlock_exit;
 		} else {
 			lock_page(page);
 		}
+		locked_pages++;
 		if (!PageUptodate(page)) {
+			all_uptodate = 0;
+		}
+	}
+	if (all_uptodate) {
+		if (start_i == 0)
+			eb->flags |= EXTENT_UPTODATE;
+		goto unlock_exit;
+	}
+
+	for (i = start_i; i < num_pages; i++) {
+		page = extent_buffer_page(eb, i);
+		if (inc_all_pages)
+			page_cache_get(page);
+		if (!PageUptodate(page)) {
+			if (start_i == 0)
+				inc_all_pages = 1;
 			err = __extent_read_full_page(tree, page,
 						      get_extent, &bio);
 			if (err) {
@@ -3034,6 +3088,16 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	if (!ret)
 		eb->flags |= EXTENT_UPTODATE;
 	return ret;
+
+unlock_exit:
+	i = start_i;
+	while(locked_pages > 0) {
+		page = extent_buffer_page(eb, i);
+		i++;
+		unlock_page(page);
+		locked_pages--;
+	}
+	return ret;
 }
 EXPORT_SYMBOL(read_extent_buffer_pages);
 
@@ -3048,7 +3112,6 @@ void read_extent_buffer(struct extent_buffer *eb, void *dstv,
 	char *dst = (char *)dstv;
 	size_t start_offset = eb->start & ((u64)PAGE_CACHE_SIZE - 1);
 	unsigned long i = (start_offset + start) >> PAGE_CACHE_SHIFT;
-	unsigned long num_pages = num_extent_pages(eb->start, eb->len);
 
 	WARN_ON(start > eb->len);
 	WARN_ON(start + len > eb->start + eb->len);
@@ -3057,11 +3120,6 @@ void read_extent_buffer(struct extent_buffer *eb, void *dstv,
 
 	while(len > 0) {
 		page = extent_buffer_page(eb, i);
-		if (!PageUptodate(page)) {
-			printk("page %lu not up to date i %lu, total %lu, len %lu\n", page->index, i, num_pages, eb->len);
-			WARN_ON(1);
-		}
-		WARN_ON(!PageUptodate(page));
 
 		cur = min(len, (PAGE_CACHE_SIZE - offset));
 		kaddr = kmap_atomic(page, KM_USER1);
@@ -3105,7 +3163,6 @@ printk("bad mapping eb start %Lu len %lu, wanted %lu %lu\n", eb->start, eb->len,
 	}
 
 	p = extent_buffer_page(eb, i);
-	WARN_ON(!PageUptodate(p));
 	kaddr = kmap_atomic(p, km);
 	*token = kaddr;
 	*map = kaddr + offset;
@@ -3165,7 +3222,6 @@ int memcmp_extent_buffer(struct extent_buffer *eb, const void *ptrv,
 
 	while(len > 0) {
 		page = extent_buffer_page(eb, i);
-		WARN_ON(!PageUptodate(page));
 
 		cur = min(len, (PAGE_CACHE_SIZE - offset));
 

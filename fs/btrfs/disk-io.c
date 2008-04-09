@@ -24,6 +24,7 @@
 #include <linux/radix-tree.h>
 #include <linux/writeback.h>
 #include <linux/buffer_head.h> // for block_sync_page
+#include <linux/workqueue.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -45,6 +46,16 @@ static int check_tree_block(struct btrfs_root *root, struct extent_buffer *buf)
 #endif
 
 static struct extent_io_ops btree_extent_io_ops;
+static struct workqueue_struct *end_io_workqueue;
+
+struct end_io_wq {
+	struct bio *bio;
+	bio_end_io_t *end_io;
+	void *private;
+	struct btrfs_fs_info *info;
+	int error;
+	struct list_head list;
+};
 
 struct extent_map *btree_get_extent(struct inode *inode, struct page *page,
 				    size_t page_offset, u64 start, u64 len,
@@ -219,11 +230,108 @@ static int btree_writepage_io_hook(struct page *page, u64 start, u64 end)
 	return 0;
 }
 
+int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
+			       struct extent_state *state)
+{
+	struct extent_io_tree *tree;
+	u64 found_start;
+	int found_level;
+	unsigned long len;
+	struct extent_buffer *eb;
+	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
+	int ret;
+
+	tree = &BTRFS_I(page->mapping->host)->io_tree;
+	if (page->private == EXTENT_PAGE_PRIVATE)
+		goto out;
+	if (!page->private)
+		goto out;
+	len = page->private >> 2;
+	if (len == 0) {
+		WARN_ON(1);
+	}
+	eb = alloc_extent_buffer(tree, start, len, page, GFP_NOFS);
+	read_extent_buffer_pages(tree, eb, start + PAGE_CACHE_SIZE, 1,
+				 btree_get_extent);
+	btrfs_clear_buffer_defrag(eb);
+	found_start = btrfs_header_bytenr(eb);
+	if (found_start != start) {
+		printk("warning: eb start incorrect %Lu buffer %Lu len %lu\n",
+		       start, found_start, len);
+		WARN_ON(1);
+		goto err;
+	}
+	if (eb->first_page != page) {
+		printk("bad first page %lu %lu\n", eb->first_page->index,
+		       page->index);
+		WARN_ON(1);
+		goto err;
+	}
+	found_level = btrfs_header_level(eb);
+
+	ret = csum_tree_block(root, eb, 1);
+
+	end = min_t(u64, eb->len, PAGE_CACHE_SIZE);
+	end = eb->start + end - 1;
+	release_extent_buffer_tail_pages(eb);
+err:
+	free_extent_buffer(eb);
+out:
+	return 0;
+}
+
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
+static void end_workqueue_bio(struct bio *bio, int err)
+#else
+static int end_workqueue_bio(struct bio *bio,
+				   unsigned int bytes_done, int err)
+#endif
+{
+	struct end_io_wq *end_io_wq = bio->bi_private;
+	struct btrfs_fs_info *fs_info;
+	unsigned long flags;
+
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
+	if (bio->bi_size)
+		return 1;
+#endif
+
+	fs_info = end_io_wq->info;
+	spin_lock_irqsave(&fs_info->end_io_work_lock, flags);
+	end_io_wq->error = err;
+	list_add_tail(&end_io_wq->list, &fs_info->end_io_work_list);
+	spin_unlock_irqrestore(&fs_info->end_io_work_lock, flags);
+	queue_work(end_io_workqueue, &fs_info->end_io_work);
+
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
+	return 0;
+#endif
+}
+
 static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct end_io_wq *end_io_wq;
 	u64 offset;
 	offset = bio->bi_sector << 9;
+
+	if (rw & (1 << BIO_RW)) {
+		return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio);
+	}
+
+	end_io_wq = kmalloc(sizeof(*end_io_wq), GFP_NOFS);
+	if (!end_io_wq)
+		return -ENOMEM;
+
+	end_io_wq->private = bio->bi_private;
+	end_io_wq->end_io = bio->bi_end_io;
+	end_io_wq->info = root->fs_info;
+	end_io_wq->error = 0;
+	end_io_wq->bio = bio;
+
+	bio->bi_private = end_io_wq;
+	bio->bi_end_io = end_workqueue_bio;
+
 	if (offset == BTRFS_SUPER_INFO_OFFSET) {
 		bio->bi_bdev = root->fs_info->sb->s_bdev;
 		submit_bio(rw, bio);
@@ -363,36 +471,7 @@ static int close_all_devices(struct btrfs_fs_info *fs_info)
 int btrfs_verify_block_csum(struct btrfs_root *root,
 			    struct extent_buffer *buf)
 {
-	struct extent_io_tree *io_tree;
-	u64 end;
-	int ret;
-
-	io_tree = &BTRFS_I(root->fs_info->btree_inode)->io_tree;
-	if (buf->flags & EXTENT_CSUM)
-		return 0;
-
-	end = min_t(u64, buf->len, PAGE_CACHE_SIZE);
-	end = buf->start + end - 1;
-	if (test_range_bit(io_tree, buf->start, end, EXTENT_CSUM, 1)) {
-		buf->flags |= EXTENT_CSUM;
-		return 0;
-	}
-	lock_extent(io_tree, buf->start, end, GFP_NOFS);
-
-	if (test_range_bit(io_tree, buf->start, end, EXTENT_CSUM, 1)) {
-		buf->flags |= EXTENT_CSUM;
-		ret = 0;
-		goto out_unlock;
-	}
-WARN_ON(buf->flags & EXTENT_CSUM);
-
-	ret = csum_tree_block(root, buf, 1);
-	set_extent_bits(io_tree, buf->start, end, EXTENT_CSUM, GFP_NOFS);
-	buf->flags |= EXTENT_CSUM;
-
-out_unlock:
-	unlock_extent(io_tree, buf->start, end, GFP_NOFS);
-	return ret;
+	return btrfs_buffer_uptodate(buf);
 }
 
 struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
@@ -430,11 +509,15 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 	buf = btrfs_find_create_tree_block(root, bytenr, blocksize);
 	if (!buf)
 		return NULL;
-	read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree, buf, 0, 1,
-				 btree_get_extent);
 
-	ret = btrfs_verify_block_csum(root, buf);
+	ret = read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree, buf, 0,
+				       1, btree_get_extent);
+
+	if (ret == 0) {
+		buf->flags |= EXTENT_UPTODATE;
+	}
 	return buf;
+
 }
 
 int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
@@ -724,6 +807,99 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 	return 0;
 }
 
+static int bio_ready_for_csum(struct bio *bio)
+{
+	u64 length = 0;
+	u64 buf_len = 0;
+	u64 start = 0;
+	struct page *page;
+	struct extent_io_tree *io_tree = NULL;
+	struct btrfs_fs_info *info = NULL;
+	struct bio_vec *bvec;
+	int i;
+	int ret;
+
+	bio_for_each_segment(bvec, bio, i) {
+		page = bvec->bv_page;
+		if (page->private == EXTENT_PAGE_PRIVATE) {
+			length += bvec->bv_len;
+			continue;
+		}
+		if (!page->private) {
+			length += bvec->bv_len;
+			continue;
+		}
+		length = bvec->bv_len;
+		buf_len = page->private >> 2;
+		start = page_offset(page) + bvec->bv_offset;
+		io_tree = &BTRFS_I(page->mapping->host)->io_tree;
+		info = BTRFS_I(page->mapping->host)->root->fs_info;
+	}
+	/* are we fully contained in this bio? */
+	if (buf_len <= length)
+		return 1;
+
+	ret = extent_range_uptodate(io_tree, start + length,
+				    start + buf_len - 1);
+	if (ret == 1)
+		return ret;
+	return ret;
+}
+
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+void btrfs_end_io_csum(void *p)
+#else
+void btrfs_end_io_csum(struct work_struct *work)
+#endif
+{
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+	struct btrfs_fs_info *fs_info = p;
+#else
+	struct btrfs_fs_info *fs_info = container_of(work,
+						     struct btrfs_fs_info,
+						     end_io_work);
+#endif
+	unsigned long flags;
+	struct end_io_wq *end_io_wq;
+	struct bio *bio;
+	struct list_head *next;
+	int error;
+	int was_empty;
+
+	while(1) {
+		spin_lock_irqsave(&fs_info->end_io_work_lock, flags);
+		if (list_empty(&fs_info->end_io_work_list)) {
+			spin_unlock_irqrestore(&fs_info->end_io_work_lock,
+					       flags);
+			return;
+		}
+		next = fs_info->end_io_work_list.next;
+		list_del(next);
+		spin_unlock_irqrestore(&fs_info->end_io_work_lock, flags);
+
+		end_io_wq = list_entry(next, struct end_io_wq, list);
+
+		bio = end_io_wq->bio;
+		if (!bio_ready_for_csum(bio)) {
+			spin_lock_irqsave(&fs_info->end_io_work_lock, flags);
+			was_empty = list_empty(&fs_info->end_io_work_list);
+			list_add_tail(&end_io_wq->list,
+				      &fs_info->end_io_work_list);
+			spin_unlock_irqrestore(&fs_info->end_io_work_lock,
+					       flags);
+			if (was_empty)
+				return;
+			continue;
+		}
+		error = end_io_wq->error;
+		bio->bi_private = end_io_wq->private;
+		bio->bi_end_io = end_io_wq->end_io;
+		kfree(end_io_wq);
+		bio_endio(bio, error);
+	}
+}
+
+
 struct btrfs_root *open_ctree(struct super_block *sb,
 			      struct btrfs_fs_devices *fs_devices)
 {
@@ -750,11 +926,16 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		err = -ENOMEM;
 		goto fail;
 	}
+	end_io_workqueue = create_workqueue("btrfs-end-io");
+	BUG_ON(!end_io_workqueue);
+
 	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_NOFS);
 	INIT_LIST_HEAD(&fs_info->trans_list);
 	INIT_LIST_HEAD(&fs_info->dead_roots);
 	INIT_LIST_HEAD(&fs_info->hashers);
+	INIT_LIST_HEAD(&fs_info->end_io_work_list);
 	spin_lock_init(&fs_info->hash_lock);
+	spin_lock_init(&fs_info->end_io_work_lock);
 	spin_lock_init(&fs_info->delalloc_lock);
 	spin_lock_init(&fs_info->new_trans_lock);
 
@@ -799,6 +980,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 	fs_info->do_barriers = 1;
 
+	INIT_WORK(&fs_info->end_io_work, btrfs_end_io_csum);
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
 	INIT_WORK(&fs_info->trans_work, btrfs_transaction_cleaner, fs_info);
 #else
@@ -1044,6 +1226,8 @@ int close_ctree(struct btrfs_root *root)
 	extent_io_tree_empty_lru(&BTRFS_I(fs_info->btree_inode)->io_tree);
 
 	truncate_inode_pages(fs_info->btree_inode->i_mapping, 0);
+	flush_workqueue(end_io_workqueue);
+	destroy_workqueue(end_io_workqueue);
 
 	iput(fs_info->btree_inode);
 #if 0
@@ -1171,12 +1355,18 @@ int btrfs_read_buffer(struct extent_buffer *buf)
 {
 	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
 	struct inode *btree_inode = root->fs_info->btree_inode;
-	return read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree,
+	int ret;
+	ret = read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree,
 					buf, 0, 1, btree_get_extent);
+	if (ret == 0) {
+		buf->flags |= EXTENT_UPTODATE;
+	}
+	return ret;
 }
 
 static struct extent_io_ops btree_extent_io_ops = {
 	.writepage_io_hook = btree_writepage_io_hook,
+	.readpage_end_io_hook = btree_readpage_end_io_hook,
 	.submit_bio_hook = btree_submit_bio_hook,
 	/* note we're sharing with inode.c for the merge bio hook */
 	.merge_bio_hook = btrfs_merge_bio_hook,
