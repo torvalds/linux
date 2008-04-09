@@ -31,6 +31,7 @@
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/i2c.h>
+#include <asm/arch/mmc.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/ohci.h>
 
@@ -202,6 +203,44 @@ static struct platform_device backlight = {
 
 
 /*
+ * MMC/SD
+ */
+
+static int magician_mci_init(struct device *dev,
+				irq_handler_t detect_irq, void *data)
+{
+	return request_irq(IRQ_MAGICIAN_SD, detect_irq,
+				IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
+				"MMC card detect", data);
+}
+
+static void magician_mci_setpower(struct device *dev, unsigned int vdd)
+{
+	struct pxamci_platform_data *pdata = dev->platform_data;
+
+	gpio_set_value(EGPIO_MAGICIAN_SD_POWER, (1 << vdd) & pdata->ocr_mask);
+}
+
+static int magician_mci_get_ro(struct device *dev)
+{
+	return (!gpio_get_value(EGPIO_MAGICIAN_nSD_READONLY));
+}
+
+static void magician_mci_exit(struct device *dev, void *data)
+{
+	free_irq(IRQ_MAGICIAN_SD, data);
+}
+
+static struct pxamci_platform_data magician_mci_info = {
+	.ocr_mask = MMC_VDD_32_33|MMC_VDD_33_34,
+	.init     = magician_mci_init,
+	.get_ro   = magician_mci_get_ro,
+	.setpower = magician_mci_setpower,
+	.exit     = magician_mci_exit,
+};
+
+
+/*
  * USB OHCI
  */
 
@@ -267,6 +306,7 @@ static void __init magician_init(void)
 {
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_i2c_info(NULL);
+	pxa_set_mci_info(&magician_mci_info);
 	pxa_set_ohci_info(&magician_ohci_info);
 	pxa_set_ficp_info(&magician_ficp_info);
 	set_pxa_fb_info(&toppoly_info);
