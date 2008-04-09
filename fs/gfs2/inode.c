@@ -1231,7 +1231,7 @@ int gfs2_readlinki(struct gfs2_inode *ip, char **buf, unsigned int *len)
 
 	x = ip->i_di.di_size + 1;
 	if (x > *len) {
-		*buf = kmalloc(x, GFP_KERNEL);
+		*buf = kmalloc(x, GFP_NOFS);
 		if (!*buf) {
 			error = -ENOMEM;
 			goto out_brelse;

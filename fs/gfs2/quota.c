@@ -94,7 +94,7 @@ static int qd_alloc(struct gfs2_sbd *sdp, int user, u32 id,
 	struct gfs2_quota_data *qd;
 	int error;
 
-	qd = kzalloc(sizeof(struct gfs2_quota_data), GFP_KERNEL);
+	qd = kzalloc(sizeof(struct gfs2_quota_data), GFP_NOFS);
 	if (!qd)
 		return -ENOMEM;
 
@@ -690,7 +690,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 	gfs2_write_calc_reserv(ip, sizeof(struct gfs2_quota),
 			      &data_blocks, &ind_blocks);
 
-	ghs = kcalloc(num_qd, sizeof(struct gfs2_holder), GFP_KERNEL);
+	ghs = kcalloc(num_qd, sizeof(struct gfs2_holder), GFP_NOFS);
 	if (!ghs)
 		return -ENOMEM;
 
@@ -1118,12 +1118,12 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 	error = -ENOMEM;
 
 	sdp->sd_quota_bitmap = kcalloc(sdp->sd_quota_chunks,
-				       sizeof(unsigned char *), GFP_KERNEL);
+				       sizeof(unsigned char *), GFP_NOFS);
 	if (!sdp->sd_quota_bitmap)
 		return error;
 
 	for (x = 0; x < sdp->sd_quota_chunks; x++) {
-		sdp->sd_quota_bitmap[x] = kzalloc(PAGE_SIZE, GFP_KERNEL);
+		sdp->sd_quota_bitmap[x] = kzalloc(PAGE_SIZE, GFP_NOFS);
 		if (!sdp->sd_quota_bitmap[x])
 			goto fail;
 	}

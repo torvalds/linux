@@ -140,7 +140,7 @@ static int nolock_hold_lvb(void *lock, char **lvbp)
 	struct nolock_lockspace *nl = lock;
 	int error = 0;
 
-	*lvbp = kzalloc(nl->nl_lvb_size, GFP_KERNEL);
+	*lvbp = kzalloc(nl->nl_lvb_size, GFP_NOFS);
 	if (!*lvbp)
 		error = -ENOMEM;
 

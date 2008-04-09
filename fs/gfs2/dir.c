@@ -1089,7 +1089,7 @@ static int dir_double_exhash(struct gfs2_inode *dip)
 
 	/*  Allocate both the "from" and "to" buffers in one big chunk  */
 
-	buf = kcalloc(3, sdp->sd_hash_bsize, GFP_KERNEL | __GFP_NOFAIL);
+	buf = kcalloc(3, sdp->sd_hash_bsize, GFP_NOFS | __GFP_NOFAIL);
 
 	for (block = dip->i_di.di_size >> sdp->sd_hash_bsize_shift; block--;) {
 		error = gfs2_dir_read_data(dip, (char *)buf,
@@ -1378,7 +1378,7 @@ static int dir_e_read(struct inode *inode, u64 *offset, void *opaque,
 	hash = gfs2_dir_offset2hash(*offset);
 	index = hash >> (32 - dip->i_depth);
 
-	lp = kmalloc(sdp->sd_hash_bsize, GFP_KERNEL);
+	lp = kmalloc(sdp->sd_hash_bsize, GFP_NOFS);
 	if (!lp)
 		return -ENOMEM;
 
@@ -1443,7 +1443,7 @@ int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
 
 	error = -ENOMEM;
 	/* 96 is max number of dirents which can be stuffed into an inode */
-	darr = kmalloc(96 * sizeof(struct gfs2_dirent *), GFP_KERNEL);
+	darr = kmalloc(96 * sizeof(struct gfs2_dirent *), GFP_NOFS);
 	if (darr) {
 		g.pdent = darr;
 		g.offset = 0;
@@ -1789,7 +1789,7 @@ static int foreach_leaf(struct gfs2_inode *dip, leaf_call_t lc, void *data)
 		return -EIO;
 	}
 
-	lp = kmalloc(sdp->sd_hash_bsize, GFP_KERNEL);
+	lp = kmalloc(sdp->sd_hash_bsize, GFP_NOFS);
 	if (!lp)
 		return -ENOMEM;
 
@@ -1864,7 +1864,7 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
 
 	memset(&rlist, 0, sizeof(struct gfs2_rgrp_list));
 
-	ht = kzalloc(size, GFP_KERNEL);
+	ht = kzalloc(size, GFP_NOFS);
 	if (!ht)
 		return -ENOMEM;
 

@@ -165,7 +165,7 @@ static int gdlm_create_lp(struct gdlm_ls *ls, struct lm_lockname *name,
 {
 	struct gdlm_lock *lp;
 
-	lp = kzalloc(sizeof(struct gdlm_lock), GFP_KERNEL);
+	lp = kzalloc(sizeof(struct gdlm_lock), GFP_NOFS);
 	if (!lp)
 		return -ENOMEM;
 
@@ -383,7 +383,7 @@ static int gdlm_add_lvb(struct gdlm_lock *lp)
 {
 	char *lvb;
 
-	lvb = kzalloc(GDLM_LVB_SIZE, GFP_KERNEL);
+	lvb = kzalloc(GDLM_LVB_SIZE, GFP_NOFS);
 	if (!lvb)
 		return -ENOMEM;
 

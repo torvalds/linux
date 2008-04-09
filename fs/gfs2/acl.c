@@ -116,7 +116,7 @@ static int acl_get(struct gfs2_inode *ip, int access, struct posix_acl **acl,
 		goto out;
 
 	er.er_data_len = GFS2_EA_DATA_LEN(el->el_ea);
-	er.er_data = kmalloc(er.er_data_len, GFP_KERNEL);
+	er.er_data = kmalloc(er.er_data_len, GFP_NOFS);
 	error = -ENOMEM;
 	if (!er.er_data)
 		goto out;
@@ -222,7 +222,7 @@ int gfs2_acl_create(struct gfs2_inode *dip, struct gfs2_inode *ip)
 		return error;
 	}
 
-	clone = posix_acl_clone(acl, GFP_KERNEL);
+	clone = posix_acl_clone(acl, GFP_NOFS);
 	error = -ENOMEM;
 	if (!clone)
 		goto out;
@@ -272,7 +272,7 @@ int gfs2_acl_chmod(struct gfs2_inode *ip, struct iattr *attr)
 	if (!acl)
 		return gfs2_setattr_simple(ip, attr);
 
-	clone = posix_acl_clone(acl, GFP_KERNEL);
+	clone = posix_acl_clone(acl, GFP_NOFS);
 	error = -ENOMEM;
 	if (!clone)
 		goto out;

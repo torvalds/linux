@@ -210,7 +210,7 @@ int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector)
 	struct page *page;
 	struct bio *bio;
 
-	page = alloc_page(GFP_KERNEL);
+	page = alloc_page(GFP_NOFS);
 	if (unlikely(!page))
 		return -ENOBUFS;
 
@@ -218,7 +218,7 @@ int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector)
 	ClearPageDirty(page);
 	lock_page(page);
 
-	bio = bio_alloc(GFP_KERNEL, 1);
+	bio = bio_alloc(GFP_NOFS, 1);
 	if (unlikely(!bio)) {
 		__free_page(page);
 		return -ENOBUFS;
