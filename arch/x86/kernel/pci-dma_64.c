@@ -68,10 +68,6 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	/* Don't invoke OOM killer */
 	gfp |= __GFP_NORETRY;
 
-	/* Kludge to make it bug-to-bug compatible with i386. i386
-	   uses the normal dma_mask for alloc_coherent. */
-	dma_mask &= *dev->dma_mask;
-
 	/* Why <=? Even when the mask is smaller than 4GB it is often
 	   larger than 16MB and in this case we have a chance of
 	   finding fitting memory in the next higher zone first. If
