@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/mfd/htc-egpio.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/physmap.h>
@@ -82,6 +83,62 @@ static struct platform_device gpio_keys = {
 		.platform_data = &gpio_keys_data,
 	},
 	.id   = -1,
+};
+
+
+/*
+ * EGPIO (Xilinx CPLD)
+ *
+ * 7 32-bit aligned 8-bit registers: 3x output, 1x irq, 3x input
+ */
+
+static struct resource egpio_resources[] = {
+	[0] = {
+		.start = PXA_CS3_PHYS,
+		.end   = PXA_CS3_PHYS + 0x20,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = gpio_to_irq(GPIO13_MAGICIAN_CPLD_IRQ),
+		.end   = gpio_to_irq(GPIO13_MAGICIAN_CPLD_IRQ),
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct htc_egpio_chip egpio_chips[] = {
+	[0] = {
+		.reg_start = 0,
+		.gpio_base = MAGICIAN_EGPIO(0, 0),
+		.num_gpios = 24,
+		.direction = HTC_EGPIO_OUTPUT,
+		.initial_values = 0x40, /* EGPIO_MAGICIAN_GSM_RESET */
+	},
+	[1] = {
+		.reg_start = 4,
+		.gpio_base = MAGICIAN_EGPIO(4, 0),
+		.num_gpios = 24,
+		.direction = HTC_EGPIO_INPUT,
+	},
+};
+
+static struct htc_egpio_platform_data egpio_info = {
+	.reg_width    = 8,
+	.bus_width    = 32,
+	.irq_base     = IRQ_BOARD_START,
+	.num_irqs     = 4,
+	.ack_register = 3,
+	.chip         = egpio_chips,
+	.num_chips    = ARRAY_SIZE(egpio_chips),
+};
+
+static struct platform_device egpio = {
+	.name          = "htc-egpio",
+	.id            = -1,
+	.resource      = egpio_resources,
+	.num_resources = ARRAY_SIZE(egpio_resources),
+	.dev = {
+		.platform_data = &egpio_info,
+	},
 };
 
 /*
@@ -182,8 +239,8 @@ static struct physmap_flash_data strataflash_data = {
 static struct platform_device strataflash = {
 	.name          = "physmap-flash",
 	.id            = -1,
-	.num_resources = 1,
 	.resource      = &strataflash_resource,
+	.num_resources = 1,
 	.dev = {
 		.platform_data = &strataflash_data,
 	},
@@ -195,6 +252,7 @@ static struct platform_device strataflash = {
 
 static struct platform_device *devices[] __initdata = {
 	&gpio_keys,
+	&egpio,
 	&backlight,
 	&strataflash,
 };

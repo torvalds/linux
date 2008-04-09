@@ -712,6 +712,7 @@ CONFIG_SSB_POSSIBLE=y
 # Multifunction device drivers
 #
 # CONFIG_MFD_SM501 is not set
+CONFIG_HTC_EGPIO=y
 
 #
 # Multimedia devices
