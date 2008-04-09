@@ -126,17 +126,22 @@ int __init detect_cpu_and_cache_system(void)
 					  CPU_HAS_LLSC;
 		break;
 	case 0x3008:
-		if (prr == 0xa0 || prr == 0xa1) {
-			boot_cpu_data.type = CPU_SH7722;
-			boot_cpu_data.icache.ways = 4;
-			boot_cpu_data.dcache.ways = 4;
-			boot_cpu_data.flags |= CPU_HAS_LLSC;
-		}
-		else if (prr == 0x70) {
+		boot_cpu_data.icache.ways = 4;
+		boot_cpu_data.dcache.ways = 4;
+		boot_cpu_data.flags |= CPU_HAS_LLSC;
+
+		switch (prr) {
+		case 0x50:
+			boot_cpu_data.type = CPU_SH7723;
+			boot_cpu_data.flags |= CPU_HAS_FPU | CPU_HAS_L2_CACHE;
+			break;
+		case 0x70:
 			boot_cpu_data.type = CPU_SH7366;
-			boot_cpu_data.icache.ways = 4;
-			boot_cpu_data.dcache.ways = 4;
-			boot_cpu_data.flags |= CPU_HAS_LLSC;
+			break;
+		case 0xa0:
+		case 0xa1:
+			boot_cpu_data.type = CPU_SH7722;
+			break;
 		}
 		break;
 	case 0x4000:	/* 1st cut */
