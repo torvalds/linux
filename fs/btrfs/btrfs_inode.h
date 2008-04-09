@@ -29,6 +29,7 @@ struct btrfs_inode {
 	struct btrfs_key location;
 	struct extent_map_tree extent_tree;
 	struct extent_io_tree io_tree;
+	struct extent_io_tree io_failure_tree;
 	struct inode vfs_inode;
 
 	u64 ordered_trans;

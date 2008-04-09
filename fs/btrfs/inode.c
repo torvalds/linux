@@ -385,6 +385,86 @@ out:
 	return ret;
 }
 
+struct io_failure_record {
+	struct page *page;
+	u64 start;
+	u64 len;
+	u64 logical;
+	int last_mirror;
+};
+
+int btrfs_readpage_io_failed_hook(struct bio *failed_bio,
+				  struct page *page, u64 start, u64 end,
+				  struct extent_state *state)
+{
+	struct io_failure_record *failrec = NULL;
+	u64 private;
+	struct extent_map *em;
+	struct inode *inode = page->mapping->host;
+	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
+	struct bio *bio;
+	int num_copies;
+	int ret;
+	u64 logical;
+
+	ret = get_state_private(failure_tree, start, &private);
+	if (ret) {
+		size_t pg_offset = start - page_offset(page);
+		failrec = kmalloc(sizeof(*failrec), GFP_NOFS);
+		if (!failrec)
+			return -ENOMEM;
+		failrec->start = start;
+		failrec->len = end - start + 1;
+		failrec->last_mirror = 0;
+
+		em = btrfs_get_extent(inode, NULL, pg_offset, start,
+				      failrec->len, 0);
+
+		if (!em || IS_ERR(em)) {
+			kfree(failrec);
+			return -EIO;
+		}
+		logical = start - em->start;
+		logical = em->block_start + logical;
+		failrec->logical = logical;
+		free_extent_map(em);
+		set_extent_bits(failure_tree, start, end, EXTENT_LOCKED |
+				EXTENT_DIRTY, GFP_NOFS);
+		set_state_private(failure_tree, start, (u64)failrec);
+	} else {
+		failrec = (struct io_failure_record *)private;
+	}
+	num_copies = btrfs_num_copies(
+			      &BTRFS_I(inode)->root->fs_info->mapping_tree,
+			      failrec->logical, failrec->len);
+	failrec->last_mirror++;
+	if (!state) {
+		spin_lock_irq(&BTRFS_I(inode)->io_tree.lock);
+		state = find_first_extent_bit_state(&BTRFS_I(inode)->io_tree,
+						    failrec->start,
+						    EXTENT_LOCKED);
+		if (state && state->start != failrec->start)
+			state = NULL;
+		spin_unlock_irq(&BTRFS_I(inode)->io_tree.lock);
+	}
+	if (!state || failrec->last_mirror > num_copies) {
+		set_state_private(failure_tree, failrec->start, 0);
+		clear_extent_bits(failure_tree, failrec->start,
+				  failrec->start + failrec->len - 1,
+				  EXTENT_LOCKED | EXTENT_DIRTY, GFP_NOFS);
+		kfree(failrec);
+		return -EIO;
+	}
+	bio = bio_alloc(GFP_NOFS, 1);
+	bio->bi_private = state;
+	bio->bi_end_io = failed_bio->bi_end_io;
+	bio->bi_sector = failrec->logical >> 9;
+	bio->bi_bdev = failed_bio->bi_bdev;
+	bio_add_page(bio, page, failrec->len, start - page_offset(page));
+	btrfs_submit_bio_hook(inode, READ, bio, failrec->last_mirror);
+	return 0;
+}
+
 int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 			       struct extent_state *state)
 {
@@ -419,6 +499,29 @@ int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	}
 	kunmap_atomic(kaddr, KM_IRQ0);
 	local_irq_restore(flags);
+
+	/* if the io failure tree for this inode is non-empty,
+	 * check to see if we've recovered from a failed IO
+	 */
+	private = 0;
+	if (count_range_bits(&BTRFS_I(inode)->io_failure_tree, &private,
+			     (u64)-1, 1, EXTENT_DIRTY)) {
+		u64 private_failure;
+		struct io_failure_record *failure;
+		ret = get_state_private(&BTRFS_I(inode)->io_failure_tree,
+					start, &private_failure);
+		if (ret == 0) {
+			failure = (struct io_failure_record *)private_failure;
+			set_state_private(&BTRFS_I(inode)->io_failure_tree,
+					  failure->start, 0);
+			clear_extent_bits(&BTRFS_I(inode)->io_failure_tree,
+					  failure->start,
+					  failure->start + failure->len - 1,
+					  EXTENT_DIRTY | EXTENT_LOCKED,
+					  GFP_NOFS);
+			kfree(failure);
+		}
+	}
 	return 0;
 
 zeroit:
@@ -429,7 +532,7 @@ zeroit:
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr, KM_IRQ0);
 	local_irq_restore(flags);
-	return 0;
+	return -EIO;
 }
 
 void btrfs_read_locked_inode(struct inode *inode)
@@ -1271,6 +1374,8 @@ static int btrfs_init_locked_inode(struct inode *inode, void *p)
 	extent_map_tree_init(&BTRFS_I(inode)->extent_tree, GFP_NOFS);
 	extent_io_tree_init(&BTRFS_I(inode)->io_tree,
 			     inode->i_mapping, GFP_NOFS);
+	extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
+			     inode->i_mapping, GFP_NOFS);
 	return 0;
 }
 
@@ -1578,6 +1683,8 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	extent_map_tree_init(&BTRFS_I(inode)->extent_tree, GFP_NOFS);
 	extent_io_tree_init(&BTRFS_I(inode)->io_tree,
 			     inode->i_mapping, GFP_NOFS);
+	extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
+			     inode->i_mapping, GFP_NOFS);
 	BTRFS_I(inode)->delalloc_bytes = 0;
 	BTRFS_I(inode)->root = root;
 
@@ -1802,6 +1909,8 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 		inode->i_op = &btrfs_file_inode_operations;
 		extent_map_tree_init(&BTRFS_I(inode)->extent_tree, GFP_NOFS);
 		extent_io_tree_init(&BTRFS_I(inode)->io_tree,
+				     inode->i_mapping, GFP_NOFS);
+		extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
 				     inode->i_mapping, GFP_NOFS);
 		BTRFS_I(inode)->delalloc_bytes = 0;
 		BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
@@ -2972,6 +3081,8 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 		extent_map_tree_init(&BTRFS_I(inode)->extent_tree, GFP_NOFS);
 		extent_io_tree_init(&BTRFS_I(inode)->io_tree,
 				     inode->i_mapping, GFP_NOFS);
+		extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
+				     inode->i_mapping, GFP_NOFS);
 		BTRFS_I(inode)->delalloc_bytes = 0;
 		BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
 	}
@@ -3070,6 +3181,7 @@ static struct extent_io_ops btrfs_extent_io_ops = {
 	.merge_bio_hook = btrfs_merge_bio_hook,
 	.readpage_io_hook = btrfs_readpage_io_hook,
 	.readpage_end_io_hook = btrfs_readpage_end_io_hook,
+	.readpage_io_failed_hook = btrfs_readpage_io_failed_hook,
 	.set_bit_hook = btrfs_set_bit_hook,
 	.clear_bit_hook = btrfs_clear_bit_hook,
 };

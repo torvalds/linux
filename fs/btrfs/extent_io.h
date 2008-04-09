@@ -32,6 +32,9 @@ struct extent_io_ops {
 	int (*merge_bio_hook)(struct page *page, unsigned long offset,
 			      size_t size, struct bio *bio);
 	int (*readpage_io_hook)(struct page *page, u64 start, u64 end);
+	int (*readpage_io_failed_hook)(struct bio *bio, struct page *page,
+				       u64 start, u64 end,
+				       struct extent_state *state);
 	int (*readpage_end_io_hook)(struct page *page, u64 start, u64 end,
 				    struct extent_state *state);
 	void (*writepage_end_io_hook)(struct page *page, u64 start, u64 end,

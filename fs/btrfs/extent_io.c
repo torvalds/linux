@@ -1534,6 +1534,15 @@ static int end_bio_extent_readpage(struct bio *bio,
 			if (ret)
 				uptodate = 0;
 		}
+		if (!uptodate && tree->ops &&
+		    tree->ops->readpage_io_failed_hook) {
+			ret = tree->ops->readpage_io_failed_hook(bio, page,
+							 start, end, state);
+			if (ret == 0) {
+				state = NULL;
+				continue;
+			}
+		}
 
 		spin_lock_irqsave(&tree->lock, flags);
 		if (!state || state->end != end) {
