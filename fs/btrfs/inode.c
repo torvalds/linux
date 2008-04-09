@@ -328,7 +328,9 @@ int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio)
 	struct btrfs_trans_handle *trans;
 	int ret = 0;
 
-	if (rw != WRITE) {
+	if (!(rw & (1 << BIO_RW))) {
+		ret = btrfs_bio_wq_end_io(root->fs_info, bio, 0);
+		BUG_ON(ret);
 		goto mapit;
 	}
 

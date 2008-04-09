@@ -54,6 +54,7 @@ struct end_io_wq {
 	void *private;
 	struct btrfs_fs_info *info;
 	int error;
+	int metadata;
 	struct list_head list;
 };
 
@@ -308,29 +309,40 @@ static int end_workqueue_bio(struct bio *bio,
 #endif
 }
 
-static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio)
+int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
+			int metadata)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct end_io_wq *end_io_wq;
-	u64 offset;
-	offset = bio->bi_sector << 9;
-
-	if (rw & (1 << BIO_RW)) {
-		return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio);
-	}
-
 	end_io_wq = kmalloc(sizeof(*end_io_wq), GFP_NOFS);
 	if (!end_io_wq)
 		return -ENOMEM;
 
 	end_io_wq->private = bio->bi_private;
 	end_io_wq->end_io = bio->bi_end_io;
-	end_io_wq->info = root->fs_info;
+	end_io_wq->info = info;
 	end_io_wq->error = 0;
 	end_io_wq->bio = bio;
+	end_io_wq->metadata = metadata;
 
 	bio->bi_private = end_io_wq;
 	bio->bi_end_io = end_workqueue_bio;
+	return 0;
+}
+
+static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	u64 offset;
+	int ret;
+
+	offset = bio->bi_sector << 9;
+
+	if (rw & (1 << BIO_RW)) {
+		return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio);
+	}
+
+	ret = btrfs_bio_wq_end_io(root->fs_info, bio, 1);
+	BUG_ON(ret);
 
 	if (offset == BTRFS_SUPER_INFO_OFFSET) {
 		bio->bi_bdev = root->fs_info->sb->s_bdev;
@@ -880,7 +892,7 @@ void btrfs_end_io_csum(struct work_struct *work)
 		end_io_wq = list_entry(next, struct end_io_wq, list);
 
 		bio = end_io_wq->bio;
-		if (!bio_ready_for_csum(bio)) {
+		if (end_io_wq->metadata && !bio_ready_for_csum(bio)) {
 			spin_lock_irqsave(&fs_info->end_io_work_lock, flags);
 			was_empty = list_empty(&fs_info->end_io_work_list);
 			list_add_tail(&end_io_wq->list,

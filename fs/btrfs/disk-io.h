@@ -71,4 +71,6 @@ void btrfs_throttle(struct btrfs_root *root);
 int btrfs_open_device(struct btrfs_device *dev);
 int btrfs_verify_block_csum(struct btrfs_root *root,
 			    struct extent_buffer *buf);
+int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
+			int metadata);
 #endif
