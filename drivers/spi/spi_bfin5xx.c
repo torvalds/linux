@@ -1319,7 +1319,6 @@ out_error_no_dma_ch:
 	iounmap((void *) drv_data->regs_base);
 out_error_ioremap:
 out_error_get_res:
-out_error:
 	spi_master_put(master);
 
 	return status;
