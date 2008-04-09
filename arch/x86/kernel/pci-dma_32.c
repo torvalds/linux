@@ -116,12 +116,42 @@ again:
 				gfp = (gfp & ~GFP_DMA32) | GFP_DMA;
 				goto again;
 			}
+
+			/* Let low level make its own zone decisions */
+			gfp &= ~(GFP_DMA32|GFP_DMA);
+
+			if (dma_ops->alloc_coherent)
+				return dma_ops->alloc_coherent(dev, size,
+							   dma_handle, gfp);
+			return NULL;
+
 		}
 		memset(ret, 0, size);
-		*dma_handle = bus;
+		if (!mmu) {
+			*dma_handle = bus;
+			return ret;
+		}
 	}
 
-	return ret;
+	if (dma_ops->alloc_coherent) {
+		free_pages((unsigned long)ret, get_order(size));
+		gfp &= ~(GFP_DMA|GFP_DMA32);
+		return dma_ops->alloc_coherent(dev, size, dma_handle, gfp);
+	}
+
+	if (dma_ops->map_simple) {
+		*dma_handle = dma_ops->map_simple(dev, virt_to_phys(ret),
+					      size,
+					      PCI_DMA_BIDIRECTIONAL);
+		if (*dma_handle != bad_dma_address)
+			return ret;
+	}
+
+	if (panic_on_overflow)
+		panic("dma_alloc_coherent: IOMMU overflow by %lu bytes\n",
+		      (unsigned long)size);
+	free_pages((unsigned long)ret, get_order(size));
+	return NULL;
 }
 EXPORT_SYMBOL(dma_alloc_coherent);
 
