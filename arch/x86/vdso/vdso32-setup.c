@@ -325,6 +325,9 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int exstack)
 	int ret = 0;
 	bool compat;
 
+	if (vdso_enabled == VDSO_DISABLED)
+		return 0;
+
 	down_write(&mm->mmap_sem);
 
 	/* Test compat mode once here, in case someone
