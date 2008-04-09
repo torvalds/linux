@@ -713,8 +713,8 @@ static void pump_transfers(unsigned long data)
 	} else {
 		drv_data->len = transfer->len;
 	}
-	dev_dbg(&drv_data->pdev->dev, "transfer: ",
-		"drv_data->write is %p, chip->write is %p, null_wr is %p\n",
+	dev_dbg(&drv_data->pdev->dev,
+		"transfer: drv_data->write is %p, chip->write is %p, null_wr is %p\n",
 		drv_data->write, chip->write, null_writer);
 
 	/* speed and width has been set on per message */
