@@ -76,7 +76,7 @@ static int mt312_read(struct mt312_state *state, const enum mt312_reg_addr reg,
 	ret = i2c_transfer(state->i2c, msg, 2);
 
 	if (ret != 2) {
-		printk(KERN_ERR "%s: ret == %d\n", __FUNCTION__, ret);
+		printk(KERN_ERR "%s: ret == %d\n", __func__, ret);
 		return -EREMOTEIO;
 	}
 
@@ -117,7 +117,7 @@ static int mt312_write(struct mt312_state *state, const enum mt312_reg_addr reg,
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1) {
-		dprintk("%s: ret == %d\n", __FUNCTION__, ret);
+		dprintk("%s: ret == %d\n", __func__, ret);
 		return -EREMOTEIO;
 	}
 
@@ -499,7 +499,7 @@ static int mt312_set_frontend(struct dvb_frontend *fe,
 	    { 0x00, 0x01, 0x02, 0x04, 0x3f, 0x08, 0x10, 0x20, 0x3f, 0x3f };
 	const u8 inv_tab[3] = { 0x00, 0x40, 0x80 };
 
-	dprintk("%s: Freq %d\n", __FUNCTION__, p->frequency);
+	dprintk("%s: Freq %d\n", __func__, p->frequency);
 
 	if ((p->frequency < fe->ops.info.frequency_min)
 	    || (p->frequency > fe->ops.info.frequency_max))

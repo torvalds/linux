@@ -43,7 +43,7 @@ static inline struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe,
 					   struct i2c_adapter *i2c,
 					   unsigned int pll_desc_id)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
 #endif

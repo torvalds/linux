@@ -54,7 +54,7 @@ static int tda826x_sleep(struct dvb_frontend *fe)
 	u8 buf [] = { 0x00, 0x8d };
 	struct i2c_msg msg = { .addr = priv->i2c_address, .flags = 0, .buf = buf, .len = 2 };
 
-	dprintk("%s:\n", __FUNCTION__);
+	dprintk("%s:\n", __func__);
 
 	if (!priv->has_loopthrough)
 		buf[1] = 0xad;
@@ -62,7 +62,7 @@ static int tda826x_sleep(struct dvb_frontend *fe)
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if ((ret = i2c_transfer (priv->i2c, &msg, 1)) != 1) {
-		dprintk("%s: i2c error\n", __FUNCTION__);
+		dprintk("%s: i2c error\n", __func__);
 	}
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
@@ -78,7 +78,7 @@ static int tda826x_set_params(struct dvb_frontend *fe, struct dvb_frontend_param
 	u8 buf [11];
 	struct i2c_msg msg = { .addr = priv->i2c_address, .flags = 0, .buf = buf, .len = 11 };
 
-	dprintk("%s:\n", __FUNCTION__);
+	dprintk("%s:\n", __func__);
 
 	div = (params->frequency + (1000-1)) / 1000;
 
@@ -99,7 +99,7 @@ static int tda826x_set_params(struct dvb_frontend *fe, struct dvb_frontend_param
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if ((ret = i2c_transfer (priv->i2c, &msg, 1)) != 1) {
-		dprintk("%s: i2c error\n", __FUNCTION__);
+		dprintk("%s: i2c error\n", __func__);
 	}
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
@@ -138,7 +138,7 @@ struct dvb_frontend *tda826x_attach(struct dvb_frontend *fe, int addr, struct i2
 	};
 	int ret;
 
-	dprintk("%s:\n", __FUNCTION__);
+	dprintk("%s:\n", __func__);
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);

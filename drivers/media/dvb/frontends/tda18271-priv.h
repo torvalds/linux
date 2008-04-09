@@ -139,7 +139,7 @@ extern int tda18271_debug;
 #define DBG_CAL  16
 
 #define tda_printk(kern, fmt, arg...) \
-	printk(kern "%s: " fmt, __FUNCTION__, ##arg)
+	printk(kern "%s: " fmt, __func__, ##arg)
 
 #define dprintk(kern, lvl, fmt, arg...) do {\
 	if (tda18271_debug & lvl) \

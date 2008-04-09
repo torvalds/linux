@@ -67,7 +67,7 @@ extern struct dvb_frontend* s5h1409_attach(const struct s5h1409_config* config,
 static inline struct dvb_frontend* s5h1409_attach(const struct s5h1409_config* config,
 						  struct i2c_adapter* i2c)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
 #endif /* CONFIG_DVB_S5H1409 */

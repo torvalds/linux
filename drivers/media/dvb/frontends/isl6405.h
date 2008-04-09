@@ -66,7 +66,7 @@ static inline struct dvb_frontend *isl6405_attach(struct dvb_frontend *fe,
 						  struct i2c_adapter *i2c, u8 i2c_addr,
 						  u8 override_set, u8 override_clear)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
 #endif /* CONFIG_DVB_ISL6405 */

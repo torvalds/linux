@@ -57,7 +57,7 @@ static int l64781_writereg (struct l64781_state* state, u8 reg, u8 data)
 
 	if ((ret = i2c_transfer(state->i2c, &msg, 1)) != 1)
 		dprintk ("%s: write_reg error (reg == %02x) = %02x!\n",
-			 __FUNCTION__, reg, ret);
+			 __func__, reg, ret);
 
 	return (ret != 1) ? -1 : 0;
 }

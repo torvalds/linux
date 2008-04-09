@@ -61,7 +61,7 @@ static inline struct dvb_frontend* tda827x_attach(struct dvb_frontend *fe,
 						  struct i2c_adapter *i2c,
 						  struct tda827x_config *cfg)
 {
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
 #endif // CONFIG_DVB_TDA827X

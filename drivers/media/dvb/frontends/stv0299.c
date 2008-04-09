@@ -86,7 +86,7 @@ static int stv0299_writeregI (struct stv0299_state* state, u8 reg, u8 data)
 
 	if (ret != 1)
 		dprintk("%s: writereg error (reg == 0x%02x, val == 0x%02x, "
-			"ret == %i)\n", __FUNCTION__, reg, data, ret);
+			"ret == %i)\n", __func__, reg, data, ret);
 
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
@@ -113,7 +113,7 @@ static u8 stv0299_readreg (struct stv0299_state* state, u8 reg)
 
 	if (ret != 2)
 		dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n",
-				__FUNCTION__, reg, ret);
+				__func__, reg, ret);
 
 	return b1[0];
 }
@@ -127,14 +127,14 @@ static int stv0299_readregs (struct stv0299_state* state, u8 reg1, u8 *b, u8 len
 	ret = i2c_transfer (state->i2c, msg, 2);
 
 	if (ret != 2)
-		dprintk("%s: readreg error (ret == %i)\n", __FUNCTION__, ret);
+		dprintk("%s: readreg error (ret == %i)\n", __func__, ret);
 
 	return ret == 2 ? 0 : ret;
 }
 
 static int stv0299_set_FEC (struct stv0299_state* state, fe_code_rate_t fec)
 {
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	switch (fec) {
 	case FEC_AUTO:
@@ -174,7 +174,7 @@ static fe_code_rate_t stv0299_get_fec (struct stv0299_state* state)
 					     FEC_7_8, FEC_1_2 };
 	u8 index;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	index = stv0299_readreg (state, 0x1b);
 	index &= 0x7;
@@ -189,11 +189,11 @@ static int stv0299_wait_diseqc_fifo (struct stv0299_state* state, int timeout)
 {
 	unsigned long start = jiffies;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	while (stv0299_readreg(state, 0x0a) & 1) {
 		if (jiffies - start > timeout) {
-			dprintk ("%s: timeout!!\n", __FUNCTION__);
+			dprintk ("%s: timeout!!\n", __func__);
 			return -ETIMEDOUT;
 		}
 		msleep(10);
@@ -206,11 +206,11 @@ static int stv0299_wait_diseqc_idle (struct stv0299_state* state, int timeout)
 {
 	unsigned long start = jiffies;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	while ((stv0299_readreg(state, 0x0a) & 3) != 2 ) {
 		if (jiffies - start > timeout) {
-			dprintk ("%s: timeout!!\n", __FUNCTION__);
+			dprintk ("%s: timeout!!\n", __func__);
 			return -ETIMEDOUT;
 		}
 		msleep(10);
@@ -245,7 +245,7 @@ static int stv0299_get_symbolrate (struct stv0299_state* state)
 	u8 sfr[3];
 	s8 rtf;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	stv0299_readregs (state, 0x1f, sfr, 3);
 	stv0299_readregs (state, 0x1a, (u8 *)&rtf, 1);
@@ -257,8 +257,8 @@ static int stv0299_get_symbolrate (struct stv0299_state* state)
 	offset = (s32) rtf * (srate / 4096L);
 	offset /= 128;
 
-	dprintk ("%s : srate = %i\n", __FUNCTION__, srate);
-	dprintk ("%s : ofset = %i\n", __FUNCTION__, offset);
+	dprintk ("%s : srate = %i\n", __func__, srate);
+	dprintk ("%s : ofset = %i\n", __func__, offset);
 
 	srate += offset;
 
@@ -276,7 +276,7 @@ static int stv0299_send_diseqc_msg (struct dvb_frontend* fe,
 	u8 val;
 	int i;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	if (stv0299_wait_diseqc_idle (state, 100) < 0)
 		return -ETIMEDOUT;
@@ -305,7 +305,7 @@ static int stv0299_send_diseqc_burst (struct dvb_frontend* fe, fe_sec_mini_cmd_t
 	struct stv0299_state* state = fe->demodulator_priv;
 	u8 val;
 
-	dprintk ("%s\n", __FUNCTION__);
+	dprintk ("%s\n", __func__);
 
 	if (stv0299_wait_diseqc_idle (state, 100) < 0)
 		return -ETIMEDOUT;
@@ -355,7 +355,7 @@ static int stv0299_set_voltage (struct dvb_frontend* fe, fe_sec_voltage_t voltag
 	u8 reg0x08;
 	u8 reg0x0c;
 
-	dprintk("%s: %s\n", __FUNCTION__,
+	dprintk("%s: %s\n", __func__,
 		voltage == SEC_VOLTAGE_13 ? "SEC_VOLTAGE_13" :
 		voltage == SEC_VOLTAGE_18 ? "SEC_VOLTAGE_18" : "??");
 
@@ -408,7 +408,7 @@ static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, unsigned long 
 
 	cmd = cmd << 1;
 	if (debug_legacy_dish_switch)
-		printk ("%s switch command: 0x%04lx\n",__FUNCTION__, cmd);
+		printk ("%s switch command: 0x%04lx\n",__func__, cmd);
 
 	do_gettimeofday (&nexttime);
 	if (debug_legacy_dish_switch)
@@ -433,7 +433,7 @@ static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, unsigned long 
 	}
 	if (debug_legacy_dish_switch) {
 		printk ("%s(%d): switch delay (should be 32k followed by all 8k\n",
-			__FUNCTION__, fe->dvb->num);
+			__func__, fe->dvb->num);
 		for (i = 1; i < 10; i++)
 			printk ("%d: %d\n", i, timeval_usec_diff(tv[i-1] , tv[i]));
 	}
@@ -461,7 +461,7 @@ static int stv0299_read_status(struct dvb_frontend* fe, fe_status_t* status)
 	u8 signal = 0xff - stv0299_readreg (state, 0x18);
 	u8 sync = stv0299_readreg (state, 0x1b);
 
-	dprintk ("%s : FE_READ_STATUS : VSTATUS: 0x%02x\n", __FUNCTION__, sync);
+	dprintk ("%s : FE_READ_STATUS : VSTATUS: 0x%02x\n", __func__, sync);
 	*status = 0;
 
 	if (signal > 10)
@@ -499,7 +499,7 @@ static int stv0299_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 	s32 signal =  0xffff - ((stv0299_readreg (state, 0x18) << 8)
 			       | stv0299_readreg (state, 0x19));
 
-	dprintk ("%s : FE_READ_SIGNAL_STRENGTH : AGC2I: 0x%02x%02x, signal=0x%04x\n", __FUNCTION__,
+	dprintk ("%s : FE_READ_SIGNAL_STRENGTH : AGC2I: 0x%02x%02x, signal=0x%04x\n", __func__,
 		 stv0299_readreg (state, 0x18),
 		 stv0299_readreg (state, 0x19), (int) signal);
 
@@ -536,7 +536,7 @@ static int stv0299_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	struct stv0299_state* state = fe->demodulator_priv;
 	int invval = 0;
 
-	dprintk ("%s : FE_SET_FRONTEND\n", __FUNCTION__);
+	dprintk ("%s : FE_SET_FRONTEND\n", __func__);
 
 	// set the inversion
 	if (p->inversion == INVERSION_OFF) invval = 0;
