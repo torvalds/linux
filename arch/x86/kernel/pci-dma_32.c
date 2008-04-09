@@ -76,6 +76,8 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 	struct page *page;
 	dma_addr_t bus;
 	int order = get_order(size);
+	unsigned long dma_mask = 0;
+
 	/* ignore region specifiers */
 	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM);
 
@@ -85,15 +87,37 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 	if (!dev)
 		dev = &fallback_dev;
 
+	dma_mask = dev->coherent_dma_mask;
+	if (dma_mask == 0)
+		dma_mask = DMA_32BIT_MASK;
+
+ again:
 	page = dma_alloc_pages(dev, gfp, order);
 	if (page == NULL)
 		return NULL;
 
-	ret = page_address(page);
-	bus = page_to_phys(page);
+	{
+		int high, mmu;
+		bus = page_to_phys(page);
+		ret = page_address(page);
+		high = (bus + size) >= dma_mask;
+		mmu = high;
+		if (force_iommu && !(gfp & GFP_DMA))
+			mmu = 1;
+		else if (high) {
+			free_pages((unsigned long)ret,
+				   get_order(size));
 
-	memset(ret, 0, size);
-	*dma_handle = bus;
+			/* Don't use the 16MB ZONE_DMA unless absolutely
+			   needed. It's better to use remapping first. */
+			if (dma_mask < DMA_32BIT_MASK && !(gfp & GFP_DMA)) {
+				gfp = (gfp & ~GFP_DMA32) | GFP_DMA;
+				goto again;
+			}
+		}
+		memset(ret, 0, size);
+		*dma_handle = bus;
+	}
 
 	return ret;
 }
