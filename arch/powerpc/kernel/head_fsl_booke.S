@@ -303,7 +303,10 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	SET_IVOR(12, WatchdogTimer);
 	SET_IVOR(13, DataTLBError);
 	SET_IVOR(14, InstructionTLBError);
-	SET_IVOR(15, Debug);
+	SET_IVOR(15, DebugDebug);
+#if defined(CONFIG_E500)
+	SET_IVOR(15, DebugCrit);
+#endif
 	SET_IVOR(32, SPEUnavailable);
 	SET_IVOR(33, SPEFloatingPointData);
 	SET_IVOR(34, SPEFloatingPointRound);
@@ -738,7 +741,10 @@ interrupt_base:
 
 
 	/* Debug Interrupt */
-	DEBUG_EXCEPTION
+	DEBUG_DEBUG_EXCEPTION
+#if defined(CONFIG_E500)
+	DEBUG_CRIT_EXCEPTION
+#endif
 
 /*
  * Local functions
