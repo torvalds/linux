@@ -48,7 +48,7 @@
 // #define VICAM_DEBUG
 
 #ifdef VICAM_DEBUG
-#define ADBG(lineno,fmt,args...) printk(fmt, jiffies, __FUNCTION__, lineno, ##args)
+#define ADBG(lineno,fmt,args...) printk(fmt, jiffies, __func__, lineno, ##args)
 #define DBG(fmt,args...) ADBG((__LINE__),KERN_DEBUG __FILE__"(%ld):%s (%d):"fmt,##args)
 #else
 #define DBG(fmn,args...) do {} while(0)
