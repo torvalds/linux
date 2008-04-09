@@ -354,8 +354,10 @@ static void pxa3xx_cpu_pm_enter(suspend_state_t state)
 	/*
 	 * Don't sleep if no wakeup sources are defined
 	 */
-	if (wakeup_src == 0)
+	if (wakeup_src == 0) {
+		printk(KERN_ERR "Not suspending: no wakeup sources\n");
 		return;
+	}
 
 	switch (state) {
 	case PM_SUSPEND_STANDBY:
