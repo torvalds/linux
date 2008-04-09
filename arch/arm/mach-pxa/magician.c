@@ -224,6 +224,11 @@ static struct pxaohci_platform_data magician_ohci_info = {
  * StrataFlash
  */
 
+static void magician_set_vpp(struct map_info *map, int vpp)
+{
+	gpio_set_value(EGPIO_MAGICIAN_FLASH_VPP, vpp);
+}
+
 #define PXA_CS_SIZE		0x04000000
 
 static struct resource strataflash_resource = {
@@ -234,6 +239,7 @@ static struct resource strataflash_resource = {
 
 static struct physmap_flash_data strataflash_data = {
 	.width = 4,
+	.set_vpp = magician_set_vpp,
 };
 
 static struct platform_device strataflash = {
