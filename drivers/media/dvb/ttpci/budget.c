@@ -257,11 +257,17 @@ static struct ves1820_config alps_tdbe2_config = {
 
 static int grundig_29504_401_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
 {
-	struct budget* budget = (struct budget*) fe->dvb->priv;
+	struct budget *budget = fe->dvb->priv;
+	u8 *tuner_addr = fe->tuner_priv;
 	u32 div;
 	u8 cfg, cpump, band_select;
 	u8 data[4];
-	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = data, .len = sizeof(data) };
+	struct i2c_msg msg = { .flags = 0, .buf = data, .len = sizeof(data) };
+
+	if (tuner_addr)
+		msg.addr = *tuner_addr;
+	else
+		msg.addr = 0x61;
 
 	div = (36125000 + params->frequency) / 166666;
 
@@ -291,6 +297,12 @@ static int grundig_29504_401_tuner_set_params(struct dvb_frontend* fe, struct dv
 static struct l64781_config grundig_29504_401_config = {
 	.demod_address = 0x55,
 };
+
+static struct l64781_config grundig_29504_401_config_activy = {
+	.demod_address = 0x54,
+};
+
+static u8 tuner_address_grundig_29504_401_activy = 0x60;
 
 static int grundig_29504_451_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
 {
@@ -433,6 +445,14 @@ static void frontend_init(struct budget *budget)
 		}
 		break;
 
+	case 0x5f61: /* Fujitsu Siemens Activy Budget-T PCI rev GR (L64781/Grundig 29504-401(tsa5060)) */
+		budget->dvb_frontend = dvb_attach(l64781_attach, &grundig_29504_401_config_activy, &budget->i2c_adap);
+		if (budget->dvb_frontend) {
+			budget->dvb_frontend->tuner_priv = &tuner_address_grundig_29504_401_activy;
+			budget->dvb_frontend->ops.tuner_ops.set_params = grundig_29504_401_tuner_set_params;
+		}
+		break;
+
 	case 0x1016: // Hauppauge/TT Nova-S SE (samsung s5h1420/????(tda8260))
 		budget->dvb_frontend = dvb_attach(s5h1420_attach, &s5h1420_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
@@ -537,6 +557,7 @@ MAKE_BUDGET_INFO(satel,	"SATELCO Multimedia PCI",	BUDGET_TT_HW_DISEQC);
 MAKE_BUDGET_INFO(ttbs1401, "TT-Budget-S-1401 PCI", BUDGET_TT);
 MAKE_BUDGET_INFO(fsacs0, "Fujitsu Siemens Activy Budget-S PCI (rev GR/grundig frontend)", BUDGET_FS_ACTIVY);
 MAKE_BUDGET_INFO(fsacs1, "Fujitsu Siemens Activy Budget-S PCI (rev AL/alps frontend)", BUDGET_FS_ACTIVY);
+MAKE_BUDGET_INFO(fsact,	 "Fujitsu Siemens Activy Budget-T PCI (rev GR/Grundig frontend)", BUDGET_FS_ACTIVY);
 
 static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbs,  0x13c2, 0x1003),
@@ -547,6 +568,7 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbs1401, 0x13c2, 0x1018),
 	MAKE_EXTENSION_PCI(fsacs1,0x1131, 0x4f60),
 	MAKE_EXTENSION_PCI(fsacs0,0x1131, 0x4f61),
+	MAKE_EXTENSION_PCI(fsact, 0x1131, 0x5f61),
 	{
 		.vendor    = 0,
 	}
