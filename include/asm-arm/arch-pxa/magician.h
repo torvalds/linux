@@ -12,7 +12,7 @@
 #ifndef _MAGICIAN_H_
 #define _MAGICIAN_H_
 
-#include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 
 /*
  * PXA GPIOs
