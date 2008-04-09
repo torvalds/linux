@@ -591,6 +591,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 	if (npt_enabled) {
 		/* Setup VMCB for Nested Paging */
 		control->nested_ctl = 1;
+		control->intercept &= ~(1ULL << INTERCEPT_TASK_SWITCH);
 		control->intercept_exceptions &= ~(1 << PF_VECTOR);
 		control->intercept_cr_read &= ~(INTERCEPT_CR0_MASK|
 						INTERCEPT_CR3_MASK);
