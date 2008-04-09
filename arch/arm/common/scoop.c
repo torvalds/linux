@@ -30,8 +30,6 @@
 struct scoop_pcmcia_config *platform_scoop_config;
 EXPORT_SYMBOL(platform_scoop_config);
 
-#define SCOOP_REG(d,adr) (*(volatile __iomem unsigned short*)(d +(adr)))
-
 struct  scoop_dev {
 	void __iomem *base;
 	spinlock_t scoop_lock;
@@ -44,13 +42,13 @@ void reset_scoop(struct device *dev)
 {
 	struct scoop_dev *sdev = dev_get_drvdata(dev);
 
-	SCOOP_REG(sdev->base,SCOOP_MCR) = 0x0100;  // 00
-	SCOOP_REG(sdev->base,SCOOP_CDR) = 0x0000;  // 04
-	SCOOP_REG(sdev->base,SCOOP_CCR) = 0x0000;  // 10
-	SCOOP_REG(sdev->base,SCOOP_IMR) = 0x0000;  // 18
-	SCOOP_REG(sdev->base,SCOOP_IRM) = 0x00FF;  // 14
-	SCOOP_REG(sdev->base,SCOOP_ISR) = 0x0000;  // 1C
-	SCOOP_REG(sdev->base,SCOOP_IRM) = 0x0000;
+	iowrite16(0x0100, sdev->base + SCOOP_MCR);  // 00
+	iowrite16(0x0000, sdev->base + SCOOP_CDR);  // 04
+	iowrite16(0x0000, sdev->base + SCOOP_CCR);  // 10
+	iowrite16(0x0000, sdev->base + SCOOP_IMR);  // 18
+	iowrite16(0x00FF, sdev->base + SCOOP_IRM);  // 14
+	iowrite16(0x0000, sdev->base + SCOOP_ISR);  // 1C
+	iowrite16(0x0000, sdev->base + SCOOP_IRM);
 }
 
 unsigned short set_scoop_gpio(struct device *dev, unsigned short bit)
@@ -60,8 +58,8 @@ unsigned short set_scoop_gpio(struct device *dev, unsigned short bit)
 	struct scoop_dev *sdev = dev_get_drvdata(dev);
 
 	spin_lock_irqsave(&sdev->scoop_lock, flag);
-	gpio_bit = SCOOP_REG(sdev->base, SCOOP_GPWR) | bit;
-	SCOOP_REG(sdev->base, SCOOP_GPWR) = gpio_bit;
+	gpio_bit = ioread16(sdev->base + SCOOP_GPWR) | bit;
+	iowrite16(gpio_bit, sdev->base + SCOOP_GPWR);
 	spin_unlock_irqrestore(&sdev->scoop_lock, flag);
 
 	return gpio_bit;
@@ -74,8 +72,8 @@ unsigned short reset_scoop_gpio(struct device *dev, unsigned short bit)
 	struct scoop_dev *sdev = dev_get_drvdata(dev);
 
 	spin_lock_irqsave(&sdev->scoop_lock, flag);
-	gpio_bit = SCOOP_REG(sdev->base, SCOOP_GPWR) & ~bit;
-	SCOOP_REG(sdev->base,SCOOP_GPWR) = gpio_bit;
+	gpio_bit = ioread16(sdev->base + SCOOP_GPWR) & ~bit;
+	iowrite16(gpio_bit, sdev->base + SCOOP_GPWR);
 	spin_unlock_irqrestore(&sdev->scoop_lock, flag);
 
 	return gpio_bit;
@@ -87,13 +85,13 @@ EXPORT_SYMBOL(reset_scoop_gpio);
 unsigned short read_scoop_reg(struct device *dev, unsigned short reg)
 {
 	struct scoop_dev *sdev = dev_get_drvdata(dev);
-	return SCOOP_REG(sdev->base,reg);
+	return ioread16(sdev->base + reg);
 }
 
 void write_scoop_reg(struct device *dev, unsigned short reg, unsigned short data)
 {
 	struct scoop_dev *sdev = dev_get_drvdata(dev);
-	SCOOP_REG(sdev->base,reg)=data;
+	iowrite16(data, sdev->base + reg);
 }
 
 EXPORT_SYMBOL(reset_scoop);
@@ -104,9 +102,9 @@ static void check_scoop_reg(struct scoop_dev *sdev)
 {
 	unsigned short mcr;
 
-	mcr = SCOOP_REG(sdev->base, SCOOP_MCR);
+	mcr = ioread16(sdev->base + SCOOP_MCR);
 	if ((mcr & 0x100) == 0)
-		SCOOP_REG(sdev->base, SCOOP_MCR) = 0x0101;
+		iowrite16(0x0101, sdev->base + SCOOP_MCR);
 }
 
 #ifdef CONFIG_PM
@@ -115,8 +113,8 @@ static int scoop_suspend(struct platform_device *dev, pm_message_t state)
 	struct scoop_dev *sdev = platform_get_drvdata(dev);
 
 	check_scoop_reg(sdev);
-	sdev->scoop_gpwr = SCOOP_REG(sdev->base, SCOOP_GPWR);
-	SCOOP_REG(sdev->base, SCOOP_GPWR) = (sdev->scoop_gpwr & ~sdev->suspend_clr) | sdev->suspend_set;
+	sdev->scoop_gpwr = ioread16(sdev->base + SCOOP_GPWR);
+	iowrite16((sdev->scoop_gpwr & ~sdev->suspend_clr) | sdev->suspend_set, sdev->base + SCOOP_GPWR);
 
 	return 0;
 }
@@ -126,7 +124,7 @@ static int scoop_resume(struct platform_device *dev)
 	struct scoop_dev *sdev = platform_get_drvdata(dev);
 
 	check_scoop_reg(sdev);
-	SCOOP_REG(sdev->base,SCOOP_GPWR) = sdev->scoop_gpwr;
+	iowrite16(sdev->scoop_gpwr, sdev->base + SCOOP_GPWR);
 
 	return 0;
 }
@@ -162,11 +160,11 @@ static int __devinit scoop_probe(struct platform_device *pdev)
 
 	printk("Sharp Scoop Device found at 0x%08x -> 0x%8p\n",(unsigned int)mem->start, devptr->base);
 
-	SCOOP_REG(devptr->base, SCOOP_MCR) = 0x0140;
+	iowrite16(0x0140, devptr->base + SCOOP_MCR);
 	reset_scoop(&pdev->dev);
-	SCOOP_REG(devptr->base, SCOOP_CPR) = 0x0000;
-	SCOOP_REG(devptr->base, SCOOP_GPCR) = inf->io_dir & 0xffff;
-	SCOOP_REG(devptr->base, SCOOP_GPWR) = inf->io_out & 0xffff;
+	iowrite16(0x0000, devptr->base + SCOOP_CPR);
+	iowrite16(inf->io_dir & 0xffff, devptr->base + SCOOP_GPCR);
+	iowrite16(inf->io_out & 0xffff, devptr->base + SCOOP_GPWR);
 
 	devptr->suspend_clr = inf->suspend_clr;
 	devptr->suspend_set = inf->suspend_set;
