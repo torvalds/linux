@@ -308,7 +308,8 @@ static void veth_complete_allocation(void *parm, int number)
 
 static int veth_allocate_events(HvLpIndex rlp, int number)
 {
-	struct veth_allocation vc = { COMPLETION_INITIALIZER(vc.c), 0 };
+	struct veth_allocation vc =
+		{ COMPLETION_INITIALIZER_ONSTACK(vc.c), 0 };
 
 	mf_allocate_lp_events(rlp, HvLpEvent_Type_VirtualLan,
 			    sizeof(struct veth_lpevent), number,
