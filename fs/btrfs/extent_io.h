@@ -216,4 +216,6 @@ int map_private_extent_buffer(struct extent_buffer *eb, unsigned long offset,
 		      unsigned long *map_start,
 		      unsigned long *map_len, int km);
 void unmap_extent_buffer(struct extent_buffer *eb, char *token, int km);
+int invalidate_extent_lru(struct extent_io_tree *tree, u64 start,
+			  unsigned long len);
 #endif

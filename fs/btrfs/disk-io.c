@@ -283,6 +283,7 @@ static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 	map = &BTRFS_I(page->mapping->host)->extent_tree;
 	ret = try_release_extent_mapping(map, tree, page, gfp_flags);
 	if (ret == 1) {
+		invalidate_extent_lru(tree, page_offset(page), PAGE_CACHE_SIZE);
 		ClearPagePrivate(page);
 		set_page_private(page, 0);
 		page_cache_release(page);
@@ -376,7 +377,6 @@ int btrfs_verify_block_csum(struct btrfs_root *root,
 		buf->flags |= EXTENT_CSUM;
 		return 0;
 	}
-
 	lock_extent(io_tree, buf->start, end, GFP_NOFS);
 
 	if (test_range_bit(io_tree, buf->start, end, EXTENT_CSUM, 1)) {
@@ -384,6 +384,7 @@ int btrfs_verify_block_csum(struct btrfs_root *root,
 		ret = 0;
 		goto out_unlock;
 	}
+WARN_ON(buf->flags & EXTENT_CSUM);
 
 	ret = csum_tree_block(root, buf, 1);
 	set_extent_bits(io_tree, buf->start, end, EXTENT_CSUM, GFP_NOFS);

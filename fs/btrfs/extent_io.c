@@ -2592,6 +2592,33 @@ static inline struct page *extent_buffer_page(struct extent_buffer *eb,
 	return p;
 }
 
+int invalidate_extent_lru(struct extent_io_tree *tree, u64 start,
+			  unsigned long len)
+{
+	struct list_head *lru = &tree->buffer_lru;
+	struct list_head *cur = lru->next;
+	struct extent_buffer *eb;
+	int found = 0;
+
+	spin_lock(&tree->lru_lock);
+	if (list_empty(lru))
+		goto out;
+
+	do {
+		eb = list_entry(cur, struct extent_buffer, lru);
+		if (eb->start <= start && eb->start + eb->len > start) {
+			eb->flags &= ~EXTENT_UPTODATE;
+		}
+		if (eb->start == start) {
+			eb->flags &= ~EXTENT_CSUM;
+		}
+		cur = cur->next;
+	} while (cur != lru);
+out:
+	spin_unlock(&tree->lru_lock);
+	return found;
+}
+
 static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 						   u64 start,
 						   unsigned long len,
@@ -2909,10 +2936,32 @@ EXPORT_SYMBOL(set_extent_buffer_uptodate);
 int extent_buffer_uptodate(struct extent_io_tree *tree,
 			     struct extent_buffer *eb)
 {
+	int ret = 0;
+	int ret2;
+	int num_pages;
+	int i;
+	struct page *page;
+	int pg_uptodate = 1;
+
 	if (eb->flags & EXTENT_UPTODATE)
-		return 1;
-	return test_range_bit(tree, eb->start, eb->start + eb->len - 1,
+		ret = 1;
+
+	ret2  = test_range_bit(tree, eb->start, eb->start + eb->len - 1,
 			   EXTENT_UPTODATE, 1);
+
+	num_pages = num_extent_pages(eb->start, eb->len);
+	for (i = 0; i < num_pages; i++) {
+		page = extent_buffer_page(eb, i);
+		if (!PageUptodate(page)) {
+			pg_uptodate = 0;
+			break;
+		}
+	}
+	if ((ret || ret2) && !pg_uptodate) {
+printk("uptodate error2 eb %Lu ret %d ret2 %d pg_uptodate %d\n", eb->start, ret, ret2, pg_uptodate);
+		WARN_ON(1);
+	}
+	return (ret || ret2);
 }
 EXPORT_SYMBOL(extent_buffer_uptodate);
 
@@ -2928,7 +2977,6 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	int ret = 0;
 	unsigned long num_pages;
 	struct bio *bio = NULL;
-
 
 	if (eb->flags & EXTENT_UPTODATE)
 		return 0;
