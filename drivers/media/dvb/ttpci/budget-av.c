@@ -178,7 +178,7 @@ static int ciintf_read_cam_control(struct dvb_ca_en50221 *ca, int slot, u8 addre
 	udelay(1);
 
 	result = ttpci_budget_debiread(&budget_av->budget, DEBICICAM, address & 3, 1, 0, 0);
-	if ((result == -ETIMEDOUT) || ((result == 0xff) && ((address & 3) < 2))) {
+	if (result == -ETIMEDOUT) {
 		ciintf_slot_shutdown(ca, slot);
 		printk(KERN_INFO "budget-av: cam ejected 3\n");
 		return -ETIMEDOUT;
