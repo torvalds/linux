@@ -4167,7 +4167,47 @@ struct saa7134_board saa7134_boards[] = {
 			.name = name_radio,
 			.amux = TV,
 		}
-	}
+	},
+	[SAA7134_BOARD_AVERMEDIA_A700_PRO] = {
+		/* Matthias Schwarzott <zzam@gentoo.org> */
+		.name           = "Avermedia DVB-S Pro A700",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_ABSENT,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		/* no DVB support for now */
+		/* .mpeg           = SAA7134_MPEG_DVB, */
+		.inputs         = { {
+			.name = name_comp,
+			.vmux = 1,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 6,
+			.amux = LINE1,
+		} },
+	},
+	[SAA7134_BOARD_AVERMEDIA_A700_HYBRID] = {
+		/* Matthias Schwarzott <zzam@gentoo.org> */
+		.name           = "Avermedia DVB-S Hybrid+FM A700",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_ABSENT, /* TUNER_XC2028 */
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		/* no DVB support for now */
+		/* .mpeg           = SAA7134_MPEG_DVB, */
+		.inputs         = { {
+			.name = name_comp,
+			.vmux = 1,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 6,
+			.amux = LINE1,
+		} },
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -4399,6 +4439,18 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0xa70b,
 		.driver_data  = SAA7134_BOARD_MD2819,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
+		.subdevice    = 0xa7a1,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_A700_PRO,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
+		.subdevice    = 0xa7a2,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_A700_HYBRID,
+	}, {
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
 		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
@@ -5461,6 +5513,15 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	       dev->has_remote = SAA7134_REMOTE_GPIO;
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x8c040007, 0x8c040007);
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x0c0007cd, 0x0c0007cd);
+		break;
+	case SAA7134_BOARD_AVERMEDIA_A700_PRO:
+	case SAA7134_BOARD_AVERMEDIA_A700_HYBRID:
+		/* write windows gpio values */
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x80040100, 0x80040100);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x80040100, 0x00040100);
+		printk("%s: %s: hybrid analog/dvb card\n"
+		       "%s: Sorry, only the analog inputs are supported for now.\n",
+			dev->name, card(dev).name, dev->name);
 		break;
 	}
 	return 0;
