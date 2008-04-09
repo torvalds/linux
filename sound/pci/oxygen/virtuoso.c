@@ -47,10 +47,10 @@
  * GPI 0 <- external power present
  *
  * GPIO 0 -> enable output to speakers
- * GPIO 1 -> ALT?
+ * GPIO 1 -> ?
  * GPIO 2 -> M0 of CS5361
  * GPIO 3 -> M1 of CS5361
- * GPIO 8 -> line-in/mic-in/digital-out switch?
+ * GPIO 8 -> route input jack to line-in (0) or mic-in (1)
  *
  * CS4398:
  *
@@ -120,7 +120,7 @@ MODULE_DEVICE_TABLE(pci, xonar_ids);
 #define GPI_DX_EXT_POWER	0x01
 #define GPIO_DX_OUTPUT_ENABLE	0x0001
 #define GPIO_DX_UNKNOWN1	0x0002
-#define GPIO_DX_UNKNOWN2	0x0100
+#define GPIO_DX_INPUT_ROUTE	0x0100
 
 #define I2C_DEVICE_CS4398	0x9e	/* 10011, AD1=1, AD0=1, /W=0 */
 #define I2C_DEVICE_CS4362A	0x30	/* 001100, AD0=0, /W=0 */
@@ -267,7 +267,8 @@ static void xonar_dx_init(struct oxygen *chip)
 	cs4362a_write(chip, 0x01, CS4362A_CPEN);
 
 	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL,
-			  GPIO_DX_UNKNOWN1 | GPIO_DX_UNKNOWN2);
+			  GPIO_DX_UNKNOWN1 | GPIO_DX_INPUT_ROUTE);
+	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, GPIO_DX_INPUT_ROUTE);
 
 	xonar_common_init(chip);
 
@@ -469,6 +470,18 @@ static const struct snd_kcontrol_new alt_switch = {
 	.put = alt_switch_put,
 };
 
+static void xonar_dx_ac97_switch(struct oxygen *chip,
+				 unsigned int reg, unsigned int mute)
+{
+	if (reg == AC97_LINE) {
+		spin_lock_irq(&chip->reg_lock);
+		oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
+				      mute ? GPIO_DX_INPUT_ROUTE : 0,
+				      GPIO_DX_INPUT_ROUTE);
+		spin_unlock_irq(&chip->reg_lock);
+	}
+}
+
 static const DECLARE_TLV_DB_SCALE(pcm1796_db_scale, -12000, 50, 0);
 static const DECLARE_TLV_DB_SCALE(cs4362a_db_scale, -12700, 100, 0);
 
@@ -572,6 +585,7 @@ static const struct oxygen_model xonar_models[] = {
 		.update_dac_volume = update_cs43xx_volume,
 		.update_dac_mute = update_cs43xx_mute,
 		.gpio_changed = xonar_gpio_changed,
+		.ac97_switch = xonar_dx_ac97_switch,
 		.model_data_size = sizeof(struct xonar_data),
 		.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
 			       PLAYBACK_1_TO_SPDIF |

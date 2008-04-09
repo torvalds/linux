@@ -518,6 +518,8 @@ static void mute_ac97_ctl(struct oxygen *chip, unsigned int control)
 	value = oxygen_read_ac97(chip, 0, priv_idx);
 	if (!(value & 0x8000)) {
 		oxygen_write_ac97(chip, 0, priv_idx, value | 0x8000);
+		if (chip->model->ac97_switch)
+			chip->model->ac97_switch(chip, priv_idx, 0x8000);
 		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &chip->controls[control]->id);
 	}
@@ -544,6 +546,8 @@ static int ac97_switch_put(struct snd_kcontrol *ctl,
 	change = newreg != oldreg;
 	if (change) {
 		oxygen_write_ac97(chip, codec, index, newreg);
+		if (codec == 0 && chip->model->ac97_switch)
+			chip->model->ac97_switch(chip, index, newreg & 0x8000);
 		if (index == AC97_LINE) {
 			oxygen_write_ac97_masked(chip, 0, CM9780_GPIO_STATUS,
 						 newreg & 0x8000 ?
