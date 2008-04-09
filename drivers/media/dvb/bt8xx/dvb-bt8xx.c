@@ -671,7 +671,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		state->dst_ca = NULL;
 		/*	DST is not a frontend, attaching the ASIC	*/
 		if (dvb_attach(dst_attach, state, &card->dvb_adapter) == NULL) {
-			printk("%s: Could not find a Twinhan DST.\n", __FUNCTION__);
+			printk("%s: Could not find a Twinhan DST.\n", __func__);
 			break;
 		}
 		/*	Attach other DST peripherals if any		*/
