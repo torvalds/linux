@@ -878,10 +878,10 @@ set:
 
 static void svm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
-       vcpu->arch.cr4 = cr4;
-       if (!npt_enabled)
-	       cr4 |= X86_CR4_PAE;
-       to_svm(vcpu)->vmcb->save.cr4 = cr4;
+	vcpu->arch.cr4 = cr4;
+	if (!npt_enabled)
+		cr4 |= X86_CR4_PAE;
+	to_svm(vcpu)->vmcb->save.cr4 = cr4;
 }
 
 static void svm_set_segment(struct kvm_vcpu *vcpu,
