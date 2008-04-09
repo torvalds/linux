@@ -2797,6 +2797,17 @@ static void ieee80211_rx_mgmt_beacon(struct net_device *dev,
 
 	ieee802_11_parse_elems(mgmt->u.beacon.variable, len - baselen, &elems);
 
+	if (elems.wmm_param && (ifsta->flags & IEEE80211_STA_WMM_ENABLED)) {
+		ieee80211_sta_wmm_params(dev, ifsta, elems.wmm_param,
+					 elems.wmm_param_len);
+	}
+
+	/* Do not send changes to driver if we are scanning. This removes
+	 * requirement that driver's bss_info_changed function needs to be
+	 * atomic. */
+	if (local->sta_sw_scanning || local->sta_hw_scanning)
+		return;
+
 	if (elems.erp_info && elems.erp_info_len >= 1)
 		changed |= ieee80211_handle_erp_ie(sdata, elems.erp_info[0]);
 	else {
@@ -2814,11 +2825,6 @@ static void ieee80211_rx_mgmt_beacon(struct net_device *dev,
 				elems.ht_info_elem, &bss_info);
 		changed |= ieee80211_handle_ht(local, 1, &conf->ht_conf,
 					       &bss_info);
-	}
-
-	if (elems.wmm_param && (ifsta->flags & IEEE80211_STA_WMM_ENABLED)) {
-		ieee80211_sta_wmm_params(dev, ifsta, elems.wmm_param,
-					 elems.wmm_param_len);
 	}
 
 	ieee80211_bss_info_change_notify(sdata, changed);

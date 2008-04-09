@@ -1020,8 +1020,7 @@ enum ieee80211_ampdu_mlme_action {
  *	level driver (e.g. assoc/disassoc status, erp parameters).
  *	This function should not be used if no BSS has been set, unless
  *	for association indication. The @changed parameter indicates which
- *	of the bss parameters has changed when a call is made. This callback
- *	has to be atomic.
+ *	of the bss parameters has changed when a call is made.
  *
  * @configure_filter: Configure the device's RX filter.
  *	See the section "Frame filtering" for more information.
