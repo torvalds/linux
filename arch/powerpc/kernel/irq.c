@@ -310,8 +310,21 @@ void do_IRQ(struct pt_regs *regs)
 				handler = &__do_IRQ;
 			irqtp->task = curtp->task;
 			irqtp->flags = 0;
+
+			/* Copy the softirq bits in preempt_count so that the
+			 * softirq checks work in the hardirq context.
+			 */
+			irqtp->preempt_count =
+				(irqtp->preempt_count & ~SOFTIRQ_MASK) |
+				(curtp->preempt_count & SOFTIRQ_MASK);
+
 			call_handle_irq(irq, desc, irqtp, handler);
 			irqtp->task = NULL;
+
+
+			/* Set any flag that may have been set on the
+			 * alternate stack
+			 */
 			if (irqtp->flags)
 				set_bits(irqtp->flags, &curtp->flags);
 		} else
@@ -357,7 +370,7 @@ void irq_ctx_init(void)
 		memset((void *)softirq_ctx[i], 0, THREAD_SIZE);
 		tp = softirq_ctx[i];
 		tp->cpu = i;
-		tp->preempt_count = SOFTIRQ_OFFSET;
+		tp->preempt_count = 0;
 
 		memset((void *)hardirq_ctx[i], 0, THREAD_SIZE);
 		tp = hardirq_ctx[i];
