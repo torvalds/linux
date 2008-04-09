@@ -49,7 +49,6 @@ static const char * const dnames[] = {
 	"net", "osd"
 };
 
-#define DVB_MAX_ADAPTERS	8
 #define DVB_MAX_IDS		4
 #define nums2minor(num,type,id)	((num << 6) | (id << 4) | type)
 #define MAX_DVB_MINORS		(DVB_MAX_ADAPTERS*64)
@@ -262,18 +261,25 @@ void dvb_unregister_device(struct dvb_device *dvbdev)
 }
 EXPORT_SYMBOL(dvb_unregister_device);
 
+static int dvbdev_check_free_adapter_num(int num)
+{
+	struct list_head *entry;
+	list_for_each(entry, &dvb_adapter_list) {
+		struct dvb_adapter *adap;
+		adap = list_entry(entry, struct dvb_adapter, list_head);
+		if (adap->num == num)
+			return 0;
+	}
+	return 1;
+}
 
 static int dvbdev_get_free_adapter_num (void)
 {
 	int num = 0;
 
 	while (num < DVB_MAX_ADAPTERS) {
-		struct dvb_adapter *adap;
-		list_for_each_entry(adap, &dvb_adapter_list, list_head)
-			if (adap->num == num)
-				goto skip;
-		return num;
-skip:
+		if (dvbdev_check_free_adapter_num(num))
+			return num;
 		num++;
 	}
 
@@ -281,13 +287,28 @@ skip:
 }
 
 
-int dvb_register_adapter(struct dvb_adapter *adap, const char *name, struct module *module, struct device *device)
+int dvb_register_adapter(struct dvb_adapter *adap, const char *name,
+			 struct module *module, struct device *device,
+			 short *adapter_nums)
 {
-	int num;
+	int i, num;
 
 	mutex_lock(&dvbdev_register_lock);
 
-	if ((num = dvbdev_get_free_adapter_num ()) < 0) {
+	for (i = 0; i < DVB_MAX_ADAPTERS; ++i) {
+		num = adapter_nums[i];
+		if (num >= 0  &&  num < DVB_MAX_ADAPTERS) {
+		/* use the one the driver asked for */
+			if (dvbdev_check_free_adapter_num(num))
+				break;
+		} else {
+			num = dvbdev_get_free_adapter_num();
+			break;
+		}
+		num = -1;
+	}
+
+	if (num < 0) {
 		mutex_unlock(&dvbdev_register_lock);
 		return -ENFILE;
 	}

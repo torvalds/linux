@@ -52,6 +52,8 @@ MODULE_PARM_DESC(output_pva, "Output PVA from dvr device (default:off)");
 module_param(enable_rc, int, 0644);
 MODULE_PARM_DESC(enable_rc, "Turn on/off IR remote control(default: off)");
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 #define dprintk	if (debug) printk
 
 #define DRIVER_NAME		"TechnoTrend/Hauppauge DEC USB"
@@ -1437,7 +1439,9 @@ static int ttusb_dec_init_dvb(struct ttusb_dec *dec)
 	dprintk("%s\n", __func__);
 
 	if ((result = dvb_register_adapter(&dec->adapter,
-					   dec->model_name, THIS_MODULE, &dec->udev->dev)) < 0) {
+					   dec->model_name, THIS_MODULE,
+					   &dec->udev->dev,
+					   adapter_nr)) < 0) {
 		printk("%s: dvb_register_adapter failed: error %d\n",
 		       __func__, result);
 

@@ -46,6 +46,9 @@ MODULE_PARM_DESC(debug,
 		 "set debugging level (1=info,xfer=2,pll=4,ts=8,err=16,rc=32,fw=64 (or-able))."
 		 DVB_USB_DEBUG_STATUS);
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
+
 static int opera1_xilinx_rw(struct usb_device *dev, u8 request, u16 value,
 			    u8 * data, u16 len, int flags)
 {
@@ -548,7 +551,8 @@ static int opera1_probe(struct usb_interface *intf,
 		return -EINVAL;
 	}
 
-	if (dvb_usb_device_init(intf, &opera1_properties, THIS_MODULE, NULL) != 0)
+	if (0 != dvb_usb_device_init(intf, &opera1_properties,
+				     THIS_MODULE, NULL, adapter_nr))
 		return -EINVAL;
 	return 0;
 }

@@ -18,6 +18,9 @@
 static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (rc=1 (or-able))." DVB_USB_DEBUG_STATUS);
+
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 #define deb_rc(args...)   dprintk(debug,0x01,args)
 
 static int a800_power_ctrl(struct dvb_usb_device *d, int onoff)
@@ -94,7 +97,8 @@ static struct dvb_usb_device_properties a800_properties;
 static int a800_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	return dvb_usb_device_init(intf,&a800_properties,THIS_MODULE,NULL);
+	return dvb_usb_device_init(intf, &a800_properties,
+				   THIS_MODULE, NULL, adapter_nr);
 }
 
 /* do not change the order of the ID table */

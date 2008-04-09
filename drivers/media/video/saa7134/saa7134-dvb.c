@@ -65,6 +65,8 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off module debugging (default:off).");
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 #define dprintk(fmt, arg...)	do { if (debug) \
 	printk(KERN_DEBUG "%s/dvb: " fmt, dev->name , ## arg); } while(0)
 
@@ -1257,7 +1259,8 @@ static int dvb_init(struct saa7134_dev *dev)
 	}
 
 	/* register everything else */
-	ret = videobuf_dvb_register(&dev->dvb, THIS_MODULE, dev, &dev->pci->dev);
+	ret = videobuf_dvb_register(&dev->dvb, THIS_MODULE, dev, &dev->pci->dev,
+				    adapter_nr);
 
 	/* this sequence is necessary to make the tda1004x load its firmware
 	 * and to enter analog mode of hybrid boards

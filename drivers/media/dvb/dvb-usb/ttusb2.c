@@ -37,6 +37,8 @@ static int dvb_usb_ttusb2_debug;
 module_param_named(debug,dvb_usb_ttusb2_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=info (or-able))." DVB_USB_DEBUG_STATUS);
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 struct ttusb2_state {
 	u8 id;
 };
@@ -181,8 +183,10 @@ static struct dvb_usb_device_properties ttusb2_properties_s2400;
 static int ttusb2_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	if (dvb_usb_device_init(intf, &ttusb2_properties, THIS_MODULE, NULL) == 0 ||
-		dvb_usb_device_init(intf, &ttusb2_properties_s2400, THIS_MODULE, NULL) == 0)
+	if (0 == dvb_usb_device_init(intf, &ttusb2_properties,
+				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &ttusb2_properties_s2400,
+				     THIS_MODULE, NULL, adapter_nr))
 		return 0;
 	return -ENODEV;
 }

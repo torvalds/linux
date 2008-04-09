@@ -56,9 +56,10 @@
 */
 
 static int debug;
-
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 #define dprintk(x...) do { if (debug) printk(KERN_DEBUG x); } while (0)
 
@@ -1669,7 +1670,10 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	mutex_unlock(&ttusb->semi2c);
 
-	if ((result = dvb_register_adapter(&ttusb->adapter, "Technotrend/Hauppauge Nova-USB", THIS_MODULE, &udev->dev)) < 0) {
+	result = dvb_register_adapter(&ttusb->adapter,
+				      "Technotrend/Hauppauge Nova-USB",
+				      THIS_MODULE, &udev->dev, adapter_nr);
+	if (result < 0) {
 		ttusb_free_iso_urbs(ttusb);
 		kfree(ttusb);
 		return result;

@@ -54,6 +54,8 @@ static unsigned int alt_tuner;
 module_param(alt_tuner, int, 0644);
 MODULE_PARM_DESC(alt_tuner, "Enable alternate tuner configuration");
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 /* ------------------------------------------------------------------ */
 
 static int dvb_buf_setup(struct videobuf_queue *q,
@@ -333,7 +335,7 @@ static int dvb_register(struct cx23885_tsport *port)
 
 	/* register everything */
 	return videobuf_dvb_register(&port->dvb, THIS_MODULE, port,
-				     &dev->pci->dev);
+				     &dev->pci->dev, adapter_nr);
 }
 
 int cx23885_dvb_register(struct cx23885_tsport *port)

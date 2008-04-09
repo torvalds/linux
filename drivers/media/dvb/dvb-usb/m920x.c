@@ -22,6 +22,8 @@ static int dvb_usb_m920x_debug;
 module_param_named(debug,dvb_usb_m920x_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=rc (or-able))." DVB_USB_DEBUG_STATUS);
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 static int m920x_set_filter(struct dvb_usb_device *d, int type, int idx, int pid);
 
 static inline int m920x_read(struct usb_device *udev, u8 request, u16 value,
@@ -618,27 +620,31 @@ static int m920x_probe(struct usb_interface *intf,
 		 * multi-tuner device
 		 */
 
-		if ((ret = dvb_usb_device_init(intf, &megasky_properties,
-					       THIS_MODULE, &d)) == 0) {
+		ret = dvb_usb_device_init(intf, &megasky_properties,
+					  THIS_MODULE, &d, adapter_nr);
+		if (ret == 0) {
 			rc_init_seq = megasky_rc_init;
 			goto found;
 		}
 
-		if ((ret = dvb_usb_device_init(intf, &digivox_mini_ii_properties,
-					       THIS_MODULE, &d)) == 0) {
+		ret = dvb_usb_device_init(intf, &digivox_mini_ii_properties,
+					  THIS_MODULE, &d, adapter_nr);
+		if (ret == 0) {
 			/* No remote control, so no rc_init_seq */
 			goto found;
 		}
 
 		/* This configures both tuners on the TV Walker Twin */
-		if ((ret = dvb_usb_device_init(intf, &tvwalkertwin_properties,
-					       THIS_MODULE, &d)) == 0) {
+		ret = dvb_usb_device_init(intf, &tvwalkertwin_properties,
+					  THIS_MODULE, &d, adapter_nr);
+		if (ret == 0) {
 			rc_init_seq = tvwalkertwin_rc_init;
 			goto found;
 		}
 
-		if ((ret = dvb_usb_device_init(intf, &dposh_properties,
-					       THIS_MODULE, &d)) == 0) {
+		ret = dvb_usb_device_init(intf, &dposh_properties,
+					  THIS_MODULE, &d, adapter_nr);
+		if (ret == 0) {
 			/* Remote controller not supported yet. */
 			goto found;
 		}

@@ -49,6 +49,8 @@ module_param_named(debug, b2c2_flexcop_debug,  int, 0644);
 MODULE_PARM_DESC(debug, "set debug level (1=info,2=tuner,4=i2c,8=ts,16=sram,32=reg (|-able))." DEBSTATUS);
 #undef DEBSTATUS
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 /* global zero for ibi values */
 flexcop_ibi_value ibi_zero;
 
@@ -66,8 +68,10 @@ static int flexcop_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 static int flexcop_dvb_init(struct flexcop_device *fc)
 {
-	int ret;
-	if ((ret = dvb_register_adapter(&fc->dvb_adapter,"FlexCop Digital TV device",fc->owner,fc->dev)) < 0) {
+	int ret = dvb_register_adapter(&fc->dvb_adapter,
+				       "FlexCop Digital TV device", fc->owner,
+				       fc->dev, adapter_nr);
+	if (ret < 0) {
 		err("error registering DVB adapter");
 		return ret;
 	}

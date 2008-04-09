@@ -40,6 +40,8 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 #define dprintk( args... ) \
 	do { \
 		if (debug) printk(KERN_DEBUG args); \
@@ -717,7 +719,10 @@ static int __devinit dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 {
 	int result;
 
-	if ((result = dvb_register_adapter(&card->dvb_adapter, card->card_name, THIS_MODULE, &card->bt->dev->dev)) < 0) {
+	result = dvb_register_adapter(&card->dvb_adapter, card->card_name,
+				      THIS_MODULE, &card->bt->dev->dev,
+				      adapter_nr);
+	if (result < 0) {
 		printk("dvb_bt8xx: dvb_register_adapter failed (errno = %d)\n", result);
 		return result;
 	}

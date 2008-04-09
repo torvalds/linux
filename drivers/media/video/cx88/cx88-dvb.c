@@ -58,6 +58,8 @@ static unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug,"enable debug messages [dvb]");
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 #define dprintk(level,fmt, arg...)	if (debug >= level) \
 	printk(KERN_DEBUG "%s/2-dvb: " fmt, core->name, ## arg)
 
@@ -862,7 +864,8 @@ static int dvb_register(struct cx8802_dev *dev)
 	cx88_call_i2c_clients (dev->core, TUNER_SET_STANDBY, NULL);
 
 	/* register everything */
-	return videobuf_dvb_register(&dev->dvb, THIS_MODULE, dev, &dev->pci->dev);
+	return videobuf_dvb_register(&dev->dvb, THIS_MODULE, dev,
+				     &dev->pci->dev, adapter_nr);
 }
 
 /* ----------------------------------------------------------- */

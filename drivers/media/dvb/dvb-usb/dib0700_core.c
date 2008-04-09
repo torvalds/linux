@@ -17,6 +17,8 @@ int dvb_usb_dib0700_ir_proto = 1;
 module_param(dvb_usb_dib0700_ir_proto, int, 0644);
 MODULE_PARM_DESC(dvb_usb_dib0700_ir_proto, "set ir protocol (0=NEC, 1=RC5 (default), 2=RC6).");
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 /* expecting rx buffer: request data[0] data[1] ... data[2] */
 static int dib0700_ctrl_wr(struct dvb_usb_device *d, u8 *tx, u8 txlen)
 {
@@ -279,7 +281,8 @@ static int dib0700_probe(struct usb_interface *intf,
 	struct dvb_usb_device *dev;
 
 	for (i = 0; i < dib0700_device_count; i++)
-		if (dvb_usb_device_init(intf, &dib0700_devices[i], THIS_MODULE, &dev) == 0)
+		if (dvb_usb_device_init(intf, &dib0700_devices[i], THIS_MODULE,
+					&dev, adapter_nr) == 0)
 		{
 			dib0700_rc_setup(dev);
 			return 0;
