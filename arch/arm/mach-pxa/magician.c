@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/delay.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/mfd/htc-egpio.h>
@@ -144,7 +145,7 @@ static struct platform_device egpio = {
 };
 
 /*
- * LCD - Toppoly TD028STEB1
+ * LCD - Toppoly TD028STEB1 or Samsung LTP280QV
  */
 
 static struct pxafb_mode_info toppoly_modes[] = {
@@ -163,12 +164,99 @@ static struct pxafb_mode_info toppoly_modes[] = {
 	},
 };
 
+static struct pxafb_mode_info samsung_modes[] = {
+	{
+		.pixclock     = 96153,
+		.bpp          = 16,
+		.xres         = 240,
+		.yres         = 320,
+		.hsync_len    = 8,
+		.vsync_len    = 4,
+		.left_margin  = 9,
+		.upper_margin = 4,
+		.right_margin = 9,
+		.lower_margin = 4,
+		.sync         = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+	},
+};
+
+static void toppoly_lcd_power(int on, struct fb_var_screeninfo *si)
+{
+	pr_debug("Toppoly LCD power\n");
+
+	if (on) {
+		pr_debug("on\n");
+		gpio_set_value(EGPIO_MAGICIAN_TOPPOLY_POWER, 1);
+		gpio_set_value(GPIO106_MAGICIAN_LCD_POWER_3, 1);
+		udelay(2000);
+		gpio_set_value(EGPIO_MAGICIAN_LCD_POWER, 1);
+		udelay(2000);
+		/* FIXME: enable LCDC here */
+		udelay(2000);
+		gpio_set_value(GPIO104_MAGICIAN_LCD_POWER_1, 1);
+		udelay(2000);
+		gpio_set_value(GPIO105_MAGICIAN_LCD_POWER_2, 1);
+	} else {
+		pr_debug("off\n");
+		msleep(15);
+		gpio_set_value(GPIO105_MAGICIAN_LCD_POWER_2, 0);
+		udelay(500);
+		gpio_set_value(GPIO104_MAGICIAN_LCD_POWER_1, 0);
+		udelay(1000);
+		gpio_set_value(GPIO106_MAGICIAN_LCD_POWER_3, 0);
+		gpio_set_value(EGPIO_MAGICIAN_LCD_POWER, 0);
+	}
+}
+
+static void samsung_lcd_power(int on, struct fb_var_screeninfo *si)
+{
+	pr_debug("Samsung LCD power\n");
+
+	if (on) {
+		pr_debug("on\n");
+		if (system_rev < 3)
+			gpio_set_value(GPIO75_MAGICIAN_SAMSUNG_POWER, 1);
+		else
+			gpio_set_value(EGPIO_MAGICIAN_LCD_POWER, 1);
+		mdelay(10);
+		gpio_set_value(GPIO106_MAGICIAN_LCD_POWER_3, 1);
+		mdelay(10);
+		gpio_set_value(GPIO104_MAGICIAN_LCD_POWER_1, 1);
+		mdelay(30);
+		gpio_set_value(GPIO105_MAGICIAN_LCD_POWER_2, 1);
+		mdelay(10);
+	} else {
+		pr_debug("off\n");
+		mdelay(10);
+		gpio_set_value(GPIO105_MAGICIAN_LCD_POWER_2, 0);
+		mdelay(30);
+		gpio_set_value(GPIO104_MAGICIAN_LCD_POWER_1, 0);
+		mdelay(10);
+		gpio_set_value(GPIO106_MAGICIAN_LCD_POWER_3, 0);
+		mdelay(10);
+		if (system_rev < 3)
+			gpio_set_value(GPIO75_MAGICIAN_SAMSUNG_POWER, 0);
+		else
+			gpio_set_value(EGPIO_MAGICIAN_LCD_POWER, 0);
+	}
+}
+
 static struct pxafb_mach_info toppoly_info = {
-	.modes       = toppoly_modes,
-	.num_modes   = 1,
-	.fixed_modes = 1,
-	.lccr0       = LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
-	.lccr3       = LCCR3_PixRsEdg,
+	.modes           = toppoly_modes,
+	.num_modes       = 1,
+	.fixed_modes     = 1,
+	.lccr0           = LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
+	.lccr3           = LCCR3_PixRsEdg,
+	.pxafb_lcd_power = toppoly_lcd_power,
+};
+
+static struct pxafb_mach_info samsung_info = {
+	.modes           = samsung_modes,
+	.num_modes       = 1,
+	.fixed_modes     = 1,
+	.lccr0           = LCCR0_LDDALT | LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
+	.lccr3           = LCCR3_PixFlEdg,
+	.pxafb_lcd_power = samsung_lcd_power,
 };
 
 /*
@@ -358,12 +446,31 @@ static struct platform_device *devices[] __initdata = {
 
 static void __init magician_init(void)
 {
+	void __iomem *cpld;
+	int lcd_select;
+
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_i2c_info(NULL);
 	pxa_set_mci_info(&magician_mci_info);
 	pxa_set_ohci_info(&magician_ohci_info);
 	pxa_set_ficp_info(&magician_ficp_info);
-	set_pxa_fb_info(&toppoly_info);
+
+	/* Check LCD type we have */
+	cpld = ioremap_nocache(PXA_CS3_PHYS, 0x1000);
+	if (cpld) {
+		u8 board_id = __raw_readb(cpld+0x14);
+		system_rev = board_id & 0x7;
+		lcd_select = board_id & 0x8;
+		iounmap(cpld);
+		pr_info("LCD type: %s\n", lcd_select ? "Samsung" : "Toppoly");
+		if (lcd_select && (system_rev < 3))
+			pxa_gpio_mode(GPIO75_MAGICIAN_SAMSUNG_POWER_MD);
+		pxa_gpio_mode(GPIO104_MAGICIAN_LCD_POWER_1_MD);
+		pxa_gpio_mode(GPIO105_MAGICIAN_LCD_POWER_2_MD);
+		pxa_gpio_mode(GPIO106_MAGICIAN_LCD_POWER_3_MD);
+		set_pxa_fb_info(lcd_select ? &samsung_info : &toppoly_info);
+	} else
+		pr_err("LCD detection: CPLD mapping failed\n");
 }
 
 
