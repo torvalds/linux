@@ -703,6 +703,23 @@ static void exit_mm(struct task_struct * tsk)
 }
 
 /*
+ * Return nonzero if @parent's children should reap themselves.
+ *
+ * Called with write_lock_irq(&tasklist_lock) held.
+ */
+static int ignoring_children(struct task_struct *parent)
+{
+	int ret;
+	struct sighand_struct *psig = parent->sighand;
+	unsigned long flags;
+	spin_lock_irqsave(&psig->siglock, flags);
+	ret = (psig->action[SIGCHLD-1].sa.sa_handler == SIG_IGN ||
+	       (psig->action[SIGCHLD-1].sa.sa_flags & SA_NOCLDWAIT));
+	spin_unlock_irqrestore(&psig->siglock, flags);
+	return ret;
+}
+
+/*
  * Detach all tasks we were using ptrace on.
  * Any that need to be release_task'd are put on the @dead list.
  *
@@ -711,6 +728,7 @@ static void exit_mm(struct task_struct * tsk)
 static void ptrace_exit(struct task_struct *parent, struct list_head *dead)
 {
 	struct task_struct *p, *n;
+	int ign = -1;
 
 	list_for_each_entry_safe(p, n, &parent->ptraced, ptrace_entry) {
 		__ptrace_unlink(p);
@@ -726,10 +744,18 @@ static void ptrace_exit(struct task_struct *parent, struct list_head *dead)
 		 * release_task() here because we already hold tasklist_lock.
 		 *
 		 * If it's our own child, there is no notification to do.
+		 * But if our normal children self-reap, then this child
+		 * was prevented by ptrace and we must reap it now.
 		 */
 		if (!task_detached(p) && thread_group_empty(p)) {
 			if (!same_thread_group(p->real_parent, parent))
 				do_notify_parent(p, p->exit_signal);
+			else {
+				if (ign < 0)
+					ign = ignoring_children(parent);
+				if (ign)
+					p->exit_signal = -1;
+			}
 		}
 
 		if (task_detached(p)) {
