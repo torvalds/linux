@@ -371,7 +371,7 @@ pgd_index (unsigned long address)
 /* The offset in the 1-level directory is given by the 3 region bits
    (61..63) and the level-1 bits.  */
 static inline pgd_t*
-pgd_offset (struct mm_struct *mm, unsigned long address)
+pgd_offset (const struct mm_struct *mm, unsigned long address)
 {
 	return mm->pgd + pgd_index(address);
 }
