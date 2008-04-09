@@ -438,7 +438,7 @@ static void frontend_init(struct budget *budget)
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = s5h1420_tuner_set_params;
 			if (dvb_attach(lnbp21_attach, budget->dvb_frontend, &budget->i2c_adap, 0, 0) == NULL) {
-				printk("%s: No LNBP21 found!\n", __FUNCTION__);
+				printk("%s: No LNBP21 found!\n", __func__);
 				goto error_out;
 			}
 			break;
@@ -454,9 +454,9 @@ static void frontend_init(struct budget *budget)
 		budget->dvb_frontend = dvb_attach(tda10086_attach, &tda10086_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			if (dvb_attach(tda826x_attach, budget->dvb_frontend, 0x60, &budget->i2c_adap, 0) == NULL)
-				printk("%s: No tda826x found!\n", __FUNCTION__);
+				printk("%s: No tda826x found!\n", __func__);
 			if (dvb_attach(lnbp21_attach, budget->dvb_frontend, &budget->i2c_adap, 0, 0) == NULL) {
-				printk("%s: No LNBP21 found!\n", __FUNCTION__);
+				printk("%s: No LNBP21 found!\n", __func__);
 				goto error_out;
 			}
 			break;

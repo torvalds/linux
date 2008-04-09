@@ -223,7 +223,7 @@ static void vpeirq(unsigned long data)
 
 	if (budget->buffer_warnings && time_after(jiffies, budget->buffer_warning_time)) {
 		printk("%s %s: used %d times >80%% of buffer (%u bytes now)\n",
-			budget->dev->name, __FUNCTION__, budget->buffer_warnings, count);
+			budget->dev->name, __func__, budget->buffer_warnings, count);
 		budget->buffer_warning_time = jiffies + BUFFER_WARNING_WAIT;
 		budget->buffer_warnings = 0;
 	}

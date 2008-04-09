@@ -573,7 +573,7 @@ static int av7110_vbi_reset(struct inode *inode, struct file *file)
 	struct saa7146_dev *dev = fh->dev;
 	struct av7110 *av7110 = (struct av7110*) dev->ext_priv;
 
-	dprintk(2, "%s\n", __FUNCTION__);
+	dprintk(2, "%s\n", __func__);
 	av7110->wssMode = 0;
 	av7110->wssData = 0;
 	if (FW_VERSION(av7110->arm_app) < 0x2623)
@@ -590,7 +590,7 @@ static ssize_t av7110_vbi_write(struct file *file, const char __user *data, size
 	struct v4l2_sliced_vbi_data d;
 	int rc;
 
-	dprintk(2, "%s\n", __FUNCTION__);
+	dprintk(2, "%s\n", __func__);
 	if (FW_VERSION(av7110->arm_app) < 0x2623 || !av7110->wssMode || count != sizeof d)
 		return -EINVAL;
 	if (copy_from_user(&d, data, count))
