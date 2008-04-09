@@ -296,6 +296,7 @@ int lbs_cmd_802_11_set_wep(struct lbs_private *priv, uint16_t cmd_action,
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.command = cpu_to_le16(CMD_802_11_SET_WEP);
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 
@@ -359,7 +360,9 @@ int lbs_cmd_802_11_enable_rsn(struct lbs_private *priv, uint16_t cmd_action,
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(cmd_action);
 
-	if (cmd_action == CMD_ACT_SET) {
+	if (cmd_action == CMD_ACT_GET)
+		cmd.enable = 0;
+	else {
 		if (*enable)
 			cmd.enable = cpu_to_le16(CMD_ENABLE_RSN);
 		else
@@ -811,6 +814,7 @@ int lbs_get_channel(struct lbs_private *priv)
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_OPT_802_11_RF_CHANNEL_GET);
 
@@ -858,6 +862,7 @@ int lbs_set_channel(struct lbs_private *priv, u8 channel)
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_OPT_802_11_RF_CHANNEL_SET);
 	cmd.channel = cpu_to_le16(channel);
