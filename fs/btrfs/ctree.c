@@ -2025,8 +2025,10 @@ again:
 					 root->root_key.objectid,
 					 root_gen, disk_key.objectid, 0,
 					 l->start, 0);
-	if (IS_ERR(right))
+	if (IS_ERR(right)) {
+		BUG_ON(1);
 		return PTR_ERR(right);
+	}
 
 	memset_extent_buffer(right, 0, 0, sizeof(struct btrfs_header));
 	btrfs_set_header_bytenr(right, right->start);

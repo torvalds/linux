@@ -301,12 +301,9 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 {
 	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
 	struct btrfs_mapping_tree *map_tree;
-	struct btrfs_device *dev;
 	u64 logical = bio->bi_sector << 9;
-	u64 physical;
 	u64 length = 0;
 	u64 map_length;
-	int total_devs;
 	struct bio_vec *bvec;
 	int i;
 	int ret;
@@ -316,8 +313,9 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 	}
 	map_tree = &root->fs_info->mapping_tree;
 	map_length = length;
-	ret = btrfs_map_block(map_tree, READ, 0, logical, &physical,
-			      &map_length, &dev, &total_devs);
+	ret = btrfs_map_block(map_tree, READ, logical,
+			      &map_length, NULL);
+
 	if (map_length < length + size) {
 		return 1;
 	}
