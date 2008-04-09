@@ -112,7 +112,7 @@ static int flexcop_dma_remap(struct flexcop_device *fc,
 {
 	flexcop_ibi_register r = (dma_idx & FC_DMA_1) ? dma1_00c : dma2_01c;
 	flexcop_ibi_value v = fc->read_ibi_reg(fc,r);
-	deb_info("%s\n",__FUNCTION__);
+	deb_info("%s\n",__func__);
 	v.dma_0xc.remap_enable = onoff;
 	fc->write_ibi_reg(fc,r,v);
 	return 0;
@@ -162,7 +162,7 @@ int flexcop_dma_config_timer(struct flexcop_device *fc,
 
 	flexcop_dma_remap(fc,dma_idx,0);
 
-	deb_info("%s\n",__FUNCTION__);
+	deb_info("%s\n",__func__);
 	v.dma_0x4_write.dmatimer = cycles;
 	fc->write_ibi_reg(fc,r,v);
 	return 0;
