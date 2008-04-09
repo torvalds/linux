@@ -49,6 +49,8 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	unsigned long dma_mask = 0;
 	u64 bus;
 
+	/* ignore region specifiers */
+	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
 
 	if (dma_alloc_from_coherent_mem(dev, size, dma_handle, &memory))
 		return memory;

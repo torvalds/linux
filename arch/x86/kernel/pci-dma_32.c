@@ -79,7 +79,7 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 	unsigned long dma_mask = 0;
 
 	/* ignore region specifiers */
-	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM);
+	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
 
 	if (dma_alloc_from_coherent_mem(dev, size, dma_handle, &ret))
 		return ret;
@@ -91,7 +91,9 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 	if (dma_mask == 0)
 		dma_mask = DMA_32BIT_MASK;
 
- again:
+	/* Don't invoke OOM killer */
+	gfp |= __GFP_NORETRY;
+again:
 	page = dma_alloc_pages(dev, gfp, order);
 	if (page == NULL)
 		return NULL;
