@@ -109,12 +109,13 @@ static void set_irq(struct ssb_device *dev, unsigned int irq)
 		clear_irq(bus, oldirq);
 
 	/* assign the new one */
-	if (irq == 0)
-		ssb_write32(mdev, SSB_INTVEC, ((1 << irqflag) & ssb_read32(mdev, SSB_INTVEC)));
-
-	irqflag <<= ipsflag_irq_shift[irq];
-	irqflag |= (ssb_read32(mdev, SSB_IPSFLAG) & ~ipsflag_irq_mask[irq]);
-	ssb_write32(mdev, SSB_IPSFLAG, irqflag);
+	if (irq == 0) {
+		ssb_write32(mdev, SSB_INTVEC, ((1 << irqflag) | ssb_read32(mdev, SSB_INTVEC)));
+	} else {
+		irqflag <<= ipsflag_irq_shift[irq];
+		irqflag |= (ssb_read32(mdev, SSB_IPSFLAG) & ~ipsflag_irq_mask[irq]);
+		ssb_write32(mdev, SSB_IPSFLAG, irqflag);
+	}
 }
 
 static void ssb_mips_serial_init(struct ssb_mipscore *mcore)
