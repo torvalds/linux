@@ -73,6 +73,7 @@ struct slb_shadow slb_shadow[] __cacheline_aligned = {
 	.kernel_toc = (unsigned long)(&__toc_start) + 0x8000UL,		    \
 	.hw_cpu_id = 0xffff,						    \
 	.slb_shadow_ptr = &slb_shadow[number],				    \
+	.__current = &init_task,					    \
 }
 
 struct paca_struct paca[] = {
