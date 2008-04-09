@@ -35,6 +35,9 @@ static struct pvr2_context *pvr2_context_notify_first;
 static struct pvr2_context *pvr2_context_notify_last;
 static DEFINE_MUTEX(pvr2_context_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(pvr2_context_sync_data);
+static DECLARE_WAIT_QUEUE_HEAD(pvr2_context_cleanup_data);
+static int pvr2_context_cleanup_flag;
+static int pvr2_context_cleaned_flag;
 static struct task_struct *pvr2_context_thread_ptr;
 
 
@@ -153,7 +156,7 @@ static void pvr2_context_check(struct pvr2_context *mp)
 
 static int pvr2_context_shutok(void)
 {
-	return kthread_should_stop() && (pvr2_context_exist_first == NULL);
+	return pvr2_context_cleanup_flag && (pvr2_context_exist_first == NULL);
 }
 
 
@@ -174,6 +177,15 @@ static int pvr2_context_thread_func(void *foo)
 			 pvr2_context_shutok()));
 	} while (!pvr2_context_shutok());
 
+	pvr2_context_cleaned_flag = !0;
+	wake_up(&pvr2_context_cleanup_data);
+
+	pvr2_trace(PVR2_TRACE_CTXT,"pvr2_context thread cleaned up");
+
+	wait_event_interruptible(
+		pvr2_context_sync_data,
+		kthread_should_stop());
+
 	pvr2_trace(PVR2_TRACE_CTXT,"pvr2_context thread end");
 
 	return 0;
@@ -191,6 +203,11 @@ int pvr2_context_global_init(void)
 
 void pvr2_context_global_done(void)
 {
+	pvr2_context_cleanup_flag = !0;
+	wake_up(&pvr2_context_sync_data);
+	wait_event_interruptible(
+		pvr2_context_cleanup_data,
+		pvr2_context_cleaned_flag);
 	kthread_stop(pvr2_context_thread_ptr);
 }
 
