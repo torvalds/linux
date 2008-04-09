@@ -507,7 +507,8 @@ static void init_vmcb(struct vcpu_svm *svm)
 					INTERCEPT_DR7_MASK;
 
 	control->intercept_exceptions = (1 << PF_VECTOR) |
-					(1 << UD_VECTOR);
+					(1 << UD_VECTOR) |
+					(1 << MC_VECTOR);
 
 
 	control->intercept = 	(1ULL << INTERCEPT_INTR) |
@@ -1044,6 +1045,19 @@ static int nm_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	return 1;
 }
 
+static int mc_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
+{
+	/*
+	 * On an #MC intercept the MCE handler is not called automatically in
+	 * the host. So do it by hand here.
+	 */
+	asm volatile (
+		"int $0x12\n");
+	/* not sure if we ever come back to this point */
+
+	return 1;
+}
+
 static int shutdown_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
 	/*
@@ -1367,6 +1381,7 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm,
 	[SVM_EXIT_EXCP_BASE + UD_VECTOR]	= ud_interception,
 	[SVM_EXIT_EXCP_BASE + PF_VECTOR] 	= pf_interception,
 	[SVM_EXIT_EXCP_BASE + NM_VECTOR] 	= nm_interception,
+	[SVM_EXIT_EXCP_BASE + MC_VECTOR] 	= mc_interception,
 	[SVM_EXIT_INTR] 			= nop_on_interception,
 	[SVM_EXIT_NMI]				= nop_on_interception,
 	[SVM_EXIT_SMI]				= nop_on_interception,
