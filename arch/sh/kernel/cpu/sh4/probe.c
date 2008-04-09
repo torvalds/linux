@@ -220,6 +220,12 @@ int __init detect_cpu_and_cache_system(void)
 	 * SH-4A's have an optional PIPT L2.
 	 */
 	if (boot_cpu_data.flags & CPU_HAS_L2_CACHE) {
+		/* Bug if we can't decode the L2 info */
+		BUG_ON(!(cvr & 0xf));
+
+		/* Silicon and specifications have clearly never met.. */
+		cvr ^= 0xf;
+
 		/*
 		 * Size calculation is much more sensible
 		 * than it is for the L1.
