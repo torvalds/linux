@@ -41,7 +41,7 @@ void __init orion5x_pcie_id(u32 *dev, u32 *rev)
 	*rev = orion_pcie_rev(PCIE_BASE);
 }
 
-int orion5x_pcie_local_bus_nr(void)
+int __init orion5x_pcie_local_bus_nr(void)
 {
 	return orion_pcie_get_local_bus_nr(PCIE_BASE);
 }

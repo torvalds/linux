@@ -57,12 +57,12 @@ u32 __init orion_pcie_rev(void __iomem *base)
 	return readl(base + PCIE_DEV_REV_OFF) & 0xff;
 }
 
-int __init orion_pcie_link_up(void __iomem *base)
+int orion_pcie_link_up(void __iomem *base)
 {
 	return !(readl(base + PCIE_STAT_OFF) & PCIE_STAT_LINK_DOWN);
 }
 
-int __init orion_pcie_get_local_bus_nr(void __iomem *base)
+int orion_pcie_get_local_bus_nr(void __iomem *base)
 {
 	u32 stat = readl(base + PCIE_STAT_OFF);
 
