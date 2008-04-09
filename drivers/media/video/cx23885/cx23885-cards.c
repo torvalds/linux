@@ -264,7 +264,7 @@ int cx23885_tuner_callback(void *priv, int command, int arg)
 		}
 		else {
 			printk(KERN_ERR
-				"%s(): Unknow command.\n", __FUNCTION__);
+				"%s(): Unknow command.\n", __func__);
 			return -EINVAL;
 		}
 		break;

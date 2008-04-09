@@ -260,7 +260,7 @@ void cx23885_wakeup(struct cx23885_tsport *port,
 	}
 	if (bc != 1)
 		printk("%s: %d buffers handled (should be 1)\n",
-		       __FUNCTION__, bc);
+		       __func__, bc);
 }
 
 int cx23885_sram_channel_setup(struct cx23885_dev *dev,
@@ -272,7 +272,7 @@ int cx23885_sram_channel_setup(struct cx23885_dev *dev,
 
 	if (ch->cmds_start == 0)
 	{
-		dprintk(1, "%s() Erasing channel [%s]\n", __FUNCTION__,
+		dprintk(1, "%s() Erasing channel [%s]\n", __func__,
 			ch->name);
 		cx_write(ch->ptr1_reg, 0);
 		cx_write(ch->ptr2_reg, 0);
@@ -280,7 +280,7 @@ int cx23885_sram_channel_setup(struct cx23885_dev *dev,
 		cx_write(ch->cnt1_reg, 0);
 		return 0;
 	} else {
-		dprintk(1, "%s() Configuring channel [%s]\n", __FUNCTION__,
+		dprintk(1, "%s() Configuring channel [%s]\n", __func__,
 			ch->name);
 	}
 
@@ -297,7 +297,7 @@ int cx23885_sram_channel_setup(struct cx23885_dev *dev,
 
 	/* write CDT */
 	for (i = 0; i < lines; i++) {
-		dprintk(2, "%s() 0x%08x <- 0x%08x\n", __FUNCTION__, cdt + 16*i,
+		dprintk(2, "%s() 0x%08x <- 0x%08x\n", __func__, cdt + 16*i,
 			ch->fifo_start + bpl*i);
 		cx_write(cdt + 16*i, ch->fifo_start + bpl*i);
 		cx_write(cdt + 16*i +  4, 0);
@@ -449,7 +449,7 @@ static void cx23885_shutdown(struct cx23885_dev *dev)
 
 static void cx23885_reset(struct cx23885_dev *dev)
 {
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 
 	cx23885_shutdown(dev);
 
@@ -482,7 +482,7 @@ static void cx23885_reset(struct cx23885_dev *dev)
 
 static int cx23885_pci_quirks(struct cx23885_dev *dev)
 {
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 
 	/* The cx23885 bridge has a weird bug which causes NMI to be asserted
 	 * when DMA begins if RDR_TLCTL0 bit4 is not cleared. It does not
@@ -513,7 +513,7 @@ int cx23885_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
 
 static int cx23885_init_tsport(struct cx23885_dev *dev, struct cx23885_tsport *port, int portno)
 {
-	dprintk(1, "%s(portno=%d)\n", __FUNCTION__, portno);
+	dprintk(1, "%s(portno=%d)\n", __func__, portno);
 
 	/* Transport bus init dma queue  - Common settings */
 	port->dma_ctl_val        = 0x11; /* Enable RISC controller and Fifo */
@@ -604,14 +604,14 @@ static void cx23885_dev_checkrevision(struct cx23885_dev *dev)
 		break;
 	default:
 		printk(KERN_ERR "%s() New hardware revision found 0x%x\n",
-			__FUNCTION__, dev->hwrevision);
+			__func__, dev->hwrevision);
 	}
 	if (dev->hwrevision)
 		printk(KERN_INFO "%s() Hardware revision = 0x%02x\n",
-			__FUNCTION__, dev->hwrevision);
+			__func__, dev->hwrevision);
 	else
 		printk(KERN_ERR "%s() Hardware revision unknown 0x%x\n",
-			__FUNCTION__, dev->hwrevision);
+			__func__, dev->hwrevision);
 }
 
 static int cx23885_dev_setup(struct cx23885_dev *dev)
@@ -644,7 +644,7 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 		BUG();
 
 	dprintk(1, "%s() Memory configured for PCIe bridge type %d\n",
-		__FUNCTION__, dev->bridge);
+		__func__, dev->bridge);
 
 	/* board config */
 	dev->board = UNSET;
@@ -734,9 +734,9 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	dev->radio_addr = cx23885_boards[dev->board].radio_addr;
 
 	dprintk(1, "%s() tuner_type = 0x%x tuner_addr = 0x%x\n",
-		__FUNCTION__, dev->tuner_type, dev->tuner_addr);
+		__func__, dev->tuner_type, dev->tuner_addr);
 	dprintk(1, "%s() radio_type = 0x%x radio_addr = 0x%x\n",
-		__FUNCTION__, dev->radio_type, dev->radio_addr);
+		__func__, dev->radio_type, dev->radio_addr);
 
 	/* init hardware */
 	cx23885_reset(dev);
@@ -751,21 +751,21 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	if (cx23885_boards[dev->board].porta == CX23885_ANALOG_VIDEO) {
 		if (cx23885_video_register(dev) < 0) {
 			printk(KERN_ERR "%s() Failed to register analog "
-				"video adapters on VID_A\n", __FUNCTION__);
+				"video adapters on VID_A\n", __func__);
 		}
 	}
 
 	if (cx23885_boards[dev->board].portb == CX23885_MPEG_DVB) {
 		if (cx23885_dvb_register(&dev->ts1) < 0) {
 			printk(KERN_ERR "%s() Failed to register dvb adapters on VID_B\n",
-			       __FUNCTION__);
+			       __func__);
 		}
 	}
 
 	if (cx23885_boards[dev->board].portc == CX23885_MPEG_DVB) {
 		if (cx23885_dvb_register(&dev->ts2) < 0) {
 			printk(KERN_ERR "%s() Failed to register dvb adapters on VID_C\n",
-			       __FUNCTION__);
+			       __func__);
 		}
 	}
 
@@ -960,50 +960,50 @@ static void cx23885_tsport_reg_dump(struct cx23885_tsport *port)
 {
 	struct cx23885_dev *dev = port->dev;
 
-	dprintk(1, "%s() Register Dump\n", __FUNCTION__);
-	dprintk(1, "%s() DEV_CNTRL2               0x%08X\n", __FUNCTION__,
+	dprintk(1, "%s() Register Dump\n", __func__);
+	dprintk(1, "%s() DEV_CNTRL2               0x%08X\n", __func__,
 		cx_read(DEV_CNTRL2));
-	dprintk(1, "%s() PCI_INT_MSK              0x%08X\n", __FUNCTION__,
+	dprintk(1, "%s() PCI_INT_MSK              0x%08X\n", __func__,
 		cx_read(PCI_INT_MSK));
-	dprintk(1, "%s() AUD_INT_INT_MSK          0x%08X\n", __FUNCTION__,
+	dprintk(1, "%s() AUD_INT_INT_MSK          0x%08X\n", __func__,
 		cx_read(AUDIO_INT_INT_MSK));
-	dprintk(1, "%s() AUD_INT_DMA_CTL          0x%08X\n", __FUNCTION__,
+	dprintk(1, "%s() AUD_INT_DMA_CTL          0x%08X\n", __func__,
 		cx_read(AUD_INT_DMA_CTL));
-	dprintk(1, "%s() AUD_EXT_INT_MSK          0x%08X\n", __FUNCTION__,
+	dprintk(1, "%s() AUD_EXT_INT_MSK          0x%08X\n", __func__,
 		cx_read(AUDIO_EXT_INT_MSK));
-	dprintk(1, "%s() AUD_EXT_DMA_CTL          0x%08X\n", __FUNCTION__,
+	dprintk(1, "%s() AUD_EXT_DMA_CTL          0x%08X\n", __func__,
 		cx_read(AUD_EXT_DMA_CTL));
-	dprintk(1, "%s() PAD_CTRL                 0x%08X\n", __FUNCTION__,
+	dprintk(1, "%s() PAD_CTRL                 0x%08X\n", __func__,
 		cx_read(PAD_CTRL));
-	dprintk(1, "%s() ALT_PIN_OUT_SEL          0x%08X\n", __FUNCTION__,
+	dprintk(1, "%s() ALT_PIN_OUT_SEL          0x%08X\n", __func__,
 		cx_read(ALT_PIN_OUT_SEL));
-	dprintk(1, "%s() GPIO2                    0x%08X\n", __FUNCTION__,
+	dprintk(1, "%s() GPIO2                    0x%08X\n", __func__,
 		cx_read(GPIO2));
-	dprintk(1, "%s() gpcnt(0x%08X)          0x%08X\n", __FUNCTION__,
+	dprintk(1, "%s() gpcnt(0x%08X)          0x%08X\n", __func__,
 		port->reg_gpcnt, cx_read(port->reg_gpcnt));
-	dprintk(1, "%s() gpcnt_ctl(0x%08X)      0x%08x\n", __FUNCTION__,
+	dprintk(1, "%s() gpcnt_ctl(0x%08X)      0x%08x\n", __func__,
 		port->reg_gpcnt_ctl, cx_read(port->reg_gpcnt_ctl));
-	dprintk(1, "%s() dma_ctl(0x%08X)        0x%08x\n", __FUNCTION__,
+	dprintk(1, "%s() dma_ctl(0x%08X)        0x%08x\n", __func__,
 		port->reg_dma_ctl, cx_read(port->reg_dma_ctl));
-	dprintk(1, "%s() src_sel(0x%08X)        0x%08x\n", __FUNCTION__,
+	dprintk(1, "%s() src_sel(0x%08X)        0x%08x\n", __func__,
 		port->reg_src_sel, cx_read(port->reg_src_sel));
-	dprintk(1, "%s() lngth(0x%08X)          0x%08x\n", __FUNCTION__,
+	dprintk(1, "%s() lngth(0x%08X)          0x%08x\n", __func__,
 		port->reg_lngth, cx_read(port->reg_lngth));
-	dprintk(1, "%s() hw_sop_ctrl(0x%08X)    0x%08x\n", __FUNCTION__,
+	dprintk(1, "%s() hw_sop_ctrl(0x%08X)    0x%08x\n", __func__,
 		port->reg_hw_sop_ctrl, cx_read(port->reg_hw_sop_ctrl));
-	dprintk(1, "%s() gen_ctrl(0x%08X)       0x%08x\n", __FUNCTION__,
+	dprintk(1, "%s() gen_ctrl(0x%08X)       0x%08x\n", __func__,
 		port->reg_gen_ctrl, cx_read(port->reg_gen_ctrl));
-	dprintk(1, "%s() bd_pkt_status(0x%08X)  0x%08x\n", __FUNCTION__,
+	dprintk(1, "%s() bd_pkt_status(0x%08X)  0x%08x\n", __func__,
 		port->reg_bd_pkt_status, cx_read(port->reg_bd_pkt_status));
-	dprintk(1, "%s() sop_status(0x%08X)     0x%08x\n", __FUNCTION__,
+	dprintk(1, "%s() sop_status(0x%08X)     0x%08x\n", __func__,
 		port->reg_sop_status, cx_read(port->reg_sop_status));
-	dprintk(1, "%s() fifo_ovfl_stat(0x%08X) 0x%08x\n", __FUNCTION__,
+	dprintk(1, "%s() fifo_ovfl_stat(0x%08X) 0x%08x\n", __func__,
 		port->reg_fifo_ovfl_stat, cx_read(port->reg_fifo_ovfl_stat));
-	dprintk(1, "%s() vld_misc(0x%08X)       0x%08x\n", __FUNCTION__,
+	dprintk(1, "%s() vld_misc(0x%08X)       0x%08x\n", __func__,
 		port->reg_vld_misc, cx_read(port->reg_vld_misc));
-	dprintk(1, "%s() ts_clk_en(0x%08X)      0x%08x\n", __FUNCTION__,
+	dprintk(1, "%s() ts_clk_en(0x%08X)      0x%08x\n", __func__,
 		port->reg_ts_clk_en, cx_read(port->reg_ts_clk_en));
-	dprintk(1, "%s() ts_int_msk(0x%08X)     0x%08x\n", __FUNCTION__,
+	dprintk(1, "%s() ts_int_msk(0x%08X)     0x%08x\n", __func__,
 		port->reg_ts_int_msk, cx_read(port->reg_ts_int_msk));
 }
 
@@ -1013,7 +1013,7 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 {
 	struct cx23885_dev *dev = port->dev;
 
-	dprintk(1, "%s() w: %d, h: %d, f: %d\n", __FUNCTION__,
+	dprintk(1, "%s() w: %d, h: %d, f: %d\n", __func__,
 		buf->vb.width, buf->vb.height, buf->vb.field);
 
 	/* setup fifo + format */
@@ -1031,7 +1031,7 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 	if ( (!(cx23885_boards[dev->board].portb & CX23885_MPEG_DVB)) &&
 		(!(cx23885_boards[dev->board].portc & CX23885_MPEG_DVB)) ) {
 		printk( "%s() Failed. Unsupported value in .portb/c (0x%08x)/(0x%08x)\n",
-			__FUNCTION__,
+			__func__,
 			cx23885_boards[dev->board].portb,
 			cx23885_boards[dev->board].portc );
 		return -EINVAL;
@@ -1058,7 +1058,7 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 	case CX23885_BRIDGE_885:
 	case CX23885_BRIDGE_887:
 		/* enable irqs */
-		dprintk(1, "%s() enabling TS int's and DMA\n", __FUNCTION__ );
+		dprintk(1, "%s() enabling TS int's and DMA\n", __func__ );
 		cx_set(port->reg_ts_int_msk,  port->ts_int_msk_val);
 		cx_set(port->reg_dma_ctl, port->dma_ctl_val);
 		cx_set(PCI_INT_MSK, dev->pci_irqmask | port->pci_irqmask);
@@ -1078,7 +1078,7 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 static int cx23885_stop_dma(struct cx23885_tsport *port)
 {
 	struct cx23885_dev *dev = port->dev;
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 
 	/* Stop interrupts and DMA */
 	cx_clear(port->reg_ts_int_msk, port->ts_int_msk_val);
@@ -1093,13 +1093,13 @@ int cx23885_restart_queue(struct cx23885_tsport *port,
 	struct cx23885_dev *dev = port->dev;
 	struct cx23885_buffer *buf;
 
-	dprintk(5, "%s()\n", __FUNCTION__);
+	dprintk(5, "%s()\n", __func__);
 	if (list_empty(&q->active))
 	{
 		struct cx23885_buffer *prev;
 		prev = NULL;
 
-		dprintk(5, "%s() queue is empty\n", __FUNCTION__);
+		dprintk(5, "%s() queue is empty\n", __func__);
 
 		for (;;) {
 			if (list_empty(&q->queued))
@@ -1154,7 +1154,7 @@ int cx23885_buf_prepare(struct videobuf_queue *q, struct cx23885_tsport *port,
 	int size = port->ts_packet_size * port->ts_packet_count;
 	int rc;
 
-	dprintk(1, "%s: %p\n", __FUNCTION__, buf);
+	dprintk(1, "%s: %p\n", __func__, buf);
 	if (0 != buf->vb.baddr  &&  buf->vb.bsize < size)
 		return -EINVAL;
 
@@ -1197,7 +1197,7 @@ void cx23885_buf_queue(struct cx23885_tsport *port, struct cx23885_buffer *buf)
 		buf->count    = cx88q->count++;
 		mod_timer(&cx88q->timeout, jiffies + BUFFER_TIMEOUT);
 		dprintk(1, "[%p/%d] %s - first active\n",
-			buf, buf->vb.i, __FUNCTION__);
+			buf, buf->vb.i, __func__);
 	} else {
 		dprintk( 1, "queue is not empty - append to active\n" );
 		prev = list_entry(cx88q->active.prev, struct cx23885_buffer,
@@ -1208,7 +1208,7 @@ void cx23885_buf_queue(struct cx23885_tsport *port, struct cx23885_buffer *buf)
 		prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 		prev->risc.jmp[2] = cpu_to_le32(0); /* 64 bit bits 63-32 */
 		dprintk( 1, "[%p/%d] %s - append to active\n",
-			 buf, buf->vb.i, __FUNCTION__);
+			 buf, buf->vb.i, __func__);
 	}
 }
 
@@ -1245,7 +1245,7 @@ static void cx23885_timeout(unsigned long data)
 	struct cx23885_tsport *port = (struct cx23885_tsport *)data;
 	struct cx23885_dev *dev = port->dev;
 
-	dprintk(1, "%s()\n",__FUNCTION__);
+	dprintk(1, "%s()\n",__func__);
 
 	if (debug > 5)
 		cx23885_sram_channel_dump(dev, &dev->sram_channels[ port->sram_chno ]);

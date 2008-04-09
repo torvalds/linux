@@ -185,7 +185,7 @@ static int cx23885_hvr1500_xc3028_callback(void *ptr, int command, int arg)
 	case XC2028_TUNER_RESET:
 		/* Send the tuner in then out of reset */
 		/* GPIO-2 xc3028 tuner */
-		dprintk(1, "%s: XC2028_TUNER_RESET %d\n", __FUNCTION__, arg);
+		dprintk(1, "%s: XC2028_TUNER_RESET %d\n", __func__, arg);
 
 		cx_set(GP0_IO, 0x00040000);
 		cx_clear(GP0_IO, 0x00000004);
@@ -195,10 +195,10 @@ static int cx23885_hvr1500_xc3028_callback(void *ptr, int command, int arg)
 		msleep(5);
 		break;
 	case XC2028_RESET_CLK:
-		dprintk(1, "%s: XC2028_RESET_CLK %d\n", __FUNCTION__, arg);
+		dprintk(1, "%s: XC2028_RESET_CLK %d\n", __func__, arg);
 		break;
 	default:
-		dprintk(1, "%s: unknown command %d, arg %d\n", __FUNCTION__,
+		dprintk(1, "%s: unknown command %d, arg %d\n", __func__,
 			command, arg);
 		return -EINVAL;
 	}
@@ -341,7 +341,7 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 	struct cx23885_dev *dev = port->dev;
 	int err;
 
-	dprintk(1, "%s\n", __FUNCTION__);
+	dprintk(1, "%s\n", __func__);
 	dprintk(1, " ->being probed by Card=%d Name=%s, PCI %02x:%02x\n",
 		dev->board,
 		dev->name,
@@ -357,7 +357,7 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 			    sizeof(struct cx23885_buffer), port);
 	err = dvb_register(port);
 	if (err != 0)
-		printk("%s() dvb_register failed err = %d\n", __FUNCTION__, err);
+		printk("%s() dvb_register failed err = %d\n", __func__, err);
 
 	return err;
 }
