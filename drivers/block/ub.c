@@ -8,6 +8,7 @@
  * and is not licensed separately. See file COPYING for details.
  *
  * TODO (sorted by decreasing priority)
+ *  -- Return sense now that rq allows it (we always auto-sense anyway).
  *  -- set readonly flag for CDs, set removable flag for CF readers
  *  -- do inquiry and verify we got a disk and not a tape (for LUN mismatch)
  *  -- verify the 13 conditions and do bulk resets
@@ -359,7 +360,8 @@ static void ub_cmd_build_block(struct ub_dev *sc, struct ub_lun *lun,
 static void ub_cmd_build_packet(struct ub_dev *sc, struct ub_lun *lun,
     struct ub_scsi_cmd *cmd, struct ub_request *urq);
 static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd);
-static void ub_end_rq(struct request *rq, unsigned int status);
+static void ub_end_rq(struct request *rq, unsigned int status,
+    unsigned int cmd_len);
 static int ub_rw_cmd_retry(struct ub_dev *sc, struct ub_lun *lun,
     struct ub_request *urq, struct ub_scsi_cmd *cmd);
 static int ub_submit_scsi(struct ub_dev *sc, struct ub_scsi_cmd *cmd);
@@ -642,13 +644,13 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 
 	if (atomic_read(&sc->poison)) {
 		blkdev_dequeue_request(rq);
-		ub_end_rq(rq, DID_NO_CONNECT << 16);
+		ub_end_rq(rq, DID_NO_CONNECT << 16, blk_rq_bytes(rq));
 		return 0;
 	}
 
 	if (lun->changed && !blk_pc_request(rq)) {
 		blkdev_dequeue_request(rq);
-		ub_end_rq(rq, SAM_STAT_CHECK_CONDITION);
+		ub_end_rq(rq, SAM_STAT_CHECK_CONDITION, blk_rq_bytes(rq));
 		return 0;
 	}
 
@@ -701,7 +703,7 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 
 drop:
 	ub_put_cmd(lun, cmd);
-	ub_end_rq(rq, DID_ERROR << 16);
+	ub_end_rq(rq, DID_ERROR << 16, blk_rq_bytes(rq));
 	return 0;
 }
 
@@ -770,6 +772,7 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 	struct ub_request *urq = cmd->back;
 	struct request *rq;
 	unsigned int scsi_status;
+	unsigned int cmd_len;
 
 	rq = urq->rq;
 
@@ -779,8 +782,18 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 				rq->data_len = 0;
 			else
 				rq->data_len -= cmd->act_len;
+			scsi_status = 0;
+		} else {
+			if (cmd->act_len != cmd->len) {
+				if ((cmd->key == MEDIUM_ERROR ||
+				     cmd->key == UNIT_ATTENTION) &&
+				    ub_rw_cmd_retry(sc, lun, urq, cmd) == 0)
+					return;
+				scsi_status = SAM_STAT_CHECK_CONDITION;
+			} else {
+				scsi_status = 0;
+			}
 		}
-		scsi_status = 0;
 	} else {
 		if (blk_pc_request(rq)) {
 			/* UB_SENSE_SIZE is smaller than SCSI_SENSE_BUFFERSIZE */
@@ -801,14 +814,17 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 
 	urq->rq = NULL;
 
+	cmd_len = cmd->len;
 	ub_put_cmd(lun, cmd);
-	ub_end_rq(rq, scsi_status);
+	ub_end_rq(rq, scsi_status, cmd_len);
 	blk_start_queue(lun->disk->queue);
 }
 
-static void ub_end_rq(struct request *rq, unsigned int scsi_status)
+static void ub_end_rq(struct request *rq, unsigned int scsi_status,
+    unsigned int cmd_len)
 {
 	int error;
+	long rqlen;
 
 	if (scsi_status == 0) {
 		error = 0;
@@ -816,8 +832,12 @@ static void ub_end_rq(struct request *rq, unsigned int scsi_status)
 		error = -EIO;
 		rq->errors = scsi_status;
 	}
-	if (__blk_end_request(rq, error, blk_rq_bytes(rq)))
-		BUG();
+	rqlen = blk_rq_bytes(rq);    /* Oddly enough, this is the residue. */
+	if (__blk_end_request(rq, error, cmd_len)) {
+		printk(KERN_WARNING DRV_NAME
+		    ": __blk_end_request blew, %s-cmd total %u rqlen %ld\n",
+		    blk_pc_request(rq)? "pc": "fs", cmd_len, rqlen);
+	}
 }
 
 static int ub_rw_cmd_retry(struct ub_dev *sc, struct ub_lun *lun,
