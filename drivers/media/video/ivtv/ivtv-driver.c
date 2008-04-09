@@ -883,7 +883,9 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 #ifndef CONFIG_VIDEO_SAA7127
 	hw = ivtv_request_module(itv, hw, "saa7127", IVTV_HW_SAA7127);
 #endif
+#ifndef CONFIG_VIDEO_SAA717X
 	hw = ivtv_request_module(itv, hw, "saa717x", IVTV_HW_SAA717X);
+#endif
 #ifndef CONFIG_VIDEO_UPD64031A
 	hw = ivtv_request_module(itv, hw, "upd64031a", IVTV_HW_UPD64031A);
 #endif
