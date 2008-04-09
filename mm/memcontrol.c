@@ -978,7 +978,7 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
 {
 	struct mem_cgroup_per_node *pn;
 	struct mem_cgroup_per_zone *mz;
-	int zone;
+	int zone, tmp = node;
 	/*
 	 * This routine is called against possible nodes.
 	 * But it's BUG to call kmalloc() against offline node.
@@ -987,10 +987,9 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
 	 *       never be onlined. It's better to use memory hotplug callback
 	 *       function.
 	 */
-	if (node_state(node, N_HIGH_MEMORY))
-		pn = kmalloc_node(sizeof(*pn), GFP_KERNEL, node);
-	else
-		pn = kmalloc(sizeof(*pn), GFP_KERNEL);
+	if (!node_state(node, N_NORMAL_MEMORY))
+		tmp = -1;
+	pn = kmalloc_node(sizeof(*pn), GFP_KERNEL, tmp);
 	if (!pn)
 		return 1;
 
