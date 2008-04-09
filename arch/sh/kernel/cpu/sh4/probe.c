@@ -53,7 +53,7 @@ int __init detect_cpu_and_cache_system(void)
 	/*
 	 * Setup some generic flags we can probe on SH-4A parts
 	 */
-	if (((pvr >> 16) & 0xff) == 0x10) {
+	if (((pvr >> 24) & 0xff) == 0x10) {
 		if ((cvr & 0x10000000) == 0)
 			boot_cpu_data.flags |= CPU_HAS_DSP;
 
