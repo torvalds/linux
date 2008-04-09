@@ -178,11 +178,6 @@ static struct mv_sata_platform_data kurobox_pro_sata_data = {
  * General Setup
  ****************************************************************************/
 
-static struct platform_device *kurobox_pro_devices[] __initdata = {
-	&kurobox_pro_nor_flash,
-	&kurobox_pro_nand_flash,
-};
-
 static void __init kurobox_pro_init(void)
 {
 	/*
@@ -224,12 +219,15 @@ static void __init kurobox_pro_init(void)
 
 	orion5x_gpio_set_valid_pins(0x0000000c);
 
-	platform_add_devices(kurobox_pro_devices, ARRAY_SIZE(kurobox_pro_devices));
+	platform_device_register(&kurobox_pro_nor_flash);
+	if (machine_is_kurobox_pro())
+		platform_device_register(&kurobox_pro_nand_flash);
 	i2c_register_board_info(0, &kurobox_pro_i2c_rtc, 1);
 	orion5x_eth_init(&kurobox_pro_eth_data);
 	orion5x_sata_init(&kurobox_pro_sata_data);
 }
 
+#ifdef CONFIG_MACH_KUROBOX_PRO
 MACHINE_START(KUROBOX_PRO, "Buffalo/Revogear Kurobox Pro")
 	/* Maintainer: Ronen Shitrit <rshitrit@marvell.com> */
 	.phys_io	= ORION5X_REGS_PHYS_BASE,
@@ -241,3 +239,18 @@ MACHINE_START(KUROBOX_PRO, "Buffalo/Revogear Kurobox Pro")
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,
 MACHINE_END
+#endif
+
+#ifdef CONFIG_MACH_LINKSTATION_PRO
+MACHINE_START(LINKSTATION_PRO, "Buffalo Linkstation Pro/Live")
+	/* Maintainer: Byron Bradley <byron.bbradley@gmail.com> */
+	.phys_io	= ORION5X_REGS_PHYS_BASE,
+	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xFFFC,
+	.boot_params	= 0x00000100,
+	.init_machine	= kurobox_pro_init,
+	.map_io		= orion5x_map_io,
+	.init_irq	= orion5x_init_irq,
+	.timer		= &orion5x_timer,
+	.fixup		= tag_fixup_mem32,
+MACHINE_END
+#endif
