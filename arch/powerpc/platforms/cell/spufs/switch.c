@@ -186,20 +186,21 @@ static inline void save_mfc_cntl(struct spu_state *csa, struct spu *spu)
 				 MFC_CNTL_SUSPEND_COMPLETE);
 		/* fall through */
 	case MFC_CNTL_SUSPEND_COMPLETE:
-		if (csa) {
+		if (csa)
 			csa->priv2.mfc_control_RW =
-				MFC_CNTL_SUSPEND_MASK |
+				in_be64(&priv2->mfc_control_RW) |
 				MFC_CNTL_SUSPEND_DMA_QUEUE;
-		}
 		break;
 	case MFC_CNTL_NORMAL_DMA_QUEUE_OPERATION:
 		out_be64(&priv2->mfc_control_RW, MFC_CNTL_SUSPEND_DMA_QUEUE);
 		POLL_WHILE_FALSE((in_be64(&priv2->mfc_control_RW) &
 				  MFC_CNTL_SUSPEND_DMA_STATUS_MASK) ==
 				 MFC_CNTL_SUSPEND_COMPLETE);
-		if (csa) {
-			csa->priv2.mfc_control_RW = 0;
-		}
+		if (csa)
+			csa->priv2.mfc_control_RW =
+				in_be64(&priv2->mfc_control_RW) &
+				~MFC_CNTL_SUSPEND_DMA_QUEUE &
+				~MFC_CNTL_SUSPEND_MASK;
 		break;
 	}
 }
