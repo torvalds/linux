@@ -22,6 +22,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/physmap.h>
+#include <linux/pda_power.h>
 
 #include <asm/gpio.h>
 #include <asm/hardware.h>
@@ -203,6 +204,58 @@ static struct platform_device backlight = {
 
 
 /*
+ * External power
+ */
+
+static int magician_is_ac_online(void)
+{
+	return gpio_get_value(EGPIO_MAGICIAN_CABLE_STATE_AC);
+}
+
+static int magician_is_usb_online(void)
+{
+	return gpio_get_value(EGPIO_MAGICIAN_CABLE_STATE_USB);
+}
+
+static void magician_set_charge(int flags)
+{
+	gpio_set_value(GPIO30_MAGICIAN_nCHARGE_EN, !flags);
+	gpio_set_value(EGPIO_MAGICIAN_CHARGE_EN, flags);
+}
+
+static struct pda_power_pdata power_supply_info = {
+	.is_ac_online = magician_is_ac_online,
+	.is_usb_online = magician_is_usb_online,
+	.set_charge = magician_set_charge,
+};
+
+static struct resource power_supply_resources[] = {
+	[0] = {
+		.name  = "ac",
+		.flags = IORESOURCE_IRQ,
+		.start = IRQ_MAGICIAN_AC,
+		.end   = IRQ_MAGICIAN_AC,
+	},
+	[1] = {
+		.name  = "usb",
+		.flags = IORESOURCE_IRQ,
+		.start = IRQ_MAGICIAN_AC,
+		.end   = IRQ_MAGICIAN_AC,
+	},
+};
+
+static struct platform_device power_supply = {
+	.name = "pda-power",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &power_supply_info,
+	},
+	.resource      = power_supply_resources,
+	.num_resources = ARRAY_SIZE(power_supply_resources),
+};
+
+
+/*
  * MMC/SD
  */
 
@@ -299,6 +352,7 @@ static struct platform_device *devices[] __initdata = {
 	&gpio_keys,
 	&egpio,
 	&backlight,
+	&power_supply,
 	&strataflash,
 };
 

@@ -695,7 +695,11 @@ CONFIG_I2C_PXA=m
 # CONFIG_SPI is not set
 # CONFIG_SPI_MASTER is not set
 # CONFIG_W1 is not set
-# CONFIG_POWER_SUPPLY is not set
+CONFIG_POWER_SUPPLY=y
+# CONFIG_POWER_SUPPLY_DEBUG is not set
+CONFIG_PDA_POWER=y
+# CONFIG_APM_POWER is not set
+# CONFIG_BATTERY_DS2760 is not set
 # CONFIG_HWMON is not set
 # CONFIG_WATCHDOG is not set
 
