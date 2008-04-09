@@ -72,7 +72,6 @@ struct tm6000_buffer {
 struct tm6000_dmaqueue {
 	struct list_head       active;
 	struct list_head       queued;
-	struct timer_list      timeout;
 
 	/* thread for generating video stream*/
 	struct task_struct         *kthread;

@@ -153,16 +153,6 @@ static inline void buffer_filled(struct tm6000_core *dev,
 				 struct tm6000_dmaqueue *dma_q,
 				 struct tm6000_buffer *buf)
 {
-	/* Nobody is waiting something to be done, just return */
-	if (!waitqueue_active(&buf->vb.done)) {
-		mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
-
-		printk(KERN_ERR "tm6000: buffer underrun at %ld\n",
-				jiffies);
-
-		return;
-	}
-
 	/* Advice that buffer was filled */
 	dprintk(dev, V4L2_DEBUG_ISOC, "[%p/%d] wakeup\n", buf, buf->vb.i);
 	buf->vb.state = VIDEOBUF_DONE;
@@ -558,10 +548,6 @@ ret:
 		tm6000_err("urb resubmit failed (error=%i)\n",
 			urb->status);
 
-	/* Data filled, reset watchdog */
-	if (rc >= 0)
-		mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
-
 	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
@@ -594,20 +580,12 @@ static void tm6000_uninit_isoc(struct tm6000_core *dev)
 
 	kfree (dev->isoc_ctl.urb);
 	kfree (dev->isoc_ctl.transfer_buffer);
+
 	dev->isoc_ctl.urb=NULL;
 	dev->isoc_ctl.transfer_buffer=NULL;
+	dev->isoc_ctl.num_bufs = 0;
 
 	dev->isoc_ctl.num_bufs=0;
-}
-
-/*
- * Stop video thread - FIXME: Can be easily removed
- */
-static void tm6000_stop_thread(struct tm6000_dmaqueue  *dma_q)
-{
-	struct tm6000_core *dev= container_of(dma_q,struct tm6000_core,vidq);
-
-	tm6000_uninit_isoc(dev);
 }
 
 /*
@@ -621,7 +599,6 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev, unsigned int framesize)
 
 	/* De-allocates all pending stuff */
 	tm6000_uninit_isoc(dev);
-
 
 	pipe = usb_rcvisocpipe(dev->udev,
 			       dev->isoc_in->desc.bEndpointAddress &
@@ -643,8 +620,7 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev, unsigned int framesize)
 
 	dev->isoc_ctl.num_bufs = num_bufs;
 
-	dev->isoc_ctl.urb = kmalloc(sizeof(void *)*num_bufs,
-				    GFP_KERNEL);
+	dev->isoc_ctl.urb = kmalloc(sizeof(void *)*num_bufs, GFP_KERNEL);
 	if (!dev->isoc_ctl.urb) {
 		tm6000_err("cannot alloc memory for usb buffers\n");
 		return -ENOMEM;
@@ -690,8 +666,7 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev, unsigned int framesize)
 		usb_fill_bulk_urb(urb, dev->udev, pipe,
 				  dev->isoc_ctl.transfer_buffer[i], sb_size,
 				  tm6000_irq_callback, dma_q);
-//		urb->interval = dev->isoc_in->desc.bInterval;
-		urb->interval = 2;
+		urb->interval = dev->isoc_in->desc.bInterval;
 		urb->number_of_packets = max_packets;
 		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 
@@ -704,11 +679,10 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev, unsigned int framesize)
 	return 0;
 }
 
-static int tm6000_start_thread( struct tm6000_dmaqueue  *dma_q,
-				struct tm6000_buffer *buf)
+static int tm6000_start_thread( struct tm6000_core *dev)
 {
-	struct tm6000_core *dev= container_of(dma_q,struct tm6000_core,vidq);
-	int i,rc;
+	struct tm6000_dmaqueue *dma_q = &dev->vidq;
+	int i;
 
 	dma_q->frame=0;
 	dma_q->ini_jiffies=jiffies;
@@ -717,7 +691,7 @@ static int tm6000_start_thread( struct tm6000_dmaqueue  *dma_q,
 
 	/* submit urbs and enables IRQ */
 	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
-		rc = usb_submit_urb(dev->isoc_ctl.urb[i], GFP_ATOMIC);
+		int rc = usb_submit_urb(dev->isoc_ctl.urb[i], GFP_ATOMIC);
 		if (rc) {
 			tm6000_err("submit of urb %i failed (error=%i)\n", i,
 				   rc);
@@ -726,97 +700,7 @@ static int tm6000_start_thread( struct tm6000_dmaqueue  *dma_q,
 		}
 	}
 
-	if (rc<0)
-		return rc;
-
 	return 0;
-}
-
-static int restart_video_queue(struct tm6000_dmaqueue *dma_q)
-{
-	struct tm6000_core *dev= container_of(dma_q,struct tm6000_core,vidq);
-
-	struct tm6000_buffer *buf, *prev;
-	struct list_head *item;
-
-	dprintk(dev, V4L2_DEBUG_QUEUE, "%s dma_q=0x%08lx\n",
-					 __FUNCTION__,(unsigned long)dma_q);
-
-	if (!list_empty(&dma_q->active)) {
-		buf = list_entry(dma_q->active.next, struct tm6000_buffer, vb.queue);
-		dprintk(dev, V4L2_DEBUG_QUEUE,
-			"restart_queue [%p/%d]: restart dma\n", buf, buf->vb.i);
-
-		dprintk(dev, V4L2_DEBUG_QUEUE, "Restarting video dma\n");
-		tm6000_stop_thread(dma_q);
-		tm6000_start_thread(dma_q, buf);
-
-		/* cancel all outstanding capture / vbi requests */
-		list_for_each(item,&dma_q->active) {
-			buf = list_entry(item, struct tm6000_buffer, vb.queue);
-
-			list_del(&buf->vb.queue);
-			buf->vb.state = VIDEOBUF_ERROR;
-			wake_up(&buf->vb.done);
-		}
-		mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
-
-		return 0;
-	}
-
-	prev = NULL;
-	for (;;) {
-		if (list_empty(&dma_q->queued))
-			return 0;
-		buf = list_entry(dma_q->queued.next, struct tm6000_buffer, vb.queue);
-		if (NULL == prev) {
-			list_del(&buf->vb.queue);
-			list_add_tail(&buf->vb.queue,&dma_q->active);
-
-			dprintk(dev, V4L2_DEBUG_QUEUE, "Restarting video dma\n");
-			tm6000_stop_thread(dma_q);
-			tm6000_start_thread(dma_q, buf);
-
-			buf->vb.state = VIDEOBUF_ACTIVE;
-			mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
-			dprintk(dev, V4L2_DEBUG_QUEUE, "[%p/%d] restart_queue -"
-					" first active\n", buf, buf->vb.i);
-
-		} else if (prev->vb.width  == buf->vb.width  &&
-			   prev->vb.height == buf->vb.height &&
-			   prev->fmt       == buf->fmt) {
-			list_del(&buf->vb.queue);
-			list_add_tail(&buf->vb.queue,&dma_q->active);
-			buf->vb.state = VIDEOBUF_ACTIVE;
-			dprintk(dev, V4L2_DEBUG_QUEUE, "[%p/%d] restart_queue -"
-					" move to active\n",buf,buf->vb.i);
-		} else {
-			return 0;
-		}
-		prev = buf;
-	}
-}
-
-static void tm6000_vid_timeout(unsigned long data)
-{
-	struct tm6000_core      *dev  = (struct tm6000_core*)data;
-	struct tm6000_dmaqueue *vidq = &dev->vidq;
-	struct tm6000_buffer   *buf;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->slock,flags);
-	while (!list_empty(&vidq->active)) {
-		buf = list_entry(vidq->active.next, struct tm6000_buffer,
-								 vb.queue);
-		list_del(&buf->vb.queue);
-		buf->vb.state = VIDEOBUF_ERROR;
-		wake_up(&buf->vb.done);
-		dprintk(dev, V4L2_DEBUG_QUEUE, "tm6000/0: [%p/%d] timeout\n",
-							 buf, buf->vb.i);
-	}
-
-	restart_video_queue(vidq);
-	spin_unlock_irqrestore(&dev->slock,flags);
 }
 
 /* ------------------------------------------------------------------
@@ -892,9 +776,13 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 
 	if (urb_init) {
 		rc = tm6000_prepare_isoc(dev, buf->vb.size);
-
 		if (rc < 0)
 			goto fail;
+
+		rc = tm6000_start_thread(dev);
+		if (rc < 0)
+			goto fail;
+
 	}
 
 	buf->vb.state = VIDEOBUF_PREPARED;
@@ -912,46 +800,14 @@ buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 	struct tm6000_fh        *fh      = vq->priv_data;
 	struct tm6000_core      *dev     = fh->dev;
 	struct tm6000_dmaqueue  *vidq    = &dev->vidq;
-	struct tm6000_buffer    *prev;
 
-	if (!list_empty(&vidq->queued)) {
-		list_add_tail(&buf->vb.queue,&vidq->queued);
-		buf->vb.state = VIDEOBUF_QUEUED;
-		dprintk(dev, V4L2_DEBUG_QUEUE, "[%p/%d] buffer_queue - "
-					"append to queued\n", buf, buf->vb.i);
-	} else if (list_empty(&vidq->active)) {
-		list_add_tail(&buf->vb.queue,&vidq->active);
-		buf->vb.state = VIDEOBUF_ACTIVE;
-		mod_timer(&vidq->timeout, jiffies+BUFFER_TIMEOUT);
-		dprintk(dev, V4L2_DEBUG_QUEUE, "[%p/%d] buffer_queue - "
-					"first active\n", buf, buf->vb.i);
-		tm6000_start_thread(vidq, buf);
-	} else {
-		prev = list_entry(vidq->active.prev, struct tm6000_buffer, vb.queue);
-		if (prev->vb.width  == buf->vb.width  &&
-		    prev->vb.height == buf->vb.height &&
-		    prev->fmt       == buf->fmt) {
-			list_add_tail(&buf->vb.queue,&vidq->active);
-			buf->vb.state = VIDEOBUF_ACTIVE;
-			dprintk(dev, V4L2_DEBUG_QUEUE, "[%p/%d] buffer_queue -"
-					" append to active\n", buf, buf->vb.i);
-		} else {
-			list_add_tail(&buf->vb.queue,&vidq->queued);
-			buf->vb.state = VIDEOBUF_QUEUED;
-			dprintk(dev, V4L2_DEBUG_QUEUE, "[%p/%d] buffer_queue -"
-					" first queued\n", buf, buf->vb.i);
-		}
-	}
+	buf->vb.state = VIDEOBUF_QUEUED;
+	list_add_tail(&buf->vb.queue, &vidq->active);
 }
 
 static void buffer_release(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 {
 	struct tm6000_buffer   *buf  = container_of(vb,struct tm6000_buffer,vb);
-	struct tm6000_fh       *fh   = vq->priv_data;
-	struct tm6000_core      *dev  = (struct tm6000_core*)fh->dev;
-	struct tm6000_dmaqueue *vidq = &dev->vidq;
-
-	tm6000_stop_thread(vidq);
 
 	free_buffer(vq,buf);
 }
@@ -1547,7 +1403,6 @@ static int tm6000_release(struct inode *inode, struct file *file)
 {
 	struct tm6000_fh         *fh = file->private_data;
 	struct tm6000_core      *dev = fh->dev;
-	struct tm6000_dmaqueue *vidq = &dev->vidq;
 	int minor = iminor(inode);
 
 	dprintk(dev, V4L2_DEBUG_OPEN, "tm6000: close called (minor=%d, users=%d)\n",minor,dev->users);
@@ -1555,7 +1410,7 @@ static int tm6000_release(struct inode *inode, struct file *file)
 	dev->users--;
 
 	if (!dev->users) {
-		tm6000_stop_thread(vidq);
+		tm6000_uninit_isoc(dev);
 		videobuf_mmap_free(&fh->vb_vidq);
 	}
 
@@ -1640,10 +1495,6 @@ int tm6000_v4l2_register(struct tm6000_core *dev)
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
 	INIT_LIST_HEAD(&dev->vidq.queued);
-
-	dev->vidq.timeout.function = tm6000_vid_timeout;
-	dev->vidq.timeout.data     = (unsigned long)dev;
-	init_timer(&dev->vidq.timeout);
 
 	memcpy (dev->vfd, &tm6000_template, sizeof(*(dev->vfd)));
 	dev->vfd->debug=tm6000_debug;
