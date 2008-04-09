@@ -265,12 +265,12 @@ static void set_audio_standard_BTSC(struct cx88_core *core, unsigned int sap,
 	mode |= EN_FMRADIO_EN_RDS;
 
 	if (sap) {
-		dprintk("%s SAP (status: unknown)\n", __FUNCTION__);
+		dprintk("%s SAP (status: unknown)\n", __func__);
 		set_audio_start(core, SEL_SAP);
 		set_audio_registers(core, btsc_sap);
 		set_audio_finish(core, mode);
 	} else {
-		dprintk("%s (status: known-good)\n", __FUNCTION__);
+		dprintk("%s (status: known-good)\n", __func__);
 		set_audio_start(core, SEL_BTSC);
 		set_audio_registers(core, btsc);
 		set_audio_finish(core, mode);
@@ -351,16 +351,16 @@ static void set_audio_standard_NICAM(struct cx88_core *core, u32 mode)
 	set_audio_start(core,SEL_NICAM);
 	switch (core->tvaudio) {
 	case WW_L:
-		dprintk("%s SECAM-L NICAM (status: devel)\n", __FUNCTION__);
+		dprintk("%s SECAM-L NICAM (status: devel)\n", __func__);
 		set_audio_registers(core, nicam_l);
 		break;
 	case WW_I:
-		dprintk("%s PAL-I NICAM (status: known-good)\n", __FUNCTION__);
+		dprintk("%s PAL-I NICAM (status: known-good)\n", __func__);
 		set_audio_registers(core, nicam_bgdki_common);
 		set_audio_registers(core, nicam_i);
 		break;
 	default:
-		dprintk("%s PAL-BGDK NICAM (status: known-good)\n", __FUNCTION__);
+		dprintk("%s PAL-BGDK NICAM (status: known-good)\n", __func__);
 		set_audio_registers(core, nicam_bgdki_common);
 		set_audio_registers(core, nicam_default);
 		break;
@@ -600,28 +600,28 @@ static void set_audio_standard_A2(struct cx88_core *core, u32 mode)
 	set_audio_start(core, SEL_A2);
 	switch (core->tvaudio) {
 	case WW_BG:
-		dprintk("%s PAL-BG A1/2 (status: known-good)\n", __FUNCTION__);
+		dprintk("%s PAL-BG A1/2 (status: known-good)\n", __func__);
 		set_audio_registers(core, a2_bgdk_common);
 		set_audio_registers(core, a2_bg);
 		set_audio_registers(core, a2_deemph50);
 		break;
 	case WW_DK:
-		dprintk("%s PAL-DK A1/2 (status: known-good)\n", __FUNCTION__);
+		dprintk("%s PAL-DK A1/2 (status: known-good)\n", __func__);
 		set_audio_registers(core, a2_bgdk_common);
 		set_audio_registers(core, a2_dk);
 		set_audio_registers(core, a2_deemph50);
 		break;
 	case WW_I:
-		dprintk("%s PAL-I A1 (status: known-good)\n", __FUNCTION__);
+		dprintk("%s PAL-I A1 (status: known-good)\n", __func__);
 		set_audio_registers(core, a1_i);
 		set_audio_registers(core, a2_deemph50);
 		break;
 	case WW_L:
-		dprintk("%s AM-L (status: devel)\n", __FUNCTION__);
+		dprintk("%s AM-L (status: devel)\n", __func__);
 		set_audio_registers(core, am_l);
 		break;
 	default:
-		dprintk("%s Warning: wrong value\n", __FUNCTION__);
+		dprintk("%s Warning: wrong value\n", __func__);
 		return;
 		break;
 	};
@@ -637,7 +637,7 @@ static void set_audio_standard_EIAJ(struct cx88_core *core)
 
 		{ /* end of list */ },
 	};
-	dprintk("%s (status: unknown)\n", __FUNCTION__);
+	dprintk("%s (status: unknown)\n", __func__);
 
 	set_audio_start(core, SEL_EIAJ);
 	set_audio_registers(core, eiaj);
@@ -691,7 +691,7 @@ static void set_audio_standard_FM(struct cx88_core *core,
 		{ /* end of list */ },
 	};
 
-	dprintk("%s (status: unknown)\n", __FUNCTION__);
+	dprintk("%s (status: unknown)\n", __func__);
 	set_audio_start(core, SEL_FMRADIO);
 
 	switch (deemph) {

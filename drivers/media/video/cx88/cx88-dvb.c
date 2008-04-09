@@ -282,7 +282,7 @@ static int lgdt330x_pll_rf_set(struct dvb_frontend* fe, int index)
 	struct cx8802_dev *dev= fe->dvb->priv;
 	struct cx88_core *core = dev->core;
 
-	dprintk(1, "%s: index = %d\n", __FUNCTION__, index);
+	dprintk(1, "%s: index = %d\n", __func__, index);
 	if (index == 0)
 		cx_clear(MO_GP0_IO, 8);
 	else
@@ -380,7 +380,7 @@ static int cx88_pci_nano_callback(void *ptr, int command, int arg)
 	switch (command) {
 	case XC2028_TUNER_RESET:
 		/* Send the tuner in then out of reset */
-		dprintk(1, "%s: XC2028_TUNER_RESET %d\n", __FUNCTION__, arg);
+		dprintk(1, "%s: XC2028_TUNER_RESET %d\n", __func__, arg);
 
 		switch (core->boardnr) {
 		case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
@@ -396,10 +396,10 @@ static int cx88_pci_nano_callback(void *ptr, int command, int arg)
 
 		break;
 	case XC2028_RESET_CLK:
-		dprintk(1, "%s: XC2028_RESET_CLK %d\n", __FUNCTION__, arg);
+		dprintk(1, "%s: XC2028_RESET_CLK %d\n", __func__, arg);
 		break;
 	default:
-		dprintk(1, "%s: unknown command %d, arg %d\n", __FUNCTION__,
+		dprintk(1, "%s: unknown command %d, arg %d\n", __func__,
 			command, arg);
 		return -EINVAL;
 	}
@@ -872,7 +872,7 @@ static int cx8802_dvb_advise_acquire(struct cx8802_driver *drv)
 {
 	struct cx88_core *core = drv->core;
 	int err = 0;
-	dprintk( 1, "%s\n", __FUNCTION__);
+	dprintk( 1, "%s\n", __func__);
 
 	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
@@ -895,7 +895,7 @@ static int cx8802_dvb_advise_release(struct cx8802_driver *drv)
 {
 	struct cx88_core *core = drv->core;
 	int err = 0;
-	dprintk( 1, "%s\n", __FUNCTION__);
+	dprintk( 1, "%s\n", __func__);
 
 	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
@@ -913,7 +913,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 	struct cx8802_dev *dev = drv->core->dvbdev;
 	int err;
 
-	dprintk( 1, "%s\n", __FUNCTION__);
+	dprintk( 1, "%s\n", __func__);
 	dprintk( 1, " ->being probed by Card=%d Name=%s, PCI %02x:%02x\n",
 		core->boardnr,
 		core->name,

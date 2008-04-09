@@ -314,7 +314,7 @@ static int blackbird_mbox_func(void *priv, u32 command, int in, int out, u32 dat
 	u32 value, flag, retval;
 	int i;
 
-	dprintk(1,"%s: 0x%X\n", __FUNCTION__, command);
+	dprintk(1,"%s: 0x%X\n", __func__, command);
 
 	/* this may not be 100% safe if we can't read any memory location
 	   without side effects */
@@ -1055,7 +1055,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 
 	dev = cx8802_get_device(inode);
 
-	dprintk( 1, "%s\n", __FUNCTION__);
+	dprintk( 1, "%s\n", __func__);
 
 	if (dev == NULL)
 		return -ENODEV;
@@ -1065,7 +1065,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	if (drv) {
 		err = drv->request_acquire(drv);
 		if(err != 0) {
-			dprintk(1,"%s: Unable to acquire hardware, %d\n", __FUNCTION__, err);
+			dprintk(1,"%s: Unable to acquire hardware, %d\n", __func__, err);
 			return err;
 		}
 	}
@@ -1284,7 +1284,7 @@ static int cx8802_blackbird_probe(struct cx8802_driver *drv)
 	struct cx8802_dev *dev = core->dvbdev;
 	int err;
 
-	dprintk( 1, "%s\n", __FUNCTION__);
+	dprintk( 1, "%s\n", __func__);
 	dprintk( 1, " ->being probed by Card=%d Name=%s, PCI %02x:%02x\n",
 		core->boardnr,
 		core->name,

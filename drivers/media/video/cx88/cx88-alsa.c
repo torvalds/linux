@@ -494,7 +494,7 @@ static snd_pcm_uframes_t snd_cx88_pointer(struct snd_pcm_substream *substream)
 
 	count = atomic_read(&chip->count);
 
-//	dprintk(2, "%s - count %d (+%u), period %d, frame %lu\n", __FUNCTION__,
+//	dprintk(2, "%s - count %d (+%u), period %d, frame %lu\n", __func__,
 //		count, new, count & (runtime->periods-1),
 //		runtime->period_size * (count & (runtime->periods-1)));
 	return runtime->period_size * (count & (runtime->periods-1));
