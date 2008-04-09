@@ -38,7 +38,7 @@ MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
 #define em28xx_coredbg(fmt, arg...) do {\
 	if (core_debug) \
 		printk(KERN_INFO "%s %s :"fmt, \
-			 dev->name, __FUNCTION__ , ##arg); } while (0)
+			 dev->name, __func__ , ##arg); } while (0)
 
 static unsigned int reg_debug;
 module_param(reg_debug,int,0644);
@@ -47,7 +47,7 @@ MODULE_PARM_DESC(reg_debug,"enable debug messages [URB reg]");
 #define em28xx_regdbg(fmt, arg...) do {\
 	if (reg_debug) \
 		printk(KERN_INFO "%s %s :"fmt, \
-			 dev->name, __FUNCTION__ , ##arg); } while (0)
+			 dev->name, __func__ , ##arg); } while (0)
 
 static unsigned int isoc_debug;
 module_param(isoc_debug,int,0644);
@@ -56,7 +56,7 @@ MODULE_PARM_DESC(isoc_debug,"enable debug messages [isoc transfers]");
 #define em28xx_isocdbg(fmt, arg...) do {\
 	if (isoc_debug) \
 		printk(KERN_INFO "%s %s :"fmt, \
-			 dev->name, __FUNCTION__ , ##arg); } while (0)
+			 dev->name, __func__ , ##arg); } while (0)
 
 static int alt = EM28XX_PINOUT;
 module_param(alt, int, 0644);

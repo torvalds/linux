@@ -51,7 +51,7 @@ MODULE_PARM_DESC(debug, "activates debug info");
 #define dprintk(fmt, arg...) do {					\
 	    if (debug)							\
 		printk(KERN_INFO "em28xx-audio %s: " fmt,		\
-				  __FUNCTION__, ##arg); 		\
+				  __func__, ##arg); 		\
 	} while (0)
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
