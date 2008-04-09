@@ -489,7 +489,7 @@ static void pwc_reset_buffers(struct pwc_device *pdev)
 	int i;
 	unsigned long flags;
 
-	PWC_DEBUG_MEMORY(">> %s __enter__\n", __FUNCTION__);
+	PWC_DEBUG_MEMORY(">> %s __enter__\n", __func__);
 
 	spin_lock_irqsave(&pdev->ptrlock, flags);
 	pdev->full_frames = NULL;
@@ -511,7 +511,7 @@ static void pwc_reset_buffers(struct pwc_device *pdev)
 	pdev->fill_image = 0;
 	spin_unlock_irqrestore(&pdev->ptrlock, flags);
 
-	PWC_DEBUG_MEMORY("<< %s __leaving__\n", __FUNCTION__);
+	PWC_DEBUG_MEMORY("<< %s __leaving__\n", __func__);
 }
 
 
@@ -1428,7 +1428,7 @@ static int pwc_video_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned long page, pos = 0;
 	int index;
 
-	PWC_DEBUG_MEMORY(">> %s\n", __FUNCTION__);
+	PWC_DEBUG_MEMORY(">> %s\n", __func__);
 	pdev = vdev->priv;
 	size = vma->vm_end - vma->vm_start;
 	start = vma->vm_start;
