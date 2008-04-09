@@ -30,10 +30,10 @@
 struct scoop_pcmcia_config *platform_scoop_config;
 EXPORT_SYMBOL(platform_scoop_config);
 
-#define SCOOP_REG(d,adr) (*(volatile unsigned short*)(d +(adr)))
+#define SCOOP_REG(d,adr) (*(volatile __iomem unsigned short*)(d +(adr)))
 
 struct  scoop_dev {
-	void  *base;
+	void __iomem *base;
 	spinlock_t scoop_lock;
 	unsigned short suspend_clr;
 	unsigned short suspend_set;
@@ -135,7 +135,7 @@ static int scoop_resume(struct platform_device *dev)
 #define scoop_resume	NULL
 #endif
 
-int __init scoop_probe(struct platform_device *pdev)
+static int __devinit scoop_probe(struct platform_device *pdev)
 {
 	struct scoop_dev *devptr;
 	struct scoop_config *inf;
@@ -160,7 +160,7 @@ int __init scoop_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, devptr);
 
-	printk("Sharp Scoop Device found at 0x%08x -> 0x%08x\n",(unsigned int)mem->start,(unsigned int)devptr->base);
+	printk("Sharp Scoop Device found at 0x%08x -> 0x%8p\n",(unsigned int)mem->start, devptr->base);
 
 	SCOOP_REG(devptr->base, SCOOP_MCR) = 0x0140;
 	reset_scoop(&pdev->dev);
@@ -174,7 +174,7 @@ int __init scoop_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int scoop_remove(struct platform_device *pdev)
+static int __devexit scoop_remove(struct platform_device *pdev)
 {
 	struct scoop_dev *sdev = platform_get_drvdata(pdev);
 	if (sdev) {
@@ -187,7 +187,7 @@ static int scoop_remove(struct platform_device *pdev)
 
 static struct platform_driver scoop_driver = {
 	.probe		= scoop_probe,
-	.remove 	= scoop_remove,
+	.remove		= __devexit_p(scoop_remove),
 	.suspend	= scoop_suspend,
 	.resume		= scoop_resume,
 	.driver		= {
@@ -195,7 +195,7 @@ static struct platform_driver scoop_driver = {
 	},
 };
 
-int __init scoop_init(void)
+static int __init scoop_init(void)
 {
 	return platform_driver_register(&scoop_driver);
 }
