@@ -62,7 +62,7 @@ MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 do {									\
 	if ((debug & level)) {						\
 		printk("%s: %s(): ", KBUILD_MODNAME,			\
-		       __FUNCTION__);					\
+		       __func__);					\
 		printk(args); }						\
 } while (0)
 
