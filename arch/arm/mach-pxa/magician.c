@@ -29,6 +29,7 @@
 #include <asm/arch/magician.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxafb.h>
+#include <asm/arch/i2c.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/ohci.h>
 
@@ -201,6 +202,7 @@ static struct platform_device *devices[] __initdata = {
 static void __init magician_init(void)
 {
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+	pxa_set_i2c_info(NULL);
 	pxa_set_ohci_info(&magician_ohci_info);
 	pxa_set_ficp_info(&magician_ficp_info);
 	set_pxa_fb_info(&toppoly_info);
