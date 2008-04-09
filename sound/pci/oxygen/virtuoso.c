@@ -506,11 +506,6 @@ static int xonar_dx_control_filter(struct snd_kcontrol_new *template)
 		template->tlv.p = cs4362a_db_scale;
 	} else if (!strncmp(template->name, "CD Capture ", 11)) {
 		return 1; /* no CD input */
-	} else if (!strcmp(template->name,
-			   SNDRV_CTL_NAME_IEC958("", CAPTURE, MASK)) ||
-		   !strcmp(template->name,
-			   SNDRV_CTL_NAME_IEC958("", CAPTURE, DEFAULT))) {
-		return 1; /* no digital input */
 	}
 	return 0;
 }

@@ -742,6 +742,9 @@ static const struct snd_kcontrol_new controls[] = {
 		.get = spdif_pcm_get,
 		.put = spdif_pcm_put,
 	},
+};
+
+static const struct snd_kcontrol_new spdif_input_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 		.device = 1,
@@ -961,6 +964,12 @@ int oxygen_mixer_init(struct oxygen *chip)
 	err = add_controls(chip, controls, ARRAY_SIZE(controls));
 	if (err < 0)
 		return err;
+	if (chip->model->pcm_dev_cfg & CAPTURE_1_FROM_SPDIF) {
+		err = add_controls(chip, spdif_input_controls,
+				   ARRAY_SIZE(spdif_input_controls));
+		if (err < 0)
+			return err;
+	}
 	for (i = 0; i < ARRAY_SIZE(monitor_controls); ++i) {
 		if (!(chip->model->pcm_dev_cfg & monitor_controls[i].pcm_dev))
 			continue;

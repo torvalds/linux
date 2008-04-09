@@ -132,11 +132,6 @@ static int hifier_control_filter(struct snd_kcontrol_new *template)
 		template->tlv.p = ak4396_db_scale;
 	} else if (!strcmp(template->name, "Stereo Upmixing")) {
 		return 1; /* stereo only - we don't need upmixing */
-	} else if (!strcmp(template->name,
-			   SNDRV_CTL_NAME_IEC958("", CAPTURE, MASK)) ||
-		   !strcmp(template->name,
-			   SNDRV_CTL_NAME_IEC958("", CAPTURE, DEFAULT))) {
-		return 1; /* no digital input */
 	}
 	return 0;
 }
