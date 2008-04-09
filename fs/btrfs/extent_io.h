@@ -27,7 +27,8 @@ struct extent_state;
 struct extent_io_ops {
 	int (*fill_delalloc)(struct inode *inode, u64 start, u64 end);
 	int (*writepage_io_hook)(struct page *page, u64 start, u64 end);
-	int (*submit_bio_hook)(struct inode *inode, int rw, struct bio *bio);
+	int (*submit_bio_hook)(struct inode *inode, int rw, struct bio *bio,
+			       int mirror_num);
 	int (*merge_bio_hook)(struct page *page, unsigned long offset,
 			      size_t size, struct bio *bio);
 	int (*readpage_io_hook)(struct page *page, u64 start, u64 end);
@@ -172,7 +173,7 @@ struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
 void free_extent_buffer(struct extent_buffer *eb);
 int read_extent_buffer_pages(struct extent_io_tree *tree,
 			     struct extent_buffer *eb, u64 start, int wait,
-			     get_extent_t *get_extent);
+			     get_extent_t *get_extent, int mirror_num);
 
 static inline void extent_buffer_get(struct extent_buffer *eb)
 {

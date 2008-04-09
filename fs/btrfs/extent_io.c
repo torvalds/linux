@@ -1546,7 +1546,7 @@ static int end_bio_extent_readpage(struct bio *bio,
 				    !(state->state & EXTENT_LOCKED))
 					state = NULL;
 			}
-			if (!state) {
+			if (!state && uptodate) {
 				spin_unlock_irqrestore(&tree->lock, flags);
 				set_extent_uptodate(tree, start, end,
 						    GFP_ATOMIC);
@@ -1567,8 +1567,10 @@ static int end_bio_extent_readpage(struct bio *bio,
 			} else {
 				state = NULL;
 			}
-			set_state_cb(tree, clear, EXTENT_UPTODATE);
-			clear->state |= EXTENT_UPTODATE;
+			if (uptodate) {
+				set_state_cb(tree, clear, EXTENT_UPTODATE);
+				clear->state |= EXTENT_UPTODATE;
+			}
 			clear_state_bit(tree, clear, EXTENT_LOCKED,
 					1, 0);
 			if (cur == start)
@@ -1685,7 +1687,7 @@ extent_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
 	return bio;
 }
 
-static int submit_one_bio(int rw, struct bio *bio)
+static int submit_one_bio(int rw, struct bio *bio, int mirror_num)
 {
 	u64 maxsector;
 	int ret = 0;
@@ -1722,7 +1724,8 @@ static int submit_one_bio(int rw, struct bio *bio)
 		WARN_ON(1);
 	}
 	if (tree->ops && tree->ops->submit_bio_hook)
-		tree->ops->submit_bio_hook(page->mapping->host, rw, bio);
+		tree->ops->submit_bio_hook(page->mapping->host, rw, bio,
+					   mirror_num);
 	else
 		submit_bio(rw, bio);
 	if (bio_flagged(bio, BIO_EOPNOTSUPP))
@@ -1737,7 +1740,8 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 			      struct block_device *bdev,
 			      struct bio **bio_ret,
 			      unsigned long max_pages,
-			      bio_end_io_t end_io_func)
+			      bio_end_io_t end_io_func,
+			      int mirror_num)
 {
 	int ret = 0;
 	struct bio *bio;
@@ -1749,7 +1753,7 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 		    (tree->ops && tree->ops->merge_bio_hook &&
 		     tree->ops->merge_bio_hook(page, offset, size, bio)) ||
 		    bio_add_page(bio, page, size, offset) < size) {
-			ret = submit_one_bio(rw, bio);
+			ret = submit_one_bio(rw, bio, mirror_num);
 			bio = NULL;
 		} else {
 			return 0;
@@ -1769,7 +1773,7 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 	if (bio_ret) {
 		*bio_ret = bio;
 	} else {
-		ret = submit_one_bio(rw, bio);
+		ret = submit_one_bio(rw, bio, mirror_num);
 	}
 
 	return ret;
@@ -1798,7 +1802,7 @@ void set_page_extent_head(struct page *page, unsigned long len)
 static int __extent_read_full_page(struct extent_io_tree *tree,
 				   struct page *page,
 				   get_extent_t *get_extent,
-				   struct bio **bio)
+				   struct bio **bio, int mirror_num)
 {
 	struct inode *inode = page->mapping->host;
 	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
@@ -1901,7 +1905,7 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 			ret = submit_extent_page(READ, tree, page,
 					 sector, iosize, page_offset,
 					 bdev, bio, nr,
-					 end_bio_extent_readpage);
+					 end_bio_extent_readpage, mirror_num);
 		}
 		if (ret)
 			SetPageError(page);
@@ -1923,9 +1927,9 @@ int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 	struct bio *bio = NULL;
 	int ret;
 
-	ret = __extent_read_full_page(tree, page, get_extent, &bio);
+	ret = __extent_read_full_page(tree, page, get_extent, &bio, 0);
 	if (bio)
-		submit_one_bio(READ, bio);
+		submit_one_bio(READ, bio, 0);
 	return ret;
 }
 EXPORT_SYMBOL(extent_read_full_page);
@@ -2077,7 +2081,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 			ret = submit_extent_page(WRITE, tree, page, sector,
 						 iosize, page_offset, bdev,
 						 &epd->bio, max_nr,
-						 end_bio_extent_writepage);
+						 end_bio_extent_writepage, 0);
 			if (ret)
 				SetPageError(page);
 		}
@@ -2244,7 +2248,7 @@ int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
 
 	write_cache_pages(mapping, &wbc_writepages, __extent_writepage, &epd);
 	if (epd.bio) {
-		submit_one_bio(WRITE, epd.bio);
+		submit_one_bio(WRITE, epd.bio, 0);
 	}
 	return ret;
 }
@@ -2265,7 +2269,7 @@ int extent_writepages(struct extent_io_tree *tree,
 
 	ret = write_cache_pages(mapping, wbc, __extent_writepage, &epd);
 	if (epd.bio) {
-		submit_one_bio(WRITE, epd.bio);
+		submit_one_bio(WRITE, epd.bio, 0);
 	}
 	return ret;
 }
@@ -2297,7 +2301,8 @@ int extent_readpages(struct extent_io_tree *tree,
 			page_cache_get(page);
 			if (!pagevec_add(&pvec, page))
 				__pagevec_lru_add(&pvec);
-			__extent_read_full_page(tree, page, get_extent, &bio);
+			__extent_read_full_page(tree, page, get_extent,
+						&bio, 0);
 		}
 		page_cache_release(page);
 	}
@@ -2305,7 +2310,7 @@ int extent_readpages(struct extent_io_tree *tree,
 		__pagevec_lru_add(&pvec);
 	BUG_ON(!list_empty(pages));
 	if (bio)
-		submit_one_bio(READ, bio);
+		submit_one_bio(READ, bio, 0);
 	return 0;
 }
 EXPORT_SYMBOL(extent_readpages);
@@ -2430,7 +2435,7 @@ int extent_prepare_write(struct extent_io_tree *tree,
 			ret = submit_extent_page(READ, tree, page,
 					 sector, iosize, page_offset, em->bdev,
 					 NULL, 1,
-					 end_bio_extent_preparewrite);
+					 end_bio_extent_preparewrite, 0);
 			iocount++;
 			block_start = block_start + iosize;
 		} else {
@@ -2696,6 +2701,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 		mark_page_accessed(page0);
 		set_page_extent_mapped(page0);
 		set_page_extent_head(page0, len);
+		uptodate = PageUptodate(page0);
 	} else {
 		i = 0;
 	}
@@ -3006,7 +3012,7 @@ EXPORT_SYMBOL(extent_buffer_uptodate);
 int read_extent_buffer_pages(struct extent_io_tree *tree,
 			     struct extent_buffer *eb,
 			     u64 start, int wait,
-			     get_extent_t *get_extent)
+			     get_extent_t *get_extent, int mirror_num)
 {
 	unsigned long i;
 	unsigned long start_i;
@@ -3062,8 +3068,10 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 		if (!PageUptodate(page)) {
 			if (start_i == 0)
 				inc_all_pages = 1;
+			ClearPageError(page);
 			err = __extent_read_full_page(tree, page,
-						      get_extent, &bio);
+						      get_extent, &bio,
+						      mirror_num);
 			if (err) {
 				ret = err;
 			}
@@ -3073,7 +3081,7 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	}
 
 	if (bio)
-		submit_one_bio(READ, bio);
+		submit_one_bio(READ, bio, mirror_num);
 
 	if (ret || !wait) {
 		return ret;

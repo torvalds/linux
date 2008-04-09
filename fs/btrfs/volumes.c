@@ -788,9 +788,31 @@ void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree)
 	}
 }
 
+int btrfs_num_copies(struct btrfs_mapping_tree *map_tree, u64 logical, u64 len)
+{
+	struct extent_map *em;
+	struct map_lookup *map;
+	struct extent_map_tree *em_tree = &map_tree->map_tree;
+	int ret;
+
+	spin_lock(&em_tree->lock);
+	em = lookup_extent_mapping(em_tree, logical, len);
+	BUG_ON(!em);
+
+	BUG_ON(em->start > logical || em->start + em->len < logical);
+	map = (struct map_lookup *)em->bdev;
+	if (map->type & (BTRFS_BLOCK_GROUP_DUP | BTRFS_BLOCK_GROUP_RAID1))
+		ret = map->num_stripes;
+	else
+		ret = 1;
+	free_extent_map(em);
+	spin_unlock(&em_tree->lock);
+	return ret;
+}
+
 int btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
 		    u64 logical, u64 *length,
-		    struct btrfs_multi_bio **multi_ret)
+		    struct btrfs_multi_bio **multi_ret, int mirror_num)
 {
 	struct extent_map *em;
 	struct map_lookup *map;
@@ -821,6 +843,9 @@ again:
 	BUG_ON(em->start > logical || em->start + em->len < logical);
 	map = (struct map_lookup *)em->bdev;
 	offset = logical - em->start;
+
+	if (mirror_num > map->num_stripes)
+		mirror_num = 0;
 
 	/* if our multi bio struct is too small, back off and try again */
 	if (multi_ret && (rw & (1 << BIO_RW)) &&
@@ -862,7 +887,9 @@ again:
 	if (map->type & BTRFS_BLOCK_GROUP_RAID1) {
 		if (rw & (1 << BIO_RW))
 			multi->num_stripes = map->num_stripes;
-		else {
+		else if (mirror_num) {
+			stripe_index = mirror_num - 1;
+		} else {
 			int i;
 			u64 least = (u64)-1;
 			struct btrfs_device *cur;
@@ -880,6 +907,8 @@ again:
 	} else if (map->type & BTRFS_BLOCK_GROUP_DUP) {
 		if (rw & (1 << BIO_RW))
 			multi->num_stripes = map->num_stripes;
+		else if (mirror_num)
+			stripe_index = mirror_num - 1;
 	} else {
 		/*
 		 * after this do_div call, stripe_nr is the number of stripes
@@ -938,7 +967,8 @@ static int end_bio_multi_stripe(struct bio *bio,
 #endif
 }
 
-int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio)
+int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
+		  int mirror_num)
 {
 	struct btrfs_mapping_tree *map_tree;
 	struct btrfs_device *dev;
@@ -960,7 +990,8 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio)
 	map_tree = &root->fs_info->mapping_tree;
 	map_length = length;
 
-	ret = btrfs_map_block(map_tree, rw, logical, &map_length, &multi);
+	ret = btrfs_map_block(map_tree, rw, logical, &map_length, &multi,
+			      mirror_num);
 	BUG_ON(ret);
 
 	total_devs = multi->num_stripes;

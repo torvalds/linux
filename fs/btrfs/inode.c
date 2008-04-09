@@ -314,7 +314,7 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 	map_tree = &root->fs_info->mapping_tree;
 	map_length = length;
 	ret = btrfs_map_block(map_tree, READ, logical,
-			      &map_length, NULL);
+			      &map_length, NULL, 0);
 
 	if (map_length < length + size) {
 		return 1;
@@ -322,7 +322,8 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 	return 0;
 }
 
-int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio)
+int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
+			  int mirror_num)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
@@ -347,7 +348,7 @@ int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio)
 	BUG_ON(ret);
 	mutex_unlock(&root->fs_info->fs_mutex);
 mapit:
-	return btrfs_map_bio(root, rw, bio);
+	return btrfs_map_bio(root, rw, bio, mirror_num);
 }
 
 int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)

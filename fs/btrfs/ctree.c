@@ -569,7 +569,16 @@ static int check_leaf(struct btrfs_root *root, struct btrfs_path *path,
 static int noinline check_block(struct btrfs_root *root,
 				struct btrfs_path *path, int level)
 {
-	return 0;
+	u64 found_start;
+	if (btrfs_header_level(path->nodes[level]) != level)
+	    printk("warning: bad level %Lu wanted %d found %d\n",
+		   path->nodes[level]->start, level,
+		   btrfs_header_level(path->nodes[level]));
+	found_start = btrfs_header_bytenr(path->nodes[level]);
+	if (found_start != path->nodes[level]->start) {
+	    printk("warning: bad bytentr %Lu found %Lu\n",
+		   path->nodes[level]->start, found_start);
+	}
 #if 0
 	struct extent_buffer *buf = path->nodes[level];
 

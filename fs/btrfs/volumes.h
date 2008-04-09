@@ -93,7 +93,7 @@ int btrfs_alloc_dev_extent(struct btrfs_trans_handle *trans,
 			   u64 owner, u64 num_bytes, u64 *start);
 int btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
 		    u64 logical, u64 *length,
-		    struct btrfs_multi_bio **multi_ret);
+		    struct btrfs_multi_bio **multi_ret, int mirror_num);
 int btrfs_read_sys_array(struct btrfs_root *root);
 int btrfs_read_chunk_tree(struct btrfs_root *root);
 int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
@@ -101,7 +101,8 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		      u64 *num_bytes, u64 type);
 void btrfs_mapping_init(struct btrfs_mapping_tree *tree);
 void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree);
-int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio);
+int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
+		  int mirror_num);
 int btrfs_read_super_device(struct btrfs_root *root, struct extent_buffer *buf);
 int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		       int flags, void *holder);
@@ -112,4 +113,5 @@ int btrfs_add_device(struct btrfs_trans_handle *trans,
 		     struct btrfs_root *root,
 		     struct btrfs_device *device);
 int btrfs_cleanup_fs_uuids(void);
+int btrfs_num_copies(struct btrfs_mapping_tree *map_tree, u64 logical, u64 len);
 #endif

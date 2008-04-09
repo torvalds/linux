@@ -156,7 +156,6 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 			memcpy(&found, result, BTRFS_CRC32_SIZE);
 
 			read_extent_buffer(buf, &val, 0, BTRFS_CRC32_SIZE);
-			WARN_ON(1);
 			printk("btrfs: %s checksum verify failed on %llu "
 			       "wanted %X found %X from_this_trans %d "
 			       "level %d\n",
@@ -171,6 +170,40 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 	return 0;
 }
 
+static int btree_read_extent_buffer_pages(struct btrfs_root *root,
+					  struct extent_buffer *eb,
+					  u64 start)
+{
+	struct extent_io_tree *io_tree;
+	int ret;
+	int num_copies = 0;
+	int mirror_num = 0;
+
+	io_tree = &BTRFS_I(root->fs_info->btree_inode)->io_tree;
+	while (1) {
+		ret = read_extent_buffer_pages(io_tree, eb, start, 1,
+					       btree_get_extent, mirror_num);
+		if (!ret) {
+			if (mirror_num)
+printk("good read %Lu mirror %d total %d\n", eb->start, mirror_num, num_copies);
+			return ret;
+		}
+		num_copies = btrfs_num_copies(&root->fs_info->mapping_tree,
+					      eb->start, eb->len);
+printk("failed to read %Lu mirror %d total %d\n", eb->start, mirror_num, num_copies);
+		if (num_copies == 1) {
+printk("reading %Lu failed only one copy\n", eb->start);
+			return ret;
+		}
+		mirror_num++;
+		if (mirror_num > num_copies) {
+printk("bailing at mirror %d of %d\n", mirror_num, num_copies);
+			return ret;
+		}
+	}
+printk("read extent buffer page last\n");
+	return -EIO;
+}
 
 int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 {
@@ -180,6 +213,8 @@ int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 	int found_level;
 	unsigned long len;
 	struct extent_buffer *eb;
+	int ret;
+
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 
 	if (page->private == EXTENT_PAGE_PRIVATE)
@@ -191,8 +226,8 @@ int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 		WARN_ON(1);
 	}
 	eb = alloc_extent_buffer(tree, start, len, page, GFP_NOFS);
-	read_extent_buffer_pages(tree, eb, start + PAGE_CACHE_SIZE, 1,
-				 btree_get_extent);
+	ret = btree_read_extent_buffer_pages(root, eb, start + PAGE_CACHE_SIZE);
+	BUG_ON(ret);
 	btrfs_clear_buffer_defrag(eb);
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != start) {
@@ -240,7 +275,7 @@ int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	unsigned long len;
 	struct extent_buffer *eb;
 	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
-	int ret;
+	int ret = 0;
 
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	if (page->private == EXTENT_PAGE_PRIVATE)
@@ -252,25 +287,26 @@ int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 		WARN_ON(1);
 	}
 	eb = alloc_extent_buffer(tree, start, len, page, GFP_NOFS);
-	read_extent_buffer_pages(tree, eb, start + PAGE_CACHE_SIZE, 1,
-				 btree_get_extent);
+
 	btrfs_clear_buffer_defrag(eb);
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != start) {
-		printk("warning: eb start incorrect %Lu buffer %Lu len %lu\n",
-		       start, found_start, len);
-		WARN_ON(1);
+printk("bad start on %Lu found %Lu\n", eb->start, found_start);
+		ret = -EIO;
 		goto err;
 	}
 	if (eb->first_page != page) {
 		printk("bad first page %lu %lu\n", eb->first_page->index,
 		       page->index);
 		WARN_ON(1);
+		ret = -EIO;
 		goto err;
 	}
 	found_level = btrfs_header_level(eb);
 
 	ret = csum_tree_block(root, eb, 1);
+	if (ret)
+		ret = -EIO;
 
 	end = min_t(u64, eb->len, PAGE_CACHE_SIZE);
 	end = eb->start + end - 1;
@@ -278,7 +314,7 @@ int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 err:
 	free_extent_buffer(eb);
 out:
-	return 0;
+	return ret;
 }
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
@@ -329,7 +365,8 @@ int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
 	return 0;
 }
 
-static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio)
+static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
+				 int mirror_num)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u64 offset;
@@ -338,7 +375,7 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio)
 	offset = bio->bi_sector << 9;
 
 	if (rw & (1 << BIO_RW)) {
-		return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio);
+		return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio, mirror_num);
 	}
 
 	ret = btrfs_bio_wq_end_io(root->fs_info, bio, 1);
@@ -349,7 +386,7 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio)
 		submit_bio(rw, bio);
 		return 0;
 	}
-	return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio);
+	return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio, mirror_num);
 }
 
 static int btree_writepage(struct page *page, struct writeback_control *wbc)
@@ -459,7 +496,7 @@ int readahead_tree_block(struct btrfs_root *root, u64 bytenr, u32 blocksize)
 	if (!buf)
 		return 0;
 	read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree,
-				 buf, 0, 0, btree_get_extent);
+				 buf, 0, 0, btree_get_extent, 0);
 	free_extent_buffer(buf);
 	return ret;
 }
@@ -522,8 +559,7 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 	if (!buf)
 		return NULL;
 
-	ret = read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree, buf, 0,
-				       1, btree_get_extent);
+	ret = btree_read_extent_buffer_pages(root, buf, 0);
 
 	if (ret == 0) {
 		buf->flags |= EXTENT_UPTODATE;
@@ -1366,10 +1402,8 @@ int btrfs_clear_buffer_defrag(struct extent_buffer *buf)
 int btrfs_read_buffer(struct extent_buffer *buf)
 {
 	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
-	struct inode *btree_inode = root->fs_info->btree_inode;
 	int ret;
-	ret = read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree,
-					buf, 0, 1, btree_get_extent);
+	ret = btree_read_extent_buffer_pages(root, buf, 0);
 	if (ret == 0) {
 		buf->flags |= EXTENT_UPTODATE;
 	}
