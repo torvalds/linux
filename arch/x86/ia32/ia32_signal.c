@@ -468,7 +468,7 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 		restorer = ka->sa.sa_restorer;
 	} else {
 		/* Return stub is in 32bit vsyscall page */
-		if (current->binfmt->hasvdso)
+		if (current->mm->context.vdso)
 			restorer = VDSO32_SYMBOL(current->mm->context.vdso,
 						 sigreturn);
 		else

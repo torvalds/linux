@@ -365,7 +365,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 			goto give_sigsegv;
 	}
 
-	if (current->binfmt->hasvdso)
+	if (current->mm->context.vdso)
 		restorer = VDSO32_SYMBOL(current->mm->context.vdso, sigreturn);
 	else
 		restorer = &frame->retcode;
