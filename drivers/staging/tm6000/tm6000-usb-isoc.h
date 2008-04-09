@@ -34,24 +34,20 @@ struct usb_isoc_ctl {
 		/* transfer buffers for isoc transfer */
 	char				**transfer_buffer;
 
-		/* Last buffer control */
-	int				pending;
-	int				pos;
+		/* Last buffer command and region */
+	u8				cmd;
+	int				pos, size, pktsize;
 
 		/* Last field: ODD or EVEN? */
 	int				field;
 
 		/* Stores incomplete commands */
-	u8				tbuf[TM6000_URB_MSG_LEN+4];
-	size_t				len;
+	u32				tmp_buf;
+	int				tmp_buf_len;
 
 		/* Stores already requested buffers */
 	struct tm6000_buffer    	*buf;
 
 		/* Stores the number of received fields */
 	int				nfields;
-
-		/* Checks if a complete field were received */
-	int				last_line;
-	unsigned int			fields:2;
 };
