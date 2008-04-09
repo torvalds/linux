@@ -591,7 +591,7 @@ static unsigned int scc_bus_softreset(struct ata_port *ap, unsigned int devmask,
 	udelay(20);
 	out_be32(ioaddr->ctl_addr, ap->ctl);
 
-	scc_wait_after_reset(&ap->link, devmask, deadlien);
+	scc_wait_after_reset(&ap->link, devmask, deadline);
 
 	return 0;
 }
