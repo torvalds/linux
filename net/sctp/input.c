@@ -725,7 +725,6 @@ static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(const union sctp_addr *l
 	}
 
 	ep = sctp_sk((sctp_get_ctl_sock()))->ep;
-	epb = &ep->base;
 
 hit:
 	sctp_endpoint_hold(ep);
