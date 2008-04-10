@@ -142,6 +142,7 @@ static inline unsigned int sk_filter_len(const struct sk_filter *fp)
 struct sk_buff;
 struct sock;
 
+extern int sk_filter(struct sock *sk, struct sk_buff *skb);
 extern unsigned int sk_run_filter(struct sk_buff *skb,
 				  struct sock_filter *filter, int flen);
 extern int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);
