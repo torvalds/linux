@@ -1014,7 +1014,7 @@ static void *lec_tbl_walk(struct lec_state *state, struct hlist_head *tbl,
 
 	if (!e)
 		e = tbl->first;
-	if (e == (void *)1) {
+	if (e == SEQ_START_TOKEN) {
 		e = tbl->first;
 		--*l;
 	}
@@ -1116,9 +1116,9 @@ static void *lec_seq_start(struct seq_file *seq, loff_t *pos)
 	state->locked = NULL;
 	state->arp_table = 0;
 	state->misc_table = 0;
-	state->node = (void *)1;
+	state->node = SEQ_START_TOKEN;
 
-	return *pos ? lec_get_idx(state, *pos) : (void *)1;
+	return *pos ? lec_get_idx(state, *pos) : SEQ_START_TOKEN;
 }
 
 static void lec_seq_stop(struct seq_file *seq, void *v)
@@ -1147,7 +1147,7 @@ static int lec_seq_show(struct seq_file *seq, void *v)
 	    "                          Status            Flags "
 	    "VPI/VCI Recv VPI/VCI\n";
 
-	if (v == (void *)1)
+	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, lec_banner);
 	else {
 		struct lec_state *state = seq->private;

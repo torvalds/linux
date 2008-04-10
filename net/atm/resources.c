@@ -415,7 +415,7 @@ static __inline__ void *dev_get_idx(loff_t left)
 void *atm_dev_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	mutex_lock(&atm_dev_mutex);
-	return *pos ? dev_get_idx(*pos) : (void *) 1;
+	return *pos ? dev_get_idx(*pos) : SEQ_START_TOKEN;
 }
 
 void atm_dev_seq_stop(struct seq_file *seq, void *v)
@@ -426,7 +426,8 @@ void atm_dev_seq_stop(struct seq_file *seq, void *v)
 void *atm_dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
-	v = (v == (void *)1) ? atm_devs.next : ((struct list_head *)v)->next;
+	v = (v == SEQ_START_TOKEN)
+		? atm_devs.next : ((struct list_head *)v)->next;
 	return (v == &atm_devs) ? NULL : v;
 }
 
