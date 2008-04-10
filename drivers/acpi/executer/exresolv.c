@@ -194,6 +194,12 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 
 			case ACPI_TYPE_PACKAGE:
 
+				/* If method call - leave the Reference on the stack */
+
+				if (walk_state->opcode == AML_INT_METHODCALL_OP) {
+					break;
+				}
+
 				obj_desc = *stack_desc->reference.where;
 				if (obj_desc) {
 					/*
@@ -210,7 +216,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 					 * the package, can't dereference it
 					 */
 					ACPI_ERROR((AE_INFO,
-						    "Attempt to deref an Index to NULL pkg element Idx=%p",
+						    "Attempt to dereference an Index to NULL package element Idx=%p",
 						    stack_desc));
 					status = AE_AML_UNINITIALIZED_ELEMENT;
 				}
@@ -221,7 +227,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 				/* Invalid reference object */
 
 				ACPI_ERROR((AE_INFO,
-					    "Unknown TargetType %X in Index/Reference obj %p",
+					    "Unknown TargetType %X in Index/Reference object %p",
 					    stack_desc->reference.target_type,
 					    stack_desc));
 				status = AE_AML_INTERNAL;
