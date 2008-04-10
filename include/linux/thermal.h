@@ -41,6 +41,7 @@ struct thermal_zone_device_ops {
 	int (*set_mode) (struct thermal_zone_device *, const char *);
 	int (*get_trip_type) (struct thermal_zone_device *, int, char *);
 	int (*get_trip_temp) (struct thermal_zone_device *, int, char *);
+	int (*get_crit_temp) (struct thermal_zone_device *, unsigned long *);
 };
 
 struct thermal_cooling_device_ops {

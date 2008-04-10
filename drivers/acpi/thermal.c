@@ -1012,6 +1012,18 @@ static int thermal_get_trip_temp(struct thermal_zone_device *thermal,
 	return -EINVAL;
 }
 
+static int thermal_get_crit_temp(struct thermal_zone_device *thermal,
+				unsigned long *temperature) {
+	struct acpi_thermal *tz = thermal->devdata;
+
+	if (tz->trips.critical.flags.valid) {
+		*temperature = KELVIN_TO_MILLICELSIUS(
+				tz->trips.critical.temperature);
+		return 0;
+	} else
+		return -EINVAL;
+}
+
 typedef int (*cb)(struct thermal_zone_device *, int,
 		  struct thermal_cooling_device *);
 static int acpi_thermal_cooling_device_cb(struct thermal_zone_device *thermal,
@@ -1103,6 +1115,7 @@ static struct thermal_zone_device_ops acpi_thermal_zone_ops = {
 	.set_mode = thermal_set_mode,
 	.get_trip_type = thermal_get_trip_type,
 	.get_trip_temp = thermal_get_trip_temp,
+	.get_crit_temp = thermal_get_crit_temp,
 };
 
 static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
