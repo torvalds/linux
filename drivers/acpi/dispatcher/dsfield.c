@@ -281,11 +281,17 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 				arg->common.node = info->field_node;
 				info->field_bit_length = arg->common.value.size;
 
-				/* Create and initialize an object for the new Field Node */
-
-				status = acpi_ex_prep_field_value(info);
-				if (ACPI_FAILURE(status)) {
-					return_ACPI_STATUS(status);
+				/*
+				 * If there is no object attached to the node, this node was just created
+				 * and we need to create the field object.  Otherwise, this was a lookup
+				 * of an existing node and we don't want to create the field object again.
+				 */
+				if (!acpi_ns_get_attached_object
+				    (info->field_node)) {
+					status = acpi_ex_prep_field_value(info);
+					if (ACPI_FAILURE(status)) {
+						return_ACPI_STATUS(status);
+					}
 				}
 			}
 
@@ -399,8 +405,21 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
 	union acpi_parse_object *arg = NULL;
 	struct acpi_namespace_node *node;
 	u8 type = 0;
+	u32 flags;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_init_field_objects, op);
+
+	/*
+	 * During the load phase, we want to enter the name of the field into
+	 * the namespace. During the execute phase (when we evaluate the bank_value
+	 * operand), we want to lookup the name.
+	 */
+	if (walk_state->deferred_node) {
+		flags = ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE;
+	} else {
+		flags = ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE |
+		    ACPI_NS_ERROR_IF_FOUND;
+	}
 
 	switch (walk_state->opcode) {
 	case AML_FIELD_OP:
@@ -433,10 +452,7 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
 			status = acpi_ns_lookup(walk_state->scope_info,
 						(char *)&arg->named.name,
 						type, ACPI_IMODE_LOAD_PASS1,
-						ACPI_NS_NO_UPSEARCH |
-						ACPI_NS_DONT_OPEN_SCOPE |
-						ACPI_NS_ERROR_IF_FOUND,
-						walk_state, &node);
+						flags, walk_state, &node);
 			if (ACPI_FAILURE(status)) {
 				ACPI_ERROR_NAMESPACE((char *)&arg->named.name,
 						     status);
@@ -466,7 +482,7 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
  *
  * PARAMETERS:  Op              - Op containing the Field definition and args
  *              region_node     - Object for the containing Operation Region
- *  `           walk_state      - Current method state
+ *              walk_state      - Current method state
  *
  * RETURN:      Status
  *
@@ -513,35 +529,12 @@ acpi_ds_create_bank_field(union acpi_parse_object *op,
 		return_ACPI_STATUS(status);
 	}
 
-	/* Third arg is the bank_value */
-
-	/* TBD: This arg is a term_arg, not a constant, and must be evaluated */
-
+	/*
+	 * Third arg is the bank_value
+	 * This arg is a term_arg, not a constant
+	 * It will be evaluated later, by acpi_ds_eval_bank_field_operands
+	 */
 	arg = arg->common.next;
-
-	/* Currently, only the following constants are supported */
-
-	switch (arg->common.aml_opcode) {
-	case AML_ZERO_OP:
-		info.bank_value = 0;
-		break;
-
-	case AML_ONE_OP:
-		info.bank_value = 1;
-		break;
-
-	case AML_BYTE_OP:
-	case AML_WORD_OP:
-	case AML_DWORD_OP:
-	case AML_QWORD_OP:
-		info.bank_value = (u32) arg->common.value.integer;
-		break;
-
-	default:
-		info.bank_value = 0;
-		ACPI_ERROR((AE_INFO,
-			    "Non-constant BankValue for BankField is not implemented"));
-	}
 
 	/* Fourth arg is the field flags */
 
@@ -553,8 +546,17 @@ acpi_ds_create_bank_field(union acpi_parse_object *op,
 	info.field_type = ACPI_TYPE_LOCAL_BANK_FIELD;
 	info.region_node = region_node;
 
-	status = acpi_ds_get_field_names(&info, walk_state, arg->common.next);
+	/*
+	 * Use Info.data_register_node to store bank_field Op
+	 * It's safe because data_register_node will never be used when create bank field
+	 * We store aml_start and aml_length in the bank_field Op for late evaluation
+	 * Used in acpi_ex_prep_field_value(Info)
+	 *
+	 * TBD: Or, should we add a field in struct acpi_create_field_info, like "void *ParentOp"?
+	 */
+	info.data_register_node = (struct acpi_namespace_node *)op;
 
+	status = acpi_ds_get_field_names(&info, walk_state, arg->common.next);
 	return_ACPI_STATUS(status);
 }
 

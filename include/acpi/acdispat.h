@@ -53,6 +53,9 @@
 acpi_status
 acpi_ds_get_buffer_field_arguments(union acpi_operand_object *obj_desc);
 
+acpi_status
+acpi_ds_get_bank_field_arguments(union acpi_operand_object *obj_desc);
+
 acpi_status acpi_ds_get_region_arguments(union acpi_operand_object *rgn_desc);
 
 acpi_status acpi_ds_get_buffer_arguments(union acpi_operand_object *obj_desc);
@@ -75,6 +78,10 @@ acpi_status
 acpi_ds_eval_data_object_operands(struct acpi_walk_state *walk_state,
 				  union acpi_parse_object *op,
 				  union acpi_operand_object *obj_desc);
+
+acpi_status
+acpi_ds_eval_bank_field_operands(struct acpi_walk_state *walk_state,
+				 union acpi_parse_object *op);
 
 acpi_status acpi_ds_initialize_region(acpi_handle obj_handle);
 

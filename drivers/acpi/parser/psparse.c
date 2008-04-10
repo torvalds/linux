@@ -205,6 +205,8 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 			    || (op->common.parent->common.aml_opcode ==
 				AML_PACKAGE_OP)
 			    || (op->common.parent->common.aml_opcode ==
+				AML_BANK_FIELD_OP)
+			    || (op->common.parent->common.aml_opcode ==
 				AML_VAR_PACKAGE_OP)) {
 				replacement_op =
 				    acpi_ps_alloc_op(AML_INT_RETURN_VALUE_OP);

@@ -252,6 +252,17 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 		}
 		break;
 
+	case ACPI_TYPE_LOCAL_BANK_FIELD:
+
+		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+				  "***** Bank Field %p\n", object));
+
+		second_desc = acpi_ns_get_secondary_object(object);
+		if (second_desc) {
+			acpi_ut_delete_object_desc(second_desc);
+		}
+		break;
+
 	default:
 		break;
 	}

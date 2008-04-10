@@ -652,6 +652,17 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 				if (ACPI_FAILURE(status)) {
 					break;
 				}
+			} else if (op->common.aml_opcode == AML_BANK_FIELD_OP) {
+				ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+						  "Executing BankField Op=%p\n",
+						  op));
+
+				status =
+				    acpi_ds_eval_bank_field_operands(walk_state,
+								     op);
+				if (ACPI_FAILURE(status)) {
+					break;
+				}
 			}
 			break;
 

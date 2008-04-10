@@ -278,7 +278,9 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 			AML_VAR_PACKAGE_OP)
 		    || (op->common.parent->common.aml_opcode == AML_BUFFER_OP)
 		    || (op->common.parent->common.aml_opcode ==
-			AML_INT_EVAL_SUBTREE_OP)) {
+			AML_INT_EVAL_SUBTREE_OP)
+		    || (op->common.parent->common.aml_opcode ==
+			AML_BANK_FIELD_OP)) {
 			/*
 			 * These opcodes allow term_arg(s) as operands and therefore
 			 * the operands can be method calls.  The result is used.

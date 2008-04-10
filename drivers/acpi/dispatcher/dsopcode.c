@@ -220,6 +220,50 @@ acpi_ds_get_buffer_field_arguments(union acpi_operand_object *obj_desc)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ds_get_bank_field_arguments
+ *
+ * PARAMETERS:  obj_desc        - A valid bank_field object
+ *
+ * RETURN:      Status.
+ *
+ * DESCRIPTION: Get bank_field bank_value. This implements the late
+ *              evaluation of these field attributes.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ds_get_bank_field_arguments(union acpi_operand_object *obj_desc)
+{
+	union acpi_operand_object *extra_desc;
+	struct acpi_namespace_node *node;
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE_PTR(ds_get_bank_field_arguments, obj_desc);
+
+	if (obj_desc->common.flags & AOPOBJ_DATA_VALID) {
+		return_ACPI_STATUS(AE_OK);
+	}
+
+	/* Get the AML pointer (method object) and bank_field node */
+
+	extra_desc = acpi_ns_get_secondary_object(obj_desc);
+	node = obj_desc->bank_field.node;
+
+	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
+			(ACPI_TYPE_LOCAL_BANK_FIELD, node, NULL));
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "[%4.4s] BankField Arg Init\n",
+			  acpi_ut_get_node_name(node)));
+
+	/* Execute the AML code for the term_arg arguments */
+
+	status = acpi_ds_execute_arguments(node, acpi_ns_get_parent_node(node),
+					   extra_desc->extra.aml_length,
+					   extra_desc->extra.aml_start);
+	return_ACPI_STATUS(status);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ds_get_buffer_arguments
  *
  * PARAMETERS:  obj_desc        - A valid Buffer object
@@ -982,6 +1026,106 @@ acpi_ds_eval_data_object_operands(struct acpi_walk_state *walk_state,
 		}
 	}
 
+	return_ACPI_STATUS(status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ds_eval_bank_field_operands
+ *
+ * PARAMETERS:  walk_state      - Current walk
+ *              Op              - A valid bank_field Op object
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Get bank_field bank_value
+ *              Called from acpi_ds_exec_end_op during bank_field parse tree walk
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ds_eval_bank_field_operands(struct acpi_walk_state *walk_state,
+				 union acpi_parse_object *op)
+{
+	acpi_status status;
+	union acpi_operand_object *obj_desc;
+	union acpi_operand_object *operand_desc;
+	struct acpi_namespace_node *node;
+	union acpi_parse_object *next_op;
+	union acpi_parse_object *arg;
+
+	ACPI_FUNCTION_TRACE_PTR(ds_eval_bank_field_operands, op);
+
+	/*
+	 * This is where we evaluate the bank_value field of the
+	 * bank_field declaration
+	 */
+
+	/* next_op points to the op that holds the Region */
+
+	next_op = op->common.value.arg;
+
+	/* next_op points to the op that holds the Bank Register */
+
+	next_op = next_op->common.next;
+
+	/* next_op points to the op that holds the Bank Value */
+
+	next_op = next_op->common.next;
+
+	/*
+	 * Set proper index into operand stack for acpi_ds_obj_stack_push
+	 * invoked inside acpi_ds_create_operand.
+	 *
+	 * We use walk_state->Operands[0] to store the evaluated bank_value
+	 */
+	walk_state->operand_index = 0;
+
+	status = acpi_ds_create_operand(walk_state, next_op, 0);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	status = acpi_ex_resolve_to_value(&walk_state->operands[0], walk_state);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	ACPI_DUMP_OPERANDS(ACPI_WALK_OPERANDS, ACPI_IMODE_EXECUTE,
+			   acpi_ps_get_opcode_name(op->common.aml_opcode),
+			   1, "after AcpiExResolveOperands");
+
+	/*
+	 * Get the bank_value operand and save it
+	 * (at Top of stack)
+	 */
+	operand_desc = walk_state->operands[0];
+
+	/* Arg points to the start Bank Field */
+
+	arg = acpi_ps_get_arg(op, 4);
+	while (arg) {
+
+		/* Ignore OFFSET and ACCESSAS terms here */
+
+		if (arg->common.aml_opcode == AML_INT_NAMEDFIELD_OP) {
+			node = arg->common.node;
+
+			obj_desc = acpi_ns_get_attached_object(node);
+			if (!obj_desc) {
+				return_ACPI_STATUS(AE_NOT_EXIST);
+			}
+
+			obj_desc->bank_field.value =
+			    (u32) operand_desc->integer.value;
+		}
+
+		/* Move to next field in the list */
+
+		arg = arg->common.next;
+	}
+
+	acpi_ut_remove_reference(operand_desc);
 	return_ACPI_STATUS(status);
 }
 

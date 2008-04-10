@@ -325,6 +325,15 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 		op->named.length = 0;
 	}
 
+	if (walk_state->opcode == AML_BANK_FIELD_OP) {
+		/*
+		 * Backup to beginning of bank_field declaration
+		 * body_length is unknown until we parse the body
+		 */
+		op->named.data = aml_op_start;
+		op->named.length = 0;
+	}
+
 	parent_scope = acpi_ps_get_parent_scope(&(walk_state->parser_state));
 	acpi_ps_append_arg(parent_scope, op);
 
@@ -1033,6 +1042,16 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 			/*
 			 * Backup to beginning of create_xXXfield declaration (1 for
 			 * Opcode)
+			 *
+			 * body_length is unknown until we parse the body
+			 */
+			op->named.length =
+			    (u32) (parser_state->aml - op->named.data);
+		}
+
+		if (op->common.aml_opcode == AML_BANK_FIELD_OP) {
+			/*
+			 * Backup to beginning of bank_field declaration
 			 *
 			 * body_length is unknown until we parse the body
 			 */
