@@ -1927,7 +1927,10 @@ xfs_qm_quotacheck(
 		ASSERT(mp->m_quotainfo != NULL);
 		ASSERT(xfs_Gqm != NULL);
 		xfs_qm_destroy_quotainfo(mp);
-		(void)xfs_mount_reset_sbqflags(mp);
+		if (xfs_mount_reset_sbqflags(mp)) {
+			cmn_err(CE_WARN, "XFS quotacheck %s: "
+				"Failed to reset quota flags.", mp->m_fsname);
+		}
 	} else {
 		cmn_err(CE_NOTE, "XFS quotacheck %s: Done.", mp->m_fsname);
 	}
