@@ -102,9 +102,6 @@ extern void			ndisc_send_rs(struct net_device *dev,
 					      struct in6_addr *saddr,
 					      struct in6_addr *daddr);
 
-extern void			ndisc_forwarding_on(void);
-extern void			ndisc_forwarding_off(void);
-
 extern void			ndisc_send_redirect(struct sk_buff *skb,
 						    struct neighbour *neigh,
 						    struct in6_addr *target);
@@ -124,7 +121,6 @@ extern int			igmp6_event_query(struct sk_buff *skb);
 
 extern int			igmp6_event_report(struct sk_buff *skb);
 
-extern void			igmp6_cleanup(void);
 
 #ifdef CONFIG_SYSCTL
 extern int 			ndisc_ifinfo_sysctl_change(struct ctl_table *ctl,
