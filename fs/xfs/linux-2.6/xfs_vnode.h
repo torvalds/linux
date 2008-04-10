@@ -288,9 +288,9 @@ extern void xfs_itrace_hold(struct xfs_inode *, char *, int, inst_t *);
 extern void _xfs_itrace_ref(struct xfs_inode *, char *, int, inst_t *);
 extern void xfs_itrace_rele(struct xfs_inode *, char *, int, inst_t *);
 #define xfs_itrace_entry(ip)	\
-	_xfs_itrace_entry(ip, __FUNCTION__, (inst_t *)__return_address)
+	_xfs_itrace_entry(ip, __func__, (inst_t *)__return_address)
 #define xfs_itrace_exit(ip)	\
-	_xfs_itrace_exit(ip, __FUNCTION__, (inst_t *)__return_address)
+	_xfs_itrace_exit(ip, __func__, (inst_t *)__return_address)
 #define xfs_itrace_exit_tag(ip, tag)	\
 	_xfs_itrace_exit(ip, tag, (inst_t *)__return_address)
 #define xfs_itrace_ref(ip)	\

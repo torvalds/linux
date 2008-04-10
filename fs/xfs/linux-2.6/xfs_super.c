@@ -935,7 +935,7 @@ xfs_fs_clear_inode(
 		xfs_inactive(ip);
 		xfs_iflags_clear(ip, XFS_IMODIFIED);
 		if (xfs_reclaim(ip))
-			panic("%s: cannot reclaim 0x%p\n", __FUNCTION__, inode);
+			panic("%s: cannot reclaim 0x%p\n", __func__, inode);
 	}
 
 	ASSERT(XFS_I(inode) == NULL);

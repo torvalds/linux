@@ -2225,7 +2225,7 @@ xlog_state_do_callback(
 			repeats = 0;
 			xfs_fs_cmn_err(CE_WARN, log->l_mp,
 				"%s: possible infinite loop (%d iterations)",
-				__FUNCTION__, flushcnt);
+				__func__, flushcnt);
 		}
 	} while (!ioerrors && loopdidcallbacks);
 
