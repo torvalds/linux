@@ -158,7 +158,7 @@ match:
 					t += 7 + *ip++;
 				}
 				m_pos -= le16_to_cpu(get_unaligned(
-					(const unsigned short *)ip) >> 2);
+					(const unsigned short *)ip)) >> 2;
 				ip += 2;
 				if (m_pos == op)
 					goto eof_found;
