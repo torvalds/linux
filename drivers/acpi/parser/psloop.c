@@ -182,6 +182,7 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 	ACPI_FUNCTION_TRACE_PTR(ps_build_named_op, walk_state);
 
 	unnamed_op->common.value.arg = NULL;
+	unnamed_op->common.arg_list_length = 0;
 	unnamed_op->common.aml_opcode = walk_state->opcode;
 
 	/*
@@ -280,6 +281,9 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 	acpi_status status = AE_OK;
 	union acpi_parse_object *op;
 	union acpi_parse_object *named_op = NULL;
+	union acpi_parse_object *parent_scope;
+	u8 argument_count;
+	const struct acpi_opcode_info *op_info;
 
 	ACPI_FUNCTION_TRACE_PTR(ps_create_op, walk_state);
 
@@ -320,8 +324,23 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 		op->named.length = 0;
 	}
 
-	acpi_ps_append_arg(acpi_ps_get_parent_scope
-			   (&(walk_state->parser_state)), op);
+	parent_scope = acpi_ps_get_parent_scope(&(walk_state->parser_state));
+	acpi_ps_append_arg(parent_scope, op);
+
+	if (parent_scope) {
+		op_info =
+		    acpi_ps_get_opcode_info(parent_scope->common.aml_opcode);
+		if (op_info->flags & AML_HAS_TARGET) {
+			argument_count =
+			    acpi_ps_get_argument_count(op_info->type);
+			if (parent_scope->common.arg_list_length >
+			    argument_count) {
+				op->common.flags |= ACPI_PARSEOP_TARGET;
+			}
+		} else if (parent_scope->common.aml_opcode == AML_INCREMENT_OP) {
+			op->common.flags |= ACPI_PARSEOP_TARGET;
+		}
+	}
 
 	if (walk_state->descending_callback != NULL) {
 		/*

@@ -109,6 +109,8 @@ const struct acpi_opcode_info *acpi_ps_get_opcode_info(u16 opcode);
 
 char *acpi_ps_get_opcode_name(u16 opcode);
 
+u8 acpi_ps_get_argument_count(u32 op_type);
+
 /*
  * psparse - top level parsing routines
  */

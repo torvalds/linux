@@ -269,6 +269,8 @@ acpi_status acpi_ds_resolve_operands(struct acpi_walk_state *walk_state);
 
 void acpi_ds_clear_operands(struct acpi_walk_state *walk_state);
 
+acpi_status acpi_ds_evaluate_name_path(struct acpi_walk_state *walk_state);
+
 /*
  * dswscope - Scope Stack manipulation
  */

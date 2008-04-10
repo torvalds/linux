@@ -49,6 +49,8 @@
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psopcode")
 
+const u8 acpi_gbl_argument_count[] = { 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 6 };
+
 /*******************************************************************************
  *
  * NAME:        acpi_gbl_aml_op_info
@@ -59,6 +61,7 @@ ACPI_MODULE_NAME("psopcode")
  *              the operand type.
  *
  ******************************************************************************/
+
 /*
  * Summary of opcode types/flags
  *
@@ -176,6 +179,7 @@ ACPI_MODULE_NAME("psopcode")
 	AML_CREATE_QWORD_FIELD_OP
 
  ******************************************************************************/
+
 /*
  * Master Opcode information table.  A summary of everything we know about each
  * opcode, all in one place.
@@ -778,4 +782,26 @@ char *acpi_ps_get_opcode_name(u16 opcode)
 	return ("OpcodeName unavailable");
 
 #endif
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ps_get_argument_count
+ *
+ * PARAMETERS:  op_type             - Type associated with the AML opcode
+ *
+ * RETURN:      Argument count
+ *
+ * DESCRIPTION: Obtain the number of expected arguments for an AML opcode
+ *
+ ******************************************************************************/
+
+u8 acpi_ps_get_argument_count(u32 op_type)
+{
+
+	if (op_type <= AML_TYPE_EXEC_6A_0T_1R) {
+		return (acpi_gbl_argument_count[op_type]);
+	}
+
+	return (0);
 }

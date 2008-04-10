@@ -375,10 +375,17 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 	/* Decode the Opcode Class */
 
 	switch (op_class) {
-	case AML_CLASS_ARGUMENT:	/* constants, literals, etc. - do nothing */
+	case AML_CLASS_ARGUMENT:	/* Constants, literals, etc. */
+
+		if (walk_state->opcode == AML_INT_NAMEPATH_OP) {
+			status = acpi_ds_evaluate_name_path(walk_state);
+			if (ACPI_FAILURE(status)) {
+				goto cleanup;
+			}
+		}
 		break;
 
-	case AML_CLASS_EXECUTE:	/* most operators with arguments */
+	case AML_CLASS_EXECUTE:	/* Most operators with arguments */
 
 		/* Build resolved operand stack */
 

@@ -171,6 +171,8 @@ acpi_ps_append_arg(union acpi_parse_object *op, union acpi_parse_object *arg)
 	while (arg) {
 		arg->common.parent = op;
 		arg = arg->common.next;
+
+		op->common.arg_list_length++;
 	}
 }
 
