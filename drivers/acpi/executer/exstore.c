@@ -313,7 +313,6 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 	 * 4) Store to the debug object
 	 */
 	switch (ref_desc->reference.opcode) {
-	case AML_NAME_OP:
 	case AML_REF_OF_OP:
 
 		/* Storing an object into a Name "container" */

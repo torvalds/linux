@@ -500,15 +500,6 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 			acpi_os_printf("Reference: Debug\n");
 			break;
 
-		case AML_NAME_OP:
-
-			ACPI_DUMP_PATHNAME(obj_desc->reference.object,
-					   "Reference: Name: ", ACPI_LV_INFO,
-					   _COMPONENT);
-			ACPI_DUMP_ENTRY(obj_desc->reference.object,
-					ACPI_LV_INFO);
-			break;
-
 		case AML_INDEX_OP:
 
 			acpi_os_printf("Reference: Index %p\n",

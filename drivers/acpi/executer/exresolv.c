@@ -140,7 +140,6 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 {
 	acpi_status status = AE_OK;
 	union acpi_operand_object *stack_desc;
-	void *temp_node;
 	union acpi_operand_object *obj_desc = NULL;
 	u16 opcode;
 
@@ -156,23 +155,6 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 		opcode = stack_desc->reference.opcode;
 
 		switch (opcode) {
-		case AML_NAME_OP:
-
-			/*
-			 * Convert name reference to a namespace node
-			 * Then, acpi_ex_resolve_node_to_value can be used to get the value
-			 */
-			temp_node = stack_desc->reference.object;
-
-			/* Delete the Reference Object */
-
-			acpi_ut_remove_reference(stack_desc);
-
-			/* Return the namespace node */
-
-			(*stack_ptr) = temp_node;
-			break;
-
 		case AML_LOCAL_OP:
 		case AML_ARG_OP:
 
