@@ -68,6 +68,10 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 			     union acpi_parse_object *op);
 
 acpi_status
+acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
+				   union acpi_parse_object *op);
+
+acpi_status
 acpi_ds_eval_data_object_operands(struct acpi_walk_state *walk_state,
 				  union acpi_parse_object *op,
 				  union acpi_operand_object *obj_desc);

@@ -49,6 +49,7 @@
 #include <acpi/acinterp.h>
 #include <acpi/acnamesp.h>
 #include <acpi/acevents.h>
+#include <acpi/actables.h>
 
 #define _COMPONENT          ACPI_DISPATCHER
 ACPI_MODULE_NAME("dsopcode")
@@ -767,6 +768,108 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 	obj_desc->region.address = (acpi_physical_address)
 	    operand_desc->integer.value;
 	acpi_ut_remove_reference(operand_desc);
+
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "RgnObj %p Addr %8.8X%8.8X Len %X\n",
+			  obj_desc,
+			  ACPI_FORMAT_NATIVE_UINT(obj_desc->region.address),
+			  obj_desc->region.length));
+
+	/* Now the address and length are valid for this opregion */
+
+	obj_desc->region.flags |= AOPOBJ_DATA_VALID;
+
+	return_ACPI_STATUS(status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ds_eval_table_region_operands
+ *
+ * PARAMETERS:  walk_state      - Current walk
+ *              Op              - A valid region Op object
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Get region address and length
+ *              Called from acpi_ds_exec_end_op during data_table_region parse tree walk
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ds_eval_table_region_operands(struct acpi_walk_state *walk_state,
+				   union acpi_parse_object *op)
+{
+	acpi_status status;
+	union acpi_operand_object *obj_desc;
+	union acpi_operand_object **operand;
+	struct acpi_namespace_node *node;
+	union acpi_parse_object *next_op;
+	acpi_native_uint table_index;
+	struct acpi_table_header *table;
+
+	ACPI_FUNCTION_TRACE_PTR(ds_eval_table_region_operands, op);
+
+	/*
+	 * This is where we evaluate the signature_string and oem_iDString
+	 * and oem_table_iDString of the data_table_region declaration
+	 */
+	node = op->common.node;
+
+	/* next_op points to signature_string op */
+
+	next_op = op->common.value.arg;
+
+	/*
+	 * Evaluate/create the signature_string and oem_iDString
+	 * and oem_table_iDString operands
+	 */
+	status = acpi_ds_create_operands(walk_state, next_op);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/*
+	 * Resolve the signature_string and oem_iDString
+	 * and oem_table_iDString operands
+	 */
+	status = acpi_ex_resolve_operands(op->common.aml_opcode,
+					  ACPI_WALK_OPERANDS, walk_state);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	ACPI_DUMP_OPERANDS(ACPI_WALK_OPERANDS, ACPI_IMODE_EXECUTE,
+			   acpi_ps_get_opcode_name(op->common.aml_opcode),
+			   1, "after AcpiExResolveOperands");
+
+	operand = &walk_state->operands[0];
+
+	/* Find the ACPI table */
+
+	status = acpi_tb_find_table(operand[0]->string.pointer,
+				    operand[1]->string.pointer,
+				    operand[2]->string.pointer, &table_index);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	acpi_ut_remove_reference(operand[0]);
+	acpi_ut_remove_reference(operand[1]);
+	acpi_ut_remove_reference(operand[2]);
+
+	status = acpi_get_table_by_index(table_index, &table);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	obj_desc = acpi_ns_get_attached_object(node);
+	if (!obj_desc) {
+		return_ACPI_STATUS(AE_NOT_EXIST);
+	}
+
+	obj_desc->region.address =
+	    (acpi_physical_address) ACPI_TO_INTEGER(table);
+	obj_desc->region.length = table->length;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "RgnObj %p Addr %8.8X%8.8X Len %X\n",
 			  obj_desc,

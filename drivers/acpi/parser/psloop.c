@@ -242,7 +242,8 @@ acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
 	acpi_ps_append_arg(*op, unnamed_op->common.value.arg);
 	acpi_gbl_depth++;
 
-	if ((*op)->common.aml_opcode == AML_REGION_OP) {
+	if ((*op)->common.aml_opcode == AML_REGION_OP ||
+	    (*op)->common.aml_opcode == AML_DATA_REGION_OP) {
 		/*
 		 * Defer final parsing of an operation_region body, because we don't
 		 * have enough info in the first pass to parse it correctly (i.e.,
@@ -1013,7 +1014,8 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 				acpi_gbl_depth--;
 			}
 
-			if (op->common.aml_opcode == AML_REGION_OP) {
+			if (op->common.aml_opcode == AML_REGION_OP ||
+			    op->common.aml_opcode == AML_DATA_REGION_OP) {
 				/*
 				 * Skip parsing of control method or opregion body,
 				 * because we don't have enough info in the first pass

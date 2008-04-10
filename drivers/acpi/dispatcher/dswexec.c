@@ -641,6 +641,17 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 				if (ACPI_FAILURE(status)) {
 					break;
 				}
+			} else if (op->common.aml_opcode == AML_DATA_REGION_OP) {
+				ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+						  "Executing DataTableRegion Strings Op=%p\n",
+						  op));
+
+				status =
+				    acpi_ds_eval_table_region_operands
+				    (walk_state, op);
+				if (ACPI_FAILURE(status)) {
+					break;
+				}
 			}
 			break;
 

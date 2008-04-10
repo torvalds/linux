@@ -215,8 +215,6 @@ acpi_ex_create_region(u8 * aml_start,
 		      u32 aml_length,
 		      u8 region_space, struct acpi_walk_state *walk_state);
 
-acpi_status acpi_ex_create_table_region(struct acpi_walk_state *walk_state);
-
 acpi_status acpi_ex_create_event(struct acpi_walk_state *walk_state);
 
 acpi_status acpi_ex_create_alias(struct acpi_walk_state *walk_state);

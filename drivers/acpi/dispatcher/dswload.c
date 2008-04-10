@@ -443,6 +443,15 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 			if (ACPI_FAILURE(status)) {
 				return_ACPI_STATUS(status);
 			}
+		} else if (op->common.aml_opcode == AML_DATA_REGION_OP) {
+			status =
+			    acpi_ex_create_region(op->named.data,
+						  op->named.length,
+						  REGION_DATA_TABLE,
+						  walk_state);
+			if (ACPI_FAILURE(status)) {
+				return_ACPI_STATUS(status);
+			}
 		}
 	}
 #endif
@@ -823,6 +832,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 	struct acpi_namespace_node *new_node;
 #ifndef ACPI_NO_METHOD_EXECUTION
 	u32 i;
+	u8 region_space;
 #endif
 
 	ACPI_FUNCTION_TRACE(ds_load2_end_op);
@@ -1003,11 +1013,6 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 			status = acpi_ex_create_event(walk_state);
 			break;
 
-		case AML_DATA_REGION_OP:
-
-			status = acpi_ex_create_table_region(walk_state);
-			break;
-
 		case AML_ALIAS_OP:
 
 			status = acpi_ex_create_alias(walk_state);
@@ -1035,6 +1040,15 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 		switch (op->common.aml_opcode) {
 #ifndef ACPI_NO_METHOD_EXECUTION
 		case AML_REGION_OP:
+		case AML_DATA_REGION_OP:
+
+			if (op->common.aml_opcode == AML_REGION_OP) {
+				region_space = (acpi_adr_space_type)
+				    ((op->common.value.arg)->common.value.
+				     integer);
+			} else {
+				region_space = REGION_DATA_TABLE;
+			}
 
 			/*
 			 * If we are executing a method, initialize the region
@@ -1043,10 +1057,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 				status =
 				    acpi_ex_create_region(op->named.data,
 							  op->named.length,
-							  (acpi_adr_space_type)
-							  ((op->common.value.
-							    arg)->common.value.
-							   integer),
+							  region_space,
 							  walk_state);
 				if (ACPI_FAILURE(status)) {
 					return (status);
