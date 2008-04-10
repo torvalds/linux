@@ -368,7 +368,8 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	}
 
 	status =
-	    acpi_ex_add_table(table_index, acpi_gbl_root_node, &ddb_handle);
+	    acpi_ex_add_table(table_index, walk_state->scope_info->scope.node,
+			      &ddb_handle);
 	if (ACPI_FAILURE(status)) {
 
 		/* On error, table_ptr was deallocated above */
