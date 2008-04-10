@@ -45,7 +45,7 @@
 #define	XFSA_FIXUP_BNO_OK	1
 #define	XFSA_FIXUP_CNT_OK	2
 
-STATIC int
+STATIC void
 xfs_alloc_search_busy(xfs_trans_t *tp,
 		    xfs_agnumber_t agno,
 		    xfs_agblock_t bno,
@@ -64,15 +64,15 @@ ktrace_t *xfs_alloc_trace_buf;
 	xfs_alloc_trace_busy(__func__, s, mp, ag, agb, l, sl, tp, XFS_ALLOC_KTRACE_BUSY, __LINE__)
 #define	TRACE_UNBUSY(__func__,s,ag,sl,tp)	\
 	xfs_alloc_trace_busy(__func__, s, mp, ag, -1, -1, sl, tp, XFS_ALLOC_KTRACE_UNBUSY, __LINE__)
-#define	TRACE_BUSYSEARCH(__func__,s,ag,agb,l,sl,tp)	\
-	xfs_alloc_trace_busy(__func__, s, mp, ag, agb, l, sl, tp, XFS_ALLOC_KTRACE_BUSYSEARCH, __LINE__)
+#define	TRACE_BUSYSEARCH(__func__,s,ag,agb,l,tp)	\
+	xfs_alloc_trace_busy(__func__, s, mp, ag, agb, l, 0, tp, XFS_ALLOC_KTRACE_BUSYSEARCH, __LINE__)
 #else
 #define	TRACE_ALLOC(s,a)
 #define	TRACE_FREE(s,a,b,x,f)
 #define	TRACE_MODAGF(s,a,f)
 #define	TRACE_BUSY(s,a,ag,agb,l,sl,tp)
 #define	TRACE_UNBUSY(fname,s,ag,sl,tp)
-#define	TRACE_BUSYSEARCH(fname,s,ag,agb,l,sl,tp)
+#define	TRACE_BUSYSEARCH(fname,s,ag,agb,l,tp)
 #endif	/* XFS_ALLOC_TRACE */
 
 /*
@@ -2562,9 +2562,10 @@ xfs_alloc_clear_busy(xfs_trans_t *tp,
 
 
 /*
- * returns non-zero if any of (agno,bno):len is in a busy list
+ * If we find the extent in the busy list, force the log out to get the
+ * extent out of the busy list so the caller can use it straight away.
  */
-STATIC int
+STATIC void
 xfs_alloc_search_busy(xfs_trans_t *tp,
 		    xfs_agnumber_t agno,
 		    xfs_agblock_t bno,
@@ -2572,7 +2573,6 @@ xfs_alloc_search_busy(xfs_trans_t *tp,
 {
 	xfs_mount_t		*mp;
 	xfs_perag_busy_t	*bsy;
-	int			n;
 	xfs_agblock_t		uend, bend;
 	xfs_lsn_t		lsn;
 	int			cnt;
@@ -2585,21 +2585,18 @@ xfs_alloc_search_busy(xfs_trans_t *tp,
 	uend = bno + len - 1;
 
 	/* search pagb_list for this slot, skipping open slots */
-	for (bsy = mp->m_perag[agno].pagb_list, n = 0;
-	     cnt; bsy++, n++) {
+	for (bsy = mp->m_perag[agno].pagb_list; cnt; bsy++) {
 
 		/*
 		 * (start1,length1) within (start2, length2)
 		 */
 		if (bsy->busy_tp != NULL) {
 			bend = bsy->busy_start + bsy->busy_length - 1;
-			if ((bno > bend) ||
-			    (uend < bsy->busy_start)) {
+			if ((bno > bend) || (uend < bsy->busy_start)) {
 				cnt--;
 			} else {
 				TRACE_BUSYSEARCH("xfs_alloc_search_busy",
-						 "found1", agno, bno, len, n,
-						 tp);
+					 "found1", agno, bno, len, tp);
 				break;
 			}
 		}
@@ -2610,15 +2607,12 @@ xfs_alloc_search_busy(xfs_trans_t *tp,
 	 * transaction that freed the block
 	 */
 	if (cnt) {
-		TRACE_BUSYSEARCH("xfs_alloc_search_busy", "found", agno, bno, len, n, tp);
+		TRACE_BUSYSEARCH("xfs_alloc_search_busy", "found", agno, bno, len, tp);
 		lsn = bsy->busy_tp->t_commit_lsn;
 		spin_unlock(&mp->m_perag[agno].pagb_lock);
 		xfs_log_force(mp, lsn, XFS_LOG_FORCE|XFS_LOG_SYNC);
 	} else {
-		TRACE_BUSYSEARCH("xfs_alloc_search_busy", "not-found", agno, bno, len, n, tp);
-		n = -1;
+		TRACE_BUSYSEARCH("xfs_alloc_search_busy", "not-found", agno, bno, len, tp);
 		spin_unlock(&mp->m_perag[agno].pagb_lock);
 	}
-
-	return n;
 }
