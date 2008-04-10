@@ -236,7 +236,7 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 	status = acpi_get_table_by_index(table_index, &table);
 	if (ACPI_SUCCESS(status)) {
 		ACPI_INFO((AE_INFO,
-			   "Dynamic OEM Table Load - [%4.4s] OemId [%6.6s] OemTableId [%8.8s]",
+			   "Dynamic OEM Table Load - [%.4s] OemId [%.6s] OemTableId [%.8s]",
 			   table->signature, table->oem_id,
 			   table->oem_table_id));
 	}
@@ -472,8 +472,5 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 
 	acpi_tb_set_table_loaded_flag(table_index, FALSE);
 
-	/* Delete the table descriptor (ddb_handle) */
-
-	acpi_ut_remove_reference(table_desc);
 	return_ACPI_STATUS(AE_OK);
 }
