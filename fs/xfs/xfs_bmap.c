@@ -2402,7 +2402,7 @@ xfs_bmap_extsize_align(
 
 #define XFS_ALLOC_GAP_UNITS	4
 
-STATIC int
+STATIC void
 xfs_bmap_adjacent(
 	xfs_bmalloca_t	*ap)		/* bmap alloc argument struct */
 {
@@ -2548,7 +2548,6 @@ xfs_bmap_adjacent(
 			ap->rval = gotbno;
 	}
 #undef ISVALID
-	return 0;
 }
 
 STATIC int
