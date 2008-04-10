@@ -37,7 +37,6 @@ struct route_info {
 #define RT6_LOOKUP_F_SRCPREF_PUBLIC	0x00000010
 #define RT6_LOOKUP_F_SRCPREF_COA	0x00000020
 
-extern struct rt6_info	*ip6_null_entry;
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 extern struct rt6_info	*ip6_prohibit_entry;
@@ -60,20 +59,6 @@ extern int			ipv6_route_ioctl(struct net *net,
 extern int			ip6_route_add(struct fib6_config *cfg);
 extern int			ip6_ins_rt(struct rt6_info *);
 extern int			ip6_del_rt(struct rt6_info *);
-
-extern int			ip6_rt_addr_add(struct in6_addr *addr,
-						struct net_device *dev,
-						int anycast);
-
-extern int			ip6_rt_addr_del(struct in6_addr *addr,
-						struct net_device *dev);
-
-extern void			rt6_sndmsg(int type, struct in6_addr *dst,
-					   struct in6_addr *src,
-					   struct in6_addr *gw,
-					   struct net_device *dev, 
-					   int dstlen, int srclen,
-					   int metric, __u32 flags);
 
 extern struct rt6_info		*rt6_lookup(struct net *net,
 					    struct in6_addr *daddr,
