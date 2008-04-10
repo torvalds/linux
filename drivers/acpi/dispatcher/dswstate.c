@@ -220,7 +220,7 @@ static acpi_status acpi_ds_result_stack_push(struct acpi_walk_state *walk_state)
 
 	/* Check for stack overflow */
 
-	if ((walk_state->result_size + ACPI_RESULTS_FRAME_OBJ_NUM) >
+	if (((u32) walk_state->result_size + ACPI_RESULTS_FRAME_OBJ_NUM) >
 	    ACPI_RESULTS_OBJ_NUM_MAX) {
 		ACPI_ERROR((AE_INFO, "Result stack overflow: State=%p Num=%X",
 			    walk_state, walk_state->result_size));
@@ -400,7 +400,7 @@ void
 acpi_ds_obj_stack_pop_and_delete(u32 pop_count,
 				 struct acpi_walk_state *walk_state)
 {
-	u32 i;
+	acpi_native_int i;
 	union acpi_operand_object *obj_desc;
 
 	ACPI_FUNCTION_NAME(ds_obj_stack_pop_and_delete);
@@ -409,7 +409,7 @@ acpi_ds_obj_stack_pop_and_delete(u32 pop_count,
 		return;
 	}
 
-	for (i = (pop_count - 1); i >= 0; i--) {
+	for (i = (acpi_native_int) (pop_count - 1); i >= 0; i--) {
 		if (walk_state->num_operands == 0) {
 			return;
 		}

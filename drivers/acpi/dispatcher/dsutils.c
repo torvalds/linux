@@ -700,10 +700,9 @@ acpi_ds_create_operands(struct acpi_walk_state *walk_state,
 	acpi_status status = AE_OK;
 	union acpi_parse_object *arg;
 	union acpi_parse_object *arguments[ACPI_OBJ_NUM_OPERANDS];
-	u8 arg_count = 0;
-	u8 count = 0;
-	u8 index = walk_state->num_operands;
-	u8 i;
+	u32 arg_count = 0;
+	u32 index = walk_state->num_operands;
+	u32 i;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_create_operands, first_arg);
 
@@ -734,14 +733,13 @@ acpi_ds_create_operands(struct acpi_walk_state *walk_state,
 
 		/* Force the filling of the operand stack in inverse order */
 
-		walk_state->operand_index = index;
+		walk_state->operand_index = (u8) index;
 
 		status = acpi_ds_create_operand(walk_state, arg, index);
 		if (ACPI_FAILURE(status)) {
 			goto cleanup;
 		}
 
-		count++;
 		index--;
 
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,

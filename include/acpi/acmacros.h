@@ -65,7 +65,11 @@
  * Full 64-bit integer must be available on both 32-bit and 64-bit platforms
  */
 #define ACPI_LODWORD(l)                 ((u32)(u64)(l))
+#define ACPI_HIDWORD(l)                 ((u16)((((u64)(l)) >> 32) & 0xFFFFFFFF))
+
+#if 0
 #define ACPI_HIDWORD(l)                 ((u32)(((*(struct uint64_struct *)(void *)(&l))).hi))
+#endif
 
 /*
  * printf() format helpers
@@ -74,6 +78,12 @@
 /* Split 64-bit integer into two 32-bit values. Use with %8.8_x%8.8_x */
 
 #define ACPI_FORMAT_UINT64(i)           ACPI_HIDWORD(i),ACPI_LODWORD(i)
+
+#if ACPI_MACHINE_WIDTH == 64
+#define ACPI_FORMAT_NATIVE_UINT(i)      ACPI_FORMAT_UINT64(i)
+#else
+#define ACPI_FORMAT_NATIVE_UINT(i)      0, (i)
+#endif
 
 /*
  * Extract data using a pointer.  Any more than a byte and we

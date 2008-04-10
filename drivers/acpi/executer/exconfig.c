@@ -45,7 +45,6 @@
 #include <acpi/acinterp.h>
 #include <acpi/amlcode.h>
 #include <acpi/acnamesp.h>
-#include <acpi/acevents.h>
 #include <acpi/actables.h>
 #include <acpi/acdispat.h>
 
@@ -341,9 +340,10 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
 		/* Validate checksum here. It won't get validated in tb_add_table */
 
-		status = acpi_tb_verify_checksum((struct acpi_table_header *)
-						 obj_desc->buffer.pointer,
-						 length);
+		status =
+		    acpi_tb_verify_checksum(ACPI_CAST_PTR
+					    (struct acpi_table_header,
+					     obj_desc->buffer.pointer), length);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -468,7 +468,7 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	 * (Offset contains the table_id)
 	 */
 	acpi_tb_delete_namespace_by_owner(table_index);
-	acpi_tb_release_owner_id(table_index);
+	(void)acpi_tb_release_owner_id(table_index);
 
 	acpi_tb_set_table_loaded_flag(table_index, FALSE);
 

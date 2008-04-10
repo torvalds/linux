@@ -263,7 +263,8 @@ acpi_ex_access_region(union acpi_operand_object *obj_desc,
 			      rgn_desc->region.space_id,
 			      obj_desc->common_field.access_byte_width,
 			      obj_desc->common_field.base_byte_offset,
-			      field_datum_byte_offset, (void *)address));
+			      field_datum_byte_offset, ACPI_CAST_PTR(void,
+								     address)));
 
 	/* Invoke the appropriate address_space/op_region handler */
 

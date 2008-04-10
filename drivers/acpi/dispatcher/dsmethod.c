@@ -42,7 +42,6 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/acparser.h>
 #include <acpi/amlcode.h>
 #include <acpi/acdispat.h>
 #include <acpi/acinterp.h>
@@ -102,7 +101,7 @@ acpi_ds_method_error(acpi_status status, struct acpi_walk_state *walk_state)
 						    walk_state->opcode,
 						    walk_state->aml_offset,
 						    NULL);
-		(void)acpi_ex_enter_interpreter();
+		acpi_ex_enter_interpreter();
 	}
 #ifdef ACPI_DISASSEMBLER
 	if (ACPI_FAILURE(status)) {
@@ -535,7 +534,6 @@ void
 acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 				 struct acpi_walk_state *walk_state)
 {
-	acpi_status status;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_terminate_control_method, walk_state);
 
@@ -550,29 +548,27 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 		/* Delete all arguments and locals */
 
 		acpi_ds_method_data_delete_all(walk_state);
-	}
 
-	/*
-	 * If method is serialized, release the mutex and restore the
-	 * current sync level for this thread
-	 */
-	if (method_desc->method.mutex) {
+		/*
+		 * If method is serialized, release the mutex and restore the
+		 * current sync level for this thread
+		 */
+		if (method_desc->method.mutex) {
 
-		/* Acquisition Depth handles recursive calls */
+			/* Acquisition Depth handles recursive calls */
 
-		method_desc->method.mutex->mutex.acquisition_depth--;
-		if (!method_desc->method.mutex->mutex.acquisition_depth) {
-			walk_state->thread->current_sync_level =
-			    method_desc->method.mutex->mutex.
-			    original_sync_level;
+			method_desc->method.mutex->mutex.acquisition_depth--;
+			if (!method_desc->method.mutex->mutex.acquisition_depth) {
+				walk_state->thread->current_sync_level =
+				    method_desc->method.mutex->mutex.
+				    original_sync_level;
 
-			acpi_os_release_mutex(method_desc->method.mutex->mutex.
-					      os_mutex);
-			method_desc->method.mutex->mutex.thread_id = 0;
+				acpi_os_release_mutex(method_desc->method.
+						      mutex->mutex.os_mutex);
+				method_desc->method.mutex->mutex.thread_id = 0;
+			}
 		}
-	}
 
-	if (walk_state) {
 		/*
 		 * Delete any namespace objects created anywhere within
 		 * the namespace by the execution of this method
@@ -613,7 +609,7 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 		 */
 		if ((method_desc->method.method_flags & AML_METHOD_SERIALIZED)
 		    && (!method_desc->method.mutex)) {
-			status = acpi_ds_create_method_mutex(method_desc);
+			(void)acpi_ds_create_method_mutex(method_desc);
 		}
 
 		/* No more threads, we can free the owner_id */

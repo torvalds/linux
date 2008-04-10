@@ -477,6 +477,8 @@ typedef u32 acpi_object_type;
 #define ACPI_TYPE_INVALID               0x1E
 #define ACPI_TYPE_NOT_FOUND             0xFF
 
+#define ACPI_NUM_NS_TYPES               (ACPI_TYPE_INVALID + 1)
+
 /*
  * All I/O
  */

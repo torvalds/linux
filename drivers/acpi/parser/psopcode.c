@@ -49,7 +49,8 @@
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psopcode")
 
-const u8 acpi_gbl_argument_count[] = { 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 6 };
+static const u8 acpi_gbl_argument_count[] =
+    { 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 6 };
 
 /*******************************************************************************
  *

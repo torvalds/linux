@@ -189,7 +189,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 		if (source_desc->reference.opcode == AML_LOAD_OP) {	/* Load and load_table */
 			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT,
-					      " Table OwnerId %X\n",
+					      " Table OwnerId %p\n",
 					      source_desc->reference.object));
 			break;
 		}
@@ -213,7 +213,9 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 			    (source_desc->reference.node) !=
 			    ACPI_DESC_TYPE_NAMED) {
 				ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT,
-						      " %p - Not a valid namespace node\n"));
+						      " %p - Not a valid namespace node\n",
+						      source_desc->reference.
+						      node));
 			} else {
 				acpi_ex_do_debug_object((source_desc->reference.
 							 node)->object,

@@ -157,7 +157,9 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 			 * will remain as named references. This behavior is not described
 			 * in the ACPI spec, but it appears to be an oversight.
 			 */
-			obj_desc = (union acpi_operand_object *)op->common.node;
+			obj_desc =
+			    ACPI_CAST_PTR(union acpi_operand_object,
+					  op->common.node);
 
 			status =
 			    acpi_ex_resolve_node_to_value(ACPI_CAST_INDIRECT_PTR

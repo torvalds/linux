@@ -267,8 +267,6 @@ extern char const *acpi_gbl_exception_names_ctrl[];
  *
  ****************************************************************************/
 
-#define NUM_NS_TYPES                    ACPI_TYPE_INVALID+1
-
 #if !defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
 #define NUM_PREDEFINED_NAMES            10
 #else
@@ -279,7 +277,7 @@ ACPI_EXTERN struct acpi_namespace_node acpi_gbl_root_node_struct;
 ACPI_EXTERN struct acpi_namespace_node *acpi_gbl_root_node;
 ACPI_EXTERN struct acpi_namespace_node *acpi_gbl_fadt_gpe_device;
 
-extern const u8 acpi_gbl_ns_properties[NUM_NS_TYPES];
+extern const u8 acpi_gbl_ns_properties[ACPI_NUM_NS_TYPES];
 extern const struct acpi_predefined_names
     acpi_gbl_pre_defined_names[NUM_PREDEFINED_NAMES];
 
@@ -287,8 +285,8 @@ extern const struct acpi_predefined_names
 ACPI_EXTERN u32 acpi_gbl_current_node_count;
 ACPI_EXTERN u32 acpi_gbl_current_node_size;
 ACPI_EXTERN u32 acpi_gbl_max_concurrent_node_count;
-ACPI_EXTERN acpi_size acpi_gbl_entry_stack_pointer;
-ACPI_EXTERN acpi_size acpi_gbl_lowest_stack_pointer;
+ACPI_EXTERN acpi_size *acpi_gbl_entry_stack_pointer;
+ACPI_EXTERN acpi_size *acpi_gbl_lowest_stack_pointer;
 ACPI_EXTERN u32 acpi_gbl_deepest_nesting;
 #endif
 
