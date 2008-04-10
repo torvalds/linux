@@ -215,6 +215,11 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 		/*
 		 * There is no corresponding external object type
 		 */
+		ACPI_ERROR((AE_INFO,
+			    "Unsupported object type, cannot convert to external object: %s",
+			    acpi_ut_get_type_name(ACPI_GET_OBJECT_TYPE
+						  (internal_object))));
+
 		return_ACPI_STATUS(AE_SUPPORT);
 	}
 
@@ -466,6 +471,10 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 
 	default:
 		/* All other types are not supported */
+
+		ACPI_ERROR((AE_INFO,
+			    "Unsupported object type, cannot convert to internal object: %s",
+			    acpi_ut_get_type_name(external_object->type)));
 
 		return_ACPI_STATUS(AE_SUPPORT);
 	}
