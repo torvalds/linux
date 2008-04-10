@@ -44,6 +44,9 @@
 #include <asm/mmu.h>
 #include <asm/hvcall.h>
 #endif
+#ifdef CONFIG_PPC_ISERIES
+#include <asm/iseries/alpaca.h>
+#endif
 
 #define DEFINE(sym, val) \
 	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
@@ -321,6 +324,9 @@ int main(void)
 	DEFINE(PAGE_OFFSET_VSID, KERNEL_VSID(PAGE_OFFSET));
 	DEFINE(VMALLOC_START_ESID, GET_ESID(VMALLOC_START));
 	DEFINE(VMALLOC_START_VSID, KERNEL_VSID(VMALLOC_START));
+
+	/* alpaca */
+	DEFINE(ALPACA_SIZE, sizeof(struct alpaca));
 #endif
 
 	DEFINE(PGD_TABLE_SIZE, PGD_TABLE_SIZE);

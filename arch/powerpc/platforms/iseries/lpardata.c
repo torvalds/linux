@@ -18,6 +18,7 @@
 #include <asm/paca.h>
 #include <asm/iseries/lpar_map.h>
 #include <asm/iseries/it_lp_queue.h>
+#include <asm/iseries/alpaca.h>
 
 #include "naca.h"
 #include "vpd_areas.h"
@@ -159,6 +160,40 @@ struct SpCommArea xSpCommArea = {
 	.xFormat = 1,
 };
 
+#define ALPACA_INIT(number)						\
+{									\
+	.lppaca_ptr = &lppaca[number],					\
+	.reg_save_ptr = &iseries_reg_save[number],			\
+}
+
+struct alpaca alpaca[] = {
+	ALPACA_INIT( 0),
+#if NR_CPUS > 1
+	ALPACA_INIT( 1), ALPACA_INIT( 2), ALPACA_INIT( 3),
+#if NR_CPUS > 4
+	ALPACA_INIT( 4), ALPACA_INIT( 5), ALPACA_INIT( 6), ALPACA_INIT( 7),
+#if NR_CPUS > 8
+	ALPACA_INIT( 8), ALPACA_INIT( 9), ALPACA_INIT(10), ALPACA_INIT(11),
+	ALPACA_INIT(12), ALPACA_INIT(13), ALPACA_INIT(14), ALPACA_INIT(15),
+	ALPACA_INIT(16), ALPACA_INIT(17), ALPACA_INIT(18), ALPACA_INIT(19),
+	ALPACA_INIT(20), ALPACA_INIT(21), ALPACA_INIT(22), ALPACA_INIT(23),
+	ALPACA_INIT(24), ALPACA_INIT(25), ALPACA_INIT(26), ALPACA_INIT(27),
+	ALPACA_INIT(28), ALPACA_INIT(29), ALPACA_INIT(30), ALPACA_INIT(31),
+#if NR_CPUS > 32
+	ALPACA_INIT(32), ALPACA_INIT(33), ALPACA_INIT(34), ALPACA_INIT(35),
+	ALPACA_INIT(36), ALPACA_INIT(37), ALPACA_INIT(38), ALPACA_INIT(39),
+	ALPACA_INIT(40), ALPACA_INIT(41), ALPACA_INIT(42), ALPACA_INIT(43),
+	ALPACA_INIT(44), ALPACA_INIT(45), ALPACA_INIT(46), ALPACA_INIT(47),
+	ALPACA_INIT(48), ALPACA_INIT(49), ALPACA_INIT(50), ALPACA_INIT(51),
+	ALPACA_INIT(52), ALPACA_INIT(53), ALPACA_INIT(54), ALPACA_INIT(55),
+	ALPACA_INIT(56), ALPACA_INIT(57), ALPACA_INIT(58), ALPACA_INIT(59),
+	ALPACA_INIT(60), ALPACA_INIT(61), ALPACA_INIT(62), ALPACA_INIT(63),
+#endif
+#endif
+#endif
+#endif
+};
+
 /* The LparMap data is now located at offset 0x6000 in head.S
  * It was put there so that the HvReleaseData could address it
  * with a 32-bit offset as required by the iSeries hypervisor
@@ -185,7 +220,7 @@ struct ItVpdAreas itVpdAreas = {
 	.xSlicVpdLens = {			/* VPD lengths */
 	        0,0,0,		        /*  0 - 2 */
 		sizeof(xItExtVpdPanel), /*       3 Extended VPD   */
-		sizeof(struct paca_struct),	/*       4 length of Paca  */
+		sizeof(struct alpaca),	/*       4 length of (fake) Paca  */
 		0,			/*       5 */
 		sizeof(struct ItIplParmsReal),/* 6 length of IPL parms */
 		26992,			/*	 7 length of MS VPD */
@@ -203,7 +238,7 @@ struct ItVpdAreas itVpdAreas = {
 	.xSlicVpdAdrs = {			/* VPD addresses */
 		0,0,0,			/*	 0 -  2 */
 		&xItExtVpdPanel,        /*       3 Extended VPD */
-		&paca[0],		/*       4 first Paca */
+		&alpaca[0],		/*       4 first (fake) Paca */
 		0,			/*       5 */
 		&xItIplParmsReal,	/*	 6 IPL parms */
 		&xMsVpd,		/*	 7 MS Vpd */
