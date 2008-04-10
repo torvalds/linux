@@ -1227,12 +1227,15 @@ xfs_mountfs(
 	 *
 	 * We default to 5% or 1024 fsbs of space reserved, whichever is smaller.
 	 * This may drive us straight to ENOSPC on mount, but that implies
-	 * we were already there on the last unmount.
+	 * we were already there on the last unmount. Warn if this occurs.
 	 */
 	resblks = mp->m_sb.sb_dblocks;
 	do_div(resblks, 20);
 	resblks = min_t(__uint64_t, resblks, 1024);
-	xfs_reserve_blocks(mp, &resblks, NULL);
+	error = xfs_reserve_blocks(mp, &resblks, NULL);
+	if (error)
+		cmn_err(CE_WARN, "XFS: Unable to allocate reserve blocks. "
+				"Continuing without a reserve pool.");
 
 	return 0;
 
@@ -1268,6 +1271,7 @@ int
 xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 {
 	__uint64_t	resblks;
+	int		error = 0;
 
 	/*
 	 * We can potentially deadlock here if we have an inode cluster
@@ -1311,7 +1315,11 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 	 * value does not matter....
 	 */
 	resblks = 0;
-	xfs_reserve_blocks(mp, &resblks, NULL);
+	error = xfs_reserve_blocks(mp, &resblks, NULL);
+	if (error)
+		cmn_err(CE_WARN, "XFS: Unable to free reserved block pool. "
+				"Freespace may not be correct on next mount.");
+
 
 	xfs_log_sbcount(mp, 1);
 	xfs_unmountfs_writesb(mp);
