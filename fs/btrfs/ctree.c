@@ -570,6 +570,7 @@ static int noinline check_block(struct btrfs_root *root,
 				struct btrfs_path *path, int level)
 {
 	u64 found_start;
+	return 0;
 	if (btrfs_header_level(path->nodes[level]) != level)
 	    printk("warning: bad level %Lu wanted %d found %d\n",
 		   path->nodes[level]->start, level,
