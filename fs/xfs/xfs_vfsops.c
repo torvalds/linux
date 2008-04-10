@@ -637,7 +637,7 @@ out:
 	return XFS_ERROR(error);
 }
 
-STATIC int
+STATIC void
 xfs_quiesce_fs(
 	xfs_mount_t		*mp)
 {
@@ -661,8 +661,6 @@ xfs_quiesce_fs(
 			count++;
 		}
 	} while (count < 2);
-
-	return 0;
 }
 
 /*
