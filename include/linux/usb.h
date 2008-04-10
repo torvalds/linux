@@ -938,10 +938,11 @@ struct usbdrv_wrap {
  *	and should normally be the same as the module name.
  * @probe: Called to see if the driver is willing to manage a particular
  *	interface on a device.  If it is, probe returns zero and uses
- *	dev_set_drvdata() to associate driver-specific data with the
+ *	usb_set_intfdata() to associate driver-specific data with the
  *	interface.  It may also use usb_set_interface() to specify the
  *	appropriate altsetting.  If unwilling to manage the interface,
- *	return a negative errno value.
+ *	return -ENODEV, if genuine IO errors occured, an appropriate
+ *	negative errno value.
  * @disconnect: Called when the interface is no longer accessible, usually
  *	because its device has been (or is being) disconnected or the
  *	driver module is being unloaded.
@@ -956,10 +957,7 @@ struct usbdrv_wrap {
  * @pre_reset: Called by usb_reset_composite_device() when the device
  *	is about to be reset.
  * @post_reset: Called by usb_reset_composite_device() after the device
- *	has been reset, or in lieu of @resume following a reset-resume
- *	(i.e., the device is reset instead of being resumed, as might
- *	happen if power was lost).  The second argument tells which is
- *	the reason.
+ *	has been reset
  * @id_table: USB drivers use ID table to support hotplugging.
  *	Export this with MODULE_DEVICE_TABLE(usb,...).  This must be set
  *	or your driver's probe function will never get called.
