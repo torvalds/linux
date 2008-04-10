@@ -316,5 +316,5 @@ int __init fib6_rules_init(void)
 
 void fib6_rules_cleanup(void)
 {
-	return unregister_pernet_subsys(&fib6_rules_net_ops);
+	unregister_pernet_subsys(&fib6_rules_net_ops);
 }
