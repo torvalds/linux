@@ -900,10 +900,19 @@ static void pipe_irq_disable(struct r8a66597 *r8a66597, u16 pipenum)
 }
 
 /* this function must be called with interrupt disabled */
-static void r8a66597_usb_preconnect(struct r8a66597 *r8a66597, int port)
+static void r8a66597_check_syssts(struct r8a66597 *r8a66597, int port,
+					u16 syssts)
 {
-	r8a66597->root_hub[port].port |= (1 << USB_PORT_FEAT_CONNECTION)
-					 | (1 << USB_PORT_FEAT_C_CONNECTION);
+	if (syssts == SE0) {
+		r8a66597_bset(r8a66597, ATTCHE, get_intenb_reg(port));
+		return;
+	}
+
+	if (syssts == FS_JSTS)
+		r8a66597_bset(r8a66597, HSE, get_syscfg_reg(port));
+	else if (syssts == LS_JSTS)
+		r8a66597_bclr(r8a66597, HSE, get_syscfg_reg(port));
+
 	r8a66597_write(r8a66597, ~DTCH, get_intsts_reg(port));
 	r8a66597_bset(r8a66597, DTCHE, get_intenb_reg(port));
 }
@@ -1478,13 +1487,21 @@ static void irq_pipe_nrdy(struct r8a66597 *r8a66597)
 	}
 }
 
+static void r8a66597_root_hub_start_polling(struct r8a66597 *r8a66597)
+{
+	mod_timer(&r8a66597->rh_timer,
+			jiffies + msecs_to_jiffies(R8A66597_RH_POLL_TIME));
+}
+
 static void start_root_hub_sampling(struct r8a66597 *r8a66597, int port)
 {
 	struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
 
 	rh->old_syssts = r8a66597_read(r8a66597, get_syssts_reg(port)) & LNST;
 	rh->scount = R8A66597_MAX_SAMPLING;
-	mod_timer(&r8a66597->rh_timer, jiffies + msecs_to_jiffies(50));
+	r8a66597->root_hub[port].port |= (1 << USB_PORT_FEAT_CONNECTION)
+					 | (1 << USB_PORT_FEAT_C_CONNECTION);
+	r8a66597_root_hub_start_polling(r8a66597);
 }
 
 static irqreturn_t r8a66597_irq(struct usb_hcd *hcd)
@@ -1571,37 +1588,28 @@ static void r8a66597_root_hub_control(struct r8a66597 *r8a66597, int port)
 		if ((tmp & USBRST) == USBRST) {
 			r8a66597_mdfy(r8a66597, UACT, USBRST | UACT,
 				      dvstctr_reg);
-			mod_timer(&r8a66597->rh_timer,
-				  jiffies + msecs_to_jiffies(50));
+			r8a66597_root_hub_start_polling(r8a66597);
 		} else
 			r8a66597_usb_connect(r8a66597, port);
+	}
+
+	if (!(rh->port & (1 << USB_PORT_FEAT_CONNECTION))) {
+		r8a66597_write(r8a66597, ~ATTCH, get_intsts_reg(port));
+		r8a66597_bset(r8a66597, ATTCHE, get_intenb_reg(port));
 	}
 
 	if (rh->scount > 0) {
 		tmp = r8a66597_read(r8a66597, get_syssts_reg(port)) & LNST;
 		if (tmp == rh->old_syssts) {
 			rh->scount--;
-			if (rh->scount == 0) {
-				if (tmp == FS_JSTS) {
-					r8a66597_bset(r8a66597, HSE,
-						      get_syscfg_reg(port));
-					r8a66597_usb_preconnect(r8a66597, port);
-				} else if (tmp == LS_JSTS) {
-					r8a66597_bclr(r8a66597, HSE,
-						      get_syscfg_reg(port));
-					r8a66597_usb_preconnect(r8a66597, port);
-				} else if (tmp == SE0)
-					r8a66597_bset(r8a66597, ATTCHE,
-						      get_intenb_reg(port));
-			} else {
-				mod_timer(&r8a66597->rh_timer,
-					  jiffies + msecs_to_jiffies(50));
-			}
+			if (rh->scount == 0)
+				r8a66597_check_syssts(r8a66597, port, tmp);
+			else
+				r8a66597_root_hub_start_polling(r8a66597);
 		} else {
 			rh->scount = R8A66597_MAX_SAMPLING;
 			rh->old_syssts = tmp;
-			mod_timer(&r8a66597->rh_timer,
-				  jiffies + msecs_to_jiffies(50));
+			r8a66597_root_hub_start_polling(r8a66597);
 		}
 	}
 }

@@ -396,7 +396,8 @@
 #define R8A66597_BUF_BSIZE		8
 #define R8A66597_MAX_DEVICE		10
 #define R8A66597_MAX_ROOT_HUB		2
-#define R8A66597_MAX_SAMPLING		10
+#define R8A66597_MAX_SAMPLING		5
+#define R8A66597_RH_POLL_TIME		10
 #define R8A66597_MAX_DMA_CHANNEL	2
 #define R8A66597_PIPE_NO_DMA		R8A66597_MAX_DMA_CHANNEL
 #define check_bulk_or_isoc(pipenum)	((pipenum >= 1 && pipenum <= 5))
