@@ -1238,7 +1238,7 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int
 #ifdef CONFIG_IPV6_PIMSM_V2
 	case MRT6_PIM:
 	{
-		int v, ret;
+		int v;
 		if (get_user(v, (int __user *)optval))
 			return -EFAULT;
 		v = !!v;
