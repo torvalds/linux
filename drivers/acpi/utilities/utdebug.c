@@ -201,6 +201,7 @@ acpi_ut_debug_print(u32 requested_debug_level,
 
 	va_start(args, format);
 	acpi_os_vprintf(format, args);
+	va_end(args);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_ut_debug_print)
@@ -238,6 +239,7 @@ acpi_ut_debug_print_raw(u32 requested_debug_level,
 
 	va_start(args, format);
 	acpi_os_vprintf(format, args);
+	va_end(args);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_ut_debug_print_raw)
