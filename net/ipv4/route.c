@@ -2077,12 +2077,12 @@ int ip_route_input(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	rcu_read_lock();
 	for (rth = rcu_dereference(rt_hash_table[hash].chain); rth;
 	     rth = rcu_dereference(rth->u.dst.rt_next)) {
-		if (rth->fl.fl4_dst == daddr &&
-		    rth->fl.fl4_src == saddr &&
-		    rth->fl.iif == iif &&
-		    rth->fl.oif == 0 &&
+		if (((rth->fl.fl4_dst ^ daddr) |
+		     (rth->fl.fl4_src ^ saddr) |
+		     (rth->fl.iif ^ iif) |
+		     rth->fl.oif |
+		     (rth->fl.fl4_tos ^ tos)) == 0 &&
 		    rth->fl.mark == skb->mark &&
-		    rth->fl.fl4_tos == tos &&
 		    net_eq(dev_net(rth->u.dst.dev), net) &&
 		    rth->rt_genid == atomic_read(&rt_genid)) {
 			dst_use(&rth->u.dst, jiffies);
