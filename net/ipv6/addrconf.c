@@ -541,6 +541,25 @@ ipv6_link_dev_addr(struct inet6_dev *idev, struct inet6_ifaddr *ifp)
 	*ifap = ifp;
 }
 
+/*
+ *	Hash function taken from net_alias.c
+ */
+static u8 ipv6_addr_hash(const struct in6_addr *addr)
+{
+	__u32 word;
+
+	/*
+	 * We perform the hash function over the last 64 bits of the address
+	 * This will include the IEEE address token on links that support it.
+	 */
+
+	word = (__force u32)(addr->s6_addr32[2] ^ addr->s6_addr32[3]);
+	word ^= (word >> 16);
+	word ^= (word >> 8);
+
+	return ((word ^ (word >> 4)) & 0x0f);
+}
+
 /* On success it returns ifp with increased reference count */
 
 static struct inet6_ifaddr *

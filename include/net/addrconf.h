@@ -189,25 +189,6 @@ static inline void in6_ifa_put(struct inet6_ifaddr *ifp)
 #define in6_ifa_hold(ifp)	atomic_inc(&(ifp)->refcnt)
 
 
-/*
- *	Hash function taken from net_alias.c
- */
-
-static __inline__ u8 ipv6_addr_hash(const struct in6_addr *addr)
-{	
-	__u32 word;
-
-	/* 
-	 * We perform the hash function over the last 64 bits of the address
-	 * This will include the IEEE address token on links that support it.
-	 */
-
-	word = (__force u32)(addr->s6_addr32[2] ^ addr->s6_addr32[3]);
-	word ^= (word >> 16);
-	word ^= (word >> 8);
-
-	return ((word ^ (word >> 4)) & 0x0f);
-}
 
 /*
  *	compute link-local solicited-node multicast address
