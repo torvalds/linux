@@ -128,10 +128,15 @@ static int tda10086_init(struct dvb_frontend* fe)
 	tda10086_write_byte(state, 0x32, 0x00); // irq off
 	tda10086_write_byte(state, 0x31, 0x56); // setup AFC
 
-	// setup PLL (assumes 16Mhz XIN)
+	// setup PLL (this assumes SACLK = 96MHz)
 	tda10086_write_byte(state, 0x55, 0x2c); // misc PLL setup
-	tda10086_write_byte(state, 0x3a, 0x0b); // M=12
-	tda10086_write_byte(state, 0x3b, 0x01); // P=2
+	if (state->config->xtal_freq == TDA10086_XTAL_16M) {
+		tda10086_write_byte(state, 0x3a, 0x0b); // M=12
+		tda10086_write_byte(state, 0x3b, 0x01); // P=2
+	} else {
+		tda10086_write_byte(state, 0x3a, 0x17); // M=24
+		tda10086_write_byte(state, 0x3b, 0x00); // P=1
+	}
 	tda10086_write_mask(state, 0x55, 0x20, 0x00); // powerup PLL
 
 	// setup TS interface

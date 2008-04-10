@@ -26,6 +26,11 @@
 #include <linux/dvb/frontend.h>
 #include <linux/firmware.h>
 
+enum tda10086_xtal {
+	TDA10086_XTAL_16M,
+	TDA10086_XTAL_4M
+};
+
 struct tda10086_config
 {
 	/* the demodulator's i2c address */
@@ -36,6 +41,9 @@ struct tda10086_config
 
 	/* do we need the diseqc signal with carrier? */
 	u8 diseqc_tone;
+
+	/* frequency of the reference xtal */
+	enum tda10086_xtal xtal_freq;
 };
 
 #if defined(CONFIG_DVB_TDA10086) || (defined(CONFIG_DVB_TDA10086_MODULE) && defined(MODULE))

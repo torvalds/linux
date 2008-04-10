@@ -147,6 +147,7 @@ static struct tda10086_config tda10086_config = {
 	.demod_address = 0x0e,
 	.invert = 0,
 	.diseqc_tone = 1,
+	.xtal_freq = TDA10086_XTAL_16M,
 };
 
 static int ttusb2_frontend_attach(struct dvb_usb_adapter *adap)

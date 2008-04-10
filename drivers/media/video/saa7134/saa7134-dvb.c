@@ -851,6 +851,14 @@ static struct tda10086_config flydvbs = {
 	.demod_address = 0x0e,
 	.invert = 0,
 	.diseqc_tone = 0,
+	.xtal_freq = TDA10086_XTAL_16M,
+};
+
+static struct tda10086_config sd1878_4m = {
+	.demod_address = 0x0e,
+	.invert = 0,
+	.diseqc_tone = 0,
+	.xtal_freq = TDA10086_XTAL_4M,
 };
 
 /* ------------------------------------------------------------------
@@ -1206,7 +1214,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_MD7134_BRIDGE_2:
 		dev->dvb.frontend = dvb_attach(tda10086_attach,
-						&flydvbs, &dev->i2c_adap);
+						&sd1878_4m, &dev->i2c_adap);
 		if (dev->dvb.frontend) {
 			struct dvb_frontend *fe;
 			if (dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x60,
