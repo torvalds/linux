@@ -275,6 +275,7 @@ load_b:
 
 	return 0;
 }
+EXPORT_SYMBOL(sk_run_filter);
 
 /**
  *	sk_chk_filter - verify socket filter code
@@ -385,6 +386,7 @@ int sk_chk_filter(struct sock_filter *filter, int flen)
 
 	return (BPF_CLASS(filter[flen - 1].code) == BPF_RET) ? 0 : -EINVAL;
 }
+EXPORT_SYMBOL(sk_chk_filter);
 
 /**
  * 	sk_filter_rcu_release: Release a socket filter by rcu_head
@@ -467,6 +469,3 @@ int sk_detach_filter(struct sock *sk)
 	rcu_read_unlock_bh();
 	return ret;
 }
-
-EXPORT_SYMBOL(sk_chk_filter);
-EXPORT_SYMBOL(sk_run_filter);
