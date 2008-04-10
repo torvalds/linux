@@ -34,6 +34,7 @@
 #include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/mfp-pxa25x.h>
 #include <asm/arch/irda.h>
+#include <asm/arch/i2c.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/udc.h>
 
@@ -416,6 +417,7 @@ static void __init tosa_init(void)
 	pxa_set_mci_info(&tosa_mci_platform_data);
 	pxa_set_udc_info(&udc_info);
 	pxa_set_ficp_info(&tosa_ficp_platform_data);
+	pxa_set_i2c_info(NULL);
 	platform_scoop_config = &tosa_pcmcia_config;
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
