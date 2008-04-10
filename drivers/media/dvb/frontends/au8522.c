@@ -96,11 +96,13 @@ static int au8522_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 		return au8522_writereg(state, 0x106, 0);
 }
 
-/* VSB SNR lookup table */
-static struct {
+struct mse2snr_tab {
 	u16 val;
 	u16 data;
-} vsb_mse2snr_tab[] = {
+};
+
+/* VSB SNR lookup table */
+static struct mse2snr_tab vsb_mse2snr_tab[] = {
 	{   0, 270 },
 	{   2, 250 },
 	{   3, 240 },
@@ -134,10 +136,7 @@ static struct {
 };
 
 /* QAM64 SNR lookup table */
-static struct {
-	u16 val;
-	u16 data;
-} qam64_mse2snr_tab[] = {
+static struct mse2snr_tab qam64_mse2snr_tab[] = {
 	{  15,   0 },
 	{  16, 290 },
 	{  17, 288 },
@@ -218,10 +217,7 @@ static struct {
 };
 
 /* QAM256 SNR lookup table */
-static struct {
-	u16 val;
-	u16 data;
-} qam256_mse2snr_tab[] = {
+static struct mse2snr_tab qam256_mse2snr_tab[] = {
 	{  16,   0 },
 	{  17, 400 },
 	{  18, 398 },
@@ -288,46 +284,14 @@ static struct {
 	{ 256, 280 },
 };
 
-static int au8522_vsb_mse2snr_lookup(int mse, u16 *snr)
+static int au8522_mse2snr_lookup(struct mse2snr_tab *tab, int sz, int mse, u16 *snr)
 {
 	int i, ret = -EINVAL;
 	dprintk("%s()\n", __func__);
 
-	for (i = 0; i < ARRAY_SIZE(vsb_mse2snr_tab); i++) {
-		if (mse < vsb_mse2snr_tab[i].val) {
-			*snr = vsb_mse2snr_tab[i].data;
-			ret = 0;
-			break;
-		}
-	}
-	dprintk("%s() snr=%d\n", __func__, *snr);
-	return ret;
-}
-
-static int au8522_qam64_mse2snr_lookup(int mse, u16 *snr)
-{
-	int i, ret = -EINVAL;
-	dprintk("%s()\n", __func__);
-
-	for (i = 0; i < ARRAY_SIZE(qam64_mse2snr_tab); i++) {
-		if (mse < qam64_mse2snr_tab[i].val) {
-			*snr = qam64_mse2snr_tab[i].data;
-			ret = 0;
-			break;
-		}
-	}
-	dprintk("%s() snr=%d\n", __func__, *snr);
-	return ret;
-}
-
-static int au8522_qam256_mse2snr_lookup(int mse, u16 *snr)
-{
-	int i, ret = -EINVAL;
-	dprintk("%s()\n", __func__);
-
-	for (i = 0; i < ARRAY_SIZE(qam256_mse2snr_tab); i++) {
-		if (mse < qam256_mse2snr_tab[i].val) {
-			*snr = qam256_mse2snr_tab[i].data;
+	for (i = 0; i < sz; i++) {
+		if (mse < tab[i].val) {
+			*snr = tab[i].data;
 			ret = 0;
 			break;
 		}
@@ -588,14 +552,20 @@ static int au8522_read_snr(struct dvb_frontend *fe, u16 *snr)
 	dprintk("%s()\n", __func__);
 
 	if (state->current_modulation == QAM_256)
-		ret = au8522_qam256_mse2snr_lookup(
-			au8522_readreg(state, 0x4522), snr);
+		ret = au8522_mse2snr_lookup(qam256_mse2snr_tab,
+					    ARRAY_SIZE(qam256_mse2snr_tab),
+					    au8522_readreg(state, 0x4522),
+					    snr);
 	else if (state->current_modulation == QAM_64)
-		ret = au8522_qam64_mse2snr_lookup(
-			au8522_readreg(state, 0x4522), snr);
+		ret = au8522_mse2snr_lookup(qam64_mse2snr_tab,
+					    ARRAY_SIZE(qam64_mse2snr_tab),
+					    au8522_readreg(state, 0x4522),
+					    snr);
 	else /* VSB_8 */
-		ret = au8522_vsb_mse2snr_lookup(
-			au8522_readreg(state, 0x4311), snr);
+		ret = au8522_mse2snr_lookup(vsb_mse2snr_tab,
+					    ARRAY_SIZE(vsb_mse2snr_tab),
+					    au8522_readreg(state, 0x4311),
+					    snr);
 
 	return ret;
 }
