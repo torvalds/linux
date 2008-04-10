@@ -603,10 +603,17 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 
 	/* If no implicit conversion, drop into the default case below */
 
-	if ((!implicit_conversion) || (walk_state->opcode == AML_COPY_OP)) {
-
-		/* Force execution of default (no implicit conversion) */
-
+	if ((!implicit_conversion) ||
+	    ((walk_state->opcode == AML_COPY_OP) &&
+	     (target_type != ACPI_TYPE_LOCAL_REGION_FIELD) &&
+	     (target_type != ACPI_TYPE_LOCAL_BANK_FIELD) &&
+	     (target_type != ACPI_TYPE_LOCAL_INDEX_FIELD))) {
+		/*
+		 * Force execution of default (no implicit conversion). Note:
+		 * copy_object does not perform an implicit conversion, as per the ACPI
+		 * spec -- except in case of region/bank/index fields -- because these
+		 * objects must retain their original type permanently.
+		 */
 		target_type = ACPI_TYPE_ANY;
 	}
 
