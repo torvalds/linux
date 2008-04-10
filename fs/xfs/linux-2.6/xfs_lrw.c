@@ -875,28 +875,21 @@ xfs_bdstrat_cb(struct xfs_buf *bp)
 }
 
 /*
- * Wrapper around bdstrat so that we can stop data
- * from going to disk in case we are shutting down the filesystem.
- * Typically user data goes thru this path; one of the exceptions
- * is the superblock.
+ * Wrapper around bdstrat so that we can stop data from going to disk in case
+ * we are shutting down the filesystem.  Typically user data goes thru this
+ * path; one of the exceptions is the superblock.
  */
-int
+void
 xfsbdstrat(
 	struct xfs_mount	*mp,
 	struct xfs_buf		*bp)
 {
 	ASSERT(mp);
-	if (!XFS_FORCED_SHUTDOWN(mp)) {
-		/* Grio redirection would go here
-		 * if (XFS_BUF_IS_GRIO(bp)) {
-		 */
-
+	if (!XFS_FORCED_SHUTDOWN(mp))
 		xfs_buf_iorequest(bp);
-		return 0;
-	}
 
 	xfs_buftrace("XFSBDSTRAT IOERROR", bp);
-	return (xfs_bioerror_relse(bp));
+	xfs_bioerror_relse(bp);
 }
 
 /*

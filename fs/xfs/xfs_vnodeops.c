@@ -3825,7 +3825,8 @@ xfs_zero_remaining_bytes(
 		XFS_BUF_READ(bp);
 		XFS_BUF_SET_ADDR(bp, XFS_FSB_TO_DB(ip, imap.br_startblock));
 		xfsbdstrat(mp, bp);
-		if ((error = xfs_iowait(bp))) {
+		error = xfs_iowait(bp);
+		if (error) {
 			xfs_ioerror_alert("xfs_zero_remaining_bytes(read)",
 					  mp, bp, XFS_BUF_ADDR(bp));
 			break;
@@ -3837,7 +3838,8 @@ xfs_zero_remaining_bytes(
 		XFS_BUF_UNREAD(bp);
 		XFS_BUF_WRITE(bp);
 		xfsbdstrat(mp, bp);
-		if ((error = xfs_iowait(bp))) {
+		error = xfs_iowait(bp);
+		if (error) {
 			xfs_ioerror_alert("xfs_zero_remaining_bytes(write)",
 					  mp, bp, XFS_BUF_ADDR(bp));
 			break;

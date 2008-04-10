@@ -121,7 +121,8 @@ xlog_bread(
 	XFS_BUF_SET_TARGET(bp, log->l_mp->m_logdev_targp);
 
 	xfsbdstrat(log->l_mp, bp);
-	if ((error = xfs_iowait(bp)))
+	error = xfs_iowait(bp);
+	if (error)
 		xfs_ioerror_alert("xlog_bread", log->l_mp,
 				  bp, XFS_BUF_ADDR(bp));
 	return error;
@@ -3849,7 +3850,8 @@ xlog_do_recover(
 	XFS_BUF_READ(bp);
 	XFS_BUF_UNASYNC(bp);
 	xfsbdstrat(log->l_mp, bp);
-	if ((error = xfs_iowait(bp))) {
+	error = xfs_iowait(bp);
+	if (error) {
 		xfs_ioerror_alert("xlog_do_recover",
 				  log->l_mp, bp, XFS_BUF_ADDR(bp));
 		ASSERT(0);
