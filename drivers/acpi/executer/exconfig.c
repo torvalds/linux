@@ -275,6 +275,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	struct acpi_table_desc table_desc;
 	acpi_native_uint table_index;
 	acpi_status status;
+	u32 length;
 
 	ACPI_FUNCTION_TRACE(ex_load_op);
 
@@ -322,18 +323,35 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 				  "Load from Buffer or Field %p %s\n", obj_desc,
 				  acpi_ut_get_object_type_name(obj_desc)));
 
+		length = obj_desc->buffer.length;
+
+		/* Must have at least an ACPI table header */
+
+		if (length < sizeof(struct acpi_table_header)) {
+			return_ACPI_STATUS(AE_INVALID_TABLE_LENGTH);
+		}
+
+		/* Validate checksum here. It won't get validated in tb_add_table */
+
+		status = acpi_tb_verify_checksum((struct acpi_table_header *)
+						 obj_desc->buffer.pointer,
+						 length);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
+
 		/*
 		 * We need to copy the buffer since the original buffer could be
 		 * changed or deleted in the future
 		 */
-		table_desc.pointer = ACPI_ALLOCATE(obj_desc->buffer.length);
+		table_desc.pointer = ACPI_ALLOCATE(length);
 		if (!table_desc.pointer) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
 
 		ACPI_MEMCPY(table_desc.pointer, obj_desc->buffer.pointer,
-			    obj_desc->buffer.length);
-		table_desc.length = obj_desc->buffer.length;
+			    length);
+		table_desc.length = length;
 		table_desc.flags = ACPI_TABLE_ORIGIN_ALLOCATED;
 		break;
 
