@@ -147,7 +147,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 				      (u32) source_desc->buffer.length));
 		ACPI_DUMP_BUFFER(source_desc->buffer.pointer,
 				 (source_desc->buffer.length <
-				  32) ? source_desc->buffer.length : 32);
+				  256) ? source_desc->buffer.length : 256);
 		break;
 
 	case ACPI_TYPE_STRING:
