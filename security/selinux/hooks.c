@@ -760,12 +760,12 @@ static void selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 	 * this early in the boot process. */
 	BUG_ON(!ss_initialized);
 
-	/* this might go away sometime down the line if there is a new user
-	 * of clone, but for now, nfs better not get here... */
-	BUG_ON(newsbsec->initialized);
-
 	/* how can we clone if the old one wasn't set up?? */
 	BUG_ON(!oldsbsec->initialized);
+
+	/* if fs is reusing a sb, just let its options stand... */
+	if (newsbsec->initialized)
+		return;
 
 	mutex_lock(&newsbsec->lock);
 
