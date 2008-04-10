@@ -776,6 +776,12 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		    acpi_ns_lookup(walk_state->scope_info, buffer_ptr,
 				   object_type, ACPI_IMODE_LOAD_PASS2, flags,
 				   walk_state, &node);
+
+		if (ACPI_SUCCESS(status) && (flags & ACPI_NS_TEMPORARY)) {
+			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+					  "***New Node [%4.4s] %p is temporary\n",
+					  acpi_ut_get_node_name(node), node));
+		}
 		break;
 	}
 
