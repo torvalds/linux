@@ -1878,6 +1878,14 @@ xfs_qm_quotacheck(
 	} while (! done);
 
 	/*
+	 * We've made all the changes that we need to make incore.
+	 * Flush them down to disk buffers if everything was updated
+	 * successfully.
+	 */
+	if (!error)
+		error = xfs_qm_dqflush_all(mp, XFS_QMOPT_DELWRI);
+
+	/*
 	 * We can get this error if we couldn't do a dquot allocation inside
 	 * xfs_qm_dqusage_adjust (via bulkstat). We don't care about the
 	 * dirty dquots that might be cached, we just want to get rid of them
@@ -1888,11 +1896,6 @@ xfs_qm_quotacheck(
 		xfs_qm_dqpurge_all(mp, XFS_QMOPT_QUOTALL | XFS_QMOPT_QUOTAOFF);
 		goto error_return;
 	}
-	/*
-	 * We've made all the changes that we need to make incore.
-	 * Now flush_them down to disk buffers.
-	 */
-	xfs_qm_dqflush_all(mp, XFS_QMOPT_DELWRI);
 
 	/*
 	 * We didn't log anything, because if we crashed, we'll have to
