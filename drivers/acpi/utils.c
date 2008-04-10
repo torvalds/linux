@@ -398,7 +398,7 @@ acpi_evaluate_reference(acpi_handle handle,
 
 		element = &(package->package.elements[i]);
 
-		if (element->type != ACPI_TYPE_ANY) {
+		if (element->type != ACPI_TYPE_LOCAL_REFERENCE) {
 			status = AE_BAD_DATA;
 			printk(KERN_ERR PREFIX
 				    "Expecting a [Reference] package element, found type %X\n",

@@ -43,6 +43,8 @@
 
 #include <acpi/acpi.h>
 #include <acpi/amlcode.h>
+#include <acpi/acnamesp.h>
+
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utcopy")
@@ -172,22 +174,21 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
-		/*
-		 * This is an object reference.  Attempt to dereference it.
-		 */
+		/* This is an object reference. */
+
 		switch (internal_object->reference.opcode) {
 		case AML_INT_NAMEPATH_OP:
 
 			/* For namepath, return the object handle ("reference") */
 
 		default:
-			/*
-			 * Use the object type of "Any" to indicate a reference
-			 * to object containing a handle to an ACPI named object.
-			 */
-			external_object->type = ACPI_TYPE_ANY;
+
+			/* We are referring to the namespace node */
+
 			external_object->reference.handle =
 			    internal_object->reference.node;
+			external_object->reference.actual_type =
+			    acpi_ns_get_type(internal_object->reference.node);
 			break;
 		}
 		break;
@@ -460,6 +461,7 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 	case ACPI_TYPE_STRING:
 	case ACPI_TYPE_BUFFER:
 	case ACPI_TYPE_INTEGER:
+	case ACPI_TYPE_LOCAL_REFERENCE:
 
 		internal_object = acpi_ut_create_internal_object((u8)
 								 external_object->
@@ -468,6 +470,11 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
 		break;
+
+	case ACPI_TYPE_ANY:	/* This is the case for a NULL object */
+
+		*ret_internal_object = NULL;
+		return_ACPI_STATUS(AE_OK);
 
 	default:
 		/* All other types are not supported */
@@ -520,6 +527,15 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 	case ACPI_TYPE_INTEGER:
 
 		internal_object->integer.value = external_object->integer.value;
+		break;
+
+	case ACPI_TYPE_LOCAL_REFERENCE:
+
+		/* TBD: should validate incoming handle */
+
+		internal_object->reference.opcode = AML_INT_NAMEPATH_OP;
+		internal_object->reference.node =
+		    external_object->reference.handle;
 		break;
 
 	default:

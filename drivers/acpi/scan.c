@@ -677,9 +677,8 @@ acpi_bus_extract_wakeup_device_power_package(struct acpi_device *device,
 	device->wakeup.resources.count = package->package.count - 2;
 	for (i = 0; i < device->wakeup.resources.count; i++) {
 		element = &(package->package.elements[i + 2]);
-		if (element->type != ACPI_TYPE_ANY) {
+		if (element->type != ACPI_TYPE_LOCAL_REFERENCE)
 			return AE_BAD_DATA;
-		}
 
 		device->wakeup.resources.handles[i] = element->reference.handle;
 	}
