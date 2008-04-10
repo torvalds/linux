@@ -279,9 +279,12 @@ xfs_qm_scall_quotaoff(
 
 	/*
 	 * Write the LI_QUOTAOFF log record, and do SB changes atomically,
-	 * and synchronously.
+	 * and synchronously. If we fail to write, we should abort the
+	 * operation as it cannot be recovered safely if we crash.
 	 */
-	xfs_qm_log_quotaoff(mp, &qoffstart, flags);
+	error = xfs_qm_log_quotaoff(mp, &qoffstart, flags);
+	if (error)
+		goto out_error;
 
 	/*
 	 * Next we clear the XFS_MOUNT_*DQ_ACTIVE bit(s) in the mount struct
@@ -337,7 +340,12 @@ xfs_qm_scall_quotaoff(
 	 * So, we have QUOTAOFF start and end logitems; the start
 	 * logitem won't get overwritten until the end logitem appears...
 	 */
-	xfs_qm_log_quotaoff_end(mp, qoffstart, flags);
+	error = xfs_qm_log_quotaoff_end(mp, qoffstart, flags);
+	if (error) {
+		/* We're screwed now. Shutdown is the only option. */
+		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+		goto out_error;
+	}
 
 	/*
 	 * If quotas is completely disabled, close shop.
@@ -361,6 +369,7 @@ xfs_qm_scall_quotaoff(
 		XFS_PURGE_INODE(XFS_QI_GQIP(mp));
 		XFS_QI_GQIP(mp) = NULL;
 	}
+out_error:
 	mutex_unlock(&(XFS_QI_QOFFLOCK(mp)));
 
 	return (error);
