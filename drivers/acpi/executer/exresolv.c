@@ -189,21 +189,25 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 			switch (stack_desc->reference.target_type) {
 			case ACPI_TYPE_BUFFER_FIELD:
 
-				/* Just return - leave the Reference on the stack */
+				/* Just return - do not dereference */
 				break;
 
 			case ACPI_TYPE_PACKAGE:
 
-				/* If method call - leave the Reference on the stack */
+				/* If method call or copy_object - do not dereference */
 
-				if (walk_state->opcode == AML_INT_METHODCALL_OP) {
+				if ((walk_state->opcode ==
+				     AML_INT_METHODCALL_OP)
+				    || (walk_state->opcode == AML_COPY_OP)) {
 					break;
 				}
+
+				/* Otherwise, dereference the package_index to a package element */
 
 				obj_desc = *stack_desc->reference.where;
 				if (obj_desc) {
 					/*
-					 * Valid obj descriptor, copy pointer to return value
+					 * Valid object descriptor, copy pointer to return value
 					 * (i.e., dereference the package index)
 					 * Delete the ref object, increment the returned object
 					 */
@@ -212,7 +216,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 					*stack_ptr = obj_desc;
 				} else {
 					/*
-					 * A NULL object descriptor means an unitialized element of
+					 * A NULL object descriptor means an uninitialized element of
 					 * the package, can't dereference it
 					 */
 					ACPI_ERROR((AE_INFO,
@@ -239,7 +243,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 		case AML_DEBUG_OP:
 		case AML_LOAD_OP:
 
-			/* Just leave the object as-is */
+			/* Just leave the object as-is, do not dereference */
 
 			break;
 

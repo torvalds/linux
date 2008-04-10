@@ -239,12 +239,11 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
 		switch (source_desc->reference.opcode) {
-		case AML_LOAD_OP:
-
-			/* This is a ddb_handle */
-			/* Return an additional reference to the object */
-
+		case AML_LOAD_OP:	/* This is a ddb_handle */
 		case AML_REF_OF_OP:
+		case AML_INDEX_OP:
+
+			/* Return an additional reference to the object */
 
 			obj_desc = source_desc;
 			acpi_ut_add_reference(obj_desc);
