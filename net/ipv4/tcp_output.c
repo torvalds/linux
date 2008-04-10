@@ -2233,7 +2233,11 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 
 	/* RFC1323: The window in SYN & SYN/ACK segments is never scaled. */
 	th->window = htons(min(req->rcv_wnd, 65535U));
-
+#ifdef CONFIG_SYN_COOKIES
+	if (unlikely(req->cookie_ts))
+		TCP_SKB_CB(skb)->when = cookie_init_timestamp(req);
+	else
+#endif
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
 	tcp_syn_build_options((__be32 *)(th + 1), dst_metric(dst, RTAX_ADVMSS), ireq->tstamp_ok,
 			      ireq->sack_ok, ireq->wscale_ok, ireq->rcv_wscale,

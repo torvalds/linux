@@ -45,7 +45,7 @@ struct request_sock {
 	struct request_sock		*dl_next; /* Must be first member! */
 	u16				mss;
 	u8				retrans;
-	u8				__pad;
+	u8				cookie_ts; /* syncookie: encode tcpopts in timestamp */
 	/* The following two fields can be easily recomputed I think -AK */
 	u32				window_clamp; /* window clamp at creation time */
 	u32				rcv_wnd;	  /* rcv_wnd offered first time */

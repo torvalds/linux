@@ -1290,10 +1290,8 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 
 	tcp_parse_options(skb, &tmp_opt, 0);
 
-	if (want_cookie) {
+	if (want_cookie && !tmp_opt.saw_tstamp)
 		tcp_clear_options(&tmp_opt);
-		tmp_opt.saw_tstamp = 0;
-	}
 
 	tmp_opt.tstamp_ok = tmp_opt.saw_tstamp;
 	tcp_openreq_init(req, &tmp_opt, skb);
@@ -1307,6 +1305,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 
 	if (want_cookie) {
 		isn = cookie_v6_init_sequence(sk, skb, &req->mss);
+		req->cookie_ts = tmp_opt.tstamp_ok;
 	} else if (!isn) {
 		if (ipv6_opt_accepted(sk, skb) ||
 		    np->rxopt.bits.rxinfo || np->rxopt.bits.rxoinfo ||

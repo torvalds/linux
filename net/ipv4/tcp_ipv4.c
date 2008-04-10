@@ -1299,10 +1299,8 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 
 	tcp_parse_options(skb, &tmp_opt, 0);
 
-	if (want_cookie) {
+	if (want_cookie && !tmp_opt.saw_tstamp)
 		tcp_clear_options(&tmp_opt);
-		tmp_opt.saw_tstamp = 0;
-	}
 
 	if (tmp_opt.saw_tstamp && !tmp_opt.rcv_tsval) {
 		/* Some OSes (unknown ones, but I see them on web server, which
@@ -1330,6 +1328,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (want_cookie) {
 #ifdef CONFIG_SYN_COOKIES
 		syn_flood_warning(skb);
+		req->cookie_ts = tmp_opt.tstamp_ok;
 #endif
 		isn = cookie_v4_init_sequence(sk, skb, &req->mss);
 	} else if (!isn) {

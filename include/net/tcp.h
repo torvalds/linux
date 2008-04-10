@@ -442,6 +442,9 @@ extern struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 extern __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb, 
 				     __u16 *mss);
 
+extern __u32 cookie_init_timestamp(struct request_sock *req);
+extern void cookie_check_timestamp(struct tcp_options_received *tcp_opt);
+
 /* From net/ipv6/syncookies.c */
 extern struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb);
 extern __u32 cookie_v6_init_sequence(struct sock *sk, struct sk_buff *skb,
@@ -956,6 +959,7 @@ static inline void tcp_openreq_init(struct request_sock *req,
 	struct inet_request_sock *ireq = inet_rsk(req);
 
 	req->rcv_wnd = 0;		/* So that tcp_send_synack() knows! */
+	req->cookie_ts = 0;
 	tcp_rsk(req)->rcv_isn = TCP_SKB_CB(skb)->seq;
 	req->mss = rx_opt->mss_clamp;
 	req->ts_recent = rx_opt->saw_tstamp ? rx_opt->rcv_tsval : 0;
