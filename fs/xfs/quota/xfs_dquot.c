@@ -1291,7 +1291,7 @@ xfs_qm_dqflush(
 	if (flags & XFS_QMOPT_DELWRI) {
 		xfs_bdwrite(mp, bp);
 	} else if (flags & XFS_QMOPT_ASYNC) {
-		xfs_bawrite(mp, bp);
+		error = xfs_bawrite(mp, bp);
 	} else {
 		error = xfs_bwrite(mp, bp);
 	}
@@ -1582,12 +1582,18 @@ xfs_qm_dqflock_pushbuf_wait(
 		    XFS_INCORE_TRYLOCK);
 	if (bp != NULL) {
 		if (XFS_BUF_ISDELAYWRITE(bp)) {
+			int	error;
 			if (XFS_BUF_ISPINNED(bp)) {
 				xfs_log_force(dqp->q_mount,
 					      (xfs_lsn_t)0,
 					      XFS_LOG_FORCE);
 			}
-			xfs_bawrite(dqp->q_mount, bp);
+			error = xfs_bawrite(dqp->q_mount, bp);
+			if (error)
+				xfs_fs_cmn_err(CE_WARN, dqp->q_mount,
+					"xfs_qm_dqflock_pushbuf_wait: "
+					"pushbuf error %d on dqp %p, bp %p",
+					error, dqp, bp);
 		} else {
 			xfs_buf_relse(bp);
 		}

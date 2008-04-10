@@ -3276,7 +3276,7 @@ xfs_iflush(
 	if (flags & INT_DELWRI) {
 		xfs_bdwrite(mp, bp);
 	} else if (flags & INT_ASYNC) {
-		xfs_bawrite(mp, bp);
+		error = xfs_bawrite(mp, bp);
 	} else {
 		error = xfs_bwrite(mp, bp);
 	}

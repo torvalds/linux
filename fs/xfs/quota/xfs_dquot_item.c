@@ -267,11 +267,16 @@ xfs_qm_dquot_logitem_pushbuf(
 					      XFS_LOG_FORCE);
 			}
 			if (dopush) {
+				int	error;
 #ifdef XFSRACEDEBUG
 				delay_for_intr();
 				delay(300);
 #endif
-				xfs_bawrite(mp, bp);
+				error = xfs_bawrite(mp, bp);
+				if (error)
+					xfs_fs_cmn_err(CE_WARN, mp,
+	"xfs_qm_dquot_logitem_pushbuf: pushbuf error %d on qip %p, bp %p",
+							error, qip, bp);
 			} else {
 				xfs_buf_relse(bp);
 			}
