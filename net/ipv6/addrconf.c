@@ -2951,7 +2951,7 @@ int ipv6_chk_home_addr(struct net *net, struct in6_addr *addr)
 	for (ifp = inet6_addr_lst[hash]; ifp; ifp = ifp->lst_next) {
 		if (!net_eq(dev_net(ifp->idev->dev), net))
 			continue;
-		if (ipv6_addr_cmp(&ifp->addr, addr) == 0 &&
+		if (ipv6_addr_equal(&ifp->addr, addr) &&
 		    (ifp->flags & IFA_F_HOMEADDRESS)) {
 			ret = 1;
 			break;

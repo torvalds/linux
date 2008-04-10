@@ -543,7 +543,7 @@ static struct tcp_md5sig_key *tcp_v6_md5_do_lookup(struct sock *sk,
 		return NULL;
 
 	for (i = 0; i < tp->md5sig_info->entries6; i++) {
-		if (ipv6_addr_cmp(&tp->md5sig_info->keys6[i].addr, addr) == 0)
+		if (ipv6_addr_equal(&tp->md5sig_info->keys6[i].addr, addr))
 			return &tp->md5sig_info->keys6[i].base;
 	}
 	return NULL;
@@ -632,7 +632,7 @@ static int tcp_v6_md5_do_del(struct sock *sk, struct in6_addr *peer)
 	int i;
 
 	for (i = 0; i < tp->md5sig_info->entries6; i++) {
-		if (ipv6_addr_cmp(&tp->md5sig_info->keys6[i].addr, peer) == 0) {
+		if (ipv6_addr_equal(&tp->md5sig_info->keys6[i].addr, peer)) {
 			/* Free the key */
 			kfree(tp->md5sig_info->keys6[i].base.key);
 			tp->md5sig_info->entries6--;
