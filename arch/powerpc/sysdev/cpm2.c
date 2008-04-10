@@ -80,6 +80,12 @@ void __init cpm2_reset(void)
 	/* Tell everyone where the comm processor resides.
 	 */
 	cpmp = &cpm2_immr->im_cpm;
+
+#ifndef CONFIG_PPC_EARLY_DEBUG_CPM
+	/* Reset the CPM.
+	 */
+	cpm_command(CPM_CR_RST, 0);
+#endif
 }
 
 static DEFINE_SPINLOCK(cmd_lock);
