@@ -268,7 +268,7 @@ struct acpi_rsconvert_info acpi_rs_set_start_dpf[10] = {
 
 	/* Reset length to 1 byte (descriptor with flags byte) */
 
-	{ACPI_RSC_LENGTH, 0, 0, sizeof(struct aml_resource_irq)},
+	{ACPI_RSC_LENGTH, 0, 0, sizeof(struct aml_resource_start_dependent)},
 
 	/*
 	 * All done if flags byte is necessary -- if either priority value

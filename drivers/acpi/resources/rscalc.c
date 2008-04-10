@@ -213,7 +213,18 @@ acpi_rs_get_aml_length(struct acpi_resource * resource, acpi_size * size_needed)
 		switch (resource->type) {
 		case ACPI_RESOURCE_TYPE_IRQ:
 
+			/* Length can be 3 or 2 */
+
 			if (resource->data.irq.descriptor_length == 2) {
+				total_size--;
+			}
+			break;
+
+		case ACPI_RESOURCE_TYPE_START_DEPENDENT:
+
+			/* Length can be 1 or 0 */
+
+			if (resource->data.irq.descriptor_length == 0) {
 				total_size--;
 			}
 			break;
