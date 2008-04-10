@@ -1060,7 +1060,7 @@ xfs_buf_iostart(
 		bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_ASYNC);
 		bp->b_flags |= flags & (XBF_DELWRI | XBF_ASYNC);
 		xfs_buf_delwri_queue(bp, 1);
-		return status;
+		return 0;
 	}
 
 	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_ASYNC | XBF_DELWRI | \
