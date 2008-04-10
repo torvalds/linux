@@ -3,6 +3,9 @@
 #
 
 common-objs = $(addprefix ../../../virt/kvm/, kvm_main.o ioapic.o)
+ifeq ($(CONFIG_KVM_TRACE),y)
+common-objs += $(addprefix ../../../virt/kvm/, kvm_trace.o)
+endif
 
 EXTRA_CFLAGS += -Ivirt/kvm -Iarch/x86/kvm
 

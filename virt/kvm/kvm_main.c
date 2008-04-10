@@ -60,7 +60,7 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_cache);
 
 static __read_mostly struct preempt_ops kvm_preempt_ops;
 
-static struct dentry *debugfs_dir;
+struct dentry *debugfs_dir;
 
 static long kvm_vcpu_ioctl(struct file *file, unsigned int ioctl,
 			   unsigned long arg);
@@ -1191,6 +1191,11 @@ static long kvm_dev_ioctl(struct file *filp,
 		r += PAGE_SIZE;    /* pio data page */
 #endif
 		break;
+	case KVM_TRACE_ENABLE:
+	case KVM_TRACE_PAUSE:
+	case KVM_TRACE_DISABLE:
+		r = kvm_trace_ioctl(ioctl, arg);
+		break;
 	default:
 		return kvm_arch_dev_ioctl(filp, ioctl, arg);
 	}
@@ -1519,6 +1524,7 @@ EXPORT_SYMBOL_GPL(kvm_init);
 
 void kvm_exit(void)
 {
+	kvm_trace_cleanup();
 	misc_deregister(&kvm_dev);
 	kmem_cache_destroy(kvm_vcpu_cache);
 	sysdev_unregister(&kvm_sysdev);

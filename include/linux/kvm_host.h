@@ -15,6 +15,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/preempt.h>
+#include <linux/marker.h>
 #include <asm/signal.h>
 
 #include <linux/kvm.h>
@@ -309,5 +310,18 @@ struct kvm_stats_debugfs_item {
 	struct dentry *dentry;
 };
 extern struct kvm_stats_debugfs_item debugfs_entries[];
+extern struct dentry *debugfs_dir;
+
+#ifdef CONFIG_KVM_TRACE
+int kvm_trace_ioctl(unsigned int ioctl, unsigned long arg);
+void kvm_trace_cleanup(void);
+#else
+static inline
+int kvm_trace_ioctl(unsigned int ioctl, unsigned long arg)
+{
+	return -EINVAL;
+}
+#define kvm_trace_cleanup() ((void)0)
+#endif
 
 #endif
