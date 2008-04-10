@@ -972,24 +972,14 @@ int sctp_register_pf(struct sctp_pf *pf, sa_family_t family)
 	return 1;
 }
 
-static int __init init_sctp_mibs(void)
+static inline int init_sctp_mibs(void)
 {
-	sctp_statistics[0] = alloc_percpu(struct sctp_mib);
-	if (!sctp_statistics[0])
-		return -ENOMEM;
-	sctp_statistics[1] = alloc_percpu(struct sctp_mib);
-	if (!sctp_statistics[1]) {
-		free_percpu(sctp_statistics[0]);
-		return -ENOMEM;
-	}
-	return 0;
-
+	return snmp_mib_init((void**)sctp_statistics, sizeof(struct sctp_mib));
 }
 
-static void cleanup_sctp_mibs(void)
+static inline void cleanup_sctp_mibs(void)
 {
-	free_percpu(sctp_statistics[0]);
-	free_percpu(sctp_statistics[1]);
+	snmp_mib_free((void**)sctp_statistics);
 }
 
 static void sctp_v4_pf_init(void)
