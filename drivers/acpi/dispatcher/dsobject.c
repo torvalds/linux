@@ -172,7 +172,19 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 			switch (op->common.node->type) {
 				/*
 				 * For these types, we need the actual node, not the subobject.
-				 * However, the subobject got an extra reference count above.
+				 * However, the subobject did not get an extra reference count above.
+				 *
+				 * TBD: should ex_resolve_node_to_value be changed to fix this?
+				 */
+			case ACPI_TYPE_DEVICE:
+			case ACPI_TYPE_THERMAL:
+
+				acpi_ut_add_reference(op->common.node->object);
+
+				/*lint -fallthrough */
+				/*
+				 * For these types, we need the actual node, not the subobject.
+				 * The subobject got an extra reference count in ex_resolve_node_to_value.
 				 */
 			case ACPI_TYPE_MUTEX:
 			case ACPI_TYPE_METHOD:
@@ -180,25 +192,15 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 			case ACPI_TYPE_PROCESSOR:
 			case ACPI_TYPE_EVENT:
 			case ACPI_TYPE_REGION:
-			case ACPI_TYPE_DEVICE:
-			case ACPI_TYPE_THERMAL:
 
-				obj_desc =
-				    (union acpi_operand_object *)op->common.
-				    node;
+				/* We will create a reference object for these types below */
 				break;
 
 			default:
-				break;
-			}
-
-			/*
-			 * If above resolved to an operand object, we are done. Otherwise,
-			 * we have a NS node, we must create the package entry as a named
-			 * reference.
-			 */
-			if (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) !=
-			    ACPI_DESC_TYPE_NAMED) {
+				/*
+				 * All other types - the node was resolved to an actual
+				 * object, we are done.
+				 */
 				goto exit;
 			}
 		}
@@ -223,7 +225,7 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 
       exit:
 	*obj_desc_ptr = obj_desc;
-	return_ACPI_STATUS(AE_OK);
+	return_ACPI_STATUS(status);
 }
 
 /*******************************************************************************
@@ -743,6 +745,8 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 				/* Node was saved in Op */
 
 				obj_desc->reference.node = op->common.node;
+				obj_desc->reference.object =
+				    op->common.node->object;
 			}
 
 			obj_desc->reference.opcode = opcode;

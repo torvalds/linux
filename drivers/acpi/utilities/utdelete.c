@@ -524,10 +524,12 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 
 		case ACPI_TYPE_LOCAL_REFERENCE:
 			/*
-			 * The target of an Index (a package, string, or buffer) must track
-			 * changes to the ref count of the index.
+			 * The target of an Index (a package, string, or buffer) or a named
+			 * reference must track changes to the ref count of the index or
+			 * target object.
 			 */
-			if (object->reference.opcode == AML_INDEX_OP) {
+			if ((object->reference.opcode == AML_INDEX_OP) ||
+			    (object->reference.opcode == AML_INT_NAMEPATH_OP)) {
 				next_object = object->reference.object;
 			}
 			break;
