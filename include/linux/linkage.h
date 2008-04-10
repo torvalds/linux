@@ -17,8 +17,8 @@
 # define asmregparm
 #endif
 
-#ifndef prevent_tail_call
-# define prevent_tail_call(ret) do { } while (0)
+#ifndef asmlinkage_protect
+# define asmlinkage_protect(n, ret, args...)	do { } while (0)
 #endif
 
 #ifndef __ALIGN
