@@ -304,15 +304,17 @@ xfs_qm_unmount_quotadestroy(
  * necessary data structures like quotainfo.  This is also responsible for
  * running a quotacheck as necessary.  We are guaranteed that the superblock
  * is consistently read in at this point.
+ *
+ * If we fail here, the mount will continue with quota turned off. We don't
+ * need to inidicate success or failure at all.
  */
-int
+void
 xfs_qm_mount_quotas(
 	xfs_mount_t	*mp,
 	int		mfsi_flags)
 {
 	int		error = 0;
 	uint		sbf;
-
 
 	/*
 	 * If quotas on realtime volumes is not supported, we disable
@@ -332,7 +334,8 @@ xfs_qm_mount_quotas(
 	 * Allocate the quotainfo structure inside the mount struct, and
 	 * create quotainode(s), and change/rev superblock if necessary.
 	 */
-	if ((error = xfs_qm_init_quotainfo(mp))) {
+	error = xfs_qm_init_quotainfo(mp);
+	if (error) {
 		/*
 		 * We must turn off quotas.
 		 */
@@ -344,12 +347,11 @@ xfs_qm_mount_quotas(
 	 * If any of the quotas are not consistent, do a quotacheck.
 	 */
 	if (XFS_QM_NEED_QUOTACHECK(mp) &&
-		!(mfsi_flags & XFS_MFSI_NO_QUOTACHECK)) {
-		if ((error = xfs_qm_quotacheck(mp))) {
-			/* Quotacheck has failed and quotas have
-			 * been disabled.
-			 */
-			return XFS_ERROR(error);
+	    !(mfsi_flags & XFS_MFSI_NO_QUOTACHECK)) {
+		error = xfs_qm_quotacheck(mp);
+		if (error) {
+			/* Quotacheck failed and disabled quotas. */
+			return;
 		}
 	}
 	/* 
@@ -357,12 +359,10 @@ xfs_qm_mount_quotas(
 	 * quotachecked status, since we won't be doing accounting for
 	 * that type anymore.
 	 */
-	if (!XFS_IS_UQUOTA_ON(mp)) {
+	if (!XFS_IS_UQUOTA_ON(mp))
 		mp->m_qflags &= ~XFS_UQUOTA_CHKD;
-	}
-	if (!(XFS_IS_GQUOTA_ON(mp) || XFS_IS_PQUOTA_ON(mp))) {
+	if (!(XFS_IS_GQUOTA_ON(mp) || XFS_IS_PQUOTA_ON(mp)))
 		mp->m_qflags &= ~XFS_OQUOTA_CHKD;
-	}
 
  write_changes:
 	/*
@@ -392,7 +392,7 @@ xfs_qm_mount_quotas(
 		xfs_fs_cmn_err(CE_WARN, mp,
 			"Failed to initialize disk quotas.");
 	}
-	return XFS_ERROR(error);
+	return;
 }
 
 /*
