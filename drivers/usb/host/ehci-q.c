@@ -336,11 +336,20 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		/* always clean up qtds the hc de-activated */
 		if ((token & QTD_STS_ACTIVE) == 0) {
 
+			/* on STALL, error, and short reads this urb must
+			 * complete and all its qtds must be recycled.
+			 */
 			if ((token & QTD_STS_HALT) != 0) {
 				stopped = 1;
 
 			/* magic dummy for some short reads; qh won't advance.
 			 * that silicon quirk can kick in with this dummy too.
+			 *
+			 * other short reads won't stop the queue, including
+			 * control transfers (status stage handles that) or
+			 * most other single-qtd reads ... the queue stops if
+			 * URB_SHORT_NOT_OK was set so the driver submitting
+			 * the urbs could clean it up.
 			 */
 			} else if (IS_SHORT_READ (token)
 					&& !(qtd->hw_alt_next
@@ -354,18 +363,18 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 				&& HC_IS_RUNNING (ehci_to_hcd(ehci)->state))) {
 			break;
 
+		/* scan the whole queue for unlinks whenever it stops */
 		} else {
 			stopped = 1;
 
-			if (unlikely (!HC_IS_RUNNING (ehci_to_hcd(ehci)->state)))
+			/* cancel everything if we halt, suspend, etc */
+			if (!HC_IS_RUNNING(ehci_to_hcd(ehci)->state))
 				last_status = -ESHUTDOWN;
 
-			/* ignore active urbs unless some previous qtd
-			 * for the urb faulted (including short read) or
-			 * its urb was canceled.  we may patch qh or qtds.
+			/* this qtd is active; skip it unless a previous qtd
+			 * for its urb faulted, or its urb was canceled.
 			 */
-			if (likely(last_status == -EINPROGRESS &&
-					!urb->unlinked))
+			else if (last_status == -EINPROGRESS && !urb->unlinked)
 				continue;
 
 			/* issue status after short control reads */
@@ -375,7 +384,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 				continue;
 			}
 
-			/* token in overlay may be most current */
+			/* qh unlinked; token in overlay may be most current */
 			if (state == QH_STATE_IDLE
 					&& cpu_to_hc32(ehci, qtd->qtd_dma)
 						== qh->hw_current)
@@ -402,11 +411,16 @@ halt:
 		if (likely(last_status == -EINPROGRESS))
 			last_status = qtd_status;
 
+		/* if we're removing something not at the queue head,
+		 * patch the hardware queue pointer.
+		 */
 		if (stopped && qtd->qtd_list.prev != &qh->qtd_list) {
 			last = list_entry (qtd->qtd_list.prev,
 					struct ehci_qtd, qtd_list);
 			last->hw_next = qtd->hw_next;
 		}
+
+		/* remove qtd; it's recycled after possible urb completion */
 		list_del (&qtd->qtd_list);
 		last = qtd;
 	}
@@ -431,7 +445,15 @@ halt:
 			qh_refresh(ehci, qh);
 			break;
 		case QH_STATE_LINKED:
-			/* should be rare for periodic transfers,
+			/* We won't refresh a QH that's linked (after the HC
+			 * stopped the queue).  That avoids a race:
+			 *  - HC reads first part of QH;
+			 *  - CPU updates that first part and the token;
+			 *  - HC reads rest of that QH, including token
+			 * Result:  HC gets an inconsistent image, and then
+			 * DMAs to/from the wrong memory (corrupting it).
+			 *
+			 * That should be rare for interrupt transfers,
 			 * except maybe high bandwidth ...
 			 */
 			if ((cpu_to_hc32(ehci, QH_SMASK)
@@ -549,6 +571,12 @@ qh_urb_transaction (
 		this_qtd_len = qtd_fill(ehci, qtd, buf, len, token, maxpacket);
 		len -= this_qtd_len;
 		buf += this_qtd_len;
+
+		/*
+		 * short reads advance to a "magic" dummy instead of the next
+		 * qtd ... that forces the queue to stop, for manual cleanup.
+		 * (this will usually be overridden later.)
+		 */
 		if (is_input)
 			qtd->hw_alt_next = ehci->async->hw_alt_next;
 
@@ -568,8 +596,10 @@ qh_urb_transaction (
 		list_add_tail (&qtd->qtd_list, head);
 	}
 
-	/* unless the bulk/interrupt caller wants a chance to clean
-	 * up after short reads, hc should advance qh past this urb
+	/*
+	 * unless the caller requires manual cleanup after short reads,
+	 * have the alt_next mechanism keep the queue running after the
+	 * last data qtd (the only one, for control and most other cases).
 	 */
 	if (likely ((urb->transfer_flags & URB_SHORT_NOT_OK) == 0
 				|| usb_pipecontrol (urb->pipe)))
