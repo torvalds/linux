@@ -1162,10 +1162,14 @@ xlog_write_log_records(
 		if (j == 0 && (start_block + endcount > ealign)) {
 			offset = XFS_BUF_PTR(bp);
 			balign = BBTOB(ealign - start_block);
-			XFS_BUF_SET_PTR(bp, offset + balign, BBTOB(sectbb));
-			if ((error = xlog_bread(log, ealign, sectbb, bp)))
+			error = XFS_BUF_SET_PTR(bp, offset + balign,
+						BBTOB(sectbb));
+			if (!error)
+				error = xlog_bread(log, ealign, sectbb, bp);
+			if (!error)
+				error = XFS_BUF_SET_PTR(bp, offset, bufblks);
+			if (error)
 				break;
-			XFS_BUF_SET_PTR(bp, offset, bufblks);
 		}
 
 		offset = xlog_align(log, start_block, endcount, bp);
@@ -3630,15 +3634,19 @@ xlog_do_recovery_pass(
 				 *   _first_, then the log start (LR header end)
 				 *   - order is important.
 				 */
+				wrapped_hblks = hblks - split_hblks;
 				bufaddr = XFS_BUF_PTR(hbp);
-				XFS_BUF_SET_PTR(hbp,
+				error = XFS_BUF_SET_PTR(hbp,
 						bufaddr + BBTOB(split_hblks),
 						BBTOB(hblks - split_hblks));
-				wrapped_hblks = hblks - split_hblks;
-				error = xlog_bread(log, 0, wrapped_hblks, hbp);
+				if (!error)
+					error = xlog_bread(log, 0,
+							wrapped_hblks, hbp);
+				if (!error)
+					error = XFS_BUF_SET_PTR(hbp, bufaddr,
+							BBTOB(hblks));
 				if (error)
 					goto bread_err2;
-				XFS_BUF_SET_PTR(hbp, bufaddr, BBTOB(hblks));
 				if (!offset)
 					offset = xlog_align(log, 0,
 							wrapped_hblks, hbp);
@@ -3690,13 +3698,18 @@ xlog_do_recovery_pass(
 				 *   - order is important.
 				 */
 				bufaddr = XFS_BUF_PTR(dbp);
-				XFS_BUF_SET_PTR(dbp,
+				error = XFS_BUF_SET_PTR(dbp,
 						bufaddr + BBTOB(split_bblks),
 						BBTOB(bblks - split_bblks));
-				if ((error = xlog_bread(log, wrapped_hblks,
-						bblks - split_bblks, dbp)))
+				if (!error)
+					error = xlog_bread(log, wrapped_hblks,
+							bblks - split_bblks,
+							dbp);
+				if (!error)
+					error = XFS_BUF_SET_PTR(dbp, bufaddr,
+							h_size);
+				if (error)
 					goto bread_err2;
-				XFS_BUF_SET_PTR(dbp, bufaddr, h_size);
 				if (!offset)
 					offset = xlog_align(log, wrapped_hblks,
 						bblks - split_bblks, dbp);
