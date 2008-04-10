@@ -511,6 +511,10 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 			    external_object->buffer.length);
 
 		internal_object->buffer.length = external_object->buffer.length;
+
+		/* Mark buffer data valid */
+
+		internal_object->buffer.flags |= AOPOBJ_DATA_VALID;
 		break;
 
 	case ACPI_TYPE_INTEGER:
@@ -585,6 +589,10 @@ acpi_ut_copy_epackage_to_ipackage(union acpi_object *external_object,
 			return_ACPI_STATUS(status);
 		}
 	}
+
+	/* Mark package data valid */
+
+	package_object->package.flags |= AOPOBJ_DATA_VALID;
 
 	*internal_object = package_object;
 	return_ACPI_STATUS(status);
