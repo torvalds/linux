@@ -3105,31 +3105,6 @@ xfs_symlink(
 	pathlen = strlen(target_path);
 	if (pathlen >= MAXPATHLEN)      /* total string too long */
 		return XFS_ERROR(ENAMETOOLONG);
-	if (pathlen >= MAXNAMELEN) {    /* is any component too long? */
-		int len, total;
-		char *path;
-
-		for (total = 0, path = target_path; total < pathlen;) {
-			/*
-			 * Skip any slashes.
-			 */
-			while(*path == '/') {
-				total++;
-				path++;
-			}
-
-			/*
-			 * Count up to the next slash or end of path.
-			 * Error out if the component is bigger than MAXNAMELEN.
-			 */
-			for(len = 0; *path != '/' && total < pathlen;total++, path++) {
-				if (++len >= MAXNAMELEN) {
-					error = ENAMETOOLONG;
-					return error;
-				}
-			}
-		}
-	}
 
 	if (DM_EVENT_ENABLED(dp, DM_EVENT_SYMLINK)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_SYMLINK, dp,
