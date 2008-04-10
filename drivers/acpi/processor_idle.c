@@ -848,6 +848,7 @@ static int acpi_processor_get_power_info_default(struct acpi_processor *pr)
 		/* all processors need to support C1 */
 		pr->power.states[ACPI_STATE_C1].type = ACPI_STATE_C1;
 		pr->power.states[ACPI_STATE_C1].valid = 1;
+		pr->power.states[ACPI_STATE_C1].entry_method = ACPI_CSTATE_HALT;
 	}
 	/* the C0 state only exists as a filler in our array */
 	pr->power.states[ACPI_STATE_C0].valid = 1;
@@ -960,6 +961,9 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 				 cx.address);
 		}
 
+		if (cx.type == ACPI_STATE_C1) {
+			cx.valid = 1;
+		}
 
 		obj = &(element->package.elements[2]);
 		if (obj->type != ACPI_TYPE_INTEGER)
