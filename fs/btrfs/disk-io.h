@@ -20,6 +20,7 @@
 #define __DISKIO__
 
 #define BTRFS_SUPER_INFO_OFFSET (16 * 1024)
+#define BTRFS_SUPER_INFO_SIZE 4096
 struct btrfs_device;
 struct btrfs_fs_devices;
 

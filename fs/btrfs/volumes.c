@@ -125,6 +125,7 @@ static int device_list_add(const char *path,
 			return -ENOMEM;
 		}
 		device->devid = devid;
+		device->barriers = 1;
 		device->name = kstrdup(path, GFP_NOFS);
 		if (!device->name) {
 			kfree(device);
@@ -208,6 +209,7 @@ int btrfs_scan_one_device(const char *path, int flags, void *holder,
 	struct buffer_head *bh;
 	int ret;
 	u64 devid;
+	u64 transid;
 
 	mutex_lock(&uuid_mutex);
 
@@ -236,14 +238,14 @@ int btrfs_scan_one_device(const char *path, int flags, void *holder,
 		goto error_brelse;
 	}
 	devid = le64_to_cpu(disk_super->dev_item.devid);
-	printk("found device %Lu on %s\n", devid, path);
+	transid = btrfs_super_generation(disk_super);
+	printk("found device %Lu transid %Lu on %s\n", devid, transid, path);
 	ret = device_list_add(path, disk_super, devid, fs_devices_ret);
 
 error_brelse:
 	brelse(bh);
 error_close:
 	close_bdev_excl(bdev);
-	printk("scan one closes bdev %s\n", path);
 error:
 	mutex_unlock(&uuid_mutex);
 	return ret;
@@ -1143,7 +1145,7 @@ static int read_one_dev(struct btrfs_root *root,
 	device = btrfs_find_device(root, devid);
 	if (!device) {
 		printk("warning devid %Lu not found already\n", devid);
-		device = kmalloc(sizeof(*device), GFP_NOFS);
+		device = kzalloc(sizeof(*device), GFP_NOFS);
 		if (!device)
 			return -ENOMEM;
 		list_add(&device->dev_list,

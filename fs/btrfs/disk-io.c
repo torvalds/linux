@@ -382,7 +382,7 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	BUG_ON(ret);
 
 	if (offset == BTRFS_SUPER_INFO_OFFSET) {
-		bio->bi_bdev = root->fs_info->sb->s_bdev;
+		bio->bi_bdev = root->fs_info->fs_devices->latest_bdev;
 		submit_bio(rw, bio);
 		return 0;
 	}
@@ -988,7 +988,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->new_trans_lock);
 
 	init_completion(&fs_info->kobj_unregister);
-	sb_set_blocksize(sb, 4096);
+	sb_set_blocksize(sb, BTRFS_SUPER_INFO_SIZE);
 	fs_info->tree_root = tree_root;
 	fs_info->extent_root = extent_root;
 	fs_info->chunk_root = chunk_root;
@@ -1169,14 +1169,121 @@ fail:
 	return ERR_PTR(err);
 }
 
+static void btrfs_end_buffer_write_sync(struct buffer_head *bh, int uptodate)
+{
+	char b[BDEVNAME_SIZE];
+
+	if (uptodate) {
+		set_buffer_uptodate(bh);
+	} else {
+		if (!buffer_eopnotsupp(bh) && printk_ratelimit()) {
+			printk(KERN_WARNING "lost page write due to "
+					"I/O error on %s\n",
+				       bdevname(bh->b_bdev, b));
+		}
+		set_buffer_write_io_error(bh);
+		clear_buffer_uptodate(bh);
+	}
+	unlock_buffer(bh);
+	put_bh(bh);
+}
+
+int write_all_supers(struct btrfs_root *root)
+{
+	struct list_head *cur;
+	struct list_head *head = &root->fs_info->fs_devices->devices;
+	struct btrfs_device *dev;
+	struct extent_buffer *sb;
+	struct btrfs_dev_item *dev_item;
+	struct buffer_head *bh;
+	int ret;
+	int do_barriers;
+
+	do_barriers = !btrfs_test_opt(root, NOBARRIER);
+
+	sb = root->fs_info->sb_buffer;
+	dev_item = (struct btrfs_dev_item *)offsetof(struct btrfs_super_block,
+						      dev_item);
+	list_for_each(cur, head) {
+		dev = list_entry(cur, struct btrfs_device, dev_list);
+		btrfs_set_device_type(sb, dev_item, dev->type);
+		btrfs_set_device_id(sb, dev_item, dev->devid);
+		btrfs_set_device_total_bytes(sb, dev_item, dev->total_bytes);
+		btrfs_set_device_bytes_used(sb, dev_item, dev->bytes_used);
+		btrfs_set_device_io_align(sb, dev_item, dev->io_align);
+		btrfs_set_device_io_width(sb, dev_item, dev->io_width);
+		btrfs_set_device_sector_size(sb, dev_item, dev->sector_size);
+		write_extent_buffer(sb, dev->uuid,
+				    (unsigned long)btrfs_device_uuid(dev_item),
+				    BTRFS_DEV_UUID_SIZE);
+
+		btrfs_set_header_flag(sb, BTRFS_HEADER_FLAG_WRITTEN);
+		csum_tree_block(root, sb, 0);
+
+		bh = __getblk(dev->bdev, BTRFS_SUPER_INFO_OFFSET /
+			      root->fs_info->sb->s_blocksize,
+			      BTRFS_SUPER_INFO_SIZE);
+
+		read_extent_buffer(sb, bh->b_data, 0, BTRFS_SUPER_INFO_SIZE);
+		dev->pending_io = bh;
+
+		get_bh(bh);
+		set_buffer_uptodate(bh);
+		lock_buffer(bh);
+		bh->b_end_io = btrfs_end_buffer_write_sync;
+
+		if (do_barriers && dev->barriers) {
+			ret = submit_bh(WRITE_BARRIER, bh);
+			if (ret == -EOPNOTSUPP) {
+				printk("btrfs: disabling barriers on dev %s\n",
+				       dev->name);
+				set_buffer_uptodate(bh);
+				dev->barriers = 0;
+				get_bh(bh);
+				lock_buffer(bh);
+				ret = submit_bh(WRITE, bh);
+			}
+		} else {
+			ret = submit_bh(WRITE, bh);
+		}
+		BUG_ON(ret);
+	}
+
+	list_for_each(cur, head) {
+		dev = list_entry(cur, struct btrfs_device, dev_list);
+		BUG_ON(!dev->pending_io);
+		bh = dev->pending_io;
+		wait_on_buffer(bh);
+		if (!buffer_uptodate(dev->pending_io)) {
+			if (do_barriers && dev->barriers) {
+				printk("btrfs: disabling barriers on dev %s\n",
+				       dev->name);
+				set_buffer_uptodate(bh);
+				get_bh(bh);
+				lock_buffer(bh);
+				dev->barriers = 0;
+				ret = submit_bh(WRITE, bh);
+				BUG_ON(ret);
+				wait_on_buffer(bh);
+				BUG_ON(!buffer_uptodate(bh));
+			} else {
+				BUG();
+			}
+
+		}
+		dev->pending_io = NULL;
+		brelse(bh);
+	}
+	return 0;
+}
+
 int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root)
 {
 	int ret;
-	struct extent_buffer *super = root->fs_info->sb_buffer;
-	struct inode *btree_inode = root->fs_info->btree_inode;
-	struct super_block *sb = root->fs_info->sb;
 
+	ret = write_all_supers(root);
+#if 0
 	if (!btrfs_test_opt(root, NOBARRIER))
 		blkdev_issue_flush(sb->s_bdev, NULL);
 	set_extent_buffer_dirty(&BTRFS_I(btree_inode)->io_tree, super);
@@ -1184,6 +1291,7 @@ int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 				     super->start, super->len);
 	if (!btrfs_test_opt(root, NOBARRIER))
 		blkdev_issue_flush(sb->s_bdev, NULL);
+#endif
 	return ret;
 }
 

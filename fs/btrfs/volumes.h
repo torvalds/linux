@@ -21,9 +21,12 @@
 
 #include <linux/bio.h>
 
+struct buffer_head;
 struct btrfs_device {
 	struct list_head dev_list;
 	struct btrfs_root *dev_root;
+	struct buffer_head *pending_io;
+	int barriers;
 	spinlock_t io_lock;
 
 	struct block_device *bdev;
