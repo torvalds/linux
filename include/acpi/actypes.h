@@ -639,46 +639,51 @@ typedef u8 acpi_adr_space_type;
 /*
  * External ACPI object definition
  */
+
+/*
+ * Note: Type == ACPI_TYPE_ANY (0) is used to indicate a NULL package element
+ * or an unresolved named reference.
+ */
 union acpi_object {
 	acpi_object_type type;	/* See definition of acpi_ns_type for values */
 	struct {
-		acpi_object_type type;
+		acpi_object_type type;	/* ACPI_TYPE_INTEGER */
 		acpi_integer value;	/* The actual number */
 	} integer;
 
 	struct {
-		acpi_object_type type;
+		acpi_object_type type;	/* ACPI_TYPE_STRING */
 		u32 length;	/* # of bytes in string, excluding trailing null */
 		char *pointer;	/* points to the string value */
 	} string;
 
 	struct {
-		acpi_object_type type;
+		acpi_object_type type;	/* ACPI_TYPE_BUFFER */
 		u32 length;	/* # of bytes in buffer */
 		u8 *pointer;	/* points to the buffer */
 	} buffer;
 
 	struct {
-		acpi_object_type type;
-		u32 fill1;
-		acpi_handle handle;	/* object reference */
-	} reference;
-
-	struct {
-		acpi_object_type type;
+		acpi_object_type type;	/* ACPI_TYPE_PACKAGE */
 		u32 count;	/* # of elements in package */
 		union acpi_object *elements;	/* Pointer to an array of ACPI_OBJECTs */
 	} package;
 
 	struct {
-		acpi_object_type type;
+		acpi_object_type type;	/* ACPI_TYPE_LOCAL_REFERENCE */
+		acpi_object_type actual_type;	/* Type associated with the Handle */
+		acpi_handle handle;	/* object reference */
+	} reference;
+
+	struct {
+		acpi_object_type type;	/* ACPI_TYPE_PROCESSOR */
 		u32 proc_id;
 		acpi_io_address pblk_address;
 		u32 pblk_length;
 	} processor;
 
 	struct {
-		acpi_object_type type;
+		acpi_object_type type;	/* ACPI_TYPE_POWER */
 		u32 system_level;
 		u32 resource_order;
 	} power_resource;

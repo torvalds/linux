@@ -470,9 +470,8 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 	case ACPI_TYPE_PROCESSOR:
 	case ACPI_TYPE_POWER:
 
-		/*
-		 * No extra data for these types
-		 */
+		/* No extra data for these types */
+
 		break;
 
 	case ACPI_TYPE_LOCAL_REFERENCE:
