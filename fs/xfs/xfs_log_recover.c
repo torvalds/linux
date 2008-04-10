@@ -2282,7 +2282,9 @@ xlog_recover_do_inode_trans(
 		 * invalidate the buffer when we write it out below.
 		 */
 		imap.im_blkno = 0;
-		xfs_imap(log->l_mp, NULL, ino, &imap, 0);
+		error = xfs_imap(log->l_mp, NULL, ino, &imap, 0);
+		if (error)
+			goto error;
 	}
 
 	/*
