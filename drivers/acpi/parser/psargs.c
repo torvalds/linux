@@ -235,6 +235,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	union acpi_parse_object *name_op;
 	union acpi_operand_object *method_desc;
 	struct acpi_namespace_node *node;
+	u8 *start = parser_state->aml;
 
 	ACPI_FUNCTION_TRACE(ps_get_next_namepath);
 
@@ -267,6 +268,16 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	 */
 	if (ACPI_SUCCESS(status) &&
 	    possible_method_call && (node->type == ACPI_TYPE_METHOD)) {
+		if (walk_state->op->common.aml_opcode == AML_UNLOAD_OP) {
+			/*
+			 * acpi_ps_get_next_namestring has increased the AML pointer,
+			 * so we need to restore the saved AML pointer for method call.
+			 */
+			walk_state->parser_state.aml = start;
+			walk_state->arg_count = 1;
+			acpi_ps_init_op(arg, AML_INT_METHODCALL_OP);
+			return_ACPI_STATUS(AE_OK);
+		}
 
 		/* This name is actually a control method invocation */
 
@@ -678,9 +689,29 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 				return_ACPI_STATUS(AE_NO_MEMORY);
 			}
 
-			status =
-			    acpi_ps_get_next_namepath(walk_state, parser_state,
-						      arg, 0);
+			/* To support super_name arg of Unload */
+
+			if (walk_state->op->common.aml_opcode == AML_UNLOAD_OP) {
+				status =
+				    acpi_ps_get_next_namepath(walk_state,
+							      parser_state, arg,
+							      1);
+
+				/*
+				 * If the super_name arg of Unload is a method call,
+				 * we have restored the AML pointer, just free this Arg
+				 */
+				if (arg->common.aml_opcode ==
+				    AML_INT_METHODCALL_OP) {
+					acpi_ps_free_op(arg);
+					arg = NULL;
+				}
+			} else {
+				status =
+				    acpi_ps_get_next_namepath(walk_state,
+							      parser_state, arg,
+							      0);
+			}
 		} else {
 			/* Single complex argument, nothing returned */
 

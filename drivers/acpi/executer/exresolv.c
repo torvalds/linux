@@ -382,10 +382,10 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 	}
 
 	/*
-	 * For reference objects created via the ref_of or Index operators,
-	 * we need to get to the base object (as per the ACPI specification
-	 * of the object_type and size_of operators). This means traversing
-	 * the list of possibly many nested references.
+	 * For reference objects created via the ref_of, Index, or Load/load_table
+	 * operators, we need to get to the base object (as per the ACPI
+	 * specification of the object_type and size_of operators). This means
+	 * traversing the list of possibly many nested references.
 	 */
 	while (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_LOCAL_REFERENCE) {
 		switch (obj_desc->reference.opcode) {
@@ -454,6 +454,11 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 				goto exit;
 			}
 			break;
+
+		case AML_LOAD_OP:
+
+			type = ACPI_TYPE_DDB_HANDLE;
+			goto exit;
 
 		case AML_LOCAL_OP:
 		case AML_ARG_OP:

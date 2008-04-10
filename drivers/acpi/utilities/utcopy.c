@@ -709,7 +709,15 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 		/*
 		 * We copied the reference object, so we now must add a reference
 		 * to the object pointed to by the reference
+		 *
+		 * DDBHandle reference (from Load/load_table is a special reference,
+		 * it's Reference.Object is the table index, so does not need to
+		 * increase the reference count
 		 */
+		if (source_desc->reference.opcode == AML_LOAD_OP) {
+			break;
+		}
+
 		acpi_ut_add_reference(source_desc->reference.object);
 		break;
 

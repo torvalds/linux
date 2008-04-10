@@ -895,14 +895,25 @@ static void acpi_ex_dump_reference_obj(union acpi_operand_object *obj_desc)
 	} else if (obj_desc->reference.object) {
 		if (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) ==
 		    ACPI_DESC_TYPE_OPERAND) {
-			acpi_os_printf(" Target: %p [%s]\n",
-				       obj_desc->reference.object,
-				       acpi_ut_get_type_name(((union
-							       acpi_operand_object
-							       *)obj_desc->
-							      reference.
-							      object)->common.
-							     type));
+			acpi_os_printf(" Target: %p",
+				       obj_desc->reference.object);
+			if (obj_desc->reference.opcode == AML_LOAD_OP) {
+				/*
+				 * For DDBHandle reference,
+				 * obj_desc->Reference.Object is the table index
+				 */
+				acpi_os_printf(" [DDBHandle]\n");
+			} else {
+				acpi_os_printf(" [%s]\n",
+					       acpi_ut_get_type_name(((union
+								       acpi_operand_object
+								       *)
+								      obj_desc->
+								      reference.
+								      object)->
+								     common.
+								     type));
+			}
 		} else {
 			acpi_os_printf(" Target: %p\n",
 				       obj_desc->reference.object);

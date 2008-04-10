@@ -434,11 +434,24 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 		 */
 		obj_desc = *(index_desc->reference.where);
 
-		status =
-		    acpi_ut_copy_iobject_to_iobject(source_desc, &new_desc,
-						    walk_state);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
+		if (ACPI_GET_OBJECT_TYPE(source_desc) ==
+		    ACPI_TYPE_LOCAL_REFERENCE
+		    && source_desc->reference.opcode == AML_LOAD_OP) {
+
+			/* This is a DDBHandle, just add a reference to it */
+
+			acpi_ut_add_reference(source_desc);
+			new_desc = source_desc;
+		} else {
+			/* Normal object, copy it */
+
+			status =
+			    acpi_ut_copy_iobject_to_iobject(source_desc,
+							    &new_desc,
+							    walk_state);
+			if (ACPI_FAILURE(status)) {
+				return_ACPI_STATUS(status);
+			}
 		}
 
 		if (obj_desc) {
