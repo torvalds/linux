@@ -192,7 +192,7 @@ EXPORT_SYMBOL(ist_info);
 extern void early_cpu_init(void);
 extern int root_mountflags;
 
-unsigned long saved_videomode;
+unsigned long saved_video_mode;
 
 #define RAMDISK_IMAGE_START_MASK	0x07FF
 #define RAMDISK_PROMPT_FLAG		0x8000
@@ -763,7 +763,7 @@ void __init setup_arch(char **cmdline_p)
 	edid_info = boot_params.edid_info;
 	apm_info.bios = boot_params.apm_bios_info;
 	ist_info = boot_params.ist_info;
-	saved_videomode = boot_params.hdr.vid_mode;
+	saved_video_mode = boot_params.hdr.vid_mode;
 	if( boot_params.sys_desc_table.length != 0 ) {
 		set_mca_bus(boot_params.sys_desc_table.table[3] & 0x2);
 		machine_id = boot_params.sys_desc_table.table[0];

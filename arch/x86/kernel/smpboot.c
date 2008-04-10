@@ -53,6 +53,7 @@
 #include <asm/nmi.h>
 #include <asm/irq.h>
 #include <asm/smp.h>
+#include <asm/trampoline.h>
 #include <asm/cpu.h>
 #include <asm/numa.h>
 #include <asm/pgtable.h>
@@ -140,7 +141,7 @@ static atomic_t init_deasserted;
 static int boot_cpu_logical_apicid;
 
 /* ready for x86_64, no harm for x86, since it will overwrite after alloc */
-unsigned char *trampoline_base = __va(SMP_TRAMPOLINE_BASE);
+unsigned char *trampoline_base = __va(TRAMPOLINE_BASE);
 
 /* representing cpus for which sibling maps can be computed */
 static cpumask_t cpu_sibling_setup_map;
@@ -554,8 +555,7 @@ cpumask_t cpu_coregroup_map(int cpu)
  * bootstrap into the page concerned. The caller
  * has made sure it's suitably aligned.
  */
-
-unsigned long __cpuinit setup_trampoline(void)
+unsigned long setup_trampoline(void)
 {
 	memcpy(trampoline_base, trampoline_data,
 	       trampoline_end - trampoline_data);

@@ -45,21 +45,11 @@ DECLARE_PER_CPU(u16, cpu_llc_id);
 DECLARE_PER_CPU(u16, x86_cpu_to_apicid);
 DECLARE_PER_CPU(u16, x86_bios_cpu_apicid);
 
-/*
- * Trampoline 80x86 program as an array.
- */
-extern const unsigned char trampoline_data [];
-extern const unsigned char trampoline_end  [];
-extern unsigned char *trampoline_base;
-
 /* Static state in head.S used to set up a CPU */
 extern struct {
 	void *sp;
 	unsigned short ss;
 } stack_start;
-
-extern unsigned long init_rsp;
-extern unsigned long initial_code;
 
 struct smp_ops {
 	void (*smp_prepare_boot_cpu)(void);
@@ -129,9 +119,6 @@ extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 
 extern void prefill_possible_map(void);
-
-#define SMP_TRAMPOLINE_BASE 0x6000
-extern unsigned long setup_trampoline(void);
 
 void smp_store_cpu_info(int id);
 #define cpu_physical_id(cpu)	per_cpu(x86_cpu_to_apicid, cpu)
