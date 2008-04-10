@@ -697,7 +697,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 		atomic_inc(&iclog->ic_refcnt);
 		spin_unlock(&log->l_icloglock);
 		xlog_state_want_sync(log, iclog);
-		(void) xlog_state_release_iclog(log, iclog);
+		error = xlog_state_release_iclog(log, iclog);
 
 		spin_lock(&log->l_icloglock);
 		if (!(iclog->ic_state == XLOG_STATE_ACTIVE ||
@@ -736,7 +736,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 		spin_unlock(&log->l_icloglock);
 
 		xlog_state_want_sync(log, iclog);
-		(void) xlog_state_release_iclog(log, iclog);
+		error =  xlog_state_release_iclog(log, iclog);
 
 		spin_lock(&log->l_icloglock);
 
@@ -751,7 +751,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 		}
 	}
 
-	return 0;
+	return error;
 }	/* xfs_log_unmount_write */
 
 /*
