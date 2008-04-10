@@ -594,6 +594,30 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 				 * The object is deleted
 				 */
 				if (!previous_walk_state->return_desc) {
+					/*
+					 * In slack mode execution, if there is no return value
+					 * we should implicitly return zero (0) as a default value.
+					 */
+					if (acpi_gbl_enable_interpreter_slack &&
+					    !previous_walk_state->
+					    implicit_return_obj) {
+						previous_walk_state->
+						    implicit_return_obj =
+						    acpi_ut_create_internal_object
+						    (ACPI_TYPE_INTEGER);
+						if (!previous_walk_state->
+						    implicit_return_obj) {
+							return_ACPI_STATUS
+							    (AE_NO_MEMORY);
+						}
+
+						previous_walk_state->
+						    implicit_return_obj->
+						    integer.value = 0;
+					}
+
+					/* Restart the calling control method */
+
 					status =
 					    acpi_ds_restart_control_method
 					    (walk_state,
