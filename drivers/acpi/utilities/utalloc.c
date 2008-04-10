@@ -147,7 +147,7 @@ acpi_status acpi_ut_delete_caches(void)
 
 	if (acpi_gbl_display_final_mem_stats) {
 		ACPI_STRCPY(buffer, "MEMORY");
-		acpi_db_display_statistics(buffer);
+		(void)acpi_db_display_statistics(buffer);
 	}
 #endif
 

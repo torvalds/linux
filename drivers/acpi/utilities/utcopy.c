@@ -570,7 +570,7 @@ acpi_ut_copy_epackage_to_ipackage(union acpi_object *external_object,
 
 			/* Truncate package and delete it */
 
-			package_object->package.count = i;
+			package_object->package.count = (u32) i;
 			package_elements[i] = NULL;
 			acpi_ut_remove_reference(package_object);
 			return_ACPI_STATUS(status);

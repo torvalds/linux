@@ -112,21 +112,25 @@ acpi_ns_one_complete_parse(acpi_native_uint pass_number,
 		aml_start = (u8 *) table + sizeof(struct acpi_table_header);
 		aml_length = table->length - sizeof(struct acpi_table_header);
 		status = acpi_ds_init_aml_walk(walk_state, parse_root, NULL,
-					       aml_start, aml_length, NULL,
-					       (u8) pass_number);
+					       aml_start, (u32) aml_length,
+					       NULL, (u8) pass_number);
 	}
 
 	if (ACPI_FAILURE(status)) {
 		acpi_ds_delete_walk_state(walk_state);
-		acpi_ps_delete_parse_tree(parse_root);
-		return_ACPI_STATUS(status);
+		goto cleanup;
 	}
 
 	/* start_node is the default location to load the table */
 
 	if (start_node && start_node != acpi_gbl_root_node) {
-		acpi_ds_scope_stack_push(start_node, ACPI_TYPE_METHOD,
-					 walk_state);
+		status =
+		    acpi_ds_scope_stack_push(start_node, ACPI_TYPE_METHOD,
+					     walk_state);
+		if (ACPI_FAILURE(status)) {
+			acpi_ds_delete_walk_state(walk_state);
+			goto cleanup;
+		}
 	}
 
 	/* Parse the AML */
@@ -135,6 +139,7 @@ acpi_ns_one_complete_parse(acpi_native_uint pass_number,
 			  (unsigned)pass_number));
 	status = acpi_ps_parse_aml(walk_state);
 
+      cleanup:
 	acpi_ps_delete_parse_tree(parse_root);
 	return_ACPI_STATUS(status);
 }

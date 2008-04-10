@@ -349,9 +349,10 @@ acpi_status acpi_ev_init_global_lock_handler(void)
 
 	ACPI_FUNCTION_TRACE(ev_init_global_lock_handler);
 
-	status =
-	    acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
-				    (struct acpi_table_header **)&facs);
+	status = acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
+					 ACPI_CAST_INDIRECT_PTR(struct
+								acpi_table_header,
+								&facs));
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}

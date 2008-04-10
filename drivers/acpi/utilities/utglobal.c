@@ -723,7 +723,7 @@ void acpi_ut_init_globals(void)
 	acpi_gbl_root_node_struct.flags = ANOBJ_END_OF_PEER_LIST;
 
 #ifdef ACPI_DEBUG_OUTPUT
-	acpi_gbl_lowest_stack_pointer = ACPI_SIZE_MAX;
+	acpi_gbl_lowest_stack_pointer = ACPI_CAST_PTR(acpi_size, ACPI_SIZE_MAX);
 #endif
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS

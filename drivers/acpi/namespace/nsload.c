@@ -111,7 +111,7 @@ acpi_ns_load_table(acpi_native_uint table_index,
 	if (ACPI_SUCCESS(status)) {
 		acpi_tb_set_table_loaded_flag(table_index, TRUE);
 	} else {
-		acpi_tb_release_owner_id(table_index);
+		(void)acpi_tb_release_owner_id(table_index);
 	}
 
       unlock:

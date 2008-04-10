@@ -68,9 +68,9 @@ static const char *acpi_ut_trim_function_name(const char *function_name);
 
 void acpi_ut_init_stack_ptr_trace(void)
 {
-	u32 current_sp;
+	acpi_size current_sp;
 
-	acpi_gbl_entry_stack_pointer = ACPI_PTR_DIFF(&current_sp, NULL);
+	acpi_gbl_entry_stack_pointer = &current_sp;
 }
 
 /*******************************************************************************
@@ -89,10 +89,8 @@ void acpi_ut_track_stack_ptr(void)
 {
 	acpi_size current_sp;
 
-	current_sp = ACPI_PTR_DIFF(&current_sp, NULL);
-
-	if (current_sp < acpi_gbl_lowest_stack_pointer) {
-		acpi_gbl_lowest_stack_pointer = current_sp;
+	if (&current_sp < acpi_gbl_lowest_stack_pointer) {
+		acpi_gbl_lowest_stack_pointer = &current_sp;
 	}
 
 	if (acpi_gbl_nesting_level > acpi_gbl_deepest_nesting) {
