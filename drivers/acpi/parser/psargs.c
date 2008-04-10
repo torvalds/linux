@@ -230,12 +230,11 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 			  struct acpi_parse_state *parser_state,
 			  union acpi_parse_object *arg, u8 possible_method_call)
 {
+	acpi_status status;
 	char *path;
 	union acpi_parse_object *name_op;
-	acpi_status status;
 	union acpi_operand_object *method_desc;
 	struct acpi_namespace_node *node;
-	union acpi_generic_state scope_info;
 
 	ACPI_FUNCTION_TRACE(ps_get_next_namepath);
 
@@ -249,25 +248,18 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* Setup search scope info */
-
-	scope_info.scope.node = NULL;
-	node = parser_state->start_node;
-	if (node) {
-		scope_info.scope.node = node;
-	}
-
 	/*
-	 * Lookup the name in the internal namespace. We don't want to add
-	 * anything new to the namespace here, however, so we use MODE_EXECUTE.
+	 * Lookup the name in the internal namespace, starting with the current
+	 * scope. We don't want to add anything new to the namespace here,
+	 * however, so we use MODE_EXECUTE.
 	 * Allow searching of the parent tree, but don't open a new scope -
 	 * we just want to lookup the object (must be mode EXECUTE to perform
 	 * the upsearch)
 	 */
-	status =
-	    acpi_ns_lookup(&scope_info, path, ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
-			   ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
-			   NULL, &node);
+	status = acpi_ns_lookup(walk_state->scope_info, path,
+				ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
+				ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
+				NULL, &node);
 
 	/*
 	 * If this name is a control method invocation, we must
