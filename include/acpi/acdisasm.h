@@ -180,6 +180,7 @@ extern struct acpi_dmtable_info acpi_dm_table_info_mcfg0[];
 extern struct acpi_dmtable_info acpi_dm_table_info_rsdp1[];
 extern struct acpi_dmtable_info acpi_dm_table_info_rsdp2[];
 extern struct acpi_dmtable_info acpi_dm_table_info_sbst[];
+extern struct acpi_dmtable_info acpi_dm_table_info_slic[];
 extern struct acpi_dmtable_info acpi_dm_table_info_slit[];
 extern struct acpi_dmtable_info acpi_dm_table_info_spcr[];
 extern struct acpi_dmtable_info acpi_dm_table_info_spmi[];
