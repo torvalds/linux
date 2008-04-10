@@ -1439,9 +1439,7 @@ xfs_qm_dqpurge(
 	uint		flags)
 {
 	xfs_dqhash_t	*thishash;
-	xfs_mount_t	*mp;
-
-	mp = dqp->q_mount;
+	xfs_mount_t	*mp = dqp->q_mount;
 
 	ASSERT(XFS_QM_IS_MPLIST_LOCKED(mp));
 	ASSERT(XFS_DQ_IS_HASH_LOCKED(dqp->q_hash));
@@ -1485,6 +1483,7 @@ xfs_qm_dqpurge(
 	 * we're unmounting, we do care, so we flush it and wait.
 	 */
 	if (XFS_DQ_IS_DIRTY(dqp)) {
+		int	error;
 		xfs_dqtrace_entry(dqp, "DQPURGE ->DQFLUSH: DQDIRTY");
 		/* dqflush unlocks dqflock */
 		/*
@@ -1495,7 +1494,10 @@ xfs_qm_dqpurge(
 		 * We don't care about getting disk errors here. We need
 		 * to purge this dquot anyway, so we go ahead regardless.
 		 */
-		(void) xfs_qm_dqflush(dqp, XFS_QMOPT_SYNC);
+		error = xfs_qm_dqflush(dqp, XFS_QMOPT_SYNC);
+		if (error)
+			xfs_fs_cmn_err(CE_WARN, mp,
+				"xfs_qm_dqpurge: dquot %p flush failed", dqp);
 		xfs_dqflock(dqp);
 	}
 	ASSERT(dqp->q_pincount == 0);

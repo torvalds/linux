@@ -146,6 +146,7 @@ xfs_qm_dquot_logitem_push(
 	xfs_dq_logitem_t	*logitem)
 {
 	xfs_dquot_t	*dqp;
+	int		error;
 
 	dqp = logitem->qli_dquot;
 
@@ -161,7 +162,11 @@ xfs_qm_dquot_logitem_push(
 	 * lock without sleeping, then there must not have been
 	 * anyone in the process of flushing the dquot.
 	 */
-	xfs_qm_dqflush(dqp, XFS_B_DELWRI);
+	error = xfs_qm_dqflush(dqp, XFS_QMOPT_DELWRI);
+	if (error)
+		xfs_fs_cmn_err(CE_WARN, dqp->q_mount,
+			"xfs_qm_dquot_logitem_push: push error %d on dqp %p",
+			error, dqp);
 	xfs_dqunlock(dqp);
 }
 

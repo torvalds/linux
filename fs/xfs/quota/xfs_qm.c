@@ -2094,12 +2094,17 @@ xfs_qm_shake_freelist(
 		 * dirty dquots.
 		 */
 		if (XFS_DQ_IS_DIRTY(dqp)) {
+			int	error;
 			xfs_dqtrace_entry(dqp, "DQSHAKE: DQDIRTY");
 			/*
 			 * We flush it delayed write, so don't bother
 			 * releasing the mplock.
 			 */
-			(void) xfs_qm_dqflush(dqp, XFS_QMOPT_DELWRI);
+			error = xfs_qm_dqflush(dqp, XFS_QMOPT_DELWRI);
+			if (error) {
+				xfs_fs_cmn_err(CE_WARN, dqp->q_mount,
+			"xfs_qm_dqflush_all: dquot %p flush failed", dqp);
+			}
 			xfs_dqunlock(dqp); /* dqflush unlocks dqflock */
 			dqp = dqp->dq_flnext;
 			continue;
@@ -2266,12 +2271,17 @@ xfs_qm_dqreclaim_one(void)
 		 * dirty dquots.
 		 */
 		if (XFS_DQ_IS_DIRTY(dqp)) {
+			int	error;
 			xfs_dqtrace_entry(dqp, "DQRECLAIM: DQDIRTY");
 			/*
 			 * We flush it delayed write, so don't bother
 			 * releasing the freelist lock.
 			 */
-			(void) xfs_qm_dqflush(dqp, XFS_QMOPT_DELWRI);
+			error = xfs_qm_dqflush(dqp, XFS_QMOPT_DELWRI);
+			if (error) {
+				xfs_fs_cmn_err(CE_WARN, dqp->q_mount,
+			"xfs_qm_dqreclaim: dquot %p flush failed", dqp);
+			}
 			xfs_dqunlock(dqp); /* dqflush unlocks dqflock */
 			continue;
 		}
