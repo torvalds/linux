@@ -373,7 +373,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 	union acpi_parse_object *parent;
 	union acpi_operand_object *obj_desc = NULL;
 	acpi_status status = AE_OK;
-	acpi_native_uint i;
+	unsigned i;
 	u16 index;
 	u16 reference_count;
 
@@ -476,10 +476,37 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 		arg = arg->common.next;
 	}
 
-	if (!arg) {
+	/* Check for match between num_elements and actual length of package_list */
+
+	if (arg) {
+		/*
+		 * num_elements was exhausted, but there are remaining elements in the
+		 * package_list.
+		 *
+		 * Note: technically, this is an error, from ACPI spec: "It is an error
+		 * for NumElements to be less than the number of elements in the
+		 * PackageList". However, for now, we just print an error message and
+		 * no exception is returned.
+		 */
+		while (arg) {
+
+			/* Find out how many elements there really are */
+
+			i++;
+			arg = arg->common.next;
+		}
+
+		ACPI_ERROR((AE_INFO,
+			    "Package List length (%X) larger than NumElements count (%X), truncated\n",
+			    i, element_count));
+	} else if (i < element_count) {
+		/*
+		 * Arg list (elements) was exhausted, but we did not reach num_elements count.
+		 * Note: this is not an error, the package is padded out with NULLs.
+		 */
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Package List length larger than NumElements count (%X), truncated\n",
-				  element_count));
+				  "Package List length (%X) smaller than NumElements count (%X), padded with null elements\n",
+				  i, element_count));
 	}
 
 	obj_desc->package.flags |= AOPOBJ_DATA_VALID;
