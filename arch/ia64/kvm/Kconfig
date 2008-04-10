@@ -43,4 +43,7 @@ config KVM_INTEL
 	  Provides support for KVM on Itanium 2 processors equipped with the VT
 	  extensions.
 
+config KVM_TRACE
+       bool
+
 endif # VIRTUALIZATION
