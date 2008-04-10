@@ -209,8 +209,16 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 							object, level + 4, 0);
 			}
 		} else if (source_desc->reference.node) {
-			acpi_ex_do_debug_object((source_desc->reference.node)->
-						object, level + 4, 0);
+			if (ACPI_GET_DESCRIPTOR_TYPE
+			    (source_desc->reference.node) !=
+			    ACPI_DESC_TYPE_NAMED) {
+				ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT,
+						      " %p - Not a valid namespace node\n"));
+			} else {
+				acpi_ex_do_debug_object((source_desc->reference.
+							 node)->object,
+							level + 4, 0);
+			}
 		}
 		break;
 

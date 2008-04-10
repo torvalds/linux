@@ -180,6 +180,12 @@ acpi_size acpi_ns_get_pathname_length(struct acpi_namespace_node *node)
 	next_node = node;
 
 	while (next_node && (next_node != acpi_gbl_root_node)) {
+		if (ACPI_GET_DESCRIPTOR_TYPE(next_node) != ACPI_DESC_TYPE_NAMED) {
+			ACPI_ERROR((AE_INFO,
+				    "Invalid NS Node (%X) while traversing path",
+				    next_node));
+			return 0;
+		}
 		size += ACPI_PATH_SEGMENT_LENGTH;
 		next_node = acpi_ns_get_parent_node(next_node);
 	}
