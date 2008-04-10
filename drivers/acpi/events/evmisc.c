@@ -461,6 +461,19 @@ acpi_status acpi_ev_acquire_global_lock(u16 timeout)
 	acpi_ev_global_lock_acquired++;
 
 	/*
+	 * Update the global lock handle and check for wraparound. The handle is
+	 * only used for the external global lock interfaces, but it is updated
+	 * here to properly handle the case where a single thread may acquire the
+	 * lock via both the AML and the acpi_acquire_global_lock interfaces. The
+	 * handle is therefore updated on the first acquire from a given thread
+	 * regardless of where the acquisition request originated.
+	 */
+	acpi_gbl_global_lock_handle++;
+	if (acpi_gbl_global_lock_handle == 0) {
+		acpi_gbl_global_lock_handle = 1;
+	}
+
+	/*
 	 * Make sure that a global lock actually exists. If not, just treat
 	 * the lock as a standard mutex.
 	 */

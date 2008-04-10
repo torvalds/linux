@@ -782,15 +782,8 @@ acpi_status acpi_acquire_global_lock(u16 timeout, u32 * handle)
 					      acpi_os_get_thread_id());
 
 	if (ACPI_SUCCESS(status)) {
-		/*
-		 * If this was the first acquisition of the Global Lock by this thread,
-		 * create a new handle. Otherwise, return the existing handle.
-		 */
-		if (acpi_gbl_global_lock_mutex->mutex.acquisition_depth == 1) {
-			acpi_gbl_global_lock_handle++;
-		}
 
-		/* Return the global lock handle */
+		/* Return the global lock handle (updated in acpi_ev_acquire_global_lock) */
 
 		*handle = acpi_gbl_global_lock_handle;
 	}
