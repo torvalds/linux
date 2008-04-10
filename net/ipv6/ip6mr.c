@@ -27,27 +27,18 @@
 #include <linux/fcntl.h>
 #include <linux/stat.h>
 #include <linux/socket.h>
-#include <linux/in.h>
 #include <linux/inet.h>
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
-#include <linux/igmp.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/mroute.h>
 #include <linux/init.h>
-#include <net/ip.h>
 #include <net/protocol.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <net/icmp.h>
-#include <net/udp.h>
 #include <net/raw.h>
-#include <net/route.h>
 #include <linux/notifier.h>
 #include <linux/if_arp.h>
-#include <linux/netfilter_ipv4.h>
-#include <net/ipip.h>
 #include <net/checksum.h>
 #include <net/netlink.h>
 
@@ -83,7 +74,7 @@ static int mroute_do_pim;
 #define mroute_do_pim 0
 #endif
 
-static struct mfc6_cache *mfc6_cache_array[MFC_LINES];	/* Forwarding cache	*/
+static struct mfc6_cache *mfc6_cache_array[MFC6_LINES];	/* Forwarding cache	*/
 
 static struct mfc6_cache *mfc_unres_queue;		/* Queue of unresolved entries */
 static atomic_t cache_resolve_queue_len;		/* Size of unresolved	*/
@@ -102,7 +93,7 @@ static DEFINE_SPINLOCK(mfc_unres_lock);
 static struct kmem_cache *mrt_cachep __read_mostly;
 
 static int ip6_mr_forward(struct sk_buff *skb, struct mfc6_cache *cache);
-static int ip6mr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert);
+static int ip6mr_cache_report(struct sk_buff *pkt, mifi_t mifi, int assert);
 static int ip6mr_fill_mroute(struct sk_buff *skb, struct mfc6_cache *c, struct rtmsg *rtm);
 
 #ifdef CONFIG_IPV6_PIMSM_V2
@@ -597,9 +588,9 @@ static void ip6mr_update_thresholds(struct mfc6_cache *cache, unsigned char *ttl
 {
 	int vifi;
 
-	cache->mfc_un.res.minvif = MAXVIFS;
+	cache->mfc_un.res.minvif = MAXMIFS;
 	cache->mfc_un.res.maxvif = 0;
-	memset(cache->mfc_un.res.ttls, 255, MAXVIFS);
+	memset(cache->mfc_un.res.ttls, 255, MAXMIFS);
 
 	for (vifi = 0; vifi < maxvif; vifi++) {
 		if (MIF_EXISTS(vifi) && ttls[vifi] && ttls[vifi] < 255) {
@@ -700,7 +691,7 @@ static struct mfc6_cache *ip6mr_cache_alloc(void)
 	if (c == NULL)
 		return NULL;
 	memset(c, 0, sizeof(*c));
-	c->mfc_un.res.minvif = MAXVIFS;
+	c->mfc_un.res.minvif = MAXMIFS;
 	return c;
 }
 
@@ -753,7 +744,7 @@ static void ip6mr_cache_resolve(struct mfc6_cache *uc, struct mfc6_cache *c)
  *	Called under mrt_lock.
  */
 
-static int ip6mr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
+static int ip6mr_cache_report(struct sk_buff *pkt, mifi_t mifi, int assert)
 {
 	struct sk_buff *skb;
 	struct mrt6msg *msg;
@@ -815,7 +806,7 @@ static int ip6mr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
 
 	msg->im6_mbz = 0;
 	msg->im6_msgtype = assert;
-	msg->im6_mif = vifi;
+	msg->im6_mif = mifi;
 	msg->im6_pad = 0;
 	ipv6_addr_copy(&msg->im6_src, &ipv6_hdr(pkt)->saddr);
 	ipv6_addr_copy(&msg->im6_dst, &ipv6_hdr(pkt)->daddr);
@@ -848,7 +839,7 @@ static int ip6mr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
  */
 
 static int
-ip6mr_cache_unresolved(vifi_t vifi, struct sk_buff *skb)
+ip6mr_cache_unresolved(mifi_t mifi, struct sk_buff *skb)
 {
 	int err;
 	struct mfc6_cache *c;
@@ -883,7 +874,7 @@ ip6mr_cache_unresolved(vifi_t vifi, struct sk_buff *skb)
 		/*
 		 *	Reflect first query at pim6sd
 		 */
-		if ((err = ip6mr_cache_report(skb, vifi, MRT6MSG_NOCACHE)) < 0) {
+		if ((err = ip6mr_cache_report(skb, mifi, MRT6MSG_NOCACHE)) < 0) {
 			/* If the report failed throw the cache entry
 			   out - Brad Parker
 			 */
@@ -992,11 +983,11 @@ static int ip6mr_mfc_add(struct mf6cctl *mfc, int mrtsock)
 {
 	int line;
 	struct mfc6_cache *uc, *c, **cp;
-	unsigned char ttls[MAXVIFS];
+	unsigned char ttls[MAXMIFS];
 	int i;
 
-	memset(ttls, 255, MAXVIFS);
-	for (i = 0; i < MAXVIFS; i++) {
+	memset(ttls, 255, MAXMIFS);
+	for (i = 0; i < MAXMIFS; i++) {
 		if (IF_ISSET(i, &mfc->mf6cc_ifset))
 			ttls[i] = 1;
 
@@ -1188,7 +1179,7 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int
 			return -EINVAL;
 		if (copy_from_user(&vif, optval, sizeof(vif)))
 			return -EFAULT;
-		if (vif.mif6c_mifi >= MAXVIFS)
+		if (vif.mif6c_mifi >= MAXMIFS)
 			return -ENFILE;
 		rtnl_lock();
 		ret = mif6_add(&vif, sk == mroute6_socket);
