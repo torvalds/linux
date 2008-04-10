@@ -85,7 +85,6 @@ void acpi_ex_unlink_mutex(union acpi_operand_object *obj_desc)
 	} else {
 		thread->acquired_mutex_list = obj_desc->mutex.next;
 	}
-	return;
 }
 
 /*******************************************************************************
@@ -299,17 +298,6 @@ acpi_status acpi_ex_release_mutex_object(union acpi_operand_object *obj_desc)
 		return (AE_NOT_ACQUIRED);
 	}
 
-	/* No obj_desc->Mutex.owner_thread for Global Lock */
-
-	/*
-	 * Mutex to be released must be at the head of acquired list to prevent
-	 * deadlock. (The head of the list is the last mutex acquired.)
-	 */
-	if (obj_desc->mutex.owner_thread &&
-	    (obj_desc != obj_desc->mutex.owner_thread->acquired_mutex_list)) {
-		return (AE_AML_MUTEX_ORDER);
-	}
-
 	/* Match multiple Acquires with multiple Releases */
 
 	obj_desc->mutex.acquisition_depth--;
@@ -415,9 +403,6 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 	}
 
 	status = acpi_ex_release_mutex_object(obj_desc);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
 
 	if (obj_desc->mutex.acquisition_depth == 0) {
 
@@ -426,7 +411,6 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 		walk_state->thread->current_sync_level =
 		    obj_desc->mutex.original_sync_level;
 	}
-
 	return_ACPI_STATUS(status);
 }
 
