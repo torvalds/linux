@@ -61,21 +61,11 @@
 
 #define ACPI_ARRAY_LENGTH(x)            (sizeof(x) / sizeof((x)[0]))
 
-#ifdef ACPI_NO_INTEGER64_SUPPORT
 /*
- * acpi_integer is 32-bits, no 64-bit support on this platform
- */
-#define ACPI_LODWORD(l)                 ((u32)(l))
-#define ACPI_HIDWORD(l)                 ((u32)(0))
-
-#else
-
-/*
- * Full 64-bit address/integer on both 32-bit and 64-bit platforms
+ * Full 64-bit integer must be available on both 32-bit and 64-bit platforms
  */
 #define ACPI_LODWORD(l)                 ((u32)(u64)(l))
 #define ACPI_HIDWORD(l)                 ((u32)(((*(struct uint64_struct *)(void *)(&l))).hi))
-#endif
 
 /*
  * printf() format helpers
