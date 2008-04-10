@@ -138,6 +138,14 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 
 	ACPI_FUNCTION_TRACE(ex_load_table_op);
 
+	/* Validate lengths for the signature_string, OEMIDString, OEMtable_iD */
+
+	if ((operand[0]->string.length > ACPI_NAME_SIZE) ||
+	    (operand[1]->string.length > ACPI_OEM_ID_SIZE) ||
+	    (operand[2]->string.length > ACPI_OEM_TABLE_ID_SIZE)) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
 	/* Find the ACPI table in the RSDT/XSDT */
 
 	status = acpi_tb_find_table(operand[0]->string.pointer,
