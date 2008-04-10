@@ -163,7 +163,6 @@ static void tnode_put_child_reorg(struct tnode *tn, int i, struct node *n,
 static struct node *resize(struct trie *t, struct tnode *tn);
 static struct tnode *inflate(struct trie *t, struct tnode *tn);
 static struct tnode *halve(struct trie *t, struct tnode *tn);
-static void tnode_free(struct tnode *tn);
 
 static struct kmem_cache *fn_alias_kmem __read_mostly;
 static struct kmem_cache *trie_leaf_kmem __read_mostly;
@@ -337,6 +336,11 @@ static void __leaf_free_rcu(struct rcu_head *head)
 	kmem_cache_free(trie_leaf_kmem, l);
 }
 
+static inline void free_leaf(struct leaf *l)
+{
+	call_rcu_bh(&l->rcu, __leaf_free_rcu);
+}
+
 static void __leaf_info_free_rcu(struct rcu_head *head)
 {
 	kfree(container_of(head, struct leaf_info, rcu));
@@ -377,10 +381,9 @@ static void __tnode_free_rcu(struct rcu_head *head)
 
 static inline void tnode_free(struct tnode *tn)
 {
-	if (IS_LEAF(tn)) {
-		struct leaf *l = (struct leaf *) tn;
-		call_rcu_bh(&l->rcu, __leaf_free_rcu);
-	} else
+	if (IS_LEAF(tn))
+		free_leaf((struct leaf *) tn);
+	else
 		call_rcu(&tn->rcu, __tnode_free_rcu);
 }
 
@@ -1091,7 +1094,7 @@ static struct list_head *fib_insert_node(struct trie *t, u32 key, int plen)
 	li = leaf_info_new(plen);
 
 	if (!li) {
-		tnode_free((struct tnode *) l);
+		free_leaf(l);
 		return NULL;
 	}
 
@@ -1127,7 +1130,7 @@ static struct list_head *fib_insert_node(struct trie *t, u32 key, int plen)
 
 		if (!tn) {
 			free_leaf_info(li);
-			tnode_free((struct tnode *) l);
+			free_leaf(l);
 			return NULL;
 		}
 
@@ -1583,7 +1586,7 @@ static void trie_leaf_remove(struct trie *t, struct leaf *l)
 	} else
 		rcu_assign_pointer(t->trie, NULL);
 
-	tnode_free((struct tnode *) l);
+	free_leaf(l);
 }
 
 /*
