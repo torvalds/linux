@@ -1743,11 +1743,18 @@ xfs_inactive(
 		XFS_TRANS_MOD_DQUOT_BYINO(mp, tp, ip, XFS_TRANS_DQ_ICOUNT, -1);
 
 		/*
-		 * Just ignore errors at this point.  There is
-		 * nothing we can do except to try to keep going.
+		 * Just ignore errors at this point.  There is nothing we can
+		 * do except to try to keep going. Make sure it's not a silent
+		 * error.
 		 */
-		(void) xfs_bmap_finish(&tp,  &free_list, &committed);
-		(void) xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+		error = xfs_bmap_finish(&tp,  &free_list, &committed);
+		if (error)
+			xfs_fs_cmn_err(CE_NOTE, mp, "xfs_inactive: "
+				"xfs_bmap_finish() returned error %d", error);
+		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+		if (error)
+			xfs_fs_cmn_err(CE_NOTE, mp, "xfs_inactive: "
+				"xfs_trans_commit() returned error %d", error);
 	}
 	/*
 	 * Release the dquots held by inode, if any.
