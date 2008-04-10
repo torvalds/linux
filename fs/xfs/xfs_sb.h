@@ -320,11 +320,12 @@ static inline int xfs_sb_good_version(xfs_sb_t *sbp)
 #endif /* __KERNEL__ */
 
 /*
- * Detect a bad features2 field
+ * Detect a mismatched features2 field.  Older kernels read/wrote
+ * this into the wrong slot, so to be safe we keep them in sync.
  */
-static inline int xfs_sb_has_bad_features2(xfs_sb_t *sbp)
+static inline int xfs_sb_has_mismatched_features2(xfs_sb_t *sbp)
 {
-	return (sbp->sb_bad_features2 != 0);
+	return (sbp->sb_bad_features2 != sbp->sb_features2);
 }
 
 static inline unsigned xfs_sb_version_tonew(unsigned v)

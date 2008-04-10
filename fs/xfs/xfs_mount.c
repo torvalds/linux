@@ -972,23 +972,35 @@ xfs_mountfs(
 	xfs_mount_common(mp, sbp);
 
 	/*
-	 * Check for a bad features2 field alignment. This happened on
-	 * some platforms due to xfs_sb_t not being 64bit size aligned
-	 * when sb_features was added and hence the compiler put it in
-	 * the wrong place.
+	 * Check for a mismatched features2 values.  Older kernels
+	 * read & wrote into the wrong sb offset for sb_features2
+	 * on some platforms due to xfs_sb_t not being 64bit size aligned
+	 * when sb_features2 was added, which made older superblock
+	 * reading/writing routines swap it as a 64-bit value.
 	 *
-	 * If we detect a bad field, we or the set bits into the existing
-	 * features2 field in case it has already been modified and we
-	 * don't want to lose any features. Zero the bad one and mark
-	 * the two fields as needing updates once the transaction subsystem
-	 * is online.
+	 * For backwards compatibility, we make both slots equal.
+	 *
+	 * If we detect a mismatched field, we OR the set bits into the
+	 * existing features2 field in case it has already been modified; we
+	 * don't want to lose any features.  We then update the bad location
+	 * with the ORed value so that older kernels will see any features2
+	 * flags, and mark the two fields as needing updates once the
+	 * transaction subsystem is online.
 	 */
-	if (xfs_sb_has_bad_features2(sbp)) {
+	if (xfs_sb_has_mismatched_features2(sbp)) {
 		cmn_err(CE_WARN,
 			"XFS: correcting sb_features alignment problem");
 		sbp->sb_features2 |= sbp->sb_bad_features2;
-		sbp->sb_bad_features2 = 0;
+		sbp->sb_bad_features2 = sbp->sb_features2;
 		update_flags |= XFS_SB_FEATURES2 | XFS_SB_BAD_FEATURES2;
+
+		/*
+		 * Re-check for ATTR2 in case it was found in bad_features2
+		 * slot.
+		 */
+		if (xfs_sb_version_hasattr2(&mp->m_sb))
+			mp->m_flags |= XFS_MOUNT_ATTR2;
+
 	}
 
 	/*
@@ -1896,7 +1908,8 @@ xfs_uuid_unmount(
 
 /*
  * Used to log changes to the superblock unit and width fields which could
- * be altered by the mount options. Only the first superblock is updated.
+ * be altered by the mount options, as well as any potential sb_features2
+ * fixup. Only the first superblock is updated.
  */
 STATIC void
 xfs_mount_log_sb(
