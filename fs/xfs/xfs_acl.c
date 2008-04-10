@@ -324,7 +324,7 @@ xfs_acl_vset(
 	if (!basicperms) {
 		xfs_acl_set_attr(vp, xfs_acl, kind, &error);
 	} else {
-		xfs_acl_vremove(vp, _ACL_TYPE_ACCESS);
+		error = -xfs_acl_vremove(vp, _ACL_TYPE_ACCESS);
 	}
 
 out:
