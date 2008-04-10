@@ -361,7 +361,7 @@ typedef struct xlog_iclog_fields {
 
 	/* reference counts need their own cacheline */
 	atomic_t		ic_refcnt ____cacheline_aligned_in_smp;
-} xlog_iclog_fields_t ____cacheline_aligned_in_smp;
+} xlog_iclog_fields_t;
 
 typedef union xlog_in_core2 {
 	xlog_rec_header_t	hic_header;
@@ -402,8 +402,29 @@ typedef struct xlog_in_core {
  * that round off problems won't occur when releasing partial reservations.
  */
 typedef struct log {
+	/* The following fields don't need locking */
+	struct xfs_mount	*l_mp;	        /* mount point */
+	struct xfs_buf		*l_xbuf;        /* extra buffer for log
+						 * wrapping */
+	struct xfs_buftarg	*l_targ;        /* buftarg of log */
+	uint			l_flags;
+	uint			l_quotaoffs_flag; /* XFS_DQ_*, for QUOTAOFFs */
+	struct xfs_buf_cancel	**l_buf_cancel_table;
+	int			l_iclog_hsize;  /* size of iclog header */
+	int			l_iclog_heads;  /* # of iclog header sectors */
+	uint			l_sectbb_log;   /* log2 of sector size in BBs */
+	uint			l_sectbb_mask;  /* sector size (in BBs)
+						 * alignment mask */
+	int			l_iclog_size;	/* size of log in bytes */
+	int			l_iclog_size_log; /* log power size of log */
+	int			l_iclog_bufs;	/* number of iclog buffers */
+	xfs_daddr_t		l_logBBstart;   /* start block of log */
+	int			l_logsize;      /* size of log in bytes */
+	int			l_logBBsize;    /* size of log in BB chunks */
+
 	/* The following block of fields are changed while holding icloglock */
-	sema_t			l_flushsema;    /* iclog flushing semaphore */
+	sema_t			l_flushsema ____cacheline_aligned_in_smp;
+						/* iclog flushing semaphore */
 	int			l_flushcnt;	/* # of procs waiting on this
 						 * sema */
 	int			l_covered_state;/* state of "covering disk
@@ -413,27 +434,14 @@ typedef struct log {
 	xfs_lsn_t		l_tail_lsn;     /* lsn of 1st LR with unflushed
 						 * buffers */
 	xfs_lsn_t		l_last_sync_lsn;/* lsn of last LR on disk */
-	struct xfs_mount	*l_mp;	        /* mount point */
-	struct xfs_buf		*l_xbuf;        /* extra buffer for log
-						 * wrapping */
-	struct xfs_buftarg	*l_targ;        /* buftarg of log */
-	xfs_daddr_t		l_logBBstart;   /* start block of log */
-	int			l_logsize;      /* size of log in bytes */
-	int			l_logBBsize;    /* size of log in BB chunks */
 	int			l_curr_cycle;   /* Cycle number of log writes */
 	int			l_prev_cycle;   /* Cycle number before last
 						 * block increment */
 	int			l_curr_block;   /* current logical log block */
 	int			l_prev_block;   /* previous logical log block */
-	int			l_iclog_size;	/* size of log in bytes */
-	int			l_iclog_size_log; /* log power size of log */
-	int			l_iclog_bufs;	/* number of iclog buffers */
-
-	/* The following field are used for debugging; need to hold icloglock */
-	char			*l_iclog_bak[XLOG_MAX_ICLOGS];
 
 	/* The following block of fields are changed while holding grant_lock */
-	spinlock_t		l_grant_lock;
+	spinlock_t		l_grant_lock ____cacheline_aligned_in_smp;
 	xlog_ticket_t		*l_reserve_headq;
 	xlog_ticket_t		*l_write_headq;
 	int			l_grant_reserve_cycle;
@@ -441,19 +449,16 @@ typedef struct log {
 	int			l_grant_write_cycle;
 	int			l_grant_write_bytes;
 
-	/* The following fields don't need locking */
 #ifdef XFS_LOG_TRACE
 	struct ktrace		*l_trace;
 	struct ktrace		*l_grant_trace;
 #endif
-	uint			l_flags;
-	uint			l_quotaoffs_flag; /* XFS_DQ_*, for QUOTAOFFs */
-	struct xfs_buf_cancel	**l_buf_cancel_table;
-	int			l_iclog_hsize;  /* size of iclog header */
-	int			l_iclog_heads;  /* # of iclog header sectors */
-	uint			l_sectbb_log;   /* log2 of sector size in BBs */
-	uint			l_sectbb_mask;  /* sector size (in BBs)
-						 * alignment mask */
+
+	/* The following field are used for debugging; need to hold icloglock */
+#ifdef DEBUG
+	char			*l_iclog_bak[XLOG_MAX_ICLOGS];
+#endif
+
 } xlog_t;
 
 #define XLOG_FORCED_SHUTDOWN(log)	((log)->l_flags & XLOG_IO_ERROR)
