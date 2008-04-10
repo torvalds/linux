@@ -41,6 +41,7 @@
 #include "xfs_inode.h"
 #include "xfs_rw.h"
 
+kmem_zone_t	*xfs_log_ticket_zone;
 
 #define xlog_write_adv_cnt(ptr, len, off, bytes) \
 	{ (ptr) += (bytes); \
@@ -73,8 +74,6 @@ STATIC int  xlog_state_get_iclog_space(xlog_t		*log,
 				       xlog_ticket_t	*ticket,
 				       int		*continued_write,
 				       int		*logoffsetp);
-STATIC void xlog_state_put_ticket(xlog_t	*log,
-				  xlog_ticket_t *tic);
 STATIC int  xlog_state_release_iclog(xlog_t		*log,
 				     xlog_in_core_t	*iclog);
 STATIC void xlog_state_switch_iclogs(xlog_t		*log,
@@ -101,7 +100,6 @@ STATIC void xlog_ungrant_log_space(xlog_t	 *log,
 
 
 /* local ticket functions */
-STATIC void		xlog_state_ticket_alloc(xlog_t *log);
 STATIC xlog_ticket_t	*xlog_ticket_get(xlog_t *log,
 					 int	unit_bytes,
 					 int	count,
@@ -330,7 +328,7 @@ xfs_log_done(xfs_mount_t	*mp,
 		 */
 		xlog_trace_loggrant(log, ticket, "xfs_log_done: (non-permanent)");
 		xlog_ungrant_log_space(log, ticket);
-		xlog_state_put_ticket(log, ticket);
+		xlog_ticket_put(log, ticket);
 	} else {
 		xlog_trace_loggrant(log, ticket, "xfs_log_done: (permanent)");
 		xlog_regrant_reserve_log_space(log, ticket);
@@ -469,6 +467,8 @@ xfs_log_reserve(xfs_mount_t	 *mp,
 		/* may sleep if need to allocate more tickets */
 		internal_ticket = xlog_ticket_get(log, unit_bytes, cnt,
 						  client, flags);
+		if (!internal_ticket)
+			return XFS_ERROR(ENOMEM);
 		internal_ticket->t_trans_type = t_type;
 		*ticket = internal_ticket;
 		xlog_trace_loggrant(log, internal_ticket, 
@@ -693,7 +693,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 		if (tic) {
 			xlog_trace_loggrant(log, tic, "unmount rec");
 			xlog_ungrant_log_space(log, tic);
-			xlog_state_put_ticket(log, tic);
+			xlog_ticket_put(log, tic);
 		}
 	} else {
 		/*
@@ -1208,7 +1208,6 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	spin_lock_init(&log->l_icloglock);
 	spin_lock_init(&log->l_grant_lock);
 	initnsema(&log->l_flushsema, 0, "ic-flush");
-	xlog_state_ticket_alloc(log);  /* wait until after icloglock inited */
 
 	/* log record size must be multiple of BBSIZE; see xlog_rec_header_t */
 	ASSERT((XFS_BUF_SIZE(bp) & BBMASK) == 0);
@@ -1538,7 +1537,6 @@ STATIC void
 xlog_dealloc_log(xlog_t *log)
 {
 	xlog_in_core_t	*iclog, *next_iclog;
-	xlog_ticket_t	*tic, *next_tic;
 	int		i;
 
 	iclog = log->l_iclog;
@@ -1559,22 +1557,6 @@ xlog_dealloc_log(xlog_t *log)
 	spinlock_destroy(&log->l_icloglock);
 	spinlock_destroy(&log->l_grant_lock);
 
-	/* XXXsup take a look at this again. */
-	if ((log->l_ticket_cnt != log->l_ticket_tcnt)  &&
-	    !XLOG_FORCED_SHUTDOWN(log)) {
-		xfs_fs_cmn_err(CE_WARN, log->l_mp,
-			"xlog_dealloc_log: (cnt: %d, total: %d)",
-			log->l_ticket_cnt, log->l_ticket_tcnt);
-		/* ASSERT(log->l_ticket_cnt == log->l_ticket_tcnt); */
-
-	} else {
-		tic = log->l_unmount_free;
-		while (tic) {
-			next_tic = tic->t_next;
-			kmem_free(tic, PAGE_SIZE);
-			tic = next_tic;
-		}
-	}
 	xfs_buf_free(log->l_xbuf);
 #ifdef XFS_LOG_TRACE
 	if (log->l_trace != NULL) {
@@ -2795,18 +2777,6 @@ xlog_ungrant_log_space(xlog_t	     *log,
 
 
 /*
- * Atomically put back used ticket.
- */
-STATIC void
-xlog_state_put_ticket(xlog_t	    *log,
-		      xlog_ticket_t *tic)
-{
-	spin_lock(&log->l_icloglock);
-	xlog_ticket_put(log, tic);
-	spin_unlock(&log->l_icloglock);
-}	/* xlog_state_put_ticket */
-
-/*
  * Flush iclog to disk if this is the last reference to the given iclog and
  * the WANT_SYNC bit is set.
  *
@@ -3176,92 +3146,19 @@ xlog_state_want_sync(xlog_t *log, xlog_in_core_t *iclog)
  */
 
 /*
- *	Algorithm doesn't take into account page size. ;-(
- */
-STATIC void
-xlog_state_ticket_alloc(xlog_t *log)
-{
-	xlog_ticket_t	*t_list;
-	xlog_ticket_t	*next;
-	xfs_caddr_t	buf;
-	uint		i = (PAGE_SIZE / sizeof(xlog_ticket_t)) - 2;
-
-	/*
-	 * The kmem_zalloc may sleep, so we shouldn't be holding the
-	 * global lock.  XXXmiken: may want to use zone allocator.
-	 */
-	buf = (xfs_caddr_t) kmem_zalloc(PAGE_SIZE, KM_SLEEP);
-
-	spin_lock(&log->l_icloglock);
-
-	/* Attach 1st ticket to Q, so we can keep track of allocated memory */
-	t_list = (xlog_ticket_t *)buf;
-	t_list->t_next = log->l_unmount_free;
-	log->l_unmount_free = t_list++;
-	log->l_ticket_cnt++;
-	log->l_ticket_tcnt++;
-
-	/* Next ticket becomes first ticket attached to ticket free list */
-	if (log->l_freelist != NULL) {
-		ASSERT(log->l_tail != NULL);
-		log->l_tail->t_next = t_list;
-	} else {
-		log->l_freelist = t_list;
-	}
-	log->l_ticket_cnt++;
-	log->l_ticket_tcnt++;
-
-	/* Cycle through rest of alloc'ed memory, building up free Q */
-	for ( ; i > 0; i--) {
-		next = t_list + 1;
-		t_list->t_next = next;
-		t_list = next;
-		log->l_ticket_cnt++;
-		log->l_ticket_tcnt++;
-	}
-	t_list->t_next = NULL;
-	log->l_tail = t_list;
-	spin_unlock(&log->l_icloglock);
-}	/* xlog_state_ticket_alloc */
-
-
-/*
- * Put ticket into free list
- *
- * Assumption: log lock is held around this call.
+ * Free a used ticket.
  */
 STATIC void
 xlog_ticket_put(xlog_t		*log,
 		xlog_ticket_t	*ticket)
 {
 	sv_destroy(&ticket->t_sema);
-
-	/*
-	 * Don't think caching will make that much difference.  It's
-	 * more important to make debug easier.
-	 */
-#if 0
-	/* real code will want to use LIFO for caching */
-	ticket->t_next = log->l_freelist;
-	log->l_freelist = ticket;
-	/* no need to clear fields */
-#else
-	/* When we debug, it is easier if tickets are cycled */
-	ticket->t_next     = NULL;
-	if (log->l_tail) {
-		log->l_tail->t_next = ticket;
-	} else {
-		ASSERT(log->l_freelist == NULL);
-		log->l_freelist = ticket;
-	}
-	log->l_tail	    = ticket;
-#endif /* DEBUG */
-	log->l_ticket_cnt++;
+	kmem_zone_free(xfs_log_ticket_zone, ticket);
 }	/* xlog_ticket_put */
 
 
 /*
- * Grab ticket off freelist or allocation some more
+ * Allocate and initialise a new log ticket.
  */
 STATIC xlog_ticket_t *
 xlog_ticket_get(xlog_t		*log,
@@ -3273,21 +3170,9 @@ xlog_ticket_get(xlog_t		*log,
 	xlog_ticket_t	*tic;
 	uint		num_headers;
 
- alloc:
-	if (log->l_freelist == NULL)
-		xlog_state_ticket_alloc(log);		/* potentially sleep */
-
-	spin_lock(&log->l_icloglock);
-	if (log->l_freelist == NULL) {
-		spin_unlock(&log->l_icloglock);
-		goto alloc;
-	}
-	tic		= log->l_freelist;
-	log->l_freelist	= tic->t_next;
-	if (log->l_freelist == NULL)
-		log->l_tail = NULL;
-	log->l_ticket_cnt--;
-	spin_unlock(&log->l_icloglock);
+	tic = kmem_zone_zalloc(xfs_log_ticket_zone, KM_SLEEP|KM_MAYFAIL);
+	if (!tic)
+		return NULL;
 
 	/*
 	 * Permanent reservations have up to 'cnt'-1 active log operations

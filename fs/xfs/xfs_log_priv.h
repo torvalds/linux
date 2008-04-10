@@ -242,7 +242,7 @@ typedef struct xlog_res {
 
 typedef struct xlog_ticket {
 	sv_t		   t_sema;	 /* sleep on this semaphore      : 20 */
- 	struct xlog_ticket *t_next;	 /*			         :4|8 */
+	struct xlog_ticket *t_next;	 /*			         :4|8 */
 	struct xlog_ticket *t_prev;	 /*				 :4|8 */
 	xlog_tid_t	   t_tid;	 /* transaction identifier	 : 4  */
 	int		   t_curr_res;	 /* current reservation in bytes : 4  */
@@ -406,13 +406,8 @@ typedef struct log {
 	sema_t			l_flushsema;    /* iclog flushing semaphore */
 	int			l_flushcnt;	/* # of procs waiting on this
 						 * sema */
-	int			l_ticket_cnt;	/* free ticket count */
-	int			l_ticket_tcnt;	/* total ticket count */
 	int			l_covered_state;/* state of "covering disk
 						 * log entries" */
-	xlog_ticket_t		*l_freelist;    /* free list of tickets */
-	xlog_ticket_t		*l_unmount_free;/* kmem_free these addresses */
-	xlog_ticket_t		*l_tail;        /* free list of tickets */
 	xlog_in_core_t		*l_iclog;       /* head log queue	*/
 	spinlock_t		l_icloglock;    /* grab to change iclog state */
 	xfs_lsn_t		l_tail_lsn;     /* lsn of 1st LR with unflushed
@@ -477,6 +472,8 @@ extern void	 xlog_recover_process_iunlinks(xlog_t *log);
 extern struct xfs_buf *xlog_get_bp(xlog_t *, int);
 extern void	 xlog_put_bp(struct xfs_buf *);
 extern int	 xlog_bread(xlog_t *, xfs_daddr_t, int, struct xfs_buf *);
+
+extern kmem_zone_t	*xfs_log_ticket_zone;
 
 /* iclog tracing */
 #define XLOG_TRACE_GRAB_FLUSH  1

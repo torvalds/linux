@@ -69,15 +69,17 @@ xfs_init(void)
 	/*
 	 * Initialize all of the zone allocators we use.
 	 */
+	xfs_log_ticket_zone = kmem_zone_init(sizeof(xlog_ticket_t),
+						"xfs_log_ticket");
 	xfs_bmap_free_item_zone = kmem_zone_init(sizeof(xfs_bmap_free_item_t),
-						 "xfs_bmap_free_item");
+						"xfs_bmap_free_item");
 	xfs_btree_cur_zone = kmem_zone_init(sizeof(xfs_btree_cur_t),
-					    "xfs_btree_cur");
-	xfs_trans_zone = kmem_zone_init(sizeof(xfs_trans_t), "xfs_trans");
-	xfs_da_state_zone =
-		kmem_zone_init(sizeof(xfs_da_state_t), "xfs_da_state");
+						"xfs_btree_cur");
+	xfs_da_state_zone = kmem_zone_init(sizeof(xfs_da_state_t),
+						"xfs_da_state");
 	xfs_dabuf_zone = kmem_zone_init(sizeof(xfs_dabuf_t), "xfs_dabuf");
 	xfs_ifork_zone = kmem_zone_init(sizeof(xfs_ifork_t), "xfs_ifork");
+	xfs_trans_zone = kmem_zone_init(sizeof(xfs_trans_t), "xfs_trans");
 	xfs_acl_zone_init(xfs_acl_zone, "xfs_acl");
 	xfs_mru_cache_init();
 	xfs_filestream_init();
