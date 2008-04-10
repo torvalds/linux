@@ -366,6 +366,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
 		/* table_ptr was deallocated above */
 
+		acpi_ut_remove_reference(ddb_handle);
 		return_ACPI_STATUS(status);
 	}
 
