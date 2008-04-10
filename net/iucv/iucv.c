@@ -795,7 +795,6 @@ int iucv_path_connect(struct iucv_path *path, struct iucv_handler *handler,
 	union iucv_param *parm;
 	int rc;
 
-	BUG_ON(in_atomic());
 	spin_lock_bh(&iucv_table_lock);
 	iucv_cleanup_queue();
 	parm = iucv_param[smp_processor_id()];
