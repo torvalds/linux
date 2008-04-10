@@ -276,7 +276,7 @@ acpi_ut_short_divide(acpi_integer in_dividend,
 		*out_quotient = in_dividend / divisor;
 	}
 	if (out_remainder) {
-		*out_remainder = (u32) in_dividend % divisor;
+		*out_remainder = (u32) (in_dividend % divisor);
 	}
 
 	return_ACPI_STATUS(AE_OK);
