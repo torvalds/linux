@@ -58,7 +58,7 @@ STATIC void	xfs_icsb_balance_counter(xfs_mount_t *, xfs_sb_field_t,
 STATIC void	xfs_icsb_sync_counters(xfs_mount_t *);
 STATIC int	xfs_icsb_modify_counters(xfs_mount_t *, xfs_sb_field_t,
 						int64_t, int);
-STATIC int	xfs_icsb_disable_counter(xfs_mount_t *, xfs_sb_field_t);
+STATIC void	xfs_icsb_disable_counter(xfs_mount_t *, xfs_sb_field_t);
 
 #else
 
@@ -2183,7 +2183,7 @@ xfs_icsb_counter_disabled(
 	return test_bit(field, &mp->m_icsb_counters);
 }
 
-STATIC int
+STATIC void
 xfs_icsb_disable_counter(
 	xfs_mount_t	*mp,
 	xfs_sb_field_t	field)
@@ -2201,7 +2201,7 @@ xfs_icsb_disable_counter(
 	 * the m_icsb_mutex.
 	 */
 	if (xfs_icsb_counter_disabled(mp, field))
-		return 0;
+		return;
 
 	xfs_icsb_lock_all_counters(mp);
 	if (!test_and_set_bit(field, &mp->m_icsb_counters)) {
@@ -2224,8 +2224,6 @@ xfs_icsb_disable_counter(
 	}
 
 	xfs_icsb_unlock_all_counters(mp);
-
-	return 0;
 }
 
 STATIC void
