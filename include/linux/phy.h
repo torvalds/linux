@@ -63,8 +63,6 @@ typedef enum {
 	PHY_INTERFACE_MODE_RTBI
 } phy_interface_t;
 
-#define MII_BUS_MAX 4
-
 
 #define PHY_INIT_TIMEOUT	100000
 #define PHY_STATE_TIME		1
@@ -74,13 +72,19 @@ typedef enum {
 #define PHY_MAX_ADDR	32
 
 /* Used when trying to connect to a specific phy (mii bus id:phy device id) */
-#define PHY_ID_FMT "%x:%02x"
+#define PHY_ID_FMT "%s:%02x"
+
+/*
+ * Need to be a little smaller than phydev->dev.bus_id to leave room
+ * for the ":%02x"
+ */
+#define MII_BUS_ID_SIZE	(BUS_ID_SIZE - 3)
 
 /* The Bus class for PHYs.  Devices which provide access to
  * PHYs should register using this structure */
 struct mii_bus {
 	const char *name;
-	int id;
+	char id[MII_BUS_ID_SIZE];
 	void *priv;
 	int (*read)(struct mii_bus *bus, int phy_id, int regnum);
 	int (*write)(struct mii_bus *bus, int phy_id, int regnum, u16 val);

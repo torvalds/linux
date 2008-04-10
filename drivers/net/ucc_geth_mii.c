@@ -157,7 +157,7 @@ static int uec_mdio_probe(struct of_device *ofdev, const struct of_device_id *ma
 	if (err)
 		goto reg_map_fail;
 
-	new_bus->id = res.start;
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", res.start);
 
 	new_bus->irq = kmalloc(32 * sizeof(int), GFP_KERNEL);
 

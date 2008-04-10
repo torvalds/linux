@@ -341,7 +341,7 @@ static int __init gfar_of_init(void)
 				goto unreg;
 			}
 
-			gfar_data.bus_id = 0;
+			snprintf(gfar_data.bus_id, MII_BUS_ID_SIZE, "0");
 			gfar_data.phy_id = fixed_link[0];
 		} else {
 			phy = of_find_node_by_phandle(*ph);
@@ -362,7 +362,8 @@ static int __init gfar_of_init(void)
 			}
 
 			gfar_data.phy_id = *id;
-			gfar_data.bus_id = res.start;
+			snprintf(gfar_data.bus_id, MII_BUS_ID_SIZE, "%x",
+					res.start);
 
 			of_node_put(phy);
 			of_node_put(mdio);
