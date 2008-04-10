@@ -535,7 +535,6 @@ void
 acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 				 struct acpi_walk_state *walk_state)
 {
-	struct acpi_namespace_node *method_node;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_terminate_control_method, walk_state);
@@ -574,12 +573,6 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 	}
 
 	if (walk_state) {
-		/*
-		 * Delete any objects created by this method during execution.
-		 * The method Node is stored in the walk state
-		 */
-		method_node = walk_state->method_node;
-
 		/*
 		 * Delete any namespace objects created anywhere within
 		 * the namespace by the execution of this method

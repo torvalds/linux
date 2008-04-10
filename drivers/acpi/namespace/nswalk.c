@@ -77,9 +77,7 @@ struct acpi_namespace_node *acpi_ns_get_next_node(acpi_object_type type, struct 
 
 		/* It's really the parent's _scope_ that we want */
 
-		if (parent_node->child) {
-			next_node = parent_node->child;
-		}
+		next_node = parent_node->child;
 	}
 
 	else {
