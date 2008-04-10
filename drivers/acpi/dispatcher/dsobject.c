@@ -370,6 +370,8 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 	union acpi_operand_object *obj_desc = NULL;
 	acpi_status status = AE_OK;
 	acpi_native_uint i;
+	u16 index;
+	u16 reference_count;
 
 	ACPI_FUNCTION_TRACE(ds_build_internal_package_obj);
 
@@ -447,6 +449,26 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 							       package.
 							       elements[i]);
 		}
+
+		if (*obj_desc_ptr) {
+
+			/* Existing package, get existing reference count */
+
+			reference_count =
+			    (*obj_desc_ptr)->common.reference_count;
+			if (reference_count > 1) {
+
+				/* Make new element ref count match original ref count */
+
+				for (index = 0; index < (reference_count - 1);
+				     index++) {
+					acpi_ut_add_reference((obj_desc->
+							       package.
+							       elements[i]));
+				}
+			}
+		}
+
 		arg = arg->common.next;
 	}
 
