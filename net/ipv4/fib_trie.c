@@ -122,7 +122,10 @@ struct tnode {
 	unsigned char bits;		/* 2log(KEYLENGTH) bits needed */
 	unsigned int full_children;	/* KEYLENGTH bits needed */
 	unsigned int empty_children;	/* KEYLENGTH bits needed */
-	struct rcu_head rcu;
+	union {
+		struct rcu_head rcu;
+		struct work_struct work;
+	};
 	struct node *child[0];
 };
 
@@ -346,16 +349,16 @@ static inline void free_leaf_info(struct leaf_info *leaf)
 
 static struct tnode *tnode_alloc(size_t size)
 {
-	struct page *pages;
-
 	if (size <= PAGE_SIZE)
 		return kzalloc(size, GFP_KERNEL);
+	else
+		return __vmalloc(size, GFP_KERNEL | __GFP_ZERO, PAGE_KERNEL);
+}
 
-	pages = alloc_pages(GFP_KERNEL|__GFP_ZERO, get_order(size));
-	if (!pages)
-		return NULL;
-
-	return page_address(pages);
+static void __tnode_vfree(struct work_struct *arg)
+{
+	struct tnode *tn = container_of(arg, struct tnode, work);
+	vfree(tn);
 }
 
 static void __tnode_free_rcu(struct rcu_head *head)
@@ -366,8 +369,10 @@ static void __tnode_free_rcu(struct rcu_head *head)
 
 	if (size <= PAGE_SIZE)
 		kfree(tn);
-	else
-		free_pages((unsigned long)tn, get_order(size));
+	else {
+		INIT_WORK(&tn->work, __tnode_vfree);
+		schedule_work(&tn->work);
+	}
 }
 
 static inline void tnode_free(struct tnode *tn)
