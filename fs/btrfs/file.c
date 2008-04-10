@@ -796,8 +796,6 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		     PAGE_CACHE_SIZE / (sizeof(struct page *)));
 	pinned[0] = NULL;
 	pinned[1] = NULL;
-	if (file->f_flags & O_DIRECT)
-		return -EINVAL;
 
 	pos = *ppos;
 	start_pos = pos;
@@ -909,6 +907,15 @@ out_nolock:
 				      start_pos, num_written);
 		if (err < 0)
 			num_written = err;
+	} else if (num_written > 0 && (file->f_flags & O_DIRECT)) {
+		do_sync_mapping_range(inode->i_mapping, start_pos,
+				      start_pos + num_written - 1,
+				      SYNC_FILE_RANGE_WRITE |
+				      SYNC_FILE_RANGE_WAIT_AFTER);
+
+		invalidate_mapping_pages(inode->i_mapping,
+		      start_pos >> PAGE_CACHE_SHIFT,
+		     (start_pos + num_written - 1) >> PAGE_CACHE_SHIFT);
 	}
 	current->backing_dev_info = NULL;
 	return num_written ? num_written : err;

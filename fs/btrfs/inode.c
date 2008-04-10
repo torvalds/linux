@@ -2265,6 +2265,70 @@ out:
 	return em;
 }
 
+static int btrfs_get_block(struct inode *inode, sector_t iblock,
+			struct buffer_head *bh_result, int create)
+{
+	struct extent_map *em;
+	u64 start = (u64)iblock << inode->i_blkbits;
+	struct btrfs_multi_bio *multi = NULL;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	u64 len;
+	u64 logical;
+	u64 map_length;
+	int ret = 0;
+
+	em = btrfs_get_extent(inode, NULL, 0, start, bh_result->b_size, 0);
+
+	if (!em || IS_ERR(em))
+		goto out;
+
+	if (em->start > start || em->start + em->len <= start)
+	    goto out;
+
+	if (em->block_start == EXTENT_MAP_INLINE) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (em->block_start == EXTENT_MAP_HOLE ||
+	    em->block_start == EXTENT_MAP_DELALLOC) {
+		goto out;
+	}
+
+	len = em->start + em->len - start;
+	len = min_t(u64, len, INT_LIMIT(typeof(bh_result->b_size)));
+
+	logical = start - em->start;
+	logical = em->block_start + logical;
+
+	map_length = len;
+	ret = btrfs_map_block(&root->fs_info->mapping_tree, READ,
+			      logical, &map_length, &multi, 0);
+	BUG_ON(ret);
+	bh_result->b_blocknr = multi->stripes[0].physical >> inode->i_blkbits;
+	bh_result->b_size = min(map_length, len);
+	bh_result->b_bdev = multi->stripes[0].dev->bdev;
+	set_buffer_mapped(bh_result);
+	kfree(multi);
+out:
+	free_extent_map(em);
+	return ret;
+}
+
+static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
+			const struct iovec *iov, loff_t offset,
+			unsigned long nr_segs)
+{
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file->f_mapping->host;
+
+	if (rw == WRITE)
+		return -EINVAL;
+
+	return blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
+				  offset, nr_segs, btrfs_get_block, NULL);
+}
+
 static sector_t btrfs_bmap(struct address_space *mapping, sector_t iblock)
 {
 	return extent_bmap(mapping, iblock, btrfs_get_extent);
@@ -3136,6 +3200,7 @@ out_fail:
 	btrfs_throttle(root);
 	return err;
 }
+
 static int btrfs_permission(struct inode *inode, int mask,
 			    struct nameidata *nd)
 {
@@ -3193,6 +3258,7 @@ static struct address_space_operations btrfs_aops = {
 	.readpages	= btrfs_readpages,
 	.sync_page	= block_sync_page,
 	.bmap		= btrfs_bmap,
+	.direct_IO	= btrfs_direct_IO,
 	.invalidatepage = btrfs_invalidatepage,
 	.releasepage	= btrfs_releasepage,
 	.set_page_dirty	= __set_page_dirty_nobuffers,
