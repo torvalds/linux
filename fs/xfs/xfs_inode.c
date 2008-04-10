@@ -2883,7 +2883,7 @@ xfs_iextents_copy(
  * format indicates the current state of the fork.
  */
 /*ARGSUSED*/
-STATIC int
+STATIC void
 xfs_iflush_fork(
 	xfs_inode_t		*ip,
 	xfs_dinode_t		*dip,
@@ -2904,16 +2904,16 @@ xfs_iflush_fork(
 	static const short	extflag[2] =
 		{ XFS_ILOG_DEXT, XFS_ILOG_AEXT };
 
-	if (iip == NULL)
-		return 0;
+	if (!iip)
+		return;
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	/*
 	 * This can happen if we gave up in iformat in an error path,
 	 * for the attribute fork.
 	 */
-	if (ifp == NULL) {
+	if (!ifp) {
 		ASSERT(whichfork == XFS_ATTR_FORK);
-		return 0;
+		return;
 	}
 	cp = XFS_DFORK_PTR(dip, whichfork);
 	mp = ip->i_mount;
@@ -2974,8 +2974,6 @@ xfs_iflush_fork(
 		ASSERT(0);
 		break;
 	}
-
-	return 0;
 }
 
 STATIC int
@@ -3452,16 +3450,9 @@ xfs_iflush_int(
 		}
 	}
 
-	if (xfs_iflush_fork(ip, dip, iip, XFS_DATA_FORK, bp) == EFSCORRUPTED) {
-		goto corrupt_out;
-	}
-
-	if (XFS_IFORK_Q(ip)) {
-		/*
-		 * The only error from xfs_iflush_fork is on the data fork.
-		 */
-		(void) xfs_iflush_fork(ip, dip, iip, XFS_ATTR_FORK, bp);
-	}
+	xfs_iflush_fork(ip, dip, iip, XFS_DATA_FORK, bp);
+	if (XFS_IFORK_Q(ip))
+		xfs_iflush_fork(ip, dip, iip, XFS_ATTR_FORK, bp);
 	xfs_inobp_check(mp, bp);
 
 	/*
