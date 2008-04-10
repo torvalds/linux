@@ -1635,7 +1635,7 @@
 #define CICR0_FOM	(1 << 0)	/* FIFO-overrun mask */
 
 #define CICR1_TBIT	(1 << 31)	/* Transparency bit */
-#define CICR1_RGBT_CONV	(0x3 << 30)	/* RGBT conversion mask */
+#define CICR1_RGBT_CONV	(0x3 << 29)	/* RGBT conversion mask */
 #define CICR1_PPL	(0x7ff << 15)	/* Pixels per line mask */
 #define CICR1_RGB_CONV	(0x7 << 12)	/* RGB conversion mask */
 #define CICR1_RGB_F	(1 << 11)	/* RGB format */
