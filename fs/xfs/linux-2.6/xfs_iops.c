@@ -692,11 +692,19 @@ xfs_vn_setattr(
 	return -error;
 }
 
+/*
+ * block_truncate_page can return an error, but we can't propagate it
+ * at all here. Leave a complaint + stack trace in the syslog because
+ * this could be bad. If it is bad, we need to propagate the error further.
+ */
 STATIC void
 xfs_vn_truncate(
 	struct inode	*inode)
 {
-	block_truncate_page(inode->i_mapping, inode->i_size, xfs_get_blocks);
+	int	error;
+	error = block_truncate_page(inode->i_mapping, inode->i_size,
+							xfs_get_blocks);
+	WARN_ON(error);
 }
 
 STATIC int
