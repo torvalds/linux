@@ -259,15 +259,13 @@ static DEFINE_PER_CPU(struct rt_cache_stat, rt_cache_stat);
 #define RT_CACHE_STAT_INC(field) \
 	(__raw_get_cpu_var(rt_cache_stat).field++)
 
-static unsigned int rt_hash_code(u32 daddr, u32 saddr)
+static inline unsigned int rt_hash(__be32 daddr, __be32 saddr, int idx)
 {
-	return jhash_2words(daddr, saddr, atomic_read(&rt_genid))
+	return jhash_3words((__force u32)(__be32)(daddr),
+			    (__force u32)(__be32)(saddr),
+			    idx, atomic_read(&rt_genid))
 		& rt_hash_mask;
 }
-
-#define rt_hash(daddr, saddr, idx) \
-	rt_hash_code((__force u32)(__be32)(daddr),\
-		     (__force u32)(__be32)(saddr) ^ ((idx) << 5))
 
 #ifdef CONFIG_PROC_FS
 struct rt_cache_iter_state {
