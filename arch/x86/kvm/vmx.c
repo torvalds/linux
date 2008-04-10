@@ -1843,6 +1843,8 @@ static void vmx_inject_irq(struct kvm_vcpu *vcpu, int irq)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
+	KVMTRACE_1D(INJ_VIRQ, vcpu, (u32)irq, handler);
+
 	if (vcpu->arch.rmode.active) {
 		vmx->rmode.irq.pending = true;
 		vmx->rmode.irq.vector = irq;
@@ -1993,6 +1995,8 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		error_code = vmcs_read32(VM_EXIT_INTR_ERROR_CODE);
 	if (is_page_fault(intr_info)) {
 		cr2 = vmcs_readl(EXIT_QUALIFICATION);
+		KVMTRACE_3D(PAGE_FAULT, vcpu, error_code, (u32)cr2,
+			    (u32)((u64)cr2 >> 32), handler);
 		return kvm_mmu_page_fault(vcpu, cr2, error_code);
 	}
 
@@ -2021,6 +2025,7 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu,
 				     struct kvm_run *kvm_run)
 {
 	++vcpu->stat.irq_exits;
+	KVMTRACE_1D(INTR, vcpu, vmcs_read32(VM_EXIT_INTR_INFO), handler);
 	return 1;
 }
 
@@ -2078,6 +2083,8 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	reg = (exit_qualification >> 8) & 15;
 	switch ((exit_qualification >> 4) & 3) {
 	case 0: /* mov to cr */
+		KVMTRACE_3D(CR_WRITE, vcpu, (u32)cr, (u32)vcpu->arch.regs[reg],
+			    (u32)((u64)vcpu->arch.regs[reg] >> 32), handler);
 		switch (cr) {
 		case 0:
 			vcpu_load_rsp_rip(vcpu);
@@ -2110,6 +2117,7 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		vcpu->arch.cr0 &= ~X86_CR0_TS;
 		vmcs_writel(CR0_READ_SHADOW, vcpu->arch.cr0);
 		vmx_fpu_activate(vcpu);
+		KVMTRACE_0D(CLTS, vcpu, handler);
 		skip_emulated_instruction(vcpu);
 		return 1;
 	case 1: /*mov from cr*/
@@ -2118,12 +2126,18 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 			vcpu_load_rsp_rip(vcpu);
 			vcpu->arch.regs[reg] = vcpu->arch.cr3;
 			vcpu_put_rsp_rip(vcpu);
+			KVMTRACE_3D(CR_READ, vcpu, (u32)cr,
+				    (u32)vcpu->arch.regs[reg],
+				    (u32)((u64)vcpu->arch.regs[reg] >> 32),
+				    handler);
 			skip_emulated_instruction(vcpu);
 			return 1;
 		case 8:
 			vcpu_load_rsp_rip(vcpu);
 			vcpu->arch.regs[reg] = kvm_get_cr8(vcpu);
 			vcpu_put_rsp_rip(vcpu);
+			KVMTRACE_2D(CR_READ, vcpu, (u32)cr,
+				    (u32)vcpu->arch.regs[reg], handler);
 			skip_emulated_instruction(vcpu);
 			return 1;
 		}
@@ -2169,6 +2183,7 @@ static int handle_dr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 			val = 0;
 		}
 		vcpu->arch.regs[reg] = val;
+		KVMTRACE_2D(DR_READ, vcpu, (u32)dr, (u32)val, handler);
 	} else {
 		/* mov to dr */
 	}
@@ -2193,6 +2208,9 @@ static int handle_rdmsr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		return 1;
 	}
 
+	KVMTRACE_3D(MSR_READ, vcpu, ecx, (u32)data, (u32)(data >> 32),
+		    handler);
+
 	/* FIXME: handling of bits 32:63 of rax, rdx */
 	vcpu->arch.regs[VCPU_REGS_RAX] = data & -1u;
 	vcpu->arch.regs[VCPU_REGS_RDX] = (data >> 32) & -1u;
@@ -2205,6 +2223,9 @@ static int handle_wrmsr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	u32 ecx = vcpu->arch.regs[VCPU_REGS_RCX];
 	u64 data = (vcpu->arch.regs[VCPU_REGS_RAX] & -1u)
 		| ((u64)(vcpu->arch.regs[VCPU_REGS_RDX] & -1u) << 32);
+
+	KVMTRACE_3D(MSR_WRITE, vcpu, ecx, (u32)data, (u32)(data >> 32),
+		    handler);
 
 	if (vmx_set_msr(vcpu, ecx, data) != 0) {
 		kvm_inject_gp(vcpu, 0);
@@ -2230,6 +2251,9 @@ static int handle_interrupt_window(struct kvm_vcpu *vcpu,
 	cpu_based_vm_exec_control = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
 	cpu_based_vm_exec_control &= ~CPU_BASED_VIRTUAL_INTR_PENDING;
 	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
+
+	KVMTRACE_0D(PEND_INTR, vcpu, handler);
+
 	/*
 	 * If the user space waits to inject interrupts, exit as soon as
 	 * possible
@@ -2271,6 +2295,8 @@ static int handle_apic_access(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	exit_qualification = vmcs_read64(EXIT_QUALIFICATION);
 	offset = exit_qualification & 0xffful;
+
+	KVMTRACE_1D(APIC_ACCESS, vcpu, (u32)offset, handler);
 
 	er = emulate_instruction(vcpu, kvm_run, 0, 0, 0);
 
@@ -2334,6 +2360,9 @@ static int kvm_handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	u32 exit_reason = vmcs_read32(VM_EXIT_REASON);
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 vectoring_info = vmx->idt_vectoring_info;
+
+	KVMTRACE_3D(VMEXIT, vcpu, exit_reason, (u32)vmcs_readl(GUEST_RIP),
+		    (u32)((u64)vmcs_readl(GUEST_RIP) >> 32), entryexit);
 
 	if (unlikely(vmx->fail)) {
 		kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
@@ -2415,6 +2444,8 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 				enable_irq_window(vcpu);
 			return;
 		}
+
+		KVMTRACE_1D(REDELIVER_EVT, vcpu, idtv_info_field, handler);
 
 		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, idtv_info_field);
 		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN,
@@ -2601,8 +2632,10 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 
 	/* We need to handle NMIs before interrupts are enabled */
-	if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == 0x200) /* nmi */
+	if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == 0x200) { /* nmi */
+		KVMTRACE_0D(NMI, vcpu, handler);
 		asm("int $2");
+	}
 }
 
 static void vmx_free_vmcs(struct kvm_vcpu *vcpu)

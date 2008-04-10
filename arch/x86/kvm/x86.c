@@ -303,6 +303,9 @@ EXPORT_SYMBOL_GPL(kvm_set_cr0);
 void kvm_lmsw(struct kvm_vcpu *vcpu, unsigned long msw)
 {
 	kvm_set_cr0(vcpu, (vcpu->arch.cr0 & ~0x0ful) | (msw & 0x0f));
+	KVMTRACE_1D(LMSW, vcpu,
+		    (u32)((vcpu->arch.cr0 & ~0x0ful) | (msw & 0x0f)),
+		    handler);
 }
 EXPORT_SYMBOL_GPL(kvm_lmsw);
 
@@ -2269,6 +2272,13 @@ int kvm_emulate_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 	vcpu->arch.pio.guest_page_offset = 0;
 	vcpu->arch.pio.rep = 0;
 
+	if (vcpu->run->io.direction == KVM_EXIT_IO_IN)
+		KVMTRACE_2D(IO_READ, vcpu, vcpu->run->io.port, (u32)size,
+			    handler);
+	else
+		KVMTRACE_2D(IO_WRITE, vcpu, vcpu->run->io.port, (u32)size,
+			    handler);
+
 	kvm_x86_ops->cache_regs(vcpu);
 	memcpy(vcpu->arch.pio_data, &vcpu->arch.regs[VCPU_REGS_RAX], 4);
 	kvm_x86_ops->decache_regs(vcpu);
@@ -2306,6 +2316,13 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 	vcpu->arch.pio.down = down;
 	vcpu->arch.pio.guest_page_offset = offset_in_page(address);
 	vcpu->arch.pio.rep = rep;
+
+	if (vcpu->run->io.direction == KVM_EXIT_IO_IN)
+		KVMTRACE_2D(IO_READ, vcpu, vcpu->run->io.port, (u32)size,
+			    handler);
+	else
+		KVMTRACE_2D(IO_WRITE, vcpu, vcpu->run->io.port, (u32)size,
+			    handler);
 
 	if (!count) {
 		kvm_x86_ops->skip_emulated_instruction(vcpu);
@@ -2414,6 +2431,7 @@ void kvm_arch_exit(void)
 int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 {
 	++vcpu->stat.halt_exits;
+	KVMTRACE_0D(HLT, vcpu, handler);
 	if (irqchip_in_kernel(vcpu->kvm)) {
 		vcpu->arch.mp_state = VCPU_MP_STATE_HALTED;
 		up_read(&vcpu->kvm->slots_lock);
@@ -2450,6 +2468,8 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 	a1 = vcpu->arch.regs[VCPU_REGS_RCX];
 	a2 = vcpu->arch.regs[VCPU_REGS_RDX];
 	a3 = vcpu->arch.regs[VCPU_REGS_RSI];
+
+	KVMTRACE_1D(VMMCALL, vcpu, (u32)nr, handler);
 
 	if (!is_long_mode(vcpu)) {
 		nr &= 0xFFFFFFFF;
@@ -2639,6 +2659,11 @@ void kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 	}
 	kvm_x86_ops->decache_regs(vcpu);
 	kvm_x86_ops->skip_emulated_instruction(vcpu);
+	KVMTRACE_5D(CPUID, vcpu, function,
+		    (u32)vcpu->arch.regs[VCPU_REGS_RAX],
+		    (u32)vcpu->arch.regs[VCPU_REGS_RBX],
+		    (u32)vcpu->arch.regs[VCPU_REGS_RCX],
+		    (u32)vcpu->arch.regs[VCPU_REGS_RDX], handler);
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_cpuid);
 
@@ -2794,6 +2819,7 @@ again:
 		if (test_and_clear_bit(KVM_REQ_TLB_FLUSH, &vcpu->requests))
 			kvm_x86_ops->tlb_flush(vcpu);
 
+	KVMTRACE_0D(VMENTRY, vcpu, entryexit);
 	kvm_x86_ops->run(vcpu, kvm_run);
 
 	vcpu->guest_mode = 0;

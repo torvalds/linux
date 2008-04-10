@@ -14,6 +14,12 @@
 
 #define KVM_API_VERSION 12
 
+/* for KVM_TRACE_ENABLE */
+struct kvm_user_trace_setup {
+	__u32 buf_size; /* sub_buffer size of each per-cpu */
+	__u32 buf_nr; /* the number of sub_buffers of each per-cpu */
+};
+
 /* for KVM_CREATE_MEMORY_REGION */
 struct kvm_memory_region {
 	__u32 slot;
@@ -242,6 +248,42 @@ struct kvm_s390_interrupt {
 	__u64 parm64;
 };
 
+#define KVM_TRC_SHIFT           16
+/*
+ * kvm trace categories
+ */
+#define KVM_TRC_ENTRYEXIT       (1 << KVM_TRC_SHIFT)
+#define KVM_TRC_HANDLER         (1 << (KVM_TRC_SHIFT + 1)) /* only 12 bits */
+
+/*
+ * kvm trace action
+ */
+#define KVM_TRC_VMENTRY         (KVM_TRC_ENTRYEXIT + 0x01)
+#define KVM_TRC_VMEXIT          (KVM_TRC_ENTRYEXIT + 0x02)
+#define KVM_TRC_PAGE_FAULT      (KVM_TRC_HANDLER + 0x01)
+
+#define KVM_TRC_HEAD_SIZE       12
+#define KVM_TRC_CYCLE_SIZE      8
+#define KVM_TRC_EXTRA_MAX       7
+
+/* This structure represents a single trace buffer record. */
+struct kvm_trace_rec {
+	__u32 event:28;
+	__u32 extra_u32:3;
+	__u32 cycle_in:1;
+	__u32 pid;
+	__u32 vcpu_id;
+	union {
+		struct {
+			__u32 cycle_lo, cycle_hi;
+			__u32 extra_u32[KVM_TRC_EXTRA_MAX];
+		} cycle;
+		struct {
+			__u32 extra_u32[KVM_TRC_EXTRA_MAX];
+		} nocycle;
+	} u;
+};
+
 #define KVMIO 0xAE
 
 /*
@@ -262,7 +304,12 @@ struct kvm_s390_interrupt {
  */
 #define KVM_GET_VCPU_MMAP_SIZE    _IO(KVMIO,   0x04) /* in bytes */
 #define KVM_GET_SUPPORTED_CPUID   _IOWR(KVMIO, 0x05, struct kvm_cpuid2)
-
+/*
+ * ioctls for kvm trace
+ */
+#define KVM_TRACE_ENABLE          _IOW(KVMIO, 0x06, struct kvm_user_trace_setup)
+#define KVM_TRACE_PAUSE           _IO(KVMIO,  0x07)
+#define KVM_TRACE_DISABLE         _IO(KVMIO,  0x08)
 /*
  * Extension capability list.
  */
