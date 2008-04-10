@@ -93,7 +93,7 @@ STATIC int xfs_alloc_ag_vextent_small(xfs_alloc_arg_t *,
  * Compute aligned version of the found extent.
  * Takes alignment and min length into account.
  */
-STATIC int				/* success (>= minlen) */
+STATIC void
 xfs_alloc_compute_aligned(
 	xfs_agblock_t	foundbno,	/* starting block in found extent */
 	xfs_extlen_t	foundlen,	/* length in found extent */
@@ -116,7 +116,6 @@ xfs_alloc_compute_aligned(
 	}
 	*resbno = bno;
 	*reslen = len;
-	return len >= minlen;
 }
 
 /*
@@ -837,9 +836,9 @@ xfs_alloc_ag_vextent_near(
 			if ((error = xfs_alloc_get_rec(cnt_cur, &ltbno, &ltlen, &i)))
 				goto error0;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-			if (!xfs_alloc_compute_aligned(ltbno, ltlen,
-					args->alignment, args->minlen,
-					&ltbnoa, &ltlena))
+			xfs_alloc_compute_aligned(ltbno, ltlen, args->alignment,
+					args->minlen, &ltbnoa, &ltlena);
+			if (ltlena >= args->minlen)
 				continue;
 			args->len = XFS_EXTLEN_MIN(ltlena, args->maxlen);
 			xfs_alloc_fix_len(args);
@@ -958,9 +957,9 @@ xfs_alloc_ag_vextent_near(
 			if ((error = xfs_alloc_get_rec(bno_cur_lt, &ltbno, &ltlen, &i)))
 				goto error0;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-			if (xfs_alloc_compute_aligned(ltbno, ltlen,
-					args->alignment, args->minlen,
-					&ltbnoa, &ltlena))
+			xfs_alloc_compute_aligned(ltbno, ltlen, args->alignment,
+					args->minlen, &ltbnoa, &ltlena);
+			if (ltlena >= args->minlen)
 				break;
 			if ((error = xfs_alloc_decrement(bno_cur_lt, 0, &i)))
 				goto error0;
@@ -974,9 +973,9 @@ xfs_alloc_ag_vextent_near(
 			if ((error = xfs_alloc_get_rec(bno_cur_gt, &gtbno, &gtlen, &i)))
 				goto error0;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-			if (xfs_alloc_compute_aligned(gtbno, gtlen,
-					args->alignment, args->minlen,
-					&gtbnoa, &gtlena))
+			xfs_alloc_compute_aligned(gtbno, gtlen, args->alignment,
+					args->minlen, &gtbnoa, &gtlena);
+			if (gtlena >= args->minlen)
 				break;
 			if ((error = xfs_alloc_increment(bno_cur_gt, 0, &i)))
 				goto error0;
