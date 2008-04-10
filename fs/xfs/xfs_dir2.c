@@ -49,7 +49,7 @@ void
 xfs_dir_mount(
 	xfs_mount_t	*mp)
 {
-	ASSERT(XFS_SB_VERSION_HASDIRV2(&mp->m_sb));
+	ASSERT(xfs_sb_version_hasdirv2(&mp->m_sb));
 	ASSERT((1 << (mp->m_sb.sb_blocklog + mp->m_sb.sb_dirblklog)) <=
 	       XFS_MAX_BLOCKSIZE);
 	mp->m_dirblksize = 1 << (mp->m_sb.sb_blocklog + mp->m_sb.sb_dirblklog);

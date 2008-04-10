@@ -330,7 +330,7 @@ xfs_finish_flags(
 	int			ronly = (mp->m_flags & XFS_MOUNT_RDONLY);
 
 	/* Fail a mount where the logbuf is smaller then the log stripe */
-	if (XFS_SB_VERSION_HASLOGV2(&mp->m_sb)) {
+	if (xfs_sb_version_haslogv2(&mp->m_sb)) {
 		if ((ap->logbufsize <= 0) &&
 		    (mp->m_sb.sb_logsunit > XLOG_BIG_RECORD_BSIZE)) {
 			mp->m_logbsize = mp->m_sb.sb_logsunit;
@@ -349,9 +349,8 @@ xfs_finish_flags(
 		}
 	}
 
-	if (XFS_SB_VERSION_HASATTR2(&mp->m_sb)) {
+	if (xfs_sb_version_hasattr2(&mp->m_sb))
 		mp->m_flags |= XFS_MOUNT_ATTR2;
-	}
 
 	/*
 	 * prohibit r/w mounts of read-only filesystems
@@ -366,7 +365,7 @@ xfs_finish_flags(
 	 * check for shared mount.
 	 */
 	if (ap->flags & XFSMNT_SHARED) {
-		if (!XFS_SB_VERSION_HASSHARED(&mp->m_sb))
+		if (!xfs_sb_version_hasshared(&mp->m_sb))
 			return XFS_ERROR(EINVAL);
 
 		/*
@@ -512,7 +511,7 @@ xfs_mount(
 	if (!error && logdev && logdev != ddev) {
 		unsigned int	log_sector_size = BBSIZE;
 
-		if (XFS_SB_VERSION_HASSECTOR(&mp->m_sb))
+		if (xfs_sb_version_hassector(&mp->m_sb))
 			log_sector_size = mp->m_sb.sb_logsectsize;
 		error = xfs_setsize_buftarg(mp->m_logdev_targp,
 					    mp->m_sb.sb_blocksize,

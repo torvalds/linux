@@ -191,7 +191,7 @@ xfs_ialloc_ag_alloc(
 			ASSERT(!(args.mp->m_flags & XFS_MOUNT_NOALIGN));
 			args.alignment = args.mp->m_dalign;
 			isaligned = 1;
-		} else if (XFS_SB_VERSION_HASALIGN(&args.mp->m_sb) &&
+		} else if (xfs_sb_version_hasalign(&args.mp->m_sb) &&
 			   args.mp->m_sb.sb_inoalignmt >=
 			   XFS_B_TO_FSBT(args.mp,
 			  	XFS_INODE_CLUSTER_SIZE(args.mp)))
@@ -230,7 +230,7 @@ xfs_ialloc_ag_alloc(
 		args.agbno = be32_to_cpu(agi->agi_root);
 		args.fsbno = XFS_AGB_TO_FSB(args.mp,
 				be32_to_cpu(agi->agi_seqno), args.agbno);
-		if (XFS_SB_VERSION_HASALIGN(&args.mp->m_sb) &&
+		if (xfs_sb_version_hasalign(&args.mp->m_sb) &&
 			args.mp->m_sb.sb_inoalignmt >=
 			XFS_B_TO_FSBT(args.mp, XFS_INODE_CLUSTER_SIZE(args.mp)))
 				args.alignment = args.mp->m_sb.sb_inoalignmt;
@@ -271,7 +271,7 @@ xfs_ialloc_ag_alloc(
 	 * use the old version so that old kernels will continue to be
 	 * able to use the file system.
 	 */
-	if (XFS_SB_VERSION_HASNLINK(&args.mp->m_sb))
+	if (xfs_sb_version_hasnlink(&args.mp->m_sb))
 		version = XFS_DINODE_VERSION_2;
 	else
 		version = XFS_DINODE_VERSION_1;
