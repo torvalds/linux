@@ -497,6 +497,17 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 			}
 			break;
 
+		case ACPI_RSC_EXIT_EQ:
+			/*
+			 * Control - Exit conversion if equal
+			 */
+			if (*ACPI_ADD_PTR(u8, resource,
+					  COMPARE_TARGET(info)) ==
+			    COMPARE_VALUE(info)) {
+				goto exit;
+			}
+			break;
+
 		default:
 
 			ACPI_ERROR((AE_INFO, "Invalid conversion opcode"));

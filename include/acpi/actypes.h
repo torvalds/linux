@@ -986,6 +986,7 @@ struct acpi_vendor_uuid {
  *  Structures used to describe device resources
  */
 struct acpi_resource_irq {
+	u8 descriptor_length;
 	u8 triggering;
 	u8 polarity;
 	u8 sharable;
@@ -1002,6 +1003,7 @@ struct acpi_resource_dma {
 };
 
 struct acpi_resource_start_dependent {
+	u8 descriptor_length;
 	u8 compatibility_priority;
 	u8 performance_robustness;
 };
