@@ -96,7 +96,7 @@ void __init early_res_to_bootmem(void)
 }
 
 /* Check for already reserved areas */
-static inline int
+static inline int __init
 bad_addr(unsigned long *addrp, unsigned long size, unsigned long align)
 {
 	int i;
@@ -116,7 +116,7 @@ again:
 }
 
 /* Check for already reserved areas */
-static inline int
+static inline int __init
 bad_addr_size(unsigned long *addrp, unsigned long *sizep, unsigned long align)
 {
 	int i;
