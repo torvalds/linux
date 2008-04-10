@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <asm/io.h>
+#include <asm/gpio.h>
 #include <asm/hardware/scoop.h>
 
 /* PCMCIA to Scoop linkage
@@ -32,6 +33,7 @@ EXPORT_SYMBOL(platform_scoop_config);
 
 struct  scoop_dev {
 	void __iomem *base;
+	struct gpio_chip gpio;
 	spinlock_t scoop_lock;
 	unsigned short suspend_clr;
 	unsigned short suspend_set;
@@ -49,6 +51,77 @@ void reset_scoop(struct device *dev)
 	iowrite16(0x00FF, sdev->base + SCOOP_IRM);  // 14
 	iowrite16(0x0000, sdev->base + SCOOP_ISR);  // 1C
 	iowrite16(0x0000, sdev->base + SCOOP_IRM);
+}
+
+static void __scoop_gpio_set(struct scoop_dev *sdev,
+			unsigned offset, int value)
+{
+	unsigned short gpwr;
+
+	gpwr = ioread16(sdev->base + SCOOP_GPWR);
+	if (value)
+		gpwr |= 1 << (offset + 1);
+	else
+		gpwr &= ~(1 << (offset + 1));
+	iowrite16(gpwr, sdev->base + SCOOP_GPWR);
+}
+
+static void scoop_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+{
+	struct scoop_dev *sdev = container_of(chip, struct scoop_dev, gpio);
+	unsigned long flags;
+
+	spin_lock_irqsave(&sdev->scoop_lock, flags);
+
+	__scoop_gpio_set(sdev, offset, value);
+
+	spin_unlock_irqrestore(&sdev->scoop_lock, flags);
+}
+
+static int scoop_gpio_get(struct gpio_chip *chip, unsigned offset)
+{
+	struct scoop_dev *sdev = container_of(chip, struct scoop_dev, gpio);
+
+	/* XXX: I'm usure,  but it seems so */
+	return ioread16(sdev->base + SCOOP_GPRR) & (1 << (offset + 1));
+}
+
+static int scoop_gpio_direction_input(struct gpio_chip *chip,
+			unsigned offset)
+{
+	struct scoop_dev *sdev = container_of(chip, struct scoop_dev, gpio);
+	unsigned long flags;
+	unsigned short gpcr;
+
+	spin_lock_irqsave(&sdev->scoop_lock, flags);
+
+	gpcr = ioread16(sdev->base + SCOOP_GPCR);
+	gpcr &= ~(1 << (offset + 1));
+	iowrite16(gpcr, sdev->base + SCOOP_GPCR);
+
+	spin_unlock_irqrestore(&sdev->scoop_lock, flags);
+
+	return 0;
+}
+
+static int scoop_gpio_direction_output(struct gpio_chip *chip,
+			unsigned offset, int value)
+{
+	struct scoop_dev *sdev = container_of(chip, struct scoop_dev, gpio);
+	unsigned long flags;
+	unsigned short gpcr;
+
+	spin_lock_irqsave(&sdev->scoop_lock, flags);
+
+	__scoop_gpio_set(sdev, offset, value);
+
+	gpcr = ioread16(sdev->base + SCOOP_GPCR);
+	gpcr |= 1 << (offset + 1);
+	iowrite16(gpcr, sdev->base + SCOOP_GPCR);
+
+	spin_unlock_irqrestore(&sdev->scoop_lock, flags);
+
+	return 0;
 }
 
 unsigned short set_scoop_gpio(struct device *dev, unsigned short bit)
@@ -138,6 +211,8 @@ static int __devinit scoop_probe(struct platform_device *pdev)
 	struct scoop_dev *devptr;
 	struct scoop_config *inf;
 	struct resource *mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	int ret;
+	int temp;
 
 	if (!mem)
 		return -EINVAL;
@@ -152,8 +227,8 @@ static int __devinit scoop_probe(struct platform_device *pdev)
 	devptr->base = ioremap(mem->start, mem->end - mem->start + 1);
 
 	if (!devptr->base) {
-		kfree(devptr);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_ioremap;
 	}
 
 	platform_set_drvdata(pdev, devptr);
@@ -169,17 +244,55 @@ static int __devinit scoop_probe(struct platform_device *pdev)
 	devptr->suspend_clr = inf->suspend_clr;
 	devptr->suspend_set = inf->suspend_set;
 
+	devptr->gpio.base = -1;
+
+	if (inf->gpio_base != 0) {
+		devptr->gpio.label = pdev->dev.bus_id;
+		devptr->gpio.base = inf->gpio_base;
+		devptr->gpio.ngpio = 12; /* PA11 = 0, PA12 = 1, etc. up to PA22 = 11 */
+		devptr->gpio.set = scoop_gpio_set;
+		devptr->gpio.get = scoop_gpio_get;
+		devptr->gpio.direction_input = scoop_gpio_direction_input;
+		devptr->gpio.direction_output = scoop_gpio_direction_output;
+
+		ret = gpiochip_add(&devptr->gpio);
+		if (ret)
+			goto err_gpio;
+	}
+
 	return 0;
+
+	if (devptr->gpio.base != -1)
+		temp = gpiochip_remove(&devptr->gpio);
+err_gpio:
+	platform_set_drvdata(pdev, NULL);
+err_ioremap:
+	iounmap(devptr->base);
+	kfree(devptr);
+
+	return ret;
 }
 
 static int __devexit scoop_remove(struct platform_device *pdev)
 {
 	struct scoop_dev *sdev = platform_get_drvdata(pdev);
-	if (sdev) {
-		iounmap(sdev->base);
-		kfree(sdev);
-		platform_set_drvdata(pdev, NULL);
+	int ret;
+
+	if (!sdev)
+		return -EINVAL;
+
+	if (sdev->gpio.base != -1) {
+		ret = gpiochip_remove(&sdev->gpio);
+		if (ret) {
+			dev_err(&pdev->dev, "Can't remove gpio chip: %d\n", ret);
+			return ret;
+		}
 	}
+
+	platform_set_drvdata(pdev, NULL);
+	iounmap(sdev->base);
+	kfree(sdev);
+
 	return 0;
 }
 
