@@ -97,11 +97,12 @@ typedef const struct acpi_dmtable_info {
 #define ACPI_DMT_CHKSUM                 20
 #define ACPI_DMT_SPACEID                21
 #define ACPI_DMT_GAS                    22
-#define ACPI_DMT_DMAR                   23
-#define ACPI_DMT_MADT                   24
-#define ACPI_DMT_SRAT                   25
-#define ACPI_DMT_EXIT                   26
-#define ACPI_DMT_SIG                    27
+#define ACPI_DMT_ASF                    23
+#define ACPI_DMT_DMAR                   24
+#define ACPI_DMT_MADT                   25
+#define ACPI_DMT_SRAT                   26
+#define ACPI_DMT_EXIT                   27
+#define ACPI_DMT_SIG                    28
 
 typedef
 void (*acpi_dmtable_handler) (struct acpi_table_header * table);
@@ -195,7 +196,7 @@ extern struct acpi_dmtable_info acpi_dm_table_info_wdrt[];
  */
 void acpi_dm_dump_data_table(struct acpi_table_header *table);
 
-void
+acpi_status
 acpi_dm_dump_table(u32 table_length,
 		   u32 table_offset,
 		   void *table,
