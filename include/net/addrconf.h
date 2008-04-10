@@ -76,12 +76,12 @@ extern int			ipv6_chk_prefix(struct in6_addr *addr,
 						struct net_device *dev);
 
 extern struct inet6_ifaddr      *ipv6_get_ifaddr(struct net *net,
-						 struct in6_addr *addr,
+						 const struct in6_addr *addr,
 						 struct net_device *dev,
 						 int strict);
 
 extern int			ipv6_dev_get_saddr(struct net_device *dev, 
-					       struct in6_addr *daddr,
+					       const struct in6_addr *daddr,
 					       unsigned int srcprefs,
 					       struct in6_addr *saddr);
 extern int			ipv6_get_lladdr(struct net_device *dev,
@@ -105,25 +105,27 @@ extern u32			ipv6_addr_label(const struct in6_addr *addr,
 /*
  *	multicast prototypes (mcast.c)
  */
-extern int ipv6_sock_mc_join(struct sock *sk, int ifindex, 
-		  struct in6_addr *addr);
-extern int ipv6_sock_mc_drop(struct sock *sk, int ifindex, 
-		  struct in6_addr *addr);
+extern int ipv6_sock_mc_join(struct sock *sk, int ifindex,
+			     const struct in6_addr *addr);
+extern int ipv6_sock_mc_drop(struct sock *sk, int ifindex,
+			     const struct in6_addr *addr);
 extern void ipv6_sock_mc_close(struct sock *sk);
-extern int inet6_mc_check(struct sock *sk, struct in6_addr *mc_addr,
-		struct in6_addr *src_addr);
+extern int inet6_mc_check(struct sock *sk,
+			  const struct in6_addr *mc_addr,
+			  const struct in6_addr *src_addr);
 
-extern int ipv6_dev_mc_inc(struct net_device *dev, struct in6_addr *addr);
-extern int __ipv6_dev_mc_dec(struct inet6_dev *idev, struct in6_addr *addr);
-extern int ipv6_dev_mc_dec(struct net_device *dev, struct in6_addr *addr);
+extern int ipv6_dev_mc_inc(struct net_device *dev, const struct in6_addr *addr);
+extern int __ipv6_dev_mc_dec(struct inet6_dev *idev, const struct in6_addr *addr);
+extern int ipv6_dev_mc_dec(struct net_device *dev, const struct in6_addr *addr);
 extern void ipv6_mc_up(struct inet6_dev *idev);
 extern void ipv6_mc_down(struct inet6_dev *idev);
 extern void ipv6_mc_init_dev(struct inet6_dev *idev);
 extern void ipv6_mc_destroy_dev(struct inet6_dev *idev);
 extern void addrconf_dad_failure(struct inet6_ifaddr *ifp);
 
-extern int ipv6_chk_mcast_addr(struct net_device *dev, struct in6_addr *group,
-		struct in6_addr *src_addr);
+extern int ipv6_chk_mcast_addr(struct net_device *dev,
+			       const struct in6_addr *group,
+			       const struct in6_addr *src_addr);
 extern int ipv6_is_mld(struct sk_buff *skb, int nexthdr);
 
 extern void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len);

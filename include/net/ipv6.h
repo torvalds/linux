@@ -451,8 +451,8 @@ extern int			ip6_xmit(struct sock *sk,
 extern int			ip6_nd_hdr(struct sock *sk,
 					   struct sk_buff *skb,
 					   struct net_device *dev,
-					   struct in6_addr *saddr,
-					   struct in6_addr *daddr,
+					   const struct in6_addr *saddr,
+					   const struct in6_addr *daddr,
 					   int proto, int len);
 
 extern int			ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr);

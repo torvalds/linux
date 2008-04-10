@@ -442,8 +442,9 @@ static void pndisc_destructor(struct pneigh_entry *n)
  */
 static void __ndisc_send(struct net_device *dev,
 			 struct neighbour *neigh,
-			 struct in6_addr *daddr, struct in6_addr *saddr,
-			 struct icmp6hdr *icmp6h, struct in6_addr *target,
+			 const struct in6_addr *daddr,
+			 const struct in6_addr *saddr,
+			 struct icmp6hdr *icmp6h, const struct in6_addr *target,
 			 int llinfo)
 {
 	struct flowi fl;
@@ -529,12 +530,13 @@ static void __ndisc_send(struct net_device *dev,
 }
 
 static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
-		   struct in6_addr *daddr, struct in6_addr *solicited_addr,
-		   int router, int solicited, int override, int inc_opt)
+			  const struct in6_addr *daddr,
+			  const struct in6_addr *solicited_addr,
+			  int router, int solicited, int override, int inc_opt)
 {
 	struct in6_addr tmpaddr;
 	struct inet6_ifaddr *ifp;
-	struct in6_addr *src_addr;
+	const struct in6_addr *src_addr;
 	struct icmp6hdr icmp6h = {
 		.icmp6_type = NDISC_NEIGHBOUR_ADVERTISEMENT,
 	};
@@ -564,8 +566,8 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 }
 
 void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
-		   struct in6_addr *solicit,
-		   struct in6_addr *daddr, struct in6_addr *saddr)
+		   const struct in6_addr *solicit,
+		   const struct in6_addr *daddr, const struct in6_addr *saddr)
 {
 	struct in6_addr addr_buf;
 	struct icmp6hdr icmp6h = {
@@ -584,8 +586,8 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 		     !ipv6_addr_any(saddr) ? ND_OPT_SOURCE_LL_ADDR : 0);
 }
 
-void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
-		   struct in6_addr *daddr)
+void ndisc_send_rs(struct net_device *dev, const struct in6_addr *saddr,
+		   const struct in6_addr *daddr)
 {
 	struct icmp6hdr icmp6h = {
 		.icmp6_type = NDISC_ROUTER_SOLICITATION,
@@ -1447,7 +1449,7 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 }
 
 void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
-			 struct in6_addr *target)
+			 const struct in6_addr *target)
 {
 	struct net_device *dev = skb->dev;
 	struct net *net = dev_net(dev);

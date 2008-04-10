@@ -940,7 +940,7 @@ struct ipv6_saddr_score {
 };
 
 struct ipv6_saddr_dst {
-	struct in6_addr *addr;
+	const struct in6_addr *addr;
 	int ifindex;
 	int scope;
 	int label;
@@ -1074,7 +1074,7 @@ out:
 }
 
 int ipv6_dev_get_saddr(struct net_device *dst_dev,
-		       struct in6_addr *daddr, unsigned int prefs,
+		       const struct in6_addr *daddr, unsigned int prefs,
 		       struct in6_addr *saddr)
 {
 	struct ipv6_saddr_score scores[2],
@@ -1309,7 +1309,7 @@ int ipv6_chk_prefix(struct in6_addr *addr, struct net_device *dev)
 
 EXPORT_SYMBOL(ipv6_chk_prefix);
 
-struct inet6_ifaddr *ipv6_get_ifaddr(struct net *net, struct in6_addr *addr,
+struct inet6_ifaddr *ipv6_get_ifaddr(struct net *net, const struct in6_addr *addr,
 				     struct net_device *dev, int strict)
 {
 	struct inet6_ifaddr * ifp;

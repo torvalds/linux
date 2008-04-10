@@ -61,13 +61,13 @@ extern int			ip6_ins_rt(struct rt6_info *);
 extern int			ip6_del_rt(struct rt6_info *);
 
 extern struct rt6_info		*rt6_lookup(struct net *net,
-					    struct in6_addr *daddr,
-					    struct in6_addr *saddr,
+					    const struct in6_addr *daddr,
+					    const struct in6_addr *saddr,
 					    int oif, int flags);
 
 extern struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 					 struct neighbour *neigh,
-					 struct in6_addr *addr);
+					 const struct in6_addr *addr);
 extern int icmp6_dst_gc(int *more);
 
 extern void fib6_force_start_gc(struct net *net);

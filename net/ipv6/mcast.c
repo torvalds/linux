@@ -127,8 +127,6 @@ static struct in6_addr mld2_all_mcr = MLD2_ALL_MCR_INIT;
 /* Big mc list lock for all the sockets */
 static DEFINE_RWLOCK(ipv6_sk_mc_lock);
 
-int __ipv6_dev_mc_dec(struct inet6_dev *idev, struct in6_addr *addr);
-
 static void igmp6_join_group(struct ifmcaddr6 *ma);
 static void igmp6_leave_group(struct ifmcaddr6 *ma);
 static void igmp6_timer_handler(unsigned long data);
@@ -177,7 +175,7 @@ int sysctl_mld_max_msf __read_mostly = IPV6_MLD_MAX_MSF;
  *	socket join on multicast group
  */
 
-int ipv6_sock_mc_join(struct sock *sk, int ifindex, struct in6_addr *addr)
+int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 {
 	struct net_device *dev = NULL;
 	struct ipv6_mc_socklist *mc_lst;
@@ -252,7 +250,7 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, struct in6_addr *addr)
 /*
  *	socket leave on multicast group
  */
-int ipv6_sock_mc_drop(struct sock *sk, int ifindex, struct in6_addr *addr)
+int ipv6_sock_mc_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6_mc_socklist *mc_lst, **lnk;
@@ -664,8 +662,8 @@ done:
 	return err;
 }
 
-int inet6_mc_check(struct sock *sk, struct in6_addr *mc_addr,
-	struct in6_addr *src_addr)
+int inet6_mc_check(struct sock *sk, const struct in6_addr *mc_addr,
+		   const struct in6_addr *src_addr)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6_mc_socklist *mc;
@@ -871,7 +869,7 @@ static void mld_clear_delrec(struct inet6_dev *idev)
 /*
  *	device multicast group inc (add if not found)
  */
-int ipv6_dev_mc_inc(struct net_device *dev, struct in6_addr *addr)
+int ipv6_dev_mc_inc(struct net_device *dev, const struct in6_addr *addr)
 {
 	struct ifmcaddr6 *mc;
 	struct inet6_dev *idev;
@@ -942,7 +940,7 @@ int ipv6_dev_mc_inc(struct net_device *dev, struct in6_addr *addr)
 /*
  *	device multicast group del
  */
-int __ipv6_dev_mc_dec(struct inet6_dev *idev, struct in6_addr *addr)
+int __ipv6_dev_mc_dec(struct inet6_dev *idev, const struct in6_addr *addr)
 {
 	struct ifmcaddr6 *ma, **map;
 
@@ -967,7 +965,7 @@ int __ipv6_dev_mc_dec(struct inet6_dev *idev, struct in6_addr *addr)
 	return -ENOENT;
 }
 
-int ipv6_dev_mc_dec(struct net_device *dev, struct in6_addr *addr)
+int ipv6_dev_mc_dec(struct net_device *dev, const struct in6_addr *addr)
 {
 	struct inet6_dev *idev = in6_dev_get(dev);
 	int err;
@@ -1012,8 +1010,8 @@ int ipv6_is_mld(struct sk_buff *skb, int nexthdr)
 /*
  *	check if the interface/address pair is valid
  */
-int ipv6_chk_mcast_addr(struct net_device *dev, struct in6_addr *group,
-	struct in6_addr *src_addr)
+int ipv6_chk_mcast_addr(struct net_device *dev, const struct in6_addr *group,
+			const struct in6_addr *src_addr)
 {
 	struct inet6_dev *idev;
 	struct ifmcaddr6 *mc;

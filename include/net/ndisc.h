@@ -94,17 +94,17 @@ extern int			ndisc_rcv(struct sk_buff *skb);
 
 extern void			ndisc_send_ns(struct net_device *dev,
 					      struct neighbour *neigh,
-					      struct in6_addr *solicit,
-					      struct in6_addr *daddr,
-					      struct in6_addr *saddr);
+					      const struct in6_addr *solicit,
+					      const struct in6_addr *daddr,
+					      const struct in6_addr *saddr);
 
 extern void			ndisc_send_rs(struct net_device *dev,
-					      struct in6_addr *saddr,
-					      struct in6_addr *daddr);
+					      const struct in6_addr *saddr,
+					      const struct in6_addr *daddr);
 
 extern void			ndisc_send_redirect(struct sk_buff *skb,
 						    struct neighbour *neigh,
-						    struct in6_addr *target);
+						    const struct in6_addr *target);
 
 extern int			ndisc_mc_map(struct in6_addr *addr, char *buf, struct net_device *dev, int dir);
 
@@ -134,7 +134,7 @@ extern int 			ndisc_ifinfo_sysctl_change(struct ctl_table *ctl,
 extern void 			inet6_ifinfo_notify(int event,
 						    struct inet6_dev *idev);
 
-static inline struct neighbour * ndisc_get_neigh(struct net_device *dev, struct in6_addr *addr)
+static inline struct neighbour * ndisc_get_neigh(struct net_device *dev, const struct in6_addr *addr)
 {
 
 	if (dev)
