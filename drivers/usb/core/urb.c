@@ -590,6 +590,30 @@ void usb_kill_anchored_urbs(struct usb_anchor *anchor)
 EXPORT_SYMBOL_GPL(usb_kill_anchored_urbs);
 
 /**
+ * usb_unlink_anchored_urbs - asynchronously cancel transfer requests en masse
+ * @anchor: anchor the requests are bound to
+ *
+ * this allows all outstanding URBs to be unlinked starting
+ * from the back of the queue. This function is asynchronous.
+ * The unlinking is just tiggered. It may happen after this
+ * function has returned.
+ */
+void usb_unlink_anchored_urbs(struct usb_anchor *anchor)
+{
+	struct urb *victim;
+
+	spin_lock_irq(&anchor->lock);
+	while (!list_empty(&anchor->urb_list)) {
+		victim = list_entry(anchor->urb_list.prev, struct urb,
+				    anchor_list);
+		/* this will unanchor the URB */
+		usb_unlink_urb(victim);
+	}
+	spin_unlock_irq(&anchor->lock);
+}
+EXPORT_SYMBOL_GPL(usb_unlink_anchored_urbs);
+
+/**
  * usb_wait_anchor_empty_timeout - wait for an anchor to be unused
  * @anchor: the anchor you want to become unused
  * @timeout: how long you are willing to wait in milliseconds
