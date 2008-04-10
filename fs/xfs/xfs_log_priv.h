@@ -324,6 +324,19 @@ typedef struct xlog_rec_ext_header {
  * - ic_offset is the current number of bytes written to in this iclog.
  * - ic_refcnt is bumped when someone is writing to the log.
  * - ic_state is the state of the iclog.
+ *
+ * Because of cacheline contention on large machines, we need to separate
+ * various resources onto different cachelines. To start with, make the
+ * structure cacheline aligned. The following fields can be contended on
+ * by independent processes:
+ *
+ *	- ic_callback_*
+ *	- ic_refcnt
+ *	- fields protected by the global l_icloglock
+ *
+ * so we need to ensure that these fields are located in separate cachelines.
+ * We'll put all the read-only and l_icloglock fields in the first cacheline,
+ * and move everything else out to subsequent cachelines.
  */
 typedef struct xlog_iclog_fields {
 	sv_t			ic_forcesema;
@@ -332,18 +345,23 @@ typedef struct xlog_iclog_fields {
 	struct xlog_in_core	*ic_prev;
 	struct xfs_buf		*ic_bp;
 	struct log		*ic_log;
-	xfs_log_callback_t	*ic_callback;
-	xfs_log_callback_t	**ic_callback_tail;
-#ifdef XFS_LOG_TRACE
-	struct ktrace		*ic_trace;
-#endif
 	int			ic_size;
 	int			ic_offset;
-	atomic_t		ic_refcnt;
 	int			ic_bwritecnt;
 	ushort_t		ic_state;
 	char			*ic_datap;	/* pointer to iclog data */
-} xlog_iclog_fields_t;
+#ifdef XFS_LOG_TRACE
+	struct ktrace		*ic_trace;
+#endif
+
+	/* Callback structures need their own cacheline */
+	spinlock_t		ic_callback_lock ____cacheline_aligned_in_smp;
+	xfs_log_callback_t	*ic_callback;
+	xfs_log_callback_t	**ic_callback_tail;
+
+	/* reference counts need their own cacheline */
+	atomic_t		ic_refcnt ____cacheline_aligned_in_smp;
+} xlog_iclog_fields_t ____cacheline_aligned_in_smp;
 
 typedef union xlog_in_core2 {
 	xlog_rec_header_t	hic_header;
@@ -366,6 +384,7 @@ typedef struct xlog_in_core {
 #define	ic_bp		hic_fields.ic_bp
 #define	ic_log		hic_fields.ic_log
 #define	ic_callback	hic_fields.ic_callback
+#define	ic_callback_lock hic_fields.ic_callback_lock
 #define	ic_callback_tail hic_fields.ic_callback_tail
 #define	ic_trace	hic_fields.ic_trace
 #define	ic_size		hic_fields.ic_size

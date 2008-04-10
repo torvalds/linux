@@ -397,12 +397,10 @@ xfs_log_notify(xfs_mount_t	  *mp,		/* mount of partition */
 	       void		  *iclog_hndl,	/* iclog to hang callback off */
 	       xfs_log_callback_t *cb)
 {
-	xlog_t *log = mp->m_log;
 	xlog_in_core_t	  *iclog = (xlog_in_core_t *)iclog_hndl;
 	int	abortflg;
 
-	cb->cb_next = NULL;
-	spin_lock(&log->l_icloglock);
+	spin_lock(&iclog->ic_callback_lock);
 	abortflg = (iclog->ic_state & XLOG_STATE_IOERROR);
 	if (!abortflg) {
 		ASSERT_ALWAYS((iclog->ic_state == XLOG_STATE_ACTIVE) ||
@@ -411,7 +409,7 @@ xfs_log_notify(xfs_mount_t	  *mp,		/* mount of partition */
 		*(iclog->ic_callback_tail) = cb;
 		iclog->ic_callback_tail = &(cb->cb_next);
 	}
-	spin_unlock(&log->l_icloglock);
+	spin_unlock(&iclog->ic_callback_lock);
 	return abortflg;
 }	/* xfs_log_notify */
 
@@ -1257,6 +1255,8 @@ xlog_alloc_log(xfs_mount_t	*mp,
 		iclog->ic_size = XFS_BUF_SIZE(bp) - log->l_iclog_hsize;
 		iclog->ic_state = XLOG_STATE_ACTIVE;
 		iclog->ic_log = log;
+		atomic_set(&iclog->ic_refcnt, 0);
+		spin_lock_init(&iclog->ic_callback_lock);
 		iclog->ic_callback_tail = &(iclog->ic_callback);
 		iclog->ic_datap = (char *)iclog->hic_data + log->l_iclog_hsize;
 
@@ -1987,7 +1987,7 @@ xlog_state_clean_log(xlog_t *log)
 		if (iclog->ic_state == XLOG_STATE_DIRTY) {
 			iclog->ic_state	= XLOG_STATE_ACTIVE;
 			iclog->ic_offset       = 0;
-			iclog->ic_callback	= NULL;   /* don't need to free */
+			ASSERT(iclog->ic_callback == NULL);
 			/*
 			 * If the number of ops in this iclog indicate it just
 			 * contains the dummy transaction, we can
@@ -2190,37 +2190,40 @@ xlog_state_do_callback(
 					be64_to_cpu(iclog->ic_header.h_lsn);
 				spin_unlock(&log->l_grant_lock);
 
-				/*
-				 * Keep processing entries in the callback list
-				 * until we come around and it is empty.  We
-				 * need to atomically see that the list is
-				 * empty and change the state to DIRTY so that
-				 * we don't miss any more callbacks being added.
-				 */
-				spin_lock(&log->l_icloglock);
 			} else {
+				spin_unlock(&log->l_icloglock);
 				ioerrors++;
 			}
-			cb = iclog->ic_callback;
 
+			/*
+			 * Keep processing entries in the callback list until
+			 * we come around and it is empty.  We need to
+			 * atomically see that the list is empty and change the
+			 * state to DIRTY so that we don't miss any more
+			 * callbacks being added.
+			 */
+			spin_lock(&iclog->ic_callback_lock);
+			cb = iclog->ic_callback;
 			while (cb) {
 				iclog->ic_callback_tail = &(iclog->ic_callback);
 				iclog->ic_callback = NULL;
-				spin_unlock(&log->l_icloglock);
+				spin_unlock(&iclog->ic_callback_lock);
 
 				/* perform callbacks in the order given */
 				for (; cb; cb = cb_next) {
 					cb_next = cb->cb_next;
 					cb->cb_func(cb->cb_arg, aborted);
 				}
-				spin_lock(&log->l_icloglock);
+				spin_lock(&iclog->ic_callback_lock);
 				cb = iclog->ic_callback;
 			}
 
 			loopdidcallbacks++;
 			funcdidcallbacks++;
 
+			spin_lock(&log->l_icloglock);
 			ASSERT(iclog->ic_callback == NULL);
+			spin_unlock(&iclog->ic_callback_lock);
 			if (!(iclog->ic_state & XLOG_STATE_IOERROR))
 				iclog->ic_state = XLOG_STATE_DIRTY;
 
