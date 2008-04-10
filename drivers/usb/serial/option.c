@@ -28,7 +28,7 @@
   device features.
 */
 
-#define DRIVER_VERSION "v0.7.1"
+#define DRIVER_VERSION "v0.7.2"
 #define DRIVER_AUTHOR "Matthias Urlichs <smurf@smurf.noris.de>"
 #define DRIVER_DESC "USB Driver for GSM modems"
 
@@ -824,15 +824,18 @@ static void option_setup_urbs(struct usb_serial *serial)
 	}
 }
 
+
+/** send RTS/DTR state to the port.
+ *
+ * This is exactly the same as SET_CONTROL_LINE_STATE from the PSTN
+ * CDC.
+*/
 static int option_send_setup(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct option_port_private *portdata;
-
+	int ifNum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
 	dbg("%s", __FUNCTION__);
-
-	if (port->number != 0)
-		return 0;
 
 	portdata = usb_get_serial_port_data(port);
 
@@ -845,7 +848,7 @@ static int option_send_setup(struct usb_serial_port *port)
 
 		return usb_control_msg(serial->dev,
 				usb_rcvctrlpipe(serial->dev, 0),
-				0x22,0x21,val,0,NULL,0,USB_CTRL_SET_TIMEOUT);
+				0x22,0x21,val,ifNum,NULL,0,USB_CTRL_SET_TIMEOUT);
 	}
 
 	return 0;
