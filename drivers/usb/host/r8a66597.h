@@ -404,6 +404,7 @@
 #define make_devsel(addr)		(addr << 12)
 
 struct r8a66597_pipe_info {
+	unsigned long timer_interval;
 	u16 pipenum;
 	u16 address;	/* R8A66597 HCD usb address */
 	u16 epnum;
@@ -478,9 +479,11 @@ struct r8a66597 {
 
 	struct timer_list rh_timer;
 	struct timer_list td_timer[R8A66597_MAX_NUM_PIPE];
+	struct timer_list interval_timer[R8A66597_MAX_NUM_PIPE];
 
 	unsigned short address_map;
 	unsigned short timeout_map;
+	unsigned short interval_map;
 	unsigned char pipe_cnt[R8A66597_MAX_NUM_PIPE];
 	unsigned char dma_map;
 

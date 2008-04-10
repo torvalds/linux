@@ -46,7 +46,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yoshihiro Shimoda");
 MODULE_ALIAS("platform:r8a66597_hcd");
 
-#define DRIVER_VERSION	"29 May 2007"
+#define DRIVER_VERSION	"10 Apr 2008"
 
 static const char hcd_name[] = "r8a66597_hcd";
 
@@ -577,12 +577,8 @@ static void pipe_buffer_setting(struct r8a66597 *r8a66597,
 		       PIPEBUF);
 	r8a66597_write(r8a66597, make_devsel(info->address) | info->maxpacket,
 		       PIPEMAXP);
-	if (info->interval)
-		info->interval--;
 	r8a66597_write(r8a66597, info->interval, PIPEPERI);
 }
-
-
 
 /* this function must be called with interrupt disabled */
 static void pipe_setting(struct r8a66597 *r8a66597, struct r8a66597_td *td)
@@ -825,6 +821,25 @@ static void disable_r8a66597_pipe_all(struct r8a66597 *r8a66597,
 	dev->dma_map = 0;
 }
 
+static unsigned long get_timer_interval(struct urb *urb, __u8 interval)
+{
+	__u8 i;
+	unsigned long time = 1;
+
+	if (usb_pipeisoc(urb->pipe))
+		return 0;
+
+	if (get_r8a66597_usb_speed(urb->dev->speed) == HSMODE) {
+		for (i = 0; i < (interval - 1); i++)
+			time *= 2;
+		time = time * 125 / 1000;	/* uSOF -> msec */
+	} else {
+		time = interval;
+	}
+
+	return time;
+}
+
 /* this function must be called with interrupt disabled */
 static void init_pipe_info(struct r8a66597 *r8a66597, struct urb *urb,
 			   struct usb_host_endpoint *hep,
@@ -840,7 +855,16 @@ static void init_pipe_info(struct r8a66597 *r8a66597, struct urb *urb,
 				      & USB_ENDPOINT_XFERTYPE_MASK);
 	info.bufnum = get_bufnum(info.pipenum);
 	info.buf_bsize = get_buf_bsize(info.pipenum);
-	info.interval = ep->bInterval;
+	if (info.type == R8A66597_BULK) {
+		info.interval = 0;
+		info.timer_interval = 0;
+	} else {
+		if (ep->bInterval > IITV)
+			info.interval = IITV;
+		else
+			info.interval = ep->bInterval ? ep->bInterval - 1 : 0;
+		info.timer_interval = get_timer_interval(urb, ep->bInterval);
+	}
 	if (ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
 		info.dir_in = 1;
 	else
@@ -1582,6 +1606,29 @@ static void r8a66597_root_hub_control(struct r8a66597 *r8a66597, int port)
 	}
 }
 
+static void r8a66597_interval_timer(unsigned long _r8a66597)
+{
+	struct r8a66597 *r8a66597 = (struct r8a66597 *)_r8a66597;
+	unsigned long flags;
+	u16 pipenum;
+	struct r8a66597_td *td;
+
+	spin_lock_irqsave(&r8a66597->lock, flags);
+
+	for (pipenum = 0; pipenum < R8A66597_MAX_NUM_PIPE; pipenum++) {
+		if (!(r8a66597->interval_map & (1 << pipenum)))
+			continue;
+		if (timer_pending(&r8a66597->interval_timer[pipenum]))
+			continue;
+
+		td = r8a66597_get_td(r8a66597, pipenum);
+		if (td)
+			start_transfer(r8a66597, td);
+	}
+
+	spin_unlock_irqrestore(&r8a66597->lock, flags);
+}
+
 static void r8a66597_td_timer(unsigned long _r8a66597)
 {
 	struct r8a66597 *r8a66597 = (struct r8a66597 *)_r8a66597;
@@ -1763,10 +1810,17 @@ static int r8a66597_urb_enqueue(struct usb_hcd *hcd,
 	urb->hcpriv = td;
 
 	if (request) {
-		ret = start_transfer(r8a66597, td);
-		if (ret < 0) {
-			list_del(&td->queue);
-			kfree(td);
+		if (td->pipe->info.timer_interval) {
+			r8a66597->interval_map |= 1 << td->pipenum;
+			mod_timer(&r8a66597->interval_timer[td->pipenum],
+				  jiffies + msecs_to_jiffies(
+					td->pipe->info.timer_interval));
+		} else {
+			ret = start_transfer(r8a66597, td);
+			if (ret < 0) {
+				list_del(&td->queue);
+				kfree(td);
+			}
 		}
 	} else
 		set_td_timer(r8a66597, td);
@@ -2192,6 +2246,9 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 		init_timer(&r8a66597->td_timer[i]);
 		r8a66597->td_timer[i].function = r8a66597_td_timer;
 		r8a66597->td_timer[i].data = (unsigned long)r8a66597;
+		setup_timer(&r8a66597->interval_timer[i],
+				r8a66597_interval_timer,
+				(unsigned long)r8a66597);
 	}
 	INIT_LIST_HEAD(&r8a66597->child_device);
 
