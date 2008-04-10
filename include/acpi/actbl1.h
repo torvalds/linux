@@ -109,8 +109,8 @@ struct acpi_whea_header {
 	u8 flags;
 	u8 reserved;
 	struct acpi_generic_address register_region;
-	u32 value;		/* Value used with Read/Write register */
-	u32 mask;		/* Bitmask required for this register instruction */
+	u64 value;		/* Value used with Read/Write register */
+	u64 mask;		/* Bitmask required for this register instruction */
 };
 
 /*******************************************************************************
@@ -234,13 +234,14 @@ struct acpi_table_bert {
 	u64 address;		/* Physical addresss of the error region */
 };
 
+/* Boot Error Region */
+
 struct acpi_bert_region {
 	u32 block_status;
 	u32 raw_data_offset;
 	u32 raw_data_length;
 	u32 data_length;
 	u32 error_severity;
-	u8 error_data[1];
 };
 
 /* block_status Flags */
@@ -441,6 +442,15 @@ enum acpi_einj_instructions {
 	ACPI_EINJ_INSTRUCTION_RESERVED = 5	/* 5 and greater are reserved */
 };
 
+/* EINJ Trigger Error Action Table */
+
+struct acpi_einj_trigger {
+	u32 header_size;
+	u32 revision;
+	u32 table_size;
+	u32 entry_count;
+};
+
 /*******************************************************************************
  *
  * ERST - Error Record Serialization Table
@@ -518,7 +528,220 @@ struct acpi_table_hest {
 	u32 error_source_count;
 };
 
-/* TBD: Need Error Source Descriptor layout */
+/* HEST subtable header */
+
+struct acpi_hest_header {
+	u16 type;
+};
+
+/* Values for Type field above for subtables */
+
+enum acpi_hest_types {
+	ACPI_HEST_TYPE_XPF_MACHINE_CHECK = 0,
+	ACPI_HEST_TYPE_XPF_CORRECTED_MACHINE_CHECK = 1,
+	ACPI_HEST_TYPE_XPF_UNUSED = 2,
+	ACPI_HEST_TYPE_XPF_NON_MASKABLE_INTERRUPT = 3,
+	ACPI_HEST_TYPE_IPF_CORRECTED_MACHINE_CHECK = 4,
+	ACPI_HEST_TYPE_IPF_CORRECTED_PLATFORM_ERROR = 5,
+	ACPI_HEST_TYPE_AER_ROOT_PORT = 6,
+	ACPI_HEST_TYPE_AER_ENDPOINT = 7,
+	ACPI_HEST_TYPE_AER_BRIDGE = 8,
+	ACPI_HEST_TYPE_GENERIC_HARDWARE_ERROR_SOURCE = 9,
+	ACPI_HEST_TYPE_RESERVED = 10	/* 10 and greater are reserved */
+};
+
+/*
+ * HEST Sub-subtables
+ */
+
+/* XPF Machine Check Error Bank */
+
+struct acpi_hest_xpf_error_bank {
+	u8 bank_number;
+	u8 clear_status_on_init;
+	u8 status_format;
+	u8 config_write_enable;
+	u32 control_register;
+	u64 control_init_data;
+	u32 status_register;
+	u32 address_register;
+	u32 misc_register;
+};
+
+/* Generic Error Status */
+
+struct acpi_hest_generic_status {
+	u32 block_status;
+	u32 raw_data_offset;
+	u32 raw_data_length;
+	u32 data_length;
+	u32 error_severity;
+};
+
+/* Generic Error Data */
+
+struct acpi_hest_generic_data {
+	u8 section_type[16];
+	u32 error_severity;
+	u16 revision;
+	u8 validation_bits;
+	u8 flags;
+	u32 error_data_length;
+	u8 fru_id[16];
+	u8 fru_text[20];
+};
+
+/* Common HEST structure for PCI/AER types below (6,7,8) */
+
+struct acpi_hest_aer_common {
+	u16 source_id;
+	u16 config_write_enable;
+	u8 flags;
+	u8 enabled;
+	u32 records_to_pre_allocate;
+	u32 max_sections_per_record;
+	u32 bus;
+	u16 device;
+	u16 function;
+	u16 device_control;
+	u16 reserved;
+	u32 uncorrectable_error_mask;
+	u32 uncorrectable_error_severity;
+	u32 correctable_error_mask;
+	u32 advanced_error_cababilities;
+};
+
+/* Hardware Error Notification */
+
+struct acpi_hest_notify {
+	u8 type;
+	u8 length;
+	u16 config_write_enable;
+	u32 poll_interval;
+	u32 vector;
+	u32 polling_threshold_value;
+	u32 polling_threshold_window;
+	u32 error_threshold_value;
+	u32 error_threshold_window;
+};
+
+/* Values for Notify Type field above */
+
+enum acpi_hest_notify_types {
+	ACPI_HEST_NOTIFY_POLLED = 0,
+	ACPI_HEST_NOTIFY_EXTERNAL = 1,
+	ACPI_HEST_NOTIFY_LOCAL = 2,
+	ACPI_HEST_NOTIFY_SCI = 3,
+	ACPI_HEST_NOTIFY_NMI = 4,
+	ACPI_HEST_NOTIFY_RESERVED = 5	/* 5 and greater are reserved */
+};
+
+/*
+ * HEST subtables
+ *
+ * From WHEA Design Document, 16 May 2007.
+ * Note: There is no subtable type 2 in this version of the document,
+ * and there are two different subtable type 3s.
+ */
+
+ /* 0: XPF Machine Check Exception */
+
+struct acpi_hest_xpf_machine_check {
+	struct acpi_hest_header header;
+	u16 source_id;
+	u16 config_write_enable;
+	u8 flags;
+	u8 reserved1;
+	u32 records_to_pre_allocate;
+	u32 max_sections_per_record;
+	u64 global_capability_data;
+	u64 global_control_data;
+	u8 num_hardware_banks;
+	u8 reserved2[7];
+};
+
+/* 1: XPF Corrected Machine Check */
+
+struct acpi_table_hest_xpf_corrected {
+	struct acpi_hest_header header;
+	u16 source_id;
+	u16 config_write_enable;
+	u8 flags;
+	u8 enabled;
+	u32 records_to_pre_allocate;
+	u32 max_sections_per_record;
+	struct acpi_hest_notify notify;
+	u8 num_hardware_banks;
+	u8 reserved[3];
+};
+
+/* 3: XPF Non-Maskable Interrupt */
+
+struct acpi_hest_xpf_nmi {
+	struct acpi_hest_header header;
+	u16 source_id;
+	u32 reserved;
+	u32 records_to_pre_allocate;
+	u32 max_sections_per_record;
+	u32 max_raw_data_length;
+};
+
+/* 4: IPF Corrected Machine Check */
+
+struct acpi_hest_ipf_corrected {
+	struct acpi_hest_header header;
+	u8 enabled;
+	u8 reserved;
+};
+
+/* 5: IPF Corrected Platform Error */
+
+struct acpi_hest_ipf_corrected_platform {
+	struct acpi_hest_header header;
+	u8 enabled;
+	u8 reserved;
+};
+
+/* 6: PCI Express Root Port AER */
+
+struct acpi_hest_aer_root {
+	struct acpi_hest_header header;
+	struct acpi_hest_aer_common aer;
+	u32 root_error_command;
+};
+
+/* 7: PCI Express AER (AER Endpoint) */
+
+struct acpi_hest_aer {
+	struct acpi_hest_header header;
+	struct acpi_hest_aer_common aer;
+};
+
+/* 8: PCI Express/PCI-X Bridge AER */
+
+struct acpi_hest_aer_bridge {
+	struct acpi_hest_header header;
+	struct acpi_hest_aer_common aer;
+	u32 secondary_uncorrectable_error_mask;
+	u32 secondary_uncorrectable_error_severity;
+	u32 secondary_advanced_capabilities;
+};
+
+/* 9: Generic Hardware Error Source */
+
+struct acpi_hest_generic {
+	struct acpi_hest_header header;
+	u16 source_id;
+	u16 related_source_id;
+	u8 config_write_enable;
+	u8 enabled;
+	u32 records_to_pre_allocate;
+	u32 max_sections_per_record;
+	u32 max_raw_data_length;
+	struct acpi_generic_address error_status_address;
+	struct acpi_hest_notify notify;
+	u32 error_status_block_length;
+};
 
 /*******************************************************************************
  *
@@ -545,7 +768,7 @@ struct acpi_table_hpet {
 
 /*******************************************************************************
  *
- * IBFT - i_sCSI Boot Firmware Table
+ * IBFT - Boot Firmware Table
  *
  ******************************************************************************/
 
