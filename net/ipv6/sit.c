@@ -379,7 +379,7 @@ static void ipip6_tunnel_uninit(struct net_device *dev)
 		dev_put(dev);
 	} else {
 		ipip6_tunnel_unlink(netdev_priv(dev));
-		ipip6_tunnel_del_prl(netdev_priv(dev), 0);
+		ipip6_tunnel_del_prl(netdev_priv(dev), NULL);
 		dev_put(dev);
 	}
 }
