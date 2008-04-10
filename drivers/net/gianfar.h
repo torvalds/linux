@@ -126,9 +126,16 @@ extern const char gfar_driver_version[];
 #define DEFAULT_TXCOUNT	16
 #define DEFAULT_TXTIME	21
 
+#define DEFAULT_RXTIME	21
+
+/* Non NAPI Case */
+#ifndef CONFIG_GFAR_NAPI
 #define DEFAULT_RX_COALESCE 1
 #define DEFAULT_RXCOUNT	16
-#define DEFAULT_RXTIME	21
+#else
+#define DEFAULT_RX_COALESCE 0
+#define DEFAULT_RXCOUNT	0
+#endif /* CONFIG_GFAR_NAPI */
 
 #define TBIPA_VALUE		0x1f
 #define MIIMCFG_INIT_VALUE	0x00000007
@@ -242,6 +249,7 @@ extern const char gfar_driver_version[];
 #define IEVENT_PERR		0x00000001
 #define IEVENT_RX_MASK          (IEVENT_RXB0 | IEVENT_RXF0)
 #define IEVENT_TX_MASK          (IEVENT_TXB | IEVENT_TXF)
+#define IEVENT_RTX_MASK         (IEVENT_RX_MASK | IEVENT_TX_MASK)
 #define IEVENT_ERR_MASK         \
 (IEVENT_RXC | IEVENT_BSY | IEVENT_EBERR | IEVENT_MSRO | \
  IEVENT_BABT | IEVENT_TXC | IEVENT_TXE | IEVENT_LC \
@@ -269,11 +277,12 @@ extern const char gfar_driver_version[];
 #define IMASK_FIQ		0x00000004
 #define IMASK_DPE		0x00000002
 #define IMASK_PERR		0x00000001
-#define IMASK_RX_DISABLED ~(IMASK_RXFEN0 | IMASK_BSY)
 #define IMASK_DEFAULT  (IMASK_TXEEN | IMASK_TXFEN | IMASK_TXBEN | \
 		IMASK_RXFEN0 | IMASK_BSY | IMASK_EBERR | IMASK_BABR | \
 		IMASK_XFUN | IMASK_RXC | IMASK_BABT | IMASK_DPE \
 		| IMASK_PERR)
+#define IMASK_RTX_DISABLED ((~(IMASK_RXFEN0 | IMASK_TXFEN | IMASK_BSY)) \
+			   & IMASK_DEFAULT)
 
 /* Fifo management */
 #define FIFO_TX_THR_MASK	0x01ff
