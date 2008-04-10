@@ -675,12 +675,13 @@ void acpi_ut_init_globals(void)
 	acpi_gbl_gpe_fadt_blocks[0] = NULL;
 	acpi_gbl_gpe_fadt_blocks[1] = NULL;
 
-	/* Global notify handlers */
+	/* Global handlers */
 
 	acpi_gbl_system_notify.handler = NULL;
 	acpi_gbl_device_notify.handler = NULL;
 	acpi_gbl_exception_handler = NULL;
 	acpi_gbl_init_handler = NULL;
+	acpi_gbl_table_handler = NULL;
 
 	/* Global Lock support */
 

@@ -234,6 +234,13 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 			   table->oem_table_id));
 	}
 
+	/* Invoke table handler if present */
+
+	if (acpi_gbl_table_handler) {
+		(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_LOAD, table,
+					     acpi_gbl_table_handler_context);
+	}
+
 	*return_desc = ddb_handle;
 	return_ACPI_STATUS(status);
 }
@@ -352,6 +359,14 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		return_ACPI_STATUS(status);
 	}
 
+	/* Invoke table handler if present */
+
+	if (acpi_gbl_table_handler) {
+		(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_LOAD,
+					     table_desc.pointer,
+					     acpi_gbl_table_handler_context);
+	}
+
       cleanup:
 	if (ACPI_FAILURE(status)) {
 		acpi_tb_delete_table(&table_desc);
@@ -376,6 +391,7 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	acpi_status status = AE_OK;
 	union acpi_operand_object *table_desc = ddb_handle;
 	acpi_native_uint table_index;
+	struct acpi_table_header *table;
 
 	ACPI_FUNCTION_TRACE(ex_unload_table);
 
@@ -395,6 +411,17 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 
 	table_index = (acpi_native_uint) table_desc->reference.object;
 
+	/* Invoke table handler if present */
+
+	if (acpi_gbl_table_handler) {
+		status = acpi_get_table_by_index(table_index, &table);
+		if (ACPI_SUCCESS(status)) {
+			(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_UNLOAD,
+						     table,
+						     acpi_gbl_table_handler_context);
+		}
+	}
+
 	/*
 	 * Delete the entire namespace under this table Node
 	 * (Offset contains the table_id)
@@ -407,5 +434,5 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	/* Delete the table descriptor (ddb_handle) */
 
 	acpi_ut_remove_reference(table_desc);
-	return_ACPI_STATUS(status);
+	return_ACPI_STATUS(AE_OK);
 }

@@ -104,12 +104,12 @@ typedef const struct acpi_dmtable_info {
 #define ACPI_DMT_SIG                    27
 
 typedef
-void (*ACPI_TABLE_HANDLER) (struct acpi_table_header * table);
+void (*acpi_dmtable_handler) (struct acpi_table_header * table);
 
 struct acpi_dmtable_data {
 	char *signature;
 	struct acpi_dmtable_info *table_info;
-	ACPI_TABLE_HANDLER table_handler;
+	acpi_dmtable_handler table_handler;
 	char *name;
 };
 

@@ -217,6 +217,8 @@ ACPI_EXTERN struct acpi_object_notify_handler acpi_gbl_device_notify;
 ACPI_EXTERN struct acpi_object_notify_handler acpi_gbl_system_notify;
 ACPI_EXTERN acpi_exception_handler acpi_gbl_exception_handler;
 ACPI_EXTERN acpi_init_handler acpi_gbl_init_handler;
+ACPI_EXTERN acpi_tbl_handler acpi_gbl_table_handler;
+ACPI_EXTERN void *acpi_gbl_table_handler_context;
 ACPI_EXTERN struct acpi_walk_state *acpi_gbl_breakpoint_walk;
 
 /* Owner ID support */

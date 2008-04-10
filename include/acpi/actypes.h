@@ -730,6 +730,12 @@ struct acpi_system_info {
 	u32 debug_layer;
 };
 
+/* Table Event Types */
+
+#define ACPI_TABLE_EVENT_LOAD           0x0
+#define ACPI_TABLE_EVENT_UNLOAD         0x1
+#define ACPI_NUM_TABLE_EVENTS           2
+
 /*
  * Types specific to the OS service interfaces
  */
@@ -758,6 +764,11 @@ acpi_status(*acpi_exception_handler) (acpi_status aml_status,
 				      acpi_name name,
 				      u16 opcode,
 				      u32 aml_offset, void *context);
+
+/* Table Event handler (Load, load_table etc) and types */
+
+typedef
+acpi_status(*acpi_tbl_handler) (u32 event, void *table, void *context);
 
 /* Address Spaces (For Operation Regions) */
 
