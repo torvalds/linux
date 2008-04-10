@@ -493,7 +493,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 
 				op->common.node =
 				    (struct acpi_namespace_node *)op->asl.value.
-				    arg->asl.node->object;
+				    arg->asl.node;
 				acpi_ut_add_reference(op->asl.value.arg->asl.
 						      node->object);
 				return_ACPI_STATUS(AE_OK);

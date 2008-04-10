@@ -116,9 +116,11 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	 * Several object types require no further processing:
 	 * 1) Device/Thermal objects don't have a "real" subobject, return the Node
 	 * 2) Method locals and arguments have a pseudo-Node
+	 * 3) 10/2007: Added method type to assist with Package construction.
 	 */
 	if ((entry_type == ACPI_TYPE_DEVICE) ||
 	    (entry_type == ACPI_TYPE_THERMAL) ||
+	    (entry_type == ACPI_TYPE_METHOD) ||
 	    (node->flags & (ANOBJ_METHOD_ARG | ANOBJ_METHOD_LOCAL))) {
 		return_ACPI_STATUS(AE_OK);
 	}
@@ -214,7 +216,6 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 		/* For these objects, just return the object attached to the Node */
 
 	case ACPI_TYPE_MUTEX:
-	case ACPI_TYPE_METHOD:
 	case ACPI_TYPE_POWER:
 	case ACPI_TYPE_PROCESSOR:
 	case ACPI_TYPE_EVENT:
