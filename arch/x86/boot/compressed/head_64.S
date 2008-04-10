@@ -244,9 +244,9 @@ ENTRY(startup_64)
 /* Copy the compressed kernel to the end of our buffer
  * where decompression in place becomes safe.
  */
-	leaq	_end(%rip), %r8
-	leaq	_end(%rbx), %r9
-	movq	$_end /* - $startup_32 */, %rcx
+	leaq	_end_before_pgt(%rip), %r8
+	leaq	_end_before_pgt(%rbx), %r9
+	movq	$_end_before_pgt /* - $startup_32 */, %rcx
 1:	subq	$8, %r8
 	subq	$8, %r9
 	movq	0(%r8), %rax
@@ -268,7 +268,7 @@ relocated:
  */
 	xorq	%rax, %rax
 	leaq    _edata(%rbx), %rdi
-	leaq    _end(%rbx), %rcx
+	leaq    _end_before_pgt(%rbx), %rcx
 	subq	%rdi, %rcx
 	cld
 	rep

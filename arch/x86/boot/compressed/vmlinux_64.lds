@@ -39,10 +39,10 @@ SECTIONS
 		*(.bss.*)
 		*(COMMON)
 		. = ALIGN(8);
-		_end = . ;
+		_end_before_pgt = . ;
 		. = ALIGN(4096);
 		pgtable = . ;
 		. = . + 4096 * 6;
-		_heap = .;
+		_ebss = .;
 	}
 }
