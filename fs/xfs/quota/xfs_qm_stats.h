@@ -45,8 +45,8 @@ extern void xfs_qm_cleanup_procfs(void);
 
 # define XQM_STATS_INC(count)	do { } while (0)
 
-static __inline void xfs_qm_init_procfs(void) { };
-static __inline void xfs_qm_cleanup_procfs(void) { };
+static inline void xfs_qm_init_procfs(void) { };
+static inline void xfs_qm_cleanup_procfs(void) { };
 
 #endif
 
