@@ -243,8 +243,12 @@ xfs_end_bio_unwritten(
 	size_t			size = ioend->io_size;
 
 	if (likely(!ioend->io_error)) {
-		if (!XFS_FORCED_SHUTDOWN(ip->i_mount))
-			xfs_iomap_write_unwritten(ip, offset, size);
+		if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+			int error;
+			error = xfs_iomap_write_unwritten(ip, offset, size);
+			if (error)
+				ioend->io_error = error;
+		}
 		xfs_setfilesize(ioend);
 	}
 	xfs_destroy_ioend(ioend);
