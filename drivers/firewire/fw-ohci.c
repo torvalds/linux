@@ -302,13 +302,13 @@ static char _p(u32 *s, int shift)
 	return port[*s >> shift & 3];
 }
 
-static void log_selfids(int generation, int self_id_count, u32 *s)
+static void log_selfids(int node_id, int generation, int self_id_count, u32 *s)
 {
 	if (likely(!(param_debug & OHCI_PARAM_DEBUG_SELFIDS)))
 		return;
 
-	printk(KERN_DEBUG KBUILD_MODNAME ": %d selfIDs, generation %d\n",
-	       self_id_count, generation);
+	printk(KERN_DEBUG KBUILD_MODNAME ": %d selfIDs, generation %d, "
+	       "local node ID %04x\n", self_id_count, generation, node_id);
 
 	for (; self_id_count--; ++s)
 		if ((*s & 1 << 23) == 0)
@@ -371,6 +371,12 @@ static void log_ar_at_event(char dir, int speed, u32 *header, int evt)
 	if (unlikely(evt >= ARRAY_SIZE(evts)))
 			evt = 0x1f;
 
+	if (evt == OHCI1394_evt_bus_reset) {
+		printk(KERN_DEBUG "A%c evt_bus_reset, generation %d\n",
+		       dir, (header[2] >> 16) & 0xff);
+		return;
+	}
+
 	if (header[0] == ~header[1]) {
 		printk(KERN_DEBUG "A%c %s, %s, %08x\n",
 		       dir, evts[evt], phys[header[0] >> 30 & 0x3],
@@ -417,7 +423,7 @@ static void log_ar_at_event(char dir, int speed, u32 *header, int evt)
 #else
 
 #define log_irqs(evt)
-#define log_selfids(generation, self_id_count, sid)
+#define log_selfids(node_id, generation, self_id_count, sid)
 #define log_ar_at_event(dir, speed, header, evt)
 
 #endif /* CONFIG_FIREWIRE_OHCI_DEBUG */
@@ -1320,7 +1326,8 @@ static void bus_reset_tasklet(unsigned long data)
 		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
 				  free_rom, free_rom_bus);
 
-	log_selfids(generation, self_id_count, ohci->self_id_buffer);
+	log_selfids(ohci->node_id, generation,
+		    self_id_count, ohci->self_id_buffer);
 
 	fw_core_handle_bus_reset(&ohci->card, ohci->node_id, generation,
 				 self_id_count, ohci->self_id_buffer);
