@@ -1438,7 +1438,7 @@ xfs_qm_qino_alloc(
 }
 
 
-STATIC int
+STATIC void
 xfs_qm_reset_dqcounts(
 	xfs_mount_t	*mp,
 	xfs_buf_t	*bp,
@@ -1478,8 +1478,6 @@ xfs_qm_reset_dqcounts(
 		ddq->d_rtbwarns = 0;
 		ddq = (xfs_disk_dquot_t *) ((xfs_dqblk_t *)ddq + 1);
 	}
-
-	return 0;
 }
 
 STATIC int
@@ -1520,7 +1518,7 @@ xfs_qm_dqiter_bufs(
 		if (error)
 			break;
 
-		(void) xfs_qm_reset_dqcounts(mp, bp, firstid, type);
+		xfs_qm_reset_dqcounts(mp, bp, firstid, type);
 		xfs_bdwrite(mp, bp);
 		/*
 		 * goto the next block.
