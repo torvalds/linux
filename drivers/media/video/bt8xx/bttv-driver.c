@@ -3463,6 +3463,9 @@ static int radio_release(struct inode *inode, struct file *file)
 	struct bttv *btv = fh->btv;
 	struct rds_command cmd;
 
+	file->private_data = NULL;
+	kfree(fh);
+
 	btv->radio_user--;
 
 	bttv_call_i2c_clients(btv, RDS_CMD_CLOSE, &cmd);
