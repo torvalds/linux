@@ -96,129 +96,388 @@ static int au8522_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 		return au8522_writereg(state, 0x106, 0);
 }
 
+/* VSB SNR lookup table */
+static struct {
+	u16 val;
+	u16 data;
+} vsb_mse2snr_tab[] = {
+	{   0, 270 },
+	{   2, 250 },
+	{   3, 240 },
+	{   5, 230 },
+	{   7, 220 },
+	{   9, 210 },
+	{  12, 200 },
+	{  13, 195 },
+	{  15, 190 },
+	{  17, 185 },
+	{  19, 180 },
+	{  21, 175 },
+	{  24, 170 },
+	{  27, 165 },
+	{  31, 160 },
+	{  32, 158 },
+	{  33, 156 },
+	{  36, 152 },
+	{  37, 150 },
+	{  39, 148 },
+	{  40, 146 },
+	{  41, 144 },
+	{  43, 142 },
+	{  44, 140 },
+	{  48, 135 },
+	{  50, 130 },
+	{  43, 142 },
+	{  53, 125 },
+	{  56, 120 },
+	{ 256, 115 },
+};
+
+/* QAM64 SNR lookup table */
+static struct {
+	u16 val;
+	u16 data;
+} qam64_mse2snr_tab[] = {
+	{  15,   0 },
+	{  16, 290 },
+	{  17, 288 },
+	{  18, 286 },
+	{  19, 284 },
+	{  20, 282 },
+	{  21, 281 },
+	{  22, 279 },
+	{  23, 277 },
+	{  24, 275 },
+	{  25, 273 },
+	{  26, 271 },
+	{  27, 269 },
+	{  28, 268 },
+	{  29, 266 },
+	{  30, 264 },
+	{  31, 262 },
+	{  32, 260 },
+	{  33, 259 },
+	{  34, 258 },
+	{  35, 256 },
+	{  36, 255 },
+	{  37, 254 },
+	{  38, 252 },
+	{  39, 251 },
+	{  40, 250 },
+	{  41, 249 },
+	{  42, 248 },
+	{  43, 246 },
+	{  44, 245 },
+	{  45, 244 },
+	{  46, 242 },
+	{  47, 241 },
+	{  48, 240 },
+	{  50, 239 },
+	{  51, 238 },
+	{  53, 237 },
+	{  54, 236 },
+	{  56, 235 },
+	{  57, 234 },
+	{  59, 233 },
+	{  60, 232 },
+	{  62, 231 },
+	{  63, 230 },
+	{  65, 229 },
+	{  67, 228 },
+	{  68, 227 },
+	{  70, 226 },
+	{  71, 225 },
+	{  73, 224 },
+	{  74, 223 },
+	{  76, 222 },
+	{  78, 221 },
+	{  80, 220 },
+	{  82, 219 },
+	{  85, 218 },
+	{  88, 217 },
+	{  90, 216 },
+	{  92, 215 },
+	{  93, 214 },
+	{  94, 212 },
+	{  95, 211 },
+	{  97, 210 },
+	{  99, 209 },
+	{ 101, 208 },
+	{ 102, 207 },
+	{ 104, 206 },
+	{ 107, 205 },
+	{ 111, 204 },
+	{ 114, 203 },
+	{ 118, 202 },
+	{ 122, 201 },
+	{ 125, 200 },
+	{ 128, 199 },
+	{ 130, 198 },
+	{ 132, 197 },
+	{ 256, 190 },
+};
+
+/* QAM256 SNR lookup table */
+static struct {
+	u16 val;
+	u16 data;
+} qam256_mse2snr_tab[] = {
+	{  16,   0 },
+	{  17, 400 },
+	{  18, 398 },
+	{  19, 396 },
+	{  20, 394 },
+	{  21, 392 },
+	{  22, 390 },
+	{  23, 388 },
+	{  24, 386 },
+	{  25, 384 },
+	{  26, 382 },
+	{  27, 380 },
+	{  28, 379 },
+	{  29, 378 },
+	{  30, 377 },
+	{  31, 376 },
+	{  32, 375 },
+	{  33, 374 },
+	{  34, 373 },
+	{  35, 372 },
+	{  36, 371 },
+	{  37, 370 },
+	{  38, 362 },
+	{  39, 354 },
+	{  40, 346 },
+	{  41, 338 },
+	{  42, 330 },
+	{  43, 328 },
+	{  44, 326 },
+	{  45, 324 },
+	{  46, 322 },
+	{  47, 320 },
+	{  48, 319 },
+	{  49, 318 },
+	{  50, 317 },
+	{  51, 316 },
+	{  52, 315 },
+	{  53, 314 },
+	{  54, 313 },
+	{  55, 312 },
+	{  56, 311 },
+	{  57, 310 },
+	{  58, 308 },
+	{  59, 306 },
+	{  60, 304 },
+	{  61, 302 },
+	{  62, 300 },
+	{  63, 298 },
+	{  65, 295 },
+	{  68, 294 },
+	{  70, 293 },
+	{  73, 292 },
+	{  76, 291 },
+	{  78, 290 },
+	{  79, 289 },
+	{  81, 288 },
+	{  82, 287 },
+	{  83, 286 },
+	{  84, 285 },
+	{  85, 284 },
+	{  86, 283 },
+	{  88, 282 },
+	{  89, 281 },
+	{ 256, 280 },
+};
+
+static int au8522_vsb_mse2snr_lookup(int mse, u16 *snr)
+{
+	int i, ret = -EINVAL;
+	dprintk("%s()\n", __func__);
+
+	for (i = 0; i < ARRAY_SIZE(vsb_mse2snr_tab); i++) {
+		if (mse < vsb_mse2snr_tab[i].val) {
+			*snr = vsb_mse2snr_tab[i].data;
+			ret = 0;
+			break;
+		}
+	}
+	dprintk("%s() snr=%d\n", __func__, *snr);
+	return ret;
+}
+
+static int au8522_qam64_mse2snr_lookup(int mse, u16 *snr)
+{
+	int i, ret = -EINVAL;
+	dprintk("%s()\n", __func__);
+
+	for (i = 0; i < ARRAY_SIZE(qam64_mse2snr_tab); i++) {
+		if (mse < qam64_mse2snr_tab[i].val) {
+			*snr = qam64_mse2snr_tab[i].data;
+			ret = 0;
+			break;
+		}
+	}
+	dprintk("%s() snr=%d\n", __func__, *snr);
+	return ret;
+}
+
+static int au8522_qam256_mse2snr_lookup(int mse, u16 *snr)
+{
+	int i, ret = -EINVAL;
+	dprintk("%s()\n", __func__);
+
+	for (i = 0; i < ARRAY_SIZE(qam256_mse2snr_tab); i++) {
+		if (mse < qam256_mse2snr_tab[i].val) {
+			*snr = qam256_mse2snr_tab[i].data;
+			ret = 0;
+			break;
+		}
+	}
+	dprintk("%s() snr=%d\n", __func__, *snr);
+	return ret;
+}
+
+/* VSB Modulation table */
+static struct {
+	u16 reg;
+	u16 data;
+} VSB_mod_tab[] = {
+	{ 0x8090, 0x84 },
+	{ 0x4092, 0x11 },
+	{ 0x2005, 0x00 },
+	{ 0x8091, 0x80 },
+	{ 0x80a3, 0x0c },
+	{ 0x80a4, 0xe8 },
+	{ 0x8081, 0xc4 },
+	{ 0x80a5, 0x40 },
+	{ 0x80a7, 0x40 },
+	{ 0x80a6, 0x67 },
+	{ 0x8262, 0x20 },
+	{ 0x821c, 0x30 },
+	{ 0x80d8, 0x1a },
+	{ 0x8227, 0xa0 },
+	{ 0x8121, 0xff },
+	{ 0x80a8, 0xf0 },
+	{ 0x80a9, 0x05 },
+	{ 0x80aa, 0x77 },
+	{ 0x80ab, 0xf0 },
+	{ 0x80ac, 0x05 },
+	{ 0x80ad, 0x77 },
+	{ 0x80ae, 0x41 },
+	{ 0x80af, 0x66 },
+	{ 0x821b, 0xcc },
+	{ 0x821d, 0x80 },
+	{ 0x80b5, 0xfb },
+	{ 0x80b6, 0x8e },
+	{ 0x80b7, 0x39 },
+	{ 0x80a4, 0xe8 },
+	{ 0x8231, 0x13 },
+};
+
+/* QAM Modulation table */
+static struct {
+	u16 reg;
+	u16 data;
+} QAM_mod_tab[] = {
+	{ 0x80a3, 0x09 },
+	{ 0x80a4, 0x00 },
+	{ 0x8081, 0xc4 },
+	{ 0x80a5, 0x40 },
+	{ 0x80b5, 0xfb },
+	{ 0x80b6, 0x8e },
+	{ 0x80b7, 0x39 },
+	{ 0x80aa, 0x77 },
+	{ 0x80ad, 0x77 },
+	{ 0x80a6, 0x67 },
+	{ 0x8262, 0x20 },
+	{ 0x821c, 0x30 },
+	{ 0x80b8, 0x3e },
+	{ 0x80b9, 0xf0 },
+	{ 0x80ba, 0x01 },
+	{ 0x80bb, 0x18 },
+	{ 0x80bc, 0x50 },
+	{ 0x80bd, 0x00 },
+	{ 0x80be, 0xea },
+	{ 0x80bf, 0xef },
+	{ 0x80c0, 0xfc },
+	{ 0x80c1, 0xbd },
+	{ 0x80c2, 0x1f },
+	{ 0x80c3, 0xfc },
+	{ 0x80c4, 0xdd },
+	{ 0x80c5, 0xaf },
+	{ 0x80c6, 0x00 },
+	{ 0x80c7, 0x38 },
+	{ 0x80c8, 0x30 },
+	{ 0x80c9, 0x05 },
+	{ 0x80ca, 0x4a },
+	{ 0x80cb, 0xd0 },
+	{ 0x80cc, 0x01 },
+	{ 0x80cd, 0xd9 },
+	{ 0x80ce, 0x6f },
+	{ 0x80cf, 0xf9 },
+	{ 0x80d0, 0x70 },
+	{ 0x80d1, 0xdf },
+	{ 0x80d2, 0xf7 },
+	{ 0x80d3, 0xc2 },
+	{ 0x80d4, 0xdf },
+	{ 0x80d5, 0x02 },
+	{ 0x80d6, 0x9a },
+	{ 0x80d7, 0xd0 },
+	{ 0x8250, 0x0d },
+	{ 0x8251, 0xcd },
+	{ 0x8252, 0xe0 },
+	{ 0x8253, 0x05 },
+	{ 0x8254, 0xa7 },
+	{ 0x8255, 0xff },
+	{ 0x8256, 0xed },
+	{ 0x8257, 0x5b },
+	{ 0x8258, 0xae },
+	{ 0x8259, 0xe6 },
+	{ 0x825a, 0x3d },
+	{ 0x825b, 0x0f },
+	{ 0x825c, 0x0d },
+	{ 0x825d, 0xea },
+	{ 0x825e, 0xf2 },
+	{ 0x825f, 0x51 },
+	{ 0x8260, 0xf5 },
+	{ 0x8261, 0x06 },
+	{ 0x821a, 0x00 },
+	{ 0x8546, 0x40 },
+	{ 0x8210, 0x26 },
+	{ 0x8211, 0xf6 },
+	{ 0x8212, 0x84 },
+	{ 0x8213, 0x02 },
+	{ 0x8502, 0x01 },
+	{ 0x8121, 0x04 },
+	{ 0x8122, 0x04 },
+	{ 0x852e, 0x10 },
+	{ 0x80a4, 0xca },
+	{ 0x80a7, 0x40 },
+	{ 0x8526, 0x01 },
+};
+
 static int au8522_enable_modulation(struct dvb_frontend *fe,
 				    fe_modulation_t m)
 {
 	struct au8522_state *state = fe->demodulator_priv;
+	int i;
 
 	dprintk("%s(0x%08x)\n", __func__, m);
 
 	switch(m) {
 	case VSB_8:
 		dprintk("%s() VSB_8\n", __func__);
-
-		//au8522_writereg(state, 0x410b, 0x84); // Serial
-
-		//au8522_writereg(state, 0x8090, 0x82);
-		au8522_writereg(state, 0x8090, 0x84);
-		au8522_writereg(state, 0x4092, 0x11);
-		au8522_writereg(state, 0x2005, 0x00);
-		au8522_writereg(state, 0x8091, 0x80);
-
-		au8522_writereg(state, 0x80a3, 0x0c);
-		au8522_writereg(state, 0x80a4, 0xe8);
-		au8522_writereg(state, 0x8081, 0xc4);
-		au8522_writereg(state, 0x80a5, 0x40);
-		au8522_writereg(state, 0x80a7, 0x40);
-		au8522_writereg(state, 0x80a6, 0x67);
-		au8522_writereg(state, 0x8262, 0x20);
-		au8522_writereg(state, 0x821c, 0x30);
-		au8522_writereg(state, 0x80d8, 0x1a);
-		au8522_writereg(state, 0x8227, 0xa0);
-		au8522_writereg(state, 0x8121, 0xff);
-		au8522_writereg(state, 0x80a8, 0xf0);
-		au8522_writereg(state, 0x80a9, 0x05);
-		au8522_writereg(state, 0x80aa, 0x77);
-		au8522_writereg(state, 0x80ab, 0xf0);
-		au8522_writereg(state, 0x80ac, 0x05);
-		au8522_writereg(state, 0x80ad, 0x77);
-		au8522_writereg(state, 0x80ae, 0x41);
-		au8522_writereg(state, 0x80af, 0x66);
-		au8522_writereg(state, 0x821b, 0xcc);
-		au8522_writereg(state, 0x821d, 0x80);
-		au8522_writereg(state, 0x80b5, 0xfb);
-		au8522_writereg(state, 0x80b6, 0x8e);
-		au8522_writereg(state, 0x80b7, 0x39);
-		au8522_writereg(state, 0x80a4, 0xe8);
-		au8522_writereg(state, 0x8231, 0x13);
+		for (i = 0; i < ARRAY_SIZE(VSB_mod_tab); i++)
+			au8522_writereg(state,
+				VSB_mod_tab[i].reg,
+				VSB_mod_tab[i].data);
 		break;
 	case QAM_64:
 	case QAM_256:
-		au8522_writereg(state, 0x80a3, 0x09);
-		au8522_writereg(state, 0x80a4, 0x00);
-		au8522_writereg(state, 0x8081, 0xc4);
-		au8522_writereg(state, 0x80a5, 0x40);
-		au8522_writereg(state, 0x80b5, 0xfb);
-		au8522_writereg(state, 0x80b6, 0x8e);
-		au8522_writereg(state, 0x80b7, 0x39);
-		au8522_writereg(state, 0x80aa, 0x77);
-		au8522_writereg(state, 0x80ad, 0x77);
-		au8522_writereg(state, 0x80a6, 0x67);
-		au8522_writereg(state, 0x8262, 0x20);
-		au8522_writereg(state, 0x821c, 0x30);
-		au8522_writereg(state, 0x80b8, 0x3e);
-		au8522_writereg(state, 0x80b9, 0xf0);
-		au8522_writereg(state, 0x80ba, 0x01);
-		au8522_writereg(state, 0x80bb, 0x18);
-		au8522_writereg(state, 0x80bc, 0x50);
-		au8522_writereg(state, 0x80bd, 0x00);
-		au8522_writereg(state, 0x80be, 0xea);
-		au8522_writereg(state, 0x80bf, 0xef);
-		au8522_writereg(state, 0x80c0, 0xfc);
-		au8522_writereg(state, 0x80c1, 0xbd);
-		au8522_writereg(state, 0x80c2, 0x1f);
-		au8522_writereg(state, 0x80c3, 0xfc);
-		au8522_writereg(state, 0x80c4, 0xdd);
-		au8522_writereg(state, 0x80c5, 0xaf);
-		au8522_writereg(state, 0x80c6, 0x00);
-		au8522_writereg(state, 0x80c7, 0x38);
-		au8522_writereg(state, 0x80c8, 0x30);
-		au8522_writereg(state, 0x80c9, 0x05);
-		au8522_writereg(state, 0x80ca, 0x4a);
-		au8522_writereg(state, 0x80cb, 0xd0);
-		au8522_writereg(state, 0x80cc, 0x01);
-		au8522_writereg(state, 0x80cd, 0xd9);
-		au8522_writereg(state, 0x80ce, 0x6f);
-		au8522_writereg(state, 0x80cf, 0xf9);
-		au8522_writereg(state, 0x80d0, 0x70);
-		au8522_writereg(state, 0x80d1, 0xdf);
-		au8522_writereg(state, 0x80d2, 0xf7);
-		au8522_writereg(state, 0x80d3, 0xc2);
-		au8522_writereg(state, 0x80d4, 0xdf);
-		au8522_writereg(state, 0x80d5, 0x02);
-		au8522_writereg(state, 0x80d6, 0x9a);
-		au8522_writereg(state, 0x80d7, 0xd0);
-		au8522_writereg(state, 0x8250, 0x0d);
-		au8522_writereg(state, 0x8251, 0xcd);
-		au8522_writereg(state, 0x8252, 0xe0);
-		au8522_writereg(state, 0x8253, 0x05);
-		au8522_writereg(state, 0x8254, 0xa7);
-		au8522_writereg(state, 0x8255, 0xff);
-		au8522_writereg(state, 0x8256, 0xed);
-		au8522_writereg(state, 0x8257, 0x5b);
-		au8522_writereg(state, 0x8258, 0xae);
-		au8522_writereg(state, 0x8259, 0xe6);
-		au8522_writereg(state, 0x825a, 0x3d);
-		au8522_writereg(state, 0x825b, 0x0f);
-		au8522_writereg(state, 0x825c, 0x0d);
-		au8522_writereg(state, 0x825d, 0xea);
-		au8522_writereg(state, 0x825e, 0xf2);
-		au8522_writereg(state, 0x825f, 0x51);
-		au8522_writereg(state, 0x8260, 0xf5);
-		au8522_writereg(state, 0x8261, 0x06);
-		au8522_writereg(state, 0x821a, 0x00);
-		au8522_writereg(state, 0x8546, 0x40);
-		au8522_writereg(state, 0x8210, 0x26);
-		au8522_writereg(state, 0x8211, 0xf6);
-		au8522_writereg(state, 0x8212, 0x84);
-		au8522_writereg(state, 0x8213, 0x02);
-		au8522_writereg(state, 0x8502, 0x01);
-		au8522_writereg(state, 0x8121, 0x04);
-		au8522_writereg(state, 0x8122, 0x04);
-		au8522_writereg(state, 0x852e, 0x10);
-		au8522_writereg(state, 0x80a4, 0xca);
-		au8522_writereg(state, 0x80a7, 0x40);
-		au8522_writereg(state, 0x8526, 0x01);
+		dprintk("%s() QAM 64/256\n", __func__);
+		for (i = 0; i < ARRAY_SIZE(QAM_mod_tab); i++)
+			au8522_writereg(state,
+				QAM_mod_tab[i].reg,
+				QAM_mod_tab[i].data);
 		break;
 	default:
 		dprintk("%s() Invalid modulation\n", __func__);
@@ -321,30 +580,24 @@ static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	return 0;
 }
 
-static int au8522_read_mse(struct dvb_frontend *fe)
-{
-	struct au8522_state *state = fe->demodulator_priv;
-	int mse = 0;
-
-	if (state->current_modulation == VSB_8)
-		mse = au8522_readreg(state, 0x4311);
-	else
-		mse = au8522_readreg(state, 0x4522);
-
-	dprintk("%s: %d\n", __func__, mse);
-
-	return mse;
-}
-
 static int au8522_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
+	struct au8522_state *state = fe->demodulator_priv;
+	int ret = -EINVAL;
+
 	dprintk("%s()\n", __func__);
 
-	/* FIXME: This is mse, not snr
-	 * TODO: mse2snr */
-	*snr = au8522_read_mse(fe);
+	if (state->current_modulation == QAM_256)
+		ret = au8522_qam256_mse2snr_lookup(
+			au8522_readreg(state, 0x4522), snr);
+	else if (state->current_modulation == QAM_64)
+		ret = au8522_qam64_mse2snr_lookup(
+			au8522_readreg(state, 0x4522), snr);
+	else /* VSB_8 */
+		ret = au8522_vsb_mse2snr_lookup(
+			au8522_readreg(state, 0x4311), snr);
 
-	return 0;
+	return ret;
 }
 
 static int au8522_read_signal_strength(struct dvb_frontend *fe,
