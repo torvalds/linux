@@ -22,6 +22,7 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
+#include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_export.h"
@@ -29,8 +30,6 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
 #include "xfs_vfsops.h"
-
-static struct dentry dotdot = { .d_name.name = "..", .d_name.len = 2, };
 
 /*
  * Note that we only accept fileids which are long enough rather than allow
@@ -216,7 +215,7 @@ xfs_fs_get_parent(
 	struct xfs_inode	*cip;
 	struct dentry		*parent;
 
-	error = xfs_lookup(XFS_I(child->d_inode), &dotdot, &cip);
+	error = xfs_lookup(XFS_I(child->d_inode), &xfs_name_dotdot, &cip);
 	if (unlikely(error))
 		return ERR_PTR(-error);
 

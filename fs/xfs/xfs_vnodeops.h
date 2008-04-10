@@ -23,20 +23,22 @@ int xfs_fsync(struct xfs_inode *ip, int flag, xfs_off_t start,
 		xfs_off_t stop);
 int xfs_release(struct xfs_inode *ip);
 int xfs_inactive(struct xfs_inode *ip);
-int xfs_lookup(struct xfs_inode *dp, bhv_vname_t *dentry,
+int xfs_lookup(struct xfs_inode *dp, struct xfs_name *name,
 		struct xfs_inode **ipp);
-int xfs_create(struct xfs_inode *dp, bhv_vname_t *dentry, mode_t mode,
+int xfs_create(struct xfs_inode *dp, struct xfs_name *name, mode_t mode,
 		xfs_dev_t rdev, struct xfs_inode **ipp, struct cred *credp);
-int xfs_remove(struct xfs_inode *dp, bhv_vname_t	*dentry);
+int xfs_remove(struct xfs_inode *dp, struct xfs_name *name,
+		struct xfs_inode *ip);
 int xfs_link(struct xfs_inode *tdp, struct xfs_inode *sip,
-		bhv_vname_t *dentry);
-int xfs_mkdir(struct xfs_inode *dp, bhv_vname_t *dentry,
+		struct xfs_name *target_name);
+int xfs_mkdir(struct xfs_inode *dp, struct xfs_name *dir_name,
 		mode_t mode, struct xfs_inode **ipp, struct cred *credp);
-int xfs_rmdir(struct xfs_inode *dp, bhv_vname_t *dentry);
+int xfs_rmdir(struct xfs_inode *dp, struct xfs_name *name,
+		struct xfs_inode *cdp);
 int xfs_readdir(struct xfs_inode	*dp, void *dirent, size_t bufsize,
 		       xfs_off_t *offset, filldir_t filldir);
-int xfs_symlink(struct xfs_inode *dp, bhv_vname_t *dentry,
-		char *target_path, mode_t mode, struct xfs_inode **ipp,
+int xfs_symlink(struct xfs_inode *dp, struct xfs_name *link_name,
+		const char *target_path, mode_t mode, struct xfs_inode **ipp,
 		struct cred *credp);
 int xfs_inode_flush(struct xfs_inode *ip, int flags);
 int xfs_set_dmattrs(struct xfs_inode *ip, u_int evmask, u_int16_t state);
@@ -44,8 +46,9 @@ int xfs_reclaim(struct xfs_inode *ip);
 int xfs_change_file_space(struct xfs_inode *ip, int cmd,
 		xfs_flock64_t *bf, xfs_off_t offset,
 		struct cred *credp, int	attr_flags);
-int xfs_rename(struct xfs_inode *src_dp, bhv_vname_t *src_vname,
-		struct xfs_inode *target_dp, bhv_vname_t *target_vname);
+int xfs_rename(struct xfs_inode *src_dp, struct xfs_name *src_name,
+		struct xfs_inode *src_ip, struct xfs_inode *target_dp,
+		struct xfs_name *target_name);
 int xfs_attr_get(struct xfs_inode *ip, const char *name, char *value,
 		int *valuelenp, int flags, cred_t *cred);
 int xfs_attr_set(struct xfs_inode *dp, const char *name, char *value,

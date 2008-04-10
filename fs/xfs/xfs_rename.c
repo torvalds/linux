@@ -83,25 +83,22 @@ int xfs_rename_skip, xfs_rename_nskip;
  */
 STATIC int
 xfs_lock_for_rename(
-	xfs_inode_t	*dp1,	/* old (source) directory inode */
-	xfs_inode_t	*dp2,	/* new (target) directory inode */
-	bhv_vname_t	*vname1,/* old entry name */
-	bhv_vname_t	*vname2,/* new entry name */
-	xfs_inode_t	**ipp1,	/* inode of old entry */
-	xfs_inode_t	**ipp2,	/* inode of new entry, if it
+	xfs_inode_t	*dp1,	/* in: old (source) directory inode */
+	xfs_inode_t	*dp2,	/* in: new (target) directory inode */
+	xfs_inode_t	*ip1,	/* in: inode of old entry */
+	struct xfs_name	*name2,	/* in: new entry name */
+	xfs_inode_t	**ipp2,	/* out: inode of new entry, if it
 				   already exists, NULL otherwise. */
-	xfs_inode_t	**i_tab,/* array of inode returned, sorted */
-	int		*num_inodes)  /* number of inodes in array */
+	xfs_inode_t	**i_tab,/* out: array of inode returned, sorted */
+	int		*num_inodes)  /* out: number of inodes in array */
 {
-	xfs_inode_t		*ip1 = VNAME_TO_INODE(vname1);
-	xfs_inode_t		*ip2, *temp;
+	xfs_inode_t		*ip2 = NULL;
+	xfs_inode_t		*temp;
 	xfs_ino_t		inum1, inum2;
 	int			error;
 	int			i, j;
 	uint			lock_mode;
 	int			diff_dirs = (dp1 != dp2);
-
-	ip2 = NULL;
 
 	/*
 	 * First, find out the current inums of the entries so that we
@@ -115,17 +112,15 @@ xfs_lock_for_rename(
 
 	inum1 = ip1->i_ino;
 
-
 	/*
 	 * Unlock dp1 and lock dp2 if they are different.
 	 */
-
 	if (diff_dirs) {
 		xfs_iunlock_map_shared(dp1, lock_mode);
 		lock_mode = xfs_ilock_map_shared(dp2);
 	}
 
-	error = xfs_dir_lookup_int(dp2, lock_mode, vname2, &inum2, &ip2);
+	error = xfs_dir_lookup_int(dp2, lock_mode, name2, &inum2, &ip2);
 	if (error == ENOENT) {		/* target does not need to exist. */
 		inum2 = 0;
 	} else if (error) {
@@ -157,6 +152,7 @@ xfs_lock_for_rename(
 		*num_inodes = 4;
 		i_tab[3] = ip2;
 	}
+	*ipp2 = i_tab[3];
 
 	/*
 	 * Sort the elements via bubble sort.  (Remember, there are at
@@ -194,21 +190,6 @@ xfs_lock_for_rename(
 		xfs_lock_inodes(i_tab, *num_inodes, 0, XFS_ILOCK_SHARED);
 	}
 
-	/*
-	 * Set the return value. Null out any unused entries in i_tab.
-	 */
-	*ipp1 = *ipp2 = NULL;
-	for (i=0; i < *num_inodes; i++) {
-		if (i_tab[i]->i_ino == inum1) {
-			*ipp1 = i_tab[i];
-		}
-		if (i_tab[i]->i_ino == inum2) {
-			*ipp2 = i_tab[i];
-		}
-	}
-	for (;i < 4; i++) {
-		i_tab[i] = NULL;
-	}
 	return 0;
 }
 
@@ -218,12 +199,13 @@ xfs_lock_for_rename(
 int
 xfs_rename(
 	xfs_inode_t	*src_dp,
-	bhv_vname_t	*src_vname,
+	struct xfs_name	*src_name,
+	xfs_inode_t	*src_ip,
 	xfs_inode_t	*target_dp,
-	bhv_vname_t	*target_vname)
+	struct xfs_name	*target_name)
 {
 	xfs_trans_t	*tp;
-	xfs_inode_t	*src_ip, *target_ip;
+	xfs_inode_t	*target_ip;
 	xfs_mount_t	*mp = src_dp->i_mount;
 	int		new_parent;		/* moving to a new dir */
 	int		src_is_directory;	/* src_name is a directory */
@@ -237,10 +219,6 @@ xfs_rename(
 	int		spaceres;
 	int		target_link_zero = 0;
 	int		num_inodes;
-	char		*src_name = VNAME(src_vname);
-	char		*target_name = VNAME(target_vname);
-	int		src_namelen = VNAMELEN(src_vname);
-	int		target_namelen = VNAMELEN(target_vname);
 
 	xfs_itrace_entry(src_dp);
 	xfs_itrace_entry(target_dp);
@@ -250,7 +228,7 @@ xfs_rename(
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_RENAME,
 					src_dp, DM_RIGHT_NULL,
 					target_dp, DM_RIGHT_NULL,
-					src_name, target_name,
+					src_name->name, target_name->name,
 					0, 0, 0);
 		if (error) {
 			return error;
@@ -267,10 +245,8 @@ xfs_rename(
 	 * does not exist in the source directory.
 	 */
 	tp = NULL;
-	error = xfs_lock_for_rename(src_dp, target_dp, src_vname,
-			target_vname, &src_ip, &target_ip, inodes,
-			&num_inodes);
-
+	error = xfs_lock_for_rename(src_dp, target_dp, src_ip, target_name,
+					&target_ip, inodes, &num_inodes);
 	if (error) {
 		/*
 		 * We have nothing locked, no inode references, and
@@ -316,7 +292,7 @@ xfs_rename(
 	XFS_BMAP_INIT(&free_list, &first_block);
 	tp = xfs_trans_alloc(mp, XFS_TRANS_RENAME);
 	cancel_flags = XFS_TRANS_RELEASE_LOG_RES;
-	spaceres = XFS_RENAME_SPACE_RES(mp, target_namelen);
+	spaceres = XFS_RENAME_SPACE_RES(mp, target_name->len);
 	error = xfs_trans_reserve(tp, spaceres, XFS_RENAME_LOG_RES(mp), 0,
 			XFS_TRANS_PERM_LOG_RES, XFS_RENAME_LOG_COUNT);
 	if (error == ENOSPC) {
@@ -374,9 +350,8 @@ xfs_rename(
 		 * If there's no space reservation, check the entry will
 		 * fit before actually inserting it.
 		 */
-		if (spaceres == 0 &&
-		    (error = xfs_dir_canenter(tp, target_dp, target_name,
-						target_namelen)))
+		error = xfs_dir_canenter(tp, target_dp, target_name, spaceres);
+		if (error)
 			goto error_return;
 		/*
 		 * If target does not exist and the rename crosses
@@ -384,8 +359,8 @@ xfs_rename(
 		 * to account for the ".." reference from the new entry.
 		 */
 		error = xfs_dir_createname(tp, target_dp, target_name,
-					   target_namelen, src_ip->i_ino,
-					   &first_block, &free_list, spaceres);
+						src_ip->i_ino, &first_block,
+						&free_list, spaceres);
 		if (error == ENOSPC)
 			goto error_return;
 		if (error)
@@ -424,7 +399,7 @@ xfs_rename(
 		 * name at the destination directory, remove it first.
 		 */
 		error = xfs_dir_replace(tp, target_dp, target_name,
-					target_namelen, src_ip->i_ino,
+					src_ip->i_ino,
 					&first_block, &free_list, spaceres);
 		if (error)
 			goto abort_return;
@@ -461,7 +436,8 @@ xfs_rename(
 		 * Rewrite the ".." entry to point to the new
 		 * directory.
 		 */
-		error = xfs_dir_replace(tp, src_ip, "..", 2, target_dp->i_ino,
+		error = xfs_dir_replace(tp, src_ip, &xfs_name_dotdot,
+					target_dp->i_ino,
 					&first_block, &free_list, spaceres);
 		ASSERT(error != EEXIST);
 		if (error)
@@ -497,8 +473,8 @@ xfs_rename(
 			goto abort_return;
 	}
 
-	error = xfs_dir_removename(tp, src_dp, src_name, src_namelen,
-			src_ip->i_ino, &first_block, &free_list, spaceres);
+	error = xfs_dir_removename(tp, src_dp, src_name, src_ip->i_ino,
+					&first_block, &free_list, spaceres);
 	if (error)
 		goto abort_return;
 	xfs_ichgtime(src_dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
@@ -583,7 +559,7 @@ std_return:
 		(void) XFS_SEND_NAMESP (mp, DM_EVENT_POSTRENAME,
 					src_dp, DM_RIGHT_NULL,
 					target_dp, DM_RIGHT_NULL,
-					src_name, target_name,
+					src_name->name, target_name->name,
 					0, error, 0);
 	}
 	return error;

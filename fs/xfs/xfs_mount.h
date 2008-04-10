@@ -73,7 +73,7 @@ typedef int	(*xfs_send_destroy_t)(struct xfs_inode *, dm_right_t);
 typedef int	(*xfs_send_namesp_t)(dm_eventtype_t, struct xfs_mount *,
 			struct xfs_inode *, dm_right_t,
 			struct xfs_inode *, dm_right_t,
-			char *, char *, mode_t, int, int);
+			const char *, const char *, mode_t, int, int);
 typedef int	(*xfs_send_mount_t)(struct xfs_mount *, dm_right_t,
 			char *, char *);
 typedef void	(*xfs_send_unmount_t)(struct xfs_mount *, struct xfs_inode *,
@@ -401,7 +401,7 @@ typedef struct xfs_mount {
 
 /*
  * Allow large block sizes to be reported to userspace programs if the
- * "largeio" mount option is used. 
+ * "largeio" mount option is used.
  *
  * If compatibility mode is specified, simply return the basic unit of caching
  * so that we don't get inefficient read/modify/write I/O from user apps.

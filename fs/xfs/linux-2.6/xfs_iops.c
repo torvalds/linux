@@ -239,6 +239,15 @@ xfs_init_security(
 	return error;
 }
 
+static void
+xfs_dentry_to_name(
+	struct xfs_name	*namep,
+	struct dentry	*dentry)
+{
+	namep->name = dentry->d_name.name;
+	namep->len = dentry->d_name.len;
+}
+
 STATIC void
 xfs_cleanup_inode(
 	struct inode	*dir,
@@ -246,20 +255,19 @@ xfs_cleanup_inode(
 	struct dentry	*dentry,
 	int		mode)
 {
-	struct dentry   teardown = {};
+	struct xfs_name	teardown;
 
 	/* Oh, the horror.
 	 * If we can't add the ACL or we fail in
 	 * xfs_init_security we must back out.
 	 * ENOSPC can hit here, among other things.
 	 */
-	teardown.d_inode = inode;
-	teardown.d_name = dentry->d_name;
+	xfs_dentry_to_name(&teardown, dentry);
 
 	if (S_ISDIR(mode))
-		xfs_rmdir(XFS_I(dir), &teardown);
+		xfs_rmdir(XFS_I(dir), &teardown, XFS_I(inode));
 	else
-		xfs_remove(XFS_I(dir), &teardown);
+		xfs_remove(XFS_I(dir), &teardown, XFS_I(inode));
 	iput(inode);
 }
 
@@ -273,6 +281,7 @@ xfs_vn_mknod(
 	struct inode	*inode;
 	struct xfs_inode *ip = NULL;
 	xfs_acl_t	*default_acl = NULL;
+	struct xfs_name	name;
 	attrexists_t	test_default_acl = _ACL_DEFAULT_EXISTS;
 	int		error;
 
@@ -293,6 +302,8 @@ xfs_vn_mknod(
 		}
 	}
 
+	xfs_dentry_to_name(&name, dentry);
+
 	if (IS_POSIXACL(dir) && !default_acl)
 		mode &= ~current->fs->umask;
 
@@ -303,10 +314,10 @@ xfs_vn_mknod(
 	case S_IFSOCK:
 		rdev = sysv_encode_dev(rdev);
 	case S_IFREG:
-		error = xfs_create(XFS_I(dir), dentry, mode, rdev, &ip, NULL);
+		error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip, NULL);
 		break;
 	case S_IFDIR:
-		error = xfs_mkdir(XFS_I(dir), dentry, mode, &ip, NULL);
+		error = xfs_mkdir(XFS_I(dir), &name, mode, &ip, NULL);
 		break;
 	default:
 		error = EINVAL;
@@ -371,12 +382,14 @@ xfs_vn_lookup(
 	struct nameidata *nd)
 {
 	struct xfs_inode *cip;
+	struct xfs_name	name;
 	int		error;
 
 	if (dentry->d_name.len >= MAXNAMELEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	error = xfs_lookup(XFS_I(dir), dentry, &cip);
+	xfs_dentry_to_name(&name, dentry);
+	error = xfs_lookup(XFS_I(dir), &name, &cip);
 	if (unlikely(error)) {
 		if (unlikely(error != ENOENT))
 			return ERR_PTR(-error);
@@ -394,12 +407,14 @@ xfs_vn_link(
 	struct dentry	*dentry)
 {
 	struct inode	*inode;	/* inode of guy being linked to */
+	struct xfs_name	name;
 	int		error;
 
 	inode = old_dentry->d_inode;
+	xfs_dentry_to_name(&name, dentry);
 
 	igrab(inode);
-	error = xfs_link(XFS_I(dir), XFS_I(inode), dentry);
+	error = xfs_link(XFS_I(dir), XFS_I(inode), &name);
 	if (unlikely(error)) {
 		iput(inode);
 		return -error;
@@ -417,11 +432,13 @@ xfs_vn_unlink(
 	struct dentry	*dentry)
 {
 	struct inode	*inode;
+	struct xfs_name	name;
 	int		error;
 
 	inode = dentry->d_inode;
+	xfs_dentry_to_name(&name, dentry);
 
-	error = xfs_remove(XFS_I(dir), dentry);
+	error = xfs_remove(XFS_I(dir), &name, XFS_I(inode));
 	if (likely(!error)) {
 		xfs_validate_fields(dir);	/* size needs update */
 		xfs_validate_fields(inode);
@@ -437,14 +454,15 @@ xfs_vn_symlink(
 {
 	struct inode	*inode;
 	struct xfs_inode *cip = NULL;
+	struct xfs_name	name;
 	int		error;
 	mode_t		mode;
 
 	mode = S_IFLNK |
 		(irix_symlink_mode ? 0777 & ~current->fs->umask : S_IRWXUGO);
+	xfs_dentry_to_name(&name, dentry);
 
-	error = xfs_symlink(XFS_I(dir), dentry, (char *)symname, mode,
-			    &cip, NULL);
+	error = xfs_symlink(XFS_I(dir), &name, symname, mode, &cip, NULL);
 	if (unlikely(error))
 		goto out;
 
@@ -471,9 +489,12 @@ xfs_vn_rmdir(
 	struct dentry	*dentry)
 {
 	struct inode	*inode = dentry->d_inode;
+	struct xfs_name	name;
 	int		error;
 
-	error = xfs_rmdir(XFS_I(dir), dentry);
+	xfs_dentry_to_name(&name, dentry);
+
+	error = xfs_rmdir(XFS_I(dir), &name, XFS_I(inode));
 	if (likely(!error)) {
 		xfs_validate_fields(inode);
 		xfs_validate_fields(dir);
@@ -489,9 +510,15 @@ xfs_vn_rename(
 	struct dentry	*ndentry)
 {
 	struct inode	*new_inode = ndentry->d_inode;
+	struct xfs_name	oname;
+	struct xfs_name	nname;
 	int		error;
 
-	error = xfs_rename(XFS_I(odir), odentry, XFS_I(ndir), ndentry);
+	xfs_dentry_to_name(&oname, odentry);
+	xfs_dentry_to_name(&nname, ndentry);
+
+	error = xfs_rename(XFS_I(odir), &oname, XFS_I(odentry->d_inode),
+							XFS_I(ndir), &nname);
 	if (likely(!error)) {
 		if (new_inode)
 			xfs_validate_fields(new_inode);

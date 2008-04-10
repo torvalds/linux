@@ -45,7 +45,7 @@ int
 xfs_dir_lookup_int(
 	xfs_inode_t	*dp,
 	uint		lock_mode,
-	bhv_vname_t	*dentry,
+	struct xfs_name	*name,
 	xfs_ino_t	*inum,
 	xfs_inode_t	**ipp)
 {
@@ -53,7 +53,7 @@ xfs_dir_lookup_int(
 
 	xfs_itrace_entry(dp);
 
-	error = xfs_dir_lookup(NULL, dp, VNAME(dentry), VNAMELEN(dentry), inum);
+	error = xfs_dir_lookup(NULL, dp, name, inum);
 	if (!error) {
 		/*
 		 * Unlock the directory. We do this because we can't

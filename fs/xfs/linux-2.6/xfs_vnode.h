@@ -23,8 +23,6 @@ struct bhv_vattr;
 struct xfs_iomap;
 struct attrlist_cursor_kern;
 
-typedef struct dentry	bhv_vname_t;
-typedef __u64		bhv_vnumber_t;
 typedef struct inode	bhv_vnode_t;
 
 #define VN_ISLNK(vp)	S_ISLNK((vp)->i_mode)
@@ -209,13 +207,6 @@ static inline bhv_vnode_t *vn_grab(bhv_vnode_t *vp)
 	struct inode *inode = igrab(vn_to_inode(vp));
 	return inode ? vn_from_inode(inode) : NULL;
 }
-
-/*
- * Vname handling macros.
- */
-#define VNAME(dentry)		((char *) (dentry)->d_name.name)
-#define VNAMELEN(dentry)	((dentry)->d_name.len)
-#define VNAME_TO_INODE(dentry)	(XFS_I((dentry)->d_inode))
 
 /*
  * Dealing with bad inodes
