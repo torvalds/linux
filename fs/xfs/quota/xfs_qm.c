@@ -2392,9 +2392,9 @@ xfs_qm_write_sb_changes(
 	}
 
 	xfs_mod_sb(tp, flags);
-	(void) xfs_trans_commit(tp, 0);
+	error = xfs_trans_commit(tp, 0);
 
-	return 0;
+	return error;
 }
 
 

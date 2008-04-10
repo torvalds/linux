@@ -1699,33 +1699,16 @@ xfs_itruncate_finish(
 			 * blocks in the file system, but oh well.
 			 */
 			xfs_bmap_cancel(&free_list);
-			if (committed) {
-				/*
-				 * If the passed in transaction committed
-				 * in xfs_bmap_finish(), then we want to
-				 * add the inode to this one before returning.
-				 * This keeps things simple for the higher
-				 * level code, because it always knows that
-				 * the inode is locked and held in the
-				 * transaction that returns to it whether
-				 * errors occur or not.  We don't mark the
-				 * inode dirty so that this transaction can
-				 * be easily aborted if possible.
-				 */
-				xfs_trans_ijoin(ntp, ip,
-					XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
-				xfs_trans_ihold(ntp, ip);
-			}
+			if (committed)
+				goto error_join;
 			return error;
 		}
 
 		if (committed) {
 			/*
-			 * The first xact was committed,
-			 * so add the inode to the new one.
-			 * Mark it dirty so it will be logged
-			 * and moved forward in the log as
-			 * part of every commit.
+			 * The first xact was committed, so add the inode to
+			 * the new one.  Mark it dirty so it will be logged and
+			 * moved forward in the log as part of every commit.
 			 */
 			xfs_trans_ijoin(ntp, ip,
 					XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
@@ -1733,19 +1716,16 @@ xfs_itruncate_finish(
 			xfs_trans_log_inode(ntp, ip, XFS_ILOG_CORE);
 		}
 		ntp = xfs_trans_dup(ntp);
-		(void) xfs_trans_commit(*tp, 0);
+		error = xfs_trans_commit(*tp, 0);
 		*tp = ntp;
+		if (error)
+			goto error_join;
 		error = xfs_trans_reserve(ntp, 0, XFS_ITRUNCATE_LOG_RES(mp), 0,
 					  XFS_TRANS_PERM_LOG_RES,
 					  XFS_ITRUNCATE_LOG_COUNT);
-		/*
-		 * Add the inode being truncated to the next chained
-		 * transaction.
-		 */
-		xfs_trans_ijoin(ntp, ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
-		xfs_trans_ihold(ntp, ip);
 		if (error)
-			return (error);
+			goto error_join;
+
 	}
 	/*
 	 * Only update the size in the case of the data fork, but
@@ -1777,6 +1757,18 @@ xfs_itruncate_finish(
 	       (ip->i_d.di_nextents == 0));
 	xfs_itrunc_trace(XFS_ITRUNC_FINISH2, ip, 0, new_size, 0, 0);
 	return 0;
+
+error_join:
+	/*
+	 * Add the inode being truncated to the next chained transaction.  This
+	 * keeps things simple for the higher level code, because it always
+	 * knows that the inode is locked and held in the transaction that
+	 * returns to it whether errors occur or not.  We don't mark the inode
+	 * dirty so that this transaction can be easily aborted if possible.
+	 */
+	xfs_trans_ijoin(ntp, ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
+	xfs_trans_ihold(ntp, ip);
+	return error;
 }
 
 

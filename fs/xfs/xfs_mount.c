@@ -45,7 +45,7 @@
 #include "xfs_fsops.h"
 #include "xfs_utils.h"
 
-STATIC void	xfs_mount_log_sb(xfs_mount_t *, __int64_t);
+STATIC int	xfs_mount_log_sb(xfs_mount_t *, __int64_t);
 STATIC int	xfs_uuid_mount(xfs_mount_t *);
 STATIC void	xfs_uuid_unmount(xfs_mount_t *mp);
 STATIC void	xfs_unmountfs_wait(xfs_mount_t *);
@@ -1189,8 +1189,13 @@ xfs_mountfs(
 	/*
 	 * If fs is not mounted readonly, then update the superblock changes.
 	 */
-	if (update_flags && !(mp->m_flags & XFS_MOUNT_RDONLY))
-		xfs_mount_log_sb(mp, update_flags);
+	if (update_flags && !(mp->m_flags & XFS_MOUNT_RDONLY)) {
+		error = xfs_mount_log_sb(mp, update_flags);
+		if (error) {
+			cmn_err(CE_WARN, "XFS: failed to write sb changes");
+			goto error4;
+		}
+	}
 
 	/*
 	 * Initialise the XFS quota management subsystem for this mount
@@ -1320,8 +1325,10 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 		cmn_err(CE_WARN, "XFS: Unable to free reserved block pool. "
 				"Freespace may not be correct on next mount.");
 
-
-	xfs_log_sbcount(mp, 1);
+	error = xfs_log_sbcount(mp, 1);
+	if (error)
+		cmn_err(CE_WARN, "XFS: Unable to update superblock counters. "
+				"Freespace may not be correct on next mount.");
 	xfs_unmountfs_writesb(mp);
 	xfs_unmountfs_wait(mp); 		/* wait for async bufs */
 	xfs_log_unmount(mp);			/* Done! No more fs ops. */
@@ -1413,9 +1420,8 @@ xfs_log_sbcount(
 	xfs_mod_sb(tp, XFS_SB_IFREE | XFS_SB_ICOUNT | XFS_SB_FDBLOCKS);
 	if (sync)
 		xfs_trans_set_sync(tp);
-	xfs_trans_commit(tp, 0);
-
-	return 0;
+	error = xfs_trans_commit(tp, 0);
+	return error;
 }
 
 STATIC void
@@ -1913,24 +1919,27 @@ xfs_uuid_unmount(
  * be altered by the mount options, as well as any potential sb_features2
  * fixup. Only the first superblock is updated.
  */
-STATIC void
+STATIC int
 xfs_mount_log_sb(
 	xfs_mount_t	*mp,
 	__int64_t	fields)
 {
 	xfs_trans_t	*tp;
+	int		error;
 
 	ASSERT(fields & (XFS_SB_UNIT | XFS_SB_WIDTH | XFS_SB_UUID |
 			 XFS_SB_FEATURES2 | XFS_SB_BAD_FEATURES2));
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SB_UNIT);
-	if (xfs_trans_reserve(tp, 0, mp->m_sb.sb_sectsize + 128, 0, 0,
-				XFS_DEFAULT_LOG_COUNT)) {
+	error = xfs_trans_reserve(tp, 0, mp->m_sb.sb_sectsize + 128, 0, 0,
+				XFS_DEFAULT_LOG_COUNT);
+	if (error) {
 		xfs_trans_cancel(tp, 0);
-		return;
+		return error;
 	}
 	xfs_mod_sb(tp, fields);
-	xfs_trans_commit(tp, 0);
+	error = xfs_trans_commit(tp, 0);
+	return error;
 }
 
 

@@ -1447,28 +1447,22 @@ xfs_inactive_attrs(
 	tp = *tpp;
 	mp = ip->i_mount;
 	ASSERT(ip->i_d.di_forkoff != 0);
-	xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	if (error)
+		goto error_unlock;
 
 	error = xfs_attr_inactive(ip);
-	if (error) {
-		*tpp = NULL;
-		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-		return error; /* goto out */
-	}
+	if (error)
+		goto error_unlock;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_INACTIVE);
 	error = xfs_trans_reserve(tp, 0,
 				  XFS_IFREE_LOG_RES(mp),
 				  0, XFS_TRANS_PERM_LOG_RES,
 				  XFS_INACTIVE_LOG_COUNT);
-	if (error) {
-		ASSERT(XFS_FORCED_SHUTDOWN(mp));
-		xfs_trans_cancel(tp, 0);
-		*tpp = NULL;
-		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-		return error;
-	}
+	if (error)
+		goto error_cancel;
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
@@ -1479,6 +1473,14 @@ xfs_inactive_attrs(
 
 	*tpp = tp;
 	return 0;
+
+error_cancel:
+	ASSERT(XFS_FORCED_SHUTDOWN(mp));
+	xfs_trans_cancel(tp, 0);
+error_unlock:
+	*tpp = NULL;
+	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+	return error;
 }
 
 int

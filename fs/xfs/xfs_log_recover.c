@@ -3017,7 +3017,7 @@ xlog_recover_process_efi(
 	}
 
 	efip->efi_flags |= XFS_EFI_RECOVERED;
-	xfs_trans_commit(tp, 0);
+	error = xfs_trans_commit(tp, 0);
 	return error;
 }
 
@@ -3131,16 +3131,13 @@ xlog_recover_clear_agi_bucket(
 		error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
 				   XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp)),
 				   XFS_FSS_TO_BB(mp, 1), 0, &agibp);
-	if (error) {
-		xfs_trans_cancel(tp, XFS_TRANS_ABORT);
-		return;
-	}
+	if (error)
+		goto out_abort;
 
+	error = EINVAL;
 	agi = XFS_BUF_TO_AGI(agibp);
-	if (be32_to_cpu(agi->agi_magicnum) != XFS_AGI_MAGIC) {
-		xfs_trans_cancel(tp, XFS_TRANS_ABORT);
-		return;
-	}
+	if (be32_to_cpu(agi->agi_magicnum) != XFS_AGI_MAGIC)
+		goto out_abort;
 
 	agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGINO);
 	offset = offsetof(xfs_agi_t, agi_unlinked) +
@@ -3148,7 +3145,17 @@ xlog_recover_clear_agi_bucket(
 	xfs_trans_log_buf(tp, agibp, offset,
 			  (offset + sizeof(xfs_agino_t) - 1));
 
-	(void) xfs_trans_commit(tp, 0);
+	error = xfs_trans_commit(tp, 0);
+	if (error)
+		goto out_error;
+	return;
+
+out_abort:
+	xfs_trans_cancel(tp, XFS_TRANS_ABORT);
+out_error:
+	xfs_fs_cmn_err(CE_WARN, mp, "xlog_recover_clear_agi_bucket: "
+			"failed to clear agi %d. Continuing.", agno);
+	return;
 }
 
 /*

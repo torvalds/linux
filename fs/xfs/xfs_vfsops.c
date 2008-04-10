@@ -672,6 +672,8 @@ void
 xfs_attr_quiesce(
 	xfs_mount_t	*mp)
 {
+	int	error = 0;
+
 	/* wait for all modifications to complete */
 	while (atomic_read(&mp->m_active_trans) > 0)
 		delay(100);
@@ -682,7 +684,11 @@ xfs_attr_quiesce(
 	ASSERT_ALWAYS(atomic_read(&mp->m_active_trans) == 0);
 
 	/* Push the superblock and write an unmount record */
-	xfs_log_sbcount(mp, 1);
+	error = xfs_log_sbcount(mp, 1);
+	if (error)
+		xfs_fs_cmn_err(CE_WARN, mp,
+				"xfs_attr_quiesce: failed to log sb changes. "
+				"Frozen image may not be consistent.");
 	xfs_log_unmount_write(mp);
 	xfs_unmountfs_writesb(mp);
 }
@@ -1316,8 +1322,11 @@ xfs_syncsub(
 	 * of sync if we crash or get a forced shutdown. We don't want to force
 	 * this to disk, just get a transaction into the iclogs....
 	 */
-	if (flags & SYNC_SUPER)
-		xfs_log_sbcount(mp, 0);
+	if (flags & SYNC_SUPER) {
+		error = xfs_log_sbcount(mp, 0);
+		if (error)
+			last_error = error;
+	}
 
 	/*
 	 * Now check to see if the log needs a "dummy" transaction.

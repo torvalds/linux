@@ -734,12 +734,12 @@ xfs_qm_scall_setqlim(
 	xfs_trans_log_dquot(tp, dqp);
 
 	xfs_dqtrace_entry(dqp, "Q_SETQLIM: COMMIT");
-	xfs_trans_commit(tp, 0);
+	error = xfs_trans_commit(tp, 0);
 	xfs_qm_dqprint(dqp);
 	xfs_qm_dqrele(dqp);
 	mutex_unlock(&(XFS_QI_QOFFLOCK(mp)));
 
-	return (0);
+	return error;
 }
 
 STATIC int
