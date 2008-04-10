@@ -169,6 +169,7 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc,
 
 		acpi_tb_delete_table(table_desc);
 		*table_index = i;
+		status = AE_ALREADY_EXISTS;
 		goto release;
 	}
 
