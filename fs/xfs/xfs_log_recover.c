@@ -2965,7 +2965,7 @@ xlog_recover_process_data(
  * Process an extent free intent item that was recovered from
  * the log.  We need to free the extents that it describes.
  */
-STATIC void
+STATIC int
 xlog_recover_process_efi(
 	xfs_mount_t		*mp,
 	xfs_efi_log_item_t	*efip)
@@ -2973,6 +2973,7 @@ xlog_recover_process_efi(
 	xfs_efd_log_item_t	*efdp;
 	xfs_trans_t		*tp;
 	int			i;
+	int			error = 0;
 	xfs_extent_t		*extp;
 	xfs_fsblock_t		startblock_fsb;
 
@@ -2996,12 +2997,16 @@ xlog_recover_process_efi(
 			 * free the memory associated with it.
 			 */
 			xfs_efi_release(efip, efip->efi_format.efi_nextents);
-			return;
+			return XFS_ERROR(EIO);
 		}
 	}
 
 	tp = xfs_trans_alloc(mp, 0);
-	xfs_trans_reserve(tp, 0, XFS_ITRUNCATE_LOG_RES(mp), 0, 0, 0);
+	error = xfs_trans_reserve(tp, 0, XFS_ITRUNCATE_LOG_RES(mp), 0, 0, 0);
+	if (error) {
+		xfs_trans_cancel(tp, XFS_TRANS_ABORT);
+		return error;
+	}
 	efdp = xfs_trans_get_efd(tp, efip, efip->efi_format.efi_nextents);
 
 	for (i = 0; i < efip->efi_format.efi_nextents; i++) {
@@ -3013,6 +3018,7 @@ xlog_recover_process_efi(
 
 	efip->efi_flags |= XFS_EFI_RECOVERED;
 	xfs_trans_commit(tp, 0);
+	return error;
 }
 
 /*
@@ -3060,7 +3066,7 @@ xlog_recover_check_ail(
  * everything already in the AIL, we stop processing as soon as
  * we see something other than an EFI in the AIL.
  */
-STATIC void
+STATIC int
 xlog_recover_process_efis(
 	xlog_t			*log)
 {
@@ -3068,6 +3074,7 @@ xlog_recover_process_efis(
 	xfs_efi_log_item_t	*efip;
 	int			gen;
 	xfs_mount_t		*mp;
+	int			error = 0;
 
 	mp = log->l_mp;
 	spin_lock(&mp->m_ail_lock);
@@ -3092,11 +3099,14 @@ xlog_recover_process_efis(
 		}
 
 		spin_unlock(&mp->m_ail_lock);
-		xlog_recover_process_efi(mp, efip);
+		error = xlog_recover_process_efi(mp, efip);
+		if (error)
+			return error;
 		spin_lock(&mp->m_ail_lock);
 		lip = xfs_trans_next_ail(mp, lip, &gen, NULL);
 	}
 	spin_unlock(&mp->m_ail_lock);
+	return error;
 }
 
 /*
@@ -3116,9 +3126,9 @@ xlog_recover_clear_agi_bucket(
 	int		error;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_CLEAR_AGI_BUCKET);
-	xfs_trans_reserve(tp, 0, XFS_CLEAR_AGI_BUCKET_LOG_RES(mp), 0, 0, 0);
-
-	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
+	error = xfs_trans_reserve(tp, 0, XFS_CLEAR_AGI_BUCKET_LOG_RES(mp), 0, 0, 0);
+	if (!error)
+		error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
 				   XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp)),
 				   XFS_FSS_TO_BB(mp, 1), 0, &agibp);
 	if (error) {
@@ -3919,7 +3929,14 @@ xlog_recover_finish(
 	 * rather than accepting new requests.
 	 */
 	if (log->l_flags & XLOG_RECOVERY_NEEDED) {
-		xlog_recover_process_efis(log);
+		int	error;
+		error = xlog_recover_process_efis(log);
+		if (error) {
+			cmn_err(CE_ALERT,
+				"Failed to recover EFIs on filesystem: %s",
+				log->l_mp->m_fsname);
+			return error;
+		}
 		/*
 		 * Sync the log to get all the EFIs out of the AIL.
 		 * This isn't absolutely necessary, but it helps in
