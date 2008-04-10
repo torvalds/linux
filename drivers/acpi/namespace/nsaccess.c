@@ -208,8 +208,7 @@ acpi_status acpi_ns_root_initialize(void)
 				/* Special case for ACPI Global Lock */
 
 				if (ACPI_STRCMP(init_val->name, "_GL_") == 0) {
-					acpi_gbl_global_lock_mutex =
-					    obj_desc->mutex.os_mutex;
+					acpi_gbl_global_lock_mutex = obj_desc;
 
 					/* Create additional counting semaphore for global lock */
 

@@ -170,10 +170,14 @@ ACPI_EXTERN u8 acpi_gbl_integer_nybble_width;
 ACPI_EXTERN struct acpi_mutex_info acpi_gbl_mutex_info[ACPI_NUM_MUTEX];
 
 /*
- * Global lock semaphore works in conjunction with the actual HW global lock
+ * Global lock mutex is an actual AML mutex object
+ * Global lock semaphore works in conjunction with the HW global lock
  */
-ACPI_EXTERN acpi_mutex acpi_gbl_global_lock_mutex;
+ACPI_EXTERN union acpi_operand_object *acpi_gbl_global_lock_mutex;
 ACPI_EXTERN acpi_semaphore acpi_gbl_global_lock_semaphore;
+ACPI_EXTERN u16 acpi_gbl_global_lock_handle;
+ACPI_EXTERN u8 acpi_gbl_global_lock_acquired;
+ACPI_EXTERN u8 acpi_gbl_global_lock_present;
 
 /*
  * Spinlocks are used for interfaces that can be possibly called at
@@ -215,22 +219,22 @@ ACPI_EXTERN acpi_exception_handler acpi_gbl_exception_handler;
 ACPI_EXTERN acpi_init_handler acpi_gbl_init_handler;
 ACPI_EXTERN struct acpi_walk_state *acpi_gbl_breakpoint_walk;
 
+/* Owner ID support */
+
+ACPI_EXTERN u32 acpi_gbl_owner_id_mask[ACPI_NUM_OWNERID_MASKS];
+ACPI_EXTERN u8 acpi_gbl_last_owner_id_index;
+ACPI_EXTERN u8 acpi_gbl_next_owner_id_offset;
+
 /* Misc */
 
 ACPI_EXTERN u32 acpi_gbl_original_mode;
 ACPI_EXTERN u32 acpi_gbl_rsdp_original_location;
 ACPI_EXTERN u32 acpi_gbl_ns_lookup_count;
 ACPI_EXTERN u32 acpi_gbl_ps_find_count;
-ACPI_EXTERN u32 acpi_gbl_owner_id_mask[ACPI_NUM_OWNERID_MASKS];
 ACPI_EXTERN u16 acpi_gbl_pm1_enable_register_save;
-ACPI_EXTERN u16 acpi_gbl_global_lock_handle;
-ACPI_EXTERN u8 acpi_gbl_last_owner_id_index;
-ACPI_EXTERN u8 acpi_gbl_next_owner_id_offset;
 ACPI_EXTERN u8 acpi_gbl_debugger_configuration;
-ACPI_EXTERN u8 acpi_gbl_global_lock_acquired;
 ACPI_EXTERN u8 acpi_gbl_step_to_next_call;
 ACPI_EXTERN u8 acpi_gbl_acpi_hardware_present;
-ACPI_EXTERN u8 acpi_gbl_global_lock_present;
 ACPI_EXTERN u8 acpi_gbl_events_initialized;
 ACPI_EXTERN u8 acpi_gbl_system_awake_and_running;
 

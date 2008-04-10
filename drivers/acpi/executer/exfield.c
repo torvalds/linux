@@ -71,7 +71,6 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 	union acpi_operand_object *buffer_desc;
 	acpi_size length;
 	void *buffer;
-	u8 locked;
 
 	ACPI_FUNCTION_TRACE_PTR(ex_read_data_from_field, obj_desc);
 
@@ -111,9 +110,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 
 		/* Lock entire transaction if requested */
 
-		locked =
-		    acpi_ex_acquire_global_lock(obj_desc->common_field.
-						field_flags);
+		acpi_ex_acquire_global_lock(obj_desc->common_field.field_flags);
 
 		/*
 		 * Perform the read.
@@ -125,7 +122,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 							     buffer.pointer),
 					       ACPI_READ | (obj_desc->field.
 							    attribute << 16));
-		acpi_ex_release_global_lock(locked);
+		acpi_ex_release_global_lock();
 		goto exit;
 	}
 
@@ -175,13 +172,12 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 
 	/* Lock entire transaction if requested */
 
-	locked =
-	    acpi_ex_acquire_global_lock(obj_desc->common_field.field_flags);
+	acpi_ex_acquire_global_lock(obj_desc->common_field.field_flags);
 
 	/* Read from the field */
 
 	status = acpi_ex_extract_from_field(obj_desc, buffer, (u32) length);
-	acpi_ex_release_global_lock(locked);
+	acpi_ex_release_global_lock();
 
       exit:
 	if (ACPI_FAILURE(status)) {
@@ -217,7 +213,6 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 	u32 required_length;
 	void *buffer;
 	void *new_buffer;
-	u8 locked;
 	union acpi_operand_object *buffer_desc;
 
 	ACPI_FUNCTION_TRACE_PTR(ex_write_data_to_field, obj_desc);
@@ -278,9 +273,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 
 		/* Lock entire transaction if requested */
 
-		locked =
-		    acpi_ex_acquire_global_lock(obj_desc->common_field.
-						field_flags);
+		acpi_ex_acquire_global_lock(obj_desc->common_field.field_flags);
 
 		/*
 		 * Perform the write (returns status and perhaps data in the
@@ -291,7 +284,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 					       (acpi_integer *) buffer,
 					       ACPI_WRITE | (obj_desc->field.
 							     attribute << 16));
-		acpi_ex_release_global_lock(locked);
+		acpi_ex_release_global_lock();
 
 		*result_desc = buffer_desc;
 		return_ACPI_STATUS(status);
@@ -366,13 +359,12 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 
 	/* Lock entire transaction if requested */
 
-	locked =
-	    acpi_ex_acquire_global_lock(obj_desc->common_field.field_flags);
+	acpi_ex_acquire_global_lock(obj_desc->common_field.field_flags);
 
 	/* Write to the field */
 
 	status = acpi_ex_insert_into_field(obj_desc, buffer, length);
-	acpi_ex_release_global_lock(locked);
+	acpi_ex_release_global_lock();
 
 	/* Free temporary buffer if we used one */
 

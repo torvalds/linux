@@ -158,7 +158,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 				  "***** Mutex %p, OS Mutex %p\n",
 				  object, object->mutex.os_mutex));
 
-		if (object->mutex.os_mutex == acpi_gbl_global_lock_mutex) {
+		if (object == acpi_gbl_global_lock_mutex) {
 
 			/* Global Lock has extra semaphore */
 
