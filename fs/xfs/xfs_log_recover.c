@@ -3003,21 +3003,25 @@ xlog_recover_process_efi(
 
 	tp = xfs_trans_alloc(mp, 0);
 	error = xfs_trans_reserve(tp, 0, XFS_ITRUNCATE_LOG_RES(mp), 0, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp, XFS_TRANS_ABORT);
-		return error;
-	}
+	if (error)
+		goto abort_error;
 	efdp = xfs_trans_get_efd(tp, efip, efip->efi_format.efi_nextents);
 
 	for (i = 0; i < efip->efi_format.efi_nextents; i++) {
 		extp = &(efip->efi_format.efi_extents[i]);
-		xfs_free_extent(tp, extp->ext_start, extp->ext_len);
+		error = xfs_free_extent(tp, extp->ext_start, extp->ext_len);
+		if (error)
+			goto abort_error;
 		xfs_trans_log_efd_extent(tp, efdp, extp->ext_start,
 					 extp->ext_len);
 	}
 
 	efip->efi_flags |= XFS_EFI_RECOVERED;
 	error = xfs_trans_commit(tp, 0);
+	return error;
+
+abort_error:
+	xfs_trans_cancel(tp, XFS_TRANS_ABORT);
 	return error;
 }
 
