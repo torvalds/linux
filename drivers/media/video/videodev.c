@@ -1861,6 +1861,13 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 			dbgarg (cmd, "chip_ident=%u, revision=0x%x\n", p->ident, p->revision);
 		break;
 	}
+	default:
+	{
+		if (!vfd->vidioc_default)
+			break;
+		ret = vfd->vidioc_default(file, fh, cmd, arg);
+		break;
+	}
 	} /* switch */
 
 	if (vfd->debug & V4L2_DEBUG_IOCTL_ARG) {
