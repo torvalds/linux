@@ -316,8 +316,14 @@ __trap_fixup_kernel_data_tlb_miss:
 	.section	.trap.vector
 	.org		TBR_TT_TRAP0 >> 2
 	.long		system_call
-	.rept		126
+	.rept		119
 	.long		__entry_unsupported_trap
 	.endr
+
+	# userspace atomic op emulation, traps 120-126
+	.rept		7
+	.long		__entry_atomic_op
+	.endr
+	
 	.org		TBR_TT_BREAK >> 2
 	.long		__entry_debug_exception

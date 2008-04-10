@@ -99,8 +99,22 @@
 #define TBR_TT_TRAP1		(0x81 << 4)
 #define TBR_TT_TRAP2		(0x82 << 4)
 #define TBR_TT_TRAP3		(0x83 << 4)
+#define TBR_TT_TRAP120		(0xf8 << 4)
+#define TBR_TT_TRAP121		(0xf9 << 4)
+#define TBR_TT_TRAP122		(0xfa << 4)
+#define TBR_TT_TRAP123		(0xfb << 4)
+#define TBR_TT_TRAP124		(0xfc << 4)
+#define TBR_TT_TRAP125		(0xfd << 4)
 #define TBR_TT_TRAP126		(0xfe << 4)
 #define TBR_TT_BREAK		(0xff << 4)
+
+#define TBR_TT_ATOMIC_CMPXCHG32	TBR_TT_TRAP120
+#define TBR_TT_ATOMIC_XCHG32	TBR_TT_TRAP121
+#define TBR_TT_ATOMIC_XOR	TBR_TT_TRAP122
+#define TBR_TT_ATOMIC_OR	TBR_TT_TRAP123
+#define TBR_TT_ATOMIC_AND	TBR_TT_TRAP124
+#define TBR_TT_ATOMIC_SUB	TBR_TT_TRAP125
+#define TBR_TT_ATOMIC_ADD	TBR_TT_TRAP126
 
 #define __get_TBR()	({ unsigned long x; asm volatile("movsg tbr,%0" : "=r"(x)); x; })
 
