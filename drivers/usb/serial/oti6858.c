@@ -814,10 +814,6 @@ static int oti6858_ioctl(struct usb_serial_port *port, struct file *file,
 				__FUNCTION__, port->number, cmd, arg);
 
 	switch (cmd) {
-		case TCFLSH:
-			/* FIXME */
-			return 0;
-
 		case TIOCMBIS:
 			if (copy_from_user(&x, user_arg, sizeof(x)))
 				return -EFAULT;
