@@ -260,3 +260,9 @@ config USB_R8A66597_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called r8a66597-hcd.
 
+config SUPERH_ON_CHIP_R8A66597
+	boolean "Enable SuperH on-chip USB like the R8A66597"
+	depends on USB_R8A66597_HCD && CPU_SUBTYPE_SH7366
+	help
+	   Renesas SuperH processor has USB like the R8A66597.
+	   This driver supported processor is SH7366.

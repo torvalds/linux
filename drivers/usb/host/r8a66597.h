@@ -187,7 +187,11 @@
 #define	REW		0x4000	/* b14: Buffer rewind */
 #define	DCLRM		0x2000	/* b13: DMA buffer clear mode */
 #define	DREQE		0x1000	/* b12: DREQ output enable */
+#if defined(CONFIG_SUPERH_ON_CHIP_R8A66597)
+#define	MBW		0x0800
+#else
 #define	MBW		0x0400	/* b10: Maximum bit width for FIFO access */
+#endif
 #define	  MBW_8		 0x0000	  /*  8bit */
 #define	  MBW_16	 0x0400	  /* 16bit */
 #define	BIGEND		0x0100	/* b8: Big endian mode */
@@ -395,7 +399,11 @@
 #define R8A66597_MAX_NUM_PIPE		10
 #define R8A66597_BUF_BSIZE		8
 #define R8A66597_MAX_DEVICE		10
+#if defined(CONFIG_SUPERH_ON_CHIP_R8A66597)
+#define R8A66597_MAX_ROOT_HUB		1
+#else
 #define R8A66597_MAX_ROOT_HUB		2
+#endif
 #define R8A66597_MAX_SAMPLING		5
 #define R8A66597_RH_POLL_TIME		10
 #define R8A66597_MAX_DMA_CHANNEL	2
@@ -530,8 +538,21 @@ static inline void r8a66597_read_fifo(struct r8a66597 *r8a66597,
 				      unsigned long offset, u16 *buf,
 				      int len)
 {
+#if defined(CONFIG_SUPERH_ON_CHIP_R8A66597)
+	unsigned long fifoaddr = r8a66597->reg + offset;
+	unsigned long count;
+
+	count = len / 4;
+	insl(fifoaddr, buf, count);
+
+	if (len & 0x00000003) {
+		unsigned long tmp = inl(fifoaddr);
+		memcpy((unsigned char *)buf + count * 4, &tmp, len & 0x03);
+	}
+#else
 	len = (len + 1) / 2;
 	insw(r8a66597->reg + offset, buf, len);
+#endif
 }
 
 static inline void r8a66597_write(struct r8a66597 *r8a66597, u16 val,
@@ -545,6 +566,24 @@ static inline void r8a66597_write_fifo(struct r8a66597 *r8a66597,
 				       int len)
 {
 	unsigned long fifoaddr = r8a66597->reg + offset;
+#if defined(CONFIG_SUPERH_ON_CHIP_R8A66597)
+	unsigned long count;
+	unsigned char *pb;
+	int i;
+
+	count = len / 4;
+	outsl(fifoaddr, buf, count);
+
+	if (len & 0x00000003) {
+		pb = (unsigned char *)buf + count * 4;
+		for (i = 0; i < (len & 0x00000003); i++) {
+			if (r8a66597_read(r8a66597, CFIFOSEL) & BIGEND)
+				outb(pb[i], fifoaddr + i);
+			else
+				outb(pb[i], fifoaddr + 3 - i);
+		}
+	}
+#else
 	int odd = len & 0x0001;
 
 	len = len / 2;
@@ -553,6 +592,7 @@ static inline void r8a66597_write_fifo(struct r8a66597 *r8a66597,
 		buf = &buf[len];
 		outb((unsigned char)*buf, fifoaddr);
 	}
+#endif
 }
 
 static inline void r8a66597_mdfy(struct r8a66597 *r8a66597,
@@ -583,6 +623,11 @@ static inline unsigned long get_syssts_reg(int port)
 static inline unsigned long get_dvstctr_reg(int port)
 {
 	return port == 0 ? DVSTCTR0 : DVSTCTR1;
+}
+
+static inline unsigned long get_dmacfg_reg(int port)
+{
+	return port == 0 ? DMA0CFG : DMA1CFG;
 }
 
 static inline unsigned long get_intenb_reg(int port)

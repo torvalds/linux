@@ -51,10 +51,12 @@ MODULE_ALIAS("platform:r8a66597_hcd");
 static const char hcd_name[] = "r8a66597_hcd";
 
 /* module parameters */
+#if !defined(CONFIG_SUPERH_ON_CHIP_R8A66597)
 static unsigned short clock = XTAL12;
 module_param(clock, ushort, 0644);
 MODULE_PARM_DESC(clock, "input clock: 48MHz=32768, 24MHz=16384, 12MHz=0 "
 		"(default=0)");
+#endif
 
 static unsigned short vif = LDRV;
 module_param(vif, ushort, 0644);
@@ -106,11 +108,22 @@ static void set_devadd_reg(struct r8a66597 *r8a66597, u8 r8a66597_address,
 	r8a66597_write(r8a66597, val, devadd_reg);
 }
 
-static int enable_controller(struct r8a66597 *r8a66597)
+static int r8a66597_clock_enable(struct r8a66597 *r8a66597)
 {
 	u16 tmp;
 	int i = 0;
 
+#if defined(CONFIG_SUPERH_ON_CHIP_R8A66597)
+	do {
+		r8a66597_write(r8a66597, SCKE, SYSCFG0);
+		tmp = r8a66597_read(r8a66597, SYSCFG0);
+		if (i++ > 1000) {
+			err("register access fail.");
+			return -ENXIO;
+		}
+	} while ((tmp & SCKE) != SCKE);
+	r8a66597_write(r8a66597, 0x04, 0x02);
+#else
 	do {
 		r8a66597_write(r8a66597, USBE, SYSCFG0);
 		tmp = r8a66597_read(r8a66597, SYSCFG0);
@@ -132,13 +145,63 @@ static int enable_controller(struct r8a66597 *r8a66597)
 			return -ENXIO;
 		}
 	} while ((tmp & SCKE) != SCKE);
+#endif	/* #if defined(CONFIG_SUPERH_ON_CHIP_R8A66597) */
 
-	r8a66597_bset(r8a66597, DCFM | DRPD, SYSCFG0);
-	r8a66597_bset(r8a66597, DRPD, SYSCFG1);
+	return 0;
+}
+
+static void r8a66597_clock_disable(struct r8a66597 *r8a66597)
+{
+	r8a66597_bclr(r8a66597, SCKE, SYSCFG0);
+	udelay(1);
+#if !defined(CONFIG_SUPERH_ON_CHIP_R8A66597)
+	r8a66597_bclr(r8a66597, PLLC, SYSCFG0);
+	r8a66597_bclr(r8a66597, XCKE, SYSCFG0);
+	r8a66597_bclr(r8a66597, USBE, SYSCFG0);
+#endif
+}
+
+static void r8a66597_enable_port(struct r8a66597 *r8a66597, int port)
+{
+	u16 val;
+
+	val = port ? DRPD : DCFM | DRPD;
+	r8a66597_bset(r8a66597, val, get_syscfg_reg(port));
+	r8a66597_bset(r8a66597, HSE, get_syscfg_reg(port));
+
+	r8a66597_write(r8a66597, BURST | CPU_ADR_RD_WR, get_dmacfg_reg(port));
+	r8a66597_bclr(r8a66597, DTCHE, get_intenb_reg(port));
+	r8a66597_bset(r8a66597, ATTCHE, get_intenb_reg(port));
+}
+
+static void r8a66597_disable_port(struct r8a66597 *r8a66597, int port)
+{
+	u16 val, tmp;
+
+	r8a66597_write(r8a66597, 0, get_intenb_reg(port));
+	r8a66597_write(r8a66597, 0, get_intsts_reg(port));
+
+	r8a66597_port_power(r8a66597, port, 0);
+
+	do {
+		tmp = r8a66597_read(r8a66597, SOFCFG) & EDGESTS;
+		udelay(640);
+	} while (tmp == EDGESTS);
+
+	val = port ? DRPD : DCFM | DRPD;
+	r8a66597_bclr(r8a66597, val, get_syscfg_reg(port));
+	r8a66597_bclr(r8a66597, HSE, get_syscfg_reg(port));
+}
+
+static int enable_controller(struct r8a66597 *r8a66597)
+{
+	int ret, port;
+
+	ret = r8a66597_clock_enable(r8a66597);
+	if (ret < 0)
+		return ret;
 
 	r8a66597_bset(r8a66597, vif & LDRV, PINCFG);
-	r8a66597_bset(r8a66597, HSE, SYSCFG0);
-	r8a66597_bset(r8a66597, HSE, SYSCFG1);
 	r8a66597_bset(r8a66597, USBE, SYSCFG0);
 
 	r8a66597_bset(r8a66597, BEMPE | NRDYE | BRDYE, INTENB0);
@@ -146,53 +209,30 @@ static int enable_controller(struct r8a66597 *r8a66597)
 	r8a66597_bset(r8a66597, BRDY0, BRDYENB);
 	r8a66597_bset(r8a66597, BEMP0, BEMPENB);
 
-	r8a66597_write(r8a66597, BURST | CPU_ADR_RD_WR, DMA0CFG);
-	r8a66597_write(r8a66597, BURST | CPU_ADR_RD_WR, DMA1CFG);
-
 	r8a66597_bset(r8a66597, endian & BIGEND, CFIFOSEL);
 	r8a66597_bset(r8a66597, endian & BIGEND, D0FIFOSEL);
 	r8a66597_bset(r8a66597, endian & BIGEND, D1FIFOSEL);
-
 	r8a66597_bset(r8a66597, TRNENSEL, SOFCFG);
 
 	r8a66597_bset(r8a66597, SIGNE | SACKE, INTENB1);
-	r8a66597_bclr(r8a66597, DTCHE, INTENB1);
-	r8a66597_bset(r8a66597, ATTCHE, INTENB1);
-	r8a66597_bclr(r8a66597, DTCHE, INTENB2);
-	r8a66597_bset(r8a66597, ATTCHE, INTENB2);
+
+	for (port = 0; port < R8A66597_MAX_ROOT_HUB; port++)
+		r8a66597_enable_port(r8a66597, port);
 
 	return 0;
 }
 
 static void disable_controller(struct r8a66597 *r8a66597)
 {
-	u16 tmp;
+	int port;
 
 	r8a66597_write(r8a66597, 0, INTENB0);
-	r8a66597_write(r8a66597, 0, INTENB1);
-	r8a66597_write(r8a66597, 0, INTENB2);
 	r8a66597_write(r8a66597, 0, INTSTS0);
-	r8a66597_write(r8a66597, 0, INTSTS1);
-	r8a66597_write(r8a66597, 0, INTSTS2);
 
-	r8a66597_port_power(r8a66597, 0, 0);
-	r8a66597_port_power(r8a66597, 1, 0);
+	for (port = 0; port < R8A66597_MAX_ROOT_HUB; port++)
+		r8a66597_disable_port(r8a66597, port);
 
-	do {
-		tmp = r8a66597_read(r8a66597, SOFCFG) & EDGESTS;
-		udelay(640);
-	} while (tmp == EDGESTS);
-
-	r8a66597_bclr(r8a66597, DCFM | DRPD, SYSCFG0);
-	r8a66597_bclr(r8a66597, DRPD, SYSCFG1);
-	r8a66597_bclr(r8a66597, HSE, SYSCFG0);
-	r8a66597_bclr(r8a66597, HSE, SYSCFG1);
-
-	r8a66597_bclr(r8a66597, SCKE, SYSCFG0);
-	udelay(1);
-	r8a66597_bclr(r8a66597, PLLC, SYSCFG0);
-	r8a66597_bclr(r8a66597, XCKE, SYSCFG0);
-	r8a66597_bclr(r8a66597, USBE, SYSCFG0);
+	r8a66597_clock_disable(r8a66597);
 }
 
 static int get_parent_r8a66597_address(struct r8a66597 *r8a66597,
@@ -711,6 +751,7 @@ static void enable_r8a66597_pipe_dma(struct r8a66597 *r8a66597,
 				     struct r8a66597_pipe *pipe,
 				     struct urb *urb)
 {
+#if !defined(CONFIG_SUPERH_ON_CHIP_R8A66597)
 	int i;
 	struct r8a66597_pipe_info *info = &pipe->info;
 
@@ -738,6 +779,7 @@ static void enable_r8a66597_pipe_dma(struct r8a66597 *r8a66597,
 			break;
 		}
 	}
+#endif	/* #if defined(CONFIG_SUPERH_ON_CHIP_R8A66597) */
 }
 
 /* this function must be called with interrupt disabled */
@@ -1054,8 +1096,7 @@ static void prepare_status_packet(struct r8a66597 *r8a66597,
 		r8a66597_mdfy(r8a66597, ISEL, ISEL | CURPIPE, CFIFOSEL);
 		r8a66597_reg_wait(r8a66597, CFIFOSEL, CURPIPE, 0);
 		r8a66597_write(r8a66597, ~BEMP0, BEMPSTS);
-		r8a66597_write(r8a66597, BCLR, CFIFOCTR);
-		r8a66597_write(r8a66597, BVAL, CFIFOCTR);
+		r8a66597_write(r8a66597, BCLR | BVAL, CFIFOCTR);
 		enable_irq_empty(r8a66597, 0);
 	} else {
 		r8a66597_bclr(r8a66597, R8A66597_DIR, DCPCFG);
