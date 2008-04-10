@@ -123,6 +123,8 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 		return_VOID;
 	}
 
+	/* source_desc is of type ACPI_DESC_TYPE_OPERAND */
+
 	switch (ACPI_GET_OBJECT_TYPE(source_desc)) {
 	case ACPI_TYPE_INTEGER:
 
@@ -180,11 +182,19 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 					      (source_desc->reference.opcode),
 					      source_desc->reference.offset));
 		} else {
-			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "[%s]\n",
+			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "[%s]",
 					      acpi_ps_get_opcode_name
 					      (source_desc->reference.opcode)));
 		}
 
+		if (source_desc->reference.opcode == AML_LOAD_OP) {	/* Load and load_table */
+			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT,
+					      " Table OwnerId %X\n",
+					      source_desc->reference.object));
+			break;
+		}
+
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "\n"));
 		if (source_desc->reference.object) {
 			if (ACPI_GET_DESCRIPTOR_TYPE
 			    (source_desc->reference.object) ==
