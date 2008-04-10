@@ -382,7 +382,27 @@ _xfs_log_force(
 		return xlog_state_sync_all(log, flags, log_flushed);
 	else
 		return xlog_state_sync(log, lsn, flags, log_flushed);
-}	/* xfs_log_force */
+}	/* _xfs_log_force */
+
+/*
+ * Wrapper for _xfs_log_force(), to be used when caller doesn't care
+ * about errors or whether the log was flushed or not. This is the normal
+ * interface to use when trying to unpin items or move the log forward.
+ */
+void
+xfs_log_force(
+	xfs_mount_t	*mp,
+	xfs_lsn_t	lsn,
+	uint		flags)
+{
+	int	error;
+	error = _xfs_log_force(mp, lsn, flags, NULL);
+	if (error) {
+		xfs_fs_cmn_err(CE_WARN, mp, "xfs_log_force: "
+			"error %d returned.", error);
+	}
+}
+
 
 /*
  * Attaches a new iclog I/O completion callback routine during
@@ -634,7 +654,8 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		return 0;
 
-	xfs_log_force(mp, 0, XFS_LOG_FORCE|XFS_LOG_SYNC);
+	error = _xfs_log_force(mp, 0, XFS_LOG_FORCE|XFS_LOG_SYNC, NULL);
+	ASSERT(error || !(XLOG_FORCED_SHUTDOWN(log)));
 
 #ifdef DEBUG
 	first_iclog = iclog = log->l_iclog;
