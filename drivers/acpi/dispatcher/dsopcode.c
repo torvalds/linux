@@ -808,6 +808,12 @@ acpi_ds_eval_data_object_operands(struct acpi_walk_state *walk_state,
 
 	/* The first operand (for all of these data objects) is the length */
 
+	/*
+	 * Set proper index into operand stack for acpi_ds_obj_stack_push
+	 * invoked inside acpi_ds_create_operand.
+	 */
+	walk_state->operand_index = walk_state->num_operands;
+
 	status = acpi_ds_create_operand(walk_state, op->common.value.arg, 1);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -1070,8 +1076,7 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state * walk_state,
 			 * is set to anything other than zero!
 			 */
 			walk_state->return_desc = walk_state->operands[0];
-		} else if ((walk_state->results) &&
-			   (walk_state->results->results.num_results > 0)) {
+		} else if (walk_state->result_count) {
 
 			/* Since we have a real Return(), delete any implicit return */
 

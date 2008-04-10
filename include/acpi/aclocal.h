@@ -522,9 +522,8 @@ struct acpi_thread_state {
  * AML arguments
  */
 struct acpi_result_values {
-	ACPI_STATE_COMMON u8 num_results;
-	u8 last_insert;
-	union acpi_operand_object *obj_desc[ACPI_OBJ_NUM_OPERANDS];
+	ACPI_STATE_COMMON
+	    union acpi_operand_object *obj_desc[ACPI_RESULTS_FRAME_OBJ_NUM];
 };
 
 typedef

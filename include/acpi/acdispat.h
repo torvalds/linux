@@ -303,7 +303,7 @@ acpi_ds_init_aml_walk(struct acpi_walk_state *walk_state,
 		      u32 aml_length,
 		      struct acpi_evaluate_info *info, u8 pass_number);
 
-acpi_status
+void
 acpi_ds_obj_stack_pop_and_delete(u32 pop_count,
 				 struct acpi_walk_state *walk_state);
 
@@ -316,20 +316,10 @@ void
 acpi_ds_push_walk_state(struct acpi_walk_state *walk_state,
 			struct acpi_thread_state *thread);
 
-acpi_status acpi_ds_result_stack_pop(struct acpi_walk_state *walk_state);
-
-acpi_status acpi_ds_result_stack_push(struct acpi_walk_state *walk_state);
-
 acpi_status acpi_ds_result_stack_clear(struct acpi_walk_state *walk_state);
 
 struct acpi_walk_state *acpi_ds_get_current_walk_state(struct acpi_thread_state
 						       *thread);
-
-#ifdef ACPI_FUTURE_USAGE
-acpi_status
-acpi_ds_result_remove(union acpi_operand_object **object,
-		      u32 index, struct acpi_walk_state *walk_state);
-#endif
 
 acpi_status
 acpi_ds_result_pop(union acpi_operand_object **object,
@@ -338,9 +328,5 @@ acpi_ds_result_pop(union acpi_operand_object **object,
 acpi_status
 acpi_ds_result_push(union acpi_operand_object *object,
 		    struct acpi_walk_state *walk_state);
-
-acpi_status
-acpi_ds_result_pop_from_bottom(union acpi_operand_object **object,
-			       struct acpi_walk_state *walk_state);
 
 #endif				/* _ACDISPAT_H_ */

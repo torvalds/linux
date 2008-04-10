@@ -603,13 +603,6 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 			acpi_ps_pop_scope(&(walk_state->parser_state), op,
 					  &walk_state->arg_types,
 					  &walk_state->arg_count);
-
-			if ((*op)->common.aml_opcode != AML_WHILE_OP) {
-				status2 = acpi_ds_result_stack_pop(walk_state);
-				if (ACPI_FAILURE(status2)) {
-					return_ACPI_STATUS(status2);
-				}
-			}
 		}
 
 		/* Close this iteration of the While loop */
@@ -637,10 +630,6 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 			if (*op) {
 				status2 =
 				    acpi_ps_complete_this_op(walk_state, *op);
-				if (ACPI_FAILURE(status2)) {
-					return_ACPI_STATUS(status2);
-				}
-				status2 = acpi_ds_result_stack_pop(walk_state);
 				if (ACPI_FAILURE(status2)) {
 					return_ACPI_STATUS(status2);
 				}

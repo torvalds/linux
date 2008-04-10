@@ -630,9 +630,7 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 			 * Use value that was already previously returned
 			 * by the evaluation of this argument
 			 */
-			status =
-			    acpi_ds_result_pop_from_bottom(&obj_desc,
-							   walk_state);
+			status = acpi_ds_result_pop(&obj_desc, walk_state);
 			if (ACPI_FAILURE(status)) {
 				/*
 				 * Only error is underflow, and this indicates
@@ -698,27 +696,54 @@ acpi_ds_create_operands(struct acpi_walk_state *walk_state,
 {
 	acpi_status status = AE_OK;
 	union acpi_parse_object *arg;
-	u32 arg_count = 0;
+	union acpi_parse_object *arguments[ACPI_OBJ_NUM_OPERANDS];
+	u8 arg_count = 0;
+	u8 count = 0;
+	u8 index = walk_state->num_operands;
+	u8 i;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_create_operands, first_arg);
 
-	/* For all arguments in the list... */
+	/* Get all arguments in the list */
 
 	arg = first_arg;
 	while (arg) {
-		status = acpi_ds_create_operand(walk_state, arg, arg_count);
-		if (ACPI_FAILURE(status)) {
-			goto cleanup;
+		if (index >= ACPI_OBJ_NUM_OPERANDS) {
+			return_ACPI_STATUS(AE_BAD_DATA);
 		}
 
-		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-				  "Arg #%d (%p) done, Arg1=%p\n", arg_count,
-				  arg, first_arg));
+		arguments[index] = arg;
+		walk_state->operands[index] = NULL;
 
 		/* Move on to next argument, if any */
 
 		arg = arg->common.next;
 		arg_count++;
+		index++;
+	}
+
+	index--;
+
+	/* It is the appropriate order to get objects from the Result stack */
+
+	for (i = 0; i < arg_count; i++) {
+		arg = arguments[index];
+
+		/* Force the filling of the operand stack in inverse order */
+
+		walk_state->operand_index = index;
+
+		status = acpi_ds_create_operand(walk_state, arg, index);
+		if (ACPI_FAILURE(status)) {
+			goto cleanup;
+		}
+
+		count++;
+		index--;
+
+		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+				  "Arg #%d (%p) done, Arg1=%p\n", index, arg,
+				  first_arg));
 	}
 
 	return_ACPI_STATUS(status);
@@ -729,9 +754,8 @@ acpi_ds_create_operands(struct acpi_walk_state *walk_state,
 	 * pop everything off of the operand stack and delete those
 	 * objects
 	 */
-	(void)acpi_ds_obj_stack_pop_and_delete(arg_count, walk_state);
+	acpi_ds_obj_stack_pop_and_delete(arg_count, walk_state);
 
-	ACPI_EXCEPTION((AE_INFO, status, "While creating Arg %d",
-			(arg_count + 1)));
+	ACPI_EXCEPTION((AE_INFO, status, "While creating Arg %d", index));
 	return_ACPI_STATUS(status);
 }
