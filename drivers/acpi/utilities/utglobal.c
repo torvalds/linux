@@ -602,6 +602,48 @@ char *acpi_ut_get_mutex_name(u32 mutex_id)
 
 	return (acpi_gbl_mutex_names[mutex_id]);
 }
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_get_notify_name
+ *
+ * PARAMETERS:  notify_value    - Value from the Notify() request
+ *
+ * RETURN:      String corresponding to the Notify Value.
+ *
+ * DESCRIPTION: Translate a Notify Value to a notify namestring.
+ *
+ ******************************************************************************/
+
+/* Names for Notify() values, used for debug output */
+
+static const char *acpi_gbl_notify_value_names[] = {
+	"Bus Check",
+	"Device Check",
+	"Device Wake",
+	"Eject Request",
+	"Device Check Light",
+	"Frequency Mismatch",
+	"Bus Mode Mismatch",
+	"Power Fault",
+	"Capabilities Check",
+	"Device PLD Check",
+	"Reserved",
+	"System Locality Update"
+};
+
+const char *acpi_ut_get_notify_name(u32 notify_value)
+{
+
+	if (notify_value <= ACPI_NOTIFY_MAX) {
+		return (acpi_gbl_notify_value_names[notify_value]);
+	} else if (notify_value <= ACPI_MAX_SYS_NOTIFY) {
+		return ("Reserved");
+	} else {		/* Greater or equal to 0x80 */
+
+		return ("**Device Specific**");
+	}
+}
 #endif
 
 /*******************************************************************************

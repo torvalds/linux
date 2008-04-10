@@ -116,6 +116,8 @@ void acpi_ut_init_globals(void);
 
 char *acpi_ut_get_mutex_name(u32 mutex_id);
 
+const char *acpi_ut_get_notify_name(u32 notify_value);
+
 #endif
 
 char *acpi_ut_get_type_name(acpi_object_type type);
