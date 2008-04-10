@@ -380,12 +380,11 @@ xfs_qm_scall_trunc_qfiles(
 	xfs_mount_t	*mp,
 	uint		flags)
 {
-	int		error;
+	int		error = 0, error2 = 0;
 	xfs_inode_t	*qip;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return XFS_ERROR(EPERM);
-	error = 0;
 	if (!xfs_sb_version_hasquota(&mp->m_sb) || flags == 0) {
 		qdprintk("qtrunc flags=%x m_qflags=%x\n", flags, mp->m_qflags);
 		return XFS_ERROR(EINVAL);
@@ -393,22 +392,22 @@ xfs_qm_scall_trunc_qfiles(
 
 	if ((flags & XFS_DQ_USER) && mp->m_sb.sb_uquotino != NULLFSINO) {
 		error = xfs_iget(mp, NULL, mp->m_sb.sb_uquotino, 0, 0, &qip, 0);
-		if (! error) {
-			(void) xfs_truncate_file(mp, qip);
+		if (!error) {
+			error = xfs_truncate_file(mp, qip);
 			IRELE(qip);
 		}
 	}
 
 	if ((flags & (XFS_DQ_GROUP|XFS_DQ_PROJ)) &&
 	    mp->m_sb.sb_gquotino != NULLFSINO) {
-		error = xfs_iget(mp, NULL, mp->m_sb.sb_gquotino, 0, 0, &qip, 0);
-		if (! error) {
-			(void) xfs_truncate_file(mp, qip);
+		error2 = xfs_iget(mp, NULL, mp->m_sb.sb_gquotino, 0, 0, &qip, 0);
+		if (!error2) {
+			error2 = xfs_truncate_file(mp, qip);
 			IRELE(qip);
 		}
 	}
 
-	return (error);
+	return error ? error : error2;
 }
 
 
