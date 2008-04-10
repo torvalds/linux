@@ -33,6 +33,7 @@
 #include <linux/acpi.h>
 #include <linux/kallsyms.h>
 #include <linux/edd.h>
+#include <linux/iscsi_ibft.h>
 #include <linux/mmzone.h>
 #include <linux/kexec.h>
 #include <linux/cpufreq.h>
@@ -434,6 +435,9 @@ void __init setup_arch(char **cmdline_p)
 	}
 #endif
 	reserve_crashkernel();
+
+	reserve_ibft_region();
+
 	paging_init();
 	map_vsyscall();
 
