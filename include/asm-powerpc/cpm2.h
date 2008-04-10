@@ -71,18 +71,9 @@
 
 #define CPM_CR_FCC_PAGE(x)	(x + 0x04)
 
-/* Some opcodes (there are more...later)
+/* CPM2-specific opcodes (see cpm.h for common opcodes)
 */
-#define CPM_CR_INIT_TRX		((ushort)0x0000)
-#define CPM_CR_INIT_RX		((ushort)0x0001)
-#define CPM_CR_INIT_TX		((ushort)0x0002)
-#define CPM_CR_HUNT_MODE	((ushort)0x0003)
-#define CPM_CR_STOP_TX		((ushort)0x0004)
-#define CPM_CR_GRA_STOP_TX	((ushort)0x0005)
-#define CPM_CR_RESTART_TX	((ushort)0x0006)
-#define CPM_CR_SET_GADDR	((ushort)0x0008)
 #define CPM_CR_START_IDMA	((ushort)0x0009)
-#define CPM_CR_STOP_IDMA	((ushort)0x000b)
 
 #define mk_cr_cmd(PG, SBC, MCN, OP) \
 	((PG << 26) | (SBC << 21) | (MCN << 6) | OP)
