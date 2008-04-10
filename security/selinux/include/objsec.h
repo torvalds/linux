@@ -103,6 +103,12 @@ struct netnode_security_struct {
 	u16 family;			/* address family */
 };
 
+struct netport_security_struct {
+	u32 sid;			/* SID for this node */
+	u16 port;			/* port number */
+	u8 protocol;			/* transport protocol */
+};
+
 struct sk_security_struct {
 	u32 sid;			/* SID of this object */
 	u32 peer_sid;			/* SID of peer */

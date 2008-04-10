@@ -80,6 +80,7 @@
 #include "objsec.h"
 #include "netif.h"
 #include "netnode.h"
+#include "netport.h"
 #include "xfrm.h"
 #include "netlabel.h"
 
@@ -3670,10 +3671,8 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 			inet_get_local_port_range(&low, &high);
 
 			if (snum < max(PROT_SOCK, low) || snum > high) {
-				err = security_port_sid(sk->sk_family,
-							sk->sk_type,
-							sk->sk_protocol, snum,
-							&sid);
+				err = sel_netport_sid(sk->sk_protocol,
+						      snum, &sid);
 				if (err)
 					goto out;
 				AVC_AUDIT_DATA_INIT(&ad,NET);
@@ -3761,8 +3760,7 @@ static int selinux_socket_connect(struct socket *sock, struct sockaddr *address,
 			snum = ntohs(addr6->sin6_port);
 		}
 
-		err = security_port_sid(sk->sk_family, sk->sk_type,
-					sk->sk_protocol, snum, &sid);
+		err = sel_netport_sid(sk->sk_protocol, snum, &sid);
 		if (err)
 			goto out;
 
@@ -3993,9 +3991,8 @@ static int selinux_sock_rcv_skb_iptables_compat(struct sock *sk,
 
 	if (!recv_perm)
 		return 0;
-	err = security_port_sid(sk->sk_family, sk->sk_type,
-				sk->sk_protocol, ntohs(ad->u.net.sport),
-				&port_sid);
+	err = sel_netport_sid(sk->sk_protocol,
+			      ntohs(ad->u.net.sport), &port_sid);
 	if (unlikely(err)) {
 		printk(KERN_WARNING
 		       "SELinux: failure in"
@@ -4416,9 +4413,8 @@ static int selinux_ip_postroute_iptables_compat(struct sock *sk,
 	if (send_perm != 0)
 		return 0;
 
-	err = security_port_sid(sk->sk_family, sk->sk_type,
-				sk->sk_protocol, ntohs(ad->u.net.dport),
-				&port_sid);
+	err = sel_netport_sid(sk->sk_protocol,
+			      ntohs(ad->u.net.dport), &port_sid);
 	if (unlikely(err)) {
 		printk(KERN_WARNING
 		       "SELinux: failure in"

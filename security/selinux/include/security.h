@@ -102,8 +102,7 @@ int security_context_to_sid_default(char *scontext, u32 scontext_len,
 int security_get_user_sids(u32 callsid, char *username,
 			   u32 **sids, u32 *nel);
 
-int security_port_sid(u16 domain, u16 type, u8 protocol, u16 port,
-	u32 *out_sid);
+int security_port_sid(u8 protocol, u16 port, u32 *out_sid);
 
 int security_netif_sid(char *name, u32 *if_sid);
 

@@ -1472,17 +1472,11 @@ err:
 
 /**
  * security_port_sid - Obtain the SID for a port.
- * @domain: communication domain aka address family
- * @type: socket type
  * @protocol: protocol number
  * @port: port number
  * @out_sid: security identifier
  */
-int security_port_sid(u16 domain,
-		      u16 type,
-		      u8 protocol,
-		      u16 port,
-		      u32 *out_sid)
+int security_port_sid(u8 protocol, u16 port, u32 *out_sid)
 {
 	struct ocontext *c;
 	int rc = 0;
