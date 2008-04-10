@@ -426,6 +426,7 @@ config ARCH_SA1100
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select HAVE_IDE
+	select HAVE_GPIO_LIB
 	help
 	  Support for StrongARM 11x0 based boards.
 
