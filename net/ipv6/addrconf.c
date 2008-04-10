@@ -2745,7 +2745,6 @@ static void addrconf_dad_timer(unsigned long data)
 {
 	struct inet6_ifaddr *ifp = (struct inet6_ifaddr *) data;
 	struct inet6_dev *idev = ifp->idev;
-	struct in6_addr unspec;
 	struct in6_addr mcaddr;
 
 	read_lock_bh(&idev->lock);
@@ -2774,9 +2773,8 @@ static void addrconf_dad_timer(unsigned long data)
 	read_unlock_bh(&idev->lock);
 
 	/* send a neighbour solicitation for our addr */
-	memset(&unspec, 0, sizeof(unspec));
 	addrconf_addr_solict_mult(&ifp->addr, &mcaddr);
-	ndisc_send_ns(ifp->idev->dev, NULL, &ifp->addr, &mcaddr, &unspec);
+	ndisc_send_ns(ifp->idev->dev, NULL, &ifp->addr, &mcaddr, &in6addr_any);
 out:
 	in6_ifa_put(ifp);
 }

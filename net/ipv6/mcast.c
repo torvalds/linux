@@ -1404,6 +1404,7 @@ static struct sk_buff *mld_newpack(struct net_device *dev, int size)
 	struct sk_buff *skb;
 	struct mld2_report *pmr;
 	struct in6_addr addr_buf;
+	const struct in6_addr *saddr;
 	int err;
 	u8 ra[8] = { IPPROTO_ICMPV6, 0,
 		     IPV6_TLV_ROUTERALERT, 2, 0, 0,
@@ -1422,10 +1423,11 @@ static struct sk_buff *mld_newpack(struct net_device *dev, int size)
 		 * use unspecified address as the source address
 		 * when a valid link-local address is not available.
 		 */
-		memset(&addr_buf, 0, sizeof(addr_buf));
-	}
+		saddr = &in6addr_any;
+	} else
+		saddr = &addr_buf;
 
-	ip6_nd_hdr(sk, skb, dev, &addr_buf, &mld2_all_mcr, NEXTHDR_HOP, 0);
+	ip6_nd_hdr(sk, skb, dev, saddr, &mld2_all_mcr, NEXTHDR_HOP, 0);
 
 	memcpy(skb_put(skb, sizeof(ra)), ra, sizeof(ra));
 
@@ -1766,7 +1768,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	struct inet6_dev *idev;
 	struct sk_buff *skb;
 	struct icmp6hdr *hdr;
-	const struct in6_addr *snd_addr;
+	const struct in6_addr *snd_addr, *saddr;
 	struct in6_addr *addrp;
 	struct in6_addr addr_buf;
 	int err, len, payload_len, full_len;
@@ -1805,10 +1807,11 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 		 * use unspecified address as the source address
 		 * when a valid link-local address is not available.
 		 */
-		memset(&addr_buf, 0, sizeof(addr_buf));
-	}
+		saddr = &in6addr_any;
+	} else
+		saddr = &addr_buf;
 
-	ip6_nd_hdr(sk, skb, dev, &addr_buf, snd_addr, NEXTHDR_HOP, payload_len);
+	ip6_nd_hdr(sk, skb, dev, saddr, snd_addr, NEXTHDR_HOP, payload_len);
 
 	memcpy(skb_put(skb, sizeof(ra)), ra, sizeof(ra));
 
@@ -1819,7 +1822,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	addrp = (struct in6_addr *) skb_put(skb, sizeof(struct in6_addr));
 	ipv6_addr_copy(addrp, addr);
 
-	hdr->icmp6_cksum = csum_ipv6_magic(&addr_buf, snd_addr, len,
+	hdr->icmp6_cksum = csum_ipv6_magic(saddr, snd_addr, len,
 					   IPPROTO_ICMPV6,
 					   csum_partial((__u8 *) hdr, len, 0));
 
