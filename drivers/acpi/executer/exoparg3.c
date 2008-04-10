@@ -260,6 +260,7 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 
 	if (ACPI_FAILURE(status) || walk_state->result_obj) {
 		acpi_ut_remove_reference(return_desc);
+		walk_state->result_obj = NULL;
 	}
 
 	/* Set the return object and exit */

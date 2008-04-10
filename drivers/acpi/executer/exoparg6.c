@@ -322,14 +322,18 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 		goto cleanup;
 	}
 
-	walk_state->result_obj = return_desc;
-
       cleanup:
 
 	/* Delete return object on error */
 
 	if (ACPI_FAILURE(status)) {
 		acpi_ut_remove_reference(return_desc);
+	}
+
+	/* Save return object on success */
+
+	else {
+		walk_state->result_obj = return_desc;
 	}
 
 	return_ACPI_STATUS(status);
