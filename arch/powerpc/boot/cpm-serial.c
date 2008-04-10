@@ -177,7 +177,6 @@ int cpm_console_init(void *devp, struct serial_console_data *scdp)
 {
 	void *reg_virt[2];
 	int is_smc = 0, is_cpm2 = 0, n;
-	unsigned long reg_phys;
 	void *parent, *muram;
 
 	if (dt_is_compatible(devp, "fsl,cpm1-smc-uart")) {
@@ -206,15 +205,8 @@ int cpm_console_init(void *devp, struct serial_console_data *scdp)
 	if (n < 4)
 		return -1;
 
-	n = getprop(devp, "virtual-reg", reg_virt, sizeof(reg_virt));
-	if (n < (int)sizeof(reg_virt)) {
-		for (n = 0; n < 2; n++) {
-			if (!dt_xlate_reg(devp, n, &reg_phys, NULL))
-				return -1;
-
-			reg_virt[n] = (void *)reg_phys;
-		}
-	}
+	if (dt_get_virtual_reg(devp, reg_virt, 2) < 2)
+		return -1;
 
 	if (is_smc)
 		smc = reg_virt[0];
@@ -227,15 +219,8 @@ int cpm_console_init(void *devp, struct serial_console_data *scdp)
 	if (!parent)
 		return -1;
 
-	n = getprop(parent, "virtual-reg", reg_virt, sizeof(reg_virt));
-	if (n < (int)sizeof(reg_virt)) {
-		if (!dt_xlate_reg(parent, 0, &reg_phys, NULL))
-			return -1;
-
-		reg_virt[0] = (void *)reg_phys;
-	}
-
-	cpcr = reg_virt[0];
+	if (dt_get_virtual_reg(parent, &cpcr, 1) < 1)
+		return -1;
 
 	muram = finddevice("/soc/cpm/muram/data");
 	if (!muram)
@@ -246,15 +231,8 @@ int cpm_console_init(void *devp, struct serial_console_data *scdp)
 	 * is one for both parent and child.
 	 */
 
-	n = getprop(muram, "virtual-reg", reg_virt, sizeof(reg_virt));
-	if (n < (int)sizeof(reg_virt)) {
-		if (!dt_xlate_reg(muram, 0, &reg_phys, NULL))
-			return -1;
-
-		reg_virt[0] = (void *)reg_phys;
-	}
-
-	muram_start = reg_virt[0];
+	if (dt_get_virtual_reg(muram, (void **)&muram_start, 1) < 1)
+		return -1;
 
 	n = getprop(muram, "reg", &muram_offset, 4);
 	if (n < 4)
