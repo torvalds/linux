@@ -524,6 +524,11 @@ void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display)
 	u32 temp32;
 	u8 buf_char;
 
+	if (!buffer) {
+		acpi_os_printf("Null Buffer Pointer in DumpBuffer!\n");
+		return;
+	}
+
 	if ((count < 4) || (count & 0x01)) {
 		display = DB_BYTE_DISPLAY;
 	}

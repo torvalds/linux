@@ -285,15 +285,15 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
 	case ACPI_TYPE_REGION:
 
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Load from Region %p %s\n",
+				  obj_desc,
+				  acpi_ut_get_object_type_name(obj_desc)));
+
 		/* Region must be system_memory (from ACPI spec) */
 
 		if (obj_desc->region.space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY) {
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
-
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Load from Region %p %s\n",
-				  obj_desc,
-				  acpi_ut_get_object_type_name(obj_desc)));
 
 		/*
 		 * If the Region Address and Length have not been previously evaluated,
@@ -306,6 +306,11 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 			}
 		}
 
+		/*
+		 * We will simply map the memory region for the table. However, the
+		 * memory region is technically not guaranteed to remain stable and
+		 * we may eventually have to copy the table to a local buffer.
+		 */
 		table_desc.address = obj_desc->region.address;
 		table_desc.length = obj_desc->region.length;
 		table_desc.flags = ACPI_TABLE_ORIGIN_MAPPED;
@@ -313,18 +318,23 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
 	case ACPI_TYPE_BUFFER:	/* Buffer or resolved region_field */
 
-		/* Simply extract the buffer from the buffer object */
-
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 				  "Load from Buffer or Field %p %s\n", obj_desc,
 				  acpi_ut_get_object_type_name(obj_desc)));
 
-		table_desc.pointer = ACPI_CAST_PTR(struct acpi_table_header,
-						   obj_desc->buffer.pointer);
-		table_desc.length = table_desc.pointer->length;
-		table_desc.flags = ACPI_TABLE_ORIGIN_ALLOCATED;
+		/*
+		 * We need to copy the buffer since the original buffer could be
+		 * changed or deleted in the future
+		 */
+		table_desc.pointer = ACPI_ALLOCATE(obj_desc->buffer.length);
+		if (!table_desc.pointer) {
+			return_ACPI_STATUS(AE_NO_MEMORY);
+		}
 
-		obj_desc->buffer.pointer = NULL;
+		ACPI_MEMCPY(table_desc.pointer, obj_desc->buffer.pointer,
+			    obj_desc->buffer.length);
+		table_desc.length = obj_desc->buffer.length;
+		table_desc.flags = ACPI_TABLE_ORIGIN_ALLOCATED;
 		break;
 
 	default:
@@ -369,6 +379,9 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
       cleanup:
 	if (ACPI_FAILURE(status)) {
+
+		/* Delete allocated buffer or mapping */
+
 		acpi_tb_delete_table(&table_desc);
 	}
 	return_ACPI_STATUS(status);
