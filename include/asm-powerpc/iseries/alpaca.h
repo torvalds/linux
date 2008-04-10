@@ -25,7 +25,7 @@
  */
 struct alpaca {
 	struct lppaca *lppaca_ptr;	/* Pointer to LpPaca for PLIC */
-	void *reg_save_ptr;		/* Pointer to LpRegSave for PLIC */
+	const void *reg_save_ptr;	/* Pointer to LpRegSave for PLIC */
 };
 
 #endif /* _ASM_POWERPC_ISERIES_ALPACA_H */

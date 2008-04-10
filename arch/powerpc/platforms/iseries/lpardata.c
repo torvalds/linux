@@ -31,7 +31,7 @@
 /* The HvReleaseData is the root of the information shared between
  * the hypervisor and Linux.
  */
-struct HvReleaseData hvReleaseData = {
+const struct HvReleaseData hvReleaseData = {
 	.xDesc = 0xc8a5d9c4,	/* "HvRD" ebcdic */
 	.xSize = sizeof(struct HvReleaseData),
 	.xVpdAreasPtrOffset = offsetof(struct naca_struct, xItVpdAreas),
@@ -186,7 +186,7 @@ struct ItLpNaca itLpNaca = {
 };
 
 /* May be filled in by the hypervisor so cannot end up in the BSS */
-struct ItIplParmsReal xItIplParmsReal __attribute__((__section__(".data")));
+static struct ItIplParmsReal xItIplParmsReal __attribute__((__section__(".data")));
 
 /* May be filled in by the hypervisor so cannot end up in the BSS */
 struct ItExtVpdPanel xItExtVpdPanel __attribute__((__section__(".data")));
@@ -209,14 +209,14 @@ u64    xMsVpd[3400] __attribute__((__section__(".data")));
 
 /* Space for Recovery Log Buffer */
 /* May be filled in by the hypervisor so cannot end up in the BSS */
-u64    xRecoveryLogBuffer[32] __attribute__((__section__(".data")));
+static u64    xRecoveryLogBuffer[32] __attribute__((__section__(".data")));
 
-struct SpCommArea xSpCommArea = {
+static const struct SpCommArea xSpCommArea = {
 	.xDesc = 0xE2D7C3C2,
 	.xFormat = 1,
 };
 
-static struct ItLpRegSave iseries_reg_save[] = {
+static const struct ItLpRegSave iseries_reg_save[] = {
 	[0 ... (NR_CPUS-1)] = {
 		.xDesc = 0xd397d9e2,	/* "LpRS" */
 		.xSize = sizeof(struct ItLpRegSave),
@@ -229,7 +229,7 @@ static struct ItLpRegSave iseries_reg_save[] = {
 	.reg_save_ptr = &iseries_reg_save[number],			\
 }
 
-struct alpaca alpaca[] = {
+const struct alpaca alpaca[] = {
 	ALPACA_INIT( 0),
 #if NR_CPUS > 1
 	ALPACA_INIT( 1), ALPACA_INIT( 2), ALPACA_INIT( 3),
@@ -265,7 +265,7 @@ struct alpaca alpaca[] = {
  * the Naca via the HvReleaseData area.  The HvReleaseData has the
  * offset into the Naca of the pointer to the ItVpdAreas.
  */
-struct ItVpdAreas itVpdAreas = {
+const struct ItVpdAreas itVpdAreas = {
 	.xSlicDesc = 0xc9a3e5c1,		/* "ItVA" */
 	.xSlicSize = sizeof(struct ItVpdAreas),
 	.xSlicVpdEntries = ItVpdMaxEntries,	/* # VPD array entries */
