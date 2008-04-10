@@ -1766,10 +1766,9 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	struct inet6_dev *idev;
 	struct sk_buff *skb;
 	struct icmp6hdr *hdr;
-	struct in6_addr *snd_addr;
+	const struct in6_addr *snd_addr;
 	struct in6_addr *addrp;
 	struct in6_addr addr_buf;
-	struct in6_addr all_routers;
 	int err, len, payload_len, full_len;
 	u8 ra[8] = { IPPROTO_ICMPV6, 0,
 		     IPV6_TLV_ROUTERALERT, 2, 0, 0,
@@ -1780,11 +1779,10 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	IP6_INC_STATS(__in6_dev_get(dev),
 		      IPSTATS_MIB_OUTREQUESTS);
 	rcu_read_unlock();
-	snd_addr = addr;
-	if (type == ICMPV6_MGM_REDUCTION) {
-		snd_addr = &all_routers;
-		ipv6_addr_all_routers(&all_routers);
-	}
+	if (type == ICMPV6_MGM_REDUCTION)
+		snd_addr = &in6addr_linklocal_allrouters;
+	else
+		snd_addr = addr;
 
 	len = sizeof(struct icmp6hdr) + sizeof(struct in6_addr);
 	payload_len = len + sizeof(ra);
@@ -2309,24 +2307,19 @@ void ipv6_mc_init_dev(struct inet6_dev *idev)
 void ipv6_mc_destroy_dev(struct inet6_dev *idev)
 {
 	struct ifmcaddr6 *i;
-	struct in6_addr maddr;
 
 	/* Deactivate timers */
 	ipv6_mc_down(idev);
 
 	/* Delete all-nodes address. */
-	ipv6_addr_all_nodes(&maddr);
-
 	/* We cannot call ipv6_dev_mc_dec() directly, our caller in
 	 * addrconf.c has NULL'd out dev->ip6_ptr so in6_dev_get() will
 	 * fail.
 	 */
-	__ipv6_dev_mc_dec(idev, &maddr);
+	__ipv6_dev_mc_dec(idev, &in6addr_linklocal_allnodes);
 
-	if (idev->cnf.forwarding) {
-		ipv6_addr_all_routers(&maddr);
-		__ipv6_dev_mc_dec(idev, &maddr);
-	}
+	if (idev->cnf.forwarding)
+		__ipv6_dev_mc_dec(idev, &in6addr_linklocal_allrouters);
 
 	write_lock_bh(&idev->lock);
 	while ((i = idev->mc_list) != NULL) {

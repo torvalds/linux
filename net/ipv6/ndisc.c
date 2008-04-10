@@ -818,10 +818,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 		is_router = !!idev->cnf.forwarding;
 
 	if (dad) {
-		struct in6_addr maddr;
-
-		ipv6_addr_all_nodes(&maddr);
-		ndisc_send_na(dev, NULL, &maddr, &msg->target,
+		ndisc_send_na(dev, NULL, &in6addr_linklocal_allnodes, &msg->target,
 			      is_router, 0, (ifp != NULL), 1);
 		goto out;
 	}

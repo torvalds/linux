@@ -205,17 +205,6 @@ static inline void addrconf_addr_solict_mult(const struct in6_addr *addr,
 		      htonl(0xFF000000) | addr->s6_addr32[3]);
 }
 
-
-static inline void ipv6_addr_all_nodes(struct in6_addr *addr)
-{
-	ipv6_addr_set(addr, htonl(0xFF020000), 0, 0, htonl(0x1));
-}
-
-static inline void ipv6_addr_all_routers(struct in6_addr *addr)
-{
-	ipv6_addr_set(addr, htonl(0xFF020000), 0, 0, htonl(0x2));
-}
-
 static inline int ipv6_addr_is_multicast(const struct in6_addr *addr)
 {
 	return (addr->s6_addr32[0] & htonl(0xFF000000)) == htonl(0xFF000000);
