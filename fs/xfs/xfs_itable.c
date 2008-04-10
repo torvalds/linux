@@ -129,7 +129,7 @@ xfs_bulkstat_one_iget(
 	return error;
 }
 
-STATIC int
+STATIC void
 xfs_bulkstat_one_dinode(
 	xfs_mount_t	*mp,		/* mount point for filesystem */
 	xfs_ino_t	ino,		/* inode number to get data for */
@@ -198,8 +198,6 @@ xfs_bulkstat_one_dinode(
 		buf->bs_blocks = be64_to_cpu(dic->di_nblocks);
 		break;
 	}
-
-	return 0;
 }
 
 STATIC int
