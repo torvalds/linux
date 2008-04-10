@@ -806,18 +806,39 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 	u32 datum_count;
 	u32 field_datum_count;
 	u32 i;
+	u32 required_length;
+	void *new_buffer;
 
 	ACPI_FUNCTION_TRACE(ex_insert_into_field);
 
 	/* Validate input buffer */
 
-	if (buffer_length <
-	    ACPI_ROUND_BITS_UP_TO_BYTES(obj_desc->common_field.bit_length)) {
-		ACPI_ERROR((AE_INFO,
-			    "Field size %X (bits) is too large for buffer (%X)",
-			    obj_desc->common_field.bit_length, buffer_length));
+	new_buffer = NULL;
+	required_length =
+	    ACPI_ROUND_BITS_UP_TO_BYTES(obj_desc->common_field.bit_length);
+	/*
+	 * We must have a buffer that is at least as long as the field
+	 * we are writing to.  This is because individual fields are
+	 * indivisible and partial writes are not supported -- as per
+	 * the ACPI specification.
+	 */
+	if (buffer_length < required_length) {
 
-		return_ACPI_STATUS(AE_BUFFER_OVERFLOW);
+		/* We need to create a new buffer */
+
+		new_buffer = ACPI_ALLOCATE_ZEROED(required_length);
+		if (!new_buffer) {
+			return_ACPI_STATUS(AE_NO_MEMORY);
+		}
+
+		/*
+		 * Copy the original data to the new buffer, starting
+		 * at Byte zero.  All unused (upper) bytes of the
+		 * buffer will be 0.
+		 */
+		ACPI_MEMCPY((char *)new_buffer, (char *)buffer, buffer_length);
+		buffer = new_buffer;
+		buffer_length = required_length;
 	}
 
 	/*
@@ -867,7 +888,7 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 							merged_datum,
 							field_offset);
 		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
+			goto exit;
 		}
 
 		field_offset += obj_desc->common_field.access_byte_width;
@@ -925,5 +946,11 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 						mask, merged_datum,
 						field_offset);
 
+      exit:
+	/* Free temporary buffer if we used one */
+
+	if (new_buffer) {
+		ACPI_FREE(new_buffer);
+	}
 	return_ACPI_STATUS(status);
 }
