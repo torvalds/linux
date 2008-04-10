@@ -278,7 +278,8 @@ void acpi_ex_acquire_global_lock(u32 field_flags)
  *
  * FUNCTION:    acpi_ex_release_global_lock
  *
- * PARAMETERS:  None
+ * PARAMETERS:  field_flags           - Flags with Lock rule:
+ *                                      always_lock or never_lock
  *
  * RETURN:      None
  *
@@ -286,11 +287,17 @@ void acpi_ex_acquire_global_lock(u32 field_flags)
  *
  ******************************************************************************/
 
-void acpi_ex_release_global_lock(void)
+void acpi_ex_release_global_lock(u32 field_flags)
 {
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ex_release_global_lock);
+
+	/* Only use the lock if the always_lock bit is set */
+
+	if (!(field_flags & AML_FIELD_LOCK_RULE_MASK)) {
+		return_VOID;
+	}
 
 	/* Release the global lock */
 

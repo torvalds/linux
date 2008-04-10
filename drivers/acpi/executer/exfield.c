@@ -122,7 +122,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 							     buffer.pointer),
 					       ACPI_READ | (obj_desc->field.
 							    attribute << 16));
-		acpi_ex_release_global_lock();
+		acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
 		goto exit;
 	}
 
@@ -177,7 +177,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 	/* Read from the field */
 
 	status = acpi_ex_extract_from_field(obj_desc, buffer, (u32) length);
-	acpi_ex_release_global_lock();
+	acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
 
       exit:
 	if (ACPI_FAILURE(status)) {
@@ -284,7 +284,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 					       (acpi_integer *) buffer,
 					       ACPI_WRITE | (obj_desc->field.
 							     attribute << 16));
-		acpi_ex_release_global_lock();
+		acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
 
 		*result_desc = buffer_desc;
 		return_ACPI_STATUS(status);
@@ -364,7 +364,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 	/* Write to the field */
 
 	status = acpi_ex_insert_into_field(obj_desc, buffer, length);
-	acpi_ex_release_global_lock();
+	acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
 
 	/* Free temporary buffer if we used one */
 

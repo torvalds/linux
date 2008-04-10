@@ -156,6 +156,10 @@ acpi_ex_acquire_mutex_object(u16 timeout,
 
 	ACPI_FUNCTION_TRACE_PTR(ex_acquire_mutex_object, obj_desc);
 
+	if (!obj_desc) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
 	/* Support for multiple acquires by the owning thread */
 
 	if (obj_desc->mutex.thread_id == thread_id) {
@@ -290,6 +294,10 @@ acpi_status acpi_ex_release_mutex_object(union acpi_operand_object *obj_desc)
 
 	ACPI_FUNCTION_TRACE(ex_release_mutex_object);
 
+	if (obj_desc->mutex.acquisition_depth == 0) {
+		return (AE_NOT_ACQUIRED);
+	}
+
 	/* Match multiple Acquires with multiple Releases */
 
 	obj_desc->mutex.acquisition_depth--;
@@ -387,17 +395,22 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 	 */
 	if (obj_desc->mutex.sync_level > walk_state->thread->current_sync_level) {
 		ACPI_ERROR((AE_INFO,
-			    "Cannot release Mutex [%4.4s], incorrect SyncLevel",
-			    acpi_ut_get_node_name(obj_desc->mutex.node)));
+			    "Cannot release Mutex [%4.4s], SyncLevel mismatch: mutex %d current %d",
+			    acpi_ut_get_node_name(obj_desc->mutex.node),
+			    obj_desc->mutex.sync_level,
+			    walk_state->thread->current_sync_level));
 		return_ACPI_STATUS(AE_AML_MUTEX_ORDER);
 	}
 
 	status = acpi_ex_release_mutex_object(obj_desc);
 
-	/* Restore the original sync_level */
+	if (obj_desc->mutex.acquisition_depth == 0) {
 
-	walk_state->thread->current_sync_level =
-	    obj_desc->mutex.original_sync_level;
+		/* Restore the original sync_level */
+
+		walk_state->thread->current_sync_level =
+		    obj_desc->mutex.original_sync_level;
+	}
 	return_ACPI_STATUS(status);
 }
 

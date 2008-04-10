@@ -816,7 +816,7 @@ acpi_status acpi_release_global_lock(u32 handle)
 {
 	acpi_status status;
 
-	if (handle != acpi_gbl_global_lock_handle) {
+	if (!handle || (handle != acpi_gbl_global_lock_handle)) {
 		return (AE_NOT_ACQUIRED);
 	}
 

@@ -464,7 +464,7 @@ void acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc);
 
 void acpi_ex_acquire_global_lock(u32 rule);
 
-void acpi_ex_release_global_lock(void);
+void acpi_ex_release_global_lock(u32 rule);
 
 void acpi_ex_eisa_id_to_string(u32 numeric_id, char *out_string);
 
