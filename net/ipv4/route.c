@@ -3058,7 +3058,9 @@ int __init ip_rt_init(void)
 	devinet_init();
 	ip_fib_init();
 
-	setup_timer(&rt_secret_timer, rt_secret_rebuild, 0);
+	rt_secret_timer.function = rt_secret_rebuild;
+	rt_secret_timer.data = 0;
+	init_timer_deferrable(&rt_secret_timer);
 
 	/* All the timers, started at system startup tend
 	   to synchronize. Perturb it a bit.
