@@ -2045,7 +2045,8 @@ static void spider_net_link_phy(unsigned long data)
 	/* if link didn't come up after SPIDER_NET_ANEG_TIMEOUT tries, setup phy again */
 	if (card->aneg_count > SPIDER_NET_ANEG_TIMEOUT) {
 
-		pr_info("%s: link is down trying to bring it up\n", card->netdev->name);
+		pr_debug("%s: link is down trying to bring it up\n",
+			 card->netdev->name);
 
 		switch (card->medium) {
 		case BCM54XX_COPPER:
@@ -2096,9 +2097,10 @@ static void spider_net_link_phy(unsigned long data)
 
 	card->aneg_count = 0;
 
-	pr_debug("Found %s with %i Mbps, %s-duplex %sautoneg.\n",
-		phy->def->name, phy->speed, phy->duplex==1 ? "Full" : "Half",
-		phy->autoneg==1 ? "" : "no ");
+	pr_info("%s: link up, %i Mbps, %s-duplex %sautoneg.\n",
+		card->netdev->name, phy->speed,
+		phy->duplex == 1 ? "Full" : "Half",
+		phy->autoneg == 1 ? "" : "no ");
 
 	return;
 }
