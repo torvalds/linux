@@ -437,7 +437,7 @@ valid_k7:
 #endif
 }
 
-void smp_checks(void)
+void __cpuinit smp_checks(void)
 {
 	if (smp_b_stepping)
 		printk(KERN_WARNING "WARNING: SMP operation may be unreliable"
