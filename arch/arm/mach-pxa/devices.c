@@ -12,6 +12,7 @@
 #include <asm/arch/i2c.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/pxa27x_keypad.h>
+#include <asm/arch/camera.h>
 
 #include "devices.h"
 
@@ -566,6 +567,37 @@ struct platform_device pxa27x_device_ssp3 = {
 	.resource	= pxa27x_resource_ssp3,
 	.num_resources	= ARRAY_SIZE(pxa27x_resource_ssp3),
 };
+
+static struct resource pxa27x_resource_camera[] = {
+	[0] = {
+		.start	= 0x50000000,
+		.end	= 0x50000fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_CAMERA,
+		.end	= IRQ_CAMERA,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static u64 pxa27x_dma_mask_camera = DMA_BIT_MASK(32);
+
+static struct platform_device pxa27x_device_camera = {
+	.name		= "pxa27x-camera",
+	.id		= 0, /* This is used to put cameras on this interface */
+	.dev		= {
+		.dma_mask      		= &pxa27x_dma_mask_camera,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(pxa27x_resource_camera),
+	.resource	= pxa27x_resource_camera,
+};
+
+void __init pxa_set_camera_info(struct pxacamera_platform_data *info)
+{
+	pxa_register_device(&pxa27x_device_camera, info);
+}
 #endif /* CONFIG_PXA27x || CONFIG_PXA3xx */
 
 #ifdef CONFIG_PXA3xx
