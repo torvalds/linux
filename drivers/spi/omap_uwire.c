@@ -537,10 +537,12 @@ static int __exit uwire_remove(struct platform_device *pdev)
 	return status;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:omap_uwire");
+
 static struct platform_driver uwire_driver = {
 	.driver = {
 		.name		= "omap_uwire",
-		.bus		= &platform_bus_type,
 		.owner		= THIS_MODULE,
 	},
 	.remove		= __exit_p(uwire_remove),

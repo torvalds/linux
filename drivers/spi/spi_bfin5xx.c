@@ -1396,7 +1396,7 @@ static int bfin5xx_spi_resume(struct platform_device *pdev)
 #define bfin5xx_spi_resume NULL
 #endif				/* CONFIG_PM */
 
-MODULE_ALIAS("bfin-spi-master");	/* for platform bus hotplug */
+MODULE_ALIAS("platform:bfin-spi");
 static struct platform_driver bfin5xx_spi_driver = {
 	.driver	= {
 		.name	= DRV_NAME,

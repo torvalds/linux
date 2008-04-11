@@ -1722,10 +1722,12 @@ static int spi_imx_resume(struct platform_device *pdev)
 #define spi_imx_resume NULL
 #endif /* CONFIG_PM */
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:spi_imx");
+
 static struct platform_driver driver = {
 	.driver = {
 		.name = "spi_imx",
-		.bus = &platform_bus_type,
 		.owner = THIS_MODULE,
 	},
 	.remove = __exit_p(spi_imx_remove),

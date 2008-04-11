@@ -958,6 +958,9 @@ static int __exit au1550_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:au1550-spi");
+
 static struct platform_driver au1550_spi_drv = {
 	.remove = __exit_p(au1550_spi_remove),
 	.driver = {

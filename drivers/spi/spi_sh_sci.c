@@ -203,3 +203,4 @@ module_exit(sh_sci_spi_exit);
 MODULE_DESCRIPTION("SH SCI SPI Driver");
 MODULE_AUTHOR("Magnus Damm <damm@opensource.se>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:spi_sh_sci");

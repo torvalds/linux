@@ -44,6 +44,7 @@
 MODULE_AUTHOR("Stephen Street");
 MODULE_DESCRIPTION("PXA2xx SSP SPI Controller");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:pxa2xx-spi");
 
 #define MAX_BUSES 3
 
@@ -1581,7 +1582,6 @@ static int pxa2xx_spi_resume(struct platform_device *pdev)
 static struct platform_driver driver = {
 	.driver = {
 		.name = "pxa2xx-spi",
-		.bus = &platform_bus_type,
 		.owner = THIS_MODULE,
 	},
 	.remove = pxa2xx_spi_remove,
