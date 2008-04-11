@@ -949,10 +949,13 @@ void btrfs_end_io_csum(struct work_struct *work)
 		bio->bi_private = end_io_wq->private;
 		bio->bi_end_io = end_io_wq->end_io;
 		kfree(end_io_wq);
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
+		bio_endio(bio, bio->bi_size, err);
+#else
 		bio_endio(bio, error);
+#endif
 	}
 }
-
 
 struct btrfs_root *open_ctree(struct super_block *sb,
 			      struct btrfs_fs_devices *fs_devices)

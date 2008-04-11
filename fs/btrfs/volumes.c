@@ -960,7 +960,11 @@ static int end_bio_multi_stripe(struct bio *bio,
 			err = multi->error;
 		kfree(multi);
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
+		bio_endio(bio, bio->bi_size, err);
+#else
 		bio_endio(bio, err);
+#endif
 	} else {
 		bio_put(bio);
 	}
