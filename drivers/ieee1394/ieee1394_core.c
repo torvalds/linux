@@ -373,6 +373,8 @@ static void build_speed_map(struct hpsb_host *host, int nodecount)
 			if (sid->port2 == SELFID_PORT_CHILD) cldcnt[n]++;
 
 			speedcap[n] = sid->speed;
+			if (speedcap[n] > host->csr.lnk_spd)
+				speedcap[n] = host->csr.lnk_spd;
 			n--;
 		}
 	}
