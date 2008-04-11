@@ -59,7 +59,8 @@ When mounting an XFS filesystem, the following options are accepted.
 	When ikeep is specified, XFS does not delete empty inode clusters
 	and keeps them around on disk. ikeep is the traditional XFS
 	behaviour. When noikeep is specified, empty inode clusters
-	are returned to the free space pool. The default is noikeep.
+	are returned to the free space pool. The default is noikeep for
+	non-DMAPI mounts, while ikeep is the default when DMAPI is in use.
 
   inode64
 	Indicates that XFS is allowed to create inodes at any location
