@@ -240,18 +240,16 @@ static inline int ipv6_addr_is_multicast(const struct in6_addr *addr)
 
 static inline int ipv6_addr_is_ll_all_nodes(const struct in6_addr *addr)
 {
-	return (addr->s6_addr32[0] == htonl(0xff020000) &&
-		addr->s6_addr32[1] == 0 &&
-		addr->s6_addr32[2] == 0 &&
-		addr->s6_addr32[3] == htonl(0x00000001));
+	return (((addr->s6_addr32[0] ^ htonl(0xff020000)) |
+		addr->s6_addr32[1] | addr->s6_addr32[2] |
+		(addr->s6_addr32[3] ^ htonl(0x00000001))) == 0);
 }
 
 static inline int ipv6_addr_is_ll_all_routers(const struct in6_addr *addr)
 {
-	return (addr->s6_addr32[0] == htonl(0xff020000) &&
-		addr->s6_addr32[1] == 0 &&
-		addr->s6_addr32[2] == 0 &&
-		addr->s6_addr32[3] == htonl(0x00000002));
+	return (((addr->s6_addr32[0] ^ htonl(0xff020000)) |
+		addr->s6_addr32[1] | addr->s6_addr32[2] |
+		(addr->s6_addr32[3] ^ htonl(0x00000002))) == 0);
 }
 
 static inline int ipv6_isatap_eui64(u8 *eui, __be32 addr)
