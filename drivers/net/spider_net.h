@@ -52,7 +52,7 @@ extern char spider_net_driver_name[];
 
 #define SPIDER_NET_TX_TIMER			(HZ/5)
 #define SPIDER_NET_ANEG_TIMER			(HZ)
-#define SPIDER_NET_ANEG_TIMEOUT			2
+#define SPIDER_NET_ANEG_TIMEOUT			5
 
 #define SPIDER_NET_RX_CSUM_DEFAULT		1
 
