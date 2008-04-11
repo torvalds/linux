@@ -936,14 +936,6 @@ int aio_complete(struct kiocb *iocb, long res, long res2)
 		return 1;
 	}
 
-	/*
-	 * Check if the user asked us to deliver the result through an
-	 * eventfd. The eventfd_signal() function is safe to be called
-	 * from IRQ context.
-	 */
-	if (!IS_ERR(iocb->ki_eventfd))
-		eventfd_signal(iocb->ki_eventfd, 1);
-
 	info = &ctx->ring_info;
 
 	/* add a completion event to the ring buffer.
@@ -992,6 +984,15 @@ int aio_complete(struct kiocb *iocb, long res, long res2)
 	kunmap_atomic(ring, KM_IRQ1);
 
 	pr_debug("added to ring %p at [%lu]\n", iocb, tail);
+
+	/*
+	 * Check if the user asked us to deliver the result through an
+	 * eventfd. The eventfd_signal() function is safe to be called
+	 * from IRQ context.
+	 */
+	if (!IS_ERR(iocb->ki_eventfd))
+		eventfd_signal(iocb->ki_eventfd, 1);
+
 put_rq:
 	/* everything turned out well, dispose of the aiocb. */
 	ret = __aio_put_req(ctx, iocb);
