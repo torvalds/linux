@@ -321,6 +321,7 @@ static int pnx4008_wdt_remove(struct platform_device *pdev)
 static struct platform_driver platform_wdt_driver = {
 	.driver = {
 		.name = "watchdog",
+		.owner	= THIS_MODULE,
 	},
 	.probe = pnx4008_wdt_probe,
 	.remove = pnx4008_wdt_remove,
@@ -354,3 +355,4 @@ MODULE_PARM_DESC(nowayout,
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
+MODULE_ALIAS("platform:watchdog");

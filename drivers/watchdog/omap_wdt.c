@@ -387,3 +387,4 @@ module_exit(omap_wdt_exit);
 MODULE_AUTHOR("George G. Davis");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
+MODULE_ALIAS("platform:omap_wdt");

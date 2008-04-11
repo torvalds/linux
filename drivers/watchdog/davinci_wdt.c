@@ -248,6 +248,7 @@ static int davinci_wdt_remove(struct platform_device *pdev)
 static struct platform_driver platform_wdt_driver = {
 	.driver = {
 		.name = "watchdog",
+		.owner	= THIS_MODULE,
 	},
 	.probe = davinci_wdt_probe,
 	.remove = davinci_wdt_remove,
@@ -277,3 +278,4 @@ MODULE_PARM_DESC(heartbeat,
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
+MODULE_ALIAS("platform:watchdog");

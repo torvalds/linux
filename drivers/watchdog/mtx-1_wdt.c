@@ -243,6 +243,7 @@ static struct platform_driver mtx1_wdt = {
 	.probe = mtx1_wdt_probe,
 	.remove = mtx1_wdt_remove,
 	.driver.name = "mtx1-wdt",
+	.driver.owner = THIS_MODULE,
 };
 
 static int __init mtx1_wdt_init(void)
@@ -262,3 +263,4 @@ MODULE_AUTHOR("Michael Stickel, Florian Fainelli");
 MODULE_DESCRIPTION("Driver for the MTX-1 watchdog");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
+MODULE_ALIAS("platform:mtx1-wdt");
