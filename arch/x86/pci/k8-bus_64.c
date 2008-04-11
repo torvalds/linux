@@ -69,7 +69,8 @@ void set_pci_bus_resources_arch_default(struct pci_bus *b)
 	int j;
 	struct pci_root_info *info;
 
-	if (!pci_root_num)
+	/* if only one root bus, don't need to anything */
+	if (pci_root_num < 2)
 		return;
 
 	for (i = 0; i < pci_root_num; i++) {
