@@ -2054,6 +2054,7 @@ static struct platform_driver udc_driver = {
 	.remove		= __exit_p(usba_udc_remove),
 	.driver		= {
 		.name		= "atmel_usba_udc",
+		.owner		= THIS_MODULE,
 	},
 };
 
@@ -2072,3 +2073,4 @@ module_exit(udc_exit);
 MODULE_DESCRIPTION("Atmel USBA UDC driver");
 MODULE_AUTHOR("Haavard Skinnemoen <hskinnemoen@atmel.com>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:atmel_usba_udc");

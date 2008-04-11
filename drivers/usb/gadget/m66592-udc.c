@@ -35,6 +35,7 @@
 MODULE_DESCRIPTION("M66592 USB gadget driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yoshihiro Shimoda");
+MODULE_ALIAS("platform:m66592_udc");
 
 #define DRIVER_VERSION	"18 Oct 2007"
 
@@ -1671,6 +1672,7 @@ static struct platform_driver m66592_driver = {
 	.remove =	__exit_p(m66592_remove),
 	.driver		= {
 		.name =	(char *) udc_name,
+		.owner	= THIS_MODULE,
 	},
 };
 
