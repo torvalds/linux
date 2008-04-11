@@ -2109,8 +2109,7 @@ done:
 	return 0;
 }
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
-
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,20)
 /* Taken directly from 2.6.23 for 2.6.18 back port */
 typedef int (*writepage_t)(struct page *page, struct writeback_control *wbc,
                                 void *data);
