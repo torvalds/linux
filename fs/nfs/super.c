@@ -1275,7 +1275,6 @@ static int nfs_validate_mount_data(void *options,
 		args->flags		= data->flags;
 		args->rsize		= data->rsize;
 		args->wsize		= data->wsize;
-		args->flags		= data->flags;
 		args->timeo		= data->timeo;
 		args->retrans		= data->retrans;
 		args->acregmin		= data->acregmin;
