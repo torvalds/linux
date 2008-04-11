@@ -496,3 +496,12 @@ static int __init early_phyp_dump_enabled(char *p)
 }
 early_param("phyp_dump", early_phyp_dump_enabled);
 
+/* Look for phyp_dump_reserve_size= cmdline option */
+static int __init early_phyp_dump_reserve_size(char *p)
+{
+        if (p)
+		phyp_dump_info->reserve_bootvar = memparse(p, &p);
+
+        return 0;
+}
+early_param("phyp_dump_reserve_size", early_phyp_dump_reserve_size);

@@ -24,8 +24,10 @@ struct phyp_dump {
 	/* Memory that is reserved during very early boot. */
 	unsigned long init_reserve_start;
 	unsigned long init_reserve_size;
-	/* Check status during boot if dump supported, active & present*/
+	/* cmd line options during boot */
+	unsigned long reserve_bootvar;
 	unsigned long phyp_dump_at_boot;
+	/* Check status during boot if dump supported, active & present*/
 	unsigned long phyp_dump_configured;
 	unsigned long phyp_dump_is_active;
 	/* store cpu & hpte size */

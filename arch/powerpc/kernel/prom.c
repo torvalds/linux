@@ -1043,6 +1043,33 @@ static void __init early_reserve_mem(void)
 
 #ifdef CONFIG_PHYP_DUMP
 /**
+ * phyp_dump_calculate_reserve_size() - reserve variable boot area 5% or arg
+ *
+ * Function to find the largest size we need to reserve
+ * during early boot process.
+ *
+ * It either looks for boot param and returns that OR
+ * returns larger of 256 or 5% rounded down to multiples of 256MB.
+ *
+ */
+static inline unsigned long phyp_dump_calculate_reserve_size(void)
+{
+	unsigned long tmp;
+
+	if (phyp_dump_info->reserve_bootvar)
+		return phyp_dump_info->reserve_bootvar;
+
+	/* divide by 20 to get 5% of value */
+	tmp = lmb_end_of_DRAM();
+	do_div(tmp, 20);
+
+	/* round it down in multiples of 256 */
+	tmp = tmp & ~0x0FFFFFFFUL;
+
+	return (tmp > PHYP_DUMP_RMR_END ? tmp : PHYP_DUMP_RMR_END);
+}
+
+/**
  * phyp_dump_reserve_mem() - reserve all not-yet-dumped mmemory
  *
  * This routine may reserve memory regions in the kernel only
@@ -1055,6 +1082,8 @@ static void __init early_reserve_mem(void)
 static void __init phyp_dump_reserve_mem(void)
 {
 	unsigned long base, size;
+	unsigned long variable_reserve_size;
+
 	if (!phyp_dump_info->phyp_dump_configured) {
 		printk(KERN_ERR "Phyp-dump not supported on this hardware\n");
 		return;
@@ -1065,9 +1094,11 @@ static void __init phyp_dump_reserve_mem(void)
 		return;
 	}
 
+	variable_reserve_size = phyp_dump_calculate_reserve_size();
+
 	if (phyp_dump_info->phyp_dump_is_active) {
 		/* Reserve *everything* above RMR.Area freed by userland tools*/
-		base = PHYP_DUMP_RMR_END;
+		base = variable_reserve_size;
 		size = lmb_end_of_DRAM() - base;
 
 		/* XXX crashed_ram_end is wrong, since it may be beyond
@@ -1079,7 +1110,7 @@ static void __init phyp_dump_reserve_mem(void)
 	} else {
 		size = phyp_dump_info->cpu_state_size +
 			phyp_dump_info->hpte_region_size +
-			PHYP_DUMP_RMR_END;
+			variable_reserve_size;
 		base = lmb_end_of_DRAM() - size;
 		lmb_reserve(base, size);
 		phyp_dump_info->init_reserve_start = base;
