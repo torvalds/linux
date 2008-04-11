@@ -394,6 +394,9 @@ static int __devexit stk17ta8_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:stk17ta8");
+
 static struct platform_driver stk17ta8_rtc_driver = {
 	.probe		= stk17ta8_rtc_probe,
 	.remove		= __devexit_p(stk17ta8_rtc_remove),

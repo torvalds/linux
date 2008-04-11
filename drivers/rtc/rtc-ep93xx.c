@@ -132,6 +132,9 @@ static int __devexit ep93xx_rtc_remove(struct platform_device *dev)
 	return 0;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:ep93xx-rtc");
+
 static struct platform_driver ep93xx_rtc_platform_driver = {
 	.driver		= {
 		.name	= "ep93xx-rtc",

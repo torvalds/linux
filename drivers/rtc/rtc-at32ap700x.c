@@ -290,7 +290,7 @@ static int __exit at32_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-MODULE_ALIAS("at32ap700x_rtc");
+MODULE_ALIAS("platform:at32ap700x_rtc");
 
 static struct platform_driver at32_rtc_driver = {
 	.remove		= __exit_p(at32_rtc_remove),

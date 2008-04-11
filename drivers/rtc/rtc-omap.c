@@ -497,7 +497,7 @@ static void omap_rtc_shutdown(struct platform_device *pdev)
 	rtc_write(0, OMAP_RTC_INTERRUPTS_REG);
 }
 
-MODULE_ALIAS("omap_rtc");
+MODULE_ALIAS("platform:omap_rtc");
 static struct platform_driver omap_rtc_driver = {
 	.probe		= omap_rtc_probe,
 	.remove		= __devexit_p(omap_rtc_remove),

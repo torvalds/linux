@@ -422,6 +422,9 @@ static int __devexit rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:RTC");
+
 static struct platform_driver rtc_platform_driver = {
 	.probe		= rtc_probe,
 	.remove		= __devexit_p(rtc_remove),

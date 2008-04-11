@@ -943,6 +943,9 @@ static void cmos_platform_shutdown(struct platform_device *pdev)
 	cmos_do_shutdown();
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:rtc_cmos");
+
 static struct platform_driver cmos_platform_driver = {
 	.remove		= __exit_p(cmos_platform_remove),
 	.shutdown	= cmos_platform_shutdown,
