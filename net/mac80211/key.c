@@ -210,9 +210,9 @@ void ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata, int idx)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&sdata->local->sta_lock, flags);
+	spin_lock_irqsave(&sdata->local->key_lock, flags);
 	__ieee80211_set_default_key(sdata, idx);
-	spin_unlock_irqrestore(&sdata->local->sta_lock, flags);
+	spin_unlock_irqrestore(&sdata->local->key_lock, flags);
 }
 
 
@@ -339,7 +339,7 @@ void ieee80211_key_link(struct ieee80211_key *key,
 		}
 	}
 
-	spin_lock_irqsave(&sdata->local->sta_lock, flags);
+	spin_lock_irqsave(&sdata->local->key_lock, flags);
 
 	if (sta)
 		old_key = sta->key;
@@ -348,7 +348,7 @@ void ieee80211_key_link(struct ieee80211_key *key,
 
 	__ieee80211_key_replace(sdata, sta, old_key, key);
 
-	spin_unlock_irqrestore(&sdata->local->sta_lock, flags);
+	spin_unlock_irqrestore(&sdata->local->key_lock, flags);
 
 	/* free old key later */
 	add_todo(old_key, KEY_FLAG_TODO_DELETE);
@@ -377,9 +377,9 @@ void ieee80211_key_free(struct ieee80211_key *key)
 	if (!key)
 		return;
 
-	spin_lock_irqsave(&key->sdata->local->sta_lock, flags);
+	spin_lock_irqsave(&key->sdata->local->key_lock, flags);
 	__ieee80211_key_free(key);
-	spin_unlock_irqrestore(&key->sdata->local->sta_lock, flags);
+	spin_unlock_irqrestore(&key->sdata->local->key_lock, flags);
 }
 
 /*
@@ -397,10 +397,10 @@ static void ieee80211_todo_for_each_key(struct ieee80211_sub_if_data *sdata,
 
 	might_sleep();
 
-	spin_lock_irqsave(&sdata->local->sta_lock, flags);
+	spin_lock_irqsave(&sdata->local->key_lock, flags);
 	list_for_each_entry(key, &sdata->key_list, list)
 		add_todo(key, todo_flags);
-	spin_unlock_irqrestore(&sdata->local->sta_lock, flags);
+	spin_unlock_irqrestore(&sdata->local->key_lock, flags);
 
 	ieee80211_key_todo();
 }
@@ -506,10 +506,10 @@ void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata)
 
 	ieee80211_debugfs_key_remove_default(sdata);
 
-	spin_lock_irqsave(&sdata->local->sta_lock, flags);
+	spin_lock_irqsave(&sdata->local->key_lock, flags);
 	list_for_each_entry_safe(key, tmp, &sdata->key_list, list)
 		__ieee80211_key_free(key);
-	spin_unlock_irqrestore(&sdata->local->sta_lock, flags);
+	spin_unlock_irqrestore(&sdata->local->key_lock, flags);
 
 	__ieee80211_key_todo();
 
