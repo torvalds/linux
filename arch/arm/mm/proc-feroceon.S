@@ -414,6 +414,11 @@ cpu_feroceon_name:
 	.asciz	"Feroceon"
 	.size	cpu_feroceon_name, . - cpu_feroceon_name
 
+	.type	cpu_88fr531_name, #object
+cpu_88fr531_name:
+	.asciz	"Feroceon 88FR531-vd"
+	.size	cpu_88fr531_name, . - cpu_88fr531_name
+
 	.align
 
 	.section ".proc.info.init", #alloc, #execinstr
@@ -445,8 +450,8 @@ __feroceon_old_id_proc_info:
 	.size	__feroceon_old_id_proc_info, . - __feroceon_old_id_proc_info
 #endif
 
-	.type	__feroceon_proc_info,#object
-__feroceon_proc_info:
+	.type	__88fr531_proc_info,#object
+__88fr531_proc_info:
 	.long	0x56055310
 	.long	0xfffffff0
 	.long	PMD_TYPE_SECT | \
@@ -463,9 +468,9 @@ __feroceon_proc_info:
 	.long	cpu_arch_name
 	.long	cpu_elf_name
 	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_EDSP
-	.long	cpu_feroceon_name
+	.long	cpu_88fr531_name
 	.long	feroceon_processor_functions
 	.long	v4wbi_tlb_fns
 	.long	feroceon_user_fns
 	.long	feroceon_cache_fns
-	.size	__feroceon_proc_info, . - __feroceon_proc_info
+	.size	__88fr531_proc_info, . - __88fr531_proc_info
