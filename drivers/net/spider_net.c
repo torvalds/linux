@@ -1399,6 +1399,8 @@ spider_net_link_reset(struct net_device *netdev)
 	spider_net_write_reg(card, SPIDER_NET_GMACINTEN, 0);
 
 	/* reset phy and setup aneg */
+	card->aneg_count = 0;
+	card->medium = BCM54XX_COPPER;
 	spider_net_setup_aneg(card);
 	mod_timer(&card->aneg_timer, jiffies + SPIDER_NET_ANEG_TIMER);
 
@@ -1982,6 +1984,8 @@ spider_net_open(struct net_device *netdev)
 		goto init_firmware_failed;
 
 	/* start probing with copper */
+	card->aneg_count = 0;
+	card->medium = BCM54XX_COPPER;
 	spider_net_setup_aneg(card);
 	if (card->phy.def->phy_id)
 		mod_timer(&card->aneg_timer, jiffies + SPIDER_NET_ANEG_TIMER);
