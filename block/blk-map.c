@@ -5,6 +5,7 @@
 #include <linux/module.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
+#include <scsi/sg.h>		/* for struct sg_iovec */
 
 #include "blk.h"
 
@@ -194,15 +195,26 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 			struct sg_iovec *iov, int iov_count, unsigned int len)
 {
 	struct bio *bio;
+	int i, read = rq_data_dir(rq) == READ;
+	int unaligned = 0;
 
 	if (!iov || iov_count <= 0)
 		return -EINVAL;
 
-	/* we don't allow misaligned data like bio_map_user() does.  If the
-	 * user is using sg, they're expected to know the alignment constraints
-	 * and respect them accordingly */
-	bio = bio_map_user_iov(q, NULL, iov, iov_count,
-				rq_data_dir(rq) == READ);
+	for (i = 0; i < iov_count; i++) {
+		unsigned long uaddr = (unsigned long)iov[i].iov_base;
+
+		if (uaddr & queue_dma_alignment(q)) {
+			unaligned = 1;
+			break;
+		}
+	}
+
+	if (unaligned || (q->dma_pad_mask & len))
+		bio = bio_copy_user_iov(q, iov, iov_count, read);
+	else
+		bio = bio_map_user_iov(q, NULL, iov, iov_count, read);
+
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
