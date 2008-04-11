@@ -1438,13 +1438,18 @@ static void olympic_arb_cmd(struct net_device *dev)
 
 		if (olympic_priv->olympic_network_monitor) { 
 			struct trh_hdr *mac_hdr;
-			DECLARE_MAC_BUF(mac);
 			printk(KERN_WARNING "%s: Received MAC Frame, details: \n",dev->name);
 			mac_hdr = tr_hdr(mac_frame);
-			printk(KERN_WARNING "%s: MAC Frame Dest. Addr: %s\n",
-			       dev->name, print_mac(mac, mac_hdr->daddr));
-			printk(KERN_WARNING "%s: MAC Frame Srce. Addr: %s\n",
-			       dev->name, print_mac(mac, mac_hdr->saddr));
+			printk(KERN_WARNING "%s: MAC Frame Dest. Addr: "
+			       MAC_FMT " \n", dev->name,
+			       mac_hdr->daddr[0], mac_hdr->daddr[1],
+			       mac_hdr->daddr[2], mac_hdr->daddr[3],
+			       mac_hdr->daddr[4], mac_hdr->daddr[5]);
+			printk(KERN_WARNING "%s: MAC Frame Srce. Addr: "
+			       MAC_FMT " \n", dev->name,
+			       mac_hdr->saddr[0], mac_hdr->saddr[1],
+			       mac_hdr->saddr[2], mac_hdr->saddr[3],
+			       mac_hdr->saddr[4], mac_hdr->saddr[5]);
 		}
 		netif_rx(mac_frame);
 		dev->last_rx = jiffies;

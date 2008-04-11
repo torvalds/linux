@@ -288,7 +288,7 @@ static void copy_from_user_state(struct xfrm_state *x, struct xfrm_usersa_info *
 	memcpy(&x->props.saddr, &p->saddr, sizeof(x->props.saddr));
 	x->props.flags = p->flags;
 
-	if (x->props.mode == XFRM_MODE_TRANSPORT)
+	if (!x->sel.family)
 		x->sel.family = p->family;
 
 }
