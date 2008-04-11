@@ -547,12 +547,10 @@ find_largest_hole (u64 start, u64 end, void *arg)
 #endif /* CONFIG_VIRTUAL_MEM_MAP */
 
 int __init
-register_active_ranges(u64 start, u64 end, void *arg)
+register_active_ranges(u64 start, u64 len, int nid)
 {
-	int nid = paddr_to_nid(__pa(start));
+	u64 end = start + len;
 
-	if (nid < 0)
-		nid = 0;
 #ifdef CONFIG_KEXEC
 	if (start > crashk_res.start && start < crashk_res.end)
 		start = crashk_res.end;

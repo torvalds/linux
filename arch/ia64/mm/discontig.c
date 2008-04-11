@@ -444,7 +444,7 @@ void __init find_memory(void)
 			mem_data[node].min_pfn = ~0UL;
 		}
 
-	efi_memmap_walk(register_active_ranges, NULL);
+	efi_memmap_walk(filter_memory, register_active_ranges);
 
 	/*
 	 * Initialize the boot memory maps in reverse order since that's

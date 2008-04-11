@@ -176,6 +176,29 @@ filter_rsvd_memory (unsigned long start, unsigned long end, void *arg)
 	return 0;
 }
 
+/*
+ * Similar to "filter_rsvd_memory()", but the reserved memory ranges
+ * are not filtered out.
+ */
+int __init
+filter_memory(unsigned long start, unsigned long end, void *arg)
+{
+	void (*func)(unsigned long, unsigned long, int);
+
+#if IGNORE_PFN0
+	if (start == PAGE_OFFSET) {
+		printk(KERN_WARNING "warning: skipping physical page 0\n");
+		start += PAGE_SIZE;
+		if (start >= end)
+			return 0;
+	}
+#endif
+	func = arg;
+	if (start < end)
+		call_pernode_memory(__pa(start), end - start, func);
+	return 0;
+}
+
 static void __init
 sort_regions (struct rsvd_region *rsvd_region, int max)
 {
