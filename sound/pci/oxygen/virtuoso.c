@@ -229,9 +229,10 @@ static void xonar_dx_init(struct oxygen *chip)
 	data->ext_power_int_reg = OXYGEN_GPI_INTERRUPT_MASK;
 	data->ext_power_bit = GPI_DX_EXT_POWER;
 
-	/* XXX the DACs' datasheets say fast mode is not allowed */
-	oxygen_set_bits16(chip, OXYGEN_2WIRE_BUS_STATUS,
-			  OXYGEN_2WIRE_SPEED_FAST);
+	oxygen_write16(chip, OXYGEN_2WIRE_BUS_STATUS,
+		       OXYGEN_2WIRE_LENGTH_8 |
+		       OXYGEN_2WIRE_INTERRUPT_MASK |
+		       OXYGEN_2WIRE_SPEED_FAST);
 
 	/* set CPEN (control port mode) and power down */
 	cs4398_write(chip, 8, CS4398_CPEN | CS4398_PDN);
