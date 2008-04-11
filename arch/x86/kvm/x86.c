@@ -2802,6 +2802,13 @@ again:
 		goto out;
 	}
 
+	vcpu->guest_mode = 1;
+	/*
+	 * Make sure that guest_mode assignment won't happen after
+	 * testing the pending IRQ vector bitmap.
+	 */
+	smp_wmb();
+
 	if (vcpu->arch.exception.pending)
 		__queue_exception(vcpu);
 	else if (irqchip_in_kernel(vcpu->kvm))
@@ -2813,7 +2820,6 @@ again:
 
 	up_read(&vcpu->kvm->slots_lock);
 
-	vcpu->guest_mode = 1;
 	kvm_guest_enter();
 
 	if (vcpu->requests)
@@ -3970,11 +3976,17 @@ static void vcpu_kick_intr(void *info)
 void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 {
 	int ipi_pcpu = vcpu->cpu;
+	int cpu = get_cpu();
 
 	if (waitqueue_active(&vcpu->wq)) {
 		wake_up_interruptible(&vcpu->wq);
 		++vcpu->stat.halt_wakeup;
 	}
-	if (vcpu->guest_mode)
+	/*
+	 * We may be called synchronously with irqs disabled in guest mode,
+	 * So need not to call smp_call_function_single() in that case.
+	 */
+	if (vcpu->guest_mode && vcpu->cpu != cpu)
 		smp_call_function_single(ipi_pcpu, vcpu_kick_intr, vcpu, 0, 0);
+	put_cpu();
 }
