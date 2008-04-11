@@ -26,6 +26,21 @@
 #include "i8254.h"
 
 /*
+ * check if there are pending timer events
+ * to be processed.
+ */
+int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
+{
+	int ret;
+
+	ret = pit_has_pending_timer(vcpu);
+	ret |= apic_has_pending_timer(vcpu);
+
+	return ret;
+}
+EXPORT_SYMBOL(kvm_cpu_has_pending_timer);
+
+/*
  * check if there is pending interrupt without
  * intack.
  */

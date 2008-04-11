@@ -1778,6 +1778,11 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 {
 	return gfn;

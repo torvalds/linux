@@ -952,6 +952,16 @@ static int __apic_timer_fn(struct kvm_lapic *apic)
 	return result;
 }
 
+int apic_has_pending_timer(struct kvm_vcpu *vcpu)
+{
+	struct kvm_lapic *lapic = vcpu->arch.apic;
+
+	if (lapic)
+		return atomic_read(&lapic->timer.pending);
+
+	return 0;
+}
+
 static int __inject_apic_timer_irq(struct kvm_lapic *apic)
 {
 	int vector;

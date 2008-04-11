@@ -765,6 +765,7 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 	 * We will block until either an interrupt or a signal wakes us up
 	 */
 	while (!kvm_cpu_has_interrupt(vcpu)
+	       && !kvm_cpu_has_pending_timer(vcpu)
 	       && !signal_pending(current)
 	       && !kvm_arch_vcpu_runnable(vcpu)) {
 		set_current_state(TASK_INTERRUPTIBLE);
