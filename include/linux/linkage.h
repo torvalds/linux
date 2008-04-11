@@ -30,8 +30,11 @@
  * protection to work (ie no more work that the compiler might
  * end up needing stack temporaries for).
  */
+/* Assembly files may be compiled with -traditional .. */
+#ifndef __ASSEMBLY__
 #ifndef asmlinkage_protect
 # define asmlinkage_protect(n, ret, args...)	do { } while (0)
+#endif
 #endif
 
 #ifndef __ALIGN
