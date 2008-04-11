@@ -501,3 +501,4 @@ static struct platform_driver ohci_hcd_s3c2410_driver = {
 	},
 };
 
+MODULE_ALIAS("platform:s3c2410-ohci");

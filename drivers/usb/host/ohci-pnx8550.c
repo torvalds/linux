@@ -230,11 +230,12 @@ static int ohci_hcd_pnx8550_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
-MODULE_ALIAS("pnx8550-ohci");
+MODULE_ALIAS("platform:pnx8550-ohci");
 
 static struct platform_driver ohci_hcd_pnx8550_driver = {
 	.driver = {
-		.name		= "pnx8550-ohci",
+		.name	= "pnx8550-ohci",
+		.owner	= THIS_MODULE,
 	},
 	.probe		= ohci_hcd_pnx8550_drv_probe,
 	.remove		= ohci_hcd_pnx8550_drv_remove,

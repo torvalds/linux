@@ -355,7 +355,7 @@ static int ohci_hcd_at91_drv_resume(struct platform_device *pdev)
 #define ohci_hcd_at91_drv_resume  NULL
 #endif
 
-MODULE_ALIAS("at91_ohci");
+MODULE_ALIAS("platform:at91_ohci");
 
 static struct platform_driver ohci_hcd_at91_driver = {
 	.probe		= ohci_hcd_at91_drv_probe,
@@ -368,4 +368,3 @@ static struct platform_driver ohci_hcd_at91_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-

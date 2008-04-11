@@ -364,6 +364,8 @@ static int ohci_hcd_pxa27x_drv_resume(struct platform_device *pdev)
 }
 #endif
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:pxa27x-ohci");
 
 static struct platform_driver ohci_hcd_pxa27x_driver = {
 	.probe		= ohci_hcd_pxa27x_drv_probe,
@@ -375,6 +377,7 @@ static struct platform_driver ohci_hcd_pxa27x_driver = {
 #endif
 	.driver		= {
 		.name	= "pxa27x-ohci",
+		.owner	= THIS_MODULE,
 	},
 };
 

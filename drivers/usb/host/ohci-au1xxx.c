@@ -345,3 +345,4 @@ static struct platform_driver ohci_hcd_au1xxx_driver = {
 	},
 };
 
+MODULE_ALIAS("platform:au1xxx-ohci");

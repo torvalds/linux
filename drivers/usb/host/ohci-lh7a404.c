@@ -251,3 +251,4 @@ static struct platform_driver ohci_hcd_lh7a404_driver = {
 	},
 };
 
+MODULE_ALIAS("platform:lh7a404-ohci");
