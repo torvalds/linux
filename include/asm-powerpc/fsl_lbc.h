@@ -24,6 +24,8 @@
 #define __ASM_FSL_LBC_H
 
 #include <linux/types.h>
+#include <linux/spinlock.h>
+#include <asm/io.h>
 
 struct fsl_lbc_bank {
 	__be32 br;             /**< Base Register  */
@@ -98,6 +100,11 @@ struct fsl_lbc_regs {
 	__be32 mar;             /**< UPM Address Register */
 	u8 res1[0x4];
 	__be32 mamr;            /**< UPMA Mode Register */
+#define MxMR_OP_NO	(0 << 28) /**< normal operation */
+#define MxMR_OP_WA	(1 << 28) /**< write array */
+#define MxMR_OP_RA	(2 << 28) /**< read array */
+#define MxMR_OP_RP	(3 << 28) /**< run pattern */
+#define MxMR_MAD	0x3f      /**< machine address */
 	__be32 mbmr;            /**< UPMB Mode Register */
 	__be32 mcmr;            /**< UPMC Mode Register */
 	u8 res2[0x8];
@@ -219,5 +226,86 @@ struct fsl_lbc_regs {
 	u8 res11[0x8];
 	u8 res8[0xF00];
 };
+
+extern struct fsl_lbc_regs __iomem *fsl_lbc_regs;
+extern spinlock_t fsl_lbc_lock;
+
+/*
+ * FSL UPM routines
+ */
+struct fsl_upm {
+	__be32 __iomem *mxmr;
+	int width;
+};
+
+extern int fsl_lbc_find(phys_addr_t addr_base);
+extern int fsl_upm_find(phys_addr_t addr_base, struct fsl_upm *upm);
+
+/**
+ * fsl_upm_start_pattern - start UPM patterns execution
+ * @upm:	pointer to the fsl_upm structure obtained via fsl_upm_find
+ * @pat_offset:	UPM pattern offset for the command to be executed
+ *
+ * This routine programmes UPM so the next memory access that hits an UPM
+ * will trigger pattern execution, starting at pat_offset.
+ */
+static inline void fsl_upm_start_pattern(struct fsl_upm *upm, u8 pat_offset)
+{
+	clrsetbits_be32(upm->mxmr, MxMR_MAD, MxMR_OP_RP | pat_offset);
+}
+
+/**
+ * fsl_upm_end_pattern - end UPM patterns execution
+ * @upm:	pointer to the fsl_upm structure obtained via fsl_upm_find
+ *
+ * This routine reverts UPM to normal operation mode.
+ */
+static inline void fsl_upm_end_pattern(struct fsl_upm *upm)
+{
+	clrbits32(upm->mxmr, MxMR_OP_RP);
+
+	while (in_be32(upm->mxmr) & MxMR_OP_RP)
+		cpu_relax();
+}
+
+/**
+ * fsl_upm_run_pattern - actually run an UPM pattern
+ * @upm:	pointer to the fsl_upm structure obtained via fsl_upm_find
+ * @io_base:	remapped pointer to where memory access should happen
+ * @mar:	MAR register content during pattern execution
+ *
+ * This function triggers dummy write to the memory specified by the io_base,
+ * thus UPM pattern actually executed. Note that mar usage depends on the
+ * pre-programmed AMX bits in the UPM RAM.
+ */
+static inline int fsl_upm_run_pattern(struct fsl_upm *upm,
+				      void __iomem *io_base, u32 mar)
+{
+	int ret = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&fsl_lbc_lock, flags);
+
+	out_be32(&fsl_lbc_regs->mar, mar << (32 - upm->width));
+
+	switch (upm->width) {
+	case 8:
+		out_8(io_base, 0x0);
+		break;
+	case 16:
+		out_be16(io_base, 0x0);
+		break;
+	case 32:
+		out_be32(io_base, 0x0);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	spin_unlock_irqrestore(&fsl_lbc_lock, flags);
+
+	return ret;
+}
 
 #endif /* __ASM_FSL_LBC_H */
