@@ -15,11 +15,10 @@
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 021110-1307, USA.
  */
-
 #include <linux/sched.h>
-#include <linux/crc32c.h>
 #include <linux/pagemap.h>
 #include "hash.h"
+#include "crc32c.h"
 #include "ctree.h"
 #include "disk-io.h"
 #include "print-tree.h"
@@ -398,16 +397,15 @@ static u64 hash_extent_ref(u64 root_objectid, u64 ref_generation,
 	u32 high_crc = ~(u32)0;
 	u32 low_crc = ~(u32)0;
 	__le64 lenum;
-
 	lenum = cpu_to_le64(root_objectid);
-	high_crc = crc32c(high_crc, &lenum, sizeof(lenum));
+	high_crc = btrfs_crc32c(high_crc, &lenum, sizeof(lenum));
 	lenum = cpu_to_le64(ref_generation);
-	low_crc = crc32c(low_crc, &lenum, sizeof(lenum));
+	low_crc = btrfs_crc32c(low_crc, &lenum, sizeof(lenum));
 	if (owner >= BTRFS_FIRST_FREE_OBJECTID) {
 		lenum = cpu_to_le64(owner);
-		low_crc = crc32c(low_crc, &lenum, sizeof(lenum));
+		low_crc = btrfs_crc32c(low_crc, &lenum, sizeof(lenum));
 		lenum = cpu_to_le64(owner_offset);
-		low_crc = crc32c(low_crc, &lenum, sizeof(lenum));
+		low_crc = btrfs_crc32c(low_crc, &lenum, sizeof(lenum));
 	}
 	return ((u64)high_crc << 32) | (u64)low_crc;
 }

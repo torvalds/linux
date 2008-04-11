@@ -18,13 +18,13 @@
 
 #include <linux/fs.h>
 #include <linux/blkdev.h>
-#include <linux/crc32c.h>
 #include <linux/scatterlist.h>
 #include <linux/swap.h>
 #include <linux/radix-tree.h>
 #include <linux/writeback.h>
 #include <linux/buffer_head.h> // for block_sync_page
 #include <linux/workqueue.h>
+#include "crc32c.h"
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -100,7 +100,7 @@ out:
 
 u32 btrfs_csum_data(struct btrfs_root *root, char *data, u32 seed, size_t len)
 {
-	return crc32c(seed, data, len);
+	return btrfs_crc32c(seed, data, len);
 }
 
 void btrfs_csum_final(u32 crc, char *result)
