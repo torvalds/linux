@@ -17,6 +17,19 @@
 # define asmregparm
 #endif
 
+/*
+ * This is used by architectures to keep arguments on the stack
+ * untouched by the compiler by keeping them live until the end.
+ * The argument stack may be owned by the assembly-language
+ * caller, not the callee, and gcc doesn't always understand
+ * that.
+ *
+ * We have the return value, and a maximum of six arguments.
+ *
+ * This should always be followed by a "return ret" for the
+ * protection to work (ie no more work that the compiler might
+ * end up needing stack temporaries for).
+ */
 #ifndef asmlinkage_protect
 # define asmlinkage_protect(n, ret, args...)	do { } while (0)
 #endif
