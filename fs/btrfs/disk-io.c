@@ -436,6 +436,12 @@ static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 	struct extent_map_tree *map;
 	int ret;
 
+	if (page_count(page) > 3) {
+		/* once for page->private, once for the caller, once
+		 * once for the page cache
+		 */
+		return 0;
+	}
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	map = &BTRFS_I(page->mapping->host)->extent_tree;
 	ret = try_release_extent_mapping(map, tree, page, gfp_flags);
