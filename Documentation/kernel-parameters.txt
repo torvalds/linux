@@ -844,7 +844,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			arch/alpha/kernel/core_marvel.c.
 
 	ip=		[IP_PNP]
-			See Documentation/nfsroot.txt.
+			See Documentation/filesystems/nfsroot.txt.
 
 	ip2=		[HW] Set IO/IRQ pairs for up to 4 IntelliPort boards
 			See comment before ip2_setup() in
@@ -1198,10 +1198,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			file if at all.
 
 	nfsaddrs=	[NFS]
-			See Documentation/nfsroot.txt.
+			See Documentation/filesystems/nfsroot.txt.
 
 	nfsroot=	[NFS] nfs root filesystem for disk-less boxes.
-			See Documentation/nfsroot.txt.
+			See Documentation/filesystems/nfsroot.txt.
 
 	nfs.callback_tcpport=
 			[NFS] set the TCP port on which the NFSv4 callback

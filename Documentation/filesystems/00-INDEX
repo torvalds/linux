@@ -66,6 +66,8 @@ mandatory-locking.txt
 	- info on the Linux implementation of Sys V mandatory file locking.
 ncpfs.txt
 	- info on Novell Netware(tm) filesystem using NCP protocol.
+nfsroot.txt
+	- short guide on setting up a diskless box with NFS root filesystem.
 ntfs.txt
 	- info and mount options for the NTFS filesystem (Windows NT).
 ocfs2.txt
@@ -82,6 +84,10 @@ relay.txt
 	- info on relay, for efficient streaming from kernel to user space.
 romfs.txt
 	- description of the ROMFS filesystem.
+rpc-cache.txt
+	- introduction to the caching mechanisms in the sunrpc layer.
+seq_file.txt
+	- how to use the seq_file API
 sharedsubtree.txt
 	- a description of shared subtrees for namespaces.
 smbfs.txt

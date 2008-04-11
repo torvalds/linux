@@ -5,6 +5,28 @@ Please use DEFINE_SPINLOCK()/DEFINE_RWLOCK() or
 __SPIN_LOCK_UNLOCKED()/__RW_LOCK_UNLOCKED() as appropriate for static
 initialization.
 
+Most of the time, you can simply turn:
+
+	static spinlock_t xxx_lock = SPIN_LOCK_UNLOCKED;
+
+into:
+
+	static DEFINE_SPINLOCK(xxx_lock);
+
+Static structure member variables go from:
+
+	struct foo bar {
+		.lock	=	SPIN_LOCK_UNLOCKED;
+	};
+
+to:
+
+	struct foo bar {
+		.lock	=	__SPIN_LOCK_UNLOCKED(bar.lock);
+	};
+
+Declaration of static rw_locks undergo a similar transformation.
+
 Dynamic initialization, when necessary, may be performed as
 demonstrated below.
 
