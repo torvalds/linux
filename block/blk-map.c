@@ -141,25 +141,8 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 		ubuf += ret;
 	}
 
-	/*
-	 * __blk_rq_map_user() copies the buffers if starting address
-	 * or length isn't aligned to dma_pad_mask.  As the copied
-	 * buffer is always page aligned, we know that there's enough
-	 * room for padding.  Extend the last bio and update
-	 * rq->data_len accordingly.
-	 *
-	 * On unmap, bio_uncopy_user() will use unmodified
-	 * bio_map_data pointed to by bio->bi_private.
-	 */
-	if (len & q->dma_pad_mask) {
-		unsigned int pad_len = (q->dma_pad_mask & ~len) + 1;
-		struct bio *tail = rq->biotail;
-
-		tail->bi_io_vec[tail->bi_vcnt - 1].bv_len += pad_len;
-		tail->bi_size += pad_len;
-
-		rq->extra_len += pad_len;
-	}
+	if (!bio_flagged(bio, BIO_USER_MAPPED))
+		rq->cmd_flags |= REQ_COPY_USER;
 
 	rq->buffer = rq->data = NULL;
 	return 0;
@@ -223,6 +206,9 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 		bio_unmap_user(bio);
 		return -EINVAL;
 	}
+
+	if (!bio_flagged(bio, BIO_USER_MAPPED))
+		rq->cmd_flags |= REQ_COPY_USER;
 
 	bio_get(bio);
 	blk_rq_bio_prep(q, rq, bio);

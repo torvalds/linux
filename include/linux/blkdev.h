@@ -112,6 +112,7 @@ enum rq_flag_bits {
 	__REQ_RW_SYNC,		/* request is sync (O_DIRECT) */
 	__REQ_ALLOCED,		/* request came from our alloc pool */
 	__REQ_RW_META,		/* metadata io request */
+	__REQ_COPY_USER,	/* contains copies of user pages */
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -133,6 +134,7 @@ enum rq_flag_bits {
 #define REQ_RW_SYNC	(1 << __REQ_RW_SYNC)
 #define REQ_ALLOCED	(1 << __REQ_ALLOCED)
 #define REQ_RW_META	(1 << __REQ_RW_META)
+#define REQ_COPY_USER	(1 << __REQ_COPY_USER)
 
 #define BLK_MAX_CDB	16
 
