@@ -470,6 +470,53 @@ static const struct snd_kcontrol_new alt_switch = {
 	.put = alt_switch_put,
 };
 
+static int unknown_info(struct snd_kcontrol *ctl,
+			struct snd_ctl_elem_info *info)
+{
+	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	info->count = 1;
+	info->value.enumerated.items = 2;
+	if (info->value.enumerated.item > 1)
+		info->value.enumerated.item = 1;
+	sprintf(info->value.enumerated.name, "%u", info->value.enumerated.item);
+	return 0;
+}
+
+static int unknown_get(struct snd_kcontrol *ctl,
+		       struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+
+	value->value.enumerated.item[0] =
+		!!(oxygen_read16(chip, OXYGEN_GPIO_DATA) & GPIO_DX_UNKNOWN1);
+	return 0;
+}
+
+static int unknown_put(struct snd_kcontrol *ctl,
+		       struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	u16 old_reg, new_reg;
+
+	spin_lock_irq(&chip->reg_lock);
+	old_reg = oxygen_read16(chip, OXYGEN_GPIO_DATA);
+	if (value->value.enumerated.item[0])
+		new_reg = old_reg | GPIO_DX_UNKNOWN1;
+	else
+		new_reg = old_reg & ~GPIO_DX_UNKNOWN1;
+	oxygen_write16(chip, OXYGEN_GPIO_DATA, new_reg);
+	spin_unlock_irq(&chip->reg_lock);
+	return old_reg != new_reg;
+}
+
+static const struct snd_kcontrol_new unknown_switch = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "PanelConfig?",
+	.info = unknown_info,
+	.get = unknown_get,
+	.put = unknown_put,
+};
+
 static void xonar_dx_ac97_switch(struct oxygen *chip,
 				 unsigned int reg, unsigned int mute)
 {
@@ -513,6 +560,11 @@ static int xonar_dx_control_filter(struct snd_kcontrol_new *template)
 static int xonar_mixer_init(struct oxygen *chip)
 {
 	return snd_ctl_add(chip->card, snd_ctl_new1(&alt_switch, chip));
+}
+
+static int xonar_dx_mixer_init(struct oxygen *chip)
+{
+	return snd_ctl_add(chip->card, snd_ctl_new1(&unknown_switch, chip));
 }
 
 static const struct oxygen_model xonar_models[] = {
@@ -574,6 +626,7 @@ static const struct oxygen_model xonar_models[] = {
 		.owner = THIS_MODULE,
 		.init = xonar_dx_init,
 		.control_filter = xonar_dx_control_filter,
+		.mixer_init = xonar_dx_mixer_init,
 		.cleanup = xonar_dx_cleanup,
 		.set_dac_params = set_cs43xx_params,
 		.set_adc_params = set_cs53x1_params,
