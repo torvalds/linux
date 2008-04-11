@@ -752,7 +752,10 @@ do_udp_sendmsg:
 	opt = ipv6_fixup_options(&opt_space, opt);
 
 	fl.proto = sk->sk_protocol;
-	ipv6_addr_copy(&fl.fl6_dst, daddr);
+	if (!ipv6_addr_any(daddr))
+		ipv6_addr_copy(&fl.fl6_dst, daddr);
+	else
+		fl.fl6_dst.s6_addr[15] = 0x1; /* :: means loopback (BSD'ism) */
 	if (ipv6_addr_any(&fl.fl6_src) && !ipv6_addr_any(&np->saddr))
 		ipv6_addr_copy(&fl.fl6_src, &np->saddr);
 	fl.fl_ip_sport = inet->sport;
