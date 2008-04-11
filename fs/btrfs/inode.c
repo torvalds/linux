@@ -430,9 +430,10 @@ int btrfs_readpage_io_failed_hook(struct bio *failed_bio,
 		free_extent_map(em);
 		set_extent_bits(failure_tree, start, end, EXTENT_LOCKED |
 				EXTENT_DIRTY, GFP_NOFS);
-		set_state_private(failure_tree, start, (u64)failrec);
+		set_state_private(failure_tree, start,
+				 (u64)(unsigned long)failrec);
 	} else {
-		failrec = (struct io_failure_record *)private;
+		failrec = (struct io_failure_record *)(unsigned long)private;
 	}
 	num_copies = btrfs_num_copies(
 			      &BTRFS_I(inode)->root->fs_info->mapping_tree,
@@ -511,7 +512,8 @@ int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 		ret = get_state_private(&BTRFS_I(inode)->io_failure_tree,
 					start, &private_failure);
 		if (ret == 0) {
-			failure = (struct io_failure_record *)private_failure;
+			failure = (struct io_failure_record *)(unsigned long)
+				   private_failure;
 			set_state_private(&BTRFS_I(inode)->io_failure_tree,
 					  failure->start, 0);
 			clear_extent_bits(&BTRFS_I(inode)->io_failure_tree,
