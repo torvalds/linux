@@ -228,6 +228,18 @@ struct kvm_vapic_addr {
 	__u64 vapic_addr;
 };
 
+/* for KVM_SET_MPSTATE */
+
+#define KVM_MP_STATE_RUNNABLE          0
+#define KVM_MP_STATE_UNINITIALIZED     1
+#define KVM_MP_STATE_INIT_RECEIVED     2
+#define KVM_MP_STATE_HALTED            3
+#define KVM_MP_STATE_SIPI_RECEIVED     4
+
+struct kvm_mp_state {
+	__u32 mp_state;
+};
+
 struct kvm_s390_psw {
 	__u64 mask;
 	__u64 addr;
@@ -326,6 +338,7 @@ struct kvm_trace_rec {
 #define KVM_CAP_PIT 11
 #define KVM_CAP_NOP_IO_DELAY 12
 #define KVM_CAP_PV_MMU 13
+#define KVM_CAP_MP_STATE 14
 
 /*
  * ioctls for VM fds
@@ -387,5 +400,7 @@ struct kvm_trace_rec {
 #define KVM_S390_SET_INITIAL_PSW  _IOW(KVMIO,  0x96, struct kvm_s390_psw)
 /* initial reset for s390 */
 #define KVM_S390_INITIAL_RESET    _IO(KVMIO,  0x97)
+#define KVM_GET_MP_STATE          _IOR(KVMIO,  0x98, struct kvm_mp_state)
+#define KVM_SET_MP_STATE          _IOW(KVMIO,  0x99, struct kvm_mp_state)
 
 #endif

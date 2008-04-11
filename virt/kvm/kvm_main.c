@@ -979,6 +979,30 @@ out_free2:
 		r = 0;
 		break;
 	}
+	case KVM_GET_MP_STATE: {
+		struct kvm_mp_state mp_state;
+
+		r = kvm_arch_vcpu_ioctl_get_mpstate(vcpu, &mp_state);
+		if (r)
+			goto out;
+		r = -EFAULT;
+		if (copy_to_user(argp, &mp_state, sizeof mp_state))
+			goto out;
+		r = 0;
+		break;
+	}
+	case KVM_SET_MP_STATE: {
+		struct kvm_mp_state mp_state;
+
+		r = -EFAULT;
+		if (copy_from_user(&mp_state, argp, sizeof mp_state))
+			goto out;
+		r = kvm_arch_vcpu_ioctl_set_mpstate(vcpu, &mp_state);
+		if (r)
+			goto out;
+		r = 0;
+		break;
+	}
 	case KVM_TRANSLATE: {
 		struct kvm_translation tr;
 
