@@ -1493,18 +1493,19 @@ static int nfs_wb_page_priority(struct inode *inode, struct page *page,
 	};
 	int ret;
 
-	BUG_ON(!PageLocked(page));
-	if (clear_page_dirty_for_io(page)) {
-		ret = nfs_writepage_locked(page, &wbc);
+	do {
+		if (clear_page_dirty_for_io(page)) {
+			ret = nfs_writepage_locked(page, &wbc);
+			if (ret < 0)
+				goto out_error;
+		} else if (!PagePrivate(page))
+			break;
+		ret = nfs_sync_mapping_wait(page->mapping, &wbc, how);
 		if (ret < 0)
-			goto out;
-	}
-	if (!PagePrivate(page))
-		return 0;
-	ret = nfs_sync_mapping_wait(page->mapping, &wbc, how);
-	if (ret >= 0)
-		return 0;
-out:
+			goto out_error;
+	} while (PagePrivate(page));
+	return 0;
+out_error:
 	__mark_inode_dirty(inode, I_DIRTY_PAGES);
 	return ret;
 }
