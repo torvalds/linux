@@ -951,7 +951,8 @@ static int cx8802_dvb_remove(struct cx8802_driver *drv)
 	struct cx8802_dev *dev = drv->core->dvbdev;
 
 	/* dvb */
-	videobuf_dvb_unregister(&dev->dvb);
+	if (dev->dvb.frontend)
+		videobuf_dvb_unregister(&dev->dvb);
 
 	vp3054_i2c_remove(dev);
 

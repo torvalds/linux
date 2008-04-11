@@ -1302,7 +1302,8 @@ static int dvb_fini(struct saa7134_dev *dev)
 			}
 		}
 	}
-	videobuf_dvb_unregister(&dev->dvb);
+	if (dev->dvb.frontend)
+		videobuf_dvb_unregister(&dev->dvb);
 	return 0;
 }
 
