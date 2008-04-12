@@ -422,11 +422,16 @@ static int mt312_set_voltage(struct dvb_frontend *fe, const fe_sec_voltage_t v)
 {
 	struct mt312_state *state = fe->demodulator_priv;
 	const u8 volt_tab[3] = { 0x00, 0x40, 0x00 };
+	u8 val;
 
 	if (v > SEC_VOLTAGE_OFF)
 		return -EINVAL;
 
-	return mt312_writereg(state, DISEQC_MODE, volt_tab[v]);
+	val = volt_tab[v];
+	if (state->config->voltage_inverted)
+		val ^= 0x40;
+
+	return mt312_writereg(state, DISEQC_MODE, val);
 }
 
 static int mt312_read_status(struct dvb_frontend *fe, fe_status_t *s)

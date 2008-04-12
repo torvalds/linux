@@ -31,6 +31,9 @@
 struct mt312_config {
 	/* the demodulator's i2c address */
 	u8 demod_address;
+
+	/* inverted voltage setting */
+	int voltage_inverted:1;
 };
 
 #if defined(CONFIG_DVB_MT312) || (defined(CONFIG_DVB_MT312_MODULE) && defined(MODULE))
