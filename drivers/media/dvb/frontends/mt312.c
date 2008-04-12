@@ -58,7 +58,7 @@ static int debug;
 #define MT312_PLL_CLK		10000000UL	/* 10 MHz */
 
 static int mt312_read(struct mt312_state *state, const enum mt312_reg_addr reg,
-		      void *buf, const size_t count)
+		      u8 *buf, const size_t count)
 {
 	int ret;
 	struct i2c_msg msg[2];
@@ -84,7 +84,7 @@ static int mt312_read(struct mt312_state *state, const enum mt312_reg_addr reg,
 		int i;
 		dprintk("R(%d):", reg & 0x7f);
 		for (i = 0; i < count; i++)
-			printk(" %02x", ((const u8 *) buf)[i]);
+			printk(" %02x", buf[i]);
 		printk("\n");
 	}
 
@@ -92,7 +92,7 @@ static int mt312_read(struct mt312_state *state, const enum mt312_reg_addr reg,
 }
 
 static int mt312_write(struct mt312_state *state, const enum mt312_reg_addr reg,
-		       const void *src, const size_t count)
+		       const u8 *src, const size_t count)
 {
 	int ret;
 	u8 buf[count + 1];
@@ -102,7 +102,7 @@ static int mt312_write(struct mt312_state *state, const enum mt312_reg_addr reg,
 		int i;
 		dprintk("W(%d):", reg & 0x7f);
 		for (i = 0; i < count; i++)
-			printk(" %02x", ((const u8 *) src)[i]);
+			printk(" %02x", src[i]);
 		printk("\n");
 	}
 
@@ -463,7 +463,7 @@ static int mt312_read_snr(struct dvb_frontend *fe, u16 *snr)
 	int ret;
 	u8 buf[2];
 
-	ret = mt312_read(state, M_SNR_H, &buf, sizeof(buf));
+	ret = mt312_read(state, M_SNR_H, buf, sizeof(buf));
 	if (ret < 0)
 		return ret;
 
@@ -478,7 +478,7 @@ static int mt312_read_ucblocks(struct dvb_frontend *fe, u32 *ubc)
 	int ret;
 	u8 buf[2];
 
-	ret = mt312_read(state, RS_UBC_H, &buf, sizeof(buf));
+	ret = mt312_read(state, RS_UBC_H, buf, sizeof(buf));
 	if (ret < 0)
 		return ret;
 

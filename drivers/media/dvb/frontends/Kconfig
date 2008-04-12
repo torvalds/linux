@@ -369,6 +369,11 @@ config DVB_TUNER_XC5000
 	  This device is only used inside a SiP called togther with a
 	  demodulator for now.
 
+config DVB_TUNER_ITD1000
+	tristate "Integrant ITD1000 Zero IF tuner for DVB-S/DSS"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+
 comment "Miscellaneous devices"
 	depends on DVB_CORE
 
