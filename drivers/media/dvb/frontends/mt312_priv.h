@@ -110,6 +110,8 @@ enum mt312_reg_addr {
 	VIT_ERRPER_H = 83,
 	VIT_ERRPER_M = 84,
 	VIT_ERRPER_L = 85,
+	HW_CTRL = 84,	/* ZL10313 only */
+	MPEG_CTRL = 85,	/* ZL10313 only */
 	VIT_SETUP = 86,
 	VIT_REF0 = 87,
 	VIT_REF1 = 88,
@@ -156,7 +158,8 @@ enum mt312_reg_addr {
 
 enum mt312_model_id {
 	ID_VP310 = 1,
-	ID_MT312 = 3
+	ID_MT312 = 3,
+	ID_ZL10313 = 5,
 };
 
 #endif				/* DVB_FRONTENDS_MT312_PRIV */

@@ -1,7 +1,8 @@
 /*
-    Driver for Zarlink VP310/MT312 Satellite Channel Decoder
+    Driver for Zarlink VP310/MT312/ZL10313 Satellite Channel Decoder
 
     Copyright (C) 2003 Andreas Oberritter <obi@linuxtv.org>
+    Copyright (C) 2008 Matthias Schwarzott <zzam@gentoo.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -55,6 +56,7 @@ static int debug;
 	} while (0)
 
 #define MT312_PLL_CLK		10000000UL	/* 10 MHz */
+#define MT312_PLL_CLK_10_111	10111000UL	/* 10.111 MHz */
 
 static int mt312_read(struct mt312_state *state, const enum mt312_reg_addr reg,
 		      u8 *buf, const size_t count)
@@ -264,6 +266,32 @@ static int mt312_initfe(struct dvb_frontend *fe)
 			return ret;
 	}
 
+	switch (state->id) {
+	case ID_ZL10313:
+		/* enable ADC */
+		ret = mt312_writereg(state, GPP_CTRL, 0x80);
+		if (ret < 0)
+			return ret;
+
+		/* configure ZL10313 for optimal ADC performance */
+		buf[0] = 0x80;
+		buf[1] = 0xB0;
+		ret = mt312_write(state, HW_CTRL, buf, 2);
+		if (ret < 0)
+			return ret;
+
+		/* enable MPEG output and ADCs */
+		ret = mt312_writereg(state, HW_CTRL, 0x00);
+		if (ret < 0)
+			return ret;
+
+		ret = mt312_writereg(state, MPEG_CTRL, 0x00);
+		if (ret < 0)
+			return ret;
+
+		break;
+	}
+
 	/* SYS_CLK */
 	buf[0] = mt312_div(state->xtal * state->freq_mult * 2, 1000000);
 
@@ -278,7 +306,17 @@ static int mt312_initfe(struct dvb_frontend *fe)
 	if (ret < 0)
 		return ret;
 
-	ret = mt312_writereg(state, OP_CTRL, 0x53);
+	/* different MOCLK polarity */
+	switch (state->id) {
+	case ID_ZL10313:
+		buf[0] = 0x33;
+		break;
+	default:
+		buf[0] = 0x53;
+		break;
+	}
+
+	ret = mt312_writereg(state, OP_CTRL, buf[0]);
 	if (ret < 0)
 		return ret;
 
@@ -552,6 +590,7 @@ static int mt312_set_frontend(struct dvb_frontend *fe,
 		break;
 
 	case ID_MT312:
+	case ID_ZL10313:
 		break;
 
 	default:
@@ -617,11 +656,29 @@ static int mt312_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct mt312_state *state = fe->demodulator_priv;
 
-	if (enable) {
-		return mt312_writereg(state, GPP_CTRL, 0x40);
-	} else {
-		return mt312_writereg(state, GPP_CTRL, 0x00);
+	u8 val = 0x00;
+	int ret;
+
+	switch (state->id) {
+	case ID_ZL10313:
+		ret = mt312_readreg(state, GPP_CTRL, &val);
+		if (ret < 0)
+			goto error;
+
+		/* preserve this bit to not accidently shutdown ADC */
+		val &= 0x80;
+		break;
 	}
+
+	if (enable)
+		val |= 0x40;
+	else
+		val &= ~0x40;
+
+	ret = mt312_writereg(state, GPP_CTRL, val);
+
+error:
+	return ret;
 }
 
 static int mt312_sleep(struct dvb_frontend *fe)
@@ -634,6 +691,18 @@ static int mt312_sleep(struct dvb_frontend *fe)
 	ret = mt312_reset(state, 1);
 	if (ret < 0)
 		return ret;
+
+	if (state->id == ID_ZL10313) {
+		/* reset ADC */
+		ret = mt312_writereg(state, GPP_CTRL, 0x00);
+		if (ret < 0)
+			return ret;
+
+		/* full shutdown of ADCs, mpeg bus tristated */
+		ret = mt312_writereg(state, HW_CTRL, 0x0d);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = mt312_readreg(state, CONFIG, &config);
 	if (ret < 0)
@@ -736,8 +805,13 @@ struct dvb_frontend *vp310_mt312_attach(const struct mt312_config *config,
 		state->xtal = MT312_PLL_CLK;
 		state->freq_mult = 6;
 		break;
+	case ID_ZL10313:
+		strcpy(state->frontend.ops.info.name, "Zarlink ZL10313 DVB-S");
+		state->xtal = MT312_PLL_CLK_10_111;
+		state->freq_mult = 9;
+		break;
 	default:
-		printk(KERN_WARNING "Only Zarlink VP310/MT312"
+		printk(KERN_WARNING "Only Zarlink VP310/MT312/ZL10313"
 			" are supported chips.\n");
 		goto error;
 	}
@@ -753,7 +827,7 @@ EXPORT_SYMBOL(vp310_mt312_attach);
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 
-MODULE_DESCRIPTION("Zarlink VP310/MT312 DVB-S Demodulator driver");
+MODULE_DESCRIPTION("Zarlink VP310/MT312/ZL10313 DVB-S Demodulator driver");
 MODULE_AUTHOR("Andreas Oberritter <obi@linuxtv.org>");
 MODULE_LICENSE("GPL");
 
