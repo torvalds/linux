@@ -230,20 +230,23 @@ static u64 lmb_align_up(u64 addr, u64 size)
 static u64 __init lmb_alloc_nid_unreserved(u64 start, u64 end,
 					   u64 size, u64 align)
 {
-	u64 base;
+	u64 base, res_base;
 	long j;
 
 	base = lmb_align_down((end - size), align);
-	while (start <= base &&
-	       ((j = lmb_overlaps_region(&lmb.reserved, base, size)) >= 0))
-		base = lmb_align_down(lmb.reserved.region[j].base - size,
-				      align);
-
-	if (base != 0 && start <= base) {
-		if (lmb_add_region(&lmb.reserved, base,
-				   lmb_align_up(size, align)) < 0)
-			base = ~(u64)0;
-		return base;
+	while (start <= base) {
+		j = lmb_overlaps_region(&lmb.reserved, base, size);
+		if (j < 0) {
+			/* this area isn't reserved, take it */
+			if (lmb_add_region(&lmb.reserved, base,
+					   lmb_align_up(size, align)) < 0)
+				base = ~(u64)0;
+			return base;
+		}
+		res_base = lmb.reserved.region[j].base;
+		if (res_base < size)
+			break;
+		base = lmb_align_down(res_base - size, align);
 	}
 
 	return ~(u64)0;
@@ -315,10 +318,12 @@ u64 __init __lmb_alloc_base(u64 size, u64 align, u64 max_addr)
 {
 	long i, j;
 	u64 base = 0;
+	u64 res_base;
 
 	BUG_ON(0 == size);
 
 	/* On some platforms, make sure we allocate lowmem */
+	/* Note that LMB_REAL_LIMIT may be LMB_ALLOC_ANYWHERE */
 	if (max_addr == LMB_ALLOC_ANYWHERE)
 		max_addr = LMB_REAL_LIMIT;
 
@@ -326,6 +331,8 @@ u64 __init __lmb_alloc_base(u64 size, u64 align, u64 max_addr)
 		u64 lmbbase = lmb.memory.region[i].base;
 		u64 lmbsize = lmb.memory.region[i].size;
 
+		if (lmbsize < size)
+			continue;
 		if (max_addr == LMB_ALLOC_ANYWHERE)
 			base = lmb_align_down(lmbbase + lmbsize - size, align);
 		else if (lmbbase < max_addr) {
@@ -334,25 +341,22 @@ u64 __init __lmb_alloc_base(u64 size, u64 align, u64 max_addr)
 		} else
 			continue;
 
-		while (lmbbase <= base) {
+		while (base && lmbbase <= base) {
 			j = lmb_overlaps_region(&lmb.reserved, base, size);
-			if (j < 0)
+			if (j < 0) {
+				/* this area isn't reserved, take it */
+				if (lmb_add_region(&lmb.reserved, base,
+						   size) < 0)
+					return 0;
+				return base;
+			}
+			res_base = lmb.reserved.region[j].base;
+			if (res_base < size)
 				break;
-			base = lmb_align_down(lmb.reserved.region[j].base - size,
-					      align);
+			base = lmb_align_down(res_base - size, align);
 		}
-
-		if ((base != 0) && (lmbbase <= base))
-			break;
 	}
-
-	if (i < 0)
-		return 0;
-
-	if (lmb_add_region(&lmb.reserved, base, lmb_align_up(size, align)) < 0)
-		return 0;
-
-	return base;
+	return 0;
 }
 
 /* You must call lmb_analyze() before this. */
