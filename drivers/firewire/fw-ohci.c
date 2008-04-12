@@ -181,6 +181,7 @@ struct fw_ohci {
 	int request_generation;
 	u32 bus_seconds;
 	bool old_uninorth;
+	bool bus_reset_packet_quirk;
 
 	/*
 	 * Spinlock for accessing fw_ohci data.  Never call out of
@@ -571,14 +572,19 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 	 * generation.  We only need this for requests; for responses
 	 * we use the unique tlabel for finding the matching
 	 * request.
+	 *
+	 * Alas some chips sometimes emit bus reset packets with a
+	 * wrong generation.  We set the correct generation for these
+	 * at a slightly incorrect time (in bus_reset_tasklet).
 	 */
-
-	if (evt == OHCI1394_evt_bus_reset)
-		ohci->request_generation = (p.header[2] >> 16) & 0xff;
-	else if (ctx == &ohci->ar_request_ctx)
+	if (evt == OHCI1394_evt_bus_reset) {
+		if (!ohci->bus_reset_packet_quirk)
+			ohci->request_generation = (p.header[2] >> 16) & 0xff;
+	} else if (ctx == &ohci->ar_request_ctx) {
 		fw_core_handle_request(&ohci->card, &p);
-	else
+	} else {
 		fw_core_handle_response(&ohci->card, &p);
+	}
 
 	return buffer + length + 1;
 }
@@ -1284,6 +1290,9 @@ static void bus_reset_tasklet(unsigned long data)
 	context_stop(&ohci->at_request_ctx);
 	context_stop(&ohci->at_response_ctx);
 	reg_write(ohci, OHCI1394_IntEventClear, OHCI1394_busReset);
+
+	if (ohci->bus_reset_packet_quirk)
+		ohci->request_generation = generation;
 
 	/*
 	 * This next bit is unrelated to the AT context stuff but we
@@ -2360,6 +2369,8 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	ohci->old_uninorth = dev->vendor == PCI_VENDOR_ID_APPLE &&
 			     dev->device == PCI_DEVICE_ID_APPLE_UNI_N_FW;
 #endif
+	ohci->bus_reset_packet_quirk = dev->vendor == PCI_VENDOR_ID_TI;
+
 	spin_lock_init(&ohci->lock);
 
 	tasklet_init(&ohci->bus_reset_tasklet,
