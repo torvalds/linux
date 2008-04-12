@@ -270,7 +270,7 @@ static int mt312_initfe(struct dvb_frontend *fe)
 				MT312_SYS_CLK) * 2, 1000000);
 
 	/* DISEQC_RATIO */
-	buf[1] = mt312_div(MT312_PLL_CLK, 15000 * 4);
+	buf[1] = mt312_div(MT312_PLL_CLK, 22000 * 4);
 
 	ret = mt312_write(state, SYS_CLK, buf, sizeof(buf));
 	if (ret < 0)
@@ -322,6 +322,9 @@ static int mt312_send_master_cmd(struct dvb_frontend *fe,
 			     | 0x04);
 	if (ret < 0)
 		return ret;
+
+	/* is there a better way to wait for message to be transmitted */
+	msleep(100);
 
 	/* set DISEQC_MODE[2:0] to zero if a return message is expected */
 	if (c->msg[0] & 0x02) {
