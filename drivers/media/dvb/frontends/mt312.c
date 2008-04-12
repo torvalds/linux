@@ -43,7 +43,8 @@ struct mt312_state {
 	struct dvb_frontend frontend;
 
 	u8 id;
-	u8 frequency;
+	unsigned long xtal;
+	u8 freq_mult;
 };
 
 static int debug;
@@ -53,8 +54,6 @@ static int debug;
 			printk(KERN_DEBUG "mt312: " args); \
 	} while (0)
 
-#define MT312_SYS_CLK		90000000UL	/* 90 MHz */
-#define MT312_LPOWER_SYS_CLK	60000000UL	/* 60 MHz */
 #define MT312_PLL_CLK		10000000UL	/* 10 MHz */
 
 static int mt312_read(struct mt312_state *state, const enum mt312_reg_addr reg,
@@ -209,7 +208,7 @@ static int mt312_get_symbol_rate(struct mt312_state *state, u32 *sr)
 		dprintk("sym_rat_op=%d dec_ratio=%d\n",
 		       sym_rat_op, dec_ratio);
 		dprintk("*sr(manual) = %lu\n",
-		       (((MT312_PLL_CLK * 8192) / (sym_rat_op + 8192)) *
+		       (((state->xtal * 8192) / (sym_rat_op + 8192)) *
 			2) - dec_ratio);
 	}
 
@@ -242,7 +241,7 @@ static int mt312_initfe(struct dvb_frontend *fe)
 
 	/* wake up */
 	ret = mt312_writereg(state, CONFIG,
-			(state->frequency == 60 ? 0x88 : 0x8c));
+			(state->freq_mult == 6 ? 0x88 : 0x8c));
 	if (ret < 0)
 		return ret;
 
@@ -266,11 +265,10 @@ static int mt312_initfe(struct dvb_frontend *fe)
 	}
 
 	/* SYS_CLK */
-	buf[0] = mt312_div((state->frequency == 60 ? MT312_LPOWER_SYS_CLK :
-				MT312_SYS_CLK) * 2, 1000000);
+	buf[0] = mt312_div(state->xtal * state->freq_mult * 2, 1000000);
 
 	/* DISEQC_RATIO */
-	buf[1] = mt312_div(MT312_PLL_CLK, 22000 * 4);
+	buf[1] = mt312_div(state->xtal, 22000 * 4);
 
 	ret = mt312_write(state, SYS_CLK, buf, sizeof(buf));
 	if (ret < 0)
@@ -535,17 +533,17 @@ static int mt312_set_frontend(struct dvb_frontend *fe,
 			return ret;
 		if (p->u.qpsk.symbol_rate >= 30000000) {
 			/* Note that 30MS/s should use 90MHz */
-			if ((config_val & 0x0c) == 0x08) {
+			if (state->freq_mult == 6) {
 				/* We are running 60MHz */
-				state->frequency = 90;
+				state->freq_mult = 9;
 				ret = mt312_initfe(fe);
 				if (ret < 0)
 					return ret;
 			}
 		} else {
-			if ((config_val & 0x0c) == 0x0C) {
+			if (state->freq_mult == 9) {
 				/* We are running 90MHz */
-				state->frequency = 60;
+				state->freq_mult = 6;
 				ret = mt312_initfe(fe);
 				if (ret < 0)
 					return ret;
@@ -664,6 +662,7 @@ static void mt312_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
+#define MT312_SYS_CLK		90000000UL	/* 90 MHz */
 static struct dvb_frontend_ops vp310_mt312_ops = {
 
 	.info = {
@@ -671,8 +670,8 @@ static struct dvb_frontend_ops vp310_mt312_ops = {
 		.type = FE_QPSK,
 		.frequency_min = 950000,
 		.frequency_max = 2150000,
-		.frequency_stepsize = (MT312_PLL_CLK / 1000) / 128,
-		.symbol_rate_min = MT312_SYS_CLK / 128,
+		.frequency_stepsize = (MT312_PLL_CLK / 1000) / 128, /* FIXME: adjust freq to real used xtal */
+		.symbol_rate_min = MT312_SYS_CLK / 128, /* FIXME as above */
 		.symbol_rate_max = MT312_SYS_CLK / 2,
 		.caps =
 		    FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 |
@@ -729,11 +728,13 @@ struct dvb_frontend *vp310_mt312_attach(const struct mt312_config *config,
 	switch (state->id) {
 	case ID_VP310:
 		strcpy(state->frontend.ops.info.name, "Zarlink VP310 DVB-S");
-		state->frequency = 90;
+		state->xtal = MT312_PLL_CLK;
+		state->freq_mult = 9;
 		break;
 	case ID_MT312:
 		strcpy(state->frontend.ops.info.name, "Zarlink MT312 DVB-S");
-		state->frequency = 60;
+		state->xtal = MT312_PLL_CLK;
+		state->freq_mult = 6;
 		break;
 	default:
 		printk(KERN_WARNING "Only Zarlink VP310/MT312"
