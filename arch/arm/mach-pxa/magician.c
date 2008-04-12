@@ -20,6 +20,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/mfd/htc-egpio.h>
+#include <linux/mfd/htc-pasic3.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/physmap.h>
@@ -299,6 +300,107 @@ static struct platform_device backlight = {
 	.id   = -1,
 };
 
+/*
+ * LEDs
+ */
+
+struct gpio_led gpio_leds[] = {
+	{
+		.name = "magician::vibra",
+		.default_trigger = "none",
+		.gpio = GPIO22_MAGICIAN_VIBRA_EN,
+	},
+	{
+		.name = "magician::phone_bl",
+		.default_trigger = "none",
+		.gpio = GPIO103_MAGICIAN_LED_KP,
+	},
+};
+
+static struct gpio_led_platform_data gpio_led_info = {
+	.leds = gpio_leds,
+	.num_leds = ARRAY_SIZE(gpio_leds),
+};
+
+static struct platform_device leds_gpio = {
+	.name = "leds-gpio",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &gpio_led_info,
+	},
+};
+
+static struct pasic3_led pasic3_leds[] = {
+	{
+		.led = {
+			.name            = "magician:red",
+			.default_trigger = "ds2760-battery.0-charging",
+		},
+		.hw_num = 0,
+		.bit2   = PASIC3_BIT2_LED0,
+		.mask   = PASIC3_MASK_LED0,
+	},
+	{
+		.led = {
+			.name            = "magician:green",
+			.default_trigger = "ds2760-battery.0-charging-or-full",
+		},
+		.hw_num = 1,
+		.bit2   = PASIC3_BIT2_LED1,
+		.mask   = PASIC3_MASK_LED1,
+	},
+	{
+		.led = {
+			.name            = "magician:blue",
+			.default_trigger = "bluetooth",
+		},
+		.hw_num = 2,
+		.bit2   = PASIC3_BIT2_LED2,
+		.mask   = PASIC3_MASK_LED2,
+	},
+};
+
+static struct platform_device pasic3;
+
+static struct pasic3_leds_machinfo __devinit pasic3_leds_info = {
+	.num_leds   = ARRAY_SIZE(pasic3_leds),
+	.power_gpio = EGPIO_MAGICIAN_LED_POWER,
+	.leds       = pasic3_leds,
+};
+
+/*
+ * PASIC3 with DS1WM
+ */
+
+static struct resource pasic3_resources[] = {
+	[0] = {
+		.start  = PXA_CS2_PHYS,
+		.end	= PXA_CS2_PHYS + 0x1b,
+		.flags  = IORESOURCE_MEM,
+	},
+	/* No IRQ handler in the PASIC3, DS1WM needs an external IRQ */
+	[1] = {
+		.start  = gpio_to_irq(GPIO107_MAGICIAN_DS1WM_IRQ),
+		.end    = gpio_to_irq(GPIO107_MAGICIAN_DS1WM_IRQ),
+		.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+	}
+};
+
+static struct pasic3_platform_data pasic3_platform_data = {
+	.bus_shift  = 2,
+	.led_pdata  = &pasic3_leds_info,
+	.clock_rate = 4000000,
+};
+
+static struct platform_device pasic3 = {
+	.name		= "pasic3",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(pasic3_resources),
+	.resource	= pasic3_resources,
+	.dev = {
+		.platform_data = &pasic3_platform_data,
+	},
+};
 
 /*
  * External power
@@ -320,10 +422,16 @@ static void magician_set_charge(int flags)
 	gpio_set_value(EGPIO_MAGICIAN_CHARGE_EN, flags);
 }
 
+static char *magician_supplicants[] = {
+	"ds2760-battery.0", "backup-battery"
+};
+
 static struct pda_power_pdata power_supply_info = {
-	.is_ac_online = magician_is_ac_online,
-	.is_usb_online = magician_is_usb_online,
-	.set_charge = magician_set_charge,
+	.is_ac_online    = magician_is_ac_online,
+	.is_usb_online   = magician_is_usb_online,
+	.set_charge      = magician_set_charge,
+	.supplied_to     = magician_supplicants,
+	.num_supplicants = ARRAY_SIZE(magician_supplicants),
 };
 
 static struct resource power_supply_resources[] = {
@@ -449,8 +557,10 @@ static struct platform_device *devices[] __initdata = {
 	&gpio_keys,
 	&egpio,
 	&backlight,
+	&pasic3,
 	&power_supply,
 	&strataflash,
+	&leds_gpio,
 };
 
 static void __init magician_init(void)

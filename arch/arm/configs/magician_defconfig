@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.24-rc6
-# Sat Dec 22 10:38:43 2007
+# Sun Dec 30 13:02:54 2007
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -694,12 +694,26 @@ CONFIG_I2C_PXA=m
 #
 # CONFIG_SPI is not set
 # CONFIG_SPI_MASTER is not set
-# CONFIG_W1 is not set
+CONFIG_W1=y
+
+#
+# 1-wire Bus Masters
+#
+# CONFIG_W1_MASTER_DS2482 is not set
+CONFIG_W1_MASTER_DS1WM=y
+
+#
+# 1-wire Slaves
+#
+# CONFIG_W1_SLAVE_THERM is not set
+# CONFIG_W1_SLAVE_SMEM is not set
+# CONFIG_W1_SLAVE_DS2433 is not set
+CONFIG_W1_SLAVE_DS2760=y
 CONFIG_POWER_SUPPLY=y
 # CONFIG_POWER_SUPPLY_DEBUG is not set
 CONFIG_PDA_POWER=y
 # CONFIG_APM_POWER is not set
-# CONFIG_BATTERY_DS2760 is not set
+CONFIG_BATTERY_DS2760=y
 # CONFIG_HWMON is not set
 # CONFIG_WATCHDOG is not set
 
@@ -714,6 +728,7 @@ CONFIG_SSB_POSSIBLE=y
 #
 # CONFIG_MFD_SM501 is not set
 CONFIG_HTC_EGPIO=y
+CONFIG_HTC_PASIC3=y
 
 #
 # Multimedia devices
@@ -855,7 +870,7 @@ CONFIG_SDIO_UART=m
 # MMC/SD Host Controller Drivers
 #
 CONFIG_MMC_PXA=y
-# CONFIG_NEW_LEDS is not set
+CONFIG_NEW_LEDS=y
 CONFIG_RTC_LIB=y
 CONFIG_RTC_CLASS=y
 CONFIG_RTC_HCTOSYS=y
