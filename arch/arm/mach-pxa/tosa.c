@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/gpio.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
@@ -166,8 +167,7 @@ static struct resource tosa_scoop_resources[] = {
 
 static struct scoop_config tosa_scoop_setup = {
 	.io_dir 	= TOSA_SCOOP_IO_DIR,
-	.io_out		= TOSA_SCOOP_IO_OUT,
-
+	.gpio_base	= TOSA_SCOOP_GPIO_BASE,
 };
 
 struct platform_device tosascoop_device = {
@@ -194,7 +194,7 @@ static struct resource tosa_scoop_jc_resources[] = {
 
 static struct scoop_config tosa_scoop_jc_setup = {
 	.io_dir 	= TOSA_SCOOP_JC_IO_DIR,
-	.io_out		= TOSA_SCOOP_JC_IO_OUT,
+	.gpio_base	= TOSA_SCOOP_JC_GPIO_BASE,
 };
 
 struct platform_device tosascoop_jc_device = {
@@ -232,20 +232,8 @@ static struct scoop_pcmcia_config tosa_pcmcia_config = {
 /*
  * USB Device Controller
  */
-static void tosa_udc_command(int cmd)
-{
-	switch(cmd)	{
-		case PXA2XX_UDC_CMD_CONNECT:
-			set_scoop_gpio(&tosascoop_jc_device.dev,TOSA_SCOOP_JC_USB_PULLUP);
-			break;
-		case PXA2XX_UDC_CMD_DISCONNECT:
-			reset_scoop_gpio(&tosascoop_jc_device.dev,TOSA_SCOOP_JC_USB_PULLUP);
-			break;
-	}
-}
-
 static struct pxa2xx_udc_mach_info udc_info __initdata = {
-	.udc_command		= tosa_udc_command,
+	.gpio_pullup		= TOSA_GPIO_USB_PULLUP,
 	.gpio_vbus		= TOSA_GPIO_USB_IN,
 	.gpio_vbus_inverted	= 1,
 };
@@ -264,9 +252,39 @@ static int tosa_mci_init(struct device *dev, irq_handler_t tosa_detect_int, void
 	err = request_irq(TOSA_IRQ_GPIO_nSD_DETECT, tosa_detect_int,
 			  IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				"MMC/SD card detect", data);
-	if (err)
+	if (err) {
 		printk(KERN_ERR "tosa_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
+		goto err_irq;
+	}
 
+	err = gpio_request(TOSA_GPIO_SD_WP, "sd_wp");
+	if (err) {
+		printk(KERN_ERR "tosa_mci_init: can't request SD_WP gpio\n");
+		goto err_gpio_wp;
+	}
+	err = gpio_direction_input(TOSA_GPIO_SD_WP);
+	if (err)
+		goto err_gpio_wp_dir;
+
+	err = gpio_request(TOSA_GPIO_PWR_ON, "sd_pwr");
+	if (err) {
+		printk(KERN_ERR "tosa_mci_init: can't request SD_PWR gpio\n");
+		goto err_gpio_pwr;
+	}
+	err = gpio_direction_output(TOSA_GPIO_PWR_ON, 0);
+	if (err)
+		goto err_gpio_pwr_dir;
+
+	return 0;
+
+err_gpio_pwr_dir:
+	gpio_free(TOSA_GPIO_PWR_ON);
+err_gpio_pwr:
+err_gpio_wp_dir:
+	gpio_free(TOSA_GPIO_SD_WP);
+err_gpio_wp:
+	free_irq(TOSA_IRQ_GPIO_nSD_DETECT, data);
+err_irq:
 	return err;
 }
 
@@ -275,19 +293,21 @@ static void tosa_mci_setpower(struct device *dev, unsigned int vdd)
 	struct pxamci_platform_data* p_d = dev->platform_data;
 
 	if (( 1 << vdd) & p_d->ocr_mask) {
-		set_scoop_gpio(&tosascoop_device.dev,TOSA_SCOOP_PWR_ON);
+		gpio_set_value(TOSA_GPIO_PWR_ON, 1);
 	} else {
-		reset_scoop_gpio(&tosascoop_device.dev,TOSA_SCOOP_PWR_ON);
+		gpio_set_value(TOSA_GPIO_PWR_ON, 0);
 	}
 }
 
 static int tosa_mci_get_ro(struct device *dev)
 {
-	return (read_scoop_reg(&tosascoop_device.dev, SCOOP_GPWR)&TOSA_SCOOP_SD_WP);
+	return gpio_get_value(TOSA_GPIO_SD_WP);
 }
 
 static void tosa_mci_exit(struct device *dev, void *data)
 {
+	gpio_free(TOSA_GPIO_PWR_ON);
+	gpio_free(TOSA_GPIO_SD_WP);
 	free_irq(TOSA_IRQ_GPIO_nSD_DETECT, data);
 }
 
@@ -302,18 +322,36 @@ static struct pxamci_platform_data tosa_mci_platform_data = {
 /*
  * Irda
  */
+static int tosa_irda_startup(struct device *dev)
+{
+	int ret;
+
+	ret = gpio_request(TOSA_GPIO_IR_POWERDWN, "IrDA powerdown");
+	if (ret)
+		return ret;
+
+	ret = gpio_direction_output(TOSA_GPIO_IR_POWERDWN, 0);
+	if (ret)
+		gpio_free(TOSA_GPIO_IR_POWERDWN);
+
+	return ret;
+	}
+
+static void tosa_irda_shutdown(struct device *dev)
+{
+	gpio_free(TOSA_GPIO_IR_POWERDWN);
+}
+
 static void tosa_irda_transceiver_mode(struct device *dev, int mode)
 {
-	if (mode & IR_OFF) {
-		reset_scoop_gpio(&tosascoop_device.dev,TOSA_SCOOP_IR_POWERDWN);
-	} else {
-		set_scoop_gpio(&tosascoop_device.dev,TOSA_SCOOP_IR_POWERDWN);
-	}
+	gpio_set_value(TOSA_GPIO_IR_POWERDWN, !(mode & IR_OFF));
 }
 
 static struct pxaficp_platform_data tosa_ficp_platform_data = {
 	.transceiver_cap  = IR_SIRMODE | IR_OFF,
 	.transceiver_mode = tosa_irda_transceiver_mode,
+	.startup = tosa_irda_startup,
+	.shutdown = tosa_irda_shutdown,
 };
 
 /*
