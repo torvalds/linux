@@ -325,12 +325,28 @@ static struct platform_device tosakbd_device = {
 };
 
 static struct gpio_keys_button tosa_gpio_keys[] = {
+	/*
+	 * Two following keys are directly tied to "ON" button of tosa. Why?
+	 * The first one can be used as a wakeup source, the second can't;
+	 * also the first one is OR of ac_powered and on_button.
+	 */
+	{
+		.type	= EV_PWR,
+		.code	= KEY_RESERVED,
+		.gpio	= TOSA_GPIO_POWERON,
+		.desc	= "Poweron",
+		.wakeup	= 1,
+		.active_low = 1,
+	},
 	{
 		.type	= EV_PWR,
 		.code	= KEY_SUSPEND,
 		.gpio	= TOSA_GPIO_ON_KEY,
 		.desc	= "On key",
-		.wakeup	= 1,
+		/*
+		 * can't be used as wakeup
+		 * .wakeup	= 1,
+		 */
 		.active_low = 1,
 	},
 	{
