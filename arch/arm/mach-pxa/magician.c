@@ -31,6 +31,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/arch/magician.h>
+#include <asm/arch/mfp-pxa27x.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/i2c.h>
@@ -39,6 +40,81 @@
 #include <asm/arch/ohci.h>
 
 #include "generic.h"
+
+static unsigned long magician_pin_config[] = {
+
+	/* SDRAM and Static Memory I/O Signals */
+	GPIO20_nSDCS_2,
+	GPIO21_nSDCS_3,
+	GPIO15_nCS_1,
+	GPIO78_nCS_2,   /* PASIC3 */
+	GPIO79_nCS_3,   /* EGPIO CPLD */
+	GPIO80_nCS_4,
+	GPIO33_nCS_5,
+
+	/* I2C */
+	GPIO117_I2C_SCL,
+	GPIO118_I2C_SDA,
+
+	/* PWM 0 */
+	GPIO16_PWM0_OUT,
+
+	/* I2S */
+	GPIO28_I2S_BITCLK_OUT,
+	GPIO29_I2S_SDATA_IN,
+	GPIO31_I2S_SYNC,
+	GPIO113_I2S_SYSCLK,
+
+	/* SSP 2 */
+	GPIO19_SSP2_SCLK,
+	GPIO14_SSP2_SFRM,
+	GPIO89_SSP2_TXD,
+	GPIO88_SSP2_RXD,
+
+	/* MMC */
+	GPIO32_MMC_CLK,
+	GPIO92_MMC_DAT_0,
+	GPIO109_MMC_DAT_1,
+	GPIO110_MMC_DAT_2,
+	GPIO111_MMC_DAT_3,
+	GPIO112_MMC_CMD,
+
+	/* LCD */
+	GPIO58_LCD_LDD_0,
+	GPIO59_LCD_LDD_1,
+	GPIO60_LCD_LDD_2,
+	GPIO61_LCD_LDD_3,
+	GPIO62_LCD_LDD_4,
+	GPIO63_LCD_LDD_5,
+	GPIO64_LCD_LDD_6,
+	GPIO65_LCD_LDD_7,
+	GPIO66_LCD_LDD_8,
+	GPIO67_LCD_LDD_9,
+	GPIO68_LCD_LDD_10,
+	GPIO69_LCD_LDD_11,
+	GPIO70_LCD_LDD_12,
+	GPIO71_LCD_LDD_13,
+	GPIO72_LCD_LDD_14,
+	GPIO73_LCD_LDD_15,
+	GPIO74_LCD_FCLK,
+	GPIO75_LCD_LCLK,
+	GPIO76_LCD_PCLK,
+	GPIO77_LCD_BIAS,
+
+	/* QCI */
+	GPIO12_CIF_DD_7,
+	GPIO17_CIF_DD_6,
+	GPIO50_CIF_DD_3,
+	GPIO51_CIF_DD_2,
+	GPIO52_CIF_DD_4,
+	GPIO53_CIF_MCLK,
+	GPIO54_CIF_PCLK,
+	GPIO55_CIF_DD_1,
+	GPIO81_CIF_DD_0,
+	GPIO82_CIF_DD_5,
+	GPIO84_CIF_FV,
+	GPIO85_CIF_LV,
+};
 
 /*
  * IRDA
@@ -567,6 +643,8 @@ static void __init magician_init(void)
 {
 	void __iomem *cpld;
 	int lcd_select;
+
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(magician_pin_config));
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_i2c_info(NULL);
