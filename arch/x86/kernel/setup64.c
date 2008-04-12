@@ -74,8 +74,8 @@ int force_personality32 = 0;
 Control non executable heap for 32bit processes.
 To control the stack too use noexec=off
 
-on	PROT_READ does not imply PROT_EXEC for 32bit processes
-off	PROT_READ implies PROT_EXEC (default)
+on	PROT_READ does not imply PROT_EXEC for 32bit processes (default)
+off	PROT_READ implies PROT_EXEC
 */
 static int __init nonx32_setup(char *str)
 {
