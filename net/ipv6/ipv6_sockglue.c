@@ -16,7 +16,6 @@
  *
  *	FIXME: Make the setsockopt code POSIX compliant: That is
  *
- *	o	Return -EINVAL for setsockopt of short lengths
  *	o	Truncate getsockopt returns
  *	o	Return an optlen of the truncated length if need be
  *
@@ -114,8 +113,13 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 
 	if (optval == NULL)
 		val=0;
-	else if (get_user(val, (int __user *) optval))
-		return -EFAULT;
+	else {
+		if (optlen >= sizeof(int)) {
+			if (get_user(val, (int __user *) optval))
+				return -EFAULT;
+		} else
+			val = 0;
+	}
 
 	valbool = (val!=0);
 
@@ -127,6 +131,8 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 	switch (optname) {
 
 	case IPV6_ADDRFORM:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		if (val == PF_INET) {
 			struct ipv6_txoptions *opt;
 			struct sk_buff *pktopt;
@@ -201,63 +207,86 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		goto e_inval;
 
 	case IPV6_V6ONLY:
-		if (inet_sk(sk)->num)
+		if (optlen < sizeof(int) ||
+		    inet_sk(sk)->num)
 			goto e_inval;
 		np->ipv6only = valbool;
 		retv = 0;
 		break;
 
 	case IPV6_RECVPKTINFO:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		np->rxopt.bits.rxinfo = valbool;
 		retv = 0;
 		break;
 
 	case IPV6_2292PKTINFO:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		np->rxopt.bits.rxoinfo = valbool;
 		retv = 0;
 		break;
 
 	case IPV6_RECVHOPLIMIT:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		np->rxopt.bits.rxhlim = valbool;
 		retv = 0;
 		break;
 
 	case IPV6_2292HOPLIMIT:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		np->rxopt.bits.rxohlim = valbool;
 		retv = 0;
 		break;
 
 	case IPV6_RECVRTHDR:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		np->rxopt.bits.srcrt = valbool;
 		retv = 0;
 		break;
 
 	case IPV6_2292RTHDR:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		np->rxopt.bits.osrcrt = valbool;
 		retv = 0;
 		break;
 
 	case IPV6_RECVHOPOPTS:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		np->rxopt.bits.hopopts = valbool;
 		retv = 0;
 		break;
 
 	case IPV6_2292HOPOPTS:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		np->rxopt.bits.ohopopts = valbool;
 		retv = 0;
 		break;
 
 	case IPV6_RECVDSTOPTS:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		np->rxopt.bits.dstopts = valbool;
 		retv = 0;
 		break;
 
 	case IPV6_2292DSTOPTS:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		np->rxopt.bits.odstopts = valbool;
 		retv = 0;
 		break;
 
 	case IPV6_TCLASS:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		if (val < -1 || val > 0xff)
 			goto e_inval;
 		np->tclass = val;
@@ -265,11 +294,15 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case IPV6_RECVTCLASS:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		np->rxopt.bits.rxtclass = valbool;
 		retv = 0;
 		break;
 
 	case IPV6_FLOWINFO:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		np->rxopt.bits.rxflow = valbool;
 		retv = 0;
 		break;
@@ -288,9 +321,9 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		if (optname != IPV6_RTHDR && !capable(CAP_NET_RAW))
 			break;
 
-		retv = -EINVAL;
-		if (optlen & 0x7 || optlen > 8 * 255)
-			break;
+		if (optlen < sizeof(struct ipv6_opt_hdr) ||
+		    optlen & 0x7 || optlen > 8 * 255)
+			goto e_inval;
 
 		opt = ipv6_renew_options(sk, np->opt, optname,
 					 (struct ipv6_opt_hdr __user *)optval,
@@ -408,6 +441,8 @@ done:
 		break;
 	}
 	case IPV6_UNICAST_HOPS:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		if (val > 255 || val < -1)
 			goto e_inval;
 		np->hop_limit = val;
@@ -417,6 +452,8 @@ done:
 	case IPV6_MULTICAST_HOPS:
 		if (sk->sk_type == SOCK_STREAM)
 			goto e_inval;
+		if (optlen < sizeof(int))
+			goto e_inval;
 		if (val > 255 || val < -1)
 			goto e_inval;
 		np->mcast_hops = val;
@@ -424,12 +461,16 @@ done:
 		break;
 
 	case IPV6_MULTICAST_LOOP:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		np->mc_loop = valbool;
 		retv = 0;
 		break;
 
 	case IPV6_MULTICAST_IF:
 		if (sk->sk_type == SOCK_STREAM)
+			goto e_inval;
+		if (optlen < sizeof(int))
 			goto e_inval;
 
 		if (val) {
@@ -591,27 +632,37 @@ done:
 		break;
 	}
 	case IPV6_ROUTER_ALERT:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		retv = ip6_ra_control(sk, val, NULL);
 		break;
 	case IPV6_MTU_DISCOVER:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		if (val<0 || val>3)
 			goto e_inval;
 		np->pmtudisc = val;
 		retv = 0;
 		break;
 	case IPV6_MTU:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		if (val && val < IPV6_MIN_MTU)
 			goto e_inval;
 		np->frag_size = val;
 		retv = 0;
 		break;
 	case IPV6_RECVERR:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		np->recverr = valbool;
 		if (!val)
 			skb_queue_purge(&sk->sk_error_queue);
 		retv = 0;
 		break;
 	case IPV6_FLOWINFO_SEND:
+		if (optlen < sizeof(int))
+			goto e_inval;
 		np->sndflow = valbool;
 		retv = 0;
 		break;
@@ -630,6 +681,9 @@ done:
 	    {
 		unsigned int pref = 0;
 		unsigned int prefmask = ~0;
+
+		if (optlen < sizeof(int))
+			goto e_inval;
 
 		retv = -EINVAL;
 
