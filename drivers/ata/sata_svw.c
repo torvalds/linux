@@ -531,8 +531,8 @@ static int k2_sata_init_one(struct pci_dev *pdev, const struct pci_device_id *en
  * */
 static const struct pci_device_id k2_sata_pci_tbl[] = {
 	{ PCI_VDEVICE(SERVERWORKS, 0x0240), chip_svw4 },
-	{ PCI_VDEVICE(SERVERWORKS, 0x0241), chip_svw4 },
-	{ PCI_VDEVICE(SERVERWORKS, 0x0242), chip_svw8 },
+	{ PCI_VDEVICE(SERVERWORKS, 0x0241), chip_svw8 },
+	{ PCI_VDEVICE(SERVERWORKS, 0x0242), chip_svw4 },
 	{ PCI_VDEVICE(SERVERWORKS, 0x024a), chip_svw4 },
 	{ PCI_VDEVICE(SERVERWORKS, 0x024b), chip_svw4 },
 	{ PCI_VDEVICE(SERVERWORKS, 0x0410), chip_svw42 },
