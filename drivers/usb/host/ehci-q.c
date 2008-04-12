@@ -242,7 +242,8 @@ __acquires(ehci->lock)
 	if (unlikely(urb->unlinked)) {
 		COUNT(ehci->stats.unlink);
 	} else {
-		if (likely(status == -EINPROGRESS))
+		/* report non-error and short read status as zero */
+		if (status == -EINPROGRESS || status == -EREMOTEIO)
 			status = 0;
 		COUNT(ehci->stats.complete);
 	}
@@ -283,7 +284,6 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	int			last_status = -EINPROGRESS;
 	int			stopped;
 	unsigned		count = 0;
-	int			do_status = 0;
 	u8			state;
 	u32			halt = HALT_BIT(ehci);
 
@@ -309,7 +309,6 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		struct ehci_qtd	*qtd;
 		struct urb	*urb;
 		u32		token = 0;
-		int		qtd_status;
 
 		qtd = list_entry (entry, struct ehci_qtd, qtd_list);
 		urb = qtd->urb;
@@ -377,13 +376,6 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 			else if (last_status == -EINPROGRESS && !urb->unlinked)
 				continue;
 
-			/* issue status after short control reads */
-			if (unlikely (do_status != 0)
-					&& QTD_PID (token) == 0 /* OUT */) {
-				do_status = 0;
-				continue;
-			}
-
 			/* qh unlinked; token in overlay may be most current */
 			if (state == QH_STATE_IDLE
 					&& cpu_to_hc32(ehci, qtd->qtd_dma)
@@ -401,15 +393,21 @@ halt:
 			}
 		}
 
-		/* remove it from the queue */
-		qtd_status = qtd_copy_status(ehci, urb, qtd->length, token);
-		if (unlikely(qtd_status == -EREMOTEIO)) {
-			do_status = (!urb->unlinked &&
-					usb_pipecontrol(urb->pipe));
-			qtd_status = 0;
+		/* unless we already know the urb's status, collect qtd status
+		 * and update count of bytes transferred.  in common short read
+		 * cases with only one data qtd (including control transfers),
+		 * queue processing won't halt.  but with two or more qtds (for
+		 * example, with a 32 KB transfer), when the first qtd gets a
+		 * short read the second must be removed by hand.
+		 */
+		if (last_status == -EINPROGRESS) {
+			last_status = qtd_copy_status(ehci, urb,
+					qtd->length, token);
+			if (last_status == -EREMOTEIO
+					&& (qtd->hw_alt_next
+						& EHCI_LIST_END(ehci)))
+				last_status = -EINPROGRESS;
 		}
-		if (likely(last_status == -EINPROGRESS))
-			last_status = qtd_status;
 
 		/* if we're removing something not at the queue head,
 		 * patch the hardware queue pointer.
