@@ -817,7 +817,7 @@ static int mp_find_ioapic(int gsi)
 	return -1;
 }
 
-static u8 uniq_ioapic_id(u8 id)
+static u8 __init uniq_ioapic_id(u8 id)
 {
 #ifdef CONFIG_X86_32
 	if ((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) &&
