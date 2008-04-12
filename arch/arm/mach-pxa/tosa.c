@@ -421,9 +421,30 @@ static struct platform_device tosa_gpio_keys_device = {
 /*
  * Tosa LEDs
  */
+struct gpio_led tosa_gpio_leds[] = {
+	{
+		.name			= "tosa:amber:charge",
+		.default_trigger	= "main-battery-charging",
+		.gpio			= TOSA_GPIO_CHRG_ERR_LED,
+	},
+	{
+		.name			= "tosa:green:mail",
+		.default_trigger	= "nand-disk",
+		.gpio			= TOSA_GPIO_NOTE_LED,
+	},
+};
+
+struct gpio_led_platform_data tosa_gpio_leds_platform_data = {
+	.leds		= tosa_gpio_leds,
+	.num_leds	= ARRAY_SIZE(tosa_gpio_leds),
+};
+
 static struct platform_device tosaled_device = {
-    .name   = "tosa-led",
-    .id     = -1,
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &tosa_gpio_leds_platform_data,
+	},
 };
 
 static struct platform_device *devices[] __initdata = {
