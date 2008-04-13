@@ -2057,6 +2057,7 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 	vfd->dev = &dev->udev->dev;
 	vfd->release = video_device_release;
 	vfd->type = type;
+	vfd->debug = video_debug;
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s",
 		 dev->name, type_name);
