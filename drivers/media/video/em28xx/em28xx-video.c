@@ -630,16 +630,10 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	if (0 != buf->vb.baddr  &&  buf->vb.bsize < buf->vb.size)
 		return -EINVAL;
 
-	if (buf->fmt       != fh->fmt    ||
-	    buf->vb.width  != dev->width  ||
-	    buf->vb.height != dev->height ||
-	    buf->vb.field  != field) {
-		buf->fmt       = fh->fmt;
-		buf->vb.width  = dev->width;
-		buf->vb.height = dev->height;
-		buf->vb.field  = field;
-		buf->vb.state = VIDEOBUF_NEEDS_INIT;
-	}
+	buf->fmt       = fh->fmt;
+	buf->vb.width  = dev->width;
+	buf->vb.height = dev->height;
+	buf->vb.field  = field;
 
 	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		rc = videobuf_iolock(vq, &buf->vb, NULL);
@@ -974,6 +968,12 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 
 	mutex_lock(&dev->lock);
 
+	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
+		em28xx_errdev("%s queue busy\n", __func__);
+		rc = -EBUSY;
+		goto out;
+	}
+
 	/* set new image size */
 	dev->width = f->fmt.pix.width;
 	dev->height = f->fmt.pix.height;
@@ -985,8 +985,11 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 	em28xx_set_alternate(dev);
 	em28xx_resolution_set(dev);
 
+	rc = 0;
+
+out:
 	mutex_unlock(&dev->lock);
-	return 0;
+	return rc;
 }
 
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
