@@ -135,14 +135,6 @@ static inline void buffer_filled(struct em28xx *dev,
 {
 	mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
 
-	/* Nobody is waiting something to be done, just return */
-	if (!waitqueue_active(&buf->vb.done)) {
-		printk(KERN_ERR "em28xx: buffer underrun at %ld\n",
-				jiffies);
-
-		return;
-	}
-
 	/* Advice that buffer was filled */
 	em28xx_isocdbg("[%p/%d] wakeup\n", buf, buf->vb.i);
 	buf->vb.state = VIDEOBUF_DONE;
@@ -202,7 +194,8 @@ static void em28xx_copy_video(struct em28xx *dev,
 			       ((char *)outp + buf->vb.size));
 		lencopy = remain = (char *)outp + buf->vb.size - (char *)startwrite;
 	}
-	BUG_ON(lencopy <= 0);
+	if (lencopy <= 0)
+		return;
 	memcpy(startwrite, startread, lencopy);
 
 	remain -= lencopy;
@@ -356,11 +349,13 @@ static inline int em28xx_isoc_copy(struct urb *urb)
 		if (p[0] == 0x22 && p[1] == 0x5a) {
 			/* FIXME - are the fields the right way around? */
 			em28xx_isocdbg("Video frame, length=%i, %s\n", len,
-					(p[2] & 1)? "top" : "bottom");
+					(p[2] & 1)? "odd" : "even");
 			em28xx_isocdbg("Current buffer is: outp = 0x%p,"
 				       " len = %i\n", outp, (int)buf->vb.size);
 
-			if (p[2] & 1) {
+			if (p[2] & 1)
+				buf->top_field = 0;
+			else {
 				if (buf->receiving) {
 					buffer_filled(dev, dma_q, buf);
 					rc = get_next_buf(dma_q, &buf);
@@ -371,8 +366,7 @@ static inline int em28xx_isoc_copy(struct urb *urb)
 				}
 
 				buf->top_field = 1;
-			} else
-				buf->top_field = 0;
+			}
 			buf->receiving = 1;
 			dma_q->pos = 0;
 		} else if (p[0] == 0x33 && p[1] == 0x95 && p[2] == 0x00) {
