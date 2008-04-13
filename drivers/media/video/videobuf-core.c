@@ -901,7 +901,6 @@ static void __videobuf_read_stop(struct videobuf_queue *q)
 {
 	int i;
 
-
 	videobuf_queue_cancel(q);
 	__videobuf_mmap_free(q);
 	INIT_LIST_HEAD(&q->stream);

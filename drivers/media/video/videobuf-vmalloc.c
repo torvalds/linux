@@ -72,6 +72,11 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 
 		dprintk(1, "munmap %p q=%p\n", map, q);
 		mutex_lock(&q->vb_lock);
+
+		/* We need first to cancel streams, before unmapping */
+		if (q->streaming)
+			videobuf_queue_cancel(q);
+
 		for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 			if (NULL == q->bufs[i])
 				continue;
@@ -86,7 +91,15 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 				   In this case, memory should be freed,
 				   in order to do memory unmap.
 				 */
+
 				MAGIC_CHECK(mem->magic, MAGIC_VMAL_MEM);
+
+				/* vfree is not atomic - can't be
+				   called with IRQ's disabled
+				 */
+				dprintk(1, "%s: buf[%d] freeing (%p)\n",
+					__func__, i, mem->vmalloc);
+
 				vfree(mem->vmalloc);
 				mem->vmalloc = NULL;
 			}
@@ -94,9 +107,12 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 			q->bufs[i]->map   = NULL;
 			q->bufs[i]->baddr = 0;
 		}
-		mutex_unlock(&q->vb_lock);
+
 		kfree(map);
+
+		mutex_unlock(&q->vb_lock);
 	}
+
 	return;
 }
 
@@ -138,6 +154,7 @@ static int __videobuf_iolock (struct videobuf_queue* q,
 			      struct v4l2_framebuffer *fbuf)
 {
 	struct videobuf_vmalloc_memory *mem = vb->priv;
+	int pages;
 
 	BUG_ON(!mem);
 
@@ -154,8 +171,7 @@ static int __videobuf_iolock (struct videobuf_queue* q,
 		}
 		break;
 	case V4L2_MEMORY_USERPTR:
-	{
-		int pages = PAGE_ALIGN(vb->size);
+		pages = PAGE_ALIGN(vb->size);
 
 		dprintk(1, "%s memory method USERPTR\n", __func__);
 
@@ -198,7 +214,6 @@ static int __videobuf_iolock (struct videobuf_queue* q,
 #endif
 
 		break;
-	}
 	case V4L2_MEMORY_OVERLAY:
 	default:
 		dprintk(1, "%s memory method OVERLAY/unknown\n", __func__);
