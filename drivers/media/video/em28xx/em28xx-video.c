@@ -413,12 +413,6 @@ static void em28xx_irq_callback(struct urb *urb)
 			urb->status);
 	}
 
-#if 0 /* Bad idea. There are problems that cause a load of valid, but
-	 empty, data packets. Don't reset the timeout unless we've actually
-	 got a frame. I've had xawtv hang in free_buffer due to this! */
-	if (rc >= 0)
-			mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
-#endif
 	spin_unlock_irqrestore(&dev->slock,flags);
 }
 
@@ -458,7 +452,7 @@ static void em28xx_uninit_isoc(struct em28xx *dev)
 
 	dev->isoc_ctl.num_bufs=0;
 
-	// em28xx_capture_start(dev, 0); - FIXME - how could I restart it?
+	em28xx_capture_start(dev, 0);
 }
 
 
@@ -554,6 +548,8 @@ static int em28xx_start_thread( struct em28xx_dmaqueue  *dma_q)
 
 	init_waitqueue_head(&dma_q->wq);
 
+	em28xx_capture_start(dev, 1);
+
 	/* submit urbs and enables IRQ */
 	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
 		rc = usb_submit_urb(dev->isoc_ctl.urb[i], GFP_ATOMIC);
@@ -570,7 +566,6 @@ static int em28xx_start_thread( struct em28xx_dmaqueue  *dma_q)
 
 	return 0;
 }
-
 
 static void em28xx_vid_timeout(unsigned long data)
 {
@@ -589,8 +584,9 @@ static void em28xx_vid_timeout(unsigned long data)
 		em28xx_videodbg("em28xx/0: [%p/%d] timeout\n",
 				buf, buf->vb.i);
 	}
+	/* Instead of trying to restart, just sets timeout again */
+	mod_timer(&vidq->timeout, jiffies + BUFFER_TIMEOUT);
 
-	/* restart_video_queue(vidq); */
 	spin_unlock_irqrestore(&dev->slock,flags);
 }
 
@@ -668,7 +664,6 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 		if (rc<0)
 			goto fail;
 
-		/* FIXME - should probably be done in response to STREAMON */
 		rc = em28xx_start_thread(vidq);
 		if (rc<0)
 			goto fail;
@@ -999,7 +994,6 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
 
 	em28xx_set_alternate(dev);
-	em28xx_capture_start(dev, 1); /* ??? */
 	em28xx_resolution_set(dev);
 
 	mutex_unlock(&dev->lock);
@@ -1428,14 +1422,6 @@ static int vidioc_streamon(struct file *file, void *priv,
 
 	if (unlikely(res_get(fh) < 0))
 		return -EBUSY;
-
-	/* We can't do this from buffer_queue or anything called from
-	   there, since it's called with IRQs disabled and the spinlock held,
-	   and this uses USB functions that may sleep
-
-	   FIXME FIXME FIXME - putting this here means it may not always
-	   be called when it needs to be */
-	em28xx_capture_start(dev, 1);
 
 	return (videobuf_streamon(&fh->vb_vidq));
 }
