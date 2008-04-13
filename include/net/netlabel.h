@@ -162,7 +162,7 @@ struct netlbl_lsm_secattr_catmap {
 
 /**
  * struct netlbl_lsm_secattr - NetLabel LSM security attributes
- * @flags: indicate which attributes are contained in this structure
+ * @flags: indicate structure attributes, see NETLBL_SECATTR_*
  * @type: indicate the NLTYPE of the attributes
  * @domain: the NetLabel LSM domain
  * @cache: NetLabel LSM specific cache
@@ -180,17 +180,22 @@ struct netlbl_lsm_secattr_catmap {
  * NetLabel itself when returning security attributes to the LSM.
  *
  */
+struct netlbl_lsm_secattr {
+	u32 flags;
+	/* bitmap values for 'flags' */
 #define NETLBL_SECATTR_NONE             0x00000000
 #define NETLBL_SECATTR_DOMAIN           0x00000001
+#define NETLBL_SECATTR_DOMAIN_CPY       (NETLBL_SECATTR_DOMAIN | \
+					 NETLBL_SECATTR_FREE_DOMAIN)
 #define NETLBL_SECATTR_CACHE            0x00000002
 #define NETLBL_SECATTR_MLS_LVL          0x00000004
 #define NETLBL_SECATTR_MLS_CAT          0x00000008
 #define NETLBL_SECATTR_SECID            0x00000010
+	/* bitmap meta-values for 'flags' */
+#define NETLBL_SECATTR_FREE_DOMAIN      0x01000000
 #define NETLBL_SECATTR_CACHEABLE        (NETLBL_SECATTR_MLS_LVL | \
 					 NETLBL_SECATTR_MLS_CAT | \
 					 NETLBL_SECATTR_SECID)
-struct netlbl_lsm_secattr {
-	u32 flags;
 	u32 type;
 	char *domain;
 	struct netlbl_lsm_cache *cache;
@@ -303,7 +308,8 @@ static inline void netlbl_secattr_init(struct netlbl_lsm_secattr *secattr)
  */
 static inline void netlbl_secattr_destroy(struct netlbl_lsm_secattr *secattr)
 {
-	kfree(secattr->domain);
+	if (secattr->flags & NETLBL_SECATTR_FREE_DOMAIN)
+		kfree(secattr->domain);
 	if (secattr->flags & NETLBL_SECATTR_CACHE)
 		netlbl_secattr_cache_free(secattr->cache);
 	if (secattr->flags & NETLBL_SECATTR_MLS_CAT)
