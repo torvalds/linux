@@ -947,6 +947,12 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 		goto out;
 	}
 
+	if (dev->stream_on && !fh->stream_on) {
+		em28xx_errdev("%s device in use by another fh\n", __func__);
+		rc = -EBUSY;
+		goto out;
+	}
+
 	/* set new image size */
 	dev->width = f->fmt.pix.width;
 	dev->height = f->fmt.pix.height;
