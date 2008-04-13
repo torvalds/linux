@@ -790,15 +790,12 @@ static int res_get(struct em28xx_fh *fh)
 	if (fh->stream_on)
 		return rc;
 
-	mutex_lock(&dev->lock);
-
 	if (dev->stream_on)
-		rc = -EINVAL;
-	else {
-		dev->stream_on = 1;
-		fh->stream_on  = 1;
-	}
+		return -EINVAL;
 
+	mutex_lock(&dev->lock);
+	dev->stream_on = 1;
+	fh->stream_on  = 1;
 	mutex_unlock(&dev->lock);
 	return rc;
 }
