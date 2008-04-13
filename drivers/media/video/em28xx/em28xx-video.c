@@ -154,12 +154,7 @@ static void em28xx_copy_video(struct em28xx *dev,
 {
 	void *fieldstart, *startwrite, *startread;
 	int  linesdone, currlinedone, offset, lencopy, remain;
-
-	if (dev->frame_size != buf->vb.size) {
-		em28xx_errdev("size %i and buf.length %lu are different!\n",
-			      dev->frame_size, buf->vb.size);
-		return;
-	}
+	int bytesperline = dev->width << 1;
 
 	if (dma_q->pos + len > buf->vb.size)
 		len = buf->vb.size - dma_q->pos;
@@ -177,13 +172,13 @@ static void em28xx_copy_video(struct em28xx *dev,
 	if (buf->top_field)
 		fieldstart = outp;
 	else
-		fieldstart = outp + dev->bytesperline;
+		fieldstart = outp + bytesperline;
 
-	linesdone = dma_q->pos / dev->bytesperline;
-	currlinedone = dma_q->pos % dev->bytesperline;
-	offset = linesdone * dev->bytesperline * 2 + currlinedone;
+	linesdone = dma_q->pos / bytesperline;
+	currlinedone = dma_q->pos % bytesperline;
+	offset = linesdone * bytesperline * 2 + currlinedone;
 	startwrite = fieldstart + offset;
-	lencopy = dev->bytesperline - currlinedone;
+	lencopy = bytesperline - currlinedone;
 	lencopy = lencopy > remain ? remain : lencopy;
 
 	if ((char *)startwrite + lencopy > (char *)outp + buf->vb.size) {
@@ -199,12 +194,12 @@ static void em28xx_copy_video(struct em28xx *dev,
 	remain -= lencopy;
 
 	while (remain > 0) {
-		startwrite += lencopy + dev->bytesperline;
+		startwrite += lencopy + bytesperline;
 		startread += lencopy;
-		if (dev->bytesperline > remain)
+		if (bytesperline > remain)
 			lencopy = remain;
 		else
-			lencopy = dev->bytesperline;
+			lencopy = bytesperline;
 
 		if ((char *)startwrite + lencopy > (char *)outp + buf->vb.size) {
 			em28xx_isocdbg("Overflow of %zi bytes past buffer end (2)\n",
@@ -617,8 +612,6 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	struct em28xx_dmaqueue *vidq = &dev->vidq;
 	int                  rc = 0, urb_init = 0;
 
-	/* BUG_ON(NULL == fh->fmt); */
-
 	/* FIXME: It assumes depth = 16 */
 	/* The only currently supported format is 16 bits/pixel */
 	buf->vb.size = 16 * dev->width * dev->height >> 3;
@@ -626,7 +619,6 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	if (0 != buf->vb.baddr  &&  buf->vb.bsize < buf->vb.size)
 		return -EINVAL;
 
-	buf->fmt       = fh->fmt;
 	buf->vb.width  = dev->width;
 	buf->vb.height = dev->height;
 	buf->vb.field  = field;
@@ -877,8 +869,8 @@ static int vidioc_g_fmt_cap(struct file *file, void *priv,
 	f->fmt.pix.width = dev->width;
 	f->fmt.pix.height = dev->height;
 	f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-	f->fmt.pix.bytesperline = dev->bytesperline;
-	f->fmt.pix.sizeimage = dev->frame_size;
+	f->fmt.pix.bytesperline = dev->width * 2;
+	f->fmt.pix.sizeimage = f->fmt.pix.bytesperline  * dev->height;
 	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 
 	/* FIXME: TOP? NONE? BOTTOM? ALTENATE? */
@@ -979,9 +971,6 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 	/* set new image size */
 	dev->width = f->fmt.pix.width;
 	dev->height = f->fmt.pix.height;
-	dev->frame_size = dev->width * dev->height * 2;
-	dev->field_size = dev->frame_size >> 1;
-	dev->bytesperline = dev->width * 2;
 	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
 
 	em28xx_set_alternate(dev);
@@ -1019,9 +1008,6 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 	/* set new image size */
 	dev->width = f.fmt.pix.width;
 	dev->height = f.fmt.pix.height;
-	dev->frame_size = dev->width * dev->height * 2;
-	dev->field_size = dev->frame_size >> 1;
-	dev->bytesperline = dev->width * 2;
 	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
 
 	em28xx_resolution_set(dev);
@@ -1736,9 +1722,6 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && dev->users == 0) {
 		dev->width = norm_maxw(dev);
 		dev->height = norm_maxh(dev);
-		dev->frame_size = dev->width * dev->height * 2;
-		dev->field_size = dev->frame_size >> 1;	/*both_fileds ? dev->frame_size>>1 : dev->frame_size; */
-		dev->bytesperline = dev->width * 2;
 		dev->hscale = 0;
 		dev->vscale = 0;
 
@@ -2152,10 +2135,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->width = maxw;
 	dev->height = maxh;
 	dev->interlaced = EM28XX_INTERLACED_DEFAULT;
-	dev->field_size = dev->width * dev->height;
-	dev->frame_size =
-	    dev->interlaced ? dev->field_size << 1 : dev->field_size;
-	dev->bytesperline = dev->width * 2;
 	dev->hscale = 0;
 	dev->vscale = 0;
 	dev->ctl_input = 2;

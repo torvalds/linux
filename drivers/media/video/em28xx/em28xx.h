@@ -128,8 +128,6 @@ struct em28xx_buffer {
 	/* common v4l buffer stuff -- must be first */
 	struct videobuf_buffer vb;
 
-	struct em28xx_fmt *fmt;
-
 	struct list_head frame;
 	int top_field;
 	int receiving;
@@ -294,9 +292,6 @@ struct em28xx {
 	/* frame properties */
 	int width;		/* current frame width */
 	int height;		/* current frame height */
-	int frame_size;		/* current frame size */
-	int field_size;		/* current field size */
-	int bytesperline;
 	int hscale;		/* horizontal scale factor (see datasheet) */
 	int vscale;		/* vertical scale factor (see datasheet) */
 	int interlaced;		/* 1=interlace fileds, 0=just top fileds */
@@ -352,9 +347,7 @@ struct em28xx_fh {
 	unsigned int  stream_on:1;	/* Locks streams */
 	int           radio;
 
-	unsigned int                 width, height;
 	struct videobuf_queue        vb_vidq;
-	struct em28xx_fmt            *fmt;
 
 	enum v4l2_buf_type           type;
 };

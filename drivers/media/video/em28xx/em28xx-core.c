@@ -396,13 +396,13 @@ int em28xx_set_alternate(struct em28xx *dev)
 {
 	int errCode, prev_alt = dev->alt;
 	int i;
-	unsigned int min_pkt_size = dev->bytesperline + 4;
+	unsigned int min_pkt_size = dev->width * 2 + 4;
 
 	/* When image size is bigger than a certain value,
 	   the frame size should be increased, otherwise, only
 	   green screen will be received.
 	 */
-	if (dev->frame_size > 720*240*2)
+	if (dev->width * 2 * dev->height > 720 * 240 * 2)
 		min_pkt_size *= 2;
 
 	for (i = 0; i < dev->num_alt; i++) {
