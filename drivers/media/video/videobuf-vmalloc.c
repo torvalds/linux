@@ -57,19 +57,20 @@ videobuf_vm_open(struct vm_area_struct *vma)
 	map->count++;
 }
 
-static void
-videobuf_vm_close(struct vm_area_struct *vma)
+static void videobuf_vm_close(struct vm_area_struct *vma)
 {
 	struct videobuf_mapping *map = vma->vm_private_data;
 	struct videobuf_queue *q = map->q;
 	int i;
 
-	dprintk(2,"vm_close %p [count=%u,vma=%08lx-%08lx]\n",map,
-		map->count,vma->vm_start,vma->vm_end);
+	dprintk(2,"vm_close %p [count=%u,vma=%08lx-%08lx]\n", map,
+		map->count, vma->vm_start, vma->vm_end);
 
 	map->count--;
 	if (0 == map->count) {
-		dprintk(1,"munmap %p q=%p\n",map,q);
+		struct videobuf_vmalloc_memory *mem;
+
+		dprintk(1, "munmap %p q=%p\n", map, q);
 		mutex_lock(&q->vb_lock);
 		for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 			if (NULL == q->bufs[i])
@@ -77,6 +78,18 @@ videobuf_vm_close(struct vm_area_struct *vma)
 
 			if (q->bufs[i]->map != map)
 				continue;
+
+			mem = q->bufs[i]->priv;
+			if (mem) {
+				/* This callback is called only if kernel has
+				   allocated memory and this memory is mmapped.
+				   In this case, memory should be freed,
+				   in order to do memory unmap.
+				 */
+				MAGIC_CHECK(mem->magic, MAGIC_VMAL_MEM);
+				vfree(mem->vmalloc);
+				mem->vmalloc = NULL;
+			}
 
 			q->bufs[i]->map   = NULL;
 			q->bufs[i]->baddr = 0;
@@ -390,6 +403,15 @@ void videobuf_vmalloc_free (struct videobuf_buffer *buf)
 {
 	struct videobuf_vmalloc_memory *mem = buf->priv;
 
+	/* mmapped memory can't be freed here, otherwise mmapped region
+	   would be released, while still needed. In this case, the memory
+	   release should happen inside videobuf_vm_close().
+	   So, it should free memory only if the memory were allocated for
+	   read() operation.
+	 */
+	if ((buf->memory != V4L2_MEMORY_USERPTR) || (buf->baddr == 0))
+		return;
+
 	if (!mem)
 		return;
 
@@ -397,10 +419,6 @@ void videobuf_vmalloc_free (struct videobuf_buffer *buf)
 
 	vfree(mem->vmalloc);
 	mem->vmalloc = NULL;
-
-
-
-	/* FIXME: need to do buf->priv = NULL? */
 
 	return;
 }
