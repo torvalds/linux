@@ -513,7 +513,6 @@ static int sctp_send_asconf_add_ip(struct sock		*sk,
 	union sctp_addr			saveaddr;
 	void				*addr_buf;
 	struct sctp_af			*af;
-	struct list_head		*pos;
 	struct list_head		*p;
 	int 				i;
 	int 				retval = 0;
@@ -527,8 +526,7 @@ static int sctp_send_asconf_add_ip(struct sock		*sk,
 	SCTP_DEBUG_PRINTK("%s: (sk: %p, addrs: %p, addrcnt: %d)\n",
 			  __func__, sk, addrs, addrcnt);
 
-	list_for_each(pos, &ep->asocs) {
-		asoc = list_entry(pos, struct sctp_association, asocs);
+	list_for_each_entry(asoc, &ep->asocs, asocs) {
 
 		if (!asoc->peer.asconf_capable)
 			continue;
@@ -699,7 +697,6 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 	union sctp_addr		*laddr;
 	void			*addr_buf;
 	struct sctp_af		*af;
-	struct list_head	*pos, *pos1;
 	struct sctp_sockaddr_entry *saddr;
 	int 			i;
 	int 			retval = 0;
@@ -713,8 +710,7 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 	SCTP_DEBUG_PRINTK("%s: (sk: %p, addrs: %p, addrcnt: %d)\n",
 			  __func__, sk, addrs, addrcnt);
 
-	list_for_each(pos, &ep->asocs) {
-		asoc = list_entry(pos, struct sctp_association, asocs);
+	list_for_each_entry(asoc, &ep->asocs, asocs) {
 
 		if (!asoc->peer.asconf_capable)
 			continue;
@@ -787,9 +783,8 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 		 * as some of the addresses in the bind address list are
 		 * about to be deleted and cannot be used as source addresses.
 		 */
-		list_for_each(pos1, &asoc->peer.transport_addr_list) {
-			transport = list_entry(pos1, struct sctp_transport,
-					       transports);
+		list_for_each_entry(transport, &asoc->peer.transport_addr_list,
+					transports) {
 			dst_release(transport->dst);
 			sctp_transport_route(transport, NULL,
 					     sctp_sk(asoc->base.sk));
@@ -1397,7 +1392,6 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	long timeo;
 	__u16 sinfo_flags = 0;
 	struct sctp_datamsg *datamsg;
-	struct list_head *pos;
 	int msg_flags = msg->msg_flags;
 
 	SCTP_DEBUG_PRINTK("sctp_sendmsg(sk: %p, msg: %p, msg_len: %zu)\n",
@@ -1727,8 +1721,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	}
 
 	/* Now send the (possibly) fragmented message. */
-	list_for_each(pos, &datamsg->chunks) {
-		chunk = list_entry(pos, struct sctp_chunk, frag_list);
+	list_for_each_entry(chunk, &datamsg->chunks, frag_list) {
 		sctp_chunk_hold(chunk);
 
 		/* Do accounting for the write space.  */
@@ -2301,11 +2294,8 @@ static int sctp_setsockopt_peer_addr_params(struct sock *sk,
 	 * transport.
 	 */
 	if (!trans && asoc) {
-		struct list_head *pos;
-
-		list_for_each(pos, &asoc->peer.transport_addr_list) {
-			trans = list_entry(pos, struct sctp_transport,
-					   transports);
+		list_for_each_entry(trans, &asoc->peer.transport_addr_list,
+				transports) {
 			sctp_apply_peer_addr_params(&params, trans, asoc, sp,
 						    hb_change, pmtud_change,
 						    sackdelay_change);
@@ -2396,11 +2386,8 @@ static int sctp_setsockopt_delayed_ack_time(struct sock *sk,
 
 	/* If change is for association, also apply to each transport. */
 	if (asoc) {
-		struct list_head *pos;
-
-		list_for_each(pos, &asoc->peer.transport_addr_list) {
-			trans = list_entry(pos, struct sctp_transport,
-					   transports);
+		list_for_each_entry(trans, &asoc->peer.transport_addr_list,
+				transports) {
 			if (params.assoc_value) {
 				trans->sackdelay =
 					msecs_to_jiffies(params.assoc_value);
@@ -2632,13 +2619,10 @@ static int sctp_setsockopt_associnfo(struct sock *sk, char __user *optval, int o
 		if (assocparams.sasoc_asocmaxrxt != 0) {
 			__u32 path_sum = 0;
 			int   paths = 0;
-			struct list_head *pos;
 			struct sctp_transport *peer_addr;
 
-			list_for_each(pos, &asoc->peer.transport_addr_list) {
-				peer_addr = list_entry(pos,
-						struct sctp_transport,
-						transports);
+			list_for_each_entry(peer_addr, &asoc->peer.transport_addr_list,
+					transports) {
 				path_sum += peer_addr->pathmaxrxt;
 				paths++;
 			}
@@ -2716,7 +2700,6 @@ static int sctp_setsockopt_mappedv4(struct sock *sk, char __user *optval, int op
 static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, int optlen)
 {
 	struct sctp_association *asoc;
-	struct list_head *pos;
 	struct sctp_sock *sp = sctp_sk(sk);
 	int val;
 
@@ -2729,8 +2712,7 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, int optl
 	sp->user_frag = val;
 
 	/* Update the frag_point of the existing associations. */
-	list_for_each(pos, &(sp->ep->asocs)) {
-		asoc = list_entry(pos, struct sctp_association, asocs);
+	list_for_each_entry(asoc, &(sp->ep->asocs), asocs) {
 		asoc->frag_point = sctp_frag_point(sp, asoc->pathmtu);
 	}
 
@@ -4151,7 +4133,6 @@ static int sctp_getsockopt_peer_addrs_old(struct sock *sk, int len,
 					  int __user *optlen)
 {
 	struct sctp_association *asoc;
-	struct list_head *pos;
 	int cnt = 0;
 	struct sctp_getaddrs_old getaddrs;
 	struct sctp_transport *from;
@@ -4176,8 +4157,8 @@ static int sctp_getsockopt_peer_addrs_old(struct sock *sk, int len,
 		return -EINVAL;
 
 	to = (void __user *)getaddrs.addrs;
-	list_for_each(pos, &asoc->peer.transport_addr_list) {
-		from = list_entry(pos, struct sctp_transport, transports);
+	list_for_each_entry(from, &asoc->peer.transport_addr_list,
+				transports) {
 		memcpy(&temp, &from->ipaddr, sizeof(temp));
 		sctp_get_pf_specific(sk->sk_family)->addr_v4map(sp, &temp);
 		addrlen = sctp_get_af_specific(sk->sk_family)->sockaddr_len;
@@ -4200,7 +4181,6 @@ static int sctp_getsockopt_peer_addrs(struct sock *sk, int len,
 				      char __user *optval, int __user *optlen)
 {
 	struct sctp_association *asoc;
-	struct list_head *pos;
 	int cnt = 0;
 	struct sctp_getaddrs getaddrs;
 	struct sctp_transport *from;
@@ -4225,8 +4205,8 @@ static int sctp_getsockopt_peer_addrs(struct sock *sk, int len,
 	to = optval + offsetof(struct sctp_getaddrs,addrs);
 	space_left = len - offsetof(struct sctp_getaddrs,addrs);
 
-	list_for_each(pos, &asoc->peer.transport_addr_list) {
-		from = list_entry(pos, struct sctp_transport, transports);
+	list_for_each_entry(from, &asoc->peer.transport_addr_list,
+				transports) {
 		memcpy(&temp, &from->ipaddr, sizeof(temp));
 		sctp_get_pf_specific(sk->sk_family)->addr_v4map(sp, &temp);
 		addrlen = sctp_get_af_specific(sk->sk_family)->sockaddr_len;
@@ -6193,11 +6173,9 @@ do_nonblock:
 void sctp_write_space(struct sock *sk)
 {
 	struct sctp_association *asoc;
-	struct list_head *pos;
 
 	/* Wake up the tasks in each wait queue.  */
-	list_for_each(pos, &((sctp_sk(sk))->ep->asocs)) {
-		asoc = list_entry(pos, struct sctp_association, asocs);
+	list_for_each_entry(asoc, &((sctp_sk(sk))->ep->asocs), asocs) {
 		__sctp_write_space(asoc);
 	}
 }

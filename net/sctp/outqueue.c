@@ -221,12 +221,12 @@ void sctp_outq_init(struct sctp_association *asoc, struct sctp_outq *q)
 void sctp_outq_teardown(struct sctp_outq *q)
 {
 	struct sctp_transport *transport;
-	struct list_head *lchunk, *pos, *temp;
+	struct list_head *lchunk, *temp;
 	struct sctp_chunk *chunk, *tmp;
 
 	/* Throw away unacknowledged chunks. */
-	list_for_each(pos, &q->asoc->peer.transport_addr_list) {
-		transport = list_entry(pos, struct sctp_transport, transports);
+	list_for_each_entry(transport, &q->asoc->peer.transport_addr_list,
+			transports) {
 		while ((lchunk = sctp_list_dequeue(&transport->transmitted)) != NULL) {
 			chunk = list_entry(lchunk, struct sctp_chunk,
 					   transmitted_list);
@@ -538,7 +538,7 @@ static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 			       int rtx_timeout, int *start_timer)
 {
 	struct list_head *lqueue;
-	struct list_head *lchunk, *lchunk1;
+	struct list_head *lchunk;
 	struct sctp_transport *transport = pkt->transport;
 	sctp_xmit_t status;
 	struct sctp_chunk *chunk, *chunk1;
@@ -649,9 +649,7 @@ static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 		 * to be marked as ineligible for a subsequent fast retransmit.
 		 */
 		if (rtx_timeout && !lchunk) {
-			list_for_each(lchunk1, lqueue) {
-				chunk1 = list_entry(lchunk1, struct sctp_chunk,
-						    transmitted_list);
+			list_for_each_entry(chunk1, lqueue, transmitted_list) {
 				if (chunk1->fast_retransmit > 0)
 					chunk1->fast_retransmit = -1;
 			}
@@ -1037,7 +1035,6 @@ static void sctp_sack_update_unack_data(struct sctp_association *assoc,
 static __u32 sctp_highest_new_tsn(struct sctp_sackhdr *sack,
 				  struct sctp_association *asoc)
 {
-	struct list_head *ltransport, *lchunk;
 	struct sctp_transport *transport;
 	struct sctp_chunk *chunk;
 	__u32 highest_new_tsn, tsn;
@@ -1045,12 +1042,9 @@ static __u32 sctp_highest_new_tsn(struct sctp_sackhdr *sack,
 
 	highest_new_tsn = ntohl(sack->cum_tsn_ack);
 
-	list_for_each(ltransport, transport_list) {
-		transport = list_entry(ltransport, struct sctp_transport,
-				       transports);
-		list_for_each(lchunk, &transport->transmitted) {
-			chunk = list_entry(lchunk, struct sctp_chunk,
-					   transmitted_list);
+	list_for_each_entry(transport, transport_list, transports) {
+		list_for_each_entry(chunk, &transport->transmitted,
+				transmitted_list) {
 			tsn = ntohl(chunk->subh.data_hdr->tsn);
 
 			if (!chunk->tsn_gap_acked &&
@@ -1073,7 +1067,7 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	struct sctp_association *asoc = q->asoc;
 	struct sctp_transport *transport;
 	struct sctp_chunk *tchunk = NULL;
-	struct list_head *lchunk, *transport_list, *pos, *temp;
+	struct list_head *lchunk, *transport_list, *temp;
 	sctp_sack_variable_t *frags = sack->variable;
 	__u32 sack_ctsn, ctsn, tsn;
 	__u32 highest_tsn, highest_new_tsn;
@@ -1099,9 +1093,8 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	 */
 	if (TSN_lte(primary->cacc.next_tsn_at_change, sack_ctsn)) {
 		primary->cacc.changeover_active = 0;
-		list_for_each(pos, transport_list) {
-			transport = list_entry(pos, struct sctp_transport,
-					transports);
+		list_for_each_entry(transport, transport_list,
+				transports) {
 			transport->cacc.cycling_changeover = 0;
 		}
 	}
@@ -1116,9 +1109,7 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	 */
 	if (sack->num_gap_ack_blocks &&
 	    primary->cacc.changeover_active) {
-		list_for_each(pos, transport_list) {
-			transport = list_entry(pos, struct sctp_transport,
-					transports);
+		list_for_each_entry(transport, transport_list, transports) {
 			transport->cacc.cacc_saw_newack = 0;
 		}
 	}
@@ -1147,9 +1138,7 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	 *
 	 * This is a MASSIVE candidate for optimization.
 	 */
-	list_for_each(pos, transport_list) {
-		transport  = list_entry(pos, struct sctp_transport,
-					transports);
+	list_for_each_entry(transport, transport_list, transports) {
 		sctp_check_transmitted(q, &transport->transmitted,
 				       transport, sack, highest_new_tsn);
 		/*
@@ -1161,9 +1150,7 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 			count_of_newacks ++;
 	}
 
-	list_for_each(pos, transport_list) {
-		transport  = list_entry(pos, struct sctp_transport,
-					transports);
+	list_for_each_entry(transport, transport_list, transports) {
 		sctp_mark_missing(q, &transport->transmitted, transport,
 				  highest_new_tsn, count_of_newacks);
 	}
@@ -1220,9 +1207,7 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	if (!q->empty)
 		goto finish;
 
-	list_for_each(pos, transport_list) {
-		transport  = list_entry(pos, struct sctp_transport,
-					transports);
+	list_for_each_entry(transport, transport_list, transports) {
 		q->empty = q->empty && list_empty(&transport->transmitted);
 		if (!q->empty)
 			goto finish;
@@ -1596,14 +1581,12 @@ static void sctp_mark_missing(struct sctp_outq *q,
 			      int count_of_newacks)
 {
 	struct sctp_chunk *chunk;
-	struct list_head *pos;
 	__u32 tsn;
 	char do_fast_retransmit = 0;
 	struct sctp_transport *primary = q->asoc->peer.primary_path;
 
-	list_for_each(pos, transmitted_queue) {
+	list_for_each_entry(chunk, transmitted_queue, transmitted_list) {
 
-		chunk = list_entry(pos, struct sctp_chunk, transmitted_list);
 		tsn = ntohl(chunk->subh.data_hdr->tsn);
 
 		/* RFC 2960 7.2.4, sctpimpguide-05 2.8.2 M3) Examine all

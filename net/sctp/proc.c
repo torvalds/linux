@@ -124,7 +124,6 @@ void sctp_snmp_proc_exit(void)
 /* Dump local addresses of an association/endpoint. */
 static void sctp_seq_dump_local_addrs(struct seq_file *seq, struct sctp_ep_common *epb)
 {
-	struct list_head *pos;
 	struct sctp_association *asoc;
 	struct sctp_sockaddr_entry *laddr;
 	struct sctp_transport *peer;
@@ -137,8 +136,7 @@ static void sctp_seq_dump_local_addrs(struct seq_file *seq, struct sctp_ep_commo
 	    primary = &peer->saddr;
 	}
 
-	list_for_each(pos, &epb->bind_addr.address_list) {
-		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
+	list_for_each_entry(laddr, &epb->bind_addr.address_list, list) {
 		addr = &laddr->a;
 		af = sctp_get_af_specific(addr->sa.sa_family);
 		if (primary && af->cmp_addr(addr, primary)) {
@@ -151,14 +149,13 @@ static void sctp_seq_dump_local_addrs(struct seq_file *seq, struct sctp_ep_commo
 /* Dump remote addresses of an association. */
 static void sctp_seq_dump_remote_addrs(struct seq_file *seq, struct sctp_association *assoc)
 {
-	struct list_head *pos;
 	struct sctp_transport *transport;
 	union sctp_addr *addr, *primary;
 	struct sctp_af *af;
 
 	primary = &assoc->peer.primary_addr;
-	list_for_each(pos, &assoc->peer.transport_addr_list) {
-		transport = list_entry(pos, struct sctp_transport, transports);
+	list_for_each_entry(transport, &assoc->peer.transport_addr_list,
+			transports) {
 		addr = &transport->ipaddr;
 		af = sctp_get_af_specific(addr->sa.sa_family);
 		if (af->cmp_addr(addr, primary)) {
