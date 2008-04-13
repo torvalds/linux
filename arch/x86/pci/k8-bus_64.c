@@ -112,17 +112,25 @@ static void __init update_range(struct res_range *range, size_t start,
 	for (j = 0; j < RANGE_NUM; j++) {
 		if (!range[j].end)
 			continue;
-		if (start == range[j].start && end < range[j].end) {
-			range[j].start = end + 1;
-			break;
-		} else if (start == range[j].start && end == range[j].end) {
+
+		if (start <= range[j].start && end >= range[j].end) {
 			range[j].start = 0;
 			range[j].end = 0;
-			break;
-		} else if (start > range[j].start && end == range[j].end) {
+			continue;
+		}
+
+		if (start <= range[j].start && end < range[j].end && range[j].start < end + 1) {
+			range[j].start = end + 1;
+			continue;
+		}
+
+
+		if (start > range[j].start && end >= range[j].end && range[j].end > start - 1) {
 			range[j].end = start - 1;
-			break;
-		} else if (start > range[j].start && end < range[j].end) {
+			continue;
+		}
+
+		if (start > range[j].start && end < range[j].end) {
 			/* find the new spare */
 			for (i = 0; i < RANGE_NUM; i++) {
 				if (range[i].end == 0)
@@ -135,7 +143,7 @@ static void __init update_range(struct res_range *range, size_t start,
 				printk(KERN_ERR "run of slot in ranges\n");
 			}
 			range[j].end = start - 1;
-			break;
+			continue;
 		}
 	}
 }
@@ -151,16 +159,24 @@ static void __init update_res(struct pci_root_info *info, size_t start,
 
 	/* try to merge it with old one */
 	for (i = 0; i < info->res_num; i++) {
+		size_t final_start, final_end;
+		size_t common_start, common_end;
+
 		res = &info->res[i];
 		if (res->flags != flags)
 			continue;
-		if (res->end + 1 == start) {
-			res->end = end;
-			return;
-		} else if (end + 1 == res->start) {
-			res->start = start;
-			return;
-		}
+
+		common_start = max((size_t)res->start, start);
+		common_end = min((size_t)res->end, end);
+		if (common_start > common_end + 1)
+			continue;
+
+		final_start = min((size_t)res->start, start);
+		final_end = max((size_t)res->end, end);
+
+		res->start = final_start;
+		res->end = final_end;
+		return;
 	}
 
 addit:
@@ -336,7 +352,11 @@ static int __init early_fill_mp_bus_info(void)
 		info = &pci_root_info[j];
 		printk(KERN_DEBUG "node %d link %d: io port [%llx, %llx]\n",
 		       node, link, (u64)start, (u64)end);
-		update_res(info, start, end, IORESOURCE_IO, 0);
+
+		/* kernel only handle 16 bit only */
+		if (end > 0xffff)
+			end = 0xffff;
+		update_res(info, start, end, IORESOURCE_IO, 1);
 		update_range(range, start, end);
 	}
 	/* add left over io port range to def node/link, [0, 0xffff] */
@@ -444,7 +464,7 @@ static int __init early_fill_mp_bus_info(void)
 			}
 		}
 
-		update_res(info, start, end, IORESOURCE_MEM, 0);
+		update_res(info, start, end, IORESOURCE_MEM, 1);
 		update_range(range, start, end);
 		printk(KERN_CONT "\n");
 	}
