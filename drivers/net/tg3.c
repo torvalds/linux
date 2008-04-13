@@ -64,8 +64,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.89"
-#define DRV_MODULE_RELDATE	"April 03, 2008"
+#define DRV_MODULE_VERSION	"3.90"
+#define DRV_MODULE_RELDATE	"April 12, 2008"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -12578,7 +12578,8 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
 {
 	static int tg3_version_printed = 0;
-	unsigned long tg3reg_base, tg3reg_len;
+	resource_size_t tg3reg_base;
+	unsigned long tg3reg_len;
 	struct net_device *dev;
 	struct tg3 *tp;
 	int err, pm_cap;
