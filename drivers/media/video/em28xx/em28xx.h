@@ -301,7 +301,6 @@ struct em28xx {
 	int hscale;		/* horizontal scale factor (see datasheet) */
 	int vscale;		/* vertical scale factor (see datasheet) */
 	int interlaced;		/* 1=interlace fileds, 0=just top fileds */
-	int type;
 	unsigned int video_bytesread;	/* Number of bytes read */
 
 	unsigned long hash;	/* eeprom hash - for boards with generic ID */
@@ -317,7 +316,7 @@ struct em28xx {
 
 	/* locks */
 	struct mutex lock;
-	spinlock_t queue_lock;
+	/* spinlock_t queue_lock; */
 	struct list_head inqueue, outqueue;
 	wait_queue_head_t open, wait_frame, wait_stream;
 	struct video_device *vbi_dev;

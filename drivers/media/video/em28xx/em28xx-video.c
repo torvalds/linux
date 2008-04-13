@@ -133,10 +133,10 @@ static void inline buffer_filled (struct em28xx *dev,
 				  struct em28xx_dmaqueue *dma_q,
 				  struct em28xx_buffer *buf)
 {
+	mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
+
 	/* Nobody is waiting something to be done, just return */
 	if (!waitqueue_active(&buf->vb.done)) {
-		mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
-
 		printk(KERN_ERR "em28xx: buffer underrun at %ld\n",
 				jiffies);
 
@@ -174,7 +174,7 @@ static void em28xx_copy_video(struct em28xx *dev,
 	if (dma_q->pos + len > buf->vb.size)
 		len = buf->vb.size - dma_q->pos;
 
-	if (outp[0] != 0x88 && outp[0] != 0x22) {
+	if (p[0] != 0x88 && p[0] != 0x22) {
 		em28xx_isocdbg("frame is not complete\n");
 		len += 4;
 	} else
@@ -196,8 +196,13 @@ static void em28xx_copy_video(struct em28xx *dev,
 	lencopy = dev->bytesperline - currlinedone;
 	lencopy = lencopy > remain ? remain : lencopy;
 
-	if (__copy_to_user(startwrite, startread, lencopy) != 0)
-		em28xx_errdev("copy_to_user failed.\n");
+	if((char*)startwrite + lencopy > (char*)outp + buf->vb.size) {
+		em28xx_isocdbg("Overflow of %i bytes past buffer end (1)\n",
+			       ((char*)startwrite + lencopy) - ((char*)outp + buf->vb.size));
+		lencopy = remain = (char*)outp + buf->vb.size - (char*)startwrite;
+	}
+	BUG_ON(lencopy <= 0);
+	memcpy(startwrite, startread, lencopy);
 
 	remain -= lencopy;
 
@@ -209,8 +214,16 @@ static void em28xx_copy_video(struct em28xx *dev,
 		else
 			lencopy = dev->bytesperline;
 
-		if (__copy_to_user(startwrite, startread, lencopy) != 0)
-			em28xx_errdev("copy_to_user failed.\n");
+		BUG_ON(lencopy <= 0);
+
+		if((char*)startwrite + lencopy > (char*)outp + buf->vb.size) {
+			em28xx_isocdbg("Overflow of %i bytes past buffer end (2)\n",
+				       ((char*)startwrite + lencopy) - ((char*)outp + buf->vb.size));
+			lencopy = remain = (char*)outp + buf->vb.size - (char*)startwrite;
+		}
+		if(lencopy <= 0) break;
+
+		memcpy(startwrite, startread, lencopy);
 
 		remain -= lencopy;
 	}
@@ -278,13 +291,14 @@ static int inline get_next_buf (struct em28xx_dmaqueue *dma_q,
 /*
  * Controls the isoc copy of each urb packet
  */
-static inline int em28xx_isoc_copy(struct urb *urb, struct em28xx_buffer **buf)
+static inline int em28xx_isoc_copy(struct urb *urb)
 {
+	struct em28xx_buffer    *buf;
 	struct em28xx_dmaqueue  *dma_q = urb->context;
 	struct em28xx *dev = container_of(dma_q, struct em28xx, vidq);
-	unsigned char *outp = videobuf_to_vmalloc (&(*buf)->vb);
+	unsigned char *outp;
 	int i, len = 0, rc = 1;
-	char *p;
+	unsigned char *p;
 
 	if (!dev)
 		return 0;
@@ -298,6 +312,17 @@ static inline int em28xx_isoc_copy(struct urb *urb, struct em28xx_buffer **buf)
 			return 0;
 	}
 
+	buf=dev->isoc_ctl.buf;
+
+	if (!buf) {
+		rc=get_next_buf (dma_q, &buf);
+		if (rc<=0)
+			return rc;
+	}
+
+	outp = videobuf_to_vmalloc (&buf->vb);
+
+
 	for (i = 0; i < urb->number_of_packets; i++) {
 		int status = urb->iso_frame_desc[i].status;
 
@@ -310,7 +335,7 @@ static inline int em28xx_isoc_copy(struct urb *urb, struct em28xx_buffer **buf)
 		len=urb->iso_frame_desc[i].actual_length - 4;
 
 		if (urb->iso_frame_desc[i].actual_length <= 0) {
-			em28xx_isocdbg("packet %d is empty",i);
+			/* em28xx_isocdbg("packet %d is empty",i); - spammy */
 			continue;
 		}
 		if (urb->iso_frame_desc[i].actual_length >
@@ -320,31 +345,37 @@ static inline int em28xx_isoc_copy(struct urb *urb, struct em28xx_buffer **buf)
 		}
 
 		p = urb->transfer_buffer + urb->iso_frame_desc[i].offset;
-		if (urb->iso_frame_desc[i].status != -EPROTO)
-			continue;
 
 		/* FIXME: incomplete buffer checks where removed to make
 		   logic simpler. Impacts of those changes should be evaluated
 		 */
-		if (outp[0] == 0x22 && outp[1] == 0x5a) {
-			em28xx_isocdbg("Video frame, length=%i, %s", len,
-					(outp[2] == 1)? "top" : "botton");
+		if (p[0] == 0x22 && p[1] == 0x5a) {
+			/* FIXME - are the fields the right way around? */
+			em28xx_isocdbg("Video frame, length=%i, %s\n", len,
+					(p[2] & 1)? "top" : "bottom");
+			em28xx_isocdbg("Current buffer is: outp = 0x%p, len = %i\n", outp, (int)buf->vb.size);
 
-			if (outp[2] == 1) {
-				if ((*buf)->receiving)
-					buffer_filled (dev, dma_q, *buf);
+			if (p[2] & 1) {
+				if (buf->receiving) {
+					buffer_filled (dev, dma_q, buf);
+					rc=get_next_buf (dma_q, &buf);
+					if (rc<=0)
+						return rc;
 
-				(*buf)->top_field = 1;
+					outp = videobuf_to_vmalloc (&buf->vb);
+				}
+
+				buf->top_field = 1;
 			} else {
-				(*buf)->top_field = 0;
+				buf->top_field = 0;
 			}
-			(*buf)->receiving = 1;
+			buf->receiving = 1;
 			dma_q->pos = 0;
-		} else if (outp[0]==0x33 && outp[1]==0x95 && outp[2]==0x00) {
-			em28xx_isocdbg("VBI HEADER!!!");
+		} else if (p[0]==0x33 && p[1]==0x95 && p[2]==0x00) {
+			em28xx_isocdbg("VBI HEADER!!!\n");
 		}
 
-		em28xx_copy_video(dev, dma_q, *buf, p, outp, len);
+		em28xx_copy_video(dev, dma_q, buf, p, outp, len);
 
 		/* FIXME: Should add vbi copy */
 	}
@@ -360,7 +391,6 @@ static inline int em28xx_isoc_copy(struct urb *urb, struct em28xx_buffer **buf)
  */
 static void em28xx_irq_callback(struct urb *urb)
 {
-	struct em28xx_buffer    *buf;
 	struct em28xx_dmaqueue  *dma_q = urb->context;
 	struct em28xx *dev = container_of(dma_q, struct em28xx, vidq);
 	int rc,i;
@@ -368,19 +398,9 @@ static void em28xx_irq_callback(struct urb *urb)
 
 	spin_lock_irqsave(&dev->slock,flags);
 
-	buf=dev->isoc_ctl.buf;
-
-	if (!buf) {
-		rc=get_next_buf (dma_q, &buf);
-		if (rc<=0)
-			goto ret;
-	}
-
 	/* Copy data from URB */
-	rc=em28xx_isoc_copy(urb, &buf);
+	rc=em28xx_isoc_copy(urb);
 
-	dev->isoc_ctl.buf=buf;
-ret:
 	/* Reset urb buffers */
 	for (i = 0; i < urb->number_of_packets; i++) {
 		urb->iso_frame_desc[i].status = 0;
@@ -393,8 +413,12 @@ ret:
 			urb->status);
 	}
 
+#if 0 /* Bad idea. There are problems that cause a load of valid, but
+	 empty, data packets. Don't reset the timeout unless we've actually
+	 got a frame. I've had xawtv hang in free_buffer due to this! */
 	if (rc >= 0)
 			mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
+#endif
 	spin_unlock_irqrestore(&dev->slock,flags);
 }
 
@@ -405,6 +429,8 @@ static void em28xx_uninit_isoc(struct em28xx *dev)
 {
 	struct urb *urb;
 	int i;
+
+	em28xx_isocdbg("em28xx: called em28xx_uninit_isoc\n");
 
 	dev->isoc_ctl.nfields=-1;
 	dev->isoc_ctl.buf=NULL;
@@ -432,18 +458,9 @@ static void em28xx_uninit_isoc(struct em28xx *dev)
 
 	dev->isoc_ctl.num_bufs=0;
 
-	em28xx_capture_start(dev, 0);
+	// em28xx_capture_start(dev, 0); - FIXME - how could I restart it?
 }
 
-/*
- * Stop video thread - FIXME: Can be easily removed
- */
-static void em28xx_stop_thread(struct em28xx_dmaqueue *dma_q)
-{
-	struct em28xx *dev= container_of(dma_q, struct em28xx, vidq);
-
-	em28xx_uninit_isoc(dev);
-}
 
 /*
  * Allocate URBs and start IRQ
@@ -457,18 +474,20 @@ static int em28xx_prepare_isoc(struct em28xx *dev, int max_packets,
 	struct urb *urb;
 	int j, k;
 
+	em28xx_isocdbg("em28xx: called em28xx_prepare_isoc\n");
+
 	/* De-allocates all pending stuff */
 	em28xx_uninit_isoc(dev);
 
 	dev->isoc_ctl.num_bufs = num_bufs;
 
-	dev->isoc_ctl.urb = kmalloc(sizeof(void *)*num_bufs,  GFP_KERNEL);
+	dev->isoc_ctl.urb = kzalloc(sizeof(void *)*num_bufs,  GFP_KERNEL);
 	if (!dev->isoc_ctl.urb) {
 		em28xx_errdev("cannot alloc memory for usb buffers\n");
 		return -ENOMEM;
 	}
 
-	dev->isoc_ctl.transfer_buffer = kmalloc(sizeof(void *)*num_bufs,
+	dev->isoc_ctl.transfer_buffer = kzalloc(sizeof(void *)*num_bufs,
 					      GFP_KERNEL);
 	if (!dev->isoc_ctl.urb) {
 		em28xx_errdev("cannot allocate memory for usbtransfer\n");
@@ -486,7 +505,6 @@ static int em28xx_prepare_isoc(struct em28xx *dev, int max_packets,
 		if (!urb) {
 			em28xx_err("cannot alloc isoc_ctl.urb %i\n", i);
 			em28xx_uninit_isoc(dev);
-			usb_free_urb(urb);
 			return -ENOMEM;
 		}
 		dev->isoc_ctl.urb[i] = urb;
@@ -527,15 +545,14 @@ static int em28xx_prepare_isoc(struct em28xx *dev, int max_packets,
 	return 0;
 }
 
-static int em28xx_start_thread( struct em28xx_dmaqueue  *dma_q,
-				struct em28xx_buffer *buf)
+static int em28xx_start_thread( struct em28xx_dmaqueue  *dma_q)
 {
 	struct em28xx *dev = container_of(dma_q, struct em28xx, vidq);
-	int i,rc;
+	int i,rc = 0;
+
+	em28xx_videodbg("Called em28xx_start_thread\n");
 
 	init_waitqueue_head(&dma_q->wq);
-
-	em28xx_capture_start(dev, 1);
 
 	/* submit urbs and enables IRQ */
 	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
@@ -554,68 +571,6 @@ static int em28xx_start_thread( struct em28xx_dmaqueue  *dma_q,
 	return 0;
 }
 
-static int restart_video_queue(struct em28xx_dmaqueue *dma_q)
-{
-	struct em28xx *dev= container_of(dma_q,struct em28xx,vidq);
-
-	struct em28xx_buffer *buf, *prev;
-	struct list_head *item;
-
-	em28xx_videodbg("%s dma_q=0x%08lx\n",
-			__FUNCTION__,(unsigned long)dma_q);
-
-	if (!list_empty(&dma_q->active)) {
-		buf = list_entry(dma_q->active.next, struct em28xx_buffer, vb.queue);
-		em28xx_videodbg("restart_queue [%p/%d]: restart dma\n",
-				buf, buf->vb.i);
-		em28xx_stop_thread(dma_q);
-		em28xx_start_thread(dma_q, buf);
-
-		/* cancel all outstanding capture / vbi requests */
-		list_for_each(item,&dma_q->active) {
-			buf = list_entry(item, struct em28xx_buffer, vb.queue);
-
-			list_del(&buf->vb.queue);
-			buf->vb.state = VIDEOBUF_ERROR;
-			wake_up(&buf->vb.done);
-		}
-		mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
-
-		return 0;
-	}
-
-	prev = NULL;
-	for (;;) {
-		if (list_empty(&dma_q->queued))
-			return 0;
-		buf = list_entry(dma_q->queued.next, struct em28xx_buffer, vb.queue);
-		if (NULL == prev) {
-			list_del(&buf->vb.queue);
-			list_add_tail(&buf->vb.queue,&dma_q->active);
-
-			em28xx_videodbg("Restarting video dma\n");
-			em28xx_stop_thread(dma_q);
-			em28xx_start_thread(dma_q, buf);
-
-			buf->vb.state = VIDEOBUF_ACTIVE;
-			mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
-			em28xx_videodbg("[%p/%d] restart_queue -"
-					" first active\n", buf, buf->vb.i);
-
-		} else if (prev->vb.width  == buf->vb.width  &&
-			   prev->vb.height == buf->vb.height &&
-			   prev->fmt       == buf->fmt) {
-			list_del(&buf->vb.queue);
-			list_add_tail(&buf->vb.queue,&dma_q->active);
-			buf->vb.state = VIDEOBUF_ACTIVE;
-			em28xx_videodbg("[%p/%d] restart_queue -"
-					" move to active\n",buf,buf->vb.i);
-		} else {
-			return 0;
-		}
-		prev = buf;
-	}
-}
 
 static void em28xx_vid_timeout(unsigned long data)
 {
@@ -635,7 +590,7 @@ static void em28xx_vid_timeout(unsigned long data)
 				buf, buf->vb.i);
 	}
 
-	restart_video_queue(vidq);
+	/* restart_video_queue(vidq); */
 	spin_unlock_irqrestore(&dev->slock,flags);
 }
 
@@ -648,7 +603,7 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 {
 	struct em28xx_fh *fh = vq->priv_data;
 
-	*size = 16 * fh->width * fh->height >> 3;
+	*size = 16 * fh->dev->width * fh->dev->height >> 3;
 	if (0 == *count)
 		*count = EM28XX_DEF_BUF;
 
@@ -676,41 +631,45 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	struct em28xx_fh     *fh  = vq->priv_data;
 	struct em28xx_buffer *buf = container_of(vb,struct em28xx_buffer,vb);
 	struct em28xx        *dev = fh->dev;
+	struct em28xx_dmaqueue *vidq = &dev->vidq;
 	int                  rc = 0, urb_init = 0;
-	const int            urbsize = EM28XX_NUM_PACKETS * dev->max_pkt_size;
 
-	BUG_ON(NULL == fh->fmt);
+	/* BUG_ON(NULL == fh->fmt); */
 
 	/* FIXME: It assumes depth = 16 */
 	/* The only currently supported format is 16 bits/pixel */
-	buf->vb.size = 16 * fh->width * fh->height >> 3;
+	buf->vb.size = 16 * dev->width * dev->height >> 3;
 
 	if (0 != buf->vb.baddr  &&  buf->vb.bsize < buf->vb.size)
 		return -EINVAL;
 
 	if (buf->fmt       != fh->fmt    ||
-	    buf->vb.width  != fh->width  ||
-	    buf->vb.height != fh->height ||
+	    buf->vb.width  != dev->width  ||
+	    buf->vb.height != dev->height ||
 	    buf->vb.field  != field) {
 		buf->fmt       = fh->fmt;
-		buf->vb.width  = fh->width;
-		buf->vb.height = fh->height;
+		buf->vb.width  = dev->width;
+		buf->vb.height = dev->height;
 		buf->vb.field  = field;
 		buf->vb.state = VIDEOBUF_NEEDS_INIT;
 	}
 
 	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
-		if (0 != (rc = videobuf_iolock(vq,&buf->vb,NULL)))
+		rc = videobuf_iolock(vq, &buf->vb, NULL);
+		if (rc < 0)
 			goto fail;
-		urb_init=1;
 	}
-
 
 	if (!dev->isoc_ctl.num_bufs)
 		urb_init=1;
 
 	if (urb_init) {
-		rc = em28xx_prepare_isoc(dev, urbsize, EM28XX_NUM_BUFS);
+		rc = em28xx_prepare_isoc(dev, EM28XX_NUM_PACKETS, EM28XX_NUM_BUFS);
+		if (rc<0)
+			goto fail;
+
+		/* FIXME - should probably be done in response to STREAMON */
+		rc = em28xx_start_thread(vidq);
 		if (rc<0)
 			goto fail;
 	}
@@ -730,37 +689,10 @@ buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 	struct em28xx_fh        *fh      = vq->priv_data;
 	struct em28xx      *dev     = fh->dev;
 	struct em28xx_dmaqueue  *vidq    = &dev->vidq;
-	struct em28xx_buffer    *prev;
 
-	if (!list_empty(&vidq->queued)) {
-		list_add_tail(&buf->vb.queue,&vidq->queued);
-		buf->vb.state = VIDEOBUF_QUEUED;
-		em28xx_videodbg("[%p/%d] buffer_queue - append to queued\n",
-				buf, buf->vb.i);
-	} else if (list_empty(&vidq->active)) {
-		list_add_tail(&buf->vb.queue,&vidq->active);
-		buf->vb.state = VIDEOBUF_ACTIVE;
-		mod_timer(&vidq->timeout, jiffies+BUFFER_TIMEOUT);
-		em28xx_videodbg("[%p/%d] buffer_queue - first active\n",
-				buf, buf->vb.i);
-		em28xx_start_thread(vidq, buf);
-	} else {
-		prev = list_entry(vidq->active.prev, struct em28xx_buffer,
-				  vb.queue);
-		if (prev->vb.width  == buf->vb.width  &&
-		    prev->vb.height == buf->vb.height &&
-		    prev->fmt       == buf->fmt) {
-			list_add_tail(&buf->vb.queue,&vidq->active);
-			buf->vb.state = VIDEOBUF_ACTIVE;
-			em28xx_videodbg("[%p/%d] buffer_queue -"
-					" append to active\n", buf, buf->vb.i);
-		} else {
-			list_add_tail(&buf->vb.queue,&vidq->queued);
-			buf->vb.state = VIDEOBUF_QUEUED;
-			em28xx_videodbg("[%p/%d] buffer_queue - first queued\n",
-					buf, buf->vb.i);
-		}
-	}
+	buf->vb.state = VIDEOBUF_QUEUED;
+	list_add_tail(&buf->vb.queue, &vidq->active);
+
 }
 
 static void buffer_release(struct videobuf_queue *vq, struct videobuf_buffer *vb)
@@ -768,9 +700,8 @@ static void buffer_release(struct videobuf_queue *vq, struct videobuf_buffer *vb
 	struct em28xx_buffer   *buf  = container_of(vb,struct em28xx_buffer,vb);
 	struct em28xx_fh       *fh   = vq->priv_data;
 	struct em28xx          *dev  = (struct em28xx*)fh->dev;
-	struct em28xx_dmaqueue *vidq = &dev->vidq;
 
-	em28xx_stop_thread(vidq);
+	em28xx_isocdbg("em28xx: called buffer_release\n");
 
 	free_buffer(vq,buf);
 }
@@ -1068,6 +999,7 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
 
 	em28xx_set_alternate(dev);
+	em28xx_capture_start(dev, 1); /* ??? */
 	em28xx_resolution_set(dev);
 
 	mutex_unlock(&dev->lock);
@@ -1497,6 +1429,14 @@ static int vidioc_streamon(struct file *file, void *priv,
 	if (unlikely(res_get(fh) < 0))
 		return -EBUSY;
 
+	/* We can't do this from buffer_queue or anything called from
+	   there, since it's called with IRQs disabled and the spinlock held,
+	   and this uses USB functions that may sleep
+
+	   FIXME FIXME FIXME - putting this here means it may not always
+	   be called when it needs to be */
+	em28xx_capture_start(dev, 1);
+
 	return (videobuf_streamon(&fh->vb_vidq));
 }
 
@@ -1778,15 +1718,16 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 	int errCode = 0, radio = 0;
 	struct em28xx *h,*dev = NULL;
 	struct em28xx_fh *fh;
+	enum v4l2_buf_type fh_type = 0;
 
 	list_for_each_entry(h, &em28xx_devlist, devlist) {
 		if (h->vdev->minor == minor) {
 			dev  = h;
-			dev->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+			fh_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		}
 		if (h->vbi_dev->minor == minor) {
 			dev  = h;
-			dev->type = V4L2_BUF_TYPE_VBI_CAPTURE;
+			fh_type = V4L2_BUF_TYPE_VBI_CAPTURE;
 		}
 		if (h->radio_dev &&
 		    h->radio_dev->minor == minor) {
@@ -1798,7 +1739,7 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 		return -ENODEV;
 
 	em28xx_videodbg("open minor=%d type=%s users=%d\n",
-				minor,v4l2_type_names[dev->type],dev->users);
+				minor, v4l2_type_names[fh_type], dev->users);
 
 	fh = kzalloc(sizeof(struct em28xx_fh), GFP_KERNEL);
 
@@ -1809,9 +1750,10 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 	mutex_lock(&dev->lock);
 	fh->dev = dev;
 	fh->radio = radio;
+	fh->type = fh_type;
 	filp->private_data = fh;
 
-	if (dev->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && dev->users == 0) {
+	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && dev->users == 0) {
 		dev->width = norm_maxw(dev);
 		dev->height = norm_maxh(dev);
 		dev->frame_size = dev->width * dev->height * 2;
@@ -1911,6 +1853,9 @@ static int em28xx_v4l2_close(struct inode *inode, struct file *filp)
 			kfree(dev);
 			return 0;
 		}
+
+		/* do this before setting alternate! */
+		em28xx_uninit_isoc(dev);
 
 		/* set alternate 0 */
 		dev->alt = 0;
@@ -2178,7 +2123,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 
 	dev->udev = udev;
 	mutex_init(&dev->lock);
-	spin_lock_init(&dev->queue_lock);
+	spin_lock_init(&dev->slock);
 	init_waitqueue_head(&dev->open);
 	init_waitqueue_head(&dev->wait_frame);
 	init_waitqueue_head(&dev->wait_stream);
