@@ -358,6 +358,7 @@ static int s5h1420_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend
 static struct s5h1420_config s5h1420_config = {
 	.demod_address = 0x53,
 	.invert = 1,
+	.cdclk_polarity = 1,
 };
 
 static struct tda10086_config tda10086_config = {
