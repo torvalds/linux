@@ -266,7 +266,7 @@ static inline void print_err_status(struct em28xx *dev,
 /*
  * video-buf generic routine to get the next available buffer
  */
-static inline int get_next_buf(struct em28xx_dmaqueue *dma_q,
+static inline void get_next_buf(struct em28xx_dmaqueue *dma_q,
 					  struct em28xx_buffer **buf)
 {
 	struct em28xx *dev = container_of(dma_q, struct em28xx, vidq);
@@ -275,30 +275,12 @@ static inline int get_next_buf(struct em28xx_dmaqueue *dma_q,
 	if (list_empty(&dma_q->active)) {
 		em28xx_isocdbg("No active queue to serve\n");
 		dev->isoc_ctl.buf = NULL;
-		return 0;
-	}
-
-	/* Check if the last buffer were fully filled */
-	*buf = dev->isoc_ctl.buf;
-
-	/* Nobody is waiting on this buffer - discards */
-	if (*buf && !waitqueue_active(&(*buf)->vb.done)) {
-		dev->isoc_ctl.buf = NULL;
 		*buf = NULL;
+		return;
 	}
-
-	/* Returns the last buffer, to be filled with remaining data */
-	if (*buf)
-		return 1;
 
 	/* Get the next buffer */
 	*buf = list_entry(dma_q->active.next, struct em28xx_buffer, vb.queue);
-
-	/* Nobody is waiting on the next buffer. returns */
-	if (!*buf || !waitqueue_active(&(*buf)->vb.done)) {
-		em28xx_isocdbg("No active queue to serve\n");
-		return 0;
-	}
 
 	/* Cleans up buffer - Usefull for testing for frame/URB loss */
 	outp = videobuf_to_vmalloc(&(*buf)->vb);
@@ -306,7 +288,7 @@ static inline int get_next_buf(struct em28xx_dmaqueue *dma_q,
 
 	dev->isoc_ctl.buf = *buf;
 
-	return 1;
+	return;
 }
 
 /*
@@ -317,7 +299,7 @@ static inline int em28xx_isoc_copy(struct urb *urb)
 	struct em28xx_buffer    *buf;
 	struct em28xx_dmaqueue  *dma_q = urb->context;
 	struct em28xx *dev = container_of(dma_q, struct em28xx, vidq);
-	unsigned char *outp;
+	unsigned char *outp = NULL;
 	int i, len = 0, rc = 1;
 	unsigned char *p;
 
@@ -333,11 +315,9 @@ static inline int em28xx_isoc_copy(struct urb *urb)
 			return 0;
 	}
 
-	rc = get_next_buf(dma_q, &buf);
-	if (rc <= 0)
-		return rc;
-
-	outp = videobuf_to_vmalloc(&buf->vb);
+	buf = dev->isoc_ctl.buf;
+	if (buf != NULL)
+		outp = videobuf_to_vmalloc(&buf->vb);
 
 	for (i = 0; i < urb->number_of_packets; i++) {
 		int status = urb->iso_frame_desc[i].status;
@@ -374,24 +354,27 @@ static inline int em28xx_isoc_copy(struct urb *urb)
 			em28xx_isocdbg("Video frame %d, length=%i, %s\n", p[2],
 				       len, (p[2] & 1)? "odd" : "even");
 
-			if (p[2] & 1)
-				buf->top_field = 0;
-			else
-				buf->top_field = 1;
-
-//			if (dev->isoc_ctl.last_field && !buf->top_field) {
-			if (dev->isoc_ctl.last_field != buf->top_field) {
-				buffer_filled(dev, dma_q, buf);
-				rc = get_next_buf(dma_q, &buf);
-				if (rc <= 0)
-					return rc;
-				outp = videobuf_to_vmalloc(&buf->vb);
+			if (!(p[2] & 1)) {
+				if (buf != NULL)
+					buffer_filled(dev, dma_q, buf);
+				get_next_buf(dma_q, &buf);
+				if (buf == NULL)
+					outp = NULL;
+				else
+					outp = videobuf_to_vmalloc(&buf->vb);
 			}
-			dev->isoc_ctl.last_field =  buf->top_field;
+
+			if (buf != NULL) {
+				if (p[2] & 1)
+					buf->top_field = 0;
+				else
+					buf->top_field = 1;
+			}
 
 			dma_q->pos = 0;
 		}
-		em28xx_copy_video(dev, dma_q, buf, p, outp, len);
+		if (buf != NULL)
+			em28xx_copy_video(dev, dma_q, buf, p, outp, len);
 	}
 	return rc;
 }
@@ -597,12 +580,29 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 	return 0;
 }
 
+/* This is called *without* dev->slock held; please keep it that way */
 static void free_buffer(struct videobuf_queue *vq, struct em28xx_buffer *buf)
 {
+	struct em28xx_fh     *fh  = vq->priv_data;
+	struct em28xx        *dev = fh->dev;
+	unsigned long flags = 0;
 	if (in_interrupt())
 		BUG();
 
-	videobuf_waiton(&buf->vb, 0, 0);
+	/* We used to wait for the buffer to finish here, but this didn't work
+	   because, as we were keeping the state as VIDEOBUF_QUEUED,
+	   videobuf_queue_cancel marked it as finished for us.
+	   (Also, it could wedge forever if the hardware was misconfigured.)
+
+	   This should be safe; by the time we get here, the buffer isn't
+	   queued anymore. If we ever start marking the buffers as
+	   VIDEOBUF_ACTIVE, it won't be, though.
+	*/
+	spin_lock_irqsave(&dev->slock, flags);
+	if (dev->isoc_ctl.buf == buf)
+		dev->isoc_ctl.buf = NULL;
+	spin_unlock_irqrestore(&dev->slock, flags);
+
 	videobuf_vmalloc_free(&buf->vb);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
