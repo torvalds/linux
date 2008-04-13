@@ -110,8 +110,9 @@ static int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
 		spin_lock_bh(&sctp_local_addr_lock);
 		list_for_each_entry_safe(addr, temp,
 					&sctp_local_addr_list, list) {
-			if (ipv6_addr_equal(&addr->a.v6.sin6_addr,
-					     &ifa->addr)) {
+			if (addr->a.sa.sa_family == AF_INET6 &&
+					ipv6_addr_equal(&addr->a.v6.sin6_addr,
+						&ifa->addr)) {
 				found = 1;
 				addr->valid = 0;
 				list_del_rcu(&addr->list);

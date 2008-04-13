@@ -647,7 +647,9 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
 		spin_lock_bh(&sctp_local_addr_lock);
 		list_for_each_entry_safe(addr, temp,
 					&sctp_local_addr_list, list) {
-			if (addr->a.v4.sin_addr.s_addr == ifa->ifa_local) {
+			if (addr->a.sa.sa_family == AF_INET &&
+					addr->a.v4.sin_addr.s_addr ==
+					ifa->ifa_local) {
 				found = 1;
 				addr->valid = 0;
 				list_del_rcu(&addr->list);
