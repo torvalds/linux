@@ -63,8 +63,6 @@ MODULE_PARM_DESC(isoc_debug, "enable debug messages [isoc transfers]");
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __func__ , ##arg); } while (0)
 
-#define BUFFER_TIMEOUT     msecs_to_jiffies(2000)  /* 2 seconds */
-
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
 #define EM28XX_DEF_BUF 8
@@ -133,8 +131,6 @@ static inline void buffer_filled(struct em28xx *dev,
 				  struct em28xx_dmaqueue *dma_q,
 				  struct em28xx_buffer *buf)
 {
-	mod_timer(&dma_q->timeout, jiffies + BUFFER_TIMEOUT);
-
 	/* Advice that buffer was filled */
 	em28xx_isocdbg("[%p/%d] wakeup\n", buf, buf->vb.i);
 	buf->vb.state = VIDEOBUF_DONE;
@@ -445,7 +441,6 @@ static void em28xx_uninit_isoc(struct em28xx *dev)
 
 	dev->isoc_ctl.num_bufs = 0;
 
-	del_timer(&dev->vidq.timeout);
 	em28xx_capture_start(dev, 0);
 }
 
@@ -558,28 +553,6 @@ static int em28xx_start_thread(struct em28xx_dmaqueue  *dma_q)
 		return rc;
 
 	return 0;
-}
-
-static void em28xx_vid_timeout(unsigned long data)
-{
-	struct em28xx      *dev  = (struct em28xx *)data;
-	struct em28xx_dmaqueue *vidq = &dev->vidq;
-	struct em28xx_buffer   *buf;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->slock, flags);
-
-	list_for_each_entry(buf, vidq->active.next, vb.queue) {
-		list_del(&buf->vb.queue);
-		buf->vb.state = VIDEOBUF_ERROR;
-		wake_up(&buf->vb.done);
-		em28xx_videodbg("em28xx/0: [%p/%d] timeout\n",
-				buf, buf->vb.i);
-	}
-	/* Instead of trying to restart, just sets timeout again */
-	mod_timer(&vidq->timeout, jiffies + BUFFER_TIMEOUT);
-
-	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
 /* ------------------------------------------------------------------
@@ -2211,10 +2184,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
 	INIT_LIST_HEAD(&dev->vidq.queued);
-
-	dev->vidq.timeout.function = em28xx_vid_timeout;
-	dev->vidq.timeout.data     = (unsigned long)dev;
-	init_timer(&dev->vidq.timeout);
 
 
 	if (dev->has_msp34xx) {

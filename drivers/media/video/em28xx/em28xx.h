@@ -138,7 +138,6 @@ struct em28xx_buffer {
 struct em28xx_dmaqueue {
 	struct list_head       active;
 	struct list_head       queued;
-	struct timer_list      timeout;
 
 	wait_queue_head_t          wq;
 
