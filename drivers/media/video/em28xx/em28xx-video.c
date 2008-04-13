@@ -270,19 +270,39 @@ static inline int get_next_buf(struct em28xx_dmaqueue *dma_q,
 					  struct em28xx_buffer **buf)
 {
 	struct em28xx *dev = container_of(dma_q, struct em28xx, vidq);
+	char *outp;
 
-	/* If the previous buffer were not filled yet, continue */
+	if (list_empty(&dma_q->active)) {
+		em28xx_isocdbg("No active queue to serve\n");
+		dev->isoc_ctl.buf = NULL;
+		return 0;
+	}
+
+	/* Check if the last buffer were fully filled */
 	*buf = dev->isoc_ctl.buf;
+
+	/* Nobody is waiting on this buffer - discards */
+	if (*buf && !waitqueue_active(&(*buf)->vb.done)) {
+		dev->isoc_ctl.buf = NULL;
+		*buf = NULL;
+	}
+
+	/* Returns the last buffer, to be filled with remaining data */
 	if (*buf)
 		return 1;
 
-	if (list_empty(&dma_q->active)) {
+	/* Get the next buffer */
+	*buf = list_entry(dma_q->active.next, struct em28xx_buffer, vb.queue);
+
+	/* Nobody is waiting on the next buffer. returns */
+	if (!*buf || !waitqueue_active(&(*buf)->vb.done)) {
 		em28xx_isocdbg("No active queue to serve\n");
 		return 0;
 	}
 
-	*buf = list_entry(dma_q->active.next, struct em28xx_buffer, vb.queue);
-
+	/* Cleans up buffer - Usefull for testing for frame/URB loss */
+	outp = videobuf_to_vmalloc(&(*buf)->vb);
+	memset(outp, 0, (*buf)->vb.size);
 
 	dev->isoc_ctl.buf = *buf;
 
@@ -387,12 +407,11 @@ static void em28xx_irq_callback(struct urb *urb)
 	struct em28xx_dmaqueue  *dma_q = urb->context;
 	struct em28xx *dev = container_of(dma_q, struct em28xx, vidq);
 	int rc, i;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->slock, flags);
 
 	/* Copy data from URB */
+	spin_lock(&dev->slock);
 	rc = em28xx_isoc_copy(urb);
+	spin_unlock(&dev->slock);
 
 	/* Reset urb buffers */
 	for (i = 0; i < urb->number_of_packets; i++) {
@@ -406,8 +425,6 @@ static void em28xx_irq_callback(struct urb *urb)
 		em28xx_err("urb resubmit failed (error=%i)\n",
 			urb->status);
 	}
-
-	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
 /*
