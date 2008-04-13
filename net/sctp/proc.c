@@ -322,8 +322,7 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 		sk = epb->sk;
 		seq_printf(seq,
 			   "%8p %8p %-3d %-3d %-2d %-4d "
-			   "%4d %8d %8d %7d %5lu %-5d %5d "
-			   "%8lu %5d %5d %4d %4d %4d %8d ",
+			   "%4d %8d %8d %7d %5lu %-5d %5d ",
 			   assoc, sk, sctp_sk(sk)->type, sk->sk_state,
 			   assoc->state, hash,
 			   assoc->assoc_id,
@@ -331,15 +330,16 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 			   atomic_read(&assoc->rmem_alloc),
 			   sock_i_uid(sk), sock_i_ino(sk),
 			   epb->bind_addr.port,
-			   assoc->peer.port,
-			   assoc->hbinterval, assoc->c.sinit_max_instreams,
-			   assoc->c.sinit_num_ostreams, assoc->max_retrans,
-			   assoc->init_retries, assoc->shutdown_retries,
-			   assoc->rtx_data_chunks);
+			   assoc->peer.port);
 		seq_printf(seq, " ");
 		sctp_seq_dump_local_addrs(seq, epb);
 		seq_printf(seq, "<-> ");
 		sctp_seq_dump_remote_addrs(seq, assoc);
+		seq_printf(seq, "\t%8lu %5d %5d %4d %4d %4d %8d ",
+			assoc->hbinterval, assoc->c.sinit_max_instreams,
+			assoc->c.sinit_num_ostreams, assoc->max_retrans,
+			assoc->init_retries, assoc->shutdown_retries,
+			assoc->rtx_data_chunks);
 		seq_printf(seq, "\n");
 	}
 	read_unlock(&head->lock);
