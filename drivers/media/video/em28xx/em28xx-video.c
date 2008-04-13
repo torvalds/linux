@@ -452,6 +452,7 @@ static void em28xx_uninit_isoc(struct em28xx *dev)
 
 	dev->isoc_ctl.num_bufs=0;
 
+	del_timer(&dev->vidq.timeout);
 	em28xx_capture_start(dev, 0);
 }
 
@@ -575,9 +576,8 @@ static void em28xx_vid_timeout(unsigned long data)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->slock,flags);
-	while (!list_empty(&vidq->active)) {
-		buf = list_entry(vidq->active.next, struct em28xx_buffer,
-								 vb.queue);
+
+	list_for_each_entry(buf, vidq->active.next, vb.queue) {
 		list_del(&buf->vb.queue);
 		buf->vb.state = VIDEOBUF_ERROR;
 		wake_up(&buf->vb.done);
