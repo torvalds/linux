@@ -157,12 +157,13 @@ static struct clk pxa27x_clks[] = {
 	INIT_CKEN("SSPCLK", SSP1, 13000000, 0, &pxa27x_device_ssp1.dev),
 	INIT_CKEN("SSPCLK", SSP2, 13000000, 0, &pxa27x_device_ssp2.dev),
 	INIT_CKEN("SSPCLK", SSP3, 13000000, 0, &pxa27x_device_ssp3.dev),
+	INIT_CKEN("PWMCLK", PWM0, 13000000, 0, &pxa27x_device_pwm0.dev),
+	INIT_CKEN("PWMCLK", PWM1, 13000000, 0, &pxa27x_device_pwm1.dev),
 
 	INIT_CKEN("AC97CLK",     AC97,     24576000, 0, NULL),
 	INIT_CKEN("AC97CONFCLK", AC97CONF, 24576000, 0, NULL),
 
 	/*
-	INIT_CKEN("PWMCLK",  PWM0, 13000000, 0, NULL),
 	INIT_CKEN("MSLCLK",  MSL,  48000000, 0, NULL),
 	INIT_CKEN("USIMCLK", USIM, 48000000, 0, NULL),
 	INIT_CKEN("MSTKCLK", MEMSTK, 19500000, 0, NULL),
@@ -363,6 +364,8 @@ static struct platform_device *devices[] __initdata = {
 	&pxa27x_device_ssp1,
 	&pxa27x_device_ssp2,
 	&pxa27x_device_ssp3,
+	&pxa27x_device_pwm0,
+	&pxa27x_device_pwm1,
 };
 
 static struct sys_device pxa27x_sysdev[] = {

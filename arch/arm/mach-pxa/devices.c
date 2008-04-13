@@ -280,6 +280,36 @@ struct platform_device pxa_device_rtc = {
 
 #ifdef CONFIG_PXA25x
 
+static struct resource pxa25x_resource_pwm0[] = {
+	[0] = {
+		.start	= 0x40b00000,
+		.end	= 0x40b0000f,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device pxa25x_device_pwm0 = {
+	.name		= "pxa25x-pwm",
+	.id		= 0,
+	.resource	= pxa25x_resource_pwm0,
+	.num_resources	= ARRAY_SIZE(pxa25x_resource_pwm0),
+};
+
+static struct resource pxa25x_resource_pwm1[] = {
+	[0] = {
+		.start	= 0x40c00000,
+		.end	= 0x40c0000f,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device pxa25x_device_pwm1 = {
+	.name		= "pxa25x-pwm",
+	.id		= 1,
+	.resource	= pxa25x_resource_pwm1,
+	.num_resources	= ARRAY_SIZE(pxa25x_resource_pwm1),
+};
+
 static u64 pxa25x_ssp_dma_mask = DMA_BIT_MASK(32);
 
 static struct resource pxa25x_resource_ssp[] = {
@@ -566,6 +596,36 @@ struct platform_device pxa27x_device_ssp3 = {
 	},
 	.resource	= pxa27x_resource_ssp3,
 	.num_resources	= ARRAY_SIZE(pxa27x_resource_ssp3),
+};
+
+static struct resource pxa27x_resource_pwm0[] = {
+	[0] = {
+		.start	= 0x40b00000,
+		.end	= 0x40b0001f,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device pxa27x_device_pwm0 = {
+	.name		= "pxa27x-pwm",
+	.id		= 0,
+	.resource	= pxa27x_resource_pwm0,
+	.num_resources	= ARRAY_SIZE(pxa27x_resource_pwm0),
+};
+
+static struct resource pxa27x_resource_pwm1[] = {
+	[0] = {
+		.start	= 0x40c00000,
+		.end	= 0x40c0001f,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device pxa27x_device_pwm1 = {
+	.name		= "pxa27x-pwm",
+	.id		= 1,
+	.resource	= pxa27x_resource_pwm1,
+	.num_resources	= ARRAY_SIZE(pxa27x_resource_pwm1),
 };
 
 static struct resource pxa27x_resource_camera[] = {

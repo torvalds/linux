@@ -273,4 +273,9 @@ config PXA_SSP
 	tristate
 	help
 	  Enable support for PXA2xx SSP ports
+
+config PXA_PWM
+	tristate
+	help
+	  Enable support for PXA2xx/PXA3xx PWM controllers
 endif
