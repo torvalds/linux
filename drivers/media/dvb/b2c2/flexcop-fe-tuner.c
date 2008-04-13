@@ -19,6 +19,9 @@
 #include "dvb-pll.h"
 #include "tuner-simple.h"
 
+#include "s5h1420.h"
+#include "itd1000.h"
+
 #include "cx24123.h"
 #include "cx24113.h"
 
@@ -482,6 +485,18 @@ static struct stv0297_config alps_tdee4_stv0297_config = {
 };
 
 
+/* SkyStar2 rev2.7 (a/u) */
+static struct s5h1420_config skystar2_rev2_7_s5h1420_config = {
+	.demod_address = 0x53,
+	.invert = 1,
+	.repeated_start_workaround = 1,
+};
+
+static struct itd1000_config skystar2_rev2_7_itd1000_config = {
+	.i2c_address = 0x61,
+};
+
+/* SkyStar2 rev2.8 */
 static struct cx24123_config skystar2_rev2_8_cx24123_config = {
 	.demod_address = 0x55,
 	.dont_use_pll = 1,
@@ -499,6 +514,39 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 	struct dvb_frontend_ops *ops;
 	struct i2c_adapter *i2c = &fc->fc_i2c_adap[0].i2c_adap;
 	struct i2c_adapter *i2c_tuner;
+
+	/* enable no_base_addr - no repeated start when reading */
+	fc->fc_i2c_adap[0].no_base_addr = 1;
+	fc->fe = dvb_attach(s5h1420_attach, &skystar2_rev2_7_s5h1420_config, i2c);
+	if (fc->fe != NULL) {
+		flexcop_ibi_value r108;
+		i2c_tuner = s5h1420_get_tuner_i2c_adapter(fc->fe);
+		ops = &fc->fe->ops;
+
+		fc->fe_sleep = ops->sleep;
+		ops->sleep   = flexcop_sleep;
+
+		fc->dev_type = FC_SKY_REV27;
+
+		/* enable no_base_addr - no repeated start when reading */
+		fc->fc_i2c_adap[2].no_base_addr = 1;
+		if (dvb_attach(isl6421_attach, fc->fe, &fc->fc_i2c_adap[2].i2c_adap, 0x08, 1, 1) == NULL)
+			err("ISL6421 could NOT be attached");
+		else
+			info("ISL6421 successfully attached");
+
+		/* the ITD1000 requires a lower i2c clock - it slows down the stuff for everyone - but is it a problem ? */
+		r108.raw = 0x00000506;
+		fc->write_ibi_reg(fc, tw_sm_c_108, r108);
+		if (i2c_tuner) {
+			if (dvb_attach(itd1000_attach, fc->fe, i2c_tuner, &skystar2_rev2_7_itd1000_config) == NULL)
+				err("ITD1000 could NOT be attached");
+			else
+				info("ITD1000 successfully attached");
+		}
+		goto fe_found;
+	}
+	fc->fc_i2c_adap[0].no_base_addr = 0; /* for the next devices we need it again */
 
 	/* try the sky v2.8 (cx24123, isl6421) */
 	fc->fe = dvb_attach(cx24123_attach,
