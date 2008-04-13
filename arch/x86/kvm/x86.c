@@ -2433,11 +2433,11 @@ int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 	++vcpu->stat.halt_exits;
 	KVMTRACE_0D(HLT, vcpu, handler);
 	if (irqchip_in_kernel(vcpu->kvm)) {
-		vcpu->arch.mp_state = VCPU_MP_STATE_HALTED;
+		vcpu->arch.mp_state = KVM_MP_STATE_HALTED;
 		up_read(&vcpu->kvm->slots_lock);
 		kvm_vcpu_block(vcpu);
 		down_read(&vcpu->kvm->slots_lock);
-		if (vcpu->arch.mp_state != VCPU_MP_STATE_RUNNABLE)
+		if (vcpu->arch.mp_state != KVM_MP_STATE_RUNNABLE)
 			return -EINTR;
 		return 1;
 	} else {
@@ -2726,14 +2726,14 @@ static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	int r;
 
-	if (unlikely(vcpu->arch.mp_state == VCPU_MP_STATE_SIPI_RECEIVED)) {
+	if (unlikely(vcpu->arch.mp_state == KVM_MP_STATE_SIPI_RECEIVED)) {
 		pr_debug("vcpu %d received sipi with vector # %x\n",
 		       vcpu->vcpu_id, vcpu->arch.sipi_vector);
 		kvm_lapic_reset(vcpu);
 		r = kvm_x86_ops->vcpu_reset(vcpu);
 		if (r)
 			return r;
-		vcpu->arch.mp_state = VCPU_MP_STATE_RUNNABLE;
+		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 	}
 
 	down_read(&vcpu->kvm->slots_lock);
@@ -2891,7 +2891,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	vcpu_load(vcpu);
 
-	if (unlikely(vcpu->arch.mp_state == VCPU_MP_STATE_UNINITIALIZED)) {
+	if (unlikely(vcpu->arch.mp_state == KVM_MP_STATE_UNINITIALIZED)) {
 		kvm_vcpu_block(vcpu);
 		vcpu_put(vcpu);
 		return -EAGAIN;
@@ -3794,9 +3794,9 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.mmu.root_hpa = INVALID_PAGE;
 	if (!irqchip_in_kernel(kvm) || vcpu->vcpu_id == 0)
-		vcpu->arch.mp_state = VCPU_MP_STATE_RUNNABLE;
+		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 	else
-		vcpu->arch.mp_state = VCPU_MP_STATE_UNINITIALIZED;
+		vcpu->arch.mp_state = KVM_MP_STATE_UNINITIALIZED;
 
 	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!page) {
@@ -3936,8 +3936,8 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.mp_state == VCPU_MP_STATE_RUNNABLE
-	       || vcpu->arch.mp_state == VCPU_MP_STATE_SIPI_RECEIVED;
+	return vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE
+	       || vcpu->arch.mp_state == KVM_MP_STATE_SIPI_RECEIVED;
 }
 
 static void vcpu_kick_intr(void *info)

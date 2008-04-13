@@ -318,10 +318,10 @@ struct kvm_vcpu_arch {
 	int vmm_tr_slot;
 	int vm_tr_slot;
 
-#define VCPU_MP_STATE_RUNNABLE          0
-#define VCPU_MP_STATE_UNINITIALIZED     1
-#define VCPU_MP_STATE_INIT_RECEIVED     2
-#define VCPU_MP_STATE_HALTED            3
+#define KVM_MP_STATE_RUNNABLE          0
+#define KVM_MP_STATE_UNINITIALIZED     1
+#define KVM_MP_STATE_INIT_RECEIVED     2
+#define KVM_MP_STATE_HALTED            3
 	int mp_state;
 
 #define MAX_PTC_G_NUM			3

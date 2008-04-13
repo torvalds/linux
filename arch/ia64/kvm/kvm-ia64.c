@@ -340,7 +340,7 @@ static int handle_ipi(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		regs->cr_iip = vcpu->kvm->arch.rdv_sal_data.boot_ip;
 		regs->r1 = vcpu->kvm->arch.rdv_sal_data.boot_gp;
 
-		target_vcpu->arch.mp_state = VCPU_MP_STATE_RUNNABLE;
+		target_vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 		if (waitqueue_active(&target_vcpu->wq))
 			wake_up_interruptible(&target_vcpu->wq);
 	} else {
@@ -386,7 +386,7 @@ static int handle_global_purge(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	for (i = 0; i < KVM_MAX_VCPUS; i++) {
 		if (!kvm->vcpus[i] || kvm->vcpus[i]->arch.mp_state ==
-						VCPU_MP_STATE_UNINITIALIZED ||
+						KVM_MP_STATE_UNINITIALIZED ||
 					vcpu == kvm->vcpus[i])
 			continue;
 
@@ -437,12 +437,12 @@ int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 	hrtimer_start(p_ht, kt, HRTIMER_MODE_ABS);
 
 	if (irqchip_in_kernel(vcpu->kvm)) {
-		vcpu->arch.mp_state = VCPU_MP_STATE_HALTED;
+		vcpu->arch.mp_state = KVM_MP_STATE_HALTED;
 		kvm_vcpu_block(vcpu);
 		hrtimer_cancel(p_ht);
 		vcpu->arch.ht_active = 0;
 
-		if (vcpu->arch.mp_state != VCPU_MP_STATE_RUNNABLE)
+		if (vcpu->arch.mp_state != KVM_MP_STATE_RUNNABLE)
 			return -EINTR;
 		return 1;
 	} else {
@@ -668,7 +668,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	vcpu_load(vcpu);
 
-	if (unlikely(vcpu->arch.mp_state == VCPU_MP_STATE_UNINITIALIZED)) {
+	if (unlikely(vcpu->arch.mp_state == KVM_MP_STATE_UNINITIALIZED)) {
 		kvm_vcpu_block(vcpu);
 		vcpu_put(vcpu);
 		return -EAGAIN;
@@ -1127,12 +1127,12 @@ static enum hrtimer_restart hlt_timer_fn(struct hrtimer *data)
 	wait_queue_head_t *q;
 
 	vcpu  = container_of(data, struct kvm_vcpu, arch.hlt_timer);
-	if (vcpu->arch.mp_state != VCPU_MP_STATE_HALTED)
+	if (vcpu->arch.mp_state != KVM_MP_STATE_HALTED)
 		goto out;
 
 	q = &vcpu->wq;
 	if (waitqueue_active(q)) {
-		vcpu->arch.mp_state = VCPU_MP_STATE_RUNNABLE;
+		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 		wake_up_interruptible(q);
 	}
 out:
@@ -1159,7 +1159,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 		return PTR_ERR(vmm_vcpu);
 
 	if (vcpu->vcpu_id == 0) {
-		vcpu->arch.mp_state = VCPU_MP_STATE_RUNNABLE;
+		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 
 		/*Set entry address for first run.*/
 		regs->cr_iip = PALE_RESET_ENTRY;
@@ -1172,7 +1172,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 			v->arch.last_itc = 0;
 		}
 	} else
-		vcpu->arch.mp_state = VCPU_MP_STATE_UNINITIALIZED;
+		vcpu->arch.mp_state = KVM_MP_STATE_UNINITIALIZED;
 
 	r = -ENOMEM;
 	vcpu->arch.apic = kzalloc(sizeof(struct kvm_lapic), GFP_KERNEL);
@@ -1704,10 +1704,10 @@ int kvm_apic_set_irq(struct kvm_vcpu *vcpu, u8 vec, u8 trig)
 
 	if (!test_and_set_bit(vec, &vpd->irr[0])) {
 		vcpu->arch.irq_new_pending = 1;
-		 if (vcpu->arch.mp_state == VCPU_MP_STATE_RUNNABLE)
+		 if (vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE)
 			kvm_vcpu_kick(vcpu);
-		else if (vcpu->arch.mp_state == VCPU_MP_STATE_HALTED) {
-			vcpu->arch.mp_state = VCPU_MP_STATE_RUNNABLE;
+		else if (vcpu->arch.mp_state == KVM_MP_STATE_HALTED) {
+			vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 			if (waitqueue_active(&vcpu->wq))
 				wake_up_interruptible(&vcpu->wq);
 		}
@@ -1790,5 +1790,5 @@ gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.mp_state == VCPU_MP_STATE_RUNNABLE;
+	return vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE;
 }

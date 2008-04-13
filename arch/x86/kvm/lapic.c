@@ -338,10 +338,10 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		} else
 			apic_clear_vector(vector, apic->regs + APIC_TMR);
 
-		if (vcpu->arch.mp_state == VCPU_MP_STATE_RUNNABLE)
+		if (vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE)
 			kvm_vcpu_kick(vcpu);
-		else if (vcpu->arch.mp_state == VCPU_MP_STATE_HALTED) {
-			vcpu->arch.mp_state = VCPU_MP_STATE_RUNNABLE;
+		else if (vcpu->arch.mp_state == KVM_MP_STATE_HALTED) {
+			vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 			if (waitqueue_active(&vcpu->wq))
 				wake_up_interruptible(&vcpu->wq);
 		}
@@ -362,11 +362,11 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 
 	case APIC_DM_INIT:
 		if (level) {
-			if (vcpu->arch.mp_state == VCPU_MP_STATE_RUNNABLE)
+			if (vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE)
 				printk(KERN_DEBUG
 				       "INIT on a runnable vcpu %d\n",
 				       vcpu->vcpu_id);
-			vcpu->arch.mp_state = VCPU_MP_STATE_INIT_RECEIVED;
+			vcpu->arch.mp_state = KVM_MP_STATE_INIT_RECEIVED;
 			kvm_vcpu_kick(vcpu);
 		} else {
 			printk(KERN_DEBUG
@@ -379,9 +379,9 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 	case APIC_DM_STARTUP:
 		printk(KERN_DEBUG "SIPI to vcpu %d vector 0x%02x\n",
 		       vcpu->vcpu_id, vector);
-		if (vcpu->arch.mp_state == VCPU_MP_STATE_INIT_RECEIVED) {
+		if (vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED) {
 			vcpu->arch.sipi_vector = vector;
-			vcpu->arch.mp_state = VCPU_MP_STATE_SIPI_RECEIVED;
+			vcpu->arch.mp_state = KVM_MP_STATE_SIPI_RECEIVED;
 			if (waitqueue_active(&vcpu->wq))
 				wake_up_interruptible(&vcpu->wq);
 		}
@@ -940,7 +940,7 @@ static int __apic_timer_fn(struct kvm_lapic *apic)
 
 	atomic_inc(&apic->timer.pending);
 	if (waitqueue_active(q)) {
-		apic->vcpu->arch.mp_state = VCPU_MP_STATE_RUNNABLE;
+		apic->vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 		wake_up_interruptible(q);
 	}
 	if (apic_lvtt_period(apic)) {

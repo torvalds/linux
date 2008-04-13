@@ -202,7 +202,7 @@ int __pit_timer_fn(struct kvm_kpit_state *ps)
 	smp_mb__after_atomic_inc();
 	/* FIXME: handle case where the guest is in guest mode */
 	if (vcpu0 && waitqueue_active(&vcpu0->wq)) {
-		vcpu0->arch.mp_state = VCPU_MP_STATE_RUNNABLE;
+		vcpu0->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 		wake_up_interruptible(&vcpu0->wq);
 	}
 
