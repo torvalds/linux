@@ -2037,7 +2037,7 @@ static void *unix_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(unix_table_lock)
 {
 	spin_lock(&unix_table_lock);
-	return *pos ? unix_seq_idx(seq, *pos - 1) : ((void *) 1);
+	return *pos ? unix_seq_idx(seq, *pos - 1) : SEQ_START_TOKEN;
 }
 
 static void *unix_seq_next(struct seq_file *seq, void *v, loff_t *pos)
@@ -2046,7 +2046,7 @@ static void *unix_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	struct sock *sk = v;
 	++*pos;
 
-	if (v == (void *)1)
+	if (v == SEQ_START_TOKEN)
 		sk = first_unix_socket(&iter->i);
 	else
 		sk = next_unix_socket(&iter->i, sk);
@@ -2064,7 +2064,7 @@ static void unix_seq_stop(struct seq_file *seq, void *v)
 static int unix_seq_show(struct seq_file *seq, void *v)
 {
 
-	if (v == (void *)1)
+	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, "Num       RefCount Protocol Flags    Type St "
 			 "Inode Path\n");
 	else {
