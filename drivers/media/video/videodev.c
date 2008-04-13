@@ -25,7 +25,7 @@
 
 #define dbgarg2(fmt, arg...) \
 		if (vfd->debug & V4L2_DEBUG_IOCTL_ARG)			\
-			printk (KERN_DEBUG "%s: " fmt, vfd->name, ## arg);
+			printk(KERN_DEBUG "%s: " fmt, vfd->name, ## arg);
 
 #include <linux/module.h>
 #include <linux/types.h>
@@ -781,6 +781,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	if ( (vfd->debug & V4L2_DEBUG_IOCTL) &&
 				!(vfd->debug & V4L2_DEBUG_IOCTL_ARG)) {
 		v4l_print_ioctl(vfd->name, cmd);
+		printk("\n");
 	}
 
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
@@ -1864,8 +1865,9 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 
 	if (vfd->debug & V4L2_DEBUG_IOCTL_ARG) {
 		if (ret<0) {
-			printk ("%s: err:\n", vfd->name);
+			printk("%s: err: on ", vfd->name);
 			v4l_print_ioctl(vfd->name, cmd);
+			printk("\n");
 		}
 	}
 
