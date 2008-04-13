@@ -209,14 +209,12 @@ __irq_svc:
 
 	irq_handler
 #ifdef CONFIG_PREEMPT
+	str	r8, [tsk, #TI_PREEMPT]		@ restore preempt count
 	ldr	r0, [tsk, #TI_FLAGS]		@ get flags
+	teq	r8, #0				@ if preempt count != 0
+	movne	r0, #0				@ force flags to 0
 	tst	r0, #_TIF_NEED_RESCHED
 	blne	svc_preempt
-preempt_return:
-	ldr	r0, [tsk, #TI_PREEMPT]		@ read preempt value
-	str	r8, [tsk, #TI_PREEMPT]		@ restore preempt count
-	teq	r0, r7
-	strne	r0, [r0, -r0]			@ bug()
 #endif
 	ldr	r0, [sp, #S_PSR]		@ irqs are already disabled
 	msr	spsr_cxsf, r0
@@ -230,19 +228,11 @@ preempt_return:
 
 #ifdef CONFIG_PREEMPT
 svc_preempt:
-	teq	r8, #0				@ was preempt count = 0
-	ldreq	r6, .LCirq_stat
-	movne	pc, lr				@ no
-	ldr	r0, [r6, #4]			@ local_irq_count
-	ldr	r1, [r6, #8]			@ local_bh_count
-	adds	r0, r0, r1
-	movne	pc, lr
-	mov	r7, #0				@ preempt_schedule_irq
-	str	r7, [tsk, #TI_PREEMPT]		@ expects preempt_count == 0
+	mov	r8, lr
 1:	bl	preempt_schedule_irq		@ irq en/disable is done inside
 	ldr	r0, [tsk, #TI_FLAGS]		@ get new tasks TI_FLAGS
 	tst	r0, #_TIF_NEED_RESCHED
-	beq	preempt_return			@ go again
+	moveq	pc, r8				@ go again
 	b	1b
 #endif
 
@@ -326,10 +316,6 @@ __pabt_svc:
 #endif
 .LCfp:
 	.word	fp_enter
-#ifdef CONFIG_PREEMPT
-.LCirq_stat:
-	.word	irq_stat
-#endif
 
 /*
  * User mode handlers
