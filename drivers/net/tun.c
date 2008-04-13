@@ -286,8 +286,11 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 			return -EFAULT;
 	}
 
-	if ((tun->flags & TUN_TYPE_MASK) == TUN_TAP_DEV)
+	if ((tun->flags & TUN_TYPE_MASK) == TUN_TAP_DEV) {
 		align = NET_IP_ALIGN;
+		if (unlikely(len < ETH_HLEN))
+			return -EINVAL;
+	}
 
 	if (!(skb = alloc_skb(len + align, GFP_KERNEL))) {
 		tun->dev->stats.rx_dropped++;
