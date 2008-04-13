@@ -35,10 +35,6 @@
 #include "sd_ops.h"
 #include "sdio_ops.h"
 
-extern int mmc_attach_mmc(struct mmc_host *host, u32 ocr);
-extern int mmc_attach_sd(struct mmc_host *host, u32 ocr);
-extern int mmc_attach_sdio(struct mmc_host *host, u32 ocr);
-
 static struct workqueue_struct *workqueue;
 
 /*

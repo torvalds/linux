@@ -46,6 +46,10 @@ void mmc_rescan(struct work_struct *work);
 void mmc_start_host(struct mmc_host *host);
 void mmc_stop_host(struct mmc_host *host);
 
+int mmc_attach_mmc(struct mmc_host *host, u32 ocr);
+int mmc_attach_sd(struct mmc_host *host, u32 ocr);
+int mmc_attach_sdio(struct mmc_host *host, u32 ocr);
+
 extern int use_spi_crc;
 
 #endif
