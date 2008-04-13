@@ -312,6 +312,17 @@ static __devinit int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp,
 	pci_read_config_dword(agp, 0x10, &aper_low);
 	pci_read_config_dword(agp, 0x14, &aper_hi);
 	aper = (aper_low & ~((1<<22)-1)) | ((u64)aper_hi << 32);
+
+	/*
+	 * On some sick chips APSIZE is 0. This means it wants 4G
+	 * so let double check that order, and lets trust the AMD NB settings
+	 */
+	if (aper + (32ULL<<(20 + order)) > 0x100000000ULL) {
+		printk(KERN_INFO "Aperture size %u MB is not right, using settings from NB\n",
+				  32 << order);
+		order = nb_order;
+	}
+
 	printk(KERN_INFO PFX "Aperture from AGP @ %Lx size %u MB\n", aper, 32 << order);
 	if (order < 0 || !aperture_valid(aper, (32*1024*1024)<<order))
 		return -1;

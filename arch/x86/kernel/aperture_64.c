@@ -138,6 +138,7 @@ static __u32 __init read_agp(int num, int slot, int func, int cap, u32 *order)
 	int nbits;
 	u32 aper_low, aper_hi;
 	u64 aper;
+	u32 old_order;
 
 	printk(KERN_INFO "AGP bridge at %02x:%02x:%02x\n", num, slot, func);
 	apsizereg = read_pci_config_16(num, slot, func, cap + 0x14);
@@ -145,6 +146,9 @@ static __u32 __init read_agp(int num, int slot, int func, int cap, u32 *order)
 		printk(KERN_ERR "APSIZE in AGP bridge unreadable\n");
 		return 0;
 	}
+
+	/* old_order could be the value from NB gart setting */
+	old_order = *order;
 
 	apsize = apsizereg & 0xfff;
 	/* Some BIOS use weird encodings not in the AGPv3 table. */
@@ -158,6 +162,16 @@ static __u32 __init read_agp(int num, int slot, int func, int cap, u32 *order)
 	aper_low = read_pci_config(num, slot, func, 0x10);
 	aper_hi = read_pci_config(num, slot, func, 0x14);
 	aper = (aper_low & ~((1<<22)-1)) | ((u64)aper_hi << 32);
+
+	/*
+	 * On some sick chips, APSIZE is 0. It means it wants 4G
+	 * so let double check that order, and lets trust AMD NB settings:
+	 */
+	if (aper + (32UL<<(20 + *order)) > 0x100000000UL) {
+		printk(KERN_INFO "Aperture size %u MB (APSIZE %x) is not right, using settings from NB\n",
+				32 << *order, apsizereg);
+		*order = old_order;
+	}
 
 	printk(KERN_INFO "Aperture from AGP @ %Lx size %u MB (APSIZE %x)\n",
 			aper, 32 << *order, apsizereg);
