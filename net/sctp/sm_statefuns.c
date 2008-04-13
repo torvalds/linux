@@ -4367,6 +4367,7 @@ sctp_disposition_t sctp_sf_do_prm_asoc(const struct sctp_endpoint *ep,
 				       sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk *repl;
+	struct sctp_association* my_asoc;
 
 	/* The comment below says that we enter COOKIE-WAIT AFTER
 	 * sending the INIT, but that doesn't actually work in our
@@ -4390,8 +4391,8 @@ sctp_disposition_t sctp_sf_do_prm_asoc(const struct sctp_endpoint *ep,
 	/* Cast away the const modifier, as we want to just
 	 * rerun it through as a sideffect.
 	 */
-	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_ASOC,
-			SCTP_ASOC((struct sctp_association *) asoc));
+	my_asoc = (struct sctp_association *)asoc;
+	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_ASOC, SCTP_ASOC(my_asoc));
 
 	/* Choose transport for INIT. */
 	sctp_add_cmd_sf(commands, SCTP_CMD_INIT_CHOOSE_TRANSPORT,

@@ -5868,11 +5868,12 @@ SCTP_STATIC int sctp_msghdr_parse(const struct msghdr *msg,
 				  sctp_cmsgs_t *cmsgs)
 {
 	struct cmsghdr *cmsg;
+	struct msghdr *my_msg = (struct msghdr *)msg;
 
 	for (cmsg = CMSG_FIRSTHDR(msg);
 	     cmsg != NULL;
-	     cmsg = CMSG_NXTHDR((struct msghdr*)msg, cmsg)) {
-		if (!CMSG_OK(msg, cmsg))
+	     cmsg = CMSG_NXTHDR(my_msg, cmsg)) {
+		if (!CMSG_OK(my_msg, cmsg))
 			return -EINVAL;
 
 		/* Should we parse this header or ignore?  */

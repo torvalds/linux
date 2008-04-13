@@ -859,7 +859,7 @@ __u16 sctp_ulpevent_get_notification_type(const struct sctp_ulpevent *event)
 	union sctp_notification *notification;
 	struct sk_buff *skb;
 
-	skb = sctp_event2skb((struct sctp_ulpevent *)event);
+	skb = sctp_event2skb(event);
 	notification = (union sctp_notification *) skb->data;
 	return notification->sn_header.sn_type;
 }
