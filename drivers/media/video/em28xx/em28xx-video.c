@@ -197,7 +197,7 @@ static void em28xx_copy_video(struct em28xx *dev,
 	lencopy = lencopy > remain ? remain : lencopy;
 
 	if((char*)startwrite + lencopy > (char*)outp + buf->vb.size) {
-		em28xx_isocdbg("Overflow of %i bytes past buffer end (1)\n",
+		em28xx_isocdbg("Overflow of %zi bytes past buffer end (1)\n",
 			       ((char*)startwrite + lencopy) - ((char*)outp + buf->vb.size));
 		lencopy = remain = (char*)outp + buf->vb.size - (char*)startwrite;
 	}
@@ -217,7 +217,7 @@ static void em28xx_copy_video(struct em28xx *dev,
 		BUG_ON(lencopy <= 0);
 
 		if((char*)startwrite + lencopy > (char*)outp + buf->vb.size) {
-			em28xx_isocdbg("Overflow of %i bytes past buffer end (2)\n",
+			em28xx_isocdbg("Overflow of %zi bytes past buffer end (2)\n",
 				       ((char*)startwrite + lencopy) - ((char*)outp + buf->vb.size));
 			lencopy = remain = (char*)outp + buf->vb.size - (char*)startwrite;
 		}
