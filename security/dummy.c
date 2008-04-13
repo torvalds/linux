@@ -876,22 +876,23 @@ static inline void dummy_req_classify_flow(const struct request_sock *req,
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
-static int dummy_xfrm_policy_alloc_security(struct xfrm_policy *xp,
-		struct xfrm_user_sec_ctx *sec_ctx)
+static int dummy_xfrm_policy_alloc_security(struct xfrm_sec_ctx **ctxp,
+					    struct xfrm_user_sec_ctx *sec_ctx)
 {
 	return 0;
 }
 
-static inline int dummy_xfrm_policy_clone_security(struct xfrm_policy *old, struct xfrm_policy *new)
+static inline int dummy_xfrm_policy_clone_security(struct xfrm_sec_ctx *old_ctx,
+					   struct xfrm_sec_ctx **new_ctxp)
 {
 	return 0;
 }
 
-static void dummy_xfrm_policy_free_security(struct xfrm_policy *xp)
+static void dummy_xfrm_policy_free_security(struct xfrm_sec_ctx *ctx)
 {
 }
 
-static int dummy_xfrm_policy_delete_security(struct xfrm_policy *xp)
+static int dummy_xfrm_policy_delete_security(struct xfrm_sec_ctx *ctx)
 {
 	return 0;
 }
@@ -911,7 +912,8 @@ static int dummy_xfrm_state_delete_security(struct xfrm_state *x)
 	return 0;
 }
 
-static int dummy_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid, u8 dir)
+static int dummy_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx,
+				    u32 sk_sid, u8 dir)
 {
 	return 0;
 }

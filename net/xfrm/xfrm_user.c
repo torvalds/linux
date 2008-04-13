@@ -959,7 +959,7 @@ static int copy_from_user_sec_ctx(struct xfrm_policy *pol, struct nlattr **attrs
 		return 0;
 
 	uctx = nla_data(rt);
-	return security_xfrm_policy_alloc(pol, uctx);
+	return security_xfrm_policy_alloc(&pol->security, uctx);
 }
 
 static void copy_templates(struct xfrm_policy *xp, struct xfrm_user_tmpl *ut,
@@ -1143,7 +1143,7 @@ static int xfrm_add_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 			      NETLINK_CB(skb).sid);
 
 	if (err) {
-		security_xfrm_policy_free(xp);
+		security_xfrm_policy_free(xp->security);
 		kfree(xp);
 		return err;
 	}
@@ -1337,22 +1337,23 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 		xp = xfrm_policy_byid(type, p->dir, p->index, delete, &err);
 	else {
 		struct nlattr *rt = attrs[XFRMA_SEC_CTX];
-		struct xfrm_policy tmp;
+		struct xfrm_sec_ctx *ctx;
 
 		err = verify_sec_ctx_len(attrs);
 		if (err)
 			return err;
 
-		memset(&tmp, 0, sizeof(struct xfrm_policy));
 		if (rt) {
 			struct xfrm_user_sec_ctx *uctx = nla_data(rt);
 
-			if ((err = security_xfrm_policy_alloc(&tmp, uctx)))
+			err = security_xfrm_policy_alloc(&ctx, uctx);
+			if (err)
 				return err;
-		}
-		xp = xfrm_policy_bysel_ctx(type, p->dir, &p->sel, tmp.security,
+		} else
+			ctx = NULL;
+		xp = xfrm_policy_bysel_ctx(type, p->dir, &p->sel, ctx,
 					   delete, &err);
-		security_xfrm_policy_free(&tmp);
+		security_xfrm_policy_free(ctx);
 	}
 	if (xp == NULL)
 		return -ENOENT;
@@ -1572,26 +1573,26 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 		xp = xfrm_policy_byid(type, p->dir, p->index, 0, &err);
 	else {
 		struct nlattr *rt = attrs[XFRMA_SEC_CTX];
-		struct xfrm_policy tmp;
+		struct xfrm_sec_ctx *ctx;
 
 		err = verify_sec_ctx_len(attrs);
 		if (err)
 			return err;
 
-		memset(&tmp, 0, sizeof(struct xfrm_policy));
 		if (rt) {
 			struct xfrm_user_sec_ctx *uctx = nla_data(rt);
 
-			if ((err = security_xfrm_policy_alloc(&tmp, uctx)))
+			err = security_xfrm_policy_alloc(&ctx, uctx);
+			if (err)
 				return err;
-		}
-		xp = xfrm_policy_bysel_ctx(type, p->dir, &p->sel, tmp.security,
-					   0, &err);
-		security_xfrm_policy_free(&tmp);
+		} else
+			ctx = NULL;
+		xp = xfrm_policy_bysel_ctx(type, p->dir, &p->sel, ctx, 0, &err);
+		security_xfrm_policy_free(ctx);
 	}
-
 	if (xp == NULL)
 		return -ENOENT;
+
 	read_lock(&xp->lock);
 	if (xp->dead) {
 		read_unlock(&xp->lock);

@@ -263,7 +263,7 @@ void xfrm_policy_destroy(struct xfrm_policy *policy)
 	list_del(&policy->bytype);
 	write_unlock_bh(&xfrm_policy_lock);
 
-	security_xfrm_policy_free(policy);
+	security_xfrm_policy_free(policy->security);
 	kfree(policy);
 }
 EXPORT_SYMBOL(xfrm_policy_destroy);
@@ -676,7 +676,8 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
 		    xfrm_sec_ctx_match(ctx, pol->security)) {
 			xfrm_pol_hold(pol);
 			if (delete) {
-				*err = security_xfrm_policy_delete(pol);
+				*err = security_xfrm_policy_delete(
+								pol->security);
 				if (*err) {
 					write_unlock_bh(&xfrm_policy_lock);
 					return pol;
@@ -718,7 +719,8 @@ struct xfrm_policy *xfrm_policy_byid(u8 type, int dir, u32 id, int delete,
 		if (pol->type == type && pol->index == id) {
 			xfrm_pol_hold(pol);
 			if (delete) {
-				*err = security_xfrm_policy_delete(pol);
+				*err = security_xfrm_policy_delete(
+								pol->security);
 				if (*err) {
 					write_unlock_bh(&xfrm_policy_lock);
 					return pol;
@@ -756,7 +758,7 @@ xfrm_policy_flush_secctx_check(u8 type, struct xfrm_audit *audit_info)
 				     &xfrm_policy_inexact[dir], bydst) {
 			if (pol->type != type)
 				continue;
-			err = security_xfrm_policy_delete(pol);
+			err = security_xfrm_policy_delete(pol->security);
 			if (err) {
 				xfrm_audit_policy_delete(pol, 0,
 							 audit_info->loginuid,
@@ -770,7 +772,8 @@ xfrm_policy_flush_secctx_check(u8 type, struct xfrm_audit *audit_info)
 					     bydst) {
 				if (pol->type != type)
 					continue;
-				err = security_xfrm_policy_delete(pol);
+				err = security_xfrm_policy_delete(
+								pol->security);
 				if (err) {
 					xfrm_audit_policy_delete(pol, 0,
 							audit_info->loginuid,
@@ -931,7 +934,8 @@ static int xfrm_policy_match(struct xfrm_policy *pol, struct flowi *fl,
 
 	match = xfrm_selector_match(sel, fl, family);
 	if (match)
-		ret = security_xfrm_policy_lookup(pol, fl->secid, dir);
+		ret = security_xfrm_policy_lookup(pol->security, fl->secid,
+						  dir);
 
 	return ret;
 }
@@ -1048,8 +1052,9 @@ static struct xfrm_policy *xfrm_sk_policy_lookup(struct sock *sk, int dir, struc
 		int err = 0;
 
 		if (match) {
-			err = security_xfrm_policy_lookup(pol, fl->secid,
-					policy_to_flow_dir(dir));
+			err = security_xfrm_policy_lookup(pol->security,
+						      fl->secid,
+						      policy_to_flow_dir(dir));
 			if (!err)
 				xfrm_pol_hold(pol);
 			else if (err == -ESRCH)
@@ -1138,7 +1143,8 @@ static struct xfrm_policy *clone_policy(struct xfrm_policy *old, int dir)
 
 	if (newp) {
 		newp->selector = old->selector;
-		if (security_xfrm_policy_clone(old, newp)) {
+		if (security_xfrm_policy_clone(old->security,
+					       &newp->security)) {
 			kfree(newp);
 			return NULL;  /* ENOMEM */
 		}

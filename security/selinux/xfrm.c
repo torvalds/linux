@@ -77,20 +77,18 @@ static inline int selinux_authorizable_xfrm(struct xfrm_state *x)
  * LSM hook implementation that authorizes that a flow can use
  * a xfrm policy rule.
  */
-int selinux_xfrm_policy_lookup(struct xfrm_policy *xp, u32 fl_secid, u8 dir)
+int selinux_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir)
 {
 	int rc;
 	u32 sel_sid;
-	struct xfrm_sec_ctx *ctx;
 
 	/* Context sid is either set to label or ANY_ASSOC */
-	if ((ctx = xp->security)) {
+	if (ctx) {
 		if (!selinux_authorizable_ctx(ctx))
 			return -EINVAL;
 
 		sel_sid = ctx->ctx_sid;
-	}
-	else
+	} else
 		/*
 		 * All flows should be treated as polmatch'ing an
 		 * otherwise applicable "non-labeled" policy. This
@@ -103,7 +101,7 @@ int selinux_xfrm_policy_lookup(struct xfrm_policy *xp, u32 fl_secid, u8 dir)
 			  NULL);
 
 	if (rc == -EACCES)
-		rc = -ESRCH;
+		return -ESRCH;
 
 	return rc;
 }
@@ -287,15 +285,14 @@ out2:
  * LSM hook implementation that allocs and transfers uctx spec to
  * xfrm_policy.
  */
-int selinux_xfrm_policy_alloc(struct xfrm_policy *xp,
-		struct xfrm_user_sec_ctx *uctx)
+int selinux_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp,
+			      struct xfrm_user_sec_ctx *uctx)
 {
 	int err;
 
-	BUG_ON(!xp);
 	BUG_ON(!uctx);
 
-	err = selinux_xfrm_sec_ctx_alloc(&xp->security, uctx, 0);
+	err = selinux_xfrm_sec_ctx_alloc(ctxp, uctx, 0);
 	if (err == 0)
 		atomic_inc(&selinux_xfrm_refcount);
 
@@ -307,32 +304,29 @@ int selinux_xfrm_policy_alloc(struct xfrm_policy *xp,
  * LSM hook implementation that copies security data structure from old to
  * new for policy cloning.
  */
-int selinux_xfrm_policy_clone(struct xfrm_policy *old, struct xfrm_policy *new)
+int selinux_xfrm_policy_clone(struct xfrm_sec_ctx *old_ctx,
+			      struct xfrm_sec_ctx **new_ctxp)
 {
-	struct xfrm_sec_ctx *old_ctx, *new_ctx;
-
-	old_ctx = old->security;
+	struct xfrm_sec_ctx *new_ctx;
 
 	if (old_ctx) {
-		new_ctx = new->security = kmalloc(sizeof(*new_ctx) +
-						  old_ctx->ctx_len,
-						  GFP_KERNEL);
-
+		new_ctx = kmalloc(sizeof(*old_ctx) + old_ctx->ctx_len,
+				  GFP_KERNEL);
 		if (!new_ctx)
 			return -ENOMEM;
 
 		memcpy(new_ctx, old_ctx, sizeof(*new_ctx));
 		memcpy(new_ctx->ctx_str, old_ctx->ctx_str, new_ctx->ctx_len);
+		*new_ctxp = new_ctx;
 	}
 	return 0;
 }
 
 /*
- * LSM hook implementation that frees xfrm_policy security information.
+ * LSM hook implementation that frees xfrm_sec_ctx security information.
  */
-void selinux_xfrm_policy_free(struct xfrm_policy *xp)
+void selinux_xfrm_policy_free(struct xfrm_sec_ctx *ctx)
 {
-	struct xfrm_sec_ctx *ctx = xp->security;
 	if (ctx)
 		kfree(ctx);
 }
@@ -340,10 +334,9 @@ void selinux_xfrm_policy_free(struct xfrm_policy *xp)
 /*
  * LSM hook implementation that authorizes deletion of labeled policies.
  */
-int selinux_xfrm_policy_delete(struct xfrm_policy *xp)
+int selinux_xfrm_policy_delete(struct xfrm_sec_ctx *ctx)
 {
 	struct task_security_struct *tsec = current->security;
-	struct xfrm_sec_ctx *ctx = xp->security;
 	int rc = 0;
 
 	if (ctx) {

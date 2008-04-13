@@ -2292,7 +2292,7 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 			goto out;
 		}
 
-		err = security_xfrm_policy_alloc(xp, uctx);
+		err = security_xfrm_policy_alloc(&xp->security, uctx);
 		kfree(uctx);
 
 		if (err)
@@ -2352,10 +2352,11 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 	int err;
 	struct sadb_address *sa;
 	struct sadb_x_policy *pol;
-	struct xfrm_policy *xp, tmp;
+	struct xfrm_policy *xp;
 	struct xfrm_selector sel;
 	struct km_event c;
 	struct sadb_x_sec_ctx *sec_ctx;
+	struct xfrm_sec_ctx *pol_ctx;
 
 	if (!present_and_same_family(ext_hdrs[SADB_EXT_ADDRESS_SRC-1],
 				     ext_hdrs[SADB_EXT_ADDRESS_DST-1]) ||
@@ -2385,25 +2386,23 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 		sel.dport_mask = htons(0xffff);
 
 	sec_ctx = (struct sadb_x_sec_ctx *) ext_hdrs[SADB_X_EXT_SEC_CTX-1];
-	memset(&tmp, 0, sizeof(struct xfrm_policy));
-
 	if (sec_ctx != NULL) {
 		struct xfrm_user_sec_ctx *uctx = pfkey_sadb2xfrm_user_sec_ctx(sec_ctx);
 
 		if (!uctx)
 			return -ENOMEM;
 
-		err = security_xfrm_policy_alloc(&tmp, uctx);
+		err = security_xfrm_policy_alloc(&pol_ctx, uctx);
 		kfree(uctx);
-
 		if (err)
 			return err;
-	}
+	} else
+		pol_ctx = NULL;
 
-	xp = xfrm_policy_bysel_ctx(XFRM_POLICY_TYPE_MAIN, pol->sadb_x_policy_dir-1,
-				   &sel, tmp.security, 1, &err);
-	security_xfrm_policy_free(&tmp);
-
+	xp = xfrm_policy_bysel_ctx(XFRM_POLICY_TYPE_MAIN,
+				   pol->sadb_x_policy_dir - 1, &sel, pol_ctx,
+				   1, &err);
+	security_xfrm_policy_free(pol_ctx);
 	if (xp == NULL)
 		return -ENOENT;
 
@@ -3298,7 +3297,7 @@ static struct xfrm_policy *pfkey_compile_policy(struct sock *sk, int opt,
 		if ((*dir = verify_sec_ctx_len(p)))
 			goto out;
 		uctx = pfkey_sadb2xfrm_user_sec_ctx(sec_ctx);
-		*dir = security_xfrm_policy_alloc(xp, uctx);
+		*dir = security_xfrm_policy_alloc(&xp->security, uctx);
 		kfree(uctx);
 
 		if (*dir)
