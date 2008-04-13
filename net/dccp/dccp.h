@@ -325,6 +325,12 @@ static inline int dccp_bad_service_code(const struct sock *sk,
  * This is used for transmission as well as for reception.
  */
 struct dccp_skb_cb {
+	union {
+		struct inet_skb_parm	h4;
+#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+		struct inet6_skb_parm	h6;
+#endif
+	} header;
 	__u8  dccpd_type:4;
 	__u8  dccpd_ccval:4;
 	__u8  dccpd_reset_code,
