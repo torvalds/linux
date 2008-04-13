@@ -533,7 +533,7 @@ static void free_buffer(struct videobuf_queue *vq, struct vivi_buffer *buf)
 		BUG();
 
 	videobuf_vmalloc_free(&buf->vb);
-	dprintk(dev, 1, "free_buffer: freed");
+	dprintk(dev, 1, "free_buffer: freed\n");
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
 
@@ -1052,7 +1052,7 @@ static const struct file_operations vivi_fops = {
 	.read           = vivi_read,
 	.poll		= vivi_poll,
 	.ioctl          = video_ioctl2, /* V4L2 ioctl handler */
-        .compat_ioctl   = v4l_compat_ioctl32,
+	.compat_ioctl   = v4l_compat_ioctl32,
 	.mmap           = vivi_mmap,
 	.llseek         = no_llseek,
 };
