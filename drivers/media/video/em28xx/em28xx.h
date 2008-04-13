@@ -26,11 +26,11 @@
 #define _EM28XX_H
 
 #include <linux/videodev2.h>
+#include <media/videobuf-vmalloc.h>
+
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <media/ir-kbd-i2c.h>
-
-#define UNSET -1
 
 /* maximum number of em28xx boards */
 #define EM28XX_MAXBOARDS 4 /*FIXME: should be bigger */
@@ -81,31 +81,69 @@
 /* time in msecs to wait for i2c writes to finish */
 #define EM2800_I2C_WRITE_TIMEOUT 20
 
-/* the various frame states */
-enum em28xx_frame_state {
-	F_UNUSED = 0,
-	F_QUEUED,
-	F_GRABBING,
-	F_DONE,
-	F_ERROR,
-};
-
-/* stream states */
 enum em28xx_stream_state {
 	STREAM_OFF,
 	STREAM_INTERRUPT,
 	STREAM_ON,
 };
 
-/* frames */
-struct em28xx_frame_t {
-	void *bufmem;
-	struct v4l2_buffer buf;
-	enum em28xx_frame_state state;
+struct em28xx_usb_isoc_ctl {
+		/* max packet size of isoc transaction */
+	int				max_pkt_size;
+
+		/* number of allocated urbs */
+	int				num_bufs;
+
+		/* urb for isoc transfers */
+	struct urb			**urb;
+
+		/* transfer buffers for isoc transfer */
+	char				**transfer_buffer;
+
+		/* Last buffer command and region */
+	u8				cmd;
+	int				pos, size, pktsize;
+
+		/* Last field: ODD or EVEN? */
+	int				field;
+
+		/* Stores incomplete commands */
+	u32				tmp_buf;
+	int				tmp_buf_len;
+
+		/* Stores already requested buffers */
+	struct em28xx_buffer    	*buf;
+
+		/* Stores the number of received fields */
+	int				nfields;
+};
+
+struct em28xx_fmt {
+	char  *name;
+	u32   fourcc;          /* v4l2 format id */
+};
+
+/* buffer for one video frame */
+struct em28xx_buffer {
+	/* common v4l buffer stuff -- must be first */
+	struct videobuf_buffer vb;
+
+	struct em28xx_fmt *fmt;
+
 	struct list_head frame;
-	unsigned long vma_use_count;
 	int top_field;
-	int fieldbytesused;
+	int receiving;
+};
+
+struct em28xx_dmaqueue {
+	struct list_head       active;
+	struct list_head       queued;
+	struct timer_list      timeout;
+
+	wait_queue_head_t          wq;
+
+	/* Counters to control buffer fill */
+	int                        pos;
 };
 
 /* io methods */
@@ -255,10 +293,6 @@ struct em28xx {
 	int mute;
 	int volume;
 	/* frame properties */
-	struct em28xx_frame_t frame[EM28XX_NUM_FRAMES];	/* list of frames */
-	int num_frames;		/* number of frames currently in use */
-	unsigned int frame_count;	/* total number of transfered frames */
-	struct em28xx_frame_t *frame_current;	/* the frame that is being filled */
 	int width;		/* current frame width */
 	int height;		/* current frame height */
 	int frame_size;		/* current frame size */
@@ -277,7 +311,6 @@ struct em28xx {
 
 	/* states */
 	enum em28xx_dev_state state;
-	enum em28xx_stream_state stream;
 	enum em28xx_io_method io;
 
 	struct work_struct         request_module_wk;
@@ -291,6 +324,11 @@ struct em28xx {
 	struct video_device *radio_dev;
 
 	unsigned char eedata[256];
+
+	/* Isoc control struct */
+	struct em28xx_dmaqueue vidq;
+	struct em28xx_usb_isoc_ctl isoc_ctl;
+	spinlock_t slock;
 
 	/* usb transfer */
 	struct usb_device *udev;	/* the usb device */
@@ -315,6 +353,12 @@ struct em28xx_fh {
 	struct em28xx *dev;
 	unsigned int  stream_on:1;	/* Locks streams */
 	int           radio;
+
+	unsigned int                 width, height;
+	struct videobuf_queue        vb_vidq;
+	struct em28xx_fmt            *fmt;
+
+	enum v4l2_buf_type           type;
 };
 
 struct em28xx_ops {
@@ -351,8 +395,6 @@ int em28xx_colorlevels_set_default(struct em28xx *dev);
 int em28xx_capture_start(struct em28xx *dev, int start);
 int em28xx_outfmt_set_yuv422(struct em28xx *dev);
 int em28xx_resolution_set(struct em28xx *dev);
-int em28xx_init_isoc(struct em28xx *dev);
-void em28xx_uninit_isoc(struct em28xx *dev);
 int em28xx_set_alternate(struct em28xx *dev);
 
 /* Provided by em28xx-video.c */
