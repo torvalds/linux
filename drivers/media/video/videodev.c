@@ -18,9 +18,9 @@
 
 #define dbgarg(cmd, fmt, arg...) \
 		if (vfd->debug & V4L2_DEBUG_IOCTL_ARG) {		\
-			printk (KERN_DEBUG "%s: ",  vfd->name);		\
+			printk(KERN_DEBUG "%s: ",  vfd->name);		\
 			v4l_printk_ioctl(cmd);				\
-			printk (KERN_DEBUG "%s: " fmt, vfd->name, ## arg); \
+			printk(" " fmt,  ## arg);			\
 		}
 
 #define dbgarg2(fmt, arg...) \
@@ -378,7 +378,35 @@ static const char *v4l2_int_ioctls[] = {
    external ioctl messages as well as internal V4L ioctl */
 void v4l_printk_ioctl(unsigned int cmd)
 {
-	char *dir;
+	char *dir, *type;
+
+	switch (_IOC_TYPE(cmd)) {
+	case 'd':
+		if (_IOC_NR(cmd) >= V4L2_INT_IOCTLS) {
+			type = "v4l2_int";
+			break;
+		}
+		printk("%s", v4l2_int_ioctls[_IOC_NR(cmd)]);
+		return;
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
+	case 'v':
+		if (_IOC_NR(cmd) >= V4L1_IOCTLS) {
+			type = "v4l1";
+			break;
+		}
+		printk("%s", v4l1_ioctls[_IOC_NR(cmd)]);
+		return;
+#endif
+	case 'V':
+		if (_IOC_NR(cmd) >= V4L2_IOCTLS) {
+			type = "v4l2";
+			break;
+		}
+		printk("%s", v4l2_ioctls[_IOC_NR(cmd)]);
+		return;
+	default:
+		type = "unknown";
+	}
 
 	switch (_IOC_DIR(cmd)) {
 	case _IOC_NONE:              dir = "--"; break;
@@ -387,29 +415,8 @@ void v4l_printk_ioctl(unsigned int cmd)
 	case _IOC_READ | _IOC_WRITE: dir = "rw"; break;
 	default:                     dir = "*ERR*"; break;
 	}
-	switch (_IOC_TYPE(cmd)) {
-	case 'd':
-		printk("v4l2_int ioctl %s, dir=%s (0x%08x)\n",
-		       (_IOC_NR(cmd) < V4L2_INT_IOCTLS) ?
-		       v4l2_int_ioctls[_IOC_NR(cmd)] : "UNKNOWN", dir, cmd);
-		break;
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	case 'v':
-		printk("v4l1 ioctl %s, dir=%s (0x%08x)\n",
-		       (_IOC_NR(cmd) < V4L1_IOCTLS) ?
-		       v4l1_ioctls[_IOC_NR(cmd)] : "UNKNOWN", dir, cmd);
-		break;
-#endif
-	case 'V':
-		printk("v4l2 ioctl %s, dir=%s (0x%08x)\n",
-		       (_IOC_NR(cmd) < V4L2_IOCTLS) ?
-		       v4l2_ioctls[_IOC_NR(cmd)] : "UNKNOWN", dir, cmd);
-		break;
-
-	default:
-		printk("unknown ioctl '%c', dir=%s, #%d (0x%08x)\n",
-		       _IOC_TYPE(cmd), dir, _IOC_NR(cmd), cmd);
-	}
+	printk("%s ioctl '%c', dir=%s, #%d (0x%08x)",
+		type, _IOC_TYPE(cmd), dir, _IOC_NR(cmd), cmd);
 }
 EXPORT_SYMBOL(v4l_printk_ioctl);
 

@@ -1632,6 +1632,7 @@ static int ivtv_v4l2_do_ioctl(struct inode *inode, struct file *filp,
 		if (ivtv_debug & IVTV_DBGFLG_IOCTL) {
 			printk(KERN_INFO "ivtv%d ioctl: ", itv->num);
 			v4l_printk_ioctl(cmd);
+			printk("\n");
 		}
 		return ivtv_debug_ioctls(filp, cmd, arg);
 
@@ -1675,6 +1676,7 @@ static int ivtv_v4l2_do_ioctl(struct inode *inode, struct file *filp,
 		if (ivtv_debug & IVTV_DBGFLG_IOCTL) {
 			printk(KERN_INFO "ivtv%d ioctl: ", itv->num);
 			v4l_printk_ioctl(cmd);
+			printk("\n");
 		}
 		return ivtv_v4l2_ioctls(itv, filp, cmd, arg);
 
@@ -1688,6 +1690,7 @@ static int ivtv_v4l2_do_ioctl(struct inode *inode, struct file *filp,
 		if (ivtv_debug & IVTV_DBGFLG_IOCTL) {
 			printk(KERN_INFO "ivtv%d ioctl: ", itv->num);
 			v4l_printk_ioctl(cmd);
+			printk("\n");
 		}
 		return ivtv_control_ioctls(itv, cmd, arg);
 
