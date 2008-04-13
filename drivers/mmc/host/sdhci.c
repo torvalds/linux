@@ -41,7 +41,7 @@ static unsigned int debug_quirks = 0;
 #define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
 /* Controller has bad caps bits, but really supports DMA */
 #define SDHCI_QUIRK_FORCE_DMA				(1<<1)
-/* Controller doesn't like some resets when there is no card inserted. */
+/* Controller doesn't like to be reset when there is no card inserted. */
 #define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<2)
 /* Controller doesn't like clearing the power reg before a change */
 #define SDHCI_QUIRK_SINGLE_POWER_WRITE			(1<<3)
@@ -69,10 +69,18 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
 		.vendor		= PCI_VENDOR_ID_RICOH,
 		.device		= PCI_DEVICE_ID_RICOH_R5C822,
-		.subvendor	= PCI_ANY_ID,
+		.subvendor	= PCI_VENDOR_ID_SAMSUNG,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= SDHCI_QUIRK_FORCE_DMA |
 				  SDHCI_QUIRK_NO_CARD_NO_RESET,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_RICOH,
+		.device		= PCI_DEVICE_ID_RICOH_R5C822,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= SDHCI_QUIRK_FORCE_DMA,
 	},
 
 	{
