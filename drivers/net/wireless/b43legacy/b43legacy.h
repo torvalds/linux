@@ -97,6 +97,7 @@
 #define B43legacy_MMIO_RADIO_HWENABLED_LO	0x49A
 #define B43legacy_MMIO_GPIO_CONTROL	0x49C
 #define B43legacy_MMIO_GPIO_MASK		0x49E
+#define B43legacy_MMIO_TSF_CFP_PRETBTT	0x612
 #define B43legacy_MMIO_TSF_0		0x632 /* core rev < 3 only */
 #define B43legacy_MMIO_TSF_1		0x634 /* core rev < 3 only */
 #define B43legacy_MMIO_TSF_2		0x636 /* core rev < 3 only */
@@ -149,6 +150,8 @@
 #define B43legacy_SHM_SH_UCODEPATCH	0x0002 /* Microcode patchlevel */
 #define B43legacy_SHM_SH_UCODEDATE	0x0004 /* Microcode date */
 #define B43legacy_SHM_SH_UCODETIME	0x0006 /* Microcode time */
+#define B43legacy_SHM_SH_SPUWKUP	0x0094 /* pre-wakeup for synth PU in us */
+#define B43legacy_SHM_SH_PRETBTT	0x0096 /* pre-TBTT in us */
 
 #define B43legacy_UCODEFLAGS_OFFSET     0x005E
 
