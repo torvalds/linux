@@ -137,6 +137,8 @@ static inline void buffer_filled(struct em28xx *dev,
 	buf->vb.field_count++;
 	do_gettimeofday(&buf->vb.ts);
 
+	dev->isoc_ctl.buf = NULL;
+
 	list_del(&buf->vb.queue);
 	wake_up(&buf->vb.done);
 }
@@ -269,12 +271,20 @@ static inline int get_next_buf(struct em28xx_dmaqueue *dma_q,
 {
 	struct em28xx *dev = container_of(dma_q, struct em28xx, vidq);
 
+	/* If the previous buffer were not filled yet, continue */
+	*buf = dev->isoc_ctl.buf;
+	if (*buf)
+		return 1;
+
 	if (list_empty(&dma_q->active)) {
 		em28xx_isocdbg("No active queue to serve\n");
 		return 0;
 	}
 
 	*buf = list_entry(dma_q->active.next, struct em28xx_buffer, vb.queue);
+
+
+	dev->isoc_ctl.buf = *buf;
 
 	return 1;
 }
@@ -303,13 +313,9 @@ static inline int em28xx_isoc_copy(struct urb *urb)
 			return 0;
 	}
 
-	buf = dev->isoc_ctl.buf;
-
-	if (!buf) {
-		rc = get_next_buf(dma_q, &buf);
-		if (rc <= 0)
-			return rc;
-	}
+	rc = get_next_buf(dma_q, &buf);
+	if (rc <= 0)
+		return rc;
 
 	outp = videobuf_to_vmalloc(&buf->vb);
 
@@ -351,7 +357,6 @@ static inline int em28xx_isoc_copy(struct urb *urb)
 					rc = get_next_buf(dma_q, &buf);
 					if (rc <= 0)
 						return rc;
-
 					outp = videobuf_to_vmalloc(&buf->vb);
 				}
 
@@ -416,7 +421,6 @@ static void em28xx_uninit_isoc(struct em28xx *dev)
 	em28xx_isocdbg("em28xx: called em28xx_uninit_isoc\n");
 
 	dev->isoc_ctl.nfields = -1;
-	dev->isoc_ctl.buf = NULL;
 	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
 		urb = dev->isoc_ctl.urb[i];
 		if (urb) {
@@ -478,6 +482,7 @@ static int em28xx_prepare_isoc(struct em28xx *dev, int max_packets,
 	}
 
 	dev->isoc_ctl.max_pkt_size = dev->max_pkt_size;
+	dev->isoc_ctl.buf = NULL;
 
 	sb_size = max_packets * dev->isoc_ctl.max_pkt_size;
 
