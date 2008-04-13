@@ -114,6 +114,9 @@ struct em28xx_usb_isoc_ctl {
 		/* Stores already requested buffers */
 	struct em28xx_buffer    	*buf;
 
+		/* Store last filled frame */
+	int				last_field;
+
 		/* Stores the number of received fields */
 	int				nfields;
 };

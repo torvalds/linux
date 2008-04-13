@@ -365,32 +365,33 @@ static inline int em28xx_isoc_copy(struct urb *urb)
 		/* FIXME: incomplete buffer checks where removed to make
 		   logic simpler. Impacts of those changes should be evaluated
 		 */
+		if (p[0] == 0x33 && p[1] == 0x95 && p[2] == 0x00) {
+			em28xx_isocdbg("VBI HEADER!!!\n");
+			/* FIXME: Should add vbi copy */
+			continue;
+		}
 		if (p[0] == 0x22 && p[1] == 0x5a) {
 			em28xx_isocdbg("Video frame %d, length=%i, %s\n", p[2],
 				       len, (p[2] & 1)? "odd" : "even");
 
 			if (p[2] & 1)
 				buf->top_field = 0;
-			else {
-				if (buf->receiving) {
-					buffer_filled(dev, dma_q, buf);
-					rc = get_next_buf(dma_q, &buf);
-					if (rc <= 0)
-						return rc;
-					outp = videobuf_to_vmalloc(&buf->vb);
-				}
-
+			else
 				buf->top_field = 1;
+
+//			if (dev->isoc_ctl.last_field && !buf->top_field) {
+			if (dev->isoc_ctl.last_field != buf->top_field) {
+				buffer_filled(dev, dma_q, buf);
+				rc = get_next_buf(dma_q, &buf);
+				if (rc <= 0)
+					return rc;
+				outp = videobuf_to_vmalloc(&buf->vb);
 			}
-			buf->receiving = 1;
+			dev->isoc_ctl.last_field =  buf->top_field;
+
 			dma_q->pos = 0;
-		} else if (p[0] == 0x33 && p[1] == 0x95 && p[2] == 0x00) {
-			em28xx_isocdbg("VBI HEADER!!!\n");
 		}
-
 		em28xx_copy_video(dev, dma_q, buf, p, outp, len);
-
-		/* FIXME: Should add vbi copy */
 	}
 	return rc;
 }
