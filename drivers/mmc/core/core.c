@@ -516,7 +516,7 @@ static void mmc_power_off(struct mmc_host *host)
 /*
  * Cleanup when the last reference to the bus operator is dropped.
  */
-void __mmc_release_bus(struct mmc_host *host)
+static void __mmc_release_bus(struct mmc_host *host)
 {
 	BUG_ON(!host);
 	BUG_ON(host->bus_refs);
