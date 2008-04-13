@@ -918,4 +918,11 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
 
 #define KSTK_EIP(task)		(task_pt_regs(task)->ip)
 
+/* Get/set a process' ability to use the timestamp counter instruction */
+#define GET_TSC_CTL(adr)	get_tsc_mode((adr))
+#define SET_TSC_CTL(val)	set_tsc_mode((val))
+
+extern int get_tsc_mode(unsigned long adr);
+extern int set_tsc_mode(unsigned int val);
+
 #endif
