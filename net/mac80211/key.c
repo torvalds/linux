@@ -74,9 +74,12 @@ static void add_todo(struct ieee80211_key *key, u32 flag)
 
 	spin_lock(&todo_lock);
 	key->flags |= flag;
-	/* only add if not already added */
-	if (list_empty(&key->todo))
-		list_add(&key->todo, &todo_list);
+	/*
+	 * Remove again if already on the list so that we move it to the end.
+	 */
+	if (!list_empty(&key->todo))
+		list_del(&key->todo);
+	list_add_tail(&key->todo, &todo_list);
 	schedule_work(&todo_work);
 	spin_unlock(&todo_lock);
 }
