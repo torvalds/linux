@@ -23,9 +23,9 @@
 #include <linux/ioport.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <linux/backlight.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
+#include <linux/pwm_backlight.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -349,56 +349,27 @@ static struct platform_device mst_flash_device[2] = {
 	},
 };
 
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-static int mainstone_backlight_update_status(struct backlight_device *bl)
-{
-	int brightness = bl->props.brightness;
+#if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
+static struct platform_pwm_backlight_data mainstone_backlight_data = {
+	.pwm_id		= 0,
+	.max_brightness	= 1023,
+	.dft_brightness	= 1023,
+	.pwm_period_ns	= 78770,
+};
 
-	if (bl->props.power != FB_BLANK_UNBLANK ||
-	    bl->props.fb_blank != FB_BLANK_UNBLANK)
-		brightness = 0;
-
-	if (brightness != 0)
-		pxa_set_cken(CKEN_PWM0, 1);
-
-	PWM_CTRL0 = 0;
-	PWM_PWDUTY0 = brightness;
-	PWM_PERVAL0 = bl->props.max_brightness;
-
-	if (brightness == 0)
-		pxa_set_cken(CKEN_PWM0, 0);
-	return 0; /* pointless return value */
-}
-
-static int mainstone_backlight_get_brightness(struct backlight_device *bl)
-{
-	return PWM_PWDUTY0;
-}
-
-static /*const*/ struct backlight_ops mainstone_backlight_ops = {
-	.update_status	= mainstone_backlight_update_status,
-	.get_brightness	= mainstone_backlight_get_brightness,
+static struct platform_device mainstone_backlight_device = {
+	.name		= "pwm-backlight",
+	.dev		= {
+		.parent = &pxa27x_device_pwm0.dev,
+		.platform_data = &mainstone_backlight_data,
+	},
 };
 
 static void __init mainstone_backlight_register(void)
 {
-	struct backlight_device *bl;
-
-	bl = backlight_device_register("mainstone-bl", &pxa_device_fb.dev,
-				       NULL, &mainstone_backlight_ops);
-	if (IS_ERR(bl)) {
-		printk(KERN_ERR "mainstone: unable to register backlight: %ld\n",
-		       PTR_ERR(bl));
-		return;
-	}
-
-	/*
-	 * broken design - register-then-setup interfaces are
-	 * utterly broken by definition.
-	 */
-	bl->props.max_brightness = 1023;
-	bl->props.brightness = 1023;
-	backlight_update_status(bl);
+	int ret = platform_device_register(&mainstone_backlight_device);
+	if (ret)
+		printk(KERN_ERR "mainstone: failed to register backlight device: %d\n", ret);
 }
 #else
 #define mainstone_backlight_register()	do { } while (0)

@@ -41,6 +41,7 @@ config MACH_LOGICPD_PXA270
 config MACH_MAINSTONE
 	bool "Intel HCDDBBVA0 Development Platform"
 	select PXA27x
+	select HAVE_PWM
 
 config ARCH_PXA_IDP
 	bool "Accelent Xscale IDP"
