@@ -221,26 +221,6 @@ static struct platform_device sa1111_device = {
 	.resource	= sa1111_resources,
 };
 
-static struct resource smc91x_resources[] = {
-	[0] = {
-		.name	= "smc91x-regs",
-		.start	= 0x0c000c00,
-		.end	= 0x0c0fffff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= LUBBOCK_ETH_IRQ,
-		.end	= LUBBOCK_ETH_IRQ,
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
-	},
-	[2] = {
-		.name	= "smc91x-attrib",
-		.start	= 0x0e000000,
-		.end	= 0x0e0fffff,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
 /* ADS7846 is connected through SSP ... and if your board has J5 populated,
  * you can select it to replace the ucb1400 by switching the touchscreen cable
  * (to J5) and poking board registers (as done below).  Else it's only useful
@@ -294,6 +274,26 @@ static struct spi_board_info spi_board_info[] __initdata = { {
 	.bus_num	= 1,
 	.chip_select	= 0,
 },
+};
+
+static struct resource smc91x_resources[] = {
+	[0] = {
+		.name	= "smc91x-regs",
+		.start	= 0x0c000c00,
+		.end	= 0x0c0fffff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= LUBBOCK_ETH_IRQ,
+		.end	= LUBBOCK_ETH_IRQ,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+	},
+	[2] = {
+		.name	= "smc91x-attrib",
+		.start	= 0x0e000000,
+		.end	= 0x0e0fffff,
+		.flags	= IORESOURCE_MEM,
+	},
 };
 
 static struct platform_device smc91x_device = {
