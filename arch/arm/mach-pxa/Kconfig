@@ -116,6 +116,7 @@ config MACH_COLIBRI
 config MACH_ZYLONITE
 	bool "PXA3xx Development Platform"
 	select PXA3xx
+	select HAVE_PWM
 
 config MACH_LITTLETON
 	bool "PXA3xx Form Factor Platform (aka Littleton)"
@@ -276,6 +277,7 @@ config PXA_SSP
 
 config PXA_PWM
 	tristate
+	default BACKLIGHT_PWM
 	help
 	  Enable support for PXA2xx/PXA3xx PWM controllers
 endif

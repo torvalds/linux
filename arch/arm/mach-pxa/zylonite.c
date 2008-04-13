@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/pwm_backlight.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -28,12 +29,12 @@
 #include <asm/arch/mmc.h>
 #include <asm/arch/pxa27x_keypad.h>
 
+#include "devices.h"
 #include "generic.h"
 
 #define MAX_SLOTS	3
 struct platform_mmc_slot zylonite_mmc_slot[MAX_SLOTS];
 
-int gpio_backlight;
 int gpio_eth_irq;
 
 int wm9713_irq;
@@ -62,10 +63,20 @@ static struct platform_device smc91x_device = {
 };
 
 #if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
-static void zylonite_backlight_power(int on)
-{
-	gpio_set_value(gpio_backlight, on);
-}
+static struct platform_pwm_backlight_data zylonite_backlight_data = {
+	.pwm_id		= 3,
+	.max_brightness	= 100,
+	.dft_brightness	= 100,
+	.pwm_period_ns	= 10000,
+};
+
+static struct platform_device zylonite_backlight_device = {
+	.name		= "pwm-backlight",
+	.dev		= {
+		.parent = &pxa27x_device_pwm1.dev,
+		.platform_data	= &zylonite_backlight_data,
+	},
+};
 
 static struct pxafb_mode_info toshiba_ltm035a776c_mode = {
 	.pixclock		= 110000,
@@ -98,7 +109,6 @@ static struct pxafb_mode_info toshiba_ltm04c380k_mode = {
 static struct pxafb_mach_info zylonite_toshiba_lcd_info = {
 	.num_modes      	= 1,
 	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
-	.pxafb_backlight_power	= zylonite_backlight_power,
 };
 
 static struct pxafb_mode_info sharp_ls037_modes[] = {
@@ -134,13 +144,11 @@ static struct pxafb_mach_info zylonite_sharp_lcd_info = {
 	.modes			= sharp_ls037_modes,
 	.num_modes		= 2,
 	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
-	.pxafb_backlight_power	= zylonite_backlight_power,
 };
 
 static void __init zylonite_init_lcd(void)
 {
-	/* backlight GPIO: output, default on */
-	gpio_direction_output(gpio_backlight, 1);
+	platform_device_register(&zylonite_backlight_device);
 
 	if (lcd_id & 0x20) {
 		set_pxa_fb_info(&zylonite_sharp_lcd_info);
