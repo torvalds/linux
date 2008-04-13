@@ -68,9 +68,6 @@ struct videobuf_dmabuf {
 	/* for kernel buffers */
 	void                *vmalloc;
 
-	/* Stores the userspace pointer to vmalloc area */
-	void                *varea;
-
 	/* for overlay buffers (pci-pci dma) */
 	dma_addr_t          bus_addr;
 

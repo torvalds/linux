@@ -162,9 +162,6 @@ static int videobuf_dma_init_user_locked(struct videobuf_dmabuf *dma,
 	dprintk(1,"init user [0x%lx+0x%lx => %d pages]\n",
 		data,size,dma->nr_pages);
 
-	dma->varea = (void *) data;
-
-
 	err = get_user_pages(current,current->mm,
 			     data & PAGE_MASK, dma->nr_pages,
 			     rw == READ, 1, /* force */
@@ -300,7 +297,6 @@ int videobuf_dma_free(struct videobuf_dmabuf *dma)
 
 	vfree(dma->vmalloc);
 	dma->vmalloc = NULL;
-	dma->varea = NULL;
 
 	if (dma->bus_addr) {
 		dma->bus_addr = 0;
