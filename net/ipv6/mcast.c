@@ -127,8 +127,6 @@ static struct in6_addr mld2_all_mcr = MLD2_ALL_MCR_INIT;
 /* Big mc list lock for all the sockets */
 static DEFINE_RWLOCK(ipv6_sk_mc_lock);
 
-int __ipv6_dev_mc_dec(struct inet6_dev *idev, struct in6_addr *addr);
-
 static void igmp6_join_group(struct ifmcaddr6 *ma);
 static void igmp6_leave_group(struct ifmcaddr6 *ma);
 static void igmp6_timer_handler(unsigned long data);
@@ -177,7 +175,7 @@ int sysctl_mld_max_msf __read_mostly = IPV6_MLD_MAX_MSF;
  *	socket join on multicast group
  */
 
-int ipv6_sock_mc_join(struct sock *sk, int ifindex, struct in6_addr *addr)
+int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 {
 	struct net_device *dev = NULL;
 	struct ipv6_mc_socklist *mc_lst;
@@ -252,7 +250,7 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, struct in6_addr *addr)
 /*
  *	socket leave on multicast group
  */
-int ipv6_sock_mc_drop(struct sock *sk, int ifindex, struct in6_addr *addr)
+int ipv6_sock_mc_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6_mc_socklist *mc_lst, **lnk;
@@ -664,8 +662,8 @@ done:
 	return err;
 }
 
-int inet6_mc_check(struct sock *sk, struct in6_addr *mc_addr,
-	struct in6_addr *src_addr)
+int inet6_mc_check(struct sock *sk, const struct in6_addr *mc_addr,
+		   const struct in6_addr *src_addr)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6_mc_socklist *mc;
@@ -871,7 +869,7 @@ static void mld_clear_delrec(struct inet6_dev *idev)
 /*
  *	device multicast group inc (add if not found)
  */
-int ipv6_dev_mc_inc(struct net_device *dev, struct in6_addr *addr)
+int ipv6_dev_mc_inc(struct net_device *dev, const struct in6_addr *addr)
 {
 	struct ifmcaddr6 *mc;
 	struct inet6_dev *idev;
@@ -942,7 +940,7 @@ int ipv6_dev_mc_inc(struct net_device *dev, struct in6_addr *addr)
 /*
  *	device multicast group del
  */
-int __ipv6_dev_mc_dec(struct inet6_dev *idev, struct in6_addr *addr)
+int __ipv6_dev_mc_dec(struct inet6_dev *idev, const struct in6_addr *addr)
 {
 	struct ifmcaddr6 *ma, **map;
 
@@ -967,7 +965,7 @@ int __ipv6_dev_mc_dec(struct inet6_dev *idev, struct in6_addr *addr)
 	return -ENOENT;
 }
 
-int ipv6_dev_mc_dec(struct net_device *dev, struct in6_addr *addr)
+int ipv6_dev_mc_dec(struct net_device *dev, const struct in6_addr *addr)
 {
 	struct inet6_dev *idev = in6_dev_get(dev);
 	int err;
@@ -1012,8 +1010,8 @@ int ipv6_is_mld(struct sk_buff *skb, int nexthdr)
 /*
  *	check if the interface/address pair is valid
  */
-int ipv6_chk_mcast_addr(struct net_device *dev, struct in6_addr *group,
-	struct in6_addr *src_addr)
+int ipv6_chk_mcast_addr(struct net_device *dev, const struct in6_addr *group,
+			const struct in6_addr *src_addr)
 {
 	struct inet6_dev *idev;
 	struct ifmcaddr6 *mc;
@@ -1406,6 +1404,7 @@ static struct sk_buff *mld_newpack(struct net_device *dev, int size)
 	struct sk_buff *skb;
 	struct mld2_report *pmr;
 	struct in6_addr addr_buf;
+	const struct in6_addr *saddr;
 	int err;
 	u8 ra[8] = { IPPROTO_ICMPV6, 0,
 		     IPV6_TLV_ROUTERALERT, 2, 0, 0,
@@ -1424,10 +1423,11 @@ static struct sk_buff *mld_newpack(struct net_device *dev, int size)
 		 * use unspecified address as the source address
 		 * when a valid link-local address is not available.
 		 */
-		memset(&addr_buf, 0, sizeof(addr_buf));
-	}
+		saddr = &in6addr_any;
+	} else
+		saddr = &addr_buf;
 
-	ip6_nd_hdr(sk, skb, dev, &addr_buf, &mld2_all_mcr, NEXTHDR_HOP, 0);
+	ip6_nd_hdr(sk, skb, dev, saddr, &mld2_all_mcr, NEXTHDR_HOP, 0);
 
 	memcpy(skb_put(skb, sizeof(ra)), ra, sizeof(ra));
 
@@ -1768,10 +1768,9 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	struct inet6_dev *idev;
 	struct sk_buff *skb;
 	struct icmp6hdr *hdr;
-	struct in6_addr *snd_addr;
+	const struct in6_addr *snd_addr, *saddr;
 	struct in6_addr *addrp;
 	struct in6_addr addr_buf;
-	struct in6_addr all_routers;
 	int err, len, payload_len, full_len;
 	u8 ra[8] = { IPPROTO_ICMPV6, 0,
 		     IPV6_TLV_ROUTERALERT, 2, 0, 0,
@@ -1782,11 +1781,10 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	IP6_INC_STATS(__in6_dev_get(dev),
 		      IPSTATS_MIB_OUTREQUESTS);
 	rcu_read_unlock();
-	snd_addr = addr;
-	if (type == ICMPV6_MGM_REDUCTION) {
-		snd_addr = &all_routers;
-		ipv6_addr_all_routers(&all_routers);
-	}
+	if (type == ICMPV6_MGM_REDUCTION)
+		snd_addr = &in6addr_linklocal_allrouters;
+	else
+		snd_addr = addr;
 
 	len = sizeof(struct icmp6hdr) + sizeof(struct in6_addr);
 	payload_len = len + sizeof(ra);
@@ -1809,10 +1807,11 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 		 * use unspecified address as the source address
 		 * when a valid link-local address is not available.
 		 */
-		memset(&addr_buf, 0, sizeof(addr_buf));
-	}
+		saddr = &in6addr_any;
+	} else
+		saddr = &addr_buf;
 
-	ip6_nd_hdr(sk, skb, dev, &addr_buf, snd_addr, NEXTHDR_HOP, payload_len);
+	ip6_nd_hdr(sk, skb, dev, saddr, snd_addr, NEXTHDR_HOP, payload_len);
 
 	memcpy(skb_put(skb, sizeof(ra)), ra, sizeof(ra));
 
@@ -1823,7 +1822,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	addrp = (struct in6_addr *) skb_put(skb, sizeof(struct in6_addr));
 	ipv6_addr_copy(addrp, addr);
 
-	hdr->icmp6_cksum = csum_ipv6_magic(&addr_buf, snd_addr, len,
+	hdr->icmp6_cksum = csum_ipv6_magic(saddr, snd_addr, len,
 					   IPPROTO_ICMPV6,
 					   csum_partial((__u8 *) hdr, len, 0));
 
@@ -2311,24 +2310,19 @@ void ipv6_mc_init_dev(struct inet6_dev *idev)
 void ipv6_mc_destroy_dev(struct inet6_dev *idev)
 {
 	struct ifmcaddr6 *i;
-	struct in6_addr maddr;
 
 	/* Deactivate timers */
 	ipv6_mc_down(idev);
 
 	/* Delete all-nodes address. */
-	ipv6_addr_all_nodes(&maddr);
-
 	/* We cannot call ipv6_dev_mc_dec() directly, our caller in
 	 * addrconf.c has NULL'd out dev->ip6_ptr so in6_dev_get() will
 	 * fail.
 	 */
-	__ipv6_dev_mc_dec(idev, &maddr);
+	__ipv6_dev_mc_dec(idev, &in6addr_linklocal_allnodes);
 
-	if (idev->cnf.forwarding) {
-		ipv6_addr_all_routers(&maddr);
-		__ipv6_dev_mc_dec(idev, &maddr);
-	}
+	if (idev->cnf.forwarding)
+		__ipv6_dev_mc_dec(idev, &in6addr_linklocal_allrouters);
 
 	write_lock_bh(&idev->lock);
 	while ((i = idev->mc_list) != NULL) {

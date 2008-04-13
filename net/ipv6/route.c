@@ -556,8 +556,8 @@ out:
 
 }
 
-struct rt6_info *rt6_lookup(struct net *net, struct in6_addr *daddr,
-			    struct in6_addr *saddr, int oif, int strict)
+struct rt6_info *rt6_lookup(struct net *net, const struct in6_addr *daddr,
+			    const struct in6_addr *saddr, int oif, int strict)
 {
 	struct flowi fl = {
 		.oif = oif,
@@ -925,7 +925,7 @@ static DEFINE_SPINLOCK(icmp6_dst_lock);
 
 struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 				  struct neighbour *neigh,
-				  struct in6_addr *addr)
+				  const struct in6_addr *addr)
 {
 	struct rt6_info *rt;
 	struct inet6_dev *idev = in6_dev_get(dev);

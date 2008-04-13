@@ -222,6 +222,8 @@ static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
 /* IPv6 Wildcard Address and Loopback Address defined by RFC2553 */
 const struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
 const struct in6_addr in6addr_loopback = IN6ADDR_LOOPBACK_INIT;
+const struct in6_addr in6addr_linklocal_allnodes = IN6ADDR_LINKLOCAL_ALLNODES_INIT;
+const struct in6_addr in6addr_linklocal_allrouters = IN6ADDR_LINKLOCAL_ALLROUTERS_INIT;
 
 /* Check if a valid qdisc is available */
 static inline int addrconf_qdisc_ok(struct net_device *dev)
@@ -321,7 +323,6 @@ EXPORT_SYMBOL(in6_dev_finish_destroy);
 static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 {
 	struct inet6_dev *ndev;
-	struct in6_addr maddr;
 
 	ASSERT_RTNL();
 
@@ -406,8 +407,7 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 	rcu_assign_pointer(dev->ip6_ptr, ndev);
 
 	/* Join all-node multicast group */
-	ipv6_addr_all_nodes(&maddr);
-	ipv6_dev_mc_inc(dev, &maddr);
+	ipv6_dev_mc_inc(dev, &in6addr_linklocal_allnodes);
 
 	return ndev;
 }
@@ -433,18 +433,15 @@ static void dev_forward_change(struct inet6_dev *idev)
 {
 	struct net_device *dev;
 	struct inet6_ifaddr *ifa;
-	struct in6_addr addr;
 
 	if (!idev)
 		return;
 	dev = idev->dev;
 	if (dev && (dev->flags & IFF_MULTICAST)) {
-		ipv6_addr_all_routers(&addr);
-
 		if (idev->cnf.forwarding)
-			ipv6_dev_mc_inc(dev, &addr);
+			ipv6_dev_mc_inc(dev, &in6addr_linklocal_allrouters);
 		else
-			ipv6_dev_mc_dec(dev, &addr);
+			ipv6_dev_mc_dec(dev, &in6addr_linklocal_allrouters);
 	}
 	for (ifa=idev->addr_list; ifa; ifa=ifa->if_next) {
 		if (ifa->flags&IFA_F_TENTATIVE)
@@ -539,6 +536,25 @@ ipv6_link_dev_addr(struct inet6_dev *idev, struct inet6_ifaddr *ifp)
 
 	ifp->if_next = *ifap;
 	*ifap = ifp;
+}
+
+/*
+ *	Hash function taken from net_alias.c
+ */
+static u8 ipv6_addr_hash(const struct in6_addr *addr)
+{
+	__u32 word;
+
+	/*
+	 * We perform the hash function over the last 64 bits of the address
+	 * This will include the IEEE address token on links that support it.
+	 */
+
+	word = (__force u32)(addr->s6_addr32[2] ^ addr->s6_addr32[3]);
+	word ^= (word >> 16);
+	word ^= (word >> 8);
+
+	return ((word ^ (word >> 4)) & 0x0f);
 }
 
 /* On success it returns ifp with increased reference count */
@@ -921,7 +937,7 @@ struct ipv6_saddr_score {
 };
 
 struct ipv6_saddr_dst {
-	struct in6_addr *addr;
+	const struct in6_addr *addr;
 	int ifindex;
 	int scope;
 	int label;
@@ -1055,7 +1071,7 @@ out:
 }
 
 int ipv6_dev_get_saddr(struct net_device *dst_dev,
-		       struct in6_addr *daddr, unsigned int prefs,
+		       const struct in6_addr *daddr, unsigned int prefs,
 		       struct in6_addr *saddr)
 {
 	struct ipv6_saddr_score scores[2],
@@ -1290,7 +1306,7 @@ int ipv6_chk_prefix(struct in6_addr *addr, struct net_device *dev)
 
 EXPORT_SYMBOL(ipv6_chk_prefix);
 
-struct inet6_ifaddr *ipv6_get_ifaddr(struct net *net, struct in6_addr *addr,
+struct inet6_ifaddr *ipv6_get_ifaddr(struct net *net, const struct in6_addr *addr,
 				     struct net_device *dev, int strict)
 {
 	struct inet6_ifaddr * ifp;
@@ -1475,6 +1491,29 @@ static int addrconf_ifid_infiniband(u8 *eui, struct net_device *dev)
 	return 0;
 }
 
+int __ipv6_isatap_ifid(u8 *eui, __be32 addr)
+{
+	eui[0] = (ipv4_is_zeronet(addr) || ipv4_is_private_10(addr) ||
+		  ipv4_is_loopback(addr) || ipv4_is_linklocal_169(addr) ||
+		  ipv4_is_private_172(addr) || ipv4_is_test_192(addr) ||
+		  ipv4_is_anycast_6to4(addr) || ipv4_is_private_192(addr) ||
+		  ipv4_is_test_198(addr) || ipv4_is_multicast(addr) ||
+		  ipv4_is_lbcast(addr)) ? 0x00 : 0x02;
+	eui[1] = 0;
+	eui[2] = 0x5E;
+	eui[3] = 0xFE;
+	memcpy(eui + 4, &addr, 4);
+	return 0;
+}
+EXPORT_SYMBOL(__ipv6_isatap_ifid);
+
+static int addrconf_ifid_sit(u8 *eui, struct net_device *dev)
+{
+	if (dev->priv_flags & IFF_ISATAP)
+		return __ipv6_isatap_ifid(eui, *(__be32 *)dev->dev_addr);
+	return -1;
+}
+
 static int ipv6_generate_eui64(u8 *eui, struct net_device *dev)
 {
 	switch (dev->type) {
@@ -1487,8 +1526,7 @@ static int ipv6_generate_eui64(u8 *eui, struct net_device *dev)
 	case ARPHRD_INFINIBAND:
 		return addrconf_ifid_infiniband(eui, dev);
 	case ARPHRD_SIT:
-		if (dev->priv_flags & IFF_ISATAP)
-			return ipv6_isatap_eui64(eui, *(__be32 *)dev->dev_addr);
+		return addrconf_ifid_sit(eui, dev);
 	}
 	return -1;
 }
@@ -2613,8 +2651,6 @@ static void addrconf_rs_timer(unsigned long data)
 
 	spin_lock(&ifp->lock);
 	if (ifp->probes++ < ifp->idev->cnf.rtr_solicits) {
-		struct in6_addr all_routers;
-
 		/* The wait after the last probe can be shorter */
 		addrconf_mod_timer(ifp, AC_RS,
 				   (ifp->probes == ifp->idev->cnf.rtr_solicits) ?
@@ -2622,9 +2658,7 @@ static void addrconf_rs_timer(unsigned long data)
 				   ifp->idev->cnf.rtr_solicit_interval);
 		spin_unlock(&ifp->lock);
 
-		ipv6_addr_all_routers(&all_routers);
-
-		ndisc_send_rs(ifp->idev->dev, &ifp->addr, &all_routers);
+		ndisc_send_rs(ifp->idev->dev, &ifp->addr, &in6addr_linklocal_allrouters);
 	} else {
 		spin_unlock(&ifp->lock);
 		/*
@@ -2711,7 +2745,6 @@ static void addrconf_dad_timer(unsigned long data)
 {
 	struct inet6_ifaddr *ifp = (struct inet6_ifaddr *) data;
 	struct inet6_dev *idev = ifp->idev;
-	struct in6_addr unspec;
 	struct in6_addr mcaddr;
 
 	read_lock_bh(&idev->lock);
@@ -2740,9 +2773,8 @@ static void addrconf_dad_timer(unsigned long data)
 	read_unlock_bh(&idev->lock);
 
 	/* send a neighbour solicitation for our addr */
-	memset(&unspec, 0, sizeof(unspec));
 	addrconf_addr_solict_mult(&ifp->addr, &mcaddr);
-	ndisc_send_ns(ifp->idev->dev, NULL, &ifp->addr, &mcaddr, &unspec);
+	ndisc_send_ns(ifp->idev->dev, NULL, &ifp->addr, &mcaddr, &in6addr_any);
 out:
 	in6_ifa_put(ifp);
 }
@@ -2765,16 +2797,12 @@ static void addrconf_dad_completed(struct inet6_ifaddr *ifp)
 	    ifp->idev->cnf.rtr_solicits > 0 &&
 	    (dev->flags&IFF_LOOPBACK) == 0 &&
 	    (ipv6_addr_type(&ifp->addr) & IPV6_ADDR_LINKLOCAL)) {
-		struct in6_addr all_routers;
-
-		ipv6_addr_all_routers(&all_routers);
-
 		/*
 		 *	If a host as already performed a random delay
 		 *	[...] as part of DAD [...] there is no need
 		 *	to delay again before sending the first RS
 		 */
-		ndisc_send_rs(ifp->idev->dev, &ifp->addr, &all_routers);
+		ndisc_send_rs(ifp->idev->dev, &ifp->addr, &in6addr_linklocal_allrouters);
 
 		spin_lock_bh(&ifp->lock);
 		ifp->probes = 1;
@@ -2951,7 +2979,7 @@ int ipv6_chk_home_addr(struct net *net, struct in6_addr *addr)
 	for (ifp = inet6_addr_lst[hash]; ifp; ifp = ifp->lst_next) {
 		if (!net_eq(dev_net(ifp->idev->dev), net))
 			continue;
-		if (ipv6_addr_cmp(&ifp->addr, addr) == 0 &&
+		if (ipv6_addr_equal(&ifp->addr, addr) &&
 		    (ifp->flags & IFA_F_HOMEADDRESS)) {
 			ret = 1;
 			break;

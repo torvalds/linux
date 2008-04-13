@@ -280,12 +280,10 @@ static inline int
 ipv6_masked_addr_cmp(const struct in6_addr *a1, const struct in6_addr *m,
 		     const struct in6_addr *a2)
 {
-	unsigned int i;
-
-	for (i = 0; i < 4; i++)
-		if ((a1->s6_addr32[i] ^ a2->s6_addr32[i]) & m->s6_addr32[i])
-			return 1;
-	return 0;
+	return (!!(((a1->s6_addr32[0] ^ a2->s6_addr32[0]) & m->s6_addr32[0]) |
+		   ((a1->s6_addr32[1] ^ a2->s6_addr32[1]) & m->s6_addr32[1]) |
+		   ((a1->s6_addr32[2] ^ a2->s6_addr32[2]) & m->s6_addr32[2]) |
+		   ((a1->s6_addr32[3] ^ a2->s6_addr32[3]) & m->s6_addr32[3])));
 }
 
 static inline void ipv6_addr_copy(struct in6_addr *a1, const struct in6_addr *a2)
@@ -320,10 +318,10 @@ static inline void ipv6_addr_set(struct in6_addr *addr,
 static inline int ipv6_addr_equal(const struct in6_addr *a1,
 				  const struct in6_addr *a2)
 {
-	return (a1->s6_addr32[0] == a2->s6_addr32[0] &&
-		a1->s6_addr32[1] == a2->s6_addr32[1] &&
-		a1->s6_addr32[2] == a2->s6_addr32[2] &&
-		a1->s6_addr32[3] == a2->s6_addr32[3]);
+	return (((a1->s6_addr32[0] ^ a2->s6_addr32[0]) |
+		 (a1->s6_addr32[1] ^ a2->s6_addr32[1]) |
+		 (a1->s6_addr32[2] ^ a2->s6_addr32[2]) |
+		 (a1->s6_addr32[3] ^ a2->s6_addr32[3])) == 0);
 }
 
 static inline int __ipv6_prefix_equal(const __be32 *a1, const __be32 *a2,
@@ -371,8 +369,8 @@ static inline int ipv6_addr_any(const struct in6_addr *a)
 
 static inline int ipv6_addr_v4mapped(const struct in6_addr *a)
 {
-	return ((a->s6_addr32[0] | a->s6_addr32[1]) == 0 &&
-		 a->s6_addr32[2] == htonl(0x0000ffff));
+	return ((a->s6_addr32[0] | a->s6_addr32[1] |
+		 (a->s6_addr32[2] ^ htonl(0x0000ffff))) == 0);
 }
 
 /*
@@ -453,8 +451,8 @@ extern int			ip6_xmit(struct sock *sk,
 extern int			ip6_nd_hdr(struct sock *sk,
 					   struct sk_buff *skb,
 					   struct net_device *dev,
-					   struct in6_addr *saddr,
-					   struct in6_addr *daddr,
+					   const struct in6_addr *saddr,
+					   const struct in6_addr *daddr,
 					   int proto, int len);
 
 extern int			ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr);

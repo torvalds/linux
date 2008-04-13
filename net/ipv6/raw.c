@@ -357,8 +357,10 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 	read_lock(&raw_v6_hashinfo.lock);
 	sk = sk_head(&raw_v6_hashinfo.ht[hash]);
 	if (sk != NULL) {
-		saddr = &ipv6_hdr(skb)->saddr;
-		daddr = &ipv6_hdr(skb)->daddr;
+		/* Note: ipv6_hdr(skb) != skb->data */
+		struct ipv6hdr *ip6h = (struct ipv6hdr *)skb->data;
+		saddr = &ip6h->saddr;
+		daddr = &ip6h->daddr;
 		net = dev_net(skb->dev);
 
 		while ((sk = __raw_v6_lookup(net, sk, nexthdr, saddr, daddr,
@@ -805,15 +807,6 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		fl.fl6_flowlabel = np->flow_label;
 	}
 
-	if (ipv6_addr_any(daddr)) {
-		/*
-		 * unspecified destination address
-		 * treated as error... is this correct ?
-		 */
-		fl6_sock_release(flowlabel);
-		return(-EINVAL);
-	}
-
 	if (fl.oif == 0)
 		fl.oif = sk->sk_bound_dev_if;
 
@@ -846,7 +839,10 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	if (err)
 		goto out;
 
-	ipv6_addr_copy(&fl.fl6_dst, daddr);
+	if (!ipv6_addr_any(daddr))
+		ipv6_addr_copy(&fl.fl6_dst, daddr);
+	else
+		fl.fl6_dst.s6_addr[15] = 0x1; /* :: means loopback (BSD'ism) */
 	if (ipv6_addr_any(&fl.fl6_src) && !ipv6_addr_any(&np->saddr))
 		ipv6_addr_copy(&fl.fl6_src, &np->saddr);
 

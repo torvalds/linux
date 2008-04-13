@@ -262,21 +262,23 @@ int ip6_mc_input(struct sk_buff *skb)
 			 * is for MLD (0x0000).
 			 */
 			if ((ptr[2] | ptr[3]) == 0) {
+				deliver = 0;
+
 				if (!ipv6_ext_hdr(nexthdr)) {
 					/* BUG */
-					goto discard;
+					goto out;
 				}
 				offset = ipv6_skip_exthdr(skb, sizeof(*hdr),
 							  &nexthdr);
 				if (offset < 0)
-					goto discard;
+					goto out;
 
 				if (nexthdr != IPPROTO_ICMPV6)
-					goto discard;
+					goto out;
 
 				if (!pskb_may_pull(skb, (skb_network_header(skb) +
 						   offset + 1 - skb->data)))
-					goto discard;
+					goto out;
 
 				icmp6 = (struct icmp6hdr *)(skb_network_header(skb) + offset);
 
@@ -285,12 +287,9 @@ int ip6_mc_input(struct sk_buff *skb)
 				case ICMPV6_MGM_REPORT:
 				case ICMPV6_MGM_REDUCTION:
 				case ICMPV6_MLD2_REPORT:
+					deliver = 1;
 					break;
-				default:
-					/* Bogus */
-					goto discard;
 				}
-				deliver = 1;
 				goto out;
 			}
 			/* unknown RA - process it normally */
@@ -308,15 +307,14 @@ int ip6_mc_input(struct sk_buff *skb)
 			ip6_mr_input(skb2);
 		}
 	}
-#endif
 out:
-	if (likely(deliver)) {
+#endif
+	if (likely(deliver))
 		ip6_input(skb);
-		return 0;
+	else {
+		/* discard */
+		kfree_skb(skb);
 	}
-discard:
-	/* discard */
-	kfree_skb(skb);
 
 	return 0;
 }
