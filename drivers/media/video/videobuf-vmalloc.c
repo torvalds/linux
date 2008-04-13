@@ -387,6 +387,7 @@ static struct videobuf_qtype_ops qops = {
 	.mmap_mapper  = __videobuf_mmap_mapper,
 	.video_copy_to_user = __videobuf_copy_to_user,
 	.copy_stream  = __videobuf_copy_stream,
+	.vmalloc      = videobuf_to_vmalloc,
 };
 
 void videobuf_queue_vmalloc_init(struct videobuf_queue* q,

@@ -20,9 +20,10 @@
 #include <linux/fs.h>
 #include <linux/kthread.h>
 #include <linux/file.h>
+
 #include <linux/freezer.h>
 
-#include <media/videobuf-dma-sg.h>
+#include <media/videobuf-core.h>
 #include <media/videobuf-dvb.h>
 
 /* ------------------------------------------------------------------ */
@@ -45,7 +46,7 @@ static int videobuf_dvb_thread(void *data)
 	struct videobuf_buffer *buf;
 	unsigned long flags;
 	int err;
-	struct videobuf_dmabuf *dma;
+	void *outp;
 
 	dprintk("dvb thread started\n");
 	set_freezable();
@@ -66,9 +67,10 @@ static int videobuf_dvb_thread(void *data)
 		try_to_freeze();
 
 		/* feed buffer data to demux */
-		dma=videobuf_to_dma(buf);
+		outp = videobuf_queue_to_vmalloc (&dvb->dvbq, buf);
+
 		if (buf->state == VIDEOBUF_DONE)
-			dvb_dmx_swfilter(&dvb->demux, dma->vmalloc,
+			dvb_dmx_swfilter(&dvb->demux, outp,
 					 buf->size);
 
 		/* requeue buffer */

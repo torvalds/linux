@@ -432,6 +432,16 @@ static void *__videobuf_alloc(size_t size)
 	return vb;
 }
 
+static void *__videobuf_to_vmalloc (struct videobuf_buffer *buf)
+{
+	struct videobuf_dma_sg_memory *mem = buf->priv;
+	BUG_ON(!mem);
+
+	MAGIC_CHECK(mem->magic, MAGIC_SG_MEM);
+
+	return mem->dma.vmalloc;
+}
+
 static int __videobuf_iolock (struct videobuf_queue* q,
 			      struct videobuf_buffer *vb,
 			      struct v4l2_framebuffer *fbuf)
@@ -677,6 +687,7 @@ static struct videobuf_qtype_ops sg_ops = {
 	.mmap_mapper  = __videobuf_mmap_mapper,
 	.video_copy_to_user = __videobuf_copy_to_user,
 	.copy_stream  = __videobuf_copy_stream,
+	.vmalloc      = __videobuf_to_vmalloc,
 };
 
 void *videobuf_sg_alloc(size_t size)

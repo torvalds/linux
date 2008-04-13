@@ -13,6 +13,9 @@
  * the Free Software Foundation; either version 2
  */
 
+#ifndef _VIDEOBUF_CORE_H
+#define _VIDEOBUF_CORE_H
+
 #include <linux/poll.h>
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 #include <linux/videodev.h>
@@ -123,7 +126,8 @@ struct videobuf_queue_ops {
 struct videobuf_qtype_ops {
 	u32                     magic;
 
-	void* (*alloc)		(size_t size);
+	void *(*alloc)		(size_t size);
+	void *(*vmalloc)	(struct videobuf_buffer *buf);
 	int (*iolock)		(struct videobuf_queue* q,
 				 struct videobuf_buffer *vb,
 				 struct v4l2_framebuffer *fbuf);
@@ -185,6 +189,10 @@ int videobuf_iolock(struct videobuf_queue* q, struct videobuf_buffer *vb,
 
 void *videobuf_alloc(struct videobuf_queue* q);
 
+/* Used on videobuf-dvb */
+void *videobuf_queue_to_vmalloc (struct videobuf_queue* q,
+				 struct videobuf_buffer *buf);
+
 void videobuf_queue_core_init(struct videobuf_queue *q,
 			 struct videobuf_queue_ops *ops,
 			 struct device *dev,
@@ -233,10 +241,4 @@ int videobuf_mmap_free(struct videobuf_queue *q);
 int videobuf_mmap_mapper(struct videobuf_queue *q,
 			 struct vm_area_struct *vma);
 
-/* --------------------------------------------------------------------- */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
+#endif

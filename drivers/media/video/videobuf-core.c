@@ -94,6 +94,13 @@ int videobuf_iolock(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	return CALL(q, iolock, q, vb, fbuf);
 }
 
+void *videobuf_queue_to_vmalloc (struct videobuf_queue *q,
+			   struct videobuf_buffer *buf)
+{
+	return CALL(q, vmalloc, buf);
+}
+EXPORT_SYMBOL_GPL(videobuf_queue_to_vmalloc);
+
 /* --------------------------------------------------------------------- */
 
 
