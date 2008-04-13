@@ -804,7 +804,7 @@ static int acm_probe (struct usb_interface *intf,
 {
 	struct usb_cdc_union_desc *union_header = NULL;
 	struct usb_cdc_country_functional_desc *cfd = NULL;
-	char *buffer = intf->altsetting->extra;
+	unsigned char *buffer = intf->altsetting->extra;
 	int buflen = intf->altsetting->extralen;
 	struct usb_interface *control_interface;
 	struct usb_interface *data_interface;
@@ -881,9 +881,13 @@ static int acm_probe (struct usb_interface *intf,
 				if ((call_management_function & 3) != 3)
 					err("This device cannot do calls on its own. It is no modem.");
 				break;
-				
 			default:
-				err("Ignoring extra header, type %d, length %d", buffer[2], buffer[0]);
+				/* there are LOTS more CDC descriptors that
+				 * could legitimately be found here.
+				 */
+				dev_dbg(&intf->dev, "Ignoring descriptor: "
+						"type %02x, length %d\n",
+						buffer[2], buffer[0]);
 				break;
 			}
 next_desc:
