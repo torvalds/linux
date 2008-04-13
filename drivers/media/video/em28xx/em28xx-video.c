@@ -133,7 +133,7 @@ static inline void buffer_filled(struct em28xx *dev,
 				  struct em28xx_dmaqueue *dma_q,
 				  struct em28xx_buffer *buf)
 {
-	mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
+	mod_timer(&dma_q->timeout, jiffies + BUFFER_TIMEOUT);
 
 	/* Advice that buffer was filled */
 	em28xx_isocdbg("[%p/%d] wakeup\n", buf, buf->vb.i);
@@ -159,7 +159,7 @@ static void em28xx_copy_video(struct em28xx *dev,
 
 	if (dev->frame_size != buf->vb.size) {
 		em28xx_errdev("size %i and buf.length %lu are different!\n",
-			   dev->frame_size, buf->vb.size);
+			      dev->frame_size, buf->vb.size);
 		return;
 	}
 
@@ -207,8 +207,6 @@ static void em28xx_copy_video(struct em28xx *dev,
 			lencopy = remain;
 		else
 			lencopy = dev->bytesperline;
-
-		BUG_ON(lencopy <= 0);
 
 		if ((char *)startwrite + lencopy > (char *)outp + buf->vb.size) {
 			em28xx_isocdbg("Overflow of %zi bytes past buffer end (2)\n",
@@ -319,7 +317,6 @@ static inline int em28xx_isoc_copy(struct urb *urb)
 
 	outp = videobuf_to_vmalloc(&buf->vb);
 
-
 	for (i = 0; i < urb->number_of_packets; i++) {
 		int status = urb->iso_frame_desc[i].status;
 
@@ -347,11 +344,8 @@ static inline int em28xx_isoc_copy(struct urb *urb)
 		   logic simpler. Impacts of those changes should be evaluated
 		 */
 		if (p[0] == 0x22 && p[1] == 0x5a) {
-			/* FIXME - are the fields the right way around? */
-			em28xx_isocdbg("Video frame, length=%i, %s\n", len,
-					(p[2] & 1)? "odd" : "even");
-			em28xx_isocdbg("Current buffer is: outp = 0x%p,"
-				       " len = %i\n", outp, (int)buf->vb.size);
+			em28xx_isocdbg("Video frame %d, length=%i, %s\n", p[2],
+				       len, (p[2] & 1)? "odd" : "even");
 
 			if (p[2] & 1)
 				buf->top_field = 0;
@@ -454,7 +448,6 @@ static void em28xx_uninit_isoc(struct em28xx *dev)
 	del_timer(&dev->vidq.timeout);
 	em28xx_capture_start(dev, 0);
 }
-
 
 /*
  * Allocate URBs and start IRQ
