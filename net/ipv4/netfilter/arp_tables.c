@@ -222,7 +222,7 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 			   unsigned int hook,
 			   const struct net_device *in,
 			   const struct net_device *out,
-			   struct arpt_table *table)
+			   struct xt_table *table)
 {
 	static const char nulldevname[IFNAMSIZ];
 	unsigned int verdict = NF_DROP;
@@ -706,7 +706,7 @@ static void get_counters(const struct xt_table_info *t,
 	}
 }
 
-static inline struct xt_counters *alloc_counters(struct arpt_table *table)
+static inline struct xt_counters *alloc_counters(struct xt_table *table)
 {
 	unsigned int countersize;
 	struct xt_counters *counters;
@@ -731,13 +731,13 @@ static inline struct xt_counters *alloc_counters(struct arpt_table *table)
 }
 
 static int copy_entries_to_user(unsigned int total_size,
-				struct arpt_table *table,
+				struct xt_table *table,
 				void __user *userptr)
 {
 	unsigned int off, num;
 	struct arpt_entry *e;
 	struct xt_counters *counters;
-	const struct xt_table_info *private = table->private;
+	struct xt_table_info *private = table->private;
 	int ret = 0;
 	void *loc_cpu_entry;
 
@@ -851,7 +851,7 @@ static int compat_table_info(const struct xt_table_info *info,
 static int get_info(struct net *net, void __user *user, int *len, int compat)
 {
 	char name[ARPT_TABLE_MAXNAMELEN];
-	struct arpt_table *t;
+	struct xt_table *t;
 	int ret;
 
 	if (*len != sizeof(struct arpt_getinfo)) {
@@ -911,7 +911,7 @@ static int get_entries(struct net *net, struct arpt_get_entries __user *uptr,
 {
 	int ret;
 	struct arpt_get_entries get;
-	struct arpt_table *t;
+	struct xt_table *t;
 
 	if (*len < sizeof(get)) {
 		duprintf("get_entries: %u < %Zu\n", *len, sizeof(get));
@@ -954,7 +954,7 @@ static int __do_replace(struct net *net, const char *name,
 			void __user *counters_ptr)
 {
 	int ret;
-	struct arpt_table *t;
+	struct xt_table *t;
 	struct xt_table_info *oldinfo;
 	struct xt_counters *counters;
 	void *loc_cpu_old_entry;
@@ -1091,7 +1091,7 @@ static int do_add_counters(struct net *net, void __user *user, unsigned int len,
 	const char *name;
 	int size;
 	void *ptmp;
-	struct arpt_table *t;
+	struct xt_table *t;
 	const struct xt_table_info *private;
 	int ret = 0;
 	void *loc_cpu_entry;
@@ -1555,7 +1555,7 @@ out:
 }
 
 static int compat_copy_entries_to_user(unsigned int total_size,
-				       struct arpt_table *table,
+				       struct xt_table *table,
 				       void __user *userptr)
 {
 	struct xt_counters *counters;
@@ -1593,7 +1593,7 @@ static int compat_get_entries(struct net *net,
 {
 	int ret;
 	struct compat_arpt_get_entries get;
-	struct arpt_table *t;
+	struct xt_table *t;
 
 	if (*len < sizeof(get)) {
 		duprintf("compat_get_entries: %u < %zu\n", *len, sizeof(get));
@@ -1723,9 +1723,8 @@ static int do_arpt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len
 	return ret;
 }
 
-struct arpt_table *arpt_register_table(struct net *net,
-				       struct arpt_table *table,
-				       const struct arpt_replace *repl)
+struct xt_table *arpt_register_table(struct net *net, struct xt_table *table,
+				     const struct arpt_replace *repl)
 {
 	int ret;
 	struct xt_table_info *newinfo;
@@ -1767,7 +1766,7 @@ out:
 	return ERR_PTR(ret);
 }
 
-void arpt_unregister_table(struct arpt_table *table)
+void arpt_unregister_table(struct xt_table *table)
 {
 	struct xt_table_info *private;
 	void *loc_cpu_entry;
