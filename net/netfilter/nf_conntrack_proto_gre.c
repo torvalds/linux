@@ -82,7 +82,7 @@ static __be16 gre_keymap_lookup(struct nf_conntrack_tuple *t)
 	read_unlock_bh(&nf_ct_gre_lock);
 
 	pr_debug("lookup src key 0x%x for ", key);
-	NF_CT_DUMP_TUPLE(t);
+	nf_ct_dump_tuple(t);
 
 	return key;
 }
@@ -113,7 +113,7 @@ int nf_ct_gre_keymap_add(struct nf_conn *ct, enum ip_conntrack_dir dir,
 	*kmp = km;
 
 	pr_debug("adding new entry %p: ", km);
-	NF_CT_DUMP_TUPLE(&km->tuple);
+	nf_ct_dump_tuple(&km->tuple);
 
 	write_lock_bh(&nf_ct_gre_lock);
 	list_add_tail(&km->list, &gre_keymap_list);
@@ -238,7 +238,7 @@ static bool gre_new(struct nf_conn *ct, const struct sk_buff *skb,
 		    unsigned int dataoff)
 {
 	pr_debug(": ");
-	NF_CT_DUMP_TUPLE(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
+	nf_ct_dump_tuple(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 
 	/* initialize to sane value.  Ideally a conntrack helper
 	 * (e.g. in case of pptp) is increasing them */

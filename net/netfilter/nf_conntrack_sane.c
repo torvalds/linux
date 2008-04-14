@@ -147,7 +147,7 @@ static int help(struct sk_buff *skb,
 			  IPPROTO_TCP, NULL, &reply->port);
 
 	pr_debug("nf_ct_sane: expect: ");
-	NF_CT_DUMP_TUPLE(&exp->tuple);
+	nf_ct_dump_tuple(&exp->tuple);
 
 	/* Can't expect this?  Best to drop packet now. */
 	if (nf_ct_expect_related(exp) != 0)

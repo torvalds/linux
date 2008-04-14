@@ -115,7 +115,7 @@ static bool icmpv6_new(struct nf_conn *ct, const struct sk_buff *skb,
 		/* Can't create a new ICMPv6 `conn' with this. */
 		pr_debug("icmpv6: can't create new conn with type %u\n",
 			 type + 128);
-		NF_CT_DUMP_TUPLE(&ct->tuplehash[0].tuple);
+		nf_ct_dump_tuple_ipv6(&ct->tuplehash[0].tuple);
 		return false;
 	}
 	atomic_set(&ct->proto.icmp.count, 0);

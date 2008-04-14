@@ -72,7 +72,7 @@ static void pptp_nat_expected(struct nf_conn *ct,
 	}
 
 	pr_debug("trying to unexpect other dir: ");
-	NF_CT_DUMP_TUPLE(&t);
+	nf_ct_dump_tuple_ip(&t);
 	other_exp = nf_ct_expect_find_get(&t);
 	if (other_exp) {
 		nf_ct_unexpect_related(other_exp);

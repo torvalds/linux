@@ -151,8 +151,6 @@ static inline void nf_ct_dump_tuple(const struct nf_conntrack_tuple *t)
 	}
 }
 
-#define NF_CT_DUMP_TUPLE(tp)	nf_ct_dump_tuple(tp)
-
 /* If we're the first tuple, it's the original dir. */
 #define NF_CT_DIRECTION(h)						\
 	((enum ip_conntrack_dir)(h)->tuple.dst.dir)

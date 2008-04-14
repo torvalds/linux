@@ -115,7 +115,7 @@ static bool icmp_new(struct nf_conn *ct, const struct sk_buff *skb,
 		/* Can't create a new ICMP `conn' with this. */
 		pr_debug("icmp: can't create new conn with type %u\n",
 			 ct->tuplehash[0].tuple.dst.u.icmp.type);
-		NF_CT_DUMP_TUPLE(&ct->tuplehash[0].tuple);
+		nf_ct_dump_tuple_ip(&ct->tuplehash[0].tuple);
 		return false;
 	}
 	atomic_set(&ct->proto.icmp.count, 0);
