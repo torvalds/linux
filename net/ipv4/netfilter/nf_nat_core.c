@@ -618,6 +618,9 @@ static int __init nf_nat_init(void)
 	nf_conntrack_untracked.status |= IPS_NAT_DONE_MASK;
 
 	l3proto = nf_ct_l3proto_find_get((u_int16_t)AF_INET);
+
+	BUG_ON(nf_nat_seq_adjust_hook != NULL);
+	rcu_assign_pointer(nf_nat_seq_adjust_hook, nf_nat_seq_adjust);
 	return 0;
 
  cleanup_extend:
@@ -644,6 +647,8 @@ static void __exit nf_nat_cleanup(void)
 	nf_ct_free_hashtable(bysource, nf_nat_vmalloced, nf_nat_htable_size);
 	nf_ct_l3proto_put(l3proto);
 	nf_ct_extend_unregister(&nat_extend);
+	rcu_assign_pointer(nf_nat_seq_adjust_hook, NULL);
+	synchronize_net();
 }
 
 MODULE_LICENSE("GPL");

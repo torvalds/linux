@@ -416,7 +416,6 @@ nf_nat_seq_adjust(struct sk_buff *skb,
 
 	return 1;
 }
-EXPORT_SYMBOL(nf_nat_seq_adjust);
 
 /* Setup NAT on this expected conntrack so it follows master. */
 /* If we fail to get a free NAT slot, we'll get dropped on confirm */

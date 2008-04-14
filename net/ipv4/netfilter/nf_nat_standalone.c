@@ -245,25 +245,6 @@ nf_nat_local_fn(unsigned int hooknum,
 	return ret;
 }
 
-static unsigned int
-nf_nat_adjust(unsigned int hooknum,
-	      struct sk_buff *skb,
-	      const struct net_device *in,
-	      const struct net_device *out,
-	      int (*okfn)(struct sk_buff *))
-{
-	struct nf_conn *ct;
-	enum ip_conntrack_info ctinfo;
-
-	ct = nf_ct_get(skb, &ctinfo);
-	if (ct && test_bit(IPS_SEQ_ADJUST_BIT, &ct->status)) {
-		pr_debug("nf_nat_standalone: adjusting sequence number\n");
-		if (!nf_nat_seq_adjust(skb, ct, ctinfo))
-			return NF_DROP;
-	}
-	return NF_ACCEPT;
-}
-
 /* We must be after connection tracking and before packet filtering. */
 
 static struct nf_hook_ops nf_nat_ops[] __read_mostly = {
@@ -283,14 +264,6 @@ static struct nf_hook_ops nf_nat_ops[] __read_mostly = {
 		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP_PRI_NAT_SRC,
 	},
-	/* After conntrack, adjust sequence number */
-	{
-		.hook		= nf_nat_adjust,
-		.owner		= THIS_MODULE,
-		.pf		= PF_INET,
-		.hooknum	= NF_INET_POST_ROUTING,
-		.priority	= NF_IP_PRI_NAT_SEQ_ADJUST,
-	},
 	/* Before packet filtering, change destination */
 	{
 		.hook		= nf_nat_local_fn,
@@ -306,14 +279,6 @@ static struct nf_hook_ops nf_nat_ops[] __read_mostly = {
 		.pf		= PF_INET,
 		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP_PRI_NAT_SRC,
-	},
-	/* After conntrack, adjust sequence number */
-	{
-		.hook		= nf_nat_adjust,
-		.owner		= THIS_MODULE,
-		.pf		= PF_INET,
-		.hooknum	= NF_INET_LOCAL_IN,
-		.priority	= NF_IP_PRI_NAT_SEQ_ADJUST,
 	},
 };
 
