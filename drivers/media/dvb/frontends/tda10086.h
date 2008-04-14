@@ -56,6 +56,6 @@ static inline struct dvb_frontend* tda10086_attach(const struct tda10086_config*
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif // CONFIG_DVB_TDA10086
+#endif /* CONFIG_DVB_TDA10086 */
 
-#endif // TDA10086_H
+#endif /* TDA10086_H */
