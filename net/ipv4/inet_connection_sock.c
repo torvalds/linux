@@ -55,6 +55,13 @@ int inet_csk_bind_conflict(const struct sock *sk,
 	struct hlist_node *node;
 	int reuse = sk->sk_reuse;
 
+	/*
+	 * Unlike other sk lookup places we do not check
+	 * for sk_net here, since _all_ the socks listed
+	 * in tb->owners list belong to the same net - the
+	 * one this bucket belongs to.
+	 */
+
 	sk_for_each_bound(sk2, node, &tb->owners) {
 		if (sk != sk2 &&
 		    !inet_v6_ipv6only(sk2) &&
