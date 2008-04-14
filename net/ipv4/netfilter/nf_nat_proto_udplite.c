@@ -1,5 +1,6 @@
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2006 Netfilter Core Team <coreteam@netfilter.org>
+ * (C) 2008 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -13,27 +14,25 @@
 
 #include <linux/netfilter.h>
 #include <net/netfilter/nf_nat.h>
-#include <net/netfilter/nf_nat_core.h>
-#include <net/netfilter/nf_nat_rule.h>
 #include <net/netfilter/nf_nat_protocol.h>
 
-static u_int16_t udp_port_rover;
+static u_int16_t udplite_port_rover;
 
 static bool
-udp_unique_tuple(struct nf_conntrack_tuple *tuple,
-		 const struct nf_nat_range *range,
-		 enum nf_nat_manip_type maniptype,
-		 const struct nf_conn *ct)
+udplite_unique_tuple(struct nf_conntrack_tuple *tuple,
+		     const struct nf_nat_range *range,
+		     enum nf_nat_manip_type maniptype,
+		     const struct nf_conn *ct)
 {
 	return nf_nat_proto_unique_tuple(tuple, range, maniptype, ct,
-					 &udp_port_rover);
+					 &udplite_port_rover);
 }
 
 static bool
-udp_manip_pkt(struct sk_buff *skb,
-	      unsigned int iphdroff,
-	      const struct nf_conntrack_tuple *tuple,
-	      enum nf_nat_manip_type maniptype)
+udplite_manip_pkt(struct sk_buff *skb,
+		  unsigned int iphdroff,
+		  const struct nf_conntrack_tuple *tuple,
+		  enum nf_nat_manip_type maniptype)
 {
 	const struct iphdr *iph = (struct iphdr *)(skb->data + iphdroff);
 	struct udphdr *hdr;
@@ -60,25 +59,41 @@ udp_manip_pkt(struct sk_buff *skb,
 		newport = tuple->dst.u.udp.port;
 		portptr = &hdr->dest;
 	}
-	if (hdr->check || skb->ip_summed == CHECKSUM_PARTIAL) {
-		inet_proto_csum_replace4(&hdr->check, skb, oldip, newip, 1);
-		inet_proto_csum_replace2(&hdr->check, skb, *portptr, newport,
-					 0);
-		if (!hdr->check)
-			hdr->check = CSUM_MANGLED_0;
-	}
+
+	inet_proto_csum_replace4(&hdr->check, skb, oldip, newip, 1);
+	inet_proto_csum_replace2(&hdr->check, skb, *portptr, newport, 0);
+	if (!hdr->check)
+		hdr->check = CSUM_MANGLED_0;
+
 	*portptr = newport;
 	return true;
 }
 
-const struct nf_nat_protocol nf_nat_protocol_udp = {
-	.protonum		= IPPROTO_UDP,
+static const struct nf_nat_protocol nf_nat_protocol_udplite = {
+	.protonum		= IPPROTO_UDPLITE,
 	.me			= THIS_MODULE,
-	.manip_pkt		= udp_manip_pkt,
+	.manip_pkt		= udplite_manip_pkt,
 	.in_range		= nf_nat_proto_in_range,
-	.unique_tuple		= udp_unique_tuple,
+	.unique_tuple		= udplite_unique_tuple,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.range_to_nlattr	= nf_nat_proto_range_to_nlattr,
 	.nlattr_to_range	= nf_nat_proto_nlattr_to_range,
 #endif
 };
+
+static int __init nf_nat_proto_udplite_init(void)
+{
+	return nf_nat_protocol_register(&nf_nat_protocol_udplite);
+}
+
+static void __exit nf_nat_proto_udplite_fini(void)
+{
+	nf_nat_protocol_unregister(&nf_nat_protocol_udplite);
+}
+
+module_init(nf_nat_proto_udplite_init);
+module_exit(nf_nat_proto_udplite_fini);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("UDP-Lite NAT protocol helper");
+MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");

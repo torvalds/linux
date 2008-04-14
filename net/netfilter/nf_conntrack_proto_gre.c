@@ -82,7 +82,7 @@ static __be16 gre_keymap_lookup(struct nf_conntrack_tuple *t)
 	read_unlock_bh(&nf_ct_gre_lock);
 
 	pr_debug("lookup src key 0x%x for ", key);
-	NF_CT_DUMP_TUPLE(t);
+	nf_ct_dump_tuple(t);
 
 	return key;
 }
@@ -113,7 +113,7 @@ int nf_ct_gre_keymap_add(struct nf_conn *ct, enum ip_conntrack_dir dir,
 	*kmp = km;
 
 	pr_debug("adding new entry %p: ", km);
-	NF_CT_DUMP_TUPLE(&km->tuple);
+	nf_ct_dump_tuple(&km->tuple);
 
 	write_lock_bh(&nf_ct_gre_lock);
 	list_add_tail(&km->list, &gre_keymap_list);
@@ -148,18 +148,17 @@ EXPORT_SYMBOL_GPL(nf_ct_gre_keymap_destroy);
 /* PUBLIC CONNTRACK PROTO HELPER FUNCTIONS */
 
 /* invert gre part of tuple */
-static int gre_invert_tuple(struct nf_conntrack_tuple *tuple,
-			    const struct nf_conntrack_tuple *orig)
+static bool gre_invert_tuple(struct nf_conntrack_tuple *tuple,
+			     const struct nf_conntrack_tuple *orig)
 {
 	tuple->dst.u.gre.key = orig->src.u.gre.key;
 	tuple->src.u.gre.key = orig->dst.u.gre.key;
-	return 1;
+	return true;
 }
 
 /* gre hdr info to tuple */
-static int gre_pkt_to_tuple(const struct sk_buff *skb,
-			   unsigned int dataoff,
-			   struct nf_conntrack_tuple *tuple)
+static bool gre_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
+			     struct nf_conntrack_tuple *tuple)
 {
 	const struct gre_hdr_pptp *pgrehdr;
 	struct gre_hdr_pptp _pgrehdr;
@@ -173,24 +172,24 @@ static int gre_pkt_to_tuple(const struct sk_buff *skb,
 		/* try to behave like "nf_conntrack_proto_generic" */
 		tuple->src.u.all = 0;
 		tuple->dst.u.all = 0;
-		return 1;
+		return true;
 	}
 
 	/* PPTP header is variable length, only need up to the call_id field */
 	pgrehdr = skb_header_pointer(skb, dataoff, 8, &_pgrehdr);
 	if (!pgrehdr)
-		return 1;
+		return true;
 
 	if (ntohs(grehdr->protocol) != GRE_PROTOCOL_PPTP) {
 		pr_debug("GRE_VERSION_PPTP but unknown proto\n");
-		return 0;
+		return false;
 	}
 
 	tuple->dst.u.gre.key = pgrehdr->call_id;
 	srckey = gre_keymap_lookup(tuple);
 	tuple->src.u.gre.key = srckey;
 
-	return 1;
+	return true;
 }
 
 /* print gre part of tuple */
@@ -235,18 +234,18 @@ static int gre_packet(struct nf_conn *ct,
 }
 
 /* Called when a new connection for this protocol found. */
-static int gre_new(struct nf_conn *ct, const struct sk_buff *skb,
-		   unsigned int dataoff)
+static bool gre_new(struct nf_conn *ct, const struct sk_buff *skb,
+		    unsigned int dataoff)
 {
 	pr_debug(": ");
-	NF_CT_DUMP_TUPLE(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
+	nf_ct_dump_tuple(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 
 	/* initialize to sane value.  Ideally a conntrack helper
 	 * (e.g. in case of pptp) is increasing them */
 	ct->proto.gre.stream_timeout = GRE_STREAM_TIMEOUT;
 	ct->proto.gre.timeout = GRE_TIMEOUT;
 
-	return 1;
+	return true;
 }
 
 /* Called when a conntrack entry has already been removed from the hashes
