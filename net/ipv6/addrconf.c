@@ -776,6 +776,7 @@ static int ipv6_create_tempaddr(struct inet6_ifaddr *ifp, struct inet6_ifaddr *i
 	struct inet6_dev *idev = ifp->idev;
 	struct in6_addr addr, *tmpaddr;
 	unsigned long tmp_prefered_lft, tmp_valid_lft, tmp_cstamp, tmp_tstamp;
+	unsigned long regen_advance;
 	int tmp_plen;
 	int ret = 0;
 	int max_addresses;
@@ -836,7 +837,22 @@ retry:
 	tmp_tstamp = ifp->tstamp;
 	spin_unlock_bh(&ifp->lock);
 
+	regen_advance = idev->cnf.regen_max_retry *
+	                idev->cnf.dad_transmits *
+	                idev->nd_parms->retrans_time / HZ;
 	write_unlock(&idev->lock);
+
+	/* A temporary address is created only if this calculated Preferred
+	 * Lifetime is greater than REGEN_ADVANCE time units.  In particular,
+	 * an implementation must not create a temporary address with a zero
+	 * Preferred Lifetime.
+	 */
+	if (tmp_prefered_lft <= regen_advance) {
+		in6_ifa_put(ifp);
+		in6_dev_put(idev);
+		ret = -1;
+		goto out;
+	}
 
 	addr_flags = IFA_F_TEMPORARY;
 	/* set in addrconf_prefix_rcv() */
@@ -1831,6 +1847,9 @@ ok:
 				 * lifetimes of an existing temporary address
 				 * when processing a Prefix Information Option.
 				 */
+				if (ifp != ift->ifpub)
+					continue;
+
 				spin_lock(&ift->lock);
 				flags = ift->flags;
 				if (ift->valid_lft > valid_lft &&
@@ -2437,7 +2456,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	ASSERT_RTNL();
 
-	if (dev == init_net.loopback_dev && how == 1)
+	if ((dev->flags & IFF_LOOPBACK) && how == 1)
 		how = 0;
 
 	rt6_ifdown(dev);
@@ -2450,7 +2469,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 	/* Step 1: remove reference to ipv6 device from parent device.
 		   Do not dev_put!
 	 */
-	if (how == 1) {
+	if (how) {
 		idev->dead = 1;
 
 		/* protected by rtnl_lock */
@@ -2482,12 +2501,12 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 	write_lock_bh(&idev->lock);
 
 	/* Step 3: clear flags for stateless addrconf */
-	if (how != 1)
+	if (!how)
 		idev->if_flags &= ~(IF_RS_SENT|IF_RA_RCVD|IF_READY);
 
 	/* Step 4: clear address list */
 #ifdef CONFIG_IPV6_PRIVACY
-	if (how == 1 && del_timer(&idev->regen_timer))
+	if (how && del_timer(&idev->regen_timer))
 		in6_dev_put(idev);
 
 	/* clear tempaddr list */
@@ -2524,7 +2543,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	/* Step 5: Discard multicast list */
 
-	if (how == 1)
+	if (how)
 		ipv6_mc_destroy_dev(idev);
 	else
 		ipv6_mc_down(idev);
@@ -2533,7 +2552,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	/* Shot the device (if unregistered) */
 
-	if (how == 1) {
+	if (how) {
 		addrconf_sysctl_unregister(idev);
 		neigh_parms_release(&nd_tbl, idev->nd_parms);
 		neigh_ifdown(&nd_tbl, dev);

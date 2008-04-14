@@ -86,3 +86,5 @@ static void __exit pnpide_exit(void)
 
 module_init(pnpide_init);
 module_exit(pnpide_exit);
+
+MODULE_LICENSE("GPL");

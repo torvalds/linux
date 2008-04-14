@@ -405,7 +405,7 @@ typedef struct irnet_socket
   /* "pppd" interact directly with us on a /dev/ file */
   struct file *		file;		/* File descriptor of this instance */
   /* TTY stuff - to keep "pppd" happy */
-  struct termios	termios;	/* Various tty flags */
+  struct ktermios	termios;	/* Various tty flags */
   /* Stuff for the control channel */
   int			event_index;	/* Last read in the event log */
 

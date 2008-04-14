@@ -2,8 +2,8 @@
  * previous encounters.  It's functional, and as neat as it can be in the
  * circumstances, but be wary, for these things are subtle and break easily.
  * The Guest provides a virtual to physical mapping, but we can neither trust
- * it nor use it: we verify and convert it here to point the hardware to the
- * actual Guest pages when running the Guest. :*/
+ * it nor use it: we verify and convert it here then point the CPU to the
+ * converted Guest pages when running the Guest. :*/
 
 /* Copyright (C) Rusty Russell IBM Corporation 2006.
  * GPL v2 and any later version */
@@ -106,6 +106,11 @@ static unsigned long gpte_addr(pgd_t gpgd, unsigned long vaddr)
 	BUG_ON(!(pgd_flags(gpgd) & _PAGE_PRESENT));
 	return gpage + ((vaddr>>PAGE_SHIFT) % PTRS_PER_PTE) * sizeof(pte_t);
 }
+/*:*/
+
+/*M:014 get_pfn is slow; it takes the mmap sem and calls get_user_pages.  We
+ * could probably try to grab batches of pages here as an optimization
+ * (ie. pre-faulting). :*/
 
 /*H:350 This routine takes a page number given by the Guest and converts it to
  * an actual, physical page number.  It can fail for several reasons: the
@@ -113,8 +118,8 @@ static unsigned long gpte_addr(pgd_t gpgd, unsigned long vaddr)
  * and the page is read-only, or the write flag was set and the page was
  * shared so had to be copied, but we ran out of memory.
  *
- * This holds a reference to the page, so release_pte() is careful to
- * put that back. */
+ * This holds a reference to the page, so release_pte() is careful to put that
+ * back. */
 static unsigned long get_pfn(unsigned long virtpfn, int write)
 {
 	struct page *page;
@@ -532,13 +537,13 @@ static void do_set_pte(struct lg_cpu *cpu, int idx,
  * all processes.  So when the page table above that address changes, we update
  * all the page tables, not just the current one.  This is rare.
  *
- * The benefit is that when we have to track a new page table, we can copy keep
- * all the kernel mappings.  This speeds up context switch immensely. */
+ * The benefit is that when we have to track a new page table, we can keep all
+ * the kernel mappings.  This speeds up context switch immensely. */
 void guest_set_pte(struct lg_cpu *cpu,
 		   unsigned long gpgdir, unsigned long vaddr, pte_t gpte)
 {
-	/* Kernel mappings must be changed on all top levels.  Slow, but
-	 * doesn't happen often. */
+	/* Kernel mappings must be changed on all top levels.  Slow, but doesn't
+	 * happen often. */
 	if (vaddr >= cpu->lg->kernel_address) {
 		unsigned int i;
 		for (i = 0; i < ARRAY_SIZE(cpu->lg->pgdirs); i++)
@@ -704,12 +709,11 @@ static __init void populate_switcher_pte_page(unsigned int cpu,
 /* We've made it through the page table code.  Perhaps our tired brains are
  * still processing the details, or perhaps we're simply glad it's over.
  *
- * If nothing else, note that all this complexity in juggling shadow page
- * tables in sync with the Guest's page tables is for one reason: for most
- * Guests this page table dance determines how bad performance will be.  This
- * is why Xen uses exotic direct Guest pagetable manipulation, and why both
- * Intel and AMD have implemented shadow page table support directly into
- * hardware.
+ * If nothing else, note that all this complexity in juggling shadow page tables
+ * in sync with the Guest's page tables is for one reason: for most Guests this
+ * page table dance determines how bad performance will be.  This is why Xen
+ * uses exotic direct Guest pagetable manipulation, and why both Intel and AMD
+ * have implemented shadow page table support directly into hardware.
  *
  * There is just one file remaining in the Host. */
 

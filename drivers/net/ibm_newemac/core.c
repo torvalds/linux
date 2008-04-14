@@ -1242,8 +1242,8 @@ static int emac_close(struct net_device *ndev)
 static inline u16 emac_tx_csum(struct emac_instance *dev,
 			       struct sk_buff *skb)
 {
-	if (emac_has_feature(dev, EMAC_FTR_HAS_TAH &&
-			     skb->ip_summed == CHECKSUM_PARTIAL)) {
+	if (emac_has_feature(dev, EMAC_FTR_HAS_TAH) &&
+		(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		++dev->stats.tx_packets_csum;
 		return EMAC_TX_CTRL_TAH_CSUM;
 	}

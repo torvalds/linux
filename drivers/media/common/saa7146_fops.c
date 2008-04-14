@@ -272,7 +272,7 @@ static int fops_open(struct inode *inode, struct file *file)
 
 	result = 0;
 out:
-	if( fh != 0 && result != 0 ) {
+	if (fh && result != 0) {
 		kfree(fh);
 		file->private_data = NULL;
 	}

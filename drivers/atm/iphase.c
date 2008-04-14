@@ -958,6 +958,7 @@ static void ia_suni_pm7345_init (IADEV *iadev)
 
 /***************************** IA_LIB END *****************************/
     
+#ifdef CONFIG_ATM_IA_DEBUG
 static int tcnter = 0;
 static void xdump( u_char*  cp, int  length, char*  prefix )
 {
@@ -992,6 +993,7 @@ static void xdump( u_char*  cp, int  length, char*  prefix )
     }
 
 }  /* close xdump(... */
+#endif /* CONFIG_ATM_IA_DEBUG */
 
   
 static struct atm_dev *ia_boards = NULL;  

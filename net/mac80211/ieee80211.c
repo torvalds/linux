@@ -286,6 +286,18 @@ static int ieee80211_open(struct net_device *dev)
 	if (need_hw_reconfig)
 		ieee80211_hw_config(local);
 
+	/*
+	 * ieee80211_sta_work is disabled while network interface
+	 * is down. Therefore, some configuration changes may not
+	 * yet be effective. Trigger execution of ieee80211_sta_work
+	 * to fix this.
+	 */
+	if(sdata->vif.type == IEEE80211_IF_TYPE_STA ||
+	   sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
+		struct ieee80211_if_sta *ifsta = &sdata->u.sta;
+		queue_work(local->hw.workqueue, &ifsta->work);
+	}
+
 	netif_start_queue(dev);
 
 	return 0;

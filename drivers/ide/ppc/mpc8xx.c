@@ -853,3 +853,5 @@ static int __init mpc8xx_ide_probe(void)
 }
 
 module_init(mpc8xx_ide_probe);
+
+MODULE_LICENSE("GPL");

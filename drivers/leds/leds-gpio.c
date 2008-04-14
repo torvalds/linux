@@ -49,13 +49,13 @@ static void gpio_led_set(struct led_classdev *led_cdev,
 	if (led_dat->active_low)
 		level = !level;
 
-	/* setting GPIOs with I2C/etc requires a preemptible task context */
+	/* Setting GPIOs with I2C/etc requires a task context, and we don't
+	 * seem to have a reliable way to know if we're already in one; so
+	 * let's just assume the worst.
+	 */
 	if (led_dat->can_sleep) {
-		if (preempt_count()) {
-			led_dat->new_level = level;
-			schedule_work(&led_dat->work);
-		} else
-			gpio_set_value_cansleep(led_dat->gpio, level);
+		led_dat->new_level = level;
+		schedule_work(&led_dat->work);
 	} else
 		gpio_set_value(led_dat->gpio, level);
 }
@@ -79,6 +79,10 @@ static int gpio_led_probe(struct platform_device *pdev)
 		cur_led = &pdata->leds[i];
 		led_dat = &leds_data[i];
 
+		ret = gpio_request(cur_led->gpio, cur_led->name);
+		if (ret < 0)
+			goto err;
+
 		led_dat->cdev.name = cur_led->name;
 		led_dat->cdev.default_trigger = cur_led->default_trigger;
 		led_dat->gpio = cur_led->gpio;
@@ -86,10 +90,6 @@ static int gpio_led_probe(struct platform_device *pdev)
 		led_dat->active_low = cur_led->active_low;
 		led_dat->cdev.brightness_set = gpio_led_set;
 		led_dat->cdev.brightness = LED_OFF;
-
-		ret = gpio_request(led_dat->gpio, led_dat->cdev.name);
-		if (ret < 0)
-			goto err;
 
 		gpio_direction_output(led_dat->gpio, led_dat->active_low);
 

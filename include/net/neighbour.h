@@ -218,6 +218,10 @@ extern unsigned long		neigh_rand_reach_time(unsigned long base);
 extern void			pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 					       struct sk_buff *skb);
 extern struct pneigh_entry	*pneigh_lookup(struct neigh_table *tbl, struct net *net, const void *key, struct net_device *dev, int creat);
+extern struct pneigh_entry	*__pneigh_lookup(struct neigh_table *tbl,
+						 struct net *net,
+						 const void *key,
+						 struct net_device *dev);
 extern int			pneigh_delete(struct neigh_table *tbl, struct net *net, const void *key, struct net_device *dev);
 
 extern void neigh_app_ns(struct neighbour *n);

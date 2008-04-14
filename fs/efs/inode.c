@@ -140,7 +140,7 @@ struct inode *efs_iget(struct super_block *super, unsigned long ino)
 	brelse(bh);
    
 #ifdef DEBUG
-	printk(KERN_DEBUG "EFS: read_inode(): inode %lu, extents %d, mode %o\n",
+	printk(KERN_DEBUG "EFS: efs_iget(): inode %lu, extents %d, mode %o\n",
 		inode->i_ino, in->numextents, inode->i_mode);
 #endif
 

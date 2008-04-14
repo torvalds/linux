@@ -945,7 +945,7 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 		nla_len(info->attrs[NL80211_ATTR_STA_SUPPORTED_RATES]);
 	params.listen_interval =
 		nla_get_u16(info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL]);
-	params.listen_interval = nla_get_u16(info->attrs[NL80211_ATTR_STA_AID]);
+	params.aid = nla_get_u16(info->attrs[NL80211_ATTR_STA_AID]);
 
 	if (parse_station_flags(info->attrs[NL80211_ATTR_STA_FLAGS],
 				&params.station_flags))

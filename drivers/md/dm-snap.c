@@ -804,7 +804,7 @@ static void commit_callback(void *context, int success)
  * Called when the copy I/O has finished.  kcopyd actually runs
  * this code so don't block.
  */
-static void copy_callback(int read_err, unsigned int write_err, void *context)
+static void copy_callback(int read_err, unsigned long write_err, void *context)
 {
 	struct dm_snap_pending_exception *pe = context;
 	struct dm_snapshot *s = pe->snap;

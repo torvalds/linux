@@ -21,7 +21,7 @@ asmlinkage long sys_chown16(const char __user * filename, old_uid_t user, old_gi
 {
 	long ret = sys_chown(filename, low2highuid(user), low2highgid(group));
 	/* avoid REGPARM breakage on x86: */
-	prevent_tail_call(ret);
+	asmlinkage_protect(3, ret, filename, user, group);
 	return ret;
 }
 
@@ -29,7 +29,7 @@ asmlinkage long sys_lchown16(const char __user * filename, old_uid_t user, old_g
 {
 	long ret = sys_lchown(filename, low2highuid(user), low2highgid(group));
 	/* avoid REGPARM breakage on x86: */
-	prevent_tail_call(ret);
+	asmlinkage_protect(3, ret, filename, user, group);
 	return ret;
 }
 
@@ -37,7 +37,7 @@ asmlinkage long sys_fchown16(unsigned int fd, old_uid_t user, old_gid_t group)
 {
 	long ret = sys_fchown(fd, low2highuid(user), low2highgid(group));
 	/* avoid REGPARM breakage on x86: */
-	prevent_tail_call(ret);
+	asmlinkage_protect(3, ret, fd, user, group);
 	return ret;
 }
 
@@ -45,7 +45,7 @@ asmlinkage long sys_setregid16(old_gid_t rgid, old_gid_t egid)
 {
 	long ret = sys_setregid(low2highgid(rgid), low2highgid(egid));
 	/* avoid REGPARM breakage on x86: */
-	prevent_tail_call(ret);
+	asmlinkage_protect(2, ret, rgid, egid);
 	return ret;
 }
 
@@ -53,7 +53,7 @@ asmlinkage long sys_setgid16(old_gid_t gid)
 {
 	long ret = sys_setgid(low2highgid(gid));
 	/* avoid REGPARM breakage on x86: */
-	prevent_tail_call(ret);
+	asmlinkage_protect(1, ret, gid);
 	return ret;
 }
 
@@ -61,7 +61,7 @@ asmlinkage long sys_setreuid16(old_uid_t ruid, old_uid_t euid)
 {
 	long ret = sys_setreuid(low2highuid(ruid), low2highuid(euid));
 	/* avoid REGPARM breakage on x86: */
-	prevent_tail_call(ret);
+	asmlinkage_protect(2, ret, ruid, euid);
 	return ret;
 }
 
@@ -69,7 +69,7 @@ asmlinkage long sys_setuid16(old_uid_t uid)
 {
 	long ret = sys_setuid(low2highuid(uid));
 	/* avoid REGPARM breakage on x86: */
-	prevent_tail_call(ret);
+	asmlinkage_protect(1, ret, uid);
 	return ret;
 }
 
@@ -78,7 +78,7 @@ asmlinkage long sys_setresuid16(old_uid_t ruid, old_uid_t euid, old_uid_t suid)
 	long ret = sys_setresuid(low2highuid(ruid), low2highuid(euid),
 				 low2highuid(suid));
 	/* avoid REGPARM breakage on x86: */
-	prevent_tail_call(ret);
+	asmlinkage_protect(3, ret, ruid, euid, suid);
 	return ret;
 }
 
@@ -98,7 +98,7 @@ asmlinkage long sys_setresgid16(old_gid_t rgid, old_gid_t egid, old_gid_t sgid)
 	long ret = sys_setresgid(low2highgid(rgid), low2highgid(egid),
 				 low2highgid(sgid));
 	/* avoid REGPARM breakage on x86: */
-	prevent_tail_call(ret);
+	asmlinkage_protect(3, ret, rgid, egid, sgid);
 	return ret;
 }
 
@@ -117,7 +117,7 @@ asmlinkage long sys_setfsuid16(old_uid_t uid)
 {
 	long ret = sys_setfsuid(low2highuid(uid));
 	/* avoid REGPARM breakage on x86: */
-	prevent_tail_call(ret);
+	asmlinkage_protect(1, ret, uid);
 	return ret;
 }
 
@@ -125,7 +125,7 @@ asmlinkage long sys_setfsgid16(old_gid_t gid)
 {
 	long ret = sys_setfsgid(low2highgid(gid));
 	/* avoid REGPARM breakage on x86: */
-	prevent_tail_call(ret);
+	asmlinkage_protect(1, ret, gid);
 	return ret;
 }
 

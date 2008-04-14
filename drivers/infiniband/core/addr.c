@@ -154,7 +154,7 @@ static void addr_send_arp(struct sockaddr_in *dst_in)
 {
 	struct rtable *rt;
 	struct flowi fl;
-	u32 dst_ip = dst_in->sin_addr.s_addr;
+	__be32 dst_ip = dst_in->sin_addr.s_addr;
 
 	memset(&fl, 0, sizeof fl);
 	fl.nl_u.ip4_u.daddr = dst_ip;
@@ -169,8 +169,8 @@ static int addr_resolve_remote(struct sockaddr_in *src_in,
 			       struct sockaddr_in *dst_in,
 			       struct rdma_dev_addr *addr)
 {
-	u32 src_ip = src_in->sin_addr.s_addr;
-	u32 dst_ip = dst_in->sin_addr.s_addr;
+	__be32 src_ip = src_in->sin_addr.s_addr;
+	__be32 dst_ip = dst_in->sin_addr.s_addr;
 	struct flowi fl;
 	struct rtable *rt;
 	struct neighbour *neigh;
@@ -257,7 +257,7 @@ static int addr_resolve_local(struct sockaddr_in *src_in,
 			      struct rdma_dev_addr *addr)
 {
 	struct net_device *dev;
-	u32 src_ip = src_in->sin_addr.s_addr;
+	__be32 src_ip = src_in->sin_addr.s_addr;
 	__be32 dst_ip = dst_in->sin_addr.s_addr;
 	int ret;
 

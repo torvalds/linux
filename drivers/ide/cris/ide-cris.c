@@ -1067,3 +1067,5 @@ static void cris_dma_start(ide_drive_t *drive)
 }
 
 module_init(init_e100_ide);
+
+MODULE_LICENSE("GPL");

@@ -182,7 +182,7 @@ static unsigned int tifm_ms_transfer_data(struct tifm_ms *host)
 	struct tifm_dev *sock = host->dev;
 	unsigned int length;
 	unsigned int off;
-	unsigned int t_size, p_off, p_cnt;
+	unsigned int t_size, p_cnt;
 	unsigned char *buf;
 	struct page *pg;
 	unsigned long flags = 0;
@@ -198,6 +198,8 @@ static unsigned int tifm_ms_transfer_data(struct tifm_ms *host)
 		host->block_pos);
 
 	while (length) {
+		unsigned int uninitialized_var(p_off);
+
 		if (host->req->long_data) {
 			pg = nth_page(sg_page(&host->req->sg),
 				      off >> PAGE_SHIFT);

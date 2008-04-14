@@ -1183,7 +1183,7 @@ static int copy_from_read_buf(struct tty_struct *tty,
 	return retval;
 }
 
-extern ssize_t redirected_tty_write(struct file *, const char *,
+extern ssize_t redirected_tty_write(struct file *, const char __user *,
 							size_t, loff_t *);
 
 /**

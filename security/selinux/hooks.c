@@ -180,7 +180,7 @@ static int inode_alloc_security(struct inode *inode)
 	struct task_security_struct *tsec = current->security;
 	struct inode_security_struct *isec;
 
-	isec = kmem_cache_zalloc(sel_inode_cache, GFP_KERNEL);
+	isec = kmem_cache_zalloc(sel_inode_cache, GFP_NOFS);
 	if (!isec)
 		return -ENOMEM;
 
@@ -760,12 +760,12 @@ static void selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 	 * this early in the boot process. */
 	BUG_ON(!ss_initialized);
 
-	/* this might go away sometime down the line if there is a new user
-	 * of clone, but for now, nfs better not get here... */
-	BUG_ON(newsbsec->initialized);
-
 	/* how can we clone if the old one wasn't set up?? */
 	BUG_ON(!oldsbsec->initialized);
+
+	/* if fs is reusing a sb, just let its options stand... */
+	if (newsbsec->initialized)
+		return;
 
 	mutex_lock(&newsbsec->lock);
 
@@ -1143,7 +1143,7 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 		}
 
 		len = INITCONTEXTLEN;
-		context = kmalloc(len, GFP_KERNEL);
+		context = kmalloc(len, GFP_NOFS);
 		if (!context) {
 			rc = -ENOMEM;
 			dput(dentry);
@@ -1161,7 +1161,7 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			}
 			kfree(context);
 			len = rc;
-			context = kmalloc(len, GFP_KERNEL);
+			context = kmalloc(len, GFP_NOFS);
 			if (!context) {
 				rc = -ENOMEM;
 				dput(dentry);
@@ -1185,7 +1185,8 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			rc = 0;
 		} else {
 			rc = security_context_to_sid_default(context, rc, &sid,
-			                                     sbsec->def_sid);
+							     sbsec->def_sid,
+							     GFP_NOFS);
 			if (rc) {
 				printk(KERN_WARNING "%s:  context_to_sid(%s) "
 				       "returned %d for dev=%s ino=%ld\n",
@@ -1629,6 +1630,12 @@ static inline u32 file_to_av(struct file *file)
 			av |= FILE__APPEND;
 		else
 			av |= FILE__WRITE;
+	}
+	if (!av) {
+		/*
+		 * Special file opened with flags 3 for ioctl-only use.
+		 */
+		av = FILE__IOCTL;
 	}
 
 	return av;
@@ -2423,7 +2430,7 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 		return -EOPNOTSUPP;
 
 	if (name) {
-		namep = kstrdup(XATTR_SELINUX_SUFFIX, GFP_KERNEL);
+		namep = kstrdup(XATTR_SELINUX_SUFFIX, GFP_NOFS);
 		if (!namep)
 			return -ENOMEM;
 		*name = namep;

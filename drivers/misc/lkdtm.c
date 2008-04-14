@@ -197,7 +197,7 @@ static int lkdtm_parse_commandline(void)
 {
 	int i;
 
-	if (cpoint_name == INVALID || cpoint_type == NONE ||
+	if (cpoint_name == NULL || cpoint_type == NULL ||
 					cpoint_count < 1 || recur_count < 1)
 		return -EINVAL;
 

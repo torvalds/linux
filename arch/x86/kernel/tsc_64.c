@@ -148,9 +148,7 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 			mark_tsc_unstable("cpufreq changes");
 	}
 
-	preempt_disable();
-	set_cyc2ns_scale(tsc_khz_ref, smp_processor_id());
-	preempt_enable();
+	set_cyc2ns_scale(tsc_khz_ref, freq->cpu);
 
 	return 0;
 }

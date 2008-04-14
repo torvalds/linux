@@ -261,7 +261,7 @@ static void mode_to_access_flags(umode_t mode, umode_t bits_to_use,
 	return;
 }
 
-static __le16 fill_ace_for_sid(struct cifs_ace *pntace,
+static __u16 fill_ace_for_sid(struct cifs_ace *pntace,
 			const struct cifs_sid *psid, __u64 nmode, umode_t bits)
 {
 	int i;
@@ -411,7 +411,7 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 static int set_chmod_dacl(struct cifs_acl *pndacl, struct cifs_sid *pownersid,
 			struct cifs_sid *pgrpsid, __u64 nmode)
 {
-	__le16 size = 0;
+	u16 size = 0;
 	struct cifs_acl *pnndacl;
 
 	pnndacl = (struct cifs_acl *)((char *)pndacl + sizeof(struct cifs_acl));

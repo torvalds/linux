@@ -381,11 +381,15 @@ EXPORT_SYMBOL_GPL(gnttab_cancel_free_callback);
 static int grow_gnttab_list(unsigned int more_frames)
 {
 	unsigned int new_nr_grant_frames, extra_entries, i;
+	unsigned int nr_glist_frames, new_nr_glist_frames;
 
 	new_nr_grant_frames = nr_grant_frames + more_frames;
 	extra_entries       = more_frames * GREFS_PER_GRANT_FRAME;
 
-	for (i = nr_grant_frames; i < new_nr_grant_frames; i++) {
+	nr_glist_frames = (nr_grant_frames * GREFS_PER_GRANT_FRAME + RPP - 1) / RPP;
+	new_nr_glist_frames =
+		(new_nr_grant_frames * GREFS_PER_GRANT_FRAME + RPP - 1) / RPP;
+	for (i = nr_glist_frames; i < new_nr_glist_frames; i++) {
 		gnttab_list[i] = (grant_ref_t *)__get_free_page(GFP_ATOMIC);
 		if (!gnttab_list[i])
 			goto grow_nomem;
@@ -407,7 +411,7 @@ static int grow_gnttab_list(unsigned int more_frames)
 	return 0;
 
 grow_nomem:
-	for ( ; i >= nr_grant_frames; i--)
+	for ( ; i >= nr_glist_frames; i--)
 		free_page((unsigned long) gnttab_list[i]);
 	return -ENOMEM;
 }
@@ -530,7 +534,7 @@ static int gnttab_expand(unsigned int req_entries)
 static int __devinit gnttab_init(void)
 {
 	int i;
-	unsigned int max_nr_glist_frames;
+	unsigned int max_nr_glist_frames, nr_glist_frames;
 	unsigned int nr_init_grefs;
 
 	if (!is_running_on_xen())
@@ -543,15 +547,15 @@ static int __devinit gnttab_init(void)
 	 * grant reference free list on the current hypervisor.
 	 */
 	max_nr_glist_frames = (boot_max_nr_grant_frames *
-			       GREFS_PER_GRANT_FRAME /
-			       (PAGE_SIZE / sizeof(grant_ref_t)));
+			       GREFS_PER_GRANT_FRAME / RPP);
 
 	gnttab_list = kmalloc(max_nr_glist_frames * sizeof(grant_ref_t *),
 			      GFP_KERNEL);
 	if (gnttab_list == NULL)
 		return -ENOMEM;
 
-	for (i = 0; i < nr_grant_frames; i++) {
+	nr_glist_frames = (nr_grant_frames * GREFS_PER_GRANT_FRAME + RPP - 1) / RPP;
+	for (i = 0; i < nr_glist_frames; i++) {
 		gnttab_list[i] = (grant_ref_t *)__get_free_page(GFP_KERNEL);
 		if (gnttab_list[i] == NULL)
 			goto ini_nomem;

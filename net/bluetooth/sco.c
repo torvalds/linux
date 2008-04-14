@@ -58,7 +58,7 @@
 static const struct proto_ops sco_sock_ops;
 
 static struct bt_sock_list sco_sk_list = {
-	.lock = RW_LOCK_UNLOCKED
+	.lock = __RW_LOCK_UNLOCKED(sco_sk_list.lock)
 };
 
 static void __sco_chan_add(struct sco_conn *conn, struct sock *sk, struct sock *parent);

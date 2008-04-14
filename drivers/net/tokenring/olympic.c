@@ -117,7 +117,7 @@
  * Official releases will only have an a.b.c version number format. 
  */
 
-static char version[] __devinitdata = 
+static char version[] =
 "Olympic.c v1.0.5 6/04/02 - Peter De Schrijver & Mike Phillips" ; 
 
 static char *open_maj_error[]  = {"No error", "Lobe Media Test", "Physical Insertion",
@@ -290,7 +290,7 @@ op_disable_dev:
 	return i;
 }
 
-static int __devinit olympic_init(struct net_device *dev)
+static int olympic_init(struct net_device *dev)
 {
     	struct olympic_private *olympic_priv;
 	u8 __iomem *olympic_mmio, *init_srb,*adapter_addr;
@@ -434,7 +434,7 @@ static int __devinit olympic_init(struct net_device *dev)
 
 }
 
-static int __devinit olympic_open(struct net_device *dev) 
+static int olympic_open(struct net_device *dev)
 {
 	struct olympic_private *olympic_priv=netdev_priv(dev);
 	u8 __iomem *olympic_mmio=olympic_priv->olympic_mmio,*init_srb;
@@ -1438,13 +1438,18 @@ static void olympic_arb_cmd(struct net_device *dev)
 
 		if (olympic_priv->olympic_network_monitor) { 
 			struct trh_hdr *mac_hdr;
-			DECLARE_MAC_BUF(mac);
 			printk(KERN_WARNING "%s: Received MAC Frame, details: \n",dev->name);
 			mac_hdr = tr_hdr(mac_frame);
-			printk(KERN_WARNING "%s: MAC Frame Dest. Addr: %s\n",
-			       dev->name, print_mac(mac, mac_hdr->daddr));
-			printk(KERN_WARNING "%s: MAC Frame Srce. Addr: %s\n",
-			       dev->name, print_mac(mac, mac_hdr->saddr));
+			printk(KERN_WARNING "%s: MAC Frame Dest. Addr: "
+			       MAC_FMT " \n", dev->name,
+			       mac_hdr->daddr[0], mac_hdr->daddr[1],
+			       mac_hdr->daddr[2], mac_hdr->daddr[3],
+			       mac_hdr->daddr[4], mac_hdr->daddr[5]);
+			printk(KERN_WARNING "%s: MAC Frame Srce. Addr: "
+			       MAC_FMT " \n", dev->name,
+			       mac_hdr->saddr[0], mac_hdr->saddr[1],
+			       mac_hdr->saddr[2], mac_hdr->saddr[3],
+			       mac_hdr->saddr[4], mac_hdr->saddr[5]);
 		}
 		netif_rx(mac_frame);
 		dev->last_rx = jiffies;

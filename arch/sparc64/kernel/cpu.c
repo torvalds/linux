@@ -15,6 +15,8 @@
 #include <asm/spitfire.h>
 #include <asm/oplib.h>
 
+#include "entry.h"
+
 DEFINE_PER_CPU(cpuinfo_sparc, __cpu_data) = { 0 };
 
 struct cpu_iu_info {
@@ -65,8 +67,6 @@ static struct cpu_iu_info linux_sparc_chips[] = {
 char *sparc_cpu_type;
 char *sparc_fpu_type;
 
-unsigned int fsr_storage;
-
 static void __init sun4v_cpu_probe(void)
 {
 	switch (sun4v_chip_type) {
@@ -94,8 +94,10 @@ void __init cpu_probe(void)
 	unsigned long ver, fpu_vers, manuf, impl, fprs;
 	int i;
 	
-	if (tlb_type == hypervisor)
-		return sun4v_cpu_probe();
+	if (tlb_type == hypervisor) {
+		sun4v_cpu_probe();
+		return;
+	}
 
 	fprs = fprs_read();
 	fprs_write(FPRS_FEF);

@@ -26,7 +26,7 @@
 #include <asm/semaphore.h>
 #include <asm/mutex.h>
 
-#if defined(CRIS) || defined(FRV)
+#if defined(CONFIG_CRIS) || defined(CONFIG_FRV)
 # define SUPPORT_VLB_SYNC 0
 #else
 # define SUPPORT_VLB_SYNC 1

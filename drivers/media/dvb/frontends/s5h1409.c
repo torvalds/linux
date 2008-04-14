@@ -445,7 +445,7 @@ static int s5h1409_set_gpio(struct dvb_frontend* fe, int enable)
 			s5h1409_readreg(state, 0xe3) | 0x1100);
 	else
 		return s5h1409_writereg(state, 0xe3,
-			s5h1409_readreg(state, 0xe3) & 0xeeff);
+			s5h1409_readreg(state, 0xe3) & 0xfeff);
 }
 
 static int s5h1409_sleep(struct dvb_frontend* fe, int enable)

@@ -255,14 +255,14 @@
 		};
 
 		sata@18000 {
-			compatible = "fsl,mpc8379-sata";
+			compatible = "fsl,mpc8379-sata", "fsl,pq-sata";
 			reg = <0x18000 0x1000>;
 			interrupts = <44 0x8>;
 			interrupt-parent = <&ipic>;
 		};
 
 		sata@19000 {
-			compatible = "fsl,mpc8379-sata";
+			compatible = "fsl,mpc8379-sata", "fsl,pq-sata";
 			reg = <0x19000 0x1000>;
 			interrupts = <45 0x8>;
 			interrupt-parent = <&ipic>;

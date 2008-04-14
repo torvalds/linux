@@ -339,10 +339,10 @@ xfs_bump_ino_vers2(
 	ip->i_d.di_onlink = 0;
 	memset(&(ip->i_d.di_pad[0]), 0, sizeof(ip->i_d.di_pad));
 	mp = tp->t_mountp;
-	if (!XFS_SB_VERSION_HASNLINK(&mp->m_sb)) {
+	if (!xfs_sb_version_hasnlink(&mp->m_sb)) {
 		spin_lock(&mp->m_sb_lock);
-		if (!XFS_SB_VERSION_HASNLINK(&mp->m_sb)) {
-			XFS_SB_VERSION_ADDNLINK(&mp->m_sb);
+		if (!xfs_sb_version_hasnlink(&mp->m_sb)) {
+			xfs_sb_version_addnlink(&mp->m_sb);
 			spin_unlock(&mp->m_sb_lock);
 			xfs_mod_sb(tp, XFS_SB_VERSIONNUM);
 		} else {

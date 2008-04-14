@@ -1202,3 +1202,5 @@ static int pt101_init(struct ac97_codec * codec)
 
 EXPORT_SYMBOL(ac97_probe_codec);
 
+MODULE_LICENSE("GPL");
+

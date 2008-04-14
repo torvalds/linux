@@ -283,7 +283,7 @@ static int balance_leaf(struct tree_balance *tb, struct item_head *ih,	/* item h
 		return balance_leaf_when_delete(tb, flag);
 
 	zeros_num = 0;
-	if (flag == M_INSERT && body == 0)
+	if (flag == M_INSERT && !body)
 		zeros_num = ih_item_len(ih);
 
 	pos_in_item = tb->tb_path->pos_in_item;
@@ -1728,7 +1728,7 @@ struct buffer_head *get_FEB(struct tree_balance *tb)
 	struct buffer_info bi;
 
 	for (i = 0; i < MAX_FEB_SIZE; i++)
-		if (tb->FEB[i] != 0)
+		if (tb->FEB[i] != NULL)
 			break;
 
 	if (i == MAX_FEB_SIZE)
@@ -1827,7 +1827,7 @@ int get_left_neighbor_position(struct tree_balance *tb, int h)
 {
 	int Sh_position = PATH_H_POSITION(tb->tb_path, h + 1);
 
-	RFALSE(PATH_H_PPARENT(tb->tb_path, h) == 0 || tb->FL[h] == 0,
+	RFALSE(PATH_H_PPARENT(tb->tb_path, h) == NULL || tb->FL[h] == NULL,
 	       "vs-12325: FL[%d](%p) or F[%d](%p) does not exist",
 	       h, tb->FL[h], h, PATH_H_PPARENT(tb->tb_path, h));
 
@@ -1841,7 +1841,7 @@ int get_right_neighbor_position(struct tree_balance *tb, int h)
 {
 	int Sh_position = PATH_H_POSITION(tb->tb_path, h + 1);
 
-	RFALSE(PATH_H_PPARENT(tb->tb_path, h) == 0 || tb->FR[h] == 0,
+	RFALSE(PATH_H_PPARENT(tb->tb_path, h) == NULL || tb->FR[h] == NULL,
 	       "vs-12330: F[%d](%p) or FR[%d](%p) does not exist",
 	       h, PATH_H_PPARENT(tb->tb_path, h), h, tb->FR[h]);
 

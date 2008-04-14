@@ -1367,7 +1367,8 @@ w83781d_isa_probe(struct platform_device *pdev)
 
 	/* Reserve the ISA region */
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (!request_region(res->start, W83781D_EXTENT, "w83781d")) {
+	if (!request_region(res->start + W83781D_ADDR_REG_OFFSET, 2,
+			    "w83781d")) {
 		err = -EBUSY;
 		goto exit;
 	}
@@ -1415,7 +1416,7 @@ w83781d_isa_probe(struct platform_device *pdev)
 	device_remove_file(&pdev->dev, &dev_attr_name);
 	kfree(data);
  exit_release_region:
-	release_region(res->start, W83781D_EXTENT);
+	release_region(res->start + W83781D_ADDR_REG_OFFSET, 2);
  exit:
 	return err;
 }
@@ -1429,7 +1430,7 @@ w83781d_isa_remove(struct platform_device *pdev)
 	sysfs_remove_group(&pdev->dev.kobj, &w83781d_group);
 	sysfs_remove_group(&pdev->dev.kobj, &w83781d_group_opt);
 	device_remove_file(&pdev->dev, &dev_attr_name);
-	release_region(data->client.addr, W83781D_EXTENT);
+	release_region(data->client.addr + W83781D_ADDR_REG_OFFSET, 2);
 	kfree(data);
 
 	return 0;
@@ -1797,8 +1798,17 @@ w83781d_isa_found(unsigned short address)
 {
 	int val, save, found = 0;
 
-	if (!request_region(address, W83781D_EXTENT, "w83781d"))
+	/* We have to request the region in two parts because some
+	   boards declare base+4 to base+7 as a PNP device */
+	if (!request_region(address, 4, "w83781d")) {
+		pr_debug("w83781d: Failed to request low part of region\n");
 		return 0;
+	}
+	if (!request_region(address + 4, 4, "w83781d")) {
+		pr_debug("w83781d: Failed to request high part of region\n");
+		release_region(address, 4);
+		return 0;
+	}
 
 #define REALLY_SLOW_IO
 	/* We need the timeouts for at least some W83781D-like
@@ -1871,7 +1881,8 @@ w83781d_isa_found(unsigned short address)
 			val == 0x30 ? "W83782D" : "W83781D", (int)address);
 
  release:
-	release_region(address, W83781D_EXTENT);
+	release_region(address + 4, 4);
+	release_region(address, 4);
 	return found;
 }
 

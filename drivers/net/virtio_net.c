@@ -234,11 +234,12 @@ static int start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct scatterlist sg[1+MAX_SKB_FRAGS];
 	struct virtio_net_hdr *hdr;
 	const unsigned char *dest = ((struct ethhdr *)skb->data)->h_dest;
-	DECLARE_MAC_BUF(mac);
 
 	sg_init_table(sg, 1+MAX_SKB_FRAGS);
 
-	pr_debug("%s: xmit %p %s\n", dev->name, skb, print_mac(mac, dest));
+	pr_debug("%s: xmit %p " MAC_FMT "\n", dev->name, skb,
+		 dest[0], dest[1], dest[2],
+		 dest[3], dest[4], dest[5]);
 
 	/* Encode metadata header at front. */
 	hdr = skb_vnet_hdr(skb);
@@ -284,7 +285,6 @@ again:
 		/* Activate callback for using skbs: if this returns false it
 		 * means some were used in the meantime. */
 		if (unlikely(!vi->svq->vq_ops->enable_cb(vi->svq))) {
-			printk("Unlikely: restart svq race\n");
 			vi->svq->vq_ops->disable_cb(vi->svq);
 			netif_start_queue(dev);
 			goto again;

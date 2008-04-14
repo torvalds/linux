@@ -731,14 +731,14 @@ static unsigned long hpet_calibrate(struct hpets *hpetp)
 
 int hpet_alloc(struct hpet_data *hdp)
 {
-	u64 cap, mcfg, hpet_config;
+	u64 cap, mcfg;
 	struct hpet_dev *devp;
-	u32 i, ntimer, irq;
+	u32 i, ntimer;
 	struct hpets *hpetp;
 	size_t siz;
 	struct hpet __iomem *hpet;
 	static struct hpets *last = NULL;
-	unsigned long period, irq_bitmap;
+	unsigned long period;
 	unsigned long long temp;
 
 	/*
@@ -765,47 +765,11 @@ int hpet_alloc(struct hpet_data *hdp)
 	hpetp->hp_hpet_phys = hdp->hd_phys_address;
 
 	hpetp->hp_ntimer = hdp->hd_nirqs;
+
+	for (i = 0; i < hdp->hd_nirqs; i++)
+		hpetp->hp_dev[i].hd_hdwirq = hdp->hd_irq[i];
+
 	hpet = hpetp->hp_hpet;
-
-	/* Assign IRQs statically for legacy devices */
-	hpetp->hp_dev[0].hd_hdwirq = hdp->hd_irq[0];
-	hpetp->hp_dev[1].hd_hdwirq = hdp->hd_irq[1];
-
-	/* Assign IRQs dynamically for the others */
-	for (i = 2, devp = &hpetp->hp_dev[2]; i < hdp->hd_nirqs; i++, devp++) {
-		struct hpet_timer __iomem *timer;
-
-		timer = &hpet->hpet_timers[devp - hpetp->hp_dev];
-
-		/* Check if there's already an IRQ assigned to the timer */
-		if (hdp->hd_irq[i]) {
-			hpetp->hp_dev[i].hd_hdwirq = hdp->hd_irq[i];
-			continue;
-		}
-
-		hpet_config = readq(&timer->hpet_config);
-		irq_bitmap = (hpet_config & Tn_INT_ROUTE_CAP_MASK)
-			>> Tn_INT_ROUTE_CAP_SHIFT;
-		if (!irq_bitmap)
-			irq = 0;        /* No valid IRQ Assignable */
-		else {
-			irq = find_first_bit(&irq_bitmap, 32);
-			do {
-				hpet_config |= irq << Tn_INT_ROUTE_CNF_SHIFT;
-				writeq(hpet_config, &timer->hpet_config);
-
-				/*
-				 * Verify whether we have written a valid
-				 * IRQ number by reading it back again
-				 */
-				hpet_config = readq(&timer->hpet_config);
-				if (irq == (hpet_config & Tn_INT_ROUTE_CNF_MASK)
-						>> Tn_INT_ROUTE_CNF_SHIFT)
-					break;  /* Success */
-			} while ((irq = (find_next_bit(&irq_bitmap, 32, irq))));
-		}
-		hpetp->hp_dev[i].hd_hdwirq = irq;
-	}
 
 	cap = readq(&hpet->hpet_cap);
 
@@ -836,8 +800,7 @@ int hpet_alloc(struct hpet_data *hdp)
 		hpetp->hp_which, hdp->hd_phys_address,
 		hpetp->hp_ntimer > 1 ? "s" : "");
 	for (i = 0; i < hpetp->hp_ntimer; i++)
-		printk("%s %d", i > 0 ? "," : "",
-				hpetp->hp_dev[i].hd_hdwirq);
+		printk("%s %d", i > 0 ? "," : "", hdp->hd_irq[i]);
 	printk("\n");
 
 	printk(KERN_INFO "hpet%u: %u %d-bit timers, %Lu Hz\n",

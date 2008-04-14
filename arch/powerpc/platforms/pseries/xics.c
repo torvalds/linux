@@ -763,7 +763,7 @@ void xics_request_IPIs(void)
 }
 #endif /* CONFIG_SMP */
 
-void xics_teardown_cpu()
+void xics_teardown_cpu(void)
 {
 	int cpu = smp_processor_id();
 

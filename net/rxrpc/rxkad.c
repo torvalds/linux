@@ -261,6 +261,7 @@ static int rxkad_secure_packet(const struct rxrpc_call *call,
 		__be32 x[2];
 	} tmpbuf __attribute__((aligned(8))); /* must all be in same page */
 	__be32 x;
+	u32 y;
 	int ret;
 
 	sp = rxrpc_skb(skb);
@@ -292,11 +293,11 @@ static int rxkad_secure_packet(const struct rxrpc_call *call,
 	sg_init_one(&sg[1], &tmpbuf, sizeof(tmpbuf));
 	crypto_blkcipher_encrypt_iv(&desc, &sg[0], &sg[1], sizeof(tmpbuf));
 
-	x = ntohl(tmpbuf.x[1]);
-	x = (x >> 16) & 0xffff;
-	if (x == 0)
-		x = 1; /* zero checksums are not permitted */
-	sp->hdr.cksum = htons(x);
+	y = ntohl(tmpbuf.x[1]);
+	y = (y >> 16) & 0xffff;
+	if (y == 0)
+		y = 1; /* zero checksums are not permitted */
+	sp->hdr.cksum = htons(y);
 
 	switch (call->conn->security_level) {
 	case RXRPC_SECURITY_PLAIN:
@@ -314,7 +315,7 @@ static int rxkad_secure_packet(const struct rxrpc_call *call,
 		break;
 	}
 
-	_leave(" = %d [set %hx]", ret, x);
+	_leave(" = %d [set %hx]", ret, y);
 	return ret;
 }
 
@@ -492,6 +493,7 @@ static int rxkad_verify_packet(const struct rxrpc_call *call,
 		__be32 x[2];
 	} tmpbuf __attribute__((aligned(8))); /* must all be in same page */
 	__be32 x;
+	u16 y;
 	__be16 cksum;
 	int ret;
 
@@ -526,12 +528,12 @@ static int rxkad_verify_packet(const struct rxrpc_call *call,
 	sg_init_one(&sg[1], &tmpbuf, sizeof(tmpbuf));
 	crypto_blkcipher_encrypt_iv(&desc, &sg[0], &sg[1], sizeof(tmpbuf));
 
-	x = ntohl(tmpbuf.x[1]);
-	x = (x >> 16) & 0xffff;
-	if (x == 0)
-		x = 1; /* zero checksums are not permitted */
+	y = ntohl(tmpbuf.x[1]);
+	y = (y >> 16) & 0xffff;
+	if (y == 0)
+		y = 1; /* zero checksums are not permitted */
 
-	cksum = htons(x);
+	cksum = htons(y);
 	if (sp->hdr.cksum != cksum) {
 		*_abort_code = RXKADSEALEDINCON;
 		_leave(" = -EPROTO [csum failed]");
@@ -1001,7 +1003,8 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	struct rxrpc_crypt session_key;
 	time_t expiry;
 	void *ticket;
-	u32 abort_code, version, kvno, ticket_len, csum, level;
+	u32 abort_code, version, kvno, ticket_len, level;
+	__be32 csum;
 	int ret;
 
 	_enter("{%d,%x}", conn->debug_id, key_serial(conn->server_key));

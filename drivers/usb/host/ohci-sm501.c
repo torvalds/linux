@@ -262,3 +262,4 @@ static struct platform_driver ohci_hcd_sm501_driver = {
 		.name	= "sm501-usb",
 	},
 };
+MODULE_ALIAS("platform:sm501-usb");

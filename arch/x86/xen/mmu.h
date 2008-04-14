@@ -3,6 +3,13 @@
 #include <linux/linkage.h>
 #include <asm/page.h>
 
+enum pt_level {
+	PT_PGD,
+	PT_PUD,
+	PT_PMD,
+	PT_PTE
+};
+
 /*
  * Page-directory addresses above 4GB do not fit into architectural %cr3.
  * When accessing %cr3, or equivalent field in vcpu_guest_context, guests

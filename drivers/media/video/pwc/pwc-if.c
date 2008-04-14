@@ -915,7 +915,7 @@ static void pwc_iso_stop(struct pwc_device *pdev)
 		struct urb *urb;
 
 		urb = pdev->sbuf[i].urb;
-		if (urb != 0) {
+		if (urb) {
 			PWC_DEBUG_MEMORY("Unlinking URB %p\n", urb);
 			usb_kill_urb(urb);
 		}
@@ -931,7 +931,7 @@ static void pwc_iso_free(struct pwc_device *pdev)
 		struct urb *urb;
 
 		urb = pdev->sbuf[i].urb;
-		if (urb != 0) {
+		if (urb) {
 			PWC_DEBUG_MEMORY("Freeing URB\n");
 			usb_free_urb(urb);
 			pdev->sbuf[i].urb = NULL;
@@ -1759,8 +1759,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	/* Allocate video_device structure */
 	pdev->vdev = video_device_alloc();
-	if (pdev->vdev == 0)
-	{
+	if (!pdev->vdev) {
 		PWC_ERROR("Err, cannot allocate video_device struture. Failing probe.");
 		kfree(pdev);
 		return -ENOMEM;

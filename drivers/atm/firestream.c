@@ -978,6 +978,7 @@ static int fs_open(struct atm_vcc *atm_vcc)
 		/* Docs are vague about this atm_hdr field. By the way, the FS
 		 * chip makes odd errors if lower bits are set.... -- REW */
 		tc->atm_hdr =  (vpi << 20) | (vci << 4); 
+		tmc0 = 0;
 		{
 			int pcr = atm_pcr_goal (txtp);
 

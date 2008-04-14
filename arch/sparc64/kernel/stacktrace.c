@@ -2,13 +2,15 @@
 #include <linux/stacktrace.h>
 #include <linux/thread_info.h>
 #include <asm/ptrace.h>
+#include <asm/stacktrace.h>
 
 void save_stack_trace(struct stack_trace *trace)
 {
 	unsigned long ksp, fp, thread_base;
 	struct thread_info *tp = task_thread_info(current);
 
-	flushw_all();
+	stack_trace_flush();
+
 	__asm__ __volatile__(
 		"mov	%%fp, %0"
 		: "=r" (ksp)

@@ -310,13 +310,6 @@ pgd_t xen_make_pgd(unsigned long pgd)
 }
 #endif	/* CONFIG_X86_PAE */
 
-enum pt_level {
-	PT_PGD,
-	PT_PUD,
-	PT_PMD,
-	PT_PTE
-};
-
 /*
   (Yet another) pagetable walker.  This one is intended for pinning a
   pagetable.  This means that it walks a pagetable and calls the

@@ -406,8 +406,6 @@ static unsigned long __init setup_memory(void)
 	 */
 	min_low_pfn = PFN_UP(init_pg_tables_end);
 
-	find_max_pfn();
-
 	max_low_pfn = find_max_low_pfn();
 
 #ifdef CONFIG_HIGHMEM
@@ -764,12 +762,13 @@ void __init setup_arch(char **cmdline_p)
 	if (efi_enabled)
 		efi_init();
 
-	max_low_pfn = setup_memory();
-
 	/* update e820 for memory not covered by WB MTRRs */
+	find_max_pfn();
 	mtrr_bp_init();
 	if (mtrr_trim_uncached_memory(max_pfn))
-		max_low_pfn = setup_memory();
+		find_max_pfn();
+
+	max_low_pfn = setup_memory();
 
 #ifdef CONFIG_VMI
 	/*

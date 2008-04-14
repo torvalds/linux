@@ -374,17 +374,35 @@ static void vlan_sync_address(struct net_device *dev,
 	memcpy(vlan->real_dev_addr, dev->dev_addr, ETH_ALEN);
 }
 
+static void __vlan_device_event(struct net_device *dev, unsigned long event)
+{
+	switch (event) {
+	case NETDEV_CHANGENAME:
+		vlan_proc_rem_dev(dev);
+		if (vlan_proc_add_dev(dev) < 0)
+			pr_warning("8021q: failed to change proc name for %s\n",
+					dev->name);
+		break;
+	}
+}
+
 static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 			     void *ptr)
 {
 	struct net_device *dev = ptr;
-	struct vlan_group *grp = __vlan_find_group(dev->ifindex);
+	struct vlan_group *grp;
 	int i, flgs;
 	struct net_device *vlandev;
 
 	if (dev->nd_net != &init_net)
 		return NOTIFY_DONE;
 
+	if (is_vlan_dev(dev)) {
+		__vlan_device_event(dev, event);
+		goto out;
+	}
+
+	grp = __vlan_find_group(dev->ifindex);
 	if (!grp)
 		goto out;
 

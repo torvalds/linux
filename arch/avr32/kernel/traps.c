@@ -178,6 +178,7 @@ static int do_cop_absent(u32 insn)
 	return 0;
 }
 
+#ifdef CONFIG_BUG
 int is_valid_bugaddr(unsigned long pc)
 {
 	unsigned short opcode;
@@ -189,6 +190,7 @@ int is_valid_bugaddr(unsigned long pc)
 
 	return opcode == AVR32_BUG_OPCODE;
 }
+#endif
 
 asmlinkage void do_illegal_opcode(unsigned long ecr, struct pt_regs *regs)
 {
@@ -197,6 +199,7 @@ asmlinkage void do_illegal_opcode(unsigned long ecr, struct pt_regs *regs)
 	void __user *pc;
 	long code;
 
+#ifdef CONFIG_BUG
 	if (!user_mode(regs) && (ecr == ECR_ILLEGAL_OPCODE)) {
 		enum bug_trap_type type;
 
@@ -211,6 +214,7 @@ asmlinkage void do_illegal_opcode(unsigned long ecr, struct pt_regs *regs)
 			die("Kernel BUG", regs, SIGKILL);
 		}
 	}
+#endif
 
 	local_irq_enable();
 

@@ -62,6 +62,8 @@ static struct platform_device *rdc321x_devs[] = {
 
 static int __init rdc_board_setup(void)
 {
+	rdc321x_gpio_setup();
+
 	return platform_add_devices(rdc321x_devs, ARRAY_SIZE(rdc321x_devs));
 }
 

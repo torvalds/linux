@@ -2,7 +2,6 @@
 #define __ASM_SH_PROCESSOR_H
 
 #include <asm/cpu-features.h>
-#include <asm/fpu.h>
 
 #ifndef __ASSEMBLY__
 /*

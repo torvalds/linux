@@ -388,6 +388,8 @@ static void xfrm_state_gc_destroy(struct xfrm_state *x)
 	kfree(x->coaddr);
 	if (x->inner_mode)
 		xfrm_put_mode(x->inner_mode);
+	if (x->inner_mode_iaf)
+		xfrm_put_mode(x->inner_mode_iaf);
 	if (x->outer_mode)
 		xfrm_put_mode(x->outer_mode);
 	if (x->type) {
@@ -523,6 +525,8 @@ struct xfrm_state *xfrm_state_alloc(void)
 		x->lft.hard_packet_limit = XFRM_INF;
 		x->replay_maxage = 0;
 		x->replay_maxdiff = 0;
+		x->inner_mode = NULL;
+		x->inner_mode_iaf = NULL;
 		spin_lock_init(&x->lock);
 	}
 	return x;
@@ -796,7 +800,7 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 			      selector.
 			 */
 			if (x->km.state == XFRM_STATE_VALID) {
-				if (!xfrm_selector_match(&x->sel, fl, x->sel.family) ||
+				if ((x->sel.family && !xfrm_selector_match(&x->sel, fl, x->sel.family)) ||
 				    !security_xfrm_state_pol_flow_match(x, pol, fl))
 					continue;
 				if (!best ||
@@ -1944,6 +1948,7 @@ int xfrm_state_mtu(struct xfrm_state *x, int mtu)
 int xfrm_init_state(struct xfrm_state *x)
 {
 	struct xfrm_state_afinfo *afinfo;
+	struct xfrm_mode *inner_mode;
 	int family = x->props.family;
 	int err;
 
@@ -1962,13 +1967,48 @@ int xfrm_init_state(struct xfrm_state *x)
 		goto error;
 
 	err = -EPROTONOSUPPORT;
-	x->inner_mode = xfrm_get_mode(x->props.mode, x->sel.family);
-	if (x->inner_mode == NULL)
-		goto error;
 
-	if (!(x->inner_mode->flags & XFRM_MODE_FLAG_TUNNEL) &&
-	    family != x->sel.family)
-		goto error;
+	if (x->sel.family != AF_UNSPEC) {
+		inner_mode = xfrm_get_mode(x->props.mode, x->sel.family);
+		if (inner_mode == NULL)
+			goto error;
+
+		if (!(inner_mode->flags & XFRM_MODE_FLAG_TUNNEL) &&
+		    family != x->sel.family) {
+			xfrm_put_mode(inner_mode);
+			goto error;
+		}
+
+		x->inner_mode = inner_mode;
+	} else {
+		struct xfrm_mode *inner_mode_iaf;
+
+		inner_mode = xfrm_get_mode(x->props.mode, AF_INET);
+		if (inner_mode == NULL)
+			goto error;
+
+		if (!(inner_mode->flags & XFRM_MODE_FLAG_TUNNEL)) {
+			xfrm_put_mode(inner_mode);
+			goto error;
+		}
+
+		inner_mode_iaf = xfrm_get_mode(x->props.mode, AF_INET6);
+		if (inner_mode_iaf == NULL)
+			goto error;
+
+		if (!(inner_mode_iaf->flags & XFRM_MODE_FLAG_TUNNEL)) {
+			xfrm_put_mode(inner_mode_iaf);
+			goto error;
+		}
+
+		if (x->props.family == AF_INET) {
+			x->inner_mode = inner_mode;
+			x->inner_mode_iaf = inner_mode_iaf;
+		} else {
+			x->inner_mode = inner_mode_iaf;
+			x->inner_mode_iaf = inner_mode;
+		}
+	}
 
 	x->type = xfrm_get_type(x->id.proto, family);
 	if (x->type == NULL)

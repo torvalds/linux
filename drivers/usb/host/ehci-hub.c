@@ -135,8 +135,6 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 		hcd->state = HC_STATE_QUIESCING;
 	}
 	ehci->command = ehci_readl(ehci, &ehci->regs->command);
-	if (ehci->reclaim)
-		end_unlink_async(ehci);
 	ehci_work(ehci);
 
 	/* Unlike other USB host controller types, EHCI doesn't have
@@ -179,6 +177,9 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	/* turn off now-idle HC */
 	ehci_halt (ehci);
 	hcd->state = HC_STATE_SUSPENDED;
+
+	if (ehci->reclaim)
+		end_unlink_async(ehci);
 
 	/* allow remote wakeup */
 	mask = INTR_MASK;

@@ -56,7 +56,7 @@ int xfrm4_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err;
 
-	err = x->inner_mode->afinfo->extract_output(x, skb);
+	err = xfrm_inner_extract_output(x, skb);
 	if (err)
 		return err;
 

@@ -2380,4 +2380,4 @@ module_exit(udc_exit);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Frank Becker, Robert Schwebel, David Brownell");
 MODULE_LICENSE("GPL");
-
+MODULE_ALIAS("platform:pxa2xx-udc");

@@ -60,7 +60,7 @@
 static const struct proto_ops rfcomm_sock_ops;
 
 static struct bt_sock_list rfcomm_sk_list = {
-	.lock = RW_LOCK_UNLOCKED
+	.lock = __RW_LOCK_UNLOCKED(rfcomm_sk_list.lock)
 };
 
 static void rfcomm_sock_close(struct sock *sk);

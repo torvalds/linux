@@ -415,7 +415,7 @@ static int s3c24xx_spi_resume(struct platform_device *pdev)
 #define s3c24xx_spi_resume  NULL
 #endif
 
-MODULE_ALIAS("s3c2410_spi");			/* for platform bus hotplug */
+MODULE_ALIAS("platform:s3c2410-spi");
 static struct platform_driver s3c24xx_spidrv = {
 	.remove		= __exit_p(s3c24xx_spi_remove),
 	.suspend	= s3c24xx_spi_suspend,

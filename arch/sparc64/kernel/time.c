@@ -1,7 +1,6 @@
-/* $Id: time.c,v 1.42 2002/01/23 14:33:55 davem Exp $
- * time.c: UltraSparc timer and TOD clock support.
+/* time.c: UltraSparc timer and TOD clock support.
  *
- * Copyright (C) 1997 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1997, 2008 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1998 Eddie C. Dost   (ecd@skynet.be)
  *
  * Based largely on code which is:
@@ -47,6 +46,8 @@
 #include <asm/cpudata.h>
 #include <asm/uaccess.h>
 #include <asm/irq_regs.h>
+
+#include "entry.h"
 
 DEFINE_SPINLOCK(mostek_lock);
 DEFINE_SPINLOCK(rtc_lock);
@@ -508,6 +509,37 @@ static int __init has_low_battery(void)
 	return (data1 == data2);	/* Was the write blocked? */
 }
 
+static void __init mostek_set_system_time(void __iomem *mregs)
+{
+	unsigned int year, mon, day, hour, min, sec;
+	u8 tmp;
+
+	spin_lock_irq(&mostek_lock);
+
+	/* Traditional Mostek chip. */
+	tmp = mostek_read(mregs + MOSTEK_CREG);
+	tmp |= MSTK_CREG_READ;
+	mostek_write(mregs + MOSTEK_CREG, tmp);
+
+	sec = MSTK_REG_SEC(mregs);
+	min = MSTK_REG_MIN(mregs);
+	hour = MSTK_REG_HOUR(mregs);
+	day = MSTK_REG_DOM(mregs);
+	mon = MSTK_REG_MONTH(mregs);
+	year = MSTK_CVT_YEAR( MSTK_REG_YEAR(mregs) );
+
+	xtime.tv_sec = mktime(year, mon, day, hour, min, sec);
+	xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
+	set_normalized_timespec(&wall_to_monotonic,
+ 	                        -xtime.tv_sec, -xtime.tv_nsec);
+
+	tmp = mostek_read(mregs + MOSTEK_CREG);
+	tmp &= ~MSTK_CREG_READ;
+	mostek_write(mregs + MOSTEK_CREG, tmp);
+
+	spin_unlock_irq(&mostek_lock);
+}
+
 /* Probe for the real time clock chip. */
 static void __init set_system_time(void)
 {
@@ -520,7 +552,6 @@ static void __init set_system_time(void)
 	unsigned long dregs = 0UL;
 	void __iomem *bregs = 0UL;
 #endif
-	u8 tmp;
 
 	if (!mregs && !dregs && !bregs) {
 		prom_printf("Something wrong, clock regs not mapped yet.\n");
@@ -528,20 +559,11 @@ static void __init set_system_time(void)
 	}		
 
 	if (mregs) {
-		spin_lock_irq(&mostek_lock);
+		mostek_set_system_time(mregs);
+		return;
+	}
 
-		/* Traditional Mostek chip. */
-		tmp = mostek_read(mregs + MOSTEK_CREG);
-		tmp |= MSTK_CREG_READ;
-		mostek_write(mregs + MOSTEK_CREG, tmp);
-
-		sec = MSTK_REG_SEC(mregs);
-		min = MSTK_REG_MIN(mregs);
-		hour = MSTK_REG_HOUR(mregs);
-		day = MSTK_REG_DOM(mregs);
-		mon = MSTK_REG_MONTH(mregs);
-		year = MSTK_CVT_YEAR( MSTK_REG_YEAR(mregs) );
-	} else if (bregs) {
+	if (bregs) {
 		unsigned char val = readb(bregs + 0x0e);
 		unsigned int century;
 
@@ -596,14 +618,6 @@ static void __init set_system_time(void)
 	xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
 	set_normalized_timespec(&wall_to_monotonic,
  	                        -xtime.tv_sec, -xtime.tv_nsec);
-
-	if (mregs) {
-		tmp = mostek_read(mregs + MOSTEK_CREG);
-		tmp &= ~MSTK_CREG_READ;
-		mostek_write(mregs + MOSTEK_CREG, tmp);
-
-		spin_unlock_irq(&mostek_lock);
-	}
 }
 
 /* davem suggests we keep this within the 4M locked kernel image */
@@ -1027,7 +1041,7 @@ void __init time_init(void)
 	setup_clockevent_multiplier(clock);
 
 	sparc64_clockevent.max_delta_ns =
-		clockevent_delta2ns(0x7fffffffffffffff, &sparc64_clockevent);
+		clockevent_delta2ns(0x7fffffffffffffffUL, &sparc64_clockevent);
 	sparc64_clockevent.min_delta_ns =
 		clockevent_delta2ns(0xF, &sparc64_clockevent);
 

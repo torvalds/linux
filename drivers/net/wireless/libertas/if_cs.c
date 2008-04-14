@@ -677,9 +677,7 @@ sbi_get_int_status_exit:
 
 	/* Card has a command result for us */
 	if (*ireg & IF_CS_C_S_CMD_UPLD_RDY) {
-		spin_lock(&priv->driver_lock);
 		ret = if_cs_receive_cmdres(priv, priv->upld_buf, &priv->upld_len);
-		spin_unlock(&priv->driver_lock);
 		if (ret < 0)
 			lbs_pr_err("could not receive cmd from card\n");
 	}

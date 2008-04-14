@@ -1021,11 +1021,11 @@ const u32 mpc8349_dma_ip_feature = FSL_DMA_IP_83XX | FSL_DMA_LITTLE_ENDIAN;
 
 static struct of_device_id of_fsl_dma_chan_ids[] = {
 	{
-		.compatible = "fsl,mpc8540-dma-channel",
+		.compatible = "fsl,eloplus-dma-channel",
 		.data = (void *)&mpc8540_dma_ip_feature,
 	},
 	{
-		.compatible = "fsl,mpc8349-dma-channel",
+		.compatible = "fsl,elo-dma-channel",
 		.data = (void *)&mpc8349_dma_ip_feature,
 	},
 	{}
@@ -1107,8 +1107,8 @@ err:
 }
 
 static struct of_device_id of_fsl_dma_ids[] = {
-	{ .compatible = "fsl,mpc8540-dma", },
-	{ .compatible = "fsl,mpc8349-dma", },
+	{ .compatible = "fsl,eloplus-dma", },
+	{ .compatible = "fsl,elo-dma", },
 	{}
 };
 

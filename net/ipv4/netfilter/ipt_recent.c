@@ -276,12 +276,11 @@ recent_mt_check(const char *tablename, const void *ip,
 	for (i = 0; i < ip_list_hash_size; i++)
 		INIT_LIST_HEAD(&t->iphash[i]);
 #ifdef CONFIG_PROC_FS
-	t->proc = create_proc_entry(t->name, ip_list_perms, proc_dir);
+	t->proc = proc_create(t->name, ip_list_perms, proc_dir, &recent_fops);
 	if (t->proc == NULL) {
 		kfree(t);
 		goto out;
 	}
-	t->proc->proc_fops = &recent_fops;
 	t->proc->uid       = ip_list_uid;
 	t->proc->gid       = ip_list_gid;
 	t->proc->data      = t;

@@ -541,7 +541,7 @@ void lbs_association_worker(struct work_struct *work)
 	}
 
 	if (find_any_ssid) {
-		u8 new_mode;
+		u8 new_mode = assoc_req->mode;
 
 		ret = lbs_find_best_network_ssid(priv, assoc_req->ssid,
 				&assoc_req->ssid_len, assoc_req->mode, &new_mode);

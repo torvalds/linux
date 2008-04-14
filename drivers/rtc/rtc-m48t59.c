@@ -465,6 +465,9 @@ static int __devexit m48t59_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:rtc-m48t59");
+
 static struct platform_driver m48t59_rtc_driver = {
 	.driver		= {
 		.name	= "rtc-m48t59",

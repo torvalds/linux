@@ -210,11 +210,6 @@ int vlan_proc_rem_dev(struct net_device *vlandev)
  * The following few functions build the content of /proc/net/vlan/config
  */
 
-static inline int is_vlan_dev(struct net_device *dev)
-{
-	return dev->priv_flags & IFF_802_1Q_VLAN;
-}
-
 /* start read of /proc/net/vlan/config */
 static void *vlan_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(dev_base_lock)

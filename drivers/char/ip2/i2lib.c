@@ -644,12 +644,12 @@ i2QueueCommands(int type, i2ChanStrPtr pCh, int timeout, int nCommands,
 				// Normal Expected path - We still hold LOCK
 				break; /* from for()- Enough room: goto proceed */
 			}
-		}
+			ip2trace(CHANN, ITRC_QUEUE, 3, 1, totalsize);
+			WRITE_UNLOCK_IRQRESTORE(lock_var_p, flags);
+		} else
+			ip2trace(CHANN, ITRC_QUEUE, 3, 1, totalsize);
 
-		ip2trace (CHANN, ITRC_QUEUE, 3, 1, totalsize );
-
-		// Prepare to wait for buffers to empty
-		WRITE_UNLOCK_IRQRESTORE(lock_var_p,flags); 
+		/* Prepare to wait for buffers to empty */
 		serviceOutgoingFifo(pB);	// Dump what we got
 
 		if (timeout == 0) {
@@ -1830,6 +1830,8 @@ i2StripFifo(i2eBordStrPtr pB)
 		default: // Neither packet? should be impossible
 			ip2trace (ITRC_NO_PORT, ITRC_SFIFO, 5, 1,
 				PTYPE_OF(pB->i2eLeadoffWord) );
+			WRITE_UNLOCK_IRQRESTORE(&pB->read_fifo_spinlock,
+					bflags);
 
 			break;
 		}  // End of switch on type of packets

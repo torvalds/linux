@@ -56,137 +56,6 @@ LIST_HEAD(cx23885_devlist);
 
 #define NO_SYNC_LINE (-1U)
 
-/*
- * CX23885 Assumptions
- * 1 line = 16 bytes of CDT
- * cmds size = 80
- * cdt size = 16 * linesize
- * iqsize = 64
- * maxlines = 6
- *
- * Address Space:
- * 0x00000000 0x00008fff FIFO clusters
- * 0x00010000 0x000104af Channel Management Data Structures
- * 0x000104b0 0x000104ff Free
- * 0x00010500 0x000108bf 15 channels * iqsize
- * 0x000108c0 0x000108ff Free
- * 0x00010900 0x00010e9f IQ's + Cluster Descriptor Tables
- *                       15 channels * (iqsize + (maxlines * linesize))
- * 0x00010ea0 0x00010xxx Free
- */
-
-static struct sram_channel cx23885_sram_channels[] = {
-	[SRAM_CH01] = {
-		.name		= "VID A",
-		.cmds_start	= 0x10000,
-		.ctrl_start	= 0x105b0,
-		.cdt		= 0x107b0,
-		.fifo_start	= 0x40,
-		.fifo_size	= 0x2800,
-		.ptr1_reg	= DMA1_PTR1,
-		.ptr2_reg	= DMA1_PTR2,
-		.cnt1_reg	= DMA1_CNT1,
-		.cnt2_reg	= DMA1_CNT2,
-		.jumponly	= 1,
-	},
-	[SRAM_CH02] = {
-		.name		= "ch2",
-		.cmds_start	= 0x0,
-		.ctrl_start	= 0x0,
-		.cdt		= 0x0,
-		.fifo_start	= 0x0,
-		.fifo_size	= 0x0,
-		.ptr1_reg	= DMA2_PTR1,
-		.ptr2_reg	= DMA2_PTR2,
-		.cnt1_reg	= DMA2_CNT1,
-		.cnt2_reg	= DMA2_CNT2,
-	},
-	[SRAM_CH03] = {
-		.name		= "TS1 B",
-		.cmds_start	= 0x100A0,
-		.ctrl_start	= 0x10630,
-		.cdt		= 0x10870,
-		.fifo_start	= 0x5000,
-		.fifo_size	= 0x1000,
-		.ptr1_reg	= DMA3_PTR1,
-		.ptr2_reg	= DMA3_PTR2,
-		.cnt1_reg	= DMA3_CNT1,
-		.cnt2_reg	= DMA3_CNT2,
-	},
-	[SRAM_CH04] = {
-		.name		= "ch4",
-		.cmds_start	= 0x0,
-		.ctrl_start	= 0x0,
-		.cdt		= 0x0,
-		.fifo_start	= 0x0,
-		.fifo_size	= 0x0,
-		.ptr1_reg	= DMA4_PTR1,
-		.ptr2_reg	= DMA4_PTR2,
-		.cnt1_reg	= DMA4_CNT1,
-		.cnt2_reg	= DMA4_CNT2,
-	},
-	[SRAM_CH05] = {
-		.name		= "ch5",
-		.cmds_start	= 0x0,
-		.ctrl_start	= 0x0,
-		.cdt		= 0x0,
-		.fifo_start	= 0x0,
-		.fifo_size	= 0x0,
-		.ptr1_reg	= DMA5_PTR1,
-		.ptr2_reg	= DMA5_PTR2,
-		.cnt1_reg	= DMA5_CNT1,
-		.cnt2_reg	= DMA5_CNT2,
-	},
-	[SRAM_CH06] = {
-		.name		= "TS2 C",
-		.cmds_start	= 0x10140,
-		.ctrl_start	= 0x10680,
-		.cdt		= 0x108d0,
-		.fifo_start	= 0x6000,
-		.fifo_size	= 0x1000,
-		.ptr1_reg	= DMA5_PTR1,
-		.ptr2_reg	= DMA5_PTR2,
-		.cnt1_reg	= DMA5_CNT1,
-		.cnt2_reg	= DMA5_CNT2,
-	},
-	[SRAM_CH07] = {
-		.name		= "ch7",
-		.cmds_start	= 0x0,
-		.ctrl_start	= 0x0,
-		.cdt		= 0x0,
-		.fifo_start	= 0x0,
-		.fifo_size	= 0x0,
-		.ptr1_reg	= DMA6_PTR1,
-		.ptr2_reg	= DMA6_PTR2,
-		.cnt1_reg	= DMA6_CNT1,
-		.cnt2_reg	= DMA6_CNT2,
-	},
-	[SRAM_CH08] = {
-		.name		= "ch8",
-		.cmds_start	= 0x0,
-		.ctrl_start	= 0x0,
-		.cdt		= 0x0,
-		.fifo_start	= 0x0,
-		.fifo_size	= 0x0,
-		.ptr1_reg	= DMA7_PTR1,
-		.ptr2_reg	= DMA7_PTR2,
-		.cnt1_reg	= DMA7_CNT1,
-		.cnt2_reg	= DMA7_CNT2,
-	},
-	[SRAM_CH09] = {
-		.name		= "ch9",
-		.cmds_start	= 0x0,
-		.ctrl_start	= 0x0,
-		.cdt		= 0x0,
-		.fifo_start	= 0x0,
-		.fifo_size	= 0x0,
-		.ptr1_reg	= DMA8_PTR1,
-		.ptr2_reg	= DMA8_PTR2,
-		.cnt1_reg	= DMA8_CNT1,
-		.cnt2_reg	= DMA8_CNT2,
-	},
-};
-
 /* FIXME, these allocations will change when
  * analog arrives. The be reviewed.
  * CX23887 Assumptions
@@ -754,6 +623,7 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	atomic_inc(&dev->refcount);
 
 	dev->nr = cx23885_devcount++;
+	dev->sram_channels = cx23887_sram_channels;
 	sprintf(dev->name, "cx23885[%d]", dev->nr);
 
 	mutex_lock(&devlist);
@@ -763,13 +633,11 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	/* Configure the internal memory */
 	if(dev->pci->device == 0x8880) {
 		dev->bridge = CX23885_BRIDGE_887;
-		dev->sram_channels = cx23887_sram_channels;
 		/* Apply a sensible clock frequency for the PCIe bridge */
 		dev->clk_freq = 25000000;
 	} else
 	if(dev->pci->device == 0x8852) {
 		dev->bridge = CX23885_BRIDGE_885;
-		dev->sram_channels = cx23885_sram_channels;
 		/* Apply a sensible clock frequency for the PCIe bridge */
 		dev->clk_freq = 28000000;
 	} else

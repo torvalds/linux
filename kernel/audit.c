@@ -1269,8 +1269,8 @@ static void audit_log_n_string(struct audit_buffer *ab, size_t slen,
 
 /**
  * audit_string_contains_control - does a string need to be logged in hex
- * @string - string to be checked
- * @len - max length of the string to check
+ * @string: string to be checked
+ * @len: max length of the string to check
  */
 int audit_string_contains_control(const char *string, size_t len)
 {
@@ -1285,7 +1285,7 @@ int audit_string_contains_control(const char *string, size_t len)
 /**
  * audit_log_n_untrustedstring - log a string that may contain random characters
  * @ab: audit_buffer
- * @len: lenth of string (not including trailing null)
+ * @len: length of string (not including trailing null)
  * @string: string to be logged
  *
  * This code will escape a string that is passed to it if the string

@@ -58,6 +58,7 @@
 
 MODULE_DESCRIPTION("SL811HS USB Host Controller Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:sl811-hcd");
 
 #define DRIVER_VERSION	"19 May 2005"
 

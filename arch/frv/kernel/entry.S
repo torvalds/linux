@@ -656,6 +656,26 @@ __entry_debug_exception:
 
 ###############################################################################
 #
+# handle atomic operation emulation for userspace
+#
+###############################################################################
+	.globl		__entry_atomic_op
+__entry_atomic_op:
+	LEDS		0x6012
+	sethi.p		%hi(atomic_operation),gr5
+	setlo		%lo(atomic_operation),gr5
+	movsg		esfr1,gr8
+	movsg		epcr0,gr9
+	movsg		esr0,gr10
+
+	# now that we've accessed the exception regs, we can enable exceptions
+	movsg		psr,gr4
+	ori		gr4,#PSR_ET,gr4
+	movgs		gr4,psr
+	jmpl		@(gr5,gr0)	; call atomic_operation(esfr1,epcr0,esr0)
+
+###############################################################################
+#
 # handle media exception
 #
 ###############################################################################

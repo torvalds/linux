@@ -336,7 +336,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	struct scatterlist *asg;
 	int err = -EINVAL;
 
-	if (!pskb_may_pull(skb, sizeof(*esph)))
+	if (!pskb_may_pull(skb, sizeof(*esph) + crypto_aead_ivsize(aead)))
 		goto out;
 
 	if (elen <= 0)

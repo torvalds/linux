@@ -44,27 +44,10 @@
 #include <asm/hypervisor.h>
 #include <asm/cacheflush.h>
 
-/* UPA nodes send interrupt packet to UltraSparc with first data reg
- * value low 5 (7 on Starfire) bits holding the IRQ identifier being
- * delivered.  We must translate this into a non-vector IRQ so we can
- * set the softint on this cpu.
- *
- * To make processing these packets efficient and race free we use
- * an array of irq buckets below.  The interrupt vector handler in
- * entry.S feeds incoming packets into per-cpu pil-indexed lists.
- *
- * If you make changes to ino_bucket, please update hand coded assembler
- * of the vectored interrupt trap handler(s) in entry.S and sun4v_ivec.S
- */
-struct ino_bucket {
-/*0x00*/unsigned long __irq_chain_pa;
-
-	/* Virtual interrupt number assigned to this INO.  */
-/*0x08*/unsigned int __virt_irq;
-/*0x0c*/unsigned int __pad;
-};
+#include "entry.h"
 
 #define NUM_IVECS	(IMAP_INR + 1)
+
 struct ino_bucket *ivector_table;
 unsigned long ivector_table_pa;
 

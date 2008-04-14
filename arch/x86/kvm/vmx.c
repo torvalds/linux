@@ -349,8 +349,6 @@ static void update_exception_bitmap(struct kvm_vcpu *vcpu)
 
 static void reload_tss(void)
 {
-#ifndef CONFIG_X86_64
-
 	/*
 	 * VT restores TR but not its size.  Useless.
 	 */
@@ -361,7 +359,6 @@ static void reload_tss(void)
 	descs = (void *)gdt.base;
 	descs[GDT_ENTRY_TSS].type = 9; /* available TSS */
 	load_TR_desc();
-#endif
 }
 
 static void load_transition_efer(struct vcpu_vmx *vmx)
@@ -1436,7 +1433,7 @@ static int init_rmode_tss(struct kvm *kvm)
 	int ret = 0;
 	int r;
 
-	down_read(&current->mm->mmap_sem);
+	down_read(&kvm->slots_lock);
 	r = kvm_clear_guest_page(kvm, fn, 0, PAGE_SIZE);
 	if (r < 0)
 		goto out;
@@ -1459,7 +1456,7 @@ static int init_rmode_tss(struct kvm *kvm)
 
 	ret = 1;
 out:
-	up_read(&current->mm->mmap_sem);
+	up_read(&kvm->slots_lock);
 	return ret;
 }
 

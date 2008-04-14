@@ -408,6 +408,9 @@ static int __devexit xilinx_spi_remove(struct platform_device *dev)
 	return 0;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:" XILINX_SPI_NAME);
+
 static struct platform_driver xilinx_spi_driver = {
 	.probe	= xilinx_spi_probe,
 	.remove	= __devexit_p(xilinx_spi_remove),

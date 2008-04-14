@@ -1202,13 +1202,6 @@ static ctl_table arlan_table[MAX_ARLANS + 1] =
 	{ .ctl_name = 0 }
 };
 #endif
-#else
-
-static ctl_table arlan_table[MAX_ARLANS + 1] =
-{
-	{ .ctl_name = 0 }
-};
-#endif
 
 
 // static int mmtu = 1234;
@@ -1233,7 +1226,6 @@ static ctl_table arlan_root_table[] =
 //};
 
 
-#ifdef CONFIG_PROC_FS
 static struct ctl_table_header *arlan_device_sysctl_header;
 
 int __init init_arlan_proc(void)

@@ -163,6 +163,12 @@ M:	A2232@gmx.net
 L:	linux-m68k@lists.linux-m68k.org
 S:	Maintained
 
+AFS FILESYSTEM & AF_RXRPC SOCKET DOMAIN
+P:	David Howells
+M:	dhowells@redhat.com
+L:	linux-afs@lists.infradead.org
+S:	Supported
+
 AIO
 P:	Benjamin LaHaise
 M:	bcrl@kvack.org
@@ -2110,7 +2116,7 @@ M:	reinette.chatre@intel.com
 L:	linux-wireless@vger.kernel.org
 L:	ipw3945-devel@lists.sourceforge.net
 W:	http://intellinuxwireless.org
-T:	git git://intellinuxwireless.org/repos/iwlwifi
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rchatre/iwlwifi-2.6.git
 S:	Supported
 
 IOC3 ETHERNET DRIVER
@@ -2314,14 +2320,14 @@ L:	kexec@lists.infradead.org
 S:	Maintained
 
 KPROBES
-P:	Prasanna S Panchamukhi
-M:	prasanna@in.ibm.com
 P:	Ananth N Mavinakayanahalli
 M:	ananth@in.ibm.com
 P:	Anil S Keshavamurthy
 M:	anil.s.keshavamurthy@intel.com
 P:	David S. Miller
 M:	davem@davemloft.net
+P:	Masami Hiramatsu
+M:	mhiramat@redhat.com
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 

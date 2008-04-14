@@ -960,7 +960,7 @@ static void e100_get_defaults(struct nic *nic)
 
 	/* Template for a freshly allocated RFD */
 	nic->blank_rfd.command = 0;
-	nic->blank_rfd.rbd = 0xFFFFFFFF;
+	nic->blank_rfd.rbd = cpu_to_le32(0xFFFFFFFF);
 	nic->blank_rfd.size = cpu_to_le16(VLAN_ETH_FRAME_LEN);
 
 	/* MII setup */

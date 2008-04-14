@@ -470,3 +470,4 @@ module_exit(bfin_rtc_exit);
 MODULE_DESCRIPTION("Blackfin On-Chip Real Time Clock Driver");
 MODULE_AUTHOR("Mike Frysinger <vapier@gentoo.org>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:rtc-bfin");

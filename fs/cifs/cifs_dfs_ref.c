@@ -33,7 +33,6 @@ void dfs_shrink_umount_helper(struct vfsmount *vfsmnt)
 {
 	mark_mounts_for_expiry(&cifs_dfs_automount_list);
 	mark_mounts_for_expiry(&cifs_dfs_automount_list);
-	shrink_submounts(vfsmnt, &cifs_dfs_automount_list);
 }
 
 /**

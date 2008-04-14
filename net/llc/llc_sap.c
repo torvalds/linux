@@ -24,20 +24,41 @@
 #include <net/tcp_states.h>
 #include <linux/llc.h>
 
+static int llc_mac_header_len(unsigned short devtype)
+{
+	switch (devtype) {
+	case ARPHRD_ETHER:
+	case ARPHRD_LOOPBACK:
+		return sizeof(struct ethhdr);
+#ifdef CONFIG_TR
+	case ARPHRD_IEEE802_TR:
+		return sizeof(struct trh_hdr);
+#endif
+	}
+	return 0;
+}
+
 /**
  *	llc_alloc_frame - allocates sk_buff for frame
  *	@dev: network device this skb will be sent over
+ *	@type: pdu type to allocate
+ *	@data_size: data size to allocate
  *
  *	Allocates an sk_buff for frame and initializes sk_buff fields.
  *	Returns allocated skb or %NULL when out of memory.
  */
-struct sk_buff *llc_alloc_frame(struct sock *sk, struct net_device *dev)
+struct sk_buff *llc_alloc_frame(struct sock *sk, struct net_device *dev,
+				u8 type, u32 data_size)
 {
-	struct sk_buff *skb = alloc_skb(128, GFP_ATOMIC);
+	int hlen = type == LLC_PDU_TYPE_U ? 3 : 4;
+	struct sk_buff *skb;
+
+	hlen += llc_mac_header_len(dev->type);
+	skb = alloc_skb(hlen + data_size, GFP_ATOMIC);
 
 	if (skb) {
 		skb_reset_mac_header(skb);
-		skb_reserve(skb, 50);
+		skb_reserve(skb, hlen);
 		skb_reset_network_header(skb);
 		skb_reset_transport_header(skb);
 		skb->protocol = htons(ETH_P_802_2);

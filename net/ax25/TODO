@@ -9,10 +9,6 @@ being used.
 Routes to a device being taken down might be deleted by ax25_rt_device_down
 but added by somebody else before the device has been deleted fully.
 
-Massive amounts of lock_kernel / unlock_kernel are just a temporary solution to
-get around the removal of SOCKOPS_WRAP.  A serious locking strategy has to be
-implemented.
-
 The ax25_rt_find_route synopsys is pervert but I somehow had to deal with
 the race caused by the static variable in it's previous implementation.
 
