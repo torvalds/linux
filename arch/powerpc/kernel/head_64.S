@@ -621,7 +621,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 	mtlr	r10
 
 	andi.	r10,r12,MSR_RI	/* check for unrecoverable exception */
-	beq-	unrecov_slb
+	beq-	2f
 
 .machine	push
 .machine	"power4"
@@ -642,6 +642,22 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 	ld	r13,PACA_EXSLB+EX_R13(r13)
 	rfid
 	b	.	/* prevent speculative execution */
+
+2:
+#ifdef CONFIG_PPC_ISERIES
+BEGIN_FW_FTR_SECTION
+	b	unrecov_slb
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
+#endif /* CONFIG_PPC_ISERIES */
+	mfspr	r11,SPRN_SRR0
+	clrrdi	r10,r13,32
+	LOAD_HANDLER(r10,unrecov_slb)
+	mtspr	SPRN_SRR0,r10
+	mfmsr	r10
+	ori	r10,r10,MSR_IR|MSR_DR|MSR_RI
+	mtspr	SPRN_SRR1,r10
+	rfid
+	b	.
 
 unrecov_slb:
 	EXCEPTION_PROLOG_COMMON(0x4100, PACA_EXSLB)
