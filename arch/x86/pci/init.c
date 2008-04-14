@@ -33,6 +33,8 @@ static __init int pci_access_init(void)
 		printk(KERN_ERR
 		"PCI: Fatal: No config space access function found\n");
 
+	dmi_check_pciprobe();
+
 	dmi_check_skip_isa_align();
 
 	return 0;
