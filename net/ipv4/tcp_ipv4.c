@@ -2263,8 +2263,6 @@ int tcp_proc_register(struct net *net, struct tcp_seq_afinfo *afinfo)
 	int rc = 0;
 	struct proc_dir_entry *p;
 
-	if (!afinfo)
-		return -EINVAL;
 	afinfo->seq_fops->owner		= afinfo->owner;
 	afinfo->seq_fops->open		= tcp_seq_open;
 	afinfo->seq_fops->read		= seq_read;
@@ -2281,8 +2279,6 @@ int tcp_proc_register(struct net *net, struct tcp_seq_afinfo *afinfo)
 
 void tcp_proc_unregister(struct net *net, struct tcp_seq_afinfo *afinfo)
 {
-	if (!afinfo)
-		return;
 	proc_net_remove(net, afinfo->name);
 	memset(afinfo->seq_fops, 0, sizeof(*afinfo->seq_fops));
 }
