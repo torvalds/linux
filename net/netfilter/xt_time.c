@@ -223,7 +223,7 @@ time_mt_check(const char *tablename, const void *ip,
               const struct xt_match *match, void *matchinfo,
               unsigned int hook_mask)
 {
-	struct xt_time_info *info = matchinfo;
+	const struct xt_time_info *info = matchinfo;
 
 	if (info->daytime_start > XT_TIME_MAX_DAYTIME ||
 	    info->daytime_stop > XT_TIME_MAX_DAYTIME) {

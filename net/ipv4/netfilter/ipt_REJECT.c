@@ -35,8 +35,10 @@ MODULE_DESCRIPTION("Xtables: packet \"rejection\" target for IPv4");
 static void send_reset(struct sk_buff *oldskb, int hook)
 {
 	struct sk_buff *nskb;
-	struct iphdr *oiph, *niph;
-	struct tcphdr _otcph, *oth, *tcph;
+	const struct iphdr *oiph;
+	struct iphdr *niph;
+	const struct tcphdr *oth;
+	struct tcphdr _otcph, *tcph;
 	unsigned int addr_type;
 
 	/* IP header checks: fragment. */

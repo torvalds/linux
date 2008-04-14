@@ -143,7 +143,7 @@ static bool ipt_snat_checkentry(const char *tablename,
 				void *targinfo,
 				unsigned int hook_mask)
 {
-	struct nf_nat_multi_range_compat *mr = targinfo;
+	const struct nf_nat_multi_range_compat *mr = targinfo;
 
 	/* Must be a valid range */
 	if (mr->rangesize != 1) {
@@ -159,7 +159,7 @@ static bool ipt_dnat_checkentry(const char *tablename,
 				void *targinfo,
 				unsigned int hook_mask)
 {
-	struct nf_nat_multi_range_compat *mr = targinfo;
+	const struct nf_nat_multi_range_compat *mr = targinfo;
 
 	/* Must be a valid range */
 	if (mr->rangesize != 1) {

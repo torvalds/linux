@@ -100,7 +100,7 @@ ecn_tg_check(const char *tablename, const void *e_void,
              const struct xt_target *target, void *targinfo,
              unsigned int hook_mask)
 {
-	const struct ipt_ECN_info *einfo = (struct ipt_ECN_info *)targinfo;
+	const struct ipt_ECN_info *einfo = targinfo;
 	const struct ipt_entry *e = e_void;
 
 	if (einfo->operation & IPT_ECN_OP_MASK) {

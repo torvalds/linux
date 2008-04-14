@@ -110,7 +110,8 @@ rt_mt6(const struct sk_buff *skb, const struct net_device *in,
 		!!(rtinfo->invflags & IP6T_RT_INV_TYP)));
 
 	if (ret && (rtinfo->flags & IP6T_RT_RES)) {
-		u_int32_t *rp, _reserved;
+		const u_int32_t *rp;
+		u_int32_t _reserved;
 		rp = skb_header_pointer(skb,
 					ptr + offsetof(struct rt0_hdr,
 						       reserved),

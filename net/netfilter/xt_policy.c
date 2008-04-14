@@ -136,7 +136,7 @@ policy_mt_check(const char *tablename, const void *ip_void,
                 const struct xt_match *match, void *matchinfo,
                 unsigned int hook_mask)
 {
-	struct xt_policy_info *info = matchinfo;
+	const struct xt_policy_info *info = matchinfo;
 
 	if (!(info->flags & (XT_POLICY_MATCH_IN|XT_POLICY_MATCH_OUT))) {
 		printk(KERN_ERR "xt_policy: neither incoming nor "

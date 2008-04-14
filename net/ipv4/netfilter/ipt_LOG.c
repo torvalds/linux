@@ -76,7 +76,8 @@ static void dump_packet(const struct nf_loginfo *info,
 
 	if ((logflags & IPT_LOG_IPOPT)
 	    && ih->ihl * 4 > sizeof(struct iphdr)) {
-		unsigned char _opt[4 * 15 - sizeof(struct iphdr)], *op;
+		const unsigned char *op;
+		unsigned char _opt[4 * 15 - sizeof(struct iphdr)];
 		unsigned int i, optsize;
 
 		optsize = ih->ihl * 4 - sizeof(struct iphdr);
