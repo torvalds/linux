@@ -23,7 +23,6 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 
-#include <asm/wbflush.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <asm/txx9tmr.h>
@@ -91,12 +90,11 @@ void rbtx4938_machine_restart(char *command)
 	local_irq_disable();
 
 	printk("Rebooting...");
-	*rbtx4938_softresetlock_ptr = 1;
-	*rbtx4938_sfvol_ptr = 1;
-	*rbtx4938_softreset_ptr = 1;
-	wbflush();
-
-	while(1);
+	writeb(1, rbtx4938_softresetlock_addr);
+	writeb(1, rbtx4938_sfvol_addr);
+	writeb(1, rbtx4938_softreset_addr);
+	while(1)
+		;
 }
 
 void __init
@@ -488,7 +486,7 @@ static int __init tx4938_pcibios_init(void)
 	}
 
 	/* Reset PCI Bus */
-	*rbtx4938_pcireset_ptr = 0;
+	writeb(0, rbtx4938_pcireset_addr);
 	/* Reset PCIC */
 	tx4938_ccfgptr->clkctr |= TX4938_CLKCTR_PCIRST;
 	if (txboard_pci66_mode > 0)
@@ -496,8 +494,8 @@ static int __init tx4938_pcibios_init(void)
 	mdelay(10);
 	/* clear PCIC reset */
 	tx4938_ccfgptr->clkctr &= ~TX4938_CLKCTR_PCIRST;
-	*rbtx4938_pcireset_ptr = 1;
-	wbflush();
+	writeb(1, rbtx4938_pcireset_addr);
+	mmiowb();
 	tx4938_report_pcic_status1(tx4938_pcicptr);
 
 	tx4938_report_pciclk();
@@ -505,15 +503,15 @@ static int __init tx4938_pcibios_init(void)
 	if (txboard_pci66_mode == 0 &&
 	    txboard_pci66_check(&tx4938_pci_controller[0], 0, 0)) {
 		/* Reset PCI Bus */
-		*rbtx4938_pcireset_ptr = 0;
+		writeb(0, rbtx4938_pcireset_addr);
 		/* Reset PCIC */
 		tx4938_ccfgptr->clkctr |= TX4938_CLKCTR_PCIRST;
 		tx4938_pciclk66_setup();
 		mdelay(10);
 		/* clear PCIC reset */
 		tx4938_ccfgptr->clkctr &= ~TX4938_CLKCTR_PCIRST;
-		*rbtx4938_pcireset_ptr = 1;
-		wbflush();
+		writeb(1, rbtx4938_pcireset_addr);
+		mmiowb();
 		/* Reinitialize PCIC */
 		tx4938_report_pciclk();
 		tx4938_pcic_setup(tx4938_pcicptr, &tx4938_pci_controller[0], io_base[0], extarb);
@@ -774,8 +772,9 @@ void __init tx4938_board_setup(void)
 		txx9_tmr_init(TX4938_TMR_REG(i) & 0xfffffffffULL);
 
 	/* enable DMA */
-	TX4938_WR64(0xff1fb150, TX4938_DMA_MCR_MSTEN);
-	TX4938_WR64(0xff1fb950, TX4938_DMA_MCR_MSTEN);
+	for (i = 0; i < 2; i++)
+		____raw_writeq(TX4938_DMA_MCR_MSTEN,
+			       (void __iomem *)(TX4938_DMA_REG(i) + 0x50));
 
 	/* PIO */
 	__raw_writel(0, &tx4938_pioptr->maskcpu);
@@ -861,10 +860,6 @@ void __init plat_mem_setup(void)
 	if (txx9_master_clock == 0)
 		txx9_master_clock = 25000000; /* 25MHz */
 	tx4938_board_setup();
-	/* setup serial stuff */
-	TX4938_WR(0xff1ff314, 0x00000000);	/* h/w flow control off */
-	TX4938_WR(0xff1ff414, 0x00000000);	/* h/w flow control off */
-
 #ifndef CONFIG_PCI
 	set_io_port_base(RBTX4938_ETHER_BASE);
 #endif
@@ -930,16 +925,16 @@ void __init plat_mem_setup(void)
 	pcfg = tx4938_ccfgptr->pcfg;	/* updated */
 	/* fixup piosel */
 	if ((pcfg & (TX4938_PCFG_ATA_SEL | TX4938_PCFG_NDF_SEL)) ==
-	    TX4938_PCFG_ATA_SEL) {
-		*rbtx4938_piosel_ptr = (*rbtx4938_piosel_ptr & 0x03) | 0x04;
-	}
+	    TX4938_PCFG_ATA_SEL)
+		writeb((readb(rbtx4938_piosel_addr) & 0x03) | 0x04,
+		       rbtx4938_piosel_addr);
 	else if ((pcfg & (TX4938_PCFG_ATA_SEL | TX4938_PCFG_NDF_SEL)) ==
-	    TX4938_PCFG_NDF_SEL) {
-		*rbtx4938_piosel_ptr = (*rbtx4938_piosel_ptr & 0x03) | 0x08;
-	}
-	else {
-		*rbtx4938_piosel_ptr &= ~(0x08 | 0x04);
-	}
+		 TX4938_PCFG_NDF_SEL)
+		writeb((readb(rbtx4938_piosel_addr) & 0x03) | 0x08,
+		       rbtx4938_piosel_addr);
+	else
+		writeb(readb(rbtx4938_piosel_addr) & ~(0x08 | 0x04),
+		       rbtx4938_piosel_addr);
 
 	rbtx4938_fpga_resource.name = "FPGA Registers";
 	rbtx4938_fpga_resource.start = CPHYSADDR(RBTX4938_FPGA_REG_ADDR);
@@ -948,17 +943,14 @@ void __init plat_mem_setup(void)
 	if (request_resource(&iomem_resource, &rbtx4938_fpga_resource))
 		printk("request resource for fpga failed\n");
 
-	/* disable all OnBoard I/O interrupts */
-	*rbtx4938_imask_ptr = 0;
-
 	_machine_restart = rbtx4938_machine_restart;
 	_machine_halt = rbtx4938_machine_halt;
 	pm_power_off = rbtx4938_machine_power_off;
 
-	*rbtx4938_led_ptr = 0xff;
-	printk("RBTX4938 --- FPGA(Rev %02x)", *rbtx4938_fpga_rev_ptr);
-	printk(" DIPSW:%02x,%02x\n",
-	       *rbtx4938_dipsw_ptr, *rbtx4938_bdipsw_ptr);
+	writeb(0xff, rbtx4938_led_addr);
+	printk(KERN_INFO "RBTX4938 --- FPGA(Rev %02x) DIPSW:%02x,%02x\n",
+	       readb(rbtx4938_fpga_rev_addr),
+	       readb(rbtx4938_dipsw_addr), readb(rbtx4938_bdipsw_addr));
 }
 
 static int __init rbtx4938_ne_init(void)
@@ -1000,12 +992,12 @@ static void rbtx4938_spi_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	u8 val;
 	unsigned long flags;
 	spin_lock_irqsave(&rbtx4938_spi_gpio_lock, flags);
-	val = *rbtx4938_spics_ptr;
+	val = readb(rbtx4938_spics_addr);
 	if (value)
 		val |= 1 << offset;
 	else
 		val &= ~(1 << offset);
-	*rbtx4938_spics_ptr = val;
+	writeb(val, rbtx4938_spics_addr);
 	mmiowb();
 	spin_unlock_irqrestore(&rbtx4938_spi_gpio_lock, flags);
 }

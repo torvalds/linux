@@ -31,9 +31,7 @@
  * Support for TX4938 in 2.6 - Hiroshi DOYU <Hiroshi_DOYU@montavista.co.jp>
  */
 
-#include <asm/mipsregs.h>
-#include <asm/system.h>
-#include <asm/tx4938/tx4938_mips.h>
+#include <linux/types>
 
 extern u8 txx9_sio_kdbg_rd(void);
 extern int txx9_sio_kdbg_wr( u8 ch );

@@ -13,8 +13,6 @@
 #ifndef __ASM_TX_BOARDS_TX4938_H
 #define __ASM_TX_BOARDS_TX4938_H
 
-#include <asm/tx4938/tx4938_mips.h>
-
 #define tx4938_read_nfmc(addr) (*(volatile unsigned int *)(addr))
 #define tx4938_write_nfmc(b, addr) (*(volatile unsigned int *)(addr)) = (b)
 
@@ -53,28 +51,6 @@
 #define TX4938_IRC_REG		(TX4938_REG_BASE + 0xf600)
 #define TX4938_ACLC_REG		(TX4938_REG_BASE + 0xf700)
 #define TX4938_SPI_REG		(TX4938_REG_BASE + 0xf800)
-
-#ifndef _LANGUAGE_ASSEMBLY
-#include <asm/byteorder.h>
-
-#define TX4938_MKA(x) ((u32)( ((u32)(TX4938_REG_BASE)) | ((u32)(x)) ))
-
-#define TX4938_RD08( reg      )   (*(vu08*)(reg))
-#define TX4938_WR08( reg, val )  ((*(vu08*)(reg))=(val))
-
-#define TX4938_RD16( reg      )   (*(vu16*)(reg))
-#define TX4938_WR16( reg, val )  ((*(vu16*)(reg))=(val))
-
-#define TX4938_RD32( reg      )   (*(vu32*)(reg))
-#define TX4938_WR32( reg, val )  ((*(vu32*)(reg))=(val))
-
-#define TX4938_RD64( reg      )   (*(vu64*)(reg))
-#define TX4938_WR64( reg, val )  ((*(vu64*)(reg))=(val))
-
-#define TX4938_RD( reg      ) TX4938_RD32( reg )
-#define TX4938_WR( reg, val ) TX4938_WR32( reg, val )
-
-#endif /* !__ASSEMBLY__ */
 
 #ifdef __ASSEMBLY__
 #define _CONST64(c)	c
