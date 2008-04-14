@@ -103,6 +103,29 @@ int ip6_ra_control(struct sock *sk, int sel, void (*destructor)(struct sock *))
 	return 0;
 }
 
+static
+struct ipv6_txoptions *ipv6_update_options(struct sock *sk,
+					   struct ipv6_txoptions *opt)
+{
+	if (inet_sk(sk)->is_icsk) {
+		if (opt &&
+		    !((1 << sk->sk_state) & (TCPF_LISTEN | TCPF_CLOSE)) &&
+		    inet_sk(sk)->daddr != LOOPBACK4_IPV6) {
+			struct inet_connection_sock *icsk = inet_csk(sk);
+			icsk->icsk_ext_hdr_len = opt->opt_flen + opt->opt_nflen;
+			icsk->icsk_sync_mss(sk, icsk->icsk_pmtu_cookie);
+		}
+		opt = xchg(&inet6_sk(sk)->opt, opt);
+	} else {
+		write_lock(&sk->sk_dst_lock);
+		opt = xchg(&inet6_sk(sk)->opt, opt);
+		write_unlock(&sk->sk_dst_lock);
+	}
+	sk_dst_reset(sk);
+
+	return opt;
+}
+
 static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, int optlen)
 {
@@ -351,25 +374,7 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		}
 
 		retv = 0;
-		if (inet_sk(sk)->is_icsk) {
-			if (opt) {
-				struct inet_connection_sock *icsk = inet_csk(sk);
-				if (!((1 << sk->sk_state) &
-				      (TCPF_LISTEN | TCPF_CLOSE))
-				    && inet_sk(sk)->daddr != LOOPBACK4_IPV6) {
-					icsk->icsk_ext_hdr_len =
-						opt->opt_flen + opt->opt_nflen;
-					icsk->icsk_sync_mss(sk, icsk->icsk_pmtu_cookie);
-				}
-			}
-			opt = xchg(&np->opt, opt);
-			sk_dst_reset(sk);
-		} else {
-			write_lock(&sk->sk_dst_lock);
-			opt = xchg(&np->opt, opt);
-			write_unlock(&sk->sk_dst_lock);
-			sk_dst_reset(sk);
-		}
+		opt = ipv6_update_options(sk, opt);
 sticky_done:
 		if (opt)
 			sock_kfree_s(sk, opt, opt->tot_len);
@@ -415,26 +420,7 @@ sticky_done:
 			goto done;
 update:
 		retv = 0;
-		if (inet_sk(sk)->is_icsk) {
-			if (opt) {
-				struct inet_connection_sock *icsk = inet_csk(sk);
-				if (!((1 << sk->sk_state) &
-				      (TCPF_LISTEN | TCPF_CLOSE))
-				    && inet_sk(sk)->daddr != LOOPBACK4_IPV6) {
-					icsk->icsk_ext_hdr_len =
-						opt->opt_flen + opt->opt_nflen;
-					icsk->icsk_sync_mss(sk, icsk->icsk_pmtu_cookie);
-				}
-			}
-			opt = xchg(&np->opt, opt);
-			sk_dst_reset(sk);
-		} else {
-			write_lock(&sk->sk_dst_lock);
-			opt = xchg(&np->opt, opt);
-			write_unlock(&sk->sk_dst_lock);
-			sk_dst_reset(sk);
-		}
-
+		opt = ipv6_update_options(sk, opt);
 done:
 		if (opt)
 			sock_kfree_s(sk, opt, opt->tot_len);
