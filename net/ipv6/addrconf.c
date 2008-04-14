@@ -372,25 +372,26 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 	 */
 	in6_dev_hold(ndev);
 
+#if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
+	if (dev->type == ARPHRD_SIT && (dev->priv_flags & IFF_ISATAP)) {
+		printk(KERN_INFO
+		       "%s: Disabled Multicast RS\n",
+		       dev->name);
+		ndev->cnf.rtr_solicits = 0;
+	}
+#endif
+
 #ifdef CONFIG_IPV6_PRIVACY
 	setup_timer(&ndev->regen_timer, ipv6_regen_rndid, (unsigned long)ndev);
 	if ((dev->flags&IFF_LOOPBACK) ||
 	    dev->type == ARPHRD_TUNNEL ||
-#if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
+	    dev->type == ARPHRD_TUNNEL6 ||
 	    dev->type == ARPHRD_SIT ||
-#endif
 	    dev->type == ARPHRD_NONE) {
 		printk(KERN_INFO
 		       "%s: Disabled Privacy Extensions\n",
 		       dev->name);
 		ndev->cnf.use_tempaddr = -1;
-
-		if (dev->type == ARPHRD_SIT && (dev->priv_flags & IFF_ISATAP)) {
-			printk(KERN_INFO
-			       "%s: Disabled Multicast RS\n",
-			       dev->name);
-			ndev->cnf.rtr_solicits = 0;
-		}
 	} else {
 		in6_dev_hold(ndev);
 		ipv6_regen_rndid((unsigned long) ndev);
@@ -2529,7 +2530,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	ASSERT_RTNL();
 
-	if (dev == init_net.loopback_dev && how == 1)
+	if ((dev->flags & IFF_LOOPBACK) && how == 1)
 		how = 0;
 
 	rt6_ifdown(net, dev);
@@ -2542,7 +2543,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 	/* Step 1: remove reference to ipv6 device from parent device.
 		   Do not dev_put!
 	 */
-	if (how == 1) {
+	if (how) {
 		idev->dead = 1;
 
 		/* protected by rtnl_lock */
@@ -2574,12 +2575,12 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 	write_lock_bh(&idev->lock);
 
 	/* Step 3: clear flags for stateless addrconf */
-	if (how != 1)
+	if (!how)
 		idev->if_flags &= ~(IF_RS_SENT|IF_RA_RCVD|IF_READY);
 
 	/* Step 4: clear address list */
 #ifdef CONFIG_IPV6_PRIVACY
-	if (how == 1 && del_timer(&idev->regen_timer))
+	if (how && del_timer(&idev->regen_timer))
 		in6_dev_put(idev);
 
 	/* clear tempaddr list */
@@ -2616,7 +2617,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	/* Step 5: Discard multicast list */
 
-	if (how == 1)
+	if (how)
 		ipv6_mc_destroy_dev(idev);
 	else
 		ipv6_mc_down(idev);
@@ -2625,7 +2626,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	/* Shot the device (if unregistered) */
 
-	if (how == 1) {
+	if (how) {
 		addrconf_sysctl_unregister(idev);
 		neigh_parms_release(&nd_tbl, idev->nd_parms);
 		neigh_ifdown(&nd_tbl, dev);

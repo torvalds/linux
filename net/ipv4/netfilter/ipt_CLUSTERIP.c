@@ -82,8 +82,8 @@ clusterip_config_put(struct clusterip_config *c)
 static inline void
 clusterip_config_entry_put(struct clusterip_config *c)
 {
+	write_lock_bh(&clusterip_lock);
 	if (atomic_dec_and_test(&c->entries)) {
-		write_lock_bh(&clusterip_lock);
 		list_del(&c->list);
 		write_unlock_bh(&clusterip_lock);
 
@@ -96,7 +96,9 @@ clusterip_config_entry_put(struct clusterip_config *c)
 #ifdef CONFIG_PROC_FS
 		remove_proc_entry(c->pde->name, c->pde->parent);
 #endif
+		return;
 	}
+	write_unlock_bh(&clusterip_lock);
 }
 
 static struct clusterip_config *

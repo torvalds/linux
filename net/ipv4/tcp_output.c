@@ -1808,6 +1808,9 @@ void tcp_simple_retransmit(struct sock *sk)
 	if (!lost)
 		return;
 
+	if (tcp_is_reno(tp))
+		tcp_limit_reno_sacked(tp);
+
 	tcp_verify_left_out(tp);
 
 	/* Don't muck with the congestion window here.

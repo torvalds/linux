@@ -67,7 +67,7 @@ struct sctp_ulpevent {
 };
 
 /* Retrieve the skb this event sits inside of. */
-static inline struct sk_buff *sctp_event2skb(struct sctp_ulpevent *ev)
+static inline struct sk_buff *sctp_event2skb(const struct sctp_ulpevent *ev)
 {
 	return container_of((void *)ev, struct sk_buff, cb);
 }

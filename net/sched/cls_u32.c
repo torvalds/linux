@@ -411,8 +411,10 @@ static void u32_destroy(struct tcf_proto *tp)
 			}
 		}
 
-		for (ht=tp_c->hlist; ht; ht = ht->next)
+		for (ht = tp_c->hlist; ht; ht = ht->next) {
+			ht->refcnt--;
 			u32_clear_hnode(tp, ht);
+		}
 
 		while ((ht = tp_c->hlist) != NULL) {
 			tp_c->hlist = ht->next;
@@ -441,8 +443,12 @@ static int u32_delete(struct tcf_proto *tp, unsigned long arg)
 	if (tp->root == ht)
 		return -EINVAL;
 
-	if (--ht->refcnt == 0)
+	if (ht->refcnt == 1) {
+		ht->refcnt--;
 		u32_destroy_hnode(tp, ht);
+	} else {
+		return -EBUSY;
+	}
 
 	return 0;
 }
@@ -568,7 +574,7 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 		if (ht == NULL)
 			return -ENOBUFS;
 		ht->tp_c = tp_c;
-		ht->refcnt = 0;
+		ht->refcnt = 1;
 		ht->divisor = divisor;
 		ht->handle = handle;
 		ht->prio = tp->prio;

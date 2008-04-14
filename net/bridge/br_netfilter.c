@@ -110,7 +110,10 @@ static inline __be16 pppoe_proto(const struct sk_buff *skb)
  * ipt_REJECT needs it.  Future netfilter modules might
  * require us to fill additional fields. */
 static struct net_device __fake_net_device = {
-	.hard_header_len	= ETH_HLEN
+	.hard_header_len	= ETH_HLEN,
+#ifdef CONFIG_NET_NS
+	.nd_net			= &init_net,
+#endif
 };
 
 static struct rtable __fake_rtable = {

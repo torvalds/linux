@@ -67,9 +67,42 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
+/* Uncomment to enable debugging */
+/* #define TUN_DEBUG 1 */
+
 #ifdef TUN_DEBUG
 static int debug;
+
+#define DBG  if(tun->debug)printk
+#define DBG1 if(debug==2)printk
+#else
+#define DBG( a... )
+#define DBG1( a... )
 #endif
+
+struct tun_struct {
+	struct list_head        list;
+	unsigned long 		flags;
+	int			attached;
+	uid_t			owner;
+	gid_t			group;
+
+	wait_queue_head_t	read_wait;
+	struct sk_buff_head	readq;
+
+	struct net_device	*dev;
+
+	struct fasync_struct    *fasync;
+
+	unsigned long if_flags;
+	u8 dev_addr[ETH_ALEN];
+	u32 chr_filter[2];
+	u32 net_filter[2];
+
+#ifdef TUN_DEBUG
+	int debug;
+#endif
+};
 
 /* Network device part of the driver */
 
@@ -253,8 +286,11 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 			return -EFAULT;
 	}
 
-	if ((tun->flags & TUN_TYPE_MASK) == TUN_TAP_DEV)
+	if ((tun->flags & TUN_TYPE_MASK) == TUN_TAP_DEV) {
 		align = NET_IP_ALIGN;
+		if (unlikely(len < ETH_HLEN))
+			return -EINVAL;
+	}
 
 	if (!(skb = alloc_skb(len + align, GFP_KERNEL))) {
 		tun->dev->stats.rx_dropped++;

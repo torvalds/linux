@@ -692,6 +692,20 @@ static int vlan_dev_init(struct net_device *dev)
 	return 0;
 }
 
+static void vlan_dev_uninit(struct net_device *dev)
+{
+	struct vlan_priority_tci_mapping *pm;
+	struct vlan_dev_info *vlan = vlan_dev_info(dev);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(vlan->egress_priority_map); i++) {
+		while ((pm = vlan->egress_priority_map[i]) != NULL) {
+			vlan->egress_priority_map[i] = pm->next;
+			kfree(pm);
+		}
+	}
+}
+
 void vlan_setup(struct net_device *dev)
 {
 	ether_setup(dev);
@@ -701,6 +715,7 @@ void vlan_setup(struct net_device *dev)
 
 	dev->change_mtu		= vlan_dev_change_mtu;
 	dev->init		= vlan_dev_init;
+	dev->uninit		= vlan_dev_uninit;
 	dev->open		= vlan_dev_open;
 	dev->stop		= vlan_dev_stop;
 	dev->set_mac_address	= vlan_dev_set_mac_address;

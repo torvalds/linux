@@ -2010,6 +2010,7 @@ isdn_net_init(struct net_device *ndev)
 	ndev->flags = IFF_NOARP|IFF_POINTOPOINT;
 	ndev->type = ARPHRD_ETHER;
 	ndev->addr_len = ETH_ALEN;
+	ndev->validate_addr = NULL;
 
 	/* for clients with MPPP maybe higher values better */
 	ndev->tx_queue_len = 30;

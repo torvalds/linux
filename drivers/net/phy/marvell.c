@@ -211,8 +211,6 @@ static int m88e1111_config_init(struct phy_device *phydev)
 	}
 
 	if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
-		int temp;
-
 		temp = phy_read(phydev, MII_M1111_PHY_EXT_SR);
 		if (temp < 0)
 			return temp;
