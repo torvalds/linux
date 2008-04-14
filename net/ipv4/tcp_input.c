@@ -3968,7 +3968,7 @@ drop:
 		u32 end_seq = TCP_SKB_CB(skb)->end_seq;
 
 		if (seq == TCP_SKB_CB(skb1)->end_seq) {
-			__skb_append(skb1, skb, &tp->out_of_order_queue);
+			__skb_queue_after(&tp->out_of_order_queue, skb1, skb);
 
 			if (!tp->rx_opt.num_sacks ||
 			    tp->selective_acks[0].end_seq != seq)
