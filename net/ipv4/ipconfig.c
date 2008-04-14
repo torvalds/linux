@@ -376,7 +376,7 @@ static int __init ic_defaults(void)
 	 */
 
 	if (!ic_host_name_set)
-		sprintf(init_utsname()->nodename, "%u.%u.%u.%u", NIPQUAD(ic_myaddr));
+		sprintf(init_utsname()->nodename, NIPQUAD_FMT, NIPQUAD(ic_myaddr));
 
 	if (root_server_addr == NONE)
 		root_server_addr = ic_servaddr;
@@ -389,11 +389,11 @@ static int __init ic_defaults(void)
 		else if (IN_CLASSC(ntohl(ic_myaddr)))
 			ic_netmask = htonl(IN_CLASSC_NET);
 		else {
-			printk(KERN_ERR "IP-Config: Unable to guess netmask for address %u.%u.%u.%u\n",
+			printk(KERN_ERR "IP-Config: Unable to guess netmask for address " NIPQUAD_FMT "\n",
 				NIPQUAD(ic_myaddr));
 			return -1;
 		}
-		printk("IP-Config: Guessing netmask %u.%u.%u.%u\n", NIPQUAD(ic_netmask));
+		printk("IP-Config: Guessing netmask " NIPQUAD_FMT "\n", NIPQUAD(ic_netmask));
 	}
 
 	return 0;
@@ -981,9 +981,9 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 				ic_myaddr = b->your_ip;
 				ic_servaddr = server_id;
 #ifdef IPCONFIG_DEBUG
-				printk("DHCP: Offered address %u.%u.%u.%u",
+				printk("DHCP: Offered address " NIPQUAD_FMT,
 				       NIPQUAD(ic_myaddr));
-				printk(" by server %u.%u.%u.%u\n",
+				printk(" by server " NIPQUAD_FMT "\n",
 				       NIPQUAD(ic_servaddr));
 #endif
 				/* The DHCP indicated server address takes
@@ -1179,11 +1179,11 @@ static int __init ic_dynamic(void)
 		return -1;
 	}
 
-	printk("IP-Config: Got %s answer from %u.%u.%u.%u, ",
+	printk("IP-Config: Got %s answer from " NIPQUAD_FMT ", ",
 		((ic_got_reply & IC_RARP) ? "RARP"
 		 : (ic_proto_enabled & IC_USE_DHCP) ? "DHCP" : "BOOTP"),
 		NIPQUAD(ic_servaddr));
-	printk("my address is %u.%u.%u.%u\n", NIPQUAD(ic_myaddr));
+	printk("my address is " NIPQUAD_FMT "\n", NIPQUAD(ic_myaddr));
 
 	return 0;
 }
@@ -1209,12 +1209,12 @@ static int pnp_seq_show(struct seq_file *seq, void *v)
 	for (i = 0; i < CONF_NAMESERVERS_MAX; i++) {
 		if (ic_nameservers[i] != NONE)
 			seq_printf(seq,
-				   "nameserver %u.%u.%u.%u\n",
+				   "nameserver " NIPQUAD_FMT "\n",
 				   NIPQUAD(ic_nameservers[i]));
 	}
 	if (ic_servaddr != NONE)
 		seq_printf(seq,
-			   "bootserver %u.%u.%u.%u\n",
+			   "bootserver " NIPQUAD_FMT "\n",
 			   NIPQUAD(ic_servaddr));
 	return 0;
 }
@@ -1389,13 +1389,13 @@ static int __init ip_auto_config(void)
 	 */
 	printk("IP-Config: Complete:");
 	printk("\n     device=%s", ic_dev->name);
-	printk(", addr=%u.%u.%u.%u", NIPQUAD(ic_myaddr));
-	printk(", mask=%u.%u.%u.%u", NIPQUAD(ic_netmask));
-	printk(", gw=%u.%u.%u.%u", NIPQUAD(ic_gateway));
+	printk(", addr=" NIPQUAD_FMT, NIPQUAD(ic_myaddr));
+	printk(", mask=" NIPQUAD_FMT, NIPQUAD(ic_netmask));
+	printk(", gw=" NIPQUAD_FMT, NIPQUAD(ic_gateway));
 	printk(",\n     host=%s, domain=%s, nis-domain=%s",
 	       utsname()->nodename, ic_domain, utsname()->domainname);
-	printk(",\n     bootserver=%u.%u.%u.%u", NIPQUAD(ic_servaddr));
-	printk(", rootserver=%u.%u.%u.%u", NIPQUAD(root_server_addr));
+	printk(",\n     bootserver=" NIPQUAD_FMT, NIPQUAD(ic_servaddr));
+	printk(", rootserver=" NIPQUAD_FMT, NIPQUAD(root_server_addr));
 	printk(", rootpath=%s", root_server_path);
 	printk("\n");
 #endif /* !SILENT */

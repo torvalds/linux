@@ -1369,7 +1369,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 			 * to the moment of synflood.
 			 */
 			LIMIT_NETDEBUG(KERN_DEBUG "TCP: drop open "
-				       "request from %u.%u.%u.%u/%u\n",
+				       "request from " NIPQUAD_FMT "/%u\n",
 				       NIPQUAD(saddr),
 				       ntohs(tcp_hdr(skb)->source));
 			goto drop_and_release;

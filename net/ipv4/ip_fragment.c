@@ -557,7 +557,7 @@ out_nomem:
 out_oversize:
 	if (net_ratelimit())
 		printk(KERN_INFO
-			"Oversized IP packet from %d.%d.%d.%d.\n",
+			"Oversized IP packet from " NIPQUAD_FMT ".\n",
 			NIPQUAD(qp->saddr));
 out_fail:
 	IP_INC_STATS_BH(IPSTATS_MIB_REASMFAILS);

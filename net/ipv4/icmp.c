@@ -685,7 +685,7 @@ static void icmp_unreach(struct sk_buff *skb)
 			break;
 		case ICMP_FRAG_NEEDED:
 			if (ipv4_config.no_pmtu_disc) {
-				LIMIT_NETDEBUG(KERN_INFO "ICMP: %u.%u.%u.%u: "
+				LIMIT_NETDEBUG(KERN_INFO "ICMP: " NIPQUAD_FMT ": "
 							 "fragmentation needed "
 							 "and DF set.\n",
 					       NIPQUAD(iph->daddr));
@@ -697,7 +697,7 @@ static void icmp_unreach(struct sk_buff *skb)
 			}
 			break;
 		case ICMP_SR_FAILED:
-			LIMIT_NETDEBUG(KERN_INFO "ICMP: %u.%u.%u.%u: Source "
+			LIMIT_NETDEBUG(KERN_INFO "ICMP: " NIPQUAD_FMT ": Source "
 						 "Route Failed.\n",
 				       NIPQUAD(iph->daddr));
 			break;
@@ -730,9 +730,9 @@ static void icmp_unreach(struct sk_buff *skb)
 	if (!net->ipv4.sysctl_icmp_ignore_bogus_error_responses &&
 	    inet_addr_type(net, iph->daddr) == RTN_BROADCAST) {
 		if (net_ratelimit())
-			printk(KERN_WARNING "%u.%u.%u.%u sent an invalid ICMP "
+			printk(KERN_WARNING NIPQUAD_FMT " sent an invalid ICMP "
 					    "type %u, code %u "
-					    "error to a broadcast: %u.%u.%u.%u on %s\n",
+					    "error to a broadcast: " NIPQUAD_FMT " on %s\n",
 			       NIPQUAD(ip_hdr(skb)->saddr),
 			       icmph->type, icmph->code,
 			       NIPQUAD(iph->daddr),
@@ -953,8 +953,8 @@ static void icmp_address_reply(struct sk_buff *skb)
 				break;
 		}
 		if (!ifa && net_ratelimit()) {
-			printk(KERN_INFO "Wrong address mask %u.%u.%u.%u from "
-					 "%s/%u.%u.%u.%u\n",
+			printk(KERN_INFO "Wrong address mask " NIPQUAD_FMT " from "
+					 "%s/" NIPQUAD_FMT "\n",
 			       NIPQUAD(*mp), dev->name, NIPQUAD(rt->rt_src));
 		}
 	}

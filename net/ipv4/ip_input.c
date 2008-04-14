@@ -303,7 +303,7 @@ static inline int ip_rcv_options(struct sk_buff *skb)
 				if (IN_DEV_LOG_MARTIANS(in_dev) &&
 				    net_ratelimit())
 					printk(KERN_INFO "source route option "
-					       "%u.%u.%u.%u -> %u.%u.%u.%u\n",
+					       NIPQUAD_FMT " -> " NIPQUAD_FMT "\n",
 					       NIPQUAD(iph->saddr),
 					       NIPQUAD(iph->daddr));
 				in_dev_put(in_dev);

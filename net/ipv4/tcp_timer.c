@@ -301,7 +301,7 @@ static void tcp_retransmit_timer(struct sock *sk)
 #ifdef TCP_DEBUG
 		if (1) {
 			struct inet_sock *inet = inet_sk(sk);
-			LIMIT_NETDEBUG(KERN_DEBUG "TCP: Treason uncloaked! Peer %u.%u.%u.%u:%u/%u shrinks window %u:%u. Repaired.\n",
+			LIMIT_NETDEBUG(KERN_DEBUG "TCP: Treason uncloaked! Peer " NIPQUAD_FMT ":%u/%u shrinks window %u:%u. Repaired.\n",
 			       NIPQUAD(inet->daddr), ntohs(inet->dport),
 			       inet->num, tp->snd_una, tp->snd_nxt);
 		}

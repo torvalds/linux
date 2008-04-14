@@ -2309,7 +2309,7 @@ static void DBGUNDO(struct sock *sk, const char *msg)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_sock *inet = inet_sk(sk);
 
-	printk(KERN_DEBUG "Undo %s %u.%u.%u.%u/%u c%u l%u ss%u/%u p%u\n",
+	printk(KERN_DEBUG "Undo %s " NIPQUAD_FMT "/%u c%u l%u ss%u/%u p%u\n",
 	       msg,
 	       NIPQUAD(inet->daddr), ntohs(inet->dport),
 	       tp->snd_cwnd, tcp_left_out(tp),
