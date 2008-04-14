@@ -84,7 +84,7 @@ gre_manip_pkt(struct sk_buff *skb, unsigned int iphdroff,
 	      const struct nf_conntrack_tuple *tuple,
 	      enum nf_nat_manip_type maniptype)
 {
-	struct gre_hdr *greh;
+	const struct gre_hdr *greh;
 	struct gre_hdr_pptp *pgreh;
 	const struct iphdr *iph = (struct iphdr *)(skb->data + iphdroff);
 	unsigned int hdroff = iphdroff + iph->ihl * 4;
