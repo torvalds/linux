@@ -93,21 +93,8 @@ nf_nat_fn(unsigned int hooknum,
 	   have dropped it.  Hence it's the user's responsibilty to
 	   packet filter it out, or implement conntrack/NAT for that
 	   protocol. 8) --RR */
-	if (!ct) {
-		/* Exception: ICMP redirect to new connection (not in
-		   hash table yet).  We must not let this through, in
-		   case we're doing NAT to the same network. */
-		if (ip_hdr(skb)->protocol == IPPROTO_ICMP) {
-			struct icmphdr _hdr, *hp;
-
-			hp = skb_header_pointer(skb, ip_hdrlen(skb),
-						sizeof(_hdr), &_hdr);
-			if (hp != NULL &&
-			    hp->type == ICMP_REDIRECT)
-				return NF_DROP;
-		}
+	if (!ct)
 		return NF_ACCEPT;
-	}
 
 	/* Don't try to NAT if this packet is not conntracked */
 	if (ct == &nf_conntrack_untracked)
