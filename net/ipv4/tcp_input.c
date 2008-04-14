@@ -2309,12 +2309,25 @@ static void DBGUNDO(struct sock *sk, const char *msg)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_sock *inet = inet_sk(sk);
 
-	printk(KERN_DEBUG "Undo %s " NIPQUAD_FMT "/%u c%u l%u ss%u/%u p%u\n",
-	       msg,
-	       NIPQUAD(inet->daddr), ntohs(inet->dport),
-	       tp->snd_cwnd, tcp_left_out(tp),
-	       tp->snd_ssthresh, tp->prior_ssthresh,
-	       tp->packets_out);
+	if (sk->sk_family == AF_INET) {
+		printk(KERN_DEBUG "Undo %s " NIPQUAD_FMT "/%u c%u l%u ss%u/%u p%u\n",
+		       msg,
+		       NIPQUAD(inet->daddr), ntohs(inet->dport),
+		       tp->snd_cwnd, tcp_left_out(tp),
+		       tp->snd_ssthresh, tp->prior_ssthresh,
+		       tp->packets_out);
+	}
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	else if (sk->sk_family == AF_INET6) {
+		struct ipv6_pinfo *np = inet6_sk(sk);
+		printk(KERN_DEBUG "Undo %s " NIP6_FMT "/%u c%u l%u ss%u/%u p%u\n",
+		       msg,
+		       NIP6(np->daddr), ntohs(inet->dport),
+		       tp->snd_cwnd, tcp_left_out(tp),
+		       tp->snd_ssthresh, tp->prior_ssthresh,
+		       tp->packets_out);
+	}
+#endif
 }
 #else
 #define DBGUNDO(x...) do { } while (0)
