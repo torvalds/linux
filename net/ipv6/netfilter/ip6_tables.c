@@ -325,7 +325,7 @@ static void trace_packet(struct sk_buff *skb,
 			 struct ip6t_entry *e)
 {
 	void *table_base;
-	struct ip6t_entry *root;
+	const struct ip6t_entry *root;
 	char *hookname, *chainname, *comment;
 	unsigned int rulenum = 0;
 
@@ -952,7 +952,7 @@ static struct xt_counters *alloc_counters(struct xt_table *table)
 {
 	unsigned int countersize;
 	struct xt_counters *counters;
-	struct xt_table_info *private = table->private;
+	const struct xt_table_info *private = table->private;
 
 	/* We need atomic snapshot of counters: rest doesn't change
 	   (other than comefrom, which userspace doesn't care
@@ -979,9 +979,9 @@ copy_entries_to_user(unsigned int total_size,
 	unsigned int off, num;
 	struct ip6t_entry *e;
 	struct xt_counters *counters;
-	struct xt_table_info *private = table->private;
+	const struct xt_table_info *private = table->private;
 	int ret = 0;
-	void *loc_cpu_entry;
+	const void *loc_cpu_entry;
 
 	counters = alloc_counters(table);
 	if (IS_ERR(counters))
@@ -1001,8 +1001,8 @@ copy_entries_to_user(unsigned int total_size,
 	/* ... then go back and fix counters and names */
 	for (off = 0, num = 0; off < total_size; off += e->next_offset, num++){
 		unsigned int i;
-		struct ip6t_entry_match *m;
-		struct ip6t_entry_target *t;
+		const struct ip6t_entry_match *m;
+		const struct ip6t_entry_target *t;
 
 		e = (struct ip6t_entry *)(loc_cpu_entry + off);
 		if (copy_to_user(userptr + off
@@ -1142,7 +1142,7 @@ static int get_info(struct net *net, void __user *user, int *len, int compat)
 				    "ip6table_%s", name);
 	if (t && !IS_ERR(t)) {
 		struct ip6t_getinfo info;
-		struct xt_table_info *private = t->private;
+		const struct xt_table_info *private = t->private;
 
 #ifdef CONFIG_COMPAT
 		if (compat) {
@@ -1225,7 +1225,7 @@ __do_replace(struct net *net, const char *name, unsigned int valid_hooks,
 	struct xt_table *t;
 	struct xt_table_info *oldinfo;
 	struct xt_counters *counters;
-	void *loc_cpu_old_entry;
+	const void *loc_cpu_old_entry;
 
 	ret = 0;
 	counters = vmalloc_node(num_counters * sizeof(struct xt_counters),
@@ -1369,9 +1369,9 @@ do_add_counters(struct net *net, void __user *user, unsigned int len,
 	int size;
 	void *ptmp;
 	struct xt_table *t;
-	struct xt_table_info *private;
+	const struct xt_table_info *private;
 	int ret = 0;
-	void *loc_cpu_entry;
+	const void *loc_cpu_entry;
 #ifdef CONFIG_COMPAT
 	struct compat_xt_counters_info compat_tmp;
 
@@ -1905,11 +1905,11 @@ compat_copy_entries_to_user(unsigned int total_size, struct xt_table *table,
 			    void __user *userptr)
 {
 	struct xt_counters *counters;
-	struct xt_table_info *private = table->private;
+	const struct xt_table_info *private = table->private;
 	void __user *pos;
 	unsigned int size;
 	int ret = 0;
-	void *loc_cpu_entry;
+	const void *loc_cpu_entry;
 	unsigned int i = 0;
 
 	counters = alloc_counters(table);
@@ -1956,7 +1956,7 @@ compat_get_entries(struct net *net, struct compat_ip6t_get_entries __user *uptr,
 	xt_compat_lock(AF_INET6);
 	t = xt_find_table_lock(net, AF_INET6, get.name);
 	if (t && !IS_ERR(t)) {
-		struct xt_table_info *private = t->private;
+		const struct xt_table_info *private = t->private;
 		struct xt_table_info info;
 		duprintf("t->private->number = %u\n", private->number);
 		ret = compat_table_info(private, &info);
@@ -2155,7 +2155,8 @@ icmp6_match(const struct sk_buff *skb,
 	   unsigned int protoff,
 	   bool *hotdrop)
 {
-	struct icmp6hdr _icmph, *ic;
+	const struct icmp6hdr *ic;
+	struct icmp6hdr _icmph;
 	const struct ip6t_icmp *icmpinfo = matchinfo;
 
 	/* Must not be a fragment. */

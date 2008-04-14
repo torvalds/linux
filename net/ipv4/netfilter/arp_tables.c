@@ -59,7 +59,7 @@ do {								\
 #endif
 
 static inline int arp_devaddr_compare(const struct arpt_devaddr_info *ap,
-				      char *hdr_addr, int len)
+				      const char *hdr_addr, int len)
 {
 	int i, ret;
 
@@ -80,8 +80,8 @@ static inline int arp_packet_match(const struct arphdr *arphdr,
 				   const char *outdev,
 				   const struct arpt_arp *arpinfo)
 {
-	char *arpptr = (char *)(arphdr + 1);
-	char *src_devaddr, *tgt_devaddr;
+	const char *arpptr = (char *)(arphdr + 1);
+	const char *src_devaddr, *tgt_devaddr;
 	__be32 src_ipaddr, tgt_ipaddr;
 	int i, ret;
 
@@ -226,12 +226,12 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 {
 	static const char nulldevname[IFNAMSIZ];
 	unsigned int verdict = NF_DROP;
-	struct arphdr *arp;
+	const struct arphdr *arp;
 	bool hotdrop = false;
 	struct arpt_entry *e, *back;
 	const char *indev, *outdev;
 	void *table_base;
-	struct xt_table_info *private;
+	const struct xt_table_info *private;
 
 	if (!pskb_may_pull(skb, arp_hdr_len(skb->dev)))
 		return NF_DROP;
@@ -352,7 +352,7 @@ static int mark_source_chains(struct xt_table_info *newinfo,
 		e->counters.pcnt = pos;
 
 		for (;;) {
-			struct arpt_standard_target *t
+			const struct arpt_standard_target *t
 				= (void *)arpt_get_target(e);
 			int visited = e->comefrom & (1 << hook);
 
@@ -437,7 +437,7 @@ static int mark_source_chains(struct xt_table_info *newinfo,
 
 static inline int check_entry(struct arpt_entry *e, const char *name)
 {
-	struct arpt_entry_target *t;
+	const struct arpt_entry_target *t;
 
 	if (!arp_checkentry(&e->arp)) {
 		duprintf("arp_tables: arp check failed %p %s.\n", e, name);
@@ -710,7 +710,7 @@ static inline struct xt_counters *alloc_counters(struct arpt_table *table)
 {
 	unsigned int countersize;
 	struct xt_counters *counters;
-	struct xt_table_info *private = table->private;
+	const struct xt_table_info *private = table->private;
 
 	/* We need atomic snapshot of counters: rest doesn't change
 	 * (other than comefrom, which userspace doesn't care
@@ -737,7 +737,7 @@ static int copy_entries_to_user(unsigned int total_size,
 	unsigned int off, num;
 	struct arpt_entry *e;
 	struct xt_counters *counters;
-	struct xt_table_info *private = table->private;
+	const struct xt_table_info *private = table->private;
 	int ret = 0;
 	void *loc_cpu_entry;
 
@@ -872,7 +872,7 @@ static int get_info(struct net *net, void __user *user, int *len, int compat)
 				    "arptable_%s", name);
 	if (t && !IS_ERR(t)) {
 		struct arpt_getinfo info;
-		struct xt_table_info *private = t->private;
+		const struct xt_table_info *private = t->private;
 
 #ifdef CONFIG_COMPAT
 		if (compat) {
@@ -927,7 +927,8 @@ static int get_entries(struct net *net, struct arpt_get_entries __user *uptr,
 
 	t = xt_find_table_lock(net, NF_ARP, get.name);
 	if (t && !IS_ERR(t)) {
-		struct xt_table_info *private = t->private;
+		const struct xt_table_info *private = t->private;
+
 		duprintf("t->private->number = %u\n",
 			 private->number);
 		if (get.size == private->size)
@@ -1087,11 +1088,11 @@ static int do_add_counters(struct net *net, void __user *user, unsigned int len,
 	struct xt_counters_info tmp;
 	struct xt_counters *paddc;
 	unsigned int num_counters;
-	char *name;
+	const char *name;
 	int size;
 	void *ptmp;
 	struct arpt_table *t;
-	struct xt_table_info *private;
+	const struct xt_table_info *private;
 	int ret = 0;
 	void *loc_cpu_entry;
 #ifdef CONFIG_COMPAT
@@ -1558,7 +1559,7 @@ static int compat_copy_entries_to_user(unsigned int total_size,
 				       void __user *userptr)
 {
 	struct xt_counters *counters;
-	struct xt_table_info *private = table->private;
+	const struct xt_table_info *private = table->private;
 	void __user *pos;
 	unsigned int size;
 	int ret = 0;
@@ -1609,7 +1610,7 @@ static int compat_get_entries(struct net *net,
 	xt_compat_lock(NF_ARP);
 	t = xt_find_table_lock(net, NF_ARP, get.name);
 	if (t && !IS_ERR(t)) {
-		struct xt_table_info *private = t->private;
+		const struct xt_table_info *private = t->private;
 		struct xt_table_info info;
 
 		duprintf("t->private->number = %u\n", private->number);
