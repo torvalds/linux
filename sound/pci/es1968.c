@@ -1840,9 +1840,8 @@ static void snd_es1968_suppress_jitter(struct es1968 *chip, struct esschan *es)
 	cp2 = __apu_get_register(chip, 1, 5);
 	diff = (cp1 > cp2 ? cp1 - cp2 : cp2 - cp1);
 
-	if (diff > 1) {
+	if (diff > 1)
 		__maestro_write(chip, IDR0_DATA_PORT, cp1);
-	}
 }
 
 /*
