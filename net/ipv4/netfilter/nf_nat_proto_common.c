@@ -42,6 +42,7 @@ int nf_nat_proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 {
 	unsigned int range_size, min, i;
 	__be16 *portptr;
+	u_int16_t off;
 
 	if (maniptype == IP_NAT_MANIP_SRC)
 		portptr = &tuple->src.u.all;
@@ -72,13 +73,17 @@ int nf_nat_proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 		range_size = ntohs(range->max.all) - min + 1;
 	}
 
+	off = *rover;
 	if (range->flags & IP_NAT_RANGE_PROTO_RANDOM)
-		*rover = net_random();
+		off = net_random();
 
-	for (i = 0; i < range_size; i++, (*rover)++) {
-		*portptr = htons(min + *rover % range_size);
-		if (!nf_nat_used_tuple(tuple, ct))
-			return 1;
+	for (i = 0; i < range_size; i++, off++) {
+		*portptr = htons(min + off % range_size);
+		if (nf_nat_used_tuple(tuple, ct))
+			continue;
+		if (!(range->flags & IP_NAT_RANGE_PROTO_RANDOM))
+			*rover = off;
+		return 1;
 	}
 	return 0;
 }
