@@ -142,6 +142,54 @@ static void o2net_idle_timer(unsigned long data);
 static void o2net_sc_postpone_idle(struct o2net_sock_container *sc);
 static void o2net_sc_reset_idle_timer(struct o2net_sock_container *sc);
 
+static void o2net_init_nst(struct o2net_send_tracking *nst, u32 msgtype,
+			   u32 msgkey, struct task_struct *task, u8 node)
+{
+#ifdef CONFIG_DEBUG_FS
+	INIT_LIST_HEAD(&nst->st_net_debug_item);
+	nst->st_task = task;
+	nst->st_msg_type = msgtype;
+	nst->st_msg_key = msgkey;
+	nst->st_node = node;
+#endif
+}
+
+static void o2net_set_nst_sock_time(struct o2net_send_tracking *nst)
+{
+#ifdef CONFIG_DEBUG_FS
+	do_gettimeofday(&nst->st_sock_time);
+#endif
+}
+
+static void o2net_set_nst_send_time(struct o2net_send_tracking *nst)
+{
+#ifdef CONFIG_DEBUG_FS
+	do_gettimeofday(&nst->st_send_time);
+#endif
+}
+
+static void o2net_set_nst_status_time(struct o2net_send_tracking *nst)
+{
+#ifdef CONFIG_DEBUG_FS
+	do_gettimeofday(&nst->st_status_time);
+#endif
+}
+
+static void o2net_set_nst_sock_container(struct o2net_send_tracking *nst,
+					 struct o2net_sock_container *sc)
+{
+#ifdef CONFIG_DEBUG_FS
+	nst->st_sc = sc;
+#endif
+}
+
+static void o2net_set_nst_msg_id(struct o2net_send_tracking *nst, u32 msg_id)
+{
+#ifdef CONFIG_DEBUG_FS
+	nst->st_id = msg_id;
+#endif
+}
+
 static inline int o2net_reconnect_delay(void)
 {
 	return o2nm_single_cluster->cl_reconnect_delay_ms;
@@ -290,6 +338,7 @@ static void sc_kref_release(struct kref *kref)
 	o2nm_node_put(sc->sc_node);
 	sc->sc_node = NULL;
 
+	o2net_debug_del_sc(sc);
 	kfree(sc);
 }
 
@@ -330,6 +379,7 @@ static struct o2net_sock_container *sc_alloc(struct o2nm_node *node)
 
 	ret = sc;
 	sc->sc_page = page;
+	o2net_debug_add_sc(sc);
 	sc = NULL;
 	page = NULL;
 
@@ -913,6 +963,9 @@ int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 	struct o2net_status_wait nsw = {
 		.ns_node_item = LIST_HEAD_INIT(nsw.ns_node_item),
 	};
+	struct o2net_send_tracking nst;
+
+	o2net_init_nst(&nst, msg_type, key, current, target_node);
 
 	if (o2net_wq == NULL) {
 		mlog(0, "attempt to tx without o2netd running\n");
@@ -938,12 +991,18 @@ int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 		goto out;
 	}
 
+	o2net_debug_add_nst(&nst);
+
+	o2net_set_nst_sock_time(&nst);
+
 	ret = wait_event_interruptible(nn->nn_sc_wq,
 				       o2net_tx_can_proceed(nn, &sc, &error));
 	if (!ret && error)
 		ret = error;
 	if (ret)
 		goto out;
+
+	o2net_set_nst_sock_container(&nst, sc);
 
 	veclen = caller_veclen + 1;
 	vec = kmalloc(sizeof(struct kvec) * veclen, GFP_ATOMIC);
@@ -971,6 +1030,9 @@ int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 		goto out;
 
 	msg->msg_num = cpu_to_be32(nsw.ns_id);
+	o2net_set_nst_msg_id(&nst, nsw.ns_id);
+
+	o2net_set_nst_send_time(&nst);
 
 	/* finally, convert the message header to network byte-order
 	 * and send */
@@ -985,6 +1047,7 @@ int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 	}
 
 	/* wait on other node's handler */
+	o2net_set_nst_status_time(&nst);
 	wait_event(nsw.ns_wq, o2net_nsw_completed(nn, &nsw));
 
 	/* Note that we avoid overwriting the callers status return
@@ -997,6 +1060,7 @@ int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 	mlog(0, "woken, returning system status %d, user status %d\n",
 	     ret, nsw.ns_status);
 out:
+	o2net_debug_del_nst(&nst); /* must be before dropping sc and node */
 	if (sc)
 		sc_put(sc);
 	if (vec)
@@ -1935,6 +1999,9 @@ int o2net_init(void)
 
 	o2quo_init();
 
+	if (o2net_debugfs_init())
+		return -ENOMEM;
+
 	o2net_hand = kzalloc(sizeof(struct o2net_handshake), GFP_KERNEL);
 	o2net_keep_req = kzalloc(sizeof(struct o2net_msg), GFP_KERNEL);
 	o2net_keep_resp = kzalloc(sizeof(struct o2net_msg), GFP_KERNEL);
@@ -1976,4 +2043,5 @@ void o2net_exit(void)
 	kfree(o2net_hand);
 	kfree(o2net_keep_req);
 	kfree(o2net_keep_resp);
+	o2net_debugfs_exit();
 }
