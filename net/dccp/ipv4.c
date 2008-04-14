@@ -505,7 +505,8 @@ static void dccp_v4_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 	const struct iphdr *rxiph;
 	struct sk_buff *skb;
 	struct dst_entry *dst;
-	struct sock *ctl_sk = init_net.dccp.v4_ctl_sk;
+	struct net *net = dev_net(rxskb->dst->dev);
+	struct sock *ctl_sk = net->dccp.v4_ctl_sk;
 
 	/* Never send a reset in response to a reset. */
 	if (dccp_hdr(rxskb)->dccph_type == DCCP_PKT_RESET)
@@ -991,11 +992,16 @@ static struct inet_protosw dccp_v4_protosw = {
 
 static int dccp_v4_init_net(struct net *net)
 {
-	return 0;
+	int err;
+
+	err = inet_ctl_sock_create(&net->dccp.v4_ctl_sk, PF_INET,
+				   SOCK_DCCP, IPPROTO_DCCP, net);
+	return err;
 }
 
 static void dccp_v4_exit_net(struct net *net)
 {
+	inet_ctl_sock_destroy(net->dccp.v4_ctl_sk);
 }
 
 static struct pernet_operations dccp_v4_ops = {
@@ -1016,19 +1022,12 @@ static int __init dccp_v4_init(void)
 
 	inet_register_protosw(&dccp_v4_protosw);
 
-	err = inet_ctl_sock_create(&init_net.dccp.v4_ctl_sk, PF_INET,
-				   SOCK_DCCP, IPPROTO_DCCP, &init_net);
-	if (err)
-		goto out_unregister_protosw;
-
 	err = register_pernet_subsys(&dccp_v4_ops);
 	if (err)
 		goto out_destroy_ctl_sock;
 out:
 	return err;
 out_destroy_ctl_sock:
-	inet_ctl_sock_destroy(init_net.dccp.v4_ctl_sk);
-out_unregister_protosw:
 	inet_unregister_protosw(&dccp_v4_protosw);
 	inet_del_protocol(&dccp_v4_protocol, IPPROTO_DCCP);
 out_proto_unregister:
@@ -1039,7 +1038,6 @@ out_proto_unregister:
 static void __exit dccp_v4_exit(void)
 {
 	unregister_pernet_subsys(&dccp_v4_ops);
-	inet_ctl_sock_destroy(init_net.dccp.v4_ctl_sk);
 	inet_unregister_protosw(&dccp_v4_protosw);
 	inet_del_protocol(&dccp_v4_protocol, IPPROTO_DCCP);
 	proto_unregister(&dccp_v4_prot);
