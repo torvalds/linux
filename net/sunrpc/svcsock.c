@@ -38,6 +38,7 @@
 #include <net/checksum.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <net/tcp.h>
 #include <net/tcp_states.h>
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
@@ -1045,7 +1046,6 @@ void svc_cleanup_xprt_sock(void)
 static void svc_tcp_init(struct svc_sock *svsk, struct svc_serv *serv)
 {
 	struct sock	*sk = svsk->sk_sk;
-	struct tcp_sock *tp = tcp_sk(sk);
 
 	svc_xprt_init(&svc_tcp_class, &svsk->sk_xprt, serv);
 	set_bit(XPT_CACHE_AUTH, &svsk->sk_xprt.xpt_flags);
@@ -1063,7 +1063,7 @@ static void svc_tcp_init(struct svc_sock *svsk, struct svc_serv *serv)
 		svsk->sk_reclen = 0;
 		svsk->sk_tcplen = 0;
 
-		tp->nonagle = 1;        /* disable Nagle's algorithm */
+		tcp_sk(sk)->nonagle |= TCP_NAGLE_OFF;
 
 		/* initialise setting must have enough space to
 		 * receive and respond to one request.
