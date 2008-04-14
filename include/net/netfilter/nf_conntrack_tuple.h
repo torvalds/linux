@@ -166,61 +166,64 @@ struct nf_conntrack_tuple_hash
 
 #endif /* __KERNEL__ */
 
-static inline int __nf_ct_tuple_src_equal(const struct nf_conntrack_tuple *t1,
-					  const struct nf_conntrack_tuple *t2)
+static inline bool __nf_ct_tuple_src_equal(const struct nf_conntrack_tuple *t1,
+					   const struct nf_conntrack_tuple *t2)
 { 
 	return (nf_inet_addr_cmp(&t1->src.u3, &t2->src.u3) &&
 		t1->src.u.all == t2->src.u.all &&
 		t1->src.l3num == t2->src.l3num);
 }
 
-static inline int __nf_ct_tuple_dst_equal(const struct nf_conntrack_tuple *t1,
-					  const struct nf_conntrack_tuple *t2)
+static inline bool __nf_ct_tuple_dst_equal(const struct nf_conntrack_tuple *t1,
+					   const struct nf_conntrack_tuple *t2)
 {
 	return (nf_inet_addr_cmp(&t1->dst.u3, &t2->dst.u3) &&
 		t1->dst.u.all == t2->dst.u.all &&
 		t1->dst.protonum == t2->dst.protonum);
 }
 
-static inline int nf_ct_tuple_equal(const struct nf_conntrack_tuple *t1,
-				    const struct nf_conntrack_tuple *t2)
+static inline bool nf_ct_tuple_equal(const struct nf_conntrack_tuple *t1,
+				     const struct nf_conntrack_tuple *t2)
 {
 	return __nf_ct_tuple_src_equal(t1, t2) &&
 	       __nf_ct_tuple_dst_equal(t1, t2);
 }
 
-static inline int nf_ct_tuple_mask_equal(const struct nf_conntrack_tuple_mask *m1,
-					 const struct nf_conntrack_tuple_mask *m2)
+static inline bool
+nf_ct_tuple_mask_equal(const struct nf_conntrack_tuple_mask *m1,
+		       const struct nf_conntrack_tuple_mask *m2)
 {
 	return (nf_inet_addr_cmp(&m1->src.u3, &m2->src.u3) &&
 		m1->src.u.all == m2->src.u.all);
 }
 
-static inline int nf_ct_tuple_src_mask_cmp(const struct nf_conntrack_tuple *t1,
-					   const struct nf_conntrack_tuple *t2,
-					   const struct nf_conntrack_tuple_mask *mask)
+static inline bool
+nf_ct_tuple_src_mask_cmp(const struct nf_conntrack_tuple *t1,
+			 const struct nf_conntrack_tuple *t2,
+			 const struct nf_conntrack_tuple_mask *mask)
 {
 	int count;
 
 	for (count = 0; count < NF_CT_TUPLE_L3SIZE; count++) {
 		if ((t1->src.u3.all[count] ^ t2->src.u3.all[count]) &
 		    mask->src.u3.all[count])
-			return 0;
+			return false;
 	}
 
 	if ((t1->src.u.all ^ t2->src.u.all) & mask->src.u.all)
-		return 0;
+		return false;
 
 	if (t1->src.l3num != t2->src.l3num ||
 	    t1->dst.protonum != t2->dst.protonum)
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
-static inline int nf_ct_tuple_mask_cmp(const struct nf_conntrack_tuple *t,
-				       const struct nf_conntrack_tuple *tuple,
-				       const struct nf_conntrack_tuple_mask *mask)
+static inline bool
+nf_ct_tuple_mask_cmp(const struct nf_conntrack_tuple *t,
+		     const struct nf_conntrack_tuple *tuple,
+		     const struct nf_conntrack_tuple_mask *mask)
 {
 	return nf_ct_tuple_src_mask_cmp(t, tuple, mask) &&
 	       __nf_ct_tuple_dst_equal(t, tuple);

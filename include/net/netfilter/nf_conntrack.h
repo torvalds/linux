@@ -194,12 +194,11 @@ extern void nf_conntrack_hash_insert(struct nf_conn *ct);
 
 extern void nf_conntrack_flush(void);
 
-extern int nf_ct_get_tuplepr(const struct sk_buff *skb,
-			     unsigned int nhoff,
-			     u_int16_t l3num,
-			     struct nf_conntrack_tuple *tuple);
-extern int nf_ct_invert_tuplepr(struct nf_conntrack_tuple *inverse,
-				const struct nf_conntrack_tuple *orig);
+extern bool nf_ct_get_tuplepr(const struct sk_buff *skb,
+			      unsigned int nhoff, u_int16_t l3num,
+			      struct nf_conntrack_tuple *tuple);
+extern bool nf_ct_invert_tuplepr(struct nf_conntrack_tuple *inverse,
+				 const struct nf_conntrack_tuple *orig);
 
 extern void __nf_ct_refresh_acct(struct nf_conn *ct,
 				 enum ip_conntrack_info ctinfo,
