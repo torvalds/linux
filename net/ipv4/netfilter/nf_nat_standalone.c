@@ -102,6 +102,9 @@ nf_nat_fn(unsigned int hooknum,
 
 	nat = nfct_nat(ct);
 	if (!nat) {
+		/* NAT module was loaded late. */
+		if (nf_ct_is_confirmed(ct))
+			return NF_ACCEPT;
 		nat = nf_ct_ext_add(ct, NF_CT_EXT_NAT, GFP_ATOMIC);
 		if (nat == NULL) {
 			pr_debug("failed to add NAT extension\n");
@@ -127,10 +130,7 @@ nf_nat_fn(unsigned int hooknum,
 		if (!nf_nat_initialized(ct, maniptype)) {
 			unsigned int ret;
 
-			if (unlikely(nf_ct_is_confirmed(ct)))
-				/* NAT module was loaded late */
-				ret = alloc_null_binding_confirmed(ct, hooknum);
-			else if (hooknum == NF_INET_LOCAL_IN)
+			if (hooknum == NF_INET_LOCAL_IN)
 				/* LOCAL_IN hook doesn't have a chain!  */
 				ret = alloc_null_binding(ct, hooknum);
 			else

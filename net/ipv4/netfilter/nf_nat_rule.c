@@ -188,25 +188,6 @@ alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 	return nf_nat_setup_info(ct, &range, HOOK2MANIP(hooknum));
 }
 
-unsigned int
-alloc_null_binding_confirmed(struct nf_conn *ct, unsigned int hooknum)
-{
-	__be32 ip
-		= (HOOK2MANIP(hooknum) == IP_NAT_MANIP_SRC
-		   ? ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3.ip
-		   : ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u3.ip);
-	__be16 all
-		= (HOOK2MANIP(hooknum) == IP_NAT_MANIP_SRC
-		   ? ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u.all
-		   : ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u.all);
-	struct nf_nat_range range
-		= { IP_NAT_RANGE_MAP_IPS, ip, ip, { all }, { all } };
-
-	pr_debug("Allocating NULL binding for confirmed %p (%u.%u.%u.%u)\n",
-		 ct, NIPQUAD(ip));
-	return nf_nat_setup_info(ct, &range, HOOK2MANIP(hooknum));
-}
-
 int nf_nat_rule_find(struct sk_buff *skb,
 		     unsigned int hooknum,
 		     const struct net_device *in,
