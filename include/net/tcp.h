@@ -1328,8 +1328,8 @@ struct tcp_seq_afinfo {
 	struct module		*owner;
 	char			*name;
 	sa_family_t		family;
-	int			(*seq_show) (struct seq_file *m, void *v);
 	struct file_operations	*seq_fops;
+	struct seq_operations	seq_ops;
 };
 
 struct tcp_iter_state {
@@ -1338,7 +1338,6 @@ struct tcp_iter_state {
 	enum tcp_seq_states	state;
 	struct sock		*syn_wait_sk;
 	int			bucket, sbucket, num, uid;
-	struct seq_operations	seq_ops;
 };
 
 extern int tcp_proc_register(struct net *net, struct tcp_seq_afinfo *afinfo);
