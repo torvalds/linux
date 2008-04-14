@@ -766,7 +766,7 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 	nf_ct_dump_tuple(newreply);
 
 	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *newreply;
-	if (ct->master || (help && help->expecting != 0))
+	if (ct->master || (help && !hlist_empty(&help->expectations)))
 		return;
 
 	rcu_read_lock();
