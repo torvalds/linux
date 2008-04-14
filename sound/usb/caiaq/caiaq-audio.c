@@ -202,7 +202,7 @@ static int snd_usb_caiaq_pcm_prepare(struct snd_pcm_substream *substream)
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dev->audio_out_buf_pos[index] = BYTES_PER_SAMPLE + 1;
 	else
-		dev->audio_in_buf_pos[index] = 0;
+		dev->audio_in_buf_pos[index] = BYTES_PER_SAMPLE;
 	
 	if (dev->streaming)
 		return 0;
