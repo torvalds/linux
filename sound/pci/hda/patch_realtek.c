@@ -105,6 +105,7 @@ enum {
 
 /* ALC268 models */
 enum {
+	ALC267_QUANTA_IL1,
 	ALC268_3ST,
 	ALC268_TOSHIBA,
 	ALC268_ACER,
@@ -9902,6 +9903,64 @@ static void alc268_dell_unsol_event(struct hda_codec *codec,
 
 #define alc268_dell_init_hook	alc268_dell_automute
 
+static struct snd_kcontrol_new alc267_quanta_il1_mixer[] = {
+	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x2, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Speaker Playback Switch", 0x14, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x3, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Capture Volume", 0x23, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Mic Capture Switch", 0x23, 2, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Ext Mic Boost", 0x18, 0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Int Mic Boost", 0x19, 0, HDA_INPUT),
+	{ }
+};
+
+static struct hda_verb alc267_quanta_il1_verbs[] = {
+	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
+	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_MIC_EVENT | AC_USRSP_EN},
+	{ }
+};
+
+static void alc267_quanta_il1_hp_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+
+	present = snd_hda_codec_read(codec, 0x15, 0, AC_VERB_GET_PIN_SENSE, 0)
+		& AC_PINSENSE_PRESENCE;
+	snd_hda_codec_write(codec, 0x14, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    present ? 0 : PIN_OUT);
+}
+
+static void alc267_quanta_il1_mic_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+
+	present = snd_hda_codec_read(codec, 0x18, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	snd_hda_codec_write(codec, 0x23, 0,
+			    AC_VERB_SET_CONNECT_SEL,
+			    present ? 0x00 : 0x01);
+}
+
+static void alc267_quanta_il1_automute(struct hda_codec *codec)
+{
+	alc267_quanta_il1_hp_automute(codec);
+	alc267_quanta_il1_mic_automute(codec);
+}
+
+static void alc267_quanta_il1_unsol_event(struct hda_codec *codec,
+					   unsigned int res)
+{
+	switch (res >> 26) {
+	case ALC880_HP_EVENT:
+		alc267_quanta_il1_hp_automute(codec);
+		break;
+	case ALC880_MIC_EVENT:
+		alc267_quanta_il1_mic_automute(codec);
+		break;
+	}
+}
+
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
@@ -10324,6 +10383,7 @@ static void alc268_auto_init(struct hda_codec *codec)
  * configuration and preset
  */
 static const char *alc268_models[ALC268_MODEL_LAST] = {
+	[ALC267_QUANTA_IL1]	= "quanta-il1",
 	[ALC268_3ST]		= "3stack",
 	[ALC268_TOSHIBA]	= "toshiba",
 	[ALC268_ACER]		= "acer",
@@ -10346,11 +10406,27 @@ static struct snd_pci_quirk alc268_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1179, 0xff10, "TOSHIBA A205", ALC268_TOSHIBA),
 	SND_PCI_QUIRK(0x1179, 0xff50, "TOSHIBA A305", ALC268_TOSHIBA),
 	SND_PCI_QUIRK(0x152d, 0x0763, "Diverse (CPR2000)", ALC268_ACER),
+	SND_PCI_QUIRK(0x152d, 0x0771, "Quanta IL1", ALC267_QUANTA_IL1),
 	SND_PCI_QUIRK(0x1170, 0x0040, "ZEPTO", ALC268_ZEPTO),
 	{}
 };
 
 static struct alc_config_preset alc268_presets[] = {
+	[ALC267_QUANTA_IL1] = {
+		.mixers = { alc267_quanta_il1_mixer },
+		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
+				alc267_quanta_il1_verbs },
+		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
+		.dac_nids = alc268_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt),
+		.adc_nids = alc268_adc_nids_alt,
+		.hp_nid = 0x03,
+		.num_channel_mode = ARRAY_SIZE(alc268_modes),
+		.channel_mode = alc268_modes,
+		.input_mux = &alc268_capture_source,
+		.unsol_event = alc267_quanta_il1_unsol_event,
+		.init_hook = alc267_quanta_il1_automute,
+	},
 	[ALC268_3ST] = {
 		.mixers = { alc268_base_mixer, alc268_capture_alt_mixer,
 			    alc268_beep_mixer },

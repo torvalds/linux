@@ -829,7 +829,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  basic		fixed pin assignment w/o SPDIF
 	  auto		auto-config reading BIOS (default)
 
-	ALC268
+	ALC267/268
+	  quanta-il1	Quanta IL1 mini-notebook
 	  3stack	3-stack model
 	  toshiba	Toshiba A205
 	  acer		Acer laptops
