@@ -734,35 +734,6 @@ static inline void __skb_queue_tail(struct sk_buff_head *list,
 	next->prev  = prev->next = newsk;
 }
 
-
-/**
- *	__skb_dequeue - remove from the head of the queue
- *	@list: list to dequeue from
- *
- *	Remove the head of the list. This function does not take any locks
- *	so must be used with appropriate locks held only. The head item is
- *	returned or %NULL if the list is empty.
- */
-extern struct sk_buff *skb_dequeue(struct sk_buff_head *list);
-static inline struct sk_buff *__skb_dequeue(struct sk_buff_head *list)
-{
-	struct sk_buff *next, *prev, *result;
-
-	prev = (struct sk_buff *) list;
-	next = prev->next;
-	result = NULL;
-	if (next != prev) {
-		result	     = next;
-		next	     = next->next;
-		list->qlen--;
-		next->prev   = prev;
-		prev->next   = next;
-		result->next = result->prev = NULL;
-	}
-	return result;
-}
-
-
 /*
  *	Insert a packet on a list.
  */
@@ -803,8 +774,22 @@ static inline void __skb_unlink(struct sk_buff *skb, struct sk_buff_head *list)
 	prev->next = next;
 }
 
-
-/* XXX: more streamlined implementation */
+/**
+ *	__skb_dequeue - remove from the head of the queue
+ *	@list: list to dequeue from
+ *
+ *	Remove the head of the list. This function does not take any locks
+ *	so must be used with appropriate locks held only. The head item is
+ *	returned or %NULL if the list is empty.
+ */
+extern struct sk_buff *skb_dequeue(struct sk_buff_head *list);
+static inline struct sk_buff *__skb_dequeue(struct sk_buff_head *list)
+{
+	struct sk_buff *skb = skb_peek(list);
+	if (skb)
+		__skb_unlink(skb, list);
+	return skb;
+}
 
 /**
  *	__skb_dequeue_tail - remove from the tail of the queue
