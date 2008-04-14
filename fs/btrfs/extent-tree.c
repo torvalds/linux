@@ -1694,7 +1694,8 @@ error:
  */
 int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root,
-		       u64 num_bytes, u64 root_objectid, u64 ref_generation,
+		       u64 num_bytes, u64 min_alloc_size,
+		       u64 root_objectid, u64 ref_generation,
 		       u64 owner, u64 owner_offset,
 		       u64 empty_size, u64 hint_byte,
 		       u64 search_end, struct btrfs_key *ins, int data)
@@ -1727,7 +1728,7 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 			        info->metadata_alloc_profile;
 		data = BTRFS_BLOCK_GROUP_METADATA | alloc_profile;
 	}
-
+again:
 	if (root->ref_cows) {
 		if (!(data & BTRFS_BLOCK_GROUP_METADATA)) {
 			ret = do_chunk_alloc(trans, root->fs_info->extent_root,
@@ -1751,6 +1752,11 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 			       search_start, search_end, hint_byte, ins,
 			       trans->alloc_exclude_start,
 			       trans->alloc_exclude_nr, data);
+	if (ret == -ENOSPC && num_bytes > min_alloc_size) {
+		num_bytes = num_bytes >> 1;
+		num_bytes = max(num_bytes, min_alloc_size);
+		goto again;
+	}
 	BUG_ON(ret);
 	if (ret)
 		return ret;
@@ -1869,7 +1875,7 @@ struct extent_buffer *__btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 	int ret;
 	struct extent_buffer *buf;
 
-	ret = btrfs_alloc_extent(trans, root, blocksize,
+	ret = btrfs_alloc_extent(trans, root, blocksize, blocksize,
 				 root_objectid, ref_generation,
 				 level, first_objectid, empty_size, hint,
 				 (u64)-1, &ins, 0);

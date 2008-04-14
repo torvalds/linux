@@ -125,6 +125,7 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 	while(num_bytes > 0) {
 		cur_alloc_size = min(num_bytes, root->fs_info->max_extent);
 		ret = btrfs_alloc_extent(trans, root, cur_alloc_size,
+					 root->sectorsize,
 					 root->root_key.objectid,
 					 trans->transid,
 					 inode->i_ino, start, 0,
@@ -133,6 +134,7 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 			WARN_ON(1);
 			goto out;
 		}
+		cur_alloc_size = ins.offset;
 		ret = btrfs_insert_file_extent(trans, root, inode->i_ino,
 					       start, ins.objectid, ins.offset,
 					       ins.offset);
