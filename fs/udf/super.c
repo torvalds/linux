@@ -608,7 +608,8 @@ static int udf_vrs(struct super_block *sb, int silent)
 	sector += (sbi->s_session << sb->s_blocksize_bits);
 
 	udf_debug("Starting at sector %u (%ld byte sectors)\n",
-		  (sector >> sb->s_blocksize_bits), sb->s_blocksize);
+		  (unsigned int)(sector >> sb->s_blocksize_bits),
+		  sb->s_blocksize);
 	/* Process the sequence (if applicable) */
 	for (; !nsr02 && !nsr03; sector += sectorsize) {
 		/* Read a block */
@@ -1117,8 +1118,8 @@ static int udf_fill_partdesc_info(struct super_block *sb,
 	if (p->accessType == cpu_to_le32(PD_ACCESS_TYPE_OVERWRITABLE))
 		map->s_partition_flags |= UDF_PART_FLAG_OVERWRITABLE;
 
-	udf_debug("Partition (%d:%d type %x) starts at physical %d, "
-		  "block length %d\n", partitionNumber, p_index,
+	udf_debug("Partition (%d type %x) starts at physical %d, "
+		  "block length %d\n", p_index,
 		  map->s_partition_type, map->s_partition_root,
 		  map->s_partition_len);
 
