@@ -23,6 +23,14 @@ struct sdio_func;
 typedef void (sdio_irq_handler_t)(struct sdio_func *);
 
 /*
+ * Structure used to hold embedded SDIO device data from platform layer
+ */
+struct sdio_embedded_func {
+	uint8_t f_class;
+	uint32_t f_maxblksize;
+};
+
+/*
  * SDIO function CIS tuple (unknown to the core)
  */
 struct sdio_func_tuple {
