@@ -136,8 +136,6 @@ typedef struct partition_t {
 #endif
 } partition_t;
 
-void ftl_freepart(partition_t *part);
-
 /* Partition state flags */
 #define FTL_FORMATTED	0x01
 
@@ -1014,7 +1012,7 @@ static int ftl_writesect(struct mtd_blktrans_dev *dev,
 
 /*====================================================================*/
 
-void ftl_freepart(partition_t *part)
+static void ftl_freepart(partition_t *part)
 {
 	vfree(part->VirtualBlockMap);
 	part->VirtualBlockMap = NULL;
@@ -1069,7 +1067,7 @@ static void ftl_remove_dev(struct mtd_blktrans_dev *dev)
 	kfree(dev);
 }
 
-struct mtd_blktrans_ops ftl_tr = {
+static struct mtd_blktrans_ops ftl_tr = {
 	.name		= "ftl",
 	.major		= FTL_MAJOR,
 	.part_bits	= PART_BITS,
