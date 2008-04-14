@@ -1512,7 +1512,7 @@ special_insn:
 	case 0x88 ... 0x8b:	/* mov */
 		goto mov;
 	case 0x8d: /* lea r16/r32, m */
-		c->dst.val = c->modrm_val;
+		c->dst.val = c->modrm_ea;
 		break;
 	case 0x8f:		/* pop (sole member of Grp1a) */
 		rc = emulate_grp1a(ctxt, ops);
