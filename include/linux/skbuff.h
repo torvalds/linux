@@ -663,11 +663,21 @@ static inline void skb_queue_head_init_class(struct sk_buff_head *list,
 }
 
 /*
- *	Insert an sk_buff at the start of a list.
+ *	Insert an sk_buff on a list.
  *
  *	The "__skb_xxxx()" functions are the non-atomic ones that
  *	can only be called with interrupts disabled.
  */
+extern void        skb_insert(struct sk_buff *old, struct sk_buff *newsk, struct sk_buff_head *list);
+static inline void __skb_insert(struct sk_buff *newsk,
+				struct sk_buff *prev, struct sk_buff *next,
+				struct sk_buff_head *list)
+{
+	newsk->next = next;
+	newsk->prev = prev;
+	next->prev  = prev->next = newsk;
+	list->qlen++;
+}
 
 /**
  *	__skb_queue_after - queue a buffer at the list head
@@ -684,13 +694,7 @@ static inline void __skb_queue_after(struct sk_buff_head *list,
 				     struct sk_buff *prev,
 				     struct sk_buff *newsk)
 {
-	struct sk_buff *next;
-	list->qlen++;
-
-	next = prev->next;
-	newsk->next = next;
-	newsk->prev = prev;
-	next->prev  = prev->next = newsk;
+	__skb_insert(newsk, prev, prev->next, list);
 }
 
 /**
@@ -732,20 +736,6 @@ static inline void __skb_queue_tail(struct sk_buff_head *list,
 	newsk->next = next;
 	newsk->prev = prev;
 	next->prev  = prev->next = newsk;
-}
-
-/*
- *	Insert a packet on a list.
- */
-extern void        skb_insert(struct sk_buff *old, struct sk_buff *newsk, struct sk_buff_head *list);
-static inline void __skb_insert(struct sk_buff *newsk,
-				struct sk_buff *prev, struct sk_buff *next,
-				struct sk_buff_head *list)
-{
-	newsk->next = next;
-	newsk->prev = prev;
-	next->prev  = prev->next = newsk;
-	list->qlen++;
 }
 
 /*
