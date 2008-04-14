@@ -170,7 +170,6 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol)
 	}
 
 	sock_init_data(sock, sk);
-	init_waitqueue_head(sk->sk_sleep);
 	sk->sk_rcvtimeo = 8 * HZ;   /* default connect timeout = 8s */
 
 	tsock = tipc_sk(sk);
