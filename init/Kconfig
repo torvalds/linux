@@ -763,7 +763,7 @@ endmenu		# General setup
 config SLABINFO
 	bool
 	depends on PROC_FS
-	depends on SLAB || SLUB
+	depends on SLAB || SLUB_DEBUG
 	default y
 
 config RT_MUTEXES
