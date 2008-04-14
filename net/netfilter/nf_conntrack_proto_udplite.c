@@ -27,28 +27,28 @@
 static unsigned int nf_ct_udplite_timeout __read_mostly = 30*HZ;
 static unsigned int nf_ct_udplite_timeout_stream __read_mostly = 180*HZ;
 
-static int udplite_pkt_to_tuple(const struct sk_buff *skb,
-				unsigned int dataoff,
-				struct nf_conntrack_tuple *tuple)
+static bool udplite_pkt_to_tuple(const struct sk_buff *skb,
+				 unsigned int dataoff,
+				 struct nf_conntrack_tuple *tuple)
 {
 	const struct udphdr *hp;
 	struct udphdr _hdr;
 
 	hp = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
 	if (hp == NULL)
-		return 0;
+		return false;
 
 	tuple->src.u.udp.port = hp->source;
 	tuple->dst.u.udp.port = hp->dest;
-	return 1;
+	return true;
 }
 
-static int udplite_invert_tuple(struct nf_conntrack_tuple *tuple,
-				const struct nf_conntrack_tuple *orig)
+static bool udplite_invert_tuple(struct nf_conntrack_tuple *tuple,
+				 const struct nf_conntrack_tuple *orig)
 {
 	tuple->src.u.udp.port = orig->dst.u.udp.port;
 	tuple->dst.u.udp.port = orig->src.u.udp.port;
-	return 1;
+	return true;
 }
 
 /* Print out the per-protocol part of the tuple. */
@@ -83,10 +83,10 @@ static int udplite_packet(struct nf_conn *ct,
 }
 
 /* Called when a new connection for this protocol found. */
-static int udplite_new(struct nf_conn *ct, const struct sk_buff *skb,
-		       unsigned int dataoff)
+static bool udplite_new(struct nf_conn *ct, const struct sk_buff *skb,
+			unsigned int dataoff)
 {
-	return 1;
+	return true;
 }
 
 static int udplite_error(struct sk_buff *skb, unsigned int dataoff,

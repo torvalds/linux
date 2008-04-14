@@ -130,28 +130,27 @@ static const u8 sctp_conntracks[2][9][SCTP_CONNTRACK_MAX] = {
 	}
 };
 
-static int sctp_pkt_to_tuple(const struct sk_buff *skb,
-			     unsigned int dataoff,
-			     struct nf_conntrack_tuple *tuple)
+static bool sctp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
+			      struct nf_conntrack_tuple *tuple)
 {
 	sctp_sctphdr_t _hdr, *hp;
 
 	/* Actually only need first 8 bytes. */
 	hp = skb_header_pointer(skb, dataoff, 8, &_hdr);
 	if (hp == NULL)
-		return 0;
+		return false;
 
 	tuple->src.u.sctp.port = hp->source;
 	tuple->dst.u.sctp.port = hp->dest;
-	return 1;
+	return true;
 }
 
-static int sctp_invert_tuple(struct nf_conntrack_tuple *tuple,
-			     const struct nf_conntrack_tuple *orig)
+static bool sctp_invert_tuple(struct nf_conntrack_tuple *tuple,
+			      const struct nf_conntrack_tuple *orig)
 {
 	tuple->src.u.sctp.port = orig->dst.u.sctp.port;
 	tuple->dst.u.sctp.port = orig->src.u.sctp.port;
-	return 1;
+	return true;
 }
 
 /* Print out the per-protocol part of the tuple. */
@@ -390,8 +389,8 @@ out:
 }
 
 /* Called when a new connection for this protocol found. */
-static int sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
-		    unsigned int dataoff)
+static bool sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
+		     unsigned int dataoff)
 {
 	enum sctp_conntrack new_state;
 	sctp_sctphdr_t _sctph, *sh;
@@ -401,16 +400,16 @@ static int sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 
 	sh = skb_header_pointer(skb, dataoff, sizeof(_sctph), &_sctph);
 	if (sh == NULL)
-		return 0;
+		return false;
 
 	if (do_basic_checks(ct, skb, dataoff, map) != 0)
-		return 0;
+		return false;
 
 	/* If an OOTB packet has any of these chunks discard (Sec 8.4) */
 	if (test_bit(SCTP_CID_ABORT, map) ||
 	    test_bit(SCTP_CID_SHUTDOWN_COMPLETE, map) ||
 	    test_bit(SCTP_CID_COOKIE_ACK, map))
-		return 0;
+		return false;
 
 	new_state = SCTP_CONNTRACK_MAX;
 	for_each_sctp_chunk (skb, sch, _sch, offset, dataoff, count) {
@@ -422,7 +421,7 @@ static int sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 		if (new_state == SCTP_CONNTRACK_NONE ||
 		    new_state == SCTP_CONNTRACK_MAX) {
 			pr_debug("nf_conntrack_sctp: invalid new deleting.\n");
-			return 0;
+			return false;
 		}
 
 		/* Copy the vtag into the state info */
@@ -433,7 +432,7 @@ static int sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 				ih = skb_header_pointer(skb, offset + sizeof(sctp_chunkhdr_t),
 							sizeof(_inithdr), &_inithdr);
 				if (ih == NULL)
-					return 0;
+					return false;
 
 				pr_debug("Setting vtag %x for new conn\n",
 					 ih->init_tag);
@@ -442,7 +441,7 @@ static int sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 								ih->init_tag;
 			} else {
 				/* Sec 8.5.1 (A) */
-				return 0;
+				return false;
 			}
 		}
 		/* If it is a shutdown ack OOTB packet, we expect a return
@@ -456,7 +455,7 @@ static int sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 		ct->proto.sctp.state = new_state;
 	}
 
-	return 1;
+	return true;
 }
 
 #ifdef CONFIG_SYSCTL

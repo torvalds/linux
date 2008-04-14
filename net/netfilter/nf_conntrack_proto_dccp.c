@@ -393,30 +393,30 @@ dccp_state_table[CT_DCCP_ROLE_MAX + 1][DCCP_PKT_SYNCACK + 1][CT_DCCP_MAX + 1] = 
 	},
 };
 
-static int dccp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
-			     struct nf_conntrack_tuple *tuple)
+static bool dccp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
+			      struct nf_conntrack_tuple *tuple)
 {
 	struct dccp_hdr _hdr, *dh;
 
 	dh = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
 	if (dh == NULL)
-		return 0;
+		return false;
 
 	tuple->src.u.dccp.port = dh->dccph_sport;
 	tuple->dst.u.dccp.port = dh->dccph_dport;
-	return 1;
+	return true;
 }
 
-static int dccp_invert_tuple(struct nf_conntrack_tuple *inv,
-			     const struct nf_conntrack_tuple *tuple)
+static bool dccp_invert_tuple(struct nf_conntrack_tuple *inv,
+			      const struct nf_conntrack_tuple *tuple)
 {
 	inv->src.u.dccp.port = tuple->dst.u.dccp.port;
 	inv->dst.u.dccp.port = tuple->src.u.dccp.port;
-	return 1;
+	return true;
 }
 
-static int dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
-		    unsigned int dataoff)
+static bool dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
+		     unsigned int dataoff)
 {
 	struct dccp_hdr _dh, *dh;
 	const char *msg;
@@ -442,12 +442,12 @@ static int dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	ct->proto.dccp.role[IP_CT_DIR_ORIGINAL] = CT_DCCP_ROLE_CLIENT;
 	ct->proto.dccp.role[IP_CT_DIR_REPLY] = CT_DCCP_ROLE_SERVER;
 	ct->proto.dccp.state = CT_DCCP_NONE;
-	return 1;
+	return true;
 
 out_invalid:
 	if (LOG_INVALID(IPPROTO_DCCP))
 		nf_log_packet(nf_ct_l3num(ct), 0, skb, NULL, NULL, NULL, msg);
-	return 0;
+	return false;
 }
 
 static u64 dccp_ack_seq(const struct dccp_hdr *dh)
