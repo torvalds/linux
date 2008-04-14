@@ -30,6 +30,8 @@
 
 #ifdef	CONFIG_PM
 
+#define	PORT_WAKE_BITS	(PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E)
+
 static int ehci_hub_control(
 	struct usb_hcd	*hcd,
 	u16		typeReq,
@@ -149,10 +151,10 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 		}
 
 		/* enable remote wakeup on all ports */
-		if (device_may_wakeup(&hcd->self.root_hub->dev))
-			t2 |= PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E;
+		if (hcd->self.root_hub->do_remote_wakeup)
+			t2 |= PORT_WAKE_BITS;
 		else
-			t2 &= ~(PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E);
+			t2 &= ~PORT_WAKE_BITS;
 
 		if (t1 != t2) {
 			ehci_vdbg (ehci, "port %d, %08x -> %08x\n",
@@ -174,7 +176,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 
 	/* allow remote wakeup */
 	mask = INTR_MASK;
-	if (!device_may_wakeup(&hcd->self.root_hub->dev))
+	if (!hcd->self.root_hub->do_remote_wakeup)
 		mask &= ~STS_PCD;
 	ehci_writel(ehci, mask, &ehci->regs->intr_enable);
 	ehci_readl(ehci, &ehci->regs->intr_enable);
@@ -232,8 +234,7 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	i = HCS_N_PORTS (ehci->hcs_params);
 	while (i--) {
 		temp = ehci_readl(ehci, &ehci->regs->port_status [i]);
-		temp &= ~(PORT_RWC_BITS
-			| PORT_WKOC_E | PORT_WKDISC_E | PORT_WKCONN_E);
+		temp &= ~(PORT_RWC_BITS | PORT_WAKE_BITS);
 		if (test_bit(i, &ehci->bus_suspended) &&
 				(temp & PORT_SUSPEND)) {
 			ehci->reset_done [i] = jiffies + msecs_to_jiffies (20);
@@ -534,8 +535,6 @@ ehci_hub_descriptor (
 
 /*-------------------------------------------------------------------------*/
 
-#define	PORT_WAKE_BITS	(PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E)
-
 static int ehci_hub_control (
 	struct usb_hcd	*hcd,
 	u16		typeReq,
@@ -801,8 +800,6 @@ static int ehci_hub_control (
 			if ((temp & PORT_PE) == 0
 					|| (temp & PORT_RESET) != 0)
 				goto error;
-			if (device_may_wakeup(&hcd->self.root_hub->dev))
-				temp |= PORT_WAKE_BITS;
 			ehci_writel(ehci, temp | PORT_SUSPEND, status_reg);
 			break;
 		case USB_PORT_FEAT_POWER:

@@ -932,7 +932,6 @@ static int autosuspend_check(struct usb_device *udev, int reschedule)
 	 * is disabled.  Also fail if any interfaces require remote wakeup
 	 * but it isn't available.
 	 */
-	udev->do_remote_wakeup = device_may_wakeup(&udev->dev);
 	if (udev->pm_usage_cnt > 0)
 		return -EBUSY;
 	if (udev->autosuspend_delay < 0 || udev->autosuspend_disabled)

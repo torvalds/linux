@@ -300,7 +300,7 @@ static int ehci_pci_resume(struct usb_hcd *hcd)
 	if (ehci_readl(ehci, &ehci->regs->configured_flag) == FLAG_CF) {
 		int	mask = INTR_MASK;
 
-		if (!device_may_wakeup(&hcd->self.root_hub->dev))
+		if (!hcd->self.root_hub->do_remote_wakeup)
 			mask &= ~STS_PCD;
 		ehci_writel(ehci, mask, &ehci->regs->intr_enable);
 		ehci_readl(ehci, &ehci->regs->intr_enable);

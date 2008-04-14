@@ -103,10 +103,9 @@ __acquires(ohci->lock)
 	finish_unlinks (ohci, ohci_frame_no(ohci));
 
 	/* maybe resume can wake root hub */
-	if (device_may_wakeup(&ohci_to_hcd(ohci)->self.root_hub->dev) ||
-			autostop)
+	if (ohci_to_hcd(ohci)->self.root_hub->do_remote_wakeup || autostop) {
 		ohci->hc_control |= OHCI_CTRL_RWE;
-	else {
+	} else {
 		ohci_writel (ohci, OHCI_INTR_RHSC, &ohci->regs->intrdisable);
 		ohci->hc_control &= ~OHCI_CTRL_RWE;
 	}

@@ -262,19 +262,11 @@ __acquires(uhci->lock)
 {
 	int auto_stop;
 	int int_enable, egsm_enable;
+	struct usb_device *rhdev = uhci_to_hcd(uhci)->self.root_hub;
 
 	auto_stop = (new_state == UHCI_RH_AUTO_STOPPED);
-	dev_dbg(&uhci_to_hcd(uhci)->self.root_hub->dev,
-			"%s%s\n", __FUNCTION__,
+	dev_dbg(&rhdev->dev, "%s%s\n", __func__,
 			(auto_stop ? " (auto-stop)" : ""));
-
-	/* If we get a suspend request when we're already auto-stopped
-	 * then there's nothing to do.
-	 */
-	if (uhci->rh_state == UHCI_RH_AUTO_STOPPED) {
-		uhci->rh_state = new_state;
-		return;
-	}
 
 	/* Enable resume-detect interrupts if they work.
 	 * Then enter Global Suspend mode if _it_ works, still configured.
@@ -285,8 +277,10 @@ __acquires(uhci->lock)
 	if (remote_wakeup_is_broken(uhci))
 		egsm_enable = 0;
 	if (resume_detect_interrupts_are_broken(uhci) || !egsm_enable ||
-			!device_may_wakeup(
-				&uhci_to_hcd(uhci)->self.root_hub->dev))
+#ifdef CONFIG_PM
+			(!auto_stop && !rhdev->do_remote_wakeup) ||
+#endif
+			(auto_stop && !device_may_wakeup(&rhdev->dev)))
 		uhci->working_RD = int_enable = 0;
 
 	outw(int_enable, uhci->io_addr + USBINTR);
@@ -308,8 +302,7 @@ __acquires(uhci->lock)
 			return;
 	}
 	if (!(inw(uhci->io_addr + USBSTS) & USBSTS_HCH))
-		dev_warn(&uhci_to_hcd(uhci)->self.root_hub->dev,
-			"Controller not stopped yet!\n");
+		dev_warn(uhci_dev(uhci), "Controller not stopped yet!\n");
 
 	uhci_get_current_frame_number(uhci);
 
