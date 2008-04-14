@@ -705,19 +705,10 @@ static int nfnetlink_parse_nat_proto(struct nlattr *attr,
 		return err;
 
 	npt = nf_nat_proto_find_get(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum);
-
-	if (!npt->nlattr_to_range) {
-		nf_nat_proto_put(npt);
-		return 0;
-	}
-
-	/* nlattr_to_range returns 1 if it parsed, 0 if not, neg. on error */
-	if (npt->nlattr_to_range(tb, range) > 0)
-		range->flags |= IP_NAT_RANGE_PROTO_SPECIFIED;
-
+	if (npt->nlattr_to_range)
+		err = npt->nlattr_to_range(tb, range);
 	nf_nat_proto_put(npt);
-
-	return 0;
+	return err;
 }
 
 static const struct nla_policy nat_nla_policy[CTA_NAT_MAX+1] = {
