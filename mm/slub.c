@@ -341,6 +341,26 @@ static inline int slab_index(void *p, struct kmem_cache *s, void *addr)
 	return (p - addr) / s->size;
 }
 
+static inline struct kmem_cache_order_objects oo_make(int order,
+						unsigned long size)
+{
+	struct kmem_cache_order_objects x = {
+		(order << 16) + (PAGE_SIZE << order) / size
+	};
+
+	return x;
+}
+
+static inline int oo_order(struct kmem_cache_order_objects x)
+{
+	return x.x >> 16;
+}
+
+static inline int oo_objects(struct kmem_cache_order_objects x)
+{
+	return x.x & ((1 << 16) - 1);
+}
+
 #ifdef CONFIG_SLUB_DEBUG
 /*
  * Debug settings:
@@ -665,7 +685,7 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
 		return 1;
 
 	start = page_address(page);
-	length = (PAGE_SIZE << s->order);
+	length = (PAGE_SIZE << compound_order(page));
 	end = start + length;
 	remainder = length % s->size;
 	if (!remainder)
@@ -1090,19 +1110,21 @@ static inline void dec_slabs_node(struct kmem_cache *s, int node) {}
 static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 {
 	struct page *page;
-	int pages = 1 << s->order;
+	struct kmem_cache_order_objects oo = s->oo;
+	int order = oo_order(oo);
+	int pages = 1 << order;
 
 	flags |= s->allocflags;
 
 	if (node == -1)
-		page = alloc_pages(flags, s->order);
+		page = alloc_pages(flags, order);
 	else
-		page = alloc_pages_node(node, flags, s->order);
+		page = alloc_pages_node(node, flags, order);
 
 	if (!page)
 		return NULL;
 
-	page->objects = s->objects;
+	page->objects = oo_objects(oo);
 	mod_zone_page_state(page_zone(page),
 		(s->flags & SLAB_RECLAIM_ACCOUNT) ?
 		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
@@ -1143,7 +1165,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 	start = page_address(page);
 
 	if (unlikely(s->flags & SLAB_POISON))
-		memset(start, POISON_INUSE, PAGE_SIZE << s->order);
+		memset(start, POISON_INUSE, PAGE_SIZE << compound_order(page));
 
 	last = start;
 	for_each_object(p, s, start, page->objects) {
@@ -1162,7 +1184,8 @@ out:
 
 static void __free_slab(struct kmem_cache *s, struct page *page)
 {
-	int pages = 1 << s->order;
+	int order = compound_order(page);
+	int pages = 1 << order;
 
 	if (unlikely(SlabDebug(page))) {
 		void *p;
@@ -1181,7 +1204,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 
 	__ClearPageSlab(page);
 	reset_page_mapcount(page);
-	__free_pages(page, s->order);
+	__free_pages(page, order);
 }
 
 static void rcu_free_slab(struct rcu_head *h)
@@ -2202,6 +2225,7 @@ static int calculate_sizes(struct kmem_cache *s)
 	unsigned long flags = s->flags;
 	unsigned long size = s->objsize;
 	unsigned long align = s->align;
+	int order;
 
 	/*
 	 * Round up object size to the next word boundary. We can only
@@ -2294,17 +2318,17 @@ static int calculate_sizes(struct kmem_cache *s)
 		 * page allocator order 0 allocs so take a reasonably large
 		 * order that will allows us a good number of objects.
 		 */
-		s->order = max(slub_max_order, PAGE_ALLOC_COSTLY_ORDER);
+		order = max(slub_max_order, PAGE_ALLOC_COSTLY_ORDER);
 		s->flags |= __PAGE_ALLOC_FALLBACK;
 		s->allocflags |= __GFP_NOWARN;
 	} else
-		s->order = calculate_order(size);
+		order = calculate_order(size);
 
-	if (s->order < 0)
+	if (order < 0)
 		return 0;
 
 	s->allocflags = 0;
-	if (s->order)
+	if (order)
 		s->allocflags |= __GFP_COMP;
 
 	if (s->flags & SLAB_CACHE_DMA)
@@ -2316,9 +2340,9 @@ static int calculate_sizes(struct kmem_cache *s)
 	/*
 	 * Determine the number of objects per slab
 	 */
-	s->objects = (PAGE_SIZE << s->order) / size;
+	s->oo = oo_make(order, size);
 
-	return !!s->objects;
+	return !!oo_objects(s->oo);
 
 }
 
@@ -2351,7 +2375,7 @@ error:
 	if (flags & SLAB_PANIC)
 		panic("Cannot create slab %s size=%lu realsize=%u "
 			"order=%u offset=%u flags=%lx\n",
-			s->name, (unsigned long)size, s->size, s->order,
+			s->name, (unsigned long)size, s->size, oo_order(s->oo),
 			s->offset, flags);
 	return 0;
 }
@@ -2789,8 +2813,9 @@ int kmem_cache_shrink(struct kmem_cache *s)
 	struct kmem_cache_node *n;
 	struct page *page;
 	struct page *t;
+	int objects = oo_objects(s->oo);
 	struct list_head *slabs_by_inuse =
-		kmalloc(sizeof(struct list_head) * s->objects, GFP_KERNEL);
+		kmalloc(sizeof(struct list_head) * objects, GFP_KERNEL);
 	unsigned long flags;
 
 	if (!slabs_by_inuse)
@@ -2803,7 +2828,7 @@ int kmem_cache_shrink(struct kmem_cache *s)
 		if (!n->nr_partial)
 			continue;
 
-		for (i = 0; i < s->objects; i++)
+		for (i = 0; i < objects; i++)
 			INIT_LIST_HEAD(slabs_by_inuse + i);
 
 		spin_lock_irqsave(&n->list_lock, flags);
@@ -2835,7 +2860,7 @@ int kmem_cache_shrink(struct kmem_cache *s)
 		 * Rebuild the partial list with the slabs filled up most
 		 * first and the least used slabs at the end.
 		 */
-		for (i = s->objects - 1; i >= 0; i--)
+		for (i = objects - 1; i >= 0; i--)
 			list_splice(slabs_by_inuse + i, n->partial.prev);
 
 		spin_unlock_irqrestore(&n->list_lock, flags);
@@ -3351,7 +3376,7 @@ static long validate_slab_cache(struct kmem_cache *s)
 {
 	int node;
 	unsigned long count = 0;
-	unsigned long *map = kmalloc(BITS_TO_LONGS(s->objects) *
+	unsigned long *map = kmalloc(BITS_TO_LONGS(oo_objects(s->oo)) *
 				sizeof(unsigned long), GFP_KERNEL);
 
 	if (!map)
@@ -3719,7 +3744,7 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
 					- n->nr_partial;
 
 			if (flags & SO_OBJECTS)
-				x = full_slabs * s->objects;
+				x = full_slabs * oo_objects(s->oo);
 			else
 				x = full_slabs;
 			total += x;
@@ -3798,13 +3823,13 @@ SLAB_ATTR_RO(object_size);
 
 static ssize_t objs_per_slab_show(struct kmem_cache *s, char *buf)
 {
-	return sprintf(buf, "%d\n", s->objects);
+	return sprintf(buf, "%d\n", oo_objects(s->oo));
 }
 SLAB_ATTR_RO(objs_per_slab);
 
 static ssize_t order_show(struct kmem_cache *s, char *buf)
 {
-	return sprintf(buf, "%d\n", s->order);
+	return sprintf(buf, "%d\n", oo_order(s->oo));
 }
 SLAB_ATTR_RO(order);
 
@@ -4451,11 +4476,12 @@ static int s_show(struct seq_file *m, void *p)
 		nr_inuse += count_partial(n);
 	}
 
-	nr_objs = nr_slabs * s->objects;
-	nr_inuse += (nr_slabs - nr_partials) * s->objects;
+	nr_objs = nr_slabs * oo_objects(s->oo);
+	nr_inuse += (nr_slabs - nr_partials) * oo_objects(s->oo);
 
 	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d", s->name, nr_inuse,
-		   nr_objs, s->size, s->objects, (1 << s->order));
+		   nr_objs, s->size, oo_objects(s->oo),
+		   (1 << oo_order(s->oo)));
 	seq_printf(m, " : tunables %4u %4u %4u", 0, 0, 0);
 	seq_printf(m, " : slabdata %6lu %6lu %6lu", nr_slabs, nr_slabs,
 		   0UL);
