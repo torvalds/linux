@@ -2665,8 +2665,8 @@ int snd_hda_multi_out_analog_open(struct hda_codec *codec,
 			if (mout->spdif_maxbps < hinfo->maxbps)
 				hinfo->maxbps = mout->spdif_maxbps;
 		}
+		mutex_unlock(&codec->spdif_mutex);
 	}
-	mutex_unlock(&codec->spdif_mutex);
 	return snd_pcm_hw_constraint_step(substream->runtime, 0,
 					  SNDRV_PCM_HW_PARAM_CHANNELS, 2);
 }
