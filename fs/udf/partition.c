@@ -66,7 +66,8 @@ uint32_t udf_get_pblock_virt15(struct super_block *sb, uint32_t block,
 	}
 
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
-		loc = le32_to_cpu(((__le32 *)iinfo->i_ext.i_data)[block]);
+		loc = le32_to_cpu(((__le32 *)(iinfo->i_ext.i_data +
+			vdata->s_start_offset))[block]);
 		goto translate;
 	}
 	index = (sb->s_blocksize - vdata->s_start_offset) / sizeof(uint32_t);

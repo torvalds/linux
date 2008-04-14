@@ -1215,8 +1215,7 @@ static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
 		return 1;
 
 	if (map->s_partition_type == UDF_VIRTUAL_MAP15) {
-		map->s_type_specific.s_virtual.s_start_offset =
-			udf_ext0_offset(sbi->s_vat_inode);
+		map->s_type_specific.s_virtual.s_start_offset = 0;
 		map->s_type_specific.s_virtual.s_num_entries =
 			(sbi->s_vat_inode->i_size - 36) >> 2;
 	} else if (map->s_partition_type == UDF_VIRTUAL_MAP20) {
@@ -1233,8 +1232,7 @@ static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
 		}
 
 		map->s_type_specific.s_virtual.s_start_offset =
-			le16_to_cpu(vat20->lengthHeader) +
-			udf_ext0_offset(sbi->s_vat_inode);
+			le16_to_cpu(vat20->lengthHeader);
 		map->s_type_specific.s_virtual.s_num_entries =
 			(sbi->s_vat_inode->i_size -
 				map->s_type_specific.s_virtual.
