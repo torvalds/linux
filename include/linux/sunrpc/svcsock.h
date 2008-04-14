@@ -26,8 +26,8 @@ struct svc_sock {
 	void			(*sk_owspace)(struct sock *);
 
 	/* private TCP part */
-	int			sk_reclen;	/* length of record */
-	int			sk_tcplen;	/* current read length */
+	u32			sk_reclen;	/* length of record */
+	u32			sk_tcplen;	/* current read length */
 };
 
 /*
