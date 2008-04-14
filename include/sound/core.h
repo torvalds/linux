@@ -277,8 +277,8 @@ int snd_minor_info_done(void);
 int snd_minor_info_oss_init(void);
 int snd_minor_info_oss_done(void);
 #else
-#define snd_minor_info_oss_init() /*NOP*/
-#define snd_minor_info_oss_done() /*NOP*/
+static inline int snd_minor_info_oss_init(void) { return 0; }
+static inline int snd_minor_info_oss_done(void) { return 0; }
 #endif
 
 /* memory.c */
