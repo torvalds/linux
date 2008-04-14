@@ -644,7 +644,7 @@ struct fsg_dev {
 
 	unsigned long		atomic_bitflags;
 #define REGISTERED		0
-#define CLEAR_BULK_HALTS	1
+#define IGNORE_BULK_OUT		1
 #define SUSPENDED		2
 
 	struct usb_ep		*bulk_in;
@@ -2936,8 +2936,8 @@ static int received_cbw(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	struct usb_request	*req = bh->outreq;
 	struct bulk_cb_wrap	*cbw = req->buf;
 
-	/* Was this a real packet? */
-	if (req->status)
+	/* Was this a real packet?  Should it be ignored? */
+	if (req->status || test_bit(IGNORE_BULK_OUT, &fsg->atomic_bitflags))
 		return -EINVAL;
 
 	/* Is the CBW valid? */
@@ -2948,13 +2948,17 @@ static int received_cbw(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 				req->actual,
 				le32_to_cpu(cbw->Signature));
 
-		/* The Bulk-only spec says we MUST stall the bulk pipes!
-		 * If we want to avoid stalls, set a flag so that we will
-		 * clear the endpoint halts at the next reset. */
-		if (!mod_data.can_stall)
-			set_bit(CLEAR_BULK_HALTS, &fsg->atomic_bitflags);
-		fsg_set_halt(fsg, fsg->bulk_out);
+		/* The Bulk-only spec says we MUST stall the IN endpoint
+		 * (6.6.1), so it's unavoidable.  It also says we must
+		 * retain this state until the next reset, but there's
+		 * no way to tell the controller driver it should ignore
+		 * Clear-Feature(HALT) requests.
+		 *
+		 * We aren't required to halt the OUT endpoint; instead
+		 * we can simply accept and discard any data received
+		 * until the next reset. */
 		halt_bulk_in_endpoint(fsg);
+		set_bit(IGNORE_BULK_OUT, &fsg->atomic_bitflags);
 		return -EINVAL;
 	}
 
@@ -3140,6 +3144,7 @@ reset:
 		goto reset;
 	fsg->bulk_out_enabled = 1;
 	fsg->bulk_out_maxpacket = le16_to_cpu(d->wMaxPacketSize);
+	clear_bit(IGNORE_BULK_OUT, &fsg->atomic_bitflags);
 
 	if (transport_is_cbi()) {
 		d = ep_desc(fsg->gadget, &fs_intr_in_desc, &hs_intr_in_desc);
@@ -3321,11 +3326,8 @@ static void handle_exception(struct fsg_dev *fsg)
 		/* In case we were forced against our will to halt a
 		 * bulk endpoint, clear the halt now.  (The SuperH UDC
 		 * requires this.) */
-		if (test_and_clear_bit(CLEAR_BULK_HALTS,
-				&fsg->atomic_bitflags)) {
+		if (test_and_clear_bit(IGNORE_BULK_OUT, &fsg->atomic_bitflags))
 			usb_ep_clear_halt(fsg->bulk_in);
-			usb_ep_clear_halt(fsg->bulk_out);
-		}
 
 		if (transport_is_bbb()) {
 			if (fsg->ep0_req_tag == exception_req_tag)
