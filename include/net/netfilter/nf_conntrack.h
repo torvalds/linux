@@ -65,14 +65,7 @@ union nf_conntrack_help {
 #include <linux/timer.h>
 
 #ifdef CONFIG_NETFILTER_DEBUG
-#define NF_CT_ASSERT(x)							\
-do {									\
-	if (!(x))							\
-		/* Wooah!  I'm tripping my conntrack in a frenzy of	\
-		   netplay... */					\
-		printk("NF_CT_ASSERT: %s:%i(%s)\n",			\
-		       __FILE__, __LINE__, __FUNCTION__);		\
-} while(0)
+#define NF_CT_ASSERT(x)		WARN_ON(!(x))
 #else
 #define NF_CT_ASSERT(x)
 #endif
