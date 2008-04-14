@@ -39,7 +39,8 @@
 #define BYTES_PER_SAMPLE	3
 #define BYTES_PER_SAMPLE_USB	4
 #define MAX_BUFFER_SIZE		(128*1024)
-				 
+#define MAX_ENDPOINT_SIZE	512
+
 #define ENDPOINT_CAPTURE	2
 #define ENDPOINT_PLAYBACK	6
 
@@ -221,7 +222,10 @@ static int snd_usb_caiaq_pcm_prepare(struct snd_pcm_substream *substream)
 	
 	bpp = ((runtime->rate / 8000) + CLOCK_DRIFT_TOLERANCE)
 		* bytes_per_sample * CHANNELS_PER_STREAM * dev->n_streams;
-	
+
+	if (bpp > MAX_ENDPOINT_SIZE)
+		bpp = MAX_ENDPOINT_SIZE;
+
 	ret = snd_usb_caiaq_set_audio_params(dev, runtime->rate,
 					     runtime->sample_bits, bpp);
 	if (ret)
