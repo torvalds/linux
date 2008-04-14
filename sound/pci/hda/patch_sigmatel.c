@@ -3778,6 +3778,13 @@ static int patch_stac927x(struct hda_codec *codec)
 		spec->mixer = stac927x_mixer;
 		break;
 	case STAC_DELL_BIOS:
+		switch (codec->subsystem_id) {
+		case 0x10280209:
+		case 0x1028022e:
+			/* correct the device field to SPDIF out */
+			stac92xx_set_config_reg(codec, 0x21, 0x01442070);
+			break;
+		};
 		/* configure the analog microphone on some laptops */
 		stac92xx_set_config_reg(codec, 0x0c, 0x90a79130);
 		/* correct the front output jack as a hp out */
