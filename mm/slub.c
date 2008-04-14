@@ -3775,14 +3775,6 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
 static int any_slab_objects(struct kmem_cache *s)
 {
 	int node;
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
-
-		if (c && c->page)
-			return 1;
-	}
 
 	for_each_online_node(node) {
 		struct kmem_cache_node *n = get_node(s, node);
@@ -3790,7 +3782,7 @@ static int any_slab_objects(struct kmem_cache *s)
 		if (!n)
 			continue;
 
-		if (n->nr_partial || atomic_long_read(&n->nr_slabs))
+		if (atomic_read(&n->total_objects))
 			return 1;
 	}
 	return 0;
