@@ -384,9 +384,8 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 	setup_timer(&ndev->regen_timer, ipv6_regen_rndid, (unsigned long)ndev);
 	if ((dev->flags&IFF_LOOPBACK) ||
 	    dev->type == ARPHRD_TUNNEL ||
-#if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
+	    dev->type == ARPHRD_TUNNEL6 ||
 	    dev->type == ARPHRD_SIT ||
-#endif
 	    dev->type == ARPHRD_NONE) {
 		printk(KERN_INFO
 		       "%s: Disabled Privacy Extensions\n",
