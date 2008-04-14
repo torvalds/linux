@@ -1125,6 +1125,8 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
 		-pages);
 
+	__ClearPageSlab(page);
+	reset_page_mapcount(page);
 	__free_pages(page, s->order);
 }
 
@@ -1154,8 +1156,6 @@ static void discard_slab(struct kmem_cache *s, struct page *page)
 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
 
 	atomic_long_dec(&n->nr_slabs);
-	reset_page_mapcount(page);
-	__ClearPageSlab(page);
 	free_slab(s, page);
 }
 
