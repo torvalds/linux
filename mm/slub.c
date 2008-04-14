@@ -327,8 +327,8 @@ static inline void set_freepointer(struct kmem_cache *s, void *object, void *fp)
 }
 
 /* Loop over all objects in a slab */
-#define for_each_object(__p, __s, __addr) \
-	for (__p = (__addr); __p < (__addr) + (__s)->objects * (__s)->size;\
+#define for_each_object(__p, __s, __addr, __objects) \
+	for (__p = (__addr); __p < (__addr) + (__objects) * (__s)->size;\
 			__p += (__s)->size)
 
 /* Scan freelist */
@@ -774,6 +774,7 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
 	int nr = 0;
 	void *fp = page->freelist;
 	void *object = NULL;
+	unsigned long max_objects;
 
 	while (fp && nr <= page->objects) {
 		if (fp == search)
@@ -798,6 +799,16 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
 		nr++;
 	}
 
+	max_objects = (PAGE_SIZE << compound_order(page)) / s->size;
+	if (max_objects > 65535)
+		max_objects = 65535;
+
+	if (page->objects != max_objects) {
+		slab_err(s, page, "Wrong number of objects. Found %d but "
+			"should be %d", page->objects, max_objects);
+		page->objects = max_objects;
+		slab_fix(s, "Number of objects adjusted.");
+	}
 	if (page->inuse != page->objects - nr) {
 		slab_err(s, page, "Wrong object count. Counter is %d but "
 			"counted were %d", page->inuse, page->objects - nr);
@@ -1135,7 +1146,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 		memset(start, POISON_INUSE, PAGE_SIZE << s->order);
 
 	last = start;
-	for_each_object(p, s, start) {
+	for_each_object(p, s, start, page->objects) {
 		setup_object(s, page, last);
 		set_freepointer(s, last, p);
 		last = p;
@@ -1157,7 +1168,8 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 		void *p;
 
 		slab_pad_check(s, page);
-		for_each_object(p, s, page_address(page))
+		for_each_object(p, s, page_address(page),
+						page->objects)
 			check_object(s, page, p, 0);
 		ClearSlabDebug(page);
 	}
@@ -3273,7 +3285,7 @@ static int validate_slab(struct kmem_cache *s, struct page *page,
 			return 0;
 	}
 
-	for_each_object(p, s, addr)
+	for_each_object(p, s, addr, page->objects)
 		if (!test_bit(slab_index(p, s, addr), map))
 			if (!check_object(s, page, p, 1))
 				return 0;
@@ -3549,7 +3561,7 @@ static void process_slab(struct loc_track *t, struct kmem_cache *s,
 	for_each_free_object(p, s, page->freelist)
 		set_bit(slab_index(p, s, addr), map);
 
-	for_each_object(p, s, addr)
+	for_each_object(p, s, addr, page->objects)
 		if (!test_bit(slab_index(p, s, addr), map))
 			add_location(t, s, get_track(s, p, alloc));
 }
