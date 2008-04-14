@@ -1803,7 +1803,7 @@ static struct page *get_object_page(const void *x)
  */
 static int slub_min_order;
 static int slub_max_order = PAGE_ALLOC_COSTLY_ORDER;
-static int slub_min_objects = 4;
+static int slub_min_objects;
 
 /*
  * Merge control. If this is set then no merging of slab caches will occur.
@@ -1880,6 +1880,8 @@ static inline int calculate_order(int size)
 	 * we reduce the minimum objects required in a slab.
 	 */
 	min_objects = slub_min_objects;
+	if (!min_objects)
+		min_objects = 4 * (fls(nr_cpu_ids) + 1);
 	while (min_objects > 1) {
 		fraction = 8;
 		while (fraction >= 4) {
