@@ -236,6 +236,9 @@ static int ieee80211_ioctl_siwmode(struct net_device *dev,
 	case IW_MODE_ADHOC:
 		type = IEEE80211_IF_TYPE_IBSS;
 		break;
+	case IW_MODE_REPEAT:
+		type = IEEE80211_IF_TYPE_WDS;
+		break;
 	case IW_MODE_MONITOR:
 		type = IEEE80211_IF_TYPE_MNTR;
 		break;

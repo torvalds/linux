@@ -33,6 +33,8 @@ nl80211_type_to_mac80211_type(enum nl80211_iftype type)
 	case NL80211_IFTYPE_MESH_POINT:
 		return IEEE80211_IF_TYPE_MESH_POINT;
 #endif
+	case NL80211_IFTYPE_WDS:
+		return IEEE80211_IF_TYPE_WDS;
 	default:
 		return IEEE80211_IF_TYPE_INVALID;
 	}
