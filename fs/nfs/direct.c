@@ -347,8 +347,9 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 		NFS_PROTO(inode)->read_setup(data, &msg);
 
 		task = rpc_run_task(&task_setup_data);
-		if (!IS_ERR(task))
-			rpc_put_task(task);
+		if (IS_ERR(task))
+			break;
+		rpc_put_task(task);
 
 		dprintk("NFS: %5u initiated direct read call "
 			"(req %s/%Ld, %zu bytes @ offset %Lu)\n",
@@ -763,8 +764,9 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_direct_req *dreq,
 		NFS_PROTO(inode)->write_setup(data, &msg);
 
 		task = rpc_run_task(&task_setup_data);
-		if (!IS_ERR(task))
-			rpc_put_task(task);
+		if (IS_ERR(task))
+			break;
+		rpc_put_task(task);
 
 		dprintk("NFS: %5u initiated direct write call "
 			"(req %s/%Ld, %zu bytes @ offset %Lu)\n",

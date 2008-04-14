@@ -153,7 +153,7 @@ static void nfs_readpage_release(struct nfs_page *req)
 /*
  * Set up the NFS read request struct
  */
-static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
+static int nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 		const struct rpc_call_ops *call_ops,
 		unsigned int count, unsigned int offset)
 {
@@ -202,8 +202,10 @@ static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 			(unsigned long long)data->args.offset);
 
 	task = rpc_run_task(&task_setup_data);
-	if (!IS_ERR(task))
-		rpc_put_task(task);
+	if (IS_ERR(task))
+		return PTR_ERR(task);
+	rpc_put_task(task);
+	return 0;
 }
 
 static void
@@ -240,6 +242,7 @@ static int nfs_pagein_multi(struct inode *inode, struct list_head *head, unsigne
 	size_t rsize = NFS_SERVER(inode)->rsize, nbytes;
 	unsigned int offset;
 	int requests = 0;
+	int ret = 0;
 	LIST_HEAD(list);
 
 	nfs_list_remove_request(req);
@@ -261,6 +264,8 @@ static int nfs_pagein_multi(struct inode *inode, struct list_head *head, unsigne
 	offset = 0;
 	nbytes = count;
 	do {
+		int ret2;
+
 		data = list_entry(list.next, struct nfs_read_data, pages);
 		list_del_init(&data->pages);
 
@@ -268,13 +273,15 @@ static int nfs_pagein_multi(struct inode *inode, struct list_head *head, unsigne
 
 		if (nbytes < rsize)
 			rsize = nbytes;
-		nfs_read_rpcsetup(req, data, &nfs_read_partial_ops,
+		ret2 = nfs_read_rpcsetup(req, data, &nfs_read_partial_ops,
 				  rsize, offset);
+		if (ret == 0)
+			ret = ret2;
 		offset += rsize;
 		nbytes -= rsize;
 	} while (nbytes != 0);
 
-	return 0;
+	return ret;
 
 out_bad:
 	while (!list_empty(&list)) {
@@ -292,6 +299,7 @@ static int nfs_pagein_one(struct inode *inode, struct list_head *head, unsigned 
 	struct nfs_page		*req;
 	struct page		**pages;
 	struct nfs_read_data	*data;
+	int ret = -ENOMEM;
 
 	data = nfs_readdata_alloc(npages);
 	if (!data)
@@ -307,11 +315,10 @@ static int nfs_pagein_one(struct inode *inode, struct list_head *head, unsigned 
 	}
 	req = nfs_list_entry(data->pages.next);
 
-	nfs_read_rpcsetup(req, data, &nfs_read_full_ops, count, 0);
-	return 0;
+	return nfs_read_rpcsetup(req, data, &nfs_read_full_ops, count, 0);
 out_bad:
 	nfs_async_read_error(head);
-	return -ENOMEM;
+	return ret;
 }
 
 /*

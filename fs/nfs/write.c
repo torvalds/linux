@@ -778,7 +778,7 @@ static int flush_task_priority(int how)
 /*
  * Set up the argument/result storage required for the RPC call.
  */
-static void nfs_write_rpcsetup(struct nfs_page *req,
+static int nfs_write_rpcsetup(struct nfs_page *req,
 		struct nfs_write_data *data,
 		const struct rpc_call_ops *call_ops,
 		unsigned int count, unsigned int offset,
@@ -841,8 +841,10 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 		(unsigned long long)data->args.offset);
 
 	task = rpc_run_task(&task_setup_data);
-	if (!IS_ERR(task))
-		rpc_put_task(task);
+	if (IS_ERR(task))
+		return PTR_ERR(task);
+	rpc_put_task(task);
+	return 0;
 }
 
 /* If a nfs_flush_* function fails, it should remove reqs from @head and
@@ -868,6 +870,7 @@ static int nfs_flush_multi(struct inode *inode, struct list_head *head, unsigned
 	size_t wsize = NFS_SERVER(inode)->wsize, nbytes;
 	unsigned int offset;
 	int requests = 0;
+	int ret = 0;
 	LIST_HEAD(list);
 
 	nfs_list_remove_request(req);
@@ -889,6 +892,8 @@ static int nfs_flush_multi(struct inode *inode, struct list_head *head, unsigned
 	offset = 0;
 	nbytes = count;
 	do {
+		int ret2;
+
 		data = list_entry(list.next, struct nfs_write_data, pages);
 		list_del_init(&data->pages);
 
@@ -896,13 +901,15 @@ static int nfs_flush_multi(struct inode *inode, struct list_head *head, unsigned
 
 		if (nbytes < wsize)
 			wsize = nbytes;
-		nfs_write_rpcsetup(req, data, &nfs_write_partial_ops,
+		ret2 = nfs_write_rpcsetup(req, data, &nfs_write_partial_ops,
 				   wsize, offset, how);
+		if (ret == 0)
+			ret = ret2;
 		offset += wsize;
 		nbytes -= wsize;
 	} while (nbytes != 0);
 
-	return 0;
+	return ret;
 
 out_bad:
 	while (!list_empty(&list)) {
@@ -943,9 +950,7 @@ static int nfs_flush_one(struct inode *inode, struct list_head *head, unsigned i
 	req = nfs_list_entry(data->pages.next);
 
 	/* Set up the argument struct */
-	nfs_write_rpcsetup(req, data, &nfs_write_full_ops, count, 0, how);
-
-	return 0;
+	return nfs_write_rpcsetup(req, data, &nfs_write_full_ops, count, 0, how);
  out_bad:
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
@@ -1183,7 +1188,7 @@ void nfs_commitdata_release(void *data)
 /*
  * Set up the argument/result storage required for the RPC call.
  */
-static void nfs_commit_rpcsetup(struct list_head *head,
+static int nfs_commit_rpcsetup(struct list_head *head,
 		struct nfs_write_data *data,
 		int how)
 {
@@ -1232,8 +1237,10 @@ static void nfs_commit_rpcsetup(struct list_head *head,
 	dprintk("NFS: %5u initiated commit call\n", data->task.tk_pid);
 
 	task = rpc_run_task(&task_setup_data);
-	if (!IS_ERR(task))
-		rpc_put_task(task);
+	if (IS_ERR(task))
+		return PTR_ERR(task);
+	rpc_put_task(task);
+	return 0;
 }
 
 /*
@@ -1251,9 +1258,7 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how)
 		goto out_bad;
 
 	/* Set up the argument struct */
-	nfs_commit_rpcsetup(head, data, how);
-
-	return 0;
+	return nfs_commit_rpcsetup(head, data, how);
  out_bad:
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
