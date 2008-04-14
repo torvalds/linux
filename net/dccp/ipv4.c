@@ -989,6 +989,20 @@ static struct inet_protosw dccp_v4_protosw = {
 	.flags		= INET_PROTOSW_ICSK,
 };
 
+static int dccp_v4_init_net(struct net *net)
+{
+	return 0;
+}
+
+static void dccp_v4_exit_net(struct net *net)
+{
+}
+
+static struct pernet_operations dccp_v4_ops = {
+	.init	= dccp_v4_init_net,
+	.exit	= dccp_v4_exit_net,
+};
+
 static int __init dccp_v4_init(void)
 {
 	int err = proto_register(&dccp_v4_prot, 1);
@@ -1006,8 +1020,14 @@ static int __init dccp_v4_init(void)
 				   SOCK_DCCP, IPPROTO_DCCP, &init_net);
 	if (err)
 		goto out_unregister_protosw;
+
+	err = register_pernet_subsys(&dccp_v4_ops);
+	if (err)
+		goto out_destroy_ctl_sock;
 out:
 	return err;
+out_destroy_ctl_sock:
+	inet_ctl_sock_destroy(dccp_v4_ctl_sk);
 out_unregister_protosw:
 	inet_unregister_protosw(&dccp_v4_protosw);
 	inet_del_protocol(&dccp_v4_protocol, IPPROTO_DCCP);
@@ -1018,6 +1038,7 @@ out_proto_unregister:
 
 static void __exit dccp_v4_exit(void)
 {
+	unregister_pernet_subsys(&dccp_v4_ops);
 	inet_ctl_sock_destroy(dccp_v4_ctl_sk);
 	inet_unregister_protosw(&dccp_v4_protosw);
 	inet_del_protocol(&dccp_v4_protocol, IPPROTO_DCCP);
