@@ -166,6 +166,12 @@ static int  option_send_setup(struct usb_serial_port *port);
 #define NOVATELWIRELESS_PRODUCT_EMBEDDED_2	0x8001
 #define NOVATELWIRELESS_PRODUCT_GLOBAL_2	0x9001
 
+/* AMOI PRODUCTS */
+#define AMOI_VENDOR_ID				0x1614
+#define AMOI_PRODUCT_H01			0x0800
+#define AMOI_PRODUCT_H01A			0x7002
+#define AMOI_PRODUCT_H02			0x0802
+
 #define DELL_VENDOR_ID				0x413C
 
 #define KYOCERA_VENDOR_ID			0x0c88
@@ -272,6 +278,10 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_HSPA_2) }, /* Novatel HSPA product */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_EMBEDDED_2) }, /* Novatel Embedded product */
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_GLOBAL_2) }, /* Novatel Global product */
+
+	{ USB_DEVICE(AMOI_VENDOR_ID, AMOI_PRODUCT_H01) },
+	{ USB_DEVICE(AMOI_VENDOR_ID, AMOI_PRODUCT_H01A) },
+	{ USB_DEVICE(AMOI_VENDOR_ID, AMOI_PRODUCT_H02) },
 
 	{ USB_DEVICE(DELL_VENDOR_ID, 0x8114) },	/* Dell Wireless 5700 Mobile Broadband CDMA/EVDO Mini-Card == Novatel Expedite EV620 CDMA/EV-DO */
 	{ USB_DEVICE(DELL_VENDOR_ID, 0x8115) },	/* Dell Wireless 5500 Mobile Broadband HSDPA Mini-Card == Novatel Expedite EU740 HSDPA/3G */
