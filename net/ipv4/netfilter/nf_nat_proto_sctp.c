@@ -16,7 +16,7 @@
 
 static u_int16_t nf_sctp_port_rover;
 
-static int
+static bool
 sctp_unique_tuple(struct nf_conntrack_tuple *tuple,
 		  const struct nf_nat_range *range,
 		  enum nf_nat_manip_type maniptype,
@@ -26,7 +26,7 @@ sctp_unique_tuple(struct nf_conntrack_tuple *tuple,
 					 &nf_sctp_port_rover);
 }
 
-static int
+static bool
 sctp_manip_pkt(struct sk_buff *skb,
 	       unsigned int iphdroff,
 	       const struct nf_conntrack_tuple *tuple,
@@ -39,7 +39,7 @@ sctp_manip_pkt(struct sk_buff *skb,
 	u32 crc32;
 
 	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
-		return 0;
+		return false;
 
 	iph = (struct iphdr *)(skb->data + iphdroff);
 	hdr = (struct sctphdr *)(skb->data + hdroff);
@@ -63,7 +63,7 @@ sctp_manip_pkt(struct sk_buff *skb,
 	crc32 = sctp_end_cksum(crc32);
 	hdr->checksum = htonl(crc32);
 
-	return 1;
+	return true;
 }
 
 static const struct nf_nat_protocol nf_nat_protocol_sctp = {

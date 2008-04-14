@@ -22,7 +22,7 @@
 
 static u_int16_t dccp_port_rover;
 
-static int
+static bool
 dccp_unique_tuple(struct nf_conntrack_tuple *tuple,
 		  const struct nf_nat_range *range,
 		  enum nf_nat_manip_type maniptype,
@@ -32,7 +32,7 @@ dccp_unique_tuple(struct nf_conntrack_tuple *tuple,
 					 &dccp_port_rover);
 }
 
-static int
+static bool
 dccp_manip_pkt(struct sk_buff *skb,
 	       unsigned int iphdroff,
 	       const struct nf_conntrack_tuple *tuple,
@@ -49,7 +49,7 @@ dccp_manip_pkt(struct sk_buff *skb,
 		hdrsize = sizeof(struct dccp_hdr);
 
 	if (!skb_make_writable(skb, hdroff + hdrsize))
-		return 0;
+		return false;
 
 	iph = (struct iphdr *)(skb->data + iphdroff);
 	hdr = (struct dccp_hdr *)(skb->data + hdroff);
@@ -70,12 +70,12 @@ dccp_manip_pkt(struct sk_buff *skb,
 	*portptr = newport;
 
 	if (hdrsize < sizeof(*hdr))
-		return 1;
+		return true;
 
 	inet_proto_csum_replace4(&hdr->dccph_checksum, skb, oldip, newip, 1);
 	inet_proto_csum_replace2(&hdr->dccph_checksum, skb, oldport, newport,
 				 0);
-	return 1;
+	return true;
 }
 
 static const struct nf_nat_protocol nf_nat_protocol_dccp = {

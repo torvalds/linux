@@ -20,7 +20,7 @@
 
 static u_int16_t tcp_port_rover;
 
-static int
+static bool
 tcp_unique_tuple(struct nf_conntrack_tuple *tuple,
 		 const struct nf_nat_range *range,
 		 enum nf_nat_manip_type maniptype,
@@ -30,7 +30,7 @@ tcp_unique_tuple(struct nf_conntrack_tuple *tuple,
 					 &tcp_port_rover);
 }
 
-static int
+static bool
 tcp_manip_pkt(struct sk_buff *skb,
 	      unsigned int iphdroff,
 	      const struct nf_conntrack_tuple *tuple,
@@ -50,7 +50,7 @@ tcp_manip_pkt(struct sk_buff *skb,
 		hdrsize = sizeof(struct tcphdr);
 
 	if (!skb_make_writable(skb, hdroff + hdrsize))
-		return 0;
+		return false;
 
 	iph = (struct iphdr *)(skb->data + iphdroff);
 	hdr = (struct tcphdr *)(skb->data + hdroff);
@@ -73,11 +73,11 @@ tcp_manip_pkt(struct sk_buff *skb,
 	*portptr = newport;
 
 	if (hdrsize < sizeof(*hdr))
-		return 1;
+		return true;
 
 	inet_proto_csum_replace4(&hdr->check, skb, oldip, newip, 1);
 	inet_proto_csum_replace2(&hdr->check, skb, oldport, newport, 0);
-	return 1;
+	return true;
 }
 
 const struct nf_nat_protocol nf_nat_protocol_tcp = {

@@ -349,7 +349,7 @@ nf_nat_setup_info(struct nf_conn *ct,
 EXPORT_SYMBOL(nf_nat_setup_info);
 
 /* Returns true if succeeded. */
-static int
+static bool
 manip_pkt(u_int16_t proto,
 	  struct sk_buff *skb,
 	  unsigned int iphdroff,
@@ -360,7 +360,7 @@ manip_pkt(u_int16_t proto,
 	const struct nf_nat_protocol *p;
 
 	if (!skb_make_writable(skb, iphdroff + sizeof(*iph)))
-		return 0;
+		return false;
 
 	iph = (void *)skb->data + iphdroff;
 
@@ -369,7 +369,7 @@ manip_pkt(u_int16_t proto,
 	/* rcu_read_lock()ed by nf_hook_slow */
 	p = __nf_nat_proto_find(proto);
 	if (!p->manip_pkt(skb, iphdroff, target, maniptype))
-		return 0;
+		return false;
 
 	iph = (void *)skb->data + iphdroff;
 
@@ -380,7 +380,7 @@ manip_pkt(u_int16_t proto,
 		csum_replace4(&iph->check, iph->daddr, target->dst.u3.ip);
 		iph->daddr = target->dst.u3.ip;
 	}
-	return 1;
+	return true;
 }
 
 /* Do packet manipulations according to nf_nat_setup_info. */

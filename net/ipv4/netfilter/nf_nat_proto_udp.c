@@ -19,7 +19,7 @@
 
 static u_int16_t udp_port_rover;
 
-static int
+static bool
 udp_unique_tuple(struct nf_conntrack_tuple *tuple,
 		 const struct nf_nat_range *range,
 		 enum nf_nat_manip_type maniptype,
@@ -29,7 +29,7 @@ udp_unique_tuple(struct nf_conntrack_tuple *tuple,
 					 &udp_port_rover);
 }
 
-static int
+static bool
 udp_manip_pkt(struct sk_buff *skb,
 	      unsigned int iphdroff,
 	      const struct nf_conntrack_tuple *tuple,
@@ -42,7 +42,7 @@ udp_manip_pkt(struct sk_buff *skb,
 	__be16 *portptr, newport;
 
 	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
-		return 0;
+		return false;
 
 	iph = (struct iphdr *)(skb->data + iphdroff);
 	hdr = (struct udphdr *)(skb->data + hdroff);
@@ -68,7 +68,7 @@ udp_manip_pkt(struct sk_buff *skb,
 			hdr->check = CSUM_MANGLED_0;
 	}
 	*portptr = newport;
-	return 1;
+	return true;
 }
 
 const struct nf_nat_protocol nf_nat_protocol_udp = {

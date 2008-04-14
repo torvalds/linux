@@ -17,10 +17,10 @@
 #include <net/netfilter/nf_nat_rule.h>
 #include <net/netfilter/nf_nat_protocol.h>
 
-int nf_nat_proto_in_range(const struct nf_conntrack_tuple *tuple,
-			  enum nf_nat_manip_type maniptype,
-			  const union nf_conntrack_man_proto *min,
-			  const union nf_conntrack_man_proto *max)
+bool nf_nat_proto_in_range(const struct nf_conntrack_tuple *tuple,
+			   enum nf_nat_manip_type maniptype,
+			   const union nf_conntrack_man_proto *min,
+			   const union nf_conntrack_man_proto *max)
 {
 	__be16 port;
 
@@ -34,11 +34,11 @@ int nf_nat_proto_in_range(const struct nf_conntrack_tuple *tuple,
 }
 EXPORT_SYMBOL_GPL(nf_nat_proto_in_range);
 
-int nf_nat_proto_unique_tuple(struct nf_conntrack_tuple *tuple,
-			      const struct nf_nat_range *range,
-			      enum nf_nat_manip_type maniptype,
-			      const struct nf_conn *ct,
-			      u_int16_t *rover)
+bool nf_nat_proto_unique_tuple(struct nf_conntrack_tuple *tuple,
+			       const struct nf_nat_range *range,
+			       enum nf_nat_manip_type maniptype,
+			       const struct nf_conn *ct,
+			       u_int16_t *rover)
 {
 	unsigned int range_size, min, i;
 	__be16 *portptr;
@@ -53,7 +53,7 @@ int nf_nat_proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 	if (!(range->flags & IP_NAT_RANGE_PROTO_SPECIFIED)) {
 		/* If it's dst rewrite, can't change port */
 		if (maniptype == IP_NAT_MANIP_DST)
-			return 0;
+			return false;
 
 		if (ntohs(*portptr) < 1024) {
 			/* Loose convention: >> 512 is credential passing */
@@ -83,9 +83,9 @@ int nf_nat_proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 			continue;
 		if (!(range->flags & IP_NAT_RANGE_PROTO_RANDOM))
 			*rover = off;
-		return 1;
+		return true;
 	}
-	return 0;
+	return false;
 }
 EXPORT_SYMBOL_GPL(nf_nat_proto_unique_tuple);
 

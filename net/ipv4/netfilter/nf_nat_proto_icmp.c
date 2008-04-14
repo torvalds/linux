@@ -17,7 +17,7 @@
 #include <net/netfilter/nf_nat_rule.h>
 #include <net/netfilter/nf_nat_protocol.h>
 
-static int
+static bool
 icmp_in_range(const struct nf_conntrack_tuple *tuple,
 	      enum nf_nat_manip_type maniptype,
 	      const union nf_conntrack_man_proto *min,
@@ -27,7 +27,7 @@ icmp_in_range(const struct nf_conntrack_tuple *tuple,
 	       ntohs(tuple->src.u.icmp.id) <= ntohs(max->icmp.id);
 }
 
-static int
+static bool
 icmp_unique_tuple(struct nf_conntrack_tuple *tuple,
 		  const struct nf_nat_range *range,
 		  enum nf_nat_manip_type maniptype,
@@ -46,12 +46,12 @@ icmp_unique_tuple(struct nf_conntrack_tuple *tuple,
 		tuple->src.u.icmp.id = htons(ntohs(range->min.icmp.id) +
 					     (id % range_size));
 		if (!nf_nat_used_tuple(tuple, ct))
-			return 1;
+			return true;
 	}
-	return 0;
+	return false;
 }
 
-static int
+static bool
 icmp_manip_pkt(struct sk_buff *skb,
 	       unsigned int iphdroff,
 	       const struct nf_conntrack_tuple *tuple,
@@ -62,13 +62,13 @@ icmp_manip_pkt(struct sk_buff *skb,
 	unsigned int hdroff = iphdroff + iph->ihl*4;
 
 	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
-		return 0;
+		return false;
 
 	hdr = (struct icmphdr *)(skb->data + hdroff);
 	inet_proto_csum_replace2(&hdr->checksum, skb,
 				 hdr->un.echo.id, tuple->src.u.icmp.id, 0);
 	hdr->un.echo.id = tuple->src.u.icmp.id;
-	return 1;
+	return true;
 }
 
 const struct nf_nat_protocol nf_nat_protocol_icmp = {

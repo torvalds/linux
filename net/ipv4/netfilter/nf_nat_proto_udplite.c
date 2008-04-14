@@ -18,7 +18,7 @@
 
 static u_int16_t udplite_port_rover;
 
-static int
+static bool
 udplite_unique_tuple(struct nf_conntrack_tuple *tuple,
 		     const struct nf_nat_range *range,
 		     enum nf_nat_manip_type maniptype,
@@ -28,7 +28,7 @@ udplite_unique_tuple(struct nf_conntrack_tuple *tuple,
 					 &udplite_port_rover);
 }
 
-static int
+static bool
 udplite_manip_pkt(struct sk_buff *skb,
 		  unsigned int iphdroff,
 		  const struct nf_conntrack_tuple *tuple,
@@ -41,7 +41,7 @@ udplite_manip_pkt(struct sk_buff *skb,
 	__be16 *portptr, newport;
 
 	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
-		return 0;
+		return false;
 
 	iph = (struct iphdr *)(skb->data + iphdroff);
 	hdr = (struct udphdr *)(skb->data + hdroff);
@@ -66,7 +66,7 @@ udplite_manip_pkt(struct sk_buff *skb,
 		hdr->check = CSUM_MANGLED_0;
 
 	*portptr = newport;
-	return 1;
+	return true;
 }
 
 static const struct nf_nat_protocol nf_nat_protocol_udplite = {
