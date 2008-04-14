@@ -1001,6 +1001,7 @@ done_prefixes:
 		 */
 		if ((c->d & ModRM) && c->modrm_mod == 3) {
 			c->src.type = OP_REG;
+			c->src.val = c->modrm_val;
 			break;
 		}
 		c->src.type = OP_MEM;
@@ -1044,6 +1045,7 @@ done_prefixes:
 	case DstMem:
 		if ((c->d & ModRM) && c->modrm_mod == 3) {
 			c->dst.type = OP_REG;
+			c->dst.val = c->dst.orig_val = c->modrm_val;
 			break;
 		}
 		c->dst.type = OP_MEM;
