@@ -435,7 +435,6 @@ static void reg_vif_setup(struct net_device *dev)
 static struct net_device *ip6mr_reg_vif(void)
 {
 	struct net_device *dev;
-	struct inet6_dev *in_dev;
 
 	dev = alloc_netdev(sizeof(struct net_device_stats), "pim6reg",
 			   reg_vif_setup);
@@ -448,10 +447,6 @@ static struct net_device *ip6mr_reg_vif(void)
 		return NULL;
 	}
 	dev->iflink = 0;
-
-	in_dev = ipv6_find_idev(dev);
-	if (!in_dev)
-		goto failure;
 
 	if (dev_open(dev))
 		goto failure;

@@ -117,9 +117,6 @@ struct sioc_mif_req6
 
 #include <linux/skbuff.h>	/* for struct sk_buff_head */
 
-struct net_device;
-struct inet6_dev *ipv6_find_idev(struct net_device *dev);
-
 #ifdef CONFIG_IPV6_MROUTE
 static inline int ip6_mroute_opt(int opt)
 {
