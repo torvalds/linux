@@ -2218,7 +2218,7 @@ static int init_kmem_cache_nodes(struct kmem_cache *s, gfp_t gfpflags)
  * calculate_sizes() determines the order and the distribution of data within
  * a slab object.
  */
-static int calculate_sizes(struct kmem_cache *s)
+static int calculate_sizes(struct kmem_cache *s, int forced_order)
 {
 	unsigned long flags = s->flags;
 	unsigned long size = s->objsize;
@@ -2307,7 +2307,10 @@ static int calculate_sizes(struct kmem_cache *s)
 	 */
 	size = ALIGN(size, align);
 	s->size = size;
-	order = calculate_order(size);
+	if (forced_order >= 0)
+		order = forced_order;
+	else
+		order = calculate_order(size);
 
 	if (order < 0)
 		return 0;
@@ -2346,7 +2349,7 @@ static int kmem_cache_open(struct kmem_cache *s, gfp_t gfpflags,
 	s->align = align;
 	s->flags = kmem_cache_flags(size, flags, name, ctor);
 
-	if (!calculate_sizes(s))
+	if (!calculate_sizes(s, -1))
 		goto error;
 
 	s->refcount = 1;
@@ -3833,11 +3836,23 @@ static ssize_t objs_per_slab_show(struct kmem_cache *s, char *buf)
 }
 SLAB_ATTR_RO(objs_per_slab);
 
+static ssize_t order_store(struct kmem_cache *s,
+				const char *buf, size_t length)
+{
+	int order = simple_strtoul(buf, NULL, 10);
+
+	if (order > slub_max_order || order < slub_min_order)
+		return -EINVAL;
+
+	calculate_sizes(s, order);
+	return length;
+}
+
 static ssize_t order_show(struct kmem_cache *s, char *buf)
 {
 	return sprintf(buf, "%d\n", oo_order(s->oo));
 }
-SLAB_ATTR_RO(order);
+SLAB_ATTR(order);
 
 static ssize_t ctor_show(struct kmem_cache *s, char *buf)
 {
@@ -3971,7 +3986,7 @@ static ssize_t red_zone_store(struct kmem_cache *s,
 	s->flags &= ~SLAB_RED_ZONE;
 	if (buf[0] == '1')
 		s->flags |= SLAB_RED_ZONE;
-	calculate_sizes(s);
+	calculate_sizes(s, -1);
 	return length;
 }
 SLAB_ATTR(red_zone);
@@ -3990,7 +4005,7 @@ static ssize_t poison_store(struct kmem_cache *s,
 	s->flags &= ~SLAB_POISON;
 	if (buf[0] == '1')
 		s->flags |= SLAB_POISON;
-	calculate_sizes(s);
+	calculate_sizes(s, -1);
 	return length;
 }
 SLAB_ATTR(poison);
@@ -4009,7 +4024,7 @@ static ssize_t store_user_store(struct kmem_cache *s,
 	s->flags &= ~SLAB_STORE_USER;
 	if (buf[0] == '1')
 		s->flags |= SLAB_STORE_USER;
-	calculate_sizes(s);
+	calculate_sizes(s, -1);
 	return length;
 }
 SLAB_ATTR(store_user);
