@@ -823,7 +823,7 @@ static void rfd_ftl_remove_dev(struct mtd_blktrans_dev *dev)
 	kfree(part);
 }
 
-struct mtd_blktrans_ops rfd_ftl_tr = {
+static struct mtd_blktrans_ops rfd_ftl_tr = {
 	.name		= "rfd",
 	.major		= RFD_FTL_MAJOR,
 	.part_bits	= PART_BITS,
