@@ -275,12 +275,15 @@ static u16 group_table[] = {
 	SrcMem | ModRM, 0, SrcMem | ModRM | Stack, 0,
 	[Group7*8] =
 	0, 0, ModRM | SrcMem, ModRM | SrcMem,
-	SrcNone | ModRM | DstMem, 0, SrcMem | ModRM, SrcMem | ModRM | ByteOp,
+	SrcNone | ModRM | DstMem | Mov, 0,
+	SrcMem16 | ModRM | Mov, SrcMem | ModRM | ByteOp,
 };
 
 static u16 group2_table[] = {
 	[Group7*8] =
-	SrcNone | ModRM, 0, 0, 0, SrcNone | ModRM | DstMem, 0, SrcMem | ModRM, 0,
+	SrcNone | ModRM, 0, 0, 0,
+	SrcNone | ModRM | DstMem | Mov, 0,
+	SrcMem16 | ModRM | Mov, 0,
 };
 
 /* EFLAGS bit definitions. */
@@ -1722,6 +1725,8 @@ twobyte_insn:
 				goto done;
 
 			kvm_emulate_hypercall(ctxt->vcpu);
+			/* Disable writeback. */
+			c->dst.type = OP_NONE;
 			break;
 		case 2: /* lgdt */
 			rc = read_descriptor(ctxt, ops, c->src.ptr,
@@ -1729,6 +1734,8 @@ twobyte_insn:
 			if (rc)
 				goto done;
 			realmode_lgdt(ctxt->vcpu, size, address);
+			/* Disable writeback. */
+			c->dst.type = OP_NONE;
 			break;
 		case 3: /* lidt/vmmcall */
 			if (c->modrm_mod == 3 && c->modrm_rm == 1) {
@@ -1744,27 +1751,25 @@ twobyte_insn:
 					goto done;
 				realmode_lidt(ctxt->vcpu, size, address);
 			}
+			/* Disable writeback. */
+			c->dst.type = OP_NONE;
 			break;
 		case 4: /* smsw */
-			if (c->modrm_mod != 3)
-				goto cannot_emulate;
-			*(u16 *)&c->regs[c->modrm_rm]
-				= realmode_get_cr(ctxt->vcpu, 0);
+			c->dst.bytes = 2;
+			c->dst.val = realmode_get_cr(ctxt->vcpu, 0);
 			break;
 		case 6: /* lmsw */
-			if (c->modrm_mod != 3)
-				goto cannot_emulate;
-			realmode_lmsw(ctxt->vcpu, (u16)c->modrm_val,
-						  &ctxt->eflags);
+			realmode_lmsw(ctxt->vcpu, (u16)c->src.val,
+				      &ctxt->eflags);
 			break;
 		case 7: /* invlpg*/
 			emulate_invlpg(ctxt->vcpu, memop);
+			/* Disable writeback. */
+			c->dst.type = OP_NONE;
 			break;
 		default:
 			goto cannot_emulate;
 		}
-		/* Disable writeback. */
-		c->dst.type = OP_NONE;
 		break;
 	case 0x06:
 		emulate_clts(ctxt->vcpu);
