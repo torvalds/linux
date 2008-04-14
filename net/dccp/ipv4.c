@@ -32,7 +32,7 @@
 #include "feat.h"
 
 /*
- * The dccp_ctl_sk is the global socket data structure used for responding to
+ * The per-net dccp.v4_ctl_sk socket is used for responding to
  * the Out-of-the-blue (OOTB) packets. A control sock will be created
  * for this socket at the initialization time.
  */

@@ -33,7 +33,7 @@
 #include "ipv6.h"
 #include "feat.h"
 
-/* dccp_v6_ctl_sk is used for sending RSTs and ACKs */
+/* The per-net dccp.v6_ctl_sk is used for sending RSTs and ACKs */
 
 static struct inet_connection_sock_af_ops dccp_ipv6_mapped;
 static struct inet_connection_sock_af_ops dccp_ipv6_af_ops;
