@@ -301,7 +301,7 @@ static inline int check_valid_pointer(struct kmem_cache *s,
 		return 1;
 
 	base = page_address(page);
-	if (object < base || object >= base + s->objects * s->size ||
+	if (object < base || object >= base + page->objects * s->size ||
 		(object - base) % s->size) {
 		return 0;
 	}
@@ -451,8 +451,8 @@ static void print_tracking(struct kmem_cache *s, void *object)
 
 static void print_page_info(struct page *page)
 {
-	printk(KERN_ERR "INFO: Slab 0x%p used=%u fp=0x%p flags=0x%04lx\n",
-		page, page->inuse, page->freelist, page->flags);
+	printk(KERN_ERR "INFO: Slab 0x%p objects=%u used=%u fp=0x%p flags=0x%04lx\n",
+		page, page->objects, page->inuse, page->freelist, page->flags);
 
 }
 
@@ -652,6 +652,7 @@ static int check_pad_bytes(struct kmem_cache *s, struct page *page, u8 *p)
 				p + off, POISON_INUSE, s->size - off);
 }
 
+/* Check the pad bytes at the end of a slab page */
 static int slab_pad_check(struct kmem_cache *s, struct page *page)
 {
 	u8 *start;
@@ -664,20 +665,20 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
 		return 1;
 
 	start = page_address(page);
-	end = start + (PAGE_SIZE << s->order);
-	length = s->objects * s->size;
-	remainder = end - (start + length);
+	length = (PAGE_SIZE << s->order);
+	end = start + length;
+	remainder = length % s->size;
 	if (!remainder)
 		return 1;
 
-	fault = check_bytes(start + length, POISON_INUSE, remainder);
+	fault = check_bytes(end - remainder, POISON_INUSE, remainder);
 	if (!fault)
 		return 1;
 	while (end > fault && end[-1] == POISON_INUSE)
 		end--;
 
 	slab_err(s, page, "Padding overwritten. 0x%p-0x%p", fault, end - 1);
-	print_section("Padding", start, length);
+	print_section("Padding", end - remainder, remainder);
 
 	restore_bytes(s, "slab padding", POISON_INUSE, start, end);
 	return 0;
@@ -739,15 +740,24 @@ static int check_object(struct kmem_cache *s, struct page *page,
 
 static int check_slab(struct kmem_cache *s, struct page *page)
 {
+	int maxobj;
+
 	VM_BUG_ON(!irqs_disabled());
 
 	if (!PageSlab(page)) {
 		slab_err(s, page, "Not a valid slab page");
 		return 0;
 	}
-	if (page->inuse > s->objects) {
+
+	maxobj = (PAGE_SIZE << compound_order(page)) / s->size;
+	if (page->objects > maxobj) {
+		slab_err(s, page, "objects %u > max %u",
+			s->name, page->objects, maxobj);
+		return 0;
+	}
+	if (page->inuse > page->objects) {
 		slab_err(s, page, "inuse %u > max %u",
-			s->name, page->inuse, s->objects);
+			s->name, page->inuse, page->objects);
 		return 0;
 	}
 	/* Slab_pad_check fixes things up after itself */
@@ -765,7 +775,7 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
 	void *fp = page->freelist;
 	void *object = NULL;
 
-	while (fp && nr <= s->objects) {
+	while (fp && nr <= page->objects) {
 		if (fp == search)
 			return 1;
 		if (!check_valid_pointer(s, page, fp)) {
@@ -777,7 +787,7 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
 			} else {
 				slab_err(s, page, "Freepointer corrupt");
 				page->freelist = NULL;
-				page->inuse = s->objects;
+				page->inuse = page->objects;
 				slab_fix(s, "Freelist cleared");
 				return 0;
 			}
@@ -788,10 +798,10 @@ static int on_freelist(struct kmem_cache *s, struct page *page, void *search)
 		nr++;
 	}
 
-	if (page->inuse != s->objects - nr) {
+	if (page->inuse != page->objects - nr) {
 		slab_err(s, page, "Wrong object count. Counter is %d but "
-			"counted were %d", page->inuse, s->objects - nr);
-		page->inuse = s->objects - nr;
+			"counted were %d", page->inuse, page->objects - nr);
+		page->inuse = page->objects - nr;
 		slab_fix(s, "Object count adjusted.");
 	}
 	return search == NULL;
@@ -910,7 +920,7 @@ bad:
 		 * as used avoids touching the remaining objects.
 		 */
 		slab_fix(s, "Marking all objects used");
-		page->inuse = s->objects;
+		page->inuse = page->objects;
 		page->freelist = NULL;
 	}
 	return 0;
@@ -1081,6 +1091,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 	if (!page)
 		return NULL;
 
+	page->objects = s->objects;
 	mod_zone_page_state(page_zone(page),
 		(s->flags & SLAB_RECLAIM_ACCOUNT) ?
 		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
@@ -1519,7 +1530,7 @@ load_freelist:
 		goto debug;
 
 	c->freelist = object[c->offset];
-	c->page->inuse = s->objects;
+	c->page->inuse = c->page->objects;
 	c->page->freelist = NULL;
 	c->node = page_to_nid(c->page);
 unlock_out:
@@ -1817,6 +1828,9 @@ static inline int slab_order(int size, int min_objects,
 	int order;
 	int rem;
 	int min_order = slub_min_order;
+
+	if ((PAGE_SIZE << min_order) / size > 65535)
+		return get_order(size * 65535) - 1;
 
 	for (order = max(min_order,
 				fls(min_objects * size - 1) - PAGE_SHIFT);
@@ -3251,7 +3265,7 @@ static int validate_slab(struct kmem_cache *s, struct page *page,
 		return 0;
 
 	/* Now we know that a valid freelist exists */
-	bitmap_zero(map, s->objects);
+	bitmap_zero(map, page->objects);
 
 	for_each_free_object(p, s, page->freelist) {
 		set_bit(slab_index(p, s, addr), map);
@@ -3528,10 +3542,10 @@ static void process_slab(struct loc_track *t, struct kmem_cache *s,
 		struct page *page, enum track_item alloc)
 {
 	void *addr = page_address(page);
-	DECLARE_BITMAP(map, s->objects);
+	DECLARE_BITMAP(map, page->objects);
 	void *p;
 
-	bitmap_zero(map, s->objects);
+	bitmap_zero(map, page->objects);
 	for_each_free_object(p, s, page->freelist)
 		set_bit(slab_index(p, s, addr), map);
 
