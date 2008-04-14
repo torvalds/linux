@@ -129,6 +129,7 @@ struct sigmatel_spec {
 	unsigned int hp_detect: 1;
 
 	/* gpio lines */
+	unsigned int eapd_mask;
 	unsigned int gpio_mask;
 	unsigned int gpio_dir;
 	unsigned int gpio_data;
@@ -3183,6 +3184,10 @@ static void stac92xx_hp_detect(struct hda_codec *codec, unsigned int res)
 		for (i = 0; i < cfg->speaker_outs; i++)
 			stac92xx_reset_pinctl(codec, cfg->speaker_pins[i],
 						AC_PINCTL_OUT_EN);
+		if (spec->eapd_mask)
+			stac_gpio_set(codec, spec->gpio_mask,
+				spec->gpio_dir, spec->gpio_data &
+				~spec->eapd_mask);
 	} else {
 		/* enable lineouts, disable hp */
 		for (i = 0; i < cfg->line_outs; i++)
@@ -3191,6 +3196,10 @@ static void stac92xx_hp_detect(struct hda_codec *codec, unsigned int res)
 		for (i = 0; i < cfg->speaker_outs; i++)
 			stac92xx_set_pinctl(codec, cfg->speaker_pins[i],
 						AC_PINCTL_OUT_EN);
+		if (spec->eapd_mask)
+			stac_gpio_set(codec, spec->gpio_mask,
+				spec->gpio_dir, spec->gpio_data |
+				spec->eapd_mask);
 	}
 } 
 
@@ -3478,7 +3487,7 @@ again:
 	spec->num_dmuxes = ARRAY_SIZE(stac92hd73xx_dmux_nids);
 	spec->dinput_mux = &stac92hd73xx_dmux;
 	/* GPIO0 High = Enable EAPD */
-	spec->gpio_mask = spec->gpio_dir = 0x1;
+	spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x1;
 	spec->gpio_data = 0x01;
 
 	switch (spec->board_config) {
@@ -3584,7 +3593,10 @@ again:
 	spec->aloopback_shift = 0;
 
 	/* GPIO0 High = EAPD */
-	spec->gpio_mask = spec->gpio_dir = spec->gpio_data = 0x1;
+	spec->gpio_mask = 0x01;
+	spec->gpio_dir = 0x01;
+	spec->gpio_mask = 0x01;
+	spec->gpio_data = 0x01;
 
 	spec->mux_nids = stac92hd71bxx_mux_nids;
 	spec->adc_nids = stac92hd71bxx_adc_nids;
@@ -3770,7 +3782,7 @@ static int patch_stac927x(struct hda_codec *codec)
 	case STAC_D965_3ST:
 	case STAC_D965_5ST:
 		/* GPIO0 High = Enable EAPD */
-		spec->gpio_mask = spec->gpio_dir = 0x01;
+		spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x01;
 		spec->gpio_data = 0x01;
 		spec->num_dmics = 0;
 
@@ -3794,7 +3806,7 @@ static int patch_stac927x(struct hda_codec *codec)
 		/* fallthru */
 	case STAC_DELL_3ST:
 		/* GPIO2 High = Enable EAPD */
-		spec->gpio_mask = spec->gpio_dir = 0x04;
+		spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x04;
 		spec->gpio_data = 0x04;
 		spec->dmic_nids = stac927x_dmic_nids;
 		spec->num_dmics = STAC927X_NUM_DMICS;
@@ -3806,7 +3818,7 @@ static int patch_stac927x(struct hda_codec *codec)
 		break;
 	default:
 		/* GPIO0 High = Enable EAPD */
-		spec->gpio_mask = spec->gpio_dir = 0x1;
+		spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x1;
 		spec->gpio_data = 0x01;
 		spec->num_dmics = 0;
 
@@ -3910,6 +3922,7 @@ static int patch_stac9205(struct hda_codec *codec)
 					  (AC_USRSP_EN | STAC_HP_EVENT));
 
 		spec->gpio_dir = 0x0b;
+		spec->eapd_mask = 0x01;
 		spec->gpio_mask = 0x1b;
 		spec->gpio_mute = 0x10;
 		/* GPIO0 High = EAPD, GPIO1 Low = Headphone Mute,
@@ -3919,7 +3932,7 @@ static int patch_stac9205(struct hda_codec *codec)
 		break;
 	default:
 		/* GPIO0 High = EAPD */
-		spec->gpio_mask = spec->gpio_dir = 0x1;
+		spec->eapd_mask = spec->gpio_mask = spec->gpio_dir = 0x1;
 		spec->gpio_data = 0x01;
 		break;
 	}
