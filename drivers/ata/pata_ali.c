@@ -36,7 +36,7 @@
 #define DRV_NAME "pata_ali"
 #define DRV_VERSION "0.7.5"
 
-int ali_atapi_dma = 0;
+static int ali_atapi_dma = 0;
 module_param_named(atapi_dma, ali_atapi_dma, int, 0644);
 MODULE_PARM_DESC(atapi_dma, "Enable ATAPI DMA (0=disable, 1=enable)");
 
