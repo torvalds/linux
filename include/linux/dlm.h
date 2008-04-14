@@ -22,10 +22,6 @@
 /* Lock levels and flags are here */
 #include <linux/dlmconstants.h>
 
-
-#define DLM_RESNAME_MAXLEN	64
-
-
 typedef void dlm_lockspace_t;
 
 /*

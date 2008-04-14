@@ -43,8 +43,6 @@
 #include <linux/dlm.h>
 #include "config.h"
 
-#define DLM_LOCKSPACE_LEN	64
-
 /* Size of the temp buffer midcomms allocates on the stack.
    We try to make this large enough so most messages fit.
    FIXME: should sctp make this unnecessary? */
