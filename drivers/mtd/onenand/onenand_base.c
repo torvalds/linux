@@ -329,6 +329,21 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 		printk(KERN_ERR "onenand_wait: controller error = 0x%04x\n", ctrl);
 		if (ctrl & ONENAND_CTRL_LOCK)
 			printk(KERN_ERR "onenand_wait: it's locked error.\n");
+		if (state == FL_READING) {
+			/*
+			 * A power loss while writing can result in a page
+			 * becoming unreadable.  When the device is mounted
+			 * again, reading that page gives controller errors.
+			 * Upper level software like JFFS2 treat -EIO as fatal,
+			 * refusing to mount at all.  That means it is necessary
+			 * to treat the error as an ECC error to allow recovery.
+			 * Note that typically in this case, the eraseblock can
+			 * still be erased and rewritten i.e. it has not become
+			 * a bad block.
+			 */
+			mtd->ecc_stats.failed++;
+			return -EBADMSG;
+		}
 		return -EIO;
 	}
 
