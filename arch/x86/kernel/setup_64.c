@@ -289,6 +289,18 @@ static void __init parse_setup_data(void)
 	}
 }
 
+#ifdef CONFIG_PCI_MMCONFIG
+extern void __cpuinit fam10h_check_enable_mmcfg(void);
+extern void __init check_enable_amd_mmconf_dmi(void);
+#else
+void __cpuinit fam10h_check_enable_mmcfg(void)
+{
+}
+void __init check_enable_amd_mmconf_dmi(void)
+{
+}
+#endif
+
 /*
  * setup_arch - architecture-specific boot-time initializations
  *
@@ -510,6 +522,9 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;
 #endif
 #endif
+
+	/* do this before identify_cpu for boot cpu */
+	check_enable_amd_mmconf_dmi();
 }
 
 static int __cpuinit get_model_name(struct cpuinfo_x86 *c)
@@ -696,14 +711,6 @@ static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 	if (c->x86_power & (1<<8))
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 }
-
-#ifdef CONFIG_PCI_MMCONFIG
-extern void __cpuinit fam10h_check_enable_mmcfg(void);
-#else
-void __cpuinit fam10h_check_enable_mmcfg(void)
-{
-}
-#endif
 
 static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 {

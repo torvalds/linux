@@ -6,11 +6,14 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/pci.h>
+#include <linux/dmi.h>
 #include <asm/pci-direct.h>
 #include <linux/sort.h>
 #include <asm/io.h>
 #include <asm/msr.h>
 #include <asm/acpi.h>
+
+#include "../pci/pci.h"
 
 struct pci_hostbridge_probe {
 	u32 bus;
@@ -176,6 +179,9 @@ void __cpuinit fam10h_check_enable_mmcfg(void)
 	u64 val;
 	u32 address;
 
+	if (!(pci_probe & PCI_CHECK_ENABLE_AMD_MMCONF))
+		return;
+
 	address = MSR_FAM10H_MMIO_CONF_BASE;
 	rdmsrl(address, val);
 
@@ -212,4 +218,26 @@ void __cpuinit fam10h_check_enable_mmcfg(void)
 	val |= fam10h_pci_mmconf_base | (8 << FAM10H_MMIO_CONF_BUSRANGE_SHIFT) |
 	       FAM10H_MMIO_CONF_ENABLE;
 	wrmsrl(address, val);
+}
+
+static int __devinit set_check_enable_amd_mmconf(const struct dmi_system_id *d)
+{
+        pci_probe |= PCI_CHECK_ENABLE_AMD_MMCONF;
+        return 0;
+}
+
+static struct dmi_system_id __devinitdata mmconf_dmi_table[] = {
+        {
+                .callback = set_check_enable_amd_mmconf,
+                .ident = "Sun Microsystems Machine",
+                .matches = {
+                        DMI_MATCH(DMI_SYS_VENDOR, "Sun Microsystems"),
+                },
+        },
+	{}
+};
+
+void __init check_enable_amd_mmconf_dmi(void)
+{
+	dmi_check_system(mmconf_dmi_table);
 }

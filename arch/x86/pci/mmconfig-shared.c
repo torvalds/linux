@@ -107,6 +107,9 @@ static const char __init *pci_mmcfg_amd_fam10h(void)
 	int i;
 	unsigned segnbits = 0, busnbits;
 
+	if (!(pci_probe & PCI_CHECK_ENABLE_AMD_MMCONF))
+		return NULL;
+
 	address = MSR_FAM10H_MMIO_CONF_BASE;
 	if (rdmsr_safe(address, &low, &high))
 		return NULL;
