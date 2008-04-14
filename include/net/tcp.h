@@ -1328,7 +1328,7 @@ struct tcp_seq_afinfo {
 	struct module		*owner;
 	char			*name;
 	sa_family_t		family;
-	struct file_operations	*seq_fops;
+	struct file_operations	seq_fops;
 	struct seq_operations	seq_ops;
 };
 
