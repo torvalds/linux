@@ -3979,10 +3979,12 @@ static int show_stat(struct kmem_cache *s, char *buf, enum stat_item si)
 
 	len = sprintf(buf, "%lu", sum);
 
+#ifdef CONFIG_SMP
 	for_each_online_cpu(cpu) {
 		if (data[cpu] && len < PAGE_SIZE - 20)
-			len += sprintf(buf + len, " c%d=%u", cpu, data[cpu]);
+			len += sprintf(buf + len, " C%d=%u", cpu, data[cpu]);
 	}
+#endif
 	kfree(data);
 	return len + sprintf(buf + len, "\n");
 }
