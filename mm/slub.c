@@ -1113,28 +1113,43 @@ static inline void dec_slabs_node(struct kmem_cache *s, int node,
 /*
  * Slab allocation and freeing
  */
+static inline struct page *alloc_slab_page(gfp_t flags, int node,
+					struct kmem_cache_order_objects oo)
+{
+	int order = oo_order(oo);
+
+	if (node == -1)
+		return alloc_pages(flags, order);
+	else
+		return alloc_pages_node(node, flags, order);
+}
+
 static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 {
 	struct page *page;
 	struct kmem_cache_order_objects oo = s->oo;
-	int order = oo_order(oo);
-	int pages = 1 << order;
 
 	flags |= s->allocflags;
 
-	if (node == -1)
-		page = alloc_pages(flags, order);
-	else
-		page = alloc_pages_node(node, flags, order);
+	page = alloc_slab_page(flags | __GFP_NOWARN | __GFP_NORETRY, node,
+									oo);
+	if (unlikely(!page)) {
+		oo = s->min;
+		/*
+		 * Allocation may have failed due to fragmentation.
+		 * Try a lower order alloc if possible
+		 */
+		page = alloc_slab_page(flags, node, oo);
+		if (!page)
+			return NULL;
 
-	if (!page)
-		return NULL;
-
+		stat(get_cpu_slab(s, raw_smp_processor_id()), ORDER_FALLBACK);
+	}
 	page->objects = oo_objects(oo);
 	mod_zone_page_state(page_zone(page),
 		(s->flags & SLAB_RECLAIM_ACCOUNT) ?
 		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
-		pages);
+		1 << oo_order(oo));
 
 	return page;
 }
@@ -2347,6 +2362,7 @@ static int calculate_sizes(struct kmem_cache *s)
 	 * Determine the number of objects per slab
 	 */
 	s->oo = oo_make(order, size);
+	s->min = oo_make(get_order(size), size);
 	if (oo_objects(s->oo) > oo_objects(s->max))
 		s->max = s->oo;
 
@@ -4163,7 +4179,7 @@ STAT_ATTR(DEACTIVATE_EMPTY, deactivate_empty);
 STAT_ATTR(DEACTIVATE_TO_HEAD, deactivate_to_head);
 STAT_ATTR(DEACTIVATE_TO_TAIL, deactivate_to_tail);
 STAT_ATTR(DEACTIVATE_REMOTE_FREES, deactivate_remote_frees);
-
+STAT_ATTR(ORDER_FALLBACK, order_fallback);
 #endif
 
 static struct attribute *slab_attrs[] = {
@@ -4216,6 +4232,7 @@ static struct attribute *slab_attrs[] = {
 	&deactivate_to_head_attr.attr,
 	&deactivate_to_tail_attr.attr,
 	&deactivate_remote_frees_attr.attr,
+	&order_fallback_attr.attr,
 #endif
 	NULL
 };
