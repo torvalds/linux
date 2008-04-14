@@ -886,7 +886,7 @@ static inline unsigned long slabs_node(struct kmem_cache *s, int node)
 	return atomic_long_read(&n->nr_slabs);
 }
 
-static inline void inc_slabs_node(struct kmem_cache *s, int node)
+static inline void inc_slabs_node(struct kmem_cache *s, int node, int objects)
 {
 	struct kmem_cache_node *n = get_node(s, node);
 
@@ -896,14 +896,17 @@ static inline void inc_slabs_node(struct kmem_cache *s, int node)
 	 * dilemma by deferring the increment of the count during
 	 * bootstrap (see early_kmem_cache_node_alloc).
 	 */
-	if (!NUMA_BUILD || n)
+	if (!NUMA_BUILD || n) {
 		atomic_long_inc(&n->nr_slabs);
+		atomic_long_add(objects, &n->total_objects);
+	}
 }
-static inline void dec_slabs_node(struct kmem_cache *s, int node)
+static inline void dec_slabs_node(struct kmem_cache *s, int node, int objects)
 {
 	struct kmem_cache_node *n = get_node(s, node);
 
 	atomic_long_dec(&n->nr_slabs);
+	atomic_long_sub(objects, &n->total_objects);
 }
 
 /* Object debug checks for alloc/free paths */
@@ -1101,9 +1104,12 @@ static inline unsigned long kmem_cache_flags(unsigned long objsize,
 
 static inline unsigned long slabs_node(struct kmem_cache *s, int node)
 							{ return 0; }
-static inline void inc_slabs_node(struct kmem_cache *s, int node) {}
-static inline void dec_slabs_node(struct kmem_cache *s, int node) {}
+static inline void inc_slabs_node(struct kmem_cache *s, int node,
+							int objects) {}
+static inline void dec_slabs_node(struct kmem_cache *s, int node,
+							int objects) {}
 #endif
+
 /*
  * Slab allocation and freeing
  */
@@ -1155,7 +1161,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 	if (!page)
 		goto out;
 
-	inc_slabs_node(s, page_to_nid(page));
+	inc_slabs_node(s, page_to_nid(page), page->objects);
 	page->slab = s;
 	page->flags |= 1 << PG_slab;
 	if (s->flags & (SLAB_DEBUG_FREE | SLAB_RED_ZONE | SLAB_POISON |
@@ -1230,7 +1236,7 @@ static void free_slab(struct kmem_cache *s, struct page *page)
 
 static void discard_slab(struct kmem_cache *s, struct page *page)
 {
-	dec_slabs_node(s, page_to_nid(page));
+	dec_slabs_node(s, page_to_nid(page), page->objects);
 	free_slab(s, page);
 }
 
@@ -2144,7 +2150,7 @@ static struct kmem_cache_node *early_kmem_cache_node_alloc(gfp_t gfpflags,
 	init_tracking(kmalloc_caches, n);
 #endif
 	init_kmem_cache_node(n);
-	inc_slabs_node(kmalloc_caches, node);
+	inc_slabs_node(kmalloc_caches, node, page->objects);
 
 	/*
 	 * lockdep requires consistent irq usage for each lock
@@ -2341,6 +2347,8 @@ static int calculate_sizes(struct kmem_cache *s)
 	 * Determine the number of objects per slab
 	 */
 	s->oo = oo_make(order, size);
+	if (oo_objects(s->oo) > oo_objects(s->max))
+		s->max = s->oo;
 
 	return !!oo_objects(s->oo);
 
@@ -2813,7 +2821,7 @@ int kmem_cache_shrink(struct kmem_cache *s)
 	struct kmem_cache_node *n;
 	struct page *page;
 	struct page *t;
-	int objects = oo_objects(s->oo);
+	int objects = oo_objects(s->max);
 	struct list_head *slabs_by_inuse =
 		kmalloc(sizeof(struct list_head) * objects, GFP_KERNEL);
 	unsigned long flags;
@@ -3276,7 +3284,8 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 }
 
 #if (defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)) || defined(CONFIG_SLABINFO)
-static unsigned long count_partial(struct kmem_cache_node *n)
+static unsigned long count_partial(struct kmem_cache_node *n,
+					int (*get_count)(struct page *))
 {
 	unsigned long flags;
 	unsigned long x = 0;
@@ -3284,9 +3293,24 @@ static unsigned long count_partial(struct kmem_cache_node *n)
 
 	spin_lock_irqsave(&n->list_lock, flags);
 	list_for_each_entry(page, &n->partial, lru)
-		x += page->inuse;
+		x += get_count(page);
 	spin_unlock_irqrestore(&n->list_lock, flags);
 	return x;
+}
+
+static int count_inuse(struct page *page)
+{
+	return page->inuse;
+}
+
+static int count_total(struct page *page)
+{
+	return page->objects;
+}
+
+static int count_free(struct page *page)
+{
+	return page->objects - page->inuse;
 }
 #endif
 
@@ -3376,7 +3400,7 @@ static long validate_slab_cache(struct kmem_cache *s)
 {
 	int node;
 	unsigned long count = 0;
-	unsigned long *map = kmalloc(BITS_TO_LONGS(oo_objects(s->oo)) *
+	unsigned long *map = kmalloc(BITS_TO_LONGS(oo_objects(s->max)) *
 				sizeof(unsigned long), GFP_KERNEL);
 
 	if (!map)
@@ -3676,22 +3700,23 @@ static int list_locations(struct kmem_cache *s, char *buf,
 }
 
 enum slab_stat_type {
-	SL_FULL,
-	SL_PARTIAL,
-	SL_CPU,
-	SL_OBJECTS
+	SL_ALL,			/* All slabs */
+	SL_PARTIAL,		/* Only partially allocated slabs */
+	SL_CPU,			/* Only slabs used for cpu caches */
+	SL_OBJECTS,		/* Determine allocated objects not slabs */
+	SL_TOTAL		/* Determine object capacity not slabs */
 };
 
-#define SO_FULL		(1 << SL_FULL)
+#define SO_ALL		(1 << SL_ALL)
 #define SO_PARTIAL	(1 << SL_PARTIAL)
 #define SO_CPU		(1 << SL_CPU)
 #define SO_OBJECTS	(1 << SL_OBJECTS)
+#define SO_TOTAL	(1 << SL_TOTAL)
 
 static ssize_t show_slab_objects(struct kmem_cache *s,
 			    char *buf, unsigned long flags)
 {
 	unsigned long total = 0;
-	int cpu;
 	int node;
 	int x;
 	unsigned long *nodes;
@@ -3702,56 +3727,60 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
 		return -ENOMEM;
 	per_cpu = nodes + nr_node_ids;
 
-	for_each_possible_cpu(cpu) {
-		struct page *page;
-		struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
+	if (flags & SO_CPU) {
+		int cpu;
 
-		if (!c)
-			continue;
+		for_each_possible_cpu(cpu) {
+			struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
 
-		page = c->page;
-		node = c->node;
-		if (node < 0)
-			continue;
-		if (page) {
-			if (flags & SO_CPU) {
-				if (flags & SO_OBJECTS)
-					x = page->inuse;
+			if (!c || c->node < 0)
+				continue;
+
+			if (c->page) {
+					if (flags & SO_TOTAL)
+						x = c->page->objects;
+				else if (flags & SO_OBJECTS)
+					x = c->page->inuse;
 				else
 					x = 1;
+
 				total += x;
-				nodes[node] += x;
+				nodes[c->node] += x;
 			}
-			per_cpu[node]++;
+			per_cpu[c->node]++;
 		}
 	}
 
-	for_each_node_state(node, N_NORMAL_MEMORY) {
-		struct kmem_cache_node *n = get_node(s, node);
+	if (flags & SO_ALL) {
+		for_each_node_state(node, N_NORMAL_MEMORY) {
+			struct kmem_cache_node *n = get_node(s, node);
 
-		if (flags & SO_PARTIAL) {
-			if (flags & SO_OBJECTS)
-				x = count_partial(n);
+		if (flags & SO_TOTAL)
+			x = atomic_long_read(&n->total_objects);
+		else if (flags & SO_OBJECTS)
+			x = atomic_long_read(&n->total_objects) -
+				count_partial(n, count_free);
+
+			else
+				x = atomic_long_read(&n->nr_slabs);
+			total += x;
+			nodes[node] += x;
+		}
+
+	} else if (flags & SO_PARTIAL) {
+		for_each_node_state(node, N_NORMAL_MEMORY) {
+			struct kmem_cache_node *n = get_node(s, node);
+
+			if (flags & SO_TOTAL)
+				x = count_partial(n, count_total);
+			else if (flags & SO_OBJECTS)
+				x = count_partial(n, count_inuse);
 			else
 				x = n->nr_partial;
 			total += x;
 			nodes[node] += x;
 		}
-
-		if (flags & SO_FULL) {
-			int full_slabs = atomic_long_read(&n->nr_slabs)
-					- per_cpu[node]
-					- n->nr_partial;
-
-			if (flags & SO_OBJECTS)
-				x = full_slabs * oo_objects(s->oo);
-			else
-				x = full_slabs;
-			total += x;
-			nodes[node] += x;
-		}
 	}
-
 	x = sprintf(buf, "%lu", total);
 #ifdef CONFIG_NUMA
 	for_each_node_state(node, N_NORMAL_MEMORY)
@@ -3852,7 +3881,7 @@ SLAB_ATTR_RO(aliases);
 
 static ssize_t slabs_show(struct kmem_cache *s, char *buf)
 {
-	return show_slab_objects(s, buf, SO_FULL|SO_PARTIAL|SO_CPU);
+	return show_slab_objects(s, buf, SO_ALL);
 }
 SLAB_ATTR_RO(slabs);
 
@@ -3870,9 +3899,21 @@ SLAB_ATTR_RO(cpu_slabs);
 
 static ssize_t objects_show(struct kmem_cache *s, char *buf)
 {
-	return show_slab_objects(s, buf, SO_FULL|SO_PARTIAL|SO_CPU|SO_OBJECTS);
+	return show_slab_objects(s, buf, SO_ALL|SO_OBJECTS);
 }
 SLAB_ATTR_RO(objects);
+
+static ssize_t objects_partial_show(struct kmem_cache *s, char *buf)
+{
+	return show_slab_objects(s, buf, SO_PARTIAL|SO_OBJECTS);
+}
+SLAB_ATTR_RO(objects_partial);
+
+static ssize_t total_objects_show(struct kmem_cache *s, char *buf)
+{
+	return show_slab_objects(s, buf, SO_ALL|SO_TOTAL);
+}
+SLAB_ATTR_RO(total_objects);
 
 static ssize_t sanity_checks_show(struct kmem_cache *s, char *buf)
 {
@@ -4131,6 +4172,8 @@ static struct attribute *slab_attrs[] = {
 	&objs_per_slab_attr.attr,
 	&order_attr.attr,
 	&objects_attr.attr,
+	&objects_partial_attr.attr,
+	&total_objects_attr.attr,
 	&slabs_attr.attr,
 	&partial_attr.attr,
 	&cpu_slabs_attr.attr,
@@ -4459,7 +4502,8 @@ static int s_show(struct seq_file *m, void *p)
 	unsigned long nr_partials = 0;
 	unsigned long nr_slabs = 0;
 	unsigned long nr_inuse = 0;
-	unsigned long nr_objs;
+	unsigned long nr_objs = 0;
+	unsigned long nr_free = 0;
 	struct kmem_cache *s;
 	int node;
 
@@ -4473,11 +4517,11 @@ static int s_show(struct seq_file *m, void *p)
 
 		nr_partials += n->nr_partial;
 		nr_slabs += atomic_long_read(&n->nr_slabs);
-		nr_inuse += count_partial(n);
+		nr_objs += atomic_long_read(&n->total_objects);
+		nr_free += count_partial(n, count_free);
 	}
 
-	nr_objs = nr_slabs * oo_objects(s->oo);
-	nr_inuse += (nr_slabs - nr_partials) * oo_objects(s->oo);
+	nr_inuse = nr_objs - nr_free;
 
 	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d", s->name, nr_inuse,
 		   nr_objs, s->size, oo_objects(s->oo),

@@ -48,6 +48,7 @@ struct kmem_cache_node {
 	struct list_head partial;
 #ifdef CONFIG_SLUB_DEBUG
 	atomic_long_t nr_slabs;
+	atomic_long_t total_objects;
 	struct list_head full;
 #endif
 };
@@ -79,6 +80,7 @@ struct kmem_cache {
 	struct kmem_cache_node local_node;
 
 	/* Allocation and freeing of slabs */
+	struct kmem_cache_order_objects max;
 	gfp_t allocflags;	/* gfp flags to use on each alloc */
 	int refcount;		/* Refcount for slab cache destroy */
 	void (*ctor)(struct kmem_cache *, void *);
