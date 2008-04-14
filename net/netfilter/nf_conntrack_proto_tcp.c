@@ -1129,11 +1129,13 @@ static int nlattr_to_tcp(struct nlattr *cda[], struct nf_conn *ct)
 	if (err < 0)
 		return err;
 
-	if (!tb[CTA_PROTOINFO_TCP_STATE])
+	if (tb[CTA_PROTOINFO_TCP_STATE] &&
+	    nla_get_u8(tb[CTA_PROTOINFO_TCP_STATE]) >= TCP_CONNTRACK_MAX)
 		return -EINVAL;
 
 	write_lock_bh(&tcp_lock);
-	ct->proto.tcp.state = nla_get_u8(tb[CTA_PROTOINFO_TCP_STATE]);
+	if (tb[CTA_PROTOINFO_TCP_STATE])
+		ct->proto.tcp.state = nla_get_u8(tb[CTA_PROTOINFO_TCP_STATE]);
 
 	if (tb[CTA_PROTOINFO_TCP_FLAGS_ORIGINAL]) {
 		struct nf_ct_tcp_flags *attr =
