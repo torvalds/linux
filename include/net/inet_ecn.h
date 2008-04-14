@@ -47,7 +47,7 @@ static inline __u8 INET_ECN_encapsulate(__u8 outer, __u8 inner)
     } while (0)
 
 #define	IP6_ECN_flow_xmit(sk, label) do {				\
-	if (INET_ECN_is_capable(inet_sk(sk)->tos))			\
+	if (INET_ECN_is_capable(inet6_sk(sk)->tclass))			\
 		(label) |= htonl(INET_ECN_ECT_0 << 20);			\
     } while (0)
 
