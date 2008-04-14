@@ -295,7 +295,8 @@ static void dccp_v6_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 	struct ipv6hdr *rxip6h;
 	struct sk_buff *skb;
 	struct flowi fl;
-	struct sock *ctl_sk = init_net.dccp.v6_ctl_sk;
+	struct net *net = dev_net(rxskb->dst->dev);
+	struct sock *ctl_sk = net->dccp.v6_ctl_sk;
 
 	if (dccp_hdr(rxskb)->dccph_type == DCCP_PKT_RESET)
 		return;
@@ -1173,11 +1174,16 @@ static struct inet_protosw dccp_v6_protosw = {
 
 static int dccp_v6_init_net(struct net *net)
 {
-	return 0;
+	int err;
+
+	err = inet_ctl_sock_create(&net->dccp.v6_ctl_sk, PF_INET6,
+				   SOCK_DCCP, IPPROTO_DCCP, net);
+	return err;
 }
 
 static void dccp_v6_exit_net(struct net *net)
 {
+	inet_ctl_sock_destroy(net->dccp.v6_ctl_sk);
 }
 
 static struct pernet_operations dccp_v6_ops = {
@@ -1198,11 +1204,6 @@ static int __init dccp_v6_init(void)
 
 	inet6_register_protosw(&dccp_v6_protosw);
 
-	err = inet_ctl_sock_create(&init_net.dccp.v6_ctl_sk, PF_INET6,
-				   SOCK_DCCP, IPPROTO_DCCP, &init_net);
-	if (err != 0)
-		goto out_unregister_protosw;
-
 	err = register_pernet_subsys(&dccp_v6_ops);
 	if (err != 0)
 		goto out_destroy_ctl_sock;
@@ -1210,8 +1211,6 @@ out:
 	return err;
 
 out_destroy_ctl_sock:
-	inet_ctl_sock_destroy(init_net.dccp.v6_ctl_sk);
-out_unregister_protosw:
 	inet6_del_protocol(&dccp_v6_protocol, IPPROTO_DCCP);
 	inet6_unregister_protosw(&dccp_v6_protosw);
 out_unregister_proto:
@@ -1222,7 +1221,6 @@ out_unregister_proto:
 static void __exit dccp_v6_exit(void)
 {
 	unregister_pernet_subsys(&dccp_v6_ops);
-	inet_ctl_sock_destroy(init_net.dccp.v6_ctl_sk);
 	inet6_del_protocol(&dccp_v6_protocol, IPPROTO_DCCP);
 	inet6_unregister_protosw(&dccp_v6_protosw);
 	proto_unregister(&dccp_v6_prot);
