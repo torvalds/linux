@@ -2211,46 +2211,19 @@ static void tcp_seq_stop(struct seq_file *seq, void *v)
 static int tcp_seq_open(struct inode *inode, struct file *file)
 {
 	struct tcp_seq_afinfo *afinfo = PDE(inode)->data;
-	struct seq_file *seq;
 	struct tcp_iter_state *s;
-	struct net *net;
-	int rc;
+	int err;
 
 	if (unlikely(afinfo == NULL))
 		return -EINVAL;
 
-	s = kzalloc(sizeof(*s), GFP_KERNEL);
-	if (!s)
-		return -ENOMEM;
+	err = seq_open_net(inode, file, &afinfo->seq_ops,
+			  sizeof(struct tcp_iter_state));
+	if (err < 0)
+		return err;
 
-	rc = -ENXIO;
-	net = get_proc_net(inode);
-	if (!net)
-		goto out_kfree;
-
+	s = ((struct seq_file *)file->private_data)->private;
 	s->family		= afinfo->family;
-	s->p.net                = net;
-
-	rc = seq_open(file, &afinfo->seq_ops);
-	if (rc)
-		goto out_put_net;
-	seq = file->private_data;
-	seq->private = s;
-out:
-	return rc;
-out_put_net:
-	put_net(net);
-out_kfree:
-	kfree(s);
-	goto out;
-}
-
-static int tcp_seq_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-
-	put_net(seq_file_net(seq));
-	seq_release_private(inode, file);
 	return 0;
 }
 
@@ -2263,7 +2236,7 @@ int tcp_proc_register(struct net *net, struct tcp_seq_afinfo *afinfo)
 	afinfo->seq_fops->open		= tcp_seq_open;
 	afinfo->seq_fops->read		= seq_read;
 	afinfo->seq_fops->llseek	= seq_lseek;
-	afinfo->seq_fops->release	= tcp_seq_release;
+	afinfo->seq_fops->release	= seq_release_net;
 
 	afinfo->seq_ops.start		= tcp_seq_start;
 	afinfo->seq_ops.next		= tcp_seq_next;
