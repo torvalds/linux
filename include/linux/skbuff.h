@@ -700,6 +700,13 @@ static inline void __skb_queue_after(struct sk_buff_head *list,
 extern void skb_append(struct sk_buff *old, struct sk_buff *newsk,
 		       struct sk_buff_head *list);
 
+static inline void __skb_queue_before(struct sk_buff_head *list,
+				      struct sk_buff *next,
+				      struct sk_buff *newsk)
+{
+	__skb_insert(newsk, next->prev, next, list);
+}
+
 /**
  *	__skb_queue_head - queue a buffer at the list head
  *	@list: list to use
@@ -731,14 +738,7 @@ extern void skb_queue_tail(struct sk_buff_head *list, struct sk_buff *newsk);
 static inline void __skb_queue_tail(struct sk_buff_head *list,
 				   struct sk_buff *newsk)
 {
-	struct sk_buff *prev, *next;
-
-	list->qlen++;
-	next = (struct sk_buff *)list;
-	prev = next->prev;
-	newsk->next = next;
-	newsk->prev = prev;
-	next->prev  = prev->next = newsk;
+	__skb_queue_before(list, (struct sk_buff *)list, newsk);
 }
 
 /*
