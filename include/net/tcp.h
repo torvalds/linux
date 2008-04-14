@@ -1333,7 +1333,7 @@ struct tcp_seq_afinfo {
 };
 
 struct tcp_iter_state {
-	struct net              *net;
+	struct seq_net_private	p;
 	sa_family_t		family;
 	enum tcp_seq_states	state;
 	struct sock		*syn_wait_sk;

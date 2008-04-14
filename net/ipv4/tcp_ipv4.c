@@ -1954,7 +1954,7 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 	struct hlist_node *node;
 	struct sock *sk = cur;
 	struct tcp_iter_state* st = seq->private;
-	struct net *net = st->net;
+	struct net *net = seq_file_net(seq);
 
 	if (!sk) {
 		st->bucket = 0;
@@ -2035,7 +2035,7 @@ static void *listening_get_idx(struct seq_file *seq, loff_t *pos)
 static void *established_get_first(struct seq_file *seq)
 {
 	struct tcp_iter_state* st = seq->private;
-	struct net *net = st->net;
+	struct net *net = seq_file_net(seq);
 	void *rc = NULL;
 
 	for (st->bucket = 0; st->bucket < tcp_hashinfo.ehash_size; ++st->bucket) {
@@ -2076,7 +2076,7 @@ static void *established_get_next(struct seq_file *seq, void *cur)
 	struct inet_timewait_sock *tw;
 	struct hlist_node *node;
 	struct tcp_iter_state* st = seq->private;
-	struct net *net = st->net;
+	struct net *net = seq_file_net(seq);
 
 	++st->num;
 
@@ -2233,7 +2233,7 @@ static int tcp_seq_open(struct inode *inode, struct file *file)
 	s->seq_ops.next		= tcp_seq_next;
 	s->seq_ops.show		= afinfo->seq_show;
 	s->seq_ops.stop		= tcp_seq_stop;
-	s->net                  = net;
+	s->p.net                = net;
 
 	rc = seq_open(file, &s->seq_ops);
 	if (rc)
@@ -2252,9 +2252,8 @@ out_kfree:
 static int tcp_seq_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
-	struct tcp_iter_state *s = seq->private;
 
-	put_net(s->net);
+	put_net(seq_file_net(seq));
 	seq_release_private(inode, file);
 	return 0;
 }
