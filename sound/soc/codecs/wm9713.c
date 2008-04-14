@@ -1132,8 +1132,17 @@ static int wm9713_soc_suspend(struct platform_device *pdev,
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->codec;
+	u16 reg;
 
-	wm9713_dapm_event(codec, SNDRV_CTL_POWER_D3cold);
+	/* Disable everything except touchpanel - that will be handled
+	 * by the touch driver and left disabled if touch is not in
+	 * use. */
+	reg = ac97_read(codec, AC97_EXTENDED_MID);
+	ac97_write(codec, AC97_EXTENDED_MID, reg | 0x7fff);
+	ac97_write(codec, AC97_EXTENDED_MSTATUS, 0xffff);
+	ac97_write(codec, AC97_POWERDOWN, 0x6f00);
+	ac97_write(codec, AC97_POWERDOWN, 0xffff);
+
 	return 0;
 }
 
