@@ -425,6 +425,8 @@ config ARCH_SA1100
 	select ARCH_MTD_XIP
 	select GENERIC_GPIO
 	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	select TICK_ONESHOT
 	select HAVE_IDE
 	select HAVE_GPIO_LIB
 	help
