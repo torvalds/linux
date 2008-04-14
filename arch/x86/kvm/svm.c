@@ -603,7 +603,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 		save->cr3 = 0;
 		save->cr4 = 0;
 	}
-
+	force_new_asid(&svm->vcpu);
 }
 
 static int svm_vcpu_reset(struct kvm_vcpu *vcpu)
