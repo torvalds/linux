@@ -341,14 +341,14 @@ static noinline void __stack_chk_test_func(void)
 	 * Besides, if we would, the test is already failed anyway so
 	 * time to pull the emergency brake on it.
 	 */
-	if ((unsigned long)__builtin_return_address(0) == 
+	if ((unsigned long)__builtin_return_address(0) ==
 					*(((unsigned long *)&foo)+1)) {
 		printk(KERN_ERR "No -fstack-protector-stack-frame!\n");
 		return;
 	}
 #ifdef CONFIG_FRAME_POINTER
 	/* We also don't want to clobber the frame pointer */
-	if ((unsigned long)__builtin_return_address(0) == 
+	if ((unsigned long)__builtin_return_address(0) ==
 					*(((unsigned long *)&foo)+2)) {
 		printk(KERN_ERR "No -fstack-protector-stack-frame!\n");
 		return;
