@@ -1818,7 +1818,7 @@ static int slub_nomerge;
  * system components. Generally order 0 allocations should be preferred since
  * order 0 does not cause fragmentation in the page allocator. Larger objects
  * be problematic to put into order 0 slabs because there may be too much
- * unused space left. We go to a higher order if more than 1/8th of the slab
+ * unused space left. We go to a higher order if more than 1/16th of the slab
  * would be wasted.
  *
  * In order to reach satisfactory performance we must ensure that a minimum
@@ -1883,7 +1883,7 @@ static inline int calculate_order(int size)
 	if (!min_objects)
 		min_objects = 4 * (fls(nr_cpu_ids) + 1);
 	while (min_objects > 1) {
-		fraction = 8;
+		fraction = 16;
 		while (fraction >= 4) {
 			order = slab_order(size, min_objects,
 						slub_max_order, fraction);
