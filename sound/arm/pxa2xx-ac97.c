@@ -424,6 +424,7 @@ static struct platform_driver pxa2xx_ac97_driver = {
 	.resume		= pxa2xx_ac97_resume,
 	.driver		= {
 		.name	= "pxa2xx-ac97",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -443,3 +444,4 @@ module_exit(pxa2xx_ac97_exit);
 MODULE_AUTHOR("Nicolas Pitre");
 MODULE_DESCRIPTION("AC97 driver for the Intel PXA2xx chip");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:pxa2xx-ac97");

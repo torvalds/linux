@@ -1328,11 +1328,15 @@ static int snd_ml403_ac97cr_remove(struct platform_device *pfdev)
 	return 0;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:" SND_ML403_AC97CR_DRIVER);
+
 static struct platform_driver snd_ml403_ac97cr_driver = {
 	.probe = snd_ml403_ac97cr_probe,
 	.remove = snd_ml403_ac97cr_remove,
 	.driver = {
 		.name = SND_ML403_AC97CR_DRIVER,
+		.owner = THIS_MODULE,
 	},
 };
 
