@@ -145,6 +145,7 @@ static int parse_addr(const struct nf_conn *ct, const char *cp,
 	int family = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
 	int ret = 0;
 
+	memset(addr, 0, sizeof(*addr));
 	switch (family) {
 	case AF_INET:
 		ret = in4_pton(cp, limit - cp, (u8 *)&addr->ip, -1, &end);
