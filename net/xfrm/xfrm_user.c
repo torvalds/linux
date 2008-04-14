@@ -1343,14 +1343,14 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 		if (err)
 			return err;
 
+		ctx = NULL;
 		if (rt) {
 			struct xfrm_user_sec_ctx *uctx = nla_data(rt);
 
 			err = security_xfrm_policy_alloc(&ctx, uctx);
 			if (err)
 				return err;
-		} else
-			ctx = NULL;
+		}
 		xp = xfrm_policy_bysel_ctx(type, p->dir, &p->sel, ctx,
 					   delete, &err);
 		security_xfrm_policy_free(ctx);
@@ -1579,14 +1579,14 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 		if (err)
 			return err;
 
+		ctx = NULL;
 		if (rt) {
 			struct xfrm_user_sec_ctx *uctx = nla_data(rt);
 
 			err = security_xfrm_policy_alloc(&ctx, uctx);
 			if (err)
 				return err;
-		} else
-			ctx = NULL;
+		}
 		xp = xfrm_policy_bysel_ctx(type, p->dir, &p->sel, ctx, 0, &err);
 		security_xfrm_policy_free(ctx);
 	}
