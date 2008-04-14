@@ -220,6 +220,9 @@ rpcauth_destroy_credcache(struct rpc_auth *auth)
 }
 EXPORT_SYMBOL_GPL(rpcauth_destroy_credcache);
 
+
+#define RPC_AUTH_EXPIRY_MORATORIUM (60 * HZ)
+
 /*
  * Remove stale credentials. Avoid sleeping inside the loop.
  */
@@ -228,12 +231,17 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 {
 	spinlock_t *cache_lock;
 	struct rpc_cred *cred;
+	unsigned long expired = jiffies - RPC_AUTH_EXPIRY_MORATORIUM;
 
 	while (!list_empty(&cred_unused)) {
 		cred = list_entry(cred_unused.next, struct rpc_cred, cr_lru);
 		list_del_init(&cred->cr_lru);
 		number_cred_unused--;
 		if (atomic_read(&cred->cr_count) != 0)
+			continue;
+		/* Enforce a 5 second garbage collection moratorium */
+		if (time_in_range(cred->cr_expire, expired, jiffies) &&
+		    test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) != 0)
 			continue;
 		cache_lock = &cred->cr_auth->au_credcache->lock;
 		spin_lock(cache_lock);
