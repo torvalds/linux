@@ -510,8 +510,7 @@ EXPORT_SYMBOL(svc_destroy);
 static int
 svc_init_buffer(struct svc_rqst *rqstp, unsigned int size)
 {
-	int pages;
-	int arghi;
+	unsigned int pages, arghi;
 
 	pages = size / PAGE_SIZE + 1; /* extra page as we hold both request and reply.
 				       * We assume one is at most one page
@@ -525,7 +524,7 @@ svc_init_buffer(struct svc_rqst *rqstp, unsigned int size)
 		rqstp->rq_pages[arghi++] = p;
 		pages--;
 	}
-	return ! pages;
+	return pages == 0;
 }
 
 /*
