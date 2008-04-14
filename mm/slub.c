@@ -2412,10 +2412,6 @@ EXPORT_SYMBOL(kmem_cache_destroy);
 struct kmem_cache kmalloc_caches[PAGE_SHIFT + 1] __cacheline_aligned;
 EXPORT_SYMBOL(kmalloc_caches);
 
-#ifdef CONFIG_ZONE_DMA
-static struct kmem_cache *kmalloc_caches_dma[PAGE_SHIFT + 1];
-#endif
-
 static int __init setup_slub_min_order(char *str)
 {
 	get_option(&str, &slub_min_order);
@@ -2475,6 +2471,7 @@ panic:
 }
 
 #ifdef CONFIG_ZONE_DMA
+static struct kmem_cache *kmalloc_caches_dma[PAGE_SHIFT + 1];
 
 static void sysfs_add_func(struct work_struct *w)
 {
