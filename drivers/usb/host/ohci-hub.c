@@ -106,7 +106,8 @@ __acquires(ohci->lock)
 	if (ohci_to_hcd(ohci)->self.root_hub->do_remote_wakeup || autostop) {
 		ohci->hc_control |= OHCI_CTRL_RWE;
 	} else {
-		ohci_writel (ohci, OHCI_INTR_RHSC, &ohci->regs->intrdisable);
+		ohci_writel(ohci, OHCI_INTR_RHSC | OHCI_INTR_RD,
+				&ohci->regs->intrdisable);
 		ohci->hc_control &= ~OHCI_CTRL_RWE;
 	}
 
