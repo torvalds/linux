@@ -908,11 +908,17 @@ out_nolock:
 		if (err < 0)
 			num_written = err;
 	} else if (num_written > 0 && (file->f_flags & O_DIRECT)) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
+		do_sync_file_range(file, start_pos,
+				      start_pos + num_written - 1,
+				      SYNC_FILE_RANGE_WRITE |
+				      SYNC_FILE_RANGE_WAIT_AFTER);
+#else
 		do_sync_mapping_range(inode->i_mapping, start_pos,
 				      start_pos + num_written - 1,
 				      SYNC_FILE_RANGE_WRITE |
 				      SYNC_FILE_RANGE_WAIT_AFTER);
-
+#endif
 		invalidate_mapping_pages(inode->i_mapping,
 		      start_pos >> PAGE_CACHE_SHIFT,
 		     (start_pos + num_written - 1) >> PAGE_CACHE_SHIFT);

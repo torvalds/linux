@@ -850,7 +850,9 @@ void btrfs_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 
 static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
 	bdi_init(bdi);
+#endif
 	bdi->ra_pages	= default_backing_dev_info.ra_pages * 4;
 	bdi->state		= 0;
 	bdi->capabilities	= default_backing_dev_info.capabilities;
@@ -950,7 +952,7 @@ void btrfs_end_io_csum(struct work_struct *work)
 		bio->bi_end_io = end_io_wq->end_io;
 		kfree(end_io_wq);
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
-		bio_endio(bio, bio->bi_size, err);
+		bio_endio(bio, bio->bi_size, error);
 #else
 		bio_endio(bio, error);
 #endif
@@ -1037,10 +1039,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 	fs_info->do_barriers = 1;
 
-	INIT_WORK(&fs_info->end_io_work, btrfs_end_io_csum);
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+	INIT_WORK(&fs_info->end_io_work, btrfs_end_io_csum, fs_info);
 	INIT_WORK(&fs_info->trans_work, btrfs_transaction_cleaner, fs_info);
 #else
+	INIT_WORK(&fs_info->end_io_work, btrfs_end_io_csum);
 	INIT_DELAYED_WORK(&fs_info->trans_work, btrfs_transaction_cleaner);
 #endif
 	BTRFS_I(fs_info->btree_inode)->root = tree_root;
@@ -1173,7 +1176,9 @@ fail:
 	close_all_devices(fs_info);
 	kfree(extent_root);
 	kfree(tree_root);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
 	bdi_destroy(&fs_info->bdi);
+#endif
 	kfree(fs_info);
 	return ERR_PTR(err);
 }
@@ -1407,7 +1412,10 @@ int close_ctree(struct btrfs_root *root)
 #endif
 	close_all_devices(fs_info);
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
 	bdi_destroy(&fs_info->bdi);
+#endif
 
 	kfree(fs_info->extent_root);
 	kfree(fs_info->tree_root);

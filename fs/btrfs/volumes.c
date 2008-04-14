@@ -126,6 +126,7 @@ static int device_list_add(const char *path,
 		}
 		device->devid = devid;
 		device->barriers = 1;
+		spin_lock_init(&device->io_lock);
 		device->name = kstrdup(path, GFP_NOFS);
 		if (!device->name) {
 			kfree(device);
@@ -759,8 +760,8 @@ printk("alloc chunk start %Lu size %Lu from dev %Lu type %Lu\n", key.objectid, c
 	em_tree = &extent_root->fs_info->mapping_tree.map_tree;
 	spin_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em);
-	BUG_ON(ret);
 	spin_unlock(&em_tree->lock);
+	BUG_ON(ret);
 	free_extent_map(em);
 	return ret;
 }
@@ -799,6 +800,7 @@ int btrfs_num_copies(struct btrfs_mapping_tree *map_tree, u64 logical, u64 len)
 
 	spin_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, logical, len);
+	spin_unlock(&em_tree->lock);
 	BUG_ON(!em);
 
 	BUG_ON(em->start > logical || em->start + em->len < logical);
@@ -808,7 +810,6 @@ int btrfs_num_copies(struct btrfs_mapping_tree *map_tree, u64 logical, u64 len)
 	else
 		ret = 1;
 	free_extent_map(em);
-	spin_unlock(&em_tree->lock);
 	return ret;
 }
 
@@ -840,6 +841,7 @@ again:
 
 	spin_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, logical, *length);
+	spin_unlock(&em_tree->lock);
 	BUG_ON(!em);
 
 	BUG_ON(em->start > logical || em->start + em->len < logical);
@@ -855,7 +857,6 @@ again:
 	    ((map->type & BTRFS_BLOCK_GROUP_RAID1) ||
 	     (map->type & BTRFS_BLOCK_GROUP_DUP))) {
 		stripes_allocated = map->num_stripes;
-		spin_unlock(&em_tree->lock);
 		free_extent_map(em);
 		kfree(multi);
 		goto again;
@@ -932,7 +933,6 @@ again:
 	*multi_ret = multi;
 out:
 	free_extent_map(em);
-	spin_unlock(&em_tree->lock);
 	return 0;
 }
 
@@ -1060,16 +1060,15 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 	length = key->offset;
 	spin_lock(&map_tree->map_tree.lock);
 	em = lookup_extent_mapping(&map_tree->map_tree, logical, 1);
+	spin_unlock(&map_tree->map_tree.lock);
 
 	/* already mapped? */
 	if (em && em->start <= logical && em->start + em->len > logical) {
 		free_extent_map(em);
-		spin_unlock(&map_tree->map_tree.lock);
 		return 0;
 	} else if (em) {
 		free_extent_map(em);
 	}
-	spin_unlock(&map_tree->map_tree.lock);
 
 	map = kzalloc(sizeof(*map), GFP_NOFS);
 	if (!map)
@@ -1110,8 +1109,8 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 
 	spin_lock(&map_tree->map_tree.lock);
 	ret = add_extent_mapping(&map_tree->map_tree, em);
-	BUG_ON(ret);
 	spin_unlock(&map_tree->map_tree.lock);
+	BUG_ON(ret);
 	free_extent_map(em);
 
 	return 0;
@@ -1154,7 +1153,7 @@ static int read_one_dev(struct btrfs_root *root,
 			return -ENOMEM;
 		list_add(&device->dev_list,
 			 &root->fs_info->fs_devices->devices);
-		device->total_ios = 0;
+		device->barriers = 1;
 		spin_lock_init(&device->io_lock);
 	}
 
