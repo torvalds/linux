@@ -209,7 +209,7 @@ static int exp_gre(struct nf_conn *ct, __be16 callid, __be16 peer_callid)
 	/* original direction, PNS->PAC */
 	dir = IP_CT_DIR_ORIGINAL;
 	nf_ct_expect_init(exp_orig, NF_CT_EXPECT_CLASS_DEFAULT,
-			  ct->tuplehash[dir].tuple.src.l3num,
+			  nf_ct_l3num(ct),
 			  &ct->tuplehash[dir].tuple.src.u3,
 			  &ct->tuplehash[dir].tuple.dst.u3,
 			  IPPROTO_GRE, &peer_callid, &callid);
@@ -218,7 +218,7 @@ static int exp_gre(struct nf_conn *ct, __be16 callid, __be16 peer_callid)
 	/* reply direction, PAC->PNS */
 	dir = IP_CT_DIR_REPLY;
 	nf_ct_expect_init(exp_reply, NF_CT_EXPECT_CLASS_DEFAULT,
-			  ct->tuplehash[dir].tuple.src.l3num,
+			  nf_ct_l3num(ct),
 			  &ct->tuplehash[dir].tuple.src.u3,
 			  &ct->tuplehash[dir].tuple.dst.u3,
 			  IPPROTO_GRE, &callid, &peer_callid);

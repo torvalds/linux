@@ -142,11 +142,10 @@ static int parse_addr(const struct nf_conn *ct, const char *cp,
                       const char *limit)
 {
 	const char *end;
-	int family = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
 	int ret = 0;
 
 	memset(addr, 0, sizeof(*addr));
-	switch (family) {
+	switch (nf_ct_l3num(ct)) {
 	case AF_INET:
 		ret = in4_pton(cp, limit - cp, (u8 *)&addr->ip, -1, &end);
 		break;
@@ -740,7 +739,6 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb,
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	union nf_inet_addr *saddr;
 	struct nf_conntrack_tuple tuple;
-	int family = ct->tuplehash[!dir].tuple.src.l3num;
 	int direct_rtp = 0, skip_expect = 0, ret = NF_DROP;
 	u_int16_t base_port;
 	__be16 rtp_port, rtcp_port;
@@ -770,7 +768,7 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb,
 	memset(&tuple, 0, sizeof(tuple));
 	if (saddr)
 		tuple.src.u3 = *saddr;
-	tuple.src.l3num		= family;
+	tuple.src.l3num		= nf_ct_l3num(ct);
 	tuple.dst.protonum	= IPPROTO_UDP;
 	tuple.dst.u3		= *daddr;
 	tuple.dst.u.udp.port	= port;
@@ -815,13 +813,13 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb,
 	rtp_exp = nf_ct_expect_alloc(ct);
 	if (rtp_exp == NULL)
 		goto err1;
-	nf_ct_expect_init(rtp_exp, class, family, saddr, daddr,
+	nf_ct_expect_init(rtp_exp, class, nf_ct_l3num(ct), saddr, daddr,
 			  IPPROTO_UDP, NULL, &rtp_port);
 
 	rtcp_exp = nf_ct_expect_alloc(ct);
 	if (rtcp_exp == NULL)
 		goto err2;
-	nf_ct_expect_init(rtcp_exp, class, family, saddr, daddr,
+	nf_ct_expect_init(rtcp_exp, class, nf_ct_l3num(ct), saddr, daddr,
 			  IPPROTO_UDP, NULL, &rtcp_port);
 
 	nf_nat_sdp_media = rcu_dereference(nf_nat_sdp_media_hook);
@@ -871,7 +869,6 @@ static int process_sdp(struct sk_buff *skb,
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-	int family = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
 	unsigned int matchoff, matchlen;
 	unsigned int mediaoff, medialen;
 	unsigned int sdpoff;
@@ -886,8 +883,8 @@ static int process_sdp(struct sk_buff *skb,
 	typeof(nf_nat_sdp_session_hook) nf_nat_sdp_session;
 
 	nf_nat_sdp_addr = rcu_dereference(nf_nat_sdp_addr_hook);
-	c_hdr = family == AF_INET ? SDP_HDR_CONNECTION_IP4 :
-				    SDP_HDR_CONNECTION_IP6;
+	c_hdr = nf_ct_l3num(ct) == AF_INET ? SDP_HDR_CONNECTION_IP4 :
+					     SDP_HDR_CONNECTION_IP6;
 
 	/* Find beginning of session description */
 	if (ct_sip_get_sdp_header(ct, *dptr, 0, *datalen,
@@ -1034,7 +1031,6 @@ static int process_register_request(struct sk_buff *skb,
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	struct nf_conn_help *help = nfct_help(ct);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
-	int family = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
 	unsigned int matchoff, matchlen;
 	struct nf_conntrack_expect *exp;
 	union nf_inet_addr *saddr, daddr;
@@ -1089,8 +1085,8 @@ static int process_register_request(struct sk_buff *skb,
 	if (sip_direct_signalling)
 		saddr = &ct->tuplehash[!dir].tuple.src.u3;
 
-	nf_ct_expect_init(exp, SIP_EXPECT_SIGNALLING, family, saddr, &daddr,
-			  IPPROTO_UDP, NULL, &port);
+	nf_ct_expect_init(exp, SIP_EXPECT_SIGNALLING, nf_ct_l3num(ct),
+			  saddr, &daddr, IPPROTO_UDP, NULL, &port);
 	exp->timeout.expires = sip_timeout * HZ;
 	exp->helper = nfct_help(ct)->helper;
 	exp->flags = NF_CT_EXPECT_PERMANENT | NF_CT_EXPECT_INACTIVE;

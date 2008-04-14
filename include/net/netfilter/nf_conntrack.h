@@ -140,6 +140,16 @@ nf_ct_tuplehash_to_ctrack(const struct nf_conntrack_tuple_hash *hash)
 			    tuplehash[hash->tuple.dst.dir]);
 }
 
+static inline u_int16_t nf_ct_l3num(const struct nf_conn *ct)
+{
+	return ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
+}
+
+static inline u_int8_t nf_ct_protonum(const struct nf_conn *ct)
+{
+	return ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum;
+}
+
 /* get master conntrack via master expectation */
 #define master_ct(conntr) (conntr->master)
 

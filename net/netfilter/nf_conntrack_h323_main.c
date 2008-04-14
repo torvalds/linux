@@ -218,7 +218,6 @@ static int get_h245_addr(struct nf_conn *ct, const unsigned char *data,
 			 union nf_inet_addr *addr, __be16 *port)
 {
 	const unsigned char *p;
-	int family = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
 	int len;
 
 	if (taddr->choice != eH245_TransportAddress_unicastAddress)
@@ -226,13 +225,13 @@ static int get_h245_addr(struct nf_conn *ct, const unsigned char *data,
 
 	switch (taddr->unicastAddress.choice) {
 	case eUnicastAddress_iPAddress:
-		if (family != AF_INET)
+		if (nf_ct_l3num(ct) != AF_INET)
 			return 0;
 		p = data + taddr->unicastAddress.iPAddress.network;
 		len = 4;
 		break;
 	case eUnicastAddress_iP6Address:
-		if (family != AF_INET6)
+		if (nf_ct_l3num(ct) != AF_INET6)
 			return 0;
 		p = data + taddr->unicastAddress.iP6Address.network;
 		len = 16;
@@ -277,8 +276,7 @@ static int expect_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 	/* Create expect for RTP */
 	if ((rtp_exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_ct_expect_init(rtp_exp, NF_CT_EXPECT_CLASS_DEFAULT,
-			  ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(rtp_exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  &ct->tuplehash[!dir].tuple.src.u3,
 			  &ct->tuplehash[!dir].tuple.dst.u3,
 			  IPPROTO_UDP, NULL, &rtp_port);
@@ -288,8 +286,7 @@ static int expect_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 		nf_ct_expect_put(rtp_exp);
 		return -1;
 	}
-	nf_ct_expect_init(rtcp_exp, NF_CT_EXPECT_CLASS_DEFAULT,
-			  ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(rtcp_exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  &ct->tuplehash[!dir].tuple.src.u3,
 			  &ct->tuplehash[!dir].tuple.dst.u3,
 			  IPPROTO_UDP, NULL, &rtcp_port);
@@ -346,8 +343,7 @@ static int expect_t120(struct sk_buff *skb,
 	/* Create expect for T.120 connections */
 	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT,
-			  ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  &ct->tuplehash[!dir].tuple.src.u3,
 			  &ct->tuplehash[!dir].tuple.dst.u3,
 			  IPPROTO_TCP, NULL, &port);
@@ -634,18 +630,17 @@ int get_h225_addr(struct nf_conn *ct, unsigned char *data,
 		  union nf_inet_addr *addr, __be16 *port)
 {
 	const unsigned char *p;
-	int family = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
 	int len;
 
 	switch (taddr->choice) {
 	case eTransportAddress_ipAddress:
-		if (family != AF_INET)
+		if (nf_ct_l3num(ct) != AF_INET)
 			return 0;
 		p = data + taddr->ipAddress.ip;
 		len = 4;
 		break;
 	case eTransportAddress_ip6Address:
-		if (family != AF_INET6)
+		if (nf_ct_l3num(ct) != AF_INET6)
 			return 0;
 		p = data + taddr->ip6Address.ip;
 		len = 16;
@@ -683,8 +678,7 @@ static int expect_h245(struct sk_buff *skb, struct nf_conn *ct,
 	/* Create expect for h245 connection */
 	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT,
-			  ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  &ct->tuplehash[!dir].tuple.src.u3,
 			  &ct->tuplehash[!dir].tuple.dst.u3,
 			  IPPROTO_TCP, NULL, &port);
@@ -792,7 +786,7 @@ static int expect_callforwarding(struct sk_buff *skb,
 	 * we don't need to track the second call */
 	if (callforward_filter &&
 	    callforward_do_filter(&addr, &ct->tuplehash[!dir].tuple.src.u3,
-				  ct->tuplehash[!dir].tuple.src.l3num)) {
+				  nf_ct_l3num(ct))) {
 		pr_debug("nf_ct_q931: Call Forwarding not tracked\n");
 		return 0;
 	}
@@ -800,8 +794,7 @@ static int expect_callforwarding(struct sk_buff *skb,
 	/* Create expect for the second call leg */
 	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT,
-			  ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  &ct->tuplehash[!dir].tuple.src.u3, &addr,
 			  IPPROTO_TCP, NULL, &port);
 	exp->helper = nf_conntrack_helper_q931;
@@ -1272,8 +1265,7 @@ static int expect_q931(struct sk_buff *skb, struct nf_conn *ct,
 	/* Create expect for Q.931 */
 	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT,
-			  ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  gkrouted_only ? /* only accept calls from GK? */
 				&ct->tuplehash[!dir].tuple.src.u3 : NULL,
 			  &ct->tuplehash[!dir].tuple.dst.u3,
@@ -1344,8 +1336,7 @@ static int process_gcf(struct sk_buff *skb, struct nf_conn *ct,
 	/* Need new expect */
 	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT,
-			  ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  &ct->tuplehash[!dir].tuple.src.u3, &addr,
 			  IPPROTO_UDP, NULL, &port);
 	exp->helper = nf_conntrack_helper_ras;
@@ -1549,8 +1540,7 @@ static int process_acf(struct sk_buff *skb, struct nf_conn *ct,
 	/* Need new expect */
 	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT,
-			  ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  &ct->tuplehash[!dir].tuple.src.u3, &addr,
 			  IPPROTO_TCP, NULL, &port);
 	exp->flags = NF_CT_EXPECT_PERMANENT;
@@ -1603,8 +1593,7 @@ static int process_lcf(struct sk_buff *skb, struct nf_conn *ct,
 	/* Need new expect for call signal */
 	if ((exp = nf_ct_expect_alloc(ct)) == NULL)
 		return -1;
-	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT,
-			  ct->tuplehash[!dir].tuple.src.l3num,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, nf_ct_l3num(ct),
 			  &ct->tuplehash[!dir].tuple.src.u3, &addr,
 			  IPPROTO_TCP, NULL, &port);
 	exp->flags = NF_CT_EXPECT_PERMANENT;

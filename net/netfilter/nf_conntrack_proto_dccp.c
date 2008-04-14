@@ -418,7 +418,6 @@ static int dccp_invert_tuple(struct nf_conntrack_tuple *inv,
 static int dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 		    unsigned int dataoff)
 {
-	int pf = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
 	struct dccp_hdr _dh, *dh;
 	const char *msg;
 	u_int8_t state;
@@ -447,7 +446,7 @@ static int dccp_new(struct nf_conn *ct, const struct sk_buff *skb,
 
 out_invalid:
 	if (LOG_INVALID(IPPROTO_DCCP))
-		nf_log_packet(pf, 0, skb, NULL, NULL, NULL, msg);
+		nf_log_packet(nf_ct_l3num(ct), 0, skb, NULL, NULL, NULL, msg);
 	return 0;
 }
 
