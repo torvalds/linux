@@ -255,6 +255,11 @@ config NF_NAT_PROTO_UDPLITE
 	depends on NF_NAT && NF_CT_PROTO_UDPLITE
 	default NF_NAT && NF_CT_PROTO_UDPLITE
 
+config NF_NAT_PROTO_SCTP
+	tristate
+	default NF_NAT && NF_CT_PROTO_SCTP
+	depends on NF_NAT && NF_CT_PROTO_SCTP
+
 config NF_NAT_FTP
 	tristate
 	depends on IP_NF_IPTABLES && NF_CONNTRACK && NF_NAT
