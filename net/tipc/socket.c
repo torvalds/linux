@@ -58,7 +58,8 @@
 #define SS_LISTENING	-1	/* socket is listening */
 #define SS_READY	-2	/* socket is connectionless */
 
-#define OVERLOAD_LIMIT_BASE    5000
+#define OVERLOAD_LIMIT_BASE	5000
+#define CONN_TIMEOUT_DEFAULT	8000	/* default connect timeout = 8s */
 
 struct tipc_sock {
 	struct sock sk;
@@ -170,7 +171,7 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol)
 	}
 
 	sock_init_data(sock, sk);
-	sk->sk_rcvtimeo = 8 * HZ;   /* default connect timeout = 8s */
+	sk->sk_rcvtimeo = msecs_to_jiffies(CONN_TIMEOUT_DEFAULT);
 
 	tsock = tipc_sk(sk);
 	port = tipc_get_port(ref);
@@ -1529,7 +1530,7 @@ static int setsockopt(struct socket *sock,
 		res = tipc_set_portunreturnable(tsock->p->ref, value);
 		break;
 	case TIPC_CONN_TIMEOUT:
-		sock->sk->sk_rcvtimeo = (value * HZ / 1000);
+		sock->sk->sk_rcvtimeo = msecs_to_jiffies(value);
 		break;
 	default:
 		res = -EINVAL;
@@ -1582,7 +1583,7 @@ static int getsockopt(struct socket *sock,
 		res = tipc_portunreturnable(tsock->p->ref, &value);
 		break;
 	case TIPC_CONN_TIMEOUT:
-		value = (sock->sk->sk_rcvtimeo * 1000) / HZ;
+		value = jiffies_to_msecs(sock->sk->sk_rcvtimeo);
 		break;
 	default:
 		res = -EINVAL;
