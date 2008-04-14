@@ -510,8 +510,10 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 
 	if (!initial) {
 		/* sleeps upto a single latency don't count. */
-		if (sched_feat(NEW_FAIR_SLEEPERS))
-			vruntime -= sysctl_sched_latency;
+		if (sched_feat(NEW_FAIR_SLEEPERS)) {
+			vruntime -= calc_delta_fair(sysctl_sched_latency,
+						    &cfs_rq->load);
+		}
 
 		/* ensure we never gain time by being placed backwards. */
 		vruntime = max_vruntime(se->vruntime, vruntime);
