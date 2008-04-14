@@ -226,7 +226,7 @@ static int dapm_update_bits(struct snd_soc_dapm_widget *widget)
 		snd_soc_write(codec, widget->reg, new);
 		pop_wait(POP_TIME);
 	}
-	dbg("reg old %x new %x change %d\n", old, new, change);
+	dbg("reg %x old %x new %x change %d\n", widget->reg, old, new, change);
 	return change;
 }
 
