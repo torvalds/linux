@@ -1171,6 +1171,20 @@ static struct inet_protosw dccp_v6_protosw = {
 	.flags		= INET_PROTOSW_ICSK,
 };
 
+static int dccp_v6_init_net(struct net *net)
+{
+	return 0;
+}
+
+static void dccp_v6_exit_net(struct net *net)
+{
+}
+
+static struct pernet_operations dccp_v6_ops = {
+	.init   = dccp_v6_init_net,
+	.exit   = dccp_v6_exit_net,
+};
+
 static int __init dccp_v6_init(void)
 {
 	int err = proto_register(&dccp_v6_prot, 1);
@@ -1188,8 +1202,15 @@ static int __init dccp_v6_init(void)
 				   SOCK_DCCP, IPPROTO_DCCP, &init_net);
 	if (err != 0)
 		goto out_unregister_protosw;
+
+	err = register_pernet_subsys(&dccp_v6_ops);
+	if (err != 0)
+		goto out_destroy_ctl_sock;
 out:
 	return err;
+
+out_destroy_ctl_sock:
+	inet_ctl_sock_destroy(dccp_v6_ctl_sk);
 out_unregister_protosw:
 	inet6_del_protocol(&dccp_v6_protocol, IPPROTO_DCCP);
 	inet6_unregister_protosw(&dccp_v6_protosw);
@@ -1200,6 +1221,7 @@ out_unregister_proto:
 
 static void __exit dccp_v6_exit(void)
 {
+	unregister_pernet_subsys(&dccp_v6_ops);
 	inet_ctl_sock_destroy(dccp_v6_ctl_sk);
 	inet6_del_protocol(&dccp_v6_protocol, IPPROTO_DCCP);
 	inet6_unregister_protosw(&dccp_v6_protosw);
