@@ -149,25 +149,6 @@ static inline void ClearSlabDebug(struct page *page)
 /* Enable to test recovery from slab corruption on boot */
 #undef SLUB_RESILIENCY_TEST
 
-#if PAGE_SHIFT <= 12
-
-/*
- * Small page size. Make sure that we do not fragment memory
- */
-#define DEFAULT_MAX_ORDER 1
-#define DEFAULT_MIN_OBJECTS 4
-
-#else
-
-/*
- * Large page machines are customarily able to handle larger
- * page orders.
- */
-#define DEFAULT_MAX_ORDER 2
-#define DEFAULT_MIN_OBJECTS 8
-
-#endif
-
 /*
  * Mininum number of partial slabs. These will be left on the partial
  * lists even if they are empty. kmem_cache_shrink may reclaim them.
@@ -1821,8 +1802,8 @@ static struct page *get_object_page(const void *x)
  * take the list_lock.
  */
 static int slub_min_order;
-static int slub_max_order = DEFAULT_MAX_ORDER;
-static int slub_min_objects = DEFAULT_MIN_OBJECTS;
+static int slub_max_order = PAGE_ALLOC_COSTLY_ORDER;
+static int slub_min_objects = 4;
 
 /*
  * Merge control. If this is set then no merging of slab caches will occur.
