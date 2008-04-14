@@ -245,16 +245,16 @@ static int __devinit aperture_valid(u64 aper, u32 size)
 		printk(KERN_ERR PFX "No aperture\n");
 		return 0;
 	}
-	if (size < 32*1024*1024) {
-		printk(KERN_ERR PFX "Aperture too small (%d MB)\n", size>>20);
-		return 0;
-	}
-       if ((u64)aper + size > 0x100000000ULL) {
+	if ((u64)aper + size > 0x100000000ULL) {
 		printk(KERN_ERR PFX "Aperture out of bounds\n");
 		return 0;
 	}
 	if (e820_any_mapped(aper, aper + size, E820_RAM)) {
 		printk(KERN_ERR PFX "Aperture pointing to RAM\n");
+		return 0;
+	}
+	if (size < 32*1024*1024) {
+		printk(KERN_ERR PFX "Aperture too small (%d MB)\n", size>>20);
 		return 0;
 	}
 
@@ -317,7 +317,7 @@ static __devinit int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp,
 	 * On some sick chips APSIZE is 0. This means it wants 4G
 	 * so let double check that order, and lets trust the AMD NB settings
 	 */
-	if (aper + (32ULL<<(20 + order)) > 0x100000000ULL) {
+	if (order >=0 && aper + (32ULL<<(20 + order)) > 0x100000000ULL) {
 		printk(KERN_INFO "Aperture size %u MB is not right, using settings from NB\n",
 				  32 << order);
 		order = nb_order;

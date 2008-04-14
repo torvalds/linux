@@ -83,7 +83,7 @@ static u32 __init allocate_aperture(void)
 	return (u32)__pa(p);
 }
 
-static int __init aperture_valid(u64 aper_base, u32 aper_size)
+static int __init aperture_valid(u64 aper_base, u32 aper_size, u32 min_size)
 {
 	if (!aper_base)
 		return 0;
@@ -96,8 +96,9 @@ static int __init aperture_valid(u64 aper_base, u32 aper_size)
 		printk(KERN_ERR "Aperture pointing to e820 RAM. Ignoring.\n");
 		return 0;
 	}
-	if (aper_size < 64*1024*1024) {
-		printk(KERN_ERR "Aperture too small (%d MB)\n", aper_size>>20);
+	if (aper_size < min_size) {
+		printk(KERN_ERR "Aperture too small (%d MB) than (%d MB)\n",
+				 aper_size>>20, min_size>>20);
 		return 0;
 	}
 
@@ -167,7 +168,9 @@ static __u32 __init read_agp(int num, int slot, int func, int cap, u32 *order)
 	 * On some sick chips, APSIZE is 0. It means it wants 4G
 	 * so let double check that order, and lets trust AMD NB settings:
 	 */
-	if (aper + (32UL<<(20 + *order)) > 0x100000000UL) {
+	printk(KERN_INFO "Aperture from AGP @ %Lx old size %u MB\n",
+			aper, 32 << old_order);
+	if (aper + (32ULL<<(20 + *order)) > 0x100000000ULL) {
 		printk(KERN_INFO "Aperture size %u MB (APSIZE %x) is not right, using settings from NB\n",
 				32 << *order, apsizereg);
 		*order = old_order;
@@ -176,7 +179,7 @@ static __u32 __init read_agp(int num, int slot, int func, int cap, u32 *order)
 	printk(KERN_INFO "Aperture from AGP @ %Lx size %u MB (APSIZE %x)\n",
 			aper, 32 << *order, apsizereg);
 
-	if (!aperture_valid(aper, (32*1024*1024) << *order))
+	if (!aperture_valid(aper, (32*1024*1024) << *order, 32<<20))
 		return 0;
 	return (u32)aper;
 }
@@ -302,8 +305,8 @@ void __init early_gart_iommu_check(void)
 		fix = 1;
 
 	if (gart_fix_e820 && !fix && aper_enabled) {
-		if (e820_any_mapped(aper_base, aper_base + aper_size,
-				    E820_RAM)) {
+		if (!e820_all_mapped(aper_base, aper_base + aper_size,
+				    E820_RESERVED)) {
 			/* reserved it, so we can resuse it in second kernel */
 			printk(KERN_INFO "update e820 for GART\n");
 			add_memory_region(aper_base, aper_size, E820_RESERVED);
@@ -324,8 +327,11 @@ void __init early_gart_iommu_check(void)
 
 }
 
+static int __initdata printed_gart_size_msg;
+
 void __init gart_iommu_hole_init(void)
 {
+	u32 agp_aper_base = 0, agp_aper_order = 0;
 	u32 aper_size, aper_alloc = 0, aper_order = 0, last_aper_order = 0;
 	u64 aper_base, last_aper_base = 0;
 	int fix, num, valid_agp = 0;
@@ -336,6 +342,9 @@ void __init gart_iommu_hole_init(void)
 		return;
 
 	printk(KERN_INFO  "Checking aperture...\n");
+
+	if (!fallback_aper_force)
+		agp_aper_base = search_agp_bridge(&agp_aper_order, &valid_agp);
 
 	fix = 0;
 	node = 0;
@@ -355,9 +364,21 @@ void __init gart_iommu_hole_init(void)
 				node, aper_base, aper_size >> 20);
 		node++;
 
-		if (!aperture_valid(aper_base, aper_size)) {
-			fix = 1;
-			break;
+		if (!aperture_valid(aper_base, aper_size, 64<<20)) {
+			if (valid_agp && agp_aper_base &&
+			    agp_aper_base == aper_base &&
+			    agp_aper_order == aper_order) {
+				/* the same between two setting from NB and agp */
+				if (!no_iommu && end_pfn > MAX_DMA32_PFN && !printed_gart_size_msg) {
+					printk(KERN_ERR "you are using iommu with agp, but GART size is less than 64M\n");
+					printk(KERN_ERR "please increase GART size in your BIOS setup\n");
+					printk(KERN_ERR "if BIOS doesn't have that option, contact your HW vendor!\n");
+					printed_gart_size_msg = 1;
+				}
+			} else {
+				fix = 1;
+				break;
+			}
 		}
 
 		if ((last_aper_order && aper_order != last_aper_order) ||
@@ -378,8 +399,10 @@ void __init gart_iommu_hole_init(void)
 		return;
 	}
 
-	if (!fallback_aper_force)
-		aper_alloc = search_agp_bridge(&aper_order, &valid_agp);
+	if (!fallback_aper_force) {
+		aper_alloc = agp_aper_base;
+		aper_order = agp_aper_order;
+	}
 
 	if (aper_alloc) {
 		/* Got the aperture from the AGP bridge */
