@@ -1206,7 +1206,7 @@ get_entries(struct net *net, struct ip6t_get_entries __user *uptr, int *len)
 		else {
 			duprintf("get_entries: I've got %u not %u!\n",
 				 private->size, get.size);
-			ret = -EINVAL;
+			ret = -EAGAIN;
 		}
 		module_put(t->me);
 		xt_table_unlock(t);
@@ -1966,7 +1966,7 @@ compat_get_entries(struct net *net, struct compat_ip6t_get_entries __user *uptr,
 		} else if (!ret) {
 			duprintf("compat_get_entries: I've got %u not %u!\n",
 				 private->size, get.size);
-			ret = -EINVAL;
+			ret = -EAGAIN;
 		}
 		xt_compat_flush_offsets(AF_INET6);
 		module_put(t->me);

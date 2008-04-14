@@ -937,7 +937,7 @@ static int get_entries(struct net *net, struct arpt_get_entries __user *uptr,
 		else {
 			duprintf("get_entries: I've got %u not %u!\n",
 				 private->size, get.size);
-			ret = -EINVAL;
+			ret = -EAGAIN;
 		}
 		module_put(t->me);
 		xt_table_unlock(t);
@@ -1621,7 +1621,7 @@ static int compat_get_entries(struct net *net,
 		} else if (!ret) {
 			duprintf("compat_get_entries: I've got %u not %u!\n",
 				 private->size, get.size);
-			ret = -EINVAL;
+			ret = -EAGAIN;
 		}
 		xt_compat_flush_offsets(NF_ARP);
 		module_put(t->me);
