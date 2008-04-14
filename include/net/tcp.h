@@ -1325,7 +1325,6 @@ enum tcp_seq_states {
 };
 
 struct tcp_seq_afinfo {
-	struct module		*owner;
 	char			*name;
 	sa_family_t		family;
 	struct file_operations	seq_fops;
