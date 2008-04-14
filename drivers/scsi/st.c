@@ -628,7 +628,7 @@ static int cross_eof(struct scsi_tape * STp, int forward)
 
 
 /* Flush the write buffer (never need to write if variable blocksize). */
-static int flush_write_buffer(struct scsi_tape * STp)
+static int st_flush_write_buffer(struct scsi_tape * STp)
 {
 	int offset, transfer, blks;
 	int result;
@@ -719,7 +719,7 @@ static int flush_buffer(struct scsi_tape *STp, int seek_next)
 		return 0;
 	STps = &(STp->ps[STp->partition]);
 	if (STps->rw == ST_WRITING)	/* Writing */
-		return flush_write_buffer(STp);
+		return st_flush_write_buffer(STp);
 
 	if (STp->block_size == 0)
 		return 0;
@@ -1214,7 +1214,7 @@ static int st_flush(struct file *filp, fl_owner_t id)
 		return 0;
 
 	if (STps->rw == ST_WRITING && !STp->pos_unknown) {
-		result = flush_write_buffer(STp);
+		result = st_flush_write_buffer(STp);
 		if (result != 0 && result != (-ENOSPC))
 			goto out;
 	}
