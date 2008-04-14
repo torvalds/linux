@@ -544,46 +544,6 @@ void nf_nat_protocol_unregister(const struct nf_nat_protocol *proto)
 }
 EXPORT_SYMBOL(nf_nat_protocol_unregister);
 
-#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
-int
-nf_nat_port_range_to_nlattr(struct sk_buff *skb,
-			    const struct nf_nat_range *range)
-{
-	NLA_PUT_BE16(skb, CTA_PROTONAT_PORT_MIN, range->min.tcp.port);
-	NLA_PUT_BE16(skb, CTA_PROTONAT_PORT_MAX, range->max.tcp.port);
-
-	return 0;
-
-nla_put_failure:
-	return -1;
-}
-EXPORT_SYMBOL_GPL(nf_nat_port_nlattr_to_range);
-
-int
-nf_nat_port_nlattr_to_range(struct nlattr *tb[], struct nf_nat_range *range)
-{
-	int ret = 0;
-
-	/* we have to return whether we actually parsed something or not */
-
-	if (tb[CTA_PROTONAT_PORT_MIN]) {
-		ret = 1;
-		range->min.tcp.port = nla_get_be16(tb[CTA_PROTONAT_PORT_MIN]);
-	}
-
-	if (!tb[CTA_PROTONAT_PORT_MAX]) {
-		if (ret)
-			range->max.tcp.port = range->min.tcp.port;
-	} else {
-		ret = 1;
-		range->max.tcp.port = nla_get_be16(tb[CTA_PROTONAT_PORT_MAX]);
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(nf_nat_port_range_to_nlattr);
-#endif
-
 /* Noone using conntrack by the time this called. */
 static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
 {

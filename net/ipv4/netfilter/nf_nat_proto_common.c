@@ -88,3 +88,41 @@ int nf_nat_proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nf_nat_proto_unique_tuple);
+
+#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
+int nf_nat_proto_range_to_nlattr(struct sk_buff *skb,
+				 const struct nf_nat_range *range)
+{
+	NLA_PUT_BE16(skb, CTA_PROTONAT_PORT_MIN, range->min.all);
+	NLA_PUT_BE16(skb, CTA_PROTONAT_PORT_MAX, range->max.all);
+	return 0;
+
+nla_put_failure:
+	return -1;
+}
+EXPORT_SYMBOL_GPL(nf_nat_proto_nlattr_to_range);
+
+int nf_nat_proto_nlattr_to_range(struct nlattr *tb[],
+				 struct nf_nat_range *range)
+{
+	int ret = 0;
+
+	/* we have to return whether we actually parsed something or not */
+
+	if (tb[CTA_PROTONAT_PORT_MIN]) {
+		ret = 1;
+		range->min.all = nla_get_be16(tb[CTA_PROTONAT_PORT_MIN]);
+	}
+
+	if (!tb[CTA_PROTONAT_PORT_MAX]) {
+		if (ret)
+			range->max.all = range->min.all;
+	} else {
+		ret = 1;
+		range->max.all = nla_get_be16(tb[CTA_PROTONAT_PORT_MAX]);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nf_nat_proto_range_to_nlattr);
+#endif
