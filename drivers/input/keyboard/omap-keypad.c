@@ -352,6 +352,9 @@ static int __init omap_kp_probe(struct platform_device *pdev)
 			}
 			omap_set_gpio_direction(row_gpios[row_idx], 1);
 		}
+	} else {
+		col_idx = 0;
+		row_idx = 0;
 	}
 
 	setup_timer(&omap_kp->timer, omap_kp_timer, (unsigned long)omap_kp);
@@ -415,10 +418,10 @@ err4:
 err3:
 	device_remove_file(&pdev->dev, &dev_attr_enable);
 err2:
-	for (i = row_idx-1; i >=0; i--)
+	for (i = row_idx - 1; i >=0; i--)
 		omap_free_gpio(row_gpios[i]);
 err1:
-	for (i = col_idx-1; i >=0; i--)
+	for (i = col_idx - 1; i >=0; i--)
 		omap_free_gpio(col_gpios[i]);
 
 	kfree(omap_kp);
