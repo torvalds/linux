@@ -267,6 +267,10 @@ static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, hw);
 	init_completion(&hw->done);
 
+	/* setup the master state. */
+
+	master->num_chipselect = hw->pdata->num_cs;
+
 	/* setup the state for the bitbang driver */
 
 	hw->bitbang.master         = hw->master;
