@@ -1413,11 +1413,11 @@ struct iwl4965_txpowertable_cmd {
 
 
 /**
- * struct iwl4965_link_qual_general_params
+ * struct iwl_link_qual_general_params
  *
  * Used in REPLY_TX_LINK_QUALITY_CMD
  */
-struct iwl4965_link_qual_general_params {
+struct iwl_link_qual_general_params {
 	u8 flags;
 
 	/* No entries at or above this (driver chosen) index contain MIMO */
@@ -1444,11 +1444,11 @@ struct iwl4965_link_qual_general_params {
 } __attribute__ ((packed));
 
 /**
- * struct iwl4965_link_qual_agg_params
+ * struct iwl_link_qual_agg_params
  *
  * Used in REPLY_TX_LINK_QUALITY_CMD
  */
-struct iwl4965_link_qual_agg_params {
+struct iwl_link_qual_agg_params {
 
 	/* Maximum number of uSec in aggregation.
 	 * Driver should set this to 4000 (4 milliseconds). */
@@ -1658,14 +1658,14 @@ struct iwl4965_link_qual_agg_params {
  * legacy), and then repeat the search process.
  *
  */
-struct iwl4965_link_quality_cmd {
+struct iwl_link_quality_cmd {
 
 	/* Index of destination/recipient station in uCode's station table */
 	u8 sta_id;
 	u8 reserved1;
 	__le16 control;		/* not used */
-	struct iwl4965_link_qual_general_params general_params;
-	struct iwl4965_link_qual_agg_params agg_params;
+	struct iwl_link_qual_general_params general_params;
+	struct iwl_link_qual_agg_params agg_params;
 
 	/*
 	 * Rate info; when using rate-scaling, Tx command's initial_rate_index

@@ -4484,7 +4484,7 @@ static int iwl4965_tx_queue_agg_enable(struct iwl_priv *priv, int txq_id,
 void iwl4965_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 {
 	int i, r;
-	struct iwl4965_link_quality_cmd link_cmd = {
+	struct iwl_link_quality_cmd link_cmd = {
 		.reserved1 = 0,
 	};
 	u16 rate_flags;

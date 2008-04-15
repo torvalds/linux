@@ -303,3 +303,51 @@ int iwl_set_dynamic_key(struct iwl_priv *priv,
 	return ret;
 }
 
+#ifdef CONFIG_IWLWIFI_DEBUG
+static void iwl_dump_lq_cmd(struct iwl_priv *priv,
+			   struct iwl_link_quality_cmd *lq)
+{
+	int i;
+	IWL_DEBUG_RATE("lq station id 0x%x\n", lq->sta_id);
+	IWL_DEBUG_RATE("lq dta 0x%X 0x%X\n",
+		       lq->general_params.single_stream_ant_msk,
+		       lq->general_params.dual_stream_ant_msk);
+
+	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++)
+		IWL_DEBUG_RATE("lq index %d 0x%X\n",
+			       i, lq->rs_table[i].rate_n_flags);
+}
+#else
+static inline void iwl_dump_lq_cmd(struct iwl_priv *priv,
+				   struct iwl_link_quality_cmd *lq)
+{
+}
+#endif
+
+int iwl_send_lq_cmd(struct iwl_priv *priv,
+		    struct iwl_link_quality_cmd *lq, u8 flags)
+{
+	struct iwl_host_cmd cmd = {
+		.id = REPLY_TX_LINK_QUALITY_CMD,
+		.len = sizeof(struct iwl_link_quality_cmd),
+		.meta.flags = flags,
+		.data = lq,
+	};
+
+	if ((lq->sta_id == 0xFF) &&
+	    (priv->iw_mode == IEEE80211_IF_TYPE_IBSS))
+		return -EINVAL;
+
+	if (lq->sta_id == 0xFF)
+		lq->sta_id = IWL_AP_ID;
+
+	iwl_dump_lq_cmd(priv,lq);
+
+	if (iwl_is_associated(priv) && priv->assoc_station_added &&
+	    priv->lq_mngr.lq_ready)
+		return  iwl_send_cmd(priv, &cmd);
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_send_lq_cmd);
+
