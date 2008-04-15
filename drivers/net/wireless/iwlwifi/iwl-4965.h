@@ -567,7 +567,7 @@ struct iwl4965_ibss_seq {
 };
 
 /**
- * struct iwl4965_driver_hw_info
+ * struct iwl_hw_params
  * @max_txq_num: Max # Tx queues supported
  * @tx_cmd_len: Size of Tx command (but not including frame itself)
  * @tx_ant_num: Number of TX antennas
@@ -577,7 +577,7 @@ struct iwl4965_ibss_seq {
  * @max_stations:
  * @bcast_sta_id:
  */
-struct iwl4965_driver_hw_info {
+struct iwl_hw_params {
 	u16 max_txq_num;
 	u16 tx_cmd_len;
 	u16 tx_ant_num;
@@ -675,7 +675,7 @@ extern void iwl4965_hw_rx_handler_setup(struct iwl_priv *priv);
 extern void iwl4965_hw_setup_deferred_work(struct iwl_priv *priv);
 extern void iwl4965_hw_cancel_deferred_work(struct iwl_priv *priv);
 extern int iwl4965_hw_rxq_stop(struct iwl_priv *priv);
-extern int iwl4965_hw_set_hw_setting(struct iwl_priv *priv);
+extern int iwl4965_hw_set_hw_params(struct iwl_priv *priv);
 extern int iwl4965_hw_nic_init(struct iwl_priv *priv);
 extern int iwl4965_hw_nic_stop_master(struct iwl_priv *priv);
 extern void iwl4965_hw_txq_ctx_free(struct iwl_priv *priv);
@@ -1144,7 +1144,7 @@ struct iwl_priv {
 	u16 beacon_int;
 	struct ieee80211_vif *vif;
 
-	struct iwl4965_driver_hw_info hw_setting;
+	struct iwl_hw_params hw_params;
 	/* driver/uCode shared Tx Byte Counts and Rx status */
 	void *shared_virt;
 	/* Physical Pointer to Tx Byte Counts and Rx status */

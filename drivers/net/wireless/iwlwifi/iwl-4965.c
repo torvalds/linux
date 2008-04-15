@@ -504,10 +504,10 @@ u8 iwl4965_hw_find_station(struct iwl_priv *priv, const u8 *addr)
 		start = IWL_STA_ID;
 
 	if (is_broadcast_ether_addr(addr))
-		return priv->hw_setting.bcast_sta_id;
+		return priv->hw_params.bcast_sta_id;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
-	for (i = start; i < priv->hw_setting.max_stations; i++)
+	for (i = start; i < priv->hw_params.max_stations; i++)
 		if ((priv->stations[i].used) &&
 		    (!compare_ether_addr
 		     (priv->stations[i].sta.sta.addr, addr))) {
@@ -702,7 +702,7 @@ static int iwl4965_txq_ctx_reset(struct iwl_priv *priv)
 
 	/* Alloc and init all (default 16) Tx queues,
 	 * including the command queue (#4) */
-	for (txq_id = 0; txq_id < priv->hw_setting.max_txq_num; txq_id++) {
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
 		slots_num = (txq_id == IWL_CMD_QUEUE_NUM) ?
 					TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		rc = iwl4965_tx_queue_init(priv, &priv->txq[txq_id], slots_num,
@@ -908,7 +908,7 @@ void iwl4965_hw_txq_ctx_stop(struct iwl_priv *priv)
 	unsigned long flags;
 
 	/* Stop each Tx DMA channel, and wait for it to be idle */
-	for (txq_id = 0; txq_id < priv->hw_setting.max_txq_num; txq_id++) {
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
 		spin_lock_irqsave(&priv->lock, flags);
 		if (iwl_grab_nic_access(priv)) {
 			spin_unlock_irqrestore(&priv->lock, flags);
@@ -1954,7 +1954,7 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 		iwl_write_targ_mem(priv, a, 0);
 	for (; a < priv->scd_base_addr + SCD_TRANSLATE_TBL_OFFSET; a += 4)
 		iwl_write_targ_mem(priv, a, 0);
-	for (; a < sizeof(u16) * priv->hw_setting.max_txq_num; a += 4)
+	for (; a < sizeof(u16) * priv->hw_params.max_txq_num; a += 4)
 		iwl_write_targ_mem(priv, a, 0);
 
 	/* Tel 4965 where to find Tx byte count tables */
@@ -1966,7 +1966,7 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 	iwl_write_prph(priv, IWL49_SCD_QUEUECHAIN_SEL, 0);
 
 	/* Initialize each Tx queue (including the command queue) */
-	for (i = 0; i < priv->hw_setting.max_txq_num; i++) {
+	for (i = 0; i < priv->hw_params.max_txq_num; i++) {
 
 		/* TFD circular buffer read/write indexes */
 		iwl_write_prph(priv, IWL49_SCD_QUEUE_RDPTR(i), 0);
@@ -1989,7 +1989,7 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 
 	}
 	iwl_write_prph(priv, IWL49_SCD_INTERRUPT_MASK,
-				 (1 << priv->hw_setting.max_txq_num) - 1);
+				 (1 << priv->hw_params.max_txq_num) - 1);
 
 	/* Activate all Tx DMA/FIFO channels */
 	iwl_write_prph(priv, IWL49_SCD_TXFACT,
@@ -2014,11 +2014,11 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 }
 
 /**
- * iwl4965_hw_set_hw_setting
+ * iwl4965_hw_set_hw_params
  *
  * Called when initializing driver
  */
-int iwl4965_hw_set_hw_setting(struct iwl_priv *priv)
+int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 {
 
 	if ((priv->cfg->mod_params->num_of_queues > IWL_MAX_NUM_QUEUES) ||
@@ -2028,19 +2028,19 @@ int iwl4965_hw_set_hw_setting(struct iwl_priv *priv)
 		return -EINVAL;
 	}
 
-	priv->hw_setting.max_txq_num = priv->cfg->mod_params->num_of_queues;
-	priv->hw_setting.tx_cmd_len = sizeof(struct iwl4965_tx_cmd);
-	priv->hw_setting.max_rxq_size = RX_QUEUE_SIZE;
-	priv->hw_setting.max_rxq_log = RX_QUEUE_SIZE_LOG;
+	priv->hw_params.max_txq_num = priv->cfg->mod_params->num_of_queues;
+	priv->hw_params.tx_cmd_len = sizeof(struct iwl4965_tx_cmd);
+	priv->hw_params.max_rxq_size = RX_QUEUE_SIZE;
+	priv->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
 	if (priv->cfg->mod_params->amsdu_size_8K)
-		priv->hw_setting.rx_buf_size = IWL_RX_BUF_SIZE_8K;
+		priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE_8K;
 	else
-		priv->hw_setting.rx_buf_size = IWL_RX_BUF_SIZE_4K;
-	priv->hw_setting.max_pkt_size = priv->hw_setting.rx_buf_size - 256;
-	priv->hw_setting.max_stations = IWL4965_STATION_COUNT;
-	priv->hw_setting.bcast_sta_id = IWL4965_BROADCAST_ID;
+		priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE_4K;
+	priv->hw_params.max_pkt_size = priv->hw_params.rx_buf_size - 256;
+	priv->hw_params.max_stations = IWL4965_STATION_COUNT;
+	priv->hw_params.bcast_sta_id = IWL4965_BROADCAST_ID;
 
-	priv->hw_setting.tx_ant_num = 2;
+	priv->hw_params.tx_ant_num = 2;
 
 	return 0;
 }
@@ -2055,7 +2055,7 @@ void iwl4965_hw_txq_ctx_free(struct iwl_priv *priv)
 	int txq_id;
 
 	/* Tx queues */
-	for (txq_id = 0; txq_id < priv->hw_setting.max_txq_num; txq_id++)
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
 		iwl4965_tx_queue_free(priv, &priv->txq[txq_id]);
 
 	/* Keep-warm buffer */
@@ -3012,7 +3012,7 @@ unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
 	tx_beacon_cmd = &frame->u.beacon;
 	memset(tx_beacon_cmd, 0, sizeof(*tx_beacon_cmd));
 
-	tx_beacon_cmd->tx.sta_id = priv->hw_setting.bcast_sta_id;
+	tx_beacon_cmd->tx.sta_id = priv->hw_params.bcast_sta_id;
 	tx_beacon_cmd->tx.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
 	frame_size = iwl4965_fill_beacon_frame(priv,
@@ -3620,7 +3620,7 @@ static void iwl4965_handle_data_packet(struct iwl_priv *priv, int is_data,
 		rx_start->byte_count = amsdu->byte_count;
 		rx_end = (__le32 *) (((u8 *) hdr) + len);
 	}
-	if (len > priv->hw_setting.max_pkt_size || len < 16) {
+	if (len > priv->hw_params.max_pkt_size || len < 16) {
 		IWL_WARNING("byte count out of range [16,4K] : %d\n", len);
 		return;
 	}
@@ -4515,7 +4515,7 @@ void iwl4965_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 	link_cmd.agg_params.agg_time_limit = cpu_to_le16(4000);
 
 	/* Update the rate scaling for control frame Tx to AP */
-	link_cmd.sta_id = is_ap ? IWL_AP_ID : priv->hw_setting.bcast_sta_id;
+	link_cmd.sta_id = is_ap ? IWL_AP_ID : priv->hw_params.bcast_sta_id;
 
 	iwl_send_cmd_pdu_async(priv, REPLY_TX_LINK_QUALITY_CMD,
 			       sizeof(link_cmd), &link_cmd, NULL);
@@ -4704,7 +4704,7 @@ static int iwl4965_txq_ctx_activate_free(struct iwl_priv *priv)
 {
 	int txq_id;
 
-	for (txq_id = 0; txq_id < priv->hw_setting.max_txq_num; txq_id++)
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
 		if (!test_and_set_bit(txq_id, &priv->txq_ctx_active_msk))
 			return txq_id;
 	return -1;
@@ -4908,6 +4908,7 @@ static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 
 static struct iwl_lib_ops iwl4965_lib = {
 	.init_drv = iwl4965_init_drv,
+	.set_hw_params = iwl4965_hw_set_hw_params,
 	.txq_update_byte_cnt_tbl = iwl4965_txq_update_byte_cnt_tbl,
 	.hw_nic_init = iwl4965_hw_nic_init,
 	.is_valid_rtc_data_addr = iwl4965_hw_valid_rtc_data_addr,

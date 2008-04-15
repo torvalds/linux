@@ -157,7 +157,7 @@ static int iwl_set_wep_dynamic_key_info(struct iwl_priv *priv,
 	if (keyconf->keylen == WEP_KEY_LEN_128)
 		key_flags |= STA_KEY_FLG_KEY_SIZE_MSK;
 
-	if (sta_id == priv->hw_setting.bcast_sta_id)
+	if (sta_id == priv->hw_params.bcast_sta_id)
 		key_flags |= STA_KEY_MULTICAST_MSK;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
@@ -198,7 +198,7 @@ static int iwl_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
 	key_flags |= cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
 	key_flags &= ~STA_KEY_FLG_INVALID;
 
-	if (sta_id == priv->hw_setting.bcast_sta_id)
+	if (sta_id == priv->hw_params.bcast_sta_id)
 		key_flags |= STA_KEY_MULTICAST_MSK;
 
 	keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;

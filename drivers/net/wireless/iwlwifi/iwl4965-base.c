@@ -398,9 +398,9 @@ static u8 iwl4965_remove_station(struct iwl_priv *priv, const u8 *addr, int is_a
 	if (is_ap)
 		index = IWL_AP_ID;
 	else if (is_broadcast_ether_addr(addr))
-		index = priv->hw_setting.bcast_sta_id;
+		index = priv->hw_params.bcast_sta_id;
 	else
-		for (i = IWL_STA_ID; i < priv->hw_setting.max_stations; i++)
+		for (i = IWL_STA_ID; i < priv->hw_params.max_stations; i++)
 			if (priv->stations[i].used &&
 			    !compare_ether_addr(priv->stations[i].sta.sta.addr,
 						addr)) {
@@ -440,9 +440,9 @@ u8 iwl4965_add_station_flags(struct iwl_priv *priv, const u8 *addr,
 	if (is_ap)
 		index = IWL_AP_ID;
 	else if (is_broadcast_ether_addr(addr))
-		index = priv->hw_setting.bcast_sta_id;
+		index = priv->hw_params.bcast_sta_id;
 	else
-		for (i = IWL_STA_ID; i < priv->hw_setting.max_stations; i++) {
+		for (i = IWL_STA_ID; i < priv->hw_params.max_stations; i++) {
 			if (!compare_ether_addr(priv->stations[i].sta.sta.addr,
 						addr)) {
 				index = i;
@@ -483,7 +483,7 @@ u8 iwl4965_add_station_flags(struct iwl_priv *priv, const u8 *addr,
 
 #ifdef CONFIG_IWL4965_HT
 	/* BCAST station and IBSS stations do not work in HT mode */
-	if (index != priv->hw_setting.bcast_sta_id &&
+	if (index != priv->hw_params.bcast_sta_id &&
 	    priv->iw_mode != IEEE80211_IF_TYPE_IBSS)
 		iwl4965_set_ht_add_station(priv, index,
 				 (struct ieee80211_ht_info *) ht_data);
@@ -1210,7 +1210,7 @@ static int iwl4965_send_beacon_cmd(struct iwl_priv *priv)
  *
  ******************************************************************************/
 
-static void iwl4965_unset_hw_setting(struct iwl_priv *priv)
+static void iwl4965_unset_hw_params(struct iwl_priv *priv)
 {
 	if (priv->shared_virt)
 		pci_free_consistent(priv->pci_dev,
@@ -2114,7 +2114,7 @@ static int iwl4965_get_sta_id(struct iwl_priv *priv,
 	/* If this frame is broadcast or management, use broadcast station id */
 	if (((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA) ||
 	    is_multicast_ether_addr(hdr->addr1))
-		return priv->hw_setting.bcast_sta_id;
+		return priv->hw_params.bcast_sta_id;
 
 	switch (priv->iw_mode) {
 
@@ -2128,7 +2128,7 @@ static int iwl4965_get_sta_id(struct iwl_priv *priv,
 		sta_id = iwl4965_hw_find_station(priv, hdr->addr1);
 		if (sta_id != IWL_INVALID_STATION)
 			return sta_id;
-		return priv->hw_setting.bcast_sta_id;
+		return priv->hw_params.bcast_sta_id;
 
 	/* If this frame is going out to an IBSS network, find the station,
 	 * or create a new station table entry */
@@ -2148,11 +2148,11 @@ static int iwl4965_get_sta_id(struct iwl_priv *priv,
 			       "Defaulting to broadcast...\n",
 			       print_mac(mac, hdr->addr1));
 		iwl_print_hex_dump(IWL_DL_DROP, (u8 *) hdr, sizeof(*hdr));
-		return priv->hw_setting.bcast_sta_id;
+		return priv->hw_params.bcast_sta_id;
 
 	default:
 		IWL_WARNING("Unknown mode of operation: %d", priv->iw_mode);
-		return priv->hw_setting.bcast_sta_id;
+		return priv->hw_params.bcast_sta_id;
 	}
 }
 
@@ -2299,7 +2299,7 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 	 * of the MAC header (device reads on dword boundaries).
 	 * We'll tell device about this padding later.
 	 */
-	len = priv->hw_setting.tx_cmd_len +
+	len = priv->hw_params.tx_cmd_len +
 		sizeof(struct iwl_cmd_header) + hdr_len;
 
 	len_org = len;
@@ -3726,7 +3726,7 @@ static void iwl4965_rx_allocate(struct iwl_priv *priv)
 
 		/* Alloc a new receive buffer */
 		rxb->skb =
-		    alloc_skb(priv->hw_setting.rx_buf_size,
+		    alloc_skb(priv->hw_params.rx_buf_size,
 				__GFP_NOWARN | GFP_ATOMIC);
 		if (!rxb->skb) {
 			if (net_ratelimit())
@@ -3743,7 +3743,7 @@ static void iwl4965_rx_allocate(struct iwl_priv *priv)
 		/* Get physical address of RB/SKB */
 		rxb->dma_addr =
 		    pci_map_single(priv->pci_dev, rxb->skb->data,
-			   priv->hw_setting.rx_buf_size, PCI_DMA_FROMDEVICE);
+			   priv->hw_params.rx_buf_size, PCI_DMA_FROMDEVICE);
 		list_add_tail(&rxb->list, &rxq->rx_free);
 		rxq->free_count++;
 	}
@@ -3786,7 +3786,7 @@ static void iwl4965_rx_queue_free(struct iwl_priv *priv, struct iwl4965_rx_queue
 		if (rxq->pool[i].skb != NULL) {
 			pci_unmap_single(priv->pci_dev,
 					 rxq->pool[i].dma_addr,
-					 priv->hw_setting.rx_buf_size,
+					 priv->hw_params.rx_buf_size,
 					 PCI_DMA_FROMDEVICE);
 			dev_kfree_skb(rxq->pool[i].skb);
 		}
@@ -3838,7 +3838,7 @@ void iwl4965_rx_queue_reset(struct iwl_priv *priv, struct iwl4965_rx_queue *rxq)
 		if (rxq->pool[i].skb != NULL) {
 			pci_unmap_single(priv->pci_dev,
 					 rxq->pool[i].dma_addr,
-					 priv->hw_setting.rx_buf_size,
+					 priv->hw_params.rx_buf_size,
 					 PCI_DMA_FROMDEVICE);
 			priv->alloc_rxb_skb--;
 			dev_kfree_skb(rxq->pool[i].skb);
@@ -3973,7 +3973,7 @@ static void iwl4965_rx_handle(struct iwl_priv *priv)
 		rxq->queue[i] = NULL;
 
 		pci_dma_sync_single_for_cpu(priv->pci_dev, rxb->dma_addr,
-					    priv->hw_setting.rx_buf_size,
+					    priv->hw_params.rx_buf_size,
 					    PCI_DMA_FROMDEVICE);
 		pkt = (struct iwl4965_rx_packet *)rxb->skb->data;
 
@@ -4026,7 +4026,7 @@ static void iwl4965_rx_handle(struct iwl_priv *priv)
 		}
 
 		pci_unmap_single(priv->pci_dev, rxb->dma_addr,
-				 priv->hw_setting.rx_buf_size,
+				 priv->hw_params.rx_buf_size,
 				 PCI_DMA_FROMDEVICE);
 		spin_lock_irqsave(&rxq->lock, flags);
 		list_add_tail(&rxb->list, &priv->rxq.rx_used);
@@ -5871,7 +5871,7 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 	}
 
 	scan->tx_cmd.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK;
-	scan->tx_cmd.sta_id = priv->hw_setting.bcast_sta_id;
+	scan->tx_cmd.sta_id = priv->hw_params.bcast_sta_id;
 	scan->tx_cmd.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
 
@@ -6844,7 +6844,7 @@ static void iwl4965_mac_update_tkip_key(struct ieee80211_hw *hw,
 	key_flags |= cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
 	key_flags &= ~STA_KEY_FLG_INVALID;
 
-	if (sta_id == priv->hw_setting.bcast_sta_id)
+	if (sta_id == priv->hw_params.bcast_sta_id)
 		key_flags |= STA_KEY_MULTICAST_MSK;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
@@ -6905,7 +6905,7 @@ static int iwl4965_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	 * so far, we are in legacy wep mode (group key only), otherwise we are
 	 * in 1X mode.
 	 * In legacy wep mode, we use another host command to the uCode */
-	if (key->alg == ALG_WEP && sta_id == priv->hw_setting.bcast_sta_id &&
+	if (key->alg == ALG_WEP && sta_id == priv->hw_params.bcast_sta_id &&
 		priv->iw_mode != IEEE80211_IF_TYPE_AP) {
 		if (cmd == SET_KEY)
 			is_default_wep_key = !priv->key_mapping_key;
@@ -7831,8 +7831,8 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	 * 5. Setup HW constants
 	 ************************/
 	/* Device-specific setup */
-	if (iwl4965_hw_set_hw_setting(priv)) {
-		IWL_ERROR("failed to set hw settings\n");
+	if (priv->cfg->ops->lib->set_hw_params(priv)) {
+		IWL_ERROR("failed to set hw parameters\n");
 		goto out_iounmap;
 	}
 
@@ -7842,7 +7842,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	err = iwl_setup(priv);
 	if (err)
-		goto out_unset_hw_settings;
+		goto out_unset_hw_params;
 	/* At this point both hw and priv are initialized. */
 
 	/**********************************
@@ -7868,7 +7868,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	err = sysfs_create_group(&pdev->dev.kobj, &iwl4965_attribute_group);
 	if (err) {
 		IWL_ERROR("failed to create sysfs device attributes\n");
-		goto out_unset_hw_settings;
+		goto out_unset_hw_params;
 	}
 
 	err = iwl_dbgfs_register(priv, DRV_NAME);
@@ -7892,8 +7892,8 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
  out_remove_sysfs:
 	sysfs_remove_group(&pdev->dev.kobj, &iwl4965_attribute_group);
- out_unset_hw_settings:
-	iwl4965_unset_hw_setting(priv);
+ out_unset_hw_params:
+	iwl4965_unset_hw_params(priv);
  out_iounmap:
 	pci_iounmap(pdev, priv->hw_base);
  out_pci_release_regions:
@@ -7955,7 +7955,7 @@ static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 		iwl4965_rx_queue_free(priv, &priv->rxq);
 	iwl4965_hw_txq_ctx_free(priv);
 
-	iwl4965_unset_hw_setting(priv);
+	iwl4965_unset_hw_params(priv);
 	iwlcore_clear_stations_table(priv);
 
 
