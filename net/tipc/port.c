@@ -1240,6 +1240,28 @@ exit:
 	return res;
 }
 
+/**
+ * tipc_disconnect_port - disconnect port from peer
+ *
+ * Port must be locked.
+ */
+
+int tipc_disconnect_port(struct tipc_port *tp_ptr)
+{
+	int res;
+
+	if (tp_ptr->connected) {
+		tp_ptr->connected = 0;
+		/* let timer expire on it's own to avoid deadlock! */
+		tipc_nodesub_unsubscribe(
+			&((struct port *)tp_ptr)->subscription);
+		res = TIPC_OK;
+	} else {
+		res = -ENOTCONN;
+	}
+	return res;
+}
+
 /*
  * tipc_disconnect(): Disconnect port form peer.
  *                    This is a node local operation.
@@ -1248,17 +1270,12 @@ exit:
 int tipc_disconnect(u32 ref)
 {
 	struct port *p_ptr;
-	int res = -ENOTCONN;
+	int res;
 
 	p_ptr = tipc_port_lock(ref);
 	if (!p_ptr)
 		return -EINVAL;
-	if (p_ptr->publ.connected) {
-		p_ptr->publ.connected = 0;
-		/* let timer expire on it's own to avoid deadlock! */
-		tipc_nodesub_unsubscribe(&p_ptr->subscription);
-		res = TIPC_OK;
-	}
+	res = tipc_disconnect_port((struct tipc_port *)p_ptr);
 	tipc_port_unlock(p_ptr);
 	return res;
 }
