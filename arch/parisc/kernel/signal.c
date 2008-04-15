@@ -534,7 +534,8 @@ insert_restart_trampoline(struct pt_regs *regs)
 		 * Flushing one cacheline is cheap.
 		 * "sync" on bigger (> 4 way) boxes is not.
 		 */
-		flush_icache_range(regs->gr[30], regs->gr[30] + 4);
+		flush_user_dcache_range(regs->gr[30], regs->gr[30] + 4);
+		flush_user_icache_range(regs->gr[30], regs->gr[30] + 4);
 
 		regs->gr[31] = regs->gr[30] + 8;
 		/* Preserve original r28. */
