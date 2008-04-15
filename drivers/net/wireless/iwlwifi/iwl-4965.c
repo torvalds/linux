@@ -4905,6 +4905,10 @@ void iwl4965_hw_cancel_deferred_work(struct iwl_priv *priv)
 	cancel_delayed_work(&priv->init_alive_start);
 }
 
+
+static struct iwl_hcmd_ops iwl4965_hcmd = {
+};
+
 static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 	.enqueue_hcmd = iwl4965_enqueue_hcmd,
 };
@@ -4927,6 +4931,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 
 static struct iwl_ops iwl4965_ops = {
 	.lib = &iwl4965_lib,
+	.hcmd = &iwl4965_hcmd,
 	.utils = &iwl4965_hcmd_utils,
 };
 

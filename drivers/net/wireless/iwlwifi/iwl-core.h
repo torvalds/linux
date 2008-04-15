@@ -82,6 +82,8 @@ struct iwl_cmd;
 #define IWL_SKU_A       0x2
 #define IWL_SKU_N       0x8
 
+struct iwl_hcmd_ops {
+};
 struct iwl_hcmd_utils_ops {
 	int (*enqueue_hcmd)(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 };
@@ -111,6 +113,7 @@ struct iwl_lib_ops {
 
 struct iwl_ops {
 	const struct iwl_lib_ops *lib;
+	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
 };
 
