@@ -6,8 +6,8 @@
 #define LMB_DBG(fmt...) udbg_printf(fmt)
 
 #ifdef CONFIG_PPC32
-extern unsigned long __max_low_memory;
-#define LMB_REAL_LIMIT	__max_low_memory
+extern phys_addr_t lowmem_end_addr;
+#define LMB_REAL_LIMIT	lowmem_end_addr
 #else
 #define LMB_REAL_LIMIT	0
 #endif
