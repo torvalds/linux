@@ -1219,11 +1219,11 @@ static int iwl4965_send_beacon_cmd(struct iwl_priv *priv)
 
 static void iwl4965_unset_hw_setting(struct iwl_priv *priv)
 {
-	if (priv->hw_setting.shared_virt)
+	if (priv->shared_virt)
 		pci_free_consistent(priv->pci_dev,
 				    sizeof(struct iwl4965_shared),
-				    priv->hw_setting.shared_virt,
-				    priv->hw_setting.shared_phys);
+				    priv->shared_virt,
+				    priv->shared_phys);
 }
 
 /**

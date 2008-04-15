@@ -1554,29 +1554,29 @@ struct iwl4965_sched_queue_byte_cnt_tbl {
 struct iwl4965_shared {
 	struct iwl4965_sched_queue_byte_cnt_tbl
 	 queues_byte_cnt_tbls[IWL_MAX_NUM_QUEUES];
-	__le32 val0;
+	__le32 rb_closed;
 
 	/* __le32 rb_closed_stts_rb_num:12; */
 #define IWL_rb_closed_stts_rb_num_POS 0
 #define IWL_rb_closed_stts_rb_num_LEN 12
-#define IWL_rb_closed_stts_rb_num_SYM val0
+#define IWL_rb_closed_stts_rb_num_SYM rb_closed
 	/* __le32 rsrv1:4; */
 	/* __le32 rb_closed_stts_rx_frame_num:12; */
 #define IWL_rb_closed_stts_rx_frame_num_POS 16
 #define IWL_rb_closed_stts_rx_frame_num_LEN 12
-#define IWL_rb_closed_stts_rx_frame_num_SYM val0
+#define IWL_rb_closed_stts_rx_frame_num_SYM rb_closed
 	/* __le32 rsrv2:4; */
 
-	__le32 val1;
+	__le32 frm_finished;
 	/* __le32 frame_finished_stts_rb_num:12; */
 #define IWL_frame_finished_stts_rb_num_POS 0
 #define IWL_frame_finished_stts_rb_num_LEN 12
-#define IWL_frame_finished_stts_rb_num_SYM val1
+#define IWL_frame_finished_stts_rb_num_SYM frm_finished
 	/* __le32 rsrv3:4; */
 	/* __le32 frame_finished_stts_rx_frame_num:12; */
 #define IWL_frame_finished_stts_rx_frame_num_POS 16
 #define IWL_frame_finished_stts_rx_frame_num_LEN 12
-#define IWL_frame_finished_stts_rx_frame_num_SYM val1
+#define IWL_frame_finished_stts_rx_frame_num_SYM frm_finished
 	/* __le32 rsrv4:4; */
 
 	__le32 padding1;  /* so that allocation will be aligned to 16B */
