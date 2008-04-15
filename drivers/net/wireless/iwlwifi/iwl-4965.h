@@ -941,6 +941,8 @@ enum {
 
 #endif
 
+#define IWL_MAX_NUM_QUEUES	20 /* FIXME: do dynamic allocation */
+
 struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */

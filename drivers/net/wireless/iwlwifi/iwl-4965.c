@@ -46,7 +46,7 @@
 
 /* module parameters */
 static struct iwl_mod_params iwl4965_mod_params = {
-	.num_of_queues = IWL_MAX_NUM_QUEUES,
+	.num_of_queues = IWL4965_MAX_NUM_QUEUES,
 	.enable_qos = 1,
 	.amsdu_size_8K = 1,
 	/* the rest are 0 by default */
@@ -2021,10 +2021,10 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 {
 
-	if ((priv->cfg->mod_params->num_of_queues > IWL_MAX_NUM_QUEUES) ||
+	if ((priv->cfg->mod_params->num_of_queues > IWL4965_MAX_NUM_QUEUES) ||
 	    (priv->cfg->mod_params->num_of_queues < IWL_MIN_NUM_QUEUES)) {
 		IWL_ERROR("invalid queues_num, should be between %d and %d\n",
-			  IWL_MIN_NUM_QUEUES, IWL_MAX_NUM_QUEUES);
+			  IWL_MIN_NUM_QUEUES, IWL4965_MAX_NUM_QUEUES);
 		return -EINVAL;
 	}
 
@@ -4362,7 +4362,7 @@ static void iwl4965_rx_reply_compressed_ba(struct iwl_priv *priv,
 	 * (in Tx queue's circular buffer) of first TFD/frame in window */
 	u16 ba_resp_scd_ssn = le16_to_cpu(ba_resp->scd_ssn);
 
-	if (scd_flow >= ARRAY_SIZE(priv->txq)) {
+	if (scd_flow >= priv->hw_params.max_txq_num) {
 		IWL_ERROR("BUG_ON scd_flow is bigger than number of queues");
 		return;
 	}

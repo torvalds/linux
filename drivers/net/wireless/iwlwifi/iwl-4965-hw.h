@@ -1385,10 +1385,10 @@ static inline __le32 iwl4965_hw_set_rate_n_flags(u8 rate, u16 flags)
  * up to 7 DMA channels (FIFOs).  Each Tx queue is supported by a circular array
  * in DRAM containing 256 Transmit Frame Descriptors (TFDs).
  */
-#define IWL4965_MAX_WIN_SIZE              64
-#define IWL4965_QUEUE_SIZE               256
-#define IWL4965_NUM_FIFOS                  7
-#define IWL_MAX_NUM_QUEUES                16
+#define IWL4965_MAX_WIN_SIZE	64
+#define IWL4965_QUEUE_SIZE	256
+#define IWL4965_NUM_FIFOS	7
+#define IWL4965_MAX_NUM_QUEUES	16
 
 
 /**
@@ -1553,7 +1553,7 @@ struct iwl4965_sched_queue_byte_cnt_tbl {
  */
 struct iwl4965_shared {
 	struct iwl4965_sched_queue_byte_cnt_tbl
-	 queues_byte_cnt_tbls[IWL_MAX_NUM_QUEUES];
+	 queues_byte_cnt_tbls[IWL4965_MAX_NUM_QUEUES];
 	__le32 rb_closed;
 
 	/* __le32 rb_closed_stts_rb_num:12; */

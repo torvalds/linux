@@ -456,7 +456,7 @@ struct iwl3945_eeprom {
 /* Size of uCode instruction memory in bootstrap state machine */
 #define IWL_MAX_BSM_SIZE ALM_RTC_INST_SIZE
 
-#define IWL_MAX_NUM_QUEUES	8
+#define IWL39_MAX_NUM_QUEUES	8
 
 static inline int iwl3945_hw_valid_rtc_data_addr(u32 addr)
 {
