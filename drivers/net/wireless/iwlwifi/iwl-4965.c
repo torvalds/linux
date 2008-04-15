@@ -410,7 +410,7 @@ void iwl4965_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
 	int rate_index;
 
 	control->antenna_sel_tx =
-		((rate_n_flags & RATE_MCS_ANT_AB_MSK) >> RATE_MCS_ANT_A_POS);
+		((rate_n_flags & RATE_MCS_ANT_AB_MSK) >> RATE_MCS_ANT_POS);
 	if (rate_n_flags & RATE_MCS_HT_MSK)
 		control->flags |= IEEE80211_TXCTL_OFDM_HT;
 	if (rate_n_flags & RATE_MCS_GF_MSK)
@@ -2040,7 +2040,10 @@ int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.max_stations = IWL4965_STATION_COUNT;
 	priv->hw_params.bcast_sta_id = IWL4965_BROADCAST_ID;
 
-	priv->hw_params.tx_ant_num = 2;
+	priv->hw_params.tx_chains_num = 2;
+	priv->hw_params.rx_chains_num = 2;
+	priv->hw_params.valid_tx_ant = (IWL_ANTENNA_MAIN | IWL_ANTENNA_AUX);
+	priv->hw_params.valid_rx_ant = (IWL_ANTENNA_MAIN | IWL_ANTENNA_AUX);
 
 	return 0;
 }

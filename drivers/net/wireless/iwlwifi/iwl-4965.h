@@ -580,11 +580,14 @@ struct iwl4965_ibss_seq {
 struct iwl_hw_params {
 	u16 max_txq_num;
 	u16 tx_cmd_len;
-	u16 tx_ant_num;
+	u8  tx_chains_num;
+	u8  rx_chains_num;
+	u8  valid_tx_ant;
+	u8  valid_rx_ant;
 	u16 max_rxq_size;
+	u16 max_rxq_log;
 	u32 rx_buf_size;
 	u32 max_pkt_size;
-	u16 max_rxq_log;
 	u8  max_stations;
 	u8  bcast_sta_id;
 };

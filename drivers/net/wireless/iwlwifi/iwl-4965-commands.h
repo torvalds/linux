@@ -269,11 +269,10 @@ struct iwl_cmd_header {
  *          10 B active, A inactive
  *          11 Both active
  */
-#define RATE_MCS_ANT_A_POS	14
-#define RATE_MCS_ANT_B_POS	15
-#define RATE_MCS_ANT_A_MSK	0x4000
-#define RATE_MCS_ANT_B_MSK	0x8000
-#define RATE_MCS_ANT_AB_MSK	0xc000
+#define RATE_MCS_ANT_POS       14
+#define RATE_MCS_ANT_A_MSK     0x04000
+#define RATE_MCS_ANT_B_MSK     0x08000
+#define RATE_MCS_ANT_AB_MSK    0x0C000
 
 
 /**
