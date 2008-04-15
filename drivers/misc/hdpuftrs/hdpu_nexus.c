@@ -55,6 +55,7 @@ static struct platform_driver hdpu_nexus_driver = {
 	.remove = hdpu_nexus_remove,
 	.driver = {
 		.name = HDPU_NEXUS_NAME,
+		.owner = THIS_MODULE,
 	},
 };
 
@@ -151,3 +152,4 @@ module_exit(nexus_exit);
 
 MODULE_AUTHOR("Brian Waite");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" HDPU_NEXUS_NAME);
