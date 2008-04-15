@@ -20,6 +20,7 @@ struct proc_dir_entry;
 struct net_device;
 struct sock;
 struct ctl_table_header;
+struct net_generic;
 
 struct net {
 	atomic_t		count;		/* To decided when the network
@@ -61,6 +62,7 @@ struct net {
 #ifdef CONFIG_NETFILTER
 	struct netns_xt		xt;
 #endif
+	struct net_generic	*gen;
 };
 
 

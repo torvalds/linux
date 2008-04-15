@@ -7,6 +7,7 @@
 #include <linux/sched.h>
 #include <linux/idr.h>
 #include <net/net_namespace.h>
+#include <net/netns/generic.h>
 
 /*
  *	Our network namespace constructor/destructor lists
@@ -21,6 +22,8 @@ LIST_HEAD(net_namespace_list);
 struct net init_net;
 EXPORT_SYMBOL(init_net);
 
+#define INITIAL_NET_GEN_PTRS	13 /* +1 for len +2 for rcu_head */
+
 /*
  * setup_net runs the initializers for the network namespace object.
  */
@@ -29,9 +32,20 @@ static __net_init int setup_net(struct net *net)
 	/* Must be called with net_mutex held */
 	struct pernet_operations *ops;
 	int error;
+	struct net_generic *ng;
 
 	atomic_set(&net->count, 1);
 	atomic_set(&net->use_count, 0);
+
+	error = -ENOMEM;
+	ng = kzalloc(sizeof(struct net_generic) +
+			INITIAL_NET_GEN_PTRS * sizeof(void *), GFP_KERNEL);
+	if (ng == NULL)
+		goto out;
+
+	ng->len = INITIAL_NET_GEN_PTRS;
+	INIT_RCU_HEAD(&ng->rcu);
+	rcu_assign_pointer(net->gen, ng);
 
 	error = 0;
 	list_for_each_entry(ops, &pernet_list, list) {
@@ -54,6 +68,7 @@ out_undo:
 	}
 
 	rcu_barrier();
+	kfree(ng);
 	goto out;
 }
 
@@ -386,3 +401,50 @@ void unregister_pernet_gen_device(int id, struct pernet_operations *ops)
 	mutex_unlock(&net_mutex);
 }
 EXPORT_SYMBOL_GPL(unregister_pernet_gen_device);
+
+static void net_generic_release(struct rcu_head *rcu)
+{
+	struct net_generic *ng;
+
+	ng = container_of(rcu, struct net_generic, rcu);
+	kfree(ng);
+}
+
+int net_assign_generic(struct net *net, int id, void *data)
+{
+	struct net_generic *ng, *old_ng;
+
+	BUG_ON(!mutex_is_locked(&net_mutex));
+	BUG_ON(id == 0);
+
+	ng = old_ng = net->gen;
+	if (old_ng->len >= id)
+		goto assign;
+
+	ng = kzalloc(sizeof(struct net_generic) +
+			id * sizeof(void *), GFP_KERNEL);
+	if (ng == NULL)
+		return -ENOMEM;
+
+	/*
+	 * Some synchronisation notes:
+	 *
+	 * The net_generic explores the net->gen array inside rcu
+	 * read section. Besides once set the net->gen->ptr[x]
+	 * pointer never changes (see rules in netns/generic.h).
+	 *
+	 * That said, we simply duplicate this array and schedule
+	 * the old copy for kfree after a grace period.
+	 */
+
+	ng->len = id;
+	INIT_RCU_HEAD(&ng->rcu);
+	memcpy(&ng->ptr, &old_ng->ptr, old_ng->len);
+
+	rcu_assign_pointer(net->gen, ng);
+	call_rcu(&old_ng->rcu, net_generic_release);
+assign:
+	ng->ptr[id - 1] = data;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(net_assign_generic);
