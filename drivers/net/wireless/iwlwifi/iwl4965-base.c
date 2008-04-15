@@ -758,15 +758,8 @@ static int iwl4965_full_rxon_required(struct iwl_priv *priv)
 
 static int iwl4965_send_rxon_assoc(struct iwl_priv *priv)
 {
-	int rc = 0;
-	struct iwl4965_rx_packet *res = NULL;
+	int ret = 0;
 	struct iwl4965_rxon_assoc_cmd rxon_assoc;
-	struct iwl_host_cmd cmd = {
-		.id = REPLY_RXON_ASSOC,
-		.len = sizeof(rxon_assoc),
-		.meta.flags = CMD_WANT_SKB,
-		.data = &rxon_assoc,
-	};
 	const struct iwl4965_rxon_cmd *rxon1 = &priv->staging_rxon;
 	const struct iwl4965_rxon_cmd *rxon2 = &priv->active_rxon;
 
@@ -794,20 +787,12 @@ static int iwl4965_send_rxon_assoc(struct iwl_priv *priv)
 	    priv->staging_rxon.ofdm_ht_dual_stream_basic_rates;
 	rxon_assoc.rx_chain_select_flags = priv->staging_rxon.rx_chain;
 
-	rc = iwl_send_cmd_sync(priv, &cmd);
-	if (rc)
-		return rc;
+	ret = iwl_send_cmd_pdu_async(priv, REPLY_RXON_ASSOC,
+				     sizeof(rxon_assoc), &rxon_assoc, NULL);
+	if (ret)
+		return ret;
 
-	res = (struct iwl4965_rx_packet *)cmd.meta.u.skb->data;
-	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERROR("Bad return from REPLY_RXON_ASSOC command\n");
-		rc = -EIO;
-	}
-
-	priv->alloc_rxb_skb--;
-	dev_kfree_skb_any(cmd.meta.u.skb);
-
-	return rc;
+	return ret;
 }
 
 /**
