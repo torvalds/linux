@@ -8020,9 +8020,17 @@ static int iwl4965_pci_resume(struct pci_dev *pdev)
  *
  *****************************************************************************/
 
-static struct pci_driver iwl4965_driver = {
+/* Hardware specific file defines the PCI IDs table for that hardware module */
+static struct pci_device_id iwl_hw_card_ids[] = {
+	{IWL_PCI_DEVICE(0x4229, PCI_ANY_ID, iwl4965_agn_cfg)},
+	{IWL_PCI_DEVICE(0x4230, PCI_ANY_ID, iwl4965_agn_cfg)},
+	{0}
+};
+MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
+
+static struct pci_driver iwl_driver = {
 	.name = DRV_NAME,
-	.id_table = iwl4965_hw_card_ids,
+	.id_table = iwl_hw_card_ids,
 	.probe = iwl4965_pci_probe,
 	.remove = __devexit_p(iwl4965_pci_remove),
 #ifdef CONFIG_PM
@@ -8044,13 +8052,13 @@ static int __init iwl4965_init(void)
 		return ret;
 	}
 
-	ret = pci_register_driver(&iwl4965_driver);
+	ret = pci_register_driver(&iwl_driver);
 	if (ret) {
 		IWL_ERROR("Unable to initialize PCI module\n");
 		goto error_register;
 	}
 #ifdef CONFIG_IWLWIFI_DEBUG
-	ret = driver_create_file(&iwl4965_driver.driver, &driver_attr_debug_level);
+	ret = driver_create_file(&iwl_driver.driver, &driver_attr_debug_level);
 	if (ret) {
 		IWL_ERROR("Unable to create driver sysfs file\n");
 		goto error_debug;
@@ -8061,7 +8069,7 @@ static int __init iwl4965_init(void)
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 error_debug:
-	pci_unregister_driver(&iwl4965_driver);
+	pci_unregister_driver(&iwl_driver);
 #endif
 error_register:
 	iwl4965_rate_control_unregister();
@@ -8071,9 +8079,9 @@ error_register:
 static void __exit iwl4965_exit(void)
 {
 #ifdef CONFIG_IWLWIFI_DEBUG
-	driver_remove_file(&iwl4965_driver.driver, &driver_attr_debug_level);
+	driver_remove_file(&iwl_driver.driver, &driver_attr_debug_level);
 #endif
-	pci_unregister_driver(&iwl4965_driver);
+	pci_unregister_driver(&iwl_driver);
 	iwl4965_rate_control_unregister();
 }
 

@@ -36,9 +36,6 @@
 #include <linux/kernel.h>
 #include <net/ieee80211_radiotap.h>
 
-/* Hardware specific file defines the PCI IDs table for that hardware module */
-extern struct pci_device_id iwl4965_hw_card_ids[];
-
 #define DRV_NAME        "iwl4965"
 #include "iwl-rfkill.h"
 #include "iwl-eeprom.h"
@@ -47,6 +44,9 @@ extern struct pci_device_id iwl4965_hw_card_ids[];
 #include "iwl-prph.h"
 #include "iwl-debug.h"
 #include "iwl-led.h"
+
+/* configuration for the iwl4965 */
+extern struct iwl_cfg iwl4965_agn_cfg;
 
 /* Change firmware file name, using "-" and incrementing number,
  *   *only* when uCode interface or architecture changes so that it

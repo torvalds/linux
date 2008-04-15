@@ -4930,21 +4930,13 @@ static struct iwl_ops iwl4965_ops = {
 	.utils = &iwl4965_hcmd_utils,
 };
 
-static struct iwl_cfg iwl4965_agn_cfg = {
+struct iwl_cfg iwl4965_agn_cfg = {
 	.name = "4965AGN",
 	.fw_name = "iwlwifi-4965" IWL4965_UCODE_API ".ucode",
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl4965_ops,
 	.mod_params = &iwl4965_mod_params,
 };
-
-struct pci_device_id iwl4965_hw_card_ids[] = {
-	{IWL_PCI_DEVICE(0x4229, PCI_ANY_ID, iwl4965_agn_cfg)},
-	{IWL_PCI_DEVICE(0x4230, PCI_ANY_ID, iwl4965_agn_cfg)},
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, iwl4965_hw_card_ids);
 
 module_param_named(antenna, iwl4965_mod_params.antenna, int, 0444);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
