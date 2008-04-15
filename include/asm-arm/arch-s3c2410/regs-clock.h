@@ -137,7 +137,7 @@ s3c2410_get_pll(unsigned int pllval, unsigned int baseclk)
 
 #define S3C2412_CLKDIVN_PDIVN		(1<<2)
 #define S3C2412_CLKDIVN_HDIVN_MASK	(3<<0)
-#define S3C2421_CLKDIVN_ARMDIVN		(1<<3)
+#define S3C2412_CLKDIVN_ARMDIVN		(1<<3)
 #define S3C2412_CLKDIVN_DVSEN		(1<<4)
 #define S3C2412_CLKDIVN_HALFHCLK	(1<<5)
 #define S3C2412_CLKDIVN_USB48DIV	(1<<6)
