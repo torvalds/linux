@@ -49,7 +49,6 @@
 #include <asm/mmu.h>
 #include <asm/uaccess.h>
 #include <asm/smp.h>
-#include <asm/bootx.h>
 #include <asm/machdep.h>
 #include <asm/setup.h>
 
@@ -59,7 +58,6 @@ extern void loadcam_entry(unsigned int index);
 unsigned int tlbcam_index;
 unsigned int num_tlbcam_entries;
 static unsigned long __cam0, __cam1, __cam2;
-#define MAX_LOW_MEM	CONFIG_LOWMEM_SIZE
 
 #define NUM_TLBCAMS	(16)
 
@@ -195,35 +193,32 @@ unsigned long __init mmu_mapin_ram(void)
 void __init
 adjust_total_lowmem(void)
 {
-	unsigned long max_low_mem = MAX_LOW_MEM;
-	unsigned long cam_max = 0x10000000;
-	unsigned long ram;
+	phys_addr_t max_lowmem_size = __max_low_memory;
+	phys_addr_t cam_max_size = 0x10000000;
+	phys_addr_t ram;
 
-	/* adjust CAM size to max_low_mem */
-	if (max_low_mem < cam_max)
-		cam_max = max_low_mem;
+	/* adjust CAM size to max_lowmem_size */
+	if (max_lowmem_size < cam_max_size)
+		cam_max_size = max_lowmem_size;
 
-	/* adjust lowmem size to max_low_mem */
-	if (max_low_mem < total_lowmem)
-		ram = max_low_mem;
-	else
-		ram = total_lowmem;
+	/* adjust lowmem size to max_lowmem_size */
+	ram = min(max_lowmem_size, total_lowmem);
 
 	/* Calculate CAM values */
 	__cam0 = 1UL << 2 * (__ilog2(ram) / 2);
-	if (__cam0 > cam_max)
-		__cam0 = cam_max;
+	if (__cam0 > cam_max_size)
+		__cam0 = cam_max_size;
 	ram -= __cam0;
 	if (ram) {
 		__cam1 = 1UL << 2 * (__ilog2(ram) / 2);
-		if (__cam1 > cam_max)
-			__cam1 = cam_max;
+		if (__cam1 > cam_max_size)
+			__cam1 = cam_max_size;
 		ram -= __cam1;
 	}
 	if (ram) {
 		__cam2 = 1UL << 2 * (__ilog2(ram) / 2);
-		if (__cam2 > cam_max)
-			__cam2 = cam_max;
+		if (__cam2 > cam_max_size)
+			__cam2 = cam_max_size;
 		ram -= __cam2;
 	}
 
@@ -231,6 +226,6 @@ adjust_total_lowmem(void)
 			" CAM2=%ldMb residual: %ldMb\n",
 			__cam0 >> 20, __cam1 >> 20, __cam2 >> 20,
 			(total_lowmem - __cam0 - __cam1 - __cam2) >> 20);
-	__max_low_memory = max_low_mem = __cam0 + __cam1 + __cam2;
-	__initial_memory_limit = __max_low_memory;
+	__max_low_memory = __cam0 + __cam1 + __cam2;
+	__initial_memory_limit = memstart_addr + __max_low_memory;
 }
