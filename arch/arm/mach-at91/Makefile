@@ -32,6 +32,7 @@ obj-$(CONFIG_MACH_PICOTUX2XX)	+= board-picotux200.o
 
 # AT91SAM9260 board-specific support
 obj-$(CONFIG_MACH_AT91SAM9260EK) += board-sam9260ek.o
+obj-$(CONFIG_MACH_CAM60)	+= board-cam60.o
 
 # AT91SAM9261 board-specific support
 obj-$(CONFIG_MACH_AT91SAM9261EK) += board-sam9261ek.o
