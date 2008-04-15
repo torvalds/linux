@@ -85,7 +85,6 @@
 #include "zoran_device.h"
 #include "zoran_card.h"
 
-#ifdef CONFIG_VIDEO_V4L2
 	/* we declare some card type definitions here, they mean
 	 * the same as the v4l1 ZORAN_VID_TYPE above, except it's v4l2 */
 #define ZORAN_V4L2_VID_FLAGS ( \
@@ -94,19 +93,15 @@
 				V4L2_CAP_VIDEO_OUTPUT |\
 				V4L2_CAP_VIDEO_OVERLAY \
 			      )
-#endif
 
 #include <asm/byteorder.h>
 
-#if defined(CONFIG_VIDEO_V4L2) && defined(CONFIG_VIDEO_V4L1_COMPAT)
+#if defined(CONFIG_VIDEO_V4L1_COMPAT)
 #define ZFMT(pal, fcc, cs) \
 	.palette = (pal), .fourcc = (fcc), .colorspace = (cs)
-#elif defined(CONFIG_VIDEO_V4L2)
-#define ZFMT(pal, fcc, cs) \
-	.fourcc = (fcc), .colorspace = (cs)
 #else
 #define ZFMT(pal, fcc, cs) \
-	.palette = (pal)
+	.fourcc = (fcc), .colorspace = (cs)
 #endif
 
 const struct zoran_format zoran_formats[] = {
@@ -209,7 +204,6 @@ static int lock_norm;	/* 0 = default 1 = Don't change TV standard (norm) */
 module_param(lock_norm, int, 0644);
 MODULE_PARM_DESC(lock_norm, "Prevent norm changes (1 = ignore, >1 = fail)");
 
-#ifdef CONFIG_VIDEO_V4L2
 	/* small helper function for calculating buffersizes for v4l2
 	 * we calculate the nearest higher power-of-two, which
 	 * will be the recommended buffersize */
@@ -232,7 +226,6 @@ zoran_v4l2_calc_bufsize (struct zoran_jpg_settings *settings)
 		return 8192;
 	return result;
 }
-#endif
 
 /* forward references */
 static void v4l_fbuffer_free(struct file *file);
@@ -1709,7 +1702,6 @@ setup_overlay (struct file *file,
 	return wait_grab_pending(zr);
 }
 
-#ifdef CONFIG_VIDEO_V4L2
 	/* get the status of a buffer in the clients buffer queue */
 static int
 zoran_v4l2_buffer_status (struct file        *file,
@@ -1815,7 +1807,6 @@ zoran_v4l2_buffer_status (struct file        *file,
 
 	return 0;
 }
-#endif
 
 static int
 zoran_set_norm (struct zoran *zr,
@@ -2623,8 +2614,6 @@ zoran_do_ioctl (struct inode *inode,
 		return res;
 	}
 		break;
-
-#ifdef CONFIG_VIDEO_V4L2
 
 		/* The new video4linux2 capture interface - much nicer than video4linux1, since
 		 * it allows for integrating the JPEG capturing calls inside standard v4l2
@@ -4197,7 +4186,6 @@ zoran_do_ioctl (struct inode *inode,
 		return 0;
 	}
 		break;
-#endif
 
 	default:
 		dprintk(1, KERN_DEBUG "%s: UNKNOWN ioctl cmd: 0x%x\n",
@@ -4657,9 +4645,7 @@ static const struct file_operations zoran_fops = {
 struct video_device zoran_template __devinitdata = {
 	.name = ZORAN_NAME,
 	.type = ZORAN_VID_TYPE,
-#ifdef CONFIG_VIDEO_V4L2
 	.type2 = ZORAN_V4L2_VID_FLAGS,
-#endif
 	.fops = &zoran_fops,
 	.release = &zoran_vdev_release,
 	.minor = -1

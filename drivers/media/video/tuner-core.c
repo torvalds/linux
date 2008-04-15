@@ -758,7 +758,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		if (analog_ops->standby)
 			analog_ops->standby(&t->fe);
 		break;
-#ifdef CONFIG_VIDEO_V4L1
+#ifdef CONFIG_VIDEO_ALLOW_V4L1
 	case VIDIOCSAUDIO:
 		if (check_mode(t, "VIDIOCSAUDIO") == EINVAL)
 			return 0;
