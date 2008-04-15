@@ -37,6 +37,7 @@
 #include "iwl-io.h"
 #include "iwl-helpers.h"
 
+int iwl_get_free_ucode_key_index(struct iwl_priv *priv);
 int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty);
 int iwl_remove_default_wep_key(struct iwl_priv *priv,
 				struct ieee80211_key_conf *key);

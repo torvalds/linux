@@ -36,6 +36,18 @@
 #include "iwl-io.h"
 #include "iwl-helpers.h"
 #include "iwl-4965.h"
+#include "iwl-sta.h"
+
+int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
+{
+	int i;
+
+	for (i = 0; i < STA_KEY_MAX_NUM; i++)
+		if (test_and_set_bit(i, &priv->ucode_key_table))
+			return i;
+
+	return -1;
+}
 
 int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
 {
@@ -81,14 +93,19 @@ int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
 }
 
 int iwl_remove_default_wep_key(struct iwl_priv *priv,
-			       struct ieee80211_key_conf *key)
+			       struct ieee80211_key_conf *keyconf)
 {
 	int ret;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
+
+	if (!test_and_clear_bit(keyconf->keyidx, &priv->ucode_key_table))
+		IWL_ERROR("index %d not used in uCode key table.\n",
+			  keyconf->keyidx);
+
 	priv->default_wep_key--;
-	memset(&priv->wep_keys[key->keyidx], 0, sizeof(priv->wep_keys[0]));
+	memset(&priv->wep_keys[keyconf->keyidx], 0, sizeof(priv->wep_keys[0]));
 	ret = iwl_send_static_wepkey_cmd(priv, 1);
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
@@ -107,6 +124,10 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	priv->default_wep_key++;
+
+	if (test_and_set_bit(keyconf->keyidx, &priv->ucode_key_table))
+		IWL_ERROR("index %d already used in uCode key table.\n",
+			keyconf->keyidx);
 
 	priv->wep_keys[keyconf->keyidx].key_size = keyconf->keylen;
 	memcpy(&priv->wep_keys[keyconf->keyidx].key, &keyconf->key,
@@ -151,7 +172,8 @@ int iwl_set_wep_dynamic_key_info(struct iwl_priv *priv,
 	memcpy(&priv->stations[sta_id].sta.key.key[3],
 				keyconf->key, keyconf->keylen);
 
-	priv->stations[sta_id].sta.key.key_offset = sta_id % 8; /* FIXME */
+	priv->stations[sta_id].sta.key.key_offset =
+				 iwl_get_free_ucode_key_index(priv);
 	priv->stations[sta_id].sta.key.key_flags = key_flags;
 
 	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;

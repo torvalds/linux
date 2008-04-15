@@ -1140,8 +1140,8 @@ static int iwl4965_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
 	memcpy(priv->stations[sta_id].sta.key.key, keyconf->key,
 	       keyconf->keylen);
 
-	priv->stations[sta_id].sta.key.key_offset
-			= (sta_id % STA_KEY_MAX_NUM);/*FIXME*/
+	priv->stations[sta_id].sta.key.key_offset =
+				iwl_get_free_ucode_key_index(priv);
 	priv->stations[sta_id].sta.key.key_flags = key_flags;
 	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
@@ -1187,6 +1187,10 @@ static int iwl4965_clear_sta_key_info(struct iwl_priv *priv, u8 sta_id)
 	priv->key_mapping_key = 0;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
+	if (!test_and_clear_bit(priv->stations[sta_id].sta.key.key_offset,
+		&priv->ucode_key_table))
+		IWL_ERROR("index %d not used in uCode key table.\n",
+			priv->stations[sta_id].sta.key.key_offset);
 	memset(&priv->stations[sta_id].keyinfo, 0, sizeof(struct iwl4965_hw_key));
 	memset(&priv->stations[sta_id].sta.key, 0, sizeof(struct iwl4965_keyinfo));
 	priv->stations[sta_id].sta.key.key_flags = STA_KEY_FLG_NO_ENC;
@@ -6971,7 +6975,7 @@ static void iwl4965_mac_update_tkip_key(struct ieee80211_hw *hw,
 	spin_lock_irqsave(&priv->sta_lock, flags);
 
 	priv->stations[sta_id].sta.key.key_offset =
-					(sta_id % STA_KEY_MAX_NUM);/* FIXME */
+				iwl_get_free_ucode_key_index(priv);
 	priv->stations[sta_id].sta.key.key_flags = key_flags;
 	priv->stations[sta_id].sta.key.tkip_rx_tsc_byte2 = (u8) iv32;
 

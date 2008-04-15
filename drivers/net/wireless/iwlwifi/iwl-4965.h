@@ -1116,6 +1116,7 @@ struct iwl_priv {
 	struct iwl_wep_key wep_keys[WEP_KEYS_MAX];
 	u8 default_wep_key;
 	u8 key_mapping_key;
+	unsigned long ucode_key_table;
 
 	/* Indication if ieee80211_ops->open has been called */
 	u8 is_open;
