@@ -6501,27 +6501,24 @@ static int find_next_best_node(int node, nodemask_t *used_nodes)
  * should be one that prevents unnecessary balancing, but also spreads tasks
  * out optimally.
  */
-static cpumask_t sched_domain_node_span(int node)
+static void sched_domain_node_span(int node, cpumask_t *span)
 {
 	nodemask_t used_nodes;
-	cpumask_t span;
 	node_to_cpumask_ptr(nodemask, node);
 	int i;
 
-	cpus_clear(span);
+	cpus_clear(*span);
 	nodes_clear(used_nodes);
 
-	cpus_or(span, span, *nodemask);
+	cpus_or(*span, *span, *nodemask);
 	node_set(node, used_nodes);
 
 	for (i = 1; i < SD_NODES_PER_DOMAIN; i++) {
 		int next_node = find_next_best_node(node, &used_nodes);
 
 		node_to_cpumask_ptr_next(nodemask, next_node);
-		cpus_or(span, span, *nodemask);
+		cpus_or(*span, *span, *nodemask);
 	}
-
-	return span;
 }
 #endif
 
@@ -6883,7 +6880,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 
 		sd = &per_cpu(node_domains, i);
 		SD_INIT(sd, NODE);
-		sd->span = sched_domain_node_span(cpu_to_node(i));
+		sched_domain_node_span(cpu_to_node(i), &sd->span);
 		sd->parent = p;
 		if (p)
 			p->child = sd;
@@ -6998,7 +6995,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 			continue;
 		}
 
-		*domainspan = sched_domain_node_span(i);
+		sched_domain_node_span(i, domainspan);
 		cpus_and(*domainspan, *domainspan, *cpu_map);
 
 		sg = kmalloc_node(sizeof(struct sched_group), GFP_KERNEL, i);
