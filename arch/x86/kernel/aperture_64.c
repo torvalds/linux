@@ -55,8 +55,9 @@ static u32 __init allocate_aperture(void)
 	u32 aper_size;
 	void *p;
 
-	if (fallback_aper_order > 7)
-		fallback_aper_order = 7;
+	/* aper_size should <= 1G */
+	if (fallback_aper_order > 5)
+		fallback_aper_order = 5;
 	aper_size = (32 * 1024 * 1024) << fallback_aper_order;
 
 	/*
@@ -65,7 +66,20 @@ static u32 __init allocate_aperture(void)
 	 * memory. Unfortunately we cannot move it up because that would
 	 * make the IOMMU useless.
 	 */
-	p = __alloc_bootmem_nopanic(aper_size, aper_size, 0);
+	/*
+	 * using 512M as goal, in case kexec will load kernel_big
+	 * that will do the on position decompress, and  could overlap with
+	 * that positon with gart that is used.
+	 * sequende:
+	 * kernel_small
+	 * ==> kexec (with kdump trigger path or previous doesn't shutdown gart)
+	 * ==> kernel_small(gart area become e820_reserved)
+	 * ==> kexec (with kdump trigger path or previous doesn't shutdown gart)
+	 * ==> kerne_big (uncompressed size will be big than 64M or 128M)
+	 * so don't use 512M below as gart iommu, leave the space for kernel
+	 * code for safe
+	 */
+	p = __alloc_bootmem_nopanic(aper_size, aper_size, 512ULL<<20);
 	if (!p || __pa(p)+aper_size > 0xffffffff) {
 		printk(KERN_ERR
 			"Cannot allocate aperture memory hole (%p,%uK)\n",
