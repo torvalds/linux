@@ -314,6 +314,7 @@ static int pxa2xx_ac97_probe(struct platform_device *pdev)
 		ac97_clk = NULL;
 		goto err_irq;
 	}
+	clk_enable(ac97_clk);
 	return 0;
 
  err_irq:
