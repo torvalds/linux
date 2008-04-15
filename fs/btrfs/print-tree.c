@@ -24,7 +24,8 @@ static void print_chunk(struct extent_buffer *eb, struct btrfs_chunk *chunk)
 {
 	int num_stripes = btrfs_chunk_num_stripes(eb, chunk);
 	int i;
-	printk("\t\tchunk owner %llu type %llu num_stripes %d\n",
+	printk("\t\tchunk length %llu owner %llu type %llu num_stripes %d\n",
+	       (unsigned long long)btrfs_chunk_length(eb, chunk),
 	       (unsigned long long)btrfs_chunk_owner(eb, chunk),
 	       (unsigned long long)btrfs_chunk_type(eb, chunk),
 	       num_stripes);
@@ -140,17 +141,24 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 		case BTRFS_DEV_EXTENT_KEY:
 			dev_extent = btrfs_item_ptr(l, i,
 						    struct btrfs_dev_extent);
-			printk("\t\tdev extent owner %llu length %llu\n",
-			       (unsigned long long)btrfs_dev_extent_owner(l, dev_extent),
-			       (unsigned long long)btrfs_dev_extent_length(l, dev_extent));
+			printk("\t\tdev extent chunk_tree %llu\n"
+			       "\t\tchunk objectid %llu chunk offset %llu "
+			       "length %llu\n",
+			       (unsigned long long)
+			       btrfs_dev_extent_chunk_tree(l, dev_extent),
+			       (unsigned long long)
+			       btrfs_dev_extent_chunk_objectid(l, dev_extent),
+			       (unsigned long long)
+			       btrfs_dev_extent_chunk_offset(l, dev_extent),
+			       (unsigned long long)
+			       btrfs_dev_extent_length(l, dev_extent));
 		};
 	}
 }
 
 void btrfs_print_tree(struct btrfs_root *root, struct extent_buffer *c)
 {
-	int i;
-	u32 nr;
+	int i; u32 nr;
 	struct btrfs_key key;
 	int level;
 

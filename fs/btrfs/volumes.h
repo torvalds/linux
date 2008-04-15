@@ -57,7 +57,7 @@ struct btrfs_device {
 	u64 type;
 
 	/* physical drive uuid (or lvm uuid) */
-	u8 uuid[BTRFS_DEV_UUID_SIZE];
+	u8 uuid[BTRFS_UUID_SIZE];
 };
 
 struct btrfs_fs_devices {
@@ -93,7 +93,9 @@ struct btrfs_multi_bio {
 
 int btrfs_alloc_dev_extent(struct btrfs_trans_handle *trans,
 			   struct btrfs_device *device,
-			   u64 owner, u64 num_bytes, u64 *start);
+			   u64 chunk_tree, u64 chunk_objectid,
+			   u64 chunk_offset,
+			   u64 num_bytes, u64 *start);
 int btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
 		    u64 logical, u64 *length,
 		    struct btrfs_multi_bio **multi_ret, int mirror_num);

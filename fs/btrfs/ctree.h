@@ -70,6 +70,7 @@ extern struct kmem_cache *btrfs_path_cachep;
  * All files have objectids higher than this.
  */
 #define BTRFS_FIRST_FREE_OBJECTID 256ULL
+#define BTRFS_FIRST_CHUNK_TREE_OBJECTID 256ULL
 
 
 /*
@@ -131,7 +132,7 @@ struct btrfs_mapping_tree {
 	struct extent_map_tree map_tree;
 };
 
-#define BTRFS_DEV_UUID_SIZE 16
+#define BTRFS_UUID_SIZE 16
 struct btrfs_dev_item {
 	/* the internal btrfs device id */
 	__le64 devid;
@@ -154,17 +155,32 @@ struct btrfs_dev_item {
 	/* type and info about this device */
 	__le64 type;
 
+	/* grouping information for allocation decisions */
+	__le32 dev_group;
+
+	/* seek speed 0-100 where 100 is fastest */
+	u8 seek_speed;
+
+	/* bandwidth 0-100 where 100 is fastest */
+	u8 bandwidth;
+
 	/* btrfs generated uuid for this device */
-	u8 uuid[BTRFS_DEV_UUID_SIZE];
+	u8 uuid[BTRFS_UUID_SIZE];
 } __attribute__ ((__packed__));
 
 struct btrfs_stripe {
 	__le64 devid;
 	__le64 offset;
+	u8 dev_uuid[BTRFS_UUID_SIZE];
 } __attribute__ ((__packed__));
 
 struct btrfs_chunk {
+	/* size of this chunk in bytes */
+	__le64 length;
+
+	/* objectid of the root referencing this chunk */
 	__le64 owner;
+
 	__le64 stripe_len;
 	__le64 type;
 
@@ -199,10 +215,14 @@ static inline unsigned long btrfs_chunk_item_size(int num_stripes)
  * every tree block (leaf or node) starts with this header.
  */
 struct btrfs_header {
+	/* these first four must match the super block */
 	u8 csum[BTRFS_CSUM_SIZE];
 	u8 fsid[BTRFS_FSID_SIZE]; /* FS specific uuid */
 	__le64 bytenr; /* which block this node is supposed to live in */
 	__le64 flags;
+
+	/* allowed to be different from the super from here on down */
+	u8 chunk_tree_uuid[BTRFS_UUID_SIZE];
 	__le64 generation;
 	__le64 owner;
 	__le32 nritems;
@@ -235,6 +255,8 @@ struct btrfs_super_block {
 	u8 fsid[16];    /* FS specific uuid */
 	__le64 bytenr; /* this block number */
 	__le64 flags;
+
+	/* allowed to be different from the btrfs_header from here own down */
 	__le64 magic;
 	__le64 generation;
 	__le64 root;
@@ -323,13 +345,15 @@ struct btrfs_extent_ref {
 
 /* dev extents record free space on individual devices.  The owner
  * field points back to the chunk allocation mapping tree that allocated
- * the extent
+ * the extent.  The chunk tree uuid field is a way to double check the owner
  */
 struct btrfs_dev_extent {
-	__le64 owner;
+	__le64 chunk_tree;
+	__le64 chunk_objectid;
+	__le64 chunk_offset;
 	__le64 length;
+	u8 chunk_tree_uuid[BTRFS_UUID_SIZE];
 } __attribute__ ((__packed__));
-
 
 struct btrfs_inode_ref {
 	__le16 name_len;
@@ -424,7 +448,6 @@ struct btrfs_csum_item {
 
 struct btrfs_block_group_item {
 	__le64 used;
-	__le64 chunk_tree;
 	__le64 chunk_objectid;
 	__le64 flags;
 } __attribute__ ((__packed__));
@@ -451,6 +474,7 @@ struct btrfs_device;
 struct btrfs_fs_devices;
 struct btrfs_fs_info {
 	u8 fsid[BTRFS_FSID_SIZE];
+	u8 chunk_tree_uuid[BTRFS_UUID_SIZE];
 	struct btrfs_root *extent_root;
 	struct btrfs_root *tree_root;
 	struct btrfs_root *chunk_root;
@@ -697,6 +721,9 @@ BTRFS_SETGET_FUNCS(device_io_align, struct btrfs_dev_item, io_align, 32);
 BTRFS_SETGET_FUNCS(device_io_width, struct btrfs_dev_item, io_width, 32);
 BTRFS_SETGET_FUNCS(device_sector_size, struct btrfs_dev_item, sector_size, 32);
 BTRFS_SETGET_FUNCS(device_id, struct btrfs_dev_item, devid, 64);
+BTRFS_SETGET_FUNCS(device_group, struct btrfs_dev_item, dev_group, 32);
+BTRFS_SETGET_FUNCS(device_seek_speed, struct btrfs_dev_item, seek_speed, 8);
+BTRFS_SETGET_FUNCS(device_bandwidth, struct btrfs_dev_item, bandwidth, 8);
 
 BTRFS_SETGET_STACK_FUNCS(stack_device_type, struct btrfs_dev_item, type, 64);
 BTRFS_SETGET_STACK_FUNCS(stack_device_total_bytes, struct btrfs_dev_item,
@@ -710,12 +737,19 @@ BTRFS_SETGET_STACK_FUNCS(stack_device_io_width, struct btrfs_dev_item,
 BTRFS_SETGET_STACK_FUNCS(stack_device_sector_size, struct btrfs_dev_item,
 			 sector_size, 32);
 BTRFS_SETGET_STACK_FUNCS(stack_device_id, struct btrfs_dev_item, devid, 64);
+BTRFS_SETGET_STACK_FUNCS(stack_device_group, struct btrfs_dev_item,
+			 dev_group, 32);
+BTRFS_SETGET_STACK_FUNCS(stack_device_seek_speed, struct btrfs_dev_item,
+			 seek_speed, 8);
+BTRFS_SETGET_STACK_FUNCS(stack_device_bandwidth, struct btrfs_dev_item,
+			 bandwidth, 8);
 
 static inline char *btrfs_device_uuid(struct btrfs_dev_item *d)
 {
 	return (char *)d + offsetof(struct btrfs_dev_item, uuid);
 }
 
+BTRFS_SETGET_FUNCS(chunk_length, struct btrfs_chunk, length, 64);
 BTRFS_SETGET_FUNCS(chunk_owner, struct btrfs_chunk, owner, 64);
 BTRFS_SETGET_FUNCS(chunk_stripe_len, struct btrfs_chunk, stripe_len, 64);
 BTRFS_SETGET_FUNCS(chunk_io_align, struct btrfs_chunk, io_align, 32);
@@ -726,6 +760,12 @@ BTRFS_SETGET_FUNCS(chunk_num_stripes, struct btrfs_chunk, num_stripes, 16);
 BTRFS_SETGET_FUNCS(stripe_devid, struct btrfs_stripe, devid, 64);
 BTRFS_SETGET_FUNCS(stripe_offset, struct btrfs_stripe, offset, 64);
 
+static inline char *btrfs_stripe_dev_uuid(struct btrfs_stripe *s)
+{
+	return (char *)s + offsetof(struct btrfs_stripe, dev_uuid);
+}
+
+BTRFS_SETGET_STACK_FUNCS(stack_chunk_length, struct btrfs_chunk, length, 64);
 BTRFS_SETGET_STACK_FUNCS(stack_chunk_owner, struct btrfs_chunk, owner, 64);
 BTRFS_SETGET_STACK_FUNCS(stack_chunk_stripe_len, struct btrfs_chunk,
 			 stripe_len, 64);
@@ -781,13 +821,10 @@ BTRFS_SETGET_STACK_FUNCS(block_group_used, struct btrfs_block_group_item,
 			 used, 64);
 BTRFS_SETGET_FUNCS(disk_block_group_used, struct btrfs_block_group_item,
 			 used, 64);
-BTRFS_SETGET_STACK_FUNCS(block_group_chunk_tree, struct btrfs_block_group_item,
-			 chunk_tree, 64);
-BTRFS_SETGET_FUNCS(disk_block_group_chunk_tree, struct btrfs_block_group_item,
-			 chunk_tree, 64);
 BTRFS_SETGET_STACK_FUNCS(block_group_chunk_objectid,
 			struct btrfs_block_group_item, chunk_objectid, 64);
-BTRFS_SETGET_FUNCS(disk_block_group_chunk_objecitd,
+
+BTRFS_SETGET_FUNCS(disk_block_group_chunk_objectid,
 		   struct btrfs_block_group_item, chunk_objectid, 64);
 BTRFS_SETGET_FUNCS(disk_block_group_flags,
 		   struct btrfs_block_group_item, flags, 64);
@@ -850,8 +887,19 @@ BTRFS_SETGET_FUNCS(timespec_nsec, struct btrfs_timespec, nsec, 32);
 BTRFS_SETGET_FUNCS(extent_refs, struct btrfs_extent_item, refs, 32);
 
 /* struct btrfs_dev_extent */
-BTRFS_SETGET_FUNCS(dev_extent_owner, struct btrfs_dev_extent, owner, 64);
+BTRFS_SETGET_FUNCS(dev_extent_chunk_tree, struct btrfs_dev_extent,
+		   chunk_tree, 64);
+BTRFS_SETGET_FUNCS(dev_extent_chunk_objectid, struct btrfs_dev_extent,
+		   chunk_objectid, 64);
+BTRFS_SETGET_FUNCS(dev_extent_chunk_offset, struct btrfs_dev_extent,
+		   chunk_offset, 64);
 BTRFS_SETGET_FUNCS(dev_extent_length, struct btrfs_dev_extent, length, 64);
+
+static inline u8 *btrfs_dev_extent_chunk_tree_uuid(struct btrfs_dev_extent *dev)
+{
+	unsigned long ptr = offsetof(struct btrfs_dev_extent, chunk_tree_uuid);
+	return (u8 *)((unsigned long)dev + ptr);
+}
 
 /* struct btrfs_extent_ref */
 BTRFS_SETGET_FUNCS(ref_root, struct btrfs_extent_ref, root, 64);
@@ -1087,6 +1135,12 @@ static inline u8 *btrfs_header_fsid(struct extent_buffer *eb)
 	return (u8 *)ptr;
 }
 
+static inline u8 *btrfs_header_chunk_tree_uuid(struct extent_buffer *eb)
+{
+	unsigned long ptr = offsetof(struct btrfs_header, chunk_tree_uuid);
+	return (u8 *)ptr;
+}
+
 static inline u8 *btrfs_super_fsid(struct extent_buffer *eb)
 {
 	unsigned long ptr = offsetof(struct btrfs_super_block, fsid);
@@ -1311,7 +1365,7 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info);
 int btrfs_read_block_groups(struct btrfs_root *root);
 int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, u64 bytes_used,
-			   u64 type, u64 chunk_tree, u64 chunk_objectid,
+			   u64 type, u64 chunk_objectid, u64 chunk_offset,
 			   u64 size);
 /* ctree.c */
 int btrfs_previous_item(struct btrfs_root *root,

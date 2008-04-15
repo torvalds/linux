@@ -1125,6 +1125,10 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 					   blocksize);
 	BUG_ON(!chunk_root->node);
 
+	read_extent_buffer(chunk_root->node, fs_info->chunk_tree_uuid,
+	         (unsigned long)btrfs_header_chunk_tree_uuid(chunk_root->node),
+		 BTRFS_UUID_SIZE);
+
 	ret = btrfs_read_chunk_tree(chunk_root);
 	BUG_ON(ret);
 
@@ -1229,7 +1233,7 @@ int write_all_supers(struct btrfs_root *root)
 		btrfs_set_device_sector_size(sb, dev_item, dev->sector_size);
 		write_extent_buffer(sb, dev->uuid,
 				    (unsigned long)btrfs_device_uuid(dev_item),
-				    BTRFS_DEV_UUID_SIZE);
+				    BTRFS_UUID_SIZE);
 
 		btrfs_set_header_flag(sb, BTRFS_HEADER_FLAG_WRITTEN);
 		csum_tree_block(root, sb, 0);
