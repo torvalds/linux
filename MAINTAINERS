@@ -2197,7 +2197,7 @@ S:	Maintained
 ISDN SUBSYSTEM
 P:	Karsten Keil
 M:	kkeil@suse.de
-L:	isdn4linux@listserv.isdn4linux.de
+L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
 W:	http://www.isdn4linux.de
 T:	git kernel.org:/pub/scm/linux/kernel/kkeil/isdn-2.6.git
 S:	Maintained
@@ -2205,7 +2205,7 @@ S:	Maintained
 ISDN SUBSYSTEM (Eicon active card driver)
 P:	Armin Schindler
 M:	mac@melware.de
-L:	isdn4linux@listserv.isdn4linux.de
+L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
 W:	http://www.melware.de
 S:	Maintained
 
