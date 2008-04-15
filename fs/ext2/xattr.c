@@ -835,7 +835,7 @@ ext2_xattr_cache_insert(struct buffer_head *bh)
 	struct mb_cache_entry *ce;
 	int error;
 
-	ce = mb_cache_entry_alloc(ext2_xattr_cache);
+	ce = mb_cache_entry_alloc(ext2_xattr_cache, GFP_NOFS);
 	if (!ce)
 		return -ENOMEM;
 	error = mb_cache_entry_insert(ce, bh->b_bdev, bh->b_blocknr, &hash);

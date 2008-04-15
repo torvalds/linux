@@ -34,7 +34,7 @@ void mb_cache_destroy(struct mb_cache *);
 
 /* Functions on cache entries */
 
-struct mb_cache_entry *mb_cache_entry_alloc(struct mb_cache *);
+struct mb_cache_entry *mb_cache_entry_alloc(struct mb_cache *, gfp_t);
 int mb_cache_entry_insert(struct mb_cache_entry *, struct block_device *,
 			  sector_t, unsigned int[]);
 void mb_cache_entry_release(struct mb_cache_entry *);
