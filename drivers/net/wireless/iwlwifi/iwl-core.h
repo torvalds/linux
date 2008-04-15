@@ -89,9 +89,18 @@ struct iwl_hcmd_utils_ops {
 struct iwl_lib_ops {
 	/* iwlwifi driver (priv) init */
 	int (*init_drv)(struct iwl_priv *priv);
+	/* nic init */
+	int (*hw_nic_init)(struct iwl_priv *priv);
+	/* alive notification */
+	int (*alive_notify)(struct iwl_priv *priv);
+	/* check validity of rtc data address */
+	int (*is_valid_rtc_data_addr)(u32 addr);
+	/* 1st ucode load */
+	int (*load_ucode)(struct iwl_priv *priv);
+	/* rfkill */
+	void (*radio_kill_sw)(struct iwl_priv *priv, int disable_radio);
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
-	void (*radio_kill_sw)(struct iwl_priv *priv, int disable_radio);
 };
 
 struct iwl_ops {
