@@ -53,13 +53,12 @@
 #include <asm/machdep.h>
 #include <asm/setup.h>
 
+#include "mmu_decl.h"
+
 extern void loadcam_entry(unsigned int index);
 unsigned int tlbcam_index;
 unsigned int num_tlbcam_entries;
 static unsigned long __cam0, __cam1, __cam2;
-extern unsigned long total_lowmem;
-extern unsigned long __max_low_memory;
-extern unsigned long __initial_memory_limit;
 #define MAX_LOW_MEM	CONFIG_LOWMEM_SIZE
 
 #define NUM_TLBCAMS	(16)
@@ -165,15 +164,15 @@ void invalidate_tlbcam_entry(int index)
 void __init cam_mapin_ram(unsigned long cam0, unsigned long cam1,
 		unsigned long cam2)
 {
-	settlbcam(0, PAGE_OFFSET, PPC_MEMSTART, cam0, _PAGE_KERNEL, 0);
+	settlbcam(0, PAGE_OFFSET, memstart_addr, cam0, _PAGE_KERNEL, 0);
 	tlbcam_index++;
 	if (cam1) {
 		tlbcam_index++;
-		settlbcam(1, PAGE_OFFSET+cam0, PPC_MEMSTART+cam0, cam1, _PAGE_KERNEL, 0);
+		settlbcam(1, PAGE_OFFSET+cam0, memstart_addr+cam0, cam1, _PAGE_KERNEL, 0);
 	}
 	if (cam2) {
 		tlbcam_index++;
-		settlbcam(2, PAGE_OFFSET+cam0+cam1, PPC_MEMSTART+cam0+cam1, cam2, _PAGE_KERNEL, 0);
+		settlbcam(2, PAGE_OFFSET+cam0+cam1, memstart_addr+cam0+cam1, cam2, _PAGE_KERNEL, 0);
 	}
 }
 

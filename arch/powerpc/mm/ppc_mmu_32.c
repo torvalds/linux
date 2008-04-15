@@ -82,7 +82,6 @@ unsigned long __init mmu_mapin_ram(void)
 #else
 	unsigned long tot, bl, done;
 	unsigned long max_size = (256<<20);
-	unsigned long align;
 
 	if (__map_without_bats) {
 		printk(KERN_DEBUG "RAM mapped without BATs\n");
@@ -93,19 +92,13 @@ unsigned long __init mmu_mapin_ram(void)
 
 	/* Make sure we don't map a block larger than the
 	   smallest alignment of the physical address. */
-	/* alignment of PPC_MEMSTART */
-	align = ~(PPC_MEMSTART-1) & PPC_MEMSTART;
-	/* set BAT block size to MIN(max_size, align) */
-	if (align && align < max_size)
-		max_size = align;
-
 	tot = total_lowmem;
 	for (bl = 128<<10; bl < max_size; bl <<= 1) {
 		if (bl * 2 > tot)
 			break;
 	}
 
-	setbat(2, KERNELBASE, PPC_MEMSTART, bl, _PAGE_RAM);
+	setbat(2, KERNELBASE, 0, bl, _PAGE_RAM);
 	done = (unsigned long)bat_addrs[2].limit - KERNELBASE + 1;
 	if ((done < tot) && !bat_addrs[3].limit) {
 		/* use BAT3 to cover a bit more */
@@ -113,7 +106,7 @@ unsigned long __init mmu_mapin_ram(void)
 		for (bl = 128<<10; bl < max_size; bl <<= 1)
 			if (bl * 2 > tot)
 				break;
-		setbat(3, KERNELBASE+done, PPC_MEMSTART+done, bl, _PAGE_RAM);
+		setbat(3, KERNELBASE+done, done, bl, _PAGE_RAM);
 		done = (unsigned long)bat_addrs[3].limit - KERNELBASE + 1;
 	}
 
