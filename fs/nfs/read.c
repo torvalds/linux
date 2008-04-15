@@ -338,26 +338,25 @@ int nfs_readpage_result(struct rpc_task *task, struct nfs_read_data *data)
 	return 0;
 }
 
-static int nfs_readpage_retry(struct rpc_task *task, struct nfs_read_data *data)
+static void nfs_readpage_retry(struct rpc_task *task, struct nfs_read_data *data)
 {
 	struct nfs_readargs *argp = &data->args;
 	struct nfs_readres *resp = &data->res;
 
 	if (resp->eof || resp->count == argp->count)
-		return 0;
+		return;
 
 	/* This is a short read! */
 	nfs_inc_stats(data->inode, NFSIOS_SHORTREAD);
 	/* Has the server at least made some progress? */
 	if (resp->count == 0)
-		return 0;
+		return;
 
 	/* Yes, so retry the read at the end of the data */
 	argp->offset += resp->count;
 	argp->pgbase += resp->count;
 	argp->count -= resp->count;
 	rpc_restart_call(task);
-	return -EAGAIN;
 }
 
 /*
@@ -366,29 +365,37 @@ static int nfs_readpage_retry(struct rpc_task *task, struct nfs_read_data *data)
 static void nfs_readpage_result_partial(struct rpc_task *task, void *calldata)
 {
 	struct nfs_read_data *data = calldata;
-	struct nfs_page *req = data->req;
-	struct page *page = req->wb_page;
  
 	if (nfs_readpage_result(task, data) != 0)
 		return;
+	if (task->tk_status < 0)
+		return;
 
-	if (likely(task->tk_status >= 0)) {
-		nfs_readpage_truncate_uninitialised_page(data);
-		if (nfs_readpage_retry(task, data) != 0)
-			return;
-	}
-	if (unlikely(task->tk_status < 0))
+	nfs_readpage_truncate_uninitialised_page(data);
+	nfs_readpage_retry(task, data);
+}
+
+static void nfs_readpage_release_partial(void *calldata)
+{
+	struct nfs_read_data *data = calldata;
+	struct nfs_page *req = data->req;
+	struct page *page = req->wb_page;
+	int status = data->task.tk_status;
+
+	if (status < 0)
 		SetPageError(page);
+
 	if (atomic_dec_and_test(&req->wb_complete)) {
 		if (!PageError(page))
 			SetPageUptodate(page);
 		nfs_readpage_release(req);
 	}
+	nfs_readdata_release(calldata);
 }
 
 static const struct rpc_call_ops nfs_read_partial_ops = {
 	.rpc_call_done = nfs_readpage_result_partial,
-	.rpc_release = nfs_readdata_release,
+	.rpc_release = nfs_readpage_release_partial,
 };
 
 static void nfs_readpage_set_pages_uptodate(struct nfs_read_data *data)
@@ -423,29 +430,35 @@ static void nfs_readpage_result_full(struct rpc_task *task, void *calldata)
 
 	if (nfs_readpage_result(task, data) != 0)
 		return;
+	if (task->tk_status < 0)
+		return;
 	/*
 	 * Note: nfs_readpage_retry may change the values of
 	 * data->args. In the multi-page case, we therefore need
 	 * to ensure that we call nfs_readpage_set_pages_uptodate()
 	 * first.
 	 */
-	if (likely(task->tk_status >= 0)) {
-		nfs_readpage_truncate_uninitialised_page(data);
-		nfs_readpage_set_pages_uptodate(data);
-		if (nfs_readpage_retry(task, data) != 0)
-			return;
-	}
+	nfs_readpage_truncate_uninitialised_page(data);
+	nfs_readpage_set_pages_uptodate(data);
+	nfs_readpage_retry(task, data);
+}
+
+static void nfs_readpage_release_full(void *calldata)
+{
+	struct nfs_read_data *data = calldata;
+
 	while (!list_empty(&data->pages)) {
 		struct nfs_page *req = nfs_list_entry(data->pages.next);
 
 		nfs_list_remove_request(req);
 		nfs_readpage_release(req);
 	}
+	nfs_readdata_release(calldata);
 }
 
 static const struct rpc_call_ops nfs_read_full_ops = {
 	.rpc_call_done = nfs_readpage_result_full,
-	.rpc_release = nfs_readdata_release,
+	.rpc_release = nfs_readpage_release_full,
 };
 
 /*

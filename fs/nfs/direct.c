@@ -229,14 +229,20 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq)
 static void nfs_direct_read_result(struct rpc_task *task, void *calldata)
 {
 	struct nfs_read_data *data = calldata;
-	struct nfs_direct_req *dreq = (struct nfs_direct_req *) data->req;
 
-	if (nfs_readpage_result(task, data) != 0)
-		return;
+	nfs_readpage_result(task, data);
+}
+
+static void nfs_direct_read_release(void *calldata)
+{
+
+	struct nfs_read_data *data = calldata;
+	struct nfs_direct_req *dreq = (struct nfs_direct_req *) data->req;
+	int status = data->task.tk_status;
 
 	spin_lock(&dreq->lock);
-	if (unlikely(task->tk_status < 0)) {
-		dreq->error = task->tk_status;
+	if (unlikely(status < 0)) {
+		dreq->error = status;
 		spin_unlock(&dreq->lock);
 	} else {
 		dreq->count += data->res.count;
@@ -249,11 +255,12 @@ static void nfs_direct_read_result(struct rpc_task *task, void *calldata)
 
 	if (put_dreq(dreq))
 		nfs_direct_complete(dreq);
+	nfs_readdata_release(calldata);
 }
 
 static const struct rpc_call_ops nfs_read_direct_ops = {
 	.rpc_call_done = nfs_direct_read_result,
-	.rpc_release = nfs_readdata_release,
+	.rpc_release = nfs_direct_read_release,
 };
 
 /*
