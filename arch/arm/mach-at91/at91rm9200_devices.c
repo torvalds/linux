@@ -1103,7 +1103,7 @@ static inline void configure_usart3_pins(unsigned pins)
 		at91_set_B_periph(AT91_PIN_PB0, 0);	/* RTS3 */
 }
 
-static struct platform_device *at91_uarts[ATMEL_MAX_UART];	/* the UARTs to use */
+static struct platform_device *__initdata at91_uarts[ATMEL_MAX_UART];	/* the UARTs to use */
 struct platform_device *atmel_default_console_device;	/* the serial console device */
 
 void __init __deprecated at91_init_serial(struct at91_uart_config *config)
@@ -1194,8 +1194,6 @@ void __init at91_set_serial_console(unsigned portnr)
 {
 	if (portnr < ATMEL_MAX_UART)
 		atmel_default_console_device = at91_uarts[portnr];
-	if (!atmel_default_console_device)
-		printk(KERN_INFO "AT91: No default serial console defined.\n");
 }
 
 void __init at91_add_device_serial(void)
@@ -1206,6 +1204,9 @@ void __init at91_add_device_serial(void)
 		if (at91_uarts[i])
 			platform_device_register(at91_uarts[i]);
 	}
+
+	if (!atmel_default_console_device)
+		printk(KERN_INFO "AT91: No default serial console defined.\n");
 }
 #else
 void __init __deprecated at91_init_serial(struct at91_uart_config *config) {}

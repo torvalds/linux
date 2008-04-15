@@ -16,7 +16,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/physmap.h>
+#include <linux/i2c-gpio.h>
 
 #include <video/atmel_lcdc.h>
 
@@ -348,6 +348,7 @@ void __init at91_add_device_nand(struct at91_nand_data *data)
 #else
 void __init at91_add_device_nand(struct at91_nand_data *data) {}
 #endif
+
 
 /* --------------------------------------------------------------------
  *  TWI (i2c)
@@ -1041,7 +1042,7 @@ static inline void configure_usart2_pins(unsigned pins)
 		at91_set_B_periph(AT91_PIN_PD6, 0);	/* CTS2 */
 }
 
-static struct platform_device *at91_uarts[ATMEL_MAX_UART];	/* the UARTs to use */
+static struct platform_device *__initdata at91_uarts[ATMEL_MAX_UART];	/* the UARTs to use */
 struct platform_device *atmel_default_console_device;	/* the serial console device */
 
 void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins)
@@ -1082,8 +1083,6 @@ void __init at91_set_serial_console(unsigned portnr)
 {
 	if (portnr < ATMEL_MAX_UART)
 		atmel_default_console_device = at91_uarts[portnr];
-	if (!atmel_default_console_device)
-		printk(KERN_INFO "AT91: No default serial console defined.\n");
 }
 
 void __init at91_add_device_serial(void)
@@ -1094,6 +1093,9 @@ void __init at91_add_device_serial(void)
 		if (at91_uarts[i])
 			platform_device_register(at91_uarts[i]);
 	}
+
+	if (!atmel_default_console_device)
+		printk(KERN_INFO "AT91: No default serial console defined.\n");
 }
 #else
 void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins) {}
