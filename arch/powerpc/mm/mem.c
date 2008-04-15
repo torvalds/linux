@@ -216,9 +216,11 @@ void __init do_init_bootmem(void)
 	unsigned long total_pages;
 	int boot_mapsize;
 
-	max_pfn = total_pages = lmb_end_of_DRAM() >> PAGE_SHIFT;
+	max_pfn = lmb_end_of_DRAM() >> PAGE_SHIFT;
+	total_pages = (lmb_end_of_DRAM() - memstart_addr) >> PAGE_SHIFT;
 #ifdef CONFIG_HIGHMEM
 	total_pages = total_lowmem >> PAGE_SHIFT;
+	max_low_pfn = lowmem_end_addr >> PAGE_SHIFT;
 #endif
 
 	/*
@@ -244,18 +246,18 @@ void __init do_init_bootmem(void)
 	 * present.
 	 */
 #ifdef CONFIG_HIGHMEM
-	free_bootmem_with_active_regions(0, total_lowmem >> PAGE_SHIFT);
+	free_bootmem_with_active_regions(0, lowmem_end_addr >> PAGE_SHIFT);
 
 	/* reserve the sections we're already using */
 	for (i = 0; i < lmb.reserved.cnt; i++) {
 		unsigned long addr = lmb.reserved.region[i].base +
 				     lmb_size_bytes(&lmb.reserved, i) - 1;
-		if (addr < total_lowmem)
+		if (addr < lowmem_end_addr)
 			reserve_bootmem(lmb.reserved.region[i].base,
 					lmb_size_bytes(&lmb.reserved, i),
 					BOOTMEM_DEFAULT);
-		else if (lmb.reserved.region[i].base < total_lowmem) {
-			unsigned long adjusted_size = total_lowmem -
+		else if (lmb.reserved.region[i].base < lowmem_end_addr) {
+			unsigned long adjusted_size = lowmem_end_addr -
 				      lmb.reserved.region[i].base;
 			reserve_bootmem(lmb.reserved.region[i].base,
 					adjusted_size, BOOTMEM_DEFAULT);
@@ -325,7 +327,7 @@ void __init paging_init(void)
 	       (top_of_ram - total_ram) >> 20);
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 #ifdef CONFIG_HIGHMEM
-	max_zone_pfns[ZONE_DMA] = total_lowmem >> PAGE_SHIFT;
+	max_zone_pfns[ZONE_DMA] = lowmem_end_addr >> PAGE_SHIFT;
 	max_zone_pfns[ZONE_HIGHMEM] = top_of_ram >> PAGE_SHIFT;
 #else
 	max_zone_pfns[ZONE_DMA] = top_of_ram >> PAGE_SHIFT;
@@ -380,7 +382,7 @@ void __init mem_init(void)
 	{
 		unsigned long pfn, highmem_mapnr;
 
-		highmem_mapnr = total_lowmem >> PAGE_SHIFT;
+		highmem_mapnr = lowmem_end_addr >> PAGE_SHIFT;
 		for (pfn = highmem_mapnr; pfn < max_mapnr; ++pfn) {
 			struct page *page = pfn_to_page(pfn);
 			if (lmb_is_reserved(pfn << PAGE_SHIFT))

@@ -52,6 +52,7 @@ extern unsigned long __initial_memory_limit;
 extern unsigned long total_memory;
 extern unsigned long total_lowmem;
 extern phys_addr_t memstart_addr;
+extern phys_addr_t lowmem_end_addr;
 
 /* ...and now those things that may be slightly different between processor
  * architectures.  -- Dan

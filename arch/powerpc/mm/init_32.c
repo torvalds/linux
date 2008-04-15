@@ -146,6 +146,7 @@ void __init MMU_init(void)
 	}
 
 	total_lowmem = total_memory = lmb_end_of_DRAM() - memstart_addr;
+	lowmem_end_addr = memstart_addr + total_lowmem;
 
 #ifdef CONFIG_FSL_BOOKE
 	/* Freescale Book-E parts expect lowmem to be mapped by fixed TLB
@@ -156,9 +157,10 @@ void __init MMU_init(void)
 
 	if (total_lowmem > __max_low_memory) {
 		total_lowmem = __max_low_memory;
+		lowmem_end_addr = memstart_addr + total_lowmem;
 #ifndef CONFIG_HIGHMEM
 		total_memory = total_lowmem;
-		lmb_enforce_memory_limit(total_lowmem);
+		lmb_enforce_memory_limit(lowmem_end_addr);
 		lmb_analyze();
 #endif /* CONFIG_HIGHMEM */
 	}
