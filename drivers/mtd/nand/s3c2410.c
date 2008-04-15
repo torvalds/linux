@@ -357,6 +357,14 @@ static int s3c2410_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 	if (diff0 == 0 && diff1 == 0 && diff2 == 0)
 		return 0;		/* ECC is ok */
 
+	/* sometimes people do not think about using the ECC, so check
+	 * to see if we have an 0xff,0xff,0xff read ECC and then ignore
+	 * the error, on the assumption that this is an un-eccd page.
+	 */
+	if (read_ecc[0] == 0xff && read_ecc[1] == 0xff && read_ecc[2] == 0xff
+	    && info->platform->ignore_unset_ecc)
+		return 0;
+
 	/* Can we correct this ECC (ie, one row and column change).
 	 * Note, this is similar to the 256 error code on smartmedia */
 
