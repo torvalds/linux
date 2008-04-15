@@ -40,10 +40,7 @@
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-
-#include <asm/addrspace.h>
-#include <asm/byteorder.h>
-#include <asm/tx4927/tx4927_pci.h>
+#include <asm/tx4927/tx4927.h>
 
 /* initialize in setup */
 struct resource pci_io_resource = {

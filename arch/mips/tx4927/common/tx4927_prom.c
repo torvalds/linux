@@ -30,12 +30,8 @@
  */
 
 #include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/sched.h>
-#include <linux/bootmem.h>
-
-#include <asm/addrspace.h>
-#include <asm/bootinfo.h>
+#include <linux/types.h>
+#include <linux/io.h>
 #include <asm/tx4927/tx4927.h>
 
 static unsigned int __init tx4927_process_sdccr(unsigned long addr)

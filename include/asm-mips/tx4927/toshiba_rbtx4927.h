@@ -28,9 +28,6 @@
 #define __ASM_TX4927_TOSHIBA_RBTX4927_H
 
 #include <asm/tx4927/tx4927.h>
-#ifdef CONFIG_PCI
-#include <asm/tx4927/tx4927_pci.h>
-#endif
 
 #ifdef CONFIG_PCI
 #define TBTX4927_ISA_IO_OFFSET TX4927_PCIIO
@@ -43,7 +40,6 @@
 
 #define RBTX4927_SW_RESET_ENABLE     (void __iomem *)0xbc00f002UL
 #define RBTX4927_SW_RESET_ENABLE_SET            0x01
-
 
 #define RBTX4927_RTL_8019_BASE (0x1c020280-TBTX4927_ISA_IO_OFFSET)
 #define RBTX4927_RTL_8019_IRQ  (TX4927_IRQ_PIC_BEG + 5)

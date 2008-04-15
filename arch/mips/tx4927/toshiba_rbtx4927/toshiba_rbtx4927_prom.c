@@ -30,13 +30,10 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/sched.h>
-#include <linux/bootmem.h>
-
-#include <asm/addrspace.h>
+#include <linux/string.h>
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
+#include <asm/mipsregs.h>
 #include <asm/tx4927/tx4927.h>
 
 void __init prom_init_cmdline(void)

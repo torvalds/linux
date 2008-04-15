@@ -38,7 +38,6 @@
 #include <linux/init.h>
 
 #include <asm/tx4927/tx4927.h>
-#include <asm/tx4927/tx4927_pci.h>
 
 #undef  DEBUG
 #ifdef  DEBUG

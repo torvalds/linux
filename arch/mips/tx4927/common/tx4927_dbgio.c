@@ -28,16 +28,13 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
-
-#include <asm/mipsregs.h>
-#include <asm/system.h>
+#include <linux/types.h>
 
 u8 getDebugChar(void)
 {
 	extern u8 txx9_sio_kdbg_rd(void);
 	return (txx9_sio_kdbg_rd());
 }
-
 
 int putDebugChar(u8 byte)
 {

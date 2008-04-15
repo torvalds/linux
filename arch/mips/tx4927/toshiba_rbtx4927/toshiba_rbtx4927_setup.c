@@ -62,41 +62,8 @@
 #include <asm/tx4927/smsc_fdc37m81x.h>
 #endif
 #include <asm/tx4927/toshiba_rbtx4927.h>
-#ifdef CONFIG_PCI
-#include <asm/tx4927/tx4927_pci.h>
-#endif
 #ifdef CONFIG_SERIAL_TXX9
 #include <linux/serial_core.h>
-#endif
-
-#undef TOSHIBA_RBTX4927_SETUP_DEBUG
-
-#ifdef TOSHIBA_RBTX4927_SETUP_DEBUG
-#define TOSHIBA_RBTX4927_SETUP_SETUP       ( 1 <<  4 )
-#define TOSHIBA_RBTX4927_SETUP_PCIBIOS     ( 1 <<  7 )
-#define TOSHIBA_RBTX4927_SETUP_PCI1        ( 1 <<  8 )
-#define TOSHIBA_RBTX4927_SETUP_PCI2        ( 1 <<  9 )
-
-#define TOSHIBA_RBTX4927_SETUP_ALL         0xffffffff
-#endif
-
-#ifdef TOSHIBA_RBTX4927_SETUP_DEBUG
-static const u32 toshiba_rbtx4927_setup_debug_flag =
-    (TOSHIBA_RBTX4927_SETUP_SETUP |
-     | TOSHIBA_RBTX4927_SETUP_PCIBIOS | TOSHIBA_RBTX4927_SETUP_PCI1 |
-     TOSHIBA_RBTX4927_SETUP_PCI2);
-#endif
-
-#ifdef TOSHIBA_RBTX4927_SETUP_DEBUG
-#define TOSHIBA_RBTX4927_SETUP_DPRINTK(flag,str...) \
-        if ( (toshiba_rbtx4927_setup_debug_flag) & (flag) ) \
-        { \
-           char tmp[100]; \
-           sprintf( tmp, str ); \
-           printk( "%s(%s:%u)::%s", __func__, __FILE__, __LINE__, tmp ); \
-        }
-#else
-#define TOSHIBA_RBTX4927_SETUP_DPRINTK(flag, str...)
 #endif
 
 /* These functions are used for rebooting or halting the machine*/
@@ -124,7 +91,6 @@ unsigned long mips_memory_upper;
 static int tx4927_ccfg_toeon = 1;
 static int tx4927_pcic_trdyto = 0;	/* default: disabled */
 unsigned long tx4927_ce_base[8];
-void tx4927_reset_pci_pcic(void);
 int tx4927_pci66 = 0;		/* 0:auto */
 #endif
 
@@ -172,9 +138,6 @@ static int __init tx4927_pcibios_init(void)
 	int busno = 0; /* One bus on the Toshiba */
 	struct pci_controller *hose = &tx4927_controller;
 
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-				       "-\n");
-
 	for (pci_devfn = devfn_start; pci_devfn < devfn_stop; pci_devfn++) {
 		early_read_config_dword(hose, busno, busno, pci_devfn,
 					PCI_VENDOR_ID, &id);
@@ -187,13 +150,6 @@ static int __init tx4927_pcibios_init(void)
 			u8 v08_64;
 			u32 v32_b0;
 			u8 v08_e1;
-#ifdef TOSHIBA_RBTX4927_SETUP_DEBUG
-			char *s = " sb/isa --";
-#endif
-
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS, ":%s beg\n",
-			     s);
 
 			early_read_config_byte(hose, busno, busno,
 					       pci_devfn, 0x64, &v08_64);
@@ -201,16 +157,6 @@ static int __init tx4927_pcibios_init(void)
 						pci_devfn, 0xb0, &v32_b0);
 			early_read_config_byte(hose, busno, busno,
 					       pci_devfn, 0xe1, &v08_e1);
-
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-			     ":%s beg 0x64 = 0x%02x\n", s, v08_64);
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-			     ":%s beg 0xb0 = 0x%02x\n", s, v32_b0);
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-			     ":%s beg 0xe1 = 0x%02x\n", s, v08_e1);
 
 			/* serial irq control */
 			v08_64 = 0xd0;
@@ -222,50 +168,12 @@ static int __init tx4927_pcibios_init(void)
 			v08_e1 &= 0xf0;
 			v08_e1 |= 0x0d;
 
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-			     ":%s mid 0x64 = 0x%02x\n", s, v08_64);
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-			     ":%s mid 0xb0 = 0x%02x\n", s, v32_b0);
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-			     ":%s mid 0xe1 = 0x%02x\n", s, v08_e1);
-
 			early_write_config_byte(hose, busno, busno,
 						pci_devfn, 0x64, v08_64);
 			early_write_config_dword(hose, busno, busno,
 						 pci_devfn, 0xb0, v32_b0);
 			early_write_config_byte(hose, busno, busno,
 						pci_devfn, 0xe1, v08_e1);
-
-#ifdef TOSHIBA_RBTX4927_SETUP_DEBUG
-			{
-				early_read_config_byte(hose, busno, busno,
-						       pci_devfn, 0x64,
-						       &v08_64);
-				early_read_config_dword(hose, busno, busno,
-							pci_devfn, 0xb0,
-							&v32_b0);
-				early_read_config_byte(hose, busno, busno,
-						       pci_devfn, 0xe1,
-						       &v08_e1);
-
-				TOSHIBA_RBTX4927_SETUP_DPRINTK
-				    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-				     ":%s end 0x64 = 0x%02x\n", s, v08_64);
-				TOSHIBA_RBTX4927_SETUP_DPRINTK
-				    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-				     ":%s end 0xb0 = 0x%02x\n", s, v32_b0);
-				TOSHIBA_RBTX4927_SETUP_DPRINTK
-				    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-				     ":%s end 0xe1 = 0x%02x\n", s, v08_e1);
-			}
-#endif
-
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS, ":%s end\n",
-			     s);
 		}
 
 		if (id == 0x91301055) {
@@ -274,13 +182,6 @@ static int __init tx4927_pcibios_init(void)
 			u8 v08_41;
 			u8 v08_43;
 			u8 v08_5c;
-#ifdef TOSHIBA_RBTX4927_SETUP_DEBUG
-			char *s = " sb/ide --";
-#endif
-
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS, ":%s beg\n",
-			     s);
 
 			early_read_config_byte(hose, busno, busno,
 					       pci_devfn, 0x04, &v08_04);
@@ -292,22 +193,6 @@ static int __init tx4927_pcibios_init(void)
 					       pci_devfn, 0x43, &v08_43);
 			early_read_config_byte(hose, busno, busno,
 					       pci_devfn, 0x5c, &v08_5c);
-
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-			     ":%s beg 0x04 = 0x%02x\n", s, v08_04);
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-			     ":%s beg 0x09 = 0x%02x\n", s, v08_09);
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-			     ":%s beg 0x41 = 0x%02x\n", s, v08_41);
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-			     ":%s beg 0x43 = 0x%02x\n", s, v08_43);
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-			     ":%s beg 0x5c = 0x%02x\n", s, v08_5c);
 
 			/* enable ide master/io */
 			v08_04 |= (PCI_COMMAND_MASTER | PCI_COMMAND_IO);
@@ -332,22 +217,6 @@ static int __init tx4927_pcibios_init(void)
 			 */
 			v08_5c |= 0x01;
 
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-			     ":%s mid 0x04 = 0x%02x\n", s, v08_04);
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-			     ":%s mid 0x09 = 0x%02x\n", s, v08_09);
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-			     ":%s mid 0x41 = 0x%02x\n", s, v08_41);
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-			     ":%s mid 0x43 = 0x%02x\n", s, v08_43);
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-			     ":%s mid 0x5c = 0x%02x\n", s, v08_5c);
-
 			early_write_config_byte(hose, busno, busno,
 						pci_devfn, 0x5c, v08_5c);
 			early_write_config_byte(hose, busno, busno,
@@ -358,54 +227,11 @@ static int __init tx4927_pcibios_init(void)
 						pci_devfn, 0x41, v08_41);
 			early_write_config_byte(hose, busno, busno,
 						pci_devfn, 0x43, v08_43);
-
-#ifdef TOSHIBA_RBTX4927_SETUP_DEBUG
-			{
-				early_read_config_byte(hose, busno, busno,
-						       pci_devfn, 0x04,
-						       &v08_04);
-				early_read_config_byte(hose, busno, busno,
-						       pci_devfn, 0x09,
-						       &v08_09);
-				early_read_config_byte(hose, busno, busno,
-						       pci_devfn, 0x41,
-						       &v08_41);
-				early_read_config_byte(hose, busno, busno,
-						       pci_devfn, 0x43,
-						       &v08_43);
-				early_read_config_byte(hose, busno, busno,
-						       pci_devfn, 0x5c,
-						       &v08_5c);
-
-				TOSHIBA_RBTX4927_SETUP_DPRINTK
-				    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-				     ":%s end 0x04 = 0x%02x\n", s, v08_04);
-				TOSHIBA_RBTX4927_SETUP_DPRINTK
-				    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-				     ":%s end 0x09 = 0x%02x\n", s, v08_09);
-				TOSHIBA_RBTX4927_SETUP_DPRINTK
-				    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-				     ":%s end 0x41 = 0x%02x\n", s, v08_41);
-				TOSHIBA_RBTX4927_SETUP_DPRINTK
-				    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-				     ":%s end 0x43 = 0x%02x\n", s, v08_43);
-				TOSHIBA_RBTX4927_SETUP_DPRINTK
-				    (TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-				     ":%s end 0x5c = 0x%02x\n", s, v08_5c);
-			}
-#endif
-
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_PCIBIOS, ":%s end\n",
-			     s);
 		}
 
 	}
 
 	register_pci_controller(&tx4927_controller);
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCIBIOS,
-				       "+\n");
-
 	return 0;
 }
 
@@ -419,45 +245,13 @@ void __init tx4927_pci_setup(void)
 	static int called = 0;
 	extern unsigned int tx4927_get_mem_size(void);
 
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI2, "-\n");
-
 	mips_memory_upper = tx4927_get_mem_size() << 20;
 	mips_memory_upper += KSEG0;
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI2,
-				       "0x%08lx=mips_memory_upper\n",
-				       mips_memory_upper);
 	mips_pci_io_base = TX4927_PCIIO;
 	mips_pci_io_size = TX4927_PCIIO_SIZE;
 	mips_pci_mem_base = TX4927_PCIMEM;
 	mips_pci_mem_size = TX4927_PCIMEM_SIZE;
 
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI2,
-				       "0x%08lx=mips_pci_io_base\n",
-				       mips_pci_io_base);
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI2,
-				       "0x%08lx=mips_pci_io_size\n",
-				       mips_pci_io_size);
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI2,
-				       "0x%08lx=mips_pci_mem_base\n",
-				       mips_pci_mem_base);
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI2,
-				       "0x%08lx=mips_pci_mem_size\n",
-				       mips_pci_mem_size);
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI2,
-				       "0x%08lx=pci_io_resource.start\n",
-				       pci_io_resource.start);
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI2,
-				       "0x%08lx=pci_io_resource.end\n",
-				       pci_io_resource.end);
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI2,
-				       "0x%08lx=pci_mem_resource.start\n",
-				       pci_mem_resource.start);
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI2,
-				       "0x%08lx=pci_mem_resource.end\n",
-				       pci_mem_resource.end);
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI2,
-				       "0x%08lx=mips_io_port_base",
-				       mips_io_port_base);
 	if (!called) {
 		printk
 		    ("%s PCIC -- DID:%04x VID:%04x RID:%02x Arbiter:%s\n",
@@ -521,28 +315,9 @@ void __init tx4927_pci_setup(void)
 			}
 
 		printk("Internal(%dMHz)", pciclk / 1000000);
-	} else {
-		int pciclk = 0;
-		int pciclk_setting = *tx4927_pci_clk_ptr;
-		switch (pciclk_setting & TX4927_PCI_CLK_MASK) {
-		case TX4927_PCI_CLK_33:
-			pciclk = 33333333;
-			break;
-		case TX4927_PCI_CLK_25:
-			pciclk = 25000000;
-			break;
-		case TX4927_PCI_CLK_66:
-			pciclk = 66666666;
-			break;
-		case TX4927_PCI_CLK_50:
-			pciclk = 50000000;
-			break;
-		}
-		printk("External(%dMHz)", pciclk / 1000000);
-	}
+	} else
+		printk("External");
 	printk("\n");
-
-
 
 	/* GB->PCI mappings */
 	tx4927_pcicptr->g2piomask = (mips_pci_io_size - 1) >> 4;
@@ -644,12 +419,7 @@ void __init tx4927_pci_setup(void)
 	tx4927_pcicptr->pcistatus = PCI_COMMAND_MASTER |
 	    PCI_COMMAND_MEMORY |
 	    PCI_COMMAND_PARITY | PCI_COMMAND_SERR;
-
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI2,
-				       ":pci setup complete:\n");
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI2, "+\n");
 }
-
 #endif /* CONFIG_PCI */
 
 static void __noreturn wait_forever(void)
@@ -679,7 +449,6 @@ void toshiba_rbtx4927_restart(char *command)
 	/* no return */
 }
 
-
 void toshiba_rbtx4927_halt(void)
 {
 	printk(KERN_NOTICE "System Halted\n");
@@ -702,33 +471,19 @@ void __init plat_mem_setup(void)
 
 	printk("CPU is %s\n", toshiba_name);
 
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_SETUP,
-				       "-\n");
-
 	/* f/w leaves this on at startup */
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_SETUP,
-				       ":Clearing STO_ERL.\n");
 	clear_c0_status(ST0_ERL);
 
 	/* enable caches -- HCP5 does this, pmon does not */
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_SETUP,
-				       ":Enabling TX49_CONF_IC,TX49_CONF_DC.\n");
 	cp0_config = read_c0_config();
 	cp0_config = cp0_config & ~(TX49_CONF_IC | TX49_CONF_DC);
 	write_c0_config(cp0_config);
 
 	set_io_port_base(KSEG1 + TBTX4927_ISA_IO_OFFSET);
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_SETUP,
-				       ":mips_io_port_base=0x%08lx\n",
-				       mips_io_port_base);
 
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_SETUP,
-				       ":Resource\n");
 	ioport_resource.end = 0xffffffff;
 	iomem_resource.end = 0xffffffff;
 
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_SETUP,
-				       ":ResetRoutines\n");
 	_machine_restart = toshiba_rbtx4927_restart;
 	_machine_halt = toshiba_rbtx4927_halt;
 	pm_power_off = toshiba_rbtx4927_power_off;
@@ -761,23 +516,6 @@ void __init plat_mem_setup(void)
 	   * CPU 333MHz: PCI 66MHz : PCIDIVMODE: 101 (1/5)
 	   *
 	 */
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI1,
-				       "ccfg is %lx, PCIDIVMODE is %x\n",
-				       (unsigned long) tx4927_ccfgptr->ccfg,
-				       (unsigned long) tx4927_ccfgptr->ccfg &
-				       (mips_machtype == MACH_TOSHIBA_RBTX4937 ?
-					TX4937_CCFG_PCIDIVMODE_MASK :
-					TX4927_CCFG_PCIDIVMODE_MASK));
-
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_PCI1,
-				       "PCI66 mode is %lx, PCI mode is %lx, pci arb is %lx\n",
-				       (unsigned long) tx4927_ccfgptr->
-				       ccfg & TX4927_CCFG_PCI66,
-				       (unsigned long) tx4927_ccfgptr->
-				       ccfg & TX4927_CCFG_PCIMIDE,
-				       (unsigned long) tx4927_ccfgptr->
-				       ccfg & TX4927_CCFG_PCIXARB);
-
 	if (mips_machtype == MACH_TOSHIBA_RBTX4937)
 		switch ((unsigned long)tx4927_ccfgptr->
 			ccfg & TX4937_CCFG_PCIDIVMODE_MASK) {
@@ -818,49 +556,18 @@ void __init plat_mem_setup(void)
 
 	/* this is on ISA bus behind PCI bus, so need PCI up first */
 #ifdef CONFIG_TOSHIBA_FPCIB0
-	{
-		if (tx4927_using_backplane) {
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_SETUP,
-			     ":fpcibo=yes\n");
-
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_SETUP,
-			     ":smsc_fdc37m81x_init()\n");
-			smsc_fdc37m81x_init(0x3f0);
-
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_SETUP,
-			     ":smsc_fdc37m81x_config_beg()\n");
-			smsc_fdc37m81x_config_beg();
-
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_SETUP,
-			     ":smsc_fdc37m81x_config_set(KBD)\n");
-			smsc_fdc37m81x_config_set(SMSC_FDC37M81X_DNUM,
-						  SMSC_FDC37M81X_KBD);
-			smsc_fdc37m81x_config_set(SMSC_FDC37M81X_INT, 1);
-			smsc_fdc37m81x_config_set(SMSC_FDC37M81X_INT2, 12);
-			smsc_fdc37m81x_config_set(SMSC_FDC37M81X_ACTIVE,
-						  1);
-
-			smsc_fdc37m81x_config_end();
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_SETUP,
-			     ":smsc_fdc37m81x_config_end()\n");
-		} else {
-			TOSHIBA_RBTX4927_SETUP_DPRINTK
-			    (TOSHIBA_RBTX4927_SETUP_SETUP,
-			     ":fpcibo=not_found\n");
-		}
-	}
-#else
-	{
-		TOSHIBA_RBTX4927_SETUP_DPRINTK
-		    (TOSHIBA_RBTX4927_SETUP_SETUP, ":fpcibo=no\n");
+	if (tx4927_using_backplane) {
+		smsc_fdc37m81x_init(0x3f0);
+		smsc_fdc37m81x_config_beg();
+		smsc_fdc37m81x_config_set(SMSC_FDC37M81X_DNUM,
+					  SMSC_FDC37M81X_KBD);
+		smsc_fdc37m81x_config_set(SMSC_FDC37M81X_INT, 1);
+		smsc_fdc37m81x_config_set(SMSC_FDC37M81X_INT2, 12);
+		smsc_fdc37m81x_config_set(SMSC_FDC37M81X_ACTIVE,
+					  1);
+		smsc_fdc37m81x_config_end();
 	}
 #endif
-
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_SERIAL_TXX9
@@ -894,17 +601,12 @@ void __init plat_mem_setup(void)
         }
 #endif
 
-
 #ifdef CONFIG_IP_PNP
         argptr = prom_getcmdline();
         if (strstr(argptr, "ip=") == NULL) {
                 strcat(argptr, " ip=any");
         }
 #endif
-
-
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_SETUP,
-			       "+\n");
 }
 
 void __init plat_time_init(void)
