@@ -149,7 +149,17 @@ static inline int sparse_early_nid(struct mem_section *section)
 /* Record a memory area against a node. */
 void __init memory_present(int nid, unsigned long start, unsigned long end)
 {
+	unsigned long max_arch_pfn = 1UL << (MAX_PHYSMEM_BITS-PAGE_SHIFT);
 	unsigned long pfn;
+
+	/*
+	 * Sanity checks - do not allow an architecture to pass
+	 * in larger pfns than the maximum scope of sparsemem:
+	 */
+	if (start >= max_arch_pfn)
+		return;
+	if (end >= max_arch_pfn)
+		end = max_arch_pfn;
 
 	start &= PAGE_SECTION_MASK;
 	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
