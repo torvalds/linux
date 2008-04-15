@@ -35,7 +35,6 @@ config IWL4965_HT
 	bool "Enable 802.11n HT features in iwl4965 driver"
 	depends on EXPERIMENTAL
 	depends on IWL4965 && IWL4965_QOS
-	depends on n
 	---help---
 	  This option enables IEEE 802.11n High Throughput features
 	  for the iwl4965 driver.

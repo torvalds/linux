@@ -70,6 +70,26 @@ static inline void raw_local_irq_restore(unsigned long flags)
 	native_restore_fl(flags);
 }
 
+#ifdef CONFIG_X86_VSMP
+
+/*
+ * Interrupt control for the VSMP architecture:
+ */
+
+static inline void raw_local_irq_disable(void)
+{
+	unsigned long flags = __raw_local_save_flags();
+	raw_local_irq_restore((flags & ~X86_EFLAGS_IF) | X86_EFLAGS_AC);
+}
+
+static inline void raw_local_irq_enable(void)
+{
+	unsigned long flags = __raw_local_save_flags();
+	raw_local_irq_restore((flags | X86_EFLAGS_IF) & (~X86_EFLAGS_AC));
+}
+
+#else
+
 static inline void raw_local_irq_disable(void)
 {
 	native_irq_disable();
@@ -79,6 +99,8 @@ static inline void raw_local_irq_enable(void)
 {
 	native_irq_enable();
 }
+
+#endif
 
 /*
  * Used in the idle loop; sti takes one instruction cycle
@@ -137,10 +159,17 @@ static inline unsigned long __raw_local_irq_save(void)
 #define raw_local_irq_save(flags) \
 		do { (flags) = __raw_local_irq_save(); } while (0)
 
+#ifdef CONFIG_X86_VSMP
+static inline int raw_irqs_disabled_flags(unsigned long flags)
+{
+	return !(flags & X86_EFLAGS_IF) || (flags & X86_EFLAGS_AC);
+}
+#else
 static inline int raw_irqs_disabled_flags(unsigned long flags)
 {
 	return !(flags & X86_EFLAGS_IF);
 }
+#endif
 
 static inline int raw_irqs_disabled(void)
 {

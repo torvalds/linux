@@ -2131,8 +2131,8 @@ EXPORT_SYMBOL_GPL(skb_pull_rcsum);
  *	@features: features for the output path (see dev->features)
  *
  *	This function performs segmentation on the given skb.  It returns
- *	the segment at the given position.  It returns NULL if there are
- *	no more segments to generate, or when an error is encountered.
+ *	a pointer to the first in a list of new skbs for the segments.
+ *	In case of error it returns ERR_PTR(err).
  */
 struct sk_buff *skb_segment(struct sk_buff *skb, int features)
 {

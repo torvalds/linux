@@ -377,7 +377,7 @@ xfs_qm_scall_trunc_qfiles(
 	if (!capable(CAP_SYS_ADMIN))
 		return XFS_ERROR(EPERM);
 	error = 0;
-	if (!XFS_SB_VERSION_HASQUOTA(&mp->m_sb) || flags == 0) {
+	if (!xfs_sb_version_hasquota(&mp->m_sb) || flags == 0) {
 		qdprintk("qtrunc flags=%x m_qflags=%x\n", flags, mp->m_qflags);
 		return XFS_ERROR(EINVAL);
 	}
@@ -522,7 +522,7 @@ xfs_qm_scall_getqstat(
 	memset(out, 0, sizeof(fs_quota_stat_t));
 
 	out->qs_version = FS_QSTAT_VERSION;
-	if (! XFS_SB_VERSION_HASQUOTA(&mp->m_sb)) {
+	if (!xfs_sb_version_hasquota(&mp->m_sb)) {
 		out->qs_uquota.qfs_ino = NULLFSINO;
 		out->qs_gquota.qfs_ino = NULLFSINO;
 		return (0);

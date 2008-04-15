@@ -1090,7 +1090,7 @@ xlog_get_iclog_buffer_size(xfs_mount_t	*mp,
 			size >>= 1;
 		}
 
-		if (XFS_SB_VERSION_HASLOGV2(&mp->m_sb)) {
+		if (xfs_sb_version_haslogv2(&mp->m_sb)) {
 			/* # headers = size / 32K
 			 * one header holds cycles from 32K of data
 			 */
@@ -1186,13 +1186,13 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	log->l_grant_reserve_cycle = 1;
 	log->l_grant_write_cycle = 1;
 
-	if (XFS_SB_VERSION_HASSECTOR(&mp->m_sb)) {
+	if (xfs_sb_version_hassector(&mp->m_sb)) {
 		log->l_sectbb_log = mp->m_sb.sb_logsectlog - BBSHIFT;
 		ASSERT(log->l_sectbb_log <= mp->m_sectbb_log);
 		/* for larger sector sizes, must have v2 or external log */
 		ASSERT(log->l_sectbb_log == 0 ||
 			log->l_logBBstart == 0 ||
-			XFS_SB_VERSION_HASLOGV2(&mp->m_sb));
+			xfs_sb_version_haslogv2(&mp->m_sb));
 		ASSERT(mp->m_sb.sb_logsectlog >= BBSHIFT);
 	}
 	log->l_sectbb_mask = (1 << log->l_sectbb_log) - 1;
@@ -1247,7 +1247,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 		memset(head, 0, sizeof(xlog_rec_header_t));
 		head->h_magicno = cpu_to_be32(XLOG_HEADER_MAGIC_NUM);
 		head->h_version = cpu_to_be32(
-			XFS_SB_VERSION_HASLOGV2(&log->l_mp->m_sb) ? 2 : 1);
+			xfs_sb_version_haslogv2(&log->l_mp->m_sb) ? 2 : 1);
 		head->h_size = cpu_to_be32(log->l_iclog_size);
 		/* new fields */
 		head->h_fmt = cpu_to_be32(XLOG_FMT);
@@ -1402,7 +1402,7 @@ xlog_sync(xlog_t		*log,
 	int		roundoff;       /* roundoff to BB or stripe */
 	int		split = 0;	/* split write into two regions */
 	int		error;
-	int		v2 = XFS_SB_VERSION_HASLOGV2(&log->l_mp->m_sb);
+	int		v2 = xfs_sb_version_haslogv2(&log->l_mp->m_sb);
 
 	XFS_STATS_INC(xs_log_writes);
 	ASSERT(iclog->ic_refcnt == 0);
@@ -2881,7 +2881,7 @@ xlog_state_switch_iclogs(xlog_t		*log,
 	log->l_curr_block += BTOBB(eventual_size)+BTOBB(log->l_iclog_hsize);
 
 	/* Round up to next log-sunit */
-	if (XFS_SB_VERSION_HASLOGV2(&log->l_mp->m_sb) &&
+	if (xfs_sb_version_haslogv2(&log->l_mp->m_sb) &&
 	    log->l_mp->m_sb.sb_logsunit > 1) {
 		__uint32_t sunit_bb = BTOBB(log->l_mp->m_sb.sb_logsunit);
 		log->l_curr_block = roundup(log->l_curr_block, sunit_bb);
@@ -3334,7 +3334,7 @@ xlog_ticket_get(xlog_t		*log,
 	unit_bytes += sizeof(xlog_op_header_t) * num_headers;
 
 	/* for roundoff padding for transaction data and one for commit record */
-	if (XFS_SB_VERSION_HASLOGV2(&log->l_mp->m_sb) &&
+	if (xfs_sb_version_haslogv2(&log->l_mp->m_sb) &&
 	    log->l_mp->m_sb.sb_logsunit > 1) {
 		/* log su roundoff */
 		unit_bytes += 2*log->l_mp->m_sb.sb_logsunit;

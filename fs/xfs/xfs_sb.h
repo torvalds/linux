@@ -89,6 +89,7 @@ struct xfs_mount;
 
 /*
  * Superblock - in core version.  Must match the ondisk version below.
+ * Must be padded to 64 bit alignment.
  */
 typedef struct xfs_sb {
 	__uint32_t	sb_magicnum;	/* magic number == XFS_SB_MAGIC */
@@ -145,10 +146,21 @@ typedef struct xfs_sb {
 	__uint16_t	sb_logsectsize;	/* sector size for the log, bytes */
 	__uint32_t	sb_logsunit;	/* stripe unit size for the log */
 	__uint32_t	sb_features2;	/* additional feature bits */
+
+	/*
+	 * bad features2 field as a result of failing to pad the sb
+	 * structure to 64 bits. Some machines will be using this field
+	 * for features2 bits. Easiest just to mark it bad and not use
+	 * it for anything else.
+	 */
+	__uint32_t	sb_bad_features2;
+
+	/* must be padded to 64 bit alignment */
 } xfs_sb_t;
 
 /*
- * Superblock - on disk version.  Must match the in core version below.
+ * Superblock - on disk version.  Must match the in core version above.
+ * Must be padded to 64 bit alignment.
  */
 typedef struct xfs_dsb {
 	__be32		sb_magicnum;	/* magic number == XFS_SB_MAGIC */
@@ -205,6 +217,15 @@ typedef struct xfs_dsb {
 	__be16		sb_logsectsize;	/* sector size for the log, bytes */
 	__be32		sb_logsunit;	/* stripe unit size for the log */
 	__be32		sb_features2;	/* additional feature bits */
+	/*
+	 * bad features2 field as a result of failing to pad the sb
+	 * structure to 64 bits. Some machines will be using this field
+	 * for features2 bits. Easiest just to mark it bad and not use
+	 * it for anything else.
+	 */
+	__be32	sb_bad_features2;
+
+	/* must be padded to 64 bit alignment */
 } xfs_dsb_t;
 
 /*
@@ -223,7 +244,7 @@ typedef enum {
 	XFS_SBS_GQUOTINO, XFS_SBS_QFLAGS, XFS_SBS_FLAGS, XFS_SBS_SHARED_VN,
 	XFS_SBS_INOALIGNMT, XFS_SBS_UNIT, XFS_SBS_WIDTH, XFS_SBS_DIRBLKLOG,
 	XFS_SBS_LOGSECTLOG, XFS_SBS_LOGSECTSIZE, XFS_SBS_LOGSUNIT,
-	XFS_SBS_FEATURES2,
+	XFS_SBS_FEATURES2, XFS_SBS_BAD_FEATURES2,
 	XFS_SBS_FIELDCOUNT
 } xfs_sb_field_t;
 
@@ -248,13 +269,15 @@ typedef enum {
 #define XFS_SB_IFREE		XFS_SB_MVAL(IFREE)
 #define XFS_SB_FDBLOCKS		XFS_SB_MVAL(FDBLOCKS)
 #define XFS_SB_FEATURES2	XFS_SB_MVAL(FEATURES2)
+#define XFS_SB_BAD_FEATURES2	XFS_SB_MVAL(BAD_FEATURES2)
 #define	XFS_SB_NUM_BITS		((int)XFS_SBS_FIELDCOUNT)
 #define	XFS_SB_ALL_BITS		((1LL << XFS_SB_NUM_BITS) - 1)
 #define	XFS_SB_MOD_BITS		\
 	(XFS_SB_UUID | XFS_SB_ROOTINO | XFS_SB_RBMINO | XFS_SB_RSUMINO | \
 	 XFS_SB_VERSIONNUM | XFS_SB_UQUOTINO | XFS_SB_GQUOTINO | \
 	 XFS_SB_QFLAGS | XFS_SB_SHARED_VN | XFS_SB_UNIT | XFS_SB_WIDTH | \
-	 XFS_SB_ICOUNT | XFS_SB_IFREE | XFS_SB_FDBLOCKS | XFS_SB_FEATURES2)
+	 XFS_SB_ICOUNT | XFS_SB_IFREE | XFS_SB_FDBLOCKS | XFS_SB_FEATURES2 | \
+	 XFS_SB_BAD_FEATURES2)
 
 
 /*
@@ -271,7 +294,6 @@ typedef enum {
 
 #define	XFS_SB_VERSION_NUM(sbp)	((sbp)->sb_versionnum & XFS_SB_VERSION_NUMBITS)
 
-#define	XFS_SB_GOOD_VERSION(sbp)	xfs_sb_good_version(sbp)
 #ifdef __KERNEL__
 static inline int xfs_sb_good_version(xfs_sb_t *sbp)
 {
@@ -297,7 +319,15 @@ static inline int xfs_sb_good_version(xfs_sb_t *sbp)
 }
 #endif /* __KERNEL__ */
 
-#define	XFS_SB_VERSION_TONEW(v)	xfs_sb_version_tonew(v)
+/*
+ * Detect a mismatched features2 field.  Older kernels read/wrote
+ * this into the wrong slot, so to be safe we keep them in sync.
+ */
+static inline int xfs_sb_has_mismatched_features2(xfs_sb_t *sbp)
+{
+	return (sbp->sb_bad_features2 != sbp->sb_features2);
+}
+
 static inline unsigned xfs_sb_version_tonew(unsigned v)
 {
 	return ((((v) == XFS_SB_VERSION_1) ? \
@@ -308,7 +338,6 @@ static inline unsigned xfs_sb_version_tonew(unsigned v)
 		XFS_SB_VERSION_4);
 }
 
-#define	XFS_SB_VERSION_TOOLD(v)	xfs_sb_version_toold(v)
 static inline unsigned xfs_sb_version_toold(unsigned v)
 {
 	return (((v) & (XFS_SB_VERSION_QUOTABIT | XFS_SB_VERSION_ALIGNBIT)) ? \
@@ -320,7 +349,6 @@ static inline unsigned xfs_sb_version_toold(unsigned v)
 				XFS_SB_VERSION_1)));
 }
 
-#define	XFS_SB_VERSION_HASATTR(sbp)	xfs_sb_version_hasattr(sbp)
 static inline int xfs_sb_version_hasattr(xfs_sb_t *sbp)
 {
 	return ((sbp)->sb_versionnum == XFS_SB_VERSION_2) || \
@@ -329,7 +357,6 @@ static inline int xfs_sb_version_hasattr(xfs_sb_t *sbp)
 		  ((sbp)->sb_versionnum & XFS_SB_VERSION_ATTRBIT));
 }
 
-#define	XFS_SB_VERSION_ADDATTR(sbp)	xfs_sb_version_addattr(sbp)
 static inline void xfs_sb_version_addattr(xfs_sb_t *sbp)
 {
 	(sbp)->sb_versionnum = (((sbp)->sb_versionnum == XFS_SB_VERSION_1) ? \
@@ -339,7 +366,6 @@ static inline void xfs_sb_version_addattr(xfs_sb_t *sbp)
 			(XFS_SB_VERSION_4 | XFS_SB_VERSION_ATTRBIT)));
 }
 
-#define	XFS_SB_VERSION_HASNLINK(sbp)	xfs_sb_version_hasnlink(sbp)
 static inline int xfs_sb_version_hasnlink(xfs_sb_t *sbp)
 {
 	return ((sbp)->sb_versionnum == XFS_SB_VERSION_3) || \
@@ -347,7 +373,6 @@ static inline int xfs_sb_version_hasnlink(xfs_sb_t *sbp)
 		  ((sbp)->sb_versionnum & XFS_SB_VERSION_NLINKBIT));
 }
 
-#define	XFS_SB_VERSION_ADDNLINK(sbp)	xfs_sb_version_addnlink(sbp)
 static inline void xfs_sb_version_addnlink(xfs_sb_t *sbp)
 {
 	(sbp)->sb_versionnum = ((sbp)->sb_versionnum <= XFS_SB_VERSION_2 ? \
@@ -355,115 +380,63 @@ static inline void xfs_sb_version_addnlink(xfs_sb_t *sbp)
 		((sbp)->sb_versionnum | XFS_SB_VERSION_NLINKBIT));
 }
 
-#define	XFS_SB_VERSION_HASQUOTA(sbp)	xfs_sb_version_hasquota(sbp)
 static inline int xfs_sb_version_hasquota(xfs_sb_t *sbp)
 {
 	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4) && \
 		((sbp)->sb_versionnum & XFS_SB_VERSION_QUOTABIT);
 }
 
-#define	XFS_SB_VERSION_ADDQUOTA(sbp)	xfs_sb_version_addquota(sbp)
 static inline void xfs_sb_version_addquota(xfs_sb_t *sbp)
 {
 	(sbp)->sb_versionnum = \
 		 (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4 ? \
 			((sbp)->sb_versionnum | XFS_SB_VERSION_QUOTABIT) : \
-			(XFS_SB_VERSION_TONEW((sbp)->sb_versionnum) | \
+			(xfs_sb_version_tonew((sbp)->sb_versionnum) | \
 			 XFS_SB_VERSION_QUOTABIT));
 }
 
-#define	XFS_SB_VERSION_HASALIGN(sbp)	xfs_sb_version_hasalign(sbp)
 static inline int xfs_sb_version_hasalign(xfs_sb_t *sbp)
 {
 	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4) && \
 		((sbp)->sb_versionnum & XFS_SB_VERSION_ALIGNBIT);
 }
 
-#define	XFS_SB_VERSION_SUBALIGN(sbp)	xfs_sb_version_subalign(sbp)
-static inline void xfs_sb_version_subalign(xfs_sb_t *sbp)
-{
-	(sbp)->sb_versionnum = \
-	 XFS_SB_VERSION_TOOLD((sbp)->sb_versionnum & ~XFS_SB_VERSION_ALIGNBIT);
-}
-
-#define XFS_SB_VERSION_HASDALIGN(sbp)	xfs_sb_version_hasdalign(sbp)
 static inline int xfs_sb_version_hasdalign(xfs_sb_t *sbp)
 {
 	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4) && \
 		((sbp)->sb_versionnum & XFS_SB_VERSION_DALIGNBIT);
 }
 
-#define XFS_SB_VERSION_ADDDALIGN(sbp)	xfs_sb_version_adddalign(sbp)
-static inline int xfs_sb_version_adddalign(xfs_sb_t *sbp)
-{
-	return (sbp)->sb_versionnum = \
-		((sbp)->sb_versionnum | XFS_SB_VERSION_DALIGNBIT);
-}
-
-#define XFS_SB_VERSION_HASSHARED(sbp)	xfs_sb_version_hasshared(sbp)
 static inline int xfs_sb_version_hasshared(xfs_sb_t *sbp)
 {
 	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4) && \
 		((sbp)->sb_versionnum & XFS_SB_VERSION_SHAREDBIT);
 }
 
-#define XFS_SB_VERSION_ADDSHARED(sbp)	xfs_sb_version_addshared(sbp)
-static inline int xfs_sb_version_addshared(xfs_sb_t *sbp)
-{
-	return (sbp)->sb_versionnum = \
-		((sbp)->sb_versionnum | XFS_SB_VERSION_SHAREDBIT);
-}
-
-#define XFS_SB_VERSION_SUBSHARED(sbp)	xfs_sb_version_subshared(sbp)
-static inline int xfs_sb_version_subshared(xfs_sb_t *sbp)
-{
-	return (sbp)->sb_versionnum = \
-		((sbp)->sb_versionnum & ~XFS_SB_VERSION_SHAREDBIT);
-}
-
-#define XFS_SB_VERSION_HASDIRV2(sbp)	xfs_sb_version_hasdirv2(sbp)
 static inline int xfs_sb_version_hasdirv2(xfs_sb_t *sbp)
 {
 	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4) && \
 		((sbp)->sb_versionnum & XFS_SB_VERSION_DIRV2BIT);
 }
 
-#define XFS_SB_VERSION_HASLOGV2(sbp)   xfs_sb_version_haslogv2(sbp)
 static inline int xfs_sb_version_haslogv2(xfs_sb_t *sbp)
 {
 	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4) && \
 		((sbp)->sb_versionnum & XFS_SB_VERSION_LOGV2BIT);
 }
 
-#define XFS_SB_VERSION_HASEXTFLGBIT(sbp)	xfs_sb_version_hasextflgbit(sbp)
 static inline int xfs_sb_version_hasextflgbit(xfs_sb_t *sbp)
 {
 	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4) && \
 		((sbp)->sb_versionnum & XFS_SB_VERSION_EXTFLGBIT);
 }
 
-#define XFS_SB_VERSION_ADDEXTFLGBIT(sbp)	xfs_sb_version_addextflgbit(sbp)
-static inline int xfs_sb_version_addextflgbit(xfs_sb_t *sbp)
-{
-	return (sbp)->sb_versionnum = \
-		((sbp)->sb_versionnum | XFS_SB_VERSION_EXTFLGBIT);
-}
-
-#define XFS_SB_VERSION_SUBEXTFLGBIT(sbp)	xfs_sb_version_subextflgbit(sbp)
-static inline int xfs_sb_version_subextflgbit(xfs_sb_t *sbp)
-{
-	return (sbp)->sb_versionnum = \
-		((sbp)->sb_versionnum & ~XFS_SB_VERSION_EXTFLGBIT);
-}
-
-#define XFS_SB_VERSION_HASSECTOR(sbp)   xfs_sb_version_hassector(sbp)
 static inline int xfs_sb_version_hassector(xfs_sb_t *sbp)
 {
 	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4) && \
 		((sbp)->sb_versionnum & XFS_SB_VERSION_SECTORBIT);
 }
 
-#define XFS_SB_VERSION_HASMOREBITS(sbp)	xfs_sb_version_hasmorebits(sbp)
 static inline int xfs_sb_version_hasmorebits(xfs_sb_t *sbp)
 {
 	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4) && \
@@ -476,24 +449,22 @@ static inline int xfs_sb_version_hasmorebits(xfs_sb_t *sbp)
  * For example, for a bit defined as XFS_SB_VERSION2_FUNBIT, has a macro:
  *
  * SB_VERSION_HASFUNBIT(xfs_sb_t *sbp)
- *	((XFS_SB_VERSION_HASMOREBITS(sbp) &&
+ *	((xfs_sb_version_hasmorebits(sbp) &&
  *	 ((sbp)->sb_features2 & XFS_SB_VERSION2_FUNBIT)
  */
 
 static inline int xfs_sb_version_haslazysbcount(xfs_sb_t *sbp)
 {
-	return (XFS_SB_VERSION_HASMOREBITS(sbp) &&	\
+	return (xfs_sb_version_hasmorebits(sbp) &&	\
 		((sbp)->sb_features2 & XFS_SB_VERSION2_LAZYSBCOUNTBIT));
 }
 
-#define XFS_SB_VERSION_HASATTR2(sbp)	xfs_sb_version_hasattr2(sbp)
 static inline int xfs_sb_version_hasattr2(xfs_sb_t *sbp)
 {
-	return (XFS_SB_VERSION_HASMOREBITS(sbp)) &&	\
+	return (xfs_sb_version_hasmorebits(sbp)) &&	\
 		((sbp)->sb_features2 & XFS_SB_VERSION2_ATTR2BIT);
 }
 
-#define XFS_SB_VERSION_ADDATTR2(sbp)	xfs_sb_version_addattr2(sbp)
 static inline void xfs_sb_version_addattr2(xfs_sb_t *sbp)
 {
 	((sbp)->sb_versionnum =	\

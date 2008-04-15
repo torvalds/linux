@@ -312,14 +312,12 @@ static void ieee80211_sta_wmm_params(struct net_device *dev,
 	}
 }
 
-
-static u32 ieee80211_handle_erp_ie(struct ieee80211_sub_if_data *sdata,
-				   u8 erp_value)
+static u32 ieee80211_handle_protect_preamb(struct ieee80211_sub_if_data *sdata,
+					   bool use_protection,
+					   bool use_short_preamble)
 {
 	struct ieee80211_bss_conf *bss_conf = &sdata->bss_conf;
 	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
-	bool use_protection = (erp_value & WLAN_ERP_USE_PROTECTION) != 0;
-	bool use_short_preamble = (erp_value & WLAN_ERP_BARKER_PREAMBLE) == 0;
 	DECLARE_MAC_BUF(mac);
 	u32 changed = 0;
 
@@ -345,6 +343,32 @@ static u32 ieee80211_handle_erp_ie(struct ieee80211_sub_if_data *sdata,
 		}
 		bss_conf->use_short_preamble = use_short_preamble;
 		changed |= BSS_CHANGED_ERP_PREAMBLE;
+	}
+
+	return changed;
+}
+
+static u32 ieee80211_handle_erp_ie(struct ieee80211_sub_if_data *sdata,
+				   u8 erp_value)
+{
+	bool use_protection = (erp_value & WLAN_ERP_USE_PROTECTION) != 0;
+	bool use_short_preamble = (erp_value & WLAN_ERP_BARKER_PREAMBLE) == 0;
+
+	return ieee80211_handle_protect_preamb(sdata,
+			use_protection, use_short_preamble);
+}
+
+static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
+					   struct ieee80211_sta_bss *bss)
+{
+	u32 changed = 0;
+
+	if (bss->has_erp_value)
+		changed |= ieee80211_handle_erp_ie(sdata, bss->erp_value);
+	else {
+		u16 capab = bss->capability;
+		changed |= ieee80211_handle_protect_preamb(sdata, false,
+				(capab & WLAN_CAPABILITY_SHORT_PREAMBLE) != 0);
 	}
 
 	return changed;
@@ -468,9 +492,7 @@ static void ieee80211_set_associated(struct net_device *dev,
 					   local->hw.conf.channel,
 					   ifsta->ssid, ifsta->ssid_len);
 		if (bss) {
-			if (bss->has_erp_value)
-				changed |= ieee80211_handle_erp_ie(
-						sdata, bss->erp_value);
+			changed |= ieee80211_handle_bss_capability(sdata, bss);
 			ieee80211_rx_bss_put(dev, bss);
 		}
 
@@ -2116,6 +2138,11 @@ static void ieee80211_rx_mgmt_beacon(struct net_device *dev,
 
 	if (elems.erp_info && elems.erp_info_len >= 1)
 		changed |= ieee80211_handle_erp_ie(sdata, elems.erp_info[0]);
+	else {
+		u16 capab = le16_to_cpu(mgmt->u.beacon.capab_info);
+		changed |= ieee80211_handle_protect_preamb(sdata, false,
+				(capab & WLAN_CAPABILITY_SHORT_PREAMBLE) != 0);
+	}
 
 	if (elems.ht_cap_elem && elems.ht_info_elem &&
 	    elems.wmm_param && local->ops->conf_ht &&

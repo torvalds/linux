@@ -200,6 +200,8 @@ it8712f_wdt_disable(void)
 
 	superio_outb(0, WDT_CONFIG);
 	superio_outb(0, WDT_CONTROL);
+	if (revision >= 0x08)
+		superio_outb(0, WDT_TIMEOUT + 1);
 	superio_outb(0, WDT_TIMEOUT);
 
 	superio_exit();

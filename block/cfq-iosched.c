@@ -1214,6 +1214,8 @@ static void cfq_exit_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 static void __cfq_exit_single_io_context(struct cfq_data *cfqd,
 					 struct cfq_io_context *cic)
 {
+	struct io_context *ioc = cic->ioc;
+
 	list_del_init(&cic->queue_list);
 
 	/*
@@ -1222,6 +1224,9 @@ static void __cfq_exit_single_io_context(struct cfq_data *cfqd,
 	smp_wmb();
 	cic->dead_key = (unsigned long) cic->key;
 	cic->key = NULL;
+
+	if (ioc->ioc_data == cic)
+		rcu_assign_pointer(ioc->ioc_data, NULL);
 
 	if (cic->cfqq[ASYNC]) {
 		cfq_exit_cfqq(cfqd, cic->cfqq[ASYNC]);
@@ -1255,7 +1260,6 @@ static void cfq_exit_single_io_context(struct io_context *ioc,
  */
 static void cfq_exit_io_context(struct io_context *ioc)
 {
-	rcu_assign_pointer(ioc->ioc_data, NULL);
 	call_for_each_cic(ioc, cfq_exit_single_io_context);
 }
 
@@ -1478,8 +1482,7 @@ cfq_drop_dead_cic(struct cfq_data *cfqd, struct io_context *ioc,
 
 	spin_lock_irqsave(&ioc->lock, flags);
 
-	if (ioc->ioc_data == cic)
-		rcu_assign_pointer(ioc->ioc_data, NULL);
+	BUG_ON(ioc->ioc_data == cic);
 
 	radix_tree_delete(&ioc->radix_root, (unsigned long) cfqd);
 	hlist_del_rcu(&cic->cic_list);

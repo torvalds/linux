@@ -418,6 +418,9 @@ static int at32_wdt_resume(struct platform_device *pdev)
 #define at32_wdt_resume NULL
 #endif
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:at32_wdt");
+
 static struct platform_driver at32_wdt_driver = {
 	.remove		= __exit_p(at32_wdt_remove),
 	.suspend	= at32_wdt_suspend,

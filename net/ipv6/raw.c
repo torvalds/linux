@@ -372,8 +372,10 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 	read_lock(&raw_v6_hashinfo.lock);
 	sk = sk_head(&raw_v6_hashinfo.ht[hash]);
 	if (sk != NULL) {
-		saddr = &ipv6_hdr(skb)->saddr;
-		daddr = &ipv6_hdr(skb)->daddr;
+		struct ipv6hdr *hdr = (struct ipv6hdr *) skb->data;
+
+		saddr = &hdr->saddr;
+		daddr = &hdr->daddr;
 		net = skb->dev->nd_net;
 
 		while ((sk = __raw_v6_lookup(net, sk, nexthdr, saddr, daddr,

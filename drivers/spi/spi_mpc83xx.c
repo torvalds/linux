@@ -523,11 +523,12 @@ static int __exit mpc83xx_spi_remove(struct platform_device *dev)
 	return 0;
 }
 
-MODULE_ALIAS("mpc83xx_spi");			/* for platform bus hotplug */
+MODULE_ALIAS("platform:mpc83xx_spi");
 static struct platform_driver mpc83xx_spi_driver = {
 	.remove = __exit_p(mpc83xx_spi_remove),
 	.driver = {
-		   .name = "mpc83xx_spi",
+		.name = "mpc83xx_spi",
+		.owner = THIS_MODULE,
 	},
 };
 

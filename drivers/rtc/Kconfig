@@ -252,6 +252,7 @@ config RTC_DRV_TWL92330
 
 config RTC_DRV_S35390A
 	tristate "Seiko Instruments S-35390A"
+	select BITREVERSE
 	help
 	  If you say yes here you will get support for the Seiko
 	  Instruments S-35390A.

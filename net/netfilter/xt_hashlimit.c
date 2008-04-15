@@ -466,38 +466,25 @@ static inline void rateinfo_recalc(struct dsthash_ent *dh, unsigned long now)
 
 static inline __be32 maskl(__be32 a, unsigned int l)
 {
-	return htonl(ntohl(a) & ~(~(u_int32_t)0 >> l));
+	return l ? htonl(ntohl(a) & ~0 << (32 - l)) : 0;
 }
 
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 static void hashlimit_ipv6_mask(__be32 *i, unsigned int p)
 {
 	switch (p) {
-	case 0:
-		i[0] = i[1] = 0;
-		i[2] = i[3] = 0;
-		break;
-	case 1 ... 31:
+	case 0 ... 31:
 		i[0] = maskl(i[0], p);
 		i[1] = i[2] = i[3] = 0;
 		break;
-	case 32:
-		i[1] = i[2] = i[3] = 0;
-		break;
-	case 33 ... 63:
+	case 32 ... 63:
 		i[1] = maskl(i[1], p - 32);
 		i[2] = i[3] = 0;
 		break;
-	case 64:
-		i[2] = i[3] = 0;
-		break;
-	case 65 ... 95:
+	case 64 ... 95:
 		i[2] = maskl(i[2], p - 64);
 		i[3] = 0;
-	case 96:
-		i[3] = 0;
-		break;
-	case 97 ... 127:
+	case 96 ... 127:
 		i[3] = maskl(i[3], p - 96);
 		break;
 	case 128:

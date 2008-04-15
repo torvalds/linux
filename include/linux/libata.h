@@ -350,7 +350,8 @@ enum {
 	ATAPI_READ		= 0,		/* READs */
 	ATAPI_WRITE		= 1,		/* WRITEs */
 	ATAPI_READ_CD		= 2,		/* READ CD [MSF] */
-	ATAPI_MISC		= 3,		/* the rest */
+	ATAPI_PASS_THRU		= 3,		/* SAT pass-thru */
+	ATAPI_MISC		= 4,		/* the rest */
 };
 
 enum ata_xfer_mask {
@@ -849,6 +850,7 @@ extern unsigned int ata_dev_try_classify(struct ata_device *dev, int present,
  */
 extern void ata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf);
 extern void ata_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
+extern int atapi_cmd_type(u8 opcode);
 extern void ata_tf_to_fis(const struct ata_taskfile *tf,
 			  u8 pmp, int is_cmd, u8 *fis);
 extern void ata_tf_from_fis(const u8 *fis, struct ata_taskfile *tf);
@@ -1377,27 +1379,6 @@ static inline int ata_try_flush_cache(const struct ata_device *dev)
 	return ata_id_wcache_enabled(dev->id) ||
 	       ata_id_has_flush(dev->id) ||
 	       ata_id_has_flush_ext(dev->id);
-}
-
-static inline int atapi_cmd_type(u8 opcode)
-{
-	switch (opcode) {
-	case GPCMD_READ_10:
-	case GPCMD_READ_12:
-		return ATAPI_READ;
-
-	case GPCMD_WRITE_10:
-	case GPCMD_WRITE_12:
-	case GPCMD_WRITE_AND_VERIFY_10:
-		return ATAPI_WRITE;
-
-	case GPCMD_READ_CD:
-	case GPCMD_READ_CD_MSF:
-		return ATAPI_READ_CD;
-
-	default:
-		return ATAPI_MISC;
-	}
 }
 
 static inline unsigned int ac_err_mask(u8 status)

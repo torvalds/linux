@@ -271,8 +271,6 @@ netlabel/
 	- directory with information on the NetLabel subsystem.
 networking/
 	- directory with info on various aspects of networking with Linux.
-nfsroot.txt
-	- short guide on setting up a diskless box with NFS root filesystem.
 nmi_watchdog.txt
 	- info on NMI watchdog for SMP systems.
 nommu-mmap.txt
@@ -321,8 +319,6 @@ robust-futexes.txt
 	- a description of what robust futexes are.
 rocket.txt
 	- info on the Comtrol RocketPort multiport serial driver.
-rpc-cache.txt
-	- introduction to the caching mechanisms in the sunrpc layer.
 rt-mutex-design.txt
 	- description of the RealTime mutex implementation design.
 rt-mutex.txt

@@ -102,13 +102,6 @@ __switch_to:
 	movgs		gr14,lr
 	bar
 
-	srli		gr15,#28,gr5
-	subicc		gr5,#0xc,gr0,icc0
-	beq		icc0,#0,111f
-	break
-	nop
-111:
-
 	# jump to __switch_back or ret_from_fork as appropriate
 	# - move prev to GR8
 	movgs		gr4,psr

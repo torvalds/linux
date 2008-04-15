@@ -245,7 +245,7 @@ enum external_pb1200_ints {
 	PB1200_SD1_INSERT_INT,
 	PB1200_SD1_EJECT_INT,
 
-	PB1200_INT_END			(PB1200_INT_BEGIN + 15)
+	PB1200_INT_END		= PB1200_INT_BEGIN + 15
 };
 
 /* For drivers/pcmcia/au1000_db1x00.c */

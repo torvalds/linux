@@ -436,23 +436,25 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	}
 
 	if (xfrm_decode_session_reverse(skb, &fl2, AF_INET6))
-		goto out_dst_release;
+		goto relookup_failed;
 
 	if (ip6_dst_lookup(sk, &dst2, &fl))
-		goto out_dst_release;
+		goto relookup_failed;
 
 	err = xfrm_lookup(&dst2, &fl, sk, XFRM_LOOKUP_ICMP);
-	if (err == -ENOENT) {
+	switch (err) {
+	case 0:
+		dst_release(dst);
+		dst = dst2;
+		break;
+	case -EPERM:
+		goto out_dst_release;
+	default:
+relookup_failed:
 		if (!dst)
 			goto out;
-		goto route_done;
+		break;
 	}
-
-	dst_release(dst);
-	dst = dst2;
-
-	if (err)
-		goto out;
 
 route_done:
 	if (ipv6_addr_is_multicast(&fl.fl6_dst))

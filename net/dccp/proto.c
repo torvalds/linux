@@ -1057,6 +1057,9 @@ static int __init dccp_init(void)
 	int ehash_order, bhash_order, i;
 	int rc = -ENOBUFS;
 
+	BUILD_BUG_ON(sizeof(struct dccp_skb_cb) >
+		     FIELD_SIZEOF(struct sk_buff, cb));
+
 	dccp_hashinfo.bind_bucket_cachep =
 		kmem_cache_create("dccp_bind_bucket",
 				  sizeof(struct inet_bind_bucket), 0,

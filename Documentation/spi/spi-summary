@@ -116,6 +116,13 @@ low order bit.  So when a chip's timing diagram shows the clock
 starting low (CPOL=0) and data stabilized for sampling during the
 trailing clock edge (CPHA=1), that's SPI mode 1.
 
+Note that the clock mode is relevant as soon as the chipselect goes
+active.  So the master must set the clock to inactive before selecting
+a slave, and the slave can tell the chosen polarity by sampling the
+clock level when its select line goes active.  That's why many devices
+support for example both modes 0 and 3:  they don't care about polarity,
+and alway clock data in/out on rising clock edges.
+
 
 How do these driver programming interfaces work?
 ------------------------------------------------
@@ -379,8 +386,14 @@ any more such messages.
       + when bidirectional reads and writes start ... by how its
         sequence of spi_transfer requests is arranged;
 
+      + which I/O buffers are used ... each spi_transfer wraps a
+        buffer for each transfer direction, supporting full duplex
+        (two pointers, maybe the same one in both cases) and half
+        duplex (one pointer is NULL) transfers;
+
       + optionally defining short delays after transfers ... using
-        the spi_transfer.delay_usecs setting;
+        the spi_transfer.delay_usecs setting (this delay can be the
+        only protocol effect, if the buffer length is zero);
 
       + whether the chipselect becomes inactive after a transfer and
         any delay ... by using the spi_transfer.cs_change flag;

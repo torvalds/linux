@@ -325,7 +325,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	const struct user_regset_view *view;
 	int ret;
 
-	view = task_user_regset_view(child);
+	view = task_user_regset_view(current);
 
 	switch(request) {
 	case PTRACE_GETREGS: {

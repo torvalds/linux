@@ -26,6 +26,7 @@
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
+#include <asm/fpu.h>
 
 #define REG_RET 9
 #define REG_ARG1 2

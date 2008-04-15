@@ -664,3 +664,4 @@ MODULE_DESCRIPTION("SuperH on-chip RTC driver");
 MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>, Jamie Lenehan <lenehan@twibble.org>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" DRV_NAME);

@@ -301,7 +301,7 @@ static int eth_change_mtu(struct net_device *dev, int new_mtu)
 static int eth_validate_addr(struct net_device *dev)
 {
 	if (!is_valid_ether_addr(dev->dev_addr))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 
 	return 0;
 }

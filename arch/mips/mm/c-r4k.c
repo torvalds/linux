@@ -361,6 +361,16 @@ static inline int has_valid_asid(const struct mm_struct *mm)
 #endif
 }
 
+static void r4k__flush_cache_vmap(void)
+{
+	r4k_blast_dcache();
+}
+
+static void r4k__flush_cache_vunmap(void)
+{
+	r4k_blast_dcache();
+}
+
 static inline void local_r4k_flush_cache_range(void * args)
 {
 	struct vm_area_struct *vma = args;
@@ -1281,6 +1291,10 @@ void __cpuinit r4k_cache_init(void)
 					PAGE_SIZE - 1);
 	else
 		shm_align_mask = PAGE_SIZE-1;
+
+	__flush_cache_vmap	= r4k__flush_cache_vmap;
+	__flush_cache_vunmap	= r4k__flush_cache_vunmap;
+
 	flush_cache_all		= cache_noop;
 	__flush_cache_all	= r4k___flush_cache_all;
 	flush_cache_mm		= r4k_flush_cache_mm;

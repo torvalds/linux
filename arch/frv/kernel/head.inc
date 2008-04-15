@@ -46,5 +46,5 @@
 #ifdef CONFIG_MMU
 __sdram_base = 0x00000000		/* base address to which SDRAM relocated */
 #else
-__sdram_base = 0xc0000000		/* base address to which SDRAM relocated */
+__sdram_base = __page_offset		/* base address to which SDRAM relocated */
 #endif

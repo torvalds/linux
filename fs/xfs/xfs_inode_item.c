@@ -296,9 +296,9 @@ xfs_inode_item_format(
 	 */
 	mp = ip->i_mount;
 	ASSERT(ip->i_d.di_version == XFS_DINODE_VERSION_1 ||
-	       XFS_SB_VERSION_HASNLINK(&mp->m_sb));
+	       xfs_sb_version_hasnlink(&mp->m_sb));
 	if (ip->i_d.di_version == XFS_DINODE_VERSION_1) {
-		if (!XFS_SB_VERSION_HASNLINK(&mp->m_sb)) {
+		if (!xfs_sb_version_hasnlink(&mp->m_sb)) {
 			/*
 			 * Convert it back.
 			 */

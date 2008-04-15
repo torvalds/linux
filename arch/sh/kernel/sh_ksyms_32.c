@@ -149,3 +149,4 @@ EXPORT_SYMBOL(clear_page);
 EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(__clear_user);
 EXPORT_SYMBOL(_ebss);
+EXPORT_SYMBOL(empty_zero_page);
