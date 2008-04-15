@@ -2343,6 +2343,13 @@ static void b43_mac_suspend(struct b43_wldev *dev)
 			    & ~B43_MACCTL_ENABLED);
 		/* force pci to flush the write */
 		b43_read32(dev, B43_MMIO_MACCTL);
+		for (i = 35; i; i--) {
+			tmp = b43_read32(dev, B43_MMIO_GEN_IRQ_REASON);
+			if (tmp & B43_IRQ_MAC_SUSPENDED)
+				goto out;
+			udelay(10);
+		}
+		/* Hm, it seems this will take some time. Use msleep(). */
 		for (i = 40; i; i--) {
 			tmp = b43_read32(dev, B43_MMIO_GEN_IRQ_REASON);
 			if (tmp & B43_IRQ_MAC_SUSPENDED)
