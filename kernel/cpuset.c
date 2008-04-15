@@ -98,6 +98,9 @@ struct cpuset {
 	/* partition number for rebuild_sched_domains() */
 	int pn;
 
+	/* for custom sched domain */
+	int relax_domain_level;
+
 	/* used for walking a cpuset heirarchy */
 	struct list_head stack_list;
 };
@@ -478,6 +481,16 @@ static int cpusets_overlap(struct cpuset *a, struct cpuset *b)
 	return cpus_intersects(a->cpus_allowed, b->cpus_allowed);
 }
 
+static void
+update_domain_attr(struct sched_domain_attr *dattr, struct cpuset *c)
+{
+	if (!dattr)
+		return;
+	if (dattr->relax_domain_level < c->relax_domain_level)
+		dattr->relax_domain_level = c->relax_domain_level;
+	return;
+}
+
 /*
  * rebuild_sched_domains()
  *
@@ -553,12 +566,14 @@ static void rebuild_sched_domains(void)
 	int csn;		/* how many cpuset ptrs in csa so far */
 	int i, j, k;		/* indices for partition finding loops */
 	cpumask_t *doms;	/* resulting partition; i.e. sched domains */
+	struct sched_domain_attr *dattr;  /* attributes for custom domains */
 	int ndoms;		/* number of sched domains in result */
 	int nslot;		/* next empty doms[] cpumask_t slot */
 
 	q = NULL;
 	csa = NULL;
 	doms = NULL;
+	dattr = NULL;
 
 	/* Special case for the 99% of systems with one, full, sched domain */
 	if (is_sched_load_balance(&top_cpuset)) {
@@ -566,6 +581,11 @@ static void rebuild_sched_domains(void)
 		doms = kmalloc(sizeof(cpumask_t), GFP_KERNEL);
 		if (!doms)
 			goto rebuild;
+		dattr = kmalloc(sizeof(struct sched_domain_attr), GFP_KERNEL);
+		if (dattr) {
+			*dattr = SD_ATTR_INIT;
+			update_domain_attr(dattr, &top_cpuset);
+		}
 		*doms = top_cpuset.cpus_allowed;
 		goto rebuild;
 	}
@@ -622,6 +642,7 @@ restart:
 	doms = kmalloc(ndoms * sizeof(cpumask_t), GFP_KERNEL);
 	if (!doms)
 		goto rebuild;
+	dattr = kmalloc(ndoms * sizeof(struct sched_domain_attr), GFP_KERNEL);
 
 	for (nslot = 0, i = 0; i < csn; i++) {
 		struct cpuset *a = csa[i];
@@ -644,12 +665,15 @@ restart:
 			}
 
 			cpus_clear(*dp);
+			if (dattr)
+				*(dattr + nslot) = SD_ATTR_INIT;
 			for (j = i; j < csn; j++) {
 				struct cpuset *b = csa[j];
 
 				if (apn == b->pn) {
 					cpus_or(*dp, *dp, b->cpus_allowed);
 					b->pn = -1;
+					update_domain_attr(dattr, b);
 				}
 			}
 			nslot++;
@@ -660,7 +684,7 @@ restart:
 rebuild:
 	/* Have scheduler rebuild sched domains */
 	get_online_cpus();
-	partition_sched_domains(ndoms, doms);
+	partition_sched_domains(ndoms, doms, dattr);
 	put_online_cpus();
 
 done:
@@ -668,6 +692,7 @@ done:
 		kfifo_free(q);
 	kfree(csa);
 	/* Don't kfree(doms) -- partition_sched_domains() does that. */
+	/* Don't kfree(dattr) -- partition_sched_domains() does that. */
 }
 
 static inline int started_after_time(struct task_struct *t1,
@@ -1011,6 +1036,21 @@ static int update_memory_pressure_enabled(struct cpuset *cs, char *buf)
 	return 0;
 }
 
+static int update_relax_domain_level(struct cpuset *cs, char *buf)
+{
+	int val = simple_strtol(buf, NULL, 10);
+
+	if (val < 0)
+		val = -1;
+
+	if (val != cs->relax_domain_level) {
+		cs->relax_domain_level = val;
+		rebuild_sched_domains();
+	}
+
+	return 0;
+}
+
 /*
  * update_flag - read a 0 or a 1 in a file and update associated flag
  * bit:	the bit to update (CS_CPU_EXCLUSIVE, CS_MEM_EXCLUSIVE,
@@ -1202,6 +1242,7 @@ typedef enum {
 	FILE_CPU_EXCLUSIVE,
 	FILE_MEM_EXCLUSIVE,
 	FILE_SCHED_LOAD_BALANCE,
+	FILE_SCHED_RELAX_DOMAIN_LEVEL,
 	FILE_MEMORY_PRESSURE_ENABLED,
 	FILE_MEMORY_PRESSURE,
 	FILE_SPREAD_PAGE,
@@ -1255,6 +1296,9 @@ static ssize_t cpuset_common_file_write(struct cgroup *cont,
 		break;
 	case FILE_SCHED_LOAD_BALANCE:
 		retval = update_flag(CS_SCHED_LOAD_BALANCE, cs, buffer);
+		break;
+	case FILE_SCHED_RELAX_DOMAIN_LEVEL:
+		retval = update_relax_domain_level(cs, buffer);
 		break;
 	case FILE_MEMORY_MIGRATE:
 		retval = update_flag(CS_MEMORY_MIGRATE, cs, buffer);
@@ -1354,6 +1398,9 @@ static ssize_t cpuset_common_file_read(struct cgroup *cont,
 	case FILE_SCHED_LOAD_BALANCE:
 		*s++ = is_sched_load_balance(cs) ? '1' : '0';
 		break;
+	case FILE_SCHED_RELAX_DOMAIN_LEVEL:
+		s += sprintf(s, "%d", cs->relax_domain_level);
+		break;
 	case FILE_MEMORY_MIGRATE:
 		*s++ = is_memory_migrate(cs) ? '1' : '0';
 		break;
@@ -1424,6 +1471,13 @@ static struct cftype cft_sched_load_balance = {
 	.private = FILE_SCHED_LOAD_BALANCE,
 };
 
+static struct cftype cft_sched_relax_domain_level = {
+	.name = "sched_relax_domain_level",
+	.read = cpuset_common_file_read,
+	.write = cpuset_common_file_write,
+	.private = FILE_SCHED_RELAX_DOMAIN_LEVEL,
+};
+
 static struct cftype cft_memory_migrate = {
 	.name = "memory_migrate",
 	.read = cpuset_common_file_read,
@@ -1474,6 +1528,9 @@ static int cpuset_populate(struct cgroup_subsys *ss, struct cgroup *cont)
 	if ((err = cgroup_add_file(cont, ss, &cft_memory_migrate)) < 0)
 		return err;
 	if ((err = cgroup_add_file(cont, ss, &cft_sched_load_balance)) < 0)
+		return err;
+	if ((err = cgroup_add_file(cont, ss,
+					&cft_sched_relax_domain_level)) < 0)
 		return err;
 	if ((err = cgroup_add_file(cont, ss, &cft_memory_pressure)) < 0)
 		return err;
@@ -1559,6 +1616,7 @@ static struct cgroup_subsys_state *cpuset_create(
 	nodes_clear(cs->mems_allowed);
 	cs->mems_generation = cpuset_mems_generation++;
 	fmeter_init(&cs->fmeter);
+	cs->relax_domain_level = -1;
 
 	cs->parent = parent;
 	number_of_cpusets++;
@@ -1631,6 +1689,7 @@ int __init cpuset_init(void)
 	fmeter_init(&top_cpuset.fmeter);
 	top_cpuset.mems_generation = cpuset_mems_generation++;
 	set_bit(CS_SCHED_LOAD_BALANCE, &top_cpuset.flags);
+	top_cpuset.relax_domain_level = -1;
 
 	err = register_filesystem(&cpuset_fs_type);
 	if (err < 0)

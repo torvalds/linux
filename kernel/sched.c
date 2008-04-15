@@ -6771,6 +6771,7 @@ static noinline void sd_init_##type(struct sched_domain *sd)	\
 {								\
 	memset(sd, 0, sizeof(*sd));				\
 	*sd = SD_##type##_INIT;					\
+	sd->level = SD_LV_##type;				\
 }
 
 SD_INIT_FUNC(CPU)
@@ -6819,11 +6820,42 @@ struct allmasks {
 #define	SCHED_CPUMASK_VAR(v, a) 	cpumask_t *v = (cpumask_t *) \
 			((unsigned long)(a) + offsetof(struct allmasks, v))
 
+static int default_relax_domain_level = -1;
+
+static int __init setup_relax_domain_level(char *str)
+{
+	default_relax_domain_level = simple_strtoul(str, NULL, 0);
+	return 1;
+}
+__setup("relax_domain_level=", setup_relax_domain_level);
+
+static void set_domain_attribute(struct sched_domain *sd,
+				 struct sched_domain_attr *attr)
+{
+	int request;
+
+	if (!attr || attr->relax_domain_level < 0) {
+		if (default_relax_domain_level < 0)
+			return;
+		else
+			request = default_relax_domain_level;
+	} else
+		request = attr->relax_domain_level;
+	if (request < sd->level) {
+		/* turn off idle balance on this domain */
+		sd->flags &= ~(SD_WAKE_IDLE|SD_BALANCE_NEWIDLE);
+	} else {
+		/* turn on idle balance on this domain */
+		sd->flags |= (SD_WAKE_IDLE_FAR|SD_BALANCE_NEWIDLE);
+	}
+}
+
 /*
  * Build sched domains for a given set of cpus and attach the sched domains
  * to the individual cpus
  */
-static int build_sched_domains(const cpumask_t *cpu_map)
+static int __build_sched_domains(const cpumask_t *cpu_map,
+				 struct sched_domain_attr *attr)
 {
 	int i;
 	struct root_domain *rd;
@@ -6887,6 +6919,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 				SD_NODES_PER_DOMAIN*cpus_weight(*nodemask)) {
 			sd = &per_cpu(allnodes_domains, i);
 			SD_INIT(sd, ALLNODES);
+			set_domain_attribute(sd, attr);
 			sd->span = *cpu_map;
 			cpu_to_allnodes_group(i, cpu_map, &sd->groups, tmpmask);
 			p = sd;
@@ -6896,6 +6929,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 
 		sd = &per_cpu(node_domains, i);
 		SD_INIT(sd, NODE);
+		set_domain_attribute(sd, attr);
 		sched_domain_node_span(cpu_to_node(i), &sd->span);
 		sd->parent = p;
 		if (p)
@@ -6906,6 +6940,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 		p = sd;
 		sd = &per_cpu(phys_domains, i);
 		SD_INIT(sd, CPU);
+		set_domain_attribute(sd, attr);
 		sd->span = *nodemask;
 		sd->parent = p;
 		if (p)
@@ -6916,6 +6951,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 		p = sd;
 		sd = &per_cpu(core_domains, i);
 		SD_INIT(sd, MC);
+		set_domain_attribute(sd, attr);
 		sd->span = cpu_coregroup_map(i);
 		cpus_and(sd->span, sd->span, *cpu_map);
 		sd->parent = p;
@@ -6927,6 +6963,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 		p = sd;
 		sd = &per_cpu(cpu_domains, i);
 		SD_INIT(sd, SIBLING);
+		set_domain_attribute(sd, attr);
 		sd->span = per_cpu(cpu_sibling_map, i);
 		cpus_and(sd->span, sd->span, *cpu_map);
 		sd->parent = p;
@@ -7124,8 +7161,15 @@ error:
 #endif
 }
 
+static int build_sched_domains(const cpumask_t *cpu_map)
+{
+	return __build_sched_domains(cpu_map, NULL);
+}
+
 static cpumask_t *doms_cur;	/* current sched domains */
 static int ndoms_cur;		/* number of sched domains in 'doms_cur' */
+static struct sched_domain_attr *dattr_cur;	/* attribues of custom domains
+						   in 'doms_cur' */
 
 /*
  * Special case: If a kmalloc of a doms_cur partition (array of
@@ -7153,6 +7197,7 @@ static int arch_init_sched_domains(const cpumask_t *cpu_map)
 	if (!doms_cur)
 		doms_cur = &fallback_doms;
 	cpus_andnot(*doms_cur, *cpu_map, cpu_isolated_map);
+	dattr_cur = NULL;
 	err = build_sched_domains(doms_cur);
 	register_sched_domain_sysctl();
 
@@ -7182,6 +7227,22 @@ static void detach_destroy_domains(const cpumask_t *cpu_map)
 	arch_destroy_sched_domains(cpu_map, &tmpmask);
 }
 
+/* handle null as "default" */
+static int dattrs_equal(struct sched_domain_attr *cur, int idx_cur,
+			struct sched_domain_attr *new, int idx_new)
+{
+	struct sched_domain_attr tmp;
+
+	/* fast path */
+	if (!new && !cur)
+		return 1;
+
+	tmp = SD_ATTR_INIT;
+	return !memcmp(cur ? (cur + idx_cur) : &tmp,
+			new ? (new + idx_new) : &tmp,
+			sizeof(struct sched_domain_attr));
+}
+
 /*
  * Partition sched domains as specified by the 'ndoms_new'
  * cpumasks in the array doms_new[] of cpumasks. This compares
@@ -7203,7 +7264,8 @@ static void detach_destroy_domains(const cpumask_t *cpu_map)
  *
  * Call with hotplug lock held
  */
-void partition_sched_domains(int ndoms_new, cpumask_t *doms_new)
+void partition_sched_domains(int ndoms_new, cpumask_t *doms_new,
+			     struct sched_domain_attr *dattr_new)
 {
 	int i, j;
 
@@ -7216,12 +7278,14 @@ void partition_sched_domains(int ndoms_new, cpumask_t *doms_new)
 		ndoms_new = 1;
 		doms_new = &fallback_doms;
 		cpus_andnot(doms_new[0], cpu_online_map, cpu_isolated_map);
+		dattr_new = NULL;
 	}
 
 	/* Destroy deleted domains */
 	for (i = 0; i < ndoms_cur; i++) {
 		for (j = 0; j < ndoms_new; j++) {
-			if (cpus_equal(doms_cur[i], doms_new[j]))
+			if (cpus_equal(doms_cur[i], doms_new[j])
+			    && dattrs_equal(dattr_cur, i, dattr_new, j))
 				goto match1;
 		}
 		/* no match - a current sched domain not in new doms_new[] */
@@ -7233,11 +7297,13 @@ match1:
 	/* Build new domains */
 	for (i = 0; i < ndoms_new; i++) {
 		for (j = 0; j < ndoms_cur; j++) {
-			if (cpus_equal(doms_new[i], doms_cur[j]))
+			if (cpus_equal(doms_new[i], doms_cur[j])
+			    && dattrs_equal(dattr_new, i, dattr_cur, j))
 				goto match2;
 		}
 		/* no match - add a new doms_new */
-		build_sched_domains(doms_new + i);
+		__build_sched_domains(doms_new + i,
+					dattr_new ? dattr_new + i : NULL);
 match2:
 		;
 	}
@@ -7245,7 +7311,9 @@ match2:
 	/* Remember the new sched domains */
 	if (doms_cur != &fallback_doms)
 		kfree(doms_cur);
+	kfree(dattr_cur);	/* kfree(NULL) is safe */
 	doms_cur = doms_new;
+	dattr_cur = dattr_new;
 	ndoms_cur = ndoms_new;
 
 	register_sched_domain_sysctl();

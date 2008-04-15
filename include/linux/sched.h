@@ -704,6 +704,7 @@ enum cpu_idle_type {
 #define SD_POWERSAVINGS_BALANCE	256	/* Balance for power savings */
 #define SD_SHARE_PKG_RESOURCES	512	/* Domain members share cpu pkg resources */
 #define SD_SERIALIZE		1024	/* Only a single load balancing instance */
+#define SD_WAKE_IDLE_FAR	2048	/* Gain latency sacrificing cache hit */
 
 #define BALANCE_FOR_MC_POWER	\
 	(sched_smt_power_savings ? SD_POWERSAVINGS_BALANCE : 0)
@@ -733,6 +734,24 @@ struct sched_group {
 	u32 reciprocal_cpu_power;
 };
 
+enum sched_domain_level {
+	SD_LV_NONE = 0,
+	SD_LV_SIBLING,
+	SD_LV_MC,
+	SD_LV_CPU,
+	SD_LV_NODE,
+	SD_LV_ALLNODES,
+	SD_LV_MAX
+};
+
+struct sched_domain_attr {
+	int relax_domain_level;
+};
+
+#define SD_ATTR_INIT	(struct sched_domain_attr) {	\
+	.relax_domain_level = -1,			\
+}
+
 struct sched_domain {
 	/* These fields must be setup */
 	struct sched_domain *parent;	/* top domain must be null terminated */
@@ -750,6 +769,7 @@ struct sched_domain {
 	unsigned int wake_idx;
 	unsigned int forkexec_idx;
 	int flags;			/* See SD_* */
+	enum sched_domain_level level;
 
 	/* Runtime fields. */
 	unsigned long last_balance;	/* init to jiffies. units in jiffies */
@@ -789,7 +809,8 @@ struct sched_domain {
 #endif
 };
 
-extern void partition_sched_domains(int ndoms_new, cpumask_t *doms_new);
+extern void partition_sched_domains(int ndoms_new, cpumask_t *doms_new,
+				    struct sched_domain_attr *dattr_new);
 extern int arch_reinit_sched_domains(void);
 
 #endif	/* CONFIG_SMP */

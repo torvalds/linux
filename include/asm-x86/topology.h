@@ -147,7 +147,7 @@ extern unsigned long node_remap_size[];
 
 # define SD_CACHE_NICE_TRIES	2
 # define SD_IDLE_IDX		2
-# define SD_NEWIDLE_IDX		0
+# define SD_NEWIDLE_IDX		2
 # define SD_FORKEXEC_IDX	1
 
 #endif
