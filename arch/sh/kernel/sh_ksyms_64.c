@@ -44,6 +44,7 @@ EXPORT_SYMBOL(__put_user_asm_l);
 EXPORT_SYMBOL(__get_user_asm_l);
 EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(__copy_user);
+EXPORT_SYMBOL(empty_zero_page);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(__udelay);
 EXPORT_SYMBOL(__ndelay);

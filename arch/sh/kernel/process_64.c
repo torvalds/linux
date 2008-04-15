@@ -28,6 +28,7 @@
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
+#include <asm/fpu.h>
 
 struct task_struct *last_task_used_math = NULL;
 

@@ -30,6 +30,7 @@
 #include <asm/atomic.h>
 #include <asm/processor.h>
 #include <asm/pgtable.h>
+#include <asm/fpu.h>
 
 #undef DEBUG_EXCEPTION
 #ifdef DEBUG_EXCEPTION

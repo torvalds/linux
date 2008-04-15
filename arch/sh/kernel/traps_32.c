@@ -25,6 +25,7 @@
 #include <linux/limits.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
+#include <asm/fpu.h>
 
 #ifdef CONFIG_SH_KGDB
 #include <asm/kgdb.h>
