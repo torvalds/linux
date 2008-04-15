@@ -472,7 +472,7 @@ static int s3c2440_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u
 	ecc_code[1] = ecc >> 8;
 	ecc_code[2] = ecc >> 16;
 
-	pr_debug("%s: returning ecc %06lx\n", __func__, ecc);
+	pr_debug("%s: returning ecc %06lx\n", __func__, ecc & 0xffffff);
 
 	return 0;
 }
@@ -643,9 +643,6 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 		chip->ecc.calculate = s3c2410_nand_calculate_ecc;
 		chip->ecc.correct   = s3c2410_nand_correct_data;
 		chip->ecc.mode	    = NAND_ECC_HW;
-		chip->ecc.size	    = 512;
-		chip->ecc.bytes	    = 3;
-		chip->ecc.layout    = &nand_hw_eccoob;
 
 		switch (info->cpu_type) {
 		case TYPE_S3C2410:
@@ -666,6 +663,34 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 		}
 	} else {
 		chip->ecc.mode	    = NAND_ECC_SOFT;
+	}
+}
+
+/* s3c2410_nand_update_chip
+ *
+ * post-probe chip update, to change any items, such as the
+ * layout for large page nand
+ */
+
+static void s3c2410_nand_update_chip(struct s3c2410_nand_info *info,
+				     struct s3c2410_nand_mtd *nmtd)
+{
+	struct nand_chip *chip = &nmtd->chip;
+
+	printk("%s: chip %p: %d\n", __func__, chip, chip->page_shift);
+
+	if (hardware_ecc) {
+		/* change the behaviour depending on wether we are using
+		 * the large or small page nand device */
+
+		if (chip->page_shift > 10) {
+			chip->ecc.size	    = 256;
+			chip->ecc.bytes	    = 3;
+		} else {
+			chip->ecc.size	    = 512;
+			chip->ecc.bytes	    = 3;
+			chip->ecc.layout    = &nand_hw_eccoob;
+		}
 	}
 }
 
@@ -775,9 +800,12 @@ static int s3c24xx_nand_probe(struct platform_device *pdev,
 
 		s3c2410_nand_init_chip(info, nmtd, sets);
 
-		nmtd->scan_res = nand_scan(&nmtd->mtd, (sets) ? sets->nr_chips : 1);
+		nmtd->scan_res = nand_scan_ident(&nmtd->mtd,
+						 (sets) ? sets->nr_chips : 1);
 
 		if (nmtd->scan_res == 0) {
+			s3c2410_nand_update_chip(info, nmtd);
+			nand_scan_tail(&nmtd->mtd);
 			s3c2410_nand_add_partition(info, nmtd, sets);
 		}
 
