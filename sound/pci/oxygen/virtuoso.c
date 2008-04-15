@@ -47,7 +47,7 @@
  * GPI 0 <- external power present
  *
  * GPIO 0 -> enable output to speakers
- * GPIO 1 -> ?
+ * GPIO 1 -> enable front panel I/O
  * GPIO 2 -> M0 of CS5361
  * GPIO 3 -> M1 of CS5361
  * GPIO 8 -> route input jack to line-in (0) or mic-in (1)
@@ -119,7 +119,7 @@ MODULE_DEVICE_TABLE(pci, xonar_ids);
 
 #define GPI_DX_EXT_POWER	0x01
 #define GPIO_DX_OUTPUT_ENABLE	0x0001
-#define GPIO_DX_UNKNOWN1	0x0002
+#define GPIO_DX_FRONT_PANEL	0x0002
 #define GPIO_DX_INPUT_ROUTE	0x0100
 
 #define I2C_DEVICE_CS4398	0x9e	/* 10011, AD1=1, AD0=1, /W=0 */
@@ -268,8 +268,9 @@ static void xonar_dx_init(struct oxygen *chip)
 	cs4362a_write(chip, 0x01, CS4362A_CPEN);
 
 	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL,
-			  GPIO_DX_UNKNOWN1 | GPIO_DX_INPUT_ROUTE);
-	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, GPIO_DX_INPUT_ROUTE);
+			  GPIO_DX_FRONT_PANEL | GPIO_DX_INPUT_ROUTE);
+	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA,
+			    GPIO_DX_FRONT_PANEL | GPIO_DX_INPUT_ROUTE);
 
 	xonar_common_init(chip);
 
@@ -471,51 +472,39 @@ static const struct snd_kcontrol_new alt_switch = {
 	.put = alt_switch_put,
 };
 
-static int unknown_info(struct snd_kcontrol *ctl,
-			struct snd_ctl_elem_info *info)
-{
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 2;
-	if (info->value.enumerated.item > 1)
-		info->value.enumerated.item = 1;
-	sprintf(info->value.enumerated.name, "%u", info->value.enumerated.item);
-	return 0;
-}
-
-static int unknown_get(struct snd_kcontrol *ctl,
-		       struct snd_ctl_elem_value *value)
+static int front_panel_get(struct snd_kcontrol *ctl,
+			   struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
 
-	value->value.enumerated.item[0] =
-		!!(oxygen_read16(chip, OXYGEN_GPIO_DATA) & GPIO_DX_UNKNOWN1);
+	value->value.integer.value[0] =
+		!!(oxygen_read16(chip, OXYGEN_GPIO_DATA) & GPIO_DX_FRONT_PANEL);
 	return 0;
 }
 
-static int unknown_put(struct snd_kcontrol *ctl,
-		       struct snd_ctl_elem_value *value)
+static int front_panel_put(struct snd_kcontrol *ctl,
+			   struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
 	u16 old_reg, new_reg;
 
 	spin_lock_irq(&chip->reg_lock);
 	old_reg = oxygen_read16(chip, OXYGEN_GPIO_DATA);
-	if (value->value.enumerated.item[0])
-		new_reg = old_reg | GPIO_DX_UNKNOWN1;
+	if (value->value.integer.value[0])
+		new_reg = old_reg | GPIO_DX_FRONT_PANEL;
 	else
-		new_reg = old_reg & ~GPIO_DX_UNKNOWN1;
+		new_reg = old_reg & ~GPIO_DX_FRONT_PANEL;
 	oxygen_write16(chip, OXYGEN_GPIO_DATA, new_reg);
 	spin_unlock_irq(&chip->reg_lock);
 	return old_reg != new_reg;
 }
 
-static const struct snd_kcontrol_new unknown_switch = {
+static const struct snd_kcontrol_new front_panel_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "PanelConfig?",
-	.info = unknown_info,
-	.get = unknown_get,
-	.put = unknown_put,
+	.name = "Front Panel Switch",
+	.info = snd_ctl_boolean_mono_info,
+	.get = front_panel_get,
+	.put = front_panel_put,
 };
 
 static void xonar_dx_ac97_switch(struct oxygen *chip,
@@ -565,7 +554,7 @@ static int xonar_mixer_init(struct oxygen *chip)
 
 static int xonar_dx_mixer_init(struct oxygen *chip)
 {
-	return snd_ctl_add(chip->card, snd_ctl_new1(&unknown_switch, chip));
+	return snd_ctl_add(chip->card, snd_ctl_new1(&front_panel_switch, chip));
 }
 
 static const struct oxygen_model xonar_models[] = {
