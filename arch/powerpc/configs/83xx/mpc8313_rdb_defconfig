@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.25-rc6
-# Mon Mar 24 08:48:14 2008
+# Fri Apr 11 11:10:09 2008
 #
 # CONFIG_PPC64 is not set
 
@@ -196,6 +196,7 @@ CONFIG_PREEMPT_NONE=y
 # CONFIG_PREEMPT is not set
 CONFIG_BINFMT_ELF=y
 # CONFIG_BINFMT_MISC is not set
+CONFIG_FORCE_MAX_ZONEORDER=11
 # CONFIG_IOMMU_HELPER is not set
 CONFIG_ARCH_ENABLE_MEMORY_HOTPLUG=y
 CONFIG_ARCH_HAS_WALK_MEMORY=y
@@ -360,7 +361,7 @@ CONFIG_MTD=y
 CONFIG_MTD_PARTITIONS=y
 # CONFIG_MTD_REDBOOT_PARTS is not set
 # CONFIG_MTD_CMDLINE_PARTS is not set
-# CONFIG_MTD_OF_PARTS is not set
+CONFIG_MTD_OF_PARTS=y
 
 #
 # User Modules And Translation Layers
@@ -436,7 +437,7 @@ CONFIG_MTD_NAND_IDS=y
 # CONFIG_MTD_NAND_NANDSIM is not set
 # CONFIG_MTD_NAND_PLATFORM is not set
 # CONFIG_MTD_ALAUDA is not set
-# CONFIG_MTD_NAND_FSL_ELBC is not set
+CONFIG_MTD_NAND_FSL_ELBC=y
 # CONFIG_MTD_ONENAND is not set
 
 #
@@ -1293,6 +1294,7 @@ CONFIG_PLIST=y
 CONFIG_HAS_IOMEM=y
 CONFIG_HAS_IOPORT=y
 CONFIG_HAS_DMA=y
+CONFIG_HAVE_LMB=y
 
 #
 # Kernel hacking
