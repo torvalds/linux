@@ -60,7 +60,7 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_cache);
 
 static __read_mostly struct preempt_ops kvm_preempt_ops;
 
-struct dentry *debugfs_dir;
+struct dentry *kvm_debugfs_dir;
 
 static long kvm_vcpu_ioctl(struct file *file, unsigned int ioctl,
 			   unsigned long arg);
@@ -1392,9 +1392,9 @@ static void kvm_init_debug(void)
 {
 	struct kvm_stats_debugfs_item *p;
 
-	debugfs_dir = debugfs_create_dir("kvm", NULL);
+	kvm_debugfs_dir = debugfs_create_dir("kvm", NULL);
 	for (p = debugfs_entries; p->name; ++p)
-		p->dentry = debugfs_create_file(p->name, 0444, debugfs_dir,
+		p->dentry = debugfs_create_file(p->name, 0444, kvm_debugfs_dir,
 						(void *)(long)p->offset,
 						stat_fops[p->kind]);
 }
@@ -1405,7 +1405,7 @@ static void kvm_exit_debug(void)
 
 	for (p = debugfs_entries; p->name; ++p)
 		debugfs_remove(p->dentry);
-	debugfs_remove(debugfs_dir);
+	debugfs_remove(kvm_debugfs_dir);
 }
 
 static int kvm_suspend(struct sys_device *dev, pm_message_t state)

@@ -315,7 +315,7 @@ struct kvm_stats_debugfs_item {
 	struct dentry *dentry;
 };
 extern struct kvm_stats_debugfs_item debugfs_entries[];
-extern struct dentry *debugfs_dir;
+extern struct dentry *kvm_debugfs_dir;
 
 #ifdef CONFIG_KVM_TRACE
 int kvm_trace_ioctl(unsigned int ioctl, unsigned long arg);

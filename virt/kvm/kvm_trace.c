@@ -159,12 +159,12 @@ static int do_kvm_trace_enable(struct kvm_user_trace_setup *kuts)
 
 	r = -EIO;
 	atomic_set(&kt->lost_records, 0);
-	kt->lost_file = debugfs_create_file("lost_records", 0444, debugfs_dir,
+	kt->lost_file = debugfs_create_file("lost_records", 0444, kvm_debugfs_dir,
 					    kt, &kvm_trace_lost_ops);
 	if (!kt->lost_file)
 		goto err;
 
-	kt->rchan = relay_open("trace", debugfs_dir, kuts->buf_size,
+	kt->rchan = relay_open("trace", kvm_debugfs_dir, kuts->buf_size,
 				kuts->buf_nr, &kvm_relay_callbacks, kt);
 	if (!kt->rchan)
 		goto err;
