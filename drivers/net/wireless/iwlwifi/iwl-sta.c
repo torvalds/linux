@@ -43,7 +43,7 @@ int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 	int i;
 
 	for (i = 0; i < STA_KEY_MAX_NUM; i++)
-		if (test_and_set_bit(i, &priv->ucode_key_table))
+		if (!test_and_set_bit(i, &priv->ucode_key_table))
 			return i;
 
 	return -1;
@@ -243,6 +243,8 @@ static int iwl_set_tkip_dynamic_key_info(struct iwl_priv *priv,
 	priv->stations[sta_id].keyinfo.alg = keyconf->alg;
 	priv->stations[sta_id].keyinfo.conf = keyconf;
 	priv->stations[sta_id].keyinfo.keylen = 16;
+	priv->stations[sta_id].sta.key.key_offset =
+				 iwl_get_free_ucode_key_index(priv);
 
 	/* This copy is acutally not needed: we get the key with each TX */
 	memcpy(priv->stations[sta_id].keyinfo.key, keyconf->key, 16);
