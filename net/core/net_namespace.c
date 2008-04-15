@@ -5,6 +5,7 @@
 #include <linux/list.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
+#include <linux/idr.h>
 #include <net/net_namespace.h>
 
 /*
@@ -253,6 +254,8 @@ static void unregister_pernet_operations(struct pernet_operations *ops)
 }
 #endif
 
+static DEFINE_IDA(net_generic_ids);
+
 /**
  *      register_pernet_subsys - register a network namespace subsystem
  *	@ops:  pernet operations structure for the subsystem
@@ -330,6 +333,30 @@ int register_pernet_device(struct pernet_operations *ops)
 }
 EXPORT_SYMBOL_GPL(register_pernet_device);
 
+int register_pernet_gen_device(int *id, struct pernet_operations *ops)
+{
+	int error;
+	mutex_lock(&net_mutex);
+again:
+	error = ida_get_new_above(&net_generic_ids, 1, id);
+	if (error) {
+		if (error == -EAGAIN) {
+			ida_pre_get(&net_generic_ids, GFP_KERNEL);
+			goto again;
+		}
+		goto out;
+	}
+	error = register_pernet_operations(&pernet_list, ops);
+	if (error)
+		ida_remove(&net_generic_ids, *id);
+	else if (first_device == &pernet_list)
+		first_device = &ops->list;
+out:
+	mutex_unlock(&net_mutex);
+	return error;
+}
+EXPORT_SYMBOL_GPL(register_pernet_gen_device);
+
 /**
  *      unregister_pernet_device - unregister a network namespace netdevice
  *	@ops: pernet operations structure to manipulate
@@ -348,3 +375,14 @@ void unregister_pernet_device(struct pernet_operations *ops)
 	mutex_unlock(&net_mutex);
 }
 EXPORT_SYMBOL_GPL(unregister_pernet_device);
+
+void unregister_pernet_gen_device(int id, struct pernet_operations *ops)
+{
+	mutex_lock(&net_mutex);
+	if (&ops->list == first_device)
+		first_device = first_device->next;
+	unregister_pernet_operations(ops);
+	ida_remove(&net_generic_ids, id);
+	mutex_unlock(&net_mutex);
+}
+EXPORT_SYMBOL_GPL(unregister_pernet_gen_device);
