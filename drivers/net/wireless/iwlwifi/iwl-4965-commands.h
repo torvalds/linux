@@ -84,6 +84,9 @@ enum {
 	REPLY_REMOVE_STA = 0x19,	/* not used */
 	REPLY_REMOVE_ALL_STA = 0x1a,	/* not used */
 
+	/* Security */
+	REPLY_WEPKEY = 0x20,
+
 	/* RX, TX, LEDs */
 	REPLY_TX = 0x1c,
 	REPLY_RATE_SCALE = 0x47,	/* 3945 only */
@@ -850,6 +853,30 @@ struct iwl4965_add_sta_resp {
 	u8 status;	/* ADD_STA_* */
 } __attribute__ ((packed));
 
+/*
+ * REPLY_WEP_KEY = 0x20
+ */
+struct iwl_wep_key {
+	u8 key_index;
+	u8 key_offset;
+	u8 reserved1[2];
+	u8 key_size;
+	u8 reserved2[3];
+	u8 key[16];
+} __attribute__ ((packed));
+
+struct iwl_wep_cmd {
+	u8 num_keys;
+	u8 global_key_type;
+	u8 flags;
+	u8 reserved;
+	struct iwl_wep_key key[0];
+} __attribute__ ((packed));
+
+#define WEP_KEY_WEP_TYPE 1
+#define WEP_KEYS_MAX 4
+#define WEP_INVALID_OFFSET 0xff
+#define WEP_KEY_LEN_128 13
 
 /******************************************************************************
  * (4)
