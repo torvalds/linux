@@ -50,7 +50,7 @@ struct thermal_cooling_device_ops {
 };
 
 #define THERMAL_TRIPS_NONE -1
-#define THERMAL_MAX_TRIPS 10
+#define THERMAL_MAX_TRIPS 12
 #define THERMAL_NAME_LENGTH 20
 struct thermal_cooling_device {
 	int id;
