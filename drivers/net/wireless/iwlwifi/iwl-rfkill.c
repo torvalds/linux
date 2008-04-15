@@ -47,6 +47,9 @@ static int iwl_rfkill_soft_rf_kill(void *data, enum rfkill_state state)
 	if (!priv->rfkill_mngr.rfkill)
 		return 0;
 
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return 0;
+
 	IWL_DEBUG_RF_KILL("we recieved soft RFKILL set to state %d\n", state);
 	mutex_lock(&priv->mutex);
 

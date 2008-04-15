@@ -2427,7 +2427,8 @@ void iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
 				    CSR_UCODE_SW_BIT_RFKILL);
 			spin_unlock_irqrestore(&priv->lock, flags);
 			/* call the host command only if no hw rf-kill set */
-			if (!test_bit(STATUS_RF_KILL_HW, &priv->status))
+			if (!test_bit(STATUS_RF_KILL_HW, &priv->status) &&
+			    iwl_is_ready(priv))
 				iwl4965_send_card_state(priv,
 							CARD_STATE_CMD_DISABLE,
 							0);
