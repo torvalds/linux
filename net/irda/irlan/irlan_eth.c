@@ -289,39 +289,6 @@ void irlan_eth_flow_indication(void *instance, void *sap, LOCAL_FLOW flow)
 }
 
 /*
- * Function irlan_etc_send_gratuitous_arp (dev)
- *
- *    Send gratuitous ARP to announce that we have changed
- *    hardware address, so that all peers updates their ARP tables
- */
-void irlan_eth_send_gratuitous_arp(struct net_device *dev)
-{
-#ifdef CONFIG_INET
-	struct in_device *in_dev;
-
-	/*
-	 * When we get a new MAC address do a gratuitous ARP. This
-	 * is useful if we have changed access points on the same
-	 * subnet.
-	 */
-	IRDA_DEBUG(4, "IrLAN: Sending gratuitous ARP\n");
-	rcu_read_lock();
-	in_dev = __in_dev_get_rcu(dev);
-	if (in_dev == NULL)
-		goto out;
-	if (in_dev->ifa_list)
-
-	arp_send(ARPOP_REQUEST, ETH_P_ARP,
-		 in_dev->ifa_list->ifa_address,
-		 dev,
-		 in_dev->ifa_list->ifa_address,
-		 NULL, dev->dev_addr, NULL);
-out:
-	rcu_read_unlock();
-#endif /* CONFIG_INET */
-}
-
-/*
  * Function set_multicast_list (dev)
  *
  *    Configure the filtering of the device

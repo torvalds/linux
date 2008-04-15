@@ -54,13 +54,6 @@
 #include <net/irda/irlan_filter.h>
 
 
-/*
- * Send gratuitous ARP when connected to a new AP or not. May be a clever
- * thing to do, but for some reason the machine crashes if you use DHCP. So
- * lets not use it by default.
- */
-#undef CONFIG_IRLAN_SEND_GRATUITOUS_ARP
-
 /* extern char sysctl_devname[]; */
 
 /*
@@ -393,9 +386,6 @@ static void irlan_connect_confirm(void *instance, void *sap,
 	/* Ready to transfer Ethernet frames */
 	netif_start_queue(self->dev);
 	self->disconnect_reason = 0; /* Clear reason */
-#ifdef CONFIG_IRLAN_SEND_GRATUITOUS_ARP
-	irlan_eth_send_gratuitous_arp(&self->dev);
-#endif
 	wake_up_interruptible(&self->open_wait);
 }
 
