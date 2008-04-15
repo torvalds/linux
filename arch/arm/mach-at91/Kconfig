@@ -140,6 +140,13 @@ config MACH_CAM60
 	  Select this if you are using KwikByte's KB9260 (CAM60) board based on the Atmel AT91SAM9260.
 	  <http://www.kwikbyte.com/KB9260.html>
 
+config MACH_SAM9_L9260
+	bool "Olimex SAM9-L9260 board"
+	depends on ARCH_AT91SAM9260
+	help
+	  Select this if you are using Olimex's SAM9-L9260 board based on the Atmel AT91SAM9260.
+	  <http://www.olimex.com/dev/sam9-L9260.html>
+
 endif
 
 # ----------------------------------------------------------
@@ -223,7 +230,7 @@ comment "AT91 Board Options"
 
 config MTD_AT91_DATAFLASH_CARD
 	bool "Enable DataFlash Card support"
-	depends on (ARCH_AT91RM9200DK || MACH_AT91RM9200EK || MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK || MACH_AT91CAP9ADK)
+	depends on (ARCH_AT91RM9200DK || MACH_AT91RM9200EK || MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK || MACH_AT91CAP9ADK || MACH_SAM9_L9260)
 	help
 	  Enable support for the DataFlash card.
 
