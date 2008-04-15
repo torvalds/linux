@@ -238,6 +238,7 @@ static irqreturn_t s3c24xx_spi_irq(int irq, void *dev)
 
 static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 {
+	struct s3c2410_spi_info *pdata;
 	struct s3c24xx_spi *hw;
 	struct spi_master *master;
 	struct resource *res;
@@ -254,10 +255,10 @@ static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 	memset(hw, 0, sizeof(struct s3c24xx_spi));
 
 	hw->master = spi_master_get(master);
-	hw->pdata = pdev->dev.platform_data;
+	hw->pdata = pdata = pdev->dev.platform_data;
 	hw->dev = &pdev->dev;
 
-	if (hw->pdata == NULL) {
+	if (pdata == NULL) {
 		dev_err(&pdev->dev, "No platform data supplied\n");
 		err = -ENOENT;
 		goto err_no_pdata;
@@ -333,13 +334,13 @@ static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 
 	/* setup any gpio we can */
 
-	if (!hw->pdata->set_cs) {
+	if (!pdata->set_cs) {
 		hw->set_cs = s3c24xx_spi_gpiocs;
 
-		s3c2410_gpio_setpin(hw->pdata->pin_cs, 1);
-		s3c2410_gpio_cfgpin(hw->pdata->pin_cs, S3C2410_GPIO_OUTPUT);
+		s3c2410_gpio_setpin(pdata->pin_cs, 1);
+		s3c2410_gpio_cfgpin(pdata->pin_cs, S3C2410_GPIO_OUTPUT);
 	} else
-		hw->set_cs = hw->pdata->set_cs;
+		hw->set_cs = pdata->set_cs;
 
 	/* register our spi controller */
 
