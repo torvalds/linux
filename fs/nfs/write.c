@@ -48,7 +48,7 @@ static struct kmem_cache *nfs_wdata_cachep;
 static mempool_t *nfs_wdata_mempool;
 static mempool_t *nfs_commit_mempool;
 
-struct nfs_write_data *nfs_commit_alloc(void)
+struct nfs_write_data *nfs_commitdata_alloc(void)
 {
 	struct nfs_write_data *p = mempool_alloc(nfs_commit_mempool, GFP_NOFS);
 
@@ -973,7 +973,6 @@ static void nfs_writeback_done_partial(struct rpc_task *task, void *calldata)
 {
 	struct nfs_write_data	*data = calldata;
 	struct nfs_page		*req = data->req;
-	struct page		*page = req->wb_page;
 
 	dprintk("NFS: write (%s/%Ld %d@%Ld)",
 		req->wb_context->path.dentry->d_inode->i_sb->s_id,
@@ -981,13 +980,20 @@ static void nfs_writeback_done_partial(struct rpc_task *task, void *calldata)
 		req->wb_bytes,
 		(long long)req_offset(req));
 
-	if (nfs_writeback_done(task, data) != 0)
-		return;
+	nfs_writeback_done(task, data);
+}
 
-	if (task->tk_status < 0) {
+static void nfs_writeback_release_partial(void *calldata)
+{
+	struct nfs_write_data	*data = calldata;
+	struct nfs_page		*req = data->req;
+	struct page		*page = req->wb_page;
+	int status = data->task.tk_status;
+
+	if (status < 0) {
 		nfs_set_pageerror(page);
-		nfs_context_set_write_error(req->wb_context, task->tk_status);
-		dprintk(", error = %d\n", task->tk_status);
+		nfs_context_set_write_error(req->wb_context, status);
+		dprintk(", error = %d\n", status);
 		goto out;
 	}
 
@@ -1012,11 +1018,12 @@ static void nfs_writeback_done_partial(struct rpc_task *task, void *calldata)
 out:
 	if (atomic_dec_and_test(&req->wb_complete))
 		nfs_writepage_release(req);
+	nfs_writedata_release(calldata);
 }
 
 static const struct rpc_call_ops nfs_write_partial_ops = {
 	.rpc_call_done = nfs_writeback_done_partial,
-	.rpc_release = nfs_writedata_release,
+	.rpc_release = nfs_writeback_release_partial,
 };
 
 /*
@@ -1029,17 +1036,21 @@ static const struct rpc_call_ops nfs_write_partial_ops = {
 static void nfs_writeback_done_full(struct rpc_task *task, void *calldata)
 {
 	struct nfs_write_data	*data = calldata;
-	struct nfs_page		*req;
-	struct page		*page;
 
-	if (nfs_writeback_done(task, data) != 0)
-		return;
+	nfs_writeback_done(task, data);
+}
+
+static void nfs_writeback_release_full(void *calldata)
+{
+	struct nfs_write_data	*data = calldata;
+	int status = data->task.tk_status;
 
 	/* Update attributes as result of writeback. */
 	while (!list_empty(&data->pages)) {
-		req = nfs_list_entry(data->pages.next);
+		struct nfs_page *req = nfs_list_entry(data->pages.next);
+		struct page *page = req->wb_page;
+
 		nfs_list_remove_request(req);
-		page = req->wb_page;
 
 		dprintk("NFS: write (%s/%Ld %d@%Ld)",
 			req->wb_context->path.dentry->d_inode->i_sb->s_id,
@@ -1047,10 +1058,10 @@ static void nfs_writeback_done_full(struct rpc_task *task, void *calldata)
 			req->wb_bytes,
 			(long long)req_offset(req));
 
-		if (task->tk_status < 0) {
+		if (status < 0) {
 			nfs_set_pageerror(page);
-			nfs_context_set_write_error(req->wb_context, task->tk_status);
-			dprintk(", error = %d\n", task->tk_status);
+			nfs_context_set_write_error(req->wb_context, status);
+			dprintk(", error = %d\n", status);
 			goto remove_request;
 		}
 
@@ -1070,11 +1081,12 @@ remove_request:
 	next:
 		nfs_clear_page_tag_locked(req);
 	}
+	nfs_writedata_release(calldata);
 }
 
 static const struct rpc_call_ops nfs_write_full_ops = {
 	.rpc_call_done = nfs_writeback_done_full,
-	.rpc_release = nfs_writedata_release,
+	.rpc_release = nfs_writeback_release_full,
 };
 
 
@@ -1160,7 +1172,7 @@ int nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
-void nfs_commit_release(void *data)
+void nfs_commitdata_release(void *data)
 {
 	struct nfs_write_data *wdata = data;
 
@@ -1233,7 +1245,7 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how)
 	struct nfs_write_data	*data;
 	struct nfs_page         *req;
 
-	data = nfs_commit_alloc();
+	data = nfs_commitdata_alloc();
 
 	if (!data)
 		goto out_bad;
@@ -1261,7 +1273,6 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how)
 static void nfs_commit_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs_write_data	*data = calldata;
-	struct nfs_page		*req;
 
         dprintk("NFS: %5u nfs_commit_done (status %d)\n",
                                 task->tk_pid, task->tk_status);
@@ -1269,6 +1280,13 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
 	/* Call the NFS version-specific code */
 	if (NFS_PROTO(data->inode)->commit_done(task, data) != 0)
 		return;
+}
+
+static void nfs_commit_release(void *calldata)
+{
+	struct nfs_write_data	*data = calldata;
+	struct nfs_page		*req;
+	int status = data->task.tk_status;
 
 	while (!list_empty(&data->pages)) {
 		req = nfs_list_entry(data->pages.next);
@@ -1283,10 +1301,10 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
 			(long long)NFS_FILEID(req->wb_context->path.dentry->d_inode),
 			req->wb_bytes,
 			(long long)req_offset(req));
-		if (task->tk_status < 0) {
-			nfs_context_set_write_error(req->wb_context, task->tk_status);
+		if (status < 0) {
+			nfs_context_set_write_error(req->wb_context, status);
 			nfs_inode_remove_request(req);
-			dprintk(", error = %d\n", task->tk_status);
+			dprintk(", error = %d\n", status);
 			goto next;
 		}
 
@@ -1307,6 +1325,7 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
 	next:
 		nfs_clear_page_tag_locked(req);
 	}
+	nfs_commitdata_release(calldata);
 }
 
 static const struct rpc_call_ops nfs_commit_ops = {
