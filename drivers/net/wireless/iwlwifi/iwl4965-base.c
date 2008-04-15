@@ -1214,7 +1214,7 @@ static int iwl4965_set_dynamic_key(struct iwl_priv *priv,
 		ret = iwl4965_set_tkip_dynamic_key_info(priv, key, sta_id);
 		break;
 	case ALG_WEP:
-		ret = -EOPNOTSUPP;
+		ret = iwl_set_wep_dynamic_key_info(priv, key, sta_id);
 		break;
 	default:
 		IWL_ERROR("Unknown alg: %s alg = %d\n", __func__, key->alg);
@@ -2138,7 +2138,12 @@ static void iwl4965_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 			if (wepkey->key_size == WEP_KEY_LEN_128)
 				cmd->cmd.tx.sec_ctl |= TX_CMD_SEC_KEY128;
 		} else {
-			IWL_ERROR("No support for WEP key mappings key\n");
+			/* the WEP key was sent as dynamic */
+			keyidx = keyinfo->keyidx;
+			memcpy(&cmd->cmd.tx.key[3], keyinfo->key,
+							keyinfo->keylen);
+			if (keyinfo->keylen == WEP_KEY_LEN_128)
+				cmd->cmd.tx.sec_ctl |= TX_CMD_SEC_KEY128;
 		}
 
 		cmd->cmd.tx.sec_ctl |= (TX_CMD_SEC_WEP |

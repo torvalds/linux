@@ -35,6 +35,7 @@
 #include "iwl-sta.h"
 #include "iwl-io.h"
 #include "iwl-helpers.h"
+#include "iwl-4965.h"
 
 int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
 {
@@ -117,3 +118,49 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 	return ret;
 }
 
+int iwl_set_wep_dynamic_key_info(struct iwl_priv *priv,
+				struct ieee80211_key_conf *keyconf,
+				u8 sta_id)
+{
+	unsigned long flags;
+	__le16 key_flags = 0;
+	int ret;
+
+	keyconf->flags &= ~IEEE80211_KEY_FLAG_GENERATE_IV;
+	keyconf->hw_key_idx = keyconf->keyidx;
+
+	key_flags |= (STA_KEY_FLG_WEP | STA_KEY_FLG_MAP_KEY_MSK);
+	key_flags |= cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
+	key_flags &= ~STA_KEY_FLG_INVALID;
+
+	if (keyconf->keylen == WEP_KEY_LEN_128)
+		key_flags |= STA_KEY_FLG_KEY_SIZE_MSK;
+
+	if (sta_id == priv->hw_setting.bcast_sta_id)
+		key_flags |= STA_KEY_MULTICAST_MSK;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+
+	priv->stations[sta_id].keyinfo.alg = keyconf->alg;
+	priv->stations[sta_id].keyinfo.keylen = keyconf->keylen;
+	priv->stations[sta_id].keyinfo.keyidx = keyconf->keyidx;
+
+	memcpy(priv->stations[sta_id].keyinfo.key,
+				keyconf->key, keyconf->keylen);
+
+	memcpy(&priv->stations[sta_id].sta.key.key[3],
+				keyconf->key, keyconf->keylen);
+
+	priv->stations[sta_id].sta.key.key_offset = sta_id % 8; /* FIXME */
+	priv->stations[sta_id].sta.key.key_flags = key_flags;
+
+	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
+	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
+
+	ret = iwl4965_send_add_station(priv,
+		&priv->stations[sta_id].sta, CMD_ASYNC);
+
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+	return ret;
+}
