@@ -6,7 +6,7 @@ config IWLWIFI_LEDS
 	bool
 	default n
 
-config IWLCORE_RFKILL
+config IWLWIFI_RFKILL
 	boolean "IWLWIFI RF kill support"
 	depends on IWLCORE
 	select RFKILL

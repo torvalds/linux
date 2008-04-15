@@ -34,7 +34,7 @@ struct iwl_priv;
 #include <linux/input.h>
 
 
-#ifdef CONFIG_IWLCORE_RFKILL
+#ifdef CONFIG_IWLWIFI_RFKILL
 struct iwl_rfkill_mngr {
 	struct rfkill *rfkill;
 	struct input_dev *input_dev;
