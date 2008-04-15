@@ -36,6 +36,8 @@ struct platform_mmc_slot zylonite_mmc_slot[MAX_SLOTS];
 int gpio_backlight;
 int gpio_eth_irq;
 
+int wm9713_irq;
+
 int lcd_id;
 int lcd_orientation;
 
