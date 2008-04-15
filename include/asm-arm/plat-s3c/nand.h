@@ -22,6 +22,8 @@
 */
 
 struct s3c2410_nand_set {
+	unsigned int		disable_ecc : 1;
+
 	int			nr_chips;
 	int			nr_partitions;
 	char			*name;
