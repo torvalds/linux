@@ -95,10 +95,10 @@ int __map_without_ltlbs;
 unsigned long __max_low_memory = MAX_LOW_MEM;
 
 /*
- * limit of what is accessible with initial MMU setup -
+ * address of the limit of what is accessible with initial MMU setup -
  * 256MB usually, but only 16MB on 601.
  */
-unsigned long __initial_memory_limit = 0x10000000;
+phys_addr_t __initial_memory_limit_addr = (phys_addr_t)0x10000000;
 
 /*
  * Check for command-line options that affect what MMU_init will do.
@@ -131,10 +131,10 @@ void __init MMU_init(void)
 
 	/* 601 can only access 16MB at the moment */
 	if (PVR_VER(mfspr(SPRN_PVR)) == 1)
-		__initial_memory_limit = 0x01000000;
+		__initial_memory_limit_addr = 0x01000000;
 	/* 8xx can only access 8MB at the moment */
 	if (PVR_VER(mfspr(SPRN_PVR)) == 0x50)
-		__initial_memory_limit = 0x00800000;
+		__initial_memory_limit_addr = 0x00800000;
 
 	/* parse args from command line */
 	MMU_setup();
@@ -209,7 +209,7 @@ void __init *early_get_page(void)
 		p = alloc_bootmem_pages(PAGE_SIZE);
 	} else {
 		p = __va(lmb_alloc_base(PAGE_SIZE, PAGE_SIZE,
-					__initial_memory_limit));
+					__initial_memory_limit_addr));
 	}
 	return p;
 }

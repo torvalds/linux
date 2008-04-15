@@ -227,5 +227,5 @@ adjust_total_lowmem(void)
 			__cam0 >> 20, __cam1 >> 20, __cam2 >> 20,
 			(total_lowmem - __cam0 - __cam1 - __cam2) >> 20);
 	__max_low_memory = __cam0 + __cam1 + __cam2;
-	__initial_memory_limit = memstart_addr + __max_low_memory;
+	__initial_memory_limit_addr = memstart_addr + __max_low_memory;
 }
