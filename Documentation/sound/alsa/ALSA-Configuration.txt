@@ -956,7 +956,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  laptop-automute 2-channel with EAPD and HP-automute (Lenovo N100)
 	  ultra		2-channel with EAPD (Samsung Ultra tablet PC)
 
-	AD1988
+	AD1988/AD1988B/AD1989A/AD1989B
 	  6stack	6-jack
 	  6stack-dig	ditto with SPDIF
 	  3stack	3-jack
