@@ -1079,15 +1079,15 @@ exit:
 }
 
 /**
- * queue_overloaded - test if queue overload condition exists
+ * rx_queue_full - determine if receive queue can accept another message
+ * @msg: message to be added to queue
  * @queue_size: current size of queue
  * @base: nominal maximum size of queue
- * @msg: message to be added to queue
  *
- * Returns 1 if queue is currently overloaded, 0 otherwise
+ * Returns 1 if queue is unable to accept message, 0 otherwise
  */
 
-static int queue_overloaded(u32 queue_size, u32 base, struct tipc_msg *msg)
+static int rx_queue_full(struct tipc_msg *msg, u32 queue_size, u32 base)
 {
 	u32 threshold;
 	u32 imp = msg_importance(msg);
@@ -1104,7 +1104,7 @@ static int queue_overloaded(u32 queue_size, u32 base, struct tipc_msg *msg)
 	if (msg_connected(msg))
 		threshold *= 4;
 
-	return (queue_size > threshold);
+	return (queue_size >= threshold);
 }
 
 /**
@@ -1189,16 +1189,14 @@ static u32 dispatch(struct tipc_port *tport, struct sk_buff *buf)
 
 	/* Reject message if there isn't room to queue it */
 
-	if (unlikely((u32)atomic_read(&tipc_queue_size) >
-		     OVERLOAD_LIMIT_BASE)) {
-		if (queue_overloaded(atomic_read(&tipc_queue_size),
-				     OVERLOAD_LIMIT_BASE, msg))
+	recv_q_len = (u32)atomic_read(&tipc_queue_size);
+	if (unlikely(recv_q_len >= OVERLOAD_LIMIT_BASE)) {
+		if (rx_queue_full(msg, recv_q_len, OVERLOAD_LIMIT_BASE))
 			return TIPC_ERR_OVERLOAD;
 	}
 	recv_q_len = skb_queue_len(&tsock->sk.sk_receive_queue);
-	if (unlikely(recv_q_len > (OVERLOAD_LIMIT_BASE / 2))) {
-		if (queue_overloaded(recv_q_len,
-				     OVERLOAD_LIMIT_BASE / 2, msg))
+	if (unlikely(recv_q_len >= (OVERLOAD_LIMIT_BASE / 2))) {
+		if (rx_queue_full(msg, recv_q_len, OVERLOAD_LIMIT_BASE / 2))
 			return TIPC_ERR_OVERLOAD;
 	}
 
