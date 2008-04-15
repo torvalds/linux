@@ -109,6 +109,13 @@ config MACH_KAFA
 	help
 	  Select this if you are using Sperry-Sun's KAFA board.
 
+config MACH_ECBAT91
+	bool "emQbit ECB_AT91 SBC"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using emQbit's ECB_AT91 board.
+	  <http://wiki.emqbit.com/free-ecb-at91>
+
 endif
 
 # ----------------------------------------------------------
@@ -230,7 +237,7 @@ comment "AT91 Board Options"
 
 config MTD_AT91_DATAFLASH_CARD
 	bool "Enable DataFlash Card support"
-	depends on (ARCH_AT91RM9200DK || MACH_AT91RM9200EK || MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK || MACH_AT91CAP9ADK || MACH_SAM9_L9260)
+	depends on (ARCH_AT91RM9200DK || MACH_AT91RM9200EK || MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK || MACH_AT91CAP9ADK || MACH_SAM9_L9260 || MACH_ECBAT91)
 	help
 	  Enable support for the DataFlash card.
 
