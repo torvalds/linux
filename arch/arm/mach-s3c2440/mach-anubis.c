@@ -413,10 +413,10 @@ static void __init anubis_map_io(void)
 {
 	/* initialise the clocks */
 
-	s3c24xx_dclk0.parent = NULL;
+	s3c24xx_dclk0.parent = &clk_upll;
 	s3c24xx_dclk0.rate   = 12*1000*1000;
 
-	s3c24xx_dclk1.parent = NULL;
+	s3c24xx_dclk1.parent = &clk_upll;
 	s3c24xx_dclk1.rate   = 24*1000*1000;
 
 	s3c24xx_clkout0.parent  = &s3c24xx_dclk0;
