@@ -120,7 +120,7 @@ struct iwl_ops {
 
 struct iwl_mod_params {
 	int disable;		/* def: 0 = enable radio */
-	int hw_crypto;		/* def: 0 = using software encryption */
+	int sw_crypto;		/* def: 0 = using hardware encryption */
 	int debug;		/* def: 0 = minimal debug log messages */
 	int disable_hw_scan;	/* def: 0 = use h/w scan */
 	int num_of_queues;	/* def: HW dependent */
