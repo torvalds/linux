@@ -1260,6 +1260,11 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
    if (sock->state == SS_READY)
 	   return -EOPNOTSUPP;
 
+   /* For now, TIPC does not support the non-blocking form of connect() */
+
+   if (flags & O_NONBLOCK)
+	   return -EWOULDBLOCK;
+
    /* Issue Posix-compliant error code if socket is in the wrong state */
 
    if (sock->state == SS_LISTENING)
