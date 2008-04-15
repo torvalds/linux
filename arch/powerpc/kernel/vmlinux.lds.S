@@ -1,11 +1,9 @@
 #ifdef CONFIG_PPC64
-#include <asm/page.h>
 #define PROVIDE32(x)	PROVIDE(__unused__##x)
 #else
-#define PAGE_SIZE	4096
-#define KERNELBASE	CONFIG_KERNEL_START
 #define PROVIDE32(x)	PROVIDE(x)
 #endif
+#include <asm/page.h>
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/cache.h>
 
