@@ -170,6 +170,7 @@ static struct platform_driver clevo_mail_led_driver = {
 	.resume		= clevo_mail_led_resume,
 	.driver		= {
 		.name		= KBUILD_MODNAME,
+		.owner		= THIS_MODULE,
 	},
 };
 
