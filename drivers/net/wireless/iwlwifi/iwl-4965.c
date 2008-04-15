@@ -3141,17 +3141,15 @@ static void iwl4965_hw_card_show_info(struct iwl_priv *priv)
 #define IWL_TX_DELIMITER_SIZE	4
 
 /**
- * iwl4965_tx_queue_update_wr_ptr - Set up entry in Tx byte-count array
+ * iwl4965_txq_update_byte_cnt_tbl - Set up entry in Tx byte-count array
  */
-int iwl4965_tx_queue_update_wr_ptr(struct iwl_priv *priv,
-				   struct iwl4965_tx_queue *txq, u16 byte_cnt)
+static void iwl4965_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
+					    struct iwl4965_tx_queue *txq,
+					    u16 byte_cnt)
 {
 	int len;
 	int txq_id = txq->q.id;
 	struct iwl4965_shared *shared_data = priv->hw_setting.shared_virt;
-
-	if (txq->need_update == 0)
-		return 0;
 
 	len = byte_cnt + IWL_TX_CRC_SIZE + IWL_TX_DELIMITER_SIZE;
 
@@ -3164,8 +3162,6 @@ int iwl4965_tx_queue_update_wr_ptr(struct iwl_priv *priv,
 		IWL_SET_BITS16(shared_data->queues_byte_cnt_tbls[txq_id].
 			tfd_offset[IWL4965_QUEUE_SIZE + txq->q.write_ptr],
 			byte_cnt, len);
-
-	return 0;
 }
 
 /**
@@ -4934,6 +4930,7 @@ static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 
 static struct iwl_lib_ops iwl4965_lib = {
 	.init_drv = iwl4965_init_drv,
+	.txq_update_byte_cnt_tbl = iwl4965_txq_update_byte_cnt_tbl,
 	.hw_nic_init = iwl4965_hw_nic_init,
 	.is_valid_rtc_data_addr = iwl4965_hw_valid_rtc_data_addr,
 	.alive_notify = iwl4965_alive_notify,

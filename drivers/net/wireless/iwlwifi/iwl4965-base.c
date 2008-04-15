@@ -575,11 +575,11 @@ int iwl4965_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	txq->need_update = 1;
 
 	/* Set up entry in queue's byte count circular buffer */
-	ret = iwl4965_tx_queue_update_wr_ptr(priv, txq, 0);
+	priv->cfg->ops->lib->txq_update_byte_cnt_tbl(priv, txq, 0);
 
 	/* Increment and update queue's write index */
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
-	iwl4965_tx_queue_update_write_ptr(priv, txq);
+	ret = iwl4965_tx_queue_update_write_ptr(priv, txq);
 
 	spin_unlock_irqrestore(&priv->hcmd_lock, flags);
 	return ret ? ret : idx;
@@ -2392,7 +2392,7 @@ static int iwl4965_tx_skb(struct iwl_priv *priv,
 			   ieee80211_get_hdrlen(fc));
 
 	/* Set up entry for this TFD in Tx byte-count array */
-	iwl4965_tx_queue_update_wr_ptr(priv, txq, len);
+	priv->cfg->ops->lib->txq_update_byte_cnt_tbl(priv, txq, len);
 
 	/* Tell device the write index *just past* this latest filled TFD */
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);

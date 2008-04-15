@@ -89,6 +89,10 @@ struct iwl_hcmd_utils_ops {
 struct iwl_lib_ops {
 	/* iwlwifi driver (priv) init */
 	int (*init_drv)(struct iwl_priv *priv);
+
+	void (*txq_update_byte_cnt_tbl)(struct iwl_priv *priv,
+					struct iwl4965_tx_queue *txq,
+					u16 byte_cnt);
 	/* nic init */
 	int (*hw_nic_init)(struct iwl_priv *priv);
 	/* alive notification */
