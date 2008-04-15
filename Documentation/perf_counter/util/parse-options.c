@@ -387,7 +387,7 @@ int usage_with_options_internal(const char * const *usagestr,
 
 	fprintf(stderr, "\n usage: %s\n", *usagestr++);
 	while (*usagestr && **usagestr)
-		fprintf(stderr, "   or: %s\n", *usagestr++);
+		fprintf(stderr, "    or: %s\n", *usagestr++);
 	while (*usagestr) {
 		fprintf(stderr, "%s%s\n",
 				**usagestr ? "    " : "",

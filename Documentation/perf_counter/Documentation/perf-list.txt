@@ -1,5 +1,5 @@
 perf-list(1)
-==============
+============
 
 NAME
 ----
@@ -8,7 +8,7 @@ perf-list - List all symbolic event types
 SYNOPSIS
 --------
 [verse]
-'perf list
+'perf list'
 
 DESCRIPTION
 -----------
