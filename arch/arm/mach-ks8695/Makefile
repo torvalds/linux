@@ -11,5 +11,8 @@ obj-				:=
 # PCI support is optional
 obj-$(CONFIG_PCI)		+= pci.o
 
+# LEDs
+obj-$(CONFIG_LEDS)		+= leds.o
+
 # Board-specific support
 obj-$(CONFIG_MACH_KS8695)	+= board-micrel.o
