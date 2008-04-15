@@ -919,7 +919,8 @@ restart:
 	/* Consume received message (optional) */
 
 	if (likely(!(flags & MSG_PEEK))) {
-		if (unlikely(++tsock->p->conn_unacked >= TIPC_FLOW_CONTROL_WIN))
+		if ((sock->state != SS_READY) &&
+		    (++tsock->p->conn_unacked >= TIPC_FLOW_CONTROL_WIN))
 			tipc_acknowledge(tsock->p->ref, tsock->p->conn_unacked);
 		advance_queue(tsock);
 	}
