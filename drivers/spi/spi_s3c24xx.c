@@ -192,8 +192,11 @@ static int s3c24xx_spi_txrx(struct spi_device *spi, struct spi_transfer *t)
 	hw->len = t->len;
 	hw->count = 0;
 
+	init_completion(&hw->done);
+
 	/* send the first byte */
 	writeb(hw_txbyte(hw, 0), hw->regs + S3C2410_SPTDAT);
+
 	wait_for_completion(&hw->done);
 
 	return hw->count;
