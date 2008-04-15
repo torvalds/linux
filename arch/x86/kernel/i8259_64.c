@@ -493,33 +493,33 @@ void __init native_init_IRQ(void)
 	 * The reschedule interrupt is a CPU-to-CPU reschedule-helper
 	 * IPI, driven by wakeup.
 	 */
-	set_intr_gate(RESCHEDULE_VECTOR, reschedule_interrupt);
+	alloc_intr_gate(RESCHEDULE_VECTOR, reschedule_interrupt);
 
 	/* IPIs for invalidation */
-	set_intr_gate(INVALIDATE_TLB_VECTOR_START+0, invalidate_interrupt0);
-	set_intr_gate(INVALIDATE_TLB_VECTOR_START+1, invalidate_interrupt1);
-	set_intr_gate(INVALIDATE_TLB_VECTOR_START+2, invalidate_interrupt2);
-	set_intr_gate(INVALIDATE_TLB_VECTOR_START+3, invalidate_interrupt3);
-	set_intr_gate(INVALIDATE_TLB_VECTOR_START+4, invalidate_interrupt4);
-	set_intr_gate(INVALIDATE_TLB_VECTOR_START+5, invalidate_interrupt5);
-	set_intr_gate(INVALIDATE_TLB_VECTOR_START+6, invalidate_interrupt6);
-	set_intr_gate(INVALIDATE_TLB_VECTOR_START+7, invalidate_interrupt7);
+	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+0, invalidate_interrupt0);
+	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+1, invalidate_interrupt1);
+	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+2, invalidate_interrupt2);
+	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+3, invalidate_interrupt3);
+	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+4, invalidate_interrupt4);
+	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+5, invalidate_interrupt5);
+	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+6, invalidate_interrupt6);
+	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+7, invalidate_interrupt7);
 
 	/* IPI for generic function call */
-	set_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
+	alloc_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
 
 	/* Low priority IPI to cleanup after moving an irq */
 	set_intr_gate(IRQ_MOVE_CLEANUP_VECTOR, irq_move_cleanup_interrupt);
 #endif
-	set_intr_gate(THERMAL_APIC_VECTOR, thermal_interrupt);
-	set_intr_gate(THRESHOLD_APIC_VECTOR, threshold_interrupt);
+	alloc_intr_gate(THERMAL_APIC_VECTOR, thermal_interrupt);
+	alloc_intr_gate(THRESHOLD_APIC_VECTOR, threshold_interrupt);
 
 	/* self generated IPI for local APIC timer */
-	set_intr_gate(LOCAL_TIMER_VECTOR, apic_timer_interrupt);
+	alloc_intr_gate(LOCAL_TIMER_VECTOR, apic_timer_interrupt);
 
 	/* IPI vectors for APIC spurious and error interrupts */
-	set_intr_gate(SPURIOUS_APIC_VECTOR, spurious_interrupt);
-	set_intr_gate(ERROR_APIC_VECTOR, error_interrupt);
+	alloc_intr_gate(SPURIOUS_APIC_VECTOR, spurious_interrupt);
+	alloc_intr_gate(ERROR_APIC_VECTOR, error_interrupt);
 
 	if (!acpi_ioapic)
 		setup_irq(2, &irq2);

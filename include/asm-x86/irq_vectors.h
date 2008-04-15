@@ -96,8 +96,6 @@
 # define FIRST_DEVICE_VECTOR	(IRQ15_VECTOR + 2)
 #endif
 
-#define FIRST_SYSTEM_VECTOR	0xef
-
 #define NR_VECTORS		256
 
 #define FPU_IRQ			13
