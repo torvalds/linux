@@ -18,6 +18,7 @@
 
 #undef DEBUG
 
+#include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/of.h>
 #include <asm/io.h>
@@ -109,11 +110,48 @@ static void mpc52xx_extirq_ack(unsigned int virq)
 	io_be_setbit(&intr->ctrl, 27-l2irq);
 }
 
+static int mpc52xx_extirq_set_type(unsigned int virq, unsigned int flow_type)
+{
+	u32 ctrl_reg, type;
+	int irq;
+	int l2irq;
+
+	irq = irq_map[virq].hwirq;
+	l2irq = (irq & MPC52xx_IRQ_L2_MASK) >> MPC52xx_IRQ_L2_OFFSET;
+
+	pr_debug("%s: irq=%x. l2=%d flow_type=%d\n", __func__, irq, l2irq, flow_type);
+
+	switch (flow_type) {
+	case IRQF_TRIGGER_HIGH:
+		type = 0;
+		break;
+	case IRQF_TRIGGER_RISING:
+		type = 1;
+		break;
+	case IRQF_TRIGGER_FALLING:
+		type = 2;
+		break;
+	case IRQF_TRIGGER_LOW:
+		type = 3;
+		break;
+	default:
+		type = 0;
+	}
+
+	ctrl_reg = in_be32(&intr->ctrl);
+	ctrl_reg &= ~(0x3 << (22 - (l2irq * 2)));
+	ctrl_reg |= (type << (22 - (l2irq * 2)));
+	out_be32(&intr->ctrl, ctrl_reg);
+
+	return 0;
+}
+
 static struct irq_chip mpc52xx_extirq_irqchip = {
 	.typename = " MPC52xx IRQ[0-3] ",
 	.mask = mpc52xx_extirq_mask,
 	.unmask = mpc52xx_extirq_unmask,
 	.ack = mpc52xx_extirq_ack,
+	.set_type = mpc52xx_extirq_set_type,
 };
 
 /*
