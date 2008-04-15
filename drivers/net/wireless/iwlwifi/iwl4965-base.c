@@ -50,6 +50,7 @@
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-helpers.h"
+#include "iwl-sta.h"
 
 static int iwl4965_tx_queue_update_write_ptr(struct iwl_priv *priv,
 				  struct iwl4965_tx_queue *txq);
@@ -941,6 +942,9 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 			return -EIO;
 		}
 		priv->assoc_station_added = 1;
+		if (priv->default_wep_key &&
+		    iwl_send_static_wepkey_cmd(priv, 0))
+			IWL_ERROR("Could not send WEP static key.\n");
 	}
 
 	return 0;
@@ -1180,6 +1184,8 @@ static int iwl4965_clear_sta_key_info(struct iwl_priv *priv, u8 sta_id)
 {
 	unsigned long flags;
 
+	priv->key_mapping_key = 0;
+
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	memset(&priv->stations[sta_id].keyinfo, 0, sizeof(struct iwl4965_hw_key));
 	memset(&priv->stations[sta_id].sta.key, 0, sizeof(struct iwl4965_keyinfo));
@@ -1198,6 +1204,8 @@ static int iwl4965_set_dynamic_key(struct iwl_priv *priv,
 {
 	int ret;
 
+	priv->key_mapping_key = 1;
+
 	switch (key->alg) {
 	case ALG_CCMP:
 		ret = iwl4965_set_ccmp_dynamic_key_info(priv, key, sta_id);
@@ -1214,23 +1222,6 @@ static int iwl4965_set_dynamic_key(struct iwl_priv *priv,
 	}
 
 	return ret;
-}
-
-static int iwl4965_remove_static_key(struct iwl_priv *priv)
-{
-	int ret = -EOPNOTSUPP;
-
-	return ret;
-}
-
-static int iwl4965_set_static_key(struct iwl_priv *priv,
-				struct ieee80211_key_conf *key)
-{
-	if (key->alg == ALG_WEP)
-		return -EOPNOTSUPP;
-
-	IWL_ERROR("Static key invalid: alg %d\n", key->alg);
-	return -EINVAL;
 }
 
 static void iwl4965_clear_free_frames(struct iwl_priv *priv)
@@ -2115,6 +2106,10 @@ static void iwl4965_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 				      int sta_id)
 {
 	struct iwl4965_hw_key *keyinfo = &priv->stations[sta_id].keyinfo;
+	struct iwl_wep_key *wepkey;
+	int keyidx = 0;
+
+	BUG_ON(ctl->key_idx > 3);
 
 	switch (keyinfo->alg) {
 	case ALG_CCMP:
@@ -2133,16 +2128,24 @@ static void iwl4965_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 		break;
 
 	case ALG_WEP:
-		cmd->cmd.tx.sec_ctl = TX_CMD_SEC_WEP |
-			(ctl->key_idx & TX_CMD_SEC_MSK) << TX_CMD_SEC_SHIFT;
+		wepkey = &priv->wep_keys[ctl->key_idx];
+		cmd->cmd.tx.sec_ctl = 0;
+		if (priv->default_wep_key) {
+			/* the WEP key was sent as static */
+			keyidx = ctl->key_idx;
+			memcpy(&cmd->cmd.tx.key[3], wepkey->key,
+							wepkey->key_size);
+			if (wepkey->key_size == WEP_KEY_LEN_128)
+				cmd->cmd.tx.sec_ctl |= TX_CMD_SEC_KEY128;
+		} else {
+			IWL_ERROR("No support for WEP key mappings key\n");
+		}
 
-		if (keyinfo->keylen == 13)
-			cmd->cmd.tx.sec_ctl |= TX_CMD_SEC_KEY128;
-
-		memcpy(&cmd->cmd.tx.key[3], keyinfo->key, keyinfo->keylen);
+		cmd->cmd.tx.sec_ctl |= (TX_CMD_SEC_WEP |
+			(keyidx & TX_CMD_SEC_MSK) << TX_CMD_SEC_SHIFT);
 
 		IWL_DEBUG_TX("Configuring packet for WEP encryption "
-			     "with key %d\n", ctl->key_idx);
+			     "with key %d\n", keyidx);
 		break;
 
 	default:
@@ -6989,7 +6992,7 @@ static int iwl4965_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	DECLARE_MAC_BUF(mac);
 	int ret = 0;
 	u8 sta_id = IWL_INVALID_STATION;
-	u8 static_key;
+	u8 is_default_wep_key = 0;
 
 	IWL_DEBUG_MAC80211("enter\n");
 
@@ -7002,33 +7005,42 @@ static int iwl4965_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		/* only support pairwise keys */
 		return -EOPNOTSUPP;
 
-	/* FIXME: need to differenciate between static and dynamic key
-	 * in the level of mac80211 */
-	static_key = !iwl_is_associated(priv);
+	sta_id = iwl4965_hw_find_station(priv, addr);
+	if (sta_id == IWL_INVALID_STATION) {
+		IWL_DEBUG_MAC80211("leave - %s not in station map.\n",
+				   print_mac(mac, addr));
+		return -EINVAL;
 
-	if (!static_key) {
-		sta_id = iwl4965_hw_find_station(priv, addr);
-		if (sta_id == IWL_INVALID_STATION) {
-			IWL_DEBUG_MAC80211("leave - %s not in station map.\n",
-					   print_mac(mac, addr));
-			return -EINVAL;
-		}
 	}
 
+	mutex_lock(&priv->mutex);
 	iwl4965_scan_cancel_timeout(priv, 100);
+	mutex_unlock(&priv->mutex);
+
+	/* If we are getting WEP group key and we didn't receive any key mapping
+	 * so far, we are in legacy wep mode (group key only), otherwise we are
+	 * in 1X mode.
+	 * In legacy wep mode, we use another host command to the uCode */
+	if (key->alg == ALG_WEP && sta_id == priv->hw_setting.bcast_sta_id &&
+		priv->iw_mode != IEEE80211_IF_TYPE_AP) {
+		if (cmd == SET_KEY)
+			is_default_wep_key = !priv->key_mapping_key;
+		else
+			is_default_wep_key = priv->default_wep_key;
+	}
 
 	switch (cmd) {
 	case SET_KEY:
-		if (static_key)
-			ret = iwl4965_set_static_key(priv, key);
+		if (is_default_wep_key)
+			ret = iwl_set_default_wep_key(priv, key);
 		else
 			ret = iwl4965_set_dynamic_key(priv, key, sta_id);
 
 		IWL_DEBUG_MAC80211("enable hwcrypto key\n");
 		break;
 	case DISABLE_KEY:
-		if (static_key)
-			ret = iwl4965_remove_static_key(priv);
+		if (is_default_wep_key)
+			ret = iwl_remove_default_wep_key(priv, key);
 		else
 			ret = iwl4965_clear_sta_key_info(priv, sta_id);
 

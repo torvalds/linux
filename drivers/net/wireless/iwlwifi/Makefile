@@ -22,5 +22,5 @@ endif
 
 
 obj-$(CONFIG_IWL4965)	+= iwl4965.o
-iwl4965-objs		= iwl4965-base.o iwl-4965.o iwl-4965-rs.o
+iwl4965-objs		= iwl4965-base.o iwl-4965.o iwl-4965-rs.o iwl-sta.o
 

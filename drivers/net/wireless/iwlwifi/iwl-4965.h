@@ -1112,6 +1112,9 @@ struct iwl_priv {
 	spinlock_t sta_lock;
 	int num_stations;
 	struct iwl4965_station_entry stations[IWL_STATION_COUNT];
+	struct iwl_wep_key wep_keys[WEP_KEYS_MAX];
+	u8 default_wep_key;
+	u8 key_mapping_key;
 
 	/* Indication if ieee80211_ops->open has been called */
 	u8 is_open;
