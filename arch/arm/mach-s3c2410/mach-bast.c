@@ -16,6 +16,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/sysdev.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/dm9000.h>
@@ -236,6 +237,36 @@ static struct platform_device bast_device_nor = {
 
 /* NAND Flash on BAST board */
 
+#ifdef CONFIG_PM
+static int bast_pm_suspend(struct sys_device *sd, pm_message_t state)
+{
+	/* ensure that an nRESET is not generated on resume. */
+	s3c2410_gpio_setpin(S3C2410_GPA21, 1);
+	s3c2410_gpio_cfgpin(S3C2410_GPA21, S3C2410_GPA21_OUT);
+
+	return 0;
+}
+
+static int bast_pm_resume(struct sys_device *sd)
+{
+	s3c2410_gpio_cfgpin(S3C2410_GPA21, S3C2410_GPA21_nRSTOUT);
+	return 0;
+}
+
+#else
+#define bast_pm_suspend NULL
+#define bast_pm_resume NULL
+#endif
+
+static struct sysdev_class bast_pm_sysclass = {
+	set_kset_name("mach-bast"),
+	.suspend	= bast_pm_suspend,
+	.resume		= bast_pm_resume,
+};
+
+static struct sys_device bast_pm_sysdev = {
+	.cls		= &bast_pm_sysclass,
+};
 
 static int smartmedia_map[] = { 0 };
 static int chip0_map[] = { 1 };
@@ -586,6 +617,9 @@ static void __init bast_map_io(void)
 
 static void __init bast_init(void)
 {
+	sysdev_class_register(&bast_pm_sysclass);
+	sysdev_register(&bast_pm_sysdev);
+
 	s3c24xx_fb_set_platdata(&bast_fb_info);
 	platform_add_devices(bast_devices, ARRAY_SIZE(bast_devices));
 }
