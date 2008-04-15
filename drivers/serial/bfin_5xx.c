@@ -1243,6 +1243,7 @@ static struct platform_driver bfin_serial_driver = {
 	.resume		= bfin_serial_resume,
 	.driver		= {
 		.name	= "bfin-uart",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -1301,3 +1302,4 @@ MODULE_AUTHOR("Aubrey.Li <aubrey.li@analog.com>");
 MODULE_DESCRIPTION("Blackfin generic serial port driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV_MAJOR(BFIN_SERIAL_MAJOR);
+MODULE_ALIAS("platform:bfin-uart");

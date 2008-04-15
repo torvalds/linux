@@ -732,6 +732,7 @@ static struct platform_driver sc26xx_driver = {
 	.remove	= __devexit_p(sc26xx_driver_remove),
 	.driver	= {
 		.name	= "SC26xx",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -753,3 +754,4 @@ MODULE_AUTHOR("Thomas Bogendörfer");
 MODULE_DESCRIPTION("SC681/SC2692 serial driver");
 MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:SC26xx");

@@ -1090,6 +1090,7 @@ static struct platform_driver serial_imx_driver = {
 	.resume		= serial_imx_resume,
 	.driver		= {
 	        .name	= "imx-uart",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -1124,3 +1125,4 @@ module_exit(imx_serial_exit);
 MODULE_AUTHOR("Sascha Hauer");
 MODULE_DESCRIPTION("IMX generic serial port driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:imx-uart");

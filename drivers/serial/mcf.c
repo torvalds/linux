@@ -649,5 +649,6 @@ module_exit(mcf_exit);
 MODULE_AUTHOR("Greg Ungerer <gerg@snapgear.com>");
 MODULE_DESCRIPTION("Freescale ColdFire UART driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:mcfuart");
 
 /****************************************************************************/
