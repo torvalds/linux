@@ -84,6 +84,7 @@ extern __u16 GetNextMid(struct TCP_Server_Info *server);
 extern struct oplock_q_entry *AllocOplockQEntry(struct inode *, u16,
 						 struct cifsTconInfo *);
 extern void DeleteOplockQEntry(struct oplock_q_entry *);
+extern void DeleteTconOplockQEntries(struct cifsTconInfo *);
 extern struct timespec cifs_NTtimeToUnix(u64 utc_nanoseconds_since_1601);
 extern u64 cifs_UnixTimeToNT(struct timespec);
 extern __le64 cnvrtDosCifsTm(__u16 date, __u16 time);
