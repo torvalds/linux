@@ -976,40 +976,21 @@ int iwl4965_hw_nic_reset(struct iwl_priv *priv)
 /**
  * iwl4965_bg_statistics_periodic - Timer callback to queue statistics
  *
- * This callback is provided in order to queue the statistics_work
- * in work_queue context (v. softirq)
+ * This callback is provided in order to send a statistics request.
  *
  * This timer function is continually reset to execute within
  * REG_RECALIB_PERIOD seconds since the last STATISTICS_NOTIFICATION
  * was received.  We need to ensure we receive the statistics in order
- * to update the temperature used for calibrating the TXPOWER.  However,
- * we can't send the statistics command from softirq context (which
- * is the context which timers run at) so we have to queue off the
- * statistics_work to actually send the command to the hardware.
+ * to update the temperature used for calibrating the TXPOWER.
  */
 static void iwl4965_bg_statistics_periodic(unsigned long data)
 {
 	struct iwl_priv *priv = (struct iwl_priv *)data;
 
-	queue_work(priv->workqueue, &priv->statistics_work);
-}
-
-/**
- * iwl4965_bg_statistics_work - Send the statistics request to the hardware.
- *
- * This is queued by iwl4965_bg_statistics_periodic.
- */
-static void iwl4965_bg_statistics_work(struct work_struct *work)
-{
-	struct iwl_priv *priv = container_of(work, struct iwl_priv,
-					     statistics_work);
-
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	mutex_lock(&priv->mutex);
-	iwl4965_send_statistics_request(priv);
-	mutex_unlock(&priv->mutex);
+	iwl_send_statistics_request(priv, CMD_ASYNC);
 }
 
 #define CT_LIMIT_CONST		259
@@ -2026,6 +2007,9 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
+	/* Ask for statistics now, the uCode will send statistics notification
+	 * periodically after association */
+	iwl_send_statistics_request(priv, CMD_ASYNC);
 	return ret;
 }
 
@@ -4903,7 +4887,6 @@ void iwl4965_hw_rx_handler_setup(struct iwl_priv *priv)
 void iwl4965_hw_setup_deferred_work(struct iwl_priv *priv)
 {
 	INIT_WORK(&priv->txpower_work, iwl4965_bg_txpower_work);
-	INIT_WORK(&priv->statistics_work, iwl4965_bg_statistics_work);
 #ifdef CONFIG_IWL4965_SENSITIVITY
 	INIT_WORK(&priv->sensitivity_work, iwl4965_bg_sensitivity_work);
 #endif

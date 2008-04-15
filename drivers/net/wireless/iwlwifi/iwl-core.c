@@ -277,3 +277,15 @@ int iwlcore_low_level_notify(struct iwl_priv *priv,
 }
 EXPORT_SYMBOL(iwlcore_low_level_notify);
 
+int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags)
+{
+	u32 stat_flags = 0;
+	struct iwl_host_cmd cmd = {
+		.id = REPLY_STATISTICS_CMD,
+		.meta.flags = flags,
+		.len = sizeof(stat_flags),
+		.data = (u8 *) &stat_flags,
+	};
+	return iwl_send_cmd(priv, &cmd);
+}
+EXPORT_SYMBOL(iwl_send_statistics_request);

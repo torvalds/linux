@@ -596,13 +596,6 @@ static void iwl4965_set_rxon_hwcrypto(struct iwl_priv *priv, int hw_decrypt)
 
 }
 
-int iwl4965_send_statistics_request(struct iwl_priv *priv)
-{
-	u32 flags = 0;
-	return iwl_send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
-				      sizeof(flags), &flags);
-}
-
 /**
  * iwl4965_rxon_add_station - add station into station table.
  *
@@ -7530,7 +7523,7 @@ static ssize_t show_statistics(struct device *d,
 		return -EAGAIN;
 
 	mutex_lock(&priv->mutex);
-	rc = iwl4965_send_statistics_request(priv);
+	rc = iwl_send_statistics_request(priv, 0);
 	mutex_unlock(&priv->mutex);
 
 	if (rc) {

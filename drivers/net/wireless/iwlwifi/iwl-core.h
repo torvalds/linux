@@ -228,4 +228,6 @@ enum iwlcore_card_notify {
 
 int iwlcore_low_level_notify(struct iwl_priv *priv,
 			     enum iwlcore_card_notify notify);
+extern int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags);
+
 #endif /* __iwl_core_h__ */
