@@ -239,6 +239,7 @@ static struct platform_driver pxa2xx_pcmcia_driver = {
 	.resume 	= pxa2xx_drv_pcmcia_resume,
 	.driver		= {
 		.name	= "pxa2xx-pcmcia",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -258,3 +259,4 @@ module_exit(pxa2xx_pcmcia_exit);
 MODULE_AUTHOR("Stefan Eletzhofer <stefan.eletzhofer@inquant.de> and Ian Molton <spyro@f2s.com>");
 MODULE_DESCRIPTION("Linux PCMCIA Card Services: PXA2xx core socket driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:pxa2xx-pcmcia");
