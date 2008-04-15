@@ -52,4 +52,21 @@ static inline void gart_iommu_shutdown(void)
 #define AMD64_GARTCACHECTL	0x9c
 #define AMD64_GARTEN		(1<<0)
 
+static inline void enable_gart_translation(struct pci_dev *dev, u64 addr)
+{
+	u32 tmp, ctl;
+
+        /* address of the mappings table */
+        addr >>= 12;
+        tmp = (u32) addr<<4;
+        tmp &= ~0xf;
+        pci_write_config_dword(dev, AMD64_GARTTABLEBASE, tmp);
+
+        /* Enable GART translation for this hammer. */
+        pci_read_config_dword(dev, AMD64_GARTAPERTURECTL, &ctl);
+        ctl |= GARTEN;
+        ctl &= ~(DISGARTCPU | DISGARTIO);
+        pci_write_config_dword(dev, AMD64_GARTAPERTURECTL, ctl);
+}
+
 #endif

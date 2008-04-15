@@ -533,8 +533,8 @@ static __init unsigned read_aperture(struct pci_dev *dev, u32 *size)
 	unsigned aper_size = 0, aper_base_32, aper_order;
 	u64 aper_base;
 
-	pci_read_config_dword(dev, 0x94, &aper_base_32);
-	pci_read_config_dword(dev, 0x90, &aper_order);
+	pci_read_config_dword(dev, AMD64_GARTAPERTUREBASE, &aper_base_32);
+	pci_read_config_dword(dev, AMD64_GARTAPERTURECTL, &aper_order);
 	aper_order = (aper_order >> 1) & 7;
 
 	aper_base = aper_base_32 & 0x7fff;
@@ -592,19 +592,8 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 	agp_gatt_table = gatt;
 
 	for (i = 0; i < num_k8_northbridges; i++) {
-		u32 gatt_reg;
-		u32 ctl;
-
 		dev = k8_northbridges[i];
-		gatt_reg = __pa(gatt) >> 12;
-		gatt_reg <<= 4;
-		pci_write_config_dword(dev, AMD64_GARTTABLEBASE, gatt_reg);
-		pci_read_config_dword(dev, AMD64_GARTAPERTURECTL, &ctl);
-
-		ctl |= GARTEN;
-		ctl &= ~(DISGARTCPU | DISGARTIO);
-
-		pci_write_config_dword(dev, AMD64_GARTAPERTURECTL, ctl);
+		enable_gart_translation(dev, __pa(gatt));
 	}
 	flush_gart();
 
@@ -648,11 +637,11 @@ void gart_iommu_shutdown(void)
 		u32 ctl;
 
 		dev = k8_northbridges[i];
-		pci_read_config_dword(dev, 0x90, &ctl);
+		pci_read_config_dword(dev, AMD64_GARTAPERTURECTL, &ctl);
 
-		ctl &= ~1;
+		ctl &= ~GARTEN;
 
-		pci_write_config_dword(dev, 0x90, ctl);
+		pci_write_config_dword(dev, AMD64_GARTAPERTURECTL, ctl);
 	}
 }
 

@@ -150,25 +150,14 @@ static u64 amd64_configure(struct pci_dev *hammer, u64 gatt_table)
 {
 	u64 aperturebase;
 	u32 tmp;
-	u64 addr, aper_base;
+	u64 aper_base;
 
 	/* Address to map to */
-	pci_read_config_dword (hammer, AMD64_GARTAPERTUREBASE, &tmp);
+	pci_read_config_dword(hammer, AMD64_GARTAPERTUREBASE, &tmp);
 	aperturebase = tmp << 25;
 	aper_base = (aperturebase & PCI_BASE_ADDRESS_MEM_MASK);
 
-	/* address of the mappings table */
-	addr = (u64) gatt_table;
-	addr >>= 12;
-	tmp = (u32) addr<<4;
-	tmp &= ~0xf;
-	pci_write_config_dword(hammer, AMD64_GARTTABLEBASE, tmp);
-
-	/* Enable GART translation for this hammer. */
-	pci_read_config_dword(hammer, AMD64_GARTAPERTURECTL, &tmp);
-	tmp |= GARTEN;
-	tmp &= ~(DISGARTCPU | DISGARTIO);
-	pci_write_config_dword(hammer, AMD64_GARTAPERTURECTL, tmp);
+	enable_gart_translation(hammer, gatt_table);
 
 	return aper_base;
 }
@@ -207,9 +196,9 @@ static void amd64_cleanup(void)
         for (i = 0; i < num_k8_northbridges; i++) {
 		struct pci_dev *dev = k8_northbridges[i];
 		/* disable gart translation */
-		pci_read_config_dword (dev, AMD64_GARTAPERTURECTL, &tmp);
+		pci_read_config_dword(dev, AMD64_GARTAPERTURECTL, &tmp);
 		tmp &= ~AMD64_GARTEN;
-		pci_write_config_dword (dev, AMD64_GARTAPERTURECTL, tmp);
+		pci_write_config_dword(dev, AMD64_GARTAPERTURECTL, tmp);
 	}
 }
 
@@ -289,9 +278,9 @@ static __devinit int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp,
 	u32 nb_order, nb_base;
 	u16 apsize;
 
-	pci_read_config_dword(nb, 0x90, &nb_order);
+	pci_read_config_dword(nb, AMD64_GARTAPERTURECTL, &nb_order);
 	nb_order = (nb_order >> 1) & 7;
-	pci_read_config_dword(nb, 0x94, &nb_base);
+	pci_read_config_dword(nb, AMD64_GARTAPERTUREBASE, &nb_base);
 	nb_aper = nb_base << 25;
 	if (aperture_valid(nb_aper, (32*1024*1024)<<nb_order)) {
 		return 0;
@@ -327,8 +316,8 @@ static __devinit int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp,
 	if (order < 0 || !aperture_valid(aper, (32*1024*1024)<<order))
 		return -1;
 
-	pci_write_config_dword(nb, 0x90, order << 1);
-	pci_write_config_dword(nb, 0x94, aper >> 25);
+	pci_write_config_dword(nb, AMD64_GARTAPERTURECTL, order << 1);
+	pci_write_config_dword(nb, AMD64_GARTAPERTUREBASE, aper >> 25);
 
 	return 0;
 }
