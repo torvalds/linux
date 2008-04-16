@@ -165,7 +165,7 @@ static void __init init_ioports(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mpc8560_ads_pins); i++) {
-		struct cpm_pin *pin = &mpc8560_ads_pins[i];
+		const struct cpm_pin *pin = &mpc8560_ads_pins[i];
 		cpm2_set_pin(pin->port, pin->pin, pin->flags);
 	}
 
