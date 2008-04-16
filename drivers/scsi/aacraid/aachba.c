@@ -205,7 +205,7 @@ MODULE_PARM_DESC(check_interval, "Interval in seconds between adapter health"
 
 int aac_check_reset = 1;
 module_param_named(check_reset, aac_check_reset, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(aac_check_reset, "If adapter fails health check, reset the"
+MODULE_PARM_DESC(check_reset, "If adapter fails health check, reset the"
 	" adapter. a value of -1 forces the reset to adapters programmed to"
 	" ignore it.");
 
