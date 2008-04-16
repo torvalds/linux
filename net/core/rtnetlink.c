@@ -277,12 +277,12 @@ EXPORT_SYMBOL_GPL(rtnl_link_register);
  */
 void __rtnl_link_unregister(struct rtnl_link_ops *ops)
 {
-	struct net_device *dev, *n;
+	struct net_device *dev;
 	struct net *net;
 
 	for_each_net(net) {
 restart:
-		for_each_netdev_safe(net, dev, n) {
+		for_each_netdev(net, dev) {
 			if (dev->rtnl_link_ops == ops) {
 				ops->dellink(dev);
 				goto restart;
