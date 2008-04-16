@@ -1620,6 +1620,16 @@ static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
 {
 }
 
+static inline void sync_cr8_to_lapic(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (!(svm->vmcb->control.intercept_cr_write & INTERCEPT_CR8_MASK)) {
+		int cr8 = svm->vmcb->control.int_ctl & V_TPR_MASK;
+		kvm_lapic_set_tpr(vcpu, cr8);
+	}
+}
+
 static inline void sync_lapic_to_cr8(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -1790,6 +1800,8 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	local_irq_disable();
 
 	stgi();
+
+	sync_cr8_to_lapic(vcpu);
 
 	svm->next_rip = 0;
 }
