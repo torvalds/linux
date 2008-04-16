@@ -1057,7 +1057,7 @@ static unsigned int tcp_mss_split_point(struct sock *sk, struct sk_buff *skb,
 
 	needed = min(skb->len, window);
 
-	if (skb == tcp_write_queue_tail(sk) && cwnd_len <= needed)
+	if (cwnd_len <= needed)
 		return cwnd_len;
 
 	return needed - needed % mss_now;
