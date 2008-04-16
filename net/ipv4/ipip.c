@@ -239,6 +239,8 @@ static struct ip_tunnel * ipip_tunnel_locate(struct net *net,
 	if (dev == NULL)
 		return NULL;
 
+	dev_net_set(dev, net);
+
 	if (strchr(name, '%')) {
 		if (dev_alloc_name(dev, name) < 0)
 			goto failed_free;
@@ -839,6 +841,7 @@ static void ipip_tunnel_setup(struct net_device *dev)
 	dev->flags		= IFF_NOARP;
 	dev->iflink		= 0;
 	dev->addr_len		= 4;
+	dev->features		|= NETIF_F_NETNS_LOCAL;
 }
 
 static int ipip_tunnel_init(struct net_device *dev)
