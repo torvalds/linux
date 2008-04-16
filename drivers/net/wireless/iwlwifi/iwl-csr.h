@@ -170,6 +170,10 @@
 #define CSR49_FH_INT_TX_MASK	(CSR_FH_INT_BIT_TX_CHNL1 | \
 				 CSR_FH_INT_BIT_TX_CHNL0)
 
+/* GPIO */
+#define CSR_GPIO_IN_BIT_AUX_POWER                   (0x00000200)
+#define CSR_GPIO_IN_VAL_VAUX_PWR_SRC                (0x00000000)
+#define CSR_GPIO_IN_VAL_VMAIN_PWR_SRC               (0x00000200)
 
 /* RESET */
 #define CSR_RESET_REG_FLAG_NEVO_RESET                (0x00000001)
@@ -205,11 +209,6 @@
 #define CSR_UCODE_SW_BIT_RFKILL                     (0x00000002)
 #define CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED           (0x00000004)
 #define CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT      (0x00000008)
-
-/* GPIO */
-#define CSR_GPIO_IN_BIT_AUX_POWER                   (0x00000200)
-#define CSR_GPIO_IN_VAL_VAUX_PWR_SRC                (0x00000000)
-#define CSR_GPIO_IN_VAL_VMAIN_PWR_SRC		CSR_GPIO_IN_BIT_AUX_POWER
 
 /* GI Chicken Bits */
 #define CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX  (0x00800000)

@@ -252,6 +252,11 @@ struct iwl4965_clip_group {
 
 /* Power management (not Tx power) structures */
 
+enum iwl_pwr_src {
+	IWL_PWR_SRC_VMAIN,
+	IWL_PWR_SRC_VAUX,
+};
+
 struct iwl4965_power_vec_entry {
 	struct iwl4965_powertable_cmd cmd;
 	u8 no_dtim;

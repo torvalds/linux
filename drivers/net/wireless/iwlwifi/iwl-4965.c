@@ -492,7 +492,7 @@ int iwl4965_hw_rxq_stop(struct iwl_priv *priv)
 	return 0;
 }
 
-static int iwl4965_nic_set_pwr_src(struct iwl_priv *priv, int pwr_max)
+static int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 {
 	int ret;
 	unsigned long flags;
@@ -504,20 +504,21 @@ static int iwl4965_nic_set_pwr_src(struct iwl_priv *priv, int pwr_max)
 		return ret;
 	}
 
-	if (!pwr_max) {
+	if (src == IWL_PWR_SRC_VAUX) {
 		u32 val;
-
 		ret = pci_read_config_dword(priv->pci_dev, PCI_POWER_SOURCE,
-					   &val);
+					    &val);
 
-		if (val & PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT)
+		if (val & PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT) {
 			iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
-				APMG_PS_CTRL_VAL_PWR_SRC_VAUX,
-				~APMG_PS_CTRL_MSK_PWR_SRC);
-	} else
+					       APMG_PS_CTRL_VAL_PWR_SRC_VAUX,
+					       ~APMG_PS_CTRL_MSK_PWR_SRC);
+		}
+	} else {
 		iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
-			APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
-			~APMG_PS_CTRL_MSK_PWR_SRC);
+				       APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
+				       ~APMG_PS_CTRL_MSK_PWR_SRC);
+	}
 
 	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -747,7 +748,8 @@ int iwl4965_hw_nic_init(struct iwl_priv *priv)
 
 	IWL_DEBUG_INFO("HW Revision ID = 0x%X\n", rev_id);
 
-	iwl4965_nic_set_pwr_src(priv, 1);
+	rc = priv->cfg->ops->lib->apm_ops.set_pwr_src(priv, IWL_PWR_SRC_VMAIN);
+
 	spin_lock_irqsave(&priv->lock, flags);
 
 	if ((rev_id & 0x80) == 0x80 && (rev_id & 0x7f) < 8) {
@@ -4272,6 +4274,9 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.is_valid_rtc_data_addr = iwl4965_hw_valid_rtc_data_addr,
 	.alive_notify = iwl4965_alive_notify,
 	.load_ucode = iwl4965_load_bsm,
+	.apm_ops = {
+		.set_pwr_src = iwl4965_set_pwr_src,
+	},
 	.eeprom_ops = {
 		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
