@@ -102,7 +102,8 @@ snd_pmac_burgundy_rcw(struct snd_pmac *chip, unsigned addr)
 }
 
 static void
-snd_pmac_burgundy_wcb(struct snd_pmac *chip, unsigned int addr, unsigned int val)
+snd_pmac_burgundy_wcb(struct snd_pmac *chip, unsigned int addr,
+		      unsigned int val)
 {
 	out_le32(&chip->awacs->codec_ctrl, addr + 0x300000 + (val & 0xff));
 	snd_pmac_burgundy_busy_wait(chip);
@@ -126,8 +127,11 @@ snd_pmac_burgundy_rcb(struct snd_pmac *chip, unsigned int addr)
 	return val;
 }
 
+#define BASE2ADDR(base)	((base) << 12)
+#define ADDR2BASE(addr)	((addr) >> 12)
+
 /*
- * Burgundy volume: 0 - 100, stereo
+ * Burgundy volume: 0 - 100, stereo, word reg
  */
 static void
 snd_pmac_burgundy_write_volume(struct snd_pmac *chip, unsigned int address,
@@ -168,13 +172,6 @@ snd_pmac_burgundy_read_volume(struct snd_pmac *chip, unsigned int address,
 		volume[1] = 0;
 }
 
-
-/*
- */
-
-#define BASE2ADDR(base)	((base) << 12)
-#define ADDR2BASE(addr)	((addr) >> 12)
-
 static int snd_pmac_burgundy_info_volume(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_info *uinfo)
 {
@@ -191,8 +188,8 @@ static int snd_pmac_burgundy_get_volume(struct snd_kcontrol *kcontrol,
 	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	unsigned int addr = BASE2ADDR(kcontrol->private_value & 0xff);
 	int shift = (kcontrol->private_value >> 8) & 0xff;
-	snd_pmac_burgundy_read_volume(chip, addr, ucontrol->value.integer.value,
-				      shift);
+	snd_pmac_burgundy_read_volume(chip, addr,
+				      ucontrol->value.integer.value, shift);
 	return 0;
 }
 
@@ -204,8 +201,8 @@ static int snd_pmac_burgundy_put_volume(struct snd_kcontrol *kcontrol,
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	long nvoices[2];
 
-	snd_pmac_burgundy_write_volume(chip, addr, ucontrol->value.integer.value,
-				       shift);
+	snd_pmac_burgundy_write_volume(chip, addr,
+				       ucontrol->value.integer.value, shift);
 	snd_pmac_burgundy_read_volume(chip, addr, nvoices, shift);
 	return (nvoices[0] != ucontrol->value.integer.value[0] ||
 		nvoices[1] != ucontrol->value.integer.value[1]);
@@ -700,7 +697,8 @@ int __init snd_pmac_burgundy_init(struct snd_pmac *chip)
 	chip->master_sw_ctl = snd_ctl_new1(imac
 			? &snd_pmac_burgundy_master_sw_imac
 			: &snd_pmac_burgundy_master_sw_pmac, chip);
-	if ((err = snd_ctl_add(chip->card, chip->master_sw_ctl)) < 0)
+	err = snd_ctl_add(chip->card, chip->master_sw_ctl);
+	if (err < 0)
 		return err;
 	chip->master_sw_ctl = snd_ctl_new1(imac
 			? &snd_pmac_burgundy_line_sw_imac
@@ -718,10 +716,12 @@ int __init snd_pmac_burgundy_init(struct snd_pmac *chip)
 	chip->speaker_sw_ctl = snd_ctl_new1(imac
 			? &snd_pmac_burgundy_speaker_sw_imac
 			: &snd_pmac_burgundy_speaker_sw_pmac, chip);
-	if ((err = snd_ctl_add(chip->card, chip->speaker_sw_ctl)) < 0)
+	err = snd_ctl_add(chip->card, chip->speaker_sw_ctl);
+	if (err < 0)
 		return err;
 #ifdef PMAC_SUPPORT_AUTOMUTE
-	if ((err = snd_pmac_add_automute(chip)) < 0)
+	err = snd_pmac_add_automute(chip);
+	if (err < 0)
 		return err;
 
 	chip->detect_headphone = snd_pmac_burgundy_detect_headphone;
