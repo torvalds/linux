@@ -1480,7 +1480,7 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 		       "requested.\n",
 		       tp->dev->name, state);
 		return -EINVAL;
-	};
+	}
 
 	power_control |= PCI_PM_CTRL_PME_ENABLE;
 
@@ -1906,7 +1906,7 @@ static void tg3_aux_stat_to_speed_duplex(struct tg3 *tp, u32 val, u16 *speed, u8
 		*speed = SPEED_INVALID;
 		*duplex = DUPLEX_INVALID;
 		break;
-	};
+	}
 }
 
 static void tg3_phy_copper_begin(struct tg3 *tp)
@@ -2018,7 +2018,7 @@ static void tg3_phy_copper_begin(struct tg3 *tp)
 		case SPEED_1000:
 			bmcr |= TG3_BMCR_SPEED1000;
 			break;
-		};
+		}
 
 		if (tp->link_config.duplex == DUPLEX_FULL)
 			bmcr |= BMCR_FULLDPLX;
@@ -2716,7 +2716,7 @@ static int tg3_fiber_aneg_smachine(struct tg3 *tp,
 	default:
 		ret = ANEG_FAILED;
 		break;
-	};
+	}
 
 	return ret;
 }
@@ -3558,7 +3558,7 @@ static int tg3_alloc_rx_skb(struct tg3 *tp, u32 opaque_key,
 
 	default:
 		return -EINVAL;
-	};
+	}
 
 	/* Do not overwrite any of the map or rp information
 	 * until we are sure we can commit to a new buffer.
@@ -3618,7 +3618,7 @@ static void tg3_recycle_rx(struct tg3 *tp, u32 opaque_key,
 
 	default:
 		return;
-	};
+	}
 
 	dest_map->skb = src_map->skb;
 	pci_unmap_addr_set(dest_map, mapping,
@@ -4961,7 +4961,7 @@ static int tg3_stop_block(struct tg3 *tp, unsigned long ofs, u32 enable_bit, int
 
 		default:
 			break;
-		};
+		}
 	}
 
 	val = tr32(ofs);
@@ -5203,7 +5203,7 @@ static void tg3_write_sig_pre_reset(struct tg3 *tp, int kind)
 
 		default:
 			break;
-		};
+		}
 	}
 
 	if (kind == RESET_KIND_INIT ||
@@ -5228,7 +5228,7 @@ static void tg3_write_sig_post_reset(struct tg3 *tp, int kind)
 
 		default:
 			break;
-		};
+		}
 	}
 
 	if (kind == RESET_KIND_SHUTDOWN)
@@ -5257,7 +5257,7 @@ static void tg3_write_sig_legacy(struct tg3 *tp, int kind)
 
 		default:
 			break;
-		};
+		}
 	}
 }
 
@@ -7282,7 +7282,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 
 	default:
 		break;
-	};
+	}
 
 	if (tp->tg3_flags3 & TG3_FLG3_ENABLE_APE)
 		/* Write our heartbeat update interval to APE. */
@@ -10879,7 +10879,7 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 						 LED_CTRL_MODE_PHY_2);
 			break;
 
-		};
+		}
 
 		if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
 		     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701) &&
@@ -12178,7 +12178,7 @@ static u32 __devinit tg3_calc_dma_bndry(struct tg3 *tp, u32 val)
 			val |= (DMA_RWCTRL_READ_BNDRY_384_PCIX |
 				DMA_RWCTRL_WRITE_BNDRY_384_PCIX);
 			break;
-		};
+		}
 	} else if (tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS) {
 		switch (cacheline_size) {
 		case 16:
@@ -12195,7 +12195,7 @@ static u32 __devinit tg3_calc_dma_bndry(struct tg3 *tp, u32 val)
 			val &= ~DMA_RWCTRL_WRITE_BNDRY_DISAB_PCIE;
 			val |= DMA_RWCTRL_WRITE_BNDRY_128_PCIE;
 			break;
-		};
+		}
 	} else {
 		switch (cacheline_size) {
 		case 16:
@@ -12239,7 +12239,7 @@ static u32 __devinit tg3_calc_dma_bndry(struct tg3 *tp, u32 val)
 			val |= (DMA_RWCTRL_READ_BNDRY_1024 |
 				DMA_RWCTRL_WRITE_BNDRY_1024);
 			break;
-		};
+		}
 	}
 
 out:
@@ -12599,7 +12599,7 @@ static char * __devinit tg3_phy_string(struct tg3 *tp)
 	case PHY_ID_BCM8002:	return "8002/serdes";
 	case 0:			return "serdes";
 	default:		return "unknown";
-	};
+	}
 }
 
 static char * __devinit tg3_bus_string(struct tg3 *tp, char *str)
