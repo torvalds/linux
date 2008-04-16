@@ -198,9 +198,6 @@ struct machdep_calls {
 	   May be NULL. */
 	void		(*init)(void);
 
-	void		(*setup_io_mappings)(void);
-
-	void		(*early_serial_map)(void);
 	void		(*kgdb_map_scc)(void);
 
 	/*

@@ -185,8 +185,6 @@ void __init MMU_init(void)
 	/* Map in I/O resources */
 	if (ppc_md.progress)
 		ppc_md.progress("MMU:setio", 0x302);
-	if (ppc_md.setup_io_mappings)
-		ppc_md.setup_io_mappings();
 
 	/* Initialize the context management stuff */
 	mmu_context_init();
