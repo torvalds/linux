@@ -33,6 +33,7 @@ struct map_lookup {
 	int stripe_len;
 	int sector_size;
 	int num_stripes;
+	int sub_stripes;
 	struct btrfs_bio_stripe stripes[];
 };
 
@@ -641,6 +642,7 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	u64 avail;
 	u64 max_avail = 0;
 	int num_stripes = 1;
+	int sub_stripes = 0;
 	int looped = 0;
 	int ret;
 	int index;
@@ -657,6 +659,13 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	if (type & (BTRFS_BLOCK_GROUP_RAID1)) {
 		num_stripes = min_t(u64, 2,
 				  btrfs_super_num_devices(&info->super_copy));
+	}
+	if (type & (BTRFS_BLOCK_GROUP_RAID10)) {
+		num_stripes = btrfs_super_num_devices(&info->super_copy);
+		if (num_stripes < 4)
+			return -ENOSPC;
+		num_stripes &= ~(u32)1;
+		sub_stripes = 2;
 	}
 again:
 	INIT_LIST_HEAD(&private_devs);
@@ -714,6 +723,8 @@ again:
 
 	if (type & (BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_DUP))
 		*num_bytes = calc_size;
+	else if (type & BTRFS_BLOCK_GROUP_RAID10)
+		*num_bytes = calc_size * num_stripes / sub_stripes;
 	else
 		*num_bytes = calc_size * num_stripes;
 
@@ -760,12 +771,14 @@ printk("alloc chunk start %Lu size %Lu from dev %Lu type %Lu\n", key.offset, cal
 	btrfs_set_stack_chunk_io_align(chunk, stripe_len);
 	btrfs_set_stack_chunk_io_width(chunk, stripe_len);
 	btrfs_set_stack_chunk_sector_size(chunk, extent_root->sectorsize);
+	btrfs_set_stack_chunk_sub_stripes(chunk, sub_stripes);
 	map->sector_size = extent_root->sectorsize;
 	map->stripe_len = stripe_len;
 	map->io_align = stripe_len;
 	map->io_width = stripe_len;
 	map->type = type;
 	map->num_stripes = num_stripes;
+	map->sub_stripes = sub_stripes;
 
 	ret = btrfs_insert_item(trans, chunk_root, &key, chunk,
 				btrfs_chunk_item_size(num_stripes));
@@ -832,6 +845,8 @@ int btrfs_num_copies(struct btrfs_mapping_tree *map_tree, u64 logical, u64 len)
 	map = (struct map_lookup *)em->bdev;
 	if (map->type & (BTRFS_BLOCK_GROUP_DUP | BTRFS_BLOCK_GROUP_RAID1))
 		ret = map->num_stripes;
+	else if (map->type & BTRFS_BLOCK_GROUP_RAID10)
+		ret = map->sub_stripes;
 	else
 		ret = 1;
 	free_extent_map(em);
@@ -849,6 +864,7 @@ int btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
 	u64 stripe_offset;
 	u64 stripe_nr;
 	int stripes_allocated = 8;
+	int stripes_required = 1;
 	int stripe_index;
 	int i;
 	struct btrfs_multi_bio *multi = NULL;
@@ -877,10 +893,16 @@ again:
 		mirror_num = 0;
 
 	/* if our multi bio struct is too small, back off and try again */
-	if (multi_ret && (rw & (1 << BIO_RW)) &&
-	    stripes_allocated < map->num_stripes &&
-	    ((map->type & BTRFS_BLOCK_GROUP_RAID1) ||
-	     (map->type & BTRFS_BLOCK_GROUP_DUP))) {
+	if (rw & (1 << BIO_RW)) {
+		if (map->type & (BTRFS_BLOCK_GROUP_RAID1 |
+				 BTRFS_BLOCK_GROUP_DUP)) {
+			stripes_required = map->num_stripes;
+		} else if (map->type & BTRFS_BLOCK_GROUP_RAID10) {
+			stripes_required = map->sub_stripes;
+		}
+	}
+	if (multi_ret && rw == WRITE &&
+	    stripes_allocated < stripes_required) {
 		stripes_allocated = map->num_stripes;
 		free_extent_map(em);
 		kfree(multi);
@@ -900,6 +922,7 @@ again:
 	stripe_offset = offset - stripe_offset;
 
 	if (map->type & (BTRFS_BLOCK_GROUP_RAID0 | BTRFS_BLOCK_GROUP_RAID1 |
+			 BTRFS_BLOCK_GROUP_RAID10 |
 			 BTRFS_BLOCK_GROUP_DUP)) {
 		/* we limit the length of each bio to what fits in a stripe */
 		*length = min_t(u64, em->len - offset,
@@ -937,6 +960,19 @@ again:
 			multi->num_stripes = map->num_stripes;
 		else if (mirror_num)
 			stripe_index = mirror_num - 1;
+	} else if (map->type & BTRFS_BLOCK_GROUP_RAID10) {
+		int factor = map->num_stripes / map->sub_stripes;
+		int orig_stripe_nr = stripe_nr;
+
+		stripe_index = do_div(stripe_nr, factor);
+		stripe_index *= map->sub_stripes;
+
+		if (rw & (1 << BIO_RW))
+			multi->num_stripes = map->sub_stripes;
+		else if (mirror_num)
+			stripe_index += mirror_num - 1;
+		else
+			stripe_index += orig_stripe_nr % map->sub_stripes;
 	} else {
 		/*
 		 * after this do_div call, stripe_nr is the number of stripes
@@ -946,7 +982,6 @@ again:
 		stripe_index = do_div(stripe_nr, map->num_stripes);
 	}
 	BUG_ON(stripe_index >= map->num_stripes);
-	BUG_ON(stripe_index != 0 && multi->num_stripes > 1);
 
 	for (i = 0; i < multi->num_stripes; i++) {
 		multi->stripes[i].physical =
@@ -1120,6 +1155,7 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 	map->sector_size = btrfs_chunk_sector_size(leaf, chunk);
 	map->stripe_len = btrfs_chunk_stripe_len(leaf, chunk);
 	map->type = btrfs_chunk_type(leaf, chunk);
+	map->sub_stripes = btrfs_chunk_sub_stripes(leaf, chunk);
 	for (i = 0; i < num_stripes; i++) {
 		map->stripes[i].physical =
 			btrfs_stripe_offset_nr(leaf, chunk, i);

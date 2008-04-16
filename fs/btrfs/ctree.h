@@ -197,6 +197,9 @@ struct btrfs_chunk {
 	 * item in the btree
 	 */
 	__le16 num_stripes;
+
+	/* sub stripes only matter for raid10 */
+	__le16 sub_stripes;
 	struct btrfs_stripe stripe;
 	/* additional stripes go here */
 } __attribute__ ((__packed__));
@@ -444,6 +447,7 @@ struct btrfs_csum_item {
 #define BTRFS_BLOCK_GROUP_RAID0    (1 << 3)
 #define BTRFS_BLOCK_GROUP_RAID1    (1 << 4)
 #define BTRFS_BLOCK_GROUP_DUP	   (1 << 5)
+#define BTRFS_BLOCK_GROUP_RAID10   (1 << 6)
 
 
 struct btrfs_block_group_item {
@@ -757,6 +761,7 @@ BTRFS_SETGET_FUNCS(chunk_io_width, struct btrfs_chunk, io_width, 32);
 BTRFS_SETGET_FUNCS(chunk_sector_size, struct btrfs_chunk, sector_size, 32);
 BTRFS_SETGET_FUNCS(chunk_type, struct btrfs_chunk, type, 64);
 BTRFS_SETGET_FUNCS(chunk_num_stripes, struct btrfs_chunk, num_stripes, 16);
+BTRFS_SETGET_FUNCS(chunk_sub_stripes, struct btrfs_chunk, sub_stripes, 16);
 BTRFS_SETGET_FUNCS(stripe_devid, struct btrfs_stripe, devid, 64);
 BTRFS_SETGET_FUNCS(stripe_offset, struct btrfs_stripe, offset, 64);
 
@@ -778,6 +783,8 @@ BTRFS_SETGET_STACK_FUNCS(stack_chunk_sector_size, struct btrfs_chunk,
 BTRFS_SETGET_STACK_FUNCS(stack_chunk_type, struct btrfs_chunk, type, 64);
 BTRFS_SETGET_STACK_FUNCS(stack_chunk_num_stripes, struct btrfs_chunk,
 			 num_stripes, 16);
+BTRFS_SETGET_STACK_FUNCS(stack_chunk_sub_stripes, struct btrfs_chunk,
+			 sub_stripes, 16);
 BTRFS_SETGET_STACK_FUNCS(stack_stripe_devid, struct btrfs_stripe, devid, 64);
 BTRFS_SETGET_STACK_FUNCS(stack_stripe_offset, struct btrfs_stripe, offset, 64);
 
