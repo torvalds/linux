@@ -412,7 +412,7 @@ ip6_tnl_err(struct sk_buff *skb, __u8 ipproto, struct inet6_skb_parm *opt,
 	   processing of the error. */
 
 	read_lock(&ip6_tnl_lock);
-	if ((t = ip6_tnl_lookup(&init_net, &ipv6h->daddr,
+	if ((t = ip6_tnl_lookup(dev_net(skb->dev), &ipv6h->daddr,
 					&ipv6h->saddr)) == NULL)
 		goto out;
 
@@ -696,7 +696,7 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 
 	read_lock(&ip6_tnl_lock);
 
-	if ((t = ip6_tnl_lookup(&init_net, &ipv6h->saddr,
+	if ((t = ip6_tnl_lookup(dev_net(skb->dev), &ipv6h->saddr,
 					&ipv6h->daddr)) != NULL) {
 		if (t->parms.proto != ipproto && t->parms.proto != 0) {
 			read_unlock(&ip6_tnl_lock);
