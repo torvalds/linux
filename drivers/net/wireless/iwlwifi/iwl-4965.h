@@ -566,6 +566,29 @@ struct iwl4965_ibss_seq {
 	struct list_head list;
 };
 
+struct iwl_sensitivity_ranges {
+	u16 min_nrg_cck;
+	u16 max_nrg_cck;
+
+	u16 nrg_th_cck;
+	u16 nrg_th_ofdm;
+
+	u16 auto_corr_min_ofdm;
+	u16 auto_corr_min_ofdm_mrc;
+	u16 auto_corr_min_ofdm_x1;
+	u16 auto_corr_min_ofdm_mrc_x1;
+
+	u16 auto_corr_max_ofdm;
+	u16 auto_corr_max_ofdm_mrc;
+	u16 auto_corr_max_ofdm_x1;
+	u16 auto_corr_max_ofdm_mrc_x1;
+
+	u16 auto_corr_max_cck;
+	u16 auto_corr_max_cck_mrc;
+	u16 auto_corr_min_cck;
+	u16 auto_corr_min_cck_mrc;
+};
+
 /**
  * struct iwl_hw_params
  * @max_txq_num: Max # Tx queues supported
@@ -576,6 +599,7 @@ struct iwl4965_ibss_seq {
  * @max_rxq_log: Log-base-2 of max_rxq_size
  * @max_stations:
  * @bcast_sta_id:
+ * @struct iwl_sensitivity_ranges: range of sensitivity values
  */
 struct iwl_hw_params {
 	u16 max_txq_num;
@@ -590,6 +614,9 @@ struct iwl_hw_params {
 	u32 max_pkt_size;
 	u8  max_stations;
 	u8  bcast_sta_id;
+#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
+	const struct iwl_sensitivity_ranges *sens;
+#endif
 };
 
 #define HT_SHORT_GI_20MHZ_ONLY          (1 << 0)
@@ -732,9 +759,6 @@ extern void iwl4965_add_station(struct iwl_priv *priv, const u8 *addr,
 extern void iwl4965_set_rxon_chain(struct iwl_priv *priv);
 extern int iwl4965_alive_notify(struct iwl_priv *priv);
 extern void iwl4965_update_rate_scaling(struct iwl_priv *priv, u8 mode);
-extern void iwl4965_chain_noise_reset(struct iwl_priv *priv);
-extern void iwl4965_init_sensitivity(struct iwl_priv *priv, u8 flags,
-				     u8 force);
 extern void iwl4965_rf_kill_ct_config(struct iwl_priv *priv);
 extern void iwl4965_hwrate_to_tx_control(struct iwl_priv *priv,
 					 u32 rate_n_flags,
@@ -818,23 +842,8 @@ struct iwl4965_lq_mngr {
 #define MAX_FA_CCK   50
 #define MIN_FA_CCK   5
 
-#define NRG_MIN_CCK  97
-#define NRG_MAX_CCK  0
-
-#define AUTO_CORR_MIN_OFDM        85
-#define AUTO_CORR_MIN_OFDM_MRC    170
-#define AUTO_CORR_MIN_OFDM_X1     105
-#define AUTO_CORR_MIN_OFDM_MRC_X1 220
-#define AUTO_CORR_MAX_OFDM        120
-#define AUTO_CORR_MAX_OFDM_MRC    210
-#define AUTO_CORR_MAX_OFDM_X1     140
-#define AUTO_CORR_MAX_OFDM_MRC_X1 270
 #define AUTO_CORR_STEP_OFDM       1
 
-#define AUTO_CORR_MIN_CCK      (125)
-#define AUTO_CORR_MAX_CCK      (200)
-#define AUTO_CORR_MIN_CCK_MRC  200
-#define AUTO_CORR_MAX_CCK_MRC  400
 #define AUTO_CORR_STEP_CCK     3
 #define AUTO_CORR_MAX_TH_CCK   160
 
@@ -865,11 +874,6 @@ enum iwl4965_chain_noise_state {
 	IWL_CHAIN_NOISE_CALIBRATED = 2,
 };
 
-enum iwl4965_sensitivity_state {
-	IWL_SENS_CALIB_ALLOWED = 0,
-	IWL_SENS_CALIB_NEED_REINIT = 1,
-};
-
 enum iwl4965_calib_enabled_state {
 	IWL_CALIB_DISABLED = 0,  /* must be 0 */
 	IWL_CALIB_ENABLED = 1,
@@ -884,8 +888,9 @@ struct statistics_general_data {
 	u32 beacon_energy_c;
 };
 
+#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
 /* Sensitivity calib data */
-struct iwl4965_sensitivity_data {
+struct iwl_sensitivity_data {
 	u32 auto_corr_ofdm;
 	u32 auto_corr_ofdm_mrc;
 	u32 auto_corr_ofdm_x1;
@@ -909,12 +914,10 @@ struct iwl4965_sensitivity_data {
 	s32 nrg_auto_corr_silence_diff;
 	u32 num_in_cck_no_fa;
 	u32 nrg_th_ofdm;
-
-	u8 state;
 };
 
 /* Chain noise (differential Rx gain) calib data */
-struct iwl4965_chain_noise_data {
+struct iwl_chain_noise_data {
 	u8 state;
 	u16 beacon_count;
 	u32 chain_noise_a;
@@ -927,6 +930,7 @@ struct iwl4965_chain_noise_data {
 	u8 delta_gain_code[NUM_RX_CHAINS];
 	u8 radio_write;
 };
+#endif /* CONFIG_IWLWIFI_RUN_TIME_CALIB */
 
 #define	EEPROM_SEM_TIMEOUT 10		/* milliseconds */
 #define EEPROM_SEM_RETRY_LIMIT 1000	/* number of attempts (not time) */
@@ -1051,12 +1055,12 @@ struct iwl_priv {
 	u8 assoc_station_added;
 	u8 use_ant_b_for_management_frame;	/* Tx antenna selection */
 	u8 valid_antenna;	/* Bit mask of antennas actually connected */
-#ifdef CONFIG_IWL4965_SENSITIVITY
-	struct iwl4965_sensitivity_data sensitivity_data;
-	struct iwl4965_chain_noise_data chain_noise_data;
 	u8 start_calib;
+#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
+	struct iwl_sensitivity_data sensitivity_data;
+	struct iwl_chain_noise_data chain_noise_data;
 	__le16 sensitivity_tbl[HD_TABLE_SIZE];
-#endif /*CONFIG_IWL4965_SENSITIVITY*/
+#endif /*CONFIG_IWLWIFI_RUN_TIME_CALIB*/
 
 #ifdef CONFIG_IWL4965_HT
 	struct iwl_ht_info current_ht_config;
@@ -1206,7 +1210,7 @@ struct iwl_priv {
 #endif /* CONFIG_IWLWIFI_DEBUG */
 
 	struct work_struct txpower_work;
-#ifdef CONFIG_IWL4965_SENSITIVITY
+#ifdef CONFIG_IWL4965_RUN_TIME_CALIB
 	struct work_struct sensitivity_work;
 #endif
 	struct timer_list statistics_periodic;

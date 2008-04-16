@@ -87,6 +87,13 @@ struct iwl_hcmd_ops {
 };
 struct iwl_hcmd_utils_ops {
 	int (*enqueue_hcmd)(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
+#ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
+	void (*gain_computation)(struct iwl_priv *priv,
+			u32 *average_noise,
+			u16 min_average_noise_antennat_i,
+			u32 min_average_noise);
+	void (*chain_noise_reset)(struct iwl_priv *priv);
+#endif
 };
 
 struct iwl_lib_ops {

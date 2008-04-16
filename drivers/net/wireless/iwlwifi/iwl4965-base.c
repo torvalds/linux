@@ -51,6 +51,7 @@
 #include "iwl-io.h"
 #include "iwl-helpers.h"
 #include "iwl-sta.h"
+#include "iwl-calib.h"
 
 static int iwl4965_tx_queue_update_write_ptr(struct iwl_priv *priv,
 				  struct iwl4965_tx_queue *txq);
@@ -795,14 +796,6 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 	/* station table will be cleared */
 	priv->assoc_station_added = 0;
 
-#ifdef CONFIG_IWL4965_SENSITIVITY
-	priv->sensitivity_data.state = IWL_SENS_CALIB_NEED_REINIT;
-	if (!priv->error_recovering)
-		priv->start_calib = 0;
-
-	iwl4965_init_sensitivity(priv, CMD_ASYNC, 1);
-#endif /* CONFIG_IWL4965_SENSITIVITY */
-
 	/* If we are currently associated and the new config requires
 	 * an RXON_ASSOC and the new config wants the associated mask enabled,
 	 * we must clear the associated from the active configuration
@@ -846,13 +839,10 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 
 	iwlcore_clear_stations_table(priv);
 
-#ifdef CONFIG_IWL4965_SENSITIVITY
 	if (!priv->error_recovering)
 		priv->start_calib = 0;
 
-	priv->sensitivity_data.state = IWL_SENS_CALIB_NEED_REINIT;
-	iwl4965_init_sensitivity(priv, CMD_ASYNC, 1);
-#endif /* CONFIG_IWL4965_SENSITIVITY */
+	iwl_init_sensitivity(priv);
 
 	memcpy(active_rxon, &priv->staging_rxon, sizeof(*active_rxon));
 
@@ -6040,11 +6030,9 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 
 	iwl4965_sequence_reset(priv);
 
-#ifdef CONFIG_IWL4965_SENSITIVITY
 	/* Enable Rx differential gain and sensitivity calibrations */
-	iwl4965_chain_noise_reset(priv);
+	iwl_chain_noise_reset(priv);
 	priv->start_calib = 1;
-#endif /* CONFIG_IWL4965_SENSITIVITY */
 
 	if (priv->iw_mode == IEEE80211_IF_TYPE_IBSS)
 		priv->assoc_station_added = 1;

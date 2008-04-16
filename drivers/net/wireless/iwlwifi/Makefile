@@ -3,6 +3,7 @@ iwlcore-objs 		:= iwl-core.o iwl-eeprom.o iwl-hcmd.o
 iwlcore-$(CONFIG_IWLWIFI_DEBUGFS) += iwl-debugfs.o
 iwlcore-$(CONFIG_IWLWIFI_LEDS) += iwl-led.o
 iwlcore-$(CONFIG_IWLWIFI_RFKILL) += iwl-rfkill.o
+iwlcore-$(CONFIG_IWLWIFI_RUN_TIME_CALIB) += iwl-calib.o
 
 obj-$(CONFIG_IWL3945)	+= iwl3945.o
 iwl3945-objs		:= iwl3945-base.o iwl-3945.o iwl-3945-rs.o

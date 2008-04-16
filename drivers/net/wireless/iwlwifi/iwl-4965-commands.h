@@ -2559,7 +2559,7 @@ struct iwl4965_missed_beacon_notif {
  */
 
 /*
- * Table entries in SENSITIVITY_CMD (struct iwl4965_sensitivity_cmd)
+ * Table entries in SENSITIVITY_CMD (struct iwl_sensitivity_cmd)
  */
 #define HD_TABLE_SIZE  (11)	/* number of entries */
 #define HD_MIN_ENERGY_CCK_DET_INDEX                 (0)	/* table indexes */
@@ -2574,18 +2574,18 @@ struct iwl4965_missed_beacon_notif {
 #define HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX          (9)
 #define HD_OFDM_ENERGY_TH_IN_INDEX                  (10)
 
-/* Control field in struct iwl4965_sensitivity_cmd */
+/* Control field in struct iwl_sensitivity_cmd */
 #define SENSITIVITY_CMD_CONTROL_DEFAULT_TABLE	__constant_cpu_to_le16(0)
 #define SENSITIVITY_CMD_CONTROL_WORK_TABLE	__constant_cpu_to_le16(1)
 
 /**
- * struct iwl4965_sensitivity_cmd
+ * struct iwl_sensitivity_cmd
  * @control:  (1) updates working table, (0) updates default table
  * @table:  energy threshold values, use HD_* as index into table
  *
  * Always use "1" in "control" to update uCode's working table and DSP.
  */
-struct iwl4965_sensitivity_cmd {
+struct iwl_sensitivity_cmd {
 	__le16 control;			/* always use "1" */
 	__le16 table[HD_TABLE_SIZE];	/* use HD_* as index */
 } __attribute__ ((packed));
