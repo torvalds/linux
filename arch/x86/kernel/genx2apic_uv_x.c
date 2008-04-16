@@ -61,26 +61,31 @@ int uv_wakeup_secondary(int phys_apicid, unsigned int start_rip)
 	val = (1UL << UVH_IPI_INT_SEND_SHFT) |
 	    (phys_apicid << UVH_IPI_INT_APIC_ID_SHFT) |
 	    (((long)start_rip << UVH_IPI_INT_VECTOR_SHFT) >> 12) |
-	    (6 << UVH_IPI_INT_DELIVERY_MODE_SHFT);
+	    APIC_DM_INIT;
+	uv_write_global_mmr64(nasid, UVH_IPI_INT, val);
+	mdelay(10);
+
+	val = (1UL << UVH_IPI_INT_SEND_SHFT) |
+	    (phys_apicid << UVH_IPI_INT_APIC_ID_SHFT) |
+	    (((long)start_rip << UVH_IPI_INT_VECTOR_SHFT) >> 12) |
+	    APIC_DM_STARTUP;
 	uv_write_global_mmr64(nasid, UVH_IPI_INT, val);
 	return 0;
 }
 
 static void uv_send_IPI_one(int cpu, int vector)
 {
-	unsigned long val, apicid;
+	unsigned long val, apicid, lapicid;
 	int nasid;
 
 	apicid = per_cpu(x86_cpu_to_apicid, cpu); /* ZZZ - cache node-local ? */
+	lapicid = apicid & 0x3f;		/* ZZZ macro needed */
 	nasid = uv_apicid_to_nasid(apicid);
 	val =
-	    (1UL << UVH_IPI_INT_SEND_SHFT) | (apicid <<
+	    (1UL << UVH_IPI_INT_SEND_SHFT) | (lapicid <<
 					      UVH_IPI_INT_APIC_ID_SHFT) |
 	    (vector << UVH_IPI_INT_VECTOR_SHFT);
 	uv_write_global_mmr64(nasid, UVH_IPI_INT, val);
-	printk(KERN_DEBUG
-	     "UV: IPI to cpu %d, apicid 0x%lx, vec %d, nasid%d, val 0x%lx\n",
-	     cpu, apicid, vector, nasid, val);
 }
 
 static void uv_send_IPI_mask(cpumask_t mask, int vector)
