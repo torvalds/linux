@@ -781,10 +781,15 @@ static int vpe_run(struct vpe * v)
 	/* take system out of configuration state */
 	clear_c0_mvpcontrol(MVPCONTROL_VPC);
 
+	/*
+	 * SMTC/SMVP kernels manage VPE enable independently,
+	 * but uniprocessor kernels need to turn it on, even
+	 * if that wasn't the pre-dvpe() state.
+	 */
 #ifdef CONFIG_SMP
-	evpe(EVPE_ENABLE);
-#else
 	evpe(vpeflags);
+#else
+	evpe(EVPE_ENABLE);
 #endif
 	emt(dmt_flag);
 	local_irq_restore(flags);
@@ -947,12 +952,14 @@ static int vpe_elfload(struct vpe * v)
 		struct elf_phdr *phdr = (struct elf_phdr *) ((char *)hdr + hdr->e_phoff);
 
 		for (i = 0; i < hdr->e_phnum; i++) {
-			if (phdr->p_type != PT_LOAD)
-				continue;
-
-			memcpy((void *)phdr->p_paddr, (char *)hdr + phdr->p_offset, phdr->p_filesz);
-			memset((void *)phdr->p_paddr + phdr->p_filesz, 0, phdr->p_memsz - phdr->p_filesz);
-			phdr++;
+			if (phdr->p_type == PT_LOAD) {
+				memcpy((void *)phdr->p_paddr,
+				       (char *)hdr + phdr->p_offset,
+				       phdr->p_filesz);
+				memset((void *)phdr->p_paddr + phdr->p_filesz,
+				       0, phdr->p_memsz - phdr->p_filesz);
+		    }
+		    phdr++;
 		}
 
 		for (i = 0; i < hdr->e_shnum; i++) {
