@@ -83,10 +83,6 @@ int mp_irq_entries;
 
 static int disable_timer_pin_1 __initdata;
 
-int first_system_vector = 0xfe;
-
-char system_vectors[NR_VECTORS] = { [0 ... NR_VECTORS-1] = SYS_VECTOR_FREE};
-
 /*
  * Rough estimation of how many shared IRQs there are, can
  * be changed anytime.

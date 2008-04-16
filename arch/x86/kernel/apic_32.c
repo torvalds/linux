@@ -71,6 +71,10 @@ int local_apic_timer_disabled;
 int local_apic_timer_c2_ok;
 EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
 
+int first_system_vector = 0xfe;
+
+char system_vectors[NR_VECTORS] = { [0 ... NR_VECTORS-1] = SYS_VECTOR_FREE};
+
 /*
  * Debug level, exported for io_apic.c
  */
