@@ -822,6 +822,7 @@ void kvm_lapic_set_tpr(struct kvm_vcpu *vcpu, unsigned long cr8)
 	apic_set_tpr(apic, ((cr8 & 0x0f) << 4)
 		     | (apic_get_reg(apic, APIC_TASKPRI) & 4));
 }
+EXPORT_SYMBOL_GPL(kvm_lapic_set_tpr);
 
 u64 kvm_lapic_get_cr8(struct kvm_vcpu *vcpu)
 {
