@@ -181,6 +181,7 @@ struct sigmatel_spec {
 	/* i/o switches */
 	unsigned int io_switch[2];
 	unsigned int clfe_swap;
+	unsigned int hp_switch;
 	unsigned int aloopback;
 
 	struct hda_pcm pcm_rec[2];	/* PCM information */
@@ -1274,7 +1275,7 @@ static unsigned int ref92hd73xx_pin_configs[13] = {
 
 static unsigned int dell_m6_pin_configs[13] = {
 	0x0321101f, 0x4f00000f, 0x4f0000f0, 0x90170110,
-	0x03a11020, 0x03011050, 0x4f0000f0, 0x4f0000f0,
+	0x03a11020, 0x0321101f, 0x4f0000f0, 0x4f0000f0,
 	0x4f0000f0, 0x90a60160, 0x4f0000f0, 0x4f0000f0,
 	0x4f0000f0,
 };
@@ -2052,6 +2053,34 @@ static void stac92xx_auto_set_pinctl(struct hda_codec *codec, hda_nid_t nid, int
 				  AC_VERB_SET_PIN_WIDGET_CONTROL, pin_type);
 }
 
+#define stac92xx_hp_switch_info		snd_ctl_boolean_mono_info
+
+static int stac92xx_hp_switch_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sigmatel_spec *spec = codec->spec;
+
+	ucontrol->value.integer.value[0] = spec->hp_switch;
+	return 0;
+}
+
+static int stac92xx_hp_switch_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sigmatel_spec *spec = codec->spec;
+
+	spec->hp_switch = ucontrol->value.integer.value[0];
+
+	/* check to be sure that the ports are upto date with
+	 * switch changes
+	 */
+	codec->patch_ops.unsol_event(codec, STAC_HP_EVENT << 26);
+
+	return 1;
+}
+
 #define stac92xx_io_switch_info		snd_ctl_boolean_mono_info
 
 static int stac92xx_io_switch_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -2123,6 +2152,15 @@ static int stac92xx_clfe_switch_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+#define STAC_CODEC_HP_SWITCH(xname) \
+	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+	  .name = xname, \
+	  .index = 0, \
+	  .info = stac92xx_hp_switch_info, \
+	  .get = stac92xx_hp_switch_get, \
+	  .put = stac92xx_hp_switch_put, \
+	}
+
 #define STAC_CODEC_IO_SWITCH(xname, xpval) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 	  .name = xname, \
@@ -2147,6 +2185,7 @@ enum {
 	STAC_CTL_WIDGET_VOL,
 	STAC_CTL_WIDGET_MUTE,
 	STAC_CTL_WIDGET_MONO_MUX,
+	STAC_CTL_WIDGET_HP_SWITCH,
 	STAC_CTL_WIDGET_IO_SWITCH,
 	STAC_CTL_WIDGET_CLFE_SWITCH
 };
@@ -2155,6 +2194,7 @@ static struct snd_kcontrol_new stac92xx_control_templates[] = {
 	HDA_CODEC_VOLUME(NULL, 0, 0, 0),
 	HDA_CODEC_MUTE(NULL, 0, 0, 0),
 	STAC_MONO_MUX,
+	STAC_CODEC_HP_SWITCH(NULL),
 	STAC_CODEC_IO_SWITCH(NULL, 0),
 	STAC_CODEC_CLFE_SWITCH(NULL, 0),
 };
@@ -2417,6 +2457,14 @@ static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 			if (err < 0)
 				return err;
 		}
+	}
+
+	if (cfg->hp_outs > 1) {
+		err = stac92xx_add_control(spec,
+			STAC_CTL_WIDGET_HP_SWITCH,
+			"Headphone as Line Out Switch", 0);
+		if (err < 0)
+			return err;
 	}
 
 	if (spec->line_switch) {
@@ -3163,6 +3211,7 @@ static void stac92xx_hp_detect(struct hda_codec *codec, unsigned int res)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
+	int nid = cfg->hp_pins[cfg->hp_outs - 1];
 	int i, presence;
 
 	presence = 0;
@@ -3173,11 +3222,15 @@ static void stac92xx_hp_detect(struct hda_codec *codec, unsigned int res)
 	for (i = 0; i < cfg->hp_outs; i++) {
 		if (presence)
 			break;
+		if (spec->hp_switch && cfg->hp_pins[i] == nid)
+			break;
 		presence = get_hp_pin_presence(codec, cfg->hp_pins[i]);
 	}
 
 	if (presence) {
 		/* disable lineouts, enable hp */
+		if (spec->hp_switch)
+			stac92xx_reset_pinctl(codec, nid, AC_PINCTL_OUT_EN);
 		for (i = 0; i < cfg->line_outs; i++)
 			stac92xx_reset_pinctl(codec, cfg->line_out_pins[i],
 						AC_PINCTL_OUT_EN);
@@ -3190,6 +3243,8 @@ static void stac92xx_hp_detect(struct hda_codec *codec, unsigned int res)
 				~spec->eapd_mask);
 	} else {
 		/* enable lineouts, disable hp */
+		if (spec->hp_switch)
+			stac92xx_set_pinctl(codec, nid, AC_PINCTL_OUT_EN);
 		for (i = 0; i < cfg->line_outs; i++)
 			stac92xx_set_pinctl(codec, cfg->line_out_pins[i],
 						AC_PINCTL_OUT_EN);
@@ -3201,6 +3256,8 @@ static void stac92xx_hp_detect(struct hda_codec *codec, unsigned int res)
 				spec->gpio_dir, spec->gpio_data |
 				spec->eapd_mask);
 	}
+	if (!spec->hp_switch && cfg->hp_outs > 1 && presence)
+		stac92xx_set_pinctl(codec, nid, AC_PINCTL_OUT_EN);
 } 
 
 static void stac92xx_pin_sense(struct hda_codec *codec, int idx)
@@ -3459,6 +3516,7 @@ again:
 
 	switch (spec->multiout.num_dacs) {
 	case 0x3: /* 6 Channel */
+		spec->multiout.hp_nid = 0x17;
 		spec->mixer = stac92hd73xx_6ch_mixer;
 		spec->init = stac92hd73xx_6ch_core_init;
 		break;
