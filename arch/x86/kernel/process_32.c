@@ -484,20 +484,13 @@ int set_tsc_mode(unsigned int val)
 	return 0;
 }
 
-static noinline void
-__switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
-		 struct tss_struct *tss)
-{
-	struct thread_struct *prev, *next;
-	unsigned long debugctl;
-	unsigned long ds_prev = 0, ds_next = 0;
-
-	prev = &prev_p->thread;
-	next = &next_p->thread;
-
-	debugctl = prev->debugctlmsr;
-
 #ifdef CONFIG_X86_DS
+static int update_debugctl(struct thread_struct *prev,
+			struct thread_struct *next, unsigned long debugctl)
+{
+	unsigned long ds_prev = 0;
+	unsigned long ds_next = 0;
+
 	if (prev->ds_ctx)
 		ds_prev = (unsigned long)prev->ds_ctx->ds;
 	if (next->ds_ctx)
@@ -510,7 +503,27 @@ __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 		update_debugctlmsr(0);
 		wrmsr(MSR_IA32_DS_AREA, ds_next, 0);
 	}
+	return debugctl;
+}
+#else
+static int update_debugctl(struct thread_struct *prev,
+			struct thread_struct *next, unsigned long debugctl)
+{
+	return debugctl;
+}
 #endif /* CONFIG_X86_DS */
+
+static noinline void
+__switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
+		 struct tss_struct *tss)
+{
+	struct thread_struct *prev, *next;
+	unsigned long debugctl;
+
+	prev = &prev_p->thread;
+	next = &next_p->thread;
+
+	debugctl = update_debugctl(prev, next, prev->debugctlmsr);
 
 	if (next->debugctlmsr != debugctl)
 		update_debugctlmsr(next->debugctlmsr);
