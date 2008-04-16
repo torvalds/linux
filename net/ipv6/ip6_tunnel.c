@@ -52,6 +52,8 @@
 #include <net/xfrm.h>
 #include <net/dsfield.h>
 #include <net/inet_ecn.h>
+#include <net/net_namespace.h>
+#include <net/netns/generic.h>
 
 MODULE_AUTHOR("Ville Nuorvala");
 MODULE_DESCRIPTION("IPv6 tunneling device");
@@ -77,6 +79,10 @@ MODULE_LICENSE("GPL");
 static int ip6_fb_tnl_dev_init(struct net_device *dev);
 static int ip6_tnl_dev_init(struct net_device *dev);
 static void ip6_tnl_dev_setup(struct net_device *dev);
+
+static int ip6_tnl_net_id;
+struct ip6_tnl_net {
+};
 
 /* the IPv6 tunnel fallback device */
 static struct net_device *ip6_fb_tnl_dev;
@@ -1384,6 +1390,41 @@ static struct xfrm6_tunnel ip6ip6_handler = {
 	.priority	=	1,
 };
 
+static int ip6_tnl_init_net(struct net *net)
+{
+	int err;
+	struct ip6_tnl_net *ip6n;
+
+	err = -ENOMEM;
+	ip6n = kmalloc(sizeof(struct ip6_tnl_net), GFP_KERNEL);
+	if (ip6n == NULL)
+		goto err_alloc;
+
+	err = net_assign_generic(net, ip6_tnl_net_id, ip6n);
+	if (err < 0)
+		goto err_assign;
+
+	return 0;
+
+err_assign:
+	kfree(ip6n);
+err_alloc:
+	return err;
+}
+
+static void ip6_tnl_exit_net(struct net *net)
+{
+	struct ip6_tnl_net *ip6n;
+
+	ip6n = net_generic(net, ip6_tnl_net_id);
+	kfree(ip6n);
+}
+
+static struct pernet_operations ip6_tnl_net_ops = {
+	.init = ip6_tnl_init_net,
+	.exit = ip6_tnl_exit_net,
+};
+
 /**
  * ip6_tunnel_init - register protocol and reserve needed resources
  *
@@ -1418,7 +1459,13 @@ static int __init ip6_tunnel_init(void)
 		free_netdev(ip6_fb_tnl_dev);
 		goto fail;
 	}
+
+	err = register_pernet_gen_device(&ip6_tnl_net_id, &ip6_tnl_net_ops);
+	if (err < 0)
+		goto err_pernet;
 	return 0;
+err_pernet:
+	unregister_netdevice(ip6_fb_tnl_dev);
 fail:
 	xfrm6_tunnel_deregister(&ip6ip6_handler, AF_INET6);
 unreg_ip4ip6:
@@ -1456,6 +1503,8 @@ static void __exit ip6_tunnel_cleanup(void)
 	rtnl_lock();
 	ip6_tnl_destroy_tunnels();
 	rtnl_unlock();
+
+	unregister_pernet_gen_device(ip6_tnl_net_id, &ip6_tnl_net_ops);
 }
 
 module_init(ip6_tunnel_init);
