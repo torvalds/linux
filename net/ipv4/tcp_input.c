@@ -3841,7 +3841,7 @@ static void tcp_ofo_queue(struct sock *sk)
 	}
 }
 
-static void tcp_prune_ofo_queue(struct sock *sk);
+static int tcp_prune_ofo_queue(struct sock *sk);
 static int tcp_prune_queue(struct sock *sk);
 
 static inline int tcp_try_rmem_schedule(struct sock *sk, unsigned int size)
@@ -3853,7 +3853,9 @@ static inline int tcp_try_rmem_schedule(struct sock *sk, unsigned int size)
 			return -1;
 
 		if (!sk_rmem_schedule(sk, size)) {
-			tcp_prune_ofo_queue(sk);
+			if (!tcp_prune_ofo_queue(sk))
+				return -1;
+
 			if (!sk_rmem_schedule(sk, size))
 				return -1;
 		}
@@ -4211,10 +4213,12 @@ static void tcp_collapse_ofo_queue(struct sock *sk)
 
 /*
  * Purge the out-of-order queue.
+ * Return true if queue was pruned.
  */
-static void tcp_prune_ofo_queue(struct sock *sk)
+static int tcp_prune_ofo_queue(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	int res = 0;
 
 	if (!skb_queue_empty(&tp->out_of_order_queue)) {
 		NET_INC_STATS_BH(LINUX_MIB_OFOPRUNED);
@@ -4228,7 +4232,9 @@ static void tcp_prune_ofo_queue(struct sock *sk)
 		if (tp->rx_opt.sack_ok)
 			tcp_sack_reset(&tp->rx_opt);
 		sk_mem_reclaim(sk);
+		res = 1;
 	}
+	return res;
 }
 
 /* Reduce allocated memory if we can, trying to get
