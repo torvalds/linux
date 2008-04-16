@@ -9,6 +9,7 @@
 #define VIRTIO_BLK_F_BARRIER	0	/* Does host support barriers? */
 #define VIRTIO_BLK_F_SIZE_MAX	1	/* Indicates maximum segment size */
 #define VIRTIO_BLK_F_SEG_MAX	2	/* Indicates maximum # of segments */
+#define VIRTIO_BLK_F_GEOMETRY	4	/* Legacy geometry available  */
 
 struct virtio_blk_config
 {
@@ -18,6 +19,12 @@ struct virtio_blk_config
 	__le32 size_max;
 	/* The maximum number of segments (if VIRTIO_BLK_F_SEG_MAX) */
 	__le32 seg_max;
+	/* geometry the device (if VIRTIO_BLK_F_GEOMETRY) */
+	struct virtio_blk_geometry {
+		__le16 cylinders;
+		__u8 heads;
+		__u8 sectors;
+	} geometry;
 } __attribute__((packed));
 
 /* These two define direction. */

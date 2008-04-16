@@ -157,10 +157,25 @@ static int virtblk_ioctl(struct inode *inode, struct file *filp,
 /* We provide getgeo only to please some old bootloader/partitioning tools */
 static int virtblk_getgeo(struct block_device *bd, struct hd_geometry *geo)
 {
-	/* some standard values, similar to sd */
-	geo->heads = 1 << 6;
-	geo->sectors = 1 << 5;
-	geo->cylinders = get_capacity(bd->bd_disk) >> 11;
+	struct virtio_blk *vblk = bd->bd_disk->private_data;
+	struct virtio_blk_geometry vgeo;
+	int err;
+
+	/* see if the host passed in geometry config */
+	err = virtio_config_val(vblk->vdev, VIRTIO_BLK_F_GEOMETRY,
+				offsetof(struct virtio_blk_config, geometry),
+				&vgeo);
+
+	if (!err) {
+		geo->heads = vgeo.heads;
+		geo->sectors = vgeo.sectors;
+		geo->cylinders = vgeo.cylinders;
+	} else {
+		/* some standard values, similar to sd */
+		geo->heads = 1 << 6;
+		geo->sectors = 1 << 5;
+		geo->cylinders = get_capacity(bd->bd_disk) >> 11;
+	}
 	return 0;
 }
 
@@ -310,6 +325,7 @@ static struct virtio_device_id id_table[] = {
 
 static unsigned int features[] = {
 	VIRTIO_BLK_F_BARRIER, VIRTIO_BLK_F_SEG_MAX, VIRTIO_BLK_F_SIZE_MAX,
+	VIRTIO_BLK_F_GEOMETRY,
 };
 
 static struct virtio_driver virtio_blk = {
