@@ -1887,7 +1887,6 @@ struct extent_buffer *__btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 	}
 	btrfs_set_header_generation(buf, trans->transid);
 	clean_tree_block(trans, root, buf);
-	wait_on_tree_block_writeback(root, buf);
 	btrfs_set_buffer_uptodate(buf);
 
 	if (PageDirty(buf->first_page)) {

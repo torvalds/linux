@@ -383,9 +383,11 @@ int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
 	struct btrfs_csum_item *item;
 	struct btrfs_path *path = NULL;
 	u32 csum;
+
 	if (btrfs_test_opt(root, NODATASUM) ||
 	    btrfs_test_flag(inode, NODATASUM))
 		return 0;
+
 	mutex_lock(&root->fs_info->fs_mutex);
 	path = btrfs_alloc_path();
 	item = btrfs_lookup_csum(NULL, root, path, inode->i_ino, start, 0);
