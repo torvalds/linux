@@ -1502,6 +1502,27 @@ static void svm_set_irq(struct kvm_vcpu *vcpu, int irq)
 	svm_inject_irq(svm, irq);
 }
 
+static void update_cr8_intercept(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	struct vmcb *vmcb = svm->vmcb;
+	int max_irr, tpr;
+
+	if (!irqchip_in_kernel(vcpu->kvm) || vcpu->arch.apic->vapic_addr)
+		return;
+
+	vmcb->control.intercept_cr_write &= ~INTERCEPT_CR8_MASK;
+
+	max_irr = kvm_lapic_find_highest_irr(vcpu);
+	if (max_irr == -1)
+		return;
+
+	tpr = kvm_lapic_get_cr8(vcpu) << 4;
+
+	if (tpr >= (max_irr & 0xf0))
+		vmcb->control.intercept_cr_write |= INTERCEPT_CR8_MASK;
+}
+
 static void svm_intr_assist(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -1514,14 +1535,14 @@ static void svm_intr_assist(struct kvm_vcpu *vcpu)
 			      SVM_EVTINJ_VEC_MASK;
 		vmcb->control.exit_int_info = 0;
 		svm_inject_irq(svm, intr_vector);
-		return;
+		goto out;
 	}
 
 	if (vmcb->control.int_ctl & V_IRQ_MASK)
-		return;
+		goto out;
 
 	if (!kvm_cpu_has_interrupt(vcpu))
-		return;
+		goto out;
 
 	if (!(vmcb->save.rflags & X86_EFLAGS_IF) ||
 	    (vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) ||
@@ -1529,12 +1550,14 @@ static void svm_intr_assist(struct kvm_vcpu *vcpu)
 		/* unable to deliver irq, set pending irq */
 		vmcb->control.intercept |= (1ULL << INTERCEPT_VINTR);
 		svm_inject_irq(svm, 0x0);
-		return;
+		goto out;
 	}
 	/* Okay, we can deliver the interrupt: grab it and update PIC state. */
 	intr_vector = kvm_cpu_get_interrupt(vcpu);
 	svm_inject_irq(svm, intr_vector);
 	kvm_timer_intr_post(vcpu, intr_vector);
+out:
+	update_cr8_intercept(vcpu);
 }
 
 static void kvm_reput_irq(struct vcpu_svm *svm)
