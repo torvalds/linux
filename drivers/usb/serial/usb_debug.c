@@ -35,9 +35,6 @@ static struct usb_serial_driver debug_device = {
 		.name =		"debug",
 	},
 	.id_table =		id_table,
-	.num_interrupt_in =	NUM_DONT_CARE,
-	.num_bulk_in =		NUM_DONT_CARE,
-	.num_bulk_out =		NUM_DONT_CARE,
 	.num_ports =		1,
 };
 

@@ -2800,12 +2800,7 @@ static struct usb_serial_driver moschip7840_4port_device = {
 	.description = DRIVER_DESC,
 	.usb_driver = &io_driver,
 	.id_table = moschip_port_id_table,
-	.num_interrupt_in = 1,	//NUM_DONT_CARE,//1,
-#ifdef check
-	.num_bulk_in = 4,
-	.num_bulk_out = 4,
 	.num_ports = 4,
-#endif
 	.open = mos7840_open,
 	.close = mos7840_close,
 	.write = mos7840_write,
