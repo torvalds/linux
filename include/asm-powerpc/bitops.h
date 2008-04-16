@@ -313,23 +313,8 @@ static __inline__ int fls(unsigned int x)
 	return 32 - lz;
 }
 #include <asm-generic/bitops/fls64.h>
-
 #include <asm-generic/bitops/hweight.h>
-
-#define find_first_zero_bit(addr, size) find_next_zero_bit((addr), (size), 0)
-unsigned long find_next_zero_bit(const unsigned long *addr,
-				 unsigned long size, unsigned long offset);
-/**
- * find_first_bit - find the first set bit in a memory region
- * @addr: The address to start the search at
- * @size: The maximum size to search
- *
- * Returns the bit-number of the first set bit, not the number of the byte
- * containing a bit.
- */
-#define find_first_bit(addr, size) find_next_bit((addr), (size), 0)
-unsigned long find_next_bit(const unsigned long *addr,
-			    unsigned long size, unsigned long offset);
+#include <asm-generic/bitops/find.h>
 
 /* Little-endian versions */
 
