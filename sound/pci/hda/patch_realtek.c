@@ -2579,6 +2579,7 @@ static void alc_free(struct hda_codec *codec)
 		kfree(spec->kctl_alloc);
 	}
 	kfree(spec);
+	codec->spec = NULL; /* to be sure */
 }
 
 /*
@@ -6336,6 +6337,8 @@ static void alc882_auto_init(struct hda_codec *codec)
 		alc_sku_automute(codec);
 }
 
+static int patch_alc883(struct hda_codec *codec); /* called in patch_alc882() */
+
 static int patch_alc882(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
@@ -6365,6 +6368,11 @@ static int patch_alc882(struct hda_codec *codec)
 			board_config = ALC885_MBP3;
 			break;
 		default:
+			/* ALC889A is handled better as ALC888-compatible */
+			if (codec->revision_id == 0x100103) {
+				alc_free(codec);
+				return patch_alc883(codec);
+			}
 			printk(KERN_INFO "hda_codec: Unknown model for ALC882, "
 		       			 "trying auto-probe from BIOS...\n");
 			board_config = ALC882_AUTO;
@@ -14043,7 +14051,7 @@ struct hda_codec_preset snd_hda_preset_realtek[] = {
 	{ .id = 0x10ec0882, .name = "ALC882", .patch = patch_alc882 },
 	{ .id = 0x10ec0883, .name = "ALC883", .patch = patch_alc883 },
 	{ .id = 0x10ec0885, .rev = 0x100103, .name = "ALC889A",
-	  .patch = patch_alc883 },
+	  .patch = patch_alc882 }, /* should be patch_alc883() in future */
 	{ .id = 0x10ec0885, .name = "ALC885", .patch = patch_alc882 },
 	{ .id = 0x10ec0888, .name = "ALC888", .patch = patch_alc883 },
 	{ .id = 0x10ec0889, .name = "ALC889", .patch = patch_alc883 },
