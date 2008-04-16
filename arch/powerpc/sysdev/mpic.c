@@ -1410,11 +1410,6 @@ void mpic_cpu_set_priority(int prio)
 	mpic_cpu_write(MPIC_INFO(CPU_CURRENT_TASK_PRI), prio);
 }
 
-/*
- * XXX: someone who knows mpic should check this.
- * do we need to eoi the ipi including for kexec cpu here (see xics comments)?
- * or can we reset the mpic in the new kernel?
- */
 void mpic_teardown_this_cpu(int secondary)
 {
 	struct mpic *mpic = mpic_primary;
@@ -1434,6 +1429,10 @@ void mpic_teardown_this_cpu(int secondary)
 
 	/* Set current processor priority to max */
 	mpic_cpu_write(MPIC_INFO(CPU_CURRENT_TASK_PRI), 0xf);
+	/* We need to EOI the IPI since not all platforms reset the MPIC
+	 * on boot and new interrupts wouldn't get delivered otherwise.
+	 */
+	mpic_eoi(mpic);
 
 	spin_unlock_irqrestore(&mpic_lock, flags);
 }
