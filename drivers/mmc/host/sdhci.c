@@ -712,7 +712,8 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	host->mrq = mrq;
 
-	if (!(readl(host->ioaddr + SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT)) {
+	if (!(readl(host->ioaddr + SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT)
+		|| (host->flags & SDHCI_DEVICE_DEAD)) {
 		host->mrq->cmd->error = -ENOMEDIUM;
 		tasklet_schedule(&host->finish_tasklet);
 	} else
@@ -731,6 +732,9 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	host = mmc_priv(mmc);
 
 	spin_lock_irqsave(&host->lock, flags);
+
+	if (host->flags & SDHCI_DEVICE_DEAD)
+		goto out;
 
 	/*
 	 * Reset the chip on each power off.
@@ -770,6 +774,7 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if(host->quirks & SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS)
 		sdhci_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
 
+out:
 	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 }
@@ -784,7 +789,10 @@ static int sdhci_get_ro(struct mmc_host *mmc)
 
 	spin_lock_irqsave(&host->lock, flags);
 
-	present = readl(host->ioaddr + SDHCI_PRESENT_STATE);
+	if (host->flags & SDHCI_DEVICE_DEAD)
+		present = 0;
+	else
+		present = readl(host->ioaddr + SDHCI_PRESENT_STATE);
 
 	spin_unlock_irqrestore(&host->lock, flags);
 
@@ -801,6 +809,9 @@ static void sdhci_enable_sdio_irq(struct mmc_host *mmc, int enable)
 
 	spin_lock_irqsave(&host->lock, flags);
 
+	if (host->flags & SDHCI_DEVICE_DEAD)
+		goto out;
+
 	ier = readl(host->ioaddr + SDHCI_INT_ENABLE);
 
 	ier &= ~SDHCI_INT_CARD_INT;
@@ -810,6 +821,7 @@ static void sdhci_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	writel(ier, host->ioaddr + SDHCI_INT_ENABLE);
 	writel(ier, host->ioaddr + SDHCI_SIGNAL_ENABLE);
 
+out:
 	mmiowb();
 
 	spin_unlock_irqrestore(&host->lock, flags);
@@ -875,10 +887,11 @@ static void sdhci_tasklet_finish(unsigned long param)
 	 * The controller needs a reset of internal state machines
 	 * upon error conditions.
 	 */
-	if (mrq->cmd->error ||
-		(mrq->data && (mrq->data->error ||
-		(mrq->data->stop && mrq->data->stop->error))) ||
-		(host->quirks & SDHCI_QUIRK_RESET_AFTER_REQUEST)) {
+	if (!(host->flags & SDHCI_DEVICE_DEAD) &&
+		(mrq->cmd->error ||
+		 (mrq->data && (mrq->data->error ||
+		  (mrq->data->stop && mrq->data->stop->error))) ||
+		   (host->quirks & SDHCI_QUIRK_RESET_AFTER_REQUEST))) {
 
 		/* Some controllers need this kick or reset won't work here */
 		if (host->quirks & SDHCI_QUIRK_CLOCK_BEFORE_RESET) {
@@ -1378,15 +1391,34 @@ untasklet:
 
 EXPORT_SYMBOL_GPL(sdhci_add_host);
 
-void sdhci_remove_host(struct sdhci_host *host)
+void sdhci_remove_host(struct sdhci_host *host, int dead)
 {
+	unsigned long flags;
+
+	if (dead) {
+		spin_lock_irqsave(&host->lock, flags);
+
+		host->flags |= SDHCI_DEVICE_DEAD;
+
+		if (host->mrq) {
+			printk(KERN_ERR "%s: Controller removed during "
+				" transfer!\n", mmc_hostname(host->mmc));
+
+			host->mrq->cmd->error = -ENOMEDIUM;
+			tasklet_schedule(&host->finish_tasklet);
+		}
+
+		spin_unlock_irqrestore(&host->lock, flags);
+	}
+
 	mmc_remove_host(host->mmc);
 
 #ifdef CONFIG_LEDS_CLASS
 	led_classdev_unregister(&host->led);
 #endif
 
-	sdhci_reset(host, SDHCI_RESET_ALL);
+	if (!dead)
+		sdhci_reset(host, SDHCI_RESET_ALL);
 
 	free_irq(host->irq, host);
 

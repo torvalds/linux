@@ -47,7 +47,7 @@ struct sdhci_pci_fixes {
 	int			(*probe)(struct sdhci_pci_chip*);
 
 	int			(*probe_slot)(struct sdhci_pci_slot*);
-	void			(*remove_slot)(struct sdhci_pci_slot*);
+	void			(*remove_slot)(struct sdhci_pci_slot*, int);
 
 	int			(*suspend)(struct sdhci_pci_chip*,
 					pm_message_t);
@@ -209,8 +209,11 @@ static int jmicron_probe_slot(struct sdhci_pci_slot *slot)
 	return 0;
 }
 
-static void jmicron_remove_slot(struct sdhci_pci_slot *slot)
+static void jmicron_remove_slot(struct sdhci_pci_slot *slot, int dead)
 {
+	if (dead)
+		return;
+
 	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC)
 		jmicron_enable_mmc(slot->host, 0);
 }
@@ -540,7 +543,7 @@ static struct sdhci_pci_slot * __devinit sdhci_pci_probe_slot(
 
 remove:
 	if (chip->fixes && chip->fixes->remove_slot)
-		chip->fixes->remove_slot(slot);
+		chip->fixes->remove_slot(slot, 0);
 
 unmap:
 	iounmap(host->ioaddr);
@@ -554,10 +557,18 @@ release:
 
 static void sdhci_pci_remove_slot(struct sdhci_pci_slot *slot)
 {
-	sdhci_remove_host(slot->host);
+	int dead;
+	u32 scratch;
+
+	dead = 0;
+	scratch = readl(slot->host->ioaddr + SDHCI_INT_STATUS);
+	if (scratch == (u32)-1)
+		dead = 1;
+
+	sdhci_remove_host(slot->host, dead);
 
 	if (slot->chip->fixes && slot->chip->fixes->remove_slot)
-		slot->chip->fixes->remove_slot(slot);
+		slot->chip->fixes->remove_slot(slot, dead);
 
 	pci_release_region(slot->chip->pdev, slot->pci_bar);
 

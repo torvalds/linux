@@ -198,6 +198,7 @@ struct sdhci_host {
 	int			flags;		/* Host attributes */
 #define SDHCI_USE_DMA		(1<<0)		/* Host is DMA capable */
 #define SDHCI_REQ_USE_DMA	(1<<1)		/* Use DMA for this req. */
+#define SDHCI_DEVICE_DEAD	(1<<2)		/* Device unresponsive */
 
 	unsigned int		max_clk;	/* Max possible freq (MHz) */
 	unsigned int		timeout_clk;	/* Timeout freq (KHz) */
@@ -239,7 +240,7 @@ static inline void *sdhci_priv(struct sdhci_host *host)
 }
 
 extern int sdhci_add_host(struct sdhci_host *host);
-extern void sdhci_remove_host(struct sdhci_host *host);
+extern void sdhci_remove_host(struct sdhci_host *host, int dead);
 
 #ifdef CONFIG_PM
 extern int sdhci_suspend_host(struct sdhci_host *host, pm_message_t state);
