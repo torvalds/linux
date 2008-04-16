@@ -359,24 +359,25 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 		DQUOT_INIT(inode);
 	}
 
+	/* sanitize the mode change */
 	if (iap->ia_valid & ATTR_MODE) {
 		iap->ia_mode &= S_IALLUGO;
 		iap->ia_mode |= (inode->i_mode & ~S_IALLUGO);
-		/* if changing uid/gid revoke setuid/setgid in mode */
-		if ((iap->ia_valid & ATTR_UID) && iap->ia_uid != inode->i_uid) {
-			iap->ia_valid |= ATTR_KILL_PRIV;
+	}
+
+	/* Revoke setuid/setgid on chown */
+	if (((iap->ia_valid & ATTR_UID) && iap->ia_uid != inode->i_uid) ||
+	    ((iap->ia_valid & ATTR_GID) && iap->ia_gid != inode->i_gid)) {
+		iap->ia_valid |= ATTR_KILL_PRIV;
+		if (iap->ia_valid & ATTR_MODE) {
+			/* we're setting mode too, just clear the s*id bits */
 			iap->ia_mode &= ~S_ISUID;
+			if (iap->ia_mode & S_IXGRP)
+				iap->ia_mode &= ~S_ISGID;
+		} else {
+			/* set ATTR_KILL_* bits and let VFS handle it */
+			iap->ia_valid |= (ATTR_KILL_SUID | ATTR_KILL_SGID);
 		}
-		if ((iap->ia_valid & ATTR_GID) && iap->ia_gid != inode->i_gid)
-			iap->ia_mode &= ~S_ISGID;
-	} else {
-		/*
-		 * Revoke setuid/setgid bit on chown/chgrp
-		 */
-		if ((iap->ia_valid & ATTR_UID) && iap->ia_uid != inode->i_uid)
-			iap->ia_valid |= ATTR_KILL_SUID | ATTR_KILL_PRIV;
-		if ((iap->ia_valid & ATTR_GID) && iap->ia_gid != inode->i_gid)
-			iap->ia_valid |= ATTR_KILL_SGID;
 	}
 
 	/* Change the attributes. */
