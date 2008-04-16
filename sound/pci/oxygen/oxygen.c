@@ -112,7 +112,7 @@ static void ak4396_init(struct oxygen *chip)
 	struct generic_data *data = chip->model_data;
 	unsigned int i;
 
-	data->ak4396_ctl2 = AK4396_DEM_OFF | AK4396_DFS_NORMAL;
+	data->ak4396_ctl2 = AK4396_SMUTE | AK4396_DEM_OFF | AK4396_DFS_NORMAL;
 	for (i = 0; i < 4; ++i) {
 		ak4396_write(chip, i,
 			     AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);
@@ -120,8 +120,8 @@ static void ak4396_init(struct oxygen *chip)
 			     AK4396_CONTROL_2, data->ak4396_ctl2);
 		ak4396_write(chip, i,
 			     AK4396_CONTROL_3, AK4396_PCM);
-		ak4396_write(chip, i, AK4396_LCH_ATT, 0xff);
-		ak4396_write(chip, i, AK4396_RCH_ATT, 0xff);
+		ak4396_write(chip, i, AK4396_LCH_ATT, 0);
+		ak4396_write(chip, i, AK4396_RCH_ATT, 0);
 	}
 	snd_component_add(chip->card, "AK4396");
 }

@@ -66,12 +66,12 @@ static void hifier_init(struct oxygen *chip)
 {
 	struct hifier_data *data = chip->model_data;
 
-	data->ak4396_ctl2 = AK4396_DEM_OFF | AK4396_DFS_NORMAL;
+	data->ak4396_ctl2 = AK4396_SMUTE | AK4396_DEM_OFF | AK4396_DFS_NORMAL;
 	ak4396_write(chip, AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);
 	ak4396_write(chip, AK4396_CONTROL_2, data->ak4396_ctl2);
 	ak4396_write(chip, AK4396_CONTROL_3, AK4396_PCM);
-	ak4396_write(chip, AK4396_LCH_ATT, 0xff);
-	ak4396_write(chip, AK4396_RCH_ATT, 0xff);
+	ak4396_write(chip, AK4396_LCH_ATT, 0);
+	ak4396_write(chip, AK4396_RCH_ATT, 0);
 
 	snd_component_add(chip->card, "AK4396");
 	snd_component_add(chip->card, "CS5340");

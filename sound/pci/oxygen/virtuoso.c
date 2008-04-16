@@ -188,12 +188,13 @@ static void xonar_d2_init(struct oxygen *chip)
 	data->output_enable_bit = GPIO_D2_OUTPUT_ENABLE;
 
 	for (i = 0; i < 4; ++i) {
-		pcm1796_write(chip, i, 18, PCM1796_FMT_24_LJUST | PCM1796_ATLD);
+		pcm1796_write(chip, i, 18, PCM1796_MUTE | PCM1796_DMF_DISABLED |
+			      PCM1796_FMT_24_LJUST | PCM1796_ATLD);
 		pcm1796_write(chip, i, 19, PCM1796_FLT_SHARP | PCM1796_ATS_1);
 		pcm1796_write(chip, i, 20, PCM1796_OS_64);
 		pcm1796_write(chip, i, 21, 0);
-		pcm1796_write(chip, i, 16, 0xff); /* set ATL/ATR after ATLD */
-		pcm1796_write(chip, i, 17, 0xff);
+		pcm1796_write(chip, i, 16, 0x0f); /* set ATL/ATR after ATLD */
+		pcm1796_write(chip, i, 17, 0x0f);
 	}
 
 	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_D2_ALT);
@@ -239,8 +240,8 @@ static void xonar_dx_init(struct oxygen *chip)
 		     CS4398_DEM_NONE | CS4398_DIF_LJUST);
 	cs4398_write(chip, 3, CS4398_ATAPI_B_R | CS4398_ATAPI_A_L);
 	cs4398_write(chip, 4, CS4398_MUTEP_LOW | CS4398_PAMUTE);
-	cs4398_write(chip, 5, 0);
-	cs4398_write(chip, 6, 0);
+	cs4398_write(chip, 5, 0xfe);
+	cs4398_write(chip, 6, 0xfe);
 	cs4398_write(chip, 7, CS4398_RMP_DN | CS4398_RMP_UP |
 		     CS4398_ZERO_CROSS | CS4398_SOFT_RAMP);
 	cs4362a_write(chip, 0x02, CS4362A_DIF_LJUST);
@@ -250,16 +251,16 @@ static void xonar_dx_init(struct oxygen *chip)
 	cs4362a_write(chip, 0x05, 0);
 	cs4362a_write(chip, 0x06, CS4362A_FM_SINGLE |
 		      CS4362A_ATAPI_B_R | CS4362A_ATAPI_A_L);
+	cs4362a_write(chip, 0x07, 0x7f | CS4362A_MUTE);
+	cs4362a_write(chip, 0x08, 0x7f | CS4362A_MUTE);
 	cs4362a_write(chip, 0x09, CS4362A_FM_SINGLE |
 		      CS4362A_ATAPI_B_R | CS4362A_ATAPI_A_L);
+	cs4362a_write(chip, 0x0a, 0x7f | CS4362A_MUTE);
+	cs4362a_write(chip, 0x0b, 0x7f | CS4362A_MUTE);
 	cs4362a_write(chip, 0x0c, CS4362A_FM_SINGLE |
 		      CS4362A_ATAPI_B_R | CS4362A_ATAPI_A_L);
-	cs4362a_write(chip, 0x07, 0);
-	cs4362a_write(chip, 0x08, 0);
-	cs4362a_write(chip, 0x0a, 0);
-	cs4362a_write(chip, 0x0b, 0);
-	cs4362a_write(chip, 0x0d, 0);
-	cs4362a_write(chip, 0x0e, 0);
+	cs4362a_write(chip, 0x0d, 0x7f | CS4362A_MUTE);
+	cs4362a_write(chip, 0x0e, 0x7f | CS4362A_MUTE);
 	/* clear power down */
 	cs4398_write(chip, 8, CS4398_CPEN);
 	cs4362a_write(chip, 0x01, CS4362A_CPEN);
