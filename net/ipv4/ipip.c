@@ -318,7 +318,7 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 	err = -ENOENT;
 
 	read_lock(&ipip_lock);
-	t = ipip_tunnel_lookup(&init_net, iph->daddr, iph->saddr);
+	t = ipip_tunnel_lookup(dev_net(skb->dev), iph->daddr, iph->saddr);
 	if (t == NULL || t->parms.iph.daddr == 0)
 		goto out;
 
@@ -478,7 +478,7 @@ static int ipip_rcv(struct sk_buff *skb)
 	const struct iphdr *iph = ip_hdr(skb);
 
 	read_lock(&ipip_lock);
-	if ((tunnel = ipip_tunnel_lookup(&init_net,
+	if ((tunnel = ipip_tunnel_lookup(dev_net(skb->dev),
 					iph->saddr, iph->daddr)) != NULL) {
 		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 			read_unlock(&ipip_lock);
