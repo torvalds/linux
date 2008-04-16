@@ -334,8 +334,7 @@ static inline struct sk_buff *buf_acquire(u32 size)
 
 static inline void buf_discard(struct sk_buff *skb)
 {
-	if (likely(skb != NULL))
-		kfree_skb(skb);
+	kfree_skb(skb);
 }
 
 #endif
