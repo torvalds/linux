@@ -1297,6 +1297,7 @@ static int ipgre_fb_tunnel_init(struct net_device *dev)
 static struct net_protocol ipgre_protocol = {
 	.handler	=	ipgre_rcv,
 	.err_handler	=	ipgre_err,
+	.netns_ok	=	1,
 };
 
 static void ipgre_destroy_tunnels(struct ipgre_net *ign)
