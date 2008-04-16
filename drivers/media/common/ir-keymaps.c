@@ -771,7 +771,11 @@ IR_KEYTAB_TYPE ir_codes_flyvideo[IR_KEYTAB_SIZE] = {
 	[ 0x12 ] = KEY_CHANNELUP,    // Channel +
 	[ 0x13 ] = KEY_CHANNELDOWN,  // Channel -
 	[ 0x06 ] = KEY_AGAIN,        // Recall
-	[ 0x10 ] = KEY_ENTER,      // Enter
+	[ 0x10 ] = KEY_ENTER,        // Enter
+
+	[ 0x19 ] = KEY_BACK,         // Rewind  ( <<< )
+	[ 0x1f ] = KEY_FORWARD,      // Forward ( >>> )
+	[ 0x0a ] = KEY_ANGLE,        // (no label, may be used as the PAUSE button)
 };
 
 EXPORT_SYMBOL_GPL(ir_codes_flyvideo);
