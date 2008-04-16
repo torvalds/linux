@@ -328,7 +328,7 @@ static inline unsigned short get_fpu_cwd(struct task_struct *tsk)
 	if (cpu_has_fxsr) {
 		return tsk->thread.xstate->fxsave.cwd;
 	} else {
-		return (unsigned short) tsk->thread.xstate->fsave.cwd;
+		return (unsigned short)tsk->thread.xstate->fsave.cwd;
 	}
 }
 
@@ -337,7 +337,7 @@ static inline unsigned short get_fpu_swd(struct task_struct *tsk)
 	if (cpu_has_fxsr) {
 		return tsk->thread.xstate->fxsave.swd;
 	} else {
-		return (unsigned short) tsk->thread.xstate->fsave.swd;
+		return (unsigned short)tsk->thread.xstate->fsave.swd;
 	}
 }
 
