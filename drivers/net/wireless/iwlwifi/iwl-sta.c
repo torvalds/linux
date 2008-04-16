@@ -28,6 +28,7 @@
  *****************************************************************************/
 
 #include <net/mac80211.h>
+#include <linux/etherdevice.h>
 
 #include "iwl-eeprom.h"
 #include "iwl-4965.h"
@@ -37,6 +38,40 @@
 #include "iwl-helpers.h"
 #include "iwl-4965.h"
 #include "iwl-sta.h"
+
+u8 iwl_find_station(struct iwl_priv *priv, const u8 *addr)
+{
+	int i;
+	int start = 0;
+	int ret = IWL_INVALID_STATION;
+	unsigned long flags;
+	DECLARE_MAC_BUF(mac);
+
+	if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) ||
+	    (priv->iw_mode == IEEE80211_IF_TYPE_AP))
+		start = IWL_STA_ID;
+
+	if (is_broadcast_ether_addr(addr))
+		return priv->hw_params.bcast_sta_id;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	for (i = start; i < priv->hw_params.max_stations; i++)
+		if (priv->stations[i].used &&
+		    (!compare_ether_addr(priv->stations[i].sta.sta.addr,
+					 addr))) {
+			ret = i;
+			goto out;
+		}
+
+	IWL_DEBUG_ASSOC_LIMIT("can not find STA %s total %d\n",
+			      print_mac(mac, addr), priv->num_stations);
+
+ out:
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL(iwl_find_station);
+
 
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 {

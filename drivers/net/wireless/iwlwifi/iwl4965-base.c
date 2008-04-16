@@ -2076,7 +2076,7 @@ static int iwl4965_get_sta_id(struct iwl_priv *priv,
 
 	/* If we are an AP, then find the station, or use BCAST */
 	case IEEE80211_IF_TYPE_AP:
-		sta_id = iwl4965_hw_find_station(priv, hdr->addr1);
+		sta_id = iwl_find_station(priv, hdr->addr1);
 		if (sta_id != IWL_INVALID_STATION)
 			return sta_id;
 		return priv->hw_params.bcast_sta_id;
@@ -2084,7 +2084,7 @@ static int iwl4965_get_sta_id(struct iwl_priv *priv,
 	/* If this frame is going out to an IBSS network, find the station,
 	 * or create a new station table entry */
 	case IEEE80211_IF_TYPE_IBSS:
-		sta_id = iwl4965_hw_find_station(priv, hdr->addr1);
+		sta_id = iwl_find_station(priv, hdr->addr1);
 		if (sta_id != IWL_INVALID_STATION)
 			return sta_id;
 
@@ -2778,7 +2778,7 @@ static inline int iwl4965_get_ra_sta_id(struct iwl_priv *priv,
 		return IWL_AP_ID;
 	else {
 		u8 *da = ieee80211_get_DA(hdr);
-		return iwl4965_hw_find_station(priv, da);
+		return iwl_find_station(priv, da);
 	}
 }
 
@@ -6768,7 +6768,7 @@ static void iwl4965_mac_update_tkip_key(struct ieee80211_hw *hw,
 
 	IWL_DEBUG_MAC80211("enter\n");
 
-	sta_id = iwl4965_hw_find_station(priv, addr);
+	sta_id = iwl_find_station(priv, addr);
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_DEBUG_MAC80211("leave - %s not in station map.\n",
 				   print_mac(mac, addr));
@@ -6824,7 +6824,7 @@ static int iwl4965_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		/* only support pairwise keys */
 		return -EOPNOTSUPP;
 
-	sta_id = iwl4965_hw_find_station(priv, addr);
+	sta_id = iwl_find_station(priv, addr);
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_DEBUG_MAC80211("leave - %s not in station map.\n",
 				   print_mac(mac, addr));

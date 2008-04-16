@@ -492,38 +492,6 @@ int iwl4965_hw_rxq_stop(struct iwl_priv *priv)
 	return 0;
 }
 
-u8 iwl4965_hw_find_station(struct iwl_priv *priv, const u8 *addr)
-{
-	int i;
-	int start = 0;
-	int ret = IWL_INVALID_STATION;
-	unsigned long flags;
-	DECLARE_MAC_BUF(mac);
-
-	if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) ||
-	    (priv->iw_mode == IEEE80211_IF_TYPE_AP))
-		start = IWL_STA_ID;
-
-	if (is_broadcast_ether_addr(addr))
-		return priv->hw_params.bcast_sta_id;
-
-	spin_lock_irqsave(&priv->sta_lock, flags);
-	for (i = start; i < priv->hw_params.max_stations; i++)
-		if ((priv->stations[i].used) &&
-		    (!compare_ether_addr
-		     (priv->stations[i].sta.sta.addr, addr))) {
-			ret = i;
-			goto out;
-		}
-
-	IWL_DEBUG_ASSOC_LIMIT("can not find STA %s total %d\n",
-			print_mac(mac, addr), priv->num_stations);
-
- out:
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
-	return ret;
-}
-
 static int iwl4965_nic_set_pwr_src(struct iwl_priv *priv, int pwr_max)
 {
 	int ret;
@@ -3125,7 +3093,7 @@ static void iwl4965_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id)
 static void iwl4965_update_ps_mode(struct iwl_priv *priv, u16 ps_bit, u8 *addr)
 {
 	/* FIXME: need locking over ps_status ??? */
-	u8 sta_id = iwl4965_hw_find_station(priv, addr);
+	u8 sta_id = iwl_find_station(priv, addr);
 
 	if (sta_id != IWL_INVALID_STATION) {
 		u8 sta_awake = priv->stations[sta_id].
@@ -4112,7 +4080,7 @@ static int iwl4965_mac_ht_tx_agg_start(struct ieee80211_hw *hw, const u8 *da,
 	IWL_WARNING("%s on da = %s tid = %d\n",
 			__func__, print_mac(mac, da), tid);
 
-	sta_id = iwl4965_hw_find_station(priv, da);
+	sta_id = iwl_find_station(priv, da);
 	if (sta_id == IWL_INVALID_STATION)
 		return -ENXIO;
 
@@ -4171,7 +4139,7 @@ static int iwl4965_mac_ht_tx_agg_stop(struct ieee80211_hw *hw, const u8 *da,
 	else
 		return -EINVAL;
 
-	sta_id = iwl4965_hw_find_station(priv, da);
+	sta_id = iwl_find_station(priv, da);
 
 	if (sta_id == IWL_INVALID_STATION)
 		return -ENXIO;
@@ -4221,7 +4189,7 @@ int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 
 	IWL_DEBUG_HT("A-MPDU action on da=%s tid=%d ",
 			print_mac(mac, addr), tid);
-	sta_id = iwl4965_hw_find_station(priv, addr);
+	sta_id = iwl_find_station(priv, addr);
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
 		IWL_DEBUG_HT("start Rx\n");
