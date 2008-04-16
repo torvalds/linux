@@ -80,7 +80,8 @@ static const struct seq_operations vlan_seq_ops = {
 
 static int vlan_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &vlan_seq_ops);
+	return seq_open_net(inode, file, &vlan_seq_ops,
+			sizeof(struct seq_net_private));
 }
 
 static const struct file_operations vlan_fops = {
@@ -88,7 +89,7 @@ static const struct file_operations vlan_fops = {
 	.open    = vlan_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = seq_release,
+	.release = seq_release_net,
 };
 
 /*
@@ -211,6 +212,7 @@ static void *vlan_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(dev_base_lock)
 {
 	struct net_device *dev;
+	struct net *net = seq_file_net(seq);
 	loff_t i = 1;
 
 	read_lock(&dev_base_lock);
@@ -218,7 +220,7 @@ static void *vlan_seq_start(struct seq_file *seq, loff_t *pos)
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	for_each_netdev(&init_net, dev) {
+	for_each_netdev(net, dev) {
 		if (!is_vlan_dev(dev))
 			continue;
 
@@ -232,14 +234,15 @@ static void *vlan_seq_start(struct seq_file *seq, loff_t *pos)
 static void *vlan_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct net_device *dev;
+	struct net *net = seq_file_net(seq);
 
 	++*pos;
 
 	dev = (struct net_device *)v;
 	if (v == SEQ_START_TOKEN)
-		dev = net_device_entry(&init_net.dev_base_head);
+		dev = net_device_entry(&net->dev_base_head);
 
-	for_each_netdev_continue(&init_net, dev) {
+	for_each_netdev_continue(net, dev) {
 		if (!is_vlan_dev(dev))
 			continue;
 
