@@ -2173,8 +2173,6 @@ int kvm_pv_mmu_op(struct kvm_vcpu *vcpu, unsigned long bytes,
 	int r;
 	struct kvm_pv_mmu_op_buffer buffer;
 
-	down_read(&current->mm->mmap_sem);
-
 	buffer.ptr = buffer.buf;
 	buffer.len = min_t(unsigned long, bytes, sizeof buffer.buf);
 	buffer.processed = 0;
@@ -2194,7 +2192,6 @@ int kvm_pv_mmu_op(struct kvm_vcpu *vcpu, unsigned long bytes,
 	r = 1;
 out:
 	*ret = buffer.processed;
-	up_read(&current->mm->mmap_sem);
 	return r;
 }
 
