@@ -127,12 +127,8 @@ static const DECLARE_TLV_DB_LINEAR(ak4396_db_scale, TLV_DB_GAIN_MUTE, 0);
 
 static int hifier_control_filter(struct snd_kcontrol_new *template)
 {
-	if (!strcmp(template->name, "Master Playback Volume")) {
-		template->access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-		template->tlv.p = ak4396_db_scale;
-	} else if (!strcmp(template->name, "Stereo Upmixing")) {
+	if (!strcmp(template->name, "Stereo Upmixing"))
 		return 1; /* stereo only - we don't need upmixing */
-	}
 	return 0;
 }
 
@@ -148,6 +144,7 @@ static const struct oxygen_model model_hifier = {
 	.set_adc_params = set_cs5340_params,
 	.update_dac_volume = update_ak4396_volume,
 	.update_dac_mute = update_ak4396_mute,
+	.dac_tlv = ak4396_db_scale,
 	.model_data_size = sizeof(struct hifier_data),
 	.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
 		       PLAYBACK_1_TO_SPDIF |

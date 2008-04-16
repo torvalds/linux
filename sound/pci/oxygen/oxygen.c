@@ -249,27 +249,18 @@ static void set_ak5385_params(struct oxygen *chip,
 
 static const DECLARE_TLV_DB_LINEAR(ak4396_db_scale, TLV_DB_GAIN_MUTE, 0);
 
-static int ak4396_control_filter(struct snd_kcontrol_new *template)
-{
-	if (!strcmp(template->name, "Master Playback Volume")) {
-		template->access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-		template->tlv.p = ak4396_db_scale;
-	}
-	return 0;
-}
-
 static const struct oxygen_model model_generic = {
 	.shortname = "C-Media CMI8788",
 	.longname = "C-Media Oxygen HD Audio",
 	.chip = "CMI8788",
 	.owner = THIS_MODULE,
 	.init = generic_init,
-	.control_filter = ak4396_control_filter,
 	.cleanup = generic_cleanup,
 	.set_dac_params = set_ak4396_params,
 	.set_adc_params = set_wm8785_params,
 	.update_dac_volume = update_ak4396_volume,
 	.update_dac_mute = update_ak4396_mute,
+	.dac_tlv = ak4396_db_scale,
 	.model_data_size = sizeof(struct generic_data),
 	.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
 		       PLAYBACK_1_TO_SPDIF |
@@ -291,12 +282,12 @@ static const struct oxygen_model model_meridian = {
 	.chip = "CMI8788",
 	.owner = THIS_MODULE,
 	.init = meridian_init,
-	.control_filter = ak4396_control_filter,
 	.cleanup = generic_cleanup,
 	.set_dac_params = set_ak4396_params,
 	.set_adc_params = set_ak5385_params,
 	.update_dac_volume = update_ak4396_volume,
 	.update_dac_mute = update_ak4396_mute,
+	.dac_tlv = ak4396_db_scale,
 	.model_data_size = sizeof(struct generic_data),
 	.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
 		       PLAYBACK_1_TO_SPDIF |

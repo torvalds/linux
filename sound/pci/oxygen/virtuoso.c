@@ -502,24 +502,16 @@ static const DECLARE_TLV_DB_SCALE(cs4362a_db_scale, -12700, 100, 0);
 
 static int xonar_d2_control_filter(struct snd_kcontrol_new *template)
 {
-	if (!strcmp(template->name, "Master Playback Volume")) {
-		template->access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-		template->tlv.p = pcm1796_db_scale;
-	} else if (!strncmp(template->name, "CD Capture ", 11)) {
+	if (!strncmp(template->name, "CD Capture ", 11))
 		/* CD in is actually connected to the video in pin */
 		template->private_value ^= AC97_CD ^ AC97_VIDEO;
-	}
 	return 0;
 }
 
 static int xonar_dx_control_filter(struct snd_kcontrol_new *template)
 {
-	if (!strcmp(template->name, "Master Playback Volume")) {
-		template->access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-		template->tlv.p = cs4362a_db_scale;
-	} else if (!strncmp(template->name, "CD Capture ", 11)) {
+	if (!strncmp(template->name, "CD Capture ", 11))
 		return 1; /* no CD input */
-	}
 	return 0;
 }
 
@@ -547,6 +539,7 @@ static const struct oxygen_model xonar_models[] = {
 		.set_adc_params = set_cs53x1_params,
 		.update_dac_volume = update_pcm1796_volume,
 		.update_dac_mute = update_pcm1796_mute,
+		.dac_tlv = pcm1796_db_scale,
 		.model_data_size = sizeof(struct xonar_data),
 		.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
 			       PLAYBACK_1_TO_SPDIF |
@@ -575,6 +568,7 @@ static const struct oxygen_model xonar_models[] = {
 		.update_dac_volume = update_pcm1796_volume,
 		.update_dac_mute = update_pcm1796_mute,
 		.gpio_changed = xonar_gpio_changed,
+		.dac_tlv = pcm1796_db_scale,
 		.model_data_size = sizeof(struct xonar_data),
 		.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
 			       PLAYBACK_1_TO_SPDIF |
@@ -604,6 +598,7 @@ static const struct oxygen_model xonar_models[] = {
 		.update_dac_mute = update_cs43xx_mute,
 		.gpio_changed = xonar_gpio_changed,
 		.ac97_switch = xonar_dx_ac97_switch,
+		.dac_tlv = cs4362a_db_scale,
 		.model_data_size = sizeof(struct xonar_data),
 		.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
 			       PLAYBACK_1_TO_SPDIF |

@@ -941,6 +941,11 @@ static int add_controls(struct oxygen *chip,
 			return err;
 		if (err == 1)
 			continue;
+		if (!strcmp(template.name, "Master Playback Volume") &&
+		    chip->model->dac_tlv) {
+			template.tlv.p = chip->model->dac_tlv;
+			template.access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
+		}
 		ctl = snd_ctl_new1(&template, chip);
 		if (!ctl)
 			return -ENOMEM;
