@@ -1144,8 +1144,6 @@ static int mv_port_start(struct ata_port *ap)
 	struct device *dev = ap->host->dev;
 	struct mv_host_priv *hpriv = ap->host->private_data;
 	struct mv_port_priv *pp;
-	void __iomem *port_mmio = mv_ap_base(ap);
-	unsigned long flags;
 	int tag;
 
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
@@ -1178,18 +1176,6 @@ static int mv_port_start(struct ata_port *ap)
 			pp->sg_tbl_dma[tag] = pp->sg_tbl_dma[0];
 		}
 	}
-
-	spin_lock_irqsave(&ap->host->lock, flags);
-
-	mv_edma_cfg(ap, 0);
-	mv_set_edma_ptrs(port_mmio, hpriv, pp);
-
-	spin_unlock_irqrestore(&ap->host->lock, flags);
-
-	/* Don't turn on EDMA here...do it before DMA commands only.  Else
-	 * we'll be unable to send non-data, PIO, etc due to restricted access
-	 * to shadow regs.
-	 */
 	return 0;
 
 out_port_free_dma_mem:
