@@ -136,11 +136,6 @@ static int hifier_control_filter(struct snd_kcontrol_new *template)
 	return 0;
 }
 
-static int hifier_mixer_init(struct oxygen *chip)
-{
-	return 0;
-}
-
 static const struct oxygen_model model_hifier = {
 	.shortname = "C-Media CMI8787",
 	.longname = "C-Media Oxygen HD Audio",
@@ -148,7 +143,6 @@ static const struct oxygen_model model_hifier = {
 	.owner = THIS_MODULE,
 	.init = hifier_init,
 	.control_filter = hifier_control_filter,
-	.mixer_init = hifier_mixer_init,
 	.cleanup = hifier_cleanup,
 	.set_dac_params = set_ak4396_params,
 	.set_adc_params = set_cs5340_params,
