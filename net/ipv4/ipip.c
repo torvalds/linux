@@ -415,7 +415,7 @@ out:
 	fl.fl4_daddr = eiph->saddr;
 	fl.fl4_tos = RT_TOS(eiph->tos);
 	fl.proto = IPPROTO_IPIP;
-	if (ip_route_output_key(&init_net, &rt, &key)) {
+	if (ip_route_output_key(dev_net(skb->dev), &rt, &key)) {
 		kfree_skb(skb2);
 		return 0;
 	}
@@ -428,7 +428,7 @@ out:
 		fl.fl4_daddr = eiph->daddr;
 		fl.fl4_src = eiph->saddr;
 		fl.fl4_tos = eiph->tos;
-		if (ip_route_output_key(&init_net, &rt, &fl) ||
+		if (ip_route_output_key(dev_net(skb->dev), &rt, &fl) ||
 		    rt->u.dst.dev->type != ARPHRD_TUNNEL) {
 			ip_rt_put(rt);
 			kfree_skb(skb2);
@@ -558,7 +558,7 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 						.saddr = tiph->saddr,
 						.tos = RT_TOS(tos) } },
 				    .proto = IPPROTO_IPIP };
-		if (ip_route_output_key(&init_net, &rt, &fl)) {
+		if (ip_route_output_key(dev_net(dev), &rt, &fl)) {
 			tunnel->stat.tx_carrier_errors++;
 			goto tx_error_icmp;
 		}
@@ -679,7 +679,7 @@ static void ipip_tunnel_bind_dev(struct net_device *dev)
 						.tos = RT_TOS(iph->tos) } },
 				    .proto = IPPROTO_IPIP };
 		struct rtable *rt;
-		if (!ip_route_output_key(&init_net, &rt, &fl)) {
+		if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
 			tdev = rt->u.dst.dev;
 			ip_rt_put(rt);
 		}
@@ -687,7 +687,7 @@ static void ipip_tunnel_bind_dev(struct net_device *dev)
 	}
 
 	if (!tdev && tunnel->parms.link)
-		tdev = __dev_get_by_index(&init_net, tunnel->parms.link);
+		tdev = __dev_get_by_index(dev_net(dev), tunnel->parms.link);
 
 	if (tdev) {
 		dev->hard_header_len = tdev->hard_header_len + sizeof(struct iphdr);
