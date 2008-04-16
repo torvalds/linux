@@ -281,10 +281,10 @@ solution for a couple of reasons:
             sa_family_t can_family;
             int         can_ifindex;
             union {
-                    struct { canid_t rx_id, tx_id; } tp16;
-                    struct { canid_t rx_id, tx_id; } tp20;
-                    struct { canid_t rx_id, tx_id; } mcnet;
-                    struct { canid_t rx_id, tx_id; } isotp;
+                    /* transport protocol class address info (e.g. ISOTP) */
+                    struct { canid_t rx_id, tx_id; } tp;
+
+                    /* reserved for future CAN protocols address information */
             } can_addr;
     };
 
