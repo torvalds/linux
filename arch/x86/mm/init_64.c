@@ -473,7 +473,7 @@ static void __init memtest(unsigned long start_phys, unsigned long size,
 				last_bad += incr;
 			} else {
 				if (start_bad) {
-					printk(KERN_INFO "  %016lxx bad mem addr %016lx - %016lx reserved\n",
+					printk(KERN_CONT "\n  %016lx bad mem addr %016lx - %016lx reserved",
 						val, start_bad, last_bad + incr);
 					reserve_early(start_bad, last_bad - start_bad, "BAD RAM");
 				}
@@ -482,7 +482,7 @@ static void __init memtest(unsigned long start_phys, unsigned long size,
 		}
 	}
 	if (start_bad) {
-		printk(KERN_INFO "  %016lx bad mem addr %016lx - %016lx reserved\n",
+		printk(KERN_CONT "\n  %016lx bad mem addr %016lx - %016lx reserved",
 			val, start_bad, last_bad + incr);
 		reserve_early(start_bad, last_bad - start_bad, "BAD RAM");
 	}
