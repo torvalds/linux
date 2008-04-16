@@ -214,7 +214,7 @@ static int snd_pmac_pcm_prepare(struct snd_pmac *chip, struct pmac_stream *rec, 
 	int rate_index;
 	long offset;
 	struct pmac_stream *astr;
-	
+
 	rec->dma_size = snd_pcm_lib_buffer_bytes(subs);
 	rec->period_size = snd_pcm_lib_period_bytes(subs);
 	rec->nperiods = rec->dma_size / rec->period_size;
@@ -643,7 +643,7 @@ static int snd_pmac_pcm_close(struct snd_pmac *chip, struct pmac_stream *rec,
 	/* reset constraints */
 	astr->cur_freqs = chip->freqs_ok;
 	astr->cur_formats = chip->formats_ok;
-	
+
 	return 0;
 }
 
