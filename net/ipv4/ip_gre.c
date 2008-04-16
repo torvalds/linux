@@ -377,7 +377,7 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 	}
 
 	read_lock(&ipgre_lock);
-	t = ipgre_tunnel_lookup(&init_net, iph->daddr, iph->saddr,
+	t = ipgre_tunnel_lookup(dev_net(skb->dev), iph->daddr, iph->saddr,
 			(flags&GRE_KEY) ?
 			*(((__be32*)p) + (grehlen>>2) - 1) : 0);
 	if (t == NULL || t->parms.iph.daddr == 0 ||
@@ -612,7 +612,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 	}
 
 	read_lock(&ipgre_lock);
-	if ((tunnel = ipgre_tunnel_lookup(&init_net,
+	if ((tunnel = ipgre_tunnel_lookup(dev_net(skb->dev),
 					iph->saddr, iph->daddr, key)) != NULL) {
 		secpath_reset(skb);
 
