@@ -70,9 +70,8 @@ static void ipip6_tunnel_setup(struct net_device *dev);
 
 static int sit_net_id;
 struct sit_net {
+	struct net_device *fb_tunnel_dev;
 };
-
-static struct net_device *ipip6_fb_tunnel_dev;
 
 static struct ip_tunnel *tunnels_r_l[HASH_SIZE];
 static struct ip_tunnel *tunnels_r[HASH_SIZE];
@@ -386,7 +385,7 @@ static void ipip6_tunnel_uninit(struct net_device *dev)
 	struct net *net = dev_net(dev);
 	struct sit_net *sitn = net_generic(net, sit_net_id);
 
-	if (dev == ipip6_fb_tunnel_dev) {
+	if (dev == sitn->fb_tunnel_dev) {
 		write_lock_bh(&ipip6_lock);
 		tunnels_wc[0] = NULL;
 		write_unlock_bh(&ipip6_lock);
@@ -862,7 +861,7 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 	switch (cmd) {
 	case SIOCGETTUNNEL:
 		t = NULL;
-		if (dev == ipip6_fb_tunnel_dev) {
+		if (dev == sitn->fb_tunnel_dev) {
 			if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p))) {
 				err = -EFAULT;
 				break;
@@ -895,7 +894,7 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 
 		t = ipip6_tunnel_locate(net, &p, cmd == SIOCADDTUNNEL);
 
-		if (dev != ipip6_fb_tunnel_dev && cmd == SIOCCHGTUNNEL) {
+		if (dev != sitn->fb_tunnel_dev && cmd == SIOCCHGTUNNEL) {
 			if (t != NULL) {
 				if (t->dev != dev) {
 					err = -EEXIST;
@@ -940,7 +939,7 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (!capable(CAP_NET_ADMIN))
 			goto done;
 
-		if (dev == ipip6_fb_tunnel_dev) {
+		if (dev == sitn->fb_tunnel_dev) {
 			err = -EFAULT;
 			if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
 				goto done;
@@ -948,7 +947,7 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 			if ((t = ipip6_tunnel_locate(net, &p, 0)) == NULL)
 				goto done;
 			err = -EPERM;
-			if (t == netdev_priv(ipip6_fb_tunnel_dev))
+			if (t == netdev_priv(sitn->fb_tunnel_dev))
 				goto done;
 			dev = t->dev;
 		}
@@ -964,7 +963,7 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (cmd != SIOCGETPRL && !capable(CAP_NET_ADMIN))
 			goto done;
 		err = -EINVAL;
-		if (dev == ipip6_fb_tunnel_dev)
+		if (dev == sitn->fb_tunnel_dev)
 			goto done;
 		err = -EFAULT;
 		if (copy_from_user(&prl, ifr->ifr_ifru.ifru_data, sizeof(prl)))
@@ -1047,7 +1046,7 @@ static int ipip6_tunnel_init(struct net_device *dev)
 	return 0;
 }
 
-static int __init ipip6_fb_tunnel_init(struct net_device *dev)
+static int ipip6_fb_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
@@ -1099,8 +1098,25 @@ static int sit_init_net(struct net *net)
 	if (err < 0)
 		goto err_assign;
 
+	sitn->fb_tunnel_dev = alloc_netdev(sizeof(struct ip_tunnel), "sit0",
+					   ipip6_tunnel_setup);
+	if (!sitn->fb_tunnel_dev) {
+		err = -ENOMEM;
+		goto err_alloc_dev;
+	}
+
+	sitn->fb_tunnel_dev->init = ipip6_fb_tunnel_init;
+	dev_net_set(sitn->fb_tunnel_dev, net);
+
+	if ((err = register_netdev(sitn->fb_tunnel_dev)))
+		goto err_reg_dev;
+
 	return 0;
 
+err_reg_dev:
+	free_netdev(sitn->fb_tunnel_dev);
+err_alloc_dev:
+	/* nothing */
 err_assign:
 	kfree(sitn);
 err_alloc:
@@ -1112,6 +1128,9 @@ static void sit_exit_net(struct net *net)
 	struct sit_net *sitn;
 
 	sitn = net_generic(net, sit_net_id);
+	rtnl_lock();
+	unregister_netdevice(sitn->fb_tunnel_dev);
+	rtnl_unlock();
 	kfree(sitn);
 }
 
@@ -1126,7 +1145,6 @@ static void __exit sit_cleanup(void)
 
 	rtnl_lock();
 	sit_destroy_tunnels();
-	unregister_netdevice(ipip6_fb_tunnel_dev);
 	rtnl_unlock();
 
 	unregister_pernet_gen_device(sit_net_id, &sit_net_ops);
@@ -1143,32 +1161,11 @@ static int __init sit_init(void)
 		return -EAGAIN;
 	}
 
-	ipip6_fb_tunnel_dev = alloc_netdev(sizeof(struct ip_tunnel), "sit0",
-					   ipip6_tunnel_setup);
-	if (!ipip6_fb_tunnel_dev) {
-		err = -ENOMEM;
-		goto err1;
-	}
-
-	ipip6_fb_tunnel_dev->init = ipip6_fb_tunnel_init;
-
-	if ((err =  register_netdev(ipip6_fb_tunnel_dev)))
-		goto err2;
-
 	err = register_pernet_gen_device(&sit_net_id, &sit_net_ops);
 	if (err < 0)
-		goto err3;
+		xfrm4_tunnel_deregister(&sit_handler, AF_INET6);
 
- out:
 	return err;
- err2:
-	free_netdev(ipip6_fb_tunnel_dev);
- err1:
-	xfrm4_tunnel_deregister(&sit_handler, AF_INET6);
-	goto out;
-err3:
-	unregister_netdevice(ipip6_fb_tunnel_dev);
-	goto err1;
 }
 
 module_init(sit_init);
