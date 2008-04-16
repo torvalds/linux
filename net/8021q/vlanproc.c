@@ -260,13 +260,16 @@ static void vlan_seq_stop(struct seq_file *seq, void *v)
 
 static int vlan_seq_show(struct seq_file *seq, void *v)
 {
+	struct net *net = seq_file_net(seq);
+	struct vlan_net *vn = net_generic(net, vlan_net_id);
+
 	if (v == SEQ_START_TOKEN) {
 		const char *nmtype = NULL;
 
 		seq_puts(seq, "VLAN Dev name	 | VLAN ID\n");
 
-		if (vlan_name_type < ARRAY_SIZE(vlan_name_type_str))
-		    nmtype =  vlan_name_type_str[vlan_name_type];
+		if (vn->name_type < ARRAY_SIZE(vlan_name_type_str))
+		    nmtype =  vlan_name_type_str[vn->name_type];
 
 		seq_printf(seq, "Name-Type: %s\n",
 			   nmtype ? nmtype :  "UNKNOWN");

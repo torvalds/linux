@@ -52,9 +52,6 @@ static char vlan_version[] = DRV_VERSION;
 static char vlan_copyright[] = "Ben Greear <greearb@candelatech.com>";
 static char vlan_buggyright[] = "David S. Miller <davem@redhat.com>";
 
-/* Determines interface naming scheme. */
-unsigned short vlan_name_type = VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD;
-
 static struct packet_type vlan_packet_type = {
 	.type = __constant_htons(ETH_P_8021Q),
 	.func = vlan_skb_recv, /* VLAN receive method */
@@ -299,6 +296,8 @@ static int register_vlan_device(struct net_device *real_dev,
 				unsigned short VLAN_ID)
 {
 	struct net_device *new_dev;
+	struct net *net = dev_net(real_dev);
+	struct vlan_net *vn = net_generic(net, vlan_net_id);
 	char name[IFNAMSIZ];
 	int err;
 
@@ -310,7 +309,7 @@ static int register_vlan_device(struct net_device *real_dev,
 		return err;
 
 	/* Gotta set up the fields for the device. */
-	switch (vlan_name_type) {
+	switch (vn->name_type) {
 	case VLAN_NAME_TYPE_RAW_PLUS_VID:
 		/* name will look like:	 eth1.0005 */
 		snprintf(name, IFNAMSIZ, "%s.%.4i", real_dev->name, VLAN_ID);
@@ -580,7 +579,10 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 			break;
 		if ((args.u.name_type >= 0) &&
 		    (args.u.name_type < VLAN_NAME_TYPE_HIGHEST)) {
-			vlan_name_type = args.u.name_type;
+			struct vlan_net *vn;
+
+			vn = net_generic(net, vlan_net_id);
+			vn->name_type = args.u.name_type;
 			err = 0;
 		} else {
 			err = -EINVAL;
@@ -641,6 +643,8 @@ static int vlan_init_net(struct net *net)
 	err = net_assign_generic(net, vlan_net_id, vn);
 	if (err < 0)
 		goto err_assign;
+
+	vn->name_type = VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD;
 
 	err = vlan_proc_init(net);
 	if (err < 0)
