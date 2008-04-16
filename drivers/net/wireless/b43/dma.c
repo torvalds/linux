@@ -373,10 +373,10 @@ static inline
 	dma_addr_t dmaaddr;
 
 	if (tx) {
-		dmaaddr = dma_map_single(ring->dev->dev->dev,
+		dmaaddr = dma_map_single(ring->dev->dev->dma_dev,
 					 buf, len, DMA_TO_DEVICE);
 	} else {
-		dmaaddr = dma_map_single(ring->dev->dev->dev,
+		dmaaddr = dma_map_single(ring->dev->dev->dma_dev,
 					 buf, len, DMA_FROM_DEVICE);
 	}
 
@@ -388,9 +388,10 @@ static inline
 			  dma_addr_t addr, size_t len, int tx)
 {
 	if (tx) {
-		dma_unmap_single(ring->dev->dev->dev, addr, len, DMA_TO_DEVICE);
+		dma_unmap_single(ring->dev->dev->dma_dev,
+				 addr, len, DMA_TO_DEVICE);
 	} else {
-		dma_unmap_single(ring->dev->dev->dev,
+		dma_unmap_single(ring->dev->dev->dma_dev,
 				 addr, len, DMA_FROM_DEVICE);
 	}
 }
@@ -400,7 +401,7 @@ static inline
 				 dma_addr_t addr, size_t len)
 {
 	B43_WARN_ON(ring->tx);
-	dma_sync_single_for_cpu(ring->dev->dev->dev,
+	dma_sync_single_for_cpu(ring->dev->dev->dma_dev,
 				addr, len, DMA_FROM_DEVICE);
 }
 
@@ -409,7 +410,7 @@ static inline
 				    dma_addr_t addr, size_t len)
 {
 	B43_WARN_ON(ring->tx);
-	dma_sync_single_for_device(ring->dev->dev->dev,
+	dma_sync_single_for_device(ring->dev->dev->dma_dev,
 				   addr, len, DMA_FROM_DEVICE);
 }
 
@@ -425,7 +426,7 @@ static inline
 
 static int alloc_ringmemory(struct b43_dmaring *ring)
 {
-	struct device *dev = ring->dev->dev->dev;
+	struct device *dma_dev = ring->dev->dev->dma_dev;
 	gfp_t flags = GFP_KERNEL;
 
 	/* The specs call for 4K buffers for 30- and 32-bit DMA with 4K
@@ -439,7 +440,7 @@ static int alloc_ringmemory(struct b43_dmaring *ring)
 	 */
 	if (ring->type == B43_DMA_64BIT)
 		flags |= GFP_DMA;
-	ring->descbase = dma_alloc_coherent(dev, B43_DMA_RINGMEMSIZE,
+	ring->descbase = dma_alloc_coherent(dma_dev, B43_DMA_RINGMEMSIZE,
 					    &(ring->dmabase), flags);
 	if (!ring->descbase) {
 		b43err(ring->dev->wl, "DMA ringmemory allocation failed\n");
@@ -452,9 +453,9 @@ static int alloc_ringmemory(struct b43_dmaring *ring)
 
 static void free_ringmemory(struct b43_dmaring *ring)
 {
-	struct device *dev = ring->dev->dev->dev;
+	struct device *dma_dev = ring->dev->dev->dma_dev;
 
-	dma_free_coherent(dev, B43_DMA_RINGMEMSIZE,
+	dma_free_coherent(dma_dev, B43_DMA_RINGMEMSIZE,
 			  ring->descbase, ring->dmabase);
 }
 
@@ -854,7 +855,7 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 			goto err_kfree_meta;
 
 		/* test for ability to dma to txhdr_cache */
-		dma_test = dma_map_single(dev->dev->dev,
+		dma_test = dma_map_single(dev->dev->dma_dev,
 					  ring->txhdr_cache,
 					  b43_txhdr_size(dev),
 					  DMA_TO_DEVICE);
@@ -869,7 +870,7 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 			if (!ring->txhdr_cache)
 				goto err_kfree_meta;
 
-			dma_test = dma_map_single(dev->dev->dev,
+			dma_test = dma_map_single(dev->dev->dma_dev,
 						  ring->txhdr_cache,
 						  b43_txhdr_size(dev),
 						  DMA_TO_DEVICE);
@@ -883,7 +884,7 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 			}
 		}
 
-		dma_unmap_single(dev->dev->dev,
+		dma_unmap_single(dev->dev->dma_dev,
 				 dma_test, b43_txhdr_size(dev),
 				 DMA_TO_DEVICE);
 	}

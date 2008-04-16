@@ -436,15 +436,18 @@ static int ssb_devices_register(struct ssb_bus *bus)
 #ifdef CONFIG_SSB_PCIHOST
 			sdev->irq = bus->host_pci->irq;
 			dev->parent = &bus->host_pci->dev;
+			sdev->dma_dev = &bus->host_pci->dev;
 #endif
 			break;
 		case SSB_BUSTYPE_PCMCIA:
 #ifdef CONFIG_SSB_PCMCIAHOST
 			sdev->irq = bus->host_pcmcia->irq.AssignedIRQ;
 			dev->parent = &bus->host_pcmcia->dev;
+			sdev->dma_dev = &bus->host_pcmcia->dev;
 #endif
 			break;
 		case SSB_BUSTYPE_SSB:
+			sdev->dma_dev = dev;
 			break;
 		}
 
@@ -1018,15 +1021,14 @@ EXPORT_SYMBOL(ssb_dma_translation);
 
 int ssb_dma_set_mask(struct ssb_device *ssb_dev, u64 mask)
 {
-	struct device *dev = ssb_dev->dev;
+	struct device *dma_dev = ssb_dev->dma_dev;
 
 #ifdef CONFIG_SSB_PCIHOST
-	if (ssb_dev->bus->bustype == SSB_BUSTYPE_PCI &&
-	    !dma_supported(dev, mask))
-		return -EIO;
+	if (ssb_dev->bus->bustype == SSB_BUSTYPE_PCI)
+		return dma_set_mask(dma_dev, mask);
 #endif
-	dev->coherent_dma_mask = mask;
-	dev->dma_mask = &dev->coherent_dma_mask;
+	dma_dev->coherent_dma_mask = mask;
+	dma_dev->dma_mask = &dma_dev->coherent_dma_mask;
 
 	return 0;
 }
