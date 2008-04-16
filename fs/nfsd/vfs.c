@@ -264,7 +264,6 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 	struct inode	*inode;
 	int		accmode = MAY_SATTR;
 	int		ftype = 0;
-	int		imode;
 	__be32		err;
 	int		host_err;
 	int		size_change = 0;
@@ -360,10 +359,9 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 		DQUOT_INIT(inode);
 	}
 
-	imode = inode->i_mode;
 	if (iap->ia_valid & ATTR_MODE) {
 		iap->ia_mode &= S_IALLUGO;
-		imode = iap->ia_mode |= (imode & ~S_IALLUGO);
+		iap->ia_mode |= (inode->i_mode & ~S_IALLUGO);
 		/* if changing uid/gid revoke setuid/setgid in mode */
 		if ((iap->ia_valid & ATTR_UID) && iap->ia_uid != inode->i_uid) {
 			iap->ia_valid |= ATTR_KILL_PRIV;
