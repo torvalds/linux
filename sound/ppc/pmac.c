@@ -1300,9 +1300,9 @@ int __init snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 
 	snd_pmac_sound_feature(chip, 1);
 
-	/* reset */
-	if (chip->model == PMAC_AWACS)
-		out_le32(&chip->awacs->control, 0x11);
+	/* reset & enable interrupts */
+	if (chip->model <= PMAC_BURGUNDY)
+		out_le32(&chip->awacs->control, chip->control_mask);
 
 	/* Powerbooks have odd ways of enabling inputs such as
 	   an expansion-bay CD or sound from an internal modem
