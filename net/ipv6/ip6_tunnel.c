@@ -243,6 +243,8 @@ static struct ip6_tnl *ip6_tnl_create(struct net *net, struct ip6_tnl_parm *p)
 	if (dev == NULL)
 		goto failed;
 
+	dev_net_set(dev, net);
+
 	if (strchr(name, '%')) {
 		if (dev_alloc_name(dev, name) < 0)
 			goto failed_free;
@@ -1341,6 +1343,7 @@ static void ip6_tnl_dev_setup(struct net_device *dev)
 	dev->mtu = ETH_DATA_LEN - sizeof (struct ipv6hdr);
 	dev->flags |= IFF_NOARP;
 	dev->addr_len = sizeof(struct in6_addr);
+	dev->features |= NETIF_F_NETNS_LOCAL;
 }
 
 
