@@ -2105,6 +2105,13 @@ static int mv6_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio,
 		printk(KERN_ERR DRV_NAME ": can't clear global reset\n");
 		rc = 1;
 	}
+	/*
+	 * Temporary: wait 3 seconds before port-probing can happen,
+	 * so that we don't miss finding sleepy SilXXXX port-multipliers.
+	 * This can go away once hotplug is fully/correctly implemented.
+	 */
+	if (rc == 0)
+		msleep(3000);
 done:
 	return rc;
 }
