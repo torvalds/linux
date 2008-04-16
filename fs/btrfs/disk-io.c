@@ -47,6 +47,7 @@ static int check_tree_block(struct btrfs_root *root, struct extent_buffer *buf)
 
 static struct extent_io_ops btree_extent_io_ops;
 static struct workqueue_struct *end_io_workqueue;
+static struct workqueue_struct *async_submit_workqueue;
 
 struct end_io_wq {
 	struct bio *bio;
@@ -56,6 +57,15 @@ struct end_io_wq {
 	int error;
 	int metadata;
 	struct list_head list;
+};
+
+struct async_submit_bio {
+	struct inode *inode;
+	struct bio *bio;
+	struct list_head list;
+	extent_submit_bio_hook_t *submit_bio_hook;
+	int rw;
+	int mirror_num;
 };
 
 struct extent_map *btree_get_extent(struct inode *inode, struct page *page,
@@ -365,7 +375,31 @@ int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
 	return 0;
 }
 
-static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
+int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
+			int rw, struct bio *bio, int mirror_num,
+			extent_submit_bio_hook_t *submit_bio_hook)
+{
+	struct async_submit_bio *async;
+
+	async = kmalloc(sizeof(*async), GFP_NOFS);
+	if (!async)
+		return -ENOMEM;
+
+	async->inode = inode;
+	async->rw = rw;
+	async->bio = bio;
+	async->mirror_num = mirror_num;
+	async->submit_bio_hook = submit_bio_hook;
+
+	spin_lock(&fs_info->async_submit_work_lock);
+	list_add_tail(&async->list, &fs_info->async_submit_work_list);
+	spin_unlock(&fs_info->async_submit_work_lock);
+
+	queue_work(async_submit_workqueue, &fs_info->async_submit_work);
+	return 0;
+}
+
+static int __btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 				 int mirror_num)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -387,6 +421,17 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 		return 0;
 	}
 	return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio, mirror_num);
+}
+
+static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
+				 int mirror_num)
+{
+	if (!(rw & (1 << BIO_RW))) {
+		return __btree_submit_bio_hook(inode, rw, bio, mirror_num);
+	}
+	return btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
+				   inode, rw, bio, mirror_num,
+				   __btree_submit_bio_hook);
 }
 
 static int btree_writepage(struct page *page, struct writeback_control *wbc)
@@ -903,9 +948,9 @@ static int bio_ready_for_csum(struct bio *bio)
 }
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
-void btrfs_end_io_csum(void *p)
+static void btrfs_end_io_csum(void *p)
 #else
-void btrfs_end_io_csum(struct work_struct *work)
+static void btrfs_end_io_csum(struct work_struct *work)
 #endif
 {
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
@@ -959,6 +1004,39 @@ void btrfs_end_io_csum(struct work_struct *work)
 	}
 }
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+static void btrfs_async_submit_work(void *p)
+#else
+static void btrfs_async_submit_work(struct work_struct *work)
+#endif
+{
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+	struct btrfs_fs_info *fs_info = p;
+#else
+	struct btrfs_fs_info *fs_info = container_of(work,
+						     struct btrfs_fs_info,
+						     async_submit_work);
+#endif
+	struct async_submit_bio *async;
+	struct list_head *next;
+
+	while(1) {
+		spin_lock(&fs_info->async_submit_work_lock);
+		if (list_empty(&fs_info->async_submit_work_list)) {
+			spin_unlock(&fs_info->async_submit_work_lock);
+			return;
+		}
+		next = fs_info->async_submit_work_list.next;
+		list_del(next);
+		spin_unlock(&fs_info->async_submit_work_lock);
+
+		async = list_entry(next, struct async_submit_bio, list);
+		async->submit_bio_hook(async->inode, async->rw, async->bio,
+				       async->mirror_num);
+		kfree(async);
+	}
+}
+
 struct btrfs_root *open_ctree(struct super_block *sb,
 			      struct btrfs_fs_devices *fs_devices)
 {
@@ -987,14 +1065,17 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	}
 	end_io_workqueue = create_workqueue("btrfs-end-io");
 	BUG_ON(!end_io_workqueue);
+	async_submit_workqueue = create_workqueue("btrfs-async-submit");
 
 	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_NOFS);
 	INIT_LIST_HEAD(&fs_info->trans_list);
 	INIT_LIST_HEAD(&fs_info->dead_roots);
 	INIT_LIST_HEAD(&fs_info->hashers);
 	INIT_LIST_HEAD(&fs_info->end_io_work_list);
+	INIT_LIST_HEAD(&fs_info->async_submit_work_list);
 	spin_lock_init(&fs_info->hash_lock);
 	spin_lock_init(&fs_info->end_io_work_lock);
+	spin_lock_init(&fs_info->async_submit_work_lock);
 	spin_lock_init(&fs_info->delalloc_lock);
 	spin_lock_init(&fs_info->new_trans_lock);
 
@@ -1041,9 +1122,12 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
 	INIT_WORK(&fs_info->end_io_work, btrfs_end_io_csum, fs_info);
+	INIT_WORK(&fs_info->async_submit_work, btrfs_async_submit_work,
+		  fs_info);
 	INIT_WORK(&fs_info->trans_work, btrfs_transaction_cleaner, fs_info);
 #else
 	INIT_WORK(&fs_info->end_io_work, btrfs_end_io_csum);
+	INIT_WORK(&fs_info->async_submit_work, btrfs_async_submit_work);
 	INIT_DELAYED_WORK(&fs_info->trans_work, btrfs_transaction_cleaner);
 #endif
 	BTRFS_I(fs_info->btree_inode)->root = tree_root;
@@ -1402,6 +1486,9 @@ int close_ctree(struct btrfs_root *root)
 	truncate_inode_pages(fs_info->btree_inode->i_mapping, 0);
 	flush_workqueue(end_io_workqueue);
 	destroy_workqueue(end_io_workqueue);
+
+	flush_workqueue(async_submit_workqueue);
+	destroy_workqueue(async_submit_workqueue);
 
 	iput(fs_info->btree_inode);
 #if 0

@@ -324,11 +324,27 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 	return 0;
 }
 
-int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
+int __btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 			  int mirror_num)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
+	int ret = 0;
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(root, 1);
+	btrfs_set_trans_block_group(trans, inode);
+	btrfs_csum_file_blocks(trans, root, inode, bio);
+	ret = btrfs_end_transaction(trans, root);
+	BUG_ON(ret);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	return btrfs_map_bio(root, rw, bio, mirror_num);
+}
+
+int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
+			  int mirror_num)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret = 0;
 
 	if (!(rw & (1 << BIO_RW))) {
@@ -342,13 +358,9 @@ int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 		goto mapit;
 	}
 
-	mutex_lock(&root->fs_info->fs_mutex);
-	trans = btrfs_start_transaction(root, 1);
-	btrfs_set_trans_block_group(trans, inode);
-	btrfs_csum_file_blocks(trans, root, inode, bio);
-	ret = btrfs_end_transaction(trans, root);
-	BUG_ON(ret);
-	mutex_unlock(&root->fs_info->fs_mutex);
+	return btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
+				   inode, rw, bio, mirror_num,
+				   __btrfs_submit_bio_hook);
 mapit:
 	return btrfs_map_bio(root, rw, bio, mirror_num);
 }

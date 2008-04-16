@@ -514,8 +514,11 @@ struct btrfs_fs_info {
 	struct list_head hashers;
 	struct list_head dead_roots;
 	struct list_head end_io_work_list;
+	struct list_head async_submit_work_list;
 	struct work_struct end_io_work;
+	struct work_struct async_submit_work;
 	spinlock_t end_io_work_lock;
+	spinlock_t async_submit_work_lock;
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
 	struct work_struct trans_work;

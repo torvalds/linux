@@ -74,4 +74,7 @@ int btrfs_verify_block_csum(struct btrfs_root *root,
 			    struct extent_buffer *buf);
 int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
 			int metadata);
+int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
+			int rw, struct bio *bio, int mirror_num,
+			extent_submit_bio_hook_t *submit_bio_hook);
 #endif
