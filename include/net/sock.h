@@ -1314,7 +1314,7 @@ void sock_net_set(struct sock *sk, struct net *net)
 static inline void sk_change_net(struct sock *sk, struct net *net)
 {
 	put_net(sock_net(sk));
-	sock_net_set(sk, net);
+	sock_net_set(sk, hold_net(net));
 }
 
 extern void sock_enable_timestamp(struct sock *sk);
