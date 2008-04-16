@@ -477,6 +477,7 @@ static void tun_setup(struct net_device *dev)
 	dev->stop = tun_net_close;
 	dev->ethtool_ops = &tun_ethtool_ops;
 	dev->destructor = free_netdev;
+	dev->features |= NETIF_F_NETNS_LOCAL;
 }
 
 static struct tun_struct *tun_get_by_name(struct tun_net *tn, const char *name)
@@ -544,6 +545,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		if (!dev)
 			return -ENOMEM;
 
+		dev_net_set(dev, net);
 		tun = netdev_priv(dev);
 		tun->dev = dev;
 		tun->flags = flags;
@@ -583,6 +585,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 	file->private_data = tun;
 	tun->attached = 1;
+	get_net(dev_net(tun->dev));
 
 	strcpy(ifr->ifr_name, tun->dev->name);
 	return 0;
@@ -798,6 +801,7 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 	/* Detach from net device */
 	file->private_data = NULL;
 	tun->attached = 0;
+	put_net(dev_net(tun->dev));
 
 	/* Drop read queue */
 	skb_queue_purge(&tun->readq);
