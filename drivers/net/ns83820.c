@@ -585,16 +585,13 @@ static inline int rx_refill(struct net_device *ndev, gfp_t gfp)
 	for (i=0; i<NR_RX_DESC; i++) {
 		struct sk_buff *skb;
 		long res;
+
 		/* extra 16 bytes for alignment */
-		skb = __dev_alloc_skb(REAL_RX_BUF_SIZE+16, gfp);
+		skb = __netdev_alloc_skb(ndev, REAL_RX_BUF_SIZE+16, gfp);
 		if (unlikely(!skb))
 			break;
 
-		res = (long)skb->data & 0xf;
-		res = 0x10 - res;
-		res &= 0xf;
-		skb_reserve(skb, res);
-
+		skb_reserve(skb, skb->data - PTR_ALIGN(skb->data, 16));
 		if (gfp != GFP_ATOMIC)
 			spin_lock_irqsave(&dev->rx_info.lock, flags);
 		res = ns83820_add_rx_skb(dev, skb);
