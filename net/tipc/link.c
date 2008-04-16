@@ -1811,6 +1811,12 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *tb_ptr)
 #endif
 			msg_dbg(msg,"<REC<");
 
+		/* Ensure message data is a single contiguous unit */
+
+		if (unlikely(buf_linearize(buf))) {
+			goto cont;
+		}
+
 		if (unlikely(msg_non_seq(msg))) {
 			link_recv_non_seq(buf);
 			continue;

@@ -337,4 +337,16 @@ static inline void buf_discard(struct sk_buff *skb)
 	kfree_skb(skb);
 }
 
+/**
+ * buf_linearize - convert a TIPC message buffer into a single contiguous piece
+ * @skb: message buffer
+ *
+ * Returns 0 on success.
+ */
+
+static inline int buf_linearize(struct sk_buff *skb)
+{
+	return skb_linearize(skb);
+}
+
 #endif
