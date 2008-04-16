@@ -340,6 +340,7 @@ static int register_vlan_device(struct net_device *real_dev,
 	if (new_dev == NULL)
 		return -ENOBUFS;
 
+	dev_net_set(new_dev, net);
 	/* need 4 bytes for extra VLAN header info,
 	 * hope the underlying device can handle it.
 	 */
@@ -405,9 +406,6 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	struct vlan_group *grp;
 	int i, flgs;
 	struct net_device *vlandev;
-
-	if (dev_net(dev) != &init_net)
-		return NOTIFY_DONE;
 
 	if (is_vlan_dev(dev)) {
 		__vlan_device_event(dev, event);
@@ -534,7 +532,7 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 	case GET_VLAN_REALDEV_NAME_CMD:
 	case GET_VLAN_VID_CMD:
 		err = -ENODEV;
-		dev = __dev_get_by_name(&init_net, args.device1);
+		dev = __dev_get_by_name(net, args.device1);
 		if (!dev)
 			goto out;
 
@@ -665,6 +663,7 @@ static void vlan_exit_net(struct net *net)
 	struct vlan_net *vn;
 
 	vn = net_generic(net, vlan_net_id);
+	rtnl_kill_links(net, &vlan_link_ops);
 	vlan_proc_cleanup(net);
 	kfree(vn);
 }
