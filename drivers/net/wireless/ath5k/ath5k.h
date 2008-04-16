@@ -142,6 +142,7 @@ enum ath5k_radio {
 	AR5K_RF5112	= 2,
 	AR5K_RF2413	= 3,
 	AR5K_RF5413	= 4,
+	AR5K_RF2425	= 5,
 };
 
 /*

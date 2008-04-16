@@ -204,15 +204,16 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 				CHANNEL_2GHZ);
 
 	/* Return on unsuported chips (unsupported eeprom etc) */
-	if(srev >= AR5K_SREV_VER_AR5416){
+	if (srev >= AR5K_SREV_VER_AR5416) {
 		ATH5K_ERR(sc, "Device not yet supported.\n");
 		ret = -ENODEV;
 		goto err_free;
 	}
 
 	/* Identify single chip solutions */
-	if((srev <= AR5K_SREV_VER_AR5414) &&
-	(srev >= AR5K_SREV_VER_AR2413)) {
+	if (((srev <= AR5K_SREV_VER_AR5414) &&
+	(srev >= AR5K_SREV_VER_AR2413)) ||
+	(srev == AR5K_SREV_VER_AR2425)) {
 		ah->ah_single_chip = true;
 	} else {
 		ah->ah_single_chip = false;
@@ -241,19 +242,19 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC1) {
 		ah->ah_radio = AR5K_RF2413;
 		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
-	} else {
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC2) {
 
 		ah->ah_radio = AR5K_RF5413;
 
 		if (ah->ah_mac_srev <= AR5K_SREV_VER_AR5424 &&
 			ah->ah_mac_srev >= AR5K_SREV_VER_AR2424)
 			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5424;
-		else if (ah->ah_mac_srev >= AR5K_SREV_VER_AR2425)
-			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112;
 		else
 			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
 
-
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5133) {
+		ah->ah_radio = AR5K_RF2425;
+		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112;
 	}
 
 	ah->ah_phy = AR5K_PHY(0);
@@ -391,7 +392,7 @@ static int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 	ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
 		AR5K_RESET_CTL_BASEBAND | bus_flags);
 	if (ret) {
-		ATH5K_ERR(ah->ah_sc, "failed to reset the MAC Chip + PCI\n");
+		ATH5K_ERR(ah->ah_sc, "failed to reset the MAC Chip\n");
 		return -EIO;
 	}
 
@@ -655,7 +656,8 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 		if (ah->ah_radio != AR5K_RF5111 &&
 			ah->ah_radio != AR5K_RF5112 &&
 			ah->ah_radio != AR5K_RF5413 &&
-			ah->ah_radio != AR5K_RF2413) {
+			ah->ah_radio != AR5K_RF2413 &&
+			ah->ah_radio != AR5K_RF2425) {
 			ATH5K_ERR(ah->ah_sc,
 				"invalid phy radio: %u\n", ah->ah_radio);
 			return -EINVAL;
