@@ -52,7 +52,13 @@ static inline int is_vlan_dev(struct net_device *dev)
 
 extern int vlan_net_id;
 
+struct proc_dir_entry;
+
 struct vlan_net {
+	/* /proc/net/vlan */
+	struct proc_dir_entry *proc_vlan_dir;
+	/* /proc/net/vlan/config */
+	struct proc_dir_entry *proc_vlan_conf;
 };
 
 #endif /* !(__BEN_VLAN_802_1Q_INC__) */
