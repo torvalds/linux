@@ -527,11 +527,12 @@ out:
 	skb_reset_network_header(skb2);
 
 	/* Try to guess incoming interface */
-	rt6i = rt6_lookup(&init_net, &iph6->saddr, NULL, NULL, 0);
+	rt6i = rt6_lookup(dev_net(skb->dev), &iph6->saddr, NULL, NULL, 0);
 	if (rt6i && rt6i->rt6i_dev) {
 		skb2->dev = rt6i->rt6i_dev;
 
-		rt6i = rt6_lookup(&init_net, &iph6->daddr, &iph6->saddr, NULL, 0);
+		rt6i = rt6_lookup(dev_net(skb->dev),
+				&iph6->daddr, &iph6->saddr, NULL, 0);
 
 		if (rt6i && rt6i->rt6i_dev && rt6i->rt6i_dev->type == ARPHRD_SIT) {
 			struct ip_tunnel *t = netdev_priv(rt6i->rt6i_dev);
@@ -701,7 +702,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 						.tos = RT_TOS(tos) } },
 				    .oif = tunnel->parms.link,
 				    .proto = IPPROTO_IPV6 };
-		if (ip_route_output_key(&init_net, &rt, &fl)) {
+		if (ip_route_output_key(dev_net(dev), &rt, &fl)) {
 			tunnel->stat.tx_carrier_errors++;
 			goto tx_error_icmp;
 		}
@@ -830,7 +831,7 @@ static void ipip6_tunnel_bind_dev(struct net_device *dev)
 				    .oif = tunnel->parms.link,
 				    .proto = IPPROTO_IPV6 };
 		struct rtable *rt;
-		if (!ip_route_output_key(&init_net, &rt, &fl)) {
+		if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
 			tdev = rt->u.dst.dev;
 			ip_rt_put(rt);
 		}
@@ -838,7 +839,7 @@ static void ipip6_tunnel_bind_dev(struct net_device *dev)
 	}
 
 	if (!tdev && tunnel->parms.link)
-		tdev = __dev_get_by_index(&init_net, tunnel->parms.link);
+		tdev = __dev_get_by_index(dev_net(dev), tunnel->parms.link);
 
 	if (tdev) {
 		dev->hard_header_len = tdev->hard_header_len + sizeof(struct iphdr);
