@@ -144,6 +144,7 @@ static struct net_protocol tunnel64_protocol = {
 	.handler	=	tunnel64_rcv,
 	.err_handler	=	tunnel64_err,
 	.no_policy	=	1,
+	.netns_ok	=	1,
 };
 #endif
 
