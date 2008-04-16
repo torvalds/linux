@@ -230,13 +230,14 @@ static int snd_card_dummy_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_dummy_pcm *dpcm = runtime->private_data;
-	unsigned int bps;
+	int bps;
 
-	bps = runtime->rate * runtime->channels;
-	bps *= snd_pcm_format_width(runtime->format);
-	bps /= 8;
+	bps = snd_pcm_format_width(runtime->format) * runtime->rate *
+		runtime->channels / 8;
+
 	if (bps <= 0)
 		return -EINVAL;
+
 	dpcm->pcm_bps = bps;
 	dpcm->pcm_hz = HZ;
 	dpcm->pcm_buffer_size = snd_pcm_lib_buffer_bytes(substream);
