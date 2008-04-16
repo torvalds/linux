@@ -32,6 +32,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/notifier.h>
 #include <net/net_namespace.h>
+#include <net/netns/generic.h>
 
 #include <linux/if_vlan.h>
 #include "vlan.h"
@@ -40,6 +41,8 @@
 #define DRV_VERSION "1.8"
 
 /* Global VLAN variables */
+
+int vlan_net_id;
 
 /* Our listing of VLAN group(s) */
 static struct hlist_head vlan_group_hash[VLAN_GRP_HASH_SIZE];
@@ -625,12 +628,51 @@ out:
 	return err;
 }
 
+static int vlan_init_net(struct net *net)
+{
+	int err;
+	struct vlan_net *vn;
+
+	err = -ENOMEM;
+	vn = kzalloc(sizeof(struct vlan_net), GFP_KERNEL);
+	if (vn == NULL)
+		goto err_alloc;
+
+	err = net_assign_generic(net, vlan_net_id, vn);
+	if (err < 0)
+		goto err_assign;
+
+	return 0;
+
+err_assign:
+	kfree(vn);
+err_alloc:
+	return err;
+}
+
+static void vlan_exit_net(struct net *net)
+{
+	struct vlan_net *vn;
+
+	vn = net_generic(net, vlan_net_id);
+	kfree(vn);
+}
+
+static struct pernet_operations vlan_net_ops = {
+	.init = vlan_init_net,
+	.exit = vlan_exit_net,
+};
+
 static int __init vlan_proto_init(void)
 {
 	int err;
 
 	pr_info("%s v%s %s\n", vlan_fullname, vlan_version, vlan_copyright);
 	pr_info("All bugs added by %s\n", vlan_buggyright);
+
+	err = register_pernet_gen_device(&vlan_net_id, &vlan_net_ops);
+	if (err < 0)
+		goto err0;
 
 	err = vlan_proc_init();
 	if (err < 0)
@@ -653,6 +695,8 @@ err3:
 err2:
 	vlan_proc_cleanup();
 err1:
+	unregister_pernet_gen_device(vlan_net_id, &vlan_net_ops);
+err0:
 	return err;
 }
 
@@ -672,6 +716,8 @@ static void __exit vlan_cleanup_module(void)
 		BUG_ON(!hlist_empty(&vlan_group_hash[i]));
 
 	vlan_proc_cleanup();
+
+	unregister_pernet_gen_device(vlan_net_id, &vlan_net_ops);
 
 	synchronize_net();
 }

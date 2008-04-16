@@ -50,4 +50,9 @@ static inline int is_vlan_dev(struct net_device *dev)
 	return dev->priv_flags & IFF_802_1Q_VLAN;
 }
 
+extern int vlan_net_id;
+
+struct vlan_net {
+};
+
 #endif /* !(__BEN_VLAN_802_1Q_INC__) */
