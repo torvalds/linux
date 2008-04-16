@@ -141,7 +141,7 @@ static int snd_pmac_awacs_info_volume(struct snd_kcontrol *kcontrol,
 	uinfo->value.integer.max = 15;
 	return 0;
 }
- 
+
 static int snd_pmac_awacs_get_volume(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
@@ -267,7 +267,8 @@ static int snd_pmac_awacs_put_switch(struct snd_kcontrol *kcontrol,
 static void awacs_set_cuda(int reg, int val)
 {
 	struct adb_request req;
-	cuda_request(&req, NULL, 5, CUDA_PACKET, CUDA_GET_SET_IIC, 0x8a, reg, val);
+	cuda_request(&req, NULL, 5, CUDA_PACKET, CUDA_GET_SET_IIC, 0x8a,
+			reg, val);
 	while (! req.complete)
 		cuda_poll();
 }
@@ -289,11 +290,11 @@ static void awacs_amp_set_tone(struct awacs_amp *amp, int bass, int treble)
 /*
  * vol = 0 - 31 (attenuation), 32 = mute bit, stereo
  */
-static int awacs_amp_set_vol(struct awacs_amp *amp, int index, int lvol, int rvol,
-			     int do_check)
+static int awacs_amp_set_vol(struct awacs_amp *amp, int index,
+			     int lvol, int rvol, int do_check)
 {
 	if (do_check && amp->amp_vol[index][0] == lvol &&
-	    amp->amp_vol[index][1] == rvol)
+			amp->amp_vol[index][1] == rvol)
 		return 0;
 	awacs_set_cuda(3 + index, lvol);
 	awacs_set_cuda(5 + index, rvol);
@@ -337,7 +338,7 @@ static int snd_pmac_awacs_info_volume_amp(struct snd_kcontrol *kcontrol,
 	uinfo->value.integer.max = 31;
 	return 0;
 }
- 
+
 static int snd_pmac_awacs_get_volume_amp(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
@@ -361,8 +362,10 @@ static int snd_pmac_awacs_put_volume_amp(struct snd_kcontrol *kcontrol,
 	snd_assert(amp, return -EINVAL);
 	snd_assert(index >= 0 && index <= 1, return -EINVAL);
 
-	vol[0] = (31 - (ucontrol->value.integer.value[0] & 31)) | (amp->amp_vol[index][0] & 32);
-	vol[1] = (31 - (ucontrol->value.integer.value[1] & 31)) | (amp->amp_vol[index][1] & 32);
+	vol[0] = (31 - (ucontrol->value.integer.value[0] & 31))
+		| (amp->amp_vol[index][0] & 32);
+	vol[1] = (31 - (ucontrol->value.integer.value[1] & 31))
+		| (amp->amp_vol[index][1] & 32);
 	return awacs_amp_set_vol(amp, index, vol[0], vol[1], 1);
 }
 
@@ -374,8 +377,10 @@ static int snd_pmac_awacs_get_switch_amp(struct snd_kcontrol *kcontrol,
 	struct awacs_amp *amp = chip->mixer_data;
 	snd_assert(amp, return -EINVAL);
 	snd_assert(index >= 0 && index <= 1, return -EINVAL);
-	ucontrol->value.integer.value[0] = (amp->amp_vol[index][0] & 32) ? 0 : 1;
-	ucontrol->value.integer.value[1] = (amp->amp_vol[index][1] & 32) ? 0 : 1;
+	ucontrol->value.integer.value[0] = (amp->amp_vol[index][0] & 32)
+					? 0 : 1;
+	ucontrol->value.integer.value[1] = (amp->amp_vol[index][1] & 32)
+					? 0 : 1;
 	return 0;
 }
 
@@ -389,8 +394,10 @@ static int snd_pmac_awacs_put_switch_amp(struct snd_kcontrol *kcontrol,
 	snd_assert(amp, return -EINVAL);
 	snd_assert(index >= 0 && index <= 1, return -EINVAL);
 
-	vol[0] = (ucontrol->value.integer.value[0] ? 0 : 32) | (amp->amp_vol[index][0] & 31);
-	vol[1] = (ucontrol->value.integer.value[1] ? 0 : 32) | (amp->amp_vol[index][1] & 31);
+	vol[0] = (ucontrol->value.integer.value[0] ? 0 : 32)
+		| (amp->amp_vol[index][0] & 31);
+	vol[1] = (ucontrol->value.integer.value[1] ? 0 : 32)
+		| (amp->amp_vol[index][1] & 31);
 	return awacs_amp_set_vol(amp, index, vol[0], vol[1], 1);
 }
 
@@ -403,7 +410,7 @@ static int snd_pmac_awacs_info_tone_amp(struct snd_kcontrol *kcontrol,
 	uinfo->value.integer.max = 14;
 	return 0;
 }
- 
+
 static int snd_pmac_awacs_get_tone_amp(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)
 {
@@ -445,7 +452,7 @@ static int snd_pmac_awacs_info_master_amp(struct snd_kcontrol *kcontrol,
 	uinfo->value.integer.max = 99;
 	return 0;
 }
- 
+
 static int snd_pmac_awacs_get_master_amp(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
@@ -688,12 +695,14 @@ AWACS_SWITCH("PC Speaker Playback Switch", 1, SHIFT_PAROUT1, 0);
 /*
  * add new mixer elements to the card
  */
-static int build_mixers(struct snd_pmac *chip, int nums, struct snd_kcontrol_new *mixers)
+static int build_mixers(struct snd_pmac *chip, int nums,
+			struct snd_kcontrol_new *mixers)
 {
 	int i, err;
 
 	for (i = 0; i < nums; i++) {
-		if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&mixers[i], chip))) < 0)
+		err = snd_ctl_add(chip->card, snd_ctl_new1(&mixers[i], chip));
+		if (err < 0)
 			return err;
 	}
 	return 0;
@@ -743,8 +752,10 @@ static void snd_pmac_awacs_resume(struct snd_pmac *chip)
 #ifdef PMAC_AMP_AVAIL
 	if (chip->mixer_data) {
 		struct awacs_amp *amp = chip->mixer_data;
-		awacs_amp_set_vol(amp, 0, amp->amp_vol[0][0], amp->amp_vol[0][1], 0);
-		awacs_amp_set_vol(amp, 1, amp->amp_vol[1][0], amp->amp_vol[1][1], 0);
+		awacs_amp_set_vol(amp, 0,
+				  amp->amp_vol[0][0], amp->amp_vol[0][1], 0);
+		awacs_amp_set_vol(amp, 1,
+				  amp->amp_vol[1][0], amp->amp_vol[1][1], 0);
 		awacs_amp_set_tone(amp, amp->amp_tone[0], amp->amp_tone[1]);
 		awacs_amp_set_master(amp, amp->amp_master);
 	}
@@ -849,7 +860,7 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 	chip->awacs_reg[1] = MASK_CMUTE | MASK_AMUTE;
 	/* FIXME: Only machines with external SRS module need MASK_PAROUT */
 	if (chip->has_iic || chip->device_id == 0x5 ||
-	    /*chip->_device_id == 0x8 || */
+	    /* chip->_device_id == 0x8 || */
 	    chip->device_id == 0xb)
 		chip->awacs_reg[1] |= MASK_PAROUT;
 	/* get default volume from nvram */
@@ -860,8 +871,10 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 	chip->awacs_reg[2] = vol;
 	chip->awacs_reg[4] = vol;
 	if (chip->model == PMAC_SCREAMER) {
-		chip->awacs_reg[5] = vol; /* FIXME: screamer has loopthru vol control */
-		chip->awacs_reg[6] = MASK_MIC_BOOST; /* FIXME: maybe should be vol << 3 for PCMCIA speaker */
+		/* FIXME: screamer has loopthru vol control */
+		chip->awacs_reg[5] = vol;
+		/* FIXME: maybe should be vol << 3 for PCMCIA speaker */
+		chip->awacs_reg[6] = MASK_MIC_BOOST;
 		chip->awacs_reg[7] = 0;
 	}
 
@@ -877,7 +890,8 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 			return -ENOMEM;
 		chip->mixer_data = amp;
 		chip->mixer_free = awacs_amp_free;
-		awacs_amp_set_vol(amp, 0, 63, 63, 0); /* mute and zero vol */
+		/* mute and zero vol */
+		awacs_amp_set_vol(amp, 0, 63, 63, 0);
 		awacs_amp_set_vol(amp, 1, 63, 63, 0);
 		awacs_amp_set_tone(amp, 7, 7); /* 0 dB */
 		awacs_amp_set_master(amp, 79); /* 0 dB */
@@ -921,8 +935,9 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 	 */
 	strcpy(chip->card->mixername, "PowerMac AWACS");
 
-	if ((err = build_mixers(chip, ARRAY_SIZE(snd_pmac_awacs_mixers),
-				snd_pmac_awacs_mixers)) < 0)
+	err = build_mixers(chip, ARRAY_SIZE(snd_pmac_awacs_mixers),
+				snd_pmac_awacs_mixers);
+	if (err < 0)
 		return err;
 	if (beige)
 		;
@@ -955,7 +970,8 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 	chip->master_sw_ctl = snd_ctl_new1((pm7500 || imac)
 			? &snd_pmac_awacs_master_sw_imac
 			: &snd_pmac_awacs_master_sw, chip);
-	if ((err = snd_ctl_add(chip->card, chip->master_sw_ctl)) < 0)
+	err = snd_ctl_add(chip->card, chip->master_sw_ctl);
+	if (err < 0)
 		return err;
 #ifdef PMAC_AMP_AVAIL
 	if (chip->mixer_data) {
@@ -965,27 +981,34 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 		 * screamer registers.
 		 * in this case, it seems the route C is not used.
 		 */
-		if ((err = build_mixers(chip, ARRAY_SIZE(snd_pmac_awacs_amp_vol),
-					snd_pmac_awacs_amp_vol)) < 0)
+		err = build_mixers(chip, ARRAY_SIZE(snd_pmac_awacs_amp_vol),
+					snd_pmac_awacs_amp_vol);
+		if (err < 0)
 			return err;
 		/* overwrite */
-		chip->master_sw_ctl = snd_ctl_new1(&snd_pmac_awacs_amp_hp_sw, chip);
-		if ((err = snd_ctl_add(chip->card, chip->master_sw_ctl)) < 0)
+		chip->master_sw_ctl = snd_ctl_new1(&snd_pmac_awacs_amp_hp_sw,
+							chip);
+		err = snd_ctl_add(chip->card, chip->master_sw_ctl);
+		if (err < 0)
 			return err;
-		chip->speaker_sw_ctl = snd_ctl_new1(&snd_pmac_awacs_amp_spk_sw, chip);
-		if ((err = snd_ctl_add(chip->card, chip->speaker_sw_ctl)) < 0)
+		chip->speaker_sw_ctl = snd_ctl_new1(&snd_pmac_awacs_amp_spk_sw,
+							chip);
+		err = snd_ctl_add(chip->card, chip->speaker_sw_ctl);
+		if (err < 0)
 			return err;
 	} else
 #endif /* PMAC_AMP_AVAIL */
 	{
 		/* route A = headphone, route C = speaker */
-		if ((err = build_mixers(chip, ARRAY_SIZE(snd_pmac_awacs_speaker_vol),
-					snd_pmac_awacs_speaker_vol)) < 0)
+		err = build_mixers(chip, ARRAY_SIZE(snd_pmac_awacs_speaker_vol),
+					snd_pmac_awacs_speaker_vol);
+		if (err < 0)
 			return err;
 		chip->speaker_sw_ctl = snd_ctl_new1(imac
 				? &snd_pmac_awacs_speaker_sw_imac
 				: &snd_pmac_awacs_speaker_sw, chip);
-		if ((err = snd_ctl_add(chip->card, chip->speaker_sw_ctl)) < 0)
+		err = snd_ctl_add(chip->card, chip->speaker_sw_ctl);
+		if (err < 0)
 			return err;
 	}
 
@@ -1020,7 +1043,8 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 	chip->resume = snd_pmac_awacs_resume;
 #endif
 #ifdef PMAC_SUPPORT_AUTOMUTE
-	if ((err = snd_pmac_add_automute(chip)) < 0)
+	err = snd_pmac_add_automute(chip);
+	if (err < 0)
 		return err;
 	chip->detect_headphone = snd_pmac_awacs_detect_headphone;
 	chip->update_automute = snd_pmac_awacs_update_automute;

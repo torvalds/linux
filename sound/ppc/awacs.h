@@ -144,7 +144,7 @@ struct awacs_regs {
 #define VOLLEFT(x)	(((~(x)) << 6) & MASK_OUTVOLLEFT)
 
 /* address 6 */
-#define MASK_MIC_BOOST  (0x4)           /* screamer mic boost */
+#define MASK_MIC_BOOST  (0x4)		/* screamer mic boost */
 #define SHIFT_MIC_BOOST	2
 
 /* Audio Codec Status Reg Bit Masks */
@@ -175,7 +175,8 @@ struct awacs_regs {
 /* DBDMA ChannelStatus Bit Masks */
 /* ----- ------------- --- ----- */
 #define MASK_CSERR	(0x1 << 7)	/* Error */
-#define MASK_EOI	(0x1 << 6)	/* End of Input -- only for Input Channel */
+#define MASK_EOI	(0x1 << 6)	/* End of Input --
+					   only for Input Channel */
 #define MASK_CSUNUSED	(0x1f << 1)	/* bits 1-5 not used */
 #define MASK_WAIT	(0x1)		/* Wait */
 
