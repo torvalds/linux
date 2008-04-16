@@ -42,6 +42,8 @@
 
   6) Add port multiplier support (intermediate)
 
+  7) Fix/reenable hot plug/unplug (should happen as a side-effect of (2) above).
+
   8) Develop a low-power-consumption strategy, and implement it.
 
   9) [Experiment, low priority] See if ATAPI can be supported using
@@ -296,7 +298,9 @@ enum {
 	EDMA_ERR_IRQ_TRANSIENT  = EDMA_ERR_LNK_CTRL_RX_0 |
 				  EDMA_ERR_LNK_CTRL_RX_1 |
 				  EDMA_ERR_LNK_CTRL_RX_3 |
-				  EDMA_ERR_LNK_CTRL_TX,
+				  EDMA_ERR_LNK_CTRL_TX |
+				 /* temporary, until we fix hotplug: */
+				 (EDMA_ERR_DEV_DCON | EDMA_ERR_DEV_CON),
 
 	EDMA_EH_FREEZE		= EDMA_ERR_D_PAR |
 				  EDMA_ERR_PRD_PAR |
