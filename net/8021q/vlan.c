@@ -154,8 +154,6 @@ void unregister_vlan_dev(struct net_device *dev)
 	grp = __vlan_find_group(real_dev);
 	BUG_ON(!grp);
 
-	vlan_proc_rem_dev(dev);
-
 	/* Take it out of our own structures, but be sure to interlock with
 	 * HW accelerating devices or SW vlan input packet processing.
 	 */
@@ -278,9 +276,6 @@ int register_vlan_dev(struct net_device *dev)
 	if (real_dev->features & NETIF_F_HW_VLAN_FILTER)
 		real_dev->vlan_rx_add_vid(real_dev, vlan_id);
 
-	if (vlan_proc_add_dev(dev) < 0)
-		pr_warning("8021q: failed to add proc entry for %s\n",
-			   dev->name);
 	return 0;
 
 out_free_group:
@@ -395,6 +390,14 @@ static void __vlan_device_event(struct net_device *dev, unsigned long event)
 		if (vlan_proc_add_dev(dev) < 0)
 			pr_warning("8021q: failed to change proc name for %s\n",
 					dev->name);
+		break;
+	case NETDEV_REGISTER:
+		if (vlan_proc_add_dev(dev) < 0)
+			pr_warning("8021q: failed to add proc entry for %s\n",
+					dev->name);
+		break;
+	case NETDEV_UNREGISTER:
+		vlan_proc_rem_dev(dev);
 		break;
 	}
 }
