@@ -40,6 +40,7 @@
 #include <asm/smp.h>
 
 #include "plpar_wrappers.h"
+#include "pseries.h"
 
 #ifdef DEBUG_LOW
 #define DBG_LOW(fmt...) do { udbg_printf(fmt); } while(0)

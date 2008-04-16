@@ -76,9 +76,6 @@
 #define DBG(fmt...)
 #endif
 
-/* move those away to a .h */
-extern void find_udbg_vterm(void);
-
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
 
 static void pseries_shared_idle_sleep(void);
