@@ -35,7 +35,6 @@ struct zfcp_dbf_dump {
 } __attribute__ ((packed));
 
 struct zfcp_rec_dbf_record_thread {
-	u32 sema;
 	u32 total;
 	u32 ready;
 	u32 running;

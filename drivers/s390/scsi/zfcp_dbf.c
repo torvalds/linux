@@ -623,7 +623,6 @@ static int zfcp_rec_dbf_view_format(debug_info_t *id, struct debug_view *view,
 	zfcp_dbf_out(&p, "id", "%d", r->id2);
 	switch (r->id) {
 	case ZFCP_REC_DBF_ID_THREAD:
-		zfcp_dbf_out(&p, "sema", "%d", r->u.thread.sema);
 		zfcp_dbf_out(&p, "total", "%d", r->u.thread.total);
 		zfcp_dbf_out(&p, "ready", "%d", r->u.thread.ready);
 		zfcp_dbf_out(&p, "running", "%d", r->u.thread.running);
@@ -694,7 +693,6 @@ void zfcp_rec_dbf_event_thread(u8 id2, struct zfcp_adapter *adapter, int lock)
 	memset(r, 0, sizeof(*r));
 	r->id = ZFCP_REC_DBF_ID_THREAD;
 	r->id2 = id2;
-	r->u.thread.sema = atomic_read(&adapter->erp_ready_sem.count);
 	r->u.thread.total = total;
 	r->u.thread.ready = ready;
 	r->u.thread.running = running;
