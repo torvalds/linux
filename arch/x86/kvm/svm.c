@@ -513,17 +513,6 @@ static void init_vmcb(struct vcpu_svm *svm)
 	control->intercept = 	(1ULL << INTERCEPT_INTR) |
 				(1ULL << INTERCEPT_NMI) |
 				(1ULL << INTERCEPT_SMI) |
-		/*
-		 * selective cr0 intercept bug?
-		 *    	0:   0f 22 d8                mov    %eax,%cr3
-		 *	3:   0f 20 c0                mov    %cr0,%eax
-		 *	6:   0d 00 00 00 80          or     $0x80000000,%eax
-		 *	b:   0f 22 c0                mov    %eax,%cr0
-		 * set cr3 ->interception
-		 * get cr0 ->interception
-		 * set cr0 -> no interception
-		 */
-		/*              (1ULL << INTERCEPT_SELECTIVE_CR0) | */
 				(1ULL << INTERCEPT_CPUID) |
 				(1ULL << INTERCEPT_INVD) |
 				(1ULL << INTERCEPT_HLT) |
