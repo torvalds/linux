@@ -450,14 +450,6 @@ struct ath5k_rx_status {
 #define AR5K_RXKEYIX_INVALID	((u8) - 1)
 #define AR5K_TXKEYIX_INVALID	((u32) - 1)
 
-struct ath5k_mib_stats {
-	u32	ackrcv_bad;
-	u32	rts_bad;
-	u32	rts_good;
-	u32	fcs_bad;
-	u32	beacons;
-};
-
 
 /**************************\
  BEACON TIMERS DEFINITIONS
@@ -1070,6 +1062,7 @@ extern int ath5k_hw_update_tx_triglevel(struct ath5k_hw *ah, bool increase);
 extern bool ath5k_hw_is_intr_pending(struct ath5k_hw *ah);
 extern int ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask);
 extern enum ath5k_int ath5k_hw_set_intr(struct ath5k_hw *ah, enum ath5k_int new_mask);
+extern void ath5k_hw_update_mib_counters(struct ath5k_hw *ah, struct ieee80211_low_level_stats *stats);
 /* EEPROM access functions */
 extern int ath5k_hw_set_regdomain(struct ath5k_hw *ah, u16 regdomain);
 /* Protocol Control Unit Functions */
@@ -1098,7 +1091,6 @@ extern int ath5k_hw_set_beacon_timers(struct ath5k_hw *ah, const struct ath5k_be
 extern void ath5k_hw_reset_beacon(struct ath5k_hw *ah);
 extern int ath5k_hw_beaconq_finish(struct ath5k_hw *ah, unsigned long phys_addr);
 #endif
-extern void ath5k_hw_update_mib_counters(struct ath5k_hw *ah, struct ath5k_mib_stats *statistics);
 /* ACK bit rate */
 void ath5k_hw_set_ack_bitrate_high(struct ath5k_hw *ah, bool high);
 /* ACK/CTS Timeouts */

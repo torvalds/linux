@@ -2342,7 +2342,8 @@ ath5k_init(struct ath5k_softc *sc)
 	 * Enable interrupts.
 	 */
 	sc->imask = AR5K_INT_RX | AR5K_INT_TX | AR5K_INT_RXEOL |
-		AR5K_INT_RXORN | AR5K_INT_FATAL | AR5K_INT_GLOBAL;
+		AR5K_INT_RXORN | AR5K_INT_FATAL | AR5K_INT_GLOBAL |
+		AR5K_INT_MIB;
 
 	ath5k_hw_set_intr(sc->ah, sc->imask);
 	/* Set ack to be sent at low bit-rates */
@@ -2522,7 +2523,11 @@ ath5k_intr(int irq, void *dev_id)
 			if (status & AR5K_INT_BMISS) {
 			}
 			if (status & AR5K_INT_MIB) {
-				/* TODO */
+				/*
+				 * These stats are also used for ANI i think
+				 * so how about updating them more often ?
+				 */
+				ath5k_hw_update_mib_counters(ah, &sc->ll_stats);
 			}
 		}
 	} while (ath5k_hw_is_intr_pending(ah) && counter-- > 0);
@@ -3015,6 +3020,10 @@ ath5k_get_stats(struct ieee80211_hw *hw,
 		struct ieee80211_low_level_stats *stats)
 {
 	struct ath5k_softc *sc = hw->priv;
+	struct ath5k_hw *ah = sc->ah;
+
+	/* Force update */
+	ath5k_hw_update_mib_counters(ah, &sc->ll_stats);
 
 	memcpy(stats, &sc->ll_stats, sizeof(sc->ll_stats));
 
