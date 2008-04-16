@@ -1527,12 +1527,8 @@ static int velocity_rx_copy(struct sk_buff **rx_skb, int pkt_size,
 static inline void velocity_iph_realign(struct velocity_info *vptr,
 					struct sk_buff *skb, int pkt_size)
 {
-	/* FIXME - memmove ? */
 	if (vptr->flags & VELOCITY_FLAGS_IP_ALIGN) {
-		int i;
-
-		for (i = pkt_size; i >= 0; i--)
-			*(skb->data + i + 2) = *(skb->data + i);
+		memmove(skb->data + 2, skb->data, pkt_size);
 		skb_reserve(skb, 2);
 	}
 }
