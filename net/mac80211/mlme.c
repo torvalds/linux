@@ -2709,7 +2709,26 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 			bss->wmm_ie_len = elems.wmm_param_len + 2;
 		} else
 			bss->wmm_ie_len = 0;
-	} else if (!elems.wmm_param && bss->wmm_ie) {
+	} else if (elems.wmm_info &&
+		    (!bss->wmm_ie || bss->wmm_ie_len != elems.wmm_info_len ||
+		     memcmp(bss->wmm_ie, elems.wmm_info, elems.wmm_info_len))) {
+		 /* As for certain AP's Fifth bit is not set in WMM IE in
+		  * beacon frames.So while parsing the beacon frame the
+		  * wmm_info structure is used instead of wmm_param.
+		  * wmm_info structure was never used to set bss->wmm_ie.
+		  * This code fixes this problem by copying the WME
+		  * information from wmm_info to bss->wmm_ie and enabling
+		  * n-band association.
+		  */
+		kfree(bss->wmm_ie);
+		bss->wmm_ie = kmalloc(elems.wmm_info_len + 2, GFP_ATOMIC);
+		if (bss->wmm_ie) {
+			memcpy(bss->wmm_ie, elems.wmm_info - 2,
+			       elems.wmm_info_len + 2);
+			bss->wmm_ie_len = elems.wmm_info_len + 2;
+		} else
+			bss->wmm_ie_len = 0;
+	} else if (!elems.wmm_param && !elems.wmm_info && bss->wmm_ie) {
 		kfree(bss->wmm_ie);
 		bss->wmm_ie = NULL;
 		bss->wmm_ie_len = 0;
