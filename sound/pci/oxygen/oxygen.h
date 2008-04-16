@@ -103,6 +103,8 @@ struct oxygen_model {
 	size_t model_data_size;
 	unsigned int pcm_dev_cfg;
 	u8 dac_channels;
+	u8 dac_volume_min;
+	u8 dac_volume_max;
 	u8 misc_flags;
 	u8 function_flags;
 	u16 dac_i2s_format;

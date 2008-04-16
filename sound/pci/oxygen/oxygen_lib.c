@@ -221,7 +221,7 @@ static void oxygen_init(struct oxygen *chip)
 
 	chip->dac_routing = 1;
 	for (i = 0; i < 8; ++i)
-		chip->dac_volume[i] = 0xff;
+		chip->dac_volume[i] = chip->model->dac_volume_max;
 	chip->spdif_playback_enable = 1;
 	chip->spdif_bits = OXYGEN_SPDIF_C | OXYGEN_SPDIF_ORIGINAL |
 		(IEC958_AES1_CON_PCM_CODER << OXYGEN_SPDIF_CATEGORY_SHIFT);

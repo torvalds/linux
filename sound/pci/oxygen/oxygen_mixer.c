@@ -32,8 +32,8 @@ static int dac_volume_info(struct snd_kcontrol *ctl,
 
 	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	info->count = chip->model->dac_channels;
-	info->value.integer.min = 0;
-	info->value.integer.max = 0xff;
+	info->value.integer.min = chip->model->dac_volume_min;
+	info->value.integer.max = chip->model->dac_volume_max;
 	return 0;
 }
 

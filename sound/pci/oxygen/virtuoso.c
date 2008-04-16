@@ -219,10 +219,7 @@ static void xonar_d2x_init(struct oxygen *chip)
 static void xonar_dx_init(struct oxygen *chip)
 {
 	struct xonar_data *data = chip->model_data;
-	unsigned int i;
 
-	for (i = 0; i < 8; ++i)
-		chip->dac_volume[i] = 127;
 	data->anti_pop_delay = 800;
 	data->output_enable_bit = GPIO_DX_OUTPUT_ENABLE;
 	data->ext_power_reg = OXYGEN_GPI_DATA;
@@ -414,26 +411,6 @@ static void xonar_gpio_changed(struct oxygen *chip)
 	}
 }
 
-static int pcm1796_volume_info(struct snd_kcontrol *ctl,
-			       struct snd_ctl_elem_info *info)
-{
-	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	info->count = 8;
-	info->value.integer.min = 0x0f;
-	info->value.integer.max = 0xff;
-	return 0;
-}
-
-static int cs4362a_volume_info(struct snd_kcontrol *ctl,
-			       struct snd_ctl_elem_info *info)
-{
-	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	info->count = 8;
-	info->value.integer.min = 0;
-	info->value.integer.max = 127;
-	return 0;
-}
-
 static int alt_switch_get(struct snd_kcontrol *ctl,
 			  struct snd_ctl_elem_value *value)
 {
@@ -526,7 +503,6 @@ static int xonar_d2_control_filter(struct snd_kcontrol_new *template)
 {
 	if (!strcmp(template->name, "Master Playback Volume")) {
 		template->access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-		template->info = pcm1796_volume_info;
 		template->tlv.p = pcm1796_db_scale;
 	} else if (!strncmp(template->name, "CD Capture ", 11)) {
 		/* CD in is actually connected to the video in pin */
@@ -539,7 +515,6 @@ static int xonar_dx_control_filter(struct snd_kcontrol_new *template)
 {
 	if (!strcmp(template->name, "Master Playback Volume")) {
 		template->access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-		template->info = cs4362a_volume_info;
 		template->tlv.p = cs4362a_db_scale;
 	} else if (!strncmp(template->name, "CD Capture ", 11)) {
 		return 1; /* no CD input */
@@ -577,6 +552,8 @@ static const struct oxygen_model xonar_models[] = {
 			       CAPTURE_0_FROM_I2S_2 |
 			       CAPTURE_1_FROM_SPDIF,
 		.dac_channels = 8,
+		.dac_volume_min = 0x0f,
+		.dac_volume_max = 0xff,
 		.misc_flags = OXYGEN_MISC_MIDI,
 		.function_flags = OXYGEN_FUNCTION_SPI |
 				  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
@@ -603,6 +580,8 @@ static const struct oxygen_model xonar_models[] = {
 			       CAPTURE_0_FROM_I2S_2 |
 			       CAPTURE_1_FROM_SPDIF,
 		.dac_channels = 8,
+		.dac_volume_min = 0x0f,
+		.dac_volume_max = 0xff,
 		.misc_flags = OXYGEN_MISC_MIDI,
 		.function_flags = OXYGEN_FUNCTION_SPI |
 				  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
@@ -629,6 +608,8 @@ static const struct oxygen_model xonar_models[] = {
 			       PLAYBACK_1_TO_SPDIF |
 			       CAPTURE_0_FROM_I2S_2,
 		.dac_channels = 8,
+		.dac_volume_min = 0,
+		.dac_volume_max = 127,
 		.function_flags = OXYGEN_FUNCTION_2WIRE,
 		.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 		.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
