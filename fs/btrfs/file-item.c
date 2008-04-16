@@ -134,9 +134,36 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+int btrfs_csum_one_bio(struct btrfs_root *root,
+		       struct bio *bio, char **sums_ret)
+{
+	u32 *sums;
+	char *data;
+	struct bio_vec *bvec = bio->bi_io_vec;
+	int bio_index = 0;
+
+	sums = kmalloc(bio->bi_vcnt * BTRFS_CRC32_SIZE, GFP_NOFS);
+	if (!sums)
+		return -ENOMEM;
+	*sums_ret = (char *)sums;
+
+	while(bio_index < bio->bi_vcnt) {
+		data = kmap_atomic(bvec->bv_page, KM_USER0);
+		*sums = ~(u32)0;
+		*sums = btrfs_csum_data(root, data + bvec->bv_offset,
+					*sums, bvec->bv_len);
+		kunmap_atomic(data, KM_USER0);
+		btrfs_csum_final(*sums, (char *)sums);
+		sums++;
+		bio_index++;
+		bvec++;
+	}
+	return 0;
+}
+
 int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, struct inode *inode,
-			   struct bio *bio)
+			   struct bio *bio, char *sums)
 {
 	u64 objectid = inode->i_ino;
 	u64 offset;
@@ -150,12 +177,11 @@ int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 	struct btrfs_csum_item *item_end;
 	struct extent_buffer *leaf = NULL;
 	u64 csum_offset;
-	u32 csum_result;
+	u32 *sums32 = (u32 *)sums;
 	u32 nritems;
 	u32 ins_size;
 	int bio_index = 0;
 	struct bio_vec *bvec = bio->bi_io_vec;
-	char *data;
 	char *eb_map;
 	char *eb_token;
 	unsigned long map_len;
@@ -278,15 +304,6 @@ found:
 				      btrfs_item_size_nr(leaf, path->slots[0]));
 	eb_token = NULL;
 next_bvec:
-	data = kmap_atomic(bvec->bv_page, KM_USER0);
-	csum_result = ~(u32)0;
-	csum_result = btrfs_csum_data(root, data + bvec->bv_offset,
-				      csum_result, bvec->bv_len);
-	kunmap_atomic(data, KM_USER0);
-	btrfs_csum_final(csum_result, (char *)&csum_result);
-	if (csum_result == 0) {
-		printk("csum result is 0 for inode %lu offset %Lu\n", inode->i_ino, offset);
-	}
 
 	if (!eb_token ||
 	   (unsigned long)item  + BTRFS_CRC32_SIZE >= map_start + map_len) {
@@ -304,13 +321,14 @@ next_bvec:
 	}
 	if (eb_token) {
 		memcpy(eb_token + ((unsigned long)item & (PAGE_CACHE_SIZE - 1)),
-		       &csum_result, BTRFS_CRC32_SIZE);
+		       sums32, BTRFS_CRC32_SIZE);
 	} else {
-		write_extent_buffer(leaf, &csum_result, (unsigned long)item,
+		write_extent_buffer(leaf, sums32, (unsigned long)item,
 				    BTRFS_CRC32_SIZE);
 	}
 	bio_index++;
 	bvec++;
+	sums32++;
 	if (bio_index < bio->bi_vcnt) {
 		item = (struct btrfs_csum_item *)((char *)item +
 						  BTRFS_CRC32_SIZE);

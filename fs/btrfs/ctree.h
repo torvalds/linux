@@ -1515,7 +1515,9 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 			     u64 bytenr, int mod);
 int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, struct inode *inode,
-			   struct bio *bio);
+			   struct bio *bio, char *sums);
+int btrfs_csum_one_bio(struct btrfs_root *root,
+		       struct bio *bio, char **sums_ret);
 struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 					  struct btrfs_root *root,
 					  struct btrfs_path *path,

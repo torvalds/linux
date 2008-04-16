@@ -330,14 +330,23 @@ int __btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
 	int ret = 0;
+	char *sums = NULL;
+
+	ret = btrfs_csum_one_bio(root, bio, &sums);
+	BUG_ON(ret);
 
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
+
 	btrfs_set_trans_block_group(trans, inode);
-	btrfs_csum_file_blocks(trans, root, inode, bio);
+	btrfs_csum_file_blocks(trans, root, inode, bio, sums);
+
 	ret = btrfs_end_transaction(trans, root);
 	BUG_ON(ret);
 	mutex_unlock(&root->fs_info->fs_mutex);
+
+	kfree(sums);
+
 	return btrfs_map_bio(root, rw, bio, mirror_num);
 }
 
