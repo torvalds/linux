@@ -803,7 +803,8 @@ static int tsi108_refill_rx(struct net_device *dev, int budget)
 		int rx = data->rxhead;
 		struct sk_buff *skb;
 
-		data->rxskbs[rx] = skb = dev_alloc_skb(TSI108_RXBUF_SIZE + 2);
+		data->rxskbs[rx] = skb = netdev_alloc_skb(dev,
+							  TSI108_RXBUF_SIZE + 2);
 		if (!skb)
 			break;
 
@@ -1352,8 +1353,9 @@ static int tsi108_open(struct net_device *dev)
 	data->rxhead = 0;
 
 	for (i = 0; i < TSI108_RXRING_LEN; i++) {
-		struct sk_buff *skb = dev_alloc_skb(TSI108_RXBUF_SIZE + NET_IP_ALIGN);
+		struct sk_buff *skb;
 
+		skb = netdev_alloc_skb(dev, TSI108_RXBUF_SIZE + NET_IP_ALIGN);
 		if (!skb) {
 			/* Bah.  No memory for now, but maybe we'll get
 			 * some more later.
