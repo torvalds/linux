@@ -642,8 +642,14 @@ static int vlan_init_net(struct net *net)
 	if (err < 0)
 		goto err_assign;
 
+	err = vlan_proc_init(net);
+	if (err < 0)
+		goto err_proc;
+
 	return 0;
 
+err_proc:
+	/* nothing */
 err_assign:
 	kfree(vn);
 err_alloc:
@@ -655,6 +661,7 @@ static void vlan_exit_net(struct net *net)
 	struct vlan_net *vn;
 
 	vn = net_generic(net, vlan_net_id);
+	vlan_proc_cleanup(net);
 	kfree(vn);
 }
 
@@ -674,10 +681,6 @@ static int __init vlan_proto_init(void)
 	if (err < 0)
 		goto err0;
 
-	err = vlan_proc_init();
-	if (err < 0)
-		goto err1;
-
 	err = register_netdevice_notifier(&vlan_notifier_block);
 	if (err < 0)
 		goto err2;
@@ -693,8 +696,6 @@ static int __init vlan_proto_init(void)
 err3:
 	unregister_netdevice_notifier(&vlan_notifier_block);
 err2:
-	vlan_proc_cleanup();
-err1:
 	unregister_pernet_gen_device(vlan_net_id, &vlan_net_ops);
 err0:
 	return err;
@@ -714,8 +715,6 @@ static void __exit vlan_cleanup_module(void)
 	/* This table must be empty if there are no module references left. */
 	for (i = 0; i < VLAN_GRP_HASH_SIZE; i++)
 		BUG_ON(!hlist_empty(&vlan_group_hash[i]));
-
-	vlan_proc_cleanup();
 
 	unregister_pernet_gen_device(vlan_net_id, &vlan_net_ops);
 

@@ -138,8 +138,11 @@ static const char *vlan_name_type_str[VLAN_NAME_TYPE_HIGHEST] = {
  *	Clean up /proc/net/vlan entries
  */
 
-void vlan_proc_cleanup(void)
+void vlan_proc_cleanup(struct net *net)
 {
+	if (net != &init_net)
+		return;
+
 	if (proc_vlan_conf)
 		remove_proc_entry(name_conf, proc_vlan_dir);
 
@@ -155,8 +158,11 @@ void vlan_proc_cleanup(void)
  *	Create /proc/net/vlan entries
  */
 
-int __init vlan_proc_init(void)
+int vlan_proc_init(struct net *net)
 {
+	if (net != &init_net)
+		return 0;
+
 	proc_vlan_dir = proc_mkdir(name_root, init_net.proc_net);
 	if (!proc_vlan_dir)
 		goto err;
@@ -169,7 +175,7 @@ int __init vlan_proc_init(void)
 
 err:
 	pr_err("%s: can't create entry in proc filesystem!\n", __func__);
-	vlan_proc_cleanup();
+	vlan_proc_cleanup(net);
 	return -ENOBUFS;
 }
 
