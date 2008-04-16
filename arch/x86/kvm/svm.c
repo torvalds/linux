@@ -486,8 +486,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 
 	control->intercept_cr_read = 	INTERCEPT_CR0_MASK |
 					INTERCEPT_CR3_MASK |
-					INTERCEPT_CR4_MASK |
-					INTERCEPT_CR8_MASK;
+					INTERCEPT_CR4_MASK;
 
 	control->intercept_cr_write = 	INTERCEPT_CR0_MASK |
 					INTERCEPT_CR3_MASK |
@@ -1621,6 +1620,19 @@ static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
 {
 }
 
+static inline void sync_lapic_to_cr8(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	u64 cr8;
+
+	if (!irqchip_in_kernel(vcpu->kvm))
+		return;
+
+	cr8 = kvm_get_cr8(vcpu);
+	svm->vmcb->control.int_ctl &= ~V_TPR_MASK;
+	svm->vmcb->control.int_ctl |= cr8 & V_TPR_MASK;
+}
+
 static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -1629,6 +1641,8 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	u16 ldt_selector;
 
 	pre_svm_run(svm);
+
+	sync_lapic_to_cr8(vcpu);
 
 	save_host_msrs(vcpu);
 	fs_selector = read_fs();
