@@ -136,12 +136,6 @@ static ctl_table sunrpc_table[] = {
 #endif
 
 /*
- * How many times to try sending a request on a socket before waiting
- * for the socket buffer to clear.
- */
-#define XS_SENDMSG_RETRY	(10U)
-
-/*
  * Time out for an RPC UDP socket connect.  UDP socket connects are
  * synchronous, but we set a timeout anyway in case of resource
  * exhaustion on the local host.
@@ -666,7 +660,6 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	struct xdr_buf *xdr = &req->rq_snd_buf;
 	int status;
-	unsigned int retry = 0;
 
 	xs_encode_tcp_record_marker(&req->rq_snd_buf);
 
@@ -697,9 +690,10 @@ static int xs_tcp_send_request(struct rpc_task *task)
 			return 0;
 		}
 
+		if (status != 0)
+			continue;
 		status = -EAGAIN;
-		if (retry++ > XS_SENDMSG_RETRY)
-			break;
+		break;
 	}
 
 	switch (status) {
