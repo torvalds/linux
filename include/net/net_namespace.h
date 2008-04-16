@@ -26,9 +26,11 @@ struct net {
 	atomic_t		count;		/* To decided when the network
 						 *  namespace should be freed.
 						 */
+#ifdef NETNS_REFCNT_DEBUG
 	atomic_t		use_count;	/* To track references we
 						 * destroy on demand
 						 */
+#endif
 	struct list_head	list;		/* list of network namespaces */
 	struct work_struct	work;		/* work struct for freeing */
 
@@ -117,17 +119,6 @@ static inline void put_net(struct net *net)
 		__put_net(net);
 }
 
-static inline struct net *hold_net(struct net *net)
-{
-	atomic_inc(&net->use_count);
-	return net;
-}
-
-static inline void release_net(struct net *net)
-{
-	atomic_dec(&net->use_count);
-}
-
 static inline
 int net_eq(const struct net *net1, const struct net *net2)
 {
@@ -143,15 +134,6 @@ static inline void put_net(struct net *net)
 {
 }
 
-static inline struct net *hold_net(struct net *net)
-{
-	return net;
-}
-
-static inline void release_net(struct net *net)
-{
-}
-
 static inline struct net *maybe_get_net(struct net *net)
 {
 	return net;
@@ -163,6 +145,32 @@ int net_eq(const struct net *net1, const struct net *net2)
 	return 1;
 }
 #endif
+
+
+#ifdef NETNS_REFCNT_DEBUG
+static inline struct net *hold_net(struct net *net)
+{
+	if (net)
+		atomic_inc(&net->use_count);
+	return net;
+}
+
+static inline void release_net(struct net *net)
+{
+	if (net)
+		atomic_dec(&net->use_count);
+}
+#else
+static inline struct net *hold_net(struct net *net)
+{
+	return net;
+}
+
+static inline void release_net(struct net *net)
+{
+}
+#endif
+
 
 #define for_each_net(VAR)				\
 	list_for_each_entry(VAR, &net_namespace_list, list)

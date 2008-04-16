@@ -35,7 +35,9 @@ static __net_init int setup_net(struct net *net)
 	struct net_generic *ng;
 
 	atomic_set(&net->count, 1);
+#ifdef NETNS_REFCNT_DEBUG
 	atomic_set(&net->use_count, 0);
+#endif
 
 	error = -ENOMEM;
 	ng = kzalloc(sizeof(struct net_generic) +
@@ -86,11 +88,13 @@ static void net_free(struct net *net)
 	if (!net)
 		return;
 
+#ifdef NETNS_REFCNT_DEBUG
 	if (unlikely(atomic_read(&net->use_count) != 0)) {
 		printk(KERN_EMERG "network namespace not free! Usage: %d\n",
 			atomic_read(&net->use_count));
 		return;
 	}
+#endif
 
 	kmem_cache_free(net_cachep, net);
 }
