@@ -316,7 +316,7 @@ static inline struct sk_buff *buf_acquire(u32 size)
 	struct sk_buff *skb;
 	unsigned int buf_size = (BUF_HEADROOM + size + 3) & ~3u;
 
-	skb = alloc_skb(buf_size, GFP_ATOMIC);
+	skb = alloc_skb_fclone(buf_size, GFP_ATOMIC);
 	if (skb) {
 		skb_reserve(skb, BUF_HEADROOM);
 		skb_put(skb, size);
