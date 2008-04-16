@@ -916,13 +916,6 @@ static void svm_set_segment(struct kvm_vcpu *vcpu,
 
 }
 
-/* FIXME:
-
-	svm(vcpu)->vmcb->control.int_ctl &= ~V_TPR_MASK;
-	svm(vcpu)->vmcb->control.int_ctl |= (sregs->cr8 & V_TPR_MASK);
-
-*/
-
 static int svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_debug_guest *dbg)
 {
 	return -EOPNOTSUPP;
