@@ -854,6 +854,7 @@ int usb_serial_probe(struct usb_interface *interface,
 	serial->num_interrupt_in = num_interrupt_in;
 	serial->num_interrupt_out = num_interrupt_out;
 
+#if 0
 	/* check that the device meets the driver's requirements */
 	if ((type->num_interrupt_in != NUM_DONT_CARE &&
 				type->num_interrupt_in != num_interrupt_in)
@@ -867,6 +868,7 @@ int usb_serial_probe(struct usb_interface *interface,
 		kfree(serial);
 		return -EIO;
 	}
+#endif
 
 	/* found all that we need */
 	dev_info(&interface->dev, "%s converter detected\n",
