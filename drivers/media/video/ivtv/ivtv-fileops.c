@@ -219,7 +219,9 @@ static struct ivtv_buffer *ivtv_get_buffer(struct ivtv_stream *s, int non_block,
 			/* Process pending program info updates and pending VBI data */
 			ivtv_update_pgm_info(itv);
 
-			if (jiffies - itv->dualwatch_jiffies > msecs_to_jiffies(1000)) {
+			if (time_after(jiffies,
+				       itv->dualwatch_jiffies +
+				       msecs_to_jiffies(1000))) {
 				itv->dualwatch_jiffies = jiffies;
 				ivtv_dualwatch(itv);
 			}
