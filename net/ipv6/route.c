@@ -2622,7 +2622,7 @@ static int ip6_route_net_init(struct net *net)
 					GFP_KERNEL);
 	if (!net->ipv6.ip6_dst_ops)
 		goto out;
-	net->ipv6.ip6_dst_ops->dst_net = net;
+	net->ipv6.ip6_dst_ops->dst_net = hold_net(net);
 
 	net->ipv6.ip6_null_entry = kmemdup(&ip6_null_entry_template,
 					   sizeof(*net->ipv6.ip6_null_entry),
@@ -2669,6 +2669,7 @@ out:
 	return ret;
 
 out_ip6_dst_ops:
+	release_net(net->ipv6.ip6_dst_ops->dst_net);
 	kfree(net->ipv6.ip6_dst_ops);
 	goto out;
 }
@@ -2684,6 +2685,7 @@ static void ip6_route_net_exit(struct net *net)
 	kfree(net->ipv6.ip6_prohibit_entry);
 	kfree(net->ipv6.ip6_blk_hole_entry);
 #endif
+	release_net(net->ipv6.ip6_dst_ops->dst_net);
 	kfree(net->ipv6.ip6_dst_ops);
 }
 
