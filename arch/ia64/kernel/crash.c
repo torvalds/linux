@@ -24,6 +24,7 @@ int kdump_status[NR_CPUS];
 static atomic_t kdump_cpu_frozen;
 atomic_t kdump_in_progress;
 static int kdump_on_init = 1;
+static int kdump_on_fatal_mca = 1;
 
 static inline Elf64_Word
 *append_elf_note(Elf64_Word *buf, char *name, unsigned type, void *data,
@@ -118,6 +119,7 @@ machine_crash_shutdown(struct pt_regs *pt)
 static void
 machine_kdump_on_init(void)
 {
+	crash_save_vmcoreinfo();
 	local_irq_disable();
 	kexec_disable_iosapic();
 	machine_kexec(ia64_kimage);
@@ -148,7 +150,7 @@ kdump_init_notifier(struct notifier_block *self, unsigned long val, void *data)
 	struct ia64_mca_notify_die *nd;
 	struct die_args *args = data;
 
-	if (!kdump_on_init)
+	if (!kdump_on_init && !kdump_on_fatal_mca)
 		return NOTIFY_DONE;
 
 	if (!ia64_kimage) {
@@ -173,36 +175,50 @@ kdump_init_notifier(struct notifier_block *self, unsigned long val, void *data)
 		return NOTIFY_DONE;
 
 	switch (val) {
-		case DIE_INIT_MONARCH_PROCESS:
+	case DIE_INIT_MONARCH_PROCESS:
+		if (kdump_on_init) {
 			atomic_set(&kdump_in_progress, 1);
 			*(nd->monarch_cpu) = -1;
-			break;
-		case DIE_INIT_MONARCH_LEAVE:
+		}
+		break;
+	case DIE_INIT_MONARCH_LEAVE:
+		if (kdump_on_init)
 			machine_kdump_on_init();
-			break;
-		case DIE_INIT_SLAVE_LEAVE:
-			if (atomic_read(&kdump_in_progress))
-				unw_init_running(kdump_cpu_freeze, NULL);
-			break;
-		case DIE_MCA_RENDZVOUS_LEAVE:
-			if (atomic_read(&kdump_in_progress))
-				unw_init_running(kdump_cpu_freeze, NULL);
-			break;
-		case DIE_MCA_MONARCH_LEAVE:
-		     /* die_register->signr indicate if MCA is recoverable */
-			if (!args->signr)
-				machine_kdump_on_init();
-			break;
+		break;
+	case DIE_INIT_SLAVE_LEAVE:
+		if (atomic_read(&kdump_in_progress))
+			unw_init_running(kdump_cpu_freeze, NULL);
+		break;
+	case DIE_MCA_RENDZVOUS_LEAVE:
+		if (atomic_read(&kdump_in_progress))
+			unw_init_running(kdump_cpu_freeze, NULL);
+		break;
+	case DIE_MCA_MONARCH_LEAVE:
+		/* die_register->signr indicate if MCA is recoverable */
+		if (kdump_on_fatal_mca && !args->signr) {
+			atomic_set(&kdump_in_progress, 1);
+			*(nd->monarch_cpu) = -1;
+			machine_kdump_on_init();
+		}
+		break;
 	}
 	return NOTIFY_DONE;
 }
 
 #ifdef CONFIG_SYSCTL
-static ctl_table kdump_on_init_table[] = {
+static ctl_table kdump_ctl_table[] = {
 	{
 		.ctl_name = CTL_UNNUMBERED,
 		.procname = "kdump_on_init",
 		.data = &kdump_on_init,
+		.maxlen = sizeof(int),
+		.mode = 0644,
+		.proc_handler = &proc_dointvec,
+	},
+	{
+		.ctl_name = CTL_UNNUMBERED,
+		.procname = "kdump_on_fatal_mca",
+		.data = &kdump_on_fatal_mca,
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = &proc_dointvec,
@@ -215,7 +231,7 @@ static ctl_table sys_table[] = {
 	  .ctl_name = CTL_KERN,
 	  .procname = "kernel",
 	  .mode = 0555,
-	  .child = kdump_on_init_table,
+	  .child = kdump_ctl_table,
 	},
 	{ .ctl_name = 0 }
 };

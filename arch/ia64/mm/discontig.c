@@ -445,7 +445,7 @@ void __init find_memory(void)
 			mem_data[node].min_pfn = ~0UL;
 		}
 
-	efi_memmap_walk(register_active_ranges, NULL);
+	efi_memmap_walk(filter_memory, register_active_ranges);
 
 	/*
 	 * Initialize the boot memory maps in reverse order since that's
@@ -519,8 +519,6 @@ void show_mem(void)
 
 	printk(KERN_INFO "Mem-info:\n");
 	show_free_areas();
-	printk(KERN_INFO "Free swap:       %6ldkB\n",
-	       nr_swap_pages<<(PAGE_SHIFT-10));
 	printk(KERN_INFO "Node memory in pages:\n");
 	for_each_online_pgdat(pgdat) {
 		unsigned long present;
