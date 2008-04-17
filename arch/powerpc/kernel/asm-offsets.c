@@ -23,6 +23,9 @@
 #include <linux/mm.h>
 #include <linux/suspend.h>
 #include <linux/hrtimer.h>
+#ifdef CONFIG_KVM
+#include <linux/kvm_host.h>
+#endif
 #ifdef CONFIG_PPC64
 #include <linux/time.h>
 #include <linux/hardirq.h>
@@ -323,6 +326,31 @@ int main(void)
 #endif
 
 	DEFINE(PGD_TABLE_SIZE, PGD_TABLE_SIZE);
+
+#ifdef CONFIG_KVM
+	DEFINE(TLBE_BYTES, sizeof(struct tlbe));
+
+	DEFINE(VCPU_HOST_STACK, offsetof(struct kvm_vcpu, arch.host_stack));
+	DEFINE(VCPU_HOST_PID, offsetof(struct kvm_vcpu, arch.host_pid));
+	DEFINE(VCPU_HOST_TLB, offsetof(struct kvm_vcpu, arch.host_tlb));
+	DEFINE(VCPU_SHADOW_TLB, offsetof(struct kvm_vcpu, arch.shadow_tlb));
+	DEFINE(VCPU_GPRS, offsetof(struct kvm_vcpu, arch.gpr));
+	DEFINE(VCPU_LR, offsetof(struct kvm_vcpu, arch.lr));
+	DEFINE(VCPU_CR, offsetof(struct kvm_vcpu, arch.cr));
+	DEFINE(VCPU_XER, offsetof(struct kvm_vcpu, arch.xer));
+	DEFINE(VCPU_CTR, offsetof(struct kvm_vcpu, arch.ctr));
+	DEFINE(VCPU_PC, offsetof(struct kvm_vcpu, arch.pc));
+	DEFINE(VCPU_MSR, offsetof(struct kvm_vcpu, arch.msr));
+	DEFINE(VCPU_SPRG4, offsetof(struct kvm_vcpu, arch.sprg4));
+	DEFINE(VCPU_SPRG5, offsetof(struct kvm_vcpu, arch.sprg5));
+	DEFINE(VCPU_SPRG6, offsetof(struct kvm_vcpu, arch.sprg6));
+	DEFINE(VCPU_SPRG7, offsetof(struct kvm_vcpu, arch.sprg7));
+	DEFINE(VCPU_PID, offsetof(struct kvm_vcpu, arch.pid));
+
+	DEFINE(VCPU_LAST_INST, offsetof(struct kvm_vcpu, arch.last_inst));
+	DEFINE(VCPU_FAULT_DEAR, offsetof(struct kvm_vcpu, arch.fault_dear));
+	DEFINE(VCPU_FAULT_ESR, offsetof(struct kvm_vcpu, arch.fault_esr));
+#endif
 
 	return 0;
 }

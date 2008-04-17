@@ -12,44 +12,26 @@
  * along with this program; if not, write to the Free Software
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
- * Copyright IBM Corp. 2007
+ * Copyright IBM Corp. 2008
  *
  * Authors: Hollis Blanchard <hollisb@us.ibm.com>
  */
 
-#ifndef __LINUX_KVM_POWERPC_H
-#define __LINUX_KVM_POWERPC_H
+#ifndef __POWERPC_KVM_PARA_H__
+#define __POWERPC_KVM_PARA_H__
 
-#include <asm/types.h>
+#ifdef __KERNEL__
 
-struct kvm_regs {
-	__u64 pc;
-	__u64 cr;
-	__u64 ctr;
-	__u64 lr;
-	__u64 xer;
-	__u64 msr;
-	__u64 srr0;
-	__u64 srr1;
-	__u64 pid;
+static inline int kvm_para_available(void)
+{
+	return 0;
+}
 
-	__u64 sprg0;
-	__u64 sprg1;
-	__u64 sprg2;
-	__u64 sprg3;
-	__u64 sprg4;
-	__u64 sprg5;
-	__u64 sprg6;
-	__u64 sprg7;
+static inline unsigned int kvm_arch_para_features(void)
+{
+	return 0;
+}
 
-	__u64 gpr[32];
-};
+#endif /* __KERNEL__ */
 
-struct kvm_sregs {
-};
-
-struct kvm_fpu {
-	__u64 fpr[32];
-};
-
-#endif /* __LINUX_KVM_POWERPC_H */
+#endif /* __POWERPC_KVM_PARA_H__ */

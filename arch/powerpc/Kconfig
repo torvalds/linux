@@ -803,3 +803,4 @@ config PPC_CLOCK
 config PPC_LIB_RHEAP
 	bool
 
+source "arch/powerpc/kvm/Kconfig"
