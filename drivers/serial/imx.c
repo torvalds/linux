@@ -167,11 +167,6 @@
 #define MINOR_START		41
 
 /*
- * This is the size of our serial port register set.
- */
-#define UART_PORT_SIZE	0x100
-
-/*
  * This determines how often we check the modem status signals
  * for any change.  They generally aren't connected to an IRQ
  * so we have to poll them.  We also check immediately before
@@ -721,9 +716,11 @@ static const char *imx_type(struct uart_port *port)
  */
 static void imx_release_port(struct uart_port *port)
 {
-	struct imx_port *sport = (struct imx_port *)port;
+	struct platform_device *pdev = to_platform_device(port->dev);
+	struct resource *mmres;
 
-	release_mem_region(sport->port.mapbase, UART_PORT_SIZE);
+	mmres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	release_mem_region(mmres->start, mmres->end - mmres->start + 1);
 }
 
 /*
@@ -731,10 +728,18 @@ static void imx_release_port(struct uart_port *port)
  */
 static int imx_request_port(struct uart_port *port)
 {
-	struct imx_port *sport = (struct imx_port *)port;
+	struct platform_device *pdev = to_platform_device(port->dev);
+	struct resource *mmres;
+	void *ret;
 
-	return request_mem_region(sport->port.mapbase, UART_PORT_SIZE,
-			"imx-uart") != NULL ? 0 : -EBUSY;
+	mmres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!mmres)
+		return -ENODEV;
+
+	ret = request_mem_region(mmres->start, mmres->end - mmres->start + 1,
+			"imx-uart");
+
+	return  ret ? 0 : -EBUSY;
 }
 
 /*
