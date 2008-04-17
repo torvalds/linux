@@ -2,7 +2,7 @@
  * net/tipc/ref.c: TIPC object registry code
  *
  * Copyright (c) 1991-2006, Ericsson AB
- * Copyright (c) 2004-2005, Wind River Systems
+ * Copyright (c) 2004-2007, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,37 @@
 #include "node.h"
 #include "bcast.h"
 
+/**
+ * struct reference - TIPC object reference entry
+ * @object: pointer to object associated with reference entry
+ * @lock: spinlock controlling access to object
+ * @data: reference value associated with object (or link to next unused entry)
+ */
+
+struct reference {
+	void *object;
+	spinlock_t lock;
+	union {
+		u32 next_plus_upper;
+		u32 reference;
+	} data;
+};
+
+/**
+ * struct tipc_ref_table - table of TIPC object reference entries
+ * @entries: pointer to array of reference entries
+ * @index_mask: bitmask for array index portion of reference values
+ * @first_free: array index of first unused object reference entry
+ * @last_free: array index of last unused object reference entry
+ */
+
+struct ref_table {
+	struct reference *entries;
+	u32 index_mask;
+	u32 first_free;
+	u32 last_free;
+};
+
 /*
  * Object reference table consists of 2**N entries.
  *
@@ -61,7 +92,7 @@
  * because entry 0's reference field has the form XXXX|1--1.
  */
 
-struct ref_table tipc_ref_table = { NULL };
+static struct ref_table tipc_ref_table = { NULL };
 
 static DEFINE_RWLOCK(ref_table_lock);
 
@@ -198,13 +229,65 @@ void tipc_ref_discard(u32 ref)
 		tipc_ref_table.first_free = index;
 	else
 		/* next_plus_upper is always XXXX|0--0 for last free entry */
-		tipc_ref_table.entries[tipc_ref_table.last_free].data.next_plus_upper
-			|= index;
+		tipc_ref_table.entries[tipc_ref_table.last_free].
+			data.next_plus_upper |= index;
 	tipc_ref_table.last_free = index;
 
 	/* increment upper bits of entry to invalidate subsequent references */
 	entry->data.next_plus_upper = (ref & ~index_mask) + (index_mask + 1);
 exit:
 	write_unlock_bh(&ref_table_lock);
+}
+
+/**
+ * tipc_ref_lock - lock referenced object and return pointer to it
+ */
+
+void *tipc_ref_lock(u32 ref)
+{
+	if (likely(tipc_ref_table.entries)) {
+		struct reference *r;
+
+		r = &tipc_ref_table.entries[ref & tipc_ref_table.index_mask];
+		spin_lock_bh(&r->lock);
+		if (likely(r->data.reference == ref))
+			return r->object;
+		spin_unlock_bh(&r->lock);
+	}
+	return NULL;
+}
+
+/**
+ * tipc_ref_unlock - unlock referenced object
+ */
+
+void tipc_ref_unlock(u32 ref)
+{
+	if (likely(tipc_ref_table.entries)) {
+		struct reference *r;
+
+		r = &tipc_ref_table.entries[ref & tipc_ref_table.index_mask];
+		if (likely(r->data.reference == ref))
+			spin_unlock_bh(&r->lock);
+		else
+			err("tipc_ref_unlock() invoked using "
+			    "obsolete reference\n");
+	}
+}
+
+/**
+ * tipc_ref_deref - return pointer referenced object (without locking it)
+ */
+
+void *tipc_ref_deref(u32 ref)
+{
+	if (likely(tipc_ref_table.entries)) {
+		struct reference *r;
+
+		r = &tipc_ref_table.entries[ref & tipc_ref_table.index_mask];
+		if (likely(r->data.reference == ref))
+			return r->object;
+	}
+	return NULL;
 }
 
