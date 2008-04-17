@@ -366,7 +366,6 @@ static void print_core(struct nes_cm_core *core)
 	if (!core)
 		return;
 	nes_debug(NES_DBG_CM, "---------------------------------------------\n");
-	nes_debug(NES_DBG_CM, "Session ID    : %u \n", atomic_read(&core->session_id));
 
 	nes_debug(NES_DBG_CM, "State         : %u \n",  core->state);
 
@@ -1101,8 +1100,6 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 	cm_node->tcp_cntxt.rcv_nxt = 0;
 	/* get a unique session ID , add thread_id to an upcounter to handle race */
 	atomic_inc(&cm_core->node_cnt);
-	atomic_inc(&cm_core->session_id);
-	cm_node->session_id = (u32)(atomic_read(&cm_core->session_id) + current->tgid);
 	cm_node->conn_type = cm_info->conn_type;
 	cm_node->apbvt_set = 0;
 	cm_node->accept_pend = 0;
@@ -1629,9 +1626,7 @@ static struct nes_cm_listener *mini_cm_listen(struct nes_cm_core *cm_core,
 	listener->cm_core = cm_core;
 	listener->nesvnic = nesvnic;
 	atomic_inc(&cm_core->node_cnt);
-	atomic_inc(&cm_core->session_id);
 
-	listener->session_id = (u32)(atomic_read(&cm_core->session_id) + current->tgid);
 	listener->conn_type = cm_info->conn_type;
 	listener->backlog = cm_info->backlog;
 	listener->listener_state = NES_CM_LISTENER_ACTIVE_STATE;
@@ -1944,7 +1939,6 @@ static struct nes_cm_core *nes_cm_alloc_core(void)
 	cm_core->state = NES_CM_STATE_INITED;
 	cm_core->free_tx_pkt_max = NES_CM_DEFAULT_FREE_PKTS;
 
-	atomic_set(&cm_core->session_id, 0);
 	atomic_set(&cm_core->events_posted, 0);
 
 	/* init the packet lists */

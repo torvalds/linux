@@ -225,7 +225,6 @@ enum nes_cm_listener_state {
 
 struct nes_cm_listener {
 	struct list_head           list;
-	u64                        session_id;
 	struct nes_cm_core         *cm_core;
 	u8                         loc_mac[ETH_ALEN];
 	nes_addr_t                 loc_addr;
@@ -242,7 +241,6 @@ struct nes_cm_listener {
 
 /* per connection node and node state information */
 struct nes_cm_node {
-	u64                       session_id;
 	u32                       hashkey;
 
 	nes_addr_t                loc_addr, rem_addr;
@@ -327,7 +325,6 @@ struct nes_cm_event {
 
 struct nes_cm_core {
 	enum nes_cm_node_state  state;
-	atomic_t                session_id;
 
 	atomic_t                listen_node_cnt;
 	struct nes_cm_node      listen_list;
