@@ -673,9 +673,6 @@ extern unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
 					const u8 *dest, int left);
 extern int iwl4965_rx_queue_update_write_ptr(struct iwl_priv *priv,
 					 struct iwl4965_rx_queue *q);
-extern void iwl4965_set_decrypted_flag(struct iwl_priv *priv, struct sk_buff *skb,
-				   u32 decrypt_res,
-				   struct ieee80211_rx_status *stats);
 extern __le16 *ieee80211_get_qos_ctrl(struct ieee80211_hdr *hdr);
 int iwl4965_init_geos(struct iwl_priv *priv);
 void iwl4965_free_geos(struct iwl_priv *priv);

@@ -2456,45 +2456,6 @@ void iwl4965_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
 	return;
 }
 
-void iwl4965_set_decrypted_flag(struct iwl_priv *priv, struct sk_buff *skb,
-			    u32 decrypt_res, struct ieee80211_rx_status *stats)
-{
-	u16 fc =
-	    le16_to_cpu(((struct ieee80211_hdr *)skb->data)->frame_control);
-
-	if (priv->active_rxon.filter_flags & RXON_FILTER_DIS_DECRYPT_MSK)
-		return;
-
-	if (!(fc & IEEE80211_FCTL_PROTECTED))
-		return;
-
-	IWL_DEBUG_RX("decrypt_res:0x%x\n", decrypt_res);
-	switch (decrypt_res & RX_RES_STATUS_SEC_TYPE_MSK) {
-	case RX_RES_STATUS_SEC_TYPE_TKIP:
-		/* The uCode has got a bad phase 1 Key, pushes the packet.
-		 * Decryption will be done in SW. */
-		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
-		    RX_RES_STATUS_BAD_KEY_TTAK)
-			break;
-
-		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
-		    RX_RES_STATUS_BAD_ICV_MIC)
-			stats->flag |= RX_FLAG_MMIC_ERROR;
-	case RX_RES_STATUS_SEC_TYPE_WEP:
-	case RX_RES_STATUS_SEC_TYPE_CCMP:
-		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
-		    RX_RES_STATUS_DECRYPT_OK) {
-			IWL_DEBUG_RX("hw decrypt successfully!!!\n");
-			stats->flag |= RX_FLAG_DECRYPTED;
-		}
-		break;
-
-	default:
-		break;
-	}
-}
-
-
 #define IWL_PACKET_RETRY_TIME HZ
 
 int iwl4965_is_duplicate_packet(struct iwl_priv *priv, struct ieee80211_hdr *header)
@@ -6861,7 +6822,7 @@ static int iwl4965_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		if (is_default_wep_key)
 			ret = iwl_remove_default_wep_key(priv, key);
 		else
-			ret = iwl_remove_dynamic_key(priv, sta_id);
+			ret = iwl_remove_dynamic_key(priv, key, sta_id);
 
 		IWL_DEBUG_MAC80211("disable hwcrypto key\n");
 		break;

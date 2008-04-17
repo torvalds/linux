@@ -2871,6 +2871,53 @@ static void iwl_update_rx_stats(struct iwl_priv *priv, u16 fc, u16 len)
 	priv->rx_stats[idx].bytes += len;
 }
 
+/*
+ * returns non-zero if packet should be dropped
+ */
+static int iwl4965_set_decrypted_flag(struct iwl_priv *priv,
+				      struct ieee80211_hdr *hdr,
+				      u32 decrypt_res,
+				      struct ieee80211_rx_status *stats)
+{
+	u16 fc = le16_to_cpu(hdr->frame_control);
+
+	if (priv->active_rxon.filter_flags & RXON_FILTER_DIS_DECRYPT_MSK)
+		return 0;
+
+	if (!(fc & IEEE80211_FCTL_PROTECTED))
+		return 0;
+
+	IWL_DEBUG_RX("decrypt_res:0x%x\n", decrypt_res);
+	switch (decrypt_res & RX_RES_STATUS_SEC_TYPE_MSK) {
+	case RX_RES_STATUS_SEC_TYPE_TKIP:
+		/* The uCode has got a bad phase 1 Key, pushes the packet.
+		 * Decryption will be done in SW. */
+		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
+		    RX_RES_STATUS_BAD_KEY_TTAK)
+			break;
+
+		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
+		    RX_RES_STATUS_BAD_ICV_MIC) {
+			/* bad ICV, the packet is destroyed since the
+			 * decryption is inplace, drop it */
+			IWL_DEBUG_RX("Packet destroyed\n");
+			return -1;
+		}
+	case RX_RES_STATUS_SEC_TYPE_WEP:
+	case RX_RES_STATUS_SEC_TYPE_CCMP:
+		if ((decrypt_res & RX_RES_STATUS_DECRYPT_TYPE_MSK) ==
+		    RX_RES_STATUS_DECRYPT_OK) {
+			IWL_DEBUG_RX("hw decrypt successfully!!!\n");
+			stats->flag |= RX_FLAG_DECRYPTED;
+		}
+		break;
+
+	default:
+		break;
+	}
+	return 0;
+}
+
 static u32 iwl4965_translate_rx_status(u32 decrypt_in)
 {
 	u32 decrypt_out = 0;
@@ -3000,8 +3047,10 @@ static void iwl4965_handle_data_packet(struct iwl_priv *priv, int is_data,
 	stats->flag = 0;
 	hdr = (struct ieee80211_hdr *)rxb->skb->data;
 
-	if (!priv->cfg->mod_params->sw_crypto)
-		iwl4965_set_decrypted_flag(priv, rxb->skb, ampdu_status, stats);
+	/*  in case of HW accelerated crypto and bad decryption, drop */
+	if (!priv->cfg->mod_params->sw_crypto &&
+	    iwl4965_set_decrypted_flag(priv, hdr, ampdu_status, stats))
+		return;
 
 	if (priv->add_radiotap)
 		iwl4965_add_radiotap(priv, rxb->skb, rx_start, stats, ampdu_status);

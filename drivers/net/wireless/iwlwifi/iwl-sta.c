@@ -207,10 +207,14 @@ static int iwl_set_wep_dynamic_key_info(struct iwl_priv *priv,
 	memcpy(&priv->stations[sta_id].sta.key.key[3],
 				keyconf->key, keyconf->keylen);
 
-	priv->stations[sta_id].sta.key.key_offset =
+	if ((priv->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
+			== STA_KEY_FLG_NO_ENC)
+		priv->stations[sta_id].sta.key.key_offset =
 				 iwl_get_free_ucode_key_index(priv);
-	priv->stations[sta_id].sta.key.key_flags = key_flags;
+	/* else, we are overriding an existing key => no need to allocated room
+	 * in uCode. */
 
+	priv->stations[sta_id].sta.key.key_flags = key_flags;
 	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 
@@ -249,8 +253,13 @@ static int iwl_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
 	memcpy(priv->stations[sta_id].sta.key.key, keyconf->key,
 	       keyconf->keylen);
 
-	priv->stations[sta_id].sta.key.key_offset =
-				iwl_get_free_ucode_key_index(priv);
+	if ((priv->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
+			== STA_KEY_FLG_NO_ENC)
+		priv->stations[sta_id].sta.key.key_offset =
+				 iwl_get_free_ucode_key_index(priv);
+	/* else, we are overriding an existing key => no need to allocated room
+	 * in uCode. */
+
 	priv->stations[sta_id].sta.key.key_flags = key_flags;
 	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
@@ -278,8 +287,13 @@ static int iwl_set_tkip_dynamic_key_info(struct iwl_priv *priv,
 	priv->stations[sta_id].keyinfo.alg = keyconf->alg;
 	priv->stations[sta_id].keyinfo.conf = keyconf;
 	priv->stations[sta_id].keyinfo.keylen = 16;
-	priv->stations[sta_id].sta.key.key_offset =
+
+	if ((priv->stations[sta_id].sta.key.key_flags & STA_KEY_FLG_ENCRYPT_MSK)
+			== STA_KEY_FLG_NO_ENC)
+		priv->stations[sta_id].sta.key.key_offset =
 				 iwl_get_free_ucode_key_index(priv);
+	/* else, we are overriding an existing key => no need to allocated room
+	 * in uCode. */
 
 	/* This copy is acutally not needed: we get the key with each TX */
 	memcpy(priv->stations[sta_id].keyinfo.key, keyconf->key, 16);
@@ -291,13 +305,31 @@ static int iwl_set_tkip_dynamic_key_info(struct iwl_priv *priv,
 	return ret;
 }
 
-int iwl_remove_dynamic_key(struct iwl_priv *priv, u8 sta_id)
+int iwl_remove_dynamic_key(struct iwl_priv *priv,
+				struct ieee80211_key_conf *keyconf,
+				u8 sta_id)
 {
 	unsigned long flags;
+	int ret = 0;
+	u16 key_flags;
+	u8 keyidx;
 
 	priv->key_mapping_key = 0;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
+	key_flags = le16_to_cpu(priv->stations[sta_id].sta.key.key_flags);
+	keyidx = (key_flags >> STA_KEY_FLG_KEYID_POS) & 0x3;
+
+	if (keyconf->keyidx != keyidx) {
+		/* We need to remove a key with index different that the one
+		 * in the uCode. This means that the key we need to remove has
+		 * been replaced by another one with different index.
+		 * Don't do anything and return ok
+		 */
+		spin_unlock_irqrestore(&priv->sta_lock, flags);
+		return 0;
+	}
+
 	if (!test_and_clear_bit(priv->stations[sta_id].sta.key.key_offset,
 		&priv->ucode_key_table))
 		IWL_ERROR("index %d not used in uCode key table.\n",
@@ -306,13 +338,16 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv, u8 sta_id)
 					sizeof(struct iwl4965_hw_key));
 	memset(&priv->stations[sta_id].sta.key, 0,
 					sizeof(struct iwl4965_keyinfo));
-	priv->stations[sta_id].sta.key.key_flags = STA_KEY_FLG_NO_ENC;
+	priv->stations[sta_id].sta.key.key_flags =
+			STA_KEY_FLG_NO_ENC | STA_KEY_FLG_INVALID;
+	priv->stations[sta_id].sta.key.key_offset = WEP_INVALID_OFFSET;
 	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	IWL_DEBUG_INFO("hwcrypto: clear ucode station key info\n");
-	return iwl4965_send_add_station(priv, &priv->stations[sta_id].sta, 0);
+	ret =  iwl4965_send_add_station(priv, &priv->stations[sta_id].sta, 0);
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	return ret;
 }
 
 int iwl_set_dynamic_key(struct iwl_priv *priv,
