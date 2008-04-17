@@ -5813,11 +5813,15 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 		       priv->direct_ssid, priv->direct_ssid_len);
 		direct_mask = 1;
 	} else if (!iwl_is_associated(priv) && priv->essid_len) {
+		IWL_DEBUG_SCAN
+		  ("Kicking off one direct scan for '%s' when not associated\n",
+		   iwl4965_escape_essid(priv->essid, priv->essid_len));
 		scan->direct_scan[0].id = WLAN_EID_SSID;
 		scan->direct_scan[0].len = priv->essid_len;
 		memcpy(scan->direct_scan[0].ssid, priv->essid, priv->essid_len);
 		direct_mask = 1;
 	} else {
+		IWL_DEBUG_SCAN("Kicking off one indirect scan.\n");
 		direct_mask = 0;
 	}
 
@@ -5870,23 +5874,18 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 	if (priv->iw_mode == IEEE80211_IF_TYPE_MNTR)
 		scan->filter_flags = RXON_FILTER_PROMISC_MSK;
 
-	if (direct_mask) {
-		IWL_DEBUG_SCAN
-		    ("Initiating direct scan for %s.\n",
-		     iwl4965_escape_essid(priv->essid, priv->essid_len));
+	if (direct_mask)
 		scan->channel_count =
 			iwl4965_get_channels_for_scan(
 				priv, band, 1, /* active */
 				direct_mask,
 				(void *)&scan->data[le16_to_cpu(scan->tx_cmd.len)]);
-	} else {
-		IWL_DEBUG_SCAN("Initiating indirect scan.\n");
+	else
 		scan->channel_count =
 			iwl4965_get_channels_for_scan(
 				priv, band, 0, /* passive */
 				direct_mask,
 				(void *)&scan->data[le16_to_cpu(scan->tx_cmd.len)]);
-	}
 
 	cmd.len += le16_to_cpu(scan->tx_cmd.len) +
 	    scan->channel_count * sizeof(struct iwl4965_scan_channel);
