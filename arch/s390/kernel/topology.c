@@ -1,6 +1,4 @@
 /*
- *  arch/s390/kernel/topology.c
- *
  *    Copyright IBM Corp. 2007
  *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
@@ -19,9 +17,17 @@
 #include <asm/sysinfo.h>
 
 #define CPU_BITS 64
+#define NR_MAG 6
+
+#define PTF_HORIZONTAL	(0UL)
+#define PTF_VERTICAL	(1UL)
+#define PTF_CHECK	(2UL)
 
 struct tl_cpu {
-	unsigned char reserved[6];
+	unsigned char reserved0[4];
+	unsigned char :6;
+	unsigned char pp:2;
+	unsigned char reserved1;
 	unsigned short origin;
 	unsigned long mask[CPU_BITS / BITS_PER_LONG];
 };
@@ -35,8 +41,6 @@ union tl_entry {
 	struct tl_cpu cpu;
 	struct tl_container container;
 };
-
-#define NR_MAG 6
 
 struct tl_info {
 	unsigned char reserved0[2];
@@ -96,8 +100,10 @@ static void add_cpus_to_core(struct tl_cpu *tl_cpu, struct core_info *core)
 
 		rcpu = CPU_BITS - 1 - cpu + tl_cpu->origin;
 		for_each_present_cpu(lcpu) {
-			if (__cpu_logical_map[lcpu] == rcpu)
+			if (__cpu_logical_map[lcpu] == rcpu) {
 				cpu_set(lcpu, core->mask);
+				smp_cpu_polarization[lcpu] = tl_cpu->pp;
+			}
 		}
 	}
 }
@@ -127,7 +133,7 @@ static void tl_to_cores(struct tl_info *info)
 
 	mutex_lock(&smp_cpu_state_mutex);
 	clear_cores();
-	tle = (union tl_entry *)&info->tle;
+	tle = info->tle;
 	end = (union tl_entry *)((unsigned long)info + info->length);
 	while (tle < end) {
 		switch (tle->nl) {
@@ -152,7 +158,17 @@ static void tl_to_cores(struct tl_info *info)
 	mutex_unlock(&smp_cpu_state_mutex);
 }
 
-static int ptf(void)
+static void topology_update_polarization_simple(void)
+{
+	int cpu;
+
+	mutex_lock(&smp_cpu_state_mutex);
+	for_each_present_cpu(cpu)
+		smp_cpu_polarization[cpu] = POLARIZATION_HRZ;
+	mutex_unlock(&smp_cpu_state_mutex);
+}
+
+static int ptf(unsigned long fc)
 {
 	int rc;
 
@@ -161,7 +177,25 @@ static int ptf(void)
 		"	ipm	%0\n"
 		"	srl	%0,28\n"
 		: "=d" (rc)
-		: "d" (2UL)  : "cc");
+		: "d" (fc)  : "cc");
+	return rc;
+}
+
+int topology_set_cpu_management(int fc)
+{
+	int cpu;
+	int rc;
+
+	if (!machine_has_topology)
+		return -EOPNOTSUPP;
+	if (fc)
+		rc = ptf(PTF_VERTICAL);
+	else
+		rc = ptf(PTF_HORIZONTAL);
+	if (rc)
+		return -EBUSY;
+	for_each_present_cpu(cpu)
+		smp_cpu_polarization[cpu] = POLARIZATION_UNKNWN;
 	return rc;
 }
 
@@ -171,9 +205,10 @@ void arch_update_cpu_topology(void)
 	struct sys_device *sysdev;
 	int cpu;
 
-	if (!machine_has_topology)
+	if (!machine_has_topology) {
+		topology_update_polarization_simple();
 		return;
-	ptf();
+	}
 	stsi(info, 15, 1, 2);
 	tl_to_cores(info);
 	for_each_online_cpu(cpu) {
@@ -187,10 +222,15 @@ static void topology_work_fn(struct work_struct *work)
 	arch_reinit_sched_domains();
 }
 
+void topology_schedule_update(void)
+{
+	schedule_work(&topology_work);
+}
+
 static void topology_timer_fn(unsigned long ignored)
 {
-	if (ptf())
-		schedule_work(&topology_work);
+	if (ptf(PTF_CHECK))
+		topology_schedule_update();
 	set_topology_timer();
 }
 
@@ -211,9 +251,11 @@ static int __init init_topology_update(void)
 {
 	int rc;
 
-	if (!machine_has_topology)
+	if (!machine_has_topology) {
+		topology_update_polarization_simple();
 		return 0;
-	init_timer(&topology_timer);
+	}
+	init_timer_deferrable(&topology_timer);
 	if (machine_has_topology_irq) {
 		rc = register_external_interrupt(0x2005, topology_interrupt);
 		if (rc)
