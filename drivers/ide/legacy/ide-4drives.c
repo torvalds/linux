@@ -13,6 +13,7 @@ static int __init ide_4drives_init(void)
 {
 	ide_hwif_t *hwif, *mate;
 	u8 idx[4] = { 0, 1, 0xff, 0xff };
+	hw_regs_t hw;
 
 	if (probe_4drives == 0)
 		return -ENODEV;
@@ -20,11 +21,14 @@ static int __init ide_4drives_init(void)
 	hwif = &ide_hwifs[0];
 	mate = &ide_hwifs[1];
 
-	memcpy(mate->io_ports, hwif->io_ports, sizeof(hwif->io_ports));
+	memset(&hw, 0, sizeof(hw));
 
-	mate->irq = hwif->irq;
+	ide_std_init_ports(&hw, 0x1f0, 0x3f6);
+	hw.irq = 14;
+	hw.chipset = ide_4drives;
 
-	mate->chipset = hwif->chipset = ide_4drives;
+	ide_init_port_hw(hwif, &hw);
+	ide_init_port_hw(mate, &hw);
 
 	mate->drives[0].select.all ^= 0x20;
 	mate->drives[1].select.all ^= 0x20;

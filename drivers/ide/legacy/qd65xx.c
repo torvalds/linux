@@ -352,9 +352,9 @@ static const struct ide_port_info qd65xx_port_info __initdata = {
 static int __init qd_probe(int base)
 {
 	ide_hwif_t *hwif;
+	u8 config, unit;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	u8 config;
-	u8 unit;
+	hw_regs_t hw[2];
 
 	config = inb(QD_CONFIG_PORT);
 
@@ -362,6 +362,14 @@ static int __init qd_probe(int base)
 		return 1;
 
 	unit = ! (config & QD_CONFIG_IDE_BASEPORT);
+
+	memset(&hw, 0, sizeof(hw));
+
+	ide_std_init_ports(&hw[0], 0x1f0, 0x3f6);
+	hw[0].irq = 14;
+
+	ide_std_init_ports(&hw[1], 0x170, 0x376);
+	hw[1].irq = 15;
 
 	if ((config & 0xf0) == QD_CONFIG_QD6500) {
 
@@ -378,6 +386,8 @@ static int __init qd_probe(int base)
 			printk(KERN_WARNING "qd6500 is disabled !\n");
 			return 1;
 		}
+
+		ide_init_port_hw(hwif, &hw[unit]);
 
 		qd_setup(hwif, base, config);
 
@@ -416,6 +426,8 @@ static int __init qd_probe(int base)
 			printk(KERN_INFO "%s: qd6580: single IDE board\n",
 					 hwif->name);
 
+			ide_init_port_hw(hwif, &hw[unit]);
+
 			qd_setup(hwif, base, config | (control << 8));
 
 			hwif->port_init_devs = qd6580_port_init_devs;
@@ -434,6 +446,9 @@ static int __init qd_probe(int base)
 			/* secondary enabled */
 			printk(KERN_INFO "%s&%s: qd6580: dual IDE board\n",
 					hwif->name, mate->name);
+
+			ide_init_port_hw(hwif, &hw[0]);
+			ide_init_port_hw(mate, &hw[1]);
 
 			qd_setup(hwif, base, config | (control << 8));
 
