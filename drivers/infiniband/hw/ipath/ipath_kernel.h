@@ -654,8 +654,9 @@ struct ipath_devdata {
 	 * Register bits for selecting i2c direction and values, used for
 	 * I2C serial flash.
 	 */
-	u16 ipath_gpio_sda_num;
-	u16 ipath_gpio_scl_num;
+	u8 ipath_gpio_sda_num;
+	u8 ipath_gpio_scl_num;
+	u8 ipath_i2c_chain_type;
 	u64 ipath_gpio_sda;
 	u64 ipath_gpio_scl;
 
@@ -906,6 +907,8 @@ void ipath_release_user_pages(struct page **, size_t);
 void ipath_release_user_pages_on_close(struct page **, size_t);
 int ipath_eeprom_read(struct ipath_devdata *, u8, void *, int);
 int ipath_eeprom_write(struct ipath_devdata *, u8, const void *, int);
+int ipath_tempsense_read(struct ipath_devdata *, u8 regnum);
+int ipath_tempsense_write(struct ipath_devdata *, u8 regnum, u8 data);
 
 /* these are used for the registers that vary with port */
 void ipath_write_kreg_port(const struct ipath_devdata *, ipath_kreg,
