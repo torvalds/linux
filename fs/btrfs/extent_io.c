@@ -1702,7 +1702,6 @@ extent_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
 
 static int submit_one_bio(int rw, struct bio *bio, int mirror_num)
 {
-	u64 maxsector;
 	int ret = 0;
 	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
 	struct page *page = bvec->bv_page;
@@ -1730,12 +1729,6 @@ static int submit_one_bio(int rw, struct bio *bio, int mirror_num)
 
 	bio_get(bio);
 
-        maxsector = bio->bi_bdev->bd_inode->i_size >> 9;
-	if (maxsector < bio->bi_sector) {
-		printk("sector too large max %Lu got %llu\n", maxsector,
-			(unsigned long long)bio->bi_sector);
-		WARN_ON(1);
-	}
 	if (tree->ops && tree->ops->submit_bio_hook)
 		tree->ops->submit_bio_hook(page->mapping->host, rw, bio,
 					   mirror_num);
