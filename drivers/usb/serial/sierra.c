@@ -164,6 +164,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x1199, 0x6812) },	/* Sierra Wireless MC8775 & AC 875U */
 	{ USB_DEVICE(0x1199, 0x6813) },	/* Sierra Wireless MC8775 (Thinkpad internal) */
 	{ USB_DEVICE(0x1199, 0x6815) },	/* Sierra Wireless MC8775 */
+	{ USB_DEVICE(0x03f0, 0x1e1d) },	/* HP hs2300 a.k.a MC8775 */
 	{ USB_DEVICE(0x1199, 0x6820) },	/* Sierra Wireless AirCard 875 */
 	{ USB_DEVICE(0x1199, 0x6832) },	/* Sierra Wireless MC8780*/
 	{ USB_DEVICE(0x1199, 0x6833) },	/* Sierra Wireless MC8781*/
