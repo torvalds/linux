@@ -138,19 +138,6 @@ static struct pci_driver ipath_driver = {
 	},
 };
 
-static void ipath_check_status(struct work_struct *work)
-{
-	struct ipath_devdata *dd = container_of(work, struct ipath_devdata,
-						status_work.work);
-
-	/*
-	 * If we don't have any interrupts, let the user know and
-	 * don't bother checking again.
-	 */
-	if (dd->ipath_int_counter == 0)
-		dev_err(&dd->pcidev->dev, "No interrupts detected.\n");
-}
-
 static inline void read_bars(struct ipath_devdata *dd, struct pci_dev *dev,
 			     u32 *bar0, u32 *bar1)
 {
@@ -217,8 +204,6 @@ static struct ipath_devdata *ipath_alloc_devdata(struct pci_dev *pdev)
 
 	dd->pcidev = pdev;
 	pci_set_drvdata(pdev, dd);
-
-	INIT_DELAYED_WORK(&dd->status_work, ipath_check_status);
 
 	list_add(&dd->ipath_list, &ipath_dev_list);
 
@@ -620,9 +605,6 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	ipath_diag_add(dd);
 	ipath_register_ib_device(dd);
 
-	/* Check that card status in STATUS_TIMEOUT seconds. */
-	schedule_delayed_work(&dd->status_work, HZ * STATUS_TIMEOUT);
-
 	goto bail;
 
 bail_irqsetup:
@@ -753,7 +735,6 @@ static void __devexit ipath_remove_one(struct pci_dev *pdev)
 	 */
 	ipath_shutdown_device(dd);
 
-	cancel_delayed_work(&dd->status_work);
 	flush_scheduled_work();
 
 	if (dd->verbs_dev)
@@ -2194,6 +2175,10 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 	if (dd->ipath_stats_timer_active) {
 		del_timer_sync(&dd->ipath_stats_timer);
 		dd->ipath_stats_timer_active = 0;
+	}
+	if (dd->ipath_intrchk_timer.data) {
+		del_timer_sync(&dd->ipath_intrchk_timer);
+		dd->ipath_intrchk_timer.data = 0;
 	}
 
 	/*

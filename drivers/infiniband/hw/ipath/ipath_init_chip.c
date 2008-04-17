@@ -665,6 +665,28 @@ done:
 	return ret;
 }
 
+static void verify_interrupt(unsigned long opaque)
+{
+	struct ipath_devdata *dd = (struct ipath_devdata *) opaque;
+
+	if (!dd)
+		return; /* being torn down */
+
+	/*
+	 * If we don't have any interrupts, let the user know and
+	 * don't bother checking again.
+	 */
+	if (dd->ipath_int_counter == 0) {
+		if (!dd->ipath_f_intr_fallback(dd))
+			dev_err(&dd->pcidev->dev, "No interrupts detected, "
+				"not usable.\n");
+		else /* re-arm the timer to see if fallback works */
+			mod_timer(&dd->ipath_intrchk_timer, jiffies + HZ/2);
+	} else
+		ipath_cdbg(VERBOSE, "%u interrupts at timer check\n",
+			dd->ipath_int_counter);
+}
+
 /**
  * ipath_init_chip - do the actual initialization sequence on the chip
  * @dd: the infinipath device
@@ -968,6 +990,20 @@ done:
 					 0ULL);
 			/* chip is usable; mark it as initialized */
 			*dd->ipath_statusp |= IPATH_STATUS_INITTED;
+
+			/*
+			 * setup to verify we get an interrupt, and fallback
+			 * to an alternate if necessary and possible
+			 */
+			if (!reinit) {
+				init_timer(&dd->ipath_intrchk_timer);
+				dd->ipath_intrchk_timer.function =
+					verify_interrupt;
+				dd->ipath_intrchk_timer.data =
+					(unsigned long) dd;
+			}
+			dd->ipath_intrchk_timer.expires = jiffies + HZ/2;
+			add_timer(&dd->ipath_intrchk_timer);
 		} else
 			ipath_dev_err(dd, "No interrupts enabled, couldn't "
 				      "setup interrupt address\n");

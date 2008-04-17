@@ -426,6 +426,8 @@ struct ipath_devdata {
 	struct class_device *diag_class_dev;
 	/* timer used to prevent stats overflow, error throttling, etc. */
 	struct timer_list ipath_stats_timer;
+	/* timer to verify interrupts work, and fallback if possible */
+	struct timer_list ipath_intrchk_timer;
 	void *ipath_dummy_hdrq;	/* used after port close */
 	dma_addr_t ipath_dummy_hdrq_phys;
 
@@ -628,9 +630,6 @@ struct ipath_devdata {
 	u32 ipath_rxfc_unsupvl_errs;
 	u32 ipath_overrun_thresh_errs;
 	u32 ipath_lli_errs;
-
-	/* status check work */
-	struct delayed_work status_work;
 
 	/*
 	 * Not all devices managed by a driver instance are the same
