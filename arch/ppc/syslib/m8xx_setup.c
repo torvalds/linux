@@ -87,8 +87,6 @@ void m8xx_calibrate_decr(void);
 
 unsigned char __res[sizeof(bd_t)];
 
-extern void m8xx_ide_init(void);
-
 extern unsigned long find_available_memory(void);
 extern void m8xx_cpm_reset(void);
 extern void m8xx_wdt_handler_install(bd_t *bp);
@@ -474,8 +472,4 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 
 	ppc_md.find_end_of_memory	= m8xx_find_end_of_memory;
 	ppc_md.setup_io_mappings	= m8xx_map_io;
-
-#if defined(CONFIG_BLK_DEV_MPC8xx_IDE)
-	m8xx_ide_init();
-#endif
 }
