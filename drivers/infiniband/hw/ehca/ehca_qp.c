@@ -421,6 +421,9 @@ static struct ehca_qp *internal_create_qp(
 	u32 swqe_size = 0, rwqe_size = 0, ib_qp_num;
 	unsigned long flags;
 
+	if (init_attr->create_flags)
+		return ERR_PTR(-EINVAL);
+
 	memset(&parms, 0, sizeof(parms));
 	qp_type = init_attr->qp_type;
 

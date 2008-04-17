@@ -747,6 +747,11 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 	size_t sz;
 	struct ib_qp *ret;
 
+	if (init_attr->create_flags) {
+		ret = ERR_PTR(-EINVAL);
+		goto bail;
+	}
+
 	if (init_attr->cap.max_send_sge > ib_ipath_max_sges ||
 	    init_attr->cap.max_send_wr > ib_ipath_max_qp_wrs) {
 		ret = ERR_PTR(-EINVAL);

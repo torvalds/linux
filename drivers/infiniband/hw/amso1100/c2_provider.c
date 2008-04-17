@@ -245,6 +245,9 @@ static struct ib_qp *c2_create_qp(struct ib_pd *pd,
 
 	pr_debug("%s:%u\n", __func__, __LINE__);
 
+	if (init_attr->create_flags)
+		return ERR_PTR(-EINVAL);
+
 	switch (init_attr->qp_type) {
 	case IB_QPT_RC:
 		qp = kzalloc(sizeof(*qp), GFP_KERNEL);

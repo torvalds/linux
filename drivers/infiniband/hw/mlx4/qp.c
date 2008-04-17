@@ -673,6 +673,9 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 	struct mlx4_ib_qp *qp;
 	int err;
 
+	if (init_attr->create_flags)
+		return ERR_PTR(-EINVAL);
+
 	switch (init_attr->qp_type) {
 	case IB_QPT_RC:
 	case IB_QPT_UC:

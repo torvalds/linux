@@ -1252,6 +1252,9 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 	u8 rq_encoded_size;
 	/* int counter; */
 
+	if (init_attr->create_flags)
+		return ERR_PTR(-EINVAL);
+
 	atomic_inc(&qps_created);
 	switch (init_attr->qp_type) {
 		case IB_QPT_RC:
