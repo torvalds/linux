@@ -359,8 +359,7 @@ void ipoib_flush_paths(struct net_device *dev)
 	spin_lock_irq(&priv->tx_lock);
 	spin_lock(&priv->lock);
 
-	list_splice(&priv->path_list, &remove_list);
-	INIT_LIST_HEAD(&priv->path_list);
+	list_splice_init(&priv->path_list, &remove_list);
 
 	list_for_each_entry(path, &remove_list, list)
 		rb_erase(&path->rb_node, &priv->path_tree);
