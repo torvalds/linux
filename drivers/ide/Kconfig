@@ -1024,7 +1024,7 @@ config IDE_EXT_DIRECT
 endchoice
 
 # no isa -> no vlb
-if ISA
+if ISA && (ALPHA || X86 || MIPS)
 
 comment "Other IDE chipsets support"
 comment "Note: most of these also require special kernel boot parameters"
