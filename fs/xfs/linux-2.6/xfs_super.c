@@ -1028,8 +1028,7 @@ xfs_sync_worker(
 	int		error;
 
 	if (!(mp->m_flags & XFS_MOUNT_RDONLY))
-		error = xfs_sync(mp, SYNC_FSDATA | SYNC_BDFLUSH | SYNC_ATTR |
-				     SYNC_REFCACHE | SYNC_SUPER);
+		error = xfs_sync(mp, SYNC_FSDATA | SYNC_BDFLUSH | SYNC_ATTR);
 	mp->m_sync_seq++;
 	wake_up(&mp->m_wait_single_sync_task);
 }

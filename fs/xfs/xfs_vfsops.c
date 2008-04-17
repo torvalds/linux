@@ -1317,21 +1317,8 @@ xfs_syncsub(
 	}
 
 	/*
-	 * If asked, update the disk superblock with incore counter values if we
-	 * are using non-persistent counters so that they don't get too far out
-	 * of sync if we crash or get a forced shutdown. We don't want to force
-	 * this to disk, just get a transaction into the iclogs....
-	 */
-	if (flags & SYNC_SUPER) {
-		error = xfs_log_sbcount(mp, 0);
-		if (error)
-			last_error = error;
-	}
-
-	/*
 	 * Now check to see if the log needs a "dummy" transaction.
 	 */
-
 	if (!(flags & SYNC_REMOUNT) && xfs_log_need_covered(mp)) {
 		xfs_trans_t *tp;
 		xfs_inode_t *ip;
