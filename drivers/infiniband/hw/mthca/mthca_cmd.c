@@ -219,7 +219,7 @@ static void mthca_cmd_post_dbell(struct mthca_dev *dev,
 	__raw_writel((__force u32) cpu_to_be32((1 << HCR_GO_BIT)                |
 					       (1 << HCA_E_BIT)                 |
 					       (op_modifier << HCR_OPMOD_SHIFT) |
-					        op),                      ptr + offs[6]);
+						op),			  ptr + offs[6]);
 	wmb();
 	__raw_writel((__force u32) 0,                                     ptr + offs[7]);
 	wmb();

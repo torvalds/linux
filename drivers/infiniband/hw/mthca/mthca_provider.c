@@ -60,7 +60,7 @@ static int mthca_query_device(struct ib_device *ibdev,
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
 	int err = -ENOMEM;
-	struct mthca_dev* mdev = to_mdev(ibdev);
+	struct mthca_dev *mdev = to_mdev(ibdev);
 
 	u8 status;
 

@@ -412,7 +412,7 @@ err:
 		if (table->icm[i]) {
 			mthca_UNMAP_ICM(dev, virt + i * MTHCA_TABLE_CHUNK_SIZE,
 					MTHCA_TABLE_CHUNK_SIZE / MTHCA_ICM_PAGE_SIZE,
-				        &status);
+					&status);
 			mthca_free_icm(dev, table->icm[i], table->coherent);
 		}
 

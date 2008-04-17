@@ -390,11 +390,11 @@ extern void __buggy_use_of_MTHCA_PUT(void);
 	do {                                                          \
 		void *__p = (char *) (source) + (offset);             \
 		switch (sizeof (dest)) {                              \
-			case 1: (dest) = *(u8 *) __p;       break;    \
-			case 2: (dest) = be16_to_cpup(__p); break;    \
-			case 4: (dest) = be32_to_cpup(__p); break;    \
-			case 8: (dest) = be64_to_cpup(__p); break;    \
-			default: __buggy_use_of_MTHCA_GET();          \
+		case 1: (dest) = *(u8 *) __p;       break;	      \
+		case 2: (dest) = be16_to_cpup(__p); break;	      \
+		case 4: (dest) = be32_to_cpup(__p); break;	      \
+		case 8: (dest) = be64_to_cpup(__p); break;	      \
+		default: __buggy_use_of_MTHCA_GET();		      \
 		}                                                     \
 	} while (0)
 
