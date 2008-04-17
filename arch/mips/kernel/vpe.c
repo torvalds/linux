@@ -269,7 +269,7 @@ static void *alloc_progmem(unsigned long len)
 	 * This means you must tell Linux to use less memory than you
 	 * physically have, for example by passing a mem= boot argument.
 	 */
-	addr = pfn_to_kaddr(max_pfn);
+	addr = pfn_to_kaddr(max_low_pfn);
 	memset(addr, 0, len);
 #else
 	/* simple grab some mem for now */
