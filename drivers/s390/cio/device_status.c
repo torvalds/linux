@@ -62,7 +62,7 @@ ccw_device_path_notoper(struct ccw_device *cdev)
 	stsch (sch->schid, &sch->schib);
 
 	CIO_MSG_EVENT(0, "%s(0.%x.%04x) - path(s) %02x are "
-		      "not operational \n", __FUNCTION__,
+		      "not operational \n", __func__,
 		      sch->schid.ssid, sch->schid.sch_no,
 		      sch->schib.pmcw.pnom);
 

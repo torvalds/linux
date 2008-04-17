@@ -43,17 +43,17 @@
 #define DEV_NAME	"zcrypt"
 
 #define PRINTK(fmt, args...) \
-	printk(KERN_DEBUG DEV_NAME ": %s -> " fmt, __FUNCTION__ , ## args)
+	printk(KERN_DEBUG DEV_NAME ": %s -> " fmt, __func__ , ## args)
 #define PRINTKN(fmt, args...) \
 	printk(KERN_DEBUG DEV_NAME ": " fmt, ## args)
 #define PRINTKW(fmt, args...) \
-	printk(KERN_WARNING DEV_NAME ": %s -> " fmt, __FUNCTION__ , ## args)
+	printk(KERN_WARNING DEV_NAME ": %s -> " fmt, __func__ , ## args)
 #define PRINTKC(fmt, args...) \
-	printk(KERN_CRIT DEV_NAME ": %s -> " fmt, __FUNCTION__ , ## args)
+	printk(KERN_CRIT DEV_NAME ": %s -> " fmt, __func__ , ## args)
 
 #ifdef ZCRYPT_DEBUG
 #define PDEBUG(fmt, args...) \
-	printk(KERN_DEBUG DEV_NAME ": %s -> " fmt, __FUNCTION__ , ## args)
+	printk(KERN_DEBUG DEV_NAME ": %s -> " fmt, __func__ , ## args)
 #else
 #define PDEBUG(fmt, args...) do {} while (0)
 #endif
