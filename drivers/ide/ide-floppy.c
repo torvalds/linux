@@ -78,20 +78,6 @@
  */
 #define IDEFLOPPY_PC_STACK		(10 + IDEFLOPPY_MAX_PC_RETRIES)
 
-/* Packet command flag bits. */
-enum {
-	/* 1 when we prefer to use DMA if possible */
-	PC_FLAG_DMA_RECOMMENDED	= (1 << 0),
-	/* 1 while DMA in progress */
-	PC_FLAG_DMA_IN_PROGRESS	= (1 << 1),
-	/* 1 when encountered problem during DMA */
-	PC_FLAG_DMA_ERROR	= (1 << 2),
-	/* Data direction */
-	PC_FLAG_WRITING		= (1 << 3),
-	/* Suppress error reporting */
-	PC_FLAG_SUPPRESS_ERROR	= (1 << 4),
-};
-
 /* format capacities descriptor codes */
 #define CAPACITY_INVALID	0x00
 #define CAPACITY_UNFORMATTED	0x01

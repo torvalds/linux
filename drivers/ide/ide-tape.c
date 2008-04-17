@@ -181,22 +181,6 @@ struct idetape_bh {
 	char *b_data;
 };
 
-/* Packet command flag bits. */
-enum {
-	/* Set when an error is considered normal - We won't retry */
-	PC_FLAG_ABORT		= (1 << 0),
-	/* 1 When polling for DSC on a media access command */
-	PC_FLAG_WAIT_FOR_DSC	= (1 << 1),
-	/* 1 when we prefer to use DMA if possible */
-	PC_FLAG_DMA_RECOMMENDED	= (1 << 2),
-	/* 1 while DMA in progress */
-	PC_FLAG_DMA_IN_PROGRESS	= (1 << 3),
-	/* 1 when encountered problem during DMA */
-	PC_FLAG_DMA_ERROR	= (1 << 4),
-	/* Data direction */
-	PC_FLAG_WRITING		= (1 <<	5),
-};
-
 /* Tape door status */
 #define DOOR_UNLOCKED			0
 #define DOOR_LOCKED			1
