@@ -695,28 +695,6 @@ static unsigned long pplus_ide_default_io_base(int index)
 		return 0;
 	}
 }
-
-static void __init
-pplus_ide_init_hwif_ports(hw_regs_t * hw, unsigned long data_port,
-			  unsigned long ctrl_port, int *irq)
-{
-	unsigned long reg = data_port;
-	int i;
-
-	for (i = IDE_DATA_OFFSET; i <= IDE_STATUS_OFFSET; i++) {
-		hw->io_ports[i] = reg;
-		reg += 1;
-	}
-
-	if (ctrl_port)
-		hw->io_ports[IDE_CONTROL_OFFSET] = ctrl_port;
-	else
-		hw->io_ports[IDE_CONTROL_OFFSET] =
-		    hw->io_ports[IDE_DATA_OFFSET] + 0x206;
-
-	if (irq != NULL)
-		*irq = pplus_ide_default_irq(data_port);
-}
 #endif
 
 #ifdef CONFIG_SMP
@@ -887,7 +865,6 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)
 	ppc_ide_md.default_irq = pplus_ide_default_irq;
 	ppc_ide_md.default_io_base = pplus_ide_default_io_base;
-	ppc_ide_md.ide_init_hwif = pplus_ide_init_hwif_ports;
 #endif
 
 #ifdef CONFIG_SERIAL_TEXT_DEBUG
