@@ -536,7 +536,7 @@ static int imx_startup(struct uart_port *port)
 	writel(USR1_RTSD, sport->port.membase + USR1);
 
 	temp = readl(sport->port.membase + UCR1);
-	temp |= (UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN | UCR1_UARTEN);
+	temp |= UCR1_RRDYEN | UCR1_RTSDEN | UCR1_UARTEN;
 	writel(temp, sport->port.membase + UCR1);
 
 	temp = readl(sport->port.membase + UCR2);
