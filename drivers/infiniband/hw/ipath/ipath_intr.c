@@ -59,9 +59,11 @@ static void ipath_clrpiobuf(struct ipath_devdata *dd, u32 pnum)
 	dev_info(&dd->pcidev->dev,
 		"Rewrite PIO buffer %u, to recover from parity error\n",
 		pnum);
-	*pbuf = dwcnt+1; /* no flush required, since already in freeze */
-	while(--dwcnt)
-		*pbuf++ = 0;
+
+	/* no flush required, since already in freeze */
+	writel(dwcnt + 1, pbuf);
+	while (--dwcnt)
+		writel(0, pbuf++);
 }
 
 /*

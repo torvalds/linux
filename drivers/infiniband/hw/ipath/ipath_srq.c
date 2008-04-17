@@ -245,7 +245,8 @@ int ipath_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 						 sizeof(offset_addr));
 			if (ret)
 				goto bail_free;
-			udata->outbuf = (void __user *) offset_addr;
+			udata->outbuf =
+				(void __user *) (unsigned long) offset_addr;
 			ret = ib_copy_to_udata(udata, &offset,
 					       sizeof(offset));
 			if (ret)
