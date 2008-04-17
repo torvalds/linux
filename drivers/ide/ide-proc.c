@@ -46,9 +46,6 @@ static int proc_ide_read_imodel
 	int		len;
 	const char	*name;
 
-	/*
-	 * Neither ide_unknown nor ide_forced should be set at this point.
-	 */
 	switch (hwif->chipset) {
 		case ide_generic:	name = "generic";	break;
 		case ide_pci:		name = "pci";		break;

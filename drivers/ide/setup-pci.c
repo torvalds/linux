@@ -41,17 +41,6 @@ static ide_hwif_t *ide_match_hwif(unsigned long io_base, u8 bootable, const char
 	ide_hwif_t *hwif;
 
 	/*
-	 * Look for a hwif with matching io_base specified using
-	 * parameters to ide_setup().
-	 */
-	for (h = 0; h < MAX_HWIFS; ++h) {
-		hwif = &ide_hwifs[h];
-		if (hwif->io_ports[IDE_DATA_OFFSET] == io_base) {
-			if (hwif->chipset == ide_forced)
-				return hwif; /* a perfect match */
-		}
-	}
-	/*
 	 * Look for a hwif with matching io_base default value.
 	 * If chipset is "ide_unknown", then claim that hwif slot.
 	 * Otherwise, some other chipset has already claimed it..  :(

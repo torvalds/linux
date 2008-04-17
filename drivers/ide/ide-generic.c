@@ -93,8 +93,7 @@ static int __init ide_generic_init(void)
 		ide_hwif_t *hwif = &ide_hwifs[i];
 
 		if (hwif->io_ports[IDE_DATA_OFFSET] &&
-		    (hwif->chipset == ide_unknown ||
-		     hwif->chipset == ide_forced))
+		    hwif->chipset == ide_unknown)
 			idx[i] = i;
 		else
 			idx[i] = 0xff;

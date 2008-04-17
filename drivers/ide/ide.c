@@ -1170,7 +1170,7 @@ extern int probe_ht6560b;
 extern int probe_qd65xx;
 extern int cmd640_vlb;
 
-static int __initdata is_chipset_set[MAX_HWIFS];
+static int __initdata is_chipset_set;
 
 /*
  * ide_setup() gets called VERY EARLY during initialization,
@@ -1328,8 +1328,6 @@ static int __init ide_setup(char *s)
 			"minus10", "four", "qd65xx", "ht6560b", "cmd640_vlb",
 			"dtc2278", "umc8672", "ali14xx", NULL };
 
-		hw_regs_t hwregs;
-
 		hw = s[3] - '0';
 		hwif = &ide_hwifs[hw];
 		i = match_parm(&s[4], ide_words, vals, 3);
@@ -1338,19 +1336,14 @@ static int __init ide_setup(char *s)
 		 * Cryptic check to ensure chipset not already set for hwif.
 		 * Note: we can't depend on hwif->chipset here.
 		 */
-		if ((i >= -18 && i <= -11) || (i > 0 && i <= 3)) {
+		if (i >= -18 && i <= -11) {
 			/* chipset already specified */
-			if (is_chipset_set[hw])
+			if (is_chipset_set)
 				goto bad_option;
-			if (i > -18 && i <= -11) {
-				/* these drivers are for "ide0=" only */
-				if (hw != 0)
-					goto bad_hwif;
-				/* chipset already specified for 2nd port */
-				if (is_chipset_set[hw+1])
-					goto bad_option;
-			}
-			is_chipset_set[hw] = 1;
+			/* these drivers are for "ide0=" only */
+			if (hw != 0)
+				goto bad_hwif;
+			is_chipset_set = 1;
 			printk("\n");
 		}
 
@@ -1430,21 +1423,11 @@ static int __init ide_setup(char *s)
 			case -1: /* "noprobe" */
 				hwif->noprobe = 1;
 				goto obsolete_option;
-
-			case 1:	/* base */
-				vals[1] = vals[0] + 0x206; /* default ctl */
-			case 2: /* base,ctl */
-				vals[2] = 0;	/* default irq = probe for it */
-			case 3: /* base,ctl,irq */
-				memset(&hwregs, 0, sizeof(hwregs));
-				ide_init_hwif_ports(&hwregs, vals[0], vals[1], &hwif->irq);
-				memcpy(hwif->io_ports, hwregs.io_ports, sizeof(hwif->io_ports));
-				hwif->irq      = vals[2];
-				hwif->noprobe  = 0;
-				hwif->chipset  = ide_forced;
-				goto obsolete_option;
-
-			case 0: goto bad_option;
+			case 0:
+			case 1:
+			case 2:
+			case 3:
+				goto bad_option;
 			default:
 				printk(" -- SUPPORT NOT CONFIGURED IN THIS KERNEL\n");
 				return 1;

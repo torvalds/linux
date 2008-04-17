@@ -169,7 +169,7 @@ enum {		ide_unknown,	ide_generic,	ide_pci,
 		ide_rz1000,	ide_trm290,
 		ide_cmd646,	ide_cy82c693,	ide_4drives,
 		ide_pmac,	ide_etrax100,	ide_acorn,
-		ide_au1xxx,	ide_palm3710,	ide_forced
+		ide_au1xxx,	ide_palm3710
 };
 
 typedef u8 hwif_chipset_t;
