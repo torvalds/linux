@@ -45,7 +45,8 @@ config SATA_PMP
 	bool "SATA Port Multiplier support"
 	default y
 	help
-	  This option adds support for SATA Port Multipliers.
+	  This option adds support for SATA Port Multipliers
+	  (the SATA version of an ethernet hub, or SAS expander).
 
 config SATA_AHCI
 	tristate "AHCI SATA support"
@@ -78,6 +79,17 @@ config ATA_SFF
 	help
 	  This option adds support for ATA controllers with SFF
 	  compliant or similar programming interface.
+
+	  SFF is the legacy IDE interface that has been around since
+	  the dawn of time.  Almost all PATA controllers have an
+	  SFF interface.  Many SATA controllers have an SFF interface
+	  when configured into a legacy compatibility mode.
+
+	  For users with exclusively modern controllers like AHCI,
+	  Silicon Image 3124, or Marvell 6440, you may choose to
+	  disable this uneeded SFF support.
+
+	  If unsure, say Y.
 
 if ATA_SFF
 
