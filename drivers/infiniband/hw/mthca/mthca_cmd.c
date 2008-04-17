@@ -1339,6 +1339,10 @@ int mthca_INIT_HCA(struct mthca_dev *dev,
 	/* Check port for UD address vector: */
 	*(inbox + INIT_HCA_FLAGS2_OFFSET / 4) |= cpu_to_be32(1);
 
+	/* Enable IPoIB checksumming if we can: */
+	if (dev->device_cap_flags & IB_DEVICE_UD_IP_CSUM)
+		*(inbox + INIT_HCA_FLAGS2_OFFSET / 4) |= cpu_to_be32(7 << 3);
+
 	/* We leave wqe_quota, responder_exu, etc as 0 (default) */
 
 	/* QPC/EEC/CQC/EQC/RDB attributes */

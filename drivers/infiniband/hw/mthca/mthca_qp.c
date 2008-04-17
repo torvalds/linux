@@ -2015,6 +2015,8 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			 cpu_to_be32(MTHCA_NEXT_CQ_UPDATE) : 0) |
 			((wr->send_flags & IB_SEND_SOLICITED) ?
 			 cpu_to_be32(MTHCA_NEXT_SOLICIT) : 0)   |
+			((wr->send_flags & IB_SEND_IP_CSUM) ?
+			 cpu_to_be32(MTHCA_NEXT_IP_CSUM | MTHCA_NEXT_TCP_UDP_CSUM) : 0) |
 			cpu_to_be32(1);
 		if (wr->opcode == IB_WR_SEND_WITH_IMM ||
 		    wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM)
