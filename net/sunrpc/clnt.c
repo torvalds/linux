@@ -1120,7 +1120,8 @@ call_status(struct rpc_task *task)
 	case -ETIMEDOUT:
 		task->tk_action = call_timeout;
 		if (task->tk_client->cl_discrtry)
-			xprt_force_disconnect(task->tk_xprt);
+			xprt_conditional_disconnect(task->tk_xprt,
+					req->rq_connect_cookie);
 		break;
 	case -ECONNREFUSED:
 	case -ENOTCONN:
@@ -1245,7 +1246,8 @@ out_retry:
 	if (task->tk_rqstp == req) {
 		req->rq_received = req->rq_rcv_buf.len = 0;
 		if (task->tk_client->cl_discrtry)
-			xprt_force_disconnect(task->tk_xprt);
+			xprt_conditional_disconnect(task->tk_xprt,
+					req->rq_connect_cookie);
 	}
 }
 

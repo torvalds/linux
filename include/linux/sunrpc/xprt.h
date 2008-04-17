@@ -86,6 +86,10 @@ struct rpc_rqst {
 	unsigned long		rq_majortimeo;	/* major timeout alarm */
 	unsigned long		rq_timeout;	/* Current timeout value */
 	unsigned int		rq_retries;	/* # of retries */
+	unsigned int		rq_connect_cookie;
+						/* A cookie used to track the
+						   state of the transport
+						   connection */
 	
 	/*
 	 * Partial send handling
@@ -152,6 +156,9 @@ struct rpc_xprt {
 	unsigned long		connect_timeout,
 				bind_timeout,
 				reestablish_timeout;
+	unsigned int		connect_cookie;	/* A cookie that gets bumped
+						   every time the transport
+						   is reconnected */
 
 	/*
 	 * Disconnection of idle transports
@@ -241,6 +248,7 @@ void			xprt_complete_rqst(struct rpc_task *task, int copied);
 void			xprt_release_rqst_cong(struct rpc_task *task);
 void			xprt_disconnect_done(struct rpc_xprt *xprt);
 void			xprt_force_disconnect(struct rpc_xprt *xprt);
+void			xprt_conditional_disconnect(struct rpc_xprt *xprt, unsigned int cookie);
 
 /*
  * Reserved bit positions in xprt->state

@@ -606,6 +606,34 @@ void xprt_force_disconnect(struct rpc_xprt *xprt)
 	spin_unlock_bh(&xprt->transport_lock);
 }
 
+/**
+ * xprt_conditional_disconnect - force a transport to disconnect
+ * @xprt: transport to disconnect
+ * @cookie: 'connection cookie'
+ *
+ * This attempts to break the connection if and only if 'cookie' matches
+ * the current transport 'connection cookie'. It ensures that we don't
+ * try to break the connection more than once when we need to retransmit
+ * a batch of RPC requests.
+ *
+ */
+void xprt_conditional_disconnect(struct rpc_xprt *xprt, unsigned int cookie)
+{
+	/* Don't race with the test_bit() in xprt_clear_locked() */
+	spin_lock_bh(&xprt->transport_lock);
+	if (cookie != xprt->connect_cookie)
+		goto out;
+	if (test_bit(XPRT_CLOSING, &xprt->state) || !xprt_connected(xprt))
+		goto out;
+	set_bit(XPRT_CLOSE_WAIT, &xprt->state);
+	/* Try to schedule an autoclose RPC call */
+	if (test_and_set_bit(XPRT_LOCKED, &xprt->state) == 0)
+		queue_work(rpciod_workqueue, &xprt->task_cleanup);
+	xprt_wake_pending_tasks(xprt, -ENOTCONN);
+out:
+	spin_unlock_bh(&xprt->transport_lock);
+}
+
 static void
 xprt_init_autodisconnect(unsigned long data)
 {
@@ -849,6 +877,7 @@ void xprt_transmit(struct rpc_task *task)
 	} else if (!req->rq_bytes_sent)
 		return;
 
+	req->rq_connect_cookie = xprt->connect_cookie;
 	status = xprt->ops->send_request(task);
 	if (status == 0) {
 		dprintk("RPC: %5u xmit complete\n", task->tk_pid);

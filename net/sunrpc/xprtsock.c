@@ -1142,6 +1142,7 @@ static void xs_tcp_state_change(struct sock *sk)
 		break;
 	case TCP_FIN_WAIT1:
 		/* The client initiated a shutdown of the socket */
+		xprt->connect_cookie++;
 		xprt->reestablish_timeout = 0;
 		set_bit(XPRT_CLOSING, &xprt->state);
 		smp_mb__before_clear_bit();
@@ -1154,6 +1155,7 @@ static void xs_tcp_state_change(struct sock *sk)
 		set_bit(XPRT_CLOSING, &xprt->state);
 		xprt_force_disconnect(xprt);
 	case TCP_SYN_SENT:
+		xprt->connect_cookie++;
 	case TCP_CLOSING:
 		/*
 		 * If the server closed down the connection, make sure that
