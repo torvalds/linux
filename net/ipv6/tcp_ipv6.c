@@ -736,8 +736,7 @@ static int tcp_v6_parse_md5_keys (struct sock *sk, char __user *optval,
 static int tcp_v6_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 				   struct in6_addr *saddr,
 				   struct in6_addr *daddr,
-				   struct tcphdr *th, int protocol,
-				   unsigned int tcplen)
+				   struct tcphdr *th, unsigned int tcplen)
 {
 	struct scatterlist sg[4];
 	__u16 data_len;
@@ -761,7 +760,7 @@ static int tcp_v6_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 	ipv6_addr_copy(&bp->saddr, saddr);
 	ipv6_addr_copy(&bp->daddr, daddr);
 	bp->len = htonl(tcplen);
-	bp->protocol = htonl(protocol);
+	bp->protocol = htonl(IPPROTO_TCP);
 
 	sg_init_table(sg, 4);
 
@@ -821,8 +820,7 @@ static int tcp_v6_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 				struct sock *sk,
 				struct dst_entry *dst,
 				struct request_sock *req,
-				struct tcphdr *th, int protocol,
-				unsigned int tcplen)
+				struct tcphdr *th, unsigned int tcplen)
 {
 	struct in6_addr *saddr, *daddr;
 
@@ -835,7 +833,7 @@ static int tcp_v6_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 	}
 	return tcp_v6_do_calc_md5_hash(md5_hash, key,
 				       saddr, daddr,
-				       th, protocol, tcplen);
+				       th, tcplen);
 }
 
 static int tcp_v6_inbound_md5_hash (struct sock *sk, struct sk_buff *skb)
@@ -879,8 +877,7 @@ static int tcp_v6_inbound_md5_hash (struct sock *sk, struct sk_buff *skb)
 	genhash = tcp_v6_do_calc_md5_hash(newhash,
 					  hash_expected,
 					  &ip6h->saddr, &ip6h->daddr,
-					  th, sk->sk_protocol,
-					  skb->len);
+					  th, skb->len);
 	if (genhash || memcmp(hash_location, newhash, 16) != 0) {
 		if (net_ratelimit()) {
 			printk(KERN_INFO "MD5 Hash %s for "
@@ -1020,7 +1017,7 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 		tcp_v6_do_calc_md5_hash((__u8 *)&opt[1], key,
 					&ipv6_hdr(skb)->daddr,
 					&ipv6_hdr(skb)->saddr,
-					t1, IPPROTO_TCP, tot_len);
+					t1, tot_len);
 	}
 #endif
 
@@ -1126,7 +1123,7 @@ static void tcp_v6_send_ack(struct tcp_timewait_sock *tw,
 		tcp_v6_do_calc_md5_hash((__u8 *)topt, key,
 					&ipv6_hdr(skb)->daddr,
 					&ipv6_hdr(skb)->saddr,
-					t1, IPPROTO_TCP, tot_len);
+					t1, tot_len);
 	}
 #endif
 

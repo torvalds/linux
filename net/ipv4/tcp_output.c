@@ -607,7 +607,6 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 					       md5,
 					       sk, NULL, NULL,
 					       tcp_hdr(skb),
-					       sk->sk_protocol,
 					       skb->len);
 	}
 #endif
@@ -2266,7 +2265,7 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 		tp->af_specific->calc_md5_hash(md5_hash_location,
 					       md5,
 					       NULL, dst, req,
-					       tcp_hdr(skb), sk->sk_protocol,
+					       tcp_hdr(skb),
 					       skb->len);
 	}
 #endif
