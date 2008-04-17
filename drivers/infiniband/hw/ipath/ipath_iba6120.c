@@ -853,7 +853,7 @@ static void ipath_setup_pe_setextled(struct ipath_devdata *dd, u64 lst,
 	extctl = dd->ipath_extctrl & ~(INFINIPATH_EXTC_LED1PRIPORT_ON |
 				       INFINIPATH_EXTC_LED2PRIPORT_ON);
 
-	if (ltst & INFINIPATH_IBCS_LT_STATE_LINKUP)
+	if (ltst == INFINIPATH_IBCS_LT_STATE_LINKUP)
 		extctl |= INFINIPATH_EXTC_LED2PRIPORT_ON;
 	if (lst == INFINIPATH_IBCS_L_STATE_ACTIVE)
 		extctl |= INFINIPATH_EXTC_LED1PRIPORT_ON;
