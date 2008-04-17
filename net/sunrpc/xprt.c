@@ -605,7 +605,6 @@ void xprt_force_disconnect(struct rpc_xprt *xprt)
 	xprt_wake_pending_tasks(xprt, -ENOTCONN);
 	spin_unlock_bh(&xprt->transport_lock);
 }
-EXPORT_SYMBOL_GPL(xprt_force_disconnect);
 
 static void
 xprt_init_autodisconnect(unsigned long data)
