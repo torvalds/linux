@@ -1532,6 +1532,8 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 						  bytes_acked);
 
 			transport->flight_size -= bytes_acked;
+			if (transport->flight_size == 0)
+				transport->partial_bytes_acked = 0;
 			q->outstanding_bytes -= bytes_acked;
 		} else {
 			/* RFC 2960 6.1, sctpimpguide-06 2.15.2
