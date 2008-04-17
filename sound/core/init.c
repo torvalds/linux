@@ -360,6 +360,12 @@ int snd_card_disconnect(struct snd_card *card)
 		snd_printk(KERN_ERR "not all devices for card %i can be disconnected\n", card->number);
 
 	snd_info_card_disconnect(card);
+#ifndef CONFIG_SYSFS_DEPRECATED
+	if (card->card_dev) {
+		device_unregister(card->card_dev);
+		card->card_dev = NULL;
+	}
+#endif
 	return 0;	
 }
 
@@ -401,10 +407,6 @@ static int snd_card_do_free(struct snd_card *card)
 		snd_printk(KERN_WARNING "unable to free card info\n");
 		/* Not fatal error */
 	}
-#ifndef CONFIG_SYSFS_DEPRECATED
-	if (card->card_dev)
-		device_unregister(card->card_dev);
-#endif
 	kfree(card);
 	return 0;
 }
