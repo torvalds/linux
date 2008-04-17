@@ -730,7 +730,7 @@ static void write_msg(struct console *con, const char *msg, unsigned int len)
 
 static struct console netconsole = {
 	.name	= "netcon",
-	.flags	= CON_ENABLED | CON_PRINTBUFFER,
+	.flags	= CON_ENABLED,
 	.write	= write_msg,
 };
 
@@ -749,6 +749,9 @@ static int __init init_netconsole(void)
 				err = PTR_ERR(nt);
 				goto fail;
 			}
+			/* Dump existing printks when we register */
+			netconsole.flags |= CON_PRINTBUFFER;
+
 			spin_lock_irqsave(&target_list_lock, flags);
 			list_add(&nt->list, &target_list);
 			spin_unlock_irqrestore(&target_list_lock, flags);

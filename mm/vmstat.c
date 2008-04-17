@@ -388,6 +388,7 @@ static char * const migratetype_names[MIGRATE_TYPES] = {
 	"Reclaimable",
 	"Movable",
 	"Reserve",
+	"Isolate",
 };
 
 static void *frag_start(struct seq_file *m, loff_t *pos)

@@ -92,7 +92,7 @@ implementations; in most cases the start() function should check for a
 "past end of file" condition and return NULL if need be.
 
 For more complicated applications, the private field of the seq_file
-structure can be used. There is also a special value whch can be returned
+structure can be used. There is also a special value which can be returned
 by the start() function called SEQ_START_TOKEN; it can be used if you wish
 to instruct your show() function (described below) to print a header at the
 top of the output. SEQ_START_TOKEN should only be used if the offset is
@@ -146,7 +146,7 @@ the four functions we have just defined:
 This structure will be needed to tie our iterator to the /proc file in
 a little bit.
 
-It's worth noting that the interator value returned by start() and
+It's worth noting that the iterator value returned by start() and
 manipulated by the other functions is considered to be completely opaque by
 the seq_file code. It can thus be anything that is useful in stepping
 through the data to be output. Counters can be useful, but it could also be
@@ -262,7 +262,7 @@ routines useful:
 
 These helpers will interpret pos as a position within the list and iterate
 accordingly.  Your start() and next() functions need only invoke the
-seq_list_* helpers with a pointer to the appropriate list_head structure.  
+seq_list_* helpers with a pointer to the appropriate list_head structure.
 
 
 The extra-simple version

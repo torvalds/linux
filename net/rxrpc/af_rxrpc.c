@@ -27,7 +27,7 @@ MODULE_ALIAS_NETPROTO(PF_RXRPC);
 
 unsigned rxrpc_debug; // = RXRPC_DEBUG_KPROTO;
 module_param_named(debug, rxrpc_debug, uint, S_IWUSR | S_IRUGO);
-MODULE_PARM_DESC(rxrpc_debug, "RxRPC debugging mask");
+MODULE_PARM_DESC(debug, "RxRPC debugging mask");
 
 static int sysctl_rxrpc_max_qlen __read_mostly = 10;
 

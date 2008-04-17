@@ -101,6 +101,7 @@ static struct platform_driver cmx270led_driver = {
 #endif
 	.driver		= {
 		.name		= "cm-x270-led",
+		.owner		= THIS_MODULE,
 	},
 };
 
@@ -120,3 +121,4 @@ module_exit(cmx270led_exit);
 MODULE_AUTHOR("Mike Rapoport <mike@compulab.co.il>");
 MODULE_DESCRIPTION("CM-x270 LED driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:cm-x270-led");

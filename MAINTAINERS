@@ -2116,7 +2116,7 @@ M:	reinette.chatre@intel.com
 L:	linux-wireless@vger.kernel.org
 L:	ipw3945-devel@lists.sourceforge.net
 W:	http://intellinuxwireless.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rchatre/iwlwifi-2.6.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/iwlwifi/iwlwifi-2.6.git
 S:	Supported
 
 IOC3 ETHERNET DRIVER
@@ -2197,7 +2197,7 @@ S:	Maintained
 ISDN SUBSYSTEM
 P:	Karsten Keil
 M:	kkeil@suse.de
-L:	isdn4linux@listserv.isdn4linux.de
+L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
 W:	http://www.isdn4linux.de
 T:	git kernel.org:/pub/scm/linux/kernel/kkeil/isdn-2.6.git
 S:	Maintained
@@ -2205,7 +2205,7 @@ S:	Maintained
 ISDN SUBSYSTEM (Eicon active card driver)
 P:	Armin Schindler
 M:	mac@melware.de
-L:	isdn4linux@listserv.isdn4linux.de
+L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
 W:	http://www.melware.de
 S:	Maintained
 
@@ -3280,6 +3280,7 @@ L:	linux-wireless@vger.kernel.org
 L:	rt2400-devel@lists.sourceforge.net
 W:	http://rt2x00.serialmonkey.com/
 S:	Maintained
+T:	git kernel.org:/pub/scm/linux/kernel/git/ivd/rt2x00.git
 F:	drivers/net/wireless/rt2x00/
 
 RAMDISK RAM BLOCK DEVICE DRIVER
@@ -3341,6 +3342,13 @@ M:	reiserfs-dev@namesys.com
 L:	reiserfs-devel@vger.kernel.org
 W:	http://www.namesys.com
 S:	Supported
+
+RFKILL
+P:	Ivo van Doorn
+M:	IvDoorn@gmail.com
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	net/rfkill
 
 ROCKETPORT DRIVER
 P:	Comtrol Corp.

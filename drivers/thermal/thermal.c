@@ -196,6 +196,10 @@ static struct device_attribute trip_point_attrs[] = {
 	__ATTR(trip_point_8_temp, 0444, trip_point_temp_show, NULL),
 	__ATTR(trip_point_9_type, 0444, trip_point_type_show, NULL),
 	__ATTR(trip_point_9_temp, 0444, trip_point_temp_show, NULL),
+	__ATTR(trip_point_10_type, 0444, trip_point_type_show, NULL),
+	__ATTR(trip_point_10_temp, 0444, trip_point_temp_show, NULL),
+	__ATTR(trip_point_11_type, 0444, trip_point_type_show, NULL),
+	__ATTR(trip_point_11_temp, 0444, trip_point_temp_show, NULL),
 };
 
 #define TRIP_POINT_ATTR_ADD(_dev, _index, result)     \

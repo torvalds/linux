@@ -1128,6 +1128,7 @@ static struct platform_driver imxmci_driver = {
 	.resume		= imxmci_resume,
 	.driver		= {
 		.name		= DRIVER_NAME,
+		.owner		= THIS_MODULE,
 	}
 };
 
@@ -1147,3 +1148,4 @@ module_exit(imxmci_exit);
 MODULE_DESCRIPTION("i.MX Multimedia Card Interface Driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:imx-mmc");

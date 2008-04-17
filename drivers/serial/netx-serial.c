@@ -713,6 +713,7 @@ static struct platform_driver serial_netx_driver = {
 
 	.driver		= {
 		.name   = DRIVER_NAME,
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -745,3 +746,4 @@ module_exit(netx_serial_exit);
 MODULE_AUTHOR("Sascha Hauer");
 MODULE_DESCRIPTION("NetX serial port driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" DRIVER_NAME);

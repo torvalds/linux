@@ -833,6 +833,7 @@ static struct platform_driver serial_pxa_driver = {
 	.resume		= serial_pxa_resume,
 	.driver		= {
 	        .name	= "pxa2xx-uart",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -861,4 +862,4 @@ module_init(serial_pxa_init);
 module_exit(serial_pxa_exit);
 
 MODULE_LICENSE("GPL");
-
+MODULE_ALIAS("platform:pxa2xx-uart");

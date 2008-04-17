@@ -139,6 +139,7 @@ static int h1940leds_remove(struct platform_device *pdev)
 static struct platform_driver h1940leds_driver = {
 	.driver		= {
 		.name	= "h1940-leds",
+		.owner	= THIS_MODULE,
 	},
 	.probe		= h1940leds_probe,
 	.remove		= h1940leds_remove,
@@ -161,3 +162,4 @@ module_exit(h1940leds_exit);
 MODULE_AUTHOR("Arnaud Patard <arnaud.patard@rtp-net.org>");
 MODULE_DESCRIPTION("LED driver for the iPAQ H1940");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:h1940-leds");

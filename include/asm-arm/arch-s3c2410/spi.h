@@ -15,6 +15,7 @@
 
 struct s3c2410_spi_info {
 	unsigned long		 pin_cs;	/* simple gpio cs */
+	unsigned int		 num_cs;	/* total chipselects */
 
 	void (*set_cs)(struct s3c2410_spi_info *spi, int cs, int pol);
 };

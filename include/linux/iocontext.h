@@ -91,8 +91,10 @@ static inline struct io_context *ioc_task_link(struct io_context *ioc)
 	 * if ref count is zero, don't allow sharing (ioc is going away, it's
 	 * a race).
 	 */
-	if (ioc && atomic_inc_not_zero(&ioc->refcount))
+	if (ioc && atomic_inc_not_zero(&ioc->refcount)) {
+		atomic_inc(&ioc->nr_tasks);
 		return ioc;
+	}
 
 	return NULL;
 }

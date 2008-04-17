@@ -1050,12 +1050,9 @@ ieee80211_drop_unencrypted(struct ieee80211_txrx_data *rx)
 	if (unlikely(!(rx->fc & IEEE80211_FCTL_PROTECTED) &&
 		     (rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA &&
 		     (rx->fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_NULLFUNC &&
-		     (rx->key || rx->sdata->drop_unencrypted))) {
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: RX non-WEP frame, but expected "
-			       "encryption\n", rx->dev->name);
+		     (rx->key || rx->sdata->drop_unencrypted)))
 		return -EACCES;
-	}
+
 	return 0;
 }
 

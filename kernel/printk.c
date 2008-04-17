@@ -643,8 +643,21 @@ static int acquire_console_semaphore_for_printk(unsigned int cpu)
 {
 	int retval = 0;
 
-	if (can_use_console(cpu))
-		retval = !try_acquire_console_sem();
+	if (!try_acquire_console_sem()) {
+		retval = 1;
+
+		/*
+		 * If we can't use the console, we need to release
+		 * the console semaphore by hand to avoid flushing
+		 * the buffer. We need to hold the console semaphore
+		 * in order to do this test safely.
+		 */
+		if (!can_use_console(cpu)) {
+			console_locked = 0;
+			up(&console_sem);
+			retval = 0;
+		}
+	}
 	printk_cpu = UINT_MAX;
 	spin_unlock(&logbuf_lock);
 	return retval;
