@@ -58,12 +58,6 @@ static __inline__ unsigned long ide_default_io_base(int index)
 	}
 }
 
-#ifdef CONFIG_BLK_DEV_IDEPCI
-#define ide_init_default_irq(base)	(0)
-#else
-#define ide_init_default_irq(base)	ide_default_irq(base)
-#endif
-
 #include <asm-generic/ide_iops.h>
 
 #endif /* __KERNEL__ */

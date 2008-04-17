@@ -97,7 +97,7 @@ static int __init ide_generic_init(void)
 		if (hwif->chipset == ide_unknown && io_addr) {
 			memset(&hw, 0, sizeof(hw));
 			ide_std_init_ports(&hw, io_addr, io_addr + 0x206);
-			hw.irq = ide_init_default_irq(io_addr);
+			hw.irq = ide_default_irq(io_addr);
 			ide_init_port_hw(hwif, &hw);
 
 			idx[i] = i;
