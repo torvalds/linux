@@ -232,7 +232,7 @@ int			xprt_unregister_transport(struct xprt_class *type);
 void			xprt_set_retrans_timeout_def(struct rpc_task *task);
 void			xprt_set_retrans_timeout_rtt(struct rpc_task *task);
 void			xprt_wake_pending_tasks(struct rpc_xprt *xprt, int status);
-void			xprt_wait_for_buffer_space(struct rpc_task *task);
+void			xprt_wait_for_buffer_space(struct rpc_task *task, rpc_action action);
 void			xprt_write_space(struct rpc_xprt *xprt);
 void			xprt_update_rtt(struct rpc_task *task);
 void			xprt_adjust_cwnd(struct rpc_task *task, int result);
