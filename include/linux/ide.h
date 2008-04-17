@@ -502,8 +502,6 @@ typedef struct hwif_s {
 	void	(*maskproc)(ide_drive_t *, int);
 	/* check host's drive quirk list */
 	void	(*quirkproc)(ide_drive_t *);
-	/* driver soft-power interface */
-	int	(*busproc)(ide_drive_t *, int);
 #endif
 	u8 (*mdma_filter)(ide_drive_t *);
 	u8 (*udma_filter)(ide_drive_t *);

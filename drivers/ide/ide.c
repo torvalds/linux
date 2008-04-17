@@ -414,7 +414,6 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->resetproc			= tmp_hwif->resetproc;
 	hwif->maskproc			= tmp_hwif->maskproc;
 	hwif->quirkproc			= tmp_hwif->quirkproc;
-	hwif->busproc			= tmp_hwif->busproc;
 
 	hwif->ata_input_data		= tmp_hwif->ata_input_data;
 	hwif->ata_output_data		= tmp_hwif->ata_output_data;
@@ -1071,8 +1070,6 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 		case HDIO_SET_BUSSTATE:
 			if (!capable(CAP_SYS_ADMIN))
 				return -EACCES;
-			if (HWIF(drive)->busproc)
-				return HWIF(drive)->busproc(drive, (int)arg);
 			return -EOPNOTSUPP;
 		default:
 			return -EINVAL;

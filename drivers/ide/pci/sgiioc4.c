@@ -562,7 +562,6 @@ ide_init_sgiioc4(ide_hwif_t * hwif)
 						clear interrupts */
 	hwif->maskproc = &sgiioc4_maskproc;	/* Mask on/off NIEN register */
 	hwif->quirkproc = NULL;
-	hwif->busproc = NULL;
 
 	hwif->INB = &sgiioc4_INB;
 
