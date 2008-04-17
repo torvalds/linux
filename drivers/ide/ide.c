@@ -255,7 +255,7 @@ ide_hwif_t * ide_find_port(unsigned long base)
 
 	for (i = 0; i < MAX_HWIFS; i++) {
 		hwif = &ide_hwifs[i];
-		if (hwif->io_ports[IDE_DATA_OFFSET] == 0)
+		if (hwif->chipset == ide_unknown)
 			goto found;
 	}
 
