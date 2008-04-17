@@ -134,7 +134,6 @@ void show_trace(struct task_struct *task, unsigned long *stack)
 	else
 		__show_trace(sp, S390_lowcore.thread_info,
 			     S390_lowcore.thread_info + THREAD_SIZE);
-	printk("\n");
 	if (!task)
 		task = current;
 	debug_show_held_locks(task);
@@ -161,6 +160,15 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	printk("\n");
 	show_trace(task, sp);
 }
+
+#ifdef CONFIG_64BIT
+void show_last_breaking_event(struct pt_regs *regs)
+{
+	printk("Last Breaking-Event-Address:\n");
+	printk(" [<%016lx>] ", regs->args[0] & PSW_ADDR_INSN);
+	print_symbol("%s\n", regs->args[0] & PSW_ADDR_INSN);
+}
+#endif
 
 /*
  * The architecture-independent dump_stack generator

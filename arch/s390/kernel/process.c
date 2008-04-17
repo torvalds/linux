@@ -195,6 +195,7 @@ void show_regs(struct pt_regs *regs)
 	/* Show stack backtrace if pt_regs is from kernel mode */
 	if (!(regs->psw.mask & PSW_MASK_PSTATE))
 		show_trace(NULL, (unsigned long *) regs->gprs[15]);
+	show_last_breaking_event(regs);
 }
 
 extern void kernel_thread_starter(void);

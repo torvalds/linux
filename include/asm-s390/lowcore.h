@@ -56,6 +56,8 @@
 #define __LC_IO_INT_WORD                0x0C0
 #define __LC_MCCK_CODE                  0x0E8
 
+#define __LC_LAST_BREAK 		0x110
+
 #define __LC_RETURN_PSW                 0x200
 
 #define __LC_SAVE_AREA                  0xC00
