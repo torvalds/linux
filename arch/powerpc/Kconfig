@@ -49,6 +49,10 @@ config IRQ_PER_CPU
 	bool
 	default y
 
+config STACKTRACE_SUPPORT
+	bool
+	default y
+
 config RWSEM_GENERIC_SPINLOCK
 	bool
 
