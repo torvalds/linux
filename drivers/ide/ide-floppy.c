@@ -195,32 +195,6 @@ enum {
 #define	IDEFLOPPY_ERROR_GENERAL		101
 
 /*
- * The following is used to format the general configuration word of the
- * ATAPI IDENTIFY DEVICE command.
- */
-struct idefloppy_id_gcw {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-	unsigned packet_size		:2;	/* Packet Size */
-	unsigned reserved234		:3;	/* Reserved */
-	unsigned drq_type		:2;	/* Command packet DRQ type */
-	unsigned removable		:1;	/* Removable media */
-	unsigned device_type		:5;	/* Device type */
-	unsigned reserved13		:1;	/* Reserved */
-	unsigned protocol		:2;	/* Protocol type */
-#elif defined(__BIG_ENDIAN_BITFIELD)
-	unsigned protocol		:2;	/* Protocol type */
-	unsigned reserved13		:1;	/* Reserved */
-	unsigned device_type		:5;	/* Device type */
-	unsigned removable		:1;	/* Removable media */
-	unsigned drq_type		:2;	/* Command packet DRQ type */
-	unsigned reserved234		:3;	/* Reserved */
-	unsigned packet_size		:2;	/* Packet Size */
-#else
-#error "Bitfield endianness not defined! Check your byteorder.h"
-#endif
-};
-
-/*
  * Pages of the SELECT SENSE / MODE SENSE packet commands.
  * See SFF-8070i spec.
  */
@@ -1271,33 +1245,39 @@ static sector_t idefloppy_capacity(ide_drive_t *drive)
  */
 static int idefloppy_identify_device(ide_drive_t *drive, struct hd_driveid *id)
 {
-	struct idefloppy_id_gcw gcw;
+	u8 gcw[2];
+	u8 device_type, protocol, removable, drq_type, packet_size;
 
 	*((u16 *) &gcw) = id->config;
 
+	device_type =  gcw[1] & 0x1F;
+	removable   = (gcw[0] & 0x80) >> 7;
+	protocol    = (gcw[1] & 0xC0) >> 6;
+	drq_type    = (gcw[0] & 0x60) >> 5;
+	packet_size =  gcw[0] & 0x03;
+
 #ifdef CONFIG_PPC
 	/* kludge for Apple PowerBook internal zip */
-	if ((gcw.device_type == 5) &&
-	    !strstr(id->model, "CD-ROM") &&
-	    strstr(id->model, "ZIP"))
-		gcw.device_type = 0;
+	if (device_type == 5 &&
+	    !strstr(id->model, "CD-ROM") && strstr(id->model, "ZIP"))
+		device_type = 0;
 #endif
 
-	if (gcw.protocol != 2)
+	if (protocol != 2)
 		printk(KERN_ERR "ide-floppy: Protocol (0x%02x) is not ATAPI\n",
-				gcw.protocol);
-	else if (gcw.device_type != 0)
+			protocol);
+	else if (device_type != 0)
 		printk(KERN_ERR "ide-floppy: Device type (0x%02x) is not set "
-				"to floppy\n", gcw.device_type);
-	else if (!gcw.removable)
+				"to floppy\n", device_type);
+	else if (!removable)
 		printk(KERN_ERR "ide-floppy: The removable flag is not set\n");
-	else if (gcw.drq_type == 3) {
+	else if (drq_type == 3)
 		printk(KERN_ERR "ide-floppy: Sorry, DRQ type (0x%02x) not "
-				"supported\n", gcw.drq_type);
-	} else if (gcw.packet_size != 0) {
+				"supported\n", drq_type);
+	else if (packet_size != 0)
 		printk(KERN_ERR "ide-floppy: Packet size (0x%02x) is not 12 "
-				"bytes long\n", gcw.packet_size);
-	} else
+				"bytes\n", packet_size);
+	else
 		return 1;
 	return 0;
 }
@@ -1322,11 +1302,12 @@ static inline void idefloppy_add_settings(ide_drive_t *drive) { ; }
 
 static void idefloppy_setup(ide_drive_t *drive, idefloppy_floppy_t *floppy)
 {
-	struct idefloppy_id_gcw gcw;
+	u8 gcw[2];
 
 	*((u16 *) &gcw) = drive->id->config;
 	floppy->pc = floppy->pc_stack;
-	if (gcw.drq_type == 1)
+
+	if (((gcw[0] & 0x60) >> 5) == 1)
 		floppy->flags |= IDEFLOPPY_FLAG_DRQ_INTERRUPT;
 	/*
 	 * We used to check revisions here. At this point however I'm giving up.
