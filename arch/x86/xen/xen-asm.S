@@ -135,13 +135,8 @@ ENDPATCH(xen_restore_fl_direct)
 	current stack state in whatever form its in, we keep things
 	simple by only using a single register which is pushed/popped
 	on the stack.
-
-	Non-direct iret could be done in the same way, but it would
-	require an annoying amount of code duplication.  We'll assume
-	that direct mode will be the common case once the hypervisor
-	support becomes commonplace.
  */
-ENTRY(xen_iret_direct)
+ENTRY(xen_iret)
 	/* test eflags for special cases */
 	testl $(X86_EFLAGS_VM | XEN_EFLAGS_NMI), 8(%esp)
 	jnz hyper_iret
@@ -155,9 +150,9 @@ ENTRY(xen_iret_direct)
 	GET_THREAD_INFO(%eax)
 	movl TI_cpu(%eax),%eax
 	movl __per_cpu_offset(,%eax,4),%eax
-	lea per_cpu__xen_vcpu_info(%eax),%eax
+	mov per_cpu__xen_vcpu(%eax),%eax
 #else
-	movl $per_cpu__xen_vcpu_info, %eax
+	movl per_cpu__xen_vcpu, %eax
 #endif
 
 	/* check IF state we're restoring */

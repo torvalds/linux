@@ -890,7 +890,6 @@ void __init xen_setup_vcpu_info_placement(void)
 		pv_irq_ops.irq_disable = xen_irq_disable_direct;
 		pv_irq_ops.irq_enable = xen_irq_enable_direct;
 		pv_mmu_ops.read_cr2 = xen_read_cr2_direct;
-		pv_cpu_ops.iret = xen_iret_direct;
 	}
 }
 
@@ -994,7 +993,7 @@ static const struct pv_cpu_ops xen_cpu_ops __initdata = {
 	.read_tsc = native_read_tsc,
 	.read_pmc = native_read_pmc,
 
-	.iret = (void *)&hypercall_page[__HYPERVISOR_iret],
+	.iret = xen_iret,
 	.irq_enable_syscall_ret = NULL,  /* never called */
 
 	.load_tr_desc = paravirt_nop,
