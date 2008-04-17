@@ -208,7 +208,7 @@ static int c2_rnic_query(struct c2_dev *c2dev, struct ib_device_attr *props)
 /*
  * Add an IP address to the RNIC interface
  */
-int c2_add_addr(struct c2_dev *c2dev, u32 inaddr, u32 inmask)
+int c2_add_addr(struct c2_dev *c2dev, __be32 inaddr, __be32 inmask)
 {
 	struct c2_vq_req *vq_req;
 	struct c2wr_rnic_setconfig_req *wr;
@@ -270,7 +270,7 @@ int c2_add_addr(struct c2_dev *c2dev, u32 inaddr, u32 inmask)
 /*
  * Delete an IP address from the RNIC interface
  */
-int c2_del_addr(struct c2_dev *c2dev, u32 inaddr, u32 inmask)
+int c2_del_addr(struct c2_dev *c2dev, __be32 inaddr, __be32 inmask)
 {
 	struct c2_vq_req *vq_req;
 	struct c2wr_rnic_setconfig_req *wr;
@@ -506,17 +506,17 @@ int __devinit c2_rnic_init(struct c2_dev *c2dev)
 	mmio_regs = c2dev->kva;
 	/* Initialize the Verbs Request Queue */
 	c2_mq_req_init(&c2dev->req_vq, 0,
-		       be32_to_cpu(readl(mmio_regs + C2_REGS_Q0_QSIZE)),
-		       be32_to_cpu(readl(mmio_regs + C2_REGS_Q0_MSGSIZE)),
+		       be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q0_QSIZE)),
+		       be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q0_MSGSIZE)),
 		       mmio_regs +
-		       be32_to_cpu(readl(mmio_regs + C2_REGS_Q0_POOLSTART)),
+		       be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q0_POOLSTART)),
 		       mmio_regs +
-		       be32_to_cpu(readl(mmio_regs + C2_REGS_Q0_SHARED)),
+		       be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q0_SHARED)),
 		       C2_MQ_ADAPTER_TARGET);
 
 	/* Initialize the Verbs Reply Queue */
-	qsize = be32_to_cpu(readl(mmio_regs + C2_REGS_Q1_QSIZE));
-	msgsize = be32_to_cpu(readl(mmio_regs + C2_REGS_Q1_MSGSIZE));
+	qsize = be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q1_QSIZE));
+	msgsize = be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q1_MSGSIZE));
 	q1_pages = dma_alloc_coherent(&c2dev->pcidev->dev, qsize * msgsize,
 				      &c2dev->rep_vq.host_dma, GFP_KERNEL);
 	if (!q1_pages) {
@@ -532,12 +532,12 @@ int __devinit c2_rnic_init(struct c2_dev *c2dev)
 		   msgsize,
 		   q1_pages,
 		   mmio_regs +
-		   be32_to_cpu(readl(mmio_regs + C2_REGS_Q1_SHARED)),
+		   be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q1_SHARED)),
 		   C2_MQ_HOST_TARGET);
 
 	/* Initialize the Asynchronus Event Queue */
-	qsize = be32_to_cpu(readl(mmio_regs + C2_REGS_Q2_QSIZE));
-	msgsize = be32_to_cpu(readl(mmio_regs + C2_REGS_Q2_MSGSIZE));
+	qsize = be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q2_QSIZE));
+	msgsize = be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q2_MSGSIZE));
 	q2_pages = dma_alloc_coherent(&c2dev->pcidev->dev, qsize * msgsize,
 				      &c2dev->aeq.host_dma, GFP_KERNEL);
 	if (!q2_pages) {
@@ -553,7 +553,7 @@ int __devinit c2_rnic_init(struct c2_dev *c2dev)
 		       msgsize,
 		       q2_pages,
 		       mmio_regs +
-		       be32_to_cpu(readl(mmio_regs + C2_REGS_Q2_SHARED)),
+		       be32_to_cpu((__force __be32) readl(mmio_regs + C2_REGS_Q2_SHARED)),
 		       C2_MQ_HOST_TARGET);
 
 	/* Initialize the verbs request allocator */
