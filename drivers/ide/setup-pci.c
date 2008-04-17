@@ -345,7 +345,6 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 	unsigned long ctl = 0, base = 0;
 	ide_hwif_t *hwif;
 	u8 bootable = (d->host_flags & IDE_HFLAG_BOOTABLE) ? 1 : 0;
-	u8 oldnoprobe = 0;
 	struct hw_regs_s hw;
 
 	if ((d->host_flags & IDE_HFLAG_ISA_PORTS) == 0) {
@@ -376,13 +375,7 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 	hw.chipset = d->chipset ? d->chipset : ide_pci;
 	ide_std_init_ports(&hw, base, ctl | 2);
 
-	if (hwif->io_ports[IDE_DATA_OFFSET] == base &&
-	    hwif->io_ports[IDE_CONTROL_OFFSET] == (ctl | 2))
-		oldnoprobe = hwif->noprobe;
-
 	ide_init_port_hw(hwif, &hw);
-
-	hwif->noprobe = oldnoprobe;
 
 	hwif->dev = &dev->dev;
 	hwif->cds = d;
