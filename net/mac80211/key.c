@@ -323,6 +323,13 @@ void ieee80211_key_link(struct ieee80211_key *key,
 		 */
 		if (sta->flags & WLAN_STA_WME)
 			key->conf.flags |= IEEE80211_KEY_FLAG_WMM_STA;
+
+		/*
+		 * This key is for a specific sta interface,
+		 * inform the driver that it should try to store
+		 * this key as pairwise key.
+		 */
+		key->conf.flags |= IEEE80211_KEY_FLAG_PAIRWISE;
 	} else {
 		if (sdata->vif.type == IEEE80211_IF_TYPE_STA) {
 			struct sta_info *ap;
