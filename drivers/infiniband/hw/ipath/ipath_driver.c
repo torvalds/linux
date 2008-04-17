@@ -2006,10 +2006,15 @@ bail:
 	return ret;
 }
 
-int ipath_set_lid(struct ipath_devdata *dd, u32 arg, u8 lmc)
+int ipath_set_lid(struct ipath_devdata *dd, u32 lid, u8 lmc)
 {
-	dd->ipath_lid = arg;
+	dd->ipath_lid = lid;
 	dd->ipath_lmc = lmc;
+
+	dd->ipath_f_set_ib_cfg(dd, IPATH_IB_CFG_LIDLMC, lid |
+		(~((1U << lmc) - 1)) << 16);
+
+	dev_info(&dd->pcidev->dev, "We got a lid: 0x%x\n", lid);
 
 	return 0;
 }
