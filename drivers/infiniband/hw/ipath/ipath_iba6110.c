@@ -845,7 +845,7 @@ static void slave_or_pri_blk(struct ipath_devdata *dd, struct pci_dev *pdev,
 			/*
 			 * now write them back to clear the error.
 			 */
-			pci_write_config_byte(pdev, link_off,
+			pci_write_config_word(pdev, link_off,
 					      linkctrl & (0xf << 8));
 		}
 	}
