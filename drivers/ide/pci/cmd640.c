@@ -409,19 +409,9 @@ static void __init check_prefetch (unsigned int index)
  */
 static void __init setup_device_ptrs (void)
 {
-	unsigned int i;
+	cmd_hwif0 = &ide_hwifs[0];
+	cmd_hwif1 = &ide_hwifs[1];
 
-	cmd_hwif0 = &ide_hwifs[0]; /* default, if not found below */
-	cmd_hwif1 = &ide_hwifs[1]; /* default, if not found below */
-	for (i = 0; i < MAX_HWIFS; i++) {
-		ide_hwif_t *hwif = &ide_hwifs[i];
-		if (hwif->chipset == ide_unknown) {
-			if (hwif->io_ports[IDE_DATA_OFFSET] == 0x1f0)
-				cmd_hwif0 = hwif;
-			else if (hwif->io_ports[IDE_DATA_OFFSET] == 0x170)
-				cmd_hwif1 = hwif;
-		}
-	}
 	cmd_drives[0] = &cmd_hwif0->drives[0];
 	cmd_drives[1] = &cmd_hwif0->drives[1];
 	cmd_drives[2] = &cmd_hwif1->drives[0];
