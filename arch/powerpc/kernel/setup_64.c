@@ -33,6 +33,7 @@
 #include <linux/serial_8250.h>
 #include <linux/bootmem.h>
 #include <linux/pci.h>
+#include <linux/lockdep.h>
 #include <linux/lmb.h>
 #include <asm/io.h>
 #include <asm/kdump.h>
@@ -177,6 +178,9 @@ void __init early_setup(unsigned long dt_ptr)
 
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
+
+	/* Initialize lockdep early or else spinlocks will blow */
+	lockdep_init();
 
  	DBG(" -> early_setup(), dt_ptr: 0x%lx\n", dt_ptr);
 
