@@ -1930,22 +1930,25 @@ static int ipath_do_user_init(struct file *fp,
 	pd->port_hdrqfull_poll = pd->port_hdrqfull;
 
 	/*
-	 * now enable the port; the tail registers will be written to memory
-	 * by the chip as soon as it sees the write to
-	 * dd->ipath_kregs->kr_rcvctrl.  The update only happens on
-	 * transition from 0 to 1, so clear it first, then set it as part of
-	 * enabling the port.  This will (very briefly) affect any other
-	 * open ports, but it shouldn't be long enough to be an issue.
-	 * We explictly set the in-memory copy to 0 beforehand, so we don't
-	 * have to wait to be sure the DMA update has happened.
+	 * Now enable the port for receive.
+	 * For chips that are set to DMA the tail register to memory
+	 * when they change (and when the update bit transitions from
+	 * 0 to 1.  So for those chips, we turn it off and then back on.
+	 * This will (very briefly) affect any other open ports, but the
+	 * duration is very short, and therefore isn't an issue.  We
+	 * explictly set the in-memory tail copy to 0 beforehand, so we
+	 * don't have to wait to be sure the DMA update has happened
+	 * (chip resets head/tail to 0 on transition to enable).
 	 */
-	if (pd->port_rcvhdrtail_kvaddr)
-		ipath_clear_rcvhdrtail(pd);
 	set_bit(dd->ipath_r_portenable_shift + pd->port_port,
 		&dd->ipath_rcvctrl);
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
+	if (!(dd->ipath_flags & IPATH_NODMA_RTAIL)) {
+		if (pd->port_rcvhdrtail_kvaddr)
+			ipath_clear_rcvhdrtail(pd);
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
 			dd->ipath_rcvctrl &
 			~(1ULL << dd->ipath_r_tailupd_shift));
+	}
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
 			 dd->ipath_rcvctrl);
 	/* Notify any waiting slaves */
@@ -1973,14 +1976,15 @@ static void unlock_expected_tids(struct ipath_portdata *pd)
 	ipath_cdbg(VERBOSE, "Port %u unlocking any locked expTID pages\n",
 		   pd->port_port);
 	for (i = port_tidbase; i < maxtid; i++) {
-		if (!dd->ipath_pageshadow[i])
+		struct page *ps = dd->ipath_pageshadow[i];
+
+		if (!ps)
 			continue;
 
+		dd->ipath_pageshadow[i] = NULL;
 		pci_unmap_page(dd->pcidev, dd->ipath_physshadow[i],
 			PAGE_SIZE, PCI_DMA_FROMDEVICE);
-		ipath_release_user_pages_on_close(&dd->ipath_pageshadow[i],
-						  1);
-		dd->ipath_pageshadow[i] = NULL;
+		ipath_release_user_pages_on_close(&ps, 1);
 		cnt++;
 		ipath_stats.sps_pageunlocks++;
 	}

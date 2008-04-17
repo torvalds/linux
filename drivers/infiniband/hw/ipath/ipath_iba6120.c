@@ -316,7 +316,9 @@ static const struct ipath_cregs ipath_pe_cregs = {
 
 /* kr_intstatus, kr_intclear, kr_intmask bits */
 #define INFINIPATH_I_RCVURG_MASK ((1U<<5)-1)
+#define INFINIPATH_I_RCVURG_SHIFT 0
 #define INFINIPATH_I_RCVAVAIL_MASK ((1U<<5)-1)
+#define INFINIPATH_I_RCVAVAIL_SHIFT 12
 
 /* kr_hwerrclear, kr_hwerrmask, kr_hwerrstatus, bits */
 #define INFINIPATH_HWE_PCIEMEMPARITYERR_MASK  0x000000000000003fULL

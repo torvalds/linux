@@ -695,8 +695,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 			struct ipath_portdata *pd = dd->ipath_pd[i];
 			if (i == 0) {
 				hd = pd->port_head;
-				tl = (u32) le64_to_cpu(
-					*dd->ipath_hdrqtailptr);
+				tl = ipath_get_hdrqtail(pd);
 			} else if (pd && pd->port_cnt &&
 				   pd->port_rcvhdrtail_kvaddr) {
 				/*
@@ -732,8 +731,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		 * vs user)
 		 */
 		ipath_stats.sps_etidfull++;
-		if (pd->port_head !=
-		    (u32) le64_to_cpu(*dd->ipath_hdrqtailptr))
+		if (pd->port_head != ipath_get_hdrqtail(pd))
 			chkerrpkts = 1;
 	}
 
@@ -952,7 +950,7 @@ set:
  * process was waiting for a packet to arrive, and didn't want
  * to poll
  */
-static void handle_urcv(struct ipath_devdata *dd, u32 istat)
+static void handle_urcv(struct ipath_devdata *dd, u64 istat)
 {
 	u64 portr;
 	int i;
@@ -968,10 +966,10 @@ static void handle_urcv(struct ipath_devdata *dd, u32 istat)
 	 * and ipath_poll_next()...
 	 */
 	rmb();
-	portr = ((istat >> INFINIPATH_I_RCVAVAIL_SHIFT) &
-		 dd->ipath_i_rcvavail_mask)
-		| ((istat >> INFINIPATH_I_RCVURG_SHIFT) &
-		   dd->ipath_i_rcvurg_mask);
+	portr = ((istat >> dd->ipath_i_rcvavail_shift) &
+		 dd->ipath_i_rcvavail_mask) |
+		((istat >> dd->ipath_i_rcvurg_shift) &
+		 dd->ipath_i_rcvurg_mask);
 	for (i = 1; i < dd->ipath_cfgports; i++) {
 		struct ipath_portdata *pd = dd->ipath_pd[i];
 
@@ -991,7 +989,7 @@ static void handle_urcv(struct ipath_devdata *dd, u32 istat)
 	}
 	if (rcvdint) {
 		/* only want to take one interrupt, so turn off the rcv
-		 * interrupt for all the ports that we did the wakeup on
+		 * interrupt for all the ports that we set the rcv_waiting
 		 * (but never for kernel port)
 		 */
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
@@ -1006,8 +1004,7 @@ irqreturn_t ipath_intr(int irq, void *data)
 	ipath_err_t estat = 0;
 	irqreturn_t ret;
 	static unsigned unexpected = 0;
-	static const u32 port0rbits = (1U<<INFINIPATH_I_RCVAVAIL_SHIFT) |
-		 (1U<<INFINIPATH_I_RCVURG_SHIFT);
+	u64 kportrbits;
 
 	ipath_stats.sps_ints++;
 
@@ -1076,9 +1073,7 @@ irqreturn_t ipath_intr(int irq, void *data)
 			ipath_dev_err(dd, "Read of error status failed "
 				      "(all bits set); ignoring\n");
 		else
-			if (handle_errors(dd, estat))
-				/* force calling ipath_kreceive() */
-				chk0rcv = 1;
+			chk0rcv |= handle_errors(dd, estat);
 	}
 
 	if (istat & INFINIPATH_I_GPIO) {
@@ -1158,7 +1153,6 @@ irqreturn_t ipath_intr(int irq, void *data)
 					(u64) to_clear);
 		}
 	}
-	chk0rcv |= istat & port0rbits;
 
 	/*
 	 * Clear the interrupt bits we found set, unless they are receive
@@ -1171,20 +1165,20 @@ irqreturn_t ipath_intr(int irq, void *data)
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_intclear, istat);
 
 	/*
-	 * handle port0 receive  before checking for pio buffers available,
-	 * since receives can overflow; piobuf waiters can afford a few
-	 * extra cycles, since they were waiting anyway, and user's waiting
-	 * for receive are at the bottom.
+	 * Handle kernel receive queues before checking for pio buffers
+	 * available since receives can overflow; piobuf waiters can afford
+	 * a few extra cycles, since they were waiting anyway, and user's
+	 * waiting for receive are at the bottom.
 	 */
-	if (chk0rcv) {
+	kportrbits = (1ULL << dd->ipath_i_rcvavail_shift) |
+		(1ULL << dd->ipath_i_rcvurg_shift);
+	if (chk0rcv || (istat & kportrbits)) {
+		istat &= ~kportrbits;
 		ipath_kreceive(dd->ipath_pd[0]);
-		istat &= ~port0rbits;
 	}
 
-	if (istat & ((dd->ipath_i_rcvavail_mask <<
-		      INFINIPATH_I_RCVAVAIL_SHIFT)
-		     | (dd->ipath_i_rcvurg_mask <<
-			INFINIPATH_I_RCVURG_SHIFT)))
+	if (istat & ((dd->ipath_i_rcvavail_mask << dd->ipath_i_rcvavail_shift) |
+		     (dd->ipath_i_rcvurg_mask << dd->ipath_i_rcvurg_shift)))
 		handle_urcv(dd, istat);
 
 	if (istat & INFINIPATH_I_SPIOBUFAVAIL) {

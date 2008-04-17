@@ -41,7 +41,6 @@
 
 #include "ipath_kernel.h"
 #include "ipath_verbs.h"
-#include "ipath_common.h"
 
 static void ipath_update_pio_bufs(struct ipath_devdata *);
 
@@ -720,6 +719,8 @@ static void __devexit cleanup_device(struct ipath_devdata *dd)
 		tmpp = dd->ipath_pageshadow;
 		dd->ipath_pageshadow = NULL;
 		vfree(tmpp);
+
+		dd->ipath_egrtidbase = NULL;
 	}
 
 	/*
@@ -1078,18 +1079,17 @@ static void ipath_rcv_hdrerr(struct ipath_devdata *dd,
 			     u32 eflags,
 			     u32 l,
 			     u32 etail,
-			     u64 *rc)
+			     __le32 *rhf_addr,
+			     struct ipath_message_header *hdr)
 {
 	char emsg[128];
-	struct ipath_message_header *hdr;
 
 	get_rhf_errstring(eflags, emsg, sizeof emsg);
-	hdr = (struct ipath_message_header *)&rc[1];
 	ipath_cdbg(PKT, "RHFerrs %x hdrqtail=%x typ=%u "
 		   "tlen=%x opcode=%x egridx=%x: %s\n",
 		   eflags, l,
-		   ipath_hdrget_rcv_type((__le32 *) rc),
-		   ipath_hdrget_length_in_bytes((__le32 *) rc),
+		   ipath_hdrget_rcv_type(rhf_addr),
+		   ipath_hdrget_length_in_bytes(rhf_addr),
 		   be32_to_cpu(hdr->bth[0]) >> 24,
 		   etail, emsg);
 
@@ -1114,55 +1114,52 @@ static void ipath_rcv_hdrerr(struct ipath_devdata *dd,
  */
 void ipath_kreceive(struct ipath_portdata *pd)
 {
-	u64 *rc;
 	struct ipath_devdata *dd = pd->port_dd;
+	__le32 *rhf_addr;
 	void *ebuf;
 	const u32 rsize = dd->ipath_rcvhdrentsize;	/* words */
 	const u32 maxcnt = dd->ipath_rcvhdrcnt * rsize;	/* words */
 	u32 etail = -1, l, hdrqtail;
 	struct ipath_message_header *hdr;
-	u32 eflags, i, etype, tlen, pkttot = 0, updegr=0, reloop=0;
+	u32 eflags, i, etype, tlen, pkttot = 0, updegr = 0, reloop = 0;
 	static u64 totcalls;	/* stats, may eventually remove */
-
-	if (!dd->ipath_hdrqtailptr) {
-		ipath_dev_err(dd,
-			      "hdrqtailptr not set, can't do receives\n");
-		goto bail;
-	}
+	int last;
 
 	l = pd->port_head;
-	hdrqtail = ipath_get_rcvhdrtail(pd);
-	if (l == hdrqtail)
-		goto bail;
+	rhf_addr = (__le32 *) pd->port_rcvhdrq + l + dd->ipath_rhf_offset;
+	if (dd->ipath_flags & IPATH_NODMA_RTAIL) {
+		u32 seq = ipath_hdrget_seq(rhf_addr);
+
+		if (seq != pd->port_seq_cnt)
+			goto bail;
+		hdrqtail = 0;
+	} else {
+		hdrqtail = ipath_get_rcvhdrtail(pd);
+		if (l == hdrqtail)
+			goto bail;
+		smp_rmb();
+	}
 
 reloop:
-	for (i = 0; l != hdrqtail; i++) {
-		u32 qp;
-		u8 *bthbytes;
-
-		rc = (u64 *) (pd->port_rcvhdrq + (l << 2));
-		hdr = (struct ipath_message_header *)&rc[1];
-		/*
-		 * could make a network order version of IPATH_KD_QP, and
-		 * do the obvious shift before masking to speed this up.
-		 */
-		qp = ntohl(hdr->bth[1]) & 0xffffff;
-		bthbytes = (u8 *) hdr->bth;
-
-		eflags = ipath_hdrget_err_flags((__le32 *) rc);
-		etype = ipath_hdrget_rcv_type((__le32 *) rc);
+	for (last = 0, i = 1; !last; i++) {
+		hdr = dd->ipath_f_get_msgheader(dd, rhf_addr);
+		eflags = ipath_hdrget_err_flags(rhf_addr);
+		etype = ipath_hdrget_rcv_type(rhf_addr);
 		/* total length */
-		tlen = ipath_hdrget_length_in_bytes((__le32 *) rc);
+		tlen = ipath_hdrget_length_in_bytes(rhf_addr);
 		ebuf = NULL;
-		if (etype != RCVHQ_RCV_TYPE_EXPECTED) {
+		if ((dd->ipath_flags & IPATH_NODMA_RTAIL) ?
+		    ipath_hdrget_use_egr_buf(rhf_addr) :
+		    (etype != RCVHQ_RCV_TYPE_EXPECTED)) {
 			/*
-			 * it turns out that the chips uses an eager buffer
+			 * It turns out that the chip uses an eager buffer
 			 * for all non-expected packets, whether it "needs"
 			 * one or not.  So always get the index, but don't
 			 * set ebuf (so we try to copy data) unless the
 			 * length requires it.
 			 */
-			etail = ipath_hdrget_index((__le32 *) rc);
+			etail = ipath_hdrget_index(rhf_addr);
+			updegr = 1;
 			if (tlen > sizeof(*hdr) ||
 			    etype == RCVHQ_RCV_TYPE_NON_KD)
 				ebuf = ipath_get_egrbuf(dd, etail);
@@ -1173,75 +1170,91 @@ reloop:
 		 * packets; only ipathhdrerr should be set.
 		 */
 
-		if (etype != RCVHQ_RCV_TYPE_NON_KD && etype !=
-		    RCVHQ_RCV_TYPE_ERROR && ipath_hdrget_ipath_ver(
-			    hdr->iph.ver_port_tid_offset) !=
-		    IPS_PROTO_VERSION) {
+		if (etype != RCVHQ_RCV_TYPE_NON_KD &&
+		    etype != RCVHQ_RCV_TYPE_ERROR &&
+		    ipath_hdrget_ipath_ver(hdr->iph.ver_port_tid_offset) !=
+		    IPS_PROTO_VERSION)
 			ipath_cdbg(PKT, "Bad InfiniPath protocol version "
 				   "%x\n", etype);
-		}
 
 		if (unlikely(eflags))
-			ipath_rcv_hdrerr(dd, eflags, l, etail, rc);
+			ipath_rcv_hdrerr(dd, eflags, l, etail, rhf_addr, hdr);
 		else if (etype == RCVHQ_RCV_TYPE_NON_KD) {
-			ipath_ib_rcv(dd->verbs_dev, rc + 1, ebuf, tlen);
+			ipath_ib_rcv(dd->verbs_dev, (u32 *)hdr, ebuf, tlen);
 			if (dd->ipath_lli_counter)
 				dd->ipath_lli_counter--;
+		} else if (etype == RCVHQ_RCV_TYPE_EAGER) {
+			u8 opcode = be32_to_cpu(hdr->bth[0]) >> 24;
+			u32 qp = be32_to_cpu(hdr->bth[1]) & 0xffffff;
 			ipath_cdbg(PKT, "typ %x, opcode %x (eager, "
 				   "qp=%x), len %x; ignored\n",
-				   etype, bthbytes[0], qp, tlen);
+				   etype, opcode, qp, tlen);
 		}
-		else if (etype == RCVHQ_RCV_TYPE_EAGER)
-			ipath_cdbg(PKT, "typ %x, opcode %x (eager, "
-				   "qp=%x), len %x; ignored\n",
-				   etype, bthbytes[0], qp, tlen);
 		else if (etype == RCVHQ_RCV_TYPE_EXPECTED)
 			ipath_dbg("Bug: Expected TID, opcode %x; ignored\n",
-				  be32_to_cpu(hdr->bth[0]) & 0xff);
+				  be32_to_cpu(hdr->bth[0]) >> 24);
 		else {
 			/*
 			 * error packet, type of error unknown.
 			 * Probably type 3, but we don't know, so don't
 			 * even try to print the opcode, etc.
+			 * Usually caused by a "bad packet", that has no
+			 * BTH, when the LRH says it should.
 			 */
-			ipath_dbg("Error Pkt, but no eflags! egrbuf %x, "
-				  "len %x\nhdrq@%lx;hdrq+%x rhf: %llx; "
-				  "hdr %llx %llx %llx %llx %llx\n",
-				  etail, tlen, (unsigned long) rc, l,
-				  (unsigned long long) rc[0],
-				  (unsigned long long) rc[1],
-				  (unsigned long long) rc[2],
-				  (unsigned long long) rc[3],
-				  (unsigned long long) rc[4],
-				  (unsigned long long) rc[5]);
+			ipath_cdbg(ERRPKT, "Error Pkt, but no eflags! egrbuf"
+				  " %x, len %x hdrq+%x rhf: %Lx\n",
+				  etail, tlen, l,
+				  le64_to_cpu(*(__le64 *) rhf_addr));
+			if (ipath_debug & __IPATH_ERRPKTDBG) {
+				u32 j, *d, dw = rsize-2;
+				if (rsize > (tlen>>2))
+					dw = tlen>>2;
+				d = (u32 *)hdr;
+				printk(KERN_DEBUG "EPkt rcvhdr(%x dw):\n",
+					dw);
+				for (j = 0; j < dw; j++)
+					printk(KERN_DEBUG "%8x%s", d[j],
+						(j%8) == 7 ? "\n" : " ");
+				printk(KERN_DEBUG ".\n");
+			}
 		}
 		l += rsize;
 		if (l >= maxcnt)
 			l = 0;
-		if (etype != RCVHQ_RCV_TYPE_EXPECTED)
-		    updegr = 1;
+		rhf_addr = (__le32 *) pd->port_rcvhdrq +
+			l + dd->ipath_rhf_offset;
+		if (dd->ipath_flags & IPATH_NODMA_RTAIL) {
+			u32 seq = ipath_hdrget_seq(rhf_addr);
+
+			if (++pd->port_seq_cnt > 13)
+				pd->port_seq_cnt = 1;
+			if (seq != pd->port_seq_cnt)
+				last = 1;
+		} else if (l == hdrqtail)
+			last = 1;
 		/*
 		 * update head regs on last packet, and every 16 packets.
 		 * Reduce bus traffic, while still trying to prevent
 		 * rcvhdrq overflows, for when the queue is nearly full
 		 */
-		if (l == hdrqtail || (i && !(i&0xf))) {
-			u64 lval;
-			if (l == hdrqtail)
-				/* request IBA6120 interrupt only on last */
-				lval = dd->ipath_rhdrhead_intr_off | l;
-			else
-				lval = l;
-			ipath_write_ureg(dd, ur_rcvhdrhead, lval, 0);
+		if (last || !(i & 0xf)) {
+			u64 lval = l;
+
+			/* request IBA6120 and 7220 interrupt only on last */
+			if (last)
+				lval |= dd->ipath_rhdrhead_intr_off;
+			ipath_write_ureg(dd, ur_rcvhdrhead, lval,
+				pd->port_port);
 			if (updegr) {
 				ipath_write_ureg(dd, ur_rcvegrindexhead,
-						 etail, 0);
+						 etail, pd->port_port);
 				updegr = 0;
 			}
 		}
 	}
 
-	if (!dd->ipath_rhdrhead_intr_off && !reloop) {
+	if (!dd->ipath_rhdrhead_intr_off && !reloop &&
+	    !(dd->ipath_flags & IPATH_NODMA_RTAIL)) {
 		/* IBA6110 workaround; we can have a race clearing chip
 		 * interrupt with another interrupt about to be delivered,
 		 * and can clear it before it is delivered on the GPIO
@@ -1638,19 +1651,27 @@ int ipath_create_rcvhdrq(struct ipath_devdata *dd,
 			ret = -ENOMEM;
 			goto bail;
 		}
-		pd->port_rcvhdrtail_kvaddr = dma_alloc_coherent(
-			&dd->pcidev->dev, PAGE_SIZE, &phys_hdrqtail, GFP_KERNEL);
-		if (!pd->port_rcvhdrtail_kvaddr) {
-			ipath_dev_err(dd, "attempt to allocate 1 page "
-				      "for port %u rcvhdrqtailaddr failed\n",
-				      pd->port_port);
-			ret = -ENOMEM;
-			dma_free_coherent(&dd->pcidev->dev, amt,
-					  pd->port_rcvhdrq, pd->port_rcvhdrq_phys);
-			pd->port_rcvhdrq = NULL;
-			goto bail;
+
+		if (!(dd->ipath_flags & IPATH_NODMA_RTAIL)) {
+			pd->port_rcvhdrtail_kvaddr = dma_alloc_coherent(
+				&dd->pcidev->dev, PAGE_SIZE, &phys_hdrqtail,
+				GFP_KERNEL);
+			if (!pd->port_rcvhdrtail_kvaddr) {
+				ipath_dev_err(dd, "attempt to allocate 1 page "
+					"for port %u rcvhdrqtailaddr "
+					"failed\n", pd->port_port);
+				ret = -ENOMEM;
+				dma_free_coherent(&dd->pcidev->dev, amt,
+					pd->port_rcvhdrq,
+					pd->port_rcvhdrq_phys);
+				pd->port_rcvhdrq = NULL;
+				goto bail;
+			}
+			pd->port_rcvhdrqtailaddr_phys = phys_hdrqtail;
+			ipath_cdbg(VERBOSE, "port %d hdrtailaddr, %llx "
+				   "physical\n", pd->port_port,
+				   (unsigned long long) phys_hdrqtail);
 		}
-		pd->port_rcvhdrqtailaddr_phys = phys_hdrqtail;
 
 		pd->port_rcvhdrq_size = amt;
 
@@ -1660,10 +1681,6 @@ int ipath_create_rcvhdrq(struct ipath_devdata *dd,
 			   (unsigned long) pd->port_rcvhdrq_phys,
 			   (unsigned long) pd->port_rcvhdrq_size,
 			   pd->port_port);
-
-		ipath_cdbg(VERBOSE, "port %d hdrtailaddr, %llx physical\n",
-			   pd->port_port,
-			   (unsigned long long) phys_hdrqtail);
 	}
 	else
 		ipath_cdbg(VERBOSE, "reuse port %d rcvhdrq @%p %llx phys; "
@@ -1687,7 +1704,6 @@ int ipath_create_rcvhdrq(struct ipath_devdata *dd,
 	ipath_write_kreg_port(dd, dd->ipath_kregs->kr_rcvhdraddr,
 			      pd->port_port, pd->port_rcvhdrq_phys);
 
-	ret = 0;
 bail:
 	return ret;
 }
@@ -2222,7 +2238,7 @@ void ipath_free_pddata(struct ipath_devdata *dd, struct ipath_portdata *pd)
 		ipath_cdbg(VERBOSE, "free closed port %d "
 			   "ipath_port0_skbinfo @ %p\n", pd->port_port,
 			   skbinfo);
-		for (e = 0; e < dd->ipath_rcvegrcnt; e++)
+		for (e = 0; e < dd->ipath_p0_rcvegrcnt; e++)
 			if (skbinfo[e].skb) {
 				pci_unmap_single(dd->pcidev, skbinfo[e].phys,
 						 dd->ipath_ibmaxlen,

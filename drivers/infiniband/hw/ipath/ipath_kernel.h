@@ -175,6 +175,8 @@ struct ipath_portdata {
 	u16 poll_type;
 	/* port rcvhdrq head offset */
 	u32 port_head;
+	/* receive packet sequence counter */
+	u32 port_seq_cnt;
 };
 
 struct sk_buff;
@@ -224,11 +226,6 @@ struct ipath_devdata {
 	unsigned long ipath_physaddr;
 	/* base of memory alloced for ipath_kregbase, for free */
 	u64 *ipath_kregalloc;
-	/*
-	 * virtual address where port0 rcvhdrqtail updated for this unit.
-	 * only written to by the chip, not the driver.
-	 */
-	volatile __le64 *ipath_hdrqtailptr;
 	/* ipath_cfgports pointers */
 	struct ipath_portdata **ipath_pd;
 	/* sk_buffs used by port 0 eager receive queue */
@@ -286,6 +283,7 @@ struct ipath_devdata {
 	/* per chip actions needed for IB Link up/down changes */
 	int (*ipath_f_ib_updown)(struct ipath_devdata *, int, u64);
 
+	unsigned ipath_lastegr_idx;
 	struct ipath_ibdev *verbs_dev;
 	struct timer_list verbs_timer;
 	/* total dwords sent (summed from counter) */
@@ -593,14 +591,6 @@ struct ipath_devdata {
 	u8 ipath_minrev;
 	/* board rev, from ipath_revision */
 	u8 ipath_boardrev;
-
-	u8 ipath_r_portenable_shift;
-	u8 ipath_r_intravail_shift;
-	u8 ipath_r_tailupd_shift;
-	u8 ipath_r_portcfg_shift;
-
-	/* unit # of this chip, if present */
-	int ipath_unit;
 	/* saved for restore after reset */
 	u8 ipath_pci_cacheline;
 	/* LID mask control */
@@ -615,6 +605,14 @@ struct ipath_devdata {
 	u8 ipath_link_speed_active;
 	/* Rx Polarity inversion (compensate for ~tx on partner) */
 	u8 ipath_rx_pol_inv;
+
+	u8 ipath_r_portenable_shift;
+	u8 ipath_r_intravail_shift;
+	u8 ipath_r_tailupd_shift;
+	u8 ipath_r_portcfg_shift;
+
+	/* unit # of this chip, if present */
+	int ipath_unit;
 
 	/* local link integrity counter */
 	u32 ipath_lli_counter;
@@ -645,8 +643,8 @@ struct ipath_devdata {
 	 * Below should be computable from number of ports,
 	 * since they are never modified.
 	 */
-	u32 ipath_i_rcvavail_mask;
-	u32 ipath_i_rcvurg_mask;
+	u64 ipath_i_rcvavail_mask;
+	u64 ipath_i_rcvurg_mask;
 	u16 ipath_i_rcvurg_shift;
 	u16 ipath_i_rcvavail_shift;
 
@@ -835,6 +833,8 @@ void ipath_hol_event(unsigned long);
 #define IPATH_LINKUNK       0x400
 		/* Write combining flush needed for PIO */
 #define IPATH_PIO_FLUSH_WC  0x1000
+		/* DMA Receive tail pointer */
+#define IPATH_NODMA_RTAIL   0x2000
 		/* no IB cable, or no device on IB cable */
 #define IPATH_NOCABLE       0x4000
 		/* Supports port zero per packet receive interrupts via
@@ -845,9 +845,9 @@ void ipath_hol_event(unsigned long);
 		/* packet/word counters are 32 bit, else those 4 counters
 		 * are 64bit */
 #define IPATH_32BITCOUNTERS 0x20000
-		/* can miss port0 rx interrupts */
 		/* Interrupt register is 64 bits */
 #define IPATH_INTREG_64     0x40000
+		/* can miss port0 rx interrupts */
 #define IPATH_DISABLED      0x80000 /* administratively disabled */
 		/* Use GPIO interrupts for new counters */
 #define IPATH_GPIO_ERRINTRS 0x100000
@@ -1033,6 +1033,27 @@ static inline u32 ipath_get_rcvhdrtail(const struct ipath_portdata *pd)
 {
 	return (u32) le64_to_cpu(*((volatile __le64 *)
 				pd->port_rcvhdrtail_kvaddr));
+}
+
+static inline u32 ipath_get_hdrqtail(const struct ipath_portdata *pd)
+{
+	const struct ipath_devdata *dd = pd->port_dd;
+	u32 hdrqtail;
+
+	if (dd->ipath_flags & IPATH_NODMA_RTAIL) {
+		__le32 *rhf_addr;
+		u32 seq;
+
+		rhf_addr = (__le32 *) pd->port_rcvhdrq +
+			pd->port_head + dd->ipath_rhf_offset;
+		seq = ipath_hdrget_seq(rhf_addr);
+		hdrqtail = pd->port_head;
+		if (seq == pd->port_seq_cnt)
+			hdrqtail++;
+	} else
+		hdrqtail = ipath_get_rcvhdrtail(pd);
+
+	return hdrqtail;
 }
 
 static inline u64 ipath_read_ireg(const struct ipath_devdata *dd, ipath_kreg r)

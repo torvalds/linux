@@ -136,6 +136,7 @@ static void ipath_qcheck(struct ipath_devdata *dd)
 	struct ipath_portdata *pd = dd->ipath_pd[0];
 	size_t blen = 0;
 	char buf[128];
+	u32 hdrqtail;
 
 	*buf = 0;
 	if (pd->port_hdrqfull != dd->ipath_p0_hdrqfull) {
@@ -174,17 +175,18 @@ static void ipath_qcheck(struct ipath_devdata *dd)
 	if (blen)
 		ipath_dbg("%s\n", buf);
 
-	if (pd->port_head != (u32)
-	    le64_to_cpu(*dd->ipath_hdrqtailptr)) {
+	hdrqtail = ipath_get_hdrqtail(pd);
+	if (pd->port_head != hdrqtail) {
 		if (dd->ipath_lastport0rcv_cnt ==
 		    ipath_stats.sps_port0pkts) {
 			ipath_cdbg(PKT, "missing rcv interrupts? "
-				   "port0 hd=%llx tl=%x; port0pkts %llx\n",
-				   (unsigned long long)
-				   le64_to_cpu(*dd->ipath_hdrqtailptr),
-				   pd->port_head,
+				   "port0 hd=%x tl=%x; port0pkts %llx; write"
+				   " hd (w/intr)\n",
+				   pd->port_head, hdrqtail,
 				   (unsigned long long)
 				   ipath_stats.sps_port0pkts);
+			ipath_write_ureg(dd, ur_rcvhdrhead, hdrqtail |
+				dd->ipath_rhdrhead_intr_off, pd->port_port);
 		}
 		dd->ipath_lastport0rcv_cnt = ipath_stats.sps_port0pkts;
 	}

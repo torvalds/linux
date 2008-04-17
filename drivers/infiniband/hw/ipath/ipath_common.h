@@ -198,7 +198,7 @@ typedef enum _ipath_ureg {
 #define IPATH_RUNTIME_FORCE_WC_ORDER	0x4
 #define IPATH_RUNTIME_RCVHDR_COPY	0x8
 #define IPATH_RUNTIME_MASTER	0x10
-/* 0x20 and 0x40 are no longer used, but are reserved for ABI compatibility */
+#define IPATH_RUNTIME_NODMA_RTAIL 0x80
 #define IPATH_RUNTIME_FORCE_PIOAVAIL 0x400
 #define IPATH_RUNTIME_PIO_REGSWAPPED 0x800
 
@@ -662,8 +662,12 @@ struct infinipath_counters {
 #define INFINIPATH_RHF_LENGTH_SHIFT 0
 #define INFINIPATH_RHF_RCVTYPE_MASK 0x7
 #define INFINIPATH_RHF_RCVTYPE_SHIFT 11
-#define INFINIPATH_RHF_EGRINDEX_MASK 0x7FF
+#define INFINIPATH_RHF_EGRINDEX_MASK 0xFFF
 #define INFINIPATH_RHF_EGRINDEX_SHIFT 16
+#define INFINIPATH_RHF_SEQ_MASK 0xF
+#define INFINIPATH_RHF_SEQ_SHIFT 0
+#define INFINIPATH_RHF_HDRQ_OFFSET_MASK 0x7FF
+#define INFINIPATH_RHF_HDRQ_OFFSET_SHIFT 4
 #define INFINIPATH_RHF_H_ICRCERR   0x80000000
 #define INFINIPATH_RHF_H_VCRCERR   0x40000000
 #define INFINIPATH_RHF_H_PARITYERR 0x20000000
@@ -673,6 +677,8 @@ struct infinipath_counters {
 #define INFINIPATH_RHF_H_TIDERR    0x02000000
 #define INFINIPATH_RHF_H_MKERR     0x01000000
 #define INFINIPATH_RHF_H_IBERR     0x00800000
+#define INFINIPATH_RHF_H_ERR_MASK  0xFF800000
+#define INFINIPATH_RHF_L_USE_EGR   0x80000000
 #define INFINIPATH_RHF_L_SWA       0x00008000
 #define INFINIPATH_RHF_L_SWB       0x00004000
 
@@ -696,6 +702,7 @@ struct infinipath_counters {
 /* SendPIO per-buffer control */
 #define INFINIPATH_SP_TEST    0x40
 #define INFINIPATH_SP_TESTEBP 0x20
+#define INFINIPATH_SP_TRIGGER_SHIFT  15
 
 /* SendPIOAvail bits */
 #define INFINIPATH_SENDPIOAVAIL_BUSY_SHIFT 1
@@ -762,6 +769,7 @@ struct ether_header {
 #define IPATH_MSN_MASK 0xFFFFFF
 #define IPATH_QPN_MASK 0xFFFFFF
 #define IPATH_MULTICAST_LID_BASE 0xC000
+#define IPATH_EAGER_TID_ID INFINIPATH_I_TID_MASK
 #define IPATH_MULTICAST_QPN 0xFFFFFF
 
 /* Receive Header Queue: receive type (from infinipath) */
@@ -781,7 +789,7 @@ struct ether_header {
  */
 static inline __u32 ipath_hdrget_err_flags(const __le32 * rbuf)
 {
-	return __le32_to_cpu(rbuf[1]);
+	return __le32_to_cpu(rbuf[1]) & INFINIPATH_RHF_H_ERR_MASK;
 }
 
 static inline __u32 ipath_hdrget_rcv_type(const __le32 * rbuf)
@@ -800,6 +808,23 @@ static inline __u32 ipath_hdrget_index(const __le32 * rbuf)
 {
 	return (__le32_to_cpu(rbuf[0]) >> INFINIPATH_RHF_EGRINDEX_SHIFT)
 	    & INFINIPATH_RHF_EGRINDEX_MASK;
+}
+
+static inline __u32 ipath_hdrget_seq(const __le32 *rbuf)
+{
+	return (__le32_to_cpu(rbuf[1]) >> INFINIPATH_RHF_SEQ_SHIFT)
+		& INFINIPATH_RHF_SEQ_MASK;
+}
+
+static inline __u32 ipath_hdrget_offset(const __le32 *rbuf)
+{
+	return (__le32_to_cpu(rbuf[1]) >> INFINIPATH_RHF_HDRQ_OFFSET_SHIFT)
+		& INFINIPATH_RHF_HDRQ_OFFSET_MASK;
+}
+
+static inline __u32 ipath_hdrget_use_egr_buf(const __le32 *rbuf)
+{
+	return __le32_to_cpu(rbuf[0]) & INFINIPATH_RHF_L_USE_EGR;
 }
 
 static inline __u32 ipath_hdrget_ipath_ver(__le32 hdrword)
