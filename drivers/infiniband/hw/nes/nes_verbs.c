@@ -1909,13 +1909,13 @@ static int nes_destroy_cq(struct ib_cq *ib_cq)
 		nesadapter->free_256pbl++;
 		if (nesadapter->free_256pbl > nesadapter->max_256pbl) {
 			printk(KERN_ERR PFX "%s: free 256B PBLs(%u) has exceeded the max(%u)\n",
-					__FUNCTION__, nesadapter->free_256pbl, nesadapter->max_256pbl);
+					__func__, nesadapter->free_256pbl, nesadapter->max_256pbl);
 		}
 	} else if (nescq->virtual_cq == 2) {
 		nesadapter->free_4kpbl++;
 		if (nesadapter->free_4kpbl > nesadapter->max_4kpbl) {
 			printk(KERN_ERR PFX "%s: free 4K PBLs(%u) has exceeded the max(%u)\n",
-					__FUNCTION__, nesadapter->free_4kpbl, nesadapter->max_4kpbl);
+					__func__, nesadapter->free_4kpbl, nesadapter->max_4kpbl);
 		}
 		opcode |= NES_CQP_CQ_4KB_CHUNK;
 	}

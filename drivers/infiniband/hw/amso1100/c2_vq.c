@@ -197,7 +197,7 @@ int vq_send_wr(struct c2_dev *c2dev, union c2wr *wr)
 	 */
 	while (msg == NULL) {
 		pr_debug("%s:%d no available msg in VQ, waiting...\n",
-		       __FUNCTION__, __LINE__);
+		       __func__, __LINE__);
 		init_waitqueue_entry(&__wait, current);
 		add_wait_queue(&c2dev->req_vq_wo, &__wait);
 		spin_unlock(&c2dev->vqlock);

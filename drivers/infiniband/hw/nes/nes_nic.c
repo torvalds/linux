@@ -802,7 +802,7 @@ static int nes_netdev_set_mac_address(struct net_device *netdev, void *p)
 
 	memcpy(netdev->dev_addr, mac_addr->sa_data, netdev->addr_len);
 	printk(PFX "%s: Address length = %d, Address = %02X%02X%02X%02X%02X%02X..\n",
-		   __FUNCTION__, netdev->addr_len,
+		   __func__, netdev->addr_len,
 		   mac_addr->sa_data[0], mac_addr->sa_data[1],
 		   mac_addr->sa_data[2], mac_addr->sa_data[3],
 		   mac_addr->sa_data[4], mac_addr->sa_data[5]);

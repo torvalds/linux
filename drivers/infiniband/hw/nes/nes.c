@@ -303,7 +303,7 @@ void nes_rem_ref(struct ib_qp *ibqp)
 
 	if (atomic_read(&nesqp->refcount) == 0) {
 		printk(KERN_INFO PFX "%s: Reference count already 0 for QP%d, last aeq = 0x%04X.\n",
-				__FUNCTION__, ibqp->qp_num, nesqp->last_aeq);
+				__func__, ibqp->qp_num, nesqp->last_aeq);
 		BUG();
 	}
 

@@ -524,7 +524,7 @@ int __devinit c2_rnic_init(struct c2_dev *c2dev)
 		goto bail1;
 	}
 	pci_unmap_addr_set(&c2dev->rep_vq, mapping, c2dev->rep_vq.host_dma);
-	pr_debug("%s rep_vq va %p dma %llx\n", __FUNCTION__, q1_pages,
+	pr_debug("%s rep_vq va %p dma %llx\n", __func__, q1_pages,
 		 (unsigned long long) c2dev->rep_vq.host_dma);
 	c2_mq_rep_init(&c2dev->rep_vq,
 		   1,
@@ -545,7 +545,7 @@ int __devinit c2_rnic_init(struct c2_dev *c2dev)
 		goto bail2;
 	}
 	pci_unmap_addr_set(&c2dev->aeq, mapping, c2dev->aeq.host_dma);
-	pr_debug("%s aeq va %p dma %llx\n", __FUNCTION__, q2_pages,
+	pr_debug("%s aeq va %p dma %llx\n", __func__, q2_pages,
 		 (unsigned long long) c2dev->aeq.host_dma);
 	c2_mq_rep_init(&c2dev->aeq,
 		       2,

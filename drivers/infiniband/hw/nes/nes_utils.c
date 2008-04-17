@@ -566,7 +566,7 @@ struct nes_cqp_request *nes_get_cqp_request(struct nes_device *nesdev)
 				cqp_request);
 	} else
 		printk(KERN_ERR PFX "%s: Could not allocated a CQP request.\n",
-			   __FUNCTION__);
+			   __func__);
 
 	return cqp_request;
 }

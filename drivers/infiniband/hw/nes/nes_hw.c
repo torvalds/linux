@@ -381,7 +381,7 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 		nesadapter->et_use_adaptive_rx_coalesce = 1;
 		nesadapter->timer_int_limit = NES_TIMER_INT_LIMIT_DYNAMIC;
 		nesadapter->et_rx_coalesce_usecs_irq = 0;
-		printk(PFX "%s: Using Adaptive Interrupt Moderation\n", __FUNCTION__);
+		printk(PFX "%s: Using Adaptive Interrupt Moderation\n", __func__);
 	}
 	/* Setup and enable the periodic timer */
 	if (nesadapter->et_rx_coalesce_usecs_irq)
@@ -583,7 +583,7 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 		if (vendor_id == 0xffff)
 			break;
 	}
-	nes_debug(NES_DBG_INIT, "%s %d functions found for %s.\n", __FUNCTION__,
+	nes_debug(NES_DBG_INIT, "%s %d functions found for %s.\n", __func__,
 		func_index, pci_name(nesdev->pcidev));
 	nesadapter->adapter_fcn_count = func_index;
 
@@ -751,7 +751,7 @@ static int nes_init_serdes(struct nes_device *nesdev, u8 hw_rev, u8 port_count,
 				& 0x0000000f)) != 0x0000000f) && (i++ < 5000))
 				mdelay(1);
 			if (i >= 5000) {
-				printk("%s: Init: serdes 1 not ready, status=%x\n", __FUNCTION__, u32temp);
+				printk("%s: Init: serdes 1 not ready, status=%x\n", __func__, u32temp);
 				/* return 1; */
 			}
 			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_TX_EMP1, 0x000bdef7);
@@ -1216,7 +1216,7 @@ int nes_init_phy(struct nes_device *nesdev)
 	if (nesadapter->OneG_Mode) {
 		nes_debug(NES_DBG_PHY, "1G PHY, mac_index = %d.\n", mac_index);
 		if (nesadapter->phy_type[mac_index] == NES_PHY_TYPE_1G) {
-			printk(PFX "%s: Programming mdc config for 1G\n", __FUNCTION__);
+			printk(PFX "%s: Programming mdc config for 1G\n", __func__);
 			tx_config = nes_read_indexed(nesdev, NES_IDX_MAC_TX_CONFIG);
 			tx_config |= 0x04;
 			nes_write_indexed(nesdev, NES_IDX_MAC_TX_CONFIG, tx_config);
@@ -1370,7 +1370,7 @@ static void nes_replenish_nic_rq(struct nes_vnic *nesvnic)
 static void nes_rq_wqes_timeout(unsigned long parm)
 {
 	struct nes_vnic *nesvnic = (struct nes_vnic *)parm;
-	printk("%s: Timer fired.\n", __FUNCTION__);
+	printk("%s: Timer fired.\n", __func__);
 	atomic_set(&nesvnic->rx_skb_timer_running, 0);
 	if (atomic_read(&nesvnic->rx_skbs_needed))
 		nes_replenish_nic_rq(nesvnic);
@@ -2175,7 +2175,7 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 				temp_phy_data = phy_data;
 			} while (1);
 			nes_debug(NES_DBG_PHY, "%s: Phy data = 0x%04X, link was %s.\n",
-				__FUNCTION__, phy_data, nesadapter->mac_link_down ? "DOWN" : "UP");
+				__func__, phy_data, nesadapter->mac_link_down ? "DOWN" : "UP");
 
 		} else {
 			phy_data = (0x0f0f0000 == (pcs_control_status & 0x0f1f0000)) ? 4 : 0;
@@ -2832,7 +2832,7 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 					le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX]));
 			if (resource_allocated) {
 				printk(KERN_ERR PFX "%s: Processing an NES_AEQE_AEID_CQ_OPERATION_ERROR event on CQ%u\n",
-						__FUNCTION__, le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX]));
+						__func__, le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX]));
 			}
 			break;
 		case NES_AEQE_AEID_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER:

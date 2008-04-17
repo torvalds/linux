@@ -113,7 +113,7 @@ __be16 *c2_alloc_mqsp(struct c2_dev *c2dev, struct sp_chunk *head,
 		*dma_addr = head->dma_addr +
 			    ((unsigned long) &(head->shared_ptr[mqsp]) -
 			     (unsigned long) head);
-		pr_debug("%s addr %p dma_addr %llx\n", __FUNCTION__,
+		pr_debug("%s addr %p dma_addr %llx\n", __func__,
 			 &(head->shared_ptr[mqsp]), (unsigned long long) *dma_addr);
 		return (__force __be16 *) &(head->shared_ptr[mqsp]);
 	}

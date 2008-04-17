@@ -1038,7 +1038,7 @@ static void nes_addr_send_arp(u32 dst_ip)
 	fl.nl_u.ip4_u.daddr = htonl(dst_ip);
 	if (ip_route_output_key(&init_net, &rt, &fl)) {
 		printk("%s: ip_route_output_key failed for 0x%08X\n",
-				__FUNCTION__, dst_ip);
+				__func__, dst_ip);
 		return;
 	}
 
@@ -1263,7 +1263,7 @@ static int process_options(struct nes_cm_node *cm_node, u8 *optionsloc, u32 opti
 				continue;
 			case OPTION_NUMBER_MSS:
 				nes_debug(NES_DBG_CM, "%s: MSS Length: %d Offset: %d Size: %d\n",
-						__FUNCTION__,
+						__func__,
 						all_options->as_mss.length, offset, optionsize);
 				got_mss_option = 1;
 				if (all_options->as_mss.length != 4) {
@@ -1384,7 +1384,7 @@ static int process_packet(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	if (optionsize) {
 		u8 *optionsloc = (u8 *)&tcph[1];
 		if (process_options(cm_node, optionsloc, optionsize, (u32)tcph->syn)) {
-			nes_debug(NES_DBG_CM, "%s: Node %p, Sending RESET\n", __FUNCTION__, cm_node);
+			nes_debug(NES_DBG_CM, "%s: Node %p, Sending RESET\n", __func__, cm_node);
 			send_reset(cm_node);
 			if (cm_node->state != NES_CM_STATE_SYN_SENT)
 			rem_ref_cm_node(cm_core, cm_node);
@@ -2507,7 +2507,7 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	}
 	if (ret)
 		printk("%s[%u] OFA CM event_handler returned, ret=%d\n",
-				__FUNCTION__, __LINE__, ret);
+				__func__, __LINE__, ret);
 
 	return 0;
 }
@@ -2675,7 +2675,7 @@ int nes_create_listen(struct iw_cm_id *cm_id, int backlog)
 	cm_node = g_cm_core->api->listen(g_cm_core, nesvnic, &cm_info);
 	if (!cm_node) {
 		printk("%s[%u] Error returned from listen API call\n",
-				__FUNCTION__, __LINE__);
+				__func__, __LINE__);
 		return -ENOMEM;
 	}
 
@@ -2889,7 +2889,7 @@ static void cm_event_connected(struct nes_cm_event *event)
 
 	if (ret)
 		printk("%s[%u] OFA CM event_handler returned, ret=%d\n",
-				__FUNCTION__, __LINE__, ret);
+				__func__, __LINE__, ret);
 	nes_debug(NES_DBG_CM, "Exiting connect thread for QP%u. jiffies = %lu\n",
 			nesqp->hwqp.qp_id, jiffies );
 
@@ -2944,7 +2944,7 @@ static void cm_event_connect_error(struct nes_cm_event *event)
 	nes_debug(NES_DBG_CM, "OFA CM event_handler returned, ret=%d\n", ret);
 	if (ret)
 		printk("%s[%u] OFA CM event_handler returned, ret=%d\n",
-				__FUNCTION__, __LINE__, ret);
+				__func__, __LINE__, ret);
 	nes_rem_ref(&nesqp->ibqp);
 		cm_id->rem_ref(cm_id);
 
@@ -3032,7 +3032,7 @@ static void cm_event_mpa_req(struct nes_cm_event *event)
 	ret = cm_id->event_handler(cm_id, &cm_event);
 	if (ret)
 		printk("%s[%u] OFA CM event_handler returned, ret=%d\n",
-				__FUNCTION__, __LINE__, ret);
+				__func__, __LINE__, ret);
 
 	return;
 }

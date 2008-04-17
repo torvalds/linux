@@ -121,7 +121,7 @@ void c2_set_qp_state(struct c2_qp *qp, int c2_state)
 	int new_state = to_ib_state(c2_state);
 
 	pr_debug("%s: qp[%p] state modify %s --> %s\n",
-	       __FUNCTION__,
+	       __func__,
 		qp,
 		to_ib_state_str(qp->state),
 		to_ib_state_str(new_state));
@@ -141,7 +141,7 @@ int c2_qp_modify(struct c2_dev *c2dev, struct c2_qp *qp,
 	int err;
 
 	pr_debug("%s:%d qp=%p, %s --> %s\n",
-		__FUNCTION__, __LINE__,
+		__func__, __LINE__,
 		qp,
 		to_ib_state_str(qp->state),
 		to_ib_state_str(attr->qp_state));
@@ -224,7 +224,7 @@ int c2_qp_modify(struct c2_dev *c2dev, struct c2_qp *qp,
 		qp->state = next_state;
 #ifdef DEBUG
 	else
-		pr_debug("%s: c2_errno=%d\n", __FUNCTION__, err);
+		pr_debug("%s: c2_errno=%d\n", __func__, err);
 #endif
 	/*
 	 * If we're going to error and generating the event here, then
@@ -243,7 +243,7 @@ int c2_qp_modify(struct c2_dev *c2dev, struct c2_qp *qp,
 	vq_req_free(c2dev, vq_req);
 
 	pr_debug("%s:%d qp=%p, cur_state=%s\n",
-		__FUNCTION__, __LINE__,
+		__func__, __LINE__,
 		qp,
 		to_ib_state_str(qp->state));
 	return err;
