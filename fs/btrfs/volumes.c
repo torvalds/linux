@@ -724,7 +724,7 @@ again:
 	if (type & (BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_DUP))
 		*num_bytes = calc_size;
 	else if (type & BTRFS_BLOCK_GROUP_RAID10)
-		*num_bytes = calc_size * num_stripes / sub_stripes;
+		*num_bytes = calc_size * (num_stripes / sub_stripes);
 	else
 		*num_bytes = calc_size * num_stripes;
 
