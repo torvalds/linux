@@ -356,9 +356,11 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 
 	spin_lock_irqsave(&sport->port.lock,flags);
 
-	while ((rx = readl(sport->port.membase + URXD0)) & URXD_CHARRDY) {
+	while (readl(sport->port.membase + USR2) & USR2_RDR) {
 		flg = TTY_NORMAL;
 		sport->port.icount.rx++;
+
+		rx = readl(sport->port.membase + URXD0);
 
 		temp = readl(sport->port.membase + USR2);
 		if (temp & USR2_BRCD) {
