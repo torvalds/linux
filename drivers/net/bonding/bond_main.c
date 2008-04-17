@@ -3065,8 +3065,6 @@ out:
 
 #ifdef CONFIG_PROC_FS
 
-#define SEQ_START_TOKEN ((void *)1)
-
 static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct bonding *bond = seq->private;

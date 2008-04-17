@@ -3954,7 +3954,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 		if (err)
 			return -1;
 
-		ug_info->mdio_bus = res.start;
+		snprintf(ug_info->mdio_bus, MII_BUS_ID_SIZE, "%x", res.start);
 	}
 
 	/* get the phy interface type, or default to MII */

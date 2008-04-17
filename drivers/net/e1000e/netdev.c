@@ -1639,24 +1639,24 @@ static void e1000_configure_tx(struct e1000_adapter *adapter)
 		(E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT);
 
 	if (adapter->flags & FLAG_TARC_SPEED_MODE_BIT) {
-		tarc = er32(TARC0);
+		tarc = er32(TARC(0));
 		/*
 		 * set the speed mode bit, we'll clear it if we're not at
 		 * gigabit link later
 		 */
 #define SPEED_MODE_BIT (1 << 21)
 		tarc |= SPEED_MODE_BIT;
-		ew32(TARC0, tarc);
+		ew32(TARC(0), tarc);
 	}
 
 	/* errata: program both queues to unweighted RR */
 	if (adapter->flags & FLAG_TARC_SET_BIT_ZERO) {
-		tarc = er32(TARC0);
+		tarc = er32(TARC(0));
 		tarc |= 1;
-		ew32(TARC0, tarc);
-		tarc = er32(TARC1);
+		ew32(TARC(0), tarc);
+		tarc = er32(TARC(1));
 		tarc |= 1;
-		ew32(TARC1, tarc);
+		ew32(TARC(1), tarc);
 	}
 
 	e1000e_config_collision_dist(hw);
@@ -2775,9 +2775,9 @@ static void e1000_watchdog_task(struct work_struct *work)
 			if ((adapter->flags & FLAG_TARC_SPEED_MODE_BIT) &&
 			    !txb2b) {
 				u32 tarc0;
-				tarc0 = er32(TARC0);
+				tarc0 = er32(TARC(0));
 				tarc0 &= ~SPEED_MODE_BIT;
-				ew32(TARC0, tarc0);
+				ew32(TARC(0), tarc0);
 			}
 
 			/*
@@ -3824,7 +3824,7 @@ static void e1000_print_device_info(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
-	u32 part_num;
+	u32 pba_num;
 
 	/* print bus type/speed/width info */
 	ndev_info(netdev, "(PCI Express:2.5GB/s:%s) "
@@ -3839,10 +3839,10 @@ static void e1000_print_device_info(struct e1000_adapter *adapter)
 	ndev_info(netdev, "Intel(R) PRO/%s Network Connection\n",
 		  (hw->phy.type == e1000_phy_ife)
 		   ? "10/100" : "1000");
-	e1000e_read_part_num(hw, &part_num);
+	e1000e_read_pba_num(hw, &pba_num);
 	ndev_info(netdev, "MAC: %d, PHY: %d, PBA No: %06x-%03x\n",
 		  hw->mac.type, hw->phy.type,
-		  (part_num >> 8), (part_num & 0xff));
+		  (pba_num >> 8), (pba_num & 0xff));
 }
 
 /**
@@ -3974,7 +3974,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	memcpy(&hw->nvm.ops, ei->nvm_ops, sizeof(hw->nvm.ops));
 	memcpy(&hw->phy.ops, ei->phy_ops, sizeof(hw->phy.ops));
 
-	err = ei->get_invariants(adapter);
+	err = ei->get_variants(adapter);
 	if (err)
 		goto err_hw_init;
 

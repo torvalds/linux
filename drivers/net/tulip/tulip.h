@@ -268,7 +268,12 @@ enum t21143_csr6_bits {
 #define RX_RING_SIZE	128
 #define MEDIA_MASK     31
 
-#define PKT_BUF_SZ		1536	/* Size of each temporary Rx buffer. */
+/* The receiver on the DC21143 rev 65 can fail to close the last
+ * receive descriptor in certain circumstances (see errata) when
+ * using MWI. This can only occur if the receive buffer ends on
+ * a cache line boundary, so the "+ 4" below ensures it doesn't.
+ */
+#define PKT_BUF_SZ	(1536 + 4)	/* Size of each temporary Rx buffer. */
 
 #define TULIP_MIN_CACHE_LINE	8	/* in units of 32-bit words */
 

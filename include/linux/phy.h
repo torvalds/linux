@@ -39,7 +39,8 @@
 				 SUPPORTED_1000baseT_Half | \
 				 SUPPORTED_1000baseT_Full)
 
-/* Set phydev->irq to PHY_POLL if interrupts are not supported,
+/*
+ * Set phydev->irq to PHY_POLL if interrupts are not supported,
  * or not desired for this PHY.  Set to PHY_IGNORE_INTERRUPT if
  * the attached driver handles the interrupt
  */
@@ -63,8 +64,6 @@ typedef enum {
 	PHY_INTERFACE_MODE_RTBI
 } phy_interface_t;
 
-#define MII_BUS_MAX 4
-
 
 #define PHY_INIT_TIMEOUT	100000
 #define PHY_STATE_TIME		1
@@ -74,20 +73,30 @@ typedef enum {
 #define PHY_MAX_ADDR	32
 
 /* Used when trying to connect to a specific phy (mii bus id:phy device id) */
-#define PHY_ID_FMT "%x:%02x"
+#define PHY_ID_FMT "%s:%02x"
 
-/* The Bus class for PHYs.  Devices which provide access to
- * PHYs should register using this structure */
+/*
+ * Need to be a little smaller than phydev->dev.bus_id to leave room
+ * for the ":%02x"
+ */
+#define MII_BUS_ID_SIZE	(BUS_ID_SIZE - 3)
+
+/*
+ * The Bus class for PHYs.  Devices which provide access to
+ * PHYs should register using this structure
+ */
 struct mii_bus {
 	const char *name;
-	int id;
+	char id[MII_BUS_ID_SIZE];
 	void *priv;
 	int (*read)(struct mii_bus *bus, int phy_id, int regnum);
 	int (*write)(struct mii_bus *bus, int phy_id, int regnum, u16 val);
 	int (*reset)(struct mii_bus *bus);
 
-	/* A lock to ensure that only one thing can read/write
-	 * the MDIO bus at a time */
+	/*
+	 * A lock to ensure that only one thing can read/write
+	 * the MDIO bus at a time
+	 */
 	struct mutex mdio_lock;
 
 	struct device *dev;
@@ -98,8 +107,10 @@ struct mii_bus {
 	/* Phy addresses to be ignored when probing */
 	u32 phy_mask;
 
-	/* Pointer to an array of interrupts, each PHY's
-	 * interrupt at the index matching its address */
+	/*
+	 * Pointer to an array of interrupts, each PHY's
+	 * interrupt at the index matching its address
+	 */
 	int *irq;
 };
 
@@ -251,7 +262,8 @@ struct phy_device {
 	/* Bus address of the PHY (0-32) */
 	int addr;
 
-	/* forced speed & duplex (no autoneg)
+	/*
+	 * forced speed & duplex (no autoneg)
 	 * partner speed & duplex & pause (autoneg)
 	 */
 	int speed;
@@ -274,8 +286,10 @@ struct phy_device {
 
 	int link_timeout;
 
-	/* Interrupt number for this PHY
-	 * -1 means no interrupt */
+	/*
+	 * Interrupt number for this PHY
+	 * -1 means no interrupt
+	 */
 	int irq;
 
 	/* private data pointer */
@@ -325,22 +339,28 @@ struct phy_driver {
 	u32 features;
 	u32 flags;
 
-	/* Called to initialize the PHY,
-	 * including after a reset */
+	/*
+	 * Called to initialize the PHY,
+	 * including after a reset
+	 */
 	int (*config_init)(struct phy_device *phydev);
 
-	/* Called during discovery.  Used to set
-	 * up device-specific structures, if any */
+	/*
+	 * Called during discovery.  Used to set
+	 * up device-specific structures, if any
+	 */
 	int (*probe)(struct phy_device *phydev);
 
 	/* PHY Power Management */
 	int (*suspend)(struct phy_device *phydev);
 	int (*resume)(struct phy_device *phydev);
 
-	/* Configures the advertisement and resets
+	/*
+	 * Configures the advertisement and resets
 	 * autonegotiation if phydev->autoneg is on,
 	 * forces the speed to the current settings in phydev
-	 * if phydev->autoneg is off */
+	 * if phydev->autoneg is off
+	 */
 	int (*config_aneg)(struct phy_device *phydev);
 
 	/* Determines the negotiated speed and duplex */
@@ -361,6 +381,7 @@ struct phy_driver {
 
 int phy_read(struct phy_device *phydev, u16 regnum);
 int phy_write(struct phy_device *phydev, u16 regnum, u16 val);
+int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id);
 struct phy_device* get_phy_device(struct mii_bus *bus, int addr);
 int phy_clear_interrupt(struct phy_device *phydev);
 int phy_config_interrupt(struct phy_device *phydev, u32 interrupts);

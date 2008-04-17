@@ -2477,7 +2477,7 @@ bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw)
 	return ret_val;
 }
 
-s32 e1000e_read_part_num(struct e1000_hw *hw, u32 *part_num)
+s32 e1000e_read_pba_num(struct e1000_hw *hw, u32 *pba_num)
 {
 	s32 ret_val;
 	u16 nvm_data;
@@ -2487,14 +2487,14 @@ s32 e1000e_read_part_num(struct e1000_hw *hw, u32 *part_num)
 		hw_dbg(hw, "NVM Read Error\n");
 		return ret_val;
 	}
-	*part_num = (u32)(nvm_data << 16);
+	*pba_num = (u32)(nvm_data << 16);
 
 	ret_val = e1000_read_nvm(hw, NVM_PBA_OFFSET_1, 1, &nvm_data);
 	if (ret_val) {
 		hw_dbg(hw, "NVM Read Error\n");
 		return ret_val;
 	}
-	*part_num |= nvm_data;
+	*pba_num |= nvm_data;
 
 	return 0;
 }

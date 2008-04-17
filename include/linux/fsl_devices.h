@@ -50,7 +50,7 @@ struct gianfar_platform_data {
 	u32	device_flags;
 	/* board specific information */
 	u32	board_flags;
-	u32	bus_id;
+	char	bus_id[MII_BUS_ID_SIZE];
 	u32	phy_id;
 	u8	mac_addr[6];
 	phy_interface_t interface;

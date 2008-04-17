@@ -176,6 +176,20 @@ static struct phy_driver bcm5461_driver = {
 	.driver 	= { .owner = THIS_MODULE },
 };
 
+static struct phy_driver bcm5464_driver = {
+	.phy_id		= 0x002060b0,
+	.phy_id_mask	= 0xfffffff0,
+	.name		= "Broadcom BCM5464",
+	.features	= PHY_GBIT_FEATURES,
+	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.config_init	= bcm54xx_config_init,
+	.config_aneg	= genphy_config_aneg,
+	.read_status	= genphy_read_status,
+	.ack_interrupt	= bcm54xx_ack_interrupt,
+	.config_intr	= bcm54xx_config_intr,
+	.driver 	= { .owner = THIS_MODULE },
+};
+
 static struct phy_driver bcm5481_driver = {
 	.phy_id		= 0x0143bca0,
 	.phy_id_mask	= 0xfffffff0,
@@ -217,6 +231,9 @@ static int __init broadcom_init(void)
 	ret = phy_driver_register(&bcm5461_driver);
 	if (ret)
 		goto out_5461;
+	ret = phy_driver_register(&bcm5464_driver);
+	if (ret)
+		goto out_5464;
 	ret = phy_driver_register(&bcm5481_driver);
 	if (ret)
 		goto out_5481;
@@ -228,6 +245,8 @@ static int __init broadcom_init(void)
 out_5482:
 	phy_driver_unregister(&bcm5481_driver);
 out_5481:
+	phy_driver_unregister(&bcm5464_driver);
+out_5464:
 	phy_driver_unregister(&bcm5461_driver);
 out_5461:
 	phy_driver_unregister(&bcm5421_driver);
@@ -241,6 +260,7 @@ static void __exit broadcom_exit(void)
 {
 	phy_driver_unregister(&bcm5482_driver);
 	phy_driver_unregister(&bcm5481_driver);
+	phy_driver_unregister(&bcm5464_driver);
 	phy_driver_unregister(&bcm5461_driver);
 	phy_driver_unregister(&bcm5421_driver);
 	phy_driver_unregister(&bcm5411_driver);
