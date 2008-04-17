@@ -329,7 +329,7 @@ static const struct ide_port_info sl82c105_chipset __devinitdata = {
 	.host_flags	= IDE_HFLAG_IO_32BIT |
 			  IDE_HFLAG_UNMASK_IRQS |
 /* FIXME: check for Compatibility mode in generic IDE PCI code */
-#ifdef CONFIG_LOPEC
+#if defined(CONFIG_LOPEC) || defined(CONFIG_SANDPOINT)
 			  IDE_HFLAG_FORCE_LEGACY_IRQS |
 #endif
 			  IDE_HFLAG_NO_AUTODMA |
