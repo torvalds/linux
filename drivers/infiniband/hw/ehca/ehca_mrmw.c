@@ -1952,9 +1952,8 @@ next_kpage:
 	return ret;
 }
 
-int ehca_set_pagebuf_phys(struct ehca_mr_pginfo *pginfo,
-			  u32 number,
-			  u64 *kpage)
+static int ehca_set_pagebuf_phys(struct ehca_mr_pginfo *pginfo,
+				 u32 number, u64 *kpage)
 {
 	int ret = 0;
 	struct ib_phys_buf *pbuf;
@@ -2012,9 +2011,8 @@ int ehca_set_pagebuf_phys(struct ehca_mr_pginfo *pginfo,
 	return ret;
 }
 
-int ehca_set_pagebuf_fmr(struct ehca_mr_pginfo *pginfo,
-			 u32 number,
-			 u64 *kpage)
+static int ehca_set_pagebuf_fmr(struct ehca_mr_pginfo *pginfo,
+				u32 number, u64 *kpage)
 {
 	int ret = 0;
 	u64 *fmrlist;

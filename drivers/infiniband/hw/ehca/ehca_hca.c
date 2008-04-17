@@ -314,7 +314,7 @@ query_gid1:
 	return ret;
 }
 
-const u32 allowed_port_caps = (
+static const u32 allowed_port_caps = (
 	IB_PORT_SM | IB_PORT_LED_INFO_SUP | IB_PORT_CM_SUP |
 	IB_PORT_SNMP_TUNNEL_SUP | IB_PORT_DEVICE_MGMT_SUP |
 	IB_PORT_VENDOR_CLASS_SUP);
