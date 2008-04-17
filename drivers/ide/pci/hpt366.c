@@ -760,7 +760,7 @@ static void hpt3xx_maskproc(ide_drive_t *drive, int mask)
 		}
 	} else
 		outb(mask ? (drive->ctl | 2) : (drive->ctl & ~2),
-		     IDE_CONTROL_REG);
+		     hwif->io_ports[IDE_CONTROL_OFFSET]);
 }
 
 /*

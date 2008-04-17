@@ -271,7 +271,7 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	/* take a deep breath */
 	msleep(50);
 
-	if (IDE_CONTROL_REG) {
+	if (hwif->io_ports[IDE_CONTROL_OFFSET]) {
 		a = ide_read_altstatus(drive);
 		s = ide_read_status(drive);
 		if ((a ^ s) & ~INDEX_STAT)
@@ -289,10 +289,10 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	 */
 	if ((cmd == WIN_PIDENTIFY))
 		/* disable dma & overlap */
-		hwif->OUTB(0, IDE_FEATURE_REG);
+		hwif->OUTB(0, hwif->io_ports[IDE_FEATURE_OFFSET]);
 
 	/* ask drive for ID */
-	hwif->OUTB(cmd, IDE_COMMAND_REG);
+	hwif->OUTB(cmd, hwif->io_ports[IDE_COMMAND_OFFSET]);
 
 	timeout = ((cmd == WIN_IDENTIFY) ? WAIT_WORSTCASE : WAIT_PIDENTIFY) / 2;
 	timeout += jiffies;
@@ -353,7 +353,7 @@ static int try_to_identify (ide_drive_t *drive, u8 cmd)
 	 * interrupts during the identify-phase that
 	 * the irq handler isn't expecting.
 	 */
-	if (IDE_CONTROL_REG) {
+	if (hwif->io_ports[IDE_CONTROL_OFFSET]) {
 		if (!hwif->irq) {
 			autoprobe = 1;
 			cookie = probe_irq_on();
@@ -445,7 +445,8 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	msleep(50);
 	SELECT_DRIVE(drive);
 	msleep(50);
-	if (hwif->INB(IDE_SELECT_REG) != drive->select.all && !drive->present) {
+	if (hwif->INB(hwif->io_ports[IDE_SELECT_OFFSET]) != drive->select.all &&
+	    !drive->present) {
 		if (drive->select.b.unit != 0) {
 			/* exit with drive0 selected */
 			SELECT_DRIVE(&hwif->drives[0]);
@@ -477,9 +478,11 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 			printk(KERN_ERR "%s: no response (status = 0x%02x), "
 					"resetting drive\n", drive->name, stat);
 			msleep(50);
-			hwif->OUTB(drive->select.all, IDE_SELECT_REG);
+			hwif->OUTB(drive->select.all,
+				   hwif->io_ports[IDE_SELECT_OFFSET]);
 			msleep(50);
-			hwif->OUTB(WIN_SRST, IDE_COMMAND_REG);
+			hwif->OUTB(WIN_SRST,
+				   hwif->io_ports[IDE_COMMAND_OFFSET]);
 			(void)ide_busy_sleep(hwif);
 			rc = try_to_identify(drive, cmd);
 		}
@@ -515,7 +518,7 @@ static void enable_nest (ide_drive_t *drive)
 	printk("%s: enabling %s -- ", hwif->name, drive->id->model);
 	SELECT_DRIVE(drive);
 	msleep(50);
-	hwif->OUTB(EXABYTE_ENABLE_NEST, IDE_COMMAND_REG);
+	hwif->OUTB(EXABYTE_ENABLE_NEST, hwif->io_ports[IDE_COMMAND_OFFSET]);
 
 	if (ide_busy_sleep(hwif)) {
 		printk(KERN_CONT "failed (timeout)\n");

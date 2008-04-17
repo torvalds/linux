@@ -82,24 +82,10 @@ typedef unsigned char	byte;	/* used everywhere */
 
 #define IDE_FEATURE_OFFSET	IDE_ERROR_OFFSET
 #define IDE_COMMAND_OFFSET	IDE_STATUS_OFFSET
-
-#define IDE_DATA_REG		(HWIF(drive)->io_ports[IDE_DATA_OFFSET])
-#define IDE_ERROR_REG		(HWIF(drive)->io_ports[IDE_ERROR_OFFSET])
-#define IDE_NSECTOR_REG		(HWIF(drive)->io_ports[IDE_NSECTOR_OFFSET])
-#define IDE_SECTOR_REG		(HWIF(drive)->io_ports[IDE_SECTOR_OFFSET])
-#define IDE_LCYL_REG		(HWIF(drive)->io_ports[IDE_LCYL_OFFSET])
-#define IDE_HCYL_REG		(HWIF(drive)->io_ports[IDE_HCYL_OFFSET])
-#define IDE_SELECT_REG		(HWIF(drive)->io_ports[IDE_SELECT_OFFSET])
-#define IDE_STATUS_REG		(HWIF(drive)->io_ports[IDE_STATUS_OFFSET])
-#define IDE_CONTROL_REG		(HWIF(drive)->io_ports[IDE_CONTROL_OFFSET])
-#define IDE_IRQ_REG		(HWIF(drive)->io_ports[IDE_IRQ_OFFSET])
-
-#define IDE_FEATURE_REG		IDE_ERROR_REG
-#define IDE_COMMAND_REG		IDE_STATUS_REG
-#define IDE_ALTSTATUS_REG	IDE_CONTROL_REG
-#define IDE_IREASON_REG		IDE_NSECTOR_REG
-#define IDE_BCOUNTL_REG		IDE_LCYL_REG
-#define IDE_BCOUNTH_REG		IDE_HCYL_REG
+#define IDE_ALTSTATUS_OFFSET	IDE_CONTROL_OFFSET
+#define IDE_IREASON_OFFSET	IDE_NSECTOR_OFFSET
+#define IDE_BCOUNTL_OFFSET	IDE_LCYL_OFFSET
+#define IDE_BCOUNTH_OFFSET	IDE_HCYL_OFFSET
 
 #define OK_STAT(stat,good,bad)	(((stat)&((good)|(bad)))==(good))
 #define BAD_R_STAT		(BUSY_STAT   | ERR_STAT)
@@ -369,7 +355,7 @@ typedef struct ide_drive_s {
         u8	wcache;		/* status of write cache */
 	u8	acoustic;	/* acoustic management */
 	u8	media;		/* disk, cdrom, tape, floppy, ... */
-	u8	ctl;		/* "normal" value for IDE_CONTROL_REG */
+	u8	ctl;		/* "normal" value for Control register */
 	u8	ready_stat;	/* min status value for drive ready */
 	u8	mult_count;	/* current multiple sector setting */
 	u8	mult_req;	/* requested multiple sector setting */
@@ -1273,7 +1259,10 @@ static inline ide_drive_t *ide_get_paired_drive(ide_drive_t *drive)
 
 static inline void ide_set_irq(ide_drive_t *drive, int on)
 {
-	drive->hwif->OUTB(drive->ctl | (on ? 0 : 2), IDE_CONTROL_REG);
+	ide_hwif_t *hwif = drive->hwif;
+
+	hwif->OUTB(drive->ctl | (on ? 0 : 2),
+		   hwif->io_ports[IDE_CONTROL_OFFSET]);
 }
 
 static inline u8 ide_read_status(ide_drive_t *drive)

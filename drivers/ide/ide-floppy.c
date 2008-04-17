@@ -498,10 +498,10 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 	}
 
 	/* Get the number of bytes to transfer */
-	bcount = (hwif->INB(IDE_BCOUNTH_REG) << 8) |
-		  hwif->INB(IDE_BCOUNTL_REG);
+	bcount = (hwif->INB(hwif->io_ports[IDE_BCOUNTH_OFFSET]) << 8) |
+		  hwif->INB(hwif->io_ports[IDE_BCOUNTL_OFFSET]);
 	/* on this interrupt */
-	ireason = hwif->INB(IDE_IREASON_REG);
+	ireason = hwif->INB(hwif->io_ports[IDE_IREASON_OFFSET]);
 
 	if (ireason & CD) {
 		printk(KERN_ERR "ide-floppy: CoD != 0 in %s\n", __func__);
@@ -562,6 +562,7 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
  */
 static ide_startstop_t idefloppy_transfer_pc(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	ide_startstop_t startstop;
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	u8 ireason;
@@ -571,7 +572,7 @@ static ide_startstop_t idefloppy_transfer_pc(ide_drive_t *drive)
 				"initiated yet DRQ isn't asserted\n");
 		return startstop;
 	}
-	ireason = drive->hwif->INB(IDE_IREASON_REG);
+	ireason = hwif->INB(hwif->io_ports[IDE_IREASON_OFFSET]);
 	if ((ireason & CD) == 0 || (ireason & IO)) {
 		printk(KERN_ERR "ide-floppy: (IO,CoD) != (0,1) while "
 				"issuing a packet command\n");
@@ -608,6 +609,7 @@ static int idefloppy_transfer_pc2(ide_drive_t *drive)
 
 static ide_startstop_t idefloppy_transfer_pc1(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	ide_startstop_t startstop;
 	u8 ireason;
@@ -617,7 +619,7 @@ static ide_startstop_t idefloppy_transfer_pc1(ide_drive_t *drive)
 				"initiated yet DRQ isn't asserted\n");
 		return startstop;
 	}
-	ireason = drive->hwif->INB(IDE_IREASON_REG);
+	ireason = hwif->INB(hwif->io_ports[IDE_IREASON_OFFSET]);
 	if ((ireason & CD) == 0 || (ireason & IO)) {
 		printk(KERN_ERR "ide-floppy: (IO,CoD) != (0,1) "
 				"while issuing a packet command\n");
@@ -723,7 +725,7 @@ static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 		return ide_started;
 	} else {
 		/* Issue the packet command */
-		HWIF(drive)->OUTB(WIN_PACKETCMD, IDE_COMMAND_REG);
+		hwif->OUTB(WIN_PACKETCMD, hwif->io_ports[IDE_COMMAND_OFFSET]);
 		return (*pkt_xfer_routine) (drive);
 	}
 }

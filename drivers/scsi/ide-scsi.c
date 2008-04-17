@@ -275,9 +275,12 @@ static int idescsi_end_request(ide_drive_t *, int, int);
 static ide_startstop_t
 idescsi_atapi_error(ide_drive_t *drive, struct request *rq, u8 stat, u8 err)
 {
+	ide_hwif_t *hwif = drive->hwif;
+
 	if (ide_read_status(drive) & (BUSY_STAT | DRQ_STAT))
 		/* force an abort */
-		HWIF(drive)->OUTB(WIN_IDLEIMMEDIATE,IDE_COMMAND_REG);
+		hwif->OUTB(WIN_IDLEIMMEDIATE,
+			   hwif->io_ports[IDE_COMMAND_OFFSET]);
 
 	rq->errors++;
 
@@ -423,9 +426,9 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 		idescsi_end_request (drive, 1, 0);
 		return ide_stopped;
 	}
-	bcount = (hwif->INB(IDE_BCOUNTH_REG) << 8) |
-		  hwif->INB(IDE_BCOUNTL_REG);
-	ireason = hwif->INB(IDE_IREASON_REG);
+	bcount = (hwif->INB(hwif->io_ports[IDE_BCOUNTH_OFFSET]) << 8) |
+		  hwif->INB(hwif->io_ports[IDE_BCOUNTL_OFFSET]);
+	ireason = hwif->INB(hwif->io_ports[IDE_IREASON_OFFSET]);
 
 	if (ireason & CD) {
 		printk(KERN_ERR "ide-scsi: CoD != 0 in idescsi_pc_intr\n");
@@ -497,7 +500,7 @@ static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)
 			"initiated yet DRQ isn't asserted\n");
 		return startstop;
 	}
-	ireason = hwif->INB(IDE_IREASON_REG);
+	ireason = hwif->INB(hwif->io_ports[IDE_IREASON_OFFSET]);
 	if ((ireason & CD) == 0 || (ireason & IO)) {
 		printk(KERN_ERR "ide-scsi: (IO,CoD) != (0,1) while "
 				"issuing a packet command\n");
@@ -587,7 +590,7 @@ static ide_startstop_t idescsi_issue_pc (ide_drive_t *drive, idescsi_pc_t *pc)
 		return ide_started;
 	} else {
 		/* Issue the packet command */
-		HWIF(drive)->OUTB(WIN_PACKETCMD, IDE_COMMAND_REG);
+		hwif->OUTB(WIN_PACKETCMD, hwif->io_ports[IDE_COMMAND_OFFSET]);
 		return idescsi_transfer_pc(drive);
 	}
 }

@@ -82,7 +82,7 @@
  * out how they setup those cycle time interfacing values, as they at Holtek
  * call them. IDESETUP.COM that is supplied with the drivers figures out
  * optimal values and fetches those values to drivers. I found out that
- * they use IDE_SELECT_REG to fetch timings to the ide board right after
+ * they use Select register to fetch timings to the ide board right after
  * interface switching. After that it was quite easy to add code to
  * ht6560b.c.
  *
@@ -127,6 +127,7 @@
  */
 static void ht6560b_selectproc (ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	unsigned long flags;
 	static u8 current_select = 0;
 	static u8 current_timing = 0;
@@ -155,8 +156,8 @@ static void ht6560b_selectproc (ide_drive_t *drive)
 		/*
 		 * Set timing for this drive:
 		 */
-		outb(timing, IDE_SELECT_REG);
-		(void)inb(IDE_STATUS_REG);
+		outb(timing, hwif->io_ports[IDE_SELECT_OFFSET]);
+		(void)inb(hwif->io_ports[IDE_STATUS_OFFSET]);
 #ifdef DEBUG
 		printk("ht6560b: %s: select=%#x timing=%#x\n",
 			drive->name, select, timing);
@@ -193,9 +194,9 @@ static int __init try_to_init_ht6560b(void)
 	 * Ht6560b autodetected
 	 */
 	outb(HT_CONFIG_DEFAULT, HT_CONFIG_PORT);
-	outb(HT_TIMING_DEFAULT, 0x1f6);  /* IDE_SELECT_REG */
-	(void) inb(0x1f7);               /* IDE_STATUS_REG */
-	
+	outb(HT_TIMING_DEFAULT, 0x1f6);	/* Select register */
+	(void)inb(0x1f7);		/* Status register */
+
 	printk("ht6560b " HT6560B_VERSION
 	       ": chipset detected and initialized"
 #ifdef DEBUG

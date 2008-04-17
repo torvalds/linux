@@ -450,7 +450,8 @@ pmac_ide_init_hwif_ports(hw_regs_t *hw,
 	hw->dev = &pmac_ide[ix].mdev->ofdev.dev;
 }
 
-#define PMAC_IDE_REG(x) ((void __iomem *)(IDE_DATA_REG+(x)))
+#define PMAC_IDE_REG(x) \
+	((void __iomem *)((drive)->hwif->io_ports[IDE_DATA_OFFSET] + (x)))
 
 /*
  * Apply the timings of the proper unit (master/slave) to the shared
