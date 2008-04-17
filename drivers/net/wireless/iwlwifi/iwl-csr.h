@@ -95,8 +95,7 @@
 #define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
 #define CSR_LED_REG             (CSR_BASE+0x094)
 
-/* Analog phase-lock-loop configuration (3945 only)
- * Set bit 24. */
+/* Analog phase-lock-loop configuration  */
 #define CSR_ANA_PLL_CFG         (CSR_BASE+0x20c)
 /*
  * Indicates hardware rev, to determine CCK backoff for txpower calculation.
@@ -218,6 +217,10 @@
 #define CSR_LED_BSM_CTRL_MSK (0xFFFFFFDF)
 #define CSR_LED_REG_TRUN_ON (0x78)
 #define CSR_LED_REG_TRUN_OFF (0x38)
+
+/* ANA_PLL */
+#define CSR39_ANA_PLL_CFG_VAL        (0x01000000)
+#define CSR50_ANA_PLL_CFG_VAL        (0x00880300)
 
 /*=== HBUS (Host-side Bus) ===*/
 #define HBUS_BASE	(0x400)
