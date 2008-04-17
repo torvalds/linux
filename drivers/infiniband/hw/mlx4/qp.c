@@ -1785,7 +1785,9 @@ int mlx4_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr
 	struct mlx4_ib_qp *qp = to_mqp(ibqp);
 	struct mlx4_qp_context context;
 	int mlx4_state;
-	int err;
+	int err = 0;
+
+	mutex_lock(&qp->mutex);
 
 	if (qp->state == IB_QPS_RESET) {
 		qp_attr->qp_state = IB_QPS_RESET;
@@ -1793,12 +1795,15 @@ int mlx4_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr
 	}
 
 	err = mlx4_qp_query(dev->dev, &qp->mqp, &context);
-	if (err)
-		return -EINVAL;
+	if (err) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	mlx4_state = be32_to_cpu(context.flags) >> 28;
 
-	qp_attr->qp_state	     = to_ib_qp_state(mlx4_state);
+	qp->state		     = to_ib_qp_state(mlx4_state);
+	qp_attr->qp_state	     = qp->state;
 	qp_attr->path_mtu	     = context.mtu_msgmax >> 5;
 	qp_attr->path_mig_state	     =
 		to_ib_mig_state((be32_to_cpu(context.flags) >> 11) & 0x3);
@@ -1857,6 +1862,8 @@ done:
 
 	qp_init_attr->cap	     = qp_attr->cap;
 
-	return 0;
+out:
+	mutex_unlock(&qp->mutex);
+	return err;
 }
 
