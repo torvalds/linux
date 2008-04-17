@@ -395,7 +395,7 @@ int schedule_nes_timer(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	}
 
 	if (type == NES_TIMER_TYPE_SEND) {
-		new_send->seq_num = htonl(tcp_hdr(skb)->seq);
+		new_send->seq_num = ntohl(tcp_hdr(skb)->seq);
 		atomic_inc(&new_send->skb->users);
 
 		ret = nes_nic_cm_xmit(new_send->skb, cm_node->netdev);
@@ -420,7 +420,7 @@ int schedule_nes_timer(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		spin_unlock_irqrestore(&cm_node->retrans_list_lock, flags);
 	}
 	if (type == NES_TIMER_TYPE_RECV) {
-		new_send->seq_num = htonl(tcp_hdr(skb)->seq);
+		new_send->seq_num = ntohl(tcp_hdr(skb)->seq);
 		new_send->timetosend = jiffies;
 		spin_lock_irqsave(&cm_node->recv_list_lock, flags);
 		list_add_tail(&new_send->list, &cm_node->recv_list);
