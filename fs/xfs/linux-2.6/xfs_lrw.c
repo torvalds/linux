@@ -885,8 +885,10 @@ xfsbdstrat(
 	struct xfs_buf		*bp)
 {
 	ASSERT(mp);
-	if (!XFS_FORCED_SHUTDOWN(mp))
+	if (!XFS_FORCED_SHUTDOWN(mp)) {
 		xfs_buf_iorequest(bp);
+		return;
+	}
 
 	xfs_buftrace("XFSBDSTRAT IOERROR", bp);
 	xfs_bioerror_relse(bp);
