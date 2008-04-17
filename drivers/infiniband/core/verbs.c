@@ -248,7 +248,9 @@ int ib_modify_srq(struct ib_srq *srq,
 		  struct ib_srq_attr *srq_attr,
 		  enum ib_srq_attr_mask srq_attr_mask)
 {
-	return srq->device->modify_srq(srq, srq_attr, srq_attr_mask, NULL);
+	return srq->device->modify_srq ?
+		srq->device->modify_srq(srq, srq_attr, srq_attr_mask, NULL) :
+		-ENOSYS;
 }
 EXPORT_SYMBOL(ib_modify_srq);
 
@@ -671,6 +673,9 @@ struct ib_mr *ib_reg_phys_mr(struct ib_pd *pd,
 			     u64 *iova_start)
 {
 	struct ib_mr *mr;
+
+	if (!pd->device->reg_phys_mr)
+		return ERR_PTR(-ENOSYS);
 
 	mr = pd->device->reg_phys_mr(pd, phys_buf_array, num_phys_buf,
 				     mr_access_flags, iova_start);
