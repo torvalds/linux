@@ -3900,9 +3900,6 @@ void nes_unregister_ofa_device(struct nes_ib_device *nesibdev)
 	struct nes_vnic *nesvnic = nesibdev->nesvnic;
 	int i;
 
-	if (nesibdev == NULL)
-		return;
-
 	for (i = 0; i < ARRAY_SIZE(nes_class_attributes); ++i) {
 		class_device_remove_file(&nesibdev->ibdev.class_dev, nes_class_attributes[i]);
 	}
