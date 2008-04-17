@@ -4153,16 +4153,21 @@ xfs_bmap_compute_maxlevels(
 	 * number of leaf entries, is controlled by the type of di_nextents
 	 * (a signed 32-bit number, xfs_extnum_t), or by di_anextents
 	 * (a signed 16-bit number, xfs_aextnum_t).
+	 *
+	 * Note that we can no longer assume that if we are in ATTR1 that
+	 * the fork offset of all the inodes will be (m_attroffset >> 3)
+	 * because we could have mounted with ATTR2 and then mounted back
+	 * with ATTR1, keeping the di_forkoff's fixed but probably at
+	 * various positions. Therefore, for both ATTR1 and ATTR2
+	 * we have to assume the worst case scenario of a minimum size
+	 * available.
 	 */
 	if (whichfork == XFS_DATA_FORK) {
 		maxleafents = MAXEXTNUM;
-		sz = (mp->m_flags & XFS_MOUNT_ATTR2) ?
-			XFS_BMDR_SPACE_CALC(MINDBTPTRS) : mp->m_attroffset;
+		sz = XFS_BMDR_SPACE_CALC(MINDBTPTRS);
 	} else {
 		maxleafents = MAXAEXTNUM;
-		sz = (mp->m_flags & XFS_MOUNT_ATTR2) ?
-			XFS_BMDR_SPACE_CALC(MINABTPTRS) :
-			mp->m_sb.sb_inodesize - mp->m_attroffset;
+		sz = XFS_BMDR_SPACE_CALC(MINABTPTRS);
 	}
 	maxrootrecs = (int)XFS_BTREE_BLOCK_MAXRECS(sz, xfs_bmdr, 0);
 	minleafrecs = mp->m_bmap_dmnr[0];
