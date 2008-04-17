@@ -87,7 +87,7 @@ module_param_named(linkrecovery, ipath_linkrecovery, uint, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(linkrecovery, "enable workaround for link recovery issue");
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("QLogic <support@pathscale.com>");
+MODULE_AUTHOR("QLogic <support@qlogic.com>");
 MODULE_DESCRIPTION("QLogic InfiniPath driver");
 
 const char *ipath_ibcstatus_str[] = {
