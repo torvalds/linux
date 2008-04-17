@@ -31,6 +31,8 @@
  * SOFTWARE.
  */
 
+#include <linux/io.h>
+
 #include "ipath_verbs.h"
 #include "ipath_kernel.h"
 
@@ -585,18 +587,38 @@ bail:
 static void send_rc_ack(struct ipath_qp *qp)
 {
 	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
+	struct ipath_devdata *dd;
 	u16 lrh0;
 	u32 bth0;
 	u32 hwords;
+	u32 __iomem *piobuf;
 	struct ipath_ib_header hdr;
 	struct ipath_other_headers *ohdr;
 	unsigned long flags;
+
+	spin_lock_irqsave(&qp->s_lock, flags);
 
 	/* Don't send ACK or NAK if a RDMA read or atomic is pending. */
 	if (qp->r_head_ack_queue != qp->s_tail_ack_queue ||
 	    (qp->s_flags & IPATH_S_ACK_PENDING) ||
 	    qp->s_ack_state != OP(ACKNOWLEDGE))
 		goto queue_ack;
+
+	spin_unlock_irqrestore(&qp->s_lock, flags);
+
+	dd = dev->dd;
+	piobuf = ipath_getpiobuf(dd, 0, NULL);
+	if (!piobuf) {
+		/*
+		 * We are out of PIO buffers at the moment.
+		 * Pass responsibility for sending the ACK to the
+		 * send tasklet so that when a PIO buffer becomes
+		 * available, the ACK is sent ahead of other outgoing
+		 * packets.
+		 */
+		spin_lock_irqsave(&qp->s_lock, flags);
+		goto queue_ack;
+	}
 
 	/* Construct the header. */
 	ohdr = &hdr.u.oth;
@@ -611,7 +633,7 @@ static void send_rc_ack(struct ipath_qp *qp)
 		lrh0 = IPATH_LRH_GRH;
 	}
 	/* read pkey_index w/o lock (its atomic) */
-	bth0 = ipath_get_pkey(dev->dd, qp->s_pkey_index) |
+	bth0 = ipath_get_pkey(dd, qp->s_pkey_index) |
 		(OP(ACKNOWLEDGE) << 24) | (1 << 22);
 	if (qp->r_nak_state)
 		ohdr->u.aeth = cpu_to_be32((qp->r_msn & IPATH_MSN_MASK) |
@@ -623,30 +645,29 @@ static void send_rc_ack(struct ipath_qp *qp)
 	hdr.lrh[0] = cpu_to_be16(lrh0);
 	hdr.lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
 	hdr.lrh[2] = cpu_to_be16(hwords + SIZE_OF_CRC);
-	hdr.lrh[3] = cpu_to_be16(dev->dd->ipath_lid);
+	hdr.lrh[3] = cpu_to_be16(dd->ipath_lid);
 	ohdr->bth[0] = cpu_to_be32(bth0);
 	ohdr->bth[1] = cpu_to_be32(qp->remote_qpn);
 	ohdr->bth[2] = cpu_to_be32(qp->r_ack_psn & IPATH_PSN_MASK);
 
-	/*
-	 * If we can send the ACK, clear the ACK state.
-	 */
-	if (ipath_verbs_send(qp, &hdr, hwords, NULL, 0) == 0) {
-		dev->n_unicast_xmit++;
-		goto done;
-	}
+	writeq(hwords + 1, piobuf);
 
-	/*
-	 * We are out of PIO buffers at the moment.
-	 * Pass responsibility for sending the ACK to the
-	 * send tasklet so that when a PIO buffer becomes
-	 * available, the ACK is sent ahead of other outgoing
-	 * packets.
-	 */
-	dev->n_rc_qacks++;
+	if (dd->ipath_flags & IPATH_PIO_FLUSH_WC) {
+		u32 *hdrp = (u32 *) &hdr;
+
+		ipath_flush_wc();
+		__iowrite32_copy(piobuf + 2, hdrp, hwords - 1);
+		ipath_flush_wc();
+		__raw_writel(hdrp[hwords - 1], piobuf + hwords + 1);
+	} else
+		__iowrite32_copy(piobuf + 2, (u32 *) &hdr, hwords);
+
+	ipath_flush_wc();
+
+	dev->n_unicast_xmit++;
+	goto done;
 
 queue_ack:
-	spin_lock_irqsave(&qp->s_lock, flags);
 	dev->n_rc_qacks++;
 	qp->s_flags |= IPATH_S_ACK_PENDING;
 	qp->s_nak_state = qp->r_nak_state;
