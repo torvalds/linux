@@ -291,12 +291,12 @@
  			#address-cells = <1>;
  			#size-cells = <1>;
 			compatible = "fsl,qe-muram", "fsl,cpm-muram";
-			ranges = <0x0 0x10000 0xc000>;
+			ranges = <0x0 0x10000 0x10000>;
 
 			data-only@0 {
 				compatible = "fsl,qe-muram-data",
 					     "fsl,cpm-muram-data";
-				reg = <0x0 0xc000>;
+				reg = <0x0 0x10000>;
 			};
 		};
 
