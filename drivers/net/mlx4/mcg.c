@@ -190,10 +190,6 @@ int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16])
 		}
 		index += dev->caps.num_mgms;
 
-		err = mlx4_READ_MCG(dev, index, mailbox);
-		if (err)
-			goto out;
-
 		memset(mgm, 0, sizeof *mgm);
 		memcpy(mgm->gid, gid, 16);
 	}
@@ -301,12 +297,10 @@ int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16])
 	mgm->qp[loc]       = mgm->qp[i - 1];
 	mgm->qp[i - 1]     = 0;
 
-	err = mlx4_WRITE_MCG(dev, index, mailbox);
-	if (err)
+	if (i != 1) {
+		err = mlx4_WRITE_MCG(dev, index, mailbox);
 		goto out;
-
-	if (i != 1)
-		goto out;
+	}
 
 	if (prev == -1) {
 		/* Remove entry from MGM */
