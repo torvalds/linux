@@ -718,7 +718,7 @@ extern struct ipath_devdata *ipath_lookup(int unit);
 int ipath_init_chip(struct ipath_devdata *, int);
 int ipath_enable_wc(struct ipath_devdata *dd);
 void ipath_disable_wc(struct ipath_devdata *dd);
-int ipath_count_units(int *npresentp, int *nupp, u32 *maxportsp);
+int ipath_count_units(int *npresentp, int *nupp, int *maxportsp);
 void ipath_shutdown_device(struct ipath_devdata *);
 void ipath_clear_freeze(struct ipath_devdata *);
 

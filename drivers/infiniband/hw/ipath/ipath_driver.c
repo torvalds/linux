@@ -234,12 +234,12 @@ struct ipath_devdata *ipath_lookup(int unit)
 	return dd;
 }
 
-int ipath_count_units(int *npresentp, int *nupp, u32 *maxportsp)
+int ipath_count_units(int *npresentp, int *nupp, int *maxportsp)
 {
 	int nunits, npresent, nup;
 	struct ipath_devdata *dd;
 	unsigned long flags;
-	u32 maxports;
+	int maxports;
 
 	nunits = npresent = nup = maxports = 0;
 
