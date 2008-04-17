@@ -576,8 +576,6 @@ static void ext4_mb_store_history(struct ext4_allocation_context *ac);
 
 static struct proc_dir_entry *proc_root_ext4;
 struct buffer_head *read_block_bitmap(struct super_block *, ext4_group_t);
-ext4_fsblk_t ext4_new_blocks_old(handle_t *handle, struct inode *inode,
-			ext4_fsblk_t goal, unsigned long *count, int *errp);
 
 static void ext4_mb_generate_from_pa(struct super_block *sb, void *bitmap,
 					ext4_group_t group);
