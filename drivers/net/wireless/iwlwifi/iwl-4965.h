@@ -674,6 +674,8 @@ extern unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
 extern int iwl4965_rx_queue_update_write_ptr(struct iwl_priv *priv,
 					 struct iwl4965_rx_queue *q);
 extern __le16 *ieee80211_get_qos_ctrl(struct ieee80211_hdr *hdr);
+int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src);
+
 int iwl4965_init_geos(struct iwl_priv *priv);
 void iwl4965_free_geos(struct iwl_priv *priv);
 

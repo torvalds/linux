@@ -492,7 +492,7 @@ int iwl4965_hw_rxq_stop(struct iwl_priv *priv)
 	return 0;
 }
 
-static int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
+int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 {
 	int ret;
 	unsigned long flags;
