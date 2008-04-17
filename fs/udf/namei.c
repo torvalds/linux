@@ -31,6 +31,7 @@
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/sched.h>
+#include <linux/crc-itu-t.h>
 
 static inline int udf_match(int len1, const char *name1, int len2,
 			    const char *name2)
@@ -97,25 +98,23 @@ int udf_write_fi(struct inode *inode, struct fileIdentDesc *cfi,
 		memset(fibh->ebh->b_data, 0x00, padlen + offset);
 	}
 
-	crc = udf_crc((uint8_t *)cfi + sizeof(tag),
-		      sizeof(struct fileIdentDesc) - sizeof(tag), 0);
+	crc = crc_itu_t(0, (uint8_t *)cfi + sizeof(tag),
+		      sizeof(struct fileIdentDesc) - sizeof(tag));
 
 	if (fibh->sbh == fibh->ebh) {
-		crc = udf_crc((uint8_t *)sfi->impUse,
+		crc = crc_itu_t(crc, (uint8_t *)sfi->impUse,
 			      crclen + sizeof(tag) -
-			      sizeof(struct fileIdentDesc), crc);
+			      sizeof(struct fileIdentDesc));
 	} else if (sizeof(struct fileIdentDesc) >= -fibh->soffset) {
-		crc = udf_crc(fibh->ebh->b_data +
+		crc = crc_itu_t(crc, fibh->ebh->b_data +
 					sizeof(struct fileIdentDesc) +
 					fibh->soffset,
 			      crclen + sizeof(tag) -
-					sizeof(struct fileIdentDesc),
-			      crc);
+					sizeof(struct fileIdentDesc));
 	} else {
-		crc = udf_crc((uint8_t *)sfi->impUse,
-			      -fibh->soffset - sizeof(struct fileIdentDesc),
-			      crc);
-		crc = udf_crc(fibh->ebh->b_data, fibh->eoffset, crc);
+		crc = crc_itu_t(crc, (uint8_t *)sfi->impUse,
+			      -fibh->soffset - sizeof(struct fileIdentDesc));
+		crc = crc_itu_t(crc, fibh->ebh->b_data, fibh->eoffset);
 	}
 
 	cfi->descTag.descCRC = cpu_to_le16(crc);

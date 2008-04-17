@@ -37,6 +37,7 @@
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
 #include <linux/slab.h>
+#include <linux/crc-itu-t.h>
 
 #include "udf_i.h"
 #include "udf_sb.h"
@@ -1419,9 +1420,9 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 						iinfo->i_location.
 							logicalBlockNum);
 		use->descTag.descCRCLength = cpu_to_le16(crclen);
-		use->descTag.descCRC = cpu_to_le16(udf_crc((char *)use +
-							   sizeof(tag), crclen,
-							   0));
+		use->descTag.descCRC = cpu_to_le16(crc_itu_t(0, (char *)use +
+							   sizeof(tag),
+							   crclen));
 		use->descTag.tagChecksum = udf_tag_checksum(&use->descTag);
 
 		mark_buffer_dirty(bh);
@@ -1584,8 +1585,8 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	crclen += iinfo->i_lenEAttr + iinfo->i_lenAlloc -
 								sizeof(tag);
 	fe->descTag.descCRCLength = cpu_to_le16(crclen);
-	fe->descTag.descCRC = cpu_to_le16(udf_crc((char *)fe + sizeof(tag),
-						  crclen, 0));
+	fe->descTag.descCRC = cpu_to_le16(crc_itu_t(0, (char *)fe + sizeof(tag),
+						  crclen));
 	fe->descTag.tagChecksum = udf_tag_checksum(&fe->descTag);
 
 	/* write the data blocks */

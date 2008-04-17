@@ -56,6 +56,7 @@
 #include <linux/mount.h>
 #include <linux/seq_file.h>
 #include <linux/bitmap.h>
+#include <linux/crc-itu-t.h>
 #include <asm/byteorder.h>
 
 #include "udf_sb.h"
@@ -1765,8 +1766,8 @@ static void udf_open_lvid(struct super_block *sb)
 	lvid->integrityType = LVID_INTEGRITY_TYPE_OPEN;
 
 	lvid->descTag.descCRC = cpu_to_le16(
-		udf_crc((char *)lvid + sizeof(tag),
-			le16_to_cpu(lvid->descTag.descCRCLength), 0));
+		crc_itu_t(0, (char *)lvid + sizeof(tag),
+			le16_to_cpu(lvid->descTag.descCRCLength)));
 
 	lvid->descTag.tagChecksum = udf_tag_checksum(&lvid->descTag);
 	mark_buffer_dirty(bh);
@@ -1800,9 +1801,8 @@ static void udf_close_lvid(struct super_block *sb)
 	lvid->integrityType = cpu_to_le32(LVID_INTEGRITY_TYPE_CLOSE);
 
 	lvid->descTag.descCRC = cpu_to_le16(
-		udf_crc((char *)lvid + sizeof(tag),
-			le16_to_cpu(lvid->descTag.descCRCLength),
-			0));
+			crc_itu_t(0, (char *)lvid + sizeof(tag),
+				le16_to_cpu(lvid->descTag.descCRCLength)));
 
 	lvid->descTag.tagChecksum = udf_tag_checksum(&lvid->descTag);
 	mark_buffer_dirty(bh);

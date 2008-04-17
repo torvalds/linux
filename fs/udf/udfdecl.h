@@ -220,9 +220,6 @@ extern struct fileIdentDesc *udf_get_fileident(void *buffer, int bufsize,
 extern long_ad *udf_get_filelongad(uint8_t *, int, uint32_t *, int);
 extern short_ad *udf_get_fileshortad(uint8_t *, int, uint32_t *, int);
 
-/* crc.c */
-extern uint16_t udf_crc(const uint8_t *, uint32_t, uint16_t);
-
 /* udftime.c */
 extern struct timespec *udf_disk_stamp_to_time(struct timespec *dest,
 						timestamp src);

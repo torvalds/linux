@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>	/* for memset */
 #include <linux/nls.h>
+#include <linux/crc-itu-t.h>
 
 #include "udf_sb.h"
 
@@ -454,7 +455,7 @@ static int udf_translate_to_linux(uint8_t *newName, uint8_t *udfName,
 		} else if (newIndex > 250)
 			newIndex = 250;
 		newName[newIndex++] = CRC_MARK;
-		valueCRC = udf_crc(fidName, fidNameLen, 0);
+		valueCRC = crc_itu_t(0, fidName, fidNameLen);
 		newName[newIndex++] = hexChar[(valueCRC & 0xf000) >> 12];
 		newName[newIndex++] = hexChar[(valueCRC & 0x0f00) >> 8];
 		newName[newIndex++] = hexChar[(valueCRC & 0x00f0) >> 4];
