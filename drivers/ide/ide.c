@@ -166,19 +166,6 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 }
 
 
-static void init_hwif_default(ide_hwif_t *hwif, unsigned int index)
-{
-	hw_regs_t hw;
-
-	memset(&hw, 0, sizeof(hw_regs_t));
-
-	ide_init_hwif_ports(&hw, ide_default_io_base(index), 0, &hwif->irq);
-
-	memcpy(hwif->io_ports, hw.io_ports, sizeof(hw.io_ports));
-
-	hwif->noprobe = !hwif->io_ports[IDE_DATA_OFFSET];
-}
-
 /*
  * init_ide_data() sets reasonable default values into all fields
  * of all instances of the hwifs and drives, but only on the first call.
@@ -199,9 +186,9 @@ static void init_hwif_default(ide_hwif_t *hwif, unsigned int index)
 #define MAGIC_COOKIE 0x12345678
 static void __init init_ide_data (void)
 {
-	ide_hwif_t *hwif;
 	unsigned int index;
 	static unsigned long magic_cookie = MAGIC_COOKIE;
+	hw_regs_t hw;
 
 	if (magic_cookie != MAGIC_COOKIE)
 		return;		/* already initialized */
@@ -209,9 +196,15 @@ static void __init init_ide_data (void)
 
 	/* Initialise all interface structures */
 	for (index = 0; index < MAX_HWIFS; ++index) {
-		hwif = &ide_hwifs[index];
+		ide_hwif_t *hwif = &ide_hwifs[index];
+
 		ide_init_port_data(hwif, index);
-		init_hwif_default(hwif, index);
+
+		memset(&hw, 0, sizeof(hw));
+		ide_init_hwif_ports(&hw, ide_default_io_base(index), 0,
+				    &hwif->irq);
+		memcpy(hwif->io_ports, hw.io_ports, sizeof(hw.io_ports));
+		hwif->noprobe = !hwif->io_ports[IDE_DATA_OFFSET];
 #if !defined(CONFIG_PPC32) || !defined(CONFIG_PCI)
 		hwif->irq =
 			ide_init_default_irq(hwif->io_ports[IDE_DATA_OFFSET]);
