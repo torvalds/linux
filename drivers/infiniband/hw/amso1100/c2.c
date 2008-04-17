@@ -1005,7 +1005,7 @@ static int __devinit c2_probe(struct pci_dev *pcidev,
 	/* Remap the adapter PCI registers in BAR4 */
 	mmio_regs = ioremap_nocache(reg4_start + C2_PCI_REGS_OFFSET,
 				    sizeof(struct c2_adapter_pci_regs));
-	if (mmio_regs == 0UL) {
+	if (!mmio_regs) {
 		printk(KERN_ERR PFX
 			"Unable to remap adapter PCI registers in BAR4\n");
 		ret = -EIO;
@@ -1109,7 +1109,7 @@ static int __devinit c2_probe(struct pci_dev *pcidev,
 	/* Remap the adapter HRXDQ PA space to kernel VA space */
 	c2dev->mmio_rxp_ring = ioremap_nocache(reg4_start + C2_RXP_HRXDQ_OFFSET,
 					       C2_RXP_HRXDQ_SIZE);
-	if (c2dev->mmio_rxp_ring == 0UL) {
+	if (!c2dev->mmio_rxp_ring) {
 		printk(KERN_ERR PFX "Unable to remap MMIO HRXDQ region\n");
 		ret = -EIO;
 		goto bail6;
@@ -1118,7 +1118,7 @@ static int __devinit c2_probe(struct pci_dev *pcidev,
 	/* Remap the adapter HTXDQ PA space to kernel VA space */
 	c2dev->mmio_txp_ring = ioremap_nocache(reg4_start + C2_TXP_HTXDQ_OFFSET,
 					       C2_TXP_HTXDQ_SIZE);
-	if (c2dev->mmio_txp_ring == 0UL) {
+	if (!c2dev->mmio_txp_ring) {
 		printk(KERN_ERR PFX "Unable to remap MMIO HTXDQ region\n");
 		ret = -EIO;
 		goto bail7;
@@ -1129,7 +1129,7 @@ static int __devinit c2_probe(struct pci_dev *pcidev,
 
 	/* Remap the PCI registers in adapter BAR0 to kernel VA space */
 	c2dev->regs = ioremap_nocache(reg0_start, reg0_len);
-	if (c2dev->regs == 0UL) {
+	if (!c2dev->regs) {
 		printk(KERN_ERR PFX "Unable to remap BAR0\n");
 		ret = -EIO;
 		goto bail8;
@@ -1139,7 +1139,7 @@ static int __devinit c2_probe(struct pci_dev *pcidev,
 	c2dev->pa = reg4_start + C2_PCI_REGS_OFFSET;
 	c2dev->kva = ioremap_nocache(reg4_start + C2_PCI_REGS_OFFSET,
 				     kva_map_size);
-	if (c2dev->kva == 0UL) {
+	if (!c2dev->kva) {
 		printk(KERN_ERR PFX "Unable to remap BAR4\n");
 		ret = -EIO;
 		goto bail9;
