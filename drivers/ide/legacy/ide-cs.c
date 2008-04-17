@@ -164,7 +164,7 @@ static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq
 
     if (hwif->present)
 	ide_unregister(i);
-    else if (!hwif->hold)
+    else
 	ide_init_port_data(hwif, i);
 
     ide_init_port_hw(hwif, &hw);

@@ -86,7 +86,7 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (hwif->present)
 		ide_unregister(i);
-	else if (!hwif->hold)
+	else
 		ide_init_port_data(hwif, i);
 
 	ide_init_port_hw(hwif, &hw);
