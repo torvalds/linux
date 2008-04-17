@@ -738,23 +738,17 @@ static int tcp_v6_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 				   struct in6_addr *daddr,
 				   struct tcphdr *th, unsigned int tcplen)
 {
-	struct scatterlist sg[4];
-	__u16 data_len;
-	int block = 0;
-	__sum16 cksum;
 	struct tcp_md5sig_pool *hp;
 	struct tcp6_pseudohdr *bp;
-	struct hash_desc *desc;
 	int err;
-	unsigned int nbytes = 0;
 
 	hp = tcp_get_md5sig_pool();
 	if (!hp) {
 		printk(KERN_WARNING "%s(): hash pool not found...\n", __func__);
 		goto clear_hash_noput;
 	}
+
 	bp = &hp->md5_blk.ip6;
-	desc = &hp->md5_desc;
 
 	/* 1. TCP pseudo-header (RFC2460) */
 	ipv6_addr_copy(&bp->saddr, saddr);
@@ -762,51 +756,14 @@ static int tcp_v6_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 	bp->len = htonl(tcplen);
 	bp->protocol = htonl(IPPROTO_TCP);
 
-	sg_init_table(sg, 4);
+	err = tcp_calc_md5_hash(md5_hash, key, sizeof(*bp),
+				th, tcplen, hp);
 
-	sg_set_buf(&sg[block++], bp, sizeof(*bp));
-	nbytes += sizeof(*bp);
-
-	/* 2. TCP header, excluding options */
-	cksum = th->check;
-	th->check = 0;
-	sg_set_buf(&sg[block++], th, sizeof(*th));
-	nbytes += sizeof(*th);
-
-	/* 3. TCP segment data (if any) */
-	data_len = tcplen - (th->doff << 2);
-	if (data_len > 0) {
-		u8 *data = (u8 *)th + (th->doff << 2);
-		sg_set_buf(&sg[block++], data, data_len);
-		nbytes += data_len;
-	}
-
-	/* 4. shared key */
-	sg_set_buf(&sg[block++], key->key, key->keylen);
-	nbytes += key->keylen;
-
-	sg_mark_end(&sg[block - 1]);
-
-	/* Now store the hash into the packet */
-	err = crypto_hash_init(desc);
-	if (err) {
-		printk(KERN_WARNING "%s(): hash_init failed\n", __func__);
+	if (err)
 		goto clear_hash;
-	}
-	err = crypto_hash_update(desc, sg, nbytes);
-	if (err) {
-		printk(KERN_WARNING "%s(): hash_update failed\n", __func__);
-		goto clear_hash;
-	}
-	err = crypto_hash_final(desc, md5_hash);
-	if (err) {
-		printk(KERN_WARNING "%s(): hash_final failed\n", __func__);
-		goto clear_hash;
-	}
 
-	/* Reset header, and free up the crypto */
+	/* Free up the crypto pool */
 	tcp_put_md5sig_pool();
-	th->check = cksum;
 out:
 	return 0;
 clear_hash:

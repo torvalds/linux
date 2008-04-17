@@ -1006,15 +1006,9 @@ static int tcp_v4_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 				   struct tcphdr *th,
 				   unsigned int tcplen)
 {
-	struct scatterlist sg[4];
-	__u16 data_len;
-	int block = 0;
-	__sum16 old_checksum;
 	struct tcp_md5sig_pool *hp;
 	struct tcp4_pseudohdr *bp;
-	struct hash_desc *desc;
 	int err;
-	unsigned int nbytes = 0;
 
 	/*
 	 * Okay, so RFC2385 is turned on for this connection,
@@ -1026,10 +1020,9 @@ static int tcp_v4_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 		goto clear_hash_noput;
 
 	bp = &hp->md5_blk.ip4;
-	desc = &hp->md5_desc;
 
 	/*
-	 * 1. the TCP pseudo-header (in the order: source IP address,
+	 * The TCP pseudo-header (in the order: source IP address,
 	 * destination IP address, zero-padded protocol number, and
 	 * segment length)
 	 */
@@ -1039,50 +1032,13 @@ static int tcp_v4_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 	bp->protocol = IPPROTO_TCP;
 	bp->len = htons(tcplen);
 
-	sg_init_table(sg, 4);
-
-	sg_set_buf(&sg[block++], bp, sizeof(*bp));
-	nbytes += sizeof(*bp);
-
-	/* 2. the TCP header, excluding options, and assuming a
-	 * checksum of zero/
-	 */
-	old_checksum = th->check;
-	th->check = 0;
-	sg_set_buf(&sg[block++], th, sizeof(struct tcphdr));
-	nbytes += sizeof(struct tcphdr);
-
-	/* 3. the TCP segment data (if any) */
-	data_len = tcplen - (th->doff << 2);
-	if (data_len > 0) {
-		unsigned char *data = (unsigned char *)th + (th->doff << 2);
-		sg_set_buf(&sg[block++], data, data_len);
-		nbytes += data_len;
-	}
-
-	/* 4. an independently-specified key or password, known to both
-	 * TCPs and presumably connection-specific
-	 */
-	sg_set_buf(&sg[block++], key->key, key->keylen);
-	nbytes += key->keylen;
-
-	sg_mark_end(&sg[block - 1]);
-
-	/* Now store the Hash into the packet */
-	err = crypto_hash_init(desc);
-	if (err)
-		goto clear_hash;
-	err = crypto_hash_update(desc, sg, nbytes);
-	if (err)
-		goto clear_hash;
-	err = crypto_hash_final(desc, md5_hash);
+	err = tcp_calc_md5_hash(md5_hash, key, sizeof(*bp),
+				th, tcplen, hp);
 	if (err)
 		goto clear_hash;
 
-	/* Reset header, and free up the crypto */
+	/* Free up the crypto pool */
 	tcp_put_md5sig_pool();
-	th->check = old_checksum;
-
 out:
 	return 0;
 clear_hash:

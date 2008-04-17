@@ -1117,6 +1117,13 @@ struct tcp_md5sig_pool {
 #define TCP_MD5SIG_MAXKEYS	(~(u32)0)	/* really?! */
 
 /* - functions */
+extern int			tcp_calc_md5_hash(char *md5_hash,
+						  struct tcp_md5sig_key *key,
+						  int bplen,
+						  struct tcphdr *th,
+						  unsigned int tcplen,
+						  struct tcp_md5sig_pool *hp);
+
 extern int			tcp_v4_calc_md5_hash(char *md5_hash,
 						     struct tcp_md5sig_key *key,
 						     struct sock *sk,
