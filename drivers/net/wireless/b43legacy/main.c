@@ -3005,6 +3005,34 @@ static void b43legacy_set_retry_limits(struct b43legacy_wldev *dev,
 	b43legacy_shm_write16(dev, B43legacy_SHM_WIRELESS, 0x0007, long_retry);
 }
 
+static void b43legacy_set_synth_pu_delay(struct b43legacy_wldev *dev,
+					  bool idle) {
+	u16 pu_delay = 1050;
+
+	if (b43legacy_is_mode(dev->wl, IEEE80211_IF_TYPE_IBSS) || idle)
+		pu_delay = 500;
+	if ((dev->phy.radio_ver == 0x2050) && (dev->phy.radio_rev == 8))
+		pu_delay = max(pu_delay, (u16)2400);
+
+	b43legacy_shm_write16(dev, B43legacy_SHM_SHARED,
+			      B43legacy_SHM_SH_SPUWKUP, pu_delay);
+}
+
+/* Set the TSF CFP pre-TargetBeaconTransmissionTime. */
+static void b43legacy_set_pretbtt(struct b43legacy_wldev *dev)
+{
+	u16 pretbtt;
+
+	/* The time value is in microseconds. */
+	if (b43legacy_is_mode(dev->wl, IEEE80211_IF_TYPE_IBSS))
+		pretbtt = 2;
+	else
+		pretbtt = 250;
+	b43legacy_shm_write16(dev, B43legacy_SHM_SHARED,
+			      B43legacy_SHM_SH_PRETBTT, pretbtt);
+	b43legacy_write16(dev, B43legacy_MMIO_TSF_CFP_PRETBTT, pretbtt);
+}
+
 /* Shutdown a wireless core */
 /* Locking: wl->mutex */
 static void b43legacy_wireless_core_exit(struct b43legacy_wldev *dev)
@@ -3191,9 +3219,7 @@ static int b43legacy_wireless_core_init(struct b43legacy_wldev *dev)
 	if (err)
 		goto err_chip_exit;
 
-	b43legacy_write16(dev, 0x0612, 0x0050);
-	b43legacy_shm_write16(dev, B43legacy_SHM_SHARED, 0x0416, 0x0050);
-	b43legacy_shm_write16(dev, B43legacy_SHM_SHARED, 0x0414, 0x01F4);
+	b43legacy_set_synth_pu_delay(dev, 1);
 
 	ssb_bus_powerup(bus, 1); /* Enable dynamic PCTL */
 	b43legacy_upload_card_macaddress(dev);
@@ -3249,6 +3275,8 @@ static int b43legacy_op_add_interface(struct ieee80211_hw *hw,
 
 	spin_lock_irqsave(&wl->irq_lock, flags);
 	b43legacy_adjust_opmode(dev);
+	b43legacy_set_pretbtt(dev);
+	b43legacy_set_synth_pu_delay(dev, 0);
 	b43legacy_upload_card_macaddress(dev);
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 

@@ -4,6 +4,7 @@
   */
 
 #include <net/iw_handler.h>
+#include <linux/kfifo.h>
 #include "host.h"
 #include "hostcmd.h"
 #include "decl.h"
@@ -295,6 +296,7 @@ int lbs_cmd_802_11_set_wep(struct lbs_private *priv, uint16_t cmd_action,
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.command = cpu_to_le16(CMD_802_11_SET_WEP);
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 
@@ -358,7 +360,9 @@ int lbs_cmd_802_11_enable_rsn(struct lbs_private *priv, uint16_t cmd_action,
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(cmd_action);
 
-	if (cmd_action == CMD_ACT_SET) {
+	if (cmd_action == CMD_ACT_GET)
+		cmd.enable = 0;
+	else {
 		if (*enable)
 			cmd.enable = cpu_to_le16(CMD_ENABLE_RSN);
 		else
@@ -810,6 +814,7 @@ int lbs_get_channel(struct lbs_private *priv)
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_OPT_802_11_RF_CHANNEL_GET);
 
@@ -857,6 +862,7 @@ int lbs_set_channel(struct lbs_private *priv, u8 channel)
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_OPT_802_11_RF_CHANNEL_SET);
 	cmd.channel = cpu_to_le16(channel);
@@ -1829,15 +1835,20 @@ static void lbs_send_confirmsleep(struct lbs_private *priv)
 
 	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) &confirm_sleep,
 		sizeof(confirm_sleep));
-
 	if (ret) {
 		lbs_pr_alert("confirm_sleep failed\n");
-	} else {
-		spin_lock_irqsave(&priv->driver_lock, flags);
-		if (!priv->intcounter)
-			priv->psstate = PS_STATE_SLEEP;
-		spin_unlock_irqrestore(&priv->driver_lock, flags);
+		goto out;
 	}
+
+	spin_lock_irqsave(&priv->driver_lock, flags);
+
+	/* If nothing to do, go back to sleep (?) */
+	if (!__kfifo_len(priv->event_fifo) && !priv->resp_len[priv->resp_idx])
+		priv->psstate = PS_STATE_SLEEP;
+
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
+
+out:
 	lbs_deb_leave(LBS_DEB_HOST);
 }
 
@@ -1899,13 +1910,16 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv)
 	}
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
+	/* In-progress command? */
 	if (priv->cur_cmd) {
 		allowed = 0;
 		lbs_deb_host("cur_cmd was set\n");
 	}
-	if (priv->intcounter > 0) {
+
+	/* Pending events or command responses? */
+	if (__kfifo_len(priv->event_fifo) || priv->resp_len[priv->resp_idx]) {
 		allowed = 0;
-		lbs_deb_host("intcounter %d\n", priv->intcounter);
+		lbs_deb_host("pending events or command responses\n");
 	}
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 

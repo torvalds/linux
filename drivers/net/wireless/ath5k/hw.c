@@ -120,11 +120,69 @@ int ath5k_hw_register_timeout(struct ath5k_hw *ah, u32 reg, u32 flag, u32 val,
 \***************************************/
 
 /*
+ * Power On Self Test helper function
+ */
+static int ath5k_hw_post(struct ath5k_hw *ah)
+{
+
+	int i, c;
+	u16 cur_reg;
+	u16 regs[2] = {AR5K_STA_ID0, AR5K_PHY(8)};
+	u32 var_pattern;
+	u32 static_pattern[4] = {
+		0x55555555,	0xaaaaaaaa,
+		0x66666666,	0x99999999
+	};
+	u32 init_val;
+	u32 cur_val;
+
+	for (c = 0; c < 2; c++) {
+
+		cur_reg = regs[c];
+		init_val = ath5k_hw_reg_read(ah, cur_reg);
+
+		for (i = 0; i < 256; i++) {
+			var_pattern = i << 16 | i;
+			ath5k_hw_reg_write(ah, var_pattern, cur_reg);
+			cur_val = ath5k_hw_reg_read(ah, cur_reg);
+
+			if (cur_val != var_pattern) {
+				ATH5K_ERR(ah->ah_sc, "POST Failed !!!\n");
+				return -EAGAIN;
+			}
+
+			/* Found on ndiswrapper dumps */
+			var_pattern = 0x0039080f;
+			ath5k_hw_reg_write(ah, var_pattern, cur_reg);
+		}
+
+		for (i = 0; i < 4; i++) {
+			var_pattern = static_pattern[i];
+			ath5k_hw_reg_write(ah, var_pattern, cur_reg);
+			cur_val = ath5k_hw_reg_read(ah, cur_reg);
+
+			if (cur_val != var_pattern) {
+				ATH5K_ERR(ah->ah_sc, "POST Failed !!!\n");
+				return -EAGAIN;
+			}
+
+			/* Found on ndiswrapper dumps */
+			var_pattern = 0x003b080f;
+			ath5k_hw_reg_write(ah, var_pattern, cur_reg);
+		}
+	}
+
+	return 0;
+
+}
+
+/*
  * Check if the device is supported and initialize the needed structs
  */
 struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 {
 	struct ath5k_hw *ah;
+	struct pci_dev *pdev = sc->pdev;
 	u8 mac[ETH_ALEN];
 	int ret;
 	u32 srev;
@@ -204,15 +262,19 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 				CHANNEL_2GHZ);
 
 	/* Return on unsuported chips (unsupported eeprom etc) */
-	if(srev >= AR5K_SREV_VER_AR5416){
+	if ((srev >= AR5K_SREV_VER_AR5416) &&
+	(srev < AR5K_SREV_VER_AR2425)) {
 		ATH5K_ERR(sc, "Device not yet supported.\n");
 		ret = -ENODEV;
 		goto err_free;
+	} else if (srev == AR5K_SREV_VER_AR2425) {
+		ATH5K_WARN(sc, "Support for RF2425 is under development.\n");
 	}
 
 	/* Identify single chip solutions */
-	if((srev <= AR5K_SREV_VER_AR5414) &&
-	(srev >= AR5K_SREV_VER_AR2413)) {
+	if (((srev <= AR5K_SREV_VER_AR5414) &&
+	(srev >= AR5K_SREV_VER_AR2413)) ||
+	(srev == AR5K_SREV_VER_AR2425)) {
 		ah->ah_single_chip = true;
 	} else {
 		ah->ah_single_chip = false;
@@ -241,22 +303,65 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC1) {
 		ah->ah_radio = AR5K_RF2413;
 		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
-	} else {
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC2) {
 
 		ah->ah_radio = AR5K_RF5413;
 
 		if (ah->ah_mac_srev <= AR5K_SREV_VER_AR5424 &&
 			ah->ah_mac_srev >= AR5K_SREV_VER_AR2424)
 			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5424;
-		else if (ah->ah_mac_srev >= AR5K_SREV_VER_AR2425)
-			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112;
 		else
 			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
-
-
+	/*
+	 * Register returns 0x4 for radio revision
+	 * so ath5k_hw_radio_revision doesn't parse the value
+	 * correctly. For now we are based on mac's srev to
+	 * identify RF2425 radio.
+	 */
+	} else if (srev == AR5K_SREV_VER_AR2425) {
+		ah->ah_radio = AR5K_RF2425;
+		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112;
 	}
 
 	ah->ah_phy = AR5K_PHY(0);
+
+	/*
+	 * Identify AR5212-based PCI-E cards
+	 * And write some initial settings.
+	 *
+	 * (doing a "strings" on ndis driver
+	 * -ar5211.sys- reveals the following
+	 * pci-e related functions:
+	 *
+	 * pcieClockReq
+	 * pcieRxErrNotify
+	 * pcieL1SKPEnable
+	 * pcieAspm
+	 * pcieDisableAspmOnRfWake
+	 * pciePowerSaveEnable
+	 *
+	 * I guess these point to ClockReq but
+	 * i'm not sure.)
+	 */
+	if ((ah->ah_version == AR5K_AR5212) && (pdev->is_pcie)) {
+		ath5k_hw_reg_write(ah, 0x9248fc00, 0x4080);
+		ath5k_hw_reg_write(ah, 0x24924924, 0x4080);
+		ath5k_hw_reg_write(ah, 0x28000039, 0x4080);
+		ath5k_hw_reg_write(ah, 0x53160824, 0x4080);
+		ath5k_hw_reg_write(ah, 0xe5980579, 0x4080);
+		ath5k_hw_reg_write(ah, 0x001defff, 0x4080);
+		ath5k_hw_reg_write(ah, 0x1aaabe40, 0x4080);
+		ath5k_hw_reg_write(ah, 0xbe105554, 0x4080);
+		ath5k_hw_reg_write(ah, 0x000e3007, 0x4080);
+		ath5k_hw_reg_write(ah, 0x00000000, 0x4084);
+	}
+
+	/*
+	 * POST
+	 */
+	ret = ath5k_hw_post(ah);
+	if (ret)
+		goto err_free;
 
 	/*
 	 * Get card capabilities, values, ...
@@ -391,7 +496,7 @@ static int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 	ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
 		AR5K_RESET_CTL_BASEBAND | bus_flags);
 	if (ret) {
-		ATH5K_ERR(ah->ah_sc, "failed to reset the MAC Chip + PCI\n");
+		ATH5K_ERR(ah->ah_sc, "failed to reset the MAC Chip\n");
 		return -EIO;
 	}
 
@@ -655,7 +760,8 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 		if (ah->ah_radio != AR5K_RF5111 &&
 			ah->ah_radio != AR5K_RF5112 &&
 			ah->ah_radio != AR5K_RF5413 &&
-			ah->ah_radio != AR5K_RF2413) {
+			ah->ah_radio != AR5K_RF2413 &&
+			ah->ah_radio != AR5K_RF2425) {
 			ATH5K_ERR(ah->ah_sc,
 				"invalid phy radio: %u\n", ah->ah_radio);
 			return -EINVAL;
@@ -2849,15 +2955,19 @@ int ath5k_hw_beaconq_finish(struct ath5k_hw *ah, unsigned long phys_addr)
  * Update mib counters (statistics)
  */
 void ath5k_hw_update_mib_counters(struct ath5k_hw *ah,
-		struct ath5k_mib_stats *statistics)
+		struct ieee80211_low_level_stats  *stats)
 {
 	ATH5K_TRACE(ah->ah_sc);
+
 	/* Read-And-Clear */
-	statistics->ackrcv_bad += ath5k_hw_reg_read(ah, AR5K_ACK_FAIL);
-	statistics->rts_bad += ath5k_hw_reg_read(ah, AR5K_RTS_FAIL);
-	statistics->rts_good += ath5k_hw_reg_read(ah, AR5K_RTS_OK);
-	statistics->fcs_bad += ath5k_hw_reg_read(ah, AR5K_FCS_FAIL);
-	statistics->beacons += ath5k_hw_reg_read(ah, AR5K_BEACON_CNT);
+	stats->dot11ACKFailureCount += ath5k_hw_reg_read(ah, AR5K_ACK_FAIL);
+	stats->dot11RTSFailureCount += ath5k_hw_reg_read(ah, AR5K_RTS_FAIL);
+	stats->dot11RTSSuccessCount += ath5k_hw_reg_read(ah, AR5K_RTS_OK);
+	stats->dot11FCSErrorCount += ath5k_hw_reg_read(ah, AR5K_FCS_FAIL);
+
+	/* XXX: Should we use this to track beacon count ?
+	 * -we read it anyway to clear the register */
+	ath5k_hw_reg_read(ah, AR5K_BEACON_CNT);
 
 	/* Reset profile count registers on 5212*/
 	if (ah->ah_version == AR5K_AR5212) {
@@ -2958,8 +3068,16 @@ int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry)
 	for (i = 0; i < AR5K_KEYCACHE_SIZE; i++)
 		ath5k_hw_reg_write(ah, 0, AR5K_KEYTABLE_OFF(entry, i));
 
-	/* Set NULL encryption on non-5210*/
-	if (ah->ah_version != AR5K_AR5210)
+	/*
+	 * Set NULL encryption on AR5212+
+	 *
+	 * Note: AR5K_KEYTABLE_TYPE -> AR5K_KEYTABLE_OFF(entry, 5)
+	 *       AR5K_KEYTABLE_TYPE_NULL -> 0x00000007
+	 *
+	 * Note2: Windows driver (ndiswrapper) sets this to
+	 *        0x00000714 instead of 0x00000007
+	 */
+	if (ah->ah_version > AR5K_AR5211)
 		ath5k_hw_reg_write(ah, AR5K_KEYTABLE_TYPE_NULL,
 				AR5K_KEYTABLE_TYPE(entry));
 

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2008 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -24,31 +24,26 @@
  * Contact Information:
  * James P. Ketrenos <ipw2100-admin@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ *
  *****************************************************************************/
-#ifndef __iwl_rf_kill_h__
-#define __iwl_rf_kill_h__
+#ifndef __iwl_sta_h__
+#define __iwl_sta_h__
 
-struct iwl_priv;
+#include <net/mac80211.h>
 
-#include <linux/rfkill.h>
-#include <linux/input.h>
+#include "iwl-eeprom.h"
+#include "iwl-core.h"
+#include "iwl-4965.h"
+#include "iwl-io.h"
+#include "iwl-helpers.h"
 
-
-#ifdef CONFIG_IWLWIFI_RFKILL
-struct iwl_rfkill_mngr {
-	struct rfkill *rfkill;
-	struct input_dev *input_dev;
-};
-
-void iwl_rfkill_set_hw_state(struct iwl_priv *priv);
-void iwl_rfkill_unregister(struct iwl_priv *priv);
-int iwl_rfkill_init(struct iwl_priv *priv);
-#else
-static inline void iwl_rfkill_set_hw_state(struct iwl_priv *priv) {}
-static inline void iwl_rfkill_unregister(struct iwl_priv *priv) {}
-static inline int iwl_rfkill_init(struct iwl_priv *priv) { return 0; }
-#endif
-
-
-
-#endif  /* __iwl_rf_kill_h__ */
+int iwl_get_free_ucode_key_index(struct iwl_priv *priv);
+int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty);
+int iwl_remove_default_wep_key(struct iwl_priv *priv,
+				struct ieee80211_key_conf *key);
+int iwl_set_default_wep_key(struct iwl_priv *priv,
+				struct ieee80211_key_conf *key);
+int iwl_remove_dynamic_key(struct iwl_priv *priv, u8 sta_id);
+int iwl_set_dynamic_key(struct iwl_priv *priv,
+				struct ieee80211_key_conf *key, u8 sta_id);
+#endif /* __iwl_sta_h__ */

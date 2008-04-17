@@ -84,6 +84,9 @@ enum {
 	REPLY_REMOVE_STA = 0x19,	/* not used */
 	REPLY_REMOVE_ALL_STA = 0x1a,	/* not used */
 
+	/* Security */
+	REPLY_WEPKEY = 0x20,
+
 	/* RX, TX, LEDs */
 	REPLY_TX = 0x1c,
 	REPLY_RATE_SCALE = 0x47,	/* 3945 only */
@@ -266,11 +269,10 @@ struct iwl_cmd_header {
  *          10 B active, A inactive
  *          11 Both active
  */
-#define RATE_MCS_ANT_A_POS	14
-#define RATE_MCS_ANT_B_POS	15
-#define RATE_MCS_ANT_A_MSK	0x4000
-#define RATE_MCS_ANT_B_MSK	0x8000
-#define RATE_MCS_ANT_AB_MSK	0xc000
+#define RATE_MCS_ANT_POS       14
+#define RATE_MCS_ANT_A_MSK     0x04000
+#define RATE_MCS_ANT_B_MSK     0x08000
+#define RATE_MCS_ANT_AB_MSK    0x0C000
 
 
 /**
@@ -850,6 +852,30 @@ struct iwl4965_add_sta_resp {
 	u8 status;	/* ADD_STA_* */
 } __attribute__ ((packed));
 
+/*
+ * REPLY_WEP_KEY = 0x20
+ */
+struct iwl_wep_key {
+	u8 key_index;
+	u8 key_offset;
+	u8 reserved1[2];
+	u8 key_size;
+	u8 reserved2[3];
+	u8 key[16];
+} __attribute__ ((packed));
+
+struct iwl_wep_cmd {
+	u8 num_keys;
+	u8 global_key_type;
+	u8 flags;
+	u8 reserved;
+	struct iwl_wep_key key[0];
+} __attribute__ ((packed));
+
+#define WEP_KEY_WEP_TYPE 1
+#define WEP_KEYS_MAX 4
+#define WEP_INVALID_OFFSET 0xff
+#define WEP_KEY_LEN_128 13
 
 /******************************************************************************
  * (4)
@@ -1387,11 +1413,11 @@ struct iwl4965_txpowertable_cmd {
 
 
 /**
- * struct iwl4965_link_qual_general_params
+ * struct iwl_link_qual_general_params
  *
  * Used in REPLY_TX_LINK_QUALITY_CMD
  */
-struct iwl4965_link_qual_general_params {
+struct iwl_link_qual_general_params {
 	u8 flags;
 
 	/* No entries at or above this (driver chosen) index contain MIMO */
@@ -1418,11 +1444,11 @@ struct iwl4965_link_qual_general_params {
 } __attribute__ ((packed));
 
 /**
- * struct iwl4965_link_qual_agg_params
+ * struct iwl_link_qual_agg_params
  *
  * Used in REPLY_TX_LINK_QUALITY_CMD
  */
-struct iwl4965_link_qual_agg_params {
+struct iwl_link_qual_agg_params {
 
 	/* Maximum number of uSec in aggregation.
 	 * Driver should set this to 4000 (4 milliseconds). */
@@ -1632,14 +1658,14 @@ struct iwl4965_link_qual_agg_params {
  * legacy), and then repeat the search process.
  *
  */
-struct iwl4965_link_quality_cmd {
+struct iwl_link_quality_cmd {
 
 	/* Index of destination/recipient station in uCode's station table */
 	u8 sta_id;
 	u8 reserved1;
 	__le16 control;		/* not used */
-	struct iwl4965_link_qual_general_params general_params;
-	struct iwl4965_link_qual_agg_params agg_params;
+	struct iwl_link_qual_general_params general_params;
+	struct iwl_link_qual_agg_params agg_params;
 
 	/*
 	 * Rate info; when using rate-scaling, Tx command's initial_rate_index

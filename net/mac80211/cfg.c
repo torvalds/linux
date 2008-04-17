@@ -33,6 +33,8 @@ nl80211_type_to_mac80211_type(enum nl80211_iftype type)
 	case NL80211_IFTYPE_MESH_POINT:
 		return IEEE80211_IF_TYPE_MESH_POINT;
 #endif
+	case NL80211_IFTYPE_WDS:
+		return IEEE80211_IF_TYPE_WDS;
 	default:
 		return IEEE80211_IF_TYPE_INVALID;
 	}
@@ -718,12 +720,18 @@ static int ieee80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 	struct sta_info *sta;
 
 	if (mac) {
+		rcu_read_lock();
+
 		/* XXX: get sta belonging to dev */
 		sta = sta_info_get(local, mac);
-		if (!sta)
+		if (!sta) {
+			rcu_read_unlock();
 			return -ENOENT;
+		}
 
 		sta_info_unlink(&sta);
+		rcu_read_unlock();
+
 		sta_info_destroy(sta);
 	} else
 		sta_info_flush(local, sdata);
@@ -740,23 +748,31 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *vlansdata;
 
+	rcu_read_lock();
+
 	/* XXX: get sta belonging to dev */
 	sta = sta_info_get(local, mac);
-	if (!sta)
+	if (!sta) {
+		rcu_read_unlock();
 		return -ENOENT;
+	}
 
 	if (params->vlan && params->vlan != sta->sdata->dev) {
 		vlansdata = IEEE80211_DEV_TO_SUB_IF(params->vlan);
 
 		if (vlansdata->vif.type != IEEE80211_IF_TYPE_VLAN ||
-		    vlansdata->vif.type != IEEE80211_IF_TYPE_AP)
+		    vlansdata->vif.type != IEEE80211_IF_TYPE_AP) {
+			rcu_read_unlock();
 			return -EINVAL;
+		}
 
 		sta->sdata = IEEE80211_DEV_TO_SUB_IF(params->vlan);
 		ieee80211_send_layer2_update(sta);
 	}
 
 	sta_apply_parameters(local, sta, params);
+
+	rcu_read_unlock();
 
 	return 0;
 }

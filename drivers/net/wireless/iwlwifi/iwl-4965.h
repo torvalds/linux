@@ -36,9 +36,6 @@
 #include <linux/kernel.h>
 #include <net/ieee80211_radiotap.h>
 
-/* Hardware specific file defines the PCI IDs table for that hardware module */
-extern struct pci_device_id iwl4965_hw_card_ids[];
-
 #define DRV_NAME        "iwl4965"
 #include "iwl-rfkill.h"
 #include "iwl-eeprom.h"
@@ -47,6 +44,9 @@ extern struct pci_device_id iwl4965_hw_card_ids[];
 #include "iwl-prph.h"
 #include "iwl-debug.h"
 #include "iwl-led.h"
+
+/* configuration for the iwl4965 */
+extern struct iwl_cfg iwl4965_agn_cfg;
 
 /* Change firmware file name, using "-" and incrementing number,
  *   *only* when uCode interface or architecture changes so that it
@@ -461,6 +461,7 @@ struct iwl4965_tid_data {
 struct iwl4965_hw_key {
 	enum ieee80211_key_alg alg;
 	int keylen;
+	u8 keyidx;
 	struct ieee80211_key_conf *conf;
 	u8 key[32];
 };
@@ -566,7 +567,7 @@ struct iwl4965_ibss_seq {
 };
 
 /**
- * struct iwl4965_driver_hw_info
+ * struct iwl_hw_params
  * @max_txq_num: Max # Tx queues supported
  * @tx_cmd_len: Size of Tx command (but not including frame itself)
  * @tx_ant_num: Number of TX antennas
@@ -575,21 +576,20 @@ struct iwl4965_ibss_seq {
  * @max_rxq_log: Log-base-2 of max_rxq_size
  * @max_stations:
  * @bcast_sta_id:
- * @shared_virt: Pointer to driver/uCode shared Tx Byte Counts and Rx status
- * @shared_phys: Physical Pointer to Tx Byte Counts and Rx status
  */
-struct iwl4965_driver_hw_info {
+struct iwl_hw_params {
 	u16 max_txq_num;
 	u16 tx_cmd_len;
-	u16 tx_ant_num;
+	u8  tx_chains_num;
+	u8  rx_chains_num;
+	u8  valid_tx_ant;
+	u8  valid_rx_ant;
 	u16 max_rxq_size;
+	u16 max_rxq_log;
 	u32 rx_buf_size;
 	u32 max_pkt_size;
-	u16 max_rxq_log;
 	u8  max_stations;
 	u8  bcast_sta_id;
-	void *shared_virt;
-	dma_addr_t shared_phys;
 };
 
 #define HT_SHORT_GI_20MHZ_ONLY          (1 << 0)
@@ -641,7 +641,6 @@ extern unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
 					const u8 *dest, int left);
 extern int iwl4965_rx_queue_update_write_ptr(struct iwl_priv *priv,
 					 struct iwl4965_rx_queue *q);
-extern int iwl4965_send_statistics_request(struct iwl_priv *priv);
 extern void iwl4965_set_decrypted_flag(struct iwl_priv *priv, struct sk_buff *skb,
 				   u32 decrypt_res,
 				   struct ieee80211_rx_status *stats);
@@ -679,7 +678,7 @@ extern void iwl4965_hw_rx_handler_setup(struct iwl_priv *priv);
 extern void iwl4965_hw_setup_deferred_work(struct iwl_priv *priv);
 extern void iwl4965_hw_cancel_deferred_work(struct iwl_priv *priv);
 extern int iwl4965_hw_rxq_stop(struct iwl_priv *priv);
-extern int iwl4965_hw_set_hw_setting(struct iwl_priv *priv);
+extern int iwl4965_hw_set_hw_params(struct iwl_priv *priv);
 extern int iwl4965_hw_nic_init(struct iwl_priv *priv);
 extern int iwl4965_hw_nic_stop_master(struct iwl_priv *priv);
 extern void iwl4965_hw_txq_ctx_free(struct iwl_priv *priv);
@@ -942,6 +941,8 @@ enum {
 
 #endif
 
+#define IWL_MAX_NUM_QUEUES	20 /* FIXME: do dynamic allocation */
+
 struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
@@ -1033,7 +1034,7 @@ struct iwl_priv {
 	 * 4965's initialize alive response contains some calibration data. */
 	struct iwl4965_init_alive_resp card_alive_init;
 	struct iwl4965_alive_resp card_alive;
-#ifdef CONFIG_IWLCORE_RFKILL
+#ifdef CONFIG_IWLWIFI_RFKILL
 	struct iwl_rfkill_mngr rfkill_mngr;
 #endif
 
@@ -1112,6 +1113,10 @@ struct iwl_priv {
 	spinlock_t sta_lock;
 	int num_stations;
 	struct iwl4965_station_entry stations[IWL_STATION_COUNT];
+	struct iwl_wep_key wep_keys[WEP_KEYS_MAX];
+	u8 default_wep_key;
+	u8 key_mapping_key;
+	unsigned long ucode_key_table;
 
 	/* Indication if ieee80211_ops->open has been called */
 	u8 is_open;
@@ -1142,8 +1147,13 @@ struct iwl_priv {
 	/* Last Rx'd beacon timestamp */
 	u64 timestamp;
 	u16 beacon_int;
-	struct iwl4965_driver_hw_info hw_setting;
 	struct ieee80211_vif *vif;
+
+	struct iwl_hw_params hw_params;
+	/* driver/uCode shared Tx Byte Counts and Rx status */
+	void *shared_virt;
+	/* Physical Pointer to Tx Byte Counts and Rx status */
+	dma_addr_t shared_phys;
 
 	/* Current association information needed to configure the
 	 * hardware */
@@ -1200,7 +1210,6 @@ struct iwl_priv {
 #ifdef CONFIG_IWL4965_SENSITIVITY
 	struct work_struct sensitivity_work;
 #endif
-	struct work_struct statistics_work;
 	struct timer_list statistics_periodic;
 }; /*iwl_priv */
 

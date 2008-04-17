@@ -177,8 +177,6 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 #define MRVDRV_CMD_UPLD_RDY		0x0008
 #define MRVDRV_CARDEVENT		0x0010
 
-#define SBI_EVENT_CAUSE_SHIFT		3
-
 /** TxPD status */
 
 /*	Station firmware use TxPD status field to report final Tx transmit

@@ -433,11 +433,9 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 
 	if (delayed_flags & DELAYED_UPDATE_BEACON) {
 		skb = ieee80211_beacon_get(rt2x00dev->hw, vif, &control);
-		if (skb) {
-			rt2x00dev->ops->hw->beacon_update(rt2x00dev->hw, skb,
-							  &control);
+		if (skb && rt2x00dev->ops->hw->beacon_update(rt2x00dev->hw,
+							     skb, &control))
 			dev_kfree_skb(skb);
-		}
 	}
 
 	if (delayed_flags & DELAYED_CONFIG_ERP)

@@ -82,6 +82,9 @@ struct iwl_cmd;
 #define IWL_SKU_A       0x2
 #define IWL_SKU_N       0x8
 
+struct iwl_hcmd_ops {
+	int (*rxon_assoc)(struct iwl_priv *priv);
+};
 struct iwl_hcmd_utils_ops {
 	int (*enqueue_hcmd)(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 };
@@ -89,19 +92,35 @@ struct iwl_hcmd_utils_ops {
 struct iwl_lib_ops {
 	/* iwlwifi driver (priv) init */
 	int (*init_drv)(struct iwl_priv *priv);
+	/* set hw dependant perameters */
+	int (*set_hw_params)(struct iwl_priv *priv);
+
+	void (*txq_update_byte_cnt_tbl)(struct iwl_priv *priv,
+					struct iwl4965_tx_queue *txq,
+					u16 byte_cnt);
+	/* nic init */
+	int (*hw_nic_init)(struct iwl_priv *priv);
+	/* alive notification */
+	int (*alive_notify)(struct iwl_priv *priv);
+	/* check validity of rtc data address */
+	int (*is_valid_rtc_data_addr)(u32 addr);
+	/* 1st ucode load */
+	int (*load_ucode)(struct iwl_priv *priv);
+	/* rfkill */
+	void (*radio_kill_sw)(struct iwl_priv *priv, int disable_radio);
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
-	void (*radio_kill_sw)(struct iwl_priv *priv, int disable_radio);
 };
 
 struct iwl_ops {
 	const struct iwl_lib_ops *lib;
+	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
 };
 
 struct iwl_mod_params {
 	int disable;		/* def: 0 = enable radio */
-	int hw_crypto;		/* def: 0 = using software encryption */
+	int sw_crypto;		/* def: 0 = using hardware encryption */
 	int debug;		/* def: 0 = minimal debug log messages */
 	int disable_hw_scan;	/* def: 0 = use h/w scan */
 	int num_of_queues;	/* def: HW dependent */
@@ -215,4 +234,13 @@ enum iwlcore_card_notify {
 
 int iwlcore_low_level_notify(struct iwl_priv *priv,
 			     enum iwlcore_card_notify notify);
+extern int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags);
+int iwl_send_lq_cmd(struct iwl_priv *priv,
+		    struct iwl_link_quality_cmd *lq, u8 flags);
+
+static inline int iwl_send_rxon_assoc(struct iwl_priv *priv)
+{
+	return priv->cfg->ops->hcmd->rxon_assoc(priv);
+}
+
 #endif /* __iwl_core_h__ */

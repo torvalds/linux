@@ -19,7 +19,7 @@ struct cmd_ds_command;
 
 void lbs_set_mac_control(struct lbs_private *priv);
 
-void lbs_send_tx_feedback(struct lbs_private *priv);
+void lbs_send_tx_feedback(struct lbs_private *priv, u32 try_count);
 
 int lbs_free_cmd_buffer(struct lbs_private *priv);
 
@@ -30,14 +30,16 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 int lbs_allocate_cmd_buffer(struct lbs_private *priv);
 int lbs_execute_next_command(struct lbs_private *priv);
-int lbs_process_event(struct lbs_private *priv);
-void lbs_interrupt(struct lbs_private *priv);
+int lbs_process_event(struct lbs_private *priv, u32 event);
+void lbs_queue_event(struct lbs_private *priv, u32 event);
+void lbs_notify_command_response(struct lbs_private *priv, u8 resp_idx);
+
 int lbs_set_radio_control(struct lbs_private *priv);
 u32 lbs_fw_index_to_data_rate(u8 index);
 u8 lbs_data_rate_to_fw_index(u32 rate);
 
 /** The proc fs interface */
-int lbs_process_rx_command(struct lbs_private *priv);
+int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len);
 void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
 			  int result);
 int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
