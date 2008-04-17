@@ -129,8 +129,10 @@ static int __devinit ipath_init_one(struct pci_dev *,
 
 /* Only needed for registration, nothing else needs this info */
 #define PCI_VENDOR_ID_PATHSCALE 0x1fc1
+#define PCI_VENDOR_ID_QLOGIC 0x1077
 #define PCI_DEVICE_ID_INFINIPATH_HT 0xd
 #define PCI_DEVICE_ID_INFINIPATH_PE800 0x10
+#define PCI_DEVICE_ID_INFINIPATH_7220 0x7220
 
 /* Number of seconds before our card status check...  */
 #define STATUS_TIMEOUT 60
@@ -138,6 +140,7 @@ static int __devinit ipath_init_one(struct pci_dev *,
 static const struct pci_device_id ipath_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_PATHSCALE, PCI_DEVICE_ID_INFINIPATH_HT) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_PATHSCALE, PCI_DEVICE_ID_INFINIPATH_PE800) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_INFINIPATH_7220) },
 	{ 0, }
 };
 
@@ -532,6 +535,13 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 			      "CONFIG_PCI_MSI is not enabled\n", ent->device);
 		return -ENODEV;
 #endif
+	case PCI_DEVICE_ID_INFINIPATH_7220:
+#ifndef CONFIG_PCI_MSI
+		ipath_dbg("CONFIG_PCI_MSI is not enabled, "
+			  "using IntX for unit %u\n", dd->ipath_unit);
+#endif
+		ipath_init_iba7220_funcs(dd);
+		break;
 	default:
 		ipath_dev_err(dd, "Found unknown QLogic deviceid 0x%x, "
 			      "failing\n", ent->device);
@@ -887,13 +897,47 @@ int ipath_wait_linkstate(struct ipath_devdata *dd, u32 state, int msecs)
 	return (dd->ipath_flags & state) ? 0 : -ETIMEDOUT;
 }
 
+static void decode_sdma_errs(struct ipath_devdata *dd, ipath_err_t err,
+	char *buf, size_t blen)
+{
+	static const struct {
+		ipath_err_t err;
+		const char *msg;
+	} errs[] = {
+		{ INFINIPATH_E_SDMAGENMISMATCH, "SDmaGenMismatch" },
+		{ INFINIPATH_E_SDMAOUTOFBOUND, "SDmaOutOfBound" },
+		{ INFINIPATH_E_SDMATAILOUTOFBOUND, "SDmaTailOutOfBound" },
+		{ INFINIPATH_E_SDMABASE, "SDmaBase" },
+		{ INFINIPATH_E_SDMA1STDESC, "SDma1stDesc" },
+		{ INFINIPATH_E_SDMARPYTAG, "SDmaRpyTag" },
+		{ INFINIPATH_E_SDMADWEN, "SDmaDwEn" },
+		{ INFINIPATH_E_SDMAMISSINGDW, "SDmaMissingDw" },
+		{ INFINIPATH_E_SDMAUNEXPDATA, "SDmaUnexpData" },
+		{ INFINIPATH_E_SDMADESCADDRMISALIGN, "SDmaDescAddrMisalign" },
+		{ INFINIPATH_E_SENDBUFMISUSE, "SendBufMisuse" },
+		{ INFINIPATH_E_SDMADISABLED, "SDmaDisabled" },
+	};
+	int i;
+	int expected;
+	size_t bidx = 0;
+
+	for (i = 0; i < ARRAY_SIZE(errs); i++) {
+		expected = (errs[i].err != INFINIPATH_E_SDMADISABLED) ? 0 :
+			test_bit(IPATH_SDMA_ABORTING, &dd->ipath_sdma_status);
+		if ((err & errs[i].err) && !expected)
+			bidx += snprintf(buf + bidx, blen - bidx,
+					 "%s ", errs[i].msg);
+	}
+}
+
 /*
  * Decode the error status into strings, deciding whether to always
  * print * it or not depending on "normal packet errors" vs everything
  * else.   Return 1 if "real" errors, otherwise 0 if only packet
  * errors, so caller can decide what to print with the string.
  */
-int ipath_decode_err(char *buf, size_t blen, ipath_err_t err)
+int ipath_decode_err(struct ipath_devdata *dd, char *buf, size_t blen,
+	ipath_err_t err)
 {
 	int iserr = 1;
 	*buf = '\0';
@@ -975,6 +1019,8 @@ int ipath_decode_err(char *buf, size_t blen, ipath_err_t err)
 		strlcat(buf, "hardware ", blen);
 	if (err & INFINIPATH_E_RESET)
 		strlcat(buf, "reset ", blen);
+	if (err & INFINIPATH_E_SDMAERRS)
+		decode_sdma_errs(dd, err, buf, blen);
 	if (err & INFINIPATH_E_INVALIDEEPCMD)
 		strlcat(buf, "invalideepromcmd ", blen);
 done:
@@ -1730,30 +1776,80 @@ bail:
  */
 void ipath_cancel_sends(struct ipath_devdata *dd, int restore_sendctrl)
 {
+	unsigned long flags;
+
 	if (dd->ipath_flags & IPATH_IB_AUTONEG_INPROG) {
 		ipath_cdbg(VERBOSE, "Ignore while in autonegotiation\n");
 		goto bail;
 	}
+	/*
+	 * If we have SDMA, and it's not disabled, we have to kick off the
+	 * abort state machine, provided we aren't already aborting.
+	 * If we are in the process of aborting SDMA (!DISABLED, but ABORTING),
+	 * we skip the rest of this routine. It is already "in progress"
+	 */
+	if (dd->ipath_flags & IPATH_HAS_SEND_DMA) {
+		int skip_cancel;
+		u64 *statp = &dd->ipath_sdma_status;
+
+		spin_lock_irqsave(&dd->ipath_sdma_lock, flags);
+		skip_cancel =
+			!test_bit(IPATH_SDMA_DISABLED, statp) &&
+			test_and_set_bit(IPATH_SDMA_ABORTING, statp);
+		spin_unlock_irqrestore(&dd->ipath_sdma_lock, flags);
+		if (skip_cancel)
+			goto bail;
+	}
+
 	ipath_dbg("Cancelling all in-progress send buffers\n");
 
 	/* skip armlaunch errs for a while */
 	dd->ipath_lastcancel = jiffies + HZ / 2;
 
 	/*
-	 * the abort bit is auto-clearing.  We read scratch to be sure
-	 * that cancels and the abort have taken effect in the chip.
+	 * The abort bit is auto-clearing.  We also don't want pioavail
+	 * update happening during this, and we don't want any other
+	 * sends going out, so turn those off for the duration.  We read
+	 * the scratch register to be sure that cancels and the abort
+	 * have taken effect in the chip.  Otherwise two parts are same
+	 * as ipath_force_pio_avail_update()
 	 */
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+	dd->ipath_sendctrl &= ~(INFINIPATH_S_PIOBUFAVAILUPD
+		| INFINIPATH_S_PIOENABLE);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-		INFINIPATH_S_ABORT);
+		dd->ipath_sendctrl | INFINIPATH_S_ABORT);
 	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
-	ipath_disarm_piobufs(dd, 0,
-		(unsigned)(dd->ipath_piobcnt2k + dd->ipath_piobcnt4k));
-	if (restore_sendctrl) /* else done by caller later */
-		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-				 dd->ipath_sendctrl);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 
-	/* and again, be sure all have hit the chip */
-	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	/* disarm all send buffers */
+	ipath_disarm_piobufs(dd, 0,
+		dd->ipath_piobcnt2k + dd->ipath_piobcnt4k);
+
+	if (restore_sendctrl) {
+		/* else done by caller later if needed */
+		spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+		dd->ipath_sendctrl |= INFINIPATH_S_PIOBUFAVAILUPD |
+			INFINIPATH_S_PIOENABLE;
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
+			dd->ipath_sendctrl);
+		/* and again, be sure all have hit the chip */
+		ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+		spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
+	}
+
+	if ((dd->ipath_flags & IPATH_HAS_SEND_DMA) &&
+	    !test_bit(IPATH_SDMA_DISABLED, &dd->ipath_sdma_status) &&
+	    test_bit(IPATH_SDMA_RUNNING, &dd->ipath_sdma_status)) {
+		spin_lock_irqsave(&dd->ipath_sdma_lock, flags);
+		/* only wait so long for intr */
+		dd->ipath_sdma_abort_intr_timeout = jiffies + HZ;
+		dd->ipath_sdma_reset_wait = 200;
+		__set_bit(IPATH_SDMA_DISARMED, &dd->ipath_sdma_status);
+		if (!test_bit(IPATH_SDMA_SHUTDOWN, &dd->ipath_sdma_status))
+			tasklet_hi_schedule(&dd->ipath_sdma_abort_task);
+		spin_unlock_irqrestore(&dd->ipath_sdma_lock, flags);
+	}
 bail:;
 }
 
@@ -1952,7 +2048,7 @@ bail:
  * sanity checking on this, and we don't deal with what happens to
  * programs that are already running when the size changes.
  * NOTE: changing the MTU will usually cause the IBC to go back to
- * link initialize (IPATH_IBSTATE_INIT) state...
+ * link INIT state...
  */
 int ipath_set_mtu(struct ipath_devdata *dd, u16 arg)
 {
@@ -2092,9 +2188,8 @@ static void ipath_run_led_override(unsigned long opaque)
 	 * but leave that to per-chip functions.
 	 */
 	val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_ibcstatus);
-	ltstate = (val >> INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT) &
-		  dd->ibcs_lts_mask;
-	lstate = (val >> dd->ibcs_ls_shift) & INFINIPATH_IBCS_LINKSTATE_MASK;
+	ltstate = ipath_ib_linktrstate(dd, val);
+	lstate = ipath_ib_linkstate(dd, val);
 
 	dd->ipath_f_setextled(dd, lstate, ltstate);
 	mod_timer(&dd->ipath_led_override_timer, jiffies + timeoff);
@@ -2170,6 +2265,9 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
 			 dd->ipath_rcvctrl);
 
+	if (dd->ipath_flags & IPATH_HAS_SEND_DMA)
+		teardown_sdma(dd);
+
 	/*
 	 * gracefully stop all sends allowing any in progress to trickle out
 	 * first.
@@ -2187,9 +2285,16 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 	 */
 	udelay(5);
 
+	dd->ipath_f_setextled(dd, 0, 0); /* make sure LEDs are off */
+
 	ipath_set_ib_lstate(dd, 0, INFINIPATH_IBCC_LINKINITCMD_DISABLE);
 	ipath_cancel_sends(dd, 0);
 
+	/*
+	 * we are shutting down, so tell components that care.  We don't do
+	 * this on just a link state change, much like ethernet, a cable
+	 * unplug, etc. doesn't change driver state
+	 */
 	signal_ib_event(dd, IB_EVENT_PORT_ERR);
 
 	/* disable IBC */
@@ -2213,6 +2318,10 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 	if (dd->ipath_intrchk_timer.data) {
 		del_timer_sync(&dd->ipath_intrchk_timer);
 		dd->ipath_intrchk_timer.data = 0;
+	}
+	if (atomic_read(&dd->ipath_led_override_timer_active)) {
+		del_timer_sync(&dd->ipath_led_override_timer);
+		atomic_set(&dd->ipath_led_override_timer_active, 0);
 	}
 
 	/*
@@ -2408,13 +2517,18 @@ int ipath_reset_device(int unit)
 			}
 		}
 
+	if (dd->ipath_flags & IPATH_HAS_SEND_DMA)
+		teardown_sdma(dd);
+
 	dd->ipath_flags &= ~IPATH_INITTED;
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_intmask, 0ULL);
 	ret = dd->ipath_f_reset(dd);
-	if (ret != 1)
-		ipath_dbg("reset was not successful\n");
-	ipath_dbg("Trying to reinitialize unit %u after reset attempt\n",
-		  unit);
-	ret = ipath_init_chip(dd, 1);
+	if (ret == 1) {
+		ipath_dbg("Reinitializing unit %u after reset attempt\n",
+			  unit);
+		ret = ipath_init_chip(dd, 1);
+	} else
+		ret = -EAGAIN;
 	if (ret)
 		ipath_dev_err(dd, "Reinitialize unit %u after "
 			      "reset failed with %d\n", unit, ret);

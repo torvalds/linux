@@ -871,7 +871,8 @@ struct sk_buff *ipath_alloc_skb(struct ipath_devdata *dd, gfp_t);
 extern int ipath_diag_inuse;
 
 irqreturn_t ipath_intr(int irq, void *devid);
-int ipath_decode_err(char *buf, size_t blen, ipath_err_t err);
+int ipath_decode_err(struct ipath_devdata *dd, char *buf, size_t blen,
+		     ipath_err_t err);
 #if __IPATH_INFO || __IPATH_DBG
 extern const char *ipath_ibcstatus_str[];
 #endif
@@ -1026,6 +1027,7 @@ void ipath_set_led_override(struct ipath_devdata *dd, unsigned int val);
 /* send dma routines */
 int setup_sdma(struct ipath_devdata *);
 void teardown_sdma(struct ipath_devdata *);
+void ipath_restart_sdma(struct ipath_devdata *);
 void ipath_sdma_intr(struct ipath_devdata *);
 int ipath_sdma_verbs_send(struct ipath_devdata *, struct ipath_sge_state *,
 			  u32, struct ipath_verbs_txreq *);

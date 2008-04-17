@@ -36,21 +36,28 @@
 #include <linux/cdev.h>
 #include <linux/swap.h>
 #include <linux/vmalloc.h>
+#include <linux/highmem.h>
+#include <linux/io.h>
+#include <linux/jiffies.h>
 #include <asm/pgtable.h>
 
 #include "ipath_kernel.h"
 #include "ipath_common.h"
+#include "ipath_user_sdma.h"
 
 static int ipath_open(struct inode *, struct file *);
 static int ipath_close(struct inode *, struct file *);
 static ssize_t ipath_write(struct file *, const char __user *, size_t,
 			   loff_t *);
+static ssize_t ipath_writev(struct kiocb *, const struct iovec *,
+			    unsigned long , loff_t);
 static unsigned int ipath_poll(struct file *, struct poll_table_struct *);
 static int ipath_mmap(struct file *, struct vm_area_struct *);
 
 static const struct file_operations ipath_file_ops = {
 	.owner = THIS_MODULE,
 	.write = ipath_write,
+	.aio_write = ipath_writev,
 	.open = ipath_open,
 	.release = ipath_close,
 	.poll = ipath_poll,
@@ -1870,10 +1877,9 @@ static int ipath_assign_port(struct file *fp,
 	if (ipath_compatible_subports(swmajor, swminor) &&
 	    uinfo->spu_subport_cnt &&
 	    (ret = find_shared_port(fp, uinfo))) {
-		mutex_unlock(&ipath_mutex);
 		if (ret > 0)
 			ret = 0;
-		goto done;
+		goto done_chk_sdma;
 	}
 
 	i_minor = iminor(fp->f_path.dentry->d_inode) - IPATH_USER_MINOR_BASE;
@@ -1884,6 +1890,21 @@ static int ipath_assign_port(struct file *fp,
 		ret = find_free_port(i_minor - 1, fp, uinfo);
 	else
 		ret = find_best_unit(fp, uinfo);
+
+done_chk_sdma:
+	if (!ret) {
+		struct ipath_filedata *fd = fp->private_data;
+		const struct ipath_portdata *pd = fd->pd;
+		const struct ipath_devdata *dd = pd->port_dd;
+
+		fd->pq = ipath_user_sdma_queue_create(&dd->pcidev->dev,
+						      dd->ipath_unit,
+						      pd->port_port,
+						      fd->subport);
+
+		if (!fd->pq)
+			ret = -ENOMEM;
+	}
 
 	mutex_unlock(&ipath_mutex);
 
@@ -2042,6 +2063,13 @@ static int ipath_close(struct inode *in, struct file *fp)
 		mutex_unlock(&ipath_mutex);
 		goto bail;
 	}
+
+	dd = pd->port_dd;
+
+	/* drain user sdma queue */
+	ipath_user_sdma_queue_drain(dd, fd->pq);
+	ipath_user_sdma_queue_destroy(fd->pq);
+
 	if (--pd->port_cnt) {
 		/*
 		 * XXX If the master closes the port before the slave(s),
@@ -2054,7 +2082,6 @@ static int ipath_close(struct inode *in, struct file *fp)
 		goto bail;
 	}
 	port = pd->port_port;
-	dd = pd->port_dd;
 
 	if (pd->port_hdrqfull) {
 		ipath_cdbg(PROC, "%s[%u] had %u rcvhdrqfull errors "
@@ -2176,6 +2203,35 @@ static int ipath_get_slave_info(struct ipath_portdata *pd,
 	return ret;
 }
 
+static int ipath_sdma_get_inflight(struct ipath_user_sdma_queue *pq,
+				   u32 __user *inflightp)
+{
+	const u32 val = ipath_user_sdma_inflight_counter(pq);
+
+	if (put_user(val, inflightp))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int ipath_sdma_get_complete(struct ipath_devdata *dd,
+				   struct ipath_user_sdma_queue *pq,
+				   u32 __user *completep)
+{
+	u32 val;
+	int err;
+
+	err = ipath_user_sdma_make_progress(dd, pq);
+	if (err < 0)
+		return err;
+
+	val = ipath_user_sdma_complete_counter(pq);
+	if (put_user(val, completep))
+		return -EFAULT;
+
+	return 0;
+}
+
 static ssize_t ipath_write(struct file *fp, const char __user *data,
 			   size_t count, loff_t *off)
 {
@@ -2249,6 +2305,16 @@ static ssize_t ipath_write(struct file *fp, const char __user *data,
 		copy = sizeof(cmd.cmd.armlaunch_ctrl);
 		dest = &cmd.cmd.armlaunch_ctrl;
 		src = &ucmd->cmd.armlaunch_ctrl;
+		break;
+	case IPATH_CMD_SDMA_INFLIGHT:
+		copy = sizeof(cmd.cmd.sdma_inflight);
+		dest = &cmd.cmd.sdma_inflight;
+		src = &ucmd->cmd.sdma_inflight;
+		break;
+	case IPATH_CMD_SDMA_COMPLETE:
+		copy = sizeof(cmd.cmd.sdma_complete);
+		dest = &cmd.cmd.sdma_complete;
+		src = &ucmd->cmd.sdma_complete;
 		break;
 	default:
 		ret = -EINVAL;
@@ -2331,6 +2397,17 @@ static ssize_t ipath_write(struct file *fp, const char __user *data,
 		else
 			ipath_disable_armlaunch(pd->port_dd);
 		break;
+	case IPATH_CMD_SDMA_INFLIGHT:
+		ret = ipath_sdma_get_inflight(user_sdma_queue_fp(fp),
+					      (u32 __user *) (unsigned long)
+					      cmd.cmd.sdma_inflight);
+		break;
+	case IPATH_CMD_SDMA_COMPLETE:
+		ret = ipath_sdma_get_complete(pd->port_dd,
+					      user_sdma_queue_fp(fp),
+					      (u32 __user *) (unsigned long)
+					      cmd.cmd.sdma_complete);
+		break;
 	}
 
 	if (ret >= 0)
@@ -2338,6 +2415,20 @@ static ssize_t ipath_write(struct file *fp, const char __user *data,
 
 bail:
 	return ret;
+}
+
+static ssize_t ipath_writev(struct kiocb *iocb, const struct iovec *iov,
+			    unsigned long dim, loff_t off)
+{
+	struct file *filp = iocb->ki_filp;
+	struct ipath_filedata *fp = filp->private_data;
+	struct ipath_portdata *pd = port_fp(filp);
+	struct ipath_user_sdma_queue *pq = fp->pq;
+
+	if (!dim)
+		return -EINVAL;
+
+	return ipath_user_sdma_writev(pd->port_dd, pq, iov, dim);
 }
 
 static struct class *ipath_class;

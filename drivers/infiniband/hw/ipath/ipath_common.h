@@ -447,8 +447,9 @@ struct ipath_user_info {
 #define IPATH_CMD_PIOAVAILUPD	27	/* force an update of PIOAvail reg */
 #define IPATH_CMD_POLL_TYPE	28	/* set the kind of polling we want */
 #define IPATH_CMD_ARMLAUNCH_CTRL	29 /* armlaunch detection control */
-
-#define IPATH_CMD_MAX		29
+/* 30 is unused */
+#define IPATH_CMD_SDMA_INFLIGHT 31	/* sdma inflight counter request */
+#define IPATH_CMD_SDMA_COMPLETE 32	/* sdma completion counter request */
 
 /*
  * Poll types
@@ -486,6 +487,17 @@ struct ipath_cmd {
 	union {
 		struct ipath_tid_info tid_info;
 		struct ipath_user_info user_info;
+
+		/*
+		 * address in userspace where we should put the sdma
+		 * inflight counter
+		 */
+		__u64 sdma_inflight;
+		/*
+		 * address in userspace where we should put the sdma
+		 * completion counter
+		 */
+		__u64 sdma_complete;
 		/* address in userspace of struct ipath_port_info to
 		   write result to */
 		__u64 port_info;

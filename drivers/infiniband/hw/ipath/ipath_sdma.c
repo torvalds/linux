@@ -230,7 +230,6 @@ static void dump_sdma_state(struct ipath_devdata *dd)
 static void sdma_abort_task(unsigned long opaque)
 {
 	struct ipath_devdata *dd = (struct ipath_devdata *) opaque;
-	int kick = 0;
 	u64 status;
 	unsigned long flags;
 
@@ -308,30 +307,26 @@ static void sdma_abort_task(unsigned long opaque)
 		/* done with sdma state for a bit */
 		spin_unlock_irqrestore(&dd->ipath_sdma_lock, flags);
 
-		/* restart sdma engine */
+		/*
+		 * Don't restart sdma here. Wait until link is up to ACTIVE.
+		 * VL15 MADs used to bring the link up use PIO, and multiple
+		 * link transitions otherwise cause the sdma engine to be
+		 * stopped and started multiple times.
+		 * The disable is done here, including the shadow, so the
+		 * state is kept consistent.
+		 * See ipath_restart_sdma() for the actual starting of sdma.
+		 */
 		spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
 		dd->ipath_sendctrl &= ~INFINIPATH_S_SDMAENABLE;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 				 dd->ipath_sendctrl);
 		ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
-		dd->ipath_sendctrl |= INFINIPATH_S_SDMAENABLE;
-		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-				 dd->ipath_sendctrl);
-		ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 		spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
-		kick = 1;
-		ipath_dbg("sdma restarted from abort\n");
-
-		/* now clear status bits */
-		spin_lock_irqsave(&dd->ipath_sdma_lock, flags);
-		__clear_bit(IPATH_SDMA_ABORTING, &dd->ipath_sdma_status);
-		__clear_bit(IPATH_SDMA_DISARMED, &dd->ipath_sdma_status);
-		__clear_bit(IPATH_SDMA_DISABLED, &dd->ipath_sdma_status);
 
 		/* make sure I see next message */
 		dd->ipath_sdma_abort_jiffies = 0;
 
-		goto unlock;
+		goto done;
 	}
 
 resched:
@@ -353,10 +348,8 @@ resched_noprint:
 
 unlock:
 	spin_unlock_irqrestore(&dd->ipath_sdma_lock, flags);
-
-	/* kick upper layers */
-	if (kick)
-		ipath_ib_piobufavail(dd->verbs_dev);
+done:
+	return;
 }
 
 /*
@@ -481,10 +474,14 @@ int setup_sdma(struct ipath_devdata *dd)
 	tasklet_init(&dd->ipath_sdma_abort_task, sdma_abort_task,
 		     (unsigned long) dd);
 
-	/* Turn on SDMA */
+	/*
+	 * No use to turn on SDMA here, as link is probably not ACTIVE
+	 * Just mark it RUNNING and enable the interrupt, and let the
+	 * ipath_restart_sdma() on link transition to ACTIVE actually
+	 * enable it.
+	 */
 	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
-	dd->ipath_sendctrl |= INFINIPATH_S_SDMAENABLE |
-		INFINIPATH_S_SDMAINTENABLE;
+	dd->ipath_sendctrl |= INFINIPATH_S_SDMAINTENABLE;
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
 	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 	__set_bit(IPATH_SDMA_RUNNING, &dd->ipath_sdma_status);
@@ -570,6 +567,56 @@ void teardown_sdma(struct ipath_devdata *dd)
 	if (sdma_descq)
 		dma_free_coherent(&dd->pcidev->dev, SDMA_DESCQ_SZ,
 				  sdma_descq, sdma_descq_phys);
+}
+
+/*
+ * [Re]start SDMA, if we use it, and it's not already OK.
+ * This is called on transition to link ACTIVE, either the first or
+ * subsequent times.
+ */
+void ipath_restart_sdma(struct ipath_devdata *dd)
+{
+	unsigned long flags;
+	int needed = 1;
+
+	if (!(dd->ipath_flags & IPATH_HAS_SEND_DMA))
+		goto bail;
+
+	/*
+	 * First, make sure we should, which is to say,
+	 * check that we are "RUNNING" (not in teardown)
+	 * and not "SHUTDOWN"
+	 */
+	spin_lock_irqsave(&dd->ipath_sdma_lock, flags);
+	if (!test_bit(IPATH_SDMA_RUNNING, &dd->ipath_sdma_status)
+		|| test_bit(IPATH_SDMA_SHUTDOWN, &dd->ipath_sdma_status))
+			needed = 0;
+	else {
+		__clear_bit(IPATH_SDMA_DISABLED, &dd->ipath_sdma_status);
+		__clear_bit(IPATH_SDMA_DISARMED, &dd->ipath_sdma_status);
+		__clear_bit(IPATH_SDMA_ABORTING, &dd->ipath_sdma_status);
+	}
+	spin_unlock_irqrestore(&dd->ipath_sdma_lock, flags);
+	if (!needed) {
+		ipath_dbg("invalid attempt to restart SDMA, status 0x%016llx\n",
+			dd->ipath_sdma_status);
+		goto bail;
+	}
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+	/*
+	 * First clear, just to be safe. Enable is only done
+	 * in chip on 0->1 transition
+	 */
+	dd->ipath_sendctrl &= ~INFINIPATH_S_SDMAENABLE;
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	dd->ipath_sendctrl |= INFINIPATH_S_SDMAENABLE;
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
+
+bail:
+	return;
 }
 
 static inline void make_sdma_desc(struct ipath_devdata *dd,

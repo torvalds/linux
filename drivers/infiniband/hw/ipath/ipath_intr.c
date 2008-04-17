@@ -433,6 +433,8 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 			dd->ipath_flags &= ~(IPATH_LINKUNK | IPATH_LINKINIT
 				| IPATH_LINKDOWN | IPATH_LINKARMED |
 				IPATH_NOCABLE);
+			if (dd->ipath_flags & IPATH_HAS_SEND_DMA)
+				ipath_restart_sdma(dd);
 			signal_ib_event(dd, IB_EVENT_PORT_ACTIVE);
 			/* LED active not handled in chip _f_updown */
 			dd->ipath_f_setextled(dd, lstate, ltstate);
@@ -480,7 +482,7 @@ done:
 }
 
 static void handle_supp_msgs(struct ipath_devdata *dd,
-			     unsigned supp_msgs, char *msg, int msgsz)
+			     unsigned supp_msgs, char *msg, u32 msgsz)
 {
 	/*
 	 * Print the message unless it's ibc status change only, which
@@ -488,12 +490,19 @@ static void handle_supp_msgs(struct ipath_devdata *dd,
 	 */
 	if (dd->ipath_lasterror & ~INFINIPATH_E_IBSTATUSCHANGED) {
 		int iserr;
-		iserr = ipath_decode_err(msg, msgsz,
+		ipath_err_t mask;
+		iserr = ipath_decode_err(dd, msg, msgsz,
 					 dd->ipath_lasterror &
 					 ~INFINIPATH_E_IBSTATUSCHANGED);
-		if (dd->ipath_lasterror &
-			~(INFINIPATH_E_RRCVEGRFULL |
-			INFINIPATH_E_RRCVHDRFULL | INFINIPATH_E_PKTERRS))
+
+		mask = INFINIPATH_E_RRCVEGRFULL | INFINIPATH_E_RRCVHDRFULL |
+			INFINIPATH_E_PKTERRS | INFINIPATH_E_SDMADISABLED;
+
+		/* if we're in debug, then don't mask SDMADISABLED msgs */
+		if (ipath_debug & __IPATH_DBG)
+			mask &= ~INFINIPATH_E_SDMADISABLED;
+
+		if (dd->ipath_lasterror & ~mask)
 			ipath_dev_err(dd, "Suppressed %u messages for "
 				      "fast-repeating errors (%s) (%llx)\n",
 				      supp_msgs, msg,
@@ -520,7 +529,7 @@ static void handle_supp_msgs(struct ipath_devdata *dd,
 
 static unsigned handle_frequent_errors(struct ipath_devdata *dd,
 				       ipath_err_t errs, char *msg,
-				       int msgsz, int *noprint)
+				       u32 msgsz, int *noprint)
 {
 	unsigned long nc;
 	static unsigned long nextmsg_time;
@@ -550,19 +559,125 @@ static unsigned handle_frequent_errors(struct ipath_devdata *dd,
 	return supp_msgs;
 }
 
+static void handle_sdma_errors(struct ipath_devdata *dd, ipath_err_t errs)
+{
+	unsigned long flags;
+	int expected;
+
+	if (ipath_debug & __IPATH_DBG) {
+		char msg[128];
+		ipath_decode_err(dd, msg, sizeof msg, errs &
+			INFINIPATH_E_SDMAERRS);
+		ipath_dbg("errors %lx (%s)\n", (unsigned long)errs, msg);
+	}
+	if (ipath_debug & __IPATH_VERBDBG) {
+		unsigned long tl, hd, status, lengen;
+		tl = ipath_read_kreg64(dd, dd->ipath_kregs->kr_senddmatail);
+		hd = ipath_read_kreg64(dd, dd->ipath_kregs->kr_senddmahead);
+		status = ipath_read_kreg64(dd
+			, dd->ipath_kregs->kr_senddmastatus);
+		lengen = ipath_read_kreg64(dd,
+			dd->ipath_kregs->kr_senddmalengen);
+		ipath_cdbg(VERBOSE, "sdma tl 0x%lx hd 0x%lx status 0x%lx "
+			"lengen 0x%lx\n", tl, hd, status, lengen);
+	}
+
+	spin_lock_irqsave(&dd->ipath_sdma_lock, flags);
+	__set_bit(IPATH_SDMA_DISABLED, &dd->ipath_sdma_status);
+	expected = test_bit(IPATH_SDMA_ABORTING, &dd->ipath_sdma_status);
+	spin_unlock_irqrestore(&dd->ipath_sdma_lock, flags);
+	if (!expected)
+		ipath_cancel_sends(dd, 1);
+}
+
+static void handle_sdma_intr(struct ipath_devdata *dd, u64 istat)
+{
+	unsigned long flags;
+	int expected;
+
+	if ((istat & INFINIPATH_I_SDMAINT) &&
+	    !test_bit(IPATH_SDMA_SHUTDOWN, &dd->ipath_sdma_status))
+		ipath_sdma_intr(dd);
+
+	if (istat & INFINIPATH_I_SDMADISABLED) {
+		expected = test_bit(IPATH_SDMA_ABORTING,
+			&dd->ipath_sdma_status);
+		ipath_dbg("%s SDmaDisabled intr\n",
+			expected ? "expected" : "unexpected");
+		spin_lock_irqsave(&dd->ipath_sdma_lock, flags);
+		__set_bit(IPATH_SDMA_DISABLED, &dd->ipath_sdma_status);
+		spin_unlock_irqrestore(&dd->ipath_sdma_lock, flags);
+		if (!expected)
+			ipath_cancel_sends(dd, 1);
+		if (!test_bit(IPATH_SDMA_SHUTDOWN, &dd->ipath_sdma_status))
+			tasklet_hi_schedule(&dd->ipath_sdma_abort_task);
+	}
+}
+
+static int handle_hdrq_full(struct ipath_devdata *dd)
+{
+	int chkerrpkts = 0;
+	u32 hd, tl;
+	u32 i;
+
+	ipath_stats.sps_hdrqfull++;
+	for (i = 0; i < dd->ipath_cfgports; i++) {
+		struct ipath_portdata *pd = dd->ipath_pd[i];
+
+		if (i == 0) {
+			/*
+			 * For kernel receive queues, we just want to know
+			 * if there are packets in the queue that we can
+			 * process.
+			 */
+			if (pd->port_head != ipath_get_hdrqtail(pd))
+				chkerrpkts |= 1 << i;
+			continue;
+		}
+
+		/* Skip if user context is not open */
+		if (!pd || !pd->port_cnt)
+			continue;
+
+		/* Don't report the same point multiple times. */
+		if (dd->ipath_flags & IPATH_NODMA_RTAIL)
+			tl = ipath_read_ureg32(dd, ur_rcvhdrtail, i);
+		else
+			tl = ipath_get_rcvhdrtail(pd);
+		if (tl == pd->port_lastrcvhdrqtail)
+			continue;
+
+		hd = ipath_read_ureg32(dd, ur_rcvhdrhead, i);
+		if (hd == (tl + 1) || (!hd && tl == dd->ipath_hdrqlast)) {
+			pd->port_lastrcvhdrqtail = tl;
+			pd->port_hdrqfull++;
+			/* flush hdrqfull so that poll() sees it */
+			wmb();
+			wake_up_interruptible(&pd->port_wait);
+		}
+	}
+
+	return chkerrpkts;
+}
+
 static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 {
 	char msg[128];
 	u64 ignore_this_time = 0;
-	int i, iserr = 0;
+	u64 iserr = 0;
 	int chkerrpkts = 0, noprint = 0;
 	unsigned supp_msgs;
 	int log_idx;
 
-	supp_msgs = handle_frequent_errors(dd, errs, msg, sizeof msg, &noprint);
+	/*
+	 * don't report errors that are masked, either at init
+	 * (not set in ipath_errormask), or temporarily (set in
+	 * ipath_maskederrs)
+	 */
+	errs &= dd->ipath_errormask & ~dd->ipath_maskederrs;
 
-	/* don't report errors that are masked */
-	errs &= ~dd->ipath_maskederrs;
+	supp_msgs = handle_frequent_errors(dd, errs, msg, (u32)sizeof msg,
+		&noprint);
 
 	/* do these first, they are most important */
 	if (errs & INFINIPATH_E_HARDWARE) {
@@ -576,6 +691,9 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 				ipath_inc_eeprom_err(dd, log_idx, 1);
 		}
 	}
+
+	if (errs & INFINIPATH_E_SDMAERRS)
+		handle_sdma_errors(dd, errs);
 
 	if (!noprint && (errs & ~dd->ipath_e_bitsextant))
 		ipath_dev_err(dd, "error interrupt with unknown errors "
@@ -611,7 +729,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		dd->ipath_errormask &= ~dd->ipath_maskederrs;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
 				 dd->ipath_errormask);
-		s_iserr = ipath_decode_err(msg, sizeof msg,
+		s_iserr = ipath_decode_err(dd, msg, sizeof msg,
 					   dd->ipath_maskederrs);
 
 		if (dd->ipath_maskederrs &
@@ -661,26 +779,43 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 			  INFINIPATH_E_IBSTATUSCHANGED);
 	}
 
-	/* likely due to cancel, so suppress */
+	if (errs & INFINIPATH_E_SENDSPECIALTRIGGER) {
+		dd->ipath_spectriggerhit++;
+		ipath_dbg("%lu special trigger hits\n",
+			dd->ipath_spectriggerhit);
+	}
+
+	/* likely due to cancel; so suppress message unless verbose */
 	if ((errs & (INFINIPATH_E_SPKTLEN | INFINIPATH_E_SPIOARMLAUNCH)) &&
 		dd->ipath_lastcancel > jiffies) {
-		ipath_dbg("Suppressed armlaunch/spktlen after error send cancel\n");
+		/* armlaunch takes precedence; it often causes both. */
+		ipath_cdbg(VERBOSE,
+			"Suppressed %s error (%llx) after sendbuf cancel\n",
+			(errs &  INFINIPATH_E_SPIOARMLAUNCH) ?
+			"armlaunch" : "sendpktlen", (unsigned long long)errs);
 		errs &= ~(INFINIPATH_E_SPIOARMLAUNCH | INFINIPATH_E_SPKTLEN);
 	}
 
 	if (!errs)
 		return 0;
 
-	if (!noprint)
+	if (!noprint) {
+		ipath_err_t mask;
 		/*
-		 * the ones we mask off are handled specially below or above
+		 * The ones we mask off are handled specially below
+		 * or above.  Also mask SDMADISABLED by default as it
+		 * is too chatty.
 		 */
-		ipath_decode_err(msg, sizeof msg,
-				 errs & ~(INFINIPATH_E_IBSTATUSCHANGED |
-					  INFINIPATH_E_RRCVEGRFULL |
-					  INFINIPATH_E_RRCVHDRFULL |
-					  INFINIPATH_E_HARDWARE));
-	else
+		mask = INFINIPATH_E_IBSTATUSCHANGED |
+			INFINIPATH_E_RRCVEGRFULL | INFINIPATH_E_RRCVHDRFULL |
+			INFINIPATH_E_HARDWARE | INFINIPATH_E_SDMADISABLED;
+
+		/* if we're in debug, then don't mask SDMADISABLED msgs */
+		if (ipath_debug & __IPATH_DBG)
+			mask &= ~INFINIPATH_E_SDMADISABLED;
+
+		ipath_decode_err(dd, msg, sizeof msg, errs & ~mask);
+	} else
 		/* so we don't need if (!noprint) at strlcat's below */
 		*msg = 0;
 
@@ -705,39 +840,8 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 	 * fast_stats, no more than every 5 seconds, user ports get printed
 	 * on close
 	 */
-	if (errs & INFINIPATH_E_RRCVHDRFULL) {
-		u32 hd, tl;
-		ipath_stats.sps_hdrqfull++;
-		for (i = 0; i < dd->ipath_cfgports; i++) {
-			struct ipath_portdata *pd = dd->ipath_pd[i];
-			if (i == 0) {
-				hd = pd->port_head;
-				tl = ipath_get_hdrqtail(pd);
-			} else if (pd && pd->port_cnt &&
-				   pd->port_rcvhdrtail_kvaddr) {
-				/*
-				 * don't report same point multiple times,
-				 * except kernel
-				 */
-				tl = *(u64 *) pd->port_rcvhdrtail_kvaddr;
-				if (tl == pd->port_lastrcvhdrqtail)
-					continue;
-				hd = ipath_read_ureg32(dd, ur_rcvhdrhead,
-						       i);
-			} else
-				continue;
-			if (hd == (tl + 1) ||
-			    (!hd && tl == dd->ipath_hdrqlast)) {
-				if (i == 0)
-					chkerrpkts = 1;
-				pd->port_lastrcvhdrqtail = tl;
-				pd->port_hdrqfull++;
-				/* flush hdrqfull so that poll() sees it */
-				wmb();
-				wake_up_interruptible(&pd->port_wait);
-			}
-		}
-	}
+	if (errs & INFINIPATH_E_RRCVHDRFULL)
+		chkerrpkts |= handle_hdrq_full(dd);
 	if (errs & INFINIPATH_E_RRCVEGRFULL) {
 		struct ipath_portdata *pd = dd->ipath_pd[0];
 
@@ -749,7 +853,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		 */
 		ipath_stats.sps_etidfull++;
 		if (pd->port_head != ipath_get_hdrqtail(pd))
-			chkerrpkts = 1;
+			chkerrpkts |= 1;
 	}
 
 	/*
@@ -788,9 +892,6 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 	if (!noprint && *msg) {
 		if (iserr)
 			ipath_dev_err(dd, "%s error\n", msg);
-		else
-			dev_info(&dd->pcidev->dev, "%s packet problems\n",
-				msg);
 	}
 	if (dd->ipath_state_wanted & dd->ipath_flags) {
 		ipath_cdbg(VERBOSE, "driver wanted state %x, iflags now %x, "
@@ -1017,7 +1118,7 @@ static void handle_urcv(struct ipath_devdata *dd, u64 istat)
 irqreturn_t ipath_intr(int irq, void *data)
 {
 	struct ipath_devdata *dd = data;
-	u32 istat, chk0rcv = 0;
+	u64 istat, chk0rcv = 0;
 	ipath_err_t estat = 0;
 	irqreturn_t ret;
 	static unsigned unexpected = 0;
@@ -1070,17 +1171,17 @@ irqreturn_t ipath_intr(int irq, void *data)
 
 	if (unlikely(istat & ~dd->ipath_i_bitsextant))
 		ipath_dev_err(dd,
-			      "interrupt with unknown interrupts %x set\n",
-			      istat & (u32) ~ dd->ipath_i_bitsextant);
-	else
-		ipath_cdbg(VERBOSE, "intr stat=0x%x\n", istat);
+			      "interrupt with unknown interrupts %Lx set\n",
+			      istat & ~dd->ipath_i_bitsextant);
+	else if (istat & ~INFINIPATH_I_ERROR) /* errors do own printing */
+		ipath_cdbg(VERBOSE, "intr stat=0x%Lx\n", istat);
 
-	if (unlikely(istat & INFINIPATH_I_ERROR)) {
+	if (istat & INFINIPATH_I_ERROR) {
 		ipath_stats.sps_errints++;
 		estat = ipath_read_kreg64(dd,
 					  dd->ipath_kregs->kr_errorstatus);
 		if (!estat)
-			dev_info(&dd->pcidev->dev, "error interrupt (%x), "
+			dev_info(&dd->pcidev->dev, "error interrupt (%Lx), "
 				 "but no error bits set!\n", istat);
 		else if (estat == -1LL)
 			/*
@@ -1198,6 +1299,9 @@ irqreturn_t ipath_intr(int irq, void *data)
 		     (dd->ipath_i_rcvurg_mask << dd->ipath_i_rcvurg_shift)))
 		handle_urcv(dd, istat);
 
+	if (istat & (INFINIPATH_I_SDMAINT | INFINIPATH_I_SDMADISABLED))
+		handle_sdma_intr(dd, istat);
+
 	if (istat & INFINIPATH_I_SPIOBUFAVAIL) {
 		unsigned long flags;
 
@@ -1208,7 +1312,10 @@ irqreturn_t ipath_intr(int irq, void *data)
 		ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 		spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 
-		handle_layer_pioavail(dd);
+		if (!(dd->ipath_flags & IPATH_HAS_SEND_DMA))
+			handle_layer_pioavail(dd);
+		else
+			ipath_dbg("unexpected BUFAVAIL intr\n");
 	}
 
 	ret = IRQ_HANDLED;

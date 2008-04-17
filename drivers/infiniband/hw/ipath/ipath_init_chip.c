@@ -980,6 +980,10 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 		dd->ipath_stats_timer_active = 1;
 	}
 
+	/* Set up SendDMA if chip supports it */
+	if (dd->ipath_flags & IPATH_HAS_SEND_DMA)
+		ret = setup_sdma(dd);
+
 	/* Set up HoL state */
 	init_timer(&dd->ipath_hol_timer);
 	dd->ipath_hol_timer.function = ipath_hol_event;

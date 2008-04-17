@@ -340,6 +340,7 @@ static void ipath_reset_qp(struct ipath_qp *qp, enum ib_qp_type type)
 	qp->s_flags &= IPATH_S_SIGNAL_REQ_WR;
 	qp->s_hdrwords = 0;
 	qp->s_wqe = NULL;
+	qp->s_pkt_delay = 0;
 	qp->s_psn = 0;
 	qp->r_psn = 0;
 	qp->r_msn = 0;
@@ -563,8 +564,10 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (attr_mask & IB_QP_ACCESS_FLAGS)
 		qp->qp_access_flags = attr->qp_access_flags;
 
-	if (attr_mask & IB_QP_AV)
+	if (attr_mask & IB_QP_AV) {
 		qp->remote_ah_attr = attr->ah_attr;
+		qp->s_dmult = ipath_ib_rate_to_mult(attr->ah_attr.static_rate);
+	}
 
 	if (attr_mask & IB_QP_PATH_MTU)
 		qp->path_mtu = attr->path_mtu;
@@ -850,6 +853,7 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 			goto bail_qp;
 		}
 		qp->ip = NULL;
+		qp->s_tx = NULL;
 		ipath_reset_qp(qp, init_attr->qp_type);
 		break;
 
@@ -955,12 +959,20 @@ int ipath_destroy_qp(struct ib_qp *ibqp)
 	/* Stop the sending tasklet. */
 	tasklet_kill(&qp->s_task);
 
+	if (qp->s_tx) {
+		atomic_dec(&qp->refcount);
+		if (qp->s_tx->txreq.flags & IPATH_SDMA_TXREQ_F_FREEBUF)
+			kfree(qp->s_tx->txreq.map_addr);
+	}
+
 	/* Make sure the QP isn't on the timeout list. */
 	spin_lock_irqsave(&dev->pending_lock, flags);
 	if (!list_empty(&qp->timerwait))
 		list_del_init(&qp->timerwait);
 	if (!list_empty(&qp->piowait))
 		list_del_init(&qp->piowait);
+	if (qp->s_tx)
+		list_add(&qp->s_tx->txreq.list, &dev->txreq_free);
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
 
 	/*

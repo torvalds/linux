@@ -303,6 +303,7 @@ int ipath_make_ud_req(struct ipath_qp *qp)
 	qp->s_hdrwords = 7;
 	qp->s_cur_size = wqe->length;
 	qp->s_cur_sge = &qp->s_sge;
+	qp->s_dmult = ah_attr->static_rate;
 	qp->s_wqe = wqe;
 	qp->s_sge.sge = wqe->sg_list[0];
 	qp->s_sge.sg_list = wqe->sg_list + 1;
