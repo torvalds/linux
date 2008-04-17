@@ -1134,52 +1134,12 @@ static int tcp_v4_inbound_md5_hash(struct sock *sk, struct sk_buff *skb)
 	struct tcp_md5sig_key *hash_expected;
 	const struct iphdr *iph = ip_hdr(skb);
 	struct tcphdr *th = tcp_hdr(skb);
-	int length = (th->doff << 2) - sizeof(struct tcphdr);
 	int genhash;
-	unsigned char *ptr;
 	unsigned char newhash[16];
 
 	hash_expected = tcp_v4_md5_do_lookup(sk, iph->saddr);
+	hash_location = tcp_parse_md5sig_option(th);
 
-	/*
-	 * If the TCP option length is less than the TCP_MD5SIG
-	 * option length, then we can shortcut
-	 */
-	if (length < TCPOLEN_MD5SIG) {
-		if (hash_expected)
-			return 1;
-		else
-			return 0;
-	}
-
-	/* Okay, we can't shortcut - we have to grub through the options */
-	ptr = (unsigned char *)(th + 1);
-	while (length > 0) {
-		int opcode = *ptr++;
-		int opsize;
-
-		switch (opcode) {
-		case TCPOPT_EOL:
-			goto done_opts;
-		case TCPOPT_NOP:
-			length--;
-			continue;
-		default:
-			opsize = *ptr++;
-			if (opsize < 2)
-				goto done_opts;
-			if (opsize > length)
-				goto done_opts;
-
-			if (opcode == TCPOPT_MD5SIG) {
-				hash_location = ptr;
-				goto done_opts;
-			}
-		}
-		ptr += opsize-2;
-		length -= opsize;
-	}
-done_opts:
 	/* We've parsed the options - do we have a hash? */
 	if (!hash_expected && !hash_location)
 		return 0;

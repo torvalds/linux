@@ -399,6 +399,8 @@ extern void			tcp_parse_options(struct sk_buff *skb,
 						  struct tcp_options_received *opt_rx,
 						  int estab);
 
+extern u8			*tcp_parse_md5sig_option(struct tcphdr *th);
+
 /*
  *	TCP v4 functions exported for the inet6 API
  */
