@@ -42,6 +42,8 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/mutex.h>
+#include <linux/list.h>
+#include <linux/scatterlist.h>
 #include <asm/io.h>
 #include <rdma/ib_verbs.h>
 
@@ -180,6 +182,8 @@ struct ipath_portdata {
 };
 
 struct sk_buff;
+struct ipath_sge_state;
+struct ipath_verbs_txreq;
 
 /*
  * control information for layered drivers
@@ -192,6 +196,37 @@ struct ipath_skbinfo {
 	struct sk_buff *skb;
 	dma_addr_t phys;
 };
+
+struct ipath_sdma_txreq {
+	int                 flags;
+	int                 sg_count;
+	union {
+		struct scatterlist *sg;
+		void *map_addr;
+	};
+	void              (*callback)(void *, int);
+	void               *callback_cookie;
+	int                 callback_status;
+	u16                 start_idx;  /* sdma private */
+	u16                 next_descq_idx;  /* sdma private */
+	struct list_head    list;       /* sdma private */
+};
+
+struct ipath_sdma_desc {
+	__le64 qw[2];
+};
+
+#define IPATH_SDMA_TXREQ_F_USELARGEBUF  0x1
+#define IPATH_SDMA_TXREQ_F_HEADTOHOST   0x2
+#define IPATH_SDMA_TXREQ_F_INTREQ       0x4
+#define IPATH_SDMA_TXREQ_F_FREEBUF      0x8
+#define IPATH_SDMA_TXREQ_F_FREEDESC     0x10
+#define IPATH_SDMA_TXREQ_F_VL15         0x20
+
+#define IPATH_SDMA_TXREQ_S_OK        0
+#define IPATH_SDMA_TXREQ_S_SENDERROR 1
+#define IPATH_SDMA_TXREQ_S_ABORTED   2
+#define IPATH_SDMA_TXREQ_S_SHUTDOWN  3
 
 /* max dwords in small buffer packet */
 #define IPATH_SMALLBUF_DWORDS (dd->ipath_piosize2k >> 2)
@@ -385,6 +420,15 @@ struct ipath_devdata {
 	u32 ipath_pcibar0;
 	/* so we can rewrite it after a chip reset */
 	u32 ipath_pcibar1;
+	u32 ipath_x1_fix_tries;
+	u32 ipath_autoneg_tries;
+	u32 serdes_first_init_done;
+
+	struct ipath_relock {
+		atomic_t ipath_relock_timer_active;
+		struct timer_list ipath_relock_timer;
+		unsigned int ipath_relock_interval; /* in jiffies */
+	} ipath_relock_singleton;
 
 	/* interrupt number */
 	int ipath_irq;
@@ -431,7 +475,37 @@ struct ipath_devdata {
 	void *ipath_dummy_hdrq;	/* used after port close */
 	dma_addr_t ipath_dummy_hdrq_phys;
 
+	/* SendDMA related entries */
+	spinlock_t            ipath_sdma_lock;
+	u64                   ipath_sdma_status;
+	unsigned long         ipath_sdma_abort_jiffies;
+	unsigned long         ipath_sdma_abort_intr_timeout;
+	unsigned long         ipath_sdma_buf_jiffies;
+	struct ipath_sdma_desc *ipath_sdma_descq;
+	u64		      ipath_sdma_descq_added;
+	u64		      ipath_sdma_descq_removed;
+	int		      ipath_sdma_desc_nreserved;
+	u16                   ipath_sdma_descq_cnt;
+	u16                   ipath_sdma_descq_tail;
+	u16                   ipath_sdma_descq_head;
+	u16                   ipath_sdma_next_intr;
+	u16                   ipath_sdma_reset_wait;
+	u8                    ipath_sdma_generation;
+	struct tasklet_struct ipath_sdma_abort_task;
+	struct tasklet_struct ipath_sdma_notify_task;
+	struct list_head      ipath_sdma_activelist;
+	struct list_head      ipath_sdma_notifylist;
+	atomic_t              ipath_sdma_vl15_count;
+	struct timer_list     ipath_sdma_vl15_timer;
+
+	dma_addr_t       ipath_sdma_descq_phys;
+	volatile __le64 *ipath_sdma_head_dma;
+	dma_addr_t       ipath_sdma_head_phys;
+
 	unsigned long ipath_ureg_align; /* user register alignment */
+
+	struct delayed_work ipath_autoneg_work;
+	wait_queue_head_t ipath_autoneg_wait;
 
 	/* HoL blocking / user app forward-progress state */
 	unsigned          ipath_hol_state;
@@ -485,6 +559,8 @@ struct ipath_devdata {
 	u64 ipath_intconfig;
 	/* kr_sendpiobufbase value */
 	u64 ipath_piobufbase;
+	/* kr_ibcddrctrl shadow */
+	u64 ipath_ibcddrctrl;
 
 	/* these are the "32 bit" regs */
 
@@ -501,7 +577,10 @@ struct ipath_devdata {
 	unsigned long ipath_rcvctrl;
 	/* shadow kr_sendctrl */
 	unsigned long ipath_sendctrl;
-	unsigned long ipath_lastcancel; /* to not count armlaunch after cancel */
+	/* to not count armlaunch after cancel */
+	unsigned long ipath_lastcancel;
+	/* count cases where special trigger was needed (double write) */
+	unsigned long ipath_spectriggerhit;
 
 	/* value we put in kr_rcvhdrcnt */
 	u32 ipath_rcvhdrcnt;
@@ -523,6 +602,7 @@ struct ipath_devdata {
 	u32 ipath_piobcnt4k;
 	/* size in bytes of "4KB" PIO buffers */
 	u32 ipath_piosize4k;
+	u32 ipath_pioreserved; /* reserved special-inkernel; */
 	/* kr_rcvegrbase value */
 	u32 ipath_rcvegrbase;
 	/* kr_rcvegrcnt value */
@@ -586,7 +666,7 @@ struct ipath_devdata {
 	 */
 	u8 ipath_serial[16];
 	/* human readable board version */
-	u8 ipath_boardversion[80];
+	u8 ipath_boardversion[96];
 	u8 ipath_lbus_info[32]; /* human readable localbus info */
 	/* chip major rev, from ipath_revision */
 	u8 ipath_majrev;
@@ -715,6 +795,13 @@ struct ipath_devdata {
 	/* interrupt mitigation reload register info */
 	u16 ipath_jint_idle_ticks;	/* idle clock ticks */
 	u16 ipath_jint_max_packets;	/* max packets across all ports */
+
+	/*
+	 * lock for access to SerDes, and flags to sequence preset
+	 * versus steady-state. 7220-only at the moment.
+	 */
+	spinlock_t ipath_sdepb_lock;
+	u8 ipath_presets_needed; /* Set if presets to be restored next DOWN */
 };
 
 /* ipath_hol_state values (stopping/starting user proc, send flushing) */
@@ -724,11 +811,35 @@ struct ipath_devdata {
 #define IPATH_HOL_DOWNSTOP 0
 #define IPATH_HOL_DOWNCONT 1
 
+/* bit positions for sdma_status */
+#define IPATH_SDMA_ABORTING  0
+#define IPATH_SDMA_DISARMED  1
+#define IPATH_SDMA_DISABLED  2
+#define IPATH_SDMA_LAYERBUF  3
+#define IPATH_SDMA_RUNNING  62
+#define IPATH_SDMA_SHUTDOWN 63
+
+/* bit combinations that correspond to abort states */
+#define IPATH_SDMA_ABORT_NONE 0
+#define IPATH_SDMA_ABORT_ABORTING (1UL << IPATH_SDMA_ABORTING)
+#define IPATH_SDMA_ABORT_DISARMED ((1UL << IPATH_SDMA_ABORTING) | \
+	(1UL << IPATH_SDMA_DISARMED))
+#define IPATH_SDMA_ABORT_DISABLED ((1UL << IPATH_SDMA_ABORTING) | \
+	(1UL << IPATH_SDMA_DISABLED))
+#define IPATH_SDMA_ABORT_ABORTED ((1UL << IPATH_SDMA_ABORTING) | \
+	(1UL << IPATH_SDMA_DISARMED) | (1UL << IPATH_SDMA_DISABLED))
+#define IPATH_SDMA_ABORT_MASK ((1UL<<IPATH_SDMA_ABORTING) | \
+	(1UL << IPATH_SDMA_DISARMED) | (1UL << IPATH_SDMA_DISABLED))
+
+#define IPATH_SDMA_BUF_NONE 0
+#define IPATH_SDMA_BUF_MASK (1UL<<IPATH_SDMA_LAYERBUF)
+
 /* Private data for file operations */
 struct ipath_filedata {
 	struct ipath_portdata *pd;
 	unsigned subport;
 	unsigned tidcursor;
+	struct ipath_user_sdma_queue *pq;
 };
 extern struct list_head ipath_dev_list;
 extern spinlock_t ipath_devs_lock;
@@ -796,6 +907,10 @@ void ipath_disable_armlaunch(struct ipath_devdata *);
 void ipath_hol_down(struct ipath_devdata *);
 void ipath_hol_up(struct ipath_devdata *);
 void ipath_hol_event(unsigned long);
+void ipath_toggle_rclkrls(struct ipath_devdata *);
+void ipath_sd7220_clr_ibpar(struct ipath_devdata *);
+void ipath_set_relock_poll(struct ipath_devdata *, int);
+void ipath_shutdown_relock_poll(struct ipath_devdata *);
 
 /* for use in system calls, where we want to know device type, etc. */
 #define port_fp(fp) ((struct ipath_filedata *)(fp)->private_data)->pd
@@ -803,6 +918,8 @@ void ipath_hol_event(unsigned long);
 	((struct ipath_filedata *)(fp)->private_data)->subport
 #define tidcursor_fp(fp) \
 	((struct ipath_filedata *)(fp)->private_data)->tidcursor
+#define user_sdma_queue_fp(fp) \
+	((struct ipath_filedata *)(fp)->private_data)->pq
 
 /*
  * values for ipath_flags
@@ -852,9 +969,16 @@ void ipath_hol_event(unsigned long);
 		/* Use GPIO interrupts for new counters */
 #define IPATH_GPIO_ERRINTRS 0x100000
 #define IPATH_SWAP_PIOBUFS  0x200000
+		/* Supports Send DMA */
+#define IPATH_HAS_SEND_DMA  0x400000
+		/* Supports Send Count (not just word count) in PBC */
+#define IPATH_HAS_PBC_CNT   0x800000
 		/* Suppress heartbeat, even if turning off loopback */
 #define IPATH_NO_HRTBT      0x1000000
+#define IPATH_HAS_THRESH_UPDATE 0x4000000
 #define IPATH_HAS_MULT_IB_SPEED 0x8000000
+#define IPATH_IB_AUTONEG_INPROG 0x10000000
+#define IPATH_IB_AUTONEG_FAILED 0x20000000
 		/* Linkdown-disable intentionally, Do not attempt to bring up */
 #define IPATH_IB_LINK_DISABLED 0x40000000
 #define IPATH_IB_FORCE_NOTIFY 0x80000000 /* force notify on next ib change */
@@ -879,6 +1003,7 @@ void ipath_free_data(struct ipath_portdata *dd);
 u32 __iomem *ipath_getpiobuf(struct ipath_devdata *, u32, u32 *);
 void ipath_chg_pioavailkernel(struct ipath_devdata *dd, unsigned start,
 				unsigned len, int avail);
+void ipath_init_iba7220_funcs(struct ipath_devdata *);
 void ipath_init_iba6120_funcs(struct ipath_devdata *);
 void ipath_init_iba6110_funcs(struct ipath_devdata *);
 void ipath_get_eeprom_info(struct ipath_devdata *);
@@ -896,6 +1021,33 @@ void signal_ib_event(struct ipath_devdata *dd, enum ib_event_type ev);
 #define IPATH_LED_PHYS 1 /* Physical (linktraining) GREEN LED */
 #define IPATH_LED_LOG 2  /* Logical (link) YELLOW LED */
 void ipath_set_led_override(struct ipath_devdata *dd, unsigned int val);
+
+/* send dma routines */
+int setup_sdma(struct ipath_devdata *);
+void teardown_sdma(struct ipath_devdata *);
+void ipath_sdma_intr(struct ipath_devdata *);
+int ipath_sdma_verbs_send(struct ipath_devdata *, struct ipath_sge_state *,
+			  u32, struct ipath_verbs_txreq *);
+/* ipath_sdma_lock should be locked before calling this. */
+int ipath_sdma_make_progress(struct ipath_devdata *dd);
+
+/* must be called under ipath_sdma_lock */
+static inline u16 ipath_sdma_descq_freecnt(const struct ipath_devdata *dd)
+{
+	return dd->ipath_sdma_descq_cnt -
+		(dd->ipath_sdma_descq_added - dd->ipath_sdma_descq_removed) -
+		1 - dd->ipath_sdma_desc_nreserved;
+}
+
+static inline void ipath_sdma_desc_reserve(struct ipath_devdata *dd, u16 cnt)
+{
+	dd->ipath_sdma_desc_nreserved += cnt;
+}
+
+static inline void ipath_sdma_desc_unreserve(struct ipath_devdata *dd, u16 cnt)
+{
+	dd->ipath_sdma_desc_nreserved -= cnt;
+}
 
 /*
  * number of words used for protocol header if not set by ipath_userinit();
@@ -925,8 +1077,7 @@ void ipath_write_kreg_port(const struct ipath_devdata *, ipath_kreg,
 
 /*
  * At the moment, none of the s-registers are writable, so no
- * ipath_write_sreg(), and none of the c-registers are writable, so no
- * ipath_write_creg().
+ * ipath_write_sreg().
  */
 
 /**
@@ -1123,6 +1274,7 @@ int ipathfs_remove_device(struct ipath_devdata *);
 dma_addr_t ipath_map_page(struct pci_dev *, struct page *, unsigned long,
 			  size_t, int);
 dma_addr_t ipath_map_single(struct pci_dev *, void *, size_t, int);
+const char *ipath_get_unit_name(int unit);
 
 /*
  * Flush write combining store buffers (if present) and perform a write
@@ -1137,11 +1289,6 @@ dma_addr_t ipath_map_single(struct pci_dev *, void *, size_t, int);
 extern unsigned ipath_debug; /* debugging bit mask */
 extern unsigned ipath_linkrecovery;
 extern unsigned ipath_mtu4096;
-
-#define IPATH_MAX_PARITY_ATTEMPTS 10000 /* max times to try recovery */
-
-const char *ipath_get_unit_name(int unit);
-
 extern struct mutex ipath_mutex;
 
 #define IPATH_DRV_NAME		"ib_ipath"

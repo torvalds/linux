@@ -201,6 +201,7 @@ typedef enum _ipath_ureg {
 #define IPATH_RUNTIME_RCVHDR_COPY	0x8
 #define IPATH_RUNTIME_MASTER	0x10
 #define IPATH_RUNTIME_NODMA_RTAIL 0x80
+#define IPATH_RUNTIME_SDMA	      0x200
 #define IPATH_RUNTIME_FORCE_PIOAVAIL 0x400
 #define IPATH_RUNTIME_PIO_REGSWAPPED 0x800
 
@@ -539,7 +540,7 @@ struct ipath_diag_pkt {
 
 /* The second diag_pkt struct is the expanded version that allows
  * more control over the packet, specifically, by allowing a custom
- * pbc (+ extra) qword, so that special modes and deliberate
+ * pbc (+ static rate) qword, so that special modes and deliberate
  * changes to CRCs can be used. The elements were also re-ordered
  * for better alignment and to avoid padding issues.
  */
