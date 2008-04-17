@@ -838,7 +838,7 @@ xfs_alloc_ag_vextent_near(
 			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
 			xfs_alloc_compute_aligned(ltbno, ltlen, args->alignment,
 					args->minlen, &ltbnoa, &ltlena);
-			if (ltlena >= args->minlen)
+			if (ltlena < args->minlen)
 				continue;
 			args->len = XFS_EXTLEN_MIN(ltlena, args->maxlen);
 			xfs_alloc_fix_len(args);
