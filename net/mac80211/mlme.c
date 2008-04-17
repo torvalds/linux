@@ -1093,8 +1093,8 @@ static void ieee80211_send_addba_resp(struct net_device *dev, u8 *da, u16 tid,
 	struct ieee80211_mgmt *mgmt;
 	u16 capab;
 
-	skb = dev_alloc_skb(sizeof(*mgmt) + local->hw.extra_tx_headroom + 1 +
-					sizeof(mgmt->u.action.u.addba_resp));
+	skb = dev_alloc_skb(sizeof(*mgmt) + local->hw.extra_tx_headroom);
+
 	if (!skb) {
 		printk(KERN_DEBUG "%s: failed to allocate buffer "
 		       "for addba resp frame\n", dev->name);
@@ -1142,9 +1142,7 @@ void ieee80211_send_addba_request(struct net_device *dev, const u8 *da,
 	struct ieee80211_mgmt *mgmt;
 	u16 capab;
 
-	skb = dev_alloc_skb(sizeof(*mgmt) + local->hw.extra_tx_headroom + 1 +
-				sizeof(mgmt->u.action.u.addba_req));
-
+	skb = dev_alloc_skb(sizeof(*mgmt) + local->hw.extra_tx_headroom);
 
 	if (!skb) {
 		printk(KERN_ERR "%s: failed to allocate buffer "
@@ -1406,8 +1404,7 @@ void ieee80211_send_delba(struct net_device *dev, const u8 *da, u16 tid,
 	struct ieee80211_mgmt *mgmt;
 	u16 params;
 
-	skb = dev_alloc_skb(sizeof(*mgmt) + local->hw.extra_tx_headroom + 1 +
-					sizeof(mgmt->u.action.u.delba));
+	skb = dev_alloc_skb(sizeof(*mgmt) + local->hw.extra_tx_headroom);
 
 	if (!skb) {
 		printk(KERN_ERR "%s: failed to allocate buffer "
