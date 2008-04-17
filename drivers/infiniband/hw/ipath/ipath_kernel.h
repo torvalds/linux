@@ -811,7 +811,7 @@ void ipath_hol_event(unsigned long);
  */
 		/* chip can report link latency (IB 1.2) */
 #define IPATH_HAS_LINK_LATENCY 0x1
-/* The chip is up and initted */
+		/* The chip is up and initted */
 #define IPATH_INITTED       0x2
 		/* set if any user code has set kr_rcvhdrsize */
 #define IPATH_RCVHDRSZ_SET  0x4
@@ -1147,7 +1147,7 @@ extern struct mutex ipath_mutex;
 
 # define __IPATH_DBG_WHICH(which,fmt,...) \
 	do { \
-		if(unlikely(ipath_debug&(which))) \
+		if (unlikely(ipath_debug & (which))) \
 			printk(KERN_DEBUG IPATH_DRV_NAME ": %s: " fmt, \
 			       __func__,##__VA_ARGS__); \
 	} while(0)

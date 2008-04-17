@@ -645,7 +645,6 @@ done:
 	return ret;
 }
 
-
 /**
  * ipath_init_chip - do the actual initialization sequence on the chip
  * @dd: the infinipath device
@@ -754,7 +753,7 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 
 	dd->ipath_f_early_init(dd);
 	/*
-	 * cancel any possible active sends from early driver load.
+	 * Cancel any possible active sends from early driver load.
 	 * Follows early_init because some chips have to initialize
 	 * PIO buffers in early_init to avoid false parity errors.
 	 */
@@ -884,7 +883,7 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 			&dd->pcidev->dev, pd->port_rcvhdrq_size,
 			&dd->ipath_dummy_hdrq_phys,
 			gfp_flags);
-		if (!dd->ipath_dummy_hdrq ) {
+		if (!dd->ipath_dummy_hdrq) {
 			dev_info(&dd->pcidev->dev,
 				"Couldn't allocate 0x%lx bytes for dummy hdrq\n",
 				pd->port_rcvhdrq_size);
@@ -899,7 +898,7 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	 */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_intclear, 0ULL);
 
-	if(!dd->ipath_stats_timer_active) {
+	if (!dd->ipath_stats_timer_active) {
 		/*
 		 * first init, or after an admin disable/enable
 		 * set up stats retrieval timer, even if we had errors

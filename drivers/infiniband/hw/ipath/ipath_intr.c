@@ -590,18 +590,19 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		 * ones on this particular interrupt, which also isn't great
 		 */
 		dd->ipath_maskederrs |= dd->ipath_lasterror | errs;
+
 		dd->ipath_errormask &= ~dd->ipath_maskederrs;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
-			dd->ipath_errormask);
+				 dd->ipath_errormask);
 		s_iserr = ipath_decode_err(msg, sizeof msg,
-			dd->ipath_maskederrs);
+					   dd->ipath_maskederrs);
 
 		if (dd->ipath_maskederrs &
-			~(INFINIPATH_E_RRCVEGRFULL |
-			INFINIPATH_E_RRCVHDRFULL | INFINIPATH_E_PKTERRS))
+		    ~(INFINIPATH_E_RRCVEGRFULL |
+		      INFINIPATH_E_RRCVHDRFULL | INFINIPATH_E_PKTERRS))
 			ipath_dev_err(dd, "Temporarily disabling "
 			    "error(s) %llx reporting; too frequent (%s)\n",
-				(unsigned long long)dd->ipath_maskederrs,
+				(unsigned long long) dd->ipath_maskederrs,
 				msg);
 		else {
 			/*
@@ -785,7 +786,6 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 
 	return chkerrpkts;
 }
-
 
 /*
  * try to cleanup as much as possible for anything that might have gone
@@ -974,6 +974,7 @@ static void handle_urcv(struct ipath_devdata *dd, u32 istat)
 		   dd->ipath_i_rcvurg_mask);
 	for (i = 1; i < dd->ipath_cfgports; i++) {
 		struct ipath_portdata *pd = dd->ipath_pd[i];
+
 		if (portr & (1 << i) && pd && pd->port_cnt) {
 			if (test_and_clear_bit(IPATH_PORT_WAITING_RCV,
 					       &pd->port_flag)) {
@@ -1095,8 +1096,7 @@ irqreturn_t ipath_intr(int irq, void *data)
 
 		gpiostatus = ipath_read_kreg32(
 			dd, dd->ipath_kregs->kr_gpio_status);
-		/* First the error-counter case.
-		 */
+		/* First the error-counter case. */
 		if ((gpiostatus & IPATH_GPIO_ERRINTR_MASK) &&
 		    (dd->ipath_flags & IPATH_GPIO_ERRINTRS)) {
 			/* want to clear the bits we see asserted. */

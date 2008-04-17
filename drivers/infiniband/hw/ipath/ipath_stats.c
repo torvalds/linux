@@ -293,8 +293,8 @@ void ipath_get_faststats(unsigned long opaque)
 		iserr = ipath_decode_err(ebuf, sizeof ebuf,
 			dd->ipath_maskederrs);
 		if (dd->ipath_maskederrs &
-				~(INFINIPATH_E_RRCVEGRFULL | INFINIPATH_E_RRCVHDRFULL |
-				INFINIPATH_E_PKTERRS ))
+		    ~(INFINIPATH_E_RRCVEGRFULL | INFINIPATH_E_RRCVHDRFULL |
+		      INFINIPATH_E_PKTERRS))
 			ipath_dev_err(dd, "Re-enabling masked errors "
 				      "(%s)\n", ebuf);
 		else {
@@ -306,17 +306,18 @@ void ipath_get_faststats(unsigned long opaque)
 			 * level.
 			 */
 			if (iserr)
-					ipath_dbg("Re-enabling queue full errors (%s)\n",
-							ebuf);
+				ipath_dbg(
+					"Re-enabling queue full errors (%s)\n",
+					ebuf);
 			else
 				ipath_cdbg(ERRPKT, "Re-enabling packet"
-						" problem interrupt (%s)\n", ebuf);
+					" problem interrupt (%s)\n", ebuf);
 		}
 
 		/* re-enable masked errors */
 		dd->ipath_errormask |= dd->ipath_maskederrs;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
-			dd->ipath_errormask);
+				 dd->ipath_errormask);
 		dd->ipath_maskederrs = 0;
 	}
 

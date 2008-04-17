@@ -627,7 +627,8 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	goto bail;
 
 bail_irqsetup:
-	if (pdev->irq) free_irq(pdev->irq, dd);
+	if (pdev->irq)
+		free_irq(pdev->irq, dd);
 
 bail_iounmap:
 	iounmap((volatile void __iomem *) dd->ipath_kregbase);
@@ -1704,7 +1705,10 @@ bail:
 void ipath_cancel_sends(struct ipath_devdata *dd, int restore_sendctrl)
 {
 	ipath_dbg("Cancelling all in-progress send buffers\n");
-	dd->ipath_lastcancel = jiffies+HZ/2; /* skip armlaunch errs a bit */
+
+	/* skip armlaunch errs for a while */
+	dd->ipath_lastcancel = jiffies + HZ / 2;
+
 	/*
 	 * the abort bit is auto-clearing.  We read scratch to be sure
 	 * that cancels and the abort have taken effect in the chip.
@@ -2070,9 +2074,8 @@ void ipath_set_led_override(struct ipath_devdata *dd, unsigned int val)
 		dd->ipath_led_override_timer.data = (unsigned long) dd;
 		dd->ipath_led_override_timer.expires = jiffies + 1;
 		add_timer(&dd->ipath_led_override_timer);
-	} else {
+	} else
 		atomic_dec(&dd->ipath_led_override_timer_active);
-	}
 }
 
 /**
@@ -2220,12 +2223,12 @@ void ipath_free_pddata(struct ipath_devdata *dd, struct ipath_portdata *pd)
 			   "ipath_port0_skbinfo @ %p\n", pd->port_port,
 			   skbinfo);
 		for (e = 0; e < dd->ipath_rcvegrcnt; e++)
-		if (skbinfo[e].skb) {
-			pci_unmap_single(dd->pcidev, skbinfo[e].phys,
-					 dd->ipath_ibmaxlen,
-					 PCI_DMA_FROMDEVICE);
-			dev_kfree_skb(skbinfo[e].skb);
-		}
+			if (skbinfo[e].skb) {
+				pci_unmap_single(dd->pcidev, skbinfo[e].phys,
+						 dd->ipath_ibmaxlen,
+						 PCI_DMA_FROMDEVICE);
+				dev_kfree_skb(skbinfo[e].skb);
+			}
 		vfree(skbinfo);
 	}
 	kfree(pd->port_tid_pg_list);
@@ -2468,10 +2471,10 @@ void ipath_hol_event(unsigned long opaque)
 int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv)
 {
 	u64 val;
-	if ( new_pol_inv > INFINIPATH_XGXS_RX_POL_MASK ) {
+
+	if (new_pol_inv > INFINIPATH_XGXS_RX_POL_MASK)
 		return -1;
-	}
-	if ( dd->ipath_rx_pol_inv != new_pol_inv ) {
+	if (dd->ipath_rx_pol_inv != new_pol_inv) {
 		dd->ipath_rx_pol_inv = new_pol_inv;
 		val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_xgxsconfig);
 		val &= ~(INFINIPATH_XGXS_RX_POL_MASK <<
