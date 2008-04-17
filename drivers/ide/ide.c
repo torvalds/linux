@@ -211,10 +211,8 @@ static void __init init_ide_data (void)
 		ide_std_init_ports(&hw, io_addr, ctl_addr);
 		memcpy(hwif->io_ports, hw.io_ports, sizeof(hw.io_ports));
 		hwif->noprobe = !hwif->io_ports[IDE_DATA_OFFSET];
-#if !defined(CONFIG_PPC32) || defined(CONFIG_PPLUS) || !defined(CONFIG_PCI)
 		hwif->irq =
 			ide_init_default_irq(hwif->io_ports[IDE_DATA_OFFSET]);
-#endif
 #endif
 	}
 }
