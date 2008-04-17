@@ -184,13 +184,6 @@ provided it is mounted with the default block size of 1024 (as above).
 Please pass on any feedback on any of this stuff to the maintainer,
 whose address can be found in linux/MAINTAINERS.
 
-Note that if BOTH hd.c and ide.c are configured into the kernel,
-hd.c will normally be allowed to control the primary IDE interface.
-This is useful for older hardware that may be incompatible with ide.c,
-and still allows newer hardware to run on the 2nd/3rd/4th IDE ports
-under control of ide.c.   To have ide.c also "take over" the primary
-IDE port in this situation, use the "command line" parameter:  ide0=0x1f0
-
 The IDE driver is modularized.  The high level disk/CD-ROM/tape/floppy
 drivers can always be compiled as loadable modules, the chipset drivers
 can only be compiled into the kernel, and the core code (ide.c) can be
