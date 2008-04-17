@@ -292,13 +292,9 @@ static int recv_subn_get_portinfo(struct ib_smp *smp,
 	/* pip->vl_arb_high_cap; // only one VL */
 	/* pip->vl_arb_low_cap; // only one VL */
 	/* InitTypeReply = 0 */
-	/*
-	 * Note: the chips support a maximum MTU of 4096, but the driver
-	 * hasn't implemented this feature yet, so set the maximum value
-	 * to 2048.
-	 */
-	pip->inittypereply_mtucap = IB_MTU_2048;
-	// HCAs ignore VLStallCount and HOQLife
+	/* our mtu cap depends on whether 4K MTU enabled or not */
+	pip->inittypereply_mtucap = ipath_mtu4096 ? IB_MTU_4096 : IB_MTU_2048;
+	/* HCAs ignore VLStallCount and HOQLife */
 	/* pip->vlstallcnt_hoqlife; */
 	pip->operationalvl_pei_peo_fpi_fpo = 0x10;	/* OVLs = 1 */
 	pip->mkey_violations = cpu_to_be16(dev->mkey_violations);
@@ -491,6 +487,8 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 		mtu = 2048;
 		break;
 	case IB_MTU_4096:
+		if (!ipath_mtu4096)
+			goto err;
 		mtu = 4096;
 		break;
 	default:

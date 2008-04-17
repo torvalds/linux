@@ -155,24 +155,13 @@ static int bringup_link(struct ipath_devdata *dd)
 			 dd->ipath_control);
 
 	/*
-	 * Note that prior to try 14 or 15 of IB, the credit scaling
-	 * wasn't working, because it was swapped for writes with the
-	 * 1 bit default linkstate field
+	 * set initial max size pkt IBC will send, including ICRC; it's the
+	 * PIO buffer size in dwords, less 1; also see ipath_set_mtu()
 	 */
+	val = (dd->ipath_ibmaxlen >> 2) + 1;
+	ibc = val << dd->ibcc_mpl_shift;
 
-	/* ignore pbc and align word */
-	val = dd->ipath_piosize2k - 2 * sizeof(u32);
-	/*
-	 * for ICRC, which we only send in diag test pkt mode, and we
-	 * don't need to worry about that for mtu
-	 */
-	val += 1;
-	/*
-	 * Set the IBC maxpktlength to the size of our pio buffers the
-	 * maxpktlength is in words.  This is *not* the IB data MTU.
-	 */
-	ibc = (val / sizeof(u32)) << INFINIPATH_IBCC_MAXPKTLEN_SHIFT;
-	/* in KB */
+	/* flowcontrolwatermark is in units of KBytes */
 	ibc |= 0x5ULL << INFINIPATH_IBCC_FLOWCTRLWATERMARK_SHIFT;
 	/*
 	 * How often flowctrl sent.  More or less in usecs; balance against
@@ -295,12 +284,9 @@ static int init_chip_first(struct ipath_devdata *dd,
 	val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_sendpiosize);
 	dd->ipath_piosize2k = val & ~0U;
 	dd->ipath_piosize4k = val >> 32;
-	/*
-	 * Note: the chips support a maximum MTU of 4096, but the driver
-	 * hasn't implemented this feature yet, so set the initial value
-	 * to 2048.
-	 */
-	dd->ipath_ibmtu = 2048;
+	if (dd->ipath_piosize4k == 0 && ipath_mtu4096)
+		ipath_mtu4096 = 0; /* 4KB not supported by this chip */
+	dd->ipath_ibmtu = ipath_mtu4096 ? 4096 : 2048;
 	val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_sendpiobufcnt);
 	dd->ipath_piobcnt2k = val & ~0U;
 	dd->ipath_piobcnt4k = val >> 32;

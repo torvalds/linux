@@ -516,13 +516,13 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			goto inval;
 
 	/*
-	 * Note: the chips support a maximum MTU of 4096, but the driver
-	 * hasn't implemented this feature yet, so don't allow Path MTU
-	 * values greater than 2048.
+	 * don't allow invalid Path MTU values or greater than 2048
+	 * unless we are configured for a 4KB MTU
 	 */
-	if (attr_mask & IB_QP_PATH_MTU)
-		if (attr->path_mtu > IB_MTU_2048)
-			goto inval;
+	if ((attr_mask & IB_QP_PATH_MTU) &&
+		(ib_mtu_enum_to_int(attr->path_mtu) == -1 ||
+		(attr->path_mtu > IB_MTU_2048 && !ipath_mtu4096)))
+		goto inval;
 
 	if (attr_mask & IB_QP_PATH_MIG_STATE)
 		if (attr->path_mig_state != IB_MIG_MIGRATED &&

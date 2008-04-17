@@ -1066,6 +1066,7 @@ dma_addr_t ipath_map_single(struct pci_dev *, void *, size_t, int);
 #endif
 
 extern unsigned ipath_debug; /* debugging bit mask */
+extern unsigned ipath_mtu4096;
 
 #define IPATH_MAX_PARITY_ATTEMPTS 10000 /* max times to try recovery */
 

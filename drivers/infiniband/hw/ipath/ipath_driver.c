@@ -73,6 +73,10 @@ module_param_named(debug, ipath_debug, uint, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(debug, "mask for debug prints");
 EXPORT_SYMBOL_GPL(ipath_debug);
 
+unsigned ipath_mtu4096 = 1; /* max 4KB IB mtu by default, if supported */
+module_param_named(mtu4096, ipath_mtu4096, uint, S_IRUGO);
+MODULE_PARM_DESC(mtu4096, "enable MTU of 4096 bytes, if supported");
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("QLogic <support@pathscale.com>");
 MODULE_DESCRIPTION("QLogic InfiniPath driver");
@@ -1800,7 +1804,7 @@ int ipath_set_mtu(struct ipath_devdata *dd, u16 arg)
 	 * piosize).  We check that it's one of the valid IB sizes.
 	 */
 	if (arg != 256 && arg != 512 && arg != 1024 && arg != 2048 &&
-	    arg != 4096) {
+	    (arg != 4096 || !ipath_mtu4096)) {
 		ipath_dbg("Trying to set invalid mtu %u, failing\n", arg);
 		ret = -EINVAL;
 		goto bail;
@@ -1816,6 +1820,8 @@ int ipath_set_mtu(struct ipath_devdata *dd, u16 arg)
 	if (arg >= (piosize - IPATH_PIO_MAXIBHDR)) {
 		/* Only if it's not the initial value (or reset to it) */
 		if (piosize != dd->ipath_init_ibmaxlen) {
+			if (arg > piosize && arg <= dd->ipath_init_ibmaxlen)
+				piosize = dd->ipath_init_ibmaxlen;
 			dd->ipath_ibmaxlen = piosize;
 			changed = 1;
 		}
@@ -1829,24 +1835,17 @@ int ipath_set_mtu(struct ipath_devdata *dd, u16 arg)
 	}
 
 	if (changed) {
+		u64 ibc = dd->ipath_ibcctrl, ibdw;
 		/*
-		 * set the IBC maxpktlength to the size of our pio
-		 * buffers in words
+		 * update our housekeeping variables, and set IBC max
+		 * size, same as init code; max IBC is max we allow in
+		 * buffer, less the qword pbc, plus 1 for ICRC, in dwords
 		 */
-		u64 ibc = dd->ipath_ibcctrl;
+		dd->ipath_ibmaxlen = piosize - 2 * sizeof(u32);
+		ibdw = (dd->ipath_ibmaxlen >> 2) + 1;
 		ibc &= ~(INFINIPATH_IBCC_MAXPKTLEN_MASK <<
-			 INFINIPATH_IBCC_MAXPKTLEN_SHIFT);
-
-		piosize = piosize - 2 * sizeof(u32);    /* ignore pbc */
-		dd->ipath_ibmaxlen = piosize;
-		piosize /= sizeof(u32); /* in words */
-		/*
-		 * for ICRC, which we only send in diag test pkt mode, and
-		 * we don't need to worry about that for mtu
-		 */
-		piosize += 1;
-
-		ibc |= piosize << INFINIPATH_IBCC_MAXPKTLEN_SHIFT;
+			 dd->ibcc_mpl_shift);
+		ibc |= ibdw << dd->ibcc_mpl_shift;
 		dd->ipath_ibcctrl = ibc;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_ibcctrl,
 				 dd->ipath_ibcctrl);

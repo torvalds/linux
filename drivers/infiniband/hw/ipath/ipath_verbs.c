@@ -1201,12 +1201,7 @@ static int ipath_query_port(struct ib_device *ibdev,
 	props->max_vl_num = 1;		/* VLCap = VL0 */
 	props->init_type_reply = 0;
 
-	/*
-	 * Note: the chip supports a maximum MTU of 4096, but the driver
-	 * hasn't implemented this feature yet, so set the maximum value
-	 * to 2048.
-	 */
-	props->max_mtu = IB_MTU_2048;
+	props->max_mtu = ipath_mtu4096 ? IB_MTU_4096 : IB_MTU_2048;
 	switch (dd->ipath_ibmtu) {
 	case 4096:
 		mtu = IB_MTU_4096;

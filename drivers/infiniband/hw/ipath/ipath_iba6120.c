@@ -1441,17 +1441,13 @@ static int ipath_pe_early_init(struct ipath_devdata *dd)
 	dd->ipath_egrtidbase = (u64 __iomem *)
 		((char __iomem *) dd->ipath_kregbase + dd->ipath_rcvegrbase);
 
-	/*
-	 * To truly support a 4KB MTU (for usermode), we need to
-	 * bump this to a larger value.  For now, we use them for
-	 * the kernel only.
-	 */
-	dd->ipath_rcvegrbufsize = 2048;
+	dd->ipath_rcvegrbufsize = ipath_mtu4096 ? 4096 : 2048;
 	/*
 	 * the min() check here is currently a nop, but it may not always
 	 * be, depending on just how we do ipath_rcvegrbufsize
 	 */
-	dd->ipath_ibmaxlen = min(dd->ipath_piosize2k,
+	dd->ipath_ibmaxlen = min(ipath_mtu4096 ? dd->ipath_piosize4k :
+				 dd->ipath_piosize2k,
 				 dd->ipath_rcvegrbufsize +
 				 (dd->ipath_rcvhdrentsize << 2));
 	dd->ipath_init_ibmaxlen = dd->ipath_ibmaxlen;
