@@ -110,6 +110,10 @@ struct mlx4_ib_wq {
 	unsigned		tail;
 };
 
+enum mlx4_ib_qp_flags {
+	MLX4_IB_QP_LSO		= 1 << 0
+};
+
 struct mlx4_ib_qp {
 	struct ib_qp		ibqp;
 	struct mlx4_qp		mqp;
@@ -129,6 +133,7 @@ struct mlx4_ib_qp {
 	struct mlx4_mtt		mtt;
 	int			buf_size;
 	struct mutex		mutex;
+	u32			flags;
 	u8			port;
 	u8			alt_port;
 	u8			atomic_rd_en;

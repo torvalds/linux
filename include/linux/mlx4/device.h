@@ -186,6 +186,7 @@ struct mlx4_caps {
 	u32			flags;
 	u16			stat_rate_support;
 	u8			port_width_cap[MLX4_MAX_PORTS + 1];
+	int			max_gso_sz;
 };
 
 struct mlx4_buf_list {

@@ -420,6 +420,9 @@ static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 		case MLX4_OPCODE_BIND_MW:
 			wc->opcode    = IB_WC_BIND_MW;
 			break;
+		case MLX4_OPCODE_LSO:
+			wc->opcode    = IB_WC_LSO;
+			break;
 		}
 	} else {
 		wc->byte_len = be32_to_cpu(cqe->byte_cnt);

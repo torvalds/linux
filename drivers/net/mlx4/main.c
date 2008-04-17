@@ -159,6 +159,7 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.page_size_cap	     = ~(u32) (dev_cap->min_page_sz - 1);
 	dev->caps.flags		     = dev_cap->flags;
 	dev->caps.stat_rate_support  = dev_cap->stat_rate_support;
+	dev->caps.max_gso_sz	     = dev_cap->max_gso_sz;
 
 	return 0;
 }
