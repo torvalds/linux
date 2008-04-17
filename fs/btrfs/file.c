@@ -356,12 +356,23 @@ out_unlock:
 int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
 {
 	struct extent_map *em;
+	struct extent_map *split = NULL;
+	struct extent_map *split2 = NULL;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	u64 len = end - start + 1;
+	int ret;
+	int testend = 1;
 
-	if (end == (u64)-1)
+	if (end == (u64)-1) {
 		len = (u64)-1;
+		testend = 0;
+	}
 	while(1) {
+		if (!split)
+			split = alloc_extent_map(GFP_NOFS);
+		if (!split2)
+			split2 = alloc_extent_map(GFP_NOFS);
+
 		spin_lock(&em_tree->lock);
 		em = lookup_extent_mapping(em_tree, start, len);
 		if (!em) {
@@ -369,6 +380,36 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
 			break;
 		}
 		remove_extent_mapping(em_tree, em);
+
+		if (em->block_start < EXTENT_MAP_LAST_BYTE &&
+		    em->start < start) {
+			split->start = em->start;
+			split->len = start - em->start;
+			split->block_start = em->block_start;
+			split->bdev = em->bdev;
+			split->flags = em->flags;
+			ret = add_extent_mapping(em_tree, split);
+			BUG_ON(ret);
+			free_extent_map(split);
+			split = split2;
+			split2 = NULL;
+		}
+		if (em->block_start < EXTENT_MAP_LAST_BYTE &&
+		    testend && em->start + em->len > start + len) {
+			u64 diff = start + len - em->start;
+
+			split->start = start + len;
+			split->len = em->start + em->len - (start + len);
+			split->bdev = em->bdev;
+			split->flags = em->flags;
+
+			split->block_start = em->block_start + diff;
+
+			ret = add_extent_mapping(em_tree, split);
+			BUG_ON(ret);
+			free_extent_map(split);
+			split = NULL;
+		}
 		spin_unlock(&em_tree->lock);
 
 		/* once for us */
@@ -376,6 +417,10 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
 		/* once for the tree*/
 		free_extent_map(em);
 	}
+	if (split)
+		free_extent_map(split);
+	if (split2)
+		free_extent_map(split2);
 	return 0;
 }
 

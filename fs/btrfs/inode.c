@@ -122,6 +122,8 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 	if (alloc_hint == EXTENT_MAP_INLINE)
 		goto out;
 
+	BUG_ON(num_bytes > btrfs_super_total_bytes(&root->fs_info->super_copy));
+
 	while(num_bytes > 0) {
 		cur_alloc_size = min(num_bytes, root->fs_info->max_extent);
 		ret = btrfs_alloc_extent(trans, root, cur_alloc_size,
@@ -140,6 +142,11 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 					       ins.offset);
 		inode->i_blocks += ins.offset >> 9;
 		btrfs_check_file(root, inode);
+		if (num_bytes < cur_alloc_size) {
+			printk("num_bytes %Lu cur_alloc %Lu\n", num_bytes,
+			       cur_alloc_size);
+			break;
+		}
 		num_bytes -= cur_alloc_size;
 		alloc_hint = ins.objectid + ins.offset;
 		start += cur_alloc_size;
@@ -427,6 +434,7 @@ int btrfs_readpage_io_failed_hook(struct bio *failed_bio,
 	struct extent_map *em;
 	struct inode *inode = page->mapping->host;
 	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
+	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct bio *bio;
 	int num_copies;
 	int ret;
@@ -434,7 +442,6 @@ int btrfs_readpage_io_failed_hook(struct bio *failed_bio,
 
 	ret = get_state_private(failure_tree, start, &private);
 	if (ret) {
-		size_t pg_offset = start - page_offset(page);
 		failrec = kmalloc(sizeof(*failrec), GFP_NOFS);
 		if (!failrec)
 			return -ENOMEM;
@@ -442,8 +449,13 @@ int btrfs_readpage_io_failed_hook(struct bio *failed_bio,
 		failrec->len = end - start + 1;
 		failrec->last_mirror = 0;
 
-		em = btrfs_get_extent(inode, NULL, pg_offset, start,
-				      failrec->len, 0);
+		spin_lock(&em_tree->lock);
+		em = lookup_extent_mapping(em_tree, start, failrec->len);
+		if (em->start > start || em->start + em->len < start) {
+			free_extent_map(em);
+			em = NULL;
+		}
+		spin_unlock(&em_tree->lock);
 
 		if (!em || IS_ERR(em)) {
 			kfree(failrec);
@@ -559,6 +571,8 @@ zeroit:
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr, KM_IRQ0);
 	local_irq_restore(flags);
+	if (private == 0)
+		return 0;
 	return -EIO;
 }
 
@@ -908,8 +922,9 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 	int pending_del_nr = 0;
 	int pending_del_slot = 0;
 	int extent_type = -1;
+	u64 mask = root->sectorsize - 1;
 
-	btrfs_drop_extent_cache(inode, inode->i_size, (u64)-1);
+	btrfs_drop_extent_cache(inode, inode->i_size & (~mask), (u64)-1);
 	path = btrfs_alloc_path();
 	path->reada = -1;
 	BUG_ON(!path);
@@ -1212,7 +1227,7 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 						       hole_start, 0, 0,
 						       hole_size);
 			btrfs_drop_extent_cache(inode, hole_start,
-						hole_size - 1);
+						(u64)-1);
 			btrfs_check_file(root, inode);
 		}
 		btrfs_end_transaction(trans, root);
@@ -2083,6 +2098,68 @@ out_unlock:
 	return err;
 }
 
+static int merge_extent_mapping(struct extent_map_tree *em_tree,
+				struct extent_map *existing,
+				struct extent_map *em)
+{
+	u64 start_diff;
+	u64 new_end;
+	int ret = 0;
+	int real_blocks = existing->block_start < EXTENT_MAP_LAST_BYTE;
+
+	if (real_blocks && em->block_start >= EXTENT_MAP_LAST_BYTE)
+		goto invalid;
+
+	if (!real_blocks && em->block_start != existing->block_start)
+		goto invalid;
+
+	new_end = max(existing->start + existing->len, em->start + em->len);
+
+	if (existing->start >= em->start) {
+		if (em->start + em->len < existing->start)
+			goto invalid;
+
+		start_diff = existing->start - em->start;
+		if (real_blocks && em->block_start + start_diff !=
+		    existing->block_start)
+			goto invalid;
+
+		em->len = new_end - em->start;
+
+		remove_extent_mapping(em_tree, existing);
+		/* free for the tree */
+		free_extent_map(existing);
+		ret = add_extent_mapping(em_tree, em);
+
+	} else if (em->start > existing->start) {
+
+		if (existing->start + existing->len < em->start)
+			goto invalid;
+
+		start_diff = em->start - existing->start;
+		if (real_blocks && existing->block_start + start_diff !=
+		    em->block_start)
+			goto invalid;
+
+		remove_extent_mapping(em_tree, existing);
+		em->block_start = existing->block_start;
+		em->start = existing->start;
+		em->len = new_end - existing->start;
+		free_extent_map(existing);
+
+		ret = add_extent_mapping(em_tree, em);
+	} else {
+		goto invalid;
+	}
+	return ret;
+
+invalid:
+	printk("invalid extent map merge [%Lu %Lu %Lu] [%Lu %Lu %Lu]\n",
+	       existing->start, existing->len, existing->block_start,
+	       em->start, em->len, em->block_start);
+	return -EIO;
+}
+
 struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,
 				    size_t pg_offset, u64 start, u64 len,
 				    int create)
@@ -2267,12 +2344,35 @@ insert:
 	err = 0;
 	spin_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em);
+
+	/* it is possible that someone inserted the extent into the tree
+	 * while we had the lock dropped.  It is also possible that
+	 * an overlapping map exists in the tree
+	 */
 	if (ret == -EEXIST) {
-		free_extent_map(em);
-		em = lookup_extent_mapping(em_tree, start, len);
-		if (!em) {
-			err = -EIO;
-			printk("failing to insert %Lu %Lu\n", start, len);
+		struct extent_map *existing;
+		existing = lookup_extent_mapping(em_tree, start, len);
+		if (!existing) {
+			existing = lookup_extent_mapping(em_tree, em->start,
+							 em->len);
+			if (existing) {
+				err = merge_extent_mapping(em_tree, existing,
+							   em);
+				free_extent_map(existing);
+				if (err) {
+					free_extent_map(em);
+					em = NULL;
+				}
+			} else {
+				err = -EIO;
+				printk("failing to insert %Lu %Lu\n",
+				       start, len);
+				free_extent_map(em);
+				em = NULL;
+			}
+		} else {
+			free_extent_map(em);
+			em = existing;
 		}
 	}
 	spin_unlock(&em_tree->lock);

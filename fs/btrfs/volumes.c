@@ -883,6 +883,9 @@ again:
 	spin_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, logical, *length);
 	spin_unlock(&em_tree->lock);
+	if (!em) {
+		printk("unable to find logical %Lu\n", logical);
+	}
 	BUG_ON(!em);
 
 	BUG_ON(em->start > logical || em->start + em->len < logical);

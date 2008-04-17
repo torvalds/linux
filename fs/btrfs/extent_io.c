@@ -1025,7 +1025,8 @@ u64 find_lock_delalloc_range(struct extent_io_tree *tree,
 search_again:
 	node = tree_search(tree, cur_start);
 	if (!node) {
-		*end = (u64)-1;
+		if (!found)
+			*end = (u64)-1;
 		goto out;
 	}
 
@@ -1540,6 +1541,8 @@ static int end_bio_extent_readpage(struct bio *bio,
 							 start, end, state);
 			if (ret == 0) {
 				state = NULL;
+				uptodate =
+					test_bit(BIO_UPTODATE, &bio->bi_flags);
 				continue;
 			}
 		}
@@ -1555,10 +1558,11 @@ static int end_bio_extent_readpage(struct bio *bio,
 				    !(state->state & EXTENT_LOCKED))
 					state = NULL;
 			}
-			if (!state && uptodate) {
+			if (!state) {
 				spin_unlock_irqrestore(&tree->lock, flags);
-				set_extent_uptodate(tree, start, end,
-						    GFP_ATOMIC);
+				if (uptodate)
+					set_extent_uptodate(tree, start, end,
+							    GFP_ATOMIC);
 				unlock_extent(tree, start, end, GFP_ATOMIC);
 				goto next_io;
 			}
