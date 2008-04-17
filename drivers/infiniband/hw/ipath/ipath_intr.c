@@ -833,7 +833,8 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 	 */
 	for (i = 0; i < dd->ipath_pioavregs; i++) {
 		/* deal with 6110 chip bug */
-		im = i > 3 ? i ^ 1 : i;
+		im = (i > 3 && (dd->ipath_flags & IPATH_SWAP_PIOBUFS)) ?
+			i ^ 1 : i;
 		val = ipath_read_kreg64(dd, (0x1000 / sizeof(u64)) + im);
 		dd->ipath_pioavailregs_dma[i] = cpu_to_le64(val);
 		dd->ipath_pioavailshadow[i] = val;
