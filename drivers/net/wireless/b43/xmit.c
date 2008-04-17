@@ -235,7 +235,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 
 	plcp_fragment_len = fragment_len + FCS_LEN;
 	if (use_encryption) {
-		u8 key_idx = (u16) (txctl->key_idx);
+		u8 key_idx = txctl->hw_key->hw_key_idx;
 		struct b43_key *key;
 		int wlhdr_len;
 		size_t iv_len;

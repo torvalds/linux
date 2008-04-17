@@ -2391,7 +2391,8 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl3945_priv *priv,
 				      struct sk_buff *skb_frag,
 				      int last_frag)
 {
-	struct iwl3945_hw_key *keyinfo = &priv->stations[ctl->key_idx].keyinfo;
+	struct iwl3945_hw_key *keyinfo =
+	    &priv->stations[ctl->hw_key->hw_key_idx].keyinfo;
 
 	switch (keyinfo->alg) {
 	case ALG_CCMP:
@@ -2414,7 +2415,7 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl3945_priv *priv,
 
 	case ALG_WEP:
 		cmd->cmd.tx.sec_ctl = TX_CMD_SEC_WEP |
-		    (ctl->key_idx & TX_CMD_SEC_MSK) << TX_CMD_SEC_SHIFT;
+		    (ctl->hw_key->hw_key_idx & TX_CMD_SEC_MSK) << TX_CMD_SEC_SHIFT;
 
 		if (keyinfo->keylen == 13)
 			cmd->cmd.tx.sec_ctl |= TX_CMD_SEC_KEY128;
@@ -2422,7 +2423,7 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl3945_priv *priv,
 		memcpy(&cmd->cmd.tx.key[3], keyinfo->key, keyinfo->keylen);
 
 		IWL_DEBUG_TX("Configuring packet for WEP encryption "
-			     "with key %d\n", ctl->key_idx);
+			     "with key %d\n", ctl->hw_key->hw_key_idx);
 		break;
 
 	default:

@@ -1926,7 +1926,7 @@ static void iwl4965_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 	struct iwl_wep_key *wepkey;
 	int keyidx = 0;
 
-	BUG_ON(ctl->key_idx > 3);
+	BUG_ON(ctl->hw_key->hw_key_idx > 3);
 
 	switch (keyinfo->alg) {
 	case ALG_CCMP:
@@ -1945,11 +1945,11 @@ static void iwl4965_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 		break;
 
 	case ALG_WEP:
-		wepkey = &priv->wep_keys[ctl->key_idx];
+		wepkey = &priv->wep_keys[ctl->hw_key->hw_key_idx];
 		cmd->cmd.tx.sec_ctl = 0;
 		if (priv->default_wep_key) {
 			/* the WEP key was sent as static */
-			keyidx = ctl->key_idx;
+			keyidx = ctl->hw_key->hw_key_idx;
 			memcpy(&cmd->cmd.tx.key[3], wepkey->key,
 							wepkey->key_size);
 			if (wepkey->key_size == WEP_KEY_LEN_128)

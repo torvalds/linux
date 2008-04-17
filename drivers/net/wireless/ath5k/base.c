@@ -1319,7 +1319,7 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf,
 	pktlen = skb->len;
 
 	if (!(ctl->flags & IEEE80211_TXCTL_DO_NOT_ENCRYPT)) {
-		keyidx = ctl->key_idx;
+		keyidx = ctl->hw_key->hw_key_idx;
 		pktlen += ctl->icv_len;
 	}
 

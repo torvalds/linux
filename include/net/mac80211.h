@@ -286,8 +286,17 @@ enum mac80211_tx_control_flags {
 
 /* Transmit control fields. This data structure is passed to low-level driver
  * with each TX frame. The low-level driver is responsible for configuring
- * the hardware to use given values (depending on what is supported). */
-
+ * the hardware to use given values (depending on what is supported).
+ *
+ * NOTE: Be careful with using the pointers outside of the ieee80211_ops->tx()
+ * context (i.e. when defering the work to a workqueue).
+ * The vif pointer is valid until the it has been removed with the
+ * ieee80211_ops->remove_interface() callback funtion.
+ * The hw_key pointer is valid until it has been removed with the
+ * ieee80211_ops->set_key() callback function.
+ * The tx_rate and alt_retry_rate pointers are valid until the phy is
+ * deregistered.
+ */
 struct ieee80211_tx_control {
 	struct ieee80211_vif *vif;
 	struct ieee80211_rate *tx_rate;
@@ -298,9 +307,11 @@ struct ieee80211_tx_control {
 	/* retry rate for the last retries */
 	struct ieee80211_rate *alt_retry_rate;
 
+	/* Key used for hardware encryption
+	 * NULL if IEEE80211_TXCTL_DO_NOT_ENCRYPT is set */
+	struct ieee80211_key_conf *hw_key;
+
 	u32 flags;		/* tx control flags defined above */
-	u8 key_idx;		/* keyidx from hw->set_key(), undefined if
-				 * IEEE80211_TXCTL_DO_NOT_ENCRYPT is set */
 	u8 retry_limit;		/* 1 = only first attempt, 2 = one retry, ..
 				 * This could be used when set_retry_limit
 				 * is not implemented by the driver */

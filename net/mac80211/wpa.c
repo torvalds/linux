@@ -228,7 +228,7 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx,
 					    0x7f),
 				      (u8) key->u.tkip.iv16);
 
-		tx->control->key_idx = tx->key->conf.hw_key_idx;
+		tx->control->hw_key = &tx->key->conf;
 		return 0;
 	}
 
@@ -256,7 +256,7 @@ ieee80211_crypto_tkip_encrypt(struct ieee80211_tx_data *tx)
 	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV) &&
 	    !wpa_test) {
 		/* hwaccel - with no need for preallocated room for IV/ICV */
-		tx->control->key_idx = tx->key->conf.hw_key_idx;
+		tx->control->hw_key = &tx->key->conf;
 		return TX_CONTINUE;
 	}
 
@@ -478,7 +478,7 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx,
 
 	if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
 		/* hwaccel - with preallocated room for CCMP header */
-		tx->control->key_idx = key->conf.hw_key_idx;
+		tx->control->hw_key = &tx->key->conf;
 		return 0;
 	}
 
@@ -505,7 +505,7 @@ ieee80211_crypto_ccmp_encrypt(struct ieee80211_tx_data *tx)
 	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
 		/* hwaccel - with no need for preallocated room for CCMP "
 		 * header or MIC fields */
-		tx->control->key_idx = tx->key->conf.hw_key_idx;
+		tx->control->hw_key = &tx->key->conf;
 		return TX_CONTINUE;
 	}
 
