@@ -370,7 +370,8 @@ struct _lowcore
 	__u64        ext_call_fast;            /* 0xdc8 */
 	__u64        percpu_offset;            /* 0xdd0 */
 	__u64        current_task;	       /* 0xdd8 */
-	__u64        softirq_pending;	       /* 0xde0 */
+	__u32	     softirq_pending;	       /* 0xde0 */
+	__u32	     pad_0x0de4;	       /* 0xde4 */
 	__u64        int_clock;                /* 0xde8 */
         __u8         pad12[0xe00-0xdf0];       /* 0xdf0 */
 
