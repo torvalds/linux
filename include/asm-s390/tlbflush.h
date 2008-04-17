@@ -13,6 +13,7 @@ static inline void __tlb_flush_local(void)
 	asm volatile("ptlb" : : : "memory");
 }
 
+#ifdef CONFIG_SMP
 /*
  * Flush all tlb entries on all cpus.
  */
@@ -39,6 +40,25 @@ static inline void __tlb_flush_global(void)
 		: : "d" (reg2), "d" (reg3), "d" (reg4), "m" (dummy) : "cc" );
 }
 
+static inline void __tlb_flush_full(struct mm_struct *mm)
+{
+	cpumask_t local_cpumask;
+
+	preempt_disable();
+	/*
+	 * If the process only ran on the local cpu, do a local flush.
+	 */
+	local_cpumask = cpumask_of_cpu(smp_processor_id());
+	if (cpus_equal(mm->cpu_vm_mask, local_cpumask))
+		__tlb_flush_local();
+	else
+		__tlb_flush_global();
+	preempt_enable();
+}
+#else
+#define __tlb_flush_full(mm)	__tlb_flush_local()
+#endif
+
 /*
  * Flush all tlb entries of a page table on all cpus.
  */
@@ -51,8 +71,6 @@ static inline void __tlb_flush_idte(unsigned long asce)
 
 static inline void __tlb_flush_mm(struct mm_struct * mm)
 {
-	cpumask_t local_cpumask;
-
 	if (unlikely(cpus_empty(mm->cpu_vm_mask)))
 		return;
 	/*
@@ -69,16 +87,7 @@ static inline void __tlb_flush_mm(struct mm_struct * mm)
 				 mm->context.asce_bits);
 		return;
 	}
-	preempt_disable();
-	/*
-	 * If the process only ran on the local cpu, do a local flush.
-	 */
-	local_cpumask = cpumask_of_cpu(smp_processor_id());
-	if (cpus_equal(mm->cpu_vm_mask, local_cpumask))
-		__tlb_flush_local();
-	else
-		__tlb_flush_global();
-	preempt_enable();
+	__tlb_flush_full(mm);
 }
 
 static inline void __tlb_flush_mm_cond(struct mm_struct * mm)
