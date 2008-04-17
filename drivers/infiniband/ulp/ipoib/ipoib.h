@@ -319,6 +319,7 @@ struct ipoib_dev_priv {
 	struct dentry *mcg_dentry;
 	struct dentry *path_dentry;
 #endif
+	int	hca_caps;
 };
 
 struct ipoib_ah {

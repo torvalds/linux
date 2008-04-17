@@ -1134,13 +1134,14 @@ static struct net_device *ipoib_add_port(const char *format,
 		kfree(device_attr);
 		goto device_init_failed;
 	}
+	priv->hca_caps = device_attr->device_cap_flags;
 
-	if (device_attr->device_cap_flags & IB_DEVICE_UD_IP_CSUM) {
+	kfree(device_attr);
+
+	if (priv->hca_caps & IB_DEVICE_UD_IP_CSUM) {
 		set_bit(IPOIB_FLAG_CSUM, &priv->flags);
 		priv->dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
 	}
-
-	kfree(device_attr);
 
 	/*
 	 * Set the full membership bit, so that we join the right
@@ -1175,6 +1176,9 @@ static struct net_device *ipoib_add_port(const char *format,
 		       hca->name, port, result);
 		goto event_failed;
 	}
+
+	if (priv->dev->features & NETIF_F_SG && priv->hca_caps & IB_DEVICE_UD_TSO)
+		priv->dev->features |= NETIF_F_TSO;
 
 	result = register_netdev(priv->dev);
 	if (result) {
