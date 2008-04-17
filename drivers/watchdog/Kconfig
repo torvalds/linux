@@ -585,6 +585,21 @@ config W83697HF_WDT
 
 	  Most people will say N.
 
+config W83697UG_WDT
+	tristate "W83697UG/W83697UF Watchdog Timer"
+	depends on X86
+	---help---
+	  This is the driver for the hardware watchdog on the W83697UG/UF
+	  chipset as used in MSI Fuzzy CX700 VIA motherboards (and likely others).
+	  This watchdog simply watches your kernel to make sure it doesn't
+	  freeze, and if it does, it reboots your computer after a certain
+	  amount of time.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called w83697ug_wdt.
+
+	  Most people will say N.
+
 config W83877F_WDT
 	tristate "W83877F (EMACS) Watchdog Timer"
 	depends on X86
