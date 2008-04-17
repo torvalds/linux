@@ -594,7 +594,7 @@ static void ipoib_pkey_dev_check_presence(struct net_device *dev)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	u16 pkey_index = 0;
 
-	if (ib_find_cached_pkey(priv->ca, priv->port, priv->pkey, &pkey_index))
+	if (ib_find_pkey(priv->ca, priv->port, priv->pkey, &pkey_index))
 		clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 	else
 		set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
@@ -835,13 +835,13 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv, int pkey_event)
 			clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 			ipoib_ib_dev_down(dev, 0);
 			ipoib_ib_dev_stop(dev, 0);
-			ipoib_pkey_dev_delay_open(dev);
-			return;
+			if (ipoib_pkey_dev_delay_open(dev))
+				return;
 		}
-		set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 
 		/* restart QP only if P_Key index is changed */
-		if (new_index == priv->pkey_index) {
+		if (test_and_set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags) &&
+		    new_index == priv->pkey_index) {
 			ipoib_dbg(priv, "Not flushing - P_Key index not changed.\n");
 			return;
 		}
