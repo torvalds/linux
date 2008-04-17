@@ -575,8 +575,8 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 			goto out;
 		}
 		rc = -EINVAL;
-		printk(KERN_WARNING "Unable to set superblock options before "
-		       "the security server is initialized\n");
+		printk(KERN_WARNING "SELinux: Unable to set superblock options "
+			"before the security server is initialized\n");
 		goto out;
 	}
 
@@ -1135,7 +1135,7 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			dentry = d_find_alias(inode);
 		}
 		if (!dentry) {
-			printk(KERN_WARNING "%s:  no dentry for dev=%s "
+			printk(KERN_WARNING "SELinux: %s:  no dentry for dev=%s "
 			       "ino=%ld\n", __func__, inode->i_sb->s_id,
 			       inode->i_ino);
 			goto out_unlock;
@@ -1173,7 +1173,7 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 		dput(dentry);
 		if (rc < 0) {
 			if (rc != -ENODATA) {
-				printk(KERN_WARNING "%s:  getxattr returned "
+				printk(KERN_WARNING "SELinux: %s:  getxattr returned "
 				       "%d for dev=%s ino=%ld\n", __func__,
 				       -rc, inode->i_sb->s_id, inode->i_ino);
 				kfree(context);
@@ -1187,7 +1187,7 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 							     sbsec->def_sid,
 							     GFP_NOFS);
 			if (rc) {
-				printk(KERN_WARNING "%s:  context_to_sid(%s) "
+				printk(KERN_WARNING "SELinux: %s:  context_to_sid(%s) "
 				       "returned %d for dev=%s ino=%ld\n",
 				       __func__, context, -rc,
 				       inode->i_sb->s_id, inode->i_ino);
@@ -1510,7 +1510,8 @@ static int may_link(struct inode *dir,
 		av = DIR__RMDIR;
 		break;
 	default:
-		printk(KERN_WARNING "may_link:  unrecognized kind %d\n", kind);
+		printk(KERN_WARNING "SELinux: %s:  unrecognized kind %d\n",
+			__func__, kind);
 		return 0;
 	}
 
@@ -1640,8 +1641,8 @@ static inline u32 open_file_mask_to_av(int mode, int mask)
 		else if (S_ISDIR(mode))
 			av |= DIR__OPEN;
 		else
-			printk(KERN_ERR "SELinux: WARNING: inside open_file_to_av "
-				"with unknown mode:%x\n", mode);
+			printk(KERN_ERR "SELinux: WARNING: inside %s with "
+				"unknown mode:%x\n", __func__, mode);
 	}
 	return av;
 }

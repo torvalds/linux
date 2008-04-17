@@ -415,7 +415,8 @@ static int context_struct_compute_av(struct context *scontext,
 	return 0;
 
 inval_class:
-	printk(KERN_ERR "%s:  unrecognized class %d\n", __func__, tclass);
+	printk(KERN_ERR "SELinux: %s:  unrecognized class %d\n", __func__,
+		tclass);
 	return -EINVAL;
 }
 
@@ -499,8 +500,8 @@ int security_validate_transition(u32 oldsid, u32 newsid, u32 tasksid,
 			tclass = SECCLASS_NETLINK_SOCKET;
 
 	if (!tclass || tclass > policydb.p_classes.nprim) {
-		printk(KERN_ERR "security_validate_transition:  "
-		       "unrecognized class %d\n", tclass);
+		printk(KERN_ERR "SELinux: %s:  unrecognized class %d\n",
+			__func__, tclass);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -508,24 +509,24 @@ int security_validate_transition(u32 oldsid, u32 newsid, u32 tasksid,
 
 	ocontext = sidtab_search(&sidtab, oldsid);
 	if (!ocontext) {
-		printk(KERN_ERR "security_validate_transition: "
-		       " unrecognized SID %d\n", oldsid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+			__func__, oldsid);
 		rc = -EINVAL;
 		goto out;
 	}
 
 	ncontext = sidtab_search(&sidtab, newsid);
 	if (!ncontext) {
-		printk(KERN_ERR "security_validate_transition: "
-		       " unrecognized SID %d\n", newsid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+			__func__, newsid);
 		rc = -EINVAL;
 		goto out;
 	}
 
 	tcontext = sidtab_search(&sidtab, tasksid);
 	if (!tcontext) {
-		printk(KERN_ERR "security_validate_transition: "
-		       " unrecognized SID %d\n", tasksid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+			__func__, tasksid);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -581,15 +582,15 @@ int security_compute_av(u32 ssid,
 
 	scontext = sidtab_search(&sidtab, ssid);
 	if (!scontext) {
-		printk(KERN_ERR "security_compute_av:  unrecognized SID %d\n",
-		       ssid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+		       __func__, ssid);
 		rc = -EINVAL;
 		goto out;
 	}
 	tcontext = sidtab_search(&sidtab, tsid);
 	if (!tcontext) {
-		printk(KERN_ERR "security_compute_av:  unrecognized SID %d\n",
-		       tsid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+		       __func__, tsid);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -686,16 +687,16 @@ int security_sid_to_context(u32 sid, char **scontext, u32 *scontext_len)
 			*scontext = scontextp;
 			goto out;
 		}
-		printk(KERN_ERR "security_sid_to_context:  called before initial "
-		       "load_policy on unknown SID %d\n", sid);
+		printk(KERN_ERR "SELinux: %s:  called before initial "
+		       "load_policy on unknown SID %d\n", __func__, sid);
 		rc = -EINVAL;
 		goto out;
 	}
 	POLICY_RDLOCK;
 	context = sidtab_search(&sidtab, sid);
 	if (!context) {
-		printk(KERN_ERR "security_sid_to_context:  unrecognized SID "
-		       "%d\n", sid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+			__func__, sid);
 		rc = -EINVAL;
 		goto out_unlock;
 	}
@@ -925,15 +926,15 @@ static int security_compute_sid(u32 ssid,
 
 	scontext = sidtab_search(&sidtab, ssid);
 	if (!scontext) {
-		printk(KERN_ERR "security_compute_sid:  unrecognized SID %d\n",
-		       ssid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+		       __func__, ssid);
 		rc = -EINVAL;
 		goto out_unlock;
 	}
 	tcontext = sidtab_search(&sidtab, tsid);
 	if (!tcontext) {
-		printk(KERN_ERR "security_compute_sid:  unrecognized SID %d\n",
-		       tsid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+		       __func__, tsid);
 		rc = -EINVAL;
 		goto out_unlock;
 	}
@@ -2031,16 +2032,16 @@ int security_sid_mls_copy(u32 sid, u32 mls_sid, u32 *new_sid)
 	POLICY_RDLOCK;
 	context1 = sidtab_search(&sidtab, sid);
 	if (!context1) {
-		printk(KERN_ERR "security_sid_mls_copy:  unrecognized SID "
-		       "%d\n", sid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+			__func__, sid);
 		rc = -EINVAL;
 		goto out_unlock;
 	}
 
 	context2 = sidtab_search(&sidtab, mls_sid);
 	if (!context2) {
-		printk(KERN_ERR "security_sid_mls_copy:  unrecognized SID "
-		       "%d\n", mls_sid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+			__func__, mls_sid);
 		rc = -EINVAL;
 		goto out_unlock;
 	}
@@ -2131,17 +2132,15 @@ int security_net_peersid_resolve(u32 nlbl_sid, u32 nlbl_type,
 
 	nlbl_ctx = sidtab_search(&sidtab, nlbl_sid);
 	if (!nlbl_ctx) {
-		printk(KERN_ERR
-		       "security_sid_mls_cmp:  unrecognized SID %d\n",
-		       nlbl_sid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+		       __func__, nlbl_sid);
 		rc = -EINVAL;
 		goto out_slowpath;
 	}
 	xfrm_ctx = sidtab_search(&sidtab, xfrm_sid);
 	if (!xfrm_ctx) {
-		printk(KERN_ERR
-		       "security_sid_mls_cmp:  unrecognized SID %d\n",
-		       xfrm_sid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+		       __func__, xfrm_sid);
 		rc = -EINVAL;
 		goto out_slowpath;
 	}
@@ -2221,7 +2220,7 @@ int security_get_permissions(char *class, char ***perms, int *nperms)
 
 	match = hashtab_search(policydb.p_classes.table, class);
 	if (!match) {
-		printk(KERN_ERR "%s:  unrecognized class %s\n",
+		printk(KERN_ERR "SELinux: %s:  unrecognized class %s\n",
 			__func__, class);
 		rc = -EINVAL;
 		goto out;

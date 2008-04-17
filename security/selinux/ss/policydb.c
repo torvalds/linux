@@ -390,7 +390,7 @@ static void symtab_hash_eval(struct symtab *s)
 		struct hashtab_info info;
 
 		hashtab_stat(h, &info);
-		printk(KERN_DEBUG "%s:  %d entries and %d/%d buckets used, "
+		printk(KERN_DEBUG "SELinux: %s:  %d entries and %d/%d buckets used, "
 		       "longest chain length %d\n", symtab_name[i], h->nel,
 		       info.slots_used, h->size, info.max_chain_len);
 	}
@@ -1215,7 +1215,7 @@ static int role_read(struct policydb *p, struct hashtab *h, void *fp)
 
 	if (strcmp(key, OBJECT_R) == 0) {
 		if (role->value != OBJECT_R_VAL) {
-			printk(KERN_ERR "Role %s has wrong value %d\n",
+			printk(KERN_ERR "SELinux: Role %s has wrong value %d\n",
 			       OBJECT_R, role->value);
 			rc = -EINVAL;
 			goto bad;
@@ -1551,22 +1551,23 @@ int policydb_read(struct policydb *p, void *fp)
 
 	if ((le32_to_cpu(buf[1]) & POLICYDB_CONFIG_MLS)) {
 		if (ss_initialized && !selinux_mls_enabled) {
-			printk(KERN_ERR "Cannot switch between non-MLS and MLS "
-			       "policies\n");
+			printk(KERN_ERR "SELinux: Cannot switch between non-MLS"
+				" and MLS policies\n");
 			goto bad;
 		}
 		selinux_mls_enabled = 1;
 		config |= POLICYDB_CONFIG_MLS;
 
 		if (p->policyvers < POLICYDB_VERSION_MLS) {
-			printk(KERN_ERR "security policydb version %d (MLS) "
-			       "not backwards compatible\n", p->policyvers);
+			printk(KERN_ERR "SELinux: security policydb version %d "
+				"(MLS) not backwards compatible\n",
+				p->policyvers);
 			goto bad;
 		}
 	} else {
 		if (ss_initialized && selinux_mls_enabled) {
-			printk(KERN_ERR "Cannot switch between MLS and non-MLS "
-			       "policies\n");
+			printk(KERN_ERR "SELinux: Cannot switch between MLS and"
+				" non-MLS policies\n");
 			goto bad;
 		}
 	}
