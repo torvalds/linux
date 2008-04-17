@@ -213,7 +213,7 @@ static void ide_floppy_put(struct ide_floppy_obj *floppy)
  * Used to finish servicing a request. For read/write requests, we will call
  * ide_end_request to pass to the next buffer.
  */
-static int idefloppy_do_end_request(ide_drive_t *drive, int uptodate, int nsecs)
+static int idefloppy_end_request(ide_drive_t *drive, int uptodate, int nsecs)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	struct request *rq = HWGROUP(drive)->rq;
@@ -270,7 +270,7 @@ static void ide_floppy_io_buffers(ide_drive_t *drive, struct ide_atapi_pc *pc,
 		done += count;
 	}
 
-	idefloppy_do_end_request(drive, 1, done >> 9);
+	idefloppy_end_request(drive, 1, done >> 9);
 
 	if (bcount) {
 		printk(KERN_ERR "%s: leftover data in %s, bcount == %d\n",
@@ -289,7 +289,7 @@ static void idefloppy_update_buffers(ide_drive_t *drive,
 	struct bio *bio = rq->bio;
 
 	while ((bio = rq->bio) != NULL)
-		idefloppy_do_end_request(drive, 1, 0);
+		idefloppy_end_request(drive, 1, 0);
 }
 
 /*
@@ -355,11 +355,11 @@ static void idefloppy_request_sense_callback(ide_drive_t *drive)
 					floppy->ascq);
 
 
-		idefloppy_do_end_request(drive, 1, 0);
+		idefloppy_end_request(drive, 1, 0);
 	} else {
 		printk(KERN_ERR "Error in REQUEST SENSE itself - Aborting"
 				" request!\n");
-		idefloppy_do_end_request(drive, 0, 0);
+		idefloppy_end_request(drive, 0, 0);
 	}
 }
 
@@ -370,7 +370,7 @@ static void idefloppy_pc_callback(ide_drive_t *drive)
 
 	debug_log("Reached %s\n", __func__);
 
-	idefloppy_do_end_request(drive, floppy->pc->error ? 0 : 1, 0);
+	idefloppy_end_request(drive, floppy->pc->error ? 0 : 1, 0);
 }
 
 static void idefloppy_init_pc(struct ide_atapi_pc *pc)
@@ -715,7 +715,7 @@ static void idefloppy_rw_callback(ide_drive_t *drive)
 {
 	debug_log("Reached %s\n", __func__);
 
-	idefloppy_do_end_request(drive, 1, 0);
+	idefloppy_end_request(drive, 1, 0);
 	return;
 }
 
@@ -863,7 +863,7 @@ static ide_startstop_t idefloppy_do_request(ide_drive_t *drive,
 		else
 			printk(KERN_ERR "ide-floppy: %s: I/O error\n",
 				drive->name);
-		idefloppy_do_end_request(drive, 0, 0);
+		idefloppy_end_request(drive, 0, 0);
 		return ide_stopped;
 	}
 	if (blk_fs_request(rq)) {
@@ -871,7 +871,7 @@ static ide_startstop_t idefloppy_do_request(ide_drive_t *drive,
 		    (rq->nr_sectors % floppy->bs_factor)) {
 			printk(KERN_ERR "%s: unsupported r/w request size\n",
 					drive->name);
-			idefloppy_do_end_request(drive, 0, 0);
+			idefloppy_end_request(drive, 0, 0);
 			return ide_stopped;
 		}
 		pc = idefloppy_next_pc_storage(drive);
@@ -884,7 +884,7 @@ static ide_startstop_t idefloppy_do_request(ide_drive_t *drive,
 	} else {
 		blk_dump_rq_flags(rq,
 			"ide-floppy: unsupported command in queue");
-		idefloppy_do_end_request(drive, 0, 0);
+		idefloppy_end_request(drive, 0, 0);
 		return ide_stopped;
 	}
 
@@ -1359,7 +1359,7 @@ static ide_driver_t idefloppy_driver = {
 	.media			= ide_floppy,
 	.supports_dsc_overlap	= 0,
 	.do_request		= idefloppy_do_request,
-	.end_request		= idefloppy_do_end_request,
+	.end_request		= idefloppy_end_request,
 	.error			= __ide_error,
 	.abort			= __ide_abort,
 #ifdef CONFIG_IDE_PROC_FS
