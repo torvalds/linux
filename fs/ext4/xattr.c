@@ -806,10 +806,8 @@ inserted:
 			get_bh(new_bh);
 		} else {
 			/* We need to allocate a new block */
-			ext4_fsblk_t goal = le32_to_cpu(
-					EXT4_SB(sb)->s_es->s_first_data_block) +
-				(ext4_fsblk_t)EXT4_I(inode)->i_block_group *
-				EXT4_BLOCKS_PER_GROUP(sb);
+			ext4_fsblk_t goal = ext4_group_first_block_no(sb,
+						EXT4_I(inode)->i_block_group);
 			ext4_fsblk_t block = ext4_new_block(handle, inode,
 							goal, &error);
 			if (error)

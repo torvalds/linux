@@ -48,7 +48,6 @@ void ext4_get_group_no_and_offset(struct super_block *sb, ext4_fsblk_t blocknr,
 unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 		 ext4_group_t block_group, struct ext4_group_desc *gdp)
 {
-	unsigned long start;
 	int bit, bit_max;
 	unsigned free_blocks, group_blocks;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -106,11 +105,12 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 	free_blocks = group_blocks - bit_max;
 
 	if (bh) {
+		ext4_fsblk_t start;
+
 		for (bit = 0; bit < bit_max; bit++)
 			ext4_set_bit(bit, bh->b_data);
 
-		start = block_group * EXT4_BLOCKS_PER_GROUP(sb) +
-			le32_to_cpu(sbi->s_es->s_first_data_block);
+		start = ext4_group_first_block_no(sb, block_group);
 
 		/* Set bits for block and inode bitmaps, and inode table */
 		ext4_set_bit(ext4_block_bitmap(sb, gdp) - start, bh->b_data);
