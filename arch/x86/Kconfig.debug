@@ -76,6 +76,18 @@ config DEBUG_RODATA
 	  data. This is recommended so that we can catch kernel bugs sooner.
 	  If in doubt, say "Y".
 
+config DIRECT_GBPAGES
+	bool "Enable gbpages-mapped kernel pagetables"
+	depends on DEBUG_KERNEL && EXPERIMENTAL && X86_64
+	help
+	  Enable gigabyte pages support (if the CPU supports it). This can
+	  improve the kernel's performance a tiny bit by reducing TLB
+	  pressure.
+
+	  This is experimental code.
+
+	  If in doubt, say "N".
+
 config DEBUG_RODATA_TEST
 	bool "Testcase for the DEBUG_RODATA feature"
 	depends on DEBUG_RODATA

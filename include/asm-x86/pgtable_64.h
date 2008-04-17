@@ -239,6 +239,8 @@ static inline int pud_large(pud_t pte)
 
 #define update_mmu_cache(vma,address,pte) do { } while (0)
 
+extern int direct_gbpages;
+
 /* Encode and de-code a swap entry */
 #define __swp_type(x)			(((x).val >> 1) & 0x3f)
 #define __swp_offset(x)			((x).val >> 8)
