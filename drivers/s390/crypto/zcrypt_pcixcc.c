@@ -501,7 +501,7 @@ static int convert_type86_ica(struct zcrypt_device *zdev,
 	reply_len = msg->length - 2;
 	if (reply_len > outputdatalength)
 		return -EINVAL;
-	/**
+	/*
 	 * For all encipher requests, the length of the ciphertext (reply_len)
 	 * will always equal the modulus length. For MEX decipher requests
 	 * the output needs to get padded. Minimum pad size is 10.
