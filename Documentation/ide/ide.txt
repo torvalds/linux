@@ -269,8 +269,6 @@ Summary of ide driver parameters for kernel command line
 			  ability to bit test for detection is currently
 			  unknown.
 
- "ide=reverse"		: formerly called to pci sub-system, but now local.
-
  "ide=doubler"		: probe/support IDE doublers on Amiga
 
 There may be more options than shown -- use the source, Luke!

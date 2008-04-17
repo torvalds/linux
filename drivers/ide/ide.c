@@ -90,10 +90,6 @@ static int system_bus_speed;	/* holds what we think is VESA/PCI bus speed */
 DEFINE_MUTEX(ide_cfg_mtx);
  __cacheline_aligned_in_smp DEFINE_SPINLOCK(ide_lock);
 
-#ifdef CONFIG_IDEPCI_PCIBUS_ORDER
-int ide_scan_direction; /* THIS was formerly 2.2.x pci=reverse */
-#endif
-
 int noautodma = 0;
 
 #ifdef CONFIG_BLK_DEV_IDEACPI
@@ -1216,14 +1212,6 @@ static int __init ide_setup(char *s)
 		noautodma = 1;
 		goto obsolete_option;
 	}
-
-#ifdef CONFIG_IDEPCI_PCIBUS_ORDER
-	if (!strcmp(s, "ide=reverse")) {
-		ide_scan_direction = 1;
-		printk(" : Enabled support for IDE inverse scan order.\n");
-		goto obsolete_option;
-	}
-#endif
 
 #ifdef CONFIG_BLK_DEV_IDEACPI
 	if (!strcmp(s, "ide=noacpi")) {

@@ -416,12 +416,6 @@ config BLK_DEV_OFFBOARD
 	  This can improve the usability of some boot managers such as lilo
 	  when booting from a drive on an off-board controller.
 
-	  If you say Y here, and you actually want to reverse the device scan
-	  order as explained above, you also need to issue the kernel command
-	  line option "ide=reverse". (Try "man bootparam" or see the
-	  documentation of your boot loader (lilo or loadlin) about how to
-	  pass options to the kernel at boot time.)
-
 	  Note that, if you do this, the order of the hd* devices will be
 	  rearranged which may require modification of fstab and other files.
 
@@ -615,8 +609,7 @@ config BLK_DEV_HPT366
 	  reference to device 0x80. The other solution is to say Y to "Boot
 	  off-board chipsets first support" (CONFIG_BLK_DEV_OFFBOARD) unless
 	  your mother board has the chipset natively mounted. Regardless one
-	  should use the fore mentioned option and call at LILO or include
-	  "ide=reverse" in LILO's append-line.
+	  should use the fore mentioned option and call at LILO.
 
 	  This driver requires dynamic tuning of the chipset during the
 	  ide-probe at boot. It is reported to support DVD II drives, by the
