@@ -117,6 +117,7 @@ gss_cred_set_ctx(struct rpc_cred *cred, struct gss_cl_ctx *ctx)
 	struct gss_cl_ctx *old;
 
 	old = gss_cred->gc_ctx;
+	gss_get_ctx(ctx);
 	rcu_assign_pointer(gss_cred->gc_ctx, ctx);
 	set_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
 	clear_bit(RPCAUTH_CRED_NEW, &cred->cr_flags);
@@ -340,7 +341,7 @@ gss_upcall_callback(struct rpc_task *task)
 
 	spin_lock(&inode->i_lock);
 	if (gss_msg->ctx)
-		gss_cred_set_ctx(task->tk_msg.rpc_cred, gss_get_ctx(gss_msg->ctx));
+		gss_cred_set_ctx(task->tk_msg.rpc_cred, gss_msg->ctx);
 	else
 		task->tk_status = gss_msg->msg.errno;
 	gss_cred->gc_upcall = NULL;
@@ -417,7 +418,11 @@ gss_refresh_upcall(struct rpc_task *task)
 	spin_lock(&inode->i_lock);
 	if (gss_cred->gc_upcall != NULL)
 		rpc_sleep_on(&gss_cred->gc_upcall->rpc_waitqueue, task, NULL);
-	else if (gss_msg->ctx == NULL && gss_msg->msg.errno >= 0) {
+	else if (gss_msg->ctx != NULL) {
+		gss_cred_set_ctx(task->tk_msg.rpc_cred, gss_msg->ctx);
+		gss_cred->gc_upcall = NULL;
+		rpc_wake_up_status(&gss_msg->rpc_waitqueue, gss_msg->msg.errno);
+	} else if (gss_msg->msg.errno >= 0) {
 		task->tk_timeout = 0;
 		gss_cred->gc_upcall = gss_msg;
 		/* gss_upcall_callback will release the reference to gss_upcall_msg */
@@ -462,7 +467,7 @@ gss_create_upcall(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 		schedule();
 	}
 	if (gss_msg->ctx)
-		gss_cred_set_ctx(cred, gss_get_ctx(gss_msg->ctx));
+		gss_cred_set_ctx(cred, gss_msg->ctx);
 	else
 		err = gss_msg->msg.errno;
 	spin_unlock(&inode->i_lock);
