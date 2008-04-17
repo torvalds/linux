@@ -766,7 +766,6 @@ chsc_secm(struct channel_subsystem *css, int enable)
 	if (!secm_area)
 		return -ENOMEM;
 
-	mutex_lock(&css->mutex);
 	if (enable && !css->cm_enabled) {
 		css->cub_addr1 = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 		css->cub_addr2 = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
@@ -774,7 +773,6 @@ chsc_secm(struct channel_subsystem *css, int enable)
 			free_page((unsigned long)css->cub_addr1);
 			free_page((unsigned long)css->cub_addr2);
 			free_page((unsigned long)secm_area);
-			mutex_unlock(&css->mutex);
 			return -ENOMEM;
 		}
 	}
@@ -795,7 +793,6 @@ chsc_secm(struct channel_subsystem *css, int enable)
 		free_page((unsigned long)css->cub_addr1);
 		free_page((unsigned long)css->cub_addr2);
 	}
-	mutex_unlock(&css->mutex);
 	free_page((unsigned long)secm_area);
 	return ret;
 }
