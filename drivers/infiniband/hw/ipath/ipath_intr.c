@@ -798,7 +798,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 void ipath_clear_freeze(struct ipath_devdata *dd)
 {
 	int i, im;
-	__le64 val;
+	u64 val;
 	unsigned long flags;
 
 	/* disable error interrupts, to avoid confusion */
@@ -835,8 +835,8 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 		/* deal with 6110 chip bug */
 		im = i > 3 ? i ^ 1 : i;
 		val = ipath_read_kreg64(dd, (0x1000 / sizeof(u64)) + im);
-		dd->ipath_pioavailregs_dma[i] = dd->ipath_pioavailshadow[i]
-			= le64_to_cpu(val);
+		dd->ipath_pioavailregs_dma[i] = cpu_to_le64(val);
+		dd->ipath_pioavailshadow[i] = val;
 	}
 
 	/*
