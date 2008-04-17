@@ -44,8 +44,8 @@
 #include "user.h"
 
 #define DRV_NAME	"mlx4_ib"
-#define DRV_VERSION	"0.01"
-#define DRV_RELDATE	"May 1, 2006"
+#define DRV_VERSION	"1.0"
+#define DRV_RELDATE	"April 4, 2008"
 
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("Mellanox ConnectX HCA InfiniBand driver");
