@@ -24,6 +24,7 @@
 #include <asm/ipl.h>
 #include <asm/chpid.h>
 #include <asm/airq.h>
+#include <asm/cpu.h>
 #include "cio.h"
 #include "css.h"
 #include "chsc.h"
@@ -649,7 +650,7 @@ do_IRQ (struct pt_regs *regs)
 
 	old_regs = set_irq_regs(regs);
 	irq_enter();
-	asm volatile ("mc 0,0");
+	s390_idle_check();
 	if (S390_lowcore.int_clock >= S390_lowcore.jiffy_timer)
 		/**
 		 * Make sure that the i/o interrupt did not "overtake"

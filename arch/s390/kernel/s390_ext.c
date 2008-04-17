@@ -13,7 +13,7 @@
 #include <linux/errno.h>
 #include <linux/kernel_stat.h>
 #include <linux/interrupt.h>
-
+#include <asm/cpu.h>
 #include <asm/lowcore.h>
 #include <asm/s390_ext.h>
 #include <asm/irq_regs.h>
@@ -119,7 +119,7 @@ void do_extint(struct pt_regs *regs, unsigned short code)
 
 	old_regs = set_irq_regs(regs);
 	irq_enter();
-	asm volatile ("mc 0,0");
+	s390_idle_check();
 	if (S390_lowcore.int_clock >= S390_lowcore.jiffy_timer)
 		/**
 		 * Make sure that the i/o interrupt did not "overtake"

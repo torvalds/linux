@@ -73,7 +73,6 @@ static int smp_cpu_state[NR_CPUS];
 static int cpu_management;
 
 static DEFINE_PER_CPU(struct cpu, cpu_devices);
-DEFINE_PER_CPU(struct s390_idle_data, s390_idle);
 
 static void smp_ext_bitcall(int, ec_bit_sig);
 
