@@ -73,7 +73,7 @@ static void ipath_clrpiobuf(struct ipath_devdata *dd, u32 pnum)
  * If rewrite is true, and bits are set in the sendbufferror registers,
  * we'll write to the buffer, for error recovery on parity errors.
  */
-static void ipath_disarm_senderrbufs(struct ipath_devdata *dd, int rewrite)
+void ipath_disarm_senderrbufs(struct ipath_devdata *dd, int rewrite)
 {
 	u32 piobcnt;
 	unsigned long sbuf[4];
@@ -87,12 +87,14 @@ static void ipath_disarm_senderrbufs(struct ipath_devdata *dd, int rewrite)
 		dd, dd->ipath_kregs->kr_sendbuffererror);
 	sbuf[1] = ipath_read_kreg64(
 		dd, dd->ipath_kregs->kr_sendbuffererror + 1);
-	if (piobcnt > 128) {
+	if (piobcnt > 128)
 		sbuf[2] = ipath_read_kreg64(
 			dd, dd->ipath_kregs->kr_sendbuffererror + 2);
+	if (piobcnt > 192)
 		sbuf[3] = ipath_read_kreg64(
 			dd, dd->ipath_kregs->kr_sendbuffererror + 3);
-	}
+	else
+		sbuf[3] = 0;
 
 	if (sbuf[0] || sbuf[1] || (piobcnt > 128 && (sbuf[2] || sbuf[3]))) {
 		int i;
@@ -365,7 +367,8 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 		 */
 		if (lastlts == INFINIPATH_IBCS_LT_STATE_POLLACTIVE ||
 		    lastlts == INFINIPATH_IBCS_LT_STATE_POLLQUIET) {
-			if (++dd->ipath_ibpollcnt == 40) {
+			if (!(dd->ipath_flags & IPATH_IB_AUTONEG_INPROG) &&
+			     (++dd->ipath_ibpollcnt == 40)) {
 				dd->ipath_flags |= IPATH_NOCABLE;
 				*dd->ipath_statusp |=
 					IPATH_STATUS_IB_NOCABLE;

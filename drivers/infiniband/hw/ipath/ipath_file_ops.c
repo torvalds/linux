@@ -2074,7 +2074,7 @@ static int ipath_close(struct inode *in, struct file *fp)
 			pd->port_rcvnowait = pd->port_pionowait = 0;
 	}
 	if (pd->port_flag) {
-		ipath_dbg("port %u port_flag still set to 0x%lx\n",
+		ipath_cdbg(PROC, "port %u port_flag set: 0x%lx\n",
 			  pd->port_port, pd->port_flag);
 		pd->port_flag = 0;
 	}

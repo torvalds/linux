@@ -89,6 +89,10 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("QLogic <support@qlogic.com>");
 MODULE_DESCRIPTION("QLogic InfiniPath driver");
 
+/*
+ * Table to translate the LINKTRAININGSTATE portion of
+ * IBCStatus to a human-readable form.
+ */
 const char *ipath_ibcstatus_str[] = {
 	"Disabled",
 	"LinkUp",
@@ -103,9 +107,20 @@ const char *ipath_ibcstatus_str[] = {
 	"CfgWaitRmt",
 	"CfgIdle",
 	"RecovRetrain",
-	"LState0xD",		/* unused */
+	"CfgTxRevLane",		/* unused before IBA7220 */
 	"RecovWaitRmt",
 	"RecovIdle",
+	/* below were added for IBA7220 */
+	"CfgEnhanced",
+	"CfgTest",
+	"CfgWaitRmtTest",
+	"CfgWaitCfgEnhanced",
+	"SendTS_T",
+	"SendTstIdles",
+	"RcvTS_T",
+	"SendTst_TS1s",
+	"LTState18", "LTState19", "LTState1A", "LTState1B",
+	"LTState1C", "LTState1D", "LTState1E", "LTState1F"
 };
 
 static void __devexit ipath_remove_one(struct pci_dev *);
@@ -333,7 +348,14 @@ static void ipath_verify_pioperf(struct ipath_devdata *dd)
 
 	ipath_disable_armlaunch(dd);
 
-	writeq(0, piobuf); /* length 0, no dwords actually sent */
+	/*
+	 * length 0, no dwords actually sent, and mark as VL15
+	 * on chips where that may matter (due to IB flowcontrol)
+	 */
+	if ((dd->ipath_flags & IPATH_HAS_PBC_CNT))
+		writeq(1UL << 63, piobuf);
+	else
+		writeq(0, piobuf);
 	ipath_flush_wc();
 
 	/*
@@ -374,6 +396,7 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	struct ipath_devdata *dd;
 	unsigned long long addr;
 	u32 bar0 = 0, bar1 = 0;
+	u8 rev;
 
 	dd = ipath_alloc_devdata(pdev);
 	if (IS_ERR(dd)) {
@@ -405,7 +428,7 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	}
 	addr = pci_resource_start(pdev, 0);
 	len = pci_resource_len(pdev, 0);
-	ipath_cdbg(VERBOSE, "regbase (0) %llx len %d pdev->irq %d, vend %x/%x "
+	ipath_cdbg(VERBOSE, "regbase (0) %llx len %d irq %d, vend %x/%x "
 		   "driver_data %lx\n", addr, len, pdev->irq, ent->vendor,
 		   ent->device, ent->driver_data);
 
@@ -530,7 +553,13 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 		goto bail_regions;
 	}
 
-	dd->ipath_pcirev = pdev->revision;
+	ret = pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
+	if (ret) {
+		ipath_dev_err(dd, "Failed to read PCI revision ID unit "
+			      "%u: err %d\n", dd->ipath_unit, -ret);
+		goto bail_regions;	/* shouldn't ever happen */
+	}
+	dd->ipath_pcirev = rev;
 
 #if defined(__powerpc__)
 	/* There isn't a generic way to specify writethrough mappings */
@@ -552,14 +581,6 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	/* for user mmap */
 	ipath_cdbg(VERBOSE, "mapped io addr %llx to kregbase %p\n",
 		   addr, dd->ipath_kregbase);
-
-	/*
-	 * clear ipath_flags here instead of in ipath_init_chip as it is set
-	 * by ipath_setup_htconfig.
-	 */
-	dd->ipath_flags = 0;
-	dd->ipath_lli_counter = 0;
-	dd->ipath_lli_errors = 0;
 
 	if (dd->ipath_f_bus(dd, pdev))
 		ipath_dev_err(dd, "Failed to setup config space; "
@@ -648,6 +669,10 @@ static void __devexit cleanup_device(struct ipath_devdata *dd)
 		}
 		ipath_disable_wc(dd);
 	}
+
+	if (dd->ipath_spectriggerhit)
+		dev_info(&dd->pcidev->dev, "%lu special trigger hits\n",
+			 dd->ipath_spectriggerhit);
 
 	if (dd->ipath_pioavailregs_dma) {
 		dma_free_coherent(&dd->pcidev->dev, PAGE_SIZE,
@@ -857,7 +882,7 @@ int ipath_wait_linkstate(struct ipath_devdata *dd, u32 state, int msecs)
 			   (unsigned long long) ipath_read_kreg64(
 				   dd, dd->ipath_kregs->kr_ibcctrl),
 			   (unsigned long long) val,
-			   ipath_ibcstatus_str[val & 0xf]);
+			   ipath_ibcstatus_str[val & dd->ibcs_lts_mask]);
 	}
 	return (dd->ipath_flags & state) ? 0 : -ETIMEDOUT;
 }
@@ -906,6 +931,8 @@ int ipath_decode_err(char *buf, size_t blen, ipath_err_t err)
 		strlcat(buf, "rbadversion ", blen);
 	if (err & INFINIPATH_E_RHDR)
 		strlcat(buf, "rhdr ", blen);
+	if (err & INFINIPATH_E_SENDSPECIALTRIGGER)
+		strlcat(buf, "sendspecialtrigger ", blen);
 	if (err & INFINIPATH_E_RLONGPKTLEN)
 		strlcat(buf, "rlongpktlen ", blen);
 	if (err & INFINIPATH_E_RMAXPKTLEN)
@@ -948,6 +975,8 @@ int ipath_decode_err(char *buf, size_t blen, ipath_err_t err)
 		strlcat(buf, "hardware ", blen);
 	if (err & INFINIPATH_E_RESET)
 		strlcat(buf, "reset ", blen);
+	if (err & INFINIPATH_E_INVALIDEEPCMD)
+		strlcat(buf, "invalideepromcmd ", blen);
 done:
 	return iserr;
 }
@@ -1701,6 +1730,10 @@ bail:
  */
 void ipath_cancel_sends(struct ipath_devdata *dd, int restore_sendctrl)
 {
+	if (dd->ipath_flags & IPATH_IB_AUTONEG_INPROG) {
+		ipath_cdbg(VERBOSE, "Ignore while in autonegotiation\n");
+		goto bail;
+	}
 	ipath_dbg("Cancelling all in-progress send buffers\n");
 
 	/* skip armlaunch errs for a while */
@@ -1721,6 +1754,7 @@ void ipath_cancel_sends(struct ipath_devdata *dd, int restore_sendctrl)
 
 	/* and again, be sure all have hit the chip */
 	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+bail:;
 }
 
 /*
@@ -2282,6 +2316,7 @@ static int __init infinipath_init(void)
 	 */
 	idr_init(&unit_table);
 	if (!idr_pre_get(&unit_table, GFP_KERNEL)) {
+		printk(KERN_ERR IPATH_DRV_NAME ": idr_pre_get() failed\n");
 		ret = -ENOMEM;
 		goto bail;
 	}

@@ -34,6 +34,7 @@
 #include <linux/ctype.h>
 
 #include "ipath_kernel.h"
+#include "ipath_verbs.h"
 #include "ipath_common.h"
 
 /**
@@ -320,6 +321,8 @@ static ssize_t store_guid(struct device *dev,
 
 	dd->ipath_guid = new_guid;
 	dd->ipath_nguid = 1;
+	if (dd->verbs_dev)
+		dd->verbs_dev->ibdev.node_guid = new_guid;
 
 	ret = strlen(buf);
 	goto bail;
@@ -928,18 +931,17 @@ static ssize_t store_rx_polinv_enb(struct device *dev,
 	u16 val;
 
 	ret = ipath_parse_ushort(buf, &val);
-	if (ret < 0 || val > 1)
-		goto invalid;
-
-	r = dd->ipath_f_set_ib_cfg(dd, IPATH_IB_CFG_RXPOL_ENB, val);
-	if (r < 0) {
-		ret = r;
+	if (ret >= 0 && val > 1) {
+		ipath_dev_err(dd,
+			"attempt to set invalid Rx Polarity (enable)\n");
+		ret = -EINVAL;
 		goto bail;
 	}
 
-	goto bail;
-invalid:
-	ipath_dev_err(dd, "attempt to set invalid Rx Polarity (enable)\n");
+	r = dd->ipath_f_set_ib_cfg(dd, IPATH_IB_CFG_RXPOL_ENB, val);
+	if (r < 0)
+		ret = r;
+
 bail:
 	return ret;
 }

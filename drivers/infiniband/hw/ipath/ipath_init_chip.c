@@ -230,6 +230,15 @@ static int init_chip_first(struct ipath_devdata *dd)
 	int ret = 0;
 	u64 val;
 
+	spin_lock_init(&dd->ipath_kernel_tid_lock);
+	spin_lock_init(&dd->ipath_user_tid_lock);
+	spin_lock_init(&dd->ipath_sendctrl_lock);
+	spin_lock_init(&dd->ipath_sdma_lock);
+	spin_lock_init(&dd->ipath_gpio_lock);
+	spin_lock_init(&dd->ipath_eep_st_lock);
+	spin_lock_init(&dd->ipath_sdepb_lock);
+	mutex_init(&dd->ipath_eep_lock);
+
 	/*
 	 * skip cfgports stuff because we are not allocating memory,
 	 * and we don't want problems if the portcnt changed due to
@@ -318,12 +327,6 @@ static int init_chip_first(struct ipath_devdata *dd)
 	}
 	else ipath_dbg("%u 2k piobufs @ %p\n",
 		       dd->ipath_piobcnt2k, dd->ipath_pio2kbase);
-
-	spin_lock_init(&dd->ipath_user_tid_lock);
-	spin_lock_init(&dd->ipath_sendctrl_lock);
-	spin_lock_init(&dd->ipath_gpio_lock);
-	spin_lock_init(&dd->ipath_eep_st_lock);
-	mutex_init(&dd->ipath_eep_lock);
 
 done:
 	return ret;
@@ -553,7 +556,7 @@ static void enable_chip(struct ipath_devdata *dd, int reinit)
 
 static int init_housekeeping(struct ipath_devdata *dd, int reinit)
 {
-	char boardn[32];
+	char boardn[40];
 	int ret = 0;
 
 	/*
@@ -800,7 +803,12 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 			dd->ipath_pioupd_thresh = kpiobufs;
 	}
 
-	dd->ipath_f_early_init(dd);
+	ret = dd->ipath_f_early_init(dd);
+	if (ret) {
+		ipath_dev_err(dd, "Early initialization failure\n");
+		goto done;
+	}
+
 	/*
 	 * Cancel any possible active sends from early driver load.
 	 * Follows early_init because some chips have to initialize
