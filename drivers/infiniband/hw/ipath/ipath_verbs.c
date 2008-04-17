@@ -1183,7 +1183,9 @@ static int ipath_query_port(struct ib_device *ibdev,
 	props->sm_lid = dev->sm_lid;
 	props->sm_sl = dev->sm_sl;
 	ibcstat = dd->ipath_lastibcstat;
-	props->state = ((ibcstat >> 4) & 0x3) + 1;
+	/* map LinkState to IB portinfo values.  */
+	props->state = ipath_ib_linkstate(dd, ibcstat) + 1;
+
 	/* See phys_state_show() */
 	props->phys_state = /* MEA: assumes shift == 0 */
 		ipath_cvt_physportstate[dd->ipath_lastibcstat &
@@ -1195,9 +1197,9 @@ static int ipath_query_port(struct ib_device *ibdev,
 	props->bad_pkey_cntr = ipath_get_cr_errpkey(dd) -
 		dev->z_pkey_violations;
 	props->qkey_viol_cntr = dev->qkey_violations;
-	props->active_width = IB_WIDTH_4X;
+	props->active_width = dd->ipath_link_width_active;
 	/* See rate_show() */
-	props->active_speed = 1;	/* Regular 10Mbs speed. */
+	props->active_speed = dd->ipath_link_speed_active;
 	props->max_vl_num = 1;		/* VLCap = VL0 */
 	props->init_type_reply = 0;
 
@@ -1629,12 +1631,13 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 	idev->pending_index = 0;
 	idev->port_cap_flags =
 		IB_PORT_SYS_IMAGE_GUID_SUP | IB_PORT_CLIENT_REG_SUP;
+	if (dd->ipath_flags & IPATH_HAS_LINK_LATENCY)
+		idev->port_cap_flags |= IB_PORT_LINK_LATENCY_SUP;
 	idev->pma_counter_select[0] = IB_PMA_PORT_XMIT_DATA;
 	idev->pma_counter_select[1] = IB_PMA_PORT_RCV_DATA;
 	idev->pma_counter_select[2] = IB_PMA_PORT_XMIT_PKTS;
 	idev->pma_counter_select[3] = IB_PMA_PORT_RCV_PKTS;
 	idev->pma_counter_select[4] = IB_PMA_PORT_XMIT_WAIT;
-	idev->link_width_enabled = 3;	/* 1x or 4x */
 
 	/* Snapshot current HW counters to "clear" them. */
 	ipath_get_counters(dd, &cntrs);

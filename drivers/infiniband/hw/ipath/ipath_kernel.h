@@ -801,6 +801,8 @@ void ipath_hol_event(unsigned long);
 /*
  * values for ipath_flags
  */
+		/* chip can report link latency (IB 1.2) */
+#define IPATH_HAS_LINK_LATENCY 0x1
 /* The chip is up and initted */
 #define IPATH_INITTED       0x2
 		/* set if any user code has set kr_rcvhdrsize */
