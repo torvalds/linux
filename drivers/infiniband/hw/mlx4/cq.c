@@ -297,6 +297,20 @@ static void mlx4_ib_handle_error_cqe(struct mlx4_err_cqe *cqe,
 	wc->vendor_err = cqe->vendor_err_syndrome;
 }
 
+static int mlx4_ib_ipoib_csum_ok(__be32 status, __be16 checksum)
+{
+	return ((status & cpu_to_be32(MLX4_CQE_IPOIB_STATUS_IPV4	|
+				      MLX4_CQE_IPOIB_STATUS_IPV4F	|
+				      MLX4_CQE_IPOIB_STATUS_IPV4OPT	|
+				      MLX4_CQE_IPOIB_STATUS_IPV6	|
+				      MLX4_CQE_IPOIB_STATUS_IPOK)) ==
+		cpu_to_be32(MLX4_CQE_IPOIB_STATUS_IPV4	|
+			    MLX4_CQE_IPOIB_STATUS_IPOK))		&&
+		(status & cpu_to_be32(MLX4_CQE_IPOIB_STATUS_UDP	|
+				      MLX4_CQE_IPOIB_STATUS_TCP))	&&
+		checksum == cpu_to_be16(0xffff);
+}
+
 static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 			    struct mlx4_ib_qp **cur_qp,
 			    struct ib_wc *wc)
@@ -434,6 +448,8 @@ static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 		wc->dlid_path_bits = (g_mlpath_rqpn >> 24) & 0x7f;
 		wc->wc_flags	  |= g_mlpath_rqpn & 0x80000000 ? IB_WC_GRH : 0;
 		wc->pkey_index     = be32_to_cpu(cqe->immed_rss_invalid) & 0x7f;
+		wc->csum_ok	   = mlx4_ib_ipoib_csum_ok(cqe->ipoib_status,
+							   cqe->checksum);
 	}
 
 	return 0;
