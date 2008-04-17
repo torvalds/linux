@@ -125,7 +125,8 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 
 	private = (struct dasd_fba_private *) device->private;
 	if (private == NULL) {
-		private = kzalloc(sizeof(struct dasd_fba_private), GFP_KERNEL);
+		private = kzalloc(sizeof(struct dasd_fba_private),
+				  GFP_KERNEL | GFP_DMA);
 		if (private == NULL) {
 			DEV_MESSAGE(KERN_WARNING, device, "%s",
 				    "memory allocation failed for private "
