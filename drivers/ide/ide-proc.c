@@ -764,24 +764,13 @@ void ide_proc_port_register_devices(ide_hwif_t *hwif)
 	}
 }
 
-static void destroy_proc_ide_device(ide_hwif_t *hwif, ide_drive_t *drive)
+void ide_proc_unregister_device(ide_drive_t *drive)
 {
 	if (drive->proc) {
 		ide_remove_proc_entries(drive->proc, generic_drive_entries);
 		remove_proc_entry(drive->name, proc_ide_root);
-		remove_proc_entry(drive->name, hwif->proc);
+		remove_proc_entry(drive->name, drive->hwif->proc);
 		drive->proc = NULL;
-	}
-}
-
-static void destroy_proc_ide_drives(ide_hwif_t *hwif)
-{
-	int	d;
-
-	for (d = 0; d < MAX_DRIVES; d++) {
-		ide_drive_t *drive = &hwif->drives[d];
-		if (drive->proc)
-			destroy_proc_ide_device(hwif, drive);
 	}
 }
 
@@ -816,7 +805,6 @@ EXPORT_SYMBOL_GPL(ide_pci_create_host_proc);
 void ide_proc_unregister_port(ide_hwif_t *hwif)
 {
 	if (hwif->proc) {
-		destroy_proc_ide_drives(hwif);
 		ide_remove_proc_entries(hwif->proc, hwif_entries);
 		remove_proc_entry(hwif->name, proc_ide_root);
 		hwif->proc = NULL;

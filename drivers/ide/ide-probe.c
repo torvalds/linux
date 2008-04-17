@@ -1199,6 +1199,8 @@ static void drive_release_dev (struct device *dev)
 {
 	ide_drive_t *drive = container_of(dev, ide_drive_t, gendev);
 
+	ide_proc_unregister_device(drive);
+
 	spin_lock_irq(&ide_lock);
 	ide_remove_drive_from_hwgroup(drive);
 	kfree(drive->id);
