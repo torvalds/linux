@@ -2511,12 +2511,10 @@ out_stop:
 static ext4_fsblk_t ext4_get_inode_block(struct super_block *sb,
 		unsigned long ino, struct ext4_iloc *iloc)
 {
-	unsigned long desc, group_desc;
 	ext4_group_t block_group;
 	unsigned long offset;
 	ext4_fsblk_t block;
-	struct buffer_head *bh;
-	struct ext4_group_desc * gdp;
+	struct ext4_group_desc *gdp;
 
 	if (!ext4_valid_inum(sb, ino)) {
 		/*
@@ -2528,22 +2526,10 @@ static ext4_fsblk_t ext4_get_inode_block(struct super_block *sb,
 	}
 
 	block_group = (ino - 1) / EXT4_INODES_PER_GROUP(sb);
-	if (block_group >= EXT4_SB(sb)->s_groups_count) {
-		ext4_error(sb,"ext4_get_inode_block","group >= groups count");
+	gdp = ext4_get_group_desc(sb, block_group, NULL);
+	if (!gdp)
 		return 0;
-	}
-	smp_rmb();
-	group_desc = block_group >> EXT4_DESC_PER_BLOCK_BITS(sb);
-	desc = block_group & (EXT4_DESC_PER_BLOCK(sb) - 1);
-	bh = EXT4_SB(sb)->s_group_desc[group_desc];
-	if (!bh) {
-		ext4_error (sb, "ext4_get_inode_block",
-			    "Descriptor not loaded");
-		return 0;
-	}
 
-	gdp = (struct ext4_group_desc *)((__u8 *)bh->b_data +
-		desc * EXT4_DESC_SIZE(sb));
 	/*
 	 * Figure out the offset within the block group inode table
 	 */
