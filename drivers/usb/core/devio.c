@@ -948,8 +948,11 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 	int ret, ifnum = -1;
 	int is_in;
 
-	if (uurb->flags & ~(USBDEVFS_URB_ISO_ASAP|USBDEVFS_URB_SHORT_NOT_OK|
-			   URB_NO_FSBR|URB_ZERO_PACKET))
+	if (uurb->flags & ~(USBDEVFS_URB_ISO_ASAP |
+				USBDEVFS_URB_SHORT_NOT_OK |
+				USBDEVFS_URB_NO_FSBR |
+				USBDEVFS_URB_ZERO_PACKET |
+				USBDEVFS_URB_NO_INTERRUPT))
 		return -EINVAL;
 	if (!uurb->buffer)
 		return -EINVAL;
@@ -1104,8 +1107,24 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 	as->urb->pipe = (uurb->type << 30) |
 			__create_pipe(ps->dev, uurb->endpoint & 0xf) |
 			(uurb->endpoint & USB_DIR_IN);
-	as->urb->transfer_flags = uurb->flags |
-			(is_in ? URB_DIR_IN : URB_DIR_OUT);
+
+	/* This tedious sequence is necessary because the URB_* flags
+	 * are internal to the kernel and subject to change, whereas
+	 * the USBDEVFS_URB_* flags are a user API and must not be changed.
+	 */
+	u = (is_in ? URB_DIR_IN : URB_DIR_OUT);
+	if (uurb->flags & USBDEVFS_URB_ISO_ASAP)
+		u |= URB_ISO_ASAP;
+	if (uurb->flags & USBDEVFS_URB_SHORT_NOT_OK)
+		u |= URB_SHORT_NOT_OK;
+	if (uurb->flags & USBDEVFS_URB_NO_FSBR)
+		u |= URB_NO_FSBR;
+	if (uurb->flags & USBDEVFS_URB_ZERO_PACKET)
+		u |= URB_ZERO_PACKET;
+	if (uurb->flags & USBDEVFS_URB_NO_INTERRUPT)
+		u |= URB_NO_INTERRUPT;
+	as->urb->transfer_flags = u;
+
 	as->urb->transfer_buffer_length = uurb->buffer_length;
 	as->urb->setup_packet = (unsigned char *)dr;
 	as->urb->start_frame = uurb->start_frame;
