@@ -242,6 +242,11 @@ struct ipoib_cm_dev_priv {
 	int			num_frags;
 };
 
+struct ipoib_ethtool_st {
+	u16     coalesce_usecs;
+	u16     max_coalesced_frames;
+};
+
 /*
  * Device private locking: tx_lock protects members used in TX fast
  * path (and we use LLTX so upper layers don't do extra locking).
@@ -320,6 +325,7 @@ struct ipoib_dev_priv {
 	struct dentry *path_dentry;
 #endif
 	int	hca_caps;
+	struct ipoib_ethtool_st ethtool;
 };
 
 struct ipoib_ah {
