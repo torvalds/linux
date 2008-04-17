@@ -2299,9 +2299,8 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 	 * in the other openers.
 	 */
 	if (device->block) {
-		struct dasd_block *block = device->block;
-		max_count = block->bdev ? 0 : -1;
-		open_count = (int) atomic_read(&block->open_count);
+		max_count = device->block->bdev ? 0 : -1;
+		open_count = atomic_read(&device->block->open_count);
 		if (open_count > max_count) {
 			if (open_count > 0)
 				printk(KERN_WARNING "Can't offline dasd "

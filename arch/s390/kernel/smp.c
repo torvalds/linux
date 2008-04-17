@@ -44,6 +44,7 @@
 #include <asm/lowcore.h>
 #include <asm/sclp.h>
 #include <asm/cpu.h>
+#include "entry.h"
 
 /*
  * An array with a pointer the lowcore of every CPU.
@@ -297,7 +298,7 @@ static void smp_ext_bitcall(int cpu, ec_bit_sig sig)
 /*
  * this function sends a 'purge tlb' signal to another CPU.
  */
-void smp_ptlb_callback(void *info)
+static void smp_ptlb_callback(void *info)
 {
 	__tlb_flush_local();
 }

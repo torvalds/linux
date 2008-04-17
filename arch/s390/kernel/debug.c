@@ -157,7 +157,7 @@ struct debug_view debug_sprintf_view = {
 };
 
 /* used by dump analysis tools to determine version of debug feature */
-unsigned int debug_feature_version = __DEBUG_FEATURE_VERSION;
+static unsigned int __used debug_feature_version = __DEBUG_FEATURE_VERSION;
 
 /* static globals */
 

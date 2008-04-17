@@ -37,6 +37,7 @@
 #include <linux/notifier.h>
 #include <linux/utsname.h>
 #include <linux/tick.h>
+#include <linux/elfcore.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -45,6 +46,7 @@
 #include <asm/irq.h>
 #include <asm/timer.h>
 #include <asm/cpu.h>
+#include "entry.h"
 
 asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
 

@@ -360,7 +360,7 @@ no_kprobe:
  *	- When the probed function returns, this probe
  *		causes the handlers to fire
  */
-void kretprobe_trampoline_holder(void)
+static void __used kretprobe_trampoline_holder(void)
 {
 	asm volatile(".global kretprobe_trampoline\n"
 		     "kretprobe_trampoline: bcr 0,0\n");

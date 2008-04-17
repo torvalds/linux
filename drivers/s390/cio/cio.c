@@ -670,10 +670,14 @@ do_IRQ (struct pt_regs *regs)
 			continue;
 		}
 		sch = (struct subchannel *)(unsigned long)tpi_info->intparm;
-		if (sch)
-			spin_lock(sch->lock);
+		if (!sch) {
+			/* Clear pending interrupt condition. */
+			tsch(tpi_info->schid, irb);
+			continue;
+		}
+		spin_lock(sch->lock);
 		/* Store interrupt response block to lowcore. */
-		if (tsch (tpi_info->schid, irb) == 0 && sch) {
+		if (tsch(tpi_info->schid, irb) == 0) {
 			/* Keep subchannel information word up to date. */
 			memcpy (&sch->schib.scsw, &irb->scsw,
 				sizeof (irb->scsw));
@@ -681,8 +685,7 @@ do_IRQ (struct pt_regs *regs)
 			if (sch->driver && sch->driver->irq)
 				sch->driver->irq(sch);
 		}
-		if (sch)
-			spin_unlock(sch->lock);
+		spin_unlock(sch->lock);
 		/*
 		 * Are more interrupts pending?
 		 * If so, the tpi instruction will update the lowcore
@@ -708,8 +711,9 @@ void *cio_get_console_priv(void)
 /*
  * busy wait for the next interrupt on the console
  */
-void
-wait_cons_dev (void)
+void wait_cons_dev(void)
+	__releases(console_subchannel.lock)
+	__acquires(console_subchannel.lock)
 {
 	unsigned long cr6      __attribute__ ((aligned (8)));
 	unsigned long save_cr6 __attribute__ ((aligned (8)));

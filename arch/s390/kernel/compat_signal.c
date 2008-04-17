@@ -29,6 +29,7 @@
 #include <asm/lowcore.h>
 #include "compat_linux.h"
 #include "compat_ptrace.h"
+#include "entry.h"
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 

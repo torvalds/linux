@@ -18,6 +18,7 @@
 #include <asm/s390_ext.h>
 #include <asm/irq_regs.h>
 #include <asm/irq.h>
+#include "entry.h"
 
 /*
  * ext_int_hash[index] is the start of the list for all external interrupts

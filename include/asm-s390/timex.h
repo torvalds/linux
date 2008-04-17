@@ -83,5 +83,6 @@ static inline cycles_t get_cycles(void)
 
 int get_sync_clock(unsigned long long *clock);
 void init_cpu_timer(void);
+unsigned long long monotonic_clock(void);
 
 #endif

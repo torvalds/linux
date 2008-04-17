@@ -42,11 +42,8 @@
 #include <asm/s390_ext.h>
 #include <asm/lowcore.h>
 #include <asm/debug.h>
+#include "entry.h"
 
-/* Called from entry.S only */
-extern void handle_per_exception(struct pt_regs *regs);
-
-typedef void pgm_check_handler_t(struct pt_regs *, long);
 pgm_check_handler_t *pgm_check_table[128];
 
 #ifdef CONFIG_SYSCTL

@@ -27,6 +27,7 @@
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/lowcore.h>
+#include "entry.h"
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
@@ -484,11 +485,6 @@ void do_signal(struct pt_regs *regs)
 		int ret;
 #ifdef CONFIG_COMPAT
 		if (test_thread_flag(TIF_31BIT)) {
-			extern int handle_signal32(unsigned long sig,
-						   struct k_sigaction *ka,
-						   siginfo_t *info,
-						   sigset_t *oldset,
-						   struct pt_regs *regs);
 			ret = handle_signal32(signr, &ka, &info, oldset, regs);
 	        }
 		else

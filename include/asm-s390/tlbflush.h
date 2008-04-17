@@ -17,9 +17,10 @@ static inline void __tlb_flush_local(void)
 /*
  * Flush all tlb entries on all cpus.
  */
+void smp_ptlb_all(void);
+
 static inline void __tlb_flush_global(void)
 {
-	extern void smp_ptlb_all(void);
 	register unsigned long reg2 asm("2");
 	register unsigned long reg3 asm("3");
 	register unsigned long reg4 asm("4");
