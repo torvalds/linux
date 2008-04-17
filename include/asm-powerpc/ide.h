@@ -86,8 +86,6 @@ static __inline__ unsigned long ide_default_io_base(int index)
 
 #endif /* __powerpc64__ */
 
-#define ide_default_io_ctl(base)	((base) + 0x206) /* obsolete */
-
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_POWERPC_IDE_H */

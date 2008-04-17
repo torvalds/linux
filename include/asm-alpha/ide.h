@@ -37,8 +37,6 @@ static inline unsigned long ide_default_io_base(int index)
 	}
 }
 
-#define ide_default_io_ctl(base)	((base) + 0x206) /* obsolete */
-
 #ifdef CONFIG_PCI
 #define ide_init_default_irq(base)	(0)
 #else

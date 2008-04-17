@@ -202,7 +202,7 @@ static void __init init_ide_data (void)
 	for (index = 0; index < MAX_HWIFS; ++index) {
 		ide_hwif_t *hwif = &ide_hwifs[index];
 		unsigned long io_addr = ide_default_io_base(index);
-		unsigned long ctl_addr = ide_default_io_ctl(io_addr);
+		unsigned long ctl_addr = io_addr + 0x206;
 
 		ide_init_port_data(hwif, index);
 
