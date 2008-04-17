@@ -1241,13 +1241,6 @@ static int hwif_init(ide_hwif_t *hwif)
 			return 0;
 		}
 	}
-#ifdef CONFIG_BLK_DEV_HD
-	if (hwif->irq == HD_IRQ && hwif->io_ports[IDE_DATA_OFFSET] != HD_DATA) {
-		printk("%s: CANNOT SHARE IRQ WITH OLD "
-			"HARDDISK DRIVER (hd.c)\n", hwif->name);
-		return 0;
-	}
-#endif /* CONFIG_BLK_DEV_HD */
 
 	if (register_blkdev(hwif->major, hwif->name))
 		return 0;
