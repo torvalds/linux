@@ -1105,6 +1105,7 @@ static struct net_device *ipoib_add_port(const char *format,
 					 struct ib_device *hca, u8 port)
 {
 	struct ipoib_dev_priv *priv;
+	struct ib_device_attr *device_attr;
 	int result = -ENOMEM;
 
 	priv = ipoib_intf_alloc(format);
@@ -1119,6 +1120,28 @@ static struct net_device *ipoib_add_port(const char *format,
 		       hca->name, port, result);
 		goto device_init_failed;
 	}
+
+	device_attr = kmalloc(sizeof *device_attr, GFP_KERNEL);
+	if (!device_attr) {
+		printk(KERN_WARNING "%s: allocation of %zu bytes failed\n",
+		       hca->name, sizeof *device_attr);
+		goto device_init_failed;
+	}
+
+	result = ib_query_device(hca, device_attr);
+	if (result) {
+		printk(KERN_WARNING "%s: ib_query_device failed (ret = %d)\n",
+		       hca->name, result);
+		kfree(device_attr);
+		goto device_init_failed;
+	}
+
+	if (device_attr->device_cap_flags & IB_DEVICE_UD_IP_CSUM) {
+		set_bit(IPOIB_FLAG_CSUM, &priv->flags);
+		priv->dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
+	}
+
+	kfree(device_attr);
 
 	/*
 	 * Set the full membership bit, so that we join the right
@@ -1136,7 +1159,6 @@ static struct net_device *ipoib_add_port(const char *format,
 		goto device_init_failed;
 	} else
 		memcpy(priv->dev->dev_addr + 4, priv->local_gid.raw, sizeof (union ib_gid));
-
 
 	result = ipoib_dev_init(priv->dev, hca, port);
 	if (result < 0) {

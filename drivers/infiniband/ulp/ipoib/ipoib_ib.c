@@ -231,6 +231,10 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	skb->dev = dev;
 	/* XXX get correct PACKET_ type here */
 	skb->pkt_type = PACKET_HOST;
+
+	if (test_bit(IPOIB_FLAG_CSUM, &priv->flags) && likely(wc->csum_ok))
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+
 	netif_receive_skb(skb);
 
 repost:
@@ -441,6 +445,11 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 		dev_kfree_skb_any(skb);
 		return;
 	}
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		priv->tx_wr.send_flags |= IB_SEND_IP_CSUM;
+	else
+		priv->tx_wr.send_flags &= ~IB_SEND_IP_CSUM;
 
 	if (unlikely(post_send(priv, priv->tx_head & (ipoib_sendq_size - 1),
 			       address->ah, qpn,
