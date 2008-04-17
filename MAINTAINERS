@@ -2329,6 +2329,13 @@ L:	kvm-devel@lists.sourceforge.net
 W:	kvm.sourceforge.net
 S:	Supported
 
+KERNEL VIRTUAL MACHINE (KVM) FOR POWERPC
+P:	Hollis Blanchard
+M:	hollisb@us.ibm.com
+L:	kvm-ppc-devel@lists.sourceforge.net
+W:	kvm.sourceforge.net
+S:	Supported
+
 KERNEL VIRTUAL MACHINE For Itanium(KVM/IA64)
 P:	Anthony Xu
 M:	anthony.xu@intel.com
