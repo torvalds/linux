@@ -312,6 +312,7 @@ ccw_device_do_sense(struct ccw_device *cdev, struct irb *irb)
 {
 	struct subchannel *sch;
 	struct ccw1 *sense_ccw;
+	int rc;
 
 	sch = to_subchannel(cdev->dev.parent);
 
@@ -337,7 +338,10 @@ ccw_device_do_sense(struct ccw_device *cdev, struct irb *irb)
 	/* Reset internal retry indication. */
 	cdev->private->flags.intretry = 0;
 
-	return cio_start(sch, sense_ccw, 0xff);
+	rc = cio_start(sch, sense_ccw, 0xff);
+	if (rc == -ENODEV || rc == -EACCES)
+		dev_fsm_event(cdev, DEV_EVENT_VERIFY);
+	return rc;
 }
 
 /*
