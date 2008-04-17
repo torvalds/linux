@@ -1397,7 +1397,8 @@ static int process_subn(struct ib_device *ibdev, int mad_flags,
 	}
 
 	/* Is the mkey in the process of expiring? */
-	if (dev->mkey_lease_timeout && jiffies >= dev->mkey_lease_timeout) {
+	if (dev->mkey_lease_timeout &&
+	    time_after_eq(jiffies, dev->mkey_lease_timeout)) {
 		/* Clear timeout and mkey protection field. */
 		dev->mkey_lease_timeout = 0;
 		dev->mkeyprot = 0;
