@@ -951,6 +951,8 @@ static void ipoib_setup(struct net_device *dev)
 	dev->set_multicast_list	 = ipoib_set_mcast_list;
 	dev->neigh_setup	 = ipoib_neigh_setup_dev;
 
+	ipoib_set_ethtool_ops(dev);
+
 	netif_napi_add(dev, &priv->napi, ipoib_poll, 100);
 
 	dev->watchdog_timeo	 = HZ;
