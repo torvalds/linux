@@ -571,6 +571,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		(1ull << IB_USER_VERBS_CMD_DEREG_MR)		|
 		(1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL)	|
 		(1ull << IB_USER_VERBS_CMD_CREATE_CQ)		|
+		(1ull << IB_USER_VERBS_CMD_RESIZE_CQ)		|
 		(1ull << IB_USER_VERBS_CMD_DESTROY_CQ)		|
 		(1ull << IB_USER_VERBS_CMD_CREATE_QP)		|
 		(1ull << IB_USER_VERBS_CMD_MODIFY_QP)		|
@@ -610,6 +611,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.post_recv		= mlx4_ib_post_recv;
 	ibdev->ib_dev.create_cq		= mlx4_ib_create_cq;
 	ibdev->ib_dev.modify_cq		= mlx4_ib_modify_cq;
+	ibdev->ib_dev.resize_cq		= mlx4_ib_resize_cq;
 	ibdev->ib_dev.destroy_cq	= mlx4_ib_destroy_cq;
 	ibdev->ib_dev.poll_cq		= mlx4_ib_poll_cq;
 	ibdev->ib_dev.req_notify_cq	= mlx4_ib_arm_cq;

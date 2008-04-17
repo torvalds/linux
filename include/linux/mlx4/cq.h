@@ -132,5 +132,7 @@ enum {
 
 int mlx4_cq_modify(struct mlx4_dev *dev, struct mlx4_cq *cq,
 		   u16 count, u16 period);
+int mlx4_cq_resize(struct mlx4_dev *dev, struct mlx4_cq *cq,
+		   int entries, struct mlx4_mtt *mtt);
 
 #endif /* MLX4_CQ_H */

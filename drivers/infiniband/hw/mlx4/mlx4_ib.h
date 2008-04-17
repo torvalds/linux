@@ -78,13 +78,21 @@ struct mlx4_ib_cq_buf {
 	struct mlx4_mtt		mtt;
 };
 
+struct mlx4_ib_cq_resize {
+	struct mlx4_ib_cq_buf	buf;
+	int			cqe;
+};
+
 struct mlx4_ib_cq {
 	struct ib_cq		ibcq;
 	struct mlx4_cq		mcq;
 	struct mlx4_ib_cq_buf	buf;
+	struct mlx4_ib_cq_resize *resize_buf;
 	struct mlx4_ib_db	db;
 	spinlock_t		lock;
+	struct mutex		resize_mutex;
 	struct ib_umem	       *umem;
+	struct ib_umem	       *resize_umem;
 };
 
 struct mlx4_ib_mr {
@@ -255,6 +263,7 @@ struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 int mlx4_ib_dereg_mr(struct ib_mr *mr);
 
 int mlx4_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period);
+int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata);
 struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector,
 				struct ib_ucontext *context,
 				struct ib_udata *udata);
