@@ -518,16 +518,6 @@ static struct ide_tape_obj *ide_tape_chrdev_get(unsigned int i)
 	return tape;
 }
 
-/*
- * Too bad. The drive wants to send us data which we are not ready to accept.
- * Just throw it away.
- */
-static void idetape_discard_data(ide_drive_t *drive, unsigned int bcount)
-{
-	while (bcount--)
-		(void) HWIF(drive)->INB(IDE_DATA_REG);
-}
-
 static void idetape_input_buffers(ide_drive_t *drive, idetape_pc_t *pc,
 				  unsigned int bcount)
 {
@@ -538,7 +528,7 @@ static void idetape_input_buffers(ide_drive_t *drive, idetape_pc_t *pc,
 		if (bh == NULL) {
 			printk(KERN_ERR "ide-tape: bh == NULL in "
 				"idetape_input_buffers\n");
-			idetape_discard_data(drive, bcount);
+			ide_atapi_discard_data(drive, bcount);
 			return;
 		}
 		count = min(
@@ -1152,7 +1142,7 @@ static ide_startstop_t idetape_pc_intr(ide_drive_t *drive)
 				printk(KERN_ERR "ide-tape: The tape wants to "
 					"send us more data than expected "
 					"- discarding data\n");
-				idetape_discard_data(drive, bcount);
+				ide_atapi_discard_data(drive, bcount);
 				ide_set_handler(drive, &idetape_pc_intr,
 						IDETAPE_WAIT_CMD, NULL);
 				return ide_started;

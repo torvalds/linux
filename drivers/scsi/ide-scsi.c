@@ -152,18 +152,6 @@ static inline idescsi_scsi_t *drive_to_idescsi(ide_drive_t *ide_drive)
  */
 #define IDESCSI_PC_RQ			90
 
-static void idescsi_discard_data (ide_drive_t *drive, unsigned int bcount)
-{
-	while (bcount--)
-		(void) HWIF(drive)->INB(IDE_DATA_REG);
-}
-
-static void idescsi_output_zeros (ide_drive_t *drive, unsigned int bcount)
-{
-	while (bcount--)
-		HWIF(drive)->OUTB(0, IDE_DATA_REG);
-}
-
 /*
  *	PIO data transfer routines using the scatter gather table.
  */
@@ -200,7 +188,7 @@ static void idescsi_input_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsigne
 
 	if (bcount) {
 		printk (KERN_ERR "ide-scsi: scatter gather table too small, discarding data\n");
-		idescsi_discard_data (drive, bcount);
+		ide_atapi_discard_data(drive, bcount);
 	}
 }
 
@@ -237,7 +225,7 @@ static void idescsi_output_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsign
 
 	if (bcount) {
 		printk (KERN_ERR "ide-scsi: scatter gather table too small, padding with zeros\n");
-		idescsi_output_zeros (drive, bcount);
+		ide_atapi_write_zeros(drive, bcount);
 	}
 }
 
@@ -463,7 +451,7 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 				}
 				pc->actually_transferred += temp;
 				pc->current_position += temp;
-				idescsi_discard_data(drive, bcount - temp);
+				ide_atapi_discard_data(drive, bcount - temp);
 				ide_set_handler(drive, &idescsi_pc_intr, get_timeout(pc), idescsi_expiry);
 				return ide_started;
 			}

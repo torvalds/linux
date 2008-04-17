@@ -1297,4 +1297,26 @@ static inline u8 ide_read_error(ide_drive_t *drive)
 	return hwif->INB(hwif->io_ports[IDE_ERROR_OFFSET]);
 }
 
+/*
+ * Too bad. The drive wants to send us data which we are not ready to accept.
+ * Just throw it away.
+ */
+static inline void ide_atapi_discard_data(ide_drive_t *drive, unsigned bcount)
+{
+	ide_hwif_t *hwif = drive->hwif;
+
+	/* FIXME: use ->atapi_input_bytes */
+	while (bcount--)
+		(void)hwif->INB(hwif->io_ports[IDE_DATA_OFFSET]);
+}
+
+static inline void ide_atapi_write_zeros(ide_drive_t *drive, unsigned bcount)
+{
+	ide_hwif_t *hwif = drive->hwif;
+
+	/* FIXME: use ->atapi_output_bytes */
+	while (bcount--)
+		hwif->OUTB(0, hwif->io_ports[IDE_DATA_OFFSET]);
+}
+
 #endif /* _IDE_H */

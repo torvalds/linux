@@ -230,23 +230,6 @@ static void ide_floppy_put(struct ide_floppy_obj *floppy)
 }
 
 /*
- * Too bad. The drive wants to send us data which we are not ready to accept.
- * Just throw it away.
- */
-static void idefloppy_discard_data(ide_drive_t *drive, unsigned int bcount)
-{
-	while (bcount--)
-		(void) HWIF(drive)->INB(IDE_DATA_REG);
-}
-
-static void idefloppy_write_zeros(ide_drive_t *drive, unsigned int bcount)
-{
-	while (bcount--)
-		HWIF(drive)->OUTB(0, IDE_DATA_REG);
-}
-
-
-/*
  * Used to finish servicing a request. For read/write requests, we will call
  * ide_end_request to pass to the next buffer.
  */
@@ -313,10 +296,9 @@ static void ide_floppy_io_buffers(ide_drive_t *drive, idefloppy_pc_t *pc,
 		printk(KERN_ERR "%s: leftover data in %s, bcount == %d\n",
 				drive->name, __func__, bcount);
 		if (direction)
-			idefloppy_write_zeros(drive, bcount);
+			ide_atapi_write_zeros(drive, bcount);
 		else
-			idefloppy_discard_data(drive, bcount);
-
+			ide_atapi_discard_data(drive, bcount);
 	}
 }
 
@@ -541,7 +523,7 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 				printk(KERN_ERR "ide-floppy: The floppy wants "
 					"to send us more data than expected "
 					"- discarding data\n");
-				idefloppy_discard_data(drive, bcount);
+				ide_atapi_discard_data(drive, bcount);
 
 				ide_set_handler(drive,
 						&idefloppy_pc_intr,
