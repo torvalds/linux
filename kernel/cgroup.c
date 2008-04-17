@@ -1722,7 +1722,12 @@ void cgroup_enable_task_cg_lists(void)
 	use_task_css_set_links = 1;
 	do_each_thread(g, p) {
 		task_lock(p);
-		if (list_empty(&p->cg_list))
+		/*
+		 * We should check if the process is exiting, otherwise
+		 * it will race with cgroup_exit() in that the list
+		 * entry won't be deleted though the process has exited.
+		 */
+		if (!(p->flags & PF_EXITING) && list_empty(&p->cg_list))
 			list_add(&p->cg_list, &p->cgroups->tasks);
 		task_unlock(p);
 	} while_each_thread(g, p);
