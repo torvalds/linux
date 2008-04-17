@@ -104,6 +104,7 @@ enum ib_device_cap_flags {
 	 * IPoIB driver may set NETIF_F_IP_CSUM for datagram mode.
 	 */
 	IB_DEVICE_UD_IP_CSUM		= (1<<18),
+	IB_DEVICE_UD_TSO		= (1<<19),
 };
 
 enum ib_atomic_cap {
@@ -411,6 +412,7 @@ enum ib_wc_opcode {
 	IB_WC_COMP_SWAP,
 	IB_WC_FETCH_ADD,
 	IB_WC_BIND_MW,
+	IB_WC_LSO,
 /*
  * Set value of IB_WC_RECV so consumers can test if a completion is a
  * receive by testing (opcode & IB_WC_RECV).
@@ -622,7 +624,8 @@ enum ib_wr_opcode {
 	IB_WR_SEND_WITH_IMM,
 	IB_WR_RDMA_READ,
 	IB_WR_ATOMIC_CMP_AND_SWP,
-	IB_WR_ATOMIC_FETCH_AND_ADD
+	IB_WR_ATOMIC_FETCH_AND_ADD,
+	IB_WR_LSO
 };
 
 enum ib_send_flags {
@@ -660,6 +663,9 @@ struct ib_send_wr {
 		} atomic;
 		struct {
 			struct ib_ah *ah;
+			void   *header;
+			int     hlen;
+			int     mss;
 			u32	remote_qpn;
 			u32	remote_qkey;
 			u16	pkey_index; /* valid for GSI only */
