@@ -122,7 +122,7 @@ static void *get_send_wqe(struct mlx4_ib_qp *qp, int n)
  */
 static void stamp_send_wqe(struct mlx4_ib_qp *qp, int n, int size)
 {
-	u32 *wqe;
+	__be32 *wqe;
 	int i;
 	int s;
 	int ind;
@@ -143,7 +143,7 @@ static void stamp_send_wqe(struct mlx4_ib_qp *qp, int n, int size)
 		buf = get_send_wqe(qp, n & (qp->sq.wqe_cnt - 1));
 		for (i = 64; i < s; i += 64) {
 			wqe = buf + i;
-			*wqe = 0xffffffff;
+			*wqe = cpu_to_be32(0xffffffff);
 		}
 	}
 }
