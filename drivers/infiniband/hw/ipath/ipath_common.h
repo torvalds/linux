@@ -80,6 +80,8 @@
 #define IPATH_IB_LINKDOWN_DISABLE	5
 #define IPATH_IB_LINK_LOOPBACK	6 /* enable local loopback */
 #define IPATH_IB_LINK_EXTERNAL	7 /* normal, disable local loopback */
+#define IPATH_IB_LINK_NO_HRTBT	8 /* disable Heartbeat, e.g. for loopback */
+#define IPATH_IB_LINK_HRTBT	9 /* enable heartbeat, normal, non-loopback */
 
 /*
  * These 3 values (SDR and DDR may be ORed for auto-speed

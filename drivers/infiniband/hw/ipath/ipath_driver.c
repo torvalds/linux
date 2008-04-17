@@ -1880,16 +1880,41 @@ int ipath_set_linkstate(struct ipath_devdata *dd, u8 newstate)
 		dd->ipath_ibcctrl |= INFINIPATH_IBCC_LOOPBACK;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_ibcctrl,
 				 dd->ipath_ibcctrl);
+
+		/* turn heartbeat off, as it causes loopback to fail */
+		dd->ipath_f_set_ib_cfg(dd, IPATH_IB_CFG_HRTBT,
+				       IPATH_IB_HRTBT_OFF);
+		/* don't wait */
 		ret = 0;
-		goto bail; // no state change to wait for
+		goto bail;
 
 	case IPATH_IB_LINK_EXTERNAL:
-		dev_info(&dd->pcidev->dev, "Disabling IB local loopback (normal)\n");
+		dev_info(&dd->pcidev->dev,
+			"Disabling IB local loopback (normal)\n");
+		dd->ipath_f_set_ib_cfg(dd, IPATH_IB_CFG_HRTBT,
+				       IPATH_IB_HRTBT_ON);
 		dd->ipath_ibcctrl &= ~INFINIPATH_IBCC_LOOPBACK;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_ibcctrl,
 				 dd->ipath_ibcctrl);
+		/* don't wait */
 		ret = 0;
-		goto bail; // no state change to wait for
+		goto bail;
+
+	/*
+	 * Heartbeat can be explicitly enabled by the user via
+	 * "hrtbt_enable" "file", and if disabled, trying to enable here
+	 * will have no effect.  Implicit changes (heartbeat off when
+	 * loopback on, and vice versa) are included to ease testing.
+	 */
+	case IPATH_IB_LINK_HRTBT:
+		ret = dd->ipath_f_set_ib_cfg(dd, IPATH_IB_CFG_HRTBT,
+			IPATH_IB_HRTBT_ON);
+		goto bail;
+
+	case IPATH_IB_LINK_NO_HRTBT:
+		ret = dd->ipath_f_set_ib_cfg(dd, IPATH_IB_CFG_HRTBT,
+			IPATH_IB_HRTBT_OFF);
+		goto bail;
 
 	default:
 		ipath_dbg("Invalid linkstate 0x%x requested\n", newstate);
