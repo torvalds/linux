@@ -349,6 +349,7 @@ struct ipath_devdata {
 	u32 ipath_lastrpkts;
 	/* pio bufs allocated per port */
 	u32 ipath_pbufsport;
+	u32 ipath_pioupd_thresh; /* update threshold, some chips */
 	/*
 	 * number of ports configured as max; zero is set to number chip
 	 * supports, less gives more pio bufs/port, etc.

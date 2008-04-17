@@ -341,6 +341,7 @@ static int init_chip_reset(struct ipath_devdata *dd)
 {
 	u32 rtmp;
 	int i;
+	unsigned long flags;
 
 	/*
 	 * ensure chip does no sends or receives, tail updates, or
@@ -356,8 +357,13 @@ static int init_chip_reset(struct ipath_devdata *dd)
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
 		dd->ipath_rcvctrl);
 
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+	dd->ipath_sendctrl = 0U; /* no sdma, etc */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_control, dd->ipath_control);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
+
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_control, 0ULL);
 
 	rtmp = ipath_read_kreg32(dd, dd->ipath_kregs->kr_rcvtidcnt);
 	if (rtmp != dd->ipath_rcvtidcnt)
@@ -478,6 +484,14 @@ static void enable_chip(struct ipath_devdata *dd, int reinit)
 	/* Enable PIO send, and update of PIOavail regs to memory. */
 	dd->ipath_sendctrl = INFINIPATH_S_PIOENABLE |
 		INFINIPATH_S_PIOBUFAVAILUPD;
+
+	/*
+	 * Set the PIO avail update threshold to host memory
+	 * on chips that support it.
+	 */
+	if (dd->ipath_pioupd_thresh)
+		dd->ipath_sendctrl |= dd->ipath_pioupd_thresh
+			<< INFINIPATH_S_UPDTHRESH_SHIFT;
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
 	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
@@ -757,6 +771,12 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	ipath_cdbg(VERBOSE, "%d PIO bufs for kernel out of %d total %u "
 		   "each for %u user ports\n", kpiobufs,
 		   piobufs, dd->ipath_pbufsport, uports);
+	if (dd->ipath_pioupd_thresh) {
+		if (dd->ipath_pbufsport < dd->ipath_pioupd_thresh)
+			dd->ipath_pioupd_thresh = dd->ipath_pbufsport;
+		if (kpiobufs < dd->ipath_pioupd_thresh)
+			dd->ipath_pioupd_thresh = kpiobufs;
+	}
 
 	dd->ipath_f_early_init(dd);
 	/*

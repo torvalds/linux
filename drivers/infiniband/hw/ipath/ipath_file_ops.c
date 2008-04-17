@@ -184,6 +184,29 @@ static int ipath_get_base_info(struct file *fp,
 		kinfo->spi_piobufbase = (u64) pd->port_piobufs +
 			dd->ipath_palign * kinfo->spi_piocnt * slave;
 	}
+
+	/*
+	 * Set the PIO avail update threshold to no larger
+	 * than the number of buffers per process. Note that
+	 * we decrease it here, but won't ever increase it.
+	 */
+	if (dd->ipath_pioupd_thresh &&
+	    kinfo->spi_piocnt < dd->ipath_pioupd_thresh) {
+		unsigned long flags;
+
+		dd->ipath_pioupd_thresh = kinfo->spi_piocnt;
+		ipath_dbg("Decreased pio update threshold to %u\n",
+			dd->ipath_pioupd_thresh);
+		spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+		dd->ipath_sendctrl &= ~(INFINIPATH_S_UPDTHRESH_MASK
+			<< INFINIPATH_S_UPDTHRESH_SHIFT);
+		dd->ipath_sendctrl |= dd->ipath_pioupd_thresh
+			<< INFINIPATH_S_UPDTHRESH_SHIFT;
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
+			dd->ipath_sendctrl);
+		spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
+	}
+
 	if (shared) {
 		kinfo->spi_port_uregbase = (u64) dd->ipath_uregbase +
 			dd->ipath_ureg_align * pd->port_port;
