@@ -82,6 +82,10 @@ module_param_named(hol_timeout_ms, ipath_hol_timeout_ms, uint, S_IRUGO);
 MODULE_PARM_DESC(hol_timeout_ms,
 	"duration of user app suspension after link failure");
 
+unsigned ipath_linkrecovery = 1;
+module_param_named(linkrecovery, ipath_linkrecovery, uint, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(linkrecovery, "enable workaround for link recovery issue");
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("QLogic <support@pathscale.com>");
 MODULE_DESCRIPTION("QLogic InfiniPath driver");

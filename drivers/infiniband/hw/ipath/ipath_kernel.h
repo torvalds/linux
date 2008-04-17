@@ -309,6 +309,7 @@ struct ipath_devdata {
 	ipath_err_t ipath_lasthwerror;
 	/* errors masked because they occur too fast */
 	ipath_err_t ipath_maskederrs;
+	u64 ipath_lastlinkrecov; /* link recoveries at last ACTIVE */
 	/* time in jiffies at which to re-enable maskederrs */
 	unsigned long ipath_unmasktime;
 	/* count of egrfull errors, combined for all ports */
@@ -1099,6 +1100,7 @@ dma_addr_t ipath_map_single(struct pci_dev *, void *, size_t, int);
 #endif
 
 extern unsigned ipath_debug; /* debugging bit mask */
+extern unsigned ipath_linkrecovery;
 extern unsigned ipath_mtu4096;
 
 #define IPATH_MAX_PARITY_ATTEMPTS 10000 /* max times to try recovery */

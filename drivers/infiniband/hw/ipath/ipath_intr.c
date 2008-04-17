@@ -366,6 +366,22 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 	dd->ipath_ibpollcnt = 0; /* not poll*, now */
 	ipath_stats.sps_iblink++;
 
+	if (ibstate != init && dd->ipath_lastlinkrecov && ipath_linkrecovery) {
+		u64 linkrecov;
+		linkrecov = ipath_snap_cntr(dd,
+			dd->ipath_cregs->cr_iblinkerrrecovcnt);
+		if (linkrecov != dd->ipath_lastlinkrecov) {
+			ipath_dbg("IB linkrecov up %Lx (%s %s) recov %Lu\n",
+				ibcs, ib_linkstate(dd, ibcs),
+				ipath_ibcstatus_str[ltstate],
+				linkrecov);
+			/* and no more until active again */
+			dd->ipath_lastlinkrecov = 0;
+			ipath_set_linkstate(dd, IPATH_IB_LINKDOWN);
+			goto skip_ibchange;
+		}
+	}
+
 	if (ibstate == init || ibstate == arm || ibstate == active) {
 		*dd->ipath_statusp &= ~IPATH_STATUS_IB_NOCABLE;
 		if (ibstate == init || ibstate == arm) {
@@ -392,6 +408,8 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 				IPATH_NOCABLE);
 			ipath_hol_down(dd);
 		} else {  /* active */
+			dd->ipath_lastlinkrecov = ipath_snap_cntr(dd,
+				dd->ipath_cregs->cr_iblinkerrrecovcnt);
 			*dd->ipath_statusp |=
 				IPATH_STATUS_IB_READY | IPATH_STATUS_IB_CONF;
 			dd->ipath_flags |= IPATH_LINKACTIVE;
