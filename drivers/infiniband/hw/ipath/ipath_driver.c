@@ -1243,10 +1243,10 @@ reloop:
 				lval = dd->ipath_rhdrhead_intr_off | l;
 			else
 				lval = l;
-			(void)ipath_write_ureg(dd, ur_rcvhdrhead, lval, 0);
+			ipath_write_ureg(dd, ur_rcvhdrhead, lval, 0);
 			if (updegr) {
-				(void)ipath_write_ureg(dd, ur_rcvegrindexhead,
-						       etail, 0);
+				ipath_write_ureg(dd, ur_rcvegrindexhead,
+						 etail, 0);
 				updegr = 0;
 			}
 		}

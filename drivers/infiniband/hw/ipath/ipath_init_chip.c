@@ -495,12 +495,12 @@ static void enable_chip(struct ipath_devdata *dd,
 	 * head values to match.
 	 */
 	val = ipath_read_ureg32(dd, ur_rcvegrindextail, 0);
-	(void)ipath_write_ureg(dd, ur_rcvegrindexhead, val, 0);
+	ipath_write_ureg(dd, ur_rcvegrindexhead, val, 0);
 
 	/* Initialize so we interrupt on next packet received */
-	(void)ipath_write_ureg(dd, ur_rcvhdrhead,
-			       dd->ipath_rhdrhead_intr_off |
-			       dd->ipath_pd[0]->port_head, 0);
+	ipath_write_ureg(dd, ur_rcvhdrhead,
+			 dd->ipath_rhdrhead_intr_off |
+			 dd->ipath_pd[0]->port_head, 0);
 
 	/*
 	 * by now pioavail updates to memory should have occurred, so
@@ -769,8 +769,8 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 			goto done;
 	}
 
-	(void)ipath_write_kreg(dd, dd->ipath_kregs->kr_sendpioavailaddr,
-			       dd->ipath_pioavailregs_phys);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendpioavailaddr,
+			 dd->ipath_pioavailregs_phys);
 	/*
 	 * this is to detect s/w errors, which the h/w works around by
 	 * ignoring the low 6 bits of address, if it wasn't aligned.
