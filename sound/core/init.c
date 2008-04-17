@@ -311,6 +311,9 @@ int snd_card_disconnect(struct snd_card *card)
 	struct file *file;
 	int err;
 
+	if (!card)
+		return -EINVAL;
+
 	spin_lock(&card->files_lock);
 	if (card->shutdown) {
 		spin_unlock(&card->files_lock);
@@ -322,6 +325,7 @@ int snd_card_disconnect(struct snd_card *card)
 	/* phase 1: disable fops (user space) operations for ALSA API */
 	mutex_lock(&snd_card_mutex);
 	snd_cards[card->number] = NULL;
+	snd_cards_lock &= ~(1 << card->number);
 	mutex_unlock(&snd_card_mutex);
 	
 	/* phase 2: replace file->f_op with special dummy operations */
@@ -365,6 +369,9 @@ int snd_card_disconnect(struct snd_card *card)
 		device_unregister(card->card_dev);
 		card->card_dev = NULL;
 	}
+#endif
+#ifdef CONFIG_PM
+	wake_up(&card->power_sleep);
 #endif
 	return 0;	
 }
@@ -411,25 +418,10 @@ static int snd_card_do_free(struct snd_card *card)
 	return 0;
 }
 
-static int snd_card_free_prepare(struct snd_card *card)
-{
-	if (card == NULL)
-		return -EINVAL;
-	(void) snd_card_disconnect(card);
-	mutex_lock(&snd_card_mutex);
-	snd_cards[card->number] = NULL;
-	snd_cards_lock &= ~(1 << card->number);
-	mutex_unlock(&snd_card_mutex);
-#ifdef CONFIG_PM
-	wake_up(&card->power_sleep);
-#endif
-	return 0;
-}
-
 int snd_card_free_when_closed(struct snd_card *card)
 {
 	int free_now = 0;
-	int ret = snd_card_free_prepare(card);
+	int ret = snd_card_disconnect(card);
 	if (ret)
 		return ret;
 
@@ -449,7 +441,7 @@ EXPORT_SYMBOL(snd_card_free_when_closed);
 
 int snd_card_free(struct snd_card *card)
 {
-	int ret = snd_card_free_prepare(card);
+	int ret = snd_card_disconnect(card);
 	if (ret)
 		return ret;
 
