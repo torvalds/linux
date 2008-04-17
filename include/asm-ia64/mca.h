@@ -157,6 +157,7 @@ extern void ia64_mca_printk(const char * fmt, ...)
 struct ia64_mca_notify_die {
 	struct ia64_sal_os_state *sos;
 	int *monarch_cpu;
+	int *data;
 };
 
 DECLARE_PER_CPU(u64, ia64_mca_pal_base);
