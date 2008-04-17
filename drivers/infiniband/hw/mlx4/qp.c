@@ -1200,7 +1200,7 @@ out:
 }
 
 static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
-			    void *wqe)
+			    void *wqe, unsigned *mlx_seg_len)
 {
 	struct ib_device *ib_dev = &to_mdev(sqp->qp.ibqp.device)->ib_dev;
 	struct mlx4_wqe_mlx_seg *mlx = wqe;
@@ -1321,7 +1321,9 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 		i = 2;
 	}
 
-	return ALIGN(i * sizeof (struct mlx4_wqe_inline_seg) + header_size, 16);
+	*mlx_seg_len =
+		ALIGN(i * sizeof (struct mlx4_wqe_inline_seg) + header_size, 16);
+	return 0;
 }
 
 static int mlx4_wq_overflow(struct mlx4_ib_wq *wq, int nreq, struct ib_cq *ib_cq)
@@ -1548,15 +1550,13 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 		case IB_QPT_SMI:
 		case IB_QPT_GSI:
-			err = build_mlx_header(to_msqp(qp), wr, ctrl);
-			if (err < 0) {
+			err = build_mlx_header(to_msqp(qp), wr, ctrl, &seglen);
+			if (unlikely(err)) {
 				*bad_wr = wr;
 				goto out;
 			}
-			wqe  += err;
-			size += err / 16;
-
-			err = 0;
+			wqe  += seglen;
+			size += seglen / 16;
 			break;
 
 		default:
