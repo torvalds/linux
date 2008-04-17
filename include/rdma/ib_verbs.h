@@ -987,6 +987,8 @@ struct ib_device {
 						int comp_vector,
 						struct ib_ucontext *context,
 						struct ib_udata *udata);
+	int                        (*modify_cq)(struct ib_cq *cq, u16 cq_count,
+						u16 cq_period);
 	int                        (*destroy_cq)(struct ib_cq *cq);
 	int                        (*resize_cq)(struct ib_cq *cq, int cqe,
 						struct ib_udata *udata);
@@ -1390,6 +1392,15 @@ struct ib_cq *ib_create_cq(struct ib_device *device,
  * Users can examine the cq structure to determine the actual CQ size.
  */
 int ib_resize_cq(struct ib_cq *cq, int cqe);
+
+/**
+ * ib_modify_cq - Modifies moderation params of the CQ
+ * @cq: The CQ to modify.
+ * @cq_count: number of CQEs that will trigger an event
+ * @cq_period: max period of time in usec before triggering an event
+ *
+ */
+int ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 
 /**
  * ib_destroy_cq - Destroys the specified CQ.
