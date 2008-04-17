@@ -137,7 +137,6 @@ extern const char gfar_driver_version[];
 #define DEFAULT_RXCOUNT	0
 #endif /* CONFIG_GFAR_NAPI */
 
-#define TBIPA_VALUE		0x1f
 #define MIIMCFG_INIT_VALUE	0x00000007
 #define MIIMCFG_RESET           0x80000000
 #define MIIMIND_BUSY            0x00000001
