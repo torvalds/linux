@@ -300,6 +300,18 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 	ltstate = ipath_ib_linktrstate(dd, ibcs); /* linktrainingtate */
 
 	/*
+	 * Since going into a recovery state causes the link state to go
+	 * down and since recovery is transitory, it is better if we "miss"
+	 * ever seeing the link training state go into recovery (i.e.,
+	 * ignore this transition for link state special handling purposes)
+	 * without even updating ipath_lastibcstat.
+	 */
+	if ((ltstate == INFINIPATH_IBCS_LT_STATE_RECOVERRETRAIN) ||
+	    (ltstate == INFINIPATH_IBCS_LT_STATE_RECOVERWAITRMT) ||
+	    (ltstate == INFINIPATH_IBCS_LT_STATE_RECOVERIDLE))
+		goto done;
+
+	/*
 	 * if linkstate transitions into INIT from any of the various down
 	 * states, or if it transitions from any of the up (INIT or better)
 	 * states into any of the down states (except link recovery), then
@@ -316,7 +328,7 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 		}
 	} else if ((lastlstate >= INFINIPATH_IBCS_L_STATE_INIT ||
 		(dd->ipath_flags & IPATH_IB_FORCE_NOTIFY)) &&
-		ltstate <= INFINIPATH_IBCS_LT_STATE_CFGDEBOUNCE &&
+		ltstate <= INFINIPATH_IBCS_LT_STATE_CFGWAITRMT &&
 		ltstate != INFINIPATH_IBCS_LT_STATE_LINKUP) {
 		int handled;
 		handled = dd->ipath_f_ib_updown(dd, 0, ibcs);
@@ -460,6 +472,8 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 
 skip_ibchange:
 	dd->ipath_lastibcstat = ibcs;
+done:
+	return;
 }
 
 static void handle_supp_msgs(struct ipath_devdata *dd,
