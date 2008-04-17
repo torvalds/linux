@@ -58,7 +58,7 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 		/* If checksum is bad mark all blocks used to prevent allocation
 		 * essentially implementing a per-group read-only flag. */
 		if (!ext4_group_desc_csum_verify(sbi, block_group, gdp)) {
-			ext4_error(sb, __FUNCTION__,
+			ext4_error(sb, __func__,
 				  "Checksum bad for group %lu\n", block_group);
 			gdp->bg_free_blocks_count = 0;
 			gdp->bg_free_inodes_count = 0;
@@ -235,7 +235,7 @@ static int ext4_valid_block_bitmap(struct super_block *sb,
 		return 1;
 
 err_out:
-	ext4_error(sb, __FUNCTION__,
+	ext4_error(sb, __func__,
 			"Invalid block bitmap - "
 			"block_group = %d, block = %llu",
 			block_group, bitmap_blk);
@@ -264,7 +264,7 @@ read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 	bitmap_blk = ext4_block_bitmap(sb, desc);
 	bh = sb_getblk(sb, bitmap_blk);
 	if (unlikely(!bh)) {
-		ext4_error(sb, __FUNCTION__,
+		ext4_error(sb, __func__,
 			    "Cannot read block bitmap - "
 			    "block_group = %d, block_bitmap = %llu",
 			    (int)block_group, (unsigned long long)bitmap_blk);
@@ -281,7 +281,7 @@ read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 	}
 	if (bh_submit_read(bh) < 0) {
 		put_bh(bh);
-		ext4_error(sb, __FUNCTION__,
+		ext4_error(sb, __func__,
 			    "Cannot read block bitmap - "
 			    "block_group = %d, block_bitmap = %llu",
 			    (int)block_group, (unsigned long long)bitmap_blk);
@@ -360,7 +360,7 @@ restart:
 		BUG();
 }
 #define rsv_window_dump(root, verbose) \
-	__rsv_window_dump((root), (verbose), __FUNCTION__)
+	__rsv_window_dump((root), (verbose), __func__)
 #else
 #define rsv_window_dump(root, verbose) do {} while (0)
 #endif
@@ -740,7 +740,7 @@ do_more:
 		if (!ext4_clear_bit_atomic(sb_bgl_lock(sbi, block_group),
 						bit + i, bitmap_bh->b_data)) {
 			jbd_unlock_bh_state(bitmap_bh);
-			ext4_error(sb, __FUNCTION__,
+			ext4_error(sb, __func__,
 				   "bit already cleared for block %llu",
 				   (ext4_fsblk_t)(block + i));
 			jbd_lock_bh_state(bitmap_bh);
@@ -1796,7 +1796,7 @@ allocated:
 			if (ext4_test_bit(grp_alloc_blk+i,
 					bh2jh(bitmap_bh)->b_committed_data)) {
 				printk("%s: block was unexpectedly set in "
-					"b_committed_data\n", __FUNCTION__);
+					"b_committed_data\n", __func__);
 			}
 		}
 	}

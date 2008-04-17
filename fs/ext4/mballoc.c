@@ -734,7 +734,7 @@ static void mb_free_blocks_double(struct inode *inode, struct ext4_buddy *e4b,
 			blocknr +=
 			    le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
 
-			ext4_error(sb, __FUNCTION__, "double-free of inode"
+			ext4_error(sb, __func__, "double-free of inode"
 				   " %lu's block %llu(bit %u in group %lu)\n",
 				   inode ? inode->i_ino : 0, blocknr,
 				   first + i, e4b->bd_group);
@@ -906,7 +906,7 @@ static int __mb_check_buddy(struct ext4_buddy *e4b, char *file,
 }
 #undef MB_CHECK_ASSERT
 #define mb_check_buddy(e4b) __mb_check_buddy(e4b,	\
-					__FILE__, __FUNCTION__, __LINE__)
+					__FILE__, __func__, __LINE__)
 #else
 #define mb_check_buddy(e4b)
 #endif
@@ -980,7 +980,7 @@ static void ext4_mb_generate_buddy(struct super_block *sb,
 	grp->bb_fragments = fragments;
 
 	if (free != grp->bb_free) {
-		ext4_error(sb, __FUNCTION__,
+		ext4_error(sb, __func__,
 			"EXT4-fs: group %lu: %u blocks in bitmap, %u in gd\n",
 			group, free, grp->bb_free);
 		/*
@@ -1366,7 +1366,7 @@ static int mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 			blocknr +=
 			    le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
 
-			ext4_error(sb, __FUNCTION__, "double-free of inode"
+			ext4_error(sb, __func__, "double-free of inode"
 				   " %lu's block %llu(bit %u in group %lu)\n",
 				   inode ? inode->i_ino : 0, blocknr, block,
 				   e4b->bd_group);
@@ -1847,7 +1847,7 @@ static void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 			 * free blocks even though group info says we
 			 * we have free blocks
 			 */
-			ext4_error(sb, __FUNCTION__, "%d free blocks as per "
+			ext4_error(sb, __func__, "%d free blocks as per "
 					"group info. But bitmap says 0\n",
 					free);
 			break;
@@ -1856,7 +1856,7 @@ static void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 		mb_find_extent(e4b, 0, i, ac->ac_g_ex.fe_len, &ex);
 		BUG_ON(ex.fe_len <= 0);
 		if (free < ex.fe_len) {
-			ext4_error(sb, __FUNCTION__, "%d free blocks as per "
+			ext4_error(sb, __func__, "%d free blocks as per "
 					"group info. But got %d blocks\n",
 					free, ex.fe_len);
 			/*
@@ -3073,7 +3073,7 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 			in_range(block, ext4_inode_table(sb, gdp),
 				EXT4_SB(sb)->s_itb_per_group)) {
 
-		ext4_error(sb, __FUNCTION__,
+		ext4_error(sb, __func__,
 			   "Allocating block in system zone - block = %llu",
 			   block);
 	}
@@ -3786,7 +3786,7 @@ ext4_mb_release_inode_pa(struct ext4_buddy *e4b, struct buffer_head *bitmap_bh,
 			pa, (unsigned long) pa->pa_lstart,
 			(unsigned long) pa->pa_pstart,
 			(unsigned long) pa->pa_len);
-		ext4_error(sb, __FUNCTION__, "free %u, pa_free %u\n",
+		ext4_error(sb, __func__, "free %u, pa_free %u\n",
 						free, pa->pa_free);
 		/*
 		 * pa is already deleted so we use the value obtained
@@ -4490,7 +4490,7 @@ void ext4_mb_free_blocks(handle_t *handle, struct inode *inode,
 	if (block < le32_to_cpu(es->s_first_data_block) ||
 	    block + count < block ||
 	    block + count > ext4_blocks_count(es)) {
-		ext4_error(sb, __FUNCTION__,
+		ext4_error(sb, __func__,
 			    "Freeing blocks not in datazone - "
 			    "block = %lu, count = %lu", block, count);
 		goto error_return;
@@ -4531,7 +4531,7 @@ do_more:
 	    in_range(block + count - 1, ext4_inode_table(sb, gdp),
 		      EXT4_SB(sb)->s_itb_per_group)) {
 
-		ext4_error(sb, __FUNCTION__,
+		ext4_error(sb, __func__,
 			   "Freeing blocks in system zone - "
 			   "Block = %lu, count = %lu", block, count);
 	}

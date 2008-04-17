@@ -308,7 +308,7 @@ corrupted:
 }
 
 #define ext4_ext_check_header(inode, eh, depth)	\
-	__ext4_ext_check_header(__FUNCTION__, inode, eh, depth)
+	__ext4_ext_check_header(__func__, inode, eh, depth)
 
 #ifdef EXT_DEBUG
 static void ext4_ext_show_path(struct inode *inode, struct ext4_ext_path *path)

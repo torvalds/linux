@@ -75,7 +75,7 @@ unsigned ext4_init_inode_bitmap(struct super_block *sb, struct buffer_head *bh,
 	/* If checksum is bad mark all blocks and inodes use to prevent
 	 * allocation, essentially implementing a per-group read-only flag. */
 	if (!ext4_group_desc_csum_verify(sbi, block_group, gdp)) {
-		ext4_error(sb, __FUNCTION__, "Checksum bad for group %lu\n",
+		ext4_error(sb, __func__, "Checksum bad for group %lu\n",
 			   block_group);
 		gdp->bg_free_blocks_count = 0;
 		gdp->bg_free_inodes_count = 0;
@@ -586,7 +586,7 @@ got:
 	ino++;
 	if ((group == 0 && ino < EXT4_FIRST_INO(sb)) ||
 	    ino > EXT4_INODES_PER_GROUP(sb)) {
-		ext4_error(sb, __FUNCTION__,
+		ext4_error(sb, __func__,
 			   "reserved inode or inode > inodes count - "
 			   "block_group = %lu, inode=%lu", group,
 			   ino + group * EXT4_INODES_PER_GROUP(sb));
@@ -792,7 +792,7 @@ struct inode *ext4_orphan_get(struct super_block *sb, unsigned long ino)
 
 	/* Error cases - e2fsck has already cleaned up for us */
 	if (ino > max_ino) {
-		ext4_warning(sb, __FUNCTION__,
+		ext4_warning(sb, __func__,
 			     "bad orphan ino %lu!  e2fsck was run?", ino);
 		goto error;
 	}
@@ -801,7 +801,7 @@ struct inode *ext4_orphan_get(struct super_block *sb, unsigned long ino)
 	bit = (ino - 1) % EXT4_INODES_PER_GROUP(sb);
 	bitmap_bh = read_inode_bitmap(sb, block_group);
 	if (!bitmap_bh) {
-		ext4_warning(sb, __FUNCTION__,
+		ext4_warning(sb, __func__,
 			     "inode bitmap error for orphan %lu", ino);
 		goto error;
 	}
@@ -826,7 +826,7 @@ iget_failed:
 	err = PTR_ERR(inode);
 	inode = NULL;
 bad_orphan:
-	ext4_warning(sb, __FUNCTION__,
+	ext4_warning(sb, __func__,
 		     "bad orphan inode %lu!  e2fsck was run?", ino);
 	printk(KERN_NOTICE "ext4_test_bit(bit=%d, block=%llu) = %d\n",
 	       bit, (unsigned long long)bitmap_bh->b_blocknr,

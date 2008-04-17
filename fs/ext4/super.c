@@ -135,7 +135,7 @@ handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
 	 * take the FS itself readonly cleanly. */
 	journal = EXT4_SB(sb)->s_journal;
 	if (is_journal_aborted(journal)) {
-		ext4_abort(sb, __FUNCTION__,
+		ext4_abort(sb, __func__,
 			   "Detected aborted journal");
 		return ERR_PTR(-EROFS);
 	}
@@ -355,7 +355,7 @@ void ext4_update_dynamic_rev(struct super_block *sb)
 	if (le32_to_cpu(es->s_rev_level) > EXT4_GOOD_OLD_REV)
 		return;
 
-	ext4_warning(sb, __FUNCTION__,
+	ext4_warning(sb, __func__,
 		     "updating to rev %d because of new feature flag, "
 		     "running e2fsck is recommended",
 		     EXT4_DYNAMIC_REV);
@@ -1511,7 +1511,7 @@ static int ext4_check_descriptors(struct super_block *sb)
 			return 0;
 		}
 		if (!ext4_group_desc_csum_verify(sbi, i, gdp)) {
-			ext4_error(sb, __FUNCTION__,
+			ext4_error(sb, __func__,
 				   "Checksum for group %lu failed (%u!=%u)\n",
 				    i, le16_to_cpu(ext4_group_desc_csum(sbi, i,
 				    gdp)), le16_to_cpu(gdp->bg_checksum));
@@ -1605,7 +1605,7 @@ static void ext4_orphan_cleanup (struct super_block * sb,
 		if (inode->i_nlink) {
 			printk(KERN_DEBUG
 				"%s: truncating inode %lu to %Ld bytes\n",
-				__FUNCTION__, inode->i_ino, inode->i_size);
+				__func__, inode->i_ino, inode->i_size);
 			jbd_debug(2, "truncating inode %lu to %Ld bytes\n",
 				  inode->i_ino, inode->i_size);
 			ext4_truncate(inode);
@@ -1613,7 +1613,7 @@ static void ext4_orphan_cleanup (struct super_block * sb,
 		} else {
 			printk(KERN_DEBUG
 				"%s: deleting unreferenced inode %lu\n",
-				__FUNCTION__, inode->i_ino);
+				__func__, inode->i_ino);
 			jbd_debug(2, "deleting unreferenced inode %lu\n",
 				  inode->i_ino);
 			nr_orphans++;
@@ -2699,9 +2699,9 @@ static void ext4_clear_journal_err(struct super_block * sb,
 		char nbuf[16];
 
 		errstr = ext4_decode_error(sb, j_errno, nbuf);
-		ext4_warning(sb, __FUNCTION__, "Filesystem error recorded "
+		ext4_warning(sb, __func__, "Filesystem error recorded "
 			     "from previous mount: %s", errstr);
-		ext4_warning(sb, __FUNCTION__, "Marking fs in need of "
+		ext4_warning(sb, __func__, "Marking fs in need of "
 			     "filesystem check.");
 
 		EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
@@ -2828,7 +2828,7 @@ static int ext4_remount (struct super_block * sb, int * flags, char * data)
 	}
 
 	if (sbi->s_mount_opt & EXT4_MOUNT_ABORT)
-		ext4_abort(sb, __FUNCTION__, "Abort forced by user");
+		ext4_abort(sb, __func__, "Abort forced by user");
 
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
 		((sbi->s_mount_opt & EXT4_MOUNT_POSIX_ACL) ? MS_POSIXACL : 0);
