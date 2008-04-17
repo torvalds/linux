@@ -651,12 +651,9 @@ do_IRQ (struct pt_regs *regs)
 	old_regs = set_irq_regs(regs);
 	irq_enter();
 	s390_idle_check();
-	if (S390_lowcore.int_clock >= S390_lowcore.jiffy_timer)
-		/**
-		 * Make sure that the i/o interrupt did not "overtake"
-		 * the last HZ timer interrupt.
-		 */
-		account_ticks(S390_lowcore.int_clock);
+	if (S390_lowcore.int_clock >= S390_lowcore.clock_comparator)
+		/* Serve timer interrupts first. */
+		clock_comparator_work();
 	/*
 	 * Get interrupt information from lowcore
 	 */

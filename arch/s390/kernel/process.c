@@ -36,6 +36,7 @@
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/utsname.h>
+#include <linux/tick.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -167,9 +168,10 @@ static void default_idle(void)
 void cpu_idle(void)
 {
 	for (;;) {
+		tick_nohz_stop_sched_tick();
 		while (!need_resched())
 			default_idle();
-
+		tick_nohz_restart_sched_tick();
 		preempt_enable_no_resched();
 		schedule();
 		preempt_disable();
