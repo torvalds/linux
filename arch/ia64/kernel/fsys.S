@@ -210,27 +210,25 @@ ENTRY(fsys_gettimeofday)
 	// Note that instructions are optimized for McKinley. McKinley can
 	// process two bundles simultaneously and therefore we continuously
 	// try to feed the CPU two bundles and then a stop.
-	//
-	// Additional note that code has changed a lot. Optimization is TBD.
-	// Comments begin with "?" are maybe outdated.
-	tnat.nz p6,p0 = r31	// ? branch deferred to fit later bundle
-	mov pr = r30,0xc000	// Set predicates according to function
+
 	add r2 = TI_FLAGS+IA64_TASK_SIZE,r16
+	tnat.nz p6,p0 = r31		// guard against Nat argument
+(p6)	br.cond.spnt.few .fail_einval
 	movl r20 = fsyscall_gtod_data // load fsyscall gettimeofday data address
 	;;
+	ld4 r2 = [r2]			// process work pending flags
 	movl r29 = itc_jitter_data	// itc_jitter
 	add r22 = IA64_GTOD_WALL_TIME_OFFSET,r20	// wall_time
-	ld4 r2 = [r2]		// process work pending flags
-	;;
-(p15)	add r22 = IA64_GTOD_MONO_TIME_OFFSET,r20	// monotonic_time
 	add r21 = IA64_CLKSRC_MMIO_OFFSET,r20
-	add r19 = IA64_ITC_LASTCYCLE_OFFSET,r29
-	and r2 = TIF_ALLWORK_MASK,r2
-(p6)    br.cond.spnt.few .fail_einval	// ? deferred branch
+	mov pr = r30,0xc000	// Set predicates according to function
 	;;
-	add r26 = IA64_CLKSRC_CYCLE_LAST_OFFSET,r20 // clksrc_cycle_last
+	and r2 = TIF_ALLWORK_MASK,r2
+	add r19 = IA64_ITC_LASTCYCLE_OFFSET,r29
+(p15)	add r22 = IA64_GTOD_MONO_TIME_OFFSET,r20	// monotonic_time
+	;;
+	add r26 = IA64_CLKSRC_CYCLE_LAST_OFFSET,r20	// clksrc_cycle_last
 	cmp.ne p6, p0 = 0, r2	// Fallback if work is scheduled
-(p6)    br.cond.spnt.many fsys_fallback_syscall
+(p6)	br.cond.spnt.many fsys_fallback_syscall
 	;;
 	// Begin critical section
 .time_redo:
@@ -258,7 +256,6 @@ ENTRY(fsys_gettimeofday)
 (p8)	mov r2 = ar.itc		// CPU_TIMER. 36 clocks latency!!!
 (p9)	ld8 r2 = [r30]		// MMIO_TIMER. Could also have latency issues..
 (p13)	ld8 r25 = [r19]		// get itc_lastcycle value
-	;;		// ? could be removed by moving the last add upward
 	ld8 r9 = [r22],IA64_TIMESPEC_TV_NSEC_OFFSET	// tv_sec
 	;;
 	ld8 r8 = [r22],-IA64_TIMESPEC_TV_NSEC_OFFSET	// tv_nsec
@@ -285,13 +282,12 @@ ENTRY(fsys_gettimeofday)
 EX(.fail_efault, probe.w.fault r31, 3)
 	xmpy.l f8 = f8,f7	// nsec_per_cyc*(counter-last_counter)
 	;;
-	// ? simulate tbit.nz.or p7,p0 = r28,0
 	getf.sig r2 = f8
 	mf
 	;;
 	ld4 r10 = [r20]		// gtod_lock.sequence
 	shr.u r2 = r2,r23	// shift by factor
-	;;		// ? overloaded 3 bundles!
+	;;
 	add r8 = r8,r2		// Add xtime.nsecs
 	cmp4.ne p7,p0 = r28,r10
 (p7)	br.cond.dpnt.few .time_redo	// sequence number changed, redo
@@ -319,9 +315,9 @@ EX(.fail_efault, probe.w.fault r31, 3)
 EX(.fail_efault, probe.w.fault r23, 3)	// This also costs 5 cycles
 (p14)	xmpy.hu f8 = f8, f7		// xmpy has 5 cycles latency so use it
 	;;
-	mov r8 = r0
 (p14)	getf.sig r2 = f8
 	;;
+	mov r8 = r0
 (p14)	shr.u r21 = r2, 4
 	;;
 EX(.fail_efault, st8 [r31] = r9)
