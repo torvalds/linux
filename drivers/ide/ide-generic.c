@@ -20,7 +20,9 @@ static int __init ide_generic_init(void)
 	for (i = 0; i < MAX_HWIFS; i++) {
 		ide_hwif_t *hwif = &ide_hwifs[i];
 
-		if (hwif->io_ports[IDE_DATA_OFFSET] && !hwif->present)
+		if (hwif->io_ports[IDE_DATA_OFFSET] &&
+		    (hwif->chipset == ide_unknown ||
+		     hwif->chipset == ide_forced))
 			idx[i] = i;
 		else
 			idx[i] = 0xff;
