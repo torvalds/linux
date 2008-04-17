@@ -165,6 +165,10 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 	}
 }
 
+#ifndef CONFIG_IDE_ARCH_OBSOLETE_DEFAULTS
+# define ide_default_io_base(index)	(0)
+# define ide_init_default_irq(base)	(0)
+#endif
 
 /*
  * init_ide_data() sets reasonable default values into all fields

@@ -20,8 +20,6 @@
 # endif
 #endif
 
-#define IDE_ARCH_OBSOLETE_DEFAULTS
-
 static __inline__ int ide_default_irq(unsigned long base)
 {
 	switch (base) {

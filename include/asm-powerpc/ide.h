@@ -31,8 +31,6 @@
 #include <linux/hdreg.h>
 #include <linux/ioport.h>
 
-#define IDE_ARCH_OBSOLETE_DEFAULTS
-
 /* FIXME: use ide_platform host driver */
 static __inline__ int ide_default_irq(unsigned long base)
 {

@@ -1233,6 +1233,10 @@ static void drive_release_dev (struct device *dev)
 	complete(&drive->gendev_rel_comp);
 }
 
+#ifndef ide_default_irq
+#define ide_default_irq(irq) 0
+#endif
+
 static int hwif_init(ide_hwif_t *hwif)
 {
 	int old_irq;
