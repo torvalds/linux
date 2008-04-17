@@ -1275,7 +1275,7 @@ static void ipath_pe_put_tid(struct ipath_devdata *dd, u64 __iomem *tidptr,
 	if (pa != dd->ipath_tidinvalid) {
 		if (pa & ((1U << 11) - 1)) {
 			dev_info(&dd->pcidev->dev, "BUG: physaddr %lx "
-				 "not 4KB aligned!\n", pa);
+				 "not 2KB aligned!\n", pa);
 			return;
 		}
 		pa >>= 11;
