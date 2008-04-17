@@ -748,19 +748,25 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 	struct ib_qp *ret;
 
 	if (init_attr->cap.max_send_sge > ib_ipath_max_sges ||
-	    init_attr->cap.max_recv_sge > ib_ipath_max_sges ||
-	    init_attr->cap.max_send_wr > ib_ipath_max_qp_wrs ||
-	    init_attr->cap.max_recv_wr > ib_ipath_max_qp_wrs) {
-		ret = ERR_PTR(-ENOMEM);
+	    init_attr->cap.max_send_wr > ib_ipath_max_qp_wrs) {
+		ret = ERR_PTR(-EINVAL);
 		goto bail;
 	}
 
-	if (init_attr->cap.max_send_sge +
-	    init_attr->cap.max_recv_sge +
-	    init_attr->cap.max_send_wr +
-	    init_attr->cap.max_recv_wr == 0) {
-		ret = ERR_PTR(-EINVAL);
-		goto bail;
+	/* Check receive queue parameters if no SRQ is specified. */
+	if (!init_attr->srq) {
+		if (init_attr->cap.max_recv_sge > ib_ipath_max_sges ||
+		    init_attr->cap.max_recv_wr > ib_ipath_max_qp_wrs) {
+			ret = ERR_PTR(-EINVAL);
+			goto bail;
+		}
+		if (init_attr->cap.max_send_sge +
+		    init_attr->cap.max_send_wr +
+		    init_attr->cap.max_recv_sge +
+		    init_attr->cap.max_recv_wr == 0) {
+			ret = ERR_PTR(-EINVAL);
+			goto bail;
+		}
 	}
 
 	switch (init_attr->qp_type) {
