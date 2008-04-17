@@ -332,7 +332,7 @@ sclp_tty_write_string(const unsigned char *str, int count)
 		if (sclp_ttybuf == NULL) {
 			while (list_empty(&sclp_tty_pages)) {
 				spin_unlock_irqrestore(&sclp_tty_lock, flags);
-				if (in_atomic())
+				if (in_interrupt())
 					sclp_sync_wait();
 				else
 					wait_event(sclp_tty_waitq,
