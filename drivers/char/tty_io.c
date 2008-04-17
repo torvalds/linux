@@ -1155,6 +1155,48 @@ static struct tty_driver *get_tty_driver(dev_t device, int *index)
 	return NULL;
 }
 
+#ifdef CONFIG_CONSOLE_POLL
+
+/**
+ *	tty_find_polling_driver	-	find device of a polled tty
+ *	@name: name string to match
+ *	@line: pointer to resulting tty line nr
+ *
+ *	This routine returns a tty driver structure, given a name
+ *	and the condition that the tty driver is capable of polled
+ *	operation.
+ */
+struct tty_driver *tty_find_polling_driver(char *name, int *line)
+{
+	struct tty_driver *p, *res = NULL;
+	int tty_line = 0;
+	char *str;
+
+	mutex_lock(&tty_mutex);
+	/* Search through the tty devices to look for a match */
+	list_for_each_entry(p, &tty_drivers, tty_drivers) {
+		str = name + strlen(p->name);
+		tty_line = simple_strtoul(str, &str, 10);
+		if (*str == ',')
+			str++;
+		if (*str == '\0')
+			str = 0;
+
+		if (tty_line >= 0 && tty_line <= p->num && p->poll_init &&
+				!p->poll_init(p, tty_line, str)) {
+
+			res = p;
+			*line = tty_line;
+			break;
+		}
+	}
+	mutex_unlock(&tty_mutex);
+
+	return res;
+}
+EXPORT_SYMBOL_GPL(tty_find_polling_driver);
+#endif
+
 /**
  *	tty_check_change	-	check for POSIX terminal changes
  *	@tty: tty to check
@@ -3850,6 +3892,11 @@ void tty_set_operations(struct tty_driver *driver,
 	driver->write_proc = op->write_proc;
 	driver->tiocmget = op->tiocmget;
 	driver->tiocmset = op->tiocmset;
+#ifdef CONFIG_CONSOLE_POLL
+	driver->poll_init = op->poll_init;
+	driver->poll_get_char = op->poll_get_char;
+	driver->poll_put_char = op->poll_put_char;
+#endif
 }
 
 
