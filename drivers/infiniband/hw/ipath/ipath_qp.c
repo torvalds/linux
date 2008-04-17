@@ -392,7 +392,6 @@ int ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err)
 		  qp->ibqp.qp_num, qp->remote_qpn, err);
 
 	spin_lock(&dev->pending_lock);
-	/* XXX What if its already removed by the timeout code? */
 	if (!list_empty(&qp->timerwait))
 		list_del_init(&qp->timerwait);
 	if (!list_empty(&qp->piowait))
@@ -1021,7 +1020,6 @@ void ipath_sqerror_qp(struct ipath_qp *qp, struct ib_wc *wc)
 		  qp->ibqp.qp_num, qp->remote_qpn, wc->status);
 
 	spin_lock(&dev->pending_lock);
-	/* XXX What if its already removed by the timeout code? */
 	if (!list_empty(&qp->timerwait))
 		list_del_init(&qp->timerwait);
 	if (!list_empty(&qp->piowait))
