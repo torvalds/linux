@@ -843,7 +843,6 @@ static struct nes_cm_node *find_node(struct nes_cm_core *cm_core,
 {
 	unsigned long flags;
 	u32 hashkey;
-	struct list_head *list_pos;
 	struct list_head *hte;
 	struct nes_cm_node *cm_node;
 
@@ -858,8 +857,7 @@ static struct nes_cm_node *find_node(struct nes_cm_core *cm_core,
 
 	/* walk list and find cm_node associated with this session ID */
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
-	list_for_each(list_pos, hte) {
-		cm_node = container_of(list_pos, struct nes_cm_node, list);
+	list_for_each_entry(cm_node, hte, list) {
 		/* compare quad, return node handle if a match */
 		nes_debug(NES_DBG_CM, "finding node %x:%x =? %x:%x ^ %x:%x =? %x:%x\n",
 				cm_node->loc_addr, cm_node->loc_port,
@@ -887,13 +885,11 @@ static struct nes_cm_listener *find_listener(struct nes_cm_core *cm_core,
 		nes_addr_t dst_addr, u16 dst_port, enum nes_cm_listener_state listener_state)
 {
 	unsigned long flags;
-	struct list_head *listen_list;
 	struct nes_cm_listener *listen_node;
 
 	/* walk list and find cm_node associated with this session ID */
 	spin_lock_irqsave(&cm_core->listen_list_lock, flags);
-	list_for_each(listen_list, &cm_core->listen_list.list) {
-		listen_node = container_of(listen_list, struct nes_cm_listener, list);
+	list_for_each_entry(listen_node, &cm_core->listen_list.list, list) {
 		/* compare node pair, return node handle if a match */
 		if (((listen_node->loc_addr == dst_addr) ||
 				listen_node->loc_addr == 0x00000000) &&
