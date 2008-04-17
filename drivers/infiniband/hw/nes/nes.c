@@ -744,12 +744,12 @@ static void __devexit nes_remove(struct pci_dev *pcidev)
 
 	list_del(&nesdev->list);
 	nes_destroy_cqp(nesdev);
+
+	free_irq(pcidev->irq, nesdev);
 	tasklet_kill(&nesdev->dpc_tasklet);
 
 	/* Deallocate the Adapter Structure */
 	nes_destroy_adapter(nesdev->nesadapter);
-
-	free_irq(pcidev->irq, nesdev);
 
 	if (nesdev->msi_enabled) {
 		pci_disable_msi(pcidev);
