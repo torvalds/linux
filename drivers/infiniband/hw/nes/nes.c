@@ -65,7 +65,6 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 
 int max_mtu = 9000;
-int nics_per_function = 1;
 int interrupt_mod_interval = 0;
 
 
@@ -96,12 +95,6 @@ LIST_HEAD(nes_adapter_list);
 LIST_HEAD(nes_dev_list);
 
 atomic_t qps_destroyed;
-atomic_t cqp_reqs_allocated;
-atomic_t cqp_reqs_freed;
-atomic_t cqp_reqs_dynallocated;
-atomic_t cqp_reqs_dynfreed;
-atomic_t cqp_reqs_queued;
-atomic_t cqp_reqs_redriven;
 
 static void nes_print_macaddr(struct net_device *netdev);
 static irqreturn_t nes_interrupt(int, void *);

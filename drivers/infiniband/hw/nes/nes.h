@@ -166,7 +166,6 @@ if (!(expr)) {                                                       \
 #include "nes_cm.h"
 
 extern int max_mtu;
-extern int nics_per_function;
 #define max_frame_len (max_mtu+ETH_HLEN)
 extern int interrupt_mod_interval;
 extern int nes_if_count;
@@ -218,14 +217,6 @@ extern u32 int_mod_cq_depth_24;
 extern u32 int_mod_cq_depth_16;
 extern u32 int_mod_cq_depth_4;
 extern u32 int_mod_cq_depth_1;
-
-extern atomic_t cqp_reqs_allocated;
-extern atomic_t cqp_reqs_freed;
-extern atomic_t cqp_reqs_dynallocated;
-extern atomic_t cqp_reqs_dynfreed;
-extern atomic_t cqp_reqs_queued;
-extern atomic_t cqp_reqs_redriven;
-
 
 struct nes_device {
 	struct nes_adapter	   *nesadapter;
