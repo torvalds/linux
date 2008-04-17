@@ -163,6 +163,15 @@ static ssize_t show_boardversion(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%s", dd->ipath_boardversion);
 }
 
+static ssize_t show_localbus_info(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct ipath_devdata *dd = dev_get_drvdata(dev);
+	/* The string printed here is already newline-terminated. */
+	return scnprintf(buf, PAGE_SIZE, "%s", dd->ipath_lbus_info);
+}
+
 static ssize_t show_lmc(struct device *dev,
 			struct device_attribute *attr,
 			char *buf)
@@ -1011,6 +1020,7 @@ static DEVICE_ATTR(unit, S_IRUGO, show_unit, NULL);
 static DEVICE_ATTR(rx_pol_inv, S_IWUSR, NULL, store_rx_pol_inv);
 static DEVICE_ATTR(led_override, S_IWUSR, NULL, store_led_override);
 static DEVICE_ATTR(logged_errors, S_IRUGO, show_logged_errs, NULL);
+static DEVICE_ATTR(localbus_info, S_IRUGO, show_localbus_info, NULL);
 static DEVICE_ATTR(jint_max_packets, S_IWUSR | S_IRUGO,
 		   show_jint_max_packets, store_jint_max_packets);
 static DEVICE_ATTR(jint_idle_ticks, S_IWUSR | S_IRUGO,
@@ -1034,6 +1044,7 @@ static struct attribute *dev_attributes[] = {
 	&dev_attr_rx_pol_inv.attr,
 	&dev_attr_led_override.attr,
 	&dev_attr_logged_errors.attr,
+	&dev_attr_localbus_info.attr,
 	NULL
 };
 

@@ -626,7 +626,6 @@ static int ipath_pe_boardname(struct ipath_devdata *dd, char *name,
 			dd->ipath_f_put_tid = ipath_pe_put_tid_2;
 	}
 
-
 	/*
 	 * set here, not in ipath_init_*_funcs because we have to do
 	 * it after we can read chip registers.
@@ -879,6 +878,62 @@ static void ipath_setup_pe_cleanup(struct ipath_devdata *dd)
 	pci_disable_msi(dd->pcidev);
 }
 
+static void ipath_6120_pcie_params(struct ipath_devdata *dd)
+{
+	u16 linkstat, speed;
+	int pos;
+
+	pos = pci_find_capability(dd->pcidev, PCI_CAP_ID_EXP);
+	if (!pos) {
+		ipath_dev_err(dd, "Can't find PCI Express capability!\n");
+		goto bail;
+	}
+
+	pci_read_config_word(dd->pcidev, pos + PCI_EXP_LNKSTA,
+			     &linkstat);
+	/*
+	 * speed is bits 0-4, linkwidth is bits 4-8
+	 * no defines for them in headers
+	 */
+	speed = linkstat & 0xf;
+	linkstat >>= 4;
+	linkstat &= 0x1f;
+	dd->ipath_lbus_width = linkstat;
+
+	switch (speed) {
+	case 1:
+		dd->ipath_lbus_speed = 2500; /* Gen1, 2.5GHz */
+		break;
+	case 2:
+		dd->ipath_lbus_speed = 5000; /* Gen1, 5GHz */
+		break;
+	default: /* not defined, assume gen1 */
+		dd->ipath_lbus_speed = 2500;
+		break;
+	}
+
+	if (linkstat < 8)
+		ipath_dev_err(dd,
+			"PCIe width %u (x8 HCA), performance reduced\n",
+			linkstat);
+	else
+		ipath_cdbg(VERBOSE, "PCIe speed %u width %u (x8 HCA)\n",
+			dd->ipath_lbus_speed, linkstat);
+
+	if (speed != 1)
+		ipath_dev_err(dd,
+			"PCIe linkspeed %u is incorrect; "
+			"should be 1 (2500)!\n", speed);
+bail:
+	/* fill in string, even on errors */
+	snprintf(dd->ipath_lbus_info, sizeof(dd->ipath_lbus_info),
+		"PCIe,%uMHz,x%u\n",
+		dd->ipath_lbus_speed,
+		dd->ipath_lbus_width);
+
+	return;
+}
+
 /**
  * ipath_setup_pe_config - setup PCIe config related stuff
  * @dd: the infinipath device
@@ -936,19 +991,8 @@ static int ipath_setup_pe_config(struct ipath_devdata *dd,
 	} else
 		ipath_dev_err(dd, "Can't find MSI capability, "
 			      "can't save MSI settings for reset\n");
-	if ((pos = pci_find_capability(dd->pcidev, PCI_CAP_ID_EXP))) {
-		u16 linkstat;
-		pci_read_config_word(dd->pcidev, pos + PCI_EXP_LNKSTA,
-				     &linkstat);
-		linkstat >>= 4;
-		linkstat &= 0x1f;
-		if (linkstat != 8)
-			ipath_dev_err(dd, "PCIe width %u, "
-				      "performance reduced\n", linkstat);
-	}
-	else
-		ipath_dev_err(dd, "Can't find PCI Express "
-			      "capability!\n");
+
+	ipath_6120_pcie_params(dd);
 
 	dd->ipath_link_width_supported = IB_WIDTH_1X | IB_WIDTH_4X;
 	dd->ipath_link_speed_supported = IPATH_IB_SDR;
@@ -1206,6 +1250,8 @@ static int ipath_setup_pe_reset(struct ipath_devdata *dd)
 	ret = 0; /* failed */
 
 bail:
+	if (ret)
+		ipath_6120_pcie_params(dd);
 	return ret;
 }
 

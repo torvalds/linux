@@ -742,11 +742,10 @@ static int ipath_ht_boardname(struct ipath_devdata *dd, char *name,
 	 */
 	dd->ipath_flags |= IPATH_32BITCOUNTERS;
 	dd->ipath_flags |= IPATH_GPIO_INTR;
-	if (dd->ipath_htspeed != 800)
+	if (dd->ipath_lbus_speed != 800)
 		ipath_dev_err(dd,
 			      "Incorrectly configured for HT @ %uMHz\n",
-			      dd->ipath_htspeed);
-	ret = 0;
+			      dd->ipath_lbus_speed);
 
 	/*
 	 * set here, not in ipath_init_*_funcs because we have to do
@@ -911,7 +910,7 @@ static void slave_or_pri_blk(struct ipath_devdata *dd, struct pci_dev *pdev,
 			break;
 		}
 
-		dd->ipath_htwidth = width;
+		dd->ipath_lbus_width = width;
 
 		if (linkwidth != 0x11) {
 			ipath_dev_err(dd, "Not configured for 16 bit HT "
@@ -959,8 +958,13 @@ static void slave_or_pri_blk(struct ipath_devdata *dd, struct pci_dev *pdev,
 			speed = 200;
 			break;
 		}
-		dd->ipath_htspeed = speed;
+		dd->ipath_lbus_speed = speed;
 	}
+
+	snprintf(dd->ipath_lbus_info, sizeof(dd->ipath_lbus_info),
+		"HyperTransport,%uMHz,x%u\n",
+		dd->ipath_lbus_speed,
+		dd->ipath_lbus_width);
 }
 
 static int ipath_ht_intconfig(struct ipath_devdata *dd)

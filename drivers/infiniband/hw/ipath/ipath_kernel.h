@@ -546,10 +546,10 @@ struct ipath_devdata {
 	u32 ipath_init_ibmaxlen;
 	/* size of each rcvegrbuffer */
 	u32 ipath_rcvegrbufsize;
-	/* width (2,4,8,16,32) from HT config reg */
-	u32 ipath_htwidth;
-	/* HT speed (200,400,800,1000) from HT config */
-	u32 ipath_htspeed;
+	/* localbus width (1, 2,4,8,16,32) from config space  */
+	u32 ipath_lbus_width;
+	/* localbus speed (HT: 200,400,800,1000; PCIe 2500) */
+	u32 ipath_lbus_speed;
 	/*
 	 * number of sequential ibcstatus change for polling active/quiet
 	 * (i.e., link not coming up).
@@ -574,6 +574,7 @@ struct ipath_devdata {
 	u8 ipath_serial[16];
 	/* human readable board version */
 	u8 ipath_boardversion[80];
+	u8 ipath_lbus_info[32]; /* human readable localbus info */
 	/* chip major rev, from ipath_revision */
 	u8 ipath_majrev;
 	/* chip minor rev, from ipath_revision */
