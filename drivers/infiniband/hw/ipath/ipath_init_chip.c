@@ -523,16 +523,16 @@ static void enable_chip(struct ipath_devdata *dd,
 	 * initial values of the generation bit correct.
 	 */
 	for (i = 0; i < dd->ipath_pioavregs; i++) {
-		__le64 val;
+		__le64 pioavail;
 
 		/*
 		 * Chip Errata bug 6641; even and odd qwords>3 are swapped.
 		 */
 		if (i > 3 && (dd->ipath_flags & IPATH_SWAP_PIOBUFS))
-			val = dd->ipath_pioavailregs_dma[i ^ 1];
+			pioavail = dd->ipath_pioavailregs_dma[i ^ 1];
 		else
-			val = dd->ipath_pioavailregs_dma[i];
-		dd->ipath_pioavailshadow[i] = le64_to_cpu(val);
+			pioavail = dd->ipath_pioavailregs_dma[i];
+		dd->ipath_pioavailshadow[i] = le64_to_cpu(pioavail);
 	}
 	/* can get counters, stats, etc. */
 	dd->ipath_flags |= IPATH_PRESENT;
