@@ -533,6 +533,12 @@ void css_schedule_eval_all(void)
 	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
 }
 
+void css_wait_for_slow_path(void)
+{
+	flush_workqueue(ccw_device_notify_work);
+	flush_workqueue(slow_path_wq);
+}
+
 /* Reprobe subchannel if unregistered. */
 static int reprobe_subchannel(struct subchannel_id schid, void *data)
 {
