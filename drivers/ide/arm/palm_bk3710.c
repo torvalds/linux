@@ -385,7 +385,7 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 	i = hwif->index;
 
 	if (hwif->present)
-		ide_unregister(i, 0, 0);
+		ide_unregister(i);
 	else if (!hwif->hold)
 		ide_init_port_data(hwif, i);
 

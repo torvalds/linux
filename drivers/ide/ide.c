@@ -362,107 +362,6 @@ void ide_hwif_release_regions(ide_hwif_t *hwif)
 			release_region(hwif->io_ports[i], 1);
 }
 
-/**
- *	ide_hwif_restore	-	restore hwif to template
- *	@hwif: hwif to update
- *	@tmp_hwif: template
- *
- *	Restore hwif to a previous state by copying most settings
- *	from the template.
- */
-
-static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
-{
-	hwif->hwgroup			= tmp_hwif->hwgroup;
-
-	hwif->gendev.parent		= tmp_hwif->gendev.parent;
-
-	hwif->proc			= tmp_hwif->proc;
-
-	hwif->major			= tmp_hwif->major;
-	hwif->straight8			= tmp_hwif->straight8;
-	hwif->bus_state			= tmp_hwif->bus_state;
-
-	hwif->host_flags		= tmp_hwif->host_flags;
-
-	hwif->pio_mask			= tmp_hwif->pio_mask;
-
-	hwif->ultra_mask		= tmp_hwif->ultra_mask;
-	hwif->mwdma_mask		= tmp_hwif->mwdma_mask;
-	hwif->swdma_mask		= tmp_hwif->swdma_mask;
-
-	hwif->cbl			= tmp_hwif->cbl;
-
-	hwif->chipset			= tmp_hwif->chipset;
-	hwif->hold			= tmp_hwif->hold;
-
-	hwif->dev			= tmp_hwif->dev;
-
-#ifdef CONFIG_BLK_DEV_IDEPCI
-	hwif->cds			= tmp_hwif->cds;
-#endif
-
-	hwif->set_pio_mode		= tmp_hwif->set_pio_mode;
-	hwif->set_dma_mode		= tmp_hwif->set_dma_mode;
-	hwif->mdma_filter		= tmp_hwif->mdma_filter;
-	hwif->udma_filter		= tmp_hwif->udma_filter;
-	hwif->selectproc		= tmp_hwif->selectproc;
-	hwif->reset_poll		= tmp_hwif->reset_poll;
-	hwif->pre_reset			= tmp_hwif->pre_reset;
-	hwif->resetproc			= tmp_hwif->resetproc;
-	hwif->maskproc			= tmp_hwif->maskproc;
-	hwif->quirkproc			= tmp_hwif->quirkproc;
-
-	hwif->ata_input_data		= tmp_hwif->ata_input_data;
-	hwif->ata_output_data		= tmp_hwif->ata_output_data;
-	hwif->atapi_input_bytes		= tmp_hwif->atapi_input_bytes;
-	hwif->atapi_output_bytes	= tmp_hwif->atapi_output_bytes;
-
-	hwif->dma_host_set		= tmp_hwif->dma_host_set;
-	hwif->dma_setup			= tmp_hwif->dma_setup;
-	hwif->dma_exec_cmd		= tmp_hwif->dma_exec_cmd;
-	hwif->dma_start			= tmp_hwif->dma_start;
-	hwif->ide_dma_end		= tmp_hwif->ide_dma_end;
-	hwif->ide_dma_test_irq		= tmp_hwif->ide_dma_test_irq;
-	hwif->ide_dma_clear_irq		= tmp_hwif->ide_dma_clear_irq;
-	hwif->dma_lost_irq		= tmp_hwif->dma_lost_irq;
-	hwif->dma_timeout		= tmp_hwif->dma_timeout;
-
-	hwif->OUTB			= tmp_hwif->OUTB;
-	hwif->OUTBSYNC			= tmp_hwif->OUTBSYNC;
-	hwif->OUTW			= tmp_hwif->OUTW;
-	hwif->OUTSW			= tmp_hwif->OUTSW;
-	hwif->OUTSL			= tmp_hwif->OUTSL;
-
-	hwif->INB			= tmp_hwif->INB;
-	hwif->INW			= tmp_hwif->INW;
-	hwif->INSW			= tmp_hwif->INSW;
-	hwif->INSL			= tmp_hwif->INSL;
-
-	hwif->sg_max_nents		= tmp_hwif->sg_max_nents;
-
-	hwif->mmio			= tmp_hwif->mmio;
-	hwif->rqsize			= tmp_hwif->rqsize;
-
-#ifndef CONFIG_BLK_DEV_IDECS
-	hwif->irq			= tmp_hwif->irq;
-#endif
-
-	hwif->dma_base			= tmp_hwif->dma_base;
-	hwif->dma_command		= tmp_hwif->dma_command;
-	hwif->dma_vendor1		= tmp_hwif->dma_vendor1;
-	hwif->dma_status		= tmp_hwif->dma_status;
-	hwif->dma_vendor3		= tmp_hwif->dma_vendor3;
-	hwif->dma_prdtable		= tmp_hwif->dma_prdtable;
-
-	hwif->config_data		= tmp_hwif->config_data;
-	hwif->select_data		= tmp_hwif->select_data;
-	hwif->extra_base		= tmp_hwif->extra_base;
-	hwif->extra_ports		= tmp_hwif->extra_ports;
-
-	hwif->hwif_data			= tmp_hwif->hwif_data;
-}
-
 void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
 {
 	ide_hwgroup_t *hwgroup = hwif->hwgroup;
@@ -530,8 +429,6 @@ EXPORT_SYMBOL_GPL(ide_port_unregister_devices);
 /**
  *	ide_unregister		-	free an IDE interface
  *	@index: index of interface (will change soon to a pointer)
- *	@init_default: init default hwif flag
- *	@restore: restore hwif flag
  *
  *	Perform the final unregister of an IDE interface. At the moment
  *	we don't refcount interfaces so this will also get split up.
@@ -551,10 +448,9 @@ EXPORT_SYMBOL_GPL(ide_port_unregister_devices);
  *	This is raving bonkers.
  */
 
-void ide_unregister(unsigned int index, int init_default, int restore)
+void ide_unregister(unsigned int index)
 {
 	ide_hwif_t *hwif, *g;
-	static ide_hwif_t tmp_hwif; /* protected by ide_cfg_mtx */
 	ide_hwgroup_t *hwgroup;
 	int irq_count = 0;
 
@@ -601,33 +497,13 @@ void ide_unregister(unsigned int index, int init_default, int restore)
 	unregister_blkdev(hwif->major, hwif->name);
 	spin_lock_irq(&ide_lock);
 
-	if (hwif->dma_base) {
-		(void) ide_release_dma(hwif);
-
-		hwif->dma_base = 0;
-		hwif->dma_command = 0;
-		hwif->dma_vendor1 = 0;
-		hwif->dma_status = 0;
-		hwif->dma_vendor3 = 0;
-		hwif->dma_prdtable = 0;
-
-		hwif->extra_base  = 0;
-		hwif->extra_ports = 0;
-	}
+	if (hwif->dma_base)
+		(void)ide_release_dma(hwif);
 
 	ide_hwif_release_regions(hwif);
 
-	/* copy original settings */
-	tmp_hwif = *hwif;
-
 	/* restore hwif data to pristine status */
 	ide_init_port_data(hwif, index);
-
-	if (init_default)
-		init_hwif_default(hwif, index);
-
-	if (restore)
-		ide_hwif_restore(hwif, &tmp_hwif);
 
 abort:
 	spin_unlock_irq(&ide_lock);
@@ -646,52 +522,6 @@ void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
 	hwif->ack_intr = hw->ack_intr;
 }
 EXPORT_SYMBOL_GPL(ide_init_port_hw);
-
-/**
- *	ide_register_hw		-	register IDE interface
- *	@hw: hardware registers
- *	@quirkproc: quirkproc function
- *	@hwifp: pointer to returned hwif
- *
- *	Register an IDE interface, specifying exactly the registers etc.
- *
- *	Returns -1 on error.
- */
-
-static int ide_register_hw(hw_regs_t *hw, void (*quirkproc)(ide_drive_t *),
-			   ide_hwif_t **hwifp)
-{
-	int index, retry = 1;
-	ide_hwif_t *hwif;
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-
-	do {
-		hwif = ide_find_port(hw->io_ports[IDE_DATA_OFFSET]);
-		if (hwif)
-			goto found;
-		for (index = 0; index < MAX_HWIFS; index++)
-			ide_unregister(index, 1, 1);
-	} while (retry--);
-	return -1;
-found:
-	index = hwif->index;
-	if (hwif->present)
-		ide_unregister(index, 0, 1);
-	else if (!hwif->hold)
-		ide_init_port_data(hwif, index);
-
-	ide_init_port_hw(hwif, hw);
-	hwif->quirkproc = quirkproc;
-
-	idx[0] = index;
-
-	ide_device_add(idx, NULL);
-
-	if (hwifp)
-		*hwifp = hwif;
-
-	return hwif->present ? index : -1;
-}
 
 /*
  *	Locks for IDE setting functionality
@@ -995,27 +825,6 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 			if (!capable(CAP_SYS_RAWIO))
 				return -EACCES;
 			return ide_task_ioctl(drive, cmd, arg);
-
-		case HDIO_SCAN_HWIF:
-		{
-			hw_regs_t hw;
-			int args[3];
-			if (!capable(CAP_SYS_RAWIO)) return -EACCES;
-			if (copy_from_user(args, p, 3 * sizeof(int)))
-				return -EFAULT;
-			memset(&hw, 0, sizeof(hw));
-			ide_init_hwif_ports(&hw, (unsigned long) args[0],
-					    (unsigned long) args[1], NULL);
-			hw.irq = args[2];
-			if (ide_register_hw(&hw, NULL, NULL) == -1)
-				return -EIO;
-			return 0;
-		}
-	        case HDIO_UNREGISTER_HWIF:
-			if (!capable(CAP_SYS_RAWIO)) return -EACCES;
-			/* (arg > MAX_HWIFS) checked in function */
-			ide_unregister(arg, 1, 1);
-			return 0;
 		case HDIO_SET_NICE:
 			if (!capable(CAP_SYS_ADMIN)) return -EACCES;
 			if (arg != (arg & ((1 << IDE_NICE_DSC_OVERLAP) | (1 << IDE_NICE_1))))
@@ -1648,7 +1457,7 @@ void __exit cleanup_module (void)
 	int index;
 
 	for (index = 0; index < MAX_HWIFS; ++index)
-		ide_unregister(index, 0, 0);
+		ide_unregister(index);
 
 	proc_ide_destroy();
 

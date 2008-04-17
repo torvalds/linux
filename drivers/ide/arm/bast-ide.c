@@ -48,7 +48,7 @@ static int __init bastide_register(unsigned int base, unsigned int aux, int irq)
 	i = hwif->index;
 
 	if (hwif->present)
-		ide_unregister(i, 0, 0);
+		ide_unregister(i);
 	else if (!hwif->hold)
 		ide_init_port_data(hwif, i);
 
