@@ -29,7 +29,6 @@
 #include <linux/pci.h>
 #include <linux/workqueue.h>
 
-#define IN_CARD_SERVICES
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
