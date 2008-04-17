@@ -92,6 +92,8 @@ static struct buffer_head *ext4_xattr_cache_find(struct inode *,
 						 struct mb_cache_entry **);
 static void ext4_xattr_rehash(struct ext4_xattr_header *,
 			      struct ext4_xattr_entry *);
+static int ext4_xattr_list(struct inode *inode, char *buffer,
+			   size_t buffer_size);
 
 static struct mb_cache *ext4_xattr_cache;
 
@@ -420,7 +422,7 @@ cleanup:
  * Returns a negative error number on failure, or the number of bytes
  * used / required on success.
  */
-int
+static int
 ext4_xattr_list(struct inode *inode, char *buffer, size_t buffer_size)
 {
 	int i_error, b_error;
