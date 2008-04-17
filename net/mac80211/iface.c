@@ -33,9 +33,8 @@ static void ieee80211_if_sdata_deinit(struct ieee80211_sub_if_data *sdata)
 {
 	int i;
 
-	for (i = 0; i < IEEE80211_FRAGMENT_MAX; i++) {
+	for (i = 0; i < IEEE80211_FRAGMENT_MAX; i++)
 		__skb_queue_purge(&sdata->fragments[i].skb_list);
-	}
 }
 
 /* Must be called with rtnl lock held. */

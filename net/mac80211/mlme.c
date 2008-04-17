@@ -306,28 +306,24 @@ static void ieee80211_sta_wmm_params(struct net_device *dev,
 		switch (aci) {
 		case 1:
 			queue = IEEE80211_TX_QUEUE_DATA3;
-			if (acm) {
+			if (acm)
 				local->wmm_acm |= BIT(0) | BIT(3);
-			}
 			break;
 		case 2:
 			queue = IEEE80211_TX_QUEUE_DATA1;
-			if (acm) {
+			if (acm)
 				local->wmm_acm |= BIT(4) | BIT(5);
-			}
 			break;
 		case 3:
 			queue = IEEE80211_TX_QUEUE_DATA0;
-			if (acm) {
+			if (acm)
 				local->wmm_acm |= BIT(6) | BIT(7);
-			}
 			break;
 		case 0:
 		default:
 			queue = IEEE80211_TX_QUEUE_DATA2;
-			if (acm) {
+			if (acm)
 				local->wmm_acm |= BIT(1) | BIT(2);
-			}
 			break;
 		}
 
@@ -706,9 +702,8 @@ static void ieee80211_send_assoc(struct net_device *dev,
 	if (bss) {
 		if (bss->capability & WLAN_CAPABILITY_PRIVACY)
 			capab |= WLAN_CAPABILITY_PRIVACY;
-		if (bss->wmm_ie) {
+		if (bss->wmm_ie)
 			wmm = 1;
-		}
 		ieee80211_rx_bss_put(dev, bss);
 	}
 
@@ -1805,9 +1800,8 @@ static void ieee80211_rx_mgmt_deauth(struct net_device *dev,
 	       " (reason=%d)\n",
 	       dev->name, print_mac(mac, mgmt->sa), reason_code);
 
-	if (ifsta->flags & IEEE80211_STA_AUTHENTICATED) {
+	if (ifsta->flags & IEEE80211_STA_AUTHENTICATED)
 		printk(KERN_DEBUG "%s: deauthenticated\n", dev->name);
-	}
 
 	if (ifsta->state == IEEE80211_AUTHENTICATE ||
 	    ifsta->state == IEEE80211_ASSOCIATE ||
@@ -3517,10 +3511,12 @@ static int ieee80211_sta_create_ibss(struct net_device *dev,
 	bss->beacon_int = local->hw.conf.beacon_int;
 	bss->last_update = jiffies;
 	bss->capability = WLAN_CAPABILITY_IBSS;
-	if (sdata->default_key) {
+
+	if (sdata->default_key)
 		bss->capability |= WLAN_CAPABILITY_PRIVACY;
-	} else
+	else
 		sdata->drop_unencrypted = 0;
+
 	bss->supp_rates_len = sband->n_bitrates;
 	pos = bss->supp_rates;
 	for (i = 0; i < sband->n_bitrates; i++) {
@@ -4203,6 +4199,7 @@ int ieee80211_sta_set_extra_ie(struct net_device *dev, char *ie, size_t len)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
+
 	kfree(ifsta->extra_ie);
 	if (len == 0) {
 		ifsta->extra_ie = NULL;
@@ -4220,9 +4217,9 @@ int ieee80211_sta_set_extra_ie(struct net_device *dev, char *ie, size_t len)
 }
 
 
-struct sta_info * ieee80211_ibss_add_sta(struct net_device *dev,
-					 struct sk_buff *skb, u8 *bssid,
-					 u8 *addr)
+struct sta_info *ieee80211_ibss_add_sta(struct net_device *dev,
+					struct sk_buff *skb, u8 *bssid,
+					u8 *addr)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct sta_info *sta;

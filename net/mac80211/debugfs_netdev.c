@@ -528,7 +528,7 @@ void ieee80211_debugfs_change_if_type(struct ieee80211_sub_if_data *sdata,
 	add_files(sdata);
 }
 
-static int netdev_notify(struct notifier_block * nb,
+static int netdev_notify(struct notifier_block *nb,
 			 unsigned long state,
 			 void *ndev)
 {
