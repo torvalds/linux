@@ -40,6 +40,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/htirq.h>
+#include <rdma/ib_verbs.h>
 
 #include "ipath_kernel.h"
 #include "ipath_registers.h"
@@ -476,7 +477,13 @@ static const struct ipath_hwerror_msgs ipath_6110_hwerror_msgs[] = {
 #define RXE_EAGER_PARITY (INFINIPATH_HWE_RXEMEMPARITYERR_EAGERTID \
 			  << INFINIPATH_HWE_RXEMEMPARITYERR_SHIFT)
 
-static int ipath_ht_txe_recover(struct ipath_devdata *);
+static void ipath_ht_txe_recover(struct ipath_devdata *dd)
+{
+	++ipath_stats.sps_txeparity;
+	dev_info(&dd->pcidev->dev,
+		"Recovering from TXE PIO parity error\n");
+}
+
 
 /**
  * ipath_ht_handle_hwerrors - display hardware errors.
@@ -557,11 +564,11 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 		 * occur if a processor speculative read is done to the PIO
 		 * buffer while we are sending a packet, for example.
 		 */
-		if ((hwerrs & TXE_PIO_PARITY) && ipath_ht_txe_recover(dd))
+		if (hwerrs & TXE_PIO_PARITY) {
+			ipath_ht_txe_recover(dd);
 			hwerrs &= ~TXE_PIO_PARITY;
-		if (hwerrs & RXE_EAGER_PARITY)
-			ipath_dev_err(dd, "RXE parity, Eager TID error is not "
-				"recoverable\n");
+		}
+
 		if (!hwerrs) {
 			ipath_dbg("Clearing freezemode on ignored or "
 				  "recovered hardware error\n");
@@ -1650,22 +1657,6 @@ static int ipath_ht_early_init(struct ipath_devdata *dd)
 	}
 
 	return 0;
-}
-
-
-static int ipath_ht_txe_recover(struct ipath_devdata *dd)
-{
-	int cnt = ++ipath_stats.sps_txeparity;
-	if (cnt >= IPATH_MAX_PARITY_ATTEMPTS)  {
-		if (cnt == IPATH_MAX_PARITY_ATTEMPTS)
-			ipath_dev_err(dd,
-				"Too many attempts to recover from "
-				"TXE parity, giving up\n");
-		return 0;
-	}
-	dev_info(&dd->pcidev->dev,
-		"Recovering from TXE PIO parity error\n");
-	return 1;
 }
 
 

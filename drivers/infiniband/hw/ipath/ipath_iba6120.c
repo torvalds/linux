@@ -38,7 +38,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-
+#include <rdma/ib_verbs.h>
 
 #include "ipath_kernel.h"
 #include "ipath_registers.h"
@@ -311,6 +311,9 @@ static const struct ipath_cregs ipath_pe_cregs = {
 	.cr_ibsymbolerrcnt = IPATH_CREG_OFFSET(IBSymbolErrCnt)
 };
 
+/* kr_control bits */
+#define INFINIPATH_C_RESET 1U
+
 /* kr_intstatus, kr_intclear, kr_intmask bits */
 #define INFINIPATH_I_RCVURG_MASK ((1U<<5)-1)
 #define INFINIPATH_I_RCVAVAIL_MASK ((1U<<5)-1)
@@ -338,6 +341,9 @@ static const struct ipath_cregs ipath_pe_cregs = {
 #define INFINIPATH_EXTS_MEMBIST_ENDTEST     0x0000000000004000
 #define INFINIPATH_EXTS_MEMBIST_FOUND       0x0000000000008000
 
+/* kr_xgxsconfig bits */
+#define INFINIPATH_XGXS_RESET          0x5ULL
+
 #define _IPATH_GPIO_SDA_NUM 1
 #define _IPATH_GPIO_SCL_NUM 0
 
@@ -345,6 +351,16 @@ static const struct ipath_cregs ipath_pe_cregs = {
 	(_IPATH_GPIO_SDA_NUM+INFINIPATH_EXTC_GPIOOE_SHIFT))
 #define IPATH_GPIO_SCL (1ULL << \
 	(_IPATH_GPIO_SCL_NUM+INFINIPATH_EXTC_GPIOOE_SHIFT))
+
+#define INFINIPATH_RT_BUFSIZE_MASK 0xe0000000ULL
+#define INFINIPATH_RT_BUFSIZE_SHIFTVAL(tid) \
+	((((tid) & INFINIPATH_RT_BUFSIZE_MASK) >> 29) + 11 - 1)
+#define INFINIPATH_RT_BUFSIZE(tid) (1 << INFINIPATH_RT_BUFSIZE_SHIFTVAL(tid))
+#define INFINIPATH_RT_IS_VALID(tid) \
+	(((tid) & INFINIPATH_RT_BUFSIZE_MASK) && \
+	 ((((tid) & INFINIPATH_RT_BUFSIZE_MASK) != INFINIPATH_RT_BUFSIZE_MASK)))
+#define INFINIPATH_RT_ADDR_MASK 0x1FFFFFFFULL /* 29 bits valid */
+#define INFINIPATH_RT_ADDR_SHIFT 10
 
 #define INFINIPATH_R_INTRAVAIL_SHIFT 16
 #define INFINIPATH_R_TAILUPD_SHIFT 31
@@ -372,6 +388,8 @@ static const struct ipath_hwerror_msgs ipath_6120_hwerror_msgs[] = {
 #define TXE_PIO_PARITY ((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF | \
 		        INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC) \
 		        << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT)
+#define RXE_EAGER_PARITY (INFINIPATH_HWE_RXEMEMPARITYERR_EAGERTID \
+			  << INFINIPATH_HWE_RXEMEMPARITYERR_SHIFT)
 
 static void ipath_pe_put_tid_2(struct ipath_devdata *, u64 __iomem *,
 			       u32, unsigned long);
@@ -450,10 +468,8 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 	 * make sure we get this much out, unless told to be quiet,
 	 * or it's occurred within the last 5 seconds
 	 */
-	if ((hwerrs & ~(dd->ipath_lasthwerror |
-			((INFINIPATH_HWE_TXEMEMPARITYERR_PIOBUF |
-			  INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC)
-			 << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT))) ||
+	if ((hwerrs & ~(dd->ipath_lasthwerror | TXE_PIO_PARITY |
+			RXE_EAGER_PARITY)) ||
 	    (ipath_debug & __IPATH_VERBDBG))
 		dev_info(&dd->pcidev->dev, "Hardware error: hwerr=0x%llx "
 			 "(cleared)\n", (unsigned long long) hwerrs);
@@ -1218,7 +1234,7 @@ static void ipath_pe_put_tid(struct ipath_devdata *dd, u64 __iomem *tidptr,
 		}
 		pa >>= 11;
 		/* paranoia check */
-		if (pa & (7<<29))
+		if (pa & ~INFINIPATH_RT_ADDR_MASK)
 			ipath_dev_err(dd,
 				      "BUG: Physical page address 0x%lx "
 				      "has bits set in 31-29\n", pa);
@@ -1270,7 +1286,7 @@ static void ipath_pe_put_tid_2(struct ipath_devdata *dd, u64 __iomem *tidptr,
 		}
 		pa >>= 11;
 		/* paranoia check */
-		if (pa & (7<<29))
+		if (pa & ~INFINIPATH_RT_ADDR_MASK)
 			ipath_dev_err(dd,
 				      "BUG: Physical page address 0x%lx "
 				      "has bits set in 31-29\n", pa);
