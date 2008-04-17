@@ -524,7 +524,6 @@ int nes_nic_cm_xmit(struct sk_buff *, struct net_device *);
 
 /* nes_nic.c */
 void nes_netdev_set_multicast_list(struct net_device *);
-void nes_netdev_exit(struct nes_vnic *);
 struct net_device *nes_netdev_init(struct nes_device *, void __iomem *);
 void nes_netdev_destroy(struct net_device *);
 int nes_nic_cm_xmit(struct sk_buff *, struct net_device *);
