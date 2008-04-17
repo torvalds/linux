@@ -41,7 +41,7 @@
 
 #include "nes.h"
 
-u32 crit_err_count = 0;
+static u32 crit_err_count;
 u32 int_mod_timer_init;
 u32 int_mod_cq_depth_256;
 u32 int_mod_cq_depth_128;
@@ -53,6 +53,17 @@ u32 int_mod_cq_depth_1;
 
 #include "nes_cm.h"
 
+static void nes_cqp_ce_handler(struct nes_device *nesdev, struct nes_hw_cq *cq);
+static void nes_init_csr_ne020(struct nes_device *nesdev, u8 hw_rev, u8 port_count);
+static int nes_init_serdes(struct nes_device *nesdev, u8 hw_rev, u8 port_count,
+			   u8 OneG_Mode);
+static void nes_nic_napi_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq);
+static void nes_process_aeq(struct nes_device *nesdev, struct nes_hw_aeq *aeq);
+static void nes_process_ceq(struct nes_device *nesdev, struct nes_hw_ceq *ceq);
+static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
+				   struct nes_hw_aeqe *aeqe);
+static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number);
+static unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_Mode);
 
 #ifdef CONFIG_INFINIBAND_NES_DEBUG
 static unsigned char *nes_iwarp_state_str[] = {
@@ -583,7 +594,7 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 /**
  * nes_reset_adapter_ne020
  */
-unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_Mode)
+static unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_Mode)
 {
 	u32 port_count;
 	u32 u32temp;
@@ -691,7 +702,8 @@ unsigned int nes_reset_adapter_ne020(struct nes_device *nesdev, u8 *OneG_Mode)
 /**
  * nes_init_serdes
  */
-int nes_init_serdes(struct nes_device *nesdev, u8 hw_rev, u8 port_count, u8  OneG_Mode)
+static int nes_init_serdes(struct nes_device *nesdev, u8 hw_rev, u8 port_count,
+			   u8 OneG_Mode)
 {
 	int i;
 	u32 u32temp;
@@ -760,7 +772,7 @@ int nes_init_serdes(struct nes_device *nesdev, u8 hw_rev, u8 port_count, u8  One
  * nes_init_csr_ne020
  * Initialize registers for ne020 hardware
  */
-void nes_init_csr_ne020(struct nes_device *nesdev, u8 hw_rev, u8 port_count)
+static void nes_init_csr_ne020(struct nes_device *nesdev, u8 hw_rev, u8 port_count)
 {
 	u32 u32temp;
 
@@ -1909,7 +1921,7 @@ void nes_dpc(unsigned long param)
 /**
  * nes_process_ceq
  */
-void nes_process_ceq(struct nes_device *nesdev, struct nes_hw_ceq *ceq)
+static void nes_process_ceq(struct nes_device *nesdev, struct nes_hw_ceq *ceq)
 {
 	u64 u64temp;
 	struct nes_hw_cq *cq;
@@ -1949,7 +1961,7 @@ void nes_process_ceq(struct nes_device *nesdev, struct nes_hw_ceq *ceq)
 /**
  * nes_process_aeq
  */
-void nes_process_aeq(struct nes_device *nesdev, struct nes_hw_aeq *aeq)
+static void nes_process_aeq(struct nes_device *nesdev, struct nes_hw_aeq *aeq)
 {
 //	u64 u64temp;
 	u32 head;
@@ -2060,7 +2072,7 @@ static void nes_reset_link(struct nes_device *nesdev, u32 mac_index)
 /**
  * nes_process_mac_intr
  */
-void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
+static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 {
 	unsigned long flags;
 	u32 pcs_control_status;
@@ -2205,7 +2217,7 @@ void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 
 
 
-void nes_nic_napi_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
+static void nes_nic_napi_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 {
 	struct nes_vnic *nesvnic = container_of(cq, struct nes_vnic, nic_cq);
 
@@ -2428,7 +2440,7 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 /**
  * nes_cqp_ce_handler
  */
-void nes_cqp_ce_handler(struct nes_device *nesdev, struct nes_hw_cq *cq)
+static void nes_cqp_ce_handler(struct nes_device *nesdev, struct nes_hw_cq *cq)
 {
 	u64 u64temp;
 	unsigned long flags;
@@ -2567,7 +2579,8 @@ void nes_cqp_ce_handler(struct nes_device *nesdev, struct nes_hw_cq *cq)
 /**
  * nes_process_iwarp_aeqe
  */
-void nes_process_iwarp_aeqe(struct nes_device *nesdev, struct nes_hw_aeqe *aeqe)
+static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
+				   struct nes_hw_aeqe *aeqe)
 {
 	u64 context;
 	u64 aeqe_context = 0;

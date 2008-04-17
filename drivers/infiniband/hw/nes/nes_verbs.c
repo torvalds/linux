@@ -49,6 +49,7 @@ atomic_t mod_qp_timouts;
 atomic_t qps_created;
 atomic_t sw_qps_destroyed;
 
+static void nes_unregister_ofa_device(struct nes_ib_device *nesibdev);
 
 /**
  * nes_alloc_mw
@@ -3895,7 +3896,7 @@ int nes_register_ofa_device(struct nes_ib_device *nesibdev)
 /**
  * nes_unregister_ofa_device
  */
-void nes_unregister_ofa_device(struct nes_ib_device *nesibdev)
+static void nes_unregister_ofa_device(struct nes_ib_device *nesibdev)
 {
 	struct nes_vnic *nesvnic = nesibdev->nesvnic;
 	int i;

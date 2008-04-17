@@ -832,7 +832,7 @@ static int nes_netdev_set_mac_address(struct net_device *netdev, void *p)
 /**
  * nes_netdev_set_multicast_list
  */
-void nes_netdev_set_multicast_list(struct net_device *netdev)
+static void nes_netdev_set_multicast_list(struct net_device *netdev)
 {
 	struct nes_vnic *nesvnic = netdev_priv(netdev);
 	struct nes_device *nesdev = nesvnic->nesdev;

@@ -92,7 +92,7 @@ module_param_named(debug_level, nes_debug_level, uint, 0644);
 MODULE_PARM_DESC(debug_level, "Enable debug output level");
 
 LIST_HEAD(nes_adapter_list);
-LIST_HEAD(nes_dev_list);
+static LIST_HEAD(nes_dev_list);
 
 atomic_t qps_destroyed;
 
