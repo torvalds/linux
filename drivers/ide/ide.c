@@ -976,6 +976,7 @@ extern int probe_dtc2278;
 extern int probe_ht6560b;
 extern int probe_qd65xx;
 extern int cmd640_vlb;
+extern int probe_4drives;
 
 static int __initdata is_chipset_set;
 
@@ -1187,19 +1188,9 @@ static int __init ide_setup(char *s)
 #endif
 #ifdef CONFIG_BLK_DEV_4DRIVES
 			case -11: /* "four" drives on one set of ports */
-			{
-				ide_hwif_t *mate = &ide_hwifs[hw^1];
-				mate->drives[0].select.all ^= 0x20;
-				mate->drives[1].select.all ^= 0x20;
-				hwif->chipset = mate->chipset = ide_4drives;
-				mate->irq = hwif->irq;
-				memcpy(mate->io_ports, hwif->io_ports, sizeof(hwif->io_ports));
-				hwif->mate = mate;
-				mate->mate = hwif;
-				hwif->serialized = mate->serialized = 1;
+				probe_4drives = 1;
 				goto obsolete_option;
-			}
-#endif /* CONFIG_BLK_DEV_4DRIVES */
+#endif
 			case -10: /* minus10 */
 			case -9: /* minus9 */
 			case -8: /* minus8 */

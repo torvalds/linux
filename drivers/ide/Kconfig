@@ -1035,8 +1035,8 @@ config BLK_DEV_4DRIVES
 	  Certain older chipsets, including the Tekram 690CD, use a single set
 	  of I/O ports at 0x1f0 to control up to four drives, instead of the
 	  customary two drives per port. Support for this can be enabled at
-	  runtime using the "ide0=four" kernel boot parameter if you say Y
-	  here.
+	  runtime using the "ide-4drives.probe" kernel boot parameter if you
+	  say Y here.
 
 config BLK_DEV_ALI14XX
 	tristate "ALI M14xx support"
