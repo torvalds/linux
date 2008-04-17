@@ -558,12 +558,40 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 				 dd->ipath_hwerrmask);
 	}
 
-	if (*msg)
-		ipath_dev_err(dd, "%s hardware error\n", msg);
-	if (isfatal && !ipath_diag_inuse && dd->ipath_freezemsg) {
+	if (hwerrs) {
 		/*
-		 * for /sys status file ; if no trailing } is copied, we'll
-		 * know it was truncated.
+		 * if any set that we aren't ignoring; only
+		 * make the complaint once, in case it's stuck
+		 * or recurring, and we get here multiple
+		 * times.
+		 */
+		ipath_dev_err(dd, "%s hardware error\n", msg);
+		if (dd->ipath_flags & IPATH_INITTED) {
+			ipath_set_linkstate(dd, IPATH_IB_LINKDOWN);
+			ipath_setup_pe_setextled(dd,
+				INFINIPATH_IBCS_L_STATE_DOWN,
+				INFINIPATH_IBCS_LT_STATE_DISABLED);
+			ipath_dev_err(dd, "Fatal Hardware Error (freeze "
+					  "mode), no longer usable, SN %.16s\n",
+					  dd->ipath_serial);
+			isfatal = 1;
+		}
+		*dd->ipath_statusp &= ~IPATH_STATUS_IB_READY;
+		/* mark as having had error */
+		*dd->ipath_statusp |= IPATH_STATUS_HWERROR;
+		/*
+		 * mark as not usable, at a minimum until driver
+		 * is reloaded, probably until reboot, since no
+		 * other reset is possible.
+		 */
+		dd->ipath_flags &= ~IPATH_INITTED;
+	} else
+		*msg = 0; /* recovered from all of them */
+
+	if (isfatal && !ipath_diag_inuse && dd->ipath_freezemsg && msg) {
+		/*
+		 * for /sys status file ; if no trailing brace is copied,
+		 * we'll know it was truncated.
 		 */
 		snprintf(dd->ipath_freezemsg, dd->ipath_freezelen,
 			 "{%s}", msg);
@@ -1127,10 +1155,7 @@ static void ipath_init_pe_variables(struct ipath_devdata *dd)
 		INFINIPATH_HWE_RXEMEMPARITYERR_MASK <<
 		INFINIPATH_HWE_RXEMEMPARITYERR_SHIFT;
 
-	dd->ipath_eep_st_masks[2].errs_to_log =
-		INFINIPATH_E_INVALIDADDR | INFINIPATH_E_RESET;
-
-
+	dd->ipath_eep_st_masks[2].errs_to_log = INFINIPATH_E_RESET;
 	dd->delay_mult = 2; /* SDR, 4X, can't change */
 }
 
@@ -1204,6 +1229,9 @@ static int ipath_setup_pe_reset(struct ipath_devdata *dd)
 	u64 val;
 	int i;
 	int ret;
+	u16 cmdval;
+
+	pci_read_config_word(dd->pcidev, PCI_COMMAND, &cmdval);
 
 	/* Use ERROR so it shows up in logs, etc. */
 	ipath_dev_err(dd, "Resetting InfiniPath unit %u\n", dd->ipath_unit);
@@ -1231,10 +1259,14 @@ static int ipath_setup_pe_reset(struct ipath_devdata *dd)
 			ipath_dev_err(dd, "rewrite of BAR1 failed: %d\n",
 				      r);
 		/* now re-enable memory access */
+		pci_write_config_word(dd->pcidev, PCI_COMMAND, cmdval);
 		if ((r = pci_enable_device(dd->pcidev)))
 			ipath_dev_err(dd, "pci_enable_device failed after "
 				      "reset: %d\n", r);
-		/* whether it worked or not, mark as present, again */
+		/*
+		 * whether it fully enabled or not, mark as present,
+		 * again (but not INITTED)
+		 */
 		dd->ipath_flags |= IPATH_PRESENT;
 		val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_revision);
 		if (val == dd->ipath_revision) {
@@ -1273,6 +1305,11 @@ static void ipath_pe_put_tid(struct ipath_devdata *dd, u64 __iomem *tidptr,
 {
 	u32 __iomem *tidp32 = (u32 __iomem *)tidptr;
 	unsigned long flags = 0; /* keep gcc quiet */
+	int tidx;
+	spinlock_t *tidlockp;
+
+	if (!dd->ipath_kregbase)
+		return;
 
 	if (pa != dd->ipath_tidinvalid) {
 		if (pa & ((1U << 11) - 1)) {
@@ -1302,14 +1339,22 @@ static void ipath_pe_put_tid(struct ipath_devdata *dd, u64 __iomem *tidptr,
 	 * call can be done from interrupt level for the port 0 eager TIDs,
 	 * so we have to use irqsave locks.
 	 */
-	spin_lock_irqsave(&dd->ipath_tid_lock, flags);
+	/*
+	 * Assumes tidptr always > ipath_egrtidbase
+	 * if type == RCVHQ_RCV_TYPE_EAGER.
+	 */
+	tidx = tidptr - dd->ipath_egrtidbase;
+
+	tidlockp = (type == RCVHQ_RCV_TYPE_EAGER && tidx < dd->ipath_rcvegrcnt)
+		? &dd->ipath_kernel_tid_lock : &dd->ipath_user_tid_lock;
+	spin_lock_irqsave(tidlockp, flags);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_scratch, 0xfeeddeaf);
-	if (dd->ipath_kregbase)
-		writel(pa, tidp32);
+	writel(pa, tidp32);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_scratch, 0xdeadbeef);
 	mmiowb();
-	spin_unlock_irqrestore(&dd->ipath_tid_lock, flags);
+	spin_unlock_irqrestore(tidlockp, flags);
 }
+
 /**
  * ipath_pe_put_tid_2 - write a TID in chip, Revision 2 or higher
  * @dd: the infinipath device
@@ -1325,6 +1370,10 @@ static void ipath_pe_put_tid_2(struct ipath_devdata *dd, u64 __iomem *tidptr,
 			     u32 type, unsigned long pa)
 {
 	u32 __iomem *tidp32 = (u32 __iomem *)tidptr;
+	u32 tidx;
+
+	if (!dd->ipath_kregbase)
+		return;
 
 	if (pa != dd->ipath_tidinvalid) {
 		if (pa & ((1U << 11) - 1)) {
@@ -1344,8 +1393,8 @@ static void ipath_pe_put_tid_2(struct ipath_devdata *dd, u64 __iomem *tidptr,
 		else /* for now, always full 4KB page */
 			pa |= 2 << 29;
 	}
-	if (dd->ipath_kregbase)
-		writel(pa, tidp32);
+	tidx = tidptr - dd->ipath_egrtidbase;
+	writel(pa, tidp32);
 	mmiowb();
 }
 

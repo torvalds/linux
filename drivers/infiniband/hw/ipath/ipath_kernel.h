@@ -407,7 +407,7 @@ struct ipath_devdata {
 	u64 __iomem *ipath_egrtidbase;
 	/* lock to workaround chip bug 9437 and others */
 	spinlock_t ipath_kernel_tid_lock;
-	spinlock_t ipath_tid_lock;
+	spinlock_t ipath_user_tid_lock;
 	spinlock_t ipath_sendctrl_lock;
 
 	/*

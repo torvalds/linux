@@ -319,7 +319,7 @@ static int init_chip_first(struct ipath_devdata *dd)
 	else ipath_dbg("%u 2k piobufs @ %p\n",
 		       dd->ipath_piobcnt2k, dd->ipath_pio2kbase);
 
-	spin_lock_init(&dd->ipath_tid_lock);
+	spin_lock_init(&dd->ipath_user_tid_lock);
 	spin_lock_init(&dd->ipath_sendctrl_lock);
 	spin_lock_init(&dd->ipath_gpio_lock);
 	spin_lock_init(&dd->ipath_eep_st_lock);
