@@ -332,12 +332,17 @@ static ssize_t ipath_diagpkt_write(struct file *fp,
 	u64 val;
 	u32 l_state, lt_state; /* LinkState, LinkTrainingState */
 
-	if (count != sizeof(dp)) {
+	if (count < sizeof(odp)) {
 		ret = -EINVAL;
 		goto bail;
 	}
 
-	if (copy_from_user(&dp, data, sizeof(dp))) {
+	if (count == sizeof(dp)) {
+		if (copy_from_user(&dp, data, sizeof(dp))) {
+			ret = -EFAULT;
+			goto bail;
+		}
+	} else if (copy_from_user(&odp, data, sizeof(odp))) {
 		ret = -EFAULT;
 		goto bail;
 	}
