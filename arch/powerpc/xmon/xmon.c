@@ -1243,15 +1243,12 @@ static void get_function_bounds(unsigned long pc, unsigned long *startp,
 
 static int xmon_depth_to_print = 64;
 
-#ifdef CONFIG_PPC64
-#define LRSAVE_OFFSET		0x10
-#define REG_FRAME_MARKER	0x7265677368657265ul	/* "regshere" */
-#define MARKER_OFFSET		0x60
+#define LRSAVE_OFFSET		(STACK_FRAME_LR_SAVE * sizeof(unsigned long))
+#define MARKER_OFFSET		(STACK_FRAME_MARKER * sizeof(unsigned long))
+
+#ifdef __powerpc64__
 #define REGS_OFFSET		0x70
 #else
-#define LRSAVE_OFFSET		4
-#define REG_FRAME_MARKER	0x72656773
-#define MARKER_OFFSET		8
 #define REGS_OFFSET		16
 #endif
 
@@ -1317,7 +1314,7 @@ static void xmon_show_stack(unsigned long sp, unsigned long lr,
 		/* Look for "regshere" marker to see if this is
 		   an exception frame. */
 		if (mread(sp + MARKER_OFFSET, &marker, sizeof(unsigned long))
-		    && marker == REG_FRAME_MARKER) {
+		    && marker == STACK_FRAME_REGS_MARKER) {
 			if (mread(sp + REGS_OFFSET, &regs, sizeof(regs))
 			    != sizeof(regs)) {
 				printf("Couldn't read registers at %lx\n",

@@ -29,6 +29,7 @@
 #include <asm/cputable.h>
 #include <asm/firmware.h>
 #include <asm/bug.h>
+#include <asm/ptrace.h>
 
 /*
  * System calls.
@@ -39,7 +40,7 @@
 
 /* This value is used to mark exception frames on the stack. */
 exception_marker:
-	.tc	ID_72656773_68657265[TC],0x7265677368657265
+	.tc	ID_EXC_MARKER[TC],STACK_FRAME_REGS_MARKER
 
 	.section	".text"
 	.align 7
