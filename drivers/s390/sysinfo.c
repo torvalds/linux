@@ -35,6 +35,8 @@ static int stsi_1_1_1(struct sysinfo_1_1_1 *info, char *page, int len)
 	EBCASC(info->sequence, sizeof(info->sequence));
 	EBCASC(info->plant, sizeof(info->plant));
 	EBCASC(info->model_capacity, sizeof(info->model_capacity));
+	EBCASC(info->model_perm_cap, sizeof(info->model_perm_cap));
+	EBCASC(info->model_temp_cap, sizeof(info->model_temp_cap));
 	len += sprintf(page + len, "Manufacturer:         %-16.16s\n",
 		       info->manufacturer);
 	len += sprintf(page + len, "Type:                 %-4.4s\n",
@@ -57,8 +59,18 @@ static int stsi_1_1_1(struct sysinfo_1_1_1 *info, char *page, int len)
 		       info->sequence);
 	len += sprintf(page + len, "Plant:                %-4.4s\n",
 		       info->plant);
-	len += sprintf(page + len, "Model Capacity:       %-16.16s\n",
-		       info->model_capacity);
+	len += sprintf(page + len, "Model Capacity:       %-16.16s %08u\n",
+		       info->model_capacity, *(u32 *) info->model_cap_rating);
+	if (info->model_perm_cap[0] != '\0')
+		len += sprintf(page + len,
+			       "Model Perm. Capacity: %-16.16s %08u\n",
+			       info->model_perm_cap,
+			       *(u32 *) info->model_perm_cap_rating);
+	if (info->model_temp_cap[0] != '\0')
+		len += sprintf(page + len,
+			       "Model Temp. Capacity: %-16.16s %08u\n",
+			       info->model_temp_cap,
+			       *(u32 *) info->model_temp_cap_rating);
 	return len;
 }
 
