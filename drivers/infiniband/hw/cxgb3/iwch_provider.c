@@ -1109,8 +1109,7 @@ int iwch_register_device(struct iwch_dev *dev)
 	memcpy(&dev->ibdev.node_guid, dev->rdev.t3cdev_p->lldev->dev_addr, 6);
 	dev->ibdev.owner = THIS_MODULE;
 	dev->device_cap_flags =
-	    (IB_DEVICE_ZERO_STAG |
-	     IB_DEVICE_SEND_W_INV | IB_DEVICE_MEM_WINDOW);
+	    (IB_DEVICE_ZERO_STAG | IB_DEVICE_MEM_WINDOW);
 
 	dev->ibdev.uverbs_cmd_mask =
 	    (1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |

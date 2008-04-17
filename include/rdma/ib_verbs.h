@@ -94,7 +94,7 @@ enum ib_device_cap_flags {
 	IB_DEVICE_SRQ_RESIZE		= (1<<13),
 	IB_DEVICE_N_NOTIFY_CQ		= (1<<14),
 	IB_DEVICE_ZERO_STAG		= (1<<15),
-	IB_DEVICE_SEND_W_INV		= (1<<16),
+	IB_DEVICE_RESERVED		= (1<<16), /* old SEND_W_INV */
 	IB_DEVICE_MEM_WINDOW		= (1<<17),
 	/*
 	 * Devices should set IB_DEVICE_UD_IP_SUM if they support
@@ -105,6 +105,7 @@ enum ib_device_cap_flags {
 	 */
 	IB_DEVICE_UD_IP_CSUM		= (1<<18),
 	IB_DEVICE_UD_TSO		= (1<<19),
+	IB_DEVICE_SEND_W_INV		= (1<<21),
 };
 
 enum ib_atomic_cap {
@@ -625,7 +626,8 @@ enum ib_wr_opcode {
 	IB_WR_RDMA_READ,
 	IB_WR_ATOMIC_CMP_AND_SWP,
 	IB_WR_ATOMIC_FETCH_AND_ADD,
-	IB_WR_LSO
+	IB_WR_LSO,
+	IB_WR_SEND_WITH_INV,
 };
 
 enum ib_send_flags {
@@ -649,7 +651,10 @@ struct ib_send_wr {
 	int			num_sge;
 	enum ib_wr_opcode	opcode;
 	int			send_flags;
-	__be32			imm_data;
+	union {
+		__be32		imm_data;
+		u32		invalidate_rkey;
+	} ex;
 	union {
 		struct {
 			u64	remote_addr;

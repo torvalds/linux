@@ -72,7 +72,7 @@ static int iwch_build_rdma_send(union t3_wr *wqe, struct ib_send_wr *wr,
 	wqe->send.reserved[2] = 0;
 	if (wr->opcode == IB_WR_SEND_WITH_IMM) {
 		plen = 4;
-		wqe->send.sgl[0].stag = wr->imm_data;
+		wqe->send.sgl[0].stag = wr->ex.imm_data;
 		wqe->send.sgl[0].len = __constant_cpu_to_be32(0);
 		wqe->send.num_sgle = __constant_cpu_to_be32(0);
 		*flit_cnt = 5;
@@ -112,7 +112,7 @@ static int iwch_build_rdma_write(union t3_wr *wqe, struct ib_send_wr *wr,
 
 	if (wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM) {
 		plen = 4;
-		wqe->write.sgl[0].stag = wr->imm_data;
+		wqe->write.sgl[0].stag = wr->ex.imm_data;
 		wqe->write.sgl[0].len = __constant_cpu_to_be32(0);
 		wqe->write.num_sgle = __constant_cpu_to_be32(0);
 		*flit_cnt = 6;

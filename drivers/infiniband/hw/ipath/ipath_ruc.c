@@ -310,7 +310,7 @@ again:
 	switch (wqe->wr.opcode) {
 	case IB_WR_SEND_WITH_IMM:
 		wc.wc_flags = IB_WC_WITH_IMM;
-		wc.imm_data = wqe->wr.imm_data;
+		wc.imm_data = wqe->wr.ex.imm_data;
 		/* FALLTHROUGH */
 	case IB_WR_SEND:
 		if (!ipath_get_rwqe(qp, 0)) {
@@ -339,7 +339,7 @@ again:
 			goto err;
 		}
 		wc.wc_flags = IB_WC_WITH_IMM;
-		wc.imm_data = wqe->wr.imm_data;
+		wc.imm_data = wqe->wr.ex.imm_data;
 		if (!ipath_get_rwqe(qp, 1))
 			goto rnr_nak;
 		/* FALLTHROUGH */

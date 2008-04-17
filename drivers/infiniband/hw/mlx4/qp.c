@@ -1249,7 +1249,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 	case IB_WR_SEND_WITH_IMM:
 		sqp->ud_header.bth.opcode	 = IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE;
 		sqp->ud_header.immediate_present = 1;
-		sqp->ud_header.immediate_data    = wr->imm_data;
+		sqp->ud_header.immediate_data    = wr->ex.imm_data;
 		break;
 	default:
 		return -EINVAL;
@@ -1492,7 +1492,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 		if (wr->opcode == IB_WR_SEND_WITH_IMM ||
 		    wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM)
-			ctrl->imm = wr->imm_data;
+			ctrl->imm = wr->ex.imm_data;
 		else
 			ctrl->imm = 0;
 
