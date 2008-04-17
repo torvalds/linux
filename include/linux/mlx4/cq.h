@@ -130,4 +130,7 @@ enum {
 	MLX4_CQ_DB_REQ_NOT		= 2 << 24
 };
 
+int mlx4_cq_modify(struct mlx4_dev *dev, struct mlx4_cq *cq,
+		   u16 count, u16 period);
+
 #endif /* MLX4_CQ_H */

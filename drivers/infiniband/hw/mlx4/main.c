@@ -609,6 +609,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.post_send		= mlx4_ib_post_send;
 	ibdev->ib_dev.post_recv		= mlx4_ib_post_recv;
 	ibdev->ib_dev.create_cq		= mlx4_ib_create_cq;
+	ibdev->ib_dev.modify_cq		= mlx4_ib_modify_cq;
 	ibdev->ib_dev.destroy_cq	= mlx4_ib_destroy_cq;
 	ibdev->ib_dev.poll_cq		= mlx4_ib_poll_cq;
 	ibdev->ib_dev.req_notify_cq	= mlx4_ib_arm_cq;

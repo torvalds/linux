@@ -85,6 +85,14 @@ static struct mlx4_cqe *next_cqe_sw(struct mlx4_ib_cq *cq)
 	return get_sw_cqe(cq, cq->mcq.cons_index);
 }
 
+int mlx4_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
+{
+	struct mlx4_ib_cq *mcq = to_mcq(cq);
+	struct mlx4_ib_dev *dev = to_mdev(cq->device);
+
+	return mlx4_cq_modify(dev->dev, &mcq->mcq, cq_count, cq_period);
+}
+
 struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector,
 				struct ib_ucontext *context,
 				struct ib_udata *udata)

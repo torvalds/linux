@@ -254,6 +254,7 @@ struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  struct ib_udata *udata);
 int mlx4_ib_dereg_mr(struct ib_mr *mr);
 
+int mlx4_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector,
 				struct ib_ucontext *context,
 				struct ib_udata *udata);
