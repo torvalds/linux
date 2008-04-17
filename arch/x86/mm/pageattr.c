@@ -9,6 +9,8 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
+#include <linux/seq_file.h>
+#include <linux/debugfs.h>
 
 #include <asm/e820.h>
 #include <asm/processor.h>
@@ -917,6 +919,45 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 	 */
 	cpa_fill_pool(NULL);
 }
+
+#ifdef CONFIG_DEBUG_FS
+static int dpa_show(struct seq_file *m, void *v)
+{
+	seq_puts(m, "DEBUG_PAGEALLOC\n");
+	seq_printf(m, "pool_size     : %lu\n", pool_size);
+	seq_printf(m, "pool_pages    : %lu\n", pool_pages);
+	seq_printf(m, "pool_low      : %lu\n", pool_low);
+	seq_printf(m, "pool_used     : %lu\n", pool_used);
+	seq_printf(m, "pool_failed   : %lu\n", pool_failed);
+
+	return 0;
+}
+
+static int dpa_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, dpa_show, NULL);
+}
+
+static const struct file_operations dpa_fops = {
+	.open		= dpa_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+int __init debug_pagealloc_proc_init(void)
+{
+	struct dentry *de;
+
+	de = debugfs_create_file("debug_pagealloc", 0600, NULL, NULL,
+				 &dpa_fops);
+	if (!de)
+		return -ENOMEM;
+
+	return 0;
+}
+__initcall(debug_pagealloc_proc_init);
+#endif
 
 #ifdef CONFIG_HIBERNATION
 
