@@ -517,23 +517,18 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 		goto err;
 	}
 
-	filp = get_empty_filp();
-	if (!filp) {
-		ret = -ENFILE;
-		goto err_fd;
-	}
-
 	/*
 	 * fops_get() can't fail here, because we're coming from a
 	 * system call on a uverbs file, which will already have a
 	 * module reference.
 	 */
-	filp->f_op 	   = fops_get(&uverbs_event_fops);
-	filp->f_path.mnt 	   = mntget(uverbs_event_mnt);
-	filp->f_path.dentry 	   = dget(uverbs_event_mnt->mnt_root);
-	filp->f_mapping    = filp->f_path.dentry->d_inode->i_mapping;
-	filp->f_flags      = O_RDONLY;
-	filp->f_mode       = FMODE_READ;
+	filp = alloc_file(uverbs_event_mnt, dget(uverbs_event_mnt->mnt_root),
+			  FMODE_READ, fops_get(&uverbs_event_fops));
+	if (!filp) {
+		ret = -ENFILE;
+		goto err_fd;
+	}
+
 	filp->private_data = ev_file;
 
 	return filp;
