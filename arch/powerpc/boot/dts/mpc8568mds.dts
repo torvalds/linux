@@ -11,10 +11,6 @@
 
 /dts-v1/;
 
-/*
-/memreserve/	00000000 1000000;
-*/
-
 / {
 	model = "MPC8568EMDS";
 	compatible = "MPC8568EMDS", "MPC85xxMDS";
