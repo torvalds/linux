@@ -307,6 +307,7 @@ comment "IDE chipset support/bugfixes"
 
 config IDE_GENERIC
 	tristate "generic/default IDE chipset support"
+	depends on ALPHA || X86 || IA64 || M32R || MIPS || PPC32
 	help
 	  If unsure, say N.
 
@@ -1088,9 +1089,6 @@ endif
 config BLK_DEV_IDEDMA
 	def_bool BLK_DEV_IDEDMA_SFF || BLK_DEV_IDEDMA_PMAC || \
 		 BLK_DEV_IDEDMA_ICS || BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-
-config IDE_ARCH_OBSOLETE_DEFAULTS
-	def_bool ALPHA || X86 || IA64 || M32R || MIPS || PPC32
 
 endif
 

@@ -165,11 +165,6 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 	}
 }
 
-#ifndef CONFIG_IDE_ARCH_OBSOLETE_DEFAULTS
-# define ide_default_io_base(index)	(0)
-# define ide_init_default_irq(base)	(0)
-#endif
-
 /*
  * init_ide_data() sets reasonable default values into all fields
  * of all instances of the hwifs and drives, but only on the first call.
@@ -192,7 +187,6 @@ static void __init init_ide_data (void)
 {
 	unsigned int index;
 	static unsigned long magic_cookie = MAGIC_COOKIE;
-	hw_regs_t hw;
 
 	if (magic_cookie != MAGIC_COOKIE)
 		return;		/* already initialized */
@@ -201,19 +195,8 @@ static void __init init_ide_data (void)
 	/* Initialise all interface structures */
 	for (index = 0; index < MAX_HWIFS; ++index) {
 		ide_hwif_t *hwif = &ide_hwifs[index];
-		unsigned long io_addr = ide_default_io_base(index);
-		unsigned long ctl_addr = io_addr + 0x206;
 
 		ide_init_port_data(hwif, index);
-
-#ifdef CONFIG_IDE_ARCH_OBSOLETE_DEFAULTS
-		memset(&hw, 0, sizeof(hw));
-		ide_std_init_ports(&hw, io_addr, ctl_addr);
-		memcpy(hwif->io_ports, hw.io_ports, sizeof(hw.io_ports));
-		hwif->noprobe = !hwif->io_ports[IDE_DATA_OFFSET];
-		hwif->irq =
-			ide_init_default_irq(hwif->io_ports[IDE_DATA_OFFSET]);
-#endif
 	}
 }
 

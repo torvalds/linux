@@ -91,11 +91,17 @@ static int __init ide_generic_init(void)
 
 	for (i = 0; i < MAX_HWIFS; i++) {
 		ide_hwif_t *hwif = &ide_hwifs[i];
+		unsigned long io_addr = ide_default_io_base(i);
+		hw_regs_t hw;
 
-		if (hwif->io_ports[IDE_DATA_OFFSET] &&
-		    hwif->chipset == ide_unknown)
+		if (hwif->chipset == ide_unknown && io_addr) {
+			memset(&hw, 0, sizeof(hw));
+			ide_std_init_ports(&hw, io_addr, io_addr + 0x206);
+			hw.irq = ide_init_default_irq(io_addr);
+			ide_init_port_hw(hwif, &hw);
+
 			idx[i] = i;
-		else
+		} else
 			idx[i] = 0xff;
 	}
 
