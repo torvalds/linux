@@ -66,7 +66,7 @@ static u64 xtime_cc;
  */
 unsigned long long sched_clock(void)
 {
-	return ((get_clock() - jiffies_timer_cc) * 125) >> 9;
+	return ((get_clock_xt() - jiffies_timer_cc) * 125) >> 9;
 }
 
 /*
