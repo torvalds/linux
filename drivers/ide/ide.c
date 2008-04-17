@@ -205,10 +205,6 @@ static void __init init_ide_data (void)
 #ifdef CONFIG_IDE_ARCH_OBSOLETE_INIT
 		memset(&hw, 0, sizeof(hw));
 		ide_std_init_ports(&hw, io_addr, ctl_addr);
-# ifdef CONFIG_PPC32
-		if (ppc_ide_md.ide_init_hwif)
-			ppc_ide_md.ide_init_hwif(&hw, io_addr, 0, &hwif->irq);
-# endif
 		memcpy(hwif->io_ports, hw.io_ports, sizeof(hw.io_ports));
 #endif
 		hwif->noprobe = !hwif->io_ports[IDE_DATA_OFFSET];
