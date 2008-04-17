@@ -67,9 +67,7 @@ enum s390_cpu_state {
 	CPU_STATE_CONFIGURED,
 };
 
-#ifdef CONFIG_HOTPLUG_CPU
-static DEFINE_MUTEX(smp_cpu_state_mutex);
-#endif
+DEFINE_MUTEX(smp_cpu_state_mutex);
 static int smp_cpu_state[NR_CPUS];
 
 static DEFINE_PER_CPU(struct cpu, cpu_devices);

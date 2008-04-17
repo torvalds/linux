@@ -3,6 +3,10 @@
 # see Documentation/kbuild/kconfig-language.txt.
 #
 
+config SCHED_MC
+	def_bool y
+	depends on SMP
+
 config MMU
 	def_bool y
 

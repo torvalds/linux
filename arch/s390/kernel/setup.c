@@ -39,6 +39,7 @@
 #include <linux/pfn.h>
 #include <linux/ctype.h>
 #include <linux/reboot.h>
+#include <linux/topology.h>
 
 #include <asm/ipl.h>
 #include <asm/uaccess.h>
@@ -830,6 +831,7 @@ setup_arch(char **cmdline_p)
 
         cpu_init();
         __cpu_logical_map[0] = S390_lowcore.cpu_data.cpu_addr;
+	s390_init_cpu_topology();
 
 	/*
 	 * Setup capabilities (ELF_HWCAP & ELF_PLATFORM).

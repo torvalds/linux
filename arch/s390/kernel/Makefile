@@ -19,7 +19,7 @@ obj-y	+= $(if $(CONFIG_64BIT),reipl64.o,reipl.o)
 extra-y				+= head.o init_task.o vmlinux.lds
 
 obj-$(CONFIG_MODULES)		+= s390_ksyms.o module.o
-obj-$(CONFIG_SMP)		+= smp.o
+obj-$(CONFIG_SMP)		+= smp.o topology.o
 
 obj-$(CONFIG_AUDIT)		+= audit.o
 compat-obj-$(CONFIG_AUDIT)	+= compat_audit.o
