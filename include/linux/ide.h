@@ -579,7 +579,9 @@ typedef struct hwif_s {
 	unsigned	mmio       : 1; /* host uses MMIO */
 	unsigned	straight8  : 1;	/* Alan's straight 8 check */
 
-	struct device	gendev;
+	struct device		gendev;
+	struct device		*portdev;
+
 	struct completion gendev_rel_comp; /* To deal with device release() */
 
 	void		*hwif_data;	/* extra hwif data */
@@ -1275,6 +1277,7 @@ extern struct mutex ide_cfg_mtx;
 #define local_irq_set(flags)	do { local_save_flags((flags)); local_irq_enable_in_hardirq(); } while (0)
 
 extern struct bus_type ide_bus_type;
+extern struct class *ide_port_class;
 
 /* check if CACHE FLUSH (EXT) command is supported (bits defined in ATA-6) */
 #define ide_id_has_flush_cache(id)	((id)->cfs_enable_2 & 0x3000)

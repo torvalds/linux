@@ -78,6 +78,8 @@
 /* default maximum number of failures */
 #define IDE_DEFAULT_MAX_FAILURES 	1
 
+struct class *ide_port_class;
+
 static const u8 ide_hwif_to_major[] = { IDE0_MAJOR, IDE1_MAJOR,
 					IDE2_MAJOR, IDE3_MAJOR,
 					IDE4_MAJOR, IDE5_MAJOR,
@@ -591,6 +593,7 @@ void ide_unregister(unsigned int index, int init_default, int restore)
 
 	ide_remove_port_from_hwgroup(hwif);
 
+	device_unregister(hwif->portdev);
 	device_unregister(&hwif->gendev);
 	wait_for_completion(&hwif->gendev_rel_comp);
 
@@ -1590,6 +1593,13 @@ struct bus_type ide_bus_type = {
 
 EXPORT_SYMBOL_GPL(ide_bus_type);
 
+static void ide_port_class_release(struct device *portdev)
+{
+	ide_hwif_t *hwif = dev_get_drvdata(portdev);
+
+	put_device(&hwif->gendev);
+}
+
 /*
  * This is gets invoked once during initialization, to set *everything* up
  */
@@ -1610,11 +1620,23 @@ static int __init ide_init(void)
 		return ret;
 	}
 
+	ide_port_class = class_create(THIS_MODULE, "ide_port");
+	if (IS_ERR(ide_port_class)) {
+		ret = PTR_ERR(ide_port_class);
+		goto out_port_class;
+	}
+	ide_port_class->dev_release = ide_port_class_release;
+
 	init_ide_data();
 
 	proc_ide_create();
 
 	return 0;
+
+out_port_class:
+	bus_unregister(&ide_bus_type);
+
+	return ret;
 }
 
 #ifdef MODULE
@@ -1650,6 +1672,8 @@ void __exit cleanup_module (void)
 		ide_unregister(index, 0, 0);
 
 	proc_ide_destroy();
+
+	class_destroy(ide_port_class);
 
 	bus_unregister(&ide_bus_type);
 }
