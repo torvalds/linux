@@ -568,6 +568,9 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	stats.u.run.rs_blocks = commit_transaction->t_outstanding_credits;
 	stats.u.run.rs_blocks_logged = 0;
 
+	J_ASSERT(commit_transaction->t_nr_buffers <=
+		 commit_transaction->t_outstanding_credits);
+
 	descriptor = NULL;
 	bufs = 0;
 	while (commit_transaction->t_buffers) {
