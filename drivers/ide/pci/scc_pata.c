@@ -523,6 +523,43 @@ static int setup_mmio_scc (struct pci_dev *dev, const char *name)
 	return -ENOMEM;
 }
 
+static int scc_ide_setup_pci_device(struct pci_dev *dev,
+				    const struct ide_port_info *d)
+{
+	struct scc_ports *ports = pci_get_drvdata(dev);
+	ide_hwif_t *hwif = NULL;
+	hw_regs_t hw;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	int i;
+
+	for (i = 0; i < MAX_HWIFS; i++) {
+		hwif = &ide_hwifs[i];
+		if (hwif->chipset == ide_unknown)
+			break; /* pick an unused entry */
+	}
+	if (i == MAX_HWIFS) {
+		printk(KERN_ERR "%s: too many IDE interfaces, "
+				"no room in table\n", SCC_PATA_NAME);
+		return -ENOMEM;
+	}
+
+	memset(&hw, 0, sizeof(hw));
+	for (i = IDE_DATA_OFFSET; i <= IDE_CONTROL_OFFSET; i++)
+		hw.io_ports[i] = ports->dma + 0x20 + i * 4;
+	hw.irq = dev->irq;
+	hw.dev = &dev->dev;
+	hw.chipset = ide_pci;
+	ide_init_port_hw(hwif, &hw);
+	hwif->dev = &dev->dev;
+	hwif->cds = d;
+
+	idx[0] = hwif->index;
+
+	ide_device_add(idx, d);
+
+	return 0;
+}
+
 /**
  *	init_setup_scc	-	set up an SCC PATA Controller
  *	@dev: PCI device
@@ -545,10 +582,13 @@ static int __devinit init_setup_scc(struct pci_dev *dev,
 	struct scc_ports *ports;
 	int rc;
 
+	rc = pci_enable_device(dev);
+	if (rc)
+		goto end;
+
 	rc = setup_mmio_scc(dev, d->name);
-	if (rc < 0) {
-		return rc;
-	}
+	if (rc < 0)
+		goto end;
 
 	ports = pci_get_drvdata(dev);
 	ctl_base = ports->ctl;
@@ -583,7 +623,10 @@ static int __devinit init_setup_scc(struct pci_dev *dev,
 	out_be32((void*)mode_port, MODE_JCUSFEN);
 	out_be32((void*)intmask_port, INTMASK_MSK);
 
-	return ide_setup_pci_device(dev, d);
+	rc = scc_ide_setup_pci_device(dev, d);
+
+ end:
+	return rc;
 }
 
 /**
@@ -610,17 +653,6 @@ static void __devinit init_mmio_iops_scc(ide_hwif_t *hwif)
 	hwif->OUTSW = scc_ide_outsw;
 	hwif->OUTSL = scc_ide_outsl;
 
-	hwif->io_ports[IDE_DATA_OFFSET] = dma_base + 0x20;
-	hwif->io_ports[IDE_ERROR_OFFSET] = dma_base + 0x24;
-	hwif->io_ports[IDE_NSECTOR_OFFSET] = dma_base + 0x28;
-	hwif->io_ports[IDE_SECTOR_OFFSET] = dma_base + 0x2c;
-	hwif->io_ports[IDE_LCYL_OFFSET] = dma_base + 0x30;
-	hwif->io_ports[IDE_HCYL_OFFSET] = dma_base + 0x34;
-	hwif->io_ports[IDE_SELECT_OFFSET] = dma_base + 0x38;
-	hwif->io_ports[IDE_STATUS_OFFSET] = dma_base + 0x3c;
-	hwif->io_ports[IDE_CONTROL_OFFSET] = dma_base + 0x40;
-
-	hwif->irq = dev->irq;
 	hwif->dma_base = dma_base;
 	hwif->config_data = ports->ctl;
 	hwif->mmio = 1;
