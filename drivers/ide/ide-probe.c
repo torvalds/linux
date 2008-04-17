@@ -1494,3 +1494,21 @@ int ide_device_add(u8 idx[4], const struct ide_port_info *d)
 	return ide_device_add_all(idx_all, d);
 }
 EXPORT_SYMBOL_GPL(ide_device_add);
+
+void ide_port_scan(ide_hwif_t *hwif)
+{
+	ide_port_cable_detect(hwif);
+	ide_port_init_devices(hwif);
+
+	if (ide_probe_port(hwif) < 0)
+		return;
+
+	hwif->present = 1;
+
+	ide_port_tune_devices(hwif);
+	ide_acpi_port_init_devices(hwif);
+	ide_port_setup_devices(hwif);
+	hwif_register_devices(hwif);
+	ide_proc_port_register_devices(hwif);
+}
+EXPORT_SYMBOL_GPL(ide_port_scan);
