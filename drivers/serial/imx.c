@@ -354,66 +354,58 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 	struct tty_struct *tty = sport->port.info->tty;
 	unsigned long flags, temp;
 
-	rx = readl(sport->port.membase + URXD0);
 	spin_lock_irqsave(&sport->port.lock,flags);
 
-	do {
+	while ((rx = readl(sport->port.membase + URXD0)) & URXD_CHARRDY) {
 		flg = TTY_NORMAL;
 		sport->port.icount.rx++;
 
 		temp = readl(sport->port.membase + USR2);
-		if( temp & USR2_BRCD ) {
+		if (temp & USR2_BRCD) {
 			writel(temp | USR2_BRCD, sport->port.membase + USR2);
-			if(uart_handle_break(&sport->port))
-				goto ignore_char;
+			if (uart_handle_break(&sport->port))
+				continue;
 		}
 
 		if (uart_handle_sysrq_char
 		            (&sport->port, (unsigned char)rx))
-			goto ignore_char;
+			continue;
 
-		if( rx & (URXD_PRERR | URXD_OVRRUN | URXD_FRMERR) )
-			goto handle_error;
+		if (rx & (URXD_PRERR | URXD_OVRRUN | URXD_FRMERR) ) {
+			if (rx & URXD_PRERR)
+				sport->port.icount.parity++;
+			else if (rx & URXD_FRMERR)
+				sport->port.icount.frame++;
+			if (rx & URXD_OVRRUN)
+				sport->port.icount.overrun++;
 
-	error_return:
+			if (rx & sport->port.ignore_status_mask) {
+				if (++ignored > 100)
+					goto out;
+				continue;
+			}
+
+			rx &= sport->port.read_status_mask;
+
+			if (rx & URXD_PRERR)
+				flg = TTY_PARITY;
+			else if (rx & URXD_FRMERR)
+				flg = TTY_FRAME;
+			if (rx & URXD_OVRRUN)
+				flg = TTY_OVERRUN;
+
+#ifdef SUPPORT_SYSRQ
+			sport->port.sysrq = 0;
+#endif
+		}
+
 		tty_insert_flip_char(tty, rx, flg);
-
-	ignore_char:
-		rx = readl(sport->port.membase + URXD0);
-	} while(rx & URXD_CHARRDY);
+	}
 
 out:
 	spin_unlock_irqrestore(&sport->port.lock,flags);
 	tty_flip_buffer_push(tty);
 	return IRQ_HANDLED;
-
-handle_error:
-	if (rx & URXD_PRERR)
-		sport->port.icount.parity++;
-	else if (rx & URXD_FRMERR)
-		sport->port.icount.frame++;
-	if (rx & URXD_OVRRUN)
-		sport->port.icount.overrun++;
-
-	if (rx & sport->port.ignore_status_mask) {
-		if (++ignored > 100)
-			goto out;
-		goto ignore_char;
-	}
-
-	rx &= sport->port.read_status_mask;
-
-	if (rx & URXD_PRERR)
-		flg = TTY_PARITY;
-	else if (rx & URXD_FRMERR)
-		flg = TTY_FRAME;
-	if (rx & URXD_OVRRUN)
-		flg = TTY_OVERRUN;
-
-#ifdef SUPPORT_SYSRQ
-	sport->port.sysrq = 0;
-#endif
-	goto error_return;
 }
 
 /*
