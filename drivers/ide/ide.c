@@ -105,13 +105,13 @@ ide_hwif_t ide_hwifs[MAX_HWIFS];	/* master data repository */
 
 EXPORT_SYMBOL(ide_hwifs);
 
+static void ide_port_init_devices_data(ide_hwif_t *);
+
 /*
  * Do not even *think* about calling this!
  */
 void ide_init_port_data(ide_hwif_t *hwif, unsigned int index)
 {
-	unsigned int unit;
-
 	/* bulk initialize hwif & drive info with zeros */
 	memset(hwif, 0, sizeof(ide_hwif_t));
 
@@ -130,8 +130,20 @@ void ide_init_port_data(ide_hwif_t *hwif, unsigned int index)
 
 	default_hwif_iops(hwif);
 	default_hwif_transport(hwif);
+
+	ide_port_init_devices_data(hwif);
+}
+EXPORT_SYMBOL_GPL(ide_init_port_data);
+
+static void ide_port_init_devices_data(ide_hwif_t *hwif)
+{
+	int unit;
+
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		ide_drive_t *drive = &hwif->drives[unit];
+		u8 j = (hwif->index * MAX_DRIVES) + unit;
+
+		memset(drive, 0, sizeof(*drive));
 
 		drive->media			= ide_disk;
 		drive->select.all		= (unit<<4)|0xa0;
@@ -143,15 +155,14 @@ void ide_init_port_data(ide_hwif_t *hwif, unsigned int index)
 		drive->special.b.set_geometry	= 1;
 		drive->name[0]			= 'h';
 		drive->name[1]			= 'd';
-		drive->name[2]			= 'a' + (index * MAX_DRIVES) + unit;
+		drive->name[2]			= 'a' + j;
 		drive->max_failures		= IDE_DEFAULT_MAX_FAILURES;
-		drive->using_dma		= 0;
-		drive->vdma			= 0;
+
 		INIT_LIST_HEAD(&drive->list);
 		init_completion(&drive->gendev_rel_comp);
 	}
 }
-EXPORT_SYMBOL_GPL(ide_init_port_data);
+
 
 static void init_hwif_default(ide_hwif_t *hwif, unsigned int index)
 {
