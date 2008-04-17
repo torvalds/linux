@@ -1399,7 +1399,7 @@ __tiqdio_inbound_processing(struct qdio_q *q, int spare_ind_was_set)
 	 * q->dev_st_chg_ind is the indicator, be it shared or not.
 	 * only clear it, if indicator is non-shared
 	 */
-	if (!spare_ind_was_set)
+	if (q->dev_st_chg_ind != &spare_indicator)
 		tiqdio_clear_summary_bit((__u32*)q->dev_st_chg_ind);
 
 	if (q->hydra_gives_outbound_pcis) {
