@@ -1760,7 +1760,7 @@ static int find_shared_port(struct file *fp,
 	for (ndev = 0; ndev < devmax; ndev++) {
 		struct ipath_devdata *dd = ipath_lookup(ndev);
 
-		if (!dd)
+		if (!usable(dd))
 			continue;
 		for (i = 1; i < dd->ipath_cfgports; i++) {
 			struct ipath_portdata *pd = dd->ipath_pd[i];
