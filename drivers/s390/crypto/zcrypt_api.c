@@ -36,6 +36,7 @@
 #include <linux/compat.h>
 #include <asm/atomic.h>
 #include <asm/uaccess.h>
+#include <linux/hw_random.h>
 
 #include "zcrypt_api.h"
 
@@ -51,6 +52,9 @@ static DEFINE_SPINLOCK(zcrypt_device_lock);
 static LIST_HEAD(zcrypt_device_list);
 static int zcrypt_device_count = 0;
 static atomic_t zcrypt_open_count = ATOMIC_INIT(0);
+
+static int zcrypt_rng_device_add(void);
+static void zcrypt_rng_device_remove(void);
 
 /**
  * Device attributes common for all crypto devices.
@@ -216,6 +220,22 @@ int zcrypt_device_register(struct zcrypt_device *zdev)
 	__zcrypt_increase_preference(zdev);
 	zcrypt_device_count++;
 	spin_unlock_bh(&zcrypt_device_lock);
+	if (zdev->ops->rng) {
+		rc = zcrypt_rng_device_add();
+		if (rc)
+			goto out_unregister;
+	}
+	return 0;
+
+out_unregister:
+	spin_lock_bh(&zcrypt_device_lock);
+	zcrypt_device_count--;
+	list_del_init(&zdev->list);
+	spin_unlock_bh(&zcrypt_device_lock);
+	sysfs_remove_group(&zdev->ap_dev->device.kobj,
+			   &zcrypt_device_attr_group);
+	put_device(&zdev->ap_dev->device);
+	zcrypt_device_put(zdev);
 out:
 	return rc;
 }
@@ -226,6 +246,8 @@ EXPORT_SYMBOL(zcrypt_device_register);
  */
 void zcrypt_device_unregister(struct zcrypt_device *zdev)
 {
+	if (zdev->ops->rng)
+		zcrypt_rng_device_remove();
 	spin_lock_bh(&zcrypt_device_lock);
 	zcrypt_device_count--;
 	list_del_init(&zdev->list);
@@ -415,6 +437,37 @@ static long zcrypt_send_cprb(struct ica_xcRB *xcRB)
 			module_put(zdev->ap_dev->drv->driver.owner);
 		}
 		else
+			rc = -EAGAIN;
+		zdev->request_count--;
+		__zcrypt_increase_preference(zdev);
+		put_device(&zdev->ap_dev->device);
+		zcrypt_device_put(zdev);
+		spin_unlock_bh(&zcrypt_device_lock);
+		return rc;
+	}
+	spin_unlock_bh(&zcrypt_device_lock);
+	return -ENODEV;
+}
+
+static long zcrypt_rng(char *buffer)
+{
+	struct zcrypt_device *zdev;
+	int rc;
+
+	spin_lock_bh(&zcrypt_device_lock);
+	list_for_each_entry(zdev, &zcrypt_device_list, list) {
+		if (!zdev->online || !zdev->ops->rng)
+			continue;
+		zcrypt_device_get(zdev);
+		get_device(&zdev->ap_dev->device);
+		zdev->request_count++;
+		__zcrypt_decrease_preference(zdev);
+		if (try_module_get(zdev->ap_dev->drv->driver.owner)) {
+			spin_unlock_bh(&zcrypt_device_lock);
+			rc = zdev->ops->rng(zdev, buffer);
+			spin_lock_bh(&zcrypt_device_lock);
+			module_put(zdev->ap_dev->drv->driver.owner);
+		} else
 			rc = -EAGAIN;
 		zdev->request_count--;
 		__zcrypt_increase_preference(zdev);
@@ -1039,6 +1092,73 @@ static int zcrypt_status_write(struct file *file, const char __user *buffer,
 out:
 	kfree(lbuf);
 	return count;
+}
+
+static int zcrypt_rng_device_count;
+static u32 *zcrypt_rng_buffer;
+static int zcrypt_rng_buffer_index;
+static DEFINE_MUTEX(zcrypt_rng_mutex);
+
+static int zcrypt_rng_data_read(struct hwrng *rng, u32 *data)
+{
+	int rc;
+
+	/**
+	 * We don't need locking here because the RNG API guarantees serialized
+	 * read method calls.
+	 */
+	if (zcrypt_rng_buffer_index == 0) {
+		rc = zcrypt_rng((char *) zcrypt_rng_buffer);
+		if (rc < 0)
+			return -EIO;
+		zcrypt_rng_buffer_index = rc / sizeof *data;
+	}
+	*data = zcrypt_rng_buffer[--zcrypt_rng_buffer_index];
+	return sizeof *data;
+}
+
+static struct hwrng zcrypt_rng_dev = {
+	.name		= "zcrypt",
+	.data_read	= zcrypt_rng_data_read,
+};
+
+static int zcrypt_rng_device_add(void)
+{
+	int rc = 0;
+
+	mutex_lock(&zcrypt_rng_mutex);
+	if (zcrypt_rng_device_count == 0) {
+		zcrypt_rng_buffer = (u32 *) get_zeroed_page(GFP_KERNEL);
+		if (!zcrypt_rng_buffer) {
+			rc = -ENOMEM;
+			goto out;
+		}
+		zcrypt_rng_buffer_index = 0;
+		rc = hwrng_register(&zcrypt_rng_dev);
+		if (rc)
+			goto out_free;
+		zcrypt_rng_device_count = 1;
+	} else
+		zcrypt_rng_device_count++;
+	mutex_unlock(&zcrypt_rng_mutex);
+	return 0;
+
+out_free:
+	free_page((unsigned long) zcrypt_rng_buffer);
+out:
+	mutex_unlock(&zcrypt_rng_mutex);
+	return rc;
+}
+
+static void zcrypt_rng_device_remove(void)
+{
+	mutex_lock(&zcrypt_rng_mutex);
+	zcrypt_rng_device_count--;
+	if (zcrypt_rng_device_count == 0) {
+		hwrng_unregister(&zcrypt_rng_dev);
+		free_page((unsigned long) zcrypt_rng_buffer);
+	}
+	mutex_unlock(&zcrypt_rng_mutex);
 }
 
 /**
