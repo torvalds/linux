@@ -439,7 +439,9 @@ static ssize_t ipath_diagpkt_write(struct file *fp,
 		goto bail;
 	}
 
-	piobuf = ipath_getpiobuf(dd, &pbufn);
+	plen >>= 2;		/* in dwords */
+
+	piobuf = ipath_getpiobuf(dd, plen, &pbufn);
 	if (!piobuf) {
 		ipath_cdbg(VERBOSE, "No PIO buffers avail unit for %u\n",
 			   dd->ipath_unit);
@@ -448,8 +450,6 @@ static ssize_t ipath_diagpkt_write(struct file *fp,
 	}
 	/* disarm it just to be extra sure */
 	ipath_disarm_piobufs(dd, pbufn, 1);
-
-	plen >>= 2;		/* in dwords */
 
 	if (ipath_debug & __IPATH_PKTDBG)
 		ipath_cdbg(VERBOSE, "unit %u 0x%x+1w pio%d\n",

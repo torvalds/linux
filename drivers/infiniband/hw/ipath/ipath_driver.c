@@ -317,7 +317,7 @@ static void ipath_verify_pioperf(struct ipath_devdata *dd)
 	u32 *addr;
 	u64 msecs, emsecs;
 
-	piobuf = ipath_getpiobuf(dd, &pbnum);
+	piobuf = ipath_getpiobuf(dd, 0, &pbnum);
 	if (!piobuf) {
 		dev_info(&dd->pcidev->dev,
 			"No PIObufs for checking perf, skipping\n");
@@ -836,20 +836,8 @@ void ipath_disarm_piobufs(struct ipath_devdata *dd, unsigned first,
 		ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 		spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 	}
-
-	/*
-	 * Disable PIOAVAILUPD, then re-enable, reading scratch in
-	 * between.  This seems to avoid a chip timing race that causes
-	 * pioavail updates to memory to stop.  We xor as we don't
-	 * know the state of the bit when we're called.
-	 */
-	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-		dd->ipath_sendctrl ^ INFINIPATH_S_PIOBUFAVAILUPD);
-	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-			 dd->ipath_sendctrl);
-	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
+	/* on some older chips, update may not happen after cancel */
+	ipath_force_pio_avail_update(dd);
 }
 
 /**
@@ -1314,7 +1302,6 @@ static void ipath_update_pio_bufs(struct ipath_devdata *dd)
 	 * happens when all buffers are in use, so only cpu overhead, not
 	 * latency or bandwidth is affected.
 	 */
-#define _IPATH_ALL_CHECKBITS 0x5555555555555555ULL
 	if (!dd->ipath_pioavailregs_dma) {
 		ipath_dbg("Update shadow pioavail, but regs_dma NULL!\n");
 		return;
@@ -1359,7 +1346,7 @@ static void ipath_update_pio_bufs(struct ipath_devdata *dd)
 			piov = le64_to_cpu(dd->ipath_pioavailregs_dma[i ^ 1]);
 		else
 			piov = le64_to_cpu(dd->ipath_pioavailregs_dma[i]);
-		pchg = _IPATH_ALL_CHECKBITS &
+		pchg = dd->ipath_pioavailkernel[i] &
 			~(dd->ipath_pioavailshadow[i] ^ piov);
 		pchbusy = pchg << INFINIPATH_SENDPIOAVAIL_BUSY_SHIFT;
 		if (pchg && (pchbusy & dd->ipath_pioavailshadow[i])) {
@@ -1410,27 +1397,63 @@ int ipath_setrcvhdrsize(struct ipath_devdata *dd, unsigned rhdrsize)
 	return ret;
 }
 
-/**
- * ipath_getpiobuf - find an available pio buffer
- * @dd: the infinipath device
- * @pbufnum: the buffer number is placed here
+/*
+ * debugging code and stats updates if no pio buffers available.
+ */
+static noinline void no_pio_bufs(struct ipath_devdata *dd)
+{
+	unsigned long *shadow = dd->ipath_pioavailshadow;
+	__le64 *dma = (__le64 *)dd->ipath_pioavailregs_dma;
+
+	dd->ipath_upd_pio_shadow = 1;
+
+	/*
+	 * not atomic, but if we lose a stat count in a while, that's OK
+	 */
+	ipath_stats.sps_nopiobufs++;
+	if (!(++dd->ipath_consec_nopiobuf % 100000)) {
+		ipath_dbg("%u pio sends with no bufavail; dmacopy: "
+			"%llx %llx %llx %llx; shadow:  %lx %lx %lx %lx\n",
+			dd->ipath_consec_nopiobuf,
+			(unsigned long long) le64_to_cpu(dma[0]),
+			(unsigned long long) le64_to_cpu(dma[1]),
+			(unsigned long long) le64_to_cpu(dma[2]),
+			(unsigned long long) le64_to_cpu(dma[3]),
+			shadow[0], shadow[1], shadow[2], shadow[3]);
+		/*
+		 * 4 buffers per byte, 4 registers above, cover rest
+		 * below
+		 */
+		if ((dd->ipath_piobcnt2k + dd->ipath_piobcnt4k) >
+		    (sizeof(shadow[0]) * 4 * 4))
+			ipath_dbg("2nd group: dmacopy: %llx %llx "
+				  "%llx %llx; shadow: %lx %lx %lx %lx\n",
+				  (unsigned long long)le64_to_cpu(dma[4]),
+				  (unsigned long long)le64_to_cpu(dma[5]),
+				  (unsigned long long)le64_to_cpu(dma[6]),
+				  (unsigned long long)le64_to_cpu(dma[7]),
+				  shadow[4], shadow[5], shadow[6],
+				  shadow[7]);
+	}
+}
+
+/*
+ * common code for normal driver pio buffer allocation, and reserved
+ * allocation.
  *
  * do appropriate marking as busy, etc.
  * returns buffer number if one found (>=0), negative number is error.
- * Used by ipath_layer_send
  */
-u32 __iomem *ipath_getpiobuf(struct ipath_devdata *dd, u32 * pbufnum)
+static u32 __iomem *ipath_getpiobuf_range(struct ipath_devdata *dd,
+	u32 *pbufnum, u32 first, u32 last, u32 firsti)
 {
-	int i, j, starti, updated = 0;
-	unsigned piobcnt, iter;
+	int i, j, updated = 0;
+	unsigned piobcnt;
 	unsigned long flags;
 	unsigned long *shadow = dd->ipath_pioavailshadow;
 	u32 __iomem *buf;
 
-	piobcnt = (unsigned)(dd->ipath_piobcnt2k
-			     + dd->ipath_piobcnt4k);
-	starti = dd->ipath_lastport_piobuf;
-	iter = piobcnt - starti;
+	piobcnt = last - first;
 	if (dd->ipath_upd_pio_shadow) {
 		/*
 		 * Minor optimization.  If we had no buffers on last call,
@@ -1438,12 +1461,10 @@ u32 __iomem *ipath_getpiobuf(struct ipath_devdata *dd, u32 * pbufnum)
 		 * if no buffers were updated, to be paranoid
 		 */
 		ipath_update_pio_bufs(dd);
-		/* we scanned here, don't do it at end of scan */
-		updated = 1;
-		i = starti;
+		updated++;
+		i = first;
 	} else
-		i = dd->ipath_lastpioindex;
-
+		i = firsti;
 rescan:
 	/*
 	 * while test_and_set_bit() is atomic, we do that and then the
@@ -1451,101 +1472,138 @@ rescan:
 	 * of the remaining armlaunch errors.
 	 */
 	spin_lock_irqsave(&ipath_pioavail_lock, flags);
-	for (j = 0; j < iter; j++, i++) {
-		if (i >= piobcnt)
-			i = starti;
-		/*
-		 * To avoid bus lock overhead, we first find a candidate
-		 * buffer, then do the test and set, and continue if that
-		 * fails.
-		 */
-		if (test_bit((2 * i) + 1, shadow) ||
-		    test_and_set_bit((2 * i) + 1, shadow))
+	for (j = 0; j < piobcnt; j++, i++) {
+		if (i >= last)
+			i = first;
+		if (__test_and_set_bit((2 * i) + 1, shadow))
 			continue;
 		/* flip generation bit */
-		change_bit(2 * i, shadow);
+		__change_bit(2 * i, shadow);
 		break;
 	}
 	spin_unlock_irqrestore(&ipath_pioavail_lock, flags);
 
-	if (j == iter) {
-		volatile __le64 *dma = dd->ipath_pioavailregs_dma;
-
-		/*
-		 * first time through; shadow exhausted, but may be real
-		 * buffers available, so go see; if any updated, rescan
-		 * (once)
-		 */
+	if (j == piobcnt) {
 		if (!updated) {
+			/*
+			 * first time through; shadow exhausted, but may be
+			 * buffers available, try an update and then rescan.
+			 */
 			ipath_update_pio_bufs(dd);
-			updated = 1;
-			i = starti;
+			updated++;
+			i = first;
+			goto rescan;
+		} else if (updated == 1 && piobcnt <=
+			((dd->ipath_sendctrl
+			>> INFINIPATH_S_UPDTHRESH_SHIFT) &
+			INFINIPATH_S_UPDTHRESH_MASK)) {
+			/*
+			 * for chips supporting and using the update
+			 * threshold we need to force an update of the
+			 * in-memory copy if the count is less than the
+			 * thershold, then check one more time.
+			 */
+			ipath_force_pio_avail_update(dd);
+			ipath_update_pio_bufs(dd);
+			updated++;
+			i = first;
 			goto rescan;
 		}
-		dd->ipath_upd_pio_shadow = 1;
-		/*
-		 * not atomic, but if we lose one once in a while, that's OK
-		 */
-		ipath_stats.sps_nopiobufs++;
-		if (!(++dd->ipath_consec_nopiobuf % 100000)) {
-			ipath_dbg(
-				"%u pio sends with no bufavail; dmacopy: "
-				"%llx %llx %llx %llx; shadow:  "
-				"%lx %lx %lx %lx\n",
-				dd->ipath_consec_nopiobuf,
-				(unsigned long long) le64_to_cpu(dma[0]),
-				(unsigned long long) le64_to_cpu(dma[1]),
-				(unsigned long long) le64_to_cpu(dma[2]),
-				(unsigned long long) le64_to_cpu(dma[3]),
-				shadow[0], shadow[1], shadow[2],
-				shadow[3]);
-			/*
-			 * 4 buffers per byte, 4 registers above, cover rest
-			 * below
-			 */
-			if ((dd->ipath_piobcnt2k + dd->ipath_piobcnt4k) >
-			    (sizeof(shadow[0]) * 4 * 4))
-				ipath_dbg("2nd group: dmacopy: %llx %llx "
-					  "%llx %llx; shadow: %lx %lx "
-					  "%lx %lx\n",
-					  (unsigned long long)
-					  le64_to_cpu(dma[4]),
-					  (unsigned long long)
-					  le64_to_cpu(dma[5]),
-					  (unsigned long long)
-					  le64_to_cpu(dma[6]),
-					  (unsigned long long)
-					  le64_to_cpu(dma[7]),
-					  shadow[4], shadow[5],
-					  shadow[6], shadow[7]);
-		}
+
+		no_pio_bufs(dd);
 		buf = NULL;
-		goto bail;
+	} else {
+		if (i < dd->ipath_piobcnt2k)
+			buf = (u32 __iomem *) (dd->ipath_pio2kbase +
+					       i * dd->ipath_palign);
+		else
+			buf = (u32 __iomem *)
+				(dd->ipath_pio4kbase +
+				 (i - dd->ipath_piobcnt2k) * dd->ipath_4kalign);
+		if (pbufnum)
+			*pbufnum = i;
 	}
 
-	/*
-	 * set next starting place.  Since it's just an optimization,
-	 * it doesn't matter who wins on this, so no locking
-	 */
-	dd->ipath_lastpioindex = i + 1;
-	if (dd->ipath_upd_pio_shadow)
-		dd->ipath_upd_pio_shadow = 0;
-	if (dd->ipath_consec_nopiobuf)
-		dd->ipath_consec_nopiobuf = 0;
-	if (i < dd->ipath_piobcnt2k)
-		buf = (u32 __iomem *) (dd->ipath_pio2kbase +
-				       i * dd->ipath_palign);
-	else
-		buf = (u32 __iomem *)
-			(dd->ipath_pio4kbase +
-			 (i - dd->ipath_piobcnt2k) * dd->ipath_4kalign);
-	ipath_cdbg(VERBOSE, "Return piobuf%u %uk @ %p\n",
-		   i, (i < dd->ipath_piobcnt2k) ? 2 : 4, buf);
-	if (pbufnum)
-		*pbufnum = i;
-
-bail:
 	return buf;
+}
+
+/**
+ * ipath_getpiobuf - find an available pio buffer
+ * @dd: the infinipath device
+ * @plen: the size of the PIO buffer needed in 32-bit words
+ * @pbufnum: the buffer number is placed here
+ */
+u32 __iomem *ipath_getpiobuf(struct ipath_devdata *dd, u32 plen, u32 *pbufnum)
+{
+	u32 __iomem *buf;
+	u32 pnum, nbufs;
+	u32 first, lasti;
+
+	if (plen + 1 >= IPATH_SMALLBUF_DWORDS) {
+		first = dd->ipath_piobcnt2k;
+		lasti = dd->ipath_lastpioindexl;
+	} else {
+		first = 0;
+		lasti = dd->ipath_lastpioindex;
+	}
+	nbufs = dd->ipath_piobcnt2k + dd->ipath_piobcnt4k;
+	buf = ipath_getpiobuf_range(dd, &pnum, first, nbufs, lasti);
+
+	if (buf) {
+		/*
+		 * Set next starting place.  It's just an optimization,
+		 * it doesn't matter who wins on this, so no locking
+		 */
+		if (plen + 1 >= IPATH_SMALLBUF_DWORDS)
+			dd->ipath_lastpioindexl = pnum + 1;
+		else
+			dd->ipath_lastpioindex = pnum + 1;
+		if (dd->ipath_upd_pio_shadow)
+			dd->ipath_upd_pio_shadow = 0;
+		if (dd->ipath_consec_nopiobuf)
+			dd->ipath_consec_nopiobuf = 0;
+		ipath_cdbg(VERBOSE, "Return piobuf%u %uk @ %p\n",
+			   pnum, (pnum < dd->ipath_piobcnt2k) ? 2 : 4, buf);
+		if (pbufnum)
+			*pbufnum = pnum;
+
+	}
+	return buf;
+}
+
+/**
+ * ipath_chg_pioavailkernel - change which send buffers are available for kernel
+ * @dd: the infinipath device
+ * @start: the starting send buffer number
+ * @len: the number of send buffers
+ * @avail: true if the buffers are available for kernel use, false otherwise
+ */
+void ipath_chg_pioavailkernel(struct ipath_devdata *dd, unsigned start,
+			      unsigned len, int avail)
+{
+	unsigned long flags;
+	unsigned end;
+
+	/* There are two bits per send buffer (busy and generation) */
+	start *= 2;
+	len *= 2;
+	end = start + len;
+
+	/* Set or clear the generation bits. */
+	spin_lock_irqsave(&ipath_pioavail_lock, flags);
+	while (start < end) {
+		if (avail) {
+			__clear_bit(start + INFINIPATH_SENDPIOAVAIL_BUSY_SHIFT,
+				dd->ipath_pioavailshadow);
+			__set_bit(start, dd->ipath_pioavailkernel);
+		} else {
+			__set_bit(start + INFINIPATH_SENDPIOAVAIL_BUSY_SHIFT,
+				dd->ipath_pioavailshadow);
+			__clear_bit(start, dd->ipath_pioavailkernel);
+		}
+		start += 2;
+	}
+	spin_unlock_irqrestore(&ipath_pioavail_lock, flags);
 }
 
 /**
@@ -1662,6 +1720,30 @@ void ipath_cancel_sends(struct ipath_devdata *dd, int restore_sendctrl)
 
 	/* and again, be sure all have hit the chip */
 	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+}
+
+/*
+ * Force an update of in-memory copy of the pioavail registers, when
+ * needed for any of a variety of reasons.  We read the scratch register
+ * to make it highly likely that the update will have happened by the
+ * time we return.  If already off (as in cancel_sends above), this
+ * routine is a nop, on the assumption that the caller will "do the
+ * right thing".
+ */
+void ipath_force_pio_avail_update(struct ipath_devdata *dd)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+	if (dd->ipath_sendctrl & INFINIPATH_S_PIOBUFAVAILUPD) {
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
+			dd->ipath_sendctrl & ~INFINIPATH_S_PIOBUFAVAILUPD);
+		ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
+			dd->ipath_sendctrl);
+		ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	}
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 }
 
 static void ipath_set_ib_lstate(struct ipath_devdata *dd, int linkcmd,

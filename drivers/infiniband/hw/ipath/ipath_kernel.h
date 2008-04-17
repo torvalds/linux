@@ -191,6 +191,9 @@ struct ipath_skbinfo {
 	dma_addr_t phys;
 };
 
+/* max dwords in small buffer packet */
+#define IPATH_SMALLBUF_DWORDS (dd->ipath_piosize2k >> 2)
+
 /*
  * Possible IB config parameters for ipath_f_get/set_ib_cfg()
  */
@@ -366,6 +369,7 @@ struct ipath_devdata {
 	 * get to multiple devices
 	 */
 	u32 ipath_lastpioindex;
+	u32 ipath_lastpioindexl;
 	/* max length of freezemsg */
 	u32 ipath_freezelen;
 	/*
@@ -453,6 +457,8 @@ struct ipath_devdata {
 	 * init time.
 	 */
 	unsigned long ipath_pioavailshadow[8];
+	/* bitmap of send buffers available for the kernel to use with PIO. */
+	unsigned long ipath_pioavailkernel[8];
 	/* shadow of kr_gpio_out, for rmw ops */
 	u64 ipath_gpio_out;
 	/* shadow the gpio mask register */
@@ -869,13 +875,16 @@ void ipath_hol_event(unsigned long);
 
 /* free up any allocated data at closes */
 void ipath_free_data(struct ipath_portdata *dd);
-u32 __iomem *ipath_getpiobuf(struct ipath_devdata *, u32 *);
+u32 __iomem *ipath_getpiobuf(struct ipath_devdata *, u32, u32 *);
+void ipath_chg_pioavailkernel(struct ipath_devdata *dd, unsigned start,
+				unsigned len, int avail);
 void ipath_init_iba6120_funcs(struct ipath_devdata *);
 void ipath_init_iba6110_funcs(struct ipath_devdata *);
 void ipath_get_eeprom_info(struct ipath_devdata *);
 int ipath_update_eeprom_log(struct ipath_devdata *dd);
 void ipath_inc_eeprom_err(struct ipath_devdata *dd, u32 eidx, u32 incr);
 u64 ipath_snap_cntr(struct ipath_devdata *, ipath_creg);
+void ipath_force_pio_avail_update(struct ipath_devdata *);
 void signal_ib_event(struct ipath_devdata *dd, enum ib_event_type ev);
 
 /*

@@ -521,7 +521,9 @@ static void enable_chip(struct ipath_devdata *dd,
 			pioavail = dd->ipath_pioavailregs_dma[i ^ 1];
 		else
 			pioavail = dd->ipath_pioavailregs_dma[i];
-		dd->ipath_pioavailshadow[i] = le64_to_cpu(pioavail);
+		dd->ipath_pioavailshadow[i] = le64_to_cpu(pioavail) |
+			(~dd->ipath_pioavailkernel[i] <<
+			INFINIPATH_SENDPIOAVAIL_BUSY_SHIFT);
 	}
 	/* can get counters, stats, etc. */
 	dd->ipath_flags |= IPATH_PRESENT;
@@ -743,7 +745,9 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 		ipath_dbg("%u pbufs/port leaves %u unused, add to kernel\n",
 			  dd->ipath_pbufsport, val32);
 	}
-	dd->ipath_lastpioindex = dd->ipath_lastport_piobuf;
+	dd->ipath_lastpioindex = 0;
+	dd->ipath_lastpioindexl = dd->ipath_piobcnt2k;
+	ipath_chg_pioavailkernel(dd, 0, piobufs, 1);
 	ipath_cdbg(VERBOSE, "%d PIO bufs for kernel out of %d total %u "
 		   "each for %u user ports\n", kpiobufs,
 		   piobufs, dd->ipath_pbufsport, uports);

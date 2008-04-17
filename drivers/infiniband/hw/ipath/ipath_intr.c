@@ -804,7 +804,6 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 {
 	int i, im;
 	u64 val;
-	unsigned long flags;
 
 	/* disable error interrupts, to avoid confusion */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask, 0ULL);
@@ -823,14 +822,7 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 			 dd->ipath_control);
 
 	/* ensure pio avail updates continue */
-	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-		 dd->ipath_sendctrl & ~INFINIPATH_S_PIOBUFAVAILUPD);
-	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-			 dd->ipath_sendctrl);
-	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
-	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
+	ipath_force_pio_avail_update(dd);
 
 	/*
 	 * We just enabled pioavailupdate, so dma copy is almost certainly
@@ -842,7 +834,9 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 			i ^ 1 : i;
 		val = ipath_read_kreg64(dd, (0x1000 / sizeof(u64)) + im);
 		dd->ipath_pioavailregs_dma[i] = cpu_to_le64(val);
-		dd->ipath_pioavailshadow[i] = val;
+		dd->ipath_pioavailshadow[i] = val |
+			(~dd->ipath_pioavailkernel[i] <<
+			INFINIPATH_SENDPIOAVAIL_BUSY_SHIFT);
 	}
 
 	/*

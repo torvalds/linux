@@ -875,7 +875,7 @@ static int ipath_verbs_send_pio(struct ipath_qp *qp, u32 *hdr, u32 hdrwords,
 	unsigned flush_wc;
 	int ret;
 
-	piobuf = ipath_getpiobuf(dd, NULL);
+	piobuf = ipath_getpiobuf(dd, plen, NULL);
 	if (unlikely(piobuf == NULL)) {
 		ret = -EBUSY;
 		goto bail;

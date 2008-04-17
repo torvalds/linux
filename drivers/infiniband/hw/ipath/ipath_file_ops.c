@@ -1603,6 +1603,9 @@ static int try_alloc_port(struct ipath_devdata *dd, int port,
 		port_fp(fp) = pd;
 		pd->port_pid = current->pid;
 		strncpy(pd->port_comm, current->comm, sizeof(pd->port_comm));
+		ipath_chg_pioavailkernel(dd,
+			dd->ipath_pbufsport * (pd->port_port - 1),
+			dd->ipath_pbufsport, 0);
 		ipath_stats.sps_ports++;
 		ret = 0;
 	} else
@@ -2081,6 +2084,7 @@ static int ipath_close(struct inode *in, struct file *fp)
 
 		i = dd->ipath_pbufsport * (port - 1);
 		ipath_disarm_piobufs(dd, i, dd->ipath_pbufsport);
+		ipath_chg_pioavailkernel(dd, i, dd->ipath_pbufsport, 1);
 
 		dd->ipath_f_clear_tids(dd, pd->port_port);
 
@@ -2143,21 +2147,6 @@ static int ipath_get_slave_info(struct ipath_portdata *pd,
 	if (copy_to_user(slave_mask_addr, &pd->active_slaves, sizeof(u32)))
 		ret = -EFAULT;
 	return ret;
-}
-
-static int ipath_force_pio_avail_update(struct ipath_devdata *dd)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-		dd->ipath_sendctrl & ~INFINIPATH_S_PIOBUFAVAILUPD);
-	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
-	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
-	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
-
-	return 0;
 }
 
 static ssize_t ipath_write(struct file *fp, const char __user *data,
@@ -2304,7 +2293,7 @@ static ssize_t ipath_write(struct file *fp, const char __user *data,
 					   cmd.cmd.slave_mask_addr);
 		break;
 	case IPATH_CMD_PIOAVAILUPD:
-		ret = ipath_force_pio_avail_update(pd->port_dd);
+		ipath_force_pio_avail_update(pd->port_dd);
 		break;
 	case IPATH_CMD_POLL_TYPE:
 		pd->poll_type = cmd.cmd.poll_type;
