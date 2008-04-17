@@ -305,10 +305,7 @@ config QDIO
 	tristate "QDIO support"
 	---help---
 	  This driver provides the Queued Direct I/O base support for
-	  IBM mainframes.
-
-	  For details please refer to the documentation provided by IBM at
-	  <http://www10.software.ibm.com/developerworks/opensource/linux390>
+	  IBM System z.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called qdio.
