@@ -371,7 +371,7 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev,
 		return NULL;	/* no room in ide_hwifs[] */
 
 	memset(&hw, 0, sizeof(hw));
-	hw.irq = hwif->irq ? hwif->irq : irq;
+	hw.irq = irq;
 	hw.dev = &dev->dev;
 	hw.chipset = d->chipset ? d->chipset : ide_pci;
 	ide_std_init_ports(&hw, base, ctl | 2);
