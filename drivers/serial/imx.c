@@ -166,10 +166,6 @@
 #define SERIAL_IMX_MAJOR	204
 #define MINOR_START		41
 
-#define NR_PORTS		2
-
-#define IMX_ISR_PASS_LIMIT	256
-
 /*
  * This is the size of our serial port register set.
  */
