@@ -1956,6 +1956,7 @@ static int dasd_alloc_queue(struct dasd_block *block)
 	block->request_queue->queuedata = block;
 
 	elevator_exit(block->request_queue->elevator);
+	block->request_queue->elevator = NULL;
 	rc = elevator_init(block->request_queue, "deadline");
 	if (rc) {
 		blk_cleanup_queue(block->request_queue);
