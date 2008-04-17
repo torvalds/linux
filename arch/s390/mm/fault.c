@@ -245,10 +245,10 @@ static void do_sigbus(struct pt_regs *regs, unsigned long error_code,
 }
 
 #ifdef CONFIG_S390_EXEC_PROTECT
-extern long sys_sigreturn(struct pt_regs *regs);
-extern long sys_rt_sigreturn(struct pt_regs *regs);
-extern long sys32_sigreturn(struct pt_regs *regs);
-extern long sys32_rt_sigreturn(struct pt_regs *regs);
+extern long sys_sigreturn(void);
+extern long sys_rt_sigreturn(void);
+extern long sys32_sigreturn(void);
+extern long sys32_rt_sigreturn(void);
 
 static int signal_return(struct mm_struct *mm, struct pt_regs *regs,
 			 unsigned long address, unsigned long error_code)
@@ -270,15 +270,15 @@ static int signal_return(struct mm_struct *mm, struct pt_regs *regs,
 #ifdef CONFIG_COMPAT
 	compat = test_tsk_thread_flag(current, TIF_31BIT);
 	if (compat && instruction == 0x0a77)
-		sys32_sigreturn(regs);
+		sys32_sigreturn();
 	else if (compat && instruction == 0x0aad)
-		sys32_rt_sigreturn(regs);
+		sys32_rt_sigreturn();
 	else
 #endif
 	if (instruction == 0x0a77)
-		sys_sigreturn(regs);
+		sys_sigreturn();
 	else if (instruction == 0x0aad)
-		sys_rt_sigreturn(regs);
+		sys_rt_sigreturn();
 	else {
 		current->thread.prot_addr = address;
 		current->thread.trap_no = error_code;
