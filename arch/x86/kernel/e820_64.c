@@ -95,7 +95,8 @@ void __init early_res_to_bootmem(void)
 }
 
 /* Check for already reserved areas */
-static inline int bad_addr(unsigned long *addrp, unsigned long size)
+static inline int
+bad_addr(unsigned long *addrp, unsigned long size, unsigned long align)
 {
 	int i;
 	unsigned long addr = *addrp, last;
@@ -105,7 +106,7 @@ again:
 	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
 		struct early_res *r = &early_res[i];
 		if (last >= r->start && addr < r->end) {
-			*addrp = addr = r->end;
+			*addrp = addr = round_up(r->end, align);
 			changed = 1;
 			goto again;
 		}
@@ -174,26 +175,27 @@ int __init e820_all_mapped(unsigned long start, unsigned long end,
  * Find a free area with specified alignment in a specific range.
  */
 unsigned long __init find_e820_area(unsigned long start, unsigned long end,
-				    unsigned size, unsigned long align)
+				    unsigned long size, unsigned long align)
 {
 	int i;
-	unsigned long mask = ~(align - 1);
 
 	for (i = 0; i < e820.nr_map; i++) {
 		struct e820entry *ei = &e820.map[i];
-		unsigned long addr = ei->addr, last;
+		unsigned long addr, last;
+		unsigned long ei_last;
 
 		if (ei->type != E820_RAM)
 			continue;
+		addr = round_up(ei->addr, align);
+		ei_last = ei->addr + ei->size;
 		if (addr < start)
-			addr = start;
-		if (addr > ei->addr + ei->size)
+			addr = round_up(start, align);
+		if (addr > ei_last)
 			continue;
-		while (bad_addr(&addr, size) && addr+size <= ei->addr+ei->size)
+		while (bad_addr(&addr, size, align) && addr+size <= ei_last)
 			;
-		addr = (addr + align - 1) & mask;
 		last = addr + size;
-		if (last > ei->addr + ei->size)
+		if (last > ei_last)
 			continue;
 		if (last > end)
 			continue;
