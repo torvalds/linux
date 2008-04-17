@@ -848,6 +848,8 @@ void ipath_hol_event(unsigned long);
 		/* Suppress heartbeat, even if turning off loopback */
 #define IPATH_NO_HRTBT      0x1000000
 #define IPATH_HAS_MULT_IB_SPEED 0x8000000
+		/* Linkdown-disable intentionally, Do not attempt to bring up */
+#define IPATH_IB_LINK_DISABLED 0x40000000
 #define IPATH_IB_FORCE_NOTIFY 0x80000000 /* force notify on next ib change */
 
 /* Bits in GPIO for the added interrupts */

@@ -90,6 +90,7 @@
 #define __IPATH_IPATHERR  0x0	/* Ethernet (IPATH) errors on   */
 #define __IPATH_IPATHPD   0x0	/* Ethernet (IPATH) packet dump on   */
 #define __IPATH_IPATHTABLE 0x0	/* Ethernet (IPATH) packet dump on   */
+#define __IPATH_LINKVERBDBG 0x0	/* very verbose linkchange debug */
 
 #endif				/* _IPATH_DEBUGGING */
 

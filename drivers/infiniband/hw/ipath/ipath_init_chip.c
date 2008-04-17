@@ -180,10 +180,13 @@ static int bringup_link(struct ipath_devdata *dd)
 	/*
 	 * Want to start out with both LINKCMD and LINKINITCMD in NOP
 	 * (0 and 0).  Don't put linkinitcmd in ipath_ibcctrl, want that
-	 * to stay a NOP
+	 * to stay a NOP. Flag that we are disabled, for the (unlikely)
+	 * case that some recovery path is trying to bring the link up
+	 * before we are ready.
 	 */
 	ibc |= INFINIPATH_IBCC_LINKINITCMD_DISABLE <<
 		INFINIPATH_IBCC_LINKINITCMD_SHIFT;
+	dd->ipath_flags |= IPATH_IB_LINK_DISABLED;
 	ipath_cdbg(VERBOSE, "Writing 0x%llx to ibcctrl\n",
 		   (unsigned long long) ibc);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_ibcctrl, ibc);

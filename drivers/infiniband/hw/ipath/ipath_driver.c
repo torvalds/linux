@@ -1664,30 +1664,48 @@ void ipath_cancel_sends(struct ipath_devdata *dd, int restore_sendctrl)
 	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 }
 
-
-static void ipath_set_ib_lstate(struct ipath_devdata *dd, int which)
+static void ipath_set_ib_lstate(struct ipath_devdata *dd, int linkcmd,
+				int linitcmd)
 {
+	u64 mod_wd;
 	static const char *what[4] = {
 		[0] = "NOP",
 		[INFINIPATH_IBCC_LINKCMD_DOWN] = "DOWN",
 		[INFINIPATH_IBCC_LINKCMD_ARMED] = "ARMED",
 		[INFINIPATH_IBCC_LINKCMD_ACTIVE] = "ACTIVE"
 	};
-	int linkcmd = (which >> INFINIPATH_IBCC_LINKCMD_SHIFT) &
-			INFINIPATH_IBCC_LINKCMD_MASK;
 
-	ipath_cdbg(VERBOSE, "Trying to move unit %u to %s, current ltstate "
-		   "is %s\n", dd->ipath_unit,
-		   what[linkcmd],
-		   ipath_ibcstatus_str[ipath_ib_linktrstate(dd,
+	if (linitcmd == INFINIPATH_IBCC_LINKINITCMD_DISABLE) {
+		/*
+		 * If we are told to disable, note that so link-recovery
+		 * code does not attempt to bring us back up.
+		 */
+		preempt_disable();
+		dd->ipath_flags |= IPATH_IB_LINK_DISABLED;
+		preempt_enable();
+	} else if (linitcmd) {
+		/*
+		 * Any other linkinitcmd will lead to LINKDOWN and then
+		 * to INIT (if all is well), so clear flag to let
+		 * link-recovery code attempt to bring us back up.
+		 */
+		preempt_disable();
+		dd->ipath_flags &= ~IPATH_IB_LINK_DISABLED;
+		preempt_enable();
+	}
+
+	mod_wd = (linkcmd << dd->ibcc_lc_shift) |
+		(linitcmd << INFINIPATH_IBCC_LINKINITCMD_SHIFT);
+	ipath_cdbg(VERBOSE,
+		"Moving unit %u to %s (initcmd=0x%x), current ltstate is %s\n",
+		dd->ipath_unit, what[linkcmd], linitcmd,
+		ipath_ibcstatus_str[ipath_ib_linktrstate(dd,
 			ipath_read_kreg64(dd, dd->ipath_kregs->kr_ibcstatus))]);
-	/* flush all queued sends when going to DOWN to be sure that
-	 * they don't block MAD packets */
-	if (linkcmd == INFINIPATH_IBCC_LINKCMD_DOWN)
-		ipath_cancel_sends(dd, 1);
 
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_ibcctrl,
-			 dd->ipath_ibcctrl | which);
+			 dd->ipath_ibcctrl | mod_wd);
+	/* read from chip so write is flushed */
+	(void) ipath_read_kreg64(dd, dd->ipath_kregs->kr_ibcstatus);
 }
 
 int ipath_set_linkstate(struct ipath_devdata *dd, u8 newstate)
@@ -1697,30 +1715,28 @@ int ipath_set_linkstate(struct ipath_devdata *dd, u8 newstate)
 
 	switch (newstate) {
 	case IPATH_IB_LINKDOWN_ONLY:
-		ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKCMD_DOWN <<
-				    INFINIPATH_IBCC_LINKCMD_SHIFT);
+		ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKCMD_DOWN, 0);
 		/* don't wait */
 		ret = 0;
 		goto bail;
 
 	case IPATH_IB_LINKDOWN:
-		ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKINITCMD_POLL <<
-				    INFINIPATH_IBCC_LINKINITCMD_SHIFT);
+		ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKCMD_DOWN,
+					INFINIPATH_IBCC_LINKINITCMD_POLL);
 		/* don't wait */
 		ret = 0;
 		goto bail;
 
 	case IPATH_IB_LINKDOWN_SLEEP:
-		ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKINITCMD_SLEEP <<
-				    INFINIPATH_IBCC_LINKINITCMD_SHIFT);
+		ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKCMD_DOWN,
+					INFINIPATH_IBCC_LINKINITCMD_SLEEP);
 		/* don't wait */
 		ret = 0;
 		goto bail;
 
 	case IPATH_IB_LINKDOWN_DISABLE:
-		ipath_set_ib_lstate(dd,
-				    INFINIPATH_IBCC_LINKINITCMD_DISABLE <<
-				    INFINIPATH_IBCC_LINKINITCMD_SHIFT);
+		ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKCMD_DOWN,
+					INFINIPATH_IBCC_LINKINITCMD_DISABLE);
 		/* don't wait */
 		ret = 0;
 		goto bail;
@@ -1735,8 +1751,8 @@ int ipath_set_linkstate(struct ipath_devdata *dd, u8 newstate)
 			ret = -EINVAL;
 			goto bail;
 		}
-		ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKCMD_ARMED <<
-				    INFINIPATH_IBCC_LINKCMD_SHIFT);
+		ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKCMD_ARMED, 0);
+
 		/*
 		 * Since the port can transition to ACTIVE by receiving
 		 * a non VL 15 packet, wait for either state.
@@ -1753,8 +1769,7 @@ int ipath_set_linkstate(struct ipath_devdata *dd, u8 newstate)
 			ret = -EINVAL;
 			goto bail;
 		}
-		ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKCMD_ACTIVE <<
-				    INFINIPATH_IBCC_LINKCMD_SHIFT);
+		ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKCMD_ACTIVE, 0);
 		lstate = IPATH_LINKACTIVE;
 		break;
 
@@ -2026,8 +2041,7 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 	 */
 	udelay(5);
 
-	ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKINITCMD_DISABLE <<
-			    INFINIPATH_IBCC_LINKINITCMD_SHIFT);
+	ipath_set_ib_lstate(dd, 0, INFINIPATH_IBCC_LINKINITCMD_DISABLE);
 	ipath_cancel_sends(dd, 0);
 
 	signal_ib_event(dd, IB_EVENT_PORT_ERR);

@@ -309,6 +309,8 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 		lastlstate == INFINIPATH_IBCS_L_STATE_DOWN) {
 		/* transitioned to UP */
 		if (dd->ipath_f_ib_updown(dd, 1, ibcs)) {
+			/* link came up, so we must no longer be disabled */
+			dd->ipath_flags &= ~IPATH_IB_LINK_DISABLED;
 			ipath_cdbg(LINKVERB, "LinkUp handled, skipped\n");
 			goto skip_ibchange; /* chip-code handled */
 		}
