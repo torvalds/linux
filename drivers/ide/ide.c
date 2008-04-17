@@ -490,6 +490,23 @@ void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
 	spin_unlock_irq(&ide_lock);
 }
 
+/* Called with ide_lock held. */
+static void ide_port_unregister_devices(ide_hwif_t *hwif)
+{
+	int i;
+
+	for (i = 0; i < MAX_DRIVES; i++) {
+		ide_drive_t *drive = &hwif->drives[i];
+
+		if (drive->present) {
+			spin_unlock_irq(&ide_lock);
+			device_unregister(&drive->gendev);
+			wait_for_completion(&drive->gendev_rel_comp);
+			spin_lock_irq(&ide_lock);
+		}
+	}
+}
+
 /**
  *	ide_unregister		-	free an IDE interface
  *	@index: index of interface (will change soon to a pointer)
@@ -516,11 +533,10 @@ void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
 
 void ide_unregister(unsigned int index, int init_default, int restore)
 {
-	ide_drive_t *drive;
 	ide_hwif_t *hwif, *g;
 	static ide_hwif_t tmp_hwif; /* protected by ide_cfg_mtx */
 	ide_hwgroup_t *hwgroup;
-	int irq_count = 0, unit;
+	int irq_count = 0;
 
 	BUG_ON(index >= MAX_HWIFS);
 
@@ -531,15 +547,7 @@ void ide_unregister(unsigned int index, int init_default, int restore)
 	hwif = &ide_hwifs[index];
 	if (!hwif->present)
 		goto abort;
-	for (unit = 0; unit < MAX_DRIVES; ++unit) {
-		drive = &hwif->drives[unit];
-		if (!drive->present)
-			continue;
-		spin_unlock_irq(&ide_lock);
-		device_unregister(&drive->gendev);
-		wait_for_completion(&drive->gendev_rel_comp);
-		spin_lock_irq(&ide_lock);
-	}
+	ide_port_unregister_devices(hwif);
 	hwif->present = 0;
 
 	spin_unlock_irq(&ide_lock);
