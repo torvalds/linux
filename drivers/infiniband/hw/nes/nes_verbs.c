@@ -1043,10 +1043,10 @@ static int nes_setup_virt_qp(struct nes_qp *nesqp, struct nes_pbl *nespbl,
 	u8 sq_pbl_entries;
 
 	pbl_entries = nespbl->pbl_size >> 3;
-	nes_debug(NES_DBG_QP, "Userspace PBL, pbl_size=%u, pbl_entries = %d pbl_vbase=%p, pbl_pbase=%p\n",
+	nes_debug(NES_DBG_QP, "Userspace PBL, pbl_size=%u, pbl_entries = %d pbl_vbase=%p, pbl_pbase=%lx\n",
 			nespbl->pbl_size, pbl_entries,
 			(void *)nespbl->pbl_vbase,
-			(void *)nespbl->pbl_pbase);
+			(unsigned long) nespbl->pbl_pbase);
 	pbl = (__le64 *) nespbl->pbl_vbase; /* points to first pbl entry */
 	/* now lets set the sq_vbase as well as rq_vbase addrs we will assign */
 	/* the first pbl to be fro the rq_vbase... */
@@ -1074,9 +1074,9 @@ static int nes_setup_virt_qp(struct nes_qp *nesqp, struct nes_pbl *nespbl,
 	/* nesqp->hwqp.rq_vbase = bus_to_virt(*pbl); */
 	/*nesqp->hwqp.rq_vbase = phys_to_virt(*pbl); */
 
-	nes_debug(NES_DBG_QP, "QP sq_vbase= %p sq_pbase=%p rq_vbase=%p rq_pbase=%p\n",
-			nesqp->hwqp.sq_vbase, (void *)nesqp->hwqp.sq_pbase,
-			nesqp->hwqp.rq_vbase, (void *)nesqp->hwqp.rq_pbase);
+	nes_debug(NES_DBG_QP, "QP sq_vbase= %p sq_pbase=%lx rq_vbase=%p rq_pbase=%lx\n",
+		  nesqp->hwqp.sq_vbase, (unsigned long) nesqp->hwqp.sq_pbase,
+		  nesqp->hwqp.rq_vbase, (unsigned long) nesqp->hwqp.rq_pbase);
 	spin_lock_irqsave(&nesadapter->pbl_lock, flags);
 	if (!nesadapter->free_256pbl) {
 		pci_free_consistent(nesdev->pcidev, nespbl->pbl_size, nespbl->pbl_vbase,
@@ -2653,10 +2653,10 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 			nespbl->pbl_vbase = (u64 *)pbl;
 			nespbl->user_base = start;
-			nes_debug(NES_DBG_MR, "Allocated PBL memory, %u bytes, pbl_pbase=%p,"
+			nes_debug(NES_DBG_MR, "Allocated PBL memory, %u bytes, pbl_pbase=%lx,"
 					" pbl_vbase=%p user_base=0x%lx\n",
-					nespbl->pbl_size, (void *)nespbl->pbl_pbase,
-					(void*)nespbl->pbl_vbase, nespbl->user_base);
+				  nespbl->pbl_size, (unsigned long) nespbl->pbl_pbase,
+				  (void *) nespbl->pbl_vbase, nespbl->user_base);
 
 			list_for_each_entry(chunk, &region->chunk_list, list) {
 				for (nmap_index = 0; nmap_index < chunk->nmap; ++nmap_index) {
