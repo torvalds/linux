@@ -687,7 +687,7 @@ static __init unsigned int stfl(void)
 	return S390_lowcore.stfl_fac_list;
 }
 
-static __init int stfle(unsigned long long *list, int doublewords)
+static int __init __stfle(unsigned long long *list, int doublewords)
 {
 	typedef struct { unsigned long long _[doublewords]; } addrtype;
 	register unsigned long __nr asm("0") = doublewords - 1;
@@ -695,6 +695,13 @@ static __init int stfle(unsigned long long *list, int doublewords)
 	asm volatile(".insn s,0xb2b00000,%0" /* stfle */
 		     : "=m" (*(addrtype *) list), "+d" (__nr) : : "cc");
 	return __nr + 1;
+}
+
+int __init stfle(unsigned long long *list, int doublewords)
+{
+	if (!(stfl() & (1UL << 24)))
+		return -EOPNOTSUPP;
+	return __stfle(list, doublewords);
 }
 
 /*
@@ -741,7 +748,7 @@ static void __init setup_hwcaps(void)
 	 *   HWCAP_S390_DFP bit 6.
 	 */
 	if ((elf_hwcap & (1UL << 2)) &&
-	    stfle(&facility_list_extended, 1) > 0) {
+	    __stfle(&facility_list_extended, 1) > 0) {
 		if (facility_list_extended & (1ULL << (64 - 43)))
 			elf_hwcap |= 1UL << 6;
 	}
