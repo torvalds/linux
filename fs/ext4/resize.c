@@ -502,8 +502,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	EXT4_SB(sb)->s_gdb_count++;
 	kfree(o_group_desc);
 
-	es->s_reserved_gdt_blocks =
-		cpu_to_le16(le16_to_cpu(es->s_reserved_gdt_blocks) - 1);
+	le16_add_cpu(&es->s_reserved_gdt_blocks, -1);
 	ext4_journal_dirty_metadata(handle, EXT4_SB(sb)->s_sbh);
 
 	return 0;
@@ -877,8 +876,7 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	 */
 	ext4_blocks_count_set(es, ext4_blocks_count(es) +
 		input->blocks_count);
-	es->s_inodes_count = cpu_to_le32(le32_to_cpu(es->s_inodes_count) +
-		EXT4_INODES_PER_GROUP(sb));
+	le32_add_cpu(&es->s_inodes_count, EXT4_INODES_PER_GROUP(sb));
 
 	/*
 	 * We need to protect s_groups_count against other CPUs seeing

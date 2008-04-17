@@ -614,7 +614,7 @@ static int ext4_ext_insert_index(handle_t *handle, struct inode *inode,
 
 	ix->ei_block = cpu_to_le32(logical);
 	ext4_idx_store_pblock(ix, ptr);
-	curp->p_hdr->eh_entries = cpu_to_le16(le16_to_cpu(curp->p_hdr->eh_entries)+1);
+	le16_add_cpu(&curp->p_hdr->eh_entries, 1);
 
 	BUG_ON(le16_to_cpu(curp->p_hdr->eh_entries)
 			     > le16_to_cpu(curp->p_hdr->eh_max));
@@ -736,7 +736,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 	}
 	if (m) {
 		memmove(ex, path[depth].p_ext-m, sizeof(struct ext4_extent)*m);
-		neh->eh_entries = cpu_to_le16(le16_to_cpu(neh->eh_entries)+m);
+		le16_add_cpu(&neh->eh_entries, m);
 	}
 
 	set_buffer_uptodate(bh);
@@ -753,8 +753,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 		err = ext4_ext_get_access(handle, inode, path + depth);
 		if (err)
 			goto cleanup;
-		path[depth].p_hdr->eh_entries =
-		     cpu_to_le16(le16_to_cpu(path[depth].p_hdr->eh_entries)-m);
+		le16_add_cpu(&path[depth].p_hdr->eh_entries, -m);
 		err = ext4_ext_dirty(handle, inode, path + depth);
 		if (err)
 			goto cleanup;
@@ -817,8 +816,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 		if (m) {
 			memmove(++fidx, path[i].p_idx - m,
 				sizeof(struct ext4_extent_idx) * m);
-			neh->eh_entries =
-				cpu_to_le16(le16_to_cpu(neh->eh_entries) + m);
+			le16_add_cpu(&neh->eh_entries, m);
 		}
 		set_buffer_uptodate(bh);
 		unlock_buffer(bh);
@@ -834,7 +832,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 			err = ext4_ext_get_access(handle, inode, path + i);
 			if (err)
 				goto cleanup;
-			path[i].p_hdr->eh_entries = cpu_to_le16(le16_to_cpu(path[i].p_hdr->eh_entries)-m);
+			le16_add_cpu(&path[i].p_hdr->eh_entries, -m);
 			err = ext4_ext_dirty(handle, inode, path + i);
 			if (err)
 				goto cleanup;
@@ -1369,7 +1367,7 @@ int ext4_ext_try_to_merge(struct inode *inode,
 				* sizeof(struct ext4_extent);
 			memmove(ex + 1, ex + 2, len);
 		}
-		eh->eh_entries = cpu_to_le16(le16_to_cpu(eh->eh_entries) - 1);
+		le16_add_cpu(&eh->eh_entries, -1);
 		merge_done = 1;
 		WARN_ON(eh->eh_entries == 0);
 		if (!eh->eh_entries)
@@ -1560,7 +1558,7 @@ has_space:
 		path[depth].p_ext = nearex;
 	}
 
-	eh->eh_entries = cpu_to_le16(le16_to_cpu(eh->eh_entries)+1);
+	le16_add_cpu(&eh->eh_entries, 1);
 	nearex = path[depth].p_ext;
 	nearex->ee_block = newext->ee_block;
 	ext4_ext_store_pblock(nearex, ext_pblock(newext));
@@ -1699,7 +1697,7 @@ static int ext4_ext_rm_idx(handle_t *handle, struct inode *inode,
 	err = ext4_ext_get_access(handle, inode, path);
 	if (err)
 		return err;
-	path->p_hdr->eh_entries = cpu_to_le16(le16_to_cpu(path->p_hdr->eh_entries)-1);
+	le16_add_cpu(&path->p_hdr->eh_entries, -1);
 	err = ext4_ext_dirty(handle, inode, path);
 	if (err)
 		return err;
@@ -1902,7 +1900,7 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 		if (num == 0) {
 			/* this extent is removed; mark slot entirely unused */
 			ext4_ext_store_pblock(ex, 0);
-			eh->eh_entries = cpu_to_le16(le16_to_cpu(eh->eh_entries)-1);
+			le16_add_cpu(&eh->eh_entries, -1);
 		}
 
 		ex->ee_block = cpu_to_le32(block);
