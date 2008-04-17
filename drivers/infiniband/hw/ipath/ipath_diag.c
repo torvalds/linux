@@ -330,6 +330,7 @@ static ssize_t ipath_diagpkt_write(struct file *fp,
 	struct ipath_devdata *dd;
 	ssize_t ret = 0;
 	u64 val;
+	u32 l_state, lt_state; /* LinkState, LinkTrainingState */
 
 	if (count != sizeof(dp)) {
 		ret = -EINVAL;
@@ -396,10 +397,17 @@ static ssize_t ipath_diagpkt_write(struct file *fp,
 		ret = -ENODEV;
 		goto bail;
 	}
-	/* Check link state, but not if we have custom PBC */
-	val = dd->ipath_lastibcstat & IPATH_IBSTATE_MASK;
-	if (!dp.pbc_wd && val != IPATH_IBSTATE_INIT &&
-		val != IPATH_IBSTATE_ARM && val != IPATH_IBSTATE_ACTIVE) {
+	/*
+	 * Want to skip check for l_state if using custom PBC,
+	 * because we might be trying to force an SM packet out.
+	 * first-cut, skip _all_ state checking in that case.
+	 */
+	val = ipath_ib_state(dd, dd->ipath_lastibcstat);
+	lt_state = ipath_ib_linktrstate(dd, dd->ipath_lastibcstat);
+	l_state = ipath_ib_linkstate(dd, dd->ipath_lastibcstat);
+	if (!dp.pbc_wd && (lt_state != INFINIPATH_IBCS_LT_STATE_LINKUP ||
+	    (val != dd->ib_init && val != dd->ib_arm &&
+	    val != dd->ib_active))) {
 		ipath_cdbg(VERBOSE, "unit %u not ready (state %llx)\n",
 			   dd->ipath_unit, (unsigned long long) val);
 		ret = -EINVAL;
@@ -438,6 +446,8 @@ static ssize_t ipath_diagpkt_write(struct file *fp,
 		ret = -EBUSY;
 		goto bail;
 	}
+	/* disarm it just to be extra sure */
+	ipath_disarm_piobufs(dd, pbufn, 1);
 
 	plen >>= 2;		/* in dwords */
 

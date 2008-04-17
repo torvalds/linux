@@ -908,6 +908,12 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 		dd->ipath_stats_timer_active = 1;
 	}
 
+	/* Set up HoL state */
+	init_timer(&dd->ipath_hol_timer);
+	dd->ipath_hol_timer.function = ipath_hol_event;
+	dd->ipath_hol_timer.data = (unsigned long)dd;
+	dd->ipath_hol_state = IPATH_HOL_UP;
+
 done:
 	if (!ret) {
 		*dd->ipath_statusp |= IPATH_STATUS_CHIP_PRESENT;

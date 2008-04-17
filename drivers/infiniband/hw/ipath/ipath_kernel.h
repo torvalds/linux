@@ -427,6 +427,11 @@ struct ipath_devdata {
 
 	unsigned long ipath_ureg_align; /* user register alignment */
 
+	/* HoL blocking / user app forward-progress state */
+	unsigned          ipath_hol_state;
+	unsigned          ipath_hol_next;
+	struct timer_list ipath_hol_timer;
+
 	/*
 	 * Shadow copies of registers; size indicates read access size.
 	 * Most of them are readonly, but some are write-only register,
@@ -706,6 +711,13 @@ struct ipath_devdata {
 	u16 ipath_jint_max_packets;	/* max packets across all ports */
 };
 
+/* ipath_hol_state values (stopping/starting user proc, send flushing) */
+#define IPATH_HOL_UP       0
+#define IPATH_HOL_DOWN     1
+/* ipath_hol_next toggle values, used when hol_state IPATH_HOL_DOWN */
+#define IPATH_HOL_DOWNSTOP 0
+#define IPATH_HOL_DOWNCONT 1
+
 /* Private data for file operations */
 struct ipath_filedata {
 	struct ipath_portdata *pd;
@@ -775,6 +787,9 @@ int ipath_set_lid(struct ipath_devdata *, u32, u8);
 int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 void ipath_enable_armlaunch(struct ipath_devdata *);
 void ipath_disable_armlaunch(struct ipath_devdata *);
+void ipath_hol_down(struct ipath_devdata *);
+void ipath_hol_up(struct ipath_devdata *);
+void ipath_hol_event(unsigned long);
 
 /* for use in system calls, where we want to know device type, etc. */
 #define port_fp(fp) ((struct ipath_filedata *)(fp)->private_data)->pd
@@ -830,6 +845,7 @@ void ipath_disable_armlaunch(struct ipath_devdata *);
 		/* Suppress heartbeat, even if turning off loopback */
 #define IPATH_NO_HRTBT      0x1000000
 #define IPATH_HAS_MULT_IB_SPEED 0x8000000
+#define IPATH_IB_FORCE_NOTIFY 0x80000000 /* force notify on next ib change */
 
 /* Bits in GPIO for the added interrupts */
 #define IPATH_GPIO_PORT0_BIT 2
@@ -1027,6 +1043,21 @@ static inline u32 ipath_ib_linktrstate(struct ipath_devdata *dd, u64 ibcs)
 {
 	return (u32)(ibcs >> INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT) &
 		dd->ibcs_lts_mask;
+}
+
+/*
+ * from contents of IBCStatus (or a saved copy), return logical link state
+ * combination of link state and linktraining state (down, active, init,
+ * arm, etc.
+ */
+static inline u32 ipath_ib_state(struct ipath_devdata *dd, u64 ibcs)
+{
+	u32 ibs;
+	ibs = (u32)(ibcs >> INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT) &
+		dd->ibcs_lts_mask;
+	ibs |= (u32)(ibcs &
+		(INFINIPATH_IBCS_LINKSTATE_MASK << dd->ibcs_ls_shift));
+	return ibs;
 }
 
 /*

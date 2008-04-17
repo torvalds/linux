@@ -32,6 +32,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/delay.h>
 
 #include "ipath_kernel.h"
 #include "ipath_verbs.h"
@@ -256,24 +257,20 @@ void ipath_format_hwerrors(u64 hwerrs,
 }
 
 /* return the strings for the most common link states */
-static char *ib_linkstate(u32 linkstate)
+static char *ib_linkstate(struct ipath_devdata *dd, u64 ibcs)
 {
 	char *ret;
+	u32 state;
 
-	switch (linkstate) {
-	case IPATH_IBSTATE_INIT:
+	state = ipath_ib_state(dd, ibcs);
+	if (state == dd->ib_init)
 		ret = "Init";
-		break;
-	case IPATH_IBSTATE_ARM:
+	else if (state == dd->ib_arm)
 		ret = "Arm";
-		break;
-	case IPATH_IBSTATE_ACTIVE:
+	else if (state == dd->ib_active)
 		ret = "Active";
-		break;
-	default:
+	else
 		ret = "Down";
-	}
-
 	return ret;
 }
 
@@ -288,103 +285,137 @@ void signal_ib_event(struct ipath_devdata *dd, enum ib_event_type ev)
 }
 
 static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
-				     ipath_err_t errs, int noprint)
+				     ipath_err_t errs)
 {
-	u64 val;
-	u32 ltstate, lstate;
+	u32 ltstate, lstate, ibstate, lastlstate;
+	u32 init = dd->ib_init;
+	u32 arm = dd->ib_arm;
+	u32 active = dd->ib_active;
+	const u64 ibcs = ipath_read_kreg64(dd, dd->ipath_kregs->kr_ibcstatus);
+
+	lstate = ipath_ib_linkstate(dd, ibcs); /* linkstate */
+	ibstate = ipath_ib_state(dd, ibcs);
+	/* linkstate at last interrupt */
+	lastlstate = ipath_ib_linkstate(dd, dd->ipath_lastibcstat);
+	ltstate = ipath_ib_linktrstate(dd, ibcs); /* linktrainingtate */
 
 	/*
-	 * even if diags are enabled, we want to notice LINKINIT, etc.
-	 * We just don't want to change the LED state, or
-	 * dd->ipath_kregs->kr_ibcctrl
+	 * if linkstate transitions into INIT from any of the various down
+	 * states, or if it transitions from any of the up (INIT or better)
+	 * states into any of the down states (except link recovery), then
+	 * call the chip-specific code to take appropriate actions.
 	 */
-	val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_ibcstatus);
-	lstate = val & IPATH_IBSTATE_MASK;
-
-	/*
-	 * this is confusing enough when it happens that I want to always put it
-	 * on the console and in the logs.  If it was a requested state change,
-	 * we'll have already cleared the flags, so we won't print this warning
-	 */
-	if ((lstate != IPATH_IBSTATE_ARM && lstate != IPATH_IBSTATE_ACTIVE)
-		&& (dd->ipath_flags & (IPATH_LINKARMED | IPATH_LINKACTIVE))) {
-		dev_info(&dd->pcidev->dev, "Link state changed from %s to %s\n",
-				 (dd->ipath_flags & IPATH_LINKARMED) ? "ARM" : "ACTIVE",
-				 ib_linkstate(lstate));
-		/*
-		 * Flush all queued sends when link went to DOWN or INIT,
-		 * to be sure that they don't block SMA and other MAD packets
-		 */
-		ipath_cancel_sends(dd, 1);
-	}
-	else if (lstate == IPATH_IBSTATE_INIT || lstate == IPATH_IBSTATE_ARM ||
-	    lstate == IPATH_IBSTATE_ACTIVE) {
-		/*
-		 * only print at SMA if there is a change, debug if not
-		 * (sometimes we want to know that, usually not).
-		 */
-		if (lstate == ((unsigned) dd->ipath_lastibcstat
-			       & IPATH_IBSTATE_MASK)) {
-			ipath_dbg("Status change intr but no change (%s)\n",
-				  ib_linkstate(lstate));
+	if (lstate >= INFINIPATH_IBCS_L_STATE_INIT &&
+		lastlstate == INFINIPATH_IBCS_L_STATE_DOWN) {
+		/* transitioned to UP */
+		if (dd->ipath_f_ib_updown(dd, 1, ibcs)) {
+			ipath_cdbg(LINKVERB, "LinkUp handled, skipped\n");
+			goto skip_ibchange; /* chip-code handled */
 		}
-		else
-			ipath_cdbg(VERBOSE, "Unit %u link state %s, last "
-				   "was %s\n", dd->ipath_unit,
-				   ib_linkstate(lstate),
-				   ib_linkstate((unsigned)
-						dd->ipath_lastibcstat
-						& IPATH_IBSTATE_MASK));
+	} else if ((lastlstate >= INFINIPATH_IBCS_L_STATE_INIT ||
+		(dd->ipath_flags & IPATH_IB_FORCE_NOTIFY)) &&
+		ltstate <= INFINIPATH_IBCS_LT_STATE_CFGDEBOUNCE &&
+		ltstate != INFINIPATH_IBCS_LT_STATE_LINKUP) {
+		int handled;
+		handled = dd->ipath_f_ib_updown(dd, 0, ibcs);
+		dd->ipath_flags &= ~IPATH_IB_FORCE_NOTIFY;
+		if (handled) {
+			ipath_cdbg(LINKVERB, "LinkDown handled, skipped\n");
+			goto skip_ibchange; /* chip-code handled */
+		}
 	}
-	else {
-		lstate = dd->ipath_lastibcstat & IPATH_IBSTATE_MASK;
-		if (lstate == IPATH_IBSTATE_INIT ||
-		    lstate == IPATH_IBSTATE_ARM ||
-		    lstate == IPATH_IBSTATE_ACTIVE)
-			ipath_cdbg(VERBOSE, "Unit %u link state down"
-				   " (state 0x%x), from %s\n",
-				   dd->ipath_unit,
-				   (u32)val & IPATH_IBSTATE_MASK,
-				   ib_linkstate(lstate));
-		else
-			ipath_cdbg(VERBOSE, "Unit %u link state changed "
-				   "to 0x%x from down (%x)\n",
-				   dd->ipath_unit, (u32) val, lstate);
+
+	/*
+	 * Significant enough to always print and get into logs, if it was
+	 * unexpected.  If it was a requested state change, we'll have
+	 * already cleared the flags, so we won't print this warning
+	 */
+	if ((ibstate != arm && ibstate != active) &&
+	    (dd->ipath_flags & (IPATH_LINKARMED | IPATH_LINKACTIVE))) {
+		dev_info(&dd->pcidev->dev, "Link state changed from %s "
+			 "to %s\n", (dd->ipath_flags & IPATH_LINKARMED) ?
+			 "ARM" : "ACTIVE", ib_linkstate(dd, ibcs));
 	}
-	ltstate = (val >> INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT) &
-		INFINIPATH_IBCS_LINKTRAININGSTATE_MASK;
-	lstate = (val >> INFINIPATH_IBCS_LINKSTATE_SHIFT) &
-		INFINIPATH_IBCS_LINKSTATE_MASK;
 
 	if (ltstate == INFINIPATH_IBCS_LT_STATE_POLLACTIVE ||
 	    ltstate == INFINIPATH_IBCS_LT_STATE_POLLQUIET) {
-		u32 last_ltstate;
-
+		u32 lastlts;
+		lastlts = ipath_ib_linktrstate(dd, dd->ipath_lastibcstat);
 		/*
-		 * Ignore cycling back and forth from Polling.Active
-		 * to Polling.Quiet while waiting for the other end of
-		 * the link to come up. We will cycle back and forth
-		 * between them if no cable is plugged in,
-		 * the other device is powered off or disabled, etc.
+		 * Ignore cycling back and forth from Polling.Active to
+		 * Polling.Quiet while waiting for the other end of the link
+		 * to come up, except to try and decide if we are connected
+		 * to a live IB device or not.  We will cycle back and
+		 * forth between them if no cable is plugged in, the other
+		 * device is powered off or disabled, etc.
 		 */
-		last_ltstate = (dd->ipath_lastibcstat >>
-				INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT)
-			& INFINIPATH_IBCS_LINKTRAININGSTATE_MASK;
-		if (last_ltstate == INFINIPATH_IBCS_LT_STATE_POLLACTIVE
-		    || last_ltstate ==
-		    INFINIPATH_IBCS_LT_STATE_POLLQUIET) {
-			if (dd->ipath_ibpollcnt > 40) {
+		if (lastlts == INFINIPATH_IBCS_LT_STATE_POLLACTIVE ||
+		    lastlts == INFINIPATH_IBCS_LT_STATE_POLLQUIET) {
+			if (++dd->ipath_ibpollcnt == 40) {
 				dd->ipath_flags |= IPATH_NOCABLE;
 				*dd->ipath_statusp |=
 					IPATH_STATUS_IB_NOCABLE;
-			} else
-				dd->ipath_ibpollcnt++;
+				ipath_cdbg(LINKVERB, "Set NOCABLE\n");
+			}
+			ipath_cdbg(LINKVERB, "POLL change to %s (%x)\n",
+				ipath_ibcstatus_str[ltstate], ibstate);
 			goto skip_ibchange;
 		}
 	}
-	dd->ipath_ibpollcnt = 0;	/* some state other than 2 or 3 */
+
+	dd->ipath_ibpollcnt = 0; /* not poll*, now */
 	ipath_stats.sps_iblink++;
-	if (ltstate != INFINIPATH_IBCS_LT_STATE_LINKUP) {
+
+	if (ibstate == init || ibstate == arm || ibstate == active) {
+		*dd->ipath_statusp &= ~IPATH_STATUS_IB_NOCABLE;
+		if (ibstate == init || ibstate == arm) {
+			*dd->ipath_statusp &= ~IPATH_STATUS_IB_READY;
+			if (dd->ipath_flags & IPATH_LINKACTIVE)
+				signal_ib_event(dd, IB_EVENT_PORT_ERR);
+		}
+		if (ibstate == arm) {
+			dd->ipath_flags |= IPATH_LINKARMED;
+			dd->ipath_flags &= ~(IPATH_LINKUNK |
+				IPATH_LINKINIT | IPATH_LINKDOWN |
+				IPATH_LINKACTIVE | IPATH_NOCABLE);
+			ipath_hol_down(dd);
+		} else  if (ibstate == init) {
+			/*
+			 * set INIT and DOWN.  Down is checked by
+			 * most of the other code, but INIT is
+			 * useful to know in a few places.
+			 */
+			dd->ipath_flags |= IPATH_LINKINIT |
+				IPATH_LINKDOWN;
+			dd->ipath_flags &= ~(IPATH_LINKUNK |
+				IPATH_LINKARMED | IPATH_LINKACTIVE |
+				IPATH_NOCABLE);
+			ipath_hol_down(dd);
+		} else {  /* active */
+			*dd->ipath_statusp |=
+				IPATH_STATUS_IB_READY | IPATH_STATUS_IB_CONF;
+			dd->ipath_flags |= IPATH_LINKACTIVE;
+			dd->ipath_flags &= ~(IPATH_LINKUNK | IPATH_LINKINIT
+				| IPATH_LINKDOWN | IPATH_LINKARMED |
+				IPATH_NOCABLE);
+			signal_ib_event(dd, IB_EVENT_PORT_ACTIVE);
+			/* LED active not handled in chip _f_updown */
+			dd->ipath_f_setextled(dd, lstate, ltstate);
+			ipath_hol_up(dd);
+		}
+
+		/*
+		 * print after we've already done the work, so as not to
+		 * delay the state changes and notifications, for debugging
+		 */
+		if (lstate == lastlstate)
+			ipath_cdbg(LINKVERB, "Unchanged from last: %s "
+				"(%x)\n", ib_linkstate(dd, ibcs), ibstate);
+		else
+			ipath_cdbg(VERBOSE, "Unit %u: link up to %s %s (%x)\n",
+				  dd->ipath_unit, ib_linkstate(dd, ibcs),
+				  ipath_ibcstatus_str[ltstate],  ibstate);
+	} else { /* down */
 		if (dd->ipath_flags & IPATH_LINKACTIVE)
 			signal_ib_event(dd, IB_EVENT_PORT_ERR);
 		dd->ipath_flags |= IPATH_LINKDOWN;
@@ -393,65 +424,22 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 				     IPATH_LINKARMED);
 		*dd->ipath_statusp &= ~IPATH_STATUS_IB_READY;
 		dd->ipath_lli_counter = 0;
-		if (!noprint) {
-			if (((dd->ipath_lastibcstat >>
-			      INFINIPATH_IBCS_LINKSTATE_SHIFT) &
-			     INFINIPATH_IBCS_LINKSTATE_MASK)
-			    == INFINIPATH_IBCS_L_STATE_ACTIVE)
-				/* if from up to down be more vocal */
-				ipath_cdbg(VERBOSE,
-					   "Unit %u link now down (%s)\n",
-					   dd->ipath_unit,
-					   ipath_ibcstatus_str[ltstate]);
-			else
-				ipath_cdbg(VERBOSE, "Unit %u link is "
-					   "down (%s)\n", dd->ipath_unit,
-					   ipath_ibcstatus_str[ltstate]);
-		}
 
-		dd->ipath_f_setextled(dd, lstate, ltstate);
-	} else if ((val & IPATH_IBSTATE_MASK) == IPATH_IBSTATE_ACTIVE) {
-		dd->ipath_flags |= IPATH_LINKACTIVE;
-		dd->ipath_flags &=
-			~(IPATH_LINKUNK | IPATH_LINKINIT | IPATH_LINKDOWN |
-			  IPATH_LINKARMED | IPATH_NOCABLE);
-		*dd->ipath_statusp &= ~IPATH_STATUS_IB_NOCABLE;
-		*dd->ipath_statusp |=
-			IPATH_STATUS_IB_READY | IPATH_STATUS_IB_CONF;
-		dd->ipath_f_setextled(dd, lstate, ltstate);
-		signal_ib_event(dd, IB_EVENT_PORT_ACTIVE);
-	} else if ((val & IPATH_IBSTATE_MASK) == IPATH_IBSTATE_INIT) {
-		if (dd->ipath_flags & IPATH_LINKACTIVE)
-			signal_ib_event(dd, IB_EVENT_PORT_ERR);
-		/*
-		 * set INIT and DOWN.  Down is checked by most of the other
-		 * code, but INIT is useful to know in a few places.
-		 */
-		dd->ipath_flags |= IPATH_LINKINIT | IPATH_LINKDOWN;
-		dd->ipath_flags &=
-			~(IPATH_LINKUNK | IPATH_LINKACTIVE | IPATH_LINKARMED
-			  | IPATH_NOCABLE);
-		*dd->ipath_statusp &= ~(IPATH_STATUS_IB_NOCABLE
-					| IPATH_STATUS_IB_READY);
-		dd->ipath_f_setextled(dd, lstate, ltstate);
-	} else if ((val & IPATH_IBSTATE_MASK) == IPATH_IBSTATE_ARM) {
-		if (dd->ipath_flags & IPATH_LINKACTIVE)
-			signal_ib_event(dd, IB_EVENT_PORT_ERR);
-		dd->ipath_flags |= IPATH_LINKARMED;
-		dd->ipath_flags &=
-			~(IPATH_LINKUNK | IPATH_LINKDOWN | IPATH_LINKINIT |
-			  IPATH_LINKACTIVE | IPATH_NOCABLE);
-		*dd->ipath_statusp &= ~(IPATH_STATUS_IB_NOCABLE
-					| IPATH_STATUS_IB_READY);
-		dd->ipath_f_setextled(dd, lstate, ltstate);
-	} else {
-		if (!noprint)
-			ipath_dbg("IBstatuschange unit %u: %s (%x)\n",
-				  dd->ipath_unit,
-				  ipath_ibcstatus_str[ltstate], ltstate);
+		if (lastlstate != INFINIPATH_IBCS_L_STATE_DOWN)
+			ipath_cdbg(VERBOSE, "Unit %u link state down "
+				   "(state 0x%x), from %s\n",
+				   dd->ipath_unit, lstate,
+				   ib_linkstate(dd, dd->ipath_lastibcstat));
+		else
+			ipath_cdbg(LINKVERB, "Unit %u link state changed "
+				   "to %s (0x%x) from down (%x)\n",
+				   dd->ipath_unit,
+				   ipath_ibcstatus_str[ltstate],
+				   ibstate, lastlstate);
 	}
+
 skip_ibchange:
-	dd->ipath_lastibcstat = val;
+	dd->ipath_lastibcstat = ibcs;
 }
 
 static void handle_supp_msgs(struct ipath_devdata *dd,
@@ -743,16 +731,13 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		dd->ipath_flags &= ~(IPATH_LINKUNK | IPATH_LINKINIT
 				     | IPATH_LINKARMED | IPATH_LINKACTIVE);
 		*dd->ipath_statusp &= ~IPATH_STATUS_IB_READY;
-		if (!noprint) {
-			u64 st = ipath_read_kreg64(
-				dd, dd->ipath_kregs->kr_ibcstatus);
 
-			ipath_dbg("Lost link, link now down (%s)\n",
-				  ipath_ibcstatus_str[st & 0xf]);
-		}
+		ipath_dbg("Lost link, link now down (%s)\n",
+			ipath_ibcstatus_str[ipath_read_kreg64(dd,
+			dd->ipath_kregs->kr_ibcstatus) & 0xf]);
 	}
 	if (errs & INFINIPATH_E_IBSTATUSCHANGED)
-		handle_e_ibstatuschanged(dd, errs, noprint);
+		handle_e_ibstatuschanged(dd, errs);
 
 	if (errs & INFINIPATH_E_RESET) {
 		if (!noprint)
