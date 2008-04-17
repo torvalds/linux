@@ -215,38 +215,6 @@ static inline void ide_std_init_ports(hw_regs_t *hw,
 # define ide_init_default_irq(base)	(0)
 #endif
 
-#ifdef CONFIG_IDE_ARCH_OBSOLETE_INIT
-static inline void ide_init_hwif_ports(hw_regs_t *hw,
-				       unsigned long io_addr,
-				       unsigned long ctl_addr,
-				       int *irq)
-{
-	if (!ctl_addr)
-		ide_std_init_ports(hw, io_addr, ide_default_io_ctl(io_addr));
-	else
-		ide_std_init_ports(hw, io_addr, ctl_addr);
-
-	if (irq)
-		*irq = 0;
-
-	hw->io_ports[IDE_IRQ_OFFSET] = 0;
-
-#ifdef CONFIG_PPC32
-	if (ppc_ide_md.ide_init_hwif)
-		ppc_ide_md.ide_init_hwif(hw, io_addr, ctl_addr, irq);
-#endif
-}
-#else
-static inline void ide_init_hwif_ports(hw_regs_t *hw,
-				       unsigned long io_addr,
-				       unsigned long ctl_addr,
-				       int *irq)
-{
-	if (io_addr || ctl_addr)
-		printk(KERN_WARNING "%s: must not be called\n", __FUNCTION__);
-}
-#endif /* CONFIG_IDE_ARCH_OBSOLETE_INIT */
-
 /* Currently only m68k, apus and m8xx need it */
 #ifndef IDE_ARCH_ACK_INTR
 # define ide_ack_intr(hwif) (1)

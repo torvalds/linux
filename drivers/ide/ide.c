@@ -197,13 +197,20 @@ static void __init init_ide_data (void)
 	/* Initialise all interface structures */
 	for (index = 0; index < MAX_HWIFS; ++index) {
 		ide_hwif_t *hwif = &ide_hwifs[index];
+		unsigned long io_addr = ide_default_io_base(index);
+		unsigned long ctl_addr = ide_default_io_ctl(io_addr);
 
 		ide_init_port_data(hwif, index);
 
+#ifdef CONFIG_IDE_ARCH_OBSOLETE_INIT
 		memset(&hw, 0, sizeof(hw));
-		ide_init_hwif_ports(&hw, ide_default_io_base(index), 0,
-				    &hwif->irq);
+		ide_std_init_ports(&hw, io_addr, ctl_addr);
+# ifdef CONFIG_PPC32
+		if (ppc_ide_md.ide_init_hwif)
+			ppc_ide_md.ide_init_hwif(&hw, io_addr, 0, &hwif->irq);
+# endif
 		memcpy(hwif->io_ports, hw.io_ports, sizeof(hw.io_ports));
+#endif
 		hwif->noprobe = !hwif->io_ports[IDE_DATA_OFFSET];
 #if !defined(CONFIG_PPC32) || !defined(CONFIG_PCI)
 		hwif->irq =
