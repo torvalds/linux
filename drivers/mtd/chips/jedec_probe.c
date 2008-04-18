@@ -132,6 +132,8 @@
 #define M29F800AB	0x0058
 #define M29W800DT	0x00D7
 #define M29W800DB	0x005B
+#define M29W400DT	0x00EE
+#define M29W400DB	0x00EF
 #define M29W160DT	0x22C4
 #define M29W160DB	0x2249
 #define M29W040B	0x00E3
@@ -1455,6 +1457,36 @@ static const struct amd_flash_info jedec_table[] = {
 			ERASEINFO(0x02000,2),
 			ERASEINFO(0x08000,1),
 			ERASEINFO(0x10000,15)
+		}
+	},  {
+		.mfr_id         = MANUFACTURER_ST,
+		.dev_id         = M29W400DT,
+		.name           = "ST M29W400DT",
+		.devtypes       = CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
+		.uaddr          = MTD_UADDR_0x0AAA_0x0555,
+		.dev_size       = SIZE_512KiB,
+		.cmd_set        = P_ID_AMD_STD,
+		.nr_regions     = 4,
+		.regions        = {
+			ERASEINFO(0x04000,7),
+			ERASEINFO(0x02000,1),
+			ERASEINFO(0x08000,2),
+			ERASEINFO(0x10000,1)
+		}
+	}, {
+		.mfr_id         = MANUFACTURER_ST,
+		.dev_id         = M29W400DB,
+		.name           = "ST M29W400DB",
+		.devtypes       = CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
+		.uaddr          = MTD_UADDR_0x0AAA_0x0555,
+		.dev_size       = SIZE_512KiB,
+		.cmd_set        = P_ID_AMD_STD,
+		.nr_regions     = 4,
+		.regions        = {
+			ERASEINFO(0x04000,1),
+			ERASEINFO(0x02000,2),
+			ERASEINFO(0x08000,1),
+			ERASEINFO(0x10000,7)
 		}
 	}, {
 		.mfr_id		= MANUFACTURER_ST,	/* FIXME - CFI device? */
