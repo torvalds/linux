@@ -119,6 +119,8 @@ enum em28xx_stream_state {
 	STREAM_ON,
 };
 
+struct em28xx;
+
 struct em28xx_usb_isoc_ctl {
 		/* max packet size of isoc transaction */
 	int				max_pkt_size;
@@ -148,6 +150,10 @@ struct em28xx_usb_isoc_ctl {
 
 		/* Stores the number of received fields */
 	int				nfields;
+
+		/* isoc urb callback */
+	int (*isoc_copy) (struct em28xx *dev, struct urb *urb);
+
 };
 
 struct em28xx_fmt {
@@ -277,6 +283,12 @@ enum em28xx_dev_state {
 	DEV_INITIALIZED = 0x01,
 	DEV_DISCONNECTED = 0x02,
 	DEV_MISCONFIGURED = 0x04,
+};
+
+enum em28xx_capture_mode {
+	EM28XX_CAPTURE_OFF = 0,
+	EM28XX_ANALOG_CAPTURE,
+	EM28XX_DIGITAL_CAPTURE,
 };
 
 #define EM28XX_AUDIO_BUFS 5
@@ -452,6 +464,11 @@ int em28xx_capture_start(struct em28xx *dev, int start);
 int em28xx_outfmt_set_yuv422(struct em28xx *dev);
 int em28xx_resolution_set(struct em28xx *dev);
 int em28xx_set_alternate(struct em28xx *dev);
+int em28xx_init_isoc(struct em28xx *dev, int max_packets,
+		     int num_bufs, int max_pkt_size,
+		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb),
+		     int cap_type);
+void em28xx_uninit_isoc(struct em28xx *dev);
 
 /* Provided by em28xx-video.c */
 int em28xx_register_extension(struct em28xx_ops *dev);

@@ -285,11 +285,10 @@ static inline void get_next_buf(struct em28xx_dmaqueue *dma_q,
 /*
  * Controls the isoc copy of each urb packet
  */
-static inline int em28xx_isoc_copy(struct urb *urb)
+static inline int em28xx_isoc_copy(struct em28xx *dev, struct urb *urb)
 {
 	struct em28xx_buffer    *buf;
 	struct em28xx_dmaqueue  *dma_q = urb->context;
-	struct em28xx *dev = container_of(dma_q, struct em28xx, vidq);
 	unsigned char *outp = NULL;
 	int i, len = 0, rc = 1;
 	unsigned char *p;
@@ -371,188 +370,6 @@ static inline int em28xx_isoc_copy(struct urb *urb)
 }
 
 /* ------------------------------------------------------------------
-	URB control
-   ------------------------------------------------------------------*/
-
-/*
- * IRQ callback, called by URB callback
- */
-static void em28xx_irq_callback(struct urb *urb)
-{
-	struct em28xx_dmaqueue  *dma_q = urb->context;
-	struct em28xx *dev = container_of(dma_q, struct em28xx, vidq);
-	int rc, i;
-
-	/* Copy data from URB */
-	spin_lock(&dev->slock);
-	rc = em28xx_isoc_copy(urb);
-	spin_unlock(&dev->slock);
-
-	/* Reset urb buffers */
-	for (i = 0; i < urb->number_of_packets; i++) {
-		urb->iso_frame_desc[i].status = 0;
-		urb->iso_frame_desc[i].actual_length = 0;
-	}
-	urb->status = 0;
-
-	urb->status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (urb->status) {
-		em28xx_err("urb resubmit failed (error=%i)\n",
-			urb->status);
-	}
-}
-
-/*
- * Stop and Deallocate URBs
- */
-static void em28xx_uninit_isoc(struct em28xx *dev)
-{
-	struct urb *urb;
-	int i;
-
-	em28xx_isocdbg("em28xx: called em28xx_uninit_isoc\n");
-
-	dev->isoc_ctl.nfields = -1;
-	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
-		urb = dev->isoc_ctl.urb[i];
-		if (urb) {
-			usb_kill_urb(urb);
-			usb_unlink_urb(urb);
-			if (dev->isoc_ctl.transfer_buffer[i]) {
-				usb_buffer_free(dev->udev,
-						urb->transfer_buffer_length,
-						dev->isoc_ctl.transfer_buffer[i],
-						urb->transfer_dma);
-			}
-			usb_free_urb(urb);
-			dev->isoc_ctl.urb[i] = NULL;
-		}
-		dev->isoc_ctl.transfer_buffer[i] = NULL;
-	}
-
-	kfree(dev->isoc_ctl.urb);
-	kfree(dev->isoc_ctl.transfer_buffer);
-	dev->isoc_ctl.urb = NULL;
-	dev->isoc_ctl.transfer_buffer = NULL;
-
-	dev->isoc_ctl.num_bufs = 0;
-
-	em28xx_capture_start(dev, 0);
-}
-
-/*
- * Allocate URBs and start IRQ
- */
-static int em28xx_prepare_isoc(struct em28xx *dev, int max_packets,
-			       int num_bufs)
-{
-	struct em28xx_dmaqueue *dma_q = &dev->vidq;
-	int i;
-	int sb_size, pipe;
-	struct urb *urb;
-	int j, k;
-
-	em28xx_isocdbg("em28xx: called em28xx_prepare_isoc\n");
-
-	/* De-allocates all pending stuff */
-	em28xx_uninit_isoc(dev);
-
-	dev->isoc_ctl.num_bufs = num_bufs;
-
-	dev->isoc_ctl.urb = kzalloc(sizeof(void *)*num_bufs,  GFP_KERNEL);
-	if (!dev->isoc_ctl.urb) {
-		em28xx_errdev("cannot alloc memory for usb buffers\n");
-		return -ENOMEM;
-	}
-
-	dev->isoc_ctl.transfer_buffer = kzalloc(sizeof(void *)*num_bufs,
-					      GFP_KERNEL);
-	if (!dev->isoc_ctl.urb) {
-		em28xx_errdev("cannot allocate memory for usbtransfer\n");
-		kfree(dev->isoc_ctl.urb);
-		return -ENOMEM;
-	}
-
-	dev->isoc_ctl.max_pkt_size = dev->max_pkt_size;
-	dev->isoc_ctl.buf = NULL;
-
-	sb_size = max_packets * dev->isoc_ctl.max_pkt_size;
-
-	/* allocate urbs and transfer buffers */
-	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
-		urb = usb_alloc_urb(max_packets, GFP_KERNEL);
-		if (!urb) {
-			em28xx_err("cannot alloc isoc_ctl.urb %i\n", i);
-			em28xx_uninit_isoc(dev);
-			return -ENOMEM;
-		}
-		dev->isoc_ctl.urb[i] = urb;
-
-		dev->isoc_ctl.transfer_buffer[i] = usb_buffer_alloc(dev->udev,
-			sb_size, GFP_KERNEL, &urb->transfer_dma);
-		if (!dev->isoc_ctl.transfer_buffer[i]) {
-			em28xx_err("unable to allocate %i bytes for transfer"
-					" buffer %i%s\n",
-					sb_size, i,
-					in_interrupt()?" while in int":"");
-			em28xx_uninit_isoc(dev);
-			return -ENOMEM;
-		}
-		memset(dev->isoc_ctl.transfer_buffer[i], 0, sb_size);
-
-		/* FIXME: this is a hack - should be
-			'desc.bEndpointAddress & USB_ENDPOINT_NUMBER_MASK'
-			should also be using 'desc.bInterval'
-		 */
-		pipe = usb_rcvisocpipe(dev->udev, 0x82);
-		usb_fill_int_urb(urb, dev->udev, pipe,
-				 dev->isoc_ctl.transfer_buffer[i], sb_size,
-				 em28xx_irq_callback, dma_q, 1);
-
-		urb->number_of_packets = max_packets;
-		urb->transfer_flags = URB_ISO_ASAP;
-
-		k = 0;
-		for (j = 0; j < max_packets; j++) {
-			urb->iso_frame_desc[j].offset = k;
-			urb->iso_frame_desc[j].length =
-						dev->isoc_ctl.max_pkt_size;
-			k += dev->isoc_ctl.max_pkt_size;
-		}
-	}
-
-	return 0;
-}
-
-static int em28xx_start_thread(struct em28xx_dmaqueue  *dma_q)
-{
-	struct em28xx *dev = container_of(dma_q, struct em28xx, vidq);
-	int i, rc = 0;
-
-	em28xx_videodbg("Called em28xx_start_thread\n");
-
-	init_waitqueue_head(&dma_q->wq);
-
-	em28xx_capture_start(dev, 1);
-
-	/* submit urbs and enables IRQ */
-	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
-		rc = usb_submit_urb(dev->isoc_ctl.urb[i], GFP_ATOMIC);
-		if (rc) {
-			em28xx_err("submit of urb %i failed (error=%i)\n", i,
-				   rc);
-			em28xx_uninit_isoc(dev);
-			return rc;
-		}
-	}
-
-	if (rc < 0)
-		return rc;
-
-	return 0;
-}
-
-/* ------------------------------------------------------------------
 	Videobuf operations
    ------------------------------------------------------------------*/
 
@@ -615,7 +432,6 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	struct em28xx_fh     *fh  = vq->priv_data;
 	struct em28xx_buffer *buf = container_of(vb, struct em28xx_buffer, vb);
 	struct em28xx        *dev = fh->dev;
-	struct em28xx_dmaqueue *vidq = &dev->vidq;
 	int                  rc = 0, urb_init = 0;
 
 	/* FIXME: It assumes depth = 16 */
@@ -639,12 +455,9 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 		urb_init = 1;
 
 	if (urb_init) {
-		rc = em28xx_prepare_isoc(dev, EM28XX_NUM_PACKETS,
-					 EM28XX_NUM_BUFS);
-		if (rc < 0)
-			goto fail;
-
-		rc = em28xx_start_thread(vidq);
+		rc = em28xx_init_isoc(dev, EM28XX_NUM_PACKETS,
+				      EM28XX_NUM_BUFS, dev->max_pkt_size,
+				      em28xx_isoc_copy, EM28XX_ANALOG_CAPTURE);
 		if (rc < 0)
 			goto fail;
 	}
