@@ -194,9 +194,6 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = 1,
 		} },
-
-		/* gpio's 4, 1, 0 */
-		.analog_gpio = 0x003d2d,
 	},
 	[EM2880_BOARD_TERRATEC_HYBRID_XS] = {
 		.name         = "Terratec Hybrid XS",
@@ -445,73 +442,88 @@ static struct em28xx_hash_table em28xx_i2c_hash[] = {
 	{0xf51200e3, EM2800_BOARD_VGEAR_POCKETTV, TUNER_LG_PAL_NEW_TAPC},
 };
 
+int em28xx_tuner_callback(void *ptr, int command, int arg)
+{
+	int rc = 0, i;
+	struct em28xx *dev = ptr;
+	struct gpio_ctl (*gpio_ctl)[MAX_GPIO];
+
+	if (dev->tuner_type != TUNER_XC2028)
+		return 0;
+
+	if (command != XC2028_TUNER_RESET)
+		return 0;
+
+	if (dev->mode == EM28XX_ANALOG_MODE)
+		gpio_ctl = dev->analog_gpio;
+	else
+		gpio_ctl = dev->digital_gpio;
+
+	/* Send GPIO reset sequences specified at board entry */
+	for (i = 0; i < MAX_GPIO; i++) {
+		if (!gpio_ctl[i]->val)
+			break;
+
+		dev->em28xx_write_regs(dev,
+				       gpio_ctl[i]->reg,
+				       &gpio_ctl[i]->val, 1);
+		if (gpio_ctl[i]->t1)
+			msleep(gpio_ctl[i]->t1);
+
+		if (!gpio_ctl[i]->rst)
+			continue;
+		dev->em28xx_write_regs(dev,
+				       gpio_ctl[i]->reg,
+				       &gpio_ctl[i]->rst, 1);
+		if (gpio_ctl[i]->t2)
+			msleep(gpio_ctl[i]->t2);
+
+		dev->em28xx_write_regs(dev,
+				       gpio_ctl[i]->reg,
+				       &gpio_ctl[i]->val, 1);
+		if (gpio_ctl[i]->t3)
+			msleep(gpio_ctl[i]->t3);
+	}
+	return rc;
+}
+EXPORT_SYMBOL_GPL(em28xx_tuner_callback);
+
+static void em28xx_set_model(struct em28xx *dev)
+{
+	dev->is_em2800 = em28xx_boards[dev->model].is_em2800;
+	dev->has_msp34xx = em28xx_boards[dev->model].has_msp34xx;
+	dev->tda9887_conf = em28xx_boards[dev->model].tda9887_conf;
+	dev->decoder = em28xx_boards[dev->model].decoder;
+	dev->video_inputs = em28xx_boards[dev->model].vchannels;
+	dev->has_12mhz_i2s = em28xx_boards[dev->model].has_12mhz_i2s;
+	dev->max_range_640_480 = em28xx_boards[dev->model].max_range_640_480;
+	dev->has_dvb = em28xx_boards[dev->model].has_dvb;
+	dev->analog_gpio = &em28xx_boards[dev->model].analog_gpio;
+	dev->digital_gpio = &em28xx_boards[dev->model].digital_gpio;
+}
+
 /* Since em28xx_pre_card_setup() requires a proper dev->model,
  * this won't work for boards with generic PCI IDs
  */
 void em28xx_pre_card_setup(struct em28xx *dev)
 {
+	em28xx_set_model(dev);
+
 	/* request some modules */
 	switch (dev->model) {
 	case EM2880_BOARD_TERRATEC_PRODIGY_XS:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
-	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	case EM2880_BOARD_TERRATEC_HYBRID_XS:
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
 		em28xx_write_regs(dev, XCLK_REG, "\x27", 1);
 		em28xx_write_regs(dev, I2C_CLK_REG, "\x40", 1);
-		em28xx_write_regs(dev, 0x08, "\xff", 1);
-		em28xx_write_regs(dev, 0x04, "\x00", 1);
-		msleep(100);
-		em28xx_write_regs(dev, 0x04, "\x08", 1);
-		msleep(100);
-		em28xx_write_regs(dev, 0x08, "\xff", 1);
-		msleep(50);
-		em28xx_write_regs(dev, 0x08, "\x2d", 1);
-		msleep(50);
-		em28xx_write_regs(dev, 0x08, "\x3d", 1);
-		break;
 	}
-}
 
-static int em28xx_tuner_callback(void *ptr, int command, int arg)
-{
-	int rc = 0;
-	struct em28xx *dev = ptr;
-
-	if (dev->tuner_type != TUNER_XC2028)
-		return 0;
-
-	switch (command) {
-	case XC2028_TUNER_RESET:
-	{
-		/* GPIO and initialization codes for analog TV and radio
-		   This code should be complemented for DTV, since reset
-		   codes are different.
-		 */
-
-		dev->em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
-		dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x67", 1);
-
-		if (dev->analog_gpio) {
-			char gpio0 = dev->analog_gpio & 0xff;
-			char gpio1 = (dev->analog_gpio >> 8) & 0xff;
-			char gpio4 = dev->analog_gpio >> 24;
-
-			if (gpio4) {
-				dev->em28xx_write_regs(dev, 0x04, &gpio4, 1);
-				msleep(140);
-			}
-
-			msleep(6);
-			dev->em28xx_write_regs(dev, 0x08, &gpio0, 1);
-			msleep(10);
-			dev->em28xx_write_regs(dev, 0x08, &gpio1, 1);
-			msleep(5);
-		}
-
-		break;
-	}
-	}
-	return rc;
+	/* Put xc2028 tuners and demods into a sane state */
+	if (dev->tuner_type == TUNER_XC2028) {
+		dev->mode = EM28XX_DIGITAL_MODE;
+		em28xx_tuner_callback(dev, XC2028_TUNER_RESET, 0);
+	};
 }
 
 static void em28xx_config_tuner(struct em28xx *dev)
@@ -632,20 +644,6 @@ static int em28xx_hint_board(struct em28xx *dev)
 				i, em28xx_boards[i].name);
 	}
 	return -1;
-}
-
-
-static void em28xx_set_model(struct em28xx *dev)
-{
-	dev->is_em2800 = em28xx_boards[dev->model].is_em2800;
-	dev->has_msp34xx = em28xx_boards[dev->model].has_msp34xx;
-	dev->tda9887_conf = em28xx_boards[dev->model].tda9887_conf;
-	dev->decoder = em28xx_boards[dev->model].decoder;
-	dev->video_inputs = em28xx_boards[dev->model].vchannels;
-	dev->analog_gpio = em28xx_boards[dev->model].analog_gpio;
-	dev->has_12mhz_i2s = em28xx_boards[dev->model].has_12mhz_i2s;
-	dev->max_range_640_480 = em28xx_boards[dev->model].max_range_640_480;
-	dev->has_dvb = em28xx_boards[dev->model].has_dvb;
 }
 
 /* ----------------------------------------------------------------------- */

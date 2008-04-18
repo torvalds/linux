@@ -218,6 +218,21 @@ enum em28xx_decoder {
 	EM28XX_SAA7114
 };
 
+#define MAX_GPIO 2
+struct gpio_ctl {
+		/* Register to be set */
+	unsigned char reg;
+		/* Initial/final value */
+	unsigned char val;
+		/* reset value - if set, it will do:
+		   val1 - val2 - val1
+		 */
+	unsigned char rst;
+		/* Sleep times
+		 */
+	unsigned int  t1, t2, t3;
+};
+
 struct em28xx_board {
 	char *name;
 	int vchannels;
@@ -233,7 +248,8 @@ struct em28xx_board {
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
 
-	unsigned int analog_gpio;
+	struct gpio_ctl analog_gpio[MAX_GPIO];
+	struct gpio_ctl digital_gpio[MAX_GPIO];
 
 	enum em28xx_decoder decoder;
 
@@ -293,7 +309,6 @@ struct em28xx {
 	char name[30];		/* name (including minor) of the device */
 	int model;		/* index in the device_data struct */
 	int devno;		/* marks the number of this device */
-	unsigned int analog_gpio;
 	unsigned int is_em2800:1;
 	unsigned int has_msp34xx:1;
 	unsigned int has_tda9887:1;
@@ -302,6 +317,9 @@ struct em28xx {
 	unsigned int has_12mhz_i2s:1;
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
+
+	struct gpio_ctl (*analog_gpio)[MAX_GPIO];
+	struct gpio_ctl (*digital_gpio)[MAX_GPIO];
 
 	int video_inputs;	/* number of video inputs */
 	struct list_head	devlist;
@@ -443,6 +461,7 @@ extern struct em28xx_board em28xx_boards[];
 extern struct usb_device_id em28xx_id_table[];
 extern const unsigned int em28xx_bcount;
 void em28xx_set_ir(struct em28xx *dev, struct IR_i2c *ir);
+int em28xx_tuner_callback(void *ptr, int command, int arg);
 
 /* Provided by em28xx-input.c */
 /* TODO: Check if the standard get_key handlers on ir-common can be used */
