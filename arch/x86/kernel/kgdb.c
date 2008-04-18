@@ -375,12 +375,12 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 		newPC = linux_regs->ip;
 
 		/* clear the trace bit */
-		linux_regs->flags &= ~TF_MASK;
+		linux_regs->flags &= ~X86_EFLAGS_TF;
 		atomic_set(&kgdb_cpu_doing_single_step, -1);
 
 		/* set the trace bit if we're stepping */
 		if (remcomInBuffer[0] == 's') {
-			linux_regs->flags |= TF_MASK;
+			linux_regs->flags |= X86_EFLAGS_TF;
 			kgdb_single_step = 1;
 			if (kgdb_contthread) {
 				atomic_set(&kgdb_cpu_doing_single_step,
