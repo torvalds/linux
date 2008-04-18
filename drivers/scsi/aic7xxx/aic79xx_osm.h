@@ -360,7 +360,7 @@ struct ahd_platform_data {
 #define AHD_LINUX_NOIRQ	((uint32_t)~0)
 	uint32_t		 irq;		/* IRQ for this adapter */
 	uint32_t		 bios_address;
-	uint32_t		 mem_busaddr;	/* Mem Base Addr */
+	resource_size_t		 mem_busaddr;	/* Mem Base Addr */
 };
 
 /************************** OS Utility Wrappers *******************************/
