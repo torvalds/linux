@@ -32,9 +32,6 @@
 #define REALVIEW_SSRAM_BASE           /* REALVIEW_SSMC_BASE ? */
 #define REALVIEW_SSRAM_SIZE           SZ_2M
 
-#define REALVIEW_FLASH_BASE           0x40000000
-#define REALVIEW_FLASH_SIZE           SZ_64M
-
 /* 
  *  SDRAM
  */

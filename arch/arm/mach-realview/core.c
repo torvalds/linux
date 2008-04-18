@@ -109,21 +109,20 @@ static struct flash_platform_data realview_flash_data = {
 	.set_vpp		= realview_flash_set_vpp,
 };
 
-static struct resource realview_flash_resource = {
-	.start			= REALVIEW_FLASH_BASE,
-	.end			= REALVIEW_FLASH_BASE + REALVIEW_FLASH_SIZE,
-	.flags			= IORESOURCE_MEM,
-};
-
 struct platform_device realview_flash_device = {
 	.name			= "armflash",
 	.id			= 0,
 	.dev			= {
 		.platform_data	= &realview_flash_data,
 	},
-	.num_resources		= 1,
-	.resource		= &realview_flash_resource,
 };
+
+int realview_flash_register(struct resource *res, u32 num)
+{
+	realview_flash_device.resource = res;
+	realview_flash_device.num_resources = num;
+	return platform_device_register(&realview_flash_device);
+}
 
 static struct resource realview_i2c_resource = {
 	.start		= REALVIEW_I2C_BASE,

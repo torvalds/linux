@@ -223,6 +223,11 @@ static struct amba_device *amba_devs[] __initdata = {
 /*
  * RealView EB platform devices
  */
+static struct resource realview_eb_flash_resource = {
+	.start			= REALVIEW_EB_FLASH_BASE,
+	.end			= REALVIEW_EB_FLASH_BASE + REALVIEW_EB_FLASH_SIZE - 1,
+	.flags			= IORESOURCE_MEM,
+};
 
 static struct resource realview_eb_eth_resources[] = {
 	[0] = {
@@ -362,7 +367,7 @@ static void __init realview_eb_init(void)
 
 	clk_register(&realview_clcd_clk);
 
-	platform_device_register(&realview_flash_device);
+	realview_flash_register(&realview_eb_flash_resource, 1);
 	platform_device_register(&realview_i2c_device);
 	eth_device_register();
 
