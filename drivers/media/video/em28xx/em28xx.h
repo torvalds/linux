@@ -304,6 +304,18 @@ struct em28xx_audio {
 	spinlock_t slock;
 };
 
+struct em28xx;
+
+struct em28xx_fh {
+	struct em28xx *dev;
+	unsigned int  stream_on:1;	/* Locks streams */
+	int           radio;
+
+	struct videobuf_queue        vb_vidq;
+
+	enum v4l2_buf_type           type;
+};
+
 /* main device struct */
 struct em28xx {
 	/* generic device properties */
@@ -401,17 +413,8 @@ struct em28xx {
 #if defined(CONFIG_VIDEO_EM28XX_DVB) || defined(CONFIG_VIDEO_EM28XX_DVB_MODULE)
 	struct videobuf_dvb        dvb;
 	struct videobuf_queue_ops  *qops;
+	struct em28xx_fh	   dvb_fh;
 #endif
-};
-
-struct em28xx_fh {
-	struct em28xx *dev;
-	unsigned int  stream_on:1;	/* Locks streams */
-	int           radio;
-
-	struct videobuf_queue        vb_vidq;
-
-	enum v4l2_buf_type           type;
 };
 
 struct em28xx_ops {

@@ -45,6 +45,7 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 	struct em28xx_fh *fh = vq->priv_data;
 	struct em28xx        *dev = fh->dev;
 
+	/* FIXME: The better would be to allocate a smaller buffer */
 	*size = 16 * fh->dev->width * fh->dev->height >> 3;
 	if (0 == *count)
 		*count = EM28XX_DEF_BUF;
@@ -109,11 +110,16 @@ static int dvb_init(struct em28xx *dev)
 
 	dev->qops->buf_setup = buffer_setup;
 
+	/* FIXME: Do we need more initialization here? */
+	memset(&dev->dvb_fh, 0, sizeof (dev->dvb_fh));
+	dev->dvb_fh.dev = dev;
+	dev->dvb_fh.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
 	videobuf_queue_vmalloc_init(&dev->dvb.dvbq, dev->qops,
 			&dev->udev->dev, &dev->slock,
 			V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			V4L2_FIELD_ALTERNATE,
-			sizeof(struct em28xx_buffer), dev);
+			sizeof(struct em28xx_buffer), &dev->dvb_fh);
 
 	/* init frontend */
 	switch (dev->model) {
