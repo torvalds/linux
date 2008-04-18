@@ -255,8 +255,6 @@ static void __iop_adma_slot_cleanup(struct iop_adma_chan *iop_chan)
 
 	BUG_ON(!seen_current);
 
-	iop_chan_idle(busy, iop_chan);
-
 	if (cookie > 0) {
 		iop_chan->completed_cookie = cookie;
 		pr_debug("\tcompleted cookie %d\n", cookie);
@@ -1226,9 +1224,6 @@ static int __devinit iop_adma_probe(struct platform_device *pdev)
 	}
 
 	spin_lock_init(&iop_chan->lock);
-	init_timer(&iop_chan->cleanup_watchdog);
-	iop_chan->cleanup_watchdog.data = (unsigned long) iop_chan;
-	iop_chan->cleanup_watchdog.function = iop_adma_tasklet;
 	INIT_LIST_HEAD(&iop_chan->chain);
 	INIT_LIST_HEAD(&iop_chan->all_slots);
 	INIT_RCU_HEAD(&iop_chan->common.rcu);

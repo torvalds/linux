@@ -767,18 +767,10 @@ static inline int iop_desc_get_zero_result(struct iop_adma_desc_slot *desc)
 static inline void iop_chan_append(struct iop_adma_chan *chan)
 {
 	u32 dma_chan_ctrl;
-	/* workaround dropped interrupts on 3xx */
-	mod_timer(&chan->cleanup_watchdog, jiffies + msecs_to_jiffies(3));
 
 	dma_chan_ctrl = __raw_readl(DMA_CCR(chan));
 	dma_chan_ctrl |= 0x2;
 	__raw_writel(dma_chan_ctrl, DMA_CCR(chan));
-}
-
-static inline void iop_chan_idle(int busy, struct iop_adma_chan *chan)
-{
-	if (!busy)
-		del_timer(&chan->cleanup_watchdog);
 }
 
 static inline u32 iop_chan_get_status(struct iop_adma_chan *chan)
