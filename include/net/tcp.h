@@ -1142,6 +1142,16 @@ extern int			tcp_v4_md5_do_add(struct sock *sk,
 extern int			tcp_v4_md5_do_del(struct sock *sk,
 						  __be32 addr);
 
+#ifdef CONFIG_TCP_MD5SIG
+#define tcp_twsk_md5_key(twsk)	((twsk)->tw_md5_keylen ? 		 \
+				 &(struct tcp_md5sig_key) {		 \
+					.key = (twsk)->tw_md5_key,	 \
+					.keylen = (twsk)->tw_md5_keylen, \
+				} : NULL)
+#else
+#define tcp_twsk_md5_key(twsk)	NULL
+#endif
+
 extern struct tcp_md5sig_pool	**tcp_alloc_md5sig_pool(void);
 extern void			tcp_free_md5sig_pool(void);
 

@@ -96,6 +96,12 @@ static struct tcp_md5sig_key *tcp_v4_md5_do_lookup(struct sock *sk,
 static int tcp_v4_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 				   __be32 saddr, __be32 daddr,
 				   struct tcphdr *th, unsigned int tcplen);
+#else
+static inline
+struct tcp_md5sig_key *tcp_v4_md5_do_lookup(struct sock *sk, __be32 addr)
+{
+	return NULL;
+}
 #endif
 
 struct inet_hashinfo __cacheline_aligned tcp_hashinfo = {
@@ -604,9 +610,9 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
    outside socket context is ugly, certainly. What can I do?
  */
 
-static void tcp_v4_send_ack(struct tcp_timewait_sock *twsk,
-			    struct sk_buff *skb, u32 seq, u32 ack,
-			    u32 win, u32 ts)
+static void tcp_v4_send_ack(struct sk_buff *skb, u32 seq, u32 ack,
+			    u32 win, u32 ts, int oif,
+			    struct tcp_md5sig_key *key)
 {
 	struct tcphdr *th = tcp_hdr(skb);
 	struct {
@@ -618,10 +624,6 @@ static void tcp_v4_send_ack(struct tcp_timewait_sock *twsk,
 			];
 	} rep;
 	struct ip_reply_arg arg;
-#ifdef CONFIG_TCP_MD5SIG
-	struct tcp_md5sig_key *key;
-	struct tcp_md5sig_key tw_key;
-#endif
 
 	memset(&rep.th, 0, sizeof(struct tcphdr));
 	memset(&arg, 0, sizeof(arg));
@@ -647,23 +649,6 @@ static void tcp_v4_send_ack(struct tcp_timewait_sock *twsk,
 	rep.th.window  = htons(win);
 
 #ifdef CONFIG_TCP_MD5SIG
-	/*
-	 * The SKB holds an imcoming packet, but may not have a valid ->sk
-	 * pointer. This is especially the case when we're dealing with a
-	 * TIME_WAIT ack, because the sk structure is long gone, and only
-	 * the tcp_timewait_sock remains. So the md5 key is stashed in that
-	 * structure, and we use it in preference.  I believe that (twsk ||
-	 * skb->sk) holds true, but we program defensively.
-	 */
-	if (!twsk && skb->sk) {
-		key = tcp_v4_md5_do_lookup(skb->sk, ip_hdr(skb)->daddr);
-	} else if (twsk && twsk->tw_md5_keylen) {
-		tw_key.key = twsk->tw_md5_key;
-		tw_key.keylen = twsk->tw_md5_keylen;
-		key = &tw_key;
-	} else
-		key = NULL;
-
 	if (key) {
 		int offset = (ts) ? 3 : 0;
 
@@ -685,8 +670,8 @@ static void tcp_v4_send_ack(struct tcp_timewait_sock *twsk,
 				      ip_hdr(skb)->saddr, /* XXX */
 				      arg.iov[0].iov_len, IPPROTO_TCP, 0);
 	arg.csumoffset = offsetof(struct tcphdr, check) / 2;
-	if (twsk)
-		arg.bound_dev_if = twsk->tw_sk.tw_bound_dev_if;
+	if (oif)
+		arg.bound_dev_if = oif;
 
 	ip_send_reply(dev_net(skb->dev)->ipv4.tcp_sock, skb,
 		      &arg, arg.iov[0].iov_len);
@@ -699,9 +684,12 @@ static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 	struct inet_timewait_sock *tw = inet_twsk(sk);
 	struct tcp_timewait_sock *tcptw = tcp_twsk(sk);
 
-	tcp_v4_send_ack(tcptw, skb, tcptw->tw_snd_nxt, tcptw->tw_rcv_nxt,
+	tcp_v4_send_ack(skb, tcptw->tw_snd_nxt, tcptw->tw_rcv_nxt,
 			tcptw->tw_rcv_wnd >> tw->tw_rcv_wscale,
-			tcptw->tw_ts_recent);
+			tcptw->tw_ts_recent,
+			tw->tw_bound_dev_if,
+			tcp_twsk_md5_key(tcptw)
+			);
 
 	inet_twsk_put(tw);
 }
@@ -709,9 +697,11 @@ static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 static void tcp_v4_reqsk_send_ack(struct sk_buff *skb,
 				  struct request_sock *req)
 {
-	tcp_v4_send_ack(NULL, skb, tcp_rsk(req)->snt_isn + 1,
+	tcp_v4_send_ack(skb, tcp_rsk(req)->snt_isn + 1,
 			tcp_rsk(req)->rcv_isn + 1, req->rcv_wnd,
-			req->ts_recent);
+			req->ts_recent,
+			0,
+			tcp_v4_md5_do_lookup(skb->sk, ip_hdr(skb)->daddr));
 }
 
 /*
