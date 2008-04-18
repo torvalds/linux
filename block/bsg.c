@@ -699,14 +699,26 @@ static struct bsg_device *bsg_alloc_device(void)
 	return bd;
 }
 
+static void bsg_kref_release_function(struct kref *kref)
+{
+	struct bsg_class_device *bcd =
+		container_of(kref, struct bsg_class_device, ref);
+
+	if (bcd->release)
+		bcd->release(bcd->parent);
+
+	put_device(bcd->parent);
+}
+
 static int bsg_put_device(struct bsg_device *bd)
 {
-	int ret = 0;
-	struct device *dev = bd->queue->bsg_dev.dev;
+	int ret = 0, do_free;
+	struct request_queue *q = bd->queue;
 
 	mutex_lock(&bsg_mutex);
 
-	if (!atomic_dec_and_test(&bd->ref_count))
+	do_free = atomic_dec_and_test(&bd->ref_count);
+	if (!do_free)
 		goto out;
 
 	dprintk("%s: tearing down\n", bd->name);
@@ -723,12 +735,13 @@ static int bsg_put_device(struct bsg_device *bd)
 	 */
 	ret = bsg_complete_all_commands(bd);
 
-	blk_put_queue(bd->queue);
 	hlist_del(&bd->dev_list);
 	kfree(bd);
 out:
 	mutex_unlock(&bsg_mutex);
-	put_device(dev);
+	kref_put(&q->bsg_dev.ref, bsg_kref_release_function);
+	if (do_free)
+		blk_put_queue(q);
 	return ret;
 }
 
@@ -796,7 +809,7 @@ static struct bsg_device *bsg_get_device(struct inode *inode, struct file *file)
 	mutex_lock(&bsg_mutex);
 	bcd = idr_find(&bsg_minor_idr, iminor(inode));
 	if (bcd)
-		get_device(bcd->dev);
+		kref_get(&bcd->ref);
 	mutex_unlock(&bsg_mutex);
 
 	if (!bcd)
@@ -808,7 +821,7 @@ static struct bsg_device *bsg_get_device(struct inode *inode, struct file *file)
 
 	bd = bsg_add_device(inode, bcd->queue, file);
 	if (IS_ERR(bd))
-		put_device(bcd->dev);
+		kref_put(&bcd->ref, bsg_kref_release_function);
 
 	return bd;
 }
@@ -947,14 +960,14 @@ void bsg_unregister_queue(struct request_queue *q)
 	idr_remove(&bsg_minor_idr, bcd->minor);
 	sysfs_remove_link(&q->kobj, "bsg");
 	device_unregister(bcd->class_dev);
-	put_device(bcd->dev);
 	bcd->class_dev = NULL;
+	kref_put(&bcd->ref, bsg_kref_release_function);
 	mutex_unlock(&bsg_mutex);
 }
 EXPORT_SYMBOL_GPL(bsg_unregister_queue);
 
-int bsg_register_queue(struct request_queue *q, struct device *gdev,
-		       const char *name)
+int bsg_register_queue(struct request_queue *q, struct device *parent,
+		       const char *name, void (*release)(struct device *))
 {
 	struct bsg_class_device *bcd;
 	dev_t dev;
@@ -965,7 +978,7 @@ int bsg_register_queue(struct request_queue *q, struct device *gdev,
 	if (name)
 		devname = name;
 	else
-		devname = gdev->bus_id;
+		devname = parent->bus_id;
 
 	/*
 	 * we need a proper transport to send commands, not a stacked device
@@ -996,9 +1009,11 @@ int bsg_register_queue(struct request_queue *q, struct device *gdev,
 
 	bcd->minor = minor;
 	bcd->queue = q;
-	bcd->dev = get_device(gdev);
+	bcd->parent = get_device(parent);
+	bcd->release = release;
+	kref_init(&bcd->ref);
 	dev = MKDEV(bsg_major, bcd->minor);
-	class_dev = device_create(bsg_class, gdev, dev, "%s", devname);
+	class_dev = device_create(bsg_class, parent, dev, "%s", devname);
 	if (IS_ERR(class_dev)) {
 		ret = PTR_ERR(class_dev);
 		goto put_dev;
@@ -1017,7 +1032,7 @@ int bsg_register_queue(struct request_queue *q, struct device *gdev,
 unregister_class_dev:
 	device_unregister(class_dev);
 put_dev:
-	put_device(gdev);
+	put_device(parent);
 remove_idr:
 	idr_remove(&bsg_minor_idr, minor);
 unlock:

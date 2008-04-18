@@ -219,7 +219,7 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 	if (!q)
 		return -ENOMEM;
 
-	error = bsg_register_queue(q, dev, name);
+	error = bsg_register_queue(q, dev, name, NULL);
 	if (error) {
 		blk_cleanup_queue(q);
 		return -ENOMEM;

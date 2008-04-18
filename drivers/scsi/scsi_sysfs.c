@@ -889,7 +889,7 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 		goto out;
 	}
 
-	error = bsg_register_queue(rq, &sdev->sdev_gendev, NULL);
+	error = bsg_register_queue(rq, &sdev->sdev_gendev, NULL, NULL);
 
 	if (error)
 		sdev_printk(KERN_INFO, sdev,
