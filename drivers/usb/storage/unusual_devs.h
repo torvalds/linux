@@ -1349,6 +1349,13 @@ UNUSUAL_DEV( 0x0d96, 0x410a, 0x0001, 0xffff,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY),
 
+/* Reported by Rohan Hart <rohan.hart17@gmail.com> */
+UNUSUAL_DEV(  0x2770, 0x915d, 0x0010, 0x0010,
+		"INTOVA",
+		"Pixtreme",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
 /*
  * Entry for Jenoptik JD 5200z3
  *
