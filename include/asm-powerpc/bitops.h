@@ -312,7 +312,24 @@ static __inline__ int fls(unsigned int x)
 	asm ("cntlzw %0,%1" : "=r" (lz) : "r" (x));
 	return 32 - lz;
 }
+
+/*
+ * 64-bit can do this using one cntlzd (count leading zeroes doubleword)
+ * instruction; for 32-bit we use the generic version, which does two
+ * 32-bit fls calls.
+ */
+#ifdef __powerpc64__
+static __inline__ int fls64(__u64 x)
+{
+	int lz;
+
+	asm ("cntlzd %0,%1" : "=r" (lz) : "r" (x));
+	return 64 - lz;
+}
+#else
 #include <asm-generic/bitops/fls64.h>
+#endif /* __powerpc64__ */
+
 #include <asm-generic/bitops/hweight.h>
 #include <asm-generic/bitops/find.h>
 
