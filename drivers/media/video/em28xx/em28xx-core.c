@@ -153,7 +153,6 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 	ret = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0), req,
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      0x0000, reg, bufs, len, HZ);
-	msleep(5);		/* FIXME: magic number */
 	kfree(bufs);
 	return ret;
 }
