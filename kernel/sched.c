@@ -792,7 +792,7 @@ sched_feat_read(struct file *filp, char __user *ubuf,
 		if (sysctl_sched_features & (1UL << i))
 			r += sprintf(buf + r, "%s ", sched_feat_names[i]);
 		else
-			r += sprintf(buf + r, "no_%s ", sched_feat_names[i]);
+			r += sprintf(buf + r, "NO_%s ", sched_feat_names[i]);
 	}
 
 	r += sprintf(buf + r, "\n");
@@ -822,7 +822,7 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 
 	buf[cnt] = 0;
 
-	if (strncmp(buf, "no_", 3) == 0) {
+	if (strncmp(buf, "NO_", 3) == 0) {
 		neg = 1;
 		cmp += 3;
 	}
@@ -855,17 +855,6 @@ static struct file_operations sched_feat_fops = {
 
 static __init int sched_init_debug(void)
 {
-	int i, j, len;
-
-	for (i = 0; sched_feat_names[i]; i++) {
-		len = strlen(sched_feat_names[i]);
-
-		for (j = 0; j < len; j++) {
-			sched_feat_names[i][j] =
-				tolower(sched_feat_names[i][j]);
-		}
-	}
-
 	debugfs_create_file("sched_features", 0644, NULL, NULL,
 			&sched_feat_fops);
 
