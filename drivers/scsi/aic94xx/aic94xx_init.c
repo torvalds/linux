@@ -529,10 +529,10 @@ static void asd_remove_dev_attrs(struct asd_ha_struct *asd_ha)
 /* The first entry, 0, is used for dynamic ids, the rest for devices
  * we know about.
  */
-static struct asd_pcidev_struct {
+static const struct asd_pcidev_struct {
 	const char * name;
 	int (*setup)(struct asd_ha_struct *asd_ha);
-} asd_pcidev_data[] = {
+} asd_pcidev_data[] __devinitconst = {
 	/* Id 0 is used for dynamic ids. */
 	{ .name  = "Adaptec AIC-94xx SAS/SATA Host Adapter",
 	  .setup = asd_aic9410_setup
@@ -735,7 +735,7 @@ static int asd_unregister_sas_ha(struct asd_ha_struct *asd_ha)
 static int __devinit asd_pci_probe(struct pci_dev *dev,
 				   const struct pci_device_id *id)
 {
-	struct asd_pcidev_struct *asd_dev;
+	const struct asd_pcidev_struct *asd_dev;
 	unsigned asd_id = (unsigned) id->driver_data;
 	struct asd_ha_struct *asd_ha;
 	struct Scsi_Host *shost;
