@@ -111,5 +111,12 @@ int main(void)
   DEFINE(PROCINFO_INITFUNC,	offsetof(struct proc_info_list, __cpu_flush));
   DEFINE(PROCINFO_MM_MMUFLAGS,	offsetof(struct proc_info_list, __cpu_mm_mmu_flags));
   DEFINE(PROCINFO_IO_MMUFLAGS,	offsetof(struct proc_info_list, __cpu_io_mmu_flags));
+  BLANK();
+#ifdef MULTI_DABORT
+  DEFINE(PROCESSOR_DABT_FUNC,	offsetof(struct processor, _data_abort));
+#endif
+#ifdef MULTI_PABORT
+  DEFINE(PROCESSOR_PABT_FUNC,	offsetof(struct processor, _prefetch_abort));
+#endif
   return 0; 
 }

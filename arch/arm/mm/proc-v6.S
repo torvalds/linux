@@ -240,6 +240,7 @@ ENTRY(v6_processor_functions)
 	.word	cpu_v6_dcache_clean_area
 	.word	cpu_v6_switch_mm
 	.word	cpu_v6_set_pte_ext
+	.word	pabort_noifar
 	.size	v6_processor_functions, . - v6_processor_functions
 
 	.type	cpu_arch_name, #object

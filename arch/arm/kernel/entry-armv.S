@@ -166,12 +166,12 @@ __dabt_svc:
 	@ The abort handler must return the aborted address in r0, and
 	@ the fault status register in r1.  r9 must be preserved.
 	@
-#ifdef MULTI_ABORT
+#ifdef MULTI_DABORT
 	ldr	r4, .LCprocfns
 	mov	lr, pc
-	ldr	pc, [r4]
+	ldr	pc, [r4, #PROCESSOR_DABT_FUNC]
 #else
-	bl	CPU_ABORT_HANDLER
+	bl	CPU_DABORT_HANDLER
 #endif
 
 	@
@@ -293,7 +293,6 @@ __pabt_svc:
 	mrs	r9, cpsr
 	tst	r3, #PSR_I_BIT
 	biceq	r9, r9, #PSR_I_BIT
-	msr	cpsr_c, r9
 
 	@
 	@ set args, then call main handler
@@ -301,7 +300,15 @@ __pabt_svc:
 	@  r0 - address of faulting instruction
 	@  r1 - pointer to registers on stack
 	@
-	mov	r0, r2				@ address (pc)
+#ifdef MULTI_PABORT
+	mov	r0, r2			@ pass address of aborted instruction.
+	ldr	r4, .LCprocfns
+	mov	lr, pc
+	ldr	pc, [r4, #PROCESSOR_PABT_FUNC]
+#else
+	CPU_PABORT_HANDLER(r0, r2)
+#endif
+	msr	cpsr_c, r9			@ Maybe enable interrupts
 	mov	r1, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler
 
@@ -320,7 +327,7 @@ __pabt_svc:
 	.align	5
 .LCcralign:
 	.word	cr_alignment
-#ifdef MULTI_ABORT
+#ifdef MULTI_DABORT
 .LCprocfns:
 	.word	processor
 #endif
@@ -404,12 +411,12 @@ __dabt_usr:
 	@ The abort handler must return the aborted address in r0, and
 	@ the fault status register in r1.
 	@
-#ifdef MULTI_ABORT
+#ifdef MULTI_DABORT
 	ldr	r4, .LCprocfns
 	mov	lr, pc
-	ldr	pc, [r4]
+	ldr	pc, [r4, #PROCESSOR_DABT_FUNC]
 #else
-	bl	CPU_ABORT_HANDLER
+	bl	CPU_DABORT_HANDLER
 #endif
 
 	@
@@ -619,8 +626,15 @@ __und_usr_unknown:
 __pabt_usr:
 	usr_entry
 
+#ifdef MULTI_PABORT
+	mov	r0, r2			@ pass address of aborted instruction.
+	ldr	r4, .LCprocfns
+	mov	lr, pc
+	ldr	pc, [r4, #PROCESSOR_PABT_FUNC]
+#else
+	CPU_PABORT_HANDLER(r0, r2)
+#endif
 	enable_irq				@ Enable interrupts
-	mov	r0, r2				@ address (pc)
 	mov	r1, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler
 	/* fall through */
