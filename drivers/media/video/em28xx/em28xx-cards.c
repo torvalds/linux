@@ -435,14 +435,14 @@ MODULE_DEVICE_TABLE(usb, em28xx_id_table);
  */
 
 /* Board Hauppauge WinTV HVR 900 analog */
-struct em28xx_reg_seq hauppauge_wintv_hvr_900_analog[] = {
+static struct em28xx_reg_seq hauppauge_wintv_hvr_900_analog[] = {
 	{EM28XX_R08_GPIO,	0x2d,	~EM_GPIO_4,	10},
 	{0x05,			0xff,	0x10,		10},
 	{  -1,			-1,	-1,		-1},
 };
 
 /* Board Hauppauge WinTV HVR 900 digital */
-struct em28xx_reg_seq hauppauge_wintv_hvr_900_digital[] = {
+static struct em28xx_reg_seq hauppauge_wintv_hvr_900_digital[] = {
 	{EM28XX_R08_GPIO,	0x2e,	~EM_GPIO_4,	10},
 	{EM2880_R04_GPO,	0x04,	0x0f,		10},
 	{EM2880_R04_GPO,	0x0c,	0x0f,		10},
@@ -450,7 +450,7 @@ struct em28xx_reg_seq hauppauge_wintv_hvr_900_digital[] = {
 };
 
 /* Board Hauppauge WinTV HVR 900 tuner_callback */
-struct em28xx_reg_seq hauppauge_wintv_hvr_900_tuner_callback[] = {
+static struct em28xx_reg_seq hauppauge_wintv_hvr_900_tuner_callback[] = {
 	{EM28XX_R08_GPIO,	EM_GPIO_4,	EM_GPIO_4,	10},
 	{EM28XX_R08_GPIO,	0,		EM_GPIO_4,	10},
 	{EM28XX_R08_GPIO,	EM_GPIO_4,	EM_GPIO_4,	10},
@@ -554,7 +554,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	em28xx_set_mode(dev, EM28XX_MODE_UNDEFINED);
 }
 
-void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
+static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 {
 	memset(ctl, 0, sizeof(*ctl));
 
@@ -571,7 +571,6 @@ void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 		ctl->demod = XC3028_FE_OREN538;
 	}
 }
-EXPORT_SYMBOL_GPL(em28xx_setup_xc3028);
 
 static void em28xx_config_tuner(struct em28xx *dev)
 {
