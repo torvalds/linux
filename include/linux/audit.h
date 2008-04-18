@@ -549,16 +549,20 @@ extern void		    audit_log_format(struct audit_buffer *ab,
 					     const char *fmt, ...)
 			    __attribute__((format(printf,2,3)));
 extern void		    audit_log_end(struct audit_buffer *ab);
-extern void		    audit_log_hex(struct audit_buffer *ab,
-					  const unsigned char *buf,
-					  size_t len);
 extern int		    audit_string_contains_control(const char *string,
 							  size_t len);
+extern void		    audit_log_n_hex(struct audit_buffer *ab,
+					  const unsigned char *buf,
+					  size_t len);
+extern void		    audit_log_n_string(struct audit_buffer *ab,
+					       const char *buf,
+					       size_t n);
+#define audit_log_string(a,b) audit_log_n_string(a, b, strlen(b));
+extern void		    audit_log_n_untrustedstring(struct audit_buffer *ab,
+							const char *string,
+							size_t n);
 extern void		    audit_log_untrustedstring(struct audit_buffer *ab,
 						      const char *string);
-extern void		    audit_log_n_untrustedstring(struct audit_buffer *ab,
-							size_t n,
-							const char *string);
 extern void		    audit_log_d_path(struct audit_buffer *ab,
 					     const char *prefix,
 					     struct path *path);
@@ -578,9 +582,11 @@ extern int audit_enabled;
 #define audit_log_vformat(b,f,a) do { ; } while (0)
 #define audit_log_format(b,f,...) do { ; } while (0)
 #define audit_log_end(b) do { ; } while (0)
-#define audit_log_hex(a,b,l) do { ; } while (0)
-#define audit_log_untrustedstring(a,s) do { ; } while (0)
+#define audit_log_n_hex(a,b,l) do { ; } while (0)
+#define audit_log_n_string(a,c,l) do { ; } while (0)
+#define audit_log_string(a,c) do { ; } while (0)
 #define audit_log_n_untrustedstring(a,n,s) do { ; } while (0)
+#define audit_log_untrustedstring(a,s) do { ; } while (0)
 #define audit_log_d_path(b, p, d) do { ; } while (0)
 #define audit_enabled 0
 #endif

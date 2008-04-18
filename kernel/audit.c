@@ -757,8 +757,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 				audit_log_format(ab, " msg=");
 				size = nlmsg_len(nlh);
-				audit_log_n_untrustedstring(ab, size,
-							    data);
+				audit_log_n_untrustedstring(ab, data, size);
 			}
 			audit_set_pid(ab, pid);
 			audit_log_end(ab);
@@ -1293,7 +1292,7 @@ void audit_log_format(struct audit_buffer *ab, const char *fmt, ...)
  * This function will take the passed buf and convert it into a string of
  * ascii hex digits. The new string is placed onto the skb.
  */
-void audit_log_hex(struct audit_buffer *ab, const unsigned char *buf,
+void audit_log_n_hex(struct audit_buffer *ab, const unsigned char *buf,
 		size_t len)
 {
 	int i, avail, new_len;
@@ -1329,8 +1328,8 @@ void audit_log_hex(struct audit_buffer *ab, const unsigned char *buf,
  * Format a string of no more than slen characters into the audit buffer,
  * enclosed in quote marks.
  */
-static void audit_log_n_string(struct audit_buffer *ab, size_t slen,
-			       const char *string)
+void audit_log_n_string(struct audit_buffer *ab, const char *string,
+			size_t slen)
 {
 	int avail, new_len;
 	unsigned char *ptr;
@@ -1386,13 +1385,13 @@ int audit_string_contains_control(const char *string, size_t len)
  * The caller specifies the number of characters in the string to log, which may
  * or may not be the entire string.
  */
-void audit_log_n_untrustedstring(struct audit_buffer *ab, size_t len,
-				 const char *string)
+void audit_log_n_untrustedstring(struct audit_buffer *ab, const char *string,
+				 size_t len)
 {
 	if (audit_string_contains_control(string, len))
-		audit_log_hex(ab, string, len);
+		audit_log_n_hex(ab, string, len);
 	else
-		audit_log_n_string(ab, len, string);
+		audit_log_n_string(ab, string, len);
 }
 
 /**
@@ -1405,7 +1404,7 @@ void audit_log_n_untrustedstring(struct audit_buffer *ab, size_t len,
  */
 void audit_log_untrustedstring(struct audit_buffer *ab, const char *string)
 {
-	audit_log_n_untrustedstring(ab, strlen(string), string);
+	audit_log_n_untrustedstring(ab, string, strlen(string));
 }
 
 /* This is a helper-function to print the escaped d_path */

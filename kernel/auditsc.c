@@ -1095,7 +1095,7 @@ static int audit_log_single_execve_arg(struct audit_context *context,
 			audit_log_format(*ab, "[%d]", i);
 		audit_log_format(*ab, "=");
 		if (has_cntl)
-			audit_log_hex(*ab, buf, to_send);
+			audit_log_n_hex(*ab, buf, to_send);
 		else
 			audit_log_format(*ab, "\"%s\"", buf);
 		audit_log_format(*ab, "\n");
@@ -1307,7 +1307,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			struct audit_aux_data_sockaddr *axs = (void *)aux;
 
 			audit_log_format(ab, "saddr=");
-			audit_log_hex(ab, axs->a, axs->len);
+			audit_log_n_hex(ab, axs->a, axs->len);
 			break; }
 
 		case AUDIT_FD_PAIR: {
@@ -1371,8 +1371,8 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			default:
 				/* log the name's directory component */
 				audit_log_format(ab, " name=");
-				audit_log_n_untrustedstring(ab, n->name_len,
-							    n->name);
+				audit_log_n_untrustedstring(ab, n->name,
+							    n->name_len);
 			}
 		} else
 			audit_log_format(ab, " name=(null)");
