@@ -201,6 +201,18 @@ static int stop_feed(struct dvb_demux_feed *feed)
 }
 
 
+
+/* ------------------------------------------------------------------ */
+static int em28xx_dvb_bus_ctrl(struct dvb_frontend *fe, int acquire)
+{
+	struct em28xx *dev = fe->dvb->priv;
+
+	if (acquire)
+		return em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
+	else
+		return em28xx_set_mode(dev, EM28XX_MODE_UNDEFINED);
+}
+
 /* ------------------------------------------------------------------ */
 
 static struct lgdt330x_config em2880_lgdt3303_dev = {
@@ -268,6 +280,10 @@ int register_dvb(struct em28xx_dvb *dvb,
 		       dev->name, result);
 		goto fail_adapter;
 	}
+
+	/* Ensure all frontends negotiate bus access */
+	dvb->frontend->ops.ts_bus_ctrl = em28xx_dvb_bus_ctrl;
+
 	dvb->adapter.priv = dev;
 
 	/* register frontend */
@@ -287,6 +303,7 @@ int register_dvb(struct em28xx_dvb *dvb,
 	dvb->demux.feednum    = 256;
 	dvb->demux.start_feed = start_feed;
 	dvb->demux.stop_feed  = stop_feed;
+
 	result = dvb_dmx_init(&dvb->demux);
 	if (result < 0) {
 		printk(KERN_WARNING "%s: dvb_dmx_init failed (errno = %d)\n",
