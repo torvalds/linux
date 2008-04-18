@@ -19,7 +19,6 @@ config MPC8540_ADS
 config MPC8560_ADS
 	bool "Freescale MPC8560 ADS"
 	select DEFAULT_UIMAGE
-	select PPC_CPM_NEW_BINDING
 	select CPM2
 	help
 	  This option enables support for the MPC 8560 ADS board
@@ -48,7 +47,6 @@ config MPC85xx_DS
 
 config KSI8560
         bool "Emerson KSI8560"
-        select PPC_CPM_NEW_BINDING
         select DEFAULT_UIMAGE
         help
           This option enables support for the Emerson KSI8560 board
@@ -60,14 +58,12 @@ config STX_GP3
 	  board.
 	select CPM2
 	select DEFAULT_UIMAGE
-	select PPC_CPM_NEW_BINDING
 
 config TQM8540
 	bool "TQ Components TQM8540"
 	help
 	  This option enables support for the TQ Components TQM8540 board.
 	select DEFAULT_UIMAGE
-	select PPC_CPM_NEW_BINDING
 	select TQM85xx
 
 config TQM8541
@@ -75,7 +71,6 @@ config TQM8541
 	help
 	  This option enables support for the TQ Components TQM8541 board.
 	select DEFAULT_UIMAGE
-	select PPC_CPM_NEW_BINDING
 	select TQM85xx
 	select CPM2
 
@@ -84,7 +79,6 @@ config TQM8555
 	help
 	  This option enables support for the TQ Components TQM8555 board.
 	select DEFAULT_UIMAGE
-	select PPC_CPM_NEW_BINDING
 	select TQM85xx
 	select CPM2
 
@@ -93,7 +87,6 @@ config TQM8560
 	help
 	  This option enables support for the TQ Components TQM8560 board.
 	select DEFAULT_UIMAGE
-	select PPC_CPM_NEW_BINDING
 	select TQM85xx
 	select CPM2
 
@@ -106,7 +99,6 @@ config SBC8548
 config SBC8560
 	bool "Wind River SBC8560"
 	select DEFAULT_UIMAGE
-	select PPC_CPM_NEW_BINDING if CPM2
 	help
 	  This option enables support for the Wind River SBC8560 board
 

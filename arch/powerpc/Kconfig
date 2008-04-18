@@ -520,6 +520,11 @@ config FSL_PCI
 config 4xx_SOC
 	bool
 
+config FSL_LBC
+	bool
+	help
+	  Freescale Localbus support
+
 # Yes MCA RS/6000s exist but Linux-PPC does not currently support any
 config MCA
 	bool

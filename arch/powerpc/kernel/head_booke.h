@@ -56,8 +56,17 @@
  * is necessary since the MMU is always on, for Book-E parts, and the stacks
  * are offset from KERNELBASE.
  *
+ * There is some space optimization to be had here if desired.  However
+ * to allow for a common kernel with support for debug exceptions either
+ * going to critical or their own debug level we aren't currently
+ * providing configurations that micro-optimize space usage.
  */
-#define BOOKE_EXCEPTION_STACK_SIZE	(8192)
+#ifdef CONFIG_44x
+#define NUM_EXCEPTION_LVLS	2
+#else
+#define NUM_EXCEPTION_LVLS	3
+#endif
+#define BOOKE_EXCEPTION_STACK_SIZE	(4096 * NUM_EXCEPTION_LVLS)
 
 /* CRIT_SPRG only used in critical exception handling */
 #define CRIT_SPRG	SPRN_SPRG2
@@ -68,7 +77,7 @@
 #define CRIT_STACK_TOP		(exception_stack_top)
 
 /* only on e200 for now */
-#define DEBUG_STACK_TOP		(exception_stack_top - 4096)
+#define DEBUG_STACK_TOP		(exception_stack_top - 8192)
 #define DEBUG_SPRG		SPRN_SPRG6W
 
 #ifdef CONFIG_SMP
@@ -212,9 +221,8 @@ label:
  * save (and later restore) the MSR via SPRN_CSRR1, which will still have
  * the MSR_DE bit set.
  */
-#ifdef CONFIG_E200
-#define DEBUG_EXCEPTION							      \
-	START_EXCEPTION(Debug);						      \
+#define DEBUG_DEBUG_EXCEPTION						      \
+	START_EXCEPTION(DebugDebug);					      \
 	DEBUG_EXCEPTION_PROLOG;						      \
 									      \
 	/*								      \
@@ -234,8 +242,8 @@ label:
 	cmplw	r12,r10;						      \
 	blt+	2f;			/* addr below exception vectors */    \
 									      \
-	lis	r10,Debug@h;						      \
-	ori	r10,r10,Debug@l;					      \
+	lis	r10,DebugDebug@h;					      \
+	ori	r10,r10,DebugDebug@l;					      \
 	cmplw	r12,r10;						      \
 	bgt+	2f;			/* addr above exception vectors */    \
 									      \
@@ -265,9 +273,9 @@ label:
 2:	mfspr	r4,SPRN_DBSR;						      \
 	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
 	EXC_XFER_TEMPLATE(DebugException, 0x2002, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), NOCOPY, debug_transfer_to_handler, ret_from_debug_exc)
-#else
-#define DEBUG_EXCEPTION							      \
-	START_EXCEPTION(Debug);						      \
+
+#define DEBUG_CRIT_EXCEPTION						      \
+	START_EXCEPTION(DebugCrit);					      \
 	CRITICAL_EXCEPTION_PROLOG;					      \
 									      \
 	/*								      \
@@ -287,8 +295,8 @@ label:
 	cmplw	r12,r10;						      \
 	blt+	2f;			/* addr below exception vectors */    \
 									      \
-	lis	r10,Debug@h;						      \
-	ori	r10,r10,Debug@l;					      \
+	lis	r10,DebugCrit@h;						      \
+	ori	r10,r10,DebugCrit@l;					      \
 	cmplw	r12,r10;						      \
 	bgt+	2f;			/* addr above exception vectors */    \
 									      \
@@ -318,7 +326,6 @@ label:
 2:	mfspr	r4,SPRN_DBSR;						      \
 	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
 	EXC_XFER_TEMPLATE(DebugException, 0x2002, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), NOCOPY, crit_transfer_to_handler, ret_from_crit_exc)
-#endif
 
 #define INSTRUCTION_STORAGE_EXCEPTION					      \
 	START_EXCEPTION(InstructionStorage)				      \

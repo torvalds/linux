@@ -121,8 +121,7 @@
 
 				data@0 {
 					compatible = "fsl,cpm-muram-data";
-					reg = <0 0x1100 0x1140
-					       0xec0 0x9800 0x800>;
+					reg = <0 0x2000 0x9800 0x800>;
 				};
 			};
 
@@ -138,7 +137,7 @@
 				device_type = "serial";
 				compatible = "fsl,mpc8248-smc-uart",
 				             "fsl,cpm2-smc-uart";
-				reg = <0x11a80 0x20 0x1100 0x40>;
+				reg = <0x11a80 0x20 0x87fc 2>;
 				interrupts = <4 8>;
 				interrupt-parent = <&PIC>;
 				fsl,cpm-brg = <7>;
