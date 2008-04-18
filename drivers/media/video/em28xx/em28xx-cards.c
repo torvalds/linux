@@ -52,26 +52,6 @@ struct em28xx_hash_table {
 	unsigned int  tuner;
 };
 
-/* Boards supported by driver */
-
-#define EM2800_BOARD_UNKNOWN			0
-#define EM2820_BOARD_UNKNOWN			1
-#define EM2820_BOARD_TERRATEC_CINERGY_250	2
-#define EM2820_BOARD_PINNACLE_USB_2		3
-#define EM2820_BOARD_HAUPPAUGE_WINTV_USB_2      4
-#define EM2820_BOARD_MSI_VOX_USB_2              5
-#define EM2800_BOARD_TERRATEC_CINERGY_200       6
-#define EM2800_BOARD_LEADTEK_WINFAST_USBII      7
-#define EM2800_BOARD_KWORLD_USB2800             8
-#define EM2820_BOARD_PINNACLE_DVC_90		9
-#define EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900	10
-#define EM2880_BOARD_TERRATEC_HYBRID_XS		11
-#define EM2820_BOARD_KWORLD_PVRTV2800RF		12
-#define EM2880_BOARD_TERRATEC_PRODIGY_XS	13
-#define EM2820_BOARD_PROLINK_PLAYTV_USB2	14
-#define EM2800_BOARD_VGEAR_POCKETTV             15
-#define EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950	16
-
 struct em28xx_board em28xx_boards[] = {
 	[EM2800_BOARD_UNKNOWN] = {
 		.name         = "Unknown EM2800 video grabber",
@@ -665,6 +645,7 @@ static void em28xx_set_model(struct em28xx *dev)
 	dev->analog_gpio = em28xx_boards[dev->model].analog_gpio;
 	dev->has_12mhz_i2s = em28xx_boards[dev->model].has_12mhz_i2s;
 	dev->max_range_640_480 = em28xx_boards[dev->model].max_range_640_480;
+	dev->has_dvb = em28xx_boards[dev->model].has_dvb;
 }
 
 /* ----------------------------------------------------------------------- */

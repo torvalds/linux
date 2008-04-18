@@ -31,6 +31,32 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <media/ir-kbd-i2c.h>
+#if defined(CONFIG_VIDEO_EM28XX_DVB) || defined(CONFIG_VIDEO_EM28XX_DVB_MODULE)
+#include <media/videobuf-dvb.h>
+#endif
+
+/* Boards supported by driver */
+#define EM2800_BOARD_UNKNOWN			0
+#define EM2820_BOARD_UNKNOWN			1
+#define EM2820_BOARD_TERRATEC_CINERGY_250	2
+#define EM2820_BOARD_PINNACLE_USB_2		3
+#define EM2820_BOARD_HAUPPAUGE_WINTV_USB_2      4
+#define EM2820_BOARD_MSI_VOX_USB_2              5
+#define EM2800_BOARD_TERRATEC_CINERGY_200       6
+#define EM2800_BOARD_LEADTEK_WINFAST_USBII      7
+#define EM2800_BOARD_KWORLD_USB2800             8
+#define EM2820_BOARD_PINNACLE_DVC_90		9
+#define EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900	10
+#define EM2880_BOARD_TERRATEC_HYBRID_XS		11
+#define EM2820_BOARD_KWORLD_PVRTV2800RF		12
+#define EM2880_BOARD_TERRATEC_PRODIGY_XS	13
+#define EM2820_BOARD_PROLINK_PLAYTV_USB2	14
+#define EM2800_BOARD_VGEAR_POCKETTV             15
+#define EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950	16
+
+/* Limits minimum and default number of buffers */
+#define EM28XX_MIN_BUF 4
+#define EM28XX_DEF_BUF 8
 
 /* maximum number of em28xx boards */
 #define EM28XX_MAXBOARDS 4 /*FIXME: should be bigger */
@@ -80,6 +106,11 @@
 
 /* time in msecs to wait for i2c writes to finish */
 #define EM2800_I2C_WRITE_TIMEOUT 20
+
+enum em28xx_mode {
+	EM28XX_ANALOG_MODE,
+	EM28XX_DIGITAL_MODE,
+};
 
 enum em28xx_stream_state {
 	STREAM_OFF,
@@ -200,6 +231,7 @@ struct em28xx_board {
 	unsigned int mts_firmware:1;
 	unsigned int has_12mhz_i2s:1;
 	unsigned int max_range_640_480:1;
+	unsigned int has_dvb:1;
 
 	unsigned int analog_gpio;
 
@@ -234,7 +266,10 @@ enum em28xx_dev_state {
 #define EM28XX_NUM_AUDIO_PACKETS 64
 #define EM28XX_AUDIO_MAX_PACKET_SIZE 196 /* static value */
 #define EM28XX_CAPTURE_STREAM_EN 1
+
+/* em28xx extensions */
 #define EM28XX_AUDIO   0x10
+#define EM28XX_DVB     0x20
 
 struct em28xx_audio {
 	char name[50];
@@ -266,6 +301,7 @@ struct em28xx {
 	unsigned int has_audio_class:1;
 	unsigned int has_12mhz_i2s:1;
 	unsigned int max_range_640_480:1;
+	unsigned int has_dvb:1;
 
 	int video_inputs;	/* number of video inputs */
 	struct list_head	devlist;
@@ -340,6 +376,13 @@ struct em28xx {
 	int (*em28xx_write_regs_req) (struct em28xx * dev, u8 req, u16 reg,
 				      char *buf, int len);
 	int (*em28xx_read_reg_req) (struct em28xx * dev, u8 req, u16 reg);
+
+	enum em28xx_mode mode;
+
+#if defined(CONFIG_VIDEO_EM28XX_DVB) || defined(CONFIG_VIDEO_EM28XX_DVB_MODULE)
+	struct videobuf_dvb        dvb;
+	struct videobuf_queue_ops  *qops;
+#endif
 };
 
 struct em28xx_fh {

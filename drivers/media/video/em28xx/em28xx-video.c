@@ -63,10 +63,6 @@ MODULE_PARM_DESC(isoc_debug, "enable debug messages [isoc transfers]");
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __func__ , ##arg); } while (0)
 
-/* Limits minimum and default number of buffers */
-#define EM28XX_MIN_BUF 4
-#define EM28XX_DEF_BUF 8
-
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
@@ -2237,6 +2233,9 @@ static void request_module_async(struct work_struct *work)
 		request_module("snd-usb-audio");
 	else
 		request_module("em28xx-alsa");
+
+	if (dev->has_dvb)
+		request_module("em28xx-dvb");
 }
 
 static void request_modules(struct em28xx *dev)
@@ -2367,6 +2366,11 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
+
+#if defined(CONFIG_VIDEO_EM28XX_DVB) || defined(CONFIG_VIDEO_EM28XX_DVB_MODULE)
+	dev->qops = kmalloc(sizeof(em28xx_video_qops), GFP_KERNEL);
+	memcpy(dev->qops, &em28xx_video_qops, sizeof(em28xx_video_qops));
+#endif
 
 	request_modules(dev);
 
