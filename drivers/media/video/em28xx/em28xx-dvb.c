@@ -23,6 +23,7 @@
 #include <media/videobuf-vmalloc.h>
 
 #include "lgdt330x.h"
+#include "zl10353.h"
 
 MODULE_DESCRIPTION("driver for em28xx based DVB cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
@@ -63,6 +64,13 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 static struct lgdt330x_config em2880_lgdt3303_dev = {
 	.demod_address = 0x0e,
 	.demod_chip = LGDT3303,
+};
+
+static struct zl10353_config em28xx_zl10353_with_xc3028 = {
+	.demod_address = (0x1e >> 1),
+	.no_tuner = 1,
+	.parallel_ts = 1,
+	.if2 = 45600,
 };
 
 /* ------------------------------------------------------------------ */
@@ -130,6 +138,16 @@ static int dvb_init(struct em28xx *dev)
 
 		dev->dvb.frontend = dvb_attach(lgdt330x_attach,
 					       &em2880_lgdt3303_dev,
+					       &dev->i2c_adap);
+		if (attach_xc3028(0x61, dev) < 0)
+			return -EINVAL;
+		break;
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
+		/* Enable zl10353 */
+		dev->mode = EM28XX_DIGITAL_MODE;
+		em28xx_tuner_callback(dev, XC2028_TUNER_RESET, 0);
+		dev->dvb.frontend = dvb_attach(zl10353_attach,
+					       &em28xx_zl10353_with_xc3028,
 					       &dev->i2c_adap);
 		if (attach_xc3028(0x61, dev) < 0)
 			return -EINVAL;

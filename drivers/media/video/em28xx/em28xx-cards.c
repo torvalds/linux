@@ -171,6 +171,26 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = 1,
 		} },
+		.analog_gpio = {
+			{		/* xc3028 reset seq */
+				.reg = 0x08,
+				.val = 0x2d,
+				.rst = 0x3d,
+				.t1 = 5,
+				.t2 = 10,
+				.t3 = 5,
+			},
+		},
+		.digital_gpio = {
+			{		/* xc3028 reset seq */
+				.reg = 0x08,
+				.val = 0x2e,
+				.rst = 0x3e,
+				.t1 = 6,
+				.t2 = 6,
+				.t3 = 6,
+			}
+		},
 	},
 	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950] = {
 		.name           = "Hauppauge WinTV HVR 950",
