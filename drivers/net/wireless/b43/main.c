@@ -3710,7 +3710,7 @@ static void setup_struct_wldev_for_init(struct b43_wldev *dev)
 static void b43_bluetooth_coext_enable(struct b43_wldev *dev)
 {
 	struct ssb_sprom *sprom = &dev->dev->bus->sprom;
-	u32 hf;
+	u64 hf;
 
 	if (!modparam_btcoex)
 		return;
@@ -3860,7 +3860,8 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	struct ssb_sprom *sprom = &bus->sprom;
 	struct b43_phy *phy = &dev->phy;
 	int err;
-	u32 hf, tmp;
+	u64 hf;
+	u32 tmp;
 
 	B43_WARN_ON(b43_status(dev) != B43_STAT_UNINIT);
 
