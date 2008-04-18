@@ -20,6 +20,7 @@
 #include <asm/mach-types.h>
 
 #include <asm/arch/board-eb.h>
+#include <asm/arch/board-pb11mp.h>
 #include <asm/arch/scu.h>
 
 extern void realview_secondary_startup(void);
@@ -37,6 +38,8 @@ static unsigned int __init get_core_count(void)
 
 	if (machine_is_realview_eb() && core_tile_eb11mp())
 		scu_base = __io_address(REALVIEW_EB11MP_SCU_BASE);
+	else if (machine_is_realview_pb11mp())
+		scu_base = __io_address(REALVIEW_TC11MP_SCU_BASE);
 
 	if (scu_base) {
 		ncores = __raw_readl(scu_base + SCU_CONFIG);
@@ -57,6 +60,8 @@ static void scu_enable(void)
 
 	if (machine_is_realview_eb() && core_tile_eb11mp())
 		scu_base = __io_address(REALVIEW_EB11MP_SCU_BASE);
+	else if (machine_is_realview_pb11mp())
+		scu_base = __io_address(REALVIEW_TC11MP_SCU_BASE);
 	else
 		BUG();
 
@@ -81,7 +86,10 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	 * core (e.g. timer irq), then they will not have been enabled
 	 * for us: do so
 	 */
-	gic_cpu_init(0, __io_address(REALVIEW_EB11MP_GIC_CPU_BASE));
+	if (machine_is_realview_eb() && core_tile_eb11mp())
+		gic_cpu_init(0, __io_address(REALVIEW_EB11MP_GIC_CPU_BASE));
+	else if (machine_is_realview_pb11mp())
+		gic_cpu_init(0, __io_address(REALVIEW_TC11MP_GIC_CPU_BASE));
 
 	/*
 	 * let the primary processor know we're out of the
@@ -222,7 +230,8 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	 * dummy (!CONFIG_LOCAL_TIMERS), it was already registers in
 	 * realview_timer_init
 	 */
-	if (machine_is_realview_eb() && core_tile_eb11mp())
+	if ((machine_is_realview_eb() && core_tile_eb11mp()) ||
+	    machine_is_realview_pb11mp())
 		local_timer_setup(cpu);
 #endif
 
