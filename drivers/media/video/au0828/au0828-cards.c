@@ -80,6 +80,7 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 	/* Make sure we support the board model */
 	switch (tv.model) {
 	case 72001: /* WinTV-HVR950q (Retail, IR, ATSC/QAM and basic analog video */
+	case 72301: /* WinTV-HVR850 (Retail, IR, ATSC and basic analog video */
 		break;
 	default:
 		printk(KERN_WARNING "%s: warning: "
