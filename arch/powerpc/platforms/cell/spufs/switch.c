@@ -1815,6 +1815,7 @@ static void save_csa(struct spu_state *prev, struct spu *spu)
 	save_mfc_csr_ato(prev, spu);	/* Step 24. */
 	save_mfc_tclass_id(prev, spu);	/* Step 25. */
 	set_mfc_tclass_id(prev, spu);	/* Step 26. */
+	save_mfc_cmd(prev, spu);	/* Step 26a - moved from 44. */
 	purge_mfc_queue(prev, spu);	/* Step 27. */
 	wait_purge_complete(prev, spu);	/* Step 28. */
 	setup_mfc_sr1(prev, spu);	/* Step 30. */
@@ -1831,7 +1832,6 @@ static void save_csa(struct spu_state *prev, struct spu *spu)
 	save_ppuint_mb(prev, spu);	/* Step 41. */
 	save_ch_part1(prev, spu);	/* Step 42. */
 	save_spu_mb(prev, spu);	        /* Step 43. */
-	save_mfc_cmd(prev, spu);	/* Step 44. */
 	reset_ch(prev, spu);	        /* Step 45. */
 }
 
