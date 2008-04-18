@@ -1024,7 +1024,7 @@ unsigned long pvr2_hdw_get_cur_freq(struct pvr2_hdw *hdw)
 
 /* Set the currently tuned frequency and account for all possible
    driver-core side effects of this action. */
-void pvr2_hdw_set_cur_freq(struct pvr2_hdw *hdw,unsigned long val)
+static void pvr2_hdw_set_cur_freq(struct pvr2_hdw *hdw,unsigned long val)
 {
 	if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
 		if (hdw->freqSelector) {
@@ -1405,11 +1405,6 @@ int pvr2_hdw_untrip(struct pvr2_hdw *hdw)
 }
 
 
-const char *pvr2_hdw_get_state_name(unsigned int id)
-{
-	if (id >= ARRAY_SIZE(pvr2_state_names)) return NULL;
-	return pvr2_state_names[id];
-}
 
 
 int pvr2_hdw_get_streaming(struct pvr2_hdw *hdw)
@@ -4147,47 +4142,6 @@ static void pvr2_hdw_state_sched(struct pvr2_hdw *hdw)
 	hdw->state_stale = !0;
 	trace_stbit("state_stale",hdw->state_stale);
 	queue_work(hdw->workqueue,&hdw->workpoll);
-}
-
-
-void pvr2_hdw_get_debug_info_unlocked(const struct pvr2_hdw *hdw,
-				      struct pvr2_hdw_debug_info *ptr)
-{
-	ptr->big_lock_held = hdw->big_lock_held;
-	ptr->ctl_lock_held = hdw->ctl_lock_held;
-	ptr->flag_disconnected = hdw->flag_disconnected;
-	ptr->flag_init_ok = hdw->flag_init_ok;
-	ptr->flag_ok = hdw->flag_ok;
-	ptr->fw1_state = hdw->fw1_state;
-	ptr->flag_decoder_missed = hdw->flag_decoder_missed;
-	ptr->flag_tripped = hdw->flag_tripped;
-	ptr->state_encoder_ok = hdw->state_encoder_ok;
-	ptr->state_encoder_run = hdw->state_encoder_run;
-	ptr->state_decoder_run = hdw->state_decoder_run;
-	ptr->state_usbstream_run = hdw->state_usbstream_run;
-	ptr->state_decoder_quiescent = hdw->state_decoder_quiescent;
-	ptr->state_pipeline_config = hdw->state_pipeline_config;
-	ptr->state_pipeline_req = hdw->state_pipeline_req;
-	ptr->state_pipeline_pause = hdw->state_pipeline_pause;
-	ptr->state_pipeline_idle = hdw->state_pipeline_idle;
-	ptr->cmd_debug_state = hdw->cmd_debug_state;
-	ptr->cmd_code = hdw->cmd_debug_code;
-	ptr->cmd_debug_write_len = hdw->cmd_debug_write_len;
-	ptr->cmd_debug_read_len = hdw->cmd_debug_read_len;
-	ptr->cmd_debug_timeout = hdw->ctl_timeout_flag;
-	ptr->cmd_debug_write_pend = hdw->ctl_write_pend_flag;
-	ptr->cmd_debug_read_pend = hdw->ctl_read_pend_flag;
-	ptr->cmd_debug_rstatus = hdw->ctl_read_urb->status;
-	ptr->cmd_debug_wstatus = hdw->ctl_read_urb->status;
-}
-
-
-void pvr2_hdw_get_debug_info_locked(struct pvr2_hdw *hdw,
-				    struct pvr2_hdw_debug_info *ptr)
-{
-	LOCK_TAKE(hdw->ctl_lock); do {
-		pvr2_hdw_get_debug_info_unlocked(hdw,ptr);
-	} while(0); LOCK_GIVE(hdw->ctl_lock);
 }
 
 

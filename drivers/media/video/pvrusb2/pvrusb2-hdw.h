@@ -91,9 +91,6 @@ enum pvr2_v4l_type {
 /* Translate configuration enum to a string label */
 const char *pvr2_config_get_name(enum pvr2_config);
 
-/* Translate a master state enum to a string label */
-const char *pvr2_hdw_get_state_name(unsigned int);
-
 struct pvr2_hdw;
 
 /* Create and return a structure for interacting with the underlying
