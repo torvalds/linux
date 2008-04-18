@@ -28,9 +28,9 @@
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef	CONFIG_PM
-
 #define	PORT_WAKE_BITS	(PORT_WKOC_E|PORT_WKDISC_E|PORT_WKCONN_E)
+
+#ifdef	CONFIG_PM
 
 static int ehci_hub_control(
 	struct usb_hcd	*hcd,
