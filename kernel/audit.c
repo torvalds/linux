@@ -455,7 +455,7 @@ static int audit_prepare_user_tty(pid_t pid, uid_t loginuid, u32 sessionid)
 	int err;
 
 	read_lock(&tasklist_lock);
-	tsk = find_task_by_pid(pid);
+	tsk = find_task_by_vpid(pid);
 	err = -ESRCH;
 	if (!tsk)
 		goto out;
@@ -871,7 +871,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		struct task_struct *tsk;
 
 		read_lock(&tasklist_lock);
-		tsk = find_task_by_pid(pid);
+		tsk = find_task_by_vpid(pid);
 		if (!tsk)
 			err = -ESRCH;
 		else {
@@ -894,7 +894,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (s->enabled != 0 && s->enabled != 1)
 			return -EINVAL;
 		read_lock(&tasklist_lock);
-		tsk = find_task_by_pid(pid);
+		tsk = find_task_by_vpid(pid);
 		if (!tsk)
 			err = -ESRCH;
 		else {
