@@ -65,7 +65,6 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 
 int max_mtu = 9000;
-int nics_per_function = 1;
 int interrupt_mod_interval = 0;
 
 
@@ -93,15 +92,9 @@ module_param_named(debug_level, nes_debug_level, uint, 0644);
 MODULE_PARM_DESC(debug_level, "Enable debug output level");
 
 LIST_HEAD(nes_adapter_list);
-LIST_HEAD(nes_dev_list);
+static LIST_HEAD(nes_dev_list);
 
 atomic_t qps_destroyed;
-atomic_t cqp_reqs_allocated;
-atomic_t cqp_reqs_freed;
-atomic_t cqp_reqs_dynallocated;
-atomic_t cqp_reqs_dynfreed;
-atomic_t cqp_reqs_queued;
-atomic_t cqp_reqs_redriven;
 
 static void nes_print_macaddr(struct net_device *netdev);
 static irqreturn_t nes_interrupt(int, void *);
@@ -310,7 +303,7 @@ void nes_rem_ref(struct ib_qp *ibqp)
 
 	if (atomic_read(&nesqp->refcount) == 0) {
 		printk(KERN_INFO PFX "%s: Reference count already 0 for QP%d, last aeq = 0x%04X.\n",
-				__FUNCTION__, ibqp->qp_num, nesqp->last_aeq);
+				__func__, ibqp->qp_num, nesqp->last_aeq);
 		BUG();
 	}
 
@@ -751,12 +744,12 @@ static void __devexit nes_remove(struct pci_dev *pcidev)
 
 	list_del(&nesdev->list);
 	nes_destroy_cqp(nesdev);
+
+	free_irq(pcidev->irq, nesdev);
 	tasklet_kill(&nesdev->dpc_tasklet);
 
 	/* Deallocate the Adapter Structure */
 	nes_destroy_adapter(nesdev->nesadapter);
-
-	free_irq(pcidev->irq, nesdev);
 
 	if (nesdev->msi_enabled) {
 		pci_disable_msi(pcidev);

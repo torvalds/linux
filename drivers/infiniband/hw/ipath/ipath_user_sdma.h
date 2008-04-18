@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Cisco Systems, Inc.  All rights reserved.
+ * Copyright (c) 2007, 2008 QLogic Corporation. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -29,30 +29,26 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
-#ifndef MLX4_DRIVER_H
-#define MLX4_DRIVER_H
-
 #include <linux/device.h>
 
-struct mlx4_dev;
+struct ipath_user_sdma_queue;
 
-enum mlx4_dev_event {
-	MLX4_DEV_EVENT_CATASTROPHIC_ERROR,
-	MLX4_DEV_EVENT_PORT_UP,
-	MLX4_DEV_EVENT_PORT_DOWN,
-	MLX4_DEV_EVENT_PORT_REINIT,
-};
+struct ipath_user_sdma_queue *
+ipath_user_sdma_queue_create(struct device *dev, int unit, int port, int sport);
+void ipath_user_sdma_queue_destroy(struct ipath_user_sdma_queue *pq);
 
-struct mlx4_interface {
-	void *			(*add)	 (struct mlx4_dev *dev);
-	void			(*remove)(struct mlx4_dev *dev, void *context);
-	void			(*event) (struct mlx4_dev *dev, void *context,
-					  enum mlx4_dev_event event, int port);
-	struct list_head	list;
-};
+int ipath_user_sdma_writev(struct ipath_devdata *dd,
+			   struct ipath_user_sdma_queue *pq,
+			   const struct iovec *iov,
+			   unsigned long dim);
 
-int mlx4_register_interface(struct mlx4_interface *intf);
-void mlx4_unregister_interface(struct mlx4_interface *intf);
+int ipath_user_sdma_make_progress(struct ipath_devdata *dd,
+				  struct ipath_user_sdma_queue *pq);
 
-#endif /* MLX4_DRIVER_H */
+int ipath_user_sdma_pkt_sent(const struct ipath_user_sdma_queue *pq,
+			     u32 counter);
+void ipath_user_sdma_queue_drain(struct ipath_devdata *dd,
+				 struct ipath_user_sdma_queue *pq);
+
+u32 ipath_user_sdma_complete_counter(const struct ipath_user_sdma_queue *pq);
+u32 ipath_user_sdma_inflight_counter(struct ipath_user_sdma_queue *pq);

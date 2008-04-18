@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2006, 2007, 2008 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -136,6 +136,7 @@ static void ipath_qcheck(struct ipath_devdata *dd)
 	struct ipath_portdata *pd = dd->ipath_pd[0];
 	size_t blen = 0;
 	char buf[128];
+	u32 hdrqtail;
 
 	*buf = 0;
 	if (pd->port_hdrqfull != dd->ipath_p0_hdrqfull) {
@@ -174,17 +175,18 @@ static void ipath_qcheck(struct ipath_devdata *dd)
 	if (blen)
 		ipath_dbg("%s\n", buf);
 
-	if (pd->port_head != (u32)
-	    le64_to_cpu(*dd->ipath_hdrqtailptr)) {
+	hdrqtail = ipath_get_hdrqtail(pd);
+	if (pd->port_head != hdrqtail) {
 		if (dd->ipath_lastport0rcv_cnt ==
 		    ipath_stats.sps_port0pkts) {
 			ipath_cdbg(PKT, "missing rcv interrupts? "
-				   "port0 hd=%llx tl=%x; port0pkts %llx\n",
-				   (unsigned long long)
-				   le64_to_cpu(*dd->ipath_hdrqtailptr),
-				   pd->port_head,
+				   "port0 hd=%x tl=%x; port0pkts %llx; write"
+				   " hd (w/intr)\n",
+				   pd->port_head, hdrqtail,
 				   (unsigned long long)
 				   ipath_stats.sps_port0pkts);
+			ipath_write_ureg(dd, ur_rcvhdrhead, hdrqtail |
+				dd->ipath_rhdrhead_intr_off, pd->port_port);
 		}
 		dd->ipath_lastport0rcv_cnt = ipath_stats.sps_port0pkts;
 	}
@@ -290,11 +292,11 @@ void ipath_get_faststats(unsigned long opaque)
 	    && time_after(jiffies, dd->ipath_unmasktime)) {
 		char ebuf[256];
 		int iserr;
-		iserr = ipath_decode_err(ebuf, sizeof ebuf,
-			dd->ipath_maskederrs);
+		iserr = ipath_decode_err(dd, ebuf, sizeof ebuf,
+					 dd->ipath_maskederrs);
 		if (dd->ipath_maskederrs &
-				~(INFINIPATH_E_RRCVEGRFULL | INFINIPATH_E_RRCVHDRFULL |
-				INFINIPATH_E_PKTERRS ))
+		    ~(INFINIPATH_E_RRCVEGRFULL | INFINIPATH_E_RRCVHDRFULL |
+		      INFINIPATH_E_PKTERRS))
 			ipath_dev_err(dd, "Re-enabling masked errors "
 				      "(%s)\n", ebuf);
 		else {
@@ -306,17 +308,18 @@ void ipath_get_faststats(unsigned long opaque)
 			 * level.
 			 */
 			if (iserr)
-					ipath_dbg("Re-enabling queue full errors (%s)\n",
-							ebuf);
+				ipath_dbg(
+					"Re-enabling queue full errors (%s)\n",
+					ebuf);
 			else
 				ipath_cdbg(ERRPKT, "Re-enabling packet"
-						" problem interrupt (%s)\n", ebuf);
+					" problem interrupt (%s)\n", ebuf);
 		}
 
 		/* re-enable masked errors */
 		dd->ipath_errormask |= dd->ipath_maskederrs;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
-			dd->ipath_errormask);
+				 dd->ipath_errormask);
 		dd->ipath_maskederrs = 0;
 	}
 

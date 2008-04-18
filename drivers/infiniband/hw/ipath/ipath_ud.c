@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2006, 2007, 2008 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -95,7 +95,7 @@ static void ipath_ud_loopback(struct ipath_qp *sqp, struct ipath_swqe *swqe)
 
 	if (swqe->wr.opcode == IB_WR_SEND_WITH_IMM) {
 		wc.wc_flags = IB_WC_WITH_IMM;
-		wc.imm_data = swqe->wr.imm_data;
+		wc.imm_data = swqe->wr.ex.imm_data;
 	} else {
 		wc.wc_flags = 0;
 		wc.imm_data = 0;
@@ -303,6 +303,7 @@ int ipath_make_ud_req(struct ipath_qp *qp)
 	qp->s_hdrwords = 7;
 	qp->s_cur_size = wqe->length;
 	qp->s_cur_sge = &qp->s_sge;
+	qp->s_dmult = ah_attr->static_rate;
 	qp->s_wqe = wqe;
 	qp->s_sge.sge = wqe->sg_list[0];
 	qp->s_sge.sg_list = wqe->sg_list + 1;
@@ -326,7 +327,7 @@ int ipath_make_ud_req(struct ipath_qp *qp)
 	}
 	if (wqe->wr.opcode == IB_WR_SEND_WITH_IMM) {
 		qp->s_hdrwords++;
-		ohdr->u.ud.imm_data = wqe->wr.imm_data;
+		ohdr->u.ud.imm_data = wqe->wr.ex.imm_data;
 		bth0 = IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE << 24;
 	} else
 		bth0 = IB_OPCODE_UD_SEND_ONLY << 24;

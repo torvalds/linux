@@ -57,16 +57,17 @@ MODULE_AUTHOR("Christoph Raisch <raisch@de.ibm.com>");
 MODULE_DESCRIPTION("IBM eServer HCA InfiniBand Device Driver");
 MODULE_VERSION(HCAD_VERSION);
 
-int ehca_open_aqp1     = 0;
+static int ehca_open_aqp1     = 0;
+static int ehca_hw_level      = 0;
+static int ehca_poll_all_eqs  = 1;
+static int ehca_mr_largepage  = 1;
+
 int ehca_debug_level   = 0;
-int ehca_hw_level      = 0;
 int ehca_nr_ports      = 2;
 int ehca_use_hp_mr     = 0;
 int ehca_port_act_time = 30;
-int ehca_poll_all_eqs  = 1;
 int ehca_static_rate   = -1;
 int ehca_scaling_code  = 0;
-int ehca_mr_largepage  = 1;
 int ehca_lock_hcalls   = -1;
 
 module_param_named(open_aqp1,     ehca_open_aqp1,     int, S_IRUGO);
@@ -396,7 +397,7 @@ init_node_guid1:
 	return ret;
 }
 
-int ehca_init_device(struct ehca_shca *shca)
+static int ehca_init_device(struct ehca_shca *shca)
 {
 	int ret;
 
@@ -579,8 +580,8 @@ static ssize_t ehca_store_debug_level(struct device_driver *ddp,
 	return 1;
 }
 
-DRIVER_ATTR(debug_level, S_IRUSR | S_IWUSR,
-	    ehca_show_debug_level, ehca_store_debug_level);
+static DRIVER_ATTR(debug_level, S_IRUSR | S_IWUSR,
+		   ehca_show_debug_level, ehca_store_debug_level);
 
 static struct attribute *ehca_drv_attrs[] = {
 	&driver_attr_debug_level.attr,
@@ -941,7 +942,7 @@ void ehca_poll_eqs(unsigned long data)
 	spin_unlock(&shca_list_lock);
 }
 
-int __init ehca_module_init(void)
+static int __init ehca_module_init(void)
 {
 	int ret;
 
@@ -988,7 +989,7 @@ module_init1:
 	return ret;
 };
 
-void __exit ehca_module_exit(void)
+static void __exit ehca_module_exit(void)
 {
 	if (ehca_poll_all_eqs == 1)
 		del_timer_sync(&poll_eqs_timer);

@@ -73,37 +73,37 @@ extern int ehca_debug_level;
 		if (unlikely(ehca_debug_level)) \
 			dev_printk(KERN_DEBUG, (ib_dev)->dma_device, \
 				   "PU%04x EHCA_DBG:%s " format "\n", \
-				   raw_smp_processor_id(), __FUNCTION__, \
+				   raw_smp_processor_id(), __func__, \
 				   ## arg); \
 	} while (0)
 
 #define ehca_info(ib_dev, format, arg...) \
 	dev_info((ib_dev)->dma_device, "PU%04x EHCA_INFO:%s " format "\n", \
-		 raw_smp_processor_id(), __FUNCTION__, ## arg)
+		 raw_smp_processor_id(), __func__, ## arg)
 
 #define ehca_warn(ib_dev, format, arg...) \
 	dev_warn((ib_dev)->dma_device, "PU%04x EHCA_WARN:%s " format "\n", \
-		 raw_smp_processor_id(), __FUNCTION__, ## arg)
+		 raw_smp_processor_id(), __func__, ## arg)
 
 #define ehca_err(ib_dev, format, arg...) \
 	dev_err((ib_dev)->dma_device, "PU%04x EHCA_ERR:%s " format "\n", \
-		raw_smp_processor_id(), __FUNCTION__, ## arg)
+		raw_smp_processor_id(), __func__, ## arg)
 
 /* use this one only if no ib_dev available */
 #define ehca_gen_dbg(format, arg...) \
 	do { \
 		if (unlikely(ehca_debug_level)) \
 			printk(KERN_DEBUG "PU%04x EHCA_DBG:%s " format "\n", \
-			       raw_smp_processor_id(), __FUNCTION__, ## arg); \
+			       raw_smp_processor_id(), __func__, ## arg); \
 	} while (0)
 
 #define ehca_gen_warn(format, arg...) \
 	printk(KERN_INFO "PU%04x EHCA_WARN:%s " format "\n", \
-	       raw_smp_processor_id(), __FUNCTION__, ## arg)
+	       raw_smp_processor_id(), __func__, ## arg)
 
 #define ehca_gen_err(format, arg...) \
 	printk(KERN_ERR "PU%04x EHCA_ERR:%s " format "\n", \
-	       raw_smp_processor_id(), __FUNCTION__, ## arg)
+	       raw_smp_processor_id(), __func__, ## arg)
 
 /**
  * ehca_dmp - printk a memory block, whose length is n*8 bytes.
@@ -118,7 +118,7 @@ extern int ehca_debug_level;
 		for (x = 0; x < l; x += 16) { \
 			printk(KERN_INFO "EHCA_DMP:%s " format \
 			       " adr=%p ofs=%04x %016lx %016lx\n", \
-			       __FUNCTION__, ##args, deb, x, \
+			       __func__, ##args, deb, x, \
 			       *((u64 *)&deb[0]), *((u64 *)&deb[8])); \
 			deb += 16; \
 		} \

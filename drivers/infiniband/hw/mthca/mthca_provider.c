@@ -60,7 +60,7 @@ static int mthca_query_device(struct ib_device *ibdev,
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
 	int err = -ENOMEM;
-	struct mthca_dev* mdev = to_mdev(ibdev);
+	struct mthca_dev *mdev = to_mdev(ibdev);
 
 	u8 status;
 
@@ -539,6 +539,9 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	struct mthca_create_qp ucmd;
 	struct mthca_qp *qp;
 	int err;
+
+	if (init_attr->create_flags)
+		return ERR_PTR(-EINVAL);
 
 	switch (init_attr->qp_type) {
 	case IB_QPT_RC:

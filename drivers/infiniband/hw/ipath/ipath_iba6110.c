@@ -40,6 +40,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/htirq.h>
+#include <rdma/ib_verbs.h>
 
 #include "ipath_kernel.h"
 #include "ipath_registers.h"
@@ -305,7 +306,9 @@ static const struct ipath_cregs ipath_ht_cregs = {
 
 /* kr_intstatus, kr_intclear, kr_intmask bits */
 #define INFINIPATH_I_RCVURG_MASK ((1U<<9)-1)
+#define INFINIPATH_I_RCVURG_SHIFT 0
 #define INFINIPATH_I_RCVAVAIL_MASK ((1U<<9)-1)
+#define INFINIPATH_I_RCVAVAIL_SHIFT 12
 
 /* kr_hwerrclear, kr_hwerrmask, kr_hwerrstatus, bits */
 #define INFINIPATH_HWE_HTCMEMPARITYERR_SHIFT 0
@@ -476,7 +479,13 @@ static const struct ipath_hwerror_msgs ipath_6110_hwerror_msgs[] = {
 #define RXE_EAGER_PARITY (INFINIPATH_HWE_RXEMEMPARITYERR_EAGERTID \
 			  << INFINIPATH_HWE_RXEMEMPARITYERR_SHIFT)
 
-static int ipath_ht_txe_recover(struct ipath_devdata *);
+static void ipath_ht_txe_recover(struct ipath_devdata *dd)
+{
+	++ipath_stats.sps_txeparity;
+	dev_info(&dd->pcidev->dev,
+		"Recovering from TXE PIO parity error\n");
+}
+
 
 /**
  * ipath_ht_handle_hwerrors - display hardware errors.
@@ -557,11 +566,11 @@ static void ipath_ht_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 		 * occur if a processor speculative read is done to the PIO
 		 * buffer while we are sending a packet, for example.
 		 */
-		if ((hwerrs & TXE_PIO_PARITY) && ipath_ht_txe_recover(dd))
+		if (hwerrs & TXE_PIO_PARITY) {
+			ipath_ht_txe_recover(dd);
 			hwerrs &= ~TXE_PIO_PARITY;
-		if (hwerrs & RXE_EAGER_PARITY)
-			ipath_dev_err(dd, "RXE parity, Eager TID error is not "
-				"recoverable\n");
+		}
+
 		if (!hwerrs) {
 			ipath_dbg("Clearing freezemode on ignored or "
 				  "recovered hardware error\n");
@@ -735,11 +744,10 @@ static int ipath_ht_boardname(struct ipath_devdata *dd, char *name,
 	 */
 	dd->ipath_flags |= IPATH_32BITCOUNTERS;
 	dd->ipath_flags |= IPATH_GPIO_INTR;
-	if (dd->ipath_htspeed != 800)
+	if (dd->ipath_lbus_speed != 800)
 		ipath_dev_err(dd,
 			      "Incorrectly configured for HT @ %uMHz\n",
-			      dd->ipath_htspeed);
-	ret = 0;
+			      dd->ipath_lbus_speed);
 
 	/*
 	 * set here, not in ipath_init_*_funcs because we have to do
@@ -839,7 +847,7 @@ static void slave_or_pri_blk(struct ipath_devdata *dd, struct pci_dev *pdev,
 			/*
 			 * now write them back to clear the error.
 			 */
-			pci_write_config_byte(pdev, link_off,
+			pci_write_config_word(pdev, link_off,
 					      linkctrl & (0xf << 8));
 		}
 	}
@@ -904,7 +912,7 @@ static void slave_or_pri_blk(struct ipath_devdata *dd, struct pci_dev *pdev,
 			break;
 		}
 
-		dd->ipath_htwidth = width;
+		dd->ipath_lbus_width = width;
 
 		if (linkwidth != 0x11) {
 			ipath_dev_err(dd, "Not configured for 16 bit HT "
@@ -952,8 +960,13 @@ static void slave_or_pri_blk(struct ipath_devdata *dd, struct pci_dev *pdev,
 			speed = 200;
 			break;
 		}
-		dd->ipath_htspeed = speed;
+		dd->ipath_lbus_speed = speed;
 	}
+
+	snprintf(dd->ipath_lbus_info, sizeof(dd->ipath_lbus_info),
+		"HyperTransport,%uMHz,x%u\n",
+		dd->ipath_lbus_speed,
+		dd->ipath_lbus_width);
 }
 
 static int ipath_ht_intconfig(struct ipath_devdata *dd)
@@ -1650,22 +1663,6 @@ static int ipath_ht_early_init(struct ipath_devdata *dd)
 	}
 
 	return 0;
-}
-
-
-static int ipath_ht_txe_recover(struct ipath_devdata *dd)
-{
-	int cnt = ++ipath_stats.sps_txeparity;
-	if (cnt >= IPATH_MAX_PARITY_ATTEMPTS)  {
-		if (cnt == IPATH_MAX_PARITY_ATTEMPTS)
-			ipath_dev_err(dd,
-				"Too many attempts to recover from "
-				"TXE parity, giving up\n");
-		return 0;
-	}
-	dev_info(&dd->pcidev->dev,
-		"Recovering from TXE PIO parity error\n");
-	return 1;
 }
 
 

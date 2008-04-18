@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2007 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2006, 2007, 2008 QLogic Corporation. All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -136,6 +136,11 @@ struct ipath_ib_header {
 		} l;
 		struct ipath_other_headers oth;
 	} u;
+} __attribute__ ((packed));
+
+struct ipath_pio_header {
+	__le32 pbc[2];
+	struct ipath_ib_header hdr;
 } __attribute__ ((packed));
 
 /*
@@ -319,6 +324,7 @@ struct ipath_sge_state {
 	struct ipath_sge *sg_list;      /* next SGE to be used if any */
 	struct ipath_sge sge;   /* progress state for the current SGE */
 	u8 num_sge;
+	u8 static_rate;
 };
 
 /*
@@ -356,6 +362,7 @@ struct ipath_qp {
 	struct tasklet_struct s_task;
 	struct ipath_mmap_info *ip;
 	struct ipath_sge_state *s_cur_sge;
+	struct ipath_verbs_txreq *s_tx;
 	struct ipath_sge_state s_sge;	/* current send request data */
 	struct ipath_ack_entry s_ack_queue[IPATH_MAX_RDMA_ATOMIC + 1];
 	struct ipath_sge_state s_ack_rdma_sge;
@@ -363,7 +370,8 @@ struct ipath_qp {
 	struct ipath_sge_state r_sge;	/* current receive data */
 	spinlock_t s_lock;
 	unsigned long s_busy;
-	u32 s_hdrwords;		/* size of s_hdr in 32 bit words */
+	u16 s_pkt_delay;
+	u16 s_hdrwords;		/* size of s_hdr in 32 bit words */
 	u32 s_cur_size;		/* size of send packet in bytes */
 	u32 s_len;		/* total length of s_sge */
 	u32 s_rdma_read_len;	/* total length of s_rdma_read_sge */
@@ -387,7 +395,6 @@ struct ipath_qp {
 	u8 r_nak_state;		/* non-zero if NAK is pending */
 	u8 r_min_rnr_timer;	/* retry timeout value for RNR NAKs */
 	u8 r_reuse_sge;		/* for UC receive errors */
-	u8 r_sge_inx;		/* current index into sg_list */
 	u8 r_wrid_valid;	/* r_wrid set but CQ entry not yet made */
 	u8 r_max_rd_atomic;	/* max number of RDMA read/atomic to receive */
 	u8 r_head_ack_queue;	/* index into s_ack_queue[] */
@@ -403,6 +410,7 @@ struct ipath_qp {
 	u8 s_num_rd_atomic;	/* number of RDMA read/atomic pending */
 	u8 s_tail_ack_queue;	/* index into s_ack_queue[] */
 	u8 s_flags;
+	u8 s_dmult;
 	u8 timeout;		/* Timeout for this QP */
 	enum ib_mtu path_mtu;
 	u32 remote_qpn;
@@ -510,6 +518,8 @@ struct ipath_ibdev {
 	struct ipath_lkey_table lk_table;
 	struct list_head pending[3];	/* FIFO of QPs waiting for ACKs */
 	struct list_head piowait;	/* list for wait PIO buf */
+	struct list_head txreq_free;
+	void *txreq_bufs;
 	/* list of QPs waiting for RNR timer */
 	struct list_head rnrwait;
 	spinlock_t pending_lock;
@@ -570,6 +580,7 @@ struct ipath_ibdev {
 	u32 n_rdma_dup_busy;
 	u32 n_piowait;
 	u32 n_no_piobuf;
+	u32 n_unaligned;
 	u32 port_cap_flags;
 	u32 pma_sample_start;
 	u32 pma_sample_interval;
@@ -581,7 +592,6 @@ struct ipath_ibdev {
 	u16 pending_index;	/* which pending queue is active */
 	u8 pma_sample_status;
 	u8 subnet_timeout;
-	u8 link_width_enabled;
 	u8 vl_high_limit;
 	struct ipath_opcode_stats opstats[128];
 };
@@ -600,6 +610,16 @@ struct ipath_verbs_counters {
 	u32 local_link_integrity_errors;
 	u32 excessive_buffer_overrun_errors;
 	u32 vl15_dropped;
+};
+
+struct ipath_verbs_txreq {
+	struct ipath_qp         *qp;
+	struct ipath_swqe       *wqe;
+	u32                      map_len;
+	u32                      len;
+	struct ipath_sge_state  *ss;
+	struct ipath_pio_header  hdr;
+	struct ipath_sdma_txreq  txreq;
 };
 
 static inline struct ipath_mr *to_imr(struct ib_mr *ibmr)
@@ -694,10 +714,10 @@ void ipath_sqerror_qp(struct ipath_qp *qp, struct ib_wc *wc);
 
 void ipath_get_credit(struct ipath_qp *qp, u32 aeth);
 
+unsigned ipath_ib_rate_to_mult(enum ib_rate rate);
+
 int ipath_verbs_send(struct ipath_qp *qp, struct ipath_ib_header *hdr,
 		     u32 hdrwords, struct ipath_sge_state *ss, u32 len);
-
-void ipath_cq_enter(struct ipath_cq *cq, struct ib_wc *entry, int sig);
 
 void ipath_copy_sge(struct ipath_sge_state *ss, void *data, u32 length);
 

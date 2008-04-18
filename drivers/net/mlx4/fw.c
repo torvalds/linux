@@ -133,6 +133,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_MAX_AV_OFFSET		0x27
 #define QUERY_DEV_CAP_MAX_REQ_QP_OFFSET		0x29
 #define QUERY_DEV_CAP_MAX_RES_QP_OFFSET		0x2b
+#define QUERY_DEV_CAP_MAX_GSO_OFFSET		0x2d
 #define QUERY_DEV_CAP_MAX_RDMA_OFFSET		0x2f
 #define QUERY_DEV_CAP_RSZ_SRQ_OFFSET		0x33
 #define QUERY_DEV_CAP_ACK_DELAY_OFFSET		0x35
@@ -215,6 +216,13 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev_cap->max_requester_per_qp = 1 << (field & 0x3f);
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_RES_QP_OFFSET);
 	dev_cap->max_responder_per_qp = 1 << (field & 0x3f);
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_GSO_OFFSET);
+	field &= 0x1f;
+	if (!field)
+		dev_cap->max_gso_sz = 0;
+	else
+		dev_cap->max_gso_sz = 1 << field;
+
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_RDMA_OFFSET);
 	dev_cap->max_rdma_global = 1 << (field & 0x3f);
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_ACK_DELAY_OFFSET);
@@ -377,6 +385,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		 dev_cap->max_sq_desc_sz, dev_cap->max_sq_sg);
 	mlx4_dbg(dev, "Max RQ desc size: %d, max RQ S/G: %d\n",
 		 dev_cap->max_rq_desc_sz, dev_cap->max_rq_sg);
+	mlx4_dbg(dev, "Max GSO size: %d\n", dev_cap->max_gso_sz);
 
 	dump_dev_cap_flags(dev, dev_cap->flags);
 
@@ -695,6 +704,10 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 #endif
 	/* Check port for UD address vector: */
 	*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1);
+
+	/* Enable IPoIB checksumming if we can: */
+	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_IPOIB_CSUM)
+		*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1 << 3);
 
 	/* QPC/EEC/CQC/EQC/RDMARC attributes */
 
