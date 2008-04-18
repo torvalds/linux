@@ -3996,12 +3996,15 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
 
-	/* ensure 32-byte alignment of both the device and private area */
-	alloc_size = (sizeof(*dev) + NETDEV_ALIGN_CONST +
-		     (sizeof(struct net_device_subqueue) * (queue_count - 1))) &
-		     ~NETDEV_ALIGN_CONST;
-	if (sizeof_priv)
-		alloc_size += sizeof_priv + NETDEV_ALIGN_CONST;
+	alloc_size = sizeof(struct net_device) +
+		     sizeof(struct net_device_subqueue) * (queue_count - 1);
+	if (sizeof_priv) {
+		/* ensure 32-byte alignment of private area */
+		alloc_size = (alloc_size + NETDEV_ALIGN_CONST) & ~NETDEV_ALIGN_CONST;
+		alloc_size += sizeof_priv;
+	}
+	/* ensure 32-byte alignment of whole construct */
+	alloc_size += NETDEV_ALIGN_CONST;
 
 	p = kzalloc(alloc_size, GFP_KERNEL);
 	if (!p) {
