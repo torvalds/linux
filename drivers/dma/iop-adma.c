@@ -672,12 +672,6 @@ iop_adma_prep_dma_zero_sum(struct dma_chan *chan, dma_addr_t *dma_src,
 	return sw_desc ? &sw_desc->async_tx : NULL;
 }
 
-static void iop_adma_dependency_added(struct dma_chan *chan)
-{
-	struct iop_adma_chan *iop_chan = to_iop_adma_chan(chan);
-	tasklet_schedule(&iop_chan->irq_tasklet);
-}
-
 static void iop_adma_free_chan_resources(struct dma_chan *chan)
 {
 	struct iop_adma_chan *iop_chan = to_iop_adma_chan(chan);
@@ -1178,7 +1172,6 @@ static int __devinit iop_adma_probe(struct platform_device *pdev)
 	dma_dev->device_free_chan_resources = iop_adma_free_chan_resources;
 	dma_dev->device_is_tx_complete = iop_adma_is_complete;
 	dma_dev->device_issue_pending = iop_adma_issue_pending;
-	dma_dev->device_dependency_added = iop_adma_dependency_added;
 	dma_dev->dev = &pdev->dev;
 
 	/* set prep routines based on capability */

@@ -924,17 +924,6 @@ static void ioat_dma_memcpy_cleanup(struct ioat_dma_chan *ioat_chan)
 	spin_unlock_bh(&ioat_chan->cleanup_lock);
 }
 
-static void ioat_dma_dependency_added(struct dma_chan *chan)
-{
-	struct ioat_dma_chan *ioat_chan = to_ioat_chan(chan);
-	spin_lock_bh(&ioat_chan->desc_lock);
-	if (ioat_chan->pending == 0) {
-		spin_unlock_bh(&ioat_chan->desc_lock);
-		ioat_dma_memcpy_cleanup(ioat_chan);
-	} else
-		spin_unlock_bh(&ioat_chan->desc_lock);
-}
-
 /**
  * ioat_dma_is_complete - poll the status of a IOAT DMA transaction
  * @chan: IOAT DMA channel handle
@@ -1316,7 +1305,6 @@ struct ioatdma_device *ioat_dma_probe(struct pci_dev *pdev,
 
 	dma_cap_set(DMA_MEMCPY, device->common.cap_mask);
 	device->common.device_is_tx_complete = ioat_dma_is_complete;
-	device->common.device_dependency_added = ioat_dma_dependency_added;
 	switch (device->version) {
 	case IOAT_VER_1_2:
 		device->common.device_prep_dma_memcpy = ioat1_dma_prep_memcpy;
