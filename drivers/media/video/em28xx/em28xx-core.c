@@ -331,21 +331,16 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 	if (!start) {
 		/* disable video capture */
 		rc = em28xx_write_regs(dev, VINENABLE_REG, "\x27", 1);
-		if (rc < 0)
-			return rc;
+		return rc;
 	}
 
 	/* enable video capture */
 	rc = em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
-	if (rc < 0)
-		return rc;
+
 	if (dev->mode == EM28XX_ANALOG_MODE)
 		rc = em28xx_write_regs(dev, VINENABLE_REG,"\x67", 1);
 	else
 		rc = em28xx_write_regs(dev, VINENABLE_REG,"\x37", 1);
-
-	if (rc < 0)
-		return rc;
 
 	msleep (6);
 

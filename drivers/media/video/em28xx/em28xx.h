@@ -225,19 +225,10 @@ enum em28xx_decoder {
 	EM28XX_SAA7114
 };
 
-#define MAX_GPIO 2
-struct gpio_ctl {
-		/* Register to be set */
-	unsigned char reg;
-		/* Initial/final value */
+struct em28xx_reg_seq {
+	int reg;
 	unsigned char val;
-		/* reset value - if set, it will do:
-		   val1 - val2 - val1
-		 */
-	unsigned char rst;
-		/* Sleep times
-		 */
-	unsigned int  t1, t2, t3;
+	int sleep;
 };
 
 struct em28xx_board {
@@ -254,9 +245,6 @@ struct em28xx_board {
 	unsigned int has_12mhz_i2s:1;
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
-
-	struct gpio_ctl analog_gpio[MAX_GPIO];
-	struct gpio_ctl digital_gpio[MAX_GPIO];
 
 	enum em28xx_decoder decoder;
 
@@ -343,8 +331,8 @@ struct em28xx {
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
 
-	struct gpio_ctl *analog_gpio;
-	struct gpio_ctl *digital_gpio;
+	/* GPIO sequences for tuner callback */
+	struct em28xx_reg_seq *analog_gpio, *digital_gpio;
 
 	int video_inputs;	/* number of video inputs */
 	struct list_head	devlist;

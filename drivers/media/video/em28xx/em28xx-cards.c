@@ -171,26 +171,6 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = 1,
 		} },
-		.analog_gpio = {
-			{		/* xc3028 reset seq */
-				.reg = 0x08,
-				.val = 0x2d,
-				.rst = 0x3d,
-				.t1 = 5,
-				.t2 = 10,
-				.t3 = 5,
-			},
-		},
-		.digital_gpio = {
-			{		/* xc3028 reset seq */
-				.reg = 0x08,
-				.val = 0x2e,
-				.rst = 0x3e,
-				.t1 = 6,
-				.t2 = 6,
-				.t3 = 6,
-			}
-		},
 	},
 	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950] = {
 		.name           = "Hauppauge WinTV HVR 950",
@@ -214,32 +194,6 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = 1,
 		} },
-		.analog_gpio = {
-			{		/* xc3028 reset seq */
-				.reg = 0x08,
-				.val = 0x2d,
-				.rst = 0x3d,
-				.t1 = 5,
-				.t2 = 10,
-				.t3 = 5,
-			},
-		},
-		.digital_gpio = {
-			{		/* xc3028 reset seq */
-				.reg = 0x08,
-				.val = 0x2e,
-				.rst = 0x3e,
-				.t1 = 6,
-				.t2 = 6,
-				.t3 = 6,
-			}, {		/* demod reset seq */
-				.reg = 0x04,
-				.val = 0x04,
-				.rst = 0x0c,
-				.t2 = 10,
-				.t3 = 10,
-			}
-		},
 	},
 	[EM2880_BOARD_TERRATEC_HYBRID_XS] = {
 		.name         = "Terratec Hybrid XS",
@@ -476,7 +430,28 @@ struct usb_device_id em28xx_id_table [] = {
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
 
-/* EEPROM hash table for devices with generic USB IDs */
+/*
+ *  Reset sequences for analog/digital modes
+ */
+
+/* Board Hauppauge WinTV HVR 900 analog */
+struct em28xx_reg_seq hauppauge_wintv_hvr_900_analog[] = {
+	{  -1,   -1,   6},
+	{0x08, 0x2d,  10},
+	{0x08, 0x3d,   5},
+	{ -1,    -1,  -1},
+};
+/* Board Hauppauge WinTV HVR 900 digital */
+struct em28xx_reg_seq hauppauge_wintv_hvr_900_digital[] = {
+	{  -1,   -1,   6},
+	{0x08, 0x2e,   6},
+	{0x08, 0x3e,   6},
+	{ -1,    -1,  -1},
+};
+
+/*
+ * EEPROM hash table for devices with generic USB IDs
+ */
 static struct em28xx_hash_table em28xx_eeprom_hash [] = {
 	/* P/N: SA 60002070465 Tuner: TVF7533-MF */
 	{0x6ce05a8f, EM2820_BOARD_PROLINK_PLAYTV_USB2, TUNER_YMEC_TVF_5533MF},
@@ -490,9 +465,9 @@ static struct em28xx_hash_table em28xx_i2c_hash[] = {
 
 int em28xx_tuner_callback(void *ptr, int command, int arg)
 {
-	int rc = 0, i;
+	int rc = 0;
 	struct em28xx *dev = ptr;
-	struct gpio_ctl *gpio_ctl;
+	struct em28xx_reg_seq *gpio;
 
 	if (dev->tuner_type != TUNER_XC2028)
 		return 0;
@@ -501,44 +476,31 @@ int em28xx_tuner_callback(void *ptr, int command, int arg)
 		return 0;
 
 	if (dev->mode == EM28XX_ANALOG_MODE)
-		gpio_ctl = dev->analog_gpio;
+		gpio = dev->analog_gpio;
 	else
-		gpio_ctl = dev->digital_gpio;
+		gpio = dev->digital_gpio;
 
 	/* djh - Not sure if these are still required */
-	if (dev->mode == EM28XX_ANALOG_MODE) {
-	  dev->em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
-	  dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x67", 1);
-	  msleep(6);
-	} else {
-	  dev->em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
-	  dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x37", 1);
-	  msleep(6);
-	}
+	dev->em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
+	if (dev->mode == EM28XX_ANALOG_MODE)
+		dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x67", 1);
+	else
+		dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x37", 1);
+	msleep(6);
+
+	if (!gpio)
+		return rc;
 
 	/* Send GPIO reset sequences specified at board entry */
-	for (i = 0; i < MAX_GPIO; i++) {
-		if (!gpio_ctl->val)
-			break;
+	while (gpio->sleep >= 0) {
+		if (gpio->reg >= 0)
+			rc = dev->em28xx_write_regs(dev,
+						    gpio->reg,
+						    &gpio->val, 1);
+		if (gpio->sleep > 0)
+			msleep(gpio->sleep);
 
-		dev->em28xx_write_regs(dev,
-				       gpio_ctl->reg,
-				       &gpio_ctl->val, 1);
-		if (gpio_ctl->t1)
-			msleep(gpio_ctl->t1);
-
-		if (!gpio_ctl->rst) {
-			gpio_ctl++;
-			continue;
-		}
-
-		dev->em28xx_write_regs(dev,
-				       gpio_ctl->reg,
-				       &gpio_ctl->rst, 1);
-		if (gpio_ctl->t2)
-			msleep(gpio_ctl->t2);
-
-		gpio_ctl++;
+		gpio++;
 	}
 	return rc;
 }
@@ -554,8 +516,6 @@ static void em28xx_set_model(struct em28xx *dev)
 	dev->has_12mhz_i2s = em28xx_boards[dev->model].has_12mhz_i2s;
 	dev->max_range_640_480 = em28xx_boards[dev->model].max_range_640_480;
 	dev->has_dvb = em28xx_boards[dev->model].has_dvb;
-	dev->analog_gpio = em28xx_boards[dev->model].analog_gpio;
-	dev->digital_gpio = em28xx_boards[dev->model].digital_gpio;
 }
 
 /* Since em28xx_pre_card_setup() requires a proper dev->model,
@@ -573,13 +533,22 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
 		em28xx_write_regs(dev, XCLK_REG, "\x27", 1);
 		em28xx_write_regs(dev, I2C_CLK_REG, "\x40", 1);
-	}
+		em28xx_write_regs(dev, 0x08, "\xff", 1);
+		em28xx_write_regs(dev, 0x04, "\x00", 1);
+		msleep(100);
+		em28xx_write_regs(dev, 0x04, "\x08", 1);
+		msleep(100);
+		em28xx_write_regs(dev, 0x08, "\xff", 1);
+		msleep(50);
+		em28xx_write_regs(dev, 0x08, "\x2d", 1);
+		msleep(50);
+		em28xx_write_regs(dev, 0x08, "\x3d", 1);
 
-	/* Put xc2028 tuners and demods into a sane state */
-	if (dev->tuner_type == TUNER_XC2028) {
-		dev->mode = EM28XX_ANALOG_MODE;
-		em28xx_tuner_callback(dev, XC2028_TUNER_RESET, 0);
-	};
+		dev->analog_gpio = hauppauge_wintv_hvr_900_analog;
+		dev->digital_gpio = hauppauge_wintv_hvr_900_digital;
+
+		break;
+	}
 }
 
 void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)

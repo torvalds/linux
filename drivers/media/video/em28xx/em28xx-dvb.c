@@ -414,6 +414,7 @@ static int dvb_init(struct em28xx *dev)
 		goto out_free;
 	}
 
+	printk(KERN_INFO "Successfully loaded em28xx-dvb\n");
 	return 0;
 
 out_free:
