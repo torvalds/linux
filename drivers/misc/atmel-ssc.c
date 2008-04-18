@@ -154,6 +154,7 @@ static struct platform_driver ssc_driver = {
 	.remove		= __devexit_p(ssc_remove),
 	.driver		= {
 		.name		= "ssc",
+		.owner		= THIS_MODULE,
 	},
 };
 
@@ -172,3 +173,4 @@ module_exit(ssc_exit);
 MODULE_AUTHOR("Hans-Christian Egtvedt <hcegtvedt@atmel.com>");
 MODULE_DESCRIPTION("SSC driver for Atmel AVR32 and AT91");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:ssc");

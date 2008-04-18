@@ -109,6 +109,7 @@ static struct platform_driver tosaled_driver = {
 	.resume		= tosaled_resume,
 	.driver		= {
 		.name		= "tosa-led",
+		.owner		= THIS_MODULE,
 	},
 };
 
@@ -128,3 +129,4 @@ module_exit(tosaled_exit);
 MODULE_AUTHOR("Dirk Opfer <Dirk@Opfer-Online.de>");
 MODULE_DESCRIPTION("Tosa LED driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:tosa-led");

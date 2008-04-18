@@ -512,13 +512,18 @@ static void gelic_wl_parse_ie(u8 *data, size_t len,
 		 data, len);
 	memset(ie_info, 0, sizeof(struct ie_info));
 
-	while (0 < data_left) {
+	while (2 <= data_left) {
 		item_id = *pos++;
 		item_len = *pos++;
+		data_left -= 2;
+
+		if (data_left < item_len)
+			break;
 
 		switch (item_id) {
 		case MFIE_TYPE_GENERIC:
-			if (!memcmp(pos, wpa_oui, OUI_LEN) &&
+			if ((OUI_LEN + 1 <= item_len) &&
+			    !memcmp(pos, wpa_oui, OUI_LEN) &&
 			    pos[OUI_LEN] == 0x01) {
 				ie_info->wpa.data = pos - 2;
 				ie_info->wpa.len = item_len + 2;
@@ -535,7 +540,7 @@ static void gelic_wl_parse_ie(u8 *data, size_t len,
 			break;
 		}
 		pos += item_len;
-		data_left -= item_len + 2;
+		data_left -= item_len;
 	}
 	pr_debug("%s: wpa=%p,%d wpa2=%p,%d\n", __func__,
 		 ie_info->wpa.data, ie_info->wpa.len,

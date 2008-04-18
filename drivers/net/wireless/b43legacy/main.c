@@ -1516,6 +1516,7 @@ static int b43legacy_request_firmware(struct b43legacy_wldev *dev)
 	}
 	if (!fw->initvals) {
 		switch (dev->phy.type) {
+		case B43legacy_PHYTYPE_B:
 		case B43legacy_PHYTYPE_G:
 			if ((rev >= 5) && (rev <= 10))
 				filename = "b0g0initvals5";
@@ -1533,6 +1534,7 @@ static int b43legacy_request_firmware(struct b43legacy_wldev *dev)
 	}
 	if (!fw->initvals_band) {
 		switch (dev->phy.type) {
+		case B43legacy_PHYTYPE_B:
 		case B43legacy_PHYTYPE_G:
 			if ((rev >= 5) && (rev <= 10))
 				filename = "b0g0bsinitvals5";

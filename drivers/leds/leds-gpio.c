@@ -199,3 +199,4 @@ module_exit(gpio_led_exit);
 MODULE_AUTHOR("Raphael Assenat <raph@8d.com>");
 MODULE_DESCRIPTION("GPIO LED driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:leds-gpio");

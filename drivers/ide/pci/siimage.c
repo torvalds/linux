@@ -492,7 +492,7 @@ static void proc_reports_siimage (struct pci_dev *dev, u8 clocking, const char *
  
 static unsigned int setup_mmio_siimage (struct pci_dev *dev, const char *name)
 {
-	unsigned long bar5	= pci_resource_start(dev, 5);
+	resource_size_t bar5	= pci_resource_start(dev, 5);
 	unsigned long barsize	= pci_resource_len(dev, 5);
 	u8 tmpbyte	= 0;
 	void __iomem *ioaddr;

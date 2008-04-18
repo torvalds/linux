@@ -38,7 +38,7 @@ config BLK_DEV_IO_TRACE
 	  on a block device queue. For more information (and the user space
 	  support tools needed), fetch the blktrace app from:
 
-	  git://brick.kernel.dk/data/git/blktrace.git
+	  git://git.kernel.dk/blktrace.git
 
 config LSF
 	bool "Support for Large Single Files"

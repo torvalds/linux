@@ -120,7 +120,7 @@ typedef enum {
  * Extent state and extent format macros.
  */
 #define XFS_EXTFMT_INODE(x)	\
-	(XFS_SB_VERSION_HASEXTFLGBIT(&((x)->i_mount->m_sb)) ? \
+	(xfs_sb_version_hasextflgbit(&((x)->i_mount->m_sb)) ? \
 		XFS_EXTFMT_HASSTATE : XFS_EXTFMT_NOSTATE)
 #define ISUNWRITTEN(x)	((x)->br_state == XFS_EXT_UNWRITTEN)
 

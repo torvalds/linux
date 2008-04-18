@@ -960,3 +960,6 @@ static void __exit vr41xx_siu_exit(void)
 
 module_init(vr41xx_siu_init);
 module_exit(vr41xx_siu_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:SIU");

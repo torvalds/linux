@@ -181,6 +181,18 @@ struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost, gfp_t gfp_mask)
 	cmd = kmem_cache_alloc(shost->cmd_pool->cmd_slab,
 			       gfp_mask | shost->cmd_pool->gfp_mask);
 
+	if (likely(cmd)) {
+		buf = kmem_cache_alloc(shost->cmd_pool->sense_slab,
+				       gfp_mask | shost->cmd_pool->gfp_mask);
+		if (likely(buf)) {
+			memset(cmd, 0, sizeof(*cmd));
+			cmd->sense_buffer = buf;
+		} else {
+			kmem_cache_free(shost->cmd_pool->cmd_slab, cmd);
+			cmd = NULL;
+		}
+	}
+
 	if (unlikely(!cmd)) {
 		unsigned long flags;
 
@@ -196,16 +208,6 @@ struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost, gfp_t gfp_mask)
 			buf = cmd->sense_buffer;
 			memset(cmd, 0, sizeof(*cmd));
 			cmd->sense_buffer = buf;
-		}
-	} else {
-		buf = kmem_cache_alloc(shost->cmd_pool->sense_slab,
-				       gfp_mask | shost->cmd_pool->gfp_mask);
-		if (likely(buf)) {
-			memset(cmd, 0, sizeof(*cmd));
-			cmd->sense_buffer = buf;
-		} else {
-			kmem_cache_free(shost->cmd_pool->cmd_slab, cmd);
-			cmd = NULL;
 		}
 	}
 

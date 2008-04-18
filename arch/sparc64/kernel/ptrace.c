@@ -114,6 +114,85 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 	preempt_enable();
 }
 
+static int get_from_target(struct task_struct *target, unsigned long uaddr,
+			   void *kbuf, int len)
+{
+	if (target == current) {
+		if (copy_from_user(kbuf, (void __user *) uaddr, len))
+			return -EFAULT;
+	} else {
+		int len2 = access_process_vm(target, uaddr, kbuf, len, 0);
+		if (len2 != len)
+			return -EFAULT;
+	}
+	return 0;
+}
+
+static int set_to_target(struct task_struct *target, unsigned long uaddr,
+			 void *kbuf, int len)
+{
+	if (target == current) {
+		if (copy_to_user((void __user *) uaddr, kbuf, len))
+			return -EFAULT;
+	} else {
+		int len2 = access_process_vm(target, uaddr, kbuf, len, 1);
+		if (len2 != len)
+			return -EFAULT;
+	}
+	return 0;
+}
+
+static int regwindow64_get(struct task_struct *target,
+			   const struct pt_regs *regs,
+			   struct reg_window *wbuf)
+{
+	unsigned long rw_addr = regs->u_regs[UREG_I6];
+
+	if (test_tsk_thread_flag(current, TIF_32BIT)) {
+		struct reg_window32 win32;
+		int i;
+
+		if (get_from_target(target, rw_addr, &win32, sizeof(win32)))
+			return -EFAULT;
+		for (i = 0; i < 8; i++)
+			wbuf->locals[i] = win32.locals[i];
+		for (i = 0; i < 8; i++)
+			wbuf->ins[i] = win32.ins[i];
+	} else {
+		rw_addr += STACK_BIAS;
+		if (get_from_target(target, rw_addr, wbuf, sizeof(*wbuf)))
+			return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int regwindow64_set(struct task_struct *target,
+			   const struct pt_regs *regs,
+			   struct reg_window *wbuf)
+{
+	unsigned long rw_addr = regs->u_regs[UREG_I6];
+
+	if (test_tsk_thread_flag(current, TIF_32BIT)) {
+		struct reg_window32 win32;
+		int i;
+
+		for (i = 0; i < 8; i++)
+			win32.locals[i] = wbuf->locals[i];
+		for (i = 0; i < 8; i++)
+			win32.ins[i] = wbuf->ins[i];
+
+		if (set_to_target(target, rw_addr, &win32, sizeof(win32)))
+			return -EFAULT;
+	} else {
+		rw_addr += STACK_BIAS;
+		if (set_to_target(target, rw_addr, wbuf, sizeof(*wbuf)))
+			return -EFAULT;
+	}
+
+	return 0;
+}
+
 enum sparc_regset {
 	REGSET_GENERAL,
 	REGSET_FP,
@@ -133,16 +212,13 @@ static int genregs64_get(struct task_struct *target,
 	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 				  regs->u_regs,
 				  0, 16 * sizeof(u64));
-	if (!ret) {
-		unsigned long __user *reg_window = (unsigned long __user *)
-			(regs->u_regs[UREG_I6] + STACK_BIAS);
-		unsigned long window[16];
+	if (!ret && count && pos < (32 * sizeof(u64))) {
+		struct reg_window window;
 
-		if (copy_from_user(window, reg_window, sizeof(window)))
+		if (regwindow64_get(target, regs, &window))
 			return -EFAULT;
-
 		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-					  window,
+					  &window,
 					  16 * sizeof(u64),
 					  32 * sizeof(u64));
 	}
@@ -164,10 +240,11 @@ static int genregs64_get(struct task_struct *target,
 					  36 * sizeof(u64));
 	}
 
-	if (!ret)
+	if (!ret) {
 		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
 					       36 * sizeof(u64), -1);
 
+	}
 	return ret;
 }
 
@@ -185,20 +262,19 @@ static int genregs64_set(struct task_struct *target,
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 regs->u_regs,
 				 0, 16 * sizeof(u64));
-	if (!ret && count > 0) {
-		unsigned long __user *reg_window = (unsigned long __user *)
-			(regs->u_regs[UREG_I6] + STACK_BIAS);
-		unsigned long window[16];
+	if (!ret && count && pos < (32 * sizeof(u64))) {
+		struct reg_window window;
 
-		if (copy_from_user(window, reg_window, sizeof(window)))
+		if (regwindow64_get(target, regs, &window))
 			return -EFAULT;
 
 		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-					 window,
+					 &window,
 					 16 * sizeof(u64),
 					 32 * sizeof(u64));
+
 		if (!ret &&
-		    copy_to_user(reg_window, window, sizeof(window)))
+		    regwindow64_set(target, regs, &window))
 			return -EFAULT;
 	}
 
@@ -412,9 +488,22 @@ static int genregs32_get(struct task_struct *target,
 			*k++ = regs->u_regs[pos++];
 
 		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
-		for (; count > 0 && pos < 32; count--) {
-			if (get_user(*k++, &reg_window[pos++]))
-				return -EFAULT;
+		if (target == current) {
+			for (; count > 0 && pos < 32; count--) {
+				if (get_user(*k++, &reg_window[pos++]))
+					return -EFAULT;
+			}
+		} else {
+			for (; count > 0 && pos < 32; count--) {
+				if (access_process_vm(target,
+						      (unsigned long)
+						      &reg_window[pos],
+						      k, sizeof(*k), 0)
+				    != sizeof(*k))
+					return -EFAULT;
+				k++;
+				pos++;
+			}
 		}
 	} else {
 		for (; count > 0 && pos < 16; count--) {
@@ -423,10 +512,28 @@ static int genregs32_get(struct task_struct *target,
 		}
 
 		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
-		for (; count > 0 && pos < 32; count--) {
-			if (get_user(reg, &reg_window[pos++]) ||
-			    put_user(reg, u++))
-				return -EFAULT;
+		if (target == current) {
+			for (; count > 0 && pos < 32; count--) {
+				if (get_user(reg, &reg_window[pos++]) ||
+				    put_user(reg, u++))
+					return -EFAULT;
+			}
+		} else {
+			for (; count > 0 && pos < 32; count--) {
+				if (access_process_vm(target,
+						      (unsigned long)
+						      &reg_window[pos],
+						      &reg, sizeof(reg), 0)
+				    != sizeof(reg))
+					return -EFAULT;
+				if (access_process_vm(target,
+						      (unsigned long) u,
+						      &reg, sizeof(reg), 1)
+				    != sizeof(reg))
+					return -EFAULT;
+				pos++;
+				u++;
+			}
 		}
 	}
 	while (count > 0) {
@@ -488,9 +595,23 @@ static int genregs32_set(struct task_struct *target,
 			regs->u_regs[pos++] = *k++;
 
 		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
-		for (; count > 0 && pos < 32; count--) {
-			if (put_user(*k++, &reg_window[pos++]))
-				return -EFAULT;
+		if (target == current) {
+			for (; count > 0 && pos < 32; count--) {
+				if (put_user(*k++, &reg_window[pos++]))
+					return -EFAULT;
+			}
+		} else {
+			for (; count > 0 && pos < 32; count--) {
+				if (access_process_vm(target,
+						      (unsigned long)
+						      &reg_window[pos],
+						      (void *) k,
+						      sizeof(*k), 1)
+				    != sizeof(*k))
+					return -EFAULT;
+				k++;
+				pos++;
+			}
 		}
 	} else {
 		for (; count > 0 && pos < 16; count--) {
@@ -500,10 +621,29 @@ static int genregs32_set(struct task_struct *target,
 		}
 
 		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
-		for (; count > 0 && pos < 32; count--) {
-			if (get_user(reg, u++) ||
-			    put_user(reg, &reg_window[pos++]))
-				return -EFAULT;
+		if (target == current) {
+			for (; count > 0 && pos < 32; count--) {
+				if (get_user(reg, u++) ||
+				    put_user(reg, &reg_window[pos++]))
+					return -EFAULT;
+			}
+		} else {
+			for (; count > 0 && pos < 32; count--) {
+				if (access_process_vm(target,
+						      (unsigned long)
+						      u,
+						      &reg, sizeof(reg), 0)
+				    != sizeof(reg))
+					return -EFAULT;
+				if (access_process_vm(target,
+						      (unsigned long)
+						      &reg_window[pos],
+						      &reg, sizeof(reg), 1)
+				    != sizeof(reg))
+					return -EFAULT;
+				pos++;
+				u++;
+			}
 		}
 	}
 	while (count > 0) {
@@ -711,7 +851,7 @@ struct compat_fps {
 long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			compat_ulong_t caddr, compat_ulong_t cdata)
 {
-	const struct user_regset_view *view = task_user_regset_view(child);
+	const struct user_regset_view *view = task_user_regset_view(current);
 	compat_ulong_t caddr2 = task_pt_regs(current)->u_regs[UREG_I4];
 	struct pt_regs32 __user *pregs;
 	struct compat_fps __user *fps;
@@ -819,7 +959,7 @@ struct fps {
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
-	const struct user_regset_view *view = task_user_regset_view(child);
+	const struct user_regset_view *view = task_user_regset_view(current);
 	unsigned long addr2 = task_pt_regs(current)->u_regs[UREG_I4];
 	struct pt_regs __user *pregs;
 	struct fps __user *fps;

@@ -1188,6 +1188,8 @@ mpc52xx_uart_resume(struct platform_device *dev)
 }
 #endif
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:mpc52xx-psc");
 
 static struct platform_driver mpc52xx_uart_platform_driver = {
 	.probe		= mpc52xx_uart_probe,

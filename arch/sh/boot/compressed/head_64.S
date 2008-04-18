@@ -13,7 +13,6 @@
  * Modification for compressed loader:
  *   Copyright (C) 2002 Stuart Menefy (stuart.menefy@st.com)
  */
-#include <linux/linkage.h>
 #include <asm/cache.h>
 #include <asm/cpu/mmu_context.h>
 #include <asm/cpu/registers.h>

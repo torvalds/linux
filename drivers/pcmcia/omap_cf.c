@@ -344,6 +344,7 @@ static int omap_cf_resume(struct platform_device *pdev)
 static struct platform_driver omap_cf_driver = {
 	.driver = {
 		.name	= (char *) driver_name,
+		.owner	= THIS_MODULE,
 	},
 	.remove		= __exit_p(omap_cf_remove),
 	.suspend	= omap_cf_suspend,
@@ -368,3 +369,4 @@ module_exit(omap_cf_exit);
 
 MODULE_DESCRIPTION("OMAP CF Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:omap_cf");

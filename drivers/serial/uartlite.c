@@ -561,6 +561,9 @@ static int __devexit ulite_remove(struct platform_device *pdev)
 	return ulite_release(&pdev->dev);
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:uartlite");
+
 static struct platform_driver ulite_platform_driver = {
 	.probe	= ulite_probe,
 	.remove	= __devexit_p(ulite_remove),

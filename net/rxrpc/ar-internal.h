@@ -611,7 +611,7 @@ extern struct rxrpc_transport *rxrpc_find_transport(struct rxrpc_local *,
 extern unsigned rxrpc_debug;
 
 #define dbgprintk(FMT,...) \
-	printk("[%x%-6.6s] "FMT"\n", smp_processor_id(), current->comm ,##__VA_ARGS__)
+	printk("[%-6.6s] "FMT"\n", current->comm ,##__VA_ARGS__)
 
 /* make sure we maintain the format strings, even when debugging is disabled */
 static inline __attribute__((format(printf,1,2)))

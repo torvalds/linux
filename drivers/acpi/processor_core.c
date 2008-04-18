@@ -822,7 +822,7 @@ static int acpi_processor_remove(struct acpi_device *device, int type)
 	}
 
 	processors[pr->id] = NULL;
-
+	processor_device_array[pr->id] = NULL;
 	kfree(pr);
 
 	return 0;

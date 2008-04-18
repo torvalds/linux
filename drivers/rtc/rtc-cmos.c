@@ -198,9 +198,8 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 
 	/* Writing 0xff means "don't care" or "match all".  */
 
-	mon = t->time.tm_mon;
-	mon = (mon < 12) ? BIN2BCD(mon) : 0xff;
-	mon++;
+	mon = t->time.tm_mon + 1;
+	mon = (mon <= 12) ? BIN2BCD(mon) : 0xff;
 
 	mday = t->time.tm_mday;
 	mday = (mday >= 1 && mday <= 31) ? BIN2BCD(mday) : 0xff;
@@ -942,6 +941,9 @@ static void cmos_platform_shutdown(struct platform_device *pdev)
 {
 	cmos_do_shutdown();
 }
+
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:rtc_cmos");
 
 static struct platform_driver cmos_platform_driver = {
 	.remove		= __exit_p(cmos_platform_remove),

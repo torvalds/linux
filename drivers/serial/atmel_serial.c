@@ -1577,3 +1577,4 @@ module_exit(atmel_serial_exit);
 MODULE_AUTHOR("Rick Bronson");
 MODULE_DESCRIPTION("Atmel AT91 / AT32 serial port driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:atmel_usart");

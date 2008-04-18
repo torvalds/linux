@@ -122,6 +122,16 @@ static inline void tx39_blast_icache(void)
 	local_irq_restore(flags);
 }
 
+static void tx39__flush_cache_vmap(void)
+{
+	tx39_blast_dcache();
+}
+
+static void tx39__flush_cache_vunmap(void)
+{
+	tx39_blast_dcache();
+}
+
 static inline void tx39_flush_cache_all(void)
 {
 	if (!cpu_has_dc_aliases)
@@ -344,6 +354,8 @@ void __cpuinit tx39_cache_init(void)
 	switch (current_cpu_type()) {
 	case CPU_TX3912:
 		/* TX39/H core (writethru direct-map cache) */
+		__flush_cache_vmap	= tx39__flush_cache_vmap;
+		__flush_cache_vunmap	= tx39__flush_cache_vunmap;
 		flush_cache_all	= tx39h_flush_icache_all;
 		__flush_cache_all	= tx39h_flush_icache_all;
 		flush_cache_mm		= (void *) tx39h_flush_icache_all;
@@ -368,6 +380,9 @@ void __cpuinit tx39_cache_init(void)
 		r3k_have_wired_reg = 1;
 		write_c0_wired(0);	/* set 8 on reset... */
 		/* board-dependent init code may set WBON */
+
+		__flush_cache_vmap	= tx39__flush_cache_vmap;
+		__flush_cache_vunmap	= tx39__flush_cache_vunmap;
 
 		flush_cache_all = tx39_flush_cache_all;
 		__flush_cache_all = tx39___flush_cache_all;

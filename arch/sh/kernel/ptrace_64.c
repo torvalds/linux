@@ -33,6 +33,7 @@
 #include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/mmu_context.h>
+#include <asm/fpu.h>
 
 /* This mask defines the bits of the SR which the user is not allowed to
    change, which are everything except S, Q, M, PR, SZ, FR. */

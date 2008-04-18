@@ -341,6 +341,9 @@ static inline void double_spin_unlock(spinlock_t *l1, spinlock_t *l2,
  * atomic_dec_and_lock - lock on reaching reference count zero
  * @atomic: the atomic counter
  * @lock: the spinlock in question
+ *
+ * Decrements @atomic by 1.  If the result is 0, returns true and locks
+ * @lock.  Returns false for all other cases.
  */
 extern int _atomic_dec_and_lock(atomic_t *atomic, spinlock_t *lock);
 #define atomic_dec_and_lock(atomic, lock) \

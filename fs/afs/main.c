@@ -22,7 +22,7 @@ MODULE_LICENSE("GPL");
 
 unsigned afs_debug;
 module_param_named(debug, afs_debug, uint, S_IWUSR | S_IRUGO);
-MODULE_PARM_DESC(afs_debug, "AFS debugging mask");
+MODULE_PARM_DESC(debug, "AFS debugging mask");
 
 static char *rootcell;
 

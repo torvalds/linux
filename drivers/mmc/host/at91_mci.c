@@ -1075,3 +1075,4 @@ module_exit(at91_mci_exit);
 MODULE_DESCRIPTION("AT91 Multimedia Card Interface driver");
 MODULE_AUTHOR("Nick Randell");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:at91_mci");

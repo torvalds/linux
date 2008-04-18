@@ -1552,3 +1552,4 @@ module_init(sci_init);
 module_exit(sci_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:sh-sci");

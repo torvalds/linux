@@ -1126,7 +1126,7 @@ ext3_xattr_cache_insert(struct buffer_head *bh)
 	struct mb_cache_entry *ce;
 	int error;
 
-	ce = mb_cache_entry_alloc(ext3_xattr_cache);
+	ce = mb_cache_entry_alloc(ext3_xattr_cache, GFP_NOFS);
 	if (!ce) {
 		ea_bdebug(bh, "out of memory");
 		return;

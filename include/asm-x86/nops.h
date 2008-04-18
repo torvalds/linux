@@ -73,16 +73,7 @@
 #define P6_NOP7	".byte 0x0f,0x1f,0x80,0,0,0,0\n"
 #define P6_NOP8	".byte 0x0f,0x1f,0x84,0x00,0,0,0,0\n"
 
-#if defined(CONFIG_MK8)
-#define ASM_NOP1 K8_NOP1
-#define ASM_NOP2 K8_NOP2
-#define ASM_NOP3 K8_NOP3
-#define ASM_NOP4 K8_NOP4
-#define ASM_NOP5 K8_NOP5
-#define ASM_NOP6 K8_NOP6
-#define ASM_NOP7 K8_NOP7
-#define ASM_NOP8 K8_NOP8
-#elif defined(CONFIG_MK7)
+#if defined(CONFIG_MK7)
 #define ASM_NOP1 K7_NOP1
 #define ASM_NOP2 K7_NOP2
 #define ASM_NOP3 K7_NOP3
@@ -100,6 +91,15 @@
 #define ASM_NOP6 P6_NOP6
 #define ASM_NOP7 P6_NOP7
 #define ASM_NOP8 P6_NOP8
+#elif defined(CONFIG_X86_64)
+#define ASM_NOP1 K8_NOP1
+#define ASM_NOP2 K8_NOP2
+#define ASM_NOP3 K8_NOP3
+#define ASM_NOP4 K8_NOP4
+#define ASM_NOP5 K8_NOP5
+#define ASM_NOP6 K8_NOP6
+#define ASM_NOP7 K8_NOP7
+#define ASM_NOP8 K8_NOP8
 #else
 #define ASM_NOP1 GENERIC_NOP1
 #define ASM_NOP2 GENERIC_NOP2
