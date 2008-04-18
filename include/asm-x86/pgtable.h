@@ -4,13 +4,13 @@
 #define USER_PTRS_PER_PGD	((TASK_SIZE-1)/PGDIR_SIZE+1)
 #define FIRST_USER_ADDRESS	0
 
-#define _PAGE_BIT_PRESENT	0
-#define _PAGE_BIT_RW		1
-#define _PAGE_BIT_USER		2
-#define _PAGE_BIT_PWT		3
-#define _PAGE_BIT_PCD		4
-#define _PAGE_BIT_ACCESSED	5
-#define _PAGE_BIT_DIRTY		6
+#define _PAGE_BIT_PRESENT	0	/* is present */
+#define _PAGE_BIT_RW		1	/* writeable */
+#define _PAGE_BIT_USER		2	/* userspace addressable */
+#define _PAGE_BIT_PWT		3	/* page write through */
+#define _PAGE_BIT_PCD		4	/* page cache disabled */
+#define _PAGE_BIT_ACCESSED	5	/* was accessed (raised by CPU) */
+#define _PAGE_BIT_DIRTY		6	/* was written to (raised by CPU) */
 #define _PAGE_BIT_FILE		6
 #define _PAGE_BIT_PSE		7	/* 4 MB (or 2MB) page */
 #define _PAGE_BIT_PAT		7	/* on 4KB pages */
@@ -48,24 +48,39 @@
 #endif
 
 /* If _PAGE_PRESENT is clear, we use these: */
-#define _PAGE_FILE	_PAGE_DIRTY	/* nonlinear file mapping, saved PTE; unset:swap */
+#define _PAGE_FILE	_PAGE_DIRTY	/* nonlinear file mapping,
+					 * saved PTE; unset:swap */
 #define _PAGE_PROTNONE	_PAGE_PSE	/* if the user mapped it with PROT_NONE;
 					   pte_present gives true */
 
-#define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_ACCESSED | _PAGE_DIRTY)
-#define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY)
+#define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |	\
+			 _PAGE_ACCESSED | _PAGE_DIRTY)
+#define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED |	\
+			 _PAGE_DIRTY)
 
 #define _PAGE_CHG_MASK	(PTE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
 
-#define PAGE_NONE	__pgprot(_PAGE_PROTNONE | _PAGE_ACCESSED)
-#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_ACCESSED | _PAGE_NX)
+#define _PAGE_CACHE_MASK	(_PAGE_PCD | _PAGE_PWT)
+#define _PAGE_CACHE_WB		(0)
+#define _PAGE_CACHE_WC		(_PAGE_PWT)
+#define _PAGE_CACHE_UC_MINUS	(_PAGE_PCD)
+#define _PAGE_CACHE_UC		(_PAGE_PCD | _PAGE_PWT)
 
-#define PAGE_SHARED_EXEC	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_ACCESSED)
-#define PAGE_COPY_NOEXEC	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED | _PAGE_NX)
-#define PAGE_COPY_EXEC		__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED)
+#define PAGE_NONE	__pgprot(_PAGE_PROTNONE | _PAGE_ACCESSED)
+#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | \
+				 _PAGE_ACCESSED | _PAGE_NX)
+
+#define PAGE_SHARED_EXEC	__pgprot(_PAGE_PRESENT | _PAGE_RW |	\
+					 _PAGE_USER | _PAGE_ACCESSED)
+#define PAGE_COPY_NOEXEC	__pgprot(_PAGE_PRESENT | _PAGE_USER |	\
+					 _PAGE_ACCESSED | _PAGE_NX)
+#define PAGE_COPY_EXEC		__pgprot(_PAGE_PRESENT | _PAGE_USER |	\
+					 _PAGE_ACCESSED)
 #define PAGE_COPY		PAGE_COPY_NOEXEC
-#define PAGE_READONLY		__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED | _PAGE_NX)
-#define PAGE_READONLY_EXEC	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED)
+#define PAGE_READONLY		__pgprot(_PAGE_PRESENT | _PAGE_USER |	\
+					 _PAGE_ACCESSED | _PAGE_NX)
+#define PAGE_READONLY_EXEC	__pgprot(_PAGE_PRESENT | _PAGE_USER |	\
+					 _PAGE_ACCESSED)
 
 #ifdef CONFIG_X86_32
 #define _PAGE_KERNEL_EXEC \
@@ -84,6 +99,7 @@ extern pteval_t __PAGE_KERNEL, __PAGE_KERNEL_EXEC;
 #define __PAGE_KERNEL_RO		(__PAGE_KERNEL & ~_PAGE_RW)
 #define __PAGE_KERNEL_RX		(__PAGE_KERNEL_EXEC & ~_PAGE_RW)
 #define __PAGE_KERNEL_EXEC_NOCACHE	(__PAGE_KERNEL_EXEC | _PAGE_PCD | _PAGE_PWT)
+#define __PAGE_KERNEL_WC		(__PAGE_KERNEL | _PAGE_CACHE_WC)
 #define __PAGE_KERNEL_NOCACHE		(__PAGE_KERNEL | _PAGE_PCD | _PAGE_PWT)
 #define __PAGE_KERNEL_UC_MINUS		(__PAGE_KERNEL | _PAGE_PCD)
 #define __PAGE_KERNEL_VSYSCALL		(__PAGE_KERNEL_RX | _PAGE_USER)
@@ -101,6 +117,7 @@ extern pteval_t __PAGE_KERNEL, __PAGE_KERNEL_EXEC;
 #define PAGE_KERNEL_RO			MAKE_GLOBAL(__PAGE_KERNEL_RO)
 #define PAGE_KERNEL_EXEC		MAKE_GLOBAL(__PAGE_KERNEL_EXEC)
 #define PAGE_KERNEL_RX			MAKE_GLOBAL(__PAGE_KERNEL_RX)
+#define PAGE_KERNEL_WC			MAKE_GLOBAL(__PAGE_KERNEL_WC)
 #define PAGE_KERNEL_NOCACHE		MAKE_GLOBAL(__PAGE_KERNEL_NOCACHE)
 #define PAGE_KERNEL_UC_MINUS		MAKE_GLOBAL(__PAGE_KERNEL_UC_MINUS)
 #define PAGE_KERNEL_EXEC_NOCACHE	MAKE_GLOBAL(__PAGE_KERNEL_EXEC_NOCACHE)
@@ -134,7 +151,7 @@ extern pteval_t __PAGE_KERNEL, __PAGE_KERNEL_EXEC;
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..
  */
-extern unsigned long empty_zero_page[PAGE_SIZE/sizeof(unsigned long)];
+extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
 
 extern spinlock_t pgd_lock;
@@ -144,30 +161,101 @@ extern struct list_head pgd_list;
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
  */
-static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
-static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
-static inline int pte_write(pte_t pte)		{ return pte_val(pte) & _PAGE_RW; }
-static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
-static inline int pte_huge(pte_t pte)		{ return pte_val(pte) & _PAGE_PSE; }
-static inline int pte_global(pte_t pte) 	{ return pte_val(pte) & _PAGE_GLOBAL; }
-static inline int pte_exec(pte_t pte)		{ return !(pte_val(pte) & _PAGE_NX); }
-
-static inline int pmd_large(pmd_t pte) {
-	return (pmd_val(pte) & (_PAGE_PSE|_PAGE_PRESENT)) ==
-		(_PAGE_PSE|_PAGE_PRESENT);
+static inline int pte_dirty(pte_t pte)
+{
+	return pte_val(pte) & _PAGE_DIRTY;
 }
 
-static inline pte_t pte_mkclean(pte_t pte)	{ return __pte(pte_val(pte) & ~(pteval_t)_PAGE_DIRTY); }
-static inline pte_t pte_mkold(pte_t pte)	{ return __pte(pte_val(pte) & ~(pteval_t)_PAGE_ACCESSED); }
-static inline pte_t pte_wrprotect(pte_t pte)	{ return __pte(pte_val(pte) & ~(pteval_t)_PAGE_RW); }
-static inline pte_t pte_mkexec(pte_t pte)	{ return __pte(pte_val(pte) & ~(pteval_t)_PAGE_NX); }
-static inline pte_t pte_mkdirty(pte_t pte)	{ return __pte(pte_val(pte) | _PAGE_DIRTY); }
-static inline pte_t pte_mkyoung(pte_t pte)	{ return __pte(pte_val(pte) | _PAGE_ACCESSED); }
-static inline pte_t pte_mkwrite(pte_t pte)	{ return __pte(pte_val(pte) | _PAGE_RW); }
-static inline pte_t pte_mkhuge(pte_t pte)	{ return __pte(pte_val(pte) | _PAGE_PSE); }
-static inline pte_t pte_clrhuge(pte_t pte)	{ return __pte(pte_val(pte) & ~(pteval_t)_PAGE_PSE); }
-static inline pte_t pte_mkglobal(pte_t pte)	{ return __pte(pte_val(pte) | _PAGE_GLOBAL); }
-static inline pte_t pte_clrglobal(pte_t pte)	{ return __pte(pte_val(pte) & ~(pteval_t)_PAGE_GLOBAL); }
+static inline int pte_young(pte_t pte)
+{
+	return pte_val(pte) & _PAGE_ACCESSED;
+}
+
+static inline int pte_write(pte_t pte)
+{
+	return pte_val(pte) & _PAGE_RW;
+}
+
+static inline int pte_file(pte_t pte)
+{
+	return pte_val(pte) & _PAGE_FILE;
+}
+
+static inline int pte_huge(pte_t pte)
+{
+	return pte_val(pte) & _PAGE_PSE;
+}
+
+static inline int pte_global(pte_t pte)
+{
+	return pte_val(pte) & _PAGE_GLOBAL;
+}
+
+static inline int pte_exec(pte_t pte)
+{
+	return !(pte_val(pte) & _PAGE_NX);
+}
+
+static inline int pmd_large(pmd_t pte)
+{
+	return (pmd_val(pte) & (_PAGE_PSE | _PAGE_PRESENT)) ==
+		(_PAGE_PSE | _PAGE_PRESENT);
+}
+
+static inline pte_t pte_mkclean(pte_t pte)
+{
+	return __pte(pte_val(pte) & ~(pteval_t)_PAGE_DIRTY);
+}
+
+static inline pte_t pte_mkold(pte_t pte)
+{
+	return __pte(pte_val(pte) & ~(pteval_t)_PAGE_ACCESSED);
+}
+
+static inline pte_t pte_wrprotect(pte_t pte)
+{
+	return __pte(pte_val(pte) & ~(pteval_t)_PAGE_RW);
+}
+
+static inline pte_t pte_mkexec(pte_t pte)
+{
+	return __pte(pte_val(pte) & ~(pteval_t)_PAGE_NX);
+}
+
+static inline pte_t pte_mkdirty(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_DIRTY);
+}
+
+static inline pte_t pte_mkyoung(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_ACCESSED);
+}
+
+static inline pte_t pte_mkwrite(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_RW);
+}
+
+static inline pte_t pte_mkhuge(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_PSE);
+}
+
+static inline pte_t pte_clrhuge(pte_t pte)
+{
+	return __pte(pte_val(pte) & ~(pteval_t)_PAGE_PSE);
+}
+
+static inline pte_t pte_mkglobal(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_GLOBAL);
+}
+
+static inline pte_t pte_clrglobal(pte_t pte)
+{
+	return __pte(pte_val(pte) & ~(pteval_t)_PAGE_GLOBAL);
+}
 
 extern pteval_t __supported_pte_mask;
 
@@ -334,7 +422,8 @@ static inline void native_set_pte_at(struct mm_struct *mm, unsigned long addr,
 })
 
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
-static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
+				       pte_t *ptep)
 {
 	pte_t pte = native_ptep_get_and_clear(ptep);
 	pte_update(mm, addr, ptep);
@@ -342,7 +431,9 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 }
 
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
-static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long addr, pte_t *ptep, int full)
+static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
+					    unsigned long addr, pte_t *ptep,
+					    int full)
 {
 	pte_t pte;
 	if (full) {
@@ -358,7 +449,8 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long 
 }
 
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
-static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+static inline void ptep_set_wrprotect(struct mm_struct *mm,
+				      unsigned long addr, pte_t *ptep)
 {
 	clear_bit(_PAGE_BIT_RW, (unsigned long *)&ptep->pte);
 	pte_update(mm, addr, ptep);

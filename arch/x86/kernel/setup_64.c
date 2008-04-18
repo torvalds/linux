@@ -58,7 +58,6 @@
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 #include <asm/setup.h>
-#include <asm/mach_apic.h>
 #include <asm/numa.h>
 #include <asm/sections.h>
 #include <asm/dmi.h>
@@ -66,7 +65,9 @@
 #include <asm/mce.h>
 #include <asm/ds.h>
 #include <asm/topology.h>
+#include <asm/trampoline.h>
 
+#include <mach_apic.h>
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
@@ -248,6 +249,7 @@ static void __init reserve_crashkernel(void)
 				(unsigned long)(total_mem >> 20));
 		crashk_res.start = crash_base;
 		crashk_res.end   = crash_base + crash_size - 1;
+		insert_resource(&iomem_resource, &crashk_res);
 	}
 }
 #else
@@ -322,6 +324,11 @@ void __init setup_arch(char **cmdline_p)
 
 	finish_e820_parsing();
 
+	/* after parse_early_param, so could debug it */
+	insert_resource(&iomem_resource, &code_resource);
+	insert_resource(&iomem_resource, &data_resource);
+	insert_resource(&iomem_resource, &bss_resource);
+
 	early_gart_iommu_check();
 
 	e820_register_active_regions(0, 0, -1UL);
@@ -341,9 +348,11 @@ void __init setup_arch(char **cmdline_p)
 
 	check_efer();
 
-	init_memory_mapping(0, (end_pfn_map << PAGE_SHIFT));
+	max_pfn_mapped = init_memory_mapping(0, (max_pfn_mapped << PAGE_SHIFT));
 	if (efi_enabled)
 		efi_init();
+
+	vsmp_init();
 
 	dmi_scan_machine();
 
@@ -450,7 +459,7 @@ void __init setup_arch(char **cmdline_p)
 	/*
 	 * We trust e820 completely. No explicit ROM probing in memory.
 	 */
-	e820_reserve_resources(&code_resource, &data_resource, &bss_resource);
+	e820_reserve_resources();
 	e820_mark_nosave_regions();
 
 	/* request I/O space for devices used on all i[345]86 PCs */
@@ -552,9 +561,9 @@ static void __cpuinit amd_detect_cmp(struct cpuinfo_x86 *c)
 	bits = c->x86_coreid_bits;
 
 	/* Low order bits define the core id (index of core in socket) */
-	c->cpu_core_id = c->phys_proc_id & ((1 << bits)-1);
-	/* Convert the APIC ID into the socket ID */
-	c->phys_proc_id = phys_pkg_id(bits);
+	c->cpu_core_id = c->initial_apicid & ((1 << bits)-1);
+	/* Convert the initial APIC ID into the socket ID */
+	c->phys_proc_id = c->initial_apicid >> bits;
 
 #ifdef CONFIG_NUMA
 	node = c->phys_proc_id;
@@ -571,7 +580,7 @@ static void __cpuinit amd_detect_cmp(struct cpuinfo_x86 *c)
 		   If that doesn't result in a usable node fall back to the
 		   path for the previous case.  */
 
-		int ht_nodeid = apicid - (cpu_data(0).phys_proc_id << bits);
+		int ht_nodeid = c->initial_apicid;
 
 		if (ht_nodeid >= 0 &&
 		    apicid_to_node[ht_nodeid] != NUMA_NO_NODE)
@@ -677,7 +686,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	/* Bit 31 in normal CPUID used for nonstandard 3DNow ID;
 	   3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway */
-	clear_bit(0*32+31, (unsigned long *)&c->x86_capability);
+	clear_cpu_cap(c, 0*32+31);
 
 	/* On C+ stepping K8 rep microcode works well for copy/memset */
 	level = cpuid_eax(1);
@@ -721,6 +730,19 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	if (amd_apic_timer_broken())
 		disable_apic_timer = 1;
+
+	if (c == &boot_cpu_data && c->x86 >= 0xf && c->x86 <= 0x11) {
+		unsigned long long tseg;
+
+		/*
+		 * Split up direct mapping around the TSEG SMM area.
+		 * Don't do it for gbpages because there seems very little
+		 * benefit in doing so.
+		 */
+		if (!rdmsrl_safe(MSR_K8_TSEG_ADDR, &tseg) &&
+		(tseg >> PMD_SHIFT) < (max_pfn_mapped >> (PMD_SHIFT-PAGE_SHIFT)))
+			set_memory_4k((unsigned long)__va(tseg), 1);
+	}
 }
 
 void __cpuinit detect_ht(struct cpuinfo_x86 *c)
@@ -813,7 +835,7 @@ static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 {
 	if ((c->x86 == 0xf && c->x86_model >= 0x03) ||
 	    (c->x86 == 0x6 && c->x86_model >= 0x0e))
-		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
+		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 }
 
 static void __cpuinit init_intel(struct cpuinfo_x86 *c)
@@ -856,15 +878,38 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 
 	if (c->x86 == 15)
 		c->x86_cache_alignment = c->x86_clflush_size * 2;
-	if ((c->x86 == 0xf && c->x86_model >= 0x03) ||
-	    (c->x86 == 0x6 && c->x86_model >= 0x0e))
-		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 	if (c->x86 == 6)
 		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
 	set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
 	c->x86_max_cores = intel_num_cpu_cores(c);
 
 	srat_detect_node();
+}
+
+static void __cpuinit early_init_centaur(struct cpuinfo_x86 *c)
+{
+	if (c->x86 == 0x6 && c->x86_model >= 0xf)
+		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
+}
+
+static void __cpuinit init_centaur(struct cpuinfo_x86 *c)
+{
+	/* Cache sizes */
+	unsigned n;
+
+	n = c->extended_cpuid_level;
+	if (n >= 0x80000008) {
+		unsigned eax = cpuid_eax(0x80000008);
+		c->x86_virt_bits = (eax >> 8) & 0xff;
+		c->x86_phys_bits = eax & 0xff;
+	}
+
+	if (c->x86 == 0x6 && c->x86_model >= 0xf) {
+		c->x86_cache_alignment = c->x86_clflush_size * 2;
+		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
+		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
+	}
+	set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
 }
 
 static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
@@ -875,6 +920,8 @@ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 		c->x86_vendor = X86_VENDOR_AMD;
 	else if (!strcmp(v, "GenuineIntel"))
 		c->x86_vendor = X86_VENDOR_INTEL;
+	else if (!strcmp(v, "CentaurHauls"))
+		c->x86_vendor = X86_VENDOR_CENTAUR;
 	else
 		c->x86_vendor = X86_VENDOR_UNKNOWN;
 }
@@ -922,15 +969,16 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 			c->x86 += (tfms >> 20) & 0xff;
 		if (c->x86 >= 0x6)
 			c->x86_model += ((tfms >> 16) & 0xF) << 4;
-		if (c->x86_capability[0] & (1<<19))
+		if (test_cpu_cap(c, X86_FEATURE_CLFLSH))
 			c->x86_clflush_size = ((misc >> 8) & 0xff) * 8;
 	} else {
 		/* Have CPUID level 0 only - unheard of */
 		c->x86 = 4;
 	}
 
+	c->initial_apicid = (cpuid_ebx(1) >> 24) & 0xff;
 #ifdef CONFIG_SMP
-	c->phys_proc_id = (cpuid_ebx(1) >> 24) & 0xff;
+	c->phys_proc_id = c->initial_apicid;
 #endif
 	/* AMD-defined flags: level 0x80000001 */
 	xlvl = cpuid_eax(0x80000000);
@@ -956,12 +1004,22 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 	if (c->extended_cpuid_level >= 0x80000007)
 		c->x86_power = cpuid_edx(0x80000007);
 
+
+	clear_cpu_cap(c, X86_FEATURE_PAT);
+
 	switch (c->x86_vendor) {
 	case X86_VENDOR_AMD:
 		early_init_amd(c);
+		if (c->x86 >= 0xf && c->x86 <= 0x11)
+			set_cpu_cap(c, X86_FEATURE_PAT);
 		break;
 	case X86_VENDOR_INTEL:
 		early_init_intel(c);
+		if (c->x86 == 0xF || (c->x86 == 6 && c->x86_model >= 15))
+			set_cpu_cap(c, X86_FEATURE_PAT);
+		break;
+	case X86_VENDOR_CENTAUR:
+		early_init_centaur(c);
 		break;
 	}
 
@@ -999,6 +1057,10 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 		init_intel(c);
 		break;
 
+	case X86_VENDOR_CENTAUR:
+		init_centaur(c);
+		break;
+
 	case X86_VENDOR_UNKNOWN:
 	default:
 		display_cacheinfo(c);
@@ -1028,12 +1090,22 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 #endif
 	select_idle_routine(c);
 
-	if (c != &boot_cpu_data)
-		mtrr_ap_init();
 #ifdef CONFIG_NUMA
 	numa_add_cpu(smp_processor_id());
 #endif
 
+}
+
+void __cpuinit identify_boot_cpu(void)
+{
+	identify_cpu(&boot_cpu_data);
+}
+
+void __cpuinit identify_secondary_cpu(struct cpuinfo_x86 *c)
+{
+	BUG_ON(c == &boot_cpu_data);
+	identify_cpu(c);
+	mtrr_ap_init();
 }
 
 static __init int setup_noclflush(char *arg)
@@ -1064,123 +1136,3 @@ static __init int setup_disablecpuid(char *arg)
 	return 1;
 }
 __setup("clearcpuid=", setup_disablecpuid);
-
-/*
- *	Get CPU information for use by the procfs.
- */
-
-static int show_cpuinfo(struct seq_file *m, void *v)
-{
-	struct cpuinfo_x86 *c = v;
-	int cpu = 0, i;
-
-#ifdef CONFIG_SMP
-	cpu = c->cpu_index;
-#endif
-
-	seq_printf(m, "processor\t: %u\n"
-		   "vendor_id\t: %s\n"
-		   "cpu family\t: %d\n"
-		   "model\t\t: %d\n"
-		   "model name\t: %s\n",
-		   (unsigned)cpu,
-		   c->x86_vendor_id[0] ? c->x86_vendor_id : "unknown",
-		   c->x86,
-		   (int)c->x86_model,
-		   c->x86_model_id[0] ? c->x86_model_id : "unknown");
-
-	if (c->x86_mask || c->cpuid_level >= 0)
-		seq_printf(m, "stepping\t: %d\n", c->x86_mask);
-	else
-		seq_printf(m, "stepping\t: unknown\n");
-
-	if (cpu_has(c, X86_FEATURE_TSC)) {
-		unsigned int freq = cpufreq_quick_get((unsigned)cpu);
-
-		if (!freq)
-			freq = cpu_khz;
-		seq_printf(m, "cpu MHz\t\t: %u.%03u\n",
-			   freq / 1000, (freq % 1000));
-	}
-
-	/* Cache size */
-	if (c->x86_cache_size >= 0)
-		seq_printf(m, "cache size\t: %d KB\n", c->x86_cache_size);
-
-#ifdef CONFIG_SMP
-	if (smp_num_siblings * c->x86_max_cores > 1) {
-		seq_printf(m, "physical id\t: %d\n", c->phys_proc_id);
-		seq_printf(m, "siblings\t: %d\n",
-			       cpus_weight(per_cpu(cpu_core_map, cpu)));
-		seq_printf(m, "core id\t\t: %d\n", c->cpu_core_id);
-		seq_printf(m, "cpu cores\t: %d\n", c->booted_cores);
-	}
-#endif
-
-	seq_printf(m,
-		   "fpu\t\t: yes\n"
-		   "fpu_exception\t: yes\n"
-		   "cpuid level\t: %d\n"
-		   "wp\t\t: yes\n"
-		   "flags\t\t:",
-		   c->cpuid_level);
-
-	for (i = 0; i < 32*NCAPINTS; i++)
-		if (cpu_has(c, i) && x86_cap_flags[i] != NULL)
-			seq_printf(m, " %s", x86_cap_flags[i]);
-
-	seq_printf(m, "\nbogomips\t: %lu.%02lu\n",
-		   c->loops_per_jiffy/(500000/HZ),
-		   (c->loops_per_jiffy/(5000/HZ)) % 100);
-
-	if (c->x86_tlbsize > 0)
-		seq_printf(m, "TLB size\t: %d 4K pages\n", c->x86_tlbsize);
-	seq_printf(m, "clflush size\t: %d\n", c->x86_clflush_size);
-	seq_printf(m, "cache_alignment\t: %d\n", c->x86_cache_alignment);
-
-	seq_printf(m, "address sizes\t: %u bits physical, %u bits virtual\n",
-		   c->x86_phys_bits, c->x86_virt_bits);
-
-	seq_printf(m, "power management:");
-	for (i = 0; i < 32; i++) {
-		if (c->x86_power & (1 << i)) {
-			if (i < ARRAY_SIZE(x86_power_flags) &&
-			    x86_power_flags[i])
-				seq_printf(m, "%s%s",
-					   x86_power_flags[i][0]?" ":"",
-					   x86_power_flags[i]);
-			else
-				seq_printf(m, " [%d]", i);
-		}
-	}
-
-	seq_printf(m, "\n\n");
-
-	return 0;
-}
-
-static void *c_start(struct seq_file *m, loff_t *pos)
-{
-	if (*pos == 0)	/* just in case, cpu 0 is not the first */
-		*pos = first_cpu(cpu_online_map);
-	if ((*pos) < NR_CPUS && cpu_online(*pos))
-		return &cpu_data(*pos);
-	return NULL;
-}
-
-static void *c_next(struct seq_file *m, void *v, loff_t *pos)
-{
-	*pos = next_cpu(*pos, cpu_online_map);
-	return c_start(m, pos);
-}
-
-static void c_stop(struct seq_file *m, void *v)
-{
-}
-
-const struct seq_operations cpuinfo_op = {
-	.start = c_start,
-	.next =	c_next,
-	.stop =	c_stop,
-	.show =	show_cpuinfo,
-};

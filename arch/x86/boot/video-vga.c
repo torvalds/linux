@@ -210,6 +210,8 @@ static int vga_set_mode(struct mode_info *mode)
  */
 static int vga_probe(void)
 {
+	u16 ega_bx;
+
 	static const char *card_name[] = {
 		"CGA/MDA/HGC", "EGA", "VGA"
 	};
@@ -226,12 +228,16 @@ static int vga_probe(void)
 	u8 vga_flag;
 
 	asm(INT10
-	    : "=b" (boot_params.screen_info.orig_video_ega_bx)
+	    : "=b" (ega_bx)
 	    : "a" (0x1200), "b" (0x10) /* Check EGA/VGA */
 	    : "ecx", "edx", "esi", "edi");
 
+#ifndef _WAKEUP
+	boot_params.screen_info.orig_video_ega_bx = ega_bx;
+#endif
+
 	/* If we have MDA/CGA/HGC then BL will be unchanged at 0x10 */
-	if ((u8)boot_params.screen_info.orig_video_ega_bx != 0x10) {
+	if ((u8)ega_bx != 0x10) {
 		/* EGA/VGA */
 		asm(INT10
 		    : "=a" (vga_flag)
@@ -240,7 +246,9 @@ static int vga_probe(void)
 
 		if (vga_flag == 0x1a) {
 			adapter = ADAPTER_VGA;
+#ifndef _WAKEUP
 			boot_params.screen_info.orig_video_isVGA = 1;
+#endif
 		} else {
 			adapter = ADAPTER_EGA;
 		}

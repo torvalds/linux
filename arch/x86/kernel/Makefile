@@ -2,8 +2,7 @@
 # Makefile for the linux kernel.
 #
 
-extra-y                := head_$(BITS).o init_task.o vmlinux.lds
-extra-$(CONFIG_X86_64) += head64.o
+extra-y                := head_$(BITS).o head$(BITS).o init_task.o vmlinux.lds
 
 CPPFLAGS_vmlinux.lds += -U$(UTS_MACHINE)
 
@@ -19,7 +18,7 @@ CFLAGS_tsc_64.o		:= $(nostackp)
 obj-y			:= process_$(BITS).o signal_$(BITS).o entry_$(BITS).o
 obj-y			+= traps_$(BITS).o irq_$(BITS).o
 obj-y			+= time_$(BITS).o ioport.o ldt.o
-obj-y			+= setup_$(BITS).o i8259_$(BITS).o
+obj-y			+= setup_$(BITS).o i8259_$(BITS).o setup.o
 obj-$(CONFIG_X86_32)	+= sys_i386_32.o i386_ksyms_32.o
 obj-$(CONFIG_X86_64)	+= sys_x86_64.o x8664_ksyms_64.o
 obj-$(CONFIG_X86_64)	+= syscall_64.o vsyscall_64.o setup64.o
@@ -29,6 +28,7 @@ obj-y			+= alternative.o i8253.o
 obj-$(CONFIG_X86_64)	+= pci-nommu_64.o bugs_64.o
 obj-y			+= tsc_$(BITS).o io_delay.o rtc.o
 
+obj-$(CONFIG_X86_TRAMPOLINE)	+= trampoline.o
 obj-y				+= i387.o
 obj-y				+= ptrace.o
 obj-y				+= ds.o
@@ -47,11 +47,12 @@ obj-$(CONFIG_MICROCODE)		+= microcode.o
 obj-$(CONFIG_PCI)		+= early-quirks.o
 apm-y				:= apm_32.o
 obj-$(CONFIG_APM)		+= apm.o
-obj-$(CONFIG_X86_SMP)		+= smp_$(BITS).o smpboot_$(BITS).o tsc_sync.o
-obj-$(CONFIG_X86_32_SMP)	+= smpcommon_32.o
-obj-$(CONFIG_X86_64_SMP)	+= smp_64.o smpboot_64.o tsc_sync.o
+obj-$(CONFIG_X86_SMP)		+= smp.o
+obj-$(CONFIG_X86_SMP)		+= smpboot.o tsc_sync.o ipi.o tlb_$(BITS).o
+obj-$(CONFIG_X86_32_SMP)	+= smpcommon.o
+obj-$(CONFIG_X86_64_SMP)	+= tsc_sync.o smpcommon.o
 obj-$(CONFIG_X86_TRAMPOLINE)	+= trampoline_$(BITS).o
-obj-$(CONFIG_X86_MPPARSE)	+= mpparse_$(BITS).o
+obj-$(CONFIG_X86_MPPARSE)	+= mpparse.o
 obj-$(CONFIG_X86_LOCAL_APIC)	+= apic_$(BITS).o nmi_$(BITS).o
 obj-$(CONFIG_X86_IO_APIC)	+= io_apic_$(BITS).o
 obj-$(CONFIG_X86_REBOOTFIXUPS)	+= reboot_fixups_32.o
@@ -60,7 +61,7 @@ obj-$(CONFIG_KEXEC)		+= relocate_kernel_$(BITS).o crash.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump_$(BITS).o
 obj-$(CONFIG_X86_NUMAQ)		+= numaq_32.o
 obj-$(CONFIG_X86_SUMMIT_NUMA)	+= summit_32.o
-obj-$(CONFIG_X86_VSMP)		+= vsmp_64.o
+obj-y				+= vsmp_64.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_MODULES)		+= module_$(BITS).o
 obj-$(CONFIG_ACPI_SRAT) 	+= srat_32.o
@@ -89,7 +90,7 @@ scx200-y			+= scx200_32.o
 ###
 # 64 bit specific files
 ifeq ($(CONFIG_X86_64),y)
-        obj-y				+= genapic_64.o genapic_flat_64.o
+        obj-y				+= genapic_64.o genapic_flat_64.o genx2apic_uv_x.o
         obj-$(CONFIG_X86_PM_TIMER)	+= pmtimer_64.o
         obj-$(CONFIG_AUDIT)		+= audit_64.o
 

@@ -1,5 +1,5 @@
 /*
- * Some of the code in this file has been gleaned from the 64 bit 
+ * Some of the code in this file has been gleaned from the 64 bit
  * discontigmem support code base.
  *
  * Copyright (C) 2002, IBM Corp.

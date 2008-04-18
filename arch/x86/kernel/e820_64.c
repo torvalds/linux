@@ -27,6 +27,7 @@
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/kdebug.h>
+#include <asm/trampoline.h>
 
 struct e820map e820;
 
@@ -36,11 +37,11 @@ struct e820map e820;
 unsigned long end_pfn;
 
 /*
- * end_pfn only includes RAM, while end_pfn_map includes all e820 entries.
- * The direct mapping extends to end_pfn_map, so that we can directly access
+ * end_pfn only includes RAM, while max_pfn_mapped includes all e820 entries.
+ * The direct mapping extends to max_pfn_mapped, so that we can directly access
  * apertures, ACPI and other tables without having to play with fixmaps.
  */
-unsigned long end_pfn_map;
+unsigned long max_pfn_mapped;
 
 /*
  * Last pfn which the user wants to use.
@@ -58,8 +59,8 @@ struct early_res {
 };
 static struct early_res early_res[MAX_EARLY_RES] __initdata = {
 	{ 0, PAGE_SIZE, "BIOS data page" },			/* BIOS data page */
-#ifdef CONFIG_SMP
-	{ SMP_TRAMPOLINE_BASE, SMP_TRAMPOLINE_BASE + 2*PAGE_SIZE, "SMP_TRAMPOLINE" },
+#ifdef CONFIG_X86_TRAMPOLINE
+	{ TRAMPOLINE_BASE, TRAMPOLINE_BASE + 2 * PAGE_SIZE, "TRAMPOLINE" },
 #endif
 	{}
 };
@@ -95,7 +96,8 @@ void __init early_res_to_bootmem(void)
 }
 
 /* Check for already reserved areas */
-static inline int bad_addr(unsigned long *addrp, unsigned long size)
+static inline int
+bad_addr(unsigned long *addrp, unsigned long size, unsigned long align)
 {
 	int i;
 	unsigned long addr = *addrp, last;
@@ -105,7 +107,7 @@ again:
 	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
 		struct early_res *r = &early_res[i];
 		if (last >= r->start && addr < r->end) {
-			*addrp = addr = r->end;
+			*addrp = addr = round_up(r->end, align);
 			changed = 1;
 			goto again;
 		}
@@ -113,6 +115,40 @@ again:
 	return changed;
 }
 
+/* Check for already reserved areas */
+static inline int
+bad_addr_size(unsigned long *addrp, unsigned long *sizep, unsigned long align)
+{
+	int i;
+	unsigned long addr = *addrp, last;
+	unsigned long size = *sizep;
+	int changed = 0;
+again:
+	last = addr + size;
+	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
+		struct early_res *r = &early_res[i];
+		if (last > r->start && addr < r->start) {
+			size = r->start - addr;
+			changed = 1;
+			goto again;
+		}
+		if (last > r->end && addr < r->end) {
+			addr = round_up(r->end, align);
+			size = last - addr;
+			changed = 1;
+			goto again;
+		}
+		if (last <= r->end && addr >= r->start) {
+			(*sizep)++;
+			return 0;
+		}
+	}
+	if (changed) {
+		*addrp = addr;
+		*sizep = size;
+	}
+	return changed;
+}
 /*
  * This function checks if any part of the range <start,end> is mapped
  * with type.
@@ -174,26 +210,27 @@ int __init e820_all_mapped(unsigned long start, unsigned long end,
  * Find a free area with specified alignment in a specific range.
  */
 unsigned long __init find_e820_area(unsigned long start, unsigned long end,
-				    unsigned size, unsigned long align)
+				    unsigned long size, unsigned long align)
 {
 	int i;
-	unsigned long mask = ~(align - 1);
 
 	for (i = 0; i < e820.nr_map; i++) {
 		struct e820entry *ei = &e820.map[i];
-		unsigned long addr = ei->addr, last;
+		unsigned long addr, last;
+		unsigned long ei_last;
 
 		if (ei->type != E820_RAM)
 			continue;
+		addr = round_up(ei->addr, align);
+		ei_last = ei->addr + ei->size;
 		if (addr < start)
-			addr = start;
-		if (addr > ei->addr + ei->size)
+			addr = round_up(start, align);
+		if (addr >= ei_last)
 			continue;
-		while (bad_addr(&addr, size) && addr+size <= ei->addr+ei->size)
+		while (bad_addr(&addr, size, align) && addr+size <= ei_last)
 			;
-		addr = (addr + align - 1) & mask;
 		last = addr + size;
-		if (last > ei->addr + ei->size)
+		if (last > ei_last)
 			continue;
 		if (last > end)
 			continue;
@@ -203,6 +240,40 @@ unsigned long __init find_e820_area(unsigned long start, unsigned long end,
 }
 
 /*
+ * Find next free range after *start
+ */
+unsigned long __init find_e820_area_size(unsigned long start,
+					 unsigned long *sizep,
+					 unsigned long align)
+{
+	int i;
+
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		unsigned long addr, last;
+		unsigned long ei_last;
+
+		if (ei->type != E820_RAM)
+			continue;
+		addr = round_up(ei->addr, align);
+		ei_last = ei->addr + ei->size;
+		if (addr < start)
+			addr = round_up(start, align);
+		if (addr >= ei_last)
+			continue;
+		*sizep = ei_last - addr;
+		while (bad_addr_size(&addr, sizep, align) &&
+			addr + *sizep <= ei_last)
+			;
+		last = addr + *sizep;
+		if (last > ei_last)
+			continue;
+		return addr;
+	}
+	return -1UL;
+
+}
+/*
  * Find the highest page frame number we have available
  */
 unsigned long __init e820_end_of_ram(void)
@@ -211,29 +282,29 @@ unsigned long __init e820_end_of_ram(void)
 
 	end_pfn = find_max_pfn_with_active_regions();
 
-	if (end_pfn > end_pfn_map)
-		end_pfn_map = end_pfn;
-	if (end_pfn_map > MAXMEM>>PAGE_SHIFT)
-		end_pfn_map = MAXMEM>>PAGE_SHIFT;
+	if (end_pfn > max_pfn_mapped)
+		max_pfn_mapped = end_pfn;
+	if (max_pfn_mapped > MAXMEM>>PAGE_SHIFT)
+		max_pfn_mapped = MAXMEM>>PAGE_SHIFT;
 	if (end_pfn > end_user_pfn)
 		end_pfn = end_user_pfn;
-	if (end_pfn > end_pfn_map)
-		end_pfn = end_pfn_map;
+	if (end_pfn > max_pfn_mapped)
+		end_pfn = max_pfn_mapped;
 
-	printk(KERN_INFO "end_pfn_map = %lu\n", end_pfn_map);
+	printk(KERN_INFO "max_pfn_mapped = %lu\n", max_pfn_mapped);
 	return end_pfn;
 }
 
 /*
  * Mark e820 reserved areas as busy for the resource manager.
  */
-void __init e820_reserve_resources(struct resource *code_resource,
-		struct resource *data_resource, struct resource *bss_resource)
+void __init e820_reserve_resources(void)
 {
 	int i;
+	struct resource *res;
+
+	res = alloc_bootmem_low(sizeof(struct resource) * e820.nr_map);
 	for (i = 0; i < e820.nr_map; i++) {
-		struct resource *res;
-		res = alloc_bootmem_low(sizeof(struct resource));
 		switch (e820.map[i].type) {
 		case E820_RAM:	res->name = "System RAM"; break;
 		case E820_ACPI:	res->name = "ACPI Tables"; break;
@@ -243,21 +314,8 @@ void __init e820_reserve_resources(struct resource *code_resource,
 		res->start = e820.map[i].addr;
 		res->end = res->start + e820.map[i].size - 1;
 		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-		request_resource(&iomem_resource, res);
-		if (e820.map[i].type == E820_RAM) {
-			/*
-			 * We don't know which RAM region contains kernel data,
-			 * so we try it repeatedly and let the resource manager
-			 * test it.
-			 */
-			request_resource(res, code_resource);
-			request_resource(res, data_resource);
-			request_resource(res, bss_resource);
-#ifdef CONFIG_KEXEC
-			if (crashk_res.start != crashk_res.end)
-				request_resource(res, &crashk_res);
-#endif
-		}
+		insert_resource(&iomem_resource, res);
+		res++;
 	}
 }
 
@@ -309,9 +367,9 @@ static int __init e820_find_active_region(const struct e820entry *ei,
 	if (*ei_startpfn >= *ei_endpfn)
 		return 0;
 
-	/* Check if end_pfn_map should be updated */
-	if (ei->type != E820_RAM && *ei_endpfn > end_pfn_map)
-		end_pfn_map = *ei_endpfn;
+	/* Check if max_pfn_mapped should be updated */
+	if (ei->type != E820_RAM && *ei_endpfn > max_pfn_mapped)
+		max_pfn_mapped = *ei_endpfn;
 
 	/* Skip if map is outside the node */
 	if (ei->type != E820_RAM || *ei_endpfn <= start_pfn ||
@@ -634,10 +692,10 @@ static int __init copy_e820_map(struct e820entry *biosmap, int nr_map)
 		return -1;
 
 	do {
-		unsigned long start = biosmap->addr;
-		unsigned long size = biosmap->size;
-		unsigned long end = start + size;
-		unsigned long type = biosmap->type;
+		u64 start = biosmap->addr;
+		u64 size = biosmap->size;
+		u64 end = start + size;
+		u32 type = biosmap->type;
 
 		/* Overflow in 64 bits? Ignore the memory map. */
 		if (start > end)
@@ -702,7 +760,7 @@ static int __init parse_memmap_opt(char *p)
 		saved_max_pfn = e820_end_of_ram();
 		remove_all_active_ranges();
 #endif
-		end_pfn_map = 0;
+		max_pfn_mapped = 0;
 		e820.nr_map = 0;
 		userdef = 1;
 		return 0;

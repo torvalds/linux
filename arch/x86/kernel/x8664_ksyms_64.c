@@ -29,15 +29,17 @@ EXPORT_SYMBOL(__copy_from_user_inatomic);
 EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(clear_page);
 
-/* Export string functions. We normally rely on gcc builtin for most of these,
-   but gcc sometimes decides not to inline them. */    
+/*
+ * Export string functions. We normally rely on gcc builtin for most of these,
+ * but gcc sometimes decides not to inline them.
+ */
 #undef memcpy
 #undef memset
 #undef memmove
 
-extern void * memset(void *,int,__kernel_size_t);
-extern void * memcpy(void *,const void *,__kernel_size_t);
-extern void * __memcpy(void *,const void *,__kernel_size_t);
+extern void *memset(void *, int, __kernel_size_t);
+extern void *memcpy(void *, const void *, __kernel_size_t);
+extern void *__memcpy(void *, const void *, __kernel_size_t);
 
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memcpy);

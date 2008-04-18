@@ -9,6 +9,8 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
+#include <linux/seq_file.h>
+#include <linux/debugfs.h>
 
 #include <asm/e820.h>
 #include <asm/processor.h>
@@ -17,6 +19,7 @@
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/proto.h>
+#include <asm/pat.h>
 
 /*
  * The current flushing context - we pass it instead of 5 arguments:
@@ -28,6 +31,7 @@ struct cpa_data {
 	int		numpages;
 	int		flushtlb;
 	unsigned long	pfn;
+	unsigned	force_split : 1;
 };
 
 #ifdef CONFIG_X86_64
@@ -258,6 +262,9 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	pgprot_t old_prot, new_prot;
 	int i, do_split = 1;
 	unsigned int level;
+
+	if (cpa->force_split)
+		return 1;
 
 	spin_lock_irqsave(&pgd_lock, flags);
 	/*
@@ -693,7 +700,8 @@ static inline int cache_attr(pgprot_t attr)
 }
 
 static int change_page_attr_set_clr(unsigned long addr, int numpages,
-				    pgprot_t mask_set, pgprot_t mask_clr)
+				    pgprot_t mask_set, pgprot_t mask_clr,
+				    int force_split)
 {
 	struct cpa_data cpa;
 	int ret, cache, checkalias;
@@ -704,7 +712,7 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	 */
 	mask_set = canon_pgprot(mask_set);
 	mask_clr = canon_pgprot(mask_clr);
-	if (!pgprot_val(mask_set) && !pgprot_val(mask_clr))
+	if (!pgprot_val(mask_set) && !pgprot_val(mask_clr) && !force_split)
 		return 0;
 
 	/* Ensure we are PAGE_SIZE aligned */
@@ -721,6 +729,7 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	cpa.mask_set = mask_set;
 	cpa.mask_clr = mask_clr;
 	cpa.flushtlb = 0;
+	cpa.force_split = force_split;
 
 	/* No alias checking for _NX bit modifications */
 	checkalias = (pgprot_val(mask_set) | pgprot_val(mask_clr)) != _PAGE_NX;
@@ -759,26 +768,61 @@ out:
 static inline int change_page_attr_set(unsigned long addr, int numpages,
 				       pgprot_t mask)
 {
-	return change_page_attr_set_clr(addr, numpages, mask, __pgprot(0));
+	return change_page_attr_set_clr(addr, numpages, mask, __pgprot(0), 0);
 }
 
 static inline int change_page_attr_clear(unsigned long addr, int numpages,
 					 pgprot_t mask)
 {
-	return change_page_attr_set_clr(addr, numpages, __pgprot(0), mask);
+	return change_page_attr_set_clr(addr, numpages, __pgprot(0), mask, 0);
+}
+
+int _set_memory_uc(unsigned long addr, int numpages)
+{
+	return change_page_attr_set(addr, numpages,
+				    __pgprot(_PAGE_CACHE_UC));
 }
 
 int set_memory_uc(unsigned long addr, int numpages)
 {
-	return change_page_attr_set(addr, numpages,
-				    __pgprot(_PAGE_PCD));
+	if (reserve_memtype(addr, addr + numpages * PAGE_SIZE,
+	                    _PAGE_CACHE_UC, NULL))
+		return -EINVAL;
+
+	return _set_memory_uc(addr, numpages);
 }
 EXPORT_SYMBOL(set_memory_uc);
 
-int set_memory_wb(unsigned long addr, int numpages)
+int _set_memory_wc(unsigned long addr, int numpages)
+{
+	return change_page_attr_set(addr, numpages,
+				    __pgprot(_PAGE_CACHE_WC));
+}
+
+int set_memory_wc(unsigned long addr, int numpages)
+{
+	if (!pat_wc_enabled)
+		return set_memory_uc(addr, numpages);
+
+	if (reserve_memtype(addr, addr + numpages * PAGE_SIZE,
+		_PAGE_CACHE_WC, NULL))
+		return -EINVAL;
+
+	return _set_memory_wc(addr, numpages);
+}
+EXPORT_SYMBOL(set_memory_wc);
+
+int _set_memory_wb(unsigned long addr, int numpages)
 {
 	return change_page_attr_clear(addr, numpages,
-				      __pgprot(_PAGE_PCD | _PAGE_PWT));
+				      __pgprot(_PAGE_CACHE_MASK));
+}
+
+int set_memory_wb(unsigned long addr, int numpages)
+{
+	free_memtype(addr, addr + numpages * PAGE_SIZE);
+
+	return _set_memory_wb(addr, numpages);
 }
 EXPORT_SYMBOL(set_memory_wb);
 
@@ -807,6 +851,12 @@ int set_memory_rw(unsigned long addr, int numpages)
 int set_memory_np(unsigned long addr, int numpages)
 {
 	return change_page_attr_clear(addr, numpages, __pgprot(_PAGE_PRESENT));
+}
+
+int set_memory_4k(unsigned long addr, int numpages)
+{
+	return change_page_attr_set_clr(addr, numpages, __pgprot(0),
+					__pgprot(0), 1);
 }
 
 int set_pages_uc(struct page *page, int numpages)
@@ -917,6 +967,45 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 	 */
 	cpa_fill_pool(NULL);
 }
+
+#ifdef CONFIG_DEBUG_FS
+static int dpa_show(struct seq_file *m, void *v)
+{
+	seq_puts(m, "DEBUG_PAGEALLOC\n");
+	seq_printf(m, "pool_size     : %lu\n", pool_size);
+	seq_printf(m, "pool_pages    : %lu\n", pool_pages);
+	seq_printf(m, "pool_low      : %lu\n", pool_low);
+	seq_printf(m, "pool_used     : %lu\n", pool_used);
+	seq_printf(m, "pool_failed   : %lu\n", pool_failed);
+
+	return 0;
+}
+
+static int dpa_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, dpa_show, NULL);
+}
+
+static const struct file_operations dpa_fops = {
+	.open		= dpa_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+int __init debug_pagealloc_proc_init(void)
+{
+	struct dentry *de;
+
+	de = debugfs_create_file("debug_pagealloc", 0600, NULL, NULL,
+				 &dpa_fops);
+	if (!de)
+		return -ENOMEM;
+
+	return 0;
+}
+__initcall(debug_pagealloc_proc_init);
+#endif
 
 #ifdef CONFIG_HIBERNATION
 

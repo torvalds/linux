@@ -1,9 +1,11 @@
 #ifndef __ASM_I8259_H__
 #define __ASM_I8259_H__
 
+#include <linux/delay.h>
+
 extern unsigned int cached_irq_mask;
 
-#define __byte(x,y)		(((unsigned char *) &(y))[x])
+#define __byte(x, y)		(((unsigned char *)&(y))[x])
 #define cached_master_mask	(__byte(0, cached_irq_mask))
 #define cached_slave_mask	(__byte(1, cached_irq_mask))
 
@@ -29,7 +31,28 @@ extern void enable_8259A_irq(unsigned int irq);
 extern void disable_8259A_irq(unsigned int irq);
 extern unsigned int startup_8259A_irq(unsigned int irq);
 
-#define inb_pic		inb_p
-#define outb_pic	outb_p
+/* the PIC may need a careful delay on some platforms, hence specific calls */
+static inline unsigned char inb_pic(unsigned int port)
+{
+	unsigned char value = inb(port);
+
+	/*
+	 * delay for some accesses to PIC on motherboard or in chipset
+	 * must be at least one microsecond, so be safe here:
+	 */
+	udelay(2);
+
+	return value;
+}
+
+static inline void outb_pic(unsigned char value, unsigned int port)
+{
+	outb(value, port);
+	/*
+	 * delay for some accesses to PIC on motherboard or in chipset
+	 * must be at least one microsecond, so be safe here:
+	 */
+	udelay(2);
+}
 
 #endif	/* __ASM_I8259_H__ */

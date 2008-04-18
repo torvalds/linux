@@ -15,7 +15,7 @@
 #include "irq_vectors.h"
 #include <asm/thread_info.h>
 
-static __inline__ int irq_canonicalize(int irq)
+static inline int irq_canonicalize(int irq)
 {
 	return ((irq == 2) ? 9 : irq);
 }

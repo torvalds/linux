@@ -1,6 +1,9 @@
 #ifndef __ASM_LINKAGE_H
 #define __ASM_LINKAGE_H
 
+#undef notrace
+#define notrace __attribute__((no_instrument_function))
+
 #ifdef CONFIG_X86_64
 #define __ALIGN .p2align 4,,15
 #define __ALIGN_STR ".p2align 4,,15"

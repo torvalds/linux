@@ -95,6 +95,16 @@ static inline physid_mask_t apicid_to_cpu_present(int logical_apicid)
 	return physid_mask_of_physid(cpu + 4*node);
 }
 
+struct mpc_config_translation {
+	unsigned char mpc_type;
+	unsigned char trans_len;
+	unsigned char trans_type;
+	unsigned char trans_quad;
+	unsigned char trans_global;
+	unsigned char trans_local;
+	unsigned short trans_reserved;
+};
+
 static inline int mpc_apic_id(struct mpc_config_processor *m, 
 			struct mpc_config_translation *translation_record)
 {

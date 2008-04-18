@@ -410,13 +410,13 @@ static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 static void __kprobes clear_btf(void)
 {
 	if (test_thread_flag(TIF_DEBUGCTLMSR))
-		wrmsrl(MSR_IA32_DEBUGCTLMSR, 0);
+		update_debugctlmsr(0);
 }
 
 static void __kprobes restore_btf(void)
 {
 	if (test_thread_flag(TIF_DEBUGCTLMSR))
-		wrmsrl(MSR_IA32_DEBUGCTLMSR, current->thread.debugctlmsr);
+		update_debugctlmsr(current->thread.debugctlmsr);
 }
 
 static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
@@ -489,7 +489,7 @@ static int __kprobes reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 		break;
 	case KPROBE_HIT_SS:
 		if (p == kprobe_running()) {
-			regs->flags &= ~TF_MASK;
+			regs->flags &= ~X86_EFLAGS_TF;
 			regs->flags |= kcb->kprobe_saved_flags;
 			return 0;
 		} else {
@@ -858,14 +858,14 @@ static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 	if (!cur)
 		return 0;
 
+	resume_execution(cur, regs, kcb);
+	regs->flags |= kcb->kprobe_saved_flags;
+	trace_hardirqs_fixup_flags(regs->flags);
+
 	if ((kcb->kprobe_status != KPROBE_REENTER) && cur->post_handler) {
 		kcb->kprobe_status = KPROBE_HIT_SSDONE;
 		cur->post_handler(cur, regs, 0);
 	}
-
-	resume_execution(cur, regs, kcb);
-	regs->flags |= kcb->kprobe_saved_flags;
-	trace_hardirqs_fixup_flags(regs->flags);
 
 	/* Restore back the original saved kprobes variables and continue. */
 	if (kcb->kprobe_status == KPROBE_REENTER) {

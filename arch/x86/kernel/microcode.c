@@ -290,7 +290,7 @@ static int get_maching_microcode(void *mc, int cpu)
 	}
 	return 0;
 find:
-	pr_debug("microcode: CPU %d found a matching microcode update with"
+	pr_debug("microcode: CPU%d found a matching microcode update with"
 		" version 0x%x (current=0x%x)\n", cpu, mc_header->rev,uci->rev);
 	new_mc = vmalloc(total_size);
 	if (!new_mc) {
@@ -336,11 +336,11 @@ static void apply_microcode(int cpu)
 
 	spin_unlock_irqrestore(&microcode_update_lock, flags);
 	if (val[1] != uci->mc->hdr.rev) {
-		printk(KERN_ERR "microcode: CPU%d updated from revision "
+		printk(KERN_ERR "microcode: CPU%d update from revision "
 			"0x%x to 0x%x failed\n", cpu_num, uci->rev, val[1]);
 		return;
 	}
-	pr_debug("microcode: CPU%d updated from revision "
+	printk(KERN_INFO "microcode: CPU%d updated from revision "
 	       "0x%x to 0x%x, date = %08x \n", 
 	       cpu_num, uci->rev, val[1], uci->mc->hdr.date);
 	uci->rev = val[1];
@@ -534,7 +534,7 @@ static int cpu_request_microcode(int cpu)
 		c->x86, c->x86_model, c->x86_mask);
 	error = request_firmware(&firmware, name, &microcode_pdev->dev);
 	if (error) {
-		pr_debug("ucode data file %s load failed\n", name);
+		pr_debug("microcode: ucode data file %s load failed\n", name);
 		return error;
 	}
 	buf = firmware->data;
@@ -709,7 +709,7 @@ static int __mc_sysdev_add(struct sys_device *sys_dev, int resume)
 	if (!cpu_online(cpu))
 		return 0;
 
-	pr_debug("Microcode:CPU %d added\n", cpu);
+	pr_debug("microcode: CPU%d added\n", cpu);
 	memset(uci, 0, sizeof(*uci));
 
 	err = sysfs_create_group(&sys_dev->kobj, &mc_attr_group);
@@ -733,7 +733,7 @@ static int mc_sysdev_remove(struct sys_device *sys_dev)
 	if (!cpu_online(cpu))
 		return 0;
 
-	pr_debug("Microcode:CPU %d removed\n", cpu);
+	pr_debug("microcode: CPU%d removed\n", cpu);
 	microcode_fini_cpu(cpu);
 	sysfs_remove_group(&sys_dev->kobj, &mc_attr_group);
 	return 0;
@@ -745,7 +745,7 @@ static int mc_sysdev_resume(struct sys_device *dev)
 
 	if (!cpu_online(cpu))
 		return 0;
-	pr_debug("Microcode:CPU %d resumed\n", cpu);
+	pr_debug("microcode: CPU%d resumed\n", cpu);
 	/* only CPU 0 will apply ucode here */
 	apply_microcode(0);
 	return 0;
@@ -783,7 +783,7 @@ mc_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 		}
 	case CPU_DOWN_FAILED_FROZEN:
 		if (sysfs_create_group(&sys_dev->kobj, &mc_attr_group))
-			printk(KERN_ERR "Microcode: Failed to create the sysfs "
+			printk(KERN_ERR "microcode: Failed to create the sysfs "
 				"group for CPU%d\n", cpu);
 		break;
 	case CPU_DOWN_PREPARE:

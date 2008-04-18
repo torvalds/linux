@@ -12,25 +12,21 @@ static inline unsigned long native_save_fl(void)
 {
 	unsigned long flags;
 
-	__asm__ __volatile__(
-		"# __raw_save_flags\n\t"
-		"pushf ; pop %0"
-		: "=g" (flags)
-		: /* no input */
-		: "memory"
-	);
+	asm volatile("# __raw_save_flags\n\t"
+		     "pushf ; pop %0"
+		     : "=g" (flags)
+		     : /* no input */
+		     : "memory");
 
 	return flags;
 }
 
 static inline void native_restore_fl(unsigned long flags)
 {
-	__asm__ __volatile__(
-		"push %0 ; popf"
-		: /* no output */
-		:"g" (flags)
-		:"memory", "cc"
-	);
+	asm volatile("push %0 ; popf"
+		     : /* no output */
+		     :"g" (flags)
+		     :"memory", "cc");
 }
 
 static inline void native_irq_disable(void)
@@ -70,26 +66,6 @@ static inline void raw_local_irq_restore(unsigned long flags)
 	native_restore_fl(flags);
 }
 
-#ifdef CONFIG_X86_VSMP
-
-/*
- * Interrupt control for the VSMP architecture:
- */
-
-static inline void raw_local_irq_disable(void)
-{
-	unsigned long flags = __raw_local_save_flags();
-	raw_local_irq_restore((flags & ~X86_EFLAGS_IF) | X86_EFLAGS_AC);
-}
-
-static inline void raw_local_irq_enable(void)
-{
-	unsigned long flags = __raw_local_save_flags();
-	raw_local_irq_restore((flags | X86_EFLAGS_IF) & (~X86_EFLAGS_AC));
-}
-
-#else
-
 static inline void raw_local_irq_disable(void)
 {
 	native_irq_disable();
@@ -99,8 +75,6 @@ static inline void raw_local_irq_enable(void)
 {
 	native_irq_enable();
 }
-
-#endif
 
 /*
  * Used in the idle loop; sti takes one instruction cycle
@@ -153,23 +127,16 @@ static inline unsigned long __raw_local_irq_save(void)
 #endif /* CONFIG_PARAVIRT */
 
 #ifndef __ASSEMBLY__
-#define raw_local_save_flags(flags) \
-		do { (flags) = __raw_local_save_flags(); } while (0)
+#define raw_local_save_flags(flags)				\
+	do { (flags) = __raw_local_save_flags(); } while (0)
 
-#define raw_local_irq_save(flags) \
-		do { (flags) = __raw_local_irq_save(); } while (0)
+#define raw_local_irq_save(flags)				\
+	do { (flags) = __raw_local_irq_save(); } while (0)
 
-#ifdef CONFIG_X86_VSMP
-static inline int raw_irqs_disabled_flags(unsigned long flags)
-{
-	return !(flags & X86_EFLAGS_IF) || (flags & X86_EFLAGS_AC);
-}
-#else
 static inline int raw_irqs_disabled_flags(unsigned long flags)
 {
 	return !(flags & X86_EFLAGS_IF);
 }
-#endif
 
 static inline int raw_irqs_disabled(void)
 {

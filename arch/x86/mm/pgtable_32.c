@@ -36,7 +36,6 @@ void show_mem(void)
 
 	printk(KERN_INFO "Mem-info:\n");
 	show_free_areas();
-	printk(KERN_INFO "Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 	for_each_online_pgdat(pgdat) {
 		pgdat_resize_lock(pgdat, &flags);
 		for (i = 0; i < pgdat->node_spanned_pages; ++i) {
@@ -381,3 +380,10 @@ void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 }
 
 #endif
+
+int pmd_bad(pmd_t pmd)
+{
+	WARN_ON_ONCE(pmd_bad_v1(pmd) != pmd_bad_v2(pmd));
+
+	return pmd_bad_v1(pmd);
+}

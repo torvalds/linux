@@ -63,5 +63,5 @@ DECL_ASM(void, xen_irq_disable_direct, void);
 DECL_ASM(unsigned long, xen_save_fl_direct, void);
 DECL_ASM(void, xen_restore_fl_direct, unsigned long);
 
-void xen_iret_direct(void);
+void xen_iret(void);
 #endif /* XEN_OPS_H */

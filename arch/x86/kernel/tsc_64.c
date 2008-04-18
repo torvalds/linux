@@ -44,8 +44,8 @@ DEFINE_PER_CPU(unsigned long, cyc2ns);
 
 static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 {
-	unsigned long flags, prev_scale, *scale;
 	unsigned long long tsc_now, ns_now;
+	unsigned long flags, *scale;
 
 	local_irq_save(flags);
 	sched_clock_idle_sleep_event();
@@ -55,7 +55,6 @@ static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 	rdtscll(tsc_now);
 	ns_now = __cycles_2_ns(tsc_now);
 
-	prev_scale = *scale;
 	if (cpu_khz)
 		*scale = (NSEC_PER_MSEC << CYC2NS_SCALE_FACTOR)/cpu_khz;
 

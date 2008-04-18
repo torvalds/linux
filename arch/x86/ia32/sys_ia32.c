@@ -26,51 +26,27 @@
 #include <linux/file.h>
 #include <linux/signal.h>
 #include <linux/syscalls.h>
-#include <linux/resource.h>
 #include <linux/times.h>
 #include <linux/utsname.h>
-#include <linux/smp.h>
 #include <linux/smp_lock.h>
-#include <linux/sem.h>
-#include <linux/msg.h>
 #include <linux/mm.h>
-#include <linux/shm.h>
-#include <linux/slab.h>
 #include <linux/uio.h>
-#include <linux/nfs_fs.h>
-#include <linux/quota.h>
-#include <linux/module.h>
-#include <linux/sunrpc/svc.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/cache.h>
-#include <linux/nfsd/xdr.h>
-#include <linux/nfsd/syscall.h>
 #include <linux/poll.h>
 #include <linux/personality.h>
 #include <linux/stat.h>
-#include <linux/ipc.h>
 #include <linux/rwsem.h>
-#include <linux/binfmts.h>
-#include <linux/init.h>
-#include <linux/aio_abi.h>
-#include <linux/aio.h>
 #include <linux/compat.h>
 #include <linux/vfs.h>
 #include <linux/ptrace.h>
 #include <linux/highuid.h>
-#include <linux/vmalloc.h>
-#include <linux/fsnotify.h>
 #include <linux/sysctl.h>
 #include <asm/mman.h>
 #include <asm/types.h>
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 #include <asm/atomic.h>
-#include <asm/ldt.h>
-
-#include <net/scm.h>
-#include <net/sock.h>
 #include <asm/ia32.h>
+#include <asm/vgtod.h>
 
 #define AA(__x)		((unsigned long)(__x))
 
@@ -804,11 +780,6 @@ asmlinkage long sys32_execve(char __user *name, compat_uptr_t __user *argv,
 	if (IS_ERR(filename))
 		return error;
 	error = compat_do_execve(filename, argv, envp, regs);
-	if (error == 0) {
-		task_lock(current);
-		current->ptrace &= ~PT_DTRACE;
-		task_unlock(current);
-	}
 	putname(filename);
 	return error;
 }

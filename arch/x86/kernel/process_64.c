@@ -107,16 +107,8 @@ void default_idle(void)
 	smp_mb();
 	local_irq_disable();
 	if (!need_resched()) {
-		ktime_t t0, t1;
-		u64 t0n, t1n;
-
-		t0 = ktime_get();
-		t0n = ktime_to_ns(t0);
 		safe_halt();	/* enables interrupts racelessly */
 		local_irq_disable();
-		t1 = ktime_get();
-		t1n = ktime_to_ns(t1);
-		sched_clock_idle_wakeup_event(t1n - t0n);
 	}
 	local_irq_enable();
 	current_thread_info()->status |= TS_POLLING;
@@ -528,6 +520,21 @@ out:
 	return err;
 }
 
+void
+start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
+{
+	asm volatile("movl %0, %%fs; movl %0, %%es; movl %0, %%ds" :: "r"(0));
+	load_gs_index(0);
+	regs->ip		= new_ip;
+	regs->sp		= new_sp;
+	write_pda(oldrsp, new_sp);
+	regs->cs		= __USER_CS;
+	regs->ss		= __USER_DS;
+	regs->flags		= 0x200;
+	set_fs(USER_DS);
+}
+EXPORT_SYMBOL_GPL(start_thread);
+
 /*
  * This special macro can be used to load a debugging register
  */
@@ -548,12 +555,12 @@ static inline void __switch_to_xtra(struct task_struct *prev_p,
 		/* we clear debugctl to make sure DS
 		 * is not in use when we change it */
 		debugctl = 0;
-		wrmsrl(MSR_IA32_DEBUGCTLMSR, 0);
+		update_debugctlmsr(0);
 		wrmsrl(MSR_IA32_DS_AREA, next->ds_area_msr);
 	}
 
 	if (next->debugctlmsr != debugctl)
-		wrmsrl(MSR_IA32_DEBUGCTLMSR, next->debugctlmsr);
+		update_debugctlmsr(next->debugctlmsr);
 
 	if (test_tsk_thread_flag(next_p, TIF_DEBUG)) {
 		loaddebug(next, 0);

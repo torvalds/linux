@@ -286,6 +286,11 @@ int getchar_timeout(void);
 /* video.c */
 void set_video(void);
 
+/* video-mode.c */
+int set_mode(u16 mode);
+int mode_defined(u16 mode);
+void probe_cards(int unsafe);
+
 /* video-vesa.c */
 void vesa_store_edid(void);
 

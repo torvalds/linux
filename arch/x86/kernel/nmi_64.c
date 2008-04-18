@@ -26,6 +26,8 @@
 #include <asm/proto.h>
 #include <asm/mce.h>
 
+#include <mach_traps.h>
+
 int unknown_nmi_panic;
 int nmi_watchdog_enabled;
 int panic_on_unrecovered_nmi;

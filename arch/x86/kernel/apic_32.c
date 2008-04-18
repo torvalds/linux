@@ -50,6 +50,11 @@
 # error SPURIOUS_APIC_VECTOR definition error
 #endif
 
+unsigned long mp_lapic_addr;
+
+DEFINE_PER_CPU(u16, x86_bios_cpu_apicid) = BAD_APICID;
+EXPORT_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
+
 /*
  * Knob to control our willingness to enable the local APIC.
  *
@@ -621,6 +626,35 @@ int setup_profiling_timer(unsigned int multiplier)
 }
 
 /*
+ * Setup extended LVT, AMD specific (K8, family 10h)
+ *
+ * Vector mappings are hard coded. On K8 only offset 0 (APIC500) and
+ * MCE interrupts are supported. Thus MCE offset must be set to 0.
+ */
+
+#define APIC_EILVT_LVTOFF_MCE 0
+#define APIC_EILVT_LVTOFF_IBS 1
+
+static void setup_APIC_eilvt(u8 lvt_off, u8 vector, u8 msg_type, u8 mask)
+{
+	unsigned long reg = (lvt_off << 4) + APIC_EILVT0;
+	unsigned int  v   = (mask << 16) | (msg_type << 8) | vector;
+	apic_write(reg, v);
+}
+
+u8 setup_APIC_eilvt_mce(u8 vector, u8 msg_type, u8 mask)
+{
+	setup_APIC_eilvt(APIC_EILVT_LVTOFF_MCE, vector, msg_type, mask);
+	return APIC_EILVT_LVTOFF_MCE;
+}
+
+u8 setup_APIC_eilvt_ibs(u8 vector, u8 msg_type, u8 mask)
+{
+	setup_APIC_eilvt(APIC_EILVT_LVTOFF_IBS, vector, msg_type, mask);
+	return APIC_EILVT_LVTOFF_IBS;
+}
+
+/*
  * Local APIC start and shutdown
  */
 
@@ -868,12 +902,50 @@ void __init init_bsp_APIC(void)
 	apic_write_around(APIC_LVT1, value);
 }
 
+void __cpuinit lapic_setup_esr(void)
+{
+	unsigned long oldvalue, value, maxlvt;
+	if (lapic_is_integrated() && !esr_disable) {
+		/* !82489DX */
+		maxlvt = lapic_get_maxlvt();
+		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP. */
+			apic_write(APIC_ESR, 0);
+		oldvalue = apic_read(APIC_ESR);
+
+		/* enables sending errors */
+		value = ERROR_APIC_VECTOR;
+		apic_write_around(APIC_LVTERR, value);
+		/*
+		 * spec says clear errors after enabling vector.
+		 */
+		if (maxlvt > 3)
+			apic_write(APIC_ESR, 0);
+		value = apic_read(APIC_ESR);
+		if (value != oldvalue)
+			apic_printk(APIC_VERBOSE, "ESR value before enabling "
+				"vector: 0x%08lx  after: 0x%08lx\n",
+				oldvalue, value);
+	} else {
+		if (esr_disable)
+			/*
+			 * Something untraceable is creating bad interrupts on
+			 * secondary quads ... for the moment, just leave the
+			 * ESR disabled - we can't do anything useful with the
+			 * errors anyway - mbligh
+			 */
+			printk(KERN_INFO "Leaving ESR disabled.\n");
+		else
+			printk(KERN_INFO "No ESR for 82489DX.\n");
+	}
+}
+
+
 /**
  * setup_local_APIC - setup the local APIC
  */
 void __cpuinit setup_local_APIC(void)
 {
-	unsigned long oldvalue, value, maxlvt, integrated;
+	unsigned long value, integrated;
 	int i, j;
 
 	/* Pound the ESR really hard over the head with a big hammer - mbligh */
@@ -997,40 +1069,13 @@ void __cpuinit setup_local_APIC(void)
 	if (!integrated)		/* 82489DX */
 		value |= APIC_LVT_LEVEL_TRIGGER;
 	apic_write_around(APIC_LVT1, value);
+}
 
-	if (integrated && !esr_disable) {
-		/* !82489DX */
-		maxlvt = lapic_get_maxlvt();
-		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP. */
-			apic_write(APIC_ESR, 0);
-		oldvalue = apic_read(APIC_ESR);
+void __cpuinit end_local_APIC_setup(void)
+{
+	unsigned long value;
 
-		/* enables sending errors */
-		value = ERROR_APIC_VECTOR;
-		apic_write_around(APIC_LVTERR, value);
-		/*
-		 * spec says clear errors after enabling vector.
-		 */
-		if (maxlvt > 3)
-			apic_write(APIC_ESR, 0);
-		value = apic_read(APIC_ESR);
-		if (value != oldvalue)
-			apic_printk(APIC_VERBOSE, "ESR value before enabling "
-				"vector: 0x%08lx  after: 0x%08lx\n",
-				oldvalue, value);
-	} else {
-		if (esr_disable)
-			/*
-			 * Something untraceable is creating bad interrupts on
-			 * secondary quads ... for the moment, just leave the
-			 * ESR disabled - we can't do anything useful with the
-			 * errors anyway - mbligh
-			 */
-			printk(KERN_INFO "Leaving ESR disabled.\n");
-		else
-			printk(KERN_INFO "No ESR for 82489DX.\n");
-	}
-
+	lapic_setup_esr();
 	/* Disable the local apic timer */
 	value = apic_read(APIC_LVTT);
 	value |= (APIC_LVT_MASKED | LOCAL_TIMER_VECTOR);
@@ -1147,7 +1192,7 @@ void __init init_apic_mappings(void)
 	 * default configuration (or the MP table is broken).
 	 */
 	if (boot_cpu_physical_apicid == -1U)
-		boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
+		boot_cpu_physical_apicid = GET_APIC_ID(read_apic_id());
 
 #ifdef CONFIG_X86_IO_APIC
 	{
@@ -1185,6 +1230,9 @@ fake_ioapic_page:
  * This initializes the IO-APIC and APIC hardware if this is
  * a UP kernel.
  */
+
+int apic_version[MAX_APICS];
+
 int __init APIC_init_uniprocessor(void)
 {
 	if (enable_local_apic < 0)
@@ -1214,12 +1262,13 @@ int __init APIC_init_uniprocessor(void)
 	 * might be zero if read from MP tables. Get it from LAPIC.
 	 */
 #ifdef CONFIG_CRASH_DUMP
-	boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
+	boot_cpu_physical_apicid = GET_APIC_ID(read_apic_id());
 #endif
 	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_physical_apicid);
 
 	setup_local_APIC();
 
+	end_local_APIC_setup();
 #ifdef CONFIG_X86_IO_APIC
 	if (smp_found_config)
 		if (!skip_ioapic_setup && nr_ioapics)
@@ -1287,6 +1336,29 @@ void smp_error_interrupt(struct pt_regs *regs)
 		smp_processor_id(), v , v1);
 	irq_exit();
 }
+
+#ifdef CONFIG_SMP
+void __init smp_intr_init(void)
+{
+	/*
+	 * IRQ0 must be given a fixed assignment and initialized,
+	 * because it's used before the IO-APIC is set up.
+	 */
+	set_intr_gate(FIRST_DEVICE_VECTOR, interrupt[0]);
+
+	/*
+	 * The reschedule interrupt is a CPU-to-CPU reschedule-helper
+	 * IPI, driven by wakeup.
+	 */
+	set_intr_gate(RESCHEDULE_VECTOR, reschedule_interrupt);
+
+	/* IPI for invalidation */
+	set_intr_gate(INVALIDATE_TLB_VECTOR, invalidate_interrupt);
+
+	/* IPI for generic function call */
+	set_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
+}
+#endif
 
 /*
  * Initialize APIC interrupts
@@ -1392,6 +1464,88 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 		value = SET_APIC_DELIVERY_MODE(value, APIC_MODE_NMI);
 		apic_write_around(APIC_LVT1, value);
 	}
+}
+
+unsigned int __cpuinitdata maxcpus = NR_CPUS;
+
+void __cpuinit generic_processor_info(int apicid, int version)
+{
+	int cpu;
+	cpumask_t tmp_map;
+	physid_mask_t phys_cpu;
+
+	/*
+	 * Validate version
+	 */
+	if (version == 0x0) {
+		printk(KERN_WARNING "BIOS bug, APIC version is 0 for CPU#%d! "
+				"fixing up to 0x10. (tell your hw vendor)\n",
+				version);
+		version = 0x10;
+	}
+	apic_version[apicid] = version;
+
+	phys_cpu = apicid_to_cpu_present(apicid);
+	physids_or(phys_cpu_present_map, phys_cpu_present_map, phys_cpu);
+
+	if (num_processors >= NR_CPUS) {
+		printk(KERN_WARNING "WARNING: NR_CPUS limit of %i reached."
+			"  Processor ignored.\n", NR_CPUS);
+		return;
+	}
+
+	if (num_processors >= maxcpus) {
+		printk(KERN_WARNING "WARNING: maxcpus limit of %i reached."
+			" Processor ignored.\n", maxcpus);
+		return;
+	}
+
+	num_processors++;
+	cpus_complement(tmp_map, cpu_present_map);
+	cpu = first_cpu(tmp_map);
+
+	if (apicid == boot_cpu_physical_apicid)
+		/*
+		 * x86_bios_cpu_apicid is required to have processors listed
+		 * in same order as logical cpu numbers. Hence the first
+		 * entry is BSP, and so on.
+		 */
+		cpu = 0;
+
+	/*
+	 * Would be preferable to switch to bigsmp when CONFIG_HOTPLUG_CPU=y
+	 * but we need to work other dependencies like SMP_SUSPEND etc
+	 * before this can be done without some confusion.
+	 * if (CPU_HOTPLUG_ENABLED || num_processors > 8)
+	 *       - Ashok Raj <ashok.raj@intel.com>
+	 */
+	if (num_processors > 8) {
+		switch (boot_cpu_data.x86_vendor) {
+		case X86_VENDOR_INTEL:
+			if (!APIC_XAPIC(version)) {
+				def_to_bigsmp = 0;
+				break;
+			}
+			/* If P4 and above fall through */
+		case X86_VENDOR_AMD:
+			def_to_bigsmp = 1;
+		}
+	}
+#ifdef CONFIG_SMP
+	/* are we being called early in kernel startup? */
+	if (x86_cpu_to_apicid_early_ptr) {
+		u16 *cpu_to_apicid = x86_cpu_to_apicid_early_ptr;
+		u16 *bios_cpu_apicid = x86_bios_cpu_apicid_early_ptr;
+
+		cpu_to_apicid[cpu] = apicid;
+		bios_cpu_apicid[cpu] = apicid;
+	} else {
+		per_cpu(x86_cpu_to_apicid, cpu) = apicid;
+		per_cpu(x86_bios_cpu_apicid, cpu) = apicid;
+	}
+#endif
+	cpu_set(cpu, cpu_possible_map);
+	cpu_set(cpu, cpu_present_map);
 }
 
 /*

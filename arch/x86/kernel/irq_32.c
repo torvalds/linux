@@ -79,7 +79,7 @@ unsigned int do_IRQ(struct pt_regs *regs)
 
 	if (unlikely((unsigned)irq >= NR_IRQS)) {
 		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
-					__FUNCTION__, irq);
+					__func__, irq);
 		BUG();
 	}
 

@@ -170,6 +170,8 @@ Offset	Proto	Name		Meaning
 0238/4	2.06+	cmdline_size	Maximum size of the kernel command line
 023C/4	2.07+	hardware_subarch Hardware subarchitecture
 0240/8	2.07+	hardware_subarch_data Subarchitecture-specific data
+0248/4	2.08+	payload_offset	Offset of kernel payload
+024C/4	2.08+	payload_length	Length of kernel payload
 
 (1) For backwards compatibility, if the setup_sects field contains 0, the
     real value is 4.
@@ -512,6 +514,32 @@ Protocol:	2.07+
 
   A pointer to data that is specific to hardware subarch
 
+Field name:	payload_offset
+Type:		read
+Offset/size:	0x248/4
+Protocol:	2.08+
+
+  If non-zero then this field contains the offset from the end of the
+  real-mode code to the payload.
+
+  The payload may be compressed. The format of both the compressed and
+  uncompressed data should be determined using the standard magic
+  numbers. Currently only gzip compressed ELF is used.
+  
+Field name:	payload_length
+Type:		read
+Offset/size:	0x24c/4
+Protocol:	2.08+
+
+  The length of the payload.
+
+**** THE IMAGE CHECKSUM
+
+From boot protocol version 2.08 onwards the CRC-32 is calculated over
+the entire file using the characteristic polynomial 0x04C11DB7 and an
+initial remainder of 0xffffffff.  The checksum is appended to the
+file; therefore the CRC of the file up to the limit specified in the
+syssize field of the header is always 0.
 
 **** THE KERNEL COMMAND LINE
 

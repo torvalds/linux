@@ -23,6 +23,7 @@
 #include <asm/proto.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
+#include <asm/genapic.h>
 
 #ifndef CONFIG_DEBUG_BOOT_PARAMS
 struct boot_params __initdata boot_params;
@@ -84,83 +85,6 @@ static int __init nonx32_setup(char *str)
 	return 1;
 }
 __setup("noexec32=", nonx32_setup);
-
-/*
- * Copy data used in early init routines from the initial arrays to the
- * per cpu data areas.  These arrays then become expendable and the
- * *_early_ptr's are zeroed indicating that the static arrays are gone.
- */
-static void __init setup_per_cpu_maps(void)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-#ifdef CONFIG_SMP
-		if (per_cpu_offset(cpu)) {
-#endif
-			per_cpu(x86_cpu_to_apicid, cpu) =
-						x86_cpu_to_apicid_init[cpu];
-			per_cpu(x86_bios_cpu_apicid, cpu) =
-						x86_bios_cpu_apicid_init[cpu];
-#ifdef CONFIG_NUMA
-			per_cpu(x86_cpu_to_node_map, cpu) =
-						x86_cpu_to_node_map_init[cpu];
-#endif
-#ifdef CONFIG_SMP
-		}
-		else
-			printk(KERN_NOTICE "per_cpu_offset zero for cpu %d\n",
-									cpu);
-#endif
-	}
-
-	/* indicate the early static arrays will soon be gone */
-	x86_cpu_to_apicid_early_ptr = NULL;
-	x86_bios_cpu_apicid_early_ptr = NULL;
-#ifdef CONFIG_NUMA
-	x86_cpu_to_node_map_early_ptr = NULL;
-#endif
-}
-
-/*
- * Great future plan:
- * Declare PDA itself and support (irqstack,tss,pgd) as per cpu data.
- * Always point %gs to its beginning
- */
-void __init setup_per_cpu_areas(void)
-{ 
-	int i;
-	unsigned long size;
-
-#ifdef CONFIG_HOTPLUG_CPU
-	prefill_possible_map();
-#endif
-
-	/* Copy section for each CPU (we discard the original) */
-	size = PERCPU_ENOUGH_ROOM;
-
-	printk(KERN_INFO "PERCPU: Allocating %lu bytes of per cpu data\n", size);
-	for_each_cpu_mask (i, cpu_possible_map) {
-		char *ptr;
-#ifndef CONFIG_NEED_MULTIPLE_NODES
-		ptr = alloc_bootmem_pages(size);
-#else
-		int node = early_cpu_to_node(i);
-
-		if (!node_online(node) || !NODE_DATA(node))
-			ptr = alloc_bootmem_pages(size);
-		else
-			ptr = alloc_bootmem_pages_node(NODE_DATA(node), size);
-#endif
-		if (!ptr)
-			panic("Cannot allocate cpu data for CPU %d\n", i);
-		cpu_pda(i)->data_offset = ptr - __per_cpu_start;
-		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
-	}
-
-	/* setup percpu data maps early */
-	setup_per_cpu_maps();
-} 
 
 void pda_init(int cpu)
 { 
@@ -341,4 +265,7 @@ void __cpuinit cpu_init (void)
 	fpu_init(); 
 
 	raw_local_save_flags(kernel_eflags);
+
+	if (is_uv_system())
+		uv_cpu_init();
 }

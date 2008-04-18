@@ -62,8 +62,9 @@
 #include <asm/io.h>
 #include <asm/vmi.h>
 #include <setup_arch.h>
-#include <bios_ebda.h>
+#include <asm/bios_ebda.h>
 #include <asm/cacheflush.h>
+#include <asm/processor.h>
 
 /* This value is set up by the early boot code to point to the value
    immediately after the boot time page tables.  It contains a *physical*
@@ -154,6 +155,8 @@ struct cpuinfo_x86 new_cpu_data __cpuinitdata = { 0, 0, 0, 0, -1, 1, 0, 0, -1 };
 struct cpuinfo_x86 boot_cpu_data __read_mostly = { 0, 0, 0, 0, -1, 1, 0, 0, -1 };
 EXPORT_SYMBOL(boot_cpu_data);
 
+unsigned int def_to_bigsmp;
+
 #ifndef CONFIG_X86_PAE
 unsigned long mmu_cr4_features;
 #else
@@ -189,7 +192,7 @@ EXPORT_SYMBOL(ist_info);
 extern void early_cpu_init(void);
 extern int root_mountflags;
 
-unsigned long saved_videomode;
+unsigned long saved_video_mode;
 
 #define RAMDISK_IMAGE_START_MASK	0x07FF
 #define RAMDISK_PROMPT_FLAG		0x8000
@@ -227,7 +230,7 @@ static inline void copy_edd(void)
 }
 #endif
 
-int __initdata user_defined_memmap = 0;
+int __initdata user_defined_memmap;
 
 /*
  * "mem=nopentium" disables the 4MB page tables.
@@ -385,15 +388,56 @@ unsigned long __init find_max_low_pfn(void)
 	return max_low_pfn;
 }
 
+#define BIOS_EBDA_SEGMENT 0x40E
+#define BIOS_LOWMEM_KILOBYTES 0x413
+
 /*
- * workaround for Dell systems that neglect to reserve EBDA
+ * The BIOS places the EBDA/XBDA at the top of conventional
+ * memory, and usually decreases the reported amount of
+ * conventional memory (int 0x12) too. This also contains a
+ * workaround for Dell systems that neglect to reserve EBDA.
+ * The same workaround also avoids a problem with the AMD768MPX
+ * chipset: reserve a page before VGA to prevent PCI prefetch
+ * into it (errata #56). Usually the page is reserved anyways,
+ * unless you have no PS/2 mouse plugged in.
  */
 static void __init reserve_ebda_region(void)
 {
-	unsigned int addr;
-	addr = get_bios_ebda();
-	if (addr)
-		reserve_bootmem(addr, PAGE_SIZE, BOOTMEM_DEFAULT);
+	unsigned int lowmem, ebda_addr;
+
+	/* To determine the position of the EBDA and the */
+	/* end of conventional memory, we need to look at */
+	/* the BIOS data area. In a paravirtual environment */
+	/* that area is absent. We'll just have to assume */
+	/* that the paravirt case can handle memory setup */
+	/* correctly, without our help. */
+	if (paravirt_enabled())
+		return;
+
+	/* end of low (conventional) memory */
+	lowmem = *(unsigned short *)__va(BIOS_LOWMEM_KILOBYTES);
+	lowmem <<= 10;
+
+	/* start of EBDA area */
+	ebda_addr = *(unsigned short *)__va(BIOS_EBDA_SEGMENT);
+	ebda_addr <<= 4;
+
+	/* Fixup: bios puts an EBDA in the top 64K segment */
+	/* of conventional memory, but does not adjust lowmem. */
+	if ((lowmem - ebda_addr) <= 0x10000)
+		lowmem = ebda_addr;
+
+	/* Fixup: bios does not report an EBDA at all. */
+	/* Some old Dells seem to need 4k anyhow (bugzilla 2990) */
+	if ((ebda_addr == 0) && (lowmem >= 0x9f000))
+		lowmem = 0x9f000;
+
+	/* Paranoia: should never happen, but... */
+	if ((lowmem == 0) || (lowmem >= 0x100000))
+		lowmem = 0x9f000;
+
+	/* reserve all memory between lowmem and the 1MB mark */
+	reserve_bootmem(lowmem, 0x100000 - lowmem, BOOTMEM_DEFAULT);
 }
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
@@ -617,15 +661,8 @@ void __init setup_bootmem_allocator(void)
 	 */
 	reserve_bootmem(0, PAGE_SIZE, BOOTMEM_DEFAULT);
 
-	/* reserve EBDA region, it's a 4K region */
+	/* reserve EBDA region */
 	reserve_ebda_region();
-
-    /* could be an AMD 768MPX chipset. Reserve a page  before VGA to prevent
-       PCI prefetch into it (errata #56). Usually the page is reserved anyways,
-       unless you have no PS/2 mouse plugged in. */
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
-	    boot_cpu_data.x86 == 6)
-	     reserve_bootmem(0xa0000 - 4096, 4096, BOOTMEM_DEFAULT);
 
 #ifdef CONFIG_SMP
 	/*
@@ -687,6 +724,18 @@ char * __init __attribute__((weak)) memory_setup(void)
 	return machine_specific_memory_setup();
 }
 
+#ifdef CONFIG_NUMA
+/*
+ * In the golden day, when everything among i386 and x86_64 will be
+ * integrated, this will not live here
+ */
+void *x86_cpu_to_node_map_early_ptr;
+int x86_cpu_to_node_map_init[NR_CPUS] = {
+	[0 ... NR_CPUS-1] = NUMA_NO_NODE
+};
+DEFINE_PER_CPU(int, x86_cpu_to_node_map) = NUMA_NO_NODE;
+#endif
+
 /*
  * Determine if we were loaded by an EFI loader.  If so, then we have also been
  * passed the efi memmap, systab, etc., so we should use these data structures
@@ -714,7 +763,7 @@ void __init setup_arch(char **cmdline_p)
 	edid_info = boot_params.edid_info;
 	apm_info.bios = boot_params.apm_bios_info;
 	ist_info = boot_params.ist_info;
-	saved_videomode = boot_params.hdr.vid_mode;
+	saved_video_mode = boot_params.hdr.vid_mode;
 	if( boot_params.sys_desc_table.length != 0 ) {
 		set_mca_bus(boot_params.sys_desc_table.table[3] & 0x2);
 		machine_id = boot_params.sys_desc_table.table[0];
@@ -819,6 +868,18 @@ void __init setup_arch(char **cmdline_p)
 	dmi_scan_machine();
 
 	io_delay_init();
+
+#ifdef CONFIG_X86_SMP
+	/*
+	 * setup to use the early static init tables during kernel startup
+	 * X86_SMP will exclude sub-arches that don't deal well with it.
+	 */
+	x86_cpu_to_apicid_early_ptr = (void *)x86_cpu_to_apicid_init;
+	x86_bios_cpu_apicid_early_ptr = (void *)x86_bios_cpu_apicid_init;
+#ifdef CONFIG_NUMA
+	x86_cpu_to_node_map_early_ptr = (void *)x86_cpu_to_node_map_init;
+#endif
+#endif
 
 #ifdef CONFIG_X86_GENERICARCH
 	generic_apic_probe();

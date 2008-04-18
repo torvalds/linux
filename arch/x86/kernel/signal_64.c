@@ -19,16 +19,27 @@
 #include <linux/stddef.h>
 #include <linux/personality.h>
 #include <linux/compiler.h>
+#include <asm/processor.h>
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/i387.h>
 #include <asm/proto.h>
 #include <asm/ia32_unistd.h>
 #include <asm/mce.h>
-
-/* #define DEBUG_SIG 1 */
+#include "sigframe.h"
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
+
+#define __FIX_EFLAGS	(X86_EFLAGS_AC | X86_EFLAGS_OF | \
+			 X86_EFLAGS_DF | X86_EFLAGS_TF | X86_EFLAGS_SF | \
+			 X86_EFLAGS_ZF | X86_EFLAGS_AF | X86_EFLAGS_PF | \
+			 X86_EFLAGS_CF)
+
+#ifdef CONFIG_X86_32
+# define FIX_EFLAGS	(__FIX_EFLAGS | X86_EFLAGS_RF)
+#else
+# define FIX_EFLAGS	__FIX_EFLAGS
+#endif
 
 int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
                sigset_t *set, struct pt_regs * regs); 
@@ -46,16 +57,9 @@ sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 /*
  * Do a signal return; undo the signal stack.
  */
-
-struct rt_sigframe
-{
-	char __user *pretcode;
-	struct ucontext uc;
-	struct siginfo info;
-};
-
 static int
-restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, unsigned long *prax)
+restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
+		   unsigned long *pax)
 {
 	unsigned int err = 0;
 
@@ -87,7 +91,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, unsigned 
 	{
 		unsigned int tmpflags;
 		err |= __get_user(tmpflags, &sc->flags);
-		regs->flags = (regs->flags & ~0x40DD5) | (tmpflags & 0x40DD5);
+		regs->flags = (regs->flags & ~FIX_EFLAGS) | (tmpflags & FIX_EFLAGS);
 		regs->orig_ax = -1;		/* disable syscall checks */
 	}
 
@@ -108,7 +112,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, unsigned 
 		}
 	}
 
-	err |= __get_user(*prax, &sc->ax);
+	err |= __get_user(*pax, &sc->ax);
 	return err;
 
 badframe:
@@ -121,13 +125,11 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	sigset_t set;
 	unsigned long ax;
 
-	frame = (struct rt_sigframe __user *)(regs->sp - 8);
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame))) {
+	frame = (struct rt_sigframe __user *)(regs->sp - sizeof(long));
+	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
-	} 
-	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set))) { 
+	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
-	} 
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
 	spin_lock_irq(&current->sighand->siglock);
@@ -137,10 +139,6 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &ax))
 		goto badframe;
-
-#ifdef DEBUG_SIG
-	printk("%d sigreturn ip:%lx sp:%lx frame:%p ax:%lx\n",current->pid,regs->ip,regs->sp,frame,ax);
-#endif
 
 	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->sp) == -EFAULT)
 		goto badframe;
@@ -270,10 +268,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	if (err)
 		goto give_sigsegv;
 
-#ifdef DEBUG_SIG
-	printk("%d old ip %lx old sp %lx old ax %lx\n", current->pid,regs->ip,regs->sp,regs->ax);
-#endif
-
 	/* Set up registers for signal handler */
 	regs->di = sig;
 	/* In case the signal handler was declared without prototypes */ 
@@ -298,10 +292,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->flags &= ~(X86_EFLAGS_TF | X86_EFLAGS_DF);
 	if (test_thread_flag(TIF_SINGLESTEP))
 		ptrace_notify(SIGTRAP);
-#ifdef DEBUG_SIG
-	printk("SIG deliver (%s:%d): sp=%p pc=%lx ra=%p\n",
-		current->comm, current->pid, frame, regs->ip, frame->pretcode);
-#endif
 
 	return 0;
 
@@ -345,35 +335,29 @@ static long current_syscall_ret(struct pt_regs *regs)
 
 static int
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
-		sigset_t *oldset, struct pt_regs *regs)
+	      sigset_t *oldset, struct pt_regs *regs)
 {
 	int ret;
-
-#ifdef DEBUG_SIG
-	printk("handle_signal pid:%d sig:%lu ip:%lx sp:%lx regs=%p\n",
-		current->pid, sig,
-		regs->ip, regs->sp, regs);
-#endif
 
 	/* Are we from a system call? */
 	if (current_syscall(regs) >= 0) {
 		/* If so, check system call restarting.. */
 		switch (current_syscall_ret(regs)) {
-		        case -ERESTART_RESTARTBLOCK:
-			case -ERESTARTNOHAND:
+		case -ERESTART_RESTARTBLOCK:
+		case -ERESTARTNOHAND:
+			regs->ax = -EINTR;
+			break;
+
+		case -ERESTARTSYS:
+			if (!(ka->sa.sa_flags & SA_RESTART)) {
 				regs->ax = -EINTR;
 				break;
-
-			case -ERESTARTSYS:
-				if (!(ka->sa.sa_flags & SA_RESTART)) {
-					regs->ax = -EINTR;
-					break;
-				}
-				/* fallthrough */
-			case -ERESTARTNOINTR:
-				regs->ax = regs->orig_ax;
-				regs->ip -= 2;
-				break;
+			}
+		/* fallthrough */
+		case -ERESTARTNOINTR:
+			regs->ax = regs->orig_ax;
+			regs->ip -= 2;
+			break;
 		}
 	}
 
@@ -420,10 +404,11 @@ static void do_signal(struct pt_regs *regs)
 	sigset_t *oldset;
 
 	/*
-	 * We want the common case to go fast, which
-	 * is why we may in certain cases get here from
-	 * kernel mode. Just return without doing anything
+	 * We want the common case to go fast, which is why we may in certain
+	 * cases get here from kernel mode. Just return without doing anything
 	 * if so.
+	 * X86_32: vm86 regs switched out by assembly code before reaching
+	 * here, so testing against kernel CS suffices.
 	 */
 	if (!user_mode(regs))
 		return;
@@ -473,22 +458,19 @@ static void do_signal(struct pt_regs *regs)
 		}
 	}
 
-	/* if there's no signal to deliver, we just put the saved sigmask
-	   back. */
+	/*
+	 * If there's no signal to deliver, we just put the saved sigmask
+	 * back.
+	 */
 	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
 		clear_thread_flag(TIF_RESTORE_SIGMASK);
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
 }
 
-void
-do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
+void do_notify_resume(struct pt_regs *regs, void *unused,
+		      __u32 thread_info_flags)
 {
-#ifdef DEBUG_SIG
-	printk("do_notify_resume flags:%x ip:%lx sp:%lx caller:%p pending:%x\n",
-	       thread_info_flags, regs->ip, regs->sp, __builtin_return_address(0),signal_pending(current));
-#endif
-	       
 	/* Pending single-step? */
 	if (thread_info_flags & _TIF_SINGLESTEP) {
 		regs->flags |= X86_EFLAGS_TF;
@@ -502,7 +484,7 @@ do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
 #endif /* CONFIG_X86_MCE */
 
 	/* deal with pending signal delivery */
-	if (thread_info_flags & (_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK))
+	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
 		do_signal(regs);
 
 	if (thread_info_flags & _TIF_HRTICK_RESCHED)
