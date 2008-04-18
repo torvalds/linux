@@ -600,8 +600,6 @@ void dma_async_tx_descriptor_init(struct dma_async_tx_descriptor *tx,
 {
 	tx->chan = chan;
 	spin_lock_init(&tx->lock);
-	INIT_LIST_HEAD(&tx->depend_node);
-	INIT_LIST_HEAD(&tx->depend_list);
 }
 EXPORT_SYMBOL(dma_async_tx_descriptor_init);
 

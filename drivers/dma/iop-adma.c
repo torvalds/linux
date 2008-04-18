@@ -63,7 +63,6 @@ iop_adma_run_tx_complete_actions(struct iop_adma_desc_slot *desc,
 	struct iop_adma_chan *iop_chan, dma_cookie_t cookie)
 {
 	BUG_ON(desc->async_tx.cookie < 0);
-	spin_lock_bh(&desc->async_tx.lock);
 	if (desc->async_tx.cookie > 0) {
 		cookie = desc->async_tx.cookie;
 		desc->async_tx.cookie = 0;
@@ -101,7 +100,6 @@ iop_adma_run_tx_complete_actions(struct iop_adma_desc_slot *desc,
 
 	/* run dependent operations */
 	async_tx_run_dependencies(&desc->async_tx);
-	spin_unlock_bh(&desc->async_tx.lock);
 
 	return cookie;
 }
@@ -275,8 +273,11 @@ iop_adma_slot_cleanup(struct iop_adma_chan *iop_chan)
 
 static void iop_adma_tasklet(unsigned long data)
 {
-	struct iop_adma_chan *chan = (struct iop_adma_chan *) data;
-	__iop_adma_slot_cleanup(chan);
+	struct iop_adma_chan *iop_chan = (struct iop_adma_chan *) data;
+
+	spin_lock(&iop_chan->lock);
+	__iop_adma_slot_cleanup(iop_chan);
+	spin_unlock(&iop_chan->lock);
 }
 
 static struct iop_adma_desc_slot *

@@ -221,11 +221,9 @@ typedef void (*dma_async_tx_callback)(void *dma_async_param);
  * @callback: routine to call after this operation is complete
  * @callback_param: general parameter to pass to the callback routine
  * ---async_tx api specific fields---
- * @depend_list: at completion this list of transactions are submitted
- * @depend_node: allow this transaction to be executed after another
- *	transaction has completed, possibly on another channel
+ * @next: at completion submit this descriptor
  * @parent: pointer to the next level up in the dependency chain
- * @lock: protect the dependency list
+ * @lock: protect the parent and next pointers
  */
 struct dma_async_tx_descriptor {
 	dma_cookie_t cookie;
@@ -236,8 +234,7 @@ struct dma_async_tx_descriptor {
 	dma_cookie_t (*tx_submit)(struct dma_async_tx_descriptor *tx);
 	dma_async_tx_callback callback;
 	void *callback_param;
-	struct list_head depend_list;
-	struct list_head depend_node;
+	struct dma_async_tx_descriptor *next;
 	struct dma_async_tx_descriptor *parent;
 	spinlock_t lock;
 };
