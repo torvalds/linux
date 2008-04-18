@@ -130,7 +130,7 @@ struct xc2028_data {
 	_rc;								\
 })
 
-static unsigned int xc2028_get_reg(struct xc2028_data *priv, u16 reg, u16 *val)
+static int xc2028_get_reg(struct xc2028_data *priv, u16 reg, u16 *val)
 {
 	unsigned char buf[2];
 	unsigned char ibuf[2];

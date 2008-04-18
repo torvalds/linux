@@ -214,16 +214,12 @@ static struct zl10353_config em28xx_zl10353_with_xc3028 = {
 static int attach_xc3028(u8 addr, struct em28xx *dev)
 {
 	struct dvb_frontend *fe;
-	struct xc2028_ctrl ctl;
 	struct xc2028_config cfg;
 
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.i2c_adap  = &dev->i2c_adap;
 	cfg.i2c_addr  = addr;
-	cfg.ctrl      = &ctl;
 	cfg.callback  = em28xx_tuner_callback;
-
-	em28xx_setup_xc3028(dev, &ctl);
 
 	if (!dev->dvb->frontend) {
 		printk(KERN_ERR "%s/2: dvb frontend not attached. "
