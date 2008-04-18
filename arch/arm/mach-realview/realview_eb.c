@@ -66,13 +66,13 @@ static struct map_desc realview_eb_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= IO_ADDRESS(REALVIEW_TIMER0_1_BASE),
-		.pfn		= __phys_to_pfn(REALVIEW_TIMER0_1_BASE),
+		.virtual	= IO_ADDRESS(REALVIEW_EB_TIMER0_1_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_EB_TIMER0_1_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= IO_ADDRESS(REALVIEW_TIMER2_3_BASE),
-		.pfn		= __phys_to_pfn(REALVIEW_TIMER2_3_BASE),
+		.virtual	= IO_ADDRESS(REALVIEW_EB_TIMER2_3_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_EB_TIMER2_3_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	},
@@ -336,6 +336,11 @@ static void realview_eb11mp_fixup(void)
 static void __init realview_eb_timer_init(void)
 {
 	unsigned int timer_irq;
+
+	timer0_va_base = __io_address(REALVIEW_EB_TIMER0_1_BASE);
+	timer1_va_base = __io_address(REALVIEW_EB_TIMER0_1_BASE) + 0x20;
+	timer2_va_base = __io_address(REALVIEW_EB_TIMER2_3_BASE);
+	timer3_va_base = __io_address(REALVIEW_EB_TIMER2_3_BASE) + 0x20;
 
 	if (core_tile_eb11mp()) {
 #ifdef CONFIG_LOCAL_TIMERS

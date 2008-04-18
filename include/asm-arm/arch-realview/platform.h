@@ -190,8 +190,6 @@
 #define REALVIEW_SCI_BASE             0x1000E000	/* Smart card controller */
 	/* Reserved 0x1000F000 */
 #define REALVIEW_WATCHDOG_BASE        0x10010000	/* watchdog interface */
-#define REALVIEW_TIMER0_1_BASE        0x10011000	/* Timer 0 and 1 */
-#define REALVIEW_TIMER2_3_BASE        0x10012000	/* Timer 2 and 3 */
 #define REALVIEW_GPIO0_BASE           0x10013000	/* GPIO port 0 */
 #define REALVIEW_GPIO1_BASE           0x10014000	/* GPIO port 1 */
 #define REALVIEW_GPIO2_BASE           0x10015000	/* GPIO port 2 */
