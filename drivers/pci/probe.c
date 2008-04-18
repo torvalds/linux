@@ -399,8 +399,8 @@ static struct pci_bus * pci_alloc_bus(void)
 	return b;
 }
 
-static struct pci_bus * __devinit
-pci_alloc_child_bus(struct pci_bus *parent, struct pci_dev *bridge, int busnr)
+static struct pci_bus *pci_alloc_child_bus(struct pci_bus *parent,
+					   struct pci_dev *bridge, int busnr)
 {
 	struct pci_bus *child;
 	int i;
