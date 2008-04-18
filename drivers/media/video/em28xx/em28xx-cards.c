@@ -36,7 +36,6 @@
 #include <media/v4l2-common.h>
 
 #include "em28xx.h"
-#include "tuner-xc2028.h"
 
 static int tuner = -1;
 module_param(tuner, int, 0444);
@@ -553,10 +552,25 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	};
 }
 
+void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
+{
+	memset(ctl, 0, sizeof(*ctl));
+
+	ctl->fname   = XC2028_DEFAULT_FIRMWARE;
+	ctl->max_len = 64;
+	ctl->mts = em28xx_boards[dev->model].mts_firmware;
+
+	switch (dev->model) {
+	/* Add card-specific parameters for xc3028 here */
+	default:
+		ctl->demod = XC3028_FE_OREN538;
+	}
+}
+EXPORT_SYMBOL_GPL(em28xx_setup_xc3028);
+
 static void em28xx_config_tuner(struct em28xx *dev)
 {
 	struct v4l2_priv_tun_config  xc2028_cfg;
-	struct xc2028_ctrl           ctl;
 	struct tuner_setup           tun_setup;
 	struct v4l2_frequency        f;
 
@@ -571,11 +585,9 @@ static void em28xx_config_tuner(struct em28xx *dev)
 	em28xx_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
 
 	if (dev->tuner_type == TUNER_XC2028) {
-		memset(&ctl, 0, sizeof(ctl));
+		struct xc2028_ctrl           ctl;
 
-		ctl.fname   = XC2028_DEFAULT_FIRMWARE;
-		ctl.max_len = 64;
-		ctl.mts = em28xx_boards[dev->model].mts_firmware;
+		em28xx_setup_xc3028(dev, &ctl);
 
 		xc2028_cfg.tuner = TUNER_XC2028;
 		xc2028_cfg.priv  = &ctl;

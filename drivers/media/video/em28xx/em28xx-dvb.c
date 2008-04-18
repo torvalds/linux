@@ -20,8 +20,6 @@
 #include <media/videobuf-vmalloc.h>
 
 #include "lgdt330x.h"
-#include "tuner-xc2028.h"
-#include "tuner-xc2028-types.h"
 
 MODULE_DESCRIPTION("driver for em28xx based DVB cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
@@ -69,12 +67,15 @@ static int attach_xc3028(u8 addr, struct em28xx *dev)
 {
 	struct dvb_frontend *fe;
 	struct xc2028_ctrl ctl;
-	struct xc2028_config cfg = {
-		.i2c_adap  = &dev->i2c_adap,
-		.i2c_addr  = addr,
-		.ctrl      = &ctl,
-		.callback  = em28xx_tuner_callback,
-	};
+	struct xc2028_config cfg;
+
+	memset (&cfg, 0, sizeof(cfg));
+	cfg.i2c_adap  = &dev->i2c_adap;
+	cfg.i2c_addr  = addr;
+	cfg.ctrl      = &ctl;
+	cfg.callback  = em28xx_tuner_callback;
+
+	em28xx_setup_xc3028(dev, &ctl);
 
 	if (!dev->dvb.frontend) {
 		printk(KERN_ERR "%s/2: dvb frontend not attached. "
