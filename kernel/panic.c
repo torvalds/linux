@@ -325,6 +325,9 @@ EXPORT_SYMBOL(warn_on_slowpath);
 
 #ifdef CONFIG_CC_STACKPROTECTOR
 
+#ifndef GCC_HAS_SP
+#warning You have selected the CONFIG_CC_STACKPROTECTOR option, but the gcc used does not support this.
+#endif
 static unsigned long __stack_check_testing;
 /*
  * Self test function for the stack-protector feature.
