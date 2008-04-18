@@ -2755,7 +2755,6 @@ got_driver:
 		__proc_set_tty(current, tty);
 	spin_unlock_irq(&current->sighand->siglock);
 	mutex_unlock(&tty_mutex);
-	tty_audit_opening();
 	return 0;
 }
 
@@ -2818,10 +2817,8 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 
 	check_tty_count(tty, "tty_open");
 	retval = ptm_driver->open(tty, filp);
-	if (!retval) {
-		tty_audit_opening();
+	if (!retval)
 		return 0;
-	}
 out1:
 	release_dev(filp);
 	return retval;

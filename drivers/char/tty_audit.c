@@ -233,6 +233,10 @@ void tty_audit_add_data(struct tty_struct *tty, unsigned char *data,
 	if (unlikely(size == 0))
 		return;
 
+	if (tty->driver->type == TTY_DRIVER_TYPE_PTY
+	    && tty->driver->subtype == PTY_TYPE_MASTER)
+		return;
+
 	buf = tty_audit_buf_get(tty);
 	if (!buf)
 		return;
@@ -294,54 +298,4 @@ void tty_audit_push(struct tty_struct *tty)
 		mutex_unlock(&buf->mutex);
 		tty_audit_buf_put(buf);
 	}
-}
-
-/**
- *	tty_audit_opening	-	A TTY is being opened.
- *
- *	As a special hack, tasks that close all their TTYs and open new ones
- *	are assumed to be system daemons (e.g. getty) and auditing is
- *	automatically disabled for them.
- */
-void tty_audit_opening(void)
-{
-	int disable;
-
-	disable = 1;
-	spin_lock_irq(&current->sighand->siglock);
-	if (current->signal->audit_tty == 0)
-		disable = 0;
-	spin_unlock_irq(&current->sighand->siglock);
-	if (!disable)
-		return;
-
-	task_lock(current);
-	if (current->files) {
-		struct fdtable *fdt;
-		unsigned i;
-
-		/*
-		 * We don't take a ref to the file, so we must hold ->file_lock
-		 * instead.
-		 */
-		spin_lock(&current->files->file_lock);
-		fdt = files_fdtable(current->files);
-		for (i = 0; i < fdt->max_fds; i++) {
-			struct file *filp;
-
-			filp = fcheck_files(current->files, i);
-			if (filp && is_tty(filp)) {
-				disable = 0;
-				break;
-			}
-		}
-		spin_unlock(&current->files->file_lock);
-	}
-	task_unlock(current);
-	if (!disable)
-		return;
-
-	spin_lock_irq(&current->sighand->siglock);
-	current->signal->audit_tty = 0;
-	spin_unlock_irq(&current->sighand->siglock);
 }
