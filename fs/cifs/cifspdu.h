@@ -1787,6 +1787,11 @@ typedef struct smb_com_transaction2_fnext_rsp_parms {
 #define SMB_QUERY_CIFS_UNIX_INFO    0x200
 #define SMB_QUERY_POSIX_FS_INFO     0x201
 #define SMB_QUERY_POSIX_WHO_AM_I    0x202
+#define SMB_QUERY_FS_PROXY          0x203 /* WAFS enabled. Returns structure
+					    FILE_SYSTEM__UNIX_INFO to tell
+					    whether new NTIOCTL available
+					    (0xACE) for WAN friendly SMB
+					    operations to be carried */
 #define SMB_QUERY_LABEL_INFO        0x3ea
 #define SMB_QUERY_FS_QUOTA_INFO     0x3ee
 #define SMB_QUERY_FS_FULL_SIZE_INFO 0x3ef
@@ -2043,7 +2048,8 @@ typedef struct {
 #define CIFS_UNIX_LARGE_READ_CAP        0x00000040 /* support reads >128K (up
 						      to 0xFFFF00 */
 #define CIFS_UNIX_LARGE_WRITE_CAP       0x00000080
-
+#define CIFS_UNIX_PROXY_CAP             0x00000100 /* Proxy cap: 0xACE ioctl and
+						      QFS PROXY call */
 #ifdef CONFIG_CIFS_POSIX
 /* Can not set pathnames cap yet until we send new posix create SMB since
    otherwise server can treat such handles opened with older ntcreatex
