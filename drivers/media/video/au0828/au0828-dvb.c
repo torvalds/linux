@@ -31,6 +31,9 @@
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
+#define _AU0828_BULKPIPE 0x83
+#define _BULKPIPESIZE 0xe522
+
 static struct au8522_config hauppauge_hvr950q_config = {
 	.demod_address = 0x8e >> 1,
 	.status_mode   = AU8522_DEMODLOCKING,
@@ -66,7 +69,8 @@ static void urb_completion(struct urb *purb)
 	ptr = (u8 *)purb->transfer_buffer;
 
 	/* Feed the transport payload into the kernel demux */
-	dvb_dmx_swfilter_packets(&dev->dvb.demux, purb->transfer_buffer, purb->actual_length / 188);
+	dvb_dmx_swfilter_packets(&dev->dvb.demux,
+		purb->transfer_buffer, purb->actual_length / 188);
 
 	/* Clean the buffer before we requeue */
 	memset(purb->transfer_buffer, 0, URB_BUFSIZE);
@@ -81,7 +85,6 @@ static int stop_urb_transfer(struct au0828_dev *dev)
 
 	dprintk(2, "%s()\n", __func__);
 
-	/* FIXME:  Do we need to free the transfer_buffers? */
 	for (i = 0; i < URB_COUNT; i++) {
 		usb_kill_urb(dev->urbs[i]);
 		kfree(dev->urbs[i]->transfer_buffer);
@@ -92,9 +95,6 @@ static int stop_urb_transfer(struct au0828_dev *dev)
 
 	return 0;
 }
-
-#define _AU0828_BULKPIPE 0x83
-#define _BULKPIPESIZE 0xe522
 
 static int start_urb_transfer(struct au0828_dev *dev)
 {
@@ -306,7 +306,7 @@ void au0828_dvb_unregister(struct au0828_dev *dev)
 
 	dprintk(1, "%s()\n", __func__);
 
-	if(dvb->frontend == NULL)
+	if (dvb->frontend == NULL)
 		return;
 
 	dvb_net_release(&dvb->net);

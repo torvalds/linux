@@ -143,6 +143,7 @@ static int recv_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 	mutex_unlock(&dev->mutex);
 	return status;
 }
+
 static void au0828_usb_disconnect(struct usb_interface *interface)
 {
 	struct au0828_dev *dev = usb_get_intfdata(interface);
@@ -177,7 +178,7 @@ static int au0828_usb_probe (struct usb_interface *interface,
 	if (ifnum != 0)
 		return -ENODEV;
 
-	dprintk(1,"%s() vendor id 0x%x device id 0x%x ifnum:%d\n", __func__,
+	dprintk(1, "%s() vendor id 0x%x device id 0x%x ifnum:%d\n", __func__,
 		le16_to_cpu(usbdev->descriptor.idVendor),
 		le16_to_cpu(usbdev->descriptor.idProduct),
 		ifnum);
@@ -228,20 +229,20 @@ static int __init au0828_init(void)
 {
 	int ret;
 
-	if(debug)
+	if (debug)
 		printk(KERN_INFO "%s() Debugging is enabled\n", __func__);
 
-	if(usb_debug) {
+	if (usb_debug) {
 		printk(KERN_INFO "%s() USB Debugging is enabled\n", __func__);
 		debug |= 2;
 	}
 
-	if(i2c_debug) {
+	if (i2c_debug) {
 		printk(KERN_INFO "%s() I2C Debugging is enabled\n", __func__);
 		debug |= 4;
 	}
 
-	if(bridge_debug) {
+	if (bridge_debug) {
 		printk(KERN_INFO "%s() Bridge Debugging is enabled\n",
 		       __func__);
 		debug |= 8;

@@ -37,7 +37,6 @@
 
 #define DRIVER_NAME "au0828"
 #define URB_COUNT   16
-//#define URB_BUFSIZE (312 * 188)
 #define URB_BUFSIZE (0xe522)
 
 struct au0828_board {

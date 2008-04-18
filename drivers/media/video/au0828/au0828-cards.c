@@ -51,7 +51,7 @@ int au0828_tuner_callback(void *priv, int command, int arg)
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
 	case AU0828_BOARD_DVICO_FUSIONHDTV7:
-		if(command == 0) {
+		if (command == 0) {
 			/* Tuner Reset Command from xc5000 */
 			/* Drive the tuner into reset and out */
 			au0828_clear(dev, REG_001, 2);
@@ -78,8 +78,7 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 	tveeprom_hauppauge_analog(&dev->i2c_client, &tv, eeprom_data);
 
 	/* Make sure we support the board model */
-	switch (tv.model)
-	{
+	switch (tv.model) {
 	case 72001: /* WinTV-HVR950q (Retail, IR, ATSC/QAM and basic analog video */
 		break;
 	default:
@@ -91,7 +90,6 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 	printk(KERN_INFO "%s: hauppauge eeprom: model=%d\n",
 	       __func__, tv.model);
 }
-
 
 void au0828_card_setup(struct au0828_dev *dev)
 {
@@ -116,7 +114,7 @@ void au0828_card_setup(struct au0828_dev *dev)
 /*
  * The bridge has between 8 and 12 gpios.
  * Regs 1 and 0 deal with output enables.
- * Regs 3 and 2 * deal with direction.
+ * Regs 3 and 2 deal with direction.
  */
 void au0828_gpio_setup(struct au0828_dev *dev)
 {

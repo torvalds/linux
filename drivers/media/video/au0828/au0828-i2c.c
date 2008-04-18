@@ -151,7 +151,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 
 	dprintk(4, "SEND: %02x\n", msg->addr);
 
-	for (i=0; i < msg->len;) {
+	for (i = 0; i < msg->len;) {
 
 		dprintk(4, " %02x\n", msg->buf[i]);
 
@@ -210,7 +210,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 		return 0;
 	}
 
-	for (i=0; i < msg->len;) {
+	for (i = 0; i < msg->len;) {
 
 		i++;
 
@@ -241,7 +241,7 @@ static int i2c_xfer(struct i2c_adapter *i2c_adap,
 
 	dprintk(4, "%s(num = %d)\n", __func__, num);
 
-	for (i = 0 ; i < num; i++) {
+	for (i = 0; i < num; i++) {
 		dprintk(4, "%s(num = %d) addr = 0x%02x  len = 0x%x\n",
 			__func__, num, msgs[i].addr, msgs[i].len);
 		if (msgs[i].flags & I2C_M_RD) {

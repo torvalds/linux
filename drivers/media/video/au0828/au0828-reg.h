@@ -19,6 +19,9 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+/* We'll start to rename these registers once we have a better
+ * understanding of their meaning.
+ */
 #define REG_000 0x000
 #define REG_001 0x001
 #define REG_002 0x002
