@@ -875,8 +875,7 @@ EXPORT_SYMBOL(alloc_pci_dev);
  * Read the config data for a PCI device, sanity-check it
  * and fill in the dev structure...
  */
-static struct pci_dev * __devinit
-pci_scan_device(struct pci_bus *bus, int devfn)
+static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 {
 	struct pci_dev *dev;
 	u32 l;
