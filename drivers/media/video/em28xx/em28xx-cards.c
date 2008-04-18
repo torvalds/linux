@@ -436,19 +436,25 @@ MODULE_DEVICE_TABLE(usb, em28xx_id_table);
 
 /* Board Hauppauge WinTV HVR 900 analog */
 struct em28xx_reg_seq hauppauge_wintv_hvr_900_analog[] = {
-	{  -1,		-1,     6},
-	{EM28XX_R08_GPIO,	0x2d,  10},
-	{EM28XX_R08_GPIO,	0x3d,   5},
-	{  -1,		-1,    -1},
+	{EM28XX_R08_GPIO,	0x2d,	~EM_GPIO_4,	10},
+	{0x05,			0xff,	0x10,		10},
+	{  -1,			-1,	-1,		-1},
 };
+
 /* Board Hauppauge WinTV HVR 900 digital */
 struct em28xx_reg_seq hauppauge_wintv_hvr_900_digital[] = {
-	{  -1,		-1,     6},
-	{EM28XX_R08_GPIO,	0x2e,   6},
-	{EM28XX_R08_GPIO,	0x3e,   6},
-	{EM2880_R04_GPO,	0x04,  10},
-	{EM2880_R04_GPO,	0x0c,  10},
-	{ -1,    -1,  -1},
+	{EM28XX_R08_GPIO,	0x2e,	~EM_GPIO_4,	10},
+	{EM2880_R04_GPO,	0x04,	0x0f,		10},
+	{EM2880_R04_GPO,	0x0c,	0x0f,		10},
+	{ -1,			-1,	-1,		-1},
+};
+
+/* Board Hauppauge WinTV HVR 900 tuner_callback */
+struct em28xx_reg_seq hauppauge_wintv_hvr_900_tuner_callback[] = {
+	{EM28XX_R08_GPIO,	EM_GPIO_4,	EM_GPIO_4,	10},
+	{EM28XX_R08_GPIO,	0,		EM_GPIO_4,	10},
+	{EM28XX_R08_GPIO,	EM_GPIO_4,	EM_GPIO_4,	10},
+	{  -1,			-1,		-1,		-1},
 };
 
 /*
@@ -469,7 +475,6 @@ int em28xx_tuner_callback(void *ptr, int command, int arg)
 {
 	int rc = 0;
 	struct em28xx *dev = ptr;
-	struct em28xx_reg_seq *gpio;
 
 	if (dev->tuner_type != TUNER_XC2028)
 		return 0;
@@ -478,32 +483,10 @@ int em28xx_tuner_callback(void *ptr, int command, int arg)
 		return 0;
 
 	if (dev->mode == EM28XX_ANALOG_MODE)
-		gpio = dev->analog_gpio;
+		rc = em28xx_gpio_set(dev, dev->tun_analog_gpio);
 	else
-		gpio = dev->digital_gpio;
+		rc = em28xx_gpio_set(dev, dev->tun_digital_gpio);
 
-	/* djh - Not sure if these are still required */
-	dev->em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
-	if (dev->mode == EM28XX_ANALOG_MODE)
-		dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x67", 1);
-	else
-		dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x37", 1);
-	msleep(6);
-
-	if (!gpio)
-		return rc;
-
-	/* Send GPIO reset sequences specified at board entry */
-	while (gpio->sleep >= 0) {
-		if (gpio->reg >= 0)
-			rc = dev->em28xx_write_regs(dev,
-						    gpio->reg,
-						    &gpio->val, 1);
-		if (gpio->sleep > 0)
-			msleep(gpio->sleep);
-
-		gpio++;
-	}
 	return rc;
 }
 EXPORT_SYMBOL_GPL(em28xx_tuner_callback);
@@ -527,6 +510,10 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 {
 	int rc;
 
+	rc = em28xx_read_reg(dev, EM2880_R04_GPO);
+	if (rc >= 0)
+		dev->reg_gpo = rc;
+
 	dev->wait_after_write = 5;
 	rc = em28xx_read_reg(dev, EM28XX_R0A_CHIPID);
 	if (rc > 0) {
@@ -547,24 +534,24 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 	case EM2880_BOARD_TERRATEC_HYBRID_XS:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
-		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x27", 1);
+		em28xx_write_regs(dev, EM28XX_R0F_XCLK,    "\x27", 1);
 		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x40", 1);
-		em28xx_write_regs(dev, 0x08, "\xff", 1);
-		em28xx_write_regs(dev, 0x04, "\x00", 1);
-		msleep(100);
-		em28xx_write_regs(dev, 0x04, "\x08", 1);
-		msleep(100);
-		em28xx_write_regs(dev, 0x08, "\xff", 1);
 		msleep(50);
-		em28xx_write_regs(dev, 0x08, "\x2d", 1);
-		msleep(50);
-		em28xx_write_regs(dev, 0x08, "\x3d", 1);
 
-		dev->analog_gpio = hauppauge_wintv_hvr_900_analog;
-		dev->digital_gpio = hauppauge_wintv_hvr_900_digital;
+		/* Sets GPO/GPIO sequences for this device */
+		dev->analog_gpio      = hauppauge_wintv_hvr_900_analog;
+		dev->digital_gpio     = hauppauge_wintv_hvr_900_digital;
+		dev->tun_analog_gpio  = hauppauge_wintv_hvr_900_tuner_callback;
+		dev->tun_digital_gpio = hauppauge_wintv_hvr_900_tuner_callback;
 
 		break;
 	}
+
+	em28xx_gpio_set(dev, dev->tun_analog_gpio);
+	em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
+
+	/* Unlock device */
+	em28xx_set_mode(dev, EM28XX_MODE_UNDEFINED);
 }
 
 void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)

@@ -461,7 +461,7 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	if (urb_init) {
 		rc = em28xx_init_isoc(dev, EM28XX_NUM_PACKETS,
 				      EM28XX_NUM_BUFS, dev->max_pkt_size,
-				      em28xx_isoc_copy, EM28XX_ANALOG_CAPTURE);
+				      em28xx_isoc_copy);
 		if (rc < 0)
 			goto fail;
 	}
@@ -1534,8 +1534,8 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 	em28xx_videodbg("open minor=%d type=%s users=%d\n",
 				minor, v4l2_type_names[fh_type], dev->users);
 
-	fh = kzalloc(sizeof(struct em28xx_fh), GFP_KERNEL);
 
+	fh = kzalloc(sizeof(struct em28xx_fh), GFP_KERNEL);
 	if (!fh) {
 		em28xx_errdev("em28xx-video.c: Out of memory?!\n");
 		return -ENOMEM;
@@ -1552,8 +1552,14 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 		dev->hscale = 0;
 		dev->vscale = 0;
 
+		em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
 		em28xx_set_alternate(dev);
 		em28xx_resolution_set(dev);
+
+		/* Needed, since GPIO might have disabled power of
+		   some i2c device
+		 */
+		em28xx_config_i2c(dev);
 
 	}
 	if (fh->radio) {
@@ -1568,6 +1574,7 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 			sizeof(struct em28xx_buffer), fh);
 
 	mutex_unlock(&dev->lock);
+
 	return errCode;
 }
 
@@ -1647,6 +1654,7 @@ static int em28xx_v4l2_close(struct inode *inode, struct file *filp)
 
 		/* do this before setting alternate! */
 		em28xx_uninit_isoc(dev);
+		em28xx_set_mode(dev, EM28XX_MODE_UNDEFINED);
 
 		/* set alternate 0 */
 		dev->alt = 0;

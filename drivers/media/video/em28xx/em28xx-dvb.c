@@ -137,14 +137,17 @@ static inline int dvb_isoc_copy(struct em28xx *dev, struct urb *urb)
 
 static int start_streaming(struct em28xx_dvb *dvb)
 {
+	int rc;
 	struct em28xx *dev = dvb->adapter.priv;
 
 	usb_set_interface(dev->udev, 0, 1);
-	dev->em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
+	rc = em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
+	if (rc < 0)
+		return rc;
 
 	return em28xx_init_isoc(dev, EM28XX_DVB_MAX_PACKETS,
 				EM28XX_DVB_NUM_BUFS, EM28XX_DVB_MAX_PACKETSIZE,
-				dvb_isoc_copy, EM28XX_DIGITAL_CAPTURE);
+				dvb_isoc_copy);
 }
 
 static int stop_streaming(struct em28xx_dvb *dvb)
@@ -152,6 +155,9 @@ static int stop_streaming(struct em28xx_dvb *dvb)
 	struct em28xx *dev = dvb->adapter.priv;
 
 	em28xx_uninit_isoc(dev);
+
+	em28xx_set_mode(dev, EM28XX_MODE_UNDEFINED);
+
 	return 0;
 }
 
@@ -368,13 +374,10 @@ static int dvb_init(struct em28xx *dev)
 	}
 	dev->dvb = dvb;
 
+	em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	/* init frontend */
 	switch (dev->model) {
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
-		/* Enable lgdt330x */
-		dev->mode = EM28XX_DIGITAL_MODE;
-		em28xx_tuner_callback(dev, XC2028_TUNER_RESET, 0);
-
 		dvb->frontend = dvb_attach(lgdt330x_attach,
 					   &em2880_lgdt3303_dev,
 					   &dev->i2c_adap);
@@ -384,9 +387,6 @@ static int dvb_init(struct em28xx *dev)
 		}
 		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
-		/* Enable zl10353 */
-		dev->mode = EM28XX_DIGITAL_MODE;
-		em28xx_tuner_callback(dev, XC2028_TUNER_RESET, 0);
 		dvb->frontend = dvb_attach(zl10353_attach,
 					   &em28xx_zl10353_with_xc3028,
 					   &dev->i2c_adap);
@@ -415,10 +415,12 @@ static int dvb_init(struct em28xx *dev)
 	if (result < 0)
 		goto out_free;
 
+	em28xx_set_mode(dev, EM28XX_MODE_UNDEFINED);
 	printk(KERN_INFO "Successfully loaded em28xx-dvb\n");
 	return 0;
 
 out_free:
+	em28xx_set_mode(dev, EM28XX_MODE_UNDEFINED);
 	kfree(dvb);
 	dev->dvb = NULL;
 	return result;

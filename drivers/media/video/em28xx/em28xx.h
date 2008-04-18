@@ -110,6 +110,7 @@
 #define EM2800_I2C_WRITE_TIMEOUT 20
 
 enum em28xx_mode {
+	EM28XX_MODE_UNDEFINED,
 	EM28XX_ANALOG_MODE,
 	EM28XX_DIGITAL_MODE,
 };
@@ -228,7 +229,7 @@ enum em28xx_decoder {
 
 struct em28xx_reg_seq {
 	int reg;
-	unsigned char val;
+	unsigned char val, mask;
 	int sleep;
 };
 
@@ -272,12 +273,6 @@ enum em28xx_dev_state {
 	DEV_INITIALIZED = 0x01,
 	DEV_DISCONNECTED = 0x02,
 	DEV_MISCONFIGURED = 0x04,
-};
-
-enum em28xx_capture_mode {
-	EM28XX_CAPTURE_OFF = 0,
-	EM28XX_ANALOG_CAPTURE,
-	EM28XX_DIGITAL_CAPTURE,
 };
 
 #define EM28XX_AUDIO_BUFS 5
@@ -335,8 +330,11 @@ struct em28xx {
 	/* Some older em28xx chips needs a waiting time after writing */
 	unsigned int wait_after_write;
 
-	/* GPIO sequences for tuner callback */
+	/* GPIO sequences for analog and digital mode */
 	struct em28xx_reg_seq *analog_gpio, *digital_gpio;
+
+	/* GPIO sequences for tuner callbacks */
+	struct em28xx_reg_seq *tun_analog_gpio, *tun_digital_gpio;
 
 	int video_inputs;	/* number of video inputs */
 	struct list_head	devlist;
@@ -415,6 +413,9 @@ struct em28xx {
 
 	enum em28xx_mode mode;
 
+	/* Caches GPO and GPIO registers */
+	unsigned char	reg_gpo, reg_gpio;
+
 	struct em28xx_dvb *dvb;
 };
 
@@ -455,9 +456,10 @@ int em28xx_resolution_set(struct em28xx *dev);
 int em28xx_set_alternate(struct em28xx *dev);
 int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 		     int num_bufs, int max_pkt_size,
-		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb),
-		     int cap_type);
+		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb));
 void em28xx_uninit_isoc(struct em28xx *dev);
+int em28xx_set_mode(struct em28xx *dev, enum em28xx_mode set_mode);
+int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio);
 
 /* Provided by em28xx-video.c */
 int em28xx_register_extension(struct em28xx_ops *dev);

@@ -134,7 +134,10 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 	unsigned char *bufs;
 
 	if (dev->state & DEV_DISCONNECTED)
-		return(-ENODEV);
+		return -ENODEV;
+
+	if (len < 1)
+		return -EINVAL;
 
 	bufs = kmalloc(len, GFP_KERNEL);
 
@@ -162,7 +165,23 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 
 int em28xx_write_regs(struct em28xx *dev, u16 reg, char *buf, int len)
 {
-	return em28xx_write_regs_req(dev, USB_REQ_GET_STATUS, reg, buf, len);
+	int rc;
+
+	rc = em28xx_write_regs_req(dev, USB_REQ_GET_STATUS, reg, buf, len);
+
+	/* Stores GPO/GPIO values at the cache, if changed
+	   Only write values should be stored, since input on a GPIO
+	   register will return the input bits.
+	   Not sure what happens on reading GPO register.
+	 */
+	if (rc >= 0) {
+		if (reg == EM2880_R04_GPO)
+			dev->reg_gpo = buf[0];
+		else if (reg == EM28XX_R08_GPIO)
+			dev->reg_gpio = buf[0];
+	}
+
+	return rc;
 }
 
 /*
@@ -176,12 +195,19 @@ static int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 	int oldval;
 	u8 newval;
 
-	oldval = em28xx_read_reg(dev, reg);
+	/* Uses cache for gpo/gpio registers */
+	if (reg == EM2880_R04_GPO)
+		oldval = dev->reg_gpo;
+	else if (reg == EM28XX_R08_GPIO)
+		oldval = dev->reg_gpio;
+	else
+		oldval = em28xx_read_reg(dev, reg);
 
 	if (oldval < 0)
 		return oldval;
 
 	newval = (((u8) oldval) & ~bitmask) | (val & bitmask);
+
 	return em28xx_write_regs(dev, reg, &newval, 1);
 }
 
@@ -472,6 +498,57 @@ int em28xx_set_alternate(struct em28xx *dev)
 	return 0;
 }
 
+int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio)
+{
+	int rc = 0;
+
+	if (!gpio)
+		return rc;
+
+	dev->em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
+	if (dev->mode == EM28XX_ANALOG_MODE)
+		dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x67", 1);
+	else
+		dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x37", 1);
+	msleep(6);
+
+	/* Send GPIO reset sequences specified at board entry */
+	while (gpio->sleep >= 0) {
+		if (gpio->reg >= 0) {
+			rc = em28xx_write_reg_bits(dev,
+						   gpio->reg,
+						   gpio->val,
+						   gpio->mask);
+			if (rc < 0)
+				return rc;
+		}
+		if (gpio->sleep > 0)
+			msleep(gpio->sleep);
+
+		gpio++;
+	}
+	return rc;
+}
+
+int em28xx_set_mode(struct em28xx *dev, enum em28xx_mode set_mode)
+{
+	if (dev->mode == set_mode)
+		return 0;
+
+	if (set_mode == EM28XX_MODE_UNDEFINED) {
+		dev->mode = set_mode;
+		return 0;
+	}
+
+	dev->mode = set_mode;
+
+	if (dev->mode == EM28XX_DIGITAL_MODE)
+		return em28xx_gpio_set(dev, dev->digital_gpio);
+	else
+		return em28xx_gpio_set(dev, dev->analog_gpio);
+}
+EXPORT_SYMBOL_GPL(em28xx_set_mode);
+
 /* ------------------------------------------------------------------
 	URB control
    ------------------------------------------------------------------*/
@@ -548,8 +625,7 @@ EXPORT_SYMBOL_GPL(em28xx_uninit_isoc);
  */
 int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 		     int num_bufs, int max_pkt_size,
-		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb),
-		     int cap_type)
+		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb))
 {
 	struct em28xx_dmaqueue *dma_q = &dev->vidq;
 	int i;
@@ -612,7 +688,7 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 			should also be using 'desc.bInterval'
 		 */
 		pipe = usb_rcvisocpipe(dev->udev,
-			cap_type == EM28XX_ANALOG_CAPTURE ? 0x82 : 0x84);
+			dev->mode == EM28XX_ANALOG_MODE ? 0x82 : 0x84);
 
 		usb_fill_int_urb(urb, dev->udev, pipe,
 				 dev->isoc_ctl.transfer_buffer[i], sb_size,
@@ -632,7 +708,7 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 
 	init_waitqueue_head(&dma_q->wq);
 
-	em28xx_capture_start(dev, cap_type);
+	em28xx_capture_start(dev, 1);
 
 	/* submit urbs and enables IRQ */
 	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
