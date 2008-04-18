@@ -58,7 +58,10 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 
 /* ------------------------------------------------------------------ */
 
-/* Add demods here */
+static struct lgdt330x_config em2880_lgdt3303_dev = {
+	.demod_address = 0x0e,
+	.demod_chip = LGDT3303,
+};
 
 /* ------------------------------------------------------------------ */
 
@@ -70,6 +73,7 @@ static int attach_xc3028(u8 addr, struct em28xx *dev)
 		.i2c_adap  = &dev->i2c_adap,
 		.i2c_addr  = addr,
 		.ctrl      = &ctl,
+		.callback  = em28xx_tuner_callback,
 	};
 
 	if (!dev->dvb.frontend) {
@@ -109,6 +113,17 @@ static int dvb_init(struct em28xx *dev)
 
 	/* init frontend */
 	switch (dev->model) {
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
+		/* Enable lgdt330x */
+		dev->mode = EM28XX_ANALOG_MODE;
+		em28xx_tuner_callback(dev, XC2028_TUNER_RESET, 0);
+
+		dev->dvb.frontend = dvb_attach(lgdt330x_attach,
+					       &em2880_lgdt3303_dev,
+					       &dev->i2c_adap);
+		if (attach_xc3028(0x61, dev) < 0)
+			return -EINVAL;
+		break;
 	default:
 		printk(KERN_ERR "%s/2: The frontend of your DVB/ATSC card"
 				" isn't supported yet\n",

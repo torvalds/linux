@@ -180,6 +180,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type     = TUNER_XC2028,
 		.mts_firmware   = 1,
 		.has_12mhz_i2s  = 1,
+		.has_dvb        = 1,
 		.decoder        = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -194,6 +195,32 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = 1,
 		} },
+		.analog_gpio = {
+			{		/* xc3028 reset seq */
+				.reg = 0x08,
+				.val = 0x3d,
+				.rst = 0x2d,
+				.t1 = 5,
+				.t2 = 10,
+				.t3 = 5,
+			},
+		},
+		.digital_gpio = {
+			{		/* xc3028 reset seq */
+				.reg = 0x08,
+				.val = 0x3e,
+				.rst = 0x2e,
+				.t1 = 6,
+				.t2 = 6,
+				.t3 = 6,
+			}, {		/* demod reset seq */
+				.reg = 0x04,
+				.val = 0x0c,
+				.rst = 0x04,
+				.t2 = 10,
+				.t3 = 10,
+			}
+		},
 	},
 	[EM2880_BOARD_TERRATEC_HYBRID_XS] = {
 		.name         = "Terratec Hybrid XS",
@@ -521,7 +548,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 
 	/* Put xc2028 tuners and demods into a sane state */
 	if (dev->tuner_type == TUNER_XC2028) {
-		dev->mode = EM28XX_DIGITAL_MODE;
+		dev->mode = EM28XX_ANALOG_MODE;
 		em28xx_tuner_callback(dev, XC2028_TUNER_RESET, 0);
 	};
 }
