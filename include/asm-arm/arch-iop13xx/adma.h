@@ -454,11 +454,6 @@ static inline void iop_chan_append(struct iop_adma_chan *chan)
 	__raw_writel(adma_accr, ADMA_ACCR(chan));
 }
 
-static inline void iop_chan_idle(int busy, struct iop_adma_chan *chan)
-{
-	do { } while (0);
-}
-
 static inline u32 iop_chan_get_status(struct iop_adma_chan *chan)
 {
 	return __raw_readl(ADMA_ACSR(chan));
