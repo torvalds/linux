@@ -501,7 +501,6 @@ static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 	if (state->current_modulation == VSB_8) {
 		dprintk("%s() Checking VSB_8\n", __func__);
-		//au8522_writereg(state, 0x80a4, 0x20);
 		reg = au8522_readreg(state, 0x4088);
 		if (reg & 0x01)
 			*status |= FE_HAS_VITERBI;
