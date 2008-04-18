@@ -6,15 +6,15 @@
 
 /* Updated: Frank Mayer <mayerf@tresys.com> and Karl MacMillan <kmacmillan@tresys.com>
  *
- * 	Added conditional policy language extensions
+ *	Added conditional policy language extensions
  *
  * Copyright (C) 2003 Tresys Technology, LLC
  *	This program is free software; you can redistribute it and/or modify
- *  	it under the terms of the GNU General Public License as published by
+ *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation, version 2.
  *
  * Updated: Yuichi Nakamura <ynakam@hitachisoft.jp>
- * 	Tuned number of hash slots for avtab to reduce memory usage
+ *	Tuned number of hash slots for avtab to reduce memory usage
  */
 
 #include <linux/kernel.h>
@@ -33,10 +33,10 @@ static inline int avtab_hash(struct avtab_key *keyp, u16 mask)
 
 static struct avtab_node*
 avtab_insert_node(struct avtab *h, int hvalue,
-		  struct avtab_node * prev, struct avtab_node * cur,
+		  struct avtab_node *prev, struct avtab_node *cur,
 		  struct avtab_key *key, struct avtab_datum *datum)
 {
-	struct avtab_node * newnode;
+	struct avtab_node *newnode;
 	newnode = kmem_cache_zalloc(avtab_node_cachep, GFP_KERNEL);
 	if (newnode == NULL)
 		return NULL;
@@ -84,7 +84,7 @@ static int avtab_insert(struct avtab *h, struct avtab_key *key, struct avtab_dat
 	}
 
 	newnode = avtab_insert_node(h, hvalue, prev, cur, key, datum);
-	if(!newnode)
+	if (!newnode)
 		return -ENOMEM;
 
 	return 0;
@@ -95,7 +95,7 @@ static int avtab_insert(struct avtab *h, struct avtab_key *key, struct avtab_dat
  * It also returns a pointer to the node inserted.
  */
 struct avtab_node *
-avtab_insert_nonunique(struct avtab * h, struct avtab_key * key, struct avtab_datum * datum)
+avtab_insert_nonunique(struct avtab *h, struct avtab_key *key, struct avtab_datum *datum)
 {
 	int hvalue;
 	struct avtab_node *prev, *cur, *newnode;
@@ -326,7 +326,7 @@ static uint16_t spec_order[] = {
 };
 
 int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
-	            int (*insertf)(struct avtab *a, struct avtab_key *k,
+		    int (*insertf)(struct avtab *a, struct avtab_key *k,
 				   struct avtab_datum *d, void *p),
 		    void *p)
 {
@@ -398,7 +398,8 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 				key.specified = spec_order[i] | enabled;
 				datum.data = le32_to_cpu(buf32[items++]);
 				rc = insertf(a, &key, &datum, p);
-				if (rc) return rc;
+				if (rc)
+					return rc;
 			}
 		}
 
@@ -513,5 +514,5 @@ void avtab_cache_init(void)
 
 void avtab_cache_destroy(void)
 {
-	kmem_cache_destroy (avtab_node_cachep);
+	kmem_cache_destroy(avtab_node_cachep);
 }
