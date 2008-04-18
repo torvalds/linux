@@ -24,6 +24,7 @@
 
 #include <asm/arch/board-eb.h>
 #include <asm/arch/board-pb11mp.h>
+#include <asm/arch/board-pb1176.h>
 
 #define IRQ_LOCALTIMER		29
 #define IRQ_LOCALWDOG		30
