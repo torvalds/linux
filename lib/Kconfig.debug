@@ -583,7 +583,7 @@ config LATENCYTOP
 	  to find out which userspace is blocking on what kernel operations.
 
 config PROVIDE_OHCI1394_DMA_INIT
-	bool "Provide code for enabling DMA over FireWire early on boot"
+	bool "Remote debugging over FireWire early on boot"
 	depends on PCI && X86
 	help
 	  If you want to debug problems which hang or crash the kernel early
@@ -610,6 +610,17 @@ config PROVIDE_OHCI1394_DMA_INIT
 	  in charge of the OHCI-1394 controllers should be used instead.
 
 	  See Documentation/debugging-via-ohci1394.txt for more information.
+
+config FIREWIRE_OHCI_REMOTE_DMA
+	bool "Remote debugging over FireWire with firewire-ohci"
+	depends on FIREWIRE_OHCI
+	help
+	  This option lets you use the FireWire bus for remote debugging
+	  with help of the firewire-ohci driver. It enables unfiltered
+	  remote DMA in firewire-ohci.
+	  See Documentation/debugging-via-ohci1394.txt for more information.
+
+	  If unsure, say N.
 
 source "samples/Kconfig"
 
