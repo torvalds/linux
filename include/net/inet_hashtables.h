@@ -235,13 +235,6 @@ static inline void __inet_inherit_port(struct sock *sk, struct sock *child)
 	spin_unlock(&head->lock);
 }
 
-static inline void inet_inherit_port(struct sock *sk, struct sock *child)
-{
-	local_bh_disable();
-	__inet_inherit_port(sk, child);
-	local_bh_enable();
-}
-
 extern void inet_put_port(struct sock *sk);
 
 extern void inet_listen_wlock(struct inet_hashinfo *hashinfo);

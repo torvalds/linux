@@ -625,7 +625,7 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 	newinet->daddr = newinet->saddr = newinet->rcv_saddr = LOOPBACK4_IPV6;
 
 	__inet6_hash(newsk);
-	inet_inherit_port(sk, newsk);
+	__inet_inherit_port(sk, newsk);
 
 	return newsk;
 

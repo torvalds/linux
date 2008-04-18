@@ -1534,7 +1534,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 #endif
 
 	__inet6_hash(newsk);
-	inet_inherit_port(sk, newsk);
+	__inet_inherit_port(sk, newsk);
 
 	return newsk;
 
