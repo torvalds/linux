@@ -800,6 +800,11 @@ static inline struct btrfs_stripe *btrfs_stripe_nr(struct btrfs_chunk *c,
 	return (struct btrfs_stripe *)offset;
 }
 
+static inline char *btrfs_stripe_dev_uuid_nr(struct btrfs_chunk *c, int nr)
+{
+	return btrfs_stripe_dev_uuid(btrfs_stripe_nr(c, nr));
+}
+
 static inline u64 btrfs_stripe_offset_nr(struct extent_buffer *eb,
 					 struct btrfs_chunk *c, int nr)
 {

@@ -69,15 +69,18 @@ int btrfs_cleanup_fs_uuids(void)
 	return 0;
 }
 
-static struct btrfs_device *__find_device(struct list_head *head, u64 devid)
+static struct btrfs_device *__find_device(struct list_head *head, u64 devid,
+					  u8 *uuid)
 {
 	struct btrfs_device *dev;
 	struct list_head *cur;
 
 	list_for_each(cur, head) {
 		dev = list_entry(cur, struct btrfs_device, dev_list);
-		if (dev->devid == devid)
+		if (dev->devid == devid &&
+		    !memcmp(dev->uuid, uuid, BTRFS_UUID_SIZE)) {
 			return dev;
+		}
 	}
 	return NULL;
 }
@@ -117,7 +120,8 @@ static int device_list_add(const char *path,
 		fs_devices->num_devices = 0;
 		device = NULL;
 	} else {
-		device = __find_device(&fs_devices->devices, devid);
+		device = __find_device(&fs_devices->devices, devid,
+				       disk_super->dev_item.uuid);
 	}
 	if (!device) {
 		device = kzalloc(sizeof(*device), GFP_NOFS);
@@ -126,6 +130,8 @@ static int device_list_add(const char *path,
 			return -ENOMEM;
 		}
 		device->devid = devid;
+		memcpy(device->uuid, disk_super->dev_item.uuid,
+		       BTRFS_UUID_SIZE);
 		device->barriers = 1;
 		spin_lock_init(&device->io_lock);
 		device->name = kstrdup(path, GFP_NOFS);
@@ -1098,11 +1104,12 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 	return 0;
 }
 
-struct btrfs_device *btrfs_find_device(struct btrfs_root *root, u64 devid)
+struct btrfs_device *btrfs_find_device(struct btrfs_root *root, u64 devid,
+				       u8 *uuid)
 {
 	struct list_head *head = &root->fs_info->fs_devices->devices;
 
-	return __find_device(head, devid);
+	return __find_device(head, devid, uuid);
 }
 
 static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
@@ -1115,6 +1122,7 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 	u64 logical;
 	u64 length;
 	u64 devid;
+	u8 uuid[BTRFS_UUID_SIZE];
 	int num_stripes;
 	int ret;
 	int i;
@@ -1163,7 +1171,10 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 		map->stripes[i].physical =
 			btrfs_stripe_offset_nr(leaf, chunk, i);
 		devid = btrfs_stripe_devid_nr(leaf, chunk, i);
-		map->stripes[i].dev = btrfs_find_device(root, devid);
+		read_extent_buffer(leaf, uuid, (unsigned long)
+				   btrfs_stripe_dev_uuid_nr(chunk, i),
+				   BTRFS_UUID_SIZE);
+		map->stripes[i].dev = btrfs_find_device(root, devid, uuid);
 		if (!map->stripes[i].dev) {
 			kfree(map);
 			free_extent_map(em);
@@ -1207,8 +1218,13 @@ static int read_one_dev(struct btrfs_root *root,
 	struct btrfs_device *device;
 	u64 devid;
 	int ret;
+	u8 dev_uuid[BTRFS_UUID_SIZE];
+
 	devid = btrfs_device_id(leaf, dev_item);
-	device = btrfs_find_device(root, devid);
+	read_extent_buffer(leaf, dev_uuid,
+			   (unsigned long)btrfs_device_uuid(dev_item),
+			   BTRFS_UUID_SIZE);
+	device = btrfs_find_device(root, devid, dev_uuid);
 	if (!device) {
 		printk("warning devid %Lu not found already\n", devid);
 		device = kzalloc(sizeof(*device), GFP_NOFS);
