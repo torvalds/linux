@@ -260,8 +260,10 @@ static void __init realview_pb1176_init(void)
 {
 	int i;
 
+#ifdef CONFIG_CACHE_L2X0
 	/* 128Kb (16Kb/way) 8-way associativity. evmon/parity/share enabled. */
 	l2x0_init(__io_address(REALVIEW_PB1176_L220_BASE), 0x00730000, 0xfe000fff);
+#endif
 
 	clk_register(&realview_clcd_clk);
 

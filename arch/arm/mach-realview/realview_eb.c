@@ -365,9 +365,11 @@ static void __init realview_eb_init(void)
 	if (core_tile_eb11mp()) {
 		realview_eb11mp_fixup();
 
+#ifdef CONFIG_CACHE_L2X0
 		/* 1MB (128KB/way), 8-way associativity, evmon/parity/share enabled
 		 * Bits:  .... ...0 0111 1001 0000 .... .... .... */
 		l2x0_init(__io_address(REALVIEW_EB11MP_L220_BASE), 0x00790000, 0xfe000fff);
+#endif
 	}
 
 	clk_register(&realview_clcd_clk);

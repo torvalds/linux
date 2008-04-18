@@ -10,7 +10,6 @@ config MACH_REALVIEW_EB
 config REALVIEW_EB_ARM11MP
 	bool "Support ARM11MPCore tile"
 	depends on MACH_REALVIEW_EB
-	select CACHE_L2X0
 	help
 	  Enable support for the ARM11MPCore tile on the Realview platform.
 
@@ -27,7 +26,6 @@ config REALVIEW_EB_ARM11MP_REVB
 config MACH_REALVIEW_PB11MP
 	bool "Support RealView/PB11MPCore platform"
 	select ARM_GIC
-	select CACHE_L2X0
 	help
 	  Include support for the ARM(R) RealView MPCore Platform Baseboard.
 	  PB11MPCore is a platform with an on-board ARM11MPCore and has
@@ -36,7 +34,6 @@ config MACH_REALVIEW_PB11MP
 config MACH_REALVIEW_PB1176
 	bool "Support RealView/PB1176 platform"
 	select ARM_GIC
-	select CACHE_L2X0
 	help
 	  Include support for the ARM(R) RealView ARM1176 Platform Baseboard.
 
