@@ -1090,10 +1090,12 @@ xfs_ioctl(
 		return xfs_ioc_fsgetxattr(ip, 0, arg);
 	case XFS_IOC_FSGETXATTRA:
 		return xfs_ioc_fsgetxattr(ip, 1, arg);
-	case XFS_IOC_GETXFLAGS:
-	case XFS_IOC_SETXFLAGS:
 	case XFS_IOC_FSSETXATTR:
-		return xfs_ioc_xattr(ip, filp, cmd, arg);
+		return xfs_ioc_fssetxattr(ip, filp, arg);
+	case XFS_IOC_GETXFLAGS:
+		return xfs_ioc_getxflags(ip, arg);
+	case XFS_IOC_SETXFLAGS:
+		return xfs_ioc_setxflags(ip, filp, arg);
 
 	case XFS_IOC_FSSETDM: {
 		struct fsdmidata	dmi;
