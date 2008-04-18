@@ -235,6 +235,7 @@ static  v4l2_std_id parse_audio_std_option(void)
 static void free_firmware(struct xc2028_data *priv)
 {
 	int i;
+	tuner_dbg("%s called\n", __func__);
 
 	if (!priv->firm)
 		return;
@@ -1050,27 +1051,6 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 				T_DIGITAL_TV, type, 0, demod);
 }
 
-static int xc2028_sleep(struct dvb_frontend *fe)
-{
-	struct xc2028_data *priv = fe->tuner_priv;
-	int rc = 0;
-
-	tuner_dbg("%s called\n", __func__);
-
-	mutex_lock(&priv->lock);
-
-	if (priv->firm_version < 0x0202)
-		rc = send_seq(priv, {0x00, 0x08, 0x00, 0x00});
-	else
-		rc = send_seq(priv, {0x80, 0x08, 0x00, 0x00});
-
-	priv->cur_fw.type = 0;	/* need firmware reload */
-
-	mutex_unlock(&priv->lock);
-
-	return rc;
-}
-
 
 static int xc2028_dvb_release(struct dvb_frontend *fe)
 {
@@ -1118,20 +1098,20 @@ static int xc2028_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 	mutex_lock(&priv->lock);
 
-	kfree(priv->ctrl.fname);
-	free_firmware(priv);
-
 	memcpy(&priv->ctrl, p, sizeof(priv->ctrl));
-	priv->ctrl.fname = NULL;
+	if (priv->ctrl.max_len < 9)
+		priv->ctrl.max_len = 13;
 
 	if (p->fname) {
+		if (priv->ctrl.fname && strcmp(p->fname, priv->ctrl.fname)) {
+			kfree(priv->ctrl.fname);
+			free_firmware(priv);
+		}
+
 		priv->ctrl.fname = kstrdup(p->fname, GFP_KERNEL);
 		if (priv->ctrl.fname == NULL)
 			rc = -ENOMEM;
 	}
-
-	if (priv->ctrl.max_len < 9)
-		priv->ctrl.max_len = 13;
 
 	mutex_unlock(&priv->lock);
 
@@ -1152,8 +1132,6 @@ static const struct dvb_tuner_ops xc2028_dvb_tuner_ops = {
 	.get_frequency     = xc2028_get_frequency,
 	.get_rf_strength   = xc2028_signal,
 	.set_params        = xc2028_set_params,
-	.sleep             = xc2028_sleep,
-
 };
 
 struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
