@@ -76,13 +76,12 @@ struct extent_map *btree_get_extent(struct inode *inode, struct page *page,
 	struct extent_map *em;
 	int ret;
 
-again:
 	spin_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, start, len);
 	spin_unlock(&em_tree->lock);
-	if (em) {
+	if (em)
 		goto out;
-	}
+
 	em = alloc_extent_map(GFP_NOFS);
 	if (!em) {
 		em = ERR_PTR(-ENOMEM);
@@ -95,15 +94,21 @@ again:
 
 	spin_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em);
-	spin_unlock(&em_tree->lock);
-
 	if (ret == -EEXIST) {
 		free_extent_map(em);
-		em = NULL;
-		goto again;
+		em = lookup_extent_mapping(em_tree, start, len);
+		if (em)
+			ret = 0;
+		else
+			ret = -EIO;
 	} else if (ret) {
-		em = ERR_PTR(ret);
+		free_extent_map(em);
+		em = NULL;
 	}
+	spin_unlock(&em_tree->lock);
+
+	if (ret)
+		em = ERR_PTR(ret);
 out:
 	return em;
 }
@@ -496,7 +501,7 @@ static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 	}
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	map = &BTRFS_I(page->mapping->host)->extent_tree;
-	ret = try_release_extent_mapping(map, tree, page, gfp_flags);
+	ret = try_release_extent_state(map, tree, page, gfp_flags);
 	if (ret == 1) {
 		invalidate_extent_lru(tree, page_offset(page), PAGE_CACHE_SIZE);
 		ClearPagePrivate(page);

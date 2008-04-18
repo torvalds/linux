@@ -2464,6 +2464,31 @@ err:
 EXPORT_SYMBOL(extent_prepare_write);
 
 /*
+ * a helper for releasepage, this tests for areas of the page that
+ * are locked or under IO and drops the related state bits if it is safe
+ * to drop the page.
+ */
+int try_release_extent_state(struct extent_map_tree *map,
+			     struct extent_io_tree *tree, struct page *page,
+			     gfp_t mask)
+{
+	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
+	u64 end = start + PAGE_CACHE_SIZE - 1;
+	int ret = 1;
+
+	if (test_range_bit(tree, start, end, EXTENT_IOBITS, 0))
+		ret = 0;
+	else {
+		if ((mask & GFP_NOFS) == GFP_NOFS)
+			mask = GFP_NOFS;
+		clear_extent_bit(tree, start, end, EXTENT_UPTODATE,
+				 1, 1, mask);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(try_release_extent_state);
+
+/*
  * a helper for releasepage.  As long as there are no locked extents
  * in the range corresponding to the page, both state records and extent
  * map records are removed
@@ -2475,8 +2500,7 @@ int try_release_extent_mapping(struct extent_map_tree *map,
 	struct extent_map *em;
 	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
 	u64 end = start + PAGE_CACHE_SIZE - 1;
-	u64 orig_start = start;
-	int ret = 1;
+
 	if ((mask & __GFP_WAIT) &&
 	    page->mapping->host->i_size > 16 * 1024 * 1024) {
 		u64 len;
@@ -2507,15 +2531,7 @@ int try_release_extent_mapping(struct extent_map_tree *map,
 			free_extent_map(em);
 		}
 	}
-	if (test_range_bit(tree, orig_start, end, EXTENT_IOBITS, 0))
-		ret = 0;
-	else {
-		if ((mask & GFP_NOFS) == GFP_NOFS)
-			mask = GFP_NOFS;
-		clear_extent_bit(tree, orig_start, end, EXTENT_UPTODATE,
-				 1, 1, mask);
-	}
-	return ret;
+	return try_release_extent_state(map, tree, page, mask);
 }
 EXPORT_SYMBOL(try_release_extent_mapping);
 

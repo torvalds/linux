@@ -110,6 +110,9 @@ void extent_io_tree_empty_lru(struct extent_io_tree *tree);
 int try_release_extent_mapping(struct extent_map_tree *map,
 			       struct extent_io_tree *tree, struct page *page,
 			       gfp_t mask);
+int try_release_extent_state(struct extent_map_tree *map,
+			     struct extent_io_tree *tree, struct page *page,
+			     gfp_t mask);
 int lock_extent(struct extent_io_tree *tree, u64 start, u64 end, gfp_t mask);
 int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end, gfp_t mask);
 int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
