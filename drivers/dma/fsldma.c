@@ -776,15 +776,13 @@ static void dma_do_tasklet(unsigned long data)
 	fsl_chan_ld_cleanup(fsl_chan);
 }
 
-#ifdef FSL_DMA_CALLBACKTEST
-static void fsl_dma_callback_test(struct fsl_dma_chan *fsl_chan)
+static void fsl_dma_callback_test(void *param)
 {
+	struct fsl_dma_chan *fsl_chan = param;
 	if (fsl_chan)
-		dev_info(fsl_chan->dev, "selftest: callback is ok!\n");
+		dev_dbg(fsl_chan->dev, "selftest: callback is ok!\n");
 }
-#endif
 
-#ifdef CONFIG_FSL_DMA_SELFTEST
 static int fsl_dma_self_test(struct fsl_dma_chan *fsl_chan)
 {
 	struct dma_chan *chan;
@@ -875,13 +873,11 @@ static int fsl_dma_self_test(struct fsl_dma_chan *fsl_chan)
 	cookie = fsl_dma_tx_submit(tx3);
 	cookie = fsl_dma_tx_submit(tx2);
 
-#ifdef FSL_DMA_CALLBACKTEST
 	if (dma_has_cap(DMA_INTERRUPT, ((struct fsl_dma_device *)
 	    dev_get_drvdata(fsl_chan->dev->parent))->common.cap_mask)) {
 		tx3->callback = fsl_dma_callback_test;
 		tx3->callback_param = fsl_chan;
 	}
-#endif
 	fsl_dma_memcpy_issue_pending(chan);
 	msleep(2);
 
@@ -906,7 +902,6 @@ out:
 	kfree(src);
 	return err;
 }
-#endif
 
 static int __devinit of_fsl_dma_chan_probe(struct of_device *dev,
 			const struct of_device_id *match)
@@ -997,11 +992,9 @@ static int __devinit of_fsl_dma_chan_probe(struct of_device *dev,
 		}
 	}
 
-#ifdef CONFIG_FSL_DMA_SELFTEST
 	err = fsl_dma_self_test(new_fsl_chan);
 	if (err)
 		goto err;
-#endif
 
 	dev_info(&dev->dev, "#%d (%s), irq %d\n", new_fsl_chan->id,
 				match->compatible, new_fsl_chan->irq);
