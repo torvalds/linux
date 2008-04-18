@@ -137,7 +137,8 @@ static inline unsigned int make_flags(struct gdlm_lock *lp,
 
 		/* Conversion deadlock avoidance by DLM */
 
-		if (!test_bit(LFL_FORCE_PROMOTE, &lp->flags) &&
+		if (!(lp->ls->fsflags & LM_MFLAG_CONV_NODROP) &&
+		    !test_bit(LFL_FORCE_PROMOTE, &lp->flags) &&
 		    !(lkf & DLM_LKF_NOQUEUE) &&
 		    cur > DLM_LOCK_NL && req > DLM_LOCK_NL && cur != req)
 			lkf |= DLM_LKF_CONVDEADLK;
@@ -164,7 +165,7 @@ static int gdlm_create_lp(struct gdlm_ls *ls, struct lm_lockname *name,
 {
 	struct gdlm_lock *lp;
 
-	lp = kzalloc(sizeof(struct gdlm_lock), GFP_KERNEL);
+	lp = kzalloc(sizeof(struct gdlm_lock), GFP_NOFS);
 	if (!lp)
 		return -ENOMEM;
 
@@ -382,7 +383,7 @@ static int gdlm_add_lvb(struct gdlm_lock *lp)
 {
 	char *lvb;
 
-	lvb = kzalloc(GDLM_LVB_SIZE, GFP_KERNEL);
+	lvb = kzalloc(GDLM_LVB_SIZE, GFP_NOFS);
 	if (!lvb)
 		return -ENOMEM;
 

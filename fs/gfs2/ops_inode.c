@@ -200,14 +200,14 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 
 	if (alloc_required) {
 		struct gfs2_alloc *al = gfs2_alloc_get(dip);
+		if (!al) {
+			error = -ENOMEM;
+			goto out_gunlock;
+		}
 
-		error = gfs2_quota_lock(dip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
+		error = gfs2_quota_lock_check(dip);
 		if (error)
 			goto out_alloc;
-
-		error = gfs2_quota_check(dip, dip->i_inode.i_uid, dip->i_inode.i_gid);
-		if (error)
-			goto out_gunlock_q;
 
 		al->al_requested = sdp->sd_max_dirres;
 
@@ -716,14 +716,14 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 
 	if (alloc_required) {
 		struct gfs2_alloc *al = gfs2_alloc_get(ndip);
+		if (!al) {
+			error = -ENOMEM;
+			goto out_gunlock;
+		}
 
-		error = gfs2_quota_lock(ndip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
+		error = gfs2_quota_lock_check(ndip);
 		if (error)
 			goto out_alloc;
-
-		error = gfs2_quota_check(ndip, ndip->i_inode.i_uid, ndip->i_inode.i_gid);
-		if (error)
-			goto out_gunlock_q;
 
 		al->al_requested = sdp->sd_max_dirres;
 
@@ -898,7 +898,7 @@ static int gfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
 	int error;
 	int unlock = 0;
 
-	if (gfs2_glock_is_locked_by_me(ip->i_gl) == 0) {
+	if (gfs2_glock_is_locked_by_me(ip->i_gl) == NULL) {
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
 		if (error)
 			return error;
@@ -953,7 +953,8 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 	if (!(attr->ia_valid & ATTR_GID) || ogid == ngid)
 		ogid = ngid = NO_QUOTA_CHANGE;
 
-	gfs2_alloc_get(ip);
+	if (!gfs2_alloc_get(ip))
+		return -ENOMEM;
 
 	error = gfs2_quota_lock(ip, nuid, ngid);
 	if (error)
@@ -981,8 +982,9 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 	brelse(dibh);
 
 	if (ouid != NO_QUOTA_CHANGE || ogid != NO_QUOTA_CHANGE) {
-		gfs2_quota_change(ip, -ip->i_di.di_blocks, ouid, ogid);
-		gfs2_quota_change(ip, ip->i_di.di_blocks, nuid, ngid);
+		u64 blocks = gfs2_get_inode_blocks(&ip->i_inode);
+		gfs2_quota_change(ip, -blocks, ouid, ogid);
+		gfs2_quota_change(ip, blocks, nuid, ngid);
 	}
 
 out_end_trans:
@@ -1064,7 +1066,7 @@ static int gfs2_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	int error;
 	int unlock = 0;
 
-	if (gfs2_glock_is_locked_by_me(ip->i_gl) == 0) {
+	if (gfs2_glock_is_locked_by_me(ip->i_gl) == NULL) {
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &gh);
 		if (error)
 			return error;
@@ -1139,16 +1141,6 @@ static int gfs2_removexattr(struct dentry *dentry, const char *name)
 }
 
 const struct inode_operations gfs2_file_iops = {
-	.permission = gfs2_permission,
-	.setattr = gfs2_setattr,
-	.getattr = gfs2_getattr,
-	.setxattr = gfs2_setxattr,
-	.getxattr = gfs2_getxattr,
-	.listxattr = gfs2_listxattr,
-	.removexattr = gfs2_removexattr,
-};
-
-const struct inode_operations gfs2_dev_iops = {
 	.permission = gfs2_permission,
 	.setattr = gfs2_setattr,
 	.getattr = gfs2_getattr,

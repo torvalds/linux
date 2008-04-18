@@ -25,7 +25,6 @@
 #include "incore.h"
 #include "glock.h"
 #include "inode.h"
-#include "lm.h"
 #include "log.h"
 #include "mount.h"
 #include "ops_super.h"
