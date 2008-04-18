@@ -567,7 +567,6 @@ static void sdhci_set_transfer_mode(struct sdhci_host *host,
 static void sdhci_finish_data(struct sdhci_host *host)
 {
 	struct mmc_data *data;
-	u16 blocks;
 
 	BUG_ON(!host->data);
 
@@ -580,20 +579,16 @@ static void sdhci_finish_data(struct sdhci_host *host)
 	}
 
 	/*
-	 * Controller doesn't count down when in single block mode.
+	 * The specification states that the block count register must
+	 * be updated, but it does not specify at what point in the
+	 * data flow. That makes the register entirely useless to read
+	 * back so we have to assume that nothing made it to the card
+	 * in the event of an error.
 	 */
-	if (data->blocks == 1)
-		blocks = (data->error == 0) ? 0 : 1;
+	if (data->error)
+		data->bytes_xfered = 0;
 	else
-		blocks = readw(host->ioaddr + SDHCI_BLOCK_COUNT);
-	data->bytes_xfered = data->blksz * (data->blocks - blocks);
-
-	if (!data->error && blocks) {
-		printk(KERN_ERR "%s: Controller signalled completion even "
-			"though there were blocks left.\n",
-			mmc_hostname(host->mmc));
-		data->error = -EIO;
-	}
+		data->bytes_xfered = data->blksz * data->blocks;
 
 	if (data->stop) {
 		/*
@@ -1466,7 +1461,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	mmc->ops = &sdhci_ops;
 	mmc->f_min = host->max_clk / 256;
 	mmc->f_max = host->max_clk;
-	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_MULTIWRITE | MMC_CAP_SDIO_IRQ;
+	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ;
 
 	if (caps & SDHCI_CAN_DO_HISPD)
 		mmc->caps |= MMC_CAP_SD_HIGHSPEED;
