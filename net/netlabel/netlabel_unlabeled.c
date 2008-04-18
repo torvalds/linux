@@ -1339,6 +1339,10 @@ static int netlbl_unlabel_staticlist_gen(u32 cmd,
 
 	if (iface->ifindex > 0) {
 		dev = dev_get_by_index(&init_net, iface->ifindex);
+		if (!dev) {
+			ret_val = -ENODEV;
+			goto list_cb_failure;
+		}
 		ret_val = nla_put_string(cb_arg->skb,
 					 NLBL_UNLABEL_A_IFACE, dev->name);
 		dev_put(dev);
