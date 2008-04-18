@@ -391,8 +391,6 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 	if (*count < EM28XX_MIN_BUF)
 		*count = EM28XX_MIN_BUF;
 
-	dev->mode = EM28XX_ANALOG_MODE;
-
 	/* Ask tuner to go to analog mode */
 	memset(&f, 0, sizeof(f));
 	f.frequency = dev->ctl_freq;
