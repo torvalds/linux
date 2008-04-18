@@ -7,7 +7,6 @@ source "lib/Kconfig.debug"
 
 config NONPROMISC_DEVMEM
 	bool "Disable promiscuous /dev/mem"
-	default y
 	help
 	  The /dev/mem file by default only allows userspace access to PCI
 	  space and the BIOS code and data regions. This is sufficient for
