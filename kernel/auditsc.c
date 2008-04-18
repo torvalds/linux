@@ -1596,7 +1596,7 @@ static inline void handle_one(const struct inode *inode)
 	if (likely(put_tree_ref(context, chunk)))
 		return;
 	if (unlikely(!grow_tree_refs(context))) {
-		printk(KERN_WARNING "out of memory, audit has lost a tree reference");
+		printk(KERN_WARNING "out of memory, audit has lost a tree reference\n");
 		audit_set_auditable(context);
 		audit_put_chunk(chunk);
 		unroll_tree_refs(context, p, count);
@@ -1656,7 +1656,7 @@ retry:
 		}
 		/* too bad */
 		printk(KERN_WARNING
-			"out of memory, audit has lost a tree reference");
+			"out of memory, audit has lost a tree reference\n");
 		unroll_tree_refs(context, p, count);
 		audit_set_auditable(context);
 		return;
@@ -1752,13 +1752,13 @@ static int audit_inc_name_count(struct audit_context *context,
 	if (context->name_count >= AUDIT_NAMES) {
 		if (inode)
 			printk(KERN_DEBUG "name_count maxed, losing inode data: "
-			       "dev=%02x:%02x, inode=%lu",
+			       "dev=%02x:%02x, inode=%lu\n",
 			       MAJOR(inode->i_sb->s_dev),
 			       MINOR(inode->i_sb->s_dev),
 			       inode->i_ino);
 
 		else
-			printk(KERN_DEBUG "name_count maxed, losing inode data");
+			printk(KERN_DEBUG "name_count maxed, losing inode data\n");
 		return 1;
 	}
 	context->name_count++;
