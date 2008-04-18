@@ -569,7 +569,8 @@ extern int		    audit_update_lsm_rules(void);
 extern int audit_filter_user(struct netlink_skb_parms *cb, int type);
 extern int audit_filter_type(int type);
 extern int  audit_receive_filter(int type, int pid, int uid, int seq,
-			 void *data, size_t datasz, uid_t loginuid, u32 sid);
+				void *data, size_t datasz, uid_t loginuid,
+				u32 sessionid, u32 sid);
 extern int audit_enabled;
 #else
 #define audit_log(c,g,t,f,...) do { ; } while (0)

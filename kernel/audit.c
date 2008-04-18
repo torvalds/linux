@@ -252,14 +252,15 @@ void audit_log_lost(const char *message)
 }
 
 static int audit_log_config_change(char *function_name, int new, int old,
-				   uid_t loginuid, u32 sid, int allow_changes)
+				   uid_t loginuid, u32 sessionid, u32 sid,
+				   int allow_changes)
 {
 	struct audit_buffer *ab;
 	int rc = 0;
 
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
-	audit_log_format(ab, "%s=%d old=%d by auid=%u", function_name, new,
-			 old, loginuid);
+	audit_log_format(ab, "%s=%d old=%d auid=%u ses=%u", function_name, new,
+			 old, loginuid, sessionid);
 	if (sid) {
 		char *ctx = NULL;
 		u32 len;
@@ -279,7 +280,8 @@ static int audit_log_config_change(char *function_name, int new, int old,
 }
 
 static int audit_do_config_change(char *function_name, int *to_change,
-				  int new, uid_t loginuid, u32 sid)
+				  int new, uid_t loginuid, u32 sessionid,
+				  u32 sid)
 {
 	int allow_changes, rc = 0, old = *to_change;
 
@@ -290,8 +292,8 @@ static int audit_do_config_change(char *function_name, int *to_change,
 		allow_changes = 1;
 
 	if (audit_enabled != AUDIT_OFF) {
-		rc = audit_log_config_change(function_name, new, old,
-					     loginuid, sid, allow_changes);
+		rc = audit_log_config_change(function_name, new, old, loginuid,
+					     sessionid, sid, allow_changes);
 		if (rc)
 			allow_changes = 0;
 	}
@@ -305,26 +307,28 @@ static int audit_do_config_change(char *function_name, int *to_change,
 	return rc;
 }
 
-static int audit_set_rate_limit(int limit, uid_t loginuid, u32 sid)
+static int audit_set_rate_limit(int limit, uid_t loginuid, u32 sessionid,
+				u32 sid)
 {
 	return audit_do_config_change("audit_rate_limit", &audit_rate_limit,
-				      limit, loginuid, sid);
+				      limit, loginuid, sessionid, sid);
 }
 
-static int audit_set_backlog_limit(int limit, uid_t loginuid, u32 sid)
+static int audit_set_backlog_limit(int limit, uid_t loginuid, u32 sessionid,
+				   u32 sid)
 {
 	return audit_do_config_change("audit_backlog_limit", &audit_backlog_limit,
-				      limit, loginuid, sid);
+				      limit, loginuid, sessionid, sid);
 }
 
-static int audit_set_enabled(int state, uid_t loginuid, u32 sid)
+static int audit_set_enabled(int state, uid_t loginuid, u32 sessionid, u32 sid)
 {
 	int rc;
 	if (state < AUDIT_OFF || state > AUDIT_LOCKED)
 		return -EINVAL;
 
 	rc =  audit_do_config_change("audit_enabled", &audit_enabled, state,
-				     loginuid, sid);
+				     loginuid, sessionid, sid);
 
 	if (!rc)
 		audit_ever_enabled |= !!state;
@@ -332,7 +336,7 @@ static int audit_set_enabled(int state, uid_t loginuid, u32 sid)
 	return rc;
 }
 
-static int audit_set_failure(int state, uid_t loginuid, u32 sid)
+static int audit_set_failure(int state, uid_t loginuid, u32 sessionid, u32 sid)
 {
 	if (state != AUDIT_FAIL_SILENT
 	    && state != AUDIT_FAIL_PRINTK
@@ -340,7 +344,7 @@ static int audit_set_failure(int state, uid_t loginuid, u32 sid)
 		return -EINVAL;
 
 	return audit_do_config_change("audit_failure", &audit_failure, state,
-				      loginuid, sid);
+				      loginuid, sessionid, sid);
 }
 
 static int kauditd_thread(void *dummy)
@@ -385,7 +389,7 @@ static int kauditd_thread(void *dummy)
 	return 0;
 }
 
-static int audit_prepare_user_tty(pid_t pid, uid_t loginuid)
+static int audit_prepare_user_tty(pid_t pid, uid_t loginuid, u32 sessionid)
 {
 	struct task_struct *tsk;
 	int err;
@@ -404,7 +408,7 @@ static int audit_prepare_user_tty(pid_t pid, uid_t loginuid)
 	if (err)
 		goto out;
 
-	tty_audit_push_task(tsk, loginuid);
+	tty_audit_push_task(tsk, loginuid, sessionid);
 out:
 	read_unlock(&tasklist_lock);
 	return err;
@@ -534,7 +538,8 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 }
 
 static int audit_log_common_recv_msg(struct audit_buffer **ab, u16 msg_type,
-				     u32 pid, u32 uid, uid_t auid, u32 sid)
+				     u32 pid, u32 uid, uid_t auid, u32 ses,
+				     u32 sid)
 {
 	int rc = 0;
 	char *ctx = NULL;
@@ -546,8 +551,8 @@ static int audit_log_common_recv_msg(struct audit_buffer **ab, u16 msg_type,
 	}
 
 	*ab = audit_log_start(NULL, GFP_KERNEL, msg_type);
-	audit_log_format(*ab, "user pid=%d uid=%u auid=%u",
-			 pid, uid, auid);
+	audit_log_format(*ab, "user pid=%d uid=%u auid=%u ses=%u",
+			 pid, uid, auid, ses);
 	if (sid) {
 		rc = security_secid_to_secctx(sid, &ctx, &len);
 		if (rc)
@@ -570,6 +575,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct audit_buffer	*ab;
 	u16			msg_type = nlh->nlmsg_type;
 	uid_t			loginuid; /* loginuid of sender */
+	u32			sessionid;
 	struct audit_sig_info   *sig_data;
 	char			*ctx = NULL;
 	u32			len;
@@ -591,6 +597,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	pid  = NETLINK_CREDS(skb)->pid;
 	uid  = NETLINK_CREDS(skb)->uid;
 	loginuid = NETLINK_CB(skb).loginuid;
+	sessionid = NETLINK_CB(skb).sessionid;
 	sid  = NETLINK_CB(skb).sid;
 	seq  = nlh->nlmsg_seq;
 	data = NLMSG_DATA(nlh);
@@ -613,12 +620,12 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		status_get   = (struct audit_status *)data;
 		if (status_get->mask & AUDIT_STATUS_ENABLED) {
 			err = audit_set_enabled(status_get->enabled,
-							loginuid, sid);
+						loginuid, sessionid, sid);
 			if (err < 0) return err;
 		}
 		if (status_get->mask & AUDIT_STATUS_FAILURE) {
 			err = audit_set_failure(status_get->failure,
-							 loginuid, sid);
+						loginuid, sessionid, sid);
 			if (err < 0) return err;
 		}
 		if (status_get->mask & AUDIT_STATUS_PID) {
@@ -627,17 +634,17 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			if (audit_enabled != AUDIT_OFF)
 				audit_log_config_change("audit_pid", new_pid,
 							audit_pid, loginuid,
-							sid, 1);
+							sessionid, sid, 1);
 
 			audit_pid = new_pid;
 			audit_nlk_pid = NETLINK_CB(skb).pid;
 		}
 		if (status_get->mask & AUDIT_STATUS_RATE_LIMIT)
 			err = audit_set_rate_limit(status_get->rate_limit,
-							 loginuid, sid);
+						   loginuid, sessionid, sid);
 		if (status_get->mask & AUDIT_STATUS_BACKLOG_LIMIT)
 			err = audit_set_backlog_limit(status_get->backlog_limit,
-							loginuid, sid);
+						      loginuid, sessionid, sid);
 		break;
 	case AUDIT_USER:
 	case AUDIT_FIRST_USER_MSG ... AUDIT_LAST_USER_MSG:
@@ -649,12 +656,13 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (err == 1) {
 			err = 0;
 			if (msg_type == AUDIT_USER_TTY) {
-				err = audit_prepare_user_tty(pid, loginuid);
+				err = audit_prepare_user_tty(pid, loginuid,
+							     sessionid);
 				if (err)
 					break;
 			}
 			audit_log_common_recv_msg(&ab, msg_type, pid, uid,
-						  loginuid, sid);
+						  loginuid, sessionid, sid);
 
 			if (msg_type != AUDIT_USER_TTY)
 				audit_log_format(ab, " msg='%.1024s'",
@@ -677,7 +685,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			return -EINVAL;
 		if (audit_enabled == AUDIT_LOCKED) {
 			audit_log_common_recv_msg(&ab, AUDIT_CONFIG_CHANGE, pid,
-						  uid, loginuid, sid);
+						  uid, loginuid, sessionid, sid);
 
 			audit_log_format(ab, " audit_enabled=%d res=0",
 					 audit_enabled);
@@ -688,7 +696,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	case AUDIT_LIST:
 		err = audit_receive_filter(nlh->nlmsg_type, NETLINK_CB(skb).pid,
 					   uid, seq, data, nlmsg_len(nlh),
-					   loginuid, sid);
+					   loginuid, sessionid, sid);
 		break;
 	case AUDIT_ADD_RULE:
 	case AUDIT_DEL_RULE:
@@ -696,7 +704,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			return -EINVAL;
 		if (audit_enabled == AUDIT_LOCKED) {
 			audit_log_common_recv_msg(&ab, AUDIT_CONFIG_CHANGE, pid,
-						  uid, loginuid, sid);
+						  uid, loginuid, sessionid, sid);
 
 			audit_log_format(ab, " audit_enabled=%d res=0",
 					 audit_enabled);
@@ -707,13 +715,13 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	case AUDIT_LIST_RULES:
 		err = audit_receive_filter(nlh->nlmsg_type, NETLINK_CB(skb).pid,
 					   uid, seq, data, nlmsg_len(nlh),
-					   loginuid, sid);
+					   loginuid, sessionid, sid);
 		break;
 	case AUDIT_TRIM:
 		audit_trim_trees();
 
 		audit_log_common_recv_msg(&ab, AUDIT_CONFIG_CHANGE, pid,
-					  uid, loginuid, sid);
+					  uid, loginuid, sessionid, sid);
 
 		audit_log_format(ab, " op=trim res=1");
 		audit_log_end(ab);
@@ -745,7 +753,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		err = audit_tag_tree(old, new);
 
 		audit_log_common_recv_msg(&ab, AUDIT_CONFIG_CHANGE, pid,
-					  uid, loginuid, sid);
+					  uid, loginuid, sessionid, sid);
 
 		audit_log_format(ab, " op=make_equiv old=");
 		audit_log_untrustedstring(ab, old);

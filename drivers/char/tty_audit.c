@@ -151,14 +151,9 @@ void tty_audit_fork(struct signal_struct *sig)
 /**
  *	tty_audit_push_task	-	Flush task's pending audit data
  */
-void tty_audit_push_task(struct task_struct *tsk, uid_t loginuid)
+void tty_audit_push_task(struct task_struct *tsk, uid_t loginuid, u32 sessionid)
 {
 	struct tty_audit_buf *buf;
-	/* FIXME I think this is correct.  Check against netlink once that is
-	 * I really need to read this code more closely.  But that's for
-	 * another patch.
-	 */
-	unsigned int sessionid = audit_get_sessionid(tsk);
 
 	spin_lock_irq(&tsk->sighand->siglock);
 	buf = tsk->signal->tty_audit_buf;

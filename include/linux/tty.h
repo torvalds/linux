@@ -351,7 +351,7 @@ extern void tty_audit_add_data(struct tty_struct *tty, unsigned char *data,
 extern void tty_audit_exit(void);
 extern void tty_audit_fork(struct signal_struct *sig);
 extern void tty_audit_push(struct tty_struct *tty);
-extern void tty_audit_push_task(struct task_struct *tsk, uid_t loginuid);
+extern void tty_audit_push_task(struct task_struct *tsk, uid_t loginuid, u32 sessionid);
 extern void tty_audit_opening(void);
 #else
 static inline void tty_audit_add_data(struct tty_struct *tty,
@@ -367,7 +367,7 @@ static inline void tty_audit_fork(struct signal_struct *sig)
 static inline void tty_audit_push(struct tty_struct *tty)
 {
 }
-static inline void tty_audit_push_task(struct task_struct *tsk, uid_t loginuid)
+static inline void tty_audit_push_task(struct task_struct *tsk, uid_t loginuid, u32 sessionid)
 {
 }
 static inline void tty_audit_opening(void)

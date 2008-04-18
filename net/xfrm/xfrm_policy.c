@@ -762,6 +762,7 @@ xfrm_policy_flush_secctx_check(u8 type, struct xfrm_audit *audit_info)
 			if (err) {
 				xfrm_audit_policy_delete(pol, 0,
 							 audit_info->loginuid,
+							 audit_info->sessionid,
 							 audit_info->secid);
 				return err;
 			}
@@ -777,6 +778,7 @@ xfrm_policy_flush_secctx_check(u8 type, struct xfrm_audit *audit_info)
 				if (err) {
 					xfrm_audit_policy_delete(pol, 0,
 							audit_info->loginuid,
+							audit_info->sessionid,
 							audit_info->secid);
 					return err;
 				}
@@ -819,6 +821,7 @@ int xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info)
 			write_unlock_bh(&xfrm_policy_lock);
 
 			xfrm_audit_policy_delete(pol, 1, audit_info->loginuid,
+						 audit_info->sessionid,
 						 audit_info->secid);
 
 			xfrm_policy_kill(pol);
@@ -841,6 +844,7 @@ int xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info)
 
 				xfrm_audit_policy_delete(pol, 1,
 							 audit_info->loginuid,
+							 audit_info->sessionid,
 							 audit_info->secid);
 				xfrm_policy_kill(pol);
 				killed++;
@@ -2472,14 +2476,14 @@ static void xfrm_audit_common_policyinfo(struct xfrm_policy *xp,
 }
 
 void xfrm_audit_policy_add(struct xfrm_policy *xp, int result,
-			   u32 auid, u32 secid)
+			   uid_t auid, u32 sessionid, u32 secid)
 {
 	struct audit_buffer *audit_buf;
 
 	audit_buf = xfrm_audit_start("SPD-add");
 	if (audit_buf == NULL)
 		return;
-	xfrm_audit_helper_usrinfo(auid, secid, audit_buf);
+	xfrm_audit_helper_usrinfo(auid, sessionid, secid, audit_buf);
 	audit_log_format(audit_buf, " res=%u", result);
 	xfrm_audit_common_policyinfo(xp, audit_buf);
 	audit_log_end(audit_buf);
@@ -2487,14 +2491,14 @@ void xfrm_audit_policy_add(struct xfrm_policy *xp, int result,
 EXPORT_SYMBOL_GPL(xfrm_audit_policy_add);
 
 void xfrm_audit_policy_delete(struct xfrm_policy *xp, int result,
-			      u32 auid, u32 secid)
+			      uid_t auid, u32 sessionid, u32 secid)
 {
 	struct audit_buffer *audit_buf;
 
 	audit_buf = xfrm_audit_start("SPD-delete");
 	if (audit_buf == NULL)
 		return;
-	xfrm_audit_helper_usrinfo(auid, secid, audit_buf);
+	xfrm_audit_helper_usrinfo(auid, sessionid, secid, audit_buf);
 	audit_log_format(audit_buf, " res=%u", result);
 	xfrm_audit_common_policyinfo(xp, audit_buf);
 	audit_log_end(audit_buf);

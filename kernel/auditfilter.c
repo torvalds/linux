@@ -1500,8 +1500,9 @@ static void audit_list_rules(int pid, int seq, struct sk_buff_head *q)
 }
 
 /* Log rule additions and removals */
-static void audit_log_rule_change(uid_t loginuid, u32 sid, char *action,
-				  struct audit_krule *rule, int res)
+static void audit_log_rule_change(uid_t loginuid, u32 sessionid, u32 sid,
+				  char *action, struct audit_krule *rule,
+				  int res)
 {
 	struct audit_buffer *ab;
 
@@ -1511,7 +1512,7 @@ static void audit_log_rule_change(uid_t loginuid, u32 sid, char *action,
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
 	if (!ab)
 		return;
-	audit_log_format(ab, "auid=%u", loginuid);
+	audit_log_format(ab, "auid=%u ses=%u", loginuid, sessionid);
 	if (sid) {
 		char *ctx = NULL;
 		u32 len;
@@ -1543,7 +1544,7 @@ static void audit_log_rule_change(uid_t loginuid, u32 sid, char *action,
  * @sid: SE Linux Security ID of sender
  */
 int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
-			 size_t datasz, uid_t loginuid, u32 sid)
+			 size_t datasz, uid_t loginuid, u32 sessionid, u32 sid)
 {
 	struct task_struct *tsk;
 	struct audit_netlink_list *dest;
@@ -1590,7 +1591,8 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 
 		err = audit_add_rule(entry,
 				     &audit_filter_list[entry->rule.listnr]);
-		audit_log_rule_change(loginuid, sid, "add", &entry->rule, !err);
+		audit_log_rule_change(loginuid, sessionid, sid, "add",
+				      &entry->rule, !err);
 
 		if (err)
 			audit_free_rule(entry);
@@ -1606,8 +1608,8 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 
 		err = audit_del_rule(entry,
 				     &audit_filter_list[entry->rule.listnr]);
-		audit_log_rule_change(loginuid, sid, "remove", &entry->rule,
-				      !err);
+		audit_log_rule_change(loginuid, sessionid, sid, "remove",
+				      &entry->rule, !err);
 
 		audit_free_rule(entry);
 		break;
