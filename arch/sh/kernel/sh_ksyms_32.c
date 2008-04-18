@@ -9,7 +9,6 @@
 #include <linux/pci.h>
 #include <linux/irq.h>
 #include <asm/sections.h>
-#include <asm/semaphore.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/checksum.h>
@@ -47,12 +46,6 @@ EXPORT_SYMBOL(__copy_user);
 #ifdef CONFIG_MMU
 EXPORT_SYMBOL(get_vm_area);
 #endif
-
-/* semaphore exports */
-EXPORT_SYMBOL(__up);
-EXPORT_SYMBOL(__down);
-EXPORT_SYMBOL(__down_interruptible);
-EXPORT_SYMBOL(__down_trylock);
 
 EXPORT_SYMBOL(__udelay);
 EXPORT_SYMBOL(__ndelay);

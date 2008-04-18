@@ -12,7 +12,7 @@ obj-y    := entry.o wof.o wuf.o etrap.o rtrap.o traps.o $(IRQ_OBJS) \
 	    sys_sparc.o sunos_asm.o systbls.o \
 	    time.o windows.o cpu.o devices.o sclow.o \
 	    tadpole.o tick14.o ptrace.o sys_solaris.o \
-	    unaligned.o una_asm.o muldiv.o semaphore.o \
+	    unaligned.o una_asm.o muldiv.o \
 	    prom.o of_device.o devres.o
 
 devres-y = ../../../kernel/irq/devres.o

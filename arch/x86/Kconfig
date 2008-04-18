@@ -53,9 +53,6 @@ config STACKTRACE_SUPPORT
 config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
 
-config SEMAPHORE_SLEEPERS
-	def_bool y
-
 config FAST_CMPXCHG_LOCAL
 	bool
 	default y
