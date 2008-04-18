@@ -33,4 +33,11 @@ config MACH_REALVIEW_PB11MP
 	  PB11MPCore is a platform with an on-board ARM11MPCore and has
 	  support for PCI-E and Compact Flash.
 
+config MACH_REALVIEW_PB1176
+	bool "Support RealView/PB1176 platform"
+	select ARM_GIC
+	select CACHE_L2X0
+	help
+	  Include support for the ARM(R) RealView ARM1176 Platform Baseboard.
+
 endmenu
