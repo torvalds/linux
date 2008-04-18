@@ -21,6 +21,9 @@ config MTD_PHYSMAP
 	  particular board as well as the bus width, either statically
 	  with config options or at run-time.
 
+	  To compile this driver as a module, choose M here: the
+	  module will be called physmap.
+
 config MTD_PHYSMAP_START
 	hex "Physical start address of flash mapping"
 	depends on MTD_PHYSMAP
