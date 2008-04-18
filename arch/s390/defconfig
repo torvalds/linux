@@ -3,6 +3,7 @@
 # Linux kernel version: 2.6.25-rc4
 # Wed Mar  5 11:22:59 2008
 #
+CONFIG_SCHED_MC=y
 CONFIG_MMU=y
 CONFIG_ZONE_DMA=y
 CONFIG_LOCKDEP_SUPPORT=y

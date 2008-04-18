@@ -133,7 +133,7 @@ static struct crypto_alg alg = {
 	.dia_final	=	sha256_final } }
 };
 
-static int init(void)
+static int sha256_s390_init(void)
 {
 	if (!crypt_s390_func_available(KIMD_SHA_256))
 		return -EOPNOTSUPP;
@@ -141,13 +141,13 @@ static int init(void)
 	return crypto_register_alg(&alg);
 }
 
-static void __exit fini(void)
+static void __exit sha256_s390_fini(void)
 {
 	crypto_unregister_alg(&alg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(sha256_s390_init);
+module_exit(sha256_s390_fini);
 
 MODULE_ALIAS("sha256");
 

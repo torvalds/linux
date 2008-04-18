@@ -27,6 +27,7 @@
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/lowcore.h>
+#include "entry.h"
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
@@ -235,6 +236,10 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs * regs, size_t frame_size)
 	/* Default to using normal stack */
 	sp = regs->gprs[15];
 
+	/* Overflow on alternate signal stack gives SIGSEGV. */
+	if (on_sig_stack(sp) && !on_sig_stack((sp - frame_size) & -8UL))
+		return (void __user *) -1UL;
+
 	/* This is the X/Open sanctioned signal stack switching.  */
 	if (ka->sa.sa_flags & SA_ONSTACK) {
 		if (! sas_ss_flags(sp))
@@ -268,6 +273,9 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 
 	frame = get_sigframe(ka, regs, sizeof(sigframe));
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(sigframe)))
+		goto give_sigsegv;
+
+	if (frame == (void __user *) -1UL)
 		goto give_sigsegv;
 
 	if (__copy_to_user(&frame->sc.oldmask, &set->sig, _SIGMASK_COPY_SIZE))
@@ -325,6 +333,9 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	frame = get_sigframe(ka, regs, sizeof(rt_sigframe));
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(rt_sigframe)))
+		goto give_sigsegv;
+
+	if (frame == (void __user *) -1UL)
 		goto give_sigsegv;
 
 	if (copy_siginfo_to_user(&frame->info, info))
@@ -474,11 +485,6 @@ void do_signal(struct pt_regs *regs)
 		int ret;
 #ifdef CONFIG_COMPAT
 		if (test_thread_flag(TIF_31BIT)) {
-			extern int handle_signal32(unsigned long sig,
-						   struct k_sigaction *ka,
-						   siginfo_t *info,
-						   sigset_t *oldset,
-						   struct pt_regs *regs);
 			ret = handle_signal32(signr, &ka, &info, oldset, regs);
 	        }
 		else

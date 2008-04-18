@@ -499,7 +499,7 @@ static struct crypto_alg cbc_aes_alg = {
 	}
 };
 
-static int __init aes_init(void)
+static int __init aes_s390_init(void)
 {
 	int ret;
 
@@ -542,15 +542,15 @@ aes_err:
 	goto out;
 }
 
-static void __exit aes_fini(void)
+static void __exit aes_s390_fini(void)
 {
 	crypto_unregister_alg(&cbc_aes_alg);
 	crypto_unregister_alg(&ecb_aes_alg);
 	crypto_unregister_alg(&aes_alg);
 }
 
-module_init(aes_init);
-module_exit(aes_fini);
+module_init(aes_s390_init);
+module_exit(aes_s390_fini);
 
 MODULE_ALIAS("aes");
 

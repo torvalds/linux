@@ -1399,7 +1399,7 @@ __tiqdio_inbound_processing(struct qdio_q *q, int spare_ind_was_set)
 	 * q->dev_st_chg_ind is the indicator, be it shared or not.
 	 * only clear it, if indicator is non-shared
 	 */
-	if (!spare_ind_was_set)
+	if (q->dev_st_chg_ind != &spare_indicator)
 		tiqdio_clear_summary_bit((__u32*)q->dev_st_chg_ind);
 
 	if (q->hydra_gives_outbound_pcis) {
@@ -2217,9 +2217,78 @@ qdio_synchronize(struct ccw_device *cdev, unsigned int flags,
 	return cc;
 }
 
+static int
+qdio_get_ssqd_information(struct subchannel_id *schid,
+			  struct qdio_chsc_ssqd **ssqd_area)
+{
+	int result;
+
+	QDIO_DBF_TEXT0(0, setup, "getssqd");
+	*ssqd_area = mempool_alloc(qdio_mempool_scssc, GFP_ATOMIC);
+	if (!ssqd_area) {
+		QDIO_PRINT_WARN("Could not get memory for chsc on sch x%x.\n",
+				schid->sch_no);
+		return -ENOMEM;
+	}
+
+	(*ssqd_area)->request = (struct chsc_header) {
+		.length = 0x0010,
+		.code	= 0x0024,
+	};
+	(*ssqd_area)->first_sch = schid->sch_no;
+	(*ssqd_area)->last_sch = schid->sch_no;
+	(*ssqd_area)->ssid = schid->ssid;
+	result = chsc(*ssqd_area);
+
+	if (result) {
+		QDIO_PRINT_WARN("CHSC returned cc %i on sch 0.%x.%x.\n",
+				result, schid->ssid, schid->sch_no);
+		goto out;
+	}
+
+	if ((*ssqd_area)->response.code != QDIO_CHSC_RESPONSE_CODE_OK) {
+		QDIO_PRINT_WARN("CHSC response is 0x%x on sch 0.%x.%x.\n",
+				(*ssqd_area)->response.code,
+				schid->ssid, schid->sch_no);
+		goto out;
+	}
+	if (!((*ssqd_area)->flags & CHSC_FLAG_QDIO_CAPABILITY) ||
+	    !((*ssqd_area)->flags & CHSC_FLAG_VALIDITY) ||
+	    ((*ssqd_area)->sch != schid->sch_no)) {
+		QDIO_PRINT_WARN("huh? problems checking out sch 0.%x.%x... " \
+				"using all SIGAs.\n",
+				schid->ssid, schid->sch_no);
+		goto out;
+	}
+	return 0;
+out:
+	return -EINVAL;
+}
+
+int
+qdio_get_ssqd_pct(struct ccw_device *cdev)
+{
+	struct qdio_chsc_ssqd *ssqd_area;
+	struct subchannel_id schid;
+	char dbf_text[15];
+	int rc;
+	int pct = 0;
+
+	QDIO_DBF_TEXT0(0, setup, "getpct");
+	schid = ccw_device_get_subchannel_id(cdev);
+	rc = qdio_get_ssqd_information(&schid, &ssqd_area);
+	if (!rc)
+		pct = (int)ssqd_area->pct;
+	if (rc != -ENOMEM)
+		mempool_free(ssqd_area, qdio_mempool_scssc);
+	sprintf(dbf_text, "pct: %d", pct);
+	QDIO_DBF_TEXT2(0, setup, dbf_text);
+	return pct;
+}
+EXPORT_SYMBOL(qdio_get_ssqd_pct);
+
 static void
-qdio_check_subchannel_qebsm(struct qdio_irq *irq_ptr, unsigned char qdioac,
-			    unsigned long token)
+qdio_check_subchannel_qebsm(struct qdio_irq *irq_ptr, unsigned long token)
 {
 	struct qdio_q *q;
 	int i;
@@ -2227,7 +2296,7 @@ qdio_check_subchannel_qebsm(struct qdio_irq *irq_ptr, unsigned char qdioac,
 	char dbf_text[15];
 
 	/*check if QEBSM is disabled */
-	if (!(irq_ptr->is_qebsm) || !(qdioac & 0x01)) {
+	if (!(irq_ptr->is_qebsm) || !(irq_ptr->qdioac & 0x01)) {
 		irq_ptr->is_qebsm  = 0;
 		irq_ptr->sch_token = 0;
 		irq_ptr->qib.rflags &= ~QIB_RFLAGS_ENABLE_QEBSM;
@@ -2256,102 +2325,27 @@ qdio_check_subchannel_qebsm(struct qdio_irq *irq_ptr, unsigned char qdioac,
 }
 
 static void
-qdio_get_ssqd_information(struct qdio_irq *irq_ptr)
+qdio_get_ssqd_siga(struct qdio_irq *irq_ptr)
 {
-	int result;
-	unsigned char qdioac;
-	struct {
-		struct chsc_header request;
-		u16 reserved1:10;
-		u16 ssid:2;
-		u16 fmt:4;
-		u16 first_sch;
-		u16 reserved2;
-		u16 last_sch;
-		u32 reserved3;
-		struct chsc_header response;
-		u32 reserved4;
-		u8  flags;
-		u8  reserved5;
-		u16 sch;
-		u8  qfmt;
-		u8  parm;
-		u8  qdioac1;
-		u8  sch_class;
-		u8  reserved7;
-		u8  icnt;
-		u8  reserved8;
-		u8  ocnt;
-		u8 reserved9;
-		u8 mbccnt;
-		u16 qdioac2;
-		u64 sch_token;
-	} *ssqd_area;
+	int rc;
+	struct qdio_chsc_ssqd *ssqd_area;
 
 	QDIO_DBF_TEXT0(0,setup,"getssqd");
-	qdioac = 0;
-	ssqd_area = mempool_alloc(qdio_mempool_scssc, GFP_ATOMIC);
-	if (!ssqd_area) {
-	        QDIO_PRINT_WARN("Could not get memory for chsc. Using all " \
-				"SIGAs for sch x%x.\n", irq_ptr->schid.sch_no);
+	irq_ptr->qdioac = 0;
+	rc = qdio_get_ssqd_information(&irq_ptr->schid, &ssqd_area);
+	if (rc) {
+		QDIO_PRINT_WARN("using all SIGAs for sch x%x.n",
+			irq_ptr->schid.sch_no);
 		irq_ptr->qdioac = CHSC_FLAG_SIGA_INPUT_NECESSARY |
 				  CHSC_FLAG_SIGA_OUTPUT_NECESSARY |
 				  CHSC_FLAG_SIGA_SYNC_NECESSARY; /* all flags set */
 		irq_ptr->is_qebsm = 0;
-		irq_ptr->sch_token = 0;
-		irq_ptr->qib.rflags &= ~QIB_RFLAGS_ENABLE_QEBSM;
-		return;
-	}
+	} else
+		irq_ptr->qdioac = ssqd_area->qdioac1;
 
-	ssqd_area->request = (struct chsc_header) {
-		.length = 0x0010,
-		.code   = 0x0024,
-	};
-	ssqd_area->first_sch = irq_ptr->schid.sch_no;
-	ssqd_area->last_sch = irq_ptr->schid.sch_no;
-	ssqd_area->ssid = irq_ptr->schid.ssid;
-	result = chsc(ssqd_area);
-
-	if (result) {
-		QDIO_PRINT_WARN("CHSC returned cc %i. Using all " \
-				"SIGAs for sch 0.%x.%x.\n", result,
-				irq_ptr->schid.ssid, irq_ptr->schid.sch_no);
-		qdioac = CHSC_FLAG_SIGA_INPUT_NECESSARY |
-			CHSC_FLAG_SIGA_OUTPUT_NECESSARY |
-			CHSC_FLAG_SIGA_SYNC_NECESSARY; /* all flags set */
-		irq_ptr->is_qebsm  = 0;
-		goto out;
-	}
-
-	if (ssqd_area->response.code != QDIO_CHSC_RESPONSE_CODE_OK) {
-		QDIO_PRINT_WARN("response upon checking SIGA needs " \
-				"is 0x%x. Using all SIGAs for sch 0.%x.%x.\n",
-				ssqd_area->response.code,
-				irq_ptr->schid.ssid, irq_ptr->schid.sch_no);
-		qdioac = CHSC_FLAG_SIGA_INPUT_NECESSARY |
-			CHSC_FLAG_SIGA_OUTPUT_NECESSARY |
-			CHSC_FLAG_SIGA_SYNC_NECESSARY; /* all flags set */
-		irq_ptr->is_qebsm  = 0;
-		goto out;
-	}
-	if (!(ssqd_area->flags & CHSC_FLAG_QDIO_CAPABILITY) ||
-	    !(ssqd_area->flags & CHSC_FLAG_VALIDITY) ||
-	    (ssqd_area->sch != irq_ptr->schid.sch_no)) {
-		QDIO_PRINT_WARN("huh? problems checking out sch 0.%x.%x... " \
-				"using all SIGAs.\n",
-				irq_ptr->schid.ssid, irq_ptr->schid.sch_no);
-		qdioac = CHSC_FLAG_SIGA_INPUT_NECESSARY |
-			CHSC_FLAG_SIGA_OUTPUT_NECESSARY |
-			CHSC_FLAG_SIGA_SYNC_NECESSARY; /* worst case */
-		irq_ptr->is_qebsm  = 0;
-		goto out;
-	}
-	qdioac = ssqd_area->qdioac1;
-out:
-	qdio_check_subchannel_qebsm(irq_ptr, qdioac,
-				    ssqd_area->sch_token);
-	mempool_free(ssqd_area, qdio_mempool_scssc);
-	irq_ptr->qdioac = qdioac;
+	qdio_check_subchannel_qebsm(irq_ptr, ssqd_area->sch_token);
+	if (rc != -ENOMEM)
+		mempool_free(ssqd_area, qdio_mempool_scssc);
 }
 
 static unsigned int
@@ -3227,7 +3221,7 @@ qdio_establish(struct qdio_initialize *init_data)
 		return -EIO;
 	}
 
-	qdio_get_ssqd_information(irq_ptr);
+	qdio_get_ssqd_siga(irq_ptr);
 	/* if this gets set once, we're running under VM and can omit SVSes */
 	if (irq_ptr->qdioac&CHSC_FLAG_SIGA_SYNC_NECESSARY)
 		omit_svs=1;

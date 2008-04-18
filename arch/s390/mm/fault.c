@@ -28,11 +28,11 @@
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
-
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/s390_ext.h>
 #include <asm/mmu_context.h>
+#include "../kernel/entry.h"
 
 #ifndef CONFIG_64BIT
 #define __FAIL_ADDR_MASK 0x7ffff000
@@ -49,8 +49,6 @@
 #ifdef CONFIG_SYSCTL
 extern int sysctl_userprocess_debug;
 #endif
-
-extern void die(const char *,struct pt_regs *,long);
 
 #ifdef CONFIG_KPROBES
 static inline int notify_page_fault(struct pt_regs *regs, long err)
@@ -245,11 +243,6 @@ static void do_sigbus(struct pt_regs *regs, unsigned long error_code,
 }
 
 #ifdef CONFIG_S390_EXEC_PROTECT
-extern long sys_sigreturn(struct pt_regs *regs);
-extern long sys_rt_sigreturn(struct pt_regs *regs);
-extern long sys32_sigreturn(struct pt_regs *regs);
-extern long sys32_rt_sigreturn(struct pt_regs *regs);
-
 static int signal_return(struct mm_struct *mm, struct pt_regs *regs,
 			 unsigned long address, unsigned long error_code)
 {
@@ -270,15 +263,15 @@ static int signal_return(struct mm_struct *mm, struct pt_regs *regs,
 #ifdef CONFIG_COMPAT
 	compat = test_tsk_thread_flag(current, TIF_31BIT);
 	if (compat && instruction == 0x0a77)
-		sys32_sigreturn(regs);
+		sys32_sigreturn();
 	else if (compat && instruction == 0x0aad)
-		sys32_rt_sigreturn(regs);
+		sys32_rt_sigreturn();
 	else
 #endif
 	if (instruction == 0x0a77)
-		sys_sigreturn(regs);
+		sys_sigreturn();
 	else if (instruction == 0x0aad)
-		sys_rt_sigreturn(regs);
+		sys_rt_sigreturn();
 	else {
 		current->thread.prot_addr = address;
 		current->thread.trap_no = error_code;
@@ -424,7 +417,7 @@ no_context:
 }
 
 void __kprobes do_protection_exception(struct pt_regs *regs,
-				       unsigned long error_code)
+				       long error_code)
 {
 	/* Protection exception is supressing, decrement psw address. */
 	regs->psw.addr -= (error_code >> 16);
@@ -440,7 +433,7 @@ void __kprobes do_protection_exception(struct pt_regs *regs,
 	do_exception(regs, 4, 1);
 }
 
-void __kprobes do_dat_exception(struct pt_regs *regs, unsigned long error_code)
+void __kprobes do_dat_exception(struct pt_regs *regs, long error_code)
 {
 	do_exception(regs, error_code & 0xff, 0);
 }

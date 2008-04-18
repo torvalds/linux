@@ -550,7 +550,7 @@ static struct crypto_alg cbc_des3_192_alg = {
 	}
 };
 
-static int init(void)
+static int des_s390_init(void)
 {
 	int ret = 0;
 
@@ -612,7 +612,7 @@ des_err:
 	goto out;
 }
 
-static void __exit fini(void)
+static void __exit des_s390_fini(void)
 {
 	crypto_unregister_alg(&cbc_des3_192_alg);
 	crypto_unregister_alg(&ecb_des3_192_alg);
@@ -625,8 +625,8 @@ static void __exit fini(void)
 	crypto_unregister_alg(&des_alg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(des_s390_init);
+module_exit(des_s390_fini);
 
 MODULE_ALIAS("des");
 MODULE_ALIAS("des3_ede");

@@ -539,7 +539,7 @@ struct zfcp_rc_entry {
 
 /* logging routine for zfcp */
 #define _ZFCP_LOG(fmt, args...) \
-	printk(KERN_ERR ZFCP_NAME": %s(%d): " fmt, __FUNCTION__, \
+	printk(KERN_ERR ZFCP_NAME": %s(%d): " fmt, __func__, \
 	       __LINE__ , ##args)
 
 #define ZFCP_LOG(level, fmt, args...) \

@@ -56,6 +56,6 @@ struct tape_class_device *register_tape_dev(
 	char *			device_name,
 	char *			node_name
 );
-void unregister_tape_dev(struct tape_class_device *tcd);
+void unregister_tape_dev(struct device *device, struct tape_class_device *tcd);
 
 #endif /* __TAPE_CLASS_H__ */

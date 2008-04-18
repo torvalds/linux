@@ -100,6 +100,7 @@ extern int cio_modify (struct subchannel *);
 
 int cio_create_sch_lock(struct subchannel *);
 void do_adapter_IO(void);
+void do_IRQ(struct pt_regs *);
 
 /* Use with care. */
 #ifdef CONFIG_CCW_CONSOLE

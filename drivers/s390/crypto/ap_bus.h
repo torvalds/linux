@@ -50,6 +50,15 @@ typedef unsigned int ap_qid_t;
 #define AP_QID_QUEUE(_qid) ((_qid) & 15)
 
 /**
+ * structy ap_queue_status - Holds the AP queue status.
+ * @queue_empty: Shows if queue is empty
+ * @replies_waiting: Waiting replies
+ * @queue_full: Is 1 if the queue is full
+ * @pad: A 4 bit pad
+ * @int_enabled: Shows if interrupts are enabled for the AP
+ * @response_conde: Holds the 8 bit response code
+ * @pad2: A 16 bit pad
+ *
  * The ap queue status word is returned by all three AP functions
  * (PQAP, NQAP and DQAP).  There's a set of flags in the first
  * byte, followed by a 1 byte response code.
@@ -75,7 +84,7 @@ struct ap_queue_status {
 #define AP_RESPONSE_NO_FIRST_PART	0x13
 #define AP_RESPONSE_MESSAGE_TOO_BIG	0x15
 
-/**
+/*
  * Known device types
  */
 #define AP_DEVICE_TYPE_PCICC	3
@@ -84,7 +93,7 @@ struct ap_queue_status {
 #define AP_DEVICE_TYPE_CEX2A	6
 #define AP_DEVICE_TYPE_CEX2C	7
 
-/**
+/*
  * AP reset flag states
  */
 #define AP_RESET_IGNORE	0	/* request timeout will be ignored */
@@ -152,7 +161,7 @@ struct ap_message {
 	.dev_type=(dt),					\
 	.match_flags=AP_DEVICE_ID_MATCH_DEVICE_TYPE,
 
-/**
+/*
  * Note: don't use ap_send/ap_recv after using ap_queue_message
  * for the first time. Otherwise the ap message queue will get
  * confused.

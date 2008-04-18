@@ -64,6 +64,7 @@ config ZCRYPT
 	tristate "Support for PCI-attached cryptographic adapters"
 	depends on S390
 	select ZCRYPT_MONOLITHIC if ZCRYPT="y"
+	select HW_RANDOM
 	help
 	  Select this option if you want to use a PCI-attached cryptographic
 	  adapter like:

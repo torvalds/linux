@@ -22,11 +22,12 @@
 #define SEGMENT_SHARED 0
 #define SEGMENT_EXCLUSIVE 1
 
-extern int segment_load (char *name,int segtype,unsigned long *addr,unsigned long *length);
-extern void segment_unload(char *name);
-extern void segment_save(char *name);
-extern int segment_type (char* name);
-extern int segment_modify_shared (char *name, int do_nonshared);
+int segment_load (char *name, int segtype, unsigned long *addr, unsigned long *length);
+void segment_unload(char *name);
+void segment_save(char *name);
+int segment_type (char* name);
+int segment_modify_shared (char *name, int do_nonshared);
+void segment_warning(int rc, char *seg_name);
 
 #endif
 #endif
