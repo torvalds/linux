@@ -163,6 +163,7 @@ struct rio_dbell {
  * @id: Port ID, unique among all ports
  * @index: Port index, unique among all port interfaces of the same type
  * @name: Port name string
+ * @priv: Master port private data
  */
 struct rio_mport {
 	struct list_head dbells;	/* list of doorbell events */
@@ -178,6 +179,7 @@ struct rio_mport {
 	unsigned char index;	/* port index, unique among all port
 				   interfaces of the same type */
 	unsigned char name[40];
+	void *priv;		/* Master port private data */
 };
 
 /**
@@ -229,13 +231,15 @@ struct rio_switch {
  * @dsend: Callback to send a doorbell message.
  */
 struct rio_ops {
-	int (*lcread) (int index, u32 offset, int len, u32 * data);
-	int (*lcwrite) (int index, u32 offset, int len, u32 data);
-	int (*cread) (int index, u16 destid, u8 hopcount, u32 offset, int len,
-		      u32 * data);
-	int (*cwrite) (int index, u16 destid, u8 hopcount, u32 offset, int len,
-		       u32 data);
-	int (*dsend) (int index, u16 destid, u16 data);
+	int (*lcread) (struct rio_mport *mport, int index, u32 offset, int len,
+			u32 *data);
+	int (*lcwrite) (struct rio_mport *mport, int index, u32 offset, int len,
+			u32 data);
+	int (*cread) (struct rio_mport *mport, int index, u16 destid,
+			u8 hopcount, u32 offset, int len, u32 *data);
+	int (*cwrite) (struct rio_mport *mport, int index, u16 destid,
+			u8 hopcount, u32 offset, int len, u32 data);
+	int (*dsend) (struct rio_mport *mport, int index, u16 destid, u16 data);
 };
 
 #define RIO_RESOURCE_MEM	0x00000100
