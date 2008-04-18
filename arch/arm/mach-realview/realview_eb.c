@@ -136,12 +136,12 @@ static void __init realview_eb_map_io(void)
 /*
  * These devices are connected directly to the multi-layer AHB switch
  */
-#define SMC_IRQ		{ NO_IRQ, NO_IRQ }
-#define SMC_DMA		{ 0, 0 }
+#define EB_SMC_IRQ	{ NO_IRQ, NO_IRQ }
+#define EB_SMC_DMA	{ 0, 0 }
 #define MPMC_IRQ	{ NO_IRQ, NO_IRQ }
 #define MPMC_DMA	{ 0, 0 }
-#define CLCD_IRQ	{ IRQ_EB_CLCD, NO_IRQ }
-#define CLCD_DMA	{ 0, 0 }
+#define EB_CLCD_IRQ	{ IRQ_EB_CLCD, NO_IRQ }
+#define EB_CLCD_DMA	{ 0, 0 }
 #define DMAC_IRQ	{ IRQ_EB_DMA, NO_IRQ }
 #define DMAC_DMA	{ 0, 0 }
 
@@ -150,14 +150,14 @@ static void __init realview_eb_map_io(void)
  */
 #define SCTL_IRQ	{ NO_IRQ, NO_IRQ }
 #define SCTL_DMA	{ 0, 0 }
-#define WATCHDOG_IRQ	{ IRQ_EB_WDOG, NO_IRQ }
-#define WATCHDOG_DMA	{ 0, 0 }
-#define GPIO0_IRQ	{ IRQ_EB_GPIO0, NO_IRQ }
-#define GPIO0_DMA	{ 0, 0 }
+#define EB_WATCHDOG_IRQ	{ IRQ_EB_WDOG, NO_IRQ }
+#define EB_WATCHDOG_DMA	{ 0, 0 }
+#define EB_GPIO0_IRQ	{ IRQ_EB_GPIO0, NO_IRQ }
+#define EB_GPIO0_DMA	{ 0, 0 }
 #define GPIO1_IRQ	{ IRQ_EB_GPIO1, NO_IRQ }
 #define GPIO1_DMA	{ 0, 0 }
-#define RTC_IRQ		{ IRQ_EB_RTC, NO_IRQ }
-#define RTC_DMA		{ 0, 0 }
+#define EB_RTC_IRQ	{ IRQ_EB_RTC, NO_IRQ }
+#define EB_RTC_DMA	{ 0, 0 }
 
 /*
  * These devices are connected via the DMA APB bridge
@@ -172,8 +172,8 @@ static void __init realview_eb_map_io(void)
 #define EB_UART2_DMA	{ 11, 10 }
 #define EB_UART3_IRQ	{ IRQ_EB_UART3, NO_IRQ }
 #define EB_UART3_DMA	{ 0x86, 0x87 }
-#define SSP_IRQ		{ IRQ_EB_SSP, NO_IRQ }
-#define SSP_DMA		{ 9, 8 }
+#define EB_SSP_IRQ	{ IRQ_EB_SSP, NO_IRQ }
+#define EB_SSP_DMA	{ 9, 8 }
 
 /* FPGA Primecells */
 AMBA_DEVICE(aaci,  "fpga:04", AACI,     NULL);
@@ -183,20 +183,20 @@ AMBA_DEVICE(kmi1,  "fpga:07", KMI1,     NULL);
 AMBA_DEVICE(uart3, "fpga:09", EB_UART3, NULL);
 
 /* DevChip Primecells */
-AMBA_DEVICE(smc,   "dev:00",  SMC,      NULL);
-AMBA_DEVICE(clcd,  "dev:20",  CLCD,     &clcd_plat_data);
+AMBA_DEVICE(smc,   "dev:00",  EB_SMC,   NULL);
+AMBA_DEVICE(clcd,  "dev:20",  EB_CLCD,  &clcd_plat_data);
 AMBA_DEVICE(dmac,  "dev:30",  DMAC,     NULL);
 AMBA_DEVICE(sctl,  "dev:e0",  SCTL,     NULL);
-AMBA_DEVICE(wdog,  "dev:e1",  WATCHDOG, NULL);
-AMBA_DEVICE(gpio0, "dev:e4",  GPIO0,    NULL);
+AMBA_DEVICE(wdog,  "dev:e1",  EB_WATCHDOG, NULL);
+AMBA_DEVICE(gpio0, "dev:e4",  EB_GPIO0, NULL);
 AMBA_DEVICE(gpio1, "dev:e5",  GPIO1,    NULL);
 AMBA_DEVICE(gpio2, "dev:e6",  GPIO2,    NULL);
-AMBA_DEVICE(rtc,   "dev:e8",  RTC,      NULL);
+AMBA_DEVICE(rtc,   "dev:e8",  EB_RTC,   NULL);
 AMBA_DEVICE(sci0,  "dev:f0",  SCI,      NULL);
 AMBA_DEVICE(uart0, "dev:f1",  EB_UART0, NULL);
 AMBA_DEVICE(uart1, "dev:f2",  EB_UART1, NULL);
 AMBA_DEVICE(uart2, "dev:f3",  EB_UART2, NULL);
-AMBA_DEVICE(ssp0,  "dev:f4",  SSP,      NULL);
+AMBA_DEVICE(ssp0,  "dev:f4",  EB_SSP,   NULL);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&dmac_device,
@@ -231,8 +231,8 @@ static struct resource realview_eb_flash_resource = {
 
 static struct resource realview_eb_eth_resources[] = {
 	[0] = {
-		.start		= REALVIEW_ETH_BASE,
-		.end		= REALVIEW_ETH_BASE + SZ_64K - 1,
+		.start		= REALVIEW_EB_ETH_BASE,
+		.end		= REALVIEW_EB_ETH_BASE + SZ_64K - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -254,7 +254,7 @@ static struct platform_device realview_eb_eth_device = {
  */
 static int eth_device_register(void)
 {
-	void __iomem *eth_addr = ioremap(REALVIEW_ETH_BASE, SZ_4K);
+	void __iomem *eth_addr = ioremap(REALVIEW_EB_ETH_BASE, SZ_4K);
 	u32 idrev;
 
 	if (!eth_addr)

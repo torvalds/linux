@@ -172,34 +172,20 @@
 #define REALVIEW_INTREG_CARDINSERT   0x03    /* Signal insertion of MMC card                   */
 
 /*
- * REALVIEW peripheral addresses
+ * RealView common peripheral addresses
  */
 #define REALVIEW_SCTL_BASE            0x10001000	/* System controller */
 #define REALVIEW_I2C_BASE             0x10002000	/* I2C control */
-	/* Reserved 0x10003000 */
 #define REALVIEW_AACI_BASE            0x10004000	/* Audio */
 #define REALVIEW_MMCI0_BASE           0x10005000	/* MMC interface */
 #define REALVIEW_KMI0_BASE            0x10006000	/* KMI interface */
 #define REALVIEW_KMI1_BASE            0x10007000	/* KMI 2nd interface */
 #define REALVIEW_CHAR_LCD_BASE        0x10008000	/* Character LCD */
-#define REALVIEW_SSP_BASE             0x1000D000	/* Synchronous Serial Port */
 #define REALVIEW_SCI_BASE             0x1000E000	/* Smart card controller */
-	/* Reserved 0x1000F000 */
-#define REALVIEW_WATCHDOG_BASE        0x10010000	/* watchdog interface */
-#define REALVIEW_GPIO0_BASE           0x10013000	/* GPIO port 0 */
 #define REALVIEW_GPIO1_BASE           0x10014000	/* GPIO port 1 */
 #define REALVIEW_GPIO2_BASE           0x10015000	/* GPIO port 2 */
-	/* Reserved 0x10016000 */
-#define REALVIEW_RTC_BASE             0x10017000	/* Real Time Clock */
 #define REALVIEW_DMC_BASE             0x10018000	/* DMC configuration */
-#define REALVIEW_PCI_CORE_BASE        0x10019000	/* PCI configuration */
-	/* Reserved 0x1001A000 - 0x1001FFFF */
-#define REALVIEW_CLCD_BASE            0x10020000	/* CLCD */
 #define REALVIEW_DMAC_BASE            0x10030000	/* DMA controller */
-#define REALVIEW_SMC_BASE             0x10080000	/* SMC */
-	/* Reserved 0x10090000 - 0x100EFFFF */
-
-#define REALVIEW_ETH_BASE             0x4E000000	/* Ethernet */
 
 /* PCI space */
 #define REALVIEW_PCI_BASE             0x41000000	/* PCI Interface */
