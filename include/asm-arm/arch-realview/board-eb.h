@@ -26,6 +26,9 @@
 /*
  * RealView EB + ARM11MPCore peripheral addresses
  */
+#define REALVIEW_EB_GIC_CPU_BASE	0x10040000	/* Generic interrupt controller CPU interface */
+#define REALVIEW_EB_GIC_DIST_BASE	0x10041000	/* Generic interrupt controller distributor */
+
 #ifdef CONFIG_REALVIEW_EB_ARM11MP_REVB
 #define REALVIEW_EB11MP_SCU_BASE	0x10100000	/* SCU registers */
 #define REALVIEW_EB11MP_GIC_CPU_BASE	0x10100100	/* Generic interrupt controller CPU interface */

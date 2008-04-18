@@ -205,8 +205,6 @@
 	/* Reserved 0x1001A000 - 0x1001FFFF */
 #define REALVIEW_CLCD_BASE            0x10020000	/* CLCD */
 #define REALVIEW_DMAC_BASE            0x10030000	/* DMA controller */
-#define REALVIEW_GIC_CPU_BASE         0x10040000	/* Generic interrupt controller CPU interface */
-#define REALVIEW_GIC_DIST_BASE        0x10041000	/* Generic interrupt controller distributor */
 #define REALVIEW_SMC_BASE             0x10080000	/* SMC */
 	/* Reserved 0x10090000 - 0x100EFFFF */
 

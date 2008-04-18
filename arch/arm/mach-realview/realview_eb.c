@@ -51,13 +51,13 @@ static struct map_desc realview_eb_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= IO_ADDRESS(REALVIEW_GIC_CPU_BASE),
-		.pfn		= __phys_to_pfn(REALVIEW_GIC_CPU_BASE),
+		.virtual	= IO_ADDRESS(REALVIEW_EB_GIC_CPU_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_EB_GIC_CPU_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= IO_ADDRESS(REALVIEW_GIC_DIST_BASE),
-		.pfn		= __phys_to_pfn(REALVIEW_GIC_DIST_BASE),
+		.virtual	= IO_ADDRESS(REALVIEW_EB_GIC_DIST_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_EB_GIC_DIST_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
@@ -286,14 +286,14 @@ static void __init gic_init_irq(void)
 
 #ifndef CONFIG_REALVIEW_EB_ARM11MP_REVB
 		/* board GIC, secondary */
-		gic_dist_init(1, __io_address(REALVIEW_GIC_DIST_BASE), 64);
-		gic_cpu_init(1, __io_address(REALVIEW_GIC_CPU_BASE));
+		gic_dist_init(1, __io_address(REALVIEW_EB_GIC_DIST_BASE), 64);
+		gic_cpu_init(1, __io_address(REALVIEW_EB_GIC_CPU_BASE));
 		gic_cascade_irq(1, IRQ_EB11MP_EB_IRQ1);
 #endif
 	} else {
 		/* board GIC, primary */
-		gic_cpu_base_addr = __io_address(REALVIEW_GIC_CPU_BASE);
-		gic_dist_init(0, __io_address(REALVIEW_GIC_DIST_BASE), 29);
+		gic_cpu_base_addr = __io_address(REALVIEW_EB_GIC_CPU_BASE);
+		gic_dist_init(0, __io_address(REALVIEW_EB_GIC_DIST_BASE), 29);
 		gic_cpu_init(0, gic_cpu_base_addr);
 	}
 }
