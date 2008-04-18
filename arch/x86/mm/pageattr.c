@@ -542,7 +542,7 @@ static int __change_page_attr(struct cpa_data *cpa, int primary)
 repeat:
 	kpte = lookup_address(address, &level);
 	if (!kpte)
-		return primary ? -EINVAL : 0;
+		return 0;
 
 	old_pte = *kpte;
 	if (!pte_val(old_pte)) {
