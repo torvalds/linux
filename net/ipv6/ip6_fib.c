@@ -772,6 +772,10 @@ out:
 		 * If fib6_add_1 has cleared the old leaf pointer in the
 		 * super-tree leaf node we have to find a new one for it.
 		 */
+		if (pn != fn && pn->leaf == rt) {
+			pn->leaf = NULL;
+			atomic_dec(&rt->rt6i_ref);
+		}
 		if (pn != fn && !pn->leaf && !(pn->fn_flags & RTN_RTINFO)) {
 			pn->leaf = fib6_find_prefix(info->nl_net, pn);
 #if RT6_DEBUG >= 2
