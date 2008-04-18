@@ -26,6 +26,10 @@
 /*
  * RealView EB + ARM11MPCore peripheral addresses
  */
+#define REALVIEW_EB_UART0_BASE		0x10009000	/* UART 0 */
+#define REALVIEW_EB_UART1_BASE		0x1000A000	/* UART 1 */
+#define REALVIEW_EB_UART2_BASE		0x1000B000	/* UART 2 */
+#define REALVIEW_EB_UART3_BASE		0x1000C000	/* UART 3 */
 #define REALVIEW_EB_TIMER0_1_BASE	0x10011000	/* Timer 0 and 1 */
 #define REALVIEW_EB_TIMER2_3_BASE	0x10012000	/* Timer 2 and 3 */
 #define REALVIEW_EB_GIC_CPU_BASE	0x10040000	/* Generic interrupt controller CPU interface */

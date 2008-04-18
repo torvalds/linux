@@ -182,10 +182,6 @@
 #define REALVIEW_KMI0_BASE            0x10006000	/* KMI interface */
 #define REALVIEW_KMI1_BASE            0x10007000	/* KMI 2nd interface */
 #define REALVIEW_CHAR_LCD_BASE        0x10008000	/* Character LCD */
-#define REALVIEW_UART0_BASE           0x10009000	/* UART 0 */
-#define REALVIEW_UART1_BASE           0x1000A000	/* UART 1 */
-#define REALVIEW_UART2_BASE           0x1000B000	/* UART 2 */
-#define REALVIEW_UART3_BASE           0x1000C000	/* UART 3 */
 #define REALVIEW_SSP_BASE             0x1000D000	/* Synchronous Serial Port */
 #define REALVIEW_SCI_BASE             0x1000E000	/* Smart card controller */
 	/* Reserved 0x1000F000 */

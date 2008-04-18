@@ -78,8 +78,8 @@ static struct map_desc realview_eb_io_desc[] __initdata = {
 	},
 #ifdef CONFIG_DEBUG_LL
 	{
-		.virtual	= IO_ADDRESS(REALVIEW_UART0_BASE),
-		.pfn		= __phys_to_pfn(REALVIEW_UART0_BASE),
+		.virtual	= IO_ADDRESS(REALVIEW_EB_UART0_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_EB_UART0_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}
@@ -164,14 +164,14 @@ static void __init realview_eb_map_io(void)
  */
 #define SCI_IRQ		{ IRQ_EB_SCI, NO_IRQ }
 #define SCI_DMA		{ 7, 6 }
-#define UART0_IRQ	{ IRQ_EB_UART0, NO_IRQ }
-#define UART0_DMA	{ 15, 14 }
-#define UART1_IRQ	{ IRQ_EB_UART1, NO_IRQ }
-#define UART1_DMA	{ 13, 12 }
-#define UART2_IRQ	{ IRQ_EB_UART2, NO_IRQ }
-#define UART2_DMA	{ 11, 10 }
-#define UART3_IRQ	{ IRQ_EB_UART3, NO_IRQ }
-#define UART3_DMA	{ 0x86, 0x87 }
+#define EB_UART0_IRQ	{ IRQ_EB_UART0, NO_IRQ }
+#define EB_UART0_DMA	{ 15, 14 }
+#define EB_UART1_IRQ	{ IRQ_EB_UART1, NO_IRQ }
+#define EB_UART1_DMA	{ 13, 12 }
+#define EB_UART2_IRQ	{ IRQ_EB_UART2, NO_IRQ }
+#define EB_UART2_DMA	{ 11, 10 }
+#define EB_UART3_IRQ	{ IRQ_EB_UART3, NO_IRQ }
+#define EB_UART3_DMA	{ 0x86, 0x87 }
 #define SSP_IRQ		{ IRQ_EB_SSP, NO_IRQ }
 #define SSP_DMA		{ 9, 8 }
 
@@ -180,7 +180,7 @@ AMBA_DEVICE(aaci,  "fpga:04", AACI,     NULL);
 AMBA_DEVICE(mmc0,  "fpga:05", MMCI0,    &realview_mmc0_plat_data);
 AMBA_DEVICE(kmi0,  "fpga:06", KMI0,     NULL);
 AMBA_DEVICE(kmi1,  "fpga:07", KMI1,     NULL);
-AMBA_DEVICE(uart3, "fpga:09", UART3,    NULL);
+AMBA_DEVICE(uart3, "fpga:09", EB_UART3, NULL);
 
 /* DevChip Primecells */
 AMBA_DEVICE(smc,   "dev:00",  SMC,      NULL);
@@ -193,9 +193,9 @@ AMBA_DEVICE(gpio1, "dev:e5",  GPIO1,    NULL);
 AMBA_DEVICE(gpio2, "dev:e6",  GPIO2,    NULL);
 AMBA_DEVICE(rtc,   "dev:e8",  RTC,      NULL);
 AMBA_DEVICE(sci0,  "dev:f0",  SCI,      NULL);
-AMBA_DEVICE(uart0, "dev:f1",  UART0,    NULL);
-AMBA_DEVICE(uart1, "dev:f2",  UART1,    NULL);
-AMBA_DEVICE(uart2, "dev:f3",  UART2,    NULL);
+AMBA_DEVICE(uart0, "dev:f1",  EB_UART0, NULL);
+AMBA_DEVICE(uart1, "dev:f2",  EB_UART1, NULL);
+AMBA_DEVICE(uart2, "dev:f3",  EB_UART2, NULL);
 AMBA_DEVICE(ssp0,  "dev:f4",  SSP,      NULL);
 
 static struct amba_device *amba_devs[] __initdata = {
@@ -388,8 +388,8 @@ static void __init realview_eb_init(void)
 
 MACHINE_START(REALVIEW_EB, "ARM-RealView EB")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.phys_io	= REALVIEW_UART0_BASE,
-	.io_pg_offst	= (IO_ADDRESS(REALVIEW_UART0_BASE) >> 18) & 0xfffc,
+	.phys_io	= REALVIEW_EB_UART0_BASE,
+	.io_pg_offst	= (IO_ADDRESS(REALVIEW_EB_UART0_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.map_io		= realview_eb_map_io,
 	.init_irq	= gic_init_irq,
