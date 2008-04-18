@@ -331,6 +331,9 @@ struct em28xx {
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
 
+	/* Some older em28xx chips needs a waiting time after writing */
+	unsigned int wait_after_write;
+
 	/* GPIO sequences for tuner callback */
 	struct em28xx_reg_seq *analog_gpio, *digital_gpio;
 

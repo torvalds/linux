@@ -1927,10 +1927,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->em28xx_read_reg_req = em28xx_read_reg_req;
 	dev->is_em2800 = em28xx_boards[dev->model].is_em2800;
 
-	errCode = em28xx_read_reg(dev, CHIPID_REG);
-	if (errCode >= 0)
-		em28xx_info("em28xx chip ID = %d\n", errCode);
-
 	em28xx_pre_card_setup(dev);
 
 	errCode = em28xx_config(dev);

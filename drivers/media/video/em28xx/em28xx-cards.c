@@ -525,6 +525,20 @@ static void em28xx_set_model(struct em28xx *dev)
  */
 void em28xx_pre_card_setup(struct em28xx *dev)
 {
+	int rc;
+
+	dev->wait_after_write = 5;
+	rc = em28xx_read_reg(dev, CHIPID_REG);
+	if (rc > 0) {
+		switch (rc) {
+		case 36:
+			em28xx_info("chip ID is em2882/em2883\n");
+			dev->wait_after_write = 0;
+			break;
+		default:
+			em28xx_info("em28xx chip ID = %d\n", rc);
+		}
+	}
 	em28xx_set_model(dev);
 
 	/* request some modules */
