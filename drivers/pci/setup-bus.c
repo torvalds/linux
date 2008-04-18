@@ -407,8 +407,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask, unsigned long 
 	return 1;
 }
 
-static void __devinit
-pci_bus_size_cardbus(struct pci_bus *bus)
+static void pci_bus_size_cardbus(struct pci_bus *bus)
 {
 	struct pci_dev *bridge = bus->self;
 	struct resource *b_res = &bridge->resource[PCI_BRIDGE_RESOURCES];
