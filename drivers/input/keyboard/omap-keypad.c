@@ -467,6 +467,7 @@ static struct platform_driver omap_kp_driver = {
 	.resume		= omap_kp_resume,
 	.driver		= {
 		.name	= "omap-keypad",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -487,3 +488,4 @@ module_exit(omap_kp_exit);
 MODULE_AUTHOR("Timo Teräs");
 MODULE_DESCRIPTION("OMAP Keypad Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:omap-keypad");

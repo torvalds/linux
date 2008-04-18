@@ -409,6 +409,7 @@ static struct platform_driver tosakbd_driver = {
 	.resume		= tosakbd_resume,
 	.driver		= {
 		.name	= "tosa-keyboard",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -428,3 +429,4 @@ module_exit(tosakbd_exit);
 MODULE_AUTHOR("Dirk Opfer <Dirk@Opfer-Online.de>");
 MODULE_DESCRIPTION("Tosa Keyboard Driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:tosa-keyboard");

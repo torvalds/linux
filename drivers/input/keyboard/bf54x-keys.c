@@ -359,6 +359,7 @@ struct platform_driver bfin_kpad_device_driver = {
 	.remove		= __devexit_p(bfin_kpad_remove),
 	.driver		= {
 		.name	= DRV_NAME,
+		.owner	= THIS_MODULE,
 	}
 };
 
@@ -378,3 +379,4 @@ module_exit(bfin_kpad_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Keypad driver for BF54x Processors");
+MODULE_ALIAS("platform:bf54x-keys");

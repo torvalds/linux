@@ -494,3 +494,4 @@ module_exit(spitzkbd_exit);
 MODULE_AUTHOR("Richard Purdie <rpurdie@rpsys.net>");
 MODULE_DESCRIPTION("Spitz Keyboard Driver");
 MODULE_LICENSE("GPLv2");
+MODULE_ALIAS("platform:spitz-keyboard");

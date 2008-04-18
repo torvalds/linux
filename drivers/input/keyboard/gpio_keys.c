@@ -214,6 +214,7 @@ struct platform_driver gpio_keys_device_driver = {
 	.resume		= gpio_keys_resume,
 	.driver		= {
 		.name	= "gpio-keys",
+		.owner	= THIS_MODULE,
 	}
 };
 
@@ -233,3 +234,4 @@ module_exit(gpio_keys_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Phil Blundell <pb@handhelds.org>");
 MODULE_DESCRIPTION("Keyboard driver for CPU GPIOs");
+MODULE_ALIAS("platform:gpio-keys");
