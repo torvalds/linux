@@ -88,19 +88,35 @@ struct extent_map *btree_get_extent(struct inode *inode, struct page *page,
 		goto out;
 	}
 	em->start = 0;
-	em->len = i_size_read(inode);
+	em->len = (u64)-1;
 	em->block_start = 0;
 	em->bdev = inode->i_sb->s_bdev;
 
 	spin_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em);
 	if (ret == -EEXIST) {
+		u64 failed_start = em->start;
+		u64 failed_len = em->len;
+
+		printk("failed to insert %Lu %Lu -> %Lu into tree\n",
+		       em->start, em->len, em->block_start);
 		free_extent_map(em);
 		em = lookup_extent_mapping(em_tree, start, len);
-		if (em)
+		if (em) {
+			printk("after failing, found %Lu %Lu %Lu\n",
+			       em->start, em->len, em->block_start);
 			ret = 0;
-		else
+		} else {
+			em = lookup_extent_mapping(em_tree, failed_start,
+						   failed_len);
+			if (em) {
+				printk("double failure lookup gives us "
+				       "%Lu %Lu -> %Lu\n", em->start,
+				       em->len, em->block_start);
+				free_extent_map(em);
+			}
 			ret = -EIO;
+		}
 	} else if (ret) {
 		free_extent_map(em);
 		em = NULL;
@@ -1108,7 +1124,13 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;
 	fs_info->btree_inode->i_nlink = 1;
-	fs_info->btree_inode->i_size = sb->s_bdev->bd_inode->i_size;
+
+	/*
+	 * we set the i_size on the btree inode to the max possible int.
+	 * the real end of the address space is determined by all of
+	 * the devices in the system
+	 */
+	fs_info->btree_inode->i_size = OFFSET_MAX;
 	fs_info->btree_inode->i_mapping->a_ops = &btree_aops;
 	fs_info->btree_inode->i_mapping->backing_dev_info = &fs_info->bdi;
 
@@ -1195,9 +1217,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	tree_root->sectorsize = sectorsize;
 	tree_root->stripesize = stripesize;
 	sb_set_blocksize(sb, sectorsize);
-
-	i_size_write(fs_info->btree_inode,
-		     btrfs_super_total_bytes(disk_super));
 
 	if (strncmp((char *)(&disk_super->magic), BTRFS_MAGIC,
 		    sizeof(disk_super->magic))) {
