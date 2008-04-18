@@ -145,6 +145,11 @@ struct rio_dbell {
 	void *dev_id;
 };
 
+enum rio_phy_type {
+	RIO_PHY_PARALLEL,
+	RIO_PHY_SERIAL,
+};
+
 /**
  * struct rio_mport - RIO master port info
  * @dbells: List of doorbell events
@@ -178,6 +183,7 @@ struct rio_mport {
 				 * 0 - Small size. 256 devices.
 				 * 1 - Large size, 65536 devices.
 				 */
+	enum rio_phy_type phy_type;	/* RapidIO phy type */
 	unsigned char name[40];
 	void *priv;		/* Master port private data */
 };
