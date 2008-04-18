@@ -211,7 +211,7 @@ config SLUB_DEBUG_ON
 config SLUB_STATS
 	default n
 	bool "Enable SLUB performance statistics"
-	depends on SLUB
+	depends on SLUB && SLUB_DEBUG && SYSFS
 	help
 	  SLUB statistics are useful to debug SLUBs allocation behavior in
 	  order find ways to optimize the allocator. This should never be
