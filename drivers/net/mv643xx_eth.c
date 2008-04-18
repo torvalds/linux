@@ -2030,6 +2030,7 @@ static struct platform_driver mv643xx_eth_driver = {
 	.shutdown = mv643xx_eth_shutdown,
 	.driver = {
 		.name = MV643XX_ETH_NAME,
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -2038,6 +2039,7 @@ static struct platform_driver mv643xx_eth_shared_driver = {
 	.remove = mv643xx_eth_shared_remove,
 	.driver = {
 		.name = MV643XX_ETH_SHARED_NAME,
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -2085,7 +2087,8 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR(	"Rabeeh Khoury, Assaf Hoffman, Matthew Dharm, Manish Lachwani"
 		" and Dale Farnsworth");
 MODULE_DESCRIPTION("Ethernet driver for Marvell MV643XX");
-MODULE_ALIAS("platform:mv643xx_eth");
+MODULE_ALIAS("platform:" MV643XX_ETH_NAME);
+MODULE_ALIAS("platform:" MV643XX_ETH_SHARED_NAME);
 
 /*
  * The second part is the low level driver of the gigE ethernet ports.

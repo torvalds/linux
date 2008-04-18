@@ -2001,12 +2001,16 @@ static irqreturn_t gfar_error(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:fsl-gianfar");
+
 /* Structure for a device driver */
 static struct platform_driver gfar_driver = {
 	.probe = gfar_probe,
 	.remove = gfar_remove,
 	.driver	= {
 		.name = "fsl-gianfar",
+		.owner = THIS_MODULE,
 	},
 };
 
