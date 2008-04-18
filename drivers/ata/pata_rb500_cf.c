@@ -239,6 +239,9 @@ static __devexit int rb500_pata_driver_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:" DRV_NAME);
+
 static struct platform_driver rb500_pata_platform_driver = {
 	.probe		= rb500_pata_driver_probe,
 	.remove		= __devexit_p(rb500_pata_driver_remove),
