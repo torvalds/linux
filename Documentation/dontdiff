@@ -172,6 +172,7 @@ sm_tbl*
 split-include
 tags
 tftpboot.img
+timeconst.h
 times.h*
 tkparse
 trix_boot.h
