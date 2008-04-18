@@ -839,8 +839,6 @@ typedef struct {
     struct pci_dev      *pdev;
     ulong               dpmem;                  /* DPRAM address */
     ulong               io;                     /* IO address */
-    ulong               io_mm;                  /* IO address mem. mapped */
-    unchar              irq;                    /* IRQ */
 } gdth_pci_str;
 
 

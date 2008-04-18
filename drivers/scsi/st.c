@@ -17,7 +17,7 @@
    Last modified: 18-JAN-1998 Richard Gooch <rgooch@atnf.csiro.au> Devfs support
  */
 
-static const char *verstr = "20080221";
+static const char *verstr = "20080224";
 
 #include <linux/module.h>
 
@@ -183,6 +183,7 @@ static int modes_defined;
 
 static struct st_buffer *new_tape_buffer(int, int, int);
 static int enlarge_buffer(struct st_buffer *, int, int);
+static void clear_buffer(struct st_buffer *);
 static void normalize_buffer(struct st_buffer *);
 static int append_to_buffer(const char __user *, struct st_buffer *, int);
 static int from_buffer(struct st_buffer *, char __user *, int);
@@ -442,6 +443,7 @@ static void st_sleep_done(void *data, char *sense, int result, int resid)
 
 	memcpy(SRpnt->sense, sense, SCSI_SENSE_BUFFERSIZE);
 	(STp->buffer)->cmdstat.midlevel_result = SRpnt->result = result;
+	(STp->buffer)->cmdstat.residual = resid;
 	DEB( STp->write_pending = 0; )
 
 	if (SRpnt->waiting)
@@ -626,7 +628,7 @@ static int cross_eof(struct scsi_tape * STp, int forward)
 
 
 /* Flush the write buffer (never need to write if variable blocksize). */
-static int flush_write_buffer(struct scsi_tape * STp)
+static int st_flush_write_buffer(struct scsi_tape * STp)
 {
 	int offset, transfer, blks;
 	int result;
@@ -717,7 +719,7 @@ static int flush_buffer(struct scsi_tape *STp, int seek_next)
 		return 0;
 	STps = &(STp->ps[STp->partition]);
 	if (STps->rw == ST_WRITING)	/* Writing */
-		return flush_write_buffer(STp);
+		return st_flush_write_buffer(STp);
 
 	if (STp->block_size == 0)
 		return 0;
@@ -1159,6 +1161,7 @@ static int st_open(struct inode *inode, struct file *filp)
 		goto err_out;
 	}
 
+	(STp->buffer)->cleared = 0;
 	(STp->buffer)->writing = 0;
 	(STp->buffer)->syscall_result = 0;
 
@@ -1211,7 +1214,7 @@ static int st_flush(struct file *filp, fl_owner_t id)
 		return 0;
 
 	if (STps->rw == ST_WRITING && !STp->pos_unknown) {
-		result = flush_write_buffer(STp);
+		result = st_flush_write_buffer(STp);
 		if (result != 0 && result != (-ENOSPC))
 			goto out;
 	}
@@ -1432,8 +1435,14 @@ static int setup_buffering(struct scsi_tape *STp, const char __user *buf,
 		if (STp->block_size)
 			bufsize = STp->block_size > st_fixed_buffer_size ?
 				STp->block_size : st_fixed_buffer_size;
-		else
+		else {
 			bufsize = count;
+			/* Make sure that data from previous user is not leaked even if
+			   HBA does not return correct residual */
+			if (is_read && STp->sili && !STbp->cleared)
+				clear_buffer(STbp);
+		}
+
 		if (bufsize > STbp->buffer_size &&
 		    !enlarge_buffer(STbp, bufsize, STp->restr_dma)) {
 			printk(KERN_WARNING "%s: Can't allocate %d byte tape buffer.\n",
@@ -1783,6 +1792,8 @@ static long read_tape(struct scsi_tape *STp, long count,
 	memset(cmd, 0, MAX_COMMAND_SIZE);
 	cmd[0] = READ_6;
 	cmd[1] = (STp->block_size != 0);
+	if (!cmd[1] && STp->sili)
+		cmd[1] |= 2;
 	cmd[2] = blks >> 16;
 	cmd[3] = blks >> 8;
 	cmd[4] = blks;
@@ -1911,8 +1922,11 @@ static long read_tape(struct scsi_tape *STp, long count,
 
 	}
 	/* End of error handling */ 
-	else			/* Read successful */
+	else {			/* Read successful */
 		STbp->buffer_bytes = bytes;
+		if (STp->sili) /* In fixed block mode residual is always zero here */
+			STbp->buffer_bytes -= STp->buffer->cmdstat.residual;
+	}
 
 	if (STps->drv_block >= 0) {
 		if (STp->block_size == 0)
@@ -2090,7 +2104,8 @@ static void st_log_options(struct scsi_tape * STp, struct st_modedef * STm, char
 		       name, STm->defaults_for_writes, STp->omit_blklims, STp->can_partitions,
 		       STp->scsi2_logical);
 		printk(KERN_INFO
-		       "%s:    sysv: %d nowait: %d\n", name, STm->sysv, STp->immediate);
+		       "%s:    sysv: %d nowait: %d sili: %d\n", name, STm->sysv, STp->immediate,
+			STp->sili);
 		printk(KERN_INFO "%s:    debugging: %d\n",
 		       name, debugging);
 	}
@@ -2133,6 +2148,7 @@ static int st_set_options(struct scsi_tape *STp, long options)
 		STp->scsi2_logical = (options & MT_ST_SCSI2LOGICAL) != 0;
 		STp->immediate = (options & MT_ST_NOWAIT) != 0;
 		STm->sysv = (options & MT_ST_SYSV) != 0;
+		STp->sili = (options & MT_ST_SILI) != 0;
 		DEB( debugging = (options & MT_ST_DEBUGGING) != 0;
 		     st_log_options(STp, STm, name); )
 	} else if (code == MT_ST_SETBOOLEANS || code == MT_ST_CLEARBOOLEANS) {
@@ -2164,6 +2180,8 @@ static int st_set_options(struct scsi_tape *STp, long options)
 			STp->immediate = value;
 		if ((options & MT_ST_SYSV) != 0)
 			STm->sysv = value;
+		if ((options & MT_ST_SILI) != 0)
+			STp->sili = value;
                 DEB(
 		if ((options & MT_ST_DEBUGGING) != 0)
 			debugging = value;
@@ -3655,11 +3673,24 @@ static int enlarge_buffer(struct st_buffer * STbuffer, int new_size, int need_dm
 		STbuffer->frp_segs += 1;
 		got += b_size;
 		STbuffer->buffer_size = got;
+		if (STbuffer->cleared)
+			memset(page_address(STbuffer->frp[segs].page), 0, b_size);
 		segs++;
 	}
 	STbuffer->b_data = page_address(STbuffer->frp[0].page);
 
 	return 1;
+}
+
+
+/* Make sure that no data from previous user is in the internal buffer */
+static void clear_buffer(struct st_buffer * st_bp)
+{
+	int i;
+
+	for (i=0; i < st_bp->frp_segs; i++)
+		memset(page_address(st_bp->frp[i].page), 0, st_bp->frp[i].length);
+	st_bp->cleared = 1;
 }
 
 
@@ -3987,6 +4018,7 @@ static int st_probe(struct device *dev)
 	tpnt->two_fm = ST_TWO_FM;
 	tpnt->fast_mteom = ST_FAST_MTEOM;
 	tpnt->scsi2_logical = ST_SCSI2LOGICAL;
+	tpnt->sili = ST_SILI;
 	tpnt->immediate = ST_NOWAIT;
 	tpnt->default_drvbuffer = 0xff;		/* No forced buffering */
 	tpnt->partition = 0;
@@ -4333,6 +4365,46 @@ static ssize_t st_defcompression_show(struct class_device *class_dev, char *buf)
 
 CLASS_DEVICE_ATTR(default_compression, S_IRUGO, st_defcompression_show, NULL);
 
+static ssize_t st_options_show(struct class_device *class_dev, char *buf)
+{
+	struct st_modedef *STm = (struct st_modedef *)class_get_devdata(class_dev);
+	struct scsi_tape *STp;
+	int i, j, options;
+	ssize_t l = 0;
+
+	for (i=0; i < st_dev_max; i++) {
+		for (j=0; j < ST_NBR_MODES; j++)
+			if (&scsi_tapes[i]->modes[j] == STm)
+				break;
+		if (j < ST_NBR_MODES)
+			break;
+	}
+	if (i == st_dev_max)
+		return 0;  /* should never happen */
+
+	STp = scsi_tapes[i];
+
+	options = STm->do_buffer_writes ? MT_ST_BUFFER_WRITES : 0;
+	options |= STm->do_async_writes ? MT_ST_ASYNC_WRITES : 0;
+	options |= STm->do_read_ahead ? MT_ST_READ_AHEAD : 0;
+	DEB( options |= debugging ? MT_ST_DEBUGGING : 0 );
+	options |= STp->two_fm ? MT_ST_TWO_FM : 0;
+	options |= STp->fast_mteom ? MT_ST_FAST_MTEOM : 0;
+	options |= STm->defaults_for_writes ? MT_ST_DEF_WRITES : 0;
+	options |= STp->can_bsr ? MT_ST_CAN_BSR : 0;
+	options |= STp->omit_blklims ? MT_ST_NO_BLKLIMS : 0;
+	options |= STp->can_partitions ? MT_ST_CAN_PARTITIONS : 0;
+	options |= STp->scsi2_logical ? MT_ST_SCSI2LOGICAL : 0;
+	options |= STm->sysv ? MT_ST_SYSV : 0;
+	options |= STp->immediate ? MT_ST_NOWAIT : 0;
+	options |= STp->sili ? MT_ST_SILI : 0;
+
+	l = snprintf(buf, PAGE_SIZE, "0x%08x\n", options);
+	return l;
+}
+
+CLASS_DEVICE_ATTR(options, S_IRUGO, st_options_show, NULL);
+
 static int do_create_class_files(struct scsi_tape *STp, int dev_num, int mode)
 {
 	int i, rew, error;
@@ -4369,6 +4441,9 @@ static int do_create_class_files(struct scsi_tape *STp, int dev_num, int mode)
 		if (error) goto out;
 		error = class_device_create_file(st_class_member,
 				        &class_device_attr_default_compression);
+		if (error) goto out;
+		error = class_device_create_file(st_class_member,
+				        &class_device_attr_options);
 		if (error) goto out;
 
 		if (mode == 0 && rew == 0) {

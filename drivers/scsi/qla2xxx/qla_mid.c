@@ -1,20 +1,8 @@
 /*
- *                  QLOGIC LINUX SOFTWARE
+ * QLogic Fibre Channel HBA Driver
+ * Copyright (c)  2003-2008 QLogic Corporation
  *
- * QLogic ISP2x00 device driver for Linux 2.6.x
- * Copyright (C) 2003-2005 QLogic Corporation
- * (www.qlogic.com)
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
+ * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #include "qla_def.h"
 
@@ -27,8 +15,6 @@
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsicam.h>
 #include <linux/delay.h>
-
-void qla2x00_vp_stop_timer(scsi_qla_host_t *);
 
 void
 qla2x00_vp_stop_timer(scsi_qla_host_t *vha)
@@ -268,9 +254,17 @@ qla2x00_vp_abort_isp(scsi_qla_host_t *vha)
 static int
 qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 {
+	scsi_qla_host_t *ha = vha->parent;
+
 	if (test_and_clear_bit(VP_IDX_ACQUIRED, &vha->vp_flags)) {
 		/* VP acquired. complete port configuration */
-		qla24xx_configure_vp(vha);
+		if (atomic_read(&ha->loop_state) == LOOP_READY) {
+			qla24xx_configure_vp(vha);
+		} else {
+			set_bit(VP_IDX_ACQUIRED, &vha->vp_flags);
+			set_bit(VP_DPC_NEEDED, &ha->dpc_flags);
+		}
+
 		return 0;
 	}
 

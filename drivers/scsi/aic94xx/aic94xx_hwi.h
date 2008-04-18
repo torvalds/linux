@@ -391,8 +391,6 @@ void asd_build_control_phy(struct asd_ascb *ascb, int phy_id, u8 subfunc);
 void asd_control_led(struct asd_ha_struct *asd_ha, int phy_id, int op);
 void asd_turn_led(struct asd_ha_struct *asd_ha, int phy_id, int op);
 int  asd_enable_phys(struct asd_ha_struct *asd_ha, const u8 phy_mask);
-void asd_build_initiate_link_adm_task(struct asd_ascb *ascb, int phy_id,
-				      u8 subfunc);
 
 void asd_ascb_timedout(unsigned long data);
 int  asd_chip_hardrst(struct asd_ha_struct *asd_ha);

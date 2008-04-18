@@ -58,10 +58,6 @@ struct sequencer_file_header {
 } __attribute__((packed));
 
 #ifdef __KERNEL__
-int asd_pause_cseq(struct asd_ha_struct *asd_ha);
-int asd_unpause_cseq(struct asd_ha_struct *asd_ha);
-int asd_pause_lseq(struct asd_ha_struct *asd_ha, u8 lseq_mask);
-int asd_unpause_lseq(struct asd_ha_struct *asd_ha, u8 lseq_mask);
 int asd_init_seqs(struct asd_ha_struct *asd_ha);
 int asd_start_seqs(struct asd_ha_struct *asd_ha);
 int asd_release_firmware(void);

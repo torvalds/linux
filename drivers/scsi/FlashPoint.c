@@ -16,7 +16,7 @@
 */
 
 
-#ifndef CONFIG_SCSI_OMIT_FLASHPOINT
+#ifdef CONFIG_SCSI_FLASHPOINT
 
 #define MAX_CARDS	8
 #undef BUSTYPE_PCI
@@ -7626,7 +7626,7 @@ FlashPoint__HandleInterrupt(FlashPoint_CardHandle_T CardHandle)
 #define FlashPoint_InterruptPending	    FlashPoint__InterruptPending
 #define FlashPoint_HandleInterrupt	    FlashPoint__HandleInterrupt
 
-#else				/* CONFIG_SCSI_OMIT_FLASHPOINT */
+#else				/* !CONFIG_SCSI_FLASHPOINT */
 
 /*
   Define prototypes for the FlashPoint SCCB Manager Functions.
@@ -7641,4 +7641,4 @@ extern bool FlashPoint_InterruptPending(FlashPoint_CardHandle_T);
 extern int FlashPoint_HandleInterrupt(FlashPoint_CardHandle_T);
 extern void FlashPoint_ReleaseHostAdapter(FlashPoint_CardHandle_T);
 
-#endif				/* CONFIG_SCSI_OMIT_FLASHPOINT */
+#endif				/* CONFIG_SCSI_FLASHPOINT */

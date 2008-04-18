@@ -691,7 +691,7 @@ static int sas_discover_sata_dev(struct domain_device *dev)
 		/* incomplete response */
 		SAS_DPRINTK("sending SET FEATURE/PUP_STBY_SPIN_UP to "
 			    "dev %llx\n", SAS_ADDR(dev->sas_addr));
-		if (!le16_to_cpu(identify_x[83] & (1<<6)))
+		if (!(identify_x[83] & cpu_to_le16(1<<6)))
 			goto cont1;
 		res = sas_issue_ata_cmd(dev, ATA_SET_FEATURES,
 					ATA_FEATURE_PUP_STBY_SPIN_UP,

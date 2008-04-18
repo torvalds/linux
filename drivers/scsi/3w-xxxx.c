@@ -1463,18 +1463,10 @@ static void tw_transfer_internal(TW_Device_Extension *tw_dev, int request_id,
 				 void *data, unsigned int len)
 {
 	struct scsi_cmnd *cmd = tw_dev->srb[request_id];
-	void *buf;
-	unsigned int transfer_len;
-	unsigned long flags = 0;
-	struct scatterlist *sg = scsi_sglist(cmd);
+	unsigned long flags;
 
 	local_irq_save(flags);
-	buf = kmap_atomic(sg_page(sg), KM_IRQ0) + sg->offset;
-	transfer_len = min(sg->length, len);
-
-	memcpy(buf, data, transfer_len);
-
-	kunmap_atomic(buf - sg->offset, KM_IRQ0);
+	scsi_sg_copy_from_buffer(cmd, data, len);
 	local_irq_restore(flags);
 }
 
@@ -2293,8 +2285,6 @@ static int __devinit tw_probe(struct pci_dev *pdev, const struct pci_device_id *
 		goto out_disable_device;
 	}
 	tw_dev = (TW_Device_Extension *)host->hostdata;
-
-	memset(tw_dev, 0, sizeof(TW_Device_Extension));
 
 	/* Save values to device extension */
 	tw_dev->host = host;
