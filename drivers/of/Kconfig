@@ -9,7 +9,7 @@ config OF_GPIO
 	  OpenFirmware GPIO accessors
 
 config OF_I2C
-	def_bool y
-	depends on OF && I2C
+	def_tristate I2C
+	depends on PPC_OF && I2C
 	help
 	  OpenFirmware I2C accessors
