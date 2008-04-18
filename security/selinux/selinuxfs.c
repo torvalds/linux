@@ -42,7 +42,8 @@
 
 /* Policy capability filenames */
 static char *policycap_names[] = {
-	"network_peer_controls"
+	"network_peer_controls",
+	"open_perms"
 };
 
 unsigned int selinux_checkreqprot = CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE;
@@ -391,7 +392,7 @@ static ssize_t sel_write_context(struct file * file, char *buf, size_t size)
 
 	if (len > SIMPLE_TRANSACTION_LIMIT) {
 		printk(KERN_ERR "%s:  context size (%u) exceeds payload "
-		       "max\n", __FUNCTION__, len);
+		       "max\n", __func__, len);
 		length = -ERANGE;
 		goto out;
 	}
@@ -644,7 +645,7 @@ static ssize_t sel_write_create(struct file * file, char *buf, size_t size)
 
 	if (len > SIMPLE_TRANSACTION_LIMIT) {
 		printk(KERN_ERR "%s:  context size (%u) exceeds payload "
-		       "max\n", __FUNCTION__, len);
+		       "max\n", __func__, len);
 		length = -ERANGE;
 		goto out3;
 	}
@@ -821,7 +822,7 @@ static ssize_t sel_write_member(struct file * file, char *buf, size_t size)
 
 	if (len > SIMPLE_TRANSACTION_LIMIT) {
 		printk(KERN_ERR "%s:  context size (%u) exceeds payload "
-		       "max\n", __FUNCTION__, len);
+		       "max\n", __func__, len);
 		length = -ERANGE;
 		goto out3;
 	}
@@ -1760,7 +1761,7 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 out:
 	return ret;
 err:
-	printk(KERN_ERR "%s:  failed while creating inodes\n", __FUNCTION__);
+	printk(KERN_ERR "%s:  failed while creating inodes\n", __func__);
 	goto out;
 }
 

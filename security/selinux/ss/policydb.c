@@ -111,6 +111,11 @@ static struct policydb_compat_info policydb_compat[] = {
 		.version	= POLICYDB_VERSION_POLCAP,
 		.sym_num	= SYM_NUM,
 		.ocon_num	= OCON_NUM,
+	},
+	{
+		.version	= POLICYDB_VERSION_PERMISSIVE,
+		.sym_num	= SYM_NUM,
+		.ocon_num	= OCON_NUM,
 	}
 };
 
@@ -194,6 +199,7 @@ static int policydb_init(struct policydb *p)
 		goto out_free_symtab;
 
 	ebitmap_init(&p->policycaps);
+	ebitmap_init(&p->permissive_map);
 
 out:
 	return rc;
@@ -401,14 +407,14 @@ static int policydb_index_others(struct policydb *p)
 {
 	int i, rc = 0;
 
-	printk(KERN_DEBUG "security:  %d users, %d roles, %d types, %d bools",
+	printk(KERN_DEBUG "SELinux:  %d users, %d roles, %d types, %d bools",
 	       p->p_users.nprim, p->p_roles.nprim, p->p_types.nprim, p->p_bools.nprim);
 	if (selinux_mls_enabled)
 		printk(", %d sens, %d cats", p->p_levels.nprim,
 		       p->p_cats.nprim);
 	printk("\n");
 
-	printk(KERN_DEBUG "security:  %d classes, %d rules\n",
+	printk(KERN_DEBUG "SELinux:  %d classes, %d rules\n",
 	       p->p_classes.nprim, p->te_avtab.nel);
 
 #ifdef DEBUG_HASHES
@@ -687,6 +693,7 @@ void policydb_destroy(struct policydb *p)
 	kfree(p->type_attr_map);
 	kfree(p->undefined_perms);
 	ebitmap_destroy(&p->policycaps);
+	ebitmap_destroy(&p->permissive_map);
 
 	return;
 }
@@ -702,20 +709,20 @@ int policydb_load_isids(struct policydb *p, struct sidtab *s)
 
 	rc = sidtab_init(s);
 	if (rc) {
-		printk(KERN_ERR "security:  out of memory on SID table init\n");
+		printk(KERN_ERR "SELinux:  out of memory on SID table init\n");
 		goto out;
 	}
 
 	head = p->ocontexts[OCON_ISID];
 	for (c = head; c; c = c->next) {
 		if (!c->context[0].user) {
-			printk(KERN_ERR "security:  SID %s was never "
+			printk(KERN_ERR "SELinux:  SID %s was never "
 			       "defined.\n", c->u.name);
 			rc = -EINVAL;
 			goto out;
 		}
 		if (sidtab_insert(s, c->sid[0], &c->context[0])) {
-			printk(KERN_ERR "security:  unable to load initial "
+			printk(KERN_ERR "SELinux:  unable to load initial "
 			       "SID %s.\n", c->u.name);
 			rc = -EINVAL;
 			goto out;
@@ -809,13 +816,13 @@ static int mls_read_range_helper(struct mls_range *r, void *fp)
 
 	items = le32_to_cpu(buf[0]);
 	if (items > ARRAY_SIZE(buf)) {
-		printk(KERN_ERR "security: mls:  range overflow\n");
+		printk(KERN_ERR "SELinux: mls:  range overflow\n");
 		rc = -EINVAL;
 		goto out;
 	}
 	rc = next_entry(buf, fp, sizeof(u32) * items);
 	if (rc < 0) {
-		printk(KERN_ERR "security: mls:  truncated range\n");
+		printk(KERN_ERR "SELinux: mls:  truncated range\n");
 		goto out;
 	}
 	r->level[0].sens = le32_to_cpu(buf[0]);
@@ -826,21 +833,21 @@ static int mls_read_range_helper(struct mls_range *r, void *fp)
 
 	rc = ebitmap_read(&r->level[0].cat, fp);
 	if (rc) {
-		printk(KERN_ERR "security: mls:  error reading low "
+		printk(KERN_ERR "SELinux: mls:  error reading low "
 		       "categories\n");
 		goto out;
 	}
 	if (items > 1) {
 		rc = ebitmap_read(&r->level[1].cat, fp);
 		if (rc) {
-			printk(KERN_ERR "security: mls:  error reading high "
+			printk(KERN_ERR "SELinux: mls:  error reading high "
 			       "categories\n");
 			goto bad_high;
 		}
 	} else {
 		rc = ebitmap_cpy(&r->level[1].cat, &r->level[0].cat);
 		if (rc) {
-			printk(KERN_ERR "security: mls:  out of memory\n");
+			printk(KERN_ERR "SELinux: mls:  out of memory\n");
 			goto bad_high;
 		}
 	}
@@ -866,7 +873,7 @@ static int context_read_and_validate(struct context *c,
 
 	rc = next_entry(buf, fp, sizeof buf);
 	if (rc < 0) {
-		printk(KERN_ERR "security: context truncated\n");
+		printk(KERN_ERR "SELinux: context truncated\n");
 		goto out;
 	}
 	c->user = le32_to_cpu(buf[0]);
@@ -874,7 +881,7 @@ static int context_read_and_validate(struct context *c,
 	c->type = le32_to_cpu(buf[2]);
 	if (p->policyvers >= POLICYDB_VERSION_MLS) {
 		if (mls_read_range_helper(&c->range, fp)) {
-			printk(KERN_ERR "security: error reading MLS range of "
+			printk(KERN_ERR "SELinux: error reading MLS range of "
 			       "context\n");
 			rc = -EINVAL;
 			goto out;
@@ -882,7 +889,7 @@ static int context_read_and_validate(struct context *c,
 	}
 
 	if (!policydb_context_isvalid(p, c)) {
-		printk(KERN_ERR "security:  invalid security context\n");
+		printk(KERN_ERR "SELinux:  invalid security context\n");
 		context_destroy(c);
 		rc = -EINVAL;
 	}
@@ -1128,7 +1135,7 @@ static int class_read(struct policydb *p, struct hashtab *h, void *fp)
 		cladatum->comdatum = hashtab_search(p->p_commons.table,
 						    cladatum->comkey);
 		if (!cladatum->comdatum) {
-			printk(KERN_ERR "security:  unknown common %s\n",
+			printk(KERN_ERR "SELinux:  unknown common %s\n",
 			       cladatum->comkey);
 			rc = -EINVAL;
 			goto bad;
@@ -1283,13 +1290,13 @@ static int mls_read_level(struct mls_level *lp, void *fp)
 
 	rc = next_entry(buf, fp, sizeof buf);
 	if (rc < 0) {
-		printk(KERN_ERR "security: mls: truncated level\n");
+		printk(KERN_ERR "SELinux: mls: truncated level\n");
 		goto bad;
 	}
 	lp->sens = le32_to_cpu(buf[0]);
 
 	if (ebitmap_read(&lp->cat, fp)) {
-		printk(KERN_ERR "security: mls:  error reading level "
+		printk(KERN_ERR "SELinux: mls:  error reading level "
 		       "categories\n");
 		goto bad;
 	}
@@ -1491,7 +1498,7 @@ int policydb_read(struct policydb *p, void *fp)
 		goto bad;
 
 	if (le32_to_cpu(buf[0]) != POLICYDB_MAGIC) {
-		printk(KERN_ERR "security:  policydb magic number 0x%x does "
+		printk(KERN_ERR "SELinux:  policydb magic number 0x%x does "
 		       "not match expected magic number 0x%x\n",
 		       le32_to_cpu(buf[0]), POLICYDB_MAGIC);
 		goto bad;
@@ -1499,27 +1506,27 @@ int policydb_read(struct policydb *p, void *fp)
 
 	len = le32_to_cpu(buf[1]);
 	if (len != strlen(POLICYDB_STRING)) {
-		printk(KERN_ERR "security:  policydb string length %d does not "
+		printk(KERN_ERR "SELinux:  policydb string length %d does not "
 		       "match expected length %Zu\n",
 		       len, strlen(POLICYDB_STRING));
 		goto bad;
 	}
 	policydb_str = kmalloc(len + 1,GFP_KERNEL);
 	if (!policydb_str) {
-		printk(KERN_ERR "security:  unable to allocate memory for policydb "
+		printk(KERN_ERR "SELinux:  unable to allocate memory for policydb "
 		       "string of length %d\n", len);
 		rc = -ENOMEM;
 		goto bad;
 	}
 	rc = next_entry(policydb_str, fp, len);
 	if (rc < 0) {
-		printk(KERN_ERR "security:  truncated policydb string identifier\n");
+		printk(KERN_ERR "SELinux:  truncated policydb string identifier\n");
 		kfree(policydb_str);
 		goto bad;
 	}
 	policydb_str[len] = 0;
 	if (strcmp(policydb_str, POLICYDB_STRING)) {
-		printk(KERN_ERR "security:  policydb string %s does not match "
+		printk(KERN_ERR "SELinux:  policydb string %s does not match "
 		       "my string %s\n", policydb_str, POLICYDB_STRING);
 		kfree(policydb_str);
 		goto bad;
@@ -1536,7 +1543,7 @@ int policydb_read(struct policydb *p, void *fp)
 	p->policyvers = le32_to_cpu(buf[0]);
 	if (p->policyvers < POLICYDB_VERSION_MIN ||
 	    p->policyvers > POLICYDB_VERSION_MAX) {
-	    	printk(KERN_ERR "security:  policydb version %d does not match "
+		printk(KERN_ERR "SELinux:  policydb version %d does not match "
 	    	       "my version range %d-%d\n",
 	    	       le32_to_cpu(buf[0]), POLICYDB_VERSION_MIN, POLICYDB_VERSION_MAX);
 	    	goto bad;
@@ -1570,16 +1577,20 @@ int policydb_read(struct policydb *p, void *fp)
 	    ebitmap_read(&p->policycaps, fp) != 0)
 		goto bad;
 
+	if (p->policyvers >= POLICYDB_VERSION_PERMISSIVE &&
+	    ebitmap_read(&p->permissive_map, fp) != 0)
+		goto bad;
+
 	info = policydb_lookup_compat(p->policyvers);
 	if (!info) {
-		printk(KERN_ERR "security:  unable to find policy compat info "
+		printk(KERN_ERR "SELinux:  unable to find policy compat info "
 		       "for version %d\n", p->policyvers);
 		goto bad;
 	}
 
 	if (le32_to_cpu(buf[2]) != info->sym_num ||
 		le32_to_cpu(buf[3]) != info->ocon_num) {
-		printk(KERN_ERR "security:  policydb table sizes (%d,%d) do "
+		printk(KERN_ERR "SELinux:  policydb table sizes (%d,%d) do "
 		       "not match mine (%d,%d)\n", le32_to_cpu(buf[2]),
 			le32_to_cpu(buf[3]),
 		       info->sym_num, info->ocon_num);
@@ -1823,7 +1834,7 @@ int policydb_read(struct policydb *p, void *fp)
 		for (genfs_p = NULL, genfs = p->genfs; genfs;
 		     genfs_p = genfs, genfs = genfs->next) {
 			if (strcmp(newgenfs->fstype, genfs->fstype) == 0) {
-				printk(KERN_ERR "security:  dup genfs "
+				printk(KERN_ERR "SELinux:  dup genfs "
 				       "fstype %s\n", newgenfs->fstype);
 				kfree(newgenfs->fstype);
 				kfree(newgenfs);
@@ -1873,7 +1884,7 @@ int policydb_read(struct policydb *p, void *fp)
 				if (!strcmp(newc->u.name, c->u.name) &&
 				    (!c->v.sclass || !newc->v.sclass ||
 				     newc->v.sclass == c->v.sclass)) {
-					printk(KERN_ERR "security:  dup genfs "
+					printk(KERN_ERR "SELinux:  dup genfs "
 					       "entry (%s,%s)\n",
 					       newgenfs->fstype, c->u.name);
 					goto bad_newc;
@@ -1931,7 +1942,7 @@ int policydb_read(struct policydb *p, void *fp)
 			if (rc)
 				goto bad;
 			if (!mls_range_isvalid(p, &rt->target_range)) {
-				printk(KERN_WARNING "security:  rangetrans:  invalid range\n");
+				printk(KERN_WARNING "SELinux:  rangetrans:  invalid range\n");
 				goto bad;
 			}
 			lrt = rt;

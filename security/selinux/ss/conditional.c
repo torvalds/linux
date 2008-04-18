@@ -96,7 +96,7 @@ int evaluate_cond_node(struct policydb *p, struct cond_node *node)
 	if (new_state != node->cur_state) {
 		node->cur_state = new_state;
 		if (new_state == -1)
-			printk(KERN_ERR "security: expression result was undefined - disabling all rules.\n");
+			printk(KERN_ERR "SELinux: expression result was undefined - disabling all rules.\n");
 		/* turn the rules on or off */
 		for (cur = node->true_list; cur != NULL; cur = cur->next) {
 			if (new_state <= 0) {
@@ -276,7 +276,7 @@ static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum
 	 */
 	if (k->specified & AVTAB_TYPE) {
 		if (avtab_search(&p->te_avtab, k)) {
-			printk("security: type rule already exists outside of a conditional.");
+			printk("SELinux: type rule already exists outside of a conditional.");
 			goto err;
 		}
 		/*
@@ -291,7 +291,7 @@ static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum
 			node_ptr = avtab_search_node(&p->te_cond_avtab, k);
 			if (node_ptr) {
 				if (avtab_search_node_next(node_ptr, k->specified)) {
-					printk("security: too many conflicting type rules.");
+					printk("SELinux: too many conflicting type rules.");
 					goto err;
 				}
 				found = 0;
@@ -302,13 +302,13 @@ static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum
 					}
 				}
 				if (!found) {
-					printk("security: conflicting type rules.\n");
+					printk("SELinux: conflicting type rules.\n");
 					goto err;
 				}
 			}
 		} else {
 			if (avtab_search(&p->te_cond_avtab, k)) {
-				printk("security: conflicting type rules when adding type rule for true.\n");
+				printk("SELinux: conflicting type rules when adding type rule for true.\n");
 				goto err;
 			}
 		}
@@ -316,7 +316,7 @@ static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum
 
 	node_ptr = avtab_insert_nonunique(&p->te_cond_avtab, k, d);
 	if (!node_ptr) {
-		printk("security: could not insert rule.");
+		printk("SELinux: could not insert rule.");
 		goto err;
 	}
 
@@ -376,12 +376,12 @@ static int cond_read_av_list(struct policydb *p, void *fp, struct cond_av_list *
 static int expr_isvalid(struct policydb *p, struct cond_expr *expr)
 {
 	if (expr->expr_type <= 0 || expr->expr_type > COND_LAST) {
-		printk("security: conditional expressions uses unknown operator.\n");
+		printk("SELinux: conditional expressions uses unknown operator.\n");
 		return 0;
 	}
 
 	if (expr->bool > p->p_bools.nprim) {
-		printk("security: conditional expressions uses unknown bool.\n");
+		printk("SELinux: conditional expressions uses unknown bool.\n");
 		return 0;
 	}
 	return 1;
