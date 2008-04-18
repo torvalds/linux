@@ -181,6 +181,10 @@ static int ns87415_ide_dma_setup(ide_drive_t *drive)
 	return 1;
 }
 
+#ifndef ide_default_irq
+#define ide_default_irq(irq) 0
+#endif
+
 static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);

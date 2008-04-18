@@ -763,11 +763,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: <io>[,<membase>[,<icn_id>[,<icn_id2>]]]
 
 	ide=		[HW] (E)IDE subsystem
-			Format: ide=nodma or ide=doubler or ide=reverse
+			Format: ide=nodma or ide=doubler
 			See Documentation/ide/ide.txt.
 
 	ide?=		[HW] (E)IDE subsystem
-			Format: ide?=noprobe or chipset specific parameters.
+			Format: ide?=ata66 or chipset specific parameters.
 			See Documentation/ide/ide.txt.
 
 	idebus=		[HW] (E)IDE subsystem - VLB/PCI bus speed

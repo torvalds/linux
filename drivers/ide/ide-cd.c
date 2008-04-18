@@ -542,7 +542,8 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
 
 		/* packet command */
 		spin_lock_irqsave(&ide_lock, flags);
-		hwif->OUTBSYNC(drive, WIN_PACKETCMD, IDE_COMMAND_REG);
+		hwif->OUTBSYNC(drive, WIN_PACKETCMD,
+			       hwif->io_ports[IDE_COMMAND_OFFSET]);
 		ndelay(400);
 		spin_unlock_irqrestore(&ide_lock, flags);
 
@@ -992,6 +993,7 @@ static int cdrom_newpc_intr_dummy_cb(struct request *rq)
 
 static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	struct cdrom_info *info = drive->driver_data;
 	struct request *rq = HWGROUP(drive)->rq;
 	xfer_func_t *xferfunc;
@@ -1032,9 +1034,9 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	/*
 	 * ok we fall to pio :/
 	 */
-	ireason = HWIF(drive)->INB(IDE_IREASON_REG) & 0x3;
-	lowcyl  = HWIF(drive)->INB(IDE_BCOUNTL_REG);
-	highcyl = HWIF(drive)->INB(IDE_BCOUNTH_REG);
+	ireason = hwif->INB(hwif->io_ports[IDE_IREASON_OFFSET]) & 0x3;
+	lowcyl  = hwif->INB(hwif->io_ports[IDE_BCOUNTL_OFFSET]);
+	highcyl = hwif->INB(hwif->io_ports[IDE_BCOUNTH_OFFSET]);
 
 	len = lowcyl + (256 * highcyl);
 

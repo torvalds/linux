@@ -24,8 +24,6 @@
 # endif
 #endif
 
-#define ide_default_io_ctl(base)	((base) + 0x206) /* obsolete */
-
 #define __ide_insl(data_reg, buffer, wcount) \
 	__ide_insw(data_reg, buffer, (wcount)<<1)
 #define __ide_outsl(data_reg, buffer, wcount) \
