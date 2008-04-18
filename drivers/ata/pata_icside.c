@@ -250,7 +250,7 @@ static void pata_icside_bmdma_setup(struct ata_queued_cmd *qc)
 	set_dma_mode(state->dma, write ? DMA_MODE_WRITE : DMA_MODE_READ);
 
 	/* issue r/w command */
-	ap->ops->exec_command(ap, &qc->tf);
+	ap->ops->sff_exec_command(ap, &qc->tf);
 }
 
 static void pata_icside_bmdma_start(struct ata_queued_cmd *qc)
@@ -270,7 +270,7 @@ static void pata_icside_bmdma_stop(struct ata_queued_cmd *qc)
 	disable_dma(state->dma);
 
 	/* see ata_bmdma_stop */
-	ata_altstatus(ap);
+	ata_sff_altstatus(ap);
 }
 
 static u8 pata_icside_bmdma_status(struct ata_port *ap)
@@ -305,27 +305,10 @@ static int icside_dma_init(struct pata_icside_info *info)
 
 
 static struct scsi_host_template pata_icside_sht = {
-	.module			= THIS_MODULE,
-	.name			= DRV_NAME,
-	.ioctl			= ata_scsi_ioctl,
-	.queuecommand		= ata_scsi_queuecmd,
-	.can_queue		= ATA_DEF_QUEUE,
-	.this_id		= ATA_SHT_THIS_ID,
+	ATA_BASE_SHT(DRV_NAME),
 	.sg_tablesize		= PATA_ICSIDE_MAX_SG,
-	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
-	.emulated		= ATA_SHT_EMULATED,
-	.use_clustering		= ATA_SHT_USE_CLUSTERING,
-	.proc_name		= DRV_NAME,
 	.dma_boundary		= ~0, /* no dma boundaries */
-	.slave_configure	= ata_scsi_slave_config,
-	.slave_destroy		= ata_scsi_slave_destroy,
-	.bios_param		= ata_std_bios_param,
 };
-
-/* wish this was exported from libata-core */
-static void ata_dummy_noret(struct ata_port *port)
-{
-}
 
 static void pata_icside_postreset(struct ata_link *link, unsigned int *classes)
 {
@@ -333,7 +316,7 @@ static void pata_icside_postreset(struct ata_link *link, unsigned int *classes)
 	struct pata_icside_state *state = ap->host->private_data;
 
 	if (classes[0] != ATA_DEV_NONE || classes[1] != ATA_DEV_NONE)
-		return ata_std_postreset(link, classes);
+		return ata_sff_postreset(link, classes);
 
 	state->port[ap->port_no].disabled = 1;
 
@@ -349,42 +332,20 @@ static void pata_icside_postreset(struct ata_link *link, unsigned int *classes)
 	}
 }
 
-static void pata_icside_error_handler(struct ata_port *ap)
-{
-	ata_bmdma_drive_eh(ap, ata_std_prereset, ata_std_softreset, NULL,
-			   pata_icside_postreset);
-}
-
 static struct ata_port_operations pata_icside_port_ops = {
-	.set_dmamode		= pata_icside_set_dmamode,
-
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.exec_command		= ata_exec_command,
-	.check_status		= ata_check_status,
-	.dev_select		= ata_std_dev_select,
-
-	.cable_detect		= ata_cable_40wire,
-
-	.bmdma_setup		= pata_icside_bmdma_setup,
-	.bmdma_start		= pata_icside_bmdma_start,
-
-	.data_xfer		= ata_data_xfer_noirq,
-
+	.inherits		= &ata_sff_port_ops,
 	/* no need to build any PRD tables for DMA */
 	.qc_prep		= ata_noop_qc_prep,
-	.qc_issue		= ata_qc_issue_prot,
-
-	.freeze			= ata_bmdma_freeze,
-	.thaw			= ata_bmdma_thaw,
-	.error_handler		= pata_icside_error_handler,
-	.post_internal_cmd	= pata_icside_bmdma_stop,
-
-	.irq_clear		= ata_dummy_noret,
-	.irq_on			= ata_irq_on,
-
+	.sff_data_xfer		= ata_sff_data_xfer_noirq,
+	.bmdma_setup		= pata_icside_bmdma_setup,
+	.bmdma_start		= pata_icside_bmdma_start,
 	.bmdma_stop		= pata_icside_bmdma_stop,
 	.bmdma_status		= pata_icside_bmdma_status,
+
+	.cable_detect		= ata_cable_40wire,
+	.set_dmamode		= pata_icside_set_dmamode,
+	.postreset		= pata_icside_postreset,
+	.post_internal_cmd	= pata_icside_bmdma_stop,
 };
 
 static void __devinit
@@ -520,7 +481,7 @@ static int __devinit pata_icside_add_ports(struct pata_icside_info *info)
 		pata_icside_setup_ioaddr(ap, info->base, info, info->port[i]);
 	}
 
-	return ata_host_activate(host, ec->irq, ata_interrupt, 0,
+	return ata_host_activate(host, ec->irq, ata_sff_interrupt, 0,
 				 &pata_icside_sht);
 }
 

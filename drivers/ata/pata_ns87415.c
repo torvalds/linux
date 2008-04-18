@@ -138,7 +138,7 @@ static void ns87415_bmdma_setup(struct ata_queued_cmd *qc)
 		dmactl |= ATA_DMA_WR;
 	iowrite8(dmactl, ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
 	/* issue r/w command */
-	ap->ops->exec_command(ap, &qc->tf);
+	ap->ops->sff_exec_command(ap, &qc->tf);
 }
 
 /**
@@ -172,14 +172,14 @@ static void ns87415_bmdma_stop(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ns87415_bmdma_irq_clear		-	Clear interrupt
+ *	ns87415_irq_clear		-	Clear interrupt
  *	@ap: Channel to clear
  *
  *	Erratum: Due to a chip bug regisers 02 and 0A bit 1 and 2 (the
  *	error bits) are reset by writing to register 00 or 08.
  */
 
-static void ns87415_bmdma_irq_clear(struct ata_port *ap)
+static void ns87415_irq_clear(struct ata_port *ap)
 {
 	void __iomem *mmio = ap->ioaddr.bmdma_addr;
 
@@ -297,90 +297,32 @@ static u8 ns87560_bmdma_status(struct ata_port *ap)
 {
 	return ns87560_read_buggy(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
 }
-
-static const struct ata_port_operations ns87560_pata_ops = {
-	.set_piomode		= ns87415_set_piomode,
-	.mode_filter		= ata_pci_default_filter,
-
-	.tf_load		= ata_tf_load,
-	.tf_read		= ns87560_tf_read,
-	.check_status		= ns87560_check_status,
-	.check_atapi_dma	= ns87415_check_atapi_dma,
-	.exec_command		= ata_exec_command,
-	.dev_select		= ata_std_dev_select,
-
-	.freeze			= ata_bmdma_freeze,
-	.thaw			= ata_bmdma_thaw,
-	.error_handler		= ata_bmdma_error_handler,
-	.post_internal_cmd 	= ata_bmdma_post_internal_cmd,
-	.cable_detect		= ata_cable_40wire,
-
-	.bmdma_setup		= ns87415_bmdma_setup,
-	.bmdma_start		= ns87415_bmdma_start,
-	.bmdma_stop		= ns87415_bmdma_stop,
-	.bmdma_status		= ns87560_bmdma_status,
-	.qc_prep		= ata_qc_prep,
-	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_data_xfer,
-
-	.irq_handler		= ata_interrupt,
-	.irq_clear		= ns87415_bmdma_irq_clear,
-	.irq_on			= ata_irq_on,
-
-	.port_start		= ata_sff_port_start,
-};
-
 #endif		/* 87560 SuperIO Support */
 
+static struct ata_port_operations ns87415_pata_ops = {
+	.inherits		= &ata_bmdma_port_ops,
 
-static const struct ata_port_operations ns87415_pata_ops = {
-	.set_piomode		= ns87415_set_piomode,
-	.mode_filter		= ata_pci_default_filter,
-
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.check_status		= ata_check_status,
 	.check_atapi_dma	= ns87415_check_atapi_dma,
-	.exec_command		= ata_exec_command,
-	.dev_select		= ata_std_dev_select,
-
-	.freeze			= ata_bmdma_freeze,
-	.thaw			= ata_bmdma_thaw,
-	.error_handler		= ata_bmdma_error_handler,
-	.post_internal_cmd 	= ata_bmdma_post_internal_cmd,
-	.cable_detect		= ata_cable_40wire,
-
 	.bmdma_setup		= ns87415_bmdma_setup,
 	.bmdma_start		= ns87415_bmdma_start,
 	.bmdma_stop		= ns87415_bmdma_stop,
-	.bmdma_status		= ata_bmdma_status,
-	.qc_prep		= ata_qc_prep,
-	.qc_issue		= ata_qc_issue_prot,
-	.data_xfer		= ata_data_xfer,
+	.sff_irq_clear		= ns87415_irq_clear,
 
-	.irq_handler		= ata_interrupt,
-	.irq_clear		= ns87415_bmdma_irq_clear,
-	.irq_on			= ata_irq_on,
-
-	.port_start		= ata_sff_port_start,
+	.cable_detect		= ata_cable_40wire,
+	.set_piomode		= ns87415_set_piomode,
 };
 
+#if defined(CONFIG_SUPERIO)
+static struct ata_port_operations ns87560_pata_ops = {
+	.inherits		= &ns87415_pata_ops,
+	.sff_tf_read		= ns87560_tf_read,
+	.sff_check_status	= ns87560_check_status,
+	.bmdma_status		= ns87560_bmdma_status,
+};
+#endif
+
 static struct scsi_host_template ns87415_sht = {
-	.module			= THIS_MODULE,
-	.name			= DRV_NAME,
-	.ioctl			= ata_scsi_ioctl,
-	.queuecommand		= ata_scsi_queuecmd,
-	.can_queue		= ATA_DEF_QUEUE,
-	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= LIBATA_MAX_PRD,
-	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
-	.emulated		= ATA_SHT_EMULATED,
-	.use_clustering		= ATA_SHT_USE_CLUSTERING,
-	.proc_name		= DRV_NAME,
-	.dma_boundary		= ATA_DMA_BOUNDARY,
-	.slave_configure	= ata_scsi_slave_config,
-	.slave_destroy		= ata_scsi_slave_destroy,
-	.bios_param		= ata_std_bios_param,
+	ATA_BMDMA_SHT(DRV_NAME),
 };
 
 
@@ -403,16 +345,15 @@ static int ns87415_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 {
 	static int printed_version;
 	static const struct ata_port_info info = {
-		.sht		= &ns87415_sht,
 		.flags		= ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.port_ops	= &ns87415_pata_ops,
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
+	int rc;
 #if defined(CONFIG_SUPERIO)
 	static const struct ata_port_info info87560 = {
-		.sht		= &ns87415_sht,
 		.flags		= ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
@@ -425,11 +366,16 @@ static int ns87415_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "version " DRV_VERSION "\n");
+
+	rc = pcim_enable_device(pdev);
+	if (rc)
+		return rc;
+
 	/* Select 512 byte sectors */
 	pci_write_config_byte(pdev, 0x55, 0xEE);
 	/* Select PIO0 8bit clocking */
 	pci_write_config_byte(pdev, 0x54, 0xB7);
-	return ata_pci_init_one(pdev, ppi);
+	return ata_pci_sff_init_one(pdev, ppi, &ns87415_sht, NULL);
 }
 
 static const struct pci_device_id ns87415_pci_tbl[] = {

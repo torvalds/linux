@@ -107,8 +107,8 @@ static void cmd640_set_piomode(struct ata_port *ap, struct ata_device *adev)
 		pci_write_config_byte(pdev, arttim + 1, (t.active << 4) | t.recover);
 	} else {
 		/* Save the shared timings for channel, they will be loaded
-		   by qc_issue_prot. Reloading the setup time is expensive
-		   so we keep a merged one loaded */
+		   by qc_issue. Reloading the setup time is expensive so we
+		   keep a merged one loaded */
 		pci_read_config_byte(pdev, ARTIM23, &reg);
 		reg &= 0x3F;
 		reg |= t.setup;
@@ -119,14 +119,14 @@ static void cmd640_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 
 /**
- *	cmd640_qc_issue_prot	-	command preparation hook
+ *	cmd640_qc_issue	-	command preparation hook
  *	@qc: Command to be issued
  *
  *	Channel 1 has shared timings. We must reprogram the
  *	clock each drive 2/3 switch we do.
  */
 
-static unsigned int cmd640_qc_issue_prot(struct ata_queued_cmd *qc)
+static unsigned int cmd640_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_device *adev = qc->dev;
@@ -137,7 +137,7 @@ static unsigned int cmd640_qc_issue_prot(struct ata_queued_cmd *qc)
 		pci_write_config_byte(pdev, DRWTIM23, timing->reg58[adev->devno]);
 		timing->last = adev->devno;
 	}
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 /**
@@ -166,53 +166,16 @@ static int cmd640_port_start(struct ata_port *ap)
 }
 
 static struct scsi_host_template cmd640_sht = {
-	.module			= THIS_MODULE,
-	.name			= DRV_NAME,
-	.ioctl			= ata_scsi_ioctl,
-	.queuecommand		= ata_scsi_queuecmd,
-	.can_queue		= ATA_DEF_QUEUE,
-	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= LIBATA_MAX_PRD,
-	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
-	.emulated		= ATA_SHT_EMULATED,
-	.use_clustering		= ATA_SHT_USE_CLUSTERING,
-	.proc_name		= DRV_NAME,
-	.dma_boundary		= ATA_DMA_BOUNDARY,
-	.slave_configure	= ata_scsi_slave_config,
-	.slave_destroy		= ata_scsi_slave_destroy,
-	.bios_param		= ata_std_bios_param,
+	ATA_BMDMA_SHT(DRV_NAME),
 };
 
 static struct ata_port_operations cmd640_port_ops = {
-	.set_piomode	= cmd640_set_piomode,
-	.mode_filter	= ata_pci_default_filter,
-	.tf_load	= ata_tf_load,
-	.tf_read	= ata_tf_read,
-	.check_status 	= ata_check_status,
-	.exec_command	= ata_exec_command,
-	.dev_select 	= ata_std_dev_select,
-
-	.freeze		= ata_bmdma_freeze,
-	.thaw		= ata_bmdma_thaw,
-	.error_handler	= ata_bmdma_error_handler,
-	.post_internal_cmd = ata_bmdma_post_internal_cmd,
+	.inherits	= &ata_bmdma_port_ops,
+	/* In theory xfer_noirq is not needed once we kill the prefetcher */
+	.sff_data_xfer	= ata_sff_data_xfer_noirq,
+	.qc_issue	= cmd640_qc_issue,
 	.cable_detect	= ata_cable_40wire,
-
-	.bmdma_setup 	= ata_bmdma_setup,
-	.bmdma_start 	= ata_bmdma_start,
-	.bmdma_stop	= ata_bmdma_stop,
-	.bmdma_status 	= ata_bmdma_status,
-
-	.qc_prep 	= ata_qc_prep,
-	.qc_issue	= cmd640_qc_issue_prot,
-
-	/* In theory this is not needed once we kill the prefetcher */
-	.data_xfer	= ata_data_xfer_noirq,
-
-	.irq_handler	= ata_interrupt,
-	.irq_clear	= ata_bmdma_irq_clear,
-	.irq_on		= ata_irq_on,
-
+	.set_piomode	= cmd640_set_piomode,
 	.port_start	= cmd640_port_start,
 };
 
@@ -248,26 +211,36 @@ static void cmd640_hardware_init(struct pci_dev *pdev)
 static int cmd640_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	static const struct ata_port_info info = {
-		.sht = &cmd640_sht,
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.port_ops = &cmd640_port_ops
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
+	int rc;
+
+	rc = pcim_enable_device(pdev);
+	if (rc)
+		return rc;
 
 	cmd640_hardware_init(pdev);
-	return ata_pci_init_one(pdev, ppi);
+
+	return ata_pci_sff_init_one(pdev, ppi, &cmd640_sht, NULL);
 }
 
+#ifdef CONFIG_PM
 static int cmd640_reinit_one(struct pci_dev *pdev)
 {
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
 	cmd640_hardware_init(pdev);
-#ifdef CONFIG_PM
-	return ata_pci_device_resume(pdev);
-#else
+	ata_host_resume(host);
 	return 0;
-#endif
 }
+#endif
 
 static const struct pci_device_id cmd640[] = {
 	{ PCI_VDEVICE(CMD, 0x640), 0 },
@@ -281,8 +254,8 @@ static struct pci_driver cmd640_pci_driver = {
 	.remove		= ata_pci_remove_one,
 #ifdef CONFIG_PM
 	.suspend	= ata_pci_device_suspend,
-#endif
 	.resume		= cmd640_reinit_one,
+#endif
 };
 
 static int __init cmd640_init(void)

@@ -77,7 +77,7 @@ void ata_acpi_associate_sata_port(struct ata_port *ap)
 {
 	WARN_ON(!(ap->flags & ATA_FLAG_ACPI_SATA));
 
-	if (!ap->nr_pmp_links) {
+	if (!sata_pmp_attached(ap)) {
 		acpi_integer adr = SATA_ADR(ap->port_no, NO_PORT_MULT);
 
 		ap->link.device->acpi_handle =
@@ -839,7 +839,8 @@ void ata_acpi_on_resume(struct ata_port *ap)
 		 */
 		ata_link_for_each_dev(dev, &ap->link) {
 			ata_acpi_clear_gtf(dev);
-			if (ata_dev_get_GTF(dev, NULL) >= 0)
+			if (ata_dev_enabled(dev) &&
+			    ata_dev_get_GTF(dev, NULL) >= 0)
 				dev->flags |= ATA_DFLAG_ACPI_PENDING;
 		}
 	} else {
@@ -849,7 +850,8 @@ void ata_acpi_on_resume(struct ata_port *ap)
 		 */
 		ata_link_for_each_dev(dev, &ap->link) {
 			ata_acpi_clear_gtf(dev);
-			dev->flags |= ATA_DFLAG_ACPI_PENDING;
+			if (ata_dev_enabled(dev))
+				dev->flags |= ATA_DFLAG_ACPI_PENDING;
 		}
 	}
 }

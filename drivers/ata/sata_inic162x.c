@@ -109,21 +109,7 @@ struct inic_port_priv {
 };
 
 static struct scsi_host_template inic_sht = {
-	.module			= THIS_MODULE,
-	.name			= DRV_NAME,
-	.ioctl			= ata_scsi_ioctl,
-	.queuecommand		= ata_scsi_queuecmd,
-	.can_queue		= ATA_DEF_QUEUE,
-	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= LIBATA_MAX_PRD,
-	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
-	.emulated		= ATA_SHT_EMULATED,
-	.use_clustering		= ATA_SHT_USE_CLUSTERING,
-	.proc_name		= DRV_NAME,
-	.dma_boundary		= ATA_DMA_BOUNDARY,
-	.slave_configure	= ata_scsi_slave_config,
-	.slave_destroy		= ata_scsi_slave_destroy,
-	.bios_param		= ata_std_bios_param,
+	ATA_BMDMA_SHT(DRV_NAME),
 };
 
 static const int scr_map[] = {
@@ -236,7 +222,7 @@ static void inic_bmdma_setup(struct ata_queued_cmd *qc)
 	writeb(pp->cached_prdctl, port_base + PORT_PRD_CTL);
 
 	/* issue r/w command */
-	ap->ops->exec_command(ap, &qc->tf);
+	ap->ops->sff_exec_command(ap, &qc->tf);
 }
 
 static void inic_bmdma_start(struct ata_queued_cmd *qc)
@@ -266,11 +252,6 @@ static u8 inic_bmdma_status(struct ata_port *ap)
 	return ATA_DMA_INTR;
 }
 
-static void inic_irq_clear(struct ata_port *ap)
-{
-	/* noop */
-}
-
 static void inic_host_intr(struct ata_port *ap)
 {
 	void __iomem *port_base = inic_port_base(ap);
@@ -286,14 +267,14 @@ static void inic_host_intr(struct ata_port *ap)
 			ata_qc_from_tag(ap, ap->link.active_tag);
 
 		if (unlikely(!qc || (qc->tf.flags & ATA_TFLAG_POLLING))) {
-			ata_chk_status(ap);	/* clear ATA interrupt */
+			ap->ops->sff_check_status(ap); /* clear ATA interrupt */
 			return;
 		}
 
-		if (likely(ata_host_intr(ap, qc)))
+		if (likely(ata_sff_host_intr(ap, qc)))
 			return;
 
-		ata_chk_status(ap);	/* clear ATA interrupt */
+		ap->ops->sff_check_status(ap); /* clear ATA interrupt */
 		ata_port_printk(ap, KERN_WARNING, "unhandled "
 				"interrupt, irq_stat=%x\n", irq_stat);
 		return;
@@ -370,12 +351,12 @@ static unsigned int inic_qc_issue(struct ata_queued_cmd *qc)
 	 */
 	if (unlikely(qc->tf.command == ATA_CMD_ID_ATA ||
 		     qc->tf.command == ATA_CMD_ID_ATAPI)) {
-		u8 stat = ata_chk_status(ap);
+		u8 stat = ap->ops->sff_check_status(ap);
 		if (stat == 0x7f || stat == 0xff)
 			return AC_ERR_HSM;
 	}
 
-	return ata_qc_issue_prot(qc);
+	return ata_sff_qc_issue(qc);
 }
 
 static void inic_freeze(struct ata_port *ap)
@@ -384,7 +365,7 @@ static void inic_freeze(struct ata_port *ap)
 
 	__inic_set_pirq_mask(ap, PIRQ_MASK_FREEZE);
 
-	ata_chk_status(ap);
+	ap->ops->sff_check_status(ap);
 	writeb(0xff, port_base + PORT_IRQ_STAT);
 
 	readb(port_base + PORT_IRQ_STAT); /* flush */
@@ -394,7 +375,7 @@ static void inic_thaw(struct ata_port *ap)
 {
 	void __iomem *port_base = inic_port_base(ap);
 
-	ata_chk_status(ap);
+	ap->ops->sff_check_status(ap);
 	writeb(0xff, port_base + PORT_IRQ_STAT);
 
 	__inic_set_pirq_mask(ap, PIRQ_MASK_OTHER);
@@ -436,10 +417,8 @@ static int inic_hardreset(struct ata_link *link, unsigned int *class,
 	if (ata_link_online(link)) {
 		struct ata_taskfile tf;
 
-		/* wait a while before checking status */
-		ata_wait_after_reset(ap, deadline);
-
-		rc = ata_wait_ready(ap, deadline);
+		/* wait for link to become ready */
+		rc = ata_sff_wait_after_reset(link, 1, deadline);
 		/* link occupied, -ENODEV too is an error */
 		if (rc) {
 			ata_link_printk(link, KERN_WARNING, "device not ready "
@@ -447,10 +426,8 @@ static int inic_hardreset(struct ata_link *link, unsigned int *class,
 			return rc;
 		}
 
-		ata_tf_read(ap, &tf);
+		ata_sff_tf_read(ap, &tf);
 		*class = ata_dev_classify(&tf);
-		if (*class == ATA_DEV_UNKNOWN)
-			*class = ATA_DEV_NONE;
 	}
 
 	return 0;
@@ -471,8 +448,7 @@ static void inic_error_handler(struct ata_port *ap)
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	/* PIO and DMA engines have been stopped, perform recovery */
-	ata_do_eh(ap, ata_std_prereset, NULL, inic_hardreset,
-		  ata_std_postreset);
+	ata_std_error_handler(ap);
 }
 
 static void inic_post_internal_cmd(struct ata_queued_cmd *qc)
@@ -541,35 +517,26 @@ static int inic_port_start(struct ata_port *ap)
 }
 
 static struct ata_port_operations inic_port_ops = {
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-	.check_status		= ata_check_status,
-	.exec_command		= ata_exec_command,
-	.dev_select		= ata_std_dev_select,
-
-	.scr_read		= inic_scr_read,
-	.scr_write		= inic_scr_write,
+	.inherits		= &ata_sff_port_ops,
 
 	.bmdma_setup		= inic_bmdma_setup,
 	.bmdma_start		= inic_bmdma_start,
 	.bmdma_stop		= inic_bmdma_stop,
 	.bmdma_status		= inic_bmdma_status,
-
-	.irq_clear		= inic_irq_clear,
-	.irq_on			= ata_irq_on,
-
-	.qc_prep	 	= ata_qc_prep,
 	.qc_issue		= inic_qc_issue,
-	.data_xfer		= ata_data_xfer,
 
 	.freeze			= inic_freeze,
 	.thaw			= inic_thaw,
+	.softreset		= ATA_OP_NULL,	/* softreset is broken */
+	.hardreset		= inic_hardreset,
 	.error_handler		= inic_error_handler,
 	.post_internal_cmd	= inic_post_internal_cmd,
 	.dev_config		= inic_dev_config,
 
-	.port_resume		= inic_port_resume,
+	.scr_read		= inic_scr_read,
+	.scr_write		= inic_scr_write,
 
+	.port_resume		= inic_port_resume,
 	.port_start		= inic_port_start,
 };
 
@@ -692,7 +659,7 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			((unsigned long)iomap[2 * i + 1] | ATA_PCI_CTL_OFS);
 		port->scr_addr = iomap[MMIO_BAR] + offset + PORT_SCR;
 
-		ata_std_ports(port);
+		ata_sff_std_ports(port);
 
 		ata_port_pbar_desc(ap, MMIO_BAR, -1, "mmio");
 		ata_port_pbar_desc(ap, MMIO_BAR, offset, "port");
