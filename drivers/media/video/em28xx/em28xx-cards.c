@@ -446,6 +446,8 @@ struct em28xx_reg_seq hauppauge_wintv_hvr_900_digital[] = {
 	{  -1,   -1,   6},
 	{0x08, 0x2e,   6},
 	{0x08, 0x3e,   6},
+	{0x04, 0x04,  10},
+	{0x04, 0x0c,  10},
 	{ -1,    -1,  -1},
 };
 
