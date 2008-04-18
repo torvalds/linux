@@ -927,3 +927,6 @@ module_exit(s3c2410_nand_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("S3C24XX MTD NAND driver");
+MODULE_ALIAS("platform:s3c2410-nand");
+MODULE_ALIAS("platform:s3c2412-nand");
+MODULE_ALIAS("platform:s3c2440-nand");

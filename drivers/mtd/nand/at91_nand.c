@@ -234,3 +234,4 @@ module_exit(at91_nand_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Rick Bronson");
 MODULE_DESCRIPTION("NAND/SmartMedia driver for AT91RM9200");
+MODULE_ALIAS("platform:at91_nand");

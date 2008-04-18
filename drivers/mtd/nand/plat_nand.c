@@ -150,3 +150,4 @@ module_exit(plat_nand_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Vitaly Wool");
 MODULE_DESCRIPTION("Simple generic NAND driver");
+MODULE_ALIAS("platform:gen_nand");
