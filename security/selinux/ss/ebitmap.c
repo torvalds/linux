@@ -411,11 +411,10 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 			}
 			/* round down */
 			tmp->startbit = startbit - (startbit % EBITMAP_SIZE);
-			if (n) {
+			if (n)
 				n->next = tmp;
-			} else {
+			else
 				e->node = tmp;
-			}
 			n = tmp;
 		} else if (startbit <= n->startbit) {
 			printk(KERN_ERR "SELinux: ebitmap: start bit %d"
