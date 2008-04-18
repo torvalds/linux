@@ -319,8 +319,8 @@ struct em28xx {
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
 
-	struct gpio_ctl (*analog_gpio)[MAX_GPIO];
-	struct gpio_ctl (*digital_gpio)[MAX_GPIO];
+	struct gpio_ctl *analog_gpio;
+	struct gpio_ctl *digital_gpio;
 
 	int video_inputs;	/* number of video inputs */
 	struct list_head	devlist;

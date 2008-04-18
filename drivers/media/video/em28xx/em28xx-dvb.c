@@ -3,6 +3,9 @@
 
  (c) 2008 Mauro Carvalho Chehab <mchehab@infradead.org>
 
+ (c) 2008 Devin Heitmueller <devin.heitmueller@gmail.com>
+	- Fixes for the driver to properly work with HVR-950
+
  Based on cx88-dvb and saa7134-dvb originally written by:
 	(c) 2004, 2005 Chris Pascoe <c.pascoe@itee.uq.edu.au>
 	(c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
@@ -116,7 +119,7 @@ static int dvb_init(struct em28xx *dev)
 	switch (dev->model) {
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
 		/* Enable lgdt330x */
-		dev->mode = EM28XX_ANALOG_MODE;
+		dev->mode = EM28XX_DIGITAL_MODE;
 		em28xx_tuner_callback(dev, XC2028_TUNER_RESET, 0);
 
 		dev->dvb.frontend = dvb_attach(lgdt330x_attach,

@@ -197,8 +197,8 @@ struct em28xx_board em28xx_boards[] = {
 		.analog_gpio = {
 			{		/* xc3028 reset seq */
 				.reg = 0x08,
-				.val = 0x3d,
-				.rst = 0x2d,
+				.val = 0x2d,
+				.rst = 0x3d,
 				.t1 = 5,
 				.t2 = 10,
 				.t3 = 5,
@@ -207,15 +207,15 @@ struct em28xx_board em28xx_boards[] = {
 		.digital_gpio = {
 			{		/* xc3028 reset seq */
 				.reg = 0x08,
-				.val = 0x3e,
-				.rst = 0x2e,
+				.val = 0x2e,
+				.rst = 0x3e,
 				.t1 = 6,
 				.t2 = 6,
 				.t3 = 6,
 			}, {		/* demod reset seq */
 				.reg = 0x04,
-				.val = 0x0c,
-				.rst = 0x04,
+				.val = 0x04,
+				.rst = 0x0c,
 				.t2 = 10,
 				.t3 = 10,
 			}
@@ -472,7 +472,7 @@ int em28xx_tuner_callback(void *ptr, int command, int arg)
 {
 	int rc = 0, i;
 	struct em28xx *dev = ptr;
-	struct gpio_ctl (*gpio_ctl)[MAX_GPIO];
+	struct gpio_ctl *gpio_ctl;
 
 	if (dev->tuner_type != TUNER_XC2028)
 		return 0;
@@ -485,30 +485,40 @@ int em28xx_tuner_callback(void *ptr, int command, int arg)
 	else
 		gpio_ctl = dev->digital_gpio;
 
+	/* djh - Not sure if these are still required */
+	if (dev->mode == EM28XX_ANALOG_MODE) {
+	  dev->em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
+	  dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x67", 1);
+	  msleep(6);
+	} else {
+	  dev->em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
+	  dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x37", 1);
+	  msleep(6);
+	}
+
 	/* Send GPIO reset sequences specified at board entry */
 	for (i = 0; i < MAX_GPIO; i++) {
-		if (!gpio_ctl[i]->val)
+		if (!gpio_ctl->val)
 			break;
 
 		dev->em28xx_write_regs(dev,
-				       gpio_ctl[i]->reg,
-				       &gpio_ctl[i]->val, 1);
-		if (gpio_ctl[i]->t1)
-			msleep(gpio_ctl[i]->t1);
+				       gpio_ctl->reg,
+				       &gpio_ctl->val, 1);
+		if (gpio_ctl->t1)
+			msleep(gpio_ctl->t1);
 
-		if (!gpio_ctl[i]->rst)
+		if (!gpio_ctl->rst) {
+			gpio_ctl++;
 			continue;
-		dev->em28xx_write_regs(dev,
-				       gpio_ctl[i]->reg,
-				       &gpio_ctl[i]->rst, 1);
-		if (gpio_ctl[i]->t2)
-			msleep(gpio_ctl[i]->t2);
+		}
 
 		dev->em28xx_write_regs(dev,
-				       gpio_ctl[i]->reg,
-				       &gpio_ctl[i]->val, 1);
-		if (gpio_ctl[i]->t3)
-			msleep(gpio_ctl[i]->t3);
+				       gpio_ctl->reg,
+				       &gpio_ctl->rst, 1);
+		if (gpio_ctl->t2)
+			msleep(gpio_ctl->t2);
+
+		gpio_ctl++;
 	}
 	return rc;
 }
@@ -524,8 +534,8 @@ static void em28xx_set_model(struct em28xx *dev)
 	dev->has_12mhz_i2s = em28xx_boards[dev->model].has_12mhz_i2s;
 	dev->max_range_640_480 = em28xx_boards[dev->model].max_range_640_480;
 	dev->has_dvb = em28xx_boards[dev->model].has_dvb;
-	dev->analog_gpio = &em28xx_boards[dev->model].analog_gpio;
-	dev->digital_gpio = &em28xx_boards[dev->model].digital_gpio;
+	dev->analog_gpio = em28xx_boards[dev->model].analog_gpio;
+	dev->digital_gpio = em28xx_boards[dev->model].digital_gpio;
 }
 
 /* Since em28xx_pre_card_setup() requires a proper dev->model,
@@ -562,6 +572,9 @@ void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 
 	switch (dev->model) {
 	/* Add card-specific parameters for xc3028 here */
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
+		ctl->demod = XC3028_FE_DEFAULT;
+		break;
 	default:
 		ctl->demod = XC3028_FE_OREN538;
 	}
