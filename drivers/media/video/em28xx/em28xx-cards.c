@@ -563,8 +563,11 @@ static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 	ctl->mts = em28xx_boards[dev->model].mts_firmware;
 
 	switch (dev->model) {
-	/* Add card-specific parameters for xc3028 here */
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
+		ctl->demod = XC3028_FE_ZARLINK456;
+		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
+		/* FIXME: Better to specify the needed IF */
 		ctl->demod = XC3028_FE_DEFAULT;
 		break;
 	default:
