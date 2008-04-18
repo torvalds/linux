@@ -181,7 +181,6 @@ static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 	struct zfcp_unit *unit = (struct zfcp_unit *) sdpnt->hostdata;
 
 	if (unit) {
-		zfcp_erp_wait(unit->port->adapter);
 		atomic_clear_mask(ZFCP_STATUS_UNIT_REGISTERED, &unit->status);
 		sdpnt->hostdata = NULL;
 		unit->device = NULL;
