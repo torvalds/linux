@@ -1142,9 +1142,9 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 static int em28xx_reg_len(int reg)
 {
 	switch (reg) {
-	case AC97LSB_REG:
-	case HSCALELOW_REG:
-	case VSCALELOW_REG:
+	case EM28XX_R40_AC97LSB:
+	case EM28XX_R30_HSCALELOW:
+	case EM28XX_R32_VSCALELOW:
 		return 2;
 	default:
 		return 1;

@@ -194,17 +194,17 @@ static int em28xx_write_ac97(struct em28xx *dev, u8 reg, u8 *val)
 	int ret, i;
 	u8 addr = reg & 0x7f;
 
-	ret = em28xx_write_regs(dev, AC97LSB_REG, val, 2);
+	ret = em28xx_write_regs(dev, EM28XX_R40_AC97LSB, val, 2);
 	if (ret < 0)
 		return ret;
 
-	ret = em28xx_write_regs(dev, AC97ADDR_REG, &addr, 1);
+	ret = em28xx_write_regs(dev, EM28XX_R42_AC97ADDR, &addr, 1);
 	if (ret < 0)
 		return ret;
 
 	/* Wait up to 50 ms for AC97 command to complete */
 	for (i = 0; i < 10; i++) {
-		ret = em28xx_read_reg(dev, AC97BUSY_REG);
+		ret = em28xx_read_reg(dev, EM28XX_R43_AC97BUSY);
 		if (ret < 0)
 			return ret;
 
@@ -230,7 +230,7 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 		else
 			input = EM2800_AUDIO_SRC_TUNER;
 
-		ret = em28xx_write_regs(dev, EM2800_AUDIOSRC_REG, &input, 1);
+		ret = em28xx_write_regs(dev, EM2800_R08_AUDIOSRC, &input, 1);
 		if (ret < 0)
 			return ret;
 	}
@@ -256,7 +256,7 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 		}
 	}
 
-	ret = em28xx_write_reg_bits(dev, AUDIOSRC_REG, input, 0xc0);
+	ret = em28xx_write_reg_bits(dev, EM28XX_R0E_AUDIOSRC, input, 0xc0);
 	if (ret < 0)
 		return ret;
 	msleep(5);
@@ -264,11 +264,11 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 	/* Sets AC97 mixer registers
 	   This is seems to be needed, even for non-ac97 configs
 	 */
-	ret = em28xx_write_ac97(dev, VIDEO_AC97, video);
+	ret = em28xx_write_ac97(dev, EM28XX_R14_VIDEO_AC97, video);
 	if (ret < 0)
 		return ret;
 
-	ret = em28xx_write_ac97(dev, LINE_IN_AC97, line);
+	ret = em28xx_write_ac97(dev, EM28XX_R10_LINE_IN_AC97, line);
 
 	return ret;
 }
@@ -284,7 +284,7 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 
 	/* Mute */
 	s[1] |= 0x80;
-	ret = em28xx_write_ac97(dev, MASTER_AC97, s);
+	ret = em28xx_write_ac97(dev, EM28XX_R02_MASTER_AC97, s);
 
 	if (ret < 0)
 		return ret;
@@ -295,7 +295,7 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 	if (!dev->mute)
 		xclk |= 0x80;
 
-	ret = em28xx_write_reg_bits(dev, XCLK_REG, xclk, 0xa7);
+	ret = em28xx_write_reg_bits(dev, EM28XX_R0F_XCLK, xclk, 0xa7);
 	if (ret < 0)
 		return ret;
 	msleep(10);
@@ -306,7 +306,7 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 	/* Unmute device */
 	if (!dev->mute)
 		s[1] &= ~0x80;
-	ret = em28xx_write_ac97(dev, MASTER_AC97, s);
+	ret = em28xx_write_ac97(dev, EM28XX_R02_MASTER_AC97, s);
 
 	return ret;
 }
@@ -314,20 +314,20 @@ EXPORT_SYMBOL_GPL(em28xx_audio_analog_set);
 
 int em28xx_colorlevels_set_default(struct em28xx *dev)
 {
-	em28xx_write_regs(dev, YGAIN_REG, "\x10", 1);	/* contrast */
-	em28xx_write_regs(dev, YOFFSET_REG, "\x00", 1);	/* brightness */
-	em28xx_write_regs(dev, UVGAIN_REG, "\x10", 1);	/* saturation */
-	em28xx_write_regs(dev, UOFFSET_REG, "\x00", 1);
-	em28xx_write_regs(dev, VOFFSET_REG, "\x00", 1);
-	em28xx_write_regs(dev, SHARPNESS_REG, "\x00", 1);
+	em28xx_write_regs(dev, EM28XX_R20_YGAIN, "\x10", 1);	/* contrast */
+	em28xx_write_regs(dev, EM28XX_R21_YOFFSET, "\x00", 1);	/* brightness */
+	em28xx_write_regs(dev, EM28XX_R22_UVGAIN, "\x10", 1);	/* saturation */
+	em28xx_write_regs(dev, EM28XX_R23_UOFFSET, "\x00", 1);
+	em28xx_write_regs(dev, EM28XX_R24_VOFFSET, "\x00", 1);
+	em28xx_write_regs(dev, EM28XX_R25_SHARPNESS, "\x00", 1);
 
-	em28xx_write_regs(dev, GAMMA_REG, "\x20", 1);
-	em28xx_write_regs(dev, RGAIN_REG, "\x20", 1);
-	em28xx_write_regs(dev, GGAIN_REG, "\x20", 1);
-	em28xx_write_regs(dev, BGAIN_REG, "\x20", 1);
-	em28xx_write_regs(dev, ROFFSET_REG, "\x00", 1);
-	em28xx_write_regs(dev, GOFFSET_REG, "\x00", 1);
-	return em28xx_write_regs(dev, BOFFSET_REG, "\x00", 1);
+	em28xx_write_regs(dev, EM28XX_R14_GAMMA, "\x20", 1);
+	em28xx_write_regs(dev, EM28XX_R15_RGAIN, "\x20", 1);
+	em28xx_write_regs(dev, EM28XX_R16_GGAIN, "\x20", 1);
+	em28xx_write_regs(dev, EM28XX_R17_BGAIN, "\x20", 1);
+	em28xx_write_regs(dev, EM28XX_R18_ROFFSET, "\x00", 1);
+	em28xx_write_regs(dev, EM28XX_R19_GOFFSET, "\x00", 1);
+	return em28xx_write_regs(dev, EM28XX_R1A_BOFFSET, "\x00", 1);
 }
 
 int em28xx_capture_start(struct em28xx *dev, int start)
@@ -335,14 +335,14 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 	int rc;
 	/* FIXME: which is the best order? */
 	/* video registers are sampled by VREF */
-	rc = em28xx_write_reg_bits(dev, USBSUSP_REG,
+	rc = em28xx_write_reg_bits(dev, EM28XX_R0C_USBSUSP,
 				   start ? 0x10 : 0x00, 0x10);
 	if (rc < 0)
 		return rc;
 
 	if (!start) {
 		/* disable video capture */
-		rc = em28xx_write_regs(dev, VINENABLE_REG, "\x27", 1);
+		rc = em28xx_write_regs(dev, EM28XX_R12_VINENABLE, "\x27", 1);
 		return rc;
 	}
 
@@ -350,9 +350,9 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 	rc = em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
 
 	if (dev->mode == EM28XX_ANALOG_MODE)
-		rc = em28xx_write_regs(dev, VINENABLE_REG, "\x67", 1);
+		rc = em28xx_write_regs(dev, EM28XX_R12_VINENABLE, "\x67", 1);
 	else
-		rc = em28xx_write_regs(dev, VINENABLE_REG, "\x37", 1);
+		rc = em28xx_write_regs(dev, EM28XX_R12_VINENABLE, "\x37", 1);
 
 	msleep(6);
 
@@ -361,9 +361,9 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 
 int em28xx_outfmt_set_yuv422(struct em28xx *dev)
 {
-	em28xx_write_regs(dev, OUTFMT_REG, "\x34", 1);
-	em28xx_write_regs(dev, VINMODE_REG, "\x10", 1);
-	return em28xx_write_regs(dev, VINCTRL_REG, "\x11", 1);
+	em28xx_write_regs(dev, EM28XX_R27_OUTFMT, "\x34", 1);
+	em28xx_write_regs(dev, EM28XX_R10_VINMODE, "\x10", 1);
+	return em28xx_write_regs(dev, EM28XX_R11_VINCTRL, "\x11", 1);
 }
 
 static int em28xx_accumulator_set(struct em28xx *dev, u8 xmin, u8 xmax,
@@ -372,10 +372,10 @@ static int em28xx_accumulator_set(struct em28xx *dev, u8 xmin, u8 xmax,
 	em28xx_coredbg("em28xx Scale: (%d,%d)-(%d,%d)\n",
 			xmin, ymin, xmax, ymax);
 
-	em28xx_write_regs(dev, XMIN_REG, &xmin, 1);
-	em28xx_write_regs(dev, XMAX_REG, &xmax, 1);
-	em28xx_write_regs(dev, YMIN_REG, &ymin, 1);
-	return em28xx_write_regs(dev, YMAX_REG, &ymax, 1);
+	em28xx_write_regs(dev, EM28XX_R28_XMIN, &xmin, 1);
+	em28xx_write_regs(dev, EM28XX_R29_XMAX, &xmax, 1);
+	em28xx_write_regs(dev, EM28XX_R2A_YMIN, &ymin, 1);
+	return em28xx_write_regs(dev, EM28XX_R2B_YMAX, &ymax, 1);
 }
 
 static int em28xx_capture_area_set(struct em28xx *dev, u8 hstart, u8 vstart,
@@ -389,11 +389,11 @@ static int em28xx_capture_area_set(struct em28xx *dev, u8 hstart, u8 vstart,
 			(width | (overflow & 2) << 7),
 			(height | (overflow & 1) << 8));
 
-	em28xx_write_regs(dev, HSTART_REG, &hstart, 1);
-	em28xx_write_regs(dev, VSTART_REG, &vstart, 1);
-	em28xx_write_regs(dev, CWIDTH_REG, &cwidth, 1);
-	em28xx_write_regs(dev, CHEIGHT_REG, &cheight, 1);
-	return em28xx_write_regs(dev, OFLOW_REG, &overflow, 1);
+	em28xx_write_regs(dev, EM28XX_R1C_HSTART, &hstart, 1);
+	em28xx_write_regs(dev, EM28XX_R1D_VSTART, &vstart, 1);
+	em28xx_write_regs(dev, EM28XX_R1E_CWIDTH, &cwidth, 1);
+	em28xx_write_regs(dev, EM28XX_R1F_CHEIGHT, &cheight, 1);
+	return em28xx_write_regs(dev, EM28XX_R1B_OFLOW, &overflow, 1);
 }
 
 static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
@@ -406,15 +406,15 @@ static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
 		u8 buf[2];
 		buf[0] = h;
 		buf[1] = h >> 8;
-		em28xx_write_regs(dev, HSCALELOW_REG, (char *)buf, 2);
+		em28xx_write_regs(dev, EM28XX_R30_HSCALELOW, (char *)buf, 2);
 		buf[0] = v;
 		buf[1] = v >> 8;
-		em28xx_write_regs(dev, VSCALELOW_REG, (char *)buf, 2);
+		em28xx_write_regs(dev, EM28XX_R32_VSCALELOW, (char *)buf, 2);
 		/* it seems that both H and V scalers must be active
 		   to work correctly */
 		mode = (h || v)? 0x30: 0x00;
 	}
-	return em28xx_write_reg_bits(dev, COMPR_REG, mode, 0x30);
+	return em28xx_write_reg_bits(dev, EM28XX_R26_COMPR, mode, 0x30);
 }
 
 /* FIXME: this only function read values from dev */

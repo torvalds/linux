@@ -13,68 +13,68 @@
 #define EM_GPO_3   (1 << 3)
 
 /* em2800 registers */
-#define EM2800_AUDIOSRC_REG 0x08
+#define EM2800_R08_AUDIOSRC 0x08
 
 /* em28xx registers */
 
 	/* GPIO/GPO registers */
-#define EM_R04_GPO	0x04    /* em2880-em2883 only */
-#define EM_R08_GPIO	0x08	/* em2820 or upper */
+#define EM2880_R04_GPO	0x04    /* em2880-em2883 only */
+#define EM28XX_R08_GPIO	0x08	/* em2820 or upper */
 
-#define I2C_CLK_REG	0x06
-#define CHIPID_REG	0x0a
-#define USBSUSP_REG	0x0c	/* */
+#define EM28XX_R06_I2C_CLK	0x06
+#define EM28XX_R0A_CHIPID	0x0a
+#define EM28XX_R0C_USBSUSP	0x0c	/* */
 
-#define AUDIOSRC_REG	0x0e
-#define XCLK_REG	0x0f
+#define EM28XX_R0E_AUDIOSRC	0x0e
+#define EM28XX_R0F_XCLK	0x0f
 
-#define VINMODE_REG	0x10
-#define VINCTRL_REG	0x11
-#define VINENABLE_REG	0x12	/* */
+#define EM28XX_R10_VINMODE	0x10
+#define EM28XX_R11_VINCTRL	0x11
+#define EM28XX_R12_VINENABLE	0x12	/* */
 
-#define GAMMA_REG	0x14
-#define RGAIN_REG	0x15
-#define GGAIN_REG	0x16
-#define BGAIN_REG	0x17
-#define ROFFSET_REG	0x18
-#define GOFFSET_REG	0x19
-#define BOFFSET_REG	0x1a
+#define EM28XX_R14_GAMMA	0x14
+#define EM28XX_R15_RGAIN	0x15
+#define EM28XX_R16_GGAIN	0x16
+#define EM28XX_R17_BGAIN	0x17
+#define EM28XX_R18_ROFFSET	0x18
+#define EM28XX_R19_GOFFSET	0x19
+#define EM28XX_R1A_BOFFSET	0x1a
 
-#define OFLOW_REG	0x1b
-#define HSTART_REG	0x1c
-#define VSTART_REG	0x1d
-#define CWIDTH_REG	0x1e
-#define CHEIGHT_REG	0x1f
+#define EM28XX_R1B_OFLOW	0x1b
+#define EM28XX_R1C_HSTART	0x1c
+#define EM28XX_R1D_VSTART	0x1d
+#define EM28XX_R1E_CWIDTH	0x1e
+#define EM28XX_R1F_CHEIGHT	0x1f
 
-#define YGAIN_REG	0x20
-#define YOFFSET_REG	0x21
-#define UVGAIN_REG	0x22
-#define UOFFSET_REG	0x23
-#define VOFFSET_REG	0x24
-#define SHARPNESS_REG	0x25
+#define EM28XX_R20_YGAIN	0x20
+#define EM28XX_R21_YOFFSET	0x21
+#define EM28XX_R22_UVGAIN	0x22
+#define EM28XX_R23_UOFFSET	0x23
+#define EM28XX_R24_VOFFSET	0x24
+#define EM28XX_R25_SHARPNESS	0x25
 
-#define COMPR_REG	0x26
-#define OUTFMT_REG	0x27
+#define EM28XX_R26_COMPR	0x26
+#define EM28XX_R27_OUTFMT	0x27
 
-#define XMIN_REG	0x28
-#define XMAX_REG	0x29
-#define YMIN_REG	0x2a
-#define YMAX_REG	0x2b
+#define EM28XX_R28_XMIN	0x28
+#define EM28XX_R29_XMAX	0x29
+#define EM28XX_R2A_YMIN	0x2a
+#define EM28XX_R2B_YMAX	0x2b
 
-#define HSCALELOW_REG	0x30
-#define HSCALEHIGH_REG	0x31
-#define VSCALELOW_REG	0x32
-#define VSCALEHIGH_REG	0x33
+#define EM28XX_R30_HSCALELOW	0x30
+#define EM28XX_R31_HSCALEHIGH	0x31
+#define EM28XX_R32_VSCALELOW	0x32
+#define EM28XX_R33_VSCALEHIGH	0x33
 
-#define AC97LSB_REG	0x40
-#define AC97MSB_REG	0x41
-#define AC97ADDR_REG	0x42
-#define AC97BUSY_REG	0x43
+#define EM28XX_R40_AC97LSB	0x40
+#define EM28XX_R41_AC97MSB	0x41
+#define EM28XX_R42_AC97ADDR	0x42
+#define EM28XX_R43_AC97BUSY	0x43
 
 /* em202 registers */
-#define MASTER_AC97	0x02
-#define LINE_IN_AC97    0x10
-#define VIDEO_AC97	0x14
+#define EM28XX_R02_MASTER_AC97	0x02
+#define EM28XX_R10_LINE_IN_AC97    0x10
+#define EM28XX_R14_VIDEO_AC97	0x14
 
 /* register settings */
 #define EM2800_AUDIO_SRC_TUNER  0x0d

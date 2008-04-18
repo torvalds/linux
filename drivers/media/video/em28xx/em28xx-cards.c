@@ -437,17 +437,17 @@ MODULE_DEVICE_TABLE(usb, em28xx_id_table);
 /* Board Hauppauge WinTV HVR 900 analog */
 struct em28xx_reg_seq hauppauge_wintv_hvr_900_analog[] = {
 	{  -1,		-1,     6},
-	{EM_R08_GPIO,	0x2d,  10},
-	{EM_R08_GPIO,	0x3d,   5},
+	{EM28XX_R08_GPIO,	0x2d,  10},
+	{EM28XX_R08_GPIO,	0x3d,   5},
 	{  -1,		-1,    -1},
 };
 /* Board Hauppauge WinTV HVR 900 digital */
 struct em28xx_reg_seq hauppauge_wintv_hvr_900_digital[] = {
 	{  -1,		-1,     6},
-	{EM_R08_GPIO,	0x2e,   6},
-	{EM_R08_GPIO,	0x3e,   6},
-	{EM_R04_GPO,	0x04,  10},
-	{EM_R04_GPO,	0x0c,  10},
+	{EM28XX_R08_GPIO,	0x2e,   6},
+	{EM28XX_R08_GPIO,	0x3e,   6},
+	{EM2880_R04_GPO,	0x04,  10},
+	{EM2880_R04_GPO,	0x0c,  10},
 	{ -1,    -1,  -1},
 };
 
@@ -528,7 +528,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	int rc;
 
 	dev->wait_after_write = 5;
-	rc = em28xx_read_reg(dev, CHIPID_REG);
+	rc = em28xx_read_reg(dev, EM28XX_R0A_CHIPID);
 	if (rc > 0) {
 		switch (rc) {
 		case CHIP_ID_EM2883:
@@ -547,8 +547,8 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 	case EM2880_BOARD_TERRATEC_HYBRID_XS:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
-		em28xx_write_regs(dev, XCLK_REG, "\x27", 1);
-		em28xx_write_regs(dev, I2C_CLK_REG, "\x40", 1);
+		em28xx_write_regs(dev, EM28XX_R0F_XCLK, "\x27", 1);
+		em28xx_write_regs(dev, EM28XX_R06_I2C_CLK, "\x40", 1);
 		em28xx_write_regs(dev, 0x08, "\xff", 1);
 		em28xx_write_regs(dev, 0x04, "\x00", 1);
 		msleep(100);
