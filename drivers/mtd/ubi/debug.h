@@ -41,7 +41,7 @@
 /* Generic debugging message */
 #define dbg_msg(fmt, ...)                                    \
 	printk(KERN_DEBUG "UBI DBG (pid %d): %s: " fmt "\n", \
-	       current->pid, __FUNCTION__, ##__VA_ARGS__)
+	       current->pid, __func__, ##__VA_ARGS__)
 
 #define ubi_dbg_dump_stack() dump_stack()
 

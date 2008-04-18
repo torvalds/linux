@@ -151,7 +151,7 @@ static int wait_till_ready(struct m25p *flash)
 static int erase_sector(struct m25p *flash, u32 offset)
 {
 	DEBUG(MTD_DEBUG_LEVEL3, "%s: %s %dKiB at 0x%08x\n",
-			flash->spi->dev.bus_id, __FUNCTION__,
+			flash->spi->dev.bus_id, __func__,
 			flash->mtd.erasesize / 1024, offset);
 
 	/* Wait until finished previous write command. */
@@ -188,7 +188,7 @@ static int m25p80_erase(struct mtd_info *mtd, struct erase_info *instr)
 	u32 addr,len;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %d\n",
-			flash->spi->dev.bus_id, __FUNCTION__, "at",
+			flash->spi->dev.bus_id, __func__, "at",
 			(u32)instr->addr, instr->len);
 
 	/* sanity checks */
@@ -240,7 +240,7 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	struct spi_message m;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %zd\n",
-			flash->spi->dev.bus_id, __FUNCTION__, "from",
+			flash->spi->dev.bus_id, __func__, "from",
 			(u32)from, len);
 
 	/* sanity checks */
@@ -308,7 +308,7 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct spi_message m;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %zd\n",
-			flash->spi->dev.bus_id, __FUNCTION__, "to",
+			flash->spi->dev.bus_id, __func__, "to",
 			(u32)to, len);
 
 	if (retlen)

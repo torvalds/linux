@@ -54,10 +54,10 @@
 #define ubi_msg(fmt, ...) printk(KERN_NOTICE "UBI: " fmt "\n", ##__VA_ARGS__)
 /* UBI warning messages */
 #define ubi_warn(fmt, ...) printk(KERN_WARNING "UBI warning: %s: " fmt "\n", \
-				  __FUNCTION__, ##__VA_ARGS__)
+				  __func__, ##__VA_ARGS__)
 /* UBI error messages */
 #define ubi_err(fmt, ...) printk(KERN_ERR "UBI error: %s: " fmt "\n", \
-				 __FUNCTION__, ##__VA_ARGS__)
+				 __func__, ##__VA_ARGS__)
 
 /* Lowest number PEBs reserved for bad PEB handling */
 #define MIN_RESEVED_PEBS 2
