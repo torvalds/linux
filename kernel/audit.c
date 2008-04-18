@@ -126,6 +126,8 @@ static int	   audit_freelist_count;
 static LIST_HEAD(audit_freelist);
 
 static struct sk_buff_head audit_skb_queue;
+/* queue of skbs to send to auditd when/if it comes back */
+static struct sk_buff_head audit_skb_hold_queue;
 static struct task_struct *kauditd_task;
 static DECLARE_WAIT_QUEUE_HEAD(kauditd_wait);
 static DECLARE_WAIT_QUEUE_HEAD(audit_backlog_wait);
@@ -347,30 +349,83 @@ static int audit_set_failure(int state, uid_t loginuid, u32 sessionid, u32 sid)
 				      loginuid, sessionid, sid);
 }
 
+/*
+ * Queue skbs to be sent to auditd when/if it comes back.  These skbs should
+ * already have been sent via prink/syslog and so if these messages are dropped
+ * it is not a huge concern since we already passed the audit_log_lost()
+ * notification and stuff.  This is just nice to get audit messages during
+ * boot before auditd is running or messages generated while auditd is stopped.
+ * This only holds messages is audit_default is set, aka booting with audit=1
+ * or building your kernel that way.
+ */
+static void audit_hold_skb(struct sk_buff *skb)
+{
+	if (audit_default &&
+	    skb_queue_len(&audit_skb_hold_queue) < audit_backlog_limit)
+		skb_queue_tail(&audit_skb_hold_queue, skb);
+	else
+		kfree_skb(skb);
+}
+
+static void kauditd_send_skb(struct sk_buff *skb)
+{
+	int err;
+	/* take a reference in case we can't send it and we want to hold it */
+	skb_get(skb);
+	err = netlink_unicast(audit_sock, skb, audit_nlk_pid, 0);
+	if (err < 0) {
+		BUG_ON(err != -ECONNREFUSED); /* Shoudn't happen */
+		printk(KERN_ERR "audit: *NO* daemon at audit_pid=%d\n", audit_pid);
+		audit_log_lost("auditd dissapeared\n");
+		audit_pid = 0;
+		/* we might get lucky and get this in the next auditd */
+		audit_hold_skb(skb);
+	} else
+		/* drop the extra reference if sent ok */
+		kfree_skb(skb);
+}
+
 static int kauditd_thread(void *dummy)
 {
 	struct sk_buff *skb;
 
 	set_freezable();
 	while (!kthread_should_stop()) {
+		/*
+		 * if auditd just started drain the queue of messages already
+		 * sent to syslog/printk.  remember loss here is ok.  we already
+		 * called audit_log_lost() if it didn't go out normally.  so the
+		 * race between the skb_dequeue and the next check for audit_pid
+		 * doesn't matter.
+		 *
+		 * if you ever find kauditd to be too slow we can get a perf win
+		 * by doing our own locking and keeping better track if there
+		 * are messages in this queue.  I don't see the need now, but
+		 * in 5 years when I want to play with this again I'll see this
+		 * note and still have no friggin idea what i'm thinking today.
+		 */
+		if (audit_default && audit_pid) {
+			skb = skb_dequeue(&audit_skb_hold_queue);
+			if (unlikely(skb)) {
+				while (skb && audit_pid) {
+					kauditd_send_skb(skb);
+					skb = skb_dequeue(&audit_skb_hold_queue);
+				}
+			}
+		}
+
 		skb = skb_dequeue(&audit_skb_queue);
 		wake_up(&audit_backlog_wait);
 		if (skb) {
-			if (audit_pid) {
-				int err = netlink_unicast(audit_sock, skb, audit_nlk_pid, 0);
-				if (err < 0) {
-					BUG_ON(err != -ECONNREFUSED); /* Shoudn't happen */
-					printk(KERN_ERR "audit: *NO* daemon at audit_pid=%d\n", audit_pid);
-					audit_log_lost("auditd dissapeared\n");
-					audit_pid = 0;
-				}
-			} else {
+			if (audit_pid)
+				kauditd_send_skb(skb);
+			else {
 				if (printk_ratelimit())
-					printk(KERN_NOTICE "%s\n", skb->data +
-						NLMSG_SPACE(0));
+					printk(KERN_NOTICE "%s\n", skb->data + NLMSG_SPACE(0));
 				else
 					audit_log_lost("printk limit exceeded\n");
-				kfree_skb(skb);
+
+				audit_hold_skb(skb);
 			}
 		} else {
 			DECLARE_WAITQUEUE(wait, current);
@@ -885,6 +940,7 @@ static int __init audit_init(void)
 		audit_sock->sk_sndtimeo = MAX_SCHEDULE_TIMEOUT;
 
 	skb_queue_head_init(&audit_skb_queue);
+	skb_queue_head_init(&audit_skb_hold_queue);
 	audit_initialized = 1;
 	audit_enabled = audit_default;
 	audit_ever_enabled |= !!audit_default;
@@ -1363,19 +1419,23 @@ void audit_log_end(struct audit_buffer *ab)
 		audit_log_lost("rate limit exceeded");
 	} else {
 		struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
+		nlh->nlmsg_len = ab->skb->len - NLMSG_SPACE(0);
+
 		if (audit_pid) {
-			nlh->nlmsg_len = ab->skb->len - NLMSG_SPACE(0);
 			skb_queue_tail(&audit_skb_queue, ab->skb);
-			ab->skb = NULL;
 			wake_up_interruptible(&kauditd_wait);
-		} else if (nlh->nlmsg_type != AUDIT_EOE) {
-			if (printk_ratelimit()) {
-				printk(KERN_NOTICE "type=%d %s\n",
-					nlh->nlmsg_type,
-					ab->skb->data + NLMSG_SPACE(0));
-			} else
-				audit_log_lost("printk limit exceeded\n");
+		} else {
+			if (nlh->nlmsg_type != AUDIT_EOE) {
+				if (printk_ratelimit()) {
+					printk(KERN_NOTICE "type=%d %s\n",
+						nlh->nlmsg_type,
+						ab->skb->data + NLMSG_SPACE(0));
+				} else
+					audit_log_lost("printk limit exceeded\n");
+			}
+			audit_hold_skb(ab->skb);
 		}
+		ab->skb = NULL;
 	}
 	audit_buffer_free(ab);
 }
