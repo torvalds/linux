@@ -59,6 +59,7 @@
 #include <asm/setup.h>
 #include <asm/smp.h>
 #include <asm/system.h>
+#include <asm/tlbflush.h>
 #include <asm/unistd.h>
 #include <asm/hpsim.h>
 
@@ -173,6 +174,29 @@ filter_rsvd_memory (unsigned long start, unsigned long end, void *arg)
 		prev_start = rsvd_region[i].end;
 	}
 	/* end of memory marker allows full processing inside loop body */
+	return 0;
+}
+
+/*
+ * Similar to "filter_rsvd_memory()", but the reserved memory ranges
+ * are not filtered out.
+ */
+int __init
+filter_memory(unsigned long start, unsigned long end, void *arg)
+{
+	void (*func)(unsigned long, unsigned long, int);
+
+#if IGNORE_PFN0
+	if (start == PAGE_OFFSET) {
+		printk(KERN_WARNING "warning: skipping physical page 0\n");
+		start += PAGE_SIZE;
+		if (start >= end)
+			return 0;
+	}
+#endif
+	func = arg;
+	if (start < end)
+		call_pernode_memory(__pa(start), end - start, func);
 	return 0;
 }
 
@@ -493,6 +517,8 @@ setup_arch (char **cmdline_p)
 	acpi_table_init();
 # ifdef CONFIG_ACPI_NUMA
 	acpi_numa_init();
+	per_cpu_scan_finalize((cpus_weight(early_cpu_possible_map) == 0 ?
+		32 : cpus_weight(early_cpu_possible_map)), additional_cpus);
 # endif
 #else
 # ifdef CONFIG_SMP
@@ -946,9 +972,10 @@ cpu_init (void)
 #endif
 
 	/* set ia64_ctx.max_rid to the maximum RID that is supported by all CPUs: */
-	if (ia64_pal_vm_summary(NULL, &vmi) == 0)
+	if (ia64_pal_vm_summary(NULL, &vmi) == 0) {
 		max_ctx = (1U << (vmi.pal_vm_info_2_s.rid_size - 3)) - 1;
-	else {
+		setup_ptcg_sem(vmi.pal_vm_info_2_s.max_purges, NPTCG_FROM_PAL);
+	} else {
 		printk(KERN_WARNING "cpu_init: PAL VM summary failed, assuming 18 RID bits\n");
 		max_ctx = (1U << 15) - 1;	/* use architected minimum */
 	}

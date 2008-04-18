@@ -472,7 +472,7 @@ ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 			static unsigned char count;
 			static long last_time;
 
-			if (jiffies - last_time > 5*HZ)
+			if (time_after(jiffies, last_time + 5 * HZ))
 				count = 0;
 			if (++count < 5) {
 				last_time = jiffies;
