@@ -344,7 +344,7 @@ ahc_linux_pci_exit(void)
 }
 
 static int
-ahc_linux_pci_reserve_io_region(struct ahc_softc *ahc, u_long *base)
+ahc_linux_pci_reserve_io_region(struct ahc_softc *ahc, resource_size_t *base)
 {
 	if (aic7xxx_allow_memio == 0)
 		return (ENOMEM);
@@ -359,10 +359,10 @@ ahc_linux_pci_reserve_io_region(struct ahc_softc *ahc, u_long *base)
 
 static int
 ahc_linux_pci_reserve_mem_region(struct ahc_softc *ahc,
-				 u_long *bus_addr,
+				 resource_size_t *bus_addr,
 				 uint8_t __iomem **maddr)
 {
-	u_long	start;
+	resource_size_t	start;
 	int	error;
 
 	error = 0;
@@ -387,7 +387,7 @@ int
 ahc_pci_map_registers(struct ahc_softc *ahc)
 {
 	uint32_t command;
-	u_long	 base;
+	resource_size_t	base;
 	uint8_t	__iomem *maddr;
 	int	 error;
 
@@ -425,12 +425,12 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 		} else
 			command |= PCIM_CMD_MEMEN;
 	} else {
-		printf("aic7xxx: PCI%d:%d:%d MEM region 0x%lx "
+		printf("aic7xxx: PCI%d:%d:%d MEM region 0x%llx "
 		       "unavailable. Cannot memory map device.\n",
 		       ahc_get_pci_bus(ahc->dev_softc),
 		       ahc_get_pci_slot(ahc->dev_softc),
 		       ahc_get_pci_function(ahc->dev_softc),
-		       base);
+		       (unsigned long long)base);
 	}
 
 	/*
@@ -441,15 +441,15 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 		error = ahc_linux_pci_reserve_io_region(ahc, &base);
 		if (error == 0) {
 			ahc->tag = BUS_SPACE_PIO;
-			ahc->bsh.ioport = base;
+			ahc->bsh.ioport = (u_long)base;
 			command |= PCIM_CMD_PORTEN;
 		} else {
-			printf("aic7xxx: PCI%d:%d:%d IO region 0x%lx[0..255] "
+			printf("aic7xxx: PCI%d:%d:%d IO region 0x%llx[0..255] "
 			       "unavailable. Cannot map device.\n",
 			       ahc_get_pci_bus(ahc->dev_softc),
 			       ahc_get_pci_slot(ahc->dev_softc),
 			       ahc_get_pci_function(ahc->dev_softc),
-			       base);
+			       (unsigned long long)base);
 		}
 	}
 	ahc_pci_write_config(ahc->dev_softc, PCIR_COMMAND, command, 4);
