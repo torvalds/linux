@@ -446,7 +446,7 @@ async_tx_channel_switch(struct dma_async_tx_descriptor *depend_tx,
 	 * otherwise poll for completion
 	 */
 	if (dma_has_cap(DMA_INTERRUPT, device->cap_mask))
-		intr_tx = device->device_prep_dma_interrupt(chan);
+		intr_tx = device->device_prep_dma_interrupt(chan, 0);
 	else
 		intr_tx = NULL;
 
@@ -515,7 +515,8 @@ async_tx_submit(struct dma_chan *chan, struct dma_async_tx_descriptor *tx,
 		 * 2/ dependencies are 1:1 i.e. two transactions can
 		 * not depend on the same parent
 		 */
-		BUG_ON(depend_tx->ack || depend_tx->next || tx->parent);
+		BUG_ON(async_tx_test_ack(depend_tx) || depend_tx->next ||
+		       tx->parent);
 
 		/* the lock prevents async_tx_run_dependencies from missing
 		 * the setting of ->next when ->parent != NULL
@@ -594,7 +595,7 @@ async_trigger_callback(enum async_tx_flags flags,
 		if (device && !dma_has_cap(DMA_INTERRUPT, device->cap_mask))
 			device = NULL;
 
-		tx = device ? device->device_prep_dma_interrupt(chan) : NULL;
+		tx = device ? device->device_prep_dma_interrupt(chan, 0) : NULL;
 	} else
 		tx = NULL;
 
@@ -610,7 +611,7 @@ async_trigger_callback(enum async_tx_flags flags,
 			/* if ack is already set then we cannot be sure
 			 * we are referring to the correct operation
 			 */
-			BUG_ON(depend_tx->ack);
+			BUG_ON(async_tx_test_ack(depend_tx));
 			if (dma_wait_for_async_tx(depend_tx) == DMA_ERROR)
 				panic("%s: DMA_ERROR waiting for depend_tx\n",
 					__func__);
