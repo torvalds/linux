@@ -1926,6 +1926,8 @@ static inline unsigned long *end_of_stack(struct task_struct *p)
 
 #endif
 
+extern void thread_info_cache_init(void);
+
 /* set thread flags in other task's structures
  * - see asm/thread_info.h for TIF_xxxx flags available
  */
