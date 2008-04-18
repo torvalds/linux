@@ -572,6 +572,13 @@ config ARM_THUMB
 
 	  If you don't know what this all is, saying Y is a safe choice.
 
+config ARM_THUMBEE
+	bool "Enable ThumbEE CPU extension"
+	depends on CPU_V7
+	help
+	  Say Y here if you have a CPU with the ThumbEE extension and code to
+	  make use of it. Say N for code that can run on CPUs without ThumbEE.
+
 config CPU_BIG_ENDIAN
 	bool "Build big-endian kernel"
 	depends on ARCH_SUPPORTS_BIG_ENDIAN
