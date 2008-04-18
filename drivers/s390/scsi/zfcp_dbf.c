@@ -700,7 +700,7 @@ void zfcp_rec_dbf_event_thread(u8 id2, struct zfcp_adapter *adapter, int lock)
 	spin_unlock_irqrestore(&adapter->rec_dbf_lock, flags);
 }
 
-static void zfcp_rec_dbf_event_target(u8 id2, u64 ref,
+static void zfcp_rec_dbf_event_target(u8 id2, void *ref,
 				      struct zfcp_adapter *adapter,
 				      atomic_t *status, atomic_t *erp_count,
 				      u64 wwpn, u32 d_id, u64 fcp_lun)
@@ -712,7 +712,7 @@ static void zfcp_rec_dbf_event_target(u8 id2, u64 ref,
 	memset(r, 0, sizeof(*r));
 	r->id = ZFCP_REC_DBF_ID_TARGET;
 	r->id2 = id2;
-	r->u.target.ref = ref;
+	r->u.target.ref = (unsigned long)ref;
 	r->u.target.status = atomic_read(status);
 	r->u.target.wwpn = wwpn;
 	r->u.target.d_id = d_id;
@@ -728,7 +728,7 @@ static void zfcp_rec_dbf_event_target(u8 id2, u64 ref,
  * @ref: additional reference (e.g. request)
  * @adapter: adapter
  */
-void zfcp_rec_dbf_event_adapter(u8 id, u64 ref, struct zfcp_adapter *adapter)
+void zfcp_rec_dbf_event_adapter(u8 id, void *ref, struct zfcp_adapter *adapter)
 {
 	zfcp_rec_dbf_event_target(id, ref, adapter, &adapter->status,
 				  &adapter->erp_counter, 0, 0, 0);
@@ -740,7 +740,7 @@ void zfcp_rec_dbf_event_adapter(u8 id, u64 ref, struct zfcp_adapter *adapter)
  * @ref: additional reference (e.g. request)
  * @port: port
  */
-void zfcp_rec_dbf_event_port(u8 id, u64 ref, struct zfcp_port *port)
+void zfcp_rec_dbf_event_port(u8 id, void *ref, struct zfcp_port *port)
 {
 	struct zfcp_adapter *adapter = port->adapter;
 
@@ -755,7 +755,7 @@ void zfcp_rec_dbf_event_port(u8 id, u64 ref, struct zfcp_port *port)
  * @ref: additional reference (e.g. request)
  * @unit: unit
  */
-void zfcp_rec_dbf_event_unit(u8 id, u64 ref, struct zfcp_unit *unit)
+void zfcp_rec_dbf_event_unit(u8 id, void *ref, struct zfcp_unit *unit)
 {
 	struct zfcp_port *port = unit->port;
 	struct zfcp_adapter *adapter = port->adapter;
@@ -776,8 +776,8 @@ void zfcp_rec_dbf_event_unit(u8 id, u64 ref, struct zfcp_unit *unit)
  * @port: port
  * @unit: unit
  */
-void zfcp_rec_dbf_event_trigger(u8 id2, u64 ref, u8 want, u8 need, u64 action,
-				struct zfcp_adapter *adapter,
+void zfcp_rec_dbf_event_trigger(u8 id2, void *ref, u8 want, u8 need,
+				void *action, struct zfcp_adapter *adapter,
 				struct zfcp_port *port, struct zfcp_unit *unit)
 {
 	struct zfcp_rec_dbf_record *r = &adapter->rec_dbf_buf;
@@ -787,10 +787,10 @@ void zfcp_rec_dbf_event_trigger(u8 id2, u64 ref, u8 want, u8 need, u64 action,
 	memset(r, 0, sizeof(*r));
 	r->id = ZFCP_REC_DBF_ID_TRIGGER;
 	r->id2 = id2;
-	r->u.trigger.ref = ref;
+	r->u.trigger.ref = (unsigned long)ref;
 	r->u.trigger.want = want;
 	r->u.trigger.need = need;
-	r->u.trigger.action = action;
+	r->u.trigger.action = (unsigned long)action;
 	r->u.trigger.as = atomic_read(&adapter->status);
 	if (port) {
 		r->u.trigger.ps = atomic_read(&port->status);
@@ -819,10 +819,10 @@ void zfcp_rec_dbf_event_action(u8 id2, struct zfcp_erp_action *erp_action)
 	memset(r, 0, sizeof(*r));
 	r->id = ZFCP_REC_DBF_ID_ACTION;
 	r->id2 = id2;
-	r->u.action.action = (u64)erp_action;
+	r->u.action.action = (unsigned long)erp_action;
 	r->u.action.status = erp_action->status;
 	r->u.action.step = erp_action->step;
-	r->u.action.fsf_req = (u64)erp_action->fsf_req;
+	r->u.action.fsf_req = (unsigned long)erp_action->fsf_req;
 	debug_event(adapter->rec_dbf, 4, r, sizeof(*r));
 	spin_unlock_irqrestore(&adapter->rec_dbf_lock, flags);
 }

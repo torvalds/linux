@@ -176,7 +176,8 @@ zfcp_qdio_handler_error_check(struct zfcp_adapter *adapter, unsigned int status,
                 */
 		zfcp_erp_adapter_reopen(adapter,
 					ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED |
-					ZFCP_STATUS_COMMON_ERP_FAILED, 140, 0);
+					ZFCP_STATUS_COMMON_ERP_FAILED, 140,
+					NULL);
 	}
 	return retval;
 }

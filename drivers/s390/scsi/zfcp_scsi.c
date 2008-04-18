@@ -185,7 +185,7 @@ static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 		atomic_clear_mask(ZFCP_STATUS_UNIT_REGISTERED, &unit->status);
 		sdpnt->hostdata = NULL;
 		unit->device = NULL;
-		zfcp_erp_unit_failed(unit, 12, 0);
+		zfcp_erp_unit_failed(unit, 12, NULL);
 		zfcp_unit_put(unit);
 	} else
 		ZFCP_LOG_NORMAL("bug: no unit associated with SCSI device at "
@@ -529,7 +529,7 @@ static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 		unit->fcp_lun, unit->port->wwpn,
 		zfcp_get_busid_by_adapter(unit->port->adapter));
 
-	zfcp_erp_adapter_reopen(adapter, 0, 141, (u64)scpnt);
+	zfcp_erp_adapter_reopen(adapter, 0, 141, scpnt);
 	zfcp_erp_wait(adapter);
 
 	return SUCCESS;

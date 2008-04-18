@@ -1376,7 +1376,7 @@ static void zfcp_fsf_incoming_els_rscn(struct zfcp_fsf_req *fsf_req)
 					      "port 0x%016Lx\n", port->wwpn);
 				zfcp_erp_port_reopen(port,
 						     ZFCP_STATUS_COMMON_ERP_FAILED,
-						     82, (u64)fsf_req);
+						     82, fsf_req);
 				continue;
 			}
 
@@ -1429,7 +1429,7 @@ static void zfcp_fsf_incoming_els_plogi(struct zfcp_fsf_req *fsf_req)
 			       status_buffer->d_id,
 			       zfcp_get_busid_by_adapter(adapter));
 	} else {
-		zfcp_erp_port_forced_reopen(port, 0, 83, (u64)fsf_req);
+		zfcp_erp_port_forced_reopen(port, 0, 83, fsf_req);
 	}
 }
 
@@ -1454,7 +1454,7 @@ static void zfcp_fsf_incoming_els_logo(struct zfcp_fsf_req *fsf_req)
 			       status_buffer->d_id,
 			       zfcp_get_busid_by_adapter(adapter));
 	} else {
-		zfcp_erp_port_forced_reopen(port, 0, 84, (u64)fsf_req);
+		zfcp_erp_port_forced_reopen(port, 0, 84, fsf_req);
 	}
 }
 
