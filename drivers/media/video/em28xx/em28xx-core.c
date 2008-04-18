@@ -77,12 +77,12 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      0x0000, reg, buf, len, HZ);
 
-	if (reg_debug){
+	if (reg_debug) {
 		printk(ret < 0 ? " failed!\n" : "%02x values: ", ret);
-		for (byte = 0; byte < len; byte++) {
-			printk(" %02x", (unsigned char)buf[byte]);
-		}
-		printk("\n");
+		for (byte = 0; byte < len; byte++)
+			printk(KERN_INFO " %02x", (unsigned char)buf[byte]);
+
+		printk(KERN_INFO "\n");
 	}
 
 	return ret;
@@ -143,8 +143,8 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 	if (reg_debug) {
 		int i;
 		for (i = 0; i < len; ++i)
-			printk (" %02x", (unsigned char)buf[i]);
-		printk ("\n");
+			printk(KERN_INFO " %02x", (unsigned char)buf[i]);
+		printk(KERN_INFO "\n");
 	}
 
 	if (!bufs)
@@ -173,8 +173,12 @@ static int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 {
 	int oldval;
 	u8 newval;
-	if ((oldval = em28xx_read_reg(dev, reg)) < 0)
+
+	oldval = em28xx_read_reg(dev, reg);
+
+	if (oldval < 0)
 		return oldval;
+
 	newval = (((u8) oldval) & ~bitmask) | (val & bitmask);
 	return em28xx_write_regs(dev, reg, &newval, 1);
 }
@@ -187,20 +191,26 @@ static int em28xx_write_ac97(struct em28xx *dev, u8 reg, u8 *val)
 {
 	int ret, i;
 	u8 addr = reg & 0x7f;
-	if ((ret = em28xx_write_regs(dev, AC97LSB_REG, val, 2)) < 0)
+
+	ret = em28xx_write_regs(dev, AC97LSB_REG, val, 2);
+	if (ret < 0)
 		return ret;
-	if ((ret = em28xx_write_regs(dev, AC97ADDR_REG, &addr, 1)) < 0)
+
+	ret = em28xx_write_regs(dev, AC97ADDR_REG, &addr, 1);
+	if (ret < 0)
 		return ret;
 
 	/* Wait up to 50 ms for AC97 command to complete */
 	for (i = 0; i < 10; i++) {
-		if ((ret = em28xx_read_reg(dev, AC97BUSY_REG)) < 0)
+		ret = em28xx_read_reg(dev, AC97BUSY_REG);
+		if (ret < 0)
 			return ret;
+
 		if (!(ret & 0x01))
 			return 0;
 		msleep(5);
 	}
-	em28xx_warn ("AC97 command still being executed: not handled properly!\n");
+	em28xx_warn("AC97 command still being executed: not handled properly!\n");
 	return 0;
 }
 
@@ -338,11 +348,11 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 	rc = em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
 
 	if (dev->mode == EM28XX_ANALOG_MODE)
-		rc = em28xx_write_regs(dev, VINENABLE_REG,"\x67", 1);
+		rc = em28xx_write_regs(dev, VINENABLE_REG, "\x67", 1);
 	else
-		rc = em28xx_write_regs(dev, VINENABLE_REG,"\x37", 1);
+		rc = em28xx_write_regs(dev, VINENABLE_REG, "\x37", 1);
 
-	msleep (6);
+	msleep(6);
 
 	return rc;
 }
@@ -357,7 +367,8 @@ int em28xx_outfmt_set_yuv422(struct em28xx *dev)
 static int em28xx_accumulator_set(struct em28xx *dev, u8 xmin, u8 xmax,
 				  u8 ymin, u8 ymax)
 {
-	em28xx_coredbg("em28xx Scale: (%d,%d)-(%d,%d)\n", xmin, ymin, xmax, ymax);
+	em28xx_coredbg("em28xx Scale: (%d,%d)-(%d,%d)\n",
+			xmin, ymin, xmax, ymax);
 
 	em28xx_write_regs(dev, XMIN_REG, &xmin, 1);
 	em28xx_write_regs(dev, XMAX_REG, &xmax, 1);
@@ -372,7 +383,8 @@ static int em28xx_capture_area_set(struct em28xx *dev, u8 hstart, u8 vstart,
 	u8 cheight = height;
 	u8 overflow = (height >> 7 & 0x02) | (width >> 8 & 0x01);
 
-	em28xx_coredbg("em28xx Area Set: (%d,%d)\n", (width | (overflow & 2) << 7),
+	em28xx_coredbg("em28xx Area Set: (%d,%d)\n",
+			(width | (overflow & 2) << 7),
 			(height | (overflow & 1) << 8));
 
 	em28xx_write_regs(dev, HSTART_REG, &hstart, 1);
@@ -386,7 +398,7 @@ static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
 {
 	u8 mode;
 	/* the em2800 scaler only supports scaling down to 50% */
-	if(dev->is_em2800)
+	if (dev->is_em2800)
 		mode = (v ? 0x20 : 0x00) | (h ? 0x10 : 0x00);
 	else {
 		u8 buf[2];
@@ -396,7 +408,8 @@ static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
 		buf[0] = v;
 		buf[1] = v >> 8;
 		em28xx_write_regs(dev, VSCALELOW_REG, (char *)buf, 2);
-		/* it seems that both H and V scalers must be active to work correctly */
+		/* it seems that both H and V scalers must be active
+		   to work correctly */
 		mode = (h || v)? 0x30: 0x00;
 	}
 	return em28xx_write_reg_bits(dev, COMPR_REG, mode, 0x30);
@@ -449,7 +462,7 @@ int em28xx_set_alternate(struct em28xx *dev)
 			       dev->alt, dev->max_pkt_size);
 		errCode = usb_set_interface(dev->udev, 0, dev->alt);
 		if (errCode < 0) {
-			em28xx_errdev ("cannot change alternate number to %d (error=%i)\n",
+			em28xx_errdev("cannot change alternate number to %d (error=%i)\n",
 					dev->alt, errCode);
 			return errCode;
 		}
@@ -507,9 +520,9 @@ void em28xx_uninit_isoc(struct em28xx *dev)
 			usb_unlink_urb(urb);
 			if (dev->isoc_ctl.transfer_buffer[i]) {
 				usb_buffer_free(dev->udev,
-						urb->transfer_buffer_length,
-						dev->isoc_ctl.transfer_buffer[i],
-						urb->transfer_dma);
+					urb->transfer_buffer_length,
+					dev->isoc_ctl.transfer_buffer[i],
+					urb->transfer_dma);
 			}
 			usb_free_urb(urb);
 			dev->isoc_ctl.urb[i] = NULL;
@@ -596,7 +609,9 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 			'desc.bEndpointAddress & USB_ENDPOINT_NUMBER_MASK'
 			should also be using 'desc.bInterval'
 		 */
-		pipe = usb_rcvisocpipe(dev->udev, cap_type == EM28XX_ANALOG_CAPTURE ? 0x82 : 0x84);
+		pipe = usb_rcvisocpipe(dev->udev,
+			cap_type == EM28XX_ANALOG_CAPTURE ? 0x82 : 0x84);
+
 		usb_fill_int_urb(urb, dev->udev, pipe,
 				 dev->isoc_ctl.transfer_buffer[i], sb_size,
 				 em28xx_irq_callback, dma_q, 1);

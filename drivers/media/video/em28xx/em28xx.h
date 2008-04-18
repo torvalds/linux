@@ -365,7 +365,8 @@ struct em28xx {
 	unsigned int video_bytesread;	/* Number of bytes read */
 
 	unsigned long hash;	/* eeprom hash - for boards with generic ID */
-	unsigned long i2c_hash;	/* i2c devicelist hash - for boards with generic ID */
+	unsigned long i2c_hash;	/* i2c devicelist hash -
+				   for boards with generic ID */
 
 	struct em28xx_audio *adev;
 
@@ -399,14 +400,14 @@ struct em28xx {
 	struct urb *urb[EM28XX_NUM_BUFS];	/* urb for isoc transfers */
 	char *transfer_buffer[EM28XX_NUM_BUFS];	/* transfer buffers for isoc transfer */
 	/* helper funcs that call usb_control_msg */
-	int (*em28xx_write_regs) (struct em28xx * dev, u16 reg, char *buf,
-				  int len);
-	int (*em28xx_read_reg) (struct em28xx * dev, u16 reg);
-	int (*em28xx_read_reg_req_len) (struct em28xx * dev, u8 req, u16 reg,
+	int (*em28xx_write_regs) (struct em28xx *dev, u16 reg,
 					char *buf, int len);
-	int (*em28xx_write_regs_req) (struct em28xx * dev, u8 req, u16 reg,
+	int (*em28xx_read_reg) (struct em28xx *dev, u16 reg);
+	int (*em28xx_read_reg_req_len) (struct em28xx *dev, u8 req, u16 reg,
+					char *buf, int len);
+	int (*em28xx_write_regs_req) (struct em28xx *dev, u8 req, u16 reg,
 				      char *buf, int len);
-	int (*em28xx_read_reg_req) (struct em28xx * dev, u8 req, u16 reg);
+	int (*em28xx_read_reg_req) (struct em28xx *dev, u8 req, u16 reg);
 
 	enum em28xx_mode mode;
 
@@ -459,7 +460,7 @@ int em28xx_register_extension(struct em28xx_ops *dev);
 void em28xx_unregister_extension(struct em28xx_ops *dev);
 
 /* Provided by em28xx-cards.c */
-extern int em2800_variant_detect(struct usb_device* udev,int model);
+extern int em2800_variant_detect(struct usb_device *udev, int model);
 extern void em28xx_pre_card_setup(struct em28xx *dev);
 extern void em28xx_card_setup(struct em28xx *dev);
 extern struct em28xx_board em28xx_boards[];
@@ -557,80 +558,80 @@ int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
 	printk(KERN_WARNING "%s: "fmt,\
 			dev->name , ##arg); } while (0)
 
-inline static int em28xx_compression_disable(struct em28xx *dev)
+static inline int em28xx_compression_disable(struct em28xx *dev)
 {
 	/* side effect of disabling scaler and mixer */
 	return em28xx_write_regs(dev, COMPR_REG, "\x00", 1);
 }
 
-inline static int em28xx_contrast_get(struct em28xx *dev)
+static inline int em28xx_contrast_get(struct em28xx *dev)
 {
 	return em28xx_read_reg(dev, YGAIN_REG) & 0x1f;
 }
 
-inline static int em28xx_brightness_get(struct em28xx *dev)
+static inline int em28xx_brightness_get(struct em28xx *dev)
 {
 	return em28xx_read_reg(dev, YOFFSET_REG);
 }
 
-inline static int em28xx_saturation_get(struct em28xx *dev)
+static inline int em28xx_saturation_get(struct em28xx *dev)
 {
 	return em28xx_read_reg(dev, UVGAIN_REG) & 0x1f;
 }
 
-inline static int em28xx_u_balance_get(struct em28xx *dev)
+static inline int em28xx_u_balance_get(struct em28xx *dev)
 {
 	return em28xx_read_reg(dev, UOFFSET_REG);
 }
 
-inline static int em28xx_v_balance_get(struct em28xx *dev)
+static inline int em28xx_v_balance_get(struct em28xx *dev)
 {
 	return em28xx_read_reg(dev, VOFFSET_REG);
 }
 
-inline static int em28xx_gamma_get(struct em28xx *dev)
+static inline int em28xx_gamma_get(struct em28xx *dev)
 {
 	return em28xx_read_reg(dev, GAMMA_REG) & 0x3f;
 }
 
-inline static int em28xx_contrast_set(struct em28xx *dev, s32 val)
+static inline int em28xx_contrast_set(struct em28xx *dev, s32 val)
 {
 	u8 tmp = (u8) val;
 	return em28xx_write_regs(dev, YGAIN_REG, &tmp, 1);
 }
 
-inline static int em28xx_brightness_set(struct em28xx *dev, s32 val)
+static inline int em28xx_brightness_set(struct em28xx *dev, s32 val)
 {
 	u8 tmp = (u8) val;
 	return em28xx_write_regs(dev, YOFFSET_REG, &tmp, 1);
 }
 
-inline static int em28xx_saturation_set(struct em28xx *dev, s32 val)
+static inline int em28xx_saturation_set(struct em28xx *dev, s32 val)
 {
 	u8 tmp = (u8) val;
 	return em28xx_write_regs(dev, UVGAIN_REG, &tmp, 1);
 }
 
-inline static int em28xx_u_balance_set(struct em28xx *dev, s32 val)
+static inline int em28xx_u_balance_set(struct em28xx *dev, s32 val)
 {
 	u8 tmp = (u8) val;
 	return em28xx_write_regs(dev, UOFFSET_REG, &tmp, 1);
 }
 
-inline static int em28xx_v_balance_set(struct em28xx *dev, s32 val)
+static inline int em28xx_v_balance_set(struct em28xx *dev, s32 val)
 {
 	u8 tmp = (u8) val;
 	return em28xx_write_regs(dev, VOFFSET_REG, &tmp, 1);
 }
 
-inline static int em28xx_gamma_set(struct em28xx *dev, s32 val)
+static inline int em28xx_gamma_set(struct em28xx *dev, s32 val)
 {
 	u8 tmp = (u8) val;
 	return em28xx_write_regs(dev, GAMMA_REG, &tmp, 1);
 }
 
 /*FIXME: maxw should be dependent of alt mode */
-inline static unsigned int norm_maxw(struct em28xx *dev)
+static inline unsigned int norm_maxw(struct em28xx *dev)
 {
 	if (dev->max_range_640_480)
 		return 640;
@@ -638,7 +639,7 @@ inline static unsigned int norm_maxw(struct em28xx *dev)
 		return 720;
 }
 
-inline static unsigned int norm_maxh(struct em28xx *dev)
+static inline unsigned int norm_maxh(struct em28xx *dev)
 {
 	if (dev->max_range_640_480)
 		return 480;

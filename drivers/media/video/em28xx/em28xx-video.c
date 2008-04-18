@@ -1,5 +1,6 @@
 /*
-   em28xx-video.c - driver for Empia EM2800/EM2820/2840 USB video capture devices
+   em28xx-video.c - driver for Empia EM2800/EM2820/2840 USB
+		    video capture devices
 
    Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
 		      Markus Rechberger <mrechberger@gmail.com>
@@ -58,10 +59,13 @@ static unsigned int isoc_debug;
 module_param(isoc_debug, int, 0644);
 MODULE_PARM_DESC(isoc_debug, "enable debug messages [isoc transfers]");
 
-#define em28xx_isocdbg(fmt, arg...) do {\
-	if (isoc_debug) \
+#define em28xx_isocdbg(fmt, arg...) \
+do {\
+	if (isoc_debug) { \
 		printk(KERN_INFO "%s %s :"fmt, \
-			 dev->name, __func__ , ##arg); } while (0)
+			 dev->name, __func__ , ##arg); \
+	} \
+  } while (0)
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -84,8 +88,8 @@ MODULE_PARM_DESC(vbi_nr,   "vbi device numbers");
 MODULE_PARM_DESC(radio_nr, "radio device numbers");
 
 static unsigned int video_debug;
-module_param(video_debug,int,0644);
-MODULE_PARM_DESC(video_debug,"enable debug messages [video]");
+module_param(video_debug, int, 0644);
+MODULE_PARM_DESC(video_debug, "enable debug messages [video]");
 
 /* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS */
 static unsigned long em28xx_devused;
@@ -102,7 +106,7 @@ static struct v4l2_queryctrl em28xx_qctrl[] = {
 		.step = 0x1,
 		.default_value = 0x1f,
 		.flags = 0,
-	},{
+	}, {
 		.id = V4L2_CID_AUDIO_MUTE,
 		.type = V4L2_CTRL_TYPE_BOOLEAN,
 		.name = "Mute",
@@ -390,7 +394,7 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 	dev->mode = EM28XX_ANALOG_MODE;
 
 	/* Ask tuner to go to analog mode */
-	memset (&f, 0, sizeof(f));
+	memset(&f, 0, sizeof(f));
 	f.frequency = dev->ctl_freq;
 
 	em28xx_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, &f);
@@ -483,7 +487,8 @@ buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 
 }
 
-static void buffer_release(struct videobuf_queue *vq, struct videobuf_buffer *vb)
+static void buffer_release(struct videobuf_queue *vq,
+				struct videobuf_buffer *vb)
 {
 	struct em28xx_buffer   *buf  = container_of(vb, struct em28xx_buffer, vb);
 	struct em28xx_fh       *fh   = vq->priv_data;
@@ -501,7 +506,7 @@ static struct videobuf_queue_ops em28xx_video_qops = {
 	.buf_release    = buffer_release,
 };
 
-/*********************  v4l2 interface  ******************************************/
+/*********************  v4l2 interface  **************************************/
 
 /*
  * em28xx_config()
@@ -516,9 +521,9 @@ static int em28xx_config(struct em28xx *dev)
 
 	/* enable vbi capturing */
 
-/*	em28xx_write_regs_req(dev,0x00,0x0e,"\xC0",1); audio register */
-/*	em28xx_write_regs_req(dev,0x00,0x0f,"\x80",1); clk register */
-	em28xx_write_regs_req(dev,0x00,0x11,"\x51",1);
+/*	em28xx_write_regs_req(dev, 0x00, 0x0e, "\xC0", 1); audio register */
+/*	em28xx_write_regs_req(dev, 0x00, 0x0f, "\x80", 1); clk register */
+	em28xx_write_regs_req(dev, 0x00, 0x11, "\x51", 1);
 
 	dev->mute = 1;		/* maybe not the right place... */
 	dev->volume = 0x1f;
@@ -557,12 +562,15 @@ static void video_mux(struct em28xx *dev, int index)
 	em28xx_i2c_call_clients(dev, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 
 	if (dev->has_msp34xx) {
-		if (dev->i2s_speed)
-			em28xx_i2c_call_clients(dev, VIDIOC_INT_I2S_CLOCK_FREQ, &dev->i2s_speed);
+		if (dev->i2s_speed) {
+			em28xx_i2c_call_clients(dev, VIDIOC_INT_I2S_CLOCK_FREQ,
+				&dev->i2s_speed);
+		}
 		route.input = dev->ctl_ainput;
 		route.output = MSP_OUTPUT(MSP_SC_IN_DSP_SCART1);
 		/* Note: this is msp3400 specific */
-		em28xx_i2c_call_clients(dev, VIDIOC_INT_S_AUDIO_ROUTING, &route);
+		em28xx_i2c_call_clients(dev, VIDIOC_INT_S_AUDIO_ROUTING,
+			&route);
 	}
 
 	em28xx_audio_analog_set(dev);
@@ -802,7 +810,7 @@ out:
 	return rc;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * norm)
 {
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
@@ -919,11 +927,11 @@ static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 
 	index = dev->ctl_ainput;
 
-	if (index == 0) {
+	if (index == 0)
 		strcpy(a->name, "Television");
-	} else {
+	else
 		strcpy(a->name, "Line In");
-	}
+
 	a->capability = V4L2_AUDCAP_STEREO;
 	a->index = index;
 
@@ -1501,7 +1509,7 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 {
 	int minor = iminor(inode);
 	int errCode = 0, radio = 0;
-	struct em28xx *h,*dev = NULL;
+	struct em28xx *h, *dev = NULL;
 	struct em28xx_fh *fh;
 	enum v4l2_buf_type fh_type = 0;
 
@@ -1602,12 +1610,13 @@ static void em28xx_release_resources(struct em28xx *dev)
 	usb_put_dev(dev->udev);
 
 	/* Mark device as unused */
-	em28xx_devused&=~(1<<dev->devno);
+	em28xx_devused &= ~(1<<dev->devno);
 }
 
 /*
  * em28xx_v4l2_close()
- * stops streaming and deallocates all resources allocated by the v4l2 calls and ioctls
+ * stops streaming and deallocates all resources allocated by the v4l2
+ * calls and ioctls
  */
 static int em28xx_v4l2_close(struct inode *inode, struct file *filp)
 {
@@ -1660,7 +1669,7 @@ static int em28xx_v4l2_close(struct inode *inode, struct file *filp)
  * will allocate buffers when called for the first time
  */
 static ssize_t
-em28xx_v4l2_read(struct file *filp, char __user * buf, size_t count,
+em28xx_v4l2_read(struct file *filp, char __user *buf, size_t count,
 		 loff_t *pos)
 {
 	struct em28xx_fh *fh = filp->private_data;
@@ -1825,7 +1834,7 @@ static struct video_device em28xx_radio_template = {
 #endif
 };
 
-/******************************** usb interface *****************************************/
+/******************************** usb interface ******************************/
 
 
 static LIST_HEAD(em28xx_extension_devlist);
@@ -2088,22 +2097,24 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 
 	/* Check to see next free device and mark as used */
-	nr=find_first_zero_bit(&em28xx_devused,EM28XX_MAXBOARDS);
-	em28xx_devused|=1<<nr;
+	nr = find_first_zero_bit(&em28xx_devused, EM28XX_MAXBOARDS);
+	em28xx_devused |= 1<<nr;
 
 	/* Don't register audio interfaces */
 	if (interface->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO) {
 		em28xx_err(DRIVER_NAME " audio device (%04x:%04x): interface %i, class %i\n",
-				udev->descriptor.idVendor,udev->descriptor.idProduct,
+				udev->descriptor.idVendor,
+				udev->descriptor.idProduct,
 				ifnum,
 				interface->altsetting[0].desc.bInterfaceClass);
 
-		em28xx_devused&=~(1<<nr);
+		em28xx_devused &= ~(1<<nr);
 		return -ENODEV;
 	}
 
 	em28xx_err(DRIVER_NAME " new video device (%04x:%04x): interface %i, class %i\n",
-			udev->descriptor.idVendor,udev->descriptor.idProduct,
+			udev->descriptor.idVendor,
+			udev->descriptor.idProduct,
 			ifnum,
 			interface->altsetting[0].desc.bInterfaceClass);
 
@@ -2113,18 +2124,19 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) !=
 	    USB_ENDPOINT_XFER_ISOC) {
 		em28xx_err(DRIVER_NAME " probing error: endpoint is non-ISO endpoint!\n");
-		em28xx_devused&=~(1<<nr);
+		em28xx_devused &= ~(1<<nr);
 		return -ENODEV;
 	}
 	if ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT) {
 		em28xx_err(DRIVER_NAME " probing error: endpoint is ISO OUT endpoint!\n");
-		em28xx_devused&=~(1<<nr);
+		em28xx_devused &= ~(1<<nr);
 		return -ENODEV;
 	}
 
 	if (nr >= EM28XX_MAXBOARDS) {
-		printk (DRIVER_NAME ": Supports only %i em28xx boards.\n",EM28XX_MAXBOARDS);
-		em28xx_devused&=~(1<<nr);
+		printk(DRIVER_NAME ": Supports only %i em28xx boards.\n",
+				EM28XX_MAXBOARDS);
+		em28xx_devused &= ~(1<<nr);
 		return -ENOMEM;
 	}
 
@@ -2132,7 +2144,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		em28xx_err(DRIVER_NAME ": out of memory!\n");
-		em28xx_devused&=~(1<<nr);
+		em28xx_devused &= ~(1<<nr);
 		return -ENOMEM;
 	}
 
@@ -2156,14 +2168,14 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	/* compute alternate max packet sizes */
 	uif = udev->actconfig->interface[0];
 
-	dev->num_alt=uif->num_altsetting;
-	em28xx_info("Alternate settings: %i\n",dev->num_alt);
-//	dev->alt_max_pkt_size = kmalloc(sizeof(*dev->alt_max_pkt_size)*
-	dev->alt_max_pkt_size = kmalloc(32*
-						dev->num_alt,GFP_KERNEL);
+	dev->num_alt = uif->num_altsetting;
+	em28xx_info("Alternate settings: %i\n", dev->num_alt);
+/*	dev->alt_max_pkt_size = kmalloc(sizeof(*dev->alt_max_pkt_size)* */
+	dev->alt_max_pkt_size = kmalloc(32 * dev->num_alt, GFP_KERNEL);
+
 	if (dev->alt_max_pkt_size == NULL) {
 		em28xx_errdev("out of memory!\n");
-		em28xx_devused&=~(1<<nr);
+		em28xx_devused &= ~(1<<nr);
 		kfree(dev);
 		return -ENOMEM;
 	}
@@ -2173,11 +2185,11 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 							wMaxPacketSize);
 		dev->alt_max_pkt_size[i] =
 		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-		em28xx_info("Alternate setting %i, max size= %i\n",i,
-							dev->alt_max_pkt_size[i]);
+		em28xx_info("Alternate setting %i, max size= %i\n", i,
+						dev->alt_max_pkt_size[i]);
 	}
 
-	if ((card[nr]>=0)&&(card[nr]<em28xx_bcount))
+	if ((card[nr] >= 0) && (card[nr] < em28xx_bcount))
 		dev->model = card[nr];
 
 	/* allocate device struct */
@@ -2213,7 +2225,8 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 
 	em28xx_info("disconnecting %s\n", dev->vdev->name);
 
-	/* wait until all current v4l2 io is finished then deallocate resources */
+	/* wait until all current v4l2 io is finished then deallocate
+	   resources */
 	mutex_lock(&dev->lock);
 
 	wake_up_interruptible_all(&dev->open);

@@ -97,7 +97,8 @@ static inline void print_err_status(struct em28xx *dev,
 	if (packet < 0) {
 		dprintk(1, "URB status %d [%s].\n", status, errmsg);
 	} else {
-		dprintk(1, "URB packet %d, status %d [%s].\n", packet, status, errmsg);
+		dprintk(1, "URB packet %d, status %d [%s].\n",
+			packet, status, errmsg);
 	}
 }
 
@@ -134,18 +135,20 @@ static inline int dvb_isoc_copy(struct em28xx *dev, struct urb *urb)
 	return 0;
 }
 
-static int start_streaming(struct em28xx_dvb* dvb) {
+static int start_streaming(struct em28xx_dvb *dvb)
+{
 	struct em28xx *dev = dvb->adapter.priv;
 
 	usb_set_interface(dev->udev, 0, 1);
-	dev->em28xx_write_regs_req(dev,0x00,0x48,"\x00",1);
+	dev->em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
 
 	return em28xx_init_isoc(dev, EM28XX_DVB_MAX_PACKETS,
 				EM28XX_DVB_NUM_BUFS, EM28XX_DVB_MAX_PACKETSIZE,
 				dvb_isoc_copy, EM28XX_DIGITAL_CAPTURE);
 }
 
-static int stop_streaming(struct em28xx_dvb* dvb) {
+static int stop_streaming(struct em28xx_dvb *dvb)
+{
 	struct em28xx *dev = dvb->adapter.priv;
 
 	em28xx_uninit_isoc(dev);
@@ -167,7 +170,8 @@ static int start_feed(struct dvb_demux_feed *feed)
 
 	if (dvb->nfeeds == 1) {
 		ret = start_streaming(dvb);
-		if(ret < 0) rc = ret;
+		if (ret < 0)
+			rc = ret;
 	}
 
 	mutex_unlock(&dvb->lock);
@@ -182,9 +186,10 @@ static int stop_feed(struct dvb_demux_feed *feed)
 
 	mutex_lock(&dvb->lock);
 	dvb->nfeeds--;
-	if (0 == dvb->nfeeds) {
+
+	if (0 == dvb->nfeeds)
 		err = stop_streaming(dvb);
-	}
+
 	mutex_unlock(&dvb->lock);
 	return err;
 }
@@ -212,7 +217,7 @@ static int attach_xc3028(u8 addr, struct em28xx *dev)
 	struct xc2028_ctrl ctl;
 	struct xc2028_config cfg;
 
-	memset (&cfg, 0, sizeof(cfg));
+	memset(&cfg, 0, sizeof(cfg));
 	cfg.i2c_adap  = &dev->i2c_adap;
 	cfg.i2c_addr  = addr;
 	cfg.ctrl      = &ctl;
@@ -360,8 +365,9 @@ static int dvb_init(struct em28xx *dev)
 	struct em28xx_dvb *dvb;
 
 	dvb = kzalloc(sizeof(struct em28xx_dvb), GFP_KERNEL);
-	if(dvb == NULL) {
-		printk("em28xx_dvb: memory allocation failed\n");
+
+	if (dvb == NULL) {
+		printk(KERN_INFO "em28xx_dvb: memory allocation failed\n");
 		return -ENOMEM;
 	}
 	dev->dvb = dvb;
@@ -410,9 +416,8 @@ static int dvb_init(struct em28xx *dev)
 	/* register everything */
 	result = register_dvb(dvb, THIS_MODULE, dev, &dev->udev->dev);
 
-	if (result < 0) {
+	if (result < 0)
 		goto out_free;
-	}
 
 	printk(KERN_INFO "Successfully loaded em28xx-dvb\n");
 	return 0;

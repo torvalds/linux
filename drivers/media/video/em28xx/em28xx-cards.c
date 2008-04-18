@@ -436,10 +436,10 @@ MODULE_DEVICE_TABLE(usb, em28xx_id_table);
 
 /* Board Hauppauge WinTV HVR 900 analog */
 struct em28xx_reg_seq hauppauge_wintv_hvr_900_analog[] = {
-	{  -1,   -1,   6},
+	{  -1,	 -1,   6},
 	{0x08, 0x2d,  10},
 	{0x08, 0x3d,   5},
-	{ -1,    -1,  -1},
+	{  -1,   -1,  -1},
 };
 /* Board Hauppauge WinTV HVR 900 digital */
 struct em28xx_reg_seq hauppauge_wintv_hvr_900_digital[] = {
