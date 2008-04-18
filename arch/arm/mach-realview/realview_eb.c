@@ -224,7 +224,7 @@ static struct amba_device *amba_devs[] __initdata = {
  * RealView EB platform devices
  */
 
-static struct resource realview_eb_smc91x_resources[] = {
+static struct resource realview_eb_eth_resources[] = {
 	[0] = {
 		.start		= REALVIEW_ETH_BASE,
 		.end		= REALVIEW_ETH_BASE + SZ_64K - 1,
@@ -237,12 +237,35 @@ static struct resource realview_eb_smc91x_resources[] = {
 	},
 };
 
-static struct platform_device realview_eb_smc91x_device = {
-	.name		= "smc91x",
+static struct platform_device realview_eb_eth_device = {
 	.id		= 0,
-	.num_resources	= ARRAY_SIZE(realview_eb_smc91x_resources),
-	.resource	= realview_eb_smc91x_resources,
+	.num_resources	= ARRAY_SIZE(realview_eb_eth_resources),
+	.resource	= realview_eb_eth_resources,
 };
+
+/*
+ * Detect and register the correct Ethernet device. RealView/EB rev D
+ * platforms use the newer SMSC LAN9118 Ethernet chip
+ */
+static int eth_device_register(void)
+{
+	void __iomem *eth_addr = ioremap(REALVIEW_ETH_BASE, SZ_4K);
+	u32 idrev;
+
+	if (!eth_addr)
+		return -ENOMEM;
+
+	idrev = readl(eth_addr + 0x50);
+	if ((idrev & 0xFFFF0000) == 0x01180000)
+		/* SMSC LAN9118 chip present */
+		realview_eb_eth_device.name = "smc911x";
+	else
+		/* SMSC 91C111 chip present */
+		realview_eb_eth_device.name = "smc91x";
+
+	iounmap(eth_addr);
+	return platform_device_register(&realview_eb_eth_device);
+}
 
 static void __init gic_init_irq(void)
 {
@@ -301,8 +324,8 @@ static void realview_eb11mp_fixup(void)
 	kmi1_device.irq[0]	= IRQ_EB11MP_KMI1;
 
 	/* platform devices */
-	realview_eb_smc91x_resources[1].start	= IRQ_EB11MP_ETH;
-	realview_eb_smc91x_resources[1].end	= IRQ_EB11MP_ETH;
+	realview_eb_eth_resources[1].start	= IRQ_EB11MP_ETH;
+	realview_eb_eth_resources[1].end	= IRQ_EB11MP_ETH;
 }
 
 static void __init realview_eb_timer_init(void)
@@ -340,8 +363,8 @@ static void __init realview_eb_init(void)
 	clk_register(&realview_clcd_clk);
 
 	platform_device_register(&realview_flash_device);
-	platform_device_register(&realview_eb_smc91x_device);
 	platform_device_register(&realview_i2c_device);
+	eth_device_register();
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];
