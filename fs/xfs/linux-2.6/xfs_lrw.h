@@ -68,7 +68,8 @@ extern void xfs_inval_cached_trace(struct xfs_inode *,
 #define xfs_inval_cached_trace(ip, offset, len, first, last)
 #endif
 
-extern int xfsbdstrat(struct xfs_mount *, struct xfs_buf *);
+/* errors from xfsbdstrat() must be extracted from the buffer */
+extern void xfsbdstrat(struct xfs_mount *, struct xfs_buf *);
 extern int xfs_bdstrat_cb(struct xfs_buf *);
 extern int xfs_dev_is_read_only(struct xfs_mount *, char *);
 

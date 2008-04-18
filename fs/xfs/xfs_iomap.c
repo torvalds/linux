@@ -802,8 +802,11 @@ xfs_iomap_write_allocate(
 			 */
 			nimaps = 1;
 			end_fsb = XFS_B_TO_FSB(mp, ip->i_size);
-			xfs_bmap_last_offset(NULL, ip, &last_block,
-				XFS_DATA_FORK);
+			error = xfs_bmap_last_offset(NULL, ip, &last_block,
+							XFS_DATA_FORK);
+			if (error)
+				goto trans_cancel;
+
 			last_block = XFS_FILEOFF_MAX(last_block, end_fsb);
 			if ((map_start_fsb + count_fsb) > last_block) {
 				count_fsb = last_block - map_start_fsb;

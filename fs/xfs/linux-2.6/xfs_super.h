@@ -50,13 +50,7 @@ extern void xfs_qm_exit(void);
 # define set_posix_acl_flag(sb)	do { } while (0)
 #endif
 
-#ifdef CONFIG_XFS_SECURITY
-# define XFS_SECURITY_STRING	"security attributes, "
-# define ENOSECURITY		0
-#else
-# define XFS_SECURITY_STRING
-# define ENOSECURITY		EOPNOTSUPP
-#endif
+#define XFS_SECURITY_STRING	"security attributes, "
 
 #ifdef CONFIG_XFS_RT
 # define XFS_REALTIME_STRING	"realtime, "
