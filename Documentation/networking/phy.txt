@@ -1,7 +1,7 @@
 
 -------
 PHY Abstraction Layer
-(Updated 2006-11-30)
+(Updated 2008-04-08)
 
 Purpose
 
@@ -291,3 +291,39 @@ Writing a PHY driver
  Feel free to look at the Marvell, Cicada, and Davicom drivers in
  drivers/net/phy/ for examples (the lxt and qsemi drivers have
  not been tested as of this writing)
+
+Board Fixups
+
+ Sometimes the specific interaction between the platform and the PHY requires
+ special handling.  For instance, to change where the PHY's clock input is,
+ or to add a delay to account for latency issues in the data path.  In order
+ to support such contingencies, the PHY Layer allows platform code to register
+ fixups to be run when the PHY is brought up (or subsequently reset).
+
+ When the PHY Layer brings up a PHY it checks to see if there are any fixups
+ registered for it, matching based on UID (contained in the PHY device's phy_id
+ field) and the bus identifier (contained in phydev->dev.bus_id).  Both must
+ match, however two constants, PHY_ANY_ID and PHY_ANY_UID, are provided as
+ wildcards for the bus ID and UID, respectively.
+
+ When a match is found, the PHY layer will invoke the run function associated
+ with the fixup.  This function is passed a pointer to the phy_device of
+ interest.  It should therefore only operate on that PHY.
+
+ The platform code can either register the fixup using phy_register_fixup():
+
+	int phy_register_fixup(const char *phy_id,
+		u32 phy_uid, u32 phy_uid_mask,
+		int (*run)(struct phy_device *));
+
+ Or using one of the two stubs, phy_register_fixup_for_uid() and
+ phy_register_fixup_for_id():
+
+ int phy_register_fixup_for_uid(u32 phy_uid, u32 phy_uid_mask,
+		int (*run)(struct phy_device *));
+ int phy_register_fixup_for_id(const char *phy_id,
+		int (*run)(struct phy_device *));
+
+ The stubs set one of the two matching criteria, and set the other one to
+ match anything.
+
