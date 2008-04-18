@@ -223,3 +223,4 @@ module_exit(bast_flash_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("BAST MTD Map driver");
+MODULE_ALIAS("platform:bast-nor");

@@ -156,6 +156,7 @@ static struct platform_driver omapflash_driver = {
 	.remove	= __devexit_p(omapflash_remove),
 	.driver = {
 		.name	= "omapflash",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -174,4 +175,4 @@ module_exit(omapflash_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MTD NOR map driver for TI OMAP boards");
-
+MODULE_ALIAS("platform:omapflash");

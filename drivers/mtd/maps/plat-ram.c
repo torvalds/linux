@@ -251,6 +251,9 @@ static int platram_probe(struct platform_device *pdev)
 
 /* device driver info */
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:mtd-ram");
+
 static struct platform_driver platram_driver = {
 	.probe		= platram_probe,
 	.remove		= platram_remove,
