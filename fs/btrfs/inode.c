@@ -2524,6 +2524,12 @@ static void btrfs_invalidatepage(struct page *page, unsigned long offset)
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	extent_invalidatepage(tree, page, offset);
 	btrfs_releasepage(page, GFP_NOFS);
+	if (PagePrivate(page)) {
+		printk("invalidate page cleaning up after releasepage\n");
+		ClearPagePrivate(page);
+		set_page_private(page, 0);
+		page_cache_release(page);
+	}
 }
 
 /*

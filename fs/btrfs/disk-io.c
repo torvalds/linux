@@ -533,6 +533,12 @@ static void btree_invalidatepage(struct page *page, unsigned long offset)
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	extent_invalidatepage(tree, page, offset);
 	btree_releasepage(page, GFP_NOFS);
+	if (PagePrivate(page)) {
+		printk("2invalidate page cleaning up after releasepage\n");
+		ClearPagePrivate(page);
+		set_page_private(page, 0);
+		page_cache_release(page);
+	}
 }
 
 #if 0
@@ -1484,6 +1490,8 @@ int close_ctree(struct btrfs_root *root)
 	write_ctree_super(NULL, root);
 	mutex_unlock(&fs_info->fs_mutex);
 
+	btrfs_transaction_flush_work(root);
+
 	if (fs_info->delalloc_bytes) {
 		printk("btrfs: at unmount delalloc count %Lu\n",
 		       fs_info->delalloc_bytes);
@@ -1514,7 +1522,11 @@ int close_ctree(struct btrfs_root *root)
 	extent_io_tree_empty_lru(&fs_info->extent_ins);
 	extent_io_tree_empty_lru(&BTRFS_I(fs_info->btree_inode)->io_tree);
 
+	flush_workqueue(end_io_workqueue);
+	flush_workqueue(async_submit_workqueue);
+
 	truncate_inode_pages(fs_info->btree_inode->i_mapping, 0);
+
 	flush_workqueue(end_io_workqueue);
 	destroy_workqueue(end_io_workqueue);
 
