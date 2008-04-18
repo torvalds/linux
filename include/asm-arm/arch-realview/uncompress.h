@@ -21,6 +21,7 @@
 #include <asm/mach-types.h>
 
 #include <asm/arch/board-eb.h>
+#include <asm/arch/board-pb11mp.h>
 
 #define AMBA_UART_DR(base)	(*(volatile unsigned char *)((base) + 0x00))
 #define AMBA_UART_LCRH(base)	(*(volatile unsigned char *)((base) + 0x2c))
@@ -34,6 +35,8 @@ static inline unsigned long get_uart_base(void)
 {
 	if (machine_is_realview_eb())
 		return REALVIEW_EB_UART0_BASE;
+	else if (machine_is_realview_pb11mp())
+		return REALVIEW_PB11MP_UART0_BASE;
 	else
 		return 0;
 }
