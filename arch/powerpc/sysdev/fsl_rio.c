@@ -1007,6 +1007,12 @@ int fsl_rio_setup(struct of_device *dev)
 	rio_register_mport(port);
 
 	priv->regs_win = ioremap(regs.start, regs.end - regs.start + 1);
+
+	port->sys_size = (in_be32((priv->regs_win + RIO_PEF_CAR))
+					& RIO_PEF_CTLS) >> 4;
+	dev_info(&dev->dev, "RapidIO Common Transport System size: %d\n",
+			port->sys_size ? 65536 : 256);
+
 	priv->atmu_regs = (struct rio_atmu_regs *)(priv->regs_win
 					+ RIO_ATMU_REGS_OFFSET);
 	priv->maint_atmu_regs = priv->atmu_regs + 1;
