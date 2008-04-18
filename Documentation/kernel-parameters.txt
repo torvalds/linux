@@ -941,6 +941,11 @@ and is between 256 and 4096 characters. It is defined in the file
 	kstack=N	[X86-32,X86-64] Print N words from the kernel stack
 			in oops dumps.
 
+	kgdboc=		[HW] kgdb over consoles.
+			Requires a tty driver that supports console polling.
+			(only serial suported for now)
+			Format: <serial_device>[,baud]
+
 	l2cr=		[PPC]
 
 	lapic		[X86-32,APIC] Enable the local APIC even if BIOS

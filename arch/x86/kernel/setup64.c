@@ -11,6 +11,7 @@
 #include <linux/bootmem.h>
 #include <linux/bitops.h>
 #include <linux/module.h>
+#include <linux/kgdb.h>
 #include <asm/pda.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -251,6 +252,17 @@ void __cpuinit cpu_init (void)
 	load_TR_desc();
 	load_LDT(&init_mm.context);
 
+#ifdef CONFIG_KGDB
+	/*
+	 * If the kgdb is connected no debug regs should be altered.  This
+	 * is only applicable when KGDB and a KGDB I/O module are built
+	 * into the kernel and you are using early debugging with
+	 * kgdbwait. KGDB will control the kernel HW breakpoint registers.
+	 */
+	if (kgdb_connected && arch_kgdb_ops.correct_hw_break)
+		arch_kgdb_ops.correct_hw_break();
+	else {
+#endif
 	/*
 	 * Clear all 6 debug registers:
 	 */
@@ -261,6 +273,10 @@ void __cpuinit cpu_init (void)
 	set_debugreg(0UL, 3);
 	set_debugreg(0UL, 6);
 	set_debugreg(0UL, 7);
+#ifdef CONFIG_KGDB
+	/* If the kgdb is connected no debug regs should be altered. */
+	}
+#endif
 
 	fpu_init(); 
 

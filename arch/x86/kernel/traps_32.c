@@ -730,6 +730,8 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 static __kprobes void
 unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 {
+	if (notify_die(DIE_NMIUNKNOWN, "nmi", regs, reason, 2, SIGINT) == NOTIFY_STOP)
+		return;
 #ifdef CONFIG_MCA
 	/*
 	 * Might actually be able to figure out what the guilty party
