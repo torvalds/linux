@@ -92,6 +92,22 @@ void inet_put_port(struct sock *sk)
 
 EXPORT_SYMBOL(inet_put_port);
 
+void __inet_inherit_port(struct sock *sk, struct sock *child)
+{
+	struct inet_hashinfo *table = sk->sk_prot->h.hashinfo;
+	const int bhash = inet_bhashfn(inet_sk(child)->num, table->bhash_size);
+	struct inet_bind_hashbucket *head = &table->bhash[bhash];
+	struct inet_bind_bucket *tb;
+
+	spin_lock(&head->lock);
+	tb = inet_csk(sk)->icsk_bind_hash;
+	sk_add_bind_node(child, &tb->owners);
+	inet_csk(child)->icsk_bind_hash = tb;
+	spin_unlock(&head->lock);
+}
+
+EXPORT_SYMBOL_GPL(__inet_inherit_port);
+
 /*
  * This lock without WQ_FLAG_EXCLUSIVE is good on UP and it can be very bad on SMP.
  * Look, when several writers sleep and reader wakes them up, all but one

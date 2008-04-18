@@ -221,19 +221,7 @@ static inline int inet_sk_listen_hashfn(const struct sock *sk)
 }
 
 /* Caller must disable local BH processing. */
-static inline void __inet_inherit_port(struct sock *sk, struct sock *child)
-{
-	struct inet_hashinfo *table = sk->sk_prot->h.hashinfo;
-	const int bhash = inet_bhashfn(inet_sk(child)->num, table->bhash_size);
-	struct inet_bind_hashbucket *head = &table->bhash[bhash];
-	struct inet_bind_bucket *tb;
-
-	spin_lock(&head->lock);
-	tb = inet_csk(sk)->icsk_bind_hash;
-	sk_add_bind_node(child, &tb->owners);
-	inet_csk(child)->icsk_bind_hash = tb;
-	spin_unlock(&head->lock);
-}
+extern void __inet_inherit_port(struct sock *sk, struct sock *child);
 
 extern void inet_put_port(struct sock *sk);
 
