@@ -422,11 +422,7 @@ struct em28xx {
 
 	enum em28xx_mode mode;
 
-#if defined(CONFIG_VIDEO_EM28XX_DVB) || defined(CONFIG_VIDEO_EM28XX_DVB_MODULE)
-	struct videobuf_dvb        dvb;
-	struct videobuf_queue_ops  *qops;
-	struct em28xx_fh	   dvb_fh;
-#endif
+	struct em28xx_dvb *dvb;
 };
 
 struct em28xx_ops {

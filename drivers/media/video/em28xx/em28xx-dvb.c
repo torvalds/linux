@@ -6,7 +6,9 @@
  (c) 2008 Devin Heitmueller <devin.heitmueller@gmail.com>
 	- Fixes for the driver to properly work with HVR-950
 
- Based on cx88-dvb and saa7134-dvb originally written by:
+ (c) 2008 Aidan Thornton <makosoft@googlemail.com>
+
+ Based on cx88-dvb, saa7134-dvb and videobuf-dvb originally written by:
 	(c) 2004, 2005 Chris Pascoe <c.pascoe@itee.uq.edu.au>
 	(c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
 
@@ -37,27 +39,156 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 #define dprintk(level, fmt, arg...) do {			\
 if (debug >= level) 						\
-	printk(KERN_DEBUG "%s/2-dvb: " fmt, dev->name, ## arg)	\
+	printk(KERN_DEBUG "%s/2-dvb: " fmt, dev->name, ## arg);	\
 } while (0)
 
-static int
-buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
+#define EM28XX_DVB_NUM_BUFS 5
+#define EM28XX_DVB_MAX_PACKETSIZE 564
+#define EM28XX_DVB_MAX_PACKETS 64
+
+struct em28xx_dvb {
+	struct dvb_frontend        *frontend;
+
+	/* feed count management */
+	struct mutex               lock;
+	int                        nfeeds;
+
+	/* general boilerplate stuff */
+	struct dvb_adapter         adapter;
+	struct dvb_demux           demux;
+	struct dmxdev              dmxdev;
+	struct dmx_frontend        fe_hw;
+	struct dmx_frontend        fe_mem;
+	struct dvb_net             net;
+};
+
+
+static inline void print_err_status(struct em28xx *dev,
+				     int packet, int status)
 {
-	struct em28xx_fh *fh = vq->priv_data;
-	struct em28xx        *dev = fh->dev;
+	char *errmsg = "Unknown";
 
-	/* FIXME: The better would be to allocate a smaller buffer */
-	*size = 16 * fh->dev->width * fh->dev->height >> 3;
-	if (0 == *count)
-		*count = EM28XX_DEF_BUF;
+	switch (status) {
+	case -ENOENT:
+		errmsg = "unlinked synchronuously";
+		break;
+	case -ECONNRESET:
+		errmsg = "unlinked asynchronuously";
+		break;
+	case -ENOSR:
+		errmsg = "Buffer error (overrun)";
+		break;
+	case -EPIPE:
+		errmsg = "Stalled (device not responding)";
+		break;
+	case -EOVERFLOW:
+		errmsg = "Babble (bad cable?)";
+		break;
+	case -EPROTO:
+		errmsg = "Bit-stuff error (bad cable?)";
+		break;
+	case -EILSEQ:
+		errmsg = "CRC/Timeout (could be anything)";
+		break;
+	case -ETIME:
+		errmsg = "Device does not respond";
+		break;
+	}
+	if (packet < 0) {
+		dprintk(1, "URB status %d [%s].\n", status, errmsg);
+	} else {
+		dprintk(1, "URB packet %d, status %d [%s].\n", packet, status, errmsg);
+	}
+}
 
-	if (*count < EM28XX_MIN_BUF)
-		*count = EM28XX_MIN_BUF;
+static inline int dvb_isoc_copy(struct em28xx *dev, struct urb *urb)
+{
+	int i;
 
-	dev->mode = EM28XX_DIGITAL_MODE;
+	if (!dev)
+		return 0;
+
+	if ((dev->state & DEV_DISCONNECTED) || (dev->state & DEV_MISCONFIGURED))
+		return 0;
+
+	if (urb->status < 0) {
+		print_err_status(dev, -1, urb->status);
+		if (urb->status == -ENOENT)
+			return 0;
+	}
+
+	for (i = 0; i < urb->number_of_packets; i++) {
+		int status = urb->iso_frame_desc[i].status;
+
+		if (status < 0) {
+			print_err_status(dev, i, status);
+			if (urb->iso_frame_desc[i].status != -EPROTO)
+				continue;
+		}
+
+		dvb_dmx_swfilter(&dev->dvb->demux, urb->transfer_buffer +
+				 urb->iso_frame_desc[i].offset,
+				 urb->iso_frame_desc[i].actual_length);
+	}
 
 	return 0;
 }
+
+static int start_streaming(struct em28xx_dvb* dvb) {
+	struct em28xx *dev = dvb->adapter.priv;
+
+	usb_set_interface(dev->udev, 0, 1);
+	dev->em28xx_write_regs_req(dev,0x00,0x48,"\x00",1);
+
+	return em28xx_init_isoc(dev, EM28XX_DVB_MAX_PACKETS,
+				EM28XX_DVB_NUM_BUFS, EM28XX_DVB_MAX_PACKETSIZE,
+				dvb_isoc_copy, EM28XX_DIGITAL_CAPTURE);
+}
+
+static int stop_streaming(struct em28xx_dvb* dvb) {
+	struct em28xx *dev = dvb->adapter.priv;
+
+	em28xx_uninit_isoc(dev);
+	return 0;
+}
+
+static int start_feed(struct dvb_demux_feed *feed)
+{
+	struct dvb_demux *demux  = feed->demux;
+	struct em28xx_dvb *dvb = demux->priv;
+	int rc, ret;
+
+	if (!demux->dmx.frontend)
+		return -EINVAL;
+
+	mutex_lock(&dvb->lock);
+	dvb->nfeeds++;
+	rc = dvb->nfeeds;
+
+	if (dvb->nfeeds == 1) {
+		ret = start_streaming(dvb);
+		if(ret < 0) rc = ret;
+	}
+
+	mutex_unlock(&dvb->lock);
+	return rc;
+}
+
+static int stop_feed(struct dvb_demux_feed *feed)
+{
+	struct dvb_demux *demux  = feed->demux;
+	struct em28xx_dvb *dvb = demux->priv;
+	int err = 0;
+
+	mutex_lock(&dvb->lock);
+	dvb->nfeeds--;
+	if (0 == dvb->nfeeds) {
+		err = stop_streaming(dvb);
+	}
+	mutex_unlock(&dvb->lock);
+	return err;
+}
+
 
 /* ------------------------------------------------------------------ */
 
@@ -89,20 +220,20 @@ static int attach_xc3028(u8 addr, struct em28xx *dev)
 
 	em28xx_setup_xc3028(dev, &ctl);
 
-	if (!dev->dvb.frontend) {
+	if (!dev->dvb->frontend) {
 		printk(KERN_ERR "%s/2: dvb frontend not attached. "
 				"Can't attach xc3028\n",
 		       dev->name);
 		return -EINVAL;
 	}
 
-	fe = dvb_attach(xc2028_attach, dev->dvb.frontend, &cfg);
+	fe = dvb_attach(xc2028_attach, dev->dvb->frontend, &cfg);
 	if (!fe) {
 		printk(KERN_ERR "%s/2: xc3028 attach failed\n",
 		       dev->name);
-		dvb_frontend_detach(dev->dvb.frontend);
-		dvb_unregister_frontend(dev->dvb.frontend);
-		dev->dvb.frontend = NULL;
+		dvb_frontend_detach(dev->dvb->frontend);
+		dvb_unregister_frontend(dev->dvb->frontend);
+		dev->dvb->frontend = NULL;
 		return -EINVAL;
 	}
 
@@ -111,23 +242,129 @@ static int attach_xc3028(u8 addr, struct em28xx *dev)
 	return 0;
 }
 
+/* ------------------------------------------------------------------ */
+
+int register_dvb(struct em28xx_dvb *dvb,
+		 struct module *module,
+		 struct em28xx *dev,
+		 struct device *device)
+{
+	int result;
+
+	mutex_init(&dvb->lock);
+
+	/* register adapter */
+	result = dvb_register_adapter(&dvb->adapter, dev->name, module, device,
+				      adapter_nr);
+	if (result < 0) {
+		printk(KERN_WARNING "%s: dvb_register_adapter failed (errno = %d)\n",
+		       dev->name, result);
+		goto fail_adapter;
+	}
+	dvb->adapter.priv = dev;
+
+	/* register frontend */
+	result = dvb_register_frontend(&dvb->adapter, dvb->frontend);
+	if (result < 0) {
+		printk(KERN_WARNING "%s: dvb_register_frontend failed (errno = %d)\n",
+		       dev->name, result);
+		goto fail_frontend;
+	}
+
+	/* register demux stuff */
+	dvb->demux.dmx.capabilities =
+		DMX_TS_FILTERING | DMX_SECTION_FILTERING |
+		DMX_MEMORY_BASED_FILTERING;
+	dvb->demux.priv       = dvb;
+	dvb->demux.filternum  = 256;
+	dvb->demux.feednum    = 256;
+	dvb->demux.start_feed = start_feed;
+	dvb->demux.stop_feed  = stop_feed;
+	result = dvb_dmx_init(&dvb->demux);
+	if (result < 0) {
+		printk(KERN_WARNING "%s: dvb_dmx_init failed (errno = %d)\n",
+		       dev->name, result);
+		goto fail_dmx;
+	}
+
+	dvb->dmxdev.filternum    = 256;
+	dvb->dmxdev.demux        = &dvb->demux.dmx;
+	dvb->dmxdev.capabilities = 0;
+	result = dvb_dmxdev_init(&dvb->dmxdev, &dvb->adapter);
+	if (result < 0) {
+		printk(KERN_WARNING "%s: dvb_dmxdev_init failed (errno = %d)\n",
+		       dev->name, result);
+		goto fail_dmxdev;
+	}
+
+	dvb->fe_hw.source = DMX_FRONTEND_0;
+	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_hw);
+	if (result < 0) {
+		printk(KERN_WARNING "%s: add_frontend failed (DMX_FRONTEND_0, errno = %d)\n",
+		       dev->name, result);
+		goto fail_fe_hw;
+	}
+
+	dvb->fe_mem.source = DMX_MEMORY_FE;
+	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_mem);
+	if (result < 0) {
+		printk(KERN_WARNING "%s: add_frontend failed (DMX_MEMORY_FE, errno = %d)\n",
+		       dev->name, result);
+		goto fail_fe_mem;
+	}
+
+	result = dvb->demux.dmx.connect_frontend(&dvb->demux.dmx, &dvb->fe_hw);
+	if (result < 0) {
+		printk(KERN_WARNING "%s: connect_frontend failed (errno = %d)\n",
+		       dev->name, result);
+		goto fail_fe_conn;
+	}
+
+	/* register network adapter */
+	dvb_net_init(&dvb->adapter, &dvb->net, &dvb->demux.dmx);
+	return 0;
+
+fail_fe_conn:
+	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_mem);
+fail_fe_mem:
+	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_hw);
+fail_fe_hw:
+	dvb_dmxdev_release(&dvb->dmxdev);
+fail_dmxdev:
+	dvb_dmx_release(&dvb->demux);
+fail_dmx:
+	dvb_unregister_frontend(dvb->frontend);
+fail_frontend:
+	dvb_frontend_detach(dvb->frontend);
+	dvb_unregister_adapter(&dvb->adapter);
+fail_adapter:
+	return result;
+}
+
+static void unregister_dvb(struct em28xx_dvb *dvb)
+{
+	dvb_net_release(&dvb->net);
+	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_mem);
+	dvb->demux.dmx.remove_frontend(&dvb->demux.dmx, &dvb->fe_hw);
+	dvb_dmxdev_release(&dvb->dmxdev);
+	dvb_dmx_release(&dvb->demux);
+	dvb_unregister_frontend(dvb->frontend);
+	dvb_frontend_detach(dvb->frontend);
+	dvb_unregister_adapter(&dvb->adapter);
+}
+
+
 static int dvb_init(struct em28xx *dev)
 {
-	/* init struct videobuf_dvb */
-	dev->dvb.name = dev->name;
+	int result = 0;
+	struct em28xx_dvb *dvb;
 
-	dev->qops->buf_setup = buffer_setup;
-
-	/* FIXME: Do we need more initialization here? */
-	memset(&dev->dvb_fh, 0, sizeof (dev->dvb_fh));
-	dev->dvb_fh.dev = dev;
-	dev->dvb_fh.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-
-	videobuf_queue_vmalloc_init(&dev->dvb.dvbq, dev->qops,
-			&dev->udev->dev, &dev->slock,
-			V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			V4L2_FIELD_ALTERNATE,
-			sizeof(struct em28xx_buffer), &dev->dvb_fh);
+	dvb = kzalloc(sizeof(struct em28xx_dvb), GFP_KERNEL);
+	if(dvb == NULL) {
+		printk("em28xx_dvb: memory allocation failed\n");
+		return -ENOMEM;
+	}
+	dev->dvb = dvb;
 
 	/* init frontend */
 	switch (dev->model) {
@@ -136,21 +373,25 @@ static int dvb_init(struct em28xx *dev)
 		dev->mode = EM28XX_DIGITAL_MODE;
 		em28xx_tuner_callback(dev, XC2028_TUNER_RESET, 0);
 
-		dev->dvb.frontend = dvb_attach(lgdt330x_attach,
-					       &em2880_lgdt3303_dev,
-					       &dev->i2c_adap);
-		if (attach_xc3028(0x61, dev) < 0)
-			return -EINVAL;
+		dvb->frontend = dvb_attach(lgdt330x_attach,
+					   &em2880_lgdt3303_dev,
+					   &dev->i2c_adap);
+		if (attach_xc3028(0x61, dev) < 0) {
+			result = -EINVAL;
+			goto out_free;
+		}
 		break;
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 		/* Enable zl10353 */
 		dev->mode = EM28XX_DIGITAL_MODE;
 		em28xx_tuner_callback(dev, XC2028_TUNER_RESET, 0);
-		dev->dvb.frontend = dvb_attach(zl10353_attach,
-					       &em28xx_zl10353_with_xc3028,
-					       &dev->i2c_adap);
-		if (attach_xc3028(0x61, dev) < 0)
-			return -EINVAL;
+		dvb->frontend = dvb_attach(zl10353_attach,
+					   &em28xx_zl10353_with_xc3028,
+					   &dev->i2c_adap);
+		if (attach_xc3028(0x61, dev) < 0) {
+			result = -EINVAL;
+			goto out_free;
+		}
 		break;
 	default:
 		printk(KERN_ERR "%s/2: The frontend of your DVB/ATSC card"
@@ -158,23 +399,35 @@ static int dvb_init(struct em28xx *dev)
 		       dev->name);
 		break;
 	}
-	if (NULL == dev->dvb.frontend) {
+	if (NULL == dvb->frontend) {
 		printk(KERN_ERR
 		       "%s/2: frontend initialization failed\n",
 		       dev->name);
-		return -EINVAL;
+		result = -EINVAL;
+		goto out_free;
 	}
 
 	/* register everything */
-	return videobuf_dvb_register(&dev->dvb, THIS_MODULE, dev,
-				     &dev->udev->dev,
-				     adapter_nr);
+	result = register_dvb(dvb, THIS_MODULE, dev, &dev->udev->dev);
+
+	if (result < 0) {
+		goto out_free;
+	}
+
+	return 0;
+
+out_free:
+	kfree(dvb);
+	dev->dvb = NULL;
+	return result;
 }
 
 static int dvb_fini(struct em28xx *dev)
 {
-	if (dev->dvb.frontend)
-		videobuf_dvb_unregister(&dev->dvb);
+	if (dev->dvb) {
+		unregister_dvb(dev->dvb);
+		dev->dvb = NULL;
+	}
 
 	return 0;
 }

@@ -2190,11 +2190,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
 
-#if defined(CONFIG_VIDEO_EM28XX_DVB) || defined(CONFIG_VIDEO_EM28XX_DVB_MODULE)
-	dev->qops = kmalloc(sizeof(em28xx_video_qops), GFP_KERNEL);
-	memcpy(dev->qops, &em28xx_video_qops, sizeof(em28xx_video_qops));
-#endif
-
 	request_modules(dev);
 
 	return 0;
