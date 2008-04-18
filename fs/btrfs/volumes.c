@@ -57,9 +57,7 @@ int btrfs_cleanup_fs_uuids(void)
 			devices_cur = fs_devices->devices.next;
 			dev = list_entry(devices_cur, struct btrfs_device,
 					 dev_list);
-			printk("uuid cleanup finds %s\n", dev->name);
 			if (dev->bdev) {
-				printk("closing\n");
 				close_bdev_excl(dev->bdev);
 			}
 			list_del(&dev->dev_list);
@@ -149,7 +147,6 @@ static int device_list_add(const char *path,
 	}
 	if (fs_devices->lowest_devid > devid) {
 		fs_devices->lowest_devid = devid;
-		printk("lowest devid now %Lu\n", devid);
 	}
 	*fs_devices_ret = fs_devices;
 	return 0;
@@ -166,7 +163,6 @@ int btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 		device = list_entry(cur, struct btrfs_device, dev_list);
 		if (device->bdev) {
 			close_bdev_excl(device->bdev);
-			printk("close devices closes %s\n", device->name);
 		}
 		device->bdev = NULL;
 	}
@@ -220,11 +216,9 @@ int btrfs_scan_one_device(const char *path, int flags, void *holder,
 
 	mutex_lock(&uuid_mutex);
 
-	printk("scan one opens %s\n", path);
 	bdev = open_bdev_excl(path, flags, holder);
 
 	if (IS_ERR(bdev)) {
-		printk("open failed\n");
 		ret = PTR_ERR(bdev);
 		goto error;
 	}
@@ -240,13 +234,20 @@ int btrfs_scan_one_device(const char *path, int flags, void *holder,
 	disk_super = (struct btrfs_super_block *)bh->b_data;
 	if (strncmp((char *)(&disk_super->magic), BTRFS_MAGIC,
 	    sizeof(disk_super->magic))) {
-		printk("no btrfs found on %s\n", path);
 		ret = -EINVAL;
 		goto error_brelse;
 	}
 	devid = le64_to_cpu(disk_super->dev_item.devid);
 	transid = btrfs_super_generation(disk_super);
-	printk("found device %Lu transid %Lu on %s\n", devid, transid, path);
+	if (disk_super->label[0])
+		printk("device label %s ", disk_super->label);
+	else {
+		/* FIXME, make a readl uuid parser */
+		printk("device fsid %llx-%llx ",
+		       *(unsigned long long *)disk_super->fsid,
+		       *(unsigned long long *)(disk_super->fsid + 8));
+	}
+	printk("devid %Lu transid %Lu %s\n", devid, transid, path);
 	ret = device_list_add(path, disk_super, devid, fs_devices_ret);
 
 error_brelse:
