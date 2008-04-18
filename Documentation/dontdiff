@@ -141,6 +141,7 @@ mkprep
 mktables
 mktree
 modpost
+modules.order
 modversions.h*
 offset.h
 offsets.h
