@@ -40,7 +40,8 @@ extern struct lmb lmb;
 
 extern void __init lmb_init(void);
 extern void __init lmb_analyze(void);
-extern long __init lmb_add(u64 base, u64 size);
+extern long lmb_add(u64 base, u64 size);
+extern long lmb_remove(u64 base, u64 size);
 extern long __init lmb_reserve(u64 base, u64 size);
 extern u64 __init lmb_alloc_nid(u64 size, u64 align, int nid,
 				u64 (*nid_range)(u64, u64, int *));
