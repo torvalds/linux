@@ -2394,7 +2394,8 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 
 #ifdef CONFIG_ATA_SFF
-	ap->ops->sff_tf_read(ap, &qc->tf);
+	if (ap->ops->sff_tf_read)
+		ap->ops->sff_tf_read(ap, &qc->tf);
 #endif
 
 	/* fill these in, for the case where they are -not- overwritten */
