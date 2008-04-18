@@ -156,6 +156,11 @@ struct audit_buffer {
 	gfp_t		     gfp_mask;
 };
 
+struct audit_reply {
+	int pid;
+	struct sk_buff *skb;
+};
+
 static void audit_set_pid(struct audit_buffer *ab, pid_t pid)
 {
 	if (ab) {
@@ -528,6 +533,19 @@ nlmsg_failure:			/* Used by NLMSG_PUT */
 	return NULL;
 }
 
+static int audit_send_reply_thread(void *arg)
+{
+	struct audit_reply *reply = (struct audit_reply *)arg;
+
+	mutex_lock(&audit_cmd_mutex);
+	mutex_unlock(&audit_cmd_mutex);
+
+	/* Ignore failure. It'll only happen if the sender goes away,
+	   because our timeout is set to infinite. */
+	netlink_unicast(audit_sock, reply->skb, reply->pid, 0);
+	kfree(reply);
+	return 0;
+}
 /**
  * audit_send_reply - send an audit reply message via netlink
  * @pid: process id to send reply to
@@ -544,14 +562,26 @@ nlmsg_failure:			/* Used by NLMSG_PUT */
 void audit_send_reply(int pid, int seq, int type, int done, int multi,
 		      void *payload, int size)
 {
-	struct sk_buff	*skb;
+	struct sk_buff *skb;
+	struct task_struct *tsk;
+	struct audit_reply *reply = kmalloc(sizeof(struct audit_reply),
+					    GFP_KERNEL);
+
+	if (!reply)
+		return;
+
 	skb = audit_make_reply(pid, seq, type, done, multi, payload, size);
 	if (!skb)
 		return;
-	/* Ignore failure. It'll only happen if the sender goes away,
-	   because our timeout is set to infinite. */
-	netlink_unicast(audit_sock, skb, pid, 0);
-	return;
+
+	reply->pid = pid;
+	reply->skb = skb;
+
+	tsk = kthread_run(audit_send_reply_thread, reply, "audit_send_reply");
+	if (IS_ERR(tsk)) {
+		kfree(reply);
+		kfree_skb(skb);
+	}
 }
 
 /*
