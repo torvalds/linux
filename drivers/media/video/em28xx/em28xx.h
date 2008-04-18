@@ -35,6 +35,7 @@
 #include <media/videobuf-dvb.h>
 #endif
 #include "tuner-xc2028.h"
+#include "em28xx-reg.h"
 
 /* Boards supported by driver */
 #define EM2800_BOARD_UNKNOWN			0
@@ -479,71 +480,6 @@ int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
 int em28xx_get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
 int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
 				     u32 *ir_raw);
-
-/* em2800 registers */
-#define EM2800_AUDIOSRC_REG 0x08
-
-/* em28xx registers */
-#define I2C_CLK_REG	0x06
-#define CHIPID_REG	0x0a
-#define USBSUSP_REG	0x0c	/* */
-
-#define AUDIOSRC_REG	0x0e
-#define XCLK_REG	0x0f
-
-#define VINMODE_REG	0x10
-#define VINCTRL_REG	0x11
-#define VINENABLE_REG	0x12	/* */
-
-#define GAMMA_REG	0x14
-#define RGAIN_REG	0x15
-#define GGAIN_REG	0x16
-#define BGAIN_REG	0x17
-#define ROFFSET_REG	0x18
-#define GOFFSET_REG	0x19
-#define BOFFSET_REG	0x1a
-
-#define OFLOW_REG	0x1b
-#define HSTART_REG	0x1c
-#define VSTART_REG	0x1d
-#define CWIDTH_REG	0x1e
-#define CHEIGHT_REG	0x1f
-
-#define YGAIN_REG	0x20
-#define YOFFSET_REG	0x21
-#define UVGAIN_REG	0x22
-#define UOFFSET_REG	0x23
-#define VOFFSET_REG	0x24
-#define SHARPNESS_REG	0x25
-
-#define COMPR_REG	0x26
-#define OUTFMT_REG	0x27
-
-#define XMIN_REG	0x28
-#define XMAX_REG	0x29
-#define YMIN_REG	0x2a
-#define YMAX_REG	0x2b
-
-#define HSCALELOW_REG	0x30
-#define HSCALEHIGH_REG	0x31
-#define VSCALELOW_REG	0x32
-#define VSCALEHIGH_REG	0x33
-
-#define AC97LSB_REG	0x40
-#define AC97MSB_REG	0x41
-#define AC97ADDR_REG	0x42
-#define AC97BUSY_REG	0x43
-
-/* em202 registers */
-#define MASTER_AC97	0x02
-#define LINE_IN_AC97    0x10
-#define VIDEO_AC97	0x14
-
-/* register settings */
-#define EM2800_AUDIO_SRC_TUNER  0x0d
-#define EM2800_AUDIO_SRC_LINE   0x0c
-#define EM28XX_AUDIO_SRC_TUNER	0xc0
-#define EM28XX_AUDIO_SRC_LINE	0x80
 
 /* printk macros */
 

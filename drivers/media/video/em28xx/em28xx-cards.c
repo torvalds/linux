@@ -531,7 +531,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	rc = em28xx_read_reg(dev, CHIPID_REG);
 	if (rc > 0) {
 		switch (rc) {
-		case 36:
+		case CHIP_ID_EM2883:
 			em28xx_info("chip ID is em2882/em2883\n");
 			dev->wait_after_write = 0;
 			break;
