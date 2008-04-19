@@ -799,7 +799,6 @@ void __init find_smp_config(void)
 #ifdef	CONFIG_X86_IO_APIC
 
 #define MP_ISA_BUS		0
-#define MP_MAX_IOAPIC_PIN	127
 
 extern struct mp_ioapic_routing mp_ioapic_routing[MAX_IO_APICS];
 
@@ -982,9 +981,8 @@ void __init mp_config_acpi_legacy_irqs(void)
 
 int mp_register_gsi(u32 gsi, int triggering, int polarity)
 {
-	int ioapic = -1;
-	int ioapic_pin = 0;
-	int idx, bit = 0;
+	int ioapic;
+	int ioapic_pin;
 #ifdef CONFIG_X86_32
 #define MAX_GSI_NUM	4096
 #define IRQ_COMPRESSION_START	64
@@ -1024,15 +1022,13 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 	 * with redundant pin->gsi mappings (but unique PCI devices);
 	 * we only program the IOAPIC on the first.
 	 */
-	bit = ioapic_pin % 32;
-	idx = (ioapic_pin < 32) ? 0 : (ioapic_pin / 32);
-	if (idx > 3) {
+	if (ioapic_pin > MP_MAX_IOAPIC_PIN) {
 		printk(KERN_ERR "Invalid reference to IOAPIC pin "
 		       "%d-%d\n", mp_ioapic_routing[ioapic].apic_id,
 		       ioapic_pin);
 		return gsi;
 	}
-	if ((1 << bit) & mp_ioapic_routing[ioapic].pin_programmed[idx]) {
+	if (test_bit(ioapic_pin, mp_ioapic_routing[ioapic].pin_programmed)) {
 		Dprintk(KERN_DEBUG "Pin %d-%d already programmed\n",
 			mp_ioapic_routing[ioapic].apic_id, ioapic_pin);
 #ifdef CONFIG_X86_32
@@ -1042,7 +1038,7 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 #endif
 	}
 
-	mp_ioapic_routing[ioapic].pin_programmed[idx] |= (1 << bit);
+	set_bit(ioapic_pin, mp_ioapic_routing[ioapic].pin_programmed);
 #ifdef CONFIG_X86_32
 	/*
 	 * For GSI >= 64, use IRQ compression
