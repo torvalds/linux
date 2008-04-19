@@ -681,7 +681,7 @@ gp_in_kernel:
 	}
 }
 
-static __kprobes void
+static notrace __kprobes void
 mem_parity_error(unsigned char reason, struct pt_regs *regs)
 {
 	printk(KERN_EMERG
@@ -707,7 +707,7 @@ mem_parity_error(unsigned char reason, struct pt_regs *regs)
 	clear_mem_error(reason);
 }
 
-static __kprobes void
+static notrace __kprobes void
 io_check_error(unsigned char reason, struct pt_regs *regs)
 {
 	unsigned long i;
@@ -727,7 +727,7 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 	outb(reason, 0x61);
 }
 
-static __kprobes void
+static notrace __kprobes void
 unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 {
 	if (notify_die(DIE_NMIUNKNOWN, "nmi", regs, reason, 2, SIGINT) == NOTIFY_STOP)
@@ -755,7 +755,7 @@ unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 
 static DEFINE_SPINLOCK(nmi_print_lock);
 
-void __kprobes die_nmi(struct pt_regs *regs, const char *msg)
+void notrace __kprobes die_nmi(struct pt_regs *regs, const char *msg)
 {
 	if (notify_die(DIE_NMIWATCHDOG, msg, regs, 0, 2, SIGINT) == NOTIFY_STOP)
 		return;
@@ -786,7 +786,7 @@ void __kprobes die_nmi(struct pt_regs *regs, const char *msg)
 	do_exit(SIGSEGV);
 }
 
-static __kprobes void default_do_nmi(struct pt_regs *regs)
+static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 {
 	unsigned char reason = 0;
 
@@ -828,7 +828,7 @@ static __kprobes void default_do_nmi(struct pt_regs *regs)
 
 static int ignore_nmis;
 
-__kprobes void do_nmi(struct pt_regs *regs, long error_code)
+notrace __kprobes void do_nmi(struct pt_regs *regs, long error_code)
 {
 	int cpu;
 
