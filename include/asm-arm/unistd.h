@@ -376,9 +376,11 @@
 #define __NR_kexec_load			(__NR_SYSCALL_BASE+347)
 #define __NR_utimensat			(__NR_SYSCALL_BASE+348)
 #define __NR_signalfd			(__NR_SYSCALL_BASE+349)
-#define __NR_timerfd			(__NR_SYSCALL_BASE+350)
+#define __NR_timerfd_create		(__NR_SYSCALL_BASE+350)
 #define __NR_eventfd			(__NR_SYSCALL_BASE+351)
 #define __NR_fallocate			(__NR_SYSCALL_BASE+352)
+#define __NR_timerfd_settime		(__NR_SYSCALL_BASE+353)
+#define __NR_timerfd_gettime		(__NR_SYSCALL_BASE+354)
 
 /*
  * The following SWIs are ARM private.

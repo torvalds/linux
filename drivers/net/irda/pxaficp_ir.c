@@ -36,6 +36,7 @@
 #include <asm/hardware.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 
 #ifdef CONFIG_MACH_MAINSTONE
 #include <asm/arch/mainstone.h>
@@ -831,6 +832,11 @@ static int pxa_irda_probe(struct platform_device *pdev)
 	if (err)
 		goto err_mem_5;
 
+	if (si->pdata->startup)
+		err = si->pdata->startup(si->dev);
+	if (err)
+		goto err_startup;
+
 	dev->hard_start_xmit	= pxa_irda_hard_xmit;
 	dev->open		= pxa_irda_start;
 	dev->stop		= pxa_irda_stop;
@@ -856,6 +862,9 @@ static int pxa_irda_probe(struct platform_device *pdev)
 		dev_set_drvdata(&pdev->dev, dev);
 
 	if (err) {
+		if (si->pdata->shutdown)
+			si->pdata->shutdown(si->dev);
+err_startup:
 		kfree(si->tx_buff.head);
 err_mem_5:
 		kfree(si->rx_buff.head);
@@ -881,6 +890,8 @@ static int pxa_irda_remove(struct platform_device *_dev)
 	if (dev) {
 		struct pxa_irda *si = netdev_priv(dev);
 		unregister_netdev(dev);
+		if (si->pdata->shutdown)
+			si->pdata->shutdown(si->dev);
 		kfree(si->tx_buff.head);
 		kfree(si->rx_buff.head);
 		clk_put(si->fir_clk);

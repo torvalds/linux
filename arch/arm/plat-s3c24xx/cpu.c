@@ -28,14 +28,18 @@
 #include <linux/ioport.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/delay.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/delay.h>
+#include <asm/cacheflush.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+
+#include <asm/arch/system-reset.h>
 
 #include <asm/arch/regs-gpio.h>
 #include <asm/plat-s3c/regs-serial.h>
@@ -203,6 +207,27 @@ static unsigned long s3c24xx_read_idcode_v4(void)
 #endif
 }
 
+/* Hook for arm_pm_restart to ensure we execute the reset code
+ * with the caches enabled. It seems at least the S3C2440 has a problem
+ * resetting if there is bus activity interrupted by the reset.
+ */
+static void s3c24xx_pm_restart(char mode)
+{
+	if (mode != 's') {
+		unsigned long flags;
+
+		local_irq_save(flags);
+		__cpuc_flush_kern_all();
+		__cpuc_flush_user_all();
+
+		arch_reset(mode);
+		local_irq_restore(flags);
+	}
+
+	/* fallback, or unhandled */
+	arm_machine_restart(mode);
+}
+
 void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 {
 	unsigned long idcode = 0x0;
@@ -229,6 +254,8 @@ void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 		printk(KERN_ERR "CPU %s support not enabled\n", cpu->name);
 		panic("Unsupported S3C24XX CPU");
 	}
+
+	arm_pm_restart = s3c24xx_pm_restart;
 
 	(cpu->map_io)(mach_desc, size);
 }

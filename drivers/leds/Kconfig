@@ -46,13 +46,6 @@ config LEDS_SPITZ
 	  This option enables support for the LEDs on Sharp Zaurus
 	  SL-Cxx00 series (C1000, C3000, C3100).
 
-config LEDS_TOSA
-	tristate "LED Support for the Sharp SL-6000 series"
-	depends on LEDS_CLASS && PXA_SHARPSL
-	help
-	  This option enables support for the LEDs on Sharp Zaurus
-	  SL-6000 series.
-
 config LEDS_S3C24XX
 	tristate "LED Support for Samsung S3C24XX GPIO LEDs"
 	depends on LEDS_CLASS && ARCH_S3C2410

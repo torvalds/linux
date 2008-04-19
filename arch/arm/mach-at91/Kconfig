@@ -12,18 +12,28 @@ config ARCH_AT91RM9200
 
 config ARCH_AT91SAM9260
 	bool "AT91SAM9260 or AT91SAM9XE"
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 
 config ARCH_AT91SAM9261
 	bool "AT91SAM9261"
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 
 config ARCH_AT91SAM9263
 	bool "AT91SAM9263"
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 
 config ARCH_AT91SAM9RL
 	bool "AT91SAM9RL"
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 
 config ARCH_AT91CAP9
 	bool "AT91CAP9"
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 
 config ARCH_AT91X40
 	bool "AT91x40"
@@ -109,6 +119,13 @@ config MACH_KAFA
 	help
 	  Select this if you are using Sperry-Sun's KAFA board.
 
+config MACH_ECBAT91
+	bool "emQbit ECB_AT91 SBC"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using emQbit's ECB_AT91 board.
+	  <http://wiki.emqbit.com/free-ecb-at91>
+
 endif
 
 # ----------------------------------------------------------
@@ -132,6 +149,20 @@ config MACH_AT91SAM9260EK
 	help
 	  Select this if you are using Atmel's AT91SAM9260-EK or AT91SAM9XE Evaluation Kit
 	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3933>
+
+config MACH_CAM60
+	bool "KwikByte KB9260 (CAM60) board"
+	depends on ARCH_AT91SAM9260
+	help
+	  Select this if you are using KwikByte's KB9260 (CAM60) board based on the Atmel AT91SAM9260.
+	  <http://www.kwikbyte.com/KB9260.html>
+
+config MACH_SAM9_L9260
+	bool "Olimex SAM9-L9260 board"
+	depends on ARCH_AT91SAM9260
+	help
+	  Select this if you are using Olimex's SAM9-L9260 board based on the Atmel AT91SAM9260.
+	  <http://www.olimex.com/dev/sam9-L9260.html>
 
 endif
 
@@ -216,7 +247,7 @@ comment "AT91 Board Options"
 
 config MTD_AT91_DATAFLASH_CARD
 	bool "Enable DataFlash Card support"
-	depends on (ARCH_AT91RM9200DK || MACH_AT91RM9200EK || MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK || MACH_AT91CAP9ADK)
+	depends on (ARCH_AT91RM9200DK || MACH_AT91RM9200EK || MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK || MACH_AT91CAP9ADK || MACH_SAM9_L9260 || MACH_ECBAT91)
 	help
 	  Enable support for the DataFlash card.
 

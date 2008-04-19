@@ -110,6 +110,25 @@ unsigned int pxa3xx_get_memclk_frequency_10khz(void)
 }
 
 /*
+ * Return the current AC97 clock frequency.
+ */
+static unsigned long clk_pxa3xx_ac97_getrate(struct clk *clk)
+{
+	unsigned long rate = 312000000;
+	unsigned long ac97_div;
+
+	ac97_div = AC97_DIV;
+
+	/* This may loose precision for some rates but won't for the
+	 * standard 24.576MHz.
+	 */
+	rate /= (ac97_div >> 12) & 0x7fff;
+	rate *= (ac97_div & 0xfff);
+
+	return rate;
+}
+
+/*
  * Return the current HSIO bus clock frequency
  */
 static unsigned long clk_pxa3xx_hsio_getrate(struct clk *clk)
@@ -156,6 +175,27 @@ static const struct clkops clk_pxa3xx_hsio_ops = {
 	.getrate	= clk_pxa3xx_hsio_getrate,
 };
 
+static const struct clkops clk_pxa3xx_ac97_ops = {
+	.enable		= clk_pxa3xx_cken_enable,
+	.disable	= clk_pxa3xx_cken_disable,
+	.getrate	= clk_pxa3xx_ac97_getrate,
+};
+
+static void clk_pout_enable(struct clk *clk)
+{
+	OSCC |= OSCC_PEN;
+}
+
+static void clk_pout_disable(struct clk *clk)
+{
+	OSCC &= ~OSCC_PEN;
+}
+
+static const struct clkops clk_pout_ops = {
+	.enable		= clk_pout_enable,
+	.disable	= clk_pout_disable,
+};
+
 #define PXA3xx_CKEN(_name, _cken, _rate, _delay, _dev)	\
 	{						\
 		.name	= _name,			\
@@ -175,8 +215,16 @@ static const struct clkops clk_pxa3xx_hsio_ops = {
 	}
 
 static struct clk pxa3xx_clks[] = {
-	PXA3xx_CK("LCDCLK", LCD,    &clk_pxa3xx_hsio_ops, &pxa_device_fb.dev),
-	PXA3xx_CK("CAMCLK", CAMERA, &clk_pxa3xx_hsio_ops, NULL),
+	{
+		.name           = "CLK_POUT",
+		.ops            = &clk_pout_ops,
+		.rate           = 13000000,
+		.delay          = 70,
+	},
+
+	PXA3xx_CK("LCDCLK",  LCD,    &clk_pxa3xx_hsio_ops, &pxa_device_fb.dev),
+	PXA3xx_CK("CAMCLK",  CAMERA, &clk_pxa3xx_hsio_ops, NULL),
+	PXA3xx_CK("AC97CLK", AC97,   &clk_pxa3xx_ac97_ops, NULL),
 
 	PXA3xx_CKEN("UARTCLK", FFUART, 14857000, 1, &pxa_device_ffuart.dev),
 	PXA3xx_CKEN("UARTCLK", BTUART, 14857000, 1, &pxa_device_btuart.dev),
@@ -185,6 +233,7 @@ static struct clk pxa3xx_clks[] = {
 	PXA3xx_CKEN("I2CCLK", I2C,  32842000, 0, &pxa_device_i2c.dev),
 	PXA3xx_CKEN("UDCCLK", UDC,  48000000, 5, &pxa_device_udc.dev),
 	PXA3xx_CKEN("USBCLK", USBH, 48000000, 0, &pxa27x_device_ohci.dev),
+	PXA3xx_CKEN("KBDCLK", KEYPAD,  32768, 0, &pxa27x_device_keypad.dev),
 
 	PXA3xx_CKEN("SSPCLK", SSP1, 13000000, 0, &pxa27x_device_ssp1.dev),
 	PXA3xx_CKEN("SSPCLK", SSP2, 13000000, 0, &pxa27x_device_ssp2.dev),
@@ -305,8 +354,10 @@ static void pxa3xx_cpu_pm_enter(suspend_state_t state)
 	/*
 	 * Don't sleep if no wakeup sources are defined
 	 */
-	if (wakeup_src == 0)
+	if (wakeup_src == 0) {
+		printk(KERN_ERR "Not suspending: no wakeup sources\n");
 		return;
+	}
 
 	switch (state) {
 	case PM_SUSPEND_STANDBY:
@@ -446,15 +497,9 @@ static int pxa3xx_set_wake(unsigned int irq, unsigned int on)
 
 	return 0;
 }
-
-static void pxa3xx_init_irq_pm(void)
-{
-	pxa_init_irq_set_wake(pxa3xx_set_wake);
-}
-
 #else
 static inline void pxa3xx_init_pm(void) {}
-static inline void pxa3xx_init_irq_pm(void) {}
+#define pxa3xx_set_wake	NULL
 #endif
 
 void __init pxa3xx_init_irq(void)
@@ -465,10 +510,8 @@ void __init pxa3xx_init_irq(void)
 	value |= (1 << 6);
 	__asm__ __volatile__("mcr p15, 0, %0, c15, c1, 0\n": :"r"(value));
 
-	pxa_init_irq_low();
-	pxa_init_irq_high();
-	pxa_init_irq_gpio(128);
-	pxa3xx_init_irq_pm();
+	pxa_init_irq(56, pxa3xx_set_wake);
+	pxa_init_gpio(128, NULL);
 }
 
 /*
@@ -490,11 +533,9 @@ static struct platform_device *devices[] __initdata = {
 
 static struct sys_device pxa3xx_sysdev[] = {
 	{
-		.id	= 0,
 		.cls	= &pxa_irq_sysclass,
 	}, {
-		.id	= 1,
-		.cls	= &pxa_irq_sysclass,
+		.cls	= &pxa3xx_mfp_sysclass,
 	}, {
 		.cls	= &pxa_gpio_sysclass,
 	},
@@ -532,4 +573,4 @@ static int __init pxa3xx_init(void)
 	return ret;
 }
 
-subsys_initcall(pxa3xx_init);
+postcore_initcall(pxa3xx_init);

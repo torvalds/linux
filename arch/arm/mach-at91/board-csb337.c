@@ -43,17 +43,6 @@
 #include "generic.h"
 
 
-/*
- * Serial port configuration.
- *    0 .. 3 = USART0 .. USART3
- *    4      = DBGU
- */
-static struct at91_uart_config __initdata csb337_uart_config = {
-	.console_tty	= 0,				/* ttyS0 */
-	.nr_tty		= 2,
-	.tty_map	= { 4, 1, -1, -1, -1 }		/* ttyS0, ..., ttyS4 */
-};
-
 static void __init csb337_map_io(void)
 {
 	/* Initialize processor: 3.6864 MHz crystal */
@@ -62,8 +51,11 @@ static void __init csb337_map_io(void)
 	/* Setup the LEDs */
 	at91_init_leds(AT91_PIN_PB0, AT91_PIN_PB1);
 
-	/* Setup the serial ports and console */
-	at91_init_serial(&csb337_uart_config);
+	/* DBGU on ttyS0 */
+	at91_register_uart(0, 0, 0);
+
+	/* make console=ttyS0 the default */
+	at91_set_serial_console(0);
 }
 
 static void __init csb337_init_irq(void)

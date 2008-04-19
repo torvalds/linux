@@ -25,6 +25,8 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/at73c213.h>
+#include <linux/clk.h>
 
 #include <asm/hardware.h>
 #include <asm/setup.h>
@@ -37,29 +39,28 @@
 
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
-#include <asm/arch/at91sam926x_mc.h>
 
 #include "generic.h"
 
-
-/*
- * Serial port configuration.
- *    0 .. 5 = USART0 .. USART5
- *    6      = DBGU
- */
-static struct at91_uart_config __initdata ek_uart_config = {
-	.console_tty	= 0,				/* ttyS0 */
-	.nr_tty		= 3,
-	.tty_map	= { 6, 0, 1, -1, -1, -1, -1 }	/* ttyS0, ..., ttyS6 */
-};
 
 static void __init ek_map_io(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91sam9260_initialize(18432000);
 
-	/* Setup the serial ports and console */
-	at91_init_serial(&ek_uart_config);
+	/* DGBU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
+	at91_register_uart(AT91SAM9260_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
+			   | ATMEL_UART_DTR | ATMEL_UART_DSR | ATMEL_UART_DCD
+			   | ATMEL_UART_RI);
+
+	/* USART1 on ttyS2. (Rx, Tx, RTS, CTS) */
+	at91_register_uart(AT91SAM9260_ID_US1, 2, ATMEL_UART_CTS | ATMEL_UART_RTS);
+
+	/* set serial console to ttyS0 (ie, DBGU) */
+	at91_set_serial_console(0);
 }
 
 static void __init ek_init_irq(void)
@@ -83,6 +84,35 @@ static struct at91_udc_data __initdata ek_udc_data = {
 	.pullup_pin	= 0,		/* pull-up driven by UDC */
 };
 
+
+/*
+ * Audio
+ */
+static struct at73c213_board_info at73c213_data = {
+	.ssc_id		= 0,
+	.shortname	= "AT91SAM9260-EK external DAC",
+};
+
+#if defined(CONFIG_SND_AT73C213) || defined(CONFIG_SND_AT73C213_MODULE)
+static void __init at73c213_set_clk(struct at73c213_board_info *info)
+{
+	struct clk *pck0;
+	struct clk *plla;
+
+	pck0 = clk_get(NULL, "pck0");
+	plla = clk_get(NULL, "plla");
+
+	/* AT73C213 MCK Clock */
+	at91_set_B_periph(AT91_PIN_PC1, 0);	/* PCK0 */
+
+	clk_set_parent(pck0, plla);
+	clk_put(plla);
+
+	info->dac_clk = pck0;
+}
+#else
+static void __init at73c213_set_clk(struct at73c213_board_info *info) {}
+#endif
 
 /*
  * SPI devices.
@@ -110,6 +140,8 @@ static struct spi_board_info ek_spi_devices[] = {
 		.chip_select	= 0,
 		.max_speed_hz	= 10 * 1000 * 1000,
 		.bus_num	= 1,
+		.mode		= SPI_MODE_1,
+		.platform_data	= &at73c213_data,
 	},
 #endif
 };
@@ -172,6 +204,24 @@ static struct at91_mmc_data __initdata ek_mmc_data = {
 //	.vcc_pin	= ... not connected
 };
 
+
+/*
+ * LEDs
+ */
+static struct gpio_led ek_leds[] = {
+	{	/* "bottom" led, green, userled1 to be defined */
+		.name			= "ds5",
+		.gpio			= AT91_PIN_PA6,
+		.active_low		= 1,
+		.default_trigger	= "none",
+	},
+	{	/* "power" led, yellow */
+		.name			= "ds1",
+		.gpio			= AT91_PIN_PA9,
+		.default_trigger	= "heartbeat",
+	}
+};
+
 static void __init ek_board_init(void)
 {
 	/* Serial */
@@ -190,6 +240,11 @@ static void __init ek_board_init(void)
 	at91_add_device_mmc(0, &ek_mmc_data);
 	/* I2C */
 	at91_add_device_i2c(NULL, 0);
+	/* SSC (to AT73C213) */
+	at73c213_set_clk(&at73c213_data);
+	at91_add_device_ssc(AT91SAM9260_ID_SSC, ATMEL_SSC_TX);
+	/* LEDs */
+	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
 }
 
 MACHINE_START(AT91SAM9260EK, "Atmel AT91SAM9260-EK")

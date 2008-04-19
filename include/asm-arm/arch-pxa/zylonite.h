@@ -18,6 +18,8 @@ extern struct platform_mmc_slot zylonite_mmc_slot[];
 extern int gpio_backlight;
 extern int gpio_eth_irq;
 
+extern int wm9713_irq;
+
 extern int lcd_id;
 extern int lcd_orientation;
 

@@ -12,6 +12,15 @@
 
 #ifndef __ASM_ARCH_PXA3XX_REGS_H
 #define __ASM_ARCH_PXA3XX_REGS_H
+
+/*
+ * Oscillator Configuration Register (OSCC)
+ */
+#define OSCC           __REG(0x41350000)  /* Oscillator Configuration Register */
+
+#define OSCC_PEN       (1 << 11)       /* 13MHz POUT */
+
+
 /*
  * Service Power Management Unit (MPMU)
  */

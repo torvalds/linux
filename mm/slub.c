@@ -2685,6 +2685,7 @@ void kfree(const void *x)
 }
 EXPORT_SYMBOL(kfree);
 
+#if defined(SLUB_DEBUG) || defined(CONFIG_SLABINFO)
 static unsigned long count_partial(struct kmem_cache_node *n)
 {
 	unsigned long flags;
@@ -2697,6 +2698,7 @@ static unsigned long count_partial(struct kmem_cache_node *n)
 	spin_unlock_irqrestore(&n->list_lock, flags);
 	return x;
 }
+#endif
 
 /*
  * kmem_cache_shrink removes empty slabs from the partial lists and sorts

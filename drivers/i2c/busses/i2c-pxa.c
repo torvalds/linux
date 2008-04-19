@@ -39,6 +39,7 @@
 #include <asm/io.h>
 #include <asm/arch/i2c.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 
 struct pxa_i2c {
 	spinlock_t		lock;

@@ -42,6 +42,7 @@
 
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-regs.h>
+#include <asm/arch/mfp-pxa25x.h>
 #include <asm/arch/lubbock.h>
 #include <asm/arch/udc.h>
 #include <asm/arch/irda.h>
@@ -51,6 +52,40 @@
 #include "generic.h"
 #include "devices.h"
 
+static unsigned long lubbock_pin_config[] __initdata = {
+	GPIO15_nCS_1,	/* CS1 - Flash */
+	GPIO79_nCS_3,	/* CS3 - SMC ethernet */
+
+	/* SSP data pins */
+	GPIO23_SSP1_SCLK,
+	GPIO25_SSP1_TXD,
+	GPIO26_SSP1_RXD,
+
+	/* BTUART */
+	GPIO42_BTUART_RXD,
+	GPIO43_BTUART_TXD,
+	GPIO44_BTUART_CTS,
+	GPIO45_BTUART_RTS,
+
+	/* PC Card */
+	GPIO48_nPOE,
+	GPIO49_nPWE,
+	GPIO50_nPIOR,
+	GPIO51_nPIOW,
+	GPIO52_nPCE_1,
+	GPIO53_nPCE_2,
+	GPIO54_nPSKTSEL,
+	GPIO55_nPREG,
+	GPIO56_nPWAIT,
+	GPIO57_nIOIS16,
+
+	/* MMC */
+	GPIO6_MMC_CLK,
+	GPIO8_MMC_CS0,
+
+	/* wakeup */
+	GPIO1_GPIO | WAKEUP_ON_EDGE_RISE,
+};
 
 #define LUB_MISC_WR		__LUB_REG(LUBBOCK_FPGA_PHYS + 0x080)
 
@@ -186,26 +221,6 @@ static struct platform_device sa1111_device = {
 	.resource	= sa1111_resources,
 };
 
-static struct resource smc91x_resources[] = {
-	[0] = {
-		.name	= "smc91x-regs",
-		.start	= 0x0c000c00,
-		.end	= 0x0c0fffff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= LUBBOCK_ETH_IRQ,
-		.end	= LUBBOCK_ETH_IRQ,
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
-	},
-	[2] = {
-		.name	= "smc91x-attrib",
-		.start	= 0x0e000000,
-		.end	= 0x0e0fffff,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
 /* ADS7846 is connected through SSP ... and if your board has J5 populated,
  * you can select it to replace the ucb1400 by switching the touchscreen cable
  * (to J5) and poking board registers (as done below).  Else it's only useful
@@ -259,6 +274,26 @@ static struct spi_board_info spi_board_info[] __initdata = { {
 	.bus_num	= 1,
 	.chip_select	= 0,
 },
+};
+
+static struct resource smc91x_resources[] = {
+	[0] = {
+		.name	= "smc91x-regs",
+		.start	= 0x0c000c00,
+		.end	= 0x0c0fffff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= LUBBOCK_ETH_IRQ,
+		.end	= LUBBOCK_ETH_IRQ,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+	},
+	[2] = {
+		.name	= "smc91x-attrib",
+		.start	= 0x0e000000,
+		.end	= 0x0e0fffff,
+		.flags	= IORESOURCE_MEM,
+	},
 };
 
 static struct platform_device smc91x_device = {
@@ -404,10 +439,6 @@ static int lubbock_mci_init(struct device *dev,
 		irq_handler_t detect_int,
 		void *data)
 {
-	/* setup GPIO for PXA25x MMC controller	*/
-	pxa_gpio_mode(GPIO6_MMCCLK_MD);
-	pxa_gpio_mode(GPIO8_MMCCS0_MD);
-
 	/* detect card insert/eject */
 	mmc_detect_int = detect_int;
 	init_timer(&mmc_timer);
@@ -457,6 +488,8 @@ static void __init lubbock_init(void)
 {
 	int flashboot = (LUB_CONF_SWITCHES & 1);
 
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(lubbock_pin_config));
+
 	pxa_set_udc_info(&udc_info);
 	set_pxa_fb_info(&sharp_lm8v31);
 	pxa_set_mci_info(&lubbock_mci_platform_data);
@@ -489,46 +522,6 @@ static void __init lubbock_map_io(void)
 	pxa_map_io();
 	iotable_init(lubbock_io_desc, ARRAY_SIZE(lubbock_io_desc));
 
-	/* SSP data pins */
-	pxa_gpio_mode(GPIO23_SCLK_MD);
-	pxa_gpio_mode(GPIO25_STXD_MD);
-	pxa_gpio_mode(GPIO26_SRXD_MD);
-
-	/* This enables the BTUART */
-	pxa_gpio_mode(GPIO42_BTRXD_MD);
-	pxa_gpio_mode(GPIO43_BTTXD_MD);
-	pxa_gpio_mode(GPIO44_BTCTS_MD);
-	pxa_gpio_mode(GPIO45_BTRTS_MD);
-
-	GPSR(GPIO48_nPOE) =
-		GPIO_bit(GPIO48_nPOE) |
-		GPIO_bit(GPIO49_nPWE) |
-		GPIO_bit(GPIO50_nPIOR) |
-		GPIO_bit(GPIO51_nPIOW) |
-		GPIO_bit(GPIO52_nPCE_1) |
-		GPIO_bit(GPIO53_nPCE_2);
-
-	pxa_gpio_mode(GPIO48_nPOE_MD);
-	pxa_gpio_mode(GPIO49_nPWE_MD);
-	pxa_gpio_mode(GPIO50_nPIOR_MD);
-	pxa_gpio_mode(GPIO51_nPIOW_MD);
-	pxa_gpio_mode(GPIO52_nPCE_1_MD);
-	pxa_gpio_mode(GPIO53_nPCE_2_MD);
-	pxa_gpio_mode(GPIO54_pSKTSEL_MD);
-	pxa_gpio_mode(GPIO55_nPREG_MD);
-	pxa_gpio_mode(GPIO56_nPWAIT_MD);
-	pxa_gpio_mode(GPIO57_nIOIS16_MD);
-
-	/* This is for the SMC chip select */
-	pxa_gpio_mode(GPIO79_nCS_3_MD);
-
-	/* setup sleep mode values */
-	PWER  = 0x00000002;
-	PFER  = 0x00000000;
-	PRER  = 0x00000002;
-	PGSR0 = 0x00008000;
-	PGSR1 = 0x003F0202;
-	PGSR2 = 0x0001C000;
 	PCFR |= PCFR_OPDE;
 }
 
