@@ -792,10 +792,6 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			scsi_status = 0;
 		} else {
 			if (cmd->act_len != cmd->len) {
-				if ((cmd->key == MEDIUM_ERROR ||
-				     cmd->key == UNIT_ATTENTION) &&
-				    ub_rw_cmd_retry(sc, lun, urq, cmd) == 0)
-					return;
 				scsi_status = SAM_STAT_CHECK_CONDITION;
 			} else {
 				scsi_status = 0;
@@ -811,7 +807,10 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			else
 				scsi_status = DID_ERROR << 16;
 		} else {
-			if (cmd->error == -EIO) {
+			if (cmd->error == -EIO &&
+			    (cmd->key == 0 ||
+			     cmd->key == MEDIUM_ERROR ||
+			     cmd->key == UNIT_ATTENTION)) {
 				if (ub_rw_cmd_retry(sc, lun, urq, cmd) == 0)
 					return;
 			}
