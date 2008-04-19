@@ -240,9 +240,9 @@ struct esp_cmd_priv {
 		int		num_sg;
 	} u;
 
-	unsigned int		cur_residue;
+	int			cur_residue;
 	struct scatterlist	*cur_sg;
-	unsigned int		tot_residue;
+	int			tot_residue;
 };
 #define ESP_CMD_PRIV(CMD)	((struct esp_cmd_priv *)(&(CMD)->SCp))
 
