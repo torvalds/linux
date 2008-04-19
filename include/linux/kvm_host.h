@@ -110,7 +110,6 @@ struct kvm {
 					KVM_PRIVATE_MEM_SLOTS];
 	struct kvm_vcpu *vcpus[KVM_MAX_VCPUS];
 	struct list_head vm_list;
-	struct file *filp;
 	struct kvm_io_bus mmio_bus;
 	struct kvm_io_bus pio_bus;
 	struct kvm_vm_stat stat;

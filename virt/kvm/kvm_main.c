@@ -818,7 +818,7 @@ static int kvm_vcpu_release(struct inode *inode, struct file *filp)
 {
 	struct kvm_vcpu *vcpu = filp->private_data;
 
-	fput(vcpu->kvm->filp);
+	kvm_put_kvm(vcpu->kvm);
 	return 0;
 }
 
@@ -840,9 +840,10 @@ static int create_vcpu_fd(struct kvm_vcpu *vcpu)
 
 	r = anon_inode_getfd(&fd, &inode, &file,
 			     "kvm-vcpu", &kvm_vcpu_fops, vcpu);
-	if (r)
+	if (r) {
+		kvm_put_kvm(vcpu->kvm);
 		return r;
-	atomic_inc(&vcpu->kvm->filp->f_count);
+	}
 	return fd;
 }
 
@@ -877,6 +878,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, int n)
 	mutex_unlock(&kvm->lock);
 
 	/* Now it's all set up, let userspace reach it */
+	kvm_get_kvm(kvm);
 	r = create_vcpu_fd(vcpu);
 	if (r < 0)
 		goto unlink;
@@ -1176,11 +1178,9 @@ static int kvm_dev_ioctl_create_vm(void)
 		return PTR_ERR(kvm);
 	r = anon_inode_getfd(&fd, &inode, &file, "kvm-vm", &kvm_vm_fops, kvm);
 	if (r) {
-		kvm_destroy_vm(kvm);
+		kvm_put_kvm(kvm);
 		return r;
 	}
-
-	kvm->filp = file;
 
 	return fd;
 }
