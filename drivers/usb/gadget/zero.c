@@ -1134,6 +1134,10 @@ autoconf_fail:
 	dev->gadget = gadget;
 	set_gadget_data(gadget, dev);
 
+	init_timer(&dev->resume);
+	dev->resume.function = zero_autoresume;
+	dev->resume.data = (unsigned long) dev;
+
 	/* preallocate control response and buffer */
 	dev->req = usb_ep_alloc_request(gadget->ep0, GFP_KERNEL);
 	if (!dev->req)
@@ -1165,9 +1169,6 @@ autoconf_fail:
 
 	usb_gadget_set_selfpowered(gadget);
 
-	init_timer(&dev->resume);
-	dev->resume.function = zero_autoresume;
-	dev->resume.data = (unsigned long) dev;
 	if (autoresume) {
 		source_sink_config.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 		loopback_config.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
