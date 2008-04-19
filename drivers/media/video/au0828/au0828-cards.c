@@ -47,7 +47,7 @@ int au0828_tuner_callback(void *priv, int command, int arg)
 
 	dprintk(1, "%s()\n", __func__);
 
-	switch(dev->board) {
+	switch (dev->board) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
 	case AU0828_BOARD_DVICO_FUSIONHDTV7:
@@ -59,8 +59,7 @@ int au0828_tuner_callback(void *priv, int command, int arg)
 			au0828_set(dev, REG_001, 2);
 			mdelay(50);
 			return 0;
-		}
-		else {
+		} else {
 			printk(KERN_ERR
 				"%s(): Unknown command.\n", __func__);
 			return -EINVAL;
@@ -103,7 +102,7 @@ void au0828_card_setup(struct au0828_dev *dev)
 		tveeprom_read(&dev->i2c_client, eeprom, sizeof(eeprom));
 	}
 
-	switch(dev->board) {
+	switch (dev->board) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
 		if (dev->i2c_rc == 0)
@@ -121,7 +120,7 @@ void au0828_gpio_setup(struct au0828_dev *dev)
 {
 	dprintk(1, "%s()\n", __func__);
 
-	switch(dev->board) {
+	switch (dev->board) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
 		/* GPIO's

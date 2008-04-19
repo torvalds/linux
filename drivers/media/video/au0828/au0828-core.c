@@ -32,15 +32,15 @@
  * 4 = I2C related
  * 8 = Bridge related
  */
-unsigned int debug = 0;
+unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
 
-unsigned int usb_debug = 0;
+unsigned int usb_debug;
 module_param(usb_debug, int, 0644);
 MODULE_PARM_DESC(usb_debug, "enable usb debug messages");
 
-unsigned int bridge_debug = 0;
+unsigned int bridge_debug;
 module_param(bridge_debug, int, 0644);
 MODULE_PARM_DESC(bridge_debug, "enable bridge debug messages");
 
@@ -66,16 +66,17 @@ u32 au0828_readreg(struct au0828_dev *dev, u16 reg)
 u32 au0828_writereg(struct au0828_dev *dev, u16 reg, u32 val)
 {
 	dprintk(8, "%s(0x%x, 0x%x)\n", __func__, reg, val);
-	return send_control_msg(dev, CMD_REQUEST_OUT, val, reg, dev->ctrlmsg, 0);
+	return send_control_msg(dev, CMD_REQUEST_OUT, val, reg,
+				dev->ctrlmsg, 0);
 }
 
 static void cmd_msg_dump(struct au0828_dev *dev)
 {
 	int i;
 
-	for (i = 0;i < sizeof(dev->ctrlmsg); i+=16)
-		dprintk(2,"%s() %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
-			"%02x %02x %02x %02x %02x %02x\n",
+	for (i = 0; i < sizeof(dev->ctrlmsg); i += 16)
+		dprintk(2, "%s() %02x %02x %02x %02x %02x %02x %02x %02x "
+				"%02x %02x %02x %02x %02x %02x %02x %02x\n",
 			__func__,
 			dev->ctrlmsg[i+0], dev->ctrlmsg[i+1],
 			dev->ctrlmsg[i+2], dev->ctrlmsg[i+3],
@@ -136,8 +137,7 @@ static int recv_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 		if (status < 0) {
 			printk(KERN_ERR "%s() Failed receiving control message, error %d.\n",
 				__func__, status);
-		}
-		else
+		} else
 			cmd_msg_dump(dev);
 	}
 	mutex_unlock(&dev->mutex);
@@ -166,7 +166,7 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 
 }
 
-static int au0828_usb_probe (struct usb_interface *interface,
+static int au0828_usb_probe(struct usb_interface *interface,
 	const struct usb_device_id *id)
 {
 	int ifnum;

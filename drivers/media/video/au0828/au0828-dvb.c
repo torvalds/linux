@@ -111,9 +111,8 @@ static int start_urb_transfer(struct au0828_dev *dev)
 	for (i = 0; i < URB_COUNT; i++) {
 
 		dev->urbs[i] = usb_alloc_urb(0, GFP_KERNEL);
-		if (!dev->urbs[i]) {
+		if (!dev->urbs[i])
 			goto err;
-		}
 
 		purb = dev->urbs[i];
 

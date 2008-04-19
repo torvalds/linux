@@ -83,13 +83,14 @@ struct au0828_buff {
 };
 
 /* ----------------------------------------------------------- */
-#define au0828_read(dev,reg) au0828_readreg(dev,reg)
-#define au0828_write(dev,reg,value) au0828_writereg(dev,reg,value)
-#define au0828_andor(dev,reg,mask,value) \
- au0828_writereg(dev,reg,(au0828_readreg(dev,reg)&~(mask))|((value)&(mask)))
+#define au0828_read(dev, reg) au0828_readreg(dev, reg)
+#define au0828_write(dev, reg, value) au0828_writereg(dev, reg, value)
+#define au0828_andor(dev, reg, mask, value) 				\
+	 au0828_writereg(dev, reg, 					\
+	(au0828_readreg(dev, reg) & ~(mask)) | ((value) & (mask)))
 
-#define au0828_set(dev,reg,bit) au0828_andor(dev,(reg),(bit),(bit))
-#define au0828_clear(dev,reg,bit) au0828_andor(dev,(reg),(bit),0)
+#define au0828_set(dev, reg, bit) au0828_andor(dev, (reg), (bit), (bit))
+#define au0828_clear(dev, reg, bit) au0828_andor(dev, (reg), (bit), 0)
 
 /* ----------------------------------------------------------- */
 /* au0828-core.c */

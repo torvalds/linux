@@ -43,8 +43,12 @@ struct au8522_state {
 
 };
 
-static int debug = 0;
-#define dprintk	if (debug) printk
+static int debug;
+
+#define dprintk(arg...) do {		\
+	if (debug) 			\
+		 printk(##arg); }	\
+	} while (0)
 
 /* 16 bit registers, 8 bit values */
 static int au8522_writereg(struct au8522_state *state, u16 reg, u8 data)
@@ -284,7 +288,8 @@ static struct mse2snr_tab qam256_mse2snr_tab[] = {
 	{ 256, 280 },
 };
 
-static int au8522_mse2snr_lookup(struct mse2snr_tab *tab, int sz, int mse, u16 *snr)
+static int au8522_mse2snr_lookup(struct mse2snr_tab *tab, int sz, int mse,
+				 u16 *snr)
 {
 	int i, ret = -EINVAL;
 	dprintk("%s()\n", __func__);
@@ -427,7 +432,7 @@ static int au8522_enable_modulation(struct dvb_frontend *fe,
 
 	dprintk("%s(0x%08x)\n", __func__, m);
 
-	switch(m) {
+	switch (m) {
 	case VSB_8:
 		dprintk("%s() VSB_8\n", __func__);
 		for (i = 0; i < ARRAY_SIZE(VSB_mod_tab); i++)
@@ -469,9 +474,11 @@ static int au8522_set_frontend(struct dvb_frontend *fe,
 	msleep(100);
 
 	if (fe->ops.tuner_ops.set_params) {
-		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 1);
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 1);
 		fe->ops.tuner_ops.set_params(fe, p);
-		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
 	return 0;
@@ -515,7 +522,7 @@ static int au8522_read_status(struct dvb_frontend *fe, fe_status_t *status)
 			*status |= FE_HAS_LOCK | FE_HAS_SYNC;
 	}
 
-	switch(state->config->status_mode) {
+	switch (state->config->status_mode) {
 	case AU8522_DEMODLOCKING:
 		dprintk("%s() DEMODLOCKING\n", __func__);
 		if (*status & FE_HAS_VITERBI)
@@ -651,6 +658,7 @@ error:
 	kfree(state);
 	return NULL;
 }
+EXPORT_SYMBOL(au8522_attach);
 
 static struct dvb_frontend_ops au8522_ops = {
 
@@ -682,10 +690,3 @@ MODULE_PARM_DESC(debug, "Enable verbose debug messages");
 MODULE_DESCRIPTION("Auvitek AU8522 QAM-B/ATSC Demodulator driver");
 MODULE_AUTHOR("Steven Toth");
 MODULE_LICENSE("GPL");
-
-EXPORT_SYMBOL(au8522_attach);
-
-/*
- * Local variables:
- * c-basic-offset: 8
- */

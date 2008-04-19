@@ -23,17 +23,17 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include "au0828.h"
 
 #include <media/v4l2-common.h>
 
-unsigned int i2c_debug = 0;
+unsigned int i2c_debug;
 module_param(i2c_debug, int, 0444);
 MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 
-unsigned int i2c_scan = 0;
+unsigned int i2c_scan;
 module_param(i2c_scan, int, 0444);
 MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
 
@@ -323,9 +323,9 @@ static struct i2c_client au0828_i2c_client_template = {
 };
 
 static char *i2c_devs[128] = {
-	[ 0x8e >> 1 ] = "au8522",
-	[ 0xa0 >> 1 ] = "eeprom",
-	[ 0xc2 >> 1 ] = "tuner/xc5000",
+	[0x8e >> 1] = "au8522",
+	[0xa0 >> 1] = "eeprom",
+	[0xc2 >> 1] = "tuner/xc5000",
 };
 
 static void do_i2c_scan(char *name, struct i2c_client *c)
@@ -338,7 +338,7 @@ static void do_i2c_scan(char *name, struct i2c_client *c)
 		rc = i2c_master_recv(c, &buf, 0);
 		if (rc < 0)
 			continue;
-		printk("%s: i2c scan: found device @ 0x%x  [%s]\n",
+		printk(KERN_INFO "%s: i2c scan: found device @ 0x%x  [%s]\n",
 		       name, i << 1, i2c_devs[i] ? i2c_devs[i] : "???");
 	}
 }
@@ -368,11 +368,11 @@ int au0828_i2c_register(struct au0828_dev *dev)
 	dev->i2c_client.adapter = &dev->i2c_adap;
 
 	if (0 == dev->i2c_rc) {
-		printk("%s: i2c bus registered\n", DRIVER_NAME);
+		printk(KERN_INFO "%s: i2c bus registered\n", DRIVER_NAME);
 		if (i2c_scan)
 			do_i2c_scan(DRIVER_NAME, &dev->i2c_client);
 	} else
-		printk("%s: i2c bus register FAILED\n", DRIVER_NAME);
+		printk(KERN_INFO "%s: i2c bus register FAILED\n", DRIVER_NAME);
 
 	return dev->i2c_rc;
 }

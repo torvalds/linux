@@ -24,8 +24,7 @@
 
 #include <linux/dvb/frontend.h>
 
-struct au8522_config
-{
+struct au8522_config {
 	/* the demodulator's i2c address */
 	u8 demod_address;
 
@@ -35,7 +34,8 @@ struct au8522_config
 	u8 status_mode;
 };
 
-#if defined(CONFIG_DVB_AU8522) || (defined(CONFIG_DVB_AU8522_MODULE) && defined(MODULE))
+#if defined(CONFIG_DVB_AU8522) || 				\
+	    (defined(CONFIG_DVB_AU8522_MODULE) && defined(MODULE))
 extern struct dvb_frontend *au8522_attach(const struct au8522_config *config,
 					  struct i2c_adapter *i2c);
 #else
