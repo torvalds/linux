@@ -432,6 +432,16 @@ static struct gpio_led tosa_gpio_leds[] = {
 		.default_trigger	= "nand-disk",
 		.gpio			= TOSA_GPIO_NOTE_LED,
 	},
+	{
+		.name			= "tosa:dual:wlan",
+		.default_trigger	= "none",
+		.gpio			= TOSA_GPIO_WLAN_LED,
+	},
+	{
+		.name			= "tosa:blue:bluetooth",
+		.default_trigger	= "none",
+		.gpio			= TOSA_GPIO_BT_LED,
+	},
 };
 
 static struct gpio_led_platform_data tosa_gpio_leds_platform_data = {
