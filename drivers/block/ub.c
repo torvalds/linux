@@ -1309,8 +1309,7 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 		ub_state_done(sc, cmd, -EIO);
 
 	} else {
-		printk(KERN_WARNING "%s: "
-		    "wrong command state %d\n",
+		printk(KERN_WARNING "%s: wrong command state %d\n",
 		    sc->name, cmd->state);
 		ub_state_done(sc, cmd, -EINVAL);
 		return;
@@ -1533,8 +1532,7 @@ static void ub_top_sense_done(struct ub_dev *sc, struct ub_scsi_cmd *scmd)
 		return;
 	}
 	if (cmd->state != UB_CMDST_SENSE) {
-		printk(KERN_WARNING "%s: "
-		    "sense done with bad cmd state %d\n",
+		printk(KERN_WARNING "%s: sense done with bad cmd state %d\n",
 		    sc->name, cmd->state);
 		return;
 	}
@@ -1738,7 +1736,7 @@ static int ub_bd_ioctl(struct inode *inode, struct file *filp,
 }
 
 /*
- * This is called once a new disk was seen by the block layer or by ub_probe().
+ * This is called by check_disk_change if we reported a media change.
  * The main onjective here is to discover the features of the media such as
  * the capacity, read-only status, etc. USB storage generally does not
  * need to be spun up, but if we needed it, this would be the place.
@@ -2154,8 +2152,7 @@ static int ub_get_pipes(struct ub_dev *sc, struct usb_device *dev,
 	}
 
 	if (ep_in == NULL || ep_out == NULL) {
-		printk(KERN_NOTICE "%s: failed endpoint check\n",
-		    sc->name);
+		printk(KERN_NOTICE "%s: failed endpoint check\n", sc->name);
 		return -ENODEV;
 	}
 
@@ -2372,7 +2369,7 @@ static void ub_disconnect(struct usb_interface *intf)
 	spin_unlock_irqrestore(&ub_lock, flags);
 
 	/*
-	 * Fence stall clearnings, operations triggered by unlinkings and so on.
+	 * Fence stall clearings, operations triggered by unlinkings and so on.
 	 * We do not attempt to unlink any URBs, because we do not trust the
 	 * unlink paths in HC drivers. Also, we get -84 upon disconnect anyway.
 	 */
@@ -2435,7 +2432,7 @@ static void ub_disconnect(struct usb_interface *intf)
 	spin_unlock_irqrestore(sc->lock, flags);
 
 	/*
-	 * There is virtually no chance that other CPU runs times so long
+	 * There is virtually no chance that other CPU runs a timeout so long
 	 * after ub_urb_complete should have called del_timer, but only if HCD
 	 * didn't forget to deliver a callback on unlink.
 	 */
