@@ -92,7 +92,6 @@ void __init dma32_reserve_bootmem(void)
 }
 static void __init dma32_free_bootmem(void)
 {
-	int node;
 
 	if (end_pfn <= MAX_DMA32_PFN)
 		return;
@@ -100,9 +99,7 @@ static void __init dma32_free_bootmem(void)
 	if (!dma32_bootmem_ptr)
 		return;
 
-	for_each_online_node(node)
-		free_bootmem_node(NODE_DATA(node), __pa(dma32_bootmem_ptr),
-				  dma32_bootmem_size);
+	free_bootmem(__pa(dma32_bootmem_ptr), dma32_bootmem_size);
 
 	dma32_bootmem_ptr = NULL;
 	dma32_bootmem_size = 0;
