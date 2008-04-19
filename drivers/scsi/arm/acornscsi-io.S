@@ -10,6 +10,12 @@
 #include <asm/assembler.h>
 #include <asm/hardware.h>
 
+#if defined(__APCS_32__)
+#define LOADREGS(t,r,l...)	ldm##t	r, l
+#elif defined(__APCS_26__)
+#define LOADREGS(t,r,l...)	ldm##t	r, l##^
+#endif
+
 @ Purpose: transfer a block of data from the acorn scsi card to memory
 @ Proto  : void acornscsi_in(unsigned int addr_start, char *buffer, int length)
 @ Returns: nothing
