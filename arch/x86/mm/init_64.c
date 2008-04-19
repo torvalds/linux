@@ -431,7 +431,7 @@ static void __init init_gbpages(void)
 		direct_gbpages = 0;
 }
 
-#ifdef CONFIG_MEMTEST_BOOTPARAM
+#ifdef CONFIG_MEMTEST
 
 static void __init memtest(unsigned long start_phys, unsigned long size,
 				 unsigned pattern)
@@ -493,7 +493,8 @@ static void __init memtest(unsigned long start_phys, unsigned long size,
 
 }
 
-static int memtest_pattern __initdata = CONFIG_MEMTEST_BOOTPARAM_VALUE;
+/* default is disabled */
+static int memtest_pattern __initdata;
 
 static int __init parse_memtest(char *arg)
 {

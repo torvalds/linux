@@ -419,34 +419,18 @@ config PARAVIRT
 
 endif
 
-config MEMTEST_BOOTPARAM
-	bool "Memtest boot parameter"
+config MEMTEST
+	bool "Memtest"
 	depends on X86_64
 	default y
 	help
 	  This option adds a kernel parameter 'memtest', which allows memtest
-	  to be disabled at boot.  If this option is selected, memtest
-	  functionality can be disabled with memtest=0 on the kernel
-	  command line.  The purpose of this option is to allow a single
-	  kernel image to be distributed with memtest built in, but not
-	  necessarily enabled.
-
+	  to be set.
+		memtest=0, mean disabled; -- default
+		memtest=1, mean do 1 test pattern;
+		...
+		memtest=4, mean do 4 test patterns.
 	  If you are unsure how to answer this question, answer Y.
-
-config MEMTEST_BOOTPARAM_VALUE
-	int "Memtest boot parameter default value (0-4)"
-	depends on MEMTEST_BOOTPARAM
-	range 0 4
-	default 0
-	help
-	  This option sets the default value for the kernel parameter
-	  'memtest', which allows memtest to be disabled at boot.  If this
-	  option is set to 0 (zero), the memtest kernel parameter will
-	  default to 0, disabling memtest at bootup.  If this option is
-	  set to 4, the memtest kernel parameter will default to 4,
-	  enabling memtest at bootup, and use that as pattern number.
-
-	  If you are unsure how to answer this question, answer 0.
 
 config ACPI_SRAT
 	def_bool y
