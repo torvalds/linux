@@ -362,29 +362,47 @@ static u64 __sched_period(unsigned long nr_running)
  */
 static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	return calc_delta_mine(__sched_period(cfs_rq->nr_running),
-			       se->load.weight, &cfs_rq->load);
+	u64 slice = __sched_period(cfs_rq->nr_running);
+
+	for_each_sched_entity(se) {
+		cfs_rq = cfs_rq_of(se);
+
+		slice *= se->load.weight;
+		do_div(slice, cfs_rq->load.weight);
+	}
+
+
+	return slice;
 }
 
 /*
- * We calculate the vruntime slice.
+ * We calculate the vruntime slice of a to be inserted task
  *
  * vs = s/w = p/rw
  */
-static u64 __sched_vslice(unsigned long rq_weight, unsigned long nr_running)
-{
-	u64 vslice = __sched_period(nr_running);
-
-	vslice *= NICE_0_LOAD;
-	do_div(vslice, rq_weight);
-
-	return vslice;
-}
-
 static u64 sched_vslice_add(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	return __sched_vslice(cfs_rq->load.weight + se->load.weight,
-			cfs_rq->nr_running + 1);
+	unsigned long nr_running = cfs_rq->nr_running;
+	unsigned long weight;
+	u64 vslice;
+
+	if (!se->on_rq)
+		nr_running++;
+
+	vslice = __sched_period(nr_running);
+
+	for_each_sched_entity(se) {
+		cfs_rq = cfs_rq_of(se);
+
+		weight = cfs_rq->load.weight;
+		if (!se->on_rq)
+			weight += se->load.weight;
+
+		vslice *= NICE_0_LOAD;
+		do_div(vslice, weight);
+	}
+
+	return vslice;
 }
 
 /*
