@@ -573,4 +573,4 @@ static int __init pxa3xx_init(void)
 	return ret;
 }
 
-subsys_initcall(pxa3xx_init);
+postcore_initcall(pxa3xx_init);

@@ -313,4 +313,4 @@ static int __init pxa25x_init(void)
 	return ret;
 }
 
-subsys_initcall(pxa25x_init);
+postcore_initcall(pxa25x_init);

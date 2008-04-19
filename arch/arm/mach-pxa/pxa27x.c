@@ -396,4 +396,4 @@ static int __init pxa27x_init(void)
 	return ret;
 }
 
-subsys_initcall(pxa27x_init);
+postcore_initcall(pxa27x_init);
