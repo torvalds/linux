@@ -698,6 +698,8 @@ source "drivers/media/video/cx88/Kconfig"
 
 source "drivers/media/video/cx23885/Kconfig"
 
+source "drivers/media/video/au0828/Kconfig"
+
 source "drivers/media/video/ivtv/Kconfig"
 
 config VIDEO_M32R_AR

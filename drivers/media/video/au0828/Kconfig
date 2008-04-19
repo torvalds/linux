@@ -1,0 +1,10 @@
+
+config VIDEO_AU0828
+	tristate "Auvitek AU0828 support"
+	depends on VIDEO_DEV && I2C && INPUT
+	select I2C_ALGOBIT
+	---help---
+	  This is a video4linux driver for Auvitek's USB device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ambarella
