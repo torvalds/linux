@@ -647,7 +647,7 @@ struct dvb_frontend *microtune_attach(struct dvb_frontend *fe,
 	default:
 		tuner_info("microtune %s found, not (yet?) supported, sorry :-/\n",
 			   name);
-		return 0;
+		return NULL;
 	}
 
 	strlcpy(fe->ops.tuner_ops.info.name, name,

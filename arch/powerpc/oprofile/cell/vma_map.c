@@ -92,7 +92,7 @@ vma_map_add(struct vma_to_fileoffset_map *map, unsigned int vma,
  * A pointer to the first vma_map in the generated list
  * of vma_maps is returned.  */
 struct vma_to_fileoffset_map *create_vma_map(const struct spu *aSpu,
-					     unsigned long spu_elf_start)
+					     unsigned long __spu_elf_start)
 {
 	static const unsigned char expected[EI_PAD] = {
 		[EI_MAG0] = ELFMAG0,
@@ -107,9 +107,11 @@ struct vma_to_fileoffset_map *create_vma_map(const struct spu *aSpu,
 
 	int grd_val;
 	struct vma_to_fileoffset_map *map = NULL;
+	void __user *spu_elf_start = (void __user *)__spu_elf_start;
 	struct spu_overlay_info ovly;
 	unsigned int overlay_tbl_offset = -1;
-	unsigned long phdr_start, shdr_start;
+	Elf32_Phdr __user *phdr_start;
+	Elf32_Shdr __user *shdr_start;
 	Elf32_Ehdr ehdr;
 	Elf32_Phdr phdr;
 	Elf32_Shdr shdr, shdr_str;
@@ -121,12 +123,12 @@ struct vma_to_fileoffset_map *create_vma_map(const struct spu *aSpu,
 	unsigned int ovly_buf_table_sym = 0;
 	unsigned int ovly_table_end_sym = 0;
 	unsigned int ovly_buf_table_end_sym = 0;
-	unsigned long ovly_table;
+	struct spu_overlay_info __user *ovly_table;
 	unsigned int n_ovlys;
 
 	/* Get and validate ELF header.	 */
 
-	if (copy_from_user(&ehdr, (void *) spu_elf_start, sizeof (ehdr)))
+	if (copy_from_user(&ehdr, spu_elf_start, sizeof (ehdr)))
 		goto fail;
 
 	if (memcmp(ehdr.e_ident, expected, EI_PAD) != 0) {
@@ -152,9 +154,7 @@ struct vma_to_fileoffset_map *create_vma_map(const struct spu *aSpu,
 
 	/* Traverse program headers.  */
 	for (i = 0; i < ehdr.e_phnum; i++) {
-		if (copy_from_user(&phdr,
-				   (void *) (phdr_start + i * sizeof(phdr)),
-				   sizeof(phdr)))
+		if (copy_from_user(&phdr, phdr_start + i, sizeof(phdr)))
 			goto fail;
 
 		if (phdr.p_type != PT_LOAD)
@@ -171,9 +171,7 @@ struct vma_to_fileoffset_map *create_vma_map(const struct spu *aSpu,
 	pr_debug("SPU_PROF: Created non-overlay maps\n");
 	/* Traverse section table and search for overlay-related symbols.  */
 	for (i = 0; i < ehdr.e_shnum; i++) {
-		if (copy_from_user(&shdr,
-				   (void *) (shdr_start + i * sizeof(shdr)),
-				   sizeof(shdr)))
+		if (copy_from_user(&shdr, shdr_start + i, sizeof(shdr)))
 			goto fail;
 
 		if (shdr.sh_type != SHT_SYMTAB)
@@ -182,8 +180,7 @@ struct vma_to_fileoffset_map *create_vma_map(const struct spu *aSpu,
 			continue;
 
 		if (copy_from_user(&shdr_str,
-				   (void *) (shdr_start + shdr.sh_link *
-					     sizeof(shdr)),
+				   shdr_start + shdr.sh_link,
 				   sizeof(shdr)))
 			goto fail;
 
@@ -191,15 +188,15 @@ struct vma_to_fileoffset_map *create_vma_map(const struct spu *aSpu,
 			goto fail;;
 
 		for (j = 0; j < shdr.sh_size / sizeof (sym); j++) {
-			if (copy_from_user(&sym, (void *) (spu_elf_start +
-						       shdr.sh_offset + j *
-							   sizeof (sym)),
+			if (copy_from_user(&sym, spu_elf_start +
+						 shdr.sh_offset +
+						 j * sizeof (sym),
 					   sizeof (sym)))
 				goto fail;
 
-			if (copy_from_user(name, (void *)
-					   (spu_elf_start + shdr_str.sh_offset +
-					    sym.st_name),
+			if (copy_from_user(name, 
+					   spu_elf_start + shdr_str.sh_offset +
+					   sym.st_name,
 					   20))
 				goto fail;
 
@@ -245,9 +242,7 @@ struct vma_to_fileoffset_map *create_vma_map(const struct spu *aSpu,
 
 	/* Traverse overlay table.  */
 	for (i = 0; i < n_ovlys; i++) {
-		if (copy_from_user(&ovly, (void *)
-				   (ovly_table + i * sizeof (ovly)),
-				   sizeof (ovly)))
+		if (copy_from_user(&ovly, ovly_table + i, sizeof (ovly)))
 			goto fail;
 
 		/* The ovly.vma/size/offset arguments are analogous to the same

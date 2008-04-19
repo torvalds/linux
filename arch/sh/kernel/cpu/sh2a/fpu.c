@@ -13,6 +13,7 @@
 #include <linux/signal.h>
 #include <asm/processor.h>
 #include <asm/io.h>
+#include <asm/fpu.h>
 
 /* The PR (precision) bit in the FP Status Register must be clear when
  * an frchg instruction is executed, otherwise the instruction is undefined.

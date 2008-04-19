@@ -32,6 +32,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/i2c.h>
+#include <linux/leds.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -183,11 +184,80 @@ static struct platform_device *osk5912_devices[] __initdata = {
 	&osk5912_mcbsp1_device,
 };
 
+static struct gpio_led tps_leds[] = {
+	/* NOTE:  D9 and D2 have hardware blink support.
+	 * Also, D9 requires non-battery power.
+	 */
+	{ .gpio = OSK_TPS_GPIO_LED_D9, .name = "d9", },
+	{ .gpio = OSK_TPS_GPIO_LED_D2, .name = "d2", },
+	{ .gpio = OSK_TPS_GPIO_LED_D3, .name = "d3", .active_low = 1,
+			.default_trigger = "heartbeat", },
+};
+
+static struct gpio_led_platform_data tps_leds_data = {
+	.num_leds	= 3,
+	.leds		= tps_leds,
+};
+
+static struct platform_device osk5912_tps_leds = {
+	.name			= "leds-gpio",
+	.id			= 0,
+	.dev.platform_data	= &tps_leds_data,
+};
+
+static int osk_tps_setup(struct i2c_client *client, void *context)
+{
+	/* Set GPIO 1 HIGH to disable VBUS power supply;
+	 * OHCI driver powers it up/down as needed.
+	 */
+	gpio_request(OSK_TPS_GPIO_USB_PWR_EN, "n_vbus_en");
+	gpio_direction_output(OSK_TPS_GPIO_USB_PWR_EN, 1);
+
+	/* Set GPIO 2 high so LED D3 is off by default */
+	tps65010_set_gpio_out_value(GPIO2, HIGH);
+
+	/* Set GPIO 3 low to take ethernet out of reset */
+	gpio_request(OSK_TPS_GPIO_LAN_RESET, "smc_reset");
+	gpio_direction_output(OSK_TPS_GPIO_LAN_RESET, 0);
+
+	/* GPIO4 is VDD_DSP */
+	gpio_request(OSK_TPS_GPIO_DSP_PWR_EN, "dsp_power");
+	gpio_direction_output(OSK_TPS_GPIO_DSP_PWR_EN, 1);
+	/* REVISIT if DSP support isn't configured, power it off ... */
+
+	/* Let LED1 (D9) blink; leds-gpio may override it */
+	tps65010_set_led(LED1, BLINK);
+
+	/* Set LED2 off by default */
+	tps65010_set_led(LED2, OFF);
+
+	/* Enable LOW_PWR handshake */
+	tps65010_set_low_pwr(ON);
+
+	/* Switch VLDO2 to 3.0V for AIC23 */
+	tps65010_config_vregs1(TPS_LDO2_ENABLE | TPS_VLDO2_3_0V
+			| TPS_LDO1_ENABLE);
+
+	/* register these three LEDs */
+	osk5912_tps_leds.dev.parent = &client->dev;
+	platform_device_register(&osk5912_tps_leds);
+
+	return 0;
+}
+
+static struct tps65010_board tps_board = {
+	.base		= OSK_TPS_GPIO_BASE,
+	.outmask	= 0x0f,
+	.setup		= osk_tps_setup,
+};
+
 static struct i2c_board_info __initdata osk_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("tps65010", 0x48),
 		.type		= "tps65010",
 		.irq		= OMAP_GPIO_IRQ(OMAP_MPUIO(1)),
+		.platform_data	= &tps_board,
+
 	},
 	/* TODO when driver support is ready:
 	 *  - aic23 audio chip at 0x1a
@@ -198,7 +268,7 @@ static struct i2c_board_info __initdata osk_i2c_board_info[] = {
 
 static void __init osk_init_smc91x(void)
 {
-	if ((omap_request_gpio(0)) < 0) {
+	if ((gpio_request(0, "smc_irq")) < 0) {
 		printk("Error requesting gpio 0 for smc91x irq\n");
 		return;
 	}
@@ -210,7 +280,7 @@ static void __init osk_init_smc91x(void)
 static void __init osk_init_cf(void)
 {
 	omap_cfg_reg(M7_1610_GPIO62);
-	if ((omap_request_gpio(62)) < 0) {
+	if ((gpio_request(62, "cf_irq")) < 0) {
 		printk("Error requesting gpio 62 for CF irq\n");
 		return;
 	}
@@ -334,7 +404,7 @@ static struct platform_device *mistral_devices[] __initdata = {
 
 static int mistral_get_pendown_state(void)
 {
-	return !omap_get_gpio_datain(4);
+	return !gpio_get_value(4);
 }
 
 static const struct ads7846_platform_data mistral_ts_info = {
@@ -396,25 +466,31 @@ static void __init osk_mistral_init(void)
 	omap_cfg_reg(W14_1610_CCP_DATAP);
 
 	/* CAM_PWDN */
-	if (omap_request_gpio(11) == 0) {
+	if (gpio_request(11, "cam_pwdn") == 0) {
 		omap_cfg_reg(N20_1610_GPIO11);
-		omap_set_gpio_direction(11, 0 /* out */);
-		omap_set_gpio_dataout(11, 0 /* off */);
+		gpio_direction_output(11, 0);
 	} else
 		pr_debug("OSK+Mistral: CAM_PWDN is awol\n");
 
 
 	/* omap_cfg_reg(P19_1610_GPIO6); */	/* BUSY */
+	gpio_request(6, "ts_busy");
+	gpio_direction_input(6);
+
 	omap_cfg_reg(P20_1610_GPIO4);	/* PENIRQ */
+	gpio_request(4, "ts_int");
+	gpio_direction_input(4);
 	set_irq_type(OMAP_GPIO_IRQ(4), IRQT_FALLING);
+
 	spi_register_board_info(mistral_boardinfo,
 			ARRAY_SIZE(mistral_boardinfo));
 
 	/* the sideways button (SW1) is for use as a "wakeup" button */
 	omap_cfg_reg(N15_1610_MPUIO2);
-	if (omap_request_gpio(OMAP_MPUIO(2)) == 0) {
+	if (gpio_request(OMAP_MPUIO(2), "wakeup") == 0) {
 		int ret = 0;
-		omap_set_gpio_direction(OMAP_MPUIO(2), 1);
+
+		gpio_direction_input(OMAP_MPUIO(2));
 		set_irq_type(OMAP_GPIO_IRQ(OMAP_MPUIO(2)), IRQT_RISING);
 #ifdef	CONFIG_PM
 		/* share the IRQ in case someone wants to use the
@@ -425,7 +501,7 @@ static void __init osk_mistral_init(void)
 				IRQF_SHARED, "mistral_wakeup",
 				&osk_mistral_wake_interrupt);
 		if (ret != 0) {
-			omap_free_gpio(OMAP_MPUIO(2));
+			gpio_free(OMAP_MPUIO(2));
 			printk(KERN_ERR "OSK+Mistral: no wakeup irq, %d?\n",
 				ret);
 		} else
@@ -438,10 +514,8 @@ static void __init osk_mistral_init(void)
 	 * board, like the touchscreen, EEPROM, and wakeup (!) switch.
 	 */
 	omap_cfg_reg(PWL);
-	if (omap_request_gpio(2) == 0) {
-		omap_set_gpio_direction(2, 0 /* out */);
-		omap_set_gpio_dataout(2, 1 /* on */);
-	}
+	if (gpio_request(2, "lcd_pwr") == 0)
+		gpio_direction_output(2, 1);
 
 	platform_add_devices(mistral_devices, ARRAY_SIZE(mistral_devices));
 }
@@ -483,44 +557,6 @@ static void __init osk_map_io(void)
 {
 	omap1_map_common_io();
 }
-
-#ifdef CONFIG_TPS65010
-static int __init osk_tps_init(void)
-{
-	if (!machine_is_omap_osk())
-		return 0;
-
-	/* Let LED1 (D9) blink */
-	tps65010_set_led(LED1, BLINK);
-
-	/* Disable LED 2 (D2) */
-	tps65010_set_led(LED2, OFF);
-
-	/* Set GPIO 1 HIGH to disable VBUS power supply;
-	 * OHCI driver powers it up/down as needed.
-	 */
-	tps65010_set_gpio_out_value(GPIO1, HIGH);
-
-	/* Set GPIO 2 low to turn on LED D3 */
-	tps65010_set_gpio_out_value(GPIO2, HIGH);
-
-	/* Set GPIO 3 low to take ethernet out of reset */
-	tps65010_set_gpio_out_value(GPIO3, LOW);
-
-	/* gpio4 for VDD_DSP */
-	/* FIXME send power to DSP iff it's configured */
-
-	/* Enable LOW_PWR */
-	tps65010_set_low_pwr(ON);
-
-	/* Switch VLDO2 to 3.0V for AIC23 */
-	tps65010_config_vregs1(TPS_LDO2_ENABLE | TPS_VLDO2_3_0V
-			| TPS_LDO1_ENABLE);
-
-	return 0;
-}
-fs_initcall(osk_tps_init);
-#endif
 
 MACHINE_START(OMAP_OSK, "TI-OSK")
 	/* Maintainer: Dirk Behme <dirk.behme@de.bosch.com> */

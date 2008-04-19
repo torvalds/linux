@@ -403,7 +403,7 @@ saa7185_detect_client (struct i2c_adapter *adapter,
 		return 0;
 
 	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (client == 0)
+	if (!client)
 		return -ENOMEM;
 	client->addr = address;
 	client->adapter = adapter;

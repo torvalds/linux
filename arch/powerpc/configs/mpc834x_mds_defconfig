@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.25-rc6
-# Mon Mar 24 08:48:20 2008
+# Linux kernel version: 2.6.25-rc7
+# Mon Mar 31 11:36:56 2008
 #
 # CONFIG_PPC64 is not set
 
@@ -571,8 +571,7 @@ CONFIG_LEGACY_PTY_COUNT=256
 # CONFIG_IPMI_HANDLER is not set
 # CONFIG_HW_RANDOM is not set
 # CONFIG_NVRAM is not set
-CONFIG_GEN_RTC=y
-# CONFIG_GEN_RTC_X is not set
+# CONFIG_GEN_RTC is not set
 # CONFIG_R3964 is not set
 # CONFIG_APPLICOM is not set
 # CONFIG_RAW_DRIVER is not set
@@ -767,10 +766,6 @@ CONFIG_USB_ARCH_HAS_EHCI=y
 # CONFIG_EDAC is not set
 CONFIG_RTC_LIB=y
 CONFIG_RTC_CLASS=y
-
-#
-# Conflicting RTC option has been selected, check GEN_RTC and RTC
-#
 CONFIG_RTC_HCTOSYS=y
 CONFIG_RTC_HCTOSYS_DEVICE="rtc0"
 # CONFIG_RTC_DEBUG is not set

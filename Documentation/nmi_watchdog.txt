@@ -23,8 +23,7 @@ kernel debugging options, such as Kernel Stack Meter or Kernel Tracer,
 may implicitly disable the NMI watchdog.]
 
 For x86-64, the needed APIC is always compiled in, and the NMI watchdog is
-always enabled with I/O-APIC mode (nmi_watchdog=1). Currently, local APIC
-mode (nmi_watchdog=2) does not work on x86-64.
+always enabled with I/O-APIC mode (nmi_watchdog=1).
 
 Using local APIC (nmi_watchdog=2) needs the first performance register, so
 you can't use it for other purposes (such as high precision performance

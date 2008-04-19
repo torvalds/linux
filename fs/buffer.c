@@ -1181,7 +1181,20 @@ __getblk_slow(struct block_device *bdev, sector_t block, int size)
 void mark_buffer_dirty(struct buffer_head *bh)
 {
 	WARN_ON_ONCE(!buffer_uptodate(bh));
-	if (!buffer_dirty(bh) && !test_set_buffer_dirty(bh))
+
+	/*
+	 * Very *carefully* optimize the it-is-already-dirty case.
+	 *
+	 * Don't let the final "is it dirty" escape to before we
+	 * perhaps modified the buffer.
+	 */
+	if (buffer_dirty(bh)) {
+		smp_mb();
+		if (buffer_dirty(bh))
+			return;
+	}
+
+	if (!test_set_buffer_dirty(bh))
 		__set_page_dirty(bh->b_page, page_mapping(bh->b_page), 0);
 }
 
@@ -2564,14 +2577,13 @@ int nobh_write_end(struct file *file, struct address_space *mapping,
 	struct inode *inode = page->mapping->host;
 	struct buffer_head *head = fsdata;
 	struct buffer_head *bh;
+	BUG_ON(fsdata != NULL && page_has_buffers(page));
 
-	if (!PageMappedToDisk(page)) {
-		if (unlikely(copied < len) && !page_has_buffers(page))
-			attach_nobh_buffers(page, head);
-		if (page_has_buffers(page))
-			return generic_write_end(file, mapping, pos, len,
-						copied, page, fsdata);
-	}
+	if (unlikely(copied < len) && !page_has_buffers(page))
+		attach_nobh_buffers(page, head);
+	if (page_has_buffers(page))
+		return generic_write_end(file, mapping, pos, len,
+					copied, page, fsdata);
 
 	SetPageUptodate(page);
 	set_page_dirty(page);

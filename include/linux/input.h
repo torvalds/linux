@@ -1227,12 +1227,13 @@ void input_free_device(struct input_dev *dev);
 
 static inline struct input_dev *input_get_device(struct input_dev *dev)
 {
-	return to_input_dev(get_device(&dev->dev));
+	return dev ? to_input_dev(get_device(&dev->dev)) : NULL;
 }
 
 static inline void input_put_device(struct input_dev *dev)
 {
-	put_device(&dev->dev);
+	if (dev)
+		put_device(&dev->dev);
 }
 
 static inline void *input_get_drvdata(struct input_dev *dev)

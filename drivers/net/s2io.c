@@ -84,7 +84,7 @@
 #include "s2io.h"
 #include "s2io-regs.h"
 
-#define DRV_VERSION "2.0.26.15-2"
+#define DRV_VERSION "2.0.26.20"
 
 /* S2io Driver name & version. */
 static char s2io_driver_name[] = "Neterion";
@@ -4171,6 +4171,9 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	mac_control->stats_info->sw_stat.mem_allocated += skb->truesize;
 	dev->trans_start = jiffies;
 	spin_unlock_irqrestore(&fifo->tx_lock, flags);
+
+	if (sp->config.intr_type == MSI_X)
+		tx_intr_handler(fifo);
 
 	return 0;
 pci_map_failed:

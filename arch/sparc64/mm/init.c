@@ -46,6 +46,7 @@
 #include <asm/prom.h>
 #include <asm/sstate.h>
 #include <asm/mdesc.h>
+#include <asm/cpudata.h>
 
 #define MAX_PHYS_ADDRESS	(1UL << 42UL)
 #define KPTE_BITMAP_CHUNK_SZ	(256UL * 1024UL * 1024UL)
@@ -1273,10 +1274,6 @@ void __cpuinit sun4v_ktsb_register(void)
 
 /* paging_init() sets up the page tables */
 
-extern void cheetah_ecache_flush_init(void);
-extern void sun4v_patch_tlb_handlers(void);
-
-extern void cpu_probe(void);
 extern void central_probe(void);
 
 static unsigned long last_valid_pfn;

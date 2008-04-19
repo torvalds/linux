@@ -64,6 +64,7 @@ extern unsigned char virt_irq_alloc(unsigned int dev_handle,
 extern void virt_irq_free(unsigned int virt_irq);
 #endif
 
+extern void __init init_IRQ(void);
 extern void fixup_irqs(void);
 
 static inline void set_softint(unsigned long bits)

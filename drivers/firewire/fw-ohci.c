@@ -401,7 +401,8 @@ static void ar_context_tasklet(unsigned long data)
 
 	if (d->res_count == 0) {
 		size_t size, rest, offset;
-		dma_addr_t buffer_bus;
+		dma_addr_t start_bus;
+		void *start;
 
 		/*
 		 * This descriptor is finished and we may have a
@@ -410,9 +411,9 @@ static void ar_context_tasklet(unsigned long data)
 		 */
 
 		offset = offsetof(struct ar_buffer, data);
-		buffer_bus = le32_to_cpu(ab->descriptor.data_address) - offset;
+		start = buffer = ab;
+		start_bus = le32_to_cpu(ab->descriptor.data_address) - offset;
 
-		buffer = ab;
 		ab = ab->next;
 		d = &ab->descriptor;
 		size = buffer + PAGE_SIZE - ctx->pointer;
@@ -427,7 +428,7 @@ static void ar_context_tasklet(unsigned long data)
 			buffer = handle_ar_packet(ctx, buffer);
 
 		dma_free_coherent(ohci->card.device, PAGE_SIZE,
-				  buffer, buffer_bus);
+				  start, start_bus);
 		ar_context_add_page(ctx);
 	} else {
 		buffer = ctx->pointer;

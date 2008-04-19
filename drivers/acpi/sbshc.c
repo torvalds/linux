@@ -130,7 +130,6 @@ static int acpi_smbus_transaction(struct acpi_smb_hc *hc, u8 protocol,
 		goto end;
 	}
 	smb_hc_write(hc, ACPI_SMB_COMMAND, command);
-	smb_hc_write(hc, ACPI_SMB_COMMAND, command);
 	if (!(protocol & 0x01)) {
 		smb_hc_write(hc, ACPI_SMB_BLOCK_COUNT, length);
 		for (i = 0; i < length; ++i)

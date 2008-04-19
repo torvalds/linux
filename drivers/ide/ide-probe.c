@@ -774,9 +774,10 @@ static int ide_probe_port(ide_hwif_t *hwif)
 		printk(KERN_DEBUG "%s: Wait for ready failed before probe !\n", hwif->name);
 
 	/*
-	 * Need to probe slave device first to make it release PDIAG-.
+	 * Second drive should only exist if first drive was found,
+	 * but a lot of cdrom drives are configured as single slaves.
 	 */
-	for (unit = MAX_DRIVES - 1; unit >= 0; unit--) {
+	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		ide_drive_t *drive = &hwif->drives[unit];
 		drive->dn = (hwif->channel ? 2 : 0) + unit;
 		(void) probe_for_drive(drive);

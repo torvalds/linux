@@ -44,7 +44,7 @@ KERNEL_ENTRY	:= $(shell /bin/bash -c 'printf "0x%08x" \
 
 quiet_cmd_uimage = UIMAGE  $@
       cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A sh -O linux -T kernel \
-		   -C none -a $(KERNEL_LOAD) -e $(KERNEL_ENTRY) \
+		   -C gzip -a $(KERNEL_LOAD) -e $(KERNEL_ENTRY) \
 		   -n 'Linux-$(KERNELRELEASE)' -d $< $@
 
 $(obj)/uImage: $(obj)/vmlinux.bin.gz FORCE

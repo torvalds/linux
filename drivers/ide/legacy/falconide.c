@@ -93,3 +93,5 @@ static int __init falconide_init(void)
 }
 
 module_init(falconide_init);
+
+MODULE_LICENSE("GPL");

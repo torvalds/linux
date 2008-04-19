@@ -86,7 +86,10 @@ EXPORT_SYMBOL(inet_frags_fini);
 void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f)
 {
 	nf->low_thresh = 0;
+
+	local_bh_disable();
 	inet_frag_evictor(nf, f);
+	local_bh_enable();
 }
 EXPORT_SYMBOL(inet_frags_exit_net);
 

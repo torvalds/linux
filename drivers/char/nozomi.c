@@ -438,7 +438,7 @@ static void read_mem32(u32 *buf, const void __iomem *mem_addr_start,
 			u32 size_bytes)
 {
 	u32 i = 0;
-	const u32 *ptr = (__force u32 *) mem_addr_start;
+	const u32 __iomem *ptr = mem_addr_start;
 	u16 *buf16;
 
 	if (unlikely(!ptr || !buf))
@@ -448,11 +448,11 @@ static void read_mem32(u32 *buf, const void __iomem *mem_addr_start,
 	switch (size_bytes) {
 	case 2:	/* 2 bytes */
 		buf16 = (u16 *) buf;
-		*buf16 = __le16_to_cpu(readw((void __iomem *)ptr));
+		*buf16 = __le16_to_cpu(readw(ptr));
 		goto out;
 		break;
 	case 4:	/* 4 bytes */
-		*(buf) = __le32_to_cpu(readl((void __iomem *)ptr));
+		*(buf) = __le32_to_cpu(readl(ptr));
 		goto out;
 		break;
 	}
@@ -461,11 +461,11 @@ static void read_mem32(u32 *buf, const void __iomem *mem_addr_start,
 		if (size_bytes - i == 2) {
 			/* Handle 2 bytes in the end */
 			buf16 = (u16 *) buf;
-			*(buf16) = __le16_to_cpu(readw((void __iomem *)ptr));
+			*(buf16) = __le16_to_cpu(readw(ptr));
 			i += 2;
 		} else {
 			/* Read 4 bytes */
-			*(buf) = __le32_to_cpu(readl((void __iomem *)ptr));
+			*(buf) = __le32_to_cpu(readl(ptr));
 			i += 4;
 		}
 		buf++;
@@ -484,7 +484,7 @@ static u32 write_mem32(void __iomem *mem_addr_start, const u32 *buf,
 			u32 size_bytes)
 {
 	u32 i = 0;
-	u32 *ptr = (__force u32 *) mem_addr_start;
+	u32 __iomem *ptr = mem_addr_start;
 	const u16 *buf16;
 
 	if (unlikely(!ptr || !buf))
@@ -494,7 +494,7 @@ static u32 write_mem32(void __iomem *mem_addr_start, const u32 *buf,
 	switch (size_bytes) {
 	case 2:	/* 2 bytes */
 		buf16 = (const u16 *)buf;
-		writew(__cpu_to_le16(*buf16), (void __iomem *)ptr);
+		writew(__cpu_to_le16(*buf16), ptr);
 		return 2;
 		break;
 	case 1: /*
@@ -502,7 +502,7 @@ static u32 write_mem32(void __iomem *mem_addr_start, const u32 *buf,
 		 * so falling through..
 		 */
 	case 4: /* 4 bytes */
-		writel(__cpu_to_le32(*buf), (void __iomem *)ptr);
+		writel(__cpu_to_le32(*buf), ptr);
 		return 4;
 		break;
 	}
@@ -511,11 +511,11 @@ static u32 write_mem32(void __iomem *mem_addr_start, const u32 *buf,
 		if (size_bytes - i == 2) {
 			/* 2 bytes */
 			buf16 = (const u16 *)buf;
-			writew(__cpu_to_le16(*buf16), (void __iomem *)ptr);
+			writew(__cpu_to_le16(*buf16), ptr);
 			i += 2;
 		} else {
 			/* 4 bytes */
-			writel(__cpu_to_le32(*buf), (void __iomem *)ptr);
+			writel(__cpu_to_le32(*buf), ptr);
 			i += 4;
 		}
 		buf++;

@@ -923,9 +923,6 @@ static const struct file_operations nful_file_ops = {
 static int __init nfnetlink_log_init(void)
 {
 	int i, status = -ENOMEM;
-#ifdef CONFIG_PROC_FS
-	struct proc_dir_entry *proc_nful;
-#endif
 
 	for (i = 0; i < INSTANCE_BUCKETS; i++)
 		INIT_HLIST_HEAD(&instance_table[i]);
@@ -943,11 +940,9 @@ static int __init nfnetlink_log_init(void)
 	}
 
 #ifdef CONFIG_PROC_FS
-	proc_nful = create_proc_entry("nfnetlink_log", 0440,
-				      proc_net_netfilter);
-	if (!proc_nful)
+	if (!proc_create("nfnetlink_log", 0440,
+			 proc_net_netfilter, &nful_file_ops))
 		goto cleanup_subsys;
-	proc_nful->proc_fops = &nful_file_ops;
 #endif
 	return status;
 

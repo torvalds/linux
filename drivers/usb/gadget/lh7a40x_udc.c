@@ -2146,3 +2146,4 @@ module_exit(udc_exit);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Mikko Lahteenmaki, Bo Henriksen");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:lh7a40x_udc");

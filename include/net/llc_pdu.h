@@ -381,7 +381,7 @@ static inline void llc_pdu_init_as_xid_cmd(struct sk_buff *skb,
 	xid_info->fmt_id = LLC_XID_FMT_ID;	/* 0x81 */
 	xid_info->type	 = svcs_supported;
 	xid_info->rw	 = rx_window << 1;	/* size of receive window */
-	skb_put(skb, 3);
+	skb_put(skb, sizeof(struct llc_xid_info));
 }
 
 /**
@@ -406,7 +406,7 @@ static inline void llc_pdu_init_as_xid_rsp(struct sk_buff *skb,
 	xid_info->fmt_id = LLC_XID_FMT_ID;
 	xid_info->type	 = svcs_supported;
 	xid_info->rw	 = rx_window << 1;
-	skb_put(skb, 3);
+	skb_put(skb, sizeof(struct llc_xid_info));
 }
 
 /* LLC Type 2 FRMR response information field format */

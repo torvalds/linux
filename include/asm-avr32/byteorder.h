@@ -12,8 +12,14 @@ extern unsigned long __builtin_bswap_32(unsigned long x);
 extern unsigned short __builtin_bswap_16(unsigned short x);
 #endif
 
+/*
+ * avr32-linux-gcc versions earlier than 4.2 improperly sign-extends
+ * the result.
+ */
+#if !(__GNUC__ == 4 && __GNUC_MINOR__ < 2)
 #define __arch__swab32(x) __builtin_bswap_32(x)
 #define __arch__swab16(x) __builtin_bswap_16(x)
+#endif
 
 #if !defined(__STRICT_ANSI__) || defined(__KERNEL__)
 # define __BYTEORDER_HAS_U64__

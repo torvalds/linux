@@ -143,35 +143,35 @@ enum e1000_fc_type {
 
 /* Receive Descriptor */
 struct e1000_rx_desc {
-	u64 buffer_addr; /* Address of the descriptor's data buffer */
-	u16 length;      /* Length of data DMAed into data buffer */
-	u16 csum;        /* Packet checksum */
+	__le64 buffer_addr; /* Address of the descriptor's data buffer */
+	__le16 length;      /* Length of data DMAed into data buffer */
+	__le16 csum;        /* Packet checksum */
 	u8  status;      /* Descriptor status */
 	u8  errors;      /* Descriptor Errors */
-	u16 special;
+	__le16 special;
 };
 
 /* Receive Descriptor - Extended */
 union e1000_rx_desc_extended {
 	struct {
-		u64 buffer_addr;
-		u64 reserved;
+		__le64 buffer_addr;
+		__le64 reserved;
 	} read;
 	struct {
 		struct {
-			u32 mrq;              /* Multiple Rx Queues */
+			__le32 mrq;              /* Multiple Rx Queues */
 			union {
-				u32 rss;            /* RSS Hash */
+				__le32 rss;            /* RSS Hash */
 				struct {
-					u16 ip_id;  /* IP id */
-					u16 csum;   /* Packet Checksum */
+					__le16 ip_id;  /* IP id */
+					__le16 csum;   /* Packet Checksum */
 				} csum_ip;
 			} hi_dword;
 		} lower;
 		struct {
-			u32 status_error;     /* ext status/error */
-			u16 length;
-			u16 vlan;             /* VLAN tag */
+			__le32 status_error;     /* ext status/error */
+			__le16 length;
+			__le16 vlan;             /* VLAN tag */
 		} upper;
 	} wb;  /* writeback */
 };
@@ -181,49 +181,49 @@ union e1000_rx_desc_extended {
 union e1000_rx_desc_packet_split {
 	struct {
 		/* one buffer for protocol header(s), three data buffers */
-		u64 buffer_addr[MAX_PS_BUFFERS];
+		__le64 buffer_addr[MAX_PS_BUFFERS];
 	} read;
 	struct {
 		struct {
-			u32 mrq;              /* Multiple Rx Queues */
+			__le32 mrq;              /* Multiple Rx Queues */
 			union {
-				u32 rss;              /* RSS Hash */
+				__le32 rss;              /* RSS Hash */
 				struct {
-					u16 ip_id;    /* IP id */
-					u16 csum;     /* Packet Checksum */
+					__le16 ip_id;    /* IP id */
+					__le16 csum;     /* Packet Checksum */
 				} csum_ip;
 			} hi_dword;
 		} lower;
 		struct {
-			u32 status_error;     /* ext status/error */
-			u16 length0;          /* length of buffer 0 */
-			u16 vlan;             /* VLAN tag */
+			__le32 status_error;     /* ext status/error */
+			__le16 length0;          /* length of buffer 0 */
+			__le16 vlan;             /* VLAN tag */
 		} middle;
 		struct {
-			u16 header_status;
-			u16 length[3];        /* length of buffers 1-3 */
+			__le16 header_status;
+			__le16 length[3];        /* length of buffers 1-3 */
 		} upper;
-		u64 reserved;
+		__le64 reserved;
 	} wb; /* writeback */
 };
 
 /* Transmit Descriptor */
 struct e1000_tx_desc {
-	u64 buffer_addr;      /* Address of the descriptor's data buffer */
+	__le64 buffer_addr;      /* Address of the descriptor's data buffer */
 	union {
-		u32 data;
+		__le32 data;
 		struct {
-			u16 length;    /* Data buffer length */
+			__le16 length;    /* Data buffer length */
 			u8 cso;        /* Checksum offset */
 			u8 cmd;        /* Descriptor control */
 		} flags;
 	} lower;
 	union {
-		u32 data;
+		__le32 data;
 		struct {
 			u8 status;     /* Descriptor status */
 			u8 css;        /* Checksum start */
-			u16 special;
+			__le16 special;
 		} fields;
 	} upper;
 };
@@ -231,49 +231,49 @@ struct e1000_tx_desc {
 /* Offload Context Descriptor */
 struct e1000_context_desc {
 	union {
-		u32 ip_config;
+		__le32 ip_config;
 		struct {
 			u8 ipcss;      /* IP checksum start */
 			u8 ipcso;      /* IP checksum offset */
-			u16 ipcse;     /* IP checksum end */
+			__le16 ipcse;     /* IP checksum end */
 		} ip_fields;
 	} lower_setup;
 	union {
-		u32 tcp_config;
+		__le32 tcp_config;
 		struct {
 			u8 tucss;      /* TCP checksum start */
 			u8 tucso;      /* TCP checksum offset */
-			u16 tucse;     /* TCP checksum end */
+			__le16 tucse;     /* TCP checksum end */
 		} tcp_fields;
 	} upper_setup;
-	u32 cmd_and_length;
+	__le32 cmd_and_length;
 	union {
-		u32 data;
+		__le32 data;
 		struct {
 			u8 status;     /* Descriptor status */
 			u8 hdr_len;    /* Header length */
-			u16 mss;       /* Maximum segment size */
+			__le16 mss;       /* Maximum segment size */
 		} fields;
 	} tcp_seg_setup;
 };
 
 /* Offload data descriptor */
 struct e1000_data_desc {
-	u64 buffer_addr;   /* Address of the descriptor's buffer address */
+	__le64 buffer_addr;   /* Address of the descriptor's buffer address */
 	union {
-		u32 data;
+		__le32 data;
 		struct {
-			u16 length;    /* Data buffer length */
+			__le16 length;    /* Data buffer length */
 			u8 typ_len_ext;
 			u8 cmd;
 		} flags;
 	} lower;
 	union {
-		u32 data;
+		__le32 data;
 		struct {
 			u8 status;     /* Descriptor status */
 			u8 popts;      /* Packet Options */
-			u16 special;
+			__le16 special;
 		} fields;
 	} upper;
 };

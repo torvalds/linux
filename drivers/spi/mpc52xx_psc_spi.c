@@ -500,6 +500,9 @@ static int __exit mpc52xx_psc_spi_remove(struct platform_device *dev)
 	return mpc52xx_psc_spi_do_remove(&dev->dev);
 }
 
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:mpc52xx-psc-spi");
+
 static struct platform_driver mpc52xx_psc_spi_platform_driver = {
 	.remove = __exit_p(mpc52xx_psc_spi_remove),
 	.driver = {

@@ -114,7 +114,7 @@ static void dec_count(struct io *io, unsigned int region, int error)
 			wake_up_process(io->sleeper);
 
 		else {
-			int r = io->error;
+			unsigned long r = io->error;
 			io_notify_fn fn = io->callback;
 			void *context = io->context;
 

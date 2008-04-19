@@ -52,10 +52,12 @@ int xfrm4_extract_header(struct sk_buff *skb)
 {
 	struct iphdr *iph = ip_hdr(skb);
 
+	XFRM_MODE_SKB_CB(skb)->ihl = sizeof(*iph);
 	XFRM_MODE_SKB_CB(skb)->id = iph->id;
 	XFRM_MODE_SKB_CB(skb)->frag_off = iph->frag_off;
 	XFRM_MODE_SKB_CB(skb)->tos = iph->tos;
 	XFRM_MODE_SKB_CB(skb)->ttl = iph->ttl;
+	XFRM_MODE_SKB_CB(skb)->optlen = iph->ihl * 4 - sizeof(*iph);
 	memset(XFRM_MODE_SKB_CB(skb)->flow_lbl, 0,
 	       sizeof(XFRM_MODE_SKB_CB(skb)->flow_lbl));
 

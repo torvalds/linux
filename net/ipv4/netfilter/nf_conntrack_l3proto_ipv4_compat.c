@@ -395,13 +395,10 @@ int __init nf_conntrack_ipv4_compat_init(void)
 	if (!proc_exp)
 		goto err2;
 
-	proc_stat = create_proc_entry("ip_conntrack", S_IRUGO, init_net.proc_net_stat);
+	proc_stat = proc_create("ip_conntrack", S_IRUGO,
+				init_net.proc_net_stat, &ct_cpu_seq_fops);
 	if (!proc_stat)
 		goto err3;
-
-	proc_stat->proc_fops = &ct_cpu_seq_fops;
-	proc_stat->owner = THIS_MODULE;
-
 	return 0;
 
 err3:

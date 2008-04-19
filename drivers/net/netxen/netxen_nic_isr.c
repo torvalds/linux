@@ -59,7 +59,7 @@ struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 	/* packet transmit problems */
 	stats->tx_errors = adapter->stats.nocmddescriptor;
 	/* no space in linux buffers    */
-	stats->rx_dropped = adapter->stats.updropped;
+	stats->rx_dropped = adapter->stats.rxdropped;
 	/* no space available in linux  */
 	stats->tx_dropped = adapter->stats.txdropped;
 
@@ -193,14 +193,14 @@ int netxen_nic_link_ok(struct netxen_adapter *adapter)
 void netxen_nic_xgbe_handle_phy_intr(struct netxen_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	u32 val, val1;
+	u32 val;
 
 	/* WINDOW = 1 */
 	val = readl(NETXEN_CRB_NORMALIZE(adapter, CRB_XG_STATE));
 	val >>= (physical_port[adapter->portnum] * 8);
-	val1 = val & 0xff;
+	val &= 0xff;
 
-	if (adapter->ahw.xg_linkup == 1 && val1 != XG_LINK_UP) {
+	if (adapter->ahw.xg_linkup == 1 && val != XG_LINK_UP) {
 		printk(KERN_INFO "%s: %s NIC Link is down\n",
 		       netxen_nic_driver_name, netdev->name);
 		adapter->ahw.xg_linkup = 0;
@@ -208,16 +208,7 @@ void netxen_nic_xgbe_handle_phy_intr(struct netxen_adapter *adapter)
 			netif_carrier_off(netdev);
 			netif_stop_queue(netdev);
 		}
-		/* read twice to clear sticky bits */
-		/* WINDOW = 0 */
-		netxen_nic_read_w0(adapter, NETXEN_NIU_XG_STATUS, &val1);
-		netxen_nic_read_w0(adapter, NETXEN_NIU_XG_STATUS, &val1);
-
-		if ((val & 0xffb) != 0xffb) {
-			printk(KERN_INFO "%s ISR: Sync/Align BAD: 0x%08x\n",
-			       netxen_nic_driver_name, val1);
-		}
-	} else if (adapter->ahw.xg_linkup == 0 && val1 == XG_LINK_UP) {
+	} else if (adapter->ahw.xg_linkup == 0 && val == XG_LINK_UP) {
 		printk(KERN_INFO "%s: %s NIC Link is up\n",
 		       netxen_nic_driver_name, netdev->name);
 		adapter->ahw.xg_linkup = 1;

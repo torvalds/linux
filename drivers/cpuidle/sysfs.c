@@ -218,6 +218,12 @@ static ssize_t show_state_##_name(struct cpuidle_state *state, char *buf) \
 	return sprintf(buf, "%u\n", state->_name);\
 }
 
+#define define_show_state_ull_function(_name) \
+static ssize_t show_state_##_name(struct cpuidle_state *state, char *buf) \
+{ \
+	return sprintf(buf, "%llu\n", state->_name);\
+}
+
 #define define_show_state_str_function(_name) \
 static ssize_t show_state_##_name(struct cpuidle_state *state, char *buf) \
 { \
@@ -228,8 +234,8 @@ static ssize_t show_state_##_name(struct cpuidle_state *state, char *buf) \
 
 define_show_state_function(exit_latency)
 define_show_state_function(power_usage)
-define_show_state_function(usage)
-define_show_state_function(time)
+define_show_state_ull_function(usage)
+define_show_state_ull_function(time)
 define_show_state_str_function(name)
 define_show_state_str_function(desc)
 

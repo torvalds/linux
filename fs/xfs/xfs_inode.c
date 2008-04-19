@@ -1147,7 +1147,7 @@ xfs_ialloc(
 	 * the inode version number now.  This way we only do the conversion
 	 * here rather than here and in the flush/logging code.
 	 */
-	if (XFS_SB_VERSION_HASNLINK(&tp->t_mountp->m_sb) &&
+	if (xfs_sb_version_hasnlink(&tp->t_mountp->m_sb) &&
 	    ip->i_d.di_version == XFS_DINODE_VERSION_1) {
 		ip->i_d.di_version = XFS_DINODE_VERSION_2;
 		/*
@@ -3434,9 +3434,9 @@ xfs_iflush_int(
 	 * has been updated, then make the conversion permanent.
 	 */
 	ASSERT(ip->i_d.di_version == XFS_DINODE_VERSION_1 ||
-	       XFS_SB_VERSION_HASNLINK(&mp->m_sb));
+	       xfs_sb_version_hasnlink(&mp->m_sb));
 	if (ip->i_d.di_version == XFS_DINODE_VERSION_1) {
-		if (!XFS_SB_VERSION_HASNLINK(&mp->m_sb)) {
+		if (!xfs_sb_version_hasnlink(&mp->m_sb)) {
 			/*
 			 * Convert it back.
 			 */

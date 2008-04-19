@@ -395,7 +395,7 @@ EXPORT_SYMBOL_GPL(nf_ct_log_invalid);
 static int __init nf_conntrack_standalone_init(void)
 {
 #ifdef CONFIG_PROC_FS
-	struct proc_dir_entry *proc, *proc_stat;
+	struct proc_dir_entry *proc;
 #endif
 	int ret = 0;
 
@@ -407,12 +407,9 @@ static int __init nf_conntrack_standalone_init(void)
 	proc = proc_net_fops_create(&init_net, "nf_conntrack", 0440, &ct_file_ops);
 	if (!proc) goto cleanup_init;
 
-	proc_stat = create_proc_entry("nf_conntrack", S_IRUGO, init_net.proc_net_stat);
-	if (!proc_stat)
+	if (!proc_create("nf_conntrack", S_IRUGO,
+			 init_net.proc_net_stat, &ct_cpu_seq_fops))
 		goto cleanup_proc;
-
-	proc_stat->proc_fops = &ct_cpu_seq_fops;
-	proc_stat->owner = THIS_MODULE;
 #endif
 #ifdef CONFIG_SYSCTL
 	nf_ct_sysctl_header = register_sysctl_paths(nf_ct_path,

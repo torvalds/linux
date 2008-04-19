@@ -393,7 +393,7 @@ static int cm_alloc_id(struct cm_id_private *cm_id_priv)
 		spin_unlock_irqrestore(&cm.lock, flags);
 	} while( (ret == -EAGAIN) && idr_pre_get(&cm.local_id_table, GFP_KERNEL) );
 
-	cm_id_priv->id.local_id = (__force __be32) (id ^ cm.random_id_operand);
+	cm_id_priv->id.local_id = (__force __be32)id ^ cm.random_id_operand;
 	return ret;
 }
 

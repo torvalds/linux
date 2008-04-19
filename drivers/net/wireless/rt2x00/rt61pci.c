@@ -2399,10 +2399,8 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * beacon frame.
 	 */
 	if (skb_headroom(skb) < TXD_DESC_SIZE) {
-		if (pskb_expand_head(skb, TXD_DESC_SIZE, 0, GFP_ATOMIC)) {
-			dev_kfree_skb(skb);
+		if (pskb_expand_head(skb, TXD_DESC_SIZE, 0, GFP_ATOMIC))
 			return -ENOMEM;
-		}
 	}
 
 	/*

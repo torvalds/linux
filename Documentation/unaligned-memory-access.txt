@@ -57,7 +57,7 @@ here; a summary of the common scenarios is presented below:
    unaligned access to be corrected.
  - Some architectures are not capable of unaligned memory access, but will
    silently perform a different memory access to the one that was requested,
-   resulting a a subtle code bug that is hard to detect!
+   resulting in a subtle code bug that is hard to detect!
 
 It should be obvious from the above that if your code causes unaligned
 memory accesses to happen, your code will not work correctly on certain
@@ -209,7 +209,7 @@ memory and you wish to avoid unaligned access, its usage is as follows:
 
 	u32 value = get_unaligned((u32 *) data);
 
-These macros work work for memory accesses of any length (not just 32 bits as
+These macros work for memory accesses of any length (not just 32 bits as
 in the examples above). Be aware that when compared to standard access of
 aligned memory, using these macros to access unaligned memory can be costly in
 terms of performance.

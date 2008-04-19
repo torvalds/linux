@@ -137,3 +137,5 @@ static int __init macide_init(void)
 }
 
 module_init(macide_init);
+
+MODULE_LICENSE("GPL");

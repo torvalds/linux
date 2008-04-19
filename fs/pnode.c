@@ -225,7 +225,7 @@ out:
  */
 static inline int do_refcount_check(struct vfsmount *mnt, int count)
 {
-	int mycount = atomic_read(&mnt->mnt_count);
+	int mycount = atomic_read(&mnt->mnt_count) - mnt->mnt_ghosts;
 	return (mycount > count);
 }
 

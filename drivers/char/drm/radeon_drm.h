@@ -225,8 +225,20 @@ typedef union {
 #define R300_CMD_WAIT			7
 #	define R300_WAIT_2D		0x1
 #	define R300_WAIT_3D		0x2
+/* these two defines are DOING IT WRONG - however
+ * we have userspace which relies on using these.
+ * The wait interface is backwards compat new 
+ * code should use the NEW_WAIT defines below
+ * THESE ARE NOT BIT FIELDS
+ */
 #	define R300_WAIT_2D_CLEAN	0x3
 #	define R300_WAIT_3D_CLEAN	0x4
+
+#	define R300_NEW_WAIT_2D_3D	0x3
+#	define R300_NEW_WAIT_2D_2D_CLEAN	0x4
+#	define R300_NEW_WAIT_3D_3D_CLEAN	0x6
+#	define R300_NEW_WAIT_2D_2D_CLEAN_3D_3D_CLEAN	0x8
+
 #define R300_CMD_SCRATCH		8
 
 typedef union {

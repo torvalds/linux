@@ -206,6 +206,7 @@ static struct platform_driver mpc83xx_wdt_driver = {
 	.remove		= __devexit_p(mpc83xx_wdt_remove),
 	.driver		= {
 		.name	= "mpc83xx_wdt",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -226,3 +227,4 @@ MODULE_AUTHOR("Dave Updegraff, Kumar Gala");
 MODULE_DESCRIPTION("Driver for watchdog timer in MPC83xx uProcessor");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
+MODULE_ALIAS("platform:mpc83xx_wdt");

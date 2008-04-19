@@ -1520,7 +1520,7 @@ static int __init p9_trans_fd_init(void)
 	v9fs_register_trans(&p9_unix_trans);
 	v9fs_register_trans(&p9_fd_trans);
 
-	return 1;
+	return 0;
 }
 
 module_init(p9_trans_fd_init);

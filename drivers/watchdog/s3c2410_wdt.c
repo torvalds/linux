@@ -561,3 +561,4 @@ MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>, "
 MODULE_DESCRIPTION("S3C2410 Watchdog Device Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
+MODULE_ALIAS("platform:s3c2410-wdt");

@@ -32,6 +32,9 @@
 #include <asm/siginfo.h>
 #include <asm/visasm.h>
 
+#include "entry.h"
+#include "systbls.h"
+
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
 /* {set, get}context() needed for 64-bit SparcLinux userland. */
@@ -354,7 +357,7 @@ static int invalid_frame_pointer(void __user *fp, int fplen)
 static inline int
 save_fpu_state(struct pt_regs *regs, __siginfo_fpu_t __user *fpu)
 {
-	unsigned long *fpregs = (unsigned long *)(regs+1);
+	unsigned long *fpregs = current_thread_info()->fpregs;
 	unsigned long fprs;
 	int err = 0;
 	

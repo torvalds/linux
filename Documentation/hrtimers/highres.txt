@@ -98,7 +98,7 @@ System-level global event devices are used for the Linux periodic tick. Per-CPU
 event devices are used to provide local CPU functionality such as process
 accounting, profiling, and high resolution timers.
 
-The management layer assignes one or more of the folliwing functions to a clock
+The management layer assigns one or more of the following functions to a clock
 event device:
       - system global periodic tick (jiffies update)
       - cpu local update_process_times

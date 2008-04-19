@@ -39,13 +39,11 @@ static void xfrm4_beet_make_header(struct sk_buff *skb)
 static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct ip_beet_phdr *ph;
-	struct iphdr *iph, *top_iph;
+	struct iphdr *top_iph;
 	int hdrlen, optlen;
 
-	iph = ip_hdr(skb);
-
 	hdrlen = 0;
-	optlen = iph->ihl * 4 - sizeof(*iph);
+	optlen = XFRM_MODE_SKB_CB(skb)->optlen;
 	if (unlikely(optlen))
 		hdrlen += IPV4_BEET_PHMAXLEN - (optlen & 4);
 
@@ -53,11 +51,12 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 				    hdrlen);
 	skb->mac_header = skb->network_header +
 			  offsetof(struct iphdr, protocol);
-	skb->transport_header = skb->network_header + sizeof(*iph);
+	skb->transport_header = skb->network_header + sizeof(*top_iph);
 
 	xfrm4_beet_make_header(skb);
 
-	ph = (struct ip_beet_phdr *)__skb_pull(skb, sizeof(*iph) - hdrlen);
+	ph = (struct ip_beet_phdr *)
+		__skb_pull(skb, XFRM_MODE_SKB_CB(skb)->ihl - hdrlen);
 
 	top_iph = ip_hdr(skb);
 

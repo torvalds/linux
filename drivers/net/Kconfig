@@ -2635,7 +2635,7 @@ config NIU
 
 config PASEMI_MAC
 	tristate "PA Semi 1/10Gbit MAC"
-	depends on PPC64 && PCI
+	depends on PPC_PASEMI && PCI
 	select PHYLIB
 	select INET_LRO
 	help

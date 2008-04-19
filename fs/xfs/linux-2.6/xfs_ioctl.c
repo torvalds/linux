@@ -732,7 +732,7 @@ xfs_ioctl(
 		 * Only allow the sys admin to reserve space unless
 		 * unwritten extents are enabled.
 		 */
-		if (!XFS_SB_VERSION_HASEXTFLGBIT(&mp->m_sb) &&
+		if (!xfs_sb_version_hasextflgbit(&mp->m_sb) &&
 		    !capable(CAP_SYS_ADMIN))
 			return -EPERM;
 

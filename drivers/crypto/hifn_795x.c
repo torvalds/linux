@@ -392,8 +392,8 @@ static atomic_t hifn_dev_number;
 
 struct hifn_desc
 {
-	volatile u32		l;
-	volatile u32		p;
+	volatile __le32		l;
+	volatile __le32		p;
 };
 
 struct hifn_dma {
@@ -481,10 +481,10 @@ struct hifn_device
 
 struct hifn_base_command
 {
-	volatile u16		masks;
-	volatile u16		session_num;
-	volatile u16		total_source_count;
-	volatile u16		total_dest_count;
+	volatile __le16		masks;
+	volatile __le16		session_num;
+	volatile __le16		total_source_count;
+	volatile __le16		total_dest_count;
 };
 
 #define	HIFN_BASE_CMD_COMP		0x0100	/* enable compression engine */
@@ -504,10 +504,10 @@ struct hifn_base_command
  */
 struct hifn_crypt_command
 {
-	volatile u16 		masks;
-	volatile u16 		header_skip;
-	volatile u16 		source_count;
-	volatile u16 		reserved;
+	volatile __le16 		masks;
+	volatile __le16 		header_skip;
+	volatile __le16 		source_count;
+	volatile __le16 		reserved;
 };
 
 #define	HIFN_CRYPT_CMD_ALG_MASK		0x0003		/* algorithm: */
@@ -670,7 +670,7 @@ static inline u32 hifn_read_0(struct hifn_device *dev, u32 reg)
 {
 	u32 ret;
 
-	ret = readl((char *)(dev->bar[0]) + reg);
+	ret = readl(dev->bar[0] + reg);
 
 	return ret;
 }
@@ -679,19 +679,19 @@ static inline u32 hifn_read_1(struct hifn_device *dev, u32 reg)
 {
 	u32 ret;
 
-	ret = readl((char *)(dev->bar[1]) + reg);
+	ret = readl(dev->bar[1] + reg);
 
 	return ret;
 }
 
 static inline void hifn_write_0(struct hifn_device *dev, u32 reg, u32 val)
 {
-	writel(val, (char *)(dev->bar[0]) + reg);
+	writel(val, dev->bar[0] + reg);
 }
 
 static inline void hifn_write_1(struct hifn_device *dev, u32 reg, u32 val)
 {
-	writel(val, (char *)(dev->bar[1]) + reg);
+	writel(val, dev->bar[1] + reg);
 }
 
 static void hifn_wait_puc(struct hifn_device *dev)

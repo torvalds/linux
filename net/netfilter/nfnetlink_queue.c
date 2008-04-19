@@ -896,9 +896,6 @@ static const struct file_operations nfqnl_file_ops = {
 static int __init nfnetlink_queue_init(void)
 {
 	int i, status = -ENOMEM;
-#ifdef CONFIG_PROC_FS
-	struct proc_dir_entry *proc_nfqueue;
-#endif
 
 	for (i = 0; i < INSTANCE_BUCKETS; i++)
 		INIT_HLIST_HEAD(&instance_table[i]);
@@ -911,11 +908,9 @@ static int __init nfnetlink_queue_init(void)
 	}
 
 #ifdef CONFIG_PROC_FS
-	proc_nfqueue = create_proc_entry("nfnetlink_queue", 0440,
-					 proc_net_netfilter);
-	if (!proc_nfqueue)
+	if (!proc_create("nfnetlink_queue", 0440,
+			 proc_net_netfilter, &nfqnl_file_ops))
 		goto cleanup_subsys;
-	proc_nfqueue->proc_fops = &nfqnl_file_ops;
 #endif
 
 	register_netdevice_notifier(&nfqnl_dev_notifier);

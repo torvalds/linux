@@ -42,6 +42,7 @@
 #endif
 #include <asm/prom.h>
 
+#include "entry.h"
 
 /* When an irrecoverable trap occurs at tl > 0, the trap entry
  * code logs the trap state registers at every level in the trap
@@ -75,11 +76,6 @@ static void dump_tl1_traplog(struct tl1_traplog *p)
 		       p->trapstack[i].tnpc, p->trapstack[i].tt);
 		print_symbol("TRAPLOG: TPC<%s>\n", p->trapstack[i].tpc);
 	}
-}
-
-void do_call_debug(struct pt_regs *regs) 
-{ 
-	notify_die(DIE_CALL, "debug call", regs, 0, 255, SIGINT); 
 }
 
 void bad_trap(struct pt_regs *regs, long lvl)
@@ -550,41 +546,6 @@ static unsigned long ecache_flush_physbase;
 static unsigned long ecache_flush_linesize;
 static unsigned long ecache_flush_size;
 
-/* WARNING: The error trap handlers in assembly know the precise
- *	    layout of the following structure.
- *
- * C-level handlers below use this information to log the error
- * and then determine how to recover (if possible).
- */
-struct cheetah_err_info {
-/*0x00*/u64 afsr;
-/*0x08*/u64 afar;
-
-	/* D-cache state */
-/*0x10*/u64 dcache_data[4];	/* The actual data	*/
-/*0x30*/u64 dcache_index;	/* D-cache index	*/
-/*0x38*/u64 dcache_tag;		/* D-cache tag/valid	*/
-/*0x40*/u64 dcache_utag;	/* D-cache microtag	*/
-/*0x48*/u64 dcache_stag;	/* D-cache snooptag	*/
-
-	/* I-cache state */
-/*0x50*/u64 icache_data[8];	/* The actual insns + predecode	*/
-/*0x90*/u64 icache_index;	/* I-cache index	*/
-/*0x98*/u64 icache_tag;		/* I-cache phys tag	*/
-/*0xa0*/u64 icache_utag;	/* I-cache microtag	*/
-/*0xa8*/u64 icache_stag;	/* I-cache snooptag	*/
-/*0xb0*/u64 icache_upper;	/* I-cache upper-tag	*/
-/*0xb8*/u64 icache_lower;	/* I-cache lower-tag	*/
-
-	/* E-cache state */
-/*0xc0*/u64 ecache_data[4];	/* 32 bytes from staging registers */
-/*0xe0*/u64 ecache_index;	/* E-cache index	*/
-/*0xe8*/u64 ecache_tag;		/* E-cache tag/state	*/
-
-/*0xf0*/u64 __pad[32 - 30];
-};
-#define CHAFSR_INVALID		((u64)-1L)
-
 /* This table is ordered in priority of errors and matches the
  * AFAR overwrite policy as well.
  */
@@ -758,10 +719,6 @@ static struct afsr_error_table __jalapeno_error_table[] = {
 static struct afsr_error_table *cheetah_error_table;
 static unsigned long cheetah_afsr_errors;
 
-/* This is allocated at boot time based upon the largest hardware
- * cpu ID in the system.  We allocate two entries per cpu, one for
- * TL==0 logging and one for TL >= 1 logging.
- */
 struct cheetah_err_info *cheetah_error_log;
 
 static inline struct cheetah_err_info *cheetah_get_error_log(unsigned long afsr)
@@ -2102,7 +2059,7 @@ void do_div0(struct pt_regs *regs)
 	force_sig_info(SIGFPE, &info, current);
 }
 
-void instruction_dump (unsigned int *pc)
+static void instruction_dump(unsigned int *pc)
 {
 	int i;
 
@@ -2115,7 +2072,7 @@ void instruction_dump (unsigned int *pc)
 	printk("\n");
 }
 
-static void user_instruction_dump (unsigned int __user *pc)
+static void user_instruction_dump(unsigned int __user *pc)
 {
 	int i;
 	unsigned int buf[9];

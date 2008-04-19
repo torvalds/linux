@@ -124,7 +124,7 @@ int xfrm_output_resume(struct sk_buff *skb, int err)
 		if (!x)
 			return dst_output(skb);
 
-		err = nf_hook(x->inner_mode->afinfo->family,
+		err = nf_hook(skb->dst->ops->family,
 			      NF_INET_POST_ROUTING, skb,
 			      NULL, skb->dst->dev, xfrm_output2);
 		if (unlikely(err != 1))
@@ -193,4 +193,20 @@ int xfrm_output(struct sk_buff *skb)
 
 	return xfrm_output2(skb);
 }
+
+int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb)
+{
+	struct xfrm_mode *inner_mode;
+	if (x->sel.family == AF_UNSPEC)
+		inner_mode = xfrm_ip2inner_mode(x,
+				xfrm_af2proto(skb->dst->ops->family));
+	else
+		inner_mode = x->inner_mode;
+
+	if (inner_mode == NULL)
+		return -EAFNOSUPPORT;
+	return inner_mode->afinfo->extract_output(x, skb);
+}
+
 EXPORT_SYMBOL_GPL(xfrm_output);
+EXPORT_SYMBOL_GPL(xfrm_inner_extract_output);

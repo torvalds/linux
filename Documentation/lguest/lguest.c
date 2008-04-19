@@ -1,7 +1,7 @@
 /*P:100 This is the Launcher code, a simple program which lays out the
- * "physical" memory for the new Guest by mapping the kernel image and the
- * virtual devices, then reads repeatedly from /dev/lguest to run the Guest.
-:*/
+ * "physical" memory for the new Guest by mapping the kernel image and
+ * the virtual devices, then opens /dev/lguest to tell the kernel
+ * about the Guest and control it. :*/
 #define _LARGEFILE64_SOURCE
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -43,7 +43,7 @@
 #include "linux/virtio_console.h"
 #include "linux/virtio_ring.h"
 #include "asm-x86/bootparam.h"
-/*L:110 We can ignore the 38 include files we need for this program, but I do
+/*L:110 We can ignore the 39 include files we need for this program, but I do
  * want to draw attention to the use of kernel-style types.
  *
  * As Linus said, "C is a Spartan language, and so should your naming be."  I
@@ -320,7 +320,7 @@ static unsigned long map_elf(int elf_fd, const Elf32_Ehdr *ehdr)
 		err(1, "Reading program headers");
 
 	/* Try all the headers: there are usually only three.  A read-only one,
-	 * a read-write one, and a "note" section which isn't loadable. */
+	 * a read-write one, and a "note" section which we don't load. */
 	for (i = 0; i < ehdr->e_phnum; i++) {
 		/* If this isn't a loadable segment, we ignore it */
 		if (phdr[i].p_type != PT_LOAD)
@@ -387,7 +387,7 @@ static unsigned long load_kernel(int fd)
 	if (memcmp(hdr.e_ident, ELFMAG, SELFMAG) == 0)
 		return map_elf(fd, &hdr);
 
-	/* Otherwise we assume it's a bzImage, and try to unpack it */
+	/* Otherwise we assume it's a bzImage, and try to load it. */
 	return load_bzimage(fd);
 }
 
@@ -433,12 +433,12 @@ static unsigned long load_initrd(const char *name, unsigned long mem)
 	return len;
 }
 
-/* Once we know how much memory we have, we can construct simple linear page
+/* Once we know how much memory we have we can construct simple linear page
  * tables which set virtual == physical which will get the Guest far enough
  * into the boot to create its own.
  *
  * We lay them out of the way, just below the initrd (which is why we need to
- * know its size). */
+ * know its size here). */
 static unsigned long setup_pagetables(unsigned long mem,
 				      unsigned long initrd_size)
 {
@@ -850,7 +850,8 @@ static void handle_console_output(int fd, struct virtqueue *vq)
  *
  * Handling output for network is also simple: we get all the output buffers
  * and write them (ignoring the first element) to this device's file descriptor
- * (stdout). */
+ * (/dev/net/tun).
+ */
 static void handle_net_output(int fd, struct virtqueue *vq)
 {
 	unsigned int head, out, in;
@@ -924,7 +925,7 @@ static void enable_fd(int fd, struct virtqueue *vq)
 	write(waker_fd, &vq->dev->fd, sizeof(vq->dev->fd));
 }
 
-/* Resetting a device is fairly easy. */
+/* When the Guest asks us to reset a device, it's is fairly easy. */
 static void reset_device(struct device *dev)
 {
 	struct virtqueue *vq;
@@ -1003,8 +1004,8 @@ static void handle_input(int fd)
 		if (select(devices.max_infd+1, &fds, NULL, NULL, &poll) == 0)
 			break;
 
-		/* Otherwise, call the device(s) which have readable
-		 * file descriptors and a method of handling them.  */
+		/* Otherwise, call the device(s) which have readable file
+		 * descriptors and a method of handling them.  */
 		for (i = devices.dev; i; i = i->next) {
 			if (i->handle_input && FD_ISSET(i->fd, &fds)) {
 				int dev_fd;
@@ -1015,8 +1016,7 @@ static void handle_input(int fd)
 				 * should no longer service it.  Networking and
 				 * console do this when there's no input
 				 * buffers to deliver into.  Console also uses
-				 * it when it discovers that stdin is
-				 * closed. */
+				 * it when it discovers that stdin is closed. */
 				FD_CLR(i->fd, &devices.infds);
 				/* Tell waker to ignore it too, by sending a
 				 * negative fd number (-1, since 0 is a valid
@@ -1033,7 +1033,8 @@ static void handle_input(int fd)
  *
  * All devices need a descriptor so the Guest knows it exists, and a "struct
  * device" so the Launcher can keep track of it.  We have common helper
- * routines to allocate and manage them. */
+ * routines to allocate and manage them.
+ */
 
 /* The layout of the device page is a "struct lguest_device_desc" followed by a
  * number of virtqueue descriptors, then two sets of feature bits, then an
@@ -1078,7 +1079,7 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 	struct virtqueue **i, *vq = malloc(sizeof(*vq));
 	void *p;
 
-	/* First we need some pages for this virtqueue. */
+	/* First we need some memory for this virtqueue. */
 	pages = (vring_size(num_descs, getpagesize()) + getpagesize() - 1)
 		/ getpagesize();
 	p = get_pages(pages);
@@ -1122,7 +1123,7 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 }
 
 /* The first half of the feature bitmask is for us to advertise features.  The
- * second half if for the Guest to accept features. */
+ * second half is for the Guest to accept features. */
 static void add_feature(struct device *dev, unsigned bit)
 {
 	u8 *features = get_feature_bits(dev);
@@ -1151,7 +1152,9 @@ static void set_config(struct device *dev, unsigned len, const void *conf)
 }
 
 /* This routine does all the creation and setup of a new device, including
- * calling new_dev_desc() to allocate the descriptor and device memory. */
+ * calling new_dev_desc() to allocate the descriptor and device memory.
+ *
+ * See what I mean about userspace being boring? */
 static struct device *new_device(const char *name, u16 type, int fd,
 				 bool (*handle_input)(int, struct device *))
 {
@@ -1383,7 +1386,6 @@ struct vblk_info
 	 * Launcher triggers interrupt to Guest. */
 	int done_fd;
 };
-/*:*/
 
 /*L:210
  * The Disk
@@ -1493,7 +1495,10 @@ static int io_thread(void *_dev)
 	while (read(vblk->workpipe[0], &c, 1) == 1) {
 		/* We acknowledge each request immediately to reduce latency,
 		 * rather than waiting until we've done them all.  I haven't
-		 * measured to see if it makes any difference. */
+		 * measured to see if it makes any difference.
+		 *
+		 * That would be an interesting test, wouldn't it?  You could
+		 * also try having more than one I/O thread. */
 		while (service_io(dev))
 			write(vblk->done_fd, &c, 1);
 	}
@@ -1501,7 +1506,7 @@ static int io_thread(void *_dev)
 }
 
 /* Now we've seen the I/O thread, we return to the Launcher to see what happens
- * when the thread tells us it's completed some I/O. */
+ * when that thread tells us it's completed some I/O. */
 static bool handle_io_finish(int fd, struct device *dev)
 {
 	char c;
@@ -1573,11 +1578,12 @@ static void setup_block_file(const char *filename)
 	 * more work. */
 	pipe(vblk->workpipe);
 
-	/* Create stack for thread and run it */
+	/* Create stack for thread and run it.  Since stack grows upwards, we
+	 * point the stack pointer to the end of this region. */
 	stack = malloc(32768);
 	/* SIGCHLD - We dont "wait" for our cloned thread, so prevent it from
 	 * becoming a zombie. */
-	if (clone(io_thread, stack + 32768,  CLONE_VM | SIGCHLD, dev) == -1)
+	if (clone(io_thread, stack + 32768, CLONE_VM | SIGCHLD, dev) == -1)
 		err(1, "Creating clone");
 
 	/* We don't need to keep the I/O thread's end of the pipes open. */
@@ -1587,14 +1593,14 @@ static void setup_block_file(const char *filename)
 	verbose("device %u: virtblock %llu sectors\n",
 		devices.device_num, le64_to_cpu(conf.capacity));
 }
-/* That's the end of device setup. :*/
+/* That's the end of device setup. */
 
-/* Reboot */
+/*L:230 Reboot is pretty easy: clean up and exec() the Launcher afresh. */
 static void __attribute__((noreturn)) restart_guest(void)
 {
 	unsigned int i;
 
-	/* Closing pipes causes the waker thread and io_threads to die, and
+	/* Closing pipes causes the Waker thread and io_threads to die, and
 	 * closing /dev/lguest cleans up the Guest.  Since we don't track all
 	 * open fds, we simply close everything beyond stderr. */
 	for (i = 3; i < FD_SETSIZE; i++)
@@ -1603,7 +1609,7 @@ static void __attribute__((noreturn)) restart_guest(void)
 	err(1, "Could not exec %s", main_args[0]);
 }
 
-/*L:220 Finally we reach the core of the Launcher, which runs the Guest, serves
+/*L:220 Finally we reach the core of the Launcher which runs the Guest, serves
  * its input and output, and finally, lays it to rest. */
 static void __attribute__((noreturn)) run_guest(int lguest_fd)
 {
@@ -1644,7 +1650,7 @@ static void __attribute__((noreturn)) run_guest(int lguest_fd)
 			err(1, "Resetting break");
 	}
 }
-/*
+/*L:240
  * This is the end of the Launcher.  The good news: we are over halfway
  * through!  The bad news: the most fiendish part of the code still lies ahead
  * of us.
@@ -1691,8 +1697,8 @@ int main(int argc, char *argv[])
 	 * device receive input from a file descriptor, we keep an fdset
 	 * (infds) and the maximum fd number (max_infd) with the head of the
 	 * list.  We also keep a pointer to the last device.  Finally, we keep
-	 * the next interrupt number to hand out (1: remember that 0 is used by
-	 * the timer). */
+	 * the next interrupt number to use for devices (1: remember that 0 is
+	 * used by the timer). */
 	FD_ZERO(&devices.infds);
 	devices.max_infd = -1;
 	devices.lastdev = NULL;
@@ -1793,8 +1799,8 @@ int main(int argc, char *argv[])
 	lguest_fd = tell_kernel(pgdir, start);
 
 	/* We fork off a child process, which wakes the Launcher whenever one
-	 * of the input file descriptors needs attention.  Otherwise we would
-	 * run the Guest until it tries to output something. */
+	 * of the input file descriptors needs attention.  We call this the
+	 * Waker, and we'll cover it in a moment. */
 	waker_fd = setup_waker(lguest_fd);
 
 	/* Finally, run the Guest.  This doesn't return. */

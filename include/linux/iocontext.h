@@ -2,6 +2,7 @@
 #define IOCONTEXT_H
 
 #include <linux/radix-tree.h>
+#include <linux/rcupdate.h>
 
 /*
  * This is the per-process anticipatory I/O scheduler state.
@@ -54,6 +55,8 @@ struct cfq_io_context {
 
 	void (*dtor)(struct io_context *); /* destructor */
 	void (*exit)(struct io_context *); /* called on task exit */
+
+	struct rcu_head rcu_head;
 };
 
 /*

@@ -63,8 +63,8 @@
 #include "bnx2x.h"
 #include "bnx2x_init.h"
 
-#define DRV_MODULE_VERSION      "1.42.3"
-#define DRV_MODULE_RELDATE      "2008/3/9"
+#define DRV_MODULE_VERSION      "1.42.4"
+#define DRV_MODULE_RELDATE      "2008/4/9"
 #define BNX2X_BC_VER    	0x040200
 
 /* Time in jiffies before concluding the transmitter is hung. */
@@ -6153,7 +6153,7 @@ static int bnx2x_function_init(struct bnx2x *bp, int mode)
 		   func, mode);
 		REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_SET,
 		       0xffffffff);
-		REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_SET,
+		REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_SET,
 		       0xfffc);
 		bnx2x_init_block(bp, MISC_COMMON_START, MISC_COMMON_END);
 

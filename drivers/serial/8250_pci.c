@@ -1214,13 +1214,6 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 		.base_baud	= 115200,
 		.uart_offset	= 8,
 	},
-	[pbn_b0_8_115200] = {
-		.flags		= FL_BASE0,
-		.num_ports	= 8,
-		.base_baud	= 115200,
-		.uart_offset	= 8,
-	},
-
 	[pbn_b0_1_921600] = {
 		.flags		= FL_BASE0,
 		.num_ports	= 1,
