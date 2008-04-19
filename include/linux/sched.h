@@ -1005,6 +1005,7 @@ struct sched_rt_entity {
 	unsigned long timeout;
 	int nr_cpus_allowed;
 
+	struct sched_rt_entity *back;
 #ifdef CONFIG_RT_GROUP_SCHED
 	struct sched_rt_entity	*parent;
 	/* rq on which this entity is (to be) queued: */

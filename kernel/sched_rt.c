@@ -479,26 +479,21 @@ static void dequeue_rt_entity(struct sched_rt_entity *rt_se)
 /*
  * Because the prio of an upper entry depends on the lower
  * entries, we must remove entries top - down.
- *
- * XXX: O(1/2 h^2) because we can only walk up, not down the chain.
  */
 static void dequeue_rt_stack(struct task_struct *p)
 {
-	struct sched_rt_entity *rt_se, *top_se;
+	struct sched_rt_entity *rt_se, *back = NULL;
 
-	/*
-	 * dequeue all, top - down.
-	 */
-	do {
-		rt_se = &p->rt;
-		top_se = NULL;
-		for_each_sched_rt_entity(rt_se) {
-			if (on_rt_rq(rt_se))
-				top_se = rt_se;
-		}
-		if (top_se)
-			dequeue_rt_entity(top_se);
-	} while (top_se);
+	rt_se = &p->rt;
+	for_each_sched_rt_entity(rt_se) {
+		rt_se->back = back;
+		back = rt_se;
+	}
+
+	for (rt_se = back; rt_se; rt_se = rt_se->back) {
+		if (on_rt_rq(rt_se))
+			dequeue_rt_entity(rt_se);
+	}
 }
 
 /*
