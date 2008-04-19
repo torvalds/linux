@@ -29,6 +29,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <asm/io.h>
+#include <asm/bios_ebda.h>
 #include <asm/mach-summit/mach_mpparse.h>
 
 static struct rio_table_hdr *rio_table_hdr __initdata;
@@ -140,8 +141,8 @@ void __init setup_summit(void)
 	int			i, next_wpeg, next_bus = 0;
 
 	/* The pointer to the EBDA is stored in the word @ phys 0x40E(40:0E) */
-	ptr = *(unsigned short *)phys_to_virt(0x40Eul);
-	ptr = (unsigned long)phys_to_virt(ptr << 4);
+	ptr = get_bios_ebda();
+	ptr = (unsigned long)phys_to_virt(ptr);
 
 	rio_table_hdr = NULL;
 	offset = 0x180;
