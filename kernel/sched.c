@@ -8228,6 +8228,38 @@ static unsigned long to_ratio(u64 period, u64 runtime)
 	return div64_64(runtime << 16, period);
 }
 
+#ifdef CONFIG_CGROUP_SCHED
+static int __rt_schedulable(struct task_group *tg, u64 period, u64 runtime)
+{
+	struct task_group *tgi, *parent = tg->parent;
+	unsigned long total = 0;
+
+	if (!parent) {
+		if (global_rt_period() < period)
+			return 0;
+
+		return to_ratio(period, runtime) <
+			to_ratio(global_rt_period(), global_rt_runtime());
+	}
+
+	if (ktime_to_ns(parent->rt_bandwidth.rt_period) < period)
+		return 0;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(tgi, &parent->children, siblings) {
+		if (tgi == tg)
+			continue;
+
+		total += to_ratio(ktime_to_ns(tgi->rt_bandwidth.rt_period),
+				tgi->rt_bandwidth.rt_runtime);
+	}
+	rcu_read_unlock();
+
+	return total + to_ratio(period, runtime) <
+		to_ratio(ktime_to_ns(parent->rt_bandwidth.rt_period),
+				parent->rt_bandwidth.rt_runtime);
+}
+#elif defined CONFIG_USER_SCHED
 static int __rt_schedulable(struct task_group *tg, u64 period, u64 runtime)
 {
 	struct task_group *tgi;
@@ -8247,6 +8279,7 @@ static int __rt_schedulable(struct task_group *tg, u64 period, u64 runtime)
 
 	return total + to_ratio(period, runtime) < global_ratio;
 }
+#endif
 
 /* Must be called with tasklist_lock held */
 static inline int tg_has_rt_tasks(struct task_group *tg)
