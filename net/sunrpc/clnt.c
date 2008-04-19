@@ -1240,10 +1240,13 @@ call_decode(struct rpc_task *task)
 			task->tk_status);
 	return;
 out_retry:
-	req->rq_received = req->rq_private_buf.len = 0;
 	task->tk_status = 0;
-	if (task->tk_client->cl_discrtry)
-		xprt_force_disconnect(task->tk_xprt);
+	/* Note: call_verify() may have freed the RPC slot */
+	if (task->tk_rqstp == req) {
+		req->rq_received = req->rq_private_buf.len = 0;
+		if (task->tk_client->cl_discrtry)
+			xprt_force_disconnect(task->tk_xprt);
+	}
 }
 
 /*
