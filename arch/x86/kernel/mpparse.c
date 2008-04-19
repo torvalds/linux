@@ -686,13 +686,11 @@ void __init get_smp_config(void)
 static int __init smp_scan_config(unsigned long base, unsigned long length,
 				  unsigned reserve)
 {
-	extern void __bad_mpf_size(void);
 	unsigned int *bp = phys_to_virt(base);
 	struct intel_mp_floating *mpf;
 
 	Dprintk("Scan SMP from %p for %ld bytes.\n", bp, length);
-	if (sizeof(*mpf) != 16)
-		__bad_mpf_size();
+	BUILD_BUG_ON(sizeof(*mpf) != 16);
 
 	while (length > 0) {
 		mpf = (struct intel_mp_floating *)bp;
