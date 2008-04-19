@@ -161,9 +161,9 @@ static struct pxa_gpio_chip pxa_gpio_chip[] = {
  * Use this instead of directly setting GRER/GFER.
  */
 
-static long GPIO_IRQ_rising_edge[4];
-static long GPIO_IRQ_falling_edge[4];
-static long GPIO_IRQ_mask[4];
+static unsigned long GPIO_IRQ_rising_edge[4];
+static unsigned long GPIO_IRQ_falling_edge[4];
+static unsigned long GPIO_IRQ_mask[4];
 
 /*
  * On PXA25x and PXA27x, GAFRx and GPDRx together decide the alternate
