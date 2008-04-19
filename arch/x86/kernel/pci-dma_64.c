@@ -141,7 +141,7 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	}
 
 	if (dma_ops->map_simple) {
-		*dma_handle = dma_ops->map_simple(dev, memory,
+		*dma_handle = dma_ops->map_simple(dev, virt_to_phys(memory),
 					      size,
 					      PCI_DMA_BIDIRECTIONAL);
 		if (*dma_handle != bad_dma_address)

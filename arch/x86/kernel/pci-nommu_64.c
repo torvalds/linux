@@ -26,10 +26,10 @@ check_addr(char *name, struct device *hwdev, dma_addr_t bus, size_t size)
 }
 
 static dma_addr_t
-nommu_map_single(struct device *hwdev, void *ptr, size_t size,
+nommu_map_single(struct device *hwdev, phys_addr_t paddr, size_t size,
 	       int direction)
 {
-	dma_addr_t bus = virt_to_bus(ptr);
+	dma_addr_t bus = paddr;
 	if (!check_addr("map_single", hwdev, bus, size))
 				return bad_dma_address;
 	return bus;

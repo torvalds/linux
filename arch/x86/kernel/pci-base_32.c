@@ -4,12 +4,12 @@
 #include <linux/dma-mapping.h>
 #include <asm/dma-mapping.h>
 
-static dma_addr_t pci32_map_single(struct device *dev, void *ptr,
+static dma_addr_t pci32_map_single(struct device *dev, phys_addr_t ptr,
 				   size_t size, int direction)
 {
 	WARN_ON(size == 0);
 	flush_write_buffers();
-	return virt_to_phys(ptr);
+	return ptr;
 }
 
 static int pci32_dma_map_sg(struct device *dev, struct scatterlist *sglist,
