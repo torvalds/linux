@@ -278,29 +278,9 @@ module_param_array_named(int_mod_timer, int_mod_timer, int,
 	&num_int_mod_timer, 0);
 MODULE_PARM_DESC(int_mod_timer, "Interrupt moderator timer");
 
-/*
- * flash_vendor
- *
- * Valid Range: 0-2
- *
- * 0 - Atmel
- * 1 - SST
- * 2 - ST
- *
- * Default Value: 0
- */
-static int __devinitdata flash_vendor[ATL1_MAX_NIC+1] = ATL1_PARAM_INIT;
-static int num_flash_vendor;
-module_param_array_named(flash_vendor, flash_vendor, int, &num_flash_vendor, 0);
-MODULE_PARM_DESC(flash_vendor, "SPI flash vendor");
-
 #define DEFAULT_INT_MOD_CNT	100	/* 200us */
 #define MAX_INT_MOD_CNT		65000
 #define MIN_INT_MOD_CNT		50
-
-#define FLASH_VENDOR_DEFAULT	0
-#define FLASH_VENDOR_MIN	0
-#define FLASH_VENDOR_MAX	2
 
 struct atl1_option {
 	enum { enable_option, range_option, list_option } type;
@@ -408,25 +388,6 @@ void __devinit atl1_check_options(struct atl1_adapter *adapter)
 			adapter->imt = (u16) val;
 		} else
 			adapter->imt = (u16) (opt.def);
-	}
-
-	{			/* Flash Vendor */
-		struct atl1_option opt = {
-			.type = range_option,
-			.name = "SPI Flash Vendor",
-			.err = "using default of "
-				__MODULE_STRING(FLASH_VENDOR_DEFAULT),
-			.def = DEFAULT_INT_MOD_CNT,
-			.arg = {.r = {.min = FLASH_VENDOR_MIN,
-					.max = FLASH_VENDOR_MAX} }
-		};
-		int val;
-		if (num_flash_vendor > bd) {
-			val = flash_vendor[bd];
-			atl1_validate_option(&val, &opt, pdev);
-			adapter->hw.flash_vendor = (u8) val;
-		} else
-			adapter->hw.flash_vendor = (u8) (opt.def);
 	}
 }
 
