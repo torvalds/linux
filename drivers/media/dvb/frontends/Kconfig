@@ -188,6 +188,14 @@ config DVB_DIB7000P
 	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
 	  to support this frontend.
 
+config DVB_TDA10048
+	tristate "Philips TDA10048HN based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	select FW_LOADER
+	help
+	  A DVB-T tuner module. Say Y when you want to support this frontend.
+
 comment "DVB-C (cable) frontends"
 	depends on DVB_CORE
 
