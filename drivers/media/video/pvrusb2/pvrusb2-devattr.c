@@ -36,6 +36,7 @@ pvr2_device_desc structures.
 #include "pvrusb2-hdw-internal.h"
 #include "lgdt330x.h"
 #include "s5h1409.h"
+#include "tda10048.h"
 #include "tda18271.h"
 #include "tda8290.h"
 #include "tuner-simple.h"
@@ -278,6 +279,50 @@ static const struct pvr2_device_desc pvr2_device_onair_usb2 = {
 /*------------------------------------------------------------------------*/
 /* Hauppauge PVR-USB2 Model 73xxx */
 
+#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+static struct tda10048_config hauppauge_tda10048_config = {
+	.demod_address  = 0x10 >> 1,
+	.output_mode    = TDA10048_PARALLEL_OUTPUT,
+	.fwbulkwritelen = TDA10048_BULKWRITE_50,
+	.inversion      = TDA10048_INVERSION_ON,
+};
+
+static struct tda829x_config tda829x_no_probe = {
+	.probe_tuner = TDA829X_DONT_PROBE,
+};
+
+static struct tda18271_config hauppauge_tda18271_dvb_config = {
+	.gate    = TDA18271_GATE_ANALOG,
+};
+
+static int pvr2_tda10048_attach(struct pvr2_dvb_adapter *adap)
+{
+	adap->fe = dvb_attach(tda10048_attach, &hauppauge_tda10048_config,
+			      &adap->channel.hdw->i2c_adap);
+	if (adap->fe)
+		return 0;
+
+	return -EIO;
+}
+
+static int pvr2_73xxx_tda18271_8295_attach(struct pvr2_dvb_adapter *adap)
+{
+	dvb_attach(tda829x_attach, adap->fe,
+		   &adap->channel.hdw->i2c_adap, 0x42,
+		   &tda829x_no_probe);
+	dvb_attach(tda18271_attach, adap->fe, 0x60,
+		   &adap->channel.hdw->i2c_adap,
+		   &hauppauge_tda18271_dvb_config);
+
+	return 0;
+}
+
+struct pvr2_dvb_props pvr2_73xxx_dvb_props = {
+	.frontend_attach = pvr2_tda10048_attach,
+	.tuner_attach    = pvr2_73xxx_tda18271_8295_attach,
+};
+#endif
+
 static const char *pvr2_client_73xxx[] = {
 	"cx25840",
 	"tuner",
@@ -302,6 +347,9 @@ static const struct pvr2_device_desc pvr2_device_73xxx = {
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_HAUPPAUGE,
 		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
+#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+		.dvb_props = &pvr2_73xxx_dvb_props,
+#endif
 };
 
 
@@ -317,10 +365,6 @@ static struct s5h1409_config pvr2_s5h1409_config = {
 	.qam_if        = 4000,
 	.inversion     = S5H1409_INVERSION_ON,
 	.status_mode   = S5H1409_DEMODLOCKING,
-};
-
-static struct tda829x_config tda829x_no_probe = {
-	.probe_tuner = TDA829X_DONT_PROBE,
 };
 
 static struct tda18271_std_map hauppauge_tda18271_std_map = {
