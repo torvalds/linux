@@ -666,9 +666,6 @@ config TQM8260
 	  End of Life: not yet :-)
 	  URL: <http://www.denx.de/PDF/TQM82xx_SPEC_Rev005.pdf>
 
-config ADS8272
-	bool "ADS8272"
-
 config PQ2FADS
 	bool "Freescale-PQ2FADS"
 	help
@@ -698,11 +695,6 @@ config EV64360
 	  platform.
 endchoice
 
-config PQ2ADS
-	bool
-	depends on ADS8272
-	default y
-
 config TQM8xxL
 	bool
 	depends on 8xx && (TQM823L || TQM850L || FPS850L || TQM855L || TQM860L)
@@ -724,15 +716,6 @@ config 8260
 	  The MPC8260 is a typical embedded CPU made by Motorola.  Selecting
 	  this option means that you wish to build a kernel for a machine with
 	  an 8260 class CPU.
-
-config 8272
-	bool
-	depends on 6xx
-	default y if ADS8272
-	select 8260
-	help
-	  The MPC8272 CPM has a different internal dpram setup than other CPM2
-	  devices
 
 config CPM1
 	bool
@@ -1069,7 +1052,7 @@ config PCI_8260
 
 config 8260_PCI9
 	bool "Enable workaround for MPC826x erratum PCI 9"
-	depends on PCI_8260 && !ADS8272
+	depends on PCI_8260
 	default y
 
 choice
