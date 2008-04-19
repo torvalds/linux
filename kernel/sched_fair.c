@@ -1133,6 +1133,17 @@ wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se)
 	return 0;
 }
 
+/* return depth at which a sched entity is present in the hierarchy */
+static inline int depth_se(struct sched_entity *se)
+{
+	int depth = 0;
+
+	for_each_sched_entity(se)
+		depth++;
+
+	return depth;
+}
+
 /*
  * Preempt the current task with a newly woken task if needed:
  */
@@ -1141,6 +1152,7 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 	struct task_struct *curr = rq->curr;
 	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
 	struct sched_entity *se = &curr->se, *pse = &p->se;
+	int se_depth, pse_depth;
 
 	if (unlikely(rt_prio(p->prio))) {
 		update_rq_clock(rq);
@@ -1164,6 +1176,27 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 
 	if (!sched_feat(WAKEUP_PREEMPT))
 		return;
+
+	/*
+	 * preemption test can be made between sibling entities who are in the
+	 * same cfs_rq i.e who have a common parent. Walk up the hierarchy of
+	 * both tasks until we find their ancestors who are siblings of common
+	 * parent.
+	 */
+
+	/* First walk up until both entities are at same depth */
+	se_depth = depth_se(se);
+	pse_depth = depth_se(pse);
+
+	while (se_depth > pse_depth) {
+		se_depth--;
+		se = parent_entity(se);
+	}
+
+	while (pse_depth > se_depth) {
+		pse_depth--;
+		pse = parent_entity(pse);
+	}
 
 	while (!is_same_group(se, pse)) {
 		se = parent_entity(se);
@@ -1223,13 +1256,22 @@ static void put_prev_task_fair(struct rq *rq, struct task_struct *prev)
 static struct task_struct *
 __load_balance_iterator(struct cfs_rq *cfs_rq, struct rb_node *curr)
 {
-	struct task_struct *p;
+	struct task_struct *p = NULL;
+	struct sched_entity *se;
 
 	if (!curr)
 		return NULL;
 
-	p = rb_entry(curr, struct task_struct, se.run_node);
-	cfs_rq->rb_load_balance_curr = rb_next(curr);
+	/* Skip over entities that are not tasks */
+	do {
+		se = rb_entry(curr, struct sched_entity, run_node);
+		curr = rb_next(curr);
+	} while (curr && !entity_is_task(se));
+
+	cfs_rq->rb_load_balance_curr = curr;
+
+	if (entity_is_task(se))
+		p = task_of(se);
 
 	return p;
 }
@@ -1489,9 +1531,6 @@ static void print_cfs_stats(struct seq_file *m, int cpu)
 {
 	struct cfs_rq *cfs_rq;
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
-	print_cfs_rq(m, cpu, &cpu_rq(cpu)->cfs);
-#endif
 	rcu_read_lock();
 	for_each_leaf_cfs_rq(cpu_rq(cpu), cfs_rq)
 		print_cfs_rq(m, cpu, cfs_rq);

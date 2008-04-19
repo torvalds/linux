@@ -374,11 +374,15 @@ static void update_curr_rt(struct rq *rq)
 	curr->se.exec_start = rq->clock;
 	cpuacct_charge(curr, delta_exec);
 
-	spin_lock(&rt_rq->rt_runtime_lock);
-	rt_rq->rt_time += delta_exec;
-	if (sched_rt_runtime_exceeded(rt_rq))
-		resched_task(curr);
-	spin_unlock(&rt_rq->rt_runtime_lock);
+	for_each_sched_rt_entity(rt_se) {
+		rt_rq = rt_rq_of_se(rt_se);
+
+		spin_lock(&rt_rq->rt_runtime_lock);
+		rt_rq->rt_time += delta_exec;
+		if (sched_rt_runtime_exceeded(rt_rq))
+			resched_task(curr);
+		spin_unlock(&rt_rq->rt_runtime_lock);
+	}
 }
 
 static inline
@@ -477,7 +481,6 @@ static void dequeue_rt_entity(struct sched_rt_entity *rt_se)
  * entries, we must remove entries top - down.
  *
  * XXX: O(1/2 h^2) because we can only walk up, not down the chain.
- *      doesn't matter much for now, as h=2 for GROUP_SCHED.
  */
 static void dequeue_rt_stack(struct task_struct *p)
 {
