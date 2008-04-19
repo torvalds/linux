@@ -123,12 +123,6 @@
 #define DBG(cmd,xxx...) xxx
 #endif
 
-#ifndef STRINGIFY
-#define STRINGIFY(x) #x
-#endif
-#define STRx(x) STRINGIFY(x)
-#define NO_WRITE_STR STRx(NO_WRITE)
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -141,6 +135,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
+#include <linux/stringify.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -2828,7 +2823,7 @@ char *acornscsi_info(struct Scsi_Host *host)
     " LINK"
 #endif
 #if (DEBUG & DEBUG_NO_WRITE)
-    " NOWRITE ("NO_WRITE_STR")"
+    " NOWRITE (" __stringify(NO_WRITE) ")"
 #endif
 		, host->hostt->name, host->io_port, host->irq,
 		VER_MAJOR, VER_MINOR, VER_PATCH);
@@ -2859,7 +2854,7 @@ int acornscsi_proc_info(struct Scsi_Host *instance, char *buffer, char **start, 
     " LINK"
 #endif
 #if (DEBUG & DEBUG_NO_WRITE)
-    " NOWRITE ("NO_WRITE_STR")"
+    " NOWRITE (" __stringify(NO_WRITE) ")"
 #endif
 		"\n\n", VER_MAJOR, VER_MINOR, VER_PATCH);
 
