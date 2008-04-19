@@ -533,6 +533,7 @@ account_entity_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		add_cfs_task_weight(cfs_rq, se->load.weight);
 	cfs_rq->nr_running++;
 	se->on_rq = 1;
+	list_add(&se->group_node, &cfs_rq->tasks);
 }
 
 static void
@@ -545,6 +546,7 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		add_cfs_task_weight(cfs_rq, -se->load.weight);
 	cfs_rq->nr_running--;
 	se->on_rq = 0;
+	list_del_init(&se->group_node);
 }
 
 static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
@@ -1289,21 +1291,24 @@ static void put_prev_task_fair(struct rq *rq, struct task_struct *prev)
  * the current task:
  */
 static struct task_struct *
-__load_balance_iterator(struct cfs_rq *cfs_rq, struct rb_node *curr)
+__load_balance_iterator(struct cfs_rq *cfs_rq, struct list_head *next)
 {
 	struct task_struct *p = NULL;
 	struct sched_entity *se;
 
-	if (!curr)
+	if (next == &cfs_rq->tasks)
 		return NULL;
 
 	/* Skip over entities that are not tasks */
 	do {
-		se = rb_entry(curr, struct sched_entity, run_node);
-		curr = rb_next(curr);
-	} while (curr && !entity_is_task(se));
+		se = list_entry(next, struct sched_entity, group_node);
+		next = next->next;
+	} while (next != &cfs_rq->tasks && !entity_is_task(se));
 
-	cfs_rq->rb_load_balance_curr = curr;
+	if (next == &cfs_rq->tasks)
+		return NULL;
+
+	cfs_rq->balance_iterator = next;
 
 	if (entity_is_task(se))
 		p = task_of(se);
@@ -1315,14 +1320,14 @@ static struct task_struct *load_balance_start_fair(void *arg)
 {
 	struct cfs_rq *cfs_rq = arg;
 
-	return __load_balance_iterator(cfs_rq, first_fair(cfs_rq));
+	return __load_balance_iterator(cfs_rq, cfs_rq->tasks.next);
 }
 
 static struct task_struct *load_balance_next_fair(void *arg)
 {
 	struct cfs_rq *cfs_rq = arg;
 
-	return __load_balance_iterator(cfs_rq, cfs_rq->rb_load_balance_curr);
+	return __load_balance_iterator(cfs_rq, cfs_rq->balance_iterator);
 }
 
 static unsigned long

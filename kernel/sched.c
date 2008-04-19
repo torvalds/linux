@@ -384,8 +384,12 @@ struct cfs_rq {
 
 	struct rb_root tasks_timeline;
 	struct rb_node *rb_leftmost;
-	struct rb_node *rb_load_balance_curr;
-	/* 'curr' points to currently running entity on this cfs_rq.
+
+	struct list_head tasks;
+	struct list_head *balance_iterator;
+
+	/*
+	 * 'curr' points to currently running entity on this cfs_rq.
 	 * It is set to NULL otherwise (i.e when none are currently running).
 	 */
 	struct sched_entity *curr, *next;
@@ -2525,6 +2529,7 @@ static void __sched_fork(struct task_struct *p)
 
 	INIT_LIST_HEAD(&p->rt.run_list);
 	p->se.on_rq = 0;
+	INIT_LIST_HEAD(&p->se.group_node);
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 	INIT_HLIST_HEAD(&p->preempt_notifiers);
@@ -7898,6 +7903,7 @@ int in_sched_functions(unsigned long addr)
 static void init_cfs_rq(struct cfs_rq *cfs_rq, struct rq *rq)
 {
 	cfs_rq->tasks_timeline = RB_ROOT;
+	INIT_LIST_HEAD(&cfs_rq->tasks);
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	cfs_rq->rq = rq;
 #endif
