@@ -7438,10 +7438,11 @@ static void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq)
 }
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
-static void init_tg_cfs_entry(struct rq *rq, struct task_group *tg,
-		struct cfs_rq *cfs_rq, struct sched_entity *se,
-		int cpu, int add)
+static void init_tg_cfs_entry(struct task_group *tg, struct cfs_rq *cfs_rq,
+				struct sched_entity *se, int cpu, int add,
+				struct sched_entity *parent)
 {
+	struct rq *rq = cpu_rq(cpu);
 	tg->cfs_rq[cpu] = cfs_rq;
 	init_cfs_rq(cfs_rq, rq);
 	cfs_rq->tg = tg;
@@ -7453,19 +7454,25 @@ static void init_tg_cfs_entry(struct rq *rq, struct task_group *tg,
 	if (!se)
 		return;
 
-	se->cfs_rq = &rq->cfs;
+	if (!parent)
+		se->cfs_rq = &rq->cfs;
+	else
+		se->cfs_rq = parent->my_q;
+
 	se->my_q = cfs_rq;
 	se->load.weight = tg->shares;
 	se->load.inv_weight = div64_64(1ULL<<32, se->load.weight);
-	se->parent = NULL;
+	se->parent = parent;
 }
 #endif
 
 #ifdef CONFIG_RT_GROUP_SCHED
-static void init_tg_rt_entry(struct rq *rq, struct task_group *tg,
-		struct rt_rq *rt_rq, struct sched_rt_entity *rt_se,
-		int cpu, int add)
+static void init_tg_rt_entry(struct task_group *tg, struct rt_rq *rt_rq,
+		struct sched_rt_entity *rt_se, int cpu, int add,
+		struct sched_rt_entity *parent)
 {
+	struct rq *rq = cpu_rq(cpu);
+
 	tg->rt_rq[cpu] = rt_rq;
 	init_rt_rq(rt_rq, rq);
 	rt_rq->tg = tg;
@@ -7478,9 +7485,14 @@ static void init_tg_rt_entry(struct rq *rq, struct task_group *tg,
 	if (!rt_se)
 		return;
 
+	if (!parent)
+		rt_se->rt_rq = &rq->rt;
+	else
+		rt_se->rt_rq = parent->my_q;
+
 	rt_se->rt_rq = &rq->rt;
 	rt_se->my_q = rt_rq;
-	rt_se->parent = NULL;
+	rt_se->parent = parent;
 	INIT_LIST_HEAD(&rt_se->run_list);
 }
 #endif
@@ -7568,7 +7580,7 @@ void __init sched_init(void)
 		 * We achieve this by letting init_task_group's tasks sit
 		 * directly in rq->cfs (i.e init_task_group->se[] = NULL).
 		 */
-		init_tg_cfs_entry(rq, &init_task_group, &rq->cfs, NULL, i, 1);
+		init_tg_cfs_entry(&init_task_group, &rq->cfs, NULL, i, 1, NULL);
 #elif defined CONFIG_USER_SCHED
 		/*
 		 * In case of task-groups formed thr' the user id of tasks,
@@ -7581,9 +7593,9 @@ void __init sched_init(void)
 		 * (init_cfs_rq) and having one entity represent this group of
 		 * tasks in rq->cfs (i.e init_task_group->se[] != NULL).
 		 */
-		init_tg_cfs_entry(rq, &init_task_group,
+		init_tg_cfs_entry(&init_task_group,
 				&per_cpu(init_cfs_rq, i),
-				&per_cpu(init_sched_entity, i), i, 1);
+				&per_cpu(init_sched_entity, i), i, 1, NULL);
 
 #endif
 #endif /* CONFIG_FAIR_GROUP_SCHED */
@@ -7592,11 +7604,11 @@ void __init sched_init(void)
 #ifdef CONFIG_RT_GROUP_SCHED
 		INIT_LIST_HEAD(&rq->leaf_rt_rq_list);
 #ifdef CONFIG_CGROUP_SCHED
-		init_tg_rt_entry(rq, &init_task_group, &rq->rt, NULL, i, 1);
+		init_tg_rt_entry(&init_task_group, &rq->rt, NULL, i, 1, NULL);
 #elif defined CONFIG_USER_SCHED
-		init_tg_rt_entry(rq, &init_task_group,
+		init_tg_rt_entry(&init_task_group,
 				&per_cpu(init_rt_rq, i),
-				&per_cpu(init_sched_rt_entity, i), i, 1);
+				&per_cpu(init_sched_rt_entity, i), i, 1, NULL);
 #endif
 #endif
 
@@ -7798,10 +7810,11 @@ static void free_fair_sched_group(struct task_group *tg)
 	kfree(tg->se);
 }
 
-static int alloc_fair_sched_group(struct task_group *tg)
+static
+int alloc_fair_sched_group(struct task_group *tg, struct task_group *parent)
 {
 	struct cfs_rq *cfs_rq;
-	struct sched_entity *se;
+	struct sched_entity *se, *parent_se;
 	struct rq *rq;
 	int i;
 
@@ -7827,7 +7840,8 @@ static int alloc_fair_sched_group(struct task_group *tg)
 		if (!se)
 			goto err;
 
-		init_tg_cfs_entry(rq, tg, cfs_rq, se, i, 0);
+		parent_se = parent ? parent->se[i] : NULL;
+		init_tg_cfs_entry(tg, cfs_rq, se, i, 0, parent_se);
 	}
 
 	return 1;
@@ -7851,7 +7865,8 @@ static inline void free_fair_sched_group(struct task_group *tg)
 {
 }
 
-static inline int alloc_fair_sched_group(struct task_group *tg)
+static inline
+int alloc_fair_sched_group(struct task_group *tg, struct task_group *parent)
 {
 	return 1;
 }
@@ -7883,10 +7898,11 @@ static void free_rt_sched_group(struct task_group *tg)
 	kfree(tg->rt_se);
 }
 
-static int alloc_rt_sched_group(struct task_group *tg)
+static
+int alloc_rt_sched_group(struct task_group *tg, struct task_group *parent)
 {
 	struct rt_rq *rt_rq;
-	struct sched_rt_entity *rt_se;
+	struct sched_rt_entity *rt_se, *parent_se;
 	struct rq *rq;
 	int i;
 
@@ -7913,7 +7929,8 @@ static int alloc_rt_sched_group(struct task_group *tg)
 		if (!rt_se)
 			goto err;
 
-		init_tg_rt_entry(rq, tg, rt_rq, rt_se, i, 0);
+		parent_se = parent ? parent->rt_se[i] : NULL;
+		init_tg_rt_entry(tg, rt_rq, rt_se, i, 0, parent_se);
 	}
 
 	return 1;
@@ -7937,7 +7954,8 @@ static inline void free_rt_sched_group(struct task_group *tg)
 {
 }
 
-static inline int alloc_rt_sched_group(struct task_group *tg)
+static inline
+int alloc_rt_sched_group(struct task_group *tg, struct task_group *parent)
 {
 	return 1;
 }
@@ -7960,7 +7978,7 @@ static void free_sched_group(struct task_group *tg)
 }
 
 /* allocate runqueue etc for a new task group */
-struct task_group *sched_create_group(void)
+struct task_group *sched_create_group(struct task_group *parent)
 {
 	struct task_group *tg;
 	unsigned long flags;
@@ -7970,10 +7988,10 @@ struct task_group *sched_create_group(void)
 	if (!tg)
 		return ERR_PTR(-ENOMEM);
 
-	if (!alloc_fair_sched_group(tg))
+	if (!alloc_fair_sched_group(tg, parent))
 		goto err;
 
-	if (!alloc_rt_sched_group(tg))
+	if (!alloc_rt_sched_group(tg, parent))
 		goto err;
 
 	spin_lock_irqsave(&task_group_lock, flags);
@@ -8083,6 +8101,12 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 {
 	int i;
 	unsigned long flags;
+
+	/*
+	 * We can't change the weight of the root cgroup.
+	 */
+	if (!tg->se[0])
+		return -EINVAL;
 
 	/*
 	 * A weight of 0 or 1 can cause arithmetics problems.
@@ -8327,7 +8351,7 @@ static inline struct task_group *cgroup_tg(struct cgroup *cgrp)
 static struct cgroup_subsys_state *
 cpu_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cgrp)
 {
-	struct task_group *tg;
+	struct task_group *tg, *parent;
 
 	if (!cgrp->parent) {
 		/* This is early initialization for the top cgroup */
@@ -8335,11 +8359,8 @@ cpu_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cgrp)
 		return &init_task_group.css;
 	}
 
-	/* we support only 1-level deep hierarchical scheduler atm */
-	if (cgrp->parent->parent)
-		return ERR_PTR(-EINVAL);
-
-	tg = sched_create_group();
+	parent = cgroup_tg(cgrp->parent);
+	tg = sched_create_group(parent);
 	if (IS_ERR(tg))
 		return ERR_PTR(-ENOMEM);
 

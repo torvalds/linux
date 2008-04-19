@@ -101,7 +101,7 @@ static int sched_create_user(struct user_struct *up)
 {
 	int rc = 0;
 
-	up->tg = sched_create_group();
+	up->tg = sched_create_group(NULL);
 	if (IS_ERR(up->tg))
 		rc = -ENOMEM;
 
