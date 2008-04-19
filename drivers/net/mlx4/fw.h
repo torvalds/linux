@@ -96,6 +96,7 @@ struct mlx4_dev_cap {
 	u8  bmme_flags;
 	u32 reserved_lkey;
 	u64 max_icm_sz;
+	int max_gso_sz;
 };
 
 struct mlx4_adapter {

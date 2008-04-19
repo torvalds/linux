@@ -212,14 +212,14 @@ static dma_cookie_t ioat1_tx_submit(struct dma_async_tx_descriptor *tx)
 	u32 copy;
 	size_t len;
 	dma_addr_t src, dst;
-	int orig_ack;
+	unsigned long orig_flags;
 	unsigned int desc_count = 0;
 
 	/* src and dest and len are stored in the initial descriptor */
 	len = first->len;
 	src = first->src;
 	dst = first->dst;
-	orig_ack = first->async_tx.ack;
+	orig_flags = first->async_tx.flags;
 	new = first;
 
 	spin_lock_bh(&ioat_chan->desc_lock);
@@ -228,7 +228,7 @@ static dma_cookie_t ioat1_tx_submit(struct dma_async_tx_descriptor *tx)
 	do {
 		copy = min_t(size_t, len, ioat_chan->xfercap);
 
-		new->async_tx.ack = 1;
+		async_tx_ack(&new->async_tx);
 
 		hw = new->hw;
 		hw->size = copy;
@@ -264,7 +264,7 @@ static dma_cookie_t ioat1_tx_submit(struct dma_async_tx_descriptor *tx)
 	}
 
 	new->tx_cnt = desc_count;
-	new->async_tx.ack = orig_ack; /* client is in control of this ack */
+	new->async_tx.flags = orig_flags; /* client is in control of this ack */
 
 	/* store the original values for use in later cleanup */
 	if (new != first) {
@@ -304,14 +304,14 @@ static dma_cookie_t ioat2_tx_submit(struct dma_async_tx_descriptor *tx)
 	u32 copy;
 	size_t len;
 	dma_addr_t src, dst;
-	int orig_ack;
+	unsigned long orig_flags;
 	unsigned int desc_count = 0;
 
 	/* src and dest and len are stored in the initial descriptor */
 	len = first->len;
 	src = first->src;
 	dst = first->dst;
-	orig_ack = first->async_tx.ack;
+	orig_flags = first->async_tx.flags;
 	new = first;
 
 	/*
@@ -321,7 +321,7 @@ static dma_cookie_t ioat2_tx_submit(struct dma_async_tx_descriptor *tx)
 	do {
 		copy = min_t(size_t, len, ioat_chan->xfercap);
 
-		new->async_tx.ack = 1;
+		async_tx_ack(&new->async_tx);
 
 		hw = new->hw;
 		hw->size = copy;
@@ -349,7 +349,7 @@ static dma_cookie_t ioat2_tx_submit(struct dma_async_tx_descriptor *tx)
 	}
 
 	new->tx_cnt = desc_count;
-	new->async_tx.ack = orig_ack; /* client is in control of this ack */
+	new->async_tx.flags = orig_flags; /* client is in control of this ack */
 
 	/* store the original values for use in later cleanup */
 	if (new != first) {
@@ -714,7 +714,7 @@ static struct dma_async_tx_descriptor *ioat1_dma_prep_memcpy(
 		new->len = len;
 		new->dst = dma_dest;
 		new->src = dma_src;
-		new->async_tx.ack = 0;
+		new->async_tx.flags = flags;
 		return &new->async_tx;
 	} else
 		return NULL;
@@ -742,7 +742,7 @@ static struct dma_async_tx_descriptor *ioat2_dma_prep_memcpy(
 		new->len = len;
 		new->dst = dma_dest;
 		new->src = dma_src;
-		new->async_tx.ack = 0;
+		new->async_tx.flags = flags;
 		return &new->async_tx;
 	} else
 		return NULL;
@@ -842,7 +842,7 @@ static void ioat_dma_memcpy_cleanup(struct ioat_dma_chan *ioat_chan)
 				 * a completed entry, but not the last, so clean
 				 * up if the client is done with the descriptor
 				 */
-				if (desc->async_tx.ack) {
+				if (async_tx_test_ack(&desc->async_tx)) {
 					list_del(&desc->node);
 					list_add_tail(&desc->node,
 						      &ioat_chan->free_desc);
@@ -924,17 +924,6 @@ static void ioat_dma_memcpy_cleanup(struct ioat_dma_chan *ioat_chan)
 	spin_unlock_bh(&ioat_chan->cleanup_lock);
 }
 
-static void ioat_dma_dependency_added(struct dma_chan *chan)
-{
-	struct ioat_dma_chan *ioat_chan = to_ioat_chan(chan);
-	spin_lock_bh(&ioat_chan->desc_lock);
-	if (ioat_chan->pending == 0) {
-		spin_unlock_bh(&ioat_chan->desc_lock);
-		ioat_dma_memcpy_cleanup(ioat_chan);
-	} else
-		spin_unlock_bh(&ioat_chan->desc_lock);
-}
-
 /**
  * ioat_dma_is_complete - poll the status of a IOAT DMA transaction
  * @chan: IOAT DMA channel handle
@@ -990,7 +979,7 @@ static void ioat_dma_start_null_desc(struct ioat_dma_chan *ioat_chan)
 	desc->hw->size = 0;
 	desc->hw->src_addr = 0;
 	desc->hw->dst_addr = 0;
-	desc->async_tx.ack = 1;
+	async_tx_ack(&desc->async_tx);
 	switch (ioat_chan->device->version) {
 	case IOAT_VER_1_2:
 		desc->hw->next = 0;
@@ -1316,7 +1305,6 @@ struct ioatdma_device *ioat_dma_probe(struct pci_dev *pdev,
 
 	dma_cap_set(DMA_MEMCPY, device->common.cap_mask);
 	device->common.device_is_tx_complete = ioat_dma_is_complete;
-	device->common.device_dependency_added = ioat_dma_dependency_added;
 	switch (device->version) {
 	case IOAT_VER_1_2:
 		device->common.device_prep_dma_memcpy = ioat1_dma_prep_memcpy;

@@ -130,7 +130,7 @@ static int __devinit fs_mii_bitbang_init(struct mii_bus *bus,
 	 * we get is an int, and the odds of multiple bitbang mdio buses
 	 * is low enough that it's not worth going too crazy.
 	 */
-	bus->id = res.start;
+	snprintf(bus->id, MII_BUS_ID_SIZE, "%x", res.start);
 
 	data = of_get_property(np, "fsl,mdio-pin", &len);
 	if (!data || len != 4)
@@ -307,7 +307,7 @@ static int __devinit fs_enet_mdio_probe(struct device *dev)
 		return -ENOMEM;
 
 	new_bus->name = "BB MII Bus",
-	new_bus->id = pdev->id;
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", pdev->id);
 
 	new_bus->phy_mask = ~0x9;
 	pdata = (struct fs_mii_bb_platform_info *)pdev->dev.platform_data;

@@ -176,7 +176,6 @@ xfs_read(
 {
 	struct file		*file = iocb->ki_filp;
 	struct inode		*inode = file->f_mapping->host;
-	bhv_vnode_t		*vp = XFS_ITOV(ip);
 	xfs_mount_t		*mp = ip->i_mount;
 	size_t			size = 0;
 	ssize_t			ret = 0;
@@ -228,11 +227,11 @@ xfs_read(
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 
 	if (DM_EVENT_ENABLED(ip, DM_EVENT_READ) && !(ioflags & IO_INVIS)) {
-		bhv_vrwlock_t locktype = VRWLOCK_READ;
 		int dmflags = FILP_DELAY_FLAG(file) | DM_SEM_FLAG_RD(ioflags);
+		int iolock = XFS_IOLOCK_SHARED;
 
-		ret = -XFS_SEND_DATA(mp, DM_EVENT_READ, vp, *offset, size,
-					dmflags, &locktype);
+		ret = -XFS_SEND_DATA(mp, DM_EVENT_READ, ip, *offset, size,
+					dmflags, &iolock);
 		if (ret) {
 			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 			if (unlikely(ioflags & IO_ISDIRECT))
@@ -242,7 +241,7 @@ xfs_read(
 	}
 
 	if (unlikely(ioflags & IO_ISDIRECT)) {
-		if (VN_CACHED(vp))
+		if (inode->i_mapping->nrpages)
 			ret = xfs_flushinval_pages(ip, (*offset & PAGE_CACHE_MASK),
 						    -1, FI_REMAPF_LOCKED);
 		mutex_unlock(&inode->i_mutex);
@@ -276,7 +275,6 @@ xfs_splice_read(
 	int			flags,
 	int			ioflags)
 {
-	bhv_vnode_t		*vp = XFS_ITOV(ip);
 	xfs_mount_t		*mp = ip->i_mount;
 	ssize_t			ret;
 
@@ -287,11 +285,11 @@ xfs_splice_read(
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 
 	if (DM_EVENT_ENABLED(ip, DM_EVENT_READ) && !(ioflags & IO_INVIS)) {
-		bhv_vrwlock_t locktype = VRWLOCK_READ;
+		int iolock = XFS_IOLOCK_SHARED;
 		int error;
 
-		error = XFS_SEND_DATA(mp, DM_EVENT_READ, vp, *ppos, count,
-					FILP_DELAY_FLAG(infilp), &locktype);
+		error = XFS_SEND_DATA(mp, DM_EVENT_READ, ip, *ppos, count,
+					FILP_DELAY_FLAG(infilp), &iolock);
 		if (error) {
 			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 			return -error;
@@ -317,7 +315,6 @@ xfs_splice_write(
 	int			flags,
 	int			ioflags)
 {
-	bhv_vnode_t		*vp = XFS_ITOV(ip);
 	xfs_mount_t		*mp = ip->i_mount;
 	ssize_t			ret;
 	struct inode		*inode = outfilp->f_mapping->host;
@@ -330,11 +327,11 @@ xfs_splice_write(
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
 
 	if (DM_EVENT_ENABLED(ip, DM_EVENT_WRITE) && !(ioflags & IO_INVIS)) {
-		bhv_vrwlock_t locktype = VRWLOCK_WRITE;
+		int iolock = XFS_IOLOCK_EXCL;
 		int error;
 
-		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, vp, *ppos, count,
-					FILP_DELAY_FLAG(outfilp), &locktype);
+		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, ip, *ppos, count,
+					FILP_DELAY_FLAG(outfilp), &iolock);
 		if (error) {
 			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 			return -error;
@@ -573,14 +570,12 @@ xfs_write(
 	struct file		*file = iocb->ki_filp;
 	struct address_space	*mapping = file->f_mapping;
 	struct inode		*inode = mapping->host;
-	bhv_vnode_t		*vp = XFS_ITOV(xip);
 	unsigned long		segs = nsegs;
 	xfs_mount_t		*mp;
 	ssize_t			ret = 0, error = 0;
 	xfs_fsize_t		isize, new_size;
 	int			iolock;
 	int			eventsent = 0;
-	bhv_vrwlock_t		locktype;
 	size_t			ocount = 0, count;
 	loff_t			pos;
 	int			need_i_mutex;
@@ -607,11 +602,9 @@ xfs_write(
 relock:
 	if (ioflags & IO_ISDIRECT) {
 		iolock = XFS_IOLOCK_SHARED;
-		locktype = VRWLOCK_WRITE_DIRECT;
 		need_i_mutex = 0;
 	} else {
 		iolock = XFS_IOLOCK_EXCL;
-		locktype = VRWLOCK_WRITE;
 		need_i_mutex = 1;
 		mutex_lock(&inode->i_mutex);
 	}
@@ -634,9 +627,8 @@ start:
 			dmflags |= DM_FLAGS_IMUX;
 
 		xfs_iunlock(xip, XFS_ILOCK_EXCL);
-		error = XFS_SEND_DATA(xip->i_mount, DM_EVENT_WRITE, vp,
-				      pos, count,
-				      dmflags, &locktype);
+		error = XFS_SEND_DATA(xip->i_mount, DM_EVENT_WRITE, xip,
+				      pos, count, dmflags, &iolock);
 		if (error) {
 			goto out_unlock_internal;
 		}
@@ -664,10 +656,9 @@ start:
 			return XFS_ERROR(-EINVAL);
 		}
 
-		if (!need_i_mutex && (VN_CACHED(vp) || pos > xip->i_size)) {
+		if (!need_i_mutex && (mapping->nrpages || pos > xip->i_size)) {
 			xfs_iunlock(xip, XFS_ILOCK_EXCL|iolock);
 			iolock = XFS_IOLOCK_EXCL;
-			locktype = VRWLOCK_WRITE;
 			need_i_mutex = 1;
 			mutex_lock(&inode->i_mutex);
 			xfs_ilock(xip, XFS_ILOCK_EXCL|iolock);
@@ -727,7 +718,7 @@ retry:
 	current->backing_dev_info = mapping->backing_dev_info;
 
 	if ((ioflags & IO_ISDIRECT)) {
-		if (VN_CACHED(vp)) {
+		if (mapping->nrpages) {
 			WARN_ON(need_i_mutex == 0);
 			xfs_inval_cached_trace(xip, pos, -1,
 					(pos & PAGE_CACHE_MASK), -1);
@@ -744,7 +735,6 @@ retry:
 			mutex_unlock(&inode->i_mutex);
 
 			iolock = XFS_IOLOCK_SHARED;
-			locktype = VRWLOCK_WRITE_DIRECT;
 			need_i_mutex = 0;
 		}
 
@@ -781,15 +771,15 @@ retry:
 
 	if (ret == -ENOSPC &&
 	    DM_EVENT_ENABLED(xip, DM_EVENT_NOSPACE) && !(ioflags & IO_INVIS)) {
-		xfs_rwunlock(xip, locktype);
+		xfs_iunlock(xip, iolock);
 		if (need_i_mutex)
 			mutex_unlock(&inode->i_mutex);
-		error = XFS_SEND_NAMESP(xip->i_mount, DM_EVENT_NOSPACE, vp,
-				DM_RIGHT_NULL, vp, DM_RIGHT_NULL, NULL, NULL,
+		error = XFS_SEND_NAMESP(xip->i_mount, DM_EVENT_NOSPACE, xip,
+				DM_RIGHT_NULL, xip, DM_RIGHT_NULL, NULL, NULL,
 				0, 0, 0); /* Delay flag intentionally  unused */
 		if (need_i_mutex)
 			mutex_lock(&inode->i_mutex);
-		xfs_rwlock(xip, locktype);
+		xfs_ilock(xip, iolock);
 		if (error)
 			goto out_unlock_internal;
 		pos = xip->i_size;
@@ -817,7 +807,8 @@ retry:
 	/* Handle various SYNC-type writes */
 	if ((file->f_flags & O_SYNC) || IS_SYNC(inode)) {
 		int error2;
-		xfs_rwunlock(xip, locktype);
+
+		xfs_iunlock(xip, iolock);
 		if (need_i_mutex)
 			mutex_unlock(&inode->i_mutex);
 		error2 = sync_page_range(inode, mapping, pos, ret);
@@ -825,7 +816,7 @@ retry:
 			error = error2;
 		if (need_i_mutex)
 			mutex_lock(&inode->i_mutex);
-		xfs_rwlock(xip, locktype);
+		xfs_ilock(xip, iolock);
 		error2 = xfs_write_sync_logforce(mp, xip);
 		if (!error)
 			error = error2;
@@ -846,7 +837,7 @@ retry:
 			xip->i_d.di_size = xip->i_size;
 		xfs_iunlock(xip, XFS_ILOCK_EXCL);
 	}
-	xfs_rwunlock(xip, locktype);
+	xfs_iunlock(xip, iolock);
  out_unlock_mutex:
 	if (need_i_mutex)
 		mutex_unlock(&inode->i_mutex);
@@ -884,28 +875,23 @@ xfs_bdstrat_cb(struct xfs_buf *bp)
 }
 
 /*
- * Wrapper around bdstrat so that we can stop data
- * from going to disk in case we are shutting down the filesystem.
- * Typically user data goes thru this path; one of the exceptions
- * is the superblock.
+ * Wrapper around bdstrat so that we can stop data from going to disk in case
+ * we are shutting down the filesystem.  Typically user data goes thru this
+ * path; one of the exceptions is the superblock.
  */
-int
+void
 xfsbdstrat(
 	struct xfs_mount	*mp,
 	struct xfs_buf		*bp)
 {
 	ASSERT(mp);
 	if (!XFS_FORCED_SHUTDOWN(mp)) {
-		/* Grio redirection would go here
-		 * if (XFS_BUF_IS_GRIO(bp)) {
-		 */
-
 		xfs_buf_iorequest(bp);
-		return 0;
+		return;
 	}
 
 	xfs_buftrace("XFSBDSTRAT IOERROR", bp);
-	return (xfs_bioerror_relse(bp));
+	xfs_bioerror_relse(bp);
 }
 
 /*

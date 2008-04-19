@@ -164,6 +164,7 @@ static struct platform_driver hdpu_cpustate_driver = {
 	.remove = hdpu_cpustate_remove,
 	.driver = {
 		.name = HDPU_CPUSTATE_NAME,
+		.owner = THIS_MODULE,
 	},
 };
 
@@ -248,3 +249,4 @@ module_exit(cpustate_exit);
 
 MODULE_AUTHOR("Brian Waite");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" HDPU_CPUSTATE_NAME);

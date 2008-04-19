@@ -119,7 +119,8 @@ struct mthca_cqe {
 	__be32 my_qpn;
 	__be32 my_ee;
 	__be32 rqpn;
-	__be16 sl_g_mlpath;
+	u8     sl_ipok;
+	u8     g_mlpath;
 	__be16 rlid;
 	__be32 imm_etype_pkey_eec;
 	__be32 byte_cnt;
@@ -493,6 +494,7 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 	int is_send;
 	int free_cqe = 1;
 	int err = 0;
+	u16 checksum;
 
 	cqe = next_cqe_sw(cq);
 	if (!cqe)
@@ -635,12 +637,14 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 			break;
 		}
 		entry->slid 	   = be16_to_cpu(cqe->rlid);
-		entry->sl   	   = be16_to_cpu(cqe->sl_g_mlpath) >> 12;
+		entry->sl   	   = cqe->sl_ipok >> 4;
 		entry->src_qp 	   = be32_to_cpu(cqe->rqpn) & 0xffffff;
-		entry->dlid_path_bits = be16_to_cpu(cqe->sl_g_mlpath) & 0x7f;
+		entry->dlid_path_bits = cqe->g_mlpath & 0x7f;
 		entry->pkey_index  = be32_to_cpu(cqe->imm_etype_pkey_eec) >> 16;
-		entry->wc_flags   |= be16_to_cpu(cqe->sl_g_mlpath) & 0x80 ?
-					IB_WC_GRH : 0;
+		entry->wc_flags   |= cqe->g_mlpath & 0x80 ? IB_WC_GRH : 0;
+		checksum = (be32_to_cpu(cqe->rqpn) >> 24) |
+				((be32_to_cpu(cqe->my_ee) >> 16) & 0xff00);
+		entry->csum_ok = (cqe->sl_ipok & 1 && checksum == 0xffff);
 	}
 
 	entry->status = IB_WC_SUCCESS;

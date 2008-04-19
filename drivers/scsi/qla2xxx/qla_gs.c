@@ -1,16 +1,10 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2005 QLogic Corporation
+ * Copyright (c)  2003-2008 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #include "qla_def.h"
-
-static inline struct ct_sns_req *
-qla2x00_prep_ct_req(struct ct_sns_req *, uint16_t, uint16_t);
-
-static inline struct sns_cmd_pkt *
-qla2x00_prep_sns_cmd(scsi_qla_host_t *, uint16_t, uint16_t, uint16_t);
 
 static int qla2x00_sns_ga_nxt(scsi_qla_host_t *, fc_port_t *);
 static int qla2x00_sns_gid_pt(scsi_qla_host_t *, sw_info_t *);
@@ -1538,7 +1532,7 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *ha)
 		eiter->a.sup_speed = __constant_cpu_to_be32(
 		    FDMI_PORT_SPEED_1GB|FDMI_PORT_SPEED_2GB|
 		    FDMI_PORT_SPEED_4GB|FDMI_PORT_SPEED_8GB);
-	else if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
+	else if (IS_QLA24XX_TYPE(ha))
 		eiter->a.sup_speed = __constant_cpu_to_be32(
 		    FDMI_PORT_SPEED_1GB|FDMI_PORT_SPEED_2GB|
 		    FDMI_PORT_SPEED_4GB);
@@ -1847,8 +1841,10 @@ qla2x00_gpsc(scsi_qla_host_t *ha, sw_info_t *list)
 		    "GPSC")) != QLA_SUCCESS) {
 			/* FM command unsupported? */
 			if (rval == QLA_INVALID_COMMAND &&
-			    ct_rsp->header.reason_code ==
-			    CT_REASON_INVALID_COMMAND_CODE) {
+			    (ct_rsp->header.reason_code ==
+				CT_REASON_INVALID_COMMAND_CODE ||
+			     ct_rsp->header.reason_code ==
+				CT_REASON_COMMAND_UNSUPPORTED)) {
 				DEBUG2(printk("scsi(%ld): GPSC command "
 				    "unsupported, disabling query...\n",
 				    ha->host_no));

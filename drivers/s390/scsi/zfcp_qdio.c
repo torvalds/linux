@@ -175,8 +175,9 @@ zfcp_qdio_handler_error_check(struct zfcp_adapter *adapter, unsigned int status,
                 * which is set again in case we have missed by a mile.
                 */
 		zfcp_erp_adapter_reopen(adapter,
-				       ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED |
-				       ZFCP_STATUS_COMMON_ERP_FAILED);
+					ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED |
+					ZFCP_STATUS_COMMON_ERP_FAILED, 140,
+					NULL);
 	}
 	return retval;
 }
@@ -238,8 +239,6 @@ static void zfcp_qdio_reqid_check(struct zfcp_adapter *adapter,
 {
 	struct zfcp_fsf_req *fsf_req;
 	unsigned long flags;
-
-	debug_long_event(adapter->erp_dbf, 4, req_id);
 
 	spin_lock_irqsave(&adapter->req_list_lock, flags);
 	fsf_req = zfcp_reqlist_find(adapter, req_id);

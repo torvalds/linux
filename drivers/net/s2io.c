@@ -50,6 +50,8 @@
  *                 Possible values '1' for enable , '0' for disable.
  *                 Default is '2' - which means disable in promisc mode
  *                 and enable in non-promiscuous mode.
+ * multiq: This parameter used to enable/disable MULTIQUEUE support.
+ *      Possible values '1' for enable and '0' for disable. Default is '0'
  ************************************************************************/
 
 #include <linux/module.h>
@@ -386,6 +388,26 @@ static void s2io_vlan_rx_register(struct net_device *dev,
 /* A flag indicating whether 'RX_PA_CFG_STRIP_VLAN_TAG' bit is set or not */
 static int vlan_strip_flag;
 
+/* Unregister the vlan */
+static void s2io_vlan_rx_kill_vid(struct net_device *dev, unsigned long vid)
+{
+	int i;
+	struct s2io_nic *nic = dev->priv;
+	unsigned long flags[MAX_TX_FIFOS];
+	struct mac_info *mac_control = &nic->mac_control;
+	struct config_param *config = &nic->config;
+
+	for (i = 0; i < config->tx_fifo_num; i++)
+		spin_lock_irqsave(&mac_control->fifos[i].tx_lock, flags[i]);
+
+	if (nic->vlgrp)
+		vlan_group_set_device(nic->vlgrp, vid, NULL);
+
+	for (i = config->tx_fifo_num - 1; i >= 0; i--)
+		spin_unlock_irqrestore(&mac_control->fifos[i].tx_lock,
+			flags[i]);
+}
+
 /*
  * Constants to be programmed into the Xena's registers, to configure
  * the XAUI.
@@ -456,10 +478,9 @@ MODULE_VERSION(DRV_VERSION);
 
 
 /* Module Loadable parameters. */
-S2IO_PARM_INT(tx_fifo_num, 1);
+S2IO_PARM_INT(tx_fifo_num, FIFO_DEFAULT_NUM);
 S2IO_PARM_INT(rx_ring_num, 1);
-
-
+S2IO_PARM_INT(multiq, 0);
 S2IO_PARM_INT(rx_ring_mode, 1);
 S2IO_PARM_INT(use_continuous_tx_intrs, 1);
 S2IO_PARM_INT(rmac_pause_time, 0x100);
@@ -469,6 +490,8 @@ S2IO_PARM_INT(shared_splits, 0);
 S2IO_PARM_INT(tmac_util_period, 5);
 S2IO_PARM_INT(rmac_util_period, 5);
 S2IO_PARM_INT(l3l4hdr_size, 128);
+/* 0 is no steering, 1 is Priority steering, 2 is Default steering */
+S2IO_PARM_INT(tx_steering_type, TX_DEFAULT_STEERING);
 /* Frequency of Rx desc syncs expressed as power of 2 */
 S2IO_PARM_INT(rxsync_frequency, 3);
 /* Interrupt type. Values can be 0(INTA), 2(MSI_X) */
@@ -532,6 +555,101 @@ static struct pci_driver s2io_driver = {
 
 /* A simplifier macro used both by init and free shared_mem Fns(). */
 #define TXD_MEM_PAGE_CNT(len, per_each) ((len+per_each - 1) / per_each)
+
+/* netqueue manipulation helper functions */
+static inline void s2io_stop_all_tx_queue(struct s2io_nic *sp)
+{
+	int i;
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	if (sp->config.multiq) {
+		for (i = 0; i < sp->config.tx_fifo_num; i++)
+			netif_stop_subqueue(sp->dev, i);
+	} else
+#endif
+	{
+		for (i = 0; i < sp->config.tx_fifo_num; i++)
+			sp->mac_control.fifos[i].queue_state = FIFO_QUEUE_STOP;
+		netif_stop_queue(sp->dev);
+	}
+}
+
+static inline void s2io_stop_tx_queue(struct s2io_nic *sp, int fifo_no)
+{
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	if (sp->config.multiq)
+		netif_stop_subqueue(sp->dev, fifo_no);
+	else
+#endif
+	{
+		sp->mac_control.fifos[fifo_no].queue_state =
+			FIFO_QUEUE_STOP;
+		netif_stop_queue(sp->dev);
+	}
+}
+
+static inline void s2io_start_all_tx_queue(struct s2io_nic *sp)
+{
+	int i;
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	if (sp->config.multiq) {
+		for (i = 0; i < sp->config.tx_fifo_num; i++)
+			netif_start_subqueue(sp->dev, i);
+	} else
+#endif
+	{
+		for (i = 0; i < sp->config.tx_fifo_num; i++)
+			sp->mac_control.fifos[i].queue_state = FIFO_QUEUE_START;
+		netif_start_queue(sp->dev);
+	}
+}
+
+static inline void s2io_start_tx_queue(struct s2io_nic *sp, int fifo_no)
+{
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	if (sp->config.multiq)
+		netif_start_subqueue(sp->dev, fifo_no);
+	else
+#endif
+	{
+		sp->mac_control.fifos[fifo_no].queue_state =
+			FIFO_QUEUE_START;
+		netif_start_queue(sp->dev);
+	}
+}
+
+static inline void s2io_wake_all_tx_queue(struct s2io_nic *sp)
+{
+	int i;
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	if (sp->config.multiq) {
+		for (i = 0; i < sp->config.tx_fifo_num; i++)
+			netif_wake_subqueue(sp->dev, i);
+	} else
+#endif
+	{
+		for (i = 0; i < sp->config.tx_fifo_num; i++)
+			sp->mac_control.fifos[i].queue_state = FIFO_QUEUE_START;
+		netif_wake_queue(sp->dev);
+	}
+}
+
+static inline void s2io_wake_tx_queue(
+	struct fifo_info *fifo, int cnt, u8 multiq)
+{
+
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	if (multiq) {
+		if (cnt && __netif_subqueue_stopped(fifo->dev, fifo->fifo_no))
+			netif_wake_subqueue(fifo->dev, fifo->fifo_no);
+	} else
+#endif
+	if (cnt && (fifo->queue_state == FIFO_QUEUE_STOP)) {
+		if (netif_queue_stopped(fifo->dev)) {
+			fifo->queue_state = FIFO_QUEUE_START;
+			netif_wake_queue(fifo->dev);
+		}
+	}
+}
 
 /**
  * init_shared_mem - Allocation and Initialization of Memory
@@ -614,6 +732,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 		mac_control->fifos[i].fifo_no = i;
 		mac_control->fifos[i].nic = nic;
 		mac_control->fifos[i].max_txds = MAX_SKB_FRAGS + 2;
+		mac_control->fifos[i].dev = dev;
 
 		for (j = 0; j < page_num; j++) {
 			int k = 0;
@@ -2948,7 +3067,7 @@ static void rx_intr_handler(struct ring_info *ring_data)
 			struct lro *lro = &nic->lro0_n[i];
 			if (lro->in_use) {
 				update_L3L4_header(nic, lro);
-				queue_rx_frame(lro->parent);
+				queue_rx_frame(lro->parent, lro->vlan_tag);
 				clear_lro_session(lro);
 			}
 		}
@@ -2972,10 +3091,10 @@ static void rx_intr_handler(struct ring_info *ring_data)
 static void tx_intr_handler(struct fifo_info *fifo_data)
 {
 	struct s2io_nic *nic = fifo_data->nic;
-	struct net_device *dev = (struct net_device *) nic->dev;
 	struct tx_curr_get_info get_info, put_info;
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	struct TxD *txdlp;
+	int pkt_cnt = 0;
 	unsigned long flags = 0;
 	u8 err_mask;
 
@@ -3036,6 +3155,7 @@ static void tx_intr_handler(struct fifo_info *fifo_data)
 			DBG_PRINT(ERR_DBG, "in Tx Free Intr\n");
 			return;
 		}
+		pkt_cnt++;
 
 		/* Updating the statistics block */
 		nic->stats.tx_bytes += skb->len;
@@ -3051,8 +3171,7 @@ static void tx_intr_handler(struct fifo_info *fifo_data)
 		    get_info.offset;
 	}
 
-	if (netif_queue_stopped(dev))
-		netif_wake_queue(dev);
+	s2io_wake_tx_queue(fifo_data, pkt_cnt, nic->config.multiq);
 
 	spin_unlock_irqrestore(&fifo_data->tx_lock, flags);
 }
@@ -3933,8 +4052,7 @@ static int s2io_open(struct net_device *dev)
 		err = -ENODEV;
 		goto hw_init_failed;
 	}
-
-	netif_start_queue(dev);
+	s2io_start_all_tx_queue(sp);
 	return 0;
 
 hw_init_failed:
@@ -3979,8 +4097,7 @@ static int s2io_close(struct net_device *dev)
 	if (!is_s2io_card_up(sp))
 		return 0;
 
-	netif_stop_queue(dev);
-
+	s2io_stop_all_tx_queue(sp);
 	/* delete all populated mac entries */
 	for (offset = 1; offset < config->max_mc_addr; offset++) {
 		tmp64 = do_s2io_read_unicast_mc(sp, offset);
@@ -4016,11 +4133,12 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct TxFIFO_element __iomem *tx_fifo;
 	unsigned long flags = 0;
 	u16 vlan_tag = 0;
-	int vlan_priority = 0;
 	struct fifo_info *fifo = NULL;
 	struct mac_info *mac_control;
 	struct config_param *config;
+	int do_spin_lock = 1;
 	int offload_type;
+	int enable_per_list_interrupt = 0;
 	struct swStat *stats = &sp->mac_control.stats_info->sw_stat;
 
 	mac_control = &sp->mac_control;
@@ -4042,15 +4160,67 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	queue = 0;
-	/* Get Fifo number to Transmit based on vlan priority */
-	if (sp->vlgrp && vlan_tx_tag_present(skb)) {
+	if (sp->vlgrp && vlan_tx_tag_present(skb))
 		vlan_tag = vlan_tx_tag_get(skb);
-		vlan_priority = vlan_tag >> 13;
-		queue = config->fifo_mapping[vlan_priority];
+	if (sp->config.tx_steering_type == TX_DEFAULT_STEERING) {
+		if (skb->protocol == htons(ETH_P_IP)) {
+			struct iphdr *ip;
+			struct tcphdr *th;
+			ip = ip_hdr(skb);
+
+			if ((ip->frag_off & htons(IP_OFFSET|IP_MF)) == 0) {
+				th = (struct tcphdr *)(((unsigned char *)ip) +
+						ip->ihl*4);
+
+				if (ip->protocol == IPPROTO_TCP) {
+					queue_len = sp->total_tcp_fifos;
+					queue = (ntohs(th->source) +
+							ntohs(th->dest)) &
+					    sp->fifo_selector[queue_len - 1];
+					if (queue >= queue_len)
+						queue = queue_len - 1;
+				} else if (ip->protocol == IPPROTO_UDP) {
+					queue_len = sp->total_udp_fifos;
+					queue = (ntohs(th->source) +
+							ntohs(th->dest)) &
+					    sp->fifo_selector[queue_len - 1];
+					if (queue >= queue_len)
+						queue = queue_len - 1;
+					queue += sp->udp_fifo_idx;
+					if (skb->len > 1024)
+						enable_per_list_interrupt = 1;
+					do_spin_lock = 0;
+				}
+			}
+		}
+	} else if (sp->config.tx_steering_type == TX_PRIORITY_STEERING)
+		/* get fifo number based on skb->priority value */
+		queue = config->fifo_mapping
+					[skb->priority & (MAX_TX_FIFOS - 1)];
+	fifo = &mac_control->fifos[queue];
+
+	if (do_spin_lock)
+		spin_lock_irqsave(&fifo->tx_lock, flags);
+	else {
+		if (unlikely(!spin_trylock_irqsave(&fifo->tx_lock, flags)))
+			return NETDEV_TX_LOCKED;
 	}
 
-	fifo = &mac_control->fifos[queue];
-	spin_lock_irqsave(&fifo->tx_lock, flags);
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	if (sp->config.multiq) {
+		if (__netif_subqueue_stopped(dev, fifo->fifo_no)) {
+			spin_unlock_irqrestore(&fifo->tx_lock, flags);
+			return NETDEV_TX_BUSY;
+		}
+	} else
+#endif
+	if (unlikely(fifo->queue_state == FIFO_QUEUE_STOP)) {
+		if (netif_queue_stopped(dev)) {
+			spin_unlock_irqrestore(&fifo->tx_lock, flags);
+			return NETDEV_TX_BUSY;
+		}
+	}
+
 	put_off = (u16) fifo->tx_curr_put_info.offset;
 	get_off = (u16) fifo->tx_curr_get_info.offset;
 	txdp = (struct TxD *) fifo->list_info[put_off].list_virt_addr;
@@ -4060,7 +4230,7 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (txdp->Host_Control ||
 		   ((put_off+1) == queue_len ? 0 : (put_off+1)) == get_off) {
 		DBG_PRINT(TX_DBG, "Error in xmit, No free TXDs.\n");
-		netif_stop_queue(dev);
+		s2io_stop_tx_queue(sp, fifo->fifo_no);
 		dev_kfree_skb(skb);
 		spin_unlock_irqrestore(&fifo->tx_lock, flags);
 		return 0;
@@ -4079,8 +4249,10 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	txdp->Control_1 |= TXD_GATHER_CODE_FIRST;
 	txdp->Control_1 |= TXD_LIST_OWN_XENA;
 	txdp->Control_2 |= TXD_INT_NUMBER(fifo->fifo_no);
-
-	if (sp->vlgrp && vlan_tx_tag_present(skb)) {
+	if (enable_per_list_interrupt)
+		if (put_off & (queue_len >> 5))
+			txdp->Control_2 |= TXD_INT_TYPE_PER_LIST;
+	if (vlan_tag) {
 		txdp->Control_2 |= TXD_VLAN_ENABLE;
 		txdp->Control_2 |= TXD_VLAN_TAG(vlan_tag);
 	}
@@ -4095,11 +4267,12 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		txdp->Control_1 |= TXD_UFO_MSS(ufo_size);
 		txdp->Control_1 |= TXD_BUFFER0_SIZE(8);
 #ifdef __BIG_ENDIAN
+		/* both variants do cpu_to_be64(be32_to_cpu(...)) */
 		fifo->ufo_in_band_v[put_off] =
-				(u64)skb_shinfo(skb)->ip6_frag_id;
+				(__force u64)skb_shinfo(skb)->ip6_frag_id;
 #else
 		fifo->ufo_in_band_v[put_off] =
-				(u64)skb_shinfo(skb)->ip6_frag_id << 32;
+				(__force u64)skb_shinfo(skb)->ip6_frag_id << 32;
 #endif
 		txdp->Host_Control = (unsigned long)fifo->ufo_in_band_v;
 		txdp->Buffer_Pointer = pci_map_single(sp->pdev,
@@ -4166,7 +4339,7 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		DBG_PRINT(TX_DBG,
 			  "No free TxDs for xmit, Put: 0x%x Get:0x%x\n",
 			  put_off, get_off);
-		netif_stop_queue(dev);
+		s2io_stop_tx_queue(sp, fifo->fifo_no);
 	}
 	mac_control->stats_info->sw_stat.mem_allocated += skb->truesize;
 	dev->trans_start = jiffies;
@@ -4178,7 +4351,7 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 pci_map_failed:
 	stats->pci_map_fail_cnt++;
-	netif_stop_queue(dev);
+	s2io_stop_tx_queue(sp, fifo->fifo_no);
 	stats->mem_freed += skb->truesize;
 	dev_kfree_skb(skb);
 	spin_unlock_irqrestore(&fifo->tx_lock, flags);
@@ -4590,7 +4763,7 @@ static void s2io_handle_errors(void * dev_id)
 	return;
 
 reset:
-	netif_stop_queue(dev);
+	s2io_stop_all_tx_queue(sp);
 	schedule_work(&sp->rst_timer_task);
 	sw_stat->soft_reset_cnt++;
 	return;
@@ -6577,16 +6750,15 @@ static int s2io_change_mtu(struct net_device *dev, int new_mtu)
 
 	dev->mtu = new_mtu;
 	if (netif_running(dev)) {
+		s2io_stop_all_tx_queue(sp);
 		s2io_card_down(sp);
-		netif_stop_queue(dev);
 		ret = s2io_card_up(sp);
 		if (ret) {
 			DBG_PRINT(ERR_DBG, "%s: Device bring up failed\n",
 				  __FUNCTION__);
 			return ret;
 		}
-		if (netif_queue_stopped(dev))
-			netif_wake_queue(dev);
+		s2io_wake_all_tx_queue(sp);
 	} else { /* Device is down */
 		struct XENA_dev_config __iomem *bar0 = sp->bar0;
 		u64 val64 = new_mtu;
@@ -6694,7 +6866,7 @@ static void s2io_set_link(struct work_struct *work)
 			} else {
 				DBG_PRINT(ERR_DBG, "%s: Error: ", dev->name);
 				DBG_PRINT(ERR_DBG, "device is not Quiescent\n");
-				netif_stop_queue(dev);
+				s2io_stop_all_tx_queue(nic);
 			}
 		}
 		val64 = readq(&bar0->adapter_control);
@@ -6921,11 +7093,11 @@ static int s2io_add_isr(struct s2io_nic * sp)
 				if(!(sp->msix_info[i].addr &&
 					sp->msix_info[i].data)) {
 					DBG_PRINT(ERR_DBG, "%s @ Addr:0x%llx "
-						"Data:0x%lx\n",sp->desc[i],
+						"Data:0x%llx\n",sp->desc[i],
 						(unsigned long long)
 						sp->msix_info[i].addr,
-						(unsigned long)
-						ntohl(sp->msix_info[i].data));
+						(unsigned long long)
+						sp->msix_info[i].data);
 				} else {
 					msix_tx_cnt++;
 				}
@@ -6939,11 +7111,11 @@ static int s2io_add_isr(struct s2io_nic * sp)
 				if(!(sp->msix_info[i].addr &&
 					sp->msix_info[i].data)) {
 					DBG_PRINT(ERR_DBG, "%s @ Addr:0x%llx "
-						"Data:0x%lx\n",sp->desc[i],
+						"Data:0x%llx\n",sp->desc[i],
 						(unsigned long long)
 						sp->msix_info[i].addr,
-						(unsigned long)
-						ntohl(sp->msix_info[i].data));
+						(unsigned long long)
+						sp->msix_info[i].data);
 				} else {
 					msix_rx_cnt++;
 				}
@@ -7184,7 +7356,7 @@ static void s2io_restart_nic(struct work_struct *work)
 		DBG_PRINT(ERR_DBG, "%s: Device bring up failed\n",
 			  dev->name);
 	}
-	netif_wake_queue(dev);
+	s2io_wake_all_tx_queue(sp);
 	DBG_PRINT(ERR_DBG, "%s: was reset by Tx watchdog timer\n",
 		  dev->name);
 out_unlock:
@@ -7374,7 +7546,8 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 					{
 						lro_append_pkt(sp, lro,
 							skb, tcp_len);
-						queue_rx_frame(lro->parent);
+						queue_rx_frame(lro->parent,
+							lro->vlan_tag);
 						clear_lro_session(lro);
 						sp->mac_control.stats_info->
 						    sw_stat.flush_max_pkts++;
@@ -7385,7 +7558,8 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 							lro->frags_len;
 						sp->mac_control.stats_info->
 						     sw_stat.sending_both++;
-						queue_rx_frame(lro->parent);
+						queue_rx_frame(lro->parent,
+							lro->vlan_tag);
 						clear_lro_session(lro);
 						goto send_up;
 					case 0: /* sessions exceeded */
@@ -7411,31 +7585,12 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 			 */
 			skb->ip_summed = CHECKSUM_NONE;
 		}
-	} else {
+	} else
 		skb->ip_summed = CHECKSUM_NONE;
-	}
+
 	sp->mac_control.stats_info->sw_stat.mem_freed += skb->truesize;
-	if (!sp->lro) {
-		skb->protocol = eth_type_trans(skb, dev);
-		if ((sp->vlgrp && RXD_GET_VLAN_TAG(rxdp->Control_2) &&
-			vlan_strip_flag)) {
-			/* Queueing the vlan frame to the upper layer */
-			if (napi)
-				vlan_hwaccel_receive_skb(skb, sp->vlgrp,
-					RXD_GET_VLAN_TAG(rxdp->Control_2));
-			else
-				vlan_hwaccel_rx(skb, sp->vlgrp,
-					RXD_GET_VLAN_TAG(rxdp->Control_2));
-		} else {
-			if (napi)
-				netif_receive_skb(skb);
-			else
-				netif_rx(skb);
-		}
-	} else {
 send_up:
-		queue_rx_frame(skb);
-	}
+	queue_rx_frame(skb, RXD_GET_VLAN_TAG(rxdp->Control_2));
 	dev->last_rx = jiffies;
 aggregate:
 	atomic_dec(&sp->rx_bufs_left[ring_no]);
@@ -7463,6 +7618,7 @@ static void s2io_link(struct s2io_nic * sp, int link)
 		init_tti(sp, link);
 		if (link == LINK_DOWN) {
 			DBG_PRINT(ERR_DBG, "%s: Link down\n", dev->name);
+			s2io_stop_all_tx_queue(sp);
 			netif_carrier_off(dev);
 			if(sp->mac_control.stats_info->sw_stat.link_up_cnt)
 			sp->mac_control.stats_info->sw_stat.link_up_time =
@@ -7475,6 +7631,7 @@ static void s2io_link(struct s2io_nic * sp, int link)
 				jiffies - sp->start_time;
 			sp->mac_control.stats_info->sw_stat.link_up_cnt++;
 			netif_carrier_on(dev);
+			s2io_wake_all_tx_queue(sp);
 		}
 	}
 	sp->last_link_state = link;
@@ -7511,18 +7668,46 @@ static void s2io_init_pci(struct s2io_nic * sp)
 	pci_read_config_word(sp->pdev, PCI_COMMAND, &pci_cmd);
 }
 
-static int s2io_verify_parm(struct pci_dev *pdev, u8 *dev_intr_type)
+static int s2io_verify_parm(struct pci_dev *pdev, u8 *dev_intr_type,
+	u8 *dev_multiq)
 {
 	if ((tx_fifo_num > MAX_TX_FIFOS) ||
-		(tx_fifo_num < FIFO_DEFAULT_NUM)) {
+		(tx_fifo_num < 1)) {
 		DBG_PRINT(ERR_DBG, "s2io: Requested number of tx fifos "
 			"(%d) not supported\n", tx_fifo_num);
-		tx_fifo_num =
-			((tx_fifo_num > MAX_TX_FIFOS)? MAX_TX_FIFOS :
-			((tx_fifo_num < FIFO_DEFAULT_NUM) ? FIFO_DEFAULT_NUM :
-			tx_fifo_num));
+
+		if (tx_fifo_num < 1)
+			tx_fifo_num = 1;
+		else
+			tx_fifo_num = MAX_TX_FIFOS;
+
 		DBG_PRINT(ERR_DBG, "s2io: Default to %d ", tx_fifo_num);
 		DBG_PRINT(ERR_DBG, "tx fifos\n");
+	}
+
+#ifndef CONFIG_NETDEVICES_MULTIQUEUE
+	if (multiq) {
+		DBG_PRINT(ERR_DBG, "s2io: Multiqueue support not enabled\n");
+		multiq = 0;
+	}
+#endif
+	if (multiq)
+		*dev_multiq = multiq;
+
+	if (tx_steering_type && (1 == tx_fifo_num)) {
+		if (tx_steering_type != TX_DEFAULT_STEERING)
+			DBG_PRINT(ERR_DBG,
+				"s2io: Tx steering is not supported with "
+				"one fifo. Disabling Tx steering.\n");
+		tx_steering_type = NO_STEERING;
+	}
+
+	if ((tx_steering_type < NO_STEERING) ||
+		(tx_steering_type > TX_DEFAULT_STEERING)) {
+		DBG_PRINT(ERR_DBG, "s2io: Requested transmit steering not "
+			 "supported\n");
+		DBG_PRINT(ERR_DBG, "s2io: Disabling transmit steering\n");
+		tx_steering_type = NO_STEERING;
 	}
 
 	if ( rx_ring_num > 8) {
@@ -7616,9 +7801,11 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	struct config_param *config;
 	int mode;
 	u8 dev_intr_type = intr_type;
+	u8 dev_multiq = 0;
 	DECLARE_MAC_BUF(mac);
 
-	if ((ret = s2io_verify_parm(pdev, &dev_intr_type)))
+	ret = s2io_verify_parm(pdev, &dev_intr_type, &dev_multiq);
+	if (ret)
 		return ret;
 
 	if ((ret = pci_enable_device(pdev))) {
@@ -7649,7 +7836,11 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		pci_disable_device(pdev);
 		return -ENODEV;
 	}
-
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	if (dev_multiq)
+		dev = alloc_etherdev_mq(sizeof(struct s2io_nic), tx_fifo_num);
+	else
+#endif
 	dev = alloc_etherdev(sizeof(struct s2io_nic));
 	if (dev == NULL) {
 		DBG_PRINT(ERR_DBG, "Device allocation failed\n");
@@ -7698,17 +7889,45 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	config = &sp->config;
 
 	config->napi = napi;
+	config->tx_steering_type = tx_steering_type;
 
 	/* Tx side parameters. */
-	config->tx_fifo_num = tx_fifo_num;
-	for (i = 0; i < MAX_TX_FIFOS; i++) {
+	if (config->tx_steering_type == TX_PRIORITY_STEERING)
+		config->tx_fifo_num = MAX_TX_FIFOS;
+	else
+		config->tx_fifo_num = tx_fifo_num;
+
+	/* Initialize the fifos used for tx steering */
+	if (config->tx_fifo_num < 5) {
+			if (config->tx_fifo_num  == 1)
+				sp->total_tcp_fifos = 1;
+			else
+				sp->total_tcp_fifos = config->tx_fifo_num - 1;
+			sp->udp_fifo_idx = config->tx_fifo_num - 1;
+			sp->total_udp_fifos = 1;
+			sp->other_fifo_idx = sp->total_tcp_fifos - 1;
+	} else {
+		sp->total_tcp_fifos = (tx_fifo_num - FIFO_UDP_MAX_NUM -
+						FIFO_OTHER_MAX_NUM);
+		sp->udp_fifo_idx = sp->total_tcp_fifos;
+		sp->total_udp_fifos = FIFO_UDP_MAX_NUM;
+		sp->other_fifo_idx = sp->udp_fifo_idx + FIFO_UDP_MAX_NUM;
+	}
+
+	config->multiq = dev_multiq;
+	for (i = 0; i < config->tx_fifo_num; i++) {
 		config->tx_cfg[i].fifo_len = tx_fifo_len[i];
 		config->tx_cfg[i].fifo_priority = i;
 	}
 
 	/* mapping the QoS priority to the configured fifos */
 	for (i = 0; i < MAX_TX_FIFOS; i++)
-		config->fifo_mapping[i] = fifo_map[config->tx_fifo_num][i];
+		config->fifo_mapping[i] = fifo_map[config->tx_fifo_num - 1][i];
+
+	/* map the hashing selector table to the configured fifos */
+	for (i = 0; i < config->tx_fifo_num; i++)
+		sp->fifo_selector[i] = fifo_selector[i];
+
 
 	config->tx_intr_type = TXD_INT_TYPE_UTILZ;
 	for (i = 0; i < config->tx_fifo_num; i++) {
@@ -7793,6 +8012,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 	dev->vlan_rx_register = s2io_vlan_rx_register;
+	dev->vlan_rx_kill_vid = (void *)s2io_vlan_rx_kill_vid;
 
 	/*
 	 * will use eth_mac_addr() for  dev->set_mac_address
@@ -7813,7 +8033,10 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		dev->features |= NETIF_F_UFO;
 		dev->features |= NETIF_F_HW_CSUM;
 	}
-
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	if (config->multiq)
+		dev->features |= NETIF_F_MULTI_QUEUE;
+#endif
 	dev->tx_timeout = &s2io_tx_watchdog;
 	dev->watchdog_timeo = WATCH_DOG_TIMEOUT;
 	INIT_WORK(&sp->rst_timer_task, s2io_restart_nic);
@@ -7962,6 +8185,10 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	if (napi)
 		DBG_PRINT(ERR_DBG, "%s: NAPI enabled\n", dev->name);
+
+	DBG_PRINT(ERR_DBG, "%s: Using %d Tx fifo(s)\n", dev->name,
+		sp->config.tx_fifo_num);
+
 	switch(sp->config.intr_type) {
 		case INTA:
 		    DBG_PRINT(ERR_DBG, "%s: Interrupt type INTA\n", dev->name);
@@ -7970,6 +8197,29 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		    DBG_PRINT(ERR_DBG, "%s: Interrupt type MSI-X\n", dev->name);
 		    break;
 	}
+	if (sp->config.multiq) {
+	for (i = 0; i < sp->config.tx_fifo_num; i++)
+		mac_control->fifos[i].multiq = config->multiq;
+		DBG_PRINT(ERR_DBG, "%s: Multiqueue support enabled\n",
+			dev->name);
+	} else
+		DBG_PRINT(ERR_DBG, "%s: Multiqueue support disabled\n",
+			dev->name);
+
+	switch (sp->config.tx_steering_type) {
+	case NO_STEERING:
+		DBG_PRINT(ERR_DBG, "%s: No steering enabled for"
+			" transmit\n", dev->name);
+			break;
+	case TX_PRIORITY_STEERING:
+		DBG_PRINT(ERR_DBG, "%s: Priority steering enabled for"
+			" transmit\n", dev->name);
+		break;
+	case TX_DEFAULT_STEERING:
+		DBG_PRINT(ERR_DBG, "%s: Default steering enabled for"
+			" transmit\n", dev->name);
+	}
+
 	if (sp->lro)
 		DBG_PRINT(ERR_DBG, "%s: Large receive offload enabled\n",
 			  dev->name);
@@ -8064,7 +8314,8 @@ module_init(s2io_starter);
 module_exit(s2io_closer);
 
 static int check_L2_lro_capable(u8 *buffer, struct iphdr **ip,
-		struct tcphdr **tcp, struct RxD_t *rxdp)
+		struct tcphdr **tcp, struct RxD_t *rxdp,
+		struct s2io_nic *sp)
 {
 	int ip_off;
 	u8 l2_type = (u8)((rxdp->Control_1 >> 37) & 0x7), ip_len;
@@ -8075,19 +8326,20 @@ static int check_L2_lro_capable(u8 *buffer, struct iphdr **ip,
 		return -1;
 	}
 
-	/* TODO:
-	 * By default the VLAN field in the MAC is stripped by the card, if this
-	 * feature is turned off in rx_pa_cfg register, then the ip_off field
-	 * has to be shifted by a further 2 bytes
-	 */
-	switch (l2_type) {
-		case 0: /* DIX type */
-		case 4: /* DIX type with VLAN */
-			ip_off = HEADER_ETHERNET_II_802_3_SIZE;
-			break;
+	/* Checking for DIX type or DIX type with VLAN */
+	if ((l2_type == 0)
+		|| (l2_type == 4)) {
+		ip_off = HEADER_ETHERNET_II_802_3_SIZE;
+		/*
+		 * If vlan stripping is disabled and the frame is VLAN tagged,
+		 * shift the offset by the VLAN header size bytes.
+		 */
+		if ((!vlan_strip_flag) &&
+			(rxdp->Control_1 & RXD_FRAME_VLAN_TAG))
+			ip_off += HEADER_VLAN_SIZE;
+	} else {
 		/* LLC, SNAP etc are considered non-mergeable */
-		default:
-			return -1;
+		return -1;
 	}
 
 	*ip = (struct iphdr *)((u8 *)buffer + ip_off);
@@ -8114,7 +8366,7 @@ static inline int get_l4_pyld_length(struct iphdr *ip, struct tcphdr *tcp)
 }
 
 static void initiate_new_session(struct lro *lro, u8 *l2h,
-		     struct iphdr *ip, struct tcphdr *tcp, u32 tcp_pyld_len)
+	struct iphdr *ip, struct tcphdr *tcp, u32 tcp_pyld_len, u16 vlan_tag)
 {
 	DBG_PRINT(INFO_DBG,"%s: Been here...\n", __FUNCTION__);
 	lro->l2h = l2h;
@@ -8125,6 +8377,7 @@ static void initiate_new_session(struct lro *lro, u8 *l2h,
 	lro->sg_num = 1;
 	lro->total_len = ntohs(ip->tot_len);
 	lro->frags_len = 0;
+	lro->vlan_tag = vlan_tag;
 	/*
 	 * check if we saw TCP timestamp. Other consistency checks have
 	 * already been done.
@@ -8256,15 +8509,16 @@ s2io_club_tcp_session(u8 *buffer, u8 **tcp, u32 *tcp_len, struct lro **lro,
 	struct iphdr *ip;
 	struct tcphdr *tcph;
 	int ret = 0, i;
+	u16 vlan_tag = 0;
 
 	if (!(ret = check_L2_lro_capable(buffer, &ip, (struct tcphdr **)tcp,
-					 rxdp))) {
+					 rxdp, sp))) {
 		DBG_PRINT(INFO_DBG,"IP Saddr: %x Daddr: %x\n",
 			  ip->saddr, ip->daddr);
-	} else {
+	} else
 		return ret;
-	}
 
+	vlan_tag = RXD_GET_VLAN_TAG(rxdp->Control_2);
 	tcph = (struct tcphdr *)*tcp;
 	*tcp_len = get_l4_pyld_length(ip, tcph);
 	for (i=0; i<MAX_LRO_SESSIONS; i++) {
@@ -8324,7 +8578,8 @@ s2io_club_tcp_session(u8 *buffer, u8 **tcp, u32 *tcp_len, struct lro **lro,
 
 	switch (ret) {
 		case 3:
-			initiate_new_session(*lro, buffer, ip, tcph, *tcp_len);
+			initiate_new_session(*lro, buffer, ip, tcph, *tcp_len,
+								vlan_tag);
 			break;
 		case 2:
 			update_L3L4_header(sp, *lro);
@@ -8352,15 +8607,25 @@ static void clear_lro_session(struct lro *lro)
 	memset(lro, 0, lro_struct_size);
 }
 
-static void queue_rx_frame(struct sk_buff *skb)
+static void queue_rx_frame(struct sk_buff *skb, u16 vlan_tag)
 {
 	struct net_device *dev = skb->dev;
+	struct s2io_nic *sp = dev->priv;
 
 	skb->protocol = eth_type_trans(skb, dev);
-	if (napi)
-		netif_receive_skb(skb);
-	else
-		netif_rx(skb);
+	if (sp->vlgrp && vlan_tag
+		&& (vlan_strip_flag)) {
+		/* Queueing the vlan frame to the upper layer */
+		if (sp->config.napi)
+			vlan_hwaccel_receive_skb(skb, sp->vlgrp, vlan_tag);
+		else
+			vlan_hwaccel_rx(skb, sp->vlgrp, vlan_tag);
+	} else {
+		if (sp->config.napi)
+			netif_receive_skb(skb);
+		else
+			netif_rx(skb);
+	}
 }
 
 static void lro_append_pkt(struct s2io_nic *sp, struct lro *lro,

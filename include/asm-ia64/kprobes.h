@@ -30,8 +30,12 @@
 #include <asm/break.h>
 
 #define __ARCH_WANT_KPROBES_INSN_SLOT
-#define MAX_INSN_SIZE   1
+#define MAX_INSN_SIZE   2	/* last half is for kprobe-booster */
 #define BREAK_INST	(long)(__IA64_BREAK_KPROBE << 6)
+#define NOP_M_INST	(long)(1<<27)
+#define BRL_INST(i1, i2) ((long)((0xcL << 37) |	/* brl */ \
+				(0x1L << 12) |	/* many */ \
+				(((i1) & 1) << 36) | ((i2) << 13))) /* imm */
 
 typedef union cmp_inst {
 	struct {
@@ -112,6 +116,7 @@ struct arch_specific_insn {
  #define INST_FLAG_FIX_RELATIVE_IP_ADDR		1
  #define INST_FLAG_FIX_BRANCH_REG		2
  #define INST_FLAG_BREAK_INST			4
+ #define INST_FLAG_BOOSTABLE			8
  	unsigned long inst_flag;
  	unsigned short target_br_reg;
 	unsigned short slot;

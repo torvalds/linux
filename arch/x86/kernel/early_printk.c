@@ -13,7 +13,7 @@
 #define VGABASE		(__ISA_IO_base + 0xb8000)
 
 static int max_ypos = 25, max_xpos = 80;
-static int current_ypos = 25, current_xpos = 0;
+static int current_ypos = 25, current_xpos;
 
 static void early_vga_write(struct console *con, const char *str, unsigned n)
 {
@@ -108,12 +108,12 @@ static __init void early_serial_init(char *s)
 
 	if (*s) {
 		unsigned port;
-		if (!strncmp(s,"0x",2)) {
+		if (!strncmp(s, "0x", 2)) {
 			early_serial_base = simple_strtoul(s, &e, 16);
 		} else {
 			static int bases[] = { 0x3f8, 0x2f8 };
 
-			if (!strncmp(s,"ttyS",4))
+			if (!strncmp(s, "ttyS", 4))
 				s += 4;
 			port = simple_strtoul(s, &e, 10);
 			if (port > 1 || s == e)
@@ -194,7 +194,7 @@ static struct console simnow_console = {
 
 /* Direct interface for emergencies */
 static struct console *early_console = &early_vga_console;
-static int early_console_initialized = 0;
+static int early_console_initialized;
 
 void early_printk(const char *fmt, ...)
 {
@@ -202,9 +202,9 @@ void early_printk(const char *fmt, ...)
 	int n;
 	va_list ap;
 
-	va_start(ap,fmt);
-	n = vscnprintf(buf,512,fmt,ap);
-	early_console->write(early_console,buf,n);
+	va_start(ap, fmt);
+	n = vscnprintf(buf, 512, fmt, ap);
+	early_console->write(early_console, buf, n);
 	va_end(ap);
 }
 
@@ -229,15 +229,15 @@ static int __init setup_early_printk(char *buf)
 		early_serial_init(buf);
 		early_console = &early_serial_console;
 	} else if (!strncmp(buf, "vga", 3)
-	           && boot_params.screen_info.orig_video_isVGA == 1) {
+		&& boot_params.screen_info.orig_video_isVGA == 1) {
 		max_xpos = boot_params.screen_info.orig_video_cols;
 		max_ypos = boot_params.screen_info.orig_video_lines;
 		current_ypos = boot_params.screen_info.orig_y;
 		early_console = &early_vga_console;
- 	} else if (!strncmp(buf, "simnow", 6)) {
- 		simnow_init(buf + 6);
- 		early_console = &simnow_console;
- 		keep_early = 1;
+	} else if (!strncmp(buf, "simnow", 6)) {
+		simnow_init(buf + 6);
+		early_console = &simnow_console;
+		keep_early = 1;
 #ifdef CONFIG_HVC_XEN
 	} else if (!strncmp(buf, "xen", 3)) {
 		early_console = &xenboot_console;

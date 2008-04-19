@@ -156,15 +156,15 @@ static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq
     hw.chipset = ide_pci;
     hw.dev = &handle->dev;
 
-    hwif = ide_deprecated_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+    hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
     if (hwif == NULL)
 	return -1;
 
     i = hwif->index;
 
     if (hwif->present)
-	ide_unregister(i, 0, 0);
-    else if (!hwif->hold)
+	ide_unregister(i);
+    else
 	ide_init_port_data(hwif, i);
 
     ide_init_port_hw(hwif, &hw);
@@ -360,7 +360,7 @@ void ide_release(struct pcmcia_device *link)
     if (info->ndev) {
 	/* FIXME: if this fails we need to queue the cleanup somehow
 	   -- need to investigate the required PCMCIA magic */
-	ide_unregister(info->hd, 0, 0);
+	ide_unregister(info->hd);
     }
     info->ndev = 0;
 

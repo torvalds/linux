@@ -30,7 +30,7 @@
 #include <linux/timex.h>
 #include <linux/notifier.h>
 #include <linux/clocksource.h>
-
+#include <linux/clockchips.h>
 #include <asm/uaccess.h>
 #include <asm/delay.h>
 #include <asm/s390_ext.h>
@@ -39,6 +39,7 @@
 #include <asm/irq_regs.h>
 #include <asm/timer.h>
 #include <asm/etr.h>
+#include <asm/cio.h>
 
 /* change this if you have some constant time drift */
 #define USECS_PER_JIFFY     ((unsigned long) 1000000/HZ)
@@ -57,16 +58,16 @@
 
 static ext_int_info_t ext_int_info_cc;
 static ext_int_info_t ext_int_etr_cc;
-static u64 init_timer_cc;
 static u64 jiffies_timer_cc;
-static u64 xtime_cc;
+
+static DEFINE_PER_CPU(struct clock_event_device, comparators);
 
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
 unsigned long long sched_clock(void)
 {
-	return ((get_clock() - jiffies_timer_cc) * 125) >> 9;
+	return ((get_clock_xt() - jiffies_timer_cc) * 125) >> 9;
 }
 
 /*
@@ -95,162 +96,40 @@ void tod_to_timeval(__u64 todval, struct timespec *xtime)
 #define s390_do_profile()	do { ; } while(0)
 #endif /* CONFIG_PROFILING */
 
-/*
- * Advance the per cpu tick counter up to the time given with the
- * "time" argument. The per cpu update consists of accounting
- * the virtual cpu time, calling update_process_times and calling
- * the profiling hook. If xtime is before time it is advanced as well.
- */
-void account_ticks(u64 time)
+void clock_comparator_work(void)
 {
-	__u32 ticks;
-	__u64 tmp;
+	struct clock_event_device *cd;
 
-	/* Calculate how many ticks have passed. */
-	if (time < S390_lowcore.jiffy_timer)
-		return;
-	tmp = time - S390_lowcore.jiffy_timer;
-	if (tmp >= 2*CLK_TICKS_PER_JIFFY) {  /* more than two ticks ? */
-		ticks = __div(tmp, CLK_TICKS_PER_JIFFY) + 1;
-		S390_lowcore.jiffy_timer +=
-			CLK_TICKS_PER_JIFFY * (__u64) ticks;
-	} else if (tmp >= CLK_TICKS_PER_JIFFY) {
-		ticks = 2;
-		S390_lowcore.jiffy_timer += 2*CLK_TICKS_PER_JIFFY;
-	} else {
-		ticks = 1;
-		S390_lowcore.jiffy_timer += CLK_TICKS_PER_JIFFY;
-	}
-
-#ifdef CONFIG_SMP
-	/*
-	 * Do not rely on the boot cpu to do the calls to do_timer.
-	 * Spread it over all cpus instead.
-	 */
-	write_seqlock(&xtime_lock);
-	if (S390_lowcore.jiffy_timer > xtime_cc) {
-		__u32 xticks;
-		tmp = S390_lowcore.jiffy_timer - xtime_cc;
-		if (tmp >= 2*CLK_TICKS_PER_JIFFY) {
-			xticks = __div(tmp, CLK_TICKS_PER_JIFFY);
-			xtime_cc += (__u64) xticks * CLK_TICKS_PER_JIFFY;
-		} else {
-			xticks = 1;
-			xtime_cc += CLK_TICKS_PER_JIFFY;
-		}
-		do_timer(xticks);
-	}
-	write_sequnlock(&xtime_lock);
-#else
-	do_timer(ticks);
-#endif
-
-	while (ticks--)
-		update_process_times(user_mode(get_irq_regs()));
-
+	S390_lowcore.clock_comparator = -1ULL;
+	set_clock_comparator(S390_lowcore.clock_comparator);
+	cd = &__get_cpu_var(comparators);
+	cd->event_handler(cd);
 	s390_do_profile();
 }
 
-#ifdef CONFIG_NO_IDLE_HZ
-
-#ifdef CONFIG_NO_IDLE_HZ_INIT
-int sysctl_hz_timer = 0;
-#else
-int sysctl_hz_timer = 1;
-#endif
-
 /*
- * Stop the HZ tick on the current CPU.
- * Only cpu_idle may call this function.
+ * Fixup the clock comparator.
  */
-static void stop_hz_timer(void)
+static void fixup_clock_comparator(unsigned long long delta)
 {
-	unsigned long flags;
-	unsigned long seq, next;
-	__u64 timer, todval;
-	int cpu = smp_processor_id();
-
-	if (sysctl_hz_timer != 0)
+	/* If nobody is waiting there's nothing to fix. */
+	if (S390_lowcore.clock_comparator == -1ULL)
 		return;
-
-	cpu_set(cpu, nohz_cpu_mask);
-
-	/*
-	 * Leave the clock comparator set up for the next timer
-	 * tick if either rcu or a softirq is pending.
-	 */
-	if (rcu_needs_cpu(cpu) || local_softirq_pending()) {
-		cpu_clear(cpu, nohz_cpu_mask);
-		return;
-	}
-
-	/*
-	 * This cpu is going really idle. Set up the clock comparator
-	 * for the next event.
-	 */
-	next = next_timer_interrupt();
-	do {
-		seq = read_seqbegin_irqsave(&xtime_lock, flags);
-		timer = ((__u64) next) - ((__u64) jiffies) + jiffies_64;
-	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
-	todval = -1ULL;
-	/* Be careful about overflows. */
-	if (timer < (-1ULL / CLK_TICKS_PER_JIFFY)) {
-		timer = jiffies_timer_cc + timer * CLK_TICKS_PER_JIFFY;
-		if (timer >= jiffies_timer_cc)
-			todval = timer;
-	}
-	set_clock_comparator(todval);
+	S390_lowcore.clock_comparator += delta;
+	set_clock_comparator(S390_lowcore.clock_comparator);
 }
 
-/*
- * Start the HZ tick on the current CPU.
- * Only cpu_idle may call this function.
- */
-static void start_hz_timer(void)
+static int s390_next_event(unsigned long delta,
+			   struct clock_event_device *evt)
 {
-	if (!cpu_isset(smp_processor_id(), nohz_cpu_mask))
-		return;
-	account_ticks(get_clock());
-	set_clock_comparator(S390_lowcore.jiffy_timer + CPU_DEVIATION);
-	cpu_clear(smp_processor_id(), nohz_cpu_mask);
+	S390_lowcore.clock_comparator = get_clock() + delta;
+	set_clock_comparator(S390_lowcore.clock_comparator);
+	return 0;
 }
 
-static int nohz_idle_notify(struct notifier_block *self,
-			    unsigned long action, void *hcpu)
+static void s390_set_mode(enum clock_event_mode mode,
+			  struct clock_event_device *evt)
 {
-	switch (action) {
-	case S390_CPU_IDLE:
-		stop_hz_timer();
-		break;
-	case S390_CPU_NOT_IDLE:
-		start_hz_timer();
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block nohz_idle_nb = {
-	.notifier_call = nohz_idle_notify,
-};
-
-static void __init nohz_init(void)
-{
-	if (register_idle_notifier(&nohz_idle_nb))
-		panic("Couldn't register idle notifier");
-}
-
-#endif
-
-/*
- * Set up per cpu jiffy timer and set the clock comparator.
- */
-static void setup_jiffy_timer(void)
-{
-	/* Set up clock comparator to next jiffy. */
-	S390_lowcore.jiffy_timer =
-		jiffies_timer_cc + (jiffies_64 + 1) * CLK_TICKS_PER_JIFFY;
-	set_clock_comparator(S390_lowcore.jiffy_timer + CPU_DEVIATION);
 }
 
 /*
@@ -259,7 +138,26 @@ static void setup_jiffy_timer(void)
  */
 void init_cpu_timer(void)
 {
-	setup_jiffy_timer();
+	struct clock_event_device *cd;
+	int cpu;
+
+	S390_lowcore.clock_comparator = -1ULL;
+	set_clock_comparator(S390_lowcore.clock_comparator);
+
+	cpu = smp_processor_id();
+	cd = &per_cpu(comparators, cpu);
+	cd->name		= "comparator";
+	cd->features		= CLOCK_EVT_FEAT_ONESHOT;
+	cd->mult		= 16777;
+	cd->shift		= 12;
+	cd->min_delta_ns	= 1;
+	cd->max_delta_ns	= LONG_MAX;
+	cd->rating		= 400;
+	cd->cpumask		= cpumask_of_cpu(cpu);
+	cd->set_next_event	= s390_next_event;
+	cd->set_mode		= s390_set_mode;
+
+	clockevents_register_device(cd);
 
 	/* Enable clock comparator timer interrupt. */
 	__ctl_set_bit(0,11);
@@ -270,8 +168,6 @@ void init_cpu_timer(void)
 
 static void clock_comparator_interrupt(__u16 code)
 {
-	/* set clock comparator for next tick */
-	set_clock_comparator(S390_lowcore.jiffy_timer + CPU_DEVIATION);
 }
 
 static void etr_reset(void);
@@ -316,8 +212,9 @@ static struct clocksource clocksource_tod = {
  */
 void __init time_init(void)
 {
+	u64 init_timer_cc;
+
 	init_timer_cc = reset_tod_clock();
-	xtime_cc = init_timer_cc + CLK_TICKS_PER_JIFFY;
 	jiffies_timer_cc = init_timer_cc - jiffies_64 * CLK_TICKS_PER_JIFFY;
 
 	/* set xtime */
@@ -341,10 +238,6 @@ void __init time_init(void)
 
 	/* Enable TOD clock interrupts on the boot cpu. */
 	init_cpu_timer();
-
-#ifdef CONFIG_NO_IDLE_HZ
-	nohz_init();
-#endif
 
 #ifdef CONFIG_VIRT_TIMER
 	vtime_init();
@@ -699,53 +592,49 @@ static int etr_aib_follows(struct etr_aib *a1, struct etr_aib *a2, int p)
 }
 
 /*
- * The time is "clock". xtime is what we think the time is.
+ * The time is "clock". old is what we think the time is.
  * Adjust the value by a multiple of jiffies and add the delta to ntp.
  * "delay" is an approximation how long the synchronization took. If
  * the time correction is positive, then "delay" is subtracted from
  * the time difference and only the remaining part is passed to ntp.
  */
-static void etr_adjust_time(unsigned long long clock, unsigned long long delay)
+static unsigned long long etr_adjust_time(unsigned long long old,
+					  unsigned long long clock,
+					  unsigned long long delay)
 {
 	unsigned long long delta, ticks;
 	struct timex adjust;
 
-	/*
-	 * We don't have to take the xtime lock because the cpu
-	 * executing etr_adjust_time is running disabled in
-	 * tasklet context and all other cpus are looping in
-	 * etr_sync_cpu_start.
-	 */
-	if (clock > xtime_cc) {
+	if (clock > old) {
 		/* It is later than we thought. */
-		delta = ticks = clock - xtime_cc;
+		delta = ticks = clock - old;
 		delta = ticks = (delta < delay) ? 0 : delta - delay;
 		delta -= do_div(ticks, CLK_TICKS_PER_JIFFY);
-		init_timer_cc = init_timer_cc + delta;
-		jiffies_timer_cc = jiffies_timer_cc + delta;
-		xtime_cc = xtime_cc + delta;
 		adjust.offset = ticks * (1000000 / HZ);
 	} else {
 		/* It is earlier than we thought. */
-		delta = ticks = xtime_cc - clock;
+		delta = ticks = old - clock;
 		delta -= do_div(ticks, CLK_TICKS_PER_JIFFY);
-		init_timer_cc = init_timer_cc - delta;
-		jiffies_timer_cc = jiffies_timer_cc - delta;
-		xtime_cc = xtime_cc - delta;
+		delta = -delta;
 		adjust.offset = -ticks * (1000000 / HZ);
 	}
+	jiffies_timer_cc += delta;
 	if (adjust.offset != 0) {
 		printk(KERN_NOTICE "etr: time adjusted by %li micro-seconds\n",
 		       adjust.offset);
 		adjust.modes = ADJ_OFFSET_SINGLESHOT;
 		do_adjtimex(&adjust);
 	}
+	return delta;
 }
+
+static struct {
+	int in_sync;
+	unsigned long long fixup_cc;
+} etr_sync;
 
 static void etr_sync_cpu_start(void *dummy)
 {
-	int *in_sync = dummy;
-
 	etr_enable_sync_clock();
 	/*
 	 * This looks like a busy wait loop but it isn't. etr_sync_cpus
@@ -753,7 +642,7 @@ static void etr_sync_cpu_start(void *dummy)
 	 * __udelay will stop the cpu on an enabled wait psw until the
 	 * TOD is running again.
 	 */
-	while (*in_sync == 0) {
+	while (etr_sync.in_sync == 0) {
 		__udelay(1);
 		/*
 		 * A different cpu changes *in_sync. Therefore use
@@ -761,14 +650,14 @@ static void etr_sync_cpu_start(void *dummy)
 		 */
 		barrier();
 	}
-	if (*in_sync != 1)
+	if (etr_sync.in_sync != 1)
 		/* Didn't work. Clear per-cpu in sync bit again. */
 		etr_disable_sync_clock(NULL);
 	/*
 	 * This round of TOD syncing is done. Set the clock comparator
 	 * to the next tick and let the processor continue.
 	 */
-	setup_jiffy_timer();
+	fixup_clock_comparator(etr_sync.fixup_cc);
 }
 
 static void etr_sync_cpu_end(void *dummy)
@@ -783,8 +672,8 @@ static void etr_sync_cpu_end(void *dummy)
 static int etr_sync_clock(struct etr_aib *aib, int port)
 {
 	struct etr_aib *sync_port;
-	unsigned long long clock, delay;
-	int in_sync, follows;
+	unsigned long long clock, old_clock, delay, delta;
+	int follows;
 	int rc;
 
 	/* Check if the current aib is adjacent to the sync port aib. */
@@ -799,9 +688,9 @@ static int etr_sync_clock(struct etr_aib *aib, int port)
 	 * successfully synced the clock. smp_call_function will
 	 * return after all other cpus are in etr_sync_cpu_start.
 	 */
-	in_sync = 0;
+	memset(&etr_sync, 0, sizeof(etr_sync));
 	preempt_disable();
-	smp_call_function(etr_sync_cpu_start,&in_sync,0,0);
+	smp_call_function(etr_sync_cpu_start, NULL, 0, 0);
 	local_irq_disable();
 	etr_enable_sync_clock();
 
@@ -809,6 +698,7 @@ static int etr_sync_clock(struct etr_aib *aib, int port)
 	__ctl_set_bit(14, 21);
 	__ctl_set_bit(0, 29);
 	clock = ((unsigned long long) (aib->edf2.etv + 1)) << 32;
+	old_clock = get_clock();
 	if (set_clock(clock) == 0) {
 		__udelay(1);	/* Wait for the clock to start. */
 		__ctl_clear_bit(0, 29);
@@ -817,16 +707,17 @@ static int etr_sync_clock(struct etr_aib *aib, int port)
 		/* Adjust Linux timing variables. */
 		delay = (unsigned long long)
 			(aib->edf2.etv - sync_port->edf2.etv) << 32;
-		etr_adjust_time(clock, delay);
-		setup_jiffy_timer();
+		delta = etr_adjust_time(old_clock, clock, delay);
+		etr_sync.fixup_cc = delta;
+		fixup_clock_comparator(delta);
 		/* Verify that the clock is properly set. */
 		if (!etr_aib_follows(sync_port, aib, port)) {
 			/* Didn't work. */
 			etr_disable_sync_clock(NULL);
-			in_sync = -EAGAIN;
+			etr_sync.in_sync = -EAGAIN;
 			rc = -EAGAIN;
 		} else {
-			in_sync = 1;
+			etr_sync.in_sync = 1;
 			rc = 0;
 		}
 	} else {
@@ -834,7 +725,7 @@ static int etr_sync_clock(struct etr_aib *aib, int port)
 		__ctl_clear_bit(0, 29);
 		__ctl_clear_bit(14, 21);
 		etr_disable_sync_clock(NULL);
-		in_sync = -EAGAIN;
+		etr_sync.in_sync = -EAGAIN;
 		rc = -EAGAIN;
 	}
 	local_irq_enable();

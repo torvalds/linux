@@ -95,6 +95,8 @@ struct o2net_node {
 	unsigned			nn_sc_valid:1;
 	/* if this is set tx just returns it */
 	int				nn_persistent_error;
+	/* It is only set to 1 after the idle time out. */
+	atomic_t			nn_timeout;
 
 	/* threads waiting for an sc to arrive wait on the wq for generation
 	 * to increase.  it is increased when a connecting socket succeeds
@@ -164,7 +166,9 @@ struct o2net_sock_container {
 	/* original handlers for the sockets */
 	void			(*sc_state_change)(struct sock *sk);
 	void			(*sc_data_ready)(struct sock *sk, int bytes);
-
+#ifdef CONFIG_DEBUG_FS
+	struct list_head        sc_net_debug_item;
+#endif
 	struct timeval 		sc_tv_timer;
 	struct timeval 		sc_tv_data_ready;
 	struct timeval 		sc_tv_advance_start;
@@ -205,5 +209,25 @@ struct o2net_status_wait {
 	wait_queue_head_t	ns_wq;
 	struct list_head	ns_node_item;
 };
+
+#ifdef CONFIG_DEBUG_FS
+/* just for state dumps */
+struct o2net_send_tracking {
+	struct list_head		st_net_debug_item;
+	struct task_struct		*st_task;
+	struct o2net_sock_container	*st_sc;
+	u32				st_id;
+	u32				st_msg_type;
+	u32				st_msg_key;
+	u8				st_node;
+	struct timeval			st_sock_time;
+	struct timeval			st_send_time;
+	struct timeval			st_status_time;
+};
+#else
+struct o2net_send_tracking {
+	u32	dummy;
+};
+#endif	/* CONFIG_DEBUG_FS */
 
 #endif /* O2CLUSTER_TCP_INTERNAL_H */

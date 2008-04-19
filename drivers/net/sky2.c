@@ -154,6 +154,7 @@ static const char *yukon2_name[] = {
 	"EC",		/* 0xb6 */
 	"FE",		/* 0xb7 */
 	"FE+",		/* 0xb8 */
+	"Supreme",	/* 0xb9 */
 };
 
 static void sky2_set_multicast(struct net_device *dev);

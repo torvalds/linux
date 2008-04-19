@@ -103,6 +103,7 @@ static int __init dtc2278_probe(void)
 	unsigned long flags;
 	ide_hwif_t *hwif, *mate;
 	static u8 idx[4] = { 0, 1, 0xff, 0xff };
+	hw_regs_t hw[2];
 
 	hwif = &ide_hwifs[0];
 	mate = &ide_hwifs[1];
@@ -127,6 +128,17 @@ static int __init dtc2278_probe(void)
 	sub22(0,0xa0);
 #endif
 	local_irq_restore(flags);
+
+	memset(&hw, 0, sizeof(hw));
+
+	ide_std_init_ports(&hw[0], 0x1f0, 0x3f6);
+	hw[0].irq = 14;
+
+	ide_std_init_ports(&hw[1], 0x170, 0x376);
+	hw[1].irq = 15;
+
+	ide_init_port_hw(hwif, &hw[0]);
+	ide_init_port_hw(mate, &hw[1]);
 
 	hwif->set_pio_mode = &dtc2278_set_pio_mode;
 

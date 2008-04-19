@@ -40,6 +40,7 @@
 #include <linux/sched.h>
 #include <linux/audit.h>
 #include <linux/mutex.h>
+#include <linux/selinux.h>
 #include <net/netlabel.h>
 
 #include "flask.h"
@@ -56,11 +57,13 @@
 #include "netlabel.h"
 #include "xfrm.h"
 #include "ebitmap.h"
+#include "audit.h"
 
 extern void selnl_notify_policyload(u32 seqno);
 unsigned int policydb_loaded_version;
 
 int selinux_policycap_netpeer;
+int selinux_policycap_openperm;
 
 /*
  * This is declared in avc.c
@@ -412,8 +415,33 @@ static int context_struct_compute_av(struct context *scontext,
 	return 0;
 
 inval_class:
-	printk(KERN_ERR "%s:  unrecognized class %d\n", __FUNCTION__, tclass);
+	printk(KERN_ERR "%s:  unrecognized class %d\n", __func__, tclass);
 	return -EINVAL;
+}
+
+/*
+ * Given a sid find if the type has the permissive flag set
+ */
+int security_permissive_sid(u32 sid)
+{
+	struct context *context;
+	u32 type;
+	int rc;
+
+	POLICY_RDLOCK;
+
+	context = sidtab_search(&sidtab, sid);
+	BUG_ON(!context);
+
+	type = context->type;
+	/*
+	 * we are intentionally using type here, not type-1, the 0th bit may
+	 * someday indicate that we are globally setting permissive in policy.
+	 */
+	rc = ebitmap_get_bit(&policydb.permissive_map, type);
+
+	POLICY_RDUNLOCK;
+	return rc;
 }
 
 static int security_validtrans_handle_fail(struct context *ocontext,
@@ -1096,7 +1124,7 @@ static int validate_classes(struct policydb *p)
 			continue;
 		if (i > p->p_classes.nprim) {
 			printk(KERN_INFO
-			       "security:  class %s not defined in policy\n",
+			       "SELinux:  class %s not defined in policy\n",
 			       def_class);
 			if (p->reject_unknown)
 				return -EINVAL;
@@ -1107,7 +1135,7 @@ static int validate_classes(struct policydb *p)
 		pol_class = p->p_class_val_to_name[i-1];
 		if (strcmp(pol_class, def_class)) {
 			printk(KERN_ERR
-			       "security:  class %d is incorrect, found %s but should be %s\n",
+			       "SELinux:  class %d is incorrect, found %s but should be %s\n",
 			       i, pol_class, def_class);
 			return -EINVAL;
 		}
@@ -1125,7 +1153,7 @@ static int validate_classes(struct policydb *p)
 		nprim = 1 << (perms->nprim - 1);
 		if (perm_val > nprim) {
 			printk(KERN_INFO
-			       "security:  permission %s in class %s not defined in policy\n",
+			       "SELinux:  permission %s in class %s not defined in policy\n",
 			       def_perm, pol_class);
 			if (p->reject_unknown)
 				return -EINVAL;
@@ -1136,14 +1164,14 @@ static int validate_classes(struct policydb *p)
 		perdatum = hashtab_search(perms->table, def_perm);
 		if (perdatum == NULL) {
 			printk(KERN_ERR
-			       "security:  permission %s in class %s not found in policy, bad policy\n",
+			       "SELinux:  permission %s in class %s not found in policy, bad policy\n",
 			       def_perm, pol_class);
 			return -EINVAL;
 		}
 		pol_val = 1 << (perdatum->value - 1);
 		if (pol_val != perm_val) {
 			printk(KERN_ERR
-			       "security:  permission %s in class %s has incorrect value\n",
+			       "SELinux:  permission %s in class %s has incorrect value\n",
 			       def_perm, pol_class);
 			return -EINVAL;
 		}
@@ -1157,7 +1185,7 @@ static int validate_classes(struct policydb *p)
 		BUG_ON(!cladatum);
 		if (!cladatum->comdatum) {
 			printk(KERN_ERR
-			       "security:  class %s should have an inherits clause but does not\n",
+			       "SELinux:  class %s should have an inherits clause but does not\n",
 			       pol_class);
 			return -EINVAL;
 		}
@@ -1172,7 +1200,7 @@ static int validate_classes(struct policydb *p)
 			def_perm = kdefs->av_inherit[i].common_pts[j];
 			if (j >= perms->nprim) {
 				printk(KERN_INFO
-				       "security:  permission %s in class %s not defined in policy\n",
+				       "SELinux:  permission %s in class %s not defined in policy\n",
 				       def_perm, pol_class);
 				if (p->reject_unknown)
 					return -EINVAL;
@@ -1183,13 +1211,13 @@ static int validate_classes(struct policydb *p)
 			perdatum = hashtab_search(perms->table, def_perm);
 			if (perdatum == NULL) {
 				printk(KERN_ERR
-				       "security:  permission %s in class %s not found in policy, bad policy\n",
+				       "SELinux:  permission %s in class %s not found in policy, bad policy\n",
 				       def_perm, pol_class);
 				return -EINVAL;
 			}
 			if (perdatum->value != j + 1) {
 				printk(KERN_ERR
-				       "security:  permission %s in class %s has incorrect value\n",
+				       "SELinux:  permission %s in class %s has incorrect value\n",
 				       def_perm, pol_class);
 				return -EINVAL;
 			}
@@ -1219,7 +1247,7 @@ static inline int convert_context_handle_invalid_context(struct context *context
 		u32 len;
 
 		context_struct_to_string(context, &s, &len);
-		printk(KERN_ERR "security:  context %s is invalid\n", s);
+		printk(KERN_ERR "SELinux:  context %s is invalid\n", s);
 		kfree(s);
 	}
 	return rc;
@@ -1299,7 +1327,7 @@ out:
 bad:
 	context_struct_to_string(&oldc, &s, &len);
 	context_destroy(&oldc);
-	printk(KERN_ERR "security:  invalidating context %s\n", s);
+	printk(KERN_ERR "SELinux:  invalidating context %s\n", s);
 	kfree(s);
 	goto out;
 }
@@ -1308,6 +1336,8 @@ static void security_load_policycaps(void)
 {
 	selinux_policycap_netpeer = ebitmap_get_bit(&policydb.policycaps,
 						  POLICYDB_CAPABILITY_NETPEER);
+	selinux_policycap_openperm = ebitmap_get_bit(&policydb.policycaps,
+						  POLICYDB_CAPABILITY_OPENPERM);
 }
 
 extern void selinux_complete_init(void);
@@ -1350,7 +1380,7 @@ int security_load_policy(void *data, size_t len)
 		/* Verify that the kernel defined classes are correct. */
 		if (validate_classes(&policydb)) {
 			printk(KERN_ERR
-			       "security:  the definition of a class is incorrect\n");
+			       "SELinux:  the definition of a class is incorrect\n");
 			LOAD_UNLOCK;
 			sidtab_destroy(&sidtab);
 			policydb_destroy(&policydb);
@@ -1384,14 +1414,14 @@ int security_load_policy(void *data, size_t len)
 	/* Verify that the kernel defined classes are correct. */
 	if (validate_classes(&newpolicydb)) {
 		printk(KERN_ERR
-		       "security:  the definition of a class is incorrect\n");
+		       "SELinux:  the definition of a class is incorrect\n");
 		rc = -EINVAL;
 		goto err;
 	}
 
 	rc = security_preserve_bools(&newpolicydb);
 	if (rc) {
-		printk(KERN_ERR "security:  unable to preserve booleans\n");
+		printk(KERN_ERR "SELinux:  unable to preserve booleans\n");
 		goto err;
 	}
 
@@ -1443,17 +1473,11 @@ err:
 
 /**
  * security_port_sid - Obtain the SID for a port.
- * @domain: communication domain aka address family
- * @type: socket type
  * @protocol: protocol number
  * @port: port number
  * @out_sid: security identifier
  */
-int security_port_sid(u16 domain,
-		      u16 type,
-		      u8 protocol,
-		      u16 port,
-		      u32 *out_sid)
+int security_port_sid(u8 protocol, u16 port, u32 *out_sid)
 {
 	struct ocontext *c;
 	int rc = 0;
@@ -2203,7 +2227,7 @@ int security_get_permissions(char *class, char ***perms, int *nperms)
 	match = hashtab_search(policydb.p_classes.table, class);
 	if (!match) {
 		printk(KERN_ERR "%s:  unrecognized class %s\n",
-			__FUNCTION__, class);
+			__func__, class);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -2273,21 +2297,23 @@ struct selinux_audit_rule {
 	struct context au_ctxt;
 };
 
-void selinux_audit_rule_free(struct selinux_audit_rule *rule)
+void selinux_audit_rule_free(void *vrule)
 {
+	struct selinux_audit_rule *rule = vrule;
+
 	if (rule) {
 		context_destroy(&rule->au_ctxt);
 		kfree(rule);
 	}
 }
 
-int selinux_audit_rule_init(u32 field, u32 op, char *rulestr,
-                            struct selinux_audit_rule **rule)
+int selinux_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 {
 	struct selinux_audit_rule *tmprule;
 	struct role_datum *roledatum;
 	struct type_datum *typedatum;
 	struct user_datum *userdatum;
+	struct selinux_audit_rule **rule = (struct selinux_audit_rule **)vrule;
 	int rc = 0;
 
 	*rule = NULL;
@@ -2374,12 +2400,37 @@ int selinux_audit_rule_init(u32 field, u32 op, char *rulestr,
 	return rc;
 }
 
-int selinux_audit_rule_match(u32 sid, u32 field, u32 op,
-                             struct selinux_audit_rule *rule,
+/* Check to see if the rule contains any selinux fields */
+int selinux_audit_rule_known(struct audit_krule *rule)
+{
+	int i;
+
+	for (i = 0; i < rule->field_count; i++) {
+		struct audit_field *f = &rule->fields[i];
+		switch (f->type) {
+		case AUDIT_SUBJ_USER:
+		case AUDIT_SUBJ_ROLE:
+		case AUDIT_SUBJ_TYPE:
+		case AUDIT_SUBJ_SEN:
+		case AUDIT_SUBJ_CLR:
+		case AUDIT_OBJ_USER:
+		case AUDIT_OBJ_ROLE:
+		case AUDIT_OBJ_TYPE:
+		case AUDIT_OBJ_LEV_LOW:
+		case AUDIT_OBJ_LEV_HIGH:
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+int selinux_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule,
                              struct audit_context *actx)
 {
 	struct context *ctxt;
 	struct mls_level *level;
+	struct selinux_audit_rule *rule = vrule;
 	int match = 0;
 
 	if (!rule) {
@@ -2486,7 +2537,7 @@ out:
 	return match;
 }
 
-static int (*aurule_callback)(void) = NULL;
+static int (*aurule_callback)(void) = audit_update_lsm_rules;
 
 static int aurule_avc_callback(u32 event, u32 ssid, u32 tsid,
                                u16 class, u32 perms, u32 *retained)
@@ -2510,11 +2561,6 @@ static int __init aurule_init(void)
 	return err;
 }
 __initcall(aurule_init);
-
-void selinux_audit_set_callback(int (*callback)(void))
-{
-	aurule_callback = callback;
-}
 
 #ifdef CONFIG_NETLABEL
 /**
@@ -2651,7 +2697,7 @@ int security_netlbl_sid_to_secattr(u32 sid, struct netlbl_lsm_secattr *secattr)
 		goto netlbl_sid_to_secattr_failure;
 	secattr->domain = kstrdup(policydb.p_type_val_to_name[ctx->type - 1],
 				  GFP_ATOMIC);
-	secattr->flags |= NETLBL_SECATTR_DOMAIN;
+	secattr->flags |= NETLBL_SECATTR_DOMAIN_CPY;
 	mls_export_netlbl_lvl(ctx, secattr);
 	rc = mls_export_netlbl_cat(ctx, secattr);
 	if (rc != 0)

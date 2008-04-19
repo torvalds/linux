@@ -129,7 +129,7 @@ static int jffs2_write_begin(struct file *filp, struct address_space *mapping,
 	struct inode *inode = mapping->host;
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
-	uint32_t pageofs = pos & (PAGE_CACHE_SIZE - 1);
+	uint32_t pageofs = index << PAGE_CACHE_SHIFT;
 	int ret = 0;
 
 	pg = __grab_cache_page(mapping, index);

@@ -19,13 +19,15 @@ void set_mtrr_prepare_save(struct set_mtrr_context *ctxt)
 	if (use_intel() || is_cpu(CYRIX)) {
 
 		/*  Save value of CR4 and clear Page Global Enable (bit 7)  */
-		if ( cpu_has_pge ) {
+		if (cpu_has_pge) {
 			ctxt->cr4val = read_cr4();
 			write_cr4(ctxt->cr4val & ~X86_CR4_PGE);
 		}
 
-		/*  Disable and flush caches. Note that wbinvd flushes the TLBs as
-		    a side-effect  */
+		/*
+		 * Disable and flush caches. Note that wbinvd flushes the TLBs
+		 * as a side-effect
+		 */
 		cr0 = read_cr0() | X86_CR0_CD;
 		wbinvd();
 		write_cr0(cr0);
@@ -42,7 +44,7 @@ void set_mtrr_prepare_save(struct set_mtrr_context *ctxt)
 
 void set_mtrr_cache_disable(struct set_mtrr_context *ctxt)
 {
-	if (use_intel()) 
+	if (use_intel())
 		/*  Disable MTRRs, and set the default type to uncached  */
 		mtrr_wrmsr(MTRRdefType_MSR, ctxt->deftype_lo & 0xf300UL,
 		      ctxt->deftype_hi);
@@ -66,12 +68,12 @@ void set_mtrr_done(struct set_mtrr_context *ctxt)
 		else
 			/* Cyrix ARRs - everything else was excluded at the top */
 			setCx86(CX86_CCR3, ctxt->ccr3);
-		
+
 		/*  Enable caches  */
 		write_cr0(read_cr0() & 0xbfffffff);
 
 		/*  Restore value of CR4  */
-		if ( cpu_has_pge )
+		if (cpu_has_pge)
 			write_cr4(ctxt->cr4val);
 	}
 	/*  Re-enable interrupts locally (if enabled previously)  */

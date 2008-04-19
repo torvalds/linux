@@ -277,14 +277,14 @@ int __init get_memcfg_from_srat(void)
 	rsdp_address = acpi_os_get_root_pointer();
 	if (!rsdp_address) {
 		printk("%s: System description tables not found\n",
-		       __FUNCTION__);
+		       __func__);
 		goto out_err;
 	}
 
-	printk("%s: assigning address to rsdp\n", __FUNCTION__);
+	printk("%s: assigning address to rsdp\n", __func__);
 	rsdp = (struct acpi_table_rsdp *)(u32)rsdp_address;
 	if (!rsdp) {
-		printk("%s: Didn't find ACPI root!\n", __FUNCTION__);
+		printk("%s: Didn't find ACPI root!\n", __func__);
 		goto out_err;
 	}
 
@@ -292,7 +292,7 @@ int __init get_memcfg_from_srat(void)
 		rsdp->oem_id);
 
 	if (strncmp(rsdp->signature, ACPI_SIG_RSDP,strlen(ACPI_SIG_RSDP))) {
-		printk(KERN_WARNING "%s: RSDP table signature incorrect\n", __FUNCTION__);
+		printk(KERN_WARNING "%s: RSDP table signature incorrect\n", __func__);
 		goto out_err;
 	}
 
@@ -302,7 +302,7 @@ int __init get_memcfg_from_srat(void)
 	if (!rsdt) {
 		printk(KERN_WARNING
 		       "%s: ACPI: Invalid root system description tables (RSDT)\n",
-		       __FUNCTION__);
+		       __func__);
 		goto out_err;
 	}
 

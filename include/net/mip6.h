@@ -28,9 +28,6 @@
 #include <linux/skbuff.h>
 #include <net/sock.h>
 
-#define MIP6_OPT_PAD_1	0
-#define MIP6_OPT_PAD_N	1
-
 /*
  * Mobility Header
  */

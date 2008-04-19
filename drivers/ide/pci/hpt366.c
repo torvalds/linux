@@ -760,7 +760,7 @@ static void hpt3xx_maskproc(ide_drive_t *drive, int mask)
 		}
 	} else
 		outb(mask ? (drive->ctl | 2) : (drive->ctl & ~2),
-		     IDE_CONTROL_REG);
+		     hwif->io_ports[IDE_CONTROL_OFFSET]);
 }
 
 /*
@@ -927,64 +927,6 @@ static void hpt3xxn_set_clock(ide_hwif_t *hwif, u8 mode)
 static void hpt3xxn_rw_disk(ide_drive_t *drive, struct request *rq)
 {
 	hpt3xxn_set_clock(HWIF(drive), rq_data_dir(rq) ? 0x23 : 0x21);
-}
-
-/* 
- * Set/get power state for a drive.
- * NOTE: affects both drives on each channel.
- *
- * When we turn the power back on, we need to re-initialize things.
- */
-#define TRISTATE_BIT  0x8000
-
-static int hpt3xx_busproc(ide_drive_t *drive, int state)
-{
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= to_pci_dev(hwif->dev);
-	u8  mcr_addr		= hwif->select_data + 2;
-	u8  resetmask		= hwif->channel ? 0x80 : 0x40;
-	u8  bsr2		= 0;
-	u16 mcr			= 0;
-
-	hwif->bus_state = state;
-
-	/* Grab the status. */
-	pci_read_config_word(dev, mcr_addr, &mcr);
-	pci_read_config_byte(dev, 0x59, &bsr2);
-
-	/*
-	 * Set the state. We don't set it if we don't need to do so.
-	 * Make sure that the drive knows that it has failed if it's off.
-	 */
-	switch (state) {
-	case BUSSTATE_ON:
-		if (!(bsr2 & resetmask))
-			return 0;
-		hwif->drives[0].failures = hwif->drives[1].failures = 0;
-
-		pci_write_config_byte(dev, 0x59, bsr2 & ~resetmask);
-		pci_write_config_word(dev, mcr_addr, mcr & ~TRISTATE_BIT);
-		return 0;
-	case BUSSTATE_OFF:
-		if ((bsr2 & resetmask) && !(mcr & TRISTATE_BIT))
-			return 0;
-		mcr &= ~TRISTATE_BIT;
-		break;
-	case BUSSTATE_TRISTATE:
-		if ((bsr2 & resetmask) &&  (mcr & TRISTATE_BIT))
-			return 0;
-		mcr |= TRISTATE_BIT;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	hwif->drives[0].failures = hwif->drives[0].max_failures + 1;
-	hwif->drives[1].failures = hwif->drives[1].max_failures + 1;
-
-	pci_write_config_word(dev, mcr_addr, mcr);
-	pci_write_config_byte(dev, 0x59, bsr2 | resetmask);
-	return 0;
 }
 
 /**
@@ -1334,7 +1276,6 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 
 	hwif->quirkproc		= &hpt3xx_quirkproc;
 	hwif->maskproc		= &hpt3xx_maskproc;
-	hwif->busproc		= &hpt3xx_busproc;
 
 	hwif->udma_filter	= &hpt3xx_udma_filter;
 	hwif->mdma_filter	= &hpt3xx_mdma_filter;

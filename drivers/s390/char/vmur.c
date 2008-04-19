@@ -100,7 +100,8 @@ static struct urdev *urdev_alloc(struct ccw_device *cdev)
 	urd->reclen = cdev->id.driver_info;
 	ccw_device_get_id(cdev, &urd->dev_id);
 	mutex_init(&urd->io_mutex);
-	mutex_init(&urd->open_mutex);
+	init_waitqueue_head(&urd->wait);
+	spin_lock_init(&urd->open_lock);
 	atomic_set(&urd->ref_count,  1);
 	urd->cdev = cdev;
 	get_device(&cdev->dev);
@@ -678,17 +679,21 @@ static int ur_open(struct inode *inode, struct file *file)
 	if (!urd)
 		return -ENXIO;
 
-	if (file->f_flags & O_NONBLOCK) {
-		if (!mutex_trylock(&urd->open_mutex)) {
+	spin_lock(&urd->open_lock);
+	while (urd->open_flag) {
+		spin_unlock(&urd->open_lock);
+		if (file->f_flags & O_NONBLOCK) {
 			rc = -EBUSY;
 			goto fail_put;
 		}
-	} else {
-		if (mutex_lock_interruptible(&urd->open_mutex)) {
+		if (wait_event_interruptible(urd->wait, urd->open_flag == 0)) {
 			rc = -ERESTARTSYS;
 			goto fail_put;
 		}
+		spin_lock(&urd->open_lock);
 	}
+	urd->open_flag++;
+	spin_unlock(&urd->open_lock);
 
 	TRACE("ur_open\n");
 
@@ -720,7 +725,9 @@ static int ur_open(struct inode *inode, struct file *file)
 fail_urfile_free:
 	urfile_free(urf);
 fail_unlock:
-	mutex_unlock(&urd->open_mutex);
+	spin_lock(&urd->open_lock);
+	urd->open_flag--;
+	spin_unlock(&urd->open_lock);
 fail_put:
 	urdev_put(urd);
 	return rc;
@@ -731,7 +738,10 @@ static int ur_release(struct inode *inode, struct file *file)
 	struct urfile *urf = file->private_data;
 
 	TRACE("ur_release\n");
-	mutex_unlock(&urf->urd->open_mutex);
+	spin_lock(&urf->urd->open_lock);
+	urf->urd->open_flag--;
+	spin_unlock(&urf->urd->open_lock);
+	wake_up_interruptible(&urf->urd->wait);
 	urdev_put(urf->urd);
 	urfile_free(urf);
 	return 0;

@@ -738,6 +738,8 @@ static void asd_dump_lseq_state(struct asd_ha_struct *asd_ha, int lseq)
 	PRINT_LMIP_dword(asd_ha, lseq, DEV_PRES_TIMER_TERM_TS);
 }
 
+#if 0
+
 /**
  * asd_dump_ddb_site -- dump a CSEQ DDB site
  * @asd_ha: pointer to host adapter structure
@@ -880,6 +882,8 @@ void asd_dump_scb_sites(struct asd_ha_struct *asd_ha)
 	}
 }
 
+#endif  /*  0  */
+
 /**
  * ads_dump_seq_state -- dump CSEQ and LSEQ states
  * @asd_ha: pointer to host adapter structure
@@ -922,7 +926,9 @@ void asd_dump_frame_rcvd(struct asd_phy *phy,
 	spin_unlock_irqrestore(&phy->sas_phy.frame_rcvd_lock, flags);
 }
 
-static inline void asd_dump_scb(struct asd_ascb *ascb, int ind)
+#if 0
+
+static void asd_dump_scb(struct asd_ascb *ascb, int ind)
 {
 	asd_printk("scb%d: vaddr: 0x%p, dma_handle: 0x%llx, next: 0x%llx, "
 		   "index:%d, opcode:0x%02x\n",
@@ -955,5 +961,7 @@ void asd_dump_scb_list(struct asd_ascb *ascb, int num)
 		}
 	}
 }
+
+#endif  /*  0  */
 
 #endif /* ASD_DEBUG */

@@ -68,7 +68,7 @@ static int srp_max_iu_len;
 
 module_param(srp_sg_tablesize, int, 0444);
 MODULE_PARM_DESC(srp_sg_tablesize,
-		 "Max number of gather/scatter entries per I/O (default is 12)");
+		 "Max number of gather/scatter entries per I/O (default is 12, max 255)");
 
 static int topspin_workarounds = 1;
 
@@ -2137,6 +2137,11 @@ static struct srp_function_template ib_srp_transport_functions = {
 static int __init srp_init_module(void)
 {
 	int ret;
+
+	if (srp_sg_tablesize > 255) {
+		printk(KERN_WARNING PFX "Clamping srp_sg_tablesize to 255\n");
+		srp_sg_tablesize = 255;
+	}
 
 	ib_srp_transport_template =
 		srp_attach_transport(&ib_srp_transport_functions);

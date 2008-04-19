@@ -84,8 +84,8 @@ DEFINE_PER_CPU(unsigned long, cyc2ns);
 
 static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 {
-	unsigned long flags, prev_scale, *scale;
 	unsigned long long tsc_now, ns_now;
+	unsigned long flags, *scale;
 
 	local_irq_save(flags);
 	sched_clock_idle_sleep_event();
@@ -95,7 +95,6 @@ static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 	rdtscll(tsc_now);
 	ns_now = __cycles_2_ns(tsc_now);
 
-	prev_scale = *scale;
 	if (cpu_khz)
 		*scale = (NSEC_PER_MSEC << CYC2NS_SCALE_FACTOR)/cpu_khz;
 
@@ -392,13 +391,15 @@ void __init tsc_init(void)
 	int cpu;
 
 	if (!cpu_has_tsc)
-		goto out_no_tsc;
+		return;
 
 	cpu_khz = calculate_cpu_khz();
 	tsc_khz = cpu_khz;
 
-	if (!cpu_khz)
-		goto out_no_tsc;
+	if (!cpu_khz) {
+		mark_tsc_unstable("could not calculate TSC khz");
+		return;
+	}
 
 	printk("Detected %lu.%03lu MHz processor.\n",
 				(unsigned long)cpu_khz / 1000,
@@ -431,9 +432,4 @@ void __init tsc_init(void)
 		tsc_enabled = 1;
 
 	clocksource_register(&clocksource_tsc);
-
-	return;
-
-out_no_tsc:
-	setup_clear_cpu_cap(X86_FEATURE_TSC);
 }

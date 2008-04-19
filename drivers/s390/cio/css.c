@@ -533,6 +533,12 @@ void css_schedule_eval_all(void)
 	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
 }
 
+void css_wait_for_slow_path(void)
+{
+	flush_workqueue(ccw_device_notify_work);
+	flush_workqueue(slow_path_wq);
+}
+
 /* Reprobe subchannel if unregistered. */
 static int reprobe_subchannel(struct subchannel_id schid, void *data)
 {
@@ -683,10 +689,14 @@ css_cm_enable_show(struct device *dev, struct device_attribute *attr,
 		   char *buf)
 {
 	struct channel_subsystem *css = to_css(dev);
+	int ret;
 
 	if (!css)
 		return 0;
-	return sprintf(buf, "%x\n", css->cm_enabled);
+	mutex_lock(&css->mutex);
+	ret = sprintf(buf, "%x\n", css->cm_enabled);
+	mutex_unlock(&css->mutex);
+	return ret;
 }
 
 static ssize_t
@@ -696,6 +706,7 @@ css_cm_enable_store(struct device *dev, struct device_attribute *attr,
 	struct channel_subsystem *css = to_css(dev);
 	int ret;
 
+	mutex_lock(&css->mutex);
 	switch (buf[0]) {
 	case '0':
 		ret = css->cm_enabled ? chsc_secm(css, 0) : 0;
@@ -706,6 +717,7 @@ css_cm_enable_store(struct device *dev, struct device_attribute *attr,
 	default:
 		ret = -EINVAL;
 	}
+	mutex_unlock(&css->mutex);
 	return ret < 0 ? ret : count;
 }
 
@@ -752,9 +764,11 @@ static int css_reboot_event(struct notifier_block *this,
 		struct channel_subsystem *css;
 
 		css = channel_subsystems[i];
+		mutex_lock(&css->mutex);
 		if (css->cm_enabled)
 			if (chsc_secm(css, 0))
 				ret = NOTIFY_BAD;
+		mutex_unlock(&css->mutex);
 	}
 
 	return ret;

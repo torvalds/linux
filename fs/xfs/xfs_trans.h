@@ -113,13 +113,8 @@ struct xfs_mount;
 struct xfs_trans;
 struct xfs_dquot_acct;
 
-typedef struct xfs_ail_entry {
-	struct xfs_log_item	*ail_forw;	/* AIL forw pointer */
-	struct xfs_log_item	*ail_back;	/* AIL back pointer */
-} xfs_ail_entry_t;
-
 typedef struct xfs_log_item {
-	xfs_ail_entry_t			li_ail;		/* AIL pointers */
+	struct list_head		li_ail;		/* AIL pointers */
 	xfs_lsn_t			li_lsn;		/* last on-disk lsn */
 	struct xfs_log_item_desc	*li_desc;	/* ptr to current desc*/
 	struct xfs_mount		*li_mountp;	/* ptr to fs mount */
@@ -341,7 +336,6 @@ typedef struct xfs_trans {
 	unsigned int		t_rtx_res;	/* # of rt extents resvd */
 	unsigned int		t_rtx_res_used;	/* # of resvd rt extents used */
 	xfs_log_ticket_t	t_ticket;	/* log mgr ticket */
-	sema_t			t_sema;		/* sema for commit completion */
 	xfs_lsn_t		t_lsn;		/* log seq num of start of
 						 * transaction. */
 	xfs_lsn_t		t_commit_lsn;	/* log seq num of end of

@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2007 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -30,10 +30,11 @@
 #include "rt2x00lib.h"
 
 static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
-				struct data_ring *ring,
+				struct data_queue *queue,
 				struct sk_buff *frag_skb,
 				struct ieee80211_tx_control *control)
 {
+	struct skb_frame_desc *skbdesc;
 	struct sk_buff *skb;
 	int size;
 
@@ -52,15 +53,22 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	skb_put(skb, size);
 
 	if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT)
-		ieee80211_ctstoself_get(rt2x00dev->hw, rt2x00dev->interface.id,
+		ieee80211_ctstoself_get(rt2x00dev->hw, control->vif,
 					frag_skb->data, frag_skb->len, control,
 					(struct ieee80211_cts *)(skb->data));
 	else
-		ieee80211_rts_get(rt2x00dev->hw, rt2x00dev->interface.id,
+		ieee80211_rts_get(rt2x00dev->hw, control->vif,
 				  frag_skb->data, frag_skb->len, control,
 				  (struct ieee80211_rts *)(skb->data));
 
-	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, ring, skb, control)) {
+	/*
+	 * Initialize skb descriptor
+	 */
+	skbdesc = get_skb_frame_desc(skb);
+	memset(skbdesc, 0, sizeof(*skbdesc));
+	skbdesc->flags |= FRAME_DESC_DRIVER_GENERATED;
+
+	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, queue, skb, control)) {
 		WARNING(rt2x00dev, "Failed to send RTS/CTS frame.\n");
 		return NETDEV_TX_BUSY;
 	}
@@ -73,7 +81,8 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct ieee80211_hdr *ieee80211hdr = (struct ieee80211_hdr *)skb->data;
-	struct data_ring *ring;
+	struct data_queue *queue;
+	struct skb_frame_desc *skbdesc;
 	u16 frame_control;
 
 	/*
@@ -88,10 +97,14 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	}
 
 	/*
-	 * Determine which ring to put packet on.
+	 * Determine which queue to put packet on.
 	 */
-	ring = rt2x00lib_get_ring(rt2x00dev, control->queue);
-	if (unlikely(!ring)) {
+	if (control->flags & IEEE80211_TXCTL_SEND_AFTER_DTIM &&
+	    test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags))
+		queue = rt2x00queue_get_queue(rt2x00dev, RT2X00_BCN_QUEUE_ATIM);
+	else
+		queue = rt2x00queue_get_queue(rt2x00dev, control->queue);
+	if (unlikely(!queue)) {
 		ERROR(rt2x00dev,
 		      "Attempt to send packet over invalid queue %d.\n"
 		      "Please file bug report to %s.\n",
@@ -110,23 +123,29 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	if (!is_rts_frame(frame_control) && !is_cts_frame(frame_control) &&
 	    (control->flags & (IEEE80211_TXCTL_USE_RTS_CTS |
 			       IEEE80211_TXCTL_USE_CTS_PROTECT))) {
-		if (rt2x00_ring_free(ring) <= 1) {
+		if (rt2x00queue_available(queue) <= 1) {
 			ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 			return NETDEV_TX_BUSY;
 		}
 
-		if (rt2x00mac_tx_rts_cts(rt2x00dev, ring, skb, control)) {
+		if (rt2x00mac_tx_rts_cts(rt2x00dev, queue, skb, control)) {
 			ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 			return NETDEV_TX_BUSY;
 		}
 	}
 
-	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, ring, skb, control)) {
+	/*
+	 * Initialize skb descriptor
+	 */
+	skbdesc = get_skb_frame_desc(skb);
+	memset(skbdesc, 0, sizeof(*skbdesc));
+
+	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, queue, skb, control)) {
 		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 		return NETDEV_TX_BUSY;
 	}
 
-	if (rt2x00_ring_full(ring))
+	if (rt2x00queue_full(queue))
 		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 
 	if (rt2x00dev->ops->lib->kick_tx_queue)
@@ -162,27 +181,67 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 			    struct ieee80211_if_init_conf *conf)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct interface *intf = &rt2x00dev->interface;
-
-	/* FIXME: Beaconing is broken in rt2x00. */
-	if (conf->type == IEEE80211_IF_TYPE_IBSS ||
-	    conf->type == IEEE80211_IF_TYPE_AP) {
-		ERROR(rt2x00dev,
-		      "rt2x00 does not support Adhoc or Master mode");
-		return -EOPNOTSUPP;
-	}
+	struct rt2x00_intf *intf = vif_to_intf(conf->vif);
+	struct data_queue *queue =
+	    rt2x00queue_get_queue(rt2x00dev, RT2X00_BCN_QUEUE_BEACON);
+	struct queue_entry *entry = NULL;
+	unsigned int i;
 
 	/*
-	 * Don't allow interfaces to be added while
-	 * either the device has disappeared or when
-	 * another interface is already present.
+	 * Don't allow interfaces to be added
+	 * the device has disappeared.
 	 */
 	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags) ||
-	    is_interface_present(intf))
+	    !test_bit(DEVICE_STARTED, &rt2x00dev->flags))
+		return -ENODEV;
+
+	/*
+	 * When we don't support mixed interfaces (a combination
+	 * of sta and ap virtual interfaces) then we can only
+	 * add this interface when the rival interface count is 0.
+	 */
+	if (!test_bit(DRIVER_SUPPORT_MIXED_INTERFACES, &rt2x00dev->flags) &&
+	    ((conf->type == IEEE80211_IF_TYPE_AP && rt2x00dev->intf_sta_count) ||
+	     (conf->type != IEEE80211_IF_TYPE_AP && rt2x00dev->intf_ap_count)))
 		return -ENOBUFS;
 
-	intf->id = conf->vif;
-	intf->type = conf->type;
+	/*
+	 * Check if we exceeded the maximum amount of supported interfaces.
+	 */
+	if ((conf->type == IEEE80211_IF_TYPE_AP &&
+	     rt2x00dev->intf_ap_count >= rt2x00dev->ops->max_ap_intf) ||
+	    (conf->type != IEEE80211_IF_TYPE_AP &&
+	     rt2x00dev->intf_sta_count >= rt2x00dev->ops->max_sta_intf))
+		return -ENOBUFS;
+
+	/*
+	 * Loop through all beacon queues to find a free
+	 * entry. Since there are as much beacon entries
+	 * as the maximum interfaces, this search shouldn't
+	 * fail.
+	 */
+	for (i = 0; i < queue->limit; i++) {
+		entry = &queue->entries[i];
+		if (!__test_and_set_bit(ENTRY_BCN_ASSIGNED, &entry->flags))
+			break;
+	}
+
+	if (unlikely(i == queue->limit))
+		return -ENOBUFS;
+
+	/*
+	 * We are now absolutely sure the interface can be created,
+	 * increase interface count and start initialization.
+	 */
+
+	if (conf->type == IEEE80211_IF_TYPE_AP)
+		rt2x00dev->intf_ap_count++;
+	else
+		rt2x00dev->intf_sta_count++;
+
+	spin_lock_init(&intf->lock);
+	intf->beacon = entry;
+
 	if (conf->type == IEEE80211_IF_TYPE_AP)
 		memcpy(&intf->bssid, conf->mac_addr, ETH_ALEN);
 	memcpy(&intf->mac, conf->mac_addr, ETH_ALEN);
@@ -192,8 +251,14 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	 * has been initialized. Otherwise the device can reset
 	 * the MAC registers.
 	 */
-	rt2x00lib_config_mac_addr(rt2x00dev, intf->mac);
-	rt2x00lib_config_type(rt2x00dev, conf->type);
+	rt2x00lib_config_intf(rt2x00dev, intf, conf->type, intf->mac, NULL);
+
+	/*
+	 * Some filters depend on the current working mode. We can force
+	 * an update during the next configure_filter() run by mac80211 by
+	 * resetting the current packet_filter state.
+	 */
+	rt2x00dev->packet_filter = 0;
 
 	return 0;
 }
@@ -203,7 +268,7 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 				struct ieee80211_if_init_conf *conf)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct interface *intf = &rt2x00dev->interface;
+	struct rt2x00_intf *intf = vif_to_intf(conf->vif);
 
 	/*
 	 * Don't allow interfaces to be remove while
@@ -211,21 +276,27 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 	 * no interface is present.
 	 */
 	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags) ||
-	    !is_interface_present(intf))
+	    (conf->type == IEEE80211_IF_TYPE_AP && !rt2x00dev->intf_ap_count) ||
+	    (conf->type != IEEE80211_IF_TYPE_AP && !rt2x00dev->intf_sta_count))
 		return;
 
-	intf->id = 0;
-	intf->type = IEEE80211_IF_TYPE_INVALID;
-	memset(&intf->bssid, 0x00, ETH_ALEN);
-	memset(&intf->mac, 0x00, ETH_ALEN);
+	if (conf->type == IEEE80211_IF_TYPE_AP)
+		rt2x00dev->intf_ap_count--;
+	else
+		rt2x00dev->intf_sta_count--;
+
+	/*
+	 * Release beacon entry so it is available for
+	 * new interfaces again.
+	 */
+	__clear_bit(ENTRY_BCN_ASSIGNED, &intf->beacon->flags);
 
 	/*
 	 * Make sure the bssid and mac address registers
 	 * are cleared to prevent false ACKing of frames.
 	 */
-	rt2x00lib_config_mac_addr(rt2x00dev, intf->mac);
-	rt2x00lib_config_bssid(rt2x00dev, intf->bssid);
-	rt2x00lib_config_type(rt2x00dev, intf->type);
+	rt2x00lib_config_intf(rt2x00dev, intf,
+			      IEEE80211_IF_TYPE_INVALID, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_remove_interface);
 
@@ -270,7 +341,7 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 			       struct ieee80211_if_conf *conf)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct interface *intf = &rt2x00dev->interface;
+	struct rt2x00_intf *intf = vif_to_intf(vif);
 	int status;
 
 	/*
@@ -280,12 +351,7 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags))
 		return 0;
 
-	/*
-	 * If the given type does not match the configured type,
-	 * there has been a problem.
-	 */
-	if (conf->type != intf->type)
-		return -EINVAL;
+	spin_lock(&intf->lock);
 
 	/*
 	 * If the interface does not work in master mode,
@@ -294,7 +360,16 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 	 */
 	if (conf->type != IEEE80211_IF_TYPE_AP)
 		memcpy(&intf->bssid, conf->bssid, ETH_ALEN);
-	rt2x00lib_config_bssid(rt2x00dev, intf->bssid);
+
+	spin_unlock(&intf->lock);
+
+	/*
+	 * Call rt2x00_config_intf() outside of the spinlock context since
+	 * the call will sleep for USB drivers. By using the ieee80211_if_conf
+	 * values as arguments we make keep access to rt2x00_intf thread safe
+	 * even without the lock.
+	 */
+	rt2x00lib_config_intf(rt2x00dev, intf, conf->type, NULL, conf->bssid);
 
 	/*
 	 * We only need to initialize the beacon when master mode is enabled.
@@ -311,6 +386,50 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 	return status;
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_config_interface);
+
+void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
+				unsigned int changed_flags,
+				unsigned int *total_flags,
+				int mc_count, struct dev_addr_list *mc_list)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+
+	/*
+	 * Mask off any flags we are going to ignore
+	 * from the total_flags field.
+	 */
+	*total_flags &=
+	    FIF_ALLMULTI |
+	    FIF_FCSFAIL |
+	    FIF_PLCPFAIL |
+	    FIF_CONTROL |
+	    FIF_OTHER_BSS |
+	    FIF_PROMISC_IN_BSS;
+
+	/*
+	 * Apply some rules to the filters:
+	 * - Some filters imply different filters to be set.
+	 * - Some things we can't filter out at all.
+	 * - Multicast filter seems to kill broadcast traffic so never use it.
+	 */
+	*total_flags |= FIF_ALLMULTI;
+	if (*total_flags & FIF_OTHER_BSS ||
+	    *total_flags & FIF_PROMISC_IN_BSS)
+		*total_flags |= FIF_PROMISC_IN_BSS | FIF_OTHER_BSS;
+
+	/*
+	 * Check if there is any work left for us.
+	 */
+	if (rt2x00dev->packet_filter == *total_flags)
+		return;
+	rt2x00dev->packet_filter = *total_flags;
+
+	if (!test_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags))
+		rt2x00dev->ops->lib->config_filter(rt2x00dev, *total_flags);
+	else
+		queue_work(rt2x00dev->hw->workqueue, &rt2x00dev->filter_work);
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_configure_filter);
 
 int rt2x00mac_get_stats(struct ieee80211_hw *hw,
 			struct ieee80211_low_level_stats *stats)
@@ -334,9 +453,11 @@ int rt2x00mac_get_tx_stats(struct ieee80211_hw *hw,
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	unsigned int i;
 
-	for (i = 0; i < hw->queues; i++)
-		memcpy(&stats->data[i], &rt2x00dev->tx[i].stats,
-		       sizeof(rt2x00dev->tx[i].stats));
+	for (i = 0; i < hw->queues; i++) {
+		stats->data[i].len = rt2x00dev->tx[i].length;
+		stats->data[i].limit = rt2x00dev->tx[i].limit;
+		stats->data[i].count = rt2x00dev->tx[i].count;
+	}
 
 	return 0;
 }
@@ -348,71 +469,83 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 				u32 changes)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	int short_preamble;
-	int ack_timeout;
-	int ack_consume_time;
-	int difs;
-	int preamble;
+	struct rt2x00_intf *intf = vif_to_intf(vif);
+	unsigned int delayed = 0;
 
 	/*
-	 * We only support changing preamble mode.
+	 * When the association status has changed we must reset the link
+	 * tuner counter. This is because some drivers determine if they
+	 * should perform link tuning based on the number of seconds
+	 * while associated or not associated.
 	 */
-	if (!(changes & BSS_CHANGED_ERP_PREAMBLE))
-		return;
+	if (changes & BSS_CHANGED_ASSOC) {
+		rt2x00dev->link.count = 0;
 
-	short_preamble = bss_conf->use_short_preamble;
-	preamble = bss_conf->use_short_preamble ?
-				SHORT_PREAMBLE : PREAMBLE;
+		if (bss_conf->assoc)
+			rt2x00dev->intf_associated++;
+		else
+			rt2x00dev->intf_associated--;
 
-	difs = (hw->conf.flags & IEEE80211_CONF_SHORT_SLOT_TIME) ?
-		SHORT_DIFS : DIFS;
-	ack_timeout = difs + PLCP + preamble + get_duration(ACK_SIZE, 10);
+		if (!test_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags))
+			rt2x00leds_led_assoc(rt2x00dev,
+					     !!rt2x00dev->intf_associated);
+		else
+			delayed |= DELAYED_LED_ASSOC;
+	}
 
-	ack_consume_time = SIFS + PLCP + preamble + get_duration(ACK_SIZE, 10);
+	/*
+	 * When the erp information has changed, we should perform
+	 * additional configuration steps. For all other changes we are done.
+	 */
+	if (changes & BSS_CHANGED_ERP_PREAMBLE) {
+		if (!test_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags))
+			rt2x00lib_config_erp(rt2x00dev, intf, bss_conf);
+		else
+			delayed |= DELAYED_CONFIG_ERP;
+	}
 
-	if (short_preamble)
-		__set_bit(CONFIG_SHORT_PREAMBLE, &rt2x00dev->flags);
-	else
-		__clear_bit(CONFIG_SHORT_PREAMBLE, &rt2x00dev->flags);
-
-	rt2x00dev->ops->lib->config_preamble(rt2x00dev, short_preamble,
-					     ack_timeout, ack_consume_time);
+	spin_lock(&intf->lock);
+	memcpy(&intf->conf, bss_conf, sizeof(*bss_conf));
+	if (delayed) {
+		intf->delayed_flags |= delayed;
+		queue_work(rt2x00dev->hw->workqueue, &rt2x00dev->intf_work);
+	}
+	spin_unlock(&intf->lock);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_bss_info_changed);
 
-int rt2x00mac_conf_tx(struct ieee80211_hw *hw, int queue,
+int rt2x00mac_conf_tx(struct ieee80211_hw *hw, int queue_idx,
 		      const struct ieee80211_tx_queue_params *params)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct data_ring *ring;
+	struct data_queue *queue;
 
-	ring = rt2x00lib_get_ring(rt2x00dev, queue);
-	if (unlikely(!ring))
+	queue = rt2x00queue_get_queue(rt2x00dev, queue_idx);
+	if (unlikely(!queue))
 		return -EINVAL;
 
 	/*
 	 * The passed variables are stored as real value ((2^n)-1).
 	 * Ralink registers require to know the bit number 'n'.
 	 */
-	if (params->cw_min)
-		ring->tx_params.cw_min = fls(params->cw_min);
+	if (params->cw_min > 0)
+		queue->cw_min = fls(params->cw_min);
 	else
-		ring->tx_params.cw_min = 5; /* cw_min: 2^5 = 32. */
+		queue->cw_min = 5; /* cw_min: 2^5 = 32. */
 
-	if (params->cw_max)
-		ring->tx_params.cw_max = fls(params->cw_max);
+	if (params->cw_max > 0)
+		queue->cw_max = fls(params->cw_max);
 	else
-		ring->tx_params.cw_max = 10; /* cw_min: 2^10 = 1024. */
+		queue->cw_max = 10; /* cw_min: 2^10 = 1024. */
 
-	if (params->aifs)
-		ring->tx_params.aifs = params->aifs;
+	if (params->aifs >= 0)
+		queue->aifs = params->aifs;
 	else
-		ring->tx_params.aifs = 2;
+		queue->aifs = 2;
 
 	INFO(rt2x00dev,
-	     "Configured TX ring %d - CWmin: %d, CWmax: %d, Aifs: %d.\n",
-	     queue, ring->tx_params.cw_min, ring->tx_params.cw_max,
-	     ring->tx_params.aifs);
+	     "Configured TX queue %d - CWmin: %d, CWmax: %d, Aifs: %d.\n",
+	     queue_idx, queue->cw_min, queue->cw_max, queue->aifs);
 
 	return 0;
 }

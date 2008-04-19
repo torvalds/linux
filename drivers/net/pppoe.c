@@ -301,7 +301,7 @@ static int pppoe_device_event(struct notifier_block *this,
 {
 	struct net_device *dev = (struct net_device *) ptr;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
 
 	/* Only look at sockets that are using this specific device. */
@@ -392,7 +392,7 @@ static int pppoe_rcv(struct sk_buff *skb,
 	if (!(skb = skb_share_check(skb, GFP_ATOMIC)))
 		goto out;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		goto drop;
 
 	if (!pskb_may_pull(skb, sizeof(struct pppoe_hdr)))
@@ -424,7 +424,7 @@ static int pppoe_disc_rcv(struct sk_buff *skb,
 	struct pppoe_hdr *ph;
 	struct pppox_sock *po;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		goto abort;
 
 	if (!pskb_may_pull(skb, sizeof(struct pppoe_hdr)))

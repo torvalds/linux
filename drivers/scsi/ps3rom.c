@@ -26,6 +26,7 @@
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_eh.h>
 
 #include <asm/lv1call.h>
 #include <asm/ps3stor.h>
@@ -90,78 +91,6 @@ static int ps3rom_slave_configure(struct scsi_device *scsi_dev)
 	return 0;
 }
 
-/*
- * copy data from device into scatter/gather buffer
- */
-static int fill_from_dev_buffer(struct scsi_cmnd *cmd, const void *buf)
-{
-	int k, req_len, act_len, len, active;
-	void *kaddr;
-	struct scatterlist *sgpnt;
-	unsigned int buflen;
-
-	buflen = scsi_bufflen(cmd);
-	if (!buflen)
-		return 0;
-
-	if (!scsi_sglist(cmd))
-		return -1;
-
-	active = 1;
-	req_len = act_len = 0;
-	scsi_for_each_sg(cmd, sgpnt, scsi_sg_count(cmd), k) {
-		if (active) {
-			kaddr = kmap_atomic(sg_page(sgpnt), KM_IRQ0);
-			len = sgpnt->length;
-			if ((req_len + len) > buflen) {
-				active = 0;
-				len = buflen - req_len;
-			}
-			memcpy(kaddr + sgpnt->offset, buf + req_len, len);
-			flush_kernel_dcache_page(sg_page(sgpnt));
-			kunmap_atomic(kaddr, KM_IRQ0);
-			act_len += len;
-		}
-		req_len += sgpnt->length;
-	}
-	scsi_set_resid(cmd, buflen - act_len);
-	return 0;
-}
-
-/*
- * copy data from scatter/gather into device's buffer
- */
-static int fetch_to_dev_buffer(struct scsi_cmnd *cmd, void *buf)
-{
-	int k, req_len, len, fin;
-	void *kaddr;
-	struct scatterlist *sgpnt;
-	unsigned int buflen;
-
-	buflen = scsi_bufflen(cmd);
-	if (!buflen)
-		return 0;
-
-	if (!scsi_sglist(cmd))
-		return -1;
-
-	req_len = fin = 0;
-	scsi_for_each_sg(cmd, sgpnt, scsi_sg_count(cmd), k) {
-		kaddr = kmap_atomic(sg_page(sgpnt), KM_IRQ0);
-		len = sgpnt->length;
-		if ((req_len + len) > buflen) {
-			len = buflen - req_len;
-			fin = 1;
-		}
-		memcpy(buf + req_len, kaddr + sgpnt->offset, len);
-		kunmap_atomic(kaddr, KM_IRQ0);
-		if (fin)
-			return req_len + len;
-		req_len += sgpnt->length;
-	}
-	return req_len;
-}
-
 static int ps3rom_atapi_request(struct ps3_storage_device *dev,
 				struct scsi_cmnd *cmd)
 {
@@ -195,9 +124,7 @@ static int ps3rom_atapi_request(struct ps3_storage_device *dev,
 		else
 			atapi_cmnd.proto = PIO_DATA_OUT_PROTO;
 		atapi_cmnd.in_out = DIR_WRITE;
-		res = fetch_to_dev_buffer(cmd, dev->bounce_buf);
-		if (res < 0)
-			return DID_ERROR << 16;
+		scsi_sg_copy_to_buffer(cmd, dev->bounce_buf, dev->bounce_size);
 		break;
 
 	default:
@@ -269,9 +196,7 @@ static int ps3rom_write_request(struct ps3_storage_device *dev,
 	dev_dbg(&dev->sbd.core, "%s:%u: write %u sectors starting at %u\n",
 		__func__, __LINE__, sectors, start_sector);
 
-	res = fetch_to_dev_buffer(cmd, dev->bounce_buf);
-	if (res < 0)
-		return DID_ERROR << 16;
+	scsi_sg_copy_to_buffer(cmd, dev->bounce_buf, dev->bounce_size);
 
 	res = lv1_storage_write(dev->sbd.dev_id,
 				dev->regions[dev->region_idx].id, start_sector,
@@ -381,11 +306,13 @@ static irqreturn_t ps3rom_interrupt(int irq, void *data)
 	if (!status) {
 		/* OK, completed */
 		if (cmd->sc_data_direction == DMA_FROM_DEVICE) {
-			res = fill_from_dev_buffer(cmd, dev->bounce_buf);
-			if (res) {
-				cmd->result = DID_ERROR << 16;
-				goto done;
-			}
+			int len;
+
+			len = scsi_sg_copy_from_buffer(cmd,
+						       dev->bounce_buf,
+						       dev->bounce_size);
+
+			scsi_set_resid(cmd, scsi_bufflen(cmd) - len);
 		}
 		cmd->result = DID_OK << 16;
 		goto done;
@@ -404,11 +331,7 @@ static irqreturn_t ps3rom_interrupt(int irq, void *data)
 		goto done;
 	}
 
-	cmd->sense_buffer[0]  = 0x70;
-	cmd->sense_buffer[2]  = sense_key;
-	cmd->sense_buffer[7]  = 16 - 6;
-	cmd->sense_buffer[12] = asc;
-	cmd->sense_buffer[13] = ascq;
+	scsi_build_sense_buffer(0, cmd->sense_buffer, sense_key, asc, ascq);
 	cmd->result = SAM_STAT_CHECK_CONDITION;
 
 done:
@@ -427,7 +350,7 @@ static struct scsi_host_template ps3rom_host_template = {
 	.cmd_per_lun =		1,
 	.emulated =             1,		/* only sg driver uses this */
 	.max_sectors =		PS3ROM_MAX_SECTORS,
-	.use_clustering =	DISABLE_CLUSTERING,
+	.use_clustering =	ENABLE_CLUSTERING,
 	.module =		THIS_MODULE,
 };
 

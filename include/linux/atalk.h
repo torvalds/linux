@@ -85,8 +85,6 @@ static inline struct atalk_sock *at_sk(struct sock *sk)
 	return (struct atalk_sock *)sk;
 }
 
-#include <asm/byteorder.h>
-
 struct ddpehdr {
 	__be16	deh_len_hops;	/* lower 10 bits are length, next 4 - hops */
 	__be16	deh_sum;

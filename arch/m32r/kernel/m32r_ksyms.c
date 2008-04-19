@@ -7,7 +7,6 @@
 #include <linux/interrupt.h>
 #include <linux/string.h>
 
-#include <asm/semaphore.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/checksum.h>
@@ -22,10 +21,6 @@ EXPORT_SYMBOL(dump_fpu);
 EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(kernel_thread);
-EXPORT_SYMBOL(__down);
-EXPORT_SYMBOL(__down_interruptible);
-EXPORT_SYMBOL(__up);
-EXPORT_SYMBOL(__down_trylock);
 
 /* Networking helper routines. */
 /* Delay loops */

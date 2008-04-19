@@ -116,6 +116,10 @@ static ssize_t rng_dev_read(struct file *filp, char __user *buf,
 		err = -EAGAIN;
 		if (!bytes_read && (filp->f_flags & O_NONBLOCK))
 			goto out;
+		if (bytes_read < 0) {
+			err = bytes_read;
+			goto out;
+		}
 
 		err = -EFAULT;
 		while (bytes_read && size) {

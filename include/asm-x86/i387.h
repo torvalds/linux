@@ -41,7 +41,7 @@ static inline void tolerant_fwait(void)
 {
 	asm volatile("1: fwait\n"
 		     "2:\n"
-		     _ASM_EXTABLE(1b,2b));
+		     _ASM_EXTABLE(1b, 2b));
 }
 
 static inline int restore_fpu_checking(struct i387_fxsave_struct *fx)
@@ -54,7 +54,7 @@ static inline int restore_fpu_checking(struct i387_fxsave_struct *fx)
 		     "3:  movl $-1,%[err]\n"
 		     "    jmp  2b\n"
 		     ".previous\n"
-		     _ASM_EXTABLE(1b,3b)
+		     _ASM_EXTABLE(1b, 3b)
 		     : [err] "=r" (err)
 #if 0 /* See comment in __save_init_fpu() below. */
 		     : [fx] "r" (fx), "m" (*fx), "0" (0));
@@ -76,11 +76,11 @@ static inline int restore_fpu_checking(struct i387_fxsave_struct *fx)
 static inline void clear_fpu_state(struct i387_fxsave_struct *fx)
 {
 	if (unlikely(fx->swd & X87_FSW_ES))
-		 asm volatile("fnclex");
+		asm volatile("fnclex");
 	alternative_input(ASM_NOP8 ASM_NOP2,
-		     "    emms\n"		/* clear stack tags */
-		     "    fildl %%gs:0",	/* load to clear state */
-		     X86_FEATURE_FXSAVE_LEAK);
+			  "    emms\n"		/* clear stack tags */
+			  "    fildl %%gs:0",	/* load to clear state */
+			  X86_FEATURE_FXSAVE_LEAK);
 }
 
 static inline int save_i387_checking(struct i387_fxsave_struct __user *fx)
@@ -93,14 +93,15 @@ static inline int save_i387_checking(struct i387_fxsave_struct __user *fx)
 		     "3:  movl $-1,%[err]\n"
 		     "    jmp  2b\n"
 		     ".previous\n"
-		     _ASM_EXTABLE(1b,3b)
+		     _ASM_EXTABLE(1b, 3b)
 		     : [err] "=r" (err), "=m" (*fx)
 #if 0 /* See comment in __fxsave_clear() below. */
 		     : [fx] "r" (fx), "0" (0));
 #else
 		     : [fx] "cdaSDb" (fx), "0" (0));
 #endif
-	if (unlikely(err) && __clear_user(fx, sizeof(struct i387_fxsave_struct)))
+	if (unlikely(err) &&
+	    __clear_user(fx, sizeof(struct i387_fxsave_struct)))
 		err = -EFAULT;
 	/* No need to clear here because the caller clears USED_MATH */
 	return err;
@@ -156,8 +157,10 @@ static inline int save_i387(struct _fpstate __user *buf)
 		return 0;
 	clear_used_math(); /* trigger finit */
 	if (task_thread_info(tsk)->status & TS_USEDFPU) {
-		err = save_i387_checking((struct i387_fxsave_struct __user *)buf);
-		if (err) return err;
+		err = save_i387_checking((struct i387_fxsave_struct __user *)
+					 buf);
+		if (err)
+			return err;
 		task_thread_info(tsk)->status &= ~TS_USEDFPU;
 		stts();
 	} else {

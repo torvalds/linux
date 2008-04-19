@@ -86,7 +86,7 @@ static bool xt_rateest_mt_checkentry(const char *tablename,
 				     void *matchinfo,
 				     unsigned int hook_mask)
 {
-	struct xt_rateest_match_info *info = (void *)matchinfo;
+	struct xt_rateest_match_info *info = matchinfo;
 	struct xt_rateest *est1, *est2;
 
 	if (hweight32(info->flags & (XT_RATEEST_MATCH_ABS |
@@ -130,7 +130,7 @@ err1:
 static void xt_rateest_mt_destroy(const struct xt_match *match,
 				  void *matchinfo)
 {
-	struct xt_rateest_match_info *info = (void *)matchinfo;
+	struct xt_rateest_match_info *info = matchinfo;
 
 	xt_rateest_put(info->est1);
 	if (info->est2)

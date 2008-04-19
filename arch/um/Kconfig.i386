@@ -19,10 +19,6 @@ config 64BIT
 	bool
 	default n
 
-config SEMAPHORE_SLEEPERS
-	bool
-	default y
-
 config 3_LEVEL_PGTABLES
 	bool "Three-level pagetables (EXPERIMENTAL)"
 	default n

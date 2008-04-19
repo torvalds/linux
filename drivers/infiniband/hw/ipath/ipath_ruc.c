@@ -310,7 +310,7 @@ again:
 	switch (wqe->wr.opcode) {
 	case IB_WR_SEND_WITH_IMM:
 		wc.wc_flags = IB_WC_WITH_IMM;
-		wc.imm_data = wqe->wr.imm_data;
+		wc.imm_data = wqe->wr.ex.imm_data;
 		/* FALLTHROUGH */
 	case IB_WR_SEND:
 		if (!ipath_get_rwqe(qp, 0)) {
@@ -339,7 +339,7 @@ again:
 			goto err;
 		}
 		wc.wc_flags = IB_WC_WITH_IMM;
-		wc.imm_data = wqe->wr.imm_data;
+		wc.imm_data = wqe->wr.ex.imm_data;
 		if (!ipath_get_rwqe(qp, 1))
 			goto rnr_nak;
 		/* FALLTHROUGH */
@@ -483,14 +483,16 @@ done:
 
 static void want_buffer(struct ipath_devdata *dd)
 {
-	unsigned long flags;
+	if (!(dd->ipath_flags & IPATH_HAS_SEND_DMA)) {
+		unsigned long flags;
 
-	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
-	dd->ipath_sendctrl |= INFINIPATH_S_PIOINTBUFAVAIL;
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-			 dd->ipath_sendctrl);
-	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
-	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
+		spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+		dd->ipath_sendctrl |= INFINIPATH_S_PIOINTBUFAVAIL;
+		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
+				 dd->ipath_sendctrl);
+		ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+		spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
+	}
 }
 
 /**

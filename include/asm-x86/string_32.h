@@ -3,7 +3,7 @@
 
 #ifdef __KERNEL__
 
-/* Let gcc decide wether to inline or use the out of line functions */
+/* Let gcc decide whether to inline or use the out of line functions */
 
 #define __HAVE_ARCH_STRCPY
 extern char *strcpy(char *dest, const char *src);

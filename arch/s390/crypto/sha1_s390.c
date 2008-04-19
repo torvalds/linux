@@ -137,7 +137,7 @@ static struct crypto_alg alg = {
 	.dia_final	=	sha1_final } }
 };
 
-static int __init init(void)
+static int __init sha1_s390_init(void)
 {
 	if (!crypt_s390_func_available(KIMD_SHA_1))
 		return -EOPNOTSUPP;
@@ -145,13 +145,13 @@ static int __init init(void)
 	return crypto_register_alg(&alg);
 }
 
-static void __exit fini(void)
+static void __exit sha1_s390_fini(void)
 {
 	crypto_unregister_alg(&alg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(sha1_s390_init);
+module_exit(sha1_s390_fini);
 
 MODULE_ALIAS("sha1");
 

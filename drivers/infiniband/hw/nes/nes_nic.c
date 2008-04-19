@@ -802,7 +802,7 @@ static int nes_netdev_set_mac_address(struct net_device *netdev, void *p)
 
 	memcpy(netdev->dev_addr, mac_addr->sa_data, netdev->addr_len);
 	printk(PFX "%s: Address length = %d, Address = %02X%02X%02X%02X%02X%02X..\n",
-		   __FUNCTION__, netdev->addr_len,
+		   __func__, netdev->addr_len,
 		   mac_addr->sa_data[0], mac_addr->sa_data[1],
 		   mac_addr->sa_data[2], mac_addr->sa_data[3],
 		   mac_addr->sa_data[4], mac_addr->sa_data[5]);
@@ -832,7 +832,7 @@ static int nes_netdev_set_mac_address(struct net_device *netdev, void *p)
 /**
  * nes_netdev_set_multicast_list
  */
-void nes_netdev_set_multicast_list(struct net_device *netdev)
+static void nes_netdev_set_multicast_list(struct net_device *netdev)
 {
 	struct nes_vnic *nesvnic = netdev_priv(netdev);
 	struct nes_device *nesdev = nesvnic->nesdev;
@@ -946,28 +946,6 @@ static int nes_netdev_change_mtu(struct	net_device *netdev,	int	new_mtu)
 
 	return ret;
 }
-
-
-/**
- * nes_netdev_exit - destroy network device
- */
-void nes_netdev_exit(struct nes_vnic *nesvnic)
-{
-	struct net_device *netdev = nesvnic->netdev;
-	struct nes_ib_device *nesibdev = nesvnic->nesibdev;
-
-	nes_debug(NES_DBG_SHUTDOWN, "\n");
-
-	// destroy the ibdevice if RDMA enabled
-	if ((nesvnic->rdma_enabled)&&(nesvnic->of_device_registered)) {
-		nes_destroy_ofa_device( nesibdev );
-		nesvnic->of_device_registered = 0;
-		nesvnic->nesibdev = NULL;
-	}
-	unregister_netdev(netdev);
-	nes_debug(NES_DBG_SHUTDOWN, "\n");
-}
-
 
 #define NES_ETHTOOL_STAT_COUNT 55
 static const char nes_ethtool_stringset[NES_ETHTOOL_STAT_COUNT][ETH_GSTRING_LEN] = {

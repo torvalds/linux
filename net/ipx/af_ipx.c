@@ -335,7 +335,7 @@ static int ipxitf_device_event(struct notifier_block *notifier,
 	struct net_device *dev = ptr;
 	struct ipx_interface *i, *tmp;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
 
 	if (event != NETDEV_DOWN && event != NETDEV_UP)
@@ -1636,7 +1636,7 @@ static int ipx_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_ty
 	u16 ipx_pktsize;
 	int rc = 0;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		goto drop;
 
 	/* Not ours */

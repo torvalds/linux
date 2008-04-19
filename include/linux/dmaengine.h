@@ -95,12 +95,17 @@ enum dma_transaction_type {
 #define DMA_TX_TYPE_END (DMA_INTERRUPT + 1)
 
 /**
- * enum dma_prep_flags - DMA flags to augment operation preparation
+ * enum dma_ctrl_flags - DMA flags to augment operation preparation,
+ * 	control completion, and communicate status.
  * @DMA_PREP_INTERRUPT - trigger an interrupt (callback) upon completion of
  * 	this transaction
+ * @DMA_CTRL_ACK - the descriptor cannot be reused until the client
+ * 	acknowledges receipt, i.e. has has a chance to establish any
+ * 	dependency chains
  */
-enum dma_prep_flags {
+enum dma_ctrl_flags {
 	DMA_PREP_INTERRUPT = (1 << 0),
+	DMA_CTRL_ACK = (1 << 1),
 };
 
 /**
@@ -211,8 +216,8 @@ typedef void (*dma_async_tx_callback)(void *dma_async_param);
  * ---dma generic offload fields---
  * @cookie: tracking cookie for this transaction, set to -EBUSY if
  *	this tx is sitting on a dependency list
- * @ack: the descriptor can not be reused until the client acknowledges
- *	receipt, i.e. has has a chance to establish any dependency chains
+ * @flags: flags to augment operation preparation, control completion, and
+ * 	communicate status
  * @phys: physical address of the descriptor
  * @tx_list: driver common field for operations that require multiple
  *	descriptors
@@ -221,23 +226,20 @@ typedef void (*dma_async_tx_callback)(void *dma_async_param);
  * @callback: routine to call after this operation is complete
  * @callback_param: general parameter to pass to the callback routine
  * ---async_tx api specific fields---
- * @depend_list: at completion this list of transactions are submitted
- * @depend_node: allow this transaction to be executed after another
- *	transaction has completed, possibly on another channel
+ * @next: at completion submit this descriptor
  * @parent: pointer to the next level up in the dependency chain
- * @lock: protect the dependency list
+ * @lock: protect the parent and next pointers
  */
 struct dma_async_tx_descriptor {
 	dma_cookie_t cookie;
-	int ack;
+	enum dma_ctrl_flags flags; /* not a 'long' to pack with cookie */
 	dma_addr_t phys;
 	struct list_head tx_list;
 	struct dma_chan *chan;
 	dma_cookie_t (*tx_submit)(struct dma_async_tx_descriptor *tx);
 	dma_async_tx_callback callback;
 	void *callback_param;
-	struct list_head depend_list;
-	struct list_head depend_node;
+	struct dma_async_tx_descriptor *next;
 	struct dma_async_tx_descriptor *parent;
 	spinlock_t lock;
 };
@@ -261,7 +263,6 @@ struct dma_async_tx_descriptor {
  * @device_prep_dma_zero_sum: prepares a zero_sum operation
  * @device_prep_dma_memset: prepares a memset operation
  * @device_prep_dma_interrupt: prepares an end of chain interrupt operation
- * @device_dependency_added: async_tx notifies the channel about new deps
  * @device_issue_pending: push pending transactions to hardware
  */
 struct dma_device {
@@ -294,9 +295,8 @@ struct dma_device {
 		struct dma_chan *chan, dma_addr_t dest, int value, size_t len,
 		unsigned long flags);
 	struct dma_async_tx_descriptor *(*device_prep_dma_interrupt)(
-		struct dma_chan *chan);
+		struct dma_chan *chan, unsigned long flags);
 
-	void (*device_dependency_added)(struct dma_chan *chan);
 	enum dma_status (*device_is_tx_complete)(struct dma_chan *chan,
 			dma_cookie_t cookie, dma_cookie_t *last,
 			dma_cookie_t *used);
@@ -321,7 +321,13 @@ void dma_async_tx_descriptor_init(struct dma_async_tx_descriptor *tx,
 static inline void
 async_tx_ack(struct dma_async_tx_descriptor *tx)
 {
-	tx->ack = 1;
+	tx->flags |= DMA_CTRL_ACK;
+}
+
+static inline int
+async_tx_test_ack(struct dma_async_tx_descriptor *tx)
+{
+	return tx->flags & DMA_CTRL_ACK;
 }
 
 #define first_dma_cap(mask) __first_dma_cap(&(mask))

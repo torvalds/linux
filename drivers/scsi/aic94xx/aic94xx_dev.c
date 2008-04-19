@@ -35,7 +35,7 @@
 #define SET_DDB(_ddb, _ha) set_bit(_ddb, (_ha)->hw_prof.ddb_bitmap)
 #define CLEAR_DDB(_ddb, _ha) clear_bit(_ddb, (_ha)->hw_prof.ddb_bitmap)
 
-static inline int asd_get_ddb(struct asd_ha_struct *asd_ha)
+static int asd_get_ddb(struct asd_ha_struct *asd_ha)
 {
 	int ddb, i;
 
@@ -71,7 +71,7 @@ out:
 #define NCQ_DATA_SCB_PTR offsetof(struct asd_ddb_stp_sata_target_port, ncq_data_scb_ptr)
 #define ITNL_TIMEOUT    offsetof(struct asd_ddb_ssp_smp_target_port, itnl_timeout)
 
-static inline void asd_free_ddb(struct asd_ha_struct *asd_ha, int ddb)
+static void asd_free_ddb(struct asd_ha_struct *asd_ha, int ddb)
 {
 	if (!ddb || ddb >= 0xFFFF)
 		return;
@@ -79,7 +79,7 @@ static inline void asd_free_ddb(struct asd_ha_struct *asd_ha, int ddb)
 	CLEAR_DDB(ddb, asd_ha);
 }
 
-static inline void asd_set_ddb_type(struct domain_device *dev)
+static void asd_set_ddb_type(struct domain_device *dev)
 {
 	struct asd_ha_struct *asd_ha = dev->port->ha->lldd_ha;
 	int ddb = (int) (unsigned long) dev->lldd_dev;
@@ -109,7 +109,7 @@ static int asd_init_sata_tag_ddb(struct domain_device *dev)
 	return 0;
 }
 
-static inline int asd_init_sata(struct domain_device *dev)
+static int asd_init_sata(struct domain_device *dev)
 {
 	struct asd_ha_struct *asd_ha = dev->port->ha->lldd_ha;
 	int ddb = (int) (unsigned long) dev->lldd_dev;

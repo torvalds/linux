@@ -1023,7 +1023,7 @@ static void *lec_tbl_walk(struct lec_state *state, struct hlist_head *tbl,
 
 	if (!e)
 		e = tbl->first;
-	if (e == (void *)1) {
+	if (e == SEQ_START_TOKEN) {
 		e = tbl->first;
 		--*l;
 	}
@@ -1125,9 +1125,9 @@ static void *lec_seq_start(struct seq_file *seq, loff_t *pos)
 	state->locked = NULL;
 	state->arp_table = 0;
 	state->misc_table = 0;
-	state->node = (void *)1;
+	state->node = SEQ_START_TOKEN;
 
-	return *pos ? lec_get_idx(state, *pos) : (void *)1;
+	return *pos ? lec_get_idx(state, *pos) : SEQ_START_TOKEN;
 }
 
 static void lec_seq_stop(struct seq_file *seq, void *v)
@@ -1156,7 +1156,7 @@ static int lec_seq_show(struct seq_file *seq, void *v)
 	    "                          Status            Flags "
 	    "VPI/VCI Recv VPI/VCI\n";
 
-	if (v == (void *)1)
+	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, lec_banner);
 	else {
 		struct lec_state *state = seq->private;
@@ -1178,32 +1178,7 @@ static const struct seq_operations lec_seq_ops = {
 
 static int lec_seq_open(struct inode *inode, struct file *file)
 {
-	struct lec_state *state;
-	struct seq_file *seq;
-	int rc = -EAGAIN;
-
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
-	if (!state) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	rc = seq_open(file, &lec_seq_ops);
-	if (rc)
-		goto out_kfree;
-	seq = file->private_data;
-	seq->private = state;
-out:
-	return rc;
-
-out_kfree:
-	kfree(state);
-	goto out;
-}
-
-static int lec_seq_release(struct inode *inode, struct file *file)
-{
-	return seq_release_private(inode, file);
+	return seq_open_private(file, &lec_seq_ops, sizeof(struct lec_state));
 }
 
 static const struct file_operations lec_seq_fops = {
@@ -1211,7 +1186,7 @@ static const struct file_operations lec_seq_fops = {
 	.open = lec_seq_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = lec_seq_release,
+	.release = seq_release_private,
 };
 #endif
 

@@ -31,6 +31,7 @@ static int zfcp_scsi_queuecommand(struct scsi_cmnd *,
 				  void (*done) (struct scsi_cmnd *));
 static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *);
 static int zfcp_scsi_eh_device_reset_handler(struct scsi_cmnd *);
+static int zfcp_scsi_eh_target_reset_handler(struct scsi_cmnd *);
 static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *);
 static int zfcp_task_management_function(struct zfcp_unit *, u8,
 					 struct scsi_cmnd *);
@@ -51,6 +52,7 @@ struct zfcp_data zfcp_data = {
 		.queuecommand		= zfcp_scsi_queuecommand,
 		.eh_abort_handler	= zfcp_scsi_eh_abort_handler,
 		.eh_device_reset_handler = zfcp_scsi_eh_device_reset_handler,
+		.eh_target_reset_handler = zfcp_scsi_eh_target_reset_handler,
 		.eh_host_reset_handler	= zfcp_scsi_eh_host_reset_handler,
 		.can_queue		= 4096,
 		.this_id		= -1,
@@ -179,11 +181,10 @@ static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 	struct zfcp_unit *unit = (struct zfcp_unit *) sdpnt->hostdata;
 
 	if (unit) {
-		zfcp_erp_wait(unit->port->adapter);
 		atomic_clear_mask(ZFCP_STATUS_UNIT_REGISTERED, &unit->status);
 		sdpnt->hostdata = NULL;
 		unit->device = NULL;
-		zfcp_erp_unit_failed(unit);
+		zfcp_erp_unit_failed(unit, 12, NULL);
 		zfcp_unit_put(unit);
 	} else
 		ZFCP_LOG_NORMAL("bug: no unit associated with SCSI device at "
@@ -442,58 +443,32 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 	return retval;
 }
 
-static int
-zfcp_scsi_eh_device_reset_handler(struct scsi_cmnd *scpnt)
+static int zfcp_scsi_eh_device_reset_handler(struct scsi_cmnd *scpnt)
 {
 	int retval;
-	struct zfcp_unit *unit = (struct zfcp_unit *) scpnt->device->hostdata;
+	struct zfcp_unit *unit = scpnt->device->hostdata;
 
 	if (!unit) {
-		ZFCP_LOG_NORMAL("bug: Tried reset for nonexistent unit\n");
-		retval = SUCCESS;
-		goto out;
+		WARN_ON(1);
+		return SUCCESS;
 	}
-	ZFCP_LOG_NORMAL("resetting unit 0x%016Lx on port 0x%016Lx, adapter %s\n",
-			unit->fcp_lun, unit->port->wwpn,
-			zfcp_get_busid_by_adapter(unit->port->adapter));
+	retval = zfcp_task_management_function(unit,
+					       FCP_LOGICAL_UNIT_RESET,
+					       scpnt);
+	return retval ? FAILED : SUCCESS;
+}
 
-	/*
-	 * If we do not know whether the unit supports 'logical unit reset'
-	 * then try 'logical unit reset' and proceed with 'target reset'
-	 * if 'logical unit reset' fails.
-	 * If the unit is known not to support 'logical unit reset' then
-	 * skip 'logical unit reset' and try 'target reset' immediately.
-	 */
-	if (!atomic_test_mask(ZFCP_STATUS_UNIT_NOTSUPPUNITRESET,
-			      &unit->status)) {
-		retval = zfcp_task_management_function(unit,
-						       FCP_LOGICAL_UNIT_RESET,
-						       scpnt);
-		if (retval) {
-			ZFCP_LOG_DEBUG("unit reset failed (unit=%p)\n", unit);
-			if (retval == -ENOTSUPP)
-				atomic_set_mask
-				    (ZFCP_STATUS_UNIT_NOTSUPPUNITRESET,
-				     &unit->status);
-			/* fall through and try 'target reset' next */
-		} else {
-			ZFCP_LOG_DEBUG("unit reset succeeded (unit=%p)\n",
-				       unit);
-			/* avoid 'target reset' */
-			retval = SUCCESS;
-			goto out;
-		}
+static int zfcp_scsi_eh_target_reset_handler(struct scsi_cmnd *scpnt)
+{
+	int retval;
+	struct zfcp_unit *unit = scpnt->device->hostdata;
+
+	if (!unit) {
+		WARN_ON(1);
+		return SUCCESS;
 	}
 	retval = zfcp_task_management_function(unit, FCP_TARGET_RESET, scpnt);
-	if (retval) {
-		ZFCP_LOG_DEBUG("target reset failed (unit=%p)\n", unit);
-		retval = FAILED;
-	} else {
-		ZFCP_LOG_DEBUG("target reset succeeded (unit=%p)\n", unit);
-		retval = SUCCESS;
-	}
- out:
-	return retval;
+	return retval ? FAILED : SUCCESS;
 }
 
 static int
@@ -553,7 +528,7 @@ static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 		unit->fcp_lun, unit->port->wwpn,
 		zfcp_get_busid_by_adapter(unit->port->adapter));
 
-	zfcp_erp_adapter_reopen(adapter, 0);
+	zfcp_erp_adapter_reopen(adapter, 0, 141, scpnt);
 	zfcp_erp_wait(adapter);
 
 	return SUCCESS;

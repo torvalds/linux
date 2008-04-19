@@ -99,8 +99,7 @@ enum fixed_addresses {
 	 */
 #define NR_FIX_BTMAPS		64
 #define FIX_BTMAPS_NESTING	4
-	FIX_BTMAP_END =
-		__end_of_permanent_fixed_addresses + 512 -
+	FIX_BTMAP_END = __end_of_permanent_fixed_addresses + 512 -
 			(__end_of_permanent_fixed_addresses & 511),
 	FIX_BTMAP_BEGIN = FIX_BTMAP_END + NR_FIX_BTMAPS*FIX_BTMAPS_NESTING - 1,
 	FIX_WP_TEST,
@@ -110,20 +109,20 @@ enum fixed_addresses {
 	__end_of_fixed_addresses
 };
 
-extern void __set_fixmap (enum fixed_addresses idx,
-					unsigned long phys, pgprot_t flags);
+extern void __set_fixmap(enum fixed_addresses idx,
+			 unsigned long phys, pgprot_t flags);
 extern void reserve_top_address(unsigned long reserve);
 
-#define set_fixmap(idx, phys) \
-		__set_fixmap(idx, phys, PAGE_KERNEL)
+#define set_fixmap(idx, phys)				\
+	__set_fixmap(idx, phys, PAGE_KERNEL)
 /*
  * Some hardware wants to get fixmapped without caching.
  */
-#define set_fixmap_nocache(idx, phys) \
-		__set_fixmap(idx, phys, PAGE_KERNEL_NOCACHE)
+#define set_fixmap_nocache(idx, phys)			\
+	__set_fixmap(idx, phys, PAGE_KERNEL_NOCACHE)
 
-#define clear_fixmap(idx) \
-		__set_fixmap(idx, 0, __pgprot(0))
+#define clear_fixmap(idx)			\
+	__set_fixmap(idx, 0, __pgprot(0))
 
 #define FIXADDR_TOP	((unsigned long)__FIXADDR_TOP)
 
@@ -156,7 +155,7 @@ static __always_inline unsigned long fix_to_virt(const unsigned int idx)
 	if (idx >= __end_of_fixed_addresses)
 		__this_fixmap_does_not_exist();
 
-        return __fix_to_virt(idx);
+	return __fix_to_virt(idx);
 }
 
 static inline unsigned long virt_to_fix(const unsigned long vaddr)

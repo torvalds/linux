@@ -615,7 +615,7 @@ static struct sbp2_command_info *sbp2util_allocate_command_orb(
 		cmd->Current_SCpnt = Current_SCpnt;
 		list_add_tail(&cmd->list, &lu->cmd_orb_inuse);
 	} else
-		SBP2_ERR("%s: no orbs available", __FUNCTION__);
+		SBP2_ERR("%s: no orbs available", __func__);
 	spin_unlock_irqrestore(&lu->cmd_orb_lock, flags);
 	return cmd;
 }
@@ -1294,7 +1294,7 @@ static int sbp2_set_busy_timeout(struct sbp2_lu *lu)
 
 	data = cpu_to_be32(SBP2_BUSY_TIMEOUT_VALUE);
 	if (hpsb_node_write(lu->ne, SBP2_BUSY_TIMEOUT_ADDRESS, &data, 4))
-		SBP2_ERR("%s error", __FUNCTION__);
+		SBP2_ERR("%s error", __func__);
 	return 0;
 }
 
@@ -1985,11 +1985,8 @@ static int sbp2scsi_slave_alloc(struct scsi_device *sdev)
 	lu->sdev = sdev;
 	sdev->allow_restart = 1;
 
-	/*
-	 * Update the dma alignment (minimum alignment requirements for
-	 * start and end of DMA transfers) to be a sector
-	 */
-	blk_queue_update_dma_alignment(sdev->request_queue, 511);
+	/* SBP-2 requires quadlet alignment of the data buffers. */
+	blk_queue_update_dma_alignment(sdev->request_queue, 4 - 1);
 
 	if (lu->workarounds & SBP2_WORKAROUND_INQUIRY_36)
 		sdev->inquiry_len = 36;

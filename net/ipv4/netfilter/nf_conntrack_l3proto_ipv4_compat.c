@@ -106,21 +106,16 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	/* we only want to print DIR_ORIGINAL */
 	if (NF_CT_DIRECTION(hash))
 		return 0;
-	if (ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num != AF_INET)
+	if (nf_ct_l3num(ct) != AF_INET)
 		return 0;
 
-	l3proto = __nf_ct_l3proto_find(ct->tuplehash[IP_CT_DIR_ORIGINAL]
-				       .tuple.src.l3num);
+	l3proto = __nf_ct_l3proto_find(nf_ct_l3num(ct));
 	NF_CT_ASSERT(l3proto);
-	l4proto = __nf_ct_l4proto_find(ct->tuplehash[IP_CT_DIR_ORIGINAL]
-				       .tuple.src.l3num,
-				       ct->tuplehash[IP_CT_DIR_ORIGINAL]
-				       .tuple.dst.protonum);
+	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
 	NF_CT_ASSERT(l4proto);
 
 	if (seq_printf(s, "%-8s %u %ld ",
-		      l4proto->name,
-		      ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum,
+		      l4proto->name, nf_ct_protonum(ct),
 		      timer_pending(&ct->timeout)
 		      ? (long)(ct->timeout.expires - jiffies)/HZ : 0) != 0)
 		return -ENOSPC;
@@ -379,7 +374,7 @@ static const struct file_operations ct_cpu_seq_fops = {
 	.open    = ct_cpu_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = seq_release_private,
+	.release = seq_release,
 };
 
 int __init nf_conntrack_ipv4_compat_init(void)

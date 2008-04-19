@@ -1935,3 +1935,7 @@ console_initcall(s3c24xx_serial_initconsole);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("Samsung S3C2410/S3C2440/S3C2412 Serial port driver");
+MODULE_ALIAS("platform:s3c2400-uart");
+MODULE_ALIAS("platform:s3c2410-uart");
+MODULE_ALIAS("platform:s3c2412-uart");
+MODULE_ALIAS("platform:s3c2440-uart");

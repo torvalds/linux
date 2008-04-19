@@ -1,7 +1,8 @@
 #ifndef USER32_H
 #define USER32_H 1
 
-/* IA32 compatible user structures for ptrace. These should be used for 32bit coredumps too. */
+/* IA32 compatible user structures for ptrace.
+ * These should be used for 32bit coredumps too. */
 
 struct user_i387_ia32_struct {
 	u32	cwd;
@@ -42,9 +43,9 @@ struct user_regs_struct32 {
 };
 
 struct user32 {
-  struct user_regs_struct32 regs;		/* Where the registers are actually stored */
+  struct user_regs_struct32 regs; /* Where the registers are actually stored */
   int u_fpvalid;		/* True if math co-processor being used. */
-                                /* for this mess. Not yet used. */
+				/* for this mess. Not yet used. */
   struct user_i387_ia32_struct i387;	/* Math Co-processor registers. */
 /* The rest of this junk is to help gdb figure out what goes where */
   __u32 u_tsize;	/* Text segment size (pages). */

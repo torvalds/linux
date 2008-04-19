@@ -126,7 +126,6 @@ fw_iso_context_create(struct fw_card *card, int type,
 
 	return ctx;
 }
-EXPORT_SYMBOL(fw_iso_context_create);
 
 void fw_iso_context_destroy(struct fw_iso_context *ctx)
 {
@@ -134,14 +133,12 @@ void fw_iso_context_destroy(struct fw_iso_context *ctx)
 
 	card->driver->free_iso_context(ctx);
 }
-EXPORT_SYMBOL(fw_iso_context_destroy);
 
 int
 fw_iso_context_start(struct fw_iso_context *ctx, int cycle, int sync, int tags)
 {
 	return ctx->card->driver->start_iso(ctx, cycle, sync, tags);
 }
-EXPORT_SYMBOL(fw_iso_context_start);
 
 int
 fw_iso_context_queue(struct fw_iso_context *ctx,
@@ -153,11 +150,9 @@ fw_iso_context_queue(struct fw_iso_context *ctx,
 
 	return card->driver->queue_iso(ctx, packet, buffer, payload);
 }
-EXPORT_SYMBOL(fw_iso_context_queue);
 
 int
 fw_iso_context_stop(struct fw_iso_context *ctx)
 {
 	return ctx->card->driver->stop_iso(ctx);
 }
-EXPORT_SYMBOL(fw_iso_context_stop);

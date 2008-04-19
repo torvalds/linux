@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2007 Intel Corporation.
+  Copyright(c) 1999 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -92,7 +92,8 @@
 /* In-Band Control Register (Page 194, Register 18) */
 #define GG82563_ICR_DIS_PADDING			 0x0010 /* Disable Padding */
 
-/* A table for the GG82563 cable length where the range is defined
+/*
+ * A table for the GG82563 cable length where the range is defined
  * with a lower bound at "index" and the upper bound at
  * "index + 5".
  */
@@ -118,7 +119,7 @@ static s32 e1000_init_phy_params_80003es2lan(struct e1000_hw *hw)
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
 
-	if (hw->media_type != e1000_media_type_copper) {
+	if (hw->phy.media_type != e1000_media_type_copper) {
 		phy->type	= e1000_phy_none;
 		return 0;
 	}
@@ -167,15 +168,20 @@ static s32 e1000_init_nvm_params_80003es2lan(struct e1000_hw *hw)
 		break;
 	}
 
-	nvm->type	       = e1000_nvm_eeprom_spi;
+	nvm->type = e1000_nvm_eeprom_spi;
 
 	size = (u16)((eecd & E1000_EECD_SIZE_EX_MASK) >>
 			  E1000_EECD_SIZE_EX_SHIFT);
 
-	/* Added to a constant, "size" becomes the left-shift value
+	/*
+	 * Added to a constant, "size" becomes the left-shift value
 	 * for setting word_size.
 	 */
 	size += NVM_WORD_SIZE_BASE_SHIFT;
+
+	/* EEPROM access above 16k is unsupported */
+	if (size > 14)
+		size = 14;
 	nvm->word_size	= 1 << size;
 
 	return 0;
@@ -196,10 +202,10 @@ static s32 e1000_init_mac_params_80003es2lan(struct e1000_adapter *adapter)
 	/* Set media type */
 	switch (adapter->pdev->device) {
 	case E1000_DEV_ID_80003ES2LAN_SERDES_DPT:
-		hw->media_type = e1000_media_type_internal_serdes;
+		hw->phy.media_type = e1000_media_type_internal_serdes;
 		break;
 	default:
-		hw->media_type = e1000_media_type_copper;
+		hw->phy.media_type = e1000_media_type_copper;
 		break;
 	}
 
@@ -208,11 +214,10 @@ static s32 e1000_init_mac_params_80003es2lan(struct e1000_adapter *adapter)
 	/* Set rar entry count */
 	mac->rar_entry_count = E1000_RAR_ENTRIES;
 	/* Set if manageability features are enabled. */
-	mac->arc_subsystem_valid =
-		(er32(FWSM) & E1000_FWSM_MODE_MASK) ? 1 : 0;
+	mac->arc_subsystem_valid = (er32(FWSM) & E1000_FWSM_MODE_MASK) ? 1 : 0;
 
 	/* check for link */
-	switch (hw->media_type) {
+	switch (hw->phy.media_type) {
 	case e1000_media_type_copper:
 		func->setup_physical_interface = e1000_setup_copper_link_80003es2lan;
 		func->check_for_link = e1000e_check_for_copper_link;
@@ -233,7 +238,7 @@ static s32 e1000_init_mac_params_80003es2lan(struct e1000_adapter *adapter)
 	return 0;
 }
 
-static s32 e1000_get_invariants_80003es2lan(struct e1000_adapter *adapter)
+static s32 e1000_get_variants_80003es2lan(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	s32 rc;
@@ -344,8 +349,10 @@ static s32 e1000_acquire_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask)
 		if (!(swfw_sync & (fwmask | swmask)))
 			break;
 
-		/* Firmware currently using resource (fwmask)
-		 * or other software thread using resource (swmask) */
+		/*
+		 * Firmware currently using resource (fwmask)
+		 * or other software thread using resource (swmask)
+		 */
 		e1000e_put_hw_semaphore(hw);
 		mdelay(5);
 		i++;
@@ -407,7 +414,8 @@ static s32 e1000_read_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 	if ((offset & MAX_PHY_REG_ADDRESS) < GG82563_MIN_ALT_REG)
 		page_select = GG82563_PHY_PAGE_SELECT;
 	else
-		/* Use Alternative Page Select register to access
+		/*
+		 * Use Alternative Page Select register to access
 		 * registers 30 and 31
 		 */
 		page_select = GG82563_PHY_PAGE_SELECT_ALT;
@@ -417,7 +425,8 @@ static s32 e1000_read_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 	if (ret_val)
 		return ret_val;
 
-	/* The "ready" bit in the MDIC register may be incorrectly set
+	/*
+	 * The "ready" bit in the MDIC register may be incorrectly set
 	 * before the device has completed the "Page Select" MDI
 	 * transaction.  So we wait 200us after each MDI command...
 	 */
@@ -462,7 +471,8 @@ static s32 e1000_write_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 	if ((offset & MAX_PHY_REG_ADDRESS) < GG82563_MIN_ALT_REG)
 		page_select = GG82563_PHY_PAGE_SELECT;
 	else
-		/* Use Alternative Page Select register to access
+		/*
+		 * Use Alternative Page Select register to access
 		 * registers 30 and 31
 		 */
 		page_select = GG82563_PHY_PAGE_SELECT_ALT;
@@ -473,7 +483,8 @@ static s32 e1000_write_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 		return ret_val;
 
 
-	/* The "ready" bit in the MDIC register may be incorrectly set
+	/*
+	 * The "ready" bit in the MDIC register may be incorrectly set
 	 * before the device has completed the "Page Select" MDI
 	 * transaction.  So we wait 200us after each MDI command...
 	 */
@@ -554,7 +565,8 @@ static s32 e1000_phy_force_speed_duplex_80003es2lan(struct e1000_hw *hw)
 	u16 phy_data;
 	bool link;
 
-	/* Clear Auto-Crossover to force MDI manually.  M88E1000 requires MDI
+	/*
+	 * Clear Auto-Crossover to force MDI manually.  M88E1000 requires MDI
 	 * forced whenever speed and duplex are forced.
 	 */
 	ret_val = e1e_rphy(hw, M88E1000_PHY_SPEC_CTRL, &phy_data);
@@ -583,7 +595,7 @@ static s32 e1000_phy_force_speed_duplex_80003es2lan(struct e1000_hw *hw)
 
 	udelay(1);
 
-	if (hw->phy.wait_for_link) {
+	if (hw->phy.autoneg_wait_to_complete) {
 		hw_dbg(hw, "Waiting for forced speed/duplex link "
 			 "on GG82563 phy.\n");
 
@@ -593,7 +605,8 @@ static s32 e1000_phy_force_speed_duplex_80003es2lan(struct e1000_hw *hw)
 			return ret_val;
 
 		if (!link) {
-			/* We didn't get link.
+			/*
+			 * We didn't get link.
 			 * Reset the DSP and cross our fingers.
 			 */
 			ret_val = e1000e_phy_reset_dsp(hw);
@@ -612,7 +625,8 @@ static s32 e1000_phy_force_speed_duplex_80003es2lan(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	/* Resetting the phy means we need to verify the TX_CLK corresponds
+	/*
+	 * Resetting the phy means we need to verify the TX_CLK corresponds
 	 * to the link speed.  10Mbps -> 2.5MHz, else 25MHz.
 	 */
 	phy_data &= ~GG82563_MSCR_TX_CLK_MASK;
@@ -621,7 +635,8 @@ static s32 e1000_phy_force_speed_duplex_80003es2lan(struct e1000_hw *hw)
 	else
 		phy_data |= GG82563_MSCR_TX_CLK_100MBPS_25;
 
-	/* In addition, we must re-enable CRS on Tx for both half and full
+	/*
+	 * In addition, we must re-enable CRS on Tx for both half and full
 	 * duplex.
 	 */
 	phy_data |= GG82563_MSCR_ASSERT_CRS_ON_TX;
@@ -671,7 +686,7 @@ static s32 e1000_get_link_up_info_80003es2lan(struct e1000_hw *hw, u16 *speed,
 {
 	s32 ret_val;
 
-	if (hw->media_type == e1000_media_type_copper) {
+	if (hw->phy.media_type == e1000_media_type_copper) {
 		ret_val = e1000e_get_speed_and_duplex_copper(hw,
 								    speed,
 								    duplex);
@@ -704,7 +719,8 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 	u32 icr;
 	s32 ret_val;
 
-	/* Prevent the PCI-E bus from sticking if there is no TLP connection
+	/*
+	 * Prevent the PCI-E bus from sticking if there is no TLP connection
 	 * on the last TLP read/write transaction when MAC is reset.
 	 */
 	ret_val = e1000e_disable_pcie_master(hw);
@@ -776,16 +792,16 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 	ret_val = e1000e_setup_link(hw);
 
 	/* Set the transmit descriptor write-back policy */
-	reg_data = er32(TXDCTL);
+	reg_data = er32(TXDCTL(0));
 	reg_data = (reg_data & ~E1000_TXDCTL_WTHRESH) |
 		   E1000_TXDCTL_FULL_TX_DESC_WB | E1000_TXDCTL_COUNT_DESC;
-	ew32(TXDCTL, reg_data);
+	ew32(TXDCTL(0), reg_data);
 
 	/* ...for both queues. */
-	reg_data = er32(TXDCTL1);
+	reg_data = er32(TXDCTL(1));
 	reg_data = (reg_data & ~E1000_TXDCTL_WTHRESH) |
 		   E1000_TXDCTL_FULL_TX_DESC_WB | E1000_TXDCTL_COUNT_DESC;
-	ew32(TXDCTL1, reg_data);
+	ew32(TXDCTL(1), reg_data);
 
 	/* Enable retransmit on late collisions */
 	reg_data = er32(TCTL);
@@ -808,7 +824,8 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 	reg_data &= ~0x00100000;
 	E1000_WRITE_REG_ARRAY(hw, E1000_FFLT, 0x0001, reg_data);
 
-	/* Clear all of the statistics registers (clear on read).  It is
+	/*
+	 * Clear all of the statistics registers (clear on read).  It is
 	 * important that we do this after we have tried to establish link
 	 * because the symbol error count will increment wildly if there
 	 * is no link.
@@ -829,29 +846,29 @@ static void e1000_initialize_hw_bits_80003es2lan(struct e1000_hw *hw)
 	u32 reg;
 
 	/* Transmit Descriptor Control 0 */
-	reg = er32(TXDCTL);
+	reg = er32(TXDCTL(0));
 	reg |= (1 << 22);
-	ew32(TXDCTL, reg);
+	ew32(TXDCTL(0), reg);
 
 	/* Transmit Descriptor Control 1 */
-	reg = er32(TXDCTL1);
+	reg = er32(TXDCTL(1));
 	reg |= (1 << 22);
-	ew32(TXDCTL1, reg);
+	ew32(TXDCTL(1), reg);
 
 	/* Transmit Arbitration Control 0 */
-	reg = er32(TARC0);
+	reg = er32(TARC(0));
 	reg &= ~(0xF << 27); /* 30:27 */
-	if (hw->media_type != e1000_media_type_copper)
+	if (hw->phy.media_type != e1000_media_type_copper)
 		reg &= ~(1 << 20);
-	ew32(TARC0, reg);
+	ew32(TARC(0), reg);
 
 	/* Transmit Arbitration Control 1 */
-	reg = er32(TARC1);
+	reg = er32(TARC(1));
 	if (er32(TCTL) & E1000_TCTL_MULR)
 		reg &= ~(1 << 28);
 	else
 		reg |= (1 << 28);
-	ew32(TARC1, reg);
+	ew32(TARC(1), reg);
 }
 
 /**
@@ -881,7 +898,8 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	/* Options:
+	/*
+	 * Options:
 	 *   MDI/MDI-X = 0 (default)
 	 *   0 - Auto for all speeds
 	 *   1 - MDI mode
@@ -907,7 +925,8 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 		break;
 	}
 
-	/* Options:
+	/*
+	 * Options:
 	 *   disable_polarity_correction = 0 (default)
 	 *       Automatic Correction for Reversed Cable Polarity
 	 *   0 - Disabled
@@ -928,10 +947,9 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 		return ret_val;
 	}
 
-	/* Bypass RX and TX FIFO's */
-	ret_val = e1000e_write_kmrn_reg(hw,
-				E1000_KMRNCTRLSTA_OFFSET_FIFO_CTRL,
-				E1000_KMRNCTRLSTA_FIFO_CTRL_RX_BYPASS |
+	/* Bypass Rx and Tx FIFO's */
+	ret_val = e1000e_write_kmrn_reg(hw, E1000_KMRNCTRLSTA_OFFSET_FIFO_CTRL,
+					E1000_KMRNCTRLSTA_FIFO_CTRL_RX_BYPASS |
 					E1000_KMRNCTRLSTA_FIFO_CTRL_TX_BYPASS);
 	if (ret_val)
 		return ret_val;
@@ -953,7 +971,8 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	/* Do not init these registers when the HW is in IAMT mode, since the
+	/*
+	 * Do not init these registers when the HW is in IAMT mode, since the
 	 * firmware will have already initialized them.  We only initialize
 	 * them if the HW is not in IAMT mode.
 	 */
@@ -974,7 +993,8 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 			return ret_val;
 	}
 
-	/* Workaround: Disable padding in Kumeran interface in the MAC
+	/*
+	 * Workaround: Disable padding in Kumeran interface in the MAC
 	 * and in the PHY to avoid CRC errors.
 	 */
 	ret_val = e1e_rphy(hw, GG82563_PHY_INBAND_CTRL, &data);
@@ -1007,9 +1027,11 @@ static s32 e1000_setup_copper_link_80003es2lan(struct e1000_hw *hw)
 	ctrl &= ~(E1000_CTRL_FRCSPD | E1000_CTRL_FRCDPX);
 	ew32(CTRL, ctrl);
 
-	/* Set the mac to wait the maximum time between each
+	/*
+	 * Set the mac to wait the maximum time between each
 	 * iteration and increase the max iterations when
-	 * polling the phy; this fixes erroneous timeouts at 10Mbps. */
+	 * polling the phy; this fixes erroneous timeouts at 10Mbps.
+	 */
 	ret_val = e1000e_write_kmrn_reg(hw, GG82563_REG(0x34, 4), 0xFFFF);
 	if (ret_val)
 		return ret_val;
@@ -1026,9 +1048,8 @@ static s32 e1000_setup_copper_link_80003es2lan(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 	reg_data |= E1000_KMRNCTRLSTA_INB_CTRL_DIS_PADDING;
-	ret_val = e1000e_write_kmrn_reg(hw,
-				       E1000_KMRNCTRLSTA_OFFSET_INB_CTRL,
-				       reg_data);
+	ret_val = e1000e_write_kmrn_reg(hw, E1000_KMRNCTRLSTA_OFFSET_INB_CTRL,
+					reg_data);
 	if (ret_val)
 		return ret_val;
 
@@ -1056,9 +1077,8 @@ static s32 e1000_cfg_kmrn_10_100_80003es2lan(struct e1000_hw *hw, u16 duplex)
 	u16 reg_data;
 
 	reg_data = E1000_KMRNCTRLSTA_HD_CTRL_10_100_DEFAULT;
-	ret_val = e1000e_write_kmrn_reg(hw,
-				       E1000_KMRNCTRLSTA_OFFSET_HD_CTRL,
-				       reg_data);
+	ret_val = e1000e_write_kmrn_reg(hw, E1000_KMRNCTRLSTA_OFFSET_HD_CTRL,
+					reg_data);
 	if (ret_val)
 		return ret_val;
 
@@ -1096,9 +1116,8 @@ static s32 e1000_cfg_kmrn_1000_80003es2lan(struct e1000_hw *hw)
 	u32 tipg;
 
 	reg_data = E1000_KMRNCTRLSTA_HD_CTRL_1000_DEFAULT;
-	ret_val = e1000e_write_kmrn_reg(hw,
-				       E1000_KMRNCTRLSTA_OFFSET_HD_CTRL,
-				       reg_data);
+	ret_val = e1000e_write_kmrn_reg(hw, E1000_KMRNCTRLSTA_OFFSET_HD_CTRL,
+					reg_data);
 	if (ret_val)
 		return ret_val;
 
@@ -1175,7 +1194,7 @@ static struct e1000_mac_operations es2_mac_ops = {
 	.get_link_up_info	= e1000_get_link_up_info_80003es2lan,
 	.led_on			= e1000e_led_on_generic,
 	.led_off		= e1000e_led_off_generic,
-	.mc_addr_list_update	= e1000e_mc_addr_list_update_generic,
+	.update_mc_addr_list	= e1000e_update_mc_addr_list_generic,
 	.reset_hw		= e1000_reset_hw_80003es2lan,
 	.init_hw		= e1000_init_hw_80003es2lan,
 	.setup_link		= e1000e_setup_link,
@@ -1224,7 +1243,7 @@ struct e1000_info e1000_es2_info = {
 				  | FLAG_DISABLE_FC_PAUSE_TIME /* errata */
 				  | FLAG_TIPG_MEDIUM_FOR_80003ESLAN,
 	.pba			= 38,
-	.get_invariants		= e1000_get_invariants_80003es2lan,
+	.get_variants		= e1000_get_variants_80003es2lan,
 	.mac_ops		= &es2_mac_ops,
 	.phy_ops		= &es2_phy_ops,
 	.nvm_ops		= &es2_nvm_ops,

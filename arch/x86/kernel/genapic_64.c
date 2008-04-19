@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
+#include <linux/hardirq.h>
 
 #include <asm/smp.h>
 #include <asm/ipi.h>
@@ -24,20 +25,20 @@
 #include <acpi/acpi_bus.h>
 #endif
 
-/* which logical CPU number maps to which CPU (physical APIC ID) */
-u16 x86_cpu_to_apicid_init[NR_CPUS] __initdata
-					= { [0 ... NR_CPUS-1] = BAD_APICID };
-void *x86_cpu_to_apicid_early_ptr;
-DEFINE_PER_CPU(u16, x86_cpu_to_apicid) = BAD_APICID;
-EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
+DEFINE_PER_CPU(int, x2apic_extra_bits);
 
 struct genapic __read_mostly *genapic = &apic_flat;
+
+static enum uv_system_type uv_system_type;
 
 /*
  * Check the APIC IDs in bios_cpu_apicid and choose the APIC mode.
  */
 void __init setup_apic_routing(void)
 {
+	if (uv_system_type == UV_NON_UNIQUE_APIC)
+		genapic = &apic_x2apic_uv_x;
+	else
 #ifdef CONFIG_ACPI
 	/*
 	 * Quirk: some x86_64 machines can only use physical APIC mode
@@ -63,4 +64,38 @@ void __init setup_apic_routing(void)
 void send_IPI_self(int vector)
 {
 	__send_IPI_shortcut(APIC_DEST_SELF, vector, APIC_DEST_PHYSICAL);
+}
+
+int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+{
+	if (!strcmp(oem_id, "SGI")) {
+		if (!strcmp(oem_table_id, "UVL"))
+			uv_system_type = UV_LEGACY_APIC;
+		else if (!strcmp(oem_table_id, "UVX"))
+			uv_system_type = UV_X2APIC;
+		else if (!strcmp(oem_table_id, "UVH"))
+			uv_system_type = UV_NON_UNIQUE_APIC;
+	}
+	return 0;
+}
+
+unsigned int read_apic_id(void)
+{
+	unsigned int id;
+
+	WARN_ON(preemptible());
+	id = apic_read(APIC_ID);
+	if (uv_system_type >= UV_X2APIC)
+		id  |= __get_cpu_var(x2apic_extra_bits);
+	return id;
+}
+
+enum uv_system_type get_uv_system_type(void)
+{
+	return uv_system_type;
+}
+
+int is_uv_system(void)
+{
+	return uv_system_type != UV_NONE;
 }

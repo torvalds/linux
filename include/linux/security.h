@@ -36,7 +36,11 @@
 
 extern unsigned securebits;
 
+/* Maximum number of letters for an LSM name string */
+#define SECURITY_NAME_MAX	10
+
 struct ctl_table;
+struct audit_krule;
 
 /*
  * These functions are in security/capability.c and are used
@@ -135,6 +139,12 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
 
 /**
  * struct security_operations - main security structure
+ *
+ * Security module identifier.
+ *
+ * @name:
+ *	A string that acts as a unique identifeir for the LSM with max number
+ *	of characters = SECURITY_NAME_MAX.
  *
  * Security hooks for program execution operations.
  *
@@ -468,6 +478,11 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@dentry is the dentry being changed.
  *	Return 0 on success.  If error is returned, then the operation
  *	causing setuid bit removal is failed.
+ * @inode_getsecid:
+ *	Get the secid associated with the node.
+ *	@inode contains a pointer to the inode.
+ *	@secid contains a pointer to the location where result will be saved.
+ *	In case of failure, @secid will be set to zero.
  *
  * Security hooks for file operations
  *
@@ -636,6 +651,8 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  * @task_getsecid:
  *	Retrieve the security identifier of the process @p.
  *	@p contains the task_struct for the process and place is into @secid.
+ *	In case of failure, @secid will be set to zero.
+ *
  * @task_setgroups:
  *	Check permission before setting the supplementary group set of the
  *	current process.
@@ -910,24 +927,24 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  * Security hooks for XFRM operations.
  *
  * @xfrm_policy_alloc_security:
- *	@xp contains the xfrm_policy being added to Security Policy Database
- *	used by the XFRM system.
+ *	@ctxp is a pointer to the xfrm_sec_ctx being added to Security Policy
+ *	Database used by the XFRM system.
  *	@sec_ctx contains the security context information being provided by
  *	the user-level policy update program (e.g., setkey).
  *	Allocate a security structure to the xp->security field; the security
  *	field is initialized to NULL when the xfrm_policy is allocated.
  *	Return 0 if operation was successful (memory to allocate, legal context)
  * @xfrm_policy_clone_security:
- *	@old contains an existing xfrm_policy in the SPD.
- *	@new contains a new xfrm_policy being cloned from old.
- *	Allocate a security structure to the new->security field
- *	that contains the information from the old->security field.
+ *	@old_ctx contains an existing xfrm_sec_ctx.
+ *	@new_ctxp contains a new xfrm_sec_ctx being cloned from old.
+ *	Allocate a security structure in new_ctxp that contains the
+ *	information from the old_ctx structure.
  *	Return 0 if operation was successful (memory to allocate).
  * @xfrm_policy_free_security:
- *	@xp contains the xfrm_policy
+ *	@ctx contains the xfrm_sec_ctx
  *	Deallocate xp->security.
  * @xfrm_policy_delete_security:
- *	@xp contains the xfrm_policy.
+ *	@ctx contains the xfrm_sec_ctx.
  *	Authorize deletion of xp->security.
  * @xfrm_state_alloc_security:
  *	@x contains the xfrm_state being added to the Security Association
@@ -947,7 +964,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@x contains the xfrm_state.
  *	Authorize deletion of x->security.
  * @xfrm_policy_lookup:
- *	@xp contains the xfrm_policy for which the access control is being
+ *	@ctx contains the xfrm_sec_ctx for which the access control is being
  *	checked.
  *	@fl_secid contains the flow security label that is used to authorize
  *	access to the policy xp.
@@ -997,6 +1014,11 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@ipcp contains the kernel IPC permission structure
  *	@flag contains the desired (requested) permission set
  *	Return 0 if permission is granted.
+ * @ipc_getsecid:
+ *	Get the secid associated with the ipc object.
+ *	@ipcp contains the kernel IPC permission structure.
+ *	@secid contains a pointer to the location where result will be saved.
+ *	In case of failure, @secid will be set to zero.
  *
  * Security hooks for individual messages held in System V IPC message queues
  * @msg_msg_alloc_security:
@@ -1223,9 +1245,42 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@secdata contains the security context.
  *	@seclen contains the length of the security context.
  *
+ * Security hooks for Audit
+ *
+ * @audit_rule_init:
+ *	Allocate and initialize an LSM audit rule structure.
+ *	@field contains the required Audit action. Fields flags are defined in include/linux/audit.h
+ *	@op contains the operator the rule uses.
+ *	@rulestr contains the context where the rule will be applied to.
+ *	@lsmrule contains a pointer to receive the result.
+ *	Return 0 if @lsmrule has been successfully set,
+ *	-EINVAL in case of an invalid rule.
+ *
+ * @audit_rule_known:
+ *	Specifies whether given @rule contains any fields related to current LSM.
+ *	@rule contains the audit rule of interest.
+ *	Return 1 in case of relation found, 0 otherwise.
+ *
+ * @audit_rule_match:
+ *	Determine if given @secid matches a rule previously approved
+ *	by @audit_rule_known.
+ *	@secid contains the security id in question.
+ *	@field contains the field which relates to current LSM.
+ *	@op contains the operator that will be used for matching.
+ *	@rule points to the audit rule that will be checked against.
+ *	@actx points to the audit context associated with the check.
+ *	Return 1 if secid matches the rule, 0 if it does not, -ERRNO on failure.
+ *
+ * @audit_rule_free:
+ *	Deallocate the LSM audit rule structure previously allocated by
+ *	audit_rule_init.
+ *	@rule contains the allocated rule
+ *
  * This is the main security structure.
  */
 struct security_operations {
+	char name[SECURITY_NAME_MAX + 1];
+
 	int (*ptrace) (struct task_struct * parent, struct task_struct * child);
 	int (*capget) (struct task_struct * target,
 		       kernel_cap_t * effective,
@@ -1317,6 +1372,7 @@ struct security_operations {
 	int (*inode_getsecurity)(const struct inode *inode, const char *name, void **buffer, bool alloc);
   	int (*inode_setsecurity)(struct inode *inode, const char *name, const void *value, size_t size, int flags);
   	int (*inode_listsecurity)(struct inode *inode, char *buffer, size_t buffer_size);
+	void (*inode_getsecid)(const struct inode *inode, u32 *secid);
 
 	int (*file_permission) (struct file * file, int mask);
 	int (*file_alloc_security) (struct file * file);
@@ -1369,6 +1425,7 @@ struct security_operations {
 	void (*task_to_inode)(struct task_struct *p, struct inode *inode);
 
 	int (*ipc_permission) (struct kern_ipc_perm * ipcp, short flag);
+	void (*ipc_getsecid) (struct kern_ipc_perm *ipcp, u32 *secid);
 
 	int (*msg_msg_alloc_security) (struct msg_msg * msg);
 	void (*msg_msg_free_security) (struct msg_msg * msg);
@@ -1454,17 +1511,17 @@ struct security_operations {
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
-	int (*xfrm_policy_alloc_security) (struct xfrm_policy *xp,
+	int (*xfrm_policy_alloc_security) (struct xfrm_sec_ctx **ctxp,
 			struct xfrm_user_sec_ctx *sec_ctx);
-	int (*xfrm_policy_clone_security) (struct xfrm_policy *old, struct xfrm_policy *new);
-	void (*xfrm_policy_free_security) (struct xfrm_policy *xp);
-	int (*xfrm_policy_delete_security) (struct xfrm_policy *xp);
+	int (*xfrm_policy_clone_security) (struct xfrm_sec_ctx *old_ctx, struct xfrm_sec_ctx **new_ctx);
+	void (*xfrm_policy_free_security) (struct xfrm_sec_ctx *ctx);
+	int (*xfrm_policy_delete_security) (struct xfrm_sec_ctx *ctx);
 	int (*xfrm_state_alloc_security) (struct xfrm_state *x,
 		struct xfrm_user_sec_ctx *sec_ctx,
 		u32 secid);
 	void (*xfrm_state_free_security) (struct xfrm_state *x);
 	int (*xfrm_state_delete_security) (struct xfrm_state *x);
-	int (*xfrm_policy_lookup)(struct xfrm_policy *xp, u32 fl_secid, u8 dir);
+	int (*xfrm_policy_lookup)(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir);
 	int (*xfrm_state_pol_flow_match)(struct xfrm_state *x,
 			struct xfrm_policy *xp, struct flowi *fl);
 	int (*xfrm_decode_session)(struct sk_buff *skb, u32 *secid, int ckall);
@@ -1480,10 +1537,18 @@ struct security_operations {
 
 #endif	/* CONFIG_KEYS */
 
+#ifdef CONFIG_AUDIT
+	int (*audit_rule_init)(u32 field, u32 op, char *rulestr, void **lsmrule);
+	int (*audit_rule_known)(struct audit_krule *krule);
+	int (*audit_rule_match)(u32 secid, u32 field, u32 op, void *lsmrule,
+				struct audit_context *actx);
+	void (*audit_rule_free)(void *lsmrule);
+#endif /* CONFIG_AUDIT */
 };
 
 /* prototypes */
 extern int security_init	(void);
+extern int security_module_enable(struct security_operations *ops);
 extern int register_security	(struct security_operations *ops);
 extern int mod_reg_security	(const char *name, struct security_operations *ops);
 extern struct dentry *securityfs_create_file(const char *name, mode_t mode,
@@ -1578,6 +1643,7 @@ int security_inode_killpriv(struct dentry *dentry);
 int security_inode_getsecurity(const struct inode *inode, const char *name, void **buffer, bool alloc);
 int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags);
 int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer_size);
+void security_inode_getsecid(const struct inode *inode, u32 *secid);
 int security_file_permission(struct file *file, int mask);
 int security_file_alloc(struct file *file);
 void security_file_free(struct file *file);
@@ -1622,6 +1688,7 @@ int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 void security_task_reparent_to_init(struct task_struct *p);
 void security_task_to_inode(struct task_struct *p, struct inode *inode);
 int security_ipc_permission(struct kern_ipc_perm *ipcp, short flag);
+void security_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid);
 int security_msg_msg_alloc(struct msg_msg *msg);
 void security_msg_msg_free(struct msg_msg *msg);
 int security_msg_queue_alloc(struct msg_queue *msq);
@@ -2022,6 +2089,11 @@ static inline int security_inode_listsecurity(struct inode *inode, char *buffer,
 	return 0;
 }
 
+static inline void security_inode_getsecid(const struct inode *inode, u32 *secid)
+{
+	*secid = 0;
+}
+
 static inline int security_file_permission (struct file *file, int mask)
 {
 	return 0;
@@ -2137,7 +2209,9 @@ static inline int security_task_getsid (struct task_struct *p)
 }
 
 static inline void security_task_getsecid (struct task_struct *p, u32 *secid)
-{ }
+{
+	*secid = 0;
+}
 
 static inline int security_task_setgroups (struct group_info *group_info)
 {
@@ -2214,6 +2288,11 @@ static inline int security_ipc_permission (struct kern_ipc_perm *ipcp,
 					   short flag)
 {
 	return 0;
+}
+
+static inline void security_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid)
+{
+	*secid = 0;
 }
 
 static inline int security_msg_msg_alloc (struct msg_msg * msg)
@@ -2562,16 +2641,16 @@ static inline void security_inet_conn_established(struct sock *sk,
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 
-int security_xfrm_policy_alloc(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx);
-int security_xfrm_policy_clone(struct xfrm_policy *old, struct xfrm_policy *new);
-void security_xfrm_policy_free(struct xfrm_policy *xp);
-int security_xfrm_policy_delete(struct xfrm_policy *xp);
+int security_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp, struct xfrm_user_sec_ctx *sec_ctx);
+int security_xfrm_policy_clone(struct xfrm_sec_ctx *old_ctx, struct xfrm_sec_ctx **new_ctxp);
+void security_xfrm_policy_free(struct xfrm_sec_ctx *ctx);
+int security_xfrm_policy_delete(struct xfrm_sec_ctx *ctx);
 int security_xfrm_state_alloc(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx);
 int security_xfrm_state_alloc_acquire(struct xfrm_state *x,
 				      struct xfrm_sec_ctx *polsec, u32 secid);
 int security_xfrm_state_delete(struct xfrm_state *x);
 void security_xfrm_state_free(struct xfrm_state *x);
-int security_xfrm_policy_lookup(struct xfrm_policy *xp, u32 fl_secid, u8 dir);
+int security_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir);
 int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
 				       struct xfrm_policy *xp, struct flowi *fl);
 int security_xfrm_decode_session(struct sk_buff *skb, u32 *secid);
@@ -2579,21 +2658,21 @@ void security_skb_classify_flow(struct sk_buff *skb, struct flowi *fl);
 
 #else	/* CONFIG_SECURITY_NETWORK_XFRM */
 
-static inline int security_xfrm_policy_alloc(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx)
+static inline int security_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp, struct xfrm_user_sec_ctx *sec_ctx)
 {
 	return 0;
 }
 
-static inline int security_xfrm_policy_clone(struct xfrm_policy *old, struct xfrm_policy *new)
+static inline int security_xfrm_policy_clone(struct xfrm_sec_ctx *old, struct xfrm_sec_ctx **new_ctxp)
 {
 	return 0;
 }
 
-static inline void security_xfrm_policy_free(struct xfrm_policy *xp)
+static inline void security_xfrm_policy_free(struct xfrm_sec_ctx *ctx)
 {
 }
 
-static inline int security_xfrm_policy_delete(struct xfrm_policy *xp)
+static inline int security_xfrm_policy_delete(struct xfrm_sec_ctx *ctx)
 {
 	return 0;
 }
@@ -2619,7 +2698,7 @@ static inline int security_xfrm_state_delete(struct xfrm_state *x)
 	return 0;
 }
 
-static inline int security_xfrm_policy_lookup(struct xfrm_policy *xp, u32 fl_secid, u8 dir)
+static inline int security_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir)
 {
 	return 0;
 }
@@ -2671,6 +2750,39 @@ static inline int security_key_permission(key_ref_t key_ref,
 
 #endif
 #endif /* CONFIG_KEYS */
+
+#ifdef CONFIG_AUDIT
+#ifdef CONFIG_SECURITY
+int security_audit_rule_init(u32 field, u32 op, char *rulestr, void **lsmrule);
+int security_audit_rule_known(struct audit_krule *krule);
+int security_audit_rule_match(u32 secid, u32 field, u32 op, void *lsmrule,
+			      struct audit_context *actx);
+void security_audit_rule_free(void *lsmrule);
+
+#else
+
+static inline int security_audit_rule_init(u32 field, u32 op, char *rulestr,
+					   void **lsmrule)
+{
+	return 0;
+}
+
+static inline int security_audit_rule_known(struct audit_krule *krule)
+{
+	return 0;
+}
+
+static inline int security_audit_rule_match(u32 secid, u32 field, u32 op,
+				   void *lsmrule, struct audit_context *actx)
+{
+	return 0;
+}
+
+static inline void security_audit_rule_free(void *lsmrule)
+{ }
+
+#endif /* CONFIG_SECURITY */
+#endif /* CONFIG_AUDIT */
 
 #endif /* ! __LINUX_SECURITY_H */
 

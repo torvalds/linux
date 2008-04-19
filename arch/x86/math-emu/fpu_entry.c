@@ -276,6 +276,7 @@ asmlinkage void math_emulate(long arg)
 	entry_sel_off.offset = FPU_ORIG_EIP;
 	entry_sel_off.selector = FPU_CS;
 	entry_sel_off.opcode = (byte1 << 8) | FPU_modrm;
+	entry_sel_off.empty = 0;
 
 	FPU_rm = FPU_modrm & 7;
 

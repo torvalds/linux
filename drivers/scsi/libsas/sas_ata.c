@@ -225,10 +225,12 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	return 0;
 }
 
-static u8 sas_ata_check_status(struct ata_port *ap)
+static bool sas_ata_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
-	struct domain_device *dev = ap->private_data;
-	return dev->sata_dev.tf.command;
+	struct domain_device *dev = qc->ap->private_data;
+
+	memcpy(&qc->result_tf, &dev->sata_dev.tf, sizeof(qc->result_tf));
+	return true;
 }
 
 static void sas_ata_phy_reset(struct ata_port *ap)
@@ -292,12 +294,6 @@ static void sas_ata_post_internal(struct ata_queued_cmd *qc)
 	}
 }
 
-static void sas_ata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
-{
-	struct domain_device *dev = ap->private_data;
-	memcpy(tf, &dev->sata_dev.tf, sizeof (*tf));
-}
-
 static int sas_ata_scr_write(struct ata_port *ap, unsigned int sc_reg_in,
 			      u32 val)
 {
@@ -348,14 +344,11 @@ static int sas_ata_scr_read(struct ata_port *ap, unsigned int sc_reg_in,
 }
 
 static struct ata_port_operations sas_sata_ops = {
-	.check_status		= sas_ata_check_status,
-	.check_altstatus	= sas_ata_check_status,
-	.dev_select		= ata_noop_dev_select,
 	.phy_reset		= sas_ata_phy_reset,
 	.post_internal_cmd	= sas_ata_post_internal,
-	.tf_read		= sas_ata_tf_read,
 	.qc_prep		= ata_noop_qc_prep,
 	.qc_issue		= sas_ata_qc_issue,
+	.qc_fill_rtf		= sas_ata_qc_fill_rtf,
 	.port_start		= ata_sas_port_start,
 	.port_stop		= ata_sas_port_stop,
 	.scr_read		= sas_ata_scr_read,
@@ -698,7 +691,7 @@ static int sas_discover_sata_dev(struct domain_device *dev)
 		/* incomplete response */
 		SAS_DPRINTK("sending SET FEATURE/PUP_STBY_SPIN_UP to "
 			    "dev %llx\n", SAS_ADDR(dev->sas_addr));
-		if (!le16_to_cpu(identify_x[83] & (1<<6)))
+		if (!(identify_x[83] & cpu_to_le16(1<<6)))
 			goto cont1;
 		res = sas_issue_ata_cmd(dev, ATA_SET_FEATURES,
 					ATA_FEATURE_PUP_STBY_SPIN_UP,

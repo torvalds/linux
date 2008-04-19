@@ -160,13 +160,17 @@ enum {
 
 
 #ifdef __KERNEL__
-#include <linux/spinlock.h>
-#include <linux/rwsem.h>
+#include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/rwsem.h>
+#include <linux/spinlock.h>
+#include <linux/wait.h>
 
 #include <linux/dqblk_xfs.h>
 #include <linux/dqblk_v1.h>
 #include <linux/dqblk_v2.h>
+
+#include <asm/atomic.h>
 
 extern spinlock_t dq_data_lock;
 

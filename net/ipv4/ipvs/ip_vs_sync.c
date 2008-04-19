@@ -916,7 +916,7 @@ int start_sync_thread(int state, char *mcast_ifn, __u8 syncid)
 	if (!tinfo)
 		return -ENOMEM;
 
-	IP_VS_DBG(7, "%s: pid %d\n", __FUNCTION__, task_pid_nr(current));
+	IP_VS_DBG(7, "%s: pid %d\n", __func__, task_pid_nr(current));
 	IP_VS_DBG(7, "Each ip_vs_sync_conn entry need %Zd bytes\n",
 		  sizeof(struct ip_vs_sync_conn));
 
@@ -956,7 +956,7 @@ int stop_sync_thread(int state)
 	    (state == IP_VS_STATE_BACKUP && !sync_backup_pid))
 		return -ESRCH;
 
-	IP_VS_DBG(7, "%s: pid %d\n", __FUNCTION__, task_pid_nr(current));
+	IP_VS_DBG(7, "%s: pid %d\n", __func__, task_pid_nr(current));
 	IP_VS_INFO("stopping sync thread %d ...\n",
 		   (state == IP_VS_STATE_MASTER) ?
 		   sync_master_pid : sync_backup_pid);

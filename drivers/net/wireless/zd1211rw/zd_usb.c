@@ -97,6 +97,7 @@ MODULE_DEVICE_TABLE(usb, usb_ids);
 #define FW_ZD1211B_PREFIX	"zd1211/zd1211b_"
 
 /* USB device initialization */
+static void int_urb_complete(struct urb *urb);
 
 static int request_fw_file(
 	const struct firmware **fw, const char *name, struct device *device)
@@ -336,11 +337,18 @@ static inline void handle_regs_int(struct urb *urb)
 	struct zd_usb *usb = urb->context;
 	struct zd_usb_interrupt *intr = &usb->intr;
 	int len;
+	u16 int_num;
 
 	ZD_ASSERT(in_interrupt());
 	spin_lock(&intr->lock);
 
-	if (intr->read_regs_enabled) {
+	int_num = le16_to_cpu(*(u16 *)(urb->transfer_buffer+2));
+	if (int_num == CR_INTERRUPT) {
+		struct zd_mac *mac = zd_hw_mac(zd_usb_to_hw(urb->context));
+		memcpy(&mac->intr_buffer, urb->transfer_buffer,
+				USB_MAX_EP_INT_BUFFER);
+		schedule_work(&mac->process_intr);
+	} else if (intr->read_regs_enabled) {
 		intr->read_regs.length = len = urb->actual_length;
 
 		if (len > sizeof(intr->read_regs.buffer))
@@ -351,7 +359,6 @@ static inline void handle_regs_int(struct urb *urb)
 		goto out;
 	}
 
-	dev_dbg_f(urb_dev(urb), "regs interrupt ignored\n");
 out:
 	spin_unlock(&intr->lock);
 }

@@ -612,7 +612,7 @@ static int clip_device_event(struct notifier_block *this, unsigned long event,
 {
 	struct net_device *dev = arg;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
 
 	if (event == NETDEV_UNREGISTER) {
@@ -648,10 +648,6 @@ static int clip_inet_event(struct notifier_block *this, unsigned long event,
 	struct in_device *in_dev;
 
 	in_dev = ((struct in_ifaddr *)ifa)->ifa_dev;
-	if (!in_dev || !in_dev->dev) {
-		printk(KERN_WARNING "clip_inet_event: no device\n");
-		return NOTIFY_DONE;
-	}
 	/*
 	 * Transitions are of the down-change-up type, so it's sufficient to
 	 * handle the change on up.

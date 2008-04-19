@@ -113,20 +113,13 @@ void default_idle(void)
 
 		local_irq_disable();
 		if (!need_resched()) {
-			ktime_t t0, t1;
-			u64 t0n, t1n;
-
-			t0 = ktime_get();
-			t0n = ktime_to_ns(t0);
 			safe_halt();	/* enables interrupts racelessly */
 			local_irq_disable();
-			t1 = ktime_get();
-			t1n = ktime_to_ns(t1);
-			sched_clock_idle_wakeup_event(t1n - t0n);
 		}
 		local_irq_enable();
 		current_thread_info()->status |= TS_POLLING;
 	} else {
+		local_irq_enable();
 		/* loop is done by the caller */
 		cpu_relax();
 	}
@@ -142,6 +135,7 @@ EXPORT_SYMBOL(default_idle);
  */
 static void poll_idle(void)
 {
+	local_irq_enable();
 	cpu_relax();
 }
 
@@ -248,8 +242,11 @@ void mwait_idle_with_hints(unsigned long ax, unsigned long cx)
 		__monitor((void *)&current_thread_info()->flags, 0, 0);
 		smp_mb();
 		if (!need_resched())
-			__mwait(ax, cx);
-	}
+			__sti_mwait(ax, cx);
+		else
+			local_irq_enable();
+	} else
+		local_irq_enable();
 }
 
 /* Default MONITOR/MWAIT with no hints, used for default C1 state */
@@ -332,7 +329,7 @@ void __show_registers(struct pt_regs *regs, int all)
 			init_utsname()->version);
 
 	printk("EIP: %04x:[<%08lx>] EFLAGS: %08lx CPU: %d\n",
-			0xffff & regs->cs, regs->ip, regs->flags,
+			(u16)regs->cs, regs->ip, regs->flags,
 			smp_processor_id());
 	print_symbol("EIP is at %s\n", regs->ip);
 
@@ -341,8 +338,7 @@ void __show_registers(struct pt_regs *regs, int all)
 	printk("ESI: %08lx EDI: %08lx EBP: %08lx ESP: %08lx\n",
 		regs->si, regs->di, regs->bp, sp);
 	printk(" DS: %04x ES: %04x FS: %04x GS: %04x SS: %04x\n",
-	       regs->ds & 0xffff, regs->es & 0xffff,
-	       regs->fs & 0xffff, gs, ss);
+	       (u16)regs->ds, (u16)regs->es, (u16)regs->fs, gs, ss);
 
 	if (!all)
 		return;
@@ -513,6 +509,21 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 	return err;
 }
 
+void
+start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
+{
+	__asm__("movl %0, %%gs" :: "r"(0));
+	regs->fs		= 0;
+	set_fs(USER_DS);
+	regs->ds		= __USER_DS;
+	regs->es		= __USER_DS;
+	regs->ss		= __USER_DS;
+	regs->cs		= __USER_CS;
+	regs->ip		= new_ip;
+	regs->sp		= new_sp;
+}
+EXPORT_SYMBOL_GPL(start_thread);
+
 #ifdef CONFIG_SECCOMP
 static void hard_disable_TSC(void)
 {
@@ -550,12 +561,12 @@ __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 		/* we clear debugctl to make sure DS
 		 * is not in use when we change it */
 		debugctl = 0;
-		wrmsrl(MSR_IA32_DEBUGCTLMSR, 0);
+		update_debugctlmsr(0);
 		wrmsr(MSR_IA32_DS_AREA, next->ds_area_msr, 0);
 	}
 
 	if (next->debugctlmsr != debugctl)
-		wrmsr(MSR_IA32_DEBUGCTLMSR, next->debugctlmsr, 0);
+		update_debugctlmsr(next->debugctlmsr);
 
 	if (test_tsk_thread_flag(next_p, TIF_DEBUG)) {
 		set_debugreg(next->debugreg0, 0);

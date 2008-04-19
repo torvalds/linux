@@ -857,7 +857,7 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 
 	sock = file->private_data;
 	sk = sock->sk;
-	net = sk->sk_net;
+	net = sock_net(sk);
 	if (cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15)) {
 		err = dev_ioctl(net, cmd, argp);
 	} else
@@ -1375,7 +1375,7 @@ asmlinkage long sys_listen(int fd, int backlog)
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (sock) {
-		somaxconn = sock->sk->sk_net->sysctl_somaxconn;
+		somaxconn = sock_net(sock->sk)->core.sysctl_somaxconn;
 		if ((unsigned)backlog > somaxconn)
 			backlog = somaxconn;
 

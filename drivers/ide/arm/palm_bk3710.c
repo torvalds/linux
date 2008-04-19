@@ -378,15 +378,15 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 	hw.irq = irq->start;
 	hw.chipset = ide_palm3710;
 
-	hwif = ide_deprecated_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
 	if (hwif == NULL)
 		goto out;
 
 	i = hwif->index;
 
 	if (hwif->present)
-		ide_unregister(i, 0, 0);
-	else if (!hwif->hold)
+		ide_unregister(i);
+	else
 		ide_init_port_data(hwif, i);
 
 	ide_init_port_hw(hwif, &hw);

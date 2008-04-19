@@ -125,6 +125,7 @@
 #include <linux/cdev.h>
 
 struct tty_struct;
+struct tty_driver;
 
 struct tty_operations {
 	int  (*open)(struct tty_struct * tty, struct file * filp);
@@ -157,6 +158,11 @@ struct tty_operations {
 	int (*tiocmget)(struct tty_struct *tty, struct file *file);
 	int (*tiocmset)(struct tty_struct *tty, struct file *file,
 			unsigned int set, unsigned int clear);
+#ifdef CONFIG_CONSOLE_POLL
+	int (*poll_init)(struct tty_driver *driver, int line, char *options);
+	int (*poll_get_char)(struct tty_driver *driver, int line);
+	void (*poll_put_char)(struct tty_driver *driver, int line, char ch);
+#endif
 };
 
 struct tty_driver {
@@ -220,6 +226,11 @@ struct tty_driver {
 	int (*tiocmget)(struct tty_struct *tty, struct file *file);
 	int (*tiocmset)(struct tty_struct *tty, struct file *file,
 			unsigned int set, unsigned int clear);
+#ifdef CONFIG_CONSOLE_POLL
+	int (*poll_init)(struct tty_driver *driver, int line, char *options);
+	int (*poll_get_char)(struct tty_driver *driver, int line);
+	void (*poll_put_char)(struct tty_driver *driver, int line, char ch);
+#endif
 
 	struct list_head tty_drivers;
 };
@@ -230,6 +241,7 @@ struct tty_driver *alloc_tty_driver(int lines);
 void put_tty_driver(struct tty_driver *driver);
 void tty_set_operations(struct tty_driver *driver,
 			const struct tty_operations *op);
+extern struct tty_driver *tty_find_polling_driver(char *name, int *line);
 
 /* tty driver magic number */
 #define TTY_DRIVER_MAGIC		0x5402

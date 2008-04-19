@@ -1954,7 +1954,9 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 			(phba->sysfs_mbox.mbox->mb.mbxCommand !=
 				MBX_DUMP_MEMORY &&
 			 phba->sysfs_mbox.mbox->mb.mbxCommand !=
-				MBX_RESTART)) {
+				MBX_RESTART &&
+			 phba->sysfs_mbox.mbox->mb.mbxCommand !=
+				MBX_WRITE_VPARMS)) {
 			sysfs_mbox_idle(phba);
 			spin_unlock_irq(&phba->hbalock);
 			return -EPERM;
@@ -1962,7 +1964,11 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 
 		phba->sysfs_mbox.mbox->vport = vport;
 
-		if (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO) {
+		/* Don't allow mailbox commands to be sent when blocked
+		 * or when in the middle of discovery
+		 */
+		if (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO ||
+		    vport->fc_flag & FC_NDISC_ACTIVE) {
 			sysfs_mbox_idle(phba);
 			spin_unlock_irq(&phba->hbalock);
 			return  -EAGAIN;

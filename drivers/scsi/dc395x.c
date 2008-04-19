@@ -4761,7 +4761,6 @@ static struct scsi_host_template dc395x_driver_template = {
 	.cmd_per_lun            = DC395x_MAX_CMD_PER_LUN,
 	.eh_abort_handler       = dc395x_eh_abort,
 	.eh_bus_reset_handler   = dc395x_eh_bus_reset,
-	.unchecked_isa_dma      = 0,
 	.use_clustering         = DISABLE_CLUSTERING,
 };
 

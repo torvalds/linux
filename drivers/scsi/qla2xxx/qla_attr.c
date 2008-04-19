@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2005 QLogic Corporation
+ * Copyright (c)  2003-2008 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -849,20 +849,20 @@ static void
 qla2x00_get_host_speed(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *ha = to_qla_parent(shost_priv(shost));
-	uint32_t speed = 0;
+	u32 speed = FC_PORTSPEED_UNKNOWN;
 
 	switch (ha->link_data_rate) {
 	case PORT_SPEED_1GB:
-		speed = 1;
+		speed = FC_PORTSPEED_1GBIT;
 		break;
 	case PORT_SPEED_2GB:
-		speed = 2;
+		speed = FC_PORTSPEED_2GBIT;
 		break;
 	case PORT_SPEED_4GB:
-		speed = 4;
+		speed = FC_PORTSPEED_4GBIT;
 		break;
 	case PORT_SPEED_8GB:
-		speed = 8;
+		speed = FC_PORTSPEED_8GBIT;
 		break;
 	}
 	fc_host_speed(shost) = speed;
@@ -900,7 +900,8 @@ qla2x00_get_starget_node_name(struct scsi_target *starget)
 	u64 node_name = 0;
 
 	list_for_each_entry(fcport, &ha->fcports, list) {
-		if (starget->id == fcport->os_target_id) {
+		if (fcport->rport &&
+		    starget->id == fcport->rport->scsi_target_id) {
 			node_name = wwn_to_u64(fcport->node_name);
 			break;
 		}
@@ -918,7 +919,8 @@ qla2x00_get_starget_port_name(struct scsi_target *starget)
 	u64 port_name = 0;
 
 	list_for_each_entry(fcport, &ha->fcports, list) {
-		if (starget->id == fcport->os_target_id) {
+		if (fcport->rport &&
+		    starget->id == fcport->rport->scsi_target_id) {
 			port_name = wwn_to_u64(fcport->port_name);
 			break;
 		}
@@ -936,7 +938,8 @@ qla2x00_get_starget_port_id(struct scsi_target *starget)
 	uint32_t port_id = ~0U;
 
 	list_for_each_entry(fcport, &ha->fcports, list) {
-		if (starget->id == fcport->os_target_id) {
+		if (fcport->rport &&
+		    starget->id == fcport->rport->scsi_target_id) {
 			port_id = fcport->d_id.b.domain << 16 |
 			    fcport->d_id.b.area << 8 | fcport->d_id.b.al_pa;
 			break;
@@ -1196,6 +1199,7 @@ struct fc_function_template qla2xxx_transport_functions = {
 	.show_host_node_name = 1,
 	.show_host_port_name = 1,
 	.show_host_supported_classes = 1,
+	.show_host_supported_speeds = 1,
 
 	.get_host_port_id = qla2x00_get_host_port_id,
 	.show_host_port_id = 1,
@@ -1276,9 +1280,23 @@ struct fc_function_template qla2xxx_transport_vport_functions = {
 void
 qla2x00_init_host_attr(scsi_qla_host_t *ha)
 {
+	u32 speed = FC_PORTSPEED_UNKNOWN;
+
 	fc_host_node_name(ha->host) = wwn_to_u64(ha->node_name);
 	fc_host_port_name(ha->host) = wwn_to_u64(ha->port_name);
 	fc_host_supported_classes(ha->host) = FC_COS_CLASS3;
 	fc_host_max_npiv_vports(ha->host) = ha->max_npiv_vports;;
 	fc_host_npiv_vports_inuse(ha->host) = ha->cur_vport_count;
+
+	if (IS_QLA25XX(ha))
+		speed = FC_PORTSPEED_8GBIT | FC_PORTSPEED_4GBIT |
+		    FC_PORTSPEED_2GBIT | FC_PORTSPEED_1GBIT;
+	else if (IS_QLA24XX_TYPE(ha))
+		speed = FC_PORTSPEED_4GBIT | FC_PORTSPEED_2GBIT |
+		    FC_PORTSPEED_1GBIT;
+	else if (IS_QLA23XX(ha))
+		speed = FC_PORTSPEED_2GBIT | FC_PORTSPEED_1GBIT;
+	else
+		speed = FC_PORTSPEED_1GBIT;
+	fc_host_supported_speeds(ha->host) = speed;
 }

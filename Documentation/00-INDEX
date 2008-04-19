@@ -167,10 +167,8 @@ highuid.txt
 	- notes on the change from 16 bit to 32 bit user/group IDs.
 hpet.txt
 	- High Precision Event Timer Driver for Linux.
-hrtimer/
-	- info on the timer_stats debugging facility for timer (ab)use.
-hrtimers/
-	- info on the hrtimers subsystem for high-resolution kernel timers.
+timers/
+	- info on the timer related topics
 hw_random.txt
 	- info on Linux support for random number generator in i8xx chipsets.
 hwmon/

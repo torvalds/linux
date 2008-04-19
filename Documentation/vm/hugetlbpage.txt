@@ -88,10 +88,9 @@ hugepages from the buddy allocator, if the normal pool is exhausted. As
 these surplus hugepages go out of use, they are freed back to the buddy
 allocator.
 
-Caveat: Shrinking the pool via nr_hugepages while a surplus is in effect
-will allow the number of surplus huge pages to exceed the overcommit
-value, as the pool hugepages (which must have been in use for a surplus
-hugepages to be allocated) will become surplus hugepages.  As long as
+Caveat: Shrinking the pool via nr_hugepages such that it becomes less
+than the number of hugepages in use will convert the balance to surplus
+huge pages even if it would exceed the overcommit value.  As long as
 this condition holds, however, no more surplus huge pages will be
 allowed on the system until one of the two sysctls are increased
 sufficiently, or the surplus huge pages go out of use and are freed.

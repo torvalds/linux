@@ -57,7 +57,7 @@ static inline void rb500_pata_finish_io(struct ata_port *ap)
 	struct ata_host *ah = ap->host;
 	struct rb500_cf_info *info = ah->private_data;
 
-	ata_altstatus(ap);
+	ata_sff_altstatus(ap);
 	ndelay(RB500_CF_IO_DELAY);
 
 	set_irq_type(info->irq, IRQ_TYPE_LEVEL_HIGH);
@@ -109,7 +109,7 @@ static irqreturn_t rb500_pata_irq_handler(int irq, void *dev_instance)
 	if (gpio_get_value(info->gpio_line)) {
 		set_irq_type(info->irq, IRQ_TYPE_LEVEL_LOW);
 		if (!info->frozen)
-			ata_interrupt(info->irq, dev_instance);
+			ata_sff_interrupt(info->irq, dev_instance);
 	} else {
 		set_irq_type(info->irq, IRQ_TYPE_LEVEL_HIGH);
 	}
@@ -117,58 +117,18 @@ static irqreturn_t rb500_pata_irq_handler(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
-static void rb500_pata_irq_clear(struct ata_port *ap)
-{
-}
-
-static int rb500_pata_port_start(struct ata_port *ap)
-{
-	return 0;
-}
-
 static struct ata_port_operations rb500_pata_port_ops = {
-	.tf_load		= ata_tf_load,
-	.tf_read		= ata_tf_read,
-
-	.exec_command		= rb500_pata_exec_command,
-	.check_status 		= ata_check_status,
-	.dev_select 		= ata_std_dev_select,
-
-	.data_xfer		= rb500_pata_data_xfer,
-
-	.qc_prep 		= ata_qc_prep,
-	.qc_issue		= ata_qc_issue_prot,
-
+	.inherits		= &ata_sff_port_ops,
+	.sff_exec_command	= rb500_pata_exec_command,
+	.sff_data_xfer		= rb500_pata_data_xfer,
 	.freeze			= rb500_pata_freeze,
 	.thaw			= rb500_pata_thaw,
-	.error_handler		= ata_bmdma_error_handler,
-
-	.irq_handler		= rb500_pata_irq_handler,
-	.irq_clear		= rb500_pata_irq_clear,
-	.irq_on			= ata_irq_on,
-
-	.port_start		= rb500_pata_port_start,
 };
 
 /* ------------------------------------------------------------------------ */
 
 static struct scsi_host_template rb500_pata_sht = {
-	.module			= THIS_MODULE,
-	.name			= DRV_NAME,
-	.ioctl			= ata_scsi_ioctl,
-	.queuecommand		= ata_scsi_queuecmd,
-	.slave_configure	= ata_scsi_slave_config,
-	.slave_destroy		= ata_scsi_slave_destroy,
-	.bios_param		= ata_std_bios_param,
-	.proc_name		= DRV_NAME,
-
-	.can_queue		= ATA_DEF_QUEUE,
-	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= LIBATA_MAX_PRD,
-	.dma_boundary		= ATA_DMA_BOUNDARY,
-	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
-	.emulated		= ATA_SHT_EMULATED,
-	.use_clustering		= ATA_SHT_USE_CLUSTERING,
+	ATA_PIO_SHT(DRV_NAME),
 };
 
 /* ------------------------------------------------------------------------ */
@@ -188,7 +148,7 @@ static void rb500_pata_setup_ports(struct ata_host *ah)
 	ap->ioaddr.ctl_addr	= info->iobase + RB500_CF_REG_CTRL;
 	ap->ioaddr.altstatus_addr = info->iobase + RB500_CF_REG_CTRL;
 
-	ata_std_ports(&ap->ioaddr);
+	ata_sff_std_ports(&ap->ioaddr);
 
 	ap->ioaddr.data_addr	= info->iobase + RB500_CF_REG_DATA;
 }

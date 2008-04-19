@@ -105,6 +105,7 @@ static struct platform_driver spitzled_driver = {
 #endif
 	.driver		= {
 		.name		= "spitz-led",
+		.owner		= THIS_MODULE,
 	},
 };
 
@@ -124,3 +125,4 @@ module_exit(spitzled_exit);
 MODULE_AUTHOR("Richard Purdie <rpurdie@openedhand.com>");
 MODULE_DESCRIPTION("Spitz LED driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:spitz-led");

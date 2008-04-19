@@ -130,12 +130,6 @@ EXPORT_SYMBOL(_mcount);
 
 EXPORT_SYMBOL(sparc64_get_clock_tick);
 
-/* semaphores */
-EXPORT_SYMBOL(down);
-EXPORT_SYMBOL(down_trylock);
-EXPORT_SYMBOL(down_interruptible);
-EXPORT_SYMBOL(up);
-
 /* RW semaphores */
 EXPORT_SYMBOL(__down_read);
 EXPORT_SYMBOL(__down_read_trylock);

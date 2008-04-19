@@ -243,8 +243,12 @@ xfs_end_bio_unwritten(
 	size_t			size = ioend->io_size;
 
 	if (likely(!ioend->io_error)) {
-		if (!XFS_FORCED_SHUTDOWN(ip->i_mount))
-			xfs_iomap_write_unwritten(ip, offset, size);
+		if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+			int error;
+			error = xfs_iomap_write_unwritten(ip, offset, size);
+			if (error)
+				ioend->io_error = error;
+		}
 		xfs_setfilesize(ioend);
 	}
 	xfs_destroy_ioend(ioend);
@@ -1532,9 +1536,9 @@ xfs_vm_bmap(
 	struct xfs_inode	*ip = XFS_I(inode);
 
 	xfs_itrace_entry(XFS_I(inode));
-	xfs_rwlock(ip, VRWLOCK_READ);
+	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	xfs_flush_pages(ip, (xfs_off_t)0, -1, 0, FI_REMAPF);
-	xfs_rwunlock(ip, VRWLOCK_READ);
+	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 	return generic_block_bmap(mapping, block, xfs_get_blocks);
 }
 

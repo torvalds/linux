@@ -267,11 +267,16 @@ static int mthca_dev_lim(struct mthca_dev *mdev, struct mthca_dev_lim *dev_lim)
 	if (dev_lim->flags & DEV_LIM_FLAG_SRQ)
 		mdev->mthca_flags |= MTHCA_FLAG_SRQ;
 
+	if (mthca_is_memfree(mdev))
+		if (dev_lim->flags & DEV_LIM_FLAG_IPOIB_CSUM)
+			mdev->device_cap_flags |= IB_DEVICE_UD_IP_CSUM;
+
 	return 0;
 }
 
 static int mthca_init_tavor(struct mthca_dev *mdev)
 {
+	s64 size;
 	u8 status;
 	int err;
 	struct mthca_dev_lim        dev_lim;
@@ -324,9 +329,11 @@ static int mthca_init_tavor(struct mthca_dev *mdev)
 	if (mdev->mthca_flags & MTHCA_FLAG_SRQ)
 		profile.num_srq = dev_lim.max_srqs;
 
-	err = mthca_make_profile(mdev, &profile, &dev_lim, &init_hca);
-	if (err < 0)
+	size = mthca_make_profile(mdev, &profile, &dev_lim, &init_hca);
+	if (size < 0) {
+		err = size;
 		goto err_disable;
+	}
 
 	err = mthca_INIT_HCA(mdev, &init_hca, &status);
 	if (err) {
@@ -605,7 +612,7 @@ static int mthca_init_arbel(struct mthca_dev *mdev)
 	struct mthca_dev_lim        dev_lim;
 	struct mthca_profile        profile;
 	struct mthca_init_hca_param init_hca;
-	u64 icm_size;
+	s64 icm_size;
 	u8 status;
 	int err;
 
@@ -653,7 +660,7 @@ static int mthca_init_arbel(struct mthca_dev *mdev)
 		profile.num_srq = dev_lim.max_srqs;
 
 	icm_size = mthca_make_profile(mdev, &profile, &dev_lim, &init_hca);
-	if ((int) icm_size < 0) {
+	if (icm_size < 0) {
 		err = icm_size;
 		goto err_stop_fw;
 	}

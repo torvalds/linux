@@ -72,9 +72,7 @@ connlimit_iphash6(const union nf_inet_addr *addr,
 
 static inline bool already_closed(const struct nf_conn *conn)
 {
-	u_int16_t proto = conn->tuplehash[0].tuple.dst.protonum;
-
-	if (proto == IPPROTO_TCP)
+	if (nf_ct_protonum(conn) == IPPROTO_TCP)
 		return conn->proto.tcp.state == TCP_CONNTRACK_TIME_WAIT;
 	else
 		return 0;
@@ -106,10 +104,10 @@ static int count_them(struct xt_connlimit_data *data,
 		      const union nf_inet_addr *mask,
 		      const struct xt_match *match)
 {
-	struct nf_conntrack_tuple_hash *found;
+	const struct nf_conntrack_tuple_hash *found;
 	struct xt_connlimit_conn *conn;
 	struct xt_connlimit_conn *tmp;
-	struct nf_conn *found_ct;
+	const struct nf_conn *found_ct;
 	struct list_head *hash;
 	bool addit = true;
 	int matches = 0;
@@ -256,7 +254,7 @@ connlimit_mt_check(const char *tablename, const void *ip,
 static void
 connlimit_mt_destroy(const struct xt_match *match, void *matchinfo)
 {
-	struct xt_connlimit_info *info = matchinfo;
+	const struct xt_connlimit_info *info = matchinfo;
 	struct xt_connlimit_conn *conn;
 	struct xt_connlimit_conn *tmp;
 	struct list_head *hash = info->data->iphash;

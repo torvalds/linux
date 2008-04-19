@@ -871,6 +871,8 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 	int rc = 0;
 	u32 denied;
 
+	BUG_ON(!requested);
+
 	rcu_read_lock();
 
 	node = avc_lookup(ssid, tsid, tclass, requested);
@@ -890,13 +892,14 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 
 	denied = requested & ~(p_ae->avd.allowed);
 
-	if (!requested || denied) {
-		if (selinux_enforcing || (flags & AVC_STRICT))
+	if (denied) {
+		if (flags & AVC_STRICT)
 			rc = -EACCES;
+		else if (!selinux_enforcing || security_permissive_sid(ssid))
+			avc_update_node(AVC_CALLBACK_GRANT, requested, ssid,
+					tsid, tclass);
 		else
-			if (node)
-				avc_update_node(AVC_CALLBACK_GRANT,requested,
-						ssid,tsid,tclass);
+			rc = -EACCES;
 	}
 
 	rcu_read_unlock();

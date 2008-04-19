@@ -385,73 +385,73 @@ struct clx2_queue {
 	dma_addr_t dma_addr;		/**< physical addr for BD's */
 	int low_mark;		       /**< low watermark, resume queue if free space more than this */
 	int high_mark;		       /**< high watermark, stop queue if free space less than this */
-} __attribute__ ((packed));
+} __attribute__ ((packed)); /* XXX */
 
 struct machdr32 {
 	__le16 frame_ctl;
-	u16 duration;		// watch out for endians!
+	__le16 duration;		// watch out for endians!
 	u8 addr1[MACADRR_BYTE_LEN];
 	u8 addr2[MACADRR_BYTE_LEN];
 	u8 addr3[MACADRR_BYTE_LEN];
-	u16 seq_ctrl;		// more endians!
+	__le16 seq_ctrl;		// more endians!
 	u8 addr4[MACADRR_BYTE_LEN];
 	__le16 qos_ctrl;
 } __attribute__ ((packed));
 
 struct machdr30 {
 	__le16 frame_ctl;
-	u16 duration;		// watch out for endians!
+	__le16 duration;		// watch out for endians!
 	u8 addr1[MACADRR_BYTE_LEN];
 	u8 addr2[MACADRR_BYTE_LEN];
 	u8 addr3[MACADRR_BYTE_LEN];
-	u16 seq_ctrl;		// more endians!
+	__le16 seq_ctrl;		// more endians!
 	u8 addr4[MACADRR_BYTE_LEN];
 } __attribute__ ((packed));
 
 struct machdr26 {
 	__le16 frame_ctl;
-	u16 duration;		// watch out for endians!
+	__le16 duration;		// watch out for endians!
 	u8 addr1[MACADRR_BYTE_LEN];
 	u8 addr2[MACADRR_BYTE_LEN];
 	u8 addr3[MACADRR_BYTE_LEN];
-	u16 seq_ctrl;		// more endians!
+	__le16 seq_ctrl;		// more endians!
 	__le16 qos_ctrl;
 } __attribute__ ((packed));
 
 struct machdr24 {
 	__le16 frame_ctl;
-	u16 duration;		// watch out for endians!
+	__le16 duration;		// watch out for endians!
 	u8 addr1[MACADRR_BYTE_LEN];
 	u8 addr2[MACADRR_BYTE_LEN];
 	u8 addr3[MACADRR_BYTE_LEN];
-	u16 seq_ctrl;		// more endians!
+	__le16 seq_ctrl;		// more endians!
 } __attribute__ ((packed));
 
 // TX TFD with 32 byte MAC Header
 struct tx_tfd_32 {
 	struct machdr32 mchdr;	// 32
-	u32 uivplaceholder[2];	// 8
+	__le32 uivplaceholder[2];	// 8
 } __attribute__ ((packed));
 
 // TX TFD with 30 byte MAC Header
 struct tx_tfd_30 {
 	struct machdr30 mchdr;	// 30
 	u8 reserved[2];		// 2
-	u32 uivplaceholder[2];	// 8
+	__le32 uivplaceholder[2];	// 8
 } __attribute__ ((packed));
 
 // tx tfd with 26 byte mac header
 struct tx_tfd_26 {
 	struct machdr26 mchdr;	// 26
 	u8 reserved1[2];	// 2
-	u32 uivplaceholder[2];	// 8
+	__le32 uivplaceholder[2];	// 8
 	u8 reserved2[4];	// 4
 } __attribute__ ((packed));
 
 // tx tfd with 24 byte mac header
 struct tx_tfd_24 {
 	struct machdr24 mchdr;	// 24
-	u32 uivplaceholder[2];	// 8
+	__le32 uivplaceholder[2];	// 8
 	u8 reserved[8];		// 8
 } __attribute__ ((packed));
 
@@ -460,7 +460,7 @@ struct tx_tfd_24 {
 struct tfd_command {
 	u8 index;
 	u8 length;
-	u16 reserved;
+	__le16 reserved;
 	u8 payload[0];
 } __attribute__ ((packed));
 
@@ -562,27 +562,27 @@ struct rate_histogram {
 struct ipw_cmd_stats {
 	u8 cmd_id;
 	u8 seq_num;
-	u16 good_sfd;
-	u16 bad_plcp;
-	u16 wrong_bssid;
-	u16 valid_mpdu;
-	u16 bad_mac_header;
-	u16 reserved_frame_types;
-	u16 rx_ina;
-	u16 bad_crc32;
-	u16 invalid_cts;
-	u16 invalid_acks;
-	u16 long_distance_ina_fina;
-	u16 dsp_silence_unreachable;
-	u16 accumulated_rssi;
-	u16 rx_ovfl_frame_tossed;
-	u16 rssi_silence_threshold;
-	u16 rx_ovfl_frame_supplied;
-	u16 last_rx_frame_signal;
-	u16 last_rx_frame_noise;
-	u16 rx_autodetec_no_ofdm;
-	u16 rx_autodetec_no_barker;
-	u16 reserved;
+	__le16 good_sfd;
+	__le16 bad_plcp;
+	__le16 wrong_bssid;
+	__le16 valid_mpdu;
+	__le16 bad_mac_header;
+	__le16 reserved_frame_types;
+	__le16 rx_ina;
+	__le16 bad_crc32;
+	__le16 invalid_cts;
+	__le16 invalid_acks;
+	__le16 long_distance_ina_fina;
+	__le16 dsp_silence_unreachable;
+	__le16 accumulated_rssi;
+	__le16 rx_ovfl_frame_tossed;
+	__le16 rssi_silence_threshold;
+	__le16 rx_ovfl_frame_supplied;
+	__le16 last_rx_frame_signal;
+	__le16 last_rx_frame_noise;
+	__le16 rx_autodetec_no_ofdm;
+	__le16 rx_autodetec_no_barker;
+	__le16 reserved;
 } __attribute__ ((packed));
 
 struct notif_channel_result {
@@ -637,7 +637,7 @@ struct notif_association {
 struct notif_authenticate {
 	u8 state;
 	struct machdr24 addr;
-	u16 status;
+	__le16 status;
 } __attribute__ ((packed));
 
 struct notif_calibration {
@@ -732,14 +732,14 @@ struct ipw_rx_queue {
 struct alive_command_responce {
 	u8 alive_command;
 	u8 sequence_number;
-	u16 software_revision;
+	__le16 software_revision;
 	u8 device_identifier;
 	u8 reserved1[5];
-	u16 reserved2;
-	u16 reserved3;
-	u16 clock_settle_time;
-	u16 powerup_settle_time;
-	u16 reserved4;
+	__le16 reserved2;
+	__le16 reserved3;
+	__le16 clock_settle_time;
+	__le16 powerup_settle_time;
+	__le16 reserved4;
 	u8 time_stamp[5];	/* month, day, year, hours, minutes */
 	u8 ucode_valid;
 } __attribute__ ((packed));
@@ -878,7 +878,11 @@ static inline void ipw_set_scan_type(struct ipw_scan_request_ext *scan,
 
 struct ipw_associate {
 	u8 channel;
+#ifdef __LITTLE_ENDIAN_BITFIELD
 	u8 auth_type:4, auth_key:4;
+#else
+	u8 auth_key:4, auth_type:4;
+#endif
 	u8 assoc_type;
 	u8 reserved;
 	__le16 policy_support;
@@ -918,12 +922,12 @@ struct ipw_frag_threshold {
 struct ipw_retry_limit {
 	u8 short_retry_limit;
 	u8 long_retry_limit;
-	u16 reserved;
+	__le16 reserved;
 } __attribute__ ((packed));
 
 struct ipw_dino_config {
-	u32 dino_config_addr;
-	u16 dino_config_size;
+	__le32 dino_config_addr;
+	__le16 dino_config_size;
 	u8 dino_response;
 	u8 reserved;
 } __attribute__ ((packed));
@@ -998,7 +1002,7 @@ struct ipw_sensitivity_calib {
  * - \a status contains status;
  * - \a param filled with status parameters.
  */
-struct ipw_cmd {
+struct ipw_cmd {	 /* XXX */
 	u32 cmd;   /**< Host command */
 	u32 status;/**< Status */
 	u32 status_len;
@@ -1092,7 +1096,7 @@ struct ipw_ibss_seq {
 	struct list_head list;
 };
 
-struct ipw_error_elem {
+struct ipw_error_elem {	 /* XXX */
 	u32 desc;
 	u32 time;
 	u32 blink1;
@@ -1102,13 +1106,13 @@ struct ipw_error_elem {
 	u32 data;
 };
 
-struct ipw_event {
+struct ipw_event {	 /* XXX */
 	u32 event;
 	u32 time;
 	u32 data;
 } __attribute__ ((packed));
 
-struct ipw_fw_error {
+struct ipw_fw_error {	 /* XXX */
 	unsigned long jiffies;
 	u32 status;
 	u32 config;
@@ -1153,7 +1157,7 @@ struct ipw_prom_priv {
  */
 struct ipw_rt_hdr {
 	struct ieee80211_radiotap_header rt_hdr;
-	u64 rt_tsf;      /* TSF */
+	u64 rt_tsf;      /* TSF */	/* XXX */
 	u8 rt_flags;	/* radiotap packet flags */
 	u8 rt_rate;	/* rate in 500kb/s */
 	__le16 rt_channel;	/* channel in mhz */
@@ -1940,8 +1944,8 @@ enum {
 #define IPW_MEM_FIXED_OVERRIDE          (IPW_SHARED_LOWER_BOUND + 0x41C)
 
 struct ipw_fixed_rate {
-	u16 tx_rates;
-	u16 reserved;
+	__le16 tx_rates;
+	__le16 reserved;
 } __attribute__ ((packed));
 
 #define IPW_INDIRECT_ADDR_MASK (~0x3ul)
@@ -1951,12 +1955,12 @@ struct host_cmd {
 	u8 len;
 	u16 reserved;
 	u32 *param;
-} __attribute__ ((packed));
+} __attribute__ ((packed));	/* XXX */
 
 struct cmdlog_host_cmd {
 	u8 cmd;
 	u8 len;
-	u16 reserved;
+	__le16 reserved;
 	char param[124];
 } __attribute__ ((packed));
 

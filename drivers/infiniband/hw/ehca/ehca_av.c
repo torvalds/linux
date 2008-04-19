@@ -41,9 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-#include <asm/current.h>
-
 #include "ehca_tools.h"
 #include "ehca_iverbs.h"
 #include "hcp_if.h"
@@ -170,17 +167,8 @@ int ehca_modify_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr)
 {
 	struct ehca_av *av;
 	struct ehca_ud_av new_ehca_av;
-	struct ehca_pd *my_pd = container_of(ah->pd, struct ehca_pd, ib_pd);
 	struct ehca_shca *shca = container_of(ah->pd->device, struct ehca_shca,
 					      ib_device);
-	u32 cur_pid = current->tgid;
-
-	if (my_pd->ib_pd.uobject && my_pd->ib_pd.uobject->context &&
-	    my_pd->ownpid != cur_pid) {
-		ehca_err(ah->device, "Invalid caller pid=%x ownpid=%x",
-			 cur_pid, my_pd->ownpid);
-		return -EINVAL;
-	}
 
 	memset(&new_ehca_av, 0, sizeof(new_ehca_av));
 	new_ehca_av.sl = ah_attr->sl;
@@ -242,15 +230,6 @@ int ehca_modify_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr)
 int ehca_query_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr)
 {
 	struct ehca_av *av = container_of(ah, struct ehca_av, ib_ah);
-	struct ehca_pd *my_pd = container_of(ah->pd, struct ehca_pd, ib_pd);
-	u32 cur_pid = current->tgid;
-
-	if (my_pd->ib_pd.uobject && my_pd->ib_pd.uobject->context &&
-	    my_pd->ownpid != cur_pid) {
-		ehca_err(ah->device, "Invalid caller pid=%x ownpid=%x",
-			 cur_pid, my_pd->ownpid);
-		return -EINVAL;
-	}
 
 	memcpy(&ah_attr->grh.dgid, &av->av.grh.word_3,
 	       sizeof(ah_attr->grh.dgid));
@@ -273,16 +252,6 @@ int ehca_query_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr)
 
 int ehca_destroy_ah(struct ib_ah *ah)
 {
-	struct ehca_pd *my_pd = container_of(ah->pd, struct ehca_pd, ib_pd);
-	u32 cur_pid = current->tgid;
-
-	if (my_pd->ib_pd.uobject && my_pd->ib_pd.uobject->context &&
-	    my_pd->ownpid != cur_pid) {
-		ehca_err(ah->device, "Invalid caller pid=%x ownpid=%x",
-			 cur_pid, my_pd->ownpid);
-		return -EINVAL;
-	}
-
 	kmem_cache_free(av_cache, container_of(ah, struct ehca_av, ib_ah));
 
 	return 0;

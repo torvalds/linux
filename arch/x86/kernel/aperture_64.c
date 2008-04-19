@@ -27,11 +27,11 @@
 #include <asm/k8.h>
 
 int gart_iommu_aperture;
-int gart_iommu_aperture_disabled __initdata = 0;
-int gart_iommu_aperture_allowed __initdata = 0;
+int gart_iommu_aperture_disabled __initdata;
+int gart_iommu_aperture_allowed __initdata;
 
 int fallback_aper_order __initdata = 1; /* 64MB */
-int fallback_aper_force __initdata = 0;
+int fallback_aper_force __initdata;
 
 int fix_aperture __initdata = 1;
 

@@ -106,7 +106,8 @@ struct mlx4_cmd_context {
 	u16			token;
 };
 
-static int mlx4_status_to_errno(u8 status) {
+static int mlx4_status_to_errno(u8 status)
+{
 	static const int trans_table[] = {
 		[CMD_STAT_INTERNAL_ERR]	  = -EIO,
 		[CMD_STAT_BAD_OP]	  = -EPERM,

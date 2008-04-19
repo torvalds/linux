@@ -2332,11 +2332,7 @@ void ata_scsi_set_sense(struct scsi_cmnd *cmd, u8 sk, u8 asc, u8 ascq)
 {
 	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
 
-	cmd->sense_buffer[0] = 0x70;	/* fixed format, current */
-	cmd->sense_buffer[2] = sk;
-	cmd->sense_buffer[7] = 18 - 8;	/* additional sense length */
-	cmd->sense_buffer[12] = asc;
-	cmd->sense_buffer[13] = ascq;
+	scsi_build_sense_buffer(0, cmd->sense_buffer, sk, asc, ascq);
 }
 
 /**
@@ -2393,7 +2389,10 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 	/* FIXME: is this needed? */
 	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 
-	ap->ops->tf_read(ap, &qc->tf);
+#ifdef CONFIG_ATA_SFF
+	if (ap->ops->sff_tf_read)
+		ap->ops->sff_tf_read(ap, &qc->tf);
+#endif
 
 	/* fill these in, for the case where they are -not- overwritten */
 	cmd->sense_buffer[0] = 0x70;
@@ -2615,7 +2614,7 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc)
 
 static struct ata_device *ata_find_dev(struct ata_port *ap, int devno)
 {
-	if (ap->nr_pmp_links == 0) {
+	if (!sata_pmp_attached(ap)) {
 		if (likely(devno < ata_link_max_devices(&ap->link)))
 			return &ap->link.device[devno];
 	} else {
@@ -2632,7 +2631,7 @@ static struct ata_device *__ata_scsi_find_dev(struct ata_port *ap,
 	int devno;
 
 	/* skip commands not addressed to targets we simulate */
-	if (ap->nr_pmp_links == 0) {
+	if (!sata_pmp_attached(ap)) {
 		if (unlikely(scsidev->channel || scsidev->lun))
 			return NULL;
 		devno = scsidev->id;
@@ -3490,7 +3489,7 @@ static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 	if (lun != SCAN_WILD_CARD && lun)
 		return -EINVAL;
 
-	if (ap->nr_pmp_links == 0) {
+	if (!sata_pmp_attached(ap)) {
 		if (channel != SCAN_WILD_CARD && channel)
 			return -EINVAL;
 		devno = id;
@@ -3507,8 +3506,8 @@ static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 
 		ata_port_for_each_link(link, ap) {
 			struct ata_eh_info *ehi = &link->eh_info;
-			ehi->probe_mask |= (1 << ata_link_max_devices(link)) - 1;
-			ehi->action |= ATA_EH_SOFTRESET;
+			ehi->probe_mask |= ATA_ALL_DEVICES;
+			ehi->action |= ATA_EH_RESET;
 		}
 	} else {
 		struct ata_device *dev = ata_find_dev(ap, devno);
@@ -3516,8 +3515,7 @@ static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 		if (dev) {
 			struct ata_eh_info *ehi = &dev->link->eh_info;
 			ehi->probe_mask |= 1 << dev->devno;
-			ehi->action |= ATA_EH_SOFTRESET;
-			ehi->flags |= ATA_EHI_RESUME_LINK;
+			ehi->action |= ATA_EH_RESET;
 		} else
 			rc = -EINVAL;
 	}

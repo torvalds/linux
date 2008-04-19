@@ -26,19 +26,25 @@
 #define POLICYDB_VERSION_AVTAB		20
 #define POLICYDB_VERSION_RANGETRANS	21
 #define POLICYDB_VERSION_POLCAP		22
+#define POLICYDB_VERSION_PERMISSIVE	23
 
 /* Range of policy versions we understand*/
 #define POLICYDB_VERSION_MIN   POLICYDB_VERSION_BASE
 #ifdef CONFIG_SECURITY_SELINUX_POLICYDB_VERSION_MAX
 #define POLICYDB_VERSION_MAX	CONFIG_SECURITY_SELINUX_POLICYDB_VERSION_MAX_VALUE
 #else
-#define POLICYDB_VERSION_MAX	POLICYDB_VERSION_POLCAP
+#define POLICYDB_VERSION_MAX	POLICYDB_VERSION_PERMISSIVE
 #endif
 
 #define CONTEXT_MNT	0x01
 #define FSCONTEXT_MNT	0x02
 #define ROOTCONTEXT_MNT	0x04
 #define DEFCONTEXT_MNT	0x08
+
+#define CONTEXT_STR	"context="
+#define FSCONTEXT_STR	"fscontext="
+#define ROOTCONTEXT_STR	"rootcontext="
+#define DEFCONTEXT_STR	"defcontext="
 
 struct netlbl_lsm_secattr;
 
@@ -48,11 +54,13 @@ extern int selinux_mls_enabled;
 /* Policy capabilities */
 enum {
 	POLICYDB_CAPABILITY_NETPEER,
+	POLICYDB_CAPABILITY_OPENPERM,
 	__POLICYDB_CAPABILITY_MAX
 };
 #define POLICYDB_CAPABILITY_MAX (__POLICYDB_CAPABILITY_MAX - 1)
 
 extern int selinux_policycap_netpeer;
+extern int selinux_policycap_openperm;
 
 int security_load_policy(void * data, size_t len);
 
@@ -66,6 +74,8 @@ struct av_decision {
 	u32 auditdeny;
 	u32 seqno;
 };
+
+int security_permissive_sid(u32 sid);
 
 int security_compute_av(u32 ssid, u32 tsid,
 	u16 tclass, u32 requested,
@@ -92,8 +102,7 @@ int security_context_to_sid_default(char *scontext, u32 scontext_len,
 int security_get_user_sids(u32 callsid, char *username,
 			   u32 **sids, u32 *nel);
 
-int security_port_sid(u16 domain, u16 type, u8 protocol, u16 port,
-	u32 *out_sid);
+int security_port_sid(u8 protocol, u16 port, u32 *out_sid);
 
 int security_netif_sid(char *name, u32 *if_sid);
 

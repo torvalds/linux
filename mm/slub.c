@@ -837,6 +837,35 @@ static void remove_full(struct kmem_cache *s, struct page *page)
 	spin_unlock(&n->list_lock);
 }
 
+/* Tracking of the number of slabs for debugging purposes */
+static inline unsigned long slabs_node(struct kmem_cache *s, int node)
+{
+	struct kmem_cache_node *n = get_node(s, node);
+
+	return atomic_long_read(&n->nr_slabs);
+}
+
+static inline void inc_slabs_node(struct kmem_cache *s, int node)
+{
+	struct kmem_cache_node *n = get_node(s, node);
+
+	/*
+	 * May be called early in order to allocate a slab for the
+	 * kmem_cache_node structure. Solve the chicken-egg
+	 * dilemma by deferring the increment of the count during
+	 * bootstrap (see early_kmem_cache_node_alloc).
+	 */
+	if (!NUMA_BUILD || n)
+		atomic_long_inc(&n->nr_slabs);
+}
+static inline void dec_slabs_node(struct kmem_cache *s, int node)
+{
+	struct kmem_cache_node *n = get_node(s, node);
+
+	atomic_long_dec(&n->nr_slabs);
+}
+
+/* Object debug checks for alloc/free paths */
 static void setup_object_debug(struct kmem_cache *s, struct page *page,
 								void *object)
 {
@@ -1028,6 +1057,11 @@ static inline unsigned long kmem_cache_flags(unsigned long objsize,
 	return flags;
 }
 #define slub_debug 0
+
+static inline unsigned long slabs_node(struct kmem_cache *s, int node)
+							{ return 0; }
+static inline void inc_slabs_node(struct kmem_cache *s, int node) {}
+static inline void dec_slabs_node(struct kmem_cache *s, int node) {}
 #endif
 /*
  * Slab allocation and freeing
@@ -1066,7 +1100,6 @@ static void setup_object(struct kmem_cache *s, struct page *page,
 static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 {
 	struct page *page;
-	struct kmem_cache_node *n;
 	void *start;
 	void *last;
 	void *p;
@@ -1078,9 +1111,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 	if (!page)
 		goto out;
 
-	n = get_node(s, page_to_nid(page));
-	if (n)
-		atomic_long_inc(&n->nr_slabs);
+	inc_slabs_node(s, page_to_nid(page));
 	page->slab = s;
 	page->flags |= 1 << PG_slab;
 	if (s->flags & (SLAB_DEBUG_FREE | SLAB_RED_ZONE | SLAB_POISON |
@@ -1125,6 +1156,8 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 		NR_SLAB_RECLAIMABLE : NR_SLAB_UNRECLAIMABLE,
 		-pages);
 
+	__ClearPageSlab(page);
+	reset_page_mapcount(page);
 	__free_pages(page, s->order);
 }
 
@@ -1151,11 +1184,7 @@ static void free_slab(struct kmem_cache *s, struct page *page)
 
 static void discard_slab(struct kmem_cache *s, struct page *page)
 {
-	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
-
-	atomic_long_dec(&n->nr_slabs);
-	reset_page_mapcount(page);
-	__ClearPageSlab(page);
+	dec_slabs_node(s, page_to_nid(page));
 	free_slab(s, page);
 }
 
@@ -1886,15 +1915,18 @@ static void init_kmem_cache_cpu(struct kmem_cache *s,
 	c->node = 0;
 	c->offset = s->offset / sizeof(void *);
 	c->objsize = s->objsize;
+#ifdef CONFIG_SLUB_STATS
+	memset(c->stat, 0, NR_SLUB_STAT_ITEMS * sizeof(unsigned));
+#endif
 }
 
 static void init_kmem_cache_node(struct kmem_cache_node *n)
 {
 	n->nr_partial = 0;
-	atomic_long_set(&n->nr_slabs, 0);
 	spin_lock_init(&n->list_lock);
 	INIT_LIST_HEAD(&n->partial);
 #ifdef CONFIG_SLUB_DEBUG
+	atomic_long_set(&n->nr_slabs, 0);
 	INIT_LIST_HEAD(&n->full);
 #endif
 }
@@ -2063,7 +2095,7 @@ static struct kmem_cache_node *early_kmem_cache_node_alloc(gfp_t gfpflags,
 	init_tracking(kmalloc_caches, n);
 #endif
 	init_kmem_cache_node(n);
-	atomic_long_inc(&n->nr_slabs);
+	inc_slabs_node(kmalloc_caches, node);
 
 	/*
 	 * lockdep requires consistent irq usage for each lock
@@ -2376,7 +2408,7 @@ static inline int kmem_cache_close(struct kmem_cache *s)
 		struct kmem_cache_node *n = get_node(s, node);
 
 		n->nr_partial -= free_list(s, n, &n->partial);
-		if (atomic_long_read(&n->nr_slabs))
+		if (slabs_node(s, node))
 			return 1;
 	}
 	free_kmem_cache_nodes(s);
@@ -2408,10 +2440,6 @@ EXPORT_SYMBOL(kmem_cache_destroy);
 
 struct kmem_cache kmalloc_caches[PAGE_SHIFT + 1] __cacheline_aligned;
 EXPORT_SYMBOL(kmalloc_caches);
-
-#ifdef CONFIG_ZONE_DMA
-static struct kmem_cache *kmalloc_caches_dma[PAGE_SHIFT + 1];
-#endif
 
 static int __init setup_slub_min_order(char *str)
 {
@@ -2472,6 +2500,7 @@ panic:
 }
 
 #ifdef CONFIG_ZONE_DMA
+static struct kmem_cache *kmalloc_caches_dma[PAGE_SHIFT + 1];
 
 static void sysfs_add_func(struct work_struct *w)
 {
@@ -2688,21 +2717,6 @@ void kfree(const void *x)
 }
 EXPORT_SYMBOL(kfree);
 
-#if defined(CONFIG_SLUB_DEBUG) || defined(CONFIG_SLABINFO)
-static unsigned long count_partial(struct kmem_cache_node *n)
-{
-	unsigned long flags;
-	unsigned long x = 0;
-	struct page *page;
-
-	spin_lock_irqsave(&n->list_lock, flags);
-	list_for_each_entry(page, &n->partial, lru)
-		x += page->inuse;
-	spin_unlock_irqrestore(&n->list_lock, flags);
-	return x;
-}
-#endif
-
 /*
  * kmem_cache_shrink removes empty slabs from the partial lists and sorts
  * the remaining slabs by the number of items in use. The slabs with the
@@ -2816,7 +2830,7 @@ static void slab_mem_offline_callback(void *arg)
 			 * and offline_pages() function shoudn't call this
 			 * callback. So, we must fail.
 			 */
-			BUG_ON(atomic_long_read(&n->nr_slabs));
+			BUG_ON(slabs_node(s, offline_node));
 
 			s->node[offline_node] = NULL;
 			kmem_cache_free(kmalloc_caches, n);
@@ -3180,6 +3194,21 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 
 	return slab_alloc(s, gfpflags, node, caller);
 }
+
+#if (defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)) || defined(CONFIG_SLABINFO)
+static unsigned long count_partial(struct kmem_cache_node *n)
+{
+	unsigned long flags;
+	unsigned long x = 0;
+	struct page *page;
+
+	spin_lock_irqsave(&n->list_lock, flags);
+	list_for_each_entry(page, &n->partial, lru)
+		x += page->inuse;
+	spin_unlock_irqrestore(&n->list_lock, flags);
+	return x;
+}
+#endif
 
 #if defined(CONFIG_SYSFS) && defined(CONFIG_SLUB_DEBUG)
 static int validate_slab(struct kmem_cache *s, struct page *page,
@@ -3979,10 +4008,12 @@ static int show_stat(struct kmem_cache *s, char *buf, enum stat_item si)
 
 	len = sprintf(buf, "%lu", sum);
 
+#ifdef CONFIG_SMP
 	for_each_online_cpu(cpu) {
 		if (data[cpu] && len < PAGE_SIZE - 20)
-			len += sprintf(buf + len, " c%d=%u", cpu, data[cpu]);
+			len += sprintf(buf + len, " C%d=%u", cpu, data[cpu]);
 	}
+#endif
 	kfree(data);
 	return len + sprintf(buf + len, "\n");
 }

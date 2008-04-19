@@ -969,7 +969,7 @@ static int __init bf537mac_probe(struct net_device *dev)
 	lp->mii_bus.write = mdiobus_write;
 	lp->mii_bus.reset = mdiobus_reset;
 	lp->mii_bus.name = "bfin_mac_mdio";
-	lp->mii_bus.id = 0;
+	snprintf(lp->mii_bus.id, MII_BUS_ID_SIZE, "0");
 	lp->mii_bus.irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
 	for (i = 0; i < PHY_MAX_ADDR; ++i)
 		lp->mii_bus.irq[i] = PHY_POLL;

@@ -115,7 +115,7 @@ static inline void udp_lib_unhash(struct sock *sk)
 	write_lock_bh(&udp_hash_lock);
 	if (sk_del_node_init(sk)) {
 		inet_sk(sk)->num = 0;
-		sock_prot_inuse_add(sk->sk_prot, -1);
+		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	}
 	write_unlock_bh(&udp_hash_lock);
 }
@@ -125,6 +125,8 @@ static inline void udp_lib_close(struct sock *sk, long timeout)
 	sk_common_release(sk);
 }
 
+extern int	udp_lib_get_port(struct sock *sk, unsigned short snum,
+		int (*)(const struct sock*,const struct sock*));
 
 /* net/ipv4/udp.c */
 extern int	udp_get_port(struct sock *sk, unsigned short snum,
@@ -183,24 +185,23 @@ DECLARE_SNMP_STAT(struct udp_mib, udplite_stats_in6);
 
 /* /proc */
 struct udp_seq_afinfo {
-	struct module		*owner;
 	char			*name;
 	sa_family_t		family;
 	struct hlist_head	*hashtable;
-	int 			(*seq_show) (struct seq_file *m, void *v);
-	struct file_operations	*seq_fops;
-};
-
-struct udp_iter_state {
-	sa_family_t		family;
-	struct hlist_head	*hashtable;
-	int			bucket;
+	struct file_operations	seq_fops;
 	struct seq_operations	seq_ops;
 };
 
+struct udp_iter_state {
+	struct seq_net_private  p;
+	sa_family_t		family;
+	struct hlist_head	*hashtable;
+	int			bucket;
+};
+
 #ifdef CONFIG_PROC_FS
-extern int udp_proc_register(struct udp_seq_afinfo *afinfo);
-extern void udp_proc_unregister(struct udp_seq_afinfo *afinfo);
+extern int udp_proc_register(struct net *net, struct udp_seq_afinfo *afinfo);
+extern void udp_proc_unregister(struct net *net, struct udp_seq_afinfo *afinfo);
 
 extern int  udp4_proc_init(void);
 extern void udp4_proc_exit(void);

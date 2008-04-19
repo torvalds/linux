@@ -20,6 +20,7 @@ config DCSSBLK
 config DASD
 	tristate "Support for DASD devices"
 	depends on CCW && BLOCK
+	select IOSCHED_DEADLINE
 	help
 	  Enable this option if you want to access DASDs directly utilizing
 	  S/390s channel subsystem commands. This is necessary for running

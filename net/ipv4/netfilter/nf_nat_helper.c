@@ -139,7 +139,7 @@ nf_nat_mangle_tcp_packet(struct sk_buff *skb,
 			 const char *rep_buffer,
 			 unsigned int rep_len)
 {
-	struct rtable *rt = (struct rtable *)skb->dst;
+	struct rtable *rt = skb->rtable;
 	struct iphdr *iph;
 	struct tcphdr *tcph;
 	int oldlen, datalen;
@@ -217,7 +217,7 @@ nf_nat_mangle_udp_packet(struct sk_buff *skb,
 			 const char *rep_buffer,
 			 unsigned int rep_len)
 {
-	struct rtable *rt = (struct rtable *)skb->dst;
+	struct rtable *rt = skb->rtable;
 	struct iphdr *iph;
 	struct udphdr *udph;
 	int datalen, oldlen;
@@ -416,7 +416,6 @@ nf_nat_seq_adjust(struct sk_buff *skb,
 
 	return 1;
 }
-EXPORT_SYMBOL(nf_nat_seq_adjust);
 
 /* Setup NAT on this expected conntrack so it follows master. */
 /* If we fail to get a free NAT slot, we'll get dropped on confirm */

@@ -280,8 +280,8 @@ int avtab_alloc(struct avtab *h, u32 nrules)
 	h->nel = 0;
 	h->nslot = nslot;
 	h->mask = mask;
-	printk(KERN_DEBUG "SELinux:%d avtab hash slots allocated. "
-	       "Num of rules:%d\n", h->nslot, nrules);
+	printk(KERN_DEBUG "SELinux: %d avtab hash slots, %d rules.\n",
+	       h->nslot, nrules);
 	return 0;
 }
 
@@ -345,18 +345,18 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 	if (vers < POLICYDB_VERSION_AVTAB) {
 		rc = next_entry(buf32, fp, sizeof(u32));
 		if (rc < 0) {
-			printk(KERN_ERR "security: avtab: truncated entry\n");
+			printk(KERN_ERR "SELinux: avtab: truncated entry\n");
 			return -1;
 		}
 		items2 = le32_to_cpu(buf32[0]);
 		if (items2 > ARRAY_SIZE(buf32)) {
-			printk(KERN_ERR "security: avtab: entry overflow\n");
+			printk(KERN_ERR "SELinux: avtab: entry overflow\n");
 			return -1;
 
 		}
 		rc = next_entry(buf32, fp, sizeof(u32)*items2);
 		if (rc < 0) {
-			printk(KERN_ERR "security: avtab: truncated entry\n");
+			printk(KERN_ERR "SELinux: avtab: truncated entry\n");
 			return -1;
 		}
 		items = 0;
@@ -364,19 +364,19 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 		val = le32_to_cpu(buf32[items++]);
 		key.source_type = (u16)val;
 		if (key.source_type != val) {
-			printk("security: avtab: truncated source type\n");
+			printk("SELinux: avtab: truncated source type\n");
 			return -1;
 		}
 		val = le32_to_cpu(buf32[items++]);
 		key.target_type = (u16)val;
 		if (key.target_type != val) {
-			printk("security: avtab: truncated target type\n");
+			printk("SELinux: avtab: truncated target type\n");
 			return -1;
 		}
 		val = le32_to_cpu(buf32[items++]);
 		key.target_class = (u16)val;
 		if (key.target_class != val) {
-			printk("security: avtab: truncated target class\n");
+			printk("SELinux: avtab: truncated target class\n");
 			return -1;
 		}
 
@@ -384,12 +384,12 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 		enabled = (val & AVTAB_ENABLED_OLD) ? AVTAB_ENABLED : 0;
 
 		if (!(val & (AVTAB_AV | AVTAB_TYPE))) {
-			printk("security: avtab: null entry\n");
+			printk("SELinux: avtab: null entry\n");
 			return -1;
 		}
 		if ((val & AVTAB_AV) &&
 		    (val & AVTAB_TYPE)) {
-			printk("security: avtab: entry has both access vectors and types\n");
+			printk("SELinux: avtab: entry has both access vectors and types\n");
 			return -1;
 		}
 
@@ -403,7 +403,7 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 		}
 
 		if (items != items2) {
-			printk("security: avtab: entry only had %d items, expected %d\n", items2, items);
+			printk("SELinux: avtab: entry only had %d items, expected %d\n", items2, items);
 			return -1;
 		}
 		return 0;
@@ -411,7 +411,7 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 
 	rc = next_entry(buf16, fp, sizeof(u16)*4);
 	if (rc < 0) {
-		printk("security: avtab: truncated entry\n");
+		printk("SELinux: avtab: truncated entry\n");
 		return -1;
 	}
 
@@ -424,7 +424,7 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 	if (!policydb_type_isvalid(pol, key.source_type) ||
 	    !policydb_type_isvalid(pol, key.target_type) ||
 	    !policydb_class_isvalid(pol, key.target_class)) {
-		printk(KERN_WARNING "security: avtab: invalid type or class\n");
+		printk(KERN_WARNING "SELinux: avtab: invalid type or class\n");
 		return -1;
 	}
 
@@ -435,19 +435,19 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 	}
 	if (!set || set > 1) {
 		printk(KERN_WARNING
-			"security:  avtab:  more than one specifier\n");
+			"SELinux:  avtab:  more than one specifier\n");
 		return -1;
 	}
 
 	rc = next_entry(buf32, fp, sizeof(u32));
 	if (rc < 0) {
-		printk("security: avtab: truncated entry\n");
+		printk("SELinux: avtab: truncated entry\n");
 		return -1;
 	}
 	datum.data = le32_to_cpu(*buf32);
 	if ((key.specified & AVTAB_TYPE) &&
 	    !policydb_type_isvalid(pol, datum.data)) {
-		printk(KERN_WARNING "security: avtab: invalid type\n");
+		printk(KERN_WARNING "SELinux: avtab: invalid type\n");
 		return -1;
 	}
 	return insertf(a, &key, &datum, p);
@@ -468,12 +468,12 @@ int avtab_read(struct avtab *a, void *fp, struct policydb *pol)
 
 	rc = next_entry(buf, fp, sizeof(u32));
 	if (rc < 0) {
-		printk(KERN_ERR "security: avtab: truncated table\n");
+		printk(KERN_ERR "SELinux: avtab: truncated table\n");
 		goto bad;
 	}
 	nel = le32_to_cpu(buf[0]);
 	if (!nel) {
-		printk(KERN_ERR "security: avtab: table is empty\n");
+		printk(KERN_ERR "SELinux: avtab: table is empty\n");
 		rc = -EINVAL;
 		goto bad;
 	}
@@ -486,9 +486,9 @@ int avtab_read(struct avtab *a, void *fp, struct policydb *pol)
 		rc = avtab_read_item(a, fp, pol, avtab_insertf, NULL);
 		if (rc) {
 			if (rc == -ENOMEM)
-				printk(KERN_ERR "security: avtab: out of memory\n");
+				printk(KERN_ERR "SELinux: avtab: out of memory\n");
 			else if (rc == -EEXIST)
-				printk(KERN_ERR "security: avtab: duplicate entry\n");
+				printk(KERN_ERR "SELinux: avtab: duplicate entry\n");
 			else
 				rc = -EINVAL;
 			goto bad;

@@ -52,7 +52,7 @@ static void post_qp_event(struct iwch_dev *rnicp, struct iwch_cq *chp,
 
 	if (!qhp) {
 		printk(KERN_ERR "%s unaffiliated error 0x%x qpid 0x%x\n",
-		       __FUNCTION__, CQE_STATUS(rsp_msg->cqe),
+		       __func__, CQE_STATUS(rsp_msg->cqe),
 		       CQE_QPID(rsp_msg->cqe));
 		spin_unlock(&rnicp->lock);
 		return;
@@ -61,14 +61,14 @@ static void post_qp_event(struct iwch_dev *rnicp, struct iwch_cq *chp,
 	if ((qhp->attr.state == IWCH_QP_STATE_ERROR) ||
 	    (qhp->attr.state == IWCH_QP_STATE_TERMINATE)) {
 		PDBG("%s AE received after RTS - "
-		     "qp state %d qpid 0x%x status 0x%x\n", __FUNCTION__,
+		     "qp state %d qpid 0x%x status 0x%x\n", __func__,
 		     qhp->attr.state, qhp->wq.qpid, CQE_STATUS(rsp_msg->cqe));
 		spin_unlock(&rnicp->lock);
 		return;
 	}
 
 	printk(KERN_ERR "%s - AE qpid 0x%x opcode %d status 0x%x "
-	       "type %d wrid.hi 0x%x wrid.lo 0x%x \n", __FUNCTION__,
+	       "type %d wrid.hi 0x%x wrid.lo 0x%x \n", __func__,
 	       CQE_QPID(rsp_msg->cqe), CQE_OPCODE(rsp_msg->cqe),
 	       CQE_STATUS(rsp_msg->cqe), CQE_TYPE(rsp_msg->cqe),
 	       CQE_WRID_HI(rsp_msg->cqe), CQE_WRID_LOW(rsp_msg->cqe));
@@ -132,10 +132,10 @@ void iwch_ev_dispatch(struct cxio_rdev *rdev_p, struct sk_buff *skb)
 	    (CQE_STATUS(rsp_msg->cqe) == 0)) {
 		if (SQ_TYPE(rsp_msg->cqe)) {
 			PDBG("%s QPID 0x%x ep %p disconnecting\n",
-			     __FUNCTION__, qhp->wq.qpid, qhp->ep);
+			     __func__, qhp->wq.qpid, qhp->ep);
 			iwch_ep_disconnect(qhp->ep, 0, GFP_ATOMIC);
 		} else {
-			PDBG("%s post REQ_ERR AE QPID 0x%x\n", __FUNCTION__,
+			PDBG("%s post REQ_ERR AE QPID 0x%x\n", __func__,
 			     qhp->wq.qpid);
 			post_qp_event(rnicp, chp, rsp_msg,
 				      IB_EVENT_QP_REQ_ERR, 0);
@@ -180,7 +180,7 @@ void iwch_ev_dispatch(struct cxio_rdev *rdev_p, struct sk_buff *skb)
 	case TPT_ERR_INVALIDATE_SHARED_MR:
 	case TPT_ERR_INVALIDATE_MR_WITH_MW_BOUND:
 		printk(KERN_ERR "%s - CQE Err qpid 0x%x opcode %d status 0x%x "
-		       "type %d wrid.hi 0x%x wrid.lo 0x%x \n", __FUNCTION__,
+		       "type %d wrid.hi 0x%x wrid.lo 0x%x \n", __func__,
 		       CQE_QPID(rsp_msg->cqe), CQE_OPCODE(rsp_msg->cqe),
 		       CQE_STATUS(rsp_msg->cqe), CQE_TYPE(rsp_msg->cqe),
 		       CQE_WRID_HI(rsp_msg->cqe), CQE_WRID_LOW(rsp_msg->cqe));

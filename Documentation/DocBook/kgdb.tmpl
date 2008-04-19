@@ -1,0 +1,447 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
+	"http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd" []>
+
+<book id="kgdbOnLinux">
+ <bookinfo>
+  <title>Using kgdb and the kgdb Internals</title>
+
+  <authorgroup>
+   <author>
+    <firstname>Jason</firstname>
+    <surname>Wessel</surname>
+    <affiliation>
+     <address>
+      <email>jason.wessel@windriver.com</email>
+     </address>
+    </affiliation>
+   </author>
+  </authorgroup>
+
+  <authorgroup>
+   <author>
+    <firstname>Tom</firstname>
+    <surname>Rini</surname>
+    <affiliation>
+     <address>
+      <email>trini@kernel.crashing.org</email>
+     </address>
+    </affiliation>
+   </author>
+  </authorgroup>
+
+  <authorgroup>
+   <author>
+    <firstname>Amit S.</firstname>
+    <surname>Kale</surname>
+    <affiliation>
+     <address>
+      <email>amitkale@linsyssoft.com</email>
+     </address>
+    </affiliation>
+   </author>
+  </authorgroup>
+
+  <copyright>
+   <year>2008</year>
+   <holder>Wind River Systems, Inc.</holder>
+  </copyright>
+  <copyright>
+   <year>2004-2005</year>
+   <holder>MontaVista Software, Inc.</holder>
+  </copyright>
+  <copyright>
+   <year>2004</year>
+   <holder>Amit S. Kale</holder>
+  </copyright>
+
+  <legalnotice>
+   <para>
+   This file is licensed under the terms of the GNU General Public License
+   version 2. This program is licensed "as is" without any warranty of any
+   kind, whether express or implied.
+   </para>
+
+  </legalnotice>
+ </bookinfo>
+
+<toc></toc>
+  <chapter id="Introduction">
+    <title>Introduction</title>
+    <para>
+    kgdb is a source level debugger for linux kernel. It is used along
+    with gdb to debug a linux kernel.  The expectation is that gdb can
+    be used to "break in" to the kernel to inspect memory, variables
+    and look through a cal stack information similar to what an
+    application developer would use gdb for.  It is possible to place
+    breakpoints in kernel code and perform some limited execution
+    stepping.
+    </para>
+    <para>
+    Two machines are required for using kgdb. One of these machines is a
+    development machine and the other is a test machine.  The kernel
+    to be debugged runs on the test machine. The development machine
+    runs an instance of gdb against the vmlinux file which contains
+    the symbols (not boot image such as bzImage, zImage, uImage...).
+    In gdb the developer specifies the connection parameters and
+    connects to kgdb.  Depending on which kgdb I/O modules exist in
+    the kernel for a given architecture, it may be possible to debug
+    the test machine's kernel with the development machine using a
+    rs232 or ethernet connection.
+    </para>
+  </chapter>
+  <chapter id="CompilingAKernel">
+    <title>Compiling a kernel</title>
+    <para>
+    To enable <symbol>CONFIG_KGDB</symbol>, look under the "Kernel debugging"
+    and then select "KGDB: kernel debugging with remote gdb".
+    </para>
+    <para>
+    Next you should choose one of more I/O drivers to interconnect debugging
+    host and debugged target.  Early boot debugging requires a KGDB
+    I/O driver that supports early debugging and the driver must be
+    built into the kernel directly. Kgdb I/O driver configuration
+    takes place via kernel or module parameters, see following
+    chapter.
+    </para>
+    <para>
+    The kgdb test compile options are described in the kgdb test suite chapter.
+    </para>
+
+  </chapter>
+  <chapter id="EnableKGDB">
+   <title>Enable kgdb for debugging</title>
+   <para>
+   In order to use kgdb you must activate it by passing configuration
+   information to one of the kgdb I/O drivers.  If you do not pass any
+   configuration information kgdb will not do anything at all.  Kgdb
+   will only actively hook up to the kernel trap hooks if a kgdb I/O
+   driver is loaded and configured.  If you unconfigure a kgdb I/O
+   driver, kgdb will unregister all the kernel hook points.
+   </para>
+   <para>
+   All drivers can be reconfigured at run time, if
+   <symbol>CONFIG_SYSFS</symbol> and <symbol>CONFIG_MODULES</symbol>
+   are enabled, by echo'ing a new config string to
+   <constant>/sys/module/&lt;driver&gt;/parameter/&lt;option&gt;</constant>.
+   The driver can be unconfigured by passing an empty string.  You cannot
+   change the configuration while the debugger is attached.  Make sure
+   to detach the debugger with the <constant>detach</constant> command
+   prior to trying unconfigure a kgdb I/O driver.
+   </para>
+   <sect1 id="kgdbwait">
+   <title>Kernel parameter: kgdbwait</title>
+   <para>
+   The Kernel command line option <constant>kgdbwait</constant> makes
+   kgdb wait for a debugger connection during booting of a kernel.  You
+   can only use this option you compiled a kgdb I/O driver into the
+   kernel and you specified the I/O driver configuration as a kernel
+   command line option.  The kgdbwait parameter should always follow the
+   configuration parameter for the kgdb I/O driver in the kernel
+   command line else the I/O driver will not be configured prior to
+   asking the kernel to use it to wait.
+   </para>
+   <para>
+   The kernel will stop and wait as early as the I/O driver and
+   architecture will allow when you use this option.  If you build the
+   kgdb I/O driver as a kernel module kgdbwait will not do anything.
+   </para>
+   </sect1>
+  <sect1 id="kgdboc">
+  <title>Kernel parameter: kgdboc</title>
+  <para>
+  The kgdboc driver was originally an abbreviation meant to stand for
+  "kgdb over console".  Kgdboc is designed to work with a single
+  serial port. It was meant to cover the circumstance
+  where you wanted to use a serial console as your primary console as
+  well as using it to perform kernel debugging.  Of course you can
+  also use kgdboc without assigning a console to the same port.
+  </para>
+  <sect2 id="UsingKgdboc">
+  <title>Using kgdboc</title>
+  <para>
+  You can configure kgdboc via sysfs or a module or kernel boot line
+  parameter depending on if you build with CONFIG_KGDBOC as a module
+  or built-in.
+  <orderedlist>
+  <listitem><para>From the module load or build-in</para>
+  <para><constant>kgdboc=&lt;tty-device&gt;,[baud]</constant></para>
+  <para>
+  The example here would be if your console port was typically ttyS0, you would use something like <constant>kgdboc=ttyS0,115200</constant> or on the ARM Versatile AB you would likely use <constant>kgdboc=ttyAMA0,115200</constant>
+  </para>
+  </listitem>
+  <listitem><para>From sysfs</para>
+  <para><constant>echo ttyS0 &gt; /sys/module/kgdboc/parameters/kgdboc</constant></para>
+  </listitem>
+  </orderedlist>
+  </para>
+  <para>
+  NOTE: Kgdboc does not support interrupting the target via the
+  gdb remote protocol.  You must manually send a sysrq-g unless you
+  have a proxy that splits console output to a terminal problem and
+  has a separate port for the debugger to connect to that sends the
+  sysrq-g for you.
+  </para>
+  <para>When using kgdboc with no debugger proxy, you can end up
+  connecting the debugger for one of two entry points.  If an
+  exception occurs after you have loaded kgdboc a message should print
+  on the console stating it is waiting for the debugger.  In case you
+  disconnect your terminal program and then connect the debugger in
+  its place.  If you want to interrupt the target system and forcibly
+  enter a debug session you have to issue a Sysrq sequence and then
+  type the letter <constant>g</constant>.  Then you disconnect the
+  terminal session and connect gdb.  Your options if you don't like
+  this are to hack gdb to send the sysrq-g for you as well as on the
+  initial connect, or to use a debugger proxy that allows an
+  unmodified gdb to do the debugging.
+  </para>
+  </sect2>
+  </sect1>
+  <sect1 id="kgdbcon">
+  <title>Kernel parameter: kgdbcon</title>
+  <para>
+  Kgdb supports using the gdb serial protocol to send console messages
+  to the debugger when the debugger is connected and running.  There
+  are two ways to activate this feature.
+  <orderedlist>
+  <listitem><para>Activate with the kernel command line option:</para>
+  <para><constant>kgdbcon</constant></para>
+  </listitem>
+  <listitem><para>Use sysfs before configuring an io driver</para>
+  <para>
+  <constant>echo 1 &gt; /sys/module/kgdb/parameters/kgdb_use_con</constant>
+  </para>
+  <para>
+  NOTE: If you do this after you configure the kgdb I/O driver, the
+  setting will not take effect until the next point the I/O is
+  reconfigured.
+  </para>
+  </listitem>
+  </orderedlist>
+  </para>
+  <para>
+  IMPORTANT NOTE: Using this option with kgdb over the console
+  (kgdboc) or kgdb over ethernet (kgdboe) is not supported.
+  </para>
+  </sect1>
+  </chapter>
+  <chapter id="ConnectingGDB">
+  <title>Connecting gdb</title>
+    <para>
+    If you are using kgdboc, you need to have used kgdbwait as a boot
+    argument, issued a sysrq-g, or the system you are going to debug
+    has already taken an exception and is waiting for the debugger to
+    attach before you can connect gdb.
+    </para>
+    <para>
+    If you are not using different kgdb I/O driver other than kgdboc,
+    you should be able to connect and the target will automatically
+    respond.
+    </para>
+    <para>
+    Example (using a serial port):
+    </para>
+    <programlisting>
+    % gdb ./vmlinux
+    (gdb) set remotebaud 115200
+    (gdb) target remote /dev/ttyS0
+    </programlisting>
+    <para>
+    Example (kgdb to a terminal server):
+    </para>
+    <programlisting>
+    % gdb ./vmlinux
+    (gdb) target remote udp:192.168.2.2:6443
+    </programlisting>
+    <para>
+    Example (kgdb over ethernet):
+    </para>
+    <programlisting>
+    % gdb ./vmlinux
+    (gdb) target remote udp:192.168.2.2:6443
+    </programlisting>
+    <para>
+    Once connected, you can debug a kernel the way you would debug an
+    application program.
+    </para>
+    <para>
+    If you are having problems connecting or something is going
+    seriously wrong while debugging, it will most often be the case
+    that you want to enable gdb to be verbose about its target
+    communications.  You do this prior to issuing the <constant>target
+    remote</constant> command by typing in: <constant>set remote debug 1</constant>
+    </para>
+  </chapter>
+  <chapter id="KGDBTestSuite">
+    <title>kgdb Test Suite</title>
+    <para>
+    When kgdb is enabled in the kernel config you can also elect to
+    enable the config parameter KGDB_TESTS.  Turning this on will
+    enable a special kgdb I/O module which is designed to test the
+    kgdb internal functions.
+    </para>
+    <para>
+    The kgdb tests are mainly intended for developers to test the kgdb
+    internals as well as a tool for developing a new kgdb architecture
+    specific implementation.  These tests are not really for end users
+    of the Linux kernel.  The primary source of documentation would be
+    to look in the drivers/misc/kgdbts.c file.
+    </para>
+    <para>
+    The kgdb test suite can also be configured at compile time to run
+    the core set of tests by setting the kernel config parameter
+    KGDB_TESTS_ON_BOOT.  This particular option is aimed at automated
+    regression testing and does not require modifying the kernel boot
+    config arguments.  If this is turned on, the kgdb test suite can
+    be disabled by specifying "kgdbts=" as a kernel boot argument.
+    </para>
+  </chapter>
+  <chapter id="CommonBackEndReq">
+  <title>KGDB Internals</title>
+  <sect1 id="kgdbArchitecture">
+    <title>Architecture Specifics</title>
+      <para>
+      Kgdb is organized into three basic components:
+      <orderedlist>
+      <listitem><para>kgdb core</para>
+      <para>
+      The kgdb core is found in kernel/kgdb.c.  It contains:
+      <itemizedlist>
+      <listitem><para>All the logic to implement the gdb serial protocol</para></listitem>
+      <listitem><para>A generic OS exception handler which includes sync'ing the processors into a stopped state on an multi cpu system.</para></listitem>
+      <listitem><para>The API to talk to the kgdb I/O drivers</para></listitem>
+      <listitem><para>The API to make calls to the arch specific kgdb implementation</para></listitem>
+      <listitem><para>The logic to perform safe memory reads and writes to memory while using the debugger</para></listitem>
+      <listitem><para>A full implementation for software breakpoints unless overridden by the arch</para></listitem>
+      </itemizedlist>
+      </para>
+      </listitem>
+      <listitem><para>kgdb arch specific implementation</para>
+      <para>
+      This implementation is generally found in arch/*/kernel/kgdb.c.
+      As an example, arch/x86/kernel/kgdb.c contains the specifics to
+      implement HW breakpoint as well as the initialization to
+      dynamically register and unregister for the trap handlers on
+      this architecture.  The arch specific portion implements:
+      <itemizedlist>
+      <listitem><para>contains an arch specific trap catcher which
+      invokes kgdb_handle_exception() to start kgdb about doing its
+      work</para></listitem>
+      <listitem><para>translation to and from gdb specific packet format to pt_regs</para></listitem>
+      <listitem><para>Registration and unregistration of architecture specific trap hooks</para></listitem>
+      <listitem><para>Any special exception handling and cleanup</para></listitem>
+      <listitem><para>NMI exception handling and cleanup</para></listitem>
+      <listitem><para>(optional)HW breakpoints</para></listitem>
+      </itemizedlist>
+      </para>
+      </listitem>
+      <listitem><para>kgdb I/O driver</para>
+      <para>
+      Each kgdb I/O driver has to provide an implemenation for the following:
+      <itemizedlist>
+      <listitem><para>configuration via builtin or module</para></listitem>
+      <listitem><para>dynamic configuration and kgdb hook registration calls</para></listitem>
+      <listitem><para>read and write character interface</para></listitem>
+      <listitem><para>A cleanup handler for unconfiguring from the kgdb core</para></listitem>
+      <listitem><para>(optional) Early debug methodology</para></listitem>
+      </itemizedlist>
+      Any given kgdb I/O driver has to operate very closely with the
+      hardware and must do it in such a way that does not enable
+      interrupts or change other parts of the system context without
+      completely restoring them. The kgdb core will repeatedly "poll"
+      a kgdb I/O driver for characters when it needs input.  The I/O
+      driver is expected to return immediately if there is no data
+      available.  Doing so allows for the future possibility to touch
+      watch dog hardware in such a way as to have a target system not
+      reset when these are enabled.
+      </para>
+      </listitem>
+      </orderedlist>
+      </para>
+      <para>
+      If you are intent on adding kgdb architecture specific support
+      for a new architecture, the architecture should define
+      <constant>HAVE_ARCH_KGDB</constant> in the architecture specific
+      Kconfig file.  This will enable kgdb for the architecture, and
+      at that point you must create an architecture specific kgdb
+      implementation.
+      </para>
+      <para>
+      There are a few flags which must be set on every architecture in
+      their &lt;asm/kgdb.h&gt; file.  These are:
+      <itemizedlist>
+        <listitem>
+	  <para>
+	  NUMREGBYTES: The size in bytes of all of the registers, so
+	  that we can ensure they will all fit into a packet.
+	  </para>
+	  <para>
+	  BUFMAX: The size in bytes of the buffer GDB will read into.
+	  This must be larger than NUMREGBYTES.
+	  </para>
+	  <para>
+	  CACHE_FLUSH_IS_SAFE: Set to 1 if it is always safe to call
+	  flush_cache_range or flush_icache_range.  On some architectures,
+	  these functions may not be safe to call on SMP since we keep other
+	  CPUs in a holding pattern.
+	  </para>
+	</listitem>
+      </itemizedlist>
+      </para>
+      <para>
+      There are also the following functions for the common backend,
+      found in kernel/kgdb.c, that must be supplied by the
+      architecture-specific backend unless marked as (optional), in
+      which case a default function maybe used if the architecture
+      does not need to provide a specific implementation.
+      </para>
+!Iinclude/linux/kgdb.h
+  </sect1>
+  <sect1 id="kgdbocDesign">
+  <title>kgdboc internals</title>
+  <para>
+  The kgdboc driver is actually a very thin driver that relies on the
+  underlying low level to the hardware driver having "polling hooks"
+  which the to which the tty driver is attached.  In the initial
+  implementation of kgdboc it the serial_core was changed to expose a
+  low level uart hook for doing polled mode reading and writing of a
+  single character while in an atomic context.  When kgdb makes an I/O
+  request to the debugger, kgdboc invokes a call back in the serial
+  core which in turn uses the call back in the uart driver.  It is
+  certainly possible to extend kgdboc to work with non-uart based
+  consoles in the future.
+  </para>
+  <para>
+  When using kgdboc with a uart, the uart driver must implement two callbacks in the <constant>struct uart_ops</constant>. Example from drivers/8250.c:<programlisting>
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_get_char = serial8250_get_poll_char,
+	.poll_put_char = serial8250_put_poll_char,
+#endif
+  </programlisting>
+  Any implementation specifics around creating a polling driver use the
+  <constant>#ifdef CONFIG_CONSOLE_POLL</constant>, as shown above.
+  Keep in mind that polling hooks have to be implemented in such a way
+  that they can be called from an atomic context and have to restore
+  the state of the uart chip on return such that the system can return
+  to normal when the debugger detaches.  You need to be very careful
+  with any kind of lock you consider, because failing here is most
+  going to mean pressing the reset button.
+  </para>
+  </sect1>
+  </chapter>
+  <chapter id="credits">
+     <title>Credits</title>
+	<para>
+		The following people have contributed to this document:
+		<orderedlist>
+			<listitem><para>Amit Kale<email>amitkale@linsyssoft.com</email></para></listitem>
+			<listitem><para>Tom Rini<email>trini@kernel.crashing.org</email></para></listitem>
+		</orderedlist>
+                In March 2008 this document was completely rewritten by:
+		<itemizedlist>
+		<listitem><para>Jason Wessel<email>jason.wessel@windriver.com</email></para></listitem>
+		</itemizedlist>
+	</para>
+  </chapter>
+</book>
+

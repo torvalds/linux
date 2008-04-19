@@ -301,39 +301,45 @@ void ide_tf_read(ide_drive_t *drive, ide_task_t *task)
 	struct ide_taskfile *tf = &task->tf;
 
 	if (task->tf_flags & IDE_TFLAG_IN_DATA) {
-		u16 data = hwif->INW(IDE_DATA_REG);
+		u16 data = hwif->INW(hwif->io_ports[IDE_DATA_OFFSET]);
 
 		tf->data = data & 0xff;
 		tf->hob_data = (data >> 8) & 0xff;
 	}
 
 	/* be sure we're looking at the low order bits */
-	hwif->OUTB(drive->ctl & ~0x80, IDE_CONTROL_REG);
+	hwif->OUTB(drive->ctl & ~0x80, hwif->io_ports[IDE_CONTROL_OFFSET]);
 
 	if (task->tf_flags & IDE_TFLAG_IN_NSECT)
-		tf->nsect  = hwif->INB(IDE_NSECTOR_REG);
+		tf->nsect  = hwif->INB(hwif->io_ports[IDE_NSECTOR_OFFSET]);
 	if (task->tf_flags & IDE_TFLAG_IN_LBAL)
-		tf->lbal   = hwif->INB(IDE_SECTOR_REG);
+		tf->lbal   = hwif->INB(hwif->io_ports[IDE_SECTOR_OFFSET]);
 	if (task->tf_flags & IDE_TFLAG_IN_LBAM)
-		tf->lbam   = hwif->INB(IDE_LCYL_REG);
+		tf->lbam   = hwif->INB(hwif->io_ports[IDE_LCYL_OFFSET]);
 	if (task->tf_flags & IDE_TFLAG_IN_LBAH)
-		tf->lbah   = hwif->INB(IDE_HCYL_REG);
+		tf->lbah   = hwif->INB(hwif->io_ports[IDE_HCYL_OFFSET]);
 	if (task->tf_flags & IDE_TFLAG_IN_DEVICE)
-		tf->device = hwif->INB(IDE_SELECT_REG);
+		tf->device = hwif->INB(hwif->io_ports[IDE_SELECT_OFFSET]);
 
 	if (task->tf_flags & IDE_TFLAG_LBA48) {
-		hwif->OUTB(drive->ctl | 0x80, IDE_CONTROL_REG);
+		hwif->OUTB(drive->ctl | 0x80,
+			   hwif->io_ports[IDE_CONTROL_OFFSET]);
 
 		if (task->tf_flags & IDE_TFLAG_IN_HOB_FEATURE)
-			tf->hob_feature = hwif->INB(IDE_FEATURE_REG);
+			tf->hob_feature =
+				hwif->INB(hwif->io_ports[IDE_FEATURE_OFFSET]);
 		if (task->tf_flags & IDE_TFLAG_IN_HOB_NSECT)
-			tf->hob_nsect   = hwif->INB(IDE_NSECTOR_REG);
+			tf->hob_nsect   =
+				hwif->INB(hwif->io_ports[IDE_NSECTOR_OFFSET]);
 		if (task->tf_flags & IDE_TFLAG_IN_HOB_LBAL)
-			tf->hob_lbal    = hwif->INB(IDE_SECTOR_REG);
+			tf->hob_lbal    =
+				hwif->INB(hwif->io_ports[IDE_SECTOR_OFFSET]);
 		if (task->tf_flags & IDE_TFLAG_IN_HOB_LBAM)
-			tf->hob_lbam    = hwif->INB(IDE_LCYL_REG);
+			tf->hob_lbam    =
+				hwif->INB(hwif->io_ports[IDE_LCYL_OFFSET]);
 		if (task->tf_flags & IDE_TFLAG_IN_HOB_LBAH)
-			tf->hob_lbah    = hwif->INB(IDE_HCYL_REG);
+			tf->hob_lbah    =
+				hwif->INB(hwif->io_ports[IDE_HCYL_OFFSET]);
 	}
 }
 
@@ -448,7 +454,8 @@ static ide_startstop_t ide_ata_error(ide_drive_t *drive, struct request *rq, u8 
 		if (err == ABRT_ERR) {
 			if (drive->select.b.lba &&
 			    /* some newer drives don't support WIN_SPECIFY */
-			    hwif->INB(IDE_COMMAND_REG) == WIN_SPECIFY)
+			    hwif->INB(hwif->io_ports[IDE_COMMAND_OFFSET]) ==
+				WIN_SPECIFY)
 				return ide_stopped;
 		} else if ((err & BAD_CRC) == BAD_CRC) {
 			/* UDMA crc error, just retry the operation */
@@ -500,7 +507,8 @@ static ide_startstop_t ide_atapi_error(ide_drive_t *drive, struct request *rq, u
 
 	if (ide_read_status(drive) & (BUSY_STAT | DRQ_STAT))
 		/* force an abort */
-		hwif->OUTB(WIN_IDLEIMMEDIATE, IDE_COMMAND_REG);
+		hwif->OUTB(WIN_IDLEIMMEDIATE,
+			   hwif->io_ports[IDE_COMMAND_OFFSET]);
 
 	if (rq->errors >= ERROR_MAX) {
 		ide_kill_rq(drive, rq);

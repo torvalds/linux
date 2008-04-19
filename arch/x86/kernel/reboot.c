@@ -1,5 +1,4 @@
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/pm.h>
@@ -412,12 +411,12 @@ static void native_machine_shutdown(void)
 #ifdef CONFIG_X86_32
 	/* See if there has been given a command line override */
 	if ((reboot_cpu != -1) && (reboot_cpu < NR_CPUS) &&
-		cpu_isset(reboot_cpu, cpu_online_map))
+		cpu_online(reboot_cpu))
 		reboot_cpu_id = reboot_cpu;
 #endif
 
 	/* Make certain the cpu I'm about to reboot on is online */
-	if (!cpu_isset(reboot_cpu_id, cpu_online_map))
+	if (!cpu_online(reboot_cpu_id))
 		reboot_cpu_id = smp_processor_id();
 
 	/* Make certain I only run on the appropriate processor */

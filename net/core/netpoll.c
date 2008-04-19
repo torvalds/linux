@@ -390,9 +390,7 @@ static void arp_reply(struct sk_buff *skb)
 	if (skb->dev->flags & IFF_NOARP)
 		return;
 
-	if (!pskb_may_pull(skb, (sizeof(struct arphdr) +
-				 (2 * skb->dev->addr_len) +
-				 (2 * sizeof(u32)))))
+	if (!pskb_may_pull(skb, arp_hdr_len(skb->dev)))
 		return;
 
 	skb_reset_network_header(skb);
@@ -420,7 +418,7 @@ static void arp_reply(struct sk_buff *skb)
 	    ipv4_is_loopback(tip) || ipv4_is_multicast(tip))
 		return;
 
-	size = sizeof(struct arphdr) + 2 * (skb->dev->addr_len + 4);
+	size = arp_hdr_len(skb->dev);
 	send_skb = find_skb(np, size + LL_RESERVED_SPACE(np->dev),
 			    LL_RESERVED_SPACE(np->dev));
 

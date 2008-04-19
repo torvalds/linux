@@ -130,6 +130,9 @@ extern void scsi_release_buffers(struct scsi_cmnd *cmd);
 extern int scsi_dma_map(struct scsi_cmnd *cmd);
 extern void scsi_dma_unmap(struct scsi_cmnd *cmd);
 
+struct scsi_cmnd *scsi_allocate_command(gfp_t gfp_mask);
+void scsi_free_command(gfp_t gfp_mask, struct scsi_cmnd *cmd);
+
 static inline unsigned scsi_sg_count(struct scsi_cmnd *cmd)
 {
 	return cmd->sdb.table.nents;
@@ -173,6 +176,20 @@ static inline struct scsi_data_buffer *scsi_in(struct scsi_cmnd *cmd)
 static inline struct scsi_data_buffer *scsi_out(struct scsi_cmnd *cmd)
 {
 	return &cmd->sdb;
+}
+
+static inline int scsi_sg_copy_from_buffer(struct scsi_cmnd *cmd,
+					   void *buf, int buflen)
+{
+	return sg_copy_from_buffer(scsi_sglist(cmd), scsi_sg_count(cmd),
+				   buf, buflen);
+}
+
+static inline int scsi_sg_copy_to_buffer(struct scsi_cmnd *cmd,
+					 void *buf, int buflen)
+{
+	return sg_copy_to_buffer(scsi_sglist(cmd), scsi_sg_count(cmd),
+				 buf, buflen);
 }
 
 #endif /* _SCSI_SCSI_CMND_H */

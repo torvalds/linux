@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2007 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2008 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -212,6 +212,18 @@ enum {
 
 #define LQ_SIZE		2	/* 2 mode tables:  "Active" and "Search" */
 
+/* load per tid defines for A-MPDU activation */
+#define IWL_AGG_TPT_THREHOLD	0
+#define IWL_AGG_LOAD_THRESHOLD	10
+#define IWL_AGG_ALL_TID		0xff
+#define TID_QUEUE_CELL_SPACING	50	/*mS */
+#define TID_QUEUE_MAX_SIZE	20
+#define TID_ROUND_VALUE		5	/* mS */
+#define TID_MAX_LOAD_COUNT	8
+
+#define TID_MAX_TIME_DIFF ((TID_QUEUE_MAX_SIZE - 1) * TID_QUEUE_CELL_SPACING)
+#define TIME_WRAP_AROUND(x, y) (((y) > (x)) ? (y) - (x) : (0-(x)) + (y))
+
 extern const struct iwl4965_rate_info iwl4965_rates[IWL_RATE_COUNT];
 
 enum iwl4965_table_type {
@@ -247,7 +259,7 @@ static inline u8 iwl4965_get_prev_ieee_rate(u8 rate_index)
 	return rate;
 }
 
-extern int iwl4965_rate_index_from_plcp(int plcp);
+extern int iwl4965_hwrate_to_plcp_idx(u32 rate_n_flags);
 
 /**
  * iwl4965_fill_rs_info - Fill an output text buffer with the rate representation
@@ -276,7 +288,7 @@ extern void iwl4965_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id);
  * ieee80211_register_hw
  *
  */
-extern void iwl4965_rate_control_register(struct ieee80211_hw *hw);
+extern int iwl4965_rate_control_register(void);
 
 /**
  * iwl4965_rate_control_unregister - Unregister the rate control callbacks
@@ -284,6 +296,6 @@ extern void iwl4965_rate_control_register(struct ieee80211_hw *hw);
  * This should be called after calling ieee80211_unregister_hw, but before
  * the driver is unloaded.
  */
-extern void iwl4965_rate_control_unregister(struct ieee80211_hw *hw);
+extern void iwl4965_rate_control_unregister(void);
 
 #endif

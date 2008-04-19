@@ -73,7 +73,7 @@ static ssize_t debug_input(struct file *file, const char __user *user_buf,
 static int debug_open(struct inode *inode, struct file *file);
 static int debug_close(struct inode *inode, struct file *file);
 static debug_info_t*  debug_info_create(char *name, int pages_per_area,
-			int nr_areas, int buf_size);
+			int nr_areas, int buf_size, mode_t mode);
 static void debug_info_get(debug_info_t *);
 static void debug_info_put(debug_info_t *);
 static int debug_prolog_level_fn(debug_info_t * id,
@@ -157,7 +157,7 @@ struct debug_view debug_sprintf_view = {
 };
 
 /* used by dump analysis tools to determine version of debug feature */
-unsigned int debug_feature_version = __DEBUG_FEATURE_VERSION;
+static unsigned int __used debug_feature_version = __DEBUG_FEATURE_VERSION;
 
 /* static globals */
 
@@ -327,7 +327,8 @@ debug_info_free(debug_info_t* db_info){
  */
 
 static debug_info_t*
-debug_info_create(char *name, int pages_per_area, int nr_areas, int buf_size)
+debug_info_create(char *name, int pages_per_area, int nr_areas, int buf_size,
+		  mode_t mode)
 {
 	debug_info_t* rc;
 
@@ -335,6 +336,8 @@ debug_info_create(char *name, int pages_per_area, int nr_areas, int buf_size)
 				DEBUG_DEFAULT_LEVEL, ALL_AREAS);
         if(!rc) 
 		goto out;
+
+	rc->mode = mode & ~S_IFMT;
 
 	/* create root directory */
         rc->debugfs_root_entry = debugfs_create_dir(rc->name,
@@ -676,23 +679,30 @@ debug_close(struct inode *inode, struct file *file)
 }
 
 /*
- * debug_register:
- * - creates and initializes debug area for the caller
- * - returns handle for debug area
+ * debug_register_mode:
+ * - Creates and initializes debug area for the caller
+ *   The mode parameter allows to specify access rights for the s390dbf files
+ * - Returns handle for debug area
  */
 
-debug_info_t*
-debug_register (char *name, int pages_per_area, int nr_areas, int buf_size)
+debug_info_t *debug_register_mode(char *name, int pages_per_area, int nr_areas,
+				  int buf_size, mode_t mode, uid_t uid,
+				  gid_t gid)
 {
 	debug_info_t *rc = NULL;
 
+	/* Since debugfs currently does not support uid/gid other than root, */
+	/* we do not allow gid/uid != 0 until we get support for that. */
+	if ((uid != 0) || (gid != 0))
+		printk(KERN_WARNING "debug: Warning - Currently only uid/gid "
+		       "= 0 are supported. Using root as owner now!");
 	if (!initialized)
 		BUG();
 	mutex_lock(&debug_mutex);
 
         /* create new debug_info */
 
-	rc = debug_info_create(name, pages_per_area, nr_areas, buf_size);
+	rc = debug_info_create(name, pages_per_area, nr_areas, buf_size, mode);
 	if(!rc) 
 		goto out;
 	debug_register_view(rc, &debug_level_view);
@@ -704,6 +714,20 @@ out:
         }
 	mutex_unlock(&debug_mutex);
 	return rc;
+}
+EXPORT_SYMBOL(debug_register_mode);
+
+/*
+ * debug_register:
+ * - creates and initializes debug area for the caller
+ * - returns handle for debug area
+ */
+
+debug_info_t *debug_register(char *name, int pages_per_area, int nr_areas,
+			     int buf_size)
+{
+	return debug_register_mode(name, pages_per_area, nr_areas, buf_size,
+				   S_IRUSR | S_IWUSR, 0, 0);
 }
 
 /*
@@ -1073,15 +1097,16 @@ debug_register_view(debug_info_t * id, struct debug_view *view)
 	int rc = 0;
 	int i;
 	unsigned long flags;
-	mode_t mode = S_IFREG;
+	mode_t mode;
 	struct dentry *pde;
 
 	if (!id)
 		goto out;
-	if (view->prolog_proc || view->format_proc || view->header_proc)
-		mode |= S_IRUSR;
-	if (view->input_proc)
-		mode |= S_IWUSR;
+	mode = (id->mode | S_IFREG) & ~S_IXUGO;
+	if (!(view->prolog_proc || view->format_proc || view->header_proc))
+		mode &= ~(S_IRUSR | S_IRGRP | S_IROTH);
+	if (!view->input_proc)
+		mode &= ~(S_IWUSR | S_IWGRP | S_IWOTH);
 	pde = debugfs_create_file(view->name, mode, id->debugfs_root_entry,
 				id , &debug_file_ops);
 	if (!pde){

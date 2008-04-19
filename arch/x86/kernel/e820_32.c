@@ -450,38 +450,25 @@ int __init sanitize_e820_map(struct e820entry * biosmap, char * pnr_map)
  * thinkpad 560x, for example, does not cooperate with the memory
  * detection code.)
  */
-int __init copy_e820_map(struct e820entry * biosmap, int nr_map)
+int __init copy_e820_map(struct e820entry *biosmap, int nr_map)
 {
 	/* Only one memory region (or negative)? Ignore it */
 	if (nr_map < 2)
 		return -1;
 
 	do {
-		unsigned long long start = biosmap->addr;
-		unsigned long long size = biosmap->size;
-		unsigned long long end = start + size;
-		unsigned long type = biosmap->type;
+		u64 start = biosmap->addr;
+		u64 size = biosmap->size;
+		u64 end = start + size;
+		u32 type = biosmap->type;
 
 		/* Overflow in 64 bits? Ignore the memory map. */
 		if (start > end)
 			return -1;
 
-		/*
-		 * Some BIOSes claim RAM in the 640k - 1M region.
-		 * Not right. Fix it up.
-		 */
-		if (type == E820_RAM) {
-			if (start < 0x100000ULL && end > 0xA0000ULL) {
-				if (start < 0xA0000ULL)
-					add_memory_region(start, 0xA0000ULL-start, type);
-				if (end <= 0x100000ULL)
-					continue;
-				start = 0x100000ULL;
-				size = end - start;
-			}
-		}
 		add_memory_region(start, size, type);
-	} while (biosmap++,--nr_map);
+	} while (biosmap++, --nr_map);
+
 	return 0;
 }
 

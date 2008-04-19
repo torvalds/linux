@@ -121,6 +121,7 @@ extern struct mutex xfrm_cfg_mutex;
 struct xfrm_state
 {
 	/* Note: bydst is re-used during gc */
+	struct list_head	all;
 	struct hlist_node	bydst;
 	struct hlist_node	bysrc;
 	struct hlist_node	byspi;
@@ -446,6 +447,7 @@ struct xfrm_tmpl
 struct xfrm_policy
 {
 	struct xfrm_policy	*next;
+	struct list_head	bytype;
 	struct hlist_node	bydst;
 	struct hlist_node	byidx;
 
@@ -1071,6 +1073,23 @@ xfrm_address_t *xfrm_flowi_saddr(struct flowi *fl, unsigned short family)
 	return NULL;
 }
 
+static __inline__
+void xfrm_flowi_addr_get(struct flowi *fl,
+			 xfrm_address_t *saddr, xfrm_address_t *daddr,
+			 unsigned short family)
+{
+	switch(family) {
+	case AF_INET:
+		memcpy(&saddr->a4, &fl->fl4_src, sizeof(saddr->a4));
+		memcpy(&daddr->a4, &fl->fl4_dst, sizeof(daddr->a4));
+		break;
+	case AF_INET6:
+		ipv6_addr_copy((struct in6_addr *)&saddr->a6, &fl->fl6_src);
+		ipv6_addr_copy((struct in6_addr *)&daddr->a6, &fl->fl6_dst);
+		break;
+	}
+}
+
 static __inline__ int
 __xfrm4_state_addr_check(struct xfrm_state *x,
 			 xfrm_address_t *daddr, xfrm_address_t *saddr)
@@ -1188,6 +1207,18 @@ struct xfrm6_tunnel {
 	int priority;
 };
 
+struct xfrm_state_walk {
+	struct xfrm_state *state;
+	int count;
+	u8 proto;
+};
+
+struct xfrm_policy_walk {
+	struct xfrm_policy *policy;
+	int count;
+	u8 type, cur_type;
+};
+
 extern void xfrm_init(void);
 extern void xfrm4_init(void);
 extern void xfrm_state_init(void);
@@ -1212,7 +1243,23 @@ static inline void xfrm6_fini(void)
 extern int xfrm_proc_init(void);
 #endif
 
-extern int xfrm_state_walk(u8 proto, int (*func)(struct xfrm_state *, int, void*), void *);
+static inline void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto)
+{
+	walk->proto = proto;
+	walk->state = NULL;
+	walk->count = 0;
+}
+
+static inline void xfrm_state_walk_done(struct xfrm_state_walk *walk)
+{
+	if (walk->state != NULL) {
+		xfrm_state_put(walk->state);
+		walk->state = NULL;
+	}
+}
+
+extern int xfrm_state_walk(struct xfrm_state_walk *walk,
+			   int (*func)(struct xfrm_state *, int, void*), void *);
 extern struct xfrm_state *xfrm_state_alloc(void);
 extern struct xfrm_state *xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr, 
 					  struct flowi *fl, struct xfrm_tmpl *tmpl,
@@ -1335,7 +1382,25 @@ static inline int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
 #endif
 
 struct xfrm_policy *xfrm_policy_alloc(gfp_t gfp);
-extern int xfrm_policy_walk(u8 type, int (*func)(struct xfrm_policy *, int, int, void*), void *);
+
+static inline void xfrm_policy_walk_init(struct xfrm_policy_walk *walk, u8 type)
+{
+	walk->cur_type = XFRM_POLICY_TYPE_MAIN;
+	walk->type = type;
+	walk->policy = NULL;
+	walk->count = 0;
+}
+
+static inline void xfrm_policy_walk_done(struct xfrm_policy_walk *walk)
+{
+	if (walk->policy != NULL) {
+		xfrm_pol_put(walk->policy);
+		walk->policy = NULL;
+	}
+}
+
+extern int xfrm_policy_walk(struct xfrm_policy_walk *walk,
+	int (*func)(struct xfrm_policy *, int, int, void*), void *);
 int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl);
 struct xfrm_policy *xfrm_policy_bysel_ctx(u8 type, int dir,
 					  struct xfrm_selector *sel,

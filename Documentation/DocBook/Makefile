@@ -9,9 +9,10 @@
 DOCBOOKS := wanbook.xml z8530book.xml mcabook.xml videobook.xml \
 	    kernel-hacking.xml kernel-locking.xml deviceiobook.xml \
 	    procfs-guide.xml writing_usb_driver.xml networking.xml \
-	    kernel-api.xml filesystems.xml lsm.xml usb.xml \
+	    kernel-api.xml filesystems.xml lsm.xml usb.xml kgdb.xml \
 	    gadget.xml libata.xml mtdnand.xml librs.xml rapidio.xml \
-	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml
+	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml \
+	    mac80211.xml
 
 ###
 # The build process is as follows (targets):

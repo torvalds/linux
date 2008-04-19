@@ -113,6 +113,8 @@ do {	if ((np)->msg_enable & NETIF_MSG_##TYPE) \
 #define niu_unlock_parent(np, flags) \
 	spin_unlock_irqrestore(&np->parent->lock, flags)
 
+static int serdes_init_10g_serdes(struct niu *np);
+
 static int __niu_wait_bits_clear_mac(struct niu *np, unsigned long reg,
 				     u64 bits, int limit, int delay)
 {
@@ -706,6 +708,251 @@ static int serdes_init_1g(struct niu *np)
 	return 0;
 }
 
+static int serdes_init_1g_serdes(struct niu *np)
+{
+	struct niu_link_config *lp = &np->link_config;
+	unsigned long ctrl_reg, test_cfg_reg, pll_cfg, i;
+	u64 ctrl_val, test_cfg_val, sig, mask, val;
+	int err;
+	u64 reset_val, val_rd;
+
+	val = ENET_SERDES_PLL_HRATE0 | ENET_SERDES_PLL_HRATE1 |
+		ENET_SERDES_PLL_HRATE2 | ENET_SERDES_PLL_HRATE3 |
+		ENET_SERDES_PLL_FBDIV0;
+	switch (np->port) {
+	case 0:
+		reset_val =  ENET_SERDES_RESET_0;
+		ctrl_reg = ENET_SERDES_0_CTRL_CFG;
+		test_cfg_reg = ENET_SERDES_0_TEST_CFG;
+		pll_cfg = ENET_SERDES_0_PLL_CFG;
+		break;
+	case 1:
+		reset_val =  ENET_SERDES_RESET_1;
+		ctrl_reg = ENET_SERDES_1_CTRL_CFG;
+		test_cfg_reg = ENET_SERDES_1_TEST_CFG;
+		pll_cfg = ENET_SERDES_1_PLL_CFG;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+	ctrl_val = (ENET_SERDES_CTRL_SDET_0 |
+		    ENET_SERDES_CTRL_SDET_1 |
+		    ENET_SERDES_CTRL_SDET_2 |
+		    ENET_SERDES_CTRL_SDET_3 |
+		    (0x5 << ENET_SERDES_CTRL_EMPH_0_SHIFT) |
+		    (0x5 << ENET_SERDES_CTRL_EMPH_1_SHIFT) |
+		    (0x5 << ENET_SERDES_CTRL_EMPH_2_SHIFT) |
+		    (0x5 << ENET_SERDES_CTRL_EMPH_3_SHIFT) |
+		    (0x1 << ENET_SERDES_CTRL_LADJ_0_SHIFT) |
+		    (0x1 << ENET_SERDES_CTRL_LADJ_1_SHIFT) |
+		    (0x1 << ENET_SERDES_CTRL_LADJ_2_SHIFT) |
+		    (0x1 << ENET_SERDES_CTRL_LADJ_3_SHIFT));
+	test_cfg_val = 0;
+
+	if (lp->loopback_mode == LOOPBACK_PHY) {
+		test_cfg_val |= ((ENET_TEST_MD_PAD_LOOPBACK <<
+				  ENET_SERDES_TEST_MD_0_SHIFT) |
+				 (ENET_TEST_MD_PAD_LOOPBACK <<
+				  ENET_SERDES_TEST_MD_1_SHIFT) |
+				 (ENET_TEST_MD_PAD_LOOPBACK <<
+				  ENET_SERDES_TEST_MD_2_SHIFT) |
+				 (ENET_TEST_MD_PAD_LOOPBACK <<
+				  ENET_SERDES_TEST_MD_3_SHIFT));
+	}
+
+	nw64(ENET_SERDES_RESET, reset_val);
+	mdelay(20);
+	val_rd = nr64(ENET_SERDES_RESET);
+	val_rd &= ~reset_val;
+	nw64(pll_cfg, val);
+	nw64(ctrl_reg, ctrl_val);
+	nw64(test_cfg_reg, test_cfg_val);
+	nw64(ENET_SERDES_RESET, val_rd);
+	mdelay(2000);
+
+	/* Initialize all 4 lanes of the SERDES.  */
+	for (i = 0; i < 4; i++) {
+		u32 rxtx_ctrl, glue0;
+
+		err = esr_read_rxtx_ctrl(np, i, &rxtx_ctrl);
+		if (err)
+			return err;
+		err = esr_read_glue0(np, i, &glue0);
+		if (err)
+			return err;
+
+		rxtx_ctrl &= ~(ESR_RXTX_CTRL_VMUXLO);
+		rxtx_ctrl |= (ESR_RXTX_CTRL_ENSTRETCH |
+			      (2 << ESR_RXTX_CTRL_VMUXLO_SHIFT));
+
+		glue0 &= ~(ESR_GLUE_CTRL0_SRATE |
+			   ESR_GLUE_CTRL0_THCNT |
+			   ESR_GLUE_CTRL0_BLTIME);
+		glue0 |= (ESR_GLUE_CTRL0_RXLOSENAB |
+			  (0xf << ESR_GLUE_CTRL0_SRATE_SHIFT) |
+			  (0xff << ESR_GLUE_CTRL0_THCNT_SHIFT) |
+			  (BLTIME_300_CYCLES <<
+			   ESR_GLUE_CTRL0_BLTIME_SHIFT));
+
+		err = esr_write_rxtx_ctrl(np, i, rxtx_ctrl);
+		if (err)
+			return err;
+		err = esr_write_glue0(np, i, glue0);
+		if (err)
+			return err;
+	}
+
+
+	sig = nr64(ESR_INT_SIGNALS);
+	switch (np->port) {
+	case 0:
+		val = (ESR_INT_SRDY0_P0 | ESR_INT_DET0_P0);
+		mask = val;
+		break;
+
+	case 1:
+		val = (ESR_INT_SRDY0_P1 | ESR_INT_DET0_P1);
+		mask = val;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	if ((sig & mask) != val) {
+		dev_err(np->device, PFX "Port %u signal bits [%08x] are not "
+			"[%08x]\n", np->port, (int) (sig & mask), (int) val);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static int link_status_1g_serdes(struct niu *np, int *link_up_p)
+{
+	struct niu_link_config *lp = &np->link_config;
+	int link_up;
+	u64 val;
+	u16 current_speed;
+	unsigned long flags;
+	u8 current_duplex;
+
+	link_up = 0;
+	current_speed = SPEED_INVALID;
+	current_duplex = DUPLEX_INVALID;
+
+	spin_lock_irqsave(&np->lock, flags);
+
+	val = nr64_pcs(PCS_MII_STAT);
+
+	if (val & PCS_MII_STAT_LINK_STATUS) {
+		link_up = 1;
+		current_speed = SPEED_1000;
+		current_duplex = DUPLEX_FULL;
+	}
+
+	lp->active_speed = current_speed;
+	lp->active_duplex = current_duplex;
+	spin_unlock_irqrestore(&np->lock, flags);
+
+	*link_up_p = link_up;
+	return 0;
+}
+
+
+static int link_status_10g_serdes(struct niu *np, int *link_up_p)
+{
+	unsigned long flags;
+	struct niu_link_config *lp = &np->link_config;
+	int link_up = 0;
+	int link_ok = 1;
+	u64 val, val2;
+	u16 current_speed;
+	u8 current_duplex;
+
+	if (!(np->flags & NIU_FLAGS_10G))
+		return link_status_1g_serdes(np, link_up_p);
+
+	current_speed = SPEED_INVALID;
+	current_duplex = DUPLEX_INVALID;
+	spin_lock_irqsave(&np->lock, flags);
+
+	val = nr64_xpcs(XPCS_STATUS(0));
+	val2 = nr64_mac(XMAC_INTER2);
+	if (val2 & 0x01000000)
+		link_ok = 0;
+
+	if ((val & 0x1000ULL) && link_ok) {
+		link_up = 1;
+		current_speed = SPEED_10000;
+		current_duplex = DUPLEX_FULL;
+	}
+	lp->active_speed = current_speed;
+	lp->active_duplex = current_duplex;
+	spin_unlock_irqrestore(&np->lock, flags);
+	*link_up_p = link_up;
+	return 0;
+}
+
+
+static int link_status_1g_rgmii(struct niu *np, int *link_up_p)
+{
+	struct niu_link_config *lp = &np->link_config;
+	u16 current_speed, bmsr;
+	unsigned long flags;
+	u8 current_duplex;
+	int err, link_up;
+
+	link_up = 0;
+	current_speed = SPEED_INVALID;
+	current_duplex = DUPLEX_INVALID;
+
+	spin_lock_irqsave(&np->lock, flags);
+
+	err = -EINVAL;
+
+	err = mii_read(np, np->phy_addr, MII_BMSR);
+	if (err < 0)
+		goto out;
+
+	bmsr = err;
+	if (bmsr & BMSR_LSTATUS) {
+		u16 adv, lpa, common, estat;
+
+		err = mii_read(np, np->phy_addr, MII_ADVERTISE);
+		if (err < 0)
+			goto out;
+		adv = err;
+
+		err = mii_read(np, np->phy_addr, MII_LPA);
+		if (err < 0)
+			goto out;
+		lpa = err;
+
+		common = adv & lpa;
+
+		err = mii_read(np, np->phy_addr, MII_ESTATUS);
+		if (err < 0)
+			goto out;
+		estat = err;
+		link_up = 1;
+		current_speed = SPEED_1000;
+		current_duplex = DUPLEX_FULL;
+
+	}
+	lp->active_speed = current_speed;
+	lp->active_duplex = current_duplex;
+	err = 0;
+
+out:
+	spin_unlock_irqrestore(&np->lock, flags);
+
+	*link_up_p = link_up;
+	return err;
+}
+
+
 static int bcm8704_reset(struct niu *np)
 {
 	int err, limit;
@@ -1021,6 +1268,69 @@ static int mii_reset(struct niu *np)
 
 	return 0;
 }
+
+
+
+static int xcvr_init_1g_rgmii(struct niu *np)
+{
+	int err;
+	u64 val;
+	u16 bmcr, bmsr, estat;
+
+	val = nr64(MIF_CONFIG);
+	val &= ~MIF_CONFIG_INDIRECT_MODE;
+	nw64(MIF_CONFIG, val);
+
+	err = mii_reset(np);
+	if (err)
+		return err;
+
+	err = mii_read(np, np->phy_addr, MII_BMSR);
+	if (err < 0)
+		return err;
+	bmsr = err;
+
+	estat = 0;
+	if (bmsr & BMSR_ESTATEN) {
+		err = mii_read(np, np->phy_addr, MII_ESTATUS);
+		if (err < 0)
+			return err;
+		estat = err;
+	}
+
+	bmcr = 0;
+	err = mii_write(np, np->phy_addr, MII_BMCR, bmcr);
+	if (err)
+		return err;
+
+	if (bmsr & BMSR_ESTATEN) {
+		u16 ctrl1000 = 0;
+
+		if (estat & ESTATUS_1000_TFULL)
+			ctrl1000 |= ADVERTISE_1000FULL;
+		err = mii_write(np, np->phy_addr, MII_CTRL1000, ctrl1000);
+		if (err)
+			return err;
+	}
+
+	bmcr = (BMCR_SPEED1000 | BMCR_FULLDPLX);
+
+	err = mii_write(np, np->phy_addr, MII_BMCR, bmcr);
+	if (err)
+		return err;
+
+	err = mii_read(np, np->phy_addr, MII_BMCR);
+	if (err < 0)
+		return err;
+	bmcr = mii_read(np, np->phy_addr, MII_BMCR);
+
+	err = mii_read(np, np->phy_addr, MII_BMSR);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
 
 static int mii_init_common(struct niu *np)
 {
@@ -1429,6 +1739,16 @@ static void niu_timer(unsigned long __opaque)
 	add_timer(&np->timer);
 }
 
+static const struct niu_phy_ops phy_ops_10g_serdes = {
+	.serdes_init		= serdes_init_10g_serdes,
+	.link_status		= link_status_10g_serdes,
+};
+
+static const struct niu_phy_ops phy_ops_1g_rgmii = {
+	.xcvr_init		= xcvr_init_1g_rgmii,
+	.link_status		= link_status_1g_rgmii,
+};
+
 static const struct niu_phy_ops phy_ops_10g_fiber_niu = {
 	.serdes_init		= serdes_init_niu,
 	.xcvr_init		= xcvr_init_10g,
@@ -1487,6 +1807,152 @@ static const struct niu_phy_template phy_template_1g_copper = {
 	.phy_addr_base	= 0,
 };
 
+static const struct niu_phy_template phy_template_1g_rgmii = {
+	.ops		= &phy_ops_1g_rgmii,
+	.phy_addr_base	= 0,
+};
+
+static const struct niu_phy_template phy_template_10g_serdes = {
+	.ops		= &phy_ops_10g_serdes,
+	.phy_addr_base	= 0,
+};
+
+static int niu_atca_port_num[4] = {
+	0, 0,  11, 10
+};
+
+static int serdes_init_10g_serdes(struct niu *np)
+{
+	struct niu_link_config *lp = &np->link_config;
+	unsigned long ctrl_reg, test_cfg_reg, pll_cfg, i;
+	u64 ctrl_val, test_cfg_val, sig, mask, val;
+	int err;
+	u64 reset_val;
+
+	switch (np->port) {
+	case 0:
+		reset_val =  ENET_SERDES_RESET_0;
+		ctrl_reg = ENET_SERDES_0_CTRL_CFG;
+		test_cfg_reg = ENET_SERDES_0_TEST_CFG;
+		pll_cfg = ENET_SERDES_0_PLL_CFG;
+		break;
+	case 1:
+		reset_val =  ENET_SERDES_RESET_1;
+		ctrl_reg = ENET_SERDES_1_CTRL_CFG;
+		test_cfg_reg = ENET_SERDES_1_TEST_CFG;
+		pll_cfg = ENET_SERDES_1_PLL_CFG;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+	ctrl_val = (ENET_SERDES_CTRL_SDET_0 |
+		    ENET_SERDES_CTRL_SDET_1 |
+		    ENET_SERDES_CTRL_SDET_2 |
+		    ENET_SERDES_CTRL_SDET_3 |
+		    (0x5 << ENET_SERDES_CTRL_EMPH_0_SHIFT) |
+		    (0x5 << ENET_SERDES_CTRL_EMPH_1_SHIFT) |
+		    (0x5 << ENET_SERDES_CTRL_EMPH_2_SHIFT) |
+		    (0x5 << ENET_SERDES_CTRL_EMPH_3_SHIFT) |
+		    (0x1 << ENET_SERDES_CTRL_LADJ_0_SHIFT) |
+		    (0x1 << ENET_SERDES_CTRL_LADJ_1_SHIFT) |
+		    (0x1 << ENET_SERDES_CTRL_LADJ_2_SHIFT) |
+		    (0x1 << ENET_SERDES_CTRL_LADJ_3_SHIFT));
+	test_cfg_val = 0;
+
+	if (lp->loopback_mode == LOOPBACK_PHY) {
+		test_cfg_val |= ((ENET_TEST_MD_PAD_LOOPBACK <<
+				  ENET_SERDES_TEST_MD_0_SHIFT) |
+				 (ENET_TEST_MD_PAD_LOOPBACK <<
+				  ENET_SERDES_TEST_MD_1_SHIFT) |
+				 (ENET_TEST_MD_PAD_LOOPBACK <<
+				  ENET_SERDES_TEST_MD_2_SHIFT) |
+				 (ENET_TEST_MD_PAD_LOOPBACK <<
+				  ENET_SERDES_TEST_MD_3_SHIFT));
+	}
+
+	esr_reset(np);
+	nw64(pll_cfg, ENET_SERDES_PLL_FBDIV2);
+	nw64(ctrl_reg, ctrl_val);
+	nw64(test_cfg_reg, test_cfg_val);
+
+	/* Initialize all 4 lanes of the SERDES.  */
+	for (i = 0; i < 4; i++) {
+		u32 rxtx_ctrl, glue0;
+
+		err = esr_read_rxtx_ctrl(np, i, &rxtx_ctrl);
+		if (err)
+			return err;
+		err = esr_read_glue0(np, i, &glue0);
+		if (err)
+			return err;
+
+		rxtx_ctrl &= ~(ESR_RXTX_CTRL_VMUXLO);
+		rxtx_ctrl |= (ESR_RXTX_CTRL_ENSTRETCH |
+			      (2 << ESR_RXTX_CTRL_VMUXLO_SHIFT));
+
+		glue0 &= ~(ESR_GLUE_CTRL0_SRATE |
+			   ESR_GLUE_CTRL0_THCNT |
+			   ESR_GLUE_CTRL0_BLTIME);
+		glue0 |= (ESR_GLUE_CTRL0_RXLOSENAB |
+			  (0xf << ESR_GLUE_CTRL0_SRATE_SHIFT) |
+			  (0xff << ESR_GLUE_CTRL0_THCNT_SHIFT) |
+			  (BLTIME_300_CYCLES <<
+			   ESR_GLUE_CTRL0_BLTIME_SHIFT));
+
+		err = esr_write_rxtx_ctrl(np, i, rxtx_ctrl);
+		if (err)
+			return err;
+		err = esr_write_glue0(np, i, glue0);
+		if (err)
+			return err;
+	}
+
+
+	sig = nr64(ESR_INT_SIGNALS);
+	switch (np->port) {
+	case 0:
+		mask = ESR_INT_SIGNALS_P0_BITS;
+		val = (ESR_INT_SRDY0_P0 |
+		       ESR_INT_DET0_P0 |
+		       ESR_INT_XSRDY_P0 |
+		       ESR_INT_XDP_P0_CH3 |
+		       ESR_INT_XDP_P0_CH2 |
+		       ESR_INT_XDP_P0_CH1 |
+		       ESR_INT_XDP_P0_CH0);
+		break;
+
+	case 1:
+		mask = ESR_INT_SIGNALS_P1_BITS;
+		val = (ESR_INT_SRDY0_P1 |
+		       ESR_INT_DET0_P1 |
+		       ESR_INT_XSRDY_P1 |
+		       ESR_INT_XDP_P1_CH3 |
+		       ESR_INT_XDP_P1_CH2 |
+		       ESR_INT_XDP_P1_CH1 |
+		       ESR_INT_XDP_P1_CH0);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	if ((sig & mask) != val) {
+		int err;
+		err = serdes_init_1g_serdes(np);
+		if (!err) {
+			np->flags &= ~NIU_FLAGS_10G;
+			np->mac_xcvr = MAC_XCVR_PCS;
+		}  else {
+			dev_err(np->device, PFX "Port %u 10G/1G SERDES Link Failed \n",
+			 np->port);
+			return -ENODEV;
+		}
+	}
+
+	return 0;
+}
+
 static int niu_determine_phy_disposition(struct niu *np)
 {
 	struct niu_parent *parent = np->parent;
@@ -1498,7 +1964,10 @@ static int niu_determine_phy_disposition(struct niu *np)
 		tp = &phy_template_niu;
 		phy_addr_off += np->port;
 	} else {
-		switch (np->flags & (NIU_FLAGS_10G | NIU_FLAGS_FIBER)) {
+		switch (np->flags &
+			(NIU_FLAGS_10G |
+			 NIU_FLAGS_FIBER |
+			 NIU_FLAGS_XCVR_SERDES)) {
 		case 0:
 			/* 1G copper */
 			tp = &phy_template_1g_copper;
@@ -1527,6 +1996,25 @@ static int niu_determine_phy_disposition(struct niu *np)
 			    plat_type == PLAT_TYPE_VF_P1)
 				phy_addr_off = 8;
 			phy_addr_off += np->port;
+			break;
+
+		case NIU_FLAGS_10G | NIU_FLAGS_XCVR_SERDES:
+		case NIU_FLAGS_XCVR_SERDES | NIU_FLAGS_FIBER:
+		case NIU_FLAGS_XCVR_SERDES:
+			switch(np->port) {
+			case 0:
+			case 1:
+				tp = &phy_template_10g_serdes;
+				break;
+			case 2:
+			case 3:
+				tp = &phy_template_1g_rgmii;
+				break;
+			default:
+				return -EINVAL;
+				break;
+			}
+			phy_addr_off = niu_atca_port_num[np->port];
 			break;
 
 		default:
@@ -4139,6 +4627,12 @@ static void niu_init_xif_xmac(struct niu *np)
 	struct niu_link_config *lp = &np->link_config;
 	u64 val;
 
+	if (np->flags & NIU_FLAGS_XCVR_SERDES) {
+		val = nr64(MIF_CONFIG);
+		val |= MIF_CONFIG_ATCA_GE;
+		nw64(MIF_CONFIG, val);
+	}
+
 	val = nr64_mac(XMAC_CONFIG);
 	val &= ~XMAC_CONFIG_SEL_POR_CLK_SRC;
 
@@ -4155,7 +4649,8 @@ static void niu_init_xif_xmac(struct niu *np)
 		val &= ~XMAC_CONFIG_LFS_DISABLE;
 	} else {
 		val |= XMAC_CONFIG_LFS_DISABLE;
-		if (!(np->flags & NIU_FLAGS_FIBER))
+		if (!(np->flags & NIU_FLAGS_FIBER) &&
+		    !(np->flags & NIU_FLAGS_XCVR_SERDES))
 			val |= XMAC_CONFIG_1G_PCS_BYPASS;
 		else
 			val &= ~XMAC_CONFIG_1G_PCS_BYPASS;
@@ -4224,16 +4719,26 @@ static void niu_init_xif(struct niu *np)
 
 static void niu_pcs_mii_reset(struct niu *np)
 {
+	int limit = 1000;
 	u64 val = nr64_pcs(PCS_MII_CTL);
 	val |= PCS_MII_CTL_RST;
 	nw64_pcs(PCS_MII_CTL, val);
+	while ((--limit >= 0) && (val & PCS_MII_CTL_RST)) {
+		udelay(100);
+		val = nr64_pcs(PCS_MII_CTL);
+	}
 }
 
 static void niu_xpcs_reset(struct niu *np)
 {
+	int limit = 1000;
 	u64 val = nr64_xpcs(XPCS_CONTROL1);
 	val |= XPCS_CONTROL1_RESET;
 	nw64_xpcs(XPCS_CONTROL1, val);
+	while ((--limit >= 0) && (val & XPCS_CONTROL1_RESET)) {
+		udelay(100);
+		val = nr64_xpcs(XPCS_CONTROL1);
+	}
 }
 
 static int niu_init_pcs(struct niu *np)
@@ -4241,7 +4746,9 @@ static int niu_init_pcs(struct niu *np)
 	struct niu_link_config *lp = &np->link_config;
 	u64 val;
 
-	switch (np->flags & (NIU_FLAGS_10G | NIU_FLAGS_FIBER)) {
+	switch (np->flags & (NIU_FLAGS_10G |
+			     NIU_FLAGS_FIBER |
+			     NIU_FLAGS_XCVR_SERDES)) {
 	case NIU_FLAGS_FIBER:
 		/* 1G fiber */
 		nw64_pcs(PCS_CONF, PCS_CONF_MASK | PCS_CONF_ENABLE);
@@ -4251,6 +4758,8 @@ static int niu_init_pcs(struct niu *np)
 
 	case NIU_FLAGS_10G:
 	case NIU_FLAGS_10G | NIU_FLAGS_FIBER:
+	case NIU_FLAGS_10G | NIU_FLAGS_XCVR_SERDES:
+		/* 10G SERDES */
 		if (!(np->flags & NIU_FLAGS_XMAC))
 			return -EINVAL;
 
@@ -4273,8 +4782,18 @@ static int niu_init_pcs(struct niu *np)
 		(void) nr64_xpcs(XPCS_SYMERR_CNT23);
 		break;
 
+
+	case NIU_FLAGS_XCVR_SERDES:
+		/* 1G SERDES */
+		niu_pcs_mii_reset(np);
+		nw64_pcs(PCS_CONF, PCS_CONF_MASK | PCS_CONF_ENABLE);
+		nw64_pcs(PCS_DPATH_MODE, 0);
+		break;
+
 	case 0:
 		/* 1G copper */
+	case NIU_FLAGS_XCVR_SERDES | NIU_FLAGS_FIBER:
+		/* 1G RGMII FIBER */
 		nw64_pcs(PCS_DPATH_MODE, PCS_DPATH_MODE_MII);
 		niu_pcs_mii_reset(np);
 		break;
@@ -6268,7 +6787,19 @@ static void __devinit niu_pci_vpd_validate(struct niu *np)
 		return;
 	}
 
-	if (niu_phy_type_prop_decode(np, np->vpd.phy_type)) {
+	if (!strcmp(np->vpd.model, "SUNW,CP3220") ||
+	    !strcmp(np->vpd.model, "SUNW,CP3260")) {
+		np->flags |= NIU_FLAGS_10G;
+		np->flags &= ~NIU_FLAGS_FIBER;
+		np->flags |= NIU_FLAGS_XCVR_SERDES;
+		np->mac_xcvr = MAC_XCVR_PCS;
+		if (np->port > 1) {
+			np->flags |= NIU_FLAGS_FIBER;
+			np->flags &= ~NIU_FLAGS_10G;
+		}
+		if (np->flags & NIU_FLAGS_10G)
+			 np->mac_xcvr = MAC_XCVR_XPCS;
+	} else if (niu_phy_type_prop_decode(np, np->vpd.phy_type)) {
 		dev_err(np->device, PFX "Illegal phy string [%s].\n",
 			np->vpd.phy_type);
 		dev_err(np->device, PFX "Falling back to SPROM.\n");
@@ -6731,80 +7262,93 @@ static int __devinit walk_phys(struct niu *np, struct niu_parent *parent)
 	u32 val;
 	int err;
 
-	err = fill_phy_probe_info(np, parent, info);
-	if (err)
-		return err;
 
-	num_10g = count_10g_ports(info, &lowest_10g);
-	num_1g = count_1g_ports(info, &lowest_1g);
-
-	switch ((num_10g << 4) | num_1g) {
-	case 0x24:
-		if (lowest_1g == 10)
-			parent->plat_type = PLAT_TYPE_VF_P0;
-		else if (lowest_1g == 26)
-			parent->plat_type = PLAT_TYPE_VF_P1;
-		else
-			goto unknown_vg_1g_port;
-
-		/* fallthru */
-	case 0x22:
-		val = (phy_encode(PORT_TYPE_10G, 0) |
-		       phy_encode(PORT_TYPE_10G, 1) |
-		       phy_encode(PORT_TYPE_1G, 2) |
-		       phy_encode(PORT_TYPE_1G, 3));
-		break;
-
-	case 0x20:
-		val = (phy_encode(PORT_TYPE_10G, 0) |
-		       phy_encode(PORT_TYPE_10G, 1));
-		break;
-
-	case 0x10:
-		val = phy_encode(PORT_TYPE_10G, np->port);
-		break;
-
-	case 0x14:
-		if (lowest_1g == 10)
-			parent->plat_type = PLAT_TYPE_VF_P0;
-		else if (lowest_1g == 26)
-			parent->plat_type = PLAT_TYPE_VF_P1;
-		else
-			goto unknown_vg_1g_port;
-
-		/* fallthru */
-	case 0x13:
-		if ((lowest_10g & 0x7) == 0)
-			val = (phy_encode(PORT_TYPE_10G, 0) |
-			       phy_encode(PORT_TYPE_1G, 1) |
-			       phy_encode(PORT_TYPE_1G, 2) |
-			       phy_encode(PORT_TYPE_1G, 3));
-		else
-			val = (phy_encode(PORT_TYPE_1G, 0) |
-			       phy_encode(PORT_TYPE_10G, 1) |
-			       phy_encode(PORT_TYPE_1G, 2) |
-			       phy_encode(PORT_TYPE_1G, 3));
-		break;
-
-	case 0x04:
-		if (lowest_1g == 10)
-			parent->plat_type = PLAT_TYPE_VF_P0;
-		else if (lowest_1g == 26)
-			parent->plat_type = PLAT_TYPE_VF_P1;
-		else
-			goto unknown_vg_1g_port;
-
+	if (!strcmp(np->vpd.model, "SUNW,CP3220") ||
+	    !strcmp(np->vpd.model, "SUNW,CP3260")) {
+		num_10g = 0;
+		num_1g = 2;
+		parent->plat_type = PLAT_TYPE_ATCA_CP3220;
+		parent->num_ports = 4;
 		val = (phy_encode(PORT_TYPE_1G, 0) |
 		       phy_encode(PORT_TYPE_1G, 1) |
 		       phy_encode(PORT_TYPE_1G, 2) |
 		       phy_encode(PORT_TYPE_1G, 3));
-		break;
+	} else {
+		err = fill_phy_probe_info(np, parent, info);
+		if (err)
+			return err;
 
-	default:
-		printk(KERN_ERR PFX "Unsupported port config "
-		       "10G[%d] 1G[%d]\n",
-		       num_10g, num_1g);
-		return -EINVAL;
+		num_10g = count_10g_ports(info, &lowest_10g);
+		num_1g = count_1g_ports(info, &lowest_1g);
+
+		switch ((num_10g << 4) | num_1g) {
+		case 0x24:
+			if (lowest_1g == 10)
+				parent->plat_type = PLAT_TYPE_VF_P0;
+			else if (lowest_1g == 26)
+				parent->plat_type = PLAT_TYPE_VF_P1;
+			else
+				goto unknown_vg_1g_port;
+
+			/* fallthru */
+		case 0x22:
+			val = (phy_encode(PORT_TYPE_10G, 0) |
+			       phy_encode(PORT_TYPE_10G, 1) |
+			       phy_encode(PORT_TYPE_1G, 2) |
+			       phy_encode(PORT_TYPE_1G, 3));
+			break;
+
+		case 0x20:
+			val = (phy_encode(PORT_TYPE_10G, 0) |
+			       phy_encode(PORT_TYPE_10G, 1));
+			break;
+
+		case 0x10:
+			val = phy_encode(PORT_TYPE_10G, np->port);
+			break;
+
+		case 0x14:
+			if (lowest_1g == 10)
+				parent->plat_type = PLAT_TYPE_VF_P0;
+			else if (lowest_1g == 26)
+				parent->plat_type = PLAT_TYPE_VF_P1;
+			else
+				goto unknown_vg_1g_port;
+
+			/* fallthru */
+		case 0x13:
+			if ((lowest_10g & 0x7) == 0)
+				val = (phy_encode(PORT_TYPE_10G, 0) |
+				       phy_encode(PORT_TYPE_1G, 1) |
+				       phy_encode(PORT_TYPE_1G, 2) |
+				       phy_encode(PORT_TYPE_1G, 3));
+			else
+				val = (phy_encode(PORT_TYPE_1G, 0) |
+				       phy_encode(PORT_TYPE_10G, 1) |
+				       phy_encode(PORT_TYPE_1G, 2) |
+				       phy_encode(PORT_TYPE_1G, 3));
+			break;
+
+		case 0x04:
+			if (lowest_1g == 10)
+				parent->plat_type = PLAT_TYPE_VF_P0;
+			else if (lowest_1g == 26)
+				parent->plat_type = PLAT_TYPE_VF_P1;
+			else
+				goto unknown_vg_1g_port;
+
+			val = (phy_encode(PORT_TYPE_1G, 0) |
+			       phy_encode(PORT_TYPE_1G, 1) |
+			       phy_encode(PORT_TYPE_1G, 2) |
+			       phy_encode(PORT_TYPE_1G, 3));
+			break;
+
+		default:
+			printk(KERN_ERR PFX "Unsupported port config "
+			       "10G[%d] 1G[%d]\n",
+			       num_10g, num_1g);
+			return -EINVAL;
+		}
 	}
 
 	parent->port_phy = val;
@@ -7599,14 +8143,25 @@ static void __devinit niu_device_announce(struct niu *np)
 	pr_info("%s: NIU Ethernet %s\n",
 		dev->name, print_mac(mac, dev->dev_addr));
 
-	pr_info("%s: Port type[%s] mode[%s:%s] XCVR[%s] phy[%s]\n",
-		dev->name,
-		(np->flags & NIU_FLAGS_XMAC ? "XMAC" : "BMAC"),
-		(np->flags & NIU_FLAGS_10G ? "10G" : "1G"),
-		(np->flags & NIU_FLAGS_FIBER ? "FIBER" : "COPPER"),
-		(np->mac_xcvr == MAC_XCVR_MII ? "MII" :
-		 (np->mac_xcvr == MAC_XCVR_PCS ? "PCS" : "XPCS")),
-		np->vpd.phy_type);
+	if (np->parent->plat_type == PLAT_TYPE_ATCA_CP3220) {
+		pr_info("%s: Port type[%s] mode[%s:%s] XCVR[%s] phy[%s]\n",
+				dev->name,
+				(np->flags & NIU_FLAGS_XMAC ? "XMAC" : "BMAC"),
+				(np->flags & NIU_FLAGS_10G ? "10G" : "1G"),
+				(np->flags & NIU_FLAGS_FIBER ? "RGMII FIBER" : "SERDES"),
+				(np->mac_xcvr == MAC_XCVR_MII ? "MII" :
+				 (np->mac_xcvr == MAC_XCVR_PCS ? "PCS" : "XPCS")),
+				np->vpd.phy_type);
+	} else {
+		pr_info("%s: Port type[%s] mode[%s:%s] XCVR[%s] phy[%s]\n",
+				dev->name,
+				(np->flags & NIU_FLAGS_XMAC ? "XMAC" : "BMAC"),
+				(np->flags & NIU_FLAGS_10G ? "10G" : "1G"),
+				(np->flags & NIU_FLAGS_FIBER ? "FIBER" : "COPPER"),
+				(np->mac_xcvr == MAC_XCVR_MII ? "MII" :
+				 (np->mac_xcvr == MAC_XCVR_PCS ? "PCS" : "XPCS")),
+				np->vpd.phy_type);
+	}
 }
 
 static int __devinit niu_pci_init_one(struct pci_dev *pdev,

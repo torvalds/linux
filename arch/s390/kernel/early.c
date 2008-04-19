@@ -21,6 +21,7 @@
 #include <asm/setup.h>
 #include <asm/cpcmd.h>
 #include <asm/sclp.h>
+#include "entry.h"
 
 /*
  * Create a Kernel NSS if the SAVESYS= parameter is defined

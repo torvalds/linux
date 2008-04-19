@@ -31,38 +31,47 @@
 #include <linux/hdreg.h>
 #include <linux/ioport.h>
 
-struct ide_machdep_calls {
-        int         (*default_irq)(unsigned long base);
-        unsigned long (*default_io_base)(int index);
-        void        (*ide_init_hwif)(hw_regs_t *hw,
-                                     unsigned long data_port,
-                                     unsigned long ctrl_port,
-                                     int *irq);
-};
-
-extern struct ide_machdep_calls ppc_ide_md;
-
-#define IDE_ARCH_OBSOLETE_DEFAULTS
-
+/* FIXME: use ide_platform host driver */
 static __inline__ int ide_default_irq(unsigned long base)
 {
-	if (ppc_ide_md.default_irq)
-		return ppc_ide_md.default_irq(base);
+#ifdef CONFIG_PPLUS
+	switch (base) {
+	case 0x1f0:	return 14;
+	case 0x170:	return 15;
+	}
+#endif
+#ifdef CONFIG_PPC_PREP
+	switch (base) {
+	case 0x1f0:	return 13;
+	case 0x170:	return 13;
+	case 0x1e8:	return 11;
+	case 0x168:	return 10;
+	case 0xfff0:	return 14;	/* MCP(N)750 ide0 */
+	case 0xffe0:	return 15;	/* MCP(N)750 ide1 */
+	}
+#endif
 	return 0;
 }
 
+/* FIXME: use ide_platform host driver */
 static __inline__ unsigned long ide_default_io_base(int index)
 {
-	if (ppc_ide_md.default_io_base)
-		return ppc_ide_md.default_io_base(index);
+#ifdef CONFIG_PPLUS
+	switch (index) {
+	case 0:		return 0x1f0;
+	case 1:		return 0x170;
+	}
+#endif
+#ifdef CONFIG_PPC_PREP
+	switch (index) {
+	case 0:		return 0x1f0;
+	case 1:		return 0x170;
+	case 2:		return 0x1e8;
+	case 3:		return 0x168;
+	}
+#endif
 	return 0;
 }
-
-#ifdef CONFIG_PCI
-#define ide_init_default_irq(base)	(0)
-#else
-#define ide_init_default_irq(base)	ide_default_irq(base)
-#endif
 
 #ifdef CONFIG_BLK_DEV_MPC8xx_IDE
 #define IDE_ARCH_ACK_INTR  1
@@ -70,8 +79,6 @@ static __inline__ unsigned long ide_default_io_base(int index)
 #endif
 
 #endif /* __powerpc64__ */
-
-#define ide_default_io_ctl(base)	((base) + 0x206) /* obsolete */
 
 #endif /* __KERNEL__ */
 

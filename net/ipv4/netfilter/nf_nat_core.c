@@ -150,9 +150,9 @@ find_appropriate_src(const struct nf_conntrack_tuple *tuple,
 		     const struct nf_nat_range *range)
 {
 	unsigned int h = hash_by_src(tuple);
-	struct nf_conn_nat *nat;
-	struct nf_conn *ct;
-	struct hlist_node *n;
+	const struct nf_conn_nat *nat;
+	const struct nf_conn *ct;
+	const struct hlist_node *n;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(nat, n, &bysource[h], bysource) {
@@ -349,7 +349,7 @@ nf_nat_setup_info(struct nf_conn *ct,
 EXPORT_SYMBOL(nf_nat_setup_info);
 
 /* Returns true if succeeded. */
-static int
+static bool
 manip_pkt(u_int16_t proto,
 	  struct sk_buff *skb,
 	  unsigned int iphdroff,
@@ -360,7 +360,7 @@ manip_pkt(u_int16_t proto,
 	const struct nf_nat_protocol *p;
 
 	if (!skb_make_writable(skb, iphdroff + sizeof(*iph)))
-		return 0;
+		return false;
 
 	iph = (void *)skb->data + iphdroff;
 
@@ -369,7 +369,7 @@ manip_pkt(u_int16_t proto,
 	/* rcu_read_lock()ed by nf_hook_slow */
 	p = __nf_nat_proto_find(proto);
 	if (!p->manip_pkt(skb, iphdroff, target, maniptype))
-		return 0;
+		return false;
 
 	iph = (void *)skb->data + iphdroff;
 
@@ -380,7 +380,7 @@ manip_pkt(u_int16_t proto,
 		csum_replace4(&iph->check, iph->daddr, target->dst.u3.ip);
 		iph->daddr = target->dst.u3.ip;
 	}
-	return 1;
+	return true;
 }
 
 /* Do packet manipulations according to nf_nat_setup_info. */
@@ -426,7 +426,7 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 		struct icmphdr icmp;
 		struct iphdr ip;
 	} *inside;
-	struct nf_conntrack_l4proto *l4proto;
+	const struct nf_conntrack_l4proto *l4proto;
 	struct nf_conntrack_tuple inner, target;
 	int hdrlen = ip_hdrlen(skb);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
@@ -544,46 +544,6 @@ void nf_nat_protocol_unregister(const struct nf_nat_protocol *proto)
 }
 EXPORT_SYMBOL(nf_nat_protocol_unregister);
 
-#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
-int
-nf_nat_port_range_to_nlattr(struct sk_buff *skb,
-			    const struct nf_nat_range *range)
-{
-	NLA_PUT_BE16(skb, CTA_PROTONAT_PORT_MIN, range->min.tcp.port);
-	NLA_PUT_BE16(skb, CTA_PROTONAT_PORT_MAX, range->max.tcp.port);
-
-	return 0;
-
-nla_put_failure:
-	return -1;
-}
-EXPORT_SYMBOL_GPL(nf_nat_port_nlattr_to_range);
-
-int
-nf_nat_port_nlattr_to_range(struct nlattr *tb[], struct nf_nat_range *range)
-{
-	int ret = 0;
-
-	/* we have to return whether we actually parsed something or not */
-
-	if (tb[CTA_PROTONAT_PORT_MIN]) {
-		ret = 1;
-		range->min.tcp.port = nla_get_be16(tb[CTA_PROTONAT_PORT_MIN]);
-	}
-
-	if (!tb[CTA_PROTONAT_PORT_MAX]) {
-		if (ret)
-			range->max.tcp.port = range->min.tcp.port;
-	} else {
-		ret = 1;
-		range->max.tcp.port = nla_get_be16(tb[CTA_PROTONAT_PORT_MAX]);
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(nf_nat_port_range_to_nlattr);
-#endif
-
 /* Noone using conntrack by the time this called. */
 static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
 {
@@ -660,6 +620,9 @@ static int __init nf_nat_init(void)
 	nf_conntrack_untracked.status |= IPS_NAT_DONE_MASK;
 
 	l3proto = nf_ct_l3proto_find_get((u_int16_t)AF_INET);
+
+	BUG_ON(nf_nat_seq_adjust_hook != NULL);
+	rcu_assign_pointer(nf_nat_seq_adjust_hook, nf_nat_seq_adjust);
 	return 0;
 
  cleanup_extend:
@@ -686,6 +649,8 @@ static void __exit nf_nat_cleanup(void)
 	nf_ct_free_hashtable(bysource, nf_nat_vmalloced, nf_nat_htable_size);
 	nf_ct_l3proto_put(l3proto);
 	nf_ct_extend_unregister(&nat_extend);
+	rcu_assign_pointer(nf_nat_seq_adjust_hook, NULL);
+	synchronize_net();
 }
 
 MODULE_LICENSE("GPL");

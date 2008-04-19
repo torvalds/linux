@@ -58,7 +58,6 @@ __ia64_sync_icache_dcache (pte_t pte)
 {
 	unsigned long addr;
 	struct page *page;
-	unsigned long order;
 
 	page = pte_page(pte);
 	addr = (unsigned long) page_address(page);
@@ -66,12 +65,7 @@ __ia64_sync_icache_dcache (pte_t pte)
 	if (test_bit(PG_arch_1, &page->flags))
 		return;				/* i-cache is already coherent with d-cache */
 
-	if (PageCompound(page)) {
-		order = compound_order(page);
-		flush_icache_range(addr, addr + (1UL << order << PAGE_SHIFT));
-	}
-	else
-		flush_icache_range(addr, addr + PAGE_SIZE);
+	flush_icache_range(addr, addr + (PAGE_SIZE << compound_order(page)));
 	set_bit(PG_arch_1, &page->flags);	/* mark page as clean */
 }
 
@@ -553,12 +547,10 @@ find_largest_hole (u64 start, u64 end, void *arg)
 #endif /* CONFIG_VIRTUAL_MEM_MAP */
 
 int __init
-register_active_ranges(u64 start, u64 end, void *arg)
+register_active_ranges(u64 start, u64 len, int nid)
 {
-	int nid = paddr_to_nid(__pa(start));
+	u64 end = start + len;
 
-	if (nid < 0)
-		nid = 0;
 #ifdef CONFIG_KEXEC
 	if (start > crashk_res.start && start < crashk_res.end)
 		start = crashk_res.end;

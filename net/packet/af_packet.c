@@ -263,7 +263,7 @@ static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct 
 	if (skb->pkt_type == PACKET_LOOPBACK)
 		goto out;
 
-	if (dev->nd_net != sk->sk_net)
+	if (dev_net(dev) != sock_net(sk))
 		goto out;
 
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
@@ -337,7 +337,7 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	 */
 
 	saddr->spkt_device[13] = 0;
-	dev = dev_get_by_name(sk->sk_net, saddr->spkt_device);
+	dev = dev_get_by_name(sock_net(sk), saddr->spkt_device);
 	err = -ENODEV;
 	if (dev == NULL)
 		goto out_unlock;
@@ -451,7 +451,7 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet
 	sk = pt->af_packet_priv;
 	po = pkt_sk(sk);
 
-	if (dev->nd_net != sk->sk_net)
+	if (dev_net(dev) != sock_net(sk))
 		goto drop;
 
 	skb->dev = dev;
@@ -568,7 +568,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	sk = pt->af_packet_priv;
 	po = pkt_sk(sk);
 
-	if (dev->nd_net != sk->sk_net)
+	if (dev_net(dev) != sock_net(sk))
 		goto drop;
 
 	if (dev->header_ops) {
@@ -728,7 +728,7 @@ static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	}
 
 
-	dev = dev_get_by_index(sk->sk_net, ifindex);
+	dev = dev_get_by_index(sock_net(sk), ifindex);
 	err = -ENXIO;
 	if (dev == NULL)
 		goto out_unlock;
@@ -800,7 +800,7 @@ static int packet_release(struct socket *sock)
 	if (!sk)
 		return 0;
 
-	net = sk->sk_net;
+	net = sock_net(sk);
 	po = pkt_sk(sk);
 
 	write_lock_bh(&net->packet.sklist_lock);
@@ -914,7 +914,7 @@ static int packet_bind_spkt(struct socket *sock, struct sockaddr *uaddr, int add
 		return -EINVAL;
 	strlcpy(name,uaddr->sa_data,sizeof(name));
 
-	dev = dev_get_by_name(sk->sk_net, name);
+	dev = dev_get_by_name(sock_net(sk), name);
 	if (dev) {
 		err = packet_do_bind(sk, dev, pkt_sk(sk)->num);
 		dev_put(dev);
@@ -941,7 +941,7 @@ static int packet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len
 
 	if (sll->sll_ifindex) {
 		err = -ENODEV;
-		dev = dev_get_by_index(sk->sk_net, sll->sll_ifindex);
+		dev = dev_get_by_index(sock_net(sk), sll->sll_ifindex);
 		if (dev == NULL)
 			goto out;
 	}
@@ -1135,7 +1135,7 @@ static int packet_getname_spkt(struct socket *sock, struct sockaddr *uaddr,
 		return -EOPNOTSUPP;
 
 	uaddr->sa_family = AF_PACKET;
-	dev = dev_get_by_index(sk->sk_net, pkt_sk(sk)->ifindex);
+	dev = dev_get_by_index(sock_net(sk), pkt_sk(sk)->ifindex);
 	if (dev) {
 		strlcpy(uaddr->sa_data, dev->name, 15);
 		dev_put(dev);
@@ -1160,7 +1160,7 @@ static int packet_getname(struct socket *sock, struct sockaddr *uaddr,
 	sll->sll_family = AF_PACKET;
 	sll->sll_ifindex = po->ifindex;
 	sll->sll_protocol = po->num;
-	dev = dev_get_by_index(sk->sk_net, po->ifindex);
+	dev = dev_get_by_index(sock_net(sk), po->ifindex);
 	if (dev) {
 		sll->sll_hatype = dev->type;
 		sll->sll_halen = dev->addr_len;
@@ -1212,7 +1212,7 @@ static int packet_mc_add(struct sock *sk, struct packet_mreq_max *mreq)
 	rtnl_lock();
 
 	err = -ENODEV;
-	dev = __dev_get_by_index(sk->sk_net, mreq->mr_ifindex);
+	dev = __dev_get_by_index(sock_net(sk), mreq->mr_ifindex);
 	if (!dev)
 		goto done;
 
@@ -1266,7 +1266,7 @@ static int packet_mc_drop(struct sock *sk, struct packet_mreq_max *mreq)
 			if (--ml->count == 0) {
 				struct net_device *dev;
 				*mlp = ml->next;
-				dev = dev_get_by_index(sk->sk_net, ml->ifindex);
+				dev = dev_get_by_index(sock_net(sk), ml->ifindex);
 				if (dev) {
 					packet_dev_mc(dev, ml, -1);
 					dev_put(dev);
@@ -1294,7 +1294,7 @@ static void packet_flush_mclist(struct sock *sk)
 		struct net_device *dev;
 
 		po->mclist = ml->next;
-		if ((dev = dev_get_by_index(sk->sk_net, ml->ifindex)) != NULL) {
+		if ((dev = dev_get_by_index(sock_net(sk), ml->ifindex)) != NULL) {
 			packet_dev_mc(dev, ml, -1);
 			dev_put(dev);
 		}
@@ -1450,7 +1450,7 @@ static int packet_notifier(struct notifier_block *this, unsigned long msg, void 
 	struct sock *sk;
 	struct hlist_node *node;
 	struct net_device *dev = data;
-	struct net *net = dev->nd_net;
+	struct net *net = dev_net(dev);
 
 	read_lock(&net->packet.sklist_lock);
 	sk_for_each(sk, node, &net->packet.sklist) {
@@ -1540,7 +1540,7 @@ static int packet_ioctl(struct socket *sock, unsigned int cmd,
 		case SIOCGIFDSTADDR:
 		case SIOCSIFDSTADDR:
 		case SIOCSIFFLAGS:
-			if (sk->sk_net != &init_net)
+			if (sock_net(sk) != &init_net)
 				return -ENOIOCTLCMD;
 			return inet_dgram_ops.ioctl(sock, cmd, arg);
 #endif
@@ -1658,7 +1658,7 @@ static int packet_set_ring(struct sock *sk, struct tpacket_req *req, int closing
 	int err = 0;
 
 	if (req->tp_block_nr) {
-		int i, l;
+		int i;
 
 		/* Sanity tests and some calculations */
 
@@ -1687,7 +1687,6 @@ static int packet_set_ring(struct sock *sk, struct tpacket_req *req, int closing
 		if (unlikely(!pg_vec))
 			goto out;
 
-		l = 0;
 		for (i = 0; i < req->tp_block_nr; i++) {
 			char *ptr = pg_vec[i];
 			struct tpacket_hdr *header;
