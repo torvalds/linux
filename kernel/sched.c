@@ -271,6 +271,10 @@ struct task_group {
 
 	struct rcu_head rcu;
 	struct list_head list;
+
+	struct task_group *parent;
+	struct list_head siblings;
+	struct list_head children;
 };
 
 #ifdef CONFIG_USER_SCHED
@@ -7578,6 +7582,13 @@ void __init sched_init(void)
 
 #ifdef CONFIG_GROUP_SCHED
 	list_add(&init_task_group.list, &task_groups);
+	INIT_LIST_HEAD(&init_task_group.children);
+
+#ifdef CONFIG_USER_SCHED
+	INIT_LIST_HEAD(&root_task_group.children);
+	init_task_group.parent = &root_task_group;
+	list_add(&init_task_group.siblings, &root_task_group.children);
+#endif
 #endif
 
 	for_each_possible_cpu(i) {
@@ -8039,6 +8050,12 @@ struct task_group *sched_create_group(struct task_group *parent)
 		register_rt_sched_group(tg, i);
 	}
 	list_add_rcu(&tg->list, &task_groups);
+
+	WARN_ON(!parent); /* root should already exist */
+
+	tg->parent = parent;
+	list_add_rcu(&tg->siblings, &parent->children);
+	INIT_LIST_HEAD(&tg->children);
 	spin_unlock_irqrestore(&task_group_lock, flags);
 
 	return tg;
@@ -8067,6 +8084,7 @@ void sched_destroy_group(struct task_group *tg)
 		unregister_rt_sched_group(tg, i);
 	}
 	list_del_rcu(&tg->list);
+	list_del_rcu(&tg->siblings);
 	spin_unlock_irqrestore(&task_group_lock, flags);
 
 	/* wait for possible concurrent references to cfs_rqs complete */
@@ -8162,6 +8180,7 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 	spin_lock_irqsave(&task_group_lock, flags);
 	for_each_possible_cpu(i)
 		unregister_fair_sched_group(tg, i);
+	list_del_rcu(&tg->siblings);
 	spin_unlock_irqrestore(&task_group_lock, flags);
 
 	/* wait for any ongoing reference to this group to finish */
@@ -8182,6 +8201,7 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 	spin_lock_irqsave(&task_group_lock, flags);
 	for_each_possible_cpu(i)
 		register_fair_sched_group(tg, i);
+	list_add_rcu(&tg->siblings, &tg->parent->children);
 	spin_unlock_irqrestore(&task_group_lock, flags);
 done:
 	mutex_unlock(&shares_mutex);
