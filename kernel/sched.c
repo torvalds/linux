@@ -68,6 +68,8 @@
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
 #include <linux/bootmem.h>
+#include <linux/debugfs.h>
+#include <linux/ctype.h>
 
 #include <asm/tlb.h>
 #include <asm/irq_regs.h>
@@ -732,32 +734,148 @@ static void update_rq_clock(struct rq *rq)
 /*
  * Debugging: various feature bits
  */
+
+#define SCHED_FEAT(name, enabled)	\
+	__SCHED_FEAT_##name ,
+
 enum {
-	SCHED_FEAT_NEW_FAIR_SLEEPERS	= 1,
-	SCHED_FEAT_WAKEUP_PREEMPT	= 2,
-	SCHED_FEAT_START_DEBIT		= 4,
-	SCHED_FEAT_AFFINE_WAKEUPS	= 8,
-	SCHED_FEAT_CACHE_HOT_BUDDY	= 16,
-	SCHED_FEAT_SYNC_WAKEUPS		= 32,
-	SCHED_FEAT_HRTICK		= 64,
-	SCHED_FEAT_DOUBLE_TICK		= 128,
-	SCHED_FEAT_NORMALIZED_SLEEPER	= 256,
-	SCHED_FEAT_DEADLINE		= 512,
+#include "sched_features.h"
 };
 
-const_debug unsigned int sysctl_sched_features =
-		SCHED_FEAT_NEW_FAIR_SLEEPERS	* 1 |
-		SCHED_FEAT_WAKEUP_PREEMPT	* 1 |
-		SCHED_FEAT_START_DEBIT		* 1 |
-		SCHED_FEAT_AFFINE_WAKEUPS	* 1 |
-		SCHED_FEAT_CACHE_HOT_BUDDY	* 1 |
-		SCHED_FEAT_SYNC_WAKEUPS		* 1 |
-		SCHED_FEAT_HRTICK		* 1 |
-		SCHED_FEAT_DOUBLE_TICK		* 0 |
-		SCHED_FEAT_NORMALIZED_SLEEPER	* 1 |
-		SCHED_FEAT_DEADLINE		* 1;
+#undef SCHED_FEAT
 
-#define sched_feat(x) (sysctl_sched_features & SCHED_FEAT_##x)
+#define SCHED_FEAT(name, enabled)	\
+	(1UL << __SCHED_FEAT_##name) * enabled |
+
+const_debug unsigned int sysctl_sched_features =
+#include "sched_features.h"
+	0;
+
+#undef SCHED_FEAT
+
+#ifdef CONFIG_SCHED_DEBUG
+#define SCHED_FEAT(name, enabled)	\
+	#name ,
+
+__read_mostly char *sched_feat_names[] = {
+#include "sched_features.h"
+	NULL
+};
+
+#undef SCHED_FEAT
+
+int sched_feat_open(struct inode *inode, struct file *filp)
+{
+	filp->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t
+sched_feat_read(struct file *filp, char __user *ubuf,
+		size_t cnt, loff_t *ppos)
+{
+	char *buf;
+	int r = 0;
+	int len = 0;
+	int i;
+
+	for (i = 0; sched_feat_names[i]; i++) {
+		len += strlen(sched_feat_names[i]);
+		len += 4;
+	}
+
+	buf = kmalloc(len + 2, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	for (i = 0; sched_feat_names[i]; i++) {
+		if (sysctl_sched_features & (1UL << i))
+			r += sprintf(buf + r, "%s ", sched_feat_names[i]);
+		else
+			r += sprintf(buf + r, "no_%s ", sched_feat_names[i]);
+	}
+
+	r += sprintf(buf + r, "\n");
+	WARN_ON(r >= len + 2);
+
+	r = simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
+
+	kfree(buf);
+
+	return r;
+}
+
+static ssize_t
+sched_feat_write(struct file *filp, const char __user *ubuf,
+		size_t cnt, loff_t *ppos)
+{
+	char buf[64];
+	char *cmp = buf;
+	int neg = 0;
+	int i;
+
+	if (cnt > 63)
+		cnt = 63;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+
+	if (strncmp(buf, "no_", 3) == 0) {
+		neg = 1;
+		cmp += 3;
+	}
+
+	for (i = 0; sched_feat_names[i]; i++) {
+		int len = strlen(sched_feat_names[i]);
+
+		if (strncmp(cmp, sched_feat_names[i], len) == 0) {
+			if (neg)
+				sysctl_sched_features &= ~(1UL << i);
+			else
+				sysctl_sched_features |= (1UL << i);
+			break;
+		}
+	}
+
+	if (!sched_feat_names[i])
+		return -EINVAL;
+
+	filp->f_pos += cnt;
+
+	return cnt;
+}
+
+static struct file_operations sched_feat_fops = {
+	.open	= sched_feat_open,
+	.read	= sched_feat_read,
+	.write	= sched_feat_write,
+};
+
+static __init int sched_init_debug(void)
+{
+	int i, j, len;
+
+	for (i = 0; sched_feat_names[i]; i++) {
+		len = strlen(sched_feat_names[i]);
+
+		for (j = 0; j < len; j++) {
+			sched_feat_names[i][j] =
+				tolower(sched_feat_names[i][j]);
+		}
+	}
+
+	debugfs_create_file("sched_features", 0644, NULL, NULL,
+			&sched_feat_fops);
+
+	return 0;
+}
+late_initcall(sched_init_debug);
+
+#endif
+
+#define sched_feat(x) (sysctl_sched_features & (1UL << __SCHED_FEAT_##x))
 
 /*
  * Number of tasks to iterate in a single balance run.
