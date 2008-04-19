@@ -907,14 +907,7 @@ void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 	intsrc.mpc_dstapic = mp_ioapics[ioapic].mpc_apicid;	/* APIC ID */
 	intsrc.mpc_dstirq = pin;	/* INTIN# */
 
-	Dprintk("Int: type %d, pol %d, trig %d, bus %d, irq %d, %d-%d\n",
-		intsrc.mpc_irqtype, intsrc.mpc_irqflag & 3,
-		(intsrc.mpc_irqflag >> 2) & 3, intsrc.mpc_srcbus,
-		intsrc.mpc_srcbusirq, intsrc.mpc_dstapic, intsrc.mpc_dstirq);
-
-	mp_irqs[mp_irq_entries] = intsrc;
-	if (++mp_irq_entries == MAX_IRQ_SOURCES)
-		panic("Max # of irq sources exceeded!\n");
+	MP_intsrc_info(&intsrc);
 }
 
 int es7000_plat;
@@ -983,15 +976,7 @@ void __init mp_config_acpi_legacy_irqs(void)
 		intsrc.mpc_srcbusirq = i;	/* Identity mapped */
 		intsrc.mpc_dstirq = i;
 
-		Dprintk("Int: type %d, pol %d, trig %d, bus %d, irq %d, "
-			"%d-%d\n", intsrc.mpc_irqtype, intsrc.mpc_irqflag & 3,
-			(intsrc.mpc_irqflag >> 2) & 3, intsrc.mpc_srcbus,
-			intsrc.mpc_srcbusirq, intsrc.mpc_dstapic,
-			intsrc.mpc_dstirq);
-
-		mp_irqs[mp_irq_entries] = intsrc;
-		if (++mp_irq_entries == MAX_IRQ_SOURCES)
-			panic("Max # of irq sources exceeded!\n");
+		MP_intsrc_info(&intsrc);
 	}
 }
 
