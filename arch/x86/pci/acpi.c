@@ -171,11 +171,11 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 	if (node != -1)
 		set_mp_bus_to_node(busnum, node);
 	else
+#endif
 		node = get_mp_bus_to_node(busnum);
 
 	if (node != -1 && !node_online(node))
 		node = -1;
-#endif
 
 	/* Allocate per-root-bus (not per bus) arch-specific data.
 	 * TODO: leak; this memory is never freed.
@@ -207,14 +207,16 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 	if (!bus)
 		kfree(sd);
 
+	if (bus && node != -1) {
 #ifdef CONFIG_ACPI_NUMA
-	if (bus) {
-		if (pxm >= 0) {
+		if (pxm >= 0)
 			printk(KERN_DEBUG "bus %02x -> pxm %d -> node %d\n",
-				busnum, pxm, pxm_to_node(pxm));
-		}
-	}
+				busnum, pxm, node);
+#else
+		printk(KERN_DEBUG "bus %02x -> node %d\n",
+			busnum, node);
 #endif
+	}
 
 	if (bus && (pci_probe & PCI_USE__CRS))
 		get_current_resources(device, busnum, domain, bus);
