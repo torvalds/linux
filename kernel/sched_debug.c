@@ -119,7 +119,7 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 	struct sched_entity *last;
 	unsigned long flags;
 
-#ifndef CONFIG_CGROUP_SCHED
+#if !defined(CONFIG_CGROUP_SCHED) || !defined(CONFIG_USER_SCHED)
 	SEQ_printf(m, "\ncfs_rq[%d]:\n", cpu);
 #else
 	char path[128] = "";
