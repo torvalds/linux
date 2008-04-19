@@ -710,7 +710,7 @@ gss_destroying_context(struct rpc_cred *cred)
 	struct rpc_task *task;
 
 	if (gss_cred->gc_ctx == NULL ||
-			gss_cred->gc_ctx->gc_proc == RPC_GSS_PROC_DESTROY)
+	    test_and_clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) == 0)
 		return 0;
 
 	gss_cred->gc_ctx->gc_proc = RPC_GSS_PROC_DESTROY;
@@ -720,7 +720,7 @@ gss_destroying_context(struct rpc_cred *cred)
 	 * by the RPC call or by the put_rpccred() below */
 	get_rpccred(cred);
 
-	task = rpc_call_null(gss_auth->client, cred, RPC_TASK_ASYNC);
+	task = rpc_call_null(gss_auth->client, cred, RPC_TASK_ASYNC|RPC_TASK_SOFT);
 	if (!IS_ERR(task))
 		rpc_put_task(task);
 
