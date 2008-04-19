@@ -59,6 +59,7 @@
 #define CX23885_BOARD_DVICO_FUSIONHDTV_5_EXP   4
 #define CX23885_BOARD_HAUPPAUGE_HVR1500Q       5
 #define CX23885_BOARD_HAUPPAUGE_HVR1500        6
+#define CX23885_BOARD_HAUPPAUGE_HVR1200        7
 
 /* Currently unsupported by the driver: PAL/H, NTSC/Kr, SECAM B/G/H/LC */
 #define CX23885_NORMS (\

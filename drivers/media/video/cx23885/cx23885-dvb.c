@@ -36,6 +36,7 @@
 #include "tda18271.h"
 #include "lgdt330x.h"
 #include "xc5000.h"
+#include "tda10048.h"
 #include "dvb-pll.h"
 #include "tuner-xc2028.h"
 #include "tuner-xc2028-types.h"
@@ -107,6 +108,13 @@ static struct s5h1409_config hauppauge_generic_config = {
 	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
 };
 
+static struct tda10048_config hauppauge_hvr1200_config = {
+	.demod_address    = 0x10 >> 1,
+	.output_mode      = TDA10048_SERIAL_OUTPUT,
+	.fwbulkwritelen   = TDA10048_BULKWRITE_200,
+	.inversion        = TDA10048_INVERSION_ON
+};
+
 static struct s5h1409_config hauppauge_ezqam_config = {
 	.demod_address = 0x32 >> 1,
 	.output_mode   = S5H1409_SERIAL_OUTPUT,
@@ -175,6 +183,10 @@ static struct tda18271_std_map hauppauge_tda18271_std_map = {
 
 static struct tda18271_config hauppauge_tda18271_config = {
 	.std_map = &hauppauge_tda18271_std_map,
+	.gate    = TDA18271_GATE_ANALOG,
+};
+
+static struct tda18271_config hauppauge_hvr1200_tuner_config = {
 	.gate    = TDA18271_GATE_ANALOG,
 };
 
@@ -315,6 +327,20 @@ static int dvb_register(struct cx23885_tsport *port)
 					port->dvb.frontend, &cfg);
 			if (fe != NULL && fe->ops.tuner_ops.set_config != NULL)
 				fe->ops.tuner_ops.set_config(fe, &ctl);
+		}
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1200:
+		i2c_bus = &dev->i2c_bus[0];
+		port->dvb.frontend = dvb_attach(tda10048_attach,
+			&hauppauge_hvr1200_config,
+			&i2c_bus->i2c_adap);
+		if (port->dvb.frontend != NULL) {
+			dvb_attach(tda829x_attach, port->dvb.frontend,
+				&dev->i2c_bus[1].i2c_adap, 0x42,
+				&tda829x_no_probe);
+			dvb_attach(tda18271_attach, port->dvb.frontend,
+				0x60, &dev->i2c_bus[1].i2c_adap,
+				&hauppauge_hvr1200_tuner_config);
 		}
 		break;
 	default:
