@@ -1268,6 +1268,12 @@ static int cx25840_probe(struct i2c_client *client)
 	state->id = id;
 	state->rev = device_id;
 
+	if (state->is_cx23885) {
+		/* Drive GPIO2 direction and values */
+		cx25840_write(client, 0x160, 0x1d);
+		cx25840_write(client, 0x164, 0x00);
+	}
+
 	return 0;
 }
 
