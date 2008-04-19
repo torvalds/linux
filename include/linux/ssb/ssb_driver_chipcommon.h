@@ -367,8 +367,7 @@ static inline bool ssb_chipco_available(struct ssb_chipcommon *cc)
 
 extern void ssb_chipcommon_init(struct ssb_chipcommon *cc);
 
-#include <linux/pm.h>
-extern void ssb_chipco_suspend(struct ssb_chipcommon *cc, pm_message_t state);
+extern void ssb_chipco_suspend(struct ssb_chipcommon *cc);
 extern void ssb_chipco_resume(struct ssb_chipcommon *cc);
 
 extern void ssb_chipco_get_clockcpu(struct ssb_chipcommon *cc,
@@ -389,6 +388,10 @@ extern void ssb_chipco_set_clockmode(struct ssb_chipcommon *cc,
 
 extern void ssb_chipco_watchdog_timer_set(struct ssb_chipcommon *cc,
 					  u32 ticks);
+
+void ssb_chipco_irq_mask(struct ssb_chipcommon *cc, u32 mask, u32 value);
+
+u32 ssb_chipco_irq_status(struct ssb_chipcommon *cc, u32 mask);
 
 /* Chipcommon GPIO pin access. */
 u32 ssb_chipco_gpio_in(struct ssb_chipcommon *cc, u32 mask);

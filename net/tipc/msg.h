@@ -40,18 +40,16 @@
 #include "core.h"
 
 #define TIPC_VERSION              2
-#define DATA_LOW                  TIPC_LOW_IMPORTANCE
-#define DATA_MEDIUM               TIPC_MEDIUM_IMPORTANCE
-#define DATA_HIGH                 TIPC_HIGH_IMPORTANCE
-#define DATA_CRITICAL             TIPC_CRITICAL_IMPORTANCE
-#define SHORT_H_SIZE              24	/* Connected,in cluster */
+
+#define SHORT_H_SIZE              24	/* Connected, in-cluster messages */
 #define DIR_MSG_H_SIZE            32	/* Directly addressed messages */
-#define CONN_MSG_H_SIZE           36	/* Routed connected msgs*/
-#define LONG_H_SIZE               40	/* Named Messages */
+#define LONG_H_SIZE               40	/* Named messages */
 #define MCAST_H_SIZE              44	/* Multicast messages */
-#define MAX_H_SIZE                60	/* Inclusive full options */
+#define INT_H_SIZE                40	/* Internal messages */
+#define MIN_H_SIZE                24	/* Smallest legal TIPC header size */
+#define MAX_H_SIZE                60	/* Largest possible TIPC header size */
+
 #define MAX_MSG_SIZE (MAX_H_SIZE + TIPC_MAX_USER_MSG_SIZE)
-#define LINK_CONFIG               13
 
 
 /*
@@ -72,8 +70,10 @@ static inline void msg_set_bits(struct tipc_msg *m, u32 w,
 				u32 pos, u32 mask, u32 val)
 {
 	val = (val & mask) << pos;
-	m->hdr[w] &= ~htonl(mask << pos);
-	m->hdr[w] |= htonl(val);
+	val = htonl(val);
+	mask = htonl(mask << pos);
+	m->hdr[w] &= ~mask;
+	m->hdr[w] |= val;
 }
 
 /*
@@ -87,7 +87,7 @@ static inline u32 msg_version(struct tipc_msg *m)
 
 static inline void msg_set_version(struct tipc_msg *m)
 {
-	msg_set_bits(m, 0, 29, 0xf, TIPC_VERSION);
+	msg_set_bits(m, 0, 29, 7, TIPC_VERSION);
 }
 
 static inline u32 msg_user(struct tipc_msg *m)
@@ -97,7 +97,7 @@ static inline u32 msg_user(struct tipc_msg *m)
 
 static inline u32 msg_isdata(struct tipc_msg *m)
 {
-	return (msg_user(m) <= DATA_CRITICAL);
+	return (msg_user(m) <= TIPC_CRITICAL_IMPORTANCE);
 }
 
 static inline void msg_set_user(struct tipc_msg *m, u32 n)
@@ -188,18 +188,6 @@ static inline u32 msg_lookup_scope(struct tipc_msg *m)
 static inline void msg_set_lookup_scope(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 1, 19, 0x3, n);
-}
-
-static inline void msg_set_options(struct tipc_msg *m, const char *opt, u32 sz)
-{
-	u32 hsz = msg_hdr_sz(m);
-	char *to = (char *)&m->hdr[hsz/4];
-
-	if ((hsz < DIR_MSG_H_SIZE) || ((hsz + sz) > MAX_H_SIZE))
-		return;
-	msg_set_bits(m, 1, 16, 0x7, (hsz - 28)/4);
-	msg_set_hdr_sz(m, hsz + sz);
-	memcpy(to, opt, sz);
 }
 
 static inline u32 msg_bcast_ack(struct tipc_msg *m)
@@ -330,17 +318,6 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 	return (struct tipc_msg *)msg_data(m);
 }
 
-static inline void msg_expand(struct tipc_msg *m, u32 destnode)
-{
-	if (!msg_short(m))
-		return;
-	msg_set_hdr_sz(m, LONG_H_SIZE);
-	msg_set_orignode(m, msg_prevnode(m));
-	msg_set_destnode(m, destnode);
-	memset(&m->hdr[8], 0, 12);
-}
-
-
 
 /*
 		TIPC internal message header format, version 2
@@ -388,7 +365,6 @@ static inline void msg_expand(struct tipc_msg *m, u32 destnode)
 #define  NAME_DISTRIBUTOR     11
 #define  MSG_FRAGMENTER       12
 #define  LINK_CONFIG          13
-#define  INT_H_SIZE           40
 #define  DSC_H_SIZE           40
 
 /*

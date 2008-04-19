@@ -124,7 +124,6 @@ void sctp_snmp_proc_exit(void)
 /* Dump local addresses of an association/endpoint. */
 static void sctp_seq_dump_local_addrs(struct seq_file *seq, struct sctp_ep_common *epb)
 {
-	struct list_head *pos;
 	struct sctp_association *asoc;
 	struct sctp_sockaddr_entry *laddr;
 	struct sctp_transport *peer;
@@ -137,8 +136,7 @@ static void sctp_seq_dump_local_addrs(struct seq_file *seq, struct sctp_ep_commo
 	    primary = &peer->saddr;
 	}
 
-	list_for_each(pos, &epb->bind_addr.address_list) {
-		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
+	list_for_each_entry(laddr, &epb->bind_addr.address_list, list) {
 		addr = &laddr->a;
 		af = sctp_get_af_specific(addr->sa.sa_family);
 		if (primary && af->cmp_addr(addr, primary)) {
@@ -151,14 +149,13 @@ static void sctp_seq_dump_local_addrs(struct seq_file *seq, struct sctp_ep_commo
 /* Dump remote addresses of an association. */
 static void sctp_seq_dump_remote_addrs(struct seq_file *seq, struct sctp_association *assoc)
 {
-	struct list_head *pos;
 	struct sctp_transport *transport;
 	union sctp_addr *addr, *primary;
 	struct sctp_af *af;
 
 	primary = &assoc->peer.primary_addr;
-	list_for_each(pos, &assoc->peer.transport_addr_list) {
-		transport = list_entry(pos, struct sctp_transport, transports);
+	list_for_each_entry(transport, &assoc->peer.transport_addr_list,
+			transports) {
 		addr = &transport->ipaddr;
 		af = sctp_get_af_specific(addr->sa.sa_family);
 		if (af->cmp_addr(addr, primary)) {
@@ -279,8 +276,10 @@ static void * sctp_assocs_seq_start(struct seq_file *seq, loff_t *pos)
 		*pos = 0;
 
 	if (*pos == 0)
-		seq_printf(seq, " ASSOC     SOCK   STY SST ST HBKT ASSOC-ID TX_QUEUE RX_QUEUE UID INODE LPORT "
-				"RPORT LADDRS <-> RADDRS\n");
+		seq_printf(seq, " ASSOC     SOCK   STY SST ST HBKT "
+				"ASSOC-ID TX_QUEUE RX_QUEUE UID INODE LPORT "
+				"RPORT LADDRS <-> RADDRS "
+				"HBINT INS OUTS MAXRT T1X T2X RTXC\n");
 
 	return (void *)pos;
 }
@@ -319,19 +318,25 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 		assoc = sctp_assoc(epb);
 		sk = epb->sk;
 		seq_printf(seq,
-			   "%8p %8p %-3d %-3d %-2d %-4d %4d %8d %8d %7d %5lu %-5d %5d ",
+			   "%8p %8p %-3d %-3d %-2d %-4d "
+			   "%4d %8d %8d %7d %5lu %-5d %5d ",
 			   assoc, sk, sctp_sk(sk)->type, sk->sk_state,
-			   assoc->state, hash, assoc->assoc_id,
+			   assoc->state, hash,
+			   assoc->assoc_id,
 			   assoc->sndbuf_used,
 			   atomic_read(&assoc->rmem_alloc),
 			   sock_i_uid(sk), sock_i_ino(sk),
 			   epb->bind_addr.port,
 			   assoc->peer.port);
-
 		seq_printf(seq, " ");
 		sctp_seq_dump_local_addrs(seq, epb);
 		seq_printf(seq, "<-> ");
 		sctp_seq_dump_remote_addrs(seq, assoc);
+		seq_printf(seq, "\t%8lu %5d %5d %4d %4d %4d %8d ",
+			assoc->hbinterval, assoc->c.sinit_max_instreams,
+			assoc->c.sinit_num_ostreams, assoc->max_retrans,
+			assoc->init_retries, assoc->shutdown_retries,
+			assoc->rtx_data_chunks);
 		seq_printf(seq, "\n");
 	}
 	read_unlock(&head->lock);

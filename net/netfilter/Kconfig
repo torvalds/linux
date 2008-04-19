@@ -86,6 +86,16 @@ config NF_CONNTRACK_EVENTS
 
 	  If unsure, say `N'.
 
+config NF_CT_PROTO_DCCP
+	tristate 'DCCP protocol connection tracking support (EXPERIMENTAL)'
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	depends on NETFILTER_ADVANCED
+	help
+	  With this option enabled, the layer 3 independent connection
+	  tracking code will be able to do state tracking on DCCP connections.
+
+	  If unsure, say 'N'.
+
 config NF_CT_PROTO_GRE
 	tristate
 	depends on NF_CONNTRACK

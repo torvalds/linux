@@ -96,7 +96,7 @@ xt_rateest_tg_checkentry(const char *tablename,
 			 void *targinfo,
 			 unsigned int hook_mask)
 {
-	struct xt_rateest_target_info *info = (void *)targinfo;
+	struct xt_rateest_target_info *info = targinfo;
 	struct xt_rateest *est;
 	struct {
 		struct nlattr		opt;

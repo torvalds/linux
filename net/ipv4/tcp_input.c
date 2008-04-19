@@ -2309,12 +2309,25 @@ static void DBGUNDO(struct sock *sk, const char *msg)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_sock *inet = inet_sk(sk);
 
-	printk(KERN_DEBUG "Undo %s %u.%u.%u.%u/%u c%u l%u ss%u/%u p%u\n",
-	       msg,
-	       NIPQUAD(inet->daddr), ntohs(inet->dport),
-	       tp->snd_cwnd, tcp_left_out(tp),
-	       tp->snd_ssthresh, tp->prior_ssthresh,
-	       tp->packets_out);
+	if (sk->sk_family == AF_INET) {
+		printk(KERN_DEBUG "Undo %s " NIPQUAD_FMT "/%u c%u l%u ss%u/%u p%u\n",
+		       msg,
+		       NIPQUAD(inet->daddr), ntohs(inet->dport),
+		       tp->snd_cwnd, tcp_left_out(tp),
+		       tp->snd_ssthresh, tp->prior_ssthresh,
+		       tp->packets_out);
+	}
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	else if (sk->sk_family == AF_INET6) {
+		struct ipv6_pinfo *np = inet6_sk(sk);
+		printk(KERN_DEBUG "Undo %s " NIP6_FMT "/%u c%u l%u ss%u/%u p%u\n",
+		       msg,
+		       NIP6(np->daddr), ntohs(inet->dport),
+		       tp->snd_cwnd, tcp_left_out(tp),
+		       tp->snd_ssthresh, tp->prior_ssthresh,
+		       tp->packets_out);
+	}
+#endif
 }
 #else
 #define DBGUNDO(x...) do { } while (0)
@@ -3592,7 +3605,7 @@ static void tcp_fin(struct sk_buff *skb, struct sock *sk, struct tcphdr *th)
 		 * cases we should never reach this piece of code.
 		 */
 		printk(KERN_ERR "%s: Impossible, sk->sk_state=%d\n",
-		       __FUNCTION__, sk->sk_state);
+		       __func__, sk->sk_state);
 		break;
 	}
 
@@ -4012,7 +4025,7 @@ drop:
 		u32 end_seq = TCP_SKB_CB(skb)->end_seq;
 
 		if (seq == TCP_SKB_CB(skb1)->end_seq) {
-			__skb_append(skb1, skb, &tp->out_of_order_queue);
+			__skb_queue_after(&tp->out_of_order_queue, skb1, skb);
 
 			if (!tp->rx_opt.num_sacks ||
 			    tp->selective_acks[0].end_seq != seq)
@@ -4508,6 +4521,49 @@ static void tcp_urg(struct sock *sk, struct sk_buff *skb, struct tcphdr *th)
 	}
 }
 
+static int tcp_defer_accept_check(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (tp->defer_tcp_accept.request) {
+		int queued_data =  tp->rcv_nxt - tp->copied_seq;
+		int hasfin =  !skb_queue_empty(&sk->sk_receive_queue) ?
+			tcp_hdr((struct sk_buff *)
+				sk->sk_receive_queue.prev)->fin : 0;
+
+		if (queued_data && hasfin)
+			queued_data--;
+
+		if (queued_data &&
+		    tp->defer_tcp_accept.listen_sk->sk_state == TCP_LISTEN) {
+			if (sock_flag(sk, SOCK_KEEPOPEN)) {
+				inet_csk_reset_keepalive_timer(sk,
+							       keepalive_time_when(tp));
+			} else {
+				inet_csk_delete_keepalive_timer(sk);
+			}
+
+			inet_csk_reqsk_queue_add(
+				tp->defer_tcp_accept.listen_sk,
+				tp->defer_tcp_accept.request,
+				sk);
+
+			tp->defer_tcp_accept.listen_sk->sk_data_ready(
+				tp->defer_tcp_accept.listen_sk, 0);
+
+			sock_put(tp->defer_tcp_accept.listen_sk);
+			sock_put(sk);
+			tp->defer_tcp_accept.listen_sk = NULL;
+			tp->defer_tcp_accept.request = NULL;
+		} else if (hasfin ||
+			   tp->defer_tcp_accept.listen_sk->sk_state != TCP_LISTEN) {
+			tcp_reset(sk);
+			return -1;
+		}
+	}
+	return 0;
+}
+
 static int tcp_copy_to_iovec(struct sock *sk, struct sk_buff *skb, int hlen)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -4868,6 +4924,9 @@ step5:
 
 	tcp_data_snd_check(sk);
 	tcp_ack_snd_check(sk);
+
+	if (tcp_defer_accept_check(sk))
+		return -1;
 	return 0;
 
 csum_error:
@@ -5387,6 +5446,7 @@ discard:
 
 EXPORT_SYMBOL(sysctl_tcp_ecn);
 EXPORT_SYMBOL(sysctl_tcp_reordering);
+EXPORT_SYMBOL(sysctl_tcp_adv_win_scale);
 EXPORT_SYMBOL(tcp_parse_options);
 EXPORT_SYMBOL(tcp_rcv_established);
 EXPORT_SYMBOL(tcp_rcv_state_process);

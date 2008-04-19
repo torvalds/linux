@@ -228,7 +228,7 @@ static inline struct sock *netlink_lookup(struct net *net, int protocol,
 	read_lock(&nl_table_lock);
 	head = nl_pid_hashfn(hash, pid);
 	sk_for_each(sk, node, head) {
-		if ((sk->sk_net == net) && (nlk_sk(sk)->pid == pid)) {
+		if (net_eq(sock_net(sk), net) && (nlk_sk(sk)->pid == pid)) {
 			sock_hold(sk);
 			goto found;
 		}
@@ -348,7 +348,7 @@ static int netlink_insert(struct sock *sk, struct net *net, u32 pid)
 	head = nl_pid_hashfn(hash, pid);
 	len = 0;
 	sk_for_each(osk, node, head) {
-		if ((osk->sk_net == net) && (nlk_sk(osk)->pid == pid))
+		if (net_eq(sock_net(osk), net) && (nlk_sk(osk)->pid == pid))
 			break;
 		len++;
 	}
@@ -486,7 +486,7 @@ static int netlink_release(struct socket *sock)
 
 	if (nlk->pid && !nlk->subscriptions) {
 		struct netlink_notify n = {
-						.net = sk->sk_net,
+						.net = sock_net(sk),
 						.protocol = sk->sk_protocol,
 						.pid = nlk->pid,
 					  };
@@ -518,7 +518,7 @@ static int netlink_release(struct socket *sock)
 static int netlink_autobind(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 	struct nl_pid_hash *hash = &nl_table[sk->sk_protocol].hash;
 	struct hlist_head *head;
 	struct sock *osk;
@@ -532,7 +532,7 @@ retry:
 	netlink_table_grab();
 	head = nl_pid_hashfn(hash, pid);
 	sk_for_each(osk, node, head) {
-		if ((osk->sk_net != net))
+		if (!net_eq(sock_net(osk), net))
 			continue;
 		if (nlk_sk(osk)->pid == pid) {
 			/* Bind collision, search negative pid values. */
@@ -611,7 +611,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 			int addr_len)
 {
 	struct sock *sk = sock->sk;
-	struct net *net = sk->sk_net;
+	struct net *net = sock_net(sk);
 	struct netlink_sock *nlk = nlk_sk(sk);
 	struct sockaddr_nl *nladdr = (struct sockaddr_nl *)addr;
 	int err;
@@ -720,7 +720,7 @@ static struct sock *netlink_getsockbypid(struct sock *ssk, u32 pid)
 	struct sock *sock;
 	struct netlink_sock *nlk;
 
-	sock = netlink_lookup(ssk->sk_net, ssk->sk_protocol, pid);
+	sock = netlink_lookup(sock_net(ssk), ssk->sk_protocol, pid);
 	if (!sock)
 		return ERR_PTR(-ECONNREFUSED);
 
@@ -886,6 +886,13 @@ retry:
 	if (netlink_is_kernel(sk))
 		return netlink_unicast_kernel(sk, skb);
 
+	if (sk_filter(sk, skb)) {
+		int err = skb->len;
+		kfree_skb(skb);
+		sock_put(sk);
+		return err;
+	}
+
 	err = netlink_attachskb(sk, skb, nonblock, &timeo, ssk);
 	if (err == 1)
 		goto retry;
@@ -955,7 +962,7 @@ static inline int do_one_broadcast(struct sock *sk,
 	    !test_bit(p->group - 1, nlk->groups))
 		goto out;
 
-	if ((sk->sk_net != p->net))
+	if (!net_eq(sock_net(sk), p->net))
 		goto out;
 
 	if (p->failure) {
@@ -980,6 +987,9 @@ static inline int do_one_broadcast(struct sock *sk,
 		netlink_overrun(sk);
 		/* Clone failed. Notify ALL listeners. */
 		p->failure = 1;
+	} else if (sk_filter(sk, p->skb2)) {
+		kfree_skb(p->skb2);
+		p->skb2 = NULL;
 	} else if ((val = netlink_broadcast_deliver(sk, p->skb2)) < 0) {
 		netlink_overrun(sk);
 	} else {
@@ -996,7 +1006,7 @@ out:
 int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, u32 pid,
 		      u32 group, gfp_t allocation)
 {
-	struct net *net = ssk->sk_net;
+	struct net *net = sock_net(ssk);
 	struct netlink_broadcast_data info;
 	struct hlist_node *node;
 	struct sock *sk;
@@ -1054,7 +1064,7 @@ static inline int do_one_set_err(struct sock *sk,
 	if (sk == p->exclude_sk)
 		goto out;
 
-	if (sk->sk_net != p->exclude_sk->sk_net)
+	if (sock_net(sk) != sock_net(p->exclude_sk))
 		goto out;
 
 	if (nlk->pid == p->pid || p->group - 1 >= nlk->ngroups ||
@@ -1344,22 +1354,6 @@ static void netlink_data_ready(struct sock *sk, int len)
  *	queueing.
  */
 
-static void __netlink_release(struct sock *sk)
-{
-	/*
-	 * Last sock_put should drop referrence to sk->sk_net. It has already
-	 * been dropped in netlink_kernel_create. Taking referrence to stopping
-	 * namespace is not an option.
-	 * Take referrence to a socket to remove it from netlink lookup table
-	 * _alive_ and after that destroy it in the context of init_net.
-	 */
-
-	sock_hold(sk);
-	sock_release(sk->sk_socket);
-	sk->sk_net = get_net(&init_net);
-	sock_put(sk);
-}
-
 struct sock *
 netlink_kernel_create(struct net *net, int unit, unsigned int groups,
 		      void (*input)(struct sk_buff *skb),
@@ -1388,8 +1382,7 @@ netlink_kernel_create(struct net *net, int unit, unsigned int groups,
 		goto out_sock_release_nosk;
 
 	sk = sock->sk;
-	put_net(sk->sk_net);
-	sk->sk_net = net;
+	sk_change_net(sk, net);
 
 	if (groups < 32)
 		groups = 32;
@@ -1424,7 +1417,7 @@ netlink_kernel_create(struct net *net, int unit, unsigned int groups,
 
 out_sock_release:
 	kfree(listeners);
-	__netlink_release(sk);
+	netlink_kernel_release(sk);
 	return NULL;
 
 out_sock_release_nosk:
@@ -1437,10 +1430,7 @@ EXPORT_SYMBOL(netlink_kernel_create);
 void
 netlink_kernel_release(struct sock *sk)
 {
-	if (sk == NULL || sk->sk_socket == NULL)
-		return;
-
-	__netlink_release(sk);
+	sk_release_kernel(sk);
 }
 EXPORT_SYMBOL(netlink_kernel_release);
 
@@ -1553,8 +1543,13 @@ static int netlink_dump(struct sock *sk)
 
 	if (len > 0) {
 		mutex_unlock(nlk->cb_mutex);
-		skb_queue_tail(&sk->sk_receive_queue, skb);
-		sk->sk_data_ready(sk, len);
+
+		if (sk_filter(sk, skb))
+			kfree_skb(skb);
+		else {
+			skb_queue_tail(&sk->sk_receive_queue, skb);
+			sk->sk_data_ready(sk, skb->len);
+		}
 		return 0;
 	}
 
@@ -1564,8 +1559,12 @@ static int netlink_dump(struct sock *sk)
 
 	memcpy(nlmsg_data(nlh), &len, sizeof(len));
 
-	skb_queue_tail(&sk->sk_receive_queue, skb);
-	sk->sk_data_ready(sk, skb->len);
+	if (sk_filter(sk, skb))
+		kfree_skb(skb);
+	else {
+		skb_queue_tail(&sk->sk_receive_queue, skb);
+		sk->sk_data_ready(sk, skb->len);
+	}
 
 	if (cb->done)
 		cb->done(cb);
@@ -1602,7 +1601,7 @@ int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	atomic_inc(&skb->users);
 	cb->skb = skb;
 
-	sk = netlink_lookup(ssk->sk_net, ssk->sk_protocol, NETLINK_CB(skb).pid);
+	sk = netlink_lookup(sock_net(ssk), ssk->sk_protocol, NETLINK_CB(skb).pid);
 	if (sk == NULL) {
 		netlink_destroy_callback(cb);
 		return -ECONNREFUSED;
@@ -1644,7 +1643,7 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)
 	if (!skb) {
 		struct sock *sk;
 
-		sk = netlink_lookup(in_skb->sk->sk_net,
+		sk = netlink_lookup(sock_net(in_skb->sk),
 				    in_skb->sk->sk_protocol,
 				    NETLINK_CB(in_skb).pid);
 		if (sk) {
@@ -1759,7 +1758,7 @@ static struct sock *netlink_seq_socket_idx(struct seq_file *seq, loff_t pos)
 
 		for (j = 0; j <= hash->mask; j++) {
 			sk_for_each(s, node, &hash->table[j]) {
-				if (iter->p.net != s->sk_net)
+				if (sock_net(s) != seq_file_net(seq))
 					continue;
 				if (off == pos) {
 					iter->link = i;
@@ -1795,7 +1794,7 @@ static void *netlink_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	s = v;
 	do {
 		s = sk_next(s);
-	} while (s && (iter->p.net != s->sk_net));
+	} while (s && sock_net(s) != seq_file_net(seq));
 	if (s)
 		return s;
 
@@ -1807,7 +1806,7 @@ static void *netlink_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 		for (; j <= hash->mask; j++) {
 			s = sk_head(&hash->table[j]);
-			while (s && (iter->p.net != s->sk_net))
+			while (s && sock_net(s) != seq_file_net(seq))
 				s = sk_next(s);
 			if (s) {
 				iter->link = i;

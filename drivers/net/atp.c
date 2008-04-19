@@ -378,8 +378,8 @@ static void __init get_node_ID(struct net_device *dev)
 		sa_offset = 15;
 
 	for (i = 0; i < 3; i++)
-		((u16 *)dev->dev_addr)[i] =
-			be16_to_cpu(eeprom_op(ioaddr, EE_READ(sa_offset + i)));
+		((__be16 *)dev->dev_addr)[i] =
+			cpu_to_be16(eeprom_op(ioaddr, EE_READ(sa_offset + i)));
 
 	write_reg(ioaddr, CMR2, CMR2_NULL);
 }

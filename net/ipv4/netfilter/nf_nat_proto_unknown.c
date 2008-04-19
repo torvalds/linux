@@ -18,35 +18,34 @@
 #include <net/netfilter/nf_nat_rule.h>
 #include <net/netfilter/nf_nat_protocol.h>
 
-static int unknown_in_range(const struct nf_conntrack_tuple *tuple,
-			    enum nf_nat_manip_type manip_type,
-			    const union nf_conntrack_man_proto *min,
-			    const union nf_conntrack_man_proto *max)
+static bool unknown_in_range(const struct nf_conntrack_tuple *tuple,
+			     enum nf_nat_manip_type manip_type,
+			     const union nf_conntrack_man_proto *min,
+			     const union nf_conntrack_man_proto *max)
 {
-	return 1;
+	return true;
 }
 
-static int unknown_unique_tuple(struct nf_conntrack_tuple *tuple,
-				const struct nf_nat_range *range,
-				enum nf_nat_manip_type maniptype,
-				const struct nf_conn *ct)
+static bool unknown_unique_tuple(struct nf_conntrack_tuple *tuple,
+				 const struct nf_nat_range *range,
+				 enum nf_nat_manip_type maniptype,
+				 const struct nf_conn *ct)
 {
 	/* Sorry: we can't help you; if it's not unique, we can't frob
 	   anything. */
-	return 0;
+	return false;
 }
 
-static int
+static bool
 unknown_manip_pkt(struct sk_buff *skb,
 		  unsigned int iphdroff,
 		  const struct nf_conntrack_tuple *tuple,
 		  enum nf_nat_manip_type maniptype)
 {
-	return 1;
+	return true;
 }
 
 const struct nf_nat_protocol nf_nat_unknown_protocol = {
-	.name			= "unknown",
 	/* .me isn't set: getting a ref to this cannot fail. */
 	.manip_pkt		= unknown_manip_pkt,
 	.in_range		= unknown_in_range,

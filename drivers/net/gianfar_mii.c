@@ -173,7 +173,7 @@ int gfar_mdio_probe(struct device *dev)
 	new_bus->read = &gfar_mdio_read,
 	new_bus->write = &gfar_mdio_write,
 	new_bus->reset = &gfar_mdio_reset,
-	new_bus->id = pdev->id;
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", pdev->id);
 
 	pdata = (struct gianfar_mdio_data *)pdev->dev.platform_data;
 

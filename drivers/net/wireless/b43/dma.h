@@ -245,6 +245,9 @@ struct b43_dmaring {
 	enum b43_dmatype type;
 	/* Boolean. Is this ring stopped at ieee80211 level? */
 	bool stopped;
+	/* The QOS priority assigned to this ring. Only used for TX rings.
+	 * This is the mac80211 "queue" value. */
+	u8 queue_prio;
 	/* Lock, only used for TX. */
 	spinlock_t lock;
 	struct b43_wldev *dev;
@@ -253,7 +256,13 @@ struct b43_dmaring {
 	int max_used_slots;
 	/* Last time we injected a ring overflow. */
 	unsigned long last_injected_overflow;
-#endif				/* CONFIG_B43_DEBUG */
+	/* Statistics: Number of successfully transmitted packets */
+	u64 nr_succeed_tx_packets;
+	/* Statistics: Number of failed TX packets */
+	u64 nr_failed_tx_packets;
+	/* Statistics: Total number of TX plus all retries. */
+	u64 nr_total_packet_tries;
+#endif /* CONFIG_B43_DEBUG */
 };
 
 static inline u32 b43_dma_read(struct b43_dmaring *ring, u16 offset)
@@ -281,5 +290,8 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 			     const struct b43_txstatus *status);
 
 void b43_dma_rx(struct b43_dmaring *ring);
+
+void b43_dma_direct_fifo_rx(struct b43_wldev *dev,
+			    unsigned int engine_index, bool enable);
 
 #endif /* B43_DMA_H_ */

@@ -1010,33 +1010,14 @@ void dccp_shutdown(struct sock *sk, int how)
 
 EXPORT_SYMBOL_GPL(dccp_shutdown);
 
-static int __init dccp_mib_init(void)
+static inline int dccp_mib_init(void)
 {
-	int rc = -ENOMEM;
-
-	dccp_statistics[0] = alloc_percpu(struct dccp_mib);
-	if (dccp_statistics[0] == NULL)
-		goto out;
-
-	dccp_statistics[1] = alloc_percpu(struct dccp_mib);
-	if (dccp_statistics[1] == NULL)
-		goto out_free_one;
-
-	rc = 0;
-out:
-	return rc;
-out_free_one:
-	free_percpu(dccp_statistics[0]);
-	dccp_statistics[0] = NULL;
-	goto out;
-
+	return snmp_mib_init((void**)dccp_statistics, sizeof(struct dccp_mib));
 }
 
-static void dccp_mib_exit(void)
+static inline void dccp_mib_exit(void)
 {
-	free_percpu(dccp_statistics[0]);
-	free_percpu(dccp_statistics[1]);
-	dccp_statistics[0] = dccp_statistics[1] = NULL;
+	snmp_mib_free((void**)dccp_statistics);
 }
 
 static int thash_entries;

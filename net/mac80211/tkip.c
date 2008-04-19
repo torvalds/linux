@@ -12,7 +12,7 @@
 #include <linux/netdevice.h>
 
 #include <net/mac80211.h>
-#include "ieee80211_key.h"
+#include "key.h"
 #include "tkip.h"
 #include "wep.h"
 
@@ -214,6 +214,59 @@ void ieee80211_tkip_gen_rc4key(struct ieee80211_key *key, u8 *ta,
 			   key->u.tkip.iv16, rc4key);
 }
 
+void ieee80211_get_tkip_key(struct ieee80211_key_conf *keyconf,
+			struct sk_buff *skb, enum ieee80211_tkip_key_type type,
+			u8 *outkey)
+{
+	struct ieee80211_key *key = (struct ieee80211_key *)
+			container_of(keyconf, struct ieee80211_key, conf);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	u8 *data = (u8 *) hdr;
+	u16 fc = le16_to_cpu(hdr->frame_control);
+	int hdr_len = ieee80211_get_hdrlen(fc);
+	u8 *ta = hdr->addr2;
+	u16 iv16;
+	u32 iv32;
+
+	iv16 = data[hdr_len] << 8;
+	iv16 += data[hdr_len + 2];
+	iv32 = data[hdr_len + 4] +
+		(data[hdr_len + 5] >> 8) +
+		(data[hdr_len + 6] >> 16) +
+		(data[hdr_len + 7] >> 24);
+
+#ifdef CONFIG_TKIP_DEBUG
+	printk(KERN_DEBUG "TKIP encrypt: iv16 = 0x%04x, iv32 = 0x%08x\n",
+			iv16, iv32);
+
+	if (iv32 != key->u.tkip.iv32) {
+		printk(KERN_DEBUG "skb: iv32 = 0x%08x key: iv32 = 0x%08x\n",
+			iv32, key->u.tkip.iv32);
+		printk(KERN_DEBUG "Wrap around of iv16 in the middle of a "
+			"fragmented packet\n");
+	}
+#endif /* CONFIG_TKIP_DEBUG */
+
+	/* Update the p1k only when the iv16 in the packet wraps around, this
+	 * might occur after the wrap around of iv16 in the key in case of
+	 * fragmented packets. */
+	if (iv16 == 0 || !key->u.tkip.tx_initialized) {
+		/* IV16 wrapped around - perform TKIP phase 1 */
+		tkip_mixing_phase1(ta, &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY],
+			iv32, key->u.tkip.p1k);
+		key->u.tkip.tx_initialized = 1;
+	}
+
+	if (type == IEEE80211_TKIP_P1_KEY) {
+		memcpy(outkey, key->u.tkip.p1k, sizeof(u16) * 5);
+		return;
+	}
+
+	tkip_mixing_phase2(key->u.tkip.p1k,
+		&key->conf.key[ALG_TKIP_TEMP_ENCR_KEY],	iv16, outkey);
+}
+EXPORT_SYMBOL(ieee80211_get_tkip_key);
+
 /* Encrypt packet payload with TKIP using @key. @pos is a pointer to the
  * beginning of the buffer containing payload. This payload must include
  * headroom of eight octets for IV and Ext. IV and taildroom of four octets
@@ -238,7 +291,7 @@ void ieee80211_tkip_encrypt_data(struct crypto_blkcipher *tfm,
 int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 				struct ieee80211_key *key,
 				u8 *payload, size_t payload_len, u8 *ta,
-				int only_iv, int queue,
+				u8 *ra, int only_iv, int queue,
 				u32 *out_iv32, u16 *out_iv16)
 {
 	u32 iv32;
@@ -315,6 +368,19 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 			printk("\n");
 		}
 #endif /* CONFIG_TKIP_DEBUG */
+		if (key->local->ops->update_tkip_key &&
+			key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
+			u8 bcast[ETH_ALEN] =
+				{0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+			u8 *sta_addr = key->sta->addr;
+
+			if (is_multicast_ether_addr(ra))
+				sta_addr = bcast;
+
+			key->local->ops->update_tkip_key(
+				local_to_hw(key->local), &key->conf,
+				sta_addr, iv32, key->u.tkip.p1k_rx[queue]);
+		}
 	}
 
 	tkip_mixing_phase2(key->u.tkip.p1k_rx[queue],

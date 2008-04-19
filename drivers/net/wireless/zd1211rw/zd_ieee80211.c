@@ -65,16 +65,14 @@ static const struct channel_range *zd_channel_range(u8 regdomain)
 
 static void unmask_bg_channels(struct ieee80211_hw *hw,
 	const struct channel_range *range,
-	struct ieee80211_hw_mode *mode)
+	struct ieee80211_supported_band *sband)
 {
 	u8 channel;
 
 	for (channel = range->start; channel < range->end; channel++) {
 		struct ieee80211_channel *chan =
-			&mode->channels[CHAN_TO_IDX(channel)];
-		chan->flag |= IEEE80211_CHAN_W_SCAN |
-			IEEE80211_CHAN_W_ACTIVE_SCAN |
-			IEEE80211_CHAN_W_IBSS;
+			&sband->channels[CHAN_TO_IDX(channel)];
+		chan->flags = 0;
 	}
 }
 
@@ -97,7 +95,6 @@ void zd_geo_init(struct ieee80211_hw *hw, u8 regdomain)
 		range = zd_channel_range(ZD_REGDOMAIN_FCC);
 	}
 
-	unmask_bg_channels(hw, range, &mac->modes[0]);
-	unmask_bg_channels(hw, range, &mac->modes[1]);
+	unmask_bg_channels(hw, range, &mac->band);
 }
 

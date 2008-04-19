@@ -910,24 +910,24 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  * Security hooks for XFRM operations.
  *
  * @xfrm_policy_alloc_security:
- *	@xp contains the xfrm_policy being added to Security Policy Database
- *	used by the XFRM system.
+ *	@ctxp is a pointer to the xfrm_sec_ctx being added to Security Policy
+ *	Database used by the XFRM system.
  *	@sec_ctx contains the security context information being provided by
  *	the user-level policy update program (e.g., setkey).
  *	Allocate a security structure to the xp->security field; the security
  *	field is initialized to NULL when the xfrm_policy is allocated.
  *	Return 0 if operation was successful (memory to allocate, legal context)
  * @xfrm_policy_clone_security:
- *	@old contains an existing xfrm_policy in the SPD.
- *	@new contains a new xfrm_policy being cloned from old.
- *	Allocate a security structure to the new->security field
- *	that contains the information from the old->security field.
+ *	@old_ctx contains an existing xfrm_sec_ctx.
+ *	@new_ctxp contains a new xfrm_sec_ctx being cloned from old.
+ *	Allocate a security structure in new_ctxp that contains the
+ *	information from the old_ctx structure.
  *	Return 0 if operation was successful (memory to allocate).
  * @xfrm_policy_free_security:
- *	@xp contains the xfrm_policy
+ *	@ctx contains the xfrm_sec_ctx
  *	Deallocate xp->security.
  * @xfrm_policy_delete_security:
- *	@xp contains the xfrm_policy.
+ *	@ctx contains the xfrm_sec_ctx.
  *	Authorize deletion of xp->security.
  * @xfrm_state_alloc_security:
  *	@x contains the xfrm_state being added to the Security Association
@@ -947,7 +947,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@x contains the xfrm_state.
  *	Authorize deletion of x->security.
  * @xfrm_policy_lookup:
- *	@xp contains the xfrm_policy for which the access control is being
+ *	@ctx contains the xfrm_sec_ctx for which the access control is being
  *	checked.
  *	@fl_secid contains the flow security label that is used to authorize
  *	access to the policy xp.
@@ -1454,17 +1454,17 @@ struct security_operations {
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
-	int (*xfrm_policy_alloc_security) (struct xfrm_policy *xp,
+	int (*xfrm_policy_alloc_security) (struct xfrm_sec_ctx **ctxp,
 			struct xfrm_user_sec_ctx *sec_ctx);
-	int (*xfrm_policy_clone_security) (struct xfrm_policy *old, struct xfrm_policy *new);
-	void (*xfrm_policy_free_security) (struct xfrm_policy *xp);
-	int (*xfrm_policy_delete_security) (struct xfrm_policy *xp);
+	int (*xfrm_policy_clone_security) (struct xfrm_sec_ctx *old_ctx, struct xfrm_sec_ctx **new_ctx);
+	void (*xfrm_policy_free_security) (struct xfrm_sec_ctx *ctx);
+	int (*xfrm_policy_delete_security) (struct xfrm_sec_ctx *ctx);
 	int (*xfrm_state_alloc_security) (struct xfrm_state *x,
 		struct xfrm_user_sec_ctx *sec_ctx,
 		u32 secid);
 	void (*xfrm_state_free_security) (struct xfrm_state *x);
 	int (*xfrm_state_delete_security) (struct xfrm_state *x);
-	int (*xfrm_policy_lookup)(struct xfrm_policy *xp, u32 fl_secid, u8 dir);
+	int (*xfrm_policy_lookup)(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir);
 	int (*xfrm_state_pol_flow_match)(struct xfrm_state *x,
 			struct xfrm_policy *xp, struct flowi *fl);
 	int (*xfrm_decode_session)(struct sk_buff *skb, u32 *secid, int ckall);
@@ -2562,16 +2562,16 @@ static inline void security_inet_conn_established(struct sock *sk,
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 
-int security_xfrm_policy_alloc(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx);
-int security_xfrm_policy_clone(struct xfrm_policy *old, struct xfrm_policy *new);
-void security_xfrm_policy_free(struct xfrm_policy *xp);
-int security_xfrm_policy_delete(struct xfrm_policy *xp);
+int security_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp, struct xfrm_user_sec_ctx *sec_ctx);
+int security_xfrm_policy_clone(struct xfrm_sec_ctx *old_ctx, struct xfrm_sec_ctx **new_ctxp);
+void security_xfrm_policy_free(struct xfrm_sec_ctx *ctx);
+int security_xfrm_policy_delete(struct xfrm_sec_ctx *ctx);
 int security_xfrm_state_alloc(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx);
 int security_xfrm_state_alloc_acquire(struct xfrm_state *x,
 				      struct xfrm_sec_ctx *polsec, u32 secid);
 int security_xfrm_state_delete(struct xfrm_state *x);
 void security_xfrm_state_free(struct xfrm_state *x);
-int security_xfrm_policy_lookup(struct xfrm_policy *xp, u32 fl_secid, u8 dir);
+int security_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir);
 int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
 				       struct xfrm_policy *xp, struct flowi *fl);
 int security_xfrm_decode_session(struct sk_buff *skb, u32 *secid);
@@ -2579,21 +2579,21 @@ void security_skb_classify_flow(struct sk_buff *skb, struct flowi *fl);
 
 #else	/* CONFIG_SECURITY_NETWORK_XFRM */
 
-static inline int security_xfrm_policy_alloc(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx)
+static inline int security_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp, struct xfrm_user_sec_ctx *sec_ctx)
 {
 	return 0;
 }
 
-static inline int security_xfrm_policy_clone(struct xfrm_policy *old, struct xfrm_policy *new)
+static inline int security_xfrm_policy_clone(struct xfrm_sec_ctx *old, struct xfrm_sec_ctx **new_ctxp)
 {
 	return 0;
 }
 
-static inline void security_xfrm_policy_free(struct xfrm_policy *xp)
+static inline void security_xfrm_policy_free(struct xfrm_sec_ctx *ctx)
 {
 }
 
-static inline int security_xfrm_policy_delete(struct xfrm_policy *xp)
+static inline int security_xfrm_policy_delete(struct xfrm_sec_ctx *ctx)
 {
 	return 0;
 }
@@ -2619,7 +2619,7 @@ static inline int security_xfrm_state_delete(struct xfrm_state *x)
 	return 0;
 }
 
-static inline int security_xfrm_policy_lookup(struct xfrm_policy *xp, u32 fl_secid, u8 dir)
+static inline int security_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir)
 {
 	return 0;
 }

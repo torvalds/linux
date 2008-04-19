@@ -115,7 +115,7 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, 
 	struct aoe_hdr *h;
 	u32 n;
 
-	if (ifp->nd_net != &init_net)
+	if (dev_net(ifp) != &init_net)
 		goto exit;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);

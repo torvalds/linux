@@ -30,59 +30,53 @@ struct route_info {
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 
-#define RT6_LOOKUP_F_IFACE	0x1
-#define RT6_LOOKUP_F_REACHABLE	0x2
-#define RT6_LOOKUP_F_HAS_SADDR	0x4
+#define RT6_LOOKUP_F_IFACE		0x00000001
+#define RT6_LOOKUP_F_REACHABLE		0x00000002
+#define RT6_LOOKUP_F_HAS_SADDR		0x00000004
+#define RT6_LOOKUP_F_SRCPREF_TMP	0x00000008
+#define RT6_LOOKUP_F_SRCPREF_PUBLIC	0x00000010
+#define RT6_LOOKUP_F_SRCPREF_COA	0x00000020
 
-extern struct rt6_info	ip6_null_entry;
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
-extern struct rt6_info	ip6_prohibit_entry;
-extern struct rt6_info	ip6_blk_hole_entry;
+extern struct rt6_info	*ip6_prohibit_entry;
+extern struct rt6_info	*ip6_blk_hole_entry;
 #endif
 
 extern void			ip6_route_input(struct sk_buff *skb);
 
-extern struct dst_entry *	ip6_route_output(struct sock *sk,
+extern struct dst_entry *	ip6_route_output(struct net *net,
+						 struct sock *sk,
 						 struct flowi *fl);
 
 extern int			ip6_route_init(void);
 extern void			ip6_route_cleanup(void);
 
-extern int			ipv6_route_ioctl(unsigned int cmd, void __user *arg);
+extern int			ipv6_route_ioctl(struct net *net,
+						 unsigned int cmd,
+						 void __user *arg);
 
 extern int			ip6_route_add(struct fib6_config *cfg);
 extern int			ip6_ins_rt(struct rt6_info *);
 extern int			ip6_del_rt(struct rt6_info *);
 
-extern int			ip6_rt_addr_add(struct in6_addr *addr,
-						struct net_device *dev,
-						int anycast);
-
-extern int			ip6_rt_addr_del(struct in6_addr *addr,
-						struct net_device *dev);
-
-extern void			rt6_sndmsg(int type, struct in6_addr *dst,
-					   struct in6_addr *src,
-					   struct in6_addr *gw,
-					   struct net_device *dev, 
-					   int dstlen, int srclen,
-					   int metric, __u32 flags);
-
-extern struct rt6_info		*rt6_lookup(struct in6_addr *daddr,
-					    struct in6_addr *saddr,
+extern struct rt6_info		*rt6_lookup(struct net *net,
+					    const struct in6_addr *daddr,
+					    const struct in6_addr *saddr,
 					    int oif, int flags);
 
-extern struct dst_entry *ndisc_dst_alloc(struct net_device *dev,
+extern struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 					 struct neighbour *neigh,
-					 struct in6_addr *addr,
-					 int (*output)(struct sk_buff *));
-extern int ndisc_dst_gc(int *more);
-extern void fib6_force_start_gc(void);
+					 const struct in6_addr *addr);
+extern int icmp6_dst_gc(int *more);
+
+extern void fib6_force_start_gc(struct net *net);
 
 extern struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 					   const struct in6_addr *addr,
 					   int anycast);
+
+extern int			ip6_dst_hoplimit(struct dst_entry *dst);
 
 /*
  *	support functions for ND
@@ -94,7 +88,7 @@ extern struct rt6_info *	rt6_add_dflt_router(struct in6_addr *gwaddr,
 						    struct net_device *dev,
 						    unsigned int pref);
 
-extern void			rt6_purge_dflt_routers(void);
+extern void			rt6_purge_dflt_routers(struct net *net);
 
 extern int			rt6_route_rcv(struct net_device *dev,
 					      u8 *opt, int len,
@@ -121,7 +115,7 @@ struct rt6_rtnl_dump_arg
 };
 
 extern int rt6_dump_route(struct rt6_info *rt, void *p_arg);
-extern void rt6_ifdown(struct net_device *dev);
+extern void rt6_ifdown(struct net *net, struct net_device *dev);
 extern void rt6_mtu_change(struct net_device *dev, unsigned mtu);
 
 extern rwlock_t rt6_lock;

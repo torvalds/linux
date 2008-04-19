@@ -404,38 +404,6 @@ static struct ctl_table ipv4_table[] = {
 		.strategy	= &ipv4_sysctl_local_port_range,
 	},
 	{
-		.ctl_name	= NET_IPV4_ICMP_ECHO_IGNORE_ALL,
-		.procname	= "icmp_echo_ignore_all",
-		.data		= &sysctl_icmp_echo_ignore_all,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{
-		.ctl_name	= NET_IPV4_ICMP_ECHO_IGNORE_BROADCASTS,
-		.procname	= "icmp_echo_ignore_broadcasts",
-		.data		= &sysctl_icmp_echo_ignore_broadcasts,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{
-		.ctl_name	= NET_IPV4_ICMP_IGNORE_BOGUS_ERROR_RESPONSES,
-		.procname	= "icmp_ignore_bogus_error_responses",
-		.data		= &sysctl_icmp_ignore_bogus_error_responses,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{
-		.ctl_name	= NET_IPV4_ICMP_ERRORS_USE_INBOUND_IFADDR,
-		.procname	= "icmp_errors_use_inbound_ifaddr",
-		.data		= &sysctl_icmp_errors_use_inbound_ifaddr,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{
 		.ctl_name	= NET_IPV4_ROUTE,
 		.procname	= "route",
 		.maxlen		= 0,
@@ -581,22 +549,6 @@ static struct ctl_table ipv4_table[] = {
 		.ctl_name	= NET_TCP_ADV_WIN_SCALE,
 		.procname	= "tcp_adv_win_scale",
 		.data		= &sysctl_tcp_adv_win_scale,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{
-		.ctl_name	= NET_IPV4_ICMP_RATELIMIT,
-		.procname	= "icmp_ratelimit",
-		.data		= &sysctl_icmp_ratelimit,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{
-		.ctl_name	= NET_IPV4_ICMP_RATEMASK,
-		.procname	= "icmp_ratemask",
-		.data		= &sysctl_icmp_ratemask,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -804,6 +756,58 @@ static struct ctl_table ipv4_table[] = {
 	{ .ctl_name = 0 }
 };
 
+static struct ctl_table ipv4_net_table[] = {
+	{
+		.ctl_name	= NET_IPV4_ICMP_ECHO_IGNORE_ALL,
+		.procname	= "icmp_echo_ignore_all",
+		.data		= &init_net.ipv4.sysctl_icmp_echo_ignore_all,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
+		.ctl_name	= NET_IPV4_ICMP_ECHO_IGNORE_BROADCASTS,
+		.procname	= "icmp_echo_ignore_broadcasts",
+		.data		= &init_net.ipv4.sysctl_icmp_echo_ignore_broadcasts,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
+		.ctl_name	= NET_IPV4_ICMP_IGNORE_BOGUS_ERROR_RESPONSES,
+		.procname	= "icmp_ignore_bogus_error_responses",
+		.data		= &init_net.ipv4.sysctl_icmp_ignore_bogus_error_responses,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
+		.ctl_name	= NET_IPV4_ICMP_ERRORS_USE_INBOUND_IFADDR,
+		.procname	= "icmp_errors_use_inbound_ifaddr",
+		.data		= &init_net.ipv4.sysctl_icmp_errors_use_inbound_ifaddr,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
+		.ctl_name	= NET_IPV4_ICMP_RATELIMIT,
+		.procname	= "icmp_ratelimit",
+		.data		= &init_net.ipv4.sysctl_icmp_ratelimit,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
+		.ctl_name	= NET_IPV4_ICMP_RATEMASK,
+		.procname	= "icmp_ratemask",
+		.data		= &init_net.ipv4.sysctl_icmp_ratemask,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{ }
+};
+
 struct ctl_path net_ipv4_ctl_path[] = {
 	{ .procname = "net", .ctl_name = CTL_NET, },
 	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
@@ -811,12 +815,72 @@ struct ctl_path net_ipv4_ctl_path[] = {
 };
 EXPORT_SYMBOL_GPL(net_ipv4_ctl_path);
 
+static __net_init int ipv4_sysctl_init_net(struct net *net)
+{
+	struct ctl_table *table;
+
+	table = ipv4_net_table;
+	if (net != &init_net) {
+		table = kmemdup(table, sizeof(ipv4_net_table), GFP_KERNEL);
+		if (table == NULL)
+			goto err_alloc;
+
+		table[0].data =
+			&net->ipv4.sysctl_icmp_echo_ignore_all;
+		table[1].data =
+			&net->ipv4.sysctl_icmp_echo_ignore_broadcasts;
+		table[2].data =
+			&net->ipv4.sysctl_icmp_ignore_bogus_error_responses;
+		table[3].data =
+			&net->ipv4.sysctl_icmp_errors_use_inbound_ifaddr;
+		table[4].data =
+			&net->ipv4.sysctl_icmp_ratelimit;
+		table[5].data =
+			&net->ipv4.sysctl_icmp_ratemask;
+	}
+
+	net->ipv4.ipv4_hdr = register_net_sysctl_table(net,
+			net_ipv4_ctl_path, table);
+	if (net->ipv4.ipv4_hdr == NULL)
+		goto err_reg;
+
+	return 0;
+
+err_reg:
+	if (net != &init_net)
+		kfree(table);
+err_alloc:
+	return -ENOMEM;
+}
+
+static __net_exit void ipv4_sysctl_exit_net(struct net *net)
+{
+	struct ctl_table *table;
+
+	table = net->ipv4.ipv4_hdr->ctl_table_arg;
+	unregister_net_sysctl_table(net->ipv4.ipv4_hdr);
+	kfree(table);
+}
+
+static __net_initdata struct pernet_operations ipv4_sysctl_ops = {
+	.init = ipv4_sysctl_init_net,
+	.exit = ipv4_sysctl_exit_net,
+};
+
 static __init int sysctl_ipv4_init(void)
 {
 	struct ctl_table_header *hdr;
 
 	hdr = register_sysctl_paths(net_ipv4_ctl_path, ipv4_table);
-	return hdr == NULL ? -ENOMEM : 0;
+	if (hdr == NULL)
+		return -ENOMEM;
+
+	if (register_pernet_subsys(&ipv4_sysctl_ops)) {
+		unregister_sysctl_table(hdr);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 __initcall(sysctl_ipv4_init);

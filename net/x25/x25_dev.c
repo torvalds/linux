@@ -95,7 +95,7 @@ int x25_lapb_receive_frame(struct sk_buff *skb, struct net_device *dev,
 	struct sk_buff *nskb;
 	struct x25_neigh *nb;
 
-	if (dev->nd_net != &init_net)
+	if (dev_net(dev) != &init_net)
 		goto drop;
 
 	nskb = skb_copy(skb, GFP_ATOMIC);

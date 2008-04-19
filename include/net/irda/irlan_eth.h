@@ -29,5 +29,4 @@ struct net_device *alloc_irlandev(const char *name);
 int  irlan_eth_receive(void *instance, void *sap, struct sk_buff *skb);
 
 void irlan_eth_flow_indication( void *instance, void *sap, LOCAL_FLOW flow);
-void irlan_eth_send_gratuitous_arp(struct net_device *dev);
 #endif

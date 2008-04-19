@@ -1178,7 +1178,7 @@ static int __devinit find_phy(struct device_node *np,
 
 	data  = of_get_property(np, "fixed-link", NULL);
 	if (data) {
-		snprintf(fpi->bus_id, 16, PHY_ID_FMT, 0, *data);
+		snprintf(fpi->bus_id, 16, "%x:%02x", 0, *data);
 		return 0;
 	}
 
@@ -1202,7 +1202,7 @@ static int __devinit find_phy(struct device_node *np,
 	if (!data || len != 4)
 		goto out_put_mdio;
 
-	snprintf(fpi->bus_id, 16, PHY_ID_FMT, res.start, *data);
+	snprintf(fpi->bus_id, 16, "%x:%02x", res.start, *data);
 
 out_put_mdio:
 	of_node_put(mdionode);

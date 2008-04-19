@@ -46,7 +46,9 @@
 #include "main.h"
 #include "debugfs.h"
 #include "phy.h"
+#include "nphy.h"
 #include "dma.h"
+#include "pio.h"
 #include "sysfs.h"
 #include "xmit.h"
 #include "lo.h"
@@ -78,6 +80,11 @@ static int modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, int, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
+int b43_modparam_qos = 1;
+module_param_named(qos, b43_modparam_qos, int, 0444);
+MODULE_PARM_DESC(qos, "Enable QOS support (default on)");
+
+
 static const struct ssb_device_id b43_ssb_tbl[] = {
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 5),
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 6),
@@ -96,25 +103,29 @@ MODULE_DEVICE_TABLE(ssb, b43_ssb_tbl);
  * data in there. This data is the same for all devices, so we don't
  * get concurrency issues */
 #define RATETAB_ENT(_rateid, _flags) \
-	{							\
-		.rate	= B43_RATE_TO_BASE100KBPS(_rateid),	\
-		.val	= (_rateid),				\
-		.val2	= (_rateid),				\
-		.flags	= (_flags),				\
+	{								\
+		.bitrate	= B43_RATE_TO_BASE100KBPS(_rateid),	\
+		.hw_value	= (_rateid),				\
+		.flags		= (_flags),				\
 	}
+
+/*
+ * NOTE: When changing this, sync with xmit.c's
+ *	 b43_plcp_get_bitrate_idx_* functions!
+ */
 static struct ieee80211_rate __b43_ratetable[] = {
-	RATETAB_ENT(B43_CCK_RATE_1MB, IEEE80211_RATE_CCK),
-	RATETAB_ENT(B43_CCK_RATE_2MB, IEEE80211_RATE_CCK_2),
-	RATETAB_ENT(B43_CCK_RATE_5MB, IEEE80211_RATE_CCK_2),
-	RATETAB_ENT(B43_CCK_RATE_11MB, IEEE80211_RATE_CCK_2),
-	RATETAB_ENT(B43_OFDM_RATE_6MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43_OFDM_RATE_9MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43_OFDM_RATE_12MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43_OFDM_RATE_18MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43_OFDM_RATE_24MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43_OFDM_RATE_36MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43_OFDM_RATE_48MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43_OFDM_RATE_54MB, IEEE80211_RATE_OFDM),
+	RATETAB_ENT(B43_CCK_RATE_1MB, 0),
+	RATETAB_ENT(B43_CCK_RATE_2MB, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATETAB_ENT(B43_CCK_RATE_5MB, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATETAB_ENT(B43_CCK_RATE_11MB, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATETAB_ENT(B43_OFDM_RATE_6MB, 0),
+	RATETAB_ENT(B43_OFDM_RATE_9MB, 0),
+	RATETAB_ENT(B43_OFDM_RATE_12MB, 0),
+	RATETAB_ENT(B43_OFDM_RATE_18MB, 0),
+	RATETAB_ENT(B43_OFDM_RATE_24MB, 0),
+	RATETAB_ENT(B43_OFDM_RATE_36MB, 0),
+	RATETAB_ENT(B43_OFDM_RATE_48MB, 0),
+	RATETAB_ENT(B43_OFDM_RATE_54MB, 0),
 };
 
 #define b43_a_ratetable		(__b43_ratetable + 4)
@@ -124,53 +135,144 @@ static struct ieee80211_rate __b43_ratetable[] = {
 #define b43_g_ratetable		(__b43_ratetable + 0)
 #define b43_g_ratetable_size	12
 
-#define CHANTAB_ENT(_chanid, _freq) \
-	{							\
-		.chan	= (_chanid),				\
-		.freq	= (_freq),				\
-		.val	= (_chanid),				\
-		.flag	= IEEE80211_CHAN_W_SCAN |		\
-			  IEEE80211_CHAN_W_ACTIVE_SCAN |	\
-			  IEEE80211_CHAN_W_IBSS,		\
-		.power_level	= 0xFF,				\
-		.antenna_max	= 0xFF,				\
-	}
+#define CHAN4G(_channel, _freq, _flags) {			\
+	.band			= IEEE80211_BAND_2GHZ,		\
+	.center_freq		= (_freq),			\
+	.hw_value		= (_channel),			\
+	.flags			= (_flags),			\
+	.max_antenna_gain	= 0,				\
+	.max_power		= 30,				\
+}
 static struct ieee80211_channel b43_2ghz_chantable[] = {
-	CHANTAB_ENT(1, 2412),
-	CHANTAB_ENT(2, 2417),
-	CHANTAB_ENT(3, 2422),
-	CHANTAB_ENT(4, 2427),
-	CHANTAB_ENT(5, 2432),
-	CHANTAB_ENT(6, 2437),
-	CHANTAB_ENT(7, 2442),
-	CHANTAB_ENT(8, 2447),
-	CHANTAB_ENT(9, 2452),
-	CHANTAB_ENT(10, 2457),
-	CHANTAB_ENT(11, 2462),
-	CHANTAB_ENT(12, 2467),
-	CHANTAB_ENT(13, 2472),
-	CHANTAB_ENT(14, 2484),
+	CHAN4G(1, 2412, 0),
+	CHAN4G(2, 2417, 0),
+	CHAN4G(3, 2422, 0),
+	CHAN4G(4, 2427, 0),
+	CHAN4G(5, 2432, 0),
+	CHAN4G(6, 2437, 0),
+	CHAN4G(7, 2442, 0),
+	CHAN4G(8, 2447, 0),
+	CHAN4G(9, 2452, 0),
+	CHAN4G(10, 2457, 0),
+	CHAN4G(11, 2462, 0),
+	CHAN4G(12, 2467, 0),
+	CHAN4G(13, 2472, 0),
+	CHAN4G(14, 2484, 0),
 };
-#define b43_2ghz_chantable_size	ARRAY_SIZE(b43_2ghz_chantable)
+#undef CHAN4G
 
-#if 0
-static struct ieee80211_channel b43_5ghz_chantable[] = {
-	CHANTAB_ENT(36, 5180),
-	CHANTAB_ENT(40, 5200),
-	CHANTAB_ENT(44, 5220),
-	CHANTAB_ENT(48, 5240),
-	CHANTAB_ENT(52, 5260),
-	CHANTAB_ENT(56, 5280),
-	CHANTAB_ENT(60, 5300),
-	CHANTAB_ENT(64, 5320),
-	CHANTAB_ENT(149, 5745),
-	CHANTAB_ENT(153, 5765),
-	CHANTAB_ENT(157, 5785),
-	CHANTAB_ENT(161, 5805),
-	CHANTAB_ENT(165, 5825),
+#define CHAN5G(_channel, _flags) {				\
+	.band			= IEEE80211_BAND_5GHZ,		\
+	.center_freq		= 5000 + (5 * (_channel)),	\
+	.hw_value		= (_channel),			\
+	.flags			= (_flags),			\
+	.max_antenna_gain	= 0,				\
+	.max_power		= 30,				\
+}
+static struct ieee80211_channel b43_5ghz_nphy_chantable[] = {
+	CHAN5G(32, 0),		CHAN5G(34, 0),
+	CHAN5G(36, 0),		CHAN5G(38, 0),
+	CHAN5G(40, 0),		CHAN5G(42, 0),
+	CHAN5G(44, 0),		CHAN5G(46, 0),
+	CHAN5G(48, 0),		CHAN5G(50, 0),
+	CHAN5G(52, 0),		CHAN5G(54, 0),
+	CHAN5G(56, 0),		CHAN5G(58, 0),
+	CHAN5G(60, 0),		CHAN5G(62, 0),
+	CHAN5G(64, 0),		CHAN5G(66, 0),
+	CHAN5G(68, 0),		CHAN5G(70, 0),
+	CHAN5G(72, 0),		CHAN5G(74, 0),
+	CHAN5G(76, 0),		CHAN5G(78, 0),
+	CHAN5G(80, 0),		CHAN5G(82, 0),
+	CHAN5G(84, 0),		CHAN5G(86, 0),
+	CHAN5G(88, 0),		CHAN5G(90, 0),
+	CHAN5G(92, 0),		CHAN5G(94, 0),
+	CHAN5G(96, 0),		CHAN5G(98, 0),
+	CHAN5G(100, 0),		CHAN5G(102, 0),
+	CHAN5G(104, 0),		CHAN5G(106, 0),
+	CHAN5G(108, 0),		CHAN5G(110, 0),
+	CHAN5G(112, 0),		CHAN5G(114, 0),
+	CHAN5G(116, 0),		CHAN5G(118, 0),
+	CHAN5G(120, 0),		CHAN5G(122, 0),
+	CHAN5G(124, 0),		CHAN5G(126, 0),
+	CHAN5G(128, 0),		CHAN5G(130, 0),
+	CHAN5G(132, 0),		CHAN5G(134, 0),
+	CHAN5G(136, 0),		CHAN5G(138, 0),
+	CHAN5G(140, 0),		CHAN5G(142, 0),
+	CHAN5G(144, 0),		CHAN5G(145, 0),
+	CHAN5G(146, 0),		CHAN5G(147, 0),
+	CHAN5G(148, 0),		CHAN5G(149, 0),
+	CHAN5G(150, 0),		CHAN5G(151, 0),
+	CHAN5G(152, 0),		CHAN5G(153, 0),
+	CHAN5G(154, 0),		CHAN5G(155, 0),
+	CHAN5G(156, 0),		CHAN5G(157, 0),
+	CHAN5G(158, 0),		CHAN5G(159, 0),
+	CHAN5G(160, 0),		CHAN5G(161, 0),
+	CHAN5G(162, 0),		CHAN5G(163, 0),
+	CHAN5G(164, 0),		CHAN5G(165, 0),
+	CHAN5G(166, 0),		CHAN5G(168, 0),
+	CHAN5G(170, 0),		CHAN5G(172, 0),
+	CHAN5G(174, 0),		CHAN5G(176, 0),
+	CHAN5G(178, 0),		CHAN5G(180, 0),
+	CHAN5G(182, 0),		CHAN5G(184, 0),
+	CHAN5G(186, 0),		CHAN5G(188, 0),
+	CHAN5G(190, 0),		CHAN5G(192, 0),
+	CHAN5G(194, 0),		CHAN5G(196, 0),
+	CHAN5G(198, 0),		CHAN5G(200, 0),
+	CHAN5G(202, 0),		CHAN5G(204, 0),
+	CHAN5G(206, 0),		CHAN5G(208, 0),
+	CHAN5G(210, 0),		CHAN5G(212, 0),
+	CHAN5G(214, 0),		CHAN5G(216, 0),
+	CHAN5G(218, 0),		CHAN5G(220, 0),
+	CHAN5G(222, 0),		CHAN5G(224, 0),
+	CHAN5G(226, 0),		CHAN5G(228, 0),
 };
-#define b43_5ghz_chantable_size	ARRAY_SIZE(b43_5ghz_chantable)
-#endif
+
+static struct ieee80211_channel b43_5ghz_aphy_chantable[] = {
+	CHAN5G(34, 0),		CHAN5G(36, 0),
+	CHAN5G(38, 0),		CHAN5G(40, 0),
+	CHAN5G(42, 0),		CHAN5G(44, 0),
+	CHAN5G(46, 0),		CHAN5G(48, 0),
+	CHAN5G(52, 0),		CHAN5G(56, 0),
+	CHAN5G(60, 0),		CHAN5G(64, 0),
+	CHAN5G(100, 0),		CHAN5G(104, 0),
+	CHAN5G(108, 0),		CHAN5G(112, 0),
+	CHAN5G(116, 0),		CHAN5G(120, 0),
+	CHAN5G(124, 0),		CHAN5G(128, 0),
+	CHAN5G(132, 0),		CHAN5G(136, 0),
+	CHAN5G(140, 0),		CHAN5G(149, 0),
+	CHAN5G(153, 0),		CHAN5G(157, 0),
+	CHAN5G(161, 0),		CHAN5G(165, 0),
+	CHAN5G(184, 0),		CHAN5G(188, 0),
+	CHAN5G(192, 0),		CHAN5G(196, 0),
+	CHAN5G(200, 0),		CHAN5G(204, 0),
+	CHAN5G(208, 0),		CHAN5G(212, 0),
+	CHAN5G(216, 0),
+};
+#undef CHAN5G
+
+static struct ieee80211_supported_band b43_band_5GHz_nphy = {
+	.band		= IEEE80211_BAND_5GHZ,
+	.channels	= b43_5ghz_nphy_chantable,
+	.n_channels	= ARRAY_SIZE(b43_5ghz_nphy_chantable),
+	.bitrates	= b43_a_ratetable,
+	.n_bitrates	= b43_a_ratetable_size,
+};
+
+static struct ieee80211_supported_band b43_band_5GHz_aphy = {
+	.band		= IEEE80211_BAND_5GHZ,
+	.channels	= b43_5ghz_aphy_chantable,
+	.n_channels	= ARRAY_SIZE(b43_5ghz_aphy_chantable),
+	.bitrates	= b43_a_ratetable,
+	.n_bitrates	= b43_a_ratetable_size,
+};
+
+static struct ieee80211_supported_band b43_band_2GHz = {
+	.band		= IEEE80211_BAND_2GHZ,
+	.channels	= b43_2ghz_chantable,
+	.n_channels	= ARRAY_SIZE(b43_2ghz_chantable),
+	.bitrates	= b43_g_ratetable,
+	.n_bitrates	= b43_g_ratetable_size,
+};
 
 static void b43_wireless_core_exit(struct b43_wldev *dev);
 static int b43_wireless_core_init(struct b43_wldev *dev);
@@ -370,11 +472,13 @@ out:
 }
 
 /* Read HostFlags */
-u32 b43_hf_read(struct b43_wldev * dev)
+u64 b43_hf_read(struct b43_wldev * dev)
 {
-	u32 ret;
+	u64 ret;
 
 	ret = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFHI);
+	ret <<= 16;
+	ret |= b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFMI);
 	ret <<= 16;
 	ret |= b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFLO);
 
@@ -382,12 +486,16 @@ u32 b43_hf_read(struct b43_wldev * dev)
 }
 
 /* Write HostFlags */
-void b43_hf_write(struct b43_wldev *dev, u32 value)
+void b43_hf_write(struct b43_wldev *dev, u64 value)
 {
-	b43_shm_write16(dev, B43_SHM_SHARED,
-			B43_SHM_SH_HOSTFLO, (value & 0x0000FFFF));
-	b43_shm_write16(dev, B43_SHM_SHARED,
-			B43_SHM_SH_HOSTFHI, ((value & 0xFFFF0000) >> 16));
+	u16 lo, mi, hi;
+
+	lo = (value & 0x00000000FFFFULL);
+	mi = (value & 0x0000FFFF0000ULL) >> 16;
+	hi = (value & 0xFFFF00000000ULL) >> 32;
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFLO, lo);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFMI, mi);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFHI, hi);
 }
 
 void b43_tsf_read(struct b43_wldev *dev, u64 * tsf)
@@ -912,7 +1020,18 @@ void b43_power_saving_ctl_bits(struct b43_wldev *dev, unsigned int ps_flags)
 /* Turn the Analog ON/OFF */
 static void b43_switch_analog(struct b43_wldev *dev, int on)
 {
-	b43_write16(dev, B43_MMIO_PHY0, on ? 0 : 0xF4);
+	switch (dev->phy.type) {
+	case B43_PHYTYPE_A:
+	case B43_PHYTYPE_G:
+		b43_write16(dev, B43_MMIO_PHY0, on ? 0 : 0xF4);
+		break;
+	case B43_PHYTYPE_N:
+		b43_phy_write(dev, B43_NPHY_AFECTL_OVER,
+			      on ? 0 : 0x7FFF);
+		break;
+	default:
+		B43_WARN_ON(1);
+	}
 }
 
 void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags)
@@ -1162,21 +1281,106 @@ static void b43_write_template_common(struct b43_wldev *dev,
 			size + sizeof(struct b43_plcp_hdr6));
 }
 
+/* Check if the use of the antenna that ieee80211 told us to
+ * use is possible. This will fall back to DEFAULT.
+ * "antenna_nr" is the antenna identifier we got from ieee80211. */
+u8 b43_ieee80211_antenna_sanitize(struct b43_wldev *dev,
+				  u8 antenna_nr)
+{
+	u8 antenna_mask;
+
+	if (antenna_nr == 0) {
+		/* Zero means "use default antenna". That's always OK. */
+		return 0;
+	}
+
+	/* Get the mask of available antennas. */
+	if (dev->phy.gmode)
+		antenna_mask = dev->dev->bus->sprom.ant_available_bg;
+	else
+		antenna_mask = dev->dev->bus->sprom.ant_available_a;
+
+	if (!(antenna_mask & (1 << (antenna_nr - 1)))) {
+		/* This antenna is not available. Fall back to default. */
+		return 0;
+	}
+
+	return antenna_nr;
+}
+
+static int b43_antenna_from_ieee80211(struct b43_wldev *dev, u8 antenna)
+{
+	antenna = b43_ieee80211_antenna_sanitize(dev, antenna);
+	switch (antenna) {
+	case 0:		/* default/diversity */
+		return B43_ANTENNA_DEFAULT;
+	case 1:		/* Antenna 0 */
+		return B43_ANTENNA0;
+	case 2:		/* Antenna 1 */
+		return B43_ANTENNA1;
+	case 3:		/* Antenna 2 */
+		return B43_ANTENNA2;
+	case 4:		/* Antenna 3 */
+		return B43_ANTENNA3;
+	default:
+		return B43_ANTENNA_DEFAULT;
+	}
+}
+
+/* Convert a b43 antenna number value to the PHY TX control value. */
+static u16 b43_antenna_to_phyctl(int antenna)
+{
+	switch (antenna) {
+	case B43_ANTENNA0:
+		return B43_TXH_PHY_ANT0;
+	case B43_ANTENNA1:
+		return B43_TXH_PHY_ANT1;
+	case B43_ANTENNA2:
+		return B43_TXH_PHY_ANT2;
+	case B43_ANTENNA3:
+		return B43_TXH_PHY_ANT3;
+	case B43_ANTENNA_AUTO:
+		return B43_TXH_PHY_ANT01AUTO;
+	}
+	B43_WARN_ON(1);
+	return 0;
+}
+
 static void b43_write_beacon_template(struct b43_wldev *dev,
 				      u16 ram_offset,
-				      u16 shm_size_offset, u8 rate)
+				      u16 shm_size_offset)
 {
 	unsigned int i, len, variable_len;
 	const struct ieee80211_mgmt *bcn;
 	const u8 *ie;
 	bool tim_found = 0;
+	unsigned int rate;
+	u16 ctl;
+	int antenna;
 
 	bcn = (const struct ieee80211_mgmt *)(dev->wl->current_beacon->data);
 	len = min((size_t) dev->wl->current_beacon->len,
 		  0x200 - sizeof(struct b43_plcp_hdr6));
+	rate = dev->wl->beacon_txctl.tx_rate->hw_value;
 
 	b43_write_template_common(dev, (const u8 *)bcn,
 				  len, ram_offset, shm_size_offset, rate);
+
+	/* Write the PHY TX control parameters. */
+	antenna = b43_antenna_from_ieee80211(dev,
+			dev->wl->beacon_txctl.antenna_sel_tx);
+	antenna = b43_antenna_to_phyctl(antenna);
+	ctl = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL);
+	/* We can't send beacons with short preamble. Would get PHY errors. */
+	ctl &= ~B43_TXH_PHY_SHORTPRMBL;
+	ctl &= ~B43_TXH_PHY_ANT;
+	ctl &= ~B43_TXH_PHY_ENC;
+	ctl |= antenna;
+	if (b43_is_cck_rate(rate))
+		ctl |= B43_TXH_PHY_ENC_CCK;
+	else
+		ctl |= B43_TXH_PHY_ENC_OFDM;
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL, ctl);
 
 	/* Find the position of the TIM and the DTIM_period value
 	 * and write them to SHM. */
@@ -1218,21 +1422,23 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
 		b43warn(dev->wl, "Did not find a valid TIM IE in "
 			"the beacon template packet. AP or IBSS operation "
 			"may be broken.\n");
-	}
+	} else
+		b43dbg(dev->wl, "Updated beacon template\n");
 }
 
 static void b43_write_probe_resp_plcp(struct b43_wldev *dev,
-				      u16 shm_offset, u16 size, u8 rate)
+				      u16 shm_offset, u16 size,
+				      struct ieee80211_rate *rate)
 {
 	struct b43_plcp_hdr4 plcp;
 	u32 tmp;
 	__le16 dur;
 
 	plcp.data = 0;
-	b43_generate_plcp_hdr(&plcp, size + FCS_LEN, rate);
+	b43_generate_plcp_hdr(&plcp, size + FCS_LEN, rate->hw_value);
 	dur = ieee80211_generic_frame_duration(dev->wl->hw,
 					       dev->wl->vif, size,
-					       B43_RATE_TO_BASE100KBPS(rate));
+					       rate);
 	/* Write PLCP in two parts and timing for packet transfer */
 	tmp = le32_to_cpu(plcp.data);
 	b43_shm_write16(dev, B43_SHM_SHARED, shm_offset, tmp & 0xFFFF);
@@ -1247,7 +1453,8 @@ static void b43_write_probe_resp_plcp(struct b43_wldev *dev,
  * 3) Stripping TIM
  */
 static const u8 * b43_generate_probe_resp(struct b43_wldev *dev,
-					  u16 *dest_size, u8 rate)
+					  u16 *dest_size,
+					  struct ieee80211_rate *rate)
 {
 	const u8 *src_data;
 	u8 *dest_data;
@@ -1292,7 +1499,7 @@ static const u8 * b43_generate_probe_resp(struct b43_wldev *dev,
 					 IEEE80211_STYPE_PROBE_RESP);
 	dur = ieee80211_generic_frame_duration(dev->wl->hw,
 					       dev->wl->vif, *dest_size,
-					       B43_RATE_TO_BASE100KBPS(rate));
+					       rate);
 	hdr->duration_id = dur;
 
 	return dest_data;
@@ -1300,7 +1507,8 @@ static const u8 * b43_generate_probe_resp(struct b43_wldev *dev,
 
 static void b43_write_probe_resp_template(struct b43_wldev *dev,
 					  u16 ram_offset,
-					  u16 shm_size_offset, u8 rate)
+					  u16 shm_size_offset,
+					  struct ieee80211_rate *rate)
 {
 	const u8 *probe_resp_data;
 	u16 size;
@@ -1313,20 +1521,89 @@ static void b43_write_probe_resp_template(struct b43_wldev *dev,
 	/* Looks like PLCP headers plus packet timings are stored for
 	 * all possible basic rates
 	 */
-	b43_write_probe_resp_plcp(dev, 0x31A, size, B43_CCK_RATE_1MB);
-	b43_write_probe_resp_plcp(dev, 0x32C, size, B43_CCK_RATE_2MB);
-	b43_write_probe_resp_plcp(dev, 0x33E, size, B43_CCK_RATE_5MB);
-	b43_write_probe_resp_plcp(dev, 0x350, size, B43_CCK_RATE_11MB);
+	b43_write_probe_resp_plcp(dev, 0x31A, size, &b43_b_ratetable[0]);
+	b43_write_probe_resp_plcp(dev, 0x32C, size, &b43_b_ratetable[1]);
+	b43_write_probe_resp_plcp(dev, 0x33E, size, &b43_b_ratetable[2]);
+	b43_write_probe_resp_plcp(dev, 0x350, size, &b43_b_ratetable[3]);
 
 	size = min((size_t) size, 0x200 - sizeof(struct b43_plcp_hdr6));
 	b43_write_template_common(dev, probe_resp_data,
-				  size, ram_offset, shm_size_offset, rate);
+				  size, ram_offset, shm_size_offset,
+				  rate->hw_value);
 	kfree(probe_resp_data);
+}
+
+static void handle_irq_beacon(struct b43_wldev *dev)
+{
+	struct b43_wl *wl = dev->wl;
+	u32 cmd, beacon0_valid, beacon1_valid;
+
+	if (!b43_is_mode(wl, IEEE80211_IF_TYPE_AP))
+		return;
+
+	/* This is the bottom half of the asynchronous beacon update. */
+
+	/* Ignore interrupt in the future. */
+	dev->irq_savedstate &= ~B43_IRQ_BEACON;
+
+	cmd = b43_read32(dev, B43_MMIO_MACCMD);
+	beacon0_valid = (cmd & B43_MACCMD_BEACON0_VALID);
+	beacon1_valid = (cmd & B43_MACCMD_BEACON1_VALID);
+
+	/* Schedule interrupt manually, if busy. */
+	if (beacon0_valid && beacon1_valid) {
+		b43_write32(dev, B43_MMIO_GEN_IRQ_REASON, B43_IRQ_BEACON);
+		dev->irq_savedstate |= B43_IRQ_BEACON;
+		return;
+	}
+
+	if (!beacon0_valid) {
+		if (!wl->beacon0_uploaded) {
+			b43_write_beacon_template(dev, 0x68, 0x18);
+			b43_write_probe_resp_template(dev, 0x268, 0x4A,
+						      &__b43_ratetable[3]);
+			wl->beacon0_uploaded = 1;
+		}
+		cmd = b43_read32(dev, B43_MMIO_MACCMD);
+		cmd |= B43_MACCMD_BEACON0_VALID;
+		b43_write32(dev, B43_MMIO_MACCMD, cmd);
+	} else if (!beacon1_valid) {
+		if (!wl->beacon1_uploaded) {
+			b43_write_beacon_template(dev, 0x468, 0x1A);
+			wl->beacon1_uploaded = 1;
+		}
+		cmd = b43_read32(dev, B43_MMIO_MACCMD);
+		cmd |= B43_MACCMD_BEACON1_VALID;
+		b43_write32(dev, B43_MMIO_MACCMD, cmd);
+	}
+}
+
+static void b43_beacon_update_trigger_work(struct work_struct *work)
+{
+	struct b43_wl *wl = container_of(work, struct b43_wl,
+					 beacon_update_trigger);
+	struct b43_wldev *dev;
+
+	mutex_lock(&wl->mutex);
+	dev = wl->current_dev;
+	if (likely(dev && (b43_status(dev) >= B43_STAT_INITIALIZED))) {
+		spin_lock_irq(&wl->irq_lock);
+		/* update beacon right away or defer to irq */
+		dev->irq_savedstate = b43_read32(dev, B43_MMIO_GEN_IRQ_MASK);
+		handle_irq_beacon(dev);
+		/* The handler might have updated the IRQ mask. */
+		b43_write32(dev, B43_MMIO_GEN_IRQ_MASK,
+			    dev->irq_savedstate);
+		mmiowb();
+		spin_unlock_irq(&wl->irq_lock);
+	}
+	mutex_unlock(&wl->mutex);
 }
 
 /* Asynchronously update the packet templates in template RAM.
  * Locking: Requires wl->irq_lock to be locked. */
-static void b43_update_templates(struct b43_wl *wl, struct sk_buff *beacon)
+static void b43_update_templates(struct b43_wl *wl, struct sk_buff *beacon,
+				 const struct ieee80211_tx_control *txctl)
 {
 	/* This is the top half of the ansynchronous beacon update.
 	 * The bottom half is the beacon IRQ.
@@ -1337,8 +1614,10 @@ static void b43_update_templates(struct b43_wl *wl, struct sk_buff *beacon)
 	if (wl->current_beacon)
 		dev_kfree_skb_any(wl->current_beacon);
 	wl->current_beacon = beacon;
+	memcpy(&wl->beacon_txctl, txctl, sizeof(wl->beacon_txctl));
 	wl->beacon0_uploaded = 0;
 	wl->beacon1_uploaded = 0;
+	queue_work(wl->hw->workqueue, &wl->beacon_update_trigger);
 }
 
 static void b43_set_ssid(struct b43_wldev *dev, const u8 * ssid, u8 ssid_len)
@@ -1364,44 +1643,14 @@ static void b43_set_beacon_int(struct b43_wldev *dev, u16 beacon_int)
 {
 	b43_time_lock(dev);
 	if (dev->dev->id.revision >= 3) {
-		b43_write32(dev, 0x188, (beacon_int << 16));
+		b43_write32(dev, B43_MMIO_TSF_CFP_REP, (beacon_int << 16));
+		b43_write32(dev, B43_MMIO_TSF_CFP_START, (beacon_int << 10));
 	} else {
 		b43_write16(dev, 0x606, (beacon_int >> 6));
 		b43_write16(dev, 0x610, beacon_int);
 	}
 	b43_time_unlock(dev);
-}
-
-static void handle_irq_beacon(struct b43_wldev *dev)
-{
-	struct b43_wl *wl = dev->wl;
-	u32 cmd;
-
-	if (!b43_is_mode(wl, IEEE80211_IF_TYPE_AP))
-		return;
-
-	/* This is the bottom half of the asynchronous beacon update. */
-
-	cmd = b43_read32(dev, B43_MMIO_MACCMD);
-	if (!(cmd & B43_MACCMD_BEACON0_VALID)) {
-		if (!wl->beacon0_uploaded) {
-			b43_write_beacon_template(dev, 0x68, 0x18,
-						  B43_CCK_RATE_1MB);
-			b43_write_probe_resp_template(dev, 0x268, 0x4A,
-						      B43_CCK_RATE_11MB);
-			wl->beacon0_uploaded = 1;
-		}
-		cmd |= B43_MACCMD_BEACON0_VALID;
-	}
-	if (!(cmd & B43_MACCMD_BEACON1_VALID)) {
-		if (!wl->beacon1_uploaded) {
-			b43_write_beacon_template(dev, 0x468, 0x1A,
-						  B43_CCK_RATE_1MB);
-			wl->beacon1_uploaded = 1;
-		}
-		cmd |= B43_MACCMD_BEACON1_VALID;
-	}
-	b43_write32(dev, B43_MMIO_MACCMD, cmd);
+	b43dbg(dev->wl, "Set beacon interval to %u\n", beacon_int);
 }
 
 static void handle_irq_ucode_debug(struct b43_wldev *dev)
@@ -1483,12 +1732,15 @@ static void b43_interrupt_tasklet(struct b43_wldev *dev)
 		handle_irq_noise(dev);
 
 	/* Check the DMA reason registers for received data. */
-	if (dma_reason[0] & B43_DMAIRQ_RX_DONE)
-		b43_dma_rx(dev->dma.rx_ring0);
-	if (dma_reason[3] & B43_DMAIRQ_RX_DONE)
-		b43_dma_rx(dev->dma.rx_ring3);
+	if (dma_reason[0] & B43_DMAIRQ_RX_DONE) {
+		if (b43_using_pio_transfers(dev))
+			b43_pio_rx(dev->pio.rx_queue);
+		else
+			b43_dma_rx(dev->dma.rx_ring);
+	}
 	B43_WARN_ON(dma_reason[1] & B43_DMAIRQ_RX_DONE);
 	B43_WARN_ON(dma_reason[2] & B43_DMAIRQ_RX_DONE);
+	B43_WARN_ON(dma_reason[3] & B43_DMAIRQ_RX_DONE);
 	B43_WARN_ON(dma_reason[4] & B43_DMAIRQ_RX_DONE);
 	B43_WARN_ON(dma_reason[5] & B43_DMAIRQ_RX_DONE);
 
@@ -2045,7 +2297,7 @@ static void b43_gpio_cleanup(struct b43_wldev *dev)
 }
 
 /* http://bcm-specs.sipsolutions.net/EnableMac */
-void b43_mac_enable(struct b43_wldev *dev)
+static void b43_mac_enable(struct b43_wldev *dev)
 {
 	dev->mac_suspended--;
 	B43_WARN_ON(dev->mac_suspended < 0);
@@ -2068,7 +2320,7 @@ void b43_mac_enable(struct b43_wldev *dev)
 }
 
 /* http://bcm-specs.sipsolutions.net/SuspendMAC */
-void b43_mac_suspend(struct b43_wldev *dev)
+static void b43_mac_suspend(struct b43_wldev *dev)
 {
 	int i;
 	u32 tmp;
@@ -2091,6 +2343,13 @@ void b43_mac_suspend(struct b43_wldev *dev)
 			    & ~B43_MACCTL_ENABLED);
 		/* force pci to flush the write */
 		b43_read32(dev, B43_MMIO_MACCTL);
+		for (i = 35; i; i--) {
+			tmp = b43_read32(dev, B43_MMIO_GEN_IRQ_REASON);
+			if (tmp & B43_IRQ_MAC_SUSPENDED)
+				goto out;
+			udelay(10);
+		}
+		/* Hm, it seems this will take some time. Use msleep(). */
 		for (i = 40; i; i--) {
 			tmp = b43_read32(dev, B43_MMIO_GEN_IRQ_REASON);
 			if (tmp & B43_IRQ_MAC_SUSPENDED)
@@ -2196,38 +2455,28 @@ static void b43_rate_memory_init(struct b43_wldev *dev)
 	}
 }
 
+/* Set the default values for the PHY TX Control Words. */
+static void b43_set_phytxctl_defaults(struct b43_wldev *dev)
+{
+	u16 ctl = 0;
+
+	ctl |= B43_TXH_PHY_ENC_CCK;
+	ctl |= B43_TXH_PHY_ANT01AUTO;
+	ctl |= B43_TXH_PHY_TXPWR;
+
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL, ctl);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_ACKCTSPHYCTL, ctl);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_PRPHYCTL, ctl);
+}
+
 /* Set the TX-Antenna for management frames sent by firmware. */
 static void b43_mgmtframe_txantenna(struct b43_wldev *dev, int antenna)
 {
-	u16 ant = 0;
+	u16 ant;
 	u16 tmp;
 
-	switch (antenna) {
-	case B43_ANTENNA0:
-		ant |= B43_TXH_PHY_ANT0;
-		break;
-	case B43_ANTENNA1:
-		ant |= B43_TXH_PHY_ANT1;
-		break;
-	case B43_ANTENNA2:
-		ant |= B43_TXH_PHY_ANT2;
-		break;
-	case B43_ANTENNA3:
-		ant |= B43_TXH_PHY_ANT3;
-		break;
-	case B43_ANTENNA_AUTO:
-		ant |= B43_TXH_PHY_ANT01AUTO;
-		break;
-	default:
-		B43_WARN_ON(1);
-	}
+	ant = b43_antenna_to_phyctl(antenna);
 
-	/* FIXME We also need to set the other flags of the PHY control field somewhere. */
-
-	/* For Beacons */
-	tmp = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL);
-	tmp = (tmp & ~B43_TXH_PHY_ANT) | ant;
-	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL, tmp);
 	/* For ACK/CTS */
 	tmp = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_ACKCTSPHYCTL);
 	tmp = (tmp & ~B43_TXH_PHY_ANT) | ant;
@@ -2589,22 +2838,199 @@ static int b43_op_tx(struct ieee80211_hw *hw,
 	struct b43_wldev *dev = wl->current_dev;
 	int err = -ENODEV;
 
+	if (unlikely(skb->len < 2 + 2 + 6)) {
+		/* Too short, this can't be a valid frame. */
+		return -EINVAL;
+	}
+	B43_WARN_ON(skb_shinfo(skb)->nr_frags);
+
 	if (unlikely(!dev))
 		goto out;
 	if (unlikely(b43_status(dev) < B43_STAT_STARTED))
 		goto out;
-	/* DMA-TX is done without a global lock. */
-	err = b43_dma_tx(dev, skb, ctl);
+	/* TX is done without a global lock. */
+	if (b43_using_pio_transfers(dev))
+		err = b43_pio_tx(dev, skb, ctl);
+	else
+		err = b43_dma_tx(dev, skb, ctl);
 out:
 	if (unlikely(err))
 		return NETDEV_TX_BUSY;
 	return NETDEV_TX_OK;
 }
 
+/* Locking: wl->irq_lock */
+static void b43_qos_params_upload(struct b43_wldev *dev,
+				  const struct ieee80211_tx_queue_params *p,
+				  u16 shm_offset)
+{
+	u16 params[B43_NR_QOSPARAMS];
+	int cw_min, cw_max, aifs, bslots, tmp;
+	unsigned int i;
+
+	const u16 aCWmin = 0x0001;
+	const u16 aCWmax = 0x03FF;
+
+	/* Calculate the default values for the parameters, if needed. */
+	switch (shm_offset) {
+	case B43_QOS_VOICE:
+		aifs = (p->aifs == -1) ? 2 : p->aifs;
+		cw_min = (p->cw_min == 0) ? ((aCWmin + 1) / 4 - 1) : p->cw_min;
+		cw_max = (p->cw_max == 0) ? ((aCWmin + 1) / 2 - 1) : p->cw_max;
+		break;
+	case B43_QOS_VIDEO:
+		aifs = (p->aifs == -1) ? 2 : p->aifs;
+		cw_min = (p->cw_min == 0) ? ((aCWmin + 1) / 2 - 1) : p->cw_min;
+		cw_max = (p->cw_max == 0) ? aCWmin : p->cw_max;
+		break;
+	case B43_QOS_BESTEFFORT:
+		aifs = (p->aifs == -1) ? 3 : p->aifs;
+		cw_min = (p->cw_min == 0) ? aCWmin : p->cw_min;
+		cw_max = (p->cw_max == 0) ? aCWmax : p->cw_max;
+		break;
+	case B43_QOS_BACKGROUND:
+		aifs = (p->aifs == -1) ? 7 : p->aifs;
+		cw_min = (p->cw_min == 0) ? aCWmin : p->cw_min;
+		cw_max = (p->cw_max == 0) ? aCWmax : p->cw_max;
+		break;
+	default:
+		B43_WARN_ON(1);
+		return;
+	}
+	if (cw_min <= 0)
+		cw_min = aCWmin;
+	if (cw_max <= 0)
+		cw_max = aCWmin;
+	bslots = b43_read16(dev, B43_MMIO_RNG) % cw_min;
+
+	memset(&params, 0, sizeof(params));
+
+	params[B43_QOSPARAM_TXOP] = p->txop * 32;
+	params[B43_QOSPARAM_CWMIN] = cw_min;
+	params[B43_QOSPARAM_CWMAX] = cw_max;
+	params[B43_QOSPARAM_CWCUR] = cw_min;
+	params[B43_QOSPARAM_AIFS] = aifs;
+	params[B43_QOSPARAM_BSLOTS] = bslots;
+	params[B43_QOSPARAM_REGGAP] = bslots + aifs;
+
+	for (i = 0; i < ARRAY_SIZE(params); i++) {
+		if (i == B43_QOSPARAM_STATUS) {
+			tmp = b43_shm_read16(dev, B43_SHM_SHARED,
+					     shm_offset + (i * 2));
+			/* Mark the parameters as updated. */
+			tmp |= 0x100;
+			b43_shm_write16(dev, B43_SHM_SHARED,
+					shm_offset + (i * 2),
+					tmp);
+		} else {
+			b43_shm_write16(dev, B43_SHM_SHARED,
+					shm_offset + (i * 2),
+					params[i]);
+		}
+	}
+}
+
+/* Update the QOS parameters in hardware. */
+static void b43_qos_update(struct b43_wldev *dev)
+{
+	struct b43_wl *wl = dev->wl;
+	struct b43_qos_params *params;
+	unsigned long flags;
+	unsigned int i;
+
+	/* Mapping of mac80211 queues to b43 SHM offsets. */
+	static const u16 qos_shm_offsets[] = {
+		[0] = B43_QOS_VOICE,
+		[1] = B43_QOS_VIDEO,
+		[2] = B43_QOS_BESTEFFORT,
+		[3] = B43_QOS_BACKGROUND,
+	};
+	BUILD_BUG_ON(ARRAY_SIZE(qos_shm_offsets) != ARRAY_SIZE(wl->qos_params));
+
+	b43_mac_suspend(dev);
+	spin_lock_irqsave(&wl->irq_lock, flags);
+
+	for (i = 0; i < ARRAY_SIZE(wl->qos_params); i++) {
+		params = &(wl->qos_params[i]);
+		if (params->need_hw_update) {
+			b43_qos_params_upload(dev, &(params->p),
+					      qos_shm_offsets[i]);
+			params->need_hw_update = 0;
+		}
+	}
+
+	spin_unlock_irqrestore(&wl->irq_lock, flags);
+	b43_mac_enable(dev);
+}
+
+static void b43_qos_clear(struct b43_wl *wl)
+{
+	struct b43_qos_params *params;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(wl->qos_params); i++) {
+		params = &(wl->qos_params[i]);
+
+		memset(&(params->p), 0, sizeof(params->p));
+		params->p.aifs = -1;
+		params->need_hw_update = 1;
+	}
+}
+
+/* Initialize the core's QOS capabilities */
+static void b43_qos_init(struct b43_wldev *dev)
+{
+	struct b43_wl *wl = dev->wl;
+	unsigned int i;
+
+	/* Upload the current QOS parameters. */
+	for (i = 0; i < ARRAY_SIZE(wl->qos_params); i++)
+		wl->qos_params[i].need_hw_update = 1;
+	b43_qos_update(dev);
+
+	/* Enable QOS support. */
+	b43_hf_write(dev, b43_hf_read(dev) | B43_HF_EDCF);
+	b43_write16(dev, B43_MMIO_IFSCTL,
+		    b43_read16(dev, B43_MMIO_IFSCTL)
+		    | B43_MMIO_IFSCTL_USE_EDCF);
+}
+
+static void b43_qos_update_work(struct work_struct *work)
+{
+	struct b43_wl *wl = container_of(work, struct b43_wl, qos_update_work);
+	struct b43_wldev *dev;
+
+	mutex_lock(&wl->mutex);
+	dev = wl->current_dev;
+	if (likely(dev && (b43_status(dev) >= B43_STAT_INITIALIZED)))
+		b43_qos_update(dev);
+	mutex_unlock(&wl->mutex);
+}
+
 static int b43_op_conf_tx(struct ieee80211_hw *hw,
-			  int queue,
+			  int _queue,
 			  const struct ieee80211_tx_queue_params *params)
 {
+	struct b43_wl *wl = hw_to_b43_wl(hw);
+	unsigned long flags;
+	unsigned int queue = (unsigned int)_queue;
+	struct b43_qos_params *p;
+
+	if (queue >= ARRAY_SIZE(wl->qos_params)) {
+		/* Queue not available or don't support setting
+		 * params on this queue. Return success to not
+		 * confuse mac80211. */
+		return 0;
+	}
+
+	spin_lock_irqsave(&wl->irq_lock, flags);
+	p = &(wl->qos_params[queue]);
+	memcpy(&(p->p), params, sizeof(p->p));
+	p->need_hw_update = 1;
+	spin_unlock_irqrestore(&wl->irq_lock, flags);
+
+	queue_work(hw->workqueue, &wl->qos_update_work);
+
 	return 0;
 }
 
@@ -2620,7 +3046,10 @@ static int b43_op_get_tx_stats(struct ieee80211_hw *hw,
 		goto out;
 	spin_lock_irqsave(&wl->irq_lock, flags);
 	if (likely(b43_status(dev) >= B43_STAT_STARTED)) {
-		b43_dma_get_tx_stats(dev, stats);
+		if (b43_using_pio_transfers(dev))
+			b43_pio_get_tx_stats(dev, stats);
+		else
+			b43_dma_get_tx_stats(dev, stats);
 		err = 0;
 	}
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
@@ -2639,45 +3068,6 @@ static int b43_op_get_stats(struct ieee80211_hw *hw,
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 
 	return 0;
-}
-
-static const char *phymode_to_string(unsigned int phymode)
-{
-	switch (phymode) {
-	case B43_PHYMODE_A:
-		return "A";
-	case B43_PHYMODE_B:
-		return "B";
-	case B43_PHYMODE_G:
-		return "G";
-	default:
-		B43_WARN_ON(1);
-	}
-	return "";
-}
-
-static int find_wldev_for_phymode(struct b43_wl *wl,
-				  unsigned int phymode,
-				  struct b43_wldev **dev, bool * gmode)
-{
-	struct b43_wldev *d;
-
-	list_for_each_entry(d, &wl->devlist, list) {
-		if (d->phy.possible_phymodes & phymode) {
-			/* Ok, this device supports the PHY-mode.
-			 * Now figure out how the gmode bit has to be
-			 * set to support it. */
-			if (phymode == B43_PHYMODE_A)
-				*gmode = 0;
-			else
-				*gmode = 1;
-			*dev = d;
-
-			return 0;
-		}
-	}
-
-	return -ESRCH;
 }
 
 static void b43_put_phy_into_reset(struct b43_wldev *dev)
@@ -2699,28 +3089,64 @@ static void b43_put_phy_into_reset(struct b43_wldev *dev)
 	msleep(1);
 }
 
-/* Expects wl->mutex locked */
-static int b43_switch_phymode(struct b43_wl *wl, unsigned int new_mode)
+static const char * band_to_string(enum ieee80211_band band)
 {
-	struct b43_wldev *up_dev;
+	switch (band) {
+	case IEEE80211_BAND_5GHZ:
+		return "5";
+	case IEEE80211_BAND_2GHZ:
+		return "2.4";
+	default:
+		break;
+	}
+	B43_WARN_ON(1);
+	return "";
+}
+
+/* Expects wl->mutex locked */
+static int b43_switch_band(struct b43_wl *wl, struct ieee80211_channel *chan)
+{
+	struct b43_wldev *up_dev = NULL;
 	struct b43_wldev *down_dev;
+	struct b43_wldev *d;
 	int err;
-	bool gmode = 0;
+	bool gmode;
 	int prev_status;
 
-	err = find_wldev_for_phymode(wl, new_mode, &up_dev, &gmode);
-	if (err) {
-		b43err(wl, "Could not find a device for %s-PHY mode\n",
-		       phymode_to_string(new_mode));
-		return err;
+	/* Find a device and PHY which supports the band. */
+	list_for_each_entry(d, &wl->devlist, list) {
+		switch (chan->band) {
+		case IEEE80211_BAND_5GHZ:
+			if (d->phy.supports_5ghz) {
+				up_dev = d;
+				gmode = 0;
+			}
+			break;
+		case IEEE80211_BAND_2GHZ:
+			if (d->phy.supports_2ghz) {
+				up_dev = d;
+				gmode = 1;
+			}
+			break;
+		default:
+			B43_WARN_ON(1);
+			return -EINVAL;
+		}
+		if (up_dev)
+			break;
+	}
+	if (!up_dev) {
+		b43err(wl, "Could not find a device for %s-GHz band operation\n",
+		       band_to_string(chan->band));
+		return -ENODEV;
 	}
 	if ((up_dev == wl->current_dev) &&
 	    (!!wl->current_dev->phy.gmode == !!gmode)) {
 		/* This device is already running. */
 		return 0;
 	}
-	b43dbg(wl, "Reconfiguring PHYmode to %s-PHY\n",
-	       phymode_to_string(new_mode));
+	b43dbg(wl, "Switching to %s-GHz band\n",
+	       band_to_string(chan->band));
 	down_dev = wl->current_dev;
 
 	prev_status = b43_status(down_dev);
@@ -2742,8 +3168,8 @@ static int b43_switch_phymode(struct b43_wl *wl, unsigned int new_mode)
 		err = b43_wireless_core_init(up_dev);
 		if (err) {
 			b43err(wl, "Fatal: Could not initialize device for "
-			       "newly selected %s-PHY mode\n",
-			       phymode_to_string(new_mode));
+			       "selected %s-GHz band\n",
+			       band_to_string(chan->band));
 			goto init_failure;
 		}
 	}
@@ -2751,8 +3177,8 @@ static int b43_switch_phymode(struct b43_wl *wl, unsigned int new_mode)
 		err = b43_wireless_core_start(up_dev);
 		if (err) {
 			b43err(wl, "Fatal: Coult not start device for "
-			       "newly selected %s-PHY mode\n",
-			       phymode_to_string(new_mode));
+			       "selected %s-GHz band\n",
+			       band_to_string(chan->band));
 			b43_wireless_core_exit(up_dev);
 			goto init_failure;
 		}
@@ -2762,56 +3188,10 @@ static int b43_switch_phymode(struct b43_wl *wl, unsigned int new_mode)
 	wl->current_dev = up_dev;
 
 	return 0;
-      init_failure:
+init_failure:
 	/* Whoops, failed to init the new core. No core is operating now. */
 	wl->current_dev = NULL;
 	return err;
-}
-
-/* Check if the use of the antenna that ieee80211 told us to
- * use is possible. This will fall back to DEFAULT.
- * "antenna_nr" is the antenna identifier we got from ieee80211. */
-u8 b43_ieee80211_antenna_sanitize(struct b43_wldev *dev,
-				  u8 antenna_nr)
-{
-	u8 antenna_mask;
-
-	if (antenna_nr == 0) {
-		/* Zero means "use default antenna". That's always OK. */
-		return 0;
-	}
-
-	/* Get the mask of available antennas. */
-	if (dev->phy.gmode)
-		antenna_mask = dev->dev->bus->sprom.ant_available_bg;
-	else
-		antenna_mask = dev->dev->bus->sprom.ant_available_a;
-
-	if (!(antenna_mask & (1 << (antenna_nr - 1)))) {
-		/* This antenna is not available. Fall back to default. */
-		return 0;
-	}
-
-	return antenna_nr;
-}
-
-static int b43_antenna_from_ieee80211(struct b43_wldev *dev, u8 antenna)
-{
-	antenna = b43_ieee80211_antenna_sanitize(dev, antenna);
-	switch (antenna) {
-	case 0:		/* default/diversity */
-		return B43_ANTENNA_DEFAULT;
-	case 1:		/* Antenna 0 */
-		return B43_ANTENNA0;
-	case 2:		/* Antenna 1 */
-		return B43_ANTENNA1;
-	case 3:		/* Antenna 2 */
-		return B43_ANTENNA2;
-	case 4:		/* Antenna 3 */
-		return B43_ANTENNA3;
-	default:
-		return B43_ANTENNA_DEFAULT;
-	}
 }
 
 static int b43_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
@@ -2820,28 +3200,14 @@ static int b43_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 	struct b43_wldev *dev;
 	struct b43_phy *phy;
 	unsigned long flags;
-	unsigned int new_phymode = 0xFFFF;
 	int antenna;
 	int err = 0;
 	u32 savedirqs;
 
 	mutex_lock(&wl->mutex);
 
-	/* Switch the PHY mode (if necessary). */
-	switch (conf->phymode) {
-	case MODE_IEEE80211A:
-		new_phymode = B43_PHYMODE_A;
-		break;
-	case MODE_IEEE80211B:
-		new_phymode = B43_PHYMODE_B;
-		break;
-	case MODE_IEEE80211G:
-		new_phymode = B43_PHYMODE_G;
-		break;
-	default:
-		B43_WARN_ON(1);
-	}
-	err = b43_switch_phymode(wl, new_phymode);
+	/* Switch the band (if necessary). This might change the active core. */
+	err = b43_switch_band(wl, conf->channel);
 	if (err)
 		goto out_unlock_mutex;
 	dev = wl->current_dev;
@@ -2861,8 +3227,8 @@ static int b43_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 
 	/* Switch to the requested channel.
 	 * The firmware takes care of races with the TX handler. */
-	if (conf->channel_val != phy->channel)
-		b43_radio_selectchannel(dev, conf->channel_val, 0);
+	if (conf->channel->hw_value != phy->channel)
+		b43_radio_selectchannel(dev, conf->channel->hw_value, 0);
 
 	/* Enable/Disable ShortSlot timing. */
 	if ((!!(conf->flags & IEEE80211_CONF_SHORT_SLOT_TIME)) !=
@@ -3075,8 +3441,10 @@ static int b43_op_config_interface(struct ieee80211_hw *hw,
 		if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP)) {
 			B43_WARN_ON(conf->type != IEEE80211_IF_TYPE_AP);
 			b43_set_ssid(dev, conf->ssid, conf->ssid_len);
-			if (conf->beacon)
-				b43_update_templates(wl, conf->beacon);
+			if (conf->beacon) {
+				b43_update_templates(wl, conf->beacon,
+						     conf->beacon_control);
+			}
 		}
 		b43_write_mac_bssid_templates(dev);
 	}
@@ -3106,6 +3474,7 @@ static void b43_wireless_core_stop(struct b43_wldev *dev)
 
 	b43_set_status(dev, B43_STAT_INITIALIZED);
 
+	b43_pio_stop(dev);
 	mutex_unlock(&wl->mutex);
 	/* Must unlock as it would otherwise deadlock. No races here.
 	 * Cancel the possibly running self-rearming periodic work. */
@@ -3400,6 +3769,41 @@ static void b43_set_retry_limits(struct b43_wldev *dev,
 			long_retry);
 }
 
+static void b43_set_synth_pu_delay(struct b43_wldev *dev, bool idle)
+{
+	u16 pu_delay;
+
+	/* The time value is in microseconds. */
+	if (dev->phy.type == B43_PHYTYPE_A)
+		pu_delay = 3700;
+	else
+		pu_delay = 1050;
+	if (b43_is_mode(dev->wl, IEEE80211_IF_TYPE_IBSS) || idle)
+		pu_delay = 500;
+	if ((dev->phy.radio_ver == 0x2050) && (dev->phy.radio_rev == 8))
+		pu_delay = max(pu_delay, (u16)2400);
+
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_SPUWKUP, pu_delay);
+}
+
+/* Set the TSF CFP pre-TargetBeaconTransmissionTime. */
+static void b43_set_pretbtt(struct b43_wldev *dev)
+{
+	u16 pretbtt;
+
+	/* The time value is in microseconds. */
+	if (b43_is_mode(dev->wl, IEEE80211_IF_TYPE_IBSS)) {
+		pretbtt = 2;
+	} else {
+		if (dev->phy.type == B43_PHYTYPE_A)
+			pretbtt = 120;
+		else
+			pretbtt = 250;
+	}
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_PRETBTT, pretbtt);
+	b43_write16(dev, B43_MMIO_TSF_CFP_PRETBTT, pretbtt);
+}
+
 /* Shutdown a wireless core */
 /* Locking: wl->mutex */
 static void b43_wireless_core_exit(struct b43_wldev *dev)
@@ -3423,6 +3827,7 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 		b43_rng_exit(dev->wl, false);
 	}
 	b43_dma_free(dev);
+	b43_pio_free(dev);
 	b43_chip_exit(dev);
 	b43_radio_turn_off(dev, 1);
 	b43_switch_analog(dev, 0);
@@ -3510,6 +3915,7 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_PRMAXTIME, 1);
 
 	b43_rate_memory_init(dev);
+	b43_set_phytxctl_defaults(dev);
 
 	/* Minimum Contention Window */
 	if (phy->type == B43_PHYTYPE_B) {
@@ -3520,18 +3926,17 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	/* Maximum Contention Window */
 	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_MAXCONT, 0x3FF);
 
-	err = b43_dma_init(dev);
+	if ((dev->dev->bus->bustype == SSB_BUSTYPE_PCMCIA) || B43_FORCE_PIO) {
+		dev->__using_pio_transfers = 1;
+		err = b43_pio_init(dev);
+	} else {
+		dev->__using_pio_transfers = 0;
+		err = b43_dma_init(dev);
+	}
 	if (err)
 		goto err_chip_exit;
 	b43_qos_init(dev);
-
-//FIXME
-#if 1
-	b43_write16(dev, 0x0612, 0x0050);
-	b43_shm_write16(dev, B43_SHM_SHARED, 0x0416, 0x0050);
-	b43_shm_write16(dev, B43_SHM_SHARED, 0x0414, 0x01F4);
-#endif
-
+	b43_set_synth_pu_delay(dev, 1);
 	b43_bluetooth_coext_enable(dev);
 
 	ssb_bus_powerup(bus, 1);	/* Enable dynamic PCTL */
@@ -3591,6 +3996,8 @@ static int b43_op_add_interface(struct ieee80211_hw *hw,
 
 	spin_lock_irqsave(&wl->irq_lock, flags);
 	b43_adjust_opmode(dev);
+	b43_set_pretbtt(dev);
+	b43_set_synth_pu_delay(dev, 0);
 	b43_upload_card_macaddress(dev);
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 
@@ -3642,6 +4049,7 @@ static int b43_op_start(struct ieee80211_hw *hw)
 	memset(wl->mac_addr, 0, ETH_ALEN);
 	wl->filter_flags = 0;
 	wl->radiotap_enabled = 0;
+	b43_qos_clear(wl);
 
 	/* First register RFkill.
 	 * LEDs that are registered later depend on it. */
@@ -3683,6 +4091,8 @@ static void b43_op_stop(struct ieee80211_hw *hw)
 	struct b43_wldev *dev = wl->current_dev;
 
 	b43_rfkill_exit(dev);
+	cancel_work_sync(&(wl->qos_update_work));
+	cancel_work_sync(&(wl->beacon_update_trigger));
 
 	mutex_lock(&wl->mutex);
 	if (b43_status(dev) >= B43_STAT_STARTED)
@@ -3716,16 +4126,17 @@ static int b43_op_beacon_set_tim(struct ieee80211_hw *hw, int aid, int set)
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct sk_buff *beacon;
 	unsigned long flags;
+	struct ieee80211_tx_control txctl;
 
 	/* We could modify the existing beacon and set the aid bit in
 	 * the TIM field, but that would probably require resizing and
 	 * moving of data within the beacon template.
 	 * Simply request a new beacon and let mac80211 do the hard work. */
-	beacon = ieee80211_beacon_get(hw, wl->vif, NULL);
+	beacon = ieee80211_beacon_get(hw, wl->vif, &txctl);
 	if (unlikely(!beacon))
 		return -ENOMEM;
 	spin_lock_irqsave(&wl->irq_lock, flags);
-	b43_update_templates(wl, beacon);
+	b43_update_templates(wl, beacon, &txctl);
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 
 	return 0;
@@ -3739,10 +4150,20 @@ static int b43_op_ibss_beacon_update(struct ieee80211_hw *hw,
 	unsigned long flags;
 
 	spin_lock_irqsave(&wl->irq_lock, flags);
-	b43_update_templates(wl, beacon);
+	b43_update_templates(wl, beacon, ctl);
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 
 	return 0;
+}
+
+static void b43_op_sta_notify(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      enum sta_notify_cmd notify_cmd,
+			      const u8 *addr)
+{
+	struct b43_wl *wl = hw_to_b43_wl(hw);
+
+	B43_WARN_ON(!vif || wl->vif != vif);
 }
 
 static const struct ieee80211_ops b43_hw_ops = {
@@ -3761,6 +4182,7 @@ static const struct ieee80211_ops b43_hw_ops = {
 	.set_retry_limit	= b43_op_set_retry_limit,
 	.set_tim		= b43_op_beacon_set_tim,
 	.beacon_update		= b43_op_ibss_beacon_update,
+	.sta_notify		= b43_op_sta_notify,
 };
 
 /* Hard-reset the chip. Do not call this directly.
@@ -3804,31 +4226,23 @@ static void b43_chip_reset(struct work_struct *work)
 		b43info(wl, "Controller restarted\n");
 }
 
-static int b43_setup_modes(struct b43_wldev *dev,
+static int b43_setup_bands(struct b43_wldev *dev,
 			   bool have_2ghz_phy, bool have_5ghz_phy)
 {
 	struct ieee80211_hw *hw = dev->wl->hw;
-	struct ieee80211_hw_mode *mode;
-	struct b43_phy *phy = &dev->phy;
-	int err;
 
-	/* XXX: This function will go away soon, when mac80211
-	 *      band stuff is rewritten. So this is just a hack.
-	 *      For now we always claim GPHY mode, as there is no
-	 *      support for NPHY and APHY in the device, yet.
-	 *      This assumption is OK, as any B, N or A PHY will already
-	 *      have died a horrible sanity check death earlier. */
+	if (have_2ghz_phy)
+		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &b43_band_2GHz;
+	if (dev->phy.type == B43_PHYTYPE_N) {
+		if (have_5ghz_phy)
+			hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &b43_band_5GHz_nphy;
+	} else {
+		if (have_5ghz_phy)
+			hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &b43_band_5GHz_aphy;
+	}
 
-	mode = &phy->hwmodes[0];
-	mode->mode = MODE_IEEE80211G;
-	mode->num_channels = b43_2ghz_chantable_size;
-	mode->channels = b43_2ghz_chantable;
-	mode->num_rates = b43_g_ratetable_size;
-	mode->rates = b43_g_ratetable;
-	err = ieee80211_register_hwmode(hw, mode);
-	if (err)
-		return err;
-	phy->possible_phymodes |= B43_PHYMODE_G;
+	dev->phy.supports_2ghz = have_2ghz_phy;
+	dev->phy.supports_5ghz = have_5ghz_phy;
 
 	return 0;
 }
@@ -3910,7 +4324,7 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	err = b43_validate_chipaccess(dev);
 	if (err)
 		goto err_powerdown;
-	err = b43_setup_modes(dev, have_2ghz_phy, have_5ghz_phy);
+	err = b43_setup_bands(dev, have_2ghz_phy, have_5ghz_phy);
 	if (err)
 		goto err_powerdown;
 
@@ -4040,7 +4454,7 @@ static int b43_wireless_init(struct ssb_device *dev)
 	hw->max_signal = 100;
 	hw->max_rssi = -110;
 	hw->max_noise = -110;
-	hw->queues = 1;		/* FIXME: hardware has more queues */
+	hw->queues = b43_modparam_qos ? 4 : 1;
 	SET_IEEE80211_DEV(hw, dev->dev);
 	if (is_valid_ether_addr(sprom->et1mac))
 		SET_IEEE80211_PERM_ADDR(hw, sprom->et1mac);
@@ -4056,6 +4470,8 @@ static int b43_wireless_init(struct ssb_device *dev)
 	spin_lock_init(&wl->shm_lock);
 	mutex_init(&wl->mutex);
 	INIT_LIST_HEAD(&wl->devlist);
+	INIT_WORK(&wl->qos_update_work, b43_qos_update_work);
+	INIT_WORK(&wl->beacon_update_trigger, b43_beacon_update_trigger_work);
 
 	ssb_set_devtypedata(dev, wl);
 	b43info(wl, "Broadcom %04X WLAN found\n", dev->bus->chip_id);

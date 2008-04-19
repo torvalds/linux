@@ -538,11 +538,9 @@ CONFIG_CTC=m
 # CONFIG_SMSGIUCV is not set
 # CONFIG_CLAW is not set
 CONFIG_QETH=y
-
-#
-# Gigabit Ethernet default settings
-#
-# CONFIG_QETH_IPV6 is not set
+CONFIG_QETH_L2=y
+CONFIG_QETH_L3=y
+CONFIG_QETH_IPV6=y
 CONFIG_CCWGROUP=y
 # CONFIG_PPP is not set
 # CONFIG_SLIP is not set

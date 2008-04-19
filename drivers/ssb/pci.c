@@ -227,7 +227,7 @@ static u8 ssb_sprom_crc(const u16 *sprom, u16 size)
 	return crc;
 }
 
-static int sprom_check_crc(const u16 *sprom, u16 size)
+static int sprom_check_crc(const u16 *sprom, size_t size)
 {
 	u8 crc;
 	u8 expected_crc;
@@ -242,12 +242,14 @@ static int sprom_check_crc(const u16 *sprom, u16 size)
 	return 0;
 }
 
-static void sprom_do_read(struct ssb_bus *bus, u16 *sprom)
+static int sprom_do_read(struct ssb_bus *bus, u16 *sprom)
 {
 	int i;
 
 	for (i = 0; i < bus->sprom_size; i++)
 		sprom[i] = ioread16(bus->mmio + SSB_SPROM_BASE + (i * 2));
+
+	return 0;
 }
 
 static int sprom_do_write(struct ssb_bus *bus, const u16 *sprom)
@@ -572,6 +574,19 @@ static inline int ssb_pci_assert_buspower(struct ssb_bus *bus)
 }
 #endif /* DEBUG */
 
+static u8 ssb_pci_read8(struct ssb_device *dev, u16 offset)
+{
+	struct ssb_bus *bus = dev->bus;
+
+	if (unlikely(ssb_pci_assert_buspower(bus)))
+		return 0xFF;
+	if (unlikely(bus->mapped_device != dev)) {
+		if (unlikely(ssb_pci_switch_core(bus, dev)))
+			return 0xFF;
+	}
+	return ioread8(bus->mmio + offset);
+}
+
 static u16 ssb_pci_read16(struct ssb_device *dev, u16 offset)
 {
 	struct ssb_bus *bus = dev->bus;
@@ -596,6 +611,54 @@ static u32 ssb_pci_read32(struct ssb_device *dev, u16 offset)
 			return 0xFFFFFFFF;
 	}
 	return ioread32(bus->mmio + offset);
+}
+
+#ifdef CONFIG_SSB_BLOCKIO
+static void ssb_pci_block_read(struct ssb_device *dev, void *buffer,
+			       size_t count, u16 offset, u8 reg_width)
+{
+	struct ssb_bus *bus = dev->bus;
+	void __iomem *addr = bus->mmio + offset;
+
+	if (unlikely(ssb_pci_assert_buspower(bus)))
+		goto error;
+	if (unlikely(bus->mapped_device != dev)) {
+		if (unlikely(ssb_pci_switch_core(bus, dev)))
+			goto error;
+	}
+	switch (reg_width) {
+	case sizeof(u8):
+		ioread8_rep(addr, buffer, count);
+		break;
+	case sizeof(u16):
+		SSB_WARN_ON(count & 1);
+		ioread16_rep(addr, buffer, count >> 1);
+		break;
+	case sizeof(u32):
+		SSB_WARN_ON(count & 3);
+		ioread32_rep(addr, buffer, count >> 2);
+		break;
+	default:
+		SSB_WARN_ON(1);
+	}
+
+	return;
+error:
+	memset(buffer, 0xFF, count);
+}
+#endif /* CONFIG_SSB_BLOCKIO */
+
+static void ssb_pci_write8(struct ssb_device *dev, u16 offset, u8 value)
+{
+	struct ssb_bus *bus = dev->bus;
+
+	if (unlikely(ssb_pci_assert_buspower(bus)))
+		return;
+	if (unlikely(bus->mapped_device != dev)) {
+		if (unlikely(ssb_pci_switch_core(bus, dev)))
+			return;
+	}
+	iowrite8(value, bus->mmio + offset);
 }
 
 static void ssb_pci_write16(struct ssb_device *dev, u16 offset, u16 value)
@@ -624,44 +687,50 @@ static void ssb_pci_write32(struct ssb_device *dev, u16 offset, u32 value)
 	iowrite32(value, bus->mmio + offset);
 }
 
+#ifdef CONFIG_SSB_BLOCKIO
+static void ssb_pci_block_write(struct ssb_device *dev, const void *buffer,
+				size_t count, u16 offset, u8 reg_width)
+{
+	struct ssb_bus *bus = dev->bus;
+	void __iomem *addr = bus->mmio + offset;
+
+	if (unlikely(ssb_pci_assert_buspower(bus)))
+		return;
+	if (unlikely(bus->mapped_device != dev)) {
+		if (unlikely(ssb_pci_switch_core(bus, dev)))
+			return;
+	}
+	switch (reg_width) {
+	case sizeof(u8):
+		iowrite8_rep(addr, buffer, count);
+		break;
+	case sizeof(u16):
+		SSB_WARN_ON(count & 1);
+		iowrite16_rep(addr, buffer, count >> 1);
+		break;
+	case sizeof(u32):
+		SSB_WARN_ON(count & 3);
+		iowrite32_rep(addr, buffer, count >> 2);
+		break;
+	default:
+		SSB_WARN_ON(1);
+	}
+}
+#endif /* CONFIG_SSB_BLOCKIO */
+
 /* Not "static", as it's used in main.c */
 const struct ssb_bus_ops ssb_pci_ops = {
+	.read8		= ssb_pci_read8,
 	.read16		= ssb_pci_read16,
 	.read32		= ssb_pci_read32,
+	.write8		= ssb_pci_write8,
 	.write16	= ssb_pci_write16,
 	.write32	= ssb_pci_write32,
+#ifdef CONFIG_SSB_BLOCKIO
+	.block_read	= ssb_pci_block_read,
+	.block_write	= ssb_pci_block_write,
+#endif
 };
-
-static int sprom2hex(const u16 *sprom, char *buf, size_t buf_len, u16 size)
-{
-	int i, pos = 0;
-
-	for (i = 0; i < size; i++)
-		pos += snprintf(buf + pos, buf_len - pos - 1,
-				"%04X", swab16(sprom[i]) & 0xFFFF);
-	pos += snprintf(buf + pos, buf_len - pos - 1, "\n");
-
-	return pos + 1;
-}
-
-static int hex2sprom(u16 *sprom, const char *dump, size_t len, u16 size)
-{
-	char tmp[5] = { 0 };
-	int cnt = 0;
-	unsigned long parsed;
-
-	if (len < size * 2)
-		return -EINVAL;
-
-	while (cnt < size) {
-		memcpy(tmp, dump, 4);
-		dump += 4;
-		parsed = simple_strtoul(tmp, NULL, 16);
-		sprom[cnt++] = swab16((u16)parsed);
-	}
-
-	return 0;
-}
 
 static ssize_t ssb_pci_attr_sprom_show(struct device *pcidev,
 				       struct device_attribute *attr,
@@ -669,34 +738,12 @@ static ssize_t ssb_pci_attr_sprom_show(struct device *pcidev,
 {
 	struct pci_dev *pdev = container_of(pcidev, struct pci_dev, dev);
 	struct ssb_bus *bus;
-	u16 *sprom;
-	int err = -ENODEV;
-	ssize_t count = 0;
 
 	bus = ssb_pci_dev_to_bus(pdev);
 	if (!bus)
-		goto out;
-	err = -ENOMEM;
-	sprom = kcalloc(bus->sprom_size, sizeof(u16), GFP_KERNEL);
-	if (!sprom)
-		goto out;
+		return -ENODEV;
 
-	/* Use interruptible locking, as the SPROM write might
-	 * be holding the lock for several seconds. So allow userspace
-	 * to cancel operation. */
-	err = -ERESTARTSYS;
-	if (mutex_lock_interruptible(&bus->pci_sprom_mutex))
-		goto out_kfree;
-	sprom_do_read(bus, sprom);
-	mutex_unlock(&bus->pci_sprom_mutex);
-
-	count = sprom2hex(sprom, buf, PAGE_SIZE, bus->sprom_size);
-	err = 0;
-
-out_kfree:
-	kfree(sprom);
-out:
-	return err ? err : count;
+	return ssb_attr_sprom_show(bus, buf, sprom_do_read);
 }
 
 static ssize_t ssb_pci_attr_sprom_store(struct device *pcidev,
@@ -705,55 +752,13 @@ static ssize_t ssb_pci_attr_sprom_store(struct device *pcidev,
 {
 	struct pci_dev *pdev = container_of(pcidev, struct pci_dev, dev);
 	struct ssb_bus *bus;
-	u16 *sprom;
-	int res = 0, err = -ENODEV;
 
 	bus = ssb_pci_dev_to_bus(pdev);
 	if (!bus)
-		goto out;
-	err = -ENOMEM;
-	sprom = kcalloc(bus->sprom_size, sizeof(u16), GFP_KERNEL);
-	if (!sprom)
-		goto out;
-	err = hex2sprom(sprom, buf, count, bus->sprom_size);
-	if (err) {
-		err = -EINVAL;
-		goto out_kfree;
-	}
-	err = sprom_check_crc(sprom, bus->sprom_size);
-	if (err) {
-		err = -EINVAL;
-		goto out_kfree;
-	}
+		return -ENODEV;
 
-	/* Use interruptible locking, as the SPROM write might
-	 * be holding the lock for several seconds. So allow userspace
-	 * to cancel operation. */
-	err = -ERESTARTSYS;
-	if (mutex_lock_interruptible(&bus->pci_sprom_mutex))
-		goto out_kfree;
-	err = ssb_devices_freeze(bus);
-	if (err == -EOPNOTSUPP) {
-		ssb_printk(KERN_ERR PFX "SPROM write: Could not freeze devices. "
-			   "No suspend support. Is CONFIG_PM enabled?\n");
-		goto out_unlock;
-	}
-	if (err) {
-		ssb_printk(KERN_ERR PFX "SPROM write: Could not freeze all devices\n");
-		goto out_unlock;
-	}
-	res = sprom_do_write(bus, sprom);
-	err = ssb_devices_thaw(bus);
-	if (err)
-		ssb_printk(KERN_ERR PFX "SPROM write: Could not thaw all devices\n");
-out_unlock:
-	mutex_unlock(&bus->pci_sprom_mutex);
-out_kfree:
-	kfree(sprom);
-out:
-	if (res)
-		return res;
-	return err ? err : count;
+	return ssb_attr_sprom_store(bus, buf, count,
+				    sprom_check_crc, sprom_do_write);
 }
 
 static DEVICE_ATTR(ssb_sprom, 0600,
@@ -780,7 +785,7 @@ int ssb_pci_init(struct ssb_bus *bus)
 		return 0;
 
 	pdev = bus->host_pci;
-	mutex_init(&bus->pci_sprom_mutex);
+	mutex_init(&bus->sprom_mutex);
 	err = device_create_file(&pdev->dev, &dev_attr_ssb_sprom);
 	if (err)
 		goto out;

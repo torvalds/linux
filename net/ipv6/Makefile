@@ -11,11 +11,14 @@ ipv6-objs :=	af_inet6.o anycast.o ip6_output.o ip6_input.o addrconf.o \
 		exthdrs.o datagram.o ip6_flowlabel.o inet6_connection_sock.o
 
 ipv6-$(CONFIG_SYSCTL) = sysctl_net_ipv6.o
+ipv6-$(CONFIG_IPV6_MROUTE) += ip6mr.o
+
 ipv6-$(CONFIG_XFRM) += xfrm6_policy.o xfrm6_state.o xfrm6_input.o \
 	xfrm6_output.o
 ipv6-$(CONFIG_NETFILTER) += netfilter.o
 ipv6-$(CONFIG_IPV6_MULTIPLE_TABLES) += fib6_rules.o
 ipv6-$(CONFIG_PROC_FS) += proc.o
+ipv6-$(CONFIG_SYN_COOKIES) += syncookies.o
 
 ipv6-objs += $(ipv6-y)
 

@@ -100,8 +100,8 @@ typedef enum {
 } e1000_fc_type;
 
 struct e1000_shadow_ram {
-    uint16_t    eeprom_word;
-    boolean_t   modified;
+    u16 eeprom_word;
+    bool modified;
 };
 
 /* PCI bus types */
@@ -263,19 +263,19 @@ struct e1000_phy_info {
 };
 
 struct e1000_phy_stats {
-    uint32_t idle_errors;
-    uint32_t receive_errors;
+    u32 idle_errors;
+    u32 receive_errors;
 };
 
 struct e1000_eeprom_info {
     e1000_eeprom_type type;
-    uint16_t word_size;
-    uint16_t opcode_bits;
-    uint16_t address_bits;
-    uint16_t delay_usec;
-    uint16_t page_size;
-    boolean_t use_eerd;
-    boolean_t use_eewr;
+    u16 word_size;
+    u16 opcode_bits;
+    u16 address_bits;
+    u16 delay_usec;
+    u16 page_size;
+    bool use_eerd;
+    bool use_eewr;
 };
 
 /* Flex ASF Information */
@@ -308,34 +308,34 @@ typedef enum {
 
 /* Function prototypes */
 /* Initialization */
-int32_t e1000_reset_hw(struct e1000_hw *hw);
-int32_t e1000_init_hw(struct e1000_hw *hw);
-int32_t e1000_set_mac_type(struct e1000_hw *hw);
+s32 e1000_reset_hw(struct e1000_hw *hw);
+s32 e1000_init_hw(struct e1000_hw *hw);
+s32 e1000_set_mac_type(struct e1000_hw *hw);
 void e1000_set_media_type(struct e1000_hw *hw);
 
 /* Link Configuration */
-int32_t e1000_setup_link(struct e1000_hw *hw);
-int32_t e1000_phy_setup_autoneg(struct e1000_hw *hw);
+s32 e1000_setup_link(struct e1000_hw *hw);
+s32 e1000_phy_setup_autoneg(struct e1000_hw *hw);
 void e1000_config_collision_dist(struct e1000_hw *hw);
-int32_t e1000_check_for_link(struct e1000_hw *hw);
-int32_t e1000_get_speed_and_duplex(struct e1000_hw *hw, uint16_t *speed, uint16_t *duplex);
-int32_t e1000_force_mac_fc(struct e1000_hw *hw);
+s32 e1000_check_for_link(struct e1000_hw *hw);
+s32 e1000_get_speed_and_duplex(struct e1000_hw *hw, u16 *speed, u16 *duplex);
+s32 e1000_force_mac_fc(struct e1000_hw *hw);
 
 /* PHY */
-int32_t e1000_read_phy_reg(struct e1000_hw *hw, uint32_t reg_addr, uint16_t *phy_data);
-int32_t e1000_write_phy_reg(struct e1000_hw *hw, uint32_t reg_addr, uint16_t data);
-int32_t e1000_phy_hw_reset(struct e1000_hw *hw);
-int32_t e1000_phy_reset(struct e1000_hw *hw);
-int32_t e1000_phy_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info);
-int32_t e1000_validate_mdi_setting(struct e1000_hw *hw);
+s32 e1000_read_phy_reg(struct e1000_hw *hw, u32 reg_addr, u16 *phy_data);
+s32 e1000_write_phy_reg(struct e1000_hw *hw, u32 reg_addr, u16 data);
+s32 e1000_phy_hw_reset(struct e1000_hw *hw);
+s32 e1000_phy_reset(struct e1000_hw *hw);
+s32 e1000_phy_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info);
+s32 e1000_validate_mdi_setting(struct e1000_hw *hw);
 
 void e1000_phy_powerdown_workaround(struct e1000_hw *hw);
 
 /* EEPROM Functions */
-int32_t e1000_init_eeprom_params(struct e1000_hw *hw);
+s32 e1000_init_eeprom_params(struct e1000_hw *hw);
 
 /* MNG HOST IF functions */
-uint32_t e1000_enable_mng_pass_thru(struct e1000_hw *hw);
+u32 e1000_enable_mng_pass_thru(struct e1000_hw *hw);
 
 #define E1000_MNG_DHCP_TX_PAYLOAD_CMD   64
 #define E1000_HI_MAX_MNG_DATA_LENGTH    0x6F8   /* Host Interface data length */
@@ -354,80 +354,80 @@ uint32_t e1000_enable_mng_pass_thru(struct e1000_hw *hw);
 #define E1000_VFTA_ENTRY_BIT_SHIFT_MASK              0x1F
 
 struct e1000_host_mng_command_header {
-    uint8_t command_id;
-    uint8_t checksum;
-    uint16_t reserved1;
-    uint16_t reserved2;
-    uint16_t command_length;
+    u8 command_id;
+    u8 checksum;
+    u16 reserved1;
+    u16 reserved2;
+    u16 command_length;
 };
 
 struct e1000_host_mng_command_info {
     struct e1000_host_mng_command_header command_header;  /* Command Head/Command Result Head has 4 bytes */
-    uint8_t command_data[E1000_HI_MAX_MNG_DATA_LENGTH];   /* Command data can length 0..0x658*/
+    u8 command_data[E1000_HI_MAX_MNG_DATA_LENGTH];   /* Command data can length 0..0x658*/
 };
 #ifdef __BIG_ENDIAN
 struct e1000_host_mng_dhcp_cookie{
-    uint32_t signature;
-    uint16_t vlan_id;
-    uint8_t reserved0;
-    uint8_t status;
-    uint32_t reserved1;
-    uint8_t checksum;
-    uint8_t reserved3;
-    uint16_t reserved2;
+    u32 signature;
+    u16 vlan_id;
+    u8 reserved0;
+    u8 status;
+    u32 reserved1;
+    u8 checksum;
+    u8 reserved3;
+    u16 reserved2;
 };
 #else
 struct e1000_host_mng_dhcp_cookie{
-    uint32_t signature;
-    uint8_t status;
-    uint8_t reserved0;
-    uint16_t vlan_id;
-    uint32_t reserved1;
-    uint16_t reserved2;
-    uint8_t reserved3;
-    uint8_t checksum;
+    u32 signature;
+    u8 status;
+    u8 reserved0;
+    u16 vlan_id;
+    u32 reserved1;
+    u16 reserved2;
+    u8 reserved3;
+    u8 checksum;
 };
 #endif
 
-int32_t e1000_mng_write_dhcp_info(struct e1000_hw *hw, uint8_t *buffer,
-                                  uint16_t length);
-boolean_t e1000_check_mng_mode(struct e1000_hw *hw);
-boolean_t e1000_enable_tx_pkt_filtering(struct e1000_hw *hw);
-int32_t e1000_read_eeprom(struct e1000_hw *hw, uint16_t reg, uint16_t words, uint16_t *data);
-int32_t e1000_validate_eeprom_checksum(struct e1000_hw *hw);
-int32_t e1000_update_eeprom_checksum(struct e1000_hw *hw);
-int32_t e1000_write_eeprom(struct e1000_hw *hw, uint16_t reg, uint16_t words, uint16_t *data);
-int32_t e1000_read_mac_addr(struct e1000_hw * hw);
+s32 e1000_mng_write_dhcp_info(struct e1000_hw *hw, u8 *buffer,
+                                  u16 length);
+bool e1000_check_mng_mode(struct e1000_hw *hw);
+bool e1000_enable_tx_pkt_filtering(struct e1000_hw *hw);
+s32 e1000_read_eeprom(struct e1000_hw *hw, u16 reg, u16 words, u16 *data);
+s32 e1000_validate_eeprom_checksum(struct e1000_hw *hw);
+s32 e1000_update_eeprom_checksum(struct e1000_hw *hw);
+s32 e1000_write_eeprom(struct e1000_hw *hw, u16 reg, u16 words, u16 *data);
+s32 e1000_read_mac_addr(struct e1000_hw * hw);
 
 /* Filters (multicast, vlan, receive) */
-uint32_t e1000_hash_mc_addr(struct e1000_hw *hw, uint8_t * mc_addr);
-void e1000_mta_set(struct e1000_hw *hw, uint32_t hash_value);
-void e1000_rar_set(struct e1000_hw *hw, uint8_t * mc_addr, uint32_t rar_index);
-void e1000_write_vfta(struct e1000_hw *hw, uint32_t offset, uint32_t value);
+u32 e1000_hash_mc_addr(struct e1000_hw *hw, u8 * mc_addr);
+void e1000_mta_set(struct e1000_hw *hw, u32 hash_value);
+void e1000_rar_set(struct e1000_hw *hw, u8 * mc_addr, u32 rar_index);
+void e1000_write_vfta(struct e1000_hw *hw, u32 offset, u32 value);
 
 /* LED functions */
-int32_t e1000_setup_led(struct e1000_hw *hw);
-int32_t e1000_cleanup_led(struct e1000_hw *hw);
-int32_t e1000_led_on(struct e1000_hw *hw);
-int32_t e1000_led_off(struct e1000_hw *hw);
-int32_t e1000_blink_led_start(struct e1000_hw *hw);
+s32 e1000_setup_led(struct e1000_hw *hw);
+s32 e1000_cleanup_led(struct e1000_hw *hw);
+s32 e1000_led_on(struct e1000_hw *hw);
+s32 e1000_led_off(struct e1000_hw *hw);
+s32 e1000_blink_led_start(struct e1000_hw *hw);
 
 /* Adaptive IFS Functions */
 
 /* Everything else */
 void e1000_reset_adaptive(struct e1000_hw *hw);
 void e1000_update_adaptive(struct e1000_hw *hw);
-void e1000_tbi_adjust_stats(struct e1000_hw *hw, struct e1000_hw_stats *stats, uint32_t frame_len, uint8_t * mac_addr);
+void e1000_tbi_adjust_stats(struct e1000_hw *hw, struct e1000_hw_stats *stats, u32 frame_len, u8 * mac_addr);
 void e1000_get_bus_info(struct e1000_hw *hw);
 void e1000_pci_set_mwi(struct e1000_hw *hw);
 void e1000_pci_clear_mwi(struct e1000_hw *hw);
-int32_t e1000_read_pcie_cap_reg(struct e1000_hw *hw, uint32_t reg, uint16_t *value);
+s32 e1000_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
 void e1000_pcix_set_mmrbc(struct e1000_hw *hw, int mmrbc);
 int e1000_pcix_get_mmrbc(struct e1000_hw *hw);
 /* Port I/O is only supported on 82544 and newer */
-void e1000_io_write(struct e1000_hw *hw, unsigned long port, uint32_t value);
-int32_t e1000_disable_pciex_master(struct e1000_hw *hw);
-int32_t e1000_check_phy_reset_block(struct e1000_hw *hw);
+void e1000_io_write(struct e1000_hw *hw, unsigned long port, u32 value);
+s32 e1000_disable_pciex_master(struct e1000_hw *hw);
+s32 e1000_check_phy_reset_block(struct e1000_hw *hw);
 
 
 #define E1000_READ_REG_IO(a, reg) \
@@ -596,8 +596,8 @@ struct e1000_rx_desc {
     __le64 buffer_addr; /* Address of the descriptor's data buffer */
     __le16 length;     /* Length of data DMAed into data buffer */
     __le16 csum;       /* Packet checksum */
-    uint8_t status;      /* Descriptor status */
-    uint8_t errors;      /* Descriptor Errors */
+    u8 status;      /* Descriptor status */
+    u8 errors;      /* Descriptor Errors */
     __le16 special;
 };
 
@@ -718,15 +718,15 @@ struct e1000_tx_desc {
         __le32 data;
         struct {
             __le16 length;    /* Data buffer length */
-            uint8_t cso;        /* Checksum offset */
-            uint8_t cmd;        /* Descriptor control */
+            u8 cso;        /* Checksum offset */
+            u8 cmd;        /* Descriptor control */
         } flags;
     } lower;
     union {
         __le32 data;
         struct {
-            uint8_t status;     /* Descriptor status */
-            uint8_t css;        /* Checksum start */
+            u8 status;     /* Descriptor status */
+            u8 css;        /* Checksum start */
             __le16 special;
         } fields;
     } upper;
@@ -759,16 +759,16 @@ struct e1000_context_desc {
     union {
         __le32 ip_config;
         struct {
-            uint8_t ipcss;      /* IP checksum start */
-            uint8_t ipcso;      /* IP checksum offset */
+            u8 ipcss;      /* IP checksum start */
+            u8 ipcso;      /* IP checksum offset */
             __le16 ipcse;     /* IP checksum end */
         } ip_fields;
     } lower_setup;
     union {
         __le32 tcp_config;
         struct {
-            uint8_t tucss;      /* TCP checksum start */
-            uint8_t tucso;      /* TCP checksum offset */
+            u8 tucss;      /* TCP checksum start */
+            u8 tucso;      /* TCP checksum offset */
             __le16 tucse;     /* TCP checksum end */
         } tcp_fields;
     } upper_setup;
@@ -776,8 +776,8 @@ struct e1000_context_desc {
     union {
         __le32 data;
         struct {
-            uint8_t status;     /* Descriptor status */
-            uint8_t hdr_len;    /* Header length */
+            u8 status;     /* Descriptor status */
+            u8 hdr_len;    /* Header length */
             __le16 mss;       /* Maximum segment size */
         } fields;
     } tcp_seg_setup;
@@ -790,15 +790,15 @@ struct e1000_data_desc {
         __le32 data;
         struct {
             __le16 length;    /* Data buffer length */
-            uint8_t typ_len_ext;        /* */
-            uint8_t cmd;        /* */
+            u8 typ_len_ext;        /* */
+            u8 cmd;        /* */
         } flags;
     } lower;
     union {
         __le32 data;
         struct {
-            uint8_t status;     /* Descriptor status */
-            uint8_t popts;      /* Packet Options */
+            u8 status;     /* Descriptor status */
+            u8 popts;      /* Packet Options */
             __le16 special;   /* */
         } fields;
     } upper;
@@ -825,8 +825,8 @@ struct e1000_rar {
 
 /* IPv4 Address Table Entry */
 struct e1000_ipv4_at_entry {
-    volatile uint32_t ipv4_addr;        /* IP Address (RW) */
-    volatile uint32_t reserved;
+    volatile u32 ipv4_addr;        /* IP Address (RW) */
+    volatile u32 reserved;
 };
 
 /* Four wakeup IP addresses are supported */
@@ -837,25 +837,25 @@ struct e1000_ipv4_at_entry {
 
 /* IPv6 Address Table Entry */
 struct e1000_ipv6_at_entry {
-    volatile uint8_t ipv6_addr[16];
+    volatile u8 ipv6_addr[16];
 };
 
 /* Flexible Filter Length Table Entry */
 struct e1000_fflt_entry {
-    volatile uint32_t length;   /* Flexible Filter Length (RW) */
-    volatile uint32_t reserved;
+    volatile u32 length;   /* Flexible Filter Length (RW) */
+    volatile u32 reserved;
 };
 
 /* Flexible Filter Mask Table Entry */
 struct e1000_ffmt_entry {
-    volatile uint32_t mask;     /* Flexible Filter Mask (RW) */
-    volatile uint32_t reserved;
+    volatile u32 mask;     /* Flexible Filter Mask (RW) */
+    volatile u32 reserved;
 };
 
 /* Flexible Filter Value Table Entry */
 struct e1000_ffvt_entry {
-    volatile uint32_t value;    /* Flexible Filter Value (RW) */
-    volatile uint32_t reserved;
+    volatile u32 value;    /* Flexible Filter Value (RW) */
+    volatile u32 reserved;
 };
 
 /* Four Flexible Filters are supported */
@@ -1309,89 +1309,89 @@ struct e1000_ffvt_entry {
 
 /* Statistics counters collected by the MAC */
 struct e1000_hw_stats {
-	uint64_t		crcerrs;
-	uint64_t		algnerrc;
-	uint64_t		symerrs;
-	uint64_t		rxerrc;
-	uint64_t		txerrc;
-	uint64_t		mpc;
-	uint64_t		scc;
-	uint64_t		ecol;
-	uint64_t		mcc;
-	uint64_t		latecol;
-	uint64_t		colc;
-	uint64_t		dc;
-	uint64_t		tncrs;
-	uint64_t		sec;
-	uint64_t		cexterr;
-	uint64_t		rlec;
-	uint64_t		xonrxc;
-	uint64_t		xontxc;
-	uint64_t		xoffrxc;
-	uint64_t		xofftxc;
-	uint64_t		fcruc;
-	uint64_t		prc64;
-	uint64_t		prc127;
-	uint64_t		prc255;
-	uint64_t		prc511;
-	uint64_t		prc1023;
-	uint64_t		prc1522;
-	uint64_t		gprc;
-	uint64_t		bprc;
-	uint64_t		mprc;
-	uint64_t		gptc;
-	uint64_t		gorcl;
-	uint64_t		gorch;
-	uint64_t		gotcl;
-	uint64_t		gotch;
-	uint64_t		rnbc;
-	uint64_t		ruc;
-	uint64_t		rfc;
-	uint64_t		roc;
-	uint64_t		rlerrc;
-	uint64_t		rjc;
-	uint64_t		mgprc;
-	uint64_t		mgpdc;
-	uint64_t		mgptc;
-	uint64_t		torl;
-	uint64_t		torh;
-	uint64_t		totl;
-	uint64_t		toth;
-	uint64_t		tpr;
-	uint64_t		tpt;
-	uint64_t		ptc64;
-	uint64_t		ptc127;
-	uint64_t		ptc255;
-	uint64_t		ptc511;
-	uint64_t		ptc1023;
-	uint64_t		ptc1522;
-	uint64_t		mptc;
-	uint64_t		bptc;
-	uint64_t		tsctc;
-	uint64_t		tsctfc;
-	uint64_t		iac;
-	uint64_t		icrxptc;
-	uint64_t		icrxatc;
-	uint64_t		ictxptc;
-	uint64_t		ictxatc;
-	uint64_t		ictxqec;
-	uint64_t		ictxqmtc;
-	uint64_t		icrxdmtc;
-	uint64_t		icrxoc;
+	u64		crcerrs;
+	u64		algnerrc;
+	u64		symerrs;
+	u64		rxerrc;
+	u64		txerrc;
+	u64		mpc;
+	u64		scc;
+	u64		ecol;
+	u64		mcc;
+	u64		latecol;
+	u64		colc;
+	u64		dc;
+	u64		tncrs;
+	u64		sec;
+	u64		cexterr;
+	u64		rlec;
+	u64		xonrxc;
+	u64		xontxc;
+	u64		xoffrxc;
+	u64		xofftxc;
+	u64		fcruc;
+	u64		prc64;
+	u64		prc127;
+	u64		prc255;
+	u64		prc511;
+	u64		prc1023;
+	u64		prc1522;
+	u64		gprc;
+	u64		bprc;
+	u64		mprc;
+	u64		gptc;
+	u64		gorcl;
+	u64		gorch;
+	u64		gotcl;
+	u64		gotch;
+	u64		rnbc;
+	u64		ruc;
+	u64		rfc;
+	u64		roc;
+	u64		rlerrc;
+	u64		rjc;
+	u64		mgprc;
+	u64		mgpdc;
+	u64		mgptc;
+	u64		torl;
+	u64		torh;
+	u64		totl;
+	u64		toth;
+	u64		tpr;
+	u64		tpt;
+	u64		ptc64;
+	u64		ptc127;
+	u64		ptc255;
+	u64		ptc511;
+	u64		ptc1023;
+	u64		ptc1522;
+	u64		mptc;
+	u64		bptc;
+	u64		tsctc;
+	u64		tsctfc;
+	u64		iac;
+	u64		icrxptc;
+	u64		icrxatc;
+	u64		ictxptc;
+	u64		ictxatc;
+	u64		ictxqec;
+	u64		ictxqmtc;
+	u64		icrxdmtc;
+	u64		icrxoc;
 };
 
 /* Structure containing variables used by the shared code (e1000_hw.c) */
 struct e1000_hw {
-	uint8_t __iomem		*hw_addr;
-	uint8_t __iomem		*flash_address;
+	u8 __iomem		*hw_addr;
+	u8 __iomem		*flash_address;
 	e1000_mac_type		mac_type;
 	e1000_phy_type		phy_type;
-	uint32_t		phy_init_script;
+	u32		phy_init_script;
 	e1000_media_type	media_type;
 	void			*back;
 	struct e1000_shadow_ram	*eeprom_shadow_ram;
-	uint32_t		flash_bank_size;
-	uint32_t		flash_base_addr;
+	u32		flash_bank_size;
+	u32		flash_base_addr;
 	e1000_fc_type		fc;
 	e1000_bus_speed		bus_speed;
 	e1000_bus_width		bus_width;
@@ -1400,75 +1400,75 @@ struct e1000_hw {
 	e1000_ms_type		master_slave;
 	e1000_ms_type		original_master_slave;
 	e1000_ffe_config	ffe_config_state;
-	uint32_t		asf_firmware_present;
-	uint32_t		eeprom_semaphore_present;
-	uint32_t		swfw_sync_present;
-	uint32_t		swfwhw_semaphore_present;
+	u32		asf_firmware_present;
+	u32		eeprom_semaphore_present;
+	u32		swfw_sync_present;
+	u32		swfwhw_semaphore_present;
 	unsigned long		io_base;
-	uint32_t		phy_id;
-	uint32_t		phy_revision;
-	uint32_t		phy_addr;
-	uint32_t		original_fc;
-	uint32_t		txcw;
-	uint32_t		autoneg_failed;
-	uint32_t		max_frame_size;
-	uint32_t		min_frame_size;
-	uint32_t		mc_filter_type;
-	uint32_t		num_mc_addrs;
-	uint32_t		collision_delta;
-	uint32_t		tx_packet_delta;
-	uint32_t		ledctl_default;
-	uint32_t		ledctl_mode1;
-	uint32_t		ledctl_mode2;
-	boolean_t		tx_pkt_filtering;
+	u32		phy_id;
+	u32		phy_revision;
+	u32		phy_addr;
+	u32		original_fc;
+	u32		txcw;
+	u32		autoneg_failed;
+	u32		max_frame_size;
+	u32		min_frame_size;
+	u32		mc_filter_type;
+	u32		num_mc_addrs;
+	u32		collision_delta;
+	u32		tx_packet_delta;
+	u32		ledctl_default;
+	u32		ledctl_mode1;
+	u32		ledctl_mode2;
+	bool			tx_pkt_filtering;
 	struct e1000_host_mng_dhcp_cookie mng_cookie;
-	uint16_t		phy_spd_default;
-	uint16_t		autoneg_advertised;
-	uint16_t		pci_cmd_word;
-	uint16_t		fc_high_water;
-	uint16_t		fc_low_water;
-	uint16_t		fc_pause_time;
-	uint16_t		current_ifs_val;
-	uint16_t		ifs_min_val;
-	uint16_t		ifs_max_val;
-	uint16_t		ifs_step_size;
-	uint16_t		ifs_ratio;
-	uint16_t		device_id;
-	uint16_t		vendor_id;
-	uint16_t		subsystem_id;
-	uint16_t		subsystem_vendor_id;
-	uint8_t			revision_id;
-	uint8_t			autoneg;
-	uint8_t			mdix;
-	uint8_t			forced_speed_duplex;
-	uint8_t			wait_autoneg_complete;
-	uint8_t			dma_fairness;
-	uint8_t			mac_addr[NODE_ADDRESS_SIZE];
-	uint8_t			perm_mac_addr[NODE_ADDRESS_SIZE];
-	boolean_t		disable_polarity_correction;
-	boolean_t		speed_downgraded;
+	u16		phy_spd_default;
+	u16		autoneg_advertised;
+	u16		pci_cmd_word;
+	u16		fc_high_water;
+	u16		fc_low_water;
+	u16		fc_pause_time;
+	u16		current_ifs_val;
+	u16		ifs_min_val;
+	u16		ifs_max_val;
+	u16		ifs_step_size;
+	u16		ifs_ratio;
+	u16		device_id;
+	u16		vendor_id;
+	u16		subsystem_id;
+	u16		subsystem_vendor_id;
+	u8			revision_id;
+	u8			autoneg;
+	u8			mdix;
+	u8			forced_speed_duplex;
+	u8			wait_autoneg_complete;
+	u8			dma_fairness;
+	u8			mac_addr[NODE_ADDRESS_SIZE];
+	u8			perm_mac_addr[NODE_ADDRESS_SIZE];
+	bool			disable_polarity_correction;
+	bool			speed_downgraded;
 	e1000_smart_speed	smart_speed;
 	e1000_dsp_config	dsp_config_state;
-	boolean_t		get_link_status;
-	boolean_t		serdes_link_down;
-	boolean_t		tbi_compatibility_en;
-	boolean_t		tbi_compatibility_on;
-	boolean_t		laa_is_present;
-	boolean_t		phy_reset_disable;
-	boolean_t		initialize_hw_bits_disable;
-	boolean_t		fc_send_xon;
-	boolean_t		fc_strict_ieee;
-	boolean_t		report_tx_early;
-	boolean_t		adaptive_ifs;
-	boolean_t		ifs_params_forced;
-	boolean_t		in_ifs_mode;
-	boolean_t		mng_reg_access_disabled;
-	boolean_t		leave_av_bit_off;
-	boolean_t		kmrn_lock_loss_workaround_disabled;
-	boolean_t		bad_tx_carr_stats_fd;
-	boolean_t		has_manc2h;
-	boolean_t		rx_needs_kicking;
-	boolean_t		has_smbus;
+	bool			get_link_status;
+	bool			serdes_link_down;
+	bool			tbi_compatibility_en;
+	bool			tbi_compatibility_on;
+	bool			laa_is_present;
+	bool			phy_reset_disable;
+	bool			initialize_hw_bits_disable;
+	bool			fc_send_xon;
+	bool			fc_strict_ieee;
+	bool			report_tx_early;
+	bool			adaptive_ifs;
+	bool			ifs_params_forced;
+	bool			in_ifs_mode;
+	bool			mng_reg_access_disabled;
+	bool			leave_av_bit_off;
+	bool			kmrn_lock_loss_workaround_disabled;
+	bool			bad_tx_carr_stats_fd;
+	bool			has_manc2h;
+	bool			rx_needs_kicking;
+	bool			has_smbus;
 };
 
 
@@ -2165,14 +2165,14 @@ typedef enum {
 #define E1000_HI_COMMAND_TIMEOUT         500 /* Time in ms to process HI command */
 
 struct e1000_host_command_header {
-    uint8_t command_id;
-    uint8_t command_length;
-    uint8_t command_options;   /* I/F bits for command, status for return */
-    uint8_t checksum;
+    u8 command_id;
+    u8 command_length;
+    u8 command_options;   /* I/F bits for command, status for return */
+    u8 checksum;
 };
 struct e1000_host_command_info {
     struct e1000_host_command_header command_header;  /* Command Head/Command Result Head has 4 bytes */
-    uint8_t command_data[E1000_HI_MAX_DATA_LENGTH];   /* Command data can length 0..252 */
+    u8 command_data[E1000_HI_MAX_DATA_LENGTH];   /* Command data can length 0..252 */
 };
 
 /* Host SMB register #0 */
@@ -2495,7 +2495,7 @@ struct e1000_host_command_info {
 /* Number of milliseconds we wait for PHY configuration done after MAC reset */
 #define PHY_CFG_TIMEOUT             100
 
-#define E1000_TX_BUFFER_SIZE ((uint32_t)1514)
+#define E1000_TX_BUFFER_SIZE ((u32)1514)
 
 /* The carrier extension symbol, as received by the NIC. */
 #define CARRIER_EXTENSION   0x0F
@@ -2518,11 +2518,11 @@ struct e1000_host_command_info {
  * Typical use:
  *  ...
  *  if (TBI_ACCEPT) {
- *      accept_frame = TRUE;
+ *      accept_frame = true;
  *      e1000_tbi_adjust_stats(adapter, MacAddress);
  *      frame_length--;
  *  } else {
- *      accept_frame = FALSE;
+ *      accept_frame = false;
  *  }
  *  ...
  */
@@ -3312,68 +3312,68 @@ struct e1000_host_command_info {
 /* Offset 04h HSFSTS */
 union ich8_hws_flash_status {
     struct ich8_hsfsts {
-#ifdef E1000_BIG_ENDIAN
-        uint16_t reserved2      :6;
-        uint16_t fldesvalid     :1;
-        uint16_t flockdn        :1;
-        uint16_t flcdone        :1;
-        uint16_t flcerr         :1;
-        uint16_t dael           :1;
-        uint16_t berasesz       :2;
-        uint16_t flcinprog      :1;
-        uint16_t reserved1      :2;
+#ifdef __BIG_ENDIAN
+        u16 reserved2      :6;
+        u16 fldesvalid     :1;
+        u16 flockdn        :1;
+        u16 flcdone        :1;
+        u16 flcerr         :1;
+        u16 dael           :1;
+        u16 berasesz       :2;
+        u16 flcinprog      :1;
+        u16 reserved1      :2;
 #else
-        uint16_t flcdone        :1;   /* bit 0 Flash Cycle Done */
-        uint16_t flcerr         :1;   /* bit 1 Flash Cycle Error */
-        uint16_t dael           :1;   /* bit 2 Direct Access error Log */
-        uint16_t berasesz       :2;   /* bit 4:3 Block/Sector Erase Size */
-        uint16_t flcinprog      :1;   /* bit 5 flash SPI cycle in Progress */
-        uint16_t reserved1      :2;   /* bit 13:6 Reserved */
-        uint16_t reserved2      :6;   /* bit 13:6 Reserved */
-        uint16_t fldesvalid     :1;   /* bit 14 Flash Descriptor Valid */
-        uint16_t flockdn        :1;   /* bit 15 Flash Configuration Lock-Down */
+        u16 flcdone        :1;   /* bit 0 Flash Cycle Done */
+        u16 flcerr         :1;   /* bit 1 Flash Cycle Error */
+        u16 dael           :1;   /* bit 2 Direct Access error Log */
+        u16 berasesz       :2;   /* bit 4:3 Block/Sector Erase Size */
+        u16 flcinprog      :1;   /* bit 5 flash SPI cycle in Progress */
+        u16 reserved1      :2;   /* bit 13:6 Reserved */
+        u16 reserved2      :6;   /* bit 13:6 Reserved */
+        u16 fldesvalid     :1;   /* bit 14 Flash Descriptor Valid */
+        u16 flockdn        :1;   /* bit 15 Flash Configuration Lock-Down */
 #endif
     } hsf_status;
-    uint16_t regval;
+    u16 regval;
 };
 
 /* ICH8 GbE Flash Hardware Sequencing Flash control Register bit breakdown */
 /* Offset 06h FLCTL */
 union ich8_hws_flash_ctrl {
     struct ich8_hsflctl {
-#ifdef E1000_BIG_ENDIAN
-        uint16_t fldbcount      :2;
-        uint16_t flockdn        :6;
-        uint16_t flcgo          :1;
-        uint16_t flcycle        :2;
-        uint16_t reserved       :5;
+#ifdef __BIG_ENDIAN
+        u16 fldbcount      :2;
+        u16 flockdn        :6;
+        u16 flcgo          :1;
+        u16 flcycle        :2;
+        u16 reserved       :5;
 #else
-        uint16_t flcgo          :1;   /* 0 Flash Cycle Go */
-        uint16_t flcycle        :2;   /* 2:1 Flash Cycle */
-        uint16_t reserved       :5;   /* 7:3 Reserved  */
-        uint16_t fldbcount      :2;   /* 9:8 Flash Data Byte Count */
-        uint16_t flockdn        :6;   /* 15:10 Reserved */
+        u16 flcgo          :1;   /* 0 Flash Cycle Go */
+        u16 flcycle        :2;   /* 2:1 Flash Cycle */
+        u16 reserved       :5;   /* 7:3 Reserved  */
+        u16 fldbcount      :2;   /* 9:8 Flash Data Byte Count */
+        u16 flockdn        :6;   /* 15:10 Reserved */
 #endif
     } hsf_ctrl;
-    uint16_t regval;
+    u16 regval;
 };
 
 /* ICH8 Flash Region Access Permissions */
 union ich8_hws_flash_regacc {
     struct ich8_flracc {
-#ifdef E1000_BIG_ENDIAN
-        uint32_t gmwag          :8;
-        uint32_t gmrag          :8;
-        uint32_t grwa           :8;
-        uint32_t grra           :8;
+#ifdef __BIG_ENDIAN
+        u32 gmwag          :8;
+        u32 gmrag          :8;
+        u32 grwa           :8;
+        u32 grra           :8;
 #else
-        uint32_t grra           :8;   /* 0:7 GbE region Read Access */
-        uint32_t grwa           :8;   /* 8:15 GbE region Write Access */
-        uint32_t gmrag          :8;   /* 23:16 GbE Master Read Access Grant  */
-        uint32_t gmwag          :8;   /* 31:24 GbE Master Write Access Grant */
+        u32 grra           :8;   /* 0:7 GbE region Read Access */
+        u32 grwa           :8;   /* 8:15 GbE region Write Access */
+        u32 gmrag          :8;   /* 23:16 GbE Master Read Access Grant  */
+        u32 gmwag          :8;   /* 31:24 GbE Master Write Access Grant */
 #endif
     } hsf_flregacc;
-    uint16_t regval;
+    u16 regval;
 };
 
 /* Miscellaneous PHY bit definitions. */

@@ -350,8 +350,9 @@ static int help(struct sk_buff *skb,
 		enum ip_conntrack_info ctinfo)
 {
 	unsigned int dataoff, datalen;
-	struct tcphdr _tcph, *th;
-	char *fb_ptr;
+	const struct tcphdr *th;
+	struct tcphdr _tcph;
+	const char *fb_ptr;
 	int ret;
 	u32 seq;
 	int dir = CTINFO2DIR(ctinfo);
@@ -405,7 +406,7 @@ static int help(struct sk_buff *skb,
 
 	/* Initialize IP/IPv6 addr to expected address (it's not mentioned
 	   in EPSV responses) */
-	cmd.l3num = ct->tuplehash[dir].tuple.src.l3num;
+	cmd.l3num = nf_ct_l3num(ct);
 	memcpy(cmd.u3.all, &ct->tuplehash[dir].tuple.src.u3.all,
 	       sizeof(cmd.u3.all));
 
@@ -452,7 +453,7 @@ static int help(struct sk_buff *skb,
 	daddr = &ct->tuplehash[!dir].tuple.dst.u3;
 
 	/* Update the ftp info */
-	if ((cmd.l3num == ct->tuplehash[dir].tuple.src.l3num) &&
+	if ((cmd.l3num == nf_ct_l3num(ct)) &&
 	    memcmp(&cmd.u3.all, &ct->tuplehash[dir].tuple.src.u3.all,
 		     sizeof(cmd.u3.all))) {
 		/* Enrico Scholz's passive FTP to partially RNAT'd ftp
@@ -483,7 +484,7 @@ static int help(struct sk_buff *skb,
 		daddr = &cmd.u3;
 	}
 
-	nf_ct_expect_init(exp, cmd.l3num,
+	nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT, cmd.l3num,
 			  &ct->tuplehash[!dir].tuple.src.u3, daddr,
 			  IPPROTO_TCP, NULL, &cmd.u.tcp.port);
 
@@ -516,6 +517,11 @@ out_update_nl:
 
 static struct nf_conntrack_helper ftp[MAX_PORTS][2] __read_mostly;
 static char ftp_names[MAX_PORTS][2][sizeof("ftp-65535")] __read_mostly;
+
+static const struct nf_conntrack_expect_policy ftp_exp_policy = {
+	.max_expected	= 1,
+	.timeout	= 5 * 60,
+};
 
 /* don't make this __exit, since it's called from __init ! */
 static void nf_conntrack_ftp_fini(void)
@@ -556,8 +562,7 @@ static int __init nf_conntrack_ftp_init(void)
 		for (j = 0; j < 2; j++) {
 			ftp[i][j].tuple.src.u.tcp.port = htons(ports[i]);
 			ftp[i][j].tuple.dst.protonum = IPPROTO_TCP;
-			ftp[i][j].max_expected = 1;
-			ftp[i][j].timeout = 5 * 60;	/* 5 Minutes */
+			ftp[i][j].expect_policy = &ftp_exp_policy;
 			ftp[i][j].me = THIS_MODULE;
 			ftp[i][j].help = help;
 			tmpname = &ftp_names[i][j][0];

@@ -637,7 +637,7 @@ struct net_local
 /* ----------------- MODEM MANAGEMENT SUBROUTINES ----------------- */
 static inline u_char		/* data */
 	hasr_read(u_long);	/* Read the host interface : base address */
-static inline void
+static void
 	hacr_write(u_long,	/* Write to host interface : base address */
 		   u_char),	/* data */
 	hacr_write_slow(u_long,
@@ -651,7 +651,7 @@ static void
 		  int,		/* Offset in psa */
 		  u_char *,	/* Buffer in memory */
 		  int);		/* Length of buffer */
-static inline void
+static void
 	mmc_out(u_long,		/* Write 1 byte to the Modem Manag Control */
 		u_short,
 		u_char),
@@ -659,10 +659,10 @@ static inline void
 		  u_char,
 		  u_char *,
 		  int);
-static inline u_char		/* Read 1 byte from the MMC */
+static u_char			/* Read 1 byte from the MMC */
 	mmc_in(u_long,
 	       u_short);
-static inline void
+static void
 	mmc_read(u_long,	/* Read n bytes from the MMC */
 		 u_char,
 		 u_char *,
@@ -688,10 +688,10 @@ static int
 		     int,
 		     char *,
 		     int);
-static inline void
+static void
 	wv_82593_reconfig(struct net_device *);	/* Reconfigure the controller */
 /* ------------------- DEBUG & INFO SUBROUTINES ------------------- */
-static inline void
+static void
 	wv_init_info(struct net_device *);	/* display startup info */
 /* ------------------- IOCTL, STATS & RECONFIG ------------------- */
 static en_stats	*
@@ -699,17 +699,17 @@ static en_stats	*
 static iw_stats *
 	wavelan_get_wireless_stats(struct net_device *);
 /* ----------------------- PACKET RECEPTION ----------------------- */
-static inline int
+static int
 	wv_start_of_frame(struct net_device *,	/* Seek beggining of current frame */
 			  int,	/* end of frame */
 			  int);	/* start of buffer */
-static inline void
+static void
 	wv_packet_read(struct net_device *,	/* Read a packet from a frame */
 		       int,
 		       int),
 	wv_packet_rcv(struct net_device *);	/* Read all packets waiting */
 /* --------------------- PACKET TRANSMISSION --------------------- */
-static inline void
+static void
 	wv_packet_write(struct net_device *,	/* Write a packet to the Tx buffer */
 			void *,
 			short);
@@ -717,20 +717,20 @@ static int
 	wavelan_packet_xmit(struct sk_buff *,	/* Send a packet */
 			    struct net_device *);
 /* -------------------- HARDWARE CONFIGURATION -------------------- */
-static inline int
+static int
 	wv_mmc_init(struct net_device *);	/* Initialize the modem */
 static int
 	wv_ru_stop(struct net_device *),	/* Stop the i82593 receiver unit */
 	wv_ru_start(struct net_device *);	/* Start the i82593 receiver unit */
 static int
 	wv_82593_config(struct net_device *);	/* Configure the i82593 */
-static inline int
+static int
 	wv_pcmcia_reset(struct net_device *);	/* Reset the pcmcia interface */
 static int
 	wv_hw_config(struct net_device *);	/* Reset & configure the whole hardware */
-static inline void
+static void
 	wv_hw_reset(struct net_device *);	/* Same, + start receiver unit */
-static inline int
+static int
 	wv_pcmcia_config(struct pcmcia_device *);	/* Configure the pcmcia interface */
 static void
 	wv_pcmcia_release(struct pcmcia_device *);/* Remove a device */

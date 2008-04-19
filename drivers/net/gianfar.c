@@ -1185,7 +1185,7 @@ static int gfar_change_mtu(struct net_device *dev, int new_mtu)
 	int frame_size = new_mtu + ETH_HLEN;
 
 	if (priv->vlan_enable)
-		frame_size += VLAN_ETH_HLEN;
+		frame_size += VLAN_HLEN;
 
 	if (gfar_uses_fcb(priv))
 		frame_size += GMAC_FCB_LEN;
@@ -1250,17 +1250,12 @@ static void gfar_timeout(struct net_device *dev)
 }
 
 /* Interrupt Handler for Transmit complete */
-static irqreturn_t gfar_transmit(int irq, void *dev_id)
+int gfar_clean_tx_ring(struct net_device *dev)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
-	struct gfar_private *priv = netdev_priv(dev);
 	struct txbd8 *bdp;
+	struct gfar_private *priv = netdev_priv(dev);
+	int howmany = 0;
 
-	/* Clear IEVENT */
-	gfar_write(&priv->regs->ievent, IEVENT_TX_MASK);
-
-	/* Lock priv */
-	spin_lock(&priv->txlock);
 	bdp = priv->dirty_tx;
 	while ((bdp->status & TXBD_READY) == 0) {
 		/* If dirty_tx and cur_tx are the same, then either the */
@@ -1269,7 +1264,7 @@ static irqreturn_t gfar_transmit(int irq, void *dev_id)
 		if ((bdp == priv->cur_tx) && (netif_queue_stopped(dev) == 0))
 			break;
 
-		dev->stats.tx_packets++;
+		howmany++;
 
 		/* Deferred means some collisions occurred during transmit, */
 		/* but we eventually sent the packet. */
@@ -1278,10 +1273,14 @@ static irqreturn_t gfar_transmit(int irq, void *dev_id)
 
 		/* Free the sk buffer associated with this TxBD */
 		dev_kfree_skb_irq(priv->tx_skbuff[priv->skb_dirtytx]);
+
 		priv->tx_skbuff[priv->skb_dirtytx] = NULL;
 		priv->skb_dirtytx =
 		    (priv->skb_dirtytx +
 		     1) & TX_RING_MOD_MASK(priv->tx_ring_size);
+
+		/* Clean BD length for empty detection */
+		bdp->length = 0;
 
 		/* update bdp to point at next bd in the ring (wrapping if necessary) */
 		if (bdp->status & TXBD_WRAP)
@@ -1297,13 +1296,32 @@ static irqreturn_t gfar_transmit(int irq, void *dev_id)
 			netif_wake_queue(dev);
 	} /* while ((bdp->status & TXBD_READY) == 0) */
 
+	dev->stats.tx_packets += howmany;
+
+	return howmany;
+}
+
+/* Interrupt Handler for Transmit complete */
+static irqreturn_t gfar_transmit(int irq, void *dev_id)
+{
+	struct net_device *dev = (struct net_device *) dev_id;
+	struct gfar_private *priv = netdev_priv(dev);
+
+	/* Clear IEVENT */
+	gfar_write(&priv->regs->ievent, IEVENT_TX_MASK);
+
+	/* Lock priv */
+	spin_lock(&priv->txlock);
+
+	gfar_clean_tx_ring(dev);
+
 	/* If we are coalescing the interrupts, reset the timer */
 	/* Otherwise, clear it */
-	if (priv->txcoalescing)
+	if (likely(priv->txcoalescing)) {
+		gfar_write(&priv->regs->txic, 0);
 		gfar_write(&priv->regs->txic,
 			   mk_ic_value(priv->txcount, priv->txtime));
-	else
-		gfar_write(&priv->regs->txic, 0);
+	}
 
 	spin_unlock(&priv->txlock);
 
@@ -1392,15 +1410,15 @@ irqreturn_t gfar_receive(int irq, void *dev_id)
 	unsigned long flags;
 #endif
 
-	/* Clear IEVENT, so rx interrupt isn't called again
-	 * because of this interrupt */
-	gfar_write(&priv->regs->ievent, IEVENT_RX_MASK);
-
 	/* support NAPI */
 #ifdef CONFIG_GFAR_NAPI
+	/* Clear IEVENT, so interrupts aren't called again
+	 * because of the packets that have already arrived */
+	gfar_write(&priv->regs->ievent, IEVENT_RTX_MASK);
+
 	if (netif_rx_schedule_prep(dev, &priv->napi)) {
 		tempval = gfar_read(&priv->regs->imask);
-		tempval &= IMASK_RX_DISABLED;
+		tempval &= IMASK_RTX_DISABLED;
 		gfar_write(&priv->regs->imask, tempval);
 
 		__netif_rx_schedule(dev, &priv->napi);
@@ -1411,17 +1429,20 @@ irqreturn_t gfar_receive(int irq, void *dev_id)
 				gfar_read(&priv->regs->imask));
 	}
 #else
+	/* Clear IEVENT, so rx interrupt isn't called again
+	 * because of this interrupt */
+	gfar_write(&priv->regs->ievent, IEVENT_RX_MASK);
 
 	spin_lock_irqsave(&priv->rxlock, flags);
 	gfar_clean_rx_ring(dev, priv->rx_ring_size);
 
 	/* If we are coalescing interrupts, update the timer */
 	/* Otherwise, clear it */
-	if (priv->rxcoalescing)
+	if (likely(priv->rxcoalescing)) {
+		gfar_write(&priv->regs->rxic, 0);
 		gfar_write(&priv->regs->rxic,
 			   mk_ic_value(priv->rxcount, priv->rxtime));
-	else
-		gfar_write(&priv->regs->rxic, 0);
+	}
 
 	spin_unlock_irqrestore(&priv->rxlock, flags);
 #endif
@@ -1526,9 +1547,7 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 		rmb();
 		skb = priv->rx_skbuff[priv->skb_currx];
 
-		if (!(bdp->status &
-		      (RXBD_LARGE | RXBD_SHORT | RXBD_NONOCTET
-		       | RXBD_CRCERR | RXBD_OVERRUN | RXBD_TRUNCATED))) {
+		if ((bdp->status & RXBD_LAST) && !(bdp->status & RXBD_ERR)) {
 			/* Increment the number of packets */
 			dev->stats.rx_packets++;
 			howmany++;
@@ -1582,6 +1601,13 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 	struct gfar_private *priv = container_of(napi, struct gfar_private, napi);
 	struct net_device *dev = priv->dev;
 	int howmany;
+	unsigned long flags;
+
+	/* If we fail to get the lock, don't bother with the TX BDs */
+	if (spin_trylock_irqsave(&priv->txlock, flags)) {
+		gfar_clean_tx_ring(dev);
+		spin_unlock_irqrestore(&priv->txlock, flags);
+	}
 
 	howmany = gfar_clean_rx_ring(dev, budget);
 
@@ -1595,11 +1621,11 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 
 		/* If we are coalescing interrupts, update the timer */
 		/* Otherwise, clear it */
-		if (priv->rxcoalescing)
+		if (likely(priv->rxcoalescing)) {
+			gfar_write(&priv->regs->rxic, 0);
 			gfar_write(&priv->regs->rxic,
 				   mk_ic_value(priv->rxcount, priv->rxtime));
-		else
-			gfar_write(&priv->regs->rxic, 0);
+		}
 	}
 
 	return howmany;

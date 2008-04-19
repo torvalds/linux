@@ -210,6 +210,7 @@ void ssb_mipscore_init(struct ssb_mipscore *mcore)
 			/* fallthrough */
 		case SSB_DEV_PCI:
 		case SSB_DEV_ETHERNET:
+		case SSB_DEV_ETHERNET_GBIT:
 		case SSB_DEV_80211:
 		case SSB_DEV_USB20_HOST:
 			/* These devices get their own IRQ line if available, the rest goes on IRQ0 */

@@ -61,7 +61,7 @@ static struct
 static struct xt_table __nat_table = {
 	.name		= "nat",
 	.valid_hooks	= NAT_VALID_HOOKS,
-	.lock		= RW_LOCK_UNLOCKED,
+	.lock		= __RW_LOCK_UNLOCKED(__nat_table.lock),
 	.me		= THIS_MODULE,
 	.af		= AF_INET,
 };
@@ -143,7 +143,7 @@ static bool ipt_snat_checkentry(const char *tablename,
 				void *targinfo,
 				unsigned int hook_mask)
 {
-	struct nf_nat_multi_range_compat *mr = targinfo;
+	const struct nf_nat_multi_range_compat *mr = targinfo;
 
 	/* Must be a valid range */
 	if (mr->rangesize != 1) {
@@ -159,7 +159,7 @@ static bool ipt_dnat_checkentry(const char *tablename,
 				void *targinfo,
 				unsigned int hook_mask)
 {
-	struct nf_nat_multi_range_compat *mr = targinfo;
+	const struct nf_nat_multi_range_compat *mr = targinfo;
 
 	/* Must be a valid range */
 	if (mr->rangesize != 1) {
@@ -184,25 +184,6 @@ alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 		= { IP_NAT_RANGE_MAP_IPS, ip, ip, { 0 }, { 0 } };
 
 	pr_debug("Allocating NULL binding for %p (%u.%u.%u.%u)\n",
-		 ct, NIPQUAD(ip));
-	return nf_nat_setup_info(ct, &range, HOOK2MANIP(hooknum));
-}
-
-unsigned int
-alloc_null_binding_confirmed(struct nf_conn *ct, unsigned int hooknum)
-{
-	__be32 ip
-		= (HOOK2MANIP(hooknum) == IP_NAT_MANIP_SRC
-		   ? ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3.ip
-		   : ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u3.ip);
-	__be16 all
-		= (HOOK2MANIP(hooknum) == IP_NAT_MANIP_SRC
-		   ? ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u.all
-		   : ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u.all);
-	struct nf_nat_range range
-		= { IP_NAT_RANGE_MAP_IPS, ip, ip, { all }, { all } };
-
-	pr_debug("Allocating NULL binding for confirmed %p (%u.%u.%u.%u)\n",
 		 ct, NIPQUAD(ip));
 	return nf_nat_setup_info(ct, &range, HOOK2MANIP(hooknum));
 }

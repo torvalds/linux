@@ -203,14 +203,6 @@ Who:  linuxppc-dev@ozlabs.org
 
 ---------------------------
 
-What:   sk98lin network driver
-When:   Feburary 2008
-Why:    In kernel tree version of driver is unmaintained. Sk98lin driver
-	replaced by the skge driver. 
-Who:    Stephen Hemminger <shemminger@linux-foundation.org>
-
----------------------------
-
 What:	i386/x86_64 bzImage symlinks
 When:	April 2010
 
@@ -221,39 +213,10 @@ Who:	Thomas Gleixner <tglx@linutronix.de>
 
 ---------------------------
 
----------------------------
-
 What:	i2c-i810, i2c-prosavage and i2c-savage4
 When:	May 2008
 Why:	These drivers are superseded by i810fb, intelfb and savagefb.
 Who:	Jean Delvare <khali@linux-fr.org>
-
----------------------------
-
-What:	bcm43xx wireless network driver
-When:	2.6.26
-Files:	drivers/net/wireless/bcm43xx
-Why:	This driver's functionality has been replaced by the
-	mac80211-based b43 and b43legacy drivers.
-Who:	John W. Linville <linville@tuxdriver.com>
-
----------------------------
-
-What:	ieee80211 softmac wireless networking component
-When:	2.6.26 (or after removal of bcm43xx and port of zd1211rw to mac80211)
-Files:	net/ieee80211/softmac
-Why:	No in-kernel drivers will depend on it any longer.
-Who:	John W. Linville <linville@tuxdriver.com>
-
----------------------------
-
-What:	rc80211-simple rate control algorithm for mac80211
-When:	2.6.26
-Files:	net/mac80211/rc80211-simple.c
-Why:	This algorithm was provided for reference but always exhibited bad
-	responsiveness and performance and has some serious flaws. It has been
-	replaced by rc80211-pid.
-Who:	Stefano Brivio <stefano.brivio@polimi.it>
 
 ---------------------------
 

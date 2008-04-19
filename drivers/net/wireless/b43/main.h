@@ -38,6 +38,10 @@
 /* Magic helper macro to pad structures. Ignore those above. It's magic. */
 #define PAD_BYTES(nr_bytes)		P4D_BYTES( __LINE__ , (nr_bytes))
 
+
+extern int b43_modparam_qos;
+
+
 /* Lightweight function to convert a frequency (in Mhz) to a channel number. */
 static inline u8 b43_freq_to_channel_5ghz(int freq)
 {
@@ -95,15 +99,12 @@ u16 b43_shm_read16(struct b43_wldev *dev, u16 routing, u16 offset);
 void b43_shm_write32(struct b43_wldev *dev, u16 routing, u16 offset, u32 value);
 void b43_shm_write16(struct b43_wldev *dev, u16 routing, u16 offset, u16 value);
 
-u32 b43_hf_read(struct b43_wldev *dev);
-void b43_hf_write(struct b43_wldev *dev, u32 value);
+u64 b43_hf_read(struct b43_wldev *dev);
+void b43_hf_write(struct b43_wldev *dev, u64 value);
 
 void b43_dummy_transmission(struct b43_wldev *dev);
 
 void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags);
-
-void b43_mac_suspend(struct b43_wldev *dev);
-void b43_mac_enable(struct b43_wldev *dev);
 
 void b43_controller_restart(struct b43_wldev *dev, const char *reason);
 
