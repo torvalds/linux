@@ -307,7 +307,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &sysctl_sched_rt_period,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= &sched_rt_handler,
 	},
 	{
 		.ctl_name	= CTL_UNNUMBERED,
@@ -315,7 +315,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &sysctl_sched_rt_runtime,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= &sched_rt_handler,
 	},
 	{
 		.ctl_name	= CTL_UNNUMBERED,

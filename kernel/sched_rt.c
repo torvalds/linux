@@ -62,7 +62,7 @@ static inline u64 sched_rt_runtime(struct rt_rq *rt_rq)
 	if (!rt_rq->tg)
 		return RUNTIME_INF;
 
-	return rt_rq->tg->rt_runtime;
+	return rt_rq->tg->rt_bandwidth.rt_runtime;
 }
 
 #define for_each_leaf_rt_rq(rt_rq, rq) \
@@ -127,14 +127,29 @@ static int rt_se_boosted(struct sched_rt_entity *rt_se)
 	return p->prio != p->normal_prio;
 }
 
+#ifdef CONFIG_SMP
+static inline cpumask_t sched_rt_period_mask(void)
+{
+	return cpu_rq(smp_processor_id())->rd->span;
+}
+#else
+static inline cpumask_t sched_rt_period_mask(void)
+{
+	return cpu_online_map;
+}
+#endif
+
+static inline
+struct rt_rq *sched_rt_period_rt_rq(struct rt_bandwidth *rt_b, int cpu)
+{
+	return container_of(rt_b, struct task_group, rt_bandwidth)->rt_rq[cpu];
+}
+
 #else
 
 static inline u64 sched_rt_runtime(struct rt_rq *rt_rq)
 {
-	if (sysctl_sched_rt_runtime == -1)
-		return RUNTIME_INF;
-
-	return (u64)sysctl_sched_rt_runtime * NSEC_PER_USEC;
+	return def_rt_bandwidth.rt_runtime;
 }
 
 #define for_each_leaf_rt_rq(rt_rq, rq) \
@@ -173,7 +188,54 @@ static inline int rt_rq_throttled(struct rt_rq *rt_rq)
 {
 	return rt_rq->rt_throttled;
 }
+
+static inline cpumask_t sched_rt_period_mask(void)
+{
+	return cpu_online_map;
+}
+
+static inline
+struct rt_rq *sched_rt_period_rt_rq(struct rt_bandwidth *rt_b, int cpu)
+{
+	return &cpu_rq(cpu)->rt;
+}
+
 #endif
+
+static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
+{
+	int i, idle = 1;
+	cpumask_t span;
+
+	if (rt_b->rt_runtime == RUNTIME_INF)
+		return 1;
+
+	span = sched_rt_period_mask();
+	for_each_cpu_mask(i, span) {
+		int enqueue = 0;
+		struct rt_rq *rt_rq = sched_rt_period_rt_rq(rt_b, i);
+		struct rq *rq = rq_of_rt_rq(rt_rq);
+
+		spin_lock(&rq->lock);
+		if (rt_rq->rt_time) {
+			u64 runtime = rt_b->rt_runtime;
+
+			rt_rq->rt_time -= min(rt_rq->rt_time, overrun*runtime);
+			if (rt_rq->rt_throttled && rt_rq->rt_time < runtime) {
+				rt_rq->rt_throttled = 0;
+				enqueue = 1;
+			}
+			if (rt_rq->rt_time || rt_rq->rt_nr_running)
+				idle = 0;
+		}
+
+		if (enqueue)
+			sched_rt_rq_enqueue(rt_rq);
+		spin_unlock(&rq->lock);
+	}
+
+	return idle;
+}
 
 static inline int rt_se_prio(struct sched_rt_entity *rt_se)
 {
@@ -198,11 +260,7 @@ static int sched_rt_runtime_exceeded(struct rt_rq *rt_rq)
 		return rt_rq_throttled(rt_rq);
 
 	if (rt_rq->rt_time > runtime) {
-		struct rq *rq = rq_of_rt_rq(rt_rq);
-
-		rq->rt_throttled = 1;
 		rt_rq->rt_throttled = 1;
-
 		if (rt_rq_throttled(rt_rq)) {
 			sched_rt_rq_dequeue(rt_rq);
 			return 1;
@@ -210,29 +268,6 @@ static int sched_rt_runtime_exceeded(struct rt_rq *rt_rq)
 	}
 
 	return 0;
-}
-
-static void update_sched_rt_period(struct rq *rq)
-{
-	struct rt_rq *rt_rq;
-	u64 period;
-
-	while (rq->clock > rq->rt_period_expire) {
-		period = (u64)sysctl_sched_rt_period * NSEC_PER_USEC;
-		rq->rt_period_expire += period;
-
-		for_each_leaf_rt_rq(rt_rq, rq) {
-			u64 runtime = sched_rt_runtime(rt_rq);
-
-			rt_rq->rt_time -= min(rt_rq->rt_time, runtime);
-			if (rt_rq->rt_throttled && rt_rq->rt_time < runtime) {
-				rt_rq->rt_throttled = 0;
-				sched_rt_rq_enqueue(rt_rq);
-			}
-		}
-
-		rq->rt_throttled = 0;
-	}
 }
 
 /*
@@ -284,6 +319,11 @@ void inc_rt_tasks(struct sched_rt_entity *rt_se, struct rt_rq *rt_rq)
 #ifdef CONFIG_RT_GROUP_SCHED
 	if (rt_se_boosted(rt_se))
 		rt_rq->rt_nr_boosted++;
+
+	if (rt_rq->tg)
+		start_rt_bandwidth(&rt_rq->tg->rt_bandwidth);
+#else
+	start_rt_bandwidth(&def_rt_bandwidth);
 #endif
 }
 
