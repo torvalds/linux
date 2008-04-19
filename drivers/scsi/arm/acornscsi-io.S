@@ -10,19 +10,6 @@
 #include <asm/assembler.h>
 #include <asm/hardware.h>
 
-#if (IO_BASE == (PCIO_BASE & 0xff000000))
-#define ADDR(off,reg)						\
-		tst	off, $0x80000000			;\
-		mov	reg, $IO_BASE				;\
-		orreq	reg, reg, $(PCIO_BASE & 0x00ff0000)
-#else
-#define ADDR(off,reg)						\
-		tst	off, $0x80000000			;\
-		movne	reg, $IO_BASE				;\
-		moveq	reg, $(PCIO_BASE & 0xff000000)		;\
-		orreq	reg, reg, $(PCIO_BASE & 0x00ff0000)
-#endif
-
 @ Purpose: transfer a block of data from the acorn scsi card to memory
 @ Proto  : void acornscsi_in(unsigned int addr_start, char *buffer, int length)
 @ Returns: nothing
