@@ -47,7 +47,7 @@ static int debug;
 
 #define dprintk(arg...) do {		\
 	if (debug) 			\
-		 printk(##arg); }	\
+		 printk(arg); 		\
 	} while (0)
 
 /* 16 bit registers, 8 bit values */
