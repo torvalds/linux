@@ -26,25 +26,23 @@
 
 #include "au0828.h"
 
-static unsigned int debug;
+/*
+ * 1 = General debug messages
+ * 2 = USB handling
+ * 4 = I2C related
+ * 8 = Bridge related
+ */
+unsigned int debug = 0;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
 
-#define _err(fmt, arg...)\
-	do {\
-		printk(KERN_ERR DRIVER_NAME "/0: " fmt, ## arg);\
-	} while (0)
+unsigned int usb_debug = 0;
+module_param(usb_debug, int, 0644);
+MODULE_PARM_DESC(usb_debug, "enable usb debug messages");
 
-#define _info(fmt, arg...)\
-	do {\
-		printk(KERN_INFO DRIVER_NAME "/0: " fmt, ## arg);\
-	} while (0)
-
-#define _dbg(level, fmt, arg...)\
-	do {\
-		if (debug >= level) \
-			printk(KERN_DEBUG DRIVER_NAME "/0: " fmt, ## arg);\
-	} while (0)
+unsigned int bridge_debug = 0;
+module_param(bridge_debug, int, 0644);
+MODULE_PARM_DESC(bridge_debug, "enable bridge debug messages");
 
 #define _AU0828_BULKPIPE 0x03
 #define _BULKPIPESIZE 0xffff
@@ -61,13 +59,13 @@ static int recv_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 u32 au0828_readreg(struct au0828_dev *dev, u16 reg)
 {
 	recv_control_msg(dev, CMD_REQUEST_IN, 0, reg, dev->ctrlmsg, 1);
-	_dbg(3,"%s(0x%x) = 0x%x\n", __FUNCTION__, reg, dev->ctrlmsg[0]);
+	dprintk(8, "%s(0x%x) = 0x%x\n", __FUNCTION__, reg, dev->ctrlmsg[0]);
 	return dev->ctrlmsg[0];
 }
 
 u32 au0828_writereg(struct au0828_dev *dev, u16 reg, u32 val)
 {
-	_dbg(3,"%s(0x%x, 0x%x)\n", __FUNCTION__, reg, val);
+	dprintk(8, "%s(0x%x, 0x%x)\n", __FUNCTION__, reg, val);
 	return send_control_msg(dev, CMD_REQUEST_OUT, val, reg, dev->ctrlmsg, 0);
 }
 
@@ -76,7 +74,7 @@ static void cmd_msg_dump(struct au0828_dev *dev)
 	int i;
 
 	for (i = 0;i < sizeof(dev->ctrlmsg); i+=16)
-		_dbg(1,"%s() %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
+		dprintk(2,"%s() %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
 			"%02x %02x %02x %02x %02x %02x\n",
 			__FUNCTION__,
 			dev->ctrlmsg[i+0], dev->ctrlmsg[i+1],
@@ -107,7 +105,7 @@ static int send_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 		status = min(status, 0);
 
 		if (status < 0) {
-			_err("%s() Failed sending control message, error %d.\n",
+			printk(KERN_ERR "%s() Failed sending control message, error %d.\n",
 				__FUNCTION__,
 				status);
 		}
@@ -137,13 +135,12 @@ static int recv_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 		status = min(status, 0);
 
 		if (status < 0) {
-			_err("%s() Failed receiving ctrl msg, error %d.\n",
+			printk(KERN_ERR "%s() Failed receiving control message, error %d.\n",
 				__FUNCTION__,
 				status);
 		}
 		else
-			if (debug > 4)
-				cmd_msg_dump(dev);
+			cmd_msg_dump(dev);
 	}
 	mutex_unlock(&dev->mutex);
 	return status;
@@ -152,7 +149,7 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 {
 	struct au0828_dev *dev = usb_get_intfdata(interface);
 
-	_dbg(1,"%s()\n", __FUNCTION__);
+	dprintk(1,"%s()\n", __FUNCTION__);
 
 	/* Digital TV */
 	au0828_dvb_unregister(dev);
@@ -182,7 +179,7 @@ static int au0828_usb_probe (struct usb_interface *interface,
 	if (ifnum != 0)
 		return -ENODEV;
 
-	_dbg(1,"%s() vendor id 0x%x device id 0x%x ifnum:%d\n",
+	dprintk(1,"%s() vendor id 0x%x device id 0x%x ifnum:%d\n",
 		__FUNCTION__,
 		le16_to_cpu(usbdev->descriptor.idVendor),
 		le16_to_cpu(usbdev->descriptor.idProduct),
@@ -190,7 +187,7 @@ static int au0828_usb_probe (struct usb_interface *interface,
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		_err("Unable to allocate memory\n");
+		printk(KERN_ERR "%s() Unable to allocate memory\n", __FUNCTION__);
 		return -ENOMEM;
 	}
 
@@ -216,7 +213,7 @@ static int au0828_usb_probe (struct usb_interface *interface,
 	/* Digital TV */
 	au0828_dvb_register(dev);
 
-	_info("Registered device AU0828 [%s]\n",
+	printk(KERN_INFO "Registered device AU0828 [%s]\n",
 		au0828_boards[dev->board].name == NULL ? "Unset" :
 		au0828_boards[dev->board].name);
 
@@ -234,11 +231,29 @@ static int __init au0828_init(void)
 {
 	int ret;
 
-	_info("au0828 driver loaded\n");
+	if(debug)
+		printk(KERN_INFO "%s() Debugging is enabled\n", __FUNCTION__);
+
+	if(usb_debug) {
+		printk(KERN_INFO "%s() USB Debugging is enabled\n", __FUNCTION__);
+		debug |= 2;
+	}
+
+	if(i2c_debug) {
+		printk(KERN_INFO "%s() I2C Debugging is enabled\n", __FUNCTION__);
+		debug |= 4;
+	}
+
+	if(bridge_debug) {
+		printk(KERN_INFO "%s() Bridge Debugging is enabled\n", __FUNCTION__);
+		debug |= 8;
+	}
+
+	printk(KERN_INFO "au0828 driver loaded\n");
 
 	ret = usb_register(&au0828_usb_driver);
 	if (ret)
-		_err("usb_register failed, error = %d\n", ret);
+		printk(KERN_ERR "usb_register failed, error = %d\n", ret);
 
 	return ret;
 }

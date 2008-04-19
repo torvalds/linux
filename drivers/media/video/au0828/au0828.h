@@ -96,6 +96,9 @@ struct au0828_buff {
 /* au0828-core.c */
 extern u32 au0828_read(struct au0828_dev *dev, u16 reg);
 extern u32 au0828_write(struct au0828_dev *dev, u16 reg, u32 val);
+extern unsigned int debug;
+extern unsigned int usb_debug;
+extern unsigned int bridge_debug;
 
 /* ----------------------------------------------------------- */
 /* au0828-cards.c */
@@ -112,8 +115,14 @@ extern int au0828_i2c_register(struct au0828_dev *dev);
 extern int au0828_i2c_unregister(struct au0828_dev *dev);
 extern void au0828_call_i2c_clients(struct au0828_dev *dev,
 	unsigned int cmd, void *arg);
+extern unsigned int i2c_debug;
 
 /* ----------------------------------------------------------- */
 /* au0828-dvb.c */
 extern int au0828_dvb_register(struct au0828_dev *dev);
 extern void au0828_dvb_unregister(struct au0828_dev *dev);
+
+#define dprintk(level, fmt, arg...)\
+	do { if (debug & level)\
+		printk(KERN_DEBUG DRIVER_NAME "/0: " fmt, ## arg);\
+	} while (0)

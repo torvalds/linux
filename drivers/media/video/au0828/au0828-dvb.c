@@ -26,18 +26,10 @@
 #include <media/v4l2-common.h>
 
 #include "au0828.h"
-
 #include "au8522.h"
 #include "xc5000.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
-
-unsigned int dvb_debug = 1;
-
-#define _dbg(level, fmt, arg...)\
-	do { if (dvb_debug >= level)\
-		printk(KERN_DEBUG "%s/0: " fmt, DRIVER_NAME, ## arg);\
-	} while (0)
 
 static struct au8522_config hauppauge_hvr950q_config = {
 	.demod_address = 0x8e >> 1,
@@ -56,6 +48,8 @@ static void urb_completion(struct urb *purb)
 	u8 *ptr;
 	struct au0828_dev *dev = purb->context;
 	int ptype = usb_pipetype(purb->pipe);
+
+	dprintk(2, "%s()\n", __FUNCTION__);
 
 	if (!dev)
 		return;
@@ -84,7 +78,7 @@ static int stop_urb_transfer(struct au0828_dev *dev)
 {
 	int i;
 
-	printk(KERN_INFO "%s()\n", __FUNCTION__);
+	dprintk(2, "%s()\n", __FUNCTION__);
 
 	/* FIXME:  Do we need to free the transfer_buffers? */
 	for (i = 0; i < URB_COUNT; i++) {
@@ -105,15 +99,11 @@ static int start_urb_transfer(struct au0828_dev *dev)
 {
 	struct urb *purb;
 	int i, ret = -ENOMEM;
-	unsigned int pipe = usb_rcvbulkpipe(dev->usbdev, _AU0828_BULKPIPE);
-	int pipesize = usb_maxpacket(dev->usbdev, pipe, usb_pipeout(pipe));
-	int packets = _BULKPIPESIZE / pipesize;
-	int transfer_buflen = packets * pipesize;
 
-	printk(KERN_INFO "%s() transfer_buflen = %d\n", __FUNCTION__, transfer_buflen);
+	dprintk(2, "%s()\n", __FUNCTION__);
 
 	if (dev->urb_streaming) {
-		printk("%s: iso xfer already running!\n", __FUNCTION__);
+		dprintk(2, "%s: iso xfer already running!\n", __FUNCTION__);
 		return 0;
 	}
 
@@ -167,17 +157,15 @@ static int au0828_dvb_start_feed(struct dvb_demux_feed *feed)
 	struct au0828_dvb *dvb = &dev->dvb;
 	int ret = 0;
 
-	printk(KERN_INFO "%s() pid = 0x%x index = %d\n", __FUNCTION__, feed->pid, feed->index);
+	dprintk(1, "%s()\n", __FUNCTION__);
 
 	if (!demux->dmx.frontend)
 		return -EINVAL;
 
-	printk(KERN_INFO "%s() Preparing, feeding = %d\n", __FUNCTION__, dvb->feeding);
 	if (dvb) {
 		mutex_lock(&dvb->lock);
 		if (dvb->feeding++ == 0) {
-			printk(KERN_INFO "%s() Starting Transport DMA\n",
-				__FUNCTION__);
+			/* Start transport */
 			au0828_write(dev, 0x608, 0x90);
 			au0828_write(dev, 0x609, 0x72);
 			au0828_write(dev, 0x60a, 0x71);
@@ -197,13 +185,12 @@ static int au0828_dvb_stop_feed(struct dvb_demux_feed *feed)
 	struct au0828_dvb *dvb = &dev->dvb;
 	int ret = 0;
 
-	printk(KERN_INFO "%s() pid = 0x%x index = %d\n", __FUNCTION__, feed->pid, feed->index);
+	dprintk(1, "%s()\n", __FUNCTION__);
 
 	if (dvb) {
 		mutex_lock(&dvb->lock);
 		if (--dvb->feeding == 0) {
-			printk(KERN_INFO "%s() Stopping Transport DMA\n",
-				__FUNCTION__);
+			/* Stop transport */
 			au0828_write(dev, 0x608, 0x00);
 			au0828_write(dev, 0x609, 0x00);
 			au0828_write(dev, 0x60a, 0x00);
@@ -221,11 +208,13 @@ int dvb_register(struct au0828_dev *dev)
 	struct au0828_dvb *dvb = &dev->dvb;
 	int result;
 
+	dprintk(1, "%s()\n", __FUNCTION__);
+
 	/* register adapter */
 	result = dvb_register_adapter(&dvb->adapter, DRIVER_NAME, THIS_MODULE,
 				      &dev->usbdev->dev, adapter_nr);
 	if (result < 0) {
-		printk(KERN_WARNING "%s: dvb_register_adapter failed (errno = %d)\n",
+		printk(KERN_ERROR "%s: dvb_register_adapter failed (errno = %d)\n",
 		       DRIVER_NAME, result);
 		goto fail_adapter;
 	}
@@ -234,7 +223,7 @@ int dvb_register(struct au0828_dev *dev)
 	/* register frontend */
 	result = dvb_register_frontend(&dvb->adapter, dvb->frontend);
 	if (result < 0) {
-		printk(KERN_WARNING "%s: dvb_register_frontend failed (errno = %d)\n",
+		printk(KERN_ERR "%s: dvb_register_frontend failed (errno = %d)\n",
 		       DRIVER_NAME, result);
 		goto fail_frontend;
 	}
@@ -250,7 +239,7 @@ int dvb_register(struct au0828_dev *dev)
 	dvb->demux.stop_feed  = au0828_dvb_stop_feed;
 	result = dvb_dmx_init(&dvb->demux);
 	if (result < 0) {
-		printk(KERN_WARNING "%s: dvb_dmx_init failed (errno = %d)\n",
+		printk(KERN_ERR "%s: dvb_dmx_init failed (errno = %d)\n",
 		       DRIVER_NAME, result);
 		goto fail_dmx;
 	}
@@ -260,7 +249,7 @@ int dvb_register(struct au0828_dev *dev)
 	dvb->dmxdev.capabilities = 0;
 	result = dvb_dmxdev_init(&dvb->dmxdev, &dvb->adapter);
 	if (result < 0) {
-		printk(KERN_WARNING "%s: dvb_dmxdev_init failed (errno = %d)\n",
+		printk(KERN_ERR "%s: dvb_dmxdev_init failed (errno = %d)\n",
 		       DRIVER_NAME, result);
 		goto fail_dmxdev;
 	}
@@ -268,7 +257,7 @@ int dvb_register(struct au0828_dev *dev)
 	dvb->fe_hw.source = DMX_FRONTEND_0;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		printk(KERN_WARNING "%s: add_frontend failed (DMX_FRONTEND_0, errno = %d)\n",
+		printk(KERN_ERR "%s: add_frontend failed (DMX_FRONTEND_0, errno = %d)\n",
 		       DRIVER_NAME, result);
 		goto fail_fe_hw;
 	}
@@ -276,14 +265,14 @@ int dvb_register(struct au0828_dev *dev)
 	dvb->fe_mem.source = DMX_MEMORY_FE;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 	if (result < 0) {
-		printk(KERN_WARNING "%s: add_frontend failed (DMX_MEMORY_FE, errno = %d)\n",
+		printk(KERN_ERR "%s: add_frontend failed (DMX_MEMORY_FE, errno = %d)\n",
 		       DRIVER_NAME, result);
 		goto fail_fe_mem;
 	}
 
 	result = dvb->demux.dmx.connect_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		printk(KERN_WARNING "%s: connect_frontend failed (errno = %d)\n",
+		printk(KERN_ERR "%s: connect_frontend failed (errno = %d)\n",
 		       DRIVER_NAME, result);
 		goto fail_fe_conn;
 	}
@@ -313,6 +302,8 @@ void au0828_dvb_unregister(struct au0828_dev *dev)
 {
 	struct au0828_dvb *dvb = &dev->dvb;
 
+	dprintk(1, "%s()\n", __FUNCTION__);
+
 	if(dvb->frontend == NULL)
 		return;
 
@@ -335,6 +326,8 @@ int au0828_dvb_register(struct au0828_dev *dev)
 	struct au0828_dvb *dvb = &dev->dvb;
 	int ret;
 
+	dprintk(1, "%s()\n", __FUNCTION__);
+
 	/* init frontend */
 	switch (dev->board) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
@@ -355,7 +348,7 @@ int au0828_dvb_register(struct au0828_dev *dev)
 		break;
 	}
 	if (NULL == dvb->frontend) {
-		printk("Frontend initialization failed\n");
+		printk(KERN_ERR "%s() Frontend initialization failed\n", __FUNCTION__);
 		return -1;
 	}
 

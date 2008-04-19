@@ -29,18 +29,13 @@
 
 #include <media/v4l2-common.h>
 
-static unsigned int i2c_debug;
-module_param(i2c_debug, int, 0644);
+unsigned int i2c_debug = 0;
+module_param(i2c_debug, int, 0444);
 MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 
-static unsigned int i2c_scan = 0;
+unsigned int i2c_scan = 0;
 module_param(i2c_scan, int, 0444);
 MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
-
-#define dprintk(level, fmt, arg...)\
-	do { if (i2c_debug >= level)\
-		printk(KERN_DEBUG "%s/0: " fmt, DRIVER_NAME, ## arg);\
-	} while (0)
 
 #define I2C_WAIT_DELAY 512
 #define I2C_WAIT_RETRY 64
@@ -146,7 +141,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 	int i, strobe = 0;
 	struct au0828_dev *dev = i2c_adap->algo_data;
 
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(4, "%s()\n", __FUNCTION__);
 
 	au0828_write(dev, REG_2FF, 0x01);
 	au0828_write(dev, REG_202, 0x07);
@@ -154,13 +149,11 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 	/* Hardware needs 8 bit addresses */
 	au0828_write(dev, REG_203, msg->addr << 1);
 
-	if (i2c_debug)
-		dprintk(1, "SEND: %02x\n", msg->addr);
+	dprintk(4, "SEND: %02x\n", msg->addr);
 
 	for (i=0; i < msg->len;) {
 
-		if (i2c_debug)
-			dprintk(1, " %02x\n", msg->buf[i]);
+		dprintk(4, " %02x\n", msg->buf[i]);
 
 		au0828_write(dev, REG_205, msg->buf[i]);
 
@@ -187,8 +180,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 	if (!i2c_wait_done(i2c_adap))
 		return -EIO;
 
-	if (i2c_debug)
-		dprintk(1, "\n");
+	dprintk(4, "\n");
 
 	return msg->len;
 }
@@ -200,7 +192,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 	struct au0828_dev *dev = i2c_adap->algo_data;
 	int i;
 
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(4, "%s()\n", __FUNCTION__);
 
 	au0828_write(dev, REG_2FF, 0x01);
 	au0828_write(dev, REG_202, 0x07);
@@ -208,8 +200,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 	/* Hardware needs 8 bit addresses */
 	au0828_write(dev, REG_203, msg->addr << 1);
 
-	if (i2c_debug)
-		dprintk(1, " RECV:\n");
+	dprintk(4, " RECV:\n");
 
 	/* Deal with i2c_scan */
 	if (msg->len == 0) {
@@ -233,14 +224,12 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 
 		msg->buf[i-1] = au0828_read(dev, REG_209) & 0xff;
 
-		if (i2c_debug)
-			dprintk(1, " %02x\n", msg->buf[i-1]);
+		dprintk(4, " %02x\n", msg->buf[i-1]);
 	}
 	if (!i2c_wait_done(i2c_adap))
 		return -EIO;
 
-	if (i2c_debug)
-		dprintk(1, "\n");
+	dprintk(4, "\n");
 
 	return msg->len;
 }
@@ -250,10 +239,10 @@ static int i2c_xfer(struct i2c_adapter *i2c_adap,
 {
 	int i, retval = 0;
 
-	dprintk(1, "%s(num = %d)\n", __FUNCTION__, num);
+	dprintk(4, "%s(num = %d)\n", __FUNCTION__, num);
 
 	for (i = 0 ; i < num; i++) {
-		dprintk(1, "%s(num = %d) addr = 0x%02x  len = 0x%x\n",
+		dprintk(4, "%s(num = %d) addr = 0x%02x  len = 0x%x\n",
 			__FUNCTION__, num, msgs[i].addr, msgs[i].len);
 		if (msgs[i].flags & I2C_M_RD) {
 			/* read */
@@ -384,6 +373,7 @@ int au0828_i2c_register(struct au0828_dev *dev)
 			do_i2c_scan(DRIVER_NAME, &dev->i2c_client);
 	} else
 		printk("%s: i2c bus register FAILED\n", DRIVER_NAME);
+
 	return dev->i2c_rc;
 }
 
@@ -393,10 +383,3 @@ int au0828_i2c_unregister(struct au0828_dev *dev)
 	return 0;
 }
 
-/* ----------------------------------------------------------------------- */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

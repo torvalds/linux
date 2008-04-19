@@ -22,12 +22,6 @@
 #include "au0828.h"
 #include "au0828-cards.h"
 
-#define _dbg(level, fmt, arg...)\
-	do {\
-		if (debug >= level) \
-			printk(KERN_DEBUG DRIVER_NAME "/0: " fmt, ## arg);\
-	} while (0)
-
 struct au0828_board au0828_boards[] = {
 	[AU0828_BOARD_UNKNOWN] = {
 		.name	= "Unknown board",
@@ -50,6 +44,8 @@ const unsigned int au0828_bcount = ARRAY_SIZE(au0828_boards);
 int au0828_tuner_callback(void *priv, int command, int arg)
 {
 	struct au0828_dev *dev = priv;
+
+	dprintk(1, "%s()\n", __FUNCTION__);
 
 	switch(dev->board) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
@@ -97,8 +93,9 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 
 void au0828_card_setup(struct au0828_dev *dev)
 {
-
 	static u8 eeprom[256];
+
+	dprintk(1, "%s()\n", __FUNCTION__);
 
 	if (dev->i2c_rc == 0) {
 		dev->i2c_client.addr = 0xa0 >> 1;
@@ -121,6 +118,8 @@ void au0828_card_setup(struct au0828_dev *dev)
  */
 void au0828_gpio_setup(struct au0828_dev *dev)
 {
+	dprintk(1, "%s()\n", __FUNCTION__);
+
 	switch(dev->board) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
