@@ -60,15 +60,4 @@ enum {
 	ALT_CALGARY	= 5,	/* Second Planar Calgary      */
 };
 
-/*
- * there is a real-mode segmented pointer pointing to the
- * 4K EBDA area at 0x40E.
- */
-static inline unsigned long get_bios_ebda(void)
-{
-	unsigned long address = *(unsigned short *)phys_to_virt(0x40EUL);
-	address <<= 4;
-	return address;
-}
-
 #endif /* __ASM_RIO_H */
