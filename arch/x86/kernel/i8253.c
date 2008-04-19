@@ -224,7 +224,8 @@ static int __init init_pit_clocksource(void)
 	    pit_clockevent.mode != CLOCK_EVT_MODE_PERIODIC)
 		return 0;
 
-	clocksource_pit.mult = clocksource_hz2mult(CLOCK_TICK_RATE, 20);
+	clocksource_pit.mult = clocksource_hz2mult(CLOCK_TICK_RATE,
+						   clocksource_pit.shift);
 	return clocksource_register(&clocksource_pit);
 }
 arch_initcall(init_pit_clocksource);
