@@ -82,7 +82,6 @@
 #include <linux/circ_buf.h>
 #include <linux/mutex.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 

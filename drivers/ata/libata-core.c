@@ -61,7 +61,6 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
-#include <asm/semaphore.h>
 #include <asm/byteorder.h>
 #include <linux/cdrom.h>
 

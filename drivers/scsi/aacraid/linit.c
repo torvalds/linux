@@ -42,7 +42,6 @@
 #include <linux/syscalls.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
-#include <asm/semaphore.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
