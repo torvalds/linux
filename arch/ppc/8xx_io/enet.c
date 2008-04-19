@@ -946,29 +946,6 @@ static int __init scc_enet_init(void)
 	*((volatile uint *)BCSR1) &= ~BCSR1_ETHEN;
 #endif
 
-#ifdef CONFIG_MPC885ADS
-
-	/* Deassert PHY reset and enable the PHY.
-	 */
-	{
-		volatile uint __iomem *bcsr = ioremap(BCSR_ADDR, BCSR_SIZE);
-		uint tmp;
-
-		tmp = in_be32(bcsr + 1 /* BCSR1 */);
-		tmp |= BCSR1_ETHEN;
-		out_be32(bcsr + 1, tmp);
-		tmp = in_be32(bcsr + 4 /* BCSR4 */);
-		tmp |= BCSR4_ETH10_RST;
-		out_be32(bcsr + 4, tmp);
-		iounmap(bcsr);
-	}
-
-	/* On MPC885ADS SCC ethernet PHY defaults to the full duplex mode
-	 * upon reset. SCC is set to half duplex by default. So this
-	 * inconsistency should be better fixed by the software.
-	 */
-#endif
-
 	dev->base_addr = (unsigned long)ep;
 #if 0
 	dev->name = "CPM_ENET";
