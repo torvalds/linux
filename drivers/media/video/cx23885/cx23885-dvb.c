@@ -330,6 +330,7 @@ static int dvb_register(struct cx23885_tsport *port)
 		}
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1200:
+	case CX23885_BOARD_HAUPPAUGE_HVR1700:
 		i2c_bus = &dev->i2c_bus[0];
 		port->dvb.frontend = dvb_attach(tda10048_attach,
 			&hauppauge_hvr1200_config,

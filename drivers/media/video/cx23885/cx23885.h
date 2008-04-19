@@ -60,6 +60,7 @@
 #define CX23885_BOARD_HAUPPAUGE_HVR1500Q       5
 #define CX23885_BOARD_HAUPPAUGE_HVR1500        6
 #define CX23885_BOARD_HAUPPAUGE_HVR1200        7
+#define CX23885_BOARD_HAUPPAUGE_HVR1700        8
 
 /* Currently unsupported by the driver: PAL/H, NTSC/Kr, SECAM B/G/H/LC */
 #define CX23885_NORMS (\
