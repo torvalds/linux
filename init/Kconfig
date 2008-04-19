@@ -328,6 +328,13 @@ config RT_GROUP_SCHED
 	depends on EXPERIMENTAL
 	depends on GROUP_SCHED
 	default n
+	help
+	  This feature lets you explicitly allocate real CPU bandwidth
+	  to users or control groups (depending on the "Basis for grouping tasks"
+	  setting below. If enabled, it will also make it impossible to
+	  schedule realtime tasks for non-root users until you allocate
+	  realtime bandwidth for them.
+	  See Documentation/sched-rt-group.txt for more information.
 
 choice
 	depends on GROUP_SCHED
