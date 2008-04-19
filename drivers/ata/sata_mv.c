@@ -1483,6 +1483,43 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 	return 0;
 }
 
+static struct ata_queued_cmd *mv_get_active_qc(struct ata_port *ap)
+{
+	struct mv_port_priv *pp = ap->private_data;
+	struct ata_queued_cmd *qc;
+
+	if (pp->pp_flags & MV_PP_FLAG_NCQ_EN)
+		return NULL;
+	qc = ata_qc_from_tag(ap, ap->link.active_tag);
+	if (qc && (qc->tf.flags & ATA_TFLAG_POLLING))
+		qc = NULL;
+	return qc;
+}
+
+static void mv_unexpected_intr(struct ata_port *ap)
+{
+	struct mv_port_priv *pp = ap->private_data;
+	struct ata_eh_info *ehi = &ap->link.eh_info;
+	char *when = "";
+
+	/*
+	 * We got a device interrupt from something that
+	 * was supposed to be using EDMA or polling.
+	 */
+	ata_ehi_clear_desc(ehi);
+	if (pp->pp_flags & MV_PP_FLAG_EDMA_EN) {
+		when = " while EDMA enabled";
+	} else {
+		struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->link.active_tag);
+		if (qc && (qc->tf.flags & ATA_TFLAG_POLLING))
+			when = " while polling";
+	}
+	ata_ehi_push_desc(ehi, "unexpected device interrupt%s", when);
+	ehi->err_mask |= AC_ERR_OTHER;
+	ehi->action   |= ATA_EH_RESET;
+	ata_port_freeze(ap);
+}
+
 /**
  *      mv_err_intr - Handle error interrupts on the port
  *      @ap: ATA channel to manipulate
@@ -1586,28 +1623,6 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 		ata_port_abort(ap);
 }
 
-static void mv_intr_pio(struct ata_port *ap)
-{
-	struct ata_queued_cmd *qc;
-	u8 ata_status;
-
-	/* ignore spurious intr if drive still BUSY */
-	ata_status = readb(ap->ioaddr.status_addr);
-	if (unlikely(ata_status & ATA_BUSY))
-		return;
-
-	/* get active ATA command */
-	qc = ata_qc_from_tag(ap, ap->link.active_tag);
-	if (unlikely(!qc))			/* no active tag */
-		return;
-	if (qc->tf.flags & ATA_TFLAG_POLLING)	/* polling; we don't own qc */
-		return;
-
-	/* and finally, complete the ATA command */
-	qc->err_mask |= ac_err_mask(ata_status);
-	ata_qc_complete(qc);
-}
-
 static void mv_process_crpb_response(struct ata_port *ap,
 		struct mv_crpb *response, unsigned int tag, int ncq_enabled)
 {
@@ -1680,15 +1695,7 @@ static void mv_process_crpb_entries(struct ata_port *ap, struct mv_port_priv *pp
 /**
  *      mv_host_intr - Handle all interrupts on the given host controller
  *      @host: host specific structure
- *      @relevant: port error bits relevant to this host controller
- *      @hc: which host controller we're to look at
- *
- *      Read then write clear the HC interrupt status then walk each
- *      port connected to the HC and see if it needs servicing.  Port
- *      success ints are reported in the HC interrupt status reg, the
- *      port error ints are reported in the higher level main
- *      interrupt status register and thus are passed in via the
- *      'relevant' argument.
+ *      @main_cause: Main interrupt cause register for the chip.
  *
  *      LOCKING:
  *      Inherited from caller.
@@ -1733,25 +1740,28 @@ static int mv_host_intr(struct ata_host *host, u32 main_cause)
 			writelfl(~hc_irq_cause, hc_mmio + HC_IRQ_CAUSE_OFS);
 			handled = 1;
 		}
-
-		if (unlikely(port_cause & ERR_IRQ)) {
-			struct ata_queued_cmd *qc;
-
-			qc = ata_qc_from_tag(ap, ap->link.active_tag);
-			if (qc && (qc->tf.flags & ATA_TFLAG_POLLING))
-				continue;
-
-			mv_err_intr(ap, qc);
-			continue;
-		}
-
+		/*
+		 * Process completed CRPB response(s) before other events.
+		 */
 		pp = ap->private_data;
-		if (pp->pp_flags & MV_PP_FLAG_EDMA_EN) {
-			if ((DMA_IRQ << hardport) & hc_irq_cause)
+		if (hc_irq_cause & (DMA_IRQ << hardport)) {
+			if (pp->pp_flags & MV_PP_FLAG_EDMA_EN)
 				mv_process_crpb_entries(ap, pp);
-		} else {
-			if ((DEV_IRQ << hardport) & hc_irq_cause)
-				mv_intr_pio(ap);
+		}
+		/*
+		 * Handle chip-reported errors, or continue on to handle PIO.
+		 */
+		if (unlikely(port_cause & ERR_IRQ)) {
+			mv_err_intr(ap, mv_get_active_qc(ap));
+		} else if (hc_irq_cause & (DEV_IRQ << hardport)) {
+			if (!(pp->pp_flags & MV_PP_FLAG_EDMA_EN)) {
+				struct ata_queued_cmd *qc = mv_get_active_qc(ap);
+				if (qc) {
+					ata_sff_host_intr(ap, qc);
+					continue;
+				}
+			}
+			mv_unexpected_intr(ap);
 		}
 	}
 	return handled;
