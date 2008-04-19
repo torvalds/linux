@@ -62,7 +62,12 @@ static inline u64 sched_rt_runtime(struct rt_rq *rt_rq)
 	if (!rt_rq->tg)
 		return RUNTIME_INF;
 
-	return rt_rq->tg->rt_bandwidth.rt_runtime;
+	return rt_rq->rt_runtime;
+}
+
+static inline u64 sched_rt_period(struct rt_rq *rt_rq)
+{
+	return ktime_to_ns(rt_rq->tg->rt_bandwidth.rt_period);
 }
 
 #define for_each_leaf_rt_rq(rt_rq, rq) \
@@ -145,11 +150,21 @@ struct rt_rq *sched_rt_period_rt_rq(struct rt_bandwidth *rt_b, int cpu)
 	return container_of(rt_b, struct task_group, rt_bandwidth)->rt_rq[cpu];
 }
 
+static inline struct rt_bandwidth *sched_rt_bandwidth(struct rt_rq *rt_rq)
+{
+	return &rt_rq->tg->rt_bandwidth;
+}
+
 #else
 
 static inline u64 sched_rt_runtime(struct rt_rq *rt_rq)
 {
-	return def_rt_bandwidth.rt_runtime;
+	return rt_rq->rt_runtime;
+}
+
+static inline u64 sched_rt_period(struct rt_rq *rt_rq)
+{
+	return ktime_to_ns(def_rt_bandwidth.rt_period);
 }
 
 #define for_each_leaf_rt_rq(rt_rq, rq) \
@@ -200,6 +215,11 @@ struct rt_rq *sched_rt_period_rt_rq(struct rt_bandwidth *rt_b, int cpu)
 	return &cpu_rq(cpu)->rt;
 }
 
+static inline struct rt_bandwidth *sched_rt_bandwidth(struct rt_rq *rt_rq)
+{
+	return &def_rt_bandwidth;
+}
+
 #endif
 
 static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
@@ -218,8 +238,10 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 
 		spin_lock(&rq->lock);
 		if (rt_rq->rt_time) {
-			u64 runtime = rt_b->rt_runtime;
+			u64 runtime;
 
+			spin_lock(&rt_rq->rt_runtime_lock);
+			runtime = rt_rq->rt_runtime;
 			rt_rq->rt_time -= min(rt_rq->rt_time, overrun*runtime);
 			if (rt_rq->rt_throttled && rt_rq->rt_time < runtime) {
 				rt_rq->rt_throttled = 0;
@@ -227,6 +249,7 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 			}
 			if (rt_rq->rt_time || rt_rq->rt_nr_running)
 				idle = 0;
+			spin_unlock(&rt_rq->rt_runtime_lock);
 		}
 
 		if (enqueue)
@@ -236,6 +259,47 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 
 	return idle;
 }
+
+#ifdef CONFIG_SMP
+static int balance_runtime(struct rt_rq *rt_rq)
+{
+	struct rt_bandwidth *rt_b = sched_rt_bandwidth(rt_rq);
+	struct root_domain *rd = cpu_rq(smp_processor_id())->rd;
+	int i, weight, more = 0;
+	u64 rt_period;
+
+	weight = cpus_weight(rd->span);
+
+	spin_lock(&rt_b->rt_runtime_lock);
+	rt_period = ktime_to_ns(rt_b->rt_period);
+	for_each_cpu_mask(i, rd->span) {
+		struct rt_rq *iter = sched_rt_period_rt_rq(rt_b, i);
+		s64 diff;
+
+		if (iter == rt_rq)
+			continue;
+
+		spin_lock(&iter->rt_runtime_lock);
+		diff = iter->rt_runtime - iter->rt_time;
+		if (diff > 0) {
+			do_div(diff, weight);
+			if (rt_rq->rt_runtime + diff > rt_period)
+				diff = rt_period - rt_rq->rt_runtime;
+			iter->rt_runtime -= diff;
+			rt_rq->rt_runtime += diff;
+			more = 1;
+			if (rt_rq->rt_runtime == rt_period) {
+				spin_unlock(&iter->rt_runtime_lock);
+				break;
+			}
+		}
+		spin_unlock(&iter->rt_runtime_lock);
+	}
+	spin_unlock(&rt_b->rt_runtime_lock);
+
+	return more;
+}
+#endif
 
 static inline int rt_se_prio(struct sched_rt_entity *rt_se)
 {
@@ -258,6 +322,22 @@ static int sched_rt_runtime_exceeded(struct rt_rq *rt_rq)
 
 	if (rt_rq->rt_throttled)
 		return rt_rq_throttled(rt_rq);
+
+	if (sched_rt_runtime(rt_rq) >= sched_rt_period(rt_rq))
+		return 0;
+
+#ifdef CONFIG_SMP
+	if (rt_rq->rt_time > runtime) {
+		int more;
+
+		spin_unlock(&rt_rq->rt_runtime_lock);
+		more = balance_runtime(rt_rq);
+		spin_lock(&rt_rq->rt_runtime_lock);
+
+		if (more)
+			runtime = sched_rt_runtime(rt_rq);
+	}
+#endif
 
 	if (rt_rq->rt_time > runtime) {
 		rt_rq->rt_throttled = 1;
@@ -294,9 +374,11 @@ static void update_curr_rt(struct rq *rq)
 	curr->se.exec_start = rq->clock;
 	cpuacct_charge(curr, delta_exec);
 
+	spin_lock(&rt_rq->rt_runtime_lock);
 	rt_rq->rt_time += delta_exec;
 	if (sched_rt_runtime_exceeded(rt_rq))
 		resched_task(curr);
+	spin_unlock(&rt_rq->rt_runtime_lock);
 }
 
 static inline

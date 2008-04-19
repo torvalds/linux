@@ -164,6 +164,7 @@ struct rt_prio_array {
 struct rt_bandwidth {
 	ktime_t rt_period;
 	u64 rt_runtime;
+	spinlock_t rt_runtime_lock;
 	struct hrtimer rt_period_timer;
 };
 
@@ -197,6 +198,8 @@ void init_rt_bandwidth(struct rt_bandwidth *rt_b, u64 period, u64 runtime)
 {
 	rt_b->rt_period = ns_to_ktime(period);
 	rt_b->rt_runtime = runtime;
+
+	spin_lock_init(&rt_b->rt_runtime_lock);
 
 	hrtimer_init(&rt_b->rt_period_timer,
 			CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -414,6 +417,8 @@ struct rt_rq {
 #endif
 	int rt_throttled;
 	u64 rt_time;
+	u64 rt_runtime;
+	spinlock_t rt_runtime_lock;
 
 #ifdef CONFIG_RT_GROUP_SCHED
 	unsigned long rt_nr_boosted;
@@ -7299,6 +7304,8 @@ static void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq)
 
 	rt_rq->rt_time = 0;
 	rt_rq->rt_throttled = 0;
+	rt_rq->rt_runtime = 0;
+	spin_lock_init(&rt_rq->rt_runtime_lock);
 
 #ifdef CONFIG_RT_GROUP_SCHED
 	rt_rq->rt_nr_boosted = 0;
@@ -7335,6 +7342,7 @@ static void init_tg_rt_entry(struct rq *rq, struct task_group *tg,
 	init_rt_rq(rt_rq, rq);
 	rt_rq->tg = tg;
 	rt_rq->rt_se = rt_se;
+	rt_rq->rt_runtime = tg->rt_bandwidth.rt_runtime;
 	if (add)
 		list_add(&rt_rq->leaf_rt_rq_list, &rq->leaf_rt_rq_list);
 
@@ -7391,6 +7399,8 @@ void __init sched_init(void)
 		init_tg_rt_entry(rq, &init_task_group,
 				&per_cpu(init_rt_rq, i),
 				&per_cpu(init_sched_rt_entity, i), i, 1);
+#else
+		rq->rt.rt_runtime = def_rt_bandwidth.rt_runtime;
 #endif
 
 		for (j = 0; j < CPU_LOAD_IDX_MAX; j++)
@@ -7974,11 +7984,11 @@ static inline int tg_has_rt_tasks(struct task_group *tg)
 static int tg_set_bandwidth(struct task_group *tg,
 		u64 rt_period, u64 rt_runtime)
 {
-	int err = 0;
+	int i, err = 0;
 
 	mutex_lock(&rt_constraints_mutex);
 	read_lock(&tasklist_lock);
-	if (rt_runtime_us == 0 && tg_has_rt_tasks(tg)) {
+	if (rt_runtime == 0 && tg_has_rt_tasks(tg)) {
 		err = -EBUSY;
 		goto unlock;
 	}
@@ -7986,8 +7996,19 @@ static int tg_set_bandwidth(struct task_group *tg,
 		err = -EINVAL;
 		goto unlock;
 	}
+
+	spin_lock_irq(&tg->rt_bandwidth.rt_runtime_lock);
 	tg->rt_bandwidth.rt_period = ns_to_ktime(rt_period);
 	tg->rt_bandwidth.rt_runtime = rt_runtime;
+
+	for_each_possible_cpu(i) {
+		struct rt_rq *rt_rq = tg->rt_rq[i];
+
+		spin_lock(&rt_rq->rt_runtime_lock);
+		rt_rq->rt_runtime = rt_runtime;
+		spin_unlock(&rt_rq->rt_runtime_lock);
+	}
+	spin_unlock_irq(&tg->rt_bandwidth.rt_runtime_lock);
  unlock:
 	read_unlock(&tasklist_lock);
 	mutex_unlock(&rt_constraints_mutex);
@@ -8052,6 +8073,19 @@ static int sched_rt_global_constraints(void)
 #else
 static int sched_rt_global_constraints(void)
 {
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&def_rt_bandwidth.rt_runtime_lock, flags);
+	for_each_possible_cpu(i) {
+		struct rt_rq *rt_rq = &cpu_rq(i)->rt;
+
+		spin_lock(&rt_rq->rt_runtime_lock);
+		rt_rq->rt_runtime = global_rt_runtime();
+		spin_unlock(&rt_rq->rt_runtime_lock);
+	}
+	spin_unlock_irqrestore(&def_rt_bandwidth.rt_runtime_lock, flags);
+
 	return 0;
 }
 #endif
@@ -8168,7 +8202,7 @@ static u64 cpu_shares_read_uint(struct cgroup *cgrp, struct cftype *cft)
 #endif
 
 #ifdef CONFIG_RT_GROUP_SCHED
-static int cpu_rt_runtime_write(struct cgroup *cgrp, struct cftype *cft,
+static ssize_t cpu_rt_runtime_write(struct cgroup *cgrp, struct cftype *cft,
 				struct file *file,
 				const char __user *userbuf,
 				size_t nbytes, loff_t *unused_ppos)
