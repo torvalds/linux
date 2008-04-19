@@ -46,9 +46,9 @@
 #include <linux/mutex.h>
 #include <linux/kref.h>
 #include <linux/compat.h>
+#include <linux/semaphore.h>
 
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 
 #include <rdma/ib_mad.h>
 #include <rdma/ib_user_mad.h>

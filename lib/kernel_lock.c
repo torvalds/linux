@@ -8,7 +8,7 @@
 #include <linux/smp_lock.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
-#include <asm/semaphore.h>
+#include <linux/semaphore.h>
 
 /*
  * The 'big kernel semaphore'

@@ -241,7 +241,7 @@
    </para>
    <para>
      The third type is a semaphore
-     (<filename class="headerfile">include/asm/semaphore.h</filename>): it
+     (<filename class="headerfile">include/linux/semaphore.h</filename>): it
      can have more than one holder at any time (the number decided at
      initialization time), although it is most commonly used as a
      single-holder lock (a mutex).  If you can't get a semaphore, your
@@ -290,7 +290,7 @@
      <para>
        If you have a data structure which is only ever accessed from
        user context, then you can use a simple semaphore
-       (<filename>linux/asm/semaphore.h</filename>) to protect it.  This 
+       (<filename>linux/linux/semaphore.h</filename>) to protect it.  This
        is the most trivial case: you initialize the semaphore to the number 
        of resources available (usually 1), and call
        <function>down_interruptible()</function> to grab the semaphore, and 
@@ -1656,7 +1656,7 @@ the amount of locking which needs to be done.
  #include &lt;linux/slab.h&gt;
  #include &lt;linux/string.h&gt;
 +#include &lt;linux/rcupdate.h&gt;
- #include &lt;asm/semaphore.h&gt;
+ #include &lt;linux/semaphore.h&gt;
  #include &lt;asm/errno.h&gt;
 
  struct object
