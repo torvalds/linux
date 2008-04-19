@@ -59,13 +59,13 @@ static int recv_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 u32 au0828_readreg(struct au0828_dev *dev, u16 reg)
 {
 	recv_control_msg(dev, CMD_REQUEST_IN, 0, reg, dev->ctrlmsg, 1);
-	dprintk(8, "%s(0x%x) = 0x%x\n", __FUNCTION__, reg, dev->ctrlmsg[0]);
+	dprintk(8, "%s(0x%x) = 0x%x\n", __func__, reg, dev->ctrlmsg[0]);
 	return dev->ctrlmsg[0];
 }
 
 u32 au0828_writereg(struct au0828_dev *dev, u16 reg, u32 val)
 {
-	dprintk(8, "%s(0x%x, 0x%x)\n", __FUNCTION__, reg, val);
+	dprintk(8, "%s(0x%x, 0x%x)\n", __func__, reg, val);
 	return send_control_msg(dev, CMD_REQUEST_OUT, val, reg, dev->ctrlmsg, 0);
 }
 
@@ -76,7 +76,7 @@ static void cmd_msg_dump(struct au0828_dev *dev)
 	for (i = 0;i < sizeof(dev->ctrlmsg); i+=16)
 		dprintk(2,"%s() %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x "
 			"%02x %02x %02x %02x %02x %02x\n",
-			__FUNCTION__,
+			__func__,
 			dev->ctrlmsg[i+0], dev->ctrlmsg[i+1],
 			dev->ctrlmsg[i+2], dev->ctrlmsg[i+3],
 			dev->ctrlmsg[i+4], dev->ctrlmsg[i+5],
@@ -106,8 +106,7 @@ static int send_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 
 		if (status < 0) {
 			printk(KERN_ERR "%s() Failed sending control message, error %d.\n",
-				__FUNCTION__,
-				status);
+				__func__, status);
 		}
 
 	}
@@ -136,8 +135,7 @@ static int recv_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 
 		if (status < 0) {
 			printk(KERN_ERR "%s() Failed receiving control message, error %d.\n",
-				__FUNCTION__,
-				status);
+				__func__, status);
 		}
 		else
 			cmd_msg_dump(dev);
@@ -149,7 +147,7 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 {
 	struct au0828_dev *dev = usb_get_intfdata(interface);
 
-	dprintk(1,"%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 
 	/* Digital TV */
 	au0828_dvb_unregister(dev);
@@ -179,15 +177,14 @@ static int au0828_usb_probe (struct usb_interface *interface,
 	if (ifnum != 0)
 		return -ENODEV;
 
-	dprintk(1,"%s() vendor id 0x%x device id 0x%x ifnum:%d\n",
-		__FUNCTION__,
+	dprintk(1,"%s() vendor id 0x%x device id 0x%x ifnum:%d\n", __func__,
 		le16_to_cpu(usbdev->descriptor.idVendor),
 		le16_to_cpu(usbdev->descriptor.idProduct),
 		ifnum);
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		printk(KERN_ERR "%s() Unable to allocate memory\n", __FUNCTION__);
+		printk(KERN_ERR "%s() Unable to allocate memory\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -232,20 +229,21 @@ static int __init au0828_init(void)
 	int ret;
 
 	if(debug)
-		printk(KERN_INFO "%s() Debugging is enabled\n", __FUNCTION__);
+		printk(KERN_INFO "%s() Debugging is enabled\n", __func__);
 
 	if(usb_debug) {
-		printk(KERN_INFO "%s() USB Debugging is enabled\n", __FUNCTION__);
+		printk(KERN_INFO "%s() USB Debugging is enabled\n", __func__);
 		debug |= 2;
 	}
 
 	if(i2c_debug) {
-		printk(KERN_INFO "%s() I2C Debugging is enabled\n", __FUNCTION__);
+		printk(KERN_INFO "%s() I2C Debugging is enabled\n", __func__);
 		debug |= 4;
 	}
 
 	if(bridge_debug) {
-		printk(KERN_INFO "%s() Bridge Debugging is enabled\n", __FUNCTION__);
+		printk(KERN_INFO "%s() Bridge Debugging is enabled\n",
+		       __func__);
 		debug |= 8;
 	}
 

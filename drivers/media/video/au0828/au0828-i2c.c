@@ -141,7 +141,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 	int i, strobe = 0;
 	struct au0828_dev *dev = i2c_adap->algo_data;
 
-	dprintk(4, "%s()\n", __FUNCTION__);
+	dprintk(4, "%s()\n", __func__);
 
 	au0828_write(dev, REG_2FF, 0x01);
 	au0828_write(dev, REG_202, 0x07);
@@ -192,7 +192,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 	struct au0828_dev *dev = i2c_adap->algo_data;
 	int i;
 
-	dprintk(4, "%s()\n", __FUNCTION__);
+	dprintk(4, "%s()\n", __func__);
 
 	au0828_write(dev, REG_2FF, 0x01);
 	au0828_write(dev, REG_202, 0x07);
@@ -239,11 +239,11 @@ static int i2c_xfer(struct i2c_adapter *i2c_adap,
 {
 	int i, retval = 0;
 
-	dprintk(4, "%s(num = %d)\n", __FUNCTION__, num);
+	dprintk(4, "%s(num = %d)\n", __func__, num);
 
 	for (i = 0 ; i < num; i++) {
 		dprintk(4, "%s(num = %d) addr = 0x%02x  len = 0x%x\n",
-			__FUNCTION__, num, msgs[i].addr, msgs[i].len);
+			__func__, num, msgs[i].addr, msgs[i].len);
 		if (msgs[i].flags & I2C_M_RD) {
 			/* read */
 			retval = i2c_readbytes(i2c_adap, &msgs[i], 0);
@@ -346,7 +346,7 @@ static void do_i2c_scan(char *name, struct i2c_client *c)
 /* init + register i2c algo-bit adapter */
 int au0828_i2c_register(struct au0828_dev *dev)
 {
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 
 	memcpy(&dev->i2c_adap, &au0828_i2c_adap_template,
 	       sizeof(dev->i2c_adap));

@@ -45,7 +45,7 @@ int au0828_tuner_callback(void *priv, int command, int arg)
 {
 	struct au0828_dev *dev = priv;
 
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 
 	switch(dev->board) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
@@ -62,7 +62,7 @@ int au0828_tuner_callback(void *priv, int command, int arg)
 		}
 		else {
 			printk(KERN_ERR
-				"%s(): Unknown command.\n", __FUNCTION__);
+				"%s(): Unknown command.\n", __func__);
 			return -EINVAL;
 		}
 		break;
@@ -83,11 +83,13 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 	case 72001: /* WinTV-HVR950q (Retail, IR, ATSC/QAM and basic analog video */
 		break;
 	default:
-		printk("%s: warning: unknown hauppauge model #%d\n", __FUNCTION__, tv.model);
+		printk(KERN_WARNING "%s: warning: "
+		       "unknown hauppauge model #%d\n", __func__, tv.model);
 		break;
 	}
 
-	printk(KERN_INFO "%s: hauppauge eeprom: model=%d\n", __FUNCTION__, tv.model);
+	printk(KERN_INFO "%s: hauppauge eeprom: model=%d\n",
+	       __func__, tv.model);
 }
 
 
@@ -95,7 +97,7 @@ void au0828_card_setup(struct au0828_dev *dev)
 {
 	static u8 eeprom[256];
 
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 
 	if (dev->i2c_rc == 0) {
 		dev->i2c_client.addr = 0xa0 >> 1;
@@ -118,7 +120,7 @@ void au0828_card_setup(struct au0828_dev *dev)
  */
 void au0828_gpio_setup(struct au0828_dev *dev)
 {
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s()\n", __func__);
 
 	switch(dev->board) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
