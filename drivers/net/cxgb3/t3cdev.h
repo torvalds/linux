@@ -34,7 +34,6 @@
 
 #include <linux/list.h>
 #include <asm/atomic.h>
-#include <asm/semaphore.h>
 #include <linux/netdevice.h>
 #include <linux/proc_fs.h>
 #include <linux/skbuff.h>
