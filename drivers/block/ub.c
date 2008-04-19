@@ -319,6 +319,7 @@ struct ub_dev {
 	int openc;			/* protected by ub_lock! */
 					/* kref is too implicit for our taste */
 	int reset;			/* Reset is running */
+	int bad_resid;
 	unsigned int tagcnt;
 	char name[12];
 	struct usb_device *dev;
@@ -1265,14 +1266,19 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			return;
 		}
 
-		len = le32_to_cpu(bcs->Residue);
-		if (len != cmd->len - cmd->act_len) {
-			/*
-			 * It is all right to transfer less, the caller has
-			 * to check. But it's not all right if the device
-			 * counts disagree with our counts.
-			 */
-			goto Bad_End;
+		if (!sc->bad_resid) {
+			len = le32_to_cpu(bcs->Residue);
+			if (len != cmd->len - cmd->act_len) {
+				/*
+				 * Only start ignoring if this cmd ended well.
+				 */
+				if (cmd->len == cmd->act_len) {
+					printk(KERN_NOTICE "%s: "
+					    "bad residual %d of %d, ignoring\n",
+					    sc->name, len, cmd->len);
+					sc->bad_resid = 1;
+				}
+			}
 		}
 
 		switch (bcs->Status) {
