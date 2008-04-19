@@ -499,8 +499,6 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 	regs->cs = __USER32_CS;
 	regs->ss = __USER32_DS;
 
-	set_fs(USER_DS);
-
 #if DEBUG_SIG
 	printk(KERN_DEBUG "SIG deliver (%s:%d): sp=%p pc=%lx ra=%u\n",
 	       current->comm, current->pid, frame, regs->ip, frame->pretcode);
@@ -595,8 +593,6 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	regs->cs = __USER32_CS;
 	regs->ss = __USER32_DS;
-
-	set_fs(USER_DS);
 
 #if DEBUG_SIG
 	printk(KERN_DEBUG "SIG deliver (%s:%d): sp=%p pc=%lx ra=%u\n",

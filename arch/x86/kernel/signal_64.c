@@ -285,10 +285,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	   even if the handler happens to be interrupting 32-bit code. */
 	regs->cs = __USER_CS;
 
-	/* This, by contrast, has nothing to do with segment registers -
-	   see include/asm-x86_64/uaccess.h for details. */
-	set_fs(USER_DS);
-
 	return 0;
 
 give_sigsegv:
@@ -376,6 +372,13 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	ret = setup_rt_frame(sig, ka, info, oldset, regs);
 
 	if (ret == 0) {
+		/*
+		 * This has nothing to do with segment registers,
+		 * despite the name.  This magic affects uaccess.h
+		 * macros' behavior.  Reset it to the normal setting.
+		 */
+		set_fs(USER_DS);
+
 		/*
 		 * Clear the direction flag as per the ABI for function entry.
 		 */
