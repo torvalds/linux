@@ -170,7 +170,7 @@ static struct scoop_config tosa_scoop_setup = {
 	.gpio_base	= TOSA_SCOOP_GPIO_BASE,
 };
 
-struct platform_device tosascoop_device = {
+static struct platform_device tosascoop_device = {
 	.name		= "sharp-scoop",
 	.id		= 0,
 	.dev		= {
@@ -197,7 +197,7 @@ static struct scoop_config tosa_scoop_jc_setup = {
 	.gpio_base	= TOSA_SCOOP_JC_GPIO_BASE,
 };
 
-struct platform_device tosascoop_jc_device = {
+static struct platform_device tosascoop_jc_device = {
 	.name		= "sharp-scoop",
 	.id		= 1,
 	.dev		= {
@@ -421,7 +421,7 @@ static struct platform_device tosa_gpio_keys_device = {
 /*
  * Tosa LEDs
  */
-struct gpio_led tosa_gpio_leds[] = {
+static struct gpio_led tosa_gpio_leds[] = {
 	{
 		.name			= "tosa:amber:charge",
 		.default_trigger	= "main-battery-charging",
@@ -434,7 +434,7 @@ struct gpio_led tosa_gpio_leds[] = {
 	},
 };
 
-struct gpio_led_platform_data tosa_gpio_leds_platform_data = {
+static struct gpio_led_platform_data tosa_gpio_leds_platform_data = {
 	.leds		= tosa_gpio_leds,
 	.num_leds	= ARRAY_SIZE(tosa_gpio_leds),
 };

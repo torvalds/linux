@@ -151,11 +151,7 @@
 
 #define TOSA_IRQ_GPIO_MAIN_BAT_LOW 	IRQ_GPIO(TOSA_GPIO_MAIN_BAT_LOW)
 
-extern struct platform_device tosascoop_jc_device;
-extern struct platform_device tosascoop_device;
-
 #define TOSA_KEY_SYNC		KEY_102ND /* ??? */
-
 
 #ifndef CONFIG_KEYBOARD_TOSA_USE_EXT_KEYCODES
 #define TOSA_KEY_RECORD		KEY_YEN
