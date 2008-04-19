@@ -1693,50 +1693,48 @@ static void mv_process_crpb_entries(struct ata_port *ap, struct mv_port_priv *pp
  *      LOCKING:
  *      Inherited from caller.
  */
-static void mv_host_intr(struct ata_host *host, u32 relevant, unsigned int hc)
+static int mv_host_intr(struct ata_host *host, u32 main_cause)
 {
 	struct mv_host_priv *hpriv = host->private_data;
-	void __iomem *mmio = hpriv->base;
-	void __iomem *hc_mmio = mv_hc_base(mmio, hc);
-	u32 hc_irq_cause;
-	int port, port0, last_port;
+	void __iomem *mmio = hpriv->base, *hc_mmio = NULL;
+	u32 hc_irq_cause = 0;
+	unsigned int handled = 0, port;
 
-	if (hc == 0)
-		port0 = 0;
-	else
-		port0 = MV_PORTS_PER_HC;
-
-	if (HAS_PCI(host))
-		last_port = port0 + MV_PORTS_PER_HC;
-	else
-		last_port = port0 + hpriv->n_ports;
-	/* we'll need the HC success int register in most cases */
-	hc_irq_cause = readl(hc_mmio + HC_IRQ_CAUSE_OFS);
-	if (!hc_irq_cause)
-		return;
-
-	writelfl(~hc_irq_cause, hc_mmio + HC_IRQ_CAUSE_OFS);
-
-	VPRINTK("ENTER, hc%u relevant=0x%08x HC IRQ cause=0x%08x\n",
-		hc, relevant, hc_irq_cause);
-
-	for (port = port0; port < last_port; port++) {
+	for (port = 0; port < hpriv->n_ports; port++) {
 		struct ata_port *ap = host->ports[port];
 		struct mv_port_priv *pp;
-		int have_err_bits, hardport, shift;
-
-		if ((!ap) || (ap->flags & ATA_FLAG_DISABLED))
+		unsigned int shift, hardport, port_cause;
+		/*
+		 * When we move to the second hc, flag our cached
+		 * copies of hc_mmio (and hc_irq_cause) as invalid again.
+		 */
+		if (port == MV_PORTS_PER_HC)
+			hc_mmio = NULL;
+		/*
+		 * Do nothing if port is not interrupting or is disabled:
+		 */
+		MV_PORT_TO_SHIFT_AND_HARDPORT(port, shift, hardport);
+		port_cause = (main_cause >> shift) & (DONE_IRQ | ERR_IRQ);
+		if (!port_cause || !ap || (ap->flags & ATA_FLAG_DISABLED))
 			continue;
+		/*
+		 * Each hc within the host has its own hc_irq_cause register.
+		 * We defer reading it until we know we need it, right now:
+		 *
+		 * FIXME later: we don't really need to read this register
+		 * (some logic changes required below if we go that way),
+		 * because it doesn't tell us anything new.  But we do need
+		 * to write to it, outside the top of this loop,
+		 * to reset the interrupt triggers for next time.
+		 */
+		if (!hc_mmio) {
+			hc_mmio = mv_hc_base_from_port(mmio, port);
+			hc_irq_cause = readl(hc_mmio + HC_IRQ_CAUSE_OFS);
+			writelfl(~hc_irq_cause, hc_mmio + HC_IRQ_CAUSE_OFS);
+			handled = 1;
+		}
 
-		pp = ap->private_data;
-
-		shift = port << 1;		/* (port * 2) */
-		if (port >= MV_PORTS_PER_HC)
-			shift++;	/* skip bit 8 in the HC Main IRQ reg */
-
-		have_err_bits = ((ERR_IRQ << shift) & relevant);
-
-		if (unlikely(have_err_bits)) {
+		if (unlikely(port_cause & ERR_IRQ)) {
 			struct ata_queued_cmd *qc;
 
 			qc = ata_qc_from_tag(ap, ap->link.active_tag);
@@ -1747,8 +1745,7 @@ static void mv_host_intr(struct ata_host *host, u32 relevant, unsigned int hc)
 			continue;
 		}
 
-		hardport = mv_hardport_from_port(port); /* range 0..3 */
-
+		pp = ap->private_data;
 		if (pp->pp_flags & MV_PP_FLAG_EDMA_EN) {
 			if ((DMA_IRQ << hardport) & hc_irq_cause)
 				mv_process_crpb_entries(ap, pp);
@@ -1757,10 +1754,10 @@ static void mv_host_intr(struct ata_host *host, u32 relevant, unsigned int hc)
 				mv_intr_pio(ap);
 		}
 	}
-	VPRINTK("EXIT\n");
+	return handled;
 }
 
-static void mv_pci_error(struct ata_host *host, void __iomem *mmio)
+static int mv_pci_error(struct ata_host *host, void __iomem *mmio)
 {
 	struct mv_host_priv *hpriv = host->private_data;
 	struct ata_port *ap;
@@ -1798,6 +1795,7 @@ static void mv_pci_error(struct ata_host *host, void __iomem *mmio)
 			ata_port_freeze(ap);
 		}
 	}
+	return 1;	/* handled */
 }
 
 /**
@@ -1818,8 +1816,7 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	struct mv_host_priv *hpriv = host->private_data;
-	unsigned int hc, handled = 0, n_hcs;
-	void __iomem *mmio = hpriv->base;
+	unsigned int handled = 0;
 	u32 main_cause, main_mask;
 
 	spin_lock(&host->lock);
@@ -1829,26 +1826,12 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance)
 	 * Deal with cases where we either have nothing pending, or have read
 	 * a bogus register value which can indicate HW removal or PCI fault.
 	 */
-	if (!(main_cause & main_mask) || (main_cause == 0xffffffffU))
-		goto out_unlock;
-
-	n_hcs = mv_get_hc_count(host->ports[0]->flags);
-
-	if (unlikely((main_cause & PCI_ERR) && HAS_PCI(host))) {
-		mv_pci_error(host, mmio);
-		handled = 1;
-		goto out_unlock;	/* skip all other HC irq handling */
+	if ((main_cause & main_mask) && (main_cause != 0xffffffffU)) {
+		if (unlikely((main_cause & PCI_ERR) && HAS_PCI(host)))
+			handled = mv_pci_error(host, hpriv->base);
+		else
+			handled = mv_host_intr(host, main_cause);
 	}
-
-	for (hc = 0; hc < n_hcs; hc++) {
-		u32 relevant = main_cause & (HC0_IRQ_PEND << (hc * HC_SHIFT));
-		if (relevant) {
-			mv_host_intr(host, relevant, hc);
-			handled = 1;
-		}
-	}
-
-out_unlock:
 	spin_unlock(&host->lock);
 	return IRQ_RETVAL(handled);
 }
