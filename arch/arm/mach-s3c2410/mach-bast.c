@@ -259,7 +259,7 @@ static int bast_pm_resume(struct sys_device *sd)
 #endif
 
 static struct sysdev_class bast_pm_sysclass = {
-	set_kset_name("mach-bast"),
+	.name		= "mach-bast",
 	.suspend	= bast_pm_suspend,
 	.resume		= bast_pm_resume,
 };
