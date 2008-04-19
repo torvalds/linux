@@ -205,6 +205,7 @@ struct ub_scsi_cmd {
 	unsigned char key, asc, ascq;	/* May be valid if error==-EIO */
 
 	int stat_count;			/* Retries getting status. */
+	unsigned int timeo;		/* jiffies until rq->timeout changes */
 
 	unsigned int len;		/* Requested length */
 	unsigned int current_sg;
@@ -764,6 +765,12 @@ static void ub_cmd_build_packet(struct ub_dev *sc, struct ub_lun *lun,
 	cmd->cdb_len = rq->cmd_len;
 
 	cmd->len = rq->data_len;
+
+	/*
+	 * To reapply this to every URB is not as incorrect as it looks.
+	 * In return, we avoid any complicated tracking calculations.
+	 */
+	cmd->timeo = rq->timeout;
 }
 
 static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
@@ -1336,7 +1343,10 @@ static void ub_data_start(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 		return;
 	}
 
-	sc->work_timer.expires = jiffies + UB_DATA_TIMEOUT;
+	if (cmd->timeo)
+		sc->work_timer.expires = jiffies + cmd->timeo;
+	else
+		sc->work_timer.expires = jiffies + UB_DATA_TIMEOUT;
 	add_timer(&sc->work_timer);
 
 	cmd->state = UB_CMDST_DATA;
@@ -1376,7 +1386,10 @@ static int __ub_state_stat(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 		return -1;
 	}
 
-	sc->work_timer.expires = jiffies + UB_STAT_TIMEOUT;
+	if (cmd->timeo)
+		sc->work_timer.expires = jiffies + cmd->timeo;
+	else
+		sc->work_timer.expires = jiffies + UB_STAT_TIMEOUT;
 	add_timer(&sc->work_timer);
 	return 0;
 }
