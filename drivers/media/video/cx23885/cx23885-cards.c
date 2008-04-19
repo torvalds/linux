@@ -431,6 +431,16 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		ts2->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
 	}
 
+	/* Certain boards support analog, or require the avcore to be
+	 * loaded, ensure this happens.
+	 */
+	switch (dev->board) {
+	case CX23885_BOARD_HAUPPAUGE_HVR1800:
+	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
+	case CX23885_BOARD_HAUPPAUGE_HVR1700:
+		request_module("cx25840");
+		break;
+	}
 }
 
 /* ------------------------------------------------------------------ */
