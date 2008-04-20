@@ -133,10 +133,8 @@ static void default_idle(void)
 		cpu_relax();
 	else {
 		local_irq_disable();
-		if (!need_resched()) {
-			timer_dyn_reprogram();
+		if (!need_resched())
 			arch_idle();
-		}
 		local_irq_enable();
 	}
 }

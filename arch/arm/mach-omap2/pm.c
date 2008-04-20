@@ -57,13 +57,6 @@ void omap2_pm_idle(void)
 		return;
 	}
 
-	/*
-	 * Since an interrupt may set up a timer, we don't want to
-	 * reprogram the hardware timer with interrupts enabled.
-	 * Re-enable interrupts only after returning from idle.
-	 */
-	timer_dyn_reprogram();
-
 	omap2_sram_idle();
 	local_fiq_enable();
 	local_irq_enable();
