@@ -58,7 +58,6 @@ static void b43_lo_write(struct b43_wldev *dev, struct b43_loctl *control)
 {
 	struct b43_phy *phy = &dev->phy;
 	u16 value;
-	u16 reg;
 
 	if (B43_DEBUG) {
 		if (unlikely(abs(control->i) > 16 || abs(control->q) > 16)) {
@@ -68,12 +67,11 @@ static void b43_lo_write(struct b43_wldev *dev, struct b43_loctl *control)
 			return;
 		}
 	}
+	B43_WARN_ON(phy->type != B43_PHYTYPE_G);
 
 	value = (u8) (control->q);
 	value |= ((u8) (control->i)) << 8;
-
-	reg = (phy->type == B43_PHYTYPE_B) ? 0x002F : B43_PHY_LO_CTL;
-	b43_phy_write(dev, reg, value);
+	b43_phy_write(dev, B43_PHY_LO_CTL, value);
 }
 
 static u16 lo_measure_feedthrough(struct b43_wldev *dev,

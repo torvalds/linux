@@ -890,109 +890,6 @@ static void b43_phy_inita(struct b43_wldev *dev)
 	}
 }
 
-static void b43_phy_initb2(struct b43_wldev *dev)
-{
-	struct b43_phy *phy = &dev->phy;
-	u16 offset, val;
-
-	b43_write16(dev, 0x03EC, 0x3F22);
-	b43_phy_write(dev, 0x0020, 0x301C);
-	b43_phy_write(dev, 0x0026, 0x0000);
-	b43_phy_write(dev, 0x0030, 0x00C6);
-	b43_phy_write(dev, 0x0088, 0x3E00);
-	val = 0x3C3D;
-	for (offset = 0x0089; offset < 0x00A7; offset++) {
-		b43_phy_write(dev, offset, val);
-		val -= 0x0202;
-	}
-	b43_phy_write(dev, 0x03E4, 0x3000);
-	b43_radio_selectchannel(dev, phy->channel, 0);
-	if (phy->radio_ver != 0x2050) {
-		b43_radio_write16(dev, 0x0075, 0x0080);
-		b43_radio_write16(dev, 0x0079, 0x0081);
-	}
-	b43_radio_write16(dev, 0x0050, 0x0020);
-	b43_radio_write16(dev, 0x0050, 0x0023);
-	if (phy->radio_ver == 0x2050) {
-		b43_radio_write16(dev, 0x0050, 0x0020);
-		b43_radio_write16(dev, 0x005A, 0x0070);
-		b43_radio_write16(dev, 0x005B, 0x007B);
-		b43_radio_write16(dev, 0x005C, 0x00B0);
-		b43_radio_write16(dev, 0x007A, 0x000F);
-		b43_phy_write(dev, 0x0038, 0x0677);
-		b43_radio_init2050(dev);
-	}
-	b43_phy_write(dev, 0x0014, 0x0080);
-	b43_phy_write(dev, 0x0032, 0x00CA);
-	b43_phy_write(dev, 0x0032, 0x00CC);
-	b43_phy_write(dev, 0x0035, 0x07C2);
-//XXX won't trigger	b43_lo_b_measure(dev);
-	b43_phy_write(dev, 0x0026, 0xCC00);
-	if (phy->radio_ver != 0x2050)
-		b43_phy_write(dev, 0x0026, 0xCE00);
-	b43_write16(dev, B43_MMIO_CHANNEL_EXT, 0x1000);
-	b43_phy_write(dev, 0x002A, 0x88A3);
-	if (phy->radio_ver != 0x2050)
-		b43_phy_write(dev, 0x002A, 0x88C2);
-	b43_set_txpower_g(dev, &phy->bbatt, &phy->rfatt, phy->tx_control);
-	b43_phy_init_pctl(dev);
-}
-
-static void b43_phy_initb4(struct b43_wldev *dev)
-{
-	struct b43_phy *phy = &dev->phy;
-	u16 offset, val;
-
-	b43_write16(dev, 0x03EC, 0x3F22);
-	b43_phy_write(dev, 0x0020, 0x301C);
-	b43_phy_write(dev, 0x0026, 0x0000);
-	b43_phy_write(dev, 0x0030, 0x00C6);
-	b43_phy_write(dev, 0x0088, 0x3E00);
-	val = 0x3C3D;
-	for (offset = 0x0089; offset < 0x00A7; offset++) {
-		b43_phy_write(dev, offset, val);
-		val -= 0x0202;
-	}
-	b43_phy_write(dev, 0x03E4, 0x3000);
-	b43_radio_selectchannel(dev, phy->channel, 0);
-	if (phy->radio_ver != 0x2050) {
-		b43_radio_write16(dev, 0x0075, 0x0080);
-		b43_radio_write16(dev, 0x0079, 0x0081);
-	}
-	b43_radio_write16(dev, 0x0050, 0x0020);
-	b43_radio_write16(dev, 0x0050, 0x0023);
-	if (phy->radio_ver == 0x2050) {
-		b43_radio_write16(dev, 0x0050, 0x0020);
-		b43_radio_write16(dev, 0x005A, 0x0070);
-		b43_radio_write16(dev, 0x005B, 0x007B);
-		b43_radio_write16(dev, 0x005C, 0x00B0);
-		b43_radio_write16(dev, 0x007A, 0x000F);
-		b43_phy_write(dev, 0x0038, 0x0677);
-		b43_radio_init2050(dev);
-	}
-	b43_phy_write(dev, 0x0014, 0x0080);
-	b43_phy_write(dev, 0x0032, 0x00CA);
-	if (phy->radio_ver == 0x2050)
-		b43_phy_write(dev, 0x0032, 0x00E0);
-	b43_phy_write(dev, 0x0035, 0x07C2);
-
-//XXX won't trigger	b43_lo_b_measure(dev);
-
-	b43_phy_write(dev, 0x0026, 0xCC00);
-	if (phy->radio_ver == 0x2050)
-		b43_phy_write(dev, 0x0026, 0xCE00);
-	b43_write16(dev, B43_MMIO_CHANNEL_EXT, 0x1100);
-	b43_phy_write(dev, 0x002A, 0x88A3);
-	if (phy->radio_ver == 0x2050)
-		b43_phy_write(dev, 0x002A, 0x88C2);
-	b43_set_txpower_g(dev, &phy->bbatt, &phy->rfatt, phy->tx_control);
-	if (dev->dev->bus->sprom.boardflags_lo & B43_BFL_RSSI) {
-		b43_calc_nrssi_slope(dev);
-		b43_calc_nrssi_threshold(dev);
-	}
-	b43_phy_init_pctl(dev);
-}
-
 static void b43_phy_initb5(struct b43_wldev *dev)
 {
 	struct ssb_bus *bus = dev->dev->bus;
@@ -1949,24 +1846,6 @@ int b43_phy_init(struct b43_wldev *dev)
 			b43_phy_inita(dev);
 		else
 			unsupported = 1;
-		break;
-	case B43_PHYTYPE_B:
-		switch (phy->rev) {
-		case 2:
-			b43_phy_initb2(dev);
-			break;
-		case 4:
-			b43_phy_initb4(dev);
-			break;
-		case 5:
-			b43_phy_initb5(dev);
-			break;
-		case 6:
-			b43_phy_initb6(dev);
-			break;
-		default:
-			unsupported = 1;
-		}
 		break;
 	case B43_PHYTYPE_G:
 		b43_phy_initg(dev);
