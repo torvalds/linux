@@ -31,8 +31,6 @@
 #include <asm/uaccess.h>
 #include <asm/rtc.h>
 
-#include <asm/mach/time.h>
-
 #include <asm/arch/at91_rtc.h>
 
 
