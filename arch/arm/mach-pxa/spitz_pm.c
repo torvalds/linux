@@ -207,7 +207,9 @@ struct sharpsl_charger_machinfo spitz_pm_machinfo = {
 	.read_devdata     = spitzpm_read_devdata,
 	.charger_wakeup   = spitz_charger_wakeup,
 	.should_wakeup    = spitz_should_wakeup,
+#ifdef CONFIG_BACKLIGHT_CORGI
         .backlight_limit  = corgibl_limit_intensity,
+#endif
 	.charge_on_volt	  = SHARPSL_CHARGE_ON_VOLT,
 	.charge_on_temp	  = SHARPSL_CHARGE_ON_TEMP,
 	.charge_acin_high = SHARPSL_CHARGE_ON_ACIN_HIGH,
