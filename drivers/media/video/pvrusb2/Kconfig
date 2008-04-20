@@ -62,6 +62,12 @@ config VIDEO_PVRUSB2_DVB
 	bool "pvrusb2 DVB support (EXPERIMENTAL)"
 	default n
 	depends on VIDEO_PVRUSB2 && DVB_CORE && EXPERIMENTAL
+	select DVB_LGDT330X if !DVB_FE_CUSTOMISE
+	select DVB_S5H1409 if !DVB_FE_CUSTOMISE
+	select DVB_TDA10048 if !DVB_FE_CUSTOMIZE
+	select DVB_TDA18271 if !DVB_FE_CUSTOMIZE
+	select TUNER_SIMPLE if !DVB_FE_CUSTOMISE
+	select TUNER_TDA8290 if !DVB_FE_CUSTOMIZE
 	---help---
 
 	  This option enables compilation of a DVB interface for the
