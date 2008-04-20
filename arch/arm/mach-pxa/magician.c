@@ -114,6 +114,14 @@ static unsigned long magician_pin_config[] = {
 	GPIO82_CIF_DD_5,
 	GPIO84_CIF_FV,
 	GPIO85_CIF_LV,
+
+	/* Magician specific input GPIOs */
+	GPIO9_GPIO,	/* unknown */
+	GPIO10_GPIO,	/* GSM_IRQ */
+	GPIO13_GPIO,	/* CPLD_IRQ */
+	GPIO107_GPIO,	/* DS1WM_IRQ */
+	GPIO108_GPIO,	/* GSM_READY */
+	GPIO115_GPIO,	/* nPEN_IRQ */
 };
 
 /*
