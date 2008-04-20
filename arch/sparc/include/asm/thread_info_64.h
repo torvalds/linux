@@ -219,7 +219,7 @@ register struct thread_info *current_thread_info_reg asm("g6");
  *	 nop
  */
 #define TIF_SYSCALL_TRACE	0	/* syscall trace active */
-/* flags bit 1 is available */
+#define TIF_NOTIFY_RESUME	1	/* callback before returning to user */
 #define TIF_SIGPENDING		2	/* signal pending */
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
 #define TIF_PERFCTR		4	/* performance counters active */
@@ -239,6 +239,7 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define TIF_POLLING_NRFLAG	14
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
+#define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_PERFCTR		(1<<TIF_PERFCTR)
@@ -250,8 +251,9 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 
 #define _TIF_USER_WORK_MASK	((0xff << TI_FLAG_WSAVED_SHIFT) | \
-				 (_TIF_SIGPENDING | \
-				  _TIF_NEED_RESCHED | _TIF_PERFCTR))
+				 _TIF_DO_NOTIFY_RESUME_MASK | \
+				 _TIF_NEED_RESCHED | _TIF_PERFCTR)
+#define _TIF_DO_NOTIFY_RESUME_MASK	(_TIF_NOTIFY_RESUME | _TIF_SIGPENDING)
 
 /*
  * Thread-synchronous status.
