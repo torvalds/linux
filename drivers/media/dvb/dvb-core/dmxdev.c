@@ -281,7 +281,9 @@ static int dvb_dmxdev_set_buffer_size(struct dmxdev_filter *dmxdevfilter,
 	mem = buf->data;
 	buf->data = NULL;
 	buf->size = size;
-	dvb_ringbuffer_flush(buf);
+
+	/* reset and not flush in case the buffer shrinks */
+	dvb_ringbuffer_reset(buf);
 	spin_unlock_irq(&dmxdevfilter->dev->lock);
 	vfree(mem);
 
