@@ -450,15 +450,6 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 	 *	Options without arguments
 	 */
 
-#ifdef SO_DONTLINGER		/* Compatibility item... */
-	if (optname == SO_DONTLINGER) {
-		lock_sock(sk);
-		sock_reset_flag(sk, SOCK_LINGER);
-		release_sock(sk);
-		return 0;
-	}
-#endif
-
 	if (optname == SO_BINDTODEVICE)
 		return sock_bindtodevice(sk, optval, optlen);
 

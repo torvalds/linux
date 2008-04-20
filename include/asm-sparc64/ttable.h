@@ -99,14 +99,6 @@
 	 or	%l7, %lo(systbl), %l7;			\
 	nop; nop;
 	
-#define INDIRECT_SOLARIS_SYSCALL(num)			\
-	sethi	%hi(109f), %g7;				\
-	ba,pt	%xcc, etrap;				\
-109:	 or	%g7, %lo(109b), %g7;			\
-	ba,pt	%xcc, tl0_solaris + 0xc;		\
-	 mov	num, %g1;				\
-	nop;nop;nop;
-	
 #define TRAP_UTRAP(handler,lvl)				\
 	mov	handler, %g3;				\
 	ba,pt	%xcc, utrap_trap;			\
@@ -117,11 +109,6 @@
 	nop;						\
 	nop;
 
-#ifdef CONFIG_SUNOS_EMUL
-#define SUNOS_SYSCALL_TRAP SYSCALL_TRAP(linux_sparc_syscall32, sunos_sys_table)
-#else
-#define SUNOS_SYSCALL_TRAP TRAP(sunos_syscall)
-#endif
 #ifdef CONFIG_COMPAT
 #define	LINUX_32BIT_SYSCALL_TRAP SYSCALL_TRAP(linux_sparc_syscall32, sys_call_table32)
 #else
@@ -130,11 +117,6 @@
 #define LINUX_64BIT_SYSCALL_TRAP SYSCALL_TRAP(linux_sparc_syscall, sys_call_table64)
 #define GETCC_TRAP TRAP(getcc)
 #define SETCC_TRAP TRAP(setcc)
-#ifdef CONFIG_SOLARIS_EMUL
-#define SOLARIS_SYSCALL_TRAP TRAP(solaris_sparc_syscall)
-#else
-#define SOLARIS_SYSCALL_TRAP TRAP(solaris_syscall)
-#endif
 #define BREAKPOINT_TRAP TRAP(breakpoint_trap)
 
 #ifdef CONFIG_TRACE_IRQFLAGS

@@ -46,44 +46,11 @@
         b linux_sparc_syscall; \
         rd %psr, %l0;
 
-/* Software trap for SunOS4.1.x system calls. */
-#define SUNOS_SYSCALL_TRAP \
-        rd %psr, %l0; \
-        sethi %hi(sunos_sys_table), %l7; \
-        b linux_sparc_syscall; \
-        or %l7, %lo(sunos_sys_table), %l7;
-
-#define SUNOS_NO_SYSCALL_TRAP \
-        b sunos_syscall; \
-        rd %psr, %l0; \
-        nop; \
-        nop;
-
-/* Software trap for Slowaris system calls. */
-#define SOLARIS_SYSCALL_TRAP \
-        b solaris_syscall; \
-        rd %psr, %l0; \
-        nop; \
-        nop;
-
-#define INDIRECT_SOLARIS_SYSCALL(x) \
-	mov x, %g1; \
-	b solaris_syscall; \
-	rd %psr, %l0; \
-	nop;
-
 #define BREAKPOINT_TRAP \
 	b breakpoint_trap; \
 	rd %psr,%l0; \
 	nop; \
 	nop;
-
-/* Software trap for Sparc-netbsd system calls. */
-#define NETBSD_SYSCALL_TRAP \
-        sethi %hi(sys_call_table), %l7; \
-        or %l7, %lo(sys_call_table), %l7; \
-        b bsd_syscall; \
-        rd %psr, %l0;
 
 /* The Get Condition Codes software trap for userland. */
 #define GETCC_TRAP \

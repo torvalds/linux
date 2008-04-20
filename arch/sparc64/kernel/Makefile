@@ -21,7 +21,6 @@ obj-$(CONFIG_PCI)	 += ebus.o isa.o pci_common.o \
 obj-$(CONFIG_PCI_MSI)	+= pci_msi.o
 obj-$(CONFIG_SMP)	 += smp.o trampoline.o hvtramp.o
 obj-$(CONFIG_SPARC32_COMPAT) += sys32.o sys_sparc32.o signal32.o
-obj-$(CONFIG_BINFMT_AOUT32) += binfmt_aout32.o
 obj-$(CONFIG_MODULES) += module.o
 obj-$(CONFIG_US3_FREQ) += us3_cpufreq.o
 obj-$(CONFIG_US2E_FREQ) += us2e_cpufreq.o
@@ -30,11 +29,3 @@ obj-$(CONFIG_SUN_LDOMS) += ldc.o vio.o viohs.o ds.o
 obj-$(CONFIG_AUDIT) += audit.o
 obj-$(CONFIG_AUDIT)$(CONFIG_SPARC32_COMPAT) += compat_audit.o
 obj-y += $(obj-yy)
-
-ifdef CONFIG_SUNOS_EMUL
-  obj-y += sys_sunos32.o sunos_ioctl32.o
-else
-  ifdef CONFIG_SOLARIS_EMUL
-    obj-y += sys_sunos32.o sunos_ioctl32.o
-  endif
-endif

@@ -33,13 +33,11 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/idprom.h>
-#include <asm/svr4.h>
 #include <asm/elf.h>
 #include <asm/head.h>
 #include <asm/smp.h>
 #include <asm/mostek.h>
 #include <asm/ptrace.h>
-#include <asm/user.h>
 #include <asm/uaccess.h>
 #include <asm/checksum.h>
 #include <asm/fpumacro.h>
@@ -73,13 +71,8 @@ extern __kernel_size_t strlen(const char *);
 extern void linux_sparc_syscall(void);
 extern void rtrap(void);
 extern void show_regs(struct pt_regs *);
-extern void solaris_syscall(void);
 extern void syscall_trace(struct pt_regs *, int);
-extern u32 sunos_sys_table[], sys_call_table32[];
-extern void tl0_solaris(void);
 extern void sys_sigsuspend(void);
-extern int svr4_getcontext(svr4_ucontext_t *uc, struct pt_regs *regs);
-extern int svr4_setcontext(svr4_ucontext_t *uc, struct pt_regs *regs);
 extern int compat_sys_ioctl(unsigned int fd, unsigned int cmd, u32 arg);
 extern int (*handle_mathemu)(struct pt_regs *, struct fpustate *);
 extern long sparc32_open(const char __user * filename, int flags, int mode);
@@ -89,8 +82,6 @@ extern int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 extern int __ashrdi3(int, int);
 
 extern int dump_fpu (struct pt_regs * regs, elf_fpregset_t * fpregs);
-
-extern unsigned int sys_call_table[];
 
 extern void xor_vis_2(unsigned long, unsigned long *, unsigned long *);
 extern void xor_vis_3(unsigned long, unsigned long *, unsigned long *,
@@ -213,11 +204,6 @@ EXPORT_SYMBOL(pci_dma_supported);
 /* I/O device mmaping on Sparc64. */
 EXPORT_SYMBOL(io_remap_pfn_range);
 
-#if defined(CONFIG_COMPAT) && defined(CONFIG_NET)
-/* Solaris/SunOS binary compatibility */
-EXPORT_SYMBOL(verify_compat_iovec);
-#endif
-
 EXPORT_SYMBOL(dump_fpu);
 EXPORT_SYMBOL(put_fs_struct);
 
@@ -253,30 +239,6 @@ EXPORT_SYMBOL(__prom_getsibling);
 EXPORT_SYMBOL(strlen);
 EXPORT_SYMBOL(__strlen_user);
 EXPORT_SYMBOL(__strnlen_user);
-
-#ifdef CONFIG_SOLARIS_EMUL_MODULE
-EXPORT_SYMBOL(linux_sparc_syscall);
-EXPORT_SYMBOL(rtrap);
-EXPORT_SYMBOL(show_regs);
-EXPORT_SYMBOL(solaris_syscall);
-EXPORT_SYMBOL(syscall_trace);
-EXPORT_SYMBOL(sunos_sys_table);
-EXPORT_SYMBOL(sys_call_table32);
-EXPORT_SYMBOL(tl0_solaris);
-EXPORT_SYMBOL(sys_sigsuspend);
-EXPORT_SYMBOL(sys_getppid);
-EXPORT_SYMBOL(sys_getpid);
-EXPORT_SYMBOL(sys_geteuid);
-EXPORT_SYMBOL(sys_getuid);
-EXPORT_SYMBOL(sys_getegid);
-EXPORT_SYMBOL(sysctl_nr_open);
-EXPORT_SYMBOL(sys_getgid);
-EXPORT_SYMBOL(svr4_getcontext);
-EXPORT_SYMBOL(svr4_setcontext);
-EXPORT_SYMBOL(compat_sys_ioctl);
-EXPORT_SYMBOL(sys_ioctl);
-EXPORT_SYMBOL(sparc32_open);
-#endif
 
 /* Special internal versions of library functions. */
 EXPORT_SYMBOL(_clear_page);
@@ -333,9 +295,6 @@ EXPORT_SYMBOL(do_BUG);
 
 /* for ns8703 */
 EXPORT_SYMBOL(ns87303_lock);
-
-/* for solaris compat module */
-EXPORT_SYMBOL_GPL(sys_call_table);
 
 EXPORT_SYMBOL(tick_ops);
 
