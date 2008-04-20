@@ -40,6 +40,7 @@
 
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 
 #include "generic.h"
 

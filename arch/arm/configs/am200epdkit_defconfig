@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.25-rc3
-# Sun Mar  9 06:33:33 2008
+# Linux kernel version: 2.6.25
+# Sun Apr 20 00:29:49 2008
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -51,7 +51,8 @@ CONFIG_FAIR_GROUP_SCHED=y
 # CONFIG_RT_GROUP_SCHED is not set
 CONFIG_USER_SCHED=y
 # CONFIG_CGROUP_SCHED is not set
-# CONFIG_SYSFS_DEPRECATED is not set
+CONFIG_SYSFS_DEPRECATED=y
+CONFIG_SYSFS_DEPRECATED_V2=y
 # CONFIG_RELAY is not set
 # CONFIG_NAMESPACES is not set
 # CONFIG_BLK_DEV_INITRD is not set
@@ -85,6 +86,7 @@ CONFIG_SLAB=y
 CONFIG_HAVE_OPROFILE=y
 # CONFIG_KPROBES is not set
 CONFIG_HAVE_KPROBES=y
+CONFIG_HAVE_KRETPROBES=y
 CONFIG_PROC_PAGE_MONITOR=y
 CONFIG_SLABINFO=y
 CONFIG_RT_MUTEXES=y
@@ -115,7 +117,6 @@ CONFIG_IOSCHED_NOOP=y
 CONFIG_DEFAULT_NOOP=y
 CONFIG_DEFAULT_IOSCHED="noop"
 CONFIG_CLASSIC_RCU=y
-# CONFIG_PREEMPT_RCU is not set
 
 #
 # System Type
@@ -320,8 +321,6 @@ CONFIG_TCP_CONG_CUBIC=y
 CONFIG_DEFAULT_TCP_CONG="cubic"
 # CONFIG_TCP_MD5SIG is not set
 # CONFIG_IPV6 is not set
-# CONFIG_INET6_XFRM_TUNNEL is not set
-# CONFIG_INET6_TUNNEL is not set
 # CONFIG_NETWORK_SECMARK is not set
 # CONFIG_NETFILTER is not set
 # CONFIG_IP_DCCP is not set
@@ -383,7 +382,6 @@ CONFIG_IEEE80211=m
 CONFIG_IEEE80211_CRYPT_WEP=m
 # CONFIG_IEEE80211_CRYPT_CCMP is not set
 # CONFIG_IEEE80211_CRYPT_TKIP is not set
-# CONFIG_IEEE80211_SOFTMAC is not set
 # CONFIG_RFKILL is not set
 # CONFIG_NET_9P is not set
 
@@ -503,7 +501,7 @@ CONFIG_IDE_MAX_HWIFS=2
 CONFIG_BLK_DEV_IDE=m
 
 #
-# Please see Documentation/ide.txt for help/info on IDE drives
+# Please see Documentation/ide/ide.txt for help/info on IDE drives
 #
 # CONFIG_BLK_DEV_IDE_SATA is not set
 CONFIG_BLK_DEV_IDEDISK=m
@@ -518,10 +516,9 @@ CONFIG_IDE_PROC_FS=y
 #
 # IDE chipset support/bugfixes
 #
-CONFIG_IDE_GENERIC=m
 # CONFIG_BLK_DEV_PLATFORM is not set
 # CONFIG_BLK_DEV_IDEDMA is not set
-CONFIG_IDE_ARCH_OBSOLETE_INIT=y
+# CONFIG_BLK_DEV_HD_ONLY is not set
 # CONFIG_BLK_DEV_HD is not set
 
 #
@@ -562,6 +559,7 @@ CONFIG_NETDEV_10000=y
 #
 # CONFIG_WLAN_PRE80211 is not set
 # CONFIG_WLAN_80211 is not set
+# CONFIG_IWLWIFI_LEDS is not set
 # CONFIG_NET_PCMCIA is not set
 # CONFIG_WAN is not set
 # CONFIG_PPP is not set
@@ -707,6 +705,8 @@ CONFIG_SSB_POSSIBLE=y
 #
 # CONFIG_MFD_SM501 is not set
 # CONFIG_MFD_ASIC3 is not set
+# CONFIG_HTC_EGPIO is not set
+# CONFIG_HTC_PASIC3 is not set
 
 #
 # Multimedia devices
@@ -745,6 +745,7 @@ CONFIG_FB_TILEBLITTING=y
 CONFIG_FB_PXA=y
 CONFIG_FB_PXA_PARAMETERS=y
 CONFIG_FB_MBX=m
+# CONFIG_FB_METRONOME is not set
 CONFIG_FB_VIRTUAL=m
 # CONFIG_BACKLIGHT_LCD_SUPPORT is not set
 
@@ -891,7 +892,6 @@ CONFIG_RTC_LIB=y
 # CONFIG_JFS_FS is not set
 # CONFIG_FS_POSIX_ACL is not set
 # CONFIG_XFS_FS is not set
-# CONFIG_GFS2_FS is not set
 # CONFIG_OCFS2_FS is not set
 # CONFIG_DNOTIFY is not set
 CONFIG_INOTIFY=y
