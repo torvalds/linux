@@ -323,9 +323,8 @@ static int ptrace_setoptions(struct task_struct *child, long data)
 	return (data & ~PTRACE_O_MASK) ? -EINVAL : 0;
 }
 
-static int ptrace_getsiginfo(struct task_struct *child, siginfo_t __user * data)
+static int ptrace_getsiginfo(struct task_struct *child, siginfo_t *info)
 {
-	siginfo_t lastinfo;
 	int error = -ESRCH;
 
 	read_lock(&tasklist_lock);
@@ -333,31 +332,25 @@ static int ptrace_getsiginfo(struct task_struct *child, siginfo_t __user * data)
 		error = -EINVAL;
 		spin_lock_irq(&child->sighand->siglock);
 		if (likely(child->last_siginfo != NULL)) {
-			lastinfo = *child->last_siginfo;
+			*info = *child->last_siginfo;
 			error = 0;
 		}
 		spin_unlock_irq(&child->sighand->siglock);
 	}
 	read_unlock(&tasklist_lock);
-	if (!error)
-		return copy_siginfo_to_user(data, &lastinfo);
 	return error;
 }
 
-static int ptrace_setsiginfo(struct task_struct *child, siginfo_t __user * data)
+static int ptrace_setsiginfo(struct task_struct *child, const siginfo_t *info)
 {
-	siginfo_t newinfo;
 	int error = -ESRCH;
-
-	if (copy_from_user(&newinfo, data, sizeof (siginfo_t)))
-		return -EFAULT;
 
 	read_lock(&tasklist_lock);
 	if (likely(child->sighand != NULL)) {
 		error = -EINVAL;
 		spin_lock_irq(&child->sighand->siglock);
 		if (likely(child->last_siginfo != NULL)) {
-			*child->last_siginfo = newinfo;
+			*child->last_siginfo = *info;
 			error = 0;
 		}
 		spin_unlock_irq(&child->sighand->siglock);
@@ -424,6 +417,7 @@ int ptrace_request(struct task_struct *child, long request,
 		   long addr, long data)
 {
 	int ret = -EIO;
+	siginfo_t siginfo;
 
 	switch (request) {
 	case PTRACE_PEEKTEXT:
@@ -442,12 +436,22 @@ int ptrace_request(struct task_struct *child, long request,
 	case PTRACE_GETEVENTMSG:
 		ret = put_user(child->ptrace_message, (unsigned long __user *) data);
 		break;
+
 	case PTRACE_GETSIGINFO:
-		ret = ptrace_getsiginfo(child, (siginfo_t __user *) data);
+		ret = ptrace_getsiginfo(child, &siginfo);
+		if (!ret)
+			ret = copy_siginfo_to_user((siginfo_t __user *) data,
+						   &siginfo);
 		break;
+
 	case PTRACE_SETSIGINFO:
-		ret = ptrace_setsiginfo(child, (siginfo_t __user *) data);
+		if (copy_from_user(&siginfo, (siginfo_t __user *) data,
+				   sizeof siginfo))
+			ret = -EFAULT;
+		else
+			ret = ptrace_setsiginfo(child, &siginfo);
 		break;
+
 	case PTRACE_DETACH:	 /* detach a process that was attached. */
 		ret = ptrace_detach(child, data);
 		break;
@@ -616,6 +620,7 @@ int compat_ptrace_request(struct task_struct *child, compat_long_t request,
 {
 	compat_ulong_t __user *datap = compat_ptr(data);
 	compat_ulong_t word;
+	siginfo_t siginfo;
 	int ret;
 
 	switch (request) {
@@ -636,6 +641,23 @@ int compat_ptrace_request(struct task_struct *child, compat_long_t request,
 
 	case PTRACE_GETEVENTMSG:
 		ret = put_user((compat_ulong_t) child->ptrace_message, datap);
+		break;
+
+	case PTRACE_GETSIGINFO:
+		ret = ptrace_getsiginfo(child, &siginfo);
+		if (!ret)
+			ret = copy_siginfo_to_user32(
+				(struct compat_siginfo __user *) datap,
+				&siginfo);
+		break;
+
+	case PTRACE_SETSIGINFO:
+		memset(&siginfo, 0, sizeof siginfo);
+		if (copy_siginfo_from_user32(
+			    &siginfo, (struct compat_siginfo __user *) datap))
+			ret = -EFAULT;
+		else
+			ret = ptrace_setsiginfo(child, &siginfo);
 		break;
 
 	default:
