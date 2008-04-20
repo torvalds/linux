@@ -606,8 +606,16 @@ static int io_init(struct ubi_device *ubi)
 		ubi->ro_mode = 1;
 	}
 
-	dbg_msg("leb_size         %d", ubi->leb_size);
-	dbg_msg("ro_mode          %d", ubi->ro_mode);
+	ubi_msg("physical eraseblock size:   %d bytes (%d KiB)",
+		ubi->peb_size, ubi->peb_size >> 10);
+	ubi_msg("logical eraseblock size:    %d bytes", ubi->leb_size);
+	ubi_msg("smallest flash I/O unit:    %d", ubi->min_io_size);
+	if (ubi->hdrs_min_io_size != ubi->min_io_size)
+		ubi_msg("sub-page size:              %d",
+			ubi->hdrs_min_io_size);
+	ubi_msg("VID header offset:          %d (aligned %d)",
+		ubi->vid_hdr_offset, ubi->vid_hdr_aloffset);
+	ubi_msg("data offset:                %d", ubi->leb_start);
 
 	/*
 	 * Note, ideally, we have to initialize ubi->bad_peb_count here. But
@@ -804,15 +812,8 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	ubi_msg("attached mtd%d to ubi%d", mtd->index, ubi_num);
 	ubi_msg("MTD device name:            \"%s\"", mtd->name);
 	ubi_msg("MTD device size:            %llu MiB", ubi->flash_size >> 20);
-	ubi_msg("physical eraseblock size:   %d bytes (%d KiB)",
-		ubi->peb_size, ubi->peb_size >> 10);
-	ubi_msg("logical eraseblock size:    %d bytes", ubi->leb_size);
 	ubi_msg("number of good PEBs:        %d", ubi->good_peb_count);
 	ubi_msg("number of bad PEBs:         %d", ubi->bad_peb_count);
-	ubi_msg("smallest flash I/O unit:    %d", ubi->min_io_size);
-	ubi_msg("VID header offset:          %d (aligned %d)",
-		ubi->vid_hdr_offset, ubi->vid_hdr_aloffset);
-	ubi_msg("data offset:                %d", ubi->leb_start);
 	ubi_msg("max. allowed volumes:       %d", ubi->vtbl_slots);
 	ubi_msg("wear-leveling threshold:    %d", CONFIG_MTD_UBI_WL_THRESHOLD);
 	ubi_msg("number of internal volumes: %d", UBI_INT_VOL_COUNT);
