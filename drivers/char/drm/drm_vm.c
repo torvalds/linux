@@ -640,12 +640,12 @@ static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 		/* Don't let this area swap.  Change when
 		   DRM_KERNEL advisory is supported. */
 		vma->vm_flags |= VM_RESERVED;
-		vma->vm_page_prot = drm_dma_prot(map->type, vma);
 		break;
 	case _DRM_SCATTER_GATHER:
 		vma->vm_ops = &drm_vm_sg_ops;
 		vma->vm_private_data = (void *)map;
 		vma->vm_flags |= VM_RESERVED;
+		vma->vm_page_prot = drm_dma_prot(map->type, vma);
 		break;
 	default:
 		return -EINVAL;	/* This should never happen. */
