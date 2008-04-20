@@ -543,9 +543,28 @@ static struct platform_device power_supply = {
 static int magician_mci_init(struct device *dev,
 				irq_handler_t detect_irq, void *data)
 {
-	return request_irq(IRQ_MAGICIAN_SD, detect_irq,
+	int err;
+
+	err = request_irq(IRQ_MAGICIAN_SD, detect_irq,
 				IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
 				"MMC card detect", data);
+	if (err)
+		goto err_request_irq;
+	err = gpio_request(EGPIO_MAGICIAN_SD_POWER, "SD_POWER");
+	if (err)
+		goto err_request_power;
+	err = gpio_request(EGPIO_MAGICIAN_nSD_READONLY, "nSD_READONLY");
+	if (err)
+		goto err_request_readonly;
+
+	return 0;
+
+err_request_readonly:
+	gpio_free(EGPIO_MAGICIAN_SD_POWER);
+err_request_power:
+	free_irq(IRQ_MAGICIAN_SD, data);
+err_request_irq:
+	return err;
 }
 
 static void magician_mci_setpower(struct device *dev, unsigned int vdd)
@@ -562,6 +581,8 @@ static int magician_mci_get_ro(struct device *dev)
 
 static void magician_mci_exit(struct device *dev, void *data)
 {
+	gpio_free(EGPIO_MAGICIAN_nSD_READONLY);
+	gpio_free(EGPIO_MAGICIAN_SD_POWER);
 	free_irq(IRQ_MAGICIAN_SD, data);
 }
 
@@ -643,28 +664,42 @@ static void __init magician_init(void)
 {
 	void __iomem *cpld;
 	int lcd_select;
+	int err;
+
+	gpio_request(GPIO13_MAGICIAN_CPLD_IRQ, "CPLD_IRQ");
+	gpio_request(GPIO107_MAGICIAN_DS1WM_IRQ, "DS1WM_IRQ");
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(magician_pin_config));
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+
+	err = gpio_request(GPIO83_MAGICIAN_nIR_EN, "nIR_EN");
+	if (!err) {
+		gpio_direction_output(GPIO83_MAGICIAN_nIR_EN, 1);
+		pxa_set_ficp_info(&magician_ficp_info);
+	}
 	pxa_set_i2c_info(NULL);
 	pxa_set_mci_info(&magician_mci_info);
 	pxa_set_ohci_info(&magician_ohci_info);
-	pxa_set_ficp_info(&magician_ficp_info);
 
 	/* Check LCD type we have */
 	cpld = ioremap_nocache(PXA_CS3_PHYS, 0x1000);
 	if (cpld) {
 		u8 board_id = __raw_readb(cpld+0x14);
+		iounmap(cpld);
 		system_rev = board_id & 0x7;
 		lcd_select = board_id & 0x8;
-		iounmap(cpld);
 		pr_info("LCD type: %s\n", lcd_select ? "Samsung" : "Toppoly");
-		if (lcd_select && (system_rev < 3))
-			pxa_gpio_mode(GPIO75_MAGICIAN_SAMSUNG_POWER_MD);
-		pxa_gpio_mode(GPIO104_MAGICIAN_LCD_POWER_1_MD);
-		pxa_gpio_mode(GPIO105_MAGICIAN_LCD_POWER_2_MD);
-		pxa_gpio_mode(GPIO106_MAGICIAN_LCD_POWER_3_MD);
+		if (lcd_select && (system_rev < 3)) {
+			gpio_request(GPIO75_MAGICIAN_SAMSUNG_POWER, "SAMSUNG_POWER");
+			gpio_direction_output(GPIO75_MAGICIAN_SAMSUNG_POWER, 0);
+		}
+		gpio_request(GPIO104_MAGICIAN_LCD_POWER_1, "LCD_POWER_1");
+		gpio_request(GPIO105_MAGICIAN_LCD_POWER_2, "LCD_POWER_2");
+		gpio_request(GPIO106_MAGICIAN_LCD_POWER_3, "LCD_POWER_3");
+		gpio_direction_output(GPIO104_MAGICIAN_LCD_POWER_1, 0);
+		gpio_direction_output(GPIO105_MAGICIAN_LCD_POWER_2, 0);
+		gpio_direction_output(GPIO106_MAGICIAN_LCD_POWER_3, 0);
 		set_pxa_fb_info(lcd_select ? &samsung_info : &toppoly_info);
 	} else
 		pr_err("LCD detection: CPLD mapping failed\n");
