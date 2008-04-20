@@ -265,7 +265,7 @@ static int hci_usb_intr_rx_submit(struct hci_usb *husb)
 		BT_ERR("%s intr rx submit failed urb %p err %d",
 				husb->hdev->name, urb, err);
 		_urb_unlink(_urb);
-		_urb_free(_urb);
+		kfree(_urb);
 		kfree(buf);
 	}
 	return err;
@@ -302,7 +302,7 @@ static int hci_usb_bulk_rx_submit(struct hci_usb *husb)
 		BT_ERR("%s bulk rx submit failed urb %p err %d",
 				husb->hdev->name, urb, err);
 		_urb_unlink(_urb);
-		_urb_free(_urb);
+		kfree(_urb);
 		kfree(buf);
 	}
 	return err;
@@ -353,7 +353,7 @@ static int hci_usb_isoc_rx_submit(struct hci_usb *husb)
 		BT_ERR("%s isoc rx submit failed urb %p err %d",
 				husb->hdev->name, urb, err);
 		_urb_unlink(_urb);
-		_urb_free(_urb);
+		kfree(_urb);
 		kfree(buf);
 	}
 	return err;
@@ -431,7 +431,7 @@ static void hci_usb_unlink_urbs(struct hci_usb *husb)
 					husb->hdev->name, _urb, _urb->type, urb);
 			kfree(urb->setup_packet);
 			kfree(urb->transfer_buffer);
-			_urb_free(_urb);
+			kfree(_urb);
 		}
 	}
 }
@@ -490,7 +490,7 @@ static inline int hci_usb_send_ctrl(struct hci_usb *husb, struct sk_buff *skb)
 
 		dr = kmalloc(sizeof(*dr), GFP_ATOMIC);
 		if (!dr) {
-			_urb_free(_urb);
+			kfree(_urb);
 			return -ENOMEM;
 		}
 	} else
