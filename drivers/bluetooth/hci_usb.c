@@ -62,13 +62,13 @@
 #define URB_ZERO_PACKET 0
 #endif
 
-static int ignore = 0;
-static int ignore_dga = 0;
-static int ignore_csr = 0;
-static int ignore_sniffer = 0;
-static int disable_scofix = 0;
-static int force_scofix = 0;
-static int reset = 0;
+static int ignore;
+static int ignore_dga;
+static int ignore_csr;
+static int ignore_sniffer;
+static int disable_scofix;
+static int force_scofix;
+static int reset;
 
 #ifdef CONFIG_BT_HCIUSB_SCO
 static int isoc = 2;
