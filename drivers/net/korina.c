@@ -1031,6 +1031,8 @@ static int korina_open(struct net_device *dev)
 		    dev->name, lp->und_irq);
 		goto err_free_ovr_irq;
 	}
+out:
+	return ret;
 
 err_free_ovr_irq:
 	free_irq(lp->ovr_irq, dev);
@@ -1041,8 +1043,6 @@ err_free_rx_irq:
 err_release:
 	korina_free_ring(dev);
 	goto out;
-out:
-	return ret;
 }
 
 static int korina_close(struct net_device *dev)
