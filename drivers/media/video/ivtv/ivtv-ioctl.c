@@ -742,7 +742,8 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 
 		memset(vcap, 0, sizeof(*vcap));
 		strcpy(vcap->driver, IVTV_DRIVER_NAME);     /* driver name */
-		strcpy(vcap->card, itv->card_name); 	    /* card type */
+		strncpy(vcap->card, itv->card_name,
+				sizeof(vcap->card)-1); 	    /* card type */
 		strcpy(vcap->bus_info, pci_name(itv->dev)); /* bus info... */
 		vcap->version = IVTV_DRIVER_VERSION; 	    /* version */
 		vcap->capabilities = itv->v4l2_cap; 	    /* capabilities */
