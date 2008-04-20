@@ -225,7 +225,6 @@ int b43_phy_init(struct b43_wldev *dev);
 void b43_set_rx_antenna(struct b43_wldev *dev, int antenna);
 
 void b43_phy_xmitpower(struct b43_wldev *dev);
-void b43_gphy_dc_lt_init(struct b43_wldev *dev);
 
 /* Returns the boolean whether the board has HardwarePowerControl */
 bool b43_has_hardware_pctl(struct b43_phy *phy);
@@ -252,6 +251,14 @@ struct b43_rfatt_list {
 	u8 max_val;
 };
 
+/* Returns true, if the values are the same. */
+static inline bool b43_compare_rfatt(const struct b43_rfatt *a,
+				     const struct b43_rfatt *b)
+{
+	return ((a->att == b->att) &&
+		(a->with_padmix == b->with_padmix));
+}
+
 /* Baseband Attenuation */
 struct b43_bbatt {
 	u8 att;			/* Attenuation value */
@@ -264,6 +271,13 @@ struct b43_bbatt_list {
 	u8 min_val;
 	u8 max_val;
 };
+
+/* Returns true, if the values are the same. */
+static inline bool b43_compare_bbatt(const struct b43_bbatt *a,
+				     const struct b43_bbatt *b)
+{
+	return (a->att == b->att);
+}
 
 /* tx_control bits. */
 #define B43_TXCTL_PA3DB		0x40	/* PA Gain 3dB */

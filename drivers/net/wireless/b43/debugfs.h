@@ -10,6 +10,7 @@ enum b43_dyndbg {		/* Dynamic debugging features */
 	B43_DBG_DMAVERBOSE,
 	B43_DBG_PWORK_FAST,
 	B43_DBG_PWORK_STOP,
+	B43_DBG_LO,
 	__B43_NR_DYNDBG,
 };
 

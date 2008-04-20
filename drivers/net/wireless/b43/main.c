@@ -2308,7 +2308,7 @@ static void b43_gpio_cleanup(struct b43_wldev *dev)
 }
 
 /* http://bcm-specs.sipsolutions.net/EnableMac */
-static void b43_mac_enable(struct b43_wldev *dev)
+void b43_mac_enable(struct b43_wldev *dev)
 {
 	dev->mac_suspended--;
 	B43_WARN_ON(dev->mac_suspended < 0);
@@ -2331,7 +2331,7 @@ static void b43_mac_enable(struct b43_wldev *dev)
 }
 
 /* http://bcm-specs.sipsolutions.net/SuspendMAC */
-static void b43_mac_suspend(struct b43_wldev *dev)
+void b43_mac_suspend(struct b43_wldev *dev)
 {
 	int i;
 	u32 tmp;
@@ -2503,6 +2503,7 @@ static void b43_chip_exit(struct b43_wldev *dev)
 {
 	b43_radio_turn_off(dev, 1);
 	b43_gpio_cleanup(dev);
+	b43_lo_g_cleanup(dev);
 	/* firmware is released later */
 }
 
@@ -2609,28 +2610,12 @@ err_gpio_clean:
 	return err;
 }
 
-static void b43_periodic_every120sec(struct b43_wldev *dev)
-{
-	struct b43_phy *phy = &dev->phy;
-
-	if (phy->type != B43_PHYTYPE_G || phy->rev < 2)
-		return;
-
-	b43_mac_suspend(dev);
-	b43_lo_g_measure(dev);
-	b43_mac_enable(dev);
-	if (b43_has_hardware_pctl(phy))
-		b43_lo_g_ctl_mark_all_unused(dev);
-}
-
 static void b43_periodic_every60sec(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
 
 	if (phy->type != B43_PHYTYPE_G)
 		return;
-	if (!b43_has_hardware_pctl(phy))
-		b43_lo_g_ctl_mark_all_unused(dev);
 	if (dev->dev->bus->sprom.boardflags_lo & B43_BFL_RSSI) {
 		b43_mac_suspend(dev);
 		b43_calc_nrssi_slope(dev);
@@ -2682,6 +2667,7 @@ static void b43_periodic_every15sec(struct b43_wldev *dev)
 		}
 	}
 	b43_phy_xmitpower(dev);	//FIXME: unless scanning?
+	b43_lo_g_maintanance_work(dev);
 	//TODO for APHY (temperature?)
 
 	atomic_set(&phy->txerr_cnt, B43_PHY_TX_BADNESS_LIMIT);
@@ -2693,8 +2679,6 @@ static void do_periodic_work(struct b43_wldev *dev)
 	unsigned int state;
 
 	state = dev->periodic_state;
-	if (state % 8 == 0)
-		b43_periodic_every120sec(dev);
 	if (state % 4 == 0)
 		b43_periodic_every60sec(dev);
 	if (state % 2 == 0)
@@ -3668,8 +3652,8 @@ static void setup_struct_phy_for_init(struct b43_wldev *dev,
 	lo = phy->lo_control;
 	if (lo) {
 		memset(lo, 0, sizeof(*(phy->lo_control)));
-		lo->rebuild = 1;
 		lo->tx_bias = 0xFF;
+		INIT_LIST_HEAD(&lo->calib_list);
 	}
 	phy->max_lb_gain = 0;
 	phy->trsw_rx_gain = 0;

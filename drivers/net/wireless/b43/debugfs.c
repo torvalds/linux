@@ -270,24 +270,22 @@ static int restart_write_file(struct b43_wldev *dev,
 	return err;
 }
 
-static ssize_t append_lo_table(ssize_t count, char *buf, const size_t bufsize,
-			       struct b43_loctl table[B43_NR_BB][B43_NR_RF])
+static unsigned long calc_expire_secs(unsigned long now,
+				      unsigned long time,
+				      unsigned long expire)
 {
-	unsigned int i, j;
-	struct b43_loctl *ctl;
+	expire = time + expire;
 
-	for (i = 0; i < B43_NR_BB; i++) {
-		for (j = 0; j < B43_NR_RF; j++) {
-			ctl = &(table[i][j]);
-			fappend("(bbatt %2u, rfatt %2u)  ->  "
-				"(I %+3d, Q %+3d, Used: %d, Calibrated: %d)\n",
-				i, j, ctl->i, ctl->q,
-				ctl->used,
-				b43_loctl_is_calibrated(ctl));
-		}
+	if (time_after(now, expire))
+		return 0; /* expired */
+	if (expire < now) {
+		/* jiffies wrapped */
+		expire -= MAX_JIFFY_OFFSET;
+		now -= MAX_JIFFY_OFFSET;
 	}
+	B43_WARN_ON(expire < now);
 
-	return count;
+	return (expire - now) / HZ;
 }
 
 static ssize_t loctls_read_file(struct b43_wldev *dev,
@@ -296,27 +294,45 @@ static ssize_t loctls_read_file(struct b43_wldev *dev,
 	ssize_t count = 0;
 	struct b43_txpower_lo_control *lo;
 	int i, err = 0;
+	struct b43_lo_calib *cal;
+	unsigned long now = jiffies;
+	struct b43_phy *phy = &dev->phy;
 
-	if (dev->phy.type != B43_PHYTYPE_G) {
+	if (phy->type != B43_PHYTYPE_G) {
 		fappend("Device is not a G-PHY\n");
 		err = -ENODEV;
 		goto out;
 	}
-	lo = dev->phy.lo_control;
+	lo = phy->lo_control;
 	fappend("-- Local Oscillator calibration data --\n\n");
-	fappend("Measured: %d,  Rebuild: %d,  HW-power-control: %d\n",
-		lo->lo_measured,
-		lo->rebuild,
+	fappend("HW-power-control enabled: %d\n",
 		dev->phy.hardware_power_control);
-	fappend("TX Bias: 0x%02X,  TX Magn: 0x%02X\n",
-		lo->tx_bias, lo->tx_magn);
-	fappend("Power Vector: 0x%08X%08X\n",
+	fappend("TX Bias: 0x%02X,  TX Magn: 0x%02X  (expire in %lu sec)\n",
+		lo->tx_bias, lo->tx_magn,
+		calc_expire_secs(now, lo->txctl_measured_time,
+				 B43_LO_TXCTL_EXPIRE));
+	fappend("Power Vector: 0x%08X%08X  (expires in %lu sec)\n",
 		(unsigned int)((lo->power_vector & 0xFFFFFFFF00000000ULL) >> 32),
-		(unsigned int)(lo->power_vector & 0x00000000FFFFFFFFULL));
-	fappend("\nControl table WITH PADMIX:\n");
-	count = append_lo_table(count, buf, bufsize, lo->with_padmix);
-	fappend("\nControl table WITHOUT PADMIX:\n");
-	count = append_lo_table(count, buf, bufsize, lo->no_padmix);
+		(unsigned int)(lo->power_vector & 0x00000000FFFFFFFFULL),
+		calc_expire_secs(now, lo->pwr_vec_read_time,
+				 B43_LO_PWRVEC_EXPIRE));
+
+	fappend("\nCalibrated settings:\n");
+	list_for_each_entry(cal, &lo->calib_list, list) {
+		bool active;
+
+		active = (b43_compare_bbatt(&cal->bbatt, &phy->bbatt) &&
+			  b43_compare_rfatt(&cal->rfatt, &phy->rfatt));
+		fappend("BB(%d), RF(%d,%d)  ->  I=%d, Q=%d  "
+			"(expires in %lu sec)%s\n",
+			cal->bbatt.att,
+			cal->rfatt.att, cal->rfatt.with_padmix,
+			cal->ctl.i, cal->ctl.q,
+			calc_expire_secs(now, cal->calib_time,
+					 B43_LO_CALIB_EXPIRE),
+			active ? "  ACTIVE" : "");
+	}
+
 	fappend("\nUsed RF attenuation values:  Value(WithPadmix flag)\n");
 	for (i = 0; i < lo->rfatt_list.len; i++) {
 		fappend("%u(%d), ",
@@ -351,7 +367,7 @@ static ssize_t b43_debugfs_read(struct file *file, char __user *userbuf,
 	struct b43_dfs_file *dfile;
 	ssize_t uninitialized_var(ret);
 	char *buf;
-	const size_t bufsize = 1024 * 128;
+	const size_t bufsize = 1024 * 16; /* 16 kiB buffer */
 	const size_t buforder = get_order(bufsize);
 	int err = 0;
 
@@ -380,8 +396,6 @@ static ssize_t b43_debugfs_read(struct file *file, char __user *userbuf,
 			err = -ENOMEM;
 			goto out_unlock;
 		}
-		/* Sparse warns about the following memset, because it has a big
-		 * size value. That warning is bogus, so I will ignore it. --mb */
 		memset(buf, 0, bufsize);
 		if (dfops->take_irqlock) {
 			spin_lock_irq(&dev->wl->irq_lock);
@@ -523,6 +537,7 @@ static void b43_add_dynamic_debug(struct b43_wldev *dev)
 	add_dyn_dbg("debug_dmaverbose", B43_DBG_DMAVERBOSE, 0);
 	add_dyn_dbg("debug_pwork_fast", B43_DBG_PWORK_FAST, 0);
 	add_dyn_dbg("debug_pwork_stop", B43_DBG_PWORK_STOP, 0);
+	add_dyn_dbg("debug_lo", B43_DBG_LO, 0);
 
 #undef add_dyn_dbg
 }

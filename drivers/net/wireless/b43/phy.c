@@ -145,8 +145,7 @@ static void generate_rfatt_list(struct b43_wldev *dev,
 		{.att = 9,.with_padmix = 1,},
 	};
 
-	if ((phy->type == B43_PHYTYPE_A && phy->rev < 5) ||
-	    (phy->type == B43_PHYTYPE_G && phy->rev < 6)) {
+	if (!b43_has_hardware_pctl(phy)) {
 		/* Software pctl */
 		list->list = rfatt_0;
 		list->len = ARRAY_SIZE(rfatt_0);
@@ -158,7 +157,7 @@ static void generate_rfatt_list(struct b43_wldev *dev,
 		/* Hardware pctl */
 		list->list = rfatt_1;
 		list->len = ARRAY_SIZE(rfatt_1);
-		list->min_val = 2;
+		list->min_val = 0;
 		list->max_val = 14;
 		return;
 	}
@@ -346,6 +345,7 @@ void b43_set_txpower_g(struct b43_wldev *dev,
 	/* Save the values for later */
 	phy->tx_control = tx_control;
 	memcpy(&phy->rfatt, rfatt, sizeof(*rfatt));
+	phy->rfatt.with_padmix = !!(tx_control & B43_TXCTL_TXMIX);
 	memcpy(&phy->bbatt, bbatt, sizeof(*bbatt));
 
 	if (b43_debug(dev, B43_DBG_XMITPOWER)) {
@@ -559,11 +559,6 @@ static void b43_gphy_gain_lt_init(struct b43_wldev *dev)
 	u16 tmp;
 	u8 rf, bb;
 
-	if (!lo->lo_measured) {
-		b43_phy_write(dev, 0x3FF, 0);
-		return;
-	}
-
 	for (rf = 0; rf < lo->rfatt_list.len; rf++) {
 		for (bb = 0; bb < lo->bbatt_list.len; bb++) {
 			if (nr_written >= 0x40)
@@ -578,42 +573,6 @@ static void b43_gphy_gain_lt_init(struct b43_wldev *dev)
 			b43_phy_write(dev, 0x3C0 + nr_written, tmp);
 			nr_written++;
 		}
-	}
-}
-
-/* GPHY_DC_Lookup_Table */
-void b43_gphy_dc_lt_init(struct b43_wldev *dev)
-{
-	struct b43_phy *phy = &dev->phy;
-	struct b43_txpower_lo_control *lo = phy->lo_control;
-	struct b43_loctl *loctl0;
-	struct b43_loctl *loctl1;
-	int i;
-	int rf_offset, bb_offset;
-	u16 tmp;
-
-	for (i = 0; i < lo->rfatt_list.len + lo->bbatt_list.len; i += 2) {
-		rf_offset = i / lo->rfatt_list.len;
-		bb_offset = i % lo->rfatt_list.len;
-
-		loctl0 = b43_get_lo_g_ctl(dev, &lo->rfatt_list.list[rf_offset],
-					  &lo->bbatt_list.list[bb_offset]);
-		if (i + 1 < lo->rfatt_list.len * lo->bbatt_list.len) {
-			rf_offset = (i + 1) / lo->rfatt_list.len;
-			bb_offset = (i + 1) % lo->rfatt_list.len;
-
-			loctl1 =
-			    b43_get_lo_g_ctl(dev,
-					     &lo->rfatt_list.list[rf_offset],
-					     &lo->bbatt_list.list[bb_offset]);
-		} else
-			loctl1 = loctl0;
-
-		tmp = ((u16) loctl0->q & 0xF);
-		tmp |= ((u16) loctl0->i & 0xF) << 4;
-		tmp |= ((u16) loctl1->q & 0xF) << 8;
-		tmp |= ((u16) loctl1->i & 0xF) << 12;	//FIXME?
-		b43_phy_write(dev, 0x3A0 + (i / 2), tmp);
 	}
 }
 
@@ -643,7 +602,7 @@ static void hardware_pctl_init_gphy(struct b43_wldev *dev)
 	b43_phy_write(dev, 0x0801, b43_phy_read(dev, 0x0801)
 		      & 0xFFBF);
 
-	b43_gphy_dc_lt_init(dev);
+	b43_gphy_dc_lt_init(dev, 1);
 }
 
 /* HardwarePowerControl init for A and G PHY */
@@ -967,7 +926,7 @@ static void b43_phy_initb2(struct b43_wldev *dev)
 	b43_phy_write(dev, 0x0032, 0x00CA);
 	b43_phy_write(dev, 0x0032, 0x00CC);
 	b43_phy_write(dev, 0x0035, 0x07C2);
-	b43_lo_b_measure(dev);
+//XXX won't trigger	b43_lo_b_measure(dev);
 	b43_phy_write(dev, 0x0026, 0xCC00);
 	if (phy->radio_ver != 0x2050)
 		b43_phy_write(dev, 0x0026, 0xCE00);
@@ -1017,7 +976,7 @@ static void b43_phy_initb4(struct b43_wldev *dev)
 		b43_phy_write(dev, 0x0032, 0x00E0);
 	b43_phy_write(dev, 0x0035, 0x07C2);
 
-	b43_lo_b_measure(dev);
+//XXX won't trigger	b43_lo_b_measure(dev);
 
 	b43_phy_write(dev, 0x0026, 0xCC00);
 	if (phy->radio_ver == 0x2050)
@@ -1259,19 +1218,9 @@ static void b43_phy_initb6(struct b43_wldev *dev)
 		b43_phy_write(dev, 0x0002, (b43_phy_read(dev, 0x0002) & 0xFFC0)
 			      | 0x0004);
 	}
-	if (phy->type == B43_PHYTYPE_B) {
-		b43_write16(dev, 0x03E6, 0x8140);
-		b43_phy_write(dev, 0x0016, 0x0410);
-		b43_phy_write(dev, 0x0017, 0x0820);
-		b43_phy_write(dev, 0x0062, 0x0007);
-		b43_radio_init2050(dev);
-		b43_lo_g_measure(dev);
-		if (dev->dev->bus->sprom.boardflags_lo & B43_BFL_RSSI) {
-			b43_calc_nrssi_slope(dev);
-			b43_calc_nrssi_threshold(dev);
-		}
-		b43_phy_init_pctl(dev);
-	} else if (phy->type == B43_PHYTYPE_G)
+	if (phy->type == B43_PHYTYPE_B)
+		B43_WARN_ON(1);
+	else if (phy->type == B43_PHYTYPE_G)
 		b43_write16(dev, 0x03E6, 0x0);
 }
 
@@ -1534,34 +1483,31 @@ static void b43_phy_initg(struct b43_wldev *dev)
 		else
 			b43_radio_write16(dev, 0x0078, phy->initval);
 	}
-	if (phy->lo_control->tx_bias == 0xFF) {
-		b43_lo_g_measure(dev);
+	b43_lo_g_init(dev);
+	if (has_tx_magnification(phy)) {
+		b43_radio_write16(dev, 0x52,
+				  (b43_radio_read16(dev, 0x52) & 0xFF00)
+				  | phy->lo_control->tx_bias | phy->
+				  lo_control->tx_magn);
 	} else {
-		if (has_tx_magnification(phy)) {
-			b43_radio_write16(dev, 0x52,
-					  (b43_radio_read16(dev, 0x52) & 0xFF00)
-					  | phy->lo_control->tx_bias | phy->
-					  lo_control->tx_magn);
-		} else {
-			b43_radio_write16(dev, 0x52,
-					  (b43_radio_read16(dev, 0x52) & 0xFFF0)
-					  | phy->lo_control->tx_bias);
-		}
-		if (phy->rev >= 6) {
-			b43_phy_write(dev, B43_PHY_CCK(0x36),
-				      (b43_phy_read(dev, B43_PHY_CCK(0x36))
-				       & 0x0FFF) | (phy->lo_control->
-						    tx_bias << 12));
-		}
-		if (dev->dev->bus->sprom.boardflags_lo & B43_BFL_PACTRL)
-			b43_phy_write(dev, B43_PHY_CCK(0x2E), 0x8075);
-		else
-			b43_phy_write(dev, B43_PHY_CCK(0x2E), 0x807F);
-		if (phy->rev < 2)
-			b43_phy_write(dev, B43_PHY_CCK(0x2F), 0x101);
-		else
-			b43_phy_write(dev, B43_PHY_CCK(0x2F), 0x202);
+		b43_radio_write16(dev, 0x52,
+				  (b43_radio_read16(dev, 0x52) & 0xFFF0)
+				  | phy->lo_control->tx_bias);
 	}
+	if (phy->rev >= 6) {
+		b43_phy_write(dev, B43_PHY_CCK(0x36),
+			      (b43_phy_read(dev, B43_PHY_CCK(0x36))
+			       & 0x0FFF) | (phy->lo_control->
+					    tx_bias << 12));
+	}
+	if (dev->dev->bus->sprom.boardflags_lo & B43_BFL_PACTRL)
+		b43_phy_write(dev, B43_PHY_CCK(0x2E), 0x8075);
+	else
+		b43_phy_write(dev, B43_PHY_CCK(0x2E), 0x807F);
+	if (phy->rev < 2)
+		b43_phy_write(dev, B43_PHY_CCK(0x2F), 0x101);
+	else
+		b43_phy_write(dev, B43_PHY_CCK(0x2F), 0x202);
 	if (phy->gmode || phy->rev >= 2) {
 		b43_lo_g_adjust(dev);
 		b43_phy_write(dev, B43_PHY_LO_MASK, 0x8078);
@@ -1821,10 +1767,8 @@ void b43_phy_xmitpower(struct b43_wldev *dev)
 			bbatt_delta -= 4 * rfatt_delta;
 
 			/* So do we finally need to adjust something? */
-			if ((rfatt_delta == 0) && (bbatt_delta == 0)) {
-				b43_lo_g_ctl_mark_cur_used(dev);
+			if ((rfatt_delta == 0) && (bbatt_delta == 0))
 				return;
-			}
 
 			/* Calculate the new attenuation values. */
 			bbatt = phy->bbatt.att;
@@ -1870,7 +1814,6 @@ void b43_phy_xmitpower(struct b43_wldev *dev)
 			b43_radio_lock(dev);
 			b43_set_txpower_g(dev, &phy->bbatt, &phy->rfatt,
 					  phy->tx_control);
-			b43_lo_g_ctl_mark_cur_used(dev);
 			b43_radio_unlock(dev);
 			b43_phy_unlock(dev);
 			break;
