@@ -20,8 +20,7 @@ endmenu
 
 endif
 
-choice
-	prompt "Select target board"
+menu "Select target boards"
 
 config ARCH_GUMSTIX
 	bool "Gumstix XScale boards"
@@ -138,7 +137,7 @@ config MACH_PCM027
 	select PXA27x
 	select IWMMXT
 
-endchoice
+endmenu
 
 choice
 	prompt "Used baseboard"
