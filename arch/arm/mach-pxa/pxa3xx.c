@@ -520,7 +520,7 @@ void __init pxa3xx_init_irq(void)
  */
 
 static struct platform_device *devices[] __initdata = {
-	&pxa_device_udc,
+/*	&pxa_device_udc,	The UDC driver is PXA25x only */
 	&pxa_device_ffuart,
 	&pxa_device_btuart,
 	&pxa_device_stuart,
