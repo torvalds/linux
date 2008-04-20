@@ -458,6 +458,16 @@ config RTC_DRV_VR41XX
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-vr41xx.
 
+config RTC_DRV_PL030
+	tristate "ARM AMBA PL030 RTC"
+	depends on ARM_AMBA
+	help
+	  If you say Y here you will get access to ARM AMBA
+	  PrimeCell PL030 RTC found on certain ARM SOCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc-pl030.
+
 config RTC_DRV_PL031
 	tristate "ARM AMBA PL031 RTC"
 	depends on ARM_AMBA
