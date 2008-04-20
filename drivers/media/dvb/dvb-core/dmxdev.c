@@ -259,6 +259,39 @@ static ssize_t dvb_dvr_read(struct file *file, char __user *buf, size_t count,
 	return ret;
 }
 
+static int dvb_dvr_set_buffer_size(struct dmxdev *dmxdev,
+				      unsigned long size)
+{
+	struct dvb_ringbuffer *buf = &dmxdev->dvr_buffer;
+	void *newmem;
+	void *oldmem;
+
+	dprintk("function : %s\n", __func__);
+
+	if (buf->size == size)
+		return 0;
+	if (!size)
+		return -EINVAL;
+
+	newmem = vmalloc(size);
+	if (!newmem)
+		return -ENOMEM;
+
+	oldmem = buf->data;
+
+	spin_lock_irq(&dmxdev->lock);
+	buf->data = newmem;
+	buf->size = size;
+
+	/* reset and not flush in case the buffer shrinks */
+	dvb_ringbuffer_reset(buf);
+	spin_unlock_irq(&dmxdev->lock);
+
+	vfree(oldmem);
+
+	return 0;
+}
+
 static inline void dvb_dmxdev_filter_state_set(struct dmxdev_filter
 					       *dmxdevfilter, int state)
 {
@@ -271,30 +304,32 @@ static int dvb_dmxdev_set_buffer_size(struct dmxdev_filter *dmxdevfilter,
 				      unsigned long size)
 {
 	struct dvb_ringbuffer *buf = &dmxdevfilter->buffer;
-	void *mem;
+	void *newmem;
+	void *oldmem;
 
 	if (buf->size == size)
 		return 0;
+	if (!size)
+		return -EINVAL;
 	if (dmxdevfilter->state >= DMXDEV_STATE_GO)
 		return -EBUSY;
+
+	newmem = vmalloc(size);
+	if (!newmem)
+		return -ENOMEM;
+
+	oldmem = buf->data;
+
 	spin_lock_irq(&dmxdevfilter->dev->lock);
-	mem = buf->data;
-	buf->data = NULL;
+	buf->data = newmem;
 	buf->size = size;
 
 	/* reset and not flush in case the buffer shrinks */
 	dvb_ringbuffer_reset(buf);
 	spin_unlock_irq(&dmxdevfilter->dev->lock);
-	vfree(mem);
 
-	if (buf->size) {
-		mem = vmalloc(dmxdevfilter->buffer.size);
-		if (!mem)
-			return -ENOMEM;
-		spin_lock_irq(&dmxdevfilter->dev->lock);
-		buf->data = mem;
-		spin_unlock_irq(&dmxdevfilter->dev->lock);
-	}
+	vfree(oldmem);
+
 	return 0;
 }
 
@@ -1011,6 +1046,7 @@ static int dvb_dvr_do_ioctl(struct inode *inode, struct file *file,
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dmxdev *dmxdev = dvbdev->priv;
+	unsigned long arg = (unsigned long)parg;
 	int ret;
 
 	if (mutex_lock_interruptible(&dmxdev->mutex))
@@ -1018,8 +1054,7 @@ static int dvb_dvr_do_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 	case DMX_SET_BUFFER_SIZE:
-		// FIXME: implement
-		ret = 0;
+		ret = dvb_dvr_set_buffer_size(dmxdev, arg);
 		break;
 
 	default:
