@@ -746,6 +746,9 @@ again:
 	else
 		min_free = calc_size;
 
+	/* we add 1MB because we never use the first 1MB of the device */
+	min_free += 1024 * 1024;
+
 	/* build a private list of devices we will allocate from */
 	while(index < num_stripes) {
 		device = list_entry(cur, struct btrfs_device, dev_list);
