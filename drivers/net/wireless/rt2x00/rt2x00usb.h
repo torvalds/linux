@@ -199,12 +199,12 @@ static inline int rt2x00usb_vendor_request_sw(struct rt2x00_dev *rt2x00dev,
  * kmalloc for correct handling inside the kernel USB layer.
  */
 static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
-					__le16 *eeprom, const u16 lenght)
+					__le16 *eeprom, const u16 length)
 {
 	return rt2x00usb_vendor_request(rt2x00dev, USB_EEPROM_READ,
 					USB_VENDOR_REQUEST_IN, 0, 0,
-					eeprom, lenght,
-					REGISTER_TIMEOUT16(lenght));
+					eeprom, length,
+					REGISTER_TIMEOUT16(length));
 }
 
 /*

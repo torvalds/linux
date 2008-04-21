@@ -404,7 +404,7 @@ static inline struct rt2x00_intf* vif_to_intf(struct ieee80211_vif *vif)
  * @supported_rates: Rate types which are supported (CCK, OFDM).
  * @num_channels: Number of supported channels. This is used as array size
  *	for @tx_power_a, @tx_power_bg and @channels.
- * channels: Device/chipset specific channel values (See &struct rf_channel).
+ * @channels: Device/chipset specific channel values (See &struct rf_channel).
  * @tx_power_a: TX power values for all 5.2GHz channels (may be NULL).
  * @tx_power_bg: TX power values for all 2.4GHz channels (may be NULL).
  * @tx_power_default: Default TX power value to use when either
@@ -936,7 +936,7 @@ struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
 
 /**
  * rt2x00queue_get_entry - Get queue entry where the given index points to.
- * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @queue: Pointer to &struct data_queue from where we obtain the entry.
  * @index: Index identifier for obtaining the correct index.
  */
 struct queue_entry *rt2x00queue_get_entry(struct data_queue *queue,
@@ -945,7 +945,7 @@ struct queue_entry *rt2x00queue_get_entry(struct data_queue *queue,
 /**
  * rt2x00queue_index_inc - Index incrementation function
  * @queue: Queue (&struct data_queue) to perform the action on.
- * @action: Index type (&enum queue_index) to perform the action on.
+ * @index: Index type (&enum queue_index) to perform the action on.
  *
  * This function will increase the requested index on the queue,
  * it will grab the appropriate locks and handle queue overflow events by
