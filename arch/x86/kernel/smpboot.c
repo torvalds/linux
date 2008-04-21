@@ -1149,14 +1149,10 @@ static int __init smp_sanity_check(unsigned max_cpus)
 				 "forcing use of dummy APIC emulation.\n");
 		smpboot_clear_io_apic();
 #ifdef CONFIG_X86_32
-		if (nmi_watchdog == NMI_LOCAL_APIC) {
-			printk(KERN_INFO "activating minimal APIC for"
-					 "NMI watchdog use.\n");
-			connect_bsp_APIC();
-			setup_local_APIC();
-			end_local_APIC_setup();
-		}
+		connect_bsp_APIC();
 #endif
+		setup_local_APIC();
+		end_local_APIC_setup();
 		return -1;
 	}
 
