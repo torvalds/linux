@@ -1144,7 +1144,7 @@ static void __net_exit icmp_sk_exit(struct net *net)
 	net->ipv4.icmp_sk = NULL;
 }
 
-int __net_init icmp_sk_init(struct net *net)
+static int __net_init icmp_sk_init(struct net *net)
 {
 	int i, err;
 
