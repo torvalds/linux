@@ -2510,6 +2510,7 @@ static int btrfs_releasepage(struct page *page, gfp_t gfp_flags)
 	map = &BTRFS_I(page->mapping->host)->extent_tree;
 	ret = try_release_extent_mapping(map, tree, page, gfp_flags);
 	if (ret == 1) {
+		invalidate_extent_lru(tree, page_offset(page), PAGE_CACHE_SIZE);
 		ClearPagePrivate(page);
 		set_page_private(page, 0);
 		page_cache_release(page);
@@ -2525,7 +2526,7 @@ static void btrfs_invalidatepage(struct page *page, unsigned long offset)
 	extent_invalidatepage(tree, page, offset);
 	btrfs_releasepage(page, GFP_NOFS);
 	if (PagePrivate(page)) {
-		printk("invalidate page cleaning up after releasepage\n");
+		invalidate_extent_lru(tree, page_offset(page), PAGE_CACHE_SIZE);
 		ClearPagePrivate(page);
 		set_page_private(page, 0);
 		page_cache_release(page);

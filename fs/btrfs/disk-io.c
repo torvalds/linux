@@ -534,7 +534,7 @@ static void btree_invalidatepage(struct page *page, unsigned long offset)
 	extent_invalidatepage(tree, page, offset);
 	btree_releasepage(page, GFP_NOFS);
 	if (PagePrivate(page)) {
-		printk("2invalidate page cleaning up after releasepage\n");
+		invalidate_extent_lru(tree, page_offset(page), PAGE_CACHE_SIZE);
 		ClearPagePrivate(page);
 		set_page_private(page, 0);
 		page_cache_release(page);
