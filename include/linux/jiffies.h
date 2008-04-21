@@ -36,7 +36,7 @@
 #elif HZ >= 6144 && HZ < 12288
 # define SHIFT_HZ	13
 #else
-# error You lose.
+# error Invalid value of HZ.
 #endif
 
 /* LATCH is used in the interval timer and ftape setup. */
