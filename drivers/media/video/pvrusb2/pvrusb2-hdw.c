@@ -1265,7 +1265,7 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 			   " must be a multiple of %zu bytes",
 			   fw_files[fwidx],sizeof(u32));
 		release_firmware(fw_entry);
-		return -1;
+		return -EINVAL;
 	}
 
 	fw_ptr = kmalloc(FIRMWARE_CHUNK_SIZE, GFP_KERNEL);
