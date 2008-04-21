@@ -969,15 +969,9 @@ static void iwl4965_bg_statistics_periodic(unsigned long data)
 	iwl_send_statistics_request(priv, CMD_ASYNC);
 }
 
-#define CT_LIMIT_CONST		259
-#define TM_CT_KILL_THRESHOLD	110
-
 void iwl4965_rf_kill_ct_config(struct iwl_priv *priv)
 {
 	struct iwl4965_ct_kill_config cmd;
-	u32 R1, R2, R3;
-	u32 temp_th;
-	u32 crit_temperature;
 	unsigned long flags;
 	int ret = 0;
 
@@ -986,27 +980,17 @@ void iwl4965_rf_kill_ct_config(struct iwl_priv *priv)
 		    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	if (priv->statistics.flag & STATISTICS_REPLY_FLG_FAT_MODE_MSK) {
-		R1 = (s32)le32_to_cpu(priv->card_alive_init.therm_r1[1]);
-		R2 = (s32)le32_to_cpu(priv->card_alive_init.therm_r2[1]);
-		R3 = (s32)le32_to_cpu(priv->card_alive_init.therm_r3[1]);
-	} else {
-		R1 = (s32)le32_to_cpu(priv->card_alive_init.therm_r1[0]);
-		R2 = (s32)le32_to_cpu(priv->card_alive_init.therm_r2[0]);
-		R3 = (s32)le32_to_cpu(priv->card_alive_init.therm_r3[0]);
-	}
-
-	temp_th = CELSIUS_TO_KELVIN(TM_CT_KILL_THRESHOLD);
-
-	crit_temperature = ((temp_th * (R3-R1))/CT_LIMIT_CONST) + R2;
 	cmd.critical_temperature_R =
-			cpu_to_le32(priv->hw_params.ct_kill_threshold);
+		cpu_to_le32(priv->hw_params.ct_kill_threshold);
+
 	ret = iwl_send_cmd_pdu(priv, REPLY_CT_KILL_CONFIG_CMD,
 			       sizeof(cmd), &cmd);
 	if (ret)
 		IWL_ERROR("REPLY_CT_KILL_CONFIG_CMD failed\n");
 	else
-		IWL_DEBUG_INFO("REPLY_CT_KILL_CONFIG_CMD succeeded\n");
+		IWL_DEBUG_INFO("REPLY_CT_KILL_CONFIG_CMD succeeded, "
+			"critical temperature is %d\n",
+			cmd.critical_temperature_R);
 }
 
 #ifdef CONFIG_IWL4965_RUN_TIME_CALIB
