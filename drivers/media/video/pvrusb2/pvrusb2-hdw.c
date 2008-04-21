@@ -1252,7 +1252,7 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "firmware2 upload prep failed, ret=%d",ret);
 		release_firmware(fw_entry);
-		return ret;
+		goto done;
 	}
 
 	/* Now send firmware */
@@ -1265,7 +1265,8 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 			   " must be a multiple of %zu bytes",
 			   fw_files[fwidx],sizeof(u32));
 		release_firmware(fw_entry);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto done;
 	}
 
 	fw_ptr = kmalloc(FIRMWARE_CHUNK_SIZE, GFP_KERNEL);
@@ -1273,7 +1274,8 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 		release_firmware(fw_entry);
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "failed to allocate memory for firmware2 upload");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto done;
 	}
 
 	pipe = usb_sndbulkpipe(hdw->usb_dev, PVR2_FIRMWARE_ENDPOINT);
@@ -1304,7 +1306,7 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 	if (ret) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "firmware2 upload transfer failure");
-		return ret;
+		goto done;
 	}
 
 	/* Finish upload */
@@ -1317,6 +1319,8 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "firmware2 upload post-proc failure");
 	}
+
+ done:
 	return ret;
 }
 
