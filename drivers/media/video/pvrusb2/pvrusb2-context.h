@@ -62,6 +62,7 @@ struct pvr2_channel {
 	struct pvr2_channel *mc_prev;
 	struct pvr2_context_stream *stream;
 	struct pvr2_hdw *hdw;
+	unsigned int input_mask;
 	void (*check_func)(struct pvr2_channel *);
 };
 
@@ -72,6 +73,8 @@ void pvr2_context_disconnect(struct pvr2_context *);
 
 void pvr2_channel_init(struct pvr2_channel *,struct pvr2_context *);
 void pvr2_channel_done(struct pvr2_channel *);
+int pvr2_channel_limit_inputs(struct pvr2_channel *,unsigned int);
+unsigned int pvr2_channel_get_limited_inputs(struct pvr2_channel *);
 int pvr2_channel_claim_stream(struct pvr2_channel *,
 			      struct pvr2_context_stream *);
 struct pvr2_ioread *pvr2_channel_create_mpeg_stream(

@@ -336,8 +336,10 @@ struct pvr2_hdw {
 	int v4l_minor_number_vbi;
 	int v4l_minor_number_radio;
 
-	/* Bit mask of PVR2_CVAL_INPUT choices which are valid */
+	/* Bit mask of PVR2_CVAL_INPUT choices which are valid for the hardware */
 	unsigned int input_avail_mask;
+	/* Bit mask of PVR2_CVAL_INPUT choices which are currenly allowed */
+	unsigned int input_allowed_mask;
 
 	/* Location of eeprom or a negative number if none */
 	int eeprom_addr;

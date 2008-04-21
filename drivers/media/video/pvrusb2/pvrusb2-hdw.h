@@ -149,6 +149,19 @@ int pvr2_hdw_commit_ctl(struct pvr2_hdw *);
  * will be according to PVR_CVAL_INPUT_xxxx definitions. */
 unsigned int pvr2_hdw_get_input_available(struct pvr2_hdw *);
 
+/* Return a bit mask of allowed input selections for this device.  Mask bits
+ * will be according to PVR_CVAL_INPUT_xxxx definitions. */
+unsigned int pvr2_hdw_get_input_allowed(struct pvr2_hdw *);
+
+/* Change the set of allowed input selections for this device.  Both
+   change_mask and change_valu are mask bits according to
+   PVR_CVAL_INPUT_xxxx definitions.  The change_mask parameter indicate
+   which settings are being changed and the change_val parameter indicates
+   whether corresponding settings are being set or cleared. */
+int pvr2_hdw_set_input_allowed(struct pvr2_hdw *,
+			       unsigned int change_mask,
+			       unsigned int change_val);
+
 /* Return name for this driver instance */
 const char *pvr2_hdw_get_driver_name(struct pvr2_hdw *);
 

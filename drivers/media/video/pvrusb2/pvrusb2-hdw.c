@@ -249,6 +249,7 @@ static const struct pvr2_fx2cmd_descdef pvr2_fx2cmd_desc[] = {
 };
 
 
+static int pvr2_hdw_set_input(struct pvr2_hdw *hdw,int v);
 static void pvr2_hdw_state_sched(struct pvr2_hdw *);
 static int pvr2_hdw_state_eval(struct pvr2_hdw *);
 static void pvr2_hdw_set_cur_freq(struct pvr2_hdw *,unsigned long);
@@ -404,30 +405,12 @@ static int ctrl_get_input(struct pvr2_ctrl *cptr,int *vp)
 
 static int ctrl_check_input(struct pvr2_ctrl *cptr,int v)
 {
-	return ((1 << v) & cptr->hdw->input_avail_mask) != 0;
+	return ((1 << v) & cptr->hdw->input_allowed_mask) != 0;
 }
 
 static int ctrl_set_input(struct pvr2_ctrl *cptr,int m,int v)
 {
-	struct pvr2_hdw *hdw = cptr->hdw;
-
-	if (hdw->input_val != v) {
-		hdw->input_val = v;
-		hdw->input_dirty = !0;
-	}
-
-	/* Handle side effects - if we switch to a mode that needs the RF
-	   tuner, then select the right frequency choice as well and mark
-	   it dirty. */
-	if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
-		hdw->freqSelector = 0;
-		hdw->freqDirty = !0;
-	} else if ((hdw->input_val == PVR2_CVAL_INPUT_TV) ||
-		   (hdw->input_val == PVR2_CVAL_INPUT_DTV)) {
-		hdw->freqSelector = 1;
-		hdw->freqDirty = !0;
-	}
-	return 0;
+	return pvr2_hdw_set_input(cptr->hdw,v);
 }
 
 static int ctrl_isdirty_input(struct pvr2_ctrl *cptr)
@@ -1916,6 +1899,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	if (hdw_desc->flag_has_composite) m |= 1 << PVR2_CVAL_INPUT_COMPOSITE;
 	if (hdw_desc->flag_has_fmradio) m |= 1 << PVR2_CVAL_INPUT_RADIO;
 	hdw->input_avail_mask = m;
+	hdw->input_allowed_mask = hdw->input_avail_mask;
 
 	/* If not a hybrid device, pathway_state never changes.  So
 	   initialize it here to what it should forever be. */
@@ -3948,6 +3932,24 @@ static int pvr2_hdw_state_update(struct pvr2_hdw *hdw)
 }
 
 
+static unsigned int print_input_mask(unsigned int msk,
+				     char *buf,unsigned int acnt)
+{
+	unsigned int idx,ccnt;
+	unsigned int tcnt = 0;
+	for (idx = 0; idx < ARRAY_SIZE(control_values_input); idx++) {
+		if (!((1 << idx) & msk)) continue;
+		ccnt = scnprintf(buf+tcnt,
+				 acnt-tcnt,
+				 "%s%s",
+				 (tcnt ? ", " : ""),
+				 control_values_input[idx]);
+		tcnt += ccnt;
+	}
+	return tcnt;
+}
+
+
 static const char *pvr2_pathway_state_name(int id)
 {
 	switch (id) {
@@ -4016,6 +4018,28 @@ static unsigned int pvr2_hdw_report_unlocked(struct pvr2_hdw *hdw,int which,
 			"state: %s",
 			pvr2_get_state_name(hdw->master_state));
 	case 4: {
+		unsigned int tcnt = 0;
+		unsigned int ccnt;
+
+		ccnt = scnprintf(buf,
+				 acnt,
+				 "Hardware supported inputs: ");
+		tcnt += ccnt;
+		tcnt += print_input_mask(hdw->input_avail_mask,
+					 buf+tcnt,
+					 acnt-tcnt);
+		if (hdw->input_avail_mask != hdw->input_allowed_mask) {
+			ccnt = scnprintf(buf+tcnt,
+					 acnt-tcnt,
+					 "; allowed inputs: ");
+			tcnt += ccnt;
+			tcnt += print_input_mask(hdw->input_allowed_mask,
+						 buf+tcnt,
+						 acnt-tcnt);
+		}
+		return tcnt;
+	}
+	case 5: {
 		struct pvr2_stream_stats stats;
 		if (!hdw->vid_stream) break;
 		pvr2_stream_get_stats(hdw->vid_stream,
@@ -4207,6 +4231,74 @@ int pvr2_hdw_gpio_chg_out(struct pvr2_hdw *hdw,u32 msk,u32 val)
 unsigned int pvr2_hdw_get_input_available(struct pvr2_hdw *hdw)
 {
 	return hdw->input_avail_mask;
+}
+
+
+unsigned int pvr2_hdw_get_input_allowed(struct pvr2_hdw *hdw)
+{
+	return hdw->input_allowed_mask;
+}
+
+
+static int pvr2_hdw_set_input(struct pvr2_hdw *hdw,int v)
+{
+	if (hdw->input_val != v) {
+		hdw->input_val = v;
+		hdw->input_dirty = !0;
+	}
+
+	/* Handle side effects - if we switch to a mode that needs the RF
+	   tuner, then select the right frequency choice as well and mark
+	   it dirty. */
+	if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+		hdw->freqSelector = 0;
+		hdw->freqDirty = !0;
+	} else if ((hdw->input_val == PVR2_CVAL_INPUT_TV) ||
+		   (hdw->input_val == PVR2_CVAL_INPUT_DTV)) {
+		hdw->freqSelector = 1;
+		hdw->freqDirty = !0;
+	}
+	return 0;
+}
+
+
+int pvr2_hdw_set_input_allowed(struct pvr2_hdw *hdw,
+			       unsigned int change_mask,
+			       unsigned int change_val)
+{
+	int ret = 0;
+	unsigned int nv,m,idx;
+	LOCK_TAKE(hdw->big_lock);
+	do {
+		nv = hdw->input_allowed_mask & ~change_mask;
+		nv |= (change_val & change_mask);
+		nv &= hdw->input_avail_mask;
+		if (!nv) {
+			/* No legal modes left; return error instead. */
+			ret = -EPERM;
+			break;
+		}
+		hdw->input_allowed_mask = nv;
+		if ((1 << hdw->input_val) & hdw->input_allowed_mask) {
+			/* Current mode is still in the allowed mask, so
+			   we're done. */
+			break;
+		}
+		/* Select and switch to a mode that is still in the allowed
+		   mask */
+		if (!hdw->input_allowed_mask) {
+			/* Nothing legal; give up */
+			break;
+		}
+		m = hdw->input_allowed_mask;
+		for (idx = 0; idx < (sizeof(m) << 3); idx++) {
+			if (!((1 << idx) & m)) continue;
+			pvr2_hdw_set_input(hdw,idx);
+			break;
+		}
+	} while (0);
+	LOCK_GIVE(hdw->big_lock);
+	return ret;
 }
 
 

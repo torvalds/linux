@@ -57,7 +57,6 @@ struct pvr2_v4l2_fh {
 	struct pvr2_v4l2_fh *vprev;
 	wait_queue_head_t wait_data;
 	int fw_mode_flag;
-	int prev_input_val;
 };
 
 struct pvr2_v4l2 {
@@ -900,20 +899,6 @@ static int pvr2_v4l2_release(struct inode *inode, struct file *file)
 	v4l2_prio_close(&vp->prio, &fhp->prio);
 	file->private_data = NULL;
 
-	/* Restore the previous input selection, if it makes sense
-	   to do so. */
-	if (fhp->dev_info->v4l_type == VFL_TYPE_RADIO) {
-		struct pvr2_ctrl *cp;
-		int pval;
-		cp = pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_INPUT);
-		pvr2_ctrl_get_value(cp,&pval);
-		/* Only restore if we're still selecting the radio */
-		if (pval == PVR2_CVAL_INPUT_RADIO) {
-			pvr2_ctrl_set_value(cp,fhp->prev_input_val);
-			pvr2_hdw_commit_ctl(hdw);
-		}
-	}
-
 	if (fhp->vnext) {
 		fhp->vnext->vprev = fhp->vprev;
 	} else {
@@ -944,6 +929,8 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 	struct pvr2_v4l2_fh *fhp;
 	struct pvr2_v4l2 *vp;
 	struct pvr2_hdw *hdw;
+	unsigned int input_mask = 0;
+	int ret = 0;
 
 	dip = container_of(video_devdata(file),struct pvr2_v4l2_dev,devbase);
 
@@ -969,6 +956,29 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 	pvr2_trace(PVR2_TRACE_STRUCT,"Creating pvr_v4l2_fh id=%p",fhp);
 	pvr2_channel_init(&fhp->channel,vp->channel.mc_head);
 
+	if (dip->v4l_type == VFL_TYPE_RADIO) {
+		/* Opening device as a radio, legal input selection subset
+		   is just the radio. */
+		input_mask = (1 << PVR2_CVAL_INPUT_RADIO);
+	} else {
+		/* Opening the main V4L device, legal input selection
+		   subset includes all analog inputs. */
+		input_mask = ((1 << PVR2_CVAL_INPUT_RADIO) |
+			      (1 << PVR2_CVAL_INPUT_TV) |
+			      (1 << PVR2_CVAL_INPUT_COMPOSITE) |
+			      (1 << PVR2_CVAL_INPUT_SVIDEO));
+	}
+	ret = pvr2_channel_limit_inputs(&fhp->channel,input_mask);
+	if (ret) {
+		pvr2_channel_done(&fhp->channel);
+		pvr2_trace(PVR2_TRACE_STRUCT,
+			   "Destroying pvr_v4l2_fh id=%p (input mask error)",
+			   fhp);
+
+		kfree(fhp);
+		return ret;
+	}
+
 	fhp->vnext = NULL;
 	fhp->vprev = vp->vlast;
 	if (vp->vlast) {
@@ -978,18 +988,6 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 	}
 	vp->vlast = fhp;
 	fhp->vhead = vp;
-
-	/* Opening the /dev/radioX device implies a mode switch.
-	   So execute that here.  Note that you can get the
-	   IDENTICAL effect merely by opening the normal video
-	   device and setting the input appropriately. */
-	if (dip->v4l_type == VFL_TYPE_RADIO) {
-		struct pvr2_ctrl *cp;
-		cp = pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_INPUT);
-		pvr2_ctrl_get_value(cp,&fhp->prev_input_val);
-		pvr2_ctrl_set_value(cp,PVR2_CVAL_INPUT_RADIO);
-		pvr2_hdw_commit_ctl(hdw);
-	}
 
 	fhp->file = file;
 	file->private_data = fhp;

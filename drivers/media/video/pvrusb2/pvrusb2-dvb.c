@@ -244,13 +244,10 @@ static int pvr2_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 static int pvr2_dvb_bus_ctrl(struct dvb_frontend *fe, int acquire)
 {
-	/* TO DO: This function will call into the core and request for
-	 * input to be set to 'dtv' if (acquire) and if it isn't set already.
-	 *
-	 * If (!acquire) then we should do nothing -- don't switch inputs
-	 * again unless the analog side of the driver requests the bus.
-	 */
-	return 0;
+	struct pvr2_dvb_adapter *adap = fe->dvb->priv;
+	return pvr2_channel_limit_inputs(
+	    &adap->channel,
+	    (acquire ? (1 << PVR2_CVAL_INPUT_DTV) : 0));
 }
 
 static int pvr2_dvb_adapter_init(struct pvr2_dvb_adapter *adap)
@@ -320,32 +317,26 @@ static int pvr2_dvb_frontend_init(struct pvr2_dvb_adapter *adap)
 {
 	struct pvr2_hdw *hdw = adap->channel.hdw;
 	struct pvr2_dvb_props *dvb_props = hdw->hdw_desc->dvb_props;
-	int ret;
+	int ret = 0;
 
 	if (dvb_props == NULL) {
 		err("fe_props not defined!");
 		return -EINVAL;
 	}
 
-	/* FIXME: This code should be moved into the core,
-	 * and should only be called if we don't already have
-	 * control of the bus.
-	 *
-	 * We can't call "pvr2_dvb_bus_ctrl(adap->fe, 1)" from here,
-	 * because adap->fe isn't defined yet.
-	 */
-	ret = pvr2_ctrl_set_value(pvr2_hdw_get_ctrl_by_id(hdw,
-							  PVR2_CID_INPUT),
-				  PVR2_CVAL_INPUT_DTV);
-	if (ret != 0)
+	ret = pvr2_channel_limit_inputs(
+	    &adap->channel,
+	    (1 << PVR2_CVAL_INPUT_DTV));
+	if (ret) {
+		err("failed to grab control of dtv input (code=%d)",
+		    ret);
 		return ret;
-
-	pvr2_hdw_commit_ctl(hdw);
-
+	}
 
 	if (dvb_props->frontend_attach == NULL) {
 		err("frontend_attach not defined!");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto done;
 	}
 
 	if ((dvb_props->frontend_attach(adap) == 0) && (adap->fe)) {
@@ -354,7 +345,8 @@ static int pvr2_dvb_frontend_init(struct pvr2_dvb_adapter *adap)
 			err("frontend registration failed!");
 			dvb_frontend_detach(adap->fe);
 			adap->fe = NULL;
-			return -ENODEV;
+			ret = -ENODEV;
+			goto done;
 		}
 
 		if (dvb_props->tuner_attach)
@@ -368,10 +360,13 @@ static int pvr2_dvb_frontend_init(struct pvr2_dvb_adapter *adap)
 
 	} else {
 		err("no frontend was attached!");
-		return -ENODEV;
+		ret = -ENODEV;
+		return ret;
 	}
 
-	return 0;
+ done:
+	pvr2_channel_limit_inputs(&adap->channel, 0);
+	return ret;
 }
 
 static int pvr2_dvb_frontend_exit(struct pvr2_dvb_adapter *adap)

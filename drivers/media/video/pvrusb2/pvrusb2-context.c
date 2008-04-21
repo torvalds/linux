@@ -245,6 +245,22 @@ struct pvr2_context *pvr2_context_create(
 }
 
 
+static void pvr2_context_reset_input_limits(struct pvr2_context *mp)
+{
+	unsigned int tmsk,mmsk;
+	struct pvr2_channel *cp;
+	struct pvr2_hdw *hdw = mp->hdw;
+	mmsk = pvr2_hdw_get_input_available(hdw);
+	tmsk = mmsk;
+	for (cp = mp->mc_first; cp; cp = cp->mc_next) {
+		if (!cp->input_mask) continue;
+		tmsk &= cp->input_mask;
+	}
+	pvr2_hdw_set_input_allowed(hdw,mmsk,tmsk);
+	pvr2_hdw_commit_ctl(hdw);
+}
+
+
 static void pvr2_context_enter(struct pvr2_context *mp)
 {
 	mutex_lock(&mp->mutex);
@@ -300,7 +316,9 @@ void pvr2_channel_done(struct pvr2_channel *cp)
 {
 	struct pvr2_context *mp = cp->mc_head;
 	pvr2_context_enter(mp);
+	cp->input_mask = 0;
 	pvr2_channel_disclaim_stream(cp);
+	pvr2_context_reset_input_limits(mp);
 	if (cp->mc_next) {
 		cp->mc_next->mc_prev = cp->mc_prev;
 	} else {
@@ -313,6 +331,57 @@ void pvr2_channel_done(struct pvr2_channel *cp)
 	}
 	cp->hdw = NULL;
 	pvr2_context_exit(mp);
+}
+
+
+int pvr2_channel_limit_inputs(struct pvr2_channel *cp,unsigned int cmsk)
+{
+	unsigned int tmsk,mmsk;
+	int ret = 0;
+	struct pvr2_channel *p2;
+	struct pvr2_hdw *hdw = cp->hdw;
+
+	mmsk = pvr2_hdw_get_input_available(hdw);
+	cmsk &= mmsk;
+	if (cmsk == cp->input_mask) {
+		/* No change; nothing to do */
+		return 0;
+	}
+
+	pvr2_context_enter(cp->mc_head);
+	do {
+		if (!cmsk) {
+			cp->input_mask = 0;
+			pvr2_context_reset_input_limits(cp->mc_head);
+			break;
+		}
+		tmsk = mmsk;
+		for (p2 = cp->mc_head->mc_first; p2; p2 = p2->mc_next) {
+			if (p2 == cp) continue;
+			if (!p2->input_mask) continue;
+			tmsk &= p2->input_mask;
+		}
+		if (!(tmsk & cmsk)) {
+			ret = -EPERM;
+			break;
+		}
+		tmsk &= cmsk;
+		if ((ret = pvr2_hdw_set_input_allowed(hdw,mmsk,tmsk)) != 0) {
+			/* Internal failure changing allowed list; probably
+			   should not happen, but react if it does. */
+			break;
+		}
+		cp->input_mask = cmsk;
+		pvr2_hdw_commit_ctl(hdw);
+	} while (0);
+	pvr2_context_exit(cp->mc_head);
+	return ret;
+}
+
+
+unsigned int pvr2_channel_get_limited_inputs(struct pvr2_channel *cp)
+{
+	return cp->input_mask;
 }
 
 
