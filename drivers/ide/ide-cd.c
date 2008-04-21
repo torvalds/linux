@@ -2032,9 +2032,8 @@ static void ide_cd_release(struct kref *kref)
 
 	kfree(info->buffer);
 	kfree(info->toc);
-	if (devinfo->handle == drive && unregister_cdrom(devinfo))
-		printk(KERN_ERR "%s: %s failed to unregister device from the cdrom "
-				"driver.\n", __FUNCTION__, drive->name);
+	if (devinfo->handle == drive)
+		unregister_cdrom(devinfo);
 	drive->dsc_overlap = 0;
 	drive->driver_data = NULL;
 	blk_queue_prep_rq(drive->queue, NULL);

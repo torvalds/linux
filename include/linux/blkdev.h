@@ -112,6 +112,7 @@ enum rq_flag_bits {
 	__REQ_RW_SYNC,		/* request is sync (O_DIRECT) */
 	__REQ_ALLOCED,		/* request came from our alloc pool */
 	__REQ_RW_META,		/* metadata io request */
+	__REQ_COPY_USER,	/* contains copies of user pages */
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -133,6 +134,7 @@ enum rq_flag_bits {
 #define REQ_RW_SYNC	(1 << __REQ_RW_SYNC)
 #define REQ_ALLOCED	(1 << __REQ_ALLOCED)
 #define REQ_RW_META	(1 << __REQ_RW_META)
+#define REQ_COPY_USER	(1 << __REQ_COPY_USER)
 
 #define BLK_MAX_CDB	16
 
@@ -533,8 +535,13 @@ extern unsigned long blk_max_low_pfn, blk_max_pfn;
  * BLK_BOUNCE_ANY	: don't bounce anything
  * BLK_BOUNCE_ISA	: bounce pages above ISA DMA boundary
  */
+
+#if BITS_PER_LONG == 32
 #define BLK_BOUNCE_HIGH		((u64)blk_max_low_pfn << PAGE_SHIFT)
-#define BLK_BOUNCE_ANY		((u64)blk_max_pfn << PAGE_SHIFT)
+#else
+#define BLK_BOUNCE_HIGH		-1ULL
+#endif
+#define BLK_BOUNCE_ANY		(-1ULL)
 #define BLK_BOUNCE_ISA		(ISA_DMA_THRESHOLD)
 
 /*
