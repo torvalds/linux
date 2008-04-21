@@ -7242,44 +7242,6 @@ static ssize_t show_statistics(struct device *d,
 
 static DEVICE_ATTR(statistics, S_IRUGO, show_statistics, NULL);
 
-static ssize_t show_antenna(struct device *d,
-			    struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-
-	if (!iwl_is_alive(priv))
-		return -EAGAIN;
-
-	return sprintf(buf, "%d\n", priv->antenna);
-}
-
-static ssize_t store_antenna(struct device *d,
-			     struct device_attribute *attr,
-			     const char *buf, size_t count)
-{
-	int ant;
-	struct iwl_priv *priv = dev_get_drvdata(d);
-
-	if (count == 0)
-		return 0;
-
-	if (sscanf(buf, "%1i", &ant) != 1) {
-		IWL_DEBUG_INFO("not in hex or decimal form.\n");
-		return count;
-	}
-
-	if ((ant >= 0) && (ant <= 2)) {
-		IWL_DEBUG_INFO("Setting antenna select to %d.\n", ant);
-		priv->antenna = (enum iwl4965_antenna)ant;
-	} else
-		IWL_DEBUG_INFO("Bad antenna select value %d.\n", ant);
-
-
-	return count;
-}
-
-static DEVICE_ATTR(antenna, S_IWUSR | S_IRUGO, show_antenna, store_antenna);
-
 static ssize_t show_status(struct device *d,
 			   struct device_attribute *attr, char *buf)
 {
@@ -7362,7 +7324,6 @@ static void iwl4965_cancel_deferred_work(struct iwl_priv *priv)
 }
 
 static struct attribute *iwl4965_sysfs_entries[] = {
-	&dev_attr_antenna.attr,
 	&dev_attr_channels.attr,
 	&dev_attr_dump_errors.attr,
 	&dev_attr_dump_events.attr,

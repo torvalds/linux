@@ -71,12 +71,6 @@ extern struct iwl_cfg iwl4965_agn_cfg;
  *   averages within an s8's (used in some apps) range of negative values. */
 #define IWL_NOISE_MEAS_NOT_AVAILABLE (-127)
 
-enum iwl4965_antenna {
-	IWL_ANTENNA_DIVERSITY,
-	IWL_ANTENNA_MAIN,
-	IWL_ANTENNA_AUX
-};
-
 /*
  * RTS threshold here is total size [2347] minus 4 FCS bytes
  * Per spec:
@@ -763,9 +757,9 @@ extern void iwl4965_hwrate_to_tx_control(struct iwl_priv *priv,
 					 struct ieee80211_tx_control *control);
 
 #ifdef CONFIG_IWL4965_HT
-void iwl4965_init_ht_hw_capab(struct iwl_priv *priv,
-			      struct ieee80211_ht_info *ht_info,
-			      enum ieee80211_band band);
+extern void iwl4965_init_ht_hw_capab(const struct iwl_priv *priv,
+				struct ieee80211_ht_info *ht_info,
+				enum ieee80211_band band);
 void iwl4965_set_rxon_ht(struct iwl_priv *priv,
 			 struct iwl_ht_info *ht_info);
 void iwl4965_set_ht_add_station(struct iwl_priv *priv, u8 index,
@@ -776,7 +770,7 @@ int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 int iwl4965_check_empty_hw_queue(struct iwl_priv *priv, int sta_id,
 					u8 tid, int txq_id);
 #else
-static inline void iwl4965_init_ht_hw_capab(struct iwl_priv *priv,
+static inline void iwl4965_init_ht_hw_capab(const struct iwl_priv *priv,
 					    struct ieee80211_ht_info *ht_info,
 					    enum ieee80211_band band) {}
 
@@ -1052,7 +1046,6 @@ struct iwl_priv {
 
 	u8 assoc_station_added;
 	u8 use_ant_b_for_management_frame;	/* Tx antenna selection */
-	u8 valid_antenna;	/* Bit mask of antennas actually connected */
 	u8 start_calib;
 #ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
 	struct iwl_sensitivity_data sensitivity_data;

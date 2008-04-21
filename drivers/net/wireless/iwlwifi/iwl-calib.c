@@ -747,7 +747,8 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 			active_chains);
 
 	/* Save for use within RXON, TX, SCAN commands, etc. */
-	priv->valid_antenna = active_chains;
+	/*priv->valid_antenna = active_chains;*/
+	/*FIXME: should be reflected in RX chains in RXON */
 
 	/* Analyze noise for rx balance */
 	average_noise[0] = ((data->chain_noise_a)/CAL_NUM_OF_BEACONS);

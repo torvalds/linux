@@ -58,7 +58,8 @@ static void iwl4965_hw_card_show_info(struct iwl_priv *priv);
 #define IWL_DECLARE_RATE_INFO(r, s, ip, in, rp, rn, pp, np)    \
 	[IWL_RATE_##r##M_INDEX] = { IWL_RATE_##r##M_PLCP,      \
 				    IWL_RATE_SISO_##s##M_PLCP, \
-				    IWL_RATE_MIMO_##s##M_PLCP, \
+				    IWL_RATE_MIMO2_##s##M_PLCP,\
+				    IWL_RATE_MIMO3_##s##M_PLCP,\
 				    IWL_RATE_##r##M_IEEE,      \
 				    IWL_RATE_##ip##M_INDEX,    \
 				    IWL_RATE_##in##M_INDEX,    \
@@ -89,6 +90,7 @@ const struct iwl4965_rate_info iwl4965_rates[IWL_RATE_COUNT] = {
 	IWL_DECLARE_RATE_INFO(48, 48, 36, 54, 36, 54, 36, 54),   /* 48mbps */
 	IWL_DECLARE_RATE_INFO(54, 54, 48, INV, 48, INV, 48, INV),/* 54mbps */
 	IWL_DECLARE_RATE_INFO(60, 60, 48, INV, 48, INV, 48, INV),/* 60mbps */
+	/* FIXME:RS:          ^^    should be INV (legacy) */
 };
 
 #ifdef CONFIG_IWL4965_HT
@@ -265,7 +267,6 @@ static int iwl4965_init_drv(struct iwl_priv *priv)
 	int ret;
 	int i;
 
-	priv->antenna = (enum iwl4965_antenna)priv->cfg->mod_params->antenna;
 	priv->retry_rate = 1;
 	priv->ibss_beacon = NULL;
 
@@ -305,7 +306,6 @@ static int iwl4965_init_drv(struct iwl_priv *priv)
 	priv->iw_mode = IEEE80211_IF_TYPE_STA;
 
 	priv->use_ant_b_for_management_frame = 1; /* start with ant B */
-	priv->valid_antenna = 0x7;	/* assume all 3 connected */
 	priv->ps_mode = IWL_MIMO_PS_NONE;
 
 	/* Choose which receivers/antennas to use */
@@ -361,18 +361,20 @@ static int is_fat_channel(__le32 rxon_flags)
 		(rxon_flags & RXON_FLG_CHANNEL_MODE_MIXED_MSK);
 }
 
-static u8 is_single_stream(struct iwl_priv *priv)
-{
 #ifdef CONFIG_IWL4965_HT
-	if (!priv->current_ht_config.is_ht ||
-	    (priv->current_ht_config.supp_mcs_set[1] == 0) ||
-	    (priv->ps_mode == IWL_MIMO_PS_STATIC))
-		return 1;
-#else
-	return 1;
-#endif	/*CONFIG_IWL4965_HT */
-	return 0;
+static u8 is_single_rx_stream(struct iwl_priv *priv)
+{
+	return !priv->current_ht_config.is_ht ||
+	       ((priv->current_ht_config.supp_mcs_set[1] == 0) &&
+		(priv->current_ht_config.supp_mcs_set[2] == 0)) ||
+	       priv->ps_mode == IWL_MIMO_PS_STATIC;
 }
+#else
+static inline u8 is_single_rx_stream(struct iwl_priv *priv)
+{
+	return 1;
+}
+#endif	/*CONFIG_IWL4965_HT */
 
 int iwl4965_hwrate_to_plcp_idx(u32 rate_n_flags)
 {
@@ -382,8 +384,8 @@ int iwl4965_hwrate_to_plcp_idx(u32 rate_n_flags)
 	if (rate_n_flags & RATE_MCS_HT_MSK) {
 		idx = (rate_n_flags & 0xff);
 
-		if (idx >= IWL_RATE_MIMO_6M_PLCP)
-			idx = idx - IWL_RATE_MIMO_6M_PLCP;
+		if (idx >= IWL_RATE_MIMO2_6M_PLCP)
+			idx = idx - IWL_RATE_MIMO2_6M_PLCP;
 
 		idx += IWL_FIRST_OFDM_RATE;
 		/* skip 9M not supported in ht*/
@@ -411,7 +413,7 @@ void iwl4965_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
 	int rate_index;
 
 	control->antenna_sel_tx =
-		((rate_n_flags & RATE_MCS_ANT_AB_MSK) >> RATE_MCS_ANT_POS);
+		((rate_n_flags & RATE_MCS_ANT_ABC_MSK) >> RATE_MCS_ANT_POS);
 	if (rate_n_flags & RATE_MCS_HT_MSK)
 		control->flags |= IEEE80211_TXCTL_OFDM_HT;
 	if (rate_n_flags & RATE_MCS_GF_MSK)
@@ -441,7 +443,7 @@ void iwl4965_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
 static int iwl4965_get_rx_chain_counter(struct iwl_priv *priv,
 					u8 *idle_state, u8 *rx_state)
 {
-	u8 is_single = is_single_stream(priv);
+	u8 is_single = is_single_rx_stream(priv);
 	u8 is_cam = test_bit(STATUS_POWER_PMI, &priv->status) ? 0 : 1;
 
 	/* # of Rx chains to use when expecting MIMO. */
@@ -1344,8 +1346,8 @@ int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 
 	priv->hw_params.tx_chains_num = 2;
 	priv->hw_params.rx_chains_num = 2;
-	priv->hw_params.valid_tx_ant = (IWL_ANTENNA_MAIN | IWL_ANTENNA_AUX);
-	priv->hw_params.valid_rx_ant = (IWL_ANTENNA_MAIN | IWL_ANTENNA_AUX);
+	priv->hw_params.valid_tx_ant = ANT_A | ANT_B;
+	priv->hw_params.valid_rx_ant = ANT_A | ANT_B;
 	priv->hw_params.ct_kill_threshold = CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD);
 
 #ifdef CONFIG_IWL4965_RUN_TIME_CALIB
@@ -2512,7 +2514,7 @@ static void iwl4965_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
  */
 void iwl4965_set_rxon_chain(struct iwl_priv *priv)
 {
-	u8 is_single = is_single_stream(priv);
+	u8 is_single = is_single_rx_stream(priv);
 	u8 idle_state, rx_state;
 
 	priv->staging_rxon.rx_chain = 0;
@@ -2523,7 +2525,8 @@ void iwl4965_set_rxon_chain(struct iwl_priv *priv)
 	 * Just after first association, iwl_chain_noise_calibration()
 	 *    checks which antennas actually *are* connected. */
 	priv->staging_rxon.rx_chain |=
-	    cpu_to_le16(priv->valid_antenna << RXON_RX_CHAIN_VALID_POS);
+		    cpu_to_le16(priv->hw_params.valid_rx_ant <<
+						 RXON_RX_CHAIN_VALID_POS);
 
 	/* How many receivers should we use? */
 	iwl4965_get_rx_chain_counter(priv, &idle_state, &rx_state);
@@ -3106,7 +3109,7 @@ static int iwl4965_calc_rssi(struct iwl4965_rx_phy_res *rx_resp)
 
 #ifdef CONFIG_IWL4965_HT
 
-void iwl4965_init_ht_hw_capab(struct iwl_priv *priv,
+void iwl4965_init_ht_hw_capab(const struct iwl_priv *priv,
 			      struct ieee80211_ht_info *ht_info,
 			      enum ieee80211_band band)
 {
@@ -3132,7 +3135,10 @@ void iwl4965_init_ht_hw_capab(struct iwl_priv *priv,
 	ht_info->ampdu_density = CFG_HT_MPDU_DENSITY_DEF;
 
 	ht_info->supp_mcs_set[0] = 0xFF;
-	ht_info->supp_mcs_set[1] = 0xFF;
+	if (priv->hw_params.tx_chains_num >= 2)
+		ht_info->supp_mcs_set[1] = 0xFF;
+	if (priv->hw_params.tx_chains_num >= 3)
+		ht_info->supp_mcs_set[2] = 0xFF;
 }
 #endif /* CONFIG_IWL4965_HT */
 
@@ -3910,8 +3916,7 @@ void iwl4965_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 			rate_flags |= RATE_MCS_CCK_MSK;
 
 		/* Use Tx antenna B only */
-		rate_flags |= RATE_MCS_ANT_B_MSK;
-		rate_flags &= ~RATE_MCS_ANT_A_MSK;
+		rate_flags |= RATE_MCS_ANT_B_MSK; /*FIXME:RS*/
 
 		link_cmd.rs_table[i].rate_n_flags =
 			iwl4965_hw_set_rate_n_flags(iwl4965_rates[r].plcp, rate_flags);
@@ -4016,11 +4021,13 @@ void iwl4965_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 
 	iwl4965_set_rxon_chain(priv);
 
-	IWL_DEBUG_ASSOC("supported HT rate 0x%X %X "
+	IWL_DEBUG_ASSOC("supported HT rate 0x%X 0x%X 0x%X "
 			"rxon flags 0x%X operation mode :0x%X "
 			"extension channel offset 0x%x "
 			"control chan %d\n",
-			ht_info->supp_mcs_set[0], ht_info->supp_mcs_set[1],
+			ht_info->supp_mcs_set[0],
+			ht_info->supp_mcs_set[1],
+			ht_info->supp_mcs_set[2],
 			le32_to_cpu(rxon->flags), ht_info->ht_protection,
 			ht_info->extension_chan_offset,
 			ht_info->control_channel);
