@@ -635,7 +635,7 @@ static const struct file_operations ocfs2_control_fops = {
 	.owner   = THIS_MODULE,
 };
 
-struct miscdevice ocfs2_control_device = {
+static struct miscdevice ocfs2_control_device = {
 	.minor		= MISC_DYNAMIC_MINOR,
 	.name		= "ocfs2_control",
 	.fops		= &ocfs2_control_fops,
