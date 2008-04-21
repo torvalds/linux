@@ -11,9 +11,15 @@
 *******************************************************************************
 ******************************************************************************/
 
+#ifndef _LINUX_DLM_DEVICE_H
+#define _LINUX_DLM_DEVICE_H
+
 /* This is the device interface for dlm, most users will use a library
  * interface.
  */
+
+#include <linux/dlm.h>
+#include <linux/types.h>
 
 #define DLM_USER_LVB_LEN	32
 
@@ -97,4 +103,6 @@ struct dlm_lock_result {
 /* Lockspace flags */
 #define DLM_USER_LSFLG_AUTOFREE   1
 #define DLM_USER_LSFLG_FORCEFREE  2
+
+#endif
 
