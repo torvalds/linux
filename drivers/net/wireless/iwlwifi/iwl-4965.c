@@ -999,7 +999,8 @@ void iwl4965_rf_kill_ct_config(struct iwl_priv *priv)
 	temp_th = CELSIUS_TO_KELVIN(TM_CT_KILL_THRESHOLD);
 
 	crit_temperature = ((temp_th * (R3-R1))/CT_LIMIT_CONST) + R2;
-	cmd.critical_temperature_R =  cpu_to_le32(crit_temperature);
+	cmd.critical_temperature_R =
+			cpu_to_le32(priv->hw_params.ct_kill_threshold);
 	ret = iwl_send_cmd_pdu(priv, REPLY_CT_KILL_CONFIG_CMD,
 			       sizeof(cmd), &cmd);
 	if (ret)
@@ -1340,6 +1341,7 @@ int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 	}
 
 	priv->hw_params.max_txq_num = priv->cfg->mod_params->num_of_queues;
+	priv->hw_params.sw_crypto = priv->cfg->mod_params->sw_crypto;
 	priv->hw_params.tx_cmd_len = sizeof(struct iwl4965_tx_cmd);
 	priv->hw_params.max_rxq_size = RX_QUEUE_SIZE;
 	priv->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
@@ -1351,10 +1353,17 @@ int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.max_stations = IWL4965_STATION_COUNT;
 	priv->hw_params.bcast_sta_id = IWL4965_BROADCAST_ID;
 
+	priv->hw_params.max_data_size = IWL49_RTC_DATA_SIZE;
+	priv->hw_params.max_inst_size = IWL49_RTC_INST_SIZE;
+	priv->hw_params.max_bsm_size = BSM_SRAM_SIZE;
+	priv->hw_params.fat_channel = BIT(IEEE80211_BAND_5GHZ);
+
 	priv->hw_params.tx_chains_num = 2;
 	priv->hw_params.rx_chains_num = 2;
 	priv->hw_params.valid_tx_ant = (IWL_ANTENNA_MAIN | IWL_ANTENNA_AUX);
 	priv->hw_params.valid_rx_ant = (IWL_ANTENNA_MAIN | IWL_ANTENNA_AUX);
+	priv->hw_params.ct_kill_threshold = CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD);
+
 #ifdef CONFIG_IWL4965_RUN_TIME_CALIB
 	priv->hw_params.sens = &iwl4965_sensitivity;
 #endif
@@ -3064,7 +3073,7 @@ static void iwl4965_handle_data_packet(struct iwl_priv *priv, int is_data,
 	hdr = (struct ieee80211_hdr *)rxb->skb->data;
 
 	/*  in case of HW accelerated crypto and bad decryption, drop */
-	if (!priv->cfg->mod_params->sw_crypto &&
+	if (!priv->hw_params.sw_crypto &&
 	    iwl4965_set_decrypted_flag(priv, hdr, ampdu_status, stats))
 		return;
 
@@ -3122,7 +3131,7 @@ void iwl4965_init_ht_hw_capab(struct iwl_priv *priv,
 
 	ht_info->ht_supported = 1;
 
-	if (band == IEEE80211_BAND_5GHZ) {
+	if (priv->hw_params.fat_channel & BIT(band)) {
 		ht_info->cap |= (u16)IEEE80211_HT_CAP_SUP_WIDTH;
 		ht_info->cap |= (u16)IEEE80211_HT_CAP_SGI_40;
 		ht_info->supp_mcs_set[4] = 0x01;

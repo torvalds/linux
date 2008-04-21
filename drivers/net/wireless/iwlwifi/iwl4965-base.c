@@ -828,7 +828,7 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 		       le16_to_cpu(priv->staging_rxon.channel),
 		       print_mac(mac, priv->staging_rxon.bssid_addr));
 
-	iwl4965_set_rxon_hwcrypto(priv, !priv->cfg->mod_params->sw_crypto);
+	iwl4965_set_rxon_hwcrypto(priv, !priv->hw_params.sw_crypto);
 	/* Apply the new configuration */
 	rc = iwl_send_cmd_pdu(priv, REPLY_RXON,
 			      sizeof(struct iwl4965_rxon_cmd), &priv->staging_rxon);
@@ -4855,34 +4855,34 @@ static int iwl4965_read_ucode(struct iwl_priv *priv)
 	}
 
 	/* Verify that uCode images will fit in card's SRAM */
-	if (inst_size > IWL_MAX_INST_SIZE) {
+	if (inst_size > priv->hw_params.max_inst_size) {
 		IWL_DEBUG_INFO("uCode instr len %d too large to fit in\n",
 			       inst_size);
 		ret = -EINVAL;
 		goto err_release;
 	}
 
-	if (data_size > IWL_MAX_DATA_SIZE) {
+	if (data_size > priv->hw_params.max_data_size) {
 		IWL_DEBUG_INFO("uCode data len %d too large to fit in\n",
 				data_size);
 		ret = -EINVAL;
 		goto err_release;
 	}
-	if (init_size > IWL_MAX_INST_SIZE) {
+	if (init_size > priv->hw_params.max_inst_size) {
 		IWL_DEBUG_INFO
 		    ("uCode init instr len %d too large to fit in\n",
 		      init_size);
 		ret = -EINVAL;
 		goto err_release;
 	}
-	if (init_data_size > IWL_MAX_DATA_SIZE) {
+	if (init_data_size > priv->hw_params.max_data_size) {
 		IWL_DEBUG_INFO
 		    ("uCode init data len %d too large to fit in\n",
 		      init_data_size);
 		ret = -EINVAL;
 		goto err_release;
 	}
-	if (boot_size > IWL_MAX_BSM_SIZE) {
+	if (boot_size > priv->hw_params.max_bsm_size) {
 		IWL_DEBUG_INFO
 		    ("uCode boot instr len %d too large to fit in\n",
 		      boot_size);
@@ -6606,7 +6606,7 @@ static int iwl4965_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	IWL_DEBUG_MAC80211("enter\n");
 
-	if (priv->cfg->mod_params->sw_crypto) {
+	if (priv->hw_params.sw_crypto) {
 		IWL_DEBUG_MAC80211("leave - hwcrypto disabled\n");
 		return -EOPNOTSUPP;
 	}

@@ -55,6 +55,8 @@ extern struct iwl_cfg iwl4965_agn_cfg;
  * This number will also appear in << 8 position of 1st dword of uCode file */
 #define IWL4965_UCODE_API "-1"
 
+/* CT-KILL constants */
+#define CT_KILL_THRESHOLD	110 /* in Celsius */
 
 /* Default noise level to report when noise measurement is not available.
  *   This may be because we're:
@@ -570,16 +572,25 @@ struct iwl_sensitivity_ranges {
 	u16 auto_corr_min_cck_mrc;
 };
 
+
+#define IWL_FAT_CHANNEL_52 BIT(IEEE80211_BAND_5GHZ)
+
 /**
  * struct iwl_hw_params
  * @max_txq_num: Max # Tx queues supported
  * @tx_cmd_len: Size of Tx command (but not including frame itself)
- * @tx_ant_num: Number of TX antennas
+ * @tx/rx_chains_num: Number of TX/RX chains
+ * @valid_tx/rx_ant: usable antennas
  * @max_rxq_size: Max # Rx frames in Rx queue (must be power-of-2)
- * @rx_buffer_size:
  * @max_rxq_log: Log-base-2 of max_rxq_size
+ * @rx_buf_size: Rx buffer size
  * @max_stations:
  * @bcast_sta_id:
+ * @fat_channel: is 40MHz width possible in band 2.4
+ * BIT(IEEE80211_BAND_5GHZ) BIT(IEEE80211_BAND_5GHZ)
+ * @sw_crypto: 0 for hw, 1 for sw
+ * @max_xxx_size: for ucode uses
+ * @ct_kill_threshold: temperature threshold
  * @struct iwl_sensitivity_ranges: range of sensitivity values
  */
 struct iwl_hw_params {
@@ -595,13 +606,19 @@ struct iwl_hw_params {
 	u32 max_pkt_size;
 	u8  max_stations;
 	u8  bcast_sta_id;
+	u8 fat_channel;
+	u8 sw_crypto;
+	u32 max_inst_size;
+	u32 max_data_size;
+	u32 max_bsm_size;
+	u32 ct_kill_threshold; /* value in hw-dependent units */
 #ifdef CONFIG_IWLWIFI_RUN_TIME_CALIB
 	const struct iwl_sensitivity_ranges *sens;
 #endif
 };
 
-#define HT_SHORT_GI_20MHZ_ONLY          (1 << 0)
-#define HT_SHORT_GI_40MHZ_ONLY          (1 << 1)
+#define HT_SHORT_GI_20MHZ_ONLY	(1 << 0)
+#define HT_SHORT_GI_40MHZ_ONLY	(1 << 1)
 
 
 #define IWL_RX_HDR(x) ((struct iwl4965_rx_frame_hdr *)(\
