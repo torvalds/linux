@@ -344,7 +344,7 @@ void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue;
 	unsigned int i;
 
-	rt2x00usb_vendor_request_sw(rt2x00dev, USB_RX_CONTROL, 0x0000, 0x0000,
+	rt2x00usb_vendor_request_sw(rt2x00dev, USB_RX_CONTROL, 0, 0,
 				    REGISTER_TIMEOUT);
 
 	/*

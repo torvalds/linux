@@ -47,6 +47,20 @@
 #define REGISTER_TIMEOUT		500
 #define REGISTER_TIMEOUT_FIRMWARE	1000
 
+/**
+ * REGISTER_TIMEOUT16 - Determine the timeout for 16bit register access
+ * @__datalen: Data length
+ */
+#define REGISTER_TIMEOUT16(__datalen)	\
+	( REGISTER_TIMEOUT * ((__datalen) / sizeof(u16)) )
+
+/**
+ * REGISTER_TIMEOUT32 - Determine the timeout for 32bit register access
+ * @__datalen: Data length
+ */
+#define REGISTER_TIMEOUT32(__datalen)	\
+	( REGISTER_TIMEOUT * ((__datalen) / sizeof(u32)) )
+
 /*
  * Cache size
  */
@@ -187,11 +201,10 @@ static inline int rt2x00usb_vendor_request_sw(struct rt2x00_dev *rt2x00dev,
 static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
 					__le16 *eeprom, const u16 lenght)
 {
-	int timeout = REGISTER_TIMEOUT * (lenght / sizeof(u16));
-
 	return rt2x00usb_vendor_request(rt2x00dev, USB_EEPROM_READ,
 					USB_VENDOR_REQUEST_IN, 0, 0,
-					eeprom, lenght, timeout);
+					eeprom, lenght,
+					REGISTER_TIMEOUT16(lenght));
 }
 
 /*

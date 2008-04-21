@@ -76,10 +76,10 @@ static inline void rt2500usb_register_multiread(struct rt2x00_dev *rt2x00dev,
 						const unsigned int offset,
 						void *value, const u16 length)
 {
-	int timeout = REGISTER_TIMEOUT * (length / sizeof(u16));
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_READ,
 				      USB_VENDOR_REQUEST_IN, offset,
-				      value, length, timeout);
+				      value, length,
+				      REGISTER_TIMEOUT16(length));
 }
 
 static inline void rt2500usb_register_write(struct rt2x00_dev *rt2x00dev,
@@ -106,10 +106,10 @@ static inline void rt2500usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 						 const unsigned int offset,
 						 void *value, const u16 length)
 {
-	int timeout = REGISTER_TIMEOUT * (length / sizeof(u16));
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_WRITE,
 				      USB_VENDOR_REQUEST_OUT, offset,
-				      value, length, timeout);
+				      value, length,
+				      REGISTER_TIMEOUT16(length));
 }
 
 static u16 rt2500usb_bbp_check(struct rt2x00_dev *rt2x00dev)
