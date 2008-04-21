@@ -18,8 +18,6 @@ unsigned disabled_cpus __cpuinitdata;
 unsigned int boot_cpu_physical_apicid = -1U;
 EXPORT_SYMBOL(boot_cpu_physical_apicid);
 
-physid_mask_t phys_cpu_present_map;
-
 DEFINE_PER_CPU(u16, x86_cpu_to_apicid) = BAD_APICID;
 EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
 
