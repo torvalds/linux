@@ -942,7 +942,6 @@ static void sk_prot_free(struct proto *prot, struct sock *sk)
  *	@family: protocol family
  *	@priority: for allocation (%GFP_KERNEL, %GFP_ATOMIC, etc)
  *	@prot: struct proto associated with this new sock instance
- *	@zero_it: if we should zero the newly allocated sock
  */
 struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		      struct proto *prot)
