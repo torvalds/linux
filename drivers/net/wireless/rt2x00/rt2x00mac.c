@@ -118,11 +118,16 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * create and queue that frame first. But make sure we have
 	 * at least enough entries available to send this CTS/RTS
 	 * frame as well as the data frame.
+	 * Note that when the driver has set the set_rts_threshold()
+	 * callback function it doesn't need software generation of
+	 * neither RTS or CTS-to-self frames and handles everything
+	 * inside the hardware.
 	 */
 	frame_control = le16_to_cpu(ieee80211hdr->frame_control);
 	if (!is_rts_frame(frame_control) && !is_cts_frame(frame_control) &&
 	    (control->flags & (IEEE80211_TXCTL_USE_RTS_CTS |
-			       IEEE80211_TXCTL_USE_CTS_PROTECT))) {
+			       IEEE80211_TXCTL_USE_CTS_PROTECT)) &&
+	    !rt2x00dev->ops->hw->set_rts_threshold) {
 		if (rt2x00queue_available(queue) <= 1) {
 			ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 			return NETDEV_TX_BUSY;
