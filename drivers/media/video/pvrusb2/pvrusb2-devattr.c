@@ -124,6 +124,7 @@ static const struct pvr2_device_desc pvr2_device_gotview_2 = {
 		.flag_has_cx25840 = !0,
 		.default_tuner_type = TUNER_PHILIPS_FM1216ME_MK3,
 		.flag_has_analogtuner = !0,
+		.flag_has_fmradio = !0,
 		.flag_has_composite = !0,
 		.flag_has_svideo = !0,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_GOTVIEW,

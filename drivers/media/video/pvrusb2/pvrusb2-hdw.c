@@ -1321,6 +1321,12 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 	}
 
  done:
+	if (hdw->hdw_desc->signal_routing_scheme ==
+	    PVR2_ROUTING_SCHEME_GOTVIEW) {
+		/* Ensure that GPIO 11 is set to output for GOTVIEW
+		   hardware. */
+		pvr2_hdw_gpio_chg_dir(hdw,(1 << 11),~0);
+	}
 	return ret;
 }
 
@@ -1734,6 +1740,13 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	hdw->tuner_updated = 0;
 
 	if (!pvr2_hdw_dev_ok(hdw)) return;
+
+	if (hdw->hdw_desc->signal_routing_scheme ==
+	    PVR2_ROUTING_SCHEME_GOTVIEW) {
+		/* Ensure that GPIO 11 is set to output for GOTVIEW
+		   hardware. */
+		pvr2_hdw_gpio_chg_dir(hdw,(1 << 11),~0);
+	}
 
 	pvr2_hdw_commit_setup(hdw);
 
@@ -2496,6 +2509,20 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 	if (hdw->active_stream_type != hdw->desired_stream_type) {
 		/* Handle any side effects of stream config here */
 		hdw->active_stream_type = hdw->desired_stream_type;
+	}
+
+	if (hdw->hdw_desc->signal_routing_scheme ==
+	    PVR2_ROUTING_SCHEME_GOTVIEW) {
+		u32 b;
+		/* Handle GOTVIEW audio switching */
+		pvr2_hdw_gpio_get_out(hdw,&b);
+		if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
+			/* Set GPIO 11 */
+			pvr2_hdw_gpio_chg_out(hdw,(1 << 11),~0);
+		} else {
+			/* Clear GPIO 11 */
+			pvr2_hdw_gpio_chg_out(hdw,(1 << 11),0);
+		}
 	}
 
 	/* Now execute i2c core update */

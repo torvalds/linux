@@ -84,7 +84,9 @@ static const struct routing_scheme_item routing_schemegv[] = {
 		.vid = CX25840_COMPOSITE2,
 		.aud = CX25840_AUDIO5,
 	},
-	[PVR2_CVAL_INPUT_RADIO] = { /* Treat the same as composite */
+	[PVR2_CVAL_INPUT_RADIO] = {
+		/* line-in is used for radio and composite.  A GPIO is
+		   used to switch between the two choices. */
 		.vid = CX25840_COMPOSITE1,
 		.aud = CX25840_AUDIO_SERIAL,
 	},
