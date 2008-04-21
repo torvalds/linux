@@ -126,7 +126,7 @@ set_v4l_control(struct inode            *inode,
 
 /* ----------------------------------------------------------------- */
 
-const static unsigned int palette2pixelformat[] = {
+static const unsigned int palette2pixelformat[] = {
 	[VIDEO_PALETTE_GREY]    = V4L2_PIX_FMT_GREY,
 	[VIDEO_PALETTE_RGB555]  = V4L2_PIX_FMT_RGB555,
 	[VIDEO_PALETTE_RGB565]  = V4L2_PIX_FMT_RGB565,
