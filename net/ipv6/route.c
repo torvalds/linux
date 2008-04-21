@@ -2614,9 +2614,8 @@ struct ctl_table *ipv6_route_sysctl_init(struct net *net)
 
 static int ip6_route_net_init(struct net *net)
 {
-	int ret = 0;
+	int ret = -ENOMEM;
 
-	ret = -ENOMEM;
 	net->ipv6.ip6_dst_ops = kmemdup(&ip6_dst_ops_template,
 					sizeof(*net->ipv6.ip6_dst_ops),
 					GFP_KERNEL);
