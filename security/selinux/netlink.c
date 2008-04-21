@@ -24,16 +24,16 @@ static struct sock *selnl;
 static int selnl_msglen(int msgtype)
 {
 	int ret = 0;
-	
+
 	switch (msgtype) {
 	case SELNL_MSG_SETENFORCE:
 		ret = sizeof(struct selnl_msg_setenforce);
 		break;
-	
+
 	case SELNL_MSG_POLICYLOAD:
 		ret = sizeof(struct selnl_msg_policyload);
 		break;
-		
+
 	default:
 		BUG();
 	}
@@ -45,15 +45,15 @@ static void selnl_add_payload(struct nlmsghdr *nlh, int len, int msgtype, void *
 	switch (msgtype) {
 	case SELNL_MSG_SETENFORCE: {
 		struct selnl_msg_setenforce *msg = NLMSG_DATA(nlh);
-		
+
 		memset(msg, 0, len);
 		msg->val = *((int *)data);
 		break;
 	}
-	
+
 	case SELNL_MSG_POLICYLOAD: {
 		struct selnl_msg_policyload *msg = NLMSG_DATA(nlh);
-		
+
 		memset(msg, 0, len);
 		msg->seqno = *((u32 *)data);
 		break;
@@ -70,9 +70,9 @@ static void selnl_notify(int msgtype, void *data)
 	sk_buff_data_t tmp;
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
-	
+
 	len = selnl_msglen(msgtype);
-	
+
 	skb = alloc_skb(NLMSG_SPACE(len), GFP_USER);
 	if (!skb)
 		goto oom;
@@ -85,7 +85,7 @@ static void selnl_notify(int msgtype, void *data)
 	netlink_broadcast(selnl, skb, 0, SELNLGRP_AVC, GFP_USER);
 out:
 	return;
-	
+
 nlmsg_failure:
 	kfree_skb(skb);
 oom:
@@ -109,7 +109,7 @@ static int __init selnl_init(void)
 				      SELNLGRP_MAX, NULL, NULL, THIS_MODULE);
 	if (selnl == NULL)
 		panic("SELinux:  Cannot create netlink socket.");
-	netlink_set_nonroot(NETLINK_SELINUX, NL_NONROOT_RECV);	
+	netlink_set_nonroot(NETLINK_SELINUX, NL_NONROOT_RECV);
 	return 0;
 }
 

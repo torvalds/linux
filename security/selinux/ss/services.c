@@ -2,7 +2,7 @@
  * Implementation of the security services.
  *
  * Authors : Stephen Smalley, <sds@epoch.ncsc.mil>
- *           James Morris <jmorris@redhat.com>
+ *	     James Morris <jmorris@redhat.com>
  *
  * Updated: Trusted Computer Solutions, Inc. <dgoeddel@trustedcs.com>
  *
@@ -11,7 +11,7 @@
  *
  * Updated: Frank Mayer <mayerf@tresys.com> and Karl MacMillan <kmacmillan@tresys.com>
  *
- * 	Added conditional policy language extensions
+ *	Added conditional policy language extensions
  *
  * Updated: Hewlett-Packard <paul.moore@hp.com>
  *
@@ -27,7 +27,7 @@
  * Copyright (C) 2003 - 2004, 2006 Tresys Technology, LLC
  * Copyright (C) 2003 Red Hat, Inc., James Morris <jmorris@redhat.com>
  *	This program is free software; you can redistribute it and/or modify
- *  	it under the terms of the GNU General Public License as published by
+ *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation, version 2.
  */
 #include <linux/kernel.h>
@@ -82,7 +82,7 @@ static DEFINE_MUTEX(load_mutex);
 
 static struct sidtab sidtab;
 struct policydb policydb;
-int ss_initialized = 0;
+int ss_initialized;
 
 /*
  * The largest sequence number that has been used when
@@ -90,7 +90,7 @@ int ss_initialized = 0;
  * The sequence number only changes when a policy change
  * occurs.
  */
-static u32 latest_granting = 0;
+static u32 latest_granting;
 
 /* Forward declaration. */
 static int context_struct_to_string(struct context *context, char **scontext,
@@ -163,10 +163,10 @@ static int constraint_expr_eval(struct context *scontext,
 								  val1 - 1);
 					continue;
 				case CEXPR_INCOMP:
-					s[++sp] = ( !ebitmap_get_bit(&r1->dominates,
-								     val2 - 1) &&
-						    !ebitmap_get_bit(&r2->dominates,
-								     val1 - 1) );
+					s[++sp] = (!ebitmap_get_bit(&r1->dominates,
+								    val2 - 1) &&
+						   !ebitmap_get_bit(&r2->dominates,
+								    val1 - 1));
 					continue;
 				default:
 					break;
@@ -409,13 +409,14 @@ static int context_struct_compute_av(struct context *scontext,
 		}
 		if (!ra)
 			avd->allowed = (avd->allowed) & ~(PROCESS__TRANSITION |
-			                                PROCESS__DYNTRANSITION);
+							PROCESS__DYNTRANSITION);
 	}
 
 	return 0;
 
 inval_class:
-	printk(KERN_ERR "%s:  unrecognized class %d\n", __func__, tclass);
+	printk(KERN_ERR "SELinux: %s:  unrecognized class %d\n", __func__,
+		tclass);
 	return -EINVAL;
 }
 
@@ -445,9 +446,9 @@ int security_permissive_sid(u32 sid)
 }
 
 static int security_validtrans_handle_fail(struct context *ocontext,
-                                           struct context *ncontext,
-                                           struct context *tcontext,
-                                           u16 tclass)
+					   struct context *ncontext,
+					   struct context *tcontext,
+					   u16 tclass)
 {
 	char *o = NULL, *n = NULL, *t = NULL;
 	u32 olen, nlen, tlen;
@@ -459,9 +460,9 @@ static int security_validtrans_handle_fail(struct context *ocontext,
 	if (context_struct_to_string(tcontext, &t, &tlen) < 0)
 		goto out;
 	audit_log(current->audit_context, GFP_ATOMIC, AUDIT_SELINUX_ERR,
-	          "security_validate_transition:  denied for"
-	          " oldcontext=%s newcontext=%s taskcontext=%s tclass=%s",
-	          o, n, t, policydb.p_class_val_to_name[tclass-1]);
+		  "security_validate_transition:  denied for"
+		  " oldcontext=%s newcontext=%s taskcontext=%s tclass=%s",
+		  o, n, t, policydb.p_class_val_to_name[tclass-1]);
 out:
 	kfree(o);
 	kfree(n);
@@ -473,7 +474,7 @@ out:
 }
 
 int security_validate_transition(u32 oldsid, u32 newsid, u32 tasksid,
-                                 u16 tclass)
+				 u16 tclass)
 {
 	struct context *ocontext;
 	struct context *ncontext;
@@ -499,8 +500,8 @@ int security_validate_transition(u32 oldsid, u32 newsid, u32 tasksid,
 			tclass = SECCLASS_NETLINK_SOCKET;
 
 	if (!tclass || tclass > policydb.p_classes.nprim) {
-		printk(KERN_ERR "security_validate_transition:  "
-		       "unrecognized class %d\n", tclass);
+		printk(KERN_ERR "SELinux: %s:  unrecognized class %d\n",
+			__func__, tclass);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -508,24 +509,24 @@ int security_validate_transition(u32 oldsid, u32 newsid, u32 tasksid,
 
 	ocontext = sidtab_search(&sidtab, oldsid);
 	if (!ocontext) {
-		printk(KERN_ERR "security_validate_transition: "
-		       " unrecognized SID %d\n", oldsid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+			__func__, oldsid);
 		rc = -EINVAL;
 		goto out;
 	}
 
 	ncontext = sidtab_search(&sidtab, newsid);
 	if (!ncontext) {
-		printk(KERN_ERR "security_validate_transition: "
-		       " unrecognized SID %d\n", newsid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+			__func__, newsid);
 		rc = -EINVAL;
 		goto out;
 	}
 
 	tcontext = sidtab_search(&sidtab, tasksid);
 	if (!tcontext) {
-		printk(KERN_ERR "security_validate_transition: "
-		       " unrecognized SID %d\n", tasksid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+			__func__, tasksid);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -533,9 +534,9 @@ int security_validate_transition(u32 oldsid, u32 newsid, u32 tasksid,
 	constraint = tclass_datum->validatetrans;
 	while (constraint) {
 		if (!constraint_expr_eval(ocontext, ncontext, tcontext,
-		                          constraint->expr)) {
+					  constraint->expr)) {
 			rc = security_validtrans_handle_fail(ocontext, ncontext,
-			                                     tcontext, tclass);
+							     tcontext, tclass);
 			goto out;
 		}
 		constraint = constraint->next;
@@ -581,15 +582,15 @@ int security_compute_av(u32 ssid,
 
 	scontext = sidtab_search(&sidtab, ssid);
 	if (!scontext) {
-		printk(KERN_ERR "security_compute_av:  unrecognized SID %d\n",
-		       ssid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+		       __func__, ssid);
 		rc = -EINVAL;
 		goto out;
 	}
 	tcontext = sidtab_search(&sidtab, tsid);
 	if (!tcontext) {
-		printk(KERN_ERR "security_compute_av:  unrecognized SID %d\n",
-		       tsid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+		       __func__, tsid);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -623,9 +624,8 @@ static int context_struct_to_string(struct context *context, char **scontext, u3
 
 	/* Allocate space for the context; caller must free this space. */
 	scontextp = kmalloc(*scontext_len, GFP_ATOMIC);
-	if (!scontextp) {
+	if (!scontextp)
 		return -ENOMEM;
-	}
 	*scontext = scontextp;
 
 	/*
@@ -636,8 +636,8 @@ static int context_struct_to_string(struct context *context, char **scontext, u3
 		policydb.p_role_val_to_name[context->role - 1],
 		policydb.p_type_val_to_name[context->type - 1]);
 	scontextp += strlen(policydb.p_user_val_to_name[context->user - 1]) +
-	             1 + strlen(policydb.p_role_val_to_name[context->role - 1]) +
-	             1 + strlen(policydb.p_type_val_to_name[context->type - 1]);
+		     1 + strlen(policydb.p_role_val_to_name[context->role - 1]) +
+		     1 + strlen(policydb.p_type_val_to_name[context->type - 1]);
 
 	mls_sid_to_context(context, &scontextp);
 
@@ -678,7 +678,7 @@ int security_sid_to_context(u32 sid, char **scontext, u32 *scontext_len)
 			char *scontextp;
 
 			*scontext_len = strlen(initial_sid_to_string[sid]) + 1;
-			scontextp = kmalloc(*scontext_len,GFP_ATOMIC);
+			scontextp = kmalloc(*scontext_len, GFP_ATOMIC);
 			if (!scontextp) {
 				rc = -ENOMEM;
 				goto out;
@@ -687,16 +687,16 @@ int security_sid_to_context(u32 sid, char **scontext, u32 *scontext_len)
 			*scontext = scontextp;
 			goto out;
 		}
-		printk(KERN_ERR "security_sid_to_context:  called before initial "
-		       "load_policy on unknown SID %d\n", sid);
+		printk(KERN_ERR "SELinux: %s:  called before initial "
+		       "load_policy on unknown SID %d\n", __func__, sid);
 		rc = -EINVAL;
 		goto out;
 	}
 	POLICY_RDLOCK;
 	context = sidtab_search(&sidtab, sid);
 	if (!context) {
-		printk(KERN_ERR "security_sid_to_context:  unrecognized SID "
-		       "%d\n", sid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+			__func__, sid);
 		rc = -EINVAL;
 		goto out_unlock;
 	}
@@ -926,15 +926,15 @@ static int security_compute_sid(u32 ssid,
 
 	scontext = sidtab_search(&sidtab, ssid);
 	if (!scontext) {
-		printk(KERN_ERR "security_compute_sid:  unrecognized SID %d\n",
-		       ssid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+		       __func__, ssid);
 		rc = -EINVAL;
 		goto out_unlock;
 	}
 	tcontext = sidtab_search(&sidtab, tsid);
 	if (!tcontext) {
-		printk(KERN_ERR "security_compute_sid:  unrecognized SID %d\n",
-		       tsid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+		       __func__, tsid);
 		rc = -EINVAL;
 		goto out_unlock;
 	}
@@ -974,7 +974,7 @@ static int security_compute_sid(u32 ssid,
 	avdatum = avtab_search(&policydb.te_avtab, &avkey);
 
 	/* If no permanent rule, also check for enabled conditional rules */
-	if(!avdatum) {
+	if (!avdatum) {
 		node = avtab_search_node(&policydb.te_cond_avtab, &avkey);
 		for (; node != NULL; node = avtab_search_node_next(node, specified)) {
 			if (node->key.specified & AVTAB_ENABLED) {
@@ -1288,26 +1288,23 @@ static int convert_context(u32 key,
 
 	/* Convert the user. */
 	usrdatum = hashtab_search(args->newp->p_users.table,
-	                          args->oldp->p_user_val_to_name[c->user - 1]);
-	if (!usrdatum) {
+				  args->oldp->p_user_val_to_name[c->user - 1]);
+	if (!usrdatum)
 		goto bad;
-	}
 	c->user = usrdatum->value;
 
 	/* Convert the role. */
 	role = hashtab_search(args->newp->p_roles.table,
-	                      args->oldp->p_role_val_to_name[c->role - 1]);
-	if (!role) {
+			      args->oldp->p_role_val_to_name[c->role - 1]);
+	if (!role)
 		goto bad;
-	}
 	c->role = role->value;
 
 	/* Convert the type. */
 	typdatum = hashtab_search(args->newp->p_types.table,
-	                          args->oldp->p_type_val_to_name[c->type - 1]);
-	if (!typdatum) {
+				  args->oldp->p_type_val_to_name[c->type - 1]);
+	if (!typdatum)
 		goto bad;
-	}
 	c->type = typdatum->value;
 
 	rc = mls_convert_context(args->oldp, args->newp, c);
@@ -1556,8 +1553,8 @@ static int match_ipv6_addrmask(u32 *input, u32 *addr, u32 *mask)
 {
 	int i, fail = 0;
 
-	for(i = 0; i < 4; i++)
-		if(addr[i] != (input[i] & mask[i])) {
+	for (i = 0; i < 4; i++)
+		if (addr[i] != (input[i] & mask[i])) {
 			fail = 1;
 			break;
 		}
@@ -1656,7 +1653,7 @@ out:
  */
 
 int security_get_user_sids(u32 fromsid,
-	                   char *username,
+			   char *username,
 			   u32 **sids,
 			   u32 *nel)
 {
@@ -1766,7 +1763,7 @@ out:
  * transition SIDs or task SIDs.
  */
 int security_genfs_sid(const char *fstype,
-	               char *path,
+		       char *path,
 		       u16 sclass,
 		       u32 *sid)
 {
@@ -1881,7 +1878,7 @@ int security_get_bools(int *len, char ***names, int **values)
 		goto out;
 	}
 
-       *names = kcalloc(*len, sizeof(char*), GFP_ATOMIC);
+       *names = kcalloc(*len, sizeof(char *), GFP_ATOMIC);
 	if (!*names)
 		goto err;
 
@@ -1893,7 +1890,7 @@ int security_get_bools(int *len, char ***names, int **values)
 		size_t name_len;
 		(*values)[i] = policydb.bool_val_to_struct[i]->state;
 		name_len = strlen(policydb.p_bool_val_to_name[i]) + 1;
-               (*names)[i] = kmalloc(sizeof(char) * name_len, GFP_ATOMIC);
+	       (*names)[i] = kmalloc(sizeof(char) * name_len, GFP_ATOMIC);
 		if (!(*names)[i])
 			goto err;
 		strncpy((*names)[i], policydb.p_bool_val_to_name[i], name_len);
@@ -1938,11 +1935,10 @@ int security_set_bools(int len, int *values)
 				audit_get_loginuid(current),
 				audit_get_sessionid(current));
 		}
-		if (values[i]) {
+		if (values[i])
 			policydb.bool_val_to_struct[i]->state = 1;
-		} else {
+		else
 			policydb.bool_val_to_struct[i]->state = 0;
-		}
 	}
 
 	for (cur = policydb.cond_list; cur != NULL; cur = cur->next) {
@@ -2036,16 +2032,16 @@ int security_sid_mls_copy(u32 sid, u32 mls_sid, u32 *new_sid)
 	POLICY_RDLOCK;
 	context1 = sidtab_search(&sidtab, sid);
 	if (!context1) {
-		printk(KERN_ERR "security_sid_mls_copy:  unrecognized SID "
-		       "%d\n", sid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+			__func__, sid);
 		rc = -EINVAL;
 		goto out_unlock;
 	}
 
 	context2 = sidtab_search(&sidtab, mls_sid);
 	if (!context2) {
-		printk(KERN_ERR "security_sid_mls_copy:  unrecognized SID "
-		       "%d\n", mls_sid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+			__func__, mls_sid);
 		rc = -EINVAL;
 		goto out_unlock;
 	}
@@ -2136,17 +2132,15 @@ int security_net_peersid_resolve(u32 nlbl_sid, u32 nlbl_type,
 
 	nlbl_ctx = sidtab_search(&sidtab, nlbl_sid);
 	if (!nlbl_ctx) {
-		printk(KERN_ERR
-		       "security_sid_mls_cmp:  unrecognized SID %d\n",
-		       nlbl_sid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+		       __func__, nlbl_sid);
 		rc = -EINVAL;
 		goto out_slowpath;
 	}
 	xfrm_ctx = sidtab_search(&sidtab, xfrm_sid);
 	if (!xfrm_ctx) {
-		printk(KERN_ERR
-		       "security_sid_mls_cmp:  unrecognized SID %d\n",
-		       xfrm_sid);
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+		       __func__, xfrm_sid);
 		rc = -EINVAL;
 		goto out_slowpath;
 	}
@@ -2226,7 +2220,7 @@ int security_get_permissions(char *class, char ***perms, int *nperms)
 
 	match = hashtab_search(policydb.p_classes.table, class);
 	if (!match) {
-		printk(KERN_ERR "%s:  unrecognized class %s\n",
+		printk(KERN_ERR "SELinux: %s:  unrecognized class %s\n",
 			__func__, class);
 		rc = -EINVAL;
 		goto out;
@@ -2435,7 +2429,7 @@ int selinux_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule,
 
 	if (!rule) {
 		audit_log(actx, GFP_ATOMIC, AUDIT_SELINUX_ERR,
-		          "selinux_audit_rule_match: missing rule\n");
+			  "selinux_audit_rule_match: missing rule\n");
 		return -ENOENT;
 	}
 
@@ -2443,7 +2437,7 @@ int selinux_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule,
 
 	if (rule->au_seqno < latest_granting) {
 		audit_log(actx, GFP_ATOMIC, AUDIT_SELINUX_ERR,
-		          "selinux_audit_rule_match: stale rule\n");
+			  "selinux_audit_rule_match: stale rule\n");
 		match = -ESTALE;
 		goto out;
 	}
@@ -2451,8 +2445,8 @@ int selinux_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule,
 	ctxt = sidtab_search(&sidtab, sid);
 	if (!ctxt) {
 		audit_log(actx, GFP_ATOMIC, AUDIT_SELINUX_ERR,
-		          "selinux_audit_rule_match: unrecognized SID %d\n",
-		          sid);
+			  "selinux_audit_rule_match: unrecognized SID %d\n",
+			  sid);
 		match = -ENOENT;
 		goto out;
 	}
@@ -2498,36 +2492,36 @@ int selinux_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule,
 	case AUDIT_OBJ_LEV_LOW:
 	case AUDIT_OBJ_LEV_HIGH:
 		level = ((field == AUDIT_SUBJ_SEN ||
-		          field == AUDIT_OBJ_LEV_LOW) ?
-		         &ctxt->range.level[0] : &ctxt->range.level[1]);
+			  field == AUDIT_OBJ_LEV_LOW) ?
+			 &ctxt->range.level[0] : &ctxt->range.level[1]);
 		switch (op) {
 		case AUDIT_EQUAL:
 			match = mls_level_eq(&rule->au_ctxt.range.level[0],
-			                     level);
+					     level);
 			break;
 		case AUDIT_NOT_EQUAL:
 			match = !mls_level_eq(&rule->au_ctxt.range.level[0],
-			                      level);
+					      level);
 			break;
 		case AUDIT_LESS_THAN:
 			match = (mls_level_dom(&rule->au_ctxt.range.level[0],
-			                       level) &&
-			         !mls_level_eq(&rule->au_ctxt.range.level[0],
-			                       level));
+					       level) &&
+				 !mls_level_eq(&rule->au_ctxt.range.level[0],
+					       level));
 			break;
 		case AUDIT_LESS_THAN_OR_EQUAL:
 			match = mls_level_dom(&rule->au_ctxt.range.level[0],
-			                      level);
+					      level);
 			break;
 		case AUDIT_GREATER_THAN:
 			match = (mls_level_dom(level,
-			                      &rule->au_ctxt.range.level[0]) &&
-			         !mls_level_eq(level,
-			                       &rule->au_ctxt.range.level[0]));
+					      &rule->au_ctxt.range.level[0]) &&
+				 !mls_level_eq(level,
+					       &rule->au_ctxt.range.level[0]));
 			break;
 		case AUDIT_GREATER_THAN_OR_EQUAL:
 			match = mls_level_dom(level,
-			                      &rule->au_ctxt.range.level[0]);
+					      &rule->au_ctxt.range.level[0]);
 			break;
 		}
 	}
@@ -2554,7 +2548,7 @@ static int __init aurule_init(void)
 	int err;
 
 	err = avc_add_callback(aurule_avc_callback, AVC_CALLBACK_RESET,
-	                       SECSID_NULL, SECSID_NULL, SECCLASS_NULL, 0);
+			       SECSID_NULL, SECSID_NULL, SECCLASS_NULL, 0);
 	if (err)
 		panic("avc_add_callback() failed, error %d\n", err);
 

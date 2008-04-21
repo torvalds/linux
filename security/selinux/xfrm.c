@@ -180,8 +180,7 @@ int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall)
 
 					if (!ckall)
 						break;
-				}
-				else if (*sid != ctx->ctx_sid)
+				} else if (*sid != ctx->ctx_sid)
 					return -EINVAL;
 			}
 		}
@@ -326,8 +325,7 @@ int selinux_xfrm_policy_clone(struct xfrm_sec_ctx *old_ctx,
  */
 void selinux_xfrm_policy_free(struct xfrm_sec_ctx *ctx)
 {
-	if (ctx)
-		kfree(ctx);
+	kfree(ctx);
 }
 
 /*
@@ -372,8 +370,7 @@ int selinux_xfrm_state_alloc(struct xfrm_state *x, struct xfrm_user_sec_ctx *uct
 void selinux_xfrm_state_free(struct xfrm_state *x)
 {
 	struct xfrm_sec_ctx *ctx = x->security;
-	if (ctx)
-		kfree(ctx);
+	kfree(ctx);
 }
 
  /*
