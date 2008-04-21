@@ -941,13 +941,6 @@ static int iwl4965_send_scan_abort(struct iwl_priv *priv)
 	return rc;
 }
 
-static int iwl4965_card_state_sync_callback(struct iwl_priv *priv,
-					struct iwl_cmd *cmd,
-					struct sk_buff *skb)
-{
-	return 1;
-}
-
 /*
  * CARD_STATE_CMD
  *
@@ -967,38 +960,7 @@ static int iwl4965_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_fla
 		.meta.flags = meta_flag,
 	};
 
-	if (meta_flag & CMD_ASYNC)
-		cmd.meta.u.callback = iwl4965_card_state_sync_callback;
-
 	return iwl_send_cmd(priv, &cmd);
-}
-
-static int iwl4965_add_sta_sync_callback(struct iwl_priv *priv,
-				     struct iwl_cmd *cmd, struct sk_buff *skb)
-{
-	struct iwl4965_rx_packet *res = NULL;
-
-	if (!skb) {
-		IWL_ERROR("Error: Response NULL in REPLY_ADD_STA.\n");
-		return 1;
-	}
-
-	res = (struct iwl4965_rx_packet *)skb->data;
-	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERROR("Bad return from REPLY_ADD_STA (0x%08X)\n",
-			  res->hdr.flags);
-		return 1;
-	}
-
-	switch (res->u.add_sta.status) {
-	case ADD_STA_SUCCESS_MSK:
-		break;
-	default:
-		break;
-	}
-
-	/* We didn't cache the SKB; let the caller free it */
-	return 1;
 }
 
 int iwl4965_send_add_station(struct iwl_priv *priv,
@@ -1013,9 +975,7 @@ int iwl4965_send_add_station(struct iwl_priv *priv,
 		.data = sta,
 	};
 
-	if (flags & CMD_ASYNC)
-		cmd.meta.u.callback = iwl4965_add_sta_sync_callback;
-	else
+	if (!(flags & CMD_ASYNC))
 		cmd.meta.flags |= CMD_WANT_SKB;
 
 	rc = iwl_send_cmd(priv, &cmd);
