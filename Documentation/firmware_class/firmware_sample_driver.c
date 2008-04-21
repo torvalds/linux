@@ -34,8 +34,7 @@ static void sample_probe_default(void)
         const struct firmware *fw_entry;
 	printk(KERN_INFO "firmware_sample_driver: a ghost device got inserted :)\n");
 
-        if(request_firmware(&fw_entry, "sample_driver_fw", &ghost_device)!=0)
-	{
+        if (request_firmware(&fw_entry, "sample_driver_fw", &ghost_device)!=0) {
 		printk(KERN_ERR
 		       "firmware_sample_driver: Firmware not available\n");
 		return;
@@ -56,8 +55,7 @@ static void sample_probe_specific(void)
 
 	printk(KERN_INFO "firmware_sample_driver: a ghost device got inserted :)\n");
 
-        if(request_firmware(NULL, "sample_driver_fw", &ghost_device)!=0)
-	{
+        if (request_firmware(NULL, "sample_driver_fw", &ghost_device)!=0) {
 		printk(KERN_ERR
 		       "firmware_sample_driver: Firmware load failed\n");
 		return;
@@ -70,7 +68,7 @@ static void sample_probe_specific(void)
 }
 static void sample_probe_async_cont(const struct firmware *fw, void *context)
 {
-	if(!fw){
+	if (!fw) {
 		printk(KERN_ERR
 		       "firmware_sample_driver: firmware load failed\n");
 		return;
@@ -88,9 +86,8 @@ static void sample_probe_async(void)
 					 "sample_driver_fw", &ghost_device,
 					 "my device pointer",
 					 sample_probe_async_cont);
-	if(error){
-		printk(KERN_ERR 
-		       "firmware_sample_driver:"
+	if (error) {
+		printk(KERN_ERR "firmware_sample_driver:"
 		       " request_firmware_nowait failed\n");
 	}
 }
@@ -105,6 +102,7 @@ static int sample_init(void)
 	sample_probe_async();
 	return 0;
 }
+
 static void __exit sample_exit(void)
 {
 }
