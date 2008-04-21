@@ -117,6 +117,7 @@ int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
 	return 0;
 }
 
+#if 0
 int pci_cleanup_aer_correct_error_status(struct pci_dev *dev)
 {
 	int pos;
@@ -131,6 +132,7 @@ int pci_cleanup_aer_correct_error_status(struct pci_dev *dev)
 
 	return 0;
 }
+#endif  /*  0  */
 
 static int find_device_iter(struct device *device, void *data)
 {
@@ -689,7 +691,7 @@ static void aer_isr_one_error(struct pcie_device *p_device,
 			e_info.flags |= AER_MULTI_ERROR_VALID_FLAG;
 		if (!(s_device = find_source_device(p_device->port, id))) {
 			printk(KERN_DEBUG "%s->can't find device of ID%04x\n",
-				__FUNCTION__, id);
+				__func__, id);
 			continue;
 		}
 		if (get_device_error_info(to_pci_dev(s_device), &e_info) ==
@@ -757,5 +759,4 @@ EXPORT_SYMBOL_GPL(pci_find_aer_capability);
 EXPORT_SYMBOL_GPL(pci_enable_pcie_error_reporting);
 EXPORT_SYMBOL_GPL(pci_disable_pcie_error_reporting);
 EXPORT_SYMBOL_GPL(pci_cleanup_aer_uncorrect_error_status);
-EXPORT_SYMBOL_GPL(pci_cleanup_aer_correct_error_status);
 

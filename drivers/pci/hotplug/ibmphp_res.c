@@ -563,7 +563,7 @@ static void fix_resources (struct bus_node *bus_cur)
 	struct range_node *range;
 	struct resource_node *res;
 
-	debug ("%s - bus_cur->busno = %d\n", __FUNCTION__, bus_cur->busno);
+	debug ("%s - bus_cur->busno = %d\n", __func__, bus_cur->busno);
 
 	if (bus_cur->needIOUpdate) {
 		res = bus_cur->firstIO;
@@ -599,7 +599,7 @@ int ibmphp_add_resource (struct resource_node *res)
 	struct range_node *range_cur = NULL;
 	struct resource_node *res_start = NULL;
 
-	debug ("%s - enter\n", __FUNCTION__);
+	debug ("%s - enter\n", __func__);
 
 	if (!res) {
 		err ("NULL passed to add\n");
@@ -762,7 +762,7 @@ int ibmphp_add_resource (struct resource_node *res)
 		}
 	}
 
-	debug ("%s - exit\n", __FUNCTION__);
+	debug ("%s - exit\n", __func__);
 	return 0;
 }
 
@@ -1001,7 +1001,7 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 		return -EINVAL;
 	}
 
-	debug ("%s - enter\n", __FUNCTION__);
+	debug ("%s - enter\n", __func__);
 	debug ("bus_cur->busno is %d\n", bus_cur->busno);
 
 	/* This is a quick fix to not mess up with the code very much.  i.e.,
@@ -1029,7 +1029,7 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 
 	while (res_cur) {
 		range = find_range (bus_cur, res_cur);
-		debug ("%s - rangeno = %d\n", __FUNCTION__, res_cur->rangeno);
+		debug ("%s - rangeno = %d\n", __func__, res_cur->rangeno);
 
 		if (!range) {
 			err ("no range for the device exists... bailing out...\n");
@@ -1942,7 +1942,7 @@ static int __init update_bridge_ranges (struct bus_node **bus)
 		return -ENODEV;
 	ibmphp_pci_bus->number = bus_cur->busno;
 
-	debug ("inside %s\n", __FUNCTION__);
+	debug ("inside %s\n", __func__);
 	debug ("bus_cur->busno = %x\n", bus_cur->busno);
 
 	for (device = 0; device < 32; device++) {

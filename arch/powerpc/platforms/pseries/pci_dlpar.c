@@ -88,11 +88,8 @@ pcibios_fixup_new_pci_devices(struct pci_bus *bus)
 	struct pci_dev *dev;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-		/*
-		 * Skip already-present devices (which are on the
-		 * global device list.)
-		 */
-		if (list_empty(&dev->global_list)) {
+		/* Skip already-added devices */
+		if (!dev->is_added) {
 			int i;
 
 			/* Fill device archdata and setup iommu table */

@@ -847,6 +847,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			than 32 bit addressing. The default is to look
 			for translation below 32 bit and if not available
 			then look in the higher range.
+		strict [Default Off]
+			With this option on every unmap_single operation will
+			result in a hardware IOTLB flush operation as opposed
+			to batching them for performance.
 
 	io_delay=	[X86-32,X86-64] I/O delay method
 		0x80
@@ -1471,10 +1475,6 @@ and is between 256 and 4096 characters. It is defined in the file
 		nomsi		[MSI] If the PCI_MSI kernel config parameter is
 				enabled, this kernel boot option can be used to
 				disable the use of MSI interrupts system-wide.
-		nosort		[X86-32] Don't sort PCI devices according to
-				order given by the PCI BIOS. This sorting is
-				done to get a device order compatible with
-				older kernels.
 		biosirq		[X86-32] Use PCI BIOS calls to get the interrupt
 				routing table. These calls are known to be buggy
 				on several machines and they hang the machine

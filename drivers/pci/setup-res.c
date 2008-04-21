@@ -137,10 +137,16 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 
 	size = res->end - res->start + 1;
 	min = (res->flags & IORESOURCE_IO) ? PCIBIOS_MIN_IO : PCIBIOS_MIN_MEM;
-	/* The bridge resources are special, as their
-	   size != alignment. Sizing routines return
-	   required alignment in the "start" field. */
-	align = (resno < PCI_BRIDGE_RESOURCES) ? size : res->start;
+
+	align = resource_alignment(res);
+	if (!align) {
+		printk(KERN_ERR "PCI: Cannot allocate resource (bogus "
+			"alignment) %d [%llx:%llx] (flags %lx) of %s\n",
+			resno, (unsigned long long)res->start,
+			(unsigned long long)res->end, res->flags,
+			pci_name(dev));
+		return -EINVAL;
+	}
 
 	/* First, try exact prefetching match.. */
 	ret = pci_bus_alloc_resource(bus, res, size, align, min,
@@ -164,14 +170,16 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 			res->flags & IORESOURCE_IO ? "I/O" : "mem",
 			resno, (unsigned long long)size,
 			(unsigned long long)res->start, pci_name(dev));
-	} else if (resno < PCI_BRIDGE_RESOURCES) {
-		pci_update_resource(dev, res, resno);
+	} else {
+		res->flags &= ~IORESOURCE_STARTALIGN;
+		if (resno < PCI_BRIDGE_RESOURCES)
+			pci_update_resource(dev, res, resno);
 	}
 
 	return ret;
 }
 
-#ifdef CONFIG_EMBEDDED
+#if 0
 int pci_assign_resource_fixed(struct pci_dev *dev, int resno)
 {
 	struct pci_bus *bus = dev->bus;
@@ -226,29 +234,25 @@ void pdev_sort_resources(struct pci_dev *dev, struct resource_list *head)
 		if (r->flags & IORESOURCE_PCI_FIXED)
 			continue;
 
-		r_align = r->end - r->start;
-		
 		if (!(r->flags) || r->parent)
 			continue;
+
+		r_align = resource_alignment(r);
 		if (!r_align) {
-			printk(KERN_WARNING "PCI: Ignore bogus resource %d "
-				"[%llx:%llx] of %s\n",
+			printk(KERN_WARNING "PCI: bogus alignment of resource "
+				"%d [%llx:%llx] (flags %lx) of %s\n",
 				i, (unsigned long long)r->start,
-				(unsigned long long)r->end, pci_name(dev));
+				(unsigned long long)r->end, r->flags,
+				pci_name(dev));
 			continue;
 		}
-		r_align = (i < PCI_BRIDGE_RESOURCES) ? r_align + 1 : r->start;
 		for (list = head; ; list = list->next) {
 			resource_size_t align = 0;
 			struct resource_list *ln = list->next;
-			int idx;
 
-			if (ln) {
-				idx = ln->res - &ln->dev->resource[0];
-				align = (idx < PCI_BRIDGE_RESOURCES) ?
-					ln->res->end - ln->res->start + 1 :
-					ln->res->start;
-			}
+			if (ln)
+				align = resource_alignment(ln->res);
+
 			if (r_align > align) {
 				tmp = kmalloc(sizeof(*tmp), GFP_KERNEL);
 				if (!tmp)
@@ -262,4 +266,47 @@ void pdev_sort_resources(struct pci_dev *dev, struct resource_list *head)
 			}
 		}
 	}
+}
+
+int pci_enable_resources(struct pci_dev *dev, int mask)
+{
+	u16 cmd, old_cmd;
+	int i;
+	struct resource *r;
+
+	pci_read_config_word(dev, PCI_COMMAND, &cmd);
+	old_cmd = cmd;
+
+	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
+		if (!(mask & (1 << i)))
+			continue;
+
+		r = &dev->resource[i];
+
+		if (!(r->flags & (IORESOURCE_IO | IORESOURCE_MEM)))
+			continue;
+		if ((i == PCI_ROM_RESOURCE) &&
+				(!(r->flags & IORESOURCE_ROM_ENABLE)))
+			continue;
+
+		if (!r->parent) {
+			dev_err(&dev->dev, "device not available because of "
+				"BAR %d [%llx:%llx] collisions\n", i,
+				(unsigned long long) r->start,
+				(unsigned long long) r->end);
+			return -EINVAL;
+		}
+
+		if (r->flags & IORESOURCE_IO)
+			cmd |= PCI_COMMAND_IO;
+		if (r->flags & IORESOURCE_MEM)
+			cmd |= PCI_COMMAND_MEMORY;
+	}
+
+	if (cmd != old_cmd) {
+		dev_info(&dev->dev, "enabling device (%04x -> %04x)\n",
+			 old_cmd, cmd);
+		pci_write_config_word(dev, PCI_COMMAND, cmd);
+	}
+	return 0;
 }

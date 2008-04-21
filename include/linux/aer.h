@@ -13,7 +13,6 @@ extern int pci_enable_pcie_error_reporting(struct pci_dev *dev);
 extern int pci_find_aer_capability(struct pci_dev *dev);
 extern int pci_disable_pcie_error_reporting(struct pci_dev *dev);
 extern int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev);
-extern int pci_cleanup_aer_correct_error_status(struct pci_dev *dev);
 #else
 static inline int pci_enable_pcie_error_reporting(struct pci_dev *dev)
 {
@@ -28,10 +27,6 @@ static inline int pci_disable_pcie_error_reporting(struct pci_dev *dev)
 	return -EINVAL;
 }
 static inline int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
-{
-	return -EINVAL;
-}
-static inline int pci_cleanup_aer_correct_error_status(struct pci_dev *dev)
 {
 	return -EINVAL;
 }

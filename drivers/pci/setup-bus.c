@@ -65,6 +65,7 @@ static void pbus_assign_resources_sorted(struct pci_bus *bus)
 		res = list->res;
 		idx = res - &list->dev->resource[0];
 		if (pci_assign_resource(list->dev, idx)) {
+			/* FIXME: get rid of this */
 			res->start = 0;
 			res->end = 0;
 			res->flags = 0;
@@ -144,8 +145,7 @@ EXPORT_SYMBOL(pci_setup_cardbus);
    config space writes, so it's quite possible that an I/O window of
    the bridge will have some undesirable address (e.g. 0) after the
    first write. Ditto 64-bit prefetchable MMIO.  */
-static void __devinit
-pci_setup_bridge(struct pci_bus *bus)
+static void pci_setup_bridge(struct pci_bus *bus)
 {
 	struct pci_dev *bridge = bus->self;
 	struct pci_bus_region region;
@@ -327,6 +327,7 @@ static void pbus_size_io(struct pci_bus *bus)
 	/* Alignment of the IO window is always 4K */
 	b_res->start = 4096;
 	b_res->end = b_res->start + size - 1;
+	b_res->flags |= IORESOURCE_STARTALIGN;
 }
 
 /* Calculate the size of the bus and minimal alignment which
@@ -401,11 +402,11 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask, unsigned long 
 	}
 	b_res->start = min_align;
 	b_res->end = size + min_align - 1;
+	b_res->flags |= IORESOURCE_STARTALIGN;
 	return 1;
 }
 
-static void __devinit
-pci_bus_size_cardbus(struct pci_bus *bus)
+static void pci_bus_size_cardbus(struct pci_bus *bus)
 {
 	struct pci_dev *bridge = bus->self;
 	struct resource *b_res = &bridge->resource[PCI_BRIDGE_RESOURCES];

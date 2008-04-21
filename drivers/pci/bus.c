@@ -84,10 +84,7 @@ int pci_bus_add_device(struct pci_dev *dev)
 	if (retval)
 		return retval;
 
-	down_write(&pci_bus_sem);
-	list_add_tail(&dev->global_list, &pci_devices);
-	up_write(&pci_bus_sem);
-
+	dev->is_added = 1;
 	pci_proc_attach_device(dev);
 	pci_create_sysfs_dev_files(dev);
 	return 0;
@@ -112,11 +109,8 @@ void pci_bus_add_devices(struct pci_bus *bus)
 	int retval;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-		/*
-		 * Skip already-present devices (which are on the
-		 * global device list.)
-		 */
-		if (!list_empty(&dev->global_list))
+		/* Skip already-added devices */
+		if (dev->is_added)
 			continue;
 		retval = pci_bus_add_device(dev);
 		if (retval)
@@ -124,8 +118,7 @@ void pci_bus_add_devices(struct pci_bus *bus)
 	}
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-
-		BUG_ON(list_empty(&dev->global_list));
+		BUG_ON(!dev->is_added);
 
 		/*
 		 * If there is an unattached subordinate bus, attach

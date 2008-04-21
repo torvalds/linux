@@ -21,6 +21,7 @@
 #include <linux/topology.h>
 #include <linux/mm.h>
 #include <linux/capability.h>
+#include <linux/pci-aspm.h>
 #include "pci.h"
 
 static int sysfs_initialized;	/* = 0 */
@@ -358,6 +359,58 @@ pci_write_config(struct kobject *kobj, struct bin_attribute *bin_attr,
 	return count;
 }
 
+static ssize_t
+pci_read_vpd(struct kobject *kobj, struct bin_attribute *bin_attr,
+	     char *buf, loff_t off, size_t count)
+{
+	struct pci_dev *dev =
+		to_pci_dev(container_of(kobj, struct device, kobj));
+	int end;
+	int ret;
+
+	if (off > bin_attr->size)
+		count = 0;
+	else if (count > bin_attr->size - off)
+		count = bin_attr->size - off;
+	end = off + count;
+
+	while (off < end) {
+		ret = dev->vpd->ops->read(dev, off, end - off, buf);
+		if (ret < 0)
+			return ret;
+		buf += ret;
+		off += ret;
+	}
+
+	return count;
+}
+
+static ssize_t
+pci_write_vpd(struct kobject *kobj, struct bin_attribute *bin_attr,
+	      char *buf, loff_t off, size_t count)
+{
+	struct pci_dev *dev =
+		to_pci_dev(container_of(kobj, struct device, kobj));
+	int end;
+	int ret;
+
+	if (off > bin_attr->size)
+		count = 0;
+	else if (count > bin_attr->size - off)
+		count = bin_attr->size - off;
+	end = off + count;
+
+	while (off < end) {
+		ret = dev->vpd->ops->write(dev, off, end - off, buf);
+		if (ret < 0)
+			return ret;
+		buf += ret;
+		off += ret;
+	}
+
+	return count;
+}
+
 #ifdef HAVE_PCI_LEGACY
 /**
  * pci_read_legacy_io - read byte(s) from legacy I/O port space
@@ -626,7 +679,7 @@ int __attribute__ ((weak)) pcibios_add_platform_entries(struct pci_dev *dev)
 
 int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 {
-	struct bin_attribute *rom_attr = NULL;
+	struct bin_attribute *attr = NULL;
 	int retval;
 
 	if (!sysfs_initialized)
@@ -639,22 +692,41 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 	if (retval)
 		goto err;
 
+	/* If the device has VPD, try to expose it in sysfs. */
+	if (pdev->vpd) {
+		attr = kzalloc(sizeof(*attr), GFP_ATOMIC);
+		if (attr) {
+			pdev->vpd->attr = attr;
+			attr->size = pdev->vpd->ops->get_size(pdev);
+			attr->attr.name = "vpd";
+			attr->attr.mode = S_IRUGO | S_IWUSR;
+			attr->read = pci_read_vpd;
+			attr->write = pci_write_vpd;
+			retval = sysfs_create_bin_file(&pdev->dev.kobj, attr);
+			if (retval)
+				goto err_vpd;
+		} else {
+			retval = -ENOMEM;
+			goto err_config_file;
+		}
+	}
+
 	retval = pci_create_resource_files(pdev);
 	if (retval)
-		goto err_bin_file;
+		goto err_vpd_file;
 
 	/* If the device has a ROM, try to expose it in sysfs. */
 	if (pci_resource_len(pdev, PCI_ROM_RESOURCE) ||
 	    (pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW)) {
-		rom_attr = kzalloc(sizeof(*rom_attr), GFP_ATOMIC);
-		if (rom_attr) {
-			pdev->rom_attr = rom_attr;
-			rom_attr->size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
-			rom_attr->attr.name = "rom";
-			rom_attr->attr.mode = S_IRUSR;
-			rom_attr->read = pci_read_rom;
-			rom_attr->write = pci_write_rom;
-			retval = sysfs_create_bin_file(&pdev->dev.kobj, rom_attr);
+		attr = kzalloc(sizeof(*attr), GFP_ATOMIC);
+		if (attr) {
+			pdev->rom_attr = attr;
+			attr->size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
+			attr->attr.name = "rom";
+			attr->attr.mode = S_IRUSR;
+			attr->read = pci_read_rom;
+			attr->write = pci_write_rom;
+			retval = sysfs_create_bin_file(&pdev->dev.kobj, attr);
 			if (retval)
 				goto err_rom;
 		} else {
@@ -666,16 +738,24 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 	if (pcibios_add_platform_entries(pdev))
 		goto err_rom_file;
 
+	pcie_aspm_create_sysfs_dev_files(pdev);
+
 	return 0;
 
 err_rom_file:
 	if (pci_resource_len(pdev, PCI_ROM_RESOURCE))
-		sysfs_remove_bin_file(&pdev->dev.kobj, rom_attr);
+		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->rom_attr);
 err_rom:
-	kfree(rom_attr);
+	kfree(pdev->rom_attr);
 err_resource_files:
 	pci_remove_resource_files(pdev);
-err_bin_file:
+err_vpd_file:
+	if (pdev->vpd) {
+		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->vpd->attr);
+err_vpd:
+		kfree(pdev->vpd->attr);
+	}
+err_config_file:
 	if (pdev->cfg_size < 4096)
 		sysfs_remove_bin_file(&pdev->dev.kobj, &pci_config_attr);
 	else
@@ -695,6 +775,12 @@ void pci_remove_sysfs_dev_files(struct pci_dev *pdev)
 	if (!sysfs_initialized)
 		return;
 
+	pcie_aspm_remove_sysfs_dev_files(pdev);
+
+	if (pdev->vpd) {
+		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->vpd->attr);
+		kfree(pdev->vpd->attr);
+	}
 	if (pdev->cfg_size < 4096)
 		sysfs_remove_bin_file(&pdev->dev.kobj, &pci_config_attr);
 	else
