@@ -199,8 +199,12 @@ int scsi_add_host(struct Scsi_Host *shost, struct device *dev)
 	if (!shost->can_queue) {
 		printk(KERN_ERR "%s: can_queue = 0 no longer supported\n",
 				sht->name);
-		goto out;
+		goto fail;
 	}
+
+	error = scsi_setup_command_freelist(shost);
+	if (error)
+		goto fail;
 
 	if (!shost->shost_gendev.parent)
 		shost->shost_gendev.parent = dev ? dev : &platform_bus;
@@ -255,6 +259,8 @@ int scsi_add_host(struct Scsi_Host *shost, struct device *dev)
  out_del_gendev:
 	device_del(&shost->shost_gendev);
  out:
+	scsi_destroy_command_freelist(shost);
+ fail:
 	return error;
 }
 EXPORT_SYMBOL(scsi_add_host);
@@ -381,10 +387,6 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	else
 		shost->dma_boundary = 0xffffffff;
 
-	rval = scsi_setup_command_freelist(shost);
-	if (rval)
-		goto fail_kfree;
-
 	device_initialize(&shost->shost_gendev);
 	snprintf(shost->shost_gendev.bus_id, BUS_ID_SIZE, "host%d",
 		shost->host_no);
@@ -404,14 +406,12 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 			"scsi_eh_%d", shost->host_no);
 	if (IS_ERR(shost->ehandler)) {
 		rval = PTR_ERR(shost->ehandler);
-		goto fail_destroy_freelist;
+		goto fail_kfree;
 	}
 
 	scsi_proc_hostdir_add(shost->hostt);
 	return shost;
 
- fail_destroy_freelist:
-	scsi_destroy_command_freelist(shost);
  fail_kfree:
 	kfree(shost);
 	return NULL;
