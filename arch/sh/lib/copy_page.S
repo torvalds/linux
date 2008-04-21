@@ -41,11 +41,11 @@ ENTRY(copy_page)
 	mov.l	@r11+,r5
 	mov.l	@r11+,r6
 	mov.l	@r11+,r7
-#if defined(CONFIG_CPU_SH3)
-	mov.l	r0,@r10
-#elif defined(CONFIG_CPU_SH4)
+#if defined(CONFIG_CPU_SH4)
 	movca.l	r0,@r10
 	mov	r10,r0
+#else
+	mov.l	r0,@r10
 #endif
 	add	#32,r10
 	mov.l	r7,@-r10
