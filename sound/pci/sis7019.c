@@ -920,7 +920,7 @@ static unsigned short sis_ac97_rw(struct sis7019 *sis, int codec, u32 cmd)
 	u16 status;
 	u16 rdy;
 	int count;
-	const static u16 codec_ready[3] = {
+	static const u16 codec_ready[3] = {
 		SIS_AC97_STATUS_CODEC_READY,
 		SIS_AC97_STATUS_CODEC2_READY,
 		SIS_AC97_STATUS_CODEC3_READY,
@@ -984,7 +984,7 @@ timeout:
 static void sis_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 				unsigned short val)
 {
-	const static u32 cmd[3] = {
+	static const u32 cmd[3] = {
 		SIS_AC97_CMD_CODEC_WRITE,
 		SIS_AC97_CMD_CODEC2_WRITE,
 		SIS_AC97_CMD_CODEC3_WRITE,
@@ -995,7 +995,7 @@ static void sis_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 
 static unsigned short sis_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
-	const static u32 cmd[3] = {
+	static const u32 cmd[3] = {
 		SIS_AC97_CMD_CODEC_READ,
 		SIS_AC97_CMD_CODEC2_READ,
 		SIS_AC97_CMD_CODEC3_READ,
