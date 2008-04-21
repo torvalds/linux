@@ -150,7 +150,7 @@ static struct rt6_info ip6_null_entry_template = {
 static int ip6_pkt_prohibit(struct sk_buff *skb);
 static int ip6_pkt_prohibit_out(struct sk_buff *skb);
 
-struct rt6_info ip6_prohibit_entry_template = {
+static struct rt6_info ip6_prohibit_entry_template = {
 	.u = {
 		.dst = {
 			.__refcnt	= ATOMIC_INIT(1),
