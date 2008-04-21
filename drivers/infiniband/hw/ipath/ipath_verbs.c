@@ -2172,18 +2172,20 @@ void ipath_unregister_ib_device(struct ipath_ibdev *dev)
 	ib_dealloc_device(ibdev);
 }
 
-static ssize_t show_rev(struct class_device *cdev, char *buf)
+static ssize_t show_rev(struct device *device, struct device_attribute *attr,
+			char *buf)
 {
 	struct ipath_ibdev *dev =
-		container_of(cdev, struct ipath_ibdev, ibdev.class_dev);
+		container_of(device, struct ipath_ibdev, ibdev.dev);
 
 	return sprintf(buf, "%x\n", dev->dd->ipath_pcirev);
 }
 
-static ssize_t show_hca(struct class_device *cdev, char *buf)
+static ssize_t show_hca(struct device *device, struct device_attribute *attr,
+			char *buf)
 {
 	struct ipath_ibdev *dev =
-		container_of(cdev, struct ipath_ibdev, ibdev.class_dev);
+		container_of(device, struct ipath_ibdev, ibdev.dev);
 	int ret;
 
 	ret = dev->dd->ipath_f_get_boardname(dev->dd, buf, 128);
@@ -2196,10 +2198,11 @@ bail:
 	return ret;
 }
 
-static ssize_t show_stats(struct class_device *cdev, char *buf)
+static ssize_t show_stats(struct device *device, struct device_attribute *attr,
+			  char *buf)
 {
 	struct ipath_ibdev *dev =
-		container_of(cdev, struct ipath_ibdev, ibdev.class_dev);
+		container_of(device, struct ipath_ibdev, ibdev.dev);
 	int i;
 	int len;
 
@@ -2237,16 +2240,16 @@ static ssize_t show_stats(struct class_device *cdev, char *buf)
 	return len;
 }
 
-static CLASS_DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
-static CLASS_DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
-static CLASS_DEVICE_ATTR(board_id, S_IRUGO, show_hca, NULL);
-static CLASS_DEVICE_ATTR(stats, S_IRUGO, show_stats, NULL);
+static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
+static DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
+static DEVICE_ATTR(board_id, S_IRUGO, show_hca, NULL);
+static DEVICE_ATTR(stats, S_IRUGO, show_stats, NULL);
 
-static struct class_device_attribute *ipath_class_attributes[] = {
-	&class_device_attr_hw_rev,
-	&class_device_attr_hca_type,
-	&class_device_attr_board_id,
-	&class_device_attr_stats
+static struct device_attribute *ipath_class_attributes[] = {
+	&dev_attr_hw_rev,
+	&dev_attr_hca_type,
+	&dev_attr_board_id,
+	&dev_attr_stats
 };
 
 static int ipath_verbs_register_sysfs(struct ib_device *dev)
@@ -2255,8 +2258,8 @@ static int ipath_verbs_register_sysfs(struct ib_device *dev)
 	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(ipath_class_attributes); ++i)
-		if (class_device_create_file(&dev->class_dev,
-					     ipath_class_attributes[i])) {
+		if (device_create_file(&dev->dev,
+				       ipath_class_attributes[i])) {
 			ret = 1;
 			goto bail;
 		}

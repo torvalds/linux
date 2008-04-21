@@ -25,16 +25,14 @@ MODULE_LICENSE("GPL");
 
 static inline struct class_device *to_class_dev(struct kobject *obj)
 {
-	return container_of(obj,struct class_device,kobj);
+	return container_of(obj, struct class_device, kobj);
 }
+
 static inline
 struct class_device_attribute *to_class_dev_attr(struct attribute *_attr)
 {
-	return container_of(_attr,struct class_device_attribute,attr);
+	return container_of(_attr, struct class_device_attribute, attr);
 }
-
-int sysfs_create_bin_file(struct kobject * kobj, struct bin_attribute * attr);
-int sysfs_remove_bin_file(struct kobject * kobj, struct bin_attribute * attr);
 
 struct firmware_priv {
 	char fw_id[FIRMWARE_NAME_MAX];
@@ -42,13 +40,12 @@ struct firmware_priv {
 	u32 abort:1;
 };
 
-extern struct class firmware_class;
-
 static ssize_t firmware_loading_show(struct class_device *class_dev, char *buf)
 {
 	struct firmware_priv *fw_priv = class_get_devdata(class_dev);
 	return sprintf(buf, "%d\n", fw_priv->loading);
 }
+
 static ssize_t firmware_loading_store(struct class_device *class_dev,
 				      const char *buf, size_t count)
 {
@@ -56,8 +53,8 @@ static ssize_t firmware_loading_store(struct class_device *class_dev,
 	int prev_loading = fw_priv->loading;
 
 	fw_priv->loading = simple_strtol(buf, NULL, 10);
-	
-	switch(fw_priv->loading){
+
+	switch (fw_priv->loading) {
 	case -1:
 		/* abort load an panic */
 		break;
@@ -65,7 +62,7 @@ static ssize_t firmware_loading_store(struct class_device *class_dev,
 		/* setup load */
 		break;
 	case 0:
-		if(prev_loading==1){
+		if (prev_loading == 1) {
 			/* finish load and get the device back to working
 			 * state */
 		}
@@ -130,29 +127,29 @@ static int fw_setup_class_device(struct class_device *class_dev,
 	class_dev->class = &firmware_class,
 	class_set_devdata(class_dev, fw_priv);
 	retval = class_device_register(class_dev);
-	if (retval){
+	if (retval) {
 		printk(KERN_ERR "%s: class_device_register failed\n",
-		       __FUNCTION__);
+		       __func__);
 		goto error_free_fw_priv;
 	}
 
 	retval = sysfs_create_bin_file(&class_dev->kobj, &firmware_attr_data);
-	if (retval){
+	if (retval) {
 		printk(KERN_ERR "%s: sysfs_create_bin_file failed\n",
-		       __FUNCTION__);
+		       __func__);
 		goto error_unreg_class_dev;
 	}
 
 	retval = class_device_create_file(class_dev,
 					  &class_device_attr_loading);
-	if (retval){
+	if (retval) {
 		printk(KERN_ERR "%s: class_device_create_file failed\n",
-		       __FUNCTION__);
+		       __func__);
 		goto error_remove_data;
 	}
 
 	goto out;
-	
+
 error_remove_data:
 	sysfs_remove_bin_file(&class_dev->kobj, &firmware_attr_data);
 error_unreg_class_dev:
@@ -183,16 +180,16 @@ static int __init firmware_sample_init(void)
 
 	device_initialize(&my_device);
 	class_dev = kmalloc(sizeof(struct class_device), GFP_KERNEL);
-	if(!class_dev)
+	if (!class_dev)
 		return -ENOMEM;
 
 	error = fw_setup_class_device(class_dev, "my_firmware_image",
 				      &my_device);
-	if(error){
+	if (error) {
 		kfree(class_dev);
 		return error;
 	}
-        return 0;
+	return 0;
 
 }
 static void __exit firmware_sample_exit(void)
@@ -202,6 +199,6 @@ static void __exit firmware_sample_exit(void)
 	kfree(fw_priv);
 	kfree(class_dev);
 }
+
 module_init(firmware_sample_init);
 module_exit(firmware_sample_exit);
-

@@ -2804,10 +2804,10 @@ static int b43_rng_read(struct hwrng *rng, u32 * data)
 	return (sizeof(u16));
 }
 
-static void b43_rng_exit(struct b43_wl *wl, bool suspended)
+static void b43_rng_exit(struct b43_wl *wl)
 {
 	if (wl->rng_initialized)
-		__hwrng_unregister(&wl->rng, suspended);
+		hwrng_unregister(&wl->rng);
 }
 
 static int b43_rng_init(struct b43_wl *wl)
@@ -3824,7 +3824,7 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 
 	if (!dev->suspend_in_progress) {
 		b43_leds_exit(dev);
-		b43_rng_exit(dev->wl, false);
+		b43_rng_exit(dev->wl);
 	}
 	b43_dma_free(dev);
 	b43_pio_free(dev);
@@ -4589,7 +4589,7 @@ static int b43_resume(struct ssb_device *dev)
 		err = b43_wireless_core_start(wldev);
 		if (err) {
 			b43_leds_exit(wldev);
-			b43_rng_exit(wldev->wl, true);
+			b43_rng_exit(wldev->wl);
 			b43_wireless_core_exit(wldev);
 			b43err(wl, "Resume failed at core start\n");
 			goto out;

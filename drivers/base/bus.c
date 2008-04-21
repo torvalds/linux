@@ -79,7 +79,7 @@ static void driver_release(struct kobject *kobj)
 {
 	struct driver_private *drv_priv = to_driver(kobj);
 
-	pr_debug("driver: '%s': %s\n", kobject_name(kobj), __FUNCTION__);
+	pr_debug("driver: '%s': %s\n", kobject_name(kobj), __func__);
 	kfree(drv_priv);
 }
 
@@ -505,14 +505,11 @@ void bus_attach_device(struct device *dev)
 	int ret = 0;
 
 	if (bus) {
-		dev->is_registered = 1;
 		if (bus->p->drivers_autoprobe)
 			ret = device_attach(dev);
 		WARN_ON(ret < 0);
 		if (ret >= 0)
 			klist_add_tail(&dev->knode_bus, &bus->p->klist_devices);
-		else
-			dev->is_registered = 0;
 	}
 }
 
@@ -533,10 +530,8 @@ void bus_remove_device(struct device *dev)
 		sysfs_remove_link(&dev->bus->p->devices_kset->kobj,
 				  dev->bus_id);
 		device_remove_attrs(dev->bus, dev);
-		if (dev->is_registered) {
-			dev->is_registered = 0;
-			klist_del(&dev->knode_bus);
-		}
+		klist_del(&dev->knode_bus);
+
 		pr_debug("bus: '%s': remove device %s\n",
 			 dev->bus->name, dev->bus_id);
 		device_release_driver(dev);
@@ -682,19 +677,19 @@ int bus_add_driver(struct device_driver *drv)
 	error = driver_create_file(drv, &driver_attr_uevent);
 	if (error) {
 		printk(KERN_ERR "%s: uevent attr (%s) failed\n",
-			__FUNCTION__, drv->name);
+			__func__, drv->name);
 	}
 	error = driver_add_attrs(bus, drv);
 	if (error) {
 		/* How the hell do we get out of this pickle? Give up */
 		printk(KERN_ERR "%s: driver_add_attrs(%s) failed\n",
-			__FUNCTION__, drv->name);
+			__func__, drv->name);
 	}
 	error = add_bind_files(drv);
 	if (error) {
 		/* Ditto */
 		printk(KERN_ERR "%s: add_bind_files(%s) failed\n",
-			__FUNCTION__, drv->name);
+			__func__, drv->name);
 	}
 
 	kobject_uevent(&priv->kobj, KOBJ_ADD);

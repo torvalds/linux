@@ -273,8 +273,8 @@ static int ahci_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg);
 static int ahci_pci_device_resume(struct pci_dev *pdev);
 #endif
 
-static struct class_device_attribute *ahci_shost_attrs[] = {
-	&class_device_attr_link_power_management_policy,
+static struct device_attribute *ahci_shost_attrs[] = {
+	&dev_attr_link_power_management_policy,
 	NULL
 };
 

@@ -44,20 +44,20 @@ struct srp_internal {
 	struct scsi_transport_template t;
 	struct srp_function_template *f;
 
-	struct class_device_attribute *host_attrs[SRP_HOST_ATTRS + 1];
+	struct device_attribute *host_attrs[SRP_HOST_ATTRS + 1];
 
-	struct class_device_attribute *rport_attrs[SRP_RPORT_ATTRS + 1];
-	struct class_device_attribute private_rport_attrs[SRP_RPORT_ATTRS];
+	struct device_attribute *rport_attrs[SRP_RPORT_ATTRS + 1];
+	struct device_attribute private_rport_attrs[SRP_RPORT_ATTRS];
 	struct transport_container rport_attr_cont;
 };
 
 #define to_srp_internal(tmpl) container_of(tmpl, struct srp_internal, t)
 
 #define	dev_to_rport(d)	container_of(d, struct srp_rport, dev)
-#define transport_class_to_srp_rport(cdev) dev_to_rport((cdev)->dev)
+#define transport_class_to_srp_rport(dev) dev_to_rport((dev)->parent)
 
 static int srp_host_setup(struct transport_container *tc, struct device *dev,
-			  struct class_device *cdev)
+			  struct device *cdev)
 {
 	struct Scsi_Host *shost = dev_to_shost(dev);
 	struct srp_host_attrs *srp_host = to_srp_host_attrs(shost);
@@ -73,7 +73,7 @@ static DECLARE_TRANSPORT_CLASS(srp_rport_class, "srp_remote_ports",
 			       NULL, NULL, NULL);
 
 #define SETUP_TEMPLATE(attrb, field, perm, test, ro_test, ro_perm)	\
-	i->private_##attrb[count] = class_device_attr_##field;		\
+	i->private_##attrb[count] = dev_attr_##field;		\
 	i->private_##attrb[count].attr.mode = perm;			\
 	if (ro_test) {							\
 		i->private_##attrb[count].attr.mode = ro_perm;		\
@@ -100,13 +100,14 @@ static DECLARE_TRANSPORT_CLASS(srp_rport_class, "srp_remote_ports",
 	"%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x"
 
 static ssize_t
-show_srp_rport_id(struct class_device *cdev, char *buf)
+show_srp_rport_id(struct device *dev, struct device_attribute *attr,
+		  char *buf)
 {
-	struct srp_rport *rport = transport_class_to_srp_rport(cdev);
+	struct srp_rport *rport = transport_class_to_srp_rport(dev);
 	return sprintf(buf, SRP_PID_FMT "\n", SRP_PID(rport));
 }
 
-static CLASS_DEVICE_ATTR(port_id, S_IRUGO, show_srp_rport_id, NULL);
+static DEVICE_ATTR(port_id, S_IRUGO, show_srp_rport_id, NULL);
 
 static const struct {
 	u32 value;
@@ -117,9 +118,10 @@ static const struct {
 };
 
 static ssize_t
-show_srp_rport_roles(struct class_device *cdev, char *buf)
+show_srp_rport_roles(struct device *dev, struct device_attribute *attr,
+		     char *buf)
 {
-	struct srp_rport *rport = transport_class_to_srp_rport(cdev);
+	struct srp_rport *rport = transport_class_to_srp_rport(dev);
 	int i;
 	char *name = NULL;
 
@@ -131,7 +133,7 @@ show_srp_rport_roles(struct class_device *cdev, char *buf)
 	return sprintf(buf, "%s\n", name ? : "unknown");
 }
 
-static CLASS_DEVICE_ATTR(roles, S_IRUGO, show_srp_rport_roles, NULL);
+static DEVICE_ATTR(roles, S_IRUGO, show_srp_rport_roles, NULL);
 
 static void srp_rport_release(struct device *dev)
 {

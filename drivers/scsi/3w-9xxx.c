@@ -140,9 +140,10 @@ static void twa_unmap_scsi_data(TW_Device_Extension *tw_dev, int request_id);
 /* Functions */
 
 /* Show some statistics about the card */
-static ssize_t twa_show_stats(struct class_device *class_dev, char *buf)
+static ssize_t twa_show_stats(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
-	struct Scsi_Host *host = class_to_shost(class_dev);
+	struct Scsi_Host *host = class_to_shost(dev);
 	TW_Device_Extension *tw_dev = (TW_Device_Extension *)host->hostdata;
 	unsigned long flags = 0;
 	ssize_t len;
@@ -184,7 +185,7 @@ static int twa_change_queue_depth(struct scsi_device *sdev, int queue_depth)
 } /* End twa_change_queue_depth() */
 
 /* Create sysfs 'stats' entry */
-static struct class_device_attribute twa_host_stats_attr = {
+static struct device_attribute twa_host_stats_attr = {
 	.attr = {
 		.name = 	"stats",
 		.mode =		S_IRUGO,
@@ -193,7 +194,7 @@ static struct class_device_attribute twa_host_stats_attr = {
 };
 
 /* Host attributes initializer */
-static struct class_device_attribute *twa_host_attrs[] = {
+static struct device_attribute *twa_host_attrs[] = {
 	&twa_host_stats_attr,
 	NULL,
 };

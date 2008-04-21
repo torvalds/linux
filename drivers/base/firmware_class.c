@@ -156,7 +156,7 @@ static ssize_t firmware_loading_store(struct device *dev,
 		}
 		/* fallthrough */
 	default:
-		printk(KERN_ERR "%s: unexpected value (%d)\n", __FUNCTION__,
+		printk(KERN_ERR "%s: unexpected value (%d)\n", __func__,
 		       loading);
 		/* fallthrough */
 	case -1:
@@ -209,7 +209,7 @@ fw_realloc_buffer(struct firmware_priv *fw_priv, int min_size)
 	new_size = ALIGN(min_size, PAGE_SIZE);
 	new_data = vmalloc(new_size);
 	if (!new_data) {
-		printk(KERN_ERR "%s: unable to alloc buffer\n", __FUNCTION__);
+		printk(KERN_ERR "%s: unable to alloc buffer\n", __func__);
 		/* Make sure that we don't keep incomplete data */
 		fw_load_abort(fw_priv);
 		return -ENOMEM;
@@ -307,7 +307,7 @@ static int fw_register_device(struct device **dev_p, const char *fw_name,
 	*dev_p = NULL;
 
 	if (!fw_priv || !f_dev) {
-		printk(KERN_ERR "%s: kmalloc failed\n", __FUNCTION__);
+		printk(KERN_ERR "%s: kmalloc failed\n", __func__);
 		retval = -ENOMEM;
 		goto error_kfree;
 	}
@@ -328,7 +328,7 @@ static int fw_register_device(struct device **dev_p, const char *fw_name,
 	retval = device_register(f_dev);
 	if (retval) {
 		printk(KERN_ERR "%s: device_register failed\n",
-		       __FUNCTION__);
+		       __func__);
 		goto error_kfree;
 	}
 	*dev_p = f_dev;
@@ -362,14 +362,14 @@ static int fw_setup_device(struct firmware *fw, struct device **dev_p,
 	retval = sysfs_create_bin_file(&f_dev->kobj, &fw_priv->attr_data);
 	if (retval) {
 		printk(KERN_ERR "%s: sysfs_create_bin_file failed\n",
-		       __FUNCTION__);
+		       __func__);
 		goto error_unreg;
 	}
 
 	retval = device_create_file(f_dev, &dev_attr_loading);
 	if (retval) {
 		printk(KERN_ERR "%s: device_create_file failed\n",
-		       __FUNCTION__);
+		       __func__);
 		goto error_unreg;
 	}
 
@@ -399,7 +399,7 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 	*firmware_p = firmware = kzalloc(sizeof(*firmware), GFP_KERNEL);
 	if (!firmware) {
 		printk(KERN_ERR "%s: kmalloc(struct firmware) failed\n",
-		       __FUNCTION__);
+		       __func__);
 		retval = -ENOMEM;
 		goto out;
 	}
@@ -570,13 +570,13 @@ firmware_class_init(void)
 	int error;
 	error = class_register(&firmware_class);
 	if (error) {
-		printk(KERN_ERR "%s: class_register failed\n", __FUNCTION__);
+		printk(KERN_ERR "%s: class_register failed\n", __func__);
 		return error;
 	}
 	error = class_create_file(&firmware_class, &class_attr_timeout);
 	if (error) {
 		printk(KERN_ERR "%s: class_create_file failed\n",
-		       __FUNCTION__);
+		       __func__);
 		class_unregister(&firmware_class);
 	}
 	return error;

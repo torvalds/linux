@@ -50,26 +50,40 @@
 LIST_HEAD(dpm_active);
 static LIST_HEAD(dpm_off);
 static LIST_HEAD(dpm_off_irq);
-static LIST_HEAD(dpm_destroy);
 
 static DEFINE_MUTEX(dpm_list_mtx);
 
-static DECLARE_RWSEM(pm_sleep_rwsem);
-
-int (*platform_enable_wakeup)(struct device *dev, int is_on);
+/* 'true' if all devices have been suspended, protected by dpm_list_mtx */
+static bool all_sleeping;
 
 /**
  *	device_pm_add - add a device to the list of active devices
  *	@dev:	Device to be added to the list
  */
-void device_pm_add(struct device *dev)
+int device_pm_add(struct device *dev)
 {
+	int error = 0;
+
 	pr_debug("PM: Adding info for %s:%s\n",
 		 dev->bus ? dev->bus->name : "No Bus",
 		 kobject_name(&dev->kobj));
 	mutex_lock(&dpm_list_mtx);
-	list_add_tail(&dev->power.entry, &dpm_active);
+	if ((dev->parent && dev->parent->power.sleeping) || all_sleeping) {
+		if (dev->parent->power.sleeping)
+			dev_warn(dev,
+				"parent %s is sleeping, will not add\n",
+				dev->parent->bus_id);
+		else
+			dev_warn(dev, "devices are sleeping, will not add\n");
+		WARN_ON(true);
+		error = -EBUSY;
+	} else {
+		error = dpm_sysfs_add(dev);
+		if (!error)
+			list_add_tail(&dev->power.entry, &dpm_active);
+	}
 	mutex_unlock(&dpm_list_mtx);
+	return error;
 }
 
 /**
@@ -88,50 +102,6 @@ void device_pm_remove(struct device *dev)
 	list_del_init(&dev->power.entry);
 	mutex_unlock(&dpm_list_mtx);
 }
-
-/**
- *	device_pm_schedule_removal - schedule the removal of a suspended device
- *	@dev:	Device to destroy
- *
- *	Moves the device to the dpm_destroy list for further processing by
- *	unregister_dropped_devices().
- */
-void device_pm_schedule_removal(struct device *dev)
-{
-	pr_debug("PM: Preparing for removal: %s:%s\n",
-		dev->bus ? dev->bus->name : "No Bus",
-		kobject_name(&dev->kobj));
-	mutex_lock(&dpm_list_mtx);
-	list_move_tail(&dev->power.entry, &dpm_destroy);
-	mutex_unlock(&dpm_list_mtx);
-}
-EXPORT_SYMBOL_GPL(device_pm_schedule_removal);
-
-/**
- *	pm_sleep_lock - mutual exclusion for registration and suspend
- *
- *	Returns 0 if no suspend is underway and device registration
- *	may proceed, otherwise -EBUSY.
- */
-int pm_sleep_lock(void)
-{
-	if (down_read_trylock(&pm_sleep_rwsem))
-		return 0;
-
-	return -EBUSY;
-}
-
-/**
- *	pm_sleep_unlock - mutual exclusion for registration and suspend
- *
- *	This routine undoes the effect of device_pm_add_lock
- *	when a device's registration is complete.
- */
-void pm_sleep_unlock(void)
-{
-	up_read(&pm_sleep_rwsem);
-}
-
 
 /*------------------------- Resume routines -------------------------*/
 
@@ -242,33 +212,15 @@ static int resume_device(struct device *dev)
 static void dpm_resume(void)
 {
 	mutex_lock(&dpm_list_mtx);
+	all_sleeping = false;
 	while(!list_empty(&dpm_off)) {
 		struct list_head *entry = dpm_off.next;
 		struct device *dev = to_device(entry);
 
 		list_move_tail(entry, &dpm_active);
+		dev->power.sleeping = false;
 		mutex_unlock(&dpm_list_mtx);
 		resume_device(dev);
-		mutex_lock(&dpm_list_mtx);
-	}
-	mutex_unlock(&dpm_list_mtx);
-}
-
-/**
- *	unregister_dropped_devices - Unregister devices scheduled for removal
- *
- *	Unregister all devices on the dpm_destroy list.
- */
-static void unregister_dropped_devices(void)
-{
-	mutex_lock(&dpm_list_mtx);
-	while (!list_empty(&dpm_destroy)) {
-		struct list_head *entry = dpm_destroy.next;
-		struct device *dev = to_device(entry);
-
-		mutex_unlock(&dpm_list_mtx);
-		/* This also removes the device from the list */
-		device_unregister(dev);
 		mutex_lock(&dpm_list_mtx);
 	}
 	mutex_unlock(&dpm_list_mtx);
@@ -284,8 +236,6 @@ void device_resume(void)
 {
 	might_sleep();
 	dpm_resume();
-	unregister_dropped_devices();
-	up_write(&pm_sleep_rwsem);
 }
 EXPORT_SYMBOL_GPL(device_resume);
 
@@ -377,11 +327,6 @@ static int suspend_device(struct device *dev, pm_message_t state)
 
 	down(&dev->sem);
 
-	if (dev->power.power_state.event) {
-		dev_dbg(dev, "PM: suspend %d-->%d\n",
-			dev->power.power_state.event, state.event);
-	}
-
 	if (dev->class && dev->class->suspend) {
 		suspend_device_dbg(dev, state, "class ");
 		error = dev->class->suspend(dev, state);
@@ -426,6 +371,9 @@ static int dpm_suspend(pm_message_t state)
 		struct list_head *entry = dpm_active.prev;
 		struct device *dev = to_device(entry);
 
+		WARN_ON(dev->parent && dev->parent->power.sleeping);
+
+		dev->power.sleeping = true;
 		mutex_unlock(&dpm_list_mtx);
 		error = suspend_device(dev, state);
 		mutex_lock(&dpm_list_mtx);
@@ -437,11 +385,14 @@ static int dpm_suspend(pm_message_t state)
 					(error == -EAGAIN ?
 					" (please convert to suspend_late)" :
 					""));
+			dev->power.sleeping = false;
 			break;
 		}
 		if (!list_empty(&dev->power.entry))
 			list_move(&dev->power.entry, &dpm_off);
 	}
+	if (!error)
+		all_sleeping = true;
 	mutex_unlock(&dpm_list_mtx);
 
 	return error;
@@ -459,7 +410,6 @@ int device_suspend(pm_message_t state)
 	int error;
 
 	might_sleep();
-	down_write(&pm_sleep_rwsem);
 	error = dpm_suspend(state);
 	if (error)
 		device_resume();

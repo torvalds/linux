@@ -881,7 +881,7 @@ static long ch_ioctl_compat(struct file * file,
 static int ch_probe(struct device *dev)
 {
 	struct scsi_device *sd = to_scsi_device(dev);
-	struct class_device *class_dev;
+	struct device *class_dev;
 	int minor, ret = -ENOMEM;
 	scsi_changer *ch;
 
@@ -910,11 +910,11 @@ static int ch_probe(struct device *dev)
 	ch->minor = minor;
 	sprintf(ch->name,"ch%d",ch->minor);
 
-	class_dev = class_device_create(ch_sysfs_class, NULL,
-					MKDEV(SCSI_CHANGER_MAJOR, ch->minor),
-					dev, "s%s", ch->name);
+	class_dev = device_create(ch_sysfs_class, dev,
+				  MKDEV(SCSI_CHANGER_MAJOR,ch->minor),
+				  "s%s", ch->name);
 	if (IS_ERR(class_dev)) {
-		printk(KERN_WARNING "ch%d: class_device_create failed\n",
+		printk(KERN_WARNING "ch%d: device_create failed\n",
 		       ch->minor);
 		ret = PTR_ERR(class_dev);
 		goto remove_idr;
@@ -945,8 +945,7 @@ static int ch_remove(struct device *dev)
 	idr_remove(&ch_index_idr, ch->minor);
 	spin_unlock(&ch_index_lock);
 
-	class_device_destroy(ch_sysfs_class,
-			     MKDEV(SCSI_CHANGER_MAJOR,ch->minor));
+	device_destroy(ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR,ch->minor));
 	kfree(ch->dt);
 	kfree(ch);
 	return 0;

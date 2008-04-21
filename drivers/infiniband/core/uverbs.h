@@ -73,8 +73,8 @@ struct ib_uverbs_device {
 	struct kref				ref;
 	struct completion			comp;
 	int					devnum;
-	struct cdev			       *dev;
-	struct class_device		       *class_dev;
+	struct cdev			       *cdev;
+	struct device			       *dev;
 	struct ib_device		       *ib_dev;
 	int					num_comp_vectors;
 };

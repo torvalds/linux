@@ -39,6 +39,7 @@
 #include <linux/efi.h>
 #include <linux/init.h>
 #include <linux/edd.h>
+#include <linux/iscsi_ibft.h>
 #include <linux/nodemask.h>
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
@@ -689,6 +690,8 @@ void __init setup_bootmem_allocator(void)
 #endif
 	numa_kva_reserve();
 	reserve_crashkernel();
+
+	reserve_ibft_region();
 }
 
 /*

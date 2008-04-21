@@ -523,45 +523,49 @@ static int c2_dereg_mr(struct ib_mr *ib_mr)
 	return err;
 }
 
-static ssize_t show_rev(struct class_device *cdev, char *buf)
+static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
-	struct c2_dev *dev = container_of(cdev, struct c2_dev, ibdev.class_dev);
+	struct c2_dev *c2dev = container_of(dev, struct c2_dev, ibdev.dev);
 	pr_debug("%s:%u\n", __func__, __LINE__);
-	return sprintf(buf, "%x\n", dev->props.hw_ver);
+	return sprintf(buf, "%x\n", c2dev->props.hw_ver);
 }
 
-static ssize_t show_fw_ver(struct class_device *cdev, char *buf)
+static ssize_t show_fw_ver(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
-	struct c2_dev *dev = container_of(cdev, struct c2_dev, ibdev.class_dev);
+	struct c2_dev *c2dev = container_of(dev, struct c2_dev, ibdev.dev);
 	pr_debug("%s:%u\n", __func__, __LINE__);
 	return sprintf(buf, "%x.%x.%x\n",
-		       (int) (dev->props.fw_ver >> 32),
-		       (int) (dev->props.fw_ver >> 16) & 0xffff,
-		       (int) (dev->props.fw_ver & 0xffff));
+		       (int) (c2dev->props.fw_ver >> 32),
+		       (int) (c2dev->props.fw_ver >> 16) & 0xffff,
+		       (int) (c2dev->props.fw_ver & 0xffff));
 }
 
-static ssize_t show_hca(struct class_device *cdev, char *buf)
+static ssize_t show_hca(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
 	pr_debug("%s:%u\n", __func__, __LINE__);
 	return sprintf(buf, "AMSO1100\n");
 }
 
-static ssize_t show_board(struct class_device *cdev, char *buf)
+static ssize_t show_board(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	pr_debug("%s:%u\n", __func__, __LINE__);
 	return sprintf(buf, "%.*s\n", 32, "AMSO1100 Board ID");
 }
 
-static CLASS_DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
-static CLASS_DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
-static CLASS_DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
-static CLASS_DEVICE_ATTR(board_id, S_IRUGO, show_board, NULL);
+static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
+static DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
+static DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
+static DEVICE_ATTR(board_id, S_IRUGO, show_board, NULL);
 
-static struct class_device_attribute *c2_class_attributes[] = {
-	&class_device_attr_hw_rev,
-	&class_device_attr_fw_ver,
-	&class_device_attr_hca_type,
-	&class_device_attr_board_id
+static struct device_attribute *c2_dev_attributes[] = {
+	&dev_attr_hw_rev,
+	&dev_attr_fw_ver,
+	&dev_attr_hca_type,
+	&dev_attr_board_id
 };
 
 static int c2_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
@@ -861,9 +865,9 @@ int c2_register_device(struct c2_dev *dev)
 	if (ret)
 		goto out1;
 
-	for (i = 0; i < ARRAY_SIZE(c2_class_attributes); ++i) {
-		ret = class_device_create_file(&dev->ibdev.class_dev,
-					       c2_class_attributes[i]);
+	for (i = 0; i < ARRAY_SIZE(c2_dev_attributes); ++i) {
+		ret = device_create_file(&dev->ibdev.dev,
+					       c2_dev_attributes[i]);
 		if (ret)
 			goto out0;
 	}

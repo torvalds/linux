@@ -44,7 +44,7 @@
 */
 #include <linux/interrupt.h>
 
-struct class_device_attribute;
+struct device_attribute;
 /*The limit of outstanding scsi command that firmware can handle*/
 #define ARCMSR_MAX_OUTSTANDING_CMD						256
 #define ARCMSR_MAX_FREECCB_NUM							320
@@ -556,6 +556,6 @@ struct SENSE_DATA
 extern void arcmsr_post_ioctldata2iop(struct AdapterControlBlock *);
 extern void arcmsr_iop_message_read(struct AdapterControlBlock *);
 extern struct QBUFFER __iomem *arcmsr_get_iop_rqbuffer(struct AdapterControlBlock *);
-extern struct class_device_attribute *arcmsr_host_attrs[];
+extern struct device_attribute *arcmsr_host_attrs[];
 extern int arcmsr_alloc_sysfs_attr(struct AdapterControlBlock *);
 void arcmsr_free_sysfs_attr(struct AdapterControlBlock *acb);

@@ -1315,7 +1315,7 @@ int aac_get_adapter_info(struct aac_dev* dev)
 			tmp>>24,(tmp>>16)&0xff,tmp&0xff,
 			le32_to_cpu(dev->adapter_info.biosbuild));
 		buffer[0] = '\0';
-		if (aac_show_serial_number(
+		if (aac_get_serial_number(
 		  shost_to_class(dev->scsi_host_ptr), buffer))
 			printk(KERN_INFO "%s%d: serial %s",
 			  dev->name, dev->id, buffer);

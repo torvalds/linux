@@ -158,7 +158,7 @@ static inline enum spi_signal_type spi_signal_to_value(const char *name)
 }
 
 static int spi_host_setup(struct transport_container *tc, struct device *dev,
-			  struct class_device *cdev)
+			  struct device *cdev)
 {
 	struct Scsi_Host *shost = dev_to_shost(dev);
 
@@ -169,7 +169,7 @@ static int spi_host_setup(struct transport_container *tc, struct device *dev,
 
 static int spi_host_configure(struct transport_container *tc,
 			      struct device *dev,
-			      struct class_device *cdev);
+			      struct device *cdev);
 
 static DECLARE_TRANSPORT_CLASS(spi_host_class,
 			       "spi_host",
@@ -195,11 +195,11 @@ static int spi_host_match(struct attribute_container *cont,
 
 static int spi_target_configure(struct transport_container *tc,
 				struct device *dev,
-				struct class_device *cdev);
+				struct device *cdev);
 
 static int spi_device_configure(struct transport_container *tc,
 				struct device *dev,
-				struct class_device *cdev)
+				struct device *cdev)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct scsi_target *starget = sdev->sdev_target;
@@ -219,7 +219,7 @@ static int spi_device_configure(struct transport_container *tc,
 
 static int spi_setup_transport_attrs(struct transport_container *tc,
 				     struct device *dev,
-				     struct class_device *cdev)
+				     struct device *cdev)
 {
 	struct scsi_target *starget = to_scsi_target(dev);
 
@@ -248,9 +248,10 @@ static int spi_setup_transport_attrs(struct transport_container *tc,
 #define spi_transport_show_simple(field, format_string)			\
 									\
 static ssize_t								\
-show_spi_transport_##field(struct class_device *cdev, char *buf)	\
+show_spi_transport_##field(struct device *dev, 			\
+			   struct device_attribute *attr, char *buf)	\
 {									\
-	struct scsi_target *starget = transport_class_to_starget(cdev);	\
+	struct scsi_target *starget = transport_class_to_starget(dev);	\
 	struct spi_transport_attrs *tp;					\
 									\
 	tp = (struct spi_transport_attrs *)&starget->starget_data;	\
@@ -260,11 +261,12 @@ show_spi_transport_##field(struct class_device *cdev, char *buf)	\
 #define spi_transport_store_simple(field, format_string)		\
 									\
 static ssize_t								\
-store_spi_transport_##field(struct class_device *cdev, const char *buf, \
-			    size_t count)				\
+store_spi_transport_##field(struct device *dev, 			\
+			    struct device_attribute *attr, 		\
+			    const char *buf, size_t count)		\
 {									\
 	int val;							\
-	struct scsi_target *starget = transport_class_to_starget(cdev);	\
+	struct scsi_target *starget = transport_class_to_starget(dev);	\
 	struct spi_transport_attrs *tp;					\
 									\
 	tp = (struct spi_transport_attrs *)&starget->starget_data;	\
@@ -276,9 +278,10 @@ store_spi_transport_##field(struct class_device *cdev, const char *buf, \
 #define spi_transport_show_function(field, format_string)		\
 									\
 static ssize_t								\
-show_spi_transport_##field(struct class_device *cdev, char *buf)	\
+show_spi_transport_##field(struct device *dev, 			\
+			   struct device_attribute *attr, char *buf)	\
 {									\
-	struct scsi_target *starget = transport_class_to_starget(cdev);	\
+	struct scsi_target *starget = transport_class_to_starget(dev);	\
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);	\
 	struct spi_transport_attrs *tp;					\
 	struct spi_internal *i = to_spi_internal(shost->transportt);	\
@@ -290,11 +293,12 @@ show_spi_transport_##field(struct class_device *cdev, char *buf)	\
 
 #define spi_transport_store_function(field, format_string)		\
 static ssize_t								\
-store_spi_transport_##field(struct class_device *cdev, const char *buf, \
-			    size_t count)				\
+store_spi_transport_##field(struct device *dev, 			\
+			    struct device_attribute *attr,		\
+			    const char *buf, size_t count)		\
 {									\
 	int val;							\
-	struct scsi_target *starget = transport_class_to_starget(cdev);	\
+	struct scsi_target *starget = transport_class_to_starget(dev);	\
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);	\
 	struct spi_internal *i = to_spi_internal(shost->transportt);	\
 									\
@@ -307,11 +311,12 @@ store_spi_transport_##field(struct class_device *cdev, const char *buf, \
 
 #define spi_transport_store_max(field, format_string)			\
 static ssize_t								\
-store_spi_transport_##field(struct class_device *cdev, const char *buf, \
-			    size_t count)				\
+store_spi_transport_##field(struct device *dev, 			\
+			    struct device_attribute *attr,		\
+			    const char *buf, size_t count)		\
 {									\
 	int val;							\
-	struct scsi_target *starget = transport_class_to_starget(cdev);	\
+	struct scsi_target *starget = transport_class_to_starget(dev);	\
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);	\
 	struct spi_internal *i = to_spi_internal(shost->transportt);	\
 	struct spi_transport_attrs *tp					\
@@ -329,24 +334,24 @@ store_spi_transport_##field(struct class_device *cdev, const char *buf, \
 #define spi_transport_rd_attr(field, format_string)			\
 	spi_transport_show_function(field, format_string)		\
 	spi_transport_store_function(field, format_string)		\
-static CLASS_DEVICE_ATTR(field, S_IRUGO,				\
-			 show_spi_transport_##field,			\
-			 store_spi_transport_##field);
+static DEVICE_ATTR(field, S_IRUGO,				\
+		   show_spi_transport_##field,			\
+		   store_spi_transport_##field);
 
 #define spi_transport_simple_attr(field, format_string)			\
 	spi_transport_show_simple(field, format_string)			\
 	spi_transport_store_simple(field, format_string)		\
-static CLASS_DEVICE_ATTR(field, S_IRUGO,				\
-			 show_spi_transport_##field,			\
-			 store_spi_transport_##field);
+static DEVICE_ATTR(field, S_IRUGO,				\
+		   show_spi_transport_##field,			\
+		   store_spi_transport_##field);
 
 #define spi_transport_max_attr(field, format_string)			\
 	spi_transport_show_function(field, format_string)		\
 	spi_transport_store_max(field, format_string)			\
 	spi_transport_simple_attr(max_##field, format_string)		\
-static CLASS_DEVICE_ATTR(field, S_IRUGO,				\
-			 show_spi_transport_##field,			\
-			 store_spi_transport_##field);
+static DEVICE_ATTR(field, S_IRUGO,				\
+		   show_spi_transport_##field,			\
+		   store_spi_transport_##field);
 
 /* The Parallel SCSI Tranport Attributes: */
 spi_transport_max_attr(offset, "%d\n");
@@ -370,14 +375,15 @@ static int child_iter(struct device *dev, void *data)
 }
 
 static ssize_t
-store_spi_revalidate(struct class_device *cdev, const char *buf, size_t count)
+store_spi_revalidate(struct device *dev, struct device_attribute *attr,
+		     const char *buf, size_t count)
 {
-	struct scsi_target *starget = transport_class_to_starget(cdev);
+	struct scsi_target *starget = transport_class_to_starget(dev);
 
 	device_for_each_child(&starget->dev, NULL, child_iter);
 	return count;
 }
-static CLASS_DEVICE_ATTR(revalidate, S_IWUSR, NULL, store_spi_revalidate);
+static DEVICE_ATTR(revalidate, S_IWUSR, NULL, store_spi_revalidate);
 
 /* Translate the period into ns according to the current spec
  * for SDTR/PPR messages */
@@ -412,7 +418,7 @@ show_spi_transport_period_helper(char *buf, int period)
 }
 
 static ssize_t
-store_spi_transport_period_helper(struct class_device *cdev, const char *buf,
+store_spi_transport_period_helper(struct device *dev, const char *buf,
 				  size_t count, int *periodp)
 {
 	int j, picosec, period = -1;
@@ -449,9 +455,10 @@ store_spi_transport_period_helper(struct class_device *cdev, const char *buf,
 }
 
 static ssize_t
-show_spi_transport_period(struct class_device *cdev, char *buf)
+show_spi_transport_period(struct device *dev,
+			  struct device_attribute *attr, char *buf)
 {
-	struct scsi_target *starget = transport_class_to_starget(cdev);
+	struct scsi_target *starget = transport_class_to_starget(dev);
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct spi_internal *i = to_spi_internal(shost->transportt);
 	struct spi_transport_attrs *tp =
@@ -464,8 +471,8 @@ show_spi_transport_period(struct class_device *cdev, char *buf)
 }
 
 static ssize_t
-store_spi_transport_period(struct class_device *cdev, const char *buf,
-			    size_t count)
+store_spi_transport_period(struct device *cdev, struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct scsi_target *starget = transport_class_to_starget(cdev);
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
@@ -487,12 +494,13 @@ store_spi_transport_period(struct class_device *cdev, const char *buf,
 	return retval;
 }
 
-static CLASS_DEVICE_ATTR(period, S_IRUGO,
-			 show_spi_transport_period,
-			 store_spi_transport_period);
+static DEVICE_ATTR(period, S_IRUGO,
+		   show_spi_transport_period,
+		   store_spi_transport_period);
 
 static ssize_t
-show_spi_transport_min_period(struct class_device *cdev, char *buf)
+show_spi_transport_min_period(struct device *cdev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct scsi_target *starget = transport_class_to_starget(cdev);
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
@@ -507,8 +515,9 @@ show_spi_transport_min_period(struct class_device *cdev, char *buf)
 }
 
 static ssize_t
-store_spi_transport_min_period(struct class_device *cdev, const char *buf,
-			    size_t count)
+store_spi_transport_min_period(struct device *cdev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
 {
 	struct scsi_target *starget = transport_class_to_starget(cdev);
 	struct spi_transport_attrs *tp =
@@ -519,12 +528,14 @@ store_spi_transport_min_period(struct class_device *cdev, const char *buf,
 }
 
 
-static CLASS_DEVICE_ATTR(min_period, S_IRUGO,
-			 show_spi_transport_min_period,
-			 store_spi_transport_min_period);
+static DEVICE_ATTR(min_period, S_IRUGO,
+		   show_spi_transport_min_period,
+		   store_spi_transport_min_period);
 
 
-static ssize_t show_spi_host_signalling(struct class_device *cdev, char *buf)
+static ssize_t show_spi_host_signalling(struct device *cdev,
+					struct device_attribute *attr,
+					char *buf)
 {
 	struct Scsi_Host *shost = transport_class_to_shost(cdev);
 	struct spi_internal *i = to_spi_internal(shost->transportt);
@@ -534,10 +545,11 @@ static ssize_t show_spi_host_signalling(struct class_device *cdev, char *buf)
 
 	return sprintf(buf, "%s\n", spi_signal_to_string(spi_signalling(shost)));
 }
-static ssize_t store_spi_host_signalling(struct class_device *cdev,
+static ssize_t store_spi_host_signalling(struct device *dev,
+					 struct device_attribute *attr,
 					 const char *buf, size_t count)
 {
-	struct Scsi_Host *shost = transport_class_to_shost(cdev);
+	struct Scsi_Host *shost = transport_class_to_shost(dev);
 	struct spi_internal *i = to_spi_internal(shost->transportt);
 	enum spi_signal_type type = spi_signal_to_value(buf);
 
@@ -549,9 +561,9 @@ static ssize_t store_spi_host_signalling(struct class_device *cdev,
 
 	return count;
 }
-static CLASS_DEVICE_ATTR(signalling, S_IRUGO,
-			 show_spi_host_signalling,
-			 store_spi_host_signalling);
+static DEVICE_ATTR(signalling, S_IRUGO,
+		   show_spi_host_signalling,
+		   store_spi_host_signalling);
 
 #define DV_SET(x, y)			\
 	if(i->f->set_##x)		\
@@ -1334,7 +1346,7 @@ static DECLARE_ANON_TRANSPORT_CLASS(spi_device_class,
 				    spi_device_configure);
 
 static struct attribute *host_attributes[] = {
-	&class_device_attr_signalling.attr,
+	&dev_attr_signalling.attr,
 	NULL
 };
 
@@ -1344,12 +1356,12 @@ static struct attribute_group host_attribute_group = {
 
 static int spi_host_configure(struct transport_container *tc,
 			      struct device *dev,
-			      struct class_device *cdev)
+			      struct device *cdev)
 {
 	struct kobject *kobj = &cdev->kobj;
 	struct Scsi_Host *shost = transport_class_to_shost(cdev);
 	struct spi_internal *si = to_spi_internal(shost->transportt);
-	struct attribute *attr = &class_device_attr_signalling.attr;
+	struct attribute *attr = &dev_attr_signalling.attr;
 	int rc = 0;
 
 	if (si->f->set_signalling)
@@ -1368,76 +1380,75 @@ static int spi_host_configure(struct transport_container *tc,
 static int target_attribute_is_visible(struct kobject *kobj,
 				       struct attribute *attr, int i)
 {
-	struct class_device *cdev =
-		container_of(kobj, struct class_device, kobj);
+	struct device *cdev = container_of(kobj, struct device, kobj);
 	struct scsi_target *starget = transport_class_to_starget(cdev);
 	struct Scsi_Host *shost = transport_class_to_shost(cdev);
 	struct spi_internal *si = to_spi_internal(shost->transportt);
 
-	if (attr == &class_device_attr_period.attr &&
+	if (attr == &dev_attr_period.attr &&
 	    spi_support_sync(starget))
 		return TARGET_ATTRIBUTE_HELPER(period);
-	else if (attr == &class_device_attr_min_period.attr &&
+	else if (attr == &dev_attr_min_period.attr &&
 		 spi_support_sync(starget))
 		return TARGET_ATTRIBUTE_HELPER(period);
-	else if (attr == &class_device_attr_offset.attr &&
+	else if (attr == &dev_attr_offset.attr &&
 		 spi_support_sync(starget))
 		return TARGET_ATTRIBUTE_HELPER(offset);
-	else if (attr == &class_device_attr_max_offset.attr &&
+	else if (attr == &dev_attr_max_offset.attr &&
 		 spi_support_sync(starget))
 		return TARGET_ATTRIBUTE_HELPER(offset);
-	else if (attr == &class_device_attr_width.attr &&
+	else if (attr == &dev_attr_width.attr &&
 		 spi_support_wide(starget))
 		return TARGET_ATTRIBUTE_HELPER(width);
-	else if (attr == &class_device_attr_max_width.attr &&
+	else if (attr == &dev_attr_max_width.attr &&
 		 spi_support_wide(starget))
 		return TARGET_ATTRIBUTE_HELPER(width);
-	else if (attr == &class_device_attr_iu.attr &&
+	else if (attr == &dev_attr_iu.attr &&
 		 spi_support_ius(starget))
 		return TARGET_ATTRIBUTE_HELPER(iu);
-	else if (attr == &class_device_attr_dt.attr &&
+	else if (attr == &dev_attr_dt.attr &&
 		 spi_support_dt(starget))
 		return TARGET_ATTRIBUTE_HELPER(dt);
-	else if (attr == &class_device_attr_qas.attr &&
+	else if (attr == &dev_attr_qas.attr &&
 		 spi_support_qas(starget))
 		return TARGET_ATTRIBUTE_HELPER(qas);
-	else if (attr == &class_device_attr_wr_flow.attr &&
+	else if (attr == &dev_attr_wr_flow.attr &&
 		 spi_support_ius(starget))
 		return TARGET_ATTRIBUTE_HELPER(wr_flow);
-	else if (attr == &class_device_attr_rd_strm.attr &&
+	else if (attr == &dev_attr_rd_strm.attr &&
 		 spi_support_ius(starget))
 		return TARGET_ATTRIBUTE_HELPER(rd_strm);
-	else if (attr == &class_device_attr_rti.attr &&
+	else if (attr == &dev_attr_rti.attr &&
 		 spi_support_ius(starget))
 		return TARGET_ATTRIBUTE_HELPER(rti);
-	else if (attr == &class_device_attr_pcomp_en.attr &&
+	else if (attr == &dev_attr_pcomp_en.attr &&
 		 spi_support_ius(starget))
 		return TARGET_ATTRIBUTE_HELPER(pcomp_en);
-	else if (attr == &class_device_attr_hold_mcs.attr &&
+	else if (attr == &dev_attr_hold_mcs.attr &&
 		 spi_support_ius(starget))
 		return TARGET_ATTRIBUTE_HELPER(hold_mcs);
-	else if (attr == &class_device_attr_revalidate.attr)
+	else if (attr == &dev_attr_revalidate.attr)
 		return 1;
 
 	return 0;
 }
 
 static struct attribute *target_attributes[] = {
-	&class_device_attr_period.attr,
-	&class_device_attr_min_period.attr,
-	&class_device_attr_offset.attr,
-	&class_device_attr_max_offset.attr,
-	&class_device_attr_width.attr,
-	&class_device_attr_max_width.attr,
-	&class_device_attr_iu.attr,
-	&class_device_attr_dt.attr,
-	&class_device_attr_qas.attr,
-	&class_device_attr_wr_flow.attr,
-	&class_device_attr_rd_strm.attr,
-	&class_device_attr_rti.attr,
-	&class_device_attr_pcomp_en.attr,
-	&class_device_attr_hold_mcs.attr,
-	&class_device_attr_revalidate.attr,
+	&dev_attr_period.attr,
+	&dev_attr_min_period.attr,
+	&dev_attr_offset.attr,
+	&dev_attr_max_offset.attr,
+	&dev_attr_width.attr,
+	&dev_attr_max_width.attr,
+	&dev_attr_iu.attr,
+	&dev_attr_dt.attr,
+	&dev_attr_qas.attr,
+	&dev_attr_wr_flow.attr,
+	&dev_attr_rd_strm.attr,
+	&dev_attr_rti.attr,
+	&dev_attr_pcomp_en.attr,
+	&dev_attr_hold_mcs.attr,
+	&dev_attr_revalidate.attr,
 	NULL
 };
 
@@ -1448,7 +1459,7 @@ static struct attribute_group target_attribute_group = {
 
 static int spi_target_configure(struct transport_container *tc,
 				struct device *dev,
-				struct class_device *cdev)
+				struct device *cdev)
 {
 	struct kobject *kobj = &cdev->kobj;
 	int i;
@@ -1462,7 +1473,7 @@ static int spi_target_configure(struct transport_container *tc,
 		 * to ignore, sysfs also does a WARN_ON and dumps a trace,
 		 * which is bad, so temporarily, skip attributes that are
 		 * already visible (the revalidate one) */
-		if (j && attr != &class_device_attr_revalidate.attr)
+		if (j && attr != &dev_attr_revalidate.attr)
 			rc = sysfs_add_file_to_group(kobj, attr,
 						target_attribute_group.name);
 		/* and make the attribute writeable if we have a set

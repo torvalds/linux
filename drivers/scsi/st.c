@@ -4108,9 +4108,9 @@ out_free_tape:
 			if (STm->cdevs[j]) {
 				if (cdev == STm->cdevs[j])
 					cdev = NULL;
-				class_device_destroy(st_sysfs_class,
-						     MKDEV(SCSI_TAPE_MAJOR,
-							   TAPE_MINOR(i, mode, j)));
+					device_destroy(st_sysfs_class,
+						       MKDEV(SCSI_TAPE_MAJOR,
+							     TAPE_MINOR(i, mode, j)));
 				cdev_del(STm->cdevs[j]);
 			}
 		}
@@ -4148,9 +4148,9 @@ static int st_remove(struct device *dev)
 					  "tape");
 			for (mode = 0; mode < ST_NBR_MODES; ++mode) {
 				for (j=0; j < 2; j++) {
-					class_device_destroy(st_sysfs_class,
-							     MKDEV(SCSI_TAPE_MAJOR,
-								   TAPE_MINOR(i, mode, j)));
+					device_destroy(st_sysfs_class,
+						       MKDEV(SCSI_TAPE_MAJOR,
+							     TAPE_MINOR(i, mode, j)));
 					cdev_del(tpnt->modes[mode].cdevs[j]);
 					tpnt->modes[mode].cdevs[j] = NULL;
 				}
@@ -4319,31 +4319,34 @@ static void do_remove_sysfs_files(void)
 
 
 /* The sysfs simple class interface */
-static ssize_t st_defined_show(struct class_device *class_dev, char *buf)
+static ssize_t
+st_defined_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct st_modedef *STm = (struct st_modedef *)class_get_devdata(class_dev);
+	struct st_modedef *STm = (struct st_modedef *)dev_get_drvdata(dev);
 	ssize_t l = 0;
 
 	l = snprintf(buf, PAGE_SIZE, "%d\n", STm->defined);
 	return l;
 }
 
-CLASS_DEVICE_ATTR(defined, S_IRUGO, st_defined_show, NULL);
+DEVICE_ATTR(defined, S_IRUGO, st_defined_show, NULL);
 
-static ssize_t st_defblk_show(struct class_device *class_dev, char *buf)
+static ssize_t
+st_defblk_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct st_modedef *STm = (struct st_modedef *)class_get_devdata(class_dev);
+	struct st_modedef *STm = (struct st_modedef *)dev_get_drvdata(dev);
 	ssize_t l = 0;
 
 	l = snprintf(buf, PAGE_SIZE, "%d\n", STm->default_blksize);
 	return l;
 }
 
-CLASS_DEVICE_ATTR(default_blksize, S_IRUGO, st_defblk_show, NULL);
+DEVICE_ATTR(default_blksize, S_IRUGO, st_defblk_show, NULL);
 
-static ssize_t st_defdensity_show(struct class_device *class_dev, char *buf)
+static ssize_t
+st_defdensity_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct st_modedef *STm = (struct st_modedef *)class_get_devdata(class_dev);
+	struct st_modedef *STm = (struct st_modedef *)dev_get_drvdata(dev);
 	ssize_t l = 0;
 	char *fmt;
 
@@ -4352,22 +4355,25 @@ static ssize_t st_defdensity_show(struct class_device *class_dev, char *buf)
 	return l;
 }
 
-CLASS_DEVICE_ATTR(default_density, S_IRUGO, st_defdensity_show, NULL);
+DEVICE_ATTR(default_density, S_IRUGO, st_defdensity_show, NULL);
 
-static ssize_t st_defcompression_show(struct class_device *class_dev, char *buf)
+static ssize_t
+st_defcompression_show(struct device *dev, struct device_attribute *attr,
+		       char *buf)
 {
-	struct st_modedef *STm = (struct st_modedef *)class_get_devdata(class_dev);
+	struct st_modedef *STm = (struct st_modedef *)dev_get_drvdata(dev);
 	ssize_t l = 0;
 
 	l = snprintf(buf, PAGE_SIZE, "%d\n", STm->default_compression - 1);
 	return l;
 }
 
-CLASS_DEVICE_ATTR(default_compression, S_IRUGO, st_defcompression_show, NULL);
+DEVICE_ATTR(default_compression, S_IRUGO, st_defcompression_show, NULL);
 
-static ssize_t st_options_show(struct class_device *class_dev, char *buf)
+static ssize_t
+st_options_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct st_modedef *STm = (struct st_modedef *)class_get_devdata(class_dev);
+	struct st_modedef *STm = (struct st_modedef *)dev_get_drvdata(dev);
 	struct scsi_tape *STp;
 	int i, j, options;
 	ssize_t l = 0;
@@ -4403,13 +4409,13 @@ static ssize_t st_options_show(struct class_device *class_dev, char *buf)
 	return l;
 }
 
-CLASS_DEVICE_ATTR(options, S_IRUGO, st_options_show, NULL);
+DEVICE_ATTR(options, S_IRUGO, st_options_show, NULL);
 
 static int do_create_class_files(struct scsi_tape *STp, int dev_num, int mode)
 {
 	int i, rew, error;
 	char name[10];
-	struct class_device *st_class_member;
+	struct device *st_class_member;
 
 	for (rew=0; rew < 2; rew++) {
 		/* Make sure that the minor numbers corresponding to the four
@@ -4418,32 +4424,32 @@ static int do_create_class_files(struct scsi_tape *STp, int dev_num, int mode)
 		snprintf(name, 10, "%s%s%s", rew ? "n" : "",
 			 STp->disk->disk_name, st_formats[i]);
 		st_class_member =
-			class_device_create(st_sysfs_class, NULL,
-					    MKDEV(SCSI_TAPE_MAJOR,
-						  TAPE_MINOR(dev_num, mode, rew)),
-					    &STp->device->sdev_gendev, "%s", name);
+			device_create(st_sysfs_class, &STp->device->sdev_gendev,
+				      MKDEV(SCSI_TAPE_MAJOR,
+						TAPE_MINOR(dev_num, mode, rew)),
+				      "%s", name);
 		if (IS_ERR(st_class_member)) {
-			printk(KERN_WARNING "st%d: class_device_create failed\n",
+			printk(KERN_WARNING "st%d: device_create failed\n",
 			       dev_num);
 			error = PTR_ERR(st_class_member);
 			goto out;
 		}
-		class_set_devdata(st_class_member, &STp->modes[mode]);
+		dev_set_drvdata(st_class_member, &STp->modes[mode]);
 
-		error = class_device_create_file(st_class_member,
-					       &class_device_attr_defined);
+		error = device_create_file(st_class_member,
+					   &dev_attr_defined);
 		if (error) goto out;
-		error = class_device_create_file(st_class_member,
-					    &class_device_attr_default_blksize);
+		error = device_create_file(st_class_member,
+					   &dev_attr_default_blksize);
 		if (error) goto out;
-		error = class_device_create_file(st_class_member,
-					    &class_device_attr_default_density);
+		error = device_create_file(st_class_member,
+					   &dev_attr_default_density);
 		if (error) goto out;
-		error = class_device_create_file(st_class_member,
-				        &class_device_attr_default_compression);
+		error = device_create_file(st_class_member,
+					   &dev_attr_default_compression);
 		if (error) goto out;
-		error = class_device_create_file(st_class_member,
-				        &class_device_attr_options);
+		error = device_create_file(st_class_member,
+					   &dev_attr_options);
 		if (error) goto out;
 
 		if (mode == 0 && rew == 0) {

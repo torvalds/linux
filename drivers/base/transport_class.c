@@ -66,7 +66,7 @@ EXPORT_SYMBOL_GPL(transport_class_unregister);
 
 static int anon_transport_dummy_function(struct transport_container *tc,
 					 struct device *dev,
-					 struct class_device *cdev)
+					 struct device *cdev)
 {
 	/* do nothing */
 	return 0;
@@ -115,7 +115,7 @@ EXPORT_SYMBOL_GPL(anon_transport_class_unregister);
 
 static int transport_setup_classdev(struct attribute_container *cont,
 				    struct device *dev,
-				    struct class_device *classdev)
+				    struct device *classdev)
 {
 	struct transport_class *tclass = class_to_transport_class(cont->class);
 	struct transport_container *tcont = attribute_container_to_transport_container(cont);
@@ -149,7 +149,7 @@ EXPORT_SYMBOL_GPL(transport_setup_device);
 
 static int transport_add_class_device(struct attribute_container *cont,
 				      struct device *dev,
-				      struct class_device *classdev)
+				      struct device *classdev)
 {
 	int error = attribute_container_add_class_device(classdev);
 	struct transport_container *tcont = 
@@ -181,7 +181,7 @@ EXPORT_SYMBOL_GPL(transport_add_device);
 
 static int transport_configure(struct attribute_container *cont,
 			       struct device *dev,
-			       struct class_device *cdev)
+			       struct device *cdev)
 {
 	struct transport_class *tclass = class_to_transport_class(cont->class);
 	struct transport_container *tcont = attribute_container_to_transport_container(cont);
@@ -212,7 +212,7 @@ EXPORT_SYMBOL_GPL(transport_configure_device);
 
 static int transport_remove_classdev(struct attribute_container *cont,
 				     struct device *dev,
-				     struct class_device *classdev)
+				     struct device *classdev)
 {
 	struct transport_container *tcont = 
 		attribute_container_to_transport_container(cont);
@@ -251,12 +251,12 @@ EXPORT_SYMBOL_GPL(transport_remove_device);
 
 static void transport_destroy_classdev(struct attribute_container *cont,
 				      struct device *dev,
-				      struct class_device *classdev)
+				      struct device *classdev)
 {
 	struct transport_class *tclass = class_to_transport_class(cont->class);
 
 	if (tclass->remove != anon_transport_dummy_function)
-		class_device_put(classdev);
+		put_device(classdev);
 }
 
 

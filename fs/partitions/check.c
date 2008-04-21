@@ -473,6 +473,10 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 		return 0;
 	if (IS_ERR(state))	/* I/O error reading the partition table */
 		return -EIO;
+
+	/* tell userspace that the media / partition table may have changed */
+	kobject_uevent(&disk->dev.kobj, KOBJ_CHANGE);
+
 	for (p = 1; p < state->limit; p++) {
 		sector_t size = state->parts[p].size;
 		sector_t from = state->parts[p].from;
