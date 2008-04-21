@@ -49,7 +49,6 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <net/net_namespace.h>
-#include <asm/semaphore.h>
 #include <asm/hvcall.h>
 #include <asm/atomic.h>
 #include <asm/vio.h>

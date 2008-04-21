@@ -34,7 +34,7 @@
 #include <linux/hil.h>
 #include <linux/time.h>
 #include <linux/interrupt.h>
-#include <asm/semaphore.h>
+#include <linux/semaphore.h>
 #include <linux/serio.h>
 #include <linux/list.h>
 

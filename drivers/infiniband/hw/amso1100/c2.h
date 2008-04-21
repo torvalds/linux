@@ -40,7 +40,6 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/idr.h>
-#include <asm/semaphore.h>
 
 #include "c2_provider.h"
 #include "c2_mq.h"

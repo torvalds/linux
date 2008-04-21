@@ -29,7 +29,6 @@
 #include <linux/list.h>
 #include <linux/kthread.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 
 #include "fw-transaction.h"
 #include "fw-topology.h"

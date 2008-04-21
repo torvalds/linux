@@ -43,7 +43,6 @@
 #include <asm/mman.h>
 #include <asm/types.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 #include <asm/atomic.h>
 #include <asm/ia32.h>
 #include <asm/vgtod.h>

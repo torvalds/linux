@@ -40,7 +40,6 @@ static char *_rioctrl_c_sccs_ = "@(#)rioctrl.c	1.3";
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/string.h>
-#include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
 #include <linux/termios.h>

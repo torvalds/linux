@@ -35,7 +35,6 @@
 #include <linux/types.h>
 #include <linux/mutex.h>
 #include <asm/io.h>
-#include <asm/semaphore.h>
 
 #include "dcdbas.h"
 

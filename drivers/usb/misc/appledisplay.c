@@ -29,7 +29,6 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <asm/atomic.h>
-#include <asm/semaphore.h>
 
 #define APPLE_VENDOR_ID		0x05AC
 

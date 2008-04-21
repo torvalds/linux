@@ -298,3 +298,11 @@ Why:	/sys/fs/o2cb is the proper location for this information - /sys/o2cb
 	ocfs2-tools. 2 years should be sufficient time to phase in new versions
 	which know to look in /sys/fs/o2cb.
 Who:	ocfs2-devel@oss.oracle.com
+
+---------------------------
+
+What:	asm/semaphore.h
+When:	2.6.26
+Why:	Implementation became generic; users should now include
+	linux/semaphore.h instead.
+Who:	Matthew Wilcox <willy@linux.intel.com>

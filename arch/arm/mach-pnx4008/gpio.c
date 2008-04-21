@@ -17,7 +17,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <asm/semaphore.h>
 #include <asm/io.h>
 #include <asm/arch/platform.h>
 #include <asm/arch/gpio.h>

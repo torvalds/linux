@@ -1,7 +1,6 @@
 #include <linux/smp.h>
 #include <linux/timex.h>
 #include <linux/string.h>
-#include <asm/semaphore.h>
 #include <linux/seq_file.h>
 #include <linux/cpufreq.h>
 

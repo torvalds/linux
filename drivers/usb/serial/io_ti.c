@@ -38,7 +38,6 @@
 #include <linux/serial.h>
 #include <linux/ioctl.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 

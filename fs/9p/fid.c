@@ -26,7 +26,6 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/idr.h>
-#include <asm/semaphore.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 

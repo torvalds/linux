@@ -28,7 +28,6 @@
 #include <linux/percpu.h>
 #include <linux/audit.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 
 /* selinuxfs pseudo filesystem for exporting the security policy API.
    Based on the proc code and the fs/nfsd/nfsctl.c code. */

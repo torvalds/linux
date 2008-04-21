@@ -39,7 +39,6 @@
 #include <linux/completion.h>
 #include <linux/time.h>
 #include <linux/interrupt.h>
-#include <asm/semaphore.h>
 
 #include <scsi/scsi_host.h>
 

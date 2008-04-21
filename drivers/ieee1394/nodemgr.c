@@ -18,8 +18,8 @@
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <linux/freezer.h>
+#include <linux/semaphore.h>
 #include <asm/atomic.h>
-#include <asm/semaphore.h>
 
 #include "csr.h"
 #include "highlevel.h"

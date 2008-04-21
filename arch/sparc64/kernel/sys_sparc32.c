@@ -55,7 +55,6 @@
 #include <asm/types.h>
 #include <asm/uaccess.h>
 #include <asm/fpumacro.h>
-#include <asm/semaphore.h>
 #include <asm/mmu_context.h>
 #include <asm/compat_signal.h>
 

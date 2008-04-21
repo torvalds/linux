@@ -34,7 +34,6 @@
 #include <linux/kernel.h>
 #include <linux/version.h>
 
-#include <asm/semaphore.h>
 #include <linux/spinlock.h>
 #include <asm/irq.h>
 #include <linux/init.h>

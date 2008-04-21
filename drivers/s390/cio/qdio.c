@@ -38,11 +38,11 @@
 #include <linux/proc_fs.h>
 #include <linux/timer.h>
 #include <linux/mempool.h>
+#include <linux/semaphore.h>
 
 #include <asm/ccwdev.h>
 #include <asm/io.h>
 #include <asm/atomic.h>
-#include <asm/semaphore.h>
 #include <asm/timex.h>
 
 #include <asm/debug.h>

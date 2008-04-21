@@ -47,7 +47,6 @@
 #include <asm/types.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
-#include <asm/semaphore.h>
 #include <asm/time.h>
 #include <asm/mmu_context.h>
 #include <asm/ppc-pci.h>

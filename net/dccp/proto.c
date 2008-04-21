@@ -27,7 +27,6 @@
 #include <net/xfrm.h>
 
 #include <asm/ioctls.h>
-#include <asm/semaphore.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/delay.h>

@@ -17,7 +17,6 @@
 #include <linux/ctype.h>
 #include <linux/sysctl.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/fs.h>

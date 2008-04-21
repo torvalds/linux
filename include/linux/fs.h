@@ -287,9 +287,9 @@ extern int dir_notify_enable;
 #include <linux/pid.h>
 #include <linux/mutex.h>
 #include <linux/capability.h>
+#include <linux/semaphore.h>
 
 #include <asm/atomic.h>
-#include <asm/semaphore.h>
 #include <asm/byteorder.h>
 
 struct export_operations;

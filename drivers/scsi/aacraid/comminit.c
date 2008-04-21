@@ -39,7 +39,6 @@
 #include <linux/completion.h>
 #include <linux/mm.h>
 #include <scsi/scsi_host.h>
-#include <asm/semaphore.h>
 
 #include "aacraid.h"
 

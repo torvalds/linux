@@ -37,7 +37,6 @@
 #include <linux/jhash.h>
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
-#include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
 #include <linux/dlm.h>

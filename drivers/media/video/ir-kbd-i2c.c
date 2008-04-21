@@ -40,7 +40,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/workqueue.h>
-#include <asm/semaphore.h>
 
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>

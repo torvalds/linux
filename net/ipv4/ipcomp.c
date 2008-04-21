@@ -14,7 +14,6 @@
  *   - Adaptive compression.
  */
 #include <linux/module.h>
-#include <asm/semaphore.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
 #include <linux/pfkeyv2.h>

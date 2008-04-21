@@ -26,7 +26,8 @@
 #include <linux/delay.h>
 #include <linux/idr.h>
 #include <linux/string.h>
-#include <asm/semaphore.h>
+#include <linux/rwsem.h>
+#include <linux/semaphore.h>
 #include <asm/system.h>
 #include <linux/ctype.h>
 #include "fw-transaction.h"
