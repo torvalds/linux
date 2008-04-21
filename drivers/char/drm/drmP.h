@@ -379,13 +379,12 @@ struct drm_buf_entry {
 struct drm_file {
 	int authenticated;
 	int master;
-	int minor;
 	pid_t pid;
 	uid_t uid;
 	drm_magic_t magic;
 	unsigned long ioctl_count;
 	struct list_head lhead;
-	struct drm_head *head;
+	struct drm_minor *minor;
 	int remove_auth_on_close;
 	unsigned long lock_count;
 	struct file *filp;
@@ -630,16 +629,19 @@ struct drm_driver {
 	struct pci_driver pci_driver;
 };
 
+#define DRM_MINOR_UNASSIGNED 0
+#define DRM_MINOR_LEGACY 1
+
 /**
- * DRM head structure. This structure represent a video head on a card
- * that may contain multiple heads. Embed one per head of these in the
- * private drm_device structure.
+ * DRM minor structure. This structure represents a drm minor number.
  */
-struct drm_head {
-	int minor;			/**< Minor device number */
+struct drm_minor {
+	int index;			/**< Minor device number */
+	int type;                       /**< Control or render */
+	dev_t device;			/**< Device number for mknod */
+	struct device kdev;		/**< Linux device */
 	struct drm_device *dev;
 	struct proc_dir_entry *dev_root;  /**< proc directory entry */
-	dev_t device;			/**< Device number for mknod */
 };
 
 /**
@@ -647,7 +649,6 @@ struct drm_head {
  * may contain multiple heads.
  */
 struct drm_device {
-	struct device dev;		/**< Linux device */
 	char *unique;			/**< Unique identifier: e.g., busid */
 	int unique_len;			/**< Length of unique field */
 	char *devname;			/**< For /proc/interrupts */
@@ -763,7 +764,7 @@ struct drm_device {
 	struct drm_driver *driver;
 	drm_local_map_t *agp_buffer_map;
 	unsigned int agp_buffer_token;
-	struct drm_head primary;		/**< primary screen head */
+	struct drm_minor *primary;		/**< render type primary screen head */
 
 	/** \name Drawable information */
 	/*@{ */
@@ -1030,23 +1031,20 @@ extern int drm_agp_unbind_memory(DRM_AGP_MEM * handle);
 extern int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 		       struct drm_driver *driver);
 extern int drm_put_dev(struct drm_device *dev);
-extern int drm_put_head(struct drm_head *head);
+extern int drm_put_minor(struct drm_minor **minor);
 extern unsigned int drm_debug;
-extern unsigned int drm_cards_limit;
-extern struct drm_head **drm_heads;
+
 extern struct class *drm_class;
 extern struct proc_dir_entry *drm_proc_root;
+
+extern struct idr drm_minors_idr;
 
 extern drm_local_map_t *drm_getsarea(struct drm_device *dev);
 
 				/* Proc support (drm_proc.h) */
-extern int drm_proc_init(struct drm_device *dev,
-			 int minor,
-			 struct proc_dir_entry *root,
-			 struct proc_dir_entry **dev_root);
-extern int drm_proc_cleanup(int minor,
-			    struct proc_dir_entry *root,
-			    struct proc_dir_entry *dev_root);
+extern int drm_proc_init(struct drm_minor *minor, int minor_id,
+			 struct proc_dir_entry *root);
+extern int drm_proc_cleanup(struct drm_minor *minor, struct proc_dir_entry *root);
 
 				/* Scatter Gather Support (drm_scatter.h) */
 extern void drm_sg_cleanup(struct drm_sg_mem * entry);
@@ -1071,8 +1069,8 @@ extern void drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 struct drm_sysfs_class;
 extern struct class *drm_sysfs_create(struct module *owner, char *name);
 extern void drm_sysfs_destroy(void);
-extern int drm_sysfs_device_add(struct drm_device *dev, struct drm_head *head);
-extern void drm_sysfs_device_remove(struct drm_device *dev);
+extern int drm_sysfs_device_add(struct drm_minor *minor);
+extern void drm_sysfs_device_remove(struct drm_minor *minor);
 
 /*
  * Basic memory manager support (drm_mm.c)
