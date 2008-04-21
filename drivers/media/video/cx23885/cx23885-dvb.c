@@ -39,7 +39,6 @@
 #include "tda10048.h"
 #include "dvb-pll.h"
 #include "tuner-xc2028.h"
-#include "tuner-xc2028-types.h"
 #include "tuner-simple.h"
 
 static unsigned int debug;
@@ -320,7 +319,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			static struct xc2028_ctrl ctl = {
 				.fname       = "xc3028-v27.fw",
 				.max_len     = 64,
-				.scode_table = OREN538,
+				.scode_table = XC3028_FE_OREN538,
 			};
 
 			fe = dvb_attach(xc2028_attach,

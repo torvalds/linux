@@ -45,7 +45,6 @@
 #include "nxt200x.h"
 #include "cx24123.h"
 #include "isl6421.h"
-#include "tuner-xc2028-types.h"
 #include "tuner-simple.h"
 #include "tda9887.h"
 
@@ -813,7 +812,7 @@ static int dvb_register(struct cx8802_dev *dev)
 			static struct xc2028_ctrl ctl = {
 				.fname       = "xc3028-v27.fw",
 				.max_len     = 64,
-				.scode_table = OREN538,
+				.scode_table = XC3028_FE_OREN538,
 			};
 
 			fe = dvb_attach(xc2028_attach,

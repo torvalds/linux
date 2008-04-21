@@ -1,6 +1,9 @@
 /* tuner-xc2028_types
  *
- * Copyright (c) 2007 Mauro Carvalho Chehab (mchehab@infradead.org)
+ * This file includes internal tipes to be used inside tuner-xc2028.
+ * Shouldn't be included outside tuner-xc2028
+ *
+ * Copyright (c) 2007-2008 Mauro Carvalho Chehab (mchehab@infradead.org)
  * This code is placed under the terms of the GNU General Public License v2
  */
 
@@ -85,11 +88,16 @@
 /* This flag identifies that the scode table has a new format */
 #define HAS_IF         (1 << 30)
 
-#define SCODE_TYPES	(MTS|DTV6|QAM|DTV7|DTV78|DTV8|LCD|NOGD|MONO|ATSC|IF| \
-			 LG60|ATI638|OREN538|OREN36|TOYOTA388|TOYOTA794|     \
-			 DIBCOM52|ZARLINK456|CHINA|F6MHZ|SCODE)
+#define SCODE_TYPES SCODE
 
-/* Newer types to be moved to videodev2.h */
+
+/* Newer types not defined on videodev2.h.
+   The original idea were to move all those types to videodev2.h, but
+   it seemed overkill, since, with the exception of SECAM/K3, the other
+   types seem to be autodetected.
+   It is not clear where secam/k3 is used, nor we have a feedback of this
+   working or being autodetected by the standard secam firmware.
+ */
 
 #define V4L2_STD_SECAM_K3	(0x04000000)
 

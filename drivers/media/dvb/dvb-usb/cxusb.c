@@ -33,7 +33,6 @@
 #include "mt352_priv.h"
 #include "zl10353.h"
 #include "tuner-xc2028.h"
-#include "tuner-xc2028-types.h"
 #include "tuner-simple.h"
 
 /* debug */
@@ -521,7 +520,7 @@ static int cxusb_dvico_xc3028_tuner_attach(struct dvb_usb_adapter *adap)
 	static struct xc2028_ctrl ctl = {
 		.fname       = "xc3028-dvico-au-01.fw",
 		.max_len     = 64,
-		.scode_table = ZARLINK456,
+		.scode_table = XC3028_FE_ZARLINK456,
 	};
 
 	fe = dvb_attach(xc2028_attach, adap->fe, &cfg);
