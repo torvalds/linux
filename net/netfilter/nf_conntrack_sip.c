@@ -781,7 +781,7 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb,
 		    nfct_help(exp->master)->helper != nfct_help(ct)->helper ||
 		    exp->class != class)
 			break;
-
+#ifdef CONFIG_NF_NAT_NEEDED
 		if (exp->tuple.src.l3num == AF_INET && !direct_rtp &&
 		    (exp->saved_ip != exp->tuple.dst.u3.ip ||
 		     exp->saved_proto.udp.port != exp->tuple.dst.u.udp.port) &&
@@ -791,6 +791,7 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb,
 			tuple.dst.u.udp.port	= exp->saved_proto.udp.port;
 			direct_rtp = 1;
 		} else
+#endif
 			skip_expect = 1;
 	} while (!skip_expect);
 	rcu_read_unlock();
