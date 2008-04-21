@@ -394,13 +394,19 @@ config SENSORS_LM75
 	tristate "National Semiconductor LM75 and compatibles"
 	depends on I2C
 	help
-	  If you say yes here you get support for National Semiconductor LM75
-	  sensor chips and clones: Dallas Semiconductor DS75 and DS1775 (in
-	  9-bit precision mode), and TelCom (now Microchip) TCN75.
+	  If you say yes here you get support for one common type of
+	  temperature sensor chip, with models including:
 
-	  The DS75 and DS1775 in 10- to 12-bit precision modes will require
-	  a force module parameter. The driver will not handle the extra
-	  precision anyhow.
+		- Dallas Semiconductor DS75 and DS1775
+		- Maxim MAX6625 and MAX6626
+		- Microchip MCP980x
+		- National Semiconductor LM75
+		- NXP's LM75A
+		- ST Microelectronics STDS75
+		- TelCom (now Microchip) TCN75
+		- Texas Instruments TMP100, TMP101, TMP75, TMP175, TMP275
+
+	  Most of these chips will require a "force" module parameter.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm75.
