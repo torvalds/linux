@@ -702,8 +702,6 @@ int iwl4965_hw_nic_init(struct iwl_priv *priv)
 	u32 val;
 	u8 val_link;
 
-	iwl4965_power_init_handle(priv);
-
 	/* nic_init */
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -1433,6 +1431,17 @@ int iwl4965_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl4965_tx_queue *txq)
 	return 0;
 }
 
+/* set card power command */
+static int iwl4965_set_power(struct iwl_priv *priv,
+		      void *cmd)
+{
+	int ret = 0;
+
+	ret = iwl_send_cmd_pdu_async(priv, POWER_TABLE_CMD,
+				    sizeof(struct iwl4965_powertable_cmd),
+				    cmd, NULL);
+	return ret;
+}
 int iwl4965_hw_reg_set_txpower(struct iwl_priv *priv, s8 power)
 {
 	IWL_ERROR("TODO: Implement iwl4965_hw_reg_set_txpower!\n");
@@ -4336,6 +4345,8 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
 	},
 	.radio_kill_sw = iwl4965_radio_kill_sw,
+	.set_power = iwl4965_set_power,
+	.update_chain_flags = iwl4965_update_chain_flags,
 };
 
 static struct iwl_ops iwl4965_ops = {

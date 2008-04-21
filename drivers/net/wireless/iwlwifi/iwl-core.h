@@ -118,6 +118,9 @@ struct iwl_lib_ops {
 	struct {
 		int (*set_pwr_src)(struct iwl_priv *priv, enum iwl_pwr_src src);
 	} apm_ops;
+	/* power */
+	int (*set_power)(struct iwl_priv *priv, void *cmd);
+	void (*update_chain_flags)(struct iwl_priv *priv);
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
 };

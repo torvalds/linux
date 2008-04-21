@@ -44,6 +44,7 @@
 #include "iwl-prph.h"
 #include "iwl-debug.h"
 #include "iwl-led.h"
+#include "iwl-power.h"
 
 /* configuration for the iwl4965 */
 extern struct iwl_cfg iwl4965_agn_cfg;
@@ -255,31 +256,6 @@ struct iwl4965_clip_group {
 enum iwl_pwr_src {
 	IWL_PWR_SRC_VMAIN,
 	IWL_PWR_SRC_VAUX,
-};
-
-struct iwl4965_power_vec_entry {
-	struct iwl4965_powertable_cmd cmd;
-	u8 no_dtim;
-};
-#define IWL_POWER_RANGE_0  (0)
-#define IWL_POWER_RANGE_1  (1)
-
-#define IWL_POWER_MODE_CAM	0x00	/* Continuously Aware Mode, always on */
-#define IWL_POWER_INDEX_3	0x03
-#define IWL_POWER_INDEX_5	0x05
-#define IWL_POWER_AC		0x06
-#define IWL_POWER_BATTERY	0x07
-#define IWL_POWER_LIMIT		0x07
-#define IWL_POWER_MASK		0x0F
-#define IWL_POWER_ENABLED	0x10
-#define IWL_POWER_LEVEL(x)	((x) & IWL_POWER_MASK)
-
-struct iwl4965_power_mgr {
-	spinlock_t lock;
-	struct iwl4965_power_vec_entry pwr_range_0[IWL_POWER_AC];
-	struct iwl4965_power_vec_entry pwr_range_1[IWL_POWER_AC];
-	u8 active_index;
-	u32 dtim_val;
 };
 
 #define IEEE80211_DATA_LEN              2304
@@ -674,6 +650,7 @@ extern unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
 extern int iwl4965_rx_queue_update_write_ptr(struct iwl_priv *priv,
 					 struct iwl4965_rx_queue *q);
 extern __le16 *ieee80211_get_qos_ctrl(struct ieee80211_hdr *hdr);
+extern void iwl4965_update_chain_flags(struct iwl_priv *priv);
 int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src);
 
 int iwl4965_init_geos(struct iwl_priv *priv);
@@ -1100,7 +1077,7 @@ struct iwl_priv {
 		u64 bytes;
 	} tx_stats[3], rx_stats[3];
 
-	struct iwl4965_power_mgr power_data;
+	struct iwl_power_mgr power_data;
 
 	struct iwl4965_notif_statistics statistics;
 	unsigned long last_statistics_time;

@@ -37,6 +37,7 @@ struct iwl_priv; /* FIXME: remove */
 #include "iwl-4965.h" /* FIXME: remove */
 #include "iwl-core.h"
 #include "iwl-rfkill.h"
+#include "iwl-power.h"
 
 
 MODULE_DESCRIPTION("iwl core");
@@ -263,8 +264,10 @@ int iwlcore_low_level_notify(struct iwl_priv *priv,
 		if (ret)
 			IWL_ERROR("Unable to initialize RFKILL system. "
 				  "Ignoring error: %d\n", ret);
+		iwl_power_initialize(priv);
 		break;
 	case IWLCORE_START_EVT:
+		iwl_power_update_mode(priv, 1);
 		break;
 	case IWLCORE_STOP_EVT:
 		break;

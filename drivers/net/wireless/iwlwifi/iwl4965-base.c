@@ -879,6 +879,13 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 	return 0;
 }
 
+void iwl4965_update_chain_flags(struct iwl_priv *priv)
+{
+
+	iwl4965_set_rxon_chain(priv);
+	iwl4965_commit_rxon(priv);
+}
+
 static int iwl4965_send_bt_config(struct iwl_priv *priv)
 {
 	struct iwl4965_bt_cmd bt_cmd = {
@@ -1364,184 +1371,6 @@ static void iwl4965_activate_qos(struct iwl_priv *priv, u8 force)
 		iwl4965_send_qos_params_command(priv,
 				&(priv->qos_data.def_qos_parm));
 	}
-}
-
-/*
- * Power management (not Tx power!) functions
- */
-#define MSEC_TO_USEC 1024
-
-#define NOSLP __constant_cpu_to_le16(0), 0, 0
-#define SLP IWL_POWER_DRIVER_ALLOW_SLEEP_MSK, 0, 0
-#define SLP_TIMEOUT(T) __constant_cpu_to_le32((T) * MSEC_TO_USEC)
-#define SLP_VEC(X0, X1, X2, X3, X4) {__constant_cpu_to_le32(X0), \
-				     __constant_cpu_to_le32(X1), \
-				     __constant_cpu_to_le32(X2), \
-				     __constant_cpu_to_le32(X3), \
-				     __constant_cpu_to_le32(X4)}
-
-
-/* default power management (not Tx power) table values */
-/* for tim  0-10 */
-static struct iwl4965_power_vec_entry range_0[IWL_POWER_AC] = {
-	{{NOSLP, SLP_TIMEOUT(0), SLP_TIMEOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
-	{{SLP, SLP_TIMEOUT(200), SLP_TIMEOUT(500), SLP_VEC(1, 2, 3, 4, 4)}, 0},
-	{{SLP, SLP_TIMEOUT(200), SLP_TIMEOUT(300), SLP_VEC(2, 4, 6, 7, 7)}, 0},
-	{{SLP, SLP_TIMEOUT(50), SLP_TIMEOUT(100), SLP_VEC(2, 6, 9, 9, 10)}, 0},
-	{{SLP, SLP_TIMEOUT(50), SLP_TIMEOUT(25), SLP_VEC(2, 7, 9, 9, 10)}, 1},
-	{{SLP, SLP_TIMEOUT(25), SLP_TIMEOUT(25), SLP_VEC(4, 7, 10, 10, 10)}, 1}
-};
-
-/* for tim > 10 */
-static struct iwl4965_power_vec_entry range_1[IWL_POWER_AC] = {
-	{{NOSLP, SLP_TIMEOUT(0), SLP_TIMEOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
-	{{SLP, SLP_TIMEOUT(200), SLP_TIMEOUT(500),
-		 SLP_VEC(1, 2, 3, 4, 0xFF)}, 0},
-	{{SLP, SLP_TIMEOUT(200), SLP_TIMEOUT(300),
-		 SLP_VEC(2, 4, 6, 7, 0xFF)}, 0},
-	{{SLP, SLP_TIMEOUT(50), SLP_TIMEOUT(100),
-		 SLP_VEC(2, 6, 9, 9, 0xFF)}, 0},
-	{{SLP, SLP_TIMEOUT(50), SLP_TIMEOUT(25), SLP_VEC(2, 7, 9, 9, 0xFF)}, 0},
-	{{SLP, SLP_TIMEOUT(25), SLP_TIMEOUT(25),
-		 SLP_VEC(4, 7, 10, 10, 0xFF)}, 0}
-};
-
-int iwl4965_power_init_handle(struct iwl_priv *priv)
-{
-	int rc = 0, i;
-	struct iwl4965_power_mgr *pow_data;
-	int size = sizeof(struct iwl4965_power_vec_entry) * IWL_POWER_AC;
-	u16 pci_pm;
-
-	IWL_DEBUG_POWER("Initialize power \n");
-
-	pow_data = &(priv->power_data);
-
-	memset(pow_data, 0, sizeof(*pow_data));
-
-	pow_data->active_index = IWL_POWER_RANGE_0;
-	pow_data->dtim_val = 0xffff;
-
-	memcpy(&pow_data->pwr_range_0[0], &range_0[0], size);
-	memcpy(&pow_data->pwr_range_1[0], &range_1[0], size);
-
-	rc = pci_read_config_word(priv->pci_dev, PCI_LINK_CTRL, &pci_pm);
-	if (rc != 0)
-		return 0;
-	else {
-		struct iwl4965_powertable_cmd *cmd;
-
-		IWL_DEBUG_POWER("adjust power command flags\n");
-
-		for (i = 0; i < IWL_POWER_AC; i++) {
-			cmd = &pow_data->pwr_range_0[i].cmd;
-
-			if (pci_pm & 0x1)
-				cmd->flags &= ~IWL_POWER_PCI_PM_MSK;
-			else
-				cmd->flags |= IWL_POWER_PCI_PM_MSK;
-		}
-	}
-	return rc;
-}
-
-static int iwl4965_update_power_cmd(struct iwl_priv *priv,
-				struct iwl4965_powertable_cmd *cmd, u32 mode)
-{
-	int rc = 0, i;
-	u8 skip;
-	u32 max_sleep = 0;
-	struct iwl4965_power_vec_entry *range;
-	u8 period = 0;
-	struct iwl4965_power_mgr *pow_data;
-
-	if (mode > IWL_POWER_INDEX_5) {
-		IWL_DEBUG_POWER("Error invalid power mode \n");
-		return -1;
-	}
-	pow_data = &(priv->power_data);
-
-	if (pow_data->active_index == IWL_POWER_RANGE_0)
-		range = &pow_data->pwr_range_0[0];
-	else
-		range = &pow_data->pwr_range_1[1];
-
-	memcpy(cmd, &range[mode].cmd, sizeof(struct iwl4965_powertable_cmd));
-
-#ifdef IWL_MAC80211_DISABLE
-	if (priv->assoc_network != NULL) {
-		unsigned long flags;
-
-		period = priv->assoc_network->tim.tim_period;
-	}
-#endif	/*IWL_MAC80211_DISABLE */
-	skip = range[mode].no_dtim;
-
-	if (period == 0) {
-		period = 1;
-		skip = 0;
-	}
-
-	if (skip == 0) {
-		max_sleep = period;
-		cmd->flags &= ~IWL_POWER_SLEEP_OVER_DTIM_MSK;
-	} else {
-		__le32 slp_itrvl = cmd->sleep_interval[IWL_POWER_VEC_SIZE - 1];
-		max_sleep = (le32_to_cpu(slp_itrvl) / period) * period;
-		cmd->flags |= IWL_POWER_SLEEP_OVER_DTIM_MSK;
-	}
-
-	for (i = 0; i < IWL_POWER_VEC_SIZE; i++) {
-		if (le32_to_cpu(cmd->sleep_interval[i]) > max_sleep)
-			cmd->sleep_interval[i] = cpu_to_le32(max_sleep);
-	}
-
-	IWL_DEBUG_POWER("Flags value = 0x%08X\n", cmd->flags);
-	IWL_DEBUG_POWER("Tx timeout = %u\n", le32_to_cpu(cmd->tx_data_timeout));
-	IWL_DEBUG_POWER("Rx timeout = %u\n", le32_to_cpu(cmd->rx_data_timeout));
-	IWL_DEBUG_POWER("Sleep interval vector = { %d , %d , %d , %d , %d }\n",
-			le32_to_cpu(cmd->sleep_interval[0]),
-			le32_to_cpu(cmd->sleep_interval[1]),
-			le32_to_cpu(cmd->sleep_interval[2]),
-			le32_to_cpu(cmd->sleep_interval[3]),
-			le32_to_cpu(cmd->sleep_interval[4]));
-
-	return rc;
-}
-
-static int iwl4965_send_power_mode(struct iwl_priv *priv, u32 mode)
-{
-	u32 uninitialized_var(final_mode);
-	int rc;
-	struct iwl4965_powertable_cmd cmd;
-
-	/* If on battery, set to 3,
-	 * if plugged into AC power, set to CAM ("continuously aware mode"),
-	 * else user level */
-	switch (mode) {
-	case IWL_POWER_BATTERY:
-		final_mode = IWL_POWER_INDEX_3;
-		break;
-	case IWL_POWER_AC:
-		final_mode = IWL_POWER_MODE_CAM;
-		break;
-	default:
-		final_mode = mode;
-		break;
-	}
-
-	cmd.keep_alive_beacons = 0;
-
-	iwl4965_update_power_cmd(priv, &cmd, final_mode);
-
-	rc = iwl_send_cmd_pdu(priv, POWER_TABLE_CMD, sizeof(cmd), &cmd);
-
-	if (final_mode == IWL_POWER_MODE_CAM)
-		clear_bit(STATUS_POWER_PMI, &priv->status);
-	else
-		set_bit(STATUS_POWER_PMI, &priv->status);
-
-	return rc;
 }
 
 int iwl4965_is_network_packet(struct iwl_priv *priv, struct ieee80211_hdr *header)
@@ -5304,8 +5133,6 @@ static void iwl4965_alive_start(struct iwl_priv *priv)
 	priv->active_rate = priv->rates_mask;
 	priv->active_rate_basic = priv->rates_mask & IWL_BASIC_RATES_MASK;
 
-	iwl4965_send_power_mode(priv, IWL_POWER_LEVEL(priv->power_mode));
-
 	if (iwl_is_associated(priv)) {
 		struct iwl4965_rxon_cmd *active_rxon =
 				(struct iwl4965_rxon_cmd *)(&priv->active_rxon);
@@ -5838,6 +5665,8 @@ static void iwl4965_bg_request_scan(struct work_struct *data)
 				direct_mask,
 				(void *)&scan->data[le16_to_cpu(scan->tx_cmd.len)]);
 
+	scan->filter_flags |= (RXON_FILTER_ACCEPT_GRP_MSK |
+			       RXON_FILTER_BCON_AWARE_MSK);
 	cmd.len += le16_to_cpu(scan->tx_cmd.len) +
 	    scan->channel_count * sizeof(struct iwl4965_scan_channel);
 	cmd.data = scan;
@@ -6000,6 +5829,7 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 
 	iwl4965_activate_qos(priv, 0);
 
+	iwl_power_update_mode(priv, 0);
 	/* we have just associated, don't start scan too early */
 	priv->next_scan_jiffies = jiffies + IWL_DELAY_NEXT_SCAN;
 }
@@ -6990,6 +6820,8 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 		iwl4965_commit_rxon(priv);
 	}
 
+	iwl_power_update_mode(priv, 0);
+
 	/* Per mac80211.h: This is only used in IBSS mode... */
 	if (priv->iw_mode != IEEE80211_IF_TYPE_IBSS) {
 
@@ -7321,20 +7153,11 @@ static ssize_t store_power_level(struct device *d,
 		goto out;
 	}
 
-	if ((mode < 1) || (mode > IWL_POWER_LIMIT) || (mode == IWL_POWER_AC))
-		mode = IWL_POWER_AC;
-	else
-		mode |= IWL_POWER_ENABLED;
-
-	if (mode != priv->power_mode) {
-		rc = iwl4965_send_power_mode(priv, IWL_POWER_LEVEL(mode));
-		if (rc) {
-			IWL_DEBUG_MAC80211("failed setting power mode.\n");
-			goto out;
-		}
-		priv->power_mode = mode;
+	rc = iwl_power_set_user_mode(priv, mode);
+	if (rc) {
+		IWL_DEBUG_MAC80211("failed setting power mode.\n");
+		goto out;
 	}
-
 	rc = count;
 
  out:
@@ -7364,7 +7187,7 @@ static ssize_t show_power_level(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
 	struct iwl_priv *priv = dev_get_drvdata(d);
-	int level = IWL_POWER_LEVEL(priv->power_mode);
+	int level = priv->power_data.power_mode;
 	char *p = buf;
 
 	p += sprintf(p, "%d ", level);
@@ -7382,14 +7205,14 @@ static ssize_t show_power_level(struct device *d,
 			     timeout_duration[level - 1] / 1000,
 			     period_duration[level - 1] / 1000);
 	}
-
+/*
 	if (!(priv->power_mode & IWL_POWER_ENABLED))
 		p += sprintf(p, " OFF\n");
 	else
 		p += sprintf(p, " \n");
-
+*/
+	p += sprintf(p, " \n");
 	return (p - buf + 1);
-
 }
 
 static DEVICE_ATTR(power_level, S_IWUSR | S_IRUSR, show_power_level,

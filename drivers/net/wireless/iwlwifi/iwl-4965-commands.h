@@ -1853,6 +1853,7 @@ struct iwl4965_spectrum_notification {
 #define IWL_POWER_DRIVER_ALLOW_SLEEP_MSK	__constant_cpu_to_le16(1 << 0)
 #define IWL_POWER_SLEEP_OVER_DTIM_MSK		__constant_cpu_to_le16(1 << 2)
 #define IWL_POWER_PCI_PM_MSK			__constant_cpu_to_le16(1 << 3)
+#define IWL_POWER_FAST_PD			__constant_cpu_to_le16(1 << 4)
 
 struct iwl4965_powertable_cmd {
 	__le16 flags;
