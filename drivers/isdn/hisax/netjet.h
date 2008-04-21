@@ -12,8 +12,6 @@
  *
  */
 
-extern const char *CardType[];
-
 #define byteout(addr,val) outb(val,addr)
 #define bytein(addr) inb(addr)
 

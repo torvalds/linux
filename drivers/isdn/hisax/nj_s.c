@@ -235,8 +235,7 @@ static int __devinit njs_cs_init_rest(struct IsdnCard *card,
 		cs->subtyp ? "TJ320" : "TJ300", cs->hw.njet.base, cs->irq);
 	if (!request_region(cs->hw.njet.base, bytecnt, "netjet-s isdn")) {
 		printk(KERN_WARNING
-		       "HiSax: %s config port %#lx-%#lx already in use\n",
-		       CardType[card->typ],
+		       "HiSax: NETjet-S config port %#lx-%#lx already in use\n",
 		       cs->hw.njet.base,
 		       cs->hw.njet.base + bytecnt);
 		return (0);
