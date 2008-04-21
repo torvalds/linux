@@ -45,6 +45,7 @@
 #include "tda826x.h"
 #include "lnbp21.h"
 #include "bsru6.h"
+#include "bsbe1.h"
 
 static int diseqc_method;
 module_param(diseqc_method, int, 0444);
@@ -368,6 +369,38 @@ static struct tda10086_config tda10086_config = {
 	.xtal_freq = TDA10086_XTAL_16M,
 };
 
+static struct stv0299_config alps_bsru6_config_activy = {
+	.demod_address = 0x68,
+	.inittab = alps_bsru6_inittab,
+	.mclk = 88000000UL,
+	.invert = 1,
+	.op0_off = 1,
+	.min_delay_ms = 100,
+	.set_symbol_rate = alps_bsru6_set_symbol_rate,
+};
+
+static struct stv0299_config alps_bsbe1_config_activy = {
+	.demod_address = 0x68,
+	.inittab = alps_bsbe1_inittab,
+	.mclk = 88000000UL,
+	.invert = 1,
+	.op0_off = 1,
+	.min_delay_ms = 100,
+	.set_symbol_rate = alps_bsbe1_set_symbol_rate,
+};
+
+
+static int i2c_readreg(struct i2c_adapter *i2c, u8 adr, u8 reg)
+{
+	u8 val;
+	struct i2c_msg msg[] = {
+		{ .addr = adr, .flags = 0, .buf = &reg, .len = 1 },
+		{ .addr = adr, .flags = I2C_M_RD, .buf = &val, .len = 1 }
+	};
+
+	return (i2c_transfer(i2c, msg, 2) != 2) ? -EIO : val;
+}
+
 static u8 read_pwm(struct budget* budget)
 {
 	u8 b = 0xff;
@@ -383,6 +416,8 @@ static u8 read_pwm(struct budget* budget)
 
 static void frontend_init(struct budget *budget)
 {
+	(void)alps_bsbe1_config; /* avoid warning */
+
 	switch(budget->dev->pci->subsystem_device) {
 	case 0x1003: // Hauppauge/TT Nova budget (stv0299/ALPS BSRU6(tsa5059) OR ves1893/ALPS BSRV2(sp5659))
 	case 0x1013:
@@ -428,15 +463,43 @@ static void frontend_init(struct budget *budget)
 		}
 		break;
 
-	case 0x4f60: // Fujitsu Siemens Activy Budget-S PCI rev AL (stv0299/ALPS BSRU6(tsa5059))
-		budget->dvb_frontend = dvb_attach(stv0299_attach, &alps_bsru6_config, &budget->i2c_adap);
-		if (budget->dvb_frontend) {
-			budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
-			budget->dvb_frontend->tuner_priv = &budget->i2c_adap;
-			budget->dvb_frontend->ops.set_voltage = siemens_budget_set_voltage;
-			budget->dvb_frontend->ops.dishnetwork_send_legacy_command = NULL;
+	case 0x4f60: /* Fujitsu Siemens Activy Budget-S PCI rev AL (stv0299/tsa5059) */
+	{
+		int subtype = i2c_readreg(&budget->i2c_adap, 0x50, 0x67);
+
+		if (subtype < 0)
+			break;
+		/* fixme: find a better way to identify the card */
+		if (subtype < 0x36) {
+			/* assume ALPS BSRU6 */
+			budget->dvb_frontend = dvb_attach(stv0299_attach, &alps_bsru6_config_activy, &budget->i2c_adap);
+			if (budget->dvb_frontend) {
+				printk(KERN_INFO "budget: tuner ALPS BSRU6 detected\n");
+				budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
+				budget->dvb_frontend->tuner_priv = &budget->i2c_adap;
+				budget->dvb_frontend->ops.set_voltage = siemens_budget_set_voltage;
+				budget->dvb_frontend->ops.dishnetwork_send_legacy_command = NULL;
+				break;
+			}
+		} else {
+			/* assume ALPS BSBE1 */
+			/* reset tuner */
+			saa7146_setgpio(budget->dev, 3, SAA7146_GPIO_OUTLO);
+			msleep(50);
+			saa7146_setgpio(budget->dev, 3, SAA7146_GPIO_OUTHI);
+			msleep(250);
+			budget->dvb_frontend = dvb_attach(stv0299_attach, &alps_bsbe1_config_activy, &budget->i2c_adap);
+			if (budget->dvb_frontend) {
+				printk(KERN_INFO "budget: tuner ALPS BSBE1 detected\n");
+				budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsbe1_tuner_set_params;
+				budget->dvb_frontend->tuner_priv = &budget->i2c_adap;
+				budget->dvb_frontend->ops.set_voltage = siemens_budget_set_voltage;
+				budget->dvb_frontend->ops.dishnetwork_send_legacy_command = NULL;
+				break;
+			}
 		}
 		break;
+	}
 
 	case 0x4f61: // Fujitsu Siemens Activy Budget-S PCI rev GR (tda8083/Grundig 29504-451(tsa5522))
 		budget->dvb_frontend = dvb_attach(tda8083_attach, &grundig_29504_451_config, &budget->i2c_adap);
