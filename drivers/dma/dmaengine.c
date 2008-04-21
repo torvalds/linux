@@ -42,9 +42,9 @@
  *
  * Each device has a kref, which is initialized to 1 when the device is
  * registered. A kref_get is done for each device registered.  When the
- * device is released, the coresponding kref_put is done in the release
+ * device is released, the corresponding kref_put is done in the release
  * method. Every time one of the device's channels is allocated to a client,
- * a kref_get occurs.  When the channel is freed, the coresponding kref_put
+ * a kref_get occurs.  When the channel is freed, the corresponding kref_put
  * happens. The device's release function does a completion, so
  * unregister_device does a remove event, device_unregister, a kref_put
  * for the first reference, then waits on the completion for all other
@@ -53,7 +53,7 @@
  * Each channel has an open-coded implementation of Rusty Russell's "bigref,"
  * with a kref and a per_cpu local_t.  A dma_chan_get is called when a client
  * signals that it wants to use a channel, and dma_chan_put is called when
- * a channel is removed or a client using it is unregesitered.  A client can
+ * a channel is removed or a client using it is unregistered.  A client can
  * take extra references per outstanding transaction, as is the case with
  * the NET DMA client.  The release function does a kref_put on the device.
  *	-ChrisL, DanW

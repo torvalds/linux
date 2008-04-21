@@ -684,6 +684,11 @@ L:	linux-wireless@vger.kernel.org
 L:	ath5k-devel@lists.ath5k.org
 S:	Maintained
 
+ATI_REMOTE2 DRIVER
+P:	Ville Syrjala
+M:	syrjala@sci.fi
+S:	Maintained
+
 ATL1 ETHERNET DRIVER
 P:	Jay Cliburn
 M:	jcliburn@gmail.com
@@ -2947,7 +2952,7 @@ P:	Mark Fasheh
 M:	mfasheh@suse.com
 P:	Joel Becker
 M:	joel.becker@oracle.com
-L:	ocfs2-devel@oss.oracle.com
+L:	ocfs2-devel@oss.oracle.com (moderated for non-subscribers)
 W:	http://oss.oracle.com/projects/ocfs2/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfasheh/ocfs2.git
 S:	Supported

@@ -42,7 +42,7 @@ struct pxa3xx_mfp_pin {
 static struct pxa3xx_mfp_pin mfp_table[MFP_PIN_MAX];
 
 /* mapping of MFP_LPM_* definitions to MFPR_LPM_* register bits */
-const static unsigned long mfpr_lpm[] = {
+static const unsigned long mfpr_lpm[] = {
 	MFPR_LPM_INPUT,
 	MFPR_LPM_DRIVE_LOW,
 	MFPR_LPM_DRIVE_HIGH,
@@ -52,7 +52,7 @@ const static unsigned long mfpr_lpm[] = {
 };
 
 /* mapping of MFP_PULL_* definitions to MFPR_PULL_* register bits */
-const static unsigned long mfpr_pull[] = {
+static const unsigned long mfpr_pull[] = {
 	MFPR_PULL_NONE,
 	MFPR_PULL_LOW,
 	MFPR_PULL_HIGH,
@@ -60,7 +60,7 @@ const static unsigned long mfpr_pull[] = {
 };
 
 /* mapping of MFP_LPM_EDGE_* definitions to MFPR_EDGE_* register bits */
-const static unsigned long mfpr_edge[] = {
+static const unsigned long mfpr_edge[] = {
 	MFPR_EDGE_NONE,
 	MFPR_EDGE_RISE,
 	MFPR_EDGE_FALL,

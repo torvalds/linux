@@ -854,7 +854,7 @@ The change is shown below, in standard patch format: the
  };
 
 -static DEFINE_MUTEX(cache_lock);
-+static spinlock_t cache_lock = SPIN_LOCK_UNLOCKED;
++static DEFINE_SPINLOCK(cache_lock);
  static LIST_HEAD(cache);
  static unsigned int cache_num = 0;
  #define MAX_CACHE_SIZE 10
@@ -1238,7 +1238,7 @@ Here is the "lock-per-object" implementation:
 -        int popularity;
  };
 
- static spinlock_t cache_lock = SPIN_LOCK_UNLOCKED;
+ static DEFINE_SPINLOCK(cache_lock);
 @@ -77,6 +84,7 @@
          obj-&gt;id = id;
          obj-&gt;popularity = 0;

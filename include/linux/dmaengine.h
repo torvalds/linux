@@ -404,7 +404,7 @@ static inline enum dma_status dma_async_is_tx_complete(struct dma_chan *chan,
  * @last_used: last cookie value handed out
  *
  * dma_async_is_complete() is used in dma_async_memcpy_complete()
- * the test logic is seperated for lightweight testing of multiple cookies
+ * the test logic is separated for lightweight testing of multiple cookies
  */
 static inline enum dma_status dma_async_is_complete(dma_cookie_t cookie,
 			dma_cookie_t last_complete, dma_cookie_t last_used)

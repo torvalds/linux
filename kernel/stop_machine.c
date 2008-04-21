@@ -134,8 +134,7 @@ static void restart_machine(void)
 	preempt_enable_no_resched();
 }
 
-struct stop_machine_data
-{
+struct stop_machine_data {
 	int (*fn)(void *);
 	void *data;
 	struct completion done;

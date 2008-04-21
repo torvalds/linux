@@ -73,6 +73,7 @@ static void sample_probe_specific(void)
 
 	/* finish setting up the device */
 }
+
 static void sample_probe_async_cont(const struct firmware *fw, void *context)
 {
 	if (!fw) {
