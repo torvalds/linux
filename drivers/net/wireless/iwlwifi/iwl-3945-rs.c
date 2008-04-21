@@ -29,7 +29,6 @@
 #include <linux/skbuff.h>
 #include <linux/wireless.h>
 #include <net/mac80211.h>
-#include <net/ieee80211.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
