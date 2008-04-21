@@ -784,10 +784,10 @@ check_device:
 		goto fail;
 	}
 
-	tuner_info("Device is Xceive %d version %d.%d, "
-		   "firmware version %d.%d\n",
-		   hwmodel, (version & 0xf000) >> 12, (version & 0xf00) >> 8,
-		   (version & 0xf0) >> 4, version & 0xf);
+	tuner_dbg("Device is Xceive %d version %d.%d, "
+		  "firmware version %d.%d\n",
+		  hwmodel, (version & 0xf000) >> 12, (version & 0xf00) >> 8,
+		  (version & 0xf0) >> 4, version & 0xf);
 
 	/* Check firmware version against what we downloaded. */
 	if (priv->firm_version != ((version & 0xf0) << 4 | (version & 0x0f))) {
