@@ -34,7 +34,7 @@ static DEFINE_SPINLOCK(beatic_irq_mask_lock);
 static uint64_t	beatic_irq_mask_enable[(MAX_IRQS+255)/64];
 static uint64_t	beatic_irq_mask_ack[(MAX_IRQS+255)/64];
 
-static struct irq_host *beatic_host = NULL;
+static struct irq_host *beatic_host;
 
 /*
  * In this implementation, "virq" == "IRQ plug number",
@@ -49,13 +49,13 @@ static inline void beatic_update_irq_mask(unsigned int irq_plug)
 
 	off = (irq_plug / 256) * 4;
 	masks[0] = beatic_irq_mask_enable[off + 0]
-	           & beatic_irq_mask_ack[off + 0];
+		& beatic_irq_mask_ack[off + 0];
 	masks[1] = beatic_irq_mask_enable[off + 1]
-	           & beatic_irq_mask_ack[off + 1];
+		& beatic_irq_mask_ack[off + 1];
 	masks[2] = beatic_irq_mask_enable[off + 2]
-	           & beatic_irq_mask_ack[off + 2];
+		& beatic_irq_mask_ack[off + 2];
 	masks[3] = beatic_irq_mask_enable[off + 3]
-	           & beatic_irq_mask_ack[off + 3];
+		& beatic_irq_mask_ack[off + 3];
 	if (beat_set_interrupt_mask(irq_plug&~255UL,
 		masks[0], masks[1], masks[2], masks[3]) != 0)
 		panic("Failed to set mask IRQ!");
@@ -96,7 +96,8 @@ static void beatic_end_irq(unsigned int irq_plug)
 	s64 err;
 	unsigned long flags;
 
-	if ((err = beat_downcount_of_interrupt(irq_plug)) != 0) {
+	err = beat_downcount_of_interrupt(irq_plug);
+	if (err != 0) {
 		if ((err & 0xFFFFFFFF) != 0xFFFFFFF5) /* -11: wrong state */
 			panic("Failed to downcount IRQ! Error = %16lx", err);
 
@@ -138,7 +139,8 @@ static int beatic_pic_host_map(struct irq_host *h, unsigned int virq,
 	struct irq_desc *desc = get_irq_desc(virq);
 	int64_t	err;
 
-	if ((err = beat_construct_and_connect_irq_plug(virq, hw)) < 0)
+	err = beat_construct_and_connect_irq_plug(virq, hw);
+	if (err < 0)
 		return -EIO;
 
 	desc->status |= IRQ_LEVEL;
@@ -202,22 +204,22 @@ static inline unsigned int beatic_get_irq_plug(void)
 		beat_detect_pending_interrupts(i, pending);
 		__asm__ ("cntlzd %0,%1":"=r"(ub):
 			"r"(pending[0] & beatic_irq_mask_enable[i/64+0]
-			               & beatic_irq_mask_ack[i/64+0]));
+				       & beatic_irq_mask_ack[i/64+0]));
 		if (ub != 64)
 			return i + ub + 0;
 		__asm__ ("cntlzd %0,%1":"=r"(ub):
 			"r"(pending[1] & beatic_irq_mask_enable[i/64+1]
-			               & beatic_irq_mask_ack[i/64+1]));
+				       & beatic_irq_mask_ack[i/64+1]));
 		if (ub != 64)
 			return i + ub + 64;
 		__asm__ ("cntlzd %0,%1":"=r"(ub):
 			"r"(pending[2] & beatic_irq_mask_enable[i/64+2]
-			               & beatic_irq_mask_ack[i/64+2]));
+				       & beatic_irq_mask_ack[i/64+2]));
 		if (ub != 64)
 			return i + ub + 128;
 		__asm__ ("cntlzd %0,%1":"=r"(ub):
 			"r"(pending[3] & beatic_irq_mask_enable[i/64+3]
-			               & beatic_irq_mask_ack[i/64+3]));
+				       & beatic_irq_mask_ack[i/64+3]));
 		if (ub != 64)
 			return i + ub + 192;
 	}
@@ -250,7 +252,7 @@ void __init beatic_init_IRQ(void)
 
 	/* Allocate an irq host */
 	beatic_host = irq_alloc_host(NULL, IRQ_HOST_MAP_NOMAP, 0,
-					 &beatic_pic_host_ops,
+				     &beatic_pic_host_ops,
 					 0);
 	BUG_ON(beatic_host == NULL);
 	irq_set_default_host(beatic_host);

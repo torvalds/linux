@@ -254,7 +254,6 @@
 			};
 
 			EMAC0: ethernet@ef600e00 {
-				linux,network-index = <0>;
 				device_type = "network";
 				compatible = "ibm,emac-440grx", "ibm,emac-440epx", "ibm,emac4";
 				interrupt-parent = <&EMAC0>;
@@ -270,7 +269,7 @@
 				mal-tx-channel = <0>;
 				mal-rx-channel = <0>;
 				cell-index = <0>;
-				max-frame-size = <5dc>;
+				max-frame-size = <2328>;
 				rx-fifo-size = <1000>;
 				tx-fifo-size = <800>;
 				phy-mode = "rgmii";
@@ -284,7 +283,6 @@
 			};
 
 			EMAC1: ethernet@ef600f00 {
-				linux,network-index = <1>;
 				device_type = "network";
 				compatible = "ibm,emac-440grx", "ibm,emac-440epx", "ibm,emac4";
 				interrupt-parent = <&EMAC1>;
@@ -300,7 +298,7 @@
 				mal-tx-channel = <1>;
 				mal-rx-channel = <1>;
 				cell-index = <1>;
-				max-frame-size = <5dc>;
+				max-frame-size = <2328>;
 				rx-fifo-size = <1000>;
 				tx-fifo-size = <800>;
 				phy-mode = "rgmii";

@@ -29,8 +29,6 @@
 
 #ifdef __KERNEL__
 
-#include <asm/of_device.h>
-
 #define PMI_TYPE_FREQ_CHANGE	0x01
 #define PMI_READ_TYPE		0
 #define PMI_READ_DATA0		1

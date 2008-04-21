@@ -35,7 +35,7 @@ static inline cpumask_t cpu_thread_mask_to_cores(cpumask_t threads)
 
 	res = CPU_MASK_NONE;
 	for (i = 0; i < NR_CPUS; i += threads_per_core) {
-		cpus_shift_right(tmp, threads_core_mask, i);
+		cpus_shift_left(tmp, threads_core_mask, i);
 		if (cpus_intersects(threads, tmp))
 			cpu_set(i, res);
 	}

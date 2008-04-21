@@ -28,13 +28,13 @@
 #include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/lmb.h>
 
 #include <asm/prom.h>
 #include <asm/iommu.h>
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <asm/udbg.h>
-#include <asm/lmb.h>
 #include <asm/firmware.h>
 #include <asm/cell-regs.h>
 
@@ -316,7 +316,7 @@ static void cell_iommu_setup_stab(struct cbe_iommu *iommu,
 	segments = max(dbase + dsize, fbase + fsize) >> IO_SEGMENT_SHIFT;
 
 	pr_debug("%s: iommu[%d]: segments: %lu\n",
-			__FUNCTION__, iommu->nid, segments);
+			__func__, iommu->nid, segments);
 
 	/* set up the segment table */
 	stab_size = segments * sizeof(unsigned long);
@@ -343,7 +343,7 @@ static unsigned long *cell_iommu_alloc_ptab(struct cbe_iommu *iommu,
 				(1 << 12) / sizeof(unsigned long));
 
 	ptab_size = segments * pages_per_segment * sizeof(unsigned long);
-	pr_debug("%s: iommu[%d]: ptab_size: %lu, order: %d\n", __FUNCTION__,
+	pr_debug("%s: iommu[%d]: ptab_size: %lu, order: %d\n", __func__,
 			iommu->nid, ptab_size, get_order(ptab_size));
 	page = alloc_pages_node(iommu->nid, GFP_KERNEL, get_order(ptab_size));
 	BUG_ON(!page);
@@ -355,7 +355,7 @@ static unsigned long *cell_iommu_alloc_ptab(struct cbe_iommu *iommu,
 	n_pte_pages = (pages_per_segment * sizeof(unsigned long)) >> 12;
 
 	pr_debug("%s: iommu[%d]: stab at %p, ptab at %p, n_pte_pages: %lu\n",
-			__FUNCTION__, iommu->nid, iommu->stab, ptab,
+			__func__, iommu->nid, iommu->stab, ptab,
 			n_pte_pages);
 
 	/* initialise the STEs */
@@ -394,7 +394,7 @@ static void cell_iommu_enable_hardware(struct cbe_iommu *iommu)
 
 	if (cell_iommu_find_ioc(iommu->nid, &xlate_base))
 		panic("%s: missing IOC register mappings for node %d\n",
-		      __FUNCTION__, iommu->nid);
+		      __func__, iommu->nid);
 
 	iommu->xlate_regs = ioremap(xlate_base, IOC_Reg_Size);
 	iommu->cmd_regs = iommu->xlate_regs + IOC_IOCmd_Offset;

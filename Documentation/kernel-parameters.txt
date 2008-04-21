@@ -954,6 +954,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	l2cr=		[PPC]
 
+	l3cr=		[PPC]
+
 	lapic		[X86-32,APIC] Enable the local APIC even if BIOS
 			disabled it.
 

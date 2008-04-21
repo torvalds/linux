@@ -110,9 +110,9 @@ transfer_to_handler:
 	stw	r11,PT_REGS(r12)
 #if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
 	/* Check to see if the dbcr0 register is set up to debug.  Use the
-	   single-step bit to do this. */
+	   internal debug mode bit to do this. */
 	lwz	r12,THREAD_DBCR0(r12)
-	andis.	r12,r12,DBCR0_IC@h
+	andis.	r12,r12,DBCR0_IDM@h
 	beq+	3f
 	/* From user and task is ptraced - load up global dbcr0 */
 	li	r12,-1			/* clear all pending debug events */
@@ -120,6 +120,12 @@ transfer_to_handler:
 	lis	r11,global_dbcr0@ha
 	tophys(r11,r11)
 	addi	r11,r11,global_dbcr0@l
+#ifdef CONFIG_SMP
+	rlwinm	r9,r1,0,0,(31-THREAD_SHIFT)
+	lwz	r9,TI_CPU(r9)
+	slwi	r9,r9,3
+	add	r11,r11,r9
+#endif
 	lwz	r12,0(r11)
 	mtspr	SPRN_DBCR0,r12
 	lwz	r12,4(r11)
@@ -238,10 +244,10 @@ ret_from_syscall:
 	stw	r11,_CCR(r1)
 syscall_exit_cont:
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
-	/* If the process has its own DBCR0 value, load it up.  The single
-	   step bit tells us that dbcr0 should be loaded. */
+	/* If the process has its own DBCR0 value, load it up.  The internal
+	   debug mode bit tells us that dbcr0 should be loaded. */
 	lwz	r0,THREAD+THREAD_DBCR0(r2)
-	andis.	r10,r0,DBCR0_IC@h
+	andis.	r10,r0,DBCR0_IDM@h
 	bnel-	load_dbcr0
 #endif
 #ifdef CONFIG_44x
@@ -666,10 +672,10 @@ user_exc_return:		/* r10 contains MSR_KERNEL here */
 
 restore_user:
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
-	/* Check whether this process has its own DBCR0 value.  The single
-	   step bit tells us that dbcr0 should be loaded. */
+	/* Check whether this process has its own DBCR0 value.  The internal
+	   debug mode bit tells us that dbcr0 should be loaded. */
 	lwz	r0,THREAD+THREAD_DBCR0(r2)
-	andis.	r10,r0,DBCR0_IC@h
+	andis.	r10,r0,DBCR0_IDM@h
 	bnel-	load_dbcr0
 #endif
 
@@ -879,6 +885,12 @@ load_dbcr0:
 	mfspr	r10,SPRN_DBCR0
 	lis	r11,global_dbcr0@ha
 	addi	r11,r11,global_dbcr0@l
+#ifdef CONFIG_SMP
+	rlwinm	r9,r1,0,0,(31-THREAD_SHIFT)
+	lwz	r9,TI_CPU(r9)
+	slwi	r9,r9,3
+	add	r11,r11,r9
+#endif
 	stw	r10,0(r11)
 	mtspr	SPRN_DBCR0,r0
 	lwz	r10,4(r11)
@@ -891,7 +903,7 @@ load_dbcr0:
 	.section .bss
 	.align	4
 global_dbcr0:
-	.space	8
+	.space	8*NR_CPUS
 	.previous
 #endif /* !(CONFIG_4xx || CONFIG_BOOKE) */
 

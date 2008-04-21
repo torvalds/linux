@@ -135,4 +135,6 @@ struct ucontext32 {
 	struct mcontext32	uc_mcontext;
 };
 
+extern int copy_siginfo_to_user32(struct compat_siginfo __user *d, siginfo_t *s);
+
 #endif  /* _PPC64_PPC32_H */

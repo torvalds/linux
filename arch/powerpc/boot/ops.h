@@ -95,6 +95,7 @@ int dt_xlate_reg(void *node, int res, unsigned long *addr, unsigned long *size);
 int dt_xlate_addr(void *node, u32 *buf, int buflen, unsigned long *xlated_addr);
 int dt_is_compatible(void *node, const char *compat);
 void dt_get_reg_format(void *node, u32 *naddr, u32 *nsize);
+int dt_get_virtual_reg(void *node, void **addr, int nres);
 
 static inline void *finddevice(const char *name)
 {

@@ -78,8 +78,8 @@ static int hvc_beat_put_chars(uint32_t vtermno, const char *buf, int cnt)
 	for (rest = cnt; rest > 0; rest -= nlen) {
 		nlen = (rest > 16) ? 16 : rest;
 		memcpy(kb, buf, nlen);
-		beat_put_term_char(vtermno, rest, kb[0], kb[1]);
-		rest -= nlen;
+		beat_put_term_char(vtermno, nlen, kb[0], kb[1]);
+		buf += nlen;
 	}
 	return cnt;
 }

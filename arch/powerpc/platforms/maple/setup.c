@@ -43,6 +43,7 @@
 #include <linux/smp.h>
 #include <linux/bitops.h>
 #include <linux/of_device.h>
+#include <linux/lmb.h>
 
 #include <asm/processor.h>
 #include <asm/sections.h>
@@ -57,7 +58,6 @@
 #include <asm/dma.h>
 #include <asm/cputable.h>
 #include <asm/time.h>
-#include <asm/lmb.h>
 #include <asm/mpic.h>
 #include <asm/rtas.h>
 #include <asm/udbg.h>
@@ -319,7 +319,7 @@ static int __init maple_probe(void)
 	return 1;
 }
 
-define_machine(maple_md) {
+define_machine(maple) {
 	.name			= "Maple",
 	.probe			= maple_probe,
 	.setup_arch		= maple_setup_arch,

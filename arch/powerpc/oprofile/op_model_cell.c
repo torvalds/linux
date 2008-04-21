@@ -216,7 +216,7 @@ static void pm_rtas_reset_signals(u32 node)
 		 * failure to stop OProfile.
 		 */
 		printk(KERN_WARNING "%s: rtas returned: %d\n",
-		       __FUNCTION__, ret);
+		       __func__, ret);
 }
 
 static int pm_rtas_activate_signals(u32 node, u32 count)
@@ -255,7 +255,7 @@ static int pm_rtas_activate_signals(u32 node, u32 count)
 
 		if (unlikely(ret)) {
 			printk(KERN_WARNING "%s: rtas returned: %d\n",
-			       __FUNCTION__, ret);
+			       __func__, ret);
 			return -EIO;
 		}
 	}
@@ -560,7 +560,7 @@ static int cell_reg_setup(struct op_counter_config *ctr,
 		if (unlikely(spu_rtas_token == RTAS_UNKNOWN_SERVICE)) {
 			printk(KERN_ERR
 			       "%s: rtas token ibm,cbe-spu-perftools unknown\n",
-			       __FUNCTION__);
+			       __func__);
 			return -EIO;
 		}
 	}
@@ -576,7 +576,7 @@ static int cell_reg_setup(struct op_counter_config *ctr,
 	if (unlikely(pm_rtas_token == RTAS_UNKNOWN_SERVICE)) {
 		printk(KERN_ERR
 		       "%s: rtas token ibm,cbe-perftools unknown\n",
-		       __FUNCTION__);
+		       __func__);
 		return -EIO;
 	}
 
@@ -853,7 +853,7 @@ static int pm_rtas_activate_spu_profiling(u32 node)
 
 	if (unlikely(ret)) {
 		printk(KERN_WARNING "%s: rtas returned: %d\n",
-		       __FUNCTION__, ret);
+		       __func__, ret);
 		return -EIO;
 	}
 
@@ -949,7 +949,7 @@ static int cell_global_start_spu(struct op_counter_config *ctr)
 		if (unlikely(ret != 0)) {
 			printk(KERN_ERR
 			       "%s: rtas call ibm,cbe-spu-perftools failed, return = %d\n",
-			       __FUNCTION__, ret);
+			       __func__, ret);
 			rtas_error = -EIO;
 			goto out;
 		}
@@ -1061,7 +1061,7 @@ static void cell_global_stop_spu(void)
 		if (unlikely(rtn_value != 0)) {
 			printk(KERN_ERR
 			       "%s: rtas call ibm,cbe-spu-perftools failed, return = %d\n",
-			       __FUNCTION__, rtn_value);
+			       __func__, rtn_value);
 		}
 
 		/* Deactivate the signals */

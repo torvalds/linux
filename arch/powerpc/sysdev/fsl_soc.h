@@ -7,6 +7,7 @@
 extern phys_addr_t get_immrbase(void);
 extern u32 get_brgfreq(void);
 extern u32 get_baudrate(void);
+extern u32 fsl_get_sys_freq(void);
 
 struct spi_board_info;
 

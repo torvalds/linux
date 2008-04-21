@@ -1,7 +1,7 @@
 /*
  * Kilauea board specific routines
  *
- * Copyright 2007 DENX Software Engineering, Stefan Roese <sr@denx.de>
+ * Copyright 2007-2008 DENX Software Engineering, Stefan Roese <sr@denx.de>
  *
  * Based on the Walnut code by
  * Josh Boyer <jwboyer@linux.vnet.ibm.com>
@@ -20,6 +20,7 @@
 #include <asm/time.h>
 #include <asm/uic.h>
 #include <asm/pci-bridge.h>
+#include <asm/ppc4xx.h>
 
 static __initdata struct of_device_id kilauea_of_bus[] = {
 	{ .compatible = "ibm,plb4", },
@@ -54,5 +55,6 @@ define_machine(kilauea) {
 	.progress 			= udbg_progress,
 	.init_IRQ 			= uic_init_tree,
 	.get_irq 			= uic_get_irq,
+	.restart			= ppc4xx_reset_system,
 	.calibrate_decr			= generic_calibrate_decr,
 };

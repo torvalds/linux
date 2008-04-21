@@ -36,7 +36,7 @@
  *****************************************************************************/
 
 /*
- * This is the code behind /dev/xilinx_icap -- it allows a user-space
+ * This is the code behind /dev/icap* -- it allows a user-space
  * application to use the Xilinx ICAP subsystem.
  *
  * The following operations are possible:
@@ -67,7 +67,7 @@
  * user-space application code that uses this device.  The simplest
  * way to use this interface is simply:
  *
- * cp foo.bit /dev/xilinx_icap
+ * cp foo.bit /dev/icap0
  *
  * Note that unless foo.bit is an appropriately constructed partial
  * bitstream, this has a high likelyhood of overwriting the design
@@ -105,17 +105,13 @@
 #include "buffer_icap.h"
 #include "fifo_icap.h"
 
-#define DRIVER_NAME "xilinx_icap"
+#define DRIVER_NAME "icap"
 
 #define HWICAP_REGS   (0x10000)
 
-/* dynamically allocate device number */
-static int xhwicap_major;
-static int xhwicap_minor;
+#define XHWICAP_MAJOR 259
+#define XHWICAP_MINOR 0
 #define HWICAP_DEVICES 1
-
-module_param(xhwicap_major, int, S_IRUGO);
-module_param(xhwicap_minor, int, S_IRUGO);
 
 /* An array, which is set to true when the device is registered. */
 static bool probed_devices[HWICAP_DEVICES];
@@ -250,8 +246,26 @@ static int hwicap_get_configuration_register(struct hwicap_drvdata *drvdata,
 	 * Create the data to be written to the ICAP.
 	 */
 	buffer[index++] = XHI_DUMMY_PACKET;
+	buffer[index++] = XHI_NOOP_PACKET;
 	buffer[index++] = XHI_SYNC_PACKET;
 	buffer[index++] = XHI_NOOP_PACKET;
+	buffer[index++] = XHI_NOOP_PACKET;
+
+	/*
+	 * Write the data to the FIFO and initiate the transfer of data present
+	 * in the FIFO to the ICAP device.
+	 */
+	status = drvdata->config->set_configuration(drvdata,
+						    &buffer[0], index);
+	if (status)
+		return status;
+
+	/* If the syncword was not found, then we need to start over. */
+	status = drvdata->config->get_status(drvdata);
+	if ((status & XHI_SR_DALIGN_MASK) != XHI_SR_DALIGN_MASK)
+		return -EIO;
+
+	index = 0;
 	buffer[index++] = hwicap_type_1_read(reg) | 1;
 	buffer[index++] = XHI_NOOP_PACKET;
 	buffer[index++] = XHI_NOOP_PACKET;
@@ -587,7 +601,7 @@ static int __devinit hwicap_setup(struct device *dev, int id,
 	probed_devices[id] = 1;
 	mutex_unlock(&icap_sem);
 
-	devt = MKDEV(xhwicap_major, xhwicap_minor + id);
+	devt = MKDEV(XHWICAP_MAJOR, XHWICAP_MINOR + id);
 
 	drvdata = kzalloc(sizeof(struct hwicap_drvdata), GFP_KERNEL);
 	if (!drvdata) {
@@ -664,12 +678,14 @@ static int __devinit hwicap_setup(struct device *dev, int id,
 static struct hwicap_driver_config buffer_icap_config = {
 	.get_configuration = buffer_icap_get_configuration,
 	.set_configuration = buffer_icap_set_configuration,
+	.get_status = buffer_icap_get_status,
 	.reset = buffer_icap_reset,
 };
 
 static struct hwicap_driver_config fifo_icap_config = {
 	.get_configuration = fifo_icap_get_configuration,
 	.set_configuration = fifo_icap_set_configuration,
+	.get_status = fifo_icap_get_status,
 	.reset = fifo_icap_reset,
 };
 
@@ -690,7 +706,7 @@ static int __devexit hwicap_remove(struct device *dev)
 	dev_set_drvdata(dev, NULL);
 
 	mutex_lock(&icap_sem);
-	probed_devices[MINOR(dev->devt)-xhwicap_minor] = 0;
+	probed_devices[MINOR(dev->devt)-XHWICAP_MINOR] = 0;
 	mutex_unlock(&icap_sem);
 	return 0;		/* success */
 }
@@ -830,23 +846,12 @@ static int __init hwicap_module_init(void)
 	icap_class = class_create(THIS_MODULE, "xilinx_config");
 	mutex_init(&icap_sem);
 
-	if (xhwicap_major) {
-		devt = MKDEV(xhwicap_major, xhwicap_minor);
-		retval = register_chrdev_region(
-				devt,
-				HWICAP_DEVICES,
-				DRIVER_NAME);
-		if (retval < 0)
-			return retval;
-	} else {
-		retval = alloc_chrdev_region(&devt,
-				xhwicap_minor,
-				HWICAP_DEVICES,
-				DRIVER_NAME);
-		if (retval < 0)
-			return retval;
-		xhwicap_major = MAJOR(devt);
-	}
+	devt = MKDEV(XHWICAP_MAJOR, XHWICAP_MINOR);
+	retval = register_chrdev_region(devt,
+					HWICAP_DEVICES,
+					DRIVER_NAME);
+	if (retval < 0)
+		return retval;
 
 	retval = platform_driver_register(&hwicap_platform_driver);
 
@@ -871,7 +876,7 @@ static int __init hwicap_module_init(void)
 
 static void __exit hwicap_module_cleanup(void)
 {
-	dev_t devt = MKDEV(xhwicap_major, xhwicap_minor);
+	dev_t devt = MKDEV(XHWICAP_MAJOR, XHWICAP_MINOR);
 
 	class_destroy(icap_class);
 

@@ -14,7 +14,7 @@ fmul(void *frD, void *frA, void *frB)
 	int ret = 0;
 
 #ifdef DEBUG
-	printk("%s: %p %p %p\n", __FUNCTION__, frD, frA, frB);
+	printk("%s: %p %p %p\n", __func__, frD, frA, frB);
 #endif
 
 	__FP_UNPACK_D(A, frA);

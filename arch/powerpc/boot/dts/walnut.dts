@@ -125,7 +125,6 @@
 			};
 
 			EMAC: ethernet@ef600800 {
-				linux,network-index = <0>;
 				device_type = "network";
 				compatible = "ibm,emac-405gp", "ibm,emac";
 				interrupt-parent = <&UIC0>;

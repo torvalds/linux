@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 PA Semi, Inc
+ * Copyright (C) 2006-2008 PA Semi, Inc
  *
  * Hardware register layout and descriptor formats for the on-board
  * DMA engine on PA Semi PWRficient. Used by ethernet, function and security
@@ -40,6 +40,11 @@ enum {
 	PAS_DMA_COM_TXSTA = 0x104,	/* Transmit Status Register   */
 	PAS_DMA_COM_RXCMD = 0x108,	/* Receive Command Register   */
 	PAS_DMA_COM_RXSTA = 0x10c,	/* Receive Status Register    */
+	PAS_DMA_COM_CFG   = 0x114,	/* Common config reg	      */
+	PAS_DMA_TXF_SFLG0 = 0x140,	/* Set flags                  */
+	PAS_DMA_TXF_SFLG1 = 0x144,	/* Set flags                  */
+	PAS_DMA_TXF_CFLG0 = 0x148,	/* Set flags                  */
+	PAS_DMA_TXF_CFLG1 = 0x14c,	/* Set flags                  */
 };
 
 
@@ -123,11 +128,16 @@ enum {
 #define    PAS_DMA_TXCHAN_TCMDSTA_DA	0x00000100
 #define PAS_DMA_TXCHAN_CFG(c)     (0x304+(c)*_PAS_DMA_TXCHAN_STRIDE)
 #define    PAS_DMA_TXCHAN_CFG_TY_IFACE	0x00000000	/* Type = interface */
+#define    PAS_DMA_TXCHAN_CFG_TY_COPY	0x00000001	/* Type = copy only */
+#define    PAS_DMA_TXCHAN_CFG_TY_FUNC	0x00000002	/* Type = function */
+#define    PAS_DMA_TXCHAN_CFG_TY_XOR	0x00000003	/* Type = xor only */
 #define    PAS_DMA_TXCHAN_CFG_TATTR_M	0x0000003c
 #define    PAS_DMA_TXCHAN_CFG_TATTR_S	2
 #define    PAS_DMA_TXCHAN_CFG_TATTR(x)	(((x) << PAS_DMA_TXCHAN_CFG_TATTR_S) & \
 					 PAS_DMA_TXCHAN_CFG_TATTR_M)
-#define    PAS_DMA_TXCHAN_CFG_WT_M	0x000001c0
+#define    PAS_DMA_TXCHAN_CFG_LPDQ	0x00000800
+#define    PAS_DMA_TXCHAN_CFG_LPSQ	0x00000400
+#define    PAS_DMA_TXCHAN_CFG_WT_M	0x000003c0
 #define    PAS_DMA_TXCHAN_CFG_WT_S	6
 #define    PAS_DMA_TXCHAN_CFG_WT(x)	(((x) << PAS_DMA_TXCHAN_CFG_WT_S) & \
 					 PAS_DMA_TXCHAN_CFG_WT_M)
@@ -394,11 +404,62 @@ enum {
 				 XCT_COPY_LLEN_M)
 #define XCT_COPY_SE		0x0000000000000001ull
 
+/* Function descriptor fields */
+#define XCT_FUN_T		0x8000000000000000ull
+#define XCT_FUN_ST		0x4000000000000000ull
+#define XCT_FUN_RR_M		0x3000000000000000ull
+#define XCT_FUN_RR_NORES	0x0000000000000000ull
+#define XCT_FUN_RR_8BRES	0x1000000000000000ull
+#define XCT_FUN_RR_24BRES	0x2000000000000000ull
+#define XCT_FUN_RR_40BRES	0x3000000000000000ull
+#define XCT_FUN_I		0x0800000000000000ull
+#define XCT_FUN_O		0x0400000000000000ull
+#define XCT_FUN_E		0x0200000000000000ull
+#define XCT_FUN_FUN_M		0x01c0000000000000ull
+#define XCT_FUN_FUN_S		54
+#define XCT_FUN_FUN(x)		((((long)(x)) << XCT_FUN_FUN_S) & XCT_FUN_FUN_M)
+#define XCT_FUN_CRM_M		0x0038000000000000ull
+#define XCT_FUN_CRM_NOP		0x0000000000000000ull
+#define XCT_FUN_CRM_SIG		0x0008000000000000ull
+#define XCT_FUN_LLEN_M		0x0007ffff00000000ull
+#define XCT_FUN_LLEN_S		32
+#define XCT_FUN_LLEN(x)		((((long)(x)) << XCT_FUN_LLEN_S) & XCT_FUN_LLEN_M)
+#define XCT_FUN_SHL_M		0x00000000f8000000ull
+#define XCT_FUN_SHL_S		27
+#define XCT_FUN_SHL(x)		((((long)(x)) << XCT_FUN_SHL_S) & XCT_FUN_SHL_M)
+#define XCT_FUN_CHL_M		0x0000000007c00000ull
+#define XCT_FUN_HSZ_M		0x00000000003c0000ull
+#define XCT_FUN_ALG_M		0x0000000000038000ull
+#define XCT_FUN_HP		0x0000000000004000ull
+#define XCT_FUN_BCM_M		0x0000000000003800ull
+#define XCT_FUN_BCP_M		0x0000000000000600ull
+#define XCT_FUN_SIG_M		0x00000000000001f0ull
+#define XCT_FUN_SIG_TCP4	0x0000000000000140ull
+#define XCT_FUN_SIG_TCP6	0x0000000000000150ull
+#define XCT_FUN_SIG_UDP4	0x0000000000000160ull
+#define XCT_FUN_SIG_UDP6	0x0000000000000170ull
+#define XCT_FUN_A		0x0000000000000008ull
+#define XCT_FUN_C		0x0000000000000004ull
+#define XCT_FUN_AL2		0x0000000000000002ull
+#define XCT_FUN_SE		0x0000000000000001ull
+
+/* Function descriptor 8byte result fields */
+#define XCT_FUNRES_8B_CS_M	0x0000ffff00000000ull
+#define XCT_FUNRES_8B_CS_S	32
+#define XCT_FUNRES_8B_CRC_M	0x00000000ffffffffull
+#define XCT_FUNRES_8B_CRC_S	0
+
 /* Control descriptor fields */
 #define CTRL_CMD_T		0x8000000000000000ull
 #define CTRL_CMD_META_EVT	0x2000000000000000ull
 #define CTRL_CMD_O		0x0400000000000000ull
-#define CTRL_CMD_REG_M		0x000000000000000full
+#define CTRL_CMD_ETYPE_M	0x0038000000000000ull
+#define CTRL_CMD_ETYPE_EXT	0x0000000000000000ull
+#define CTRL_CMD_ETYPE_WSET	0x0020000000000000ull
+#define CTRL_CMD_ETYPE_WCLR	0x0028000000000000ull
+#define CTRL_CMD_ETYPE_SET	0x0030000000000000ull
+#define CTRL_CMD_ETYPE_CLR	0x0038000000000000ull
+#define CTRL_CMD_REG_M		0x000000000000007full
 #define CTRL_CMD_REG_S		0
 #define CTRL_CMD_REG(x)		((((long)(x)) << CTRL_CMD_REG_S) & \
 				 CTRL_CMD_REG_M)
@@ -460,6 +521,16 @@ extern void *pasemi_dma_alloc_buf(struct pasemi_dmachan *chan, int size,
 				  dma_addr_t *handle);
 extern void pasemi_dma_free_buf(struct pasemi_dmachan *chan, int size,
 				dma_addr_t *handle);
+
+/* Routines to allocate flags (events) for channel syncronization */
+extern int  pasemi_dma_alloc_flag(void);
+extern void pasemi_dma_free_flag(int flag);
+extern void pasemi_dma_set_flag(int flag);
+extern void pasemi_dma_clear_flag(int flag);
+
+/* Routines to allocate function engines */
+extern int  pasemi_dma_alloc_fun(void);
+extern void pasemi_dma_free_fun(int fun);
 
 /* Initialize the library, must be called before any other functions */
 extern int pasemi_dma_init(void);

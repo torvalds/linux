@@ -3853,7 +3853,13 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 
 	ugeth_vdbg("%s: IN", __FUNCTION__);
 
-	prop = of_get_property(np, "device-id", NULL);
+	prop = of_get_property(np, "cell-index", NULL);
+	if (!prop) {
+		prop = of_get_property(np, "device-id", NULL);
+		if (!prop)
+			return -ENODEV;
+	}
+
 	ucc_num = *prop - 1;
 	if ((ucc_num < 0) || (ucc_num > 7))
 		return -ENODEV;

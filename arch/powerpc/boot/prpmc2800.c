@@ -344,20 +344,20 @@ static void prpmc2800_bridge_setup(u32 mem_size)
 			acc_bits);
 
 	/* Get the cpu -> pci i/o & mem mappings from the device tree */
-	devp = finddevice("/mv64x60/pci@80000000");
+	devp = find_node_by_compatible(NULL, "marvell,mv64360-pci");
 	if (devp == NULL)
-		fatal("Error: Missing /mv64x60/pci@80000000"
+		fatal("Error: Missing marvell,mv64360-pci"
 				" device tree node\n\r");
 
 	rc = getprop(devp, "ranges", v, sizeof(v));
 	if (rc != sizeof(v))
-		fatal("Error: Can't find /mv64x60/pci@80000000/ranges"
+		fatal("Error: Can't find marvell,mv64360-pci ranges"
 				" property\n\r");
 
 	/* Get the cpu -> pci i/o & mem mappings from the device tree */
-	devp = finddevice("/mv64x60");
+	devp = find_node_by_compatible(NULL, "marvell,mv64360");
 	if (devp == NULL)
-		fatal("Error: Missing /mv64x60 device tree node\n\r");
+		fatal("Error: Missing marvell,mv64360 device tree node\n\r");
 
 	enables = in_le32((u32 *)(bridge_base + MV64x60_CPU_BAR_ENABLE));
 	enables |= 0x0007fe00; /* Disable all cpu->pci windows */
@@ -429,9 +429,9 @@ static void prpmc2800_fixups(void)
 	setprop(devp, "model", model, l);
 
 	/* Set /cpus/PowerPC,7447/clock-frequency */
-	devp = finddevice("/cpus/PowerPC,7447");
+	devp = find_node_by_prop_value_str(NULL, "device_type", "cpu");
 	if (devp == NULL)
-		fatal("Error: Missing proper /cpus device tree node\n\r");
+		fatal("Error: Missing proper cpu device tree node\n\r");
 	v[0] = bip->core_speed;
 	setprop(devp, "clock-frequency", &v[0], sizeof(v[0]));
 
@@ -443,16 +443,17 @@ static void prpmc2800_fixups(void)
 	v[1] = bip->mem_size;
 	setprop(devp, "reg", v, sizeof(v));
 
-	/* Update /mv64x60/model, if this is a mv64362 */
+	/* Update model, if this is a mv64362 */
 	if (bip->bridge_type == BRIDGE_TYPE_MV64362) {
-		devp = finddevice("/mv64x60");
+		devp = find_node_by_compatible(NULL, "marvell,mv64360");
 		if (devp == NULL)
-			fatal("Error: Missing /mv64x60 device tree node\n\r");
+			fatal("Error: Missing marvell,mv64360"
+					" device tree node\n\r");
 		setprop(devp, "model", "mv64362", strlen("mv64362") + 1);
 	}
 
 	/* Set User FLASH size */
-	devp = finddevice("/mv64x60/flash@a0000000");
+	devp = find_node_by_compatible(NULL, "direct-mapped");
 	if (devp == NULL)
 		fatal("Error: Missing User FLASH device tree node\n\r");
 	rc = getprop(devp, "reg", v, sizeof(v));

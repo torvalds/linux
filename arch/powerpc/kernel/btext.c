@@ -7,6 +7,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/lmb.h>
 
 #include <asm/sections.h>
 #include <asm/prom.h>
@@ -15,7 +16,7 @@
 #include <asm/mmu.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
-#include <asm/lmb.h>
+#include <asm/prom.h>
 #include <asm/processor.h>
 #include <asm/udbg.h>
 

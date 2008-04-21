@@ -68,6 +68,8 @@ obj-$(CONFIG_FAULT_INJECTION) += fault-inject.o
 
 lib-$(CONFIG_GENERIC_BUG) += bug.o
 
+obj-$(CONFIG_HAVE_LMB) += lmb.o
+
 hostprogs-y	:= gen_crc32table
 clean-files	:= crc32table.h
 

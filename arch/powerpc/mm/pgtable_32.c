@@ -281,12 +281,13 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
  */
 void __init mapin_ram(void)
 {
-	unsigned long v, p, s, f;
+	unsigned long v, s, f;
+	phys_addr_t p;
 	int ktext;
 
 	s = mmu_mapin_ram();
 	v = KERNELBASE + s;
-	p = PPC_MEMSTART + s;
+	p = memstart_addr + s;
 	for (; s < total_lowmem; s += PAGE_SIZE) {
 		ktext = ((char *) v >= _stext && (char *) v < etext);
 		f = ktext ?_PAGE_RAM_TEXT : _PAGE_RAM;

@@ -520,7 +520,7 @@ fec_enet_interrupt(int irq, void * dev_id)
 #ifdef	CONFIG_USE_MDIO
 			fec_enet_mii(dev);
 #else
-printk("%s[%d] %s: unexpected FEC_ENET_MII event\n", __FILE__,__LINE__,__FUNCTION__);
+printk("%s[%d] %s: unexpected FEC_ENET_MII event\n", __FILE__, __LINE__, __func__);
 #endif	/* CONFIG_USE_MDIO */
 		}
 
@@ -1441,7 +1441,7 @@ irqreturn_t mii_link_interrupt(int irq, void * dev_id)
 		fecp->fec_ecntrl = ecntrl;	/* restore old settings */
 	}
 #else
-printk("%s[%d] %s: unexpected Link interrupt\n", __FILE__,__LINE__,__FUNCTION__);
+printk("%s[%d] %s: unexpected Link interrupt\n", __FILE__, __LINE__, __func__);
 #endif	/* CONFIG_USE_MDIO */
 
 #ifndef CONFIG_RPXCLASSIC

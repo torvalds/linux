@@ -279,7 +279,7 @@ int mpc52xx_match_psc_function(int psc_idx, const char *func)
 
 int mpc52xx_set_psc_clkdiv(int psc_id, int clkdiv)
 {
-	static spinlock_t lock = SPIN_LOCK_UNLOCKED;
+	static DEFINE_SPINLOCK(lock);
 	struct mpc52xx_cdm __iomem *cdm;
 	unsigned long flags;
 	u16 mclken_div;

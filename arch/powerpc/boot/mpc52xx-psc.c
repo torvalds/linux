@@ -51,14 +51,9 @@ static unsigned char psc_getc(void)
 
 int mpc5200_psc_console_init(void *devp, struct serial_console_data *scdp)
 {
-	int n;
-
 	/* Get the base address of the psc registers */
-	n = getprop(devp, "virtual-reg", &psc, sizeof(psc));
-	if (n != sizeof(psc)) {
-		if (!dt_xlate_reg(devp, 0, (void *)&psc, NULL))
-			return -1;
-	}
+	if (dt_get_virtual_reg(devp, &psc, 1) < 1)
+		return -1;
 
 	scdp->open = psc_open;
 	scdp->putc = psc_putc;

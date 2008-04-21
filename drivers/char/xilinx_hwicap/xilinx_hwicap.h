@@ -65,10 +65,27 @@ struct hwicap_drvdata {
 };
 
 struct hwicap_driver_config {
+	/* Read configuration data given by size into the data buffer.
+	   Return 0 if successful. */
 	int (*get_configuration)(struct hwicap_drvdata *drvdata, u32 *data,
 			u32 size);
+	/* Write configuration data given by size from the data buffer.
+	   Return 0 if successful. */
 	int (*set_configuration)(struct hwicap_drvdata *drvdata, u32 *data,
 			u32 size);
+	/* Get the status register, bit pattern given by:
+	 * D8 - 0 = configuration error
+	 * D7 - 1 = alignment found
+	 * D6 - 1 = readback in progress
+	 * D5 - 0 = abort in progress
+	 * D4 - Always 1
+	 * D3 - Always 1
+	 * D2 - Always 1
+	 * D1 - Always 1
+	 * D0 - 1 = operation completed
+	 */
+	u32 (*get_status)(struct hwicap_drvdata *drvdata);
+	/* Reset the hw */
 	void (*reset)(struct hwicap_drvdata *drvdata);
 };
 
@@ -162,6 +179,13 @@ struct config_registers {
 
 /* Constant to use for CRC check when CRC has been disabled */
 #define XHI_DISABLED_AUTO_CRC       0x0000DEFCUL
+
+/* Meanings of the bits returned by get_status */
+#define XHI_SR_CFGERR_N_MASK 0x00000100 /* Config Error Mask */
+#define XHI_SR_DALIGN_MASK 0x00000080 /* Data Alignment Mask */
+#define XHI_SR_RIP_MASK 0x00000040 /* Read back Mask */
+#define XHI_SR_IN_ABORT_N_MASK 0x00000020 /* Select Map Abort Mask */
+#define XHI_SR_DONE_MASK 0x00000001 /* Done bit Mask  */
 
 /**
  * hwicap_type_1_read - Generates a Type 1 read packet header.

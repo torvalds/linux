@@ -161,9 +161,9 @@ static PCI_IO_ADDR celleb_epci_make_config_addr(
 	if (bus != hose->bus)
 		addr = celleb_epci_get_epci_cfg(hose) +
 		       (((bus->number & 0xff) << 16)
-		        | ((devfn & 0xff) << 8)
-		        | (where & 0xff)
-		        | 0x01000000);
+			| ((devfn & 0xff) << 8)
+			| (where & 0xff)
+			| 0x01000000);
 	else
 		addr = celleb_epci_get_epci_cfg(hose) +
 		       (((devfn & 0xff) << 8) | (where & 0xff));
@@ -174,7 +174,7 @@ static PCI_IO_ADDR celleb_epci_make_config_addr(
 }
 
 static int celleb_epci_read_config(struct pci_bus *bus,
-			unsigned int devfn, int where, int size, u32 * val)
+			unsigned int devfn, int where, int size, u32 *val)
 {
 	PCI_IO_ADDR epci_base;
 	PCI_IO_ADDR addr;

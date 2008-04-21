@@ -1336,7 +1336,7 @@ static u64 spufs_signal1_type_get(struct spu_context *ctx)
 	return ctx->ops->signal1_type_get(ctx);
 }
 DEFINE_SPUFS_ATTRIBUTE(spufs_signal1_type, spufs_signal1_type_get,
-		       spufs_signal1_type_set, "%llu", SPU_ATTR_ACQUIRE);
+		       spufs_signal1_type_set, "%llu\n", SPU_ATTR_ACQUIRE);
 
 
 static int spufs_signal2_type_set(void *data, u64 val)
@@ -1358,7 +1358,7 @@ static u64 spufs_signal2_type_get(struct spu_context *ctx)
 	return ctx->ops->signal2_type_get(ctx);
 }
 DEFINE_SPUFS_ATTRIBUTE(spufs_signal2_type, spufs_signal2_type_get,
-		       spufs_signal2_type_set, "%llu", SPU_ATTR_ACQUIRE);
+		       spufs_signal2_type_set, "%llu\n", SPU_ATTR_ACQUIRE);
 
 #if SPUFS_MMAP_4K
 static unsigned long spufs_mss_mmap_nopfn(struct vm_area_struct *vma,
@@ -1555,7 +1555,7 @@ void spufs_mfc_callback(struct spu *spu)
 
 	wake_up_all(&ctx->mfc_wq);
 
-	pr_debug("%s %s\n", __FUNCTION__, spu->name);
+	pr_debug("%s %s\n", __func__, spu->name);
 	if (ctx->mfc_fasync) {
 		u32 free_elements, tagstatus;
 		unsigned int mask;
@@ -1789,7 +1789,7 @@ static unsigned int spufs_mfc_poll(struct file *file,poll_table *wait)
 	if (tagstatus & ctx->tagwait)
 		mask |= POLLIN | POLLRDNORM;
 
-	pr_debug("%s: free %d tagstatus %d tagwait %d\n", __FUNCTION__,
+	pr_debug("%s: free %d tagstatus %d tagwait %d\n", __func__,
 		free_elements, tagstatus, ctx->tagwait);
 
 	return mask;

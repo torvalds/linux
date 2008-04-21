@@ -53,6 +53,7 @@
 #include <linux/suspend.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/lmb.h>
 
 #include <asm/reg.h>
 #include <asm/sections.h>
@@ -74,7 +75,6 @@
 #include <asm/iommu.h>
 #include <asm/smu.h>
 #include <asm/pmc.h>
-#include <asm/lmb.h>
 #include <asm/udbg.h>
 
 #include "pmac.h"

@@ -516,6 +516,8 @@ static struct irq_chip xics_pic_lpar = {
 	.set_affinity = xics_set_affinity
 };
 
+/* Points to the irq_chip we're actually using */
+static struct irq_chip *xics_irq_chip;
 
 static int xics_host_match(struct irq_host *h, struct device_node *node)
 {
@@ -526,23 +528,13 @@ static int xics_host_match(struct irq_host *h, struct device_node *node)
 	return !of_device_is_compatible(node, "chrp,iic");
 }
 
-static int xics_host_map_direct(struct irq_host *h, unsigned int virq,
-				irq_hw_number_t hw)
+static int xics_host_map(struct irq_host *h, unsigned int virq,
+			 irq_hw_number_t hw)
 {
-	pr_debug("xics: map_direct virq %d, hwirq 0x%lx\n", virq, hw);
+	pr_debug("xics: map virq %d, hwirq 0x%lx\n", virq, hw);
 
 	get_irq_desc(virq)->status |= IRQ_LEVEL;
-	set_irq_chip_and_handler(virq, &xics_pic_direct, handle_fasteoi_irq);
-	return 0;
-}
-
-static int xics_host_map_lpar(struct irq_host *h, unsigned int virq,
-			      irq_hw_number_t hw)
-{
-	pr_debug("xics: map_direct virq %d, hwirq 0x%lx\n", virq, hw);
-
-	get_irq_desc(virq)->status |= IRQ_LEVEL;
-	set_irq_chip_and_handler(virq, &xics_pic_lpar, handle_fasteoi_irq);
+	set_irq_chip_and_handler(virq, xics_irq_chip, handle_fasteoi_irq);
 	return 0;
 }
 
@@ -561,27 +553,20 @@ static int xics_host_xlate(struct irq_host *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_host_ops xics_host_direct_ops = {
+static struct irq_host_ops xics_host_ops = {
 	.match = xics_host_match,
-	.map = xics_host_map_direct,
-	.xlate = xics_host_xlate,
-};
-
-static struct irq_host_ops xics_host_lpar_ops = {
-	.match = xics_host_match,
-	.map = xics_host_map_lpar,
+	.map = xics_host_map,
 	.xlate = xics_host_xlate,
 };
 
 static void __init xics_init_host(void)
 {
-	struct irq_host_ops *ops;
-
 	if (firmware_has_feature(FW_FEATURE_LPAR))
-		ops = &xics_host_lpar_ops;
+		xics_irq_chip = &xics_pic_lpar;
 	else
-		ops = &xics_host_direct_ops;
-	xics_host = irq_alloc_host(NULL, IRQ_HOST_MAP_TREE, 0, ops,
+		xics_irq_chip = &xics_pic_direct;
+
+	xics_host = irq_alloc_host(NULL, IRQ_HOST_MAP_TREE, 0, &xics_host_ops,
 				   XICS_IRQ_SPURIOUS);
 	BUG_ON(xics_host == NULL);
 	irq_set_default_host(xics_host);
@@ -655,52 +640,6 @@ static void __init xics_init_one_node(struct device_node *np,
 	}
 }
 
-
-static void __init xics_setup_8259_cascade(void)
-{
-	struct device_node *np, *old, *found = NULL;
-	int cascade, naddr;
-	const u32 *addrp;
-	unsigned long intack = 0;
-
-	for_each_node_by_type(np, "interrupt-controller")
-		if (of_device_is_compatible(np, "chrp,iic")) {
-			found = np;
-			break;
-		}
-	if (found == NULL) {
-		printk(KERN_DEBUG "xics: no ISA interrupt controller\n");
-		return;
-	}
-	cascade = irq_of_parse_and_map(found, 0);
-	if (cascade == NO_IRQ) {
-		printk(KERN_ERR "xics: failed to map cascade interrupt");
-		return;
-	}
-	pr_debug("xics: cascade mapped to irq %d\n", cascade);
-
-	for (old = of_node_get(found); old != NULL ; old = np) {
-		np = of_get_parent(old);
-		of_node_put(old);
-		if (np == NULL)
-			break;
-		if (strcmp(np->name, "pci") != 0)
-			continue;
-		addrp = of_get_property(np, "8259-interrupt-acknowledge", NULL);
-		if (addrp == NULL)
-			continue;
-		naddr = of_n_addr_cells(np);
-		intack = addrp[naddr-1];
-		if (naddr > 1)
-			intack |= ((unsigned long)addrp[naddr-2]) << 32;
-	}
-	if (intack)
-		printk(KERN_DEBUG "xics: PCI 8259 intack at 0x%016lx\n", intack);
-	i8259_init(found, intack);
-	of_node_put(found);
-	set_irq_chained_handler(cascade, pseries_8259_cascade);
-}
-
 void __init xics_init_IRQ(void)
 {
 	struct device_node *np;
@@ -732,8 +671,6 @@ void __init xics_init_IRQ(void)
 		ppc_md.get_irq = xics_get_irq_direct;
 
 	xics_setup_cpu();
-
-	xics_setup_8259_cascade();
 
 	ppc64_boot_msg(0x21, "XICS Done");
 }

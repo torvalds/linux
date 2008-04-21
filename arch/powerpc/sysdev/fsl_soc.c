@@ -75,6 +75,33 @@ phys_addr_t get_immrbase(void)
 
 EXPORT_SYMBOL(get_immrbase);
 
+static u32 sysfreq = -1;
+
+u32 fsl_get_sys_freq(void)
+{
+	struct device_node *soc;
+	const u32 *prop;
+	int size;
+
+	if (sysfreq != -1)
+		return sysfreq;
+
+	soc = of_find_node_by_type(NULL, "soc");
+	if (!soc)
+		return -1;
+
+	prop = of_get_property(soc, "clock-frequency", &size);
+	if (!prop || size != sizeof(*prop) || *prop == 0)
+		prop = of_get_property(soc, "bus-frequency", &size);
+
+	if (prop && size == sizeof(*prop))
+		sysfreq = *prop;
+
+	of_node_put(soc);
+	return sysfreq;
+}
+EXPORT_SYMBOL(fsl_get_sys_freq);
+
 #if defined(CONFIG_CPM2) || defined(CONFIG_QUICC_ENGINE) || defined(CONFIG_8xx)
 
 static u32 brgfreq = -1;
@@ -517,9 +544,9 @@ arch_initcall(fsl_i2c_of_init);
 static int __init mpc83xx_wdt_init(void)
 {
 	struct resource r;
-	struct device_node *soc, *np;
+	struct device_node *np;
 	struct platform_device *dev;
-	const unsigned int *freq;
+	u32 freq = fsl_get_sys_freq();
 	int ret;
 
 	np = of_find_compatible_node(NULL, "watchdog", "mpc83xx_wdt");
@@ -527,19 +554,6 @@ static int __init mpc83xx_wdt_init(void)
 	if (!np) {
 		ret = -ENODEV;
 		goto nodev;
-	}
-
-	soc = of_find_node_by_type(NULL, "soc");
-
-	if (!soc) {
-		ret = -ENODEV;
-		goto nosoc;
-	}
-
-	freq = of_get_property(soc, "bus-frequency", NULL);
-	if (!freq) {
-		ret = -ENODEV;
-		goto err;
 	}
 
 	memset(&r, 0, sizeof(r));
@@ -554,20 +568,16 @@ static int __init mpc83xx_wdt_init(void)
 		goto err;
 	}
 
-	ret = platform_device_add_data(dev, freq, sizeof(int));
+	ret = platform_device_add_data(dev, &freq, sizeof(freq));
 	if (ret)
 		goto unreg;
 
-	of_node_put(soc);
 	of_node_put(np);
-
 	return 0;
 
 unreg:
 	platform_device_unregister(dev);
 err:
-	of_node_put(soc);
-nosoc:
 	of_node_put(np);
 nodev:
 	return ret;
@@ -736,547 +746,6 @@ err:
 
 arch_initcall(fsl_usb_of_init);
 
-#ifndef CONFIG_PPC_CPM_NEW_BINDING
-#ifdef CONFIG_CPM2
-
-extern void init_scc_ioports(struct fs_uart_platform_info*);
-
-static const char fcc_regs[] = "fcc_regs";
-static const char fcc_regs_c[] = "fcc_regs_c";
-static const char fcc_pram[] = "fcc_pram";
-static char bus_id[9][BUS_ID_SIZE];
-
-static int __init fs_enet_of_init(void)
-{
-	struct device_node *np;
-	unsigned int i;
-	struct platform_device *fs_enet_dev;
-	struct resource res;
-	int ret;
-
-	for (np = NULL, i = 0;
-	     (np = of_find_compatible_node(np, "network", "fs_enet")) != NULL;
-	     i++) {
-		struct resource r[4];
-		struct device_node *phy, *mdio;
-		struct fs_platform_info fs_enet_data;
-		const unsigned int *id, *phy_addr, *phy_irq;
-		const void *mac_addr;
-		const phandle *ph;
-		const char *model;
-
-		memset(r, 0, sizeof(r));
-		memset(&fs_enet_data, 0, sizeof(fs_enet_data));
-
-		ret = of_address_to_resource(np, 0, &r[0]);
-		if (ret)
-			goto err;
-		r[0].name = fcc_regs;
-
-		ret = of_address_to_resource(np, 1, &r[1]);
-		if (ret)
-			goto err;
-		r[1].name = fcc_pram;
-
-		ret = of_address_to_resource(np, 2, &r[2]);
-		if (ret)
-			goto err;
-		r[2].name = fcc_regs_c;
-		fs_enet_data.fcc_regs_c = r[2].start;
-
-		of_irq_to_resource(np, 0, &r[3]);
-
-		fs_enet_dev =
-		    platform_device_register_simple("fsl-cpm-fcc", i, &r[0], 4);
-
-		if (IS_ERR(fs_enet_dev)) {
-			ret = PTR_ERR(fs_enet_dev);
-			goto err;
-		}
-
-		model = of_get_property(np, "model", NULL);
-		if (model == NULL) {
-			ret = -ENODEV;
-			goto unreg;
-		}
-
-		mac_addr = of_get_mac_address(np);
-		if (mac_addr)
-			memcpy(fs_enet_data.macaddr, mac_addr, 6);
-
-		ph = of_get_property(np, "phy-handle", NULL);
-		phy = of_find_node_by_phandle(*ph);
-
-		if (phy == NULL) {
-			ret = -ENODEV;
-			goto unreg;
-		}
-
-		phy_addr = of_get_property(phy, "reg", NULL);
-		fs_enet_data.phy_addr = *phy_addr;
-
-		phy_irq = of_get_property(phy, "interrupts", NULL);
-
-		id = of_get_property(np, "device-id", NULL);
-		fs_enet_data.fs_no = *id;
-		strcpy(fs_enet_data.fs_type, model);
-
-		mdio = of_get_parent(phy);
-                ret = of_address_to_resource(mdio, 0, &res);
-                if (ret) {
-                        of_node_put(phy);
-                        of_node_put(mdio);
-                        goto unreg;
-                }
-
-		fs_enet_data.clk_rx = *((u32 *)of_get_property(np,
-						"rx-clock", NULL));
-		fs_enet_data.clk_tx = *((u32 *)of_get_property(np,
-						"tx-clock", NULL));
-
-		if (strstr(model, "FCC")) {
-			int fcc_index = *id - 1;
-			const unsigned char *mdio_bb_prop;
-
-			fs_enet_data.dpram_offset = (u32)cpm_dpram_addr(0);
-			fs_enet_data.rx_ring = 32;
-			fs_enet_data.tx_ring = 32;
-			fs_enet_data.rx_copybreak = 240;
-			fs_enet_data.use_napi = 0;
-			fs_enet_data.napi_weight = 17;
-			fs_enet_data.mem_offset = FCC_MEM_OFFSET(fcc_index);
-			fs_enet_data.cp_page = CPM_CR_FCC_PAGE(fcc_index);
-			fs_enet_data.cp_block = CPM_CR_FCC_SBLOCK(fcc_index);
-
-			snprintf((char*)&bus_id[(*id)], BUS_ID_SIZE, "%x:%02x",
-							(u32)res.start, fs_enet_data.phy_addr);
-			fs_enet_data.bus_id = (char*)&bus_id[(*id)];
-			fs_enet_data.init_ioports = init_fcc_ioports;
-
-			mdio_bb_prop = of_get_property(phy, "bitbang", NULL);
-			if (mdio_bb_prop) {
-				struct platform_device *fs_enet_mdio_bb_dev;
-				struct fs_mii_bb_platform_info fs_enet_mdio_bb_data;
-
-				fs_enet_mdio_bb_dev =
-					platform_device_register_simple("fsl-bb-mdio",
-							i, NULL, 0);
-				memset(&fs_enet_mdio_bb_data, 0,
-						sizeof(struct fs_mii_bb_platform_info));
-				fs_enet_mdio_bb_data.mdio_dat.bit =
-					mdio_bb_prop[0];
-				fs_enet_mdio_bb_data.mdio_dir.bit =
-					mdio_bb_prop[1];
-				fs_enet_mdio_bb_data.mdc_dat.bit =
-					mdio_bb_prop[2];
-				fs_enet_mdio_bb_data.mdio_port =
-					mdio_bb_prop[3];
-				fs_enet_mdio_bb_data.mdc_port =
-					mdio_bb_prop[4];
-				fs_enet_mdio_bb_data.delay =
-					mdio_bb_prop[5];
-
-				fs_enet_mdio_bb_data.irq[0] = phy_irq[0];
-				fs_enet_mdio_bb_data.irq[1] = -1;
-				fs_enet_mdio_bb_data.irq[2] = -1;
-				fs_enet_mdio_bb_data.irq[3] = phy_irq[0];
-				fs_enet_mdio_bb_data.irq[31] = -1;
-
-				fs_enet_mdio_bb_data.mdio_dat.offset =
-					(u32)&cpm2_immr->im_ioport.iop_pdatc;
-				fs_enet_mdio_bb_data.mdio_dir.offset =
-					(u32)&cpm2_immr->im_ioport.iop_pdirc;
-				fs_enet_mdio_bb_data.mdc_dat.offset =
-					(u32)&cpm2_immr->im_ioport.iop_pdatc;
-
-				ret = platform_device_add_data(
-						fs_enet_mdio_bb_dev,
-						&fs_enet_mdio_bb_data,
-						sizeof(struct fs_mii_bb_platform_info));
-				if (ret)
-					goto unreg;
-			}
-
-			of_node_put(phy);
-			of_node_put(mdio);
-
-			ret = platform_device_add_data(fs_enet_dev, &fs_enet_data,
-						     sizeof(struct
-							    fs_platform_info));
-			if (ret)
-				goto unreg;
-		}
-	}
-	return 0;
-
-unreg:
-	platform_device_unregister(fs_enet_dev);
-err:
-	return ret;
-}
-
-arch_initcall(fs_enet_of_init);
-
-static const char scc_regs[] = "regs";
-static const char scc_pram[] = "pram";
-
-static int __init cpm_uart_of_init(void)
-{
-	struct device_node *np;
-	unsigned int i;
-	struct platform_device *cpm_uart_dev;
-	int ret;
-
-	for (np = NULL, i = 0;
-	     (np = of_find_compatible_node(np, "serial", "cpm_uart")) != NULL;
-	     i++) {
-		struct resource r[3];
-		struct fs_uart_platform_info cpm_uart_data;
-		const int *id;
-		const char *model;
-
-		memset(r, 0, sizeof(r));
-		memset(&cpm_uart_data, 0, sizeof(cpm_uart_data));
-
-		ret = of_address_to_resource(np, 0, &r[0]);
-		if (ret)
-			goto err;
-
-		r[0].name = scc_regs;
-
-		ret = of_address_to_resource(np, 1, &r[1]);
-		if (ret)
-			goto err;
-		r[1].name = scc_pram;
-
-		of_irq_to_resource(np, 0, &r[2]);
-
-		cpm_uart_dev =
-		    platform_device_register_simple("fsl-cpm-scc:uart", i, &r[0], 3);
-
-		if (IS_ERR(cpm_uart_dev)) {
-			ret = PTR_ERR(cpm_uart_dev);
-			goto err;
-		}
-
-		id = of_get_property(np, "device-id", NULL);
-		cpm_uart_data.fs_no = *id;
-
-		model = of_get_property(np, "model", NULL);
-		strcpy(cpm_uart_data.fs_type, model);
-
-		cpm_uart_data.uart_clk = ppc_proc_freq;
-
-		cpm_uart_data.tx_num_fifo = 4;
-		cpm_uart_data.tx_buf_size = 32;
-		cpm_uart_data.rx_num_fifo = 4;
-		cpm_uart_data.rx_buf_size = 32;
-		cpm_uart_data.clk_rx = *((u32 *)of_get_property(np,
-						"rx-clock", NULL));
-		cpm_uart_data.clk_tx = *((u32 *)of_get_property(np,
-						"tx-clock", NULL));
-
-		ret =
-		    platform_device_add_data(cpm_uart_dev, &cpm_uart_data,
-					     sizeof(struct
-						    fs_uart_platform_info));
-		if (ret)
-			goto unreg;
-	}
-
-	return 0;
-
-unreg:
-	platform_device_unregister(cpm_uart_dev);
-err:
-	return ret;
-}
-
-arch_initcall(cpm_uart_of_init);
-#endif /* CONFIG_CPM2 */
-
-#ifdef CONFIG_8xx
-
-extern void init_scc_ioports(struct fs_platform_info*);
-extern int platform_device_skip(const char *model, int id);
-
-static int __init fs_enet_mdio_of_init(void)
-{
-	struct device_node *np;
-	unsigned int i;
-	struct platform_device *mdio_dev;
-	struct resource res;
-	int ret;
-
-	for (np = NULL, i = 0;
-	     (np = of_find_compatible_node(np, "mdio", "fs_enet")) != NULL;
-	     i++) {
-		struct fs_mii_fec_platform_info mdio_data;
-
-		memset(&res, 0, sizeof(res));
-		memset(&mdio_data, 0, sizeof(mdio_data));
-
-		ret = of_address_to_resource(np, 0, &res);
-		if (ret)
-			goto err;
-
-		mdio_dev =
-		    platform_device_register_simple("fsl-cpm-fec-mdio",
-						    res.start, &res, 1);
-		if (IS_ERR(mdio_dev)) {
-			ret = PTR_ERR(mdio_dev);
-			goto err;
-		}
-
-		mdio_data.mii_speed = ((((ppc_proc_freq + 4999999) / 2500000) / 2) & 0x3F) << 1;
-
-		ret =
-		    platform_device_add_data(mdio_dev, &mdio_data,
-					     sizeof(struct fs_mii_fec_platform_info));
-		if (ret)
-			goto unreg;
-	}
-	return 0;
-
-unreg:
-	platform_device_unregister(mdio_dev);
-err:
-	return ret;
-}
-
-arch_initcall(fs_enet_mdio_of_init);
-
-static const char *enet_regs = "regs";
-static const char *enet_pram = "pram";
-static const char *enet_irq = "interrupt";
-static char bus_id[9][BUS_ID_SIZE];
-
-static int __init fs_enet_of_init(void)
-{
-	struct device_node *np;
-	unsigned int i;
-	struct platform_device *fs_enet_dev = NULL;
-	struct resource res;
-	int ret;
-
-	for (np = NULL, i = 0;
-	     (np = of_find_compatible_node(np, "network", "fs_enet")) != NULL;
-	     i++) {
-		struct resource r[4];
-		struct device_node *phy = NULL, *mdio = NULL;
-		struct fs_platform_info fs_enet_data;
-		const unsigned int *id;
-		const unsigned int *phy_addr;
-		const void *mac_addr;
-		const phandle *ph;
-		const char *model;
-
-		memset(r, 0, sizeof(r));
-		memset(&fs_enet_data, 0, sizeof(fs_enet_data));
-
-		model = of_get_property(np, "model", NULL);
-		if (model == NULL) {
-			ret = -ENODEV;
-			goto unreg;
-		}
-
-		id = of_get_property(np, "device-id", NULL);
-		fs_enet_data.fs_no = *id;
-
-		if (platform_device_skip(model, *id))
-			continue;
-
-		ret = of_address_to_resource(np, 0, &r[0]);
-		if (ret)
-			goto err;
-		r[0].name = enet_regs;
-
-		mac_addr = of_get_mac_address(np);
-		if (mac_addr)
-			memcpy(fs_enet_data.macaddr, mac_addr, 6);
-
-		ph = of_get_property(np, "phy-handle", NULL);
-		if (ph != NULL)
-			phy = of_find_node_by_phandle(*ph);
-
-		if (phy != NULL) {
-			phy_addr = of_get_property(phy, "reg", NULL);
-			fs_enet_data.phy_addr = *phy_addr;
-			fs_enet_data.has_phy = 1;
-
-			mdio = of_get_parent(phy);
-			ret = of_address_to_resource(mdio, 0, &res);
-			if (ret) {
-				of_node_put(phy);
-				of_node_put(mdio);
-                                goto unreg;
-			}
-		}
-
-		model = of_get_property(np, "model", NULL);
-		strcpy(fs_enet_data.fs_type, model);
-
-		if (strstr(model, "FEC")) {
-			r[1].start = r[1].end = irq_of_parse_and_map(np, 0);
-			r[1].flags = IORESOURCE_IRQ;
-			r[1].name = enet_irq;
-
-			fs_enet_dev =
-				    platform_device_register_simple("fsl-cpm-fec", i, &r[0], 2);
-
-			if (IS_ERR(fs_enet_dev)) {
-				ret = PTR_ERR(fs_enet_dev);
-				goto err;
-			}
-
-			fs_enet_data.rx_ring = 128;
-			fs_enet_data.tx_ring = 16;
-			fs_enet_data.rx_copybreak = 240;
-			fs_enet_data.use_napi = 1;
-			fs_enet_data.napi_weight = 17;
-
-			snprintf((char*)&bus_id[i], BUS_ID_SIZE, "%x:%02x",
-							(u32)res.start, fs_enet_data.phy_addr);
-			fs_enet_data.bus_id = (char*)&bus_id[i];
-			fs_enet_data.init_ioports = init_fec_ioports;
-		}
-		if (strstr(model, "SCC")) {
-			ret = of_address_to_resource(np, 1, &r[1]);
-			if (ret)
-				goto err;
-			r[1].name = enet_pram;
-
-			r[2].start = r[2].end = irq_of_parse_and_map(np, 0);
-			r[2].flags = IORESOURCE_IRQ;
-			r[2].name = enet_irq;
-
-			fs_enet_dev =
-				    platform_device_register_simple("fsl-cpm-scc", i, &r[0], 3);
-
-			if (IS_ERR(fs_enet_dev)) {
-				ret = PTR_ERR(fs_enet_dev);
-				goto err;
-			}
-
-			fs_enet_data.rx_ring = 64;
-			fs_enet_data.tx_ring = 8;
-			fs_enet_data.rx_copybreak = 240;
-			fs_enet_data.use_napi = 1;
-			fs_enet_data.napi_weight = 17;
-
-			snprintf((char*)&bus_id[i], BUS_ID_SIZE, "%s", "fixed@10:1");
-                        fs_enet_data.bus_id = (char*)&bus_id[i];
-			fs_enet_data.init_ioports = init_scc_ioports;
-		}
-
-		of_node_put(phy);
-		of_node_put(mdio);
-
-		ret = platform_device_add_data(fs_enet_dev, &fs_enet_data,
-					     sizeof(struct
-						    fs_platform_info));
-		if (ret)
-			goto unreg;
-	}
-	return 0;
-
-unreg:
-	platform_device_unregister(fs_enet_dev);
-err:
-	return ret;
-}
-
-arch_initcall(fs_enet_of_init);
-
-static int __init fsl_pcmcia_of_init(void)
-{
-	struct device_node *np;
-	/*
-	 * Register all the devices which type is "pcmcia"
-	 */
-	for_each_compatible_node(np, "pcmcia", "fsl,pq-pcmcia")
-		of_platform_device_create(np, "m8xx-pcmcia", NULL);
-	return 0;
-}
-
-arch_initcall(fsl_pcmcia_of_init);
-
-static const char *smc_regs = "regs";
-static const char *smc_pram = "pram";
-
-static int __init cpm_smc_uart_of_init(void)
-{
-	struct device_node *np;
-	unsigned int i;
-	struct platform_device *cpm_uart_dev;
-	int ret;
-
-	for (np = NULL, i = 0;
-	     (np = of_find_compatible_node(np, "serial", "cpm_uart")) != NULL;
-	     i++) {
-		struct resource r[3];
-		struct fs_uart_platform_info cpm_uart_data;
-		const int *id;
-		const char *model;
-
-		memset(r, 0, sizeof(r));
-		memset(&cpm_uart_data, 0, sizeof(cpm_uart_data));
-
-		ret = of_address_to_resource(np, 0, &r[0]);
-		if (ret)
-			goto err;
-
-		r[0].name = smc_regs;
-
-		ret = of_address_to_resource(np, 1, &r[1]);
-		if (ret)
-			goto err;
-		r[1].name = smc_pram;
-
-		r[2].start = r[2].end = irq_of_parse_and_map(np, 0);
-		r[2].flags = IORESOURCE_IRQ;
-
-		cpm_uart_dev =
-		    platform_device_register_simple("fsl-cpm-smc:uart", i, &r[0], 3);
-
-		if (IS_ERR(cpm_uart_dev)) {
-			ret = PTR_ERR(cpm_uart_dev);
-			goto err;
-		}
-
-		model = of_get_property(np, "model", NULL);
-		strcpy(cpm_uart_data.fs_type, model);
-
-		id = of_get_property(np, "device-id", NULL);
-		cpm_uart_data.fs_no = *id;
-		cpm_uart_data.uart_clk = ppc_proc_freq;
-
-		cpm_uart_data.tx_num_fifo = 4;
-		cpm_uart_data.tx_buf_size = 32;
-		cpm_uart_data.rx_num_fifo = 4;
-		cpm_uart_data.rx_buf_size = 32;
-
-		ret =
-		    platform_device_add_data(cpm_uart_dev, &cpm_uart_data,
-					     sizeof(struct
-						    fs_uart_platform_info));
-		if (ret)
-			goto unreg;
-	}
-
-	return 0;
-
-unreg:
-	platform_device_unregister(cpm_uart_dev);
-err:
-	return ret;
-}
-
-arch_initcall(cpm_smc_uart_of_init);
-
-#endif /* CONFIG_8xx */
-#endif /* CONFIG_PPC_CPM_NEW_BINDING */
-
 static int __init of_fsl_spi_probe(char *type, char *compatible, u32 sysclk,
 				   struct spi_board_info *board_infos,
 				   unsigned int num_board_infos,
@@ -1372,25 +841,9 @@ int __init fsl_spi_init(struct spi_board_info *board_infos,
 	sysclk = get_brgfreq();
 #endif
 	if (sysclk == -1) {
-		struct device_node *np;
-		const u32 *freq;
-		int size;
-
-		np = of_find_node_by_type(NULL, "soc");
-		if (!np)
+		sysclk = fsl_get_sys_freq();
+		if (sysclk == -1)
 			return -ENODEV;
-
-		freq = of_get_property(np, "clock-frequency", &size);
-		if (!freq || size != sizeof(*freq) || *freq == 0) {
-			freq = of_get_property(np, "bus-frequency", &size);
-			if (!freq || size != sizeof(*freq) || *freq == 0) {
-				of_node_put(np);
-				return -ENODEV;
-			}
-		}
-
-		sysclk = *freq;
-		of_node_put(np);
 	}
 
 	ret = of_fsl_spi_probe(NULL, "fsl,spi", sysclk, board_infos,

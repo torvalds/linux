@@ -22,6 +22,7 @@
 #include <linux/smp.h>
 #include <linux/completion.h>
 #include <linux/cpumask.h>
+#include <linux/lmb.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -33,7 +34,6 @@
 #include <asm/system.h>
 #include <asm/delay.h>
 #include <asm/uaccess.h>
-#include <asm/lmb.h>
 #include <asm/udbg.h>
 #include <asm/syscalls.h>
 #include <asm/smp.h>
@@ -506,7 +506,7 @@ int rtas_error_rc(int rtas_rc)
 			break;
 		default:
 			printk(KERN_ERR "%s: unexpected RTAS error %d\n",
-					__FUNCTION__, rtas_rc);
+					__func__, rtas_rc);
 			rc = -ERANGE;
 			break;
 	}
