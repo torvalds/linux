@@ -29,29 +29,24 @@
 
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
-#include <asm/arch/at91sam926x_mc.h>
+#include <asm/arch/at91sam9_smc.h>
 
 #include "generic.h"
 
-
-/*
- * Serial port configuration.
- *    0 .. 3 = USART0 .. USART3
- *    4      = DBGU
- */
-static struct at91_uart_config __initdata ek_uart_config = {
-	.console_tty	= 0,				/* ttyS0 */
-	.nr_tty		= 2,
-	.tty_map	= { 4, 0, -1, -1, -1 }		/* ttyS0, ..., ttyS4 */
-};
 
 static void __init ek_map_io(void)
 {
 	/* Initialize processor: 12.000 MHz crystal */
 	at91sam9rl_initialize(12000000);
 
-	/* Setup the serial ports and console */
-	at91_init_serial(&ek_uart_config);
+	/* DGBU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS) */
+	at91_register_uart(AT91SAM9RL_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS);
+
+	/* set serial console to ttyS0 (ie, DBGU) */
+	at91_set_serial_console(0);
 }
 
 static void __init ek_init_irq(void)

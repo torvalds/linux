@@ -255,6 +255,7 @@ config ARCH_EP93XX
 	select ARM_AMBA
 	select ARM_VIC
 	select GENERIC_GPIO
+	select HAVE_GPIO_LIB
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
@@ -377,15 +378,17 @@ config ARCH_MXC
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
-config ARCH_ORION
+config ARCH_ORION5X
 	bool "Marvell Orion"
 	depends on MMU
 	select PCI
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
+	select PLAT_ORION
 	help
-	  Support for Marvell Orion System on Chip family.
+	  Support for the following Marvell Orion 5x series SoCs:
+	  Orion-1 (5181), Orion-NAS (5182), Orion-2 (5281.)
 
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
@@ -422,10 +425,15 @@ config ARCH_SA1100
 	bool "SA1100-based"
 	select ISA
 	select ARCH_DISCONTIGMEM_ENABLE
+	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_SELECT_MEMORY_MODEL
 	select ARCH_MTD_XIP
 	select GENERIC_GPIO
 	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	select TICK_ONESHOT
 	select HAVE_IDE
+	select HAVE_GPIO_LIB
 	help
 	  Support for StrongARM 11x0 based boards.
 
@@ -468,6 +476,7 @@ config ARCH_DAVINCI
 config ARCH_OMAP
 	bool "TI OMAP"
 	select GENERIC_GPIO
+	select HAVE_GPIO_LIB
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
@@ -516,7 +525,7 @@ source "arch/arm/mach-omap1/Kconfig"
 
 source "arch/arm/mach-omap2/Kconfig"
 
-source "arch/arm/mach-orion/Kconfig"
+source "arch/arm/mach-orion5x/Kconfig"
 
 source "arch/arm/plat-s3c24xx/Kconfig"
 source "arch/arm/plat-s3c/Kconfig"
@@ -561,6 +570,9 @@ config ARCH_ACORN
 	bool
 
 config PLAT_IOP
+	bool
+
+config PLAT_ORION
 	bool
 
 source arch/arm/mm/Kconfig
@@ -650,7 +662,7 @@ source "kernel/time/Kconfig"
 
 config SMP
 	bool "Symmetric Multi-Processing (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && REALVIEW_EB_ARM11MP
+	depends on EXPERIMENTAL && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP)
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -683,7 +695,7 @@ config HOTPLUG_CPU
 
 config LOCAL_TIMERS
 	bool "Use local timer interrupts"
-	depends on SMP && REALVIEW_EB_ARM11MP
+	depends on SMP && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP)
 	default y
 	help
 	  Enable support for local timers on SMP platforms, rather then the
@@ -773,6 +785,12 @@ config ARCH_DISCONTIGMEM_ENABLE
 	  for architectures which are either NUMA (Non-Uniform Memory Access)
 	  or have huge holes in the physical address space for other reasons.
 	  See <file:Documentation/vm/numa> for more.
+
+config ARCH_SPARSEMEM_ENABLE
+	bool
+
+config ARCH_SELECT_MEMORY_MODEL
+	bool
 
 config NODES_SHIFT
 	int

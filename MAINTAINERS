@@ -486,6 +486,12 @@ M:	kernel@wantstofly.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
+ARM/GUMSTIX MACHINE SUPPORT
+P:	Steve Sakoman
+M:	sakoman@gmail.com
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+S:	Maintained
+
 ARM/HP JORNADA 7XX MACHINE SUPPORT
 P:      Kristoffer Ericson
 M:      kristoffer.ericson@gmail.com

@@ -428,6 +428,7 @@ arm922_processor_functions:
 	.word	cpu_arm922_dcache_clean_area
 	.word	cpu_arm922_switch_mm
 	.word	cpu_arm922_set_pte_ext
+	.word	pabort_noifar
 	.size	arm922_processor_functions, . - arm922_processor_functions
 
 	.section ".rodata"

@@ -4,9 +4,10 @@
  * Table of the Omap register configurations for the FUNC_MUX and
  * PULL_DWN combinations.
  *
- * Copyright (C) 2003 - 2005 Nokia Corporation
+ * Copyright (C) 2004 - 2008 Texas Instruments Inc.
+ * Copyright (C) 2003 - 2008 Nokia Corporation
  *
- * Written by Tony Lindgren <tony.lindgren@nokia.com>
+ * Written by Tony Lindgren
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,14 +28,6 @@
  *	 - W8	     = ball
  *	 - 1610	     = 1510 or 1610, none if common for both 1510 and 1610
  *	 - MMC2_DAT0 = function
- *
- * Change log:
- *   Added entry for the I2C interface. (02Feb 2004)
- *   Copyright (C) 2004 Texas Instruments
- *
- *   Added entry for the keypad and uwire CS1. (09Mar 2004)
- *   Copyright (C) 2004 Texas Instruments
- *
  */
 
 #ifndef __ASM_ARCH_MUX_H
@@ -469,7 +462,12 @@ enum omap24xx_index {
 	AA8_242X_GPIO58,
 	Y20_24XX_GPIO60,
 	W4__24XX_GPIO74,
+	N15_24XX_GPIO85,
 	M15_24XX_GPIO92,
+	P20_24XX_GPIO93,
+	P18_24XX_GPIO95,
+	M18_24XX_GPIO96,
+	L14_24XX_GPIO97,
 	J15_24XX_GPIO99,
 	V14_24XX_GPIO117,
 	P14_24XX_GPIO125,
@@ -493,8 +491,6 @@ enum omap24xx_index {
 	G4_242X_DMAREQ3,
 	D3_242X_DMAREQ4,
 	E3_242X_DMAREQ5,
-
-	P20_24XX_TSC_IRQ,
 
 	/* UART3 */
 	K15_24XX_UART3_TX,
@@ -557,13 +553,57 @@ enum omap24xx_index {
 	B3__24XX_KBR5,
 	AA4_24XX_KBC2,
 	B13_24XX_KBC6,
+
+	/* 2430 USB */
+	AD9_2430_USB0_PUEN,
+	Y11_2430_USB0_VP,
+	AD7_2430_USB0_VM,
+	AE7_2430_USB0_RCV,
+	AD4_2430_USB0_TXEN,
+	AF9_2430_USB0_SE0,
+	AE6_2430_USB0_DAT,
+	AD24_2430_USB1_SE0,
+	AB24_2430_USB1_RCV,
+	Y25_2430_USB1_TXEN,
+	AA26_2430_USB1_DAT,
+
+	/* 2430 HS-USB */
+	AD9_2430_USB0HS_DATA3,
+	Y11_2430_USB0HS_DATA4,
+	AD7_2430_USB0HS_DATA5,
+	AE7_2430_USB0HS_DATA6,
+	AD4_2430_USB0HS_DATA2,
+	AF9_2430_USB0HS_DATA0,
+	AE6_2430_USB0HS_DATA1,
+	AE8_2430_USB0HS_CLK,
+	AD8_2430_USB0HS_DIR,
+	AE5_2430_USB0HS_STP,
+	AE9_2430_USB0HS_NXT,
+	AC7_2430_USB0HS_DATA7,
+
+	/* 2430 McBSP */
+	AC10_2430_MCBSP2_FSX,
+	AD16_2430_MCBSP2_CLX,
+	AE13_2430_MCBSP2_DX,
+	AD13_2430_MCBSP2_DR,
+	AC10_2430_MCBSP2_FSX_OFF,
+	AD16_2430_MCBSP2_CLX_OFF,
+	AE13_2430_MCBSP2_DX_OFF,
+	AD13_2430_MCBSP2_DR_OFF,
+
+};
+
+struct omap_mux_cfg {
+	struct pin_config	*pins;
+	unsigned long		size;
+	int			(*cfg_reg)(const struct pin_config *cfg);
 };
 
 #ifdef	CONFIG_OMAP_MUX
 /* setup pin muxing in Linux */
 extern int omap1_mux_init(void);
 extern int omap2_mux_init(void);
-extern int omap_mux_register(struct pin_config * pins, unsigned long size);
+extern int omap_mux_register(struct omap_mux_cfg *);
 extern int omap_cfg_reg(unsigned long reg_cfg);
 #else
 /* boot loader does it all (no warnings from CONFIG_OMAP_MUX_WARNINGS) */

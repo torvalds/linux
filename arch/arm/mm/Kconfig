@@ -18,6 +18,7 @@ config CPU_ARM610
 	select CPU_CP15_MMU
 	select CPU_COPY_V3 if MMU
 	select CPU_TLB_V3 if MMU
+	select CPU_PABRT_NOIFAR
 	help
 	  The ARM610 is the successor to the ARM3 processor
 	  and was produced by VLSI Technology Inc.
@@ -49,6 +50,7 @@ config CPU_ARM710
 	select CPU_CP15_MMU
 	select CPU_COPY_V3 if MMU
 	select CPU_TLB_V3 if MMU
+	select CPU_PABRT_NOIFAR
 	help
 	  A 32-bit RISC microprocessor based on the ARM7 processor core
 	  designed by Advanced RISC Machines Ltd. The ARM710 is the
@@ -64,6 +66,7 @@ config CPU_ARM720T
 	default y if ARCH_CLPS711X || ARCH_L7200 || ARCH_CDB89712 || ARCH_H720X
 	select CPU_32v4T
 	select CPU_ABRT_LV4T
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_V4
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -113,6 +116,7 @@ config CPU_ARM920T
 	default y if CPU_S3C2410 || CPU_S3C2440 || CPU_S3C2442 || ARCH_AT91RM9200
 	select CPU_32v4T
 	select CPU_ABRT_EV4T
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -135,6 +139,7 @@ config CPU_ARM922T
 	default y if ARCH_LH7A40X || ARCH_KS8695
 	select CPU_32v4T
 	select CPU_ABRT_EV4T
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -155,6 +160,7 @@ config CPU_ARM925T
  	default y if ARCH_OMAP15XX
 	select CPU_32v4T
 	select CPU_ABRT_EV4T
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -175,6 +181,7 @@ config CPU_ARM926T
 	default y if ARCH_VERSATILE_PB || MACH_VERSATILE_AB || ARCH_OMAP730 || ARCH_OMAP16XX || ARCH_PNX4008 || ARCH_NETX || CPU_S3C2412 || ARCH_AT91SAM9260 || ARCH_AT91SAM9261 || ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || ARCH_AT91CAP9 || ARCH_NS9XXX || ARCH_DAVINCI
 	select CPU_32v5
 	select CPU_ABRT_EV5TJ
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
@@ -226,6 +233,7 @@ config CPU_ARM1020
 	depends on ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV4T
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -244,6 +252,7 @@ config CPU_ARM1020E
 	depends on ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV4T
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_V4WT
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -257,6 +266,7 @@ config CPU_ARM1022
 	depends on ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV4T
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU # can probably do better
@@ -275,6 +285,7 @@ config CPU_ARM1026
 	depends on ARCH_INTEGRATOR
 	select CPU_32v5
 	select CPU_ABRT_EV5T # But need Jazelle, but EV5TJ ignores bit 10
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU # can probably do better
@@ -293,6 +304,7 @@ config CPU_SA110
 	select CPU_32v3 if ARCH_RPC
 	select CPU_32v4 if !ARCH_RPC
 	select CPU_ABRT_EV4
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_V4WB
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -314,6 +326,7 @@ config CPU_SA1100
 	default y
 	select CPU_32v4
 	select CPU_ABRT_EV4
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_V4WB
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
@@ -326,6 +339,7 @@ config CPU_XSCALE
 	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_TLB_V4WBI if MMU
@@ -345,10 +359,11 @@ config CPU_XSC3
 # Feroceon
 config CPU_FEROCEON
 	bool
-	depends on ARCH_ORION
+	depends on ARCH_ORION5X
 	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_COPY_V4WB if MMU
@@ -366,11 +381,12 @@ config CPU_FEROCEON_OLD_ID
 # ARMv6
 config CPU_V6
 	bool "Support ARM V6 processor"
-	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB || ARCH_OMAP2 || ARCH_MX3 || ARCH_MSM7X00A
+	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB || ARCH_OMAP2 || ARCH_MX3 || ARCH_MSM7X00A || MACH_REALVIEW_PB11MP || MACH_REALVIEW_PB1176
 	default y if ARCH_MX3
 	default y if ARCH_MSM7X00A
 	select CPU_32v6
 	select CPU_ABRT_EV6
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_V6
 	select CPU_CACHE_VIPT
 	select CPU_CP15_MMU
@@ -393,10 +409,11 @@ config CPU_32v6K
 # ARMv7
 config CPU_V7
 	bool "Support ARM V7 processor"
-	depends on ARCH_INTEGRATOR
+	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB
 	select CPU_32v6K
 	select CPU_32v7
 	select CPU_ABRT_EV7
+	select CPU_PABRT_IFAR
 	select CPU_CACHE_V7
 	select CPU_CACHE_VIPT
 	select CPU_CP15_MMU
@@ -456,6 +473,12 @@ config CPU_ABRT_EV6
 	bool
 
 config CPU_ABRT_EV7
+	bool
+
+config CPU_PABRT_IFAR
+	bool
+
+config CPU_PABRT_NOIFAR
 	bool
 
 # The cache model
@@ -572,6 +595,13 @@ config ARM_THUMB
 
 	  If you don't know what this all is, saying Y is a safe choice.
 
+config ARM_THUMBEE
+	bool "Enable ThumbEE CPU extension"
+	depends on CPU_V7
+	help
+	  Say Y here if you have a CPU with the ThumbEE extension and code to
+	  make use of it. Say N for code that can run on CPUs without ThumbEE.
+
 config CPU_BIG_ENDIAN
 	bool "Build big-endian kernel"
 	depends on ARCH_SUPPORTS_BIG_ENDIAN
@@ -671,5 +701,9 @@ config OUTER_CACHE
 	default n
 
 config CACHE_L2X0
-	bool
+	bool "Enable the L2x0 outer cache controller"
+	depends on REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || MACH_REALVIEW_PB1176
+	default y
 	select OUTER_CACHE
+	help
+	  This option enables the L2x0 PrimeCell.

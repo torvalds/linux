@@ -19,14 +19,8 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/delay.h>
-#include <linux/ioport.h>
-#include <linux/pm.h>
-#include <linux/string.h>
-#include <linux/sysdev.h>
 
 #include <asm/hardware.h>
-#include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
@@ -134,59 +128,3 @@ void __init pxa_map_io(void)
 	iotable_init(standard_io_desc, ARRAY_SIZE(standard_io_desc));
 	get_clk_frequency_khz(1);
 }
-
-#ifdef CONFIG_PM
-
-static unsigned long saved_gplr[4];
-static unsigned long saved_gpdr[4];
-static unsigned long saved_grer[4];
-static unsigned long saved_gfer[4];
-
-static int pxa_gpio_suspend(struct sys_device *dev, pm_message_t state)
-{
-	int i, gpio;
-
-	for (gpio = 0, i = 0; gpio < pxa_last_gpio; gpio += 32, i++) {
-		saved_gplr[i] = GPLR(gpio);
-		saved_gpdr[i] = GPDR(gpio);
-		saved_grer[i] = GRER(gpio);
-		saved_gfer[i] = GFER(gpio);
-
-		/* Clear GPIO transition detect bits */
-		GEDR(gpio) = GEDR(gpio);
-	}
-	return 0;
-}
-
-static int pxa_gpio_resume(struct sys_device *dev)
-{
-	int i, gpio;
-
-	for (gpio = 0, i = 0; gpio < pxa_last_gpio; gpio += 32, i++) {
-		/* restore level with set/clear */
-		GPSR(gpio) = saved_gplr[i];
-		GPCR(gpio) = ~saved_gplr[i];
-
-		GRER(gpio) = saved_grer[i];
-		GFER(gpio) = saved_gfer[i];
-		GPDR(gpio) = saved_gpdr[i];
-	}
-	return 0;
-}
-#else
-#define pxa_gpio_suspend	NULL
-#define pxa_gpio_resume		NULL
-#endif
-
-struct sysdev_class pxa_gpio_sysclass = {
-	.name		= "gpio",
-	.suspend	= pxa_gpio_suspend,
-	.resume		= pxa_gpio_resume,
-};
-
-static int __init pxa_gpio_init(void)
-{
-	return sysdev_class_register(&pxa_gpio_sysclass);
-}
-
-core_initcall(pxa_gpio_init);

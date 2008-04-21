@@ -23,6 +23,12 @@ endif
 choice
 	prompt "Select target board"
 
+config ARCH_GUMSTIX
+	bool "Gumstix XScale boards"
+	help
+	  Say Y here if you intend to run this kernel on a
+	  Gumstix Full Function Minature Computer.
+
 config ARCH_LUBBOCK
 	bool "Intel DBPXA250 Development Platform"
 	select PXA25x
@@ -159,6 +165,20 @@ config PXA_SHARPSL_27x
 endchoice
 
 endif
+
+if ARCH_GUMSTIX
+
+choice
+	prompt "Select target Gumstix board"
+
+config MACH_GUMSTIX_F
+	bool "Basix, Connex, ws-200ax, ws-400ax systems"
+	select PXA25x
+
+endchoice
+
+endif
+
 
 if MACH_TRIZEPS4
 

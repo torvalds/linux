@@ -32,3 +32,5 @@ extern void omap2_init_memory_params(u32 force_lock_to_unlock_mode);
 extern u32 omap2_memory_get_slow_dll_ctrl(void);
 extern u32 omap2_memory_get_fast_dll_ctrl(void);
 extern u32 omap2_memory_get_type(void);
+u32 omap2_dll_force_needed(void);
+u32 omap2_reprogram_sdrc(u32 level, u32 force);

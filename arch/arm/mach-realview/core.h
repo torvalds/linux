@@ -55,8 +55,13 @@ extern void __iomem *gic_cpu_base_addr;
 extern void __iomem *twd_base_addr;
 extern unsigned int twd_size;
 #endif
+extern void __iomem *timer0_va_base;
+extern void __iomem *timer1_va_base;
+extern void __iomem *timer2_va_base;
+extern void __iomem *timer3_va_base;
 
 extern void realview_leds_event(led_event_t ledevt);
 extern void realview_timer_init(unsigned int timer_irq);
+extern int realview_flash_register(struct resource *res, u32 num);
 
 #endif

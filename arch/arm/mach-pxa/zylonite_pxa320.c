@@ -21,7 +21,7 @@
 #include <asm/arch/mfp-pxa320.h>
 #include <asm/arch/zylonite.h>
 
-#define ARRAY_AND_SIZE(x)	(x), ARRAY_SIZE(x)
+#include "generic.h"
 
 static mfp_cfg_t mfp_cfg[] __initdata = {
 	/* LCD */
@@ -67,6 +67,9 @@ static mfp_cfg_t mfp_cfg[] __initdata = {
 	GPIO38_AC97_SYNC,
 	GPIO39_AC97_BITCLK,
 	GPIO40_AC97_nACRESET,
+
+	/* WM9713 IRQ */
+	GPIO15_GPIO,
 
 	/* I2C */
 	GPIO32_I2C_SCL,
@@ -190,5 +193,8 @@ void __init zylonite_pxa320_init(void)
 		/* MMC card detect & write protect for controller 0 */
 		zylonite_mmc_slot[0].gpio_cd  = mfp_to_gpio(MFP_PIN_GPIO1);
 		zylonite_mmc_slot[0].gpio_wp  = mfp_to_gpio(MFP_PIN_GPIO5);
+
+		/* WM9713 IRQ */
+		wm9713_irq = mfp_to_gpio(MFP_PIN_GPIO15);
 	}
 }

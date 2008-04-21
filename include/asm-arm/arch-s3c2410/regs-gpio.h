@@ -529,11 +529,13 @@
 #define S3C2410_GPD14_INP	(0x00 << 28)
 #define S3C2410_GPD14_OUTP	(0x01 << 28)
 #define S3C2410_GPD14_VD22	(0x02 << 28)
+#define S3C2410_GPD14_nSS1	(0x03 << 28)
 
 #define S3C2410_GPD15           S3C2410_GPIONO(S3C2410_GPIO_BANKD, 15)
 #define S3C2410_GPD15_INP	(0x00 << 30)
 #define S3C2410_GPD15_OUTP	(0x01 << 30)
 #define S3C2410_GPD15_VD23	(0x02 << 30)
+#define S3C2410_GPD15_nSS0	(0x03 << 30)
 
 #define S3C2410_GPD_PUPDIS(x)  (1<<(x))
 
@@ -801,12 +803,14 @@
 #define S3C2410_GPG2_INP      (0x00 << 4)
 #define S3C2410_GPG2_OUTP     (0x01 << 4)
 #define S3C2410_GPG2_EINT10   (0x02 << 4)
+#define S3C2410_GPG2_nSS0     (0x03 << 4)
 #define S3C2400_GPG2_CDCLK    (0x02 << 4)
 
 #define S3C2410_GPG3          S3C2410_GPIONO(S3C2410_GPIO_BANKG, 3)
 #define S3C2410_GPG3_INP      (0x00 << 6)
 #define S3C2410_GPG3_OUTP     (0x01 << 6)
 #define S3C2410_GPG3_EINT11   (0x02 << 6)
+#define S3C2410_GPG3_nSS1     (0x03 << 6)
 #define S3C2400_GPG3_I2SSDO   (0x02 << 6)
 #define S3C2400_GPG3_I2SSDI   (0x03 << 6)
 

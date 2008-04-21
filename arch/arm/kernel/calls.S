@@ -359,9 +359,11 @@
 		CALL(sys_kexec_load)
 		CALL(sys_utimensat)
 		CALL(sys_signalfd)
-/* 350 */	CALL(sys_ni_syscall)
+/* 350 */	CALL(sys_timerfd_create)
 		CALL(sys_eventfd)
 		CALL(sys_fallocate)
+		CALL(sys_timerfd_settime)
+		CALL(sys_timerfd_gettime)
 #ifndef syscalls_counted
 .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls
 #define syscalls_counted

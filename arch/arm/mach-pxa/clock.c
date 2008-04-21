@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 #include <asm/hardware.h>
 
 #include "devices.h"

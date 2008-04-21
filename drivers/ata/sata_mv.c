@@ -76,6 +76,7 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
+#include <linux/mbus.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
@@ -369,6 +370,9 @@ enum {
 #define IS_GEN_II(hpriv) ((hpriv)->hp_flags & MV_HP_GEN_II)
 #define IS_GEN_IIE(hpriv) ((hpriv)->hp_flags & MV_HP_GEN_IIE)
 #define HAS_PCI(host) (!((host)->ports[0]->flags & MV_FLAG_SOC))
+
+#define WINDOW_CTRL(i)		(0x20030 + ((i) << 4))
+#define WINDOW_BASE(i)		(0x20034 + ((i) << 4))
 
 enum {
 	/* DMA boundary 0xffff is required by the s/g splitting
@@ -2769,6 +2773,27 @@ static int mv_create_dma_pools(struct mv_host_priv *hpriv, struct device *dev)
 	return 0;
 }
 
+static void mv_conf_mbus_windows(struct mv_host_priv *hpriv,
+				 struct mbus_dram_target_info *dram)
+{
+	int i;
+
+	for (i = 0; i < 4; i++) {
+		writel(0, hpriv->base + WINDOW_CTRL(i));
+		writel(0, hpriv->base + WINDOW_BASE(i));
+	}
+
+	for (i = 0; i < dram->num_cs; i++) {
+		struct mbus_dram_window *cs = dram->cs + i;
+
+		writel(((cs->size - 1) & 0xffff0000) |
+			(cs->mbus_attr << 8) |
+			(dram->mbus_dram_target_id << 4) | 1,
+			hpriv->base + WINDOW_CTRL(i));
+		writel(cs->base, hpriv->base + WINDOW_BASE(i));
+	}
+}
+
 /**
  *      mv_platform_probe - handle a positive probe of an soc Marvell
  *      host
@@ -2822,6 +2847,12 @@ static int mv_platform_probe(struct platform_device *pdev)
 	hpriv->base = devm_ioremap(&pdev->dev, res->start,
 				   res->end - res->start + 1);
 	hpriv->base -= MV_SATAHC0_REG_BASE;
+
+	/*
+	 * (Re-)program MBUS remapping windows if we are asked to.
+	 */
+	if (mv_platform_data->dram != NULL)
+		mv_conf_mbus_windows(hpriv, mv_platform_data->dram);
 
 	rc = mv_create_dma_pools(hpriv, &pdev->dev);
 	if (rc)

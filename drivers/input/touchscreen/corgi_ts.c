@@ -22,6 +22,7 @@
 #include <asm/arch/sharpsl.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-gpio.h>
 
 
 #define PWR_MODE_ACTIVE		0

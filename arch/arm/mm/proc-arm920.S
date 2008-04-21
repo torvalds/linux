@@ -424,6 +424,7 @@ arm920_processor_functions:
 	.word	cpu_arm920_dcache_clean_area
 	.word	cpu_arm920_switch_mm
 	.word	cpu_arm920_set_pte_ext
+	.word	pabort_noifar
 	.size	arm920_processor_functions, . - arm920_processor_functions
 
 	.section ".rodata"
