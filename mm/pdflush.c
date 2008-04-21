@@ -17,8 +17,8 @@
 #include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/fs.h>		// Needed by writeback.h
-#include <linux/writeback.h>	// Prototypes pdflush_operation()
+#include <linux/fs.h>		/* Needed by writeback.h	  */
+#include <linux/writeback.h>	/* Prototypes pdflush_operation() */
 #include <linux/kthread.h>
 #include <linux/cpuset.h>
 #include <linux/freezer.h>
