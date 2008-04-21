@@ -913,18 +913,22 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 
 void btrfs_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 {
-	struct list_head *cur;
-	struct btrfs_device *device;
-	struct btrfs_fs_info *info;
+	struct inode *inode = page->mapping->host;
+	struct extent_map_tree *em_tree;
+	struct extent_map *em;
+	u64 offset = page_offset(page);
 
-	info = (struct btrfs_fs_info *)bdi->unplug_io_data;
-	list_for_each(cur, &info->fs_devices->devices) {
-		device = list_entry(cur, struct btrfs_device, dev_list);
-		bdi = blk_get_backing_dev_info(device->bdev);
-		if (bdi->unplug_io_fn) {
-			bdi->unplug_io_fn(bdi, page);
-		}
-	}
+	em_tree = &BTRFS_I(inode)->extent_tree;
+	spin_lock(&em_tree->lock);
+	em = lookup_extent_mapping(em_tree, offset, PAGE_CACHE_SIZE);
+	spin_unlock(&em_tree->lock);
+	if (!em)
+		return;
+
+	offset = offset - em->start;
+	btrfs_unplug_page(&BTRFS_I(inode)->root->fs_info->mapping_tree,
+			  em->block_start + offset, page);
+	free_extent_map(em);
 }
 
 static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)

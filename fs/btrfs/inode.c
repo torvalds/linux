@@ -313,13 +313,9 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 	u64 logical = bio->bi_sector << 9;
 	u64 length = 0;
 	u64 map_length;
-	struct bio_vec *bvec;
-	int i;
 	int ret;
 
-	bio_for_each_segment(bvec, bio, i) {
-		length += bvec->bv_len;
-	}
+	length = bio->bi_size;
 	map_tree = &root->fs_info->mapping_tree;
 	map_length = length;
 	ret = btrfs_map_block(map_tree, READ, logical,

@@ -18,6 +18,7 @@
 #include <linux/sched.h>
 #include <linux/bio.h>
 #include <linux/buffer_head.h>
+#include <linux/blkdev.h>
 #include <asm/div64.h>
 #include "ctree.h"
 #include "extent_map.h"
@@ -930,9 +931,10 @@ int btrfs_num_copies(struct btrfs_mapping_tree *map_tree, u64 logical, u64 len)
 	return ret;
 }
 
-int btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
-		    u64 logical, u64 *length,
-		    struct btrfs_multi_bio **multi_ret, int mirror_num)
+static int __btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
+			     u64 logical, u64 *length,
+			     struct btrfs_multi_bio **multi_ret,
+			     int mirror_num, struct page *unplug_page)
 {
 	struct extent_map *em;
 	struct map_lookup *map;
@@ -944,6 +946,7 @@ int btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
 	int stripes_required = 1;
 	int stripe_index;
 	int i;
+	int num_stripes;
 	struct btrfs_multi_bio *multi = NULL;
 
 	if (multi_ret && !(rw & (1 << BIO_RW))) {
@@ -960,10 +963,14 @@ again:
 	spin_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, logical, *length);
 	spin_unlock(&em_tree->lock);
+
+	if (!em && unplug_page)
+		return 0;
+
 	if (!em) {
 		printk("unable to find logical %Lu\n", logical);
+		BUG();
 	}
-	BUG_ON(!em);
 
 	BUG_ON(em->start > logical || em->start + em->len < logical);
 	map = (struct map_lookup *)em->bdev;
@@ -1010,14 +1017,15 @@ again:
 	} else {
 		*length = em->len - offset;
 	}
-	if (!multi_ret)
+
+	if (!multi_ret && !unplug_page)
 		goto out;
 
-	multi->num_stripes = 1;
+	num_stripes = 1;
 	stripe_index = 0;
 	if (map->type & BTRFS_BLOCK_GROUP_RAID1) {
-		if (rw & (1 << BIO_RW))
-			multi->num_stripes = map->num_stripes;
+		if (unplug_page || (rw & (1 << BIO_RW)))
+			num_stripes = map->num_stripes;
 		else if (mirror_num) {
 			stripe_index = mirror_num - 1;
 		} else {
@@ -1037,7 +1045,7 @@ again:
 		}
 	} else if (map->type & BTRFS_BLOCK_GROUP_DUP) {
 		if (rw & (1 << BIO_RW))
-			multi->num_stripes = map->num_stripes;
+			num_stripes = map->num_stripes;
 		else if (mirror_num)
 			stripe_index = mirror_num - 1;
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID10) {
@@ -1047,8 +1055,8 @@ again:
 		stripe_index = do_div(stripe_nr, factor);
 		stripe_index *= map->sub_stripes;
 
-		if (rw & (1 << BIO_RW))
-			multi->num_stripes = map->sub_stripes;
+		if (unplug_page || (rw & (1 << BIO_RW)))
+			num_stripes = map->sub_stripes;
 		else if (mirror_num)
 			stripe_index += mirror_num - 1;
 		else
@@ -1063,18 +1071,49 @@ again:
 	}
 	BUG_ON(stripe_index >= map->num_stripes);
 
-	for (i = 0; i < multi->num_stripes; i++) {
-		multi->stripes[i].physical =
-			map->stripes[stripe_index].physical + stripe_offset +
-			stripe_nr * map->stripe_len;
-		multi->stripes[i].dev = map->stripes[stripe_index].dev;
+	for (i = 0; i < num_stripes; i++) {
+		if (unplug_page) {
+			struct btrfs_device *device;
+			struct backing_dev_info *bdi;
+
+			device = map->stripes[stripe_index].dev;
+			bdi = blk_get_backing_dev_info(device->bdev);
+			if (bdi->unplug_io_fn) {
+				bdi->unplug_io_fn(bdi, unplug_page);
+			}
+		} else {
+			multi->stripes[i].physical =
+				map->stripes[stripe_index].physical +
+				stripe_offset + stripe_nr * map->stripe_len;
+			multi->stripes[i].dev = map->stripes[stripe_index].dev;
+		}
 		stripe_index++;
 	}
-	*multi_ret = multi;
+	if (multi_ret) {
+		*multi_ret = multi;
+		multi->num_stripes = num_stripes;
+	}
 out:
 	free_extent_map(em);
 	return 0;
 }
+
+int btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
+		      u64 logical, u64 *length,
+		      struct btrfs_multi_bio **multi_ret, int mirror_num)
+{
+	return __btrfs_map_block(map_tree, rw, logical, length, multi_ret,
+				 mirror_num, NULL);
+}
+
+int btrfs_unplug_page(struct btrfs_mapping_tree *map_tree,
+		      u64 logical, struct page *page)
+{
+	u64 length = PAGE_CACHE_SIZE;
+	return __btrfs_map_block(map_tree, READ, logical, &length,
+				 NULL, 0, page);
+}
+
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
 static void end_bio_multi_stripe(struct bio *bio, int err)
@@ -1122,16 +1161,12 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 	u64 logical = bio->bi_sector << 9;
 	u64 length = 0;
 	u64 map_length;
-	struct bio_vec *bvec;
 	struct btrfs_multi_bio *multi = NULL;
-	int i;
 	int ret;
 	int dev_nr = 0;
 	int total_devs = 1;
 
-	bio_for_each_segment(bvec, bio, i) {
-		length += bvec->bv_len;
-	}
+	length = bio->bi_size;
 
 	map_tree = &root->fs_info->mapping_tree;
 	map_length = length;
