@@ -338,15 +338,13 @@ static int __init mv64x60_i2c_device_setup(struct device_node *np, int id)
 
 	pdata.freq_m = 8;	/* default */
 	prop = of_get_property(np, "freq_m", NULL);
-	if (!prop)
-		return -ENODEV;
-	pdata.freq_m = *prop;
+	if (prop)
+		pdata.freq_m = *prop;
 
 	pdata.freq_m = 3;	/* default */
 	prop = of_get_property(np, "freq_n", NULL);
-	if (!prop)
-		return -ENODEV;
-	pdata.freq_n = *prop;
+	if (prop)
+		pdata.freq_n = *prop;
 
 	pdata.timeout = 1000;				/* default: 1 second */
 
