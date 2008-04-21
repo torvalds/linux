@@ -1029,19 +1029,8 @@ again:
 		else if (mirror_num) {
 			stripe_index = mirror_num - 1;
 		} else {
-			int i;
-			u64 least = (u64)-1;
-			struct btrfs_device *cur;
-
-			for (i = 0; i < map->num_stripes; i++) {
-				cur = map->stripes[i].dev;
-				spin_lock(&cur->io_lock);
-				if (cur->total_ios < least) {
-					least = cur->total_ios;
-					stripe_index = i;
-				}
-				spin_unlock(&cur->io_lock);
-			}
+			u64 orig_stripe_nr = stripe_nr;
+			stripe_index = do_div(orig_stripe_nr, num_stripes);
 		}
 	} else if (map->type & BTRFS_BLOCK_GROUP_DUP) {
 		if (rw & (1 << BIO_RW))
@@ -1050,7 +1039,6 @@ again:
 			stripe_index = mirror_num - 1;
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID10) {
 		int factor = map->num_stripes / map->sub_stripes;
-		int orig_stripe_nr = stripe_nr;
 
 		stripe_index = do_div(stripe_nr, factor);
 		stripe_index *= map->sub_stripes;
@@ -1059,8 +1047,11 @@ again:
 			num_stripes = map->sub_stripes;
 		else if (mirror_num)
 			stripe_index += mirror_num - 1;
-		else
-			stripe_index += orig_stripe_nr % map->sub_stripes;
+		else {
+			u64 orig_stripe_nr = stripe_nr;
+			stripe_index += do_div(orig_stripe_nr,
+					       map->sub_stripes);
+		}
 	} else {
 		/*
 		 * after this do_div call, stripe_nr is the number of stripes
