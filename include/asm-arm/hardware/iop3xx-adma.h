@@ -260,7 +260,7 @@ static inline int iop_chan_memset_slot_count(size_t len, int *slots_per_op)
 static inline int iop3xx_aau_xor_slot_count(size_t len, int src_cnt,
 					int *slots_per_op)
 {
-	const static int slot_count_table[] = { 0,
+	static const int slot_count_table[] = { 0,
 						1, 1, 1, 1, /* 01 - 04 */
 						2, 2, 2, 2, /* 05 - 08 */
 						4, 4, 4, 4, /* 09 - 12 */
@@ -369,7 +369,7 @@ static inline u32 iop_desc_get_byte_count(struct iop_adma_desc_slot *desc,
 /* translate the src_idx to a descriptor word index */
 static inline int __desc_idx(int src_idx)
 {
-	const static int desc_idx_table[] = { 0, 0, 0, 0,
+	static const int desc_idx_table[] = { 0, 0, 0, 0,
 					      0, 1, 2, 3,
 					      5, 6, 7, 8,
 					      9, 10, 11, 12,
