@@ -745,12 +745,13 @@ sys_delete_module(const char __user *name_user, unsigned int flags)
 	if (!forced && module_refcount(mod) != 0)
 		wait_for_zero_refcount(mod);
 
+	mutex_unlock(&module_mutex);
 	/* Final destruction now noone is using it. */
-	if (mod->exit != NULL) {
-		mutex_unlock(&module_mutex);
+	if (mod->exit != NULL)
 		mod->exit();
-		mutex_lock(&module_mutex);
-	}
+	blocking_notifier_call_chain(&module_notify_list,
+				     MODULE_STATE_GOING, mod);
+	mutex_lock(&module_mutex);
 	/* Store the name of the last unloaded module for diagnostic purposes */
 	strlcpy(last_unloaded_module, mod->name, sizeof(last_unloaded_module));
 	free_module(mod);
@@ -2191,6 +2192,8 @@ sys_init_module(void __user *umod,
 		mod->state = MODULE_STATE_GOING;
 		synchronize_sched();
 		module_put(mod);
+		blocking_notifier_call_chain(&module_notify_list,
+					     MODULE_STATE_GOING, mod);
 		mutex_lock(&module_mutex);
 		free_module(mod);
 		mutex_unlock(&module_mutex);
