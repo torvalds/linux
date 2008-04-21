@@ -55,10 +55,10 @@ void ip_options_build(struct sk_buff * skb, struct ip_options * opt,
 		if (opt->ts_needaddr)
 			ip_rt_get_source(iph+opt->ts+iph[opt->ts+2]-9, rt);
 		if (opt->ts_needtime) {
-			struct timeval tv;
+			struct timespec tv;
 			__be32 midtime;
-			do_gettimeofday(&tv);
-			midtime = htonl((tv.tv_sec % 86400) * 1000 + tv.tv_usec / 1000);
+			getnstimeofday(&tv);
+			midtime = htonl((tv.tv_sec % 86400) * MSEC_PER_SEC + tv.tv_nsec / NSEC_PER_MSEC);
 			memcpy(iph+opt->ts+iph[opt->ts+2]-5, &midtime, 4);
 		}
 		return;
@@ -406,10 +406,10 @@ int ip_options_compile(struct net *net,
 					break;
 				}
 				if (timeptr) {
-					struct timeval tv;
+					struct timespec tv;
 					__be32  midtime;
-					do_gettimeofday(&tv);
-					midtime = htonl((tv.tv_sec % 86400) * 1000 + tv.tv_usec / 1000);
+					getnstimeofday(&tv);
+					midtime = htonl((tv.tv_sec % 86400) * MSEC_PER_SEC + tv.tv_nsec / NSEC_PER_MSEC);
 					memcpy(timeptr, &midtime, sizeof(__be32));
 					opt->is_changed = 1;
 				}
