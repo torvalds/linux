@@ -104,9 +104,9 @@ sha512_transform(u64 *state, u64 *W, const u8 *input)
         }
 
 	/* load the state into our registers */
-	a=state[0];   b=state[1];   c=state[2];   d=state[3];  
-	e=state[4];   f=state[5];   g=state[6];   h=state[7];  
-  
+	a=state[0];   b=state[1];   c=state[2];   d=state[3];
+	e=state[4];   f=state[5];   g=state[6];   h=state[7];
+
 	/* now iterate */
 	for (i=0; i<80; i+=8) {
 		t1 = h + e1(e) + Ch(e,f,g) + sha512_K[i  ] + W[i  ];
@@ -126,9 +126,9 @@ sha512_transform(u64 *state, u64 *W, const u8 *input)
 		t1 = a + e1(f) + Ch(f,g,h) + sha512_K[i+7] + W[i+7];
 		t2 = e0(b) + Maj(b,c,d);    e+=t1;    a=t1+t2;
 	}
-  
-	state[0] += a; state[1] += b; state[2] += c; state[3] += d;  
-	state[4] += e; state[5] += f; state[6] += g; state[7] += h;  
+
+	state[0] += a; state[1] += b; state[2] += c; state[3] += d;
+	state[4] += e; state[5] += f; state[6] += g; state[7] += h;
 
 	/* erase our data */
 	a = b = c = d = e = f = g = h = t1 = t2 = 0;
@@ -173,7 +173,7 @@ sha512_update(struct crypto_tfm *tfm, const u8 *data, unsigned int len)
 
 	/* Compute number of bytes mod 128 */
 	index = (unsigned int)((sctx->count[0] >> 3) & 0x7F);
-	
+
 	/* Update number of bits */
 	if ((sctx->count[0] += (len << 3)) < (len << 3)) {
 		if ((sctx->count[1] += 1) < 1)
@@ -181,9 +181,9 @@ sha512_update(struct crypto_tfm *tfm, const u8 *data, unsigned int len)
 				sctx->count[3]++;
 		sctx->count[1] += (len >> 29);
 	}
-	
+
         part_len = 128 - index;
-	
+
 	/* Transform as many times as possible. */
 	if (len >= part_len) {
 		memcpy(&sctx->buf[index], data, part_len);
@@ -278,9 +278,7 @@ static struct crypto_alg sha384 = {
         }
 };
 
-MODULE_ALIAS("sha384");
-
-static int __init init(void)
+static int __init sha512_generic_mod_init(void)
 {
         int ret = 0;
 
@@ -292,14 +290,17 @@ out:
         return ret;
 }
 
-static void __exit fini(void)
+static void __exit sha512_generic_mod_fini(void)
 {
         crypto_unregister_alg(&sha384);
         crypto_unregister_alg(&sha512);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(sha512_generic_mod_init);
+module_exit(sha512_generic_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA-512 and SHA-384 Secure Hash Algorithms");
+
+MODULE_ALIAS("sha384");
+MODULE_ALIAS("sha512");

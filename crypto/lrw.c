@@ -91,8 +91,9 @@ struct sinfo {
 
 static inline void inc(be128 *iv)
 {
-	if (!(iv->b = cpu_to_be64(be64_to_cpu(iv->b) + 1)))
-		iv->a = cpu_to_be64(be64_to_cpu(iv->a) + 1);
+	be64_add_cpu(&iv->b, 1);
+	if (!iv->b)
+		be64_add_cpu(&iv->a, 1);
 }
 
 static inline void lrw_round(struct sinfo *s, void *dst, const void *src)

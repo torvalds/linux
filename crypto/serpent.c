@@ -557,7 +557,7 @@ static struct crypto_alg tnepres_alg = {
 	.cia_decrypt  		=	tnepres_decrypt } }
 };
 
-static int __init init(void)
+static int __init serpent_mod_init(void)
 {
 	int ret = crypto_register_alg(&serpent_alg);
 
@@ -572,14 +572,14 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit serpent_mod_fini(void)
 {
 	crypto_unregister_alg(&tnepres_alg);
 	crypto_unregister_alg(&serpent_alg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(serpent_mod_init);
+module_exit(serpent_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Serpent and tnepres (kerneli compatible serpent reversed) Cipher Algorithm");
