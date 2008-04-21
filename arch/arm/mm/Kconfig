@@ -32,6 +32,7 @@ config CPU_ARM7TDMI
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_LV4T
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_V4
 	help
 	  A 32-bit RISC microprocessor based on the ARM7 processor core
@@ -85,6 +86,7 @@ config CPU_ARM740T
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_LV4T
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_V3	# although the core is v4t
 	select CPU_CP15_MPU
 	help
@@ -101,6 +103,7 @@ config CPU_ARM9TDMI
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_NOMMU
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_V4
 	help
 	  A 32-bit RISC microprocessor based on the ARM9 processor core
@@ -200,6 +203,7 @@ config CPU_ARM940T
 	depends on !MMU
 	select CPU_32v4T
 	select CPU_ABRT_NOMMU
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MPU
 	help
@@ -217,6 +221,7 @@ config CPU_ARM946E
 	depends on !MMU
 	select CPU_32v5
 	select CPU_ABRT_NOMMU
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MPU
 	help
@@ -351,6 +356,7 @@ config CPU_XSC3
 	default y
 	select CPU_32v5
 	select CPU_ABRT_EV5T
+	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MMU
 	select CPU_TLB_V4WBI if MMU

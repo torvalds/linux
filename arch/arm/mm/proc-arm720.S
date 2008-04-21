@@ -198,6 +198,7 @@ arm720_crval:
 		.type	arm720_processor_functions, #object
 ENTRY(arm720_processor_functions)
 		.word	v4t_late_abort
+		.word	pabort_noifar
 		.word	cpu_arm720_proc_init
 		.word	cpu_arm720_proc_fin
 		.word	cpu_arm720_reset
@@ -205,7 +206,6 @@ ENTRY(arm720_processor_functions)
 		.word	cpu_arm720_dcache_clean_area
 		.word	cpu_arm720_switch_mm
 		.word	cpu_arm720_set_pte_ext
-		.word	pabort_noifar
 		.size	arm720_processor_functions, . - arm720_processor_functions
 
 		.section ".rodata"

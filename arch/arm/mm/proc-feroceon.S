@@ -423,6 +423,7 @@ feroceon_crval:
 	.type	feroceon_processor_functions, #object
 feroceon_processor_functions:
 	.word	v5t_early_abort
+	.word	pabort_noifar
 	.word	cpu_feroceon_proc_init
 	.word	cpu_feroceon_proc_fin
 	.word	cpu_feroceon_reset
@@ -430,7 +431,6 @@ feroceon_processor_functions:
 	.word	cpu_feroceon_dcache_clean_area
 	.word	cpu_feroceon_switch_mm
 	.word	cpu_feroceon_set_pte_ext
-	.word	pabort_noifar
 	.size	feroceon_processor_functions, . - feroceon_processor_functions
 
 	.section ".rodata"

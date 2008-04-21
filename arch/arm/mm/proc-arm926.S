@@ -437,6 +437,7 @@ arm926_crval:
 	.type	arm926_processor_functions, #object
 arm926_processor_functions:
 	.word	v5tj_early_abort
+	.word	pabort_noifar
 	.word	cpu_arm926_proc_init
 	.word	cpu_arm926_proc_fin
 	.word	cpu_arm926_reset
@@ -444,7 +445,6 @@ arm926_processor_functions:
 	.word	cpu_arm926_dcache_clean_area
 	.word	cpu_arm926_switch_mm
 	.word	cpu_arm926_set_pte_ext
-	.word	pabort_noifar
 	.size	arm926_processor_functions, . - arm926_processor_functions
 
 	.section ".rodata"
