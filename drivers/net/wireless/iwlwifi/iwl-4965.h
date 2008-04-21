@@ -200,9 +200,9 @@ enum {
 struct iwl_channel_info {
 	struct iwl4965_channel_tgd_info tgd;
 	struct iwl4965_channel_tgh_info tgh;
-	struct iwl4965_eeprom_channel eeprom;	  /* EEPROM regulatory limit */
-	struct iwl4965_eeprom_channel fat_eeprom; /* EEPROM regulatory limit for
-						   * FAT channel */
+	struct iwl_eeprom_channel eeprom;	/* EEPROM regulatory limit */
+	struct iwl_eeprom_channel fat_eeprom;	/* EEPROM regulatory limit for
+						 * FAT channel */
 
 	u8 channel;	  /* channel number */
 	u8 flags;	  /* flags copied from EEPROM */
@@ -1122,7 +1122,8 @@ struct iwl_priv {
 	struct list_head ibss_mac_hash[IWL_IBSS_MAC_HASH_SIZE];
 
 	/* eeprom */
-	struct iwl4965_eeprom eeprom;
+	u8 *eeprom;
+	struct iwl_eeprom_calib_info *calib_info;
 
 	enum ieee80211_if_types iw_mode;
 

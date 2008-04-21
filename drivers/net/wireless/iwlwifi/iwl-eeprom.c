@@ -193,6 +193,12 @@ void iwlcore_eeprom_release_semaphore(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwlcore_eeprom_release_semaphore);
 
+const u8 *iwlcore_eeprom_query_addr(const struct iwl_priv *priv, size_t offset)
+{
+	BUG_ON(offset >= priv->cfg->eeprom_size);
+	return &priv->eeprom[offset];
+}
+EXPORT_SYMBOL(iwlcore_eeprom_query_addr);
 
 /**
  * iwl_eeprom_init - read EEPROM contents
@@ -203,30 +209,35 @@ EXPORT_SYMBOL(iwlcore_eeprom_release_semaphore);
  */
 int iwl_eeprom_init(struct iwl_priv *priv)
 {
-	u16 *e = (u16 *)&priv->eeprom;
+	u16 *e;
 	u32 gp = iwl_read32(priv, CSR_EEPROM_GP);
 	u32 r;
-	int sz = sizeof(priv->eeprom);
+	int sz = priv->cfg->eeprom_size;
 	int ret;
 	int i;
 	u16 addr;
 
-	/* The EEPROM structure has several padding buffers within it
-	 * and when adding new EEPROM maps is subject to programmer errors
-	 * which may be very difficult to identify without explicitly
-	 * checking the resulting size of the eeprom map. */
-	BUILD_BUG_ON(sizeof(priv->eeprom) != IWL_EEPROM_IMAGE_SIZE);
+	/* allocate eeprom */
+	priv->eeprom = kzalloc(sz, GFP_KERNEL);
+	if (!priv->eeprom) {
+		ret = -ENOMEM;
+		goto alloc_err;
+	}
+	e = (u16 *)priv->eeprom;
 
-	if ((gp & CSR_EEPROM_GP_VALID_MSK) == CSR_EEPROM_GP_BAD_SIGNATURE) {
+	ret = priv->cfg->ops->lib->eeprom_ops.verify_signature(priv);
+	if (ret < 0) {
 		IWL_ERROR("EEPROM not found, EEPROM_GP=0x%08x", gp);
-		return -ENOENT;
+		ret = -ENOENT;
+		goto err;
 	}
 
 	/* Make sure driver (instead of uCode) is allowed to read EEPROM */
 	ret = priv->cfg->ops->lib->eeprom_ops.acquire_semaphore(priv);
 	if (ret < 0) {
 		IWL_ERROR("Failed to acquire EEPROM semaphore.\n");
-		return -ENOENT;
+		ret = -ENOENT;
+		goto err;
 	}
 
 	/* eeprom is an array of 16bit values */
@@ -250,61 +261,93 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 		e[addr / 2] = le16_to_cpu((__force __le16)(r >> 16));
 	}
 	ret = 0;
-
 done:
 	priv->cfg->ops->lib->eeprom_ops.release_semaphore(priv);
+err:
+	if (ret)
+		kfree(priv->eeprom);
+alloc_err:
 	return ret;
 }
 EXPORT_SYMBOL(iwl_eeprom_init);
 
+void iwl_eeprom_free(struct iwl_priv *priv)
+{
+	if(priv->eeprom)
+		kfree(priv->eeprom);
+	priv->eeprom = NULL;
+}
+EXPORT_SYMBOL(iwl_eeprom_free);
+
+
+const u8 *iwl_eeprom_query_addr(const struct iwl_priv *priv, size_t offset)
+{
+	return priv->cfg->ops->lib->eeprom_ops.query_addr(priv, offset);
+}
+EXPORT_SYMBOL(iwl_eeprom_query_addr);
+
+u16 iwl_eeprom_query16(const struct iwl_priv *priv, size_t offset)
+{
+	return (u16)priv->eeprom[offset] | ((u16)priv->eeprom[offset + 1] << 8);
+}
+EXPORT_SYMBOL(iwl_eeprom_query16);
 
 void iwl_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac)
 {
-	memcpy(mac, priv->eeprom.mac_address, 6);
+	const u8 *addr = priv->cfg->ops->lib->eeprom_ops.query_addr(priv,
+					EEPROM_MAC_ADDRESS);
+	memcpy(mac, addr, ETH_ALEN);
 }
 EXPORT_SYMBOL(iwl_eeprom_get_mac);
 
 static void iwl_init_band_reference(const struct iwl_priv *priv,
-				    int band,
-				    int *eeprom_ch_count,
-				    const struct iwl4965_eeprom_channel
-				    **eeprom_ch_info,
-				    const u8 **eeprom_ch_index)
+			int eep_band, int *eeprom_ch_count,
+			const struct iwl_eeprom_channel **eeprom_ch_info,
+			const u8 **eeprom_ch_index)
 {
-	switch (band) {
+	u32 offset = priv->cfg->ops->lib->
+			eeprom_ops.regulatory_bands[eep_band - 1];
+	switch (eep_band) {
 	case 1:		/* 2.4GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_1);
-		*eeprom_ch_info = priv->eeprom.band_1_channels;
+		*eeprom_ch_info = (struct iwl_eeprom_channel *)
+				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_1;
 		break;
 	case 2:		/* 4.9GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_2);
-		*eeprom_ch_info = priv->eeprom.band_2_channels;
+		*eeprom_ch_info = (struct iwl_eeprom_channel *)
+				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_2;
 		break;
 	case 3:		/* 5.2GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_3);
-		*eeprom_ch_info = priv->eeprom.band_3_channels;
+		*eeprom_ch_info = (struct iwl_eeprom_channel *)
+				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_3;
 		break;
 	case 4:		/* 5.5GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_4);
-		*eeprom_ch_info = priv->eeprom.band_4_channels;
+		*eeprom_ch_info = (struct iwl_eeprom_channel *)
+				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_4;
 		break;
 	case 5:		/* 5.7GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_5);
-		*eeprom_ch_info = priv->eeprom.band_5_channels;
+		*eeprom_ch_info = (struct iwl_eeprom_channel *)
+				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_5;
 		break;
 	case 6:		/* 2.4GHz FAT channels */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_6);
-		*eeprom_ch_info = priv->eeprom.band_24_channels;
+		*eeprom_ch_info = (struct iwl_eeprom_channel *)
+				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_6;
 		break;
 	case 7:		/* 5 GHz FAT channels */
 		*eeprom_ch_count = ARRAY_SIZE(iwl_eeprom_band_7);
-		*eeprom_ch_info = priv->eeprom.band_52_channels;
+		*eeprom_ch_info = (struct iwl_eeprom_channel *)
+				iwl_eeprom_query_addr(priv, offset);
 		*eeprom_ch_index = iwl_eeprom_band_7;
 		break;
 	default:
@@ -323,7 +366,7 @@ static void iwl_init_band_reference(const struct iwl_priv *priv,
  */
 static int iwl4965_set_fat_chan_info(struct iwl_priv *priv,
 			      enum ieee80211_band band, u16 channel,
-			      const struct iwl4965_eeprom_channel *eeprom_ch,
+			      const struct iwl_eeprom_channel *eeprom_ch,
 			      u8 fat_extension_channel)
 {
 	struct iwl_channel_info *ch_info;
@@ -372,7 +415,7 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 {
 	int eeprom_ch_count = 0;
 	const u8 *eeprom_ch_index = NULL;
-	const struct iwl4965_eeprom_channel *eeprom_ch_info = NULL;
+	const struct iwl_eeprom_channel *eeprom_ch_info = NULL;
 	int band, ch;
 	struct iwl_channel_info *ch_info;
 
@@ -381,9 +424,9 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 		return 0;
 	}
 
-	if (priv->eeprom.version < 0x2f) {
+	if (iwl_eeprom_query16(priv, EEPROM_VERSION) < 0x2f) {
 		IWL_WARNING("Unsupported EEPROM version: 0x%04X\n",
-			    priv->eeprom.version);
+			    iwl_eeprom_query16(priv, EEPROM_VERSION));
 		return -EINVAL;
 	}
 

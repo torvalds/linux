@@ -699,8 +699,9 @@ int iwl4965_hw_nic_init(struct iwl_priv *priv)
 	unsigned long flags;
 	struct iwl4965_rx_queue *rxq = &priv->rxq;
 	u8 rev_id;
-	u32 val;
 	u8 val_link;
+	u16 sku_cap;
+	u32 val;
 
 	/* nic_init */
 	spin_lock_irqsave(&priv->lock, flags);
@@ -759,7 +760,8 @@ int iwl4965_hw_nic_init(struct iwl_priv *priv)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	if (priv->eeprom.calib_version < EEPROM_TX_POWER_VERSION_NEW) {
+	if (iwl_eeprom_query16(priv, EEPROM_4965_CALIB_VERSION_OFFSET) <
+		EEPROM_4965_TX_POWER_VERSION) {
 		IWL_ERROR("Older EEPROM detected!  Aborting.\n");
 		return -EINVAL;
 	}
@@ -816,6 +818,10 @@ int iwl4965_hw_nic_init(struct iwl_priv *priv)
 	rxq->need_update = 1;
 	iwl4965_rx_queue_update_write_ptr(priv, rxq);
 
+	/* init the txpower calibration pointer */
+	priv->calib_info = (struct iwl_eeprom_calib_info *)
+		iwl_eeprom_query_addr(priv, EEPROM_4965_CALIB_TXPOWER_OFFSET);
+
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* Allocate and init all Tx and Command queues */
@@ -823,10 +829,11 @@ int iwl4965_hw_nic_init(struct iwl_priv *priv)
 	if (rc)
 		return rc;
 
-	if (priv->eeprom.sku_cap & EEPROM_SKU_CAP_SW_RF_KILL_ENABLE)
+	sku_cap = iwl_eeprom_query16(priv, EEPROM_SKU_CAP);
+	if (sku_cap & EEPROM_SKU_CAP_SW_RF_KILL_ENABLE)
 		IWL_DEBUG_RF_KILL("SW RF KILL supported in EEPROM.\n");
 
-	if (priv->eeprom.sku_cap & EEPROM_SKU_CAP_HW_RF_KILL_ENABLE)
+	if (sku_cap & EEPROM_SKU_CAP_HW_RF_KILL_ENABLE)
 		IWL_DEBUG_RF_KILL("HW RF KILL supported in EEPROM.\n");
 
 	set_bit(STATUS_INIT, &priv->status);
@@ -1542,11 +1549,11 @@ static u32 iwl4965_get_sub_band(const struct iwl_priv *priv, u32 channel)
 	s32 b = -1;
 
 	for (b = 0; b < EEPROM_TX_POWER_BANDS; b++) {
-		if (priv->eeprom.calib_info.band_info[b].ch_from == 0)
+		if (priv->calib_info->band_info[b].ch_from == 0)
 			continue;
 
-		if ((channel >= priv->eeprom.calib_info.band_info[b].ch_from)
-		    && (channel <= priv->eeprom.calib_info.band_info[b].ch_to))
+		if ((channel >= priv->calib_info->band_info[b].ch_from)
+		    && (channel <= priv->calib_info->band_info[b].ch_to))
 			break;
 	}
 
@@ -1574,14 +1581,14 @@ static s32 iwl4965_interpolate_value(s32 x, s32 x1, s32 y1, s32 x2, s32 y2)
  * in channel number.
  */
 static int iwl4965_interpolate_chan(struct iwl_priv *priv, u32 channel,
-				    struct iwl4965_eeprom_calib_ch_info *chan_info)
+				    struct iwl_eeprom_calib_ch_info *chan_info)
 {
 	s32 s = -1;
 	u32 c;
 	u32 m;
-	const struct iwl4965_eeprom_calib_measure *m1;
-	const struct iwl4965_eeprom_calib_measure *m2;
-	struct iwl4965_eeprom_calib_measure *omeas;
+	const struct iwl_eeprom_calib_measure *m1;
+	const struct iwl_eeprom_calib_measure *m2;
+	struct iwl_eeprom_calib_measure *omeas;
 	u32 ch_i1;
 	u32 ch_i2;
 
@@ -1591,8 +1598,8 @@ static int iwl4965_interpolate_chan(struct iwl_priv *priv, u32 channel,
 		return -1;
 	}
 
-	ch_i1 = priv->eeprom.calib_info.band_info[s].ch1.ch_num;
-	ch_i2 = priv->eeprom.calib_info.band_info[s].ch2.ch_num;
+	ch_i1 = priv->calib_info->band_info[s].ch1.ch_num;
+	ch_i2 = priv->calib_info->band_info[s].ch2.ch_num;
 	chan_info->ch_num = (u8) channel;
 
 	IWL_DEBUG_TXPOWER("channel %d subband %d factory cal ch %d & %d\n",
@@ -1600,9 +1607,9 @@ static int iwl4965_interpolate_chan(struct iwl_priv *priv, u32 channel,
 
 	for (c = 0; c < EEPROM_TX_POWER_TX_CHAINS; c++) {
 		for (m = 0; m < EEPROM_TX_POWER_MEASUREMENTS; m++) {
-			m1 = &(priv->eeprom.calib_info.band_info[s].ch1.
+			m1 = &(priv->calib_info->band_info[s].ch1.
 			       measurements[c][m]);
-			m2 = &(priv->eeprom.calib_info.band_info[s].ch2.
+			m2 = &(priv->calib_info->band_info[s].ch2.
 			       measurements[c][m]);
 			omeas = &(chan_info->measurements[c][m]);
 
@@ -1921,8 +1928,8 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 	int i;
 	int c;
 	const struct iwl_channel_info *ch_info = NULL;
-	struct iwl4965_eeprom_calib_ch_info ch_eeprom_info;
-	const struct iwl4965_eeprom_calib_measure *measurement;
+	struct iwl_eeprom_calib_ch_info ch_eeprom_info;
+	const struct iwl_eeprom_calib_measure *measurement;
 	s16 voltage;
 	s32 init_voltage;
 	s32 voltage_compensation;
@@ -1979,9 +1986,9 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 	/* hardware txpower limits ...
 	 * saturation (clipping distortion) txpowers are in half-dBm */
 	if (band)
-		saturation_power = priv->eeprom.calib_info.saturation_power24;
+		saturation_power = priv->calib_info->saturation_power24;
 	else
-		saturation_power = priv->eeprom.calib_info.saturation_power52;
+		saturation_power = priv->calib_info->saturation_power52;
 
 	if (saturation_power < IWL_TX_POWER_SATURATION_MIN ||
 	    saturation_power > IWL_TX_POWER_SATURATION_MAX) {
@@ -2011,7 +2018,7 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 	iwl4965_interpolate_chan(priv, channel, &ch_eeprom_info);
 
 	/* calculate tx gain adjustment based on power supply voltage */
-	voltage = priv->eeprom.calib_info.voltage;
+	voltage = priv->calib_info->voltage;
 	init_voltage = (s32)le32_to_cpu(priv->card_alive_init.voltage);
 	voltage_compensation =
 	    iwl4965_get_voltage_compensation(voltage, init_voltage);
@@ -2467,14 +2474,14 @@ int iwl4965_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
 
 static void iwl4965_hw_card_show_info(struct iwl_priv *priv)
 {
-	u16 hw_version = priv->eeprom.board_revision_4965;
+	u16 hw_version = iwl_eeprom_query16(priv, EEPROM_4965_BOARD_REVISION);
 
 	IWL_DEBUG_INFO("4965ABGN HW Version %u.%u.%u\n",
 		       ((hw_version >> 8) & 0x0F),
 		       ((hw_version >> 8) >> 4), (hw_version & 0x00FF));
 
 	IWL_DEBUG_INFO("4965ABGN PBA Number %.16s\n",
-		       priv->eeprom.board_pba_number_4965);
+		       &priv->eeprom[EEPROM_4965_BOARD_PBA]);
 }
 
 #define IWL_TX_CRC_SIZE		4
@@ -4340,9 +4347,19 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.set_pwr_src = iwl4965_set_pwr_src,
 	},
 	.eeprom_ops = {
+		.regulatory_bands = {
+			EEPROM_REGULATORY_BAND_1_CHANNELS,
+			EEPROM_REGULATORY_BAND_2_CHANNELS,
+			EEPROM_REGULATORY_BAND_3_CHANNELS,
+			EEPROM_REGULATORY_BAND_4_CHANNELS,
+			EEPROM_REGULATORY_BAND_5_CHANNELS,
+			EEPROM_4965_REGULATORY_BAND_24_FAT_CHANNELS,
+			EEPROM_4965_REGULATORY_BAND_52_FAT_CHANNELS
+		},
 		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
+		.query_addr = iwlcore_eeprom_query_addr,
 	},
 	.radio_kill_sw = iwl4965_radio_kill_sw,
 	.set_power = iwl4965_set_power,
@@ -4359,6 +4376,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.name = "4965AGN",
 	.fw_name = "iwlwifi-4965" IWL4965_UCODE_API ".ucode",
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
+	.eeprom_size = IWL4965_EEPROM_IMG_SIZE,
 	.ops = &iwl4965_ops,
 	.mod_params = &iwl4965_mod_params,
 };

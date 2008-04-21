@@ -69,6 +69,9 @@
 #ifndef __iwl_4965_hw_h__
 #define __iwl_4965_hw_h__
 
+/* EERPROM */
+#define IWL4965_EEPROM_IMG_SIZE			1024
+
 /*
  * uCode queue management definitions ...
  * Queue #4 is the command queue for 3945 and 4965; map it to Tx FIFO chnl 4.

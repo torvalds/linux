@@ -7550,7 +7550,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	/* Device-specific setup */
 	if (priv->cfg->ops->lib->set_hw_params(priv)) {
 		IWL_ERROR("failed to set hw parameters\n");
-		goto out_iounmap;
+		goto out_free_eeprom;
 	}
 
 	/*******************
@@ -7611,6 +7611,8 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	sysfs_remove_group(&pdev->dev.kobj, &iwl4965_attribute_group);
  out_unset_hw_params:
 	iwl4965_unset_hw_params(priv);
+ out_free_eeprom:
+	iwl_eeprom_free(priv);
  out_iounmap:
 	pci_iounmap(pdev, priv->hw_base);
  out_pci_release_regions:
@@ -7674,6 +7676,7 @@ static void __devexit iwl4965_pci_remove(struct pci_dev *pdev)
 
 	iwl4965_unset_hw_params(priv);
 	iwlcore_clear_stations_table(priv);
+	iwl_eeprom_free(priv);
 
 
 	/*netif_stop_queue(dev); */
