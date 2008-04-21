@@ -239,7 +239,7 @@ no_block:
  *	@inode: owner
  *	@ind: descriptor of indirect block.
  *
- *	This function returns the prefered place for block allocation.
+ *	This function returns the preferred place for block allocation.
  *	It is used when heuristic for sequential allocation fails.
  *	Rules are:
  *	  + if there is a block to the left of our position - allocate near it.
@@ -283,7 +283,7 @@ static unsigned long ext2_find_near(struct inode *inode, Indirect *ind)
 }
 
 /**
- *	ext2_find_goal - find a prefered place for allocation.
+ *	ext2_find_goal - find a preferred place for allocation.
  *	@inode: owner
  *	@block:  block we want
  *	@partial: pointer to the last triple within a chain
