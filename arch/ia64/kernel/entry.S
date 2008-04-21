@@ -570,6 +570,7 @@ GLOBAL_ENTRY(ia64_trace_syscall)
 	br.call.sptk.many rp=syscall_trace_leave // give parent a chance to catch return value
 .ret3:
 (pUStk)	cmp.eq.unc p6,p0=r0,r0			// p6 <- pUStk
+(pUStk)	rsm psr.i				// disable interrupts
 	br.cond.sptk .work_pending_syscall_end
 
 strace_error:
