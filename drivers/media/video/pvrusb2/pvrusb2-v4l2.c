@@ -57,6 +57,9 @@ struct pvr2_v4l2_fh {
 	struct pvr2_v4l2_fh *vprev;
 	wait_queue_head_t wait_data;
 	int fw_mode_flag;
+	/* Map contiguous ordinal value to input id */
+	unsigned char *input_map;
+	unsigned int input_cnt;
 };
 
 struct pvr2_v4l2 {
@@ -65,10 +68,6 @@ struct pvr2_v4l2 {
 	struct pvr2_v4l2_fh *vlast;
 
 	struct v4l2_prio_state prio;
-
-	/* Map contiguous ordinal value to input id */
-	unsigned char *input_map;
-	unsigned int input_cnt;
 
 	/* streams - Note that these must be separately, individually,
 	 * allocated pointers.  This is because the v4l core is going to
@@ -269,11 +268,11 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		memset(&tmp,0,sizeof(tmp));
 		tmp.index = vi->index;
 		ret = 0;
-		if ((vi->index < 0) || (vi->index >= vp->input_cnt)) {
+		if ((vi->index < 0) || (vi->index >= fh->input_cnt)) {
 			ret = -EINVAL;
 			break;
 		}
-		val = vp->input_map[vi->index];
+		val = fh->input_map[vi->index];
 		switch (val) {
 		case PVR2_CVAL_INPUT_TV:
 		case PVR2_CVAL_INPUT_DTV:
@@ -321,8 +320,8 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		val = 0;
 		ret = pvr2_ctrl_get_value(cptr,&val);
 		vi->index = 0;
-		for (idx = 0; idx < vp->input_cnt; idx++) {
-			if (vp->input_map[idx] == val) {
+		for (idx = 0; idx < fh->input_cnt; idx++) {
+			if (fh->input_map[idx] == val) {
 				vi->index = idx;
 				break;
 			}
@@ -333,13 +332,13 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_S_INPUT:
 	{
 		struct v4l2_input *vi = (struct v4l2_input *)arg;
-		if ((vi->index < 0) || (vi->index >= vp->input_cnt)) {
+		if ((vi->index < 0) || (vi->index >= fh->input_cnt)) {
 			ret = -ERANGE;
 			break;
 		}
 		ret = pvr2_ctrl_set_value(
 			pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_INPUT),
-			vp->input_map[vi->index]);
+			fh->input_map[vi->index]);
 		break;
 	}
 
@@ -838,10 +837,6 @@ static void pvr2_v4l2_destroy_no_lock(struct pvr2_v4l2 *vp)
 		pvr2_v4l2_dev_destroy(vp->dev_radio);
 		vp->dev_radio = NULL;
 	}
-	if (vp->input_map) {
-		kfree(vp->input_map);
-		vp->input_map = NULL;
-	}
 
 	pvr2_trace(PVR2_TRACE_STRUCT,"Destroying pvr2_v4l2 id=%p",vp);
 	pvr2_channel_done(&vp->channel);
@@ -915,6 +910,10 @@ static int pvr2_v4l2_release(struct inode *inode, struct file *file)
 	pvr2_channel_done(&fhp->channel);
 	pvr2_trace(PVR2_TRACE_STRUCT,
 		   "Destroying pvr_v4l2_fh id=%p",fhp);
+	if (fhp->input_map) {
+		kfree(fhp->input_map);
+		fhp->input_map = NULL;
+	}
 	kfree(fhp);
 	if (vp->channel.mc_head->disconnect_flag && !vp->vfirst) {
 		pvr2_v4l2_destroy_no_lock(vp);
@@ -930,6 +929,7 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 	struct pvr2_v4l2 *vp;
 	struct pvr2_hdw *hdw;
 	unsigned int input_mask = 0;
+	unsigned int input_cnt,idx;
 	int ret = 0;
 
 	dip = container_of(video_devdata(file),struct pvr2_v4l2_dev,devbase);
@@ -977,6 +977,27 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 
 		kfree(fhp);
 		return ret;
+	}
+
+	input_mask &= pvr2_hdw_get_input_available(hdw);
+	input_cnt = 0;
+	for (idx = 0; idx < (sizeof(input_mask) << 3); idx++) {
+		if (input_mask & (1 << idx)) input_cnt++;
+	}
+	fhp->input_cnt = input_cnt;
+	fhp->input_map = kzalloc(input_cnt,GFP_KERNEL);
+	if (!fhp->input_map) {
+		pvr2_channel_done(&fhp->channel);
+		pvr2_trace(PVR2_TRACE_STRUCT,
+			   "Destroying pvr_v4l2_fh id=%p (input map failure)",
+			   fhp);
+		kfree(fhp);
+		return -ENOMEM;
+	}
+	input_cnt = 0;
+	for (idx = 0; idx < (sizeof(input_mask) << 3); idx++) {
+		if (!(input_mask & (1 << idx))) continue;
+		fhp->input_map[input_cnt++] = idx;
 	}
 
 	fhp->vnext = NULL;
@@ -1217,8 +1238,6 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 struct pvr2_v4l2 *pvr2_v4l2_create(struct pvr2_context *mnp)
 {
 	struct pvr2_v4l2 *vp;
-	struct pvr2_hdw *hdw;
-	unsigned int input_mask,input_cnt,idx;
 
 	vp = kzalloc(sizeof(*vp),GFP_KERNEL);
 	if (!vp) return vp;
@@ -1227,26 +1246,12 @@ struct pvr2_v4l2 *pvr2_v4l2_create(struct pvr2_context *mnp)
 
 	vp->channel.check_func = pvr2_v4l2_internal_check;
 
-	hdw = vp->channel.mc_head->hdw;
-	input_mask = pvr2_hdw_get_input_available(hdw);
-	input_cnt = 0;
-	for (idx = 0; idx < (sizeof(input_mask) << 3); idx++) {
-		if (input_mask & (1 << idx)) input_cnt++;
-	}
-	vp->input_cnt = input_cnt;
-	vp->input_map = kzalloc(input_cnt,GFP_KERNEL);
-	if (!vp->input_map) goto fail;
-	input_cnt = 0;
-	for (idx = 0; idx < (sizeof(input_mask) << 3); idx++) {
-		if (!(input_mask & (1 << idx))) continue;
-		vp->input_map[input_cnt++] = idx;
-	}
-
 	/* register streams */
 	vp->dev_video = kzalloc(sizeof(*vp->dev_video),GFP_KERNEL);
 	if (!vp->dev_video) goto fail;
 	pvr2_v4l2_dev_init(vp->dev_video,vp,VFL_TYPE_GRABBER);
-	if (input_mask & (1 << PVR2_CVAL_INPUT_RADIO)) {
+	if (pvr2_hdw_get_input_available(vp->channel.mc_head->hdw) &
+	    (1 << PVR2_CVAL_INPUT_RADIO)) {
 		vp->dev_radio = kzalloc(sizeof(*vp->dev_radio),GFP_KERNEL);
 		if (!vp->dev_radio) goto fail;
 		pvr2_v4l2_dev_init(vp->dev_radio,vp,VFL_TYPE_RADIO);
