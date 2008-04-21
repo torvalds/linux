@@ -4841,7 +4841,7 @@ static int iwl3945_init_channel_map(struct iwl3945_priv *priv)
 			ch_info->scan_power = eeprom_ch_info[ch].max_power_avg;
 			ch_info->min_power = 0;
 
-			IWL_DEBUG_INFO("Ch. %d [%sGHz] %s%s%s%s%s%s%s(0x%02x"
+			IWL_DEBUG_INFO("Ch. %d [%sGHz] %s%s%s%s%s%s(0x%02x"
 				       " %ddBm): Ad-Hoc %ssupported\n",
 				       ch_info->channel,
 				       is_channel_a_band(ch_info) ?
@@ -4851,7 +4851,6 @@ static int iwl3945_init_channel_map(struct iwl3945_priv *priv)
 				       CHECK_AND_PRINT(ACTIVE),
 				       CHECK_AND_PRINT(RADAR),
 				       CHECK_AND_PRINT(WIDE),
-				       CHECK_AND_PRINT(NARROW),
 				       CHECK_AND_PRINT(DFS),
 				       eeprom_ch_info[ch].flags,
 				       eeprom_ch_info[ch].max_power_avg,
@@ -4986,9 +4985,6 @@ static int iwl3945_get_channels_for_scan(struct iwl3945_priv *priv,
 
 		if (scan_ch->type & 1)
 			scan_ch->type |= (direct_mask << 1);
-
-		if (is_channel_narrow(ch_info))
-			scan_ch->type |= (1 << 7);
 
 		scan_ch->active_dwell = cpu_to_le16(active_dwell);
 		scan_ch->passive_dwell = cpu_to_le16(passive_dwell);

@@ -1227,11 +1227,6 @@ static inline int is_channel_valid(const struct iwl_channel_info *ch_info)
 	return (ch_info->flags & EEPROM_CHANNEL_VALID) ? 1 : 0;
 }
 
-static inline int is_channel_narrow(const struct iwl_channel_info *ch_info)
-{
-	return (ch_info->flags & EEPROM_CHANNEL_NARROW) ? 1 : 0;
-}
-
 static inline int is_channel_radar(const struct iwl_channel_info *ch_info)
 {
 	return (ch_info->flags & EEPROM_CHANNEL_RADAR) ? 1 : 0;

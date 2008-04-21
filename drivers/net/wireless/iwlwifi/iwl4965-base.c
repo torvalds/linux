@@ -4392,9 +4392,6 @@ static int iwl4965_get_channels_for_scan(struct iwl_priv *priv,
 		if (scan_ch->type & 1)
 			scan_ch->type |= (direct_mask << 1);
 
-		if (is_channel_narrow(ch_info))
-			scan_ch->type |= (1 << 7);
-
 		scan_ch->active_dwell = cpu_to_le16(active_dwell);
 		scan_ch->passive_dwell = cpu_to_le16(passive_dwell);
 

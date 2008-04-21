@@ -377,7 +377,7 @@ static int iwl4965_set_fat_chan_info(struct iwl_priv *priv,
 	if (!is_channel_valid(ch_info))
 		return -1;
 
-	IWL_DEBUG_INFO("FAT Ch. %d [%sGHz] %s%s%s%s%s%s(0x%02x"
+	IWL_DEBUG_INFO("FAT Ch. %d [%sGHz] %s%s%s%s%s(0x%02x"
 			" %ddBm): Ad-Hoc %ssupported\n",
 			ch_info->channel,
 			is_channel_a_band(ch_info) ?
@@ -386,7 +386,6 @@ static int iwl4965_set_fat_chan_info(struct iwl_priv *priv,
 			CHECK_AND_PRINT(ACTIVE),
 			CHECK_AND_PRINT(RADAR),
 			CHECK_AND_PRINT(WIDE),
-			CHECK_AND_PRINT(NARROW),
 			CHECK_AND_PRINT(DFS),
 			eeprom_ch->flags,
 			eeprom_ch->max_power_avg,
@@ -490,7 +489,7 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 			ch_info->scan_power = eeprom_ch_info[ch].max_power_avg;
 			ch_info->min_power = 0;
 
-			IWL_DEBUG_INFO("Ch. %d [%sGHz] %s%s%s%s%s%s%s(0x%02x"
+			IWL_DEBUG_INFO("Ch. %d [%sGHz] %s%s%s%s%s%s(0x%02x"
 				       " %ddBm): Ad-Hoc %ssupported\n",
 				       ch_info->channel,
 				       is_channel_a_band(ch_info) ?
@@ -500,7 +499,6 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 				       CHECK_AND_PRINT_I(ACTIVE),
 				       CHECK_AND_PRINT_I(RADAR),
 				       CHECK_AND_PRINT_I(WIDE),
-				       CHECK_AND_PRINT_I(NARROW),
 				       CHECK_AND_PRINT_I(DFS),
 				       eeprom_ch_info[ch].flags,
 				       eeprom_ch_info[ch].max_power_avg,
