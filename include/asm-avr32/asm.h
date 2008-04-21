@@ -12,10 +12,10 @@
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 
-#define mask_interrupts		ssrf	SR_GM_BIT
-#define mask_exceptions		ssrf	SR_EM_BIT
-#define unmask_interrupts	csrf	SR_GM_BIT
-#define unmask_exceptions	csrf	SR_EM_BIT
+#define mask_interrupts		ssrf	SYSREG_GM_OFFSET
+#define mask_exceptions		ssrf	SYSREG_EM_OFFSET
+#define unmask_interrupts	csrf	SYSREG_GM_OFFSET
+#define unmask_exceptions	csrf	SYSREG_EM_OFFSET
 
 #ifdef CONFIG_FRAME_POINTER
 	.macro	save_fp

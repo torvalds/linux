@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/atmel_usba_udc.h>
 #include <linux/delay.h>
 
 #include <asm/gpio.h>
@@ -27,6 +28,7 @@
 
 
 static struct usba_udc the_udc;
+static struct usba_ep *usba_ep;
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 #include <linux/debugfs.h>
@@ -324,52 +326,27 @@ static int vbus_is_present(struct usba_udc *udc)
 	return 1;
 }
 
-static void copy_to_fifo(void __iomem *fifo, const void *buf, int len)
-{
-	unsigned long tmp;
+#if defined(CONFIG_AVR32)
 
-	DBG(DBG_FIFO, "copy to FIFO (len %d):\n", len);
-	for (; len > 0; len -= 4, buf += 4, fifo += 4) {
-		tmp = *(unsigned long *)buf;
-		if (len >= 4) {
-			DBG(DBG_FIFO, "  -> %08lx\n", tmp);
-			__raw_writel(tmp, fifo);
-		} else {
-			do {
-				DBG(DBG_FIFO, "  -> %02lx\n", tmp >> 24);
-				__raw_writeb(tmp >> 24, fifo);
-				fifo++;
-				tmp <<= 8;
-			} while (--len);
-			break;
-		}
-	}
+static void toggle_bias(int is_on)
+{
 }
 
-static void copy_from_fifo(void *buf, void __iomem *fifo, int len)
-{
-	union {
-		unsigned long *w;
-		unsigned char *b;
-	} p;
-	unsigned long tmp;
+#elif defined(CONFIG_ARCH_AT91)
 
-	DBG(DBG_FIFO, "copy from FIFO (len %d):\n", len);
-	for (p.w = buf; len > 0; len -= 4, p.w++, fifo += 4) {
-		if (len >= 4) {
-			tmp = __raw_readl(fifo);
-			*p.w = tmp;
-			DBG(DBG_FIFO, "  -> %08lx\n", tmp);
-		} else {
-			do {
-				tmp = __raw_readb(fifo);
-				*p.b = tmp;
-				DBG(DBG_FIFO, " -> %02lx\n", tmp);
-				fifo++, p.b++;
-			} while (--len);
-		}
-	}
+#include <asm/arch/at91_pmc.h>
+
+static void toggle_bias(int is_on)
+{
+	unsigned int uckr = at91_sys_read(AT91_CKGR_UCKR);
+
+	if (is_on)
+		at91_sys_write(AT91_CKGR_UCKR, uckr | AT91_PMC_BIASEN);
+	else
+		at91_sys_write(AT91_CKGR_UCKR, uckr & ~(AT91_PMC_BIASEN));
 }
+
+#endif /* CONFIG_ARCH_AT91 */
 
 static void next_fifo_transaction(struct usba_ep *ep, struct usba_request *req)
 {
@@ -387,7 +364,7 @@ static void next_fifo_transaction(struct usba_ep *ep, struct usba_request *req)
 		ep->ep.name, req, transaction_len,
 		req->last_transaction ? ", done" : "");
 
-	copy_to_fifo(ep->fifo, req->req.buf + req->req.actual, transaction_len);
+	memcpy_toio(ep->fifo, req->req.buf + req->req.actual, transaction_len);
 	usba_ep_writel(ep, SET_STA, USBA_TX_PK_RDY);
 	req->req.actual += transaction_len;
 }
@@ -476,7 +453,7 @@ static void receive_data(struct usba_ep *ep)
 			bytecount = req->req.length - req->req.actual;
 		}
 
-		copy_from_fifo(req->req.buf + req->req.actual,
+		memcpy_fromio(req->req.buf + req->req.actual,
 				ep->fifo, bytecount);
 		req->req.actual += bytecount;
 
@@ -1029,33 +1006,6 @@ static const struct usb_gadget_ops usba_udc_ops = {
 	.set_selfpowered	= usba_udc_set_selfpowered,
 };
 
-#define EP(nam, idx, maxpkt, maxbk, dma, isoc)			\
-{								\
-	.ep	= {						\
-		.ops		= &usba_ep_ops,			\
-		.name		= nam,				\
-		.maxpacket	= maxpkt,			\
-	},							\
-	.udc		= &the_udc,				\
-	.queue		= LIST_HEAD_INIT(usba_ep[idx].queue),	\
-	.fifo_size	= maxpkt,				\
-	.nr_banks	= maxbk,				\
-	.index		= idx,					\
-	.can_dma	= dma,					\
-	.can_isoc	= isoc,					\
-}
-
-static struct usba_ep usba_ep[] = {
-	EP("ep0", 0, 64, 1, 0, 0),
-	EP("ep1in-bulk", 1, 512, 2, 1, 1),
-	EP("ep2out-bulk", 2, 512, 2, 1, 1),
-	EP("ep3in-int", 3, 64, 3, 1, 0),
-	EP("ep4out-int", 4, 64, 3, 1, 0),
-	EP("ep5in-iso", 5, 1024, 3, 1, 1),
-	EP("ep6out-iso", 6, 1024, 3, 1, 1),
-};
-#undef EP
-
 static struct usb_endpoint_descriptor usba_ep0_desc = {
 	.bLength = USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType = USB_DT_ENDPOINT,
@@ -1074,7 +1024,6 @@ static void nop_release(struct device *dev)
 static struct usba_udc the_udc = {
 	.gadget	= {
 		.ops		= &usba_udc_ops,
-		.ep0		= &usba_ep[0].ep,
 		.ep_list	= LIST_HEAD_INIT(the_udc.gadget.ep_list),
 		.is_dualspeed	= 1,
 		.name		= "atmel_usba_udc",
@@ -1231,7 +1180,7 @@ static int do_test_mode(struct usba_udc *udc)
 		} else {
 			usba_ep_writel(ep, CTL_ENB, USBA_EPT_ENABLE);
 			usba_writel(udc, TST, USBA_TST_PKT_MODE);
-			copy_to_fifo(ep->fifo, test_packet_buffer,
+			memcpy_toio(ep->fifo, test_packet_buffer,
 					sizeof(test_packet_buffer));
 			usba_ep_writel(ep, SET_STA, USBA_TX_PK_RDY);
 			dev_info(dev, "Entering Test_Packet mode...\n");
@@ -1530,13 +1479,13 @@ restart:
 		DBG(DBG_HW, "Packet length: %u\n", pkt_len);
 		if (pkt_len != sizeof(crq)) {
 			pr_warning("udc: Invalid packet length %u "
-				"(expected %lu)\n", pkt_len, sizeof(crq));
+				"(expected %zu)\n", pkt_len, sizeof(crq));
 			set_protocol_stall(udc, ep);
 			return;
 		}
 
 		DBG(DBG_FIFO, "Copying ctrl request from 0x%p:\n", ep->fifo);
-		copy_from_fifo(crq.data, ep->fifo, sizeof(crq));
+		memcpy_fromio(crq.data, ep->fifo, sizeof(crq));
 
 		/* Free up one bank in the FIFO so that we can
 		 * generate or receive a reply right away. */
@@ -1688,6 +1637,7 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 	DBG(DBG_INT, "irq, status=%#08x\n", status);
 
 	if (status & USBA_DET_SUSPEND) {
+		toggle_bias(0);
 		usba_writel(udc, INT_CLR, USBA_DET_SUSPEND);
 		DBG(DBG_BUS, "Suspend detected\n");
 		if (udc->gadget.speed != USB_SPEED_UNKNOWN
@@ -1699,6 +1649,7 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 	}
 
 	if (status & USBA_WAKE_UP) {
+		toggle_bias(1);
 		usba_writel(udc, INT_CLR, USBA_WAKE_UP);
 		DBG(DBG_BUS, "Wake Up CPU detected\n");
 	}
@@ -1792,12 +1743,14 @@ static irqreturn_t usba_vbus_irq(int irq, void *devid)
 	vbus = gpio_get_value(udc->vbus_pin);
 	if (vbus != udc->vbus_prev) {
 		if (vbus) {
-			usba_writel(udc, CTRL, USBA_EN_USBA);
+			toggle_bias(1);
+			usba_writel(udc, CTRL, USBA_ENABLE_MASK);
 			usba_writel(udc, INT_ENB, USBA_END_OF_RESET);
 		} else {
 			udc->gadget.speed = USB_SPEED_UNKNOWN;
 			reset_all_endpoints(udc);
-			usba_writel(udc, CTRL, 0);
+			toggle_bias(0);
+			usba_writel(udc, CTRL, USBA_DISABLE_MASK);
 			spin_unlock(&udc->lock);
 			udc->driver->disconnect(&udc->gadget);
 			spin_lock(&udc->lock);
@@ -1850,7 +1803,8 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	/* If Vbus is present, enable the controller and wait for reset */
 	spin_lock_irqsave(&udc->lock, flags);
 	if (vbus_is_present(udc) && udc->vbus_prev == 0) {
-		usba_writel(udc, CTRL, USBA_EN_USBA);
+		toggle_bias(1);
+		usba_writel(udc, CTRL, USBA_ENABLE_MASK);
 		usba_writel(udc, INT_ENB, USBA_END_OF_RESET);
 	}
 	spin_unlock_irqrestore(&udc->lock, flags);
@@ -1883,7 +1837,8 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	spin_unlock_irqrestore(&udc->lock, flags);
 
 	/* This will also disable the DP pullup */
-	usba_writel(udc, CTRL, 0);
+	toggle_bias(0);
+	usba_writel(udc, CTRL, USBA_DISABLE_MASK);
 
 	driver->unbind(&udc->gadget);
 	udc->gadget.dev.driver = NULL;
@@ -1908,7 +1863,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, CTRL_IOMEM_ID);
 	fifo = platform_get_resource(pdev, IORESOURCE_MEM, FIFO_IOMEM_ID);
-	if (!regs || !fifo)
+	if (!regs || !fifo || !pdata)
 		return -ENXIO;
 
 	irq = platform_get_irq(pdev, 0);
@@ -1953,19 +1908,48 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 
 	/* Make sure we start from a clean slate */
 	clk_enable(pclk);
-	usba_writel(udc, CTRL, 0);
+	toggle_bias(0);
+	usba_writel(udc, CTRL, USBA_DISABLE_MASK);
 	clk_disable(pclk);
+
+	usba_ep = kmalloc(sizeof(struct usba_ep) * pdata->num_ep,
+			  GFP_KERNEL);
+	if (!usba_ep)
+		goto err_alloc_ep;
+
+	the_udc.gadget.ep0 = &usba_ep[0].ep;
 
 	INIT_LIST_HEAD(&usba_ep[0].ep.ep_list);
 	usba_ep[0].ep_regs = udc->regs + USBA_EPT_BASE(0);
 	usba_ep[0].dma_regs = udc->regs + USBA_DMA_BASE(0);
 	usba_ep[0].fifo = udc->fifo + USBA_FIFO_BASE(0);
-	for (i = 1; i < ARRAY_SIZE(usba_ep); i++) {
+	usba_ep[0].ep.ops = &usba_ep_ops;
+	usba_ep[0].ep.name = pdata->ep[0].name;
+	usba_ep[0].ep.maxpacket = pdata->ep[0].fifo_size;
+	usba_ep[0].udc = &the_udc;
+	INIT_LIST_HEAD(&usba_ep[0].queue);
+	usba_ep[0].fifo_size = pdata->ep[0].fifo_size;
+	usba_ep[0].nr_banks = pdata->ep[0].nr_banks;
+	usba_ep[0].index = pdata->ep[0].index;
+	usba_ep[0].can_dma = pdata->ep[0].can_dma;
+	usba_ep[0].can_isoc = pdata->ep[0].can_isoc;
+
+	for (i = 1; i < pdata->num_ep; i++) {
 		struct usba_ep *ep = &usba_ep[i];
 
 		ep->ep_regs = udc->regs + USBA_EPT_BASE(i);
 		ep->dma_regs = udc->regs + USBA_DMA_BASE(i);
 		ep->fifo = udc->fifo + USBA_FIFO_BASE(i);
+		ep->ep.ops = &usba_ep_ops;
+		ep->ep.name = pdata->ep[i].name;
+		ep->ep.maxpacket = pdata->ep[i].fifo_size;
+		ep->udc = &the_udc;
+		INIT_LIST_HEAD(&ep->queue);
+		ep->fifo_size = pdata->ep[i].fifo_size;
+		ep->nr_banks = pdata->ep[i].nr_banks;
+		ep->index = pdata->ep[i].index;
+		ep->can_dma = pdata->ep[i].can_dma;
+		ep->can_isoc = pdata->ep[i].can_isoc;
 
 		list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
 	}
@@ -1984,7 +1968,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 		goto err_device_add;
 	}
 
-	if (pdata && pdata->vbus_pin != GPIO_PIN_NONE) {
+	if (pdata->vbus_pin >= 0) {
 		if (!gpio_request(pdata->vbus_pin, "atmel_usba_udc")) {
 			udc->vbus_pin = pdata->vbus_pin;
 
@@ -2004,7 +1988,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 	}
 
 	usba_init_debugfs(udc);
-	for (i = 1; i < ARRAY_SIZE(usba_ep); i++)
+	for (i = 1; i < pdata->num_ep; i++)
 		usba_ep_init_debugfs(udc, &usba_ep[i]);
 
 	return 0;
@@ -2012,6 +1996,8 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 err_device_add:
 	free_irq(irq, udc);
 err_request_irq:
+	kfree(usba_ep);
+err_alloc_ep:
 	iounmap(udc->fifo);
 err_map_fifo:
 	iounmap(udc->regs);
@@ -2029,10 +2015,11 @@ static int __exit usba_udc_remove(struct platform_device *pdev)
 {
 	struct usba_udc *udc;
 	int i;
+	struct usba_platform_data *pdata = pdev->dev.platform_data;
 
 	udc = platform_get_drvdata(pdev);
 
-	for (i = 1; i < ARRAY_SIZE(usba_ep); i++)
+	for (i = 1; i < pdata->num_ep; i++)
 		usba_ep_cleanup_debugfs(&usba_ep[i]);
 	usba_cleanup_debugfs(udc);
 
@@ -2040,6 +2027,7 @@ static int __exit usba_udc_remove(struct platform_device *pdev)
 		gpio_free(udc->vbus_pin);
 
 	free_irq(udc->irq, udc);
+	kfree(usba_ep);
 	iounmap(udc->fifo);
 	iounmap(udc->regs);
 	clk_put(udc->hclk);
