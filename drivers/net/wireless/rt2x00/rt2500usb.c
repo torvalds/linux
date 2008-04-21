@@ -1094,11 +1094,11 @@ static int rt2500usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
  * TX data initialization
  */
 static void rt2500usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
-				    const unsigned int queue)
+				    const enum data_queue_qid queue)
 {
 	u16 reg;
 
-	if (queue != RT2X00_BCN_QUEUE_BEACON)
+	if (queue != QID_BEACON)
 		return;
 
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
@@ -1720,12 +1720,6 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 	rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 0);
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
 
-	/*
-	 * mac80211 doesn't provide the control->queue variable
-	 * for beacons. Set our own queue identification so
-	 * it can be used during descriptor initialization.
-	 */
-	control->queue = RT2X00_BCN_QUEUE_BEACON;
 	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 
 	/*
@@ -1757,7 +1751,7 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 	/*
 	 * Enable beacon generation.
 	 */
-	rt2500usb_kick_tx_queue(rt2x00dev, control->queue);
+	rt2500usb_kick_tx_queue(rt2x00dev, QID_BEACON);
 
 	return 0;
 }

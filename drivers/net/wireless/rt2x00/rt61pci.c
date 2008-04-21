@@ -1591,11 +1591,11 @@ static void rt61pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
  * TX data initialization
  */
 static void rt61pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
-				  const unsigned int queue)
+				  const enum data_queue_qid queue)
 {
 	u32 reg;
 
-	if (queue == RT2X00_BCN_QUEUE_BEACON) {
+	if (queue == QID_BEACON) {
 		/*
 		 * For Wi-Fi faily generated beacons between participating
 		 * stations. Set TBTT phase adaptive adjustment step to 8us.
@@ -1613,14 +1613,10 @@ static void rt61pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 	}
 
 	rt2x00pci_register_read(rt2x00dev, TX_CNTL_CSR, &reg);
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC0,
-			   (queue == IEEE80211_TX_QUEUE_DATA0));
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC1,
-			   (queue == IEEE80211_TX_QUEUE_DATA1));
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC2,
-			   (queue == IEEE80211_TX_QUEUE_DATA2));
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC3,
-			   (queue == IEEE80211_TX_QUEUE_DATA3));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC0, (queue == QID_AC_BE));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC1, (queue == QID_AC_BK));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC2, (queue == QID_AC_VI));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC3, (queue == QID_AC_VO));
 	rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);
 }
 
@@ -2412,21 +2408,14 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
 
 	/*
-	 * mac80211 doesn't provide the control->queue variable
-	 * for beacons. Set our own queue identification so
-	 * it can be used during descriptor initialization.
-	 */
-	control->queue = RT2X00_BCN_QUEUE_BEACON;
-	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
-
-	/*
 	 * Write entire beacon with descriptor to register,
 	 * and kick the beacon generator.
 	 */
+	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 	beacon_base = HW_BEACON_OFFSET(intf->beacon->entry_idx);
 	rt2x00pci_register_multiwrite(rt2x00dev, beacon_base,
 				      skb->data, skb->len);
-	rt61pci_kick_tx_queue(rt2x00dev, control->queue);
+	rt61pci_kick_tx_queue(rt2x00dev, QID_BEACON);
 
 	return 0;
 }

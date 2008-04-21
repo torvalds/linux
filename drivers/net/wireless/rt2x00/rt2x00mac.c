@@ -81,6 +81,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct ieee80211_hdr *ieee80211hdr = (struct ieee80211_hdr *)skb->data;
+	enum data_queue_qid qid = mac80211_queue_to_qid(control->queue);
 	struct data_queue *queue;
 	struct skb_frame_desc *skbdesc;
 	u16 frame_control;
@@ -101,14 +102,13 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 */
 	if (control->flags & IEEE80211_TXCTL_SEND_AFTER_DTIM &&
 	    test_bit(DRIVER_REQUIRE_ATIM_QUEUE, &rt2x00dev->flags))
-		queue = rt2x00queue_get_queue(rt2x00dev, RT2X00_BCN_QUEUE_ATIM);
+		queue = rt2x00queue_get_queue(rt2x00dev, QID_ATIM);
 	else
-		queue = rt2x00queue_get_queue(rt2x00dev, control->queue);
+		queue = rt2x00queue_get_queue(rt2x00dev, qid);
 	if (unlikely(!queue)) {
 		ERROR(rt2x00dev,
 		      "Attempt to send packet over invalid queue %d.\n"
-		      "Please file bug report to %s.\n",
-		      control->queue, DRV_PROJECT);
+		      "Please file bug report to %s.\n", qid, DRV_PROJECT);
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
@@ -154,7 +154,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 
 	if (rt2x00dev->ops->lib->kick_tx_queue)
-		rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, control->queue);
+		rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, qid);
 
 	return NETDEV_TX_OK;
 }
@@ -187,8 +187,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct rt2x00_intf *intf = vif_to_intf(conf->vif);
-	struct data_queue *queue =
-	    rt2x00queue_get_queue(rt2x00dev, RT2X00_BCN_QUEUE_BEACON);
+	struct data_queue *queue = rt2x00queue_get_queue(rt2x00dev, QID_BEACON);
 	struct queue_entry *entry = NULL;
 	unsigned int i;
 

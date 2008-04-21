@@ -53,7 +53,7 @@ int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,
 		ERROR(rt2x00dev,
 		      "Arrived at non-free entry in the non-full queue %d.\n"
 		      "Please file bug report to %s.\n",
-		      control->queue, DRV_PROJECT);
+		      entry->queue->qid, DRV_PROJECT);
 		return -EINVAL;
 	}
 

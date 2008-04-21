@@ -1331,11 +1331,11 @@ static int rt73usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
  * TX data initialization
  */
 static void rt73usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
-				  const unsigned int queue)
+				  const enum data_queue_qid queue)
 {
 	u32 reg;
 
-	if (queue != RT2X00_BCN_QUEUE_BEACON)
+	if (queue != QID_BEACON)
 		return;
 
 	/*
@@ -2001,23 +2001,16 @@ static int rt73usb_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	rt73usb_register_write(rt2x00dev, TXRX_CSR9, reg);
 
 	/*
-	 * mac80211 doesn't provide the control->queue variable
-	 * for beacons. Set our own queue identification so
-	 * it can be used during descriptor initialization.
-	 */
-	control->queue = RT2X00_BCN_QUEUE_BEACON;
-	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
-
-	/*
 	 * Write entire beacon with descriptor to register,
 	 * and kick the beacon generator.
 	 */
+	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 	beacon_base = HW_BEACON_OFFSET(intf->beacon->entry_idx);
 	timeout = REGISTER_TIMEOUT * (skb->len / sizeof(u32));
 	rt2x00usb_vendor_request(rt2x00dev, USB_MULTI_WRITE,
 				 USB_VENDOR_REQUEST_OUT, beacon_base, 0,
 				 skb->data, skb->len, timeout);
-	rt73usb_kick_tx_queue(rt2x00dev, control->queue);
+	rt73usb_kick_tx_queue(rt2x00dev, QID_BEACON);
 
 	return 0;
 }

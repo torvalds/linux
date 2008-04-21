@@ -54,6 +54,17 @@
 
 /**
  * enum data_queue_qid: Queue identification
+ *
+ * @QID_AC_BE: AC BE queue
+ * @QID_AC_BK: AC BK queue
+ * @QID_AC_VI: AC VI queue
+ * @QID_AC_VO: AC VO queue
+ * @QID_HCCA: HCCA queue
+ * @QID_MGMT: MGMT queue (prio queue)
+ * @QID_RX: RX queue
+ * @QID_OTHER: None of the above (don't use, only present for completeness)
+ * @QID_BEACON: Beacon queue (value unspecified, don't send it to device)
+ * @QID_ATIM: Atim queue (value unspeficied, don't send it to device)
  */
 enum data_queue_qid {
 	QID_AC_BE = 0,
@@ -64,22 +75,25 @@ enum data_queue_qid {
 	QID_MGMT = 13,
 	QID_RX = 14,
 	QID_OTHER = 15,
+	QID_BEACON,
+	QID_ATIM,
 };
 
 /**
- * enum rt2x00_bcn_queue: Beacon queue index
- *
- * Start counting with a high offset, this because this enumeration
- * supplements &enum ieee80211_tx_queue and we should prevent value
- * conflicts.
- *
- * @RT2X00_BCN_QUEUE_BEACON: Beacon queue
- * @RT2X00_BCN_QUEUE_ATIM: Atim queue (sends frame after beacon)
+ * mac80211_queue_to_qid - Convert mac80211 queue to rt2x00 qid
+ * @queue: mac80211 queue.
  */
-enum rt2x00_bcn_queue {
-	RT2X00_BCN_QUEUE_BEACON = 100,
-	RT2X00_BCN_QUEUE_ATIM = 101,
-};
+static inline enum data_queue_qid mac80211_queue_to_qid(unsigned int queue)
+{
+	/* Regular TX queues are mapped directly */
+	if (queue < NUM_TX_DATA_QUEUES)
+		return queue;
+	else if (queue == IEEE80211_TX_QUEUE_BEACON)
+		return QID_BEACON;
+	else if (queue == IEEE80211_TX_QUEUE_AFTER_BEACON)
+		return QID_ATIM;
+	return QID_OTHER;
+}
 
 /**
  * enum skb_frame_desc_flags: Flags for &struct skb_frame_desc
@@ -105,7 +119,6 @@ enum skb_frame_desc_flags {
  *	of the scope of the skb->data pointer.
  * @data_len: Length of the frame data.
  * @desc_len: Length of the frame descriptor.
-
  * @entry: The entry to which this sk buffer belongs.
  */
 struct skb_frame_desc {
@@ -240,7 +253,6 @@ struct txentry_desc {
  *	encryption or decryption. The entry should only be touched after
  *	the device has signaled it is done with it.
  */
-
 enum queue_entry_flags {
 	ENTRY_BCN_ASSIGNED,
 	ENTRY_OWNER_DEVICE_DATA,
