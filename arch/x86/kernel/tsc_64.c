@@ -11,6 +11,7 @@
 #include <asm/hpet.h>
 #include <asm/timex.h>
 #include <asm/timer.h>
+#include <asm/vgtod.h>
 
 static int notsc __initdata = 0;
 
@@ -287,18 +288,34 @@ int __init notsc_setup(char *s)
 
 __setup("notsc", notsc_setup);
 
+static struct clocksource clocksource_tsc;
 
-/* clock source code: */
+/*
+ * We compare the TSC to the cycle_last value in the clocksource
+ * structure to avoid a nasty time-warp. This can be observed in a
+ * very small window right after one CPU updated cycle_last under
+ * xtime/vsyscall_gtod lock and the other CPU reads a TSC value which
+ * is smaller than the cycle_last reference value due to a TSC which
+ * is slighty behind. This delta is nowhere else observable, but in
+ * that case it results in a forward time jump in the range of hours
+ * due to the unsigned delta calculation of the time keeping core
+ * code, which is necessary to support wrapping clocksources like pm
+ * timer.
+ */
 static cycle_t read_tsc(void)
 {
 	cycle_t ret = (cycle_t)get_cycles();
-	return ret;
+
+	return ret >= clocksource_tsc.cycle_last ?
+		ret : clocksource_tsc.cycle_last;
 }
 
 static cycle_t __vsyscall_fn vread_tsc(void)
 {
 	cycle_t ret = (cycle_t)vget_cycles();
-	return ret;
+
+	return ret >= __vsyscall_gtod_data.clock.cycle_last ?
+		ret : __vsyscall_gtod_data.clock.cycle_last;
 }
 
 static struct clocksource clocksource_tsc = {

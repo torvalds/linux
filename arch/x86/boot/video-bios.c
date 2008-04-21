@@ -9,8 +9,6 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * arch/i386/boot/video-bios.c
- *
  * Standard video BIOS modes
  *
  * We have two options for this; silent and scanned.

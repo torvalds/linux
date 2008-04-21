@@ -313,7 +313,8 @@ void touch_nmi_watchdog(void)
 }
 EXPORT_SYMBOL(touch_nmi_watchdog);
 
-int __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
+notrace __kprobes int
+nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 {
 	int sum;
 	int touched = 0;
@@ -384,7 +385,8 @@ int __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 
 static unsigned ignore_nmis;
 
-asmlinkage __kprobes void do_nmi(struct pt_regs * regs, long error_code)
+asmlinkage notrace __kprobes void
+do_nmi(struct pt_regs *regs, long error_code)
 {
 	nmi_enter();
 	add_pda(__nmi_count,1);

@@ -146,6 +146,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 
 	reserve_early(__pa_symbol(&_text), __pa_symbol(&_end), "TEXT DATA BSS");
 
+#ifdef CONFIG_BLK_DEV_INITRD
 	/* Reserve INITRD */
 	if (boot_params.hdr.type_of_loader && boot_params.hdr.ramdisk_image) {
 		unsigned long ramdisk_image = boot_params.hdr.ramdisk_image;
@@ -153,6 +154,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 		unsigned long ramdisk_end   = ramdisk_image + ramdisk_size;
 		reserve_early(ramdisk_image, ramdisk_end, "RAMDISK");
 	}
+#endif
 
 	reserve_ebda_region();
 

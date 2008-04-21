@@ -24,7 +24,7 @@ extern void update_e820(void);
 extern int e820_all_mapped(unsigned long start, unsigned long end,
 			   unsigned type);
 extern int e820_any_mapped(u64 start, u64 end, unsigned type);
-extern void find_max_pfn(void);
+extern void propagate_e820_map(void);
 extern void register_bootmem_low_pages(unsigned long max_low_pfn);
 extern void add_memory_region(unsigned long long start,
 			      unsigned long long size, int type);

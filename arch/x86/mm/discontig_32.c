@@ -120,7 +120,7 @@ int __init get_memcfg_numa_flat(void)
 	printk("NUMA - single node, flat memory mode\n");
 
 	/* Run the memory configuration and find the top of memory. */
-	find_max_pfn();
+	propagate_e820_map();
 	node_start_pfn[0] = 0;
 	node_end_pfn[0] = max_pfn;
 	memory_present(0, 0, max_pfn);
@@ -134,7 +134,7 @@ int __init get_memcfg_numa_flat(void)
 /*
  * Find the highest page frame number we have available for the node
  */
-static void __init find_max_pfn_node(int nid)
+static void __init propagate_e820_map_node(int nid)
 {
 	if (node_end_pfn[nid] > max_pfn)
 		node_end_pfn[nid] = max_pfn;
@@ -379,7 +379,7 @@ unsigned long __init setup_memory(void)
 	printk("High memory starts at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(highstart_pfn));
 	for_each_online_node(nid)
-		find_max_pfn_node(nid);
+		propagate_e820_map_node(nid);
 
 	memset(NODE_DATA(0), 0, sizeof(struct pglist_data));
 	NODE_DATA(0)->bdata = &node0_bdata;

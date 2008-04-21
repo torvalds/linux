@@ -282,6 +282,13 @@ Why:	Not used in-tree. The current out-of-tree users used it to
 	out-of-tree driver.
 Who:	Thomas Gleixner <tglx@linutronix.de>
 
+----------------------------
+
+What:	usedac i386 kernel parameter
+When:	2.6.27
+Why:	replaced by allowdac and no dac combination
+Who:	Glauber Costa <gcosta@redhat.com>
+
 ---------------------------
 
 What:	/sys/o2cb symlink

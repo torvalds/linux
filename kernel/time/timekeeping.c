@@ -178,6 +178,7 @@ static void change_clocksource(void)
 	if (clock == new)
 		return;
 
+	new->cycle_last = 0;
 	now = clocksource_read(new);
 	nsec =  __get_nsec_offset();
 	timespec_add_ns(&xtime, nsec);
@@ -295,6 +296,7 @@ static int timekeeping_resume(struct sys_device *dev)
 	timespec_add_ns(&xtime, timekeeping_suspend_nsecs);
 	update_xtime_cache(0);
 	/* re-base the last cycle value */
+	clock->cycle_last = 0;
 	clock->cycle_last = clocksource_read(clock);
 	clock->error = 0;
 	timekeeping_suspended = 0;

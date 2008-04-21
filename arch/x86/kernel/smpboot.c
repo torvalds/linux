@@ -61,6 +61,7 @@
 #include <asm/mtrr.h>
 #include <asm/nmi.h>
 #include <asm/vmi.h>
+#include <asm/genapic.h>
 #include <linux/mc146818rtc.h>
 
 #include <mach_apic.h>
@@ -677,6 +678,12 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 	unsigned long send_status, accept_status = 0;
 	int maxlvt, num_starts, j;
 
+	if (get_uv_system_type() == UV_NON_UNIQUE_APIC) {
+		send_status = uv_wakeup_secondary(phys_apicid, start_eip);
+		atomic_set(&init_deasserted, 1);
+		return send_status;
+	}
+
 	/*
 	 * Be paranoid about clearing APIC errors.
 	 */
@@ -918,16 +925,19 @@ do_rest:
 
 	atomic_set(&init_deasserted, 0);
 
-	Dprintk("Setting warm reset code and vector.\n");
+	if (get_uv_system_type() != UV_NON_UNIQUE_APIC) {
 
-	store_NMI_vector(&nmi_high, &nmi_low);
+		Dprintk("Setting warm reset code and vector.\n");
 
-	smpboot_setup_warm_reset_vector(start_ip);
-	/*
-	 * Be paranoid about clearing APIC errors.
-	 */
-	apic_write(APIC_ESR, 0);
-	apic_read(APIC_ESR);
+		store_NMI_vector(&nmi_high, &nmi_low);
+
+		smpboot_setup_warm_reset_vector(start_ip);
+		/*
+		 * Be paranoid about clearing APIC errors.
+	 	*/
+		apic_write(APIC_ESR, 0);
+		apic_read(APIC_ESR);
+	}
 
 	/*
 	 * Starting actual IPI sequence...
@@ -966,7 +976,8 @@ do_rest:
 			else
 				/* trampoline code not run */
 				printk(KERN_ERR "Not responding.\n");
-			inquire_remote_apic(apicid);
+			if (get_uv_system_type() != UV_NON_UNIQUE_APIC)
+				inquire_remote_apic(apicid);
 		}
 	}
 

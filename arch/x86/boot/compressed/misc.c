@@ -217,12 +217,6 @@ static void putstr(const char *);
 static memptr free_mem_ptr;
 static memptr free_mem_end_ptr;
 
-#ifdef CONFIG_X86_64
-#define HEAP_SIZE             0x7000
-#else
-#define HEAP_SIZE             0x4000
-#endif
-
 static char *vidmem;
 static int vidport;
 static int lines, cols;
@@ -449,7 +443,7 @@ asmlinkage void decompress_kernel(void *rmode, memptr heap,
 
 	window = output;		/* Output buffer (Normally at 1M) */
 	free_mem_ptr     = heap;	/* Heap */
-	free_mem_end_ptr = heap + HEAP_SIZE;
+	free_mem_end_ptr = heap + BOOT_HEAP_SIZE;
 	inbuf  = input_data;		/* Input buffer */
 	insize = input_len;
 	inptr  = 0;

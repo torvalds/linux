@@ -398,6 +398,8 @@ void __init setup_arch(char **cmdline_p)
 
 	early_res_to_bootmem();
 
+	dma32_reserve_bootmem();
+
 #ifdef CONFIG_ACPI_SLEEP
 	/*
 	 * Reserve low memory region for sleep support.
@@ -420,11 +422,14 @@ void __init setup_arch(char **cmdline_p)
 		unsigned long end_of_mem    = end_pfn << PAGE_SHIFT;
 
 		if (ramdisk_end <= end_of_mem) {
-			reserve_bootmem_generic(ramdisk_image, ramdisk_size);
+			/*
+			 * don't need to reserve again, already reserved early
+			 * in x86_64_start_kernel, and early_res_to_bootmem
+			 * convert that to reserved in bootmem
+			 */
 			initrd_start = ramdisk_image + PAGE_OFFSET;
 			initrd_end = initrd_start+ramdisk_size;
 		} else {
-			/* Assumes everything on node 0 */
 			free_bootmem(ramdisk_image, ramdisk_size);
 			printk(KERN_ERR "initrd extends beyond end of memory "
 			       "(0x%08lx > 0x%08lx)\ndisabling initrd\n",

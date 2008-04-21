@@ -60,7 +60,7 @@ unsigned long __initdata nodemap_size;
  * -1 if node overlap or lost ram (shift too big)
  */
 static int __init populate_memnodemap(const struct bootnode *nodes,
-				      int numnodes, int shift)
+				      int numnodes, int shift, int *nodeids)
 {
 	unsigned long addr, end;
 	int i, res = -1;
@@ -76,7 +76,12 @@ static int __init populate_memnodemap(const struct bootnode *nodes,
 		do {
 			if (memnodemap[addr >> shift] != NUMA_NO_NODE)
 				return -1;
-			memnodemap[addr >> shift] = i;
+
+			if (!nodeids)
+				memnodemap[addr >> shift] = i;
+			else
+				memnodemap[addr >> shift] = nodeids[i];
+
 			addr += (1UL << shift);
 		} while (addr < end);
 		res = 1;
@@ -139,7 +144,8 @@ static int __init extract_lsb_from_nodes(const struct bootnode *nodes,
 	return i;
 }
 
-int __init compute_hash_shift(struct bootnode *nodes, int numnodes)
+int __init compute_hash_shift(struct bootnode *nodes, int numnodes,
+			      int *nodeids)
 {
 	int shift;
 
@@ -149,7 +155,7 @@ int __init compute_hash_shift(struct bootnode *nodes, int numnodes)
 	printk(KERN_DEBUG "NUMA: Using %d for the hash shift.\n",
 		shift);
 
-	if (populate_memnodemap(nodes, numnodes, shift) != 1) {
+	if (populate_memnodemap(nodes, numnodes, shift, nodeids) != 1) {
 		printk(KERN_INFO "Your memory is not aligned you need to "
 		       "rebuild your kernel with a bigger NODEMAPSIZE "
 		       "shift=%d\n", shift);
@@ -462,7 +468,7 @@ done:
 		}
 	}
 out:
-	memnode_shift = compute_hash_shift(nodes, num_nodes);
+	memnode_shift = compute_hash_shift(nodes, num_nodes, NULL);
 	if (memnode_shift < 0) {
 		memnode_shift = 0;
 		printk(KERN_ERR "No NUMA hash function found.  NUMA emulation "

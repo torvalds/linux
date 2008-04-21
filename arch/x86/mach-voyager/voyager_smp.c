@@ -4,8 +4,6 @@
  *
  * Author: J.E.J.Bottomley@HansenPartnership.com
  *
- * linux/arch/i386/kernel/voyager_smp.c
- *
  * This file provides all the same external entries as smp.c but uses
  * the voyager hal to provide the functionality
  */

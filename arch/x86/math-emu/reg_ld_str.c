@@ -1180,8 +1180,8 @@ u_char __user *fstenv(fpu_addr_modes addr_modes, u_char __user *d)
 		control_word |= 0xffff0040;
 		partial_status = status_word() | 0xffff0000;
 		fpu_tag_word |= 0xffff0000;
-		I387.soft.fcs &= ~0xf8000000;
-		I387.soft.fos |= 0xffff0000;
+		I387->soft.fcs &= ~0xf8000000;
+		I387->soft.fos |= 0xffff0000;
 #endif /* PECULIAR_486 */
 		if (__copy_to_user(d, &control_word, 7 * 4))
 			FPU_abort;

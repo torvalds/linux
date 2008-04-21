@@ -681,7 +681,7 @@ gp_in_kernel:
 	}
 }
 
-static __kprobes void
+static notrace __kprobes void
 mem_parity_error(unsigned char reason, struct pt_regs *regs)
 {
 	printk(KERN_EMERG
@@ -707,7 +707,7 @@ mem_parity_error(unsigned char reason, struct pt_regs *regs)
 	clear_mem_error(reason);
 }
 
-static __kprobes void
+static notrace __kprobes void
 io_check_error(unsigned char reason, struct pt_regs *regs)
 {
 	unsigned long i;
@@ -727,7 +727,7 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 	outb(reason, 0x61);
 }
 
-static __kprobes void
+static notrace __kprobes void
 unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 {
 	if (notify_die(DIE_NMIUNKNOWN, "nmi", regs, reason, 2, SIGINT) == NOTIFY_STOP)
@@ -755,7 +755,7 @@ unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 
 static DEFINE_SPINLOCK(nmi_print_lock);
 
-void __kprobes die_nmi(struct pt_regs *regs, const char *msg)
+void notrace __kprobes die_nmi(struct pt_regs *regs, const char *msg)
 {
 	if (notify_die(DIE_NMIWATCHDOG, msg, regs, 0, 2, SIGINT) == NOTIFY_STOP)
 		return;
@@ -786,7 +786,7 @@ void __kprobes die_nmi(struct pt_regs *regs, const char *msg)
 	do_exit(SIGSEGV);
 }
 
-static __kprobes void default_do_nmi(struct pt_regs *regs)
+static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 {
 	unsigned char reason = 0;
 
@@ -828,7 +828,7 @@ static __kprobes void default_do_nmi(struct pt_regs *regs)
 
 static int ignore_nmis;
 
-__kprobes void do_nmi(struct pt_regs *regs, long error_code)
+notrace __kprobes void do_nmi(struct pt_regs *regs, long error_code)
 {
 	int cpu;
 
@@ -1148,9 +1148,22 @@ asmlinkage void math_state_restore(void)
 	struct thread_info *thread = current_thread_info();
 	struct task_struct *tsk = thread->task;
 
+	if (!tsk_used_math(tsk)) {
+		local_irq_enable();
+		/*
+		 * does a slab alloc which can sleep
+		 */
+		if (init_fpu(tsk)) {
+			/*
+			 * ran out of memory!
+			 */
+			do_group_exit(SIGKILL);
+			return;
+		}
+		local_irq_disable();
+	}
+
 	clts();				/* Allow maths ops (or we recurse) */
-	if (!tsk_used_math(tsk))
-		init_fpu(tsk);
 	restore_fpu(tsk);
 	thread->status |= TS_USEDFPU;	/* So we fnsave on switch_to() */
 	tsk->fpu_counter++;
@@ -1208,11 +1221,6 @@ void __init trap_init(void)
 #endif
 	set_trap_gate(19, &simd_coprocessor_error);
 
-	/*
-	 * Verify that the FXSAVE/FXRSTOR data will be 16-byte aligned.
-	 * Generate a build-time error if the alignment is wrong.
-	 */
-	BUILD_BUG_ON(offsetof(struct task_struct, thread.i387.fxsave) & 15);
 	if (cpu_has_fxsr) {
 		printk(KERN_INFO "Enabling fast FPU save and restore... ");
 		set_in_cr4(X86_CR4_OSFXSR);
@@ -1233,6 +1241,7 @@ void __init trap_init(void)
 
 	set_bit(SYSCALL_VECTOR, used_vectors);
 
+	init_thread_xstate();
 	/*
 	 * Should be a barrier for any external CPU state:
 	 */

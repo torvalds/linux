@@ -354,7 +354,7 @@ struct i387_soft_struct {
 	u32			entry_eip;
 };
 
-union i387_union {
+union thread_xstate {
 	struct i387_fsave_struct	fsave;
 	struct i387_fxsave_struct	fxsave;
 	struct i387_soft_struct		soft;
@@ -365,6 +365,9 @@ DECLARE_PER_CPU(struct orig_ist, orig_ist);
 #endif
 
 extern void print_cpu_info(struct cpuinfo_x86 *);
+extern unsigned int xstate_size;
+extern void free_thread_xstate(struct task_struct *);
+extern struct kmem_cache *task_xstate_cachep;
 extern void init_scattered_cpuid_features(struct cpuinfo_x86 *c);
 extern unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c);
 extern unsigned short num_cache_leaves;
@@ -397,8 +400,8 @@ struct thread_struct {
 	unsigned long		cr2;
 	unsigned long		trap_no;
 	unsigned long		error_code;
-	/* Floating point info: */
-	union i387_union	i387 __attribute__((aligned(16)));;
+	/* floating point and extended processor state */
+	union thread_xstate	*xstate;
 #ifdef CONFIG_X86_32
 	/* Virtual 86 mode info */
 	struct vm86_struct __user *vm86_info;
@@ -917,5 +920,12 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
 #define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
 
 #define KSTK_EIP(task)		(task_pt_regs(task)->ip)
+
+/* Get/set a process' ability to use the timestamp counter instruction */
+#define GET_TSC_CTL(adr)	get_tsc_mode((adr))
+#define SET_TSC_CTL(val)	set_tsc_mode((val))
+
+extern int get_tsc_mode(unsigned long adr);
+extern int set_tsc_mode(unsigned int val);
 
 #endif

@@ -32,6 +32,10 @@ static struct bootnode nodes_add[MAX_NUMNODES];
 static int found_add_area __initdata;
 int hotadd_percent __initdata = 0;
 
+static int num_node_memblks __initdata;
+static struct bootnode node_memblk_range[NR_NODE_MEMBLKS] __initdata;
+static int memblk_nodeid[NR_NODE_MEMBLKS] __initdata;
+
 /* Too small nodes confuse the VM badly. Usually they result
    from BIOS bugs. */
 #define NODE_MIN_SIZE (4*1024*1024)
@@ -41,17 +45,17 @@ static __init int setup_node(int pxm)
 	return acpi_map_pxm_to_node(pxm);
 }
 
-static __init int conflicting_nodes(unsigned long start, unsigned long end)
+static __init int conflicting_memblks(unsigned long start, unsigned long end)
 {
 	int i;
-	for_each_node_mask(i, nodes_parsed) {
-		struct bootnode *nd = &nodes[i];
+	for (i = 0; i < num_node_memblks; i++) {
+		struct bootnode *nd = &node_memblk_range[i];
 		if (nd->start == nd->end)
 			continue;
 		if (nd->end > start && nd->start < end)
-			return i;
+			return memblk_nodeid[i];
 		if (nd->end == end && nd->start == start)
-			return i;
+			return memblk_nodeid[i];
 	}
 	return -1;
 }
@@ -258,7 +262,7 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 		bad_srat();
 		return;
 	}
-	i = conflicting_nodes(start, end);
+	i = conflicting_memblks(start, end);
 	if (i == node) {
 		printk(KERN_WARNING
 		"SRAT: Warning: PXM %d (%lx-%lx) overlaps with itself (%Lx-%Lx)\n",
@@ -283,10 +287,10 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 			nd->end = end;
 	}
 
-	printk(KERN_INFO "SRAT: Node %u PXM %u %Lx-%Lx\n", node, pxm,
-	       nd->start, nd->end);
-	e820_register_active_regions(node, nd->start >> PAGE_SHIFT,
-						nd->end >> PAGE_SHIFT);
+	printk(KERN_INFO "SRAT: Node %u PXM %u %lx-%lx\n", node, pxm,
+	       start, end);
+	e820_register_active_regions(node, start >> PAGE_SHIFT,
+				     end >> PAGE_SHIFT);
 	push_node_boundaries(node, nd->start >> PAGE_SHIFT,
 						nd->end >> PAGE_SHIFT);
 
@@ -298,6 +302,11 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 		if ((nd->start | nd->end) == 0)
 			node_clear(node, nodes_parsed);
 	}
+
+	node_memblk_range[num_node_memblks].start = start;
+	node_memblk_range[num_node_memblks].end = end;
+	memblk_nodeid[num_node_memblks] = node;
+	num_node_memblks++;
 }
 
 /* Sanity check to catch more bad SRATs (they are amazingly common).
@@ -368,7 +377,8 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 		return -1;
 	}
 
-	memnode_shift = compute_hash_shift(nodes, MAX_NUMNODES);
+	memnode_shift = compute_hash_shift(node_memblk_range, num_node_memblks,
+					   memblk_nodeid);
 	if (memnode_shift < 0) {
 		printk(KERN_ERR
 		     "SRAT: No NUMA node hash function found. Contact maintainer\n");

@@ -475,7 +475,7 @@ int __init copy_e820_map(struct e820entry *biosmap, int nr_map)
 /*
  * Find the highest page frame number we have available
  */
-void __init find_max_pfn(void)
+void __init propagate_e820_map(void)
 {
 	int i;
 
@@ -704,7 +704,7 @@ static int __init parse_memmap(char *arg)
 		 * size before original memory map is
 		 * reset.
 		 */
-		find_max_pfn();
+		propagate_e820_map();
 		saved_max_pfn = max_pfn;
 #endif
 		e820.nr_map = 0;

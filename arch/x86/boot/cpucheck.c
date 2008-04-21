@@ -9,8 +9,6 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * arch/i386/boot/cpucheck.c
- *
  * Check for obligatory CPU features and abort if the features are not
  * present.  This code should be compilable as 16-, 32- or 64-bit
  * code, so be very careful with types and inline assembly.

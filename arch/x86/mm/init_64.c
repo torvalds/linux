@@ -47,9 +47,6 @@
 #include <asm/numa.h>
 #include <asm/cacheflush.h>
 
-const struct dma_mapping_ops *dma_ops;
-EXPORT_SYMBOL(dma_ops);
-
 static unsigned long dma_reserve __initdata;
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);

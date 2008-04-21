@@ -46,11 +46,7 @@
 #include <asm/apicdef.h>
 #include <asm/system.h>
 
-#ifdef CONFIG_X86_32
-# include <mach_ipi.h>
-#else
-# include <asm/mach_apic.h>
-#endif
+#include <mach_ipi.h>
 
 /*
  * Put the error code here just in case the user cares:
