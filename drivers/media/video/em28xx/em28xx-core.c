@@ -576,8 +576,8 @@ static void em28xx_irq_callback(struct urb *urb)
 
 	urb->status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (urb->status) {
-		em28xx_err("urb resubmit failed (error=%i)\n",
-			urb->status);
+		em28xx_isocdbg("urb resubmit failed (error=%i)\n",
+			       urb->status);
 	}
 }
 
