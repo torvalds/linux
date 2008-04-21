@@ -60,9 +60,6 @@ int xfs_ioctl(struct xfs_inode *ip, struct file *filp,
 ssize_t xfs_read(struct xfs_inode *ip, struct kiocb *iocb,
 		const struct iovec *iovp, unsigned int segs,
 		loff_t *offset, int ioflags);
-ssize_t xfs_sendfile(struct xfs_inode *ip, struct file *filp,
-		loff_t *offset, int ioflags, size_t count,
-		read_actor_t actor, void *target);
 ssize_t xfs_splice_read(struct xfs_inode *ip, struct file *infilp,
 		loff_t *ppos, struct pipe_inode_info *pipe, size_t count,
 		int flags, int ioflags);
