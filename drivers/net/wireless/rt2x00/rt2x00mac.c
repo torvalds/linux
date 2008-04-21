@@ -201,13 +201,12 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 		return -ENODEV;
 
 	/*
-	 * When we don't support mixed interfaces (a combination
-	 * of sta and ap virtual interfaces) then we can only
-	 * add this interface when the rival interface count is 0.
+	 * We don't support mixed combinations of sta and ap virtual
+	 * interfaces. We can only add this interface when the rival
+	 * interface count is 0.
 	 */
-	if (!test_bit(DRIVER_SUPPORT_MIXED_INTERFACES, &rt2x00dev->flags) &&
-	    ((conf->type == IEEE80211_IF_TYPE_AP && rt2x00dev->intf_sta_count) ||
-	     (conf->type != IEEE80211_IF_TYPE_AP && rt2x00dev->intf_ap_count)))
+	if ((conf->type == IEEE80211_IF_TYPE_AP && rt2x00dev->intf_sta_count) ||
+	    (conf->type != IEEE80211_IF_TYPE_AP && rt2x00dev->intf_ap_count))
 		return -ENOBUFS;
 
 	/*
