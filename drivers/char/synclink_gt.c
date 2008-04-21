@@ -491,7 +491,6 @@ static void isr_serial(struct slgt_info *info);
 static void isr_rdma(struct slgt_info *info);
 static void isr_txeom(struct slgt_info *info, unsigned short status);
 static void isr_tdma(struct slgt_info *info);
-static irqreturn_t slgt_interrupt(int irq, void *dev_id);
 
 static int  alloc_dma_bufs(struct slgt_info *info);
 static void free_dma_bufs(struct slgt_info *info);
@@ -2326,17 +2325,13 @@ static void isr_gpio(struct slgt_info *info, unsigned int changed, unsigned int 
  * 	irq	interrupt number
  * 	dev_id	device ID supplied during interrupt registration
  */
-static irqreturn_t slgt_interrupt(int irq, void *dev_id)
+static irqreturn_t slgt_interrupt(int dummy, void *dev_id)
 {
-	struct slgt_info *info;
+	struct slgt_info *info = dev_id;
 	unsigned int gsr;
 	unsigned int i;
 
-	DBGISR(("slgt_interrupt irq=%d entry\n", irq));
-
-	info = dev_id;
-	if (!info)
-		return IRQ_NONE;
+	DBGISR(("slgt_interrupt irq=%d entry\n", info->irq_level));
 
 	spin_lock(&info->lock);
 
@@ -2385,7 +2380,7 @@ static irqreturn_t slgt_interrupt(int irq, void *dev_id)
 
 	spin_unlock(&info->lock);
 
-	DBGISR(("slgt_interrupt irq=%d exit\n", irq));
+	DBGISR(("slgt_interrupt irq=%d exit\n", info->irq_level));
 	return IRQ_HANDLED;
 }
 

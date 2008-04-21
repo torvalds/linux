@@ -121,8 +121,10 @@ struct hw_interrupt_type sbc82xx_i8259_ic = {
 	.end = sbc82xx_i8259_end_irq,
 };
 
-static irqreturn_t sbc82xx_i8259_demux(int irq, void *dev_id)
+static irqreturn_t sbc82xx_i8259_demux(int dummy, void *dev_id)
 {
+	int irq;
+
 	spin_lock(&sbc82xx_i8259_lock);
 
 	sbc82xx_i8259_map[0] = 0x0c;	/* OCW3: Read IR register on RD# pulse */

@@ -39,8 +39,7 @@
 /* This is an NTP setting */
 #define	TICK_SIZE (tick_nsec / 1000)
 
-static void time_sched_init(irqreturn_t(*timer_routine)
-			(int, void *));
+static void time_sched_init(irq_handler_t timer_routine);
 static unsigned long gettimeoffset(void);
 
 static struct irqaction bfin_timer_irq = {
@@ -64,7 +63,7 @@ static struct irqaction bfin_timer_irq = {
 #define TIME_SCALE 1
 
 static void
-time_sched_init(irqreturn_t(*timer_routine) (int, void *))
+time_sched_init(irq_handler_t timer_routine)
 {
 	u32 tcount;
 
