@@ -1306,7 +1306,7 @@ static void remove_siblinginfo(int cpu)
 	cpu_clear(cpu, cpu_sibling_setup_map);
 }
 
-int additional_cpus __initdata = -1;
+static int additional_cpus __initdata = -1;
 
 static __init int setup_additional_cpus(char *s)
 {
