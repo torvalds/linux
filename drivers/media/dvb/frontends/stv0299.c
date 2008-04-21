@@ -366,26 +366,32 @@ static int stv0299_set_voltage (struct dvb_frontend* fe, fe_sec_voltage_t voltag
 	 *  H/V switching over OP0, OP1 and OP2 are LNB power enable bits
 	 */
 	reg0x0c &= 0x0f;
-
-	if (voltage == SEC_VOLTAGE_OFF) {
-		stv0299_writeregI (state, 0x0c, 0x00); /*	LNB power off! */
-		return stv0299_writeregI (state, 0x08, 0x00); /*	LNB power off! */
-	}
-
-	stv0299_writeregI (state, 0x08, (reg0x08 & 0x3f) | (state->config->lock_output << 6));
+	reg0x08 = (reg0x08 & 0x3f) | (state->config->lock_output << 6);
 
 	switch (voltage) {
 	case SEC_VOLTAGE_13:
-		if (state->config->volt13_op0_op1 == STV0299_VOLT13_OP0) reg0x0c |= 0x10;
-		else reg0x0c |= 0x40;
-
-		return stv0299_writeregI(state, 0x0c, reg0x0c);
-
+		if (state->config->volt13_op0_op1 == STV0299_VOLT13_OP0)
+			reg0x0c |= 0x10; /* OP1 off, OP0 on */
+		else
+			reg0x0c |= 0x40; /* OP1 on, OP0 off */
+		break;
 	case SEC_VOLTAGE_18:
-		return stv0299_writeregI(state, 0x0c, reg0x0c | 0x50);
+		reg0x0c |= 0x50; /* OP1 on, OP0 on */
+		break;
+	case SEC_VOLTAGE_OFF:
+		/* LNB power off! */
+		reg0x08 = 0x00;
+		reg0x0c = 0x00;
+		break;
 	default:
 		return -EINVAL;
 	};
+
+	if (state->config->op0_off)
+		reg0x0c &= ~0x10;
+
+	stv0299_writeregI(state, 0x08, reg0x08);
+	return stv0299_writeregI(state, 0x0c, reg0x0c);
 }
 
 static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, unsigned long cmd)
@@ -445,11 +451,20 @@ static int stv0299_init (struct dvb_frontend* fe)
 {
 	struct stv0299_state* state = fe->demodulator_priv;
 	int i;
+	u8 reg;
+	u8 val;
 
 	dprintk("stv0299: init chip\n");
 
-	for (i=0; !(state->config->inittab[i] == 0xff && state->config->inittab[i+1] == 0xff); i+=2)
-		stv0299_writeregI(state, state->config->inittab[i], state->config->inittab[i+1]);
+	for (i = 0; ; i += 2)  {
+		reg = state->config->inittab[i];
+		val = state->config->inittab[i+1];
+		if (reg == 0xff && val == 0xff)
+			break;
+		if (reg == 0x0c && state->config->op0_off)
+			val &= ~0x10;
+		stv0299_writeregI(state, reg, val);
+	}
 
 	return 0;
 }

@@ -82,6 +82,9 @@ struct stv0299_config
 	/* Is 13v controlled by OP0 or OP1? */
 	u8 volt13_op0_op1:1;
 
+	/* Turn-off OP0? */
+	u8 op0_off:1;
+
 	/* minimum delay before retuning */
 	int min_delay_ms;
 
