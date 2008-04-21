@@ -4968,17 +4968,6 @@ static int iwl3945_get_channels_for_scan(struct iwl3945_priv *priv,
 		if (channels[i].flags & IEEE80211_CHAN_DISABLED)
 			continue;
 
-		if (channels[i].hw_value ==
-		    le16_to_cpu(priv->active_rxon.channel)) {
-			if (iwl3945_is_associated(priv)) {
-				IWL_DEBUG_SCAN
-				    ("Skipping current channel %d\n",
-				     le16_to_cpu(priv->active_rxon.channel));
-				continue;
-			}
-		} else if (priv->only_active_channel)
-			continue;
-
 		scan_ch->channel = channels[i].hw_value;
 
 		ch_info = iwl3945_get_channel_info(priv, band, scan_ch->channel);
@@ -7313,8 +7302,6 @@ static void iwl3945_mac_reset_tsf(struct ieee80211_hw *hw)
 		mutex_unlock(&priv->mutex);
 		return;
 	}
-
-	priv->only_active_channel = 0;
 
 	iwl3945_set_rate(priv);
 
