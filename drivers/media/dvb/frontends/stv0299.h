@@ -48,10 +48,10 @@
 #include <linux/dvb/frontend.h>
 #include "dvb_frontend.h"
 
-#define STV0229_LOCKOUTPUT_0  0
-#define STV0229_LOCKOUTPUT_1  1
-#define STV0229_LOCKOUTPUT_CF 2
-#define STV0229_LOCKOUTPUT_LK 3
+#define STV0299_LOCKOUTPUT_0  0
+#define STV0299_LOCKOUTPUT_1  1
+#define STV0299_LOCKOUTPUT_CF 2
+#define STV0299_LOCKOUTPUT_LK 3
 
 #define STV0299_VOLT13_OP0 0
 #define STV0299_VOLT13_OP1 1
