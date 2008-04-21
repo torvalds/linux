@@ -723,9 +723,10 @@ static int rcu_idle_cpu;	/* Force all torture tasks off this CPU */
  */
 static void rcu_torture_shuffle_tasks(void)
 {
-	cpumask_t tmp_mask = CPU_MASK_ALL;
+	cpumask_t tmp_mask;
 	int i;
 
+	cpus_setall(tmp_mask);
 	get_online_cpus();
 
 	/* No point in shuffling if there is only one online CPU (ex: UP) */
@@ -737,25 +738,27 @@ static void rcu_torture_shuffle_tasks(void)
 	if (rcu_idle_cpu != -1)
 		cpu_clear(rcu_idle_cpu, tmp_mask);
 
-	set_cpus_allowed(current, tmp_mask);
+	set_cpus_allowed_ptr(current, &tmp_mask);
 
 	if (reader_tasks) {
 		for (i = 0; i < nrealreaders; i++)
 			if (reader_tasks[i])
-				set_cpus_allowed(reader_tasks[i], tmp_mask);
+				set_cpus_allowed_ptr(reader_tasks[i],
+						     &tmp_mask);
 	}
 
 	if (fakewriter_tasks) {
 		for (i = 0; i < nfakewriters; i++)
 			if (fakewriter_tasks[i])
-				set_cpus_allowed(fakewriter_tasks[i], tmp_mask);
+				set_cpus_allowed_ptr(fakewriter_tasks[i],
+						     &tmp_mask);
 	}
 
 	if (writer_task)
-		set_cpus_allowed(writer_task, tmp_mask);
+		set_cpus_allowed_ptr(writer_task, &tmp_mask);
 
 	if (stats_task)
-		set_cpus_allowed(stats_task, tmp_mask);
+		set_cpus_allowed_ptr(stats_task, &tmp_mask);
 
 	if (rcu_idle_cpu == -1)
 		rcu_idle_cpu = num_online_cpus() - 1;

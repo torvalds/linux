@@ -73,8 +73,23 @@ static ssize_t local_cpus_show(struct device *dev,
 
 	mask = pcibus_to_cpumask(to_pci_dev(dev)->bus);
 	len = cpumask_scnprintf(buf, PAGE_SIZE-2, mask);
-	strcat(buf,"\n"); 
-	return 1+len;
+	buf[len++] = '\n';
+	buf[len] = '\0';
+	return len;
+}
+
+
+static ssize_t local_cpulist_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	cpumask_t mask;
+	int len;
+
+	mask = pcibus_to_cpumask(to_pci_dev(dev)->bus);
+	len = cpulist_scnprintf(buf, PAGE_SIZE-2, mask);
+	buf[len++] = '\n';
+	buf[len] = '\0';
+	return len;
 }
 
 /* show resources */
@@ -201,6 +216,7 @@ struct device_attribute pci_dev_attrs[] = {
 	__ATTR_RO(class),
 	__ATTR_RO(irq),
 	__ATTR_RO(local_cpus),
+	__ATTR_RO(local_cpulist),
 	__ATTR_RO(modalias),
 #ifdef CONFIG_NUMA
 	__ATTR_RO(numa_node),

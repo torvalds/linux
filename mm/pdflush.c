@@ -187,8 +187,8 @@ static int pdflush(void *dummy)
 	 * This is needed as pdflush's are dynamically created and destroyed.
 	 * The boottime pdflush's are easily placed w/o these 2 lines.
 	 */
-	cpus_allowed = cpuset_cpus_allowed(current);
-	set_cpus_allowed(current, cpus_allowed);
+	cpuset_cpus_allowed(current, &cpus_allowed);
+	set_cpus_allowed_ptr(current, &cpus_allowed);
 
 	return __pdflush(&my_work);
 }

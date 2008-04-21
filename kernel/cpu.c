@@ -232,9 +232,9 @@ static int _cpu_down(unsigned int cpu, int tasks_frozen)
 
 	/* Ensure that we are not runnable on dying cpu */
 	old_allowed = current->cpus_allowed;
-	tmp = CPU_MASK_ALL;
+	cpus_setall(tmp);
 	cpu_clear(cpu, tmp);
-	set_cpus_allowed(current, tmp);
+	set_cpus_allowed_ptr(current, &tmp);
 
 	p = __stop_machine_run(take_cpu_down, &tcd_param, cpu);
 
@@ -268,7 +268,7 @@ static int _cpu_down(unsigned int cpu, int tasks_frozen)
 out_thread:
 	err = kthread_stop(p);
 out_allowed:
-	set_cpus_allowed(current, old_allowed);
+	set_cpus_allowed_ptr(current, &old_allowed);
 out_release:
 	cpu_hotplug_done();
 	return err;

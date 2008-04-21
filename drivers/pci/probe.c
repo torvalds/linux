@@ -82,6 +82,7 @@ void pci_remove_legacy_files(struct pci_bus *bus) { return; }
  * PCI Bus Class Devices
  */
 static ssize_t pci_bus_show_cpuaffinity(struct device *dev,
+					int type,
 					struct device_attribute *attr,
 					char *buf)
 {
@@ -89,12 +90,30 @@ static ssize_t pci_bus_show_cpuaffinity(struct device *dev,
 	cpumask_t cpumask;
 
 	cpumask = pcibus_to_cpumask(to_pci_bus(dev));
-	ret = cpumask_scnprintf(buf, PAGE_SIZE, cpumask);
-	if (ret < PAGE_SIZE)
-		buf[ret++] = '\n';
+	ret = type?
+		cpulist_scnprintf(buf, PAGE_SIZE-2, cpumask):
+		cpumask_scnprintf(buf, PAGE_SIZE-2, cpumask);
+	buf[ret++] = '\n';
+	buf[ret] = '\0';
 	return ret;
 }
-DEVICE_ATTR(cpuaffinity, S_IRUGO, pci_bus_show_cpuaffinity, NULL);
+
+static ssize_t inline pci_bus_show_cpumaskaffinity(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	return pci_bus_show_cpuaffinity(dev, 0, attr, buf);
+}
+
+static ssize_t inline pci_bus_show_cpulistaffinity(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	return pci_bus_show_cpuaffinity(dev, 1, attr, buf);
+}
+
+DEVICE_ATTR(cpuaffinity,     S_IRUGO, pci_bus_show_cpumaskaffinity, NULL);
+DEVICE_ATTR(cpulistaffinity, S_IRUGO, pci_bus_show_cpulistaffinity, NULL);
 
 /*
  * PCI Bus Class

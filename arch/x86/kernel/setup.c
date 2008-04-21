@@ -54,6 +54,24 @@ static void __init setup_per_cpu_maps(void)
 #endif
 }
 
+#ifdef CONFIG_HAVE_CPUMASK_OF_CPU_MAP
+cpumask_t *cpumask_of_cpu_map __read_mostly;
+EXPORT_SYMBOL(cpumask_of_cpu_map);
+
+/* requires nr_cpu_ids to be initialized */
+static void __init setup_cpumask_of_cpu(void)
+{
+	int i;
+
+	/* alloc_bootmem zeroes memory */
+	cpumask_of_cpu_map = alloc_bootmem_low(sizeof(cpumask_t) * nr_cpu_ids);
+	for (i = 0; i < nr_cpu_ids; i++)
+		cpu_set(i, cpumask_of_cpu_map[i]);
+}
+#else
+static inline void setup_cpumask_of_cpu(void) { }
+#endif
+
 #ifdef CONFIG_X86_32
 /*
  * Great future not-so-futuristic plan: make i386 and x86_64 do it
@@ -70,7 +88,7 @@ EXPORT_SYMBOL(__per_cpu_offset);
  */
 void __init setup_per_cpu_areas(void)
 {
-	int i;
+	int i, highest_cpu = 0;
 	unsigned long size;
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -104,10 +122,18 @@ void __init setup_per_cpu_areas(void)
 		__per_cpu_offset[i] = ptr - __per_cpu_start;
 #endif
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+
+		highest_cpu = i;
 	}
+
+	nr_cpu_ids = highest_cpu + 1;
+	printk(KERN_DEBUG "NR_CPUS: %d, nr_cpu_ids: %d\n", NR_CPUS, nr_cpu_ids);
 
 	/* Setup percpu data maps */
 	setup_per_cpu_maps();
+
+	/* Setup cpumask_of_cpu map */
+	setup_cpumask_of_cpu();
 }
 
 #endif

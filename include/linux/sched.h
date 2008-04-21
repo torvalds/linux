@@ -704,6 +704,7 @@ enum cpu_idle_type {
 #define SD_POWERSAVINGS_BALANCE	256	/* Balance for power savings */
 #define SD_SHARE_PKG_RESOURCES	512	/* Domain members share cpu pkg resources */
 #define SD_SERIALIZE		1024	/* Only a single load balancing instance */
+#define SD_WAKE_IDLE_FAR	2048	/* Gain latency sacrificing cache hit */
 
 #define BALANCE_FOR_MC_POWER	\
 	(sched_smt_power_savings ? SD_POWERSAVINGS_BALANCE : 0)
@@ -733,12 +734,31 @@ struct sched_group {
 	u32 reciprocal_cpu_power;
 };
 
+enum sched_domain_level {
+	SD_LV_NONE = 0,
+	SD_LV_SIBLING,
+	SD_LV_MC,
+	SD_LV_CPU,
+	SD_LV_NODE,
+	SD_LV_ALLNODES,
+	SD_LV_MAX
+};
+
+struct sched_domain_attr {
+	int relax_domain_level;
+};
+
+#define SD_ATTR_INIT	(struct sched_domain_attr) {	\
+	.relax_domain_level = -1,			\
+}
+
 struct sched_domain {
 	/* These fields must be setup */
 	struct sched_domain *parent;	/* top domain must be null terminated */
 	struct sched_domain *child;	/* bottom domain must be null terminated */
 	struct sched_group *groups;	/* the balancing groups of the domain */
 	cpumask_t span;			/* span of all CPUs in this domain */
+	int first_cpu;			/* cache of the first cpu in this domain */
 	unsigned long min_interval;	/* Minimum balance interval ms */
 	unsigned long max_interval;	/* Maximum balance interval ms */
 	unsigned int busy_factor;	/* less balancing by factor if busy */
@@ -750,6 +770,7 @@ struct sched_domain {
 	unsigned int wake_idx;
 	unsigned int forkexec_idx;
 	int flags;			/* See SD_* */
+	enum sched_domain_level level;
 
 	/* Runtime fields. */
 	unsigned long last_balance;	/* init to jiffies. units in jiffies */
@@ -789,7 +810,8 @@ struct sched_domain {
 #endif
 };
 
-extern void partition_sched_domains(int ndoms_new, cpumask_t *doms_new);
+extern void partition_sched_domains(int ndoms_new, cpumask_t *doms_new,
+				    struct sched_domain_attr *dattr_new);
 extern int arch_reinit_sched_domains(void);
 
 #endif	/* CONFIG_SMP */
@@ -889,7 +911,8 @@ struct sched_class {
 	void (*set_curr_task) (struct rq *rq);
 	void (*task_tick) (struct rq *rq, struct task_struct *p, int queued);
 	void (*task_new) (struct rq *rq, struct task_struct *p);
-	void (*set_cpus_allowed)(struct task_struct *p, cpumask_t *newmask);
+	void (*set_cpus_allowed)(struct task_struct *p,
+				 const cpumask_t *newmask);
 
 	void (*join_domain)(struct rq *rq);
 	void (*leave_domain)(struct rq *rq);
@@ -923,6 +946,7 @@ struct load_weight {
 struct sched_entity {
 	struct load_weight	load;		/* for load-balancing */
 	struct rb_node		run_node;
+	struct list_head	group_node;
 	unsigned int		on_rq;
 
 	u64			exec_start;
@@ -982,6 +1006,7 @@ struct sched_rt_entity {
 	unsigned long timeout;
 	int nr_cpus_allowed;
 
+	struct sched_rt_entity *back;
 #ifdef CONFIG_RT_GROUP_SCHED
 	struct sched_rt_entity	*parent;
 	/* rq on which this entity is (to be) queued: */
@@ -1502,15 +1527,21 @@ static inline void put_task_struct(struct task_struct *t)
 #define used_math() tsk_used_math(current)
 
 #ifdef CONFIG_SMP
-extern int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask);
+extern int set_cpus_allowed_ptr(struct task_struct *p,
+				const cpumask_t *new_mask);
 #else
-static inline int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
+static inline int set_cpus_allowed_ptr(struct task_struct *p,
+				       const cpumask_t *new_mask)
 {
-	if (!cpu_isset(0, new_mask))
+	if (!cpu_isset(0, *new_mask))
 		return -EINVAL;
 	return 0;
 }
 #endif
+static inline int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
+{
+	return set_cpus_allowed_ptr(p, &new_mask);
+}
 
 extern unsigned long long sched_clock(void);
 
@@ -1551,7 +1582,6 @@ static inline void wake_up_idle_cpu(int cpu) { }
 extern unsigned int sysctl_sched_latency;
 extern unsigned int sysctl_sched_min_granularity;
 extern unsigned int sysctl_sched_wakeup_granularity;
-extern unsigned int sysctl_sched_batch_wakeup_granularity;
 extern unsigned int sysctl_sched_child_runs_first;
 extern unsigned int sysctl_sched_features;
 extern unsigned int sysctl_sched_migration_cost;
@@ -1563,6 +1593,10 @@ int sched_nr_latency_handler(struct ctl_table *table, int write,
 #endif
 extern unsigned int sysctl_sched_rt_period;
 extern int sysctl_sched_rt_runtime;
+
+int sched_rt_handler(struct ctl_table *table, int write,
+		struct file *filp, void __user *buffer, size_t *lenp,
+		loff_t *ppos);
 
 extern unsigned int sysctl_sched_compat_yield;
 
@@ -2031,7 +2065,7 @@ static inline void arch_pick_mmap_layout(struct mm_struct *mm)
 }
 #endif
 
-extern long sched_setaffinity(pid_t pid, cpumask_t new_mask);
+extern long sched_setaffinity(pid_t pid, const cpumask_t *new_mask);
 extern long sched_getaffinity(pid_t pid, cpumask_t *mask);
 
 extern int sched_mc_power_savings, sched_smt_power_savings;
@@ -2041,8 +2075,11 @@ extern void normalize_rt_tasks(void);
 #ifdef CONFIG_GROUP_SCHED
 
 extern struct task_group init_task_group;
+#ifdef CONFIG_USER_SCHED
+extern struct task_group root_task_group;
+#endif
 
-extern struct task_group *sched_create_group(void);
+extern struct task_group *sched_create_group(struct task_group *parent);
 extern void sched_destroy_group(struct task_group *tg);
 extern void sched_move_task(struct task_struct *tsk);
 #ifdef CONFIG_FAIR_GROUP_SCHED
@@ -2053,6 +2090,9 @@ extern unsigned long sched_group_shares(struct task_group *tg);
 extern int sched_group_set_rt_runtime(struct task_group *tg,
 				      long rt_runtime_us);
 extern long sched_group_rt_runtime(struct task_group *tg);
+extern int sched_group_set_rt_period(struct task_group *tg,
+				      long rt_period_us);
+extern long sched_group_rt_period(struct task_group *tg);
 #endif
 #endif
 

@@ -191,7 +191,6 @@ u64 get_cpu_idle_time_us(int cpu, u64 *last_update_time)
 void tick_nohz_stop_sched_tick(void)
 {
 	unsigned long seq, last_jiffies, next_jiffies, delta_jiffies, flags;
-	unsigned long rt_jiffies;
 	struct tick_sched *ts;
 	ktime_t last_update, expires, now;
 	struct clock_event_device *dev = __get_cpu_var(tick_cpu_device).evtdev;
@@ -242,10 +241,6 @@ void tick_nohz_stop_sched_tick(void)
 	/* Get the next timer wheel timer */
 	next_jiffies = get_next_timer_interrupt(last_jiffies);
 	delta_jiffies = next_jiffies - last_jiffies;
-
-	rt_jiffies = rt_needs_cpu(cpu);
-	if (rt_jiffies && rt_jiffies < delta_jiffies)
-		delta_jiffies = rt_jiffies;
 
 	if (rcu_needs_cpu(cpu))
 		delta_jiffies = 1;

@@ -402,7 +402,7 @@ static int do_microcode_update (void)
 
 			if (!uci->valid)
 				continue;
-			set_cpus_allowed(current, cpumask_of_cpu(cpu));
+			set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 			error = get_maching_microcode(new_mc, cpu);
 			if (error < 0)
 				goto out;
@@ -416,7 +416,7 @@ out:
 		vfree(new_mc);
 	if (cursor < 0)
 		error = cursor;
-	set_cpus_allowed(current, old);
+	set_cpus_allowed_ptr(current, &old);
 	return error;
 }
 
@@ -579,7 +579,7 @@ static int apply_microcode_check_cpu(int cpu)
 		return 0;
 
 	old = current->cpus_allowed;
-	set_cpus_allowed(current, cpumask_of_cpu(cpu));
+	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 
 	/* Check if the microcode we have in memory matches the CPU */
 	if (c->x86_vendor != X86_VENDOR_INTEL || c->x86 < 6 ||
@@ -610,7 +610,7 @@ static int apply_microcode_check_cpu(int cpu)
 			" sig=0x%x, pf=0x%x, rev=0x%x\n",
 			cpu, uci->sig, uci->pf, uci->rev);
 
-	set_cpus_allowed(current, old);
+	set_cpus_allowed_ptr(current, &old);
 	return err;
 }
 
@@ -621,13 +621,13 @@ static void microcode_init_cpu(int cpu, int resume)
 
 	old = current->cpus_allowed;
 
-	set_cpus_allowed(current, cpumask_of_cpu(cpu));
+	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 	mutex_lock(&microcode_mutex);
 	collect_cpu_info(cpu);
 	if (uci->valid && system_state == SYSTEM_RUNNING && !resume)
 		cpu_request_microcode(cpu);
 	mutex_unlock(&microcode_mutex);
-	set_cpus_allowed(current, old);
+	set_cpus_allowed_ptr(current, &old);
 }
 
 static void microcode_fini_cpu(int cpu)
@@ -657,14 +657,14 @@ static ssize_t reload_store(struct sys_device *dev, const char *buf, size_t sz)
 		old = current->cpus_allowed;
 
 		get_online_cpus();
-		set_cpus_allowed(current, cpumask_of_cpu(cpu));
+		set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 
 		mutex_lock(&microcode_mutex);
 		if (uci->valid)
 			err = cpu_request_microcode(cpu);
 		mutex_unlock(&microcode_mutex);
 		put_online_cpus();
-		set_cpus_allowed(current, old);
+		set_cpus_allowed_ptr(current, &old);
 	}
 	if (err)
 		return err;
