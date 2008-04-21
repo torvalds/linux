@@ -566,6 +566,8 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define XY_SRC_COPY_BLT_CMD		((2<<29)|(0x53<<22)|6)
 #define XY_SRC_COPY_BLT_WRITE_ALPHA	(1<<21)
 #define XY_SRC_COPY_BLT_WRITE_RGB	(1<<20)
+#define XY_SRC_COPY_BLT_SRC_TILED	(1<<15)
+#define XY_SRC_COPY_BLT_DST_TILED	(1<<11)
 
 #define MI_BATCH_BUFFER		((0x30<<23)|1)
 #define MI_BATCH_BUFFER_START	(0x31<<23)
