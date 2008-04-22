@@ -43,6 +43,8 @@
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/uaccess.h>
+#include <asm/dcr.h>
+#include <asm/dcr-regs.h>
 
 #include "core.h"
 
@@ -2333,6 +2335,11 @@ static int __devinit emac_init_phy(struct emac_instance *dev)
 	dev->phy.mdio_read = emac_mdio_read;
 	dev->phy.mdio_write = emac_mdio_write;
 
+	/* Enable internal clock source */
+#ifdef CONFIG_PPC_DCR_NATIVE
+	if (emac_has_feature(dev, EMAC_FTR_440GX_PHY_CLK_FIX))
+		dcri_clrset(SDR0, SDR0_MFR, 0, SDR0_MFR_ECS);
+#endif
 	/* Configure EMAC with defaults so we can at least use MDIO
 	 * This is needed mostly for 440GX
 	 */
@@ -2365,6 +2372,12 @@ static int __devinit emac_init_phy(struct emac_instance *dev)
 			if (!emac_mii_phy_probe(&dev->phy, i))
 				break;
 		}
+
+	/* Enable external clock source */
+#ifdef CONFIG_PPC_DCR_NATIVE
+	if (emac_has_feature(dev, EMAC_FTR_440GX_PHY_CLK_FIX))
+		dcri_clrset(SDR0, SDR0_MFR, SDR0_MFR_ECS, 0);
+#endif
 	mutex_unlock(&emac_phy_map_lock);
 	if (i == 0x20) {
 		printk(KERN_WARNING "%s: can't find PHY!\n", np->full_name);
@@ -2490,8 +2503,11 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 	}
 
 	/* Check EMAC version */
-	if (of_device_is_compatible(np, "ibm,emac4"))
+	if (of_device_is_compatible(np, "ibm,emac4")) {
 		dev->features |= EMAC_FTR_EMAC4;
+		if (of_device_is_compatible(np, "ibm,emac-440gx"))
+			dev->features |= EMAC_FTR_440GX_PHY_CLK_FIX;
+	}
 
 	/* Fixup some feature bits based on the device tree */
 	if (of_get_property(np, "has-inverted-stacr-oc", NULL))
