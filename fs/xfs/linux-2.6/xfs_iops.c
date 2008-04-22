@@ -511,7 +511,8 @@ xfs_vn_rename(
 	xfs_dentry_to_name(&nname, ndentry);
 
 	error = xfs_rename(XFS_I(odir), &oname, XFS_I(odentry->d_inode),
-							XFS_I(ndir), &nname);
+			   XFS_I(ndir), &nname, new_inode ?
+			   			XFS_I(new_inode) : NULL);
 	if (likely(!error)) {
 		if (new_inode)
 			xfs_validate_fields(new_inode);

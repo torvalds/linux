@@ -162,7 +162,7 @@ xfs_swap_extents(
 		ips[1] = ip;
 	}
 
-	xfs_lock_inodes(ips, 2, 0, lock_flags);
+	xfs_lock_inodes(ips, 2, lock_flags);
 	locked = 1;
 
 	/* Verify that both files have the same format */
@@ -265,7 +265,7 @@ xfs_swap_extents(
 		locked = 0;
 		goto error0;
 	}
-	xfs_lock_inodes(ips, 2, 0, XFS_ILOCK_EXCL);
+	xfs_lock_inodes(ips, 2, XFS_ILOCK_EXCL);
 
 	/*
 	 * Count the number of extended attribute blocks
