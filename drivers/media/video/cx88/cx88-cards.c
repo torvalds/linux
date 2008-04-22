@@ -2397,9 +2397,10 @@ static void cx88_card_setup(struct cx88_core *core)
 		xc2028_cfg.tuner = TUNER_XC2028;
 		xc2028_cfg.priv  = &ctl;
 
+		info_printk(core, "Asking xc2028/3028 to load firmware %s\n",
+			    ctl.fname);
 		cx88_call_i2c_clients(core, TUNER_SET_CONFIG, &xc2028_cfg);
 	}
-
 }
 
 /* ------------------------------------------------------------------ */

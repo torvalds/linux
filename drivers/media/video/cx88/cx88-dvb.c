@@ -808,6 +808,8 @@ static int dvb_register(struct cx8802_dev *dev)
 			dev->dvb.frontend = NULL;
 			return -1;
 		}
+		printk(KERN_INFO "%s/2: xc3028 attached\n",
+		       dev->core->name);
 	}
 
 	/* Ensure all frontends negotiate bus access */
