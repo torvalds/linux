@@ -19,6 +19,7 @@
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
 #include <media/i2c-addr.h>
+#include <media/tuner.h>
 
 /* ---------------------------------------------------------- */
 /* exported by bttv-cards.c                                   */
