@@ -147,6 +147,10 @@ struct pvr2_ctrl *pvr2_hdw_get_ctrl_nextv4l(struct pvr2_hdw *,
 /* Commit all control changes made up to this point */
 int pvr2_hdw_commit_ctl(struct pvr2_hdw *);
 
+/* Return a bit mask of valid input selections for this device.  Mask bits
+ * will be according to PVR_CVAL_INPUT_xxxx definitions. */
+unsigned int pvr2_hdw_get_input_available(struct pvr2_hdw *);
+
 /* Return name for this driver instance */
 const char *pvr2_hdw_get_driver_name(struct pvr2_hdw *);
 

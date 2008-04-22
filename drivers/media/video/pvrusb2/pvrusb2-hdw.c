@@ -370,23 +370,7 @@ static int ctrl_get_input(struct pvr2_ctrl *cptr,int *vp)
 
 static int ctrl_check_input(struct pvr2_ctrl *cptr,int v)
 {
-	struct pvr2_hdw *hdw = cptr->hdw;
-	const struct pvr2_device_desc *dsc = hdw->hdw_desc;
-
-	switch (v) {
-	case PVR2_CVAL_INPUT_TV:
-		return dsc->flag_has_analogtuner != 0;
-	case PVR2_CVAL_INPUT_DTV:
-		return dsc->flag_has_digitaltuner != 0;
-	case PVR2_CVAL_INPUT_SVIDEO:
-		return dsc->flag_has_svideo != 0;
-	case PVR2_CVAL_INPUT_COMPOSITE:
-		return dsc->flag_has_composite != 0;
-	case PVR2_CVAL_INPUT_RADIO:
-		return dsc->flag_has_fmradio != 0;
-	default:
-		return 0;
-	}
+	return ((1 << v) & cptr->hdw->input_avail_mask) != 0;
 }
 
 static int ctrl_set_input(struct pvr2_ctrl *cptr,int m,int v)
@@ -1834,7 +1818,7 @@ static void pvr2_hdw_setup(struct pvr2_hdw *hdw)
 struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 				 const struct usb_device_id *devid)
 {
-	unsigned int idx,cnt1,cnt2;
+	unsigned int idx,cnt1,cnt2,m;
 	struct pvr2_hdw *hdw;
 	int valid_std_mask;
 	struct pvr2_ctrl *cptr;
@@ -1864,6 +1848,15 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 
 	hdw->tuner_signal_stale = !0;
 	cx2341x_fill_defaults(&hdw->enc_ctl_state);
+
+	/* Calculate which inputs are OK */
+	m = 0;
+	if (hdw_desc->flag_has_analogtuner) m |= 1 << PVR2_CVAL_INPUT_TV;
+	if (hdw_desc->flag_has_digitaltuner) m |= 1 << PVR2_CVAL_INPUT_DTV;
+	if (hdw_desc->flag_has_svideo) m |= 1 << PVR2_CVAL_INPUT_SVIDEO;
+	if (hdw_desc->flag_has_composite) m |= 1 << PVR2_CVAL_INPUT_COMPOSITE;
+	if (hdw_desc->flag_has_fmradio) m |= 1 << PVR2_CVAL_INPUT_RADIO;
+	hdw->input_avail_mask = m;
 
 	hdw->control_cnt = CTRLDEF_COUNT;
 	hdw->control_cnt += MPEGDEF_COUNT;
@@ -3777,6 +3770,12 @@ int pvr2_hdw_gpio_chg_out(struct pvr2_hdw *hdw,u32 msk,u32 val)
 			   "GPIO output changing to 0x%x",nval);
 	}
 	return pvr2_write_register(hdw,PVR2_GPIO_OUT,nval);
+}
+
+
+unsigned int pvr2_hdw_get_input_available(struct pvr2_hdw *hdw)
+{
+	return hdw->input_avail_mask;
 }
 
 
