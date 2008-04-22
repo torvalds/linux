@@ -166,20 +166,6 @@ static struct dvb_pll_desc dvb_pll_microtune_4042 = {
 	},
 };
 
-static struct dvb_pll_desc dvb_pll_thomson_dtt761x = {
-	/* DTT 7611 7611A 7612 7613 7613A 7614 7615 7615A */
-	.name  = "Thomson dtt761x",
-	.min   =  57000000,
-	.max   = 863000000,
-	.iffreq= 44000000,
-	.count = 3,
-	.initdata = tua603x_agc103,
-	.entries = {
-		{ 147000000, 62500, 0x8e, 0x39 },
-		{ 417000000, 62500, 0x8e, 0x3a },
-		{ 999999999, 62500, 0x8e, 0x3c },
-	},
-};
 
 static struct dvb_pll_desc dvb_pll_unknown_1 = {
 	.name  = "unknown 1", /* used by dntv live dvb-t */
@@ -574,7 +560,6 @@ static struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_THOMSON_DTT759X]        = &dvb_pll_thomson_dtt759x,
 	[DVB_PLL_LG_Z201]                = &dvb_pll_lg_z201,
 	[DVB_PLL_MICROTUNE_4042]         = &dvb_pll_microtune_4042,
-	[DVB_PLL_THOMSON_DTT761X]        = &dvb_pll_thomson_dtt761x,
 	[DVB_PLL_UNKNOWN_1]              = &dvb_pll_unknown_1,
 	[DVB_PLL_TUA6010XS]              = &dvb_pll_tua6010xs,
 	[DVB_PLL_ENV57H1XD5]             = &dvb_pll_env57h1xd5,
