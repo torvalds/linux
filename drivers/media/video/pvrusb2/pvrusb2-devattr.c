@@ -164,6 +164,7 @@ static const struct pvr2_device_desc pvr2_device_onair_creator = {
 		.flag_has_svideo = !0,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_ONAIR,
+		.default_std_mask = V4L2_STD_NTSC_M,
 };
 #endif
 
@@ -190,6 +191,7 @@ static const struct pvr2_device_desc pvr2_device_onair_usb2 = {
 		.flag_has_svideo = !0,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_ONAIR,
+		.default_std_mask = V4L2_STD_NTSC_M,
 };
 #endif
 
