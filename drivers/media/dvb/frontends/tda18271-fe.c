@@ -37,8 +37,8 @@ static LIST_HEAD(hybrid_tuner_instance_list);
 /*---------------------------------------------------------------------*/
 
 static int tda18271_channel_configuration(struct dvb_frontend *fe,
-					  u32 ifc, u32 freq, u32 bw, u8 std,
-					  int radio)
+					  struct tda18271_std_map_item *map,
+					  u32 freq, u32 bw)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
@@ -48,7 +48,7 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 
 	/* set standard */
 	regs[R_EP3]  &= ~0x1f; /* clear std bits */
-	regs[R_EP3]  |= std;
+	regs[R_EP3]  |= map->std_bits;
 
 	/* set cal mode to normal */
 	regs[R_EP4]  &= ~0x03;
@@ -66,10 +66,9 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 		break;
 	}
 
-	if (radio)
-		regs[R_EP4]  |=  0x80;
-	else
-		regs[R_EP4]  &= ~0x80;
+	/* update FM_RFn */
+	regs[R_EP4]  &= ~0x80;
+	regs[R_EP4]  |= map->fm_rfn << 7;
 
 	/* update RF_TOP / IF_TOP */
 	switch (priv->mode) {
@@ -114,7 +113,7 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 
 	/* --------------------------------------------------------------- */
 
-	N = freq + ifc;
+	N = map->if_freq * 1000 + freq;
 
 	/* FIXME: assumes master */
 	tda18271_calc_main_pll(fe, N);
@@ -728,12 +727,12 @@ static int tda18271_init(struct dvb_frontend *fe)
 }
 
 static int tda18271_tune(struct dvb_frontend *fe,
-			 u32 ifc, u32 freq, u32 bw, u8 std, int radio)
+			 struct tda18271_std_map_item *map, u32 freq, u32 bw)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 
 	tda_dbg("freq = %d, ifc = %d, bw = %d, std = 0x%02x\n",
-		freq, ifc, bw, std);
+		freq, map->if_freq, bw, map->std_bits);
 
 	tda18271_init(fe);
 
@@ -747,7 +746,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 		tda18271c2_rf_tracking_filters_correction(fe, freq);
 		break;
 	}
-	tda18271_channel_configuration(fe, ifc, freq, bw, std, radio);
+	tda18271_channel_configuration(fe, map, freq, bw);
 
 	mutex_unlock(&priv->lock);
 
@@ -761,9 +760,8 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	struct tda18271_std_map *std_map = &priv->std;
+	struct tda18271_std_map_item *map;
 	int ret;
-	u8 std;
-	u16 sgIF;
 	u32 bw, freq = params->frequency;
 
 	priv->mode = TDA18271_DIGITAL;
@@ -772,13 +770,11 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 		switch (params->u.vsb.modulation) {
 		case VSB_8:
 		case VSB_16:
-			std  = std_map->atsc_6.std_bits;
-			sgIF = std_map->atsc_6.if_freq;
+			map = &std_map->atsc_6;
 			break;
 		case QAM_64:
 		case QAM_256:
-			std  = std_map->qam_6.std_bits;
-			sgIF = std_map->qam_6.if_freq;
+			map = &std_map->qam_6;
 			break;
 		default:
 			tda_warn("modulation not set!\n");
@@ -793,18 +789,15 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 		switch (params->u.ofdm.bandwidth) {
 		case BANDWIDTH_6_MHZ:
 			bw = 6000000;
-			std  = std_map->dvbt_6.std_bits;
-			sgIF = std_map->dvbt_6.if_freq;
+			map = &std_map->dvbt_6;
 			break;
 		case BANDWIDTH_7_MHZ:
 			bw = 7000000;
-			std  = std_map->dvbt_7.std_bits;
-			sgIF = std_map->dvbt_7.if_freq;
+			map = &std_map->dvbt_7;
 			break;
 		case BANDWIDTH_8_MHZ:
 			bw = 8000000;
-			std  = std_map->dvbt_8.std_bits;
-			sgIF = std_map->dvbt_8.if_freq;
+			map = &std_map->dvbt_8;
 			break;
 		default:
 			tda_warn("bandwidth not set!\n");
@@ -819,7 +812,7 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 	if (fe->ops.analog_ops.standby)
 		fe->ops.analog_ops.standby(fe);
 
-	ret = tda18271_tune(fe, sgIF * 1000, freq, bw, std, 0);
+	ret = tda18271_tune(fe, map, freq, bw);
 
 	if (ret < 0)
 		goto fail;
@@ -836,57 +829,46 @@ static int tda18271_set_analog_params(struct dvb_frontend *fe,
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	struct tda18271_std_map *std_map = &priv->std;
+	struct tda18271_std_map_item *map;
 	char *mode;
-	int ret, radio = 0;
-	u8 std;
-	u16 sgIF;
+	int ret;
 	u32 freq = params->frequency * 62500;
 
 	priv->mode = TDA18271_ANALOG;
 
 	if (params->mode == V4L2_TUNER_RADIO) {
-		radio = 1;
 		freq = freq / 1000;
-		std  = std_map->fm_radio.std_bits;
-		sgIF = std_map->fm_radio.if_freq;
+		map = &std_map->fm_radio;
 		mode = "fm";
 	} else if (params->std & V4L2_STD_MN) {
-		std  = std_map->atv_mn.std_bits;
-		sgIF = std_map->atv_mn.if_freq;
+		map = &std_map->atv_mn;
 		mode = "MN";
 	} else if (params->std & V4L2_STD_B) {
-		std  = std_map->atv_b.std_bits;
-		sgIF = std_map->atv_b.if_freq;
+		map = &std_map->atv_b;
 		mode = "B";
 	} else if (params->std & V4L2_STD_GH) {
-		std  = std_map->atv_gh.std_bits;
-		sgIF = std_map->atv_gh.if_freq;
+		map = &std_map->atv_gh;
 		mode = "GH";
 	} else if (params->std & V4L2_STD_PAL_I) {
-		std  = std_map->atv_i.std_bits;
-		sgIF = std_map->atv_i.if_freq;
+		map = &std_map->atv_i;
 		mode = "I";
 	} else if (params->std & V4L2_STD_DK) {
-		std  = std_map->atv_dk.std_bits;
-		sgIF = std_map->atv_dk.if_freq;
+		map = &std_map->atv_dk;
 		mode = "DK";
 	} else if (params->std & V4L2_STD_SECAM_L) {
-		std  = std_map->atv_l.std_bits;
-		sgIF = std_map->atv_l.if_freq;
+		map = &std_map->atv_l;
 		mode = "L";
 	} else if (params->std & V4L2_STD_SECAM_LC) {
-		std  = std_map->atv_lc.std_bits;
-		sgIF = std_map->atv_lc.if_freq;
+		map = &std_map->atv_lc;
 		mode = "L'";
 	} else {
-		std  = std_map->atv_i.std_bits;
-		sgIF = std_map->atv_i.if_freq;
+		map = &std_map->atv_i;
 		mode = "xx";
 	}
 
 	tda_dbg("setting tda18271 to system %s\n", mode);
 
-	ret = tda18271_tune(fe, sgIF * 1000, freq, 0, std, radio);
+	ret = tda18271_tune(fe, map, freq, 0);
 
 	if (ret < 0)
 		goto fail;

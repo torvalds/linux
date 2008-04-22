@@ -27,6 +27,7 @@
 struct tda18271_std_map_item {
 	u16 if_freq;
 	u8 std_bits;
+	unsigned int fm_rfn:1;
 };
 
 struct tda18271_std_map {
