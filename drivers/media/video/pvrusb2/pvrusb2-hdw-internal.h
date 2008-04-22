@@ -237,9 +237,9 @@ struct pvr2_hdw {
 	int state_usbstream_run;      /* FX2 is streaming */
 	int state_decoder_quiescent;  /* Decoder idle for > 50msec */
 	int state_pipeline_config;    /* Pipeline is configured */
-	int state_pipeline_req;                /* Somebody wants to stream */
-	int state_pipeline_pause;              /* Pipeline must be paused */
-	int state_pipeline_idle;               /* Pipeline not running */
+	int state_pipeline_req;       /* Somebody wants to stream */
+	int state_pipeline_pause;     /* Pipeline must be paused */
+	int state_pipeline_idle;      /* Pipeline not running */
 
 	/* This is the master state of the driver.  It is the combined
 	   result of other bits of state.  Examining this will indicate the
