@@ -62,7 +62,7 @@ static bool all_sleeping;
  */
 int device_pm_add(struct device *dev)
 {
-	int error = 0;
+	int error;
 
 	pr_debug("PM: Adding info for %s:%s\n",
 		 dev->bus ? dev->bus->name : "No Bus",
@@ -70,18 +70,15 @@ int device_pm_add(struct device *dev)
 	mutex_lock(&dpm_list_mtx);
 	if ((dev->parent && dev->parent->power.sleeping) || all_sleeping) {
 		if (dev->parent->power.sleeping)
-			dev_warn(dev,
-				"parent %s is sleeping, will not add\n",
+			dev_warn(dev, "parent %s is sleeping\n",
 				dev->parent->bus_id);
 		else
-			dev_warn(dev, "devices are sleeping, will not add\n");
+			dev_warn(dev, "all devices are sleeping\n");
 		WARN_ON(true);
-		error = -EBUSY;
-	} else {
-		error = dpm_sysfs_add(dev);
-		if (!error)
-			list_add_tail(&dev->power.entry, &dpm_active);
 	}
+	error = dpm_sysfs_add(dev);
+	if (!error)
+		list_add_tail(&dev->power.entry, &dpm_active);
 	mutex_unlock(&dpm_list_mtx);
 	return error;
 }
