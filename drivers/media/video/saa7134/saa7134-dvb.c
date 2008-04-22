@@ -33,6 +33,7 @@
 #include "saa7134.h"
 #include <media/v4l2-common.h>
 #include "dvb-pll.h"
+#include <dvb_frontend.h>
 
 #include "mt352.h"
 #include "mt352_priv.h" /* FIXME */
@@ -94,7 +95,7 @@ static int pinnacle_antenna_pwr(struct saa7134_dev *dev, int on)
 	saa_setl(SAA7134_GPIO_GPSTATUS0 >> 2,   (1 << 28));
 	udelay(10);
 	ok = saa_readl(SAA7134_GPIO_GPSTATUS0) & (1 << 27);
-	dprintk("%s %s\n", __FUNCTION__, ok ? "on" : "off");
+	dprintk("%s %s\n", __func__, ok ? "on" : "off");
 
 	if (!ok)
 		saa_clearl(SAA7134_GPIO_GPSTATUS0 >> 2,   (1 << 26));
@@ -114,7 +115,7 @@ static int mt352_pinnacle_init(struct dvb_frontend* fe)
 	static u8 irq_cfg []       = { INTERRUPT_EN_0, 0x00, 0x00, 0x00, 0x00 };
 	struct saa7134_dev *dev= fe->dvb->priv;
 
-	dprintk("%s called\n", __FUNCTION__);
+	dprintk("%s called\n", __func__);
 
 	mt352_write(fe, clock_config,   sizeof(clock_config));
 	udelay(200);
@@ -882,6 +883,33 @@ static int md8800_set_high_voltage(struct dvb_frontend *fe, long arg)
 	return res;
 };
 
+static int md8800_set_voltage2(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+{
+	struct saa7134_dev *dev = fe->dvb->priv;
+	u8 wbuf[2] = { 0x1f, 00 };
+	u8 rbuf;
+	struct i2c_msg msg[] = { { .addr = 0x08, .flags = 0, .buf = wbuf, .len = 1 },
+				 { .addr = 0x08, .flags = I2C_M_RD, .buf = &rbuf, .len = 1 } };
+
+	if (i2c_transfer(&dev->i2c_adap, msg, 2) != 2)
+		return -EIO;
+	/* NOTE: this assumes that gpo1 is used, it might be bit 5 (gpo2) */
+	if (voltage == SEC_VOLTAGE_18)
+		wbuf[1] = rbuf | 0x10;
+	else
+		wbuf[1] = rbuf & 0xef;
+	msg[0].len = 2;
+	i2c_transfer(&dev->i2c_adap, msg, 1);
+	return 0;
+}
+
+static int md8800_set_high_voltage2(struct dvb_frontend *fe, long arg)
+{
+	struct saa7134_dev *dev = fe->dvb->priv;
+	wprintk("%s: sorry can't set high LNB supply voltage from here\n", __func__);
+	return -EIO;
+}
+
 /* ==================================================================
  * nxt200x based ATSC cards, helper functions
  */
@@ -1003,11 +1031,11 @@ static int dvb_init(struct saa7134_dev *dev)
 			if (dev->dvb.frontend) {
 				if (dvb_attach(tda826x_attach, dev->dvb.frontend, 0x63,
 									&dev->i2c_adap, 0) == NULL) {
-					wprintk("%s: Lifeview Trio, No tda826x found!\n", __FUNCTION__);
+					wprintk("%s: Lifeview Trio, No tda826x found!\n", __func__);
 				}
 				if (dvb_attach(isl6421_attach, dev->dvb.frontend, &dev->i2c_adap,
 										0x08, 0, 0) == NULL) {
-					wprintk("%s: Lifeview Trio, No ISL6421 found!\n", __FUNCTION__);
+					wprintk("%s: Lifeview Trio, No ISL6421 found!\n", __func__);
 				}
 			}
 		}
@@ -1036,27 +1064,35 @@ static int dvb_init(struct saa7134_dev *dev)
 			dev->dvb.frontend = dvb_attach(tda10086_attach,
 							&flydvbs, &dev->i2c_adap);
 			if (dev->dvb.frontend) {
-				struct dvb_frontend *fe;
+				struct dvb_frontend *fe = dev->dvb.frontend;
+				u8 dev_id = dev->eedata[2];
+				u8 data = 0xc4;
+				struct i2c_msg msg = {.addr = 0x08, .flags = 0, .len = 1};
+
 				if (dvb_attach(tda826x_attach, dev->dvb.frontend,
 						0x60, &dev->i2c_adap, 0) == NULL)
 					wprintk("%s: Medion Quadro, no tda826x "
-						"found !\n", __FUNCTION__);
-				/* Note 10.2. Hac
-				 * up to here. configuration for ctx948 and and one branch
-				 * of md8800 should be identical
-				 */
-				/* we need to open the i2c gate (we know it exists) */
-				fe = dev->dvb.frontend;
-				fe->ops.i2c_gate_ctrl(fe, 1);
-				if (dvb_attach(isl6405_attach, fe,
-						&dev->i2c_adap, 0x08, 0, 0) == NULL)
-					wprintk("%s: Medion Quadro, no ISL6405 "
-						"found !\n", __FUNCTION__);
-				fe->ops.i2c_gate_ctrl(fe, 0);
-				dev->original_set_voltage = fe->ops.set_voltage;
-				fe->ops.set_voltage = md8800_set_voltage;
-				dev->original_set_high_voltage = fe->ops.enable_high_lnb_voltage;
-				fe->ops.enable_high_lnb_voltage = md8800_set_high_voltage;
+						"found !\n", __func__);
+				if (dev_id != 0x08) {
+					/* we need to open the i2c gate (we know it exists) */
+					fe->ops.i2c_gate_ctrl(fe, 1);
+					if (dvb_attach(isl6405_attach, fe,
+							&dev->i2c_adap, 0x08, 0, 0) == NULL)
+						wprintk("%s: Medion Quadro, no ISL6405 "
+							"found !\n", __func__);
+					/* fire up the 2nd section of the LNB supply since we can't do
+					this from the other section */
+					msg.buf = &data;
+					i2c_transfer(&dev->i2c_adap, &msg, 1);
+					fe->ops.i2c_gate_ctrl(fe, 0);
+					dev->original_set_voltage = fe->ops.set_voltage;
+					fe->ops.set_voltage = md8800_set_voltage;
+					dev->original_set_high_voltage = fe->ops.enable_high_lnb_voltage;
+					fe->ops.enable_high_lnb_voltage = md8800_set_high_voltage;
+				} else {
+					fe->ops.set_voltage = md8800_set_voltage2;
+					fe->ops.enable_high_lnb_voltage = md8800_set_high_voltage2;
+				}
 			}
 		}
 		break;
@@ -1082,11 +1118,11 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (dev->dvb.frontend) {
 			if (dvb_attach(tda826x_attach, dev->dvb.frontend, 0x60,
 				       &dev->i2c_adap, 0) == NULL) {
-				wprintk("%s: No tda826x found!\n", __FUNCTION__);
+				wprintk("%s: No tda826x found!\n", __func__);
 			}
 			if (dvb_attach(isl6421_attach, dev->dvb.frontend,
 				       &dev->i2c_adap, 0x08, 0, 0) == NULL) {
-				wprintk("%s: No ISL6421 found!\n", __FUNCTION__);
+				wprintk("%s: No ISL6421 found!\n", __func__);
 			}
 		}
 		break;
@@ -1138,10 +1174,10 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (dev->dvb.frontend) {
 			if (dvb_attach(tda826x_attach, dev->dvb.frontend, 0x60,
 					&dev->i2c_adap, 0) == NULL)
-				wprintk("%s: No tda826x found!\n", __FUNCTION__);
+				wprintk("%s: No tda826x found!\n", __func__);
 			if (dvb_attach(lnbp21_attach, dev->dvb.frontend,
 					&dev->i2c_adap, 0, 0) == NULL)
-				wprintk("%s: No lnbp21 found!\n", __FUNCTION__);
+				wprintk("%s: No lnbp21 found!\n", __func__);
 		}
 		break;
 	case SAA7134_BOARD_CREATIX_CTX953:
@@ -1164,14 +1200,14 @@ static int dvb_init(struct saa7134_dev *dev)
 			if (dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x60,
 				  &dev->i2c_adap, DVB_PLL_PHILIPS_SD1878_TDA8261) == NULL)
 				wprintk("%s: MD7134 DVB-S, no SD1878 "
-					"found !\n", __FUNCTION__);
+					"found !\n", __func__);
 			/* we need to open the i2c gate (we know it exists) */
 			fe = dev->dvb.frontend;
 			fe->ops.i2c_gate_ctrl(fe, 1);
 			if (dvb_attach(isl6405_attach, fe,
 					&dev->i2c_adap, 0x08, 0, 0) == NULL)
 				wprintk("%s: MD7134 DVB-S, no ISL6405 "
-					"found !\n", __FUNCTION__);
+					"found !\n", __func__);
 			fe->ops.i2c_gate_ctrl(fe, 0);
 			dev->original_set_voltage = fe->ops.set_voltage;
 			fe->ops.set_voltage = md8800_set_voltage;
@@ -1239,8 +1275,20 @@ static int dvb_fini(struct saa7134_dev *dev)
 
 		/* otherwise we don't detect the tuner on next insmod */
 		saa7134_i2c_call_clients(dev, TUNER_SET_CONFIG, &tda9887_cfg);
+	} else if (dev->board == SAA7134_BOARD_MEDION_MD8800_QUADRO) {
+		if ((dev->eedata[2] != 0x08) && use_frontend) {
+			/* turn off the 2nd lnb supply */
+			u8 data = 0x80;
+			struct i2c_msg msg = {.addr = 0x08, .buf = &data, .flags = 0, .len = 1};
+			struct dvb_frontend *fe;
+			fe = dev->dvb.frontend;
+			if (fe->ops.i2c_gate_ctrl) {
+				fe->ops.i2c_gate_ctrl(fe, 1);
+				i2c_transfer(&dev->i2c_adap, &msg, 1);
+				fe->ops.i2c_gate_ctrl(fe, 0);
+			}
+		}
 	}
-
 	videobuf_dvb_unregister(&dev->dvb);
 	return 0;
 }
