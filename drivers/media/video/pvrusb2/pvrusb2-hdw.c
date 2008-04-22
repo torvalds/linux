@@ -2394,6 +2394,7 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 	     hdw->pathway_state)) {
 		/* Change of mode being asked for... */
 		hdw->state_pathway_ok = 0;
+		trace_stbit("state_pathway_ok",hdw->state_pathway_ok);
 	}
 	if (!hdw->state_pathway_ok) {
 		/* Can't commit anything until pathway is ok. */
@@ -3392,6 +3393,7 @@ static int state_eval_pathway_ok(struct pvr2_hdw *hdw)
 	}
 	pvr2_hdw_cmd_modeswitch(hdw,hdw->input_val == PVR2_CVAL_INPUT_DTV);
 	hdw->state_pathway_ok = !0;
+	trace_stbit("state_pathway_ok",hdw->state_pathway_ok);
 	return !0;
 }
 
@@ -3720,7 +3722,7 @@ static unsigned int pvr2_hdw_report_unlocked(struct pvr2_hdw *hdw,int which,
 	case 0:
 		return scnprintf(
 			buf,acnt,
-			"driver:%s%s%s%s%s<mode=%s>",
+			"driver:%s%s%s%s%s <mode=%s>",
 			(hdw->flag_ok ? " <ok>" : " <fail>"),
 			(hdw->flag_init_ok ? " <init>" : " <uninitialized>"),
 			(hdw->flag_disconnected ? " <disconnected>" :
@@ -3759,7 +3761,7 @@ static unsigned int pvr2_hdw_report_unlocked(struct pvr2_hdw *hdw,int which,
 			(hdw->state_usbstream_run ?
 			 " <usb:run>" : " <usb:stop>"),
 			(hdw->state_pathway_ok ?
-			 "<pathway:ok>" : ""));
+			 " <pathway:ok>" : ""));
 		break;
 	case 3:
 		return scnprintf(
