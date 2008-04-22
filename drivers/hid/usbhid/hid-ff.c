@@ -59,6 +59,9 @@ static struct hid_ff_initializer inits[] = {
 	{ 0x46d, 0xc295, hid_lgff_init }, /* Logitech MOMO force wheel */
 	{ 0x46d, 0xca03, hid_lgff_init }, /* Logitech MOMO force wheel */
 #endif
+#ifdef CONFIG_LOGIRUMBLEPAD2_FF
+	{ 0x46d, 0xc218, hid_lg2ff_init }, /* Logitech Rumblepad 2 */
+#endif
 #ifdef CONFIG_PANTHERLORD_FF
 	{ 0x810, 0x0001, hid_plff_init }, /* "Twin USB Joystick" */
 	{ 0xe8f, 0x0003, hid_plff_init }, /* "GreenAsia Inc.    USB Joystick     " */

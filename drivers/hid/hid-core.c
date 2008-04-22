@@ -44,8 +44,8 @@
 
 #ifdef CONFIG_HID_DEBUG
 int hid_debug = 0;
-module_param_named(debug, hid_debug, bool, 0600);
-MODULE_PARM_DESC(debug, "Turn HID debugging mode on and off");
+module_param_named(debug, hid_debug, int, 0600);
+MODULE_PARM_DESC(debug, "HID debugging (0=off, 1=probing info, 2=continuous data dumping)");
 EXPORT_SYMBOL_GPL(hid_debug);
 #endif
 
@@ -97,7 +97,7 @@ static struct hid_field *hid_register_field(struct hid_report *report, unsigned 
 	field->index = report->maxfield++;
 	report->field[field->index] = field;
 	field->usage = (struct hid_usage *)(field + 1);
-	field->value = (unsigned *)(field->usage + usages);
+	field->value = (s32 *)(field->usage + usages);
 	field->report = report;
 
 	return field;
@@ -830,7 +830,8 @@ static void hid_process_event(struct hid_device *hid, struct hid_field *field, s
  * reporting to the layer).
  */
 
-void hid_input_field(struct hid_device *hid, struct hid_field *field, __u8 *data, int interrupt)
+static void hid_input_field(struct hid_device *hid, struct hid_field *field,
+			    __u8 *data, int interrupt)
 {
 	unsigned n;
 	unsigned count = field->report_count;
@@ -876,7 +877,6 @@ void hid_input_field(struct hid_device *hid, struct hid_field *field, __u8 *data
 exit:
 	kfree(value);
 }
-EXPORT_SYMBOL_GPL(hid_input_field);
 
 /*
  * Output the field into the report.
@@ -988,8 +988,13 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 
 	if ((hid->claimed & HID_CLAIMED_HIDDEV) && hid->hiddev_report_event)
 		hid->hiddev_report_event(hid, report);
-	if (hid->claimed & HID_CLAIMED_HIDRAW)
-		hidraw_report_event(hid, data, size);
+	if (hid->claimed & HID_CLAIMED_HIDRAW) {
+		/* numbered reports need to be passed with the report num */
+		if (report_enum->numbered)
+			hidraw_report_event(hid, data - 1, size + 1);
+		else
+			hidraw_report_event(hid, data, size);
+	}
 
 	for (n = 0; n < report->maxfield; n++)
 		hid_input_field(hid, report->field[n], data, interrupt);

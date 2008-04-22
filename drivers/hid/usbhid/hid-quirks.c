@@ -32,6 +32,9 @@
 #define USB_VENDOR_ID_ADS_TECH 		0x06e1
 #define USB_DEVICE_ID_ADS_TECH_RADIO_SI470X	0xa155
 
+#define USB_VENDOR_ID_AFATECH		0x15a4
+#define USB_DEVICE_ID_AFATECH_AF9016	0x9016
+
 #define USB_VENDOR_ID_AIPTEK		0x08ca
 #define USB_DEVICE_ID_AIPTEK_01		0x0001
 #define USB_DEVICE_ID_AIPTEK_10		0x0010
@@ -124,6 +127,9 @@
 #define USB_DEVICE_ID_DELORME_EARTHMATE 0x0100
 #define USB_DEVICE_ID_DELORME_EM_LT20	0x0200
 
+#define USB_VENDOR_ID_DMI		0x0c0b
+#define USB_DEVICE_ID_DMI_ENC		0x5fab
+
 #define USB_VENDOR_ID_ELO		0x04E7
 #define USB_DEVICE_ID_ELO_TS2700	0x0020
 
@@ -199,17 +205,6 @@
 #define USB_DEVICE_ID_GTCO_502		0x0502
 #define USB_DEVICE_ID_GTCO_503		0x0503
 #define USB_DEVICE_ID_GTCO_504		0x0504
-#define USB_DEVICE_ID_GTCO_600		0x0600
-#define USB_DEVICE_ID_GTCO_601		0x0601
-#define USB_DEVICE_ID_GTCO_602		0x0602
-#define USB_DEVICE_ID_GTCO_603		0x0603
-#define USB_DEVICE_ID_GTCO_604		0x0604
-#define USB_DEVICE_ID_GTCO_605		0x0605
-#define USB_DEVICE_ID_GTCO_606		0x0606
-#define USB_DEVICE_ID_GTCO_607		0x0607
-#define USB_DEVICE_ID_GTCO_608		0x0608
-#define USB_DEVICE_ID_GTCO_609		0x0609
-#define USB_DEVICE_ID_GTCO_609		0x0609
 #define USB_DEVICE_ID_GTCO_1000		0x1000
 #define USB_DEVICE_ID_GTCO_1001		0x1001
 #define USB_DEVICE_ID_GTCO_1002		0x1002
@@ -320,6 +315,7 @@
 #define USB_DEVICE_ID_LOGITECH_CORDLESS_DESKTOP_LX500	0xc512
 #define USB_DEVICE_ID_MX3000_RECEIVER	0xc513
 #define USB_DEVICE_ID_DINOVO_EDGE	0xc714
+#define USB_DEVICE_ID_DINOVO_MINI	0xc71f
 
 #define USB_VENDOR_ID_MCC		0x09db
 #define USB_DEVICE_ID_MCC_PMD1024LS	0x0076
@@ -332,6 +328,7 @@
 #define USB_VENDOR_ID_MICROSOFT		0x045e
 #define USB_DEVICE_ID_SIDEWINDER_GV	0x003b
 #define USB_DEVICE_ID_WIRELESS_OPTICAL_DESKTOP_3_0 0x009d
+#define USB_DEVICE_ID_DESKTOP_RECV_1028 0x00f9
 #define USB_DEVICE_ID_MS_NE4K		0x00db
 #define USB_DEVICE_ID_MS_LK6K		0x00f9
 
@@ -376,6 +373,9 @@
 
 #define USB_VENDOR_ID_SUN		0x0430
 #define USB_DEVICE_ID_RARITAN_KVM_DONGLE	0xcdab
+
+#define USB_VENDOR_ID_SUNPLUS		0x04fc
+#define USB_DEVICE_ID_SUNPLUS_WDESKTOP	0x05d8
 
 #define USB_VENDOR_ID_TOPMAX		0x0663
 #define USB_DEVICE_ID_TOPMAX_COBRAPAD	0x0103
@@ -435,9 +435,13 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_TOPMAX, USB_DEVICE_ID_TOPMAX_COBRAPAD, HID_QUIRK_BADPAD },
 	
 	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_DINOVO_EDGE, HID_QUIRK_DUPLICATE_USAGES },
+	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_DINOVO_MINI, HID_QUIRK_DUPLICATE_USAGES },
+
+	{ USB_VENDOR_ID_AFATECH, USB_DEVICE_ID_AFATECH_AF9016, HID_QUIRK_FULLSPEED_INTERVAL },
 
 	{ USB_VENDOR_ID_BELKIN, USB_DEVICE_ID_FLIP_KVM, HID_QUIRK_HIDDEV },
 	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_IRCONTROL4, HID_QUIRK_HIDDEV | HID_QUIRK_IGNORE_HIDINPUT },
+	{ USB_VENDOR_ID_SAMSUNG, USB_DEVICE_ID_SAMSUNG_IR_REMOTE, HID_QUIRK_HIDDEV | HID_QUIRK_IGNORE_HIDINPUT },
 	{ USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_SIDEWINDER_GV, HID_QUIRK_HIDINPUT },
 
 	{ USB_VENDOR_ID_EZKEY, USB_DEVICE_ID_BTC_8193, HID_QUIRK_HWHEEL_WHEEL_INVERT },
@@ -518,16 +522,6 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_502, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_503, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_504, HID_QUIRK_IGNORE },
-	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_600, HID_QUIRK_IGNORE },
-	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_601, HID_QUIRK_IGNORE },
-	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_602, HID_QUIRK_IGNORE },
-	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_603, HID_QUIRK_IGNORE },
-	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_604, HID_QUIRK_IGNORE },
-	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_605, HID_QUIRK_IGNORE },
-	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_606, HID_QUIRK_IGNORE },
-	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_607, HID_QUIRK_IGNORE },
-	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_608, HID_QUIRK_IGNORE },
-	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_609, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_1000, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_1001, HID_QUIRK_IGNORE },
 	{ USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_1002, HID_QUIRK_IGNORE },
@@ -601,6 +595,7 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_ATEN, USB_DEVICE_ID_ATEN_2PORTKVM, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_ATEN, USB_DEVICE_ID_ATEN_4PORTKVM, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_ATEN, USB_DEVICE_ID_ATEN_4PORTKVMC, HID_QUIRK_NOGET },
+	{ USB_VENDOR_ID_DMI, USB_DEVICE_ID_DMI_ENC, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_ELO, USB_DEVICE_ID_ELO_TS2700, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_EXTREME_3D, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WHEEL, HID_QUIRK_NOGET },
@@ -608,7 +603,7 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_PETALYNX, USB_DEVICE_ID_PETALYNX_MAXTER_REMOTE, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_SUN, USB_DEVICE_ID_RARITAN_KVM_DONGLE, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_TURBOX, USB_DEVICE_ID_TURBOX_KEYBOARD, HID_QUIRK_NOGET },
-	{ USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_DUAL_USB_JOYPAD, HID_QUIRK_NOGET | HID_QUIRK_MULTI_INPUT },
+	{ USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_DUAL_USB_JOYPAD, HID_QUIRK_NOGET | HID_QUIRK_MULTI_INPUT | HID_QUIRK_SKIP_OUTPUT_REPORTS },
 	{ USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_QUAD_USB_JOYPAD, HID_QUIRK_NOGET | HID_QUIRK_MULTI_INPUT },
 
 	{ USB_VENDOR_ID_WISEGROUP_LTD, USB_DEVICE_ID_SMARTJOY_DUAL_PLUS, HID_QUIRK_NOGET | HID_QUIRK_MULTI_INPUT },
@@ -719,6 +714,7 @@ static const struct hid_rdesc_blacklist {
 	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_MX3000_RECEIVER, HID_QUIRK_RDESC_LOGITECH },
 	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_RECEIVER, HID_QUIRK_RDESC_LOGITECH },
 	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_RECEIVER_2, HID_QUIRK_RDESC_LOGITECH },
+	{ USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_DESKTOP_RECV_1028, HID_QUIRK_RDESC_MICROSOFT_RECV_1028 },
 
 	{ USB_VENDOR_ID_MONTEREY, USB_DEVICE_ID_GENIUS_KB29E, HID_QUIRK_RDESC_BUTTON_CONSUMER },
 
@@ -727,6 +723,8 @@ static const struct hid_rdesc_blacklist {
 	{ USB_VENDOR_ID_PETALYNX, USB_DEVICE_ID_PETALYNX_MAXTER_REMOTE, HID_QUIRK_RDESC_PETALYNX },
 
 	{ USB_VENDOR_ID_SAMSUNG, USB_DEVICE_ID_SAMSUNG_IR_REMOTE, HID_QUIRK_RDESC_SAMSUNG_REMOTE },
+
+	{ USB_VENDOR_ID_SUNPLUS, USB_DEVICE_ID_SUNPLUS_WDESKTOP, HID_QUIRK_RDESC_SUNPLUS_WDESKTOP },
 
 	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_BARCODE_1, HID_QUIRK_RDESC_SWAPPED_MIN_MAX },
 	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_BARCODE_2, HID_QUIRK_RDESC_SWAPPED_MIN_MAX },
@@ -793,8 +791,8 @@ static struct hid_blacklist *usbhid_exists_dquirk(const u16 idVendor,
  *
  * Returns: 0 OK, -error on failure.
  */
-int usbhid_modify_dquirk(const u16 idVendor, const u16 idProduct,
-		const u32 quirks)
+static int usbhid_modify_dquirk(const u16 idVendor, const u16 idProduct,
+				const u32 quirks)
 {
 	struct quirks_list_struct *q_new, *q;
 	int list_edited = 0;
@@ -1002,6 +1000,17 @@ static void usbhid_fixup_logitech_descriptor(unsigned char *rdesc, int rsize)
 	}
 }
 
+static void usbhid_fixup_sunplus_wdesktop(unsigned char *rdesc, int rsize)
+{
+	if (rsize >= 107 && rdesc[104] == 0x26
+			 && rdesc[105] == 0x80
+			 && rdesc[106] == 0x03) {
+		printk(KERN_INFO "Fixing up Sunplus Wireless Desktop report descriptor\n");
+		rdesc[105] = rdesc[110] = 0x03;
+		rdesc[106] = rdesc[111] = 0x21;
+	}
+}
+
 /*
  * Samsung IrDA remote controller (reports as Cypress USB Mouse).
  *
@@ -1089,6 +1098,28 @@ static void usbhid_fixup_button_consumer_descriptor(unsigned char *rdesc, int rs
 	}
 }
 
+/*
+ * Microsoft Wireless Desktop Receiver (Model 1028) has several
+ * 'Usage Min/Max' where it ought to have 'Physical Min/Max'
+ */
+static void usbhid_fixup_microsoft_descriptor(unsigned char *rdesc, int rsize)
+{
+	if (rsize == 571 && rdesc[284] == 0x19
+	                 && rdesc[286] == 0x2a
+	                 && rdesc[304] == 0x19
+	                 && rdesc[306] == 0x29
+	                 && rdesc[352] == 0x1a
+	                 && rdesc[355] == 0x2a
+			 && rdesc[557] == 0x19
+			 && rdesc[559] == 0x29) {
+		printk(KERN_INFO "Fixing up Microsoft Wireless Receiver Model 1028 report descriptor\n");
+		rdesc[284] = rdesc[304] = rdesc[558] = 0x35;
+		rdesc[352] = 0x36;
+		rdesc[286] = rdesc[355] = 0x46;
+		rdesc[306] = rdesc[559] = 0x45;
+	}
+}
+
 static void __usbhid_fixup_report_descriptor(__u32 quirks, char *rdesc, unsigned rsize)
 {
 	if ((quirks & HID_QUIRK_RDESC_CYMOTION))
@@ -1112,6 +1143,11 @@ static void __usbhid_fixup_report_descriptor(__u32 quirks, char *rdesc, unsigned
 	if (quirks & HID_QUIRK_RDESC_SAMSUNG_REMOTE)
 		usbhid_fixup_samsung_irda_descriptor(rdesc, rsize);
 
+	if (quirks & HID_QUIRK_RDESC_MICROSOFT_RECV_1028)
+		usbhid_fixup_microsoft_descriptor(rdesc, rsize);
+
+	if (quirks & HID_QUIRK_RDESC_SUNPLUS_WDESKTOP)
+		usbhid_fixup_sunplus_wdesktop(rdesc, rsize);
 }
 
 /**
@@ -1150,5 +1186,4 @@ void usbhid_fixup_report_descriptor(const u16 idVendor, const u16 idProduct,
 		else if (paramVendor == idVendor && paramProduct == idProduct)
 			__usbhid_fixup_report_descriptor(quirks, rdesc, rsize);
 	}
-
 }
