@@ -1543,7 +1543,24 @@ static const struct cx88_board cx88_boards[] = {
 		       .gpio3  = 0x00000000,
 	       },
 	       .mpeg           = CX88_MPEG_DVB,
-       }
+       },
+       [CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO] = {
+	       .name           = "DViCO FusionHDTV DVB-T PRO",
+	       .tuner_type     = TUNER_ABSENT, /* XXX: Has XC3028 */
+	       .radio_type     = UNSET,
+	       .tuner_addr     = ADDR_UNSET,
+	       .radio_addr     = ADDR_UNSET,
+	       .input          = { {
+		       .type   = CX88_VMUX_COMPOSITE1,
+		       .vmux   = 1,
+		       .gpio0  = 0x000067df,
+		}, {
+		       .type   = CX88_VMUX_SVIDEO,
+		       .vmux   = 2,
+		       .gpio0  = 0x000067df,
+	       } },
+	       .mpeg           = CX88_MPEG_DVB,
+       },
 };
 
 /* ------------------------------------------------------------------ */
@@ -1748,7 +1765,11 @@ static const struct cx88_subid cx88_subids[] = {
 		.subdevice = 0xdb11,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS,
 		/* Re-branded DViCO: UltraView DVB-T Plus */
-	},{
+	}, {
+		.subvendor = 0x18ac,
+		.subdevice = 0xdb30,
+		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO,
+	}, {
 		.subvendor = 0x17de,
 		.subdevice = 0x0840,
 		.card      = CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT,
@@ -2009,6 +2030,28 @@ static void gdi_eeprom(struct cx88_core *core, u8 *eeprom_data)
 		CX88_RADIO : 0;
 }
 
+/* ------------------------------------------------------------------- */
+/* some Divco specific stuff                                           */
+static int cx88_dvico_xc2028_callback(void *ptr, int command, int arg)
+{
+	struct cx88_core *core = ptr;
+
+	switch (command) {
+	case XC2028_TUNER_RESET:
+		cx_set(MO_GP0_IO, 0x0200);
+		cx_clear(MO_GP0_IO, 0x02);
+		mdelay(100);
+		cx_set(MO_GP0_IO, 0x02);
+		mdelay(100);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+
 /* ----------------------------------------------------------------------- */
 /* some Geniatech specific stuff                                           */
 
@@ -2098,6 +2141,8 @@ static int cx88_xc2028_tuner_callback(void *priv, int command, int arg)
 	case CX88_BOARD_POWERCOLOR_REAL_ANGEL:
 	case CX88_BOARD_GENIATECH_X8000_MT:
 		return cx88_xc3028_geniatech_tuner_callback(priv, command, arg);
+	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
+		return cx88_dvico_xc2028_callback(priv, command, arg);
 	}
 
 	switch (command) {
@@ -2267,6 +2312,7 @@ static void cx88_card_setup(struct cx88_core *core)
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1:
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS:
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID:
+	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
 		/* GPIO0:0 is hooked to mt352 reset pin */
 		cx_set(MO_GP0_IO, 0x00000101);
 		cx_clear(MO_GP0_IO, 0x00000001);
@@ -2338,9 +2384,18 @@ static void cx88_card_setup(struct cx88_core *core)
 
 		ctl.fname   = XC2028_DEFAULT_FIRMWARE;
 		ctl.max_len = 64;
-		/* FIXME: Those should be device-dependent */
-		ctl.demod = XC3028_FE_OREN538;
-		ctl.mts = 1;
+
+		switch (core->boardnr) {
+		case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
+			ctl.scode_table = XC3028_FE_ZARLINK456;
+			break;
+		case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
+			ctl.demod = XC3028_FE_OREN538;
+			break;
+		default:
+			ctl.demod = XC3028_FE_OREN538;
+			ctl.mts = 1;
+		}
 
 		xc2028_cfg.tuner = TUNER_XC2028;
 		xc2028_cfg.priv  = &ctl;

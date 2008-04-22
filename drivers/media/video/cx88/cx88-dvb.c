@@ -237,6 +237,19 @@ static struct zl10353_config dvico_fusionhdtv_hybrid = {
 	.no_tuner      = 1,
 };
 
+static struct zl10353_config dvico_fusionhdtv_xc3028 = {
+	.demod_address = 0x0f,
+	.if2           = 45600,
+	.no_tuner      = 1,
+};
+
+static struct mt352_config dvico_fusionhdtv_mt352_xc3028 = {
+	.demod_address = 0x0f,
+	.if2 = 4560,
+	.no_tuner = 1,
+	.demod_init = dvico_fusionhdtv_demod_init,
+};
+
 static struct zl10353_config dvico_fusionhdtv_plus_v1_1 = {
 	.demod_address = 0x0f,
 };
@@ -566,6 +579,16 @@ static int dvb_register(struct cx8802_dev *dev)
 				   &dev->core->i2c_adap,
 				   DVB_PLL_THOMSON_FE6600);
 		}
+		break;
+	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
+		dev->dvb.frontend = dvb_attach(zl10353_attach,
+					       &dvico_fusionhdtv_xc3028,
+					       &dev->core->i2c_adap);
+		if (dev->dvb.frontend == NULL)
+			dev->dvb.frontend = dvb_attach(mt352_attach,
+						&dvico_fusionhdtv_mt352_xc3028,
+						&dev->core->i2c_adap);
+		attach_xc3028 = 1;
 		break;
 	case CX88_BOARD_PCHDTV_HD3000:
 		dev->dvb.frontend = dvb_attach(or51132_attach, &pchdtv_hd3000,
