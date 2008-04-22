@@ -103,12 +103,12 @@ struct pvr2_device_desc {
 	   commands. */
 	char flag_has_hauppauge_custom_ir;
 
-	/* Device has FM radio capability. */
-	char flag_has_fmradio;
-
-	/* Device has a digital tuner; if this is set then we enable extra
-	   functionality to switch between analog and digital modes. */
-	char flag_has_digitaltuner;
+	/* These bits define which kinds of sources the device can handle. */
+	char flag_has_fmradio;       /* Has FM radio receiver */
+	char flag_has_analogtuner;   /* Has analog tuner */
+	char flag_has_digitaltuner;  /* Has digital tuner */
+	char flag_has_composite;     /* Has composite input */
+	char flag_has_svideo;        /* Has s-video input */
 };
 
 extern struct usb_device_id pvr2_device_table[];
