@@ -102,6 +102,13 @@ struct pvr2_device_desc {
 	   implement the virtual receiver in terms of appropriate FX2
 	   commands. */
 	char flag_has_hauppauge_custom_ir;
+
+	/* Device has FM radio capability. */
+	char flag_has_fmradio;
+
+	/* Device has a digital tuner; if this is set then we enable extra
+	   functionality to switch between analog and digital modes. */
+	char flag_has_digitaltuner;
 };
 
 extern struct usb_device_id pvr2_device_table[];
