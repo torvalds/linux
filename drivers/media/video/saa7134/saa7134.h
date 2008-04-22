@@ -557,7 +557,9 @@ struct saa7134_dev {
 #if defined(CONFIG_VIDEO_SAA7134_DVB) || defined(CONFIG_VIDEO_SAA7134_DVB_MODULE)
 	/* SAA7134_MPEG_DVB only */
 	struct videobuf_dvb        dvb;
-	int (*original_demod_sleep)(struct dvb_frontend* fe);
+	int (*original_demod_sleep)(struct dvb_frontend *fe);
+	int (*original_set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
+	int (*original_set_high_voltage)(struct dvb_frontend *fe, long arg);
 #endif
 };
 

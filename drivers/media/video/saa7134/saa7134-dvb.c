@@ -846,6 +846,36 @@ static struct tda10086_config flydvbs = {
 	.diseqc_tone = 0,
 };
 
+/* ------------------------------------------------------------------
+ * special case: lnb supply is connected to the gated i2c
+ */
+
+static int md8800_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+{
+	int res = -EIO;
+	struct saa7134_dev *dev = fe->dvb->priv;
+	if (fe->ops.i2c_gate_ctrl) {
+		fe->ops.i2c_gate_ctrl(fe, 1);
+		if (dev->original_set_voltage)
+			res = dev->original_set_voltage(fe, voltage);
+		fe->ops.i2c_gate_ctrl(fe, 0);
+	}
+	return res;
+};
+
+static int md8800_set_high_voltage(struct dvb_frontend *fe, long arg)
+{
+	int res = -EIO;
+	struct saa7134_dev *dev = fe->dvb->priv;
+	if (fe->ops.i2c_gate_ctrl) {
+		fe->ops.i2c_gate_ctrl(fe, 1);
+		if (dev->original_set_high_voltage)
+			res = dev->original_set_high_voltage(fe, arg);
+		fe->ops.i2c_gate_ctrl(fe, 0);
+	}
+	return res;
+};
+
 /* ==================================================================
  * nxt200x based ATSC cards, helper functions
  */
@@ -998,14 +1028,27 @@ static int dvb_init(struct saa7134_dev *dev)
 			dev->dvb.frontend = dvb_attach(tda10086_attach,
 							&flydvbs, &dev->i2c_adap);
 			if (dev->dvb.frontend) {
+				struct dvb_frontend *fe;
 				if (dvb_attach(tda826x_attach, dev->dvb.frontend,
 						0x60, &dev->i2c_adap, 0) == NULL)
 					wprintk("%s: Medion Quadro, no tda826x "
 						"found !\n", __FUNCTION__);
-				if (dvb_attach(isl6405_attach, dev->dvb.frontend,
+				/* Note 10.2. Hac
+				 * up to here. configuration for ctx948 and and one branch
+				 * of md8800 should be identical
+				 */
+				/* we need to open the i2c gate (we know it exists) */
+				fe = dev->dvb.frontend;
+				fe->ops.i2c_gate_ctrl(fe, 1);
+				if (dvb_attach(isl6405_attach, fe,
 						&dev->i2c_adap, 0x08, 0, 0) == NULL)
 					wprintk("%s: Medion Quadro, no ISL6405 "
 						"found !\n", __FUNCTION__);
+				fe->ops.i2c_gate_ctrl(fe, 0);
+				dev->original_set_voltage = fe->ops.set_voltage;
+				fe->ops.set_voltage = md8800_set_voltage;
+				dev->original_set_high_voltage = fe->ops.enable_high_lnb_voltage;
+				fe->ops.enable_high_lnb_voltage = md8800_set_high_voltage;
 			}
 		}
 		break;
