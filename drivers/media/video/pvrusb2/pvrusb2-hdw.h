@@ -40,9 +40,10 @@
 
 /* Legal values for the INPUT state variable */
 #define PVR2_CVAL_INPUT_TV 0
-#define PVR2_CVAL_INPUT_SVIDEO 1
-#define PVR2_CVAL_INPUT_COMPOSITE 2
-#define PVR2_CVAL_INPUT_RADIO 3
+#define PVR2_CVAL_INPUT_DTV 1
+#define PVR2_CVAL_INPUT_SVIDEO 2
+#define PVR2_CVAL_INPUT_COMPOSITE 3
+#define PVR2_CVAL_INPUT_RADIO 4
 
 enum pvr2_config {
 	pvr2_config_empty,    /* No configuration */

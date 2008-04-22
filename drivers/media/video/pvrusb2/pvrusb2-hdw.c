@@ -182,6 +182,7 @@ static const char *control_values_srate[] = {
 
 static const char *control_values_input[] = {
 	[PVR2_CVAL_INPUT_TV]        = "television",  /*xawtv needs this name*/
+	[PVR2_CVAL_INPUT_DTV]       = "dtv",
 	[PVR2_CVAL_INPUT_RADIO]     = "radio",
 	[PVR2_CVAL_INPUT_SVIDEO]    = "s-video",
 	[PVR2_CVAL_INPUT_COMPOSITE] = "composite",
@@ -367,6 +368,27 @@ static int ctrl_get_input(struct pvr2_ctrl *cptr,int *vp)
 	return 0;
 }
 
+static int ctrl_check_input(struct pvr2_ctrl *cptr,int v)
+{
+	struct pvr2_hdw *hdw = cptr->hdw;
+	const struct pvr2_device_desc *dsc = hdw->hdw_desc;
+
+	switch (v) {
+	case PVR2_CVAL_INPUT_TV:
+		return dsc->flag_has_analogtuner != 0;
+	case PVR2_CVAL_INPUT_DTV:
+		return dsc->flag_has_digitaltuner != 0;
+	case PVR2_CVAL_INPUT_SVIDEO:
+		return dsc->flag_has_svideo != 0;
+	case PVR2_CVAL_INPUT_COMPOSITE:
+		return dsc->flag_has_composite != 0;
+	case PVR2_CVAL_INPUT_RADIO:
+		return dsc->flag_has_fmradio != 0;
+	default:
+		return 0;
+	}
+}
+
 static int ctrl_set_input(struct pvr2_ctrl *cptr,int m,int v)
 {
 	struct pvr2_hdw *hdw = cptr->hdw;
@@ -382,7 +404,8 @@ static int ctrl_set_input(struct pvr2_ctrl *cptr,int m,int v)
 	if (hdw->input_val == PVR2_CVAL_INPUT_RADIO) {
 		hdw->freqSelector = 0;
 		hdw->freqDirty = !0;
-	} else if (hdw->input_val == PVR2_CVAL_INPUT_TV) {
+	} else if ((hdw->input_val == PVR2_CVAL_INPUT_TV) ||
+		   (hdw->input_val == PVR2_CVAL_INPUT_DTV)) {
 		hdw->freqSelector = 1;
 		hdw->freqDirty = !0;
 	}
@@ -803,6 +826,7 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.name = "input",
 		.internal_id = PVR2_CID_INPUT,
 		.default_value = PVR2_CVAL_INPUT_TV,
+		.check_value = ctrl_check_input,
 		DEFREF(input),
 		DEFENUM(control_values_input),
 	},{
