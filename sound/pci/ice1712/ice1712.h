@@ -438,10 +438,14 @@ int snd_ice1712_gpio_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_valu
 static inline void snd_ice1712_gpio_write_bits(struct snd_ice1712 *ice,
 					       unsigned int mask, unsigned int bits)
 {
+	unsigned val;
+
 	ice->gpio.direction |= mask;
 	snd_ice1712_gpio_set_dir(ice, ice->gpio.direction);
-	snd_ice1712_gpio_set_mask(ice, ~mask);
-	snd_ice1712_gpio_write(ice, mask & bits);
+	val = snd_ice1712_gpio_read(ice);
+	val &= ~mask;
+	val |= mask & bits;
+	snd_ice1712_gpio_write(ice, val);
 }
 
 static inline int snd_ice1712_gpio_read_bits(struct snd_ice1712 *ice,
