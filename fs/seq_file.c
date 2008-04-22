@@ -239,7 +239,7 @@ Eoverflow:
 loff_t seq_lseek(struct file *file, loff_t offset, int origin)
 {
 	struct seq_file *m = (struct seq_file *)file->private_data;
-	long long retval = -EINVAL;
+	loff_t retval = -EINVAL;
 
 	mutex_lock(&m->lock);
 	m->version = file->f_version;
