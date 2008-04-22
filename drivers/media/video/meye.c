@@ -1239,6 +1239,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			c->default_value = 48;
 			c->flags = 0;
 			break;
+		case V4L2_CID_MEYE_SHARPNESS:
 		case V4L2_CID_SHARPNESS:
 			c->type = V4L2_CTRL_TYPE_INTEGER;
 			strcpy(c->name, "Sharpness");
@@ -1246,7 +1247,12 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			c->maximum = 63;
 			c->step = 1;
 			c->default_value = 32;
-			c->flags = 0;
+
+			/* Continue to report legacy private SHARPNESS ctrl but
+			 * say it is disabled in preference to ctrl in the spec
+			 */
+			c->flags = (c->id == V4L2_CID_SHARPNESS) ? 0 :
+							V4L2_CTRL_FLAG_DISABLED;
 			break;
 		case V4L2_CID_PICTURE:
 			c->type = V4L2_CTRL_TYPE_INTEGER;
@@ -1312,6 +1318,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			meye.params.agc = c->value;
 			break;
 		case V4L2_CID_SHARPNESS:
+		case V4L2_CID_MEYE_SHARPNESS:
 			sony_pic_camera_command(
 				SONY_PIC_COMMAND_SETCAMERASHARPNESS, c->value);
 			meye.params.sharpness = c->value;
@@ -1356,6 +1363,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			c->value = meye.params.agc;
 			break;
 		case V4L2_CID_SHARPNESS:
+		case V4L2_CID_MEYE_SHARPNESS:
 			c->value = meye.params.sharpness;
 			break;
 		case V4L2_CID_PICTURE:
