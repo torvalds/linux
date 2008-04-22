@@ -298,7 +298,7 @@ static int at91_i2c_resume(struct platform_device *pdev)
 #endif
 
 /* work with "modprobe at91_i2c" from hotplugging or coldplugging */
-MODULE_ALIAS("at91_i2c");
+MODULE_ALIAS("platform:at91_i2c");
 
 static struct platform_driver at91_i2c_driver = {
 	.probe		= at91_i2c_probe,
