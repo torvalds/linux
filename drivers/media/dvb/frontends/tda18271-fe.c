@@ -119,14 +119,12 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 	tda18271_write_regs(fe, R_TM, 7);
 
 	/* main pll charge pump source */
-	regs[R_EB4] |= 0x20;
-	tda18271_write_regs(fe, R_EB4, 1);
+	tda18271_charge_pump_source(fe, TDA18271_MAIN_PLL, 1);
 
 	msleep(1);
 
 	/* normal operation for the main pll */
-	regs[R_EB4] &= ~0x20;
-	tda18271_write_regs(fe, R_EB4, 1);
+	tda18271_charge_pump_source(fe, TDA18271_MAIN_PLL, 0);
 
 	msleep(20);
 
@@ -285,12 +283,10 @@ static int tda18271_calibrate_rf(struct dvb_frontend *fe, u32 freq)
 	tda18271_write_regs(fe, R_EB13, 1);
 
 	/* main pll charge pump source */
-	regs[R_EB4]  |= 0x20;
-	tda18271_write_regs(fe, R_EB4, 1);
+	tda18271_charge_pump_source(fe, TDA18271_MAIN_PLL, 1);
 
 	/* cal pll charge pump source */
-	regs[R_EB7]  |= 0x20;
-	tda18271_write_regs(fe, R_EB7, 1);
+	tda18271_charge_pump_source(fe, TDA18271_CAL_PLL, 1);
 
 	/* force dcdc converter to 0 V */
 	regs[R_EB14] = 0x00;
@@ -328,12 +324,10 @@ static int tda18271_calibrate_rf(struct dvb_frontend *fe, u32 freq)
 	/* --------------------------------------------------------------- */
 
 	/* normal operation for the main pll */
-	regs[R_EB4] &= ~0x20;
-	tda18271_write_regs(fe, R_EB4, 1);
+	tda18271_charge_pump_source(fe, TDA18271_MAIN_PLL, 0);
 
 	/* normal operation for the cal pll  */
-	regs[R_EB7] &= ~0x20;
-	tda18271_write_regs(fe, R_EB7, 1);
+	tda18271_charge_pump_source(fe, TDA18271_CAL_PLL, 0);
 
 	msleep(10); /* plls locking */
 

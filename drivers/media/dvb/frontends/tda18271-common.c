@@ -217,6 +217,21 @@ int tda18271_write_regs(struct dvb_frontend *fe, int idx, int len)
 
 /*---------------------------------------------------------------------*/
 
+int tda18271_charge_pump_source(struct dvb_frontend *fe,
+				enum tda18271_pll pll, int force)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	unsigned char *regs = priv->tda18271_regs;
+
+	int r_cp = (pll == TDA18271_CAL_PLL) ? R_EB7 : R_EB4;
+
+	regs[r_cp] &= ~0x20;
+	regs[r_cp] |= ((force & 1) << 5);
+	tda18271_write_regs(fe, r_cp, 1);
+
+	return 0;
+}
+
 int tda18271_init_regs(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
@@ -359,13 +374,11 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 
 	if ((priv->id) == TDA18271HDC2) {
 		/* main pll cp source on */
-		regs[R_EB4] = 0x61;
-		tda18271_write_regs(fe, R_EB4, 1);
+		tda18271_charge_pump_source(fe, TDA18271_MAIN_PLL, 1);
 		msleep(1);
 
 		/* main pll cp source off */
-		regs[R_EB4] = 0x41;
-		tda18271_write_regs(fe, R_EB4, 1);
+		tda18271_charge_pump_source(fe, TDA18271_MAIN_PLL, 0);
 	}
 
 	msleep(5); /* pll locking */
