@@ -617,17 +617,29 @@ static struct tuner_params tuner_philips_pal_mk_params[] = {
 
 /* ---- TUNER_PHILIPS_ATSC - Philips FCV1236D (ATSC/NTSC) ---- */
 
-static struct tuner_range tuner_philips_fcv1236d_ranges[] = {
-	{ 16 * 157.25 /*MHz*/, 0x8e, 0xa0, },
-	{ 16 * 451.25 /*MHz*/, 0x8e, 0x90, },
+static struct tuner_range tuner_philips_fcv1236d_ntsc_ranges[] = {
+	{ 16 * 157.25 /*MHz*/, 0x8e, 0xa2, },
+	{ 16 * 451.25 /*MHz*/, 0x8e, 0x92, },
+	{ 16 * 999.99        , 0x8e, 0x32, },
+};
+
+static struct tuner_range tuner_philips_fcv1236d_atsc_ranges[] = {
+	{ 16 * 159.00 /*MHz*/, 0x8e, 0xa0, },
+	{ 16 * 453.00 /*MHz*/, 0x8e, 0x90, },
 	{ 16 * 999.99        , 0x8e, 0x30, },
 };
 
 static struct tuner_params tuner_philips_fcv1236d_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_NTSC,
-		.ranges = tuner_philips_fcv1236d_ranges,
-		.count  = ARRAY_SIZE(tuner_philips_fcv1236d_ranges),
+		.ranges = tuner_philips_fcv1236d_ntsc_ranges,
+		.count  = ARRAY_SIZE(tuner_philips_fcv1236d_ntsc_ranges),
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_philips_fcv1236d_atsc_ranges,
+		.count  = ARRAY_SIZE(tuner_philips_fcv1236d_atsc_ranges),
+		.iffreq = 16 * 44.00,
 	},
 };
 
@@ -1376,6 +1388,9 @@ struct tunertype tuners[] = {
 		.name   = "Philips FCV1236D ATSC/NTSC dual in",
 		.params = tuner_philips_fcv1236d_params,
 		.count  = ARRAY_SIZE(tuner_philips_fcv1236d_params),
+		.min = 16 *  53.00,
+		.max = 16 * 803.00,
+		.stepsize = 62500,
 	},
 	[TUNER_PHILIPS_FM1236_MK3] = { /* Philips NTSC */
 		.name   = "Philips NTSC MK3 (FM1236MK3 or FM1236/F)",
