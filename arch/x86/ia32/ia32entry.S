@@ -430,7 +430,7 @@ ia32_sys_call_table:
 	.quad sys_setuid16
 	.quad sys_getuid16
 	.quad compat_sys_stime	/* stime */		/* 25 */
-	.quad sys32_ptrace	/* ptrace */
+	.quad compat_sys_ptrace	/* ptrace */
 	.quad sys_alarm
 	.quad sys_fstat	/* (old)fstat */
 	.quad sys_pause
