@@ -2,7 +2,7 @@
  *  linux/drivers/mmc/core/host.c
  *
  *  Copyright (C) 2003 Russell King, All Rights Reserved.
- *  Copyright (C) 2007 Pierre Ossman
+ *  Copyright (C) 2007-2008 Pierre Ossman
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -57,11 +57,24 @@ static DEFINE_SPINLOCK(mmc_host_lock);
  */
 struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 {
+	int err;
 	struct mmc_host *host;
+
+	if (!idr_pre_get(&mmc_host_idr, GFP_KERNEL))
+		return NULL;
 
 	host = kzalloc(sizeof(struct mmc_host) + extra, GFP_KERNEL);
 	if (!host)
 		return NULL;
+
+	spin_lock(&mmc_host_lock);
+	err = idr_get_new(&mmc_host_idr, host, &host->index);
+	spin_unlock(&mmc_host_lock);
+	if (err)
+		goto free;
+
+	snprintf(host->class_dev.bus_id, BUS_ID_SIZE,
+		 "mmc%d", host->index);
 
 	host->parent = dev;
 	host->class_dev.parent = dev;
@@ -85,6 +98,10 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	host->max_blk_count = PAGE_CACHE_SIZE / 512;
 
 	return host;
+
+free:
+	kfree(host);
+	return NULL;
 }
 
 EXPORT_SYMBOL(mmc_alloc_host);
@@ -103,18 +120,6 @@ int mmc_add_host(struct mmc_host *host)
 
 	WARN_ON((host->caps & MMC_CAP_SDIO_IRQ) &&
 		!host->ops->enable_sdio_irq);
-
-	if (!idr_pre_get(&mmc_host_idr, GFP_KERNEL))
-		return -ENOMEM;
-
-	spin_lock(&mmc_host_lock);
-	err = idr_get_new(&mmc_host_idr, host, &host->index);
-	spin_unlock(&mmc_host_lock);
-	if (err)
-		return err;
-
-	snprintf(host->class_dev.bus_id, BUS_ID_SIZE,
-		 "mmc%d", host->index);
 
 	led_trigger_register_simple(host->class_dev.bus_id, &host->led);
 
@@ -144,10 +149,6 @@ void mmc_remove_host(struct mmc_host *host)
 	device_del(&host->class_dev);
 
 	led_trigger_unregister_simple(host->led);
-
-	spin_lock(&mmc_host_lock);
-	idr_remove(&mmc_host_idr, host->index);
-	spin_unlock(&mmc_host_lock);
 }
 
 EXPORT_SYMBOL(mmc_remove_host);
@@ -160,6 +161,10 @@ EXPORT_SYMBOL(mmc_remove_host);
  */
 void mmc_free_host(struct mmc_host *host)
 {
+	spin_lock(&mmc_host_lock);
+	idr_remove(&mmc_host_idr, host->index);
+	spin_unlock(&mmc_host_lock);
+
 	put_device(&host->class_dev);
 }
 
