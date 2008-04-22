@@ -1401,6 +1401,29 @@ static const struct cx88_board cx88_boards[] = {
 		}},
 		.mpeg           = CX88_MPEG_DVB,
 	},
+	[CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO] = {
+		.name           = "DVICO HDTV5 PCI Nano",
+		.tuner_type     = TUNER_ABSENT,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x000027df, /* Unconfirmed */
+		}, {
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x000027df, /* Unconfirmed */
+			.audioroute = 1,
+		}, {
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x000027df, /* Unconfirmed */
+			.audioroute = 1,
+		} },
+		.mpeg           = CX88_MPEG_DVB,
+	},
 };
 
 /* ------------------------------------------------------------------ */
@@ -1714,6 +1737,10 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x11bd,
 		.subdevice = 0x0051,
 		.card      = CX88_BOARD_PINNACLE_PCTV_HD_800i,
+	}, {
+		.subvendor = 0x18ac,
+		.subdevice = 0xd530,
+		.card      = CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO,
 	},
 };
 

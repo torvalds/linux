@@ -211,6 +211,7 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_HAUPPAUGE_HVR1300       56
 #define CX88_BOARD_ADSTECH_PTV_390         57
 #define CX88_BOARD_PINNACLE_PCTV_HD_800i   58
+#define CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO 59
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,

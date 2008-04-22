@@ -45,6 +45,8 @@
 #include "nxt200x.h"
 #include "cx24123.h"
 #include "isl6421.h"
+#include "tuner-xc2028.h"
+#include "tuner-xc2028-types.h"
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
@@ -357,6 +359,40 @@ static int geniatech_dvbs_set_voltage(struct dvb_frontend *fe,
 	return 0;
 }
 
+static int cx88_xc3028_callback(void *ptr, int command, int arg)
+{
+	struct cx88_core *core = ptr;
+
+	switch (command) {
+	case XC2028_TUNER_RESET:
+		/* Send the tuner in then out of reset */
+		dprintk(1, "%s: XC2028_TUNER_RESET %d\n", __FUNCTION__, arg);
+
+		switch (core->boardnr) {
+		case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
+			/* GPIO-4 xc3028 tuner */
+
+			cx_set(MO_GP0_IO, 0x00001000);
+			cx_clear(MO_GP0_IO, 0x00000010);
+			msleep(100);
+			cx_set(MO_GP0_IO, 0x00000010);
+			msleep(100);
+			break;
+		}
+
+		break;
+	case XC2028_RESET_CLK:
+		dprintk(1, "%s: XC2028_RESET_CLK %d\n", __FUNCTION__, arg);
+		break;
+	default:
+		dprintk(1, "%s: unknown command %d, arg %d\n", __FUNCTION__,
+			command, arg);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static struct cx24123_config geniatech_dvbs_config = {
 	.demod_address = 0x55,
 	.set_ts_params = cx24123_set_ts_param,
@@ -381,6 +417,15 @@ static struct s5h1409_config pinnacle_pctv_hd_800i_config = {
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING,
 	.mpeg_timing   = S5H1409_MPEGTIMING_NONCONTINOUS_NONINVERTING_CLOCK,
+};
+
+static struct s5h1409_config dvico_hdtv5_pci_nano_config = {
+	.demod_address = 0x32 >> 1,
+	.output_mode   = S5H1409_SERIAL_OUTPUT,
+	.gpio          = S5H1409_GPIO_OFF,
+	.inversion     = S5H1409_INVERSION_OFF,
+	.status_mode   = S5H1409_DEMODLOCKING,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
 };
 
 static struct xc5000_config pinnacle_pctv_hd_800i_tuner_config = {
@@ -656,6 +701,30 @@ static int dvb_register(struct cx8802_dev *dev)
 			dvb_attach(xc5000_attach, dev->dvb.frontend,
 				   &dev->core->i2c_adap,
 				   &pinnacle_pctv_hd_800i_tuner_config);
+		}
+		break;
+	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
+		dev->dvb.frontend = dvb_attach(s5h1409_attach,
+						&dvico_hdtv5_pci_nano_config,
+						&dev->core->i2c_adap);
+		if (dev->dvb.frontend != NULL) {
+			struct dvb_frontend *fe;
+			struct xc2028_config cfg = {
+				.i2c_adap  = &dev->core->i2c_adap,
+				.i2c_addr  = 0x61,
+				.video_dev = dev->core,
+				.callback  = cx88_xc3028_callback,
+			};
+			static struct xc2028_ctrl ctl = {
+				.fname       = "xc3028-v27.fw",
+				.max_len     = 64,
+				.scode_table = OREN538,
+			};
+
+			fe = dvb_attach(xc2028_attach,
+					dev->dvb.frontend, &cfg);
+			if (fe != NULL && fe->ops.tuner_ops.set_config != NULL)
+				fe->ops.tuner_ops.set_config(fe, &ctl);
 		}
 		break;
 	default:
