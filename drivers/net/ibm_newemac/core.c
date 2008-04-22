@@ -524,7 +524,10 @@ static int emac_configure(struct emac_instance *dev)
 		rx_size = dev->rx_fifo_size_gige;
 
 		if (dev->ndev->mtu > ETH_DATA_LEN) {
-			mr1 |= EMAC_MR1_JPSM;
+			if (emac_has_feature(dev, EMAC_FTR_EMAC4))
+				mr1 |= EMAC4_MR1_JPSM;
+			else
+				mr1 |= EMAC_MR1_JPSM;
 			dev->stop_timeout = STOP_TIMEOUT_1000_JUMBO;
 		} else
 			dev->stop_timeout = STOP_TIMEOUT_1000;
