@@ -1187,65 +1187,65 @@ fail:
 /*---------------------------------------------------------------------*/
 
 static struct tda18271_std_map tda18271c1_std_map = {
-	.fm_radio = { .if_freq = 1250, .fm_rfn = 1, .agc_mode = 3, .std = 0 },
-		/* EP3[4:0] 0x18 */
-	.atv_b    = { .if_freq = 6750, .fm_rfn = 0, .agc_mode = 1, .std = 6 },
-		/* EP3[4:0] 0x0e */
-	.atv_dk   = { .if_freq = 7750, .fm_rfn = 0, .agc_mode = 1, .std = 7 },
-		/* EP3[4:0] 0x0f */
-	.atv_gh   = { .if_freq = 7750, .fm_rfn = 0, .agc_mode = 1, .std = 7 },
-		/* EP3[4:0] 0x0f */
-	.atv_i    = { .if_freq = 7750, .fm_rfn = 0, .agc_mode = 1, .std = 7 },
-		/* EP3[4:0] 0x0f */
-	.atv_l    = { .if_freq = 7750, .fm_rfn = 0, .agc_mode = 1, .std = 7 },
-		/* EP3[4:0] 0x0f */
-	.atv_lc   = { .if_freq = 1250, .fm_rfn = 0, .agc_mode = 1, .std = 7 },
-		/* EP3[4:0] 0x0f */
-	.atv_mn   = { .if_freq = 5750, .fm_rfn = 0, .agc_mode = 1, .std = 5 },
-		/* EP3[4:0] 0x0d */
-	.atsc_6   = { .if_freq = 3250, .fm_rfn = 0, .agc_mode = 3, .std = 4 },
-		/* EP3[4:0] 0x1c */
-	.dvbt_6   = { .if_freq = 3300, .fm_rfn = 0, .agc_mode = 3, .std = 4 },
-		/* EP3[4:0] 0x1c */
-	.dvbt_7   = { .if_freq = 3800, .fm_rfn = 0, .agc_mode = 3, .std = 5 },
-		/* EP3[4:0] 0x1d */
-	.dvbt_8   = { .if_freq = 4300, .fm_rfn = 0, .agc_mode = 3, .std = 6 },
-		/* EP3[4:0] 0x1e */
-	.qam_6    = { .if_freq = 4000, .fm_rfn = 0, .agc_mode = 3, .std = 5 },
-		/* EP3[4:0] 0x1d */
-	.qam_8    = { .if_freq = 5000, .fm_rfn = 0, .agc_mode = 3, .std = 7 },
-		/* EP3[4:0] 0x1f */
+	.fm_radio = { .if_freq = 1250, .fm_rfn = 1, .if_lvl = 0,
+		      .agc_mode = 3, .std = 0 }, /* EP3[4:0] 0x18 */
+	.atv_b    = { .if_freq = 6750, .fm_rfn = 0, .if_lvl = 0,
+		      .agc_mode = 1, .std = 6 }, /* EP3[4:0] 0x0e */
+	.atv_dk   = { .if_freq = 7750, .fm_rfn = 0, .if_lvl = 0,
+		      .agc_mode = 1, .std = 7 }, /* EP3[4:0] 0x0f */
+	.atv_gh   = { .if_freq = 7750, .fm_rfn = 0, .if_lvl = 0,
+		      .agc_mode = 1, .std = 7 }, /* EP3[4:0] 0x0f */
+	.atv_i    = { .if_freq = 7750, .fm_rfn = 0, .if_lvl = 0,
+		      .agc_mode = 1, .std = 7 }, /* EP3[4:0] 0x0f */
+	.atv_l    = { .if_freq = 7750, .fm_rfn = 0, .if_lvl = 0,
+		      .agc_mode = 1, .std = 7 }, /* EP3[4:0] 0x0f */
+	.atv_lc   = { .if_freq = 1250, .fm_rfn = 0, .if_lvl = 0,
+		      .agc_mode = 1, .std = 7 }, /* EP3[4:0] 0x0f */
+	.atv_mn   = { .if_freq = 5750, .fm_rfn = 0, .if_lvl = 0,
+		      .agc_mode = 1, .std = 5 }, /* EP3[4:0] 0x0d */
+	.atsc_6   = { .if_freq = 3250, .fm_rfn = 0, .if_lvl = 1,
+		      .agc_mode = 3, .std = 4 }, /* EP3[4:0] 0x1c */
+	.dvbt_6   = { .if_freq = 3300, .fm_rfn = 0, .if_lvl = 1,
+		      .agc_mode = 3, .std = 4 }, /* EP3[4:0] 0x1c */
+	.dvbt_7   = { .if_freq = 3800, .fm_rfn = 0, .if_lvl = 1,
+		      .agc_mode = 3, .std = 5 }, /* EP3[4:0] 0x1d */
+	.dvbt_8   = { .if_freq = 4300, .fm_rfn = 0, .if_lvl = 1,
+		      .agc_mode = 3, .std = 6 }, /* EP3[4:0] 0x1e */
+	.qam_6    = { .if_freq = 4000, .fm_rfn = 0, .if_lvl = 1,
+		      .agc_mode = 3, .std = 5 }, /* EP3[4:0] 0x1d */
+	.qam_8    = { .if_freq = 5000, .fm_rfn = 0, .if_lvl = 1,
+		      .agc_mode = 3, .std = 7 }, /* EP3[4:0] 0x1f */
 };
 
 static struct tda18271_std_map tda18271c2_std_map = {
-	.fm_radio = { .if_freq = 1250, .fm_rfn = 1, .agc_mode = 3, .std = 0 },
-		/* EP3[4:0] 0x18 */
-	.atv_b    = { .if_freq = 6000, .fm_rfn = 0, .agc_mode = 1, .std = 5 },
-		/* EP3[4:0] 0x0d */
-	.atv_dk   = { .if_freq = 6900, .fm_rfn = 0, .agc_mode = 1, .std = 6 },
-		/* EP3[4:0] 0x0e */
-	.atv_gh   = { .if_freq = 7100, .fm_rfn = 0, .agc_mode = 1, .std = 6 },
-		/* EP3[4:0] 0x0e */
-	.atv_i    = { .if_freq = 7250, .fm_rfn = 0, .agc_mode = 1, .std = 6 },
-		/* EP3[4:0] 0x0e */
-	.atv_l    = { .if_freq = 6900, .fm_rfn = 0, .agc_mode = 1, .std = 6 },
-		/* EP3[4:0] 0x0e */
-	.atv_lc   = { .if_freq = 1250, .fm_rfn = 0, .agc_mode = 1, .std = 6 },
-		/* EP3[4:0] 0x0e */
-	.atv_mn   = { .if_freq = 5400, .fm_rfn = 0, .agc_mode = 1, .std = 4 },
-		/* EP3[4:0] 0x0c */
-	.atsc_6   = { .if_freq = 3250, .fm_rfn = 0, .agc_mode = 3, .std = 4 },
-		/* EP3[4:0] 0x1c */
-	.dvbt_6   = { .if_freq = 3300, .fm_rfn = 0, .agc_mode = 3, .std = 4 },
-		/* EP3[4:0] 0x1c */
-	.dvbt_7   = { .if_freq = 3500, .fm_rfn = 0, .agc_mode = 3, .std = 4 },
-		/* EP3[4:0] 0x1c */
-	.dvbt_8   = { .if_freq = 4000, .fm_rfn = 0, .agc_mode = 3, .std = 5 },
-		/* EP3[4:0] 0x1d */
-	.qam_6    = { .if_freq = 4000, .fm_rfn = 0, .agc_mode = 3, .std = 5 },
-		/* EP3[4:0] 0x1d */
-	.qam_8    = { .if_freq = 5000, .fm_rfn = 0, .agc_mode = 3, .std = 7 },
-		/* EP3[4:0] 0x1f */
+	.fm_radio = { .if_freq = 1250, .fm_rfn = 1, .if_lvl = 0,
+		      .agc_mode = 3, .std = 0 }, /* EP3[4:0] 0x18 */
+	.atv_b    = { .if_freq = 6000, .fm_rfn = 0, .if_lvl = 0,
+		      .agc_mode = 1, .std = 5 }, /* EP3[4:0] 0x0d */
+	.atv_dk   = { .if_freq = 6900, .fm_rfn = 0, .if_lvl = 0,
+		      .agc_mode = 1, .std = 6 }, /* EP3[4:0] 0x0e */
+	.atv_gh   = { .if_freq = 7100, .fm_rfn = 0, .if_lvl = 0,
+		      .agc_mode = 1, .std = 6 }, /* EP3[4:0] 0x0e */
+	.atv_i    = { .if_freq = 7250, .fm_rfn = 0, .if_lvl = 0,
+		      .agc_mode = 1, .std = 6 }, /* EP3[4:0] 0x0e */
+	.atv_l    = { .if_freq = 6900, .fm_rfn = 0, .if_lvl = 0,
+		      .agc_mode = 1, .std = 6 }, /* EP3[4:0] 0x0e */
+	.atv_lc   = { .if_freq = 1250, .fm_rfn = 0, .if_lvl = 0,
+		      .agc_mode = 1, .std = 6 }, /* EP3[4:0] 0x0e */
+	.atv_mn   = { .if_freq = 5400, .fm_rfn = 0, .if_lvl = 0,
+		      .agc_mode = 1, .std = 4 }, /* EP3[4:0] 0x0c */
+	.atsc_6   = { .if_freq = 3250, .fm_rfn = 0, .if_lvl = 1,
+		      .agc_mode = 3, .std = 4 }, /* EP3[4:0] 0x1c */
+	.dvbt_6   = { .if_freq = 3300, .fm_rfn = 0, .if_lvl = 1,
+		      .agc_mode = 3, .std = 4 }, /* EP3[4:0] 0x1c */
+	.dvbt_7   = { .if_freq = 3500, .fm_rfn = 0, .if_lvl = 1,
+		      .agc_mode = 3, .std = 4 }, /* EP3[4:0] 0x1c */
+	.dvbt_8   = { .if_freq = 4000, .fm_rfn = 0, .if_lvl = 1,
+		      .agc_mode = 3, .std = 5 }, /* EP3[4:0] 0x1d */
+	.qam_6    = { .if_freq = 4000, .fm_rfn = 0, .if_lvl = 1,
+		      .agc_mode = 3, .std = 5 }, /* EP3[4:0] 0x1d */
+	.qam_8    = { .if_freq = 5000, .fm_rfn = 0, .if_lvl = 1,
+		      .agc_mode = 3, .std = 7 }, /* EP3[4:0] 0x1f */
 };
 
 /*---------------------------------------------------------------------*/

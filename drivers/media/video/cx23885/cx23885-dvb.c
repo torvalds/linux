@@ -165,8 +165,8 @@ static struct tda829x_config tda829x_no_probe = {
 };
 
 static struct tda18271_std_map hauppauge_tda18271_std_map = {
-	.atsc_6   = { .if_freq = 5380, .agc_mode = 3, .std = 3 },
-	.qam_6    = { .if_freq = 4000, .agc_mode = 3, .std = 0 },
+	.atsc_6   = { .if_freq = 5380, .if_lvl = 6, .agc_mode = 3, .std = 3 },
+	.qam_6    = { .if_freq = 4000, .if_lvl = 6, .agc_mode = 3, .std = 0 },
 };
 
 static struct tda18271_config hauppauge_tda18271_config = {

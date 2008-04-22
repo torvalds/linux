@@ -55,13 +55,13 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 
 	/* update IF output level & IF notch frequency */
 	regs[R_EP4]  &= ~0x1c; /* clear if level bits */
+	regs[R_EP4]  |= (map->if_lvl << 2);
 
 	switch (priv->mode) {
 	case TDA18271_ANALOG:
 		regs[R_MPD]  &= ~0x80; /* IF notch = 0 */
 		break;
 	case TDA18271_DIGITAL:
-		regs[R_EP4]  |= 0x04; /* IF level = 1 */
 		regs[R_MPD]  |= 0x80; /* IF notch = 1 */
 		break;
 	}

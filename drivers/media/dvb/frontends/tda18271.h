@@ -33,6 +33,8 @@ struct tda18271_std_map_item {
 	unsigned int std:3;
 	/* EP4[7] */
 	unsigned int fm_rfn:1;
+	/* EP4[4:2] */
+	unsigned int if_lvl:3;
 };
 
 struct tda18271_std_map {
