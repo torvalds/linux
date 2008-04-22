@@ -195,8 +195,8 @@ static int tda18271_read_thermometer(struct dvb_frontend *fe)
 	return tm;
 }
 
-static int tda18271_rf_tracking_filters_correction(struct dvb_frontend *fe,
-						   u32 freq)
+static int tda18271c2_rf_tracking_filters_correction(struct dvb_frontend *fe,
+						     u32 freq)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	struct tda18271_rf_tracking_filter_cal *map = priv->rf_cal_state;
@@ -630,26 +630,6 @@ static int tda18271_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int tda18271c2_tune(struct dvb_frontend *fe,
-			   u32 ifc, u32 freq, u32 bw, u8 std, int radio)
-{
-	struct tda18271_priv *priv = fe->tuner_priv;
-
-	tda_dbg("freq = %d, ifc = %d\n", freq, ifc);
-
-	tda18271_init(fe);
-
-	mutex_lock(&priv->lock);
-
-	tda18271_rf_tracking_filters_correction(fe, freq);
-
-	tda18271_channel_configuration(fe, ifc, freq, bw, std, radio);
-
-	mutex_unlock(&priv->lock);
-
-	return 0;
-}
-
 /* ------------------------------------------------------------------ */
 
 static int tda18271c1_rf_tracking_filter_calibration(struct dvb_frontend *fe,
@@ -747,41 +727,33 @@ static int tda18271c1_rf_tracking_filter_calibration(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int tda18271c1_tune(struct dvb_frontend *fe,
-			   u32 ifc, u32 freq, u32 bw, u8 std, int radio)
+/* ------------------------------------------------------------------ */
+
+static int tda18271_tune(struct dvb_frontend *fe,
+			 u32 ifc, u32 freq, u32 bw, u8 std, int radio)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
+
+	tda_dbg("freq = %d, ifc = %d, bw = %d, std = 0x%02x\n",
+		freq, ifc, bw, std);
 
 	tda18271_init(fe);
 
 	mutex_lock(&priv->lock);
 
-	tda_dbg("freq = %d, ifc = %d\n", freq, ifc);
-
-	tda18271c1_rf_tracking_filter_calibration(fe, freq, bw);
-
+	switch (priv->id) {
+	case TDA18271HDC1:
+		tda18271c1_rf_tracking_filter_calibration(fe, freq, bw);
+		break;
+	case TDA18271HDC2:
+		tda18271c2_rf_tracking_filters_correction(fe, freq);
+		break;
+	}
 	tda18271_channel_configuration(fe, ifc, freq, bw, std, radio);
 
 	mutex_unlock(&priv->lock);
 
 	return 0;
-}
-
-static inline int tda18271_tune(struct dvb_frontend *fe,
-				u32 ifc, u32 freq, u32 bw, u8 std, int radio)
-{
-	struct tda18271_priv *priv = fe->tuner_priv;
-	int ret = -EINVAL;
-
-	switch (priv->id) {
-	case TDA18271HDC1:
-		ret = tda18271c1_tune(fe, ifc, freq, bw, std, radio);
-		break;
-	case TDA18271HDC2:
-		ret = tda18271c2_tune(fe, ifc, freq, bw, std, radio);
-		break;
-	}
-	return ret;
 }
 
 /* ------------------------------------------------------------------ */
