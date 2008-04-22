@@ -251,7 +251,7 @@ static int simple_config_lookup(struct dvb_frontend *fe,
 
 static int simple_std_setup(struct dvb_frontend *fe,
 			    struct analog_parameters *params,
-			    u8 *buffer, u8 *config, u8 *cb)
+			    u8 *config, u8 *cb)
 {
 	struct tuner_simple_priv *priv = fe->tuner_priv;
 	u8 tuneraddr;
@@ -323,14 +323,12 @@ static int simple_std_setup(struct dvb_frontend *fe,
 		break;
 
 	case TUNER_PHILIPS_TUV1236D:
+	{
 		/* 0x40 -> ATSC antenna input 1 */
 		/* 0x48 -> ATSC antenna input 2 */
 		/* 0x00 -> NTSC antenna input 1 */
 		/* 0x08 -> NTSC antenna input 2 */
-		buffer[0] = 0x14;
-		buffer[1] = 0x00;
-		buffer[2] = 0x17;
-		buffer[3] = 0x00;
+		u8 buffer[4] = { 0x14, 0x00, 0x17, 0x00};
 		*cb &= ~0x40;
 		if (params->std & V4L2_STD_ATSC) {
 			*cb |= 0x40;
@@ -350,6 +348,7 @@ static int simple_std_setup(struct dvb_frontend *fe,
 		priv->i2c_props.addr = tuneraddr;
 		/* FIXME: input */
 		break;
+	}
 	}
 
 	return 0;
@@ -509,7 +508,7 @@ static int simple_set_tv_freq(struct dvb_frontend *fe,
 		  offset / 16, offset % 16 * 100 / 16, div);
 
 	/* tv norm specific stuff for multi-norm tuners */
-	simple_std_setup(fe, params, &buffer[1], &config, &cb);
+	simple_std_setup(fe, params, &config, &cb);
 
 	if (t_params->cb_first_if_lower_freq && div < priv->last_div) {
 		buffer[0] = config;
