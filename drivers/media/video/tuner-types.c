@@ -1168,17 +1168,30 @@ static struct tuner_params tuner_samsung_tcpn_2121p30a_params[] = {
 
 /* ------------ TUNER_THOMSON_FE6600 - DViCO Hybrid PAL ------------ */
 
-static struct tuner_range tuner_thomson_fe6600_ranges[] = {
+static struct tuner_range tuner_thomson_fe6600_pal_ranges[] = {
 	{ 16 * 160.00 /*MHz*/, 0xfe, 0x11, },
 	{ 16 * 442.00 /*MHz*/, 0xf6, 0x12, },
 	{ 16 * 999.99        , 0xf6, 0x18, },
 };
 
+static struct tuner_range tuner_thomson_fe6600_dvb_ranges[] = {
+	{ 16 * 250.00 /*MHz*/, 0xb4, 0x12, },
+	{ 16 * 455.00 /*MHz*/, 0xfe, 0x11, },
+	{ 16 * 775.50 /*MHz*/, 0xbc, 0x18, },
+	{ 16 * 999.99        , 0xf4, 0x18, },
+};
+
 static struct tuner_params tuner_thomson_fe6600_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_PAL,
-		.ranges = tuner_thomson_fe6600_ranges,
-		.count  = ARRAY_SIZE(tuner_thomson_fe6600_ranges),
+		.ranges = tuner_thomson_fe6600_pal_ranges,
+		.count  = ARRAY_SIZE(tuner_thomson_fe6600_pal_ranges),
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_thomson_fe6600_dvb_ranges,
+		.count  = ARRAY_SIZE(tuner_thomson_fe6600_dvb_ranges),
+		.iffreq = 16 * 36.125 /*MHz*/,
 	},
 };
 
@@ -1606,6 +1619,9 @@ struct tunertype tuners[] = {
 		.name   = "Thomson FE6600",
 		.params = tuner_thomson_fe6600_params,
 		.count  = ARRAY_SIZE(tuner_thomson_fe6600_params),
+		.min    = 16 *  44.25,
+		.max    = 16 * 858.00,
+		.stepsize = 166667,
 	},
 	[TUNER_SAMSUNG_TCPG_6121P30A] = { /* Samsung PAL */
 		.name   = "Samsung TCPG 6121P30A",
