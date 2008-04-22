@@ -1085,8 +1085,9 @@ static int dvb_init(struct saa7134_dev *dev)
 		dev->dvb.frontend = dvb_attach(nxt200x_attach, &kworldatsc110,
 					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   NULL, DVB_PLL_TUV1236D);
+			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+				   &dev->i2c_adap, 0x61,
+				   TUNER_PHILIPS_TUV1236D);
 		}
 		break;
 	case SAA7134_BOARD_FLYDVBS_LR300:

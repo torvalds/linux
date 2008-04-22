@@ -731,8 +731,9 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &ati_hdtvwonder,
 					       &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
-				   NULL, DVB_PLL_TUV1236D);
+			dvb_attach(simple_tuner_attach, dev->dvb.frontend,
+				   &dev->core->i2c_adap, 0x61,
+				   TUNER_PHILIPS_TUV1236D);
 		}
 		break;
 	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
