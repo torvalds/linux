@@ -805,12 +805,6 @@ static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
 		goto out;
 	}
 
-	/*
-	 * Note: we may be using current for both targets (See exec.c)
-	 * This works because we cache current->files (old) as oldf. Don't
-	 * break this.
-	 */
-	tsk->files = NULL;
 	newf = dup_fd(oldf, &error);
 	if (!newf)
 		goto out;
@@ -855,7 +849,8 @@ static int copy_io(unsigned long clone_flags, struct task_struct *tsk)
 int unshare_files(void)
 {
 	struct files_struct *files  = current->files;
-	int rc;
+	struct files_struct *newf;
+	int error = 0;
 
 	BUG_ON(!files);
 
@@ -866,10 +861,13 @@ int unshare_files(void)
 		atomic_inc(&files->count);
 		return 0;
 	}
-	rc = copy_files(0, current);
-	if(rc)
-		current->files = files;
-	return rc;
+	newf = dup_fd(files, &error);
+	if (newf) {
+		task_lock(current);
+		current->files = newf;
+		task_unlock(current);
+	}
+	return error;
 }
 
 EXPORT_SYMBOL(unshare_files);
