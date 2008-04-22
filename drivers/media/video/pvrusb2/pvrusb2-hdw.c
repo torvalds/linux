@@ -2114,13 +2114,13 @@ void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 {
 	if (!hdw) return;
 	pvr2_trace(PVR2_TRACE_INIT,"pvr2_hdw_destroy: hdw=%p",hdw);
-	del_timer_sync(&hdw->quiescent_timer);
-	del_timer_sync(&hdw->encoder_wait_timer);
 	if (hdw->workqueue) {
 		flush_workqueue(hdw->workqueue);
 		destroy_workqueue(hdw->workqueue);
 		hdw->workqueue = NULL;
 	}
+	del_timer_sync(&hdw->quiescent_timer);
+	del_timer_sync(&hdw->encoder_wait_timer);
 	if (hdw->fw_buffer) {
 		kfree(hdw->fw_buffer);
 		hdw->fw_buffer = NULL;
