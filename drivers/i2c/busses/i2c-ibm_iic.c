@@ -650,7 +650,7 @@ static inline u8 iic_clckdiv(unsigned int opb)
 	opb /= 1000000;
 
 	if (opb < 20 || opb > 150){
-		printk(KERN_CRIT "ibm-iic: invalid OPB clock frequency %u MHz\n",
+		printk(KERN_WARNING "ibm-iic: invalid OPB clock frequency %u MHz\n",
 			opb);
 		opb = opb < 20 ? 20 : 150;
 	}
@@ -672,7 +672,7 @@ static int __devinit iic_probe(struct ocp_device *ocp){
 			ocp->def->index);
 
 	if (!(dev = kzalloc(sizeof(*dev), GFP_KERNEL))) {
-		printk(KERN_CRIT "ibm-iic%d: failed to allocate device data\n",
+		printk(KERN_ERR "ibm-iic%d: failed to allocate device data\n",
 			ocp->def->index);
 		return -ENOMEM;
 	}
@@ -687,7 +687,7 @@ static int __devinit iic_probe(struct ocp_device *ocp){
 	}
 
 	if (!(dev->vaddr = ioremap(ocp->def->paddr, sizeof(struct iic_regs)))){
-		printk(KERN_CRIT "ibm-iic%d: failed to ioremap device registers\n",
+		printk(KERN_ERR "ibm-iic%d: failed to ioremap device registers\n",
 			dev->idx);
 		ret = -ENXIO;
 		goto fail2;
@@ -745,7 +745,7 @@ static int __devinit iic_probe(struct ocp_device *ocp){
 	adap->nr = dev->idx >= 0 ? dev->idx : 0;
 
 	if ((ret = i2c_add_numbered_adapter(adap)) < 0) {
-		printk(KERN_CRIT "ibm-iic%d: failed to register i2c adapter\n",
+		printk(KERN_ERR "ibm-iic%d: failed to register i2c adapter\n",
 			dev->idx);
 		goto fail;
 	}
@@ -778,7 +778,7 @@ static void __devexit iic_remove(struct ocp_device *ocp)
 	struct ibm_iic_private* dev = (struct ibm_iic_private*)ocp_get_drvdata(ocp);
 	BUG_ON(dev == NULL);
 	if (i2c_del_adapter(&dev->adap)){
-		printk(KERN_CRIT "ibm-iic%d: failed to delete i2c adapter :(\n",
+		printk(KERN_ERR "ibm-iic%d: failed to delete i2c adapter :(\n",
 			dev->idx);
 		/* That's *very* bad, just shutdown IRQ ... */
 		if (dev->irq >= 0){
