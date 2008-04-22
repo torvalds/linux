@@ -4068,9 +4068,11 @@ struct saa7134_board saa7134_boards[] = {
 		},
 	},
 	[SAA7134_BOARD_AVERMEDIA_CARDBUS_506] = {
-		 .name           = "AVerMedia Cardbus TV/Radio (E506R)",
-		 .audio_clock    = 0x187de7,
-		 .tuner_type     = TUNER_XC2028,
+		.name           = "AVerMedia Cardbus TV/Radio (E506R)",
+		.audio_clock    = 0x187de7,
+		.tuner_type     = TUNER_XC2028,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
 		 /*
 		    TODO:
 		 .mpeg           = SAA7134_MPEG_DVB,
@@ -4099,6 +4101,8 @@ struct saa7134_board saa7134_boards[] = {
 		.name           = "AVerMedia Hybrid TV/Radio (A16D)",
 		.audio_clock    = 0x187de7,
 		.tuner_type     = TUNER_XC2028,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
 		.inputs         = {{
 			.name = name_tv,
 			.vmux = 1,
@@ -4118,6 +4122,8 @@ struct saa7134_board saa7134_boards[] = {
 		.name           = "Avermedia M115",
 		.audio_clock    = 0x187de7,
 		.tuner_type     = TUNER_XC2028,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
 		.inputs         = {{
 			.name = name_tv,
 			.vmux = 1,
@@ -4138,6 +4144,8 @@ struct saa7134_board saa7134_boards[] = {
 		.name           = "Compro VideoMate T750",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_XC2028,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
 		.mpeg           = SAA7134_MPEG_DVB,
 		.inputs = {{
 			.name   = name_tv,
