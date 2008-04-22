@@ -41,9 +41,9 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
 #define dprintk( args... ) \
-	do \
+	do { \
 		if (debug) printk(KERN_DEBUG args); \
-	while (0)
+	} while (0)
 
 #define IF_FREQUENCYx6 217    /* 6 * 36.16666666667MHz */
 
