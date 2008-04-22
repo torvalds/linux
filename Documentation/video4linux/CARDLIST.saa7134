@@ -134,3 +134,7 @@
 133 -> NXP Snake DVB-S reference design
 134 -> Medion/Creatix CTX953 Hybrid             [16be:0010]
 135 -> MSI TV@nywhere A/D v1.1                  [1462:8625]
+136 -> AVerMedia Cardbus TV/Radio (E506R)       [1461:f436]
+137 -> AVerMedia Hybrid TV/Radio (A16D)         [1461:f936]
+138 -> Avermedia M115                           [1461:a836]
+139 -> Compro VideoMate T750                    [185b:c900]

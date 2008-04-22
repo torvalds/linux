@@ -257,6 +257,11 @@ struct saa7134_format {
 #define SAA7134_BOARD_PHILIPS_SNAKE        133
 #define SAA7134_BOARD_CREATIX_CTX953       134
 #define SAA7134_BOARD_MSI_TVANYWHERE_AD11  135
+#define SAA7134_BOARD_AVERMEDIA_CARDBUS_506 136
+#define SAA7134_BOARD_AVERMEDIA_A16D       137
+#define SAA7134_BOARD_AVERMEDIA_M115       138
+#define SAA7134_BOARD_VIDEOMATE_T750       139
+
 
 #define SAA7134_MAXBOARDS 8
 #define SAA7134_INPUT_MAX 8
@@ -599,7 +604,6 @@ extern int saa7134_no_overlay;
 
 void saa7134_track_gpio(struct saa7134_dev *dev, char *msg);
 void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value);
-int saa7134_tuner_callback(void *ptr, int command, int arg);
 
 #define SAA7134_PGTABLE_SIZE 4096
 
@@ -636,6 +640,7 @@ extern struct pci_device_id __devinitdata saa7134_pci_tbl[];
 
 extern int saa7134_board_init1(struct saa7134_dev *dev);
 extern int saa7134_board_init2(struct saa7134_dev *dev);
+int saa7134_tuner_callback(void *priv, int command, int arg);
 
 
 /* ----------------------------------------------------------- */

@@ -22,9 +22,12 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/i2c.h>
+#include <linux/i2c-algo-bit.h>
 
 #include "saa7134-reg.h"
 #include "saa7134.h"
+#include "tuner-xc2028.h"
 #include <media/v4l2-common.h>
 #include <media/tveeprom.h>
 
@@ -4064,6 +4067,97 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio   = 0x0200000,
 		},
 	},
+	[SAA7134_BOARD_AVERMEDIA_CARDBUS_506] = {
+		 .name           = "AVerMedia Cardbus TV/Radio (E506R)",
+		 .audio_clock    = 0x187de7,
+		 .tuner_type     = TUNER_XC2028,
+		 /*
+		    TODO:
+		 .mpeg           = SAA7134_MPEG_DVB,
+		 */
+
+		 .inputs         = {{
+			 .name = name_tv,
+			 .vmux = 1,
+			 .amux = TV,
+			 .tv   = 1,
+		 }, {
+			 .name = name_comp1,
+			 .vmux = 3,
+			 .amux = LINE2,
+		 }, {
+			 .name = name_svideo,
+			 .vmux = 8,
+			 .amux = LINE1,
+		 } },
+		 .radio = {
+			 .name = name_radio,
+			 .amux = TV,
+		 },
+	},
+	[SAA7134_BOARD_AVERMEDIA_A16D] = {
+		.name           = "AVerMedia Hybrid TV/Radio (A16D)",
+		.audio_clock    = 0x187de7,
+		.tuner_type     = TUNER_XC2028,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+		} },
+		.radio = {
+			.name = name_radio,
+			.amux = LINE1,
+		},
+	},
+	[SAA7134_BOARD_AVERMEDIA_M115] = {
+		.name           = "Avermedia M115",
+		.audio_clock    = 0x187de7,
+		.tuner_type     = TUNER_XC2028,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE2,
+		} },
+	},
+	[SAA7134_BOARD_VIDEOMATE_T750] = {
+		/* John Newbigin <jn@it.swin.edu.au> */
+		.name           = "Compro VideoMate T750",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_XC2028,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs = {{
+			.name   = name_tv,
+			.vmux   = 3,
+			.amux   = TV,
+			.tv     = 1,
+		}, {
+			.name   = name_comp1,
+			.vmux   = 1,
+			.amux   = LINE2,
+		}, {
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE2,
+		} },
+		.radio = {
+			.name = name_radio,
+			.amux = TV,
+		}
+	}
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -5027,6 +5121,30 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x8625, /* TV@nywhere A/D v1.1 */
 		.driver_data  = SAA7134_BOARD_MSI_TVANYWHERE_AD11,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
+		.subdevice    = 0xf436,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_CARDBUS_506,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
+		.subdevice    = 0xf936,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_A16D,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
+		.subdevice    = 0xa836,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_M115,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x185b,
+		.subdevice    = 0xc900,
+		.driver_data  = SAA7134_BOARD_VIDEOMATE_T750,
+	}, {
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -5081,6 +5199,67 @@ static void board_flyvideo(struct saa7134_dev *dev)
 	       "%s: option to override the default value.\n",
 	       dev->name, dev->name, dev->name);
 }
+
+static int saa7134_xc2028_callback(struct saa7134_dev *dev,
+				   int command, int arg)
+{
+	switch (command) {
+	case XC2028_TUNER_RESET:
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2, 0x06e20000, 0x06e20000);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x06a20000, 0x06a20000);
+		saa_andorl(SAA7133_ANALOG_IO_SELECT >> 2, 0x02, 0x02);
+		saa_andorl(SAA7134_ANALOG_IN_CTRL1 >> 2, 0x81, 0x81);
+		saa_andorl(SAA7134_AUDIO_CLOCK0 >> 2, 0x03187de7, 0x03187de7);
+		saa_andorl(SAA7134_AUDIO_PLL_CTRL >> 2, 0x03, 0x03);
+		saa_andorl(SAA7134_AUDIO_CLOCKS_PER_FIELD0 >> 2,
+			   0x0001e000, 0x0001e000);
+		return 0;
+	}
+	return -EINVAL;
+}
+
+
+static int saa7134_tda8290_callback(struct saa7134_dev *dev,
+				    int command, int arg)
+{
+	u8 sync_control;
+
+	switch (command) {
+	case 0: /* switch LNA gain through GPIO 22*/
+		saa7134_set_gpio(dev, 22, arg) ;
+		break;
+	case 1: /* vsync output at GPIO22. 50 / 60Hz */
+		saa_andorb(SAA7134_VIDEO_PORT_CTRL3, 0x80, 0x80);
+		saa_andorb(SAA7134_VIDEO_PORT_CTRL6, 0x0f, 0x03);
+		if (arg == 1)
+			sync_control = 11;
+		else
+			sync_control = 17;
+		saa_writeb(SAA7134_VGATE_START, sync_control);
+		saa_writeb(SAA7134_VGATE_STOP, sync_control + 1);
+		saa_andorb(SAA7134_MISC_VGATE_MSB, 0x03, 0x00);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int saa7134_tuner_callback(void *priv, int command, int arg)
+{
+	struct i2c_algo_bit_data *i2c_algo = priv;
+	struct saa7134_dev *dev = i2c_algo->data;
+
+	switch (dev->tuner_type) {
+	case TUNER_PHILIPS_TDA8290:
+		return saa7134_tda8290_callback(dev, command, arg);
+	case TUNER_XC2028:
+		return saa7134_xc2028_callback(dev, command, arg);
+	}
+	return -EINVAL;
+}
+EXPORT_SYMBOL(saa7134_tuner_callback);
 
 /* ----------------------------------------------------------- */
 
@@ -5151,6 +5330,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_VIDEOMATE_DVBT_300:
 	case SAA7134_BOARD_VIDEOMATE_DVBT_200:
 	case SAA7134_BOARD_VIDEOMATE_DVBT_200A:
+	case SAA7134_BOARD_VIDEOMATE_T750:
 	case SAA7134_BOARD_MANLI_MTV001:
 	case SAA7134_BOARD_MANLI_MTV002:
 	case SAA7134_BOARD_BEHOLD_409FM:
@@ -5217,6 +5397,8 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x08000000, 0x00000000);
 		break;
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS:
+	case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
+	case SAA7134_BOARD_AVERMEDIA_M115:
 	case SAA7134_BOARD_BEHOLD_COLUMBUS_TVFM:
 		/* power-up tuner chip */
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0xffffffff, 0xffffffff);
@@ -5284,11 +5466,16 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		dev->tuner_type = saa7134_boards[dev->board].tuner_type;
 
 		if (TUNER_ABSENT != dev->tuner_type) {
-				tun_setup.mode_mask = T_RADIO | T_ANALOG_TV | T_DIGITAL_TV;
-				tun_setup.type = dev->tuner_type;
-				tun_setup.addr = ADDR_UNSET;
+			tun_setup.mode_mask = T_RADIO     |
+					      T_ANALOG_TV |
+					      T_DIGITAL_TV;
+			tun_setup.type = dev->tuner_type;
+			tun_setup.addr = ADDR_UNSET;
+			tun_setup.tuner_callback = saa7134_tuner_callback;
 
-				saa7134_i2c_call_clients (dev, TUNER_SET_TYPE_ADDR, &tun_setup);
+			saa7134_i2c_call_clients(dev,
+						 TUNER_SET_TYPE_ADDR,
+						 &tun_setup);
 		}
 		break;
 	case SAA7134_BOARD_MD7134:
@@ -5359,11 +5546,14 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 						 &tda9887_cfg);
 		}
 
-		tun_setup.mode_mask = T_RADIO | T_ANALOG_TV | T_DIGITAL_TV;
+		tun_setup.mode_mask = T_RADIO     |
+				      T_ANALOG_TV |
+				      T_DIGITAL_TV;
 		tun_setup.type = dev->tuner_type;
 		tun_setup.addr = ADDR_UNSET;
 
-		saa7134_i2c_call_clients (dev, TUNER_SET_TYPE_ADDR,&tun_setup);
+		saa7134_i2c_call_clients(dev,
+					 TUNER_SET_TYPE_ADDR, &tun_setup);
 		}
 		break;
 	case SAA7134_BOARD_PHILIPS_EUROPA:
@@ -5496,12 +5686,26 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		}
 		break;
 	}
+
+	if (dev->tuner_type == TUNER_XC2028) {
+		struct v4l2_priv_tun_config  xc2028_cfg;
+		struct xc2028_ctrl           ctl;
+
+		memset(&xc2028_cfg, 0, sizeof(ctl));
+		memset(&ctl, 0, sizeof(ctl));
+
+		ctl.fname   = XC2028_DEFAULT_FIRMWARE;
+		ctl.max_len = 64;
+
+		/* FIXME: This should be device-dependent */
+		ctl.demod = XC3028_FE_OREN538;
+		ctl.mts = 1;
+
+		xc2028_cfg.tuner = TUNER_XC2028;
+		xc2028_cfg.priv  = &ctl;
+
+		saa7134_i2c_call_clients(dev, TUNER_SET_CONFIG, &xc2028_cfg);
+	}
+
 	return 0;
 }
-
-/* ----------------------------------------------------------- */
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

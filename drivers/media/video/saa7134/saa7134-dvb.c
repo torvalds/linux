@@ -38,6 +38,7 @@
 #include "mt352_priv.h" /* FIXME */
 #include "tda1004x.h"
 #include "nxt200x.h"
+#include "tuner-xc2028.h"
 
 #include "tda10086.h"
 #include "tda826x.h"
@@ -188,6 +189,11 @@ static struct mt352_config pinnacle_300i = {
 static struct mt352_config avermedia_777 = {
 	.demod_address = 0xf,
 	.demod_init    = mt352_aver777_init,
+};
+
+static struct mt352_config avermedia_e506r_mt352_dev = {
+	.demod_address   = (0x1e >> 1),
+	.no_tuner        = 1,
 };
 
 /* ==================================================================
@@ -895,6 +901,8 @@ static struct nxt200x_config kworldatsc110 = {
 static int dvb_init(struct saa7134_dev *dev)
 {
 	int ret;
+	int attach_xc3028 = 0;
+
 	/* init struct videobuf_dvb */
 	dev->ts.nr_bufs    = 32;
 	dev->ts.nr_packets = 32*4;
@@ -1142,9 +1150,33 @@ static int dvb_init(struct saa7134_dev *dev)
 	case SAA7134_BOARD_MSI_TVANYWHERE_AD11:
 		configure_tda827x_fe(dev, &philips_tiger_s_config);
 		break;
+	case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
+		dev->dvb.frontend = dvb_attach(mt352_attach,
+					       &avermedia_e506r_mt352_dev,
+					       &dev->i2c_adap);
+		attach_xc3028 = 1;
+		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");
 		break;
+	}
+
+	if (attach_xc3028) {
+		struct dvb_frontend *fe;
+		struct xc2028_config cfg = {
+			.i2c_adap  = &dev->i2c_adap,
+			.i2c_addr  = 0x61,
+			.video_dev = dev,
+		};
+		fe = dvb_attach(xc2028_attach, dev->dvb.frontend, &cfg);
+		if (!fe) {
+			printk(KERN_ERR "%s/2: xc3028 attach failed\n",
+			       dev->name);
+			dvb_frontend_detach(dev->dvb.frontend);
+			dvb_unregister_frontend(dev->dvb.frontend);
+			dev->dvb.frontend = NULL;
+			return -1;
+		}
 	}
 
 	if (NULL == dev->dvb.frontend) {
