@@ -1166,7 +1166,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		struct xc2028_config cfg = {
 			.i2c_adap  = &dev->i2c_adap,
 			.i2c_addr  = 0x61,
-			.video_dev = dev,
+			.video_dev = dev->i2c_adap.algo_data,
 		};
 		fe = dvb_attach(xc2028_attach, dev->dvb.frontend, &cfg);
 		if (!fe) {

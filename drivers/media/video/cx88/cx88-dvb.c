@@ -458,7 +458,7 @@ static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 	struct xc2028_config cfg = {
 		.i2c_adap  = &dev->core->i2c_adap,
 		.i2c_addr  = addr,
-		.video_dev = dev->core,
+		.video_dev = dev->core->i2c_adap.algo_data,
 	};
 
 	if (!dev->dvb.frontend) {
