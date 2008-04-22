@@ -2067,7 +2067,7 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 	dev->phys_port_cnt = 1;
 	dev->num_comp_vectors = 1;
 	dev->dma_device = &dd->pcidev->dev;
-	dev->class_dev.dev = dev->dma_device;
+	dev->dev.parent = dev->dma_device;
 	dev->query_device = ipath_query_device;
 	dev->modify_device = ipath_modify_device;
 	dev->query_port = ipath_query_port;
