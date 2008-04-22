@@ -43,6 +43,7 @@
 #include "tda826x.h"
 #include "tda827x.h"
 #include "isl6421.h"
+#include "isl6405.h"
 
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
@@ -990,7 +991,22 @@ static int dvb_init(struct saa7134_dev *dev)
 		configure_tda827x_fe(dev, &tevion_dvbt220rf_config);
 		break;
 	case SAA7134_BOARD_MEDION_MD8800_QUADRO:
-		configure_tda827x_fe(dev, &md8800_dvbt_config);
+		if (!use_frontend) {     /* terrestrial */
+			configure_tda827x_fe(dev, &md8800_dvbt_config);
+		} else {        /* satellite */
+			dev->dvb.frontend = dvb_attach(tda10086_attach,
+							&flydvbs, &dev->i2c_adap);
+			if (dev->dvb.frontend) {
+				if (dvb_attach(tda826x_attach, dev->dvb.frontend,
+						0x60, &dev->i2c_adap, 0) == NULL)
+					wprintk("%s: Medion Quadro, no tda826x "
+						"found !\n", __FUNCTION__);
+				if (dvb_attach(isl6405_attach, dev->dvb.frontend,
+						&dev->i2c_adap, 0x08, 0, 0) == NULL)
+					wprintk("%s: Medion Quadro, no ISL6405 "
+						"found !\n", __FUNCTION__);
+			}
+		}
 		break;
 	case SAA7134_BOARD_AVERMEDIA_AVERTVHD_A180:
 		dev->dvb.frontend = dvb_attach(nxt200x_attach, &avertvhda180,
