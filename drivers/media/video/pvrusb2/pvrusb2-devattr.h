@@ -43,6 +43,9 @@ struct pvr2_string_table {
 #define PVR2_DIGITAL_SCHEME_HAUPPAUGE 1
 #define PVR2_DIGITAL_SCHEME_ONAIR 2
 
+#define PVR2_LED_SCHEME_NONE 0
+#define PVR2_LED_SCHEME_HAUPPAUGE 1
+
 /* This describes a particular hardware type (except for the USB device ID
    which must live in a separate structure due to environmental
    constraints).  See the top of pvrusb2-hdw.c for where this is
@@ -69,6 +72,11 @@ struct pvr2_device_desc {
 	   interpreted by logic which must send commands to the chip-level
 	   drivers (search for things which touch this field). */
 	unsigned int signal_routing_scheme;
+
+	/* Indicates scheme for controlling device's LED (if any).  The
+	   driver will turn on the LED when streaming is underway.  This
+	   contains one of PVR2_LED_SCHEME_XXX. */
+	unsigned int led_scheme;
 
 	/* Control scheme to use if there is a digital tuner.  This
 	   contains one of PVR2_DIGITAL_SCHEME_XXX.  This is an arbitrary

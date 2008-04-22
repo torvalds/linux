@@ -253,6 +253,9 @@ struct pvr2_hdw {
 	   PVR2_STATE_xxxx */
 	unsigned int master_state;
 
+	/* True if device led is currently on */
+	int led_on;
+
 	/* True if states must be re-evaluated */
 	int state_stale;
 

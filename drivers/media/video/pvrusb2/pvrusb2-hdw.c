@@ -3357,24 +3357,48 @@ static void pvr2_hdw_cmd_modeswitch(struct pvr2_hdw *hdw,int digitalFl)
 }
 
 
-/* Toggle LED */
-int pvr2_led_ctrl(struct pvr2_hdw *hdw, int onoff)
+void pvr2_led_ctrl_hauppauge(struct pvr2_hdw *hdw, int onoff)
 {
 	/* change some GPIO data
 	 *
 	 * note: bit d7 of dir appears to control the LED,
 	 * so we shut it off here.
 	 *
-	 * FIXME: is this device-specific?
 	 */
-	if (onoff)
+	if (onoff) {
 		pvr2_hdw_gpio_chg_dir(hdw, 0xffffffff, 0x00000481);
-	else
+	} else {
 		pvr2_hdw_gpio_chg_dir(hdw, 0xffffffff, 0x00000401);
-
+	}
 	pvr2_hdw_gpio_chg_out(hdw, 0xffffffff, 0x00000000);
+}
 
-	return 0;
+
+typedef void (*led_method_func)(struct pvr2_hdw *,int);
+
+static led_method_func led_methods[] = {
+	[PVR2_LED_SCHEME_HAUPPAUGE] = pvr2_led_ctrl_hauppauge,
+};
+
+
+/* Toggle LED */
+static void pvr2_led_ctrl(struct pvr2_hdw *hdw,int onoff)
+{
+	unsigned int scheme_id;
+	led_method_func fp;
+
+	if ((!onoff) == (!hdw->led_on)) return;
+
+	hdw->led_on = onoff != 0;
+
+	scheme_id = hdw->hdw_desc->led_scheme;
+	if (scheme_id < ARRAY_SIZE(led_methods)) {
+		fp = led_methods[scheme_id];
+	} else {
+		fp = NULL;
+	}
+
+	if (fp) (*fp)(hdw,onoff);
 }
 
 
@@ -3871,6 +3895,7 @@ static int pvr2_hdw_state_eval(struct pvr2_hdw *hdw)
 			   "Device state change from %s to %s",
 			   pvr2_get_state_name(hdw->master_state),
 			   pvr2_get_state_name(st));
+		pvr2_led_ctrl(hdw,st == PVR2_STATE_RUN);
 		hdw->master_state = st;
 		state_updated = !0;
 		callback_flag = !0;

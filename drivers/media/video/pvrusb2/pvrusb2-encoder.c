@@ -480,8 +480,6 @@ int pvr2_encoder_start(struct pvr2_hdw *hdw)
 	/* unmask some interrupts */
 	pvr2_write_register(hdw, 0x0048, 0xbfffffff);
 
-	pvr2_led_ctrl(hdw, 1);
-
 	pvr2_encoder_vcmd(hdw,CX2341X_ENC_MUTE_VIDEO,1,
 			  hdw->input_val == PVR2_CVAL_INPUT_RADIO ? 1 : 0);
 
@@ -523,8 +521,6 @@ int pvr2_encoder_stop(struct pvr2_hdw *hdw)
 					   0x01,0,0x13);
 		break;
 	}
-
-	pvr2_led_ctrl(hdw, 0);
 
 	return status;
 }
