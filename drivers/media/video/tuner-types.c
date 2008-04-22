@@ -773,6 +773,7 @@ static struct tuner_params tuner_philips_fm1256_ih3_params[] = {
 
 /* ------------ TUNER_THOMSON_DTT7610 - THOMSON ATSC ------------ */
 
+/* single range used for both ntsc and atsc */
 static struct tuner_range tuner_thomson_dtt7610_ntsc_ranges[] = {
 	{ 16 * 157.25 /*MHz*/, 0x8e, 0x39, },
 	{ 16 * 454.00 /*MHz*/, 0x8e, 0x3a, },
@@ -784,6 +785,12 @@ static struct tuner_params tuner_thomson_dtt7610_params[] = {
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_thomson_dtt7610_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_thomson_dtt7610_ntsc_ranges),
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_thomson_dtt7610_ntsc_ranges,
+		.count  = ARRAY_SIZE(tuner_thomson_dtt7610_ntsc_ranges),
+		.iffreq = 16 * 44.00 /*MHz*/,
 	},
 };
 
@@ -1443,6 +1450,9 @@ struct tunertype tuners[] = {
 		.name   = "Thomson DTT 7610 (ATSC/NTSC)",
 		.params = tuner_thomson_dtt7610_params,
 		.count  = ARRAY_SIZE(tuner_thomson_dtt7610_params),
+		.min    = 16 *  44.00,
+		.max    = 16 * 958.00,
+		.stepsize = 62500,
 	},
 	[TUNER_PHILIPS_FQ1286] = { /* Philips NTSC */
 		.name   = "Philips FQ1286",
