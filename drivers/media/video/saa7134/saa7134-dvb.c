@@ -1139,6 +1139,9 @@ static int dvb_init(struct saa7134_dev *dev)
 	case SAA7134_BOARD_CREATIX_CTX953:
 		configure_tda827x_fe(dev, &md8800_dvbt_config);
 		break;
+	case SAA7134_BOARD_MSI_TVANYWHERE_AD11:
+		configure_tda827x_fe(dev, &philips_tiger_s_config);
+		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");
 		break;
