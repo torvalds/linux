@@ -388,9 +388,7 @@ struct saa7134_fh {
 	unsigned int               radio;
 	enum v4l2_buf_type         type;
 	unsigned int               resources;
-#ifdef VIDIOC_G_PRIORITY
 	enum v4l2_priority	   prio;
-#endif
 
 	/* video overlay */
 	struct v4l2_window         win;
@@ -462,9 +460,7 @@ struct saa7134_dev {
 	struct list_head           devlist;
 	struct mutex               lock;
 	spinlock_t                 slock;
-#ifdef VIDIOC_G_PRIORITY
 	struct v4l2_prio_state     prio;
-#endif
 	/* workstruct for loading modules */
 	struct work_struct request_module_wk;
 
