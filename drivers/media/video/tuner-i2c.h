@@ -129,10 +129,10 @@ static inline int tuner_i2c_xfer_send_recv(struct tuner_i2c_props *props,
 ({									\
 	int __ret = 0;							\
 	list_for_each_entry(state, &list, hybrid_tuner_instance_list) {	\
-		if ((state->i2c_props.addr == i2caddr) &&		\
-		    ((state->i2c_props.adap ?				\
-			i2c_adapter_id(state->i2c_props.adap) : -1) ==	\
-		     (i2cadap ? i2c_adapter_id(i2cadap) : -1))) {	\
+		if (((i2cadap) && (state->i2c_props.adap)) &&		\
+		    ((i2c_adapter_id(state->i2c_props.adap) ==		\
+		      i2c_adapter_id(i2cadap)) &&			\
+		     (i2caddr == state->i2c_props.addr))) {		\
 			__tuner_info(state->i2c_props,			\
 				     "attaching existing instance\n");	\
 			state->i2c_props.count++;			\
