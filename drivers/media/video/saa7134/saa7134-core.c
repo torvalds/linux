@@ -866,6 +866,9 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	int err;
 	int mask;
 
+	if (saa7134_devcount == SAA7134_MAXBOARDS)
+		return -ENOMEM;
+
 	dev = kzalloc(sizeof(*dev),GFP_KERNEL);
 	if (NULL == dev)
 		return -ENOMEM;
