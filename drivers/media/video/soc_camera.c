@@ -144,8 +144,6 @@ static int soc_camera_reqbufs(struct file *file, void *priv,
 		return ret;
 
 	return ici->ops->reqbufs(icf, p);
-
-	return ret;
 }
 
 static int soc_camera_querybuf(struct file *file, void *priv,
