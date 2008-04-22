@@ -2495,6 +2495,11 @@ static void cx88_card_setup(struct cx88_core *core)
 		case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
 			ctl.demod = XC3028_FE_OREN538;
 			break;
+		case CX88_BOARD_PROLINK_PV_8000GT:
+			/*
+			 * This board uses non-MTS firmware
+			 */
+			break;
 		default:
 			ctl.demod = XC3028_FE_OREN538;
 			ctl.mts = 1;
