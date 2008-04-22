@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2004-2006 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2008 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 
@@ -28,7 +28,7 @@
 #include <asm/sn/sn_sal.h>
 #include <asm/sn/nodepda.h>
 #include <asm/sn/addrs.h>
-#include <asm/sn/xpc.h>
+#include "xpc.h"
 
 
 /* XPC is exiting flag */

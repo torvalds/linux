@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1999,2001-2005 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 1999-2008 Silicon Graphics, Inc. All rights reserved.
  */
 
 
@@ -38,7 +38,7 @@
 #include <asm/sn/sn_sal.h>
 #include <asm/types.h>
 #include <asm/atomic.h>
-#include <asm/sn/xp.h>
+#include "xp.h"
 
 
 /*

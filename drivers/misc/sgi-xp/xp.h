@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004-2005 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2004-2008 Silicon Graphics, Inc. All rights reserved.
  */
 
 
@@ -12,8 +12,8 @@
  */
 
 
-#ifndef _ASM_IA64_SN_XP_H
-#define _ASM_IA64_SN_XP_H
+#ifndef _DRIVERS_MISC_SGIXP_XP_H
+#define _DRIVERS_MISC_SGIXP_XP_H
 
 
 #include <linux/cache.h>
@@ -481,5 +481,5 @@ extern int xp_nofault_PIOR(void *);
 extern int xp_error_PIOR(void);
 
 
-#endif /* _ASM_IA64_SN_XP_H */
+#endif /* _DRIVERS_MISC_SGIXP_XP_H */
 

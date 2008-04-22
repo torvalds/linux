@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2004-2007 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2008 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 
@@ -11,8 +11,8 @@
  * Cross Partition Communication (XPC) structures and macros.
  */
 
-#ifndef _ASM_IA64_SN_XPC_H
-#define _ASM_IA64_SN_XPC_H
+#ifndef _DRIVERS_MISC_SGIXP_XPC_H
+#define _DRIVERS_MISC_SGIXP_XPC_H
 
 
 #include <linux/interrupt.h>
@@ -27,7 +27,7 @@
 #include <asm/sn/addrs.h>
 #include <asm/sn/mspec.h>
 #include <asm/sn/shub_mmr.h>
-#include <asm/sn/xp.h>
+#include "xp.h"
 
 
 /*
@@ -1263,5 +1263,5 @@ xpc_check_for_channel_activity(struct xpc_partition *part)
 }
 
 
-#endif /* _ASM_IA64_SN_XPC_H */
+#endif /* _DRIVERS_MISC_SGIXP_XPC_H */
 

@@ -266,17 +266,6 @@ config IOSAPIC
 	depends on !IA64_HP_SIM
 	default y
 
-config IA64_SGI_SN_XP
-	tristate "Support communication between SGI SSIs"
-	depends on IA64_GENERIC || IA64_SGI_SN2
-	select IA64_UNCACHED_ALLOCATOR
-	help
-	  An SGI machine can be divided into multiple Single System
-	  Images which act independently of each other and have
-	  hardware based memory protection from the others.  Enabling
-	  this feature will allow for direct communication between SSIs
-	  based on a network adapter and DMA messaging.
-
 config FORCE_MAX_ZONEORDER
 	int "MAX_ORDER (11 - 17)"  if !HUGETLB_PAGE
 	range 11 17  if !HUGETLB_PAGE
