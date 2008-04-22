@@ -46,17 +46,16 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/sched.h>
-#include <linux/syscalls.h>
 #include <linux/cache.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/completion.h>
 #include <linux/kdebug.h>
+#include <linux/kthread.h>
+#include <linux/uaccess.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/sn_sal.h>
-#include <asm/uaccess.h>
 #include "xpc.h"
 
 /* define two XPC debug device structures to be used with dev_dbg() et al */
@@ -91,7 +90,7 @@ static int xpc_hb_check_min_interval = 10;
 static int xpc_hb_check_max_interval = 120;
 
 int xpc_disengage_request_timelimit = XPC_DISENGAGE_REQUEST_DEFAULT_TIMELIMIT;
-static int xpc_disengage_request_min_timelimit = 0;
+static int xpc_disengage_request_min_timelimit;	/* = 0 */
 static int xpc_disengage_request_max_timelimit = 120;
 
 static ctl_table xpc_sys_xpc_hb_dir[] = {
@@ -213,9 +212,8 @@ xpc_hb_beater(unsigned long dummy)
 {
 	xpc_vars->heartbeat++;
 
-	if (time_after_eq(jiffies, xpc_hb_check_timeout)) {
+	if (time_after_eq(jiffies, xpc_hb_check_timeout))
 		wake_up_interruptible(&xpc_act_IRQ_wq);
-	}
 
 	xpc_hb_timer.expires = jiffies + (xpc_hb_interval * HZ);
 	add_timer(&xpc_hb_timer);
@@ -234,15 +232,13 @@ xpc_hb_checker(void *ignore)
 
 	/* this thread was marked active by xpc_hb_init() */
 
-	daemonize(XPC_HB_CHECK_THREAD_NAME);
-
 	set_cpus_allowed(current, cpumask_of_cpu(XPC_HB_CHECK_CPU));
 
 	/* set our heartbeating to other partitions into motion */
 	xpc_hb_check_timeout = jiffies + (xpc_hb_check_interval * HZ);
 	xpc_hb_beater(0);
 
-	while (!(volatile int)xpc_exiting) {
+	while (!xpc_exiting) {
 
 		dev_dbg(xpc_part, "woke up with %d ticks rem; %d IRQs have "
 			"been received\n",
@@ -287,7 +283,7 @@ xpc_hb_checker(void *ignore)
 						atomic_read(&xpc_act_IRQ_rcvd)
 						|| time_after_eq(jiffies,
 							xpc_hb_check_timeout) ||
-						(volatile int)xpc_exiting));
+						xpc_exiting));
 	}
 
 	dev_dbg(xpc_part, "heartbeat checker is exiting\n");
@@ -305,8 +301,6 @@ xpc_hb_checker(void *ignore)
 static int
 xpc_initiate_discovery(void *ignore)
 {
-	daemonize(XPC_DISCOVERY_THREAD_NAME);
-
 	xpc_discovery();
 
 	dev_dbg(xpc_part, "discovery thread is exiting\n");
@@ -338,9 +332,8 @@ xpc_make_first_contact(struct xpc_partition *part)
 		/* wait a 1/4 of a second or so */
 		(void)msleep_interruptible(250);
 
-		if (part->act_state == XPC_P_DEACTIVATING) {
+		if (part->act_state == XPC_P_DEACTIVATING)
 			return part->reason;
-		}
 	}
 
 	return xpc_mark_partition_active(part);
@@ -382,22 +375,12 @@ xpc_channel_mgr(struct xpc_partition *part)
 		 */
 		atomic_dec(&part->channel_mgr_requests);
 		(void)wait_event_interruptible(part->channel_mgr_wq,
-					       (atomic_read
-						(&part->channel_mgr_requests) >
-						0 ||
-						(volatile u64)part->
-						local_IPI_amo != 0 ||
-						((volatile u8)part->act_state ==
-						 XPC_P_DEACTIVATING &&
-						 atomic_read(&part->
-							     nchannels_active)
-						 == 0 &&
-						 xpc_partition_disengaged
-						 (part))));
+				(atomic_read(&part->channel_mgr_requests) > 0 ||
+				 part->local_IPI_amo != 0 ||
+				 (part->act_state == XPC_P_DEACTIVATING &&
+				 atomic_read(&part->nchannels_active) == 0 &&
+				 xpc_partition_disengaged(part))));
 		atomic_set(&part->channel_mgr_requests, 1);
-
-		// >>> Does it need to wakeup periodically as well? In case we
-		// >>> miscalculated the #of kthreads to wakeup or create?
 	}
 }
 
@@ -423,9 +406,8 @@ xpc_partition_up(struct xpc_partition *part)
 
 	dev_dbg(xpc_chan, "activating partition %d\n", XPC_PARTID(part));
 
-	if (xpc_setup_infrastructure(part) != xpcSuccess) {
+	if (xpc_setup_infrastructure(part) != xpcSuccess)
 		return;
-	}
 
 	/*
 	 * The kthread that XPC HB called us with will become the
@@ -436,9 +418,8 @@ xpc_partition_up(struct xpc_partition *part)
 
 	(void)xpc_part_ref(part);	/* this will always succeed */
 
-	if (xpc_make_first_contact(part) == xpcSuccess) {
+	if (xpc_make_first_contact(part) == xpcSuccess)
 		xpc_channel_mgr(part);
-	}
 
 	xpc_part_deref(part);
 
@@ -451,8 +432,6 @@ xpc_activating(void *__partid)
 	partid_t partid = (u64)__partid;
 	struct xpc_partition *part = &xpc_partitions[partid];
 	unsigned long irq_flags;
-	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1 };
-	int ret;
 
 	DBUG_ON(partid <= 0 || partid >= XP_MAX_PARTITIONS);
 
@@ -473,21 +452,6 @@ xpc_activating(void *__partid)
 	spin_unlock_irqrestore(&part->act_lock, irq_flags);
 
 	dev_dbg(xpc_part, "bringing partition %d up\n", partid);
-
-	daemonize("xpc%02d", partid);
-
-	/*
-	 * This thread needs to run at a realtime priority to prevent a
-	 * significant performance degradation.
-	 */
-	ret = sched_setscheduler(current, SCHED_FIFO, &param);
-	if (ret != 0) {
-		dev_warn(xpc_part, "unable to set pid %d to a realtime "
-			 "priority, ret=%d\n", current->pid, ret);
-	}
-
-	/* allow this thread and its children to run on any CPU */
-	set_cpus_allowed(current, CPU_MASK_ALL);
 
 	/*
 	 * Register the remote partition's AMOs with SAL so it can handle
@@ -537,7 +501,7 @@ xpc_activate_partition(struct xpc_partition *part)
 {
 	partid_t partid = XPC_PARTID(part);
 	unsigned long irq_flags;
-	pid_t pid;
+	struct task_struct *kthread;
 
 	spin_lock_irqsave(&part->act_lock, irq_flags);
 
@@ -548,9 +512,9 @@ xpc_activate_partition(struct xpc_partition *part)
 
 	spin_unlock_irqrestore(&part->act_lock, irq_flags);
 
-	pid = kernel_thread(xpc_activating, (void *)((u64)partid), 0);
-
-	if (unlikely(pid <= 0)) {
+	kthread = kthread_run(xpc_activating, (void *)((u64)partid), "xpc%02d",
+			      partid);
+	if (IS_ERR(kthread)) {
 		spin_lock_irqsave(&part->act_lock, irq_flags);
 		part->act_state = XPC_P_INACTIVE;
 		XPC_SET_REASON(part, xpcCloneKThreadFailed, __LINE__);
@@ -562,7 +526,7 @@ xpc_activate_partition(struct xpc_partition *part)
  * Handle the receipt of a SGI_XPC_NOTIFY IRQ by seeing whether the specified
  * partition actually sent it. Since SGI_XPC_NOTIFY IRQs may be shared by more
  * than one partition, we use an AMO_t structure per partition to indicate
- * whether a partition has sent an IPI or not.  >>> If it has, then wake up the
+ * whether a partition has sent an IPI or not.  If it has, then wake up the
  * associated kthread to handle it.
  *
  * All SGI_XPC_NOTIFY IRQs received by XPC are the result of IPIs sent by XPC
@@ -628,16 +592,13 @@ xpc_activate_kthreads(struct xpc_channel *ch, int needed)
 		wake_up_nr(&ch->idle_wq, wakeup);
 	}
 
-	if (needed <= 0) {
+	if (needed <= 0)
 		return;
-	}
 
 	if (needed + assigned > ch->kthreads_assigned_limit) {
 		needed = ch->kthreads_assigned_limit - assigned;
-		// >>>should never be less than 0
-		if (needed <= 0) {
+		if (needed <= 0)
 			return;
-		}
 	}
 
 	dev_dbg(xpc_chan, "create %d new kthreads, partid=%d, channel=%d\n",
@@ -655,9 +616,8 @@ xpc_kthread_waitmsgs(struct xpc_partition *part, struct xpc_channel *ch)
 	do {
 		/* deliver messages to their intended recipients */
 
-		while ((volatile s64)ch->w_local_GP.get <
-		       (volatile s64)ch->w_remote_GP.put &&
-		       !((volatile u32)ch->flags & XPC_C_DISCONNECTING)) {
+		while (ch->w_local_GP.get < ch->w_remote_GP.put &&
+		       !(ch->flags & XPC_C_DISCONNECTING)) {
 			xpc_deliver_msg(ch);
 		}
 
@@ -672,21 +632,16 @@ xpc_kthread_waitmsgs(struct xpc_partition *part, struct xpc_channel *ch)
 			"wait_event_interruptible_exclusive()\n");
 
 		(void)wait_event_interruptible_exclusive(ch->idle_wq,
-							 ((volatile s64)ch->
-							  w_local_GP.get <
-							  (volatile s64)ch->
-							  w_remote_GP.put ||
-							  ((volatile u32)ch->
-							   flags &
-							   XPC_C_DISCONNECTING)));
+				(ch->w_local_GP.get < ch->w_remote_GP.put ||
+				 (ch->flags & XPC_C_DISCONNECTING)));
 
 		atomic_dec(&ch->kthreads_idle);
 
-	} while (!((volatile u32)ch->flags & XPC_C_DISCONNECTING));
+	} while (!(ch->flags & XPC_C_DISCONNECTING));
 }
 
 static int
-xpc_daemonize_kthread(void *args)
+xpc_kthread_start(void *args)
 {
 	partid_t partid = XPC_UNPACK_ARG1(args);
 	u16 ch_number = XPC_UNPACK_ARG2(args);
@@ -694,8 +649,6 @@ xpc_daemonize_kthread(void *args)
 	struct xpc_channel *ch;
 	int n_needed;
 	unsigned long irq_flags;
-
-	daemonize("xpc%02dc%d", partid, ch_number);
 
 	dev_dbg(xpc_chan, "kthread starting, partid=%d, channel=%d\n",
 		partid, ch_number);
@@ -725,9 +678,9 @@ xpc_daemonize_kthread(void *args)
 			 * need one less than total #of messages to deliver.
 			 */
 			n_needed = ch->w_remote_GP.put - ch->w_local_GP.get - 1;
-			if (n_needed > 0 && !(ch->flags & XPC_C_DISCONNECTING)) {
+			if (n_needed > 0 && !(ch->flags & XPC_C_DISCONNECTING))
 				xpc_activate_kthreads(ch, n_needed);
-			}
+
 		} else {
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
 		}
@@ -783,9 +736,9 @@ xpc_create_kthreads(struct xpc_channel *ch, int needed,
 		    int ignore_disconnecting)
 {
 	unsigned long irq_flags;
-	pid_t pid;
 	u64 args = XPC_PACK_ARGS(ch->partid, ch->number);
 	struct xpc_partition *part = &xpc_partitions[ch->partid];
+	struct task_struct *kthread;
 
 	while (needed-- > 0) {
 
@@ -812,8 +765,9 @@ xpc_create_kthreads(struct xpc_channel *ch, int needed,
 		(void)xpc_part_ref(part);
 		xpc_msgqueue_ref(ch);
 
-		pid = kernel_thread(xpc_daemonize_kthread, (void *)args, 0);
-		if (pid < 0) {
+		kthread = kthread_run(xpc_kthread_start, (void *)args,
+				      "xpc%02dc%d", ch->partid, ch->number);
+		if (IS_ERR(kthread)) {
 			/* the fork failed */
 
 			/*
@@ -823,7 +777,7 @@ xpc_create_kthreads(struct xpc_channel *ch, int needed,
 			 * to this channel are blocked in the channel's
 			 * registerer, because the only thing that will unblock
 			 * them is the xpcDisconnecting callout that this
-			 * failed kernel_thread would have made.
+			 * failed kthread_run() would have made.
 			 */
 
 			if (atomic_dec_return(&ch->kthreads_assigned) == 0 &&
@@ -848,8 +802,6 @@ xpc_create_kthreads(struct xpc_channel *ch, int needed,
 			}
 			break;
 		}
-
-		ch->kthreads_created++;	// >>> temporary debug only!!!
 	}
 }
 
@@ -866,9 +818,8 @@ xpc_disconnect_wait(int ch_number)
 	for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
 		part = &xpc_partitions[partid];
 
-		if (!xpc_part_ref(part)) {
+		if (!xpc_part_ref(part))
 			continue;
-		}
 
 		ch = &part->channels[ch_number];
 
@@ -898,9 +849,8 @@ xpc_disconnect_wait(int ch_number)
 		ch->flags &= ~XPC_C_WDISCONNECT;
 		spin_unlock_irqrestore(&ch->lock, irq_flags);
 
-		if (wakeup_channel_mgr) {
+		if (wakeup_channel_mgr)
 			xpc_wakeup_channel_mgr(part);
-		}
 
 		xpc_part_deref(part);
 	}
@@ -1019,9 +969,8 @@ xpc_do_exit(enum xpc_retval reason)
 	/* clear the interface to XPC's functions */
 	xpc_clear_interface();
 
-	if (xpc_sysctl) {
+	if (xpc_sysctl)
 		unregister_sysctl_table(xpc_sysctl);
-	}
 
 	kfree(xpc_remote_copy_buffer_base);
 }
@@ -1071,7 +1020,8 @@ xpc_die_disengage(void)
 	for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
 		part = &xpc_partitions[partid];
 
-		if (!XPC_SUPPORTS_DISENGAGE_REQUEST(part->remote_vars_version)) {
+		if (!XPC_SUPPORTS_DISENGAGE_REQUEST(part->
+		    remote_vars_version)) {
 
 			/* just in case it was left set by an earlier XPC */
 			xpc_clear_partition_engaged(1UL << partid);
@@ -1144,9 +1094,9 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *unused)
 
 	case DIE_KDEBUG_ENTER:
 		/* Should lack of heartbeat be ignored by other partitions? */
-		if (!xpc_kdebug_ignore) {
+		if (!xpc_kdebug_ignore)
 			break;
-		}
+
 		/* fall through */
 	case DIE_MCA_MONARCH_ENTER:
 	case DIE_INIT_MONARCH_ENTER:
@@ -1156,9 +1106,9 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *unused)
 
 	case DIE_KDEBUG_LEAVE:
 		/* Is lack of heartbeat being ignored by other partitions? */
-		if (!xpc_kdebug_ignore) {
+		if (!xpc_kdebug_ignore)
 			break;
-		}
+
 		/* fall through */
 	case DIE_MCA_MONARCH_LEAVE:
 	case DIE_INIT_MONARCH_LEAVE:
@@ -1176,18 +1126,17 @@ xpc_init(void)
 	int ret;
 	partid_t partid;
 	struct xpc_partition *part;
-	pid_t pid;
+	struct task_struct *kthread;
 	size_t buf_size;
 
-	if (!ia64_platform_is("sn2")) {
+	if (!ia64_platform_is("sn2"))
 		return -ENODEV;
-	}
 
 	buf_size = max(XPC_RP_VARS_SIZE,
 		       XPC_RP_HEADER_SIZE + XP_NASID_MASK_BYTES);
 	xpc_remote_copy_buffer = xpc_kmalloc_cacheline_aligned(buf_size,
 							       GFP_KERNEL,
-							       &xpc_remote_copy_buffer_base);
+						  &xpc_remote_copy_buffer_base);
 	if (xpc_remote_copy_buffer == NULL)
 		return -ENOMEM;
 
@@ -1250,9 +1199,8 @@ xpc_init(void)
 
 		xpc_restrict_IPI_ops();
 
-		if (xpc_sysctl) {
+		if (xpc_sysctl)
 			unregister_sysctl_table(xpc_sysctl);
-		}
 
 		kfree(xpc_remote_copy_buffer_base);
 		return -EBUSY;
@@ -1270,9 +1218,8 @@ xpc_init(void)
 		free_irq(SGI_XPC_ACTIVATE, NULL);
 		xpc_restrict_IPI_ops();
 
-		if (xpc_sysctl) {
+		if (xpc_sysctl)
 			unregister_sysctl_table(xpc_sysctl);
-		}
 
 		kfree(xpc_remote_copy_buffer_base);
 		return -EBUSY;
@@ -1280,15 +1227,13 @@ xpc_init(void)
 
 	/* add ourselves to the reboot_notifier_list */
 	ret = register_reboot_notifier(&xpc_reboot_notifier);
-	if (ret != 0) {
+	if (ret != 0)
 		dev_warn(xpc_part, "can't register reboot notifier\n");
-	}
 
 	/* add ourselves to the die_notifier list */
 	ret = register_die_notifier(&xpc_die_notifier);
-	if (ret != 0) {
+	if (ret != 0)
 		dev_warn(xpc_part, "can't register die notifier\n");
-	}
 
 	init_timer(&xpc_hb_timer);
 	xpc_hb_timer.function = xpc_hb_beater;
@@ -1297,8 +1242,8 @@ xpc_init(void)
 	 * The real work-horse behind xpc.  This processes incoming
 	 * interrupts and monitors remote heartbeats.
 	 */
-	pid = kernel_thread(xpc_hb_checker, NULL, 0);
-	if (pid < 0) {
+	kthread = kthread_run(xpc_hb_checker, NULL, XPC_HB_CHECK_THREAD_NAME);
+	if (IS_ERR(kthread)) {
 		dev_err(xpc_part, "failed while forking hb check thread\n");
 
 		/* indicate to others that our reserved page is uninitialized */
@@ -1314,9 +1259,8 @@ xpc_init(void)
 		free_irq(SGI_XPC_ACTIVATE, NULL);
 		xpc_restrict_IPI_ops();
 
-		if (xpc_sysctl) {
+		if (xpc_sysctl)
 			unregister_sysctl_table(xpc_sysctl);
-		}
 
 		kfree(xpc_remote_copy_buffer_base);
 		return -EBUSY;
@@ -1327,8 +1271,9 @@ xpc_init(void)
 	 * activate based on info provided by SAL. This new thread is short
 	 * lived and will exit once discovery is complete.
 	 */
-	pid = kernel_thread(xpc_initiate_discovery, NULL, 0);
-	if (pid < 0) {
+	kthread = kthread_run(xpc_initiate_discovery, NULL,
+			      XPC_DISCOVERY_THREAD_NAME);
+	if (IS_ERR(kthread)) {
 		dev_err(xpc_part, "failed while forking discovery thread\n");
 
 		/* mark this new thread as a non-starter */

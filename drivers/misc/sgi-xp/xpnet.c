@@ -21,6 +21,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
@@ -34,7 +35,6 @@
 #include <asm/sn/bte.h>
 #include <asm/sn/io.h>
 #include <asm/sn/sn_sal.h>
-#include <asm/types.h>
 #include <asm/atomic.h>
 #include "xp.h"
 
@@ -87,8 +87,8 @@ struct xpnet_message {
 #define XPNET_VERSION_MAJOR(_v)		((_v) >> 4)
 #define XPNET_VERSION_MINOR(_v)		((_v) & 0xf)
 
-#define	XPNET_VERSION _XPNET_VERSION(1,0)	/* version 1.0 */
-#define	XPNET_VERSION_EMBED _XPNET_VERSION(1,1)	/* version 1.1 */
+#define	XPNET_VERSION _XPNET_VERSION(1, 0)	/* version 1.0 */
+#define	XPNET_VERSION_EMBED _XPNET_VERSION(1, 1)	/* version 1.1 */
 #define XPNET_MAGIC	0x88786984	/* "XNET" */
 
 #define XPNET_VALID_MSG(_m)						     \
@@ -236,9 +236,11 @@ xpnet_receive(partid_t partid, int channel, struct xpnet_message *msg)
 				msg->size, (BTE_NOTIFY | BTE_WACQUIRE), NULL);
 
 		if (bret != BTE_SUCCESS) {
-			// >>> Need better way of cleaning skb.  Currently skb
-			// >>> appears in_use and we can't just call
-			// >>> dev_kfree_skb.
+			/*
+			 * >>> Need better way of cleaning skb.  Currently skb
+			 * >>> appears in_use and we can't just call
+			 * >>> dev_kfree_skb.
+			 */
 			dev_err(xpnet, "bte_copy(0x%p, 0x%p, 0x%hx) returned "
 				"error=0x%x\n", (void *)msg->buf_pa,
 				(void *)__pa((u64)skb->data &
@@ -314,9 +316,8 @@ xpnet_connection_activity(enum xpc_retval reason, partid_t partid, int channel,
 		bp = xpnet_broadcast_partitions;
 		spin_unlock_bh(&xpnet_broadcast_lock);
 
-		if (bp == 0) {
+		if (bp == 0)
 			netif_carrier_off(xpnet_device);
-		}
 
 		dev_dbg(xpnet, "%s disconnected from partition %d; "
 			"xpnet_broadcast_partitions=0x%lx\n",
@@ -527,9 +528,8 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		ret = xpc_allocate(dest_partid, XPC_NET_CHANNEL,
 				   XPC_NOWAIT, (void **)&msg);
-		if (unlikely(ret != xpcSuccess)) {
+		if (unlikely(ret != xpcSuccess))
 			continue;
-		}
 
 		msg->embedded_bytes = embedded_bytes;
 		if (unlikely(embedded_bytes != 0)) {
@@ -561,7 +561,6 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			atomic_dec(&queued_msg->use_count);
 			continue;
 		}
-
 	}
 
 	if (atomic_dec_return(&queued_msg->use_count) == 0) {
@@ -599,9 +598,8 @@ xpnet_init(void)
 	u32 license_num;
 	int result = -ENOMEM;
 
-	if (!ia64_platform_is("sn2")) {
+	if (!ia64_platform_is("sn2"))
 		return -ENODEV;
-	}
 
 	dev_info(xpnet, "registering network device %s\n", XPNET_DEVICE_NAME);
 
@@ -611,9 +609,8 @@ xpnet_init(void)
 	 */
 	xpnet_device = alloc_netdev(sizeof(struct xpnet_dev_private),
 				    XPNET_DEVICE_NAME, ether_setup);
-	if (xpnet_device == NULL) {
+	if (xpnet_device == NULL)
 		return -ENOMEM;
-	}
 
 	netif_carrier_off(xpnet_device);
 
@@ -654,9 +651,8 @@ xpnet_init(void)
 	xpnet_device->features = NETIF_F_NO_CSUM;
 
 	result = register_netdev(xpnet_device);
-	if (result != 0) {
+	if (result != 0)
 		free_netdev(xpnet_device);
-	}
 
 	return result;
 }

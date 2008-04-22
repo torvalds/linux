@@ -23,15 +23,21 @@
 #include "xp.h"
 
 /*
- * Target of nofault PIO read.
+ * The export of xp_nofault_PIOR needs to happen here since it is defined
+ * in drivers/misc/sgi-xp/xp_nofault.S. The target of the nofault read is
+ * defined here.
  */
+EXPORT_SYMBOL_GPL(xp_nofault_PIOR);
+
 u64 xp_nofault_PIOR_target;
+EXPORT_SYMBOL_GPL(xp_nofault_PIOR_target);
 
 /*
  * xpc_registrations[] keeps track of xpc_connect()'s done by the kernel-level
  * users of XPC.
  */
 struct xpc_registration xpc_registrations[XPC_NCHANNELS];
+EXPORT_SYMBOL_GPL(xpc_registrations);
 
 /*
  * Initialize the XPC interface to indicate that XPC isn't loaded.
@@ -52,6 +58,7 @@ struct xpc_interface xpc_interface = {
 	(void (*)(partid_t, int, void *))xpc_notloaded,
 	(enum xpc_retval(*)(partid_t, void *))xpc_notloaded
 };
+EXPORT_SYMBOL_GPL(xpc_interface);
 
 /*
  * XPC calls this when it (the XPC module) has been loaded.
@@ -74,6 +81,7 @@ xpc_set_interface(void (*connect) (int),
 	xpc_interface.received = received;
 	xpc_interface.partid_to_nasids = partid_to_nasids;
 }
+EXPORT_SYMBOL_GPL(xpc_set_interface);
 
 /*
  * XPC calls this when it (the XPC module) is being unloaded.
@@ -95,6 +103,7 @@ xpc_clear_interface(void)
 	xpc_interface.partid_to_nasids = (enum xpc_retval(*)(partid_t, void *))
 	    xpc_notloaded;
 }
+EXPORT_SYMBOL_GPL(xpc_clear_interface);
 
 /*
  * Register for automatic establishment of a channel connection whenever
@@ -133,9 +142,8 @@ xpc_connect(int ch_number, xpc_channel_func func, void *key, u16 payload_size,
 
 	registration = &xpc_registrations[ch_number];
 
-	if (mutex_lock_interruptible(&registration->mutex) != 0) {
+	if (mutex_lock_interruptible(&registration->mutex) != 0)
 		return xpcInterrupted;
-	}
 
 	/* if XPC_CHANNEL_REGISTERED(ch_number) */
 	if (registration->func != NULL) {
@@ -157,6 +165,7 @@ xpc_connect(int ch_number, xpc_channel_func func, void *key, u16 payload_size,
 
 	return xpcSuccess;
 }
+EXPORT_SYMBOL_GPL(xpc_connect);
 
 /*
  * Remove the registration for automatic connection of the specified channel
@@ -207,6 +216,7 @@ xpc_disconnect(int ch_number)
 
 	return;
 }
+EXPORT_SYMBOL_GPL(xpc_disconnect);
 
 int __init
 xp_init(void)
@@ -215,9 +225,8 @@ xp_init(void)
 	u64 func_addr = *(u64 *)xp_nofault_PIOR;
 	u64 err_func_addr = *(u64 *)xp_error_PIOR;
 
-	if (!ia64_platform_is("sn2")) {
+	if (!ia64_platform_is("sn2"))
 		return -ENODEV;
-	}
 
 	/*
 	 * Register a nofault code region which performs a cross-partition
@@ -228,8 +237,9 @@ xp_init(void)
 	 * least some CPUs on Shubs <= v1.2, which unfortunately we have to
 	 * work around).
 	 */
-	if ((ret = sn_register_nofault_code(func_addr, err_func_addr,
-					    err_func_addr, 1, 1)) != 0) {
+	ret = sn_register_nofault_code(func_addr, err_func_addr, err_func_addr,
+				       1, 1);
+	if (ret != 0) {
 		printk(KERN_ERR "XP: can't register nofault code, error=%d\n",
 		       ret);
 	}
@@ -237,16 +247,14 @@ xp_init(void)
 	 * Setup the nofault PIO read target. (There is no special reason why
 	 * SH_IPI_ACCESS was selected.)
 	 */
-	if (is_shub2()) {
+	if (is_shub2())
 		xp_nofault_PIOR_target = SH2_IPI_ACCESS0;
-	} else {
+	else
 		xp_nofault_PIOR_target = SH1_IPI_ACCESS;
-	}
 
 	/* initialize the connection registration mutex */
-	for (ch_number = 0; ch_number < XPC_NCHANNELS; ch_number++) {
+	for (ch_number = 0; ch_number < XPC_NCHANNELS; ch_number++)
 		mutex_init(&xpc_registrations[ch_number].mutex);
-	}
 
 	return 0;
 }
@@ -269,12 +277,3 @@ module_exit(xp_exit);
 MODULE_AUTHOR("Silicon Graphics, Inc.");
 MODULE_DESCRIPTION("Cross Partition (XP) base");
 MODULE_LICENSE("GPL");
-
-EXPORT_SYMBOL(xp_nofault_PIOR);
-EXPORT_SYMBOL(xp_nofault_PIOR_target);
-EXPORT_SYMBOL(xpc_registrations);
-EXPORT_SYMBOL(xpc_interface);
-EXPORT_SYMBOL(xpc_clear_interface);
-EXPORT_SYMBOL(xpc_set_interface);
-EXPORT_SYMBOL(xpc_connect);
-EXPORT_SYMBOL(xpc_disconnect);

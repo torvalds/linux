@@ -75,19 +75,19 @@ xpc_kmalloc_cacheline_aligned(size_t size, gfp_t flags, void **base)
 {
 	/* see if kmalloc will give us cachline aligned memory by default */
 	*base = kmalloc(size, flags);
-	if (*base == NULL) {
+	if (*base == NULL)
 		return NULL;
-	}
-	if ((u64)*base == L1_CACHE_ALIGN((u64)*base)) {
+
+	if ((u64)*base == L1_CACHE_ALIGN((u64)*base))
 		return *base;
-	}
+
 	kfree(*base);
 
 	/* nope, we'll have to do it ourselves */
 	*base = kmalloc(size + L1_CACHE_BYTES, flags);
-	if (*base == NULL) {
+	if (*base == NULL)
 		return NULL;
-	}
+
 	return (void *)L1_CACHE_ALIGN((u64)*base);
 }
 
@@ -116,9 +116,8 @@ xpc_get_rsvd_page_pa(int nasid)
 			"0x%016lx, address=0x%016lx, len=0x%016lx\n",
 			status, cookie, rp_pa, len);
 
-		if (status != SALRET_MORE_PASSES) {
+		if (status != SALRET_MORE_PASSES)
 			break;
-		}
 
 		if (L1_CACHE_ALIGN(len) > buf_len) {
 			kfree(buf_base);
@@ -145,9 +144,9 @@ xpc_get_rsvd_page_pa(int nasid)
 
 	kfree(buf_base);
 
-	if (status != SALRET_OK) {
+	if (status != SALRET_OK)
 		rp_pa = 0;
-	}
+
 	dev_dbg(xpc_part, "reserved page at phys address 0x%016lx\n", rp_pa);
 	return rp_pa;
 }
@@ -210,7 +209,8 @@ xpc_rsvd_page_init(void)
 	 * on subsequent loads of XPC. This AMO page is never freed, and its
 	 * memory protections are never restricted.
 	 */
-	if ((amos_page = xpc_vars->amos_page) == NULL) {
+	amos_page = xpc_vars->amos_page;
+	if (amos_page == NULL) {
 		amos_page = (AMO_t *)TO_AMO(uncached_alloc_page(0));
 		if (amos_page == NULL) {
 			dev_err(xpc_part, "can't allocate page of AMOs\n");
@@ -264,9 +264,8 @@ xpc_rsvd_page_init(void)
 	       XP_MAX_PARTITIONS);
 
 	/* initialize the activate IRQ related AMO variables */
-	for (i = 0; i < xp_nasid_mask_words; i++) {
+	for (i = 0; i < xp_nasid_mask_words; i++)
 		(void)xpc_IPI_init(XPC_ACTIVATE_IRQ_AMOS + i);
-	}
 
 	/* initialize the engaged remote partitions related AMO variables */
 	(void)xpc_IPI_init(XPC_ENGAGED_PARTITIONS_AMO);
@@ -294,7 +293,7 @@ xpc_allow_IPI_ops(void)
 	int node;
 	int nasid;
 
-	// >>> Change SH_IPI_ACCESS code to use SAL call once it is available.
+	/* >>> Change SH_IPI_ACCESS code to use SAL call once it is available */
 
 	if (is_shub2()) {
 		xpc_sh2_IPI_access0 =
@@ -336,14 +335,14 @@ xpc_allow_IPI_ops(void)
 				xpc_prot_vec[node] = (u64)HUB_L((u64 *)
 								GLOBAL_MMR_ADDR
 								(nasid,
-								 SH1_MD_DQLP_MMR_DIR_PRIVEC0));
+						  SH1_MD_DQLP_MMR_DIR_PRIVEC0));
 				HUB_S((u64 *)
 				      GLOBAL_MMR_ADDR(nasid,
-						      SH1_MD_DQLP_MMR_DIR_PRIVEC0),
+						   SH1_MD_DQLP_MMR_DIR_PRIVEC0),
 				      -1UL);
 				HUB_S((u64 *)
 				      GLOBAL_MMR_ADDR(nasid,
-						      SH1_MD_DQRP_MMR_DIR_PRIVEC0),
+						   SH1_MD_DQRP_MMR_DIR_PRIVEC0),
 				      -1UL);
 			}
 		}
@@ -360,7 +359,7 @@ xpc_restrict_IPI_ops(void)
 	int node;
 	int nasid;
 
-	// >>> Change SH_IPI_ACCESS code to use SAL call once it is available.
+	/* >>> Change SH_IPI_ACCESS code to use SAL call once it is available */
 
 	if (is_shub2()) {
 
@@ -385,10 +384,10 @@ xpc_restrict_IPI_ops(void)
 
 			if (enable_shub_wars_1_1()) {
 				HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid,
-							     SH1_MD_DQLP_MMR_DIR_PRIVEC0),
+						   SH1_MD_DQLP_MMR_DIR_PRIVEC0),
 				      xpc_prot_vec[node]);
 				HUB_S((u64 *)GLOBAL_MMR_ADDR(nasid,
-							     SH1_MD_DQRP_MMR_DIR_PRIVEC0),
+						   SH1_MD_DQRP_MMR_DIR_PRIVEC0),
 				      xpc_prot_vec[node]);
 			}
 		}
@@ -411,13 +410,11 @@ xpc_check_remote_hb(void)
 
 	for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
 
-		if (xpc_exiting) {
+		if (xpc_exiting)
 			break;
-		}
 
-		if (partid == sn_partition_id) {
+		if (partid == sn_partition_id)
 			continue;
-		}
 
 		part = &xpc_partitions[partid];
 
@@ -471,24 +468,21 @@ xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
 	/* get the reserved page's physical address */
 
 	*remote_rp_pa = xpc_get_rsvd_page_pa(nasid);
-	if (*remote_rp_pa == 0) {
+	if (*remote_rp_pa == 0)
 		return xpcNoRsvdPageAddr;
-	}
 
 	/* pull over the reserved page header and part_nasids mask */
 	bres = xp_bte_copy(*remote_rp_pa, (u64)remote_rp,
 			   XPC_RP_HEADER_SIZE + xp_nasid_mask_bytes,
 			   (BTE_NOTIFY | BTE_WACQUIRE), NULL);
-	if (bres != BTE_SUCCESS) {
+	if (bres != BTE_SUCCESS)
 		return xpc_map_bte_errors(bres);
-	}
 
 	if (discovered_nasids != NULL) {
 		u64 *remote_part_nasids = XPC_RP_PART_NASIDS(remote_rp);
 
-		for (i = 0; i < xp_nasid_mask_words; i++) {
+		for (i = 0; i < xp_nasid_mask_words; i++)
 			discovered_nasids[i] |= remote_part_nasids[i];
-		}
 	}
 
 	/* check that the partid is for another partition */
@@ -498,9 +492,8 @@ xpc_get_remote_rp(int nasid, u64 *discovered_nasids,
 		return xpcInvalidPartid;
 	}
 
-	if (remote_rp->partid == sn_partition_id) {
+	if (remote_rp->partid == sn_partition_id)
 		return xpcLocalPartid;
-	}
 
 	if (XPC_VERSION_MAJOR(remote_rp->version) !=
 	    XPC_VERSION_MAJOR(XPC_RP_VERSION)) {
@@ -521,16 +514,14 @@ xpc_get_remote_vars(u64 remote_vars_pa, struct xpc_vars *remote_vars)
 {
 	int bres;
 
-	if (remote_vars_pa == 0) {
+	if (remote_vars_pa == 0)
 		return xpcVarsNotSet;
-	}
 
 	/* pull over the cross partition variables */
 	bres = xp_bte_copy(remote_vars_pa, (u64)remote_vars, XPC_RP_VARS_SIZE,
 			   (BTE_NOTIFY | BTE_WACQUIRE), NULL);
-	if (bres != BTE_SUCCESS) {
+	if (bres != BTE_SUCCESS)
 		return xpc_map_bte_errors(bres);
-	}
 
 	if (XPC_VERSION_MAJOR(remote_vars->version) !=
 	    XPC_VERSION_MAJOR(XPC_V_VERSION)) {
@@ -630,9 +621,9 @@ xpc_identify_act_IRQ_req(int nasid)
 
 	remote_vars_pa = remote_rp->vars_pa;
 	remote_rp_version = remote_rp->version;
-	if (XPC_SUPPORTS_RP_STAMP(remote_rp_version)) {
+	if (XPC_SUPPORTS_RP_STAMP(remote_rp_version))
 		remote_rp_stamp = remote_rp->stamp;
-	}
+
 	partid = remote_rp->partid;
 	part = &xpc_partitions[partid];
 
@@ -656,7 +647,8 @@ xpc_identify_act_IRQ_req(int nasid)
 		"%ld:0x%lx\n", (int)nasid, (int)partid, part->act_IRQ_rcvd,
 		remote_vars->heartbeat, remote_vars->heartbeating_to_mask);
 
-	if (xpc_partition_disengaged(part) && part->act_state == XPC_P_INACTIVE) {
+	if (xpc_partition_disengaged(part) &&
+	    part->act_state == XPC_P_INACTIVE) {
 
 		xpc_update_partition_info(part, remote_rp_version,
 					  &remote_rp_stamp, remote_rp_pa,
@@ -791,9 +783,8 @@ xpc_identify_act_IRQ_sender(void)
 	/* scan through act AMO variable looking for non-zero entries */
 	for (word = 0; word < xp_nasid_mask_words; word++) {
 
-		if (xpc_exiting) {
+		if (xpc_exiting)
 			break;
-		}
 
 		nasid_mask = xpc_IPI_receive(&act_amos[word]);
 		if (nasid_mask == 0) {
@@ -840,7 +831,8 @@ xpc_partition_disengaged(struct xpc_partition *part)
 	disengaged = (xpc_partition_engaged(1UL << partid) == 0);
 	if (part->disengage_request_timeout) {
 		if (!disengaged) {
-			if (time_before(jiffies, part->disengage_request_timeout)) {
+			if (time_before(jiffies,
+			    part->disengage_request_timeout)) {
 				/* timelimit hasn't been reached yet */
 				return 0;
 			}
@@ -866,13 +858,11 @@ xpc_partition_disengaged(struct xpc_partition *part)
 
 		DBUG_ON(part->act_state != XPC_P_DEACTIVATING &&
 			part->act_state != XPC_P_INACTIVE);
-		if (part->act_state != XPC_P_INACTIVE) {
+		if (part->act_state != XPC_P_INACTIVE)
 			xpc_wakeup_channel_mgr(part);
-		}
 
-		if (XPC_SUPPORTS_DISENGAGE_REQUEST(part->remote_vars_version)) {
+		if (XPC_SUPPORTS_DISENGAGE_REQUEST(part->remote_vars_version))
 			xpc_cancel_partition_disengage_request(part);
-		}
 	}
 	return disengaged;
 }
@@ -1000,9 +990,9 @@ xpc_discovery(void)
 	remote_rp = xpc_kmalloc_cacheline_aligned(XPC_RP_HEADER_SIZE +
 						  xp_nasid_mask_bytes,
 						  GFP_KERNEL, &remote_rp_base);
-	if (remote_rp == NULL) {
+	if (remote_rp == NULL)
 		return;
-	}
+
 	remote_vars = (struct xpc_vars *)remote_rp;
 
 	discovered_nasids = kzalloc(sizeof(u64) * xp_nasid_mask_words,
@@ -1035,18 +1025,16 @@ xpc_discovery(void)
 
 	for (region = 0; region < max_regions; region++) {
 
-		if ((volatile int)xpc_exiting) {
+		if (xpc_exiting)
 			break;
-		}
 
 		dev_dbg(xpc_part, "searching region %d\n", region);
 
 		for (nasid = (region * region_size * 2);
 		     nasid < ((region + 1) * region_size * 2); nasid += 2) {
 
-			if ((volatile int)xpc_exiting) {
+			if (xpc_exiting)
 				break;
-			}
 
 			dev_dbg(xpc_part, "checking nasid %d\n", nasid);
 
@@ -1080,9 +1068,9 @@ xpc_discovery(void)
 					"from nasid %d, reason=%d\n", nasid,
 					ret);
 
-				if (ret == xpcLocalPartid) {
+				if (ret == xpcLocalPartid)
 					break;
-				}
+
 				continue;
 			}
 
@@ -1171,9 +1159,8 @@ xpc_initiate_partid_to_nasids(partid_t partid, void *nasid_mask)
 	int bte_res;
 
 	part = &xpc_partitions[partid];
-	if (part->remote_rp_pa == 0) {
+	if (part->remote_rp_pa == 0)
 		return xpcPartitionDown;
-	}
 
 	memset(nasid_mask, 0, XP_NASID_MASK_BYTES);
 

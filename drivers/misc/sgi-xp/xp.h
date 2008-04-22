@@ -79,9 +79,9 @@ xp_bte_copy(u64 src, u64 vdst, u64 len, u64 mode, void *notification)
 
 	ret = bte_copy(src, pdst, len, mode, notification);
 	if ((ret != BTE_SUCCESS) && BTE_ERROR_RETRY(ret)) {
-		if (!in_interrupt()) {
+		if (!in_interrupt())
 			cond_resched();
-		}
+
 		ret = bte_copy(src, pdst, len, mode, notification);
 	}
 
@@ -255,7 +255,7 @@ enum xpc_retval {
 				/* 115: BTE end */
 	xpcBteSh2End = xpcBteSh2Start + BTEFAIL_SH2_ALL,
 
-	xpcUnknownReason	/* 116: unknown reason -- must be last in list */
+	xpcUnknownReason	/* 116: unknown reason - must be last in enum */
 };
 
 /*
