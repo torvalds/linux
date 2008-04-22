@@ -18,8 +18,6 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-#define PREFIX "tea5761"
-
 struct tea5761_priv {
 	struct tuner_i2c_props i2c_props;
 
@@ -131,7 +129,7 @@ static void tea5761_status_dump(unsigned char *buffer)
 
 	frq = 1000 * (div * 32768 / 1000 + FREQ_OFFSET + 225) / 4;	/* Freq in KHz */
 
-	printk(PREFIX "Frequency %d.%03d KHz (divider = 0x%04x)\n",
+	printk(KERN_INFO "tea5761: Frequency %d.%03d KHz (divider = 0x%04x)\n",
 	       frq / 1000, frq % 1000, div);
 }
 
@@ -302,6 +300,7 @@ struct dvb_frontend *tea5761_attach(struct dvb_frontend *fe,
 
 	priv->i2c_props.addr = i2c_addr;
 	priv->i2c_props.adap = i2c_adap;
+	priv->i2c_props.name = "tea5761";
 
 	memcpy(&fe->ops.tuner_ops, &tea5761_tuner_ops,
 	       sizeof(struct dvb_tuner_ops));

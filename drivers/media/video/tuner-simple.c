@@ -17,8 +17,6 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-#define PREFIX "tuner-simple"
-
 static int offset;
 module_param(offset, int, 0664);
 MODULE_PARM_DESC(offset, "Allows to specify an offset for tuner");
@@ -738,6 +736,8 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 
 	priv->i2c_props.addr = i2c_addr;
 	priv->i2c_props.adap = i2c_adap;
+	priv->i2c_props.name = "tuner-simple";
+
 	priv->type = type;
 	priv->tun  = &tuners[type];
 

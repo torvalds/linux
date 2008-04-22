@@ -14,8 +14,6 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-#define PREFIX "mt20xx"
-
 /* ---------------------------------------------------------------------- */
 
 static unsigned int optimize_vco  = 1;
@@ -611,6 +609,7 @@ struct dvb_frontend *microtune_attach(struct dvb_frontend *fe,
 
 	priv->i2c_props.addr = i2c_addr;
 	priv->i2c_props.adap = i2c_adap;
+	priv->i2c_props.name = "mt20xx";
 
 	//priv->radio_if2 = 10700 * 1000;	/* 10.7MHz - FM radio */
 

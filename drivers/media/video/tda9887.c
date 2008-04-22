@@ -25,8 +25,6 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-#define PREFIX "tda9887"
-
 struct tda9887_priv {
 	struct tuner_i2c_props i2c_props;
 
@@ -673,6 +671,7 @@ struct dvb_frontend *tda9887_attach(struct dvb_frontend *fe,
 
 	priv->i2c_props.addr = i2c_addr;
 	priv->i2c_props.adap = i2c_adap;
+	priv->i2c_props.name = "tda9887";
 	priv->mode = T_STANDBY;
 
 	tuner_info("tda988[5/6/7] found\n");

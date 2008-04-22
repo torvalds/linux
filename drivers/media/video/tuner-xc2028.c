@@ -23,8 +23,6 @@
 #include "dvb_frontend.h"
 
 
-#define PREFIX "xc2028"
-
 static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
@@ -1153,13 +1151,13 @@ struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
 	void               *video_dev;
 
 	if (debug)
-		printk(KERN_DEBUG PREFIX ": Xcv2028/3028 init called!\n");
+		printk(KERN_DEBUG "xc2028: Xcv2028/3028 init called!\n");
 
 	if (NULL == cfg || NULL == cfg->video_dev)
 		return NULL;
 
 	if (!fe) {
-		printk(KERN_ERR PREFIX ": No frontend!\n");
+		printk(KERN_ERR "xc2028: No frontend!\n");
 		return NULL;
 	}
 
@@ -1183,6 +1181,8 @@ struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
 
 		priv->i2c_props.addr = cfg->i2c_addr;
 		priv->i2c_props.adap = cfg->i2c_adap;
+		priv->i2c_props.name = "xc2028";
+
 		priv->video_dev = video_dev;
 		priv->tuner_callback = cfg->callback;
 		priv->ctrl.max_len = 13;

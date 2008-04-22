@@ -32,8 +32,6 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-#define PREFIX "tda8290"
-
 /* ---------------------------------------------------------------------- */
 
 struct tda8290_priv {
@@ -674,6 +672,7 @@ struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 
 	priv->i2c_props.addr     = i2c_addr;
 	priv->i2c_props.adap     = i2c_adap;
+	priv->i2c_props.name     = "tda829x";
 	if (cfg) {
 		priv->cfg.config         = cfg->lna_cfg;
 		priv->cfg.tuner_callback = cfg->tuner_callback;
