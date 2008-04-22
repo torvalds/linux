@@ -268,6 +268,37 @@ static int simple_config_lookup(struct dvb_frontend *fe,
 
 /* ---------------------------------------------------------------------- */
 
+static void simple_set_rf_input(struct dvb_frontend *fe,
+				u8 *config, u8 *cb, unsigned int rf)
+{
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+
+	switch (priv->type) {
+	case TUNER_PHILIPS_TUV1236D:
+		switch (rf) {
+		case 1:
+			*cb |= 0x08;
+			break;
+		default:
+			*cb &= ~0x08;
+			break;
+		}
+		break;
+	case TUNER_PHILIPS_ATSC:
+		switch (rf) {
+		case 1:
+			*cb |= 0x01;
+			break;
+		default:
+			*cb &= ~0x01;
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
 static int simple_std_setup(struct dvb_frontend *fe,
 			    struct analog_parameters *params,
 			    u8 *config, u8 *cb)
@@ -725,6 +756,24 @@ static void simple_set_dvb(struct dvb_frontend *fe, u8 *buf,
 		    params->frequency >= 158870000)
 			buf[3] |= 0x08;
 		break;
+	case TUNER_PHILIPS_TUV1236D:
+	case TUNER_PHILIPS_ATSC:
+	{
+		unsigned int new_rf;
+
+		switch (params->u.vsb.modulation) {
+		case QAM_64:
+		case QAM_256:
+			new_rf = 1;
+			break;
+		case VSB_8:
+		default:
+			new_rf = 0;
+			break;
+		}
+		simple_set_rf_input(fe, &buf[2], &buf[3], new_rf);
+		break;
+	}
 	default:
 		break;
 	}
