@@ -187,7 +187,6 @@ struct pvr2_hdw {
 	struct workqueue_struct *workqueue;
 	struct work_struct workpoll;     /* Update driver state */
 	struct work_struct worki2csync;  /* Update i2c clients */
-	struct work_struct workinit;     /* Driver initialization sequence */
 
 	/* Video spigot */
 	struct pvr2_stream *vid_stream;

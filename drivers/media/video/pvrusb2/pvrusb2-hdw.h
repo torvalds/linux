@@ -103,9 +103,9 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 
 /* Perform second stage initialization, passing in a notification callback
    for when the master state changes. */
-void pvr2_hdw_initialize(struct pvr2_hdw *,
-			 void (*callback_func)(void *),
-			 void *callback_data);
+int pvr2_hdw_initialize(struct pvr2_hdw *,
+			void (*callback_func)(void *),
+			void *callback_data);
 
 /* Destroy hardware interaction structure */
 void pvr2_hdw_destroy(struct pvr2_hdw *);

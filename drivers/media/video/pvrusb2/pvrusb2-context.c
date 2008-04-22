@@ -23,6 +23,7 @@
 #include "pvrusb2-ioread.h"
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-debug.h"
+#include <linux/kthread.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -30,32 +31,65 @@
 
 static void pvr2_context_destroy(struct pvr2_context *mp)
 {
-	pvr2_trace(PVR2_TRACE_STRUCT,"Destroying pvr_main id=%p",mp);
+	pvr2_trace(PVR2_TRACE_CTXT,"pvr2_context %p (destroy)",mp);
 	if (mp->hdw) pvr2_hdw_destroy(mp->hdw);
 	kfree(mp);
 }
 
 
-static void pvr2_context_state_check(struct pvr2_context *mp)
+static void pvr2_context_notify(struct pvr2_context *mp)
 {
-	if (mp->init_flag) return;
+	mp->notify_flag = !0;
+	wake_up(&mp->wait_data);
+}
 
-	switch (pvr2_hdw_get_state(mp->hdw)) {
-	case PVR2_STATE_WARM: break;
-	case PVR2_STATE_ERROR: break;
-	case PVR2_STATE_READY: break;
-	case PVR2_STATE_RUN: break;
-	default: return;
+
+static int pvr2_context_thread(void *_mp)
+{
+	struct pvr2_channel *ch1,*ch2;
+	struct pvr2_context *mp = _mp;
+	pvr2_trace(PVR2_TRACE_CTXT,"pvr2_context %p (thread start)",mp);
+
+	/* Finish hardware initialization */
+	if (pvr2_hdw_initialize(mp->hdw,
+				(void (*)(void *))pvr2_context_notify,mp)) {
+		mp->video_stream.stream =
+			pvr2_hdw_get_video_stream(mp->hdw);
+		/* Trigger interface initialization.  By doing this here
+		   initialization runs in our own safe and cozy thread
+		   context. */
+		if (mp->setup_func) mp->setup_func(mp);
+	} else {
+		pvr2_trace(PVR2_TRACE_CTXT,
+			   "pvr2_context %p (thread skipping setup)",mp);
+		/* Even though initialization did not succeed, we're still
+		   going to enter the wait loop anyway.  We need to do this
+		   in order to await the expected disconnect (which we will
+		   detect in the normal course of operation). */
 	}
 
-	pvr2_context_enter(mp); do {
-		mp->init_flag = !0;
-		mp->video_stream.stream = pvr2_hdw_get_video_stream(mp->hdw);
-		if (mp->setup_func) {
-			mp->setup_func(mp);
+	/* Now just issue callbacks whenever hardware state changes or if
+	   there is a disconnect.  If there is a disconnect and there are
+	   no channels left, then there's no reason to stick around anymore
+	   so we'll self-destruct - tearing down the rest of this driver
+	   instance along the way. */
+	pvr2_trace(PVR2_TRACE_CTXT,"pvr2_context %p (thread enter loop)",mp);
+	while (!mp->disconnect_flag || mp->mc_first) {
+		if (mp->notify_flag) {
+			mp->notify_flag = 0;
+			pvr2_trace(PVR2_TRACE_CTXT,
+				   "pvr2_context %p (thread notify)",mp);
+			for (ch1 = mp->mc_first; ch1; ch1 = ch2) {
+				ch2 = ch1->mc_next;
+				if (ch1->check_func) ch1->check_func(ch1);
+			}
 		}
-	} while (0); pvr2_context_exit(mp);
- }
+		wait_event_interruptible(mp->wait_data, mp->notify_flag);
+	}
+	pvr2_trace(PVR2_TRACE_CTXT,"pvr2_context %p (thread end)",mp);
+	pvr2_context_destroy(mp);
+	return 0;
+}
 
 
 struct pvr2_context *pvr2_context_create(
@@ -63,10 +97,12 @@ struct pvr2_context *pvr2_context_create(
 	const struct usb_device_id *devid,
 	void (*setup_func)(struct pvr2_context *))
 {
+	struct task_struct *thread;
 	struct pvr2_context *mp = NULL;
 	mp = kzalloc(sizeof(*mp),GFP_KERNEL);
 	if (!mp) goto done;
-	pvr2_trace(PVR2_TRACE_STRUCT,"Creating pvr_main id=%p",mp);
+	pvr2_trace(PVR2_TRACE_CTXT,"pvr2_context %p (create)",mp);
+	init_waitqueue_head(&mp->wait_data);
 	mp->setup_func = setup_func;
 	mutex_init(&mp->mutex);
 	mp->hdw = pvr2_hdw_create(intf,devid);
@@ -75,57 +111,45 @@ struct pvr2_context *pvr2_context_create(
 		mp = NULL;
 		goto done;
 	}
-	pvr2_hdw_initialize(mp->hdw,
-			    (void (*)(void *))pvr2_context_state_check,
-			    mp);
+	thread = kthread_run(pvr2_context_thread, mp, "pvrusb2-context");
+	if (!thread) {
+		pvr2_context_destroy(mp);
+		mp = NULL;
+		goto done;
+	}
  done:
 	return mp;
 }
 
 
-void pvr2_context_enter(struct pvr2_context *mp)
+static void pvr2_context_enter(struct pvr2_context *mp)
 {
 	mutex_lock(&mp->mutex);
-	pvr2_trace(PVR2_TRACE_CREG,"pvr2_context_enter(id=%p)",mp);
 }
 
 
-void pvr2_context_exit(struct pvr2_context *mp)
+static void pvr2_context_exit(struct pvr2_context *mp)
 {
 	int destroy_flag = 0;
 	if (!(mp->mc_first || !mp->disconnect_flag)) {
 		destroy_flag = !0;
 	}
-	pvr2_trace(PVR2_TRACE_CREG,"pvr2_context_exit(id=%p) outside",mp);
 	mutex_unlock(&mp->mutex);
-	if (destroy_flag) pvr2_context_destroy(mp);
-}
-
-
-static void pvr2_context_run_checks(struct pvr2_context *mp)
-{
-	struct pvr2_channel *ch1,*ch2;
-	for (ch1 = mp->mc_first; ch1; ch1 = ch2) {
-		ch2 = ch1->mc_next;
-		if (ch1->check_func) {
-			ch1->check_func(ch1);
-		}
-	}
+	if (destroy_flag) pvr2_context_notify(mp);
 }
 
 
 void pvr2_context_disconnect(struct pvr2_context *mp)
 {
-	pvr2_context_enter(mp); do {
-		pvr2_hdw_disconnect(mp->hdw);
-		mp->disconnect_flag = !0;
-		pvr2_context_run_checks(mp);
-	} while (0); pvr2_context_exit(mp);
+	pvr2_hdw_disconnect(mp->hdw);
+	mp->disconnect_flag = !0;
+	pvr2_context_notify(mp);
 }
 
 
 void pvr2_channel_init(struct pvr2_channel *cp,struct pvr2_context *mp)
 {
+	pvr2_context_enter(mp);
 	cp->hdw = mp->hdw;
 	cp->mc_head = mp;
 	cp->mc_next = NULL;
@@ -136,6 +160,7 @@ void pvr2_channel_init(struct pvr2_channel *cp,struct pvr2_context *mp)
 		mp->mc_first = cp;
 	}
 	mp->mc_last = cp;
+	pvr2_context_exit(mp);
 }
 
 
@@ -151,6 +176,7 @@ static void pvr2_channel_disclaim_stream(struct pvr2_channel *cp)
 void pvr2_channel_done(struct pvr2_channel *cp)
 {
 	struct pvr2_context *mp = cp->mc_head;
+	pvr2_context_enter(mp);
 	pvr2_channel_disclaim_stream(cp);
 	if (cp->mc_next) {
 		cp->mc_next->mc_prev = cp->mc_prev;
@@ -163,6 +189,7 @@ void pvr2_channel_done(struct pvr2_channel *cp)
 		mp->mc_first = cp->mc_next;
 	}
 	cp->hdw = NULL;
+	pvr2_context_exit(mp);
 }
 
 

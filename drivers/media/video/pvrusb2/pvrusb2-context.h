@@ -43,8 +43,10 @@ struct pvr2_context {
 	struct pvr2_hdw *hdw;
 	struct pvr2_context_stream video_stream;
 	struct mutex mutex;
+	int notify_flag;
 	int disconnect_flag;
-	int init_flag;
+
+	wait_queue_head_t wait_data;
 
 	/* Called after pvr2_context initialization is complete */
 	void (*setup_func)(struct pvr2_context *);
@@ -59,9 +61,6 @@ struct pvr2_channel {
 	struct pvr2_hdw *hdw;
 	void (*check_func)(struct pvr2_channel *);
 };
-
-void pvr2_context_enter(struct pvr2_context *);
-void pvr2_context_exit(struct pvr2_context *);
 
 struct pvr2_context *pvr2_context_create(struct usb_interface *intf,
 					 const struct usb_device_id *devid,

@@ -884,7 +884,6 @@ static int pvr2_v4l2_release(struct inode *inode, struct file *file)
 {
 	struct pvr2_v4l2_fh *fhp = file->private_data;
 	struct pvr2_v4l2 *vp = fhp->vhead;
-	struct pvr2_context *mp = fhp->vhead->channel.mc_head;
 	struct pvr2_hdw *hdw = fhp->channel.mc_head->hdw;
 
 	pvr2_trace(PVR2_TRACE_OPEN_CLOSE,"pvr2_v4l2_release");
@@ -901,42 +900,40 @@ static int pvr2_v4l2_release(struct inode *inode, struct file *file)
 	v4l2_prio_close(&vp->prio, &fhp->prio);
 	file->private_data = NULL;
 
-	pvr2_context_enter(mp); do {
-		/* Restore the previous input selection, if it makes sense
-		   to do so. */
-		if (fhp->dev_info->v4l_type == VFL_TYPE_RADIO) {
-			struct pvr2_ctrl *cp;
-			int pval;
-			cp = pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_INPUT);
-			pvr2_ctrl_get_value(cp,&pval);
-			/* Only restore if we're still selecting the radio */
-			if (pval == PVR2_CVAL_INPUT_RADIO) {
-				pvr2_ctrl_set_value(cp,fhp->prev_input_val);
-				pvr2_hdw_commit_ctl(hdw);
-			}
+	/* Restore the previous input selection, if it makes sense
+	   to do so. */
+	if (fhp->dev_info->v4l_type == VFL_TYPE_RADIO) {
+		struct pvr2_ctrl *cp;
+		int pval;
+		cp = pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_INPUT);
+		pvr2_ctrl_get_value(cp,&pval);
+		/* Only restore if we're still selecting the radio */
+		if (pval == PVR2_CVAL_INPUT_RADIO) {
+			pvr2_ctrl_set_value(cp,fhp->prev_input_val);
+			pvr2_hdw_commit_ctl(hdw);
 		}
+	}
 
-		if (fhp->vnext) {
-			fhp->vnext->vprev = fhp->vprev;
-		} else {
-			vp->vlast = fhp->vprev;
-		}
-		if (fhp->vprev) {
-			fhp->vprev->vnext = fhp->vnext;
-		} else {
-			vp->vfirst = fhp->vnext;
-		}
-		fhp->vnext = NULL;
-		fhp->vprev = NULL;
-		fhp->vhead = NULL;
-		pvr2_channel_done(&fhp->channel);
-		pvr2_trace(PVR2_TRACE_STRUCT,
-			   "Destroying pvr_v4l2_fh id=%p",fhp);
-		kfree(fhp);
-		if (vp->channel.mc_head->disconnect_flag && !vp->vfirst) {
-			pvr2_v4l2_destroy_no_lock(vp);
-		}
-	} while (0); pvr2_context_exit(mp);
+	if (fhp->vnext) {
+		fhp->vnext->vprev = fhp->vprev;
+	} else {
+		vp->vlast = fhp->vprev;
+	}
+	if (fhp->vprev) {
+		fhp->vprev->vnext = fhp->vnext;
+	} else {
+		vp->vfirst = fhp->vnext;
+	}
+	fhp->vnext = NULL;
+	fhp->vprev = NULL;
+	fhp->vhead = NULL;
+	pvr2_channel_done(&fhp->channel);
+	pvr2_trace(PVR2_TRACE_STRUCT,
+		   "Destroying pvr_v4l2_fh id=%p",fhp);
+	kfree(fhp);
+	if (vp->channel.mc_head->disconnect_flag && !vp->vfirst) {
+		pvr2_v4l2_destroy_no_lock(vp);
+	}
 	return 0;
 }
 
@@ -969,32 +966,30 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 	init_waitqueue_head(&fhp->wait_data);
 	fhp->dev_info = dip;
 
-	pvr2_context_enter(vp->channel.mc_head); do {
-		pvr2_trace(PVR2_TRACE_STRUCT,"Creating pvr_v4l2_fh id=%p",fhp);
-		pvr2_channel_init(&fhp->channel,vp->channel.mc_head);
+	pvr2_trace(PVR2_TRACE_STRUCT,"Creating pvr_v4l2_fh id=%p",fhp);
+	pvr2_channel_init(&fhp->channel,vp->channel.mc_head);
 
-		fhp->vnext = NULL;
-		fhp->vprev = vp->vlast;
-		if (vp->vlast) {
-			vp->vlast->vnext = fhp;
-		} else {
-			vp->vfirst = fhp;
-		}
-		vp->vlast = fhp;
-		fhp->vhead = vp;
+	fhp->vnext = NULL;
+	fhp->vprev = vp->vlast;
+	if (vp->vlast) {
+		vp->vlast->vnext = fhp;
+	} else {
+		vp->vfirst = fhp;
+	}
+	vp->vlast = fhp;
+	fhp->vhead = vp;
 
-		/* Opening the /dev/radioX device implies a mode switch.
-		   So execute that here.  Note that you can get the
-		   IDENTICAL effect merely by opening the normal video
-		   device and setting the input appropriately. */
-		if (dip->v4l_type == VFL_TYPE_RADIO) {
-			struct pvr2_ctrl *cp;
-			cp = pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_INPUT);
-			pvr2_ctrl_get_value(cp,&fhp->prev_input_val);
-			pvr2_ctrl_set_value(cp,PVR2_CVAL_INPUT_RADIO);
-			pvr2_hdw_commit_ctl(hdw);
-		}
-	} while (0); pvr2_context_exit(vp->channel.mc_head);
+	/* Opening the /dev/radioX device implies a mode switch.
+	   So execute that here.  Note that you can get the
+	   IDENTICAL effect merely by opening the normal video
+	   device and setting the input appropriately. */
+	if (dip->v4l_type == VFL_TYPE_RADIO) {
+		struct pvr2_ctrl *cp;
+		cp = pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_INPUT);
+		pvr2_ctrl_get_value(cp,&fhp->prev_input_val);
+		pvr2_ctrl_set_value(cp,PVR2_CVAL_INPUT_RADIO);
+		pvr2_hdw_commit_ctl(hdw);
+	}
 
 	fhp->file = file;
 	file->private_data = fhp;

@@ -221,7 +221,6 @@ static int pvr2_hdw_state_eval(struct pvr2_hdw *);
 static void pvr2_hdw_set_cur_freq(struct pvr2_hdw *,unsigned long);
 static void pvr2_hdw_worker_i2c(struct work_struct *work);
 static void pvr2_hdw_worker_poll(struct work_struct *work);
-static void pvr2_hdw_worker_init(struct work_struct *work);
 static int pvr2_hdw_wait(struct pvr2_hdw *,int state);
 static int pvr2_hdw_untrip_unlocked(struct pvr2_hdw *);
 static void pvr2_hdw_state_log_state(struct pvr2_hdw *);
@@ -1816,15 +1815,16 @@ static void pvr2_hdw_setup(struct pvr2_hdw *hdw)
 /* Perform second stage initialization.  Set callback pointer first so that
    we can avoid a possible initialization race (if the kernel thread runs
    before the callback has been set). */
-void pvr2_hdw_initialize(struct pvr2_hdw *hdw,
-			 void (*callback_func)(void *),
-			 void *callback_data)
+int pvr2_hdw_initialize(struct pvr2_hdw *hdw,
+			void (*callback_func)(void *),
+			void *callback_data)
 {
 	LOCK_TAKE(hdw->big_lock); do {
 		hdw->state_data = callback_data;
 		hdw->state_func = callback_func;
 	} while (0); LOCK_GIVE(hdw->big_lock);
-	queue_work(hdw->workqueue,&hdw->workinit);
+	pvr2_hdw_setup(hdw);
+	return hdw->flag_init_ok;
 }
 
 
@@ -2032,7 +2032,6 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	hdw->workqueue = create_singlethread_workqueue(hdw->name);
 	INIT_WORK(&hdw->workpoll,pvr2_hdw_worker_poll);
 	INIT_WORK(&hdw->worki2csync,pvr2_hdw_worker_i2c);
-	INIT_WORK(&hdw->workinit,pvr2_hdw_worker_init);
 
 	pvr2_trace(PVR2_TRACE_INIT,"Driver unit number is %d, name is %s",
 		   hdw->unit_number,hdw->name);
@@ -2514,15 +2513,6 @@ static void pvr2_hdw_worker_poll(struct work_struct *work)
 	if (fl && hdw->state_func) {
 		hdw->state_func(hdw->state_data);
 	}
-}
-
-
-static void pvr2_hdw_worker_init(struct work_struct *work)
-{
-	struct pvr2_hdw *hdw = container_of(work,struct pvr2_hdw,workinit);
-	LOCK_TAKE(hdw->big_lock); do {
-		pvr2_hdw_setup(hdw);
-	} while (0); LOCK_GIVE(hdw->big_lock);
 }
 
 
