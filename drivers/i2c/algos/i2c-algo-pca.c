@@ -1,6 +1,7 @@
 /*
  *  i2c-algo-pca.c i2c driver algorithms for PCA9564 adapters
  *    Copyright (C) 2004 Arcom Control Systems
+ *    Copyright (C) 2008 Pengutronix
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,14 +22,10 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-pca.h>
-#include "i2c-algo-pca.h"
-
-#define DRIVER "i2c-algo-pca"
 
 #define DEB1(fmt, args...) do { if (i2c_debug>=1) printk(fmt, ## args); } while(0)
 #define DEB2(fmt, args...) do { if (i2c_debug>=2) printk(fmt, ## args); } while(0)
@@ -36,15 +33,15 @@
 
 static int i2c_debug;
 
-#define pca_outw(adap, reg, val) adap->write_byte(adap, reg, val)
-#define pca_inw(adap, reg) adap->read_byte(adap, reg)
+#define pca_outw(adap, reg, val) adap->write_byte(adap->data, reg, val)
+#define pca_inw(adap, reg) adap->read_byte(adap->data, reg)
 
 #define pca_status(adap) pca_inw(adap, I2C_PCA_STA)
-#define pca_clock(adap) adap->get_clock(adap)
-#define pca_own(adap) adap->get_own(adap)
+#define pca_clock(adap) adap->i2c_clock
 #define pca_set_con(adap, val) pca_outw(adap, I2C_PCA_CON, val)
 #define pca_get_con(adap) pca_inw(adap, I2C_PCA_CON)
-#define pca_wait(adap) adap->wait_for_interrupt(adap)
+#define pca_wait(adap) adap->wait_for_completion(adap->data)
+#define pca_reset(adap) adap->reset_chip(adap->data)
 
 /*
  * Generate a start condition on the i2c bus.
@@ -168,15 +165,6 @@ static void pca_rx_ack(struct i2c_algo_pca_data *adap,
 	pca_wait(adap);
 }
 
-/*
- * Reset the i2c bus / SIO
- */
-static void pca_reset(struct i2c_algo_pca_data *adap)
-{
-	/* apparently only an external reset will do it. not a lot can be done */
-	printk(KERN_ERR DRIVER ": Haven't figured out how to do a reset yet\n");
-}
-
 static int pca_xfer(struct i2c_adapter *i2c_adap,
                     struct i2c_msg *msgs,
                     int num)
@@ -187,7 +175,7 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 	int numbytes = 0;
 	int state;
 	int ret;
-	int timeout = 100;
+	int timeout = i2c_adap->timeout;
 
 	while ((state = pca_status(adap)) != 0xf8 && timeout--) {
 		msleep(10);
@@ -317,7 +305,7 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 			pca_reset(adap);
 			goto out;
 		default:
-			printk(KERN_ERR DRIVER ": unhandled SIO state 0x%02x\n", state);
+			dev_err(&i2c_adap->dev, "unhandled SIO state 0x%02x\n", state);
 			break;
 		}
 
@@ -337,53 +325,65 @@ static u32 pca_func(struct i2c_adapter *adap)
         return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static int pca_init(struct i2c_algo_pca_data *adap)
-{
-	static int freqs[] = {330,288,217,146,88,59,44,36};
-	int own, clock;
-
-	own = pca_own(adap);
-	clock = pca_clock(adap);
-	DEB1(KERN_INFO DRIVER ": own address is %#04x\n", own);
-	DEB1(KERN_INFO DRIVER ": clock freqeuncy is %dkHz\n", freqs[clock]);
-
-	pca_outw(adap, I2C_PCA_ADR, own << 1);
-
-	pca_set_con(adap, I2C_PCA_CON_ENSIO | clock);
-	udelay(500); /* 500 us for oscilator to stabilise */
-
-	return 0;
-}
-
 static const struct i2c_algorithm pca_algo = {
 	.master_xfer	= pca_xfer,
 	.functionality	= pca_func,
 };
+
+static int pca_init(struct i2c_adapter *adap)
+{
+	static int freqs[] = {330,288,217,146,88,59,44,36};
+	int clock;
+	struct i2c_algo_pca_data *pca_data = adap->algo_data;
+
+	if (pca_data->i2c_clock > 7) {
+		printk(KERN_WARNING "%s: Invalid I2C clock speed selected. Trying default.\n",
+			adap->name);
+		pca_data->i2c_clock = I2C_PCA_CON_59kHz;
+	}
+
+	adap->algo = &pca_algo;
+
+	pca_reset(pca_data);
+
+	clock = pca_clock(pca_data);
+	DEB1(KERN_INFO "%s: Clock frequency is %dkHz\n", adap->name, freqs[clock]);
+
+	pca_set_con(pca_data, I2C_PCA_CON_ENSIO | clock);
+	udelay(500); /* 500 us for oscilator to stabilise */
+
+	return 0;
+}
 
 /*
  * registering functions to load algorithms at runtime
  */
 int i2c_pca_add_bus(struct i2c_adapter *adap)
 {
-	struct i2c_algo_pca_data *pca_adap = adap->algo_data;
 	int rval;
 
-	/* register new adapter to i2c module... */
-	adap->algo = &pca_algo;
-
-	adap->timeout = 100;		/* default values, should	*/
-	adap->retries = 3;		/* be replaced by defines	*/
-
-	if ((rval = pca_init(pca_adap)))
+	rval = pca_init(adap);
+	if (rval)
 		return rval;
 
-	rval = i2c_add_adapter(adap);
-
-	return rval;
+	return i2c_add_adapter(adap);
 }
 EXPORT_SYMBOL(i2c_pca_add_bus);
 
-MODULE_AUTHOR("Ian Campbell <icampbell@arcom.com>");
+int i2c_pca_add_numbered_bus(struct i2c_adapter *adap)
+{
+	int rval;
+
+	rval = pca_init(adap);
+	if (rval)
+		return rval;
+
+	return i2c_add_numbered_adapter(adap);
+}
+EXPORT_SYMBOL(i2c_pca_add_numbered_bus);
+
+MODULE_AUTHOR("Ian Campbell <icampbell@arcom.com>, "
+	"Wolfram Sang <w.sang@pengutronix.de>");
 MODULE_DESCRIPTION("I2C-Bus PCA9564 algorithm");
 MODULE_LICENSE("GPL");
 
