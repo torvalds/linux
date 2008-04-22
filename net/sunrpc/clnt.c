@@ -1173,6 +1173,11 @@ call_timeout(struct rpc_task *task)
 			clnt->cl_protname, clnt->cl_server);
 	}
 	rpc_force_rebind(clnt);
+	/*
+	 * Did our request time out due to an RPCSEC_GSS out-of-sequence
+	 * event? RFC2203 requires the server to drop all such requests.
+	 */
+	rpcauth_invalcred(task);
 
 retry:
 	clnt->cl_stats->rpcretrans++;
