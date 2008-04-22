@@ -34,6 +34,7 @@
 #include <linux/platform_device.h>
 
 #include <asm/blackfin.h>
+#include <asm/portmux.h>
 #include <asm/irq.h>
 
 #define POLL_TIMEOUT       (2 * HZ)
@@ -88,6 +89,11 @@ DEFINE_TWI_REG(XMT_DATA8, 0x80)
 DEFINE_TWI_REG(XMT_DATA16, 0x84)
 DEFINE_TWI_REG(RCV_DATA8, 0x88)
 DEFINE_TWI_REG(RCV_DATA16, 0x8C)
+
+static const u16 pin_req[2][3] = {
+	{P_TWI0_SCL, P_TWI0_SDA, 0},
+	{P_TWI1_SCL, P_TWI1_SDA, 0},
+};
 
 static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
 {
@@ -653,6 +659,12 @@ static int i2c_bfin_twi_probe(struct platform_device *pdev)
 	p_adap->class = I2C_CLASS_ALL;
 	p_adap->dev.parent = &pdev->dev;
 
+	rc = peripheral_request_list(pin_req[pdev->id], "i2c-bfin-twi");
+	if (rc) {
+		dev_err(&pdev->dev, "Can't setup pin mux!\n");
+		goto out_error_pin_mux;
+	}
+
 	rc = request_irq(iface->irq, bfin_twi_interrupt_entry,
 		IRQF_DISABLED, pdev->name, iface);
 	if (rc) {
@@ -690,6 +702,8 @@ out_error_add_adapter:
 	free_irq(iface->irq, iface);
 out_error_req_irq:
 out_error_no_irq:
+	peripheral_free_list(pin_req[pdev->id]);
+out_error_pin_mux:
 	iounmap(iface->regs_base);
 out_error_ioremap:
 out_error_get_res:
@@ -706,6 +720,7 @@ static int i2c_bfin_twi_remove(struct platform_device *pdev)
 
 	i2c_del_adapter(&(iface->adap));
 	free_irq(iface->irq, iface);
+	peripheral_free_list(pin_req[pdev->id]);
 	iounmap(iface->regs_base);
 	kfree(iface);
 
