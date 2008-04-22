@@ -836,4 +836,13 @@ config USB_STKWEBCAM
 
 endif # V4L_USB_DRIVERS
 
+config SOC_CAMERA
+	tristate "SoC camera support"
+	depends on VIDEO_V4L2
+	select VIDEOBUF_DMA_SG
+	help
+	  SoC Camera is a common API to several cameras, not connecting
+	  over a bus like PCI or USB. For example some i2c camera connected
+	  directly to the data bus of an SoC.
+
 endif # VIDEO_CAPTURE_DRIVERS
