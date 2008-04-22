@@ -96,12 +96,6 @@ static LIST_HEAD(nes_dev_list);
 
 atomic_t qps_destroyed;
 
-static void nes_print_macaddr(struct net_device *netdev);
-static irqreturn_t nes_interrupt(int, void *);
-static int __devinit nes_probe(struct pci_dev *, const struct pci_device_id *);
-static void __devexit nes_remove(struct pci_dev *);
-static int __init nes_init_module(void);
-static void __exit nes_exit_module(void);
 static unsigned int ee_flsh_adapter;
 static unsigned int sysfs_nonidx_addr;
 static unsigned int sysfs_idx_addr;
