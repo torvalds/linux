@@ -246,7 +246,7 @@ void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data)
 		}
 
 		mmc0_data = *data;
-		at91_clock_associate("mci0_clk", &at91cap9_mmc1_device.dev, "mci_clk");
+		at91_clock_associate("mci0_clk", &at91cap9_mmc0_device.dev, "mci_clk");
 		platform_device_register(&at91cap9_mmc0_device);
 	} else {			/* MCI1 */
 		/* CLK */
