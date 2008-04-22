@@ -419,9 +419,6 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 			if (jffs2_write_nand_cleanmarker(c, jeb))
 				goto filebad;
 		}
-
-		/* Everything else got zeroed before the erase */
-		jeb->free_size = c->sector_size;
 	} else {
 
 		struct kvec vecs[1];
@@ -449,18 +446,19 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 
 			goto filebad;
 		}
-
-		/* Everything else got zeroed before the erase */
-		jeb->free_size = c->sector_size;
-		/* FIXME Special case for cleanmarker in empty block */
-		jffs2_link_node_ref(c, jeb, jeb->offset | REF_NORMAL, c->cleanmarker_size, NULL);
 	}
+	/* Everything else got zeroed before the erase */
+	jeb->free_size = c->sector_size;
 
 	mutex_lock(&c->erase_free_sem);
 	spin_lock(&c->erase_completion_lock);
+
 	c->erasing_size -= c->sector_size;
-	c->free_size += jeb->free_size;
-	c->used_size += jeb->used_size;
+	c->free_size += c->sector_size;
+
+	/* Account for cleanmarker now, if it's in-band */
+	if (c->cleanmarker_size && !jffs2_cleanmarker_oob(c))
+		jffs2_link_node_ref(c, jeb, jeb->offset | REF_NORMAL, c->cleanmarker_size, NULL);
 
 	jffs2_dbg_acct_sanity_check_nolock(c,jeb);
 	jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
