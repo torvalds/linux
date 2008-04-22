@@ -655,7 +655,8 @@ tioce_dma(struct pci_dev *pdev, u64 paddr, size_t byte_count, int dma_flags)
  *
  * Simply call tioce_do_dma_map() to create a map with the barrier bit set
  * in the address.
- */ static u64
+ */
+static u64
 tioce_dma_consistent(struct pci_dev *pdev, u64 paddr, size_t byte_count, int dma_flags)
 {
 	return tioce_do_dma_map(pdev, paddr, byte_count, 1, dma_flags);
@@ -668,7 +669,8 @@ tioce_dma_consistent(struct pci_dev *pdev, u64 paddr, size_t byte_count, int dma
  *
  * Handle a CE error interrupt.  Simply a wrapper around a SAL call which
  * defers processing to the SGI prom.
- */ static irqreturn_t
+ */
+static irqreturn_t
 tioce_error_intr_handler(int irq, void *arg)
 {
 	struct tioce_common *soft = arg;

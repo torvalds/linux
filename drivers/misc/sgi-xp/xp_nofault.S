@@ -3,9 +3,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2004-2007 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2008 Silicon Graphics, Inc.  All Rights Reserved.
  */
-
 
 /*
  * The xp_nofault_PIOR function takes a pointer to a remote PIO register

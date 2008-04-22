@@ -3,9 +3,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2004-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2008 Silicon Graphics, Inc.  All Rights Reserved.
  */
-
 
 /*
  * Cross Partition (XP) base.
@@ -15,58 +14,64 @@
  *
  */
 
-
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/sn_sal.h>
-#include <asm/sn/xp.h>
-
+#include "xp.h"
 
 /*
- * Target of nofault PIO read.
+ * The export of xp_nofault_PIOR needs to happen here since it is defined
+ * in drivers/misc/sgi-xp/xp_nofault.S. The target of the nofault read is
+ * defined here.
  */
-u64 xp_nofault_PIOR_target;
+EXPORT_SYMBOL_GPL(xp_nofault_PIOR);
 
+u64 xp_nofault_PIOR_target;
+EXPORT_SYMBOL_GPL(xp_nofault_PIOR_target);
 
 /*
  * xpc_registrations[] keeps track of xpc_connect()'s done by the kernel-level
  * users of XPC.
  */
 struct xpc_registration xpc_registrations[XPC_NCHANNELS];
-
+EXPORT_SYMBOL_GPL(xpc_registrations);
 
 /*
  * Initialize the XPC interface to indicate that XPC isn't loaded.
  */
-static enum xpc_retval xpc_notloaded(void) { return xpcNotLoaded; }
+static enum xpc_retval
+xpc_notloaded(void)
+{
+	return xpcNotLoaded;
+}
 
 struct xpc_interface xpc_interface = {
-	(void (*)(int)) xpc_notloaded,
-	(void (*)(int)) xpc_notloaded,
-	(enum xpc_retval (*)(partid_t, int, u32, void **)) xpc_notloaded,
-	(enum xpc_retval (*)(partid_t, int, void *)) xpc_notloaded,
-	(enum xpc_retval (*)(partid_t, int, void *, xpc_notify_func, void *))
-							xpc_notloaded,
-	(void (*)(partid_t, int, void *)) xpc_notloaded,
-	(enum xpc_retval (*)(partid_t, void *)) xpc_notloaded
+	(void (*)(int))xpc_notloaded,
+	(void (*)(int))xpc_notloaded,
+	(enum xpc_retval(*)(partid_t, int, u32, void **))xpc_notloaded,
+	(enum xpc_retval(*)(partid_t, int, void *))xpc_notloaded,
+	(enum xpc_retval(*)(partid_t, int, void *, xpc_notify_func, void *))
+	    xpc_notloaded,
+	(void (*)(partid_t, int, void *))xpc_notloaded,
+	(enum xpc_retval(*)(partid_t, void *))xpc_notloaded
 };
-
+EXPORT_SYMBOL_GPL(xpc_interface);
 
 /*
  * XPC calls this when it (the XPC module) has been loaded.
  */
 void
-xpc_set_interface(void (*connect)(int),
-		void (*disconnect)(int),
-		enum xpc_retval (*allocate)(partid_t, int, u32, void **),
-		enum xpc_retval (*send)(partid_t, int, void *),
-		enum xpc_retval (*send_notify)(partid_t, int, void *,
-						xpc_notify_func, void *),
-		void (*received)(partid_t, int, void *),
-		enum xpc_retval (*partid_to_nasids)(partid_t, void *))
+xpc_set_interface(void (*connect) (int),
+		  void (*disconnect) (int),
+		  enum xpc_retval (*allocate) (partid_t, int, u32, void **),
+		  enum xpc_retval (*send) (partid_t, int, void *),
+		  enum xpc_retval (*send_notify) (partid_t, int, void *,
+						  xpc_notify_func, void *),
+		  void (*received) (partid_t, int, void *),
+		  enum xpc_retval (*partid_to_nasids) (partid_t, void *))
 {
 	xpc_interface.connect = connect;
 	xpc_interface.disconnect = disconnect;
@@ -76,7 +81,7 @@ xpc_set_interface(void (*connect)(int),
 	xpc_interface.received = received;
 	xpc_interface.partid_to_nasids = partid_to_nasids;
 }
-
+EXPORT_SYMBOL_GPL(xpc_set_interface);
 
 /*
  * XPC calls this when it (the XPC module) is being unloaded.
@@ -84,20 +89,21 @@ xpc_set_interface(void (*connect)(int),
 void
 xpc_clear_interface(void)
 {
-	xpc_interface.connect = (void (*)(int)) xpc_notloaded;
-	xpc_interface.disconnect = (void (*)(int)) xpc_notloaded;
-	xpc_interface.allocate = (enum xpc_retval (*)(partid_t, int, u32,
-					void **)) xpc_notloaded;
-	xpc_interface.send = (enum xpc_retval (*)(partid_t, int, void *))
-					xpc_notloaded;
-	xpc_interface.send_notify = (enum xpc_retval (*)(partid_t, int, void *,
-				    xpc_notify_func, void *)) xpc_notloaded;
+	xpc_interface.connect = (void (*)(int))xpc_notloaded;
+	xpc_interface.disconnect = (void (*)(int))xpc_notloaded;
+	xpc_interface.allocate = (enum xpc_retval(*)(partid_t, int, u32,
+						     void **))xpc_notloaded;
+	xpc_interface.send = (enum xpc_retval(*)(partid_t, int, void *))
+	    xpc_notloaded;
+	xpc_interface.send_notify = (enum xpc_retval(*)(partid_t, int, void *,
+							xpc_notify_func,
+							void *))xpc_notloaded;
 	xpc_interface.received = (void (*)(partid_t, int, void *))
-					xpc_notloaded;
-	xpc_interface.partid_to_nasids = (enum xpc_retval (*)(partid_t, void *))
-					xpc_notloaded;
+	    xpc_notloaded;
+	xpc_interface.partid_to_nasids = (enum xpc_retval(*)(partid_t, void *))
+	    xpc_notloaded;
 }
-
+EXPORT_SYMBOL_GPL(xpc_clear_interface);
 
 /*
  * Register for automatic establishment of a channel connection whenever
@@ -125,10 +131,9 @@ xpc_clear_interface(void)
  */
 enum xpc_retval
 xpc_connect(int ch_number, xpc_channel_func func, void *key, u16 payload_size,
-		u16 nentries, u32 assigned_limit, u32 idle_limit)
+	    u16 nentries, u32 assigned_limit, u32 idle_limit)
 {
 	struct xpc_registration *registration;
-
 
 	DBUG_ON(ch_number < 0 || ch_number >= XPC_NCHANNELS);
 	DBUG_ON(payload_size == 0 || nentries == 0);
@@ -137,9 +142,8 @@ xpc_connect(int ch_number, xpc_channel_func func, void *key, u16 payload_size,
 
 	registration = &xpc_registrations[ch_number];
 
-	if (mutex_lock_interruptible(&registration->mutex) != 0) {
+	if (mutex_lock_interruptible(&registration->mutex) != 0)
 		return xpcInterrupted;
-	}
 
 	/* if XPC_CHANNEL_REGISTERED(ch_number) */
 	if (registration->func != NULL) {
@@ -161,7 +165,7 @@ xpc_connect(int ch_number, xpc_channel_func func, void *key, u16 payload_size,
 
 	return xpcSuccess;
 }
-
+EXPORT_SYMBOL_GPL(xpc_connect);
 
 /*
  * Remove the registration for automatic connection of the specified channel
@@ -180,7 +184,6 @@ void
 xpc_disconnect(int ch_number)
 {
 	struct xpc_registration *registration;
-
 
 	DBUG_ON(ch_number < 0 || ch_number >= XPC_NCHANNELS);
 
@@ -213,19 +216,17 @@ xpc_disconnect(int ch_number)
 
 	return;
 }
-
+EXPORT_SYMBOL_GPL(xpc_disconnect);
 
 int __init
 xp_init(void)
 {
 	int ret, ch_number;
-	u64 func_addr = *(u64 *) xp_nofault_PIOR;
-	u64 err_func_addr = *(u64 *) xp_error_PIOR;
+	u64 func_addr = *(u64 *)xp_nofault_PIOR;
+	u64 err_func_addr = *(u64 *)xp_error_PIOR;
 
-
-	if (!ia64_platform_is("sn2")) {
+	if (!ia64_platform_is("sn2"))
 		return -ENODEV;
-	}
 
 	/*
 	 * Register a nofault code region which performs a cross-partition
@@ -236,55 +237,43 @@ xp_init(void)
 	 * least some CPUs on Shubs <= v1.2, which unfortunately we have to
 	 * work around).
 	 */
-	if ((ret = sn_register_nofault_code(func_addr, err_func_addr,
-						err_func_addr, 1, 1)) != 0) {
+	ret = sn_register_nofault_code(func_addr, err_func_addr, err_func_addr,
+				       1, 1);
+	if (ret != 0) {
 		printk(KERN_ERR "XP: can't register nofault code, error=%d\n",
-			ret);
+		       ret);
 	}
 	/*
 	 * Setup the nofault PIO read target. (There is no special reason why
 	 * SH_IPI_ACCESS was selected.)
 	 */
-	if (is_shub2()) {
+	if (is_shub2())
 		xp_nofault_PIOR_target = SH2_IPI_ACCESS0;
-	} else {
+	else
 		xp_nofault_PIOR_target = SH1_IPI_ACCESS;
-	}
 
 	/* initialize the connection registration mutex */
-	for (ch_number = 0; ch_number < XPC_NCHANNELS; ch_number++) {
+	for (ch_number = 0; ch_number < XPC_NCHANNELS; ch_number++)
 		mutex_init(&xpc_registrations[ch_number].mutex);
-	}
 
 	return 0;
 }
-module_init(xp_init);
 
+module_init(xp_init);
 
 void __exit
 xp_exit(void)
 {
-	u64 func_addr = *(u64 *) xp_nofault_PIOR;
-	u64 err_func_addr = *(u64 *) xp_error_PIOR;
-
+	u64 func_addr = *(u64 *)xp_nofault_PIOR;
+	u64 err_func_addr = *(u64 *)xp_error_PIOR;
 
 	/* unregister the PIO read nofault code region */
-	(void) sn_register_nofault_code(func_addr, err_func_addr,
-					err_func_addr, 1, 0);
+	(void)sn_register_nofault_code(func_addr, err_func_addr,
+				       err_func_addr, 1, 0);
 }
-module_exit(xp_exit);
 
+module_exit(xp_exit);
 
 MODULE_AUTHOR("Silicon Graphics, Inc.");
 MODULE_DESCRIPTION("Cross Partition (XP) base");
 MODULE_LICENSE("GPL");
-
-EXPORT_SYMBOL(xp_nofault_PIOR);
-EXPORT_SYMBOL(xp_nofault_PIOR_target);
-EXPORT_SYMBOL(xpc_registrations);
-EXPORT_SYMBOL(xpc_interface);
-EXPORT_SYMBOL(xpc_clear_interface);
-EXPORT_SYMBOL(xpc_set_interface);
-EXPORT_SYMBOL(xpc_connect);
-EXPORT_SYMBOL(xpc_disconnect);
-

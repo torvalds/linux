@@ -5511,7 +5511,7 @@ stop_monitoring:
 }
 
 static int
-pfm_do_interrupt_handler(int irq, void *arg, struct pt_regs *regs)
+pfm_do_interrupt_handler(void *arg, struct pt_regs *regs)
 {
 	struct task_struct *task;
 	pfm_context_t *ctx;
@@ -5591,7 +5591,7 @@ pfm_interrupt_handler(int irq, void *arg)
 
 		start_cycles = ia64_get_itc();
 
-		ret = pfm_do_interrupt_handler(irq, arg, regs);
+		ret = pfm_do_interrupt_handler(arg, regs);
 
 		total_cycles = ia64_get_itc();
 

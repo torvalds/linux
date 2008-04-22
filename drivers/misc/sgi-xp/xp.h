@@ -3,18 +3,15 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004-2005 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2004-2008 Silicon Graphics, Inc. All rights reserved.
  */
-
 
 /*
  * External Cross Partition (XP) structures and defines.
  */
 
-
-#ifndef _ASM_IA64_SN_XP_H
-#define _ASM_IA64_SN_XP_H
-
+#ifndef _DRIVERS_MISC_SGIXP_XP_H
+#define _DRIVERS_MISC_SGIXP_XP_H
 
 #include <linux/cache.h>
 #include <linux/hardirq.h>
@@ -22,13 +19,11 @@
 #include <asm/sn/types.h>
 #include <asm/sn/bte.h>
 
-
 #ifdef USE_DBUG_ON
 #define DBUG_ON(condition)	BUG_ON(condition)
 #else
 #define DBUG_ON(condition)
 #endif
-
 
 /*
  * Define the maximum number of logically defined partitions the system
@@ -43,7 +38,6 @@
  */
 #define XP_MAX_PARTITIONS	64
 
-
 /*
  * Define the number of u64s required to represent all the C-brick nasids
  * as a bitmap.  The cross-partition kernel modules deal only with
@@ -53,7 +47,6 @@
 #define XP_MAX_PHYSNODE_ID	(MAX_NUMALINK_NODES / 2)
 #define XP_NASID_MASK_BYTES	((XP_MAX_PHYSNODE_ID + 7) / 8)
 #define XP_NASID_MASK_WORDS	((XP_MAX_PHYSNODE_ID + 63) / 64)
-
 
 /*
  * Wrapper for bte_copy() that should it return a failure status will retry
@@ -74,7 +67,6 @@ xp_bte_copy(u64 src, u64 vdst, u64 len, u64 mode, void *notification)
 	bte_result_t ret;
 	u64 pdst = ia64_tpa(vdst);
 
-
 	/*
 	 * Ensure that the physically mapped memory is contiguous.
 	 *
@@ -87,15 +79,14 @@ xp_bte_copy(u64 src, u64 vdst, u64 len, u64 mode, void *notification)
 
 	ret = bte_copy(src, pdst, len, mode, notification);
 	if ((ret != BTE_SUCCESS) && BTE_ERROR_RETRY(ret)) {
-		if (!in_interrupt()) {
+		if (!in_interrupt())
 			cond_resched();
-		}
+
 		ret = bte_copy(src, pdst, len, mode, notification);
 	}
 
 	return ret;
 }
-
 
 /*
  * XPC establishes channel connections between the local partition and any
@@ -121,7 +112,6 @@ xp_bte_copy(u64 src, u64 vdst, u64 len, u64 mode, void *notification)
 #if XPC_NCHANNELS > XPC_MAX_NCHANNELS
 #error	XPC_NCHANNELS exceeds MAXIMUM allowed.
 #endif
-
 
 /*
  * The format of an XPC message is as follows:
@@ -160,11 +150,9 @@ struct xpc_msg {
 	u64 payload;		/* user defined portion of message */
 };
 
-
 #define XPC_MSG_PAYLOAD_OFFSET	(u64) (&((struct xpc_msg *)0)->payload)
 #define XPC_MSG_SIZE(_payload_size) \
 		L1_CACHE_ALIGN(XPC_MSG_PAYLOAD_OFFSET + (_payload_size))
-
 
 /*
  * Define the return values and values passed to user's callout functions.
@@ -267,9 +255,8 @@ enum xpc_retval {
 				/* 115: BTE end */
 	xpcBteSh2End = xpcBteSh2Start + BTEFAIL_SH2_ALL,
 
-	xpcUnknownReason	/* 116: unknown reason -- must be last in list */
+	xpcUnknownReason	/* 116: unknown reason - must be last in enum */
 };
-
 
 /*
  * Define the callout function types used by XPC to update the user on
@@ -375,12 +362,11 @@ enum xpc_retval {
  * =====================+================================+=====================
  */
 
-typedef void (*xpc_channel_func)(enum xpc_retval reason, partid_t partid,
-		int ch_number, void *data, void *key);
+typedef void (*xpc_channel_func) (enum xpc_retval reason, partid_t partid,
+				  int ch_number, void *data, void *key);
 
-typedef void (*xpc_notify_func)(enum xpc_retval reason, partid_t partid,
-		int ch_number, void *key);
-
+typedef void (*xpc_notify_func) (enum xpc_retval reason, partid_t partid,
+				 int ch_number, void *key);
 
 /*
  * The following is a registration entry. There is a global array of these,
@@ -398,50 +384,45 @@ typedef void (*xpc_notify_func)(enum xpc_retval reason, partid_t partid,
  */
 struct xpc_registration {
 	struct mutex mutex;
-	xpc_channel_func func;		/* function to call */
-	void *key;			/* pointer to user's key */
-	u16 nentries;			/* #of msg entries in local msg queue */
-	u16 msg_size;			/* message queue's message size */
-	u32 assigned_limit;		/* limit on #of assigned kthreads */
-	u32 idle_limit;			/* limit on #of idle kthreads */
+	xpc_channel_func func;	/* function to call */
+	void *key;		/* pointer to user's key */
+	u16 nentries;		/* #of msg entries in local msg queue */
+	u16 msg_size;		/* message queue's message size */
+	u32 assigned_limit;	/* limit on #of assigned kthreads */
+	u32 idle_limit;		/* limit on #of idle kthreads */
 } ____cacheline_aligned;
-
 
 #define XPC_CHANNEL_REGISTERED(_c)	(xpc_registrations[_c].func != NULL)
 
-
 /* the following are valid xpc_allocate() flags */
-#define XPC_WAIT	0		/* wait flag */
-#define XPC_NOWAIT	1		/* no wait flag */
-
+#define XPC_WAIT	0	/* wait flag */
+#define XPC_NOWAIT	1	/* no wait flag */
 
 struct xpc_interface {
-	void (*connect)(int);
-	void (*disconnect)(int);
-	enum xpc_retval (*allocate)(partid_t, int, u32, void **);
-	enum xpc_retval (*send)(partid_t, int, void *);
-	enum xpc_retval (*send_notify)(partid_t, int, void *,
-						xpc_notify_func, void *);
-	void (*received)(partid_t, int, void *);
-	enum xpc_retval (*partid_to_nasids)(partid_t, void *);
+	void (*connect) (int);
+	void (*disconnect) (int);
+	enum xpc_retval (*allocate) (partid_t, int, u32, void **);
+	enum xpc_retval (*send) (partid_t, int, void *);
+	enum xpc_retval (*send_notify) (partid_t, int, void *,
+					xpc_notify_func, void *);
+	void (*received) (partid_t, int, void *);
+	enum xpc_retval (*partid_to_nasids) (partid_t, void *);
 };
-
 
 extern struct xpc_interface xpc_interface;
 
 extern void xpc_set_interface(void (*)(int),
-		void (*)(int),
-		enum xpc_retval (*)(partid_t, int, u32, void **),
-		enum xpc_retval (*)(partid_t, int, void *),
-		enum xpc_retval (*)(partid_t, int, void *, xpc_notify_func,
-								void *),
-		void (*)(partid_t, int, void *),
-		enum xpc_retval (*)(partid_t, void *));
+			      void (*)(int),
+			      enum xpc_retval (*)(partid_t, int, u32, void **),
+			      enum xpc_retval (*)(partid_t, int, void *),
+			      enum xpc_retval (*)(partid_t, int, void *,
+						  xpc_notify_func, void *),
+			      void (*)(partid_t, int, void *),
+			      enum xpc_retval (*)(partid_t, void *));
 extern void xpc_clear_interface(void);
 
-
 extern enum xpc_retval xpc_connect(int, xpc_channel_func, void *, u16,
-						u16, u32, u32);
+				   u16, u32, u32);
 extern void xpc_disconnect(int);
 
 static inline enum xpc_retval
@@ -458,7 +439,7 @@ xpc_send(partid_t partid, int ch_number, void *payload)
 
 static inline enum xpc_retval
 xpc_send_notify(partid_t partid, int ch_number, void *payload,
-			xpc_notify_func func, void *key)
+		xpc_notify_func func, void *key)
 {
 	return xpc_interface.send_notify(partid, ch_number, payload, func, key);
 }
@@ -475,11 +456,8 @@ xpc_partid_to_nasids(partid_t partid, void *nasids)
 	return xpc_interface.partid_to_nasids(partid, nasids);
 }
 
-
 extern u64 xp_nofault_PIOR_target;
 extern int xp_nofault_PIOR(void *);
 extern int xp_error_PIOR(void);
 
-
-#endif /* _ASM_IA64_SN_XP_H */
-
+#endif /* _DRIVERS_MISC_SGIXP_XP_H */

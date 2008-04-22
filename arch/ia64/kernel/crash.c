@@ -194,8 +194,8 @@ kdump_init_notifier(struct notifier_block *self, unsigned long val, void *data)
 			unw_init_running(kdump_cpu_freeze, NULL);
 		break;
 	case DIE_MCA_MONARCH_LEAVE:
-		/* die_register->signr indicate if MCA is recoverable */
-		if (kdump_on_fatal_mca && !args->signr) {
+		/* *(nd->data) indicate if MCA is recoverable */
+		if (kdump_on_fatal_mca && !(*(nd->data))) {
 			atomic_set(&kdump_in_progress, 1);
 			*(nd->monarch_cpu) = -1;
 			machine_kdump_on_init();
