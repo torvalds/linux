@@ -49,7 +49,7 @@ int xfs_rename(struct xfs_inode *src_dp, struct xfs_name *src_name,
 		struct xfs_inode *src_ip, struct xfs_inode *target_dp,
 		struct xfs_name *target_name, struct xfs_inode *target_ip);
 int xfs_attr_get(struct xfs_inode *ip, const char *name, char *value,
-		int *valuelenp, int flags, cred_t *cred);
+		int *valuelenp, int flags);
 int xfs_attr_set(struct xfs_inode *dp, const char *name, char *value,
 		int valuelen, int flags);
 int xfs_attr_remove(struct xfs_inode *dp, const char *name, int flags);

@@ -334,14 +334,15 @@ xfs_acl_iaccess(
 {
 	xfs_acl_t	*acl;
 	int		rval;
+	struct xfs_name	acl_name = {SGI_ACL_FILE, SGI_ACL_FILE_SIZE};
 
 	if (!(_ACL_ALLOC(acl)))
 		return -1;
 
 	/* If the file has no ACL return -1. */
 	rval = sizeof(xfs_acl_t);
-	if (xfs_attr_fetch(ip, SGI_ACL_FILE, SGI_ACL_FILE_SIZE,
-			(char *)acl, &rval, ATTR_ROOT | ATTR_KERNACCESS, cr)) {
+	if (xfs_attr_fetch(ip, &acl_name, (char *)acl, &rval,
+					ATTR_ROOT | ATTR_KERNACCESS)) {
 		_ACL_FREE(acl);
 		return -1;
 	}
@@ -579,7 +580,7 @@ xfs_acl_get_attr(
 	*error = xfs_attr_get(xfs_vtoi(vp),
 					kind == _ACL_TYPE_ACCESS ?
 					SGI_ACL_FILE : SGI_ACL_DEFAULT,
-					(char *)aclp, &len, flags, sys_cred);
+					(char *)aclp, &len, flags);
 	if (*error || (flags & ATTR_KERNOVAL))
 		return;
 	xfs_acl_get_endian(aclp);
