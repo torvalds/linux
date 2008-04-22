@@ -2045,12 +2045,16 @@ static int __devinit snd_vt1724_read_eeprom(struct snd_ice1712 *ice,
 
 
 
-static int __devinit snd_vt1724_chip_init(struct snd_ice1712 *ice)
+static void __devinit snd_vt1724_chip_reset(struct snd_ice1712 *ice)
 {
 	outb(VT1724_RESET , ICEREG1724(ice, CONTROL));
-	udelay(200);
+	msleep(10);
 	outb(0, ICEREG1724(ice, CONTROL));
-	udelay(200);
+	msleep(10);
+}
+
+static int __devinit snd_vt1724_chip_init(struct snd_ice1712 *ice)
+{
 	outb(ice->eeprom.data[ICE_EEP2_SYSCONF], ICEREG1724(ice, SYS_CFG));
 	outb(ice->eeprom.data[ICE_EEP2_ACLINK], ICEREG1724(ice, AC97_CFG));
 	outb(ice->eeprom.data[ICE_EEP2_I2S], ICEREG1724(ice, I2S_FEATURES));
@@ -2223,6 +2227,7 @@ static int __devinit snd_vt1724_create(struct snd_card *card,
 
 	ice->irq = pci->irq;
 
+	snd_vt1724_chip_reset(ice);
 	if (snd_vt1724_read_eeprom(ice, modelname) < 0) {
 		snd_vt1724_free(ice);
 		return -EIO;
