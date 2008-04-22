@@ -149,7 +149,12 @@ static inline int tuner_afcstatus(const int status)
 static int simple_get_status(struct dvb_frontend *fe, u32 *status)
 {
 	struct tuner_simple_priv *priv = fe->tuner_priv;
-	int tuner_status = tuner_read_status(fe);
+	int tuner_status;
+
+	if (priv->i2c_props.adap == NULL)
+		return -EINVAL;
+
+	tuner_status = tuner_read_status(fe);
 
 	*status = 0;
 
@@ -166,7 +171,12 @@ static int simple_get_status(struct dvb_frontend *fe, u32 *status)
 static int simple_get_rf_strength(struct dvb_frontend *fe, u16 *strength)
 {
 	struct tuner_simple_priv *priv = fe->tuner_priv;
-	int signal = tuner_signal(tuner_read_status(fe));
+	int signal;
+
+	if (priv->i2c_props.adap == NULL)
+		return -EINVAL;
+
+	signal = tuner_signal(tuner_read_status(fe));
 
 	*strength = signal;
 
@@ -684,6 +694,9 @@ static int simple_set_params(struct dvb_frontend *fe,
 {
 	struct tuner_simple_priv *priv = fe->tuner_priv;
 	int ret = -EINVAL;
+
+	if (priv->i2c_props.adap == NULL)
+		return -EINVAL;
 
 	switch (params->mode) {
 	case V4L2_TUNER_RADIO:
