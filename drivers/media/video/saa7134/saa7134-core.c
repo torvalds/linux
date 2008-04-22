@@ -145,7 +145,8 @@ void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value)
 int saa7134_tuner_callback(void *ptr, int command, int arg)
 {
 	u8 sync_control;
-	struct saa7134_dev *dev = ptr;
+	struct i2c_algo_bit_data *i2c_algo = priv;
+	struct saa7134_dev *dev = i2c_algo->data;
 
 	switch (dev->tuner_type) {
 	case TUNER_PHILIPS_TDA8290:
