@@ -619,6 +619,9 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 				  sizeof(struct cfi_intelext_blockinfo);
 		}
 
+		if (!numparts)
+			numparts = 1;
+
 		/* Programming Region info */
 		if (extp->MinorVersion >= '4') {
 			struct cfi_intelext_programming_regioninfo *prinfo;
