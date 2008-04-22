@@ -44,15 +44,23 @@
 #define MT9M001_CHIP_ENABLE		0xF1
 
 static const struct soc_camera_data_format mt9m001_colour_formats[] = {
+	/* Order important: first natively supported,
+	 * second supported with a GPIO extender */
 	{
-		.name		= "RGB Bayer (sRGB)",
-		.depth		= 16,
+		.name		= "Bayer (sRGB) 10 bit",
+		.depth		= 10,
+		.fourcc		= V4L2_PIX_FMT_SBGGR16,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+	}, {
+		.name		= "Bayer (sRGB) 8 bit",
+		.depth		= 8,
 		.fourcc		= V4L2_PIX_FMT_SBGGR8,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 	}
 };
 
 static const struct soc_camera_data_format mt9m001_monochrome_formats[] = {
+	/* Order important - see above */
 	{
 		.name		= "Monochrome 10 bit",
 		.depth		= 10,
@@ -547,7 +555,10 @@ static int mt9m001_video_probe(struct soc_camera_device *icd)
 	case 0x8421:
 		mt9m001->model = V4L2_IDENT_MT9M001C12ST;
 		mt9m001_ops.formats = mt9m001_colour_formats;
-		mt9m001_ops.num_formats = ARRAY_SIZE(mt9m001_colour_formats);
+		if (mt9m001->client->dev.platform_data)
+			mt9m001_ops.num_formats = ARRAY_SIZE(mt9m001_colour_formats);
+		else
+			mt9m001_ops.num_formats = 1;
 		break;
 	case 0x8431:
 		mt9m001->model = V4L2_IDENT_MT9M001C12STM;

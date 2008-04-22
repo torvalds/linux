@@ -59,18 +59,25 @@ MODULE_PARM_DESC(sensor_type, "Sensor type: \"colour\" or \"monochrome\"\n");
 /* Progressive scan, master, defaults */
 #define MT9V022_CHIP_CONTROL_DEFAULT	0x188
 
-static const struct soc_camera_data_format mt9v022_formats[] = {
+static const struct soc_camera_data_format mt9v022_colour_formats[] = {
+	/* Order important: first natively supported,
+	 * second supported with a GPIO extender */
 	{
-		.name		= "RGB Bayer (sRGB)",
-		.depth		= 8,
-		.fourcc		= V4L2_PIX_FMT_SBGGR8,
-		.colorspace	= V4L2_COLORSPACE_SRGB,
-	}, {
-		.name		= "RGB Bayer (sRGB)",
+		.name		= "Bayer (sRGB) 10 bit",
 		.depth		= 10,
 		.fourcc		= V4L2_PIX_FMT_SBGGR16,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 	}, {
+		.name		= "Bayer (sRGB) 8 bit",
+		.depth		= 8,
+		.fourcc		= V4L2_PIX_FMT_SBGGR8,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+	}
+};
+
+static const struct soc_camera_data_format mt9v022_monochrome_formats[] = {
+	/* Order important - see above */
+	{
 		.name		= "Monochrome 10 bit",
 		.depth		= 10,
 		.fourcc		= V4L2_PIX_FMT_Y16,
@@ -486,8 +493,8 @@ static struct soc_camera_ops mt9v022_ops = {
 	.stop_capture		= mt9v022_stop_capture,
 	.set_capture_format	= mt9v022_set_capture_format,
 	.try_fmt_cap		= mt9v022_try_fmt_cap,
-	.formats		= mt9v022_formats,
-	.num_formats		= ARRAY_SIZE(mt9v022_formats),
+	.formats		= NULL, /* Filled in later depending on the */
+	.num_formats		= 0,	/* sensor type and data widths */
 	.get_datawidth		= mt9v022_get_datawidth,
 	.controls		= mt9v022_controls,
 	.num_controls		= ARRAY_SIZE(mt9v022_controls),
@@ -671,9 +678,19 @@ static int mt9v022_video_probe(struct soc_camera_device *icd)
 			    !strcmp("color", sensor_type))) {
 		ret = reg_write(icd, MT9V022_PIXEL_OPERATION_MODE, 4 | 0x11);
 		mt9v022->model = V4L2_IDENT_MT9V022IX7ATC;
+		mt9v022_ops.formats = mt9v022_colour_formats;
+		if (mt9v022->client->dev.platform_data)
+			mt9v022_ops.num_formats = ARRAY_SIZE(mt9v022_colour_formats);
+		else
+			mt9v022_ops.num_formats = 1;
 	} else {
 		ret = reg_write(icd, MT9V022_PIXEL_OPERATION_MODE, 0x11);
 		mt9v022->model = V4L2_IDENT_MT9V022IX7ATM;
+		mt9v022_ops.formats = mt9v022_monochrome_formats;
+		if (mt9v022->client->dev.platform_data)
+			mt9v022_ops.num_formats = ARRAY_SIZE(mt9v022_monochrome_formats);
+		else
+			mt9v022_ops.num_formats = 1;
 	}
 
 	if (ret >= 0)
