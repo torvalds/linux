@@ -137,11 +137,11 @@ static const struct pvr2_device_desc pvr2_device_onair_creator = {
 		.client_modules.lst = pvr2_client_onair_creator,
 		.client_modules.cnt = ARRAY_SIZE(pvr2_client_onair_creator),
 		.default_tuner_type = TUNER_LG_TDVS_H06XF,
-		.flag_has_digitaltuner = !0,
 		.flag_has_analogtuner = !0,
 		.flag_has_composite = !0,
 		.flag_has_svideo = !0,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
+		.digital_control_scheme = PVR2_DIGITAL_SCHEME_ONAIR,
 };
 #endif
 
@@ -163,11 +163,11 @@ static const struct pvr2_device_desc pvr2_device_onair_usb2 = {
 		.client_modules.lst = pvr2_client_onair_usb2,
 		.client_modules.cnt = ARRAY_SIZE(pvr2_client_onair_usb2),
 		.default_tuner_type = TUNER_PHILIPS_ATSC,
-		.flag_has_digitaltuner = !0,
 		.flag_has_analogtuner = !0,
 		.flag_has_composite = !0,
 		.flag_has_svideo = !0,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
+		.digital_control_scheme = PVR2_DIGITAL_SCHEME_ONAIR,
 };
 #endif
 
@@ -229,11 +229,11 @@ static const struct pvr2_device_desc pvr2_device_75xxx = {
 		.fx2_firmware.cnt = ARRAY_SIZE(pvr2_fw1_names_75xxx),
 		.flag_has_cx25840 = !0,
 		.flag_has_hauppauge_rom = !0,
-		.flag_has_digitaltuner = !0,
 		.flag_has_analogtuner = !0,
 		.flag_has_composite = !0,
 		.flag_has_svideo = !0,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
+		.digital_control_scheme = PVR2_DIGITAL_SCHEME_HAUPPAUGE,
 		.default_std_mask = V4L2_STD_NTSC_M,
 };
 

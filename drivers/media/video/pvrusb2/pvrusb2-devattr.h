@@ -39,6 +39,10 @@ struct pvr2_string_table {
 #define PVR2_ROUTING_SCHEME_HAUPPAUGE 0
 #define PVR2_ROUTING_SCHEME_GOTVIEW 1
 
+#define PVR2_DIGITAL_SCHEME_NONE 0
+#define PVR2_DIGITAL_SCHEME_HAUPPAUGE 1
+#define PVR2_DIGITAL_SCHEME_ONAIR 2
+
 /* This describes a particular hardware type (except for the USB device ID
    which must live in a separate structure due to environmental
    constraints).  See the top of pvrusb2-hdw.c for where this is
@@ -65,6 +69,13 @@ struct pvr2_device_desc {
 	   interpreted by logic which must send commands to the chip-level
 	   drivers (search for things which touch this field). */
 	unsigned int signal_routing_scheme;
+
+	/* Control scheme to use if there is a digital tuner.  This
+	   contains one of PVR2_DIGITAL_SCHEME_XXX.  This is an arbitrary
+	   integer scheme id; its meaning is contained entirely within the
+	   driver and is interpreted by logic which must control the
+	   streaming pathway (search for things which touch this field). */
+	unsigned int digital_control_scheme;
 
 	/* V4L tuner type ID to use with this device (only used if the
 	   driver could not discover the type any other way). */
@@ -103,10 +114,11 @@ struct pvr2_device_desc {
 	   commands. */
 	char flag_has_hauppauge_custom_ir;
 
-	/* These bits define which kinds of sources the device can handle. */
+	/* These bits define which kinds of sources the device can handle.
+	   Note: Digital tuner presence is inferred by the
+	   digital_control_scheme enumeration. */
 	char flag_has_fmradio;       /* Has FM radio receiver */
 	char flag_has_analogtuner;   /* Has analog tuner */
-	char flag_has_digitaltuner;  /* Has digital tuner */
 	char flag_has_composite;     /* Has composite input */
 	char flag_has_svideo;        /* Has s-video input */
 };

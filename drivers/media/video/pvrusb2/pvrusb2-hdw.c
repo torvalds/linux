@@ -1852,7 +1852,9 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	/* Calculate which inputs are OK */
 	m = 0;
 	if (hdw_desc->flag_has_analogtuner) m |= 1 << PVR2_CVAL_INPUT_TV;
-	if (hdw_desc->flag_has_digitaltuner) m |= 1 << PVR2_CVAL_INPUT_DTV;
+	if (hdw_desc->digital_control_scheme != PVR2_DIGITAL_SCHEME_NONE) {
+		m |= 1 << PVR2_CVAL_INPUT_DTV;
+	}
 	if (hdw_desc->flag_has_svideo) m |= 1 << PVR2_CVAL_INPUT_SVIDEO;
 	if (hdw_desc->flag_has_composite) m |= 1 << PVR2_CVAL_INPUT_COMPOSITE;
 	if (hdw_desc->flag_has_fmradio) m |= 1 << PVR2_CVAL_INPUT_RADIO;
