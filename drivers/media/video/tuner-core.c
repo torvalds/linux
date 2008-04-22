@@ -313,18 +313,13 @@ static void tuner_i2c_address_check(struct tuner *t)
 	tuner_warn("output to v4l-dvb-maintainer@linuxtv.org\n");
 	tuner_warn("Please use subject line: \"obsolete tuner i2c address.\"\n");
 	tuner_warn("driver: %s, addr: 0x%02x, type: %d (%s)\n",
-		   t->i2c->adapter->name, t->i2c->addr, t->type,
-		   tuners[t->type].name);
+		   t->i2c->adapter->name, t->i2c->addr, t->type, t->i2c->name);
 	tuner_warn("====================== WARNING! ======================\n");
 }
 
-static void attach_simple_tuner(struct tuner *t)
+static inline void attach_simple_tuner(struct tuner *t)
 {
-	struct simple_tuner_config cfg = {
-		.type = t->type,
-		.tun  = &tuners[t->type]
-	};
-	simple_tuner_attach(&t->fe, t->i2c->adapter, t->i2c->addr, &cfg);
+	simple_tuner_attach(&t->fe, t->i2c->adapter, t->i2c->addr, t->type);
 }
 
 static void attach_tda829x(struct tuner *t)

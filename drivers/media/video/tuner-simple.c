@@ -684,7 +684,7 @@ static struct dvb_tuner_ops simple_tuner_ops = {
 struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 					 struct i2c_adapter *i2c_adap,
 					 u8 i2c_addr,
-					 struct simple_tuner_config *cfg)
+					 unsigned int type)
 {
 	struct tuner_simple_priv *priv = NULL;
 
@@ -701,15 +701,15 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 
 	priv->i2c_props.addr = i2c_addr;
 	priv->i2c_props.adap = i2c_adap;
-	priv->type = cfg->type;
-	priv->tun  = cfg->tun;
+	priv->type = type;
+	priv->tun  = &tuners[type];
 
 	memcpy(&fe->ops.tuner_ops, &simple_tuner_ops,
 	       sizeof(struct dvb_tuner_ops));
 
-	tuner_info("type set to %d (%s)\n", cfg->type, cfg->tun->name);
+	tuner_info("type set to %d (%s)\n", priv->type, priv->tun->name);
 
-	strlcpy(fe->ops.tuner_ops.info.name, cfg->tun->name,
+	strlcpy(fe->ops.tuner_ops.info.name, priv->tun->name,
 		sizeof(fe->ops.tuner_ops.info.name));
 
 	return fe;
