@@ -1875,6 +1875,15 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 		cptr = hdw->controls + idx;
 		cptr->info = control_defs+idx;
 	}
+
+	/* Ensure that default input choice is a valid one. */
+	m = hdw->input_avail_mask;
+	if (m) for (idx = 0; idx < (sizeof(m) << 3); idx++) {
+		if (!((1 << idx) & m)) continue;
+		hdw->input_val = idx;
+		break;
+	}
+
 	/* Define and configure additional controls from cx2341x module. */
 	hdw->mpeg_ctrl_info = kzalloc(
 		sizeof(*(hdw->mpeg_ctrl_info)) * MPEGDEF_COUNT, GFP_KERNEL);
