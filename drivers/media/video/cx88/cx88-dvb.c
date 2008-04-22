@@ -452,11 +452,33 @@ static struct zl10353_config cx88_geniatech_x8000_mt = {
        .no_tuner = 1,
 };
 
+static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
+{
+	struct dvb_frontend *fe;
+	struct xc2028_config cfg = {
+		.i2c_adap  = &dev->core->i2c_adap,
+		.i2c_addr  = addr,
+		.video_dev = dev->core,
+	};
+
+	fe = dvb_attach(xc2028_attach, dev->dvb.frontend, &cfg);
+	if (!fe) {
+		printk(KERN_ERR "%s/2: xc3028 attach failed\n",
+		       dev->core->name);
+		dvb_frontend_detach(dev->dvb.frontend);
+		dvb_unregister_frontend(dev->dvb.frontend);
+		dev->dvb.frontend = NULL;
+		return -EINVAL;
+	}
+
+	printk(KERN_INFO "%s/2: xc3028 attached\n",
+	       dev->core->name);
+
+	return 0;
+}
 
 static int dvb_register(struct cx8802_dev *dev)
 {
-	int attach_xc3028 = 0;
-
 	/* init struct videobuf_dvb */
 	dev->dvb.name = dev->core->name;
 	dev->ts_gen_cntrl = 0x0c;
@@ -595,8 +617,8 @@ static int dvb_register(struct cx8802_dev *dev)
 		 */
 		if (dev->dvb.frontend)
 			dev->dvb.frontend->ops.i2c_gate_ctrl = NULL;
-
-		attach_xc3028 = 1;
+		if (attach_xc3028(0x61, dev) < 0)
+			return -EINVAL;
 		break;
 	case CX88_BOARD_PCHDTV_HD3000:
 		dev->dvb.frontend = dvb_attach(or51132_attach, &pchdtv_hd3000,
@@ -770,7 +792,8 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend = dvb_attach(zl10353_attach,
 					       &cx88_geniatech_x8000_mt,
 					       &dev->core->i2c_adap);
-		attach_xc3028 = 1;
+		if (attach_xc3028(0x61, dev) < 0)
+			return -EINVAL;
 		break;
 	 case CX88_BOARD_GENIATECH_X8000_MT:
 	       dev->ts_gen_cntrl = 0x00;
@@ -778,7 +801,8 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend = dvb_attach(zl10353_attach,
 					       &cx88_geniatech_x8000_mt,
 					       &dev->core->i2c_adap);
-		attach_xc3028 = 1;
+		if (attach_xc3028(0x61, dev) < 0)
+			return -EINVAL;
 		break;
 	default:
 		printk(KERN_ERR "%s/2: The frontend of your DVB/ATSC card isn't supported yet\n",
@@ -789,27 +813,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		printk(KERN_ERR
 		       "%s/2: frontend initialization failed\n",
 		       dev->core->name);
-		return -1;
-	}
-
-	if (attach_xc3028) {
-		struct dvb_frontend *fe;
-		struct xc2028_config cfg = {
-			.i2c_adap  = &dev->core->i2c_adap,
-			.i2c_addr  = 0x61,
-			.video_dev = dev->core,
-		};
-		fe = dvb_attach(xc2028_attach, dev->dvb.frontend, &cfg);
-		if (!fe) {
-			printk(KERN_ERR "%s/2: xc3028 attach failed\n",
-			       dev->core->name);
-			dvb_frontend_detach(dev->dvb.frontend);
-			dvb_unregister_frontend(dev->dvb.frontend);
-			dev->dvb.frontend = NULL;
-			return -1;
-		}
-		printk(KERN_INFO "%s/2: xc3028 attached\n",
-		       dev->core->name);
+		return -EINVAL;
 	}
 
 	/* Ensure all frontends negotiate bus access */
