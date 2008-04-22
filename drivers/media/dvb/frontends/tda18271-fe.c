@@ -36,22 +36,6 @@ static LIST_HEAD(hybrid_tuner_instance_list);
 
 /*---------------------------------------------------------------------*/
 
-static int tda18271_ir_cal_init(struct dvb_frontend *fe)
-{
-	struct tda18271_priv *priv = fe->tuner_priv;
-	unsigned char *regs = priv->tda18271_regs;
-
-	tda18271_read_regs(fe);
-
-	/* test IR_CAL_OK to see if we need init */
-	if ((regs[R_EP1] & 0x08) == 0)
-		tda18271_init_regs(fe);
-
-	return 0;
-}
-
-/* ------------------------------------------------------------------ */
-
 static int tda18271_channel_configuration(struct dvb_frontend *fe,
 					  u32 ifc, u32 freq, u32 bw, u8 std,
 					  int radio)
@@ -194,6 +178,8 @@ static int tda18271_read_thermometer(struct dvb_frontend *fe)
 
 	return tm;
 }
+
+/* ------------------------------------------------------------------ */
 
 static int tda18271c2_rf_tracking_filters_correction(struct dvb_frontend *fe,
 						     u32 freq)
@@ -587,7 +573,7 @@ static int tda18271_calc_rf_filter_curve(struct dvb_frontend *fe)
 
 /* ------------------------------------------------------------------ */
 
-static int tda18271_rf_cal_init(struct dvb_frontend *fe)
+static int tda18271c2_rf_cal_init(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
@@ -609,28 +595,6 @@ static int tda18271_rf_cal_init(struct dvb_frontend *fe)
 
 	return 0;
 }
-
-static int tda18271_init(struct dvb_frontend *fe)
-{
-	struct tda18271_priv *priv = fe->tuner_priv;
-
-	mutex_lock(&priv->lock);
-
-	/* power up */
-	tda18271_set_standby_mode(fe, 0, 0, 0);
-
-	/* initialization */
-	tda18271_ir_cal_init(fe);
-
-	if (priv->id == TDA18271HDC2)
-		tda18271_rf_cal_init(fe);
-
-	mutex_unlock(&priv->lock);
-
-	return 0;
-}
-
-/* ------------------------------------------------------------------ */
 
 static int tda18271c1_rf_tracking_filter_calibration(struct dvb_frontend *fe,
 						     u32 freq, u32 bw)
@@ -728,6 +692,40 @@ static int tda18271c1_rf_tracking_filter_calibration(struct dvb_frontend *fe,
 }
 
 /* ------------------------------------------------------------------ */
+
+static int tda18271_ir_cal_init(struct dvb_frontend *fe)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	unsigned char *regs = priv->tda18271_regs;
+
+	tda18271_read_regs(fe);
+
+	/* test IR_CAL_OK to see if we need init */
+	if ((regs[R_EP1] & 0x08) == 0)
+		tda18271_init_regs(fe);
+
+	return 0;
+}
+
+static int tda18271_init(struct dvb_frontend *fe)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+
+	mutex_lock(&priv->lock);
+
+	/* power up */
+	tda18271_set_standby_mode(fe, 0, 0, 0);
+
+	/* initialization */
+	tda18271_ir_cal_init(fe);
+
+	if (priv->id == TDA18271HDC2)
+		tda18271c2_rf_cal_init(fe);
+
+	mutex_unlock(&priv->lock);
+
+	return 0;
+}
 
 static int tda18271_tune(struct dvb_frontend *fe,
 			 u32 ifc, u32 freq, u32 bw, u8 std, int radio)
@@ -1093,7 +1091,7 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 		tda18271_init_regs(fe);
 
 		if ((tda18271_cal_on_startup) && (priv->id == TDA18271HDC2))
-			tda18271_rf_cal_init(fe);
+			tda18271c2_rf_cal_init(fe);
 
 		mutex_unlock(&priv->lock);
 		break;
