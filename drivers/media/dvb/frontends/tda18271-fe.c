@@ -652,20 +652,12 @@ static int tda18271c2_tune(struct dvb_frontend *fe,
 
 /* ------------------------------------------------------------------ */
 
-static int tda18271c1_tune(struct dvb_frontend *fe,
-			   u32 ifc, u32 freq, u32 bw, u8 std, int radio)
+static int tda18271c1_rf_tracking_filter_calibration(struct dvb_frontend *fe,
+						     u32 freq, u32 bw)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 	u32 N = 0;
-
-	tda18271_init(fe);
-
-	mutex_lock(&priv->lock);
-
-	tda_dbg("freq = %d, ifc = %d\n", freq, ifc);
-
-	/* RF tracking filter calibration */
 
 	/* calculate bp filter */
 	tda18271_calc_bp_filter(fe, &freq);
@@ -737,7 +729,7 @@ static int tda18271c1_tune(struct dvb_frontend *fe,
 
 	regs[R_EB7]   = 0x40;
 	tda18271_write_regs(fe, R_EB7, 1);
-	msleep(10);
+	msleep(10); /* pll locking */
 
 	regs[R_EB20]  = 0xec;
 	tda18271_write_regs(fe, R_EB20, 1);
@@ -751,6 +743,22 @@ static int tda18271c1_tune(struct dvb_frontend *fe,
 	/* RF tracking filter correction for VHF_Low band */
 	if (0 == tda18271_calc_rf_cal(fe, &freq))
 		tda18271_write_regs(fe, R_EB14, 1);
+
+	return 0;
+}
+
+static int tda18271c1_tune(struct dvb_frontend *fe,
+			   u32 ifc, u32 freq, u32 bw, u8 std, int radio)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+
+	tda18271_init(fe);
+
+	mutex_lock(&priv->lock);
+
+	tda_dbg("freq = %d, ifc = %d\n", freq, ifc);
+
+	tda18271c1_rf_tracking_filter_calibration(fe, freq, bw);
 
 	tda18271_channel_configuration(fe, ifc, freq, bw, std, radio);
 
