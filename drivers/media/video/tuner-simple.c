@@ -688,6 +688,12 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 {
 	struct tuner_simple_priv *priv = NULL;
 
+	if (type >= tuner_count) {
+		printk(KERN_WARNING "%s: invalid tuner type: %d (max: %d)\n",
+		       __FUNCTION__, type, tuner_count-1);
+		return NULL;
+	}
+
 	priv = kzalloc(sizeof(struct tuner_simple_priv), GFP_KERNEL);
 	if (priv == NULL)
 		return NULL;

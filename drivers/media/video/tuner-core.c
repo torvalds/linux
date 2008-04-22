@@ -352,11 +352,6 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		return;
 	}
 
-	if (type >= tuner_count) {
-		tuner_warn ("tuner 0x%02x: Tuner count greater than %d\n",c->addr,tuner_count);
-		return;
-	}
-
 	t->type = type;
 	t->config = new_config;
 	if (tuner_callback != NULL) {
