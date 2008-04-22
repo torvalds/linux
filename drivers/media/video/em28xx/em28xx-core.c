@@ -813,19 +813,27 @@ int em28xx_set_alternate(struct em28xx *dev)
 {
 	int errCode, prev_alt = dev->alt;
 	int i;
-	unsigned int min_pkt_size = dev->bytesperline+4;
+	unsigned int min_pkt_size = dev->bytesperline + 4;
 
-	/* When image size is bigger than a ceirtain value,
+	/* When image size is bigger than a certain value,
 	   the frame size should be increased, otherwise, only
 	   green screen will be received.
 	 */
 	if (dev->frame_size > 720*240*2)
 		min_pkt_size *= 2;
 
-	for (i = 0; i < dev->num_alt; i++)
-		if (dev->alt_max_pkt_size[i] >= min_pkt_size)
+	for (i = 0; i < dev->num_alt; i++) {
+		/* stop when the selected alt setting offers enough bandwidth */
+		if (dev->alt_max_pkt_size[i] >= min_pkt_size) {
+			dev->alt = i;
 			break;
-	dev->alt = i;
+		/* otherwise make sure that we end up with the maximum bandwidth
+		   because the min_pkt_size equation might be wrong...
+		*/
+		} else if (dev->alt_max_pkt_size[i] >
+			   dev->alt_max_pkt_size[dev->alt])
+			dev->alt = i;
+	}
 
 	if (dev->alt != prev_alt) {
 		em28xx_coredbg("minimum isoc packet size: %u (alt=%d)\n",
