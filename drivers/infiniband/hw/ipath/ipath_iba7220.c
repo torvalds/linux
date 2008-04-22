@@ -1221,7 +1221,7 @@ static int ipath_msi_enabled(struct pci_dev *pdev)
 static void ipath_7220_nomsi(struct ipath_devdata *dd)
 {
 	dd->ipath_msi_lo = 0;
-#ifdef CONFIG_PCI_MSI
+
 	if (ipath_msi_enabled(dd->pcidev)) {
 		/*
 		 * free, but don't zero; later kernels require
@@ -1232,7 +1232,6 @@ static void ipath_7220_nomsi(struct ipath_devdata *dd)
 			free_irq(dd->ipath_irq, dd);
 		pci_disable_msi(dd->pcidev);
 	}
-#endif
 }
 
 /*
@@ -1344,7 +1343,7 @@ static int ipath_setup_7220_config(struct ipath_devdata *dd,
 	u32 boardrev;
 
 	dd->ipath_msi_lo = 0;	/* used as a flag during reset processing */
-#ifdef CONFIG_PCI_MSI
+
 	pos = pci_find_capability(pdev, PCI_CAP_ID_MSI);
 	if (!strcmp(int_type, "force_msi") || !strcmp(int_type, "auto"))
 		ret = pci_enable_msi(pdev);
@@ -1377,10 +1376,6 @@ static int ipath_setup_7220_config(struct ipath_devdata *dd,
 	} else
 		ipath_dev_err(dd, "Can't find MSI capability, "
 			      "can't save MSI settings for reset\n");
-#else
-	ipath_dbg("PCI_MSI not configured, using IntX interrupts\n");
-	ipath_enable_intx(pdev);
-#endif
 
 	dd->ipath_irq = pdev->irq;
 
@@ -1583,7 +1578,7 @@ static void ipath_init_7220_variables(struct ipath_devdata *dd)
 static int ipath_reinit_msi(struct ipath_devdata *dd)
 {
 	int ret = 0;
-#ifdef CONFIG_PCI_MSI
+
 	int pos;
 	u16 control;
 	if (!dd->ipath_msi_lo) /* Using intX, or init problem */
@@ -1617,8 +1612,8 @@ static int ipath_reinit_msi(struct ipath_devdata *dd)
 			      ((control & PCI_MSI_FLAGS_64BIT) ? 12 : 8),
 			      dd->ipath_msi_data);
 	ret = 1;
+
 bail:
-#endif
 	if (!ret) {
 		ipath_dbg("Using IntX, MSI disabled or not configured\n");
 		ipath_enable_intx(dd->pcidev);
