@@ -4010,6 +4010,30 @@ struct saa7134_board saa7134_boards[] = {
 			.amux   = LINE1,
 		} },
 	},
+	[SAA7134_BOARD_CREATIX_CTX953] = {
+		.name         = "Medion/Creatix CTX953 Hybrid",
+		.audio_clock  = 0x00187de7,
+		.tuner_type   = TUNER_PHILIPS_TDA8290,
+		.radio_type   = UNSET,
+		.tuner_addr   = ADDR_UNSET,
+		.radio_addr   = ADDR_UNSET,
+		.tuner_config = 0,
+		.mpeg         = SAA7134_MPEG_DVB,
+		.inputs       = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 0,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+		} },
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -4960,6 +4984,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x1822, /*Twinhan Technology Co. Ltd*/
 		.subdevice    = 0x0022,
 		.driver_data  = SAA7134_BOARD_TWINHAN_DTV_DVB_3056,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x16be,
+		.subdevice    = 0x0010, /* Medion version CTX953_V.1.4.3 */
+		.driver_data  = SAA7134_BOARD_CREATIX_CTX953,
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
@@ -5359,6 +5389,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 	case SAA7134_BOARD_MEDION_MD8800_QUADRO:
 	case SAA7134_BOARD_AVERMEDIA_SUPER_007:
 	case SAA7134_BOARD_TWINHAN_DTV_DVB_3056:
+	case SAA7134_BOARD_CREATIX_CTX953:
 		/* this is a hybrid board, initialize to analog mode
 		 * and configure firmware eeprom address
 		 */

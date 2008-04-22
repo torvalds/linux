@@ -1136,6 +1136,9 @@ static int dvb_init(struct saa7134_dev *dev)
 				wprintk("%s: No lnbp21 found!\n", __FUNCTION__);
 		}
 		break;
+	case SAA7134_BOARD_CREATIX_CTX953:
+		configure_tda827x_fe(dev, &md8800_dvbt_config);
+		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");
 		break;
