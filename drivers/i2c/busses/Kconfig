@@ -683,4 +683,13 @@ config I2C_PMCMSP
 	  This driver can also be built as module. If so, the module
 	  will be called i2c-pmcmsp.
 
+config I2C_SH7760
+	tristate "Renesas SH7760 I2C Controller"
+	depends on CPU_SUBTYPE_SH7760
+	help
+	  This driver supports the 2 I2C interfaces on the Renesas SH7760.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-sh7760.
+
 endmenu
