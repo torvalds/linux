@@ -173,6 +173,82 @@ static int simple_get_rf_strength(struct dvb_frontend *fe, u16 *strength)
 
 /* ---------------------------------------------------------------------- */
 
+static inline char *tuner_param_name(enum param_type type)
+{
+	char *name;
+
+	switch (type) {
+	case TUNER_PARAM_TYPE_RADIO:
+		name = "radio";
+		break;
+	case TUNER_PARAM_TYPE_PAL:
+		name = "pal";
+		break;
+	case TUNER_PARAM_TYPE_SECAM:
+		name = "secam";
+		break;
+	case TUNER_PARAM_TYPE_NTSC:
+		name = "ntsc";
+		break;
+	default:
+		name = "unknown";
+		break;
+	}
+	return name;
+}
+
+static struct tuner_params *simple_tuner_params(struct dvb_frontend *fe,
+						enum param_type desired_type)
+{
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+	struct tunertype *tun = priv->tun;
+	int i;
+
+	for (i = 0; i < tun->count; i++)
+		if (desired_type == tun->params[i].type)
+			break;
+
+	/* use default tuner params if desired_type not available */
+	if (i == tun->count) {
+		tuner_dbg("desired params (%s) undefined for tuner %d\n",
+			  tuner_param_name(desired_type), priv->type);
+		i = 0;
+	}
+
+	tuner_dbg("using tuner params #%d (%s)\n", i,
+		  tuner_param_name(tun->params[i].type));
+
+	return &tun->params[i];
+}
+
+static int simple_config_lookup(struct dvb_frontend *fe,
+				struct tuner_params *t_params,
+				int *frequency, u8 *config, u8 *cb)
+{
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+	int i;
+
+	for (i = 0; i < t_params->count; i++) {
+		if (*frequency > t_params->ranges[i].limit)
+			continue;
+		break;
+	}
+	if (i == t_params->count) {
+		tuner_dbg("frequency out of range (%d > %d)\n",
+			  *frequency, t_params->ranges[i - 1].limit);
+		*frequency = t_params->ranges[--i].limit;
+	}
+	*config = t_params->ranges[i].config;
+	*cb     = t_params->ranges[i].cb;
+
+	tuner_dbg("freq = %d, range = %d, config = 0x%02x, cb = 0x%02x\n",
+		  *frequency, i, *config, *cb);
+
+	return i;
+}
+
+/* ---------------------------------------------------------------------- */
+
 static int simple_set_tv_freq(struct dvb_frontend *fe,
 			      struct analog_parameters *params)
 {
@@ -181,7 +257,7 @@ static int simple_set_tv_freq(struct dvb_frontend *fe,
 	u16 div;
 	struct tunertype *tun;
 	u8 buffer[4];
-	int rc, IFPCoff, i, j;
+	int rc, IFPCoff, i;
 	enum param_type desired_type;
 	struct tuner_params *t_params;
 
@@ -214,35 +290,10 @@ static int simple_set_tv_freq(struct dvb_frontend *fe,
 		desired_type = TUNER_PARAM_TYPE_PAL;
 	}
 
-	for (j = 0; j < tun->count-1; j++) {
-		if (desired_type != tun->params[j].type)
-			continue;
-		break;
-	}
-	/* use default tuner params if desired_type not available */
-	if (desired_type != tun->params[j].type) {
-		tuner_dbg("IFPCoff = %d: params undefined for tuner %d\n",
-			  IFPCoff, priv->type);
-		j = 0;
-	}
-	t_params = &tun->params[j];
+	t_params = simple_tuner_params(fe, desired_type);
 
-	for (i = 0; i < t_params->count; i++) {
-		if (params->frequency > t_params->ranges[i].limit)
-			continue;
-		break;
-	}
-	if (i == t_params->count) {
-		tuner_dbg("TV frequency out of range (%d > %d)",
-			  params->frequency, t_params->ranges[i - 1].limit);
-		params->frequency = t_params->ranges[--i].limit;
-	}
-	config = t_params->ranges[i].config;
-	cb     = t_params->ranges[i].cb;
-	/*  i == 0 -> VHF_LO
-	 *  i == 1 -> VHF_HI
-	 *  i == 2 -> UHF     */
-	tuner_dbg("tv: param %d, range %d\n", j, i);
+	i = simple_config_lookup(fe, t_params, &params->frequency,
+				 &config, &cb);
 
 	div = params->frequency + IFPCoff + offset;
 
