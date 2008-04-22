@@ -911,12 +911,40 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 	return ret;
 }
 
+/*
+ * this unplugs every device on the box, and it is only used when page
+ * is null
+ */
+static void __unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
+{
+	struct list_head *cur;
+	struct btrfs_device *device;
+	struct btrfs_fs_info *info;
+
+	info = (struct btrfs_fs_info *)bdi->unplug_io_data;
+	list_for_each(cur, &info->fs_devices->devices) {
+		device = list_entry(cur, struct btrfs_device, dev_list);
+		bdi = blk_get_backing_dev_info(device->bdev);
+		if (bdi->unplug_io_fn) {
+			bdi->unplug_io_fn(bdi, page);
+		}
+	}
+}
+
 void btrfs_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode;
 	struct extent_map_tree *em_tree;
 	struct extent_map *em;
-	u64 offset = page_offset(page);
+	u64 offset;
+
+	if (!page) {
+		__unplug_io_fn(bdi, page);
+		return;
+	}
+
+	inode = page->mapping->host;
+	offset = page_offset(page);
 
 	em_tree = &BTRFS_I(inode)->extent_tree;
 	spin_lock(&em_tree->lock);
