@@ -305,6 +305,10 @@ struct emac_instance {
  * Set if we need phy clock workaround for 440gx
  */
 #define EMAC_FTR_440GX_PHY_CLK_FIX	0x00000080
+/*
+ * Set if we need phy clock workaround for 440ep or 440gr
+ */
+#define EMAC_FTR_440EP_PHY_CLK_FIX	0x00000100
 
 
 /* Right now, we don't quite handle the always/possible masks on the
@@ -328,7 +332,7 @@ enum {
 #ifdef CONFIG_IBM_NEW_EMAC_RGMII
 	    EMAC_FTR_HAS_RGMII	|
 #endif
-	    0,
+	EMAC_FTR_440EP_PHY_CLK_FIX,
 };
 
 static inline int emac_has_feature(struct emac_instance *dev,
