@@ -151,7 +151,7 @@ typedef struct {
 #define FM_Radio_INPUT2 	21
 #define FM_Radio_INPUT1 	22
 
-XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
+static XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
 	{"M/N-NTSC/PAL-BTSC", 0x0400, 0x8020},
 	{"M/N-NTSC/PAL-A2",   0x0600, 0x8020},
 	{"M/N-NTSC/PAL-EIAJ", 0x0440, 0x8020},
