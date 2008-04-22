@@ -199,14 +199,13 @@ pixelformat_to_palette(unsigned int pixelformat)
 
 /* ----------------------------------------------------------------- */
 
-static int poll_one(struct file *file)
+static int poll_one(struct file *file, struct poll_wqueues *pwq)
 {
 	int retval = 1;
 	poll_table *table;
-	struct poll_wqueues pwq; /*TODO: allocate dynamically*/
 
-	poll_initwait(&pwq);
-	table = &pwq.pt;
+	poll_initwait(pwq);
+	table = &pwq->pt;
 	for (;;) {
 		int mask;
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -221,7 +220,7 @@ static int poll_one(struct file *file)
 		schedule();
 	}
 	set_current_state(TASK_RUNNING);
-	poll_freewait(&pwq);
+	poll_freewait(pwq);
 	return retval;
 }
 
@@ -1068,6 +1067,7 @@ static noinline int v4l1_compat_sync(
 	int err;
 	enum v4l2_buf_type captype = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	struct v4l2_buffer buf;
+	struct poll_wqueues *pwq;
 
 	memset(&buf, 0, sizeof(buf));
 	buf.index = *i;
@@ -1091,10 +1091,11 @@ static noinline int v4l1_compat_sync(
 		goto done;
 	}
 
+	pwq = kmalloc(sizeof(*pwq), GFP_KERNEL);
 	/*  Loop as long as the buffer is queued, but not done  */
 	while ((buf.flags & (V4L2_BUF_FLAG_QUEUED | V4L2_BUF_FLAG_DONE))
 						== V4L2_BUF_FLAG_QUEUED) {
-		err = poll_one(file);
+		err = poll_one(file, pwq);
 		if (err < 0 ||	/* error or sleep was interrupted  */
 		    err == 0)	/* timeout? Shouldn't occur.  */
 			break;
@@ -1102,6 +1103,7 @@ static noinline int v4l1_compat_sync(
 		if (err < 0)
 			dprintk("VIDIOCSYNC / VIDIOC_QUERYBUF: %d\n", err);
 	}
+	kfree(pwq);
 	if (!(buf.flags & V4L2_BUF_FLAG_DONE)) /* not done */
 		goto done;
 	do {
