@@ -100,8 +100,6 @@ textofs-y	:= 0x00008000
   incdir-$(CONFIG_ARCH_CLPS7500)   := cl7500
  machine-$(CONFIG_FOOTBRIDGE)	   := footbridge
   incdir-$(CONFIG_FOOTBRIDGE)	   := ebsa285
- machine-$(CONFIG_ARCH_CO285)	   := footbridge
-  incdir-$(CONFIG_ARCH_CO285)	   := ebsa285
  machine-$(CONFIG_ARCH_SHARK)	   := shark
  machine-$(CONFIG_ARCH_SA1100)	   := sa1100
 ifeq ($(CONFIG_ARCH_SA1100),y)

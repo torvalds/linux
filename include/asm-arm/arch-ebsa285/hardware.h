@@ -14,7 +14,6 @@
 
 #include <asm/arch/memory.h>
 
-#ifdef CONFIG_ARCH_FOOTBRIDGE
 /*   Virtual      Physical	Size
  * 0xff800000	0x40000000	1MB	X-Bus
  * 0xff000000	0x7c000000	1MB	PCI I/O space
@@ -49,31 +48,6 @@
 
 #define PCIMEM_SIZE		0x01000000
 #define PCIMEM_BASE		0xf0000000
-
-#elif defined(CONFIG_ARCH_CO285)
-/*
- * This is the COEBSA285 cut-down mapping
- */
-#define PCIMEM_SIZE		0x80000000
-#define PCIMEM_BASE		0x80000000
-
-#define WFLUSH_SIZE		0x01000000
-#define WFLUSH_BASE		0x7d000000
-
-#define ARMCSR_SIZE		0x00100000
-#define ARMCSR_BASE		0x7cf00000
-
-#define XBUS_SIZE		0x00020000
-#define XBUS_BASE		0x7cee0000
-
-#define PCIO_SIZE		0x00010000
-#define PCIO_BASE		0x7ced0000
-
-#else
-
-#error "Undefined footbridge architecture"
-
-#endif
 
 #define XBUS_LEDS		((volatile unsigned char *)(XBUS_BASE + 0x12000))
 #define XBUS_LED_AMBER		(1 << 0)
