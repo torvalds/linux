@@ -354,6 +354,7 @@ static struct i2c_client cx23885_i2c_client_template = {
 
 static char *i2c_devs[128] = {
 	[0x10 >> 1]   = "tda10048",
+	[0x12 >> 1]   = "dib7000pc",
 	[ 0x1c >> 1 ] = "lgdt3303",
 	[ 0x86 >> 1 ] = "tda9887",
 	[ 0x32 >> 1 ] = "cx24227",
@@ -361,7 +362,8 @@ static char *i2c_devs[128] = {
 	[ 0x84 >> 1 ] = "tda8295",
 	[ 0xa0 >> 1 ] = "eeprom",
 	[ 0xc0 >> 1 ] = "tuner/mt2131/tda8275",
-	[ 0xc2 >> 1 ] = "tuner/mt2131/tda8275/xc5000",
+	[0xc2 >> 1] = "tuner/mt2131/tda8275/xc5000/xc3028",
+	[0xc8 >> 1]   = "tuner/xc3028L",
 };
 
 static void do_i2c_scan(char *name, struct i2c_client *c)
