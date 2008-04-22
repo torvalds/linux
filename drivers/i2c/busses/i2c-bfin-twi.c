@@ -693,8 +693,8 @@ static int i2c_bfin_twi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, iface);
 
-	dev_info(&pdev->dev, "Blackfin I2C TWI controller, regs_base@%p\n",
-		iface->regs_base);
+	dev_info(&pdev->dev, "Blackfin BF5xx on-chip I2C TWI Contoller, "
+		"regs_base@%p\n", iface->regs_base);
 
 	return 0;
 
@@ -748,9 +748,9 @@ static void __exit i2c_bfin_twi_exit(void)
 	platform_driver_unregister(&i2c_bfin_twi_driver);
 }
 
-MODULE_AUTHOR("Sonic Zhang <sonic.zhang@analog.com>");
-MODULE_DESCRIPTION("I2C-Bus adapter routines for Blackfin TWI");
-MODULE_LICENSE("GPL");
-
 module_init(i2c_bfin_twi_init);
 module_exit(i2c_bfin_twi_exit);
+
+MODULE_AUTHOR("Bryan Wu, Sonic Zhang");
+MODULE_DESCRIPTION("Blackfin BF5xx on-chip I2C TWI Contoller Driver");
+MODULE_LICENSE("GPL");
