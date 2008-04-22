@@ -16,7 +16,6 @@
 #define DVB_PLL_TUA6010XS               8
 #define DVB_PLL_ENV57H1XD5              9
 #define DVB_PLL_TUA6034                10
-#define DVB_PLL_LG_TDVS_H06XF          11
 #define DVB_PLL_TDA665X                12
 #define DVB_PLL_FMD1216ME              13
 #define DVB_PLL_TDED4                  14

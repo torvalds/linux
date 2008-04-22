@@ -80,16 +80,6 @@ struct dvb_pll_desc {
 /* ----------------------------------------------------------- */
 /* descriptions                                                */
 
-/* Set AGC TOP value to 103 dBuV:
-	0x80 = Control Byte
-	0x40 = 250 uA charge pump (irrelevant)
-	0x18 = Aux Byte to follow
-	0x06 = 64.5 kHz divider (irrelevant)
-	0x01 = Disable Vt (aka sleep)
-
-	0x00 = AGC Time constant 2s Iagc = 300 nA (vs 0x80 = 9 nA)
-	0x50 = AGC Take over point = 103 dBuV */
-static u8 tua603x_agc103[] = { 2, 0x80|0x40|0x18|0x06|0x01, 0x00|0x50 };
 
 /*	0x04 = 166.67 kHz divider
 
@@ -262,22 +252,6 @@ static struct dvb_pll_desc dvb_pll_tua6034 = {
 	},
 };
 
-/* Infineon TUA6034
- * used in LG TDVS-H061F, LG TDVS-H062F and LG TDVS-H064F
- */
-static struct dvb_pll_desc dvb_pll_lg_tdvs_h06xf = {
-	.name  = "LG TDVS-H06xF",
-	.min   =  54000000,
-	.max   = 863000000,
-	.iffreq= 44000000,
-	.initdata = tua603x_agc103,
-	.count = 3,
-	.entries = {
-		{  165000000, 62500, 0xce, 0x01 },
-		{  450000000, 62500, 0xce, 0x02 },
-		{  999999999, 62500, 0xce, 0x04 },
-	},
-};
 
 /* Philips FMD1216ME
  * used in Medion Hybrid PCMCIA card and USB Box
@@ -519,7 +493,6 @@ static struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_TUA6010XS]              = &dvb_pll_tua6010xs,
 	[DVB_PLL_ENV57H1XD5]             = &dvb_pll_env57h1xd5,
 	[DVB_PLL_TUA6034]                = &dvb_pll_tua6034,
-	[DVB_PLL_LG_TDVS_H06XF]          = &dvb_pll_lg_tdvs_h06xf,
 	[DVB_PLL_TDA665X]                = &dvb_pll_tda665x,
 	[DVB_PLL_FMD1216ME]              = &dvb_pll_fmd1216me,
 	[DVB_PLL_TDED4]                  = &dvb_pll_tded4,
