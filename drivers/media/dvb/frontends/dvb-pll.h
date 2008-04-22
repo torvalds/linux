@@ -11,17 +11,17 @@
 #define DVB_PLL_UNDEFINED               0
 #define DVB_PLL_THOMSON_DTT7579         1
 #define DVB_PLL_THOMSON_DTT759X         2
-#define DVB_PLL_LG_Z201                 4
-#define DVB_PLL_UNKNOWN_1               7
-#define DVB_PLL_TUA6010XS               8
-#define DVB_PLL_ENV57H1XD5              9
-#define DVB_PLL_TUA6034                10
-#define DVB_PLL_TDA665X                12
-#define DVB_PLL_TDED4                  14
-#define DVB_PLL_TDHU2                  16
-#define DVB_PLL_SAMSUNG_TBMV           17
-#define DVB_PLL_PHILIPS_SD1878_TDA8261 18
-#define DVB_PLL_OPERA1                 21
+#define DVB_PLL_LG_Z201                 3
+#define DVB_PLL_UNKNOWN_1               4
+#define DVB_PLL_TUA6010XS               5
+#define DVB_PLL_ENV57H1XD5              6
+#define DVB_PLL_TUA6034                 7
+#define DVB_PLL_TDA665X                 8
+#define DVB_PLL_TDED4                   9
+#define DVB_PLL_TDHU2                  10
+#define DVB_PLL_SAMSUNG_TBMV           11
+#define DVB_PLL_PHILIPS_SD1878_TDA8261 12
+#define DVB_PLL_OPERA1                 13
 
 /**
  * Attach a dvb-pll to the supplied frontend structure.
